@@ -1778,13 +1778,13 @@ int yy_flex_debug = 0;
 #define YY_MORE_ADJ 0
 #define YY_RESTORE_YY_MORE_OFFSET
 char *yytext;
-#line 1 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 1 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 /***********************************************************************
  * read_input_parser.l
  * - parsing cvc.input to program
  * - use flex -P <prefix_> ...
  ***********************************************************************/
-#line 21 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 21 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -1795,23 +1795,22 @@ char *yytext;
 
 
   /* Name of the parsing routine */
-#define YY_DECL         int parse_config()
+#define YY_DECL         int cvc_parse_config()
 #define YY_NO_UNPUT
 
   /* declaration of input parameters */
-  int i=0;
-  int line_of_file=1;
-  int comment_caller;
-  int name_caller;
+  int cvc_line_of_file=1;
+  int cvc_comment_caller;
+  int cvc_name_caller;
   int a,b;
   float c;
-  int reread = 0;
+  int cvc_reread = 0;
   char name[100];
   char * type;
   double ft_rmax[4];
 
-  int verbose = 0;
-  int myverbose = 0;
+  int cvc_verbose = 0;
+  int mycvc_verbose = 0;
 
 
 
@@ -1888,7 +1887,7 @@ char *yytext;
 
 
 
-#line 1892 "<stdout>"
+#line 1891 "<stdout>"
 
 #define INITIAL 0
 #define TT 1
@@ -2153,9 +2152,9 @@ YY_DECL
 	register char *yy_cp, *yy_bp;
 	register int yy_act;
     
-#line 130 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 129 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 
-#line 2159 "<stdout>"
+#line 2158 "<stdout>"
 
 	if ( !(yy_init) )
 		{
@@ -2237,1016 +2236,1016 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 131 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 130 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(TT);
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 132 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 131 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(LL);
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 133 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 132 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(LLX);
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 134 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 133 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(LLY);
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 135 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 134 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(LLZ);
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 136 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 135 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(MU);
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 137 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 136 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(MUSIGMA);
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 138 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 137 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(MUDELTA);
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 139 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 138 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(NNCONF);
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 140 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 139 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(KAPPA);
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 141 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 140 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(SOURCEID);
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 142 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 141 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(SOURCEID2);
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 143 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 142 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(GAUGEID);
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 144 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 143 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(GAUGEID2);
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 145 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 144 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(GAUGESTEP);
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 146 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 145 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(NNSAVE);
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 147 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 146 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(FFORMAT);
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 148 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 147 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(BCT);
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 149 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 148 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(BCX);
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 150 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 149 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(BCY);
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 151 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 150 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(BCZ);
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 152 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 151 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(PREFIX);
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 153 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 152 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(PREFIX2);
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 154 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 153 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(GAUGEPREFIX);
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 155 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 154 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(RESUME);
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 156 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 155 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(SUBTRACT);
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 157 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 156 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(SOURCELOC);
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 158 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 157 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(SSEED);
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 159 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 158 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(NOISETYPE);
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 160 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 159 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(SRCTYPE);
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 161 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 160 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(SPREC);
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 162 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 161 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(MAXITER);
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 163 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 162 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(SOURCEIDSTEP);
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 164 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 163 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(HPEMIN);
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 165 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 164 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(HPEMAX);
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 166 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 165 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(HPEORD);
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
-#line 167 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 166 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(CUTANG);
 	YY_BREAK
 case 38:
 YY_RULE_SETUP
-#line 168 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 167 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(CUTRAD);
 	YY_BREAK
 case 39:
 YY_RULE_SETUP
-#line 169 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 168 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(CUTDIRT);
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
-#line 170 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 169 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(CUTDIRX);
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
-#line 171 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 170 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(CUTDIRY);
 	YY_BREAK
 case 42:
 YY_RULE_SETUP
-#line 172 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 171 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(CUTDIRZ);
 	YY_BREAK
 case 43:
 YY_RULE_SETUP
-#line 173 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 172 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(RMIN);
 	YY_BREAK
 case 44:
 YY_RULE_SETUP
-#line 174 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 173 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(RMAX);
 	YY_BREAK
 case 45:
 YY_RULE_SETUP
-#line 175 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 174 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(AVGTT);
 	YY_BREAK
 case 46:
 YY_RULE_SETUP
-#line 176 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 175 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(AVGLL);
 	YY_BREAK
 case 47:
 YY_RULE_SETUP
-#line 177 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 176 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(MODEL_DCOEFFRE);
 	YY_BREAK
 case 48:
 YY_RULE_SETUP
-#line 178 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 177 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(MODEL_DCOEFFIM);
 	YY_BREAK
 case 49:
 YY_RULE_SETUP
-#line 179 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 178 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(MODEL_MRHO);
 	YY_BREAK
 case 50:
 YY_RULE_SETUP
-#line 180 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 179 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(FTRMAX1);
 	YY_BREAK
 case 51:
 YY_RULE_SETUP
-#line 181 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 180 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(FTRMAX2);
 	YY_BREAK
 case 52:
 YY_RULE_SETUP
-#line 182 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 181 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(FTRMAX3);
 	YY_BREAK
 case 53:
 YY_RULE_SETUP
-#line 183 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 182 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(FTRMAX4);
 	YY_BREAK
 case 54:
 YY_RULE_SETUP
-#line 184 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 183 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(PROPNORMSQR);
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
-#line 185 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 184 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(QHATSQRMIN);
 	YY_BREAK
 case 56:
 YY_RULE_SETUP
-#line 186 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 185 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(QHATSQRMAX);
 	YY_BREAK
 case 57:
 YY_RULE_SETUP
-#line 187 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 186 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(NLONG);
 	YY_BREAK
 case 58:
 YY_RULE_SETUP
-#line 188 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 187 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(NAPE);
 	YY_BREAK
 case 59:
 YY_RULE_SETUP
-#line 189 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 188 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(NJACOBI);
 	YY_BREAK
 case 60:
 YY_RULE_SETUP
-#line 190 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 189 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(ALPHAAPE);
 	YY_BREAK
 case 61:
 YY_RULE_SETUP
-#line 191 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 190 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(KAPPAJACOBI);
 	YY_BREAK
 case 62:
 YY_RULE_SETUP
-#line 192 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 191 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(SRCTIMESLICE);
 	YY_BREAK
 case 63:
 YY_RULE_SETUP
-#line 193 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 192 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(MMSNOMASSES);
 	YY_BREAK
 case 64:
 YY_RULE_SETUP
-#line 194 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 193 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(NOLIGHTMASSES);
 	YY_BREAK
 case 65:
 YY_RULE_SETUP
-#line 195 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 194 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(NOSTRANGEMASSES);
 	YY_BREAK
 case 66:
 YY_RULE_SETUP
-#line 196 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 195 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(NOXPROCS);
 	YY_BREAK
 case 67:
 YY_RULE_SETUP
-#line 197 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 196 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(NOYPROCS);
 	YY_BREAK
 case 68:
 YY_RULE_SETUP
-#line 198 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 197 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(LOCLOC);
 	YY_BREAK
 case 69:
 YY_RULE_SETUP
-#line 199 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 198 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(LOCSME);
 	YY_BREAK
 case 70:
 YY_RULE_SETUP
-#line 200 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 199 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(SMELOC);
 	YY_BREAK
 case 71:
 YY_RULE_SETUP
-#line 201 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 200 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(SMESME);
 	YY_BREAK
 case 72:
 YY_RULE_SETUP
-#line 202 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 201 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(ROTATE);
 	YY_BREAK
 case 73:
 YY_RULE_SETUP
-#line 203 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 202 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 BEGIN(PROPPOS);
 	YY_BREAK
 case 74:
 YY_RULE_SETUP
-#line 205 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 204 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   T_global = atoi(yytext);
-  if(myverbose!=0) printf("T_global =%s\n", yytext);
+  if(mycvc_verbose!=0) printf("T_global =%s\n", yytext);
 }
 	YY_BREAK
 case 75:
 YY_RULE_SETUP
-#line 209 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 208 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   L = atoi(yytext);
-  if(myverbose!=0) printf("L =%s\n", yytext);
+  if(mycvc_verbose!=0) printf("L =%s\n", yytext);
 }
 	YY_BREAK
 case 76:
 YY_RULE_SETUP
-#line 213 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 212 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   LX = atoi(yytext);
-  if(myverbose!=0) printf("LX =%s\n", yytext);
+  if(mycvc_verbose!=0) printf("LX =%s\n", yytext);
 }
 	YY_BREAK
 case 77:
 YY_RULE_SETUP
-#line 217 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 216 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   LY = atoi(yytext);
-  if(myverbose!=0) printf("LY =%s\n", yytext);
+  if(mycvc_verbose!=0) printf("LY =%s\n", yytext);
 }
 	YY_BREAK
 case 78:
 YY_RULE_SETUP
-#line 221 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 220 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   LZ = atoi(yytext);
-  if(myverbose!=0) printf("LZ =%s\n", yytext);
+  if(mycvc_verbose!=0) printf("LZ =%s\n", yytext);
 }
 	YY_BREAK
 case 79:
 YY_RULE_SETUP
-#line 225 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 224 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_kappa=atof(yytext);
-  if(myverbose!=0) printf("kappa=%s \n", yytext);
+  if(mycvc_verbose!=0) printf("kappa=%s \n", yytext);
 }
 	YY_BREAK
 case 80:
 YY_RULE_SETUP
-#line 229 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 228 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_mu=atof(yytext);
-  if(myverbose!=0) printf("mu=%s \n", yytext);
+  if(mycvc_verbose!=0) printf("mu=%s \n", yytext);
 }
 	YY_BREAK
 case 81:
 YY_RULE_SETUP
-#line 233 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 232 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_musigma=atof(yytext);
-  if(myverbose!=0) printf("musigma=%s \n", yytext);
+  if(mycvc_verbose!=0) printf("musigma=%s \n", yytext);
 }
 	YY_BREAK
 case 82:
 YY_RULE_SETUP
-#line 237 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 236 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_mudelta=atof(yytext);
-  if(myverbose!=0) printf("mudelta=%s \n", yytext);
+  if(mycvc_verbose!=0) printf("mudelta=%s \n", yytext);
 }
 	YY_BREAK
 case 83:
 YY_RULE_SETUP
-#line 241 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 240 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   Nsave=atoi(yytext); 
-  if(myverbose!=0) printf("Nsave= %s \n",yytext);
+  if(mycvc_verbose!=0) printf("Nsave= %s \n",yytext);
 }
 	YY_BREAK
 case 84:
 YY_RULE_SETUP
-#line 245 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 244 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   Nconf=atoi(yytext);
-  if(myverbose!=0) printf("Nconf=%s\n", yytext);
+  if(mycvc_verbose!=0) printf("Nconf=%s\n", yytext);
 }
 	YY_BREAK
 case 85:
 YY_RULE_SETUP
-#line 249 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 248 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   BCangle[0]=atof(yytext);
-  if(myverbose != 0) printf("BCangle[0] for bound. in time set to %e\n", BCangle[0]);
+  if(mycvc_verbose != 0) printf("BCangle[0] for bound. in time set to %e\n", BCangle[0]);
 }
 	YY_BREAK
 case 86:
 YY_RULE_SETUP
-#line 253 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 252 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   BCangle[1]=atof(yytext);
-  if(myverbose != 0) printf("BCangle[1] for bound. in x set to %e\n", BCangle[1]);
+  if(mycvc_verbose != 0) printf("BCangle[1] for bound. in x set to %e\n", BCangle[1]);
 }
 	YY_BREAK
 case 87:
 YY_RULE_SETUP
-#line 257 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 256 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   BCangle[2]=atof(yytext);
-  if(myverbose != 0) printf("BCangle[2] for bound. in y set to %e\n", BCangle[2]);
+  if(mycvc_verbose != 0) printf("BCangle[2] for bound. in y set to %e\n", BCangle[2]);
 }
 	YY_BREAK
 case 88:
 YY_RULE_SETUP
-#line 261 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 260 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   BCangle[3]=atof(yytext);
-  if(myverbose != 0) printf("BCangle[3] for bound. in z set to %e\n", BCangle[3]);
+  if(mycvc_verbose != 0) printf("BCangle[3] for bound. in z set to %e\n", BCangle[3]);
 }
 	YY_BREAK
 case 89:
 YY_RULE_SETUP
-#line 265 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 264 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_sourceid = atoi(yytext);
-  if(myverbose!=0) printf("first source id set to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("first source id set to %s\n", yytext);
 }
 	YY_BREAK
 case 90:
 YY_RULE_SETUP
-#line 269 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 268 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_sourceid2 = atoi(yytext);
-  if(myverbose!=0) printf("second source id set to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("second source id set to %s\n", yytext);
 }
 	YY_BREAK
 case 91:
 YY_RULE_SETUP
-#line 273 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 272 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_sourceid_step = atoi(yytext);
-  if(myverbose!=0) printf("source id step set to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("source id step set to %s\n", yytext);
 }
 	YY_BREAK
 case 92:
 YY_RULE_SETUP
-#line 277 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 276 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_gaugeid = atoi(yytext);
-  if(myverbose!=0) printf("first gauge id set to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("first gauge id set to %s\n", yytext);
 }
 	YY_BREAK
 case 93:
 YY_RULE_SETUP
-#line 281 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 280 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_gaugeid2 = atoi(yytext);
-  if(myverbose!=0) printf("second gauge id set to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("second gauge id set to %s\n", yytext);
 }
 	YY_BREAK
 case 94:
 YY_RULE_SETUP
-#line 285 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 284 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_gauge_step = atoi(yytext);
-  if(myverbose!=0) printf("gauge step size set to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("gauge step size set to %s\n", yytext);
 }
 	YY_BREAK
 case 95:
 YY_RULE_SETUP
-#line 289 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 288 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   strcpy(filename_prefix,yytext);
-  if(myverbose!=0) printf("prop. filename prefix set to %s\n",yytext);
+  if(mycvc_verbose!=0) printf("prop. filename prefix set to %s\n",yytext);
 }
 	YY_BREAK
 case 96:
 YY_RULE_SETUP
-#line 293 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 292 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   strcpy(filename_prefix2,yytext);
-  if(myverbose!=0) printf("prop. 2 filename prefix set to %s\n",yytext);
+  if(mycvc_verbose!=0) printf("prop. 2 filename prefix set to %s\n",yytext);
 }
 	YY_BREAK
 case 97:
 YY_RULE_SETUP
-#line 297 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 296 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   strcpy(gaugefilename_prefix,yytext);
-  if(myverbose!=0) printf("gauge filename prefix set to %s\n",yytext);
+  if(mycvc_verbose!=0) printf("gauge filename prefix set to %s\n",yytext);
 }
 	YY_BREAK
 case 98:
 YY_RULE_SETUP
-#line 301 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 300 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_resume=atoi(yytext);
-  if(myverbose!=0) printf("g_resume set to %s\n",yytext);
+  if(mycvc_verbose!=0) printf("g_resume set to %s\n",yytext);
 }
 	YY_BREAK
 case 99:
 YY_RULE_SETUP
-#line 305 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 304 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_subtract=atoi(yytext);
-  if(myverbose!=0) printf("g_subtract set to %s\n",yytext);
+  if(mycvc_verbose!=0) printf("g_subtract set to %s\n",yytext);
 }
 	YY_BREAK
 case 100:
 YY_RULE_SETUP
-#line 309 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 308 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_source_location=atoi(yytext);
-  if(myverbose!=0) printf("source location set to %s\n",yytext);
+  if(mycvc_verbose!=0) printf("source location set to %s\n",yytext);
 }
 	YY_BREAK
 case 101:
 YY_RULE_SETUP
-#line 313 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 312 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   format = atoi(yytext);
-  if(myverbose!=0) printf("format set to %s\n",yytext);
+  if(mycvc_verbose!=0) printf("format set to %s\n",yytext);
 }  
 	YY_BREAK
 case 102:
 YY_RULE_SETUP
-#line 317 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 316 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_seed = (unsigned int)atoi(yytext);
-  if(myverbose!=0) printf("g_seed set to %s\n",yytext);
+  if(mycvc_verbose!=0) printf("g_seed set to %s\n",yytext);
 }  
 	YY_BREAK
 case 103:
 YY_RULE_SETUP
-#line 321 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 320 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_noise_type = atoi(yytext);
-  if(myverbose!=0) printf("noise type set to %s\n",yytext);
+  if(mycvc_verbose!=0) printf("noise type set to %s\n",yytext);
 }  
 	YY_BREAK
 case 104:
 YY_RULE_SETUP
-#line 325 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 324 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_source_type = atoi(yytext);
-  if(myverbose!=0) printf("source type set to %s\n",yytext);
+  if(mycvc_verbose!=0) printf("source type set to %s\n",yytext);
 }
 	YY_BREAK
 case 105:
 YY_RULE_SETUP
-#line 329 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 328 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   solver_precision = atof(yytext);
-  if(myverbose!=0) printf("solver precision set to %s\n",yytext);
+  if(mycvc_verbose!=0) printf("solver precision set to %s\n",yytext);
 }
 	YY_BREAK
 case 106:
 YY_RULE_SETUP
-#line 333 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 332 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   niter_max = atoi(yytext);
-  if(myverbose!=0) printf("max. number of iterations set to %s\n",yytext);
+  if(mycvc_verbose!=0) printf("max. number of iterations set to %s\n",yytext);
 }
 	YY_BREAK
 case 107:
 YY_RULE_SETUP
-#line 337 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 336 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   hpe_order_min = atoi(yytext);
-  if(myverbose!=0) printf("min. HPE order set to %s\n",yytext);
+  if(mycvc_verbose!=0) printf("min. HPE order set to %s\n",yytext);
 }
 	YY_BREAK
 case 108:
 YY_RULE_SETUP
-#line 341 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 340 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   hpe_order_max = atoi(yytext);
-  if(myverbose!=0) printf("max. HPE order set to %s\n",yytext);
+  if(mycvc_verbose!=0) printf("max. HPE order set to %s\n",yytext);
 }
 	YY_BREAK
 case 109:
 YY_RULE_SETUP
-#line 345 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 344 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   hpe_order = atoi(yytext);
-  if(myverbose!=0) printf("HPE order set to %s\n",yytext);
+  if(mycvc_verbose!=0) printf("HPE order set to %s\n",yytext);
 }
 	YY_BREAK
 case 110:
 YY_RULE_SETUP
-#line 349 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 348 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_cutangle = atof(yytext);
-  if(myverbose!=0) printf("cone cut angle set to %s\n",yytext);
+  if(mycvc_verbose!=0) printf("cone cut angle set to %s\n",yytext);
 }
 	YY_BREAK
 case 111:
 YY_RULE_SETUP
-#line 353 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 352 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_cutradius = atof(yytext);
-  if(myverbose!=0) printf("cone cut radius set to %s\n",yytext);
+  if(mycvc_verbose!=0) printf("cone cut radius set to %s\n",yytext);
 }
 	YY_BREAK
 case 112:
 YY_RULE_SETUP
-#line 357 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 356 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_cutdir[0] = atoi(yytext);
-  if(myverbose!=0) printf("t-comp. of cut dir angle set to %s\n",yytext);
+  if(mycvc_verbose!=0) printf("t-comp. of cut dir angle set to %s\n",yytext);
 }
 	YY_BREAK
 case 113:
 YY_RULE_SETUP
-#line 361 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 360 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_cutdir[1] = atoi(yytext);
-  if(myverbose!=0) printf("x-comp. of cut dir angle set to %s\n",yytext);
+  if(mycvc_verbose!=0) printf("x-comp. of cut dir angle set to %s\n",yytext);
 }
 	YY_BREAK
 case 114:
 YY_RULE_SETUP
-#line 365 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 364 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_cutdir[2] = atoi(yytext);
-  if(myverbose!=0) printf("y-comp. of cut dir angle set to %s\n",yytext);
+  if(mycvc_verbose!=0) printf("y-comp. of cut dir angle set to %s\n",yytext);
 }
 	YY_BREAK
 case 115:
 YY_RULE_SETUP
-#line 369 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 368 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_cutdir[3] = atoi(yytext);
-  if(myverbose!=0) printf("z-comp. of cut dir angle set to %s\n",yytext);
+  if(mycvc_verbose!=0) printf("z-comp. of cut dir angle set to %s\n",yytext);
 }
 	YY_BREAK
 case 116:
 YY_RULE_SETUP
-#line 373 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 372 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_rmin = atof(yytext);
-  if(myverbose!=0) printf("minimal distance set to %s\n",yytext);
+  if(mycvc_verbose!=0) printf("minimal distance set to %s\n",yytext);
 }
 	YY_BREAK
 case 117:
 YY_RULE_SETUP
-#line 377 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 376 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_rmax = atof(yytext);
-  if(myverbose!=0) printf("maximal distance set to %s\n",yytext);
+  if(mycvc_verbose!=0) printf("maximal distance set to %s\n",yytext);
 }
 	YY_BREAK
 case 118:
 YY_RULE_SETUP
-#line 381 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 380 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   avgT = atoi(yytext);
-  if(myverbose!=0) printf("avgT =%s\n", yytext);
+  if(mycvc_verbose!=0) printf("avgT =%s\n", yytext);
 }
 	YY_BREAK
 case 119:
 YY_RULE_SETUP
-#line 385 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 384 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   avgL = atoi(yytext);
-  if(myverbose!=0) printf("avgL =%s\n", yytext);
+  if(mycvc_verbose!=0) printf("avgL =%s\n", yytext);
 }
 	YY_BREAK
 case 120:
 YY_RULE_SETUP
-#line 389 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 388 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   model_dcoeff_re = atof(yytext);
-  if(myverbose!=0) printf("real part of d-coeff. set to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("real part of d-coeff. set to %s\n", yytext);
 }
 	YY_BREAK
 case 121:
 YY_RULE_SETUP
-#line 393 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 392 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   model_dcoeff_im = atof(yytext);
-  if(myverbose!=0) printf("imaginary part of d-coeff. set to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("imaginary part of d-coeff. set to %s\n", yytext);
 }
 	YY_BREAK
 case 122:
 YY_RULE_SETUP
-#line 397 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 396 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   model_mrho = atof(yytext);
-  if(myverbose!=0) printf("rho-meson mass set to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("rho-meson mass set to %s\n", yytext);
 }
 	YY_BREAK
 case 123:
 YY_RULE_SETUP
-#line 401 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 400 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   ft_rmax[0] = atof(yytext);
-  if(myverbose!=0) printf("1st rmax for FT set to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("1st rmax for FT set to %s\n", yytext);
 }
 	YY_BREAK
 case 124:
 YY_RULE_SETUP
-#line 405 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 404 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   ft_rmax[1] = atof(yytext);
-  if(myverbose!=0) printf("2nd rmax for FT set to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("2nd rmax for FT set to %s\n", yytext);
 }
 	YY_BREAK
 case 125:
 YY_RULE_SETUP
-#line 409 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 408 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   ft_rmax[2] = atof(yytext);
-  if(myverbose!=0) printf("3rd rmax for FT set to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("3rd rmax for FT set to %s\n", yytext);
 }
 	YY_BREAK
 case 126:
 YY_RULE_SETUP
-#line 413 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 412 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   ft_rmax[3] = atof(yytext);
-  if(myverbose!=0) printf("4th rmax for FT set to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("4th rmax for FT set to %s\n", yytext);
 }
 	YY_BREAK
 case 127:
 YY_RULE_SETUP
-#line 417 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 416 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_prop_normsqr = atof(yytext);
-  if(myverbose!=0) printf("propagator norm squared set to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("propagator norm squared set to %s\n", yytext);
 }
 	YY_BREAK
 case 128:
 YY_RULE_SETUP
-#line 421 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 420 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_qhatsqr_min = atof(yytext);
-  if(myverbose!=0) printf("set minimal squared Qhat to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("set minimal squared Qhat to %s\n", yytext);
 }
 	YY_BREAK
 case 129:
 YY_RULE_SETUP
-#line 425 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 424 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_qhatsqr_max = atof(yytext);
-  if(myverbose!=0) printf("set maximal squared Qhat to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("set maximal squared Qhat to %s\n", yytext);
 }
 	YY_BREAK
 case 130:
 YY_RULE_SETUP
-#line 429 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 428 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   Nlong = atoi(yytext);
-  if(myverbose!=0) printf("set Nlong to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("set Nlong to %s\n", yytext);
 }
 	YY_BREAK
 case 131:
 YY_RULE_SETUP
-#line 433 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 432 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   N_ape = atoi(yytext);
-  if(myverbose!=0) printf("set N_ape to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("set N_ape to %s\n", yytext);
 }
 	YY_BREAK
 case 132:
 YY_RULE_SETUP
-#line 437 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 436 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   N_Jacobi = atoi(yytext);
-  if(myverbose!=0) printf("set N_Jacobi to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("set N_Jacobi to %s\n", yytext);
 }
 	YY_BREAK
 case 133:
 YY_RULE_SETUP
-#line 441 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 440 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   alpha_ape = atof(yytext);
-  if(myverbose!=0) printf("set alpha_ape to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("set alpha_ape to %s\n", yytext);
 }
 	YY_BREAK
 case 134:
 YY_RULE_SETUP
-#line 445 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 444 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   kappa_Jacobi = atof(yytext);
-  if(myverbose!=0) printf("set kappa_Jacobi to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("set kappa_Jacobi to %s\n", yytext);
 }
 	YY_BREAK
 case 135:
 YY_RULE_SETUP
-#line 449 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 448 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_source_timeslice = atoi(yytext);
-  if(myverbose!=0) printf("set source timeslice to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("set source timeslice to %s\n", yytext);
 }
 	YY_BREAK
 case 136:
 YY_RULE_SETUP
-#line 453 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 452 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_no_extra_masses = atoi(yytext);
-  if(myverbose!=0) printf("set no. of extra masses for mms to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("set no. of extra masses for mms to %s\n", yytext);
 }
 	YY_BREAK
 case 137:
 YY_RULE_SETUP
-#line 457 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 456 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_no_light_masses = atoi(yytext);
-  if(myverbose!=0) printf("set no. of light masses for mms to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("set no. of light masses for mms to %s\n", yytext);
 }
 	YY_BREAK
 case 138:
 YY_RULE_SETUP
-#line 461 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 460 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_no_strange_masses = atoi(yytext);
-  if(myverbose!=0) printf("set no. of strange masses for mms to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("set no. of strange masses for mms to %s\n", yytext);
 }
 	YY_BREAK
 case 139:
 YY_RULE_SETUP
-#line 465 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 464 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_nproc_x = atoi(yytext);
-  if(myverbose!=0) printf("set g_nproc_x to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("set g_nproc_x to %s\n", yytext);
 }
 	YY_BREAK
 case 140:
 YY_RULE_SETUP
-#line 469 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 468 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_nproc_y = atoi(yytext);
-  if(myverbose!=0) printf("set g_nproc_y to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("set g_nproc_y to %s\n", yytext);
 }
 	YY_BREAK
 case 141:
 YY_RULE_SETUP
-#line 473 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 472 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   if(strcmp(yytext, "yes")==0) {
     g_local_local = 1;
-    if(myverbose!=0) printf("do local-local contraction\n");
+    if(mycvc_verbose!=0) printf("do local-local contraction\n");
   }
 }
 	YY_BREAK
 case 142:
 YY_RULE_SETUP
-#line 479 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 478 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   if(strcmp(yytext, "yes")==0) {
     g_local_smeared = 1;
-    if(myverbose!=0) printf("do local-smeared contraction\n");
+    if(mycvc_verbose!=0) printf("do local-smeared contraction\n");
   }
 }
 	YY_BREAK
 case 143:
 YY_RULE_SETUP
-#line 485 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 484 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   if(strcmp(yytext, "yes")==0) {
     g_smeared_local = 1;
-    if(myverbose!=0) printf("do smeared-local contraction\n");
+    if(mycvc_verbose!=0) printf("do smeared-local contraction\n");
   }
 }
 	YY_BREAK
 case 144:
 YY_RULE_SETUP
-#line 491 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 490 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   if(strcmp(yytext, "yes")==0) {
     g_smeared_smeared = 1;
-    if(myverbose!=0) printf("do smeared-smeared contraction\n");
+    if(mycvc_verbose!=0) printf("do smeared-smeared contraction\n");
   }
 }
 	YY_BREAK
 case 145:
 YY_RULE_SETUP
-#line 497 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 496 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   if(strcmp(yytext, "yes")==0) {
     g_rotate_ETMC_UKQCD = 1;
-    if(myverbose!=0) printf("rotate propagators UKQCD -> ETMC\n");
+    if(mycvc_verbose!=0) printf("rotate propagators UKQCD -> ETMC\n");
   }
 }
 	YY_BREAK
 case 146:
 YY_RULE_SETUP
-#line 503 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 502 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   g_propagator_position = atoi(yytext);
-  if(myverbose!=0) printf("set set propagator position to %s\n", yytext);
+  if(mycvc_verbose!=0) printf("set set propagator position to %s\n", yytext);
 }
 	YY_BREAK
 case 147:
 YY_RULE_SETUP
-#line 508 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 507 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
-   comment_caller = YY_START;   
+   cvc_comment_caller = YY_START;   
    BEGIN(COMMENT);
 }
 	YY_BREAK
 case 148:
 YY_RULE_SETUP
-#line 512 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 511 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
-   comment_caller = YY_START;
+   cvc_comment_caller = YY_START;
    BEGIN(COMMENT);
 }
 	YY_BREAK
 case 149:
 YY_RULE_SETUP
-#line 516 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 515 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
-  BEGIN(comment_caller);
+  BEGIN(cvc_comment_caller);
 }
 	YY_BREAK
 case 150:
 /* rule 150 can match eol */
 YY_RULE_SETUP
-#line 520 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 519 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
-  line_of_file++;
+  cvc_line_of_file++;
   BEGIN(0);
 }
 	YY_BREAK
 case 151:
 YY_RULE_SETUP
-#line 525 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 524 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
   BEGIN(ERROR);
 }
 	YY_BREAK
 case 152:
 YY_RULE_SETUP
-#line 528 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 527 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 {
-  printf("Parsing error in line %d\nAborting...!\n", line_of_file);
+  printf("Parsing error in line %d\nAborting...!\n", cvc_line_of_file);
   exit(1);
 }
 	YY_BREAK
 case 153:
 YY_RULE_SETUP
-#line 534 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 533 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 ECHO;
 	YY_BREAK
-#line 3250 "<stdout>"
+#line 3249 "<stdout>"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(TT):
 case YY_STATE_EOF(LLX):
@@ -4319,7 +4318,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 534 "/users/stud/burger/codepackages/vacuum_polarization_contractions/cvc//read_input_parser.l"
+#line 533 "/home/flo/Code/vacuum_polarization_contractions/cvc//read_input_parser.l"
 
 
 
@@ -4349,18 +4348,18 @@ int read_input_parser(char * conf_file){
   /********************************************
    * Setting default values!
    ********************************************/
-  reread = 0;
+  cvc_reread = 0;
   set_default_input_values();
 
-  if( (g_proc_id == 0) && (verbose>0) ) {
-    myverbose = 1;
+  if( (g_proc_id == 0) && (cvc_verbose>0) ) {
+    mycvc_verbose = 1;
   }
   if ((yyin = fopen(conf_file, "rt")) == NULL){
     return(2);
   }
   yyout = fopen("/dev/null", "w");
 
-  parse_config();  
+  cvc_parse_config();  
   
   fclose(yyout);
   fclose(yyin);
@@ -4382,10 +4381,10 @@ int read_input_parser(char * conf_file){
 
 int reread_input_parser(char * conf_file){
 
-  if(verbose && g_proc_id == 0) {
-    myverbose = 1;
+  if(cvc_verbose && g_proc_id == 0) {
+    mycvc_verbose = 1;
   }
-  reread = 1;
+  cvc_reread = 1;
 
   /********************************************
    * Setting default values!
@@ -4398,7 +4397,7 @@ int reread_input_parser(char * conf_file){
   }
   yyout = fopen("/dev/null", "w");
 
-  parse_config();  
+  cvc_parse_config();  
 
   fclose(yyout);
   fclose(yyin);

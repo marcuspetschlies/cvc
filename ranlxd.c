@@ -3,9 +3,9 @@
 *
 * file ranlxd.c
 *
-* Random number generator "ranlxd". See the notes 
+* Random number generator "cvc_ranlxd". See the notes 
 *
-*   "User's guide for ranlxs and ranlxd v3.0" (May 2001)
+*   "User's guide for ranlxs and cvc_ranlxd v3.0" (May 2001)
 *
 *   "Algorithms used in ranlux v3.0" (May 2001)
 *
@@ -13,22 +13,22 @@
 *
 * The externally accessible functions are 
 *
-*   void ranlxd(double r[],int n)
+*   void cvc_ranlxd(double r[],int n)
 *     Computes the next n double-precision random numbers and 
 *     assigns them to the elements r[0],...,r[n-1] of the array r[]
 * 
-*   void rlxd_init(int level,int seed)
+*   void cvc_rlxd_init(int level,int seed)
 *     Initialization of the generator
 *
-*   int rlxd_size(void)
+*   int cvc_rlxd_size(void)
 *     Returns the number of integers required to save the state of
 *     the generator
 *
-*   void rlxd_get(int state[])
+*   void cvc_rlxd_get(int state[])
 *     Extracts the current state of the generator and stores the 
-*     information in the array state[N] where N>=rlxd_size()
+*     information in the array state[N] where N>=cvc_rlxd_size()
 *
-*   void rlxd_reset(int state[])
+*   void cvc_rlxd_reset(int state[])
 *     Resets the generator to the state defined by the array state[N]
 *
 * Version: 3.0
@@ -98,19 +98,19 @@ static void error(int no)
    switch(no)
    {
       case 1:
-         printf("Error in subroutine rlxd_init\n");
+         printf("Error in subroutine cvc_rlxd_init\n");
          printf("Bad choice of luxury level (should be 1 or 2)\n");
          break;
       case 2:
-         printf("Error in subroutine rlxd_init\n");
+         printf("Error in subroutine cvc_rlxd_init\n");
          printf("Bad choice of seed (should be between 1 and 2^31-1)\n");
          break;
       case 3:
-         printf("Error in rlxd_get\n");
-         printf("Undefined state (ranlxd is not initialized\n");
+         printf("Error in cvc_rlxd_get\n");
+         printf("Undefined state (cvc_ranlxd is not initialized\n");
          break;
       case 5:
-         printf("Error in rlxd_reset\n");
+         printf("Error in cvc_rlxd_reset\n");
          printf("Unexpected input data\n");
          break;
    }         
@@ -191,7 +191,7 @@ static void define_constants()
 }
 
 
-void rlxd_init(int level,int seed)
+void cvc_rlxd_init(int level,int seed)
 {
    int i,k,l;
    int ibit,jbit,xbit[31];
@@ -257,12 +257,12 @@ void rlxd_init(int level,int seed)
 }
 
 
-void ranlxd(double r[],int n)
+void cvc_ranlxd(double r[],int n)
 {
    int k;
 
    if (init==0)
-      rlxd_init(1,1);
+      cvc_rlxd_init(1,1);
 
    for (k=0;k<n;k++) 
    {
@@ -274,13 +274,13 @@ void ranlxd(double r[],int n)
 }
 
 
-int rlxd_size(void)
+int cvc_rlxd_size(void)
 {
    return(105);
 }
 
 
-void rlxd_get(int state[])
+void cvc_rlxd_get(int state[])
 {
    int k;
    float base;
@@ -289,7 +289,7 @@ void rlxd_get(int state[])
       error(3);
 
    base=(float)(ldexp(1.0,24));
-   state[0]=rlxd_size();
+   state[0]=cvc_rlxd_size();
 
    for (k=0;k<96;k++)
       state[k+1]=(int)(base*x.num[k]);
@@ -306,13 +306,13 @@ void rlxd_get(int state[])
 }
 
 
-void rlxd_reset(int state[])
+void cvc_rlxd_reset(int state[])
 {
    int k;
 
    define_constants();
 
-   if (state[0]!=rlxd_size())
+   if (state[0]!=cvc_rlxd_size())
       error(5);
 
    for (k=0;k<96;k++)
@@ -413,27 +413,27 @@ static void error(int no)
    switch(no)
    {
       case 0:
-         printf("Error in rlxd_init\n");
-         printf("Arithmetic on this machine is not suitable for ranlxd\n");
+         printf("Error in cvc_rlxd_init\n");
+         printf("Arithmetic on this machine is not suitable for cvc_ranlxd\n");
          break;
       case 1:
-         printf("Error in subroutine rlxd_init\n");
+         printf("Error in subroutine cvc_rlxd_init\n");
          printf("Bad choice of luxury level (should be 1 or 2)\n");
          break;
       case 2:
-         printf("Error in subroutine rlxd_init\n");
+         printf("Error in subroutine cvc_rlxd_init\n");
          printf("Bad choice of seed (should be between 1 and 2^31-1)\n");
          break;
       case 3:
-         printf("Error in rlxd_get\n");
-         printf("Undefined state (ranlxd is not initialized)\n");
+         printf("Error in cvc_rlxd_get\n");
+         printf("Undefined state (cvc_ranlxd is not initialized)\n");
          break;
       case 4:
-         printf("Error in rlxd_reset\n");
-         printf("Arithmetic on this machine is not suitable for ranlxd\n");
+         printf("Error in cvc_rlxd_reset\n");
+         printf("Arithmetic on this machine is not suitable for cvc_ranlxd\n");
          break;
       case 5:
-         printf("Error in rlxd_reset\n");
+         printf("Error in cvc_rlxd_reset\n");
          printf("Unexpected input data\n");
          break;
    }         
@@ -490,7 +490,7 @@ static void define_constants()
 }
 
 
-void rlxd_init(int level,int seed)
+void cvc_rlxd_init(int level,int seed)
 {
    int i,k,l;
    int ibit,jbit,xbit[31];
@@ -560,12 +560,12 @@ void rlxd_init(int level,int seed)
 }
 
 
-void ranlxd(double r[],int n)
+void cvc_ranlxd(double r[],int n)
 {
    int k;
 
    if (init==0)
-      rlxd_init(1,1);
+      cvc_rlxd_init(1,1);
 
    for (k=0;k<n;k++) 
    {
@@ -577,20 +577,20 @@ void ranlxd(double r[],int n)
 }
 
 
-int rlxd_size(void)
+int cvc_rlxd_size(void)
 {
    return(105);
 }
 
 
-void rlxd_get(int state[])
+void cvc_rlxd_get(int state[])
 {
    int k;
 
    if (init==0)
       error(3);
 
-   state[0]=rlxd_size();
+   state[0]=cvc_rlxd_size();
 
    for (k=0;k<96;k++)
       state[k+1]=x.num[k];
@@ -607,7 +607,7 @@ void rlxd_get(int state[])
 }
 
 
-void rlxd_reset(int state[])
+void cvc_rlxd_reset(int state[])
 {
    int k;
 
@@ -617,7 +617,7 @@ void rlxd_reset(int state[])
 
    define_constants();
 
-   if (state[0]!=rlxd_size())
+   if (state[0]!=cvc_rlxd_size())
       error(5);
 
    for (k=0;k<96;k++)

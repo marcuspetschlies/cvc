@@ -45,6 +45,111 @@ void usage() {
   exit(0);
 }
 
+static int base_locations[16];
+
+int get_abs_pos(it, ix, iy, iz){
+     int abspos = iz + 
+             (g_nproc_z*LZ)*(iy + 
+             (g_nproc_y*LY)*(ix + 
+             (g_nproc_x*LX)*(it) ));
+    return(abspos);
+};
+
+int init_base_locations(int first_source_loc){
+    int source_coord[4], tmp, i;
+    source_coord[3]= first_source_loc % (g_nproc_z * LZ);
+    tmp = first_source_loc / (g_nproc_z * LZ);
+    source_coord[2]=tmp % (g_nproc_y * LY);
+    tmp = tmp / (g_nproc_y * LY);
+    source_coord[1]=tmp % (g_nproc_x * LX);
+    tmp = tmp / (g_nproc_x * LX);
+    source_coord[0]=tmp; 
+    base_locations[0] = first_source_loc;
+
+  for(i=1; i<16; i++){
+    int inc_dir = i % 4;
+    source_coord[inc_dir]++;
+    base_locations[i] = get_abs_pos(source_coord[0], source_coord[1], source_coord[2], source_coord[3]);
+  }
+}
+
+void print_base_locations(){
+  int i;
+  for(i=0; i<16; i++){
+    printf("%d\t%d\n", i, base_locations[i]);
+  }
+ return; 
+}
+
+
+
+int get_source_location(int nu){
+  // the base location is in g_source_location (_4)
+  // if nu==4 (base position) we do not increase a dir
+  // else increase depending on nu
+  
+  if(nu<4){
+    
+    int source_coord[4], tmp, dir, abspos;
+    source_coord[3]=g_source_location % (g_nproc_z * LZ);
+    tmp = g_source_location / (g_nproc_z * LZ);
+    source_coord[2]=tmp % (g_nproc_y * LY);
+    tmp = tmp / (g_nproc_y * LY);
+    source_coord[1]=tmp % (g_nproc_x * LX);
+    tmp = tmp / (g_nproc_x * LX);
+    source_coord[0]=tmp;
+     
+    dir = nu % 4;
+    source_coord[dir] += 1;    
+    // construct absolute position
+    abspos = source_coord[3] + 
+             (g_nproc_z*LZ)*(source_coord[2] + 
+             (g_nproc_y*LY)*(source_coord[1] + 
+             (g_nproc_x*LX)*(source_coord[0]) ));
+    return(abspos);
+  }
+  else{
+    return(g_source_location); 
+  }
+}
+
+void print_all_source_locations(){
+  int i, nu, j=0;
+  for(i=0; i<16; i++){
+    g_source_location = base_locations[i];
+    for(nu=0; nu<5; nu++){
+      printf("%d\t%d\n", j, get_source_location(nu));
+      j++;
+    }
+  }
+ return; 
+}
+
+
+
+
+void get_propagator(int nu, int ia, int spos, int sign, int onefile){
+#ifdef LIBWRAPPER
+  int op_id = sign>0?0:1;
+  int source_location = get_source_location(nu);
+  tmLQCD_invert(g_spinor_field[spos], (double*) NULL, op_id, 0, ia, source_location);
+#else
+  char filename[100];
+  if(onefile==0){
+    //might read from source and msource
+    get_filename(filename, nu, ia, sign);
+    read_lime_spinor(g_spinor_field[spos], filename, 0); 
+  }
+  else{
+    int readpos = sign>0?0:1;   
+    get_filename(filename, nu, ia, 1);//-1 implies reading from msource..
+    read_lime_spinor(g_spinor_field[spos], filename, readpos);
+  }
+#endif
+  xchange_field(g_spinor_field[spos]);
+}
+
+
 int main(int argc, char **argv) {
   
   int c, i, j, mu, nu, ir, is, ia, ib, imunu;
@@ -81,6 +186,7 @@ int main(int argc, char **argv) {
   FILE *ofs;
 
   fftw_complex *in=(fftw_complex*)NULL;
+
 
 #ifdef MPI
   fftwnd_mpi_plan plan_p;
@@ -169,6 +275,11 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
     if(g_proc_id==0) fprintf(stdout, "kappa should be > 0.n");
     usage();
   }
+  
+  init_base_locations(g_source_location);
+  print_base_locations();
+  print_all_source_locations();
+  
 
   /* initialize MPI parameters */
   mpi_init(argc, argv);
@@ -179,6 +290,20 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
     exit(7);
   }
 #endif
+
+  
+  /*initialize tmLQCD wrapper*/
+#ifdef LIBWRAPPER
+  int tmlqcd_init = tmLQCD_invert_init(argc, argv, 1);
+  if(tmlqcd_init != 0){
+    fprintf(stderr, "\n[] Error from tmLQCD initialization; status was %d\n", tmlqcd_init);
+  }
+  tmlqcd_init = tmLQCD_read_gauge(Nconf);
+   if(tmlqcd_init != 0){
+    fprintf(stderr, "\n[] Error from tmLQCD gauge read of config no %d; status was %d\n", Nconf, tmlqcd_init);
+  } 
+#endif
+  
 
   /* initialize fftw */
 #ifdef OPENMP
@@ -307,6 +432,58 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
     exit(4);
   }
 
+  
+  /* initialize the Gamma matrices */
+  // gamma_5:
+  gperm[4][0] = gamma_permutation[5][ 0] / 6;
+  gperm[4][1] = gamma_permutation[5][ 6] / 6;
+  gperm[4][2] = gamma_permutation[5][12] / 6;
+  gperm[4][3] = gamma_permutation[5][18] / 6;
+  gperm_sign[4][0] = gamma_sign[5][ 0];
+  gperm_sign[4][1] = gamma_sign[5][ 6];
+  gperm_sign[4][2] = gamma_sign[5][12];
+  gperm_sign[4][3] = gamma_sign[5][18];
+  // gamma_nu gamma_5
+  for(nu=0;nu<4;nu++) {
+    // permutation
+    gperm[nu][0] = gamma_permutation[6+nu][ 0] / 6;
+    gperm[nu][1] = gamma_permutation[6+nu][ 6] / 6;
+    gperm[nu][2] = gamma_permutation[6+nu][12] / 6;
+    gperm[nu][3] = gamma_permutation[6+nu][18] / 6;
+    // is imaginary ?
+    isimag[nu] = gamma_permutation[6+nu][0] % 2;
+    // (overall) sign
+    gperm_sign[nu][0] = gamma_sign[6+nu][ 0];
+    gperm_sign[nu][1] = gamma_sign[6+nu][ 6];
+    gperm_sign[nu][2] = gamma_sign[6+nu][12];
+    gperm_sign[nu][3] = gamma_sign[6+nu][18];
+    // write to stdout
+    fprintf(stdout, "# gamma_%d5 = (%f %d, %f %d, %f %d, %f %d)\n", nu,
+        gperm_sign[nu][0], gperm[nu][0], gperm_sign[nu][1], gperm[nu][1], 
+        gperm_sign[nu][2], gperm[nu][2], gperm_sign[nu][3], gperm[nu][3]);
+  }
+  // gamma_nu
+  for(nu=0;nu<4;nu++) {
+    // permutation
+    gperm2[nu][0] = gamma_permutation[nu][ 0] / 6;
+    gperm2[nu][1] = gamma_permutation[nu][ 6] / 6;
+    gperm2[nu][2] = gamma_permutation[nu][12] / 6;
+    gperm2[nu][3] = gamma_permutation[nu][18] / 6;
+    // (overall) sign
+    gperm2_sign[nu][0] = gamma_sign[nu][ 0];
+    gperm2_sign[nu][1] = gamma_sign[nu][ 6];
+    gperm2_sign[nu][2] = gamma_sign[nu][12];
+    gperm2_sign[nu][3] = gamma_sign[nu][18];
+    // write to stdout
+    fprintf(stdout, "# gamma_%d = (%f %d, %f %d, %f %d, %f %d)\n", nu,
+        gperm2_sign[nu][0], gperm2[nu][0], gperm2_sign[nu][1], gperm2[nu][1], 
+        gperm2_sign[nu][2], gperm2[nu][2], gperm2_sign[nu][3], gperm2[nu][3]);
+  }
+
+  
+  /* HERE WE NEED THE LOOP OVER SOURCE POSITIONS */
+  
+  
   /* initialize contact_term */
   contact_term[0] = 0.;
   contact_term[1] = 0.;
@@ -358,53 +535,8 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
       ratime = (double)clock() / CLOCKS_PER_SEC;
 #endif
 
-  /* initialize the Gamma matrices */
-
-  // gamma_5:
-  gperm[4][0] = gamma_permutation[5][ 0] / 6;
-  gperm[4][1] = gamma_permutation[5][ 6] / 6;
-  gperm[4][2] = gamma_permutation[5][12] / 6;
-  gperm[4][3] = gamma_permutation[5][18] / 6;
-  gperm_sign[4][0] = gamma_sign[5][ 0];
-  gperm_sign[4][1] = gamma_sign[5][ 6];
-  gperm_sign[4][2] = gamma_sign[5][12];
-  gperm_sign[4][3] = gamma_sign[5][18];
-  // gamma_nu gamma_5
-  for(nu=0;nu<4;nu++) {
-    // permutation
-    gperm[nu][0] = gamma_permutation[6+nu][ 0] / 6;
-    gperm[nu][1] = gamma_permutation[6+nu][ 6] / 6;
-    gperm[nu][2] = gamma_permutation[6+nu][12] / 6;
-    gperm[nu][3] = gamma_permutation[6+nu][18] / 6;
-    // is imaginary ?
-    isimag[nu] = gamma_permutation[6+nu][0] % 2;
-    // (overall) sign
-    gperm_sign[nu][0] = gamma_sign[6+nu][ 0];
-    gperm_sign[nu][1] = gamma_sign[6+nu][ 6];
-    gperm_sign[nu][2] = gamma_sign[6+nu][12];
-    gperm_sign[nu][3] = gamma_sign[6+nu][18];
-    // write to stdout
-    fprintf(stdout, "# gamma_%d5 = (%f %d, %f %d, %f %d, %f %d)\n", nu,
-        gperm_sign[nu][0], gperm[nu][0], gperm_sign[nu][1], gperm[nu][1], 
-        gperm_sign[nu][2], gperm[nu][2], gperm_sign[nu][3], gperm[nu][3]);
-  }
-  // gamma_nu
-  for(nu=0;nu<4;nu++) {
-    // permutation
-    gperm2[nu][0] = gamma_permutation[nu][ 0] / 6;
-    gperm2[nu][1] = gamma_permutation[nu][ 6] / 6;
-    gperm2[nu][2] = gamma_permutation[nu][12] / 6;
-    gperm2[nu][3] = gamma_permutation[nu][18] / 6;
-    // (overall) sign
-    gperm2_sign[nu][0] = gamma_sign[nu][ 0];
-    gperm2_sign[nu][1] = gamma_sign[nu][ 6];
-    gperm2_sign[nu][2] = gamma_sign[nu][12];
-    gperm2_sign[nu][3] = gamma_sign[nu][18];
-    // write to stdout
-    fprintf(stdout, "# gamma_%d = (%f %d, %f %d, %f %d, %f %d)\n", nu,
-        gperm2_sign[nu][0], gperm2[nu][0], gperm2_sign[nu][1], gperm2[nu][1], 
-        gperm2_sign[nu][2], gperm2[nu][2], gperm2_sign[nu][3], gperm2[nu][3]);
-  }
+   //FIXME
+   int sourceloc = 0;
 
   /**********************************************************
    * read 12 up-type propagators with source source_location
@@ -412,9 +544,10 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
    **********************************************************/
   for(ia=0; ia<12; ia++) {
     if(!mms) {
-      get_filename(filename, 4, ia, 1); // position 4 is source position y, 1 means "+ i mu gamma_5", i.e. psource...
-      read_lime_spinor(g_spinor_field[ia], filename, 0); //0 stands for first lime block
-      xchange_field(g_spinor_field[ia]);
+      //get_filename(filename, 4, ia, 1); // position 4 is source position y, 1 means "+ i mu gamma_5", i.e. psource...
+      //read_lime_spinor(g_spinor_field[ia], filename, 0); //0 stands for first lime block
+      //xchange_field(g_spinor_field[ia]);
+      get_propagator(4, ia, ia, +1, ud_one_file);
     } else {
       sprintf(filename, "%s.%.4d.04.%.2d.cgmms.%.2d.inverted", filename_prefix, Nconf, ia, mass_id);
       read_lime_spinor(work, filename, 0);
@@ -423,21 +556,6 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
       xchange_field(g_spinor_field[ia]);
     }
   }
-
-/* from avc_exact.c */
-/*    if(do_gt==0) {
-      for(ia=0; ia<12; ia++) {
-        get_filename(filename, 4, ia, 1);
-        read_lime_spinor(g_spinor_field[ia], filename, 0);
-        xchange_field(g_spinor_field[ia]);
-      }
-    }
-    else {
-      for(ia=0; ia<12; ia++) {
-        apply_gt_prop(gauge_trafo, g_spinor_field[ia], ia/3, ia%3, 4, filename_prefix, source_location);
-        xchange_field(g_spinor_field[ia]);
-      }
-    }*/
 
 
   /**********************************************
@@ -448,14 +566,15 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
     /* read 12 dn-type propagators */
     for(ia=0; ia<12; ia++) {
       if(!mms) {
-        if(ud_one_file==0) {
-          get_filename(filename, nu, ia, -1);//-1 implies reading from msource..
-          read_lime_spinor(g_spinor_field[12+ia], filename, 0);
-        } else {
-          get_filename(filename, nu, ia, 1);
-          read_lime_spinor(g_spinor_field[12+ia], filename, 1);
-        }
-        xchange_field(g_spinor_field[12+ia]);
+//         if(ud_one_file==0) {
+//           get_filename(filename, nu, ia, -1);//-1 implies reading from msource..
+//           read_lime_spinor(g_spinor_field[12+ia], filename, 0);
+//         } else {
+//           get_filename(filename, nu, ia, 1);
+//           read_lime_spinor(g_spinor_field[12+ia], filename, 1);
+//         }
+//         xchange_field(g_spinor_field[12+ia]);
+           get_propagator(nu, ia, (12+ia), -1, ud_one_file);
       } else {
         sprintf(filename, "%s.%.4d.%.2d.%.2d.cgmms.%.2d.inverted", filename_prefix, Nconf, nu, ia, mass_id);
         read_lime_spinor(work, filename, 0);
@@ -464,20 +583,7 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
         xchange_field(g_spinor_field[12+ia]);
       }
     }
-/* from avc_exact.c */
-/*    if(do_gt==0) {
-      for(ia=0; ia<12; ia++) {
-        get_filename(filename, nu, ia, -1);
-        read_lime_spinor(g_spinor_field[12+ia], filename, 0);
-        xchange_field(g_spinor_field[12+ia]);
-      }
-    }
-    else {
-      for(ia=0; ia<12; ia++) {
-        apply_gt_prop(gauge_trafo, g_spinor_field[12+ia], ia/3, ia%3, nu, filename_prefix2, source_location);
-        xchange_field(g_spinor_field[12+ia]);
-      }
-    }*/
+
 
 
 /*****************************************************************************************************************/
@@ -627,14 +733,15 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
    **********************************************************/
   for(ia=0; ia<12; ia++) {
     if(!mms) {
-      if(ud_one_file==0) {
-        get_filename(filename, 4, ia, -1);
-        read_lime_spinor(g_spinor_field[12+ia], filename, 0);
-      } else {
-        get_filename(filename, 4, ia, 1);
-        read_lime_spinor(g_spinor_field[12+ia], filename, 1);
-      }
-      xchange_field(g_spinor_field[12+ia]);
+//       if(ud_one_file==0) {
+//         get_filename(filename, 4, ia, -1);
+//         read_lime_spinor(g_spinor_field[12+ia], filename, 0);
+//       } else {
+//         get_filename(filename, 4, ia, 1);
+//         read_lime_spinor(g_spinor_field[12+ia], filename, 1);
+//       }
+//       xchange_field(g_spinor_field[12+ia]);
+         get_propagator(4, ia, (12+ia), -1, ud_one_file);
     } else {
       sprintf(filename, "%s.%.4d.04.%.2d.cgmms.%.2d.inverted", filename_prefix, Nconf, ia, mass_id);
       read_lime_spinor(work, filename, 0);
@@ -643,24 +750,7 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
       xchange_field(g_spinor_field[12+ia]);
     }
   }
-
-/* from avc_exact.c */
-/*    if(do_gt==0) {
-      for(ia=0; ia<12; ia++) {
-        get_filename(filename, 4, ia, -1);
-        read_lime_spinor(g_spinor_field[12+ia], filename, 0);
-        xchange_field(g_spinor_field[12+ia]);
-      }
-    }
-    else {
-      for(ia=0; ia<12; ia++) {
-        apply_gt_prop(gauge_trafo, g_spinor_field[12+ia], ia/3, ia%3, 4, filename_prefix2, source_location);
-        xchange_field(g_spinor_field[12+ia]);
-      }
-    }*/
-  
-  
-  
+ 
 
 /**********************************************
    * loop on the Lorentz index nu at source 
@@ -670,9 +760,10 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
     /* read 12 up-type propagators */
     for(ia=0; ia<12; ia++) {
       if(!mms) {
-        get_filename(filename, nu, ia, 1);
-        read_lime_spinor(g_spinor_field[ia], filename, 0);
-        xchange_field(g_spinor_field[ia]);
+//         get_filename(filename, nu, ia, 1);
+//         read_lime_spinor(g_spinor_field[ia], filename, 0);
+//         xchange_field(g_spinor_field[ia]);
+        get_propagator(nu, ia, ia, +1, ud_one_file);
       } else {
         sprintf(filename, "%s.%.4d.%.2d.%.2d.cgmms.%.2d.inverted", filename_prefix, Nconf, nu, ia, mass_id);
         read_lime_spinor(work, filename, 0);
@@ -682,21 +773,7 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
       }
     }
  
-/* from avc_exact.c */
 
-/*    if(do_gt==0) {
-      for(ia=0; ia<12; ia++) {
-        get_filename(filename, nu, ia, 1);
-        read_lime_spinor(g_spinor_field[ia], filename, 0);
-        xchange_field(g_spinor_field[ia]);
-      }
-    }
-    else {
-      for(ia=0; ia<12; ia++) {
-        apply_gt_prop(gauge_trafo, g_spinor_field[ia], ia/3, ia%3, nu, filename_prefix, source_location);
-        xchange_field(g_spinor_field[ia]);
-      }
-    }*/
     
 /**************************************************************************************************************/
     for(ir=0; ir<4; ir++) {
@@ -1058,6 +1135,13 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
     fclose(ofs);
   }
 
+  
+  
+  
+  /* END OF LOOP OVER SOURCE POSITIONS */
+  
+  
+  
   /****************************************
    * free the allocated memory, finalize
    ****************************************/
@@ -1067,6 +1151,11 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
   free_geometry();
   fftw_free(in);
   free(conn);
+  
+#ifdef LIBWRAPPER
+  tmLQCD_finalise();
+#endif
+  
 #ifdef MPI
   fftwnd_mpi_destroy_plan(plan_p);
   free(status);

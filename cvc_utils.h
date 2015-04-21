@@ -43,9 +43,9 @@ int wilson_loop(complex *w, const int xstart, const int dir, const int Ldir);
 int IRand(int min, int max);
 double Random_Z2();
 int ranz2(double * y, int NRAND);
-void random_gauge_field(double *gfield, double h);
+void cvc_random_gauge_field(double *gfield, double h);
 void random_gauge_point(double **gauge_point, double heat);
-void random_gauge_field2(double *gfield);
+void cvc_random_gauge_field2(double *gfield);
 int read_pimn(double *pimn, const int read_flag);
 
 int init_hpe_fields(int ***loop_tab, int ***sigma_tab, int ***shift_start, double **tcf, double **tcb);

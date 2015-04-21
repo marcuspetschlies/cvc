@@ -347,13 +347,13 @@ void gamma5_BdagH4_gamma5 (double *xi, double *phi, double *work) {
     xchange_field(xi);
     Hopping(work, xi);
     /* apply B^+ */
-    mul_one_pm_imu_inv(work, -1., VOLUME);
+    cvc_mul_one_pm_imu_inv(work, -1., VOLUME);
 
     /* apply the hopping matrix */
     xchange_field(work);
     Hopping(xi, work);
     /* apply B^+ */
-    mul_one_pm_imu_inv(xi, -1., VOLUME);
+    cvc_mul_one_pm_imu_inv(xi, -1., VOLUME);
 
   }
 
@@ -365,10 +365,10 @@ void gamma5_BdagH4_gamma5 (double *xi, double *phi, double *work) {
 }
 
 /***********************************
- * mul_one_pm_imu_inv
+ * cvc_mul_one_pm_imu_inv
  *
  ***********************************/
-void mul_one_pm_imu_inv (double *phi, double sign, int V) {
+void cvc_mul_one_pm_imu_inv (double *phi, double sign, int V) {
 
   int ix;
   double spinor1[24], spinor2[24];
@@ -397,17 +397,17 @@ void BH3 (double *xi, double *phi) {
    *************************************************/
   /* 1st application of the hopping matrix */
   Hopping(xi, phi);
-  mul_one_pm_imu_inv(xi, +1., VOLUME);  
+  cvc_mul_one_pm_imu_inv(xi, +1., VOLUME);  
   xchange_field(xi);
 
   /* 2nd application of the hopping matrix */
   Hopping(phi, xi);
-  mul_one_pm_imu_inv(phi, +1., VOLUME);  
+  cvc_mul_one_pm_imu_inv(phi, +1., VOLUME);  
   xchange_field(phi);
 
   /* 3rd application of the hopping matrix */
   Hopping(xi, phi);
-  mul_one_pm_imu_inv(xi, +1., VOLUME);  
+  cvc_mul_one_pm_imu_inv(xi, +1., VOLUME);  
   xchange_field(xi);
 }
 
@@ -425,27 +425,27 @@ void BH5 (double *xi, double *phi) {
    *************************************************/
   /* 1st application of the hopping matrix */
   Hopping(xi, phi);
-  mul_one_pm_imu_inv(xi, +1., VOLUME);  
+  cvc_mul_one_pm_imu_inv(xi, +1., VOLUME);  
   xchange_field(xi);
 
   /* 2nd application of the hopping matrix */
   Hopping(phi, xi);
-  mul_one_pm_imu_inv(phi, +1., VOLUME);  
+  cvc_mul_one_pm_imu_inv(phi, +1., VOLUME);  
   xchange_field(phi);
 
   /* 3rd application of the hopping matrix */
   Hopping(xi, phi);
-  mul_one_pm_imu_inv(xi, +1., VOLUME);  
+  cvc_mul_one_pm_imu_inv(xi, +1., VOLUME);  
   xchange_field(xi);
 
   /* 4th application of the hopping matrix */
   Hopping(phi, xi);
-  mul_one_pm_imu_inv(phi, +1., VOLUME);  
+  cvc_mul_one_pm_imu_inv(phi, +1., VOLUME);  
   xchange_field(phi);
 
   /* 5th application of the hopping matrix */
   Hopping(xi, phi);
-  mul_one_pm_imu_inv(xi, +1., VOLUME);  
+  cvc_mul_one_pm_imu_inv(xi, +1., VOLUME);  
   xchange_field(xi);
 
 }
@@ -464,7 +464,7 @@ void BH (double *xi, double *phi) {
    *************************************************/
   /* application of the hopping matrix */
   Hopping(xi, phi);
-  mul_one_pm_imu_inv(xi, +1., VOLUME);  
+  cvc_mul_one_pm_imu_inv(xi, +1., VOLUME);  
   xchange_field(xi);
 }
 
@@ -482,10 +482,10 @@ void BH2 (double *xi, double *phi) {
    *************************************************/
   /* application of the hopping matrix */
   Hopping(xi, phi);
-  mul_one_pm_imu_inv(xi, +1., VOLUME);  
+  cvc_mul_one_pm_imu_inv(xi, +1., VOLUME);  
   xchange_field(xi);
   Hopping(phi, xi);
-  mul_one_pm_imu_inv(phi, +1., VOLUME);  
+  cvc_mul_one_pm_imu_inv(phi, +1., VOLUME);  
   xchange_field(phi);
 }
 
@@ -503,37 +503,37 @@ void BH7 (double *xi, double *phi) {
    *************************************************/
   /* 1st application of the hopping matrix */
   Hopping(xi, phi);
-  mul_one_pm_imu_inv(xi, +1., VOLUME);  
+  cvc_mul_one_pm_imu_inv(xi, +1., VOLUME);  
   xchange_field(xi);
 
   /* 2nd application of the hopping matrix */
   Hopping(phi, xi);
-  mul_one_pm_imu_inv(phi, +1., VOLUME);  
+  cvc_mul_one_pm_imu_inv(phi, +1., VOLUME);  
   xchange_field(phi);
 
   /* 3rd application of the hopping matrix */
   Hopping(xi, phi);
-  mul_one_pm_imu_inv(xi, +1., VOLUME);  
+  cvc_mul_one_pm_imu_inv(xi, +1., VOLUME);  
   xchange_field(xi);
 
   /* 4th application of the hopping matrix */
   Hopping(phi, xi);
-  mul_one_pm_imu_inv(phi, +1., VOLUME);  
+  cvc_mul_one_pm_imu_inv(phi, +1., VOLUME);  
   xchange_field(phi);
 
   /* 5th application of the hopping matrix */
   Hopping(xi, phi);
-  mul_one_pm_imu_inv(xi, +1., VOLUME);  
+  cvc_mul_one_pm_imu_inv(xi, +1., VOLUME);  
   xchange_field(xi);
 
   /* 6th application of the hopping matrix */
   Hopping(phi, xi);
-  mul_one_pm_imu_inv(phi, +1., VOLUME);  
+  cvc_mul_one_pm_imu_inv(phi, +1., VOLUME);  
   xchange_field(phi);
 
   /* 7th application of the hopping matrix */
   Hopping(xi, phi);
-  mul_one_pm_imu_inv(xi, +1., VOLUME);  
+  cvc_mul_one_pm_imu_inv(xi, +1., VOLUME);  
   xchange_field(xi);
 
 }
@@ -557,17 +557,17 @@ void BHn (double *xi, double *phi, int n) {
 
   for(i=0; i<m; i++) {
     Hopping(xi, phi);
-    mul_one_pm_imu_inv(xi, +1., VOLUME);
+    cvc_mul_one_pm_imu_inv(xi, +1., VOLUME);
     xchange_field(xi);
 
     Hopping(phi, xi);
-    mul_one_pm_imu_inv(phi, +1., VOLUME);
+    cvc_mul_one_pm_imu_inv(phi, +1., VOLUME);
     xchange_field(phi);
   }
 
   if(r==1) {
     Hopping(xi, phi);
-    mul_one_pm_imu_inv(xi, +1., VOLUME);
+    cvc_mul_one_pm_imu_inv(xi, +1., VOLUME);
     xchange_field(xi);
   } else {
     memcpy((void*)xi, (void*)phi, 24*VOLUMEPLUSRAND*sizeof(double));

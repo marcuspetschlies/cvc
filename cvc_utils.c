@@ -27,7 +27,7 @@ void EV_Hermitian_3x3_Matrix(double *M, double *lambda);
 /*****************************************************
  * read the input file
  *****************************************************/
-int read_input (char *filename) {
+int cvc_read_input (char *filename) {
 
     
   FILE *fs;
@@ -2119,7 +2119,7 @@ int ranz2(double * y, int NRAND) {
   }
 
   for(k=0; k<NRAND/2; k++) {
-    ranlxd(r,2);
+    cvc_ranlxd(r,2);
     y[2*k  ] = (double)(2 * (int)(r[0]>=0.5) - 1) * sqrt2inv;
     y[2*k+1] = (double)(2 * (int)(r[1]>=0.5) - 1) * sqrt2inv;
   }
@@ -2129,7 +2129,7 @@ int ranz2(double * y, int NRAND) {
 /********************************************************
  * random_gauge_field
  ********************************************************/
-void random_gauge_field(double *gfield, double h) {
+void cvc_random_gauge_field(double *gfield, double h) {
 
   int mu, ix;
   double buffer[72], *gauge_point[4];
@@ -2345,7 +2345,7 @@ void random_gauge_point(double **gauge_point, double heat) {
 /********************************************************
  * random_gauge_field2
  ********************************************************/
-void random_gauge_field2(double *gfield) {
+void cvc_random_gauge_field2(double *gfield) {
 
   int mu, ix, i;
   double norm;
@@ -2583,8 +2583,8 @@ int rangauss (double * y1, int NRAND) {
     x1 = (1. + (double)rand() ) / ( (double)(RAND_MAX) + 1. );
     x2 = (double)rand() / ( (double)(RAND_MAX) + 1. );
 */
-    ranlxd(&x1,1);
-    ranlxd(&x2,1);
+    cvc_ranlxd(&x1,1);
+    cvc_ranlxd(&x2,1);
     y1[2*k  ] = sqrt(-2.*log(x1)) * cos(2*M_PI*x2);
     y1[2*k+1] = sqrt(-2.*log(x1)) * sin(2*M_PI*x2);
   }

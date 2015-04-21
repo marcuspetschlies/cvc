@@ -3,7 +3,7 @@
 
 unsigned long int get_index(const int t, const int x, const int y, const int z);
 
-void geometry(void);
+void cvc_geometry(void);
 
 int init_geometry(void);
 

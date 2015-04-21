@@ -54,12 +54,12 @@ int write_propagator(double * const s, char * filename,
 #endif
 
 #ifdef HAVE_LIBLEMON
-int write_binary_spinor_data(double * const s, LemonWriter * writer,
+int cvc_write_binary_spinor_data(double * const s, LemonWriter * writer,
                                       const int prec, DML_Checksum * ans) {
   return(-1);
 }
 #else
-int write_binary_spinor_data(double * const s, LimeWriter * limewriter,
+int cvc_write_binary_spinor_data(double * const s, LimeWriter * limewriter,
                                       const int prec, DML_Checksum * ans) {
 
   int x, y, z, t, i=0, status=0;
@@ -197,7 +197,7 @@ int write_binary_spinor_data(double * const s, LimeWriter * limewriter,
 #endif /* HAVE_LIBLEMON */
 
 #ifdef HAVE_LIBLEMON
-int read_binary_spinor_data(double * const s, LemonReader * reader, 
+int cvc_read_binary_spinor_data(double * const s, LemonReader * reader, 
 			    const int prec, DML_Checksum *checksum) {
 
   int t, x, y , z, i = 0, status = 0;
@@ -219,7 +219,7 @@ int read_binary_spinor_data(double * const s, LemonReader * reader,
   bytes = fbspin;
 
   if((void*)(filebuffer = malloc(VOLUME * bytes)) == NULL) {
-    fprintf (stderr, "malloc errno in read_binary_spinor_data_parallel\n");
+    fprintf (stderr, "malloc errno in cvc_read_binary_spinor_data_parallel\n");
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
     exit(501);
@@ -265,7 +265,7 @@ int read_binary_spinor_data(double * const s, LemonReader * reader,
   return(0);
 }
 #else 
-int read_binary_spinor_data(double * const s, LimeReader * limereader, 
+int cvc_read_binary_spinor_data(double * const s, LimeReader * limereader, 
 			    const int prec, DML_Checksum *ans) {
 
   int status=0;
@@ -551,7 +551,7 @@ int write_lime_spinor(double * const s, char * filename,
     limeDestroyHeader( limeheader );
   }
   
-  status = write_binary_spinor_data(s, limewriter, prec, &checksum);
+  status = cvc_write_binary_spinor_data(s, limewriter, prec, &checksum);
   if(g_cart_id==0) {
     printf("# Final check sum is (%#lx  %#lx)\n", checksum.suma, checksum.sumb);
     if(ferror(ofs)) {
@@ -674,7 +674,7 @@ int read_lime_spinor(double * const s, char * filename, const int position) {
   }
   if(g_cart_id==0) fprintf(stdout, "# %d bit precision read.\n", prec);
 
-  read_binary_spinor_data(s, reader, prec, &checksum);
+  cvc_read_binary_spinor_data(s, reader, prec, &checksum);
 
   if (g_cart_id == 0) fprintf(stdout, "# checksum for DiracFermion field in file %s position %d is %#x %#x\n", 
     filename, position, checksum.suma, checksum.sumb);
@@ -733,7 +733,7 @@ int read_lime_spinor(double * const s, char * filename, const int position) {
   }
   if(g_cart_id == 0) printf("# %llu Bit precision read\n", prec);
 
-  status = read_binary_spinor_data(s, limereader, prec, &checksum);
+  status = cvc_read_binary_spinor_data(s, limereader, prec, &checksum);
 
   if(status < 0) {
     fprintf(stderr, "LIME read error occured with status = %d while reading file %s!\n Aborting...\n", 
@@ -814,7 +814,7 @@ int read_cmi(double *v, const char * filename) {
 /************************************************************
  *
  ************************************************************/
-int write_binary_spinor_data_timeslice(double * const s, LimeWriter * limewriter,
+int cvc_write_binary_spinor_data_timeslice(double * const s, LimeWriter * limewriter,
   const int prec, int timeslice, DML_Checksum * ans) {
 #ifndef MPI
   int x, y, z, t, i=0, status=0;
@@ -941,7 +941,7 @@ int write_lime_spinor_timeslice(double * const s, char * filename,
   fprintf(stdout, "# last record in massage = %d\n", limewriter->isLastP);
   fprintf(stdout, "# ========================================\n");
 */
-  status = write_binary_spinor_data_timeslice(s, limewriter, prec, timeslice, checksum);
+  status = cvc_write_binary_spinor_data_timeslice(s, limewriter, prec, timeslice, checksum);
   if(ferror(ofs)) {
     fprintf(stderr, "Warning! Error while writing to file %s \n", filename);
   }
