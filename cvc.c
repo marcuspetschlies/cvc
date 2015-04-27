@@ -68,8 +68,19 @@ int init_base_locations(int first_source_loc){
 
   for(i=1; i<16; i++){
     int inc_dir = i % 4;
-    source_coord[inc_dir]++;
-    base_locations[i] = get_abs_pos(source_coord[0], source_coord[1], source_coord[2], source_coord[3]);
+    int increment;
+    if(inc_dir == 0){
+      increment =  T_global/2;
+    }
+    else{
+      increment =  L/2;
+    }
+    source_coord[inc_dir] += increment;
+    base_locations[i] = ( 
+         get_abs_pos(source_coord[0], source_coord[1], source_coord[2], source_coord[3])
+	 %(T_global*(g_nproc_x*LX)*(g_nproc_y*LY)*(g_nproc_z*LZ))
+	);
+   
   }
 }
 
@@ -493,7 +504,11 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
   contact_term[5] = 0.;
   contact_term[6] = 0.;
   contact_term[7] = 0.;
-
+  
+  
+//FIXME
+   int g_source_location = 0;
+   
   /* determine source coordinates, find out, if source_location is in this process */
   have_source_flag = (int)(g_source_location/(LX*LY*LZ)>=Tstart && g_source_location/(LX*LY*LZ)<(Tstart+T));
   if(have_source_flag==1) fprintf(stdout, "process %2d has source location\n", g_cart_id);

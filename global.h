@@ -34,42 +34,90 @@
 
 #define _MAX(_a,_b) ((_a) > (_b) ? (_a) : (_b) )
 
-EXTERN int T_global, LX_global, LY_global;
-EXTERN int T, L, LX, LY, LZ, VOLUME, Tstart, LXstart, LYstart, FFTW_LOC_VOLUME;
-EXTERN int RAND, EDGES, VOLUMEPLUSRAND;
-EXTERN int Nconf;
 
-EXTERN int **** g_ipt;
-EXTERN int ** g_iup;
-EXTERN int ** g_idn;
 
-EXTERN double **g_spinor_field;
+#ifdef LIB_WRAPPER
 
-EXTERN double *g_gauge_field;
+  extern int T_global, LX_global, LY_global;
+  extern int T, L, LX, LY, LZ, VOLUME, ;
+  extern int RAND, EDGES, VOLUMEPLUSRAND;
 
-EXTERN double g_kappa, g_mu, g_musigma, g_mudelta;
+  extern int **** g_ipt;
+  extern int ** g_iup;
+  extern int ** g_idn;
 
-EXTERN int g_proc_id, g_nproc;
-EXTERN int g_cart_id;
-EXTERN int g_nb_list[8];
-EXTERN int g_proc_coords[4];
+  extern int g_proc_id, g_nproc;
+  extern int g_cart_id;
+  extern int g_nb_list[8];
+  extern int g_proc_coords[4];
 
-#ifdef MPI
-EXTERN MPI_Comm g_cart_grid;
-EXTERN MPI_Status status;
-EXTERN MPI_Comm g_ts_comm, g_xs_comm;
+  #ifdef MPI
+  extern MPI_Comm g_cart_grid;
+  extern MPI_Status status;
+  extern MPI_Comm g_ts_comm, g_xs_comm;
+  #endif
+
+  extern int g_nb_t_up, g_nb_t_dn;
+  extern int g_nb_x_up, g_nb_x_dn;
+  extern int g_nb_y_up, g_nb_y_dn;
+  extern int g_nb_z_up, g_nb_z_dn;
+  extern int g_nproc_t, g_nproc_x, g_nproc_y, g_nproc_z;
+  
+  
+#else
+
+  EXTERN int T_global, LX_global, LY_global;
+  EXTERN int T, L, LX, LY, LZ, VOLUME, ;
+  EXTERN int RAND, EDGES, VOLUMEPLUSRAND;
+
+  EXTERN int **** g_ipt;
+  EXTERN int ** g_iup;
+  EXTERN int ** g_idn;
+
+  EXTERN int g_proc_id, g_nproc;
+  EXTERN int g_cart_id;
+  EXTERN int g_nb_list[8];
+  EXTERN int g_proc_coords[4];
+
+  #ifdef MPI
+  EXTERN MPI_Comm g_cart_grid;
+  EXTERN MPI_Status status;
+  EXTERN MPI_Comm g_ts_comm, g_xs_comm;
+  #endif
+
+  EXTERN int g_nb_t_up, g_nb_t_dn;
+  EXTERN int g_nb_x_up, g_nb_x_dn;
+  EXTERN int g_nb_y_up, g_nb_y_dn;
+  EXTERN int g_nb_z_up, g_nb_z_dn;
+  EXTERN int g_nproc_t, g_nproc_x, g_nproc_y, g_nproc_z;
+
+  
 #endif
+
+
+
+
+
+
+EXTERN int Nconf;
 
 EXTERN int g_ts_id, g_ts_nproc;
 EXTERN int g_xs_id, g_xs_nproc;
-EXTERN int g_nb_t_up, g_nb_t_dn;
-EXTERN int g_nb_x_up, g_nb_x_dn;
-EXTERN int g_nb_y_up, g_nb_y_dn;
 EXTERN int g_ts_nb_up, g_ts_nb_dn;
 EXTERN int g_ts_nb_x_up, g_ts_nb_x_dn;
 EXTERN int g_ts_nb_y_up, g_ts_nb_y_dn;
 
-EXTERN int g_nproc_t, g_nproc_x, g_nproc_y, g_nproc_z;
+
+
+EXTERN double **g_spinor_field;
+EXTERN double *g_gauge_field;
+EXTERN double g_kappa, g_mu, g_musigma, g_mudelta;
+
+
+EXTERN int FFTW_LOC_VOLUME, Tstart, LXstart, LYstart;
+
+
+
 
 EXTERN int g_sourceid, g_sourceid2, g_sourceid_step, Nsave;
 EXTERN int g_gaugeid, g_gaugeid2, g_gauge_step;
