@@ -135,7 +135,7 @@ int main(int argc, char **argv) {
   geometry();
 
   /* read the gauge field */
-  alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
+  alloc_gauge_field(&cvc_gauge_field, VOLUMEPLUSRAND);
   sprintf(filename, "%s.%.4d", gaugefilename_prefix, Nconf);
   if(g_cart_id==0) fprintf(stdout, "# reading gauge field from file %s\n", filename);
 
@@ -178,7 +178,7 @@ int main(int argc, char **argv) {
       ix = _GGI(iix, i);
       fprintf(ofs, "# \t direction i=%3d\n", i);
       for(j=0; j<9; j++) {
-        fprintf(ofs, "%3d%25.16e%25.16e\n", j, g_gauge_field[ix+2*j], g_gauge_field[ix+2*j+1]);
+        fprintf(ofs, "%3d%25.16e%25.16e\n", j, cvc_gauge_field[ix+2*j], cvc_gauge_field[ix+2*j+1]);
       }
     }
   }}}}
@@ -186,8 +186,8 @@ int main(int argc, char **argv) {
 */
 /*
   for(i=0; i<N_ape; i++) {
-    APE_Smearing_Step(g_gauge_field, alpha_ape);
-    xchange_gauge_field_timeslice(g_gauge_field);
+    APE_Smearing_Step(cvc_gauge_field, alpha_ape);
+    xchange_gauge_field_timeslice(cvc_gauge_field);
   }
   xchange_gauge();
   plaquette(&plaq);
@@ -195,42 +195,42 @@ int main(int argc, char **argv) {
 */
 /*
   for(i=0; i<N_ape; i++) {
-    APE_Smearing_Step(g_gauge_field, alpha_ape);
-    xchange_gauge_field_timeslice(g_gauge_field);
+    APE_Smearing_Step(cvc_gauge_field, alpha_ape);
+    xchange_gauge_field_timeslice(cvc_gauge_field);
   }
 */
 
 
 /*
   alloc_gauge_field(&smeared_gauge_field, VOLUMEPLUSRAND);
-  memcpy((void*)smeared_gauge_field, (void*)g_gauge_field, VOLUMEPLUSRAND*72*sizeof(double));
+  memcpy((void*)smeared_gauge_field, (void*)cvc_gauge_field, VOLUMEPLUSRAND*72*sizeof(double));
 
-  fuzzed_links2(g_gauge_field, smeared_gauge_field, Nlong); 
+  fuzzed_links2(cvc_gauge_field, smeared_gauge_field, Nlong); 
   xchange_gauge();
   plaquette(&plaq);
   if(g_cart_id==0) fprintf(stdout, "# measured plaquette value after fuzzing: %25.16e\n", plaq);
 */
 
   no_fields=2;
-  g_spinor_field = (double**)calloc(no_fields, sizeof(double*));
-  for(i=0; i<no_fields; i++) alloc_spinor_field(&g_spinor_field[i], VOLUME+RAND);
+  cvc_spinor_field = (double**)calloc(no_fields, sizeof(double*));
+  for(i=0; i<no_fields; i++) alloc_spinor_field(&cvc_spinor_field[i], VOLUME+RAND);
 /*
   sprintf(file1, "%s.%.4d.%.2d.%.2d.inverted", filename_prefix2, Nconf, g_source_timeslice, 0);
   fprintf(stdout, "# Reading prop. from file %s\n", file1);
-  read_lime_spinor(g_spinor_field[0], file1, 0);
-  xchange_field(g_spinor_field[0]);
+  read_lime_spinor(cvc_spinor_field[0], file1, 0);
+  xchange_field(cvc_spinor_field[0]);
 
-  memcpy((void*)g_spinor_field[2], (void*)g_spinor_field[0], VOLUME*24*sizeof(double));
+  memcpy((void*)cvc_spinor_field[2], (void*)cvc_spinor_field[0], VOLUME*24*sizeof(double));
 
 
   for(i=0; i<N_Jacobi; i++) {
-    Jacobi_Smearing_Step_one(g_gauge_field, g_spinor_field[0], g_spinor_field[1], kappa_Jacobi);
-    xchange_field_timeslice(g_spinor_field[0]);
+    Jacobi_Smearing_Step_one(cvc_gauge_field, cvc_spinor_field[0], cvc_spinor_field[1], kappa_Jacobi);
+    xchange_field_timeslice(cvc_spinor_field[0]);
   }
 */
 
 /*
-  status = Fuzz_prop3(g_gauge_field, g_spinor_field[0], g_spinor_field[1], Nlong);
+  status = Fuzz_prop3(cvc_gauge_field, cvc_spinor_field[0], cvc_spinor_field[1], Nlong);
   if(status != 0) {
     fprintf(stderr, "[%2d] Error from Fuzz_prop3\n", g_cart_id);
   }
@@ -239,7 +239,7 @@ int main(int argc, char **argv) {
   prod.re = 0.;
   prod.im = 0.;
   for(ix=0; ix<VOLUME; ix++) {
-    _co_eq_fv_dag_ti_fv(&w, g_spinor_field[2]+_GSI(ix), g_spinor_field[0]+_GSI(ix));
+    _co_eq_fv_dag_ti_fv(&w, cvc_spinor_field[2]+_GSI(ix), cvc_spinor_field[0]+_GSI(ix));
     prod.re += w.re;
     prod.im += w.im;
   }
@@ -262,8 +262,8 @@ int main(int argc, char **argv) {
   for(ix=0; ix<VOLUME; ix++) {
     for(mu=0; mu<3; mu++) {
     for(nu=mu+1; nu<4; nu++) {
-      _cm_eq_cm_ti_cm(s, &g_gauge_field[72*ix+mu*18], &g_gauge_field[72*g_iup[ix][mu]+18*nu]);
-      _cm_eq_cm_ti_cm(t, &g_gauge_field[72*ix+nu*18], &g_gauge_field[72*g_iup[ix][nu]+18*mu]);
+      _cm_eq_cm_ti_cm(s, &cvc_gauge_field[72*ix+mu*18], &cvc_gauge_field[72*g_iup[ix][mu]+18*nu]);
+      _cm_eq_cm_ti_cm(t, &cvc_gauge_field[72*ix+nu*18], &cvc_gauge_field[72*g_iup[ix][nu]+18*mu]);
       _cm_eq_cm_ti_cm_dag(u, s, t);
       _co_eq_tr_cm(&w, u);
       pl_loc += w.re;
@@ -316,31 +316,31 @@ int main(int argc, char **argv) {
    ****************************************/
   sprintf(file1, "%s", filename_prefix);
   if(g_cart_id==0) fprintf(stdout, "# Reading prop. from file %s\n", file1);
-  read_lime_spinor(g_spinor_field[0], file1, 0);
-//  read_lime_spinor(g_spinor_field[1], file1, 1);
-  xchange_field(g_spinor_field[0]);
-  Q_phi_tbc(g_spinor_field[1], g_spinor_field[0]);
+  read_lime_spinor(cvc_spinor_field[0], file1, 0);
+//  read_lime_spinor(cvc_spinor_field[1], file1, 1);
+  xchange_field(cvc_spinor_field[0]);
+  Q_phi_tbc(cvc_spinor_field[1], cvc_spinor_field[0]);
  
 
   sprintf(filename, "src.%.2d", g_cart_id);
   ofs = fopen(filename, "w");
   for(ix=0; ix<VOLUME; ix++) {
     for(mu=0; mu<12; mu++) {
-      fprintf(ofs, "%6d%3d%25.16e%25.16e\n", ix, mu, g_spinor_field[1][_GSI(ix)+2*mu],
-        g_spinor_field[1][_GSI(ix)+2*mu+1]);
+      fprintf(ofs, "%6d%3d%25.16e%25.16e\n", ix, mu, cvc_spinor_field[1][_GSI(ix)+2*mu],
+        cvc_spinor_field[1][_GSI(ix)+2*mu+1]);
     }
   }
   fclose(ofs);
  
   diff1 = 0.;
   diff2 = 0.;
-  g_spinor_field[1][_GSI(g_source_location)+2*g_sourceid] -= 1.;
+  cvc_spinor_field[1][_GSI(g_source_location)+2*g_sourceid] -= 1.;
   for(ix=0; ix<VOLUME; ix++) {
-    _co_eq_fv_dag_ti_fv(&w, g_spinor_field[1]+_GSI(ix), g_spinor_field[1]+_GSI(ix));
+    _co_eq_fv_dag_ti_fv(&w, cvc_spinor_field[1]+_GSI(ix), cvc_spinor_field[1]+_GSI(ix));
     diff1 += w.re;
   }
 /*  for(ix=0; ix<24*VOLUME; ix++) {
-    diff2 += fabs( g_spinor_field[1][ix] - g_spinor_field[0][ix] );
+    diff2 += fabs( cvc_spinor_field[1][ix] - cvc_spinor_field[0][ix] );
   }*/
  
   fprintf(stdout, "# [%.2d] res. squ. %25.16e\n", g_cart_id, diff1);
@@ -365,18 +365,18 @@ int main(int argc, char **argv) {
 
     sprintf(file1, "%s.%.4d.%.2d.%.2d.inverted", filename_prefix2, Nconf, g_source_timeslice, i);
     fprintf(stdout, "# Reading prop. from file %s\n", file1);
-    read_lime_spinor(g_spinor_field[0], file1, 0);
-    xchange_field(g_spinor_field[0]);
+    read_lime_spinor(cvc_spinor_field[0], file1, 0);
+    xchange_field(cvc_spinor_field[0]);
 
     sprintf(file2, "%s.%.4d.%.2d.%.2d", filename_prefix, Nconf, g_source_timeslice, i);
     fprintf(stdout, "# Reading source from file %s\n", file2);
-    read_lime_spinor(g_spinor_field[2], file2, 0);
-    xchange_field(g_spinor_field[2]);
+    read_lime_spinor(cvc_spinor_field[2], file2, 0);
+    xchange_field(cvc_spinor_field[2]);
 
-    Q_phi_tbc(g_spinor_field[1], g_spinor_field[0]);
+    Q_phi_tbc(cvc_spinor_field[1], cvc_spinor_field[0]);
 
-    chi    = g_spinor_field[1];
-    psi    = g_spinor_field[2];
+    chi    = cvc_spinor_field[1];
+    psi    = cvc_spinor_field[2];
 
     sprintf(filename, "comp_%.2d_proc%.2d", i, g_cart_id);
     ofs = fopen(filename, "w");
@@ -406,8 +406,8 @@ int main(int argc, char **argv) {
      * calculate difference
      ****************************************/
 /*
-    chi = g_spinor_field[1];
-    psi = g_spinor_field[2];
+    chi = cvc_spinor_field[1];
+    psi = cvc_spinor_field[2];
    
     ncon = 12;
     mdiffre = fabs(chi[0] - psi[0]);
@@ -442,13 +442,13 @@ int main(int argc, char **argv) {
   /***********************************************
    * free the allocated memory, finalize 
    ***********************************************/
-  free(g_gauge_field);
+  free(cvc_gauge_field);
   free_geometry();
 /*
   if(smeared_gauge_field != NULL) free(smeared_gauge_field);
 */
-  for(i=0; i<no_fields; i++) free(g_spinor_field[i]);
-  free(g_spinor_field);
+  for(i=0; i<no_fields; i++) free(cvc_spinor_field[i]);
+  free(cvc_spinor_field);
 
 #ifdef MPI
   MPI_Finalize();

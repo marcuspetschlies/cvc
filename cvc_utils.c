@@ -162,7 +162,7 @@ int alloc_spinor_field_flt(float **s, const int N) {
 }
 
 /*****************************************************
- * exchange the global gauge field g_gauge_field
+ * exchange the global gauge field cvc_gauge_field
  *****************************************************/
 
 void xchange_gauge() {
@@ -172,75 +172,75 @@ void xchange_gauge() {
   MPI_Request request[120];
   MPI_Status status[120];
 
-  MPI_Isend(&g_gauge_field[0],         1, gauge_time_slice_cont, g_nb_t_dn, 83, g_cart_grid, &request[cntr]);
+  MPI_Isend(&cvc_gauge_field[0],         1, gauge_time_slice_cont, g_nb_t_dn, 83, g_cart_grid, &request[cntr]);
   cntr++;
-  MPI_Irecv(&g_gauge_field[72*VOLUME], 1, gauge_time_slice_cont, g_nb_t_up, 83, g_cart_grid, &request[cntr]);
+  MPI_Irecv(&cvc_gauge_field[72*VOLUME], 1, gauge_time_slice_cont, g_nb_t_up, 83, g_cart_grid, &request[cntr]);
   cntr++;
 
-  MPI_Isend(&g_gauge_field[72*(T-1)*LX*LY*LZ], 1, gauge_time_slice_cont, g_nb_t_up, 84, g_cart_grid, &request[cntr]);
+  MPI_Isend(&cvc_gauge_field[72*(T-1)*LX*LY*LZ], 1, gauge_time_slice_cont, g_nb_t_up, 84, g_cart_grid, &request[cntr]);
   cntr++;
-  MPI_Irecv(&g_gauge_field[72*(T+1)*LX*LY*LZ], 1, gauge_time_slice_cont, g_nb_t_dn, 84, g_cart_grid, &request[cntr]);
+  MPI_Irecv(&cvc_gauge_field[72*(T+1)*LX*LY*LZ], 1, gauge_time_slice_cont, g_nb_t_dn, 84, g_cart_grid, &request[cntr]);
   cntr++;
 
 #if (defined PARALLELTX) || (defined PARALLELTXY)
-  MPI_Isend(&g_gauge_field[0],                              1, gauge_x_slice_vector, g_nb_x_dn, 85, g_cart_grid, &request[cntr]);
+  MPI_Isend(&cvc_gauge_field[0],                              1, gauge_x_slice_vector, g_nb_x_dn, 85, g_cart_grid, &request[cntr]);
   cntr++;
-  MPI_Irecv(&g_gauge_field[72*(VOLUME+2*LX*LY*LZ)],         1, gauge_x_slice_cont,   g_nb_x_up, 85, g_cart_grid, &request[cntr]);
+  MPI_Irecv(&cvc_gauge_field[72*(VOLUME+2*LX*LY*LZ)],         1, gauge_x_slice_cont,   g_nb_x_up, 85, g_cart_grid, &request[cntr]);
   cntr++;
 
-  MPI_Isend(&g_gauge_field[72*(LX-1)*LY*LZ],                1, gauge_x_slice_vector, g_nb_x_up, 86, g_cart_grid, &request[cntr]);
+  MPI_Isend(&cvc_gauge_field[72*(LX-1)*LY*LZ],                1, gauge_x_slice_vector, g_nb_x_up, 86, g_cart_grid, &request[cntr]);
   cntr++;
-  MPI_Irecv(&g_gauge_field[72*(VOLUME+2*LX*LY*LZ+T*LY*LZ)], 1, gauge_x_slice_cont,   g_nb_x_dn, 86, g_cart_grid, &request[cntr]);
+  MPI_Irecv(&cvc_gauge_field[72*(VOLUME+2*LX*LY*LZ+T*LY*LZ)], 1, gauge_x_slice_cont,   g_nb_x_dn, 86, g_cart_grid, &request[cntr]);
   cntr++;
 
   MPI_Waitall(cntr, request, status);
 
   cntr = 0;
 
-  MPI_Isend(&g_gauge_field[72*(VOLUME+2*LX*LY*LZ)], 1, gauge_xt_edge_vector, g_nb_t_dn, 87, g_cart_grid, &request[cntr]);
+  MPI_Isend(&cvc_gauge_field[72*(VOLUME+2*LX*LY*LZ)], 1, gauge_xt_edge_vector, g_nb_t_dn, 87, g_cart_grid, &request[cntr]);
   cntr++;
-  MPI_Irecv(&g_gauge_field[72*(VOLUME+RAND)], 1, gauge_xt_edge_cont, g_nb_t_up, 87, g_cart_grid, &request[cntr]);
+  MPI_Irecv(&cvc_gauge_field[72*(VOLUME+RAND)], 1, gauge_xt_edge_cont, g_nb_t_up, 87, g_cart_grid, &request[cntr]);
   cntr++;
 
-  MPI_Isend(&g_gauge_field[72*(VOLUME+2*LX*LY*LZ+(T-1)*LY*LZ)], 1, gauge_xt_edge_vector, g_nb_t_up, 88, g_cart_grid, &request[cntr]);
+  MPI_Isend(&cvc_gauge_field[72*(VOLUME+2*LX*LY*LZ+(T-1)*LY*LZ)], 1, gauge_xt_edge_vector, g_nb_t_up, 88, g_cart_grid, &request[cntr]);
   cntr++;
-  MPI_Irecv(&g_gauge_field[72*(VOLUME+RAND+2*LY*LZ)], 1, gauge_xt_edge_cont, g_nb_t_dn, 88, g_cart_grid, &request[cntr]);
+  MPI_Irecv(&cvc_gauge_field[72*(VOLUME+RAND+2*LY*LZ)], 1, gauge_xt_edge_cont, g_nb_t_dn, 88, g_cart_grid, &request[cntr]);
   cntr++;
 #endif
 
 #if defined PARALLELTXY
-  MPI_Isend(&g_gauge_field[0], 1, gauge_y_slice_vector, g_nb_y_dn, 89, g_cart_grid, &request[cntr]);
+  MPI_Isend(&cvc_gauge_field[0], 1, gauge_y_slice_vector, g_nb_y_dn, 89, g_cart_grid, &request[cntr]);
   cntr++;
-  MPI_Irecv(&g_gauge_field[72*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ)], 1, gauge_y_slice_cont, g_nb_y_up, 89, g_cart_grid, &request[cntr]);
+  MPI_Irecv(&cvc_gauge_field[72*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ)], 1, gauge_y_slice_cont, g_nb_y_up, 89, g_cart_grid, &request[cntr]);
   cntr++;
 
-  MPI_Isend(&g_gauge_field[72*(LY-1)*LZ], 1, gauge_y_slice_vector, g_nb_y_up, 90, g_cart_grid, &request[cntr]);
+  MPI_Isend(&cvc_gauge_field[72*(LY-1)*LZ], 1, gauge_y_slice_vector, g_nb_y_up, 90, g_cart_grid, &request[cntr]);
   cntr++;
-  MPI_Irecv(&g_gauge_field[72*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ+T*LX*LZ)], 1, gauge_y_slice_cont, g_nb_y_dn, 90, g_cart_grid, &request[cntr]);
+  MPI_Irecv(&cvc_gauge_field[72*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ+T*LX*LZ)], 1, gauge_y_slice_cont, g_nb_y_dn, 90, g_cart_grid, &request[cntr]);
   cntr++;
 
   MPI_Waitall(cntr, request, status);
 
   cntr = 0;
 
-  MPI_Isend(&g_gauge_field[72*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ)], 1, gauge_yt_edge_vector, g_nb_t_dn, 91, g_cart_grid, &request[cntr]);
+  MPI_Isend(&cvc_gauge_field[72*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ)], 1, gauge_yt_edge_vector, g_nb_t_dn, 91, g_cart_grid, &request[cntr]);
   cntr++;
-  MPI_Irecv(&g_gauge_field[72*(VOLUME+RAND+4*LY*LZ)], 1, gauge_yt_edge_cont, g_nb_t_up, 91, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Isend(&g_gauge_field[72*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ+(T-1)*LX*LZ)], 1, gauge_yt_edge_vector, g_nb_t_up, 92, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&g_gauge_field[72*(VOLUME+RAND+4*LY*LZ+2*LX*LZ)], 1, gauge_yt_edge_cont, g_nb_t_dn, 92, g_cart_grid, &request[cntr]);
+  MPI_Irecv(&cvc_gauge_field[72*(VOLUME+RAND+4*LY*LZ)], 1, gauge_yt_edge_cont, g_nb_t_up, 91, g_cart_grid, &request[cntr]);
   cntr++;
 
-  MPI_Isend(&g_gauge_field[72*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ)], 1, gauge_yx_edge_vector, g_nb_x_dn, 93, g_cart_grid, &request[cntr]);
+  MPI_Isend(&cvc_gauge_field[72*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ+(T-1)*LX*LZ)], 1, gauge_yt_edge_vector, g_nb_t_up, 92, g_cart_grid, &request[cntr]);
   cntr++;
-  MPI_Irecv(&g_gauge_field[72*(VOLUME+RAND+4*LY*LZ+4*LX*LZ)], 1, gauge_yx_edge_cont, g_nb_x_up, 93, g_cart_grid, &request[cntr]);
+  MPI_Irecv(&cvc_gauge_field[72*(VOLUME+RAND+4*LY*LZ+2*LX*LZ)], 1, gauge_yt_edge_cont, g_nb_t_dn, 92, g_cart_grid, &request[cntr]);
   cntr++;
 
-  MPI_Isend(&g_gauge_field[72*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ+(LX-1)*LZ)], 1, gauge_yx_edge_vector, g_nb_x_up, 94, g_cart_grid, &request[cntr]);
+  MPI_Isend(&cvc_gauge_field[72*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ)], 1, gauge_yx_edge_vector, g_nb_x_dn, 93, g_cart_grid, &request[cntr]);
   cntr++;
-  MPI_Irecv(&g_gauge_field[72*(VOLUME+RAND+4*LY*LZ+4*LX*LZ+2*T*LZ)], 1, gauge_yx_edge_cont, g_nb_x_dn, 94, g_cart_grid, &request[cntr]);
+  MPI_Irecv(&cvc_gauge_field[72*(VOLUME+RAND+4*LY*LZ+4*LX*LZ)], 1, gauge_yx_edge_cont, g_nb_x_up, 93, g_cart_grid, &request[cntr]);
+  cntr++;
+
+  MPI_Isend(&cvc_gauge_field[72*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ+(LX-1)*LZ)], 1, gauge_yx_edge_vector, g_nb_x_up, 94, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&cvc_gauge_field[72*(VOLUME+RAND+4*LY*LZ+4*LX*LZ+2*T*LZ)], 1, gauge_yx_edge_cont, g_nb_x_dn, 94, g_cart_grid, &request[cntr]);
   cntr++;
 #endif
 
@@ -486,8 +486,8 @@ void plaquette(double *pl) {
   for(ix=0; ix<VOLUME; ix++) {
     for(mu=0; mu<3; mu++) {
     for(nu=mu+1; nu<4; nu++) {
-      _cm_eq_cm_ti_cm(s, &g_gauge_field[72*ix+mu*18], &g_gauge_field[72*g_iup[ix][mu]+18*nu]);
-      _cm_eq_cm_ti_cm(t, &g_gauge_field[72*ix+nu*18], &g_gauge_field[72*g_iup[ix][nu]+18*mu]);
+      _cm_eq_cm_ti_cm(s, &cvc_gauge_field[72*ix+mu*18], &cvc_gauge_field[72*g_iup[ix][mu]+18*nu]);
+      _cm_eq_cm_ti_cm(t, &cvc_gauge_field[72*ix+nu*18], &cvc_gauge_field[72*g_iup[ix][nu]+18*mu]);
       _cm_eq_cm_ti_cm_dag(u, s, t);
       _co_eq_tr_cm(&w, u);
       pl_loc += w.re;
@@ -1610,17 +1610,17 @@ int printf_gauge_field(double *gauge, FILE *ofs) {
                    "[%2d] (%12.5e)+(%12.5e)\t(%12.5e)+(%12.5e)\t(%12.5e)+(%12.5e)\n"\
                    "[%2d] (%12.5e)+(%12.5e)\t(%12.5e)+(%12.5e)\t(%12.5e)+(%12.5e)\n",
                     g_cart_id,
-                    g_gauge_field[ix+ 0], g_gauge_field[ix+ 1],
-                    g_gauge_field[ix+ 2], g_gauge_field[ix+ 3],
-                    g_gauge_field[ix+ 4], g_gauge_field[ix+ 5],
+                    cvc_gauge_field[ix+ 0], cvc_gauge_field[ix+ 1],
+                    cvc_gauge_field[ix+ 2], cvc_gauge_field[ix+ 3],
+                    cvc_gauge_field[ix+ 4], cvc_gauge_field[ix+ 5],
                     g_cart_id,
-                    g_gauge_field[ix+ 6], g_gauge_field[ix+ 7],
-                    g_gauge_field[ix+ 8], g_gauge_field[ix+ 9],
-                    g_gauge_field[ix+10], g_gauge_field[ix+11],
+                    cvc_gauge_field[ix+ 6], cvc_gauge_field[ix+ 7],
+                    cvc_gauge_field[ix+ 8], cvc_gauge_field[ix+ 9],
+                    cvc_gauge_field[ix+10], cvc_gauge_field[ix+11],
                     g_cart_id,
-                    g_gauge_field[ix+12], g_gauge_field[ix+13],
-                    g_gauge_field[ix+14], g_gauge_field[ix+15],
-                    g_gauge_field[ix+16], g_gauge_field[ix+17]);
+                    cvc_gauge_field[ix+12], cvc_gauge_field[ix+13],
+                    cvc_gauge_field[ix+14], cvc_gauge_field[ix+15],
+                    cvc_gauge_field[ix+16], cvc_gauge_field[ix+17]);
     }
   }
   }
@@ -1902,19 +1902,19 @@ void apply_gt_gauge(double *g) {
   if(g_cart_id==0) fprintf(stdout, "applying gauge transformation to gauge field\n");
 /*
   ofs = fopen("gauge_field_before", "w");
-  printf_gauge_field(g_gauge_field, ofs);
+  printf_gauge_field(cvc_gauge_field, ofs);
   fclose(ofs);
 */
   for(ix=0; ix<VOLUME; ix++) {
     for(mu=0; mu<4; mu++) {
-      _cm_eq_cm_ti_cm(u, &g[18*ix], &g_gauge_field[_GGI(ix,mu)]);
-      _cm_eq_cm_ti_cm_dag(&g_gauge_field[_GGI(ix, mu)], u, &g[18*g_iup[ix][mu]]);
+      _cm_eq_cm_ti_cm(u, &g[18*ix], &cvc_gauge_field[_GGI(ix,mu)]);
+      _cm_eq_cm_ti_cm_dag(&cvc_gauge_field[_GGI(ix, mu)], u, &g[18*g_iup[ix][mu]]);
     }
   }
   xchange_gauge();
 /*
   ofs = fopen("gauge_field_after", "w");
-  printf_gauge_field(g_gauge_field, ofs);
+  printf_gauge_field(cvc_gauge_field, ofs);
   fclose(ofs);
 */
 }
@@ -2062,12 +2062,12 @@ int wilson_loop(complex *w, const int xstart, const int dir, const int Ldir) {
 
   if(dir==0) {
     ix=g_iup[xstart][dir];
-    _cm_eq_cm_ti_cm(V_, g_gauge_field+_GGI(xstart, dir), g_gauge_field+_GGI(ix, dir));
+    _cm_eq_cm_ti_cm(V_, cvc_gauge_field+_GGI(xstart, dir), cvc_gauge_field+_GGI(ix, dir));
     u1=U_; u2=V_;
     for(i=2; i<Ldir; i++) {
       ix = g_iup[ix][dir];
       u3=u1; u1=u2; u2=u3;
-      _cm_eq_cm_ti_cm(u2, u1, g_gauge_field+_GGI(ix,dir));
+      _cm_eq_cm_ti_cm(u2, u1, cvc_gauge_field+_GGI(ix,dir));
     }
 #ifdef MPI
     if(g_cart_id==0) {
@@ -2078,12 +2078,12 @@ int wilson_loop(complex *w, const int xstart, const int dir, const int Ldir) {
     _co_eq_tr_cm(&tr, u2);
   } else {
     ix=g_iup[xstart][dir];
-    _cm_eq_cm_ti_cm(V_, g_gauge_field+_GGI(xstart, dir), g_gauge_field+_GGI(ix, dir));
+    _cm_eq_cm_ti_cm(V_, cvc_gauge_field+_GGI(xstart, dir), cvc_gauge_field+_GGI(ix, dir));
     u1=U_; u2=V_;
     for(i=2; i<Ldir; i++) {
       ix = g_iup[ix][dir];
       u3=u1; u1=u2; u2=u3;
-      _cm_eq_cm_ti_cm(u2, u1, g_gauge_field+_GGI(ix,dir));
+      _cm_eq_cm_ti_cm(u2, u1, cvc_gauge_field+_GGI(ix,dir));
     }
     _co_eq_tr_cm(&tr, u2);
   }
@@ -3107,14 +3107,14 @@ int set_temporal_gauge(double*gauge_transform) {
   }
   count=0;
   for(ix=18*VOL3; ix<36*VOL3; ix+=18) {
-    memcpy((void*)(gauge_transform+ix), (void*)(g_gauge_field+count), 18*sizeof(double));
+    memcpy((void*)(gauge_transform+ix), (void*)(cvc_gauge_field+count), 18*sizeof(double));
     count += 72;
   }
 
   count = 72*VOL3;
   iix   = 18*VOL3;
   for(ix=36*VOL3; ix<18*VOLUME; ix+=18) {
-    _cm_eq_cm_ti_cm(gauge_transform+ix, gauge_transform+iix, g_gauge_field+count);
+    _cm_eq_cm_ti_cm(gauge_transform+ix, gauge_transform+iix, cvc_gauge_field+count);
     iix+=18;
     count+=72;
   }

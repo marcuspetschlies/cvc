@@ -55,7 +55,7 @@ void Q_phi_tbc(double *xi, double *phi) {
       _fv_eq_gamma_ti_fv(spinor1, 0, phi_);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(g_idn[index_s][0], 0);
+      U_ = cvc_gauge_field + _GGI(g_idn[index_s][0], 0);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[0]);
       _fv_eq_cm_dag_ti_fv(spinor2, SU3_1, spinor1);
@@ -68,7 +68,7 @@ void Q_phi_tbc(double *xi, double *phi) {
       _fv_mi(spinor1);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(index_s, 0);
+      U_ = cvc_gauge_field + _GGI(index_s, 0);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[0]);
       _fv_eq_cm_ti_fv(spinor2, SU3_1, spinor1);
@@ -80,7 +80,7 @@ void Q_phi_tbc(double *xi, double *phi) {
       _fv_eq_gamma_ti_fv(spinor1, 1, phi_);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(g_idn[index_s][1], 1);
+      U_ = cvc_gauge_field + _GGI(g_idn[index_s][1], 1);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[1]);
       _fv_eq_cm_dag_ti_fv(spinor2, SU3_1, spinor1);
@@ -93,7 +93,7 @@ void Q_phi_tbc(double *xi, double *phi) {
       _fv_mi(spinor1);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(index_s, 1);
+      U_ = cvc_gauge_field + _GGI(index_s, 1);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[1]);
       _fv_eq_cm_ti_fv(spinor2, SU3_1, spinor1);
@@ -106,7 +106,7 @@ void Q_phi_tbc(double *xi, double *phi) {
       _fv_eq_gamma_ti_fv(spinor1, 2, phi_);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(g_idn[index_s][2], 2);
+      U_ = cvc_gauge_field + _GGI(g_idn[index_s][2], 2);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[2]);
       _fv_eq_cm_dag_ti_fv(spinor2, SU3_1, spinor1);
@@ -120,7 +120,7 @@ void Q_phi_tbc(double *xi, double *phi) {
       _fv_mi(spinor1);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(index_s, 2);
+      U_ = cvc_gauge_field + _GGI(index_s, 2);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[2]);
       _fv_eq_cm_ti_fv(spinor2, SU3_1, spinor1);
@@ -133,7 +133,7 @@ void Q_phi_tbc(double *xi, double *phi) {
       _fv_eq_gamma_ti_fv(spinor1, 3, phi_);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(g_idn[index_s][3], 3);
+      U_ = cvc_gauge_field + _GGI(g_idn[index_s][3], 3);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[3]);
       _fv_eq_cm_dag_ti_fv(spinor2, SU3_1, spinor1);
@@ -146,7 +146,7 @@ void Q_phi_tbc(double *xi, double *phi) {
       _fv_mi(spinor1);
       _fv_pl_eq_fv(spinor1, phi_);
  
-      U_ = g_gauge_field + _GGI(index_s, 3);
+      U_ = cvc_gauge_field + _GGI(index_s, 3);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[3]);
       _fv_eq_cm_ti_fv(spinor2, SU3_1, spinor1);
@@ -215,7 +215,7 @@ void Hopping(double *xi, double *phi) {
       _fv_eq_gamma_ti_fv(spinor1, 0, phi_);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(g_idn[index_s][0], 0);
+      U_ = cvc_gauge_field + _GGI(g_idn[index_s][0], 0);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[0]);
       _fv_eq_cm_dag_ti_fv(spinor2, SU3_1, spinor1);
@@ -228,7 +228,7 @@ void Hopping(double *xi, double *phi) {
       _fv_mi(spinor1);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(index_s, 0);
+      U_ = cvc_gauge_field + _GGI(index_s, 0);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[0]);
       _fv_eq_cm_ti_fv(spinor2, SU3_1, spinor1);
@@ -240,7 +240,7 @@ void Hopping(double *xi, double *phi) {
       _fv_eq_gamma_ti_fv(spinor1, 1, phi_);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(g_idn[index_s][1], 1);
+      U_ = cvc_gauge_field + _GGI(g_idn[index_s][1], 1);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[1]);
       _fv_eq_cm_dag_ti_fv(spinor2, SU3_1, spinor1);
@@ -253,7 +253,7 @@ void Hopping(double *xi, double *phi) {
       _fv_mi(spinor1);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(index_s, 1);
+      U_ = cvc_gauge_field + _GGI(index_s, 1);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[1]);
       _fv_eq_cm_ti_fv(spinor2, SU3_1, spinor1);
@@ -266,7 +266,7 @@ void Hopping(double *xi, double *phi) {
       _fv_eq_gamma_ti_fv(spinor1, 2, phi_);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(g_idn[index_s][2], 2);
+      U_ = cvc_gauge_field + _GGI(g_idn[index_s][2], 2);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[2]);
       _fv_eq_cm_dag_ti_fv(spinor2, SU3_1, spinor1);
@@ -280,7 +280,7 @@ void Hopping(double *xi, double *phi) {
       _fv_mi(spinor1);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(index_s, 2);
+      U_ = cvc_gauge_field + _GGI(index_s, 2);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[2]);
       _fv_eq_cm_ti_fv(spinor2, SU3_1, spinor1);
@@ -293,7 +293,7 @@ void Hopping(double *xi, double *phi) {
       _fv_eq_gamma_ti_fv(spinor1, 3, phi_);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(g_idn[index_s][3], 3);
+      U_ = cvc_gauge_field + _GGI(g_idn[index_s][3], 3);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[3]);
       _fv_eq_cm_dag_ti_fv(spinor2, SU3_1, spinor1);
@@ -306,7 +306,7 @@ void Hopping(double *xi, double *phi) {
       _fv_mi(spinor1);
       _fv_pl_eq_fv(spinor1, phi_);
  
-      U_ = g_gauge_field + _GGI(index_s, 3);
+      U_ = cvc_gauge_field + _GGI(index_s, 3);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[3]);
       _fv_eq_cm_ti_fv(spinor2, SU3_1, spinor1);
@@ -607,7 +607,7 @@ void Qf5(double *xi, double *phi, double mutm) {
       _fv_eq_gamma_ti_fv(spinor1, 0, phi_);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(g_idn[index_s][0], 0);
+      U_ = cvc_gauge_field + _GGI(g_idn[index_s][0], 0);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[0]);
       _fv_eq_cm_dag_ti_fv(spinor2, SU3_1, spinor1);
@@ -620,7 +620,7 @@ void Qf5(double *xi, double *phi, double mutm) {
       _fv_mi(spinor1);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(index_s, 0);
+      U_ = cvc_gauge_field + _GGI(index_s, 0);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[0]);
       _fv_eq_cm_ti_fv(spinor2, SU3_1, spinor1);
@@ -632,7 +632,7 @@ void Qf5(double *xi, double *phi, double mutm) {
       _fv_eq_gamma_ti_fv(spinor1, 1, phi_);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(g_idn[index_s][1], 1);
+      U_ = cvc_gauge_field + _GGI(g_idn[index_s][1], 1);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[1]);
       _fv_eq_cm_dag_ti_fv(spinor2, SU3_1, spinor1);
@@ -645,7 +645,7 @@ void Qf5(double *xi, double *phi, double mutm) {
       _fv_mi(spinor1);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(index_s, 1);
+      U_ = cvc_gauge_field + _GGI(index_s, 1);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[1]);
       _fv_eq_cm_ti_fv(spinor2, SU3_1, spinor1);
@@ -658,7 +658,7 @@ void Qf5(double *xi, double *phi, double mutm) {
       _fv_eq_gamma_ti_fv(spinor1, 2, phi_);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(g_idn[index_s][2], 2);
+      U_ = cvc_gauge_field + _GGI(g_idn[index_s][2], 2);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[2]);
       _fv_eq_cm_dag_ti_fv(spinor2, SU3_1, spinor1);
@@ -672,7 +672,7 @@ void Qf5(double *xi, double *phi, double mutm) {
       _fv_mi(spinor1);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(index_s, 2);
+      U_ = cvc_gauge_field + _GGI(index_s, 2);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[2]);
       _fv_eq_cm_ti_fv(spinor2, SU3_1, spinor1);
@@ -685,7 +685,7 @@ void Qf5(double *xi, double *phi, double mutm) {
       _fv_eq_gamma_ti_fv(spinor1, 3, phi_);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(g_idn[index_s][3], 3);
+      U_ = cvc_gauge_field + _GGI(g_idn[index_s][3], 3);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[3]);
       _fv_eq_cm_dag_ti_fv(spinor2, SU3_1, spinor1);
@@ -698,7 +698,7 @@ void Qf5(double *xi, double *phi, double mutm) {
       _fv_mi(spinor1);
       _fv_pl_eq_fv(spinor1, phi_);
  
-      U_ = g_gauge_field + _GGI(index_s, 3);
+      U_ = cvc_gauge_field + _GGI(index_s, 3);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[3]);
       _fv_eq_cm_ti_fv(spinor2, SU3_1, spinor1);
@@ -768,7 +768,7 @@ void Q_phi(double *xi, double *phi, const double mutm) {
       _fv_eq_gamma_ti_fv(spinor1, 0, phi_);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(g_idn[index_s][0], 0);
+      U_ = cvc_gauge_field + _GGI(g_idn[index_s][0], 0);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[0]);
       _fv_eq_cm_dag_ti_fv(spinor2, SU3_1, spinor1);
@@ -781,7 +781,7 @@ void Q_phi(double *xi, double *phi, const double mutm) {
       _fv_mi(spinor1);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(index_s, 0);
+      U_ = cvc_gauge_field + _GGI(index_s, 0);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[0]);
       _fv_eq_cm_ti_fv(spinor2, SU3_1, spinor1);
@@ -793,7 +793,7 @@ void Q_phi(double *xi, double *phi, const double mutm) {
       _fv_eq_gamma_ti_fv(spinor1, 1, phi_);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(g_idn[index_s][1], 1);
+      U_ = cvc_gauge_field + _GGI(g_idn[index_s][1], 1);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[1]);
       _fv_eq_cm_dag_ti_fv(spinor2, SU3_1, spinor1);
@@ -806,7 +806,7 @@ void Q_phi(double *xi, double *phi, const double mutm) {
       _fv_mi(spinor1);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(index_s, 1);
+      U_ = cvc_gauge_field + _GGI(index_s, 1);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[1]);
       _fv_eq_cm_ti_fv(spinor2, SU3_1, spinor1);
@@ -819,7 +819,7 @@ void Q_phi(double *xi, double *phi, const double mutm) {
       _fv_eq_gamma_ti_fv(spinor1, 2, phi_);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(g_idn[index_s][2], 2);
+      U_ = cvc_gauge_field + _GGI(g_idn[index_s][2], 2);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[2]);
       _fv_eq_cm_dag_ti_fv(spinor2, SU3_1, spinor1);
@@ -833,7 +833,7 @@ void Q_phi(double *xi, double *phi, const double mutm) {
       _fv_mi(spinor1);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(index_s, 2);
+      U_ = cvc_gauge_field + _GGI(index_s, 2);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[2]);
       _fv_eq_cm_ti_fv(spinor2, SU3_1, spinor1);
@@ -846,7 +846,7 @@ void Q_phi(double *xi, double *phi, const double mutm) {
       _fv_eq_gamma_ti_fv(spinor1, 3, phi_);
       _fv_pl_eq_fv(spinor1, phi_);
 
-      U_ = g_gauge_field + _GGI(g_idn[index_s][3], 3);
+      U_ = cvc_gauge_field + _GGI(g_idn[index_s][3], 3);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[3]);
       _fv_eq_cm_dag_ti_fv(spinor2, SU3_1, spinor1);
@@ -859,7 +859,7 @@ void Q_phi(double *xi, double *phi, const double mutm) {
       _fv_mi(spinor1);
       _fv_pl_eq_fv(spinor1, phi_);
  
-      U_ = g_gauge_field + _GGI(index_s, 3);
+      U_ = cvc_gauge_field + _GGI(index_s, 3);
 
       _cm_eq_cm_ti_co(SU3_1, U_, &co_phase_up[3]);
       _fv_eq_cm_ti_fv(spinor2, SU3_1, spinor1);

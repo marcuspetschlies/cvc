@@ -1028,7 +1028,7 @@ int prepare_propagator(int timeslice, int iread, int is_mms, int no_mass, double
     status = read_lime_spinor(work, filename, pos);
     signed_mass = sign * mass;
     xchange_field(work);
-    Qf5(g_spinor_field[isave], work, signed_mass);
+    Qf5(cvc_spinor_field[isave], work, signed_mass);
   } else {
     if(no_mass == -1) {
       if(sign==-1.) {
@@ -1044,7 +1044,7 @@ int prepare_propagator(int timeslice, int iread, int is_mms, int no_mass, double
       }
     }
     if(g_cart_id==0) fprintf(stdout, "\n# [prepare_propagator] reading fermion field from file %s at position %d\n", filename, pos);
-    status = read_lime_spinor(g_spinor_field[isave], filename, pos);
+    status = read_lime_spinor(cvc_spinor_field[isave], filename, pos);
   }
 
   if(status != 0) {

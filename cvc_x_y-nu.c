@@ -315,7 +315,7 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
   /* allocate memory for gauge field configuration
    * (contained in cvc_utils.c) */
 
-  alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
+  alloc_gauge_field(&cvc_gauge_field, VOLUMEPLUSRAND);
   if(!(strcmp(gaugefilename_prefix,"identity")==0)) {
     /* read the gauge field */
     sprintf(filename, "%s.%.4d", gaugefilename_prefix, Nconf);
@@ -325,10 +325,10 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
     /* initialize unit matrices */
     if(g_cart_id==0) fprintf(stdout, "\n# cvc initializing unit matrices\n");
     for(ix=0;ix<VOLUME;ix++) {
-      _cm_eq_id( g_gauge_field + _GGI(ix, 0) );
-      _cm_eq_id( g_gauge_field + _GGI(ix, 1) );
-      _cm_eq_id( g_gauge_field + _GGI(ix, 2) );
-      _cm_eq_id( g_gauge_field + _GGI(ix, 3) );
+      _cm_eq_id( cvc_gauge_field + _GGI(ix, 0) );
+      _cm_eq_id( cvc_gauge_field + _GGI(ix, 1) );
+      _cm_eq_id( cvc_gauge_field + _GGI(ix, 2) );
+      _cm_eq_id( cvc_gauge_field + _GGI(ix, 3) );
     }
   }
 
@@ -351,10 +351,10 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
   /* allocate memory for the spinor fields */
   no_fields = 24;
   if(mms) no_fields++;
-  g_spinor_field = (double**)calloc(no_fields, sizeof(double*));
-  for(i=0; i<no_fields; i++) alloc_spinor_field(&g_spinor_field[i], VOLUMEPLUSRAND);
+  cvc_spinor_field = (double**)calloc(no_fields, sizeof(double*));
+  for(i=0; i<no_fields; i++) alloc_spinor_field(&cvc_spinor_field[i], VOLUMEPLUSRAND);
   if(mms) {
-    work = g_spinor_field[no_fields-1];
+    work = cvc_spinor_field[no_fields-1];
   }
 
   /* allocate memory for the contractions */
@@ -430,10 +430,10 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
     source_location[2] = g_ipt[sx0][sx1][sx2m1][sx3];
     source_location[3] = g_ipt[sx0][sx1][sx2][sx3m1];
     source_location[4] = g_ipt[sx0][sx1][sx2][sx3];
-    _cm_eq_cm_ti_co(Usource[0], &g_gauge_field[_GGI(source_location[0],0)], &co_phase_up[0]);
-    _cm_eq_cm_ti_co(Usource[1], &g_gauge_field[_GGI(source_location[1],1)], &co_phase_up[1]);
-    _cm_eq_cm_ti_co(Usource[2], &g_gauge_field[_GGI(source_location[2],2)], &co_phase_up[2]);
-    _cm_eq_cm_ti_co(Usource[3], &g_gauge_field[_GGI(source_location[3],3)], &co_phase_up[3]);
+    _cm_eq_cm_ti_co(Usource[0], &cvc_gauge_field[_GGI(source_location[0],0)], &co_phase_up[0]);
+    _cm_eq_cm_ti_co(Usource[1], &cvc_gauge_field[_GGI(source_location[1],1)], &co_phase_up[1]);
+    _cm_eq_cm_ti_co(Usource[2], &cvc_gauge_field[_GGI(source_location[2],2)], &co_phase_up[2]);
+    _cm_eq_cm_ti_co(Usource[3], &cvc_gauge_field[_GGI(source_location[3],3)], &co_phase_up[3]);
   }
 #ifdef MPI
   MPI_Gather(&have_source_flag, 1, MPI_INT, status, 1, MPI_INT, 0, g_cart_grid);
@@ -512,14 +512,14 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
   for(ia=0; ia<12; ia++) {
     if(!mms) {
       get_filename(filename, 4, ia, 1); // position 4 is source position y, 1 means "+ i mu gamma_5", i.e. psource...
-      read_lime_spinor(g_spinor_field[ia], filename, 0); //0 stands for first lime block
-      xchange_field(g_spinor_field[ia]);
+      read_lime_spinor(cvc_spinor_field[ia], filename, 0); //0 stands for first lime block
+      xchange_field(cvc_spinor_field[ia]);
     } else {
       sprintf(filename, "%s.%.4d.04.%.2d.cgmms.%.2d.inverted", filename_prefix, Nconf, ia, mass_id);
       read_lime_spinor(work, filename, 0);
       xchange_field(work);
-      Qf5(g_spinor_field[ia], work, -g_mu);
-      xchange_field(g_spinor_field[ia]);
+      Qf5(cvc_spinor_field[ia], work, -g_mu);
+      xchange_field(cvc_spinor_field[ia]);
     }
   }
       
@@ -527,14 +527,14 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
 /*    if(do_gt==0) {
       for(ia=0; ia<12; ia++) {
         get_filename(filename, 4, ia, 1);
-        read_lime_spinor(g_spinor_field[ia], filename, 0);
-        xchange_field(g_spinor_field[ia]);
+        read_lime_spinor(cvc_spinor_field[ia], filename, 0);
+        xchange_field(cvc_spinor_field[ia]);
       }
     }
     else {
       for(ia=0; ia<12; ia++) {
-        apply_gt_prop2(gauge_trafo, g_spinor_field[ia], ia/3, ia%3, 4, filename_prefix, g_source_location);
-        xchange_field(g_spinor_field[ia]);
+        apply_gt_prop2(gauge_trafo, cvc_spinor_field[ia], ia/3, ia%3, 4, filename_prefix, g_source_location);
+        xchange_field(cvc_spinor_field[ia]);
       }
     }*/
 
@@ -550,18 +550,18 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
       if(!mms) {
         if(ud_one_file==0) {
           get_filename(filename, nu, ia, -1);//-1 implies reading from msource..
-          read_lime_spinor(g_spinor_field[12+ia], filename, 0);
+          read_lime_spinor(cvc_spinor_field[12+ia], filename, 0);
         } else {
           get_filename(filename, nu, ia, 1);
-          read_lime_spinor(g_spinor_field[12+ia], filename, 1);
+          read_lime_spinor(cvc_spinor_field[12+ia], filename, 1);
         }
-        xchange_field(g_spinor_field[12+ia]);
+        xchange_field(cvc_spinor_field[12+ia]);
       } else {
         sprintf(filename, "%s.%.4d.%.2d.%.2d.cgmms.%.2d.inverted", filename_prefix, Nconf, nu, ia, mass_id);
         read_lime_spinor(work, filename, 0);
         xchange_field(work);
-        Qf5(g_spinor_field[12+ia], work, g_mu);
-        xchange_field(g_spinor_field[12+ia]);
+        Qf5(cvc_spinor_field[12+ia], work, g_mu);
+        xchange_field(cvc_spinor_field[12+ia]);
       }
     }
 
@@ -570,14 +570,14 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
 /*    if(do_gt==0) {
       for(ia=0; ia<12; ia++) {
         get_filename(filename, nu, ia, -1);
-        read_lime_spinor(g_spinor_field[12+ia], filename, 0);
-        xchange_field(g_spinor_field[12+ia]);
+        read_lime_spinor(cvc_spinor_field[12+ia], filename, 0);
+        xchange_field(cvc_spinor_field[12+ia]);
       }
     }
     else {
       for(ia=0; ia<12; ia++) {
-        apply_gt_prop2(gauge_trafo, g_spinor_field[12+ia], ia/3, ia%3, nu, filename_prefix2, g_source_location);
-        xchange_field(g_spinor_field[12+ia]);
+        apply_gt_prop2(gauge_trafo, cvc_spinor_field[12+ia], ia/3, ia%3, nu, filename_prefix2, g_source_location);
+        xchange_field(cvc_spinor_field[12+ia]);
       }
     }*/
 /**********************************************************************************************************/
@@ -585,9 +585,9 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
    /* add new contractions to (existing) disc */
     for(ir=0; ir<4; ir++) { /*spinor index*/
       for(ia=0; ia<3; ia++) { /*colour index*/
-        phi = g_spinor_field[3*ir+ia];
+        phi = cvc_spinor_field[3*ir+ia];
       for(ib=0; ib<3; ib++) { /*colour index */
-        chi = g_spinor_field[12+3*gperm[nu][ir]+ib];
+        chi = cvc_spinor_field[12+3*gperm[nu][ir]+ib];
         fprintf(stdout, "\n# [nu5] spin index pair (%d, %d); col index pair (%d, %d)\n", ir, gperm[nu][ir], ia ,ib);
 
         // 1) gamma_nu gamma_5 x U^dagger
@@ -602,7 +602,7 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
 #endif
 
       for(ix=0; ix<VOLUME; ix++) {    /* loop on lattice sites */
-           _cm_eq_cm_ti_co(U_, &g_gauge_field[_GGI(ix, mu)], &co_phase_up[mu]); /* (from antip. bc in time direction) above only for source location ? */
+           _cm_eq_cm_ti_co(U_, &cvc_gauge_field[_GGI(ix, mu)], &co_phase_up[mu]); /* (from antip. bc in time direction) above only for source location ? */
 
 	    _fv_eq_cm_ti_fv(spinor1, U_, phi+_GSI(g_iup[ix][mu]));
             _fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
@@ -631,7 +631,7 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
 #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
 #endif
           for(ix=0; ix<VOLUME; ix++) {
-            _cm_eq_cm_ti_co(U_, &g_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
+            _cm_eq_cm_ti_co(U_, &cvc_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
 
             _fv_eq_cm_dag_ti_fv(spinor1, U_, phi+_GSI(ix));
             _fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
@@ -657,7 +657,7 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
       } /* of ib */
 
       for(ib=0; ib<3; ib++) {
-        chi = g_spinor_field[12+3*gperm[4][ir]+ib];
+        chi = cvc_spinor_field[12+3*gperm[4][ir]+ib];
         //fprintf(stdout, "\n# [5] spin index pair (%d, %d); col index pair (%d, %d)\n", ir, gperm[4][ir], ia ,ib);
 
         // gamma_5 x U^dagger
@@ -670,7 +670,7 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
 #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
 #endif
           for(ix=0; ix<VOLUME; ix++) {
-            _cm_eq_cm_ti_co(U_, &g_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
+            _cm_eq_cm_ti_co(U_, &cvc_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
 
             _fv_eq_cm_ti_fv(spinor1, U_, phi+_GSI(g_iup[ix][mu]));
             _fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
@@ -692,7 +692,7 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
 #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
 #endif
           for(ix=0; ix<VOLUME; ix++) {
-            _cm_eq_cm_ti_co(U_, &g_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
+            _cm_eq_cm_ti_co(U_, &cvc_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
 
             _fv_eq_cm_dag_ti_fv(spinor1, U_, phi+_GSI(ix));
             _fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
@@ -737,18 +737,18 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
     if(!mms) {
       if(ud_one_file==0) {
         get_filename(filename, 4, ia, -1);
-        read_lime_spinor(g_spinor_field[12+ia], filename, 0);
+        read_lime_spinor(cvc_spinor_field[12+ia], filename, 0);
       } else {
         get_filename(filename, 4, ia, 1);
-        read_lime_spinor(g_spinor_field[12+ia], filename, 1);
+        read_lime_spinor(cvc_spinor_field[12+ia], filename, 1);
       }
-      xchange_field(g_spinor_field[12+ia]);
+      xchange_field(cvc_spinor_field[12+ia]);
     } else {
       sprintf(filename, "%s.%.4d.04.%.2d.cgmms.%.2d.inverted", filename_prefix, Nconf, ia, mass_id);
       read_lime_spinor(work, filename, 0);
       xchange_field(work);
-      Qf5(g_spinor_field[12+ia], work, g_mu);
-      xchange_field(g_spinor_field[12+ia]);
+      Qf5(cvc_spinor_field[12+ia], work, g_mu);
+      xchange_field(cvc_spinor_field[12+ia]);
     }
   }
   
@@ -757,14 +757,14 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
 /*    if(do_gt==0) {
       for(ia=0; ia<12; ia++) {
         get_filename(filename, 4, ia, -1);
-        read_lime_spinor(g_spinor_field[12+ia], filename, 0);
-        xchange_field(g_spinor_field[12+ia]);
+        read_lime_spinor(cvc_spinor_field[12+ia], filename, 0);
+        xchange_field(cvc_spinor_field[12+ia]);
       }
     }
     else {
       for(ia=0; ia<12; ia++) {
-        apply_gt_prop2(gauge_trafo, g_spinor_field[12+ia], ia/3, ia%3, 4, filename_prefix2, g_source_location);
-        xchange_field(g_spinor_field[12+ia]);
+        apply_gt_prop2(gauge_trafo, cvc_spinor_field[12+ia], ia/3, ia%3, 4, filename_prefix2, g_source_location);
+        xchange_field(cvc_spinor_field[12+ia]);
       }
     }*/
 
@@ -778,14 +778,14 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
     for(ia=0; ia<12; ia++) {
       if(!mms) {
         get_filename(filename, nu, ia, 1);
-        read_lime_spinor(g_spinor_field[ia], filename, 0);
-        xchange_field(g_spinor_field[ia]);
+        read_lime_spinor(cvc_spinor_field[ia], filename, 0);
+        xchange_field(cvc_spinor_field[ia]);
       } else {
         sprintf(filename, "%s.%.4d.%.2d.%.2d.cgmms.%.2d.inverted", filename_prefix, Nconf, nu, ia, mass_id);
         read_lime_spinor(work, filename, 0);
         xchange_field(work);
-        Qf5(g_spinor_field[ia], work, -g_mu);
-        xchange_field(g_spinor_field[ia]);
+        Qf5(cvc_spinor_field[ia], work, -g_mu);
+        xchange_field(cvc_spinor_field[ia]);
       }
     }
     
@@ -793,14 +793,14 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
 /*     if(do_gt==0) {
       for(ia=0; ia<12; ia++) {
         get_filename(filename, nu, ia, 1);
-        read_lime_spinor(g_spinor_field[ia], filename, 0);
-        xchange_field(g_spinor_field[ia]);
+        read_lime_spinor(cvc_spinor_field[ia], filename, 0);
+        xchange_field(cvc_spinor_field[ia]);
       }
     }
     else {
       for(ia=0; ia<12; ia++) {
-        apply_gt_prop2(gauge_trafo, g_spinor_field[ia], ia/3, ia%3, nu, filename_prefix, g_source_location);
-        xchange_field(g_spinor_field[ia]);
+        apply_gt_prop2(gauge_trafo, cvc_spinor_field[ia], ia/3, ia%3, nu, filename_prefix, g_source_location);
+        xchange_field(cvc_spinor_field[ia]);
       }
     }*/
     
@@ -808,9 +808,9 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
 
     for(ir=0; ir<4; ir++) {
       for(ia=0; ia<3; ia++) {
-        phi = g_spinor_field[3*ir+ia];
+        phi = cvc_spinor_field[3*ir+ia];
       for(ib=0; ib<3; ib++) {
-        chi = g_spinor_field[12+3*gperm[nu][ir]+ib];
+        chi = cvc_spinor_field[12+3*gperm[nu][ir]+ib];
         //fprintf(stdout, "\n# [nu5] spin index pair (%d, %d); col index pair (%d, %d)\n", ir, gperm[nu][ir], ia ,ib);
     
         // 1) gamma_nu gamma_5 x U
@@ -823,7 +823,7 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
 #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
 #endif
           for(ix=0; ix<VOLUME; ix++) {
-            _cm_eq_cm_ti_co(U_, &g_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
+            _cm_eq_cm_ti_co(U_, &cvc_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
 
             _fv_eq_cm_ti_fv(spinor1, U_, phi+_GSI(g_iup[ix][mu]));
             _fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
@@ -850,7 +850,7 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
 #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
 #endif
           for(ix=0; ix<VOLUME; ix++) {
-            _cm_eq_cm_ti_co(U_, &g_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
+            _cm_eq_cm_ti_co(U_, &cvc_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
 
             _fv_eq_cm_dag_ti_fv(spinor1, U_, phi+_GSI(ix));
             _fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
@@ -877,7 +877,7 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
       } /* of ib */
 
       for(ib=0; ib<3; ib++) {
-        chi = g_spinor_field[12+3*gperm[4][ir]+ib];
+        chi = cvc_spinor_field[12+3*gperm[4][ir]+ib];
         //fprintf(stdout, "\n# [5] spin index pair (%d, %d); col index pair (%d, %d)\n", ir, gperm[4][ir], ia ,ib);
 
         // gamma_5 x U 
@@ -889,7 +889,7 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
 #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
 #endif
           for(ix=0; ix<VOLUME; ix++) {
-            _cm_eq_cm_ti_co(U_, &g_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
+            _cm_eq_cm_ti_co(U_, &cvc_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
 
             _fv_eq_cm_ti_fv(spinor1, U_, phi+_GSI(g_iup[ix][mu]));
             _fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
@@ -910,7 +910,7 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
 #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
 #endif
           for(ix=0; ix<VOLUME; ix++) {
-            _cm_eq_cm_ti_co(U_, &g_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
+            _cm_eq_cm_ti_co(U_, &cvc_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
 
             _fv_eq_cm_dag_ti_fv(spinor1, U_, phi+_GSI(ix));
             _fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
@@ -1178,9 +1178,9 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
   /****************************************
    * free the allocated memory, finalize
    ****************************************/
-  free(g_gauge_field);
-  for(i=0; i<no_fields; i++) free(g_spinor_field[i]);
-  free(g_spinor_field);
+  free(cvc_gauge_field);
+  for(i=0; i<no_fields; i++) free(cvc_spinor_field[i]);
+  free(cvc_spinor_field);
   free_geometry();
   fftw_free(in);
   free(conn);

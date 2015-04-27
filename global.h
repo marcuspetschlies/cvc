@@ -64,10 +64,10 @@
   extern int g_nproc_t, g_nproc_x, g_nproc_y, g_nproc_z;
   
   
-#else
+#else //LIB_WRAPPER
 
   EXTERN int T_global, LX_global, LY_global;
-  EXTERN int T, L, LX, LY, LZ, VOLUME, ;
+  EXTERN int T, L, LX, LY, LZ, VOLUME;
   EXTERN int RAND, EDGES, VOLUMEPLUSRAND;
 
   EXTERN int **** g_ipt;
@@ -92,7 +92,7 @@
   EXTERN int g_nproc_t, g_nproc_x, g_nproc_y, g_nproc_z;
 
   
-#endif
+#endif //LIB_WRAPPER
 
 
 
@@ -109,8 +109,8 @@ EXTERN int g_ts_nb_y_up, g_ts_nb_y_dn;
 
 
 
-EXTERN double **g_spinor_field;
-EXTERN double *g_gauge_field;
+EXTERN double **cvc_spinor_field;
+EXTERN double *cvc_gauge_field;
 EXTERN double g_kappa, g_mu, g_musigma, g_mudelta;
 
 

@@ -202,7 +202,7 @@ int main(int argc, char **argv) {
 
   /* allocate memory for gauge field configuration
    * (contained in cvc_utils.c) */
-  alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
+  alloc_gauge_field(&cvc_gauge_field, VOLUMEPLUSRAND);
   
   if(!(strcmp(gaugefilename_prefix,"identity")==0)) {
     /* read the gauge field */
@@ -213,10 +213,10 @@ int main(int argc, char **argv) {
     /* initialize unit matrices */
     if(g_cart_id==0) fprintf(stdout, "\n# cvc initializing unit matrices\n");
     for(ix=0;ix<VOLUME;ix++) {
-      _cm_eq_id( g_gauge_field + _GGI(ix, 0) );
-      _cm_eq_id( g_gauge_field + _GGI(ix, 1) );
-      _cm_eq_id( g_gauge_field + _GGI(ix, 2) );
-      _cm_eq_id( g_gauge_field + _GGI(ix, 3) );
+      _cm_eq_id( cvc_gauge_field + _GGI(ix, 0) );
+      _cm_eq_id( cvc_gauge_field + _GGI(ix, 1) );
+      _cm_eq_id( cvc_gauge_field + _GGI(ix, 2) );
+      _cm_eq_id( cvc_gauge_field + _GGI(ix, 3) );
     }
   }
 
@@ -243,8 +243,8 @@ int main(int argc, char **argv) {
 
   /* allocate memory for the spinor fields */
   no_fields = 4; 
-  g_spinor_field = (double**)calloc(no_fields, sizeof(double*));
-  for(i=0; i<no_fields; i++) alloc_spinor_field(&g_spinor_field[i], VOLUMEPLUSRAND);
+  cvc_spinor_field = (double**)calloc(no_fields, sizeof(double*));
+  for(i=0; i<no_fields; i++) alloc_spinor_field(&cvc_spinor_field[i], VOLUMEPLUSRAND);
 
   /* allocate memory for the contractions */
   conn = (double*)calloc(16*VOLUME, sizeof(double)); //4 for mu, 4 for nu
@@ -317,14 +317,14 @@ int main(int argc, char **argv) {
 #endif
     if(format==0) {
       sprintf(filename, "%s.%.4d.%.2d.inverted", filename_prefix, Nconf, sid);
-      if(read_lime_spinor(g_spinor_field[1], filename, 0) != 0) break;
+      if(read_lime_spinor(cvc_spinor_field[1], filename, 0) != 0) break;
     }
     else if(format==1) {
       sprintf(filename, "%s.%.4d.%.5d.inverted", filename_prefix, Nconf, sid);
-      if(read_cmi(g_spinor_field[1], filename) != 0) break;
+      if(read_cmi(cvc_spinor_field[1], filename) != 0) break;
     }
     #ifdef MPI
-    xchange_field(g_spinor_field[1]);
+    xchange_field(cvc_spinor_field[1]);
     #endif
 
 #ifdef MPI
@@ -338,11 +338,11 @@ int main(int argc, char **argv) {
    /*  gauge transform the propagators for sid */
     if(do_gt==1) {
       for(ix=0; ix<VOLUME; ix++) {
-        _fv_eq_cm_ti_fv(spinor1, gauge_trafo+18*ix, g_spinor_field[1]+_GSI(ix));
-        _fv_eq_fv(g_spinor_field[1]+_GSI(ix), spinor1);
+        _fv_eq_cm_ti_fv(spinor1, gauge_trafo+18*ix, cvc_spinor_field[1]+_GSI(ix));
+        _fv_eq_fv(cvc_spinor_field[1]+_GSI(ix), spinor1);
       }
     #ifdef MPI
-      xchange_field(g_spinor_field[1]);
+      xchange_field(cvc_spinor_field[1]);
     #endif
     }
 
@@ -353,10 +353,10 @@ int main(int argc, char **argv) {
     ratime = (double)clock() / CLOCKS_PER_SEC;
 #endif
 
-    Q_phi_tbc(g_spinor_field[0], g_spinor_field[1]);
+    Q_phi_tbc(cvc_spinor_field[0], cvc_spinor_field[1]);
 
 #ifdef MPI
-    xchange_field(g_spinor_field[0]); 
+    xchange_field(cvc_spinor_field[0]); 
 #endif
 
 #ifdef MPI
@@ -380,15 +380,15 @@ int main(int argc, char **argv) {
 
     if(format==0) {
       sprintf(filename, "%s.%.4d.%.2d.inverted", filename_prefix, Nconf, sid2);
-      if(read_lime_spinor(g_spinor_field[3], filename, 0) != 0) break;
+      if(read_lime_spinor(cvc_spinor_field[3], filename, 0) != 0) break;
     }
     else if(format==1) {
       sprintf(filename, "%s.%.4d.%.5d.inverted", filename_prefix, Nconf, sid2);
-      if(read_cmi(g_spinor_field[3], filename) != 0) break;
+      if(read_cmi(cvc_spinor_field[3], filename) != 0) break;
     }
 
     #ifdef MPI
-    xchange_field(g_spinor_field[3]);
+    xchange_field(cvc_spinor_field[3]);
     #endif
 
 #ifdef MPI
@@ -402,11 +402,11 @@ int main(int argc, char **argv) {
     /* gauge transform the propagators for sid2 */
     if(do_gt==1) {
       for(ix=0; ix<VOLUME; ix++) {
-        _fv_eq_cm_ti_fv(spinor1, gauge_trafo+18*ix, g_spinor_field[3]+_GSI(ix));
-        _fv_eq_fv(g_spinor_field[3]+_GSI(ix), spinor1);
+        _fv_eq_cm_ti_fv(spinor1, gauge_trafo+18*ix, cvc_spinor_field[3]+_GSI(ix));
+        _fv_eq_fv(cvc_spinor_field[3]+_GSI(ix), spinor1);
       }
     #ifdef MPI
-      xchange_field(g_spinor_field[3]);
+      xchange_field(cvc_spinor_field[3]);
     #endif
     }
 
@@ -417,9 +417,9 @@ int main(int argc, char **argv) {
     ratime = (double)clock() / CLOCKS_PER_SEC;
 #endif
 
-    Q_phi_tbc(g_spinor_field[2], g_spinor_field[3]);
+    Q_phi_tbc(cvc_spinor_field[2], cvc_spinor_field[3]);
 
-    xchange_field(g_spinor_field[2]);
+    xchange_field(cvc_spinor_field[2]);
 
 #ifdef MPI
     retime = MPI_Wtime();
@@ -440,22 +440,22 @@ int main(int argc, char **argv) {
     for(mu=0; mu<4; mu++) { /* loop on Lorentz index of the current */
       iix = _GWI(mu,0,VOLUME);
       for(ix=0; ix<VOLUME; ix++) {    /* loop on lattice sites */
-        _cm_eq_cm_ti_co(U_, &g_gauge_field[_GGI(ix, mu)], &co_phase_up[mu]);
+        _cm_eq_cm_ti_co(U_, &cvc_gauge_field[_GGI(ix, mu)], &co_phase_up[mu]);
 
         /* first contribution */
-        _fv_eq_cm_ti_fv(spinor1, U_, &g_spinor_field[1][_GSI(g_iup[ix][mu])]);
+        _fv_eq_cm_ti_fv(spinor1, U_, &cvc_spinor_field[1][_GSI(g_iup[ix][mu])]);
 	_fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
 	_fv_mi_eq_fv(spinor2, spinor1);
-	_co_eq_fv_dag_ti_fv(&w, &g_spinor_field[2][_GSI(ix)], spinor2);
+	_co_eq_fv_dag_ti_fv(&w, &cvc_spinor_field[2][_GSI(ix)], spinor2);
 	conn[iix  ] = -0.5 * w.re;
 	conn[iix+1] = -0.5 * w.im;
 
 
         /* second contribution */
-	_fv_eq_cm_dag_ti_fv(spinor1, U_, &g_spinor_field[1][_GSI(ix)]);
+	_fv_eq_cm_dag_ti_fv(spinor1, U_, &cvc_spinor_field[1][_GSI(ix)]);
 	_fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
 	_fv_pl_eq_fv(spinor2, spinor1);
-	_co_eq_fv_dag_ti_fv(&w, &g_spinor_field[2][_GSI(g_iup[ix][mu])], spinor2);
+	_co_eq_fv_dag_ti_fv(&w, &cvc_spinor_field[2][_GSI(g_iup[ix][mu])], spinor2);
 	conn[iix  ] -= 0.5 * w.re;
 	conn[iix+1] -= 0.5 * w.im;
 
@@ -467,21 +467,21 @@ int main(int argc, char **argv) {
     for(mu=0; mu<4; mu++) { /* loop on Lorentz index of the current */
       iix = _GWI(4+mu,0,VOLUME);
       for(ix=0; ix<VOLUME; ix++) {    /* loop on lattice sites */
-        _cm_eq_cm_ti_co(U_, &g_gauge_field[_GGI(ix, mu)], &co_phase_up[mu]);
+        _cm_eq_cm_ti_co(U_, &cvc_gauge_field[_GGI(ix, mu)], &co_phase_up[mu]);
 
         /* first contribution */
-        _fv_eq_cm_ti_fv(spinor1, U_, &g_spinor_field[3][_GSI(g_iup[ix][mu])]);
+        _fv_eq_cm_ti_fv(spinor1, U_, &cvc_spinor_field[3][_GSI(g_iup[ix][mu])]);
 	_fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
 	_fv_mi_eq_fv(spinor2, spinor1);
-	_co_eq_fv_dag_ti_fv(&w, &g_spinor_field[0][_GSI(ix)], spinor2);
+	_co_eq_fv_dag_ti_fv(&w, &cvc_spinor_field[0][_GSI(ix)], spinor2);
 	conn[iix  ] = -0.5 * w.re;
 	conn[iix+1] = -0.5 * w.im;
 
         /* second contribution */
-	_fv_eq_cm_dag_ti_fv(spinor1, U_, &g_spinor_field[3][_GSI(ix)]);
+	_fv_eq_cm_dag_ti_fv(spinor1, U_, &cvc_spinor_field[3][_GSI(ix)]);
 	_fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
 	_fv_pl_eq_fv(spinor2, spinor1);
-	_co_eq_fv_dag_ti_fv(&w, &g_spinor_field[0][_GSI(g_iup[ix][mu])], spinor2);
+	_co_eq_fv_dag_ti_fv(&w, &cvc_spinor_field[0][_GSI(g_iup[ix][mu])], spinor2);
 	conn[iix  ] -= 0.5 * w.re;
 	conn[iix+1] -= 0.5 * w.im;
 
@@ -560,22 +560,22 @@ int main(int argc, char **argv) {
     /*  add contrib. to contact term */
     for(mu=0; mu<4; mu++) {
       for(ix=0; ix<VOLUME; ix++) { 
-        _cm_eq_cm_ti_co(U_, &g_gauge_field[_GGI(ix, mu)], &co_phase_up[mu]);
+        _cm_eq_cm_ti_co(U_, &cvc_gauge_field[_GGI(ix, mu)], &co_phase_up[mu]);
 
         /* first contribution */
-        _fv_eq_cm_ti_fv(spinor1, U_, &g_spinor_field[1][_GSI(g_iup[ix][mu])]);
+        _fv_eq_cm_ti_fv(spinor1, U_, &cvc_spinor_field[1][_GSI(g_iup[ix][mu])]);
 	_fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
 	_fv_mi_eq_fv(spinor2, spinor1);
-	_co_eq_fv_dag_ti_fv(&w, &g_spinor_field[0][_GSI(ix)], spinor2);
+	_co_eq_fv_dag_ti_fv(&w, &cvc_spinor_field[0][_GSI(ix)], spinor2);
 	contact_term[2*mu  ] += 0.5 * w.re;
 	contact_term[2*mu+1] += 0.5 * w.im;
 
 
         /* second contribution */
-	_fv_eq_cm_dag_ti_fv(spinor1, U_, &g_spinor_field[1][_GSI(ix)]);
+	_fv_eq_cm_dag_ti_fv(spinor1, U_, &cvc_spinor_field[1][_GSI(ix)]);
 	_fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
 	_fv_pl_eq_fv(spinor2, spinor1);
-	_co_eq_fv_dag_ti_fv(&w, &g_spinor_field[0][_GSI(g_iup[ix][mu])], spinor2);
+	_co_eq_fv_dag_ti_fv(&w, &cvc_spinor_field[0][_GSI(g_iup[ix][mu])], spinor2);
 	contact_term[2*mu  ] -= 0.5 * w.re; 
 	contact_term[2*mu+1] -= 0.5 * w.im;
       }
@@ -766,9 +766,9 @@ int main(int argc, char **argv) {
   /*****************************************
    * free the allocated memory, finalize
    *****************************************/
-  free(g_gauge_field);
-  for(i=0; i<no_fields; i++) free(g_spinor_field[i]);
-  free(g_spinor_field);
+  free(cvc_gauge_field);
+  for(i=0; i<no_fields; i++) free(cvc_spinor_field[i]);
+  free(cvc_spinor_field);
   free_geometry();
   fftw_free(in);
   free(conn);

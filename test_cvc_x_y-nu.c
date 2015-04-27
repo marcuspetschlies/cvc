@@ -122,10 +122,10 @@ int main(int argc, char **argv) {
     source_location[2] = g_ipt[sx0][sx1][sx2m1][sx3];
     source_location[3] = g_ipt[sx0][sx1][sx2][sx3m1];*/
     
-/*    _cm_eq_cm_ti_co(Usource[0], &g_gauge_field[_GGI(source_location[0],0)], &co_phase_up[0]);
-    _cm_eq_cm_ti_co(Usource[1], &g_gauge_field[_GGI(source_location[1],1)], &co_phase_up[1]);
-    _cm_eq_cm_ti_co(Usource[2], &g_gauge_field[_GGI(source_location[2],2)], &co_phase_up[2]);
-    _cm_eq_cm_ti_co(Usource[3], &g_gauge_field[_GGI(source_location[3],3)], &co_phase_up[3]);*/
+/*    _cm_eq_cm_ti_co(Usource[0], &cvc_gauge_field[_GGI(source_location[0],0)], &co_phase_up[0]);
+    _cm_eq_cm_ti_co(Usource[1], &cvc_gauge_field[_GGI(source_location[1],1)], &co_phase_up[1]);
+    _cm_eq_cm_ti_co(Usource[2], &cvc_gauge_field[_GGI(source_location[2],2)], &co_phase_up[2]);
+    _cm_eq_cm_ti_co(Usource[3], &cvc_gauge_field[_GGI(source_location[3],3)], &co_phase_up[3]);*/
   }
   
 }

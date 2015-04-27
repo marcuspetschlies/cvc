@@ -149,27 +149,27 @@ int read_lime_gauge_field_doubleprec(const char * filename) {
     DML_checksum_accum(&checksum, rank, current, bytes);
     if(!words_bigendian) {
       if (prec == 32) {
-        byte_swap_assign_single2double(&g_gauge_field[ _GGI(g_ipt[t][x][y][z], 1)], current            , 18*sizeof(double) / 8);
-        byte_swap_assign_single2double(&g_gauge_field[ _GGI(g_ipt[t][x][y][z], 2)], current +     fbsu3, 18*sizeof(double) / 8);
-        byte_swap_assign_single2double(&g_gauge_field[ _GGI(g_ipt[t][x][y][z], 3)], current + 2 * fbsu3, 18*sizeof(double) / 8);
-        byte_swap_assign_single2double(&g_gauge_field[ _GGI(g_ipt[t][x][y][z], 0)], current + 3 * fbsu3, 18*sizeof(double) / 8);
+        byte_swap_assign_single2double(&cvc_gauge_field[ _GGI(g_ipt[t][x][y][z], 1)], current            , 18*sizeof(double) / 8);
+        byte_swap_assign_single2double(&cvc_gauge_field[ _GGI(g_ipt[t][x][y][z], 2)], current +     fbsu3, 18*sizeof(double) / 8);
+        byte_swap_assign_single2double(&cvc_gauge_field[ _GGI(g_ipt[t][x][y][z], 3)], current + 2 * fbsu3, 18*sizeof(double) / 8);
+        byte_swap_assign_single2double(&cvc_gauge_field[ _GGI(g_ipt[t][x][y][z], 0)], current + 3 * fbsu3, 18*sizeof(double) / 8);
       } else  {
-        byte_swap_assign(&g_gauge_field[ _GGI(g_ipt[t][x][y][z], 1)], current            , 18*sizeof(double) / 8);
-        byte_swap_assign(&g_gauge_field[ _GGI(g_ipt[t][x][y][z], 2)], current +     fbsu3, 18*sizeof(double) / 8);
-        byte_swap_assign(&g_gauge_field[ _GGI(g_ipt[t][x][y][z], 3)], current + 2 * fbsu3, 18*sizeof(double) / 8);
-        byte_swap_assign(&g_gauge_field[ _GGI(g_ipt[t][x][y][z], 0)], current + 3 * fbsu3, 18*sizeof(double) / 8);
+        byte_swap_assign(&cvc_gauge_field[ _GGI(g_ipt[t][x][y][z], 1)], current            , 18*sizeof(double) / 8);
+        byte_swap_assign(&cvc_gauge_field[ _GGI(g_ipt[t][x][y][z], 2)], current +     fbsu3, 18*sizeof(double) / 8);
+        byte_swap_assign(&cvc_gauge_field[ _GGI(g_ipt[t][x][y][z], 3)], current + 2 * fbsu3, 18*sizeof(double) / 8);
+        byte_swap_assign(&cvc_gauge_field[ _GGI(g_ipt[t][x][y][z], 0)], current + 3 * fbsu3, 18*sizeof(double) / 8);
       }
     } else {
       if (prec == 32) {
-        single2double(&g_gauge_field[ _GGI(g_ipt[t][x][y][z], 1)], current            , 18*sizeof(double) / 8);
-        single2double(&g_gauge_field[ _GGI(g_ipt[t][x][y][z], 2)], current +     fbsu3, 18*sizeof(double) / 8);
-        single2double(&g_gauge_field[ _GGI(g_ipt[t][x][y][z], 3)], current + 2 * fbsu3, 18*sizeof(double) / 8);
-        single2double(&g_gauge_field[ _GGI(g_ipt[t][x][y][z], 0)], current + 3 * fbsu3, 18*sizeof(double) / 8);
+        single2double(&cvc_gauge_field[ _GGI(g_ipt[t][x][y][z], 1)], current            , 18*sizeof(double) / 8);
+        single2double(&cvc_gauge_field[ _GGI(g_ipt[t][x][y][z], 2)], current +     fbsu3, 18*sizeof(double) / 8);
+        single2double(&cvc_gauge_field[ _GGI(g_ipt[t][x][y][z], 3)], current + 2 * fbsu3, 18*sizeof(double) / 8);
+        single2double(&cvc_gauge_field[ _GGI(g_ipt[t][x][y][z], 0)], current + 3 * fbsu3, 18*sizeof(double) / 8);
       } else {
-        memcpy(&g_gauge_field[ _GGI(g_ipt[t][x][y][z], 1)], current            , 18*sizeof(double));
-        memcpy(&g_gauge_field[ _GGI(g_ipt[t][x][y][z], 2)], current +     fbsu3, 18*sizeof(double));
-        memcpy(&g_gauge_field[ _GGI(g_ipt[t][x][y][z], 3)], current + 2 * fbsu3, 18*sizeof(double));
-        memcpy(&g_gauge_field[ _GGI(g_ipt[t][x][y][z], 0)], current + 3 * fbsu3, 18*sizeof(double));
+        memcpy(&cvc_gauge_field[ _GGI(g_ipt[t][x][y][z], 1)], current            , 18*sizeof(double));
+        memcpy(&cvc_gauge_field[ _GGI(g_ipt[t][x][y][z], 2)], current +     fbsu3, 18*sizeof(double));
+        memcpy(&cvc_gauge_field[ _GGI(g_ipt[t][x][y][z], 3)], current + 2 * fbsu3, 18*sizeof(double));
+        memcpy(&cvc_gauge_field[ _GGI(g_ipt[t][x][y][z], 0)], current + 3 * fbsu3, 18*sizeof(double));
       }
     }
   }}}}
@@ -294,8 +294,8 @@ int read_lime_gauge_field_doubleprec(const char * filename) {
 		/* config (p+mu*3+i, j) = complex<double> (tmp2[2*k], tmp2[2*k+1]); */
 
 		n_uint64_t index = ((p+mu*3+i) * 3 + j) * 2;
-		g_gauge_field[index  ] = tmp2[2*k];
-		g_gauge_field[index+1] = tmp2[2*k+1];
+		cvc_gauge_field[index  ] = tmp2[2*k];
+		cvc_gauge_field[index+1] = tmp2[2*k+1];
 
 		k++;
 	      }
@@ -306,8 +306,8 @@ int read_lime_gauge_field_doubleprec(const char * filename) {
  	      /* config (p+i, j) = complex<double> (tmp2[2*k], tmp2[2*k+1]); */
 
 	      n_uint64_t index = ((p+i) * 3 + j) * 2;
-	      g_gauge_field[index  ] = tmp2[2*k];
-	      g_gauge_field[index+1] = tmp2[2*k+1];
+	      cvc_gauge_field[index  ] = tmp2[2*k];
+	      cvc_gauge_field[index+1] = tmp2[2*k+1];
 
  	      k++; 	    
 	    }
@@ -425,8 +425,8 @@ int read_lime_gauge_field_singleprec(const char * filename) {
 	      for(j = 0; j < 3; j++) {
 		/*config (p+mu*3+i, j) = complex<double> (tmp2[2*k], tmp2[2*k+1]); */
 		n_uint64_t index = ((p+mu*3+i) * 3 + j) * 2;
-		g_gauge_field[index  ] = (double)tmp2[2*k];
-		g_gauge_field[index+1] = (double)tmp2[2*k+1];
+		cvc_gauge_field[index  ] = (double)tmp2[2*k];
+		cvc_gauge_field[index+1] = (double)tmp2[2*k+1];
 
 		k++;
 	      }
@@ -436,8 +436,8 @@ int read_lime_gauge_field_singleprec(const char * filename) {
 	    for(j = 0; j < 3; j++) {
 	      /*  config (p+i, j) = complex<double> (tmp2[2*k], tmp2[2*k+1]); */
 	      n_uint64_t index = ((p+i) * 3 + j) * 2;
-	      g_gauge_field[index  ] = tmp2[2*k];
-	      g_gauge_field[index+1] = tmp2[2*k+1];
+	      cvc_gauge_field[index  ] = tmp2[2*k];
+	      cvc_gauge_field[index+1] = tmp2[2*k+1];
 
 	      k++;
 	    }
