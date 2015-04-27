@@ -9,7 +9,9 @@
 #include "cvc_utils.h"
 #include "cvc_geometry.h"
 
-int *cvc_iup=NULL, *cvc_idn=NULL, *cvc_ipt=NULL , **cvc_ipt_=NULL, ***cvc_ipt__=NULL;
+#ifndef LIBWRAPPER
+int *iup=NULL, *idn=NULL, *ipt=NULL , **ipt_=NULL, ***ipt__=NULL;
+#endif 
 
 unsigned long int get_index(const int t, const int x, const int y, const int z)
 {
@@ -106,6 +108,9 @@ unsigned long int get_index(const int t, const int x, const int y, const int z)
 #endif
   return(ix);
 }
+
+
+
 
 void cvc_geometry() {
 
@@ -211,6 +216,9 @@ void cvc_geometry() {
 
 int init_geometry(void) {
 
+  
+#ifndef LIBWRAPPER
+
   int ix = 0, V;
   int dx = 0, dy = 0;
 
@@ -247,44 +255,46 @@ int init_geometry(void) {
   g_idn = (int**)calloc(V, sizeof(int*));
   if((void*)g_idn == NULL) return(1);
 
-  cvc_idn = (int*)calloc(4*V, sizeof(int));
-  if((void*)cvc_idn == NULL) return(2);
+  idn = (int*)calloc(4*V, sizeof(int));
+  if((void*)idn == NULL) return(2);
 
   g_iup = (int**)calloc(V, sizeof(int*));
   if((void*)g_iup==NULL) return(3);
 
-  cvc_iup = (int*)calloc(4*V, sizeof(int));
-  if((void*)cvc_iup==NULL) return(4);
+  iup = (int*)calloc(4*V, sizeof(int));
+  if((void*)iup==NULL) return(4);
 
   g_ipt = (int****)calloc(T+2, sizeof(int*));
   if((void*)g_ipt == NULL) return(5);
 
-  cvc_ipt__ = (int***)calloc((T+2)*(LX+dx), sizeof(int*));
-  if((void*)cvc_ipt__ == NULL) return(6);
+  ipt__ = (int***)calloc((T+2)*(LX+dx), sizeof(int*));
+  if((void*)ipt__ == NULL) return(6);
 
-  cvc_ipt_ =  (int**)calloc((T+2)*(LX+dx)*(LY+dy), sizeof(int*));
-  if((void*)cvc_ipt_ == NULL) return(7);
+  ipt_ =  (int**)calloc((T+2)*(LX+dx)*(LY+dy), sizeof(int*));
+  if((void*)ipt_ == NULL) return(7);
 
-  cvc_ipt =   (int*)calloc((T+2)*(LX+dx)*(LY+dy)*LZ, sizeof(int));
-  if((void*)cvc_ipt == NULL) return(8);
+  ipt =   (int*)calloc((T+2)*(LX+dx)*(LY+dy)*LZ, sizeof(int));
+  if((void*)ipt == NULL) return(8);
 
  
-  g_iup[0] = cvc_iup;
-  g_idn[0] = cvc_idn;
+  g_iup[0] = iup;
+  g_idn[0] = idn;
   for(ix=1; ix<V; ix++) {
     g_iup[ix] = g_iup[ix-1] + 4;
     g_idn[ix] = g_idn[ix-1] + 4;
   }
 
-  cvc_ipt_[0]  = cvc_ipt;
-  cvc_ipt__[0] = cvc_ipt_;
-  g_ipt[0] = cvc_ipt__;
-  for(ix=1; ix<(T+2)*(LX+dx)*(LY+dy); ix++) cvc_ipt_[ix]  = cvc_ipt_[ix-1]  + LZ;
+  ipt_[0]  = ipt;
+  ipt__[0] = ipt_;
+  g_ipt[0] = ipt__;
+  for(ix=1; ix<(T+2)*(LX+dx)*(LY+dy); ix++) ipt_[ix]  = ipt_[ix-1]  + LZ;
 
-  for(ix=1; ix<(T+2)*(LX+dx);         ix++) cvc_ipt__[ix] = cvc_ipt__[ix-1] + (LY+dy);
+  for(ix=1; ix<(T+2)*(LX+dx);         ix++) ipt__[ix] = ipt__[ix-1] + (LY+dy);
 
   for(ix=1; ix<(T+2);                 ix++) g_ipt[ix] = g_ipt[ix-1] + (LX+dx);
 
+#endif  
+  
   /* initialize the boundary condition */
   co_phase_up[0].re = cos(BCangle[0]*M_PI / (double)T_global);
   co_phase_up[0].im = sin(BCangle[0]*M_PI / (double)T_global);
@@ -292,8 +302,9 @@ int init_geometry(void) {
   co_phase_up[1].im = sin(BCangle[1]*M_PI / (double)(LX*g_nproc_x));
   co_phase_up[2].re = cos(BCangle[2]*M_PI / (double)(LY*g_nproc_y));
   co_phase_up[2].im = sin(BCangle[2]*M_PI / (double)(LY*g_nproc_y));
-  co_phase_up[3].re = cos(BCangle[3]*M_PI / (double)LZ);
-  co_phase_up[3].im = sin(BCangle[3]*M_PI / (double)LZ);
+  //FIXME ist the following correct??
+  co_phase_up[3].re = cos(BCangle[3]*M_PI / (double)LZ*g_nproc_z);
+  co_phase_up[3].im = sin(BCangle[3]*M_PI / (double)LZ*g_nproc_z);
 
   /* initialize the gamma matrices */
   init_gamma();
@@ -302,13 +313,14 @@ int init_geometry(void) {
 }
 
 void free_geometry() {
-
-  free(cvc_idn);
-  free(cvc_iup);
-  free(cvc_ipt);
-  free(cvc_ipt_);
-  free(cvc_ipt__);
+#ifndef LIBWRAPPER
+  free(idn);
+  free(iup);
+  free(ipt);
+  free(ipt_);
+  free(ipt__);
   free(g_ipt);
   free(g_idn);
   free(g_iup);
+#endif
 }

@@ -361,6 +361,8 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
    * (all contained in cvc_geometry.c, 
    * init_geometry also initialises gamma matrices) */
 
+
+
    if(init_geometry() != 0) {
    fprintf(stderr, "ERROR from init_geometry\n");
 #ifdef MPI
@@ -369,9 +371,10 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
 #endif
    exit(1);
    }
-
-   geometry();
-
+   
+#ifndef LIBWRAPPER
+   cvc_geometry();
+#endif
 
   /* allocate memory for gauge field configuration
    * (contained in cvc_utils.c) */
@@ -1163,7 +1166,11 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
   free(cvc_gauge_field);
   for(i=0; i<no_fields; i++) free(cvc_spinor_field[i]);
   free(cvc_spinor_field);
+  
+#ifndef LIBWRAPPER  
   free_geometry();
+#endif
+  
   fftw_free(in);
   free(conn);
   
