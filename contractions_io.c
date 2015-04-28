@@ -55,7 +55,7 @@ int write_binary_contraction_data(double * const s, LimeWriter * limewriter,
 #endif
   DML_checksum_init(ans);
 
-#if !(defined PARALLELTX) && !(defined PARALLELTXY)
+#if !(defined PARALLELTX) && !(defined PARALLELTXY) && !(defined PARALLELTXYZ)
   tmp = (double*)malloc(2*N*sizeof(double));
   tmp2 = (float*)malloc(2*N*sizeof(float));
 
@@ -253,6 +253,204 @@ int write_binary_contraction_data(double * const s, LimeWriter * limewriter,
   }        // of t
 
   free(buffer);
+  
+#if !(defined PARALLELTX) && !(defined PARALLELTXY) && (defined PARALLELTXYZ) 
+  tmp = (double*)malloc(2*N*sizeof(double));
+  tmp2 = (float*)malloc(2*N*sizeof(float));
+
+  if(prec == 32) bytes = (n_uint64_t)2*N*sizeof(float);
+  else bytes = (n_uint64_t)2*N*sizeof(double);
+
+  if(g_cart_id==0) {
+    for(t = 0; t < T; t++) {
+      for(x = 0; x < LX; x++) {
+      for(y = 0; y < LY; y++) {
+      for(z = 0; z < LZ; z++) {
+        /* Rank should be computed by proc 0 only */
+        rank = (DML_SiteRank) ((( (t+Tstart)*LX + x)*LY + y)*LZ + z);
+        for(mu=0; mu<N; mu++) {
+          i = _GWI(mu, g_ipt[t][x][y][z], VOLUME);
+          if(prec == 32) {
+            double2single((float*)(tmp2+2*mu), (s + i), 2);
+          } else {
+            tmp[2*mu  ] = s[i  ];
+            tmp[2*mu+1] = s[i+1];
+          }
+        }
+        if(prec == 32) {
+          DML_checksum_accum(ans,rank,(char *) tmp2,2*N*sizeof(float));
+          status = limeWriteRecordData((void*)tmp2, &bytes, limewriter);
+        }
+        else {
+          status = limeWriteRecordData((void*)tmp, &bytes, limewriter);
+          DML_checksum_accum(ans,rank,(char *) tmp, 2*N*sizeof(double));
+        }
+      }
+      }
+      }
+    }
+  }
+#ifdef MPI
+  tgeom[0] = Tstart;
+  tgeom[1] = T;
+  if( (buffer = (double*)malloc(2*N*LX*LY*LZ*sizeof(double))) == (double*)NULL ) {
+    fprintf(stderr, "Error from malloc for buffer\n");
+    MPI_Abort(MPI_COMM_WORLD, 1);
+    MPI_Finalize();
+  }
+  for(iproc=1; iproc<g_nproc; iproc++) {
+    if(g_cart_id==0) {
+      tag = 2 * iproc;
+      MPI_Recv((void*)tgeom, 2, MPI_INT, iproc, tag, g_cart_grid, &mstatus);
+      fprintf(stdout, "# iproc = %d; Tstart = %d, T = %d\n", iproc, tgeom[0], tgeom[1]);
+       
+      for(t=0; t<tgeom[1]; t++) {
+        tag = 2 * ( t*g_nproc + iproc ) + 1;
+        MPI_Recv((void*)buffer, 2*N*LX*LY*LZ, MPI_DOUBLE,  iproc, tag, g_cart_grid, &mstatus);
+
+        i=0;
+        for(x=0; x<LX; x++) {
+        for(y=0; y<LY; y++) {
+        for(z=0; z<LZ; z++) {
+          /* Rank should be computed by proc 0 only */
+          rank = (DML_SiteRank) ((( (t+tgeom[0])*LX + x)*LY + y)*LZ + z);
+          if(prec == 32) {
+            double2single((float*)tmp2, (buffer + i), 2*N);
+            DML_checksum_accum(ans,rank,(char *) tmp2,2*N*sizeof(float));
+            status = limeWriteRecordData((void*)tmp2, &bytes, limewriter);
+          } else {
+            status = limeWriteRecordData((void*)(buffer+i), &bytes, limewriter);
+            DML_checksum_accum(ans,rank,(char *) (buffer+i), 2*N*sizeof(double));
+          }
+          i += 2*N;
+        }
+        }
+        }
+      }
+    }
+    if(g_cart_id==iproc) {
+      tag = 2 * iproc;
+      MPI_Send((void*)tgeom, 2, MPI_INT, 0, tag, g_cart_grid);
+      for(t=0; t<T; t++) {
+        i=0;
+        for(x=0; x<LX; x++) {  
+        for(y=0; y<LY; y++) {  
+        for(z=0; z<LZ; z++) {
+          for(mu=0; mu<N; mu++) {
+            buffer[i  ] = s[_GWI(mu,g_ipt[t][x][y][z],VOLUME)  ];
+            buffer[i+1] = s[_GWI(mu,g_ipt[t][x][y][z],VOLUME)+1];
+            i+=2;
+          }
+        }
+        }
+        }
+        tag = 2 * ( t*g_nproc + iproc) + 1;
+        MPI_Send((void*)buffer, 2*N*LX*LY*LZ, MPI_DOUBLE, 0, tag, g_cart_grid);
+      }
+    }
+    MPI_Barrier(g_cart_grid);
+
+  } /* of iproc = 1, ..., g_nproc-1 */
+  free(buffer);
+#endif
+
+#elif (defined PARALLELTXYZ)  && !(defined PARALLELTXY) && !(defined PARALLELTX)
+  tmp = (double*)malloc(2*N*sizeof(double));
+  tmp2 = (float*)malloc(2*N*sizeof(float));
+
+  if( (buffer = (double*)malloc(2*N*sizeof(double))) == (double*)NULL ) {
+    fprintf(stderr, "Error from malloc for buffer\n");
+    MPI_Abort(MPI_COMM_WORLD, 115);
+    MPI_Finalize();
+    exit(115);
+  }
+
+  if(prec == 32) bytes = (n_uint64_t)2*N*sizeof(float);   // single precision 
+  else           bytes = (n_uint64_t)2*N*sizeof(double);  // double precision
+
+
+  for(t = 0; t < T_global; t++) {
+    proc_coords[0] = t / T;
+    tloc = t % T;
+    for(x = 0; x < LX_global; x++) {
+      proc_coords[1] = x / LX;
+      xloc = x % LX;
+      for(y = 0; y < LY_global; y++) {
+        proc_coords[2] = y / LY;
+        yloc = y % LY;
+        for(z = 0; z < LZ_global; z++) {        
+	  proc_coords[3] = z / LZ;
+	  zloc = z % LZ;
+	  
+	  MPI_Cart_rank(g_cart_grid, proc_coords, &proc_id);
+	  if(g_cart_id == 0) {
+	    // fprintf(stdout, "\t(%d,%d,%d,%d) ---> (%d,%d,%d,%d) = %d\n", t,x,y,0, \
+		proc_coords[0],  proc_coords[1],  proc_coords[2],  proc_coords[3], proc_id);
+	  }
+	  tag = ((t*LX+x)*LY+y)*LZ+z;
+
+	  // a send and recv must follow
+	  if(g_cart_id == 0) {
+	    if(g_cart_id == proc_id) {
+	      // fprintf(stdout, "process 0 writing own data for (t,x,y)=(%d,%d,%d) / (%d,%d,%d) ...\n", t,x,y, tloc,xloc,yloc);
+	      i=0;
+	      for(mu=0; mu<N; mu++) {
+		buffer[i  ] = s[_GWI(mu,g_ipt[tloc][xloc][yloc][z],VOLUME)  ];
+		buffer[i+1] = s[_GWI(mu,g_ipt[tloc][xloc][yloc][z],VOLUME)+1];
+		i+=2;
+	      }
+	      i=0;
+	      for(z = 0; z < LZ; z++) {
+		/* Rank should be computed by proc 0 only */
+		rank = (DML_SiteRank) ((( t*LX_global + x)*LY_global + y)*LZ_global + z);
+		if(prec == 32) {
+		  double2single((float*)tmp2, (buffer + i), 2*N);
+		  DML_checksum_accum(ans,rank,(char *) tmp2,2*N*sizeof(float));
+		  status = limeWriteRecordData((void*)tmp2, &bytes, limewriter);
+		} else {
+		  status = limeWriteRecordData((void*)(buffer+i), &bytes, limewriter);
+		  DML_checksum_accum(ans,rank,(char *) (buffer+i), 2*N*sizeof(double));
+		}
+		i += 2*N;
+	      }
+	    } else {
+	      MPI_Recv(buffer, 2*N, MPI_DOUBLE, proc_id, tag, g_cart_grid, &mstatus);
+	      // fprintf(stdout, "process 0 receiving data from process %d for (t,x,y)=(%d,%d,%d) ...\n", proc_id, t,x,y);
+	      i=0;
+	      /* Rank should be computed by proc 0 only */
+	      rank = (DML_SiteRank) ((( t * LX_global + x ) * LY_global + y ) * LZ_global + z);
+	      // fprintf(stdout, "(%d,%d,%d,%d)---> rank = %d\n", t,x,y,z, rank);
+	      if(prec == 32) {
+		double2single((float*)tmp2, (buffer + i), 2*N);
+		DML_checksum_accum(ans,rank,(char *) tmp2,2*N*sizeof(float));
+		status = limeWriteRecordData((void*)tmp2, &bytes, limewriter);
+	      } else {
+		status = limeWriteRecordData((void*)(buffer+i), &bytes, limewriter);
+		DML_checksum_accum(ans,rank,(char *) (buffer+i), 2*N*sizeof(double));
+	      }
+	      i += 2*N;
+	    }
+	  } else {
+	    if(g_cart_id == proc_id) {
+	      i=0;
+	      for(mu=0; mu<N; mu++) {
+		buffer[i  ] = s[_GWI(mu,g_ipt[tloc][xloc][yloc][zloc],VOLUME)  ];
+		buffer[i+1] = s[_GWI(mu,g_ipt[tloc][xloc][yloc][zloc],VOLUME)+1];
+		i+=2;
+	      }
+	      // fprintf(stdout, "process %d sending own data...\n", g_cart_id);
+	      MPI_Send(buffer, 2*N, MPI_DOUBLE, 0, tag, g_cart_grid);
+	    }
+	  }
+	}  // of z
+      }    // of y
+    }      // of x
+  }        // of t
+
+  free(buffer);  
+  
+  
+  
 #elif (defined PARALLELTX)  && !(defined PARALLELTXY)
   if(g_cart_id == 0) {
     fprintf(stderr, "\n[write_binary_contraction_data] Error: no version implemented for PARALLELTX\n");

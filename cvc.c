@@ -55,6 +55,9 @@ int get_abs_pos(it, ix, iy, iz){
     return(abspos);
 };
 
+
+
+
 int init_base_locations(int first_source_loc){
     int source_coord[4], tmp, i;
     source_coord[3]= first_source_loc % (g_nproc_z * LZ);
@@ -64,28 +67,39 @@ int init_base_locations(int first_source_loc){
     source_coord[1]=tmp % (g_nproc_x * LX);
     tmp = tmp / (g_nproc_x * LX);
     source_coord[0]=tmp; 
-    base_locations[0] = first_source_loc;
-
-  for(i=1; i<16; i++){
-    int inc_dir = i % 4;
-    int increment;
-    if(inc_dir == 0){
-      increment =  T_global/2;
+    
+    int L_global;
+    if(((g_nproc_x*LX)==(g_nproc_y*LY))&&((g_nproc_y*LY)==(g_nproc_z*LZ))){
+      L_global=g_nproc_x*LX;
     }
     else{
-      increment =  L/2;
+      printf("L not consistent\n");
+      exit(1);
     }
-    source_coord[inc_dir] += increment;
-    base_locations[i] = ( 
-         get_abs_pos(source_coord[0], source_coord[1], source_coord[2], source_coord[3])
-	 %(T_global*(g_nproc_x*LX)*(g_nproc_y*LY)*(g_nproc_z*LZ))
-	);
-   
-  }
+    int it,ix,iy,iz;
+    
+  for(iz=0; iz<2; iz++){
+    for(iy=0; iy<2; iy++){
+      for(ix=0; ix<2; ix++){
+        for(it=0; it<2; it++){
+	  base_locations[i] = ( 
+	      get_abs_pos(source_coord[0]+it*(T_global/2), 
+			  source_coord[1]+ix*(L_global/2), 
+			  source_coord[2]+iy*(L_global/2), 
+			  source_coord[3]+iz*(L_global/2))
+	      %(T_global*(g_nproc_x*LX)*(g_nproc_y*LY)*(g_nproc_z*LZ))
+	      );
+	  i++;
+	}
+      }
+    }
+ }
+  
 }
 
 void print_base_locations(){
   int i;
+  printf("Base point locations are as follows:\n");
   for(i=0; i<16; i++){
     printf("%d\t%d\n", i, base_locations[i]);
   }
@@ -93,6 +107,7 @@ void print_base_locations(){
 }
 
 
+//SourceLocation[4]=$(echo "$tsrcn $xsrcn $ysrcn $zsrcn" | awk '{print $1*'$lsize'**3 + $2*'$lsize'**2 + $3*'$lsize' + $4}')
 
 int get_source_location(int nu){
   // the base location is in g_source_location (_4)
@@ -126,6 +141,7 @@ int get_source_location(int nu){
 
 void print_all_source_locations(){
   int i, nu, j=0;
+  printf("Source point locations are as follows:\n");
   for(i=0; i<16; i++){
     g_source_location = base_locations[i];
     for(nu=0; nu<5; nu++){
@@ -494,669 +510,672 @@ while ((c = getopt(argc, argv, "dwWah?vgf:t:m:o:")) != -1) {
         gperm2_sign[nu][2], gperm2[nu][2], gperm2_sign[nu][3], gperm2[nu][3]);
   }
 
+  //FIXME shift_start can be set to 1 if needed
+  int shift_start=0;
+  int ishift;
   
-  /* HERE WE NEED THE LOOP OVER SOURCE POSITIONS */
+  /* LOOP OVER SHIFT POSITIONS */
+  for(ishift=shift_start; ishift<16; ishift++){
   
-  
-  /* initialize contact_term */
-  contact_term[0] = 0.;
-  contact_term[1] = 0.;
-  contact_term[2] = 0.;
-  contact_term[3] = 0.;
-  contact_term[4] = 0.;
-  contact_term[5] = 0.;
-  contact_term[6] = 0.;
-  contact_term[7] = 0.;
-  
-  
-//FIXME
-   int g_source_location = 0;
-   
-  /* determine source coordinates, find out, if source_location is in this process */
-  have_source_flag = (int)(g_source_location/(LX*LY*LZ)>=Tstart && g_source_location/(LX*LY*LZ)<(Tstart+T));
-  if(have_source_flag==1) fprintf(stdout, "process %2d has source location\n", g_cart_id);
-  sx0 = g_source_location/(LX*LY*LZ)-Tstart;
-  sx1 = (g_source_location%(LX*LY*LZ)) / (LY*LZ);
-  sx2 = (g_source_location%(LY*LZ)) / LZ;
-  sx3 = (g_source_location%LZ);
-  Usource[0] = Usourcebuff;
-  Usource[1] = Usourcebuff+18;
-  Usource[2] = Usourcebuff+36;
-  Usource[3] = Usourcebuff+54;
-  if(have_source_flag==1) { 
-    fprintf(stdout, "local source coordinates: (%3d,%3d,%3d,%3d)\n", sx0, sx1, sx2, sx3);
-    source_location = g_ipt[sx0][sx1][sx2][sx3];
-    _cm_eq_cm_ti_co(Usource[0], &cvc_gauge_field[_GGI(source_location,0)], &co_phase_up[0]);
-    _cm_eq_cm_ti_co(Usource[1], &cvc_gauge_field[_GGI(source_location,1)], &co_phase_up[1]);
-    _cm_eq_cm_ti_co(Usource[2], &cvc_gauge_field[_GGI(source_location,2)], &co_phase_up[2]);
-    _cm_eq_cm_ti_co(Usource[3], &cvc_gauge_field[_GGI(source_location,3)], &co_phase_up[3]);
-  }
-#ifdef MPI
-  MPI_Gather(&have_source_flag, 1, MPI_INT, status, 1, MPI_INT, 0, g_cart_grid);
-  if(g_cart_id==0) {
-    for(mu=0; mu<g_nproc; mu++) fprintf(stdout, "status[%1d]=%d\n", mu,status[mu]);
-  }
-  if(g_cart_id==0) {
-    for(have_source_flag=0; status[have_source_flag]!=1; have_source_flag++);
-    fprintf(stdout, "have_source_flag= %d\n", have_source_flag);
-  }
-  MPI_Bcast(&have_source_flag, 1, MPI_INT, 0, g_cart_grid);
-  MPI_Bcast(Usourcebuff, 72, MPI_DOUBLE, have_source_flag, g_cart_grid);
-  fprintf(stdout, "[%2d] have_source_flag = %d\n", g_cart_id, have_source_flag);
-#else
-  have_source_flag = 0;
-#endif
-
-#ifdef MPI
-      ratime = MPI_Wtime();
-#else
-      ratime = (double)clock() / CLOCKS_PER_SEC;
-#endif
-
-   //FIXME
-   int sourceloc = 0;
-
-  /**********************************************************
-   * read 12 up-type propagators with source source_location
-   * - can get contributions 1 and 3 from that
-   **********************************************************/
-  for(ia=0; ia<12; ia++) {
-    if(!mms) {
-      //get_filename(filename, 4, ia, 1); // position 4 is source position y, 1 means "+ i mu gamma_5", i.e. psource...
-      //read_lime_spinor(cvc_spinor_field[ia], filename, 0); //0 stands for first lime block
-      //xchange_field(cvc_spinor_field[ia]);
-      get_propagator(4, ia, ia, +1, ud_one_file);
-    } else {
-      sprintf(filename, "%s.%.4d.04.%.2d.cgmms.%.2d.inverted", filename_prefix, Nconf, ia, mass_id);
-      read_lime_spinor(work, filename, 0);
-      xchange_field(work);
-      Qf5(cvc_spinor_field[ia], work, -g_mu);
-      xchange_field(cvc_spinor_field[ia]);
-    }
-  }
-
-
-  /**********************************************
-   * loop on the Lorentz index nu at source 
-   **********************************************/
-  for(nu=0; nu<4; nu++) {
-
-    /* read 12 dn-type propagators */
-    for(ia=0; ia<12; ia++) {
-      if(!mms) {
-//         if(ud_one_file==0) {
-//           get_filename(filename, nu, ia, -1);//-1 implies reading from msource..
-//           read_lime_spinor(cvc_spinor_field[12+ia], filename, 0);
-//         } else {
-//           get_filename(filename, nu, ia, 1);
-//           read_lime_spinor(cvc_spinor_field[12+ia], filename, 1);
-//         }
-//         xchange_field(cvc_spinor_field[12+ia]);
-           get_propagator(nu, ia, (12+ia), -1, ud_one_file);
-      } else {
-        sprintf(filename, "%s.%.4d.%.2d.%.2d.cgmms.%.2d.inverted", filename_prefix, Nconf, nu, ia, mass_id);
-        read_lime_spinor(work, filename, 0);
-        xchange_field(work);
-        Qf5(cvc_spinor_field[12+ia], work, g_mu); //function should be checked
-        xchange_field(cvc_spinor_field[12+ia]);
-      }
-    }
-
-
-
-/*****************************************************************************************************************/
-   /* add new contractions to (existing) disc */
-    for(ir=0; ir<4; ir++) { /*spinor index*/
-      for(ia=0; ia<3; ia++) { /*colour index*/
-        phi = cvc_spinor_field[3*ir+ia];
-      for(ib=0; ib<3; ib++) { /*colour index */
-        chi = cvc_spinor_field[12+3*gperm[nu][ir]+ib];
-        fprintf(stdout, "\n# [nu5] spin index pair (%d, %d); col index pair (%d, %d)\n", ir, gperm[nu][ir], ia ,ib);
-
-        // 1) gamma_nu gamma_5 x U
-        for(mu=0; mu<4; mu++) {
-
-          imunu = 4*mu+nu;
-
-        /* first contribution */
-#ifdef OPENMP
-#pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
-#endif
-
-      for(ix=0; ix<VOLUME; ix++) {    /* loop on lattice sites */
-           _cm_eq_cm_ti_co(U_, &cvc_gauge_field[_GGI(ix, mu)], &co_phase_up[mu]); /* (from antip. bc in time direction) above only for source location ? */
-
-	    _fv_eq_cm_ti_fv(spinor1, U_, phi+_GSI(g_iup[ix][mu]));
-            _fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
-	    _fv_mi_eq_fv(spinor2, spinor1);
-	    _fv_eq_gamma_ti_fv(spinor1, 5, spinor2);
-	    _co_eq_fv_dag_ti_fv(&w, chi+_GSI(ix), spinor1);
-            _co_eq_co_ti_co(&w1, &w, (complex*)(Usource[nu]+2*(3*ia+ib)));
-            if(!isimag[nu]) {
-              conn[_GWI(imunu,ix,VOLUME)  ] += gperm_sign[nu][ir] * w1.re;
-              conn[_GWI(imunu,ix,VOLUME)+1] += gperm_sign[nu][ir] * w1.im;
-            } else {
-              conn[_GWI(imunu,ix,VOLUME)  ] += gperm_sign[nu][ir] * w1.im;
-              conn[_GWI(imunu,ix,VOLUME)+1] -= gperm_sign[nu][ir] * w1.re;
-            }
-            //if(ix==0) fprintf(stdout, "[1_nu5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib, w.re, w.im);
-            //if(ix==0) fprintf(stdout, "[1_nu5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib,
-            //    gperm_sign[nu][ir] * w1.re, gperm_sign[nu][ir] * w1.im);
-
-          }  // of ix
-
-
-       /* second contribution */
-#ifdef OPENMP
-#pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
-#endif
-          for(ix=0; ix<VOLUME; ix++) {
-            _cm_eq_cm_ti_co(U_, &cvc_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
-
-            _fv_eq_cm_dag_ti_fv(spinor1, U_, phi+_GSI(ix));
-            _fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
-	    _fv_pl_eq_fv(spinor2, spinor1);
-	    _fv_eq_gamma_ti_fv(spinor1, 5, spinor2);
-	    _co_eq_fv_dag_ti_fv(&w, chi+_GSI(g_iup[ix][mu]), spinor1);
-            _co_eq_co_ti_co(&w1, &w, (complex*)(Usource[nu]+2*(3*ia+ib)));
-            if(!isimag[nu]) {
-              conn[_GWI(imunu,ix,VOLUME)  ] += gperm_sign[nu][ir] * w1.re;
-              conn[_GWI(imunu,ix,VOLUME)+1] += gperm_sign[nu][ir] * w1.im;
-            } else {
-              conn[_GWI(imunu,ix,VOLUME)  ] += gperm_sign[nu][ir] * w1.im;
-              conn[_GWI(imunu,ix,VOLUME)+1] -= gperm_sign[nu][ir] * w1.re;
-            }
-            //if(ix==0) fprintf(stdout, "[3_nu5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib, w.re, w.im);
-            //if(ix==0) fprintf(stdout, "[3_nu5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib,
-            //    gperm_sign[nu][ir] * w1.re, gperm_sign[nu][ir] * w1.im);
-
-          }  // of ix
-	} // of mu
-      } /* of ib */
-
-      for(ib=0; ib<3; ib++) {
-        chi = cvc_spinor_field[12+3*gperm[4][ir]+ib];
-        //fprintf(stdout, "\n# [5] spin index pair (%d, %d); col index pair (%d, %d)\n", ir, gperm[4][ir], ia ,ib);
-
-        // -gamma_5 x U
-        for(mu=0; mu<4; mu++) {
-        //for(mu=0; mu<1; mu++) {
-          imunu = 4*mu+nu;
-
-      /* first contribution */
-#ifdef OPENMP
-#pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
-#endif
-          for(ix=0; ix<VOLUME; ix++) {
-            _cm_eq_cm_ti_co(U_, &cvc_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
-
-            _fv_eq_cm_ti_fv(spinor1, U_, phi+_GSI(g_iup[ix][mu]));
-            _fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
-	    _fv_mi_eq_fv(spinor2, spinor1);
-	    _fv_eq_gamma_ti_fv(spinor1, 5, spinor2);
-	    _co_eq_fv_dag_ti_fv(&w, chi+_GSI(ix), spinor1);
-            _co_eq_co_ti_co(&w1, &w, (complex*)(Usource[nu]+2*(3*ia+ib)));
-            conn[_GWI(imunu,ix,VOLUME)  ] -= gperm_sign[4][ir] * w1.re;
-            conn[_GWI(imunu,ix,VOLUME)+1] -= gperm_sign[4][ir] * w1.im;
-            //if(ix==0) fprintf(stdout, "[1_5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib, w.re, w.im);
-            //if(ix==0) fprintf(stdout, "[1_5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib,
-            //    gperm_sign[4][ir] * w1.re, gperm_sign[4][ir] * w1.im);
-
-          }  // of ix
-
-     /* second contribution */
-#ifdef OPENMP
-#pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
-#endif
-          for(ix=0; ix<VOLUME; ix++) {
-            _cm_eq_cm_ti_co(U_, &cvc_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
-
-            _fv_eq_cm_dag_ti_fv(spinor1, U_, phi+_GSI(ix));
-            _fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
-	    _fv_pl_eq_fv(spinor2, spinor1);
-	    _fv_eq_gamma_ti_fv(spinor1, 5, spinor2);
-	    _co_eq_fv_dag_ti_fv(&w, chi+_GSI(g_iup[ix][mu]), spinor1);
-            _co_eq_co_ti_co(&w1, &w, (complex*)(Usource[nu]+2*(3*ia+ib)));
-            conn[_GWI(imunu,ix,VOLUME)  ] -= gperm_sign[4][ir] * w1.re;
-            conn[_GWI(imunu,ix,VOLUME)+1] -= gperm_sign[4][ir] * w1.im;
-            //if(ix==0) fprintf(stdout, "[3_5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib, w.re, w.im);
-            //if(ix==0) fprintf(stdout, "[3_5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib,
-            //    gperm_sign[4][ir] * w1.re, gperm_sign[4][ir] * w1.im);
-
-          }  // of ix
-	}  // of mu
-      }  // of ib
-
-      /* contribution to contact term */
-      _fv_eq_cm_ti_fv(spinor1, Usource[nu], phi+_GSI(g_iup[source_location][nu]));
-      _fv_eq_gamma_ti_fv(spinor2, nu, spinor1);
-      _fv_mi_eq_fv(spinor2, spinor1);
-      contact_term[2*nu  ] += -0.5 * spinor2[2*(3*ir+ia)  ];
-      contact_term[2*nu+1] += -0.5 * spinor2[2*(3*ir+ia)+1];
-
-      }  // of ia
-    }  // of ir
-
-  }  // of nu
-
-  fprintf(stdout, "\n# [cvc] contact term after 1st part:\n");
-  fprintf(stdout, "\t%d\t%25.16e%25.16e\n", 0, contact_term[0], contact_term[1]);
-  fprintf(stdout, "\t%d\t%25.16e%25.16e\n", 1, contact_term[2], contact_term[3]);
-  fprintf(stdout, "\t%d\t%25.16e%25.16e\n", 2, contact_term[4], contact_term[5]);
-  fprintf(stdout, "\t%d\t%25.16e%25.16e\n", 3, contact_term[6], contact_term[7]);
-
-  /**********************************************************
-   * read 12 dn-type propagators with source source_location
-   * - can get contributions 2 and 4 from that
-   **********************************************************/
-  for(ia=0; ia<12; ia++) {
-    if(!mms) {
-//       if(ud_one_file==0) {
-//         get_filename(filename, 4, ia, -1);
-//         read_lime_spinor(cvc_spinor_field[12+ia], filename, 0);
-//       } else {
-//         get_filename(filename, 4, ia, 1);
-//         read_lime_spinor(cvc_spinor_field[12+ia], filename, 1);
-//       }
-//       xchange_field(cvc_spinor_field[12+ia]);
-         get_propagator(4, ia, (12+ia), -1, ud_one_file);
-    } else {
-      sprintf(filename, "%s.%.4d.04.%.2d.cgmms.%.2d.inverted", filename_prefix, Nconf, ia, mass_id);
-      read_lime_spinor(work, filename, 0);
-      xchange_field(work);
-      Qf5(cvc_spinor_field[12+ia], work, g_mu);
-      xchange_field(cvc_spinor_field[12+ia]);
-    }
-  }
- 
-
-/**********************************************
-   * loop on the Lorentz index nu at source 
-   **********************************************/
-  for(nu=0; nu<4; nu++) {
-
-    /* read 12 up-type propagators */
-    for(ia=0; ia<12; ia++) {
-      if(!mms) {
-//         get_filename(filename, nu, ia, 1);
-//         read_lime_spinor(cvc_spinor_field[ia], filename, 0);
-//         xchange_field(cvc_spinor_field[ia]);
-        get_propagator(nu, ia, ia, +1, ud_one_file);
-      } else {
-        sprintf(filename, "%s.%.4d.%.2d.%.2d.cgmms.%.2d.inverted", filename_prefix, Nconf, nu, ia, mass_id);
-        read_lime_spinor(work, filename, 0);
-        xchange_field(work);
-        Qf5(cvc_spinor_field[ia], work, -g_mu);
-        xchange_field(cvc_spinor_field[ia]);
-      }
-    }
- 
-
-    
-/**************************************************************************************************************/
-    for(ir=0; ir<4; ir++) {
-      for(ia=0; ia<3; ia++) {
-        phi = cvc_spinor_field[3*ir+ia];
-      for(ib=0; ib<3; ib++) {
-        chi = cvc_spinor_field[12+3*gperm[nu][ir]+ib];
-        //fprintf(stdout, "\n# [nu5] spin index pair (%d, %d); col index pair (%d, %d)\n", ir, gperm[nu][ir], ia ,ib);
-    
-        // 1) gamma_nu gamma_5 x U^dagger
-        for(mu=0; mu<4; mu++) {
-
-          imunu = 4*mu+nu;
-
-#ifdef OPENMP
-#pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
-#endif
-          for(ix=0; ix<VOLUME; ix++) {
-            _cm_eq_cm_ti_co(U_, &cvc_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
-
-            _fv_eq_cm_ti_fv(spinor1, U_, phi+_GSI(g_iup[ix][mu]));
-            _fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
-	    _fv_mi_eq_fv(spinor2, spinor1);
-	    _fv_eq_gamma_ti_fv(spinor1, 5, spinor2);
-	    _co_eq_fv_dag_ti_fv(&w, chi+_GSI(ix), spinor1);
-            _co_eq_co_ti_co_conj(&w1, &w, (complex*)(Usource[nu]+2*(3*ib+ia)));
-            if(!isimag[nu]) {
-              conn[_GWI(imunu,ix,VOLUME)  ] += gperm_sign[nu][ir] * w1.re;
-              conn[_GWI(imunu,ix,VOLUME)+1] += gperm_sign[nu][ir] * w1.im;
-            } else {
-              conn[_GWI(imunu,ix,VOLUME)  ] += gperm_sign[nu][ir] * w1.im;
-              conn[_GWI(imunu,ix,VOLUME)+1] -= gperm_sign[nu][ir] * w1.re;
-            }
-            //if(ix==0) fprintf(stdout, "[2_nu5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib, w.re, w.im);
-            //if(ix==0) fprintf(stdout, "[2_nu5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib,
-            //    gperm_sign[nu][ir] * w1.re, gperm_sign[nu][ir] * w1.im);
-
-          }  // of ix
-
-#ifdef OPENMP
-#pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
-#endif
-          for(ix=0; ix<VOLUME; ix++) {
-            _cm_eq_cm_ti_co(U_, &cvc_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
-
-            _fv_eq_cm_dag_ti_fv(spinor1, U_, phi+_GSI(ix));
-            _fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
-	    _fv_pl_eq_fv(spinor2, spinor1);
-	    _fv_eq_gamma_ti_fv(spinor1, 5, spinor2);
-	    _co_eq_fv_dag_ti_fv(&w, chi+_GSI(g_iup[ix][mu]), spinor1);
-            _co_eq_co_ti_co_conj(&w1, &w, (complex*)(Usource[nu]+2*(3*ib+ia)));
-            if(!isimag[nu]) {
-              conn[_GWI(imunu,ix,VOLUME)  ] += gperm_sign[nu][ir] * w1.re;
-              conn[_GWI(imunu,ix,VOLUME)+1] += gperm_sign[nu][ir] * w1.im;
-            } else {
-              conn[_GWI(imunu,ix,VOLUME)  ] += gperm_sign[nu][ir] * w1.im;
-              conn[_GWI(imunu,ix,VOLUME)+1] -= gperm_sign[nu][ir] * w1.re;
-            }
-            //if(ix==0) fprintf(stdout, "[4_nu5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib, w.re, w.im);
-            //if(ix==0) fprintf(stdout, "[4_nu5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib,
-            //    gperm_sign[nu][ir] * w1.re, gperm_sign[nu][ir] * w1.im);
-
-          }  // of ix
-	} // of mu
-
-      } /* of ib */
-
-      for(ib=0; ib<3; ib++) {
-        chi = cvc_spinor_field[12+3*gperm[4][ir]+ib];
-        //fprintf(stdout, "\n# [5] spin index pair (%d, %d); col index pair (%d, %d)\n", ir, gperm[4][ir], ia ,ib);
-
-        // gamma_5 x U 
-        for(mu=0; mu<4; mu++) {
-
-          imunu = 4*mu+nu;
-
-#ifdef OPENMP
-#pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
-#endif
-          for(ix=0; ix<VOLUME; ix++) {
-            _cm_eq_cm_ti_co(U_, &cvc_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
-
-            _fv_eq_cm_ti_fv(spinor1, U_, phi+_GSI(g_iup[ix][mu]));
-            _fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
-	    _fv_mi_eq_fv(spinor2, spinor1);
-	    _fv_eq_gamma_ti_fv(spinor1, 5, spinor2);
-	    _co_eq_fv_dag_ti_fv(&w, chi+_GSI(ix), spinor1);
-            _co_eq_co_ti_co_conj(&w1, &w, (complex*)(Usource[nu]+2*(3*ib+ia)));
-            conn[_GWI(imunu,ix,VOLUME)  ] += gperm_sign[4][ir] * w1.re;
-            conn[_GWI(imunu,ix,VOLUME)+1] += gperm_sign[4][ir] * w1.im;
-            //if(ix==0) fprintf(stdout, "[2_5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib, w.re, w.im);
-            //if(ix==0) fprintf(stdout, "[2_5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib,
-            //    gperm_sign[4][ir] * w1.re, gperm_sign[4][ir] * w1.im);
-
-          }  // of ix
-
-#ifdef OPENMP
-#pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
-#endif
-          for(ix=0; ix<VOLUME; ix++) {
-            _cm_eq_cm_ti_co(U_, &cvc_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
-
-            _fv_eq_cm_dag_ti_fv(spinor1, U_, phi+_GSI(ix));
-            _fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
-	    _fv_pl_eq_fv(spinor2, spinor1);
-	    _fv_eq_gamma_ti_fv(spinor1, 5, spinor2);
-	    _co_eq_fv_dag_ti_fv(&w, chi+_GSI(g_iup[ix][mu]), spinor1);
-            _co_eq_co_ti_co_conj(&w1, &w, (complex*)(Usource[nu]+2*(3*ib+ia)));
-            conn[_GWI(imunu,ix,VOLUME)  ] += gperm_sign[4][ir] * w1.re;
-            conn[_GWI(imunu,ix,VOLUME)+1] += gperm_sign[4][ir] * w1.im;
-            //if(ix==0) fprintf(stdout, "[4_5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib, w.re, w.im);
-            //if(ix==0) fprintf(stdout, "[4_5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib,
-            //    gperm_sign[4][ir] * w1.re, gperm_sign[4][ir] * w1.im);
-
-          }  // of ix
-	}  // of mu
-      }  // of ib
-
-      /* contribution to contact term */
-      _fv_eq_cm_dag_ti_fv(spinor1, Usource[nu], phi+_GSI(source_location));
-      _fv_eq_gamma_ti_fv(spinor2, nu, spinor1);
-      _fv_pl_eq_fv(spinor2, spinor1);
-      contact_term[2*nu  ] += 0.5 * spinor2[2*(3*ir+ia)  ];
-      contact_term[2*nu+1] += 0.5 * spinor2[2*(3*ir+ia)+1];
-
-      }  // of ia 
-    }  // of ir
-  }  // of nu
-  
-  // print contact term
-  if(g_cart_id==0) {
-    fprintf(stdout, "\n# [cvc] contact term\n");
-    for(i=0;i<4;i++) {
-      fprintf(stdout, "\t%d%25.16e%25.16e\n", i, contact_term[2*i], contact_term[2*i+1]);
-    }
-  }
-
-  /* normalisation of contractions */
+      /* initialize contact_term */
+      contact_term[0] = 0.;
+      contact_term[1] = 0.;
+      contact_term[2] = 0.;
+      contact_term[3] = 0.;
+      contact_term[4] = 0.;
+      contact_term[5] = 0.;
+      contact_term[6] = 0.;
+      contact_term[7] = 0.;
+      
+      
 #ifdef OPENMP
 #pragma omp parallel for
 #endif
-  for(ix=0; ix<32*VOLUME; ix++) conn[ix] *= -0.25;
-
-#ifdef MPI
-      retime = MPI_Wtime();
-#else
-      retime = (double)clock() / CLOCKS_PER_SEC;
-#endif
-  if(g_cart_id==0) fprintf(stdout, "contractions in %e seconds\n", retime-ratime);
-
-  /* save results in position space */
-#ifdef MPI
-  ratime = MPI_Wtime();
-#else
-  ratime = (double)clock() / CLOCKS_PER_SEC;
-#endif
-  if(outfile_prefix_set) {
-    sprintf(filename, "%s/cvc_v_x.%.4d", outfile_prefix, Nconf);
-  } else {
-    sprintf(filename, "cvc_v_x.%.4d", Nconf);
-  }
-  sprintf(contype, "cvc - cvc in position space, all 16 components");
-  write_lime_contraction(conn, filename, 64, 16, contype, Nconf, 0);
-  if(write_ascii) {
-    if(outfile_prefix_set) {
-      sprintf(filename, "%s/cvc_v_x.%.4di.ascii", outfile_prefix, Nconf);
-    } else {
-      sprintf(filename, "cvc_v_x.%.4d.ascii", Nconf);
-    }
-    write_contraction(conn, NULL, filename, 16, 2, 0);
-  }
-
-#ifdef MPI
-  retime = MPI_Wtime();
-#else
-  retime = (double)clock() / CLOCKS_PER_SEC;
-#endif
-  if(g_cart_id==0) fprintf(stdout, "saved position space results in %e seconds\n", retime-ratime);
-
-#ifndef MPI
-  /* check the Ward identity in position space */
-  if(check_position_space_WI) {
-    sprintf(filename, "WI_X.%.4d", Nconf);
-    ofs = fopen(filename,"w");
-    fprintf(stdout, "\n# [cvc] checking Ward identity in position space ...\n");
-    for(x0=0; x0<T;  x0++) {
-    for(x1=0; x1<LX; x1++) {
-    for(x2=0; x2<LY; x2++) {
-    for(x3=0; x3<LZ; x3++) {
-      fprintf(ofs, "# t=%2d x=%2d y=%2d z=%2d\n", x0, x1, x2, x3);
-      ix=g_ipt[x0][x1][x2][x3];
-      for(nu=0; nu<4; nu++) {
-        w.re = conn[_GWI(4*0+nu,ix,VOLUME)] + conn[_GWI(4*1+nu,ix,VOLUME)]
-             + conn[_GWI(4*2+nu,ix,VOLUME)] + conn[_GWI(4*3+nu,ix,VOLUME)]
-	     - conn[_GWI(4*0+nu,g_idn[ix][0],VOLUME)] - conn[_GWI(4*1+nu,g_idn[ix][1],VOLUME)]
-	     - conn[_GWI(4*2+nu,g_idn[ix][2],VOLUME)] - conn[_GWI(4*3+nu,g_idn[ix][3],VOLUME)];
-
-        w.im = conn[_GWI(4*0+nu,ix,VOLUME)+1] + conn[_GWI(4*1+nu,ix,VOLUME)+1]
-            + conn[_GWI(4*2+nu,ix,VOLUME)+1] + conn[_GWI(4*3+nu,ix,VOLUME)+1]
-	    - conn[_GWI(4*0+nu,g_idn[ix][0],VOLUME)+1] - conn[_GWI(4*1+nu,g_idn[ix][1],VOLUME)+1]
-	    - conn[_GWI(4*2+nu,g_idn[ix][2],VOLUME)+1] - conn[_GWI(4*3+nu,g_idn[ix][3],VOLUME)+1];
+  for(ix=0; ix<32*VOLUME; ix++) conn[ix] = 0.;
       
-        fprintf(ofs, "\t%3d%25.16e%25.16e\n", nu, w.re, w.im);
+      g_source_location = base_locations[ishift];
+      
+      /* determine source coordinates, find out, if source_location is in this process */
+      have_source_flag = (int)(g_source_location/(LX*LY*LZ)>=Tstart && g_source_location/(LX*LY*LZ)<(Tstart+T));
+      if(have_source_flag==1) fprintf(stdout, "process %2d has source location\n", g_cart_id);
+      sx0 = g_source_location/(LX*LY*LZ)-Tstart;
+      sx1 = (g_source_location%(LX*LY*LZ)) / (LY*LZ);
+      sx2 = (g_source_location%(LY*LZ)) / LZ;
+      sx3 = (g_source_location%LZ);
+      Usource[0] = Usourcebuff;
+      Usource[1] = Usourcebuff+18;
+      Usource[2] = Usourcebuff+36;
+      Usource[3] = Usourcebuff+54;
+      if(have_source_flag==1) { 
+	fprintf(stdout, "local source coordinates: (%3d,%3d,%3d,%3d)\n", sx0, sx1, sx2, sx3);
+	source_location = g_ipt[sx0][sx1][sx2][sx3];
+	_cm_eq_cm_ti_co(Usource[0], &cvc_gauge_field[_GGI(source_location,0)], &co_phase_up[0]);
+	_cm_eq_cm_ti_co(Usource[1], &cvc_gauge_field[_GGI(source_location,1)], &co_phase_up[1]);
+	_cm_eq_cm_ti_co(Usource[2], &cvc_gauge_field[_GGI(source_location,2)], &co_phase_up[2]);
+	_cm_eq_cm_ti_co(Usource[3], &cvc_gauge_field[_GGI(source_location,3)], &co_phase_up[3]);
       }
-    }}}}
-    fclose(ofs);
-  }
-#endif
-
-  /*********************************************
-   * Fourier transformation 
-   *********************************************/
-#ifdef MPI
-  ratime = MPI_Wtime();
-#else
-  ratime = (double)clock() / CLOCKS_PER_SEC;
-#endif
-  for(mu=0; mu<16; mu++) {
-    memcpy((void*)in, (void*)&conn[_GWI(mu,0,VOLUME)], 2*VOLUME*sizeof(double));
-#ifdef MPI
-    fftwnd_mpi(plan_p, 1, in, NULL, FFTW_NORMAL_ORDER);
-#else
-#  ifdef OPENMP
-    fftwnd_threads_one(num_threads, plan_p, in, NULL);
-#  else
-    fftwnd_one(plan_p, in, NULL);
-#  endif
-#endif
-    memcpy((void*)&conn[_GWI(mu,0,VOLUME)], (void*)in, 2*VOLUME*sizeof(double));
-  }
-
-#ifdef MPI
-  if(g_cart_id==0) fprintf(stdout, "\n# [] broadcasing contact term ...\n");
-  MPI_Bcast(contact_term, 8, MPI_DOUBLE, have_source_flag, g_cart_grid);
-  fprintf(stdout, "[%2d] contact term = "\
-      "(%12.5e+%12.5eI,%12.5e+%12.5eI,%12.5e+%12.5eI,%12.5e+%12.5eI)\n",
-      g_cart_id, contact_term[0], contact_term[1], contact_term[2], contact_term[3],
-      contact_term[4], contact_term[5], contact_term[6], contact_term[7]);
-#endif
-
-  /*****************************************
-   * add phase factors
-   *****************************************/
-  for(mu=0; mu<4; mu++) {
-    phi = conn + _GWI(5*mu,0,VOLUME);
-
-    for(x0=0; x0<T; x0++) {
-      phase[0] = 2. * (double)(Tstart+x0) * M_PI / (double)T_global;
-    for(x1=0; x1<LX; x1++) {
-      phase[1] = 2. * (double)(x1) * M_PI / (double)LX;
-    for(x2=0; x2<LY; x2++) {
-      phase[2] = 2. * (double)(x2) * M_PI / (double)LY;
-    for(x3=0; x3<LZ; x3++) {
-      phase[3] = 2. * (double)(x3) * M_PI / (double)LZ;
-      ix = g_ipt[x0][x1][x2][x3];
-      w.re =  cos( phase[0]*(sx0+Tstart)+phase[1]*sx1+phase[2]*sx2+phase[3]*sx3 );
-      w.im = -sin( phase[0]*(sx0+Tstart)+phase[1]*sx1+phase[2]*sx2+phase[3]*sx3 );
-      _co_eq_co_ti_co(&w1,(complex*)( phi+2*ix ), &w);
-      phi[2*ix  ] = w1.re - contact_term[2*mu  ];
-      phi[2*ix+1] = w1.im - contact_term[2*mu+1];
-    }}}}
-  }  /* of mu */
-
-  for(mu=0; mu<3; mu++) {
-  for(nu=mu+1; nu<4; nu++) {
-    phi = conn + _GWI(4*mu+nu,0,VOLUME);
-    chi = conn + _GWI(4*nu+mu,0,VOLUME);
-
-    for(x0=0; x0<T; x0++) {
-      phase[0] =  (double)(Tstart+x0) * M_PI / (double)T_global;
-    for(x1=0; x1<LX; x1++) {
-      phase[1] =  (double)(x1) * M_PI / (double)LX;
-    for(x2=0; x2<LY; x2++) {
-      phase[2] =  (double)(x2) * M_PI / (double)LY;
-    for(x3=0; x3<LZ; x3++) {
-      phase[3] =  (double)(x3) * M_PI / (double)LZ;
-      ix = g_ipt[x0][x1][x2][x3];
-      w.re =  cos( phase[mu] - phase[nu] - 2.*(phase[0]*(sx0+Tstart)+phase[1]*sx1+phase[2]*sx2+phase[3]*sx3) );
-      w.im =  sin( phase[mu] - phase[nu] - 2.*(phase[0]*(sx0+Tstart)+phase[1]*sx1+phase[2]*sx2+phase[3]*sx3) );
-      _co_eq_co_ti_co(&w1,(complex*)( phi+2*ix ), &w);
-      phi[2*ix  ] = w1.re;
-      phi[2*ix+1] = w1.im;
-
-      w.re =  cos( phase[nu] - phase[mu] - 2.*(phase[0]*(sx0+Tstart)+phase[1]*sx1+phase[2]*sx2+phase[3]*sx3) );
-      w.im =  sin( phase[nu] - phase[mu] - 2.*(phase[0]*(sx0+Tstart)+phase[1]*sx1+phase[2]*sx2+phase[3]*sx3) );
-      _co_eq_co_ti_co(&w1,(complex*)( chi+2*ix ), &w);
-      chi[2*ix  ] = w1.re;
-      chi[2*ix+1] = w1.im;
-    }}}}
-  }}  /* of mu and nu */
-
-#ifdef MPI
-  retime = MPI_Wtime();
-#else
-  retime = (double)clock() / CLOCKS_PER_SEC;
-#endif
-  if(g_cart_id==0) fprintf(stdout, "Fourier transform in %e seconds\n", retime-ratime);
-
-  /********************************
-   * save momentum space results
-   ********************************/
-#ifdef MPI
-  ratime = MPI_Wtime();
-#else
-  ratime = (double)clock() / CLOCKS_PER_SEC;
-#endif
-  if(outfile_prefix_set) {
-    sprintf(filename, "%s/cvc_v_p.%.4d", outfile_prefix, Nconf);
-  } else {
-    sprintf(filename, "cvc_v_p.%.4d", Nconf);
-  }
-  sprintf(contype, "cvc - cvc in momentum space, all 16 components");
-  write_lime_contraction(conn, filename, 64, 16, contype, Nconf, 0);
-  if(write_ascii) {
-    if(outfile_prefix_set) {
-      sprintf(filename, "%s/cvc_v_p.%.4d", outfile_prefix, Nconf);
-    } else {
-      sprintf(filename, "cvc_v_p.%.4d.ascii", Nconf);
-    }
-    write_contraction(conn, (int*)NULL, filename, 16, 2, 0);
-  }
-
-#ifdef MPI
-  retime = MPI_Wtime();
-#else
-  retime = (double)clock() / CLOCKS_PER_SEC;
-#endif
-  if(g_cart_id==0) fprintf(stdout, "saved momentum space results in %e seconds\n", retime-ratime);
-
-  if(check_momentum_space_WI) {
-    sprintf(filename, "WI_P.%.4d", Nconf);
-    ofs = fopen(filename,"w");
-    fprintf(stdout, "\n# [cvc] checking Ward identity in momentum space ...\n");
-    for(x0=0; x0<T; x0++) {
-      phase[0] = 2. * sin( (double)(Tstart+x0) * M_PI / (double)T_global );
-    for(x1=0; x1<LX; x1++) {
-      phase[1] = 2. * sin( (double)(x1) * M_PI / (double)LX );
-    for(x2=0; x2<LY; x2++) {
-      phase[2] = 2. * sin( (double)(x2) * M_PI / (double)LY );
-    for(x3=0; x3<LZ; x3++) {
-      phase[3] = 2. * sin( (double)(x3) * M_PI / (double)LZ );
-      ix = g_ipt[x0][x1][x2][x3];
-      fprintf(ofs, "# t=%2d x=%2d y=%2d z=%2d\n", x0, x1, x2, x3);
-      for(nu=0;nu<4;nu++) {
-        w.re = phase[0] * conn[_GWI(4*0+nu,ix,VOLUME)] + phase[1] * conn[_GWI(4*1+nu,ix,VOLUME)] 
-             + phase[2] * conn[_GWI(4*2+nu,ix,VOLUME)] + phase[3] * conn[_GWI(4*3+nu,ix,VOLUME)];
-
-        w.im = phase[0] * conn[_GWI(4*0+nu,ix,VOLUME)+1] + phase[1] * conn[_GWI(4*1+nu,ix,VOLUME)+1] 
-             + phase[2] * conn[_GWI(4*2+nu,ix,VOLUME)+1] + phase[3] * conn[_GWI(4*3+nu,ix,VOLUME)+1];
-
-        w1.re = phase[0] * conn[_GWI(4*nu+0,ix,VOLUME)] + phase[1] * conn[_GWI(4*nu+1,ix,VOLUME)] 
-              + phase[2] * conn[_GWI(4*nu+2,ix,VOLUME)] + phase[3] * conn[_GWI(4*nu+3,ix,VOLUME)];
-
-        w1.im = phase[0] * conn[_GWI(4*nu+0,ix,VOLUME)+1] + phase[1] * conn[_GWI(4*nu+1,ix,VOLUME)+1] 
-              + phase[2] * conn[_GWI(4*nu+2,ix,VOLUME)+1] + phase[3] * conn[_GWI(4*nu+3,ix,VOLUME)+1];
-        fprintf(ofs, "\t%d%25.16e%25.16e%25.16e%25.16e\n", nu, w.re, w.im, w1.re, w1.im);
+    #ifdef MPI
+      MPI_Gather(&have_source_flag, 1, MPI_INT, status, 1, MPI_INT, 0, g_cart_grid);
+      if(g_cart_id==0) {
+	for(mu=0; mu<g_nproc; mu++) fprintf(stdout, "status[%1d]=%d\n", mu,status[mu]);
       }
-    }}}}
-    fclose(ofs);
-  }
+      if(g_cart_id==0) {
+	for(have_source_flag=0; status[have_source_flag]!=1; have_source_flag++);
+	fprintf(stdout, "have_source_flag= %d\n", have_source_flag);
+      }
+      MPI_Bcast(&have_source_flag, 1, MPI_INT, 0, g_cart_grid);
+      MPI_Bcast(Usourcebuff, 72, MPI_DOUBLE, have_source_flag, g_cart_grid);
+      fprintf(stdout, "[%2d] have_source_flag = %d\n", g_cart_id, have_source_flag);
+    #else
+      have_source_flag = 0;
+    #endif
+
+    #ifdef MPI
+	  ratime = MPI_Wtime();
+    #else
+	  ratime = (double)clock() / CLOCKS_PER_SEC;
+    #endif
+
+
+      /**********************************************************
+      * read 12 up-type propagators with source source_location
+      * - can get contributions 1 and 3 from that
+      **********************************************************/
+      for(ia=0; ia<12; ia++) {
+	if(!mms) {
+	  //get_filename(filename, 4, ia, 1); // position 4 is source position y, 1 means "+ i mu gamma_5", i.e. psource...
+	  //read_lime_spinor(cvc_spinor_field[ia], filename, 0); //0 stands for first lime block
+	  //xchange_field(cvc_spinor_field[ia]);
+	  get_propagator(4, ia, ia, +1, ud_one_file);
+	} else {
+	  sprintf(filename, "%s.%.4d.04.%.2d.cgmms.%.2d.inverted", filename_prefix, Nconf, ia, mass_id);
+	  read_lime_spinor(work, filename, 0);
+	  xchange_field(work);
+	  Qf5(cvc_spinor_field[ia], work, -g_mu);
+	  xchange_field(cvc_spinor_field[ia]);
+	}
+      }
+
+
+      /**********************************************
+      * loop on the Lorentz index nu at source 
+      **********************************************/
+      for(nu=0; nu<4; nu++) {
+
+	/* read 12 dn-type propagators */
+	for(ia=0; ia<12; ia++) {
+	  if(!mms) {
+    //         if(ud_one_file==0) {
+    //           get_filename(filename, nu, ia, -1);//-1 implies reading from msource..
+    //           read_lime_spinor(cvc_spinor_field[12+ia], filename, 0);
+    //         } else {
+    //           get_filename(filename, nu, ia, 1);
+    //           read_lime_spinor(cvc_spinor_field[12+ia], filename, 1);
+    //         }
+    //         xchange_field(cvc_spinor_field[12+ia]);
+	      get_propagator(nu, ia, (12+ia), -1, ud_one_file);
+	  } else {
+	    sprintf(filename, "%s.%.4d.%.2d.%.2d.cgmms.%.2d.inverted", filename_prefix, Nconf, nu, ia, mass_id);
+	    read_lime_spinor(work, filename, 0);
+	    xchange_field(work);
+	    Qf5(cvc_spinor_field[12+ia], work, g_mu); //function should be checked
+	    xchange_field(cvc_spinor_field[12+ia]);
+	  }
+	}
+
+
+
+    /*****************************************************************************************************************/
+      /* add new contractions to (existing) disc */
+	for(ir=0; ir<4; ir++) { /*spinor index*/
+	  for(ia=0; ia<3; ia++) { /*colour index*/
+	    phi = cvc_spinor_field[3*ir+ia];
+	  for(ib=0; ib<3; ib++) { /*colour index */
+	    chi = cvc_spinor_field[12+3*gperm[nu][ir]+ib];
+	    fprintf(stdout, "\n# [nu5] spin index pair (%d, %d); col index pair (%d, %d)\n", ir, gperm[nu][ir], ia ,ib);
+
+	    // 1) gamma_nu gamma_5 x U
+	    for(mu=0; mu<4; mu++) {
+
+	      imunu = 4*mu+nu;
+
+	    /* first contribution */
+    #ifdef OPENMP
+    #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
+    #endif
+
+	  for(ix=0; ix<VOLUME; ix++) {    /* loop on lattice sites */
+	      _cm_eq_cm_ti_co(U_, &cvc_gauge_field[_GGI(ix, mu)], &co_phase_up[mu]); /* (from antip. bc in time direction) above only for source location ? */
+
+		_fv_eq_cm_ti_fv(spinor1, U_, phi+_GSI(g_iup[ix][mu]));
+		_fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
+		_fv_mi_eq_fv(spinor2, spinor1);
+		_fv_eq_gamma_ti_fv(spinor1, 5, spinor2);
+		_co_eq_fv_dag_ti_fv(&w, chi+_GSI(ix), spinor1);
+		_co_eq_co_ti_co(&w1, &w, (complex*)(Usource[nu]+2*(3*ia+ib)));
+		if(!isimag[nu]) {
+		  conn[_GWI(imunu,ix,VOLUME)  ] += gperm_sign[nu][ir] * w1.re;
+		  conn[_GWI(imunu,ix,VOLUME)+1] += gperm_sign[nu][ir] * w1.im;
+		} else {
+		  conn[_GWI(imunu,ix,VOLUME)  ] += gperm_sign[nu][ir] * w1.im;
+		  conn[_GWI(imunu,ix,VOLUME)+1] -= gperm_sign[nu][ir] * w1.re;
+		}
+		//if(ix==0) fprintf(stdout, "[1_nu5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib, w.re, w.im);
+		//if(ix==0) fprintf(stdout, "[1_nu5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib,
+		//    gperm_sign[nu][ir] * w1.re, gperm_sign[nu][ir] * w1.im);
+
+	      }  // of ix
+
+
+	  /* second contribution */
+    #ifdef OPENMP
+    #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
+    #endif
+	      for(ix=0; ix<VOLUME; ix++) {
+		_cm_eq_cm_ti_co(U_, &cvc_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
+
+		_fv_eq_cm_dag_ti_fv(spinor1, U_, phi+_GSI(ix));
+		_fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
+		_fv_pl_eq_fv(spinor2, spinor1);
+		_fv_eq_gamma_ti_fv(spinor1, 5, spinor2);
+		_co_eq_fv_dag_ti_fv(&w, chi+_GSI(g_iup[ix][mu]), spinor1);
+		_co_eq_co_ti_co(&w1, &w, (complex*)(Usource[nu]+2*(3*ia+ib)));
+		if(!isimag[nu]) {
+		  conn[_GWI(imunu,ix,VOLUME)  ] += gperm_sign[nu][ir] * w1.re;
+		  conn[_GWI(imunu,ix,VOLUME)+1] += gperm_sign[nu][ir] * w1.im;
+		} else {
+		  conn[_GWI(imunu,ix,VOLUME)  ] += gperm_sign[nu][ir] * w1.im;
+		  conn[_GWI(imunu,ix,VOLUME)+1] -= gperm_sign[nu][ir] * w1.re;
+		}
+		//if(ix==0) fprintf(stdout, "[3_nu5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib, w.re, w.im);
+		//if(ix==0) fprintf(stdout, "[3_nu5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib,
+		//    gperm_sign[nu][ir] * w1.re, gperm_sign[nu][ir] * w1.im);
+
+	      }  // of ix
+	    } // of mu
+	  } /* of ib */
+
+	  for(ib=0; ib<3; ib++) {
+	    chi = cvc_spinor_field[12+3*gperm[4][ir]+ib];
+	    //fprintf(stdout, "\n# [5] spin index pair (%d, %d); col index pair (%d, %d)\n", ir, gperm[4][ir], ia ,ib);
+
+	    // -gamma_5 x U
+	    for(mu=0; mu<4; mu++) {
+	    //for(mu=0; mu<1; mu++) {
+	      imunu = 4*mu+nu;
+
+	  /* first contribution */
+    #ifdef OPENMP
+    #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
+    #endif
+	      for(ix=0; ix<VOLUME; ix++) {
+		_cm_eq_cm_ti_co(U_, &cvc_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
+
+		_fv_eq_cm_ti_fv(spinor1, U_, phi+_GSI(g_iup[ix][mu]));
+		_fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
+		_fv_mi_eq_fv(spinor2, spinor1);
+		_fv_eq_gamma_ti_fv(spinor1, 5, spinor2);
+		_co_eq_fv_dag_ti_fv(&w, chi+_GSI(ix), spinor1);
+		_co_eq_co_ti_co(&w1, &w, (complex*)(Usource[nu]+2*(3*ia+ib)));
+		conn[_GWI(imunu,ix,VOLUME)  ] -= gperm_sign[4][ir] * w1.re;
+		conn[_GWI(imunu,ix,VOLUME)+1] -= gperm_sign[4][ir] * w1.im;
+		//if(ix==0) fprintf(stdout, "[1_5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib, w.re, w.im);
+		//if(ix==0) fprintf(stdout, "[1_5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib,
+		//    gperm_sign[4][ir] * w1.re, gperm_sign[4][ir] * w1.im);
+
+	      }  // of ix
+
+	/* second contribution */
+    #ifdef OPENMP
+    #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
+    #endif
+	      for(ix=0; ix<VOLUME; ix++) {
+		_cm_eq_cm_ti_co(U_, &cvc_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
+
+		_fv_eq_cm_dag_ti_fv(spinor1, U_, phi+_GSI(ix));
+		_fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
+		_fv_pl_eq_fv(spinor2, spinor1);
+		_fv_eq_gamma_ti_fv(spinor1, 5, spinor2);
+		_co_eq_fv_dag_ti_fv(&w, chi+_GSI(g_iup[ix][mu]), spinor1);
+		_co_eq_co_ti_co(&w1, &w, (complex*)(Usource[nu]+2*(3*ia+ib)));
+		conn[_GWI(imunu,ix,VOLUME)  ] -= gperm_sign[4][ir] * w1.re;
+		conn[_GWI(imunu,ix,VOLUME)+1] -= gperm_sign[4][ir] * w1.im;
+		//if(ix==0) fprintf(stdout, "[3_5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib, w.re, w.im);
+		//if(ix==0) fprintf(stdout, "[3_5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib,
+		//    gperm_sign[4][ir] * w1.re, gperm_sign[4][ir] * w1.im);
+
+	      }  // of ix
+	    }  // of mu
+	  }  // of ib
+
+	  /* contribution to contact term */
+	  _fv_eq_cm_ti_fv(spinor1, Usource[nu], phi+_GSI(g_iup[source_location][nu]));
+	  _fv_eq_gamma_ti_fv(spinor2, nu, spinor1);
+	  _fv_mi_eq_fv(spinor2, spinor1);
+	  contact_term[2*nu  ] += -0.5 * spinor2[2*(3*ir+ia)  ];
+	  contact_term[2*nu+1] += -0.5 * spinor2[2*(3*ir+ia)+1];
+
+	  }  // of ia
+	}  // of ir
+
+      }  // of nu
+
+      fprintf(stdout, "\n# [cvc] contact term after 1st part:\n");
+      fprintf(stdout, "\t%d\t%25.16e%25.16e\n", 0, contact_term[0], contact_term[1]);
+      fprintf(stdout, "\t%d\t%25.16e%25.16e\n", 1, contact_term[2], contact_term[3]);
+      fprintf(stdout, "\t%d\t%25.16e%25.16e\n", 2, contact_term[4], contact_term[5]);
+      fprintf(stdout, "\t%d\t%25.16e%25.16e\n", 3, contact_term[6], contact_term[7]);
+
+      /**********************************************************
+      * read 12 dn-type propagators with source source_location
+      * - can get contributions 2 and 4 from that
+      **********************************************************/
+      for(ia=0; ia<12; ia++) {
+	if(!mms) {
+    //       if(ud_one_file==0) {
+    //         get_filename(filename, 4, ia, -1);
+    //         read_lime_spinor(cvc_spinor_field[12+ia], filename, 0);
+    //       } else {
+    //         get_filename(filename, 4, ia, 1);
+    //         read_lime_spinor(cvc_spinor_field[12+ia], filename, 1);
+    //       }
+    //       xchange_field(cvc_spinor_field[12+ia]);
+	    get_propagator(4, ia, (12+ia), -1, ud_one_file);
+	} else {
+	  sprintf(filename, "%s.%.4d.04.%.2d.cgmms.%.2d.inverted", filename_prefix, Nconf, ia, mass_id);
+	  read_lime_spinor(work, filename, 0);
+	  xchange_field(work);
+	  Qf5(cvc_spinor_field[12+ia], work, g_mu);
+	  xchange_field(cvc_spinor_field[12+ia]);
+	}
+      }
+    
+
+    /**********************************************
+      * loop on the Lorentz index nu at source 
+      **********************************************/
+      for(nu=0; nu<4; nu++) {
+
+	/* read 12 up-type propagators */
+	for(ia=0; ia<12; ia++) {
+	  if(!mms) {
+    //         get_filename(filename, nu, ia, 1);
+    //         read_lime_spinor(cvc_spinor_field[ia], filename, 0);
+    //         xchange_field(cvc_spinor_field[ia]);
+	    get_propagator(nu, ia, ia, +1, ud_one_file);
+	  } else {
+	    sprintf(filename, "%s.%.4d.%.2d.%.2d.cgmms.%.2d.inverted", filename_prefix, Nconf, nu, ia, mass_id);
+	    read_lime_spinor(work, filename, 0);
+	    xchange_field(work);
+	    Qf5(cvc_spinor_field[ia], work, -g_mu);
+	    xchange_field(cvc_spinor_field[ia]);
+	  }
+	}
+    
+
+	
+    /**************************************************************************************************************/
+	for(ir=0; ir<4; ir++) {
+	  for(ia=0; ia<3; ia++) {
+	    phi = cvc_spinor_field[3*ir+ia];
+	  for(ib=0; ib<3; ib++) {
+	    chi = cvc_spinor_field[12+3*gperm[nu][ir]+ib];
+	    //fprintf(stdout, "\n# [nu5] spin index pair (%d, %d); col index pair (%d, %d)\n", ir, gperm[nu][ir], ia ,ib);
+	
+	    // 1) gamma_nu gamma_5 x U^dagger
+	    for(mu=0; mu<4; mu++) {
+
+	      imunu = 4*mu+nu;
+
+    #ifdef OPENMP
+    #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
+    #endif
+	      for(ix=0; ix<VOLUME; ix++) {
+		_cm_eq_cm_ti_co(U_, &cvc_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
+
+		_fv_eq_cm_ti_fv(spinor1, U_, phi+_GSI(g_iup[ix][mu]));
+		_fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
+		_fv_mi_eq_fv(spinor2, spinor1);
+		_fv_eq_gamma_ti_fv(spinor1, 5, spinor2);
+		_co_eq_fv_dag_ti_fv(&w, chi+_GSI(ix), spinor1);
+		_co_eq_co_ti_co_conj(&w1, &w, (complex*)(Usource[nu]+2*(3*ib+ia)));
+		if(!isimag[nu]) {
+		  conn[_GWI(imunu,ix,VOLUME)  ] += gperm_sign[nu][ir] * w1.re;
+		  conn[_GWI(imunu,ix,VOLUME)+1] += gperm_sign[nu][ir] * w1.im;
+		} else {
+		  conn[_GWI(imunu,ix,VOLUME)  ] += gperm_sign[nu][ir] * w1.im;
+		  conn[_GWI(imunu,ix,VOLUME)+1] -= gperm_sign[nu][ir] * w1.re;
+		}
+		//if(ix==0) fprintf(stdout, "[2_nu5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib, w.re, w.im);
+		//if(ix==0) fprintf(stdout, "[2_nu5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib,
+		//    gperm_sign[nu][ir] * w1.re, gperm_sign[nu][ir] * w1.im);
+
+	      }  // of ix
+
+    #ifdef OPENMP
+    #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
+    #endif
+	      for(ix=0; ix<VOLUME; ix++) {
+		_cm_eq_cm_ti_co(U_, &cvc_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
+
+		_fv_eq_cm_dag_ti_fv(spinor1, U_, phi+_GSI(ix));
+		_fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
+		_fv_pl_eq_fv(spinor2, spinor1);
+		_fv_eq_gamma_ti_fv(spinor1, 5, spinor2);
+		_co_eq_fv_dag_ti_fv(&w, chi+_GSI(g_iup[ix][mu]), spinor1);
+		_co_eq_co_ti_co_conj(&w1, &w, (complex*)(Usource[nu]+2*(3*ib+ia)));
+		if(!isimag[nu]) {
+		  conn[_GWI(imunu,ix,VOLUME)  ] += gperm_sign[nu][ir] * w1.re;
+		  conn[_GWI(imunu,ix,VOLUME)+1] += gperm_sign[nu][ir] * w1.im;
+		} else {
+		  conn[_GWI(imunu,ix,VOLUME)  ] += gperm_sign[nu][ir] * w1.im;
+		  conn[_GWI(imunu,ix,VOLUME)+1] -= gperm_sign[nu][ir] * w1.re;
+		}
+		//if(ix==0) fprintf(stdout, "[4_nu5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib, w.re, w.im);
+		//if(ix==0) fprintf(stdout, "[4_nu5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib,
+		//    gperm_sign[nu][ir] * w1.re, gperm_sign[nu][ir] * w1.im);
+
+	      }  // of ix
+	    } // of mu
+
+	  } /* of ib */
+
+	  for(ib=0; ib<3; ib++) {
+	    chi = cvc_spinor_field[12+3*gperm[4][ir]+ib];
+	    //fprintf(stdout, "\n# [5] spin index pair (%d, %d); col index pair (%d, %d)\n", ir, gperm[4][ir], ia ,ib);
+
+	    // gamma_5 x U 
+	    for(mu=0; mu<4; mu++) {
+
+	      imunu = 4*mu+nu;
+
+    #ifdef OPENMP
+    #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
+    #endif
+	      for(ix=0; ix<VOLUME; ix++) {
+		_cm_eq_cm_ti_co(U_, &cvc_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
+
+		_fv_eq_cm_ti_fv(spinor1, U_, phi+_GSI(g_iup[ix][mu]));
+		_fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
+		_fv_mi_eq_fv(spinor2, spinor1);
+		_fv_eq_gamma_ti_fv(spinor1, 5, spinor2);
+		_co_eq_fv_dag_ti_fv(&w, chi+_GSI(ix), spinor1);
+		_co_eq_co_ti_co_conj(&w1, &w, (complex*)(Usource[nu]+2*(3*ib+ia)));
+		conn[_GWI(imunu,ix,VOLUME)  ] += gperm_sign[4][ir] * w1.re;
+		conn[_GWI(imunu,ix,VOLUME)+1] += gperm_sign[4][ir] * w1.im;
+		//if(ix==0) fprintf(stdout, "[2_5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib, w.re, w.im);
+		//if(ix==0) fprintf(stdout, "[2_5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib,
+		//    gperm_sign[4][ir] * w1.re, gperm_sign[4][ir] * w1.im);
+
+	      }  // of ix
+
+    #ifdef OPENMP
+    #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
+    #endif
+	      for(ix=0; ix<VOLUME; ix++) {
+		_cm_eq_cm_ti_co(U_, &cvc_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
+
+		_fv_eq_cm_dag_ti_fv(spinor1, U_, phi+_GSI(ix));
+		_fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
+		_fv_pl_eq_fv(spinor2, spinor1);
+		_fv_eq_gamma_ti_fv(spinor1, 5, spinor2);
+		_co_eq_fv_dag_ti_fv(&w, chi+_GSI(g_iup[ix][mu]), spinor1);
+		_co_eq_co_ti_co_conj(&w1, &w, (complex*)(Usource[nu]+2*(3*ib+ia)));
+		conn[_GWI(imunu,ix,VOLUME)  ] += gperm_sign[4][ir] * w1.re;
+		conn[_GWI(imunu,ix,VOLUME)+1] += gperm_sign[4][ir] * w1.im;
+		//if(ix==0) fprintf(stdout, "[4_5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib, w.re, w.im);
+		//if(ix==0) fprintf(stdout, "[4_5] %3d%3d%3d\t%e\t%e\n", ir ,ia, ib,
+		//    gperm_sign[4][ir] * w1.re, gperm_sign[4][ir] * w1.im);
+
+	      }  // of ix
+	    }  // of mu
+	  }  // of ib
+
+	  /* contribution to contact term */
+	  _fv_eq_cm_dag_ti_fv(spinor1, Usource[nu], phi+_GSI(source_location));
+	  _fv_eq_gamma_ti_fv(spinor2, nu, spinor1);
+	  _fv_pl_eq_fv(spinor2, spinor1);
+	  contact_term[2*nu  ] += 0.5 * spinor2[2*(3*ir+ia)  ];
+	  contact_term[2*nu+1] += 0.5 * spinor2[2*(3*ir+ia)+1];
+
+	  }  // of ia 
+	}  // of ir
+      }  // of nu
+      
+      // print contact term
+      if(g_cart_id==0) {
+	fprintf(stdout, "\n# [cvc] contact term\n");
+	for(i=0;i<4;i++) {
+	  fprintf(stdout, "\t%d%25.16e%25.16e\n", i, contact_term[2*i], contact_term[2*i+1]);
+	}
+      }
+
+      /* normalisation of contractions */
+    #ifdef OPENMP
+    #pragma omp parallel for
+    #endif
+      for(ix=0; ix<32*VOLUME; ix++) conn[ix] *= -0.25;
+
+    #ifdef MPI
+	  retime = MPI_Wtime();
+    #else
+	  retime = (double)clock() / CLOCKS_PER_SEC;
+    #endif
+      if(g_cart_id==0) fprintf(stdout, "contractions in %e seconds\n", retime-ratime);
+
+      /* save results in position space */
+    #ifdef MPI
+      ratime = MPI_Wtime();
+    #else
+      ratime = (double)clock() / CLOCKS_PER_SEC;
+    #endif
+      if(outfile_prefix_set) {
+	sprintf(filename, "%s/cvc_v_x.%.4d.%.2d", outfile_prefix, Nconf, ishift);
+      } else {
+	sprintf(filename, "cvc_v_x.%.4d.%.2d", Nconf, ishift);
+      }
+      sprintf(contype, "cvc - cvc in position space, all 16 components");
+      write_lime_contraction(conn, filename, 64, 16, contype, Nconf, 0);
+      if(write_ascii) {
+	if(outfile_prefix_set) {
+	  sprintf(filename, "%s/cvc_v_x.%.4di.%.2d.ascii", outfile_prefix, Nconf, ishift);
+	} else {
+	  sprintf(filename, "cvc_v_x.%.4d.%.2d.ascii", Nconf, ishift);
+	}
+	write_contraction(conn, NULL, filename, 16, 2, 0);
+      }
+
+    #ifdef MPI
+      retime = MPI_Wtime();
+    #else
+      retime = (double)clock() / CLOCKS_PER_SEC;
+    #endif
+      if(g_cart_id==0) fprintf(stdout, "saved position space results in %e seconds\n", retime-ratime);
+
+    #ifndef MPI
+      /* check the Ward identity in position space */
+      if(check_position_space_WI) {
+	sprintf(filename, "WI_X.%.4d.%.2d", Nconf, ishift);
+	ofs = fopen(filename,"w");
+	fprintf(stdout, "\n# [cvc] checking Ward identity in position space ...\n");
+	for(x0=0; x0<T;  x0++) {
+	for(x1=0; x1<LX; x1++) {
+	for(x2=0; x2<LY; x2++) {
+	for(x3=0; x3<LZ; x3++) {
+	  fprintf(ofs, "# t=%2d x=%2d y=%2d z=%2d\n", x0, x1, x2, x3);
+	  ix=g_ipt[x0][x1][x2][x3];
+	  for(nu=0; nu<4; nu++) {
+	    w.re = conn[_GWI(4*0+nu,ix,VOLUME)] + conn[_GWI(4*1+nu,ix,VOLUME)]
+		+ conn[_GWI(4*2+nu,ix,VOLUME)] + conn[_GWI(4*3+nu,ix,VOLUME)]
+		- conn[_GWI(4*0+nu,g_idn[ix][0],VOLUME)] - conn[_GWI(4*1+nu,g_idn[ix][1],VOLUME)]
+		- conn[_GWI(4*2+nu,g_idn[ix][2],VOLUME)] - conn[_GWI(4*3+nu,g_idn[ix][3],VOLUME)];
+
+	    w.im = conn[_GWI(4*0+nu,ix,VOLUME)+1] + conn[_GWI(4*1+nu,ix,VOLUME)+1]
+		+ conn[_GWI(4*2+nu,ix,VOLUME)+1] + conn[_GWI(4*3+nu,ix,VOLUME)+1]
+		- conn[_GWI(4*0+nu,g_idn[ix][0],VOLUME)+1] - conn[_GWI(4*1+nu,g_idn[ix][1],VOLUME)+1]
+		- conn[_GWI(4*2+nu,g_idn[ix][2],VOLUME)+1] - conn[_GWI(4*3+nu,g_idn[ix][3],VOLUME)+1];
+	  
+	    fprintf(ofs, "\t%3d%25.16e%25.16e\n", nu, w.re, w.im);
+	  }
+	}}}}
+	fclose(ofs);
+      }
+    #endif
+
+      /*********************************************
+      * Fourier transformation 
+      *********************************************/
+    #ifdef MPI
+      ratime = MPI_Wtime();
+    #else
+      ratime = (double)clock() / CLOCKS_PER_SEC;
+    #endif
+      for(mu=0; mu<16; mu++) {
+	memcpy((void*)in, (void*)&conn[_GWI(mu,0,VOLUME)], 2*VOLUME*sizeof(double));
+    #ifdef MPI
+	fftwnd_mpi(plan_p, 1, in, NULL, FFTW_NORMAL_ORDER);
+    #else
+    #  ifdef OPENMP
+	fftwnd_threads_one(num_threads, plan_p, in, NULL);
+    #  else
+	fftwnd_one(plan_p, in, NULL);
+    #  endif
+    #endif
+	memcpy((void*)&conn[_GWI(mu,0,VOLUME)], (void*)in, 2*VOLUME*sizeof(double));
+      }
+
+    #ifdef MPI
+      if(g_cart_id==0) fprintf(stdout, "\n# [] broadcasing contact term ...\n");
+      MPI_Bcast(contact_term, 8, MPI_DOUBLE, have_source_flag, g_cart_grid);
+      fprintf(stdout, "[%2d] contact term = "\
+	  "(%12.5e+%12.5eI,%12.5e+%12.5eI,%12.5e+%12.5eI,%12.5e+%12.5eI)\n",
+	  g_cart_id, contact_term[0], contact_term[1], contact_term[2], contact_term[3],
+	  contact_term[4], contact_term[5], contact_term[6], contact_term[7]);
+    #endif
+
+      /*****************************************
+      * add phase factors
+      *****************************************/
+      for(mu=0; mu<4; mu++) {
+	phi = conn + _GWI(5*mu,0,VOLUME);
+
+	for(x0=0; x0<T; x0++) {
+	  phase[0] = 2. * (double)(Tstart+x0) * M_PI / (double)T_global;
+	for(x1=0; x1<LX; x1++) {
+	  phase[1] = 2. * (double)(x1) * M_PI / (double)LX;
+	for(x2=0; x2<LY; x2++) {
+	  phase[2] = 2. * (double)(x2) * M_PI / (double)LY;
+	for(x3=0; x3<LZ; x3++) {
+	  phase[3] = 2. * (double)(x3) * M_PI / (double)LZ;
+	  ix = g_ipt[x0][x1][x2][x3];
+	  w.re =  cos( phase[0]*(sx0+Tstart)+phase[1]*sx1+phase[2]*sx2+phase[3]*sx3 );
+	  w.im = -sin( phase[0]*(sx0+Tstart)+phase[1]*sx1+phase[2]*sx2+phase[3]*sx3 );
+	  _co_eq_co_ti_co(&w1,(complex*)( phi+2*ix ), &w);
+	  phi[2*ix  ] = w1.re - contact_term[2*mu  ];
+	  phi[2*ix+1] = w1.im - contact_term[2*mu+1];
+	}}}}
+      }  /* of mu */
+
+      for(mu=0; mu<3; mu++) {
+      for(nu=mu+1; nu<4; nu++) {
+	phi = conn + _GWI(4*mu+nu,0,VOLUME);
+	chi = conn + _GWI(4*nu+mu,0,VOLUME);
+
+	for(x0=0; x0<T; x0++) {
+	  phase[0] =  (double)(Tstart+x0) * M_PI / (double)T_global;
+	for(x1=0; x1<LX; x1++) {
+	  phase[1] =  (double)(x1) * M_PI / (double)LX;
+	for(x2=0; x2<LY; x2++) {
+	  phase[2] =  (double)(x2) * M_PI / (double)LY;
+	for(x3=0; x3<LZ; x3++) {
+	  phase[3] =  (double)(x3) * M_PI / (double)LZ;
+	  ix = g_ipt[x0][x1][x2][x3];
+	  w.re =  cos( phase[mu] - phase[nu] - 2.*(phase[0]*(sx0+Tstart)+phase[1]*sx1+phase[2]*sx2+phase[3]*sx3) );
+	  w.im =  sin( phase[mu] - phase[nu] - 2.*(phase[0]*(sx0+Tstart)+phase[1]*sx1+phase[2]*sx2+phase[3]*sx3) );
+	  _co_eq_co_ti_co(&w1,(complex*)( phi+2*ix ), &w);
+	  phi[2*ix  ] = w1.re;
+	  phi[2*ix+1] = w1.im;
+
+	  w.re =  cos( phase[nu] - phase[mu] - 2.*(phase[0]*(sx0+Tstart)+phase[1]*sx1+phase[2]*sx2+phase[3]*sx3) );
+	  w.im =  sin( phase[nu] - phase[mu] - 2.*(phase[0]*(sx0+Tstart)+phase[1]*sx1+phase[2]*sx2+phase[3]*sx3) );
+	  _co_eq_co_ti_co(&w1,(complex*)( chi+2*ix ), &w);
+	  chi[2*ix  ] = w1.re;
+	  chi[2*ix+1] = w1.im;
+	}}}}
+      }}  /* of mu and nu */
+
+    #ifdef MPI
+      retime = MPI_Wtime();
+    #else
+      retime = (double)clock() / CLOCKS_PER_SEC;
+    #endif
+      if(g_cart_id==0) fprintf(stdout, "Fourier transform in %e seconds\n", retime-ratime);
+
+      /********************************
+      * save momentum space results
+      ********************************/
+    #ifdef MPI
+      ratime = MPI_Wtime();
+    #else
+      ratime = (double)clock() / CLOCKS_PER_SEC;
+    #endif
+      if(outfile_prefix_set) {
+	sprintf(filename, "%s/cvc_v_p.%.4d.%.2d", outfile_prefix, Nconf, ishift);
+      } else {
+	sprintf(filename, "cvc_v_p.%.4d.%.2d", Nconf, ishift);
+      }
+      sprintf(contype, "cvc - cvc in momentum space, all 16 components");
+      write_lime_contraction(conn, filename, 64, 16, contype, Nconf, 0);
+      if(write_ascii) {
+	if(outfile_prefix_set) {
+	  sprintf(filename, "%s/cvc_v_p.%.4d.%.2d", outfile_prefix, Nconf, ishift);
+	} else {
+	  sprintf(filename, "cvc_v_p.%.4d.%.2d.ascii", Nconf, ishift);
+	}
+	write_contraction(conn, (int*)NULL, filename, 16, 2, 0);
+      }
+
+    #ifdef MPI
+      retime = MPI_Wtime();
+    #else
+      retime = (double)clock() / CLOCKS_PER_SEC;
+    #endif
+      if(g_cart_id==0) fprintf(stdout, "saved momentum space results in %e seconds\n", retime-ratime);
+
+      if(check_momentum_space_WI) {
+	sprintf(filename, "WI_P.%.4d.%.2d", Nconf, ishift);
+	ofs = fopen(filename,"w");
+	fprintf(stdout, "\n# [cvc] checking Ward identity in momentum space ...\n");
+	for(x0=0; x0<T; x0++) {
+	  phase[0] = 2. * sin( (double)(Tstart+x0) * M_PI / (double)T_global );
+	for(x1=0; x1<LX; x1++) {
+	  phase[1] = 2. * sin( (double)(x1) * M_PI / (double)LX );
+	for(x2=0; x2<LY; x2++) {
+	  phase[2] = 2. * sin( (double)(x2) * M_PI / (double)LY );
+	for(x3=0; x3<LZ; x3++) {
+	  phase[3] = 2. * sin( (double)(x3) * M_PI / (double)LZ );
+	  ix = g_ipt[x0][x1][x2][x3];
+	  fprintf(ofs, "# t=%2d x=%2d y=%2d z=%2d\n", x0, x1, x2, x3);
+	  for(nu=0;nu<4;nu++) {
+	    w.re = phase[0] * conn[_GWI(4*0+nu,ix,VOLUME)] + phase[1] * conn[_GWI(4*1+nu,ix,VOLUME)] 
+		+ phase[2] * conn[_GWI(4*2+nu,ix,VOLUME)] + phase[3] * conn[_GWI(4*3+nu,ix,VOLUME)];
+
+	    w.im = phase[0] * conn[_GWI(4*0+nu,ix,VOLUME)+1] + phase[1] * conn[_GWI(4*1+nu,ix,VOLUME)+1] 
+		+ phase[2] * conn[_GWI(4*2+nu,ix,VOLUME)+1] + phase[3] * conn[_GWI(4*3+nu,ix,VOLUME)+1];
+
+	    w1.re = phase[0] * conn[_GWI(4*nu+0,ix,VOLUME)] + phase[1] * conn[_GWI(4*nu+1,ix,VOLUME)] 
+		  + phase[2] * conn[_GWI(4*nu+2,ix,VOLUME)] + phase[3] * conn[_GWI(4*nu+3,ix,VOLUME)];
+
+	    w1.im = phase[0] * conn[_GWI(4*nu+0,ix,VOLUME)+1] + phase[1] * conn[_GWI(4*nu+1,ix,VOLUME)+1] 
+		  + phase[2] * conn[_GWI(4*nu+2,ix,VOLUME)+1] + phase[3] * conn[_GWI(4*nu+3,ix,VOLUME)+1];
+	    fprintf(ofs, "\t%d%25.16e%25.16e%25.16e%25.16e\n", nu, w.re, w.im, w1.re, w1.im);
+	  }
+	}}}}
+	fclose(ofs);
+      }
 
   
-  
-  
-  /* END OF LOOP OVER SOURCE POSITIONS */
+  } //loop over shifts
   
   
   
