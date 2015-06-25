@@ -1,12 +1,9 @@
 #ifndef DML_INCLUDE
 #define DML_INCLUDE
 
-/*
-  Header file for the check sum from the QIO package.
-
-*/
-
 #include<stdlib.h>
+
+namespace cvc {
 
 typedef unsigned int   uint32_t;
 
@@ -37,7 +34,5 @@ void DML_checksum_peq(DML_Checksum *total, DML_Checksum *checksum) ;
 
 uint32_t DML_crc32(uint32_t crc, const unsigned char *buf, size_t len);
 
+}
 #endif
-
-
-

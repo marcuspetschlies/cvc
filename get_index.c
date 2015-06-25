@@ -9,17 +9,16 @@
  * CHANGES:
  ****************************************************/
 
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
 #include <time.h>
-#ifdef MPI
+#ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
 #include <getopt.h>
-
-#define MAIN_PROGRAM
 
 #include "cvc_complex.h"
 #include "cvc_linalg.h"
@@ -27,6 +26,8 @@
 #include "cvc_geometry.h"
 #include "cvc_utils.h"
 #include "mpi_init.h"
+
+namespace cvc {
 
 unsigned long int get_indexf(const int t, const int x, const int y, const int z, const int mu, const int nu)
 /* formats:
@@ -90,3 +91,4 @@ unsigned long int index_conv(const unsigned long int ix, const int format)
   return(-1);
 }
 
+}

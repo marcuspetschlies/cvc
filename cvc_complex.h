@@ -6,6 +6,12 @@
 #include <math.h>
 
 /* A complex number. */
+/* if complex is define as a macro in complex.h */
+#ifdef complex
+#undef complex
+#endif
+
+namespace cvc {
 
 typedef struct {
   double re, im;
@@ -80,4 +86,7 @@ typedef struct {
 #define _co_eq_co_ti_re(c1,c2,r) {\
   (c1)->re = (c2)->re*r; \
   (c1)->im = (c2)->im*r;}
+
+}
 #endif
+

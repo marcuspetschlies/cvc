@@ -1,13 +1,15 @@
-/*
-   A subset of the dml library for checksums
+/********************************************************************
+ * A subset of the dml library for checksums
+ ********************************************************************/
 
-*/
-#ifdef MPI
+#ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
 #include "global.h"
 #include "dml.h"
 
+
+namespace cvc {
 
 /*------------------------------------------------------------------*/
 /* Checksum "class" */
@@ -22,7 +24,7 @@ void DML_checksum_init(DML_Checksum *checksum){
 }
 
 
-#ifdef MPI
+#ifdef HAVE_MPI
 int DML_global_xor(uint32_t *x)
 {
   unsigned long work = (unsigned long)*x;
@@ -69,3 +71,4 @@ void DML_checksum_peq(DML_Checksum *total, DML_Checksum *checksum){
   total->sumb ^= checksum->sumb;
 }
 
+}

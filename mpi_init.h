@@ -1,11 +1,13 @@
 #ifndef _MPI_INIT_H
 #define _MPI_INIT_H
 
-#  ifdef MPI
+namespace cvc {
+
+#  ifdef HAVE_MPI
 #    include <mpi.h>
 #  endif
 
-#  ifdef MPI
+#  ifdef HAVE_MPI
 extern MPI_Datatype gauge_point;
 extern MPI_Datatype gauge_time_slice_cont;
 extern MPI_Datatype spinor_time_slice_cont;
@@ -40,4 +42,6 @@ extern MPI_Datatype gauge_yx_edge_cont;
 
 void mpi_init(int argc, char *argv[]);
 
+
+}
 #endif

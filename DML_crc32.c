@@ -41,8 +41,11 @@
 */
 
 /*  #include <qio_stdint.h>  **/
+
 #include <stdlib.h>
 #include"dml.h"
+
+namespace cvc {
 
 typedef uint32_t uLong;            /* At least 32 bits */
 typedef unsigned char Byte;
@@ -201,4 +204,6 @@ uint32_t DML_crc32(uint32_t crc, const unsigned char *buf, size_t len)
       DO1(buf);
     } while (--len);
     return crc ^ 0xffffffffL;
+}
+
 }

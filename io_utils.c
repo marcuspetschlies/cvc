@@ -1,5 +1,7 @@
 /* $Id: io_utils.c,v 1.2 2007/11/22 15:57:38 urbach Exp $ */
 
+namespace cvc {
+
 #include"lime.h" 
 #include<stdlib.h>
 #include<stdio.h>
@@ -8,12 +10,13 @@
 #include<sys/time.h> 
 #include<sys/types.h>
 #include<math.h>
-#ifdef MPI
+#ifdef HAVE_MPI
 #  include <mpi.h>
 #  include <unistd.h>
 #endif
 #include"lime.h" 
 #include"io_utils.h"
+
 
 int isnan_f  (float       x) { return x != x; }
 int isnan_d  (double      x) { return x != x; }
@@ -88,6 +91,34 @@ void byte_swap64(void * ptr, int nmemb){
   double_ptr = (double *) ptr;
   for(j = 0; j < nmemb; j++, double_ptr++) {
     in_ptr = (char *) double_ptr;
+    
+    char_in[0] = in_ptr[0];
+    char_in[1] = in_ptr[1];
+    char_in[2] = in_ptr[2];
+    char_in[3] = in_ptr[3];
+    char_in[4] = in_ptr[4];
+    char_in[5] = in_ptr[5];
+    char_in[6] = in_ptr[6];
+    char_in[7] = in_ptr[7];
+
+    in_ptr[0] = char_in[7];
+    in_ptr[1] = char_in[6];
+    in_ptr[2] = char_in[5];
+    in_ptr[3] = char_in[4];
+    in_ptr[4] = char_in[3];
+    in_ptr[5] = char_in[2];
+    in_ptr[6] = char_in[1];
+    in_ptr[7] = char_in[0];
+  }
+}
+
+void byte_swap64_v2(double *ptr, unsigned int nmemb){
+  unsigned int j;
+  char char_in[8];
+  char * in_ptr;
+
+  for(j = 0; j < nmemb; j++) {
+    in_ptr = (char *)(ptr+j);
     
     char_in[0] = in_ptr[0];
     char_in[1] = in_ptr[1];
@@ -232,4 +263,4 @@ void * byte_swap_assign_double2single(void * out_ptr, void * in_ptr, int nmemb){
   return(out_ptr);
 }
 
-
+}

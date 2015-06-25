@@ -11,9 +11,10 @@
  * read_input returns 2 if the input file did not exist 
  *
  ***********************************************************************/
-
 #ifndef _PARSER_H
 # define _PARSER_H
+
+namespace cvc {
 
   extern int verbose;
   extern int myverbose;
@@ -22,5 +23,6 @@
   int read_input_parser(char *);
   int reread_input_parser(char *);
 
-  
+}  /* end of namespace cvc */
+
 #endif

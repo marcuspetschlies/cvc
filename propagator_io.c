@@ -8,6 +8,7 @@
  *   write_propagator_format to "w"
  */
 
+
 #define _FILE_OFFSET_BITS 64
 
 #include "lime.h" 
@@ -18,7 +19,7 @@
 #include <sys/time.h> 
 #include <sys/types.h>
 #include <math.h>
-#ifdef MPI
+#ifdef HAVE_MPI
 #  include <mpi.h>
 #  include <unistd.h>
 #endif
@@ -36,6 +37,8 @@
 #include "Q_phi.h"
 #include "propagator_io.h"
 
+namespace cvc {
+
 /* write a one flavour propagator to file */
 #ifdef HAVE_LIBLEMON
 int write_propagator(double * const s, char * filename, 
@@ -48,18 +51,18 @@ int write_propagator(double * const s, char * filename,
   int err = 0;
 
   write_propagator_format(filename, prec, 1);
-  err = write_lime_spinor(s, filename, append, prec);
+  err = write_lime_spinor(s, filename, 1, prec);
   return(err);
 }
 #endif
 
 #ifdef HAVE_LIBLEMON
-int cvc_write_binary_spinor_data(double * const s, LemonWriter * writer,
+int write_binary_spinor_data(double * const s, LemonWriter * writer,
                                       const int prec, DML_Checksum * ans) {
   return(-1);
 }
 #else
-int cvc_write_binary_spinor_data(double * const s, LimeWriter * limewriter,
+int write_binary_spinor_data(double * const s, LimeWriter * limewriter,
                                       const int prec, DML_Checksum * ans) {
 
   int x, y, z, t, i=0, status=0;
@@ -68,7 +71,7 @@ int cvc_write_binary_spinor_data(double * const s, LimeWriter * limewriter,
   int iproc;
   n_uint64_t bytes;
   DML_SiteRank rank;
-#ifdef MPI
+#ifdef HAVE_MPI
   int tgeom[2];
   double *buffer;
   MPI_Status mstatus;
@@ -114,20 +117,21 @@ int cvc_write_binary_spinor_data(double * const s, LimeWriter * limewriter,
       }
     }
   }  /* of if g_cart_id == 0 */
-#ifdef MPI
+#ifdef HAVE_MPI
 #if (defined PARALLELTX) || (defined PARALLELTXY)
+  return(1);
 #else
   tgeom[0] = Tstart;
   tgeom[1] = T;
   for(iproc=1; iproc<g_nproc; iproc++) {
     if(g_cart_id==0) {
         MPI_Recv((void*)tgeom, 2, MPI_INT, iproc, 100+iproc, g_cart_grid, &mstatus);
-        fprintf(stdout, "iproc = %d; Tstart = %d, T = %d\n", iproc, tgeom[0], tgeom[1]);     
+        fprintf(stdout, "# [write_binary_spinor_data] iproc = %d; Tstart = %d, T = %d\n", iproc, tgeom[0], tgeom[1]);     
 
         buffer = (double*)malloc(24*LX*LY*LZ*tgeom[1]*sizeof(double));
  
         if(buffer==(double*)NULL) {
-          fprintf(stderr, "error using malloc for buffer\n Aborting...\n");
+          fprintf(stderr, "[write_binary_spinor_data] error using malloc for buffer\n Aborting...\n");
           MPI_Abort(MPI_COMM_WORLD, 1);
           MPI_Finalize();
           exit(500);
@@ -173,22 +177,18 @@ int cvc_write_binary_spinor_data(double * const s, LimeWriter * limewriter,
     if(g_cart_id==iproc) {
     
       MPI_Send((void*)tgeom, 2, MPI_INT, 0, 100+iproc, g_cart_grid);
-      if(prec == 32) {
-        MPI_Send((void*) s, 24*LX*LY*LZ*T, MPI_FLOAT,  0, 200+iproc, g_cart_grid);
-      }
-      else {
-        MPI_Send((void*) s, 24*LX*LY*LZ*T, MPI_DOUBLE, 0, 200+iproc, g_cart_grid);
-      }
+
+      MPI_Send((void*) s, 24*LX*LY*LZ*T, MPI_DOUBLE, 0, 200+iproc, g_cart_grid);
 
     }
     MPI_Barrier(g_cart_grid);
-    fprintf(stdout, "[%d] finished iproc = %d\n", g_cart_id, iproc);
+    fprintf(stdout, " [write_binary_spinor_data %d] finished iproc = %d\n", g_cart_id, iproc);
   }
 #endif  /* if PARALLELTX || PARALLELTXY*/
 #endif
 
 
-#ifdef MPI
+#ifdef HAVE_MPI
   MPI_Barrier(g_cart_grid);
 #endif
 
@@ -197,7 +197,7 @@ int cvc_write_binary_spinor_data(double * const s, LimeWriter * limewriter,
 #endif /* HAVE_LIBLEMON */
 
 #ifdef HAVE_LIBLEMON
-int cvc_read_binary_spinor_data(double * const s, LemonReader * reader, 
+int read_binary_spinor_data(double * const s, LemonReader * reader, 
 			    const int prec, DML_Checksum *checksum) {
 
   int t, x, y , z, i = 0, status = 0;
@@ -219,7 +219,7 @@ int cvc_read_binary_spinor_data(double * const s, LemonReader * reader,
   bytes = fbspin;
 
   if((void*)(filebuffer = malloc(VOLUME * bytes)) == NULL) {
-    fprintf (stderr, "malloc errno in cvc_read_binary_spinor_data_parallel\n");
+    fprintf (stderr, "[read_binary_spinor_data] malloc errno in read_binary_spinor_data_parallel\n");
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
     exit(501);
@@ -228,7 +228,7 @@ int cvc_read_binary_spinor_data(double * const s, LemonReader * reader,
   status = lemonReadLatticeParallelMapped(reader, filebuffer, bytes, latticeSize, scidacMapping);
 
   if (status < 0 && status != LEMON_EOR) {
-    fprintf(stderr, "LEMON read error occured with status = %d while reading!\nPanic! Aborting...\n", status);
+    fprintf(stderr, "[read_binary_spinor_data] LEMON read error occured with status = %d while reading!\nPanic! Aborting...\n", status);
     MPI_File_close(reader->fp);
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
@@ -265,7 +265,7 @@ int cvc_read_binary_spinor_data(double * const s, LemonReader * reader,
   return(0);
 }
 #else 
-int cvc_read_binary_spinor_data(double * const s, LimeReader * limereader, 
+int read_binary_spinor_data(double * const s, LimeReader * limereader, 
 			    const int prec, DML_Checksum *ans) {
 
   int status=0;
@@ -285,7 +285,7 @@ int cvc_read_binary_spinor_data(double * const s, LimeReader * limereader,
   for(t = 0; t < T; t++){
     for(z = 0; z < LZ; z++){
       for(y = 0; y < LY; y++){
-#if (defined MPI)
+#if (defined HAVE_MPI)
       limeReaderSeek(limereader,(n_uint64_t) ( (((Tstart+t)*LZ+z)*(LY*g_nproc_y)+LYstart+y)*(LX*g_nproc_x) +LXstart )*bytes, SEEK_SET);
 #endif
 	for(x = 0; x < LX; x++){
@@ -320,10 +320,10 @@ int cvc_read_binary_spinor_data(double * const s, LimeReader * limereader,
       }
     }
   }
-#ifdef MPI
+#ifdef HAVE_MPI
   DML_checksum_combine(ans);
 #endif
-  if(g_cart_id == 0) printf("The final checksum is %#lx %#lx\n", (*ans).suma, (*ans).sumb);
+  if(g_cart_id == 0) printf("[read_binary_spinor_data] The final checksum is %#lx %#lx\n", (*ans).suma, (*ans).sumb);
   return(0);
 }
 #endif /* HAVE_LIBLEMON */
@@ -346,8 +346,8 @@ int write_checksum(char * filename, DML_Checksum * checksum) {
     ofs = fopen(filename, "a");
 
     if(ofs == (FILE*)NULL) {
-      fprintf(stderr, "Could not open file %s for writing!\n Aborting...\n", filename);
-#ifdef MPI
+      fprintf(stderr, "[write_checksum] Could not open file %s for writing!\n Aborting...\n", filename);
+#ifdef HAVE_MPI
       MPI_Abort(MPI_COMM_WORLD, 1);
       MPI_Finalize();
 #endif
@@ -355,8 +355,8 @@ int write_checksum(char * filename, DML_Checksum * checksum) {
     }
     limewriter = limeCreateWriter( ofs );
     if(limewriter == (LimeWriter*)NULL) {
-      fprintf(stderr, "LIME error in file %s for writing!\n Aborting...\n", filename);
-#ifdef MPI
+      fprintf(stderr, "[write_checksum] LIME error in file %s for writing!\n Aborting...\n", filename);
+#ifdef HAVE_MPI
       MPI_Abort(MPI_COMM_WORLD, 1);
       MPI_Finalize();
 #endif
@@ -368,8 +368,8 @@ int write_checksum(char * filename, DML_Checksum * checksum) {
     limeheader = limeCreateHeader(MB_flag, ME_flag, "scidac-checksum", bytes);
     status = limeWriteRecordHeader( limeheader, limewriter);
     if(status < 0 ) {
-      fprintf(stderr, "LIME write header error %d\n", status);
-#ifdef MPI
+      fprintf(stderr, "[write_checksum] LIME write header error %d\n", status);
+#ifdef HAVE_MPI
       MPI_Abort(MPI_COMM_WORLD, 1);
       MPI_Finalize();
 #endif
@@ -382,7 +382,7 @@ int write_checksum(char * filename, DML_Checksum * checksum) {
     fflush(ofs);
     fclose(ofs);
   }
-#ifdef MPI
+#ifdef HAVE_MPI
   MPI_Barrier(g_cart_grid);
 #endif
   return(0);
@@ -402,12 +402,12 @@ int write_propagator_type(const int type, char * filename) {
   ofs = fopen(filename, "w");
   
   if(ofs == (FILE*)NULL) {
-    fprintf(stderr, "Could not open file %s for writing!\n Aboring...\n", filename);
+    fprintf(stderr, "[write_propagator_type] Could not open file %s for writing!\n Aboring...\n", filename);
     exit(500);
   }
   limewriter = limeCreateWriter( ofs );
   if(limewriter == (LimeWriter*)NULL) {
-    fprintf(stderr, "LIME error in file %s for writing!\n Aborting...\n", filename);
+    fprintf(stderr, "[write_propagator_type] LIME error in file %s for writing!\n Aborting...\n", filename);
     exit(500);
   }
   
@@ -431,7 +431,7 @@ int write_propagator_type(const int type, char * filename) {
   limeheader = limeCreateHeader(MB_flag, ME_flag, "etmc-propagator-type", bytes);
   status = limeWriteRecordHeader( limeheader, limewriter);
   if(status < 0 ) {
-    fprintf(stderr, "LIME write header error %d\n", status);
+    fprintf(stderr, "[write_propagator_type] LIME write header error %d\n", status);
     exit(500);
   }
   limeDestroyHeader( limeheader );
@@ -458,8 +458,8 @@ int write_propagator_format(char * filename, const int prec, const int no_flavou
     ofs = fopen(filename, "w");
   
     if(ofs == (FILE*)NULL) {
-      fprintf(stderr, "Could not open file %s for writing!\n Aborting...\n", filename);
-#ifdef MPI
+      fprintf(stderr, "[write_propagator_format] Could not open file %s for writing!\n Aborting...\n", filename);
+#ifdef HAVE_MPI
       MPI_Abort(MPI_COMM_WORLD, 1);
       MPI_Finalize();
 #endif
@@ -467,8 +467,8 @@ int write_propagator_format(char * filename, const int prec, const int no_flavou
     }
     limewriter = limeCreateWriter( ofs );
     if(limewriter == (LimeWriter*)NULL) {
-      fprintf(stderr, "LIME error in file %s for writing!\n Aborting...\n", filename);
-#ifdef MPI
+      fprintf(stderr, "[write_propagator_format] LIME error in file %s for writing!\n Aborting...\n", filename);
+#ifdef HAVE_MPI
       MPI_Abort(MPI_COMM_WORLD, 1);
       MPI_Finalize();
 #endif
@@ -480,8 +480,8 @@ int write_propagator_format(char * filename, const int prec, const int no_flavou
     limeheader = limeCreateHeader(MB_flag, ME_flag, "etmc-propagator-format", bytes);
     status = limeWriteRecordHeader( limeheader, limewriter);
     if(status < 0 ) {
-      fprintf(stderr, "LIME write header error %d\n", status);
-#ifdef MPI
+      fprintf(stderr, "[write_propagator_format] LIME write header error %d\n", status);
+#ifdef HAVE_MPI
       MPI_Abort(MPI_COMM_WORLD, 1);
       MPI_Finalize();
 #endif
@@ -498,7 +498,11 @@ int write_propagator_format(char * filename, const int prec, const int no_flavou
 }
 
 
-
+#ifdef HAVE_LIBLEMON
+int write_lime_spinor(double * const s, char * filename, const int append, const int prec) {
+  return(-1);
+}
+#else
 int write_lime_spinor(double * const s, char * filename, 
 		      const int append, const int prec) {
 
@@ -518,8 +522,8 @@ int write_lime_spinor(double * const s, char * filename,
       ofs = fopen(filename, "w");
     }
     if(ofs == (FILE*)NULL) {
-      fprintf(stderr, "Could not open file %s for writing!\n Aborting...\n", filename);
-#ifdef MPI
+      fprintf(stderr, "[write_lime_spinor] Could not open file %s for writing!\n Aborting...\n", filename);
+#ifdef HAVE_MPI
       MPI_Abort(MPI_COMM_WORLD, 1);
       MPI_Finalize();
 #endif
@@ -528,8 +532,8 @@ int write_lime_spinor(double * const s, char * filename,
   
     limewriter = limeCreateWriter( ofs );
     if(limewriter == (LimeWriter*)NULL) {
-      fprintf(stderr, "LIME error in file %s for writing!\n Aborting...\n", filename);
-#ifdef MPI
+      fprintf(stderr, "[write_lime_spinor] LIME error in file %s for writing!\n Aborting...\n", filename);
+#ifdef HAVE_MPI
       MPI_Abort(MPI_COMM_WORLD, 1);
       MPI_Finalize();
 #endif
@@ -541,8 +545,8 @@ int write_lime_spinor(double * const s, char * filename,
     limeheader = limeCreateHeader(MB_flag, ME_flag, "scidac-binary-data", bytes);
     status = limeWriteRecordHeader( limeheader, limewriter);
     if(status < 0 ) {
-      fprintf(stderr, "LIME write header (scidac-binary-data) error %d\n", status);
-#ifdef MPI
+      fprintf(stderr, "[write_lime_spinor] LIME write header (scidac-binary-data) error %d\n", status);
+#ifdef HAVE_MPI
       MPI_Abort(MPI_COMM_WORLD, 1);
       MPI_Finalize();
 #endif
@@ -551,11 +555,11 @@ int write_lime_spinor(double * const s, char * filename,
     limeDestroyHeader( limeheader );
   }
   
-  status = cvc_write_binary_spinor_data(s, limewriter, prec, &checksum);
+  status = write_binary_spinor_data(s, limewriter, prec, &checksum);
   if(g_cart_id==0) {
-    printf("# Final check sum is (%#lx  %#lx)\n", checksum.suma, checksum.sumb);
+    printf("# [write_lime_spinor] Final check sum is (%#lx  %#lx)\n", checksum.suma, checksum.sumb);
     if(ferror(ofs)) {
-      fprintf(stderr, "Warning! Error while writing to file %s \n", filename);
+      fprintf(stderr, "[write_lime_spinor] Warning! Error while writing to file %s \n", filename);
     }
     limeDestroyWriter( limewriter );
     fflush(ofs);
@@ -564,6 +568,7 @@ int write_lime_spinor(double * const s, char * filename,
   write_checksum(filename, &checksum);
   return(0);
 }
+#endif  // of if HAVE_LIBLEMON 
 
 int get_propagator_type(char * filename) {
   FILE * ifs;
@@ -573,25 +578,25 @@ int get_propagator_type(char * filename) {
   LimeReader * limereader;
   
   if((ifs = fopen(filename, "r")) == (FILE*)NULL) {
-    fprintf(stderr, "Error opening file %s\n", filename);
+    fprintf(stderr, "[get_propagator_type] Error opening file %s\n", filename);
     return(ret);
   }
   
   limereader = limeCreateReader( ifs );
   if( limereader == (LimeReader *)NULL ) {
-    fprintf(stderr, "Unable to open LimeReader\n");
+    fprintf(stderr, "[get_propagator_type] Unable to open LimeReader\n");
     return(ret);
   }
   while( (status = limeReaderNextRecord(limereader)) != LIME_EOF ) {
     if(status != LIME_SUCCESS ) {
-      fprintf(stderr, "limeReaderNextRecord returned error with status = %d!\n", status);
+      fprintf(stderr, "[get_propagator_type] limeReaderNextRecord returned error with status = %d!\n", status);
       status = LIME_EOF;
       break;
     }
     if(strcmp("etmc-propagator-type", limeReaderType(limereader)) == 0) break;
   }
   if(status == LIME_EOF) {
-    fprintf(stderr, "no etmc-propagator-type record found in file %s\n",filename);
+    fprintf(stderr, "[get_propagator_type] no etmc-propagator-type record found in file %s\n",filename);
     limeDestroyReader(limereader);
     fclose(ifs);
     return(ret);
@@ -618,20 +623,20 @@ int read_lime_spinor(double * const s, char * filename, const int position) {
   DML_Checksum checksum;
 
   if(g_cart_id==0)
-    fprintf(stdout, "# reading prop in LEMON format from file %s at pos %d\n", filename, position);
+    fprintf(stdout, "# [read_lime_spinor] reading prop in LEMON format from file %s at pos %d\n", filename, position);
 
   ifs = (MPI_File*)malloc(sizeof(MPI_File));
   status = MPI_File_open(g_cart_grid, filename, MPI_MODE_RDONLY, MPI_INFO_NULL, ifs);
   status = (status == MPI_SUCCESS) ? 0 : 1;
   if(status) {
-    fprintf(stderr, "Err, could not open file for reading\n");
+    fprintf(stderr, "[read_lime_spinor] Err, could not open file for reading\n");
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
     exit(500);
   }
   
   if( (reader = lemonCreateReader(ifs, g_cart_grid))==NULL ) {
-    fprintf(stderr, "Error, could not create lemon reader.\n");
+    fprintf(stderr, "[read_lime_spinor] Error, could not create lemon reader.\n");
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
     exit(502);
@@ -639,7 +644,7 @@ int read_lime_spinor(double * const s, char * filename, const int position) {
 
   while ((status = lemonReaderNextRecord(reader)) != LIME_EOF) {
     if (status != LIME_SUCCESS) {
-      fprintf(stderr, "lemonReaderNextRecord returned status %d.\n", status);
+      fprintf(stderr, "[read_lime_spinor] lemonReaderNextRecord returned status %d.\n", status);
       status = LIME_EOF;
       break;
     }
@@ -653,7 +658,7 @@ int read_lime_spinor(double * const s, char * filename, const int position) {
   }
 
   if (status == LIME_EOF) {
-    fprintf(stderr, "Error, no scidac-binary-data record found in file.\n");
+    fprintf(stderr, "[read_lime_spinor] Error, no scidac-binary-data record found in file.\n");
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
     exit(500);
@@ -666,17 +671,17 @@ int read_lime_spinor(double * const s, char * filename, const int position) {
     if ((int)bytes == LX * g_nproc_x * LY * g_nproc_y * LZ * T_global * 24* sizeof(double) / 2) {
       prec = 32;
     } else {
-      if(g_cart_id==0) fprintf(stderr, "Error, wrong length in spinor. Aborting read!\n");
+      if(g_cart_id==0) fprintf(stderr, "[read_lime_spinor] Error, wrong length in spinor. Aborting read!\n");
        MPI_Abort(MPI_COMM_WORLD, 1);
        MPI_Finalize();
        exit(501);
     }
   }
-  if(g_cart_id==0) fprintf(stdout, "# %d bit precision read.\n", prec);
+  if(g_cart_id==0) fprintf(stdout, "# [read_lime_spinor] %d bit precision read.\n", prec);
 
-  cvc_read_binary_spinor_data(s, reader, prec, &checksum);
+  read_binary_spinor_data(s, reader, prec, &checksum);
 
-  if (g_cart_id == 0) fprintf(stdout, "# checksum for DiracFermion field in file %s position %d is %#x %#x\n", 
+  if (g_cart_id == 0) fprintf(stdout, "# [read_lime_spinor] checksum for DiracFermion field in file %s position %d is %#x %#x\n", 
     filename, position, checksum.suma, checksum.sumb);
 
   lemonDestroyReader(reader);
@@ -696,19 +701,19 @@ int read_lime_spinor(double * const s, char * filename, const int position) {
   DML_Checksum checksum;
   
   if((ifs = fopen(filename, "r")) == (FILE*)NULL) {
-    fprintf(stderr, "Error opening file %s\n", filename);
+    fprintf(stderr, "[read_lime_spinor] Error opening file %s\n", filename);
     return(-1);
   }
-  if(g_proc_id==0) fprintf(stdout, "Reading Dirac-fermion field in LIME format from %s\n", filename);
+  if(g_proc_id==0) fprintf(stdout, "# [read_lime_spinor] Reading Dirac-fermion field in LIME format from %s\n", filename);
 
   limereader = limeCreateReader( ifs );
   if( limereader == (LimeReader *)NULL ) {
-    fprintf(stderr, "Unable to open LimeReader\n");
+    fprintf(stderr, "[read_lime_spinor] Unable to open LimeReader\n");
     return(-1);
   }
   while( (status = limeReaderNextRecord(limereader)) != LIME_EOF ) {
     if(status != LIME_SUCCESS ) {
-      fprintf(stderr, "limeReaderNextRecord returned error with status = %d!\n", status);
+      fprintf(stderr, "[read_lime_spinor] limeReaderNextRecord returned error with status = %d!\n", status);
       status = LIME_EOF;
       break;
     }
@@ -717,28 +722,28 @@ int read_lime_spinor(double * const s, char * filename, const int position) {
     if(getpos == position) break;
   }
   if(status == LIME_EOF) {
-    fprintf(stderr, "no scidac-binary-data record found in file %s\n",filename);
+    fprintf(stderr, "[read_lime_spinor] no scidac-binary-data record found in file %s\n",filename);
     limeDestroyReader(limereader);
     fclose(ifs);
-    if(g_proc_id==0) fprintf(stderr, "try to read in CMI format\n");
+    if(g_proc_id==0) fprintf(stderr, "[read_lime_spinor] try to read in CMI format\n");
     return(read_cmi(s, filename));
   }
   bytes = limeReaderBytes(limereader);
   if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*LZ*T_global*(uint64_t)(24*sizeof(double))) prec = 64;
   else if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*LZ*T_global*(uint64_t)(24*sizeof(float))) prec = 32;
   else {
-    fprintf(stderr, "wrong length in eospinor: bytes = %llu, not %llu. Aborting read!\n", 
+    fprintf(stderr, "[read_lime_spinor] wrong length in eospinor: bytes = %llu, not %llu. Aborting read!\n", 
 	    bytes, (LX*g_nproc_x)*(LY*g_nproc_y)*LZ*T_global*(uint64_t)(24*sizeof(double)));
     return(-1);
   }
-  if(g_cart_id == 0) printf("# %llu Bit precision read\n", prec);
+  if(g_cart_id == 0) printf("# [read_lime_spinor] %llu Bit precision read\n", prec);
 
-  status = cvc_read_binary_spinor_data(s, limereader, prec, &checksum);
+  status = read_binary_spinor_data(s, limereader, prec, &checksum);
 
   if(status < 0) {
-    fprintf(stderr, "LIME read error occured with status = %d while reading file %s!\n Aborting...\n", 
+    fprintf(stderr, "[read_lime_spinor] LIME read error occured with status = %d while reading file %s!\n Aborting...\n", 
 	    status, filename);
-#ifdef MPI
+#ifdef HAVE_MPI
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
 #endif
@@ -765,16 +770,16 @@ int read_cmi(double *v, const char * filename) {
   double _2_kappa;
   ifs = fopen(filename, "r");
   if(ifs==(FILE*)NULL) {
-    fprintf(stderr, "could not open file %s for reading\n", filename);
+    fprintf(stderr, "[read_cmi] could not open file %s for reading\n", filename);
     return(-1);
   }
-  if(g_cart_id==0) fprintf(stdout, "Reading Dirac-fermion field in CMI format from %s\n", filename);
+  if(g_cart_id==0) fprintf(stdout, "[read_cmi] Reading Dirac-fermion field in CMI format from %s\n", filename);
   _2_kappa = 2.0 * g_kappa;
 
   for(x = 0; x < LX; x++) {
   for(y = 0; y < LY; y++) {
   for(z = 0; z < LZ; z++) {
-#ifdef MPI
+#ifdef HAVE_MPI
     fseek(ifs, (Tstart + (( (x + LXstart)*(LY*g_nproc_y) + LYstart + y)*LZ + z )*T_global) * 24*sizeof(float), SEEK_SET);
 #endif
     for(t = 0; t < T; t++) {
@@ -804,7 +809,7 @@ int read_cmi(double *v, const char * filename) {
   fclose(ifs);
 /*
   if(g_rotate_EMTC_UKQCD) {
-    if(g_cart_id==0) fprintf(stdout, "# rotating propagator UKQCD -> ETMC\n");
+    if(g_cart_id==0) fprintf(stdout, "# [read_cmi] rotating propagator UKQCD -> ETMC\n");
     rotate_propagator_ETMC_UKQCD(v, VOLUME);
   }
 */
@@ -814,9 +819,9 @@ int read_cmi(double *v, const char * filename) {
 /************************************************************
  *
  ************************************************************/
-int cvc_write_binary_spinor_data_timeslice(double * const s, LimeWriter * limewriter,
+int write_binary_spinor_data_timeslice(double * const s, LimeWriter * limewriter,
   const int prec, int timeslice, DML_Checksum * ans) {
-#ifndef MPI
+#ifndef HAVE_MPI
   int x, y, z, t, i=0, status=0;
   double tmp[24];
   float  tmp2[24];
@@ -825,7 +830,7 @@ int cvc_write_binary_spinor_data_timeslice(double * const s, LimeWriter * limewr
   int words_bigendian = big_endian();
 
   if(timeslice==0) {
-    fprintf(stdout, "# initializing checksum for timeslice %d\n", timeslice);
+    fprintf(stdout, "# [write_binary_spinor_data_timeslice] initializing checksum for timeslice %d\n", timeslice);
     DML_checksum_init(ans);
   }
 
@@ -878,7 +883,7 @@ int cvc_write_binary_spinor_data_timeslice(double * const s, LimeWriter * limewr
  ****************************************************************/
 int write_lime_spinor_timeslice(double * const s, char * filename, 
    const int prec, int timeslice, DML_Checksum *checksum) {
-#ifndef MPI
+#ifndef HAVE_MPI
   FILE * ofs = NULL;
   LimeWriter * limewriter = NULL;
   LimeRecordHeader * limeheader = NULL;
@@ -892,13 +897,13 @@ int write_lime_spinor_timeslice(double * const s, char * filename,
 
   ofs = fopen(filename, "a");
   if(ofs == (FILE*)NULL) {
-    fprintf(stderr, "Could not open file %s for writing!\n Aborting...\n", filename);
+    fprintf(stderr, "[write_lime_spinor_timeslice] Could not open file %s for writing!\n Aborting...\n", filename);
     exit(500);
   }
   
   limewriter = limeCreateWriter( ofs );
   if(limewriter == (LimeWriter*)NULL) {
-    fprintf(stderr, "LIME error in file %s for writing!\n Aborting...\n", filename);
+    fprintf(stderr, "[write_lime_spinor_timeslice] LIME error in file %s for writing!\n Aborting...\n", filename);
     exit(500);
   }
 
@@ -908,7 +913,7 @@ int write_lime_spinor_timeslice(double * const s, char * filename,
     limeheader = limeCreateHeader(MB_flag, ME_flag, "scidac-binary-data", bytes);
     status = limeWriteRecordHeader( limeheader, limewriter);
     if(status < 0 ) {
-      fprintf(stderr, "LIME write header (scidac-binary-data) error %d\n", status);
+      fprintf(stderr, "[write_lime_spinor_timeslice] LIME write header (scidac-binary-data) error %d\n", status);
       exit(500);
     }
     limeDestroyHeader( limeheader );
@@ -928,28 +933,28 @@ int write_lime_spinor_timeslice(double * const s, char * filename,
   if(timeslice==T_global-1) limewriter->isLastP = 1;
 /*************************************/
 /*
-  fprintf(stdout, "\n# ========================================\n");
-  fprintf(stdout, "# info on the limewriter:\n");
-  fprintf(stdout, "# first record   = %d\n", limewriter->first_record);
-  fprintf(stdout, "# last written   = %d\n", limewriter->last_written);
-  fprintf(stdout, "# write h/d as next = %d\n", limewriter->header_nextP);
-  fprintf(stdout, "# bytes total    = %llu\n", limewriter->bytes_total);
-  fprintf(stdout, "# bytes left     = %llu\n", limewriter->bytes_left);
-  fprintf(stdout, "# record pointer = %llu\n", limewriter->rec_ptr);
-  fprintf(stdout, "# pointer at start of record payload = %llu\n", limewriter->rec_start);
-  fprintf(stdout, "# bytes pad      = %d\n", limewriter->bytes_pad);
-  fprintf(stdout, "# last record in massage = %d\n", limewriter->isLastP);
-  fprintf(stdout, "# ========================================\n");
+  fprintf(stdout, "\n# [write_lime_spinor_timeslice] ========================================\n");
+  fprintf(stdout, "# [write_lime_spinor_timeslice] info on the limewriter:\n");
+  fprintf(stdout, "# [write_lime_spinor_timeslice] first record   = %d\n", limewriter->first_record);
+  fprintf(stdout, "# [write_lime_spinor_timeslice] last written   = %d\n", limewriter->last_written);
+  fprintf(stdout, "# [write_lime_spinor_timeslice] write h/d as next = %d\n", limewriter->header_nextP);
+  fprintf(stdout, "# [write_lime_spinor_timeslice] bytes total    = %llu\n", limewriter->bytes_total);
+  fprintf(stdout, "# [write_lime_spinor_timeslice] bytes left     = %llu\n", limewriter->bytes_left);
+  fprintf(stdout, "# [write_lime_spinor_timeslice] record pointer = %llu\n", limewriter->rec_ptr);
+  fprintf(stdout, "# [write_lime_spinor_timeslice] pointer at start of record payload = %llu\n", limewriter->rec_start);
+  fprintf(stdout, "# [write_lime_spinor_timeslice] bytes pad      = %d\n", limewriter->bytes_pad);
+  fprintf(stdout, "# [write_lime_spinor_timeslice] last record in massage = %d\n", limewriter->isLastP);
+  fprintf(stdout, "# [write_lime_spinor_timeslice] ========================================\n");
 */
-  status = cvc_write_binary_spinor_data_timeslice(s, limewriter, prec, timeslice, checksum);
+  status = write_binary_spinor_data_timeslice(s, limewriter, prec, timeslice, checksum);
   if(ferror(ofs)) {
-    fprintf(stderr, "Warning! Error while writing to file %s \n", filename);
+    fprintf(stderr, "[write_lime_spinor_timeslice] Warning! Error while writing to file %s \n", filename);
   }
   limeDestroyWriter( limewriter );
   fflush(ofs);
   fclose(ofs);
   if(timeslice==T_global-1) {
-    printf("# Final check sum for file %s is (%#lx  %#lx)\n", filename, (*checksum).suma, (*checksum).sumb);
+    printf("# [write_lime_spinor_timeslice] Final check sum for file %s is (%#lx  %#lx)\n", filename, (*checksum).suma, (*checksum).sumb);
     write_checksum(filename, checksum); 
   }
   return(0);
@@ -971,8 +976,8 @@ int write_source_type(const int type, char * filename) {
   ofs = fopen(filename, "w");
   
   if(ofs == (FILE*)NULL) {
-    fprintf(stderr, "Could not open file %s for writing!\n Aboring...\n", filename);
-#ifdef MPI
+    fprintf(stderr, "[write_source_type] Could not open file %s for writing!\n Aboring...\n", filename);
+#ifdef HAVE_MPI
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
 #endif
@@ -980,8 +985,8 @@ int write_source_type(const int type, char * filename) {
   }
   limewriter = limeCreateWriter( ofs );
   if(limewriter == (LimeWriter*)NULL) {
-    fprintf(stderr, "LIME error in file %s for writing!\n Aborting...\n", filename);
-#ifdef MPI
+    fprintf(stderr, "[write_source_type] LIME error in file %s for writing!\n Aborting...\n", filename);
+#ifdef HAVE_MPI
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
 #endif
@@ -996,8 +1001,8 @@ int write_source_type(const int type, char * filename) {
   limeheader = limeCreateHeader(MB_flag, ME_flag, "source-type", bytes);
   status = limeWriteRecordHeader( limeheader, limewriter);
   if(status < 0 ) {
-    fprintf(stderr, "LIME write header error %d\n", status);
-#ifdef MPI
+    fprintf(stderr, "[write_source_type] LIME write header error %d\n", status);
+#ifdef HAVE_MPI
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
 #endif
@@ -1025,10 +1030,16 @@ int prepare_propagator(int timeslice, int iread, int is_mms, int no_mass, double
 
   if(is_mms) {
     sprintf(filename, "%s.%.4d.%.2d.%.2d.cgmms.%.2d.inverted", filename_prefix, Nconf, timeslice, iread, no_mass);
-    status = read_lime_spinor(work, filename, pos);
     signed_mass = sign * mass;
+    status = read_lime_spinor(work, filename, pos);
     xchange_field(work);
-    Qf5(cvc_spinor_field[isave], work, signed_mass);
+    Qf5(g_spinor_field[isave], work, signed_mass);
+    if(g_check_inversion==1) {
+      check_source(g_spinor_field[isave], work, -signed_mass, g_source_location, iread);
+      // work contains D iread, reread original solution to work
+      status = read_lime_spinor(work, filename, pos);
+      xchange_field(work);
+    }
   } else {
     if(no_mass == -1) {
       if(sign==-1.) {
@@ -1044,12 +1055,12 @@ int prepare_propagator(int timeslice, int iread, int is_mms, int no_mass, double
       }
     }
     if(g_cart_id==0) fprintf(stdout, "\n# [prepare_propagator] reading fermion field from file %s at position %d\n", filename, pos);
-    status = read_lime_spinor(cvc_spinor_field[isave], filename, pos);
+    status = read_lime_spinor(g_spinor_field[isave], filename, pos);
   }
 
   if(status != 0) {
     fprintf(stderr, "\n[prepare_propagator] Error, reading spinor field returned %d\n", status);
-#ifdef MPI
+#ifdef HAVE_MPI
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
 #endif
@@ -1084,7 +1095,7 @@ int rotate_propagator_ETMC_UKQCD (double *spinor, long unsigned int V) {
  * prepare_propagator2
  *
  **************************************************/
-int prepare_propagator2(int *source_coords, int iread, int sign, double *work, int pos, int propfilename_format) {
+int prepare_propagator2(int *source_coords, int iread, int sign, void*work, int pos, int propfilename_format, size_t prec_out) {
 
   char filename[400];
   int status;
@@ -1119,14 +1130,285 @@ sprintf(filename, "%s.%.4d.%.2d.%.2d.inverted", filename_prefix, Nconf, 0, iread
     }
   }
 
-  status = read_lime_spinor(work, filename, pos);
+  if(prec_out == 64) {
+    status = read_lime_spinor((double*)work, filename, pos);
+  } else {
+    status = read_lime_spinor_single((float*)work, filename, pos);
+  }
   if(status != 0) {
-    fprintf(stderr, "Error, reading spinor field from file %s returned %d\n", filename, status);
-#ifdef MPI
+    fprintf(stderr, "[prepare_propagator2] Error, reading spinor field from file %s returned %d\n", filename, status);
+#ifdef HAVE_MPI
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
 #endif
     exit(500);
   }
   return(0);
+}
+
+
+int read_binary_spinor_data_single(float* const s, LimeReader * limereader, 
+			    const int prec, DML_Checksum *ans) {
+
+  int status=0;
+  n_uint64_t bytes, ix;
+  double tmp[24];
+  DML_SiteRank rank;
+  float tmp2[24];
+  int words_bigendian;
+  unsigned int t, x, y, z;
+  words_bigendian = big_endian();
+
+  DML_checksum_init(ans);
+  rank = (DML_SiteRank) 0;
+  
+  if(prec == 32) bytes = 24*sizeof(float);
+  else bytes = 24*sizeof(double);
+  for(t = 0; t < T; t++){
+    for(z = 0; z < LZ; z++){
+      for(y = 0; y < LY; y++){
+#if (defined HAVE_MPI)
+      limeReaderSeek(limereader,(n_uint64_t) ( (((Tstart+t)*LZ+z)*(LY*g_nproc_y)+LYstart+y)*(LX*g_nproc_x) +LXstart )*bytes, SEEK_SET);
+#endif
+	for(x = 0; x < LX; x++){
+	  ix = g_ipt[t][x][y][z]*(n_uint64_t)12;
+	  rank = (DML_SiteRank) ((((Tstart+t)*LZ + z)*(LY*g_nproc_y) + LYstart + y)*(DML_SiteRank)(LX*g_nproc_x) + LXstart + x);
+	  if(prec == 32) {
+	    status = limeReaderReadData(tmp2, &bytes, limereader);
+	    DML_checksum_accum(ans,rank,(char *) tmp2, bytes);	    
+	  }
+	  else {
+	    status = limeReaderReadData(tmp, &bytes, limereader);
+	    DML_checksum_accum(ans,rank,(char *) tmp, bytes);
+	  }
+	  if(!words_bigendian) {
+	    if(prec == 32) {
+	      byte_swap_assign_singleprec(&s[2*ix], tmp2, 24);
+	    }
+	    else {
+	      byte_swap_assign_double2single(&s[2*ix], (double*)tmp, 24);
+	    }
+	  }
+	  else {
+	    if(prec == 32) {
+              memcpy(&s[2*ix], tmp2, bytes);
+	    }
+	    else double2single(&s[2*ix], (double*)tmp, 24); 
+	  }
+	  if(status < 0 && status != LIME_EOR) {
+	    return(-1);
+	  }
+	}
+      }
+    }
+  }
+#ifdef HAVE_MPI
+  DML_checksum_combine(ans);
+#endif
+  if(g_cart_id == 0) printf("# [read_binary_spinor_data_single] The final checksum is %#lx %#lx\n", (*ans).suma, (*ans).sumb);
+  return(0);
+}
+
+int read_lime_spinor_single(float * const s, char * filename, const int position) {
+  FILE * ifs;
+  int status=0, getpos=-1;
+  n_uint64_t bytes;
+  char * header_type;
+  LimeReader * limereader;
+  n_uint64_t prec = 32;
+  DML_Checksum checksum;
+  
+  if((ifs = fopen(filename, "r")) == (FILE*)NULL) {
+    fprintf(stderr, "Error opening file %s\n", filename);
+    return(-1);
+  }
+  if(g_proc_id==0) fprintf(stdout, "# [read_lime_spinor_single] Reading Dirac-fermion field in LIME format from %s, single prec output\n", filename);
+
+  limereader = limeCreateReader( ifs );
+  if( limereader == (LimeReader *)NULL ) {
+    fprintf(stderr, "[read_lime_spinor_single] Unable to open LimeReader\n");
+    return(-1);
+  }
+  while( (status = limeReaderNextRecord(limereader)) != LIME_EOF ) {
+    if(status != LIME_SUCCESS ) {
+      fprintf(stderr, "[read_lime_spinor_single] limeReaderNextRecord returned error with status = %d!\n", status);
+      status = LIME_EOF;
+      break;
+    }
+    header_type = limeReaderType(limereader);
+    if(strcmp("scidac-binary-data",header_type) == 0) getpos++;
+    if(getpos == position) break;
+  }
+  if(status == LIME_EOF) {
+    fprintf(stderr, "[read_lime_spinor_single] no scidac-binary-data record found in file %s\n",filename);
+    limeDestroyReader(limereader);
+    fclose(ifs);
+    if(g_proc_id==0) fprintf(stderr, "[read_lime_spinor_single] try to read in CMI format\n");
+    // return(read_cmi(s, filename));
+    return(-1);
+  }
+  bytes = limeReaderBytes(limereader);
+  if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*LZ*T_global*(uint64_t)(24*sizeof(double))) prec = 64;
+  else if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*LZ*T_global*(uint64_t)(24*sizeof(float))) prec = 32;
+  else {
+    fprintf(stderr, "[read_lime_spinor_single] wrong length in eospinor: bytes = %llu, not %llu. Aborting read!\n", 
+	    bytes, (LX*g_nproc_x)*(LY*g_nproc_y)*LZ*T_global*(uint64_t)(24*sizeof(double)));
+    return(-1);
+  }
+  if(g_cart_id == 0) printf("# [read_lime_spinor_single] %llu Bit precision read\n", prec);
+
+  status = read_binary_spinor_data_single(s, limereader, prec, &checksum);
+
+  if(status < 0) {
+    fprintf(stderr, "[read_lime_spinor_single] LIME read error occured with status = %d while reading file %s!\n Aborting...\n", 
+	    status, filename);
+#ifdef HAVE_MPI
+    MPI_Abort(MPI_COMM_WORLD, 1);
+    MPI_Finalize();
+#endif
+    exit(500);
+  }
+
+  limeDestroyReader(limereader);
+  fclose(ifs);
+  return(0);
+}
+
+/******************************************************************
+ * read a timeslice from a spinor field
+ ******************************************************************/
+#ifdef HAVE_LIBLEMON
+int read_lime_spinor_timeslice(double * const s, int timeslice, char * filename, const int position, DML_Checksum*checksum) {
+  if (g_cart_id == 0) fprintf(stderr, "[read_lime_spinor_timeslice] Error, no version for lemon so far\n");
+  MPI_Abort(MPI_COMM_WORLD, 1);
+  MPI_Finalize();
+  return(1);
+}
+#else
+int read_lime_spinor_timeslice(double * const s, int timeslice, char * filename, const int position, DML_Checksum*checksum) {
+#ifdef HAVE_MPI
+  if (g_cart_id == 0) fprintf(stderr, "[read_lime_spinor_timeslice] Error, no version for MPI so far\n");
+  MPI_Abort(MPI_COMM_WORLD, 2);
+  MPI_Finalize();
+  return(2);
+#else
+  FILE * ifs;
+  int status=0, getpos=-1;
+  n_uint64_t bytes;
+  char * header_type;
+  LimeReader * limereader;
+  n_uint64_t prec = 32;
+  
+  if((ifs = fopen(filename, "r")) == (FILE*)NULL) {
+    fprintf(stderr, "[read_lime_spinor_timeslice] Error opening file %s\n", filename);
+    return(-1);
+  }
+  if(g_proc_id==0) fprintf(stdout, "# [read_lime_spinor_timeslice] Reading timeslice no. %d of Dirac-fermion field in LIME format from %s\n", timeslice, filename);
+
+  limereader = limeCreateReader( ifs );
+  if( limereader == (LimeReader *)NULL ) {
+    fprintf(stderr, "[read_lime_spinor_timeslice] Unable to open LimeReader\n");
+    return(-1);
+  }
+  while( (status = limeReaderNextRecord(limereader)) != LIME_EOF ) {
+    if(status != LIME_SUCCESS ) {
+      fprintf(stderr, "[read_lime_spinor_timeslice] limeReaderNextRecord returned error with status = %d!\n", status);
+      status = LIME_EOF;
+      break;
+    }
+    header_type = limeReaderType(limereader);
+    if(strcmp("scidac-binary-data",header_type) == 0) getpos++;
+    if(getpos == position) break;
+  }
+  if(status == LIME_EOF) {
+    fprintf(stderr, "[read_lime_spinor_timeslice] no scidac-binary-data record found in file %s\n",filename);
+    limeDestroyReader(limereader);
+    fclose(ifs);
+    if(g_proc_id==0) fprintf(stderr, "[read_lime_spinor_timeslice] try to read in CMI format\n");
+    return(read_cmi(s, filename));
+  }
+  bytes = limeReaderBytes(limereader);
+  if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*LZ*T_global*(uint64_t)(24*sizeof(double))) prec = 64;
+  else if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*LZ*T_global*(uint64_t)(24*sizeof(float))) prec = 32;
+  else {
+    fprintf(stderr, "[read_lime_spinor_timeslice] wrong length in eospinor: bytes = %llu, not %llu. Aborting read!\n", 
+	    bytes, (LX*g_nproc_x)*(LY*g_nproc_y)*LZ*T_global*(uint64_t)(24*sizeof(double)));
+    return(-1);
+  }
+  if(g_cart_id == 0) printf("# [read_lime_spinor_timeslice] %llu Bit precision read\n", prec);
+
+  status = read_binary_spinor_data_timeslice(s, timeslice, limereader, prec, checksum);
+
+  if(status < 0) {
+    fprintf(stderr, "[read_lime_spinor_timeslice] LIME read error occured with status = %d while reading file %s!\n Aborting...\n", 
+	    status, filename);
+    exit(500);
+  }
+  if(timeslice == T_global - 1) printf("# [read_lime_spinor_timeslice] The final checksum for prop file %s is %#lx %#lx\n", filename, checksum->suma, checksum->sumb);
+  limeDestroyReader(limereader);
+  fclose(ifs);
+  return(0);
+#endif  // of ifdef HAVE_MPI
+}
+#endif  // of ifdef HAVE_LIBLEMON
+
+int read_binary_spinor_data_timeslice(double * const s, int timeslice, LimeReader * limereader, const int prec, DML_Checksum *ans) {
+#ifdef HAVE_MPI
+  if(g_cart_id == 0) fprintf(stderr, "[read_binary_spinor_data_timeslice] Error, no MPI version so far\n");
+  return(1);
+#else
+  int status=0;
+  n_uint64_t bytes, ix;
+  double tmp[24];
+  DML_SiteRank rank;
+  float tmp2[24];
+  int words_bigendian;
+  unsigned int t, x, y, z;
+  words_bigendian = big_endian();
+
+  if(timeslice == 0) {
+    // if(g_cart_id==0) fprintf(stdout, "# [] initializing checksum for timeslice %d\n", timeslice);
+    DML_checksum_init(ans);
+  }
+  rank = (DML_SiteRank) 0;
+  
+  if(prec == 32) bytes = 24*sizeof(float);
+  else bytes = 24*sizeof(double);
+  t = timeslice;
+  if(t>0) {
+    limeReaderSeek(limereader,(n_uint64_t) (t*LX*LY*LZ)*bytes, SEEK_SET);
+  }
+
+  for(z = 0; z < LZ; z++){
+  for(y = 0; y < LY; y++){
+  for(x = 0; x < LX; x++){
+    ix = g_ipt[0][x][y][z]*(n_uint64_t)12;
+    rank = (DML_SiteRank) ((((Tstart+t)*LZ + z)*(LY*g_nproc_y) + LYstart + y)*(DML_SiteRank)(LX*g_nproc_x) + LXstart + x);
+    if(prec == 32) {
+      status = limeReaderReadData(tmp2, &bytes, limereader);
+      DML_checksum_accum(ans,rank,(char *) tmp2, bytes);	    
+    } else {
+      status = limeReaderReadData(tmp, &bytes, limereader);
+       DML_checksum_accum(ans,rank,(char *) tmp, bytes);
+    }
+    if(!words_bigendian) {
+      if(prec == 32) {
+        byte_swap_assign_single2double(&s[2*ix], (float*)tmp2, 24);
+      } else {
+        byte_swap_assign(&s[2*ix], tmp, 24);
+      }
+    } else {
+      if(prec == 32) {
+        single2double(&s[2*ix], (float*)tmp2, 24);
+      } else memcpy(&s[2*ix], tmp, bytes);
+    }
+    if(status < 0 && status != LIME_EOR) {
+      return(-1);
+    }
+  }}}
+  // if(timeslice == T_global - 1) printf("# [] The final checksum is %#lx %#lx\n", (*ans).suma, (*ans).sumb);
+  return(0);
+#endif  // of ifdef HAVE_MPI
+}
+
 }

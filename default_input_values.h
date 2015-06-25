@@ -1,13 +1,19 @@
 #ifndef _DEFAULT_INPUT_H
 #define _DEFAULT_INPUT_H
 
+namespace cvc {
+
 #define _default_T_global 0
 #define _default_LX 0
 #define _default_LY 0
 #define _default_LZ 0
+#define _default_L5 0
 #define _default_Nconf 0
 #define _default_kappa (0.7071068)
+#define _default_kappa5d (0.)
 #define _default_mu (0.)
+#define _default_mubar (0.)
+#define _default_epsbar (0.)
 #define _default_musigma (0.)
 #define _default_mudelta (0.)
 #define _default_sourceid  0
@@ -22,11 +28,14 @@
 #define _default_filename_prefix "prop."
 #define _default_filename_prefix2 "prop."
 #define _default_gaugefilename_prefix "conf."
+#define _default_outfile_prefix "out."
+#define _default_path_prefix "./"
 #define _default_resume 0
 #define _default_subtract 0
 #define _default_source_location 0
 #define _default_niter_max 1000
-#define _default_solver_precision 1.e-18
+#define _default_solver_precision 1.e-08
+#define _default_reliable_delta 1.e-01
 #define _default_gaugeid 0
 #define _default_gaugeid2 0
 #define _default_gauge_step 1
@@ -64,7 +73,11 @@
 #define _default_alpha_ape 0.
 #define _default_kappa_Jacobi 0.
 
+#define _default_alpha_hyp 0.
+#define _default_N_hyp 0
+
 #define _default_source_timeslice 0
+#define _default_sequential_source_timeslice -1
 #define _default_no_extra_masses 0
 #define _default_no_light_masses 1
 #define _default_no_strange_masses 0
@@ -86,4 +99,53 @@
 #define _default_smeared_smeared 0
 #define _default_rotate_ETMC_UKQCD 0
 #define _default_propagator_position 0
+
+#define _default_gpu_device_number 0
+#define _default_gpu_per_node -1
+
+#define _default_coherent_source 0
+#define _default_coherent_source_base 0
+#define _default_coherent_source_delta 0
+
+#define _default_gauge_file_format 0
+#define _default_rng_filename "ranlxd_state"
+#define _default_source_index_min 0
+#define _default_source_index_max -1
+#define _default_propagator_bc_type 0
+#define _default_propagator_gamma_basis 0
+#define _default_propagator_precision 32
+#define _default_write_source 0
+#define _default_read_source 0
+#define _default_nsample 1
+#define _default_num_threads 1
+#define _default_source_momentum_x 0
+#define _default_source_momentum_y 0
+#define _default_source_momentum_z 0
+#define _default_source_momentum_set 0
+#define _default_sink_momentum_x 0
+#define _default_sink_momentum_y 0
+#define _default_sink_momentum_z 0
+#define _default_sink_momentum_set 0
+#define _default_seq_source_momentum_x 0
+#define _default_seq_source_momentum_y 0
+#define _default_seq_source_momentum_z 0
+#define _default_seq_source_momentum_set 0
+#define _default_rng_state NULL
+#define _default_verbose  0
+#define _default_m0 0.
+#define _default_m5 0.
+
+#define _default_cpu_prec 2
+#define _default_gpu_prec 2
+#define _default_gpu_prec_sloppy 1
+#define _default_inverter_type_name "none"
+
+#define _default_space_dilution_depth 0
+#define _default_mms_id -1
+#define _default_check_inversion 0
+
+#define _default_laph_time_proj_type "NA"
+#define _default_laph_spin_proj_type "NA"
+#define _default_laph_evec_proj_type "NA"
+}
 #endif
