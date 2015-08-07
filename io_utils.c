@@ -2,7 +2,6 @@
 
 namespace cvc {
 
-#include"lime.h" 
 #include<stdlib.h>
 #include<stdio.h>
 #include<string.h>
@@ -14,7 +13,20 @@ namespace cvc {
 #  include <mpi.h>
 #  include <unistd.h>
 #endif
-#include"lime.h" 
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+#  include"lime.h" 
+
+#ifdef __cplusplus
+}
+#endif
+
+
+
 #include"io_utils.h"
 
 

@@ -85,6 +85,14 @@ namespace cvc {
 #define _default_nproc_x 1
 #define _default_nproc_y 1
 #define _default_nproc_z 1
+
+#define _default_ts_nb_x_up 0
+#define _default_ts_nb_x_dn 0
+#define _default_ts_nb_y_up 0
+#define _default_ts_nb_y_dn 0
+#define _default_ts_nb_z_up 0
+#define _default_ts_nb_z_dn 0
+
 #define _default_ts_id 0
 #define _default_xs_id 0
 #define _default_ys_id 0
@@ -92,6 +100,7 @@ namespace cvc {
 #define _default_Tstart 0
 #define _default_LXstart 0
 #define _default_LYstart 0
+#define _default_LZstart 0
 
 #define _default_local_local     0
 #define _default_local_smeared   0
@@ -116,6 +125,7 @@ namespace cvc {
 #define _default_propagator_precision 32
 #define _default_write_source 0
 #define _default_read_source 0
+#define _default_write_propagator 0
 #define _default_nsample 1
 #define _default_num_threads 1
 #define _default_source_momentum_x 0

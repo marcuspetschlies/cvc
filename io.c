@@ -31,10 +31,22 @@
 #  include <mpi.h>
 #  include <unistd.h>
 #endif
-#include "lime.h" 
-#ifdef HAVE_LIBLEMON
-#  include "lemon.h"
+
+#ifdef __cplusplus
+extern "C"
+{
 #endif
+
+#  include "lime.h" 
+#  ifdef HAVE_LIBLEMON
+#    include "lemon.h"
+#  endif
+
+#ifdef __cplusplus
+}
+#endif
+
+
 #include "cvc_complex.h"
 #include "global.h"
 #include "cvc_geometry.h"
@@ -51,7 +63,7 @@ int read_lime_gauge_field_doubleprec(const char * filename) {
   MPI_File *ifs=NULL;
   int t, x, y, z, status;
   n_uint64_t bytes;
-  int latticeSize[] = {T_global, LX_global, LY_global, LZ};
+  int latticeSize[] = {T_global, LX_global, LY_global, LZ_global};
   int scidacMapping[] = {0, 3, 2, 1};
   int prec;
   char * header_type;
@@ -96,7 +108,6 @@ int read_lime_gauge_field_doubleprec(const char * filename) {
   if(status==LIME_EOF) {
     fprintf(stderr, "no ildg-binary-data record found in file %s\n",filename);
     lemonDestroyReader(reader);
-    fclose(ifs);
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
     exit(502);
@@ -126,7 +137,7 @@ int read_lime_gauge_field_doubleprec(const char * filename) {
   if (prec == 32) fbsu3 /= 2;
   bytes = 4 * fbsu3;
 
-  if((void*)(filebuffer = malloc(VOLUME * bytes)) == NULL) {
+  if((void*)(filebuffer = (char*)malloc(VOLUME * bytes)) == NULL) {
     printf ("malloc errno in read_binary_gauge_data_parallel\n");
     return 1;
   }
@@ -144,7 +155,7 @@ int read_lime_gauge_field_doubleprec(const char * filename) {
   for (z = 0; z < LZ; z++) {
   for (y = 0; y < LY; y++) {
   for (x = 0; x < LX; x++) {
-    rank = (DML_SiteRank)(LXstart + (((Tstart + t) * LZ + z) * LY*g_nproc_y + LYstart+y) * ((DML_SiteRank)LX * g_nproc_x) + x);
+    rank = (DML_SiteRank)(LXstart + (((Tstart + t) * LZ *g_nproc_z + LZstart + z) * LY*g_nproc_y + LYstart+y) * ((DML_SiteRank)LX * g_nproc_x) + x);
     current = filebuffer + bytes * (x + (y + (t * LZ + z) * LY) * LX);
     DML_checksum_accum(&checksum, rank, current, bytes);
     if(!words_bigendian) {
@@ -240,10 +251,10 @@ int read_lime_gauge_field_doubleprec(const char * filename) {
   }
   bytes = limeReaderBytes(limereader);
   //fprintf(stdout, "[%d] lime_reader bytes = %llu\n", g_cart_id, bytes);
-  if(bytes != (n_uint64_t)(LX*g_nproc_x)*(LY*g_nproc_y)*LZ*T_global*72*(n_uint64_t)sizeof(double)) {
-    if(bytes != (n_uint64_t)(LX*g_nproc_x)*(LY*g_nproc_y)*LZ*T_global*72*(n_uint64_t)sizeof(double)/2) {
+  if(bytes != (n_uint64_t)(LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*72*(n_uint64_t)sizeof(double)) {
+    if(bytes != (n_uint64_t)(LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*72*(n_uint64_t)sizeof(double)/2) {
       fprintf(stderr, "Probably wrong lattice size or precision (bytes=%llu) in file %s expected %llu\n", 
-	      (n_uint64_t)bytes, filename, (n_uint64_t)(LX*g_nproc_x)*(LY*g_nproc_y)*LZ*T_global*72*(n_uint64_t)sizeof(double));
+	      (n_uint64_t)bytes, filename, (n_uint64_t)(LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*72*(n_uint64_t)sizeof(double));
       fprintf(stderr, "Aborting...!\n");
       fflush( stdout );
 #ifdef HAVE_MPI
@@ -267,14 +278,14 @@ int read_lime_gauge_field_doubleprec(const char * filename) {
     for(z = 0; z < LZ; z++) {
       for(y = 0; y < LY; y++) {
 #ifdef HAVE_MPI
-        file_seek = (n_uint64_t) ( (((Tstart+t)*LZ + z)*(LY*g_nproc_y) + LYstart + y)*(n_uint64_t)(LX*g_nproc_x) + LXstart) * bytes;
+        file_seek = (n_uint64_t) ( (((Tstart+t)*(LZ*g_nproc_z) + LZstart + z)*(LY*g_nproc_y) + LYstart + y)*(n_uint64_t)(LX*g_nproc_x) + LXstart) * bytes;
         //fprintf(stdout, "[%d] file_seek = %llu\n", g_cart_id, file_seek);
           
         limeReaderSeek(limereader, file_seek, SEEK_SET);
 #endif
 	for(x = 0; x < LX; x++) {
 	  n_uint64_t p = (((t*LX+x)*LY+y)*LZ+z)*(n_uint64_t)12;
-	  rank = (DML_SiteRank) ( (((Tstart+t)*LZ+z)*(LY*g_nproc_y)+LYstart+y)*(DML_SiteRank)(LX*g_nproc_x)+x+LXstart ); 
+	  rank = (DML_SiteRank) ( (((Tstart+t)*(LZ*g_nproc_z) + LZstart +z)*(LY*g_nproc_y)+LYstart+y)*(DML_SiteRank)(LX*g_nproc_x)+x+LXstart ); 
 	  if(!words_bigendian) {
 	    status = limeReaderReadData(tmp, &bytes, limereader);
 	    DML_checksum_accum(&checksum, rank, (char *)tmp, bytes); 
@@ -341,7 +352,7 @@ int read_lime_gauge_field_singleprec(const char * filename) {
   MPI_File *ifs=NULL;
   int t, x, y, z, status;
   n_uint64_t bytes;
-  int latticeSize[] = {T_global, LX_global, LY_global, LZ};
+  int latticeSize[] = {T_global, LX_global, LY_global, LZ_global};
   int scidacMapping[] = {0, 3, 2, 1};
   int prec;
   char * header_type;
@@ -386,7 +397,6 @@ int read_lime_gauge_field_singleprec(const char * filename) {
   if(status==LIME_EOF) {
     fprintf(stderr, "no ildg-binary-data record found in file %s\n",filename);
     lemonDestroyReader(reader);
-    fclose(ifs);
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
     exit(502);
@@ -416,7 +426,7 @@ int read_lime_gauge_field_singleprec(const char * filename) {
   if (prec == 32) fbsu3 /= 2;
   bytes = 4 * fbsu3;
 
-  if((void*)(filebuffer = malloc(VOLUME * bytes)) == NULL) {
+  if((void*)(filebuffer = (char*)malloc(VOLUME * bytes)) == NULL) {
     printf ("malloc errno in read_binary_gauge_data_parallel\n");
     return 1;
   }
@@ -434,7 +444,7 @@ int read_lime_gauge_field_singleprec(const char * filename) {
   for (z = 0; z < LZ; z++) {
   for (y = 0; y < LY; y++) {
   for (x = 0; x < LX; x++) {
-    rank = (DML_SiteRank)(LXstart + (((Tstart + t) * LZ + z) * LY*g_nproc_y + LYstart+y) * ((DML_SiteRank)LX * g_nproc_x) + x);
+    rank = (DML_SiteRank)(LXstart + (((Tstart + t) * LZ*g_nproc_z + LZstart + z) * LY*g_nproc_y + LYstart+y) * ((DML_SiteRank)LX * g_nproc_x) + x);
     current = filebuffer + bytes * (x + (y + (t * LZ + z) * LY) * LX);
     DML_checksum_accum(&checksum, rank, current, bytes);
     if(!words_bigendian) {
@@ -527,7 +537,7 @@ int read_lime_gauge_field_singleprec(const char * filename) {
     exit(-2);
   }
   bytes = limeReaderBytes(limereader);
-  if(bytes != (n_uint64_t)(LX*g_nproc_x)*(LY*g_nproc_y)*LZ*(T*g_nproc_t)*72*(n_uint64_t)sizeof(float)) {
+  if(bytes != (n_uint64_t)(LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*(T*g_nproc_t)*72*(n_uint64_t)sizeof(float)) {
     fprintf(stderr, "Probably wrong lattice size or precision (bytes=%d) in file %s\n", (int)bytes, filename);
     fprintf(stderr, "Aborting...!\n");
     fflush( stdout );
@@ -544,11 +554,11 @@ int read_lime_gauge_field_singleprec(const char * filename) {
       for(y = 0; y < LY; y++){
 #if (defined HAVE_MPI)
         limeReaderSeek(limereader,
-	  (n_uint64_t) ( (((Tstart+t)*LZ + z)*(LY*g_nproc_y) + LYstart + y)*(LX*g_nproc_x)+LXstart ) * bytes, SEEK_SET);
+	  (n_uint64_t) ( (((Tstart+t)*LZ*g_nproc_z + LZstart + z)*(LY*g_nproc_y) + LYstart + y)*(LX*g_nproc_x)+LXstart ) * bytes, SEEK_SET);
 #endif
 	for(x = 0; x < LX; x++) {
 	  n_uint64_t p = (((t*LX+x)*LY+y)*LZ+z)*(n_uint64_t)12;
-	  rank = (DML_SiteRank) ( (((Tstart+t)*LZ+z)*(LY*g_nproc_y) + LYstart + y)*(DML_SiteRank)(LX*g_nproc_x)+x+LXstart );
+	  rank = (DML_SiteRank) ( (((Tstart+t)*LZ*g_nproc_z + LZstart +z)*(LY*g_nproc_y) + LYstart + y)*(DML_SiteRank)(LX*g_nproc_x)+x+LXstart );
 	  if(!words_bigendian) {
 	    status = limeReaderReadData(tmp, &bytes, limereader);
 	    DML_checksum_accum(&checksum, rank, (char *)tmp, bytes);
@@ -910,7 +920,7 @@ int read_ildg_nersc_gauge_field(const double * gauge, const char * filename) {
     exit(-2);
   }
   bytes = limeReaderBytes(limereader);
-  if(bytes != (n_uint64_t)(LX*g_nproc_x)*(LY*g_nproc_y)*LZ*T*72*(n_uint64_t)sizeof(float)) {
+  if(bytes != (n_uint64_t)(LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T*72*(n_uint64_t)sizeof(float)) {
     fprintf(stderr, "Probably wrong lattice size or precision (bytes=%d) in file %s\n", (int)bytes, filename);
     fprintf(stderr, "Aborting...!\n");
     fflush( stdout );

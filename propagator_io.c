@@ -11,7 +11,6 @@
 
 #define _FILE_OFFSET_BITS 64
 
-#include "lime.h" 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -23,10 +22,19 @@
 #  include <mpi.h>
 #  include <unistd.h>
 #endif
-#include "lime.h" 
-#ifdef HAVE_LIBLEMON
-#  include "lemon.h"
+
+#ifdef __cplusplus
+extern "C"
+{
 #endif
+#  include "lime.h" 
+#  ifdef HAVE_LIBLEMON
+#    include "lemon.h"
+#  endif
+#ifdef __cplusplus
+}
+#endif
+
 #include "cvc_complex.h"
 #include "global.h"
 #include "cvc_geometry.h"
@@ -118,7 +126,7 @@ int write_binary_spinor_data(double * const s, LimeWriter * limewriter,
     }
   }  /* of if g_cart_id == 0 */
 #ifdef HAVE_MPI
-#if (defined PARALLELTX) || (defined PARALLELTXY)
+#if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ)
   return(1);
 #else
   tgeom[0] = Tstart;
@@ -184,7 +192,7 @@ int write_binary_spinor_data(double * const s, LimeWriter * limewriter,
     MPI_Barrier(g_cart_grid);
     fprintf(stdout, " [write_binary_spinor_data %d] finished iproc = %d\n", g_cart_id, iproc);
   }
-#endif  /* if PARALLELTX || PARALLELTXY*/
+#endif  /* if PARALLELTX || PARALLELTXY || PARALLELTXYZ */
 #endif
 
 
@@ -201,7 +209,7 @@ int read_binary_spinor_data(double * const s, LemonReader * reader,
 			    const int prec, DML_Checksum *checksum) {
 
   int t, x, y , z, i = 0, status = 0;
-  int latticeSize[] = {T_global, LX_global, LY_global, LZ};
+  int latticeSize[] = {T_global, LX_global, LY_global, LZ_global};
   int scidacMapping[] = {0, 3, 2, 1};
   n_uint64_t bytes;
   double *p = NULL;
@@ -218,7 +226,7 @@ int read_binary_spinor_data(double * const s, LemonReader * reader,
   if (prec == 32) fbspin /= 2;
   bytes = fbspin;
 
-  if((void*)(filebuffer = malloc(VOLUME * bytes)) == NULL) {
+  if((void*)(filebuffer = (char*)malloc(VOLUME * bytes)) == NULL) {
     fprintf (stderr, "[read_binary_spinor_data] malloc errno in read_binary_spinor_data_parallel\n");
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
@@ -239,7 +247,7 @@ int read_binary_spinor_data(double * const s, LemonReader * reader,
   for (z = 0; z < LZ; z++) {
   for (y = 0; y < LY; y++) {
   for (x = 0; x < LX; x++) {
-    rank = (DML_SiteRank)( LXstart + (((Tstart  + t) * LZ + z) * (LY*g_nproc_y) + LYstart + y) * ((DML_SiteRank) LX * g_nproc_x) + x);
+    rank = (DML_SiteRank)( LXstart + (((Tstart  + t) * (LZ*g_nproc_z) + LZstart + z) * (LY*g_nproc_y) + LYstart + y) * ((DML_SiteRank) LX * g_nproc_x) + x);
     current = filebuffer + bytes * (x + (y + (t * LZ + z) * LY) * LX);
     DML_checksum_accum(checksum, rank, current, bytes);
 
@@ -286,11 +294,11 @@ int read_binary_spinor_data(double * const s, LimeReader * limereader,
     for(z = 0; z < LZ; z++){
       for(y = 0; y < LY; y++){
 #if (defined HAVE_MPI)
-      limeReaderSeek(limereader,(n_uint64_t) ( (((Tstart+t)*LZ+z)*(LY*g_nproc_y)+LYstart+y)*(LX*g_nproc_x) +LXstart )*bytes, SEEK_SET);
+      limeReaderSeek(limereader,(n_uint64_t) ( (((Tstart+t)*(LZ*g_nproc_z) + LZstart + z)*(LY*g_nproc_y)+LYstart+y)*(LX*g_nproc_x) +LXstart )*bytes, SEEK_SET);
 #endif
 	for(x = 0; x < LX; x++){
 	  ix = g_ipt[t][x][y][z]*(n_uint64_t)12;
-	  rank = (DML_SiteRank) ((((Tstart+t)*LZ + z)*(LY*g_nproc_y) + LYstart + y)*(DML_SiteRank)(LX*g_nproc_x) + LXstart + x);
+	  rank = (DML_SiteRank) ((((Tstart+t)*(LZ*g_nproc_z)+LZstart + z)*(LY*g_nproc_y) + LYstart + y)*(DML_SiteRank)(LX*g_nproc_x) + LXstart + x);
 	  if(prec == 32) {
 	    status = limeReaderReadData(tmp2, &bytes, limereader);
 	    DML_checksum_accum(ans,rank,(char *) tmp2, bytes);	    
@@ -475,7 +483,7 @@ int write_propagator_format(char * filename, const int prec, const int no_flavou
       exit(500);
     }
   
-    sprintf(message, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<etmcFormat>\n<field>diracFermion</field>\n<precision>%d</precision>\n<flavours>%d</flavours>\n<lx>%d</lx>\n<ly>%d</ly>\n<lz>%d</lz>\n<lt>%d</lt>\n</etmcFormat>", prec, no_flavours, LX_global, LY, LZ, T_global);
+    sprintf(message, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<etmcFormat>\n<field>diracFermion</field>\n<precision>%d</precision>\n<flavours>%d</flavours>\n<lx>%d</lx>\n<ly>%d</ly>\n<lz>%d</lz>\n<lt>%d</lt>\n</etmcFormat>", prec, no_flavours, LX_global, LY_global, LZ_global, T_global);
     bytes = strlen( message );
     limeheader = limeCreateHeader(MB_flag, ME_flag, "etmc-propagator-format", bytes);
     status = limeWriteRecordHeader( limeheader, limewriter);
@@ -617,10 +625,11 @@ int get_propagator_type(char * filename) {
 #ifdef HAVE_LIBLEMON
 int read_lime_spinor(double * const s, char * filename, const int position) {
   MPI_File *ifs;
-  int status = 0, getpos = 0, bytes = 0, prec = 0, prop_type;
+  int status = 0, getpos = 0, prec = 0, prop_type;
   char *header_type = NULL;
   LemonReader *reader = NULL;
   DML_Checksum checksum;
+  n_uint64_t bytes = 0;
 
   if(g_cart_id==0)
     fprintf(stdout, "# [read_lime_spinor] reading prop in LEMON format from file %s at pos %d\n", filename, position);
@@ -665,10 +674,10 @@ int read_lime_spinor(double * const s, char * filename, const int position) {
   } 
 
   bytes = lemonReaderBytes(reader);
-  if ((int)bytes == LX * g_nproc_x * LY * g_nproc_y * LZ * T_global * 24*sizeof(double)) {
+  if (bytes == (n_uint64_t)LX * g_nproc_x * LY * g_nproc_y * LZ * g_nproc_z * T_global * 24*sizeof(double)) {
     prec = 64;
   } else {
-    if ((int)bytes == LX * g_nproc_x * LY * g_nproc_y * LZ * T_global * 24* sizeof(double) / 2) {
+    if (bytes == (n_uint64_t)LX * g_nproc_x * LY * g_nproc_y * LZ * g_nproc_z * T_global * 24* sizeof(double) / 2) {
       prec = 32;
     } else {
       if(g_cart_id==0) fprintf(stderr, "[read_lime_spinor] Error, wrong length in spinor. Aborting read!\n");
@@ -729,11 +738,11 @@ int read_lime_spinor(double * const s, char * filename, const int position) {
     return(read_cmi(s, filename));
   }
   bytes = limeReaderBytes(limereader);
-  if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*LZ*T_global*(uint64_t)(24*sizeof(double))) prec = 64;
-  else if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*LZ*T_global*(uint64_t)(24*sizeof(float))) prec = 32;
+  if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*(uint64_t)(24*sizeof(double))) prec = 64;
+  else if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*(uint64_t)(24*sizeof(float))) prec = 32;
   else {
     fprintf(stderr, "[read_lime_spinor] wrong length in eospinor: bytes = %llu, not %llu. Aborting read!\n", 
-	    bytes, (LX*g_nproc_x)*(LY*g_nproc_y)*LZ*T_global*(uint64_t)(24*sizeof(double)));
+	    bytes, (LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*(uint64_t)(24*sizeof(double)));
     return(-1);
   }
   if(g_cart_id == 0) printf("# [read_lime_spinor] %llu Bit precision read\n", prec);
@@ -780,7 +789,7 @@ int read_cmi(double *v, const char * filename) {
   for(y = 0; y < LY; y++) {
   for(z = 0; z < LZ; z++) {
 #ifdef HAVE_MPI
-    fseek(ifs, (Tstart + (( (x + LXstart)*(LY*g_nproc_y) + LYstart + y)*LZ + z )*T_global) * 24*sizeof(float), SEEK_SET);
+    fseek(ifs, (Tstart + (( (x + LXstart)*(LY*g_nproc_y) + LYstart + y) * (LZ*g_nproc_z) + LZstart + z )*T_global) * 24*sizeof(float), SEEK_SET);
 #endif
     for(t = 0; t < T; t++) {
       ix = (t*LX*LY*LZ + x*LY*LZ + y*LZ + z)*12;
@@ -1168,11 +1177,11 @@ int read_binary_spinor_data_single(float* const s, LimeReader * limereader,
     for(z = 0; z < LZ; z++){
       for(y = 0; y < LY; y++){
 #if (defined HAVE_MPI)
-      limeReaderSeek(limereader,(n_uint64_t) ( (((Tstart+t)*LZ+z)*(LY*g_nproc_y)+LYstart+y)*(LX*g_nproc_x) +LXstart )*bytes, SEEK_SET);
+      limeReaderSeek(limereader,(n_uint64_t) ( (((Tstart+t)*(LZ*g_nproc_z)+LZstart+z)*(LY*g_nproc_y)+LYstart+y)*(LX*g_nproc_x) +LXstart )*bytes, SEEK_SET);
 #endif
 	for(x = 0; x < LX; x++){
 	  ix = g_ipt[t][x][y][z]*(n_uint64_t)12;
-	  rank = (DML_SiteRank) ((((Tstart+t)*LZ + z)*(LY*g_nproc_y) + LYstart + y)*(DML_SiteRank)(LX*g_nproc_x) + LXstart + x);
+	  rank = (DML_SiteRank) ((((Tstart+t)*(LZ*g_nproc_z)+LZstart + z)*(LY*g_nproc_y) + LYstart + y)*(DML_SiteRank)(LX*g_nproc_x) + LXstart + x);
 	  if(prec == 32) {
 	    status = limeReaderReadData(tmp2, &bytes, limereader);
 	    DML_checksum_accum(ans,rank,(char *) tmp2, bytes);	    
@@ -1248,11 +1257,11 @@ int read_lime_spinor_single(float * const s, char * filename, const int position
     return(-1);
   }
   bytes = limeReaderBytes(limereader);
-  if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*LZ*T_global*(uint64_t)(24*sizeof(double))) prec = 64;
-  else if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*LZ*T_global*(uint64_t)(24*sizeof(float))) prec = 32;
+  if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*(uint64_t)(24*sizeof(double))) prec = 64;
+  else if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*(uint64_t)(24*sizeof(float))) prec = 32;
   else {
     fprintf(stderr, "[read_lime_spinor_single] wrong length in eospinor: bytes = %llu, not %llu. Aborting read!\n", 
-	    bytes, (LX*g_nproc_x)*(LY*g_nproc_y)*LZ*T_global*(uint64_t)(24*sizeof(double)));
+	    bytes, (LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*(uint64_t)(24*sizeof(double)));
     return(-1);
   }
   if(g_cart_id == 0) printf("# [read_lime_spinor_single] %llu Bit precision read\n", prec);
@@ -1328,11 +1337,11 @@ int read_lime_spinor_timeslice(double * const s, int timeslice, char * filename,
     return(read_cmi(s, filename));
   }
   bytes = limeReaderBytes(limereader);
-  if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*LZ*T_global*(uint64_t)(24*sizeof(double))) prec = 64;
-  else if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*LZ*T_global*(uint64_t)(24*sizeof(float))) prec = 32;
+  if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*(uint64_t)(24*sizeof(double))) prec = 64;
+  else if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*(uint64_t)(24*sizeof(float))) prec = 32;
   else {
     fprintf(stderr, "[read_lime_spinor_timeslice] wrong length in eospinor: bytes = %llu, not %llu. Aborting read!\n", 
-	    bytes, (LX*g_nproc_x)*(LY*g_nproc_y)*LZ*T_global*(uint64_t)(24*sizeof(double)));
+	    bytes, (LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*(uint64_t)(24*sizeof(double)));
     return(-1);
   }
   if(g_cart_id == 0) printf("# [read_lime_spinor_timeslice] %llu Bit precision read\n", prec);
@@ -1383,7 +1392,7 @@ int read_binary_spinor_data_timeslice(double * const s, int timeslice, LimeReade
   for(y = 0; y < LY; y++){
   for(x = 0; x < LX; x++){
     ix = g_ipt[0][x][y][z]*(n_uint64_t)12;
-    rank = (DML_SiteRank) ((((Tstart+t)*LZ + z)*(LY*g_nproc_y) + LYstart + y)*(DML_SiteRank)(LX*g_nproc_x) + LXstart + x);
+    rank = (DML_SiteRank) ((((Tstart+t)*(LZ*g_nproc_z)+LZstart + z)*(LY*g_nproc_y) + LYstart + y)*(DML_SiteRank)(LX*g_nproc_x) + LXstart + x);
     if(prec == 32) {
       status = limeReaderReadData(tmp2, &bytes, limereader);
       DML_checksum_accum(ans,rank,(char *) tmp2, bytes);	    

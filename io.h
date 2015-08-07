@@ -3,7 +3,6 @@
 #define _IO_H
 
 #include "dml.h"
-#include "lime.h"
 
 namespace cvc {
 

@@ -20,11 +20,8 @@ void plaquette(double*);
 void plaquette2(double *pl, double*gfield);
 
 void xchange_gauge(void);
-void xchange_gauge_field(double*);
-void xchange_gauge_field_timeslice(double *);
 void xchange_field(double*);
-void xchange_field_timeslice(double *);
-void xchange_field_5d(double *phi);
+void xchange_contraction(double *phi, int N);
 
 int write_contraction (double *s, int *nsource, char *filename, int Nmu,
                        int write_ascii, int append);
@@ -35,7 +32,6 @@ void init_gamma(void);
 int printf_gauge_field( double *gauge, FILE *ofs);
 int printf_spinor_field(double *s,     FILE *ofs);
 int printf_spinor_field_5d(double *s,     FILE *ofs);
-int printf_spinor_field_tzyx(double *s, FILE *ofs);
 
 void set_default_input_values(void);
 
@@ -71,10 +67,8 @@ int set_temporal_gauge(double*gauge_transform);
 int apply_gauge_transform(double*gauge_new, double*gauge_transform, double*gauge_old);
 int init_rng_stat_file (int seed, char*filename);
 
-spinor_propagator_type *create_sp_field(size_t N);
 void free_sp_field(spinor_propagator_type **fp);
 
-fermion_propagator_type *create_fp_field(size_t N);
 void free_fp_field(fermion_propagator_type **fp);
   
 int unit_gauge_field(double*g, unsigned int N);
@@ -88,10 +82,7 @@ int init_rng_state (int seed, int **rng_state);
 int fini_rng_state (int **rng_state);
 int sync_rng_state(int id, int reset);
 
-inline void check_error(int status, char*myname, int*success, int exitstatus);
 
-inline void check_F_SU3(float*g, float*res);
-inline unsigned int lexic2eot_5d (unsigned int is, unsigned int ix);
 int shift_spinor_field (double *s, double *r, int *d);
 int printf_SU3_link (double *u, FILE*ofs);
 

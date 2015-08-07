@@ -13,7 +13,6 @@
 
 #define _FILE_OFFSET_BITS 64
 
-#include "lime.h" 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -25,10 +24,22 @@
 #  include <mpi.h>
 #  include <unistd.h>
 #endif
-#include "lime.h" 
-#ifdef HAVE_LIBLEMON
-#  include "lemon.h"
+
+#ifdef __cplusplus
+extern "C"
+{
 #endif
+
+#  include "lime.h" 
+#  ifdef HAVE_LIBLEMON
+#    include "lemon.h"
+#  endif
+
+#ifdef __cplusplus
+}
+#endif
+
+
 #include "cvc_complex.h"
 #include "global.h"
 #include "cvc_geometry.h"

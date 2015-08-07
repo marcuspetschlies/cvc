@@ -3,7 +3,18 @@
 
 
 #include "dml.h"
-#include "lime.h"
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+#  include "lime.h"
+
+#ifdef __cplusplus
+}
+#endif
+
 
 namespace cvc {
 int write_propagator(double * const s, char * filename, const int append, const int prec);

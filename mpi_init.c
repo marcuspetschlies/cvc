@@ -14,9 +14,15 @@ namespace cvc {
 #ifdef HAVE_MPI
 MPI_Datatype gauge_point;
 MPI_Datatype spinor_point;
+MPI_Datatype contraction_point;
+
 MPI_Datatype gauge_time_slice_cont;
 MPI_Datatype spinor_time_slice_cont;
-#  if defined PARALLELTX || defined PARALLELTXY
+
+MPI_Datatype contraction_time_slice_cont;
+#  if defined PARALLELTX || defined PARALLELTXY || defined PARALLELTXYZ
+
+/* gauge slices */
 MPI_Datatype gauge_x_slice_vector;
 MPI_Datatype gauge_x_subslice_cont;
 MPI_Datatype gauge_x_slice_cont;
@@ -24,6 +30,39 @@ MPI_Datatype gauge_x_slice_cont;
 MPI_Datatype gauge_y_slice_vector;
 MPI_Datatype gauge_y_subslice_cont;
 MPI_Datatype gauge_y_slice_cont;
+
+MPI_Datatype gauge_z_slice_vector;
+MPI_Datatype gauge_z_subslice_cont;
+MPI_Datatype gauge_z_slice_cont;
+
+/* gauge edges */
+
+/* x - t - edges */
+MPI_Datatype gauge_xt_edge_vector;
+MPI_Datatype gauge_xt_edge_cont;
+
+/* y - t - edges */
+MPI_Datatype gauge_yt_edge_vector;
+MPI_Datatype gauge_yt_edge_cont;
+
+/* y - x - edges */
+MPI_Datatype gauge_yx_edge_vector;
+MPI_Datatype gauge_yx_edge_cont;
+
+/* z - t - edges */
+MPI_Datatype gauge_zt_edge_vector;
+MPI_Datatype gauge_zt_edge_cont;
+
+/* z - x - edges */
+MPI_Datatype gauge_zx_edge_vector;
+MPI_Datatype gauge_zx_edge_cont;
+
+/* z - y - edges */
+MPI_Datatype gauge_zy_edge_vector;
+MPI_Datatype gauge_zy_edge_cont;
+
+
+/* spinor slices */
 
 MPI_Datatype spinor_x_slice_vector;
 MPI_Datatype spinor_x_subslice_cont;
@@ -33,12 +72,24 @@ MPI_Datatype spinor_y_slice_vector;
 MPI_Datatype spinor_y_subslice_cont;
 MPI_Datatype spinor_y_slice_cont;
 
-MPI_Datatype gauge_xt_edge_vector;
-MPI_Datatype gauge_xt_edge_cont;
-MPI_Datatype gauge_yt_edge_vector;
-MPI_Datatype gauge_yt_edge_cont;
-MPI_Datatype gauge_yx_edge_vector;
-MPI_Datatype gauge_yx_edge_cont;
+MPI_Datatype spinor_z_slice_vector;
+MPI_Datatype spinor_z_subslice_cont;
+MPI_Datatype spinor_z_slice_cont;
+
+/* contraction slices */
+
+MPI_Datatype contraction_x_slice_vector;
+MPI_Datatype contraction_x_subslice_cont;
+MPI_Datatype contraction_x_slice_cont;
+
+MPI_Datatype contraction_y_slice_vector;
+MPI_Datatype contraction_y_subslice_cont;
+MPI_Datatype contraction_y_slice_cont;
+
+MPI_Datatype contraction_z_slice_vector;
+MPI_Datatype contraction_z_subslice_cont;
+MPI_Datatype contraction_z_slice_cont;
+
 #  endif
 
 #endif
@@ -52,7 +103,7 @@ void mpi_init(int argc,char *argv[]) {
   char processor_name[MPI_MAX_PROCESSOR_NAME];
 #endif
 
-#if (defined PARALLELTX || defined PARALLELTXY) && !(defined HAVE_MPI)
+#if (defined PARALLELTX || defined PARALLELTXY || defined PARALLELTXYZ) && !(defined HAVE_MPI)
   exit(555);
 #endif
 
@@ -85,7 +136,16 @@ void mpi_init(int argc,char *argv[]) {
 #endif  /* of HAVE_TMLQCD_LIBWRAPPER */
 
 #ifdef HAVE_MPI
-#if !(defined PARALLELTX || defined PARALLELTXY)
+
+/****************************************************************
+ * MPI defined 
+ ****************************************************************/
+
+#if !(defined PARALLELTX || defined PARALLELTXY || defined PARALLELTXYZ)
+
+  /****************************************************************
+   *  ( PARALLELTX || PARALLELTXY || PARALLELTXYZ ) NOT defined
+   ****************************************************************/
 
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   MPI_Comm_size(MPI_COMM_WORLD, &g_nproc);
@@ -160,6 +220,7 @@ void mpi_init(int argc,char *argv[]) {
   Tstart = g_proc_coords[0] * T;
   LXstart   = 0;
   LYstart   = 0;
+  LZstart   = 0;
 
   g_ts_id   = 0;
   g_xs_id   = 0;
@@ -206,7 +267,11 @@ void mpi_init(int argc,char *argv[]) {
 		  g_cart_id, g_nb_list[6],
 		  g_cart_id, g_nb_list[7]);
 
-#else /* PARALLELTX || PARALLELTXY defined */
+#else
+  /*********************************************************
+   *  PARALLELTX || PARALLELTXY || PARALLELTXYZ defined
+   *********************************************************/
+
 #ifndef HAVE_QUDA
 
 #ifndef HAVE_TMLQCD_LIBWRAPPER
@@ -242,6 +307,7 @@ void mpi_init(int argc,char *argv[]) {
   LYstart   = g_proc_coords[2] * LY;
 
   LZ_global = LZ;
+  LZ        = LZ_global / g_nproc_z;
   LZstart   = g_proc_coords[3] * LZ;
 #else
 
@@ -264,6 +330,7 @@ void mpi_init(int argc,char *argv[]) {
   MPI_Cart_shift(g_cart_grid, 0, 1, &g_nb_t_dn, &g_nb_t_up);
   MPI_Cart_shift(g_cart_grid, 1, 1, &g_nb_x_dn, &g_nb_x_up);
   MPI_Cart_shift(g_cart_grid, 2, 1, &g_nb_y_dn, &g_nb_y_up);
+  MPI_Cart_shift(g_cart_grid, 3, 1, &g_nb_z_dn, &g_nb_z_up);
 
   g_nb_list[0] = g_nb_t_up;
   g_nb_list[1] = g_nb_t_dn;
@@ -274,8 +341,8 @@ void mpi_init(int argc,char *argv[]) {
   g_nb_list[4] = g_nb_y_up;
   g_nb_list[5] = g_nb_y_dn;
 
-  g_nb_list[6] = g_cart_id;
-  g_nb_list[7] = g_cart_id;
+  g_nb_list[6] = g_nb_z_up;
+  g_nb_list[7] = g_nb_z_dn;
 
   MPI_Type_contiguous(72, MPI_DOUBLE, &gauge_point);
   MPI_Type_commit(&gauge_point);
@@ -287,6 +354,7 @@ void mpi_init(int argc,char *argv[]) {
   MPI_Type_commit(&gauge_time_slice_cont);
 
   /* ------------------------------------------------------------------------ */
+  /* x slices */
 
   MPI_Type_contiguous(LY*LZ, gauge_point, &gauge_x_subslice_cont);
   MPI_Type_commit(&gauge_x_subslice_cont);
@@ -298,6 +366,7 @@ void mpi_init(int argc,char *argv[]) {
   MPI_Type_commit(&gauge_x_slice_vector);
 
   /* ------------------------------------------------------------------------ */
+  /* y slices */
 
   MPI_Type_contiguous(LX*LZ, gauge_point, &gauge_y_subslice_cont);
   MPI_Type_commit(&gauge_y_subslice_cont);
@@ -307,6 +376,19 @@ void mpi_init(int argc,char *argv[]) {
 
   MPI_Type_vector(T*LX, LZ, LY*LZ, gauge_point, &gauge_y_slice_vector);
   MPI_Type_commit(&gauge_y_slice_vector);
+
+  /* ------------------------------------------------------------------------ */
+  /* z slices */
+
+  MPI_Type_contiguous(LX*LY, gauge_point, &gauge_z_subslice_cont);
+  MPI_Type_commit(&gauge_z_subslice_cont);
+
+  MPI_Type_contiguous(T*LX*LY, gauge_point, &gauge_z_slice_cont);
+  MPI_Type_commit(&gauge_z_slice_cont);
+
+  MPI_Type_vector(T*LX*LY, 1, LZ, gauge_point, &gauge_z_slice_vector);
+  MPI_Type_commit(&gauge_z_slice_vector);
+
 
   /* ======================================================================== */
 
@@ -335,6 +417,17 @@ void mpi_init(int argc,char *argv[]) {
   MPI_Type_contiguous(T*LX*LZ, spinor_point, &spinor_y_slice_cont);
   MPI_Type_commit(&spinor_y_slice_cont);
   
+  /* ------------------------------------------------------------------------ */
+
+  MPI_Type_contiguous(LX*LY, spinor_point, &spinor_z_subslice_cont);
+  MPI_Type_commit(&spinor_z_subslice_cont);
+
+  MPI_Type_vector(T*LX*LY, 1, LZ, spinor_point, &spinor_z_slice_vector);
+  MPI_Type_commit(&spinor_z_slice_vector);
+
+  MPI_Type_contiguous(T*LX*LY, spinor_point, &spinor_z_slice_cont);
+  MPI_Type_commit(&spinor_z_slice_cont);
+
   /* ========= the edges ==================================================== */
 
   /* --------- x-t-edge ----------------------------------------------------- */
@@ -360,6 +453,31 @@ void mpi_init(int argc,char *argv[]) {
   MPI_Type_vector(2*T, LZ, LX*LZ, gauge_point, &gauge_yx_edge_vector);
   MPI_Type_commit(&gauge_yx_edge_vector);
 
+
+  /* --------- z-t-edge ----------------------------------------------------- */
+
+  MPI_Type_contiguous( 2*LX*LY, gauge_point, &gauge_zt_edge_cont);
+  MPI_Type_commit(&gauge_zt_edge_cont);
+
+  MPI_Type_vector(2, 1, T, gauge_z_subslice_cont, &gauge_zt_edge_vector);
+  MPI_Type_commit(&gauge_zt_edge_vector);
+
+  /* --------- z-x-edge ----------------------------------------------------- */
+
+  MPI_Type_contiguous( 2*T*LY, gauge_point, &gauge_zx_edge_cont);
+  MPI_Type_commit(&gauge_zx_edge_cont);
+
+  MPI_Type_vector(2*T, LY, LX*LY, gauge_point, &gauge_zx_edge_vector);
+  MPI_Type_commit(&gauge_zx_edge_vector);
+
+  /* --------- z-y-edge ----------------------------------------------------- */
+
+  MPI_Type_contiguous( 2*T*LX, gauge_point, &gauge_zy_edge_cont);
+  MPI_Type_commit(&gauge_zy_edge_cont);
+
+  MPI_Type_vector(2*T*LX, 1, LY, gauge_point, &gauge_zy_edge_vector);
+  MPI_Type_commit(&gauge_zy_edge_vector);
+
   /* --------- sub lattices ------------------------------------------------- */
 
   dims[0]=0; dims[1]=1; dims[2]=1; dims[3]=1;
@@ -372,10 +490,11 @@ void mpi_init(int argc,char *argv[]) {
   g_ts_nb_x_dn = g_ts_nb_dn;
 
   MPI_Cart_shift(g_ts_comm, 1, 1, &g_ts_nb_y_dn, &g_ts_nb_y_up);
+  MPI_Cart_shift(g_ts_comm, 2, 1, &g_ts_nb_z_dn, &g_ts_nb_z_up);
 
   /* ------------------------------------------------------------------------ */
 
-  dims[0]=1; dims[1]=0; dims[2]=0; dims[3]=0;
+  dims[0]=1; dims[1]=0; dims[2]=1; dims[3]=1;
   MPI_Cart_sub (g_cart_grid, dims, &g_xs_comm);
   MPI_Comm_size(g_xs_comm, &g_xs_nproc);
   MPI_Comm_rank(g_xs_comm, &g_xs_id);
@@ -385,22 +504,25 @@ void mpi_init(int argc,char *argv[]) {
                   "# [%2d] g_nproc_t = %3d\n"\
                   "# [%2d] g_nproc_x = %3d\n"\
                   "# [%2d] g_nproc_y = %3d\n"\
+                  "# [%2d] g_nproc_z = %3d\n"\
 		  "# [%2d] g_proc_id = %3d\n"\
 		  "# [%2d] g_cart_id = %3d\n"\
-                  "# [%2d] g_nproc_t = %3d\n"\
-                  "# [%2d] g_nproc_x = %3d\n"\
 		  "# [%2d] g_nb_t_up = %3d\n"\
 		  "# [%2d] g_nb_t_dn = %3d\n"\
 		  "# [%2d] g_nb_x_up = %3d\n"\
 		  "# [%2d] g_nb_x_dn = %3d\n"\
 		  "# [%2d] g_nb_y_up = %3d\n"\
 		  "# [%2d] g_nb_y_dn = %3d\n"\
+		  "# [%2d] g_nb_z_up = %3d\n"\
+		  "# [%2d] g_nb_z_dn = %3d\n"\
                   "# [%2d] g_nb_list[0] = %3d\n"\
 		  "# [%2d] g_nb_list[1] = %3d\n"\
                   "# [%2d] g_nb_list[2] = %3d\n"\
 		  "# [%2d] g_nb_list[3] = %3d\n"\
                   "# [%2d] g_nb_list[4] = %3d\n"\
 		  "# [%2d] g_nb_list[5] = %3d\n"\
+                  "# [%2d] g_nb_list[6] = %3d\n"\
+		  "# [%2d] g_nb_list[7] = %3d\n"\
                   "# [%2d] g_ts_nproc   = %3d\n"\
 		  "# [%2d] g_ts_id      = %3d\n"\
                   "# [%2d] g_xs_nproc   = %3d\n"\
@@ -408,27 +530,32 @@ void mpi_init(int argc,char *argv[]) {
 		  "# [%2d] g_ts_nb_x_up = %3d\n"\
 		  "# [%2d] g_ts_nb_x_dn = %3d\n"\
 		  "# [%2d] g_ts_nb_y_up = %3d\n"\
-		  "# [%2d] g_ts_nb_y_dn = %3d\n",\
+		  "# [%2d] g_ts_nb_y_dn = %3d\n"\
+		  "# [%2d] g_ts_nb_z_up = %3d\n"\
+		  "# [%2d] g_ts_nb_z_dn = %3d\n",\
 		  g_cart_id, g_cart_id, g_nproc,
                   g_cart_id, g_nproc_t,
                   g_cart_id, g_nproc_x,
                   g_cart_id, g_nproc_y,
+                  g_cart_id, g_nproc_z,
 		  g_cart_id, g_proc_id,
 		  g_cart_id, g_cart_id,
-                  g_cart_id, g_nproc_t, 
-                  g_cart_id, g_nproc_x,
 		  g_cart_id, g_nb_t_up,
 		  g_cart_id, g_nb_t_dn,
 		  g_cart_id, g_nb_x_up,
 		  g_cart_id, g_nb_x_dn,
 		  g_cart_id, g_nb_y_up,
 		  g_cart_id, g_nb_y_dn,
+		  g_cart_id, g_nb_z_up,
+		  g_cart_id, g_nb_z_dn,
 		  g_cart_id, g_nb_list[0],
 		  g_cart_id, g_nb_list[1],
 		  g_cart_id, g_nb_list[2],
 		  g_cart_id, g_nb_list[3],
 		  g_cart_id, g_nb_list[4],
 		  g_cart_id, g_nb_list[5],
+		  g_cart_id, g_nb_list[6],
+		  g_cart_id, g_nb_list[7],
                   g_cart_id, g_ts_nproc,
                   g_cart_id, g_ts_id,
                   g_cart_id, g_xs_nproc,
@@ -436,7 +563,9 @@ void mpi_init(int argc,char *argv[]) {
 		  g_cart_id, g_ts_nb_x_up,
 		  g_cart_id, g_ts_nb_x_dn,
 		  g_cart_id, g_ts_nb_y_up,
-		  g_cart_id, g_ts_nb_y_dn);
+		  g_cart_id, g_ts_nb_y_dn,
+		  g_cart_id, g_ts_nb_z_up,
+		  g_cart_id, g_ts_nb_z_dn);
 #else  // HAVE_QUDA
 
 
@@ -656,9 +785,16 @@ void mpi_init(int argc,char *argv[]) {
 		  g_cart_id, g_ts_nb_y_dn);
 
 #endif  /* of ifndef HAVE_QUDA */
-#endif  /* of ifdef PARALLELTX || PARALLELTXY */
+
+#endif  /* of ifdef PARALLELTX || PARALLELTXY || PARALLELTXYZ */
+
   fprintf(stdout, "[mpi_init] proc%.2d one host %s\n", g_cart_id, processor_name);
-#else  /* MPI not defined */
+#else
+
+/****************************************************************
+ * MPI NOT defined 
+ ****************************************************************/
+
   g_nproc = 1;
   g_nproc_t = 1;
   g_nproc_x = 1;
@@ -709,6 +845,66 @@ void mpi_init(int argc,char *argv[]) {
 		  g_cart_id, g_nb_list[1]);
 #endif  /* of ifdef HAVE_MPI */
 
-}
+}  /* end of mpi_init */
+
+void mpi_init_xchange_contraction(int N) {
+
+  MPI_Type_contiguous(2*N, MPI_DOUBLE, &contraction_point);
+  MPI_Type_commit(&contraction_point);
+
+  /* ======================================================================== */
+
+  MPI_Type_contiguous(LX*LY*LZ, contraction_point, &contraction_time_slice_cont);
+  MPI_Type_commit(&contraction_time_slice_cont);
+
+  /* ------------------------------------------------------------------------ */
+
+  MPI_Type_contiguous(LY*LZ, contraction_point, &contraction_x_subslice_cont);
+  MPI_Type_commit(&contraction_x_subslice_cont);
+
+  MPI_Type_vector(T, 1, LX, contraction_x_subslice_cont, &contraction_x_slice_vector);
+  MPI_Type_commit(&contraction_x_slice_vector);
+
+  MPI_Type_contiguous(T*LY*LZ, contraction_point, &contraction_x_slice_cont);
+  MPI_Type_commit(&contraction_x_slice_cont);
+  
+  /* ------------------------------------------------------------------------ */
+
+  MPI_Type_contiguous(LX*LZ, contraction_point, &contraction_y_subslice_cont);
+  MPI_Type_commit(&contraction_y_subslice_cont);
+
+  MPI_Type_vector(T*LX, LZ, LY*LZ, contraction_point, &contraction_y_slice_vector);
+  MPI_Type_commit(&contraction_y_slice_vector);
+
+  MPI_Type_contiguous(T*LX*LZ, contraction_point, &contraction_y_slice_cont);
+  MPI_Type_commit(&contraction_y_slice_cont);
+  
+  /* ------------------------------------------------------------------------ */
+
+  MPI_Type_contiguous(LX*LY, contraction_point, &contraction_z_subslice_cont);
+  MPI_Type_commit(&contraction_z_subslice_cont);
+
+  MPI_Type_vector(T*LX*LY, 1, LZ, contraction_point, &contraction_z_slice_vector);
+  MPI_Type_commit(&contraction_z_slice_vector);
+
+  MPI_Type_contiguous(T*LX*LY, contraction_point, &contraction_z_slice_cont);
+  MPI_Type_commit(&contraction_z_slice_cont);
+
+}  /* end of mpi_init_xchange_contraction */
+
+void mpi_fini_xchange_contraction (void) {
+
+  MPI_Type_free(&contraction_z_slice_cont);
+  MPI_Type_free(&contraction_z_slice_vector);
+  MPI_Type_free(&contraction_z_subslice_cont);
+  MPI_Type_free(&contraction_y_slice_cont);
+  MPI_Type_free(&contraction_y_slice_vector);
+  MPI_Type_free(&contraction_y_subslice_cont);
+  MPI_Type_free(&contraction_x_slice_cont);
+  MPI_Type_free(&contraction_x_slice_vector);
+  MPI_Type_free(&contraction_x_subslice_cont);
+  MPI_Type_free(&contraction_time_slice_cont);
 
 }
+
+}  /* end of namespace cvc */

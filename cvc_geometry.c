@@ -27,29 +27,38 @@ unsigned long int get_index(const int t, const int x, const int y, const int z)
 
 #ifdef HAVE_MPI
   if(t==T) {
-    ix = VOLUME +              (xx*LY+yy)*LZ+zz;
+    ix = VOLUME +                                     (xx*LY+yy)*LZ+zz;
   }
   if(t==-1) {
-    ix = VOLUME +   LX*LY*LZ + (xx*LY+yy)*LZ+zz;
+    ix = VOLUME +    LX*LY*LZ  +                      (xx*LY+yy)*LZ+zz;
   }
-#  if defined PARALLELTX || defined PARALLELTXY
+#  if defined PARALLELTX || defined PARALLELTXY || defined PARALLELTXYZ
   if(x==LX) {
-    ix = VOLUME + 2*LX*LY*LZ +           (tt*LY+yy)*LZ+zz;
+    ix = VOLUME + 2*(LX*LY*LZ) +                      (tt*LY+yy)*LZ+zz;
   }
   if(x==-1) {
-    ix = VOLUME + 2*LX*LY*LZ + T*LY*LZ + (tt*LY+yy)*LZ+zz;
+    ix = VOLUME + 2*(LX*LY*LZ) + T*LY*LZ +            (tt*LY+yy)*LZ+zz;
   }
 #  endif
-#  if defined PARALLELTXY
+#  if defined PARALLELTXY || defined PARALLELTXYZ
   if(y==LY) {
-    ix = VOLUME + 2*(LX*LY*LZ + T*LY*LZ) + (tt*LX+xx)*LZ+zz;
+    ix = VOLUME + 2*(LX*LY*LZ  + T*LY*LZ) +           (tt*LX+xx)*LZ+zz;
   }
   if(y==-1) {
-    ix = VOLUME + 2*(LX*LY*LZ + T*LY*LZ) + T*LX*LZ + (tt*LX+xx)*LZ+zz;
+    ix = VOLUME + 2*(LX*LY*LZ  + T*LY*LZ) + T*LX*LZ + (tt*LX+xx)*LZ+zz;
   }
 #  endif
 
-#  if defined PARALLELTX || defined PARALLELTXY
+#if defined PARALLELTXYZ
+  if(z==LZ) {
+    ix = VOLUME + 2*(LX*LY*LZ + T*LY*LZ + T*LX*LZ) + (tt*LX+xx)*LY+yy;
+  }
+  if(z==-1) {
+    ix = VOLUME + 2*(LX*LY*LZ + T*LY*LZ + T*LX*LZ) + T*LX*LY + (tt*LX+xx)*LY+yy;
+  }
+#endif
+
+#  if defined PARALLELTX || defined PARALLELTXY || defined PARALLELTXYZ
 
   /* x-t-edges */
   if(x==LX) {
@@ -68,7 +77,7 @@ unsigned long int get_index(const int t, const int x, const int y, const int z)
       ix = VOLUME + RAND + 3*LY*LZ + yy*LZ+zz;
     }
   }
-#  if defined PARALLELTXY
+#  if defined PARALLELTXY || defined PARALLELTXYZ
   /* y-t-edges */
   if(t==T) {
     if(y==LY) {
@@ -104,11 +113,68 @@ unsigned long int get_index(const int t, const int x, const int y, const int z)
       ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ) + 3*T*LZ + tt*LZ+zz;
     }
   }
-#  endif  /* of if defined PARALLELTXY */
-#  endif  /* of if defined PARALLELTX || defined PARALLELTXY */
+#  if defined PARALLELTXYZ
+
+  /* z-t-edges */
+  if(z==LZ) {
+    if(t==T) {
+      ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ)           + xx*LY+yy;
+    }
+    if(t==-1) {
+      ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ) +   LX*LY + xx*LY+yy;
+    }
+  }
+  if(z==-1) {
+    if(t==T) {
+      ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ) + 2*LX*LY + xx*LY+yy;
+    }
+    if(t==-1) {
+      ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ) + 3*LX*LY + xx*LY+yy;
+    }
+  }
+
+  /* z-x-edges */
+  if(z==LZ) {
+    if(x==LX) {
+      ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ + LX*LY)          + tt*LY+yy;
+    }
+    if(x==-1) {
+      ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ + LX*LY) +   T*LY + tt*LY+yy;
+    }
+  }
+  if(z==-1) {
+    if(x==LX) {
+      ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ + LX*LY) + 2*T*LY + tt*LY+yy;
+    }
+    if(x==-1) {
+      ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ + LX*LY) + 3*T*LY + tt*LY+yy;
+    }
+  }
+
+  /* z-y-edges */
+  if(z==LZ) {
+    if(y==LY) {
+      ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ + LX*LY + T*LY)          + tt*LX+xx;
+    }
+    if(y==-1) {
+      ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ + LX*LY + T*LY) +   T*LX + tt*LX+xx;
+    }
+  }
+  if(z==-1) {
+    if(y==LY) {
+      ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ + LX*LY + T*LY) + 2*T*LX + tt*LX+xx;
+    }
+    if(y==-1) {
+      ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ + LX*LY + T*LY) + 3*T*LX + tt*LX+xx;
+    }
+  }
+
+#  endif  /* of if defined PARALLELTXYZ */
+#  endif  /* of if defined PARALLELTXY || defined PARALLELTXYZ */
+#  endif  /* of if defined PARALLELTX || defined PARALLELTXY || defined PARALLELTXYZ */
 #endif
   return(ix);
-}
+}  /* end of get_index */
 
 void geometry() {
 
@@ -121,39 +187,49 @@ void geometry() {
 #ifdef HAVE_MPI
   int start_valuet = 1;
 
-#  if defined PARALLELTX || defined PARALLELTXY
+#  if defined PARALLELTX || defined PARALLELTXY || defined PARALLELTXYZ
   int start_valuex = 1;
 #  else
   int start_valuex = 0;
 #  endif
 
-#  if defined PARALLELTXY
+#  if defined PARALLELTXY || defined PARALLELTXYZ
   int start_valuey = 1;
 #  else
   int start_valuey = 0;
+#  endif
+
+#  if defined PARALLELTXYZ
+  int start_valuez = 1;
+#  else
+  int start_valuez = 0;
 #  endif
 
 #else
   int start_valuet = 0;
   int start_valuex = 0;
   int start_valuey = 0;
+  int start_valuez = 0;
 #endif
+
+  fprintf(stdout, "# [geometry] start_value = (%3d, %3d, %3d, %3d)\n", start_valuet, start_valuex, start_valuey, start_valuez);
 
   for(x0=-start_valuet; x0<T +start_valuet; x0++) {
   for(x1=-start_valuex; x1<LX+start_valuex; x1++) {
   for(x2=-start_valuey; x2<LY+start_valuey; x2++) {
-
-  for(x3=0; x3<LZ; x3++) {
+  for(x3=-start_valuez; x3<LZ+start_valuez; x3++) {
 
     isboundary = 0;
     if(x0==-1 || x0== T) isboundary++;
     if(x1==-1 || x1==LX) isboundary++;
     if(x2==-1 || x2==LY) isboundary++;
+    if(x3==-1 || x3==LZ) isboundary++;
 
     y0=x0; y1=x1; y2=x2; y3=x3;
     if(x0==-1) y0=T +1;
     if(x1==-1) y1=LX+1;
     if(x2==-1) y2=LY+1;
+    if(x3==-1) y3=LZ+1;
 
     if(isboundary > 2) {
       g_ipt[y0][y1][y2][y3] = -1;
@@ -221,24 +297,20 @@ void geometry() {
     itzyx++;
   }}}}
 
-
-
 /*
-  if(g_cart_id==0) {
-
     for(x0=-start_valuet; x0< T+start_valuet; x0++) {
     for(x1=-start_valuex; x1<LX+start_valuex; x1++) {
     for(x2=-start_valuey; x2<LY+start_valuey; x2++) {
-    for(x3=0; x3<LZ; x3++) {
+    for(x3=-start_valuez; x3<LZ+start_valuez; x3++) {
       y0=x0; y1=x1; y2=x2; y3=x3;
       if(x0==-1) y0 = T+1;
       if(x1==-1) y1 =LX+1;
       if(x2==-1) y2 =LY+1;
+      if(x3==-1) y3 =LZ+1;
       fprintf(stdout, "[%2d geometry] %3d%3d%3d%3d%6d\n", g_cart_id, x0, x1, x2, x3, g_ipt[y0][y1][y2][y3]);
     }}}}
-
-  }
 */
+
 /*
   if(g_cart_id==0) {
     for(x0=-start_valuet; x0<T+start_valuet; x0++) {
@@ -251,10 +323,7 @@ void geometry() {
       fprintf(stdout, "%5d%5d%5d%5d%5d%5d%5d%5d%5d%5d%5d%5d\n", x0, x1, x2, x3, 
         g_iup[ix][0], g_idn[ix][0], g_iup[ix][1], g_idn[ix][1],
 	g_iup[ix][2], g_idn[ix][2], g_iup[ix][3], g_idn[ix][3]);
-    }
-    }
-    }
-    }
+    }}}}
   }
 */
 /*
@@ -274,7 +343,7 @@ void geometry() {
 int init_geometry(void) {
 
   int ix = 0, V;
-  int dx = 0, dy = 0;
+  int dx = 0, dy = 0, dz = 0;
 
   VOLUME         = T*LX*LY*LZ;
   VOLUMEPLUSRAND = VOLUME;
@@ -285,18 +354,25 @@ int init_geometry(void) {
   RAND           += 2*LX*LY*LZ;
   VOLUMEPLUSRAND += 2*LX*LY*LZ;
 
-#if defined PARALLELTX || defined PARALLELTXY
+#if defined PARALLELTX || defined PARALLELTXY || defined PARALLELTXYZ
   RAND           += 2*T*LY*LZ;
   EDGES          +=             4*LY*LZ;
   VOLUMEPLUSRAND += 2*T*LY*LZ + 4*LY*LZ;
   dx = 2;
 #endif
 
-#if defined PARALLELTXY
+#if defined PARALLELTXY || defined PARALLELTXYZ
   RAND           += 2*T*LX*LZ;
   EDGES          +=             4*LX*LZ + 4*T*LZ;
   VOLUMEPLUSRAND += 2*T*LX*LZ + 4*LX*LZ + 4*T*LZ;
   dy = 2;
+#endif
+
+#if defined PARALLELTXYZ
+  RAND           += 2*T*LX*LY;
+  EDGES          +=             4*LX*LY + 4*T*LX + 4*T*LY;
+  VOLUMEPLUSRAND += 2*T*LX*LY + 4*LX*LY + 4*T*LX + 4*T*LY;
+  dz = 2;
 #endif
 
 #endif  /* of ifdef HAVE_MPI */
@@ -332,7 +408,7 @@ int init_geometry(void) {
   ipt_ =  (int**)calloc((T+2)*(LX+dx)*(LY+dy), sizeof(int*));
   if((void*)ipt_ == NULL) return(7);
 
-  ipt =   (int*)calloc((T+2)*(LX+dx)*(LY+dy)*LZ, sizeof(int));
+  ipt =   (int*)calloc((T+2)*(LX+dx)*(LY+dy)*(LZ+dz), sizeof(int));
   if((void*)ipt == NULL) return(8);
 
  
@@ -346,7 +422,7 @@ int init_geometry(void) {
   ipt_[0]  = ipt;
   ipt__[0] = ipt_;
   g_ipt[0] = ipt__;
-  for(ix=1; ix<(T+2)*(LX+dx)*(LY+dy); ix++) ipt_[ix]  = ipt_[ix-1]  + LZ;
+  for(ix=1; ix<(T+2)*(LX+dx)*(LY+dy); ix++) ipt_[ix]  = ipt_[ix-1]  + (LZ+dz);
 
   for(ix=1; ix<(T+2)*(LX+dx);         ix++) ipt__[ix] = ipt__[ix-1] + (LY+dy);
 
@@ -379,8 +455,8 @@ int init_geometry(void) {
   co_phase_up[1].im = sin(BCangle[1]*M_PI / (double)(LX*g_nproc_x));
   co_phase_up[2].re = cos(BCangle[2]*M_PI / (double)(LY*g_nproc_y));
   co_phase_up[2].im = sin(BCangle[2]*M_PI / (double)(LY*g_nproc_y));
-  co_phase_up[3].re = cos(BCangle[3]*M_PI / (double)LZ);
-  co_phase_up[3].im = sin(BCangle[3]*M_PI / (double)LZ);
+  co_phase_up[3].re = cos(BCangle[3]*M_PI / (double)(LZ*g_nproc_z));
+  co_phase_up[3].im = sin(BCangle[3]*M_PI / (double)(LZ*g_nproc_z));
 
   /* initialize the gamma matrices */
   init_gamma();
@@ -407,161 +483,4 @@ void free_geometry() {
 }
 
 
-int init_multigrid_decompositon(int degree, int**lexic2sub, int***sub2lexic, int**insub) {
-
-  unsigned int nsublat = 0, lvol = 0;
-  unsigned int length=0;
-  unsigned int ix, isub, isub2, i, latnum;
-  unsigned int *eocounter[2] = {NULL, NULL};
-  int gx[4], rx[4], lx[4];
-  int x0, x1, x2, x3, lsize[4];
-  int isodd = degree % 2;
-
-  // TEST
-  FILE *ofs=NULL;
-  char filename[200];
-
-  if(*lexic2sub != NULL) {
-    free(*lexic2sub);
-    *lexic2sub = NULL;
-  }
-
-  if(*sub2lexic != NULL) {
-    free(*sub2lexic);
-    *sub2lexic = NULL;
-  }
-
-  if(*insub != NULL) {
-    free(*insub);
-    *insub = NULL;
-  }
-  
-  nsublat = 1<<((degree/2)*4 + isodd);
-  if(VOLUME % nsublat != 0) {
-    if(g_cart_id == 0) fprintf(stderr, "[] Error, nsublat !| VOLUME\n");
-    return(4);
-  }
-  lvol = VOLUME / nsublat;
-  length = 1<<(degree/2);
-
-  lsize[0] = T / length;
-  lsize[1] = LX / length;
-  lsize[2] = LY / length;
-  lsize[3] = LZ / length;
-
-  if(g_cart_id == 0) fprintf(stdout, "# number of sublattices = %u; sites per sublattice = %u, length = %u\n",
-      nsublat, lvol, length);
-
-  if( (*insub = (int*)malloc(VOLUME * sizeof(int))) == NULL ) {
-    return(1);
-  }
-
-  if( (*lexic2sub = (int*)malloc(VOLUME * sizeof(int))) == NULL ) {
-    return(2);
-  }
-
-  if( (*sub2lexic = (int**)malloc(nsublat * sizeof(int*))) == NULL ) return(3);
-  if( ( (*sub2lexic)[0] = (int*)malloc(nsublat*lvol * sizeof(int))) == NULL ) return(4);
-  for(i=1;i<nsublat;i++) (*sub2lexic)[i]  = (*sub2lexic)[i-1] + lvol;
-  
-  if(isodd) {
-    eocounter[0] = (unsigned int*)malloc(nsublat/2*sizeof(int));
-    eocounter[1] = (unsigned int*)malloc(nsublat/2*sizeof(int));
-    memset(eocounter[0],0,nsublat/2*sizeof(int));
-    memset(eocounter[1],0,nsublat/2*sizeof(int));
-  } else {
-    eocounter[0] = (unsigned int*)malloc(nsublat*sizeof(int));
-    memset(eocounter[0],0,nsublat*sizeof(int));
-  }
-
-  for(x0=0; x0<T;  x0++) {
-    gx[0] = x0 + g_proc_coords[0] * T;
-    lx[0] = gx[0] / length;
-    rx[0] = gx[0] % length;
-  for(x1=0; x1<LX; x1++) {
-    gx[1] = x1 + g_proc_coords[1] * LX;
-    lx[1] = gx[1] / length;
-    rx[1] = gx[1] % length;
-  for(x2=0; x2<LY; x2++) {
-    gx[2] = x2 + g_proc_coords[2] * LY;
-    lx[2] = gx[2] / length;
-    rx[2] = gx[2] % length;
-  for(x3=0; x3<LZ; x3++) {
-    gx[3] = x3 + g_proc_coords[3] * LZ;
-    lx[3] = gx[3] / length;
-    rx[3] = gx[3] % length;
-
-    ix = g_ipt[x0][x1][x2][x3];
-
-    latnum = ( ( rx[0] * length + rx[1] ) * length + rx[2] ) * length + rx[3];
-    //fprintf(stdout, "# inital latnum = %d\n", latnum);
-
-    // check for odd degree
-    if(isodd) {
-      i = ( lx[0] + lx[1] + lx[2] + lx[3] ) % 2;
-      isub = eocounter[i][latnum];
-      eocounter[i][latnum]++;
-      latnum = 2 * latnum + i;
-    } else {
-      // isub = ( ( lx[0] * lsize[1] + lx[1] ) * lsize[2] + lx[2] ) * lsize[3] + lx[3];
-      isub = eocounter[0][latnum];
-      eocounter[0][latnum]++;
-    }
-    //fprintf(stdout, "# final isub = %u\n", isub);
-    //fprintf(stdout, "# final latnum = %d\n", latnum);
-
-    (*lexic2sub)[ix]           = isub;
-    (*insub)[ix]               = latnum;
-    (*sub2lexic)[latnum][isub] = ix;
-
-  }}}}
-
-  // TEST
-
-  sprintf(filename, "geom.%.2d.%.2d", g_nproc, g_cart_id);
-  ofs = fopen(filename, "w");
-
-  fprintf(ofs, "# lexic2sub:\n");
-  for(x0=0; x0<T;  x0++) {
-  for(x1=0; x1<LX; x1++) {
-  for(x2=0; x2<LY; x2++) {
-  for(x3=0; x3<LZ; x3++) {
-    ix = g_ipt[x0][x1][x2][x3];
-    fprintf(ofs, "\t%6d |%3d%3d%3d%3d | %4d%6d\n", ix, x0, x1, x2, x3, (*insub)[ix], (*lexic2sub)[ix]);
-  }}}}
-
-  fprintf(ofs, "\n# sub2lexic:\n");
-  for(i=0;i<nsublat;i++) {
-      fprintf(ofs, "# sub lattice no. %d\n", i);
-    for(ix=0;ix<lvol;ix++) {
-      fprintf(ofs, "\t%3d%6d%6d\n", i, ix, (*sub2lexic)[i][ix]);
-    }
-  }
-  fclose(ofs);
-
-  if(eocounter[0] != NULL) free(eocounter[0]);
-  if(eocounter[1] != NULL) free(eocounter[1]);
-  return(0);
-}
-
-
-void fini_multigrid_decompositon(int**lexic2sub, int***sub2lexic, int**insub) {
-  if(*lexic2sub != NULL) {
-    free(*lexic2sub);
-    *lexic2sub = NULL;
-  }
-  if(*sub2lexic != NULL) {
-    if((*sub2lexic)[0] != NULL) {
-      free((*sub2lexic)[0]);
-    }
-    free(*sub2lexic);
-    *sub2lexic = NULL;
-  }
-  if(*insub != NULL) {
-    free(*insub);
-    *insub = NULL;
-  }
-  return;
-}
-
-}
+}  /* end of namespace cvc */

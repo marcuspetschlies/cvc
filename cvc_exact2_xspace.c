@@ -21,8 +21,17 @@
 #endif
 #include <getopt.h>
 
-#ifdef HAVE_TMLQCD_LIBWRAPPER
-#include "tmLQCD.h"
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+#  ifdef HAVE_TMLQCD_LIBWRAPPER
+#    include "tmLQCD.h"
+#  endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #define MAIN_PROGRAM
@@ -56,9 +65,11 @@ void usage() {
 int main(int argc, char **argv) {
   
   int c, i, j, mu, nu, ir, is, ia, ib, imunu;
+  int op_id = 0;
   int filename_set = 0;
-  int source_location, have_source_flag = 0;
+  int source_location, have_source_flag = 0, have_shifted_source_flag = 0;
   int x0, x1, x2, x3, ix;
+  int gsx0, gsx1, gsx2, gsx3;
   int sx0, sx1, sx2, sx3;
   int isimag[4];
   int gperm[5][4], gperm2[4][4];
@@ -67,6 +78,7 @@ int main(int argc, char **argv) {
   int exitstatus;
   int write_ascii=0;
   int source_proc_coords[4], source_proc_id = -1;
+  int shifted_source_coords[4], shifted_source_proc_coords[4];
   double gperm_sign[5][4], gperm2_sign[4][4];
   double *conn = (double*)NULL;
   double contact_term[8];
@@ -76,9 +88,10 @@ int main(int argc, char **argv) {
   double plaq;
   double spinor1[24], spinor2[24], U_[18];
   double *gauge_trafo=(double*)NULL;
-  double *phi=NULL, *chi=NULL;
+  double *phi=NULL, *chi=NULL, *source=NULL, *propagator=NULL;
   complex w, w1;
   double Usourcebuff[72], *Usource[4];
+  int LLBase[4];
   FILE *ofs;
 
 #ifdef HAVE_MPI
@@ -154,8 +167,6 @@ int main(int argc, char **argv) {
   omp_set_num_threads(g_num_threads);
 #endif
 
-
-
   /* some checks on the input data */
   if((T_global == 0) || (LX==0) || (LY==0) || (LZ==0)) {
     if(g_proc_id==0) fprintf(stderr, "[cvc_exact2_xspace] T and L's must be set\n");
@@ -175,6 +186,11 @@ int main(int argc, char **argv) {
   }
 
   geometry();
+
+  LLBase[0] = T_global;
+  LLBase[1] = LX_global;
+  LLBase[2] = LY_global;
+  LLBase[3] = LZ_global;
 
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
@@ -222,44 +238,55 @@ int main(int argc, char **argv) {
 
   /* allocate memory for the spinor fields */
   no_fields = 120;
+#ifdef HAVE_TMLQCD_LIBWRAPPER
+  no_fields++;
+#endif
+
   g_spinor_field = (double**)calloc(no_fields, sizeof(double*));
   for(i=0; i<no_fields; i++) alloc_spinor_field(&g_spinor_field[i], VOLUME+RAND);
 
+#ifdef HAVE_TMLQCD_LIBWRAPPER
+  source = g_spinor_field[no_fields-1];
+#endif
+
   /* allocate memory for the contractions */
-  conn = (double*)malloc(32*VOLUME*sizeof(double));
+  conn = (double*)malloc(32*(VOLUME+RAND)*sizeof(double));
   if( conn == NULL ) {
     fprintf(stderr, "[cvc_exact2_xspace] could not allocate memory for contr. fields\n");
     EXIT(3);
   }
-#ifdef OPENMP
-#pragma omp parallel for
-#endif
+
+
+
   memset(conn, 0, 32*VOLUME*sizeof(double));
 
   /***********************************************************
    * determine source coordinates, find out, if source_location is in this process
    ***********************************************************/
-#if (defined PARALLELTX) || (defined PARALLELTXY)
-  sx0 = g_source_location / (LX_global*LY_global*LZ);
-  sx1 = (g_source_location%(LX_global*LY_global*LZ)) / (LY_global*LZ);
-  sx2 = (g_source_location%(LY_global*LZ)) / LZ;
-  sx3 = (g_source_location%LZ);
-  source_proc_coords[0] = sx0 / T;
-  source_proc_coords[1] = sx1 / LX;
-  source_proc_coords[2] = sx2 / LY;
-  source_proc_coords[3] = 0;
+#if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ)
+  gsx0 = g_source_location / ( LX_global * LY_global * LZ_global);
+  gsx1 = (g_source_location % ( LX_global * LY_global * LZ_global)) / (LY_global * LZ_global);
+  gsx2 = (g_source_location % ( LY_global * LZ_global)) / LZ_global;
+  gsx3 = (g_source_location % LZ_global);
+  source_proc_coords[0] = gsx0 / T;
+  source_proc_coords[1] = gsx1 / LX;
+  source_proc_coords[2] = gsx2 / LY;
+  source_proc_coords[3] = gsx3 / LZ;
+
+  if(g_cart_id == 0) {
+    fprintf(stdout, "# [cvc_exact2_xspace] global source coordinates: (%3d,%3d,%3d,%3d)\n",  gsx0, gsx1, gsx2, gsx3);
+    fprintf(stdout, "# [cvc_exact2_xspace] source proc coordinates: (%3d,%3d,%3d,%3d)\n",  source_proc_coords[0], source_proc_coords[1], source_proc_coords[2], source_proc_coords[3]);
+  }
+
   MPI_Cart_rank(g_cart_grid, source_proc_coords, &source_proc_id);
   have_source_flag = (int)(g_cart_id == source_proc_id);
   if(have_source_flag==1) {
     fprintf(stdout, "# [cvc_exact2_xspace] process %2d has source location\n", source_proc_id);
-    fprintf(stdout, "# [cvc_exact2_xspace] global source coordinates: (%3d,%3d,%3d,%3d)\n",  sx0, sx1, sx2, sx3);
-    fprintf(stdout, "# [cvc_exact2_xspace] source proc coordinates: (%3d,%3d,%3d,%3d)\n",  source_proc_coords[0],
-        source_proc_coords[1], source_proc_coords[2], source_proc_coords[3]);
   }
-  sx0 = sx0 % T;
-  sx1 = sx1 % LX;
-  sx2 = sx2 % LY;
-  sx3 = sx3 % LZ;
+  sx0 = gsx0 % T;
+  sx1 = gsx1 % LX;
+  sx2 = gsx2 % LY;
+  sx3 = gsx3 % LZ;
 # else
   have_source_flag = (int)(g_source_location/(LX*LY*LZ)>=Tstart && g_source_location/(LX*LY*LZ)<(Tstart+T));
   if(have_source_flag==1) fprintf(stdout, "[cvc_exact2_xspace] process %2d has source location\n", g_cart_id);
@@ -281,7 +308,7 @@ int main(int argc, char **argv) {
     _cm_eq_cm_ti_co(Usource[3], &g_gauge_field[_GGI(source_location,3)], &co_phase_up[3]);
   }
 #ifdef HAVE_MPI
-#  if (defined PARALLELTX) || (defined PARALLELTXY)
+#  if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ)
   have_source_flag = source_proc_id;
   MPI_Bcast(Usourcebuff, 72, MPI_DOUBLE, have_source_flag, g_cart_grid);
 #  else
@@ -296,8 +323,9 @@ int main(int argc, char **argv) {
   MPI_Bcast(&have_source_flag, 1, MPI_INT, 0, g_cart_grid);
   MPI_Bcast(Usourcebuff, 72, MPI_DOUBLE, have_source_flag, g_cart_grid);
 #  endif
-  fprintf(stdout, "# [cvc_exact2_xspace] proc%.4d have_source_flag = %d\n", g_cart_id, have_source_flag);
+  /* fprintf(stdout, "# [cvc_exact2_xspace] proc%.4d have_source_flag = %d\n", g_cart_id, have_source_flag); */
 #else
+  /* HAVE_MPI not defined */
   have_source_flag = 0;
 #endif
 
@@ -368,6 +396,8 @@ int main(int argc, char **argv) {
   ratime = (double)clock() / CLOCKS_PER_SEC;
 #endif
 
+#ifndef HAVE_TMLQCD_LIBWRAPPER
+
   /**********************************************************
    * read up spinor fields
    **********************************************************/
@@ -398,13 +428,132 @@ int main(int argc, char **argv) {
     }  /* of loop on ia */
   }    /* of loop on mu */
 
+#else
+
+  /***********************************************************
+   * invert using tmLQCD invert
+   ***********************************************************/
+
+  if(g_tmLQCD_lat.no_operators != 2) {
+    fprintf(stderr, "[] Error, confused about number of operators, expected 2 operators (up-type, dn-tpye)\n");
+    EXIT(6);
+  }
+ 
+  /* op_id runs over 0 / up-type quarks and 1 / dn-type quarks */
+
+  /*************************************************************
+   *************************************************************
+   **
+   ** make sure eigenvectors are recalculated when chaning from
+   **   op_id 0 to op_id 1
+   **
+   *************************************************************
+   *************************************************************/
+
+  for ( op_id = 0; op_id < 2; op_id++ ) {
+
+    if(g_cart_id == 0) fprintf(stdout, "# [] using op_id = %d\n", op_id);
+
+    for(mu=0; mu<5; mu++) {
+  
+      shifted_source_coords[0] = gsx0;
+      shifted_source_coords[1] = gsx1;
+      shifted_source_coords[2] = gsx2;
+      shifted_source_coords[3] = gsx3;
+  
+      /* fprintf(stdout, "# [] proc%.4d global source coords = ( %d, %d, %d, %d )\n", g_cart_id,
+          shifted_source_coords[0], shifted_source_coords[1],
+          shifted_source_coords[2], shifted_source_coords[3]); */
+
+
+
+      if(mu < 4) shifted_source_coords[mu] = ( shifted_source_coords[mu] + 1 ) % LLBase[mu];
+
+      /* fprintf(stdout, "# [] proc%.4d shifted global source coords (%d) = ( %d, %d, %d, %d )\n", g_cart_id, mu,
+          shifted_source_coords[0], shifted_source_coords[1],
+          shifted_source_coords[2], shifted_source_coords[3]); */
+        
+      shifted_source_proc_coords[0] = shifted_source_coords[0] / T;
+      shifted_source_proc_coords[1] = shifted_source_coords[1] / LX;
+      shifted_source_proc_coords[2] = shifted_source_coords[2] / LY;
+      shifted_source_proc_coords[3] = shifted_source_coords[3] / LZ;
+ 
+      /* fprintf(stdout, "# [] proc%.4d shifted source proc coords (%d) = ( %d, %d, %d, %d )\n", g_cart_id, mu,
+        shifted_source_proc_coords[0], shifted_source_proc_coords[1],
+        shifted_source_proc_coords[2], shifted_source_proc_coords[3]); */
+
+      MPI_Cart_rank(g_cart_grid, shifted_source_proc_coords, &source_proc_id);
+      have_shifted_source_flag = (int)(g_cart_id == source_proc_id);
+  
+      shifted_source_coords[0] = shifted_source_coords[0] % T;
+      shifted_source_coords[1] = shifted_source_coords[1] % LX;
+      shifted_source_coords[2] = shifted_source_coords[2] % LY;
+      shifted_source_coords[3] = shifted_source_coords[3] % LZ;
+
+      /* fprintf(stdout, "# [] proc%.4d shifted local source coords (%d) = ( %d, %d, %d, %d )\n", g_cart_id, mu,
+          shifted_source_coords[0], shifted_source_coords[1],
+          shifted_source_coords[2], shifted_source_coords[3]);*/
+
+      if(have_shifted_source_flag) {
+        fprintf(stdout, "# [] proc%.4d have shifted source flag\n", g_cart_id);
+        fprintf(stdout, "# [] shifted source proc coords  (%d) = ( %d, %d, %d, %d )\n", mu,
+            shifted_source_proc_coords[0], shifted_source_proc_coords[1],
+            shifted_source_proc_coords[2], shifted_source_proc_coords[3]);
+        fprintf(stdout, "# [] global shifted source coords (%d) = ( %d, %d, %d, %d )\n", mu,
+            shifted_source_coords[0] + g_proc_coords[0] * T,  shifted_source_coords[1] + g_proc_coords[1] * LX,
+            shifted_source_coords[2] + g_proc_coords[2] * LY, shifted_source_coords[3] + g_proc_coords[3] * LZ );
+        fprintf(stdout, "# [] local shifted source coords  (%d) = ( %d, %d, %d, %d )\n", mu,
+            shifted_source_coords[0], shifted_source_coords[1],
+            shifted_source_coords[2], shifted_source_coords[3] );
+      }
+
+
+      for(ia=0; ia<12; ia++) {
+
+        memset(source, 0, 24*VOLUME*sizeof(double));
+        if(have_shifted_source_flag) {
+          source[ _GSI( g_ipt[shifted_source_coords[0]][shifted_source_coords[1]][shifted_source_coords[2]][shifted_source_coords[3]] ) + 2*ia ] = 1.;
+        }
+
+        xchange_field(source);
+
+        propagator = g_spinor_field[12 * ( op_id * 5 + mu ) + ia];
+  
+        exitstatus = tmLQCD_invert(propagator, source, op_id, g_write_propagator);
+        if(exitstatus != 0) {
+          fprintf(stderr, "[] Error from tmLQCD_invert, status was %d\n", exitstatus);
+          EXIT(7);
+        }
+#if 0    
+#endif  /* of if 0 */  
+        xchange_field(propagator);
+
+      }  /* end of loop on spin-color component */
+
+    }  /* end of loop on mu shift direction */
+
+  }  /* end of loop on op_id */
+
+
+
+#endif
+
 #ifdef HAVE_MPI
   retime = MPI_Wtime();
 #else
   retime = (double)clock() / CLOCKS_PER_SEC;
 #endif
-  if(g_cart_id==0) fprintf(stdout, "# [cvc_exact2_xspace] reading in %e seconds\n", retime-ratime);
+  if(g_cart_id==0) fprintf(stdout, "# [cvc_exact2_xspace] reading / invert in %e seconds\n", retime-ratime);
 
+#if 0
+
+  /**********************************************************
+   **********************************************************
+   **
+   ** contractions
+   **
+   **********************************************************
+   **********************************************************/  
 
 #ifdef HAVE_MPI
   ratime = MPI_Wtime();
@@ -413,16 +562,11 @@ int main(int argc, char **argv) {
 #endif
 
   /**********************************************************
-   **********************************************************
-   **
-   ** first contribution
-   **
-   **********************************************************
+   * first contribution
    **********************************************************/  
 
-  /**********************************************
-   * loop on the Lorentz index nu at source 
-   **********************************************/
+  
+  /* loop on the Lorentz index nu at source */
   for(nu=0; nu<4; nu++) 
   {
 
@@ -439,14 +583,16 @@ int main(int argc, char **argv) {
         {
 
           imunu = 4*mu+nu;
-#ifdef OPENMP
-#pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
-#endif
+/* #ifdef OPENMP */
+/* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
+/* #endif */
           for(ix=0; ix<VOLUME; ix++) {
 /*
+#  ifdef OPENMP
             threadid = omp_get_thread_num();
             nthreads = omp_get_num_threads();
             fprintf(stdout, "[thread%d] number of threads = %d\n", threadid, nthreads);
+#  endif
 */
 
             _cm_eq_cm_ti_co(U_, &g_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
@@ -467,9 +613,9 @@ int main(int argc, char **argv) {
         
           }  /* of ix */
 
-#ifdef OPENMP
-#pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
-#endif
+/* #ifdef OPENMP */
+/* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
+/* #endif */
           for(ix=0; ix<VOLUME; ix++) {
             _cm_eq_cm_ti_co(U_, &g_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
 
@@ -505,9 +651,9 @@ int main(int argc, char **argv) {
 
           imunu = 4*mu+nu;
 
-#ifdef OPENMP
-#pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
-#endif
+/* #ifdef OPENMP */
+/* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
+/* #endif */
           for(ix=0; ix<VOLUME; ix++) {
             _cm_eq_cm_ti_co(U_, &g_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
 
@@ -522,9 +668,9 @@ int main(int argc, char **argv) {
 
           }  /* of ix */
 
-#ifdef OPENMP
-#pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
-#endif
+/* #ifdef OPENMP */
+/* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
+/* #endif */
           for(ix=0; ix<VOLUME; ix++) {
             _cm_eq_cm_ti_co(U_, &g_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
 
@@ -563,16 +709,10 @@ int main(int argc, char **argv) {
   }
 
   /**********************************************************
-   **********************************************************
-   **
-   ** second contribution
-   **
-   **********************************************************
+   * second contribution
    **********************************************************/  
 
-  /**********************************************
-   * loop on the Lorentz index nu at source 
-   **********************************************/
+  /* loop on the Lorentz index nu at source */
   for(nu=0; nu<4; nu++) 
   {
 
@@ -591,9 +731,9 @@ int main(int argc, char **argv) {
 
           imunu = 4*mu+nu;
 
-#ifdef OPENMP
-#pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
-#endif
+/* #ifdef OPENMP */
+/* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
+/* #endif */
           for(ix=0; ix<VOLUME; ix++) {
             _cm_eq_cm_ti_co(U_, &g_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
 
@@ -613,9 +753,9 @@ int main(int argc, char **argv) {
         
           }  /* of ix */
 
-#ifdef OPENMP
-#pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
-#endif
+/* #ifdef OPENMP */
+/* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
+/* #endif */
           for(ix=0; ix<VOLUME; ix++) {
             _cm_eq_cm_ti_co(U_, &g_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
 
@@ -651,9 +791,9 @@ int main(int argc, char **argv) {
 
           imunu = 4*mu+nu;
 
-#ifdef OPENMP
-#pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
-#endif
+/* #ifdef OPENMP */
+/* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
+/* #endif */
           for(ix=0; ix<VOLUME; ix++) {
             _cm_eq_cm_ti_co(U_, &g_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
 
@@ -668,9 +808,9 @@ int main(int argc, char **argv) {
         
           }  /* of ix */
 
-#ifdef OPENMP
-#pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu)
-#endif
+/* #ifdef OPENMP */
+/* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
+/* #endif */
           for(ix=0; ix<VOLUME; ix++) {
             _cm_eq_cm_ti_co(U_, &g_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
 
@@ -776,9 +916,10 @@ int main(int argc, char **argv) {
 #endif
   if(g_cart_id==0) fprintf(stdout, "# [cvc_exact2_xspace] saved position space results in %e seconds\n", retime-ratime);
 
-#ifndef HAVE_MPI
+
   /* check the Ward identity in position space */
   if(check_position_space_WI) {
+    xchange_contraction(conn, 32);
     sprintf(filename, "WI_X.%.4d", Nconf);
     ofs = fopen(filename,"w");
     fprintf(stdout, "\n# [cvc_exact2_xspace] checking Ward identity in position space ...\n");
@@ -804,7 +945,7 @@ int main(int argc, char **argv) {
     }}}}
     fclose(ofs);
   }
-#endif
+
 
 #ifdef HAVE_MPI
   if(g_cart_id==0) fprintf(stdout, "# [cvc_exact2_xspace_xspace] broadcasing contact term ...\n");
@@ -814,6 +955,8 @@ int main(int argc, char **argv) {
       g_cart_id, contact_term[0], contact_term[1], contact_term[2], contact_term[3],
       contact_term[4], contact_term[5], contact_term[6], contact_term[7]);
 #endif
+
+#endif  /* of if 0 */
 
   /****************************************
    * free the allocated memory, finalize

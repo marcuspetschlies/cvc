@@ -2,7 +2,6 @@
 
 #define _FILE_OFFSET_BITS 64
 
-#include"lime.h"
 #ifdef HAVE_CONFIG_H
 # include<config.h>
 #endif
@@ -19,7 +18,19 @@
 #include"global.h"
 #include"cvc_complex.h"
 #include"cvc_linalg.h"
-#include"lime.h"
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+#  include"lime.h"
+
+#ifdef __cplusplus
+}
+#endif
+
+
 #include"read_input_parser.h"
 #include"io_utils.h"
 #include"dml.h"
@@ -99,7 +110,7 @@ int write_binary_gauge_data(LimeWriter * limewriter,
     }
   }
 #ifdef HAVE_MPI
-#ifndef PARALLELTX
+
   tgeom[0] = Tstart;
   tgeom[1] = T;
   for(iproc=1; iproc<g_nproc; iproc++) {
@@ -176,7 +187,7 @@ int write_binary_gauge_data(LimeWriter * limewriter,
       fprintf(stdout, "# time spent writing: %e\n", tock-tick);
     }
   }
-#endif
+
 #endif
 
   return(0);
@@ -418,7 +429,7 @@ n_uint64_t file_size(FILE *fp)
 }
 
 int read_nersc_gauge_field(double*s, char*filename, double *plaq) {
-#if (defined PARALLELTX) || (defined PARALLELTXY) 
+#if (defined PARALLELTX) || (defined PARALLELTXY)  || (defined PARALLELTXYZ) 
   EXIT_WITH_MSG(1, "[read_nersc_gauge_field] >1-dim. parallel version not yet implemented\n");
 #endif
 /*
@@ -947,7 +958,7 @@ int read_nersc_gauge_binary_data_3col(FILE*ifs, double*s, DML_Checksum*ans) {
 
 
 int read_nersc_gauge_field_3x3(double*s, char*filename, double *plaq) {
-#if (defined PARALLELTX) || (defined PARALLELTXY)
+#if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ)
   EXIT_WITH_MSG(1, "\n[read_nersc_gauge_field_3x3] Error, 2- and 3-dim. parallel versions not yet implemented; exit\n");
 #endif
 /*

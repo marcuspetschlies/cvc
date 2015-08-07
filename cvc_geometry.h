@@ -18,8 +18,5 @@ void geometry_5d(void);
 int init_geometry_5d(void);
 void free_geometry_5d(void);
 
-// multigrid decomposition
-int init_multigrid_decompositon(int degree, int**lexic2sub, int***sub2lexic, int**insub);
-void fini_multigrid_decompositon(int**lexic2sub, int***sub2lexic, int**insub);
 }
 #endif

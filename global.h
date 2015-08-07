@@ -122,6 +122,7 @@ EXTERN int g_nb_z_up, g_nb_z_dn;
 EXTERN int g_ts_nb_up, g_ts_nb_dn;
 EXTERN int g_ts_nb_x_up, g_ts_nb_x_dn;
 EXTERN int g_ts_nb_y_up, g_ts_nb_y_dn;
+EXTERN int g_ts_nb_z_up, g_ts_nb_z_dn;
 
 EXTERN int g_nproc_t, g_nproc_x, g_nproc_y, g_nproc_z;
 
@@ -181,7 +182,7 @@ EXTERN char g_rng_filename[100];
 EXTERN int g_source_index[2];
 EXTERN int g_propagator_bc_type, g_propagator_gamma_basis;
 EXTERN int g_propagator_precision;
-EXTERN int g_write_source, g_read_source;
+EXTERN int g_write_source, g_read_source, g_write_propagator;
 EXTERN int g_nsample;
 EXTERN int g_sv_dim, g_cv_dim, g_fv_dim, g_cm_dim, g_fp_dim;
 EXTERN double g_as_over_a;

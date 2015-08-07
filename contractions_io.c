@@ -11,7 +11,6 @@
 
 #define _FILE_OFFSET_BITS 64
 
-#include "lime.h" 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -23,10 +22,20 @@
 #  include <mpi.h>
 #  include <unistd.h>
 #endif
-#include "lime.h" 
-#ifdef HAVE_LIBLEMON
-#  include "lemon.h"
+
+#ifdef __cplusplus
+extern "C"
+{
 #endif
+#  include "lime.h" 
+#  ifdef HAVE_LIBLEMON
+#    include "lemon.h"
+#  endif
+
+#ifdef __cplusplus
+}
+#endif
+
 #include "cvc_complex.h"
 #include "global.h"
 #include "cvc_geometry.h"
@@ -44,287 +53,12 @@ namespace cvc {
  * write_binary_contraction_data
  ****************************************************/
 #ifndef HAVE_LIBLEMON
-int write_binary_contraction_data(double * const s, LimeWriter * limewriter,
-                                      const int prec, const int N, DML_Checksum * ans) {
+int write_binary_contraction_data(double * const s, LimeWriter * limewriter, const int prec, const int N, DML_Checksum * ans) {
 
-  int x, y, z, t, i=0, mu, status=0;
-  double *tmp;
-  float  *tmp2;
-  int proc_coords[4], tloc,xloc,yloc,zloc, proc_id;
-  n_uint64_t bytes;
-  DML_SiteRank rank;
-  int words_bigendian = big_endian();
-#ifdef HAVE_MPI
-  int iproc, tag;
-  int tgeom[2];
-  double *buffer;
-  MPI_Status mstatus;
-#endif
-  DML_checksum_init(ans);
-
-#if !(defined PARALLELTX) && !(defined PARALLELTXY)
-  tmp = (double*)malloc(2*N*sizeof(double));
-  tmp2 = (float*)malloc(2*N*sizeof(float));
-
-  if(prec == 32) bytes = (n_uint64_t)2*N*sizeof(float);
-  else bytes = (n_uint64_t)2*N*sizeof(double);
-
-  if(g_cart_id==0) {
-    for(t = 0; t < T; t++) {
-      for(x = 0; x < LX; x++) {
-      for(y = 0; y < LY; y++) {
-      for(z = 0; z < LZ; z++) {
-        /* Rank should be computed by proc 0 only */
-        rank = (DML_SiteRank) ((( (t+Tstart)*LX + x)*LY + y)*LZ + z);
-        for(mu=0; mu<N; mu++) {
-          i = _GWI(mu, g_ipt[t][x][y][z], VOLUME);
-          if(!words_bigendian) {
-            if(prec == 32) {
-              byte_swap_assign_double2single( (tmp2+2*mu), (s + i), 2);
-            } else {
-              byte_swap_assign( (tmp+2*mu), (s + i), 2);
-            }
-          } else {
-            if(prec == 32) {
-              double2single((float*)(tmp2+2*mu), (s + i), 2);
-            } else {
-              tmp[2*mu  ] = s[i  ];
-              tmp[2*mu+1] = s[i+1];
-            }
-          }
-        }
-        if(prec == 32) {
-          DML_checksum_accum(ans,rank,(char *) tmp2,2*N*sizeof(float));
-          status = limeWriteRecordData((void*)tmp2, &bytes, limewriter);
-        }
-        else {
-          status = limeWriteRecordData((void*)tmp, &bytes, limewriter);
-          DML_checksum_accum(ans,rank,(char *) tmp, 2*N*sizeof(double));
-        }
-      }
-      }
-      }
-    }
-  }
-#ifdef HAVE_MPI
-  tgeom[0] = Tstart;
-  tgeom[1] = T;
-  if( (buffer = (double*)malloc(2*N*LX*LY*LZ*sizeof(double))) == (double*)NULL ) {
-    fprintf(stderr, "Error from malloc for buffer\n");
-    MPI_Abort(MPI_COMM_WORLD, 1);
-    MPI_Finalize();
-  }
-  for(iproc=1; iproc<g_nproc; iproc++) {
-    if(g_cart_id==0) {
-      tag = 2 * iproc;
-      MPI_Recv((void*)tgeom, 2, MPI_INT, iproc, tag, g_cart_grid, &mstatus);
-      fprintf(stdout, "# iproc = %d; Tstart = %d, T = %d\n", iproc, tgeom[0], tgeom[1]);
-       
-      for(t=0; t<tgeom[1]; t++) {
-        tag = 2 * ( t*g_nproc + iproc ) + 1;
-        MPI_Recv((void*)buffer, 2*N*LX*LY*LZ, MPI_DOUBLE,  iproc, tag, g_cart_grid, &mstatus);
-
-        i=0;
-        for(x=0; x<LX; x++) {
-        for(y=0; y<LY; y++) {
-        for(z=0; z<LZ; z++) {
-          /* Rank should be computed by proc 0 only */
-          rank = (DML_SiteRank) ((( (t+tgeom[0])*LX + x)*LY + y)*LZ + z);
-          if(!words_bigendian) {
-            if(prec == 32) {
-              byte_swap_assign_double2single((float*)tmp2, (buffer + i), 2*N);
-              DML_checksum_accum(ans,rank,(char *) tmp2,2*N*sizeof(float));
-              status = limeWriteRecordData((void*)tmp2, &bytes, limewriter);
-            } else {
-              byte_swap_assign(tmp, (buffer + i), 2*N);
-              status = limeWriteRecordData((void*)tmp, &bytes, limewriter);
-              DML_checksum_accum(ans,rank,(char *)tmp, 2*N*sizeof(double));
-            }
-          } else {
-            if(prec == 32) {
-              double2single((float*)tmp2, (buffer + i), 2*N);
-              DML_checksum_accum(ans,rank,(char *) tmp2,2*N*sizeof(float));
-              status = limeWriteRecordData((void*)tmp2, &bytes, limewriter);
-            } else {
-              status = limeWriteRecordData((void*)(buffer+i), &bytes, limewriter);
-              DML_checksum_accum(ans,rank,(char *) (buffer+i), 2*N*sizeof(double));
-            }
-          }
-          i += 2*N;
-        }
-        }
-        }
-      }
-    }
-    if(g_cart_id==iproc) {
-      tag = 2 * iproc;
-      MPI_Send((void*)tgeom, 2, MPI_INT, 0, tag, g_cart_grid);
-      for(t=0; t<T; t++) {
-        i=0;
-        for(x=0; x<LX; x++) {  
-        for(y=0; y<LY; y++) {  
-        for(z=0; z<LZ; z++) {
-          for(mu=0; mu<N; mu++) {
-            buffer[i  ] = s[_GWI(mu,g_ipt[t][x][y][z],VOLUME)  ];
-            buffer[i+1] = s[_GWI(mu,g_ipt[t][x][y][z],VOLUME)+1];
-            i+=2;
-          }
-        }
-        }
-        }
-        tag = 2 * ( t*g_nproc + iproc) + 1;
-        MPI_Send((void*)buffer, 2*N*LX*LY*LZ, MPI_DOUBLE, 0, tag, g_cart_grid);
-      }
-    }
-    MPI_Barrier(g_cart_grid);
-
-  } /* of iproc = 1, ..., g_nproc-1 */
-  free(buffer);
-#endif
-
-#elif (defined PARALLELTXY)  && !(defined PARALLELTX)
-  tmp = (double*)malloc(2*N*LZ*sizeof(double));
-  tmp2 = (float*)malloc(2*N*LZ*sizeof(float));
-
-  if( (buffer = (double*)malloc(2*N*LZ*sizeof(double))) == (double*)NULL ) {
-    fprintf(stderr, "Error from malloc for buffer\n");
-    MPI_Abort(MPI_COMM_WORLD, 115);
-    MPI_Finalize();
-    exit(115);
-  }
-
-  if(prec == 32) bytes = (n_uint64_t)2*N*sizeof(float);   // single precision 
-  else           bytes = (n_uint64_t)2*N*sizeof(double);  // double precision
-
-  proc_coords[3] = 0;
-  zloc = 0;
-
-  for(t = 0; t < T_global; t++) {
-    proc_coords[0] = t / T;
-    tloc = t % T;
-    for(x = 0; x < LX_global; x++) {
-      proc_coords[1] = x / LX;
-      xloc = x % LX;
-      for(y = 0; y < LY_global; y++) {
-        proc_coords[2] = y / LY;
-        yloc = y % LY;
-        
-        MPI_Cart_rank(g_cart_grid, proc_coords, &proc_id);
-        if(g_cart_id == 0) {
-          // fprintf(stdout, "\t(%d,%d,%d,%d) ---> (%d,%d,%d,%d) = %d\n", t,x,y,0, \
-              proc_coords[0],  proc_coords[1],  proc_coords[2],  proc_coords[3], proc_id);
-        }
-        tag = (t*LX+x)*LY+y;
-
-        // a send and recv must follow
-        if(g_cart_id == 0) {
-          if(g_cart_id == proc_id) {
-            // fprintf(stdout, "process 0 writing own data for (t,x,y)=(%d,%d,%d) / (%d,%d,%d) ...\n", t,x,y, tloc,xloc,yloc);
-            i=0;
-            for(z=0; z<LZ; z++) {
-              for(mu=0; mu<N; mu++) {
-                buffer[i  ] = s[_GWI(mu,g_ipt[tloc][xloc][yloc][z],VOLUME)  ];
-                buffer[i+1] = s[_GWI(mu,g_ipt[tloc][xloc][yloc][z],VOLUME)+1];
-                i+=2;
-              }
-            }
-            i=0;
-            for(z = 0; z < LZ; z++) {
-              /* Rank should be computed by proc 0 only */
-              rank = (DML_SiteRank) ((( t*LX_global + x)*LY_global + y)*LZ + z);
-              if(!words_bigendian) {
-                if(prec == 32) {
-                  byte_swap_assign_double2single((float*)tmp2, (buffer + i), 2*N);
-                  DML_checksum_accum(ans,rank,(char *) tmp2,2*N*sizeof(float));
-                  status = limeWriteRecordData((void*)tmp2, &bytes, limewriter);
-                } else {
-                  byte_swap_assign(tmp, (buffer + i), 2*N);
-                  status = limeWriteRecordData((void*)tmp, &bytes, limewriter);
-                  DML_checksum_accum(ans,rank,(char *)tmp, 2*N*sizeof(double));
-                }
-              } else {
-                if(prec == 32) {
-                  double2single((float*)tmp2, (buffer + i), 2*N);
-                  DML_checksum_accum(ans,rank,(char *) tmp2,2*N*sizeof(float));
-                  status = limeWriteRecordData((void*)tmp2, &bytes, limewriter);
-                } else {
-                  status = limeWriteRecordData((void*)(buffer+i), &bytes, limewriter);
-                  DML_checksum_accum(ans,rank,(char *) (buffer+i), 2*N*sizeof(double));
-                }
-              }
-              i += 2*N;
-            }
-          } else {
-            MPI_Recv(buffer, 2*N*LZ, MPI_DOUBLE, proc_id, tag, g_cart_grid, &mstatus);
-            // fprintf(stdout, "process 0 receiving data from process %d for (t,x,y)=(%d,%d,%d) ...\n", proc_id, t,x,y);
-            i=0;
-            for(z=0; z<LZ; z++) {
-              /* Rank should be computed by proc 0 only */
-              rank = (DML_SiteRank) ((( t * LX_global + x ) * LY_global + y ) * LZ + z);
-              // fprintf(stdout, "(%d,%d,%d,%d)---> rank = %d\n", t,x,y,z, rank);
-              if(!words_bigendian) {
-                if(prec == 32) {
-                  byte_swap_assign_double2single((float*)tmp2, (buffer + i), 2*N);
-                  DML_checksum_accum(ans,rank,(char *) tmp2,2*N*sizeof(float));
-                  status = limeWriteRecordData((void*)tmp2, &bytes, limewriter);
-                } else {
-                  byte_swap_assign(tmp, (buffer + i), 2*N);
-                  status = limeWriteRecordData((void*)tmp, &bytes, limewriter);
-                  DML_checksum_accum(ans,rank,(char *)tmp, 2*N*sizeof(double));
-                }
-              } else {
-                if(prec == 32) {
-                  double2single((float*)tmp2, (buffer + i), 2*N);
-                  DML_checksum_accum(ans,rank,(char *) tmp2,2*N*sizeof(float));
-                  status = limeWriteRecordData((void*)tmp2, &bytes, limewriter);
-                } else {
-                  status = limeWriteRecordData((void*)(buffer+i), &bytes, limewriter);
-                  DML_checksum_accum(ans,rank,(char *) (buffer+i), 2*N*sizeof(double));
-                }
-              }
-              i += 2*N;
-            }
-          }
-        } else {
-          if(g_cart_id == proc_id) {
-            i=0;
-            for(z=0; z<LZ; z++) {
-              for(mu=0; mu<N; mu++) {
-                buffer[i  ] = s[_GWI(mu,g_ipt[tloc][xloc][yloc][z],VOLUME)  ];
-                buffer[i+1] = s[_GWI(mu,g_ipt[tloc][xloc][yloc][z],VOLUME)+1];
-                i+=2;
-              }
-            }
-            // fprintf(stdout, "process %d sending own data...\n", g_cart_id);
-            MPI_Send(buffer, 2*N*LZ, MPI_DOUBLE, 0, tag, g_cart_grid);
-          }
-        }
-      }    // of y
-    }      // of x
-  }        // of t
-
-  free(buffer);
-#elif (defined PARALLELTX)  && !(defined PARALLELTXY)
-  if(g_cart_id == 0) {
-    fprintf(stderr, "\n[write_binary_contraction_data] Error: no version implemented for PARALLELTX\n");
-  }
+  fprintf(stderr, "[] Error, lime version not implemented yet\n");
   return(-1);
-#endif
-
-  free(tmp2);
-  free(tmp);
-
-#ifdef HAVE_MPI
-  MPI_Barrier(g_cart_grid);
-#endif
-
-//#ifdef HAVE_MPI
-//  DML_checksum_combine(ans);
-//#endif
-//   if(g_cart_id == 0) printf("\n# [write_binary_contraction_data] The final checksum is %#lx %#lx\n", (*ans).suma, (*ans).sumb);
-   
-  return(0);
 }
+
 #else  // HAVE_LIBLEMON
 int write_binary_contraction_data(double * const s, LemonWriter * writer, const int prec, const int N, DML_Checksum * ans) {
 
@@ -333,7 +67,7 @@ int write_binary_contraction_data(double * const s, LemonWriter * writer, const 
   DML_SiteRank rank;
   double *buffer;
   int words_bigendian = big_endian();
-  int latticeSize[] = {T_global, LX_global, LY_global, LZ};
+  int latticeSize[] = {T_global, LX_global, LY_global, LZ_global};
   int scidacMapping[] = {0, 1, 2, 3};
   unsigned long bufoffset = 0;
   char *filebuffer = NULL;
@@ -344,7 +78,7 @@ int write_binary_contraction_data(double * const s, LemonWriter * writer, const 
   if(prec == 32) bytes = (n_uint64_t)2*N*sizeof(float);   // single precision 
   else           bytes = (n_uint64_t)2*N*sizeof(double);  // double precision
 
-  if((void*)(filebuffer = malloc(VOLUME * bytes)) == NULL) {
+  if((void*)(filebuffer = (char*)malloc(VOLUME * bytes)) == NULL) {
     fprintf (stderr, "\n[write_binary_contraction_data] malloc error in write_binary_contraction_datad\n");
     fflush(stderr);
     MPI_Abort(MPI_COMM_WORLD, 114);
@@ -352,7 +86,7 @@ int write_binary_contraction_data(double * const s, LemonWriter * writer, const 
     exit(114);
   }
 
-  if((void*)(buffer = malloc(2*N*sizeof(double))) == NULL) {
+  if((void*)(buffer = (double*)malloc(2*N*sizeof(double))) == NULL) {
     fprintf (stderr, "\n[write_binary_contraction_data] malloc error\n");
     fflush(stderr);
     MPI_Abort(MPI_COMM_WORLD, 115);
@@ -364,7 +98,7 @@ int write_binary_contraction_data(double * const s, LemonWriter * writer, const 
   for(x = 0; x < LX; x++) {
   for(y = 0; y < LY; y++) {
   for(z = 0; z < LZ; z++) {
-    rank = (DML_SiteRank) ((((Tstart + t)*LX_global + x+LXstart)*LY_global + LYstart + y)*((DML_SiteRank)LZ) + z);
+    rank = (DML_SiteRank) ((((Tstart + t)*LX_global + x+LXstart)*LY_global + LYstart + y)*((DML_SiteRank)LZ_global) + LZstart + z);
     ix  = g_ipt[t][x][y][z];
     for(mu=0;mu<N;mu++) {
       buffer[2*mu  ] = s[ _GWI(mu,ix,VOLUME)   ];
@@ -411,8 +145,7 @@ int write_binary_contraction_data(double * const s, LemonWriter * writer, const 
  * read_binary_contraction_data
  ************************************************************/
 
-int read_binary_contraction_data(double * const s, LimeReader * limereader, 
-			    const int prec, const int N, DML_Checksum *ans) {
+int read_binary_contraction_data(double * const s, LimeReader * limereader, const int prec, const int N, DML_Checksum *ans) {
 
   int status=0, mu;
   n_uint64_t bytes, ix;
@@ -444,14 +177,14 @@ int read_binary_contraction_data(double * const s, LimeReader * limereader,
   if(prec == 32) bytes = 2*N*sizeof(float);
   else bytes = 2*N*sizeof(double);
 #ifdef HAVE_MPI
-  limeReaderSeek(limereader,(n_uint64_t) (Tstart*(LX*g_nproc_x)*(LY*g_nproc_y)*LZ + LXstart*(LY*g_nproc_y)*LZ + LYstart*LZ)*bytes, SEEK_SET);
+  limeReaderSeek(limereader,(n_uint64_t) (Tstart*(LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z) + LXstart*(LY*g_nproc_y)*(LZ*g_nproc_z) + LYstart*(LZ*g_nproc_z) + LZstart)*bytes, SEEK_SET);
 #endif
   for(t = 0; t < T; t++){
   for(x = 0; x < LX; x++){
   for(y = 0; y < LY; y++){
   for(z = 0; z < LZ; z++){
     ix = g_ipt[t][x][y][z];
-    rank = (DML_SiteRank) (((t+Tstart)*(LX*g_nproc_x) + LXstart + x)*(LY*g_nproc_y) + LYstart + y)*LZ + z;
+    rank = (DML_SiteRank) (((t+Tstart)*(LX*g_nproc_x) + LXstart + x)*(LY*g_nproc_y) + LYstart + y)*(LZ*g_nproc_z) + LZstart + z;
     if(prec == 32) {
       status = limeReaderReadData(tmp2, &bytes, limereader);
       DML_checksum_accum(ans,rank,(char *) tmp2, bytes);	    
@@ -526,7 +259,7 @@ int write_contraction_format(char * filename, const int prec, const int N, char 
       exit(500);
     }
   
-    sprintf(message, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<cvcFormat>\n<type>%s</type>\n<precision>%d</precision>\n<components>%d</components>\n<lx>%d</lx>\n<ly>%d</ly>\n<lz>%d</lz>\n<lt>%d</lt>\n<nconf>%d</nconf>\n<source>%d</source>\n</cvcFormat>", type, prec, N, LX*g_nproc_x, LY*g_nproc_y, LZ, T_global, gid, sid);
+    sprintf(message, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<cvcFormat>\n<type>%s</type>\n<precision>%d</precision>\n<components>%d</components>\n<lx>%d</lx>\n<ly>%d</ly>\n<lz>%d</lz>\n<lt>%d</lt>\n<nconf>%d</nconf>\n<source>%d</source>\n</cvcFormat>", type, prec, N, LX*g_nproc_x, LY*g_nproc_y, LZ*g_nproc_z, T_global, gid, sid);
     bytes = strlen( message );
     limeheader = limeCreateHeader(MB_flag, ME_flag, "cvc-contraction-format", bytes);
     status = limeWriteRecordHeader( limeheader, limewriter);
@@ -586,7 +319,7 @@ int write_lime_contraction(double * const s, char * filename, const int prec, co
       exit(500);
     }
 
-    bytes = LX*g_nproc_x*LY*g_nproc_y*LZ*T_global*(n_uint64_t)2*N*sizeof(double)*prec/64;
+    bytes = LX*g_nproc_x*LY*g_nproc_y*LZ*g_nproc_z*T_global*(n_uint64_t)2*N*sizeof(double)*prec/64;
     MB_flag=0; ME_flag=1;
     limeheader = limeCreateHeader(MB_flag, ME_flag, "scidac-binary-data", bytes);
     status = limeWriteRecordHeader( limeheader, limewriter);
@@ -602,6 +335,10 @@ int write_lime_contraction(double * const s, char * filename, const int prec, co
   }
   
   status = write_binary_contraction_data(s, limewriter, prec, N, &checksum);
+  if(status < 0 ) {
+    fprintf(stderr, "[write_lime_contraction] Error from write_binary_contraction_data, status was %d\n", status);
+    exit(502);
+  }
   if(g_cart_id==0) {
     printf("# Final check sum is (%#lx  %#lx)\n", checksum.suma, checksum.sumb);
     if(ferror(ofs)) {
@@ -626,7 +363,7 @@ int write_lime_contraction(double * const s, char * filename, const int prec, co
   DML_Checksum checksum;
   char *message;
 
-  if(g_cart_id == 0) fprintf(stdout, "\n# [] constructing lemon writer for file %s\n", filename);
+  if(g_cart_id == 0) fprintf(stdout, "\n# [write_lime_contraction] constructing lemon writer for file %s\n", filename);
 
   ifs = (MPI_File*)malloc(sizeof(MPI_File));
   status = MPI_File_open(g_cart_grid, filename, MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, ifs);
@@ -636,7 +373,7 @@ int write_lime_contraction(double * const s, char * filename, const int prec, co
   status = status || (writer == NULL);
 
   if(status) {
-    fprintf(stderr, "Error, could not open file for writing\n");
+    fprintf(stderr, "[write_lime_contraction] Error, could not open file for writing\n");
     MPI_Abort(MPI_COMM_WORLD, 120);
     MPI_Finalize();
     exit(120);
@@ -644,7 +381,7 @@ int write_lime_contraction(double * const s, char * filename, const int prec, co
 
   // format message
   message = (char*)malloc(2048);
-  sprintf(message, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<cvcFormat>\n<type>%s</type>\n<precision>%d</precision>\n<components>%d</components>\n<lx>%d</lx>\n<ly>%d</ly>\n<lz>%d</lz>\n<lt>%d</lt>\n<nconf>%d</nconf>\n<source>%d</source>\n</cvcFormat>\ndate %s", type, prec, N, LX*g_nproc_x, LY*g_nproc_y, LZ, T_global, gid, sid, ctime(&g_the_time));
+  sprintf(message, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<cvcFormat>\n<type>%s</type>\n<precision>%d</precision>\n<components>%d</components>\n<lx>%d</lx>\n<ly>%d</ly>\n<lz>%d</lz>\n<lt>%d</lt>\n<nconf>%d</nconf>\n<source>%d</source>\n</cvcFormat>\ndate %s", type, prec, N, LX*g_nproc_x, LY*g_nproc_y, LZ*g_nproc_z, T_global, gid, sid, ctime(&g_the_time));
   bytes = strlen(message);
   MB_flag=1, ME_flag=1;
   header = lemonCreateHeader(MB_flag, ME_flag, "cvc_contraction-format", bytes);
@@ -655,7 +392,7 @@ int write_lime_contraction(double * const s, char * filename, const int prec, co
   free(message);
 
   // binary data message
-  bytes = (n_uint64_t)LX_global * LY_global * LZ * T_global * (n_uint64_t) (2*N*sizeof(double) * prec / 64);
+  bytes = (n_uint64_t)LX_global * LY_global * LZ_global * T_global * (n_uint64_t) (2*N*sizeof(double) * prec / 64);
   MB_flag=1, ME_flag=0;
   header = lemonCreateHeader(MB_flag, ME_flag, "scidac-binary-data", bytes);
   status = lemonWriteRecordHeader(header, writer);
@@ -735,11 +472,11 @@ int read_lime_contraction(double * const s, char * filename, const int N, const 
     return(read_contraction(s, NULL, filename, N));
   }
   bytes = limeReaderBytes(limereader);
-  if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*(n_uint64_t)LZ*T_global*2*N*sizeof(double)) prec = 64;
-  else if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*(n_uint64_t)LZ*T_global*2*N*sizeof(float)) prec = 32;
+  if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*(n_uint64_t)(LZ*g_nproc_z)*T_global*2*N*sizeof(double)) prec = 64;
+  else if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*(n_uint64_t)(LZ*g_nproc_z)*T_global*2*N*sizeof(float)) prec = 32;
   else {
     if(g_proc_id == 0) {
-      fprintf(stderr, "wrong length in contraction: bytes = %lu, not %d. Aborting read!\n", bytes, (LX*g_nproc_x)*(LY*g_nproc_y)*LZ*T_global*2*N*(int)sizeof(float));
+      fprintf(stderr, "wrong length in contraction: bytes = %lu, not %d. Aborting read!\n", bytes, (LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*2*N*(int)sizeof(float));
     }
     return(-1);
   }
@@ -767,160 +504,6 @@ int read_lime_contraction(double * const s, char * filename, const int N, const 
   limeDestroyReader(limereader);
   fclose(ifs);
   return(0);
-}
+}  /* end of read_lime_contraction */
 
-
-
-/***********************************************************
- * write_lime_contraction timeslice-wise
- ***********************************************************/
-int write_binary_contraction_data_timeslice(double * const s, LimeWriter * limewriter, const int prec, const int N, DML_Checksum * ans, int timeslice) {
-#ifdef HAVE_MPI
-  fprintf(stderr, "[write_binary_contraction_data_timeslice] No mpi version.\n");
-  return(1);
-#else
-  int x, y, z, i=0, mu, status=0;
-  double *tmp;
-  float  *tmp2;
-  int proc_coords[4], tloc,xloc,yloc,zloc, proc_id;
-  n_uint64_t bytes;
-  DML_SiteRank rank;
-  int words_bigendian = big_endian();
-  unsigned int VOL3 = LX*LY*LZ;
-
-  tmp = (double*)malloc(2*N*sizeof(double));
-  tmp2 = (float*)malloc(2*N*sizeof(float));
-
-  if(prec == 32) bytes = (n_uint64_t)2*N*sizeof(float);
-  else bytes = (n_uint64_t)2*N*sizeof(double);
-
-  if(g_cart_id==0) {
-      for(x = 0; x < LX; x++) {
-      for(y = 0; y < LY; y++) {
-      for(z = 0; z < LZ; z++) {
-        /* Rank should be computed by proc 0 only */
-        rank = (DML_SiteRank) (((timeslice)*(LX*g_nproc_x) + LXstart + x)*(LY*g_nproc_y) + LYstart + y)*LZ + z;
-        for(mu=0; mu<N; mu++) {
-          i = _GWI(g_ipt[0][x][y][z], mu, N);
-          if(!words_bigendian) {
-            if(prec == 32) {
-              byte_swap_assign_double2single( (tmp2+2*mu), (s + i), 2);
-            } else {
-              byte_swap_assign( (tmp+2*mu), (s + i), 2);
-            }
-          } else {
-            if(prec == 32) {
-              double2single((float*)(tmp2+2*mu), (s + i), 2);
-            } else {
-              tmp[2*mu  ] = s[i  ];
-              tmp[2*mu+1] = s[i+1];
-            }
-          }
-        }
-        if(prec == 32) {
-          DML_checksum_accum(ans,rank,(char *) tmp2,2*N*sizeof(float));
-          status = limeWriteRecordData((void*)tmp2, &bytes, limewriter);
-        }
-        else {
-          status = limeWriteRecordData((void*)tmp, &bytes, limewriter);
-          DML_checksum_accum(ans,rank,(char *) tmp, 2*N*sizeof(double));
-        }
-      }}}
-  }
-  free(tmp2);
-  free(tmp);
-  return(0);
-#endif
-}
-
-int write_lime_contraction_timeslice(double * const s, char * filename, const int prec, const int N, char * type, const int gid, const int sid, DML_Checksum *checksum, int timeslice) {
-#ifdef HAVE_MPI
-  fprintf(stderr, "[write_lime_contraction_3d] No mpi version.\n");
-  return(1);
-#else
-
-  FILE * ofs = NULL;
-  LimeWriter * limewriter = NULL;
-  LimeRecordHeader * limeheader = NULL;
-  int status = 0;
-  int ME_flag=0, MB_flag=0;
-  n_uint64_t bytes;
-
-  if(timeslice==0) {
-    write_contraction_format(filename, prec, N, type, gid, sid);
-    DML_checksum_init(checksum);
-  }
-
-  if(g_cart_id==0) {
-    ofs = fopen(filename, "a");
-    if(ofs == (FILE*)NULL) {
-      fprintf(stderr, "Could not open file %s for writing!\n Aborting...\n", filename);
-      exit(500);
-    }
-  
-    limewriter = limeCreateWriter( ofs );
-    if(limewriter == (LimeWriter*)NULL) {
-      fprintf(stderr, "LIME error in file %s for writing!\n Aborting...\n", filename);
-      exit(500);
-    }
-
-    bytes = T*g_nproc_t*LX*g_nproc_x*LY*g_nproc_y*LZ*(n_uint64_t)2*N*sizeof(double)*prec/64;
-    if(timeslice==0) {
-      MB_flag=0; ME_flag=1;
-      limeheader = limeCreateHeader(MB_flag, ME_flag, "scidac-binary-data", bytes);
-      status = limeWriteRecordHeader( limeheader, limewriter);
-      if(status < 0 ) {
-        fprintf(stderr, "LIME write header (scidac-binary-data) error %d\n", status);
-        exit(500);
-      }
-      limeDestroyHeader( limeheader );
-    } else {
-      limewriter->first_record = 0;
-      limewriter->last_written = 0;
-      limewriter->header_nextP = 0;
-      limewriter->bytes_total  = bytes; 
-      limewriter->bytes_left   = LX*g_nproc_x*LY*g_nproc_y*LZ*(T_global-timeslice)*(n_uint64_t)N*2*sizeof(double)*prec/64;
-      limewriter->rec_ptr      = 0;
-      limewriter->rec_start    = 0;
-      limewriter->bytes_pad    = 0;
-      limewriter->isLastP      = 0;
-      limewriter->isLastP = (timeslice==T_global-1) ? 1 : 0;
-    }
-/*    
-    fprintf(stdout, "\n# ========================================\n");
-    fprintf(stdout, "# info on the limewriter:\n");
-    fprintf(stdout, "# first record   = %d\n", limewriter->first_record);
-    fprintf(stdout, "# last written   = %d\n", limewriter->last_written);
-    fprintf(stdout, "# write h/d as next = %d\n", limewriter->header_nextP);
-    fprintf(stdout, "# bytes total    = %llu\n", limewriter->bytes_total);
-    fprintf(stdout, "# bytes left     = %llu\n", limewriter->bytes_left);
-    fprintf(stdout, "# record pointer = %llu\n", limewriter->rec_ptr);
-    fprintf(stdout, "# pointer at start of record payload = %llu\n", limewriter->rec_start);
-    fprintf(stdout, "# bytes pad      = %d\n", limewriter->bytes_pad);
-    fprintf(stdout, "# last record in massage = %d\n", limewriter->isLastP);
-    fprintf(stdout, "# ========================================\n");
-*/
-  }  // of if g_cart_id == 0
-
-  status = write_binary_contraction_data_timeslice(s, limewriter, prec, N, checksum, timeslice);
-
-  if(g_cart_id == 0) {
-    if(ferror(ofs)) { fprintf(stderr, "Warning! Error while writing to file %s \n", filename); }
-    limeDestroyWriter( limewriter );
-    fflush(ofs);
-    fclose(ofs);
-  }
-  if(g_cart_id==0 && timeslice==T_global-1) {
-    printf("# Final check sum is (%#lx  %#lx)\n", checksum->suma, checksum->sumb);
-  }
-  if(timeslice == T_global-1) {
-    status = write_checksum(filename, checksum);
-    if(status != 0) {
-      fprintf(stderr, "[] Error, could not write checksum for file %s\n", filename);
-    }
-  }
-  return(0);
-#endif
-}
-
-}
+}  /* end of namespace cvc */

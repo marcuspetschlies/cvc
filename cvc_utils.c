@@ -186,7 +186,7 @@ void xchange_gauge() {
   MPI_Irecv(&g_gauge_field[72*(T+1)*LX*LY*LZ], 1, gauge_time_slice_cont, g_nb_t_dn, 84, g_cart_grid, &request[cntr]);
   cntr++;
 
-#if (defined PARALLELTX) || (defined PARALLELTXY)
+#if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ)
   MPI_Isend(&g_gauge_field[0],                              1, gauge_x_slice_vector, g_nb_x_dn, 85, g_cart_grid, &request[cntr]);
   cntr++;
   MPI_Irecv(&g_gauge_field[72*(VOLUME+2*LX*LY*LZ)],         1, gauge_x_slice_cont,   g_nb_x_up, 85, g_cart_grid, &request[cntr]);
@@ -212,7 +212,7 @@ void xchange_gauge() {
   cntr++;
 #endif
 
-#if defined PARALLELTXY
+#if defined PARALLELTXY || (defined PARALLELTXYZ)
   MPI_Isend(&g_gauge_field[0], 1, gauge_y_slice_vector, g_nb_y_dn, 89, g_cart_grid, &request[cntr]);
   cntr++;
   MPI_Irecv(&g_gauge_field[72*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ)], 1, gauge_y_slice_cont, g_nb_y_up, 89, g_cart_grid, &request[cntr]);
@@ -248,6 +248,60 @@ void xchange_gauge() {
   cntr++;
 #endif
 
+#if defined PARALLELTXYZ
+  /* boundary faces */
+  MPI_Isend(&g_gauge_field[0], 1, gauge_z_slice_vector, g_nb_z_dn, 95, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&g_gauge_field[72*(VOLUME+2*( LX*LY*LZ + T*LY*LZ + T*LX*LZ ) )], 1, gauge_z_slice_cont, g_nb_z_up, 95, g_cart_grid, &request[cntr]);
+  cntr++;
+
+  MPI_Isend(&g_gauge_field[72*(LZ-1)], 1, gauge_z_slice_vector, g_nb_z_up, 96, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&g_gauge_field[72*(VOLUME+2*(LX*LY*LZ + T*LY*LZ + T*LX*LZ) + T*LX*LY)], 1, gauge_z_slice_cont, g_nb_z_dn, 96, g_cart_grid, &request[cntr]);
+  cntr++;
+
+  MPI_Waitall(cntr, request, status);
+
+
+  /* boundary edges */
+
+  cntr = 0;
+
+  /* z-t edges */
+  MPI_Isend(&g_gauge_field[72*(VOLUME+2*( LX*LY*LZ + T*LY*LZ + T*LX*LZ )          )], 1, gauge_zt_edge_vector, g_nb_t_dn,  97, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&g_gauge_field[72*(VOLUME+RAND+4*(LY*LZ + LX*LZ + T*LZ)               )], 1, gauge_zt_edge_cont,   g_nb_t_up,  97, g_cart_grid, &request[cntr]);
+  cntr++;
+
+  MPI_Isend(&g_gauge_field[72*(VOLUME+2*(LX*LY*LZ + T*LY*LZ + T*LX*LZ)+(T-1)*LX*LY)], 1, gauge_zt_edge_vector, g_nb_t_up,  98, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&g_gauge_field[72*(VOLUME+RAND+4*(LY*LZ + LX*LZ + T*LZ) + 2*LX*LY     )], 1, gauge_zt_edge_cont,   g_nb_t_dn,  98, g_cart_grid, &request[cntr]);
+  cntr++;
+
+  /* z-x edges */
+  MPI_Isend(&g_gauge_field[72*(VOLUME+2*( LX*LY*LZ + T*LY*LZ + T*LX*LZ )             )], 1, gauge_zt_edge_vector, g_nb_x_dn, 99, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&g_gauge_field[72*(VOLUME+RAND+4*(LY*LZ + LX*LZ + T*LZ + LX*LY)          )], 1, gauge_zt_edge_cont,   g_nb_x_up, 99, g_cart_grid, &request[cntr]);
+  cntr++;
+
+  MPI_Isend(&g_gauge_field[72*(VOLUME+2*( LX*LY*LZ + T*LY*LZ + T*LX*LZ ) + (LX-1)*LY )], 1, gauge_zx_edge_vector, g_nb_x_up, 100, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&g_gauge_field[72*(VOLUME+RAND+4*(LY*LZ + LX*LZ + T*LZ + LX*LY) + 2*T*LY )], 1, gauge_zx_edge_cont,   g_nb_x_dn, 100, g_cart_grid, &request[cntr]);
+  cntr++;
+
+  /* z-y edges */
+  MPI_Isend(&g_gauge_field[72*(VOLUME+2*( LX*LY*LZ + T*LY*LZ + T*LX*LZ )                    )], 1, gauge_zy_edge_vector, g_nb_y_dn, 101, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&g_gauge_field[72*(VOLUME+RAND+4*(LY*LZ + LX*LZ + T*LZ + LX*LY + T*LY)          )], 1, gauge_zy_edge_cont,   g_nb_y_up, 101, g_cart_grid, &request[cntr]);
+  cntr++;
+
+  MPI_Isend(&g_gauge_field[72*(VOLUME+2*( LX*LY*LZ + T*LY*LZ + T*LX*LZ ) + (LY-1)           )], 1, gauge_zy_edge_vector, g_nb_y_up, 102, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&g_gauge_field[72*(VOLUME+RAND+4*(LY*LZ + LX*LZ + T*LZ + LX*LY + T*LY) + 2*T*LX )], 1, gauge_zy_edge_cont,   g_nb_y_dn, 102, g_cart_grid, &request[cntr]);
+  cntr++;
+
+#endif
+
   MPI_Waitall(cntr, request, status);
 /*
   int i;
@@ -257,214 +311,7 @@ void xchange_gauge() {
   }
 */
 #endif
-}
-
-/*****************************************************
- * exchange any globally defined gauge field
- *****************************************************/
-void xchange_gauge_field(double *gfield) {
-#ifdef HAVE_MPI
-  int cntr=0;
-  MPI_Request request[120];
-  MPI_Status status[120];
-
-  MPI_Isend(&gfield[0],         1, gauge_time_slice_cont, g_nb_t_dn, 83, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*VOLUME], 1, gauge_time_slice_cont, g_nb_t_up, 83, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Isend(&gfield[72*(T-1)*LX*LY*LZ], 1, gauge_time_slice_cont, g_nb_t_up, 84, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(T+1)*LX*LY*LZ], 1, gauge_time_slice_cont, g_nb_t_dn, 84, g_cart_grid, &request[cntr]);
-  cntr++;
-
-#if (defined PARALLELTX) || (defined PARALLELTXY)
-  MPI_Isend(&gfield[0],                              1, gauge_x_slice_vector, g_nb_x_dn, 85, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+2*LX*LY*LZ)],         1, gauge_x_slice_cont,   g_nb_x_up, 85, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Isend(&gfield[72*(LX-1)*LY*LZ],                1, gauge_x_slice_vector, g_nb_x_up, 86, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+2*LX*LY*LZ+T*LY*LZ)], 1, gauge_x_slice_cont,   g_nb_x_dn, 86, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Waitall(cntr, request, status);
-
-  cntr = 0;
-
-  MPI_Isend(&gfield[72*(VOLUME+2*LX*LY*LZ)], 1, gauge_xt_edge_vector, g_nb_t_dn, 87, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+RAND)], 1, gauge_xt_edge_cont, g_nb_t_up, 87, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Isend(&gfield[72*(VOLUME+2*LX*LY*LZ+(T-1)*LY*LZ)], 1, gauge_xt_edge_vector, g_nb_t_up, 88, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+RAND+2*LY*LZ)], 1, gauge_xt_edge_cont, g_nb_t_dn, 88, g_cart_grid, &request[cntr]);
-  cntr++;
-#endif
-
-#if defined PARALLELTXY
-  MPI_Isend(&gfield[0], 1, gauge_y_slice_vector, g_nb_y_dn, 89, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ)], 1, gauge_y_slice_cont, g_nb_y_up, 89, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Isend(&gfield[72*(LY-1)*LZ], 1, gauge_y_slice_vector, g_nb_y_up, 90, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ+T*LX*LZ)], 1, gauge_y_slice_cont, g_nb_y_dn, 90, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Waitall(cntr, request, status);
-
-  cntr = 0;
-
-  MPI_Isend(&gfield[72*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ)], 1, gauge_yt_edge_vector, g_nb_t_dn, 91, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+RAND+4*LY*LZ)], 1, gauge_yt_edge_cont, g_nb_t_up, 91, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Isend(&gfield[72*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ+(T-1)*LX*LZ)], 1, gauge_yt_edge_vector, g_nb_t_up, 92, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+RAND+4*LY*LZ+2*LX*LZ)], 1, gauge_yt_edge_cont, g_nb_t_dn, 92, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Isend(&gfield[72*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ)], 1, gauge_yx_edge_vector, g_nb_x_dn, 93, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+RAND+4*LY*LZ+4*LX*LZ)], 1, gauge_yx_edge_cont, g_nb_x_up, 93, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Isend(&gfield[72*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ+(LX-1)*LZ)], 1, gauge_yx_edge_vector, g_nb_x_up, 94, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+RAND+4*LY*LZ+4*LX*LZ+2*T*LZ)], 1, gauge_yx_edge_cont, g_nb_x_dn, 94, g_cart_grid, &request[cntr]);
-  cntr++;
-#endif
-
-  MPI_Waitall(cntr, request, status);
-#endif
-}
-
-/**************************************************************
- * exchange any gauge field defined on a timeslice communicator
- **************************************************************/
-void xchange_gauge_field_timeslice(double *gfield) {
-#if (defined HAVE_MPI) && ( (defined PARALLELTX) || (defined PARALLELTXY) )
-
-  int cntr=0;
-  MPI_Request request[12];
-  MPI_Status status[12];
-
-  MPI_Isend(&gfield[0],                              1, gauge_x_slice_vector, g_ts_nb_x_dn, 83, g_ts_comm, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+2*LX*LY*LZ)],         1, gauge_x_slice_cont,   g_ts_nb_x_up, 83, g_ts_comm, &request[cntr]);
-  cntr++;
-
-  MPI_Isend(&gfield[72*(LX-1)*LY*LZ],                1, gauge_x_slice_vector, g_ts_nb_x_up, 84, g_ts_comm, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+2*LX*LY*LZ+T*LY*LZ)], 1, gauge_x_slice_cont,   g_ts_nb_x_dn, 84, g_ts_comm, &request[cntr]);
-  cntr++;
-
-#ifdef PARALLELTXY
-  MPI_Isend(&gfield[0],                                        1, gauge_y_slice_vector, g_ts_nb_y_dn, 85, g_ts_comm, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+2*(LX*LY*LZ+T*LY*LZ))],         1, gauge_y_slice_cont,   g_ts_nb_y_up, 85, g_ts_comm, &request[cntr]);
-  cntr++;
-
-  MPI_Isend(&gfield[72*(LY-1)*LZ],                             1, gauge_y_slice_vector, g_ts_nb_y_up, 86, g_ts_comm, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+2*(LX*LY*LZ+T*LY*LZ)+T*LX*LZ)], 1, gauge_y_slice_cont,   g_ts_nb_y_dn, 86, g_ts_comm, &request[cntr]);
-  cntr++;
-
-  MPI_Waitall(cntr, request, status);
-  cntr = 0;
-
-  MPI_Isend(&gfield[72*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ)],           1, gauge_yx_edge_vector, g_ts_nb_x_dn, 93, g_ts_comm, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+RAND+4*LY*LZ+4*LX*LZ)],           1, gauge_yx_edge_cont, g_ts_nb_x_up, 93, g_ts_comm, &request[cntr]);
-  cntr++;
-
-  MPI_Isend(&gfield[72*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ+(LX-1)*LZ)], 1, gauge_yx_edge_vector, g_ts_nb_x_up, 94, g_ts_comm, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+RAND+4*LY*LZ+4*LX*LZ+2*T*LZ)],    1, gauge_yx_edge_cont, g_ts_nb_x_dn, 94, g_ts_comm, &request[cntr]);
-  cntr++;
-#endif
-
-  MPI_Waitall(cntr, request, status);
-
-#endif
-}
-
-/*****************************************************
- * exchange a 5-dim. spinor field
- *****************************************************/
-void xchange_field_5d(double *phi) {
-#ifdef HAVE_MPI
-  int cntr=0, id=0;
-  int is;
-  unsigned int recv_offset, send_offset;
-  unsigned int V5 = VOLUME * L5;
-
-
-  MPI_Request request[1025];
-  MPI_Status status[1025];
-
-  for(is=0; is<L5; is++) {
-    send_offset = 24*is*VOLUME;
-    recv_offset = 24*(V5 + is*RAND);
-
-    MPI_Isend(&phi[send_offset], 1, spinor_time_slice_cont, g_nb_t_dn, id, g_cart_grid, &request[cntr]);
-    cntr++;
-    MPI_Irecv(&phi[recv_offset], 1, spinor_time_slice_cont, g_nb_t_up, id, g_cart_grid, &request[cntr]);
-    cntr++;
-    id++;
-
-    send_offset = 24*(is*VOLUME + (T-1)*LX*LY*LZ);
-    recv_offset = 24*(V5 + is*RAND + LX*LY*LZ);
-    MPI_Isend(&phi[send_offset], 1, spinor_time_slice_cont, g_nb_t_up, id, g_cart_grid, &request[cntr]);
-    cntr++;
-    MPI_Irecv(&phi[recv_offset], 1, spinor_time_slice_cont, g_nb_t_dn, id, g_cart_grid, &request[cntr]);
-    cntr++;
-    id++;
-
-#if (defined PARALLELTX) || (defined PARALLELTXY)
-    send_offset = 24*is*VOLUME;
-    recv_offset = 24*(V5 + is*RAND + 2*LX*LY*LZ);
-    MPI_Isend(&phi[send_offset], 1, spinor_x_slice_vector, g_nb_x_dn, id, g_cart_grid, &request[cntr]);
-    cntr++;
-    MPI_Irecv(&phi[recv_offset], 1, spinor_x_slice_cont,   g_nb_x_up, id, g_cart_grid, &request[cntr]);
-    cntr++;
-    id++;
-
-    send_offset = 24*(is*VOLUME + (LX-1)*LY*LZ);
-    recv_offset = 24*(V5 + is*RAND + 2*LX*LY*LZ + T*LY*LZ);
-    MPI_Isend(&phi[send_offset], 1, spinor_x_slice_vector, g_nb_x_up, id, g_cart_grid, &request[cntr]);
-    cntr++;
-    MPI_Irecv(&phi[recv_offset], 1, spinor_x_slice_cont,   g_nb_x_dn, id, g_cart_grid, &request[cntr]);
-    cntr++;
-    id++;
-#endif
-
-#if defined PARALLELTXY
-    send_offset = 24*is*VOLUME;
-    recv_offset = 24*(V5 + is*RAND + 2*(LX*LY*LZ+T*LY*LZ) );
-    MPI_Isend(&phi[send_offset], 1, spinor_y_slice_vector, g_nb_y_dn, id, g_cart_grid, &request[cntr]);
-    cntr++;
-    MPI_Irecv(&phi[recv_offset], 1, spinor_y_slice_cont,   g_nb_y_up, id, g_cart_grid, &request[cntr]);
-    cntr++;
-    id++;
-
-    send_offset = 24*(is*VOLUME + (LY-1)*LZ );
-    recv_offset = 24*(V5 + is*RAND + 2*(LX*LY*LZ+T*LY*LZ)+T*LX*LZ );
-    MPI_Isend(&phi[send_offset], 1, spinor_y_slice_vector, g_nb_y_up, id, g_cart_grid, &request[cntr]);
-    cntr++;
-    MPI_Irecv(&phi[recv_offset], 1, spinor_y_slice_cont,   g_nb_y_dn, id, g_cart_grid, &request[cntr]);
-    cntr++;
-    id++;
-#endif
-  }
-  MPI_Waitall(cntr, request, status);
-#endif
-}
+}  /* end of xchange_gauge */
 
 /*****************************************************
  * exchange a spinor field
@@ -485,7 +332,9 @@ void xchange_field(double *phi) {
   cntr++;
   MPI_Irecv(&phi[24*(T+1)*LX*LY*LZ], 1, spinor_time_slice_cont, g_nb_t_dn, 84, g_cart_grid, &request[cntr]);
   cntr++;
-#if (defined PARALLELTX) || (defined PARALLELTXY)
+#if (defined PARALLELTX) || (defined PARALLELTXY)  || (defined PARALLELTXYZ) 
+ 
+  /* x - boundary faces */
   MPI_Isend(&phi[0],                              1, spinor_x_slice_vector, g_nb_x_dn, 85, g_cart_grid, &request[cntr]);
   cntr++;
   MPI_Irecv(&phi[24*(VOLUME+2*LX*LY*LZ)],         1, spinor_x_slice_cont,   g_nb_x_up, 85, g_cart_grid, &request[cntr]);
@@ -496,7 +345,8 @@ void xchange_field(double *phi) {
   MPI_Irecv(&phi[24*(VOLUME+2*LX*LY*LZ+T*LY*LZ)], 1, spinor_x_slice_cont,   g_nb_x_dn, 86, g_cart_grid, &request[cntr]);
   cntr++;
 #endif
-#if defined PARALLELTXY
+#if defined PARALLELTXY || (defined PARALLELTXYZ) 
+  /* y - boundary faces */
   MPI_Isend(&phi[0],                                        1, spinor_y_slice_vector, g_nb_y_dn, 87, g_cart_grid, &request[cntr]);
   cntr++;
   MPI_Irecv(&phi[24*(VOLUME+2*(LX*LY*LZ+T*LY*LZ))],         1, spinor_y_slice_cont,   g_nb_y_up, 87, g_cart_grid, &request[cntr]);
@@ -507,44 +357,26 @@ void xchange_field(double *phi) {
   MPI_Irecv(&phi[24*(VOLUME+2*(LX*LY*LZ+T*LY*LZ)+T*LX*LZ)], 1, spinor_y_slice_cont,   g_nb_y_dn, 88, g_cart_grid, &request[cntr]);
   cntr++;
 #endif
-  MPI_Waitall(cntr, request, status);
-#endif
-}
 
-/****************************************************************
- * exchange a spinor field defined on an a timeslice communicator
- ****************************************************************/
-void xchange_field_timeslice(double *phi) {
-#if (defined PARALLELTX) || (defined PARALLELTXY)
-  int cntr=0;
-  MPI_Request request[12];
-  MPI_Status status[12];
+#if (defined PARALLELTXYZ) 
 
-  MPI_Isend(&phi[0],                              1, spinor_x_slice_vector, g_ts_nb_x_dn, 83, g_ts_comm, &request[cntr]);
+  /* z - boundary faces */
+
+  MPI_Isend(&phi[0],                                                1, spinor_z_slice_vector, g_nb_z_dn, 89, g_cart_grid, &request[cntr]);
   cntr++;
-  MPI_Irecv(&phi[24*(VOLUME+2*LX*LY*LZ)],         1, spinor_x_slice_cont,   g_ts_nb_x_up, 83, g_ts_comm, &request[cntr]);
+  MPI_Irecv(&phi[24*(VOLUME+2*(LX*LY*LZ+T*LY*LZ+T*LX*LZ))],         1, spinor_z_slice_cont,   g_nb_z_up, 89, g_cart_grid, &request[cntr]);
   cntr++;
 
-  MPI_Isend(&phi[24*(LX-1)*LY*LZ],                1, spinor_x_slice_vector, g_ts_nb_x_up, 84, g_ts_comm, &request[cntr]);
+  MPI_Isend(&phi[24*(LZ-1)],                                        1, spinor_z_slice_vector, g_nb_z_up, 90, g_cart_grid, &request[cntr]);
   cntr++;
-  MPI_Irecv(&phi[24*(VOLUME+2*LX*LY*LZ+T*LY*LZ)], 1, spinor_x_slice_cont,   g_ts_nb_x_dn, 84, g_ts_comm, &request[cntr]);
-  cntr++;
-
-#if defined PARALLELTXY
-  MPI_Isend(&phi[0],                                        1, spinor_y_slice_vector, g_ts_nb_y_dn, 85, g_ts_comm, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&phi[24*(VOLUME+2*(LX*LY*LZ+T*LY*LZ))],         1, spinor_y_slice_cont,   g_ts_nb_y_up, 85, g_ts_comm, &request[cntr]);
+  MPI_Irecv(&phi[24*(VOLUME+2*(LX*LY*LZ+T*LY*LZ+T*LX*LZ)+T*LX*LY)], 1, spinor_z_slice_cont,   g_nb_z_dn, 90, g_cart_grid, &request[cntr]);
   cntr++;
 
-  MPI_Isend(&phi[24*(LY-1)*LZ],                             1, spinor_y_slice_vector, g_ts_nb_y_up, 86, g_ts_comm, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&phi[24*(VOLUME+2*(LX*LY*LZ+T*LY*LZ)+T*LX*LZ)], 1, spinor_y_slice_cont,   g_ts_nb_y_dn, 86, g_ts_comm, &request[cntr]);
-  cntr++;
 #endif
 
   MPI_Waitall(cntr, request, status);
 #endif
-}
+}  /* xchange_field */
 
 /*****************************************************
  * measure the plaquette value
@@ -576,7 +408,7 @@ void plaquette(double *pl) {
 #else
   *pl = pl_loc;
 #endif
-  *pl = *pl / ((double)T_global * (double)(LX*g_nproc_x) * (double)(LY*g_nproc_y) * (double)LZ * 18.);
+  *pl = *pl / ((double)T_global * (double)(LX*g_nproc_x) * (double)(LY*g_nproc_y) * (double)(LZ*g_nproc_z) * 18.);
 
   linksum[0] = 0.;
   linksum[1] = 0.;
@@ -628,7 +460,7 @@ void plaquette2(double *pl, double*gfield) {
 #else
   *pl = pl_loc;
 #endif
-  *pl = *pl / ((double)T_global * (double)(LX*g_nproc_x) * (double)(LY*g_nproc_y) * (double)LZ * 18.);
+  *pl = *pl / ((double)T_global * (double)(LX*g_nproc_x) * (double)(LY*g_nproc_y) * (double)(LZ*g_nproc_z) * 18.);
 }
 
 /*****************************************************
@@ -708,7 +540,7 @@ int write_contraction (double *s, int *nsource, char *filename, int Nmu,
       }
     }
 #ifdef HAVE_MPI
-#  if !(defined PARALLELTX || defined PARALLELTXY)
+#  if !(defined PARALLELTX || defined PARALLELTXY || defined PARALLELTXYZ)
     for(i=1; i<g_nproc; i++) {
       MPI_Recv(ti, 2, MPI_INT, i, 100+i, g_cart_grid, &status);
       count = (unsigned long int)Nmu * (unsigned long int)(ti[0]*LX*LY*LZ) * 2;
@@ -804,7 +636,11 @@ int write_contraction (double *s, int *nsource, char *filename, int Nmu,
  * read contractions from file
  *****************************************************/
 int read_contraction(double *s, int *nsource, char *filename, int Nmu) {
-  
+#if defined PARALLELTXYZ
+  fprintf(stderr, "[read_contraction] Error, not implemented for 4-dim parallel\n");
+  return(1);
+#endif
+
   unsigned long int shift=0, count=0;
   int ix, mu, iy;
   double buffer[128];
@@ -818,7 +654,7 @@ int read_contraction(double *s, int *nsource, char *filename, int Nmu) {
   if(format==2) {
     if(g_cart_id==0) fprintf(stdout, "# [read_contraction] Reading contraction data in format %d\n", format);
 #ifdef HAVE_MPI
-#  ifndef PARALLELTX
+#  if ! ( defined PARALLELTX || defined PARALLELTXY || defined PARALLELTXYZ )  /* T-parallel, seek by shifting timeslices */
     shift = (unsigned long int)Tstart * (unsigned long int)LX*LY*LZ * Nmu * 2 * sizeof(double);
     fseek(ofs, shift, SEEK_SET);
 #  endif
@@ -834,7 +670,7 @@ int read_contraction(double *s, int *nsource, char *filename, int Nmu) {
     }
   } else {
 #ifdef HAVE_MPI
-#  ifndef PARALLELTX
+#  if ! ( defined PARALLELTX || defined PARALLELTXY || defined PARALLELTXYZ )
     /* shift = Volume of previous nodes * Nmu * 2(complex=2doubles) * 
                size of double */
     shift = (unsigned long int)Tstart * (unsigned long int)LX*LY*LZ * Nmu * 2 * sizeof(double);
@@ -851,7 +687,8 @@ int read_contraction(double *s, int *nsource, char *filename, int Nmu) {
     }
     if(nsource != (int*)NULL) {
 #ifdef HAVE_MPI
-#  ifndef PARALLELTX
+#  if ! ( defined PARALLELTX || defined PARALLELTXY || defined PARALLELTXYZ )
+
       /* shift to position EOF - one integer */
       fseek(ofs, -sizeof(int), SEEK_END);
 #  endif
@@ -1736,31 +1573,51 @@ int printf_SU3_link (double *u, FILE*ofs) {
 
 int printf_spinor_field(double *s, FILE *ofs) {
 
-  int i, start_valuet=0, start_valuex=0;
+  int i, start_valuet=0, start_valuex=0, start_valuey=0, start_valuez=0;
   int x0, x1, x2, x3, ix;
   int y0, y1, y2, y3;
   int z0, z1, z2, z3;
+  int boundary;
 
   if( (ofs == (FILE*)NULL) || (s==(double*)NULL) ) return(108);
 #ifdef HAVE_MPI
   start_valuet = 1;
-#  ifdef PARALLELTX
+
+#  if defined PARALLELTX || defined PARALLELTXY || defined PARALLELTXYZ
   start_valuex = 1;
 #  else
   start_valuex = 0;
 # endif
+
+#  if defined PARALLELTXY || defined PARALLELTXYZ
+  start_valuey = 1;
+#  else
+  start_valuey = 0;
+# endif
+
+#  if defined PARALLELTXYZ
+  start_valuez = 1;
+#  else
+  start_valuez = 0;
+# endif
+
 #else
   start_valuet = 0;
 #endif
 
 
-  for(x0=-start_valuet; x0<T +start_valuet; x0++) {
-  for(x1=-start_valuex; x1<LX+start_valuex; x1++) {
-    if( (x0==-1 || x0==T) && (x1==-1 || x1==LX)) continue;
-  for(x2= 0; x2<LX;  x2++) {
-  for(x3= 0; x3<LX;  x3++) {
+  for(x0= -start_valuet; x0 < T +start_valuet; x0++) {
+  for(x1= -start_valuex; x1 < LX+start_valuex; x1++) {
+  for(x2= -start_valuey; x2 < LY+start_valuey; x2++) {
+  for(x3= -start_valuez; x3 < LZ+start_valuez; x3++) {
+    boundary =  (x0==-1 || x0==T) + (x1==-1 || x1==LX) + (x2==-1 || x2==LY) + (x3==-1 || x3==LZ);
+    if(boundary>1) continue;
     y0=x0; y1=x1; y2=x2; y3=x3;
     if(x0==-1) y0=T+1;
+    if(x1==-1) y1=LX+1;
+    if(x2==-1) y2=LY+1;
+    if(x3==-1) y3=LZ+1;
+
     ix = _GSI(g_ipt[y0][y1][y2][y3]);
     // fprintf(ofs, "# [%2d] t=%3d, x=%3d, y=%3d, z=%3d\n", g_cart_id, x0, x1, x2, x3);
     z0 = x0 + g_proc_coords[0] * T;
@@ -1846,49 +1703,6 @@ int printf_spinor_field_5d(double *s, FILE *ofs) {
   return(0);
 }
 
-int printf_spinor_field_tzyx(double *s, FILE *ofs) {
-
-  int i, start_valuet=0, start_valuex=0;
-  int x0, x1, x2, x3, ix;
-  int y0, y1, y2, y3;
-
-  if( (ofs == (FILE*)NULL) || (s==(double*)NULL) ) return(108);
-#ifdef HAVE_MPI
-  start_valuet = 1;
-#  ifdef PARALLELTX
-  start_valuex = 1;
-#  else
-  start_valuex = 0;
-# endif
-#else
-  start_valuet = 0;
-#endif
-
-  for(x0=-start_valuet; x0<T +start_valuet; x0++) {
-    for(x3= 0; x3<LX;  x3++) {
-      for(x2= 0; x2<LX;  x2++) {
-        for(x1=-start_valuex; x1<LX+start_valuex; x1++) {
-          if( (x0==-1 || x0==T) && (x1==-1 || x1==LX)) continue;
-          y0=x0; y1=x1; y2=x2; y3=x3;
-          if(x0==-1) y0=T+1;
-          ix = _GSI(g_ipt[y0][y1][y2][y3]);
-          fprintf(ofs, "# [%2d] t=%3d, z=%3d, y=%3d, x=%3d\n", g_cart_id, x0, x3, x2, x1);
-          fprintf(ofs, "%18.9e %18.9e\t%18.9e %18.9e\t%18.9e %18.9e\n"\
-                       "%18.9e %18.9e\t%18.9e %18.9e\t%18.9e %18.9e\n"\
-                       "%18.9e %18.9e\t%18.9e %18.9e\t%18.9e %18.9e\n"\
-                       "%18.9e %18.9e\t%18.9e %18.9e\t%18.9e %18.9e\n",
-                       s[ix   ], s[ix+ 1], s[ix+ 2], s[ix+ 3], s[ix+ 4], s[ix+ 5],
-                       s[ix +6], s[ix+ 7], s[ix+ 8], s[ix+ 9], s[ix+10], s[ix+11],
-                       s[ix+12], s[ix+13], s[ix+14], s[ix+15], s[ix+16], s[ix+17],
-                       s[ix+18], s[ix+19], s[ix+20], s[ix+21], s[ix+22], s[ix+23]);
-        }
-      }
-    }
-  }
-
-  return(0);
-}
-
 void set_default_input_values(void) {
 
   T_global    = _default_T_global;
@@ -1898,6 +1712,7 @@ void set_default_input_values(void) {
   LY          = _default_LY;
   LYstart     = _default_LYstart;
   LZ          = _default_LZ;
+  LZstart     = _default_LZstart;
   L5          = _default_L5;
   g_nproc_t   = _default_nproc_t;
   g_nproc_x   = _default_nproc_x;
@@ -2009,6 +1824,7 @@ void set_default_input_values(void) {
   g_propagator_precision = _default_propagator_precision;
   g_write_source = _default_write_source;
   g_read_source = _default_read_source;
+  g_write_propagator = _default_write_propagator;
 
   g_nsample = _default_nsample;
   g_sv_dim = 4;
@@ -3746,7 +3562,7 @@ void contract_twopoint_snk_momentum_trange(double *contr, const int idsource, co
   }      // of x0
 
   free(contr_threads);
-}
+}  /* contract_twopoint_snk_momentum_trange */
 #endif
 
 /******************************************************************************
@@ -3777,7 +3593,7 @@ void contract_twopoint_xdep(void*contr, const int idsource, const int idsink, vo
   fprintf(stdout, "isource=%d, idsink=%d, p[2] = %d, s[2] = %e\n", idsource, idsink, psource[2], ssource[2]);
   fprintf(stdout, "isource=%d, idsink=%d, p[3] = %d, s[3] = %e\n", idsource, idsink, psource[3], ssource[3]);
   fprintf(stdout, "isource=%d, idsink=%d, factor = %e\n", idsource, idsink, factor);
-  }
+  
 */
 /*  if(g_cart_id==0) fprintf(stdout, "# %3d %3d ssource = %e\t%e\t%e\t%e\n", idsource, idsink,
     ssource[0], ssource[1], ssource[2], ssource[3]); */
@@ -3838,7 +3654,7 @@ void contract_twopoint_xdep(void*contr, const int idsource, const int idsink, vo
       }  // of c
     }  // of mu
   }  // of ix
-}
+}  /* end of contract_twopoint_xdep */
 
 
 /******************************************************************************
@@ -4527,126 +4343,6 @@ unsigned int lexic2eot_5d (unsigned int is, unsigned int ix) {
   return( shift + ( g_iseven[ix] ? g_lexic2eot[ix] : (g_lexic2eot[ix] - VOLUME/2) ) );
 }
 
-#if 0
-/****************************************************************************
- * exchange x- and z-decomposition
- ****************************************************************************/
-void xchange_revert_decomp_5d(double*phix, double*phiz, double*buffer, int dir) {
-#ifdef HAVE_MPI
-  int cntr=0;
-//  MPI_Request request[120];
-//  MPI_Status status[120];
-
-  int x0, x1, x2, x3, ix, iix, iy, iiy, x5;
-  int send_count=0, recv_count=0;
-  int src_offset, dest_offset, src_step, dest_step;
-  int Lloc, Lglob, nloc;
-  size_t bytes;
-
-  // use spinor_x_slice_vector, g_ts_comm,
-  
-#if (defined PARALLELTX) && !(defined PARALLELTXY)
-if(dir==0) {
-  Lglob = LZ_global;
-  Lloc  = Lglob / g_nproc_x;
-  if(Lloc != LX) {
-    if(g_cart_id==0) fprintf(stderr, "# [xchange_revert_decomp] Error, Lloc and LX must be equal\n");
-    EXIT(1);
-  }
-  nloc = g_nproc_x;
-  send_count = L5*T*LX*LY*Lloc;
-  recv_count = send_count;
-  src_step = Lloc*24;
-  dest_step = Lloc*T*LX*LY*24;
-
-  bytes = 24*Lloc*sizeof(double);
-
-  for(x5=0;x5<L5;x5++) {
-  for(x0=0;x0<T;x0++) {
-  for(x1=0;x1<LX;x1++) {
-  for(x2=0;x2<LY;x2++) {
-    src_offset  = ((x0*LX+x1)*LY+x2) * Lglob * 24;
-    dest_offset = ((x0*LX+x1)*LY+x2) * Lloc  * 24;
-
-    for(x3=0; x3<nloc; x3++) {
-      memcpy( (void*)(phiz+dest_offset), (void*)(phix+src_offset), bytes);
-      src_offset  += src_step;
-      dest_offset += dest_step;
-    }
-  }}}}
-  
-  MPI_Alltoall((void*)phiz, send_count, MPI_DOUBLE, (void*)buffer, recv_count, MPI_DOUBLE, g_ts_comm);
-
-  // transcribe to new lexicographical order (t,z,y,x)
-  for(cntr=0; cntr<nloc; cntr++) {
-    iix = cntr * L5*T*LX*LY*Lloc;
-    for(x5=0; x5<L5; x5++) {
-    for(x0=0; x0<T;  x0++) {
-    for(x1=0; x1<LX; x1++) {
-    for(x2=0; x2<LY; x2++) {
-    for(x3=0; x3<Lloc; x3++) {
-      iy = ((x0*LX*nloc+x1+cntr*LX)*LY + x2) * Lloc + x3;
-      iiy = lexic2eot_5d(x5, iy)
-      _fv_eq_fv( phiz+_GSI(iiy), buffer+_GSI(iix) );
-      iix++;
-    }}}}}
-  }
-} else if(dir==1) {
-  Lglob = LZ_global;
-  Lloc  = Lglob / g_nproc_x;
-  if(Lloc != LX) {
-    if(g_cart_id==0) fprintf(stderr, "# [xchange_revert_decomp] Error, Lloc and LX must be equal\n");
-    EXIT(1);
-  }
-  nloc = g_nproc_x;
-  send_count = L5*T*LX*LY*Lloc;
-  recv_count = send_count;
-  src_step = Lloc*24;
-  dest_step = Lloc*T*LX*LY*24;
-
-  bytes = 24*Lloc*sizeof(double);
-
-  for(x5=0;x5<L5;x5++) {
-  for(x0=0;x0<T;x0++) {
-  for(x1=0;x1<LX;x1++) {
-  for(x2=0;x2<LY;x2++) {
-    src_offset  = ((x0*LX+x1)*LY+x2) * Lglob * 24;
-    dest_offset = ((x0*LX+x1)*LY+x2) * Lloc  * 24;
-
-    for(x3=0; x3<nloc; x3++) {
-      memcpy( (void*)(phiz+dest_offset), (void*)(phix+src_offset), bytes);
-      src_offset  += src_step;
-      dest_offset += dest_step;
-    }
-  }}}}
-  
-  MPI_Alltoall((void*)phiz, send_count, MPI_DOUBLE, (void*)buffer, recv_count, MPI_DOUBLE, g_ts_comm);
-
-  // transcribe to new lexicographical order (t,z,y,x)
-  for(cntr=0; cntr<nloc; cntr++) {
-    iix = cntr * L5*T*LX*LY*Lloc;
-    for(x5=0; x5<L5; x5++) {
-    for(x0=0; x0<T;  x0++) {
-    for(x1=0; x1<LX; x1++) {
-    for(x2=0; x2<LY; x2++) {
-    for(x3=0; x3<Lloc; x3++) {
-      iy = ((x0*LX*nloc+x1+cntr*LX)*LY + x2) * Lloc + x3;
-      iiy = lexic2eot_5d(x5, iy)
-      _fv_eq_fv( phiz+_GSI(iiy), buffer+_GSI(iix) );
-      iix++;
-    }}}}}
-  }
-
-}
-
-#elif !(defined PARALLELTX) && (defined PARALLELTXY)
-  if(g_cart_id==0) fprintf(stdout, "# [xchange_revert_decomp] not yet implemented\n");
-  return(1);
-#endif
-
-#endif
-}
-#endif  // of if 0
 
 int shift_spinor_field (double *s, double *r, int *d) {
 #ifndef HAVE_MPI
@@ -4741,8 +4437,7 @@ void check_source(double *sf, double*work, double mass, unsigned int glocation, 
  * - copied from tmLQCD
  * - difference to cm_proj_iterate at least unitarization step
  ***********************************************************/
-void reunitarize_Givens_rotations(double *omega)
-{
+void reunitarize_Givens_rotations(double *omega) {
   int iter;
   double w[18], rot[18], tmp[18];
   double trace_old, trace_new;
@@ -4884,4 +4579,72 @@ void reunitarize_Givens_rotations(double *omega)
   _cm_eq_cm(omega, w);
 }  /* end of reunitarize_Givens_rotations */
 
-}
+
+
+/*****************************************************
+ * exchange a contractinos
+ *   phi point to contraction field
+ *   N number of real elements per site
+ *   ONLY EXCHANGE BOUNDARY FACES
+ *****************************************************/
+void xchange_contraction(double *phi, int N) {
+#ifdef HAVE_MPI
+  int cntr=0;
+
+  MPI_Request request[120];
+  MPI_Status status[120];
+
+  MPI_Isend(&phi[0],                 1, contraction_time_slice_cont, g_nb_t_dn, 83, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*VOLUME],         1, contraction_time_slice_cont, g_nb_t_up, 83, g_cart_grid, &request[cntr]);
+  cntr++;
+  
+  MPI_Isend(&phi[N*(T-1)*LX*LY*LZ], 1, contraction_time_slice_cont, g_nb_t_up, 84, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(T+1)*LX*LY*LZ], 1, contraction_time_slice_cont, g_nb_t_dn, 84, g_cart_grid, &request[cntr]);
+  cntr++;
+
+#if (defined PARALLELTX) || (defined PARALLELTXY)  || (defined PARALLELTXYZ) 
+  /* x - boundary faces */
+  MPI_Isend(&phi[0],                              1, contraction_x_slice_vector, g_nb_x_dn, 85, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+2*LX*LY*LZ)],         1, contraction_x_slice_cont,   g_nb_x_up, 85, g_cart_grid, &request[cntr]);
+  cntr++;
+  
+  MPI_Isend(&phi[N*(LX-1)*LY*LZ],                1, contraction_x_slice_vector, g_nb_x_up, 86, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+2*LX*LY*LZ+T*LY*LZ)], 1, contraction_x_slice_cont,   g_nb_x_dn, 86, g_cart_grid, &request[cntr]);
+  cntr++;
+#endif
+
+#if defined PARALLELTXY || (defined PARALLELTXYZ) 
+  /* y - boundary faces */
+  MPI_Isend(&phi[0],                                        1, contraction_y_slice_vector, g_nb_y_dn, 87, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+2*(LX*LY*LZ+T*LY*LZ))],         1, contraction_y_slice_cont,   g_nb_y_up, 87, g_cart_grid, &request[cntr]);
+  cntr++;
+  
+  MPI_Isend(&phi[N*(LY-1)*LZ],                             1, contraction_y_slice_vector, g_nb_y_up, 88, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+2*(LX*LY*LZ+T*LY*LZ)+T*LX*LZ)], 1, contraction_y_slice_cont,   g_nb_y_dn, 88, g_cart_grid, &request[cntr]);
+  cntr++;
+#endif
+
+#if (defined PARALLELTXYZ) 
+  /* z - boundary faces */
+  MPI_Isend(&phi[0],                                                1, contraction_z_slice_vector, g_nb_z_dn, 89, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+2*(LX*LY*LZ+T*LY*LZ+T*LX*LZ))],         1, contraction_z_slice_cont,   g_nb_z_up, 89, g_cart_grid, &request[cntr]);
+  cntr++;
+
+  MPI_Isend(&phi[N*(LZ-1)],                                        1, contraction_z_slice_vector, g_nb_z_up, 90, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+2*(LX*LY*LZ+T*LY*LZ+T*LX*LZ)+T*LX*LY)], 1, contraction_z_slice_cont,   g_nb_z_dn, 90, g_cart_grid, &request[cntr]);
+  cntr++;
+#endif
+  MPI_Waitall(cntr, request, status);
+#endif  /* of ifdef HAVE_MPI */
+}  /* xchange_contraction */
+
+
+}  /* end of namespace cvc */

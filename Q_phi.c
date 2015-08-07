@@ -1981,7 +1981,7 @@ void Q_DW_Wilson_4d_phi(double *xi, double *phi) {
   unsigned int VOL3 = LX*LY*LZ;
   double xi_[24], *phi_, *U_, SU3_1[18];
   double spinor1[24], spinor2[24];
-#if (defined HAVE_QUDA) && ( (defined PARALLELTX) || (defined PARALLELTXY) )
+#if (defined HAVE_QUDA) && ( (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) )
   int tproc_dir = 3;
 #else
   int tproc_dir = 0;
@@ -2379,7 +2379,7 @@ void Q_DW_Wilson_dag_4d_phi(double *xi, double *phi) {
   unsigned int VOL3 = LX*LY*LZ;
   double xi_[24], *phi_, *U_, SU3_1[18];
   double spinor1[24], spinor2[24];
-#if (defined HAVE_QUDA) && ( (defined PARALLELTX) || (defined PARALLELTXY) )
+#if (defined HAVE_QUDA) && ( (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) )
   int tproc_dir = 3;
 #else
   int tproc_dir = 0;
