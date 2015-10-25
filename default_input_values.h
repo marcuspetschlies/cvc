@@ -78,6 +78,12 @@ namespace cvc {
 
 #define _default_source_timeslice 0
 #define _default_sequential_source_timeslice -1
+
+#define _default_sequential_source_location_x 0
+#define _default_sequential_source_location_y 0
+#define _default_sequential_source_location_z 0
+
+
 #define _default_no_extra_masses 0
 #define _default_no_light_masses 1
 #define _default_no_strange_masses 0
@@ -125,7 +131,11 @@ namespace cvc {
 #define _default_propagator_precision 32
 #define _default_write_source 0
 #define _default_read_source 0
+
 #define _default_write_propagator 0
+#define _default_read_propagator 1
+#define _default_read_sequential_propagator 0
+
 #define _default_nsample 1
 #define _default_num_threads 1
 #define _default_source_momentum_x 0
@@ -157,5 +167,8 @@ namespace cvc {
 #define _default_laph_time_proj_type "NA"
 #define _default_laph_spin_proj_type "NA"
 #define _default_laph_evec_proj_type "NA"
+
+#define _default_src_snk_time_separation 0
+#define _default_seq_source_gamma_id 4
 }
 #endif

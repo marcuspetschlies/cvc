@@ -848,8 +848,8 @@ void mpi_init(int argc,char *argv[]) {
 }  /* end of mpi_init */
 
 void mpi_init_xchange_contraction(int N) {
-
-  MPI_Type_contiguous(2*N, MPI_DOUBLE, &contraction_point);
+#ifdef HAVE_MPI
+  MPI_Type_contiguous(N, MPI_DOUBLE, &contraction_point);
   MPI_Type_commit(&contraction_point);
 
   /* ======================================================================== */
@@ -858,7 +858,7 @@ void mpi_init_xchange_contraction(int N) {
   MPI_Type_commit(&contraction_time_slice_cont);
 
   /* ------------------------------------------------------------------------ */
-
+#if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) 
   MPI_Type_contiguous(LY*LZ, contraction_point, &contraction_x_subslice_cont);
   MPI_Type_commit(&contraction_x_subslice_cont);
 
@@ -889,11 +889,14 @@ void mpi_init_xchange_contraction(int N) {
 
   MPI_Type_contiguous(T*LX*LY, contraction_point, &contraction_z_slice_cont);
   MPI_Type_commit(&contraction_z_slice_cont);
-
+#endif  /* of if defined PARALLELT* */
+#endif
 }  /* end of mpi_init_xchange_contraction */
 
 void mpi_fini_xchange_contraction (void) {
-
+#ifdef HAVE_MPI
+  MPI_Type_free(&contraction_time_slice_cont);
+#if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) 
   MPI_Type_free(&contraction_z_slice_cont);
   MPI_Type_free(&contraction_z_slice_vector);
   MPI_Type_free(&contraction_z_subslice_cont);
@@ -903,8 +906,8 @@ void mpi_fini_xchange_contraction (void) {
   MPI_Type_free(&contraction_x_slice_cont);
   MPI_Type_free(&contraction_x_slice_vector);
   MPI_Type_free(&contraction_x_subslice_cont);
-  MPI_Type_free(&contraction_time_slice_cont);
-
+#endif
+#endif
 }
 
 }  /* end of namespace cvc */

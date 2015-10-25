@@ -1,9 +1,12 @@
 /****************************************************
- * cvc_exact2_xspace.c
+ * p2gg_xspace.c
  *
- * Fri Jun 12 16:41:50 CEST 2015
+ * Fr 23. Okt 12:56:08 CEST 2015
+ *
+ * - originally copied from cvc_exact2_xspace.c
  *
  * PURPOSE:
+ * - contractions for P -> gamma gamma in position space
  * DONE:
  * TODO:
  ****************************************************/
@@ -52,28 +55,27 @@ using namespace cvc;
 void usage() {
   fprintf(stdout, "Code to perform cvc correlator conn. contractions\n");
   fprintf(stdout, "Usage:    [options]\n");
+  fprintf(stdout, "Options: -v verbose\n");
   fprintf(stdout, "         -f input filename [default cvc.input]\n");
-#ifdef HAVE_MPI
-  MPI_Abort(MPI_COMM_WORLD, 1);
-  MPI_Finalize();
-#endif
-  exit(0);
+  EXIT(0);
 }
 
 
 int main(int argc, char **argv) {
   
-  int c, i, mu, nu, ir, ia, ib, imunu;
+  char outfile_name[] = "p2gg";
+
+  int c, i, j, mu, nu, ir, is, ia, ib, imunu;
   int op_id = 0;
   int filename_set = 0;
-  int source_location=0, have_source_flag = 0, have_shifted_source_flag = 0;
+  int source_location, have_source_flag = 0, have_shifted_source_flag = 0;
   int x0, x1, x2, x3, ix;
   int gsx0, gsx1, gsx2, gsx3;
   int sx0, sx1, sx2, sx3;
   int isimag[4];
   int gperm[5][4], gperm2[4][4];
   int check_position_space_WI=0;
-  int threadid=0;
+  int nthreads=-1, threadid=-1;
   int exitstatus;
   int write_ascii=0;
   int source_proc_coords[4], source_proc_id = -1;
@@ -81,13 +83,16 @@ int main(int argc, char **argv) {
   double gperm_sign[5][4], gperm2_sign[4][4];
   double *conn = (double*)NULL;
   double contact_term[8];
+  int verbose = 0;
   char filename[100], contype[400];
   double ratime, retime;
   double plaq;
   double spinor1[24], spinor2[24], U_[18];
+  double *gauge_trafo=(double*)NULL;
   double *phi=NULL, *chi=NULL, *source=NULL, *propagator=NULL;
   complex w, w1;
   double Usourcebuff[72], *Usource[4];
+  double phase=0.;
   int LLBase[4];
   FILE *ofs;
 
@@ -99,19 +104,22 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "wah?f:")) != -1) {
+  while ((c = getopt(argc, argv, "wah?vf:")) != -1) {
     switch (c) {
+    case 'v':
+      verbose = 1;
+      break;
     case 'f':
       strcpy(filename, optarg);
       filename_set=1;
       break;
     case 'w':
       check_position_space_WI = 1;
-      fprintf(stdout, "\n# [cvc_exact2_xspace] will check Ward identity in position space\n");
+      fprintf(stdout, "\n# [p2gg_xspace] will check Ward identity in position space\n");
       break;
     case 'a':
       write_ascii = 1;
-      fprintf(stdout, "\n# [cvc_exact2_xspace] will write data in ASCII format too\n");
+      fprintf(stdout, "\n# [p2gg_xspace] will write data in ASCII format too\n");
       break;
     case 'h':
     case '?':
@@ -125,27 +133,27 @@ int main(int argc, char **argv) {
 
   /* set the default values */
   if(filename_set==0) strcpy(filename, "cvc.input");
-  fprintf(stdout, "# [cvc_exact2_xspace] Reading input from file %s\n", filename);
+  fprintf(stdout, "# [p2gg_xspace] Reading input from file %s\n", filename);
   read_input_parser(filename);
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
 
-  fprintf(stdout, "# [] calling tmLQCD wrapper init functions\n");
+  fprintf(stdout, "# [p2gg_xspace] calling tmLQCD wrapper init functions\n");
 
   /*********************************
    * initialize MPI parameters for cvc
    *********************************/
   exitstatus = tmLQCD_invert_init(argc, argv, 1);
   if(exitstatus != 0) {
-    exit(557);
+    EXIT(14);
   }
   exitstatus = tmLQCD_get_mpi_params(&g_tmLQCD_mpi);
   if(exitstatus != 0) {
-    exit(558);
+    EXIT(15);
   }
   exitstatus = tmLQCD_get_lat_params(&g_tmLQCD_lat);
   if(exitstatus != 0) {
-    exit(559);
+    EXIT(16);
   }
 #endif
 
@@ -164,20 +172,20 @@ int main(int argc, char **argv) {
 
   /* some checks on the input data */
   if((T_global == 0) || (LX==0) || (LY==0) || (LZ==0)) {
-    if(g_proc_id==0) fprintf(stderr, "[cvc_exact2_xspace] T and L's must be set\n");
+    if(g_proc_id==0) fprintf(stderr, "[p2gg_xspace] T and L's must be set\n");
     usage();
   }
 
 
 #ifdef HAVE_MPI
   if((status = (int*)calloc(g_nproc, sizeof(int))) == (int*)NULL) {
-    EXIT(7);
+    EXIT(1);
   }
 #endif
 
   if(init_geometry() != 0) {
-    fprintf(stderr, "[cvc_exact2_xspace] Error from init_geometry\n");
-    EXIT(1);
+    fprintf(stderr, "[p2gg_xspace] Error from init_geometry\n");
+    EXIT(2);
   }
 
   geometry();
@@ -192,11 +200,11 @@ int main(int argc, char **argv) {
   if(!(strcmp(gaugefilename_prefix,"identity")==0)) {
     /* read the gauge field */
     sprintf(filename, "%s.%.4d", gaugefilename_prefix, Nconf);
-    if(g_cart_id==0) fprintf(stdout, "# [cvc_exact2_xspace] reading gauge field from file %s\n", filename);
+    if(g_cart_id==0) fprintf(stdout, "# [p2gg_xspace] reading gauge field from file %s\n", filename);
     read_lime_gauge_field_doubleprec(filename);
   } else {
     /* initialize unit matrices */
-    if(g_cart_id==0) fprintf(stdout, "\n# [cvc_exact] initializing unit matrices\n");
+    if(g_cart_id==0) fprintf(stdout, "\n# [p2gg_xspace] initializing unit matrices\n");
     for(ix=0;ix<VOLUME;ix++) {
       _cm_eq_id( g_gauge_field + _GGI(ix, 0) );
       _cm_eq_id( g_gauge_field + _GGI(ix, 1) );
@@ -206,20 +214,20 @@ int main(int argc, char **argv) {
   }
 #else
   Nconf = g_tmLQCD_lat.nstore;
-  if(g_cart_id== 0) fprintf(stdout, "[] Nconf = %d\n", Nconf);
+  if(g_cart_id== 0) fprintf(stdout, "[p2gg_xspace] Nconf = %d\n", Nconf);
 
   exitstatus = tmLQCD_read_gauge(Nconf);
   if(exitstatus != 0) {
-    EXIT(560);
+    EXIT(3);
   }
 
   exitstatus = tmLQCD_get_gauge_field_pointer(&g_gauge_field);
   if(exitstatus != 0) {
-    EXIT(561);
+    EXIT(4);
   }
   if(&g_gauge_field == NULL) {
-    fprintf(stderr, "[] Error, &g_gauge_field is NULL\n");
-    EXIT(563);
+    fprintf(stderr, "[p2gg_xspace] Error, &g_gauge_field is NULL\n");
+    EXIT(5);
   }
 #endif
 
@@ -229,7 +237,7 @@ int main(int argc, char **argv) {
 
   /* measure the plaquette */
   plaquette(&plaq);
-  if(g_cart_id==0) fprintf(stdout, "# [cvc_exact2_xspace] measured plaquette value: %25.16e\n", plaq);
+  if(g_cart_id==0) fprintf(stdout, "# [p2gg_xspace] measured plaquette value: %25.16e\n", plaq);
 
   /* allocate memory for the spinor fields */
   no_fields = 120;
@@ -247,11 +255,9 @@ int main(int argc, char **argv) {
   /* allocate memory for the contractions */
   conn = (double*)malloc(32*(VOLUME+RAND)*sizeof(double));
   if( conn == NULL ) {
-    fprintf(stderr, "[cvc_exact2_xspace] could not allocate memory for contr. fields\n");
-    EXIT(3);
+    fprintf(stderr, "[p2gg_xspace] could not allocate memory for contr. fields\n");
+    EXIT(6);
   }
-
-
 
   memset(conn, 0, 32*VOLUME*sizeof(double));
 
@@ -269,14 +275,14 @@ int main(int argc, char **argv) {
   source_proc_coords[3] = gsx3 / LZ;
 
   if(g_cart_id == 0) {
-    fprintf(stdout, "# [cvc_exact2_xspace] global source coordinates: (%3d,%3d,%3d,%3d)\n",  gsx0, gsx1, gsx2, gsx3);
-    fprintf(stdout, "# [cvc_exact2_xspace] source proc coordinates: (%3d,%3d,%3d,%3d)\n",  source_proc_coords[0], source_proc_coords[1], source_proc_coords[2], source_proc_coords[3]);
+    fprintf(stdout, "# [p2gg_xspace] global source coordinates: (%3d,%3d,%3d,%3d)\n",  gsx0, gsx1, gsx2, gsx3);
+    fprintf(stdout, "# [p2gg_xspace] source proc coordinates: (%3d,%3d,%3d,%3d)\n",  source_proc_coords[0], source_proc_coords[1], source_proc_coords[2], source_proc_coords[3]);
   }
 
   MPI_Cart_rank(g_cart_grid, source_proc_coords, &source_proc_id);
   have_source_flag = (int)(g_cart_id == source_proc_id);
   if(have_source_flag==1) {
-    fprintf(stdout, "# [cvc_exact2_xspace] process %2d has source location\n", source_proc_id);
+    fprintf(stdout, "# [p2gg_xspace] process %2d has source location\n", source_proc_id);
   }
   sx0 = gsx0 % T;
   sx1 = gsx1 % LX;
@@ -284,18 +290,23 @@ int main(int argc, char **argv) {
   sx3 = gsx3 % LZ;
 # else
   have_source_flag = (int)(g_source_location/(LX*LY*LZ)>=Tstart && g_source_location/(LX*LY*LZ)<(Tstart+T));
-  if(have_source_flag==1) fprintf(stdout, "[cvc_exact2_xspace] process %2d has source location\n", g_cart_id);
+  if(have_source_flag==1) fprintf(stdout, "[p2gg_xspace] process %2d has source location\n", g_cart_id);
   sx0 = g_source_location/(LX*LY*LZ)-Tstart;
   sx1 = (g_source_location%(LX*LY*LZ)) / (LY*LZ);
   sx2 = (g_source_location%(LY*LZ)) / LZ;
   sx3 = (g_source_location%LZ);
+
+  sx0 = gsx0 - Tstart;
+  sx1 = gsx1;
+  sx2 = gsx2;
+  sx3 = gsx3;
 #endif
   Usource[0] = Usourcebuff;
   Usource[1] = Usourcebuff+18;
   Usource[2] = Usourcebuff+36;
   Usource[3] = Usourcebuff+54;
   if(have_source_flag==1) { 
-    fprintf(stdout, "# [cvc_exact2_xspace] local source coordinates: (%3d,%3d,%3d,%3d)\n", sx0, sx1, sx2, sx3);
+    fprintf(stdout, "# [p2gg_xspace] local source coordinates: (%3d,%3d,%3d,%3d)\n", sx0, sx1, sx2, sx3);
     source_location = g_ipt[sx0][sx1][sx2][sx3];
     _cm_eq_cm_ti_co(Usource[0], &g_gauge_field[_GGI(source_location,0)], &co_phase_up[0]);
     _cm_eq_cm_ti_co(Usource[1], &g_gauge_field[_GGI(source_location,1)], &co_phase_up[1]);
@@ -309,16 +320,16 @@ int main(int argc, char **argv) {
 #  else
   MPI_Gather(&have_source_flag, 1, MPI_INT, status, 1, MPI_INT, 0, g_cart_grid);
   if(g_cart_id==0) {
-    for(mu=0; mu<g_nproc; mu++) fprintf(stdout, "# [cvc_exact2_xspace] status[%1d]=%d\n", mu,status[mu]);
+    for(mu=0; mu<g_nproc; mu++) fprintf(stdout, "# [p2gg_xspace] status[%1d]=%d\n", mu,status[mu]);
   }
   if(g_cart_id==0) {
     for(have_source_flag=0; status[have_source_flag]!=1; have_source_flag++);
-    fprintf(stdout, "# [cvc_exact2_xspace] have_source_flag= %d\n", have_source_flag);
+    fprintf(stdout, "# [p2gg_xspace] have_source_flag= %d\n", have_source_flag);
   }
   MPI_Bcast(&have_source_flag, 1, MPI_INT, 0, g_cart_grid);
   MPI_Bcast(Usourcebuff, 72, MPI_DOUBLE, have_source_flag, g_cart_grid);
 #  endif
-  /* fprintf(stdout, "# [cvc_exact2_xspace] proc%.4d have_source_flag = %d\n", g_cart_id, have_source_flag); */
+  /* fprintf(stdout, "# [p2gg_xspace] proc%.4d have_source_flag = %d\n", g_cart_id, have_source_flag); */
 #else
   /* HAVE_MPI not defined */
   have_source_flag = 0;
@@ -391,168 +402,195 @@ int main(int argc, char **argv) {
   ratime = (double)clock() / CLOCKS_PER_SEC;
 #endif
 
-#ifdef HAVE_TMLQCD_LIBWRAPPER
-  if(g_read_propagator) {
-#endif
+  /**********************************************************
+   * read dn spinor fields
+   **********************************************************/
+  for(mu=0; mu<5; mu++) {
+    for(ia=0; ia<12; ia++) {
 
-    /**********************************************************
-     * read up spinor fields
-     **********************************************************/
-    for(mu=0; mu<5; mu++) {
-      for(ia=0; ia<12; ia++) {
-        get_filename(filename, mu, ia, 1);
-        exitstatus = read_lime_spinor(g_spinor_field[mu*12+ia], filename, 0);
-        if(exitstatus != 0) {
-          fprintf(stderr, "[cvc_exact2_xspace] Error from read_lime_spinor, status was %d\n", exitstatus);
-          EXIT(111);
-        }
-        xchange_field(g_spinor_field[mu*12+ia]);
-      }  /* of loop on ia */
-    }    /* of loop on mu */
-
-    /**********************************************************
-     * read dn spinor fields
-     **********************************************************/
-    for(mu=0; mu<5; mu++) {
-      for(ia=0; ia<12; ia++) {
 /*
-        get_filename(filename, mu, ia, -1);
-        exitstatus = read_lime_spinor(g_spinor_field[60+mu*12+ia], filename, 0);
+      get_filename(filename, mu, ia, -1);
+      exitstatus = read_lime_spinor(g_spinor_field[60+mu*12+ia], filename, 0);
 */
-        get_filename(filename, mu, ia, 1);
-        exitstatus = read_lime_spinor(g_spinor_field[60+mu*12+ia], filename, 1);
-        if(exitstatus != 0) {
-          fprintf(stderr, "[cvc_exact2_xspace] Error from read_lime_spinor, status was %d\n", exitstatus);
-          EXIT(112);
-        }
-        xchange_field(g_spinor_field[60+mu*12+ia]);
-      }  /* of loop on ia */
-    }    /* of loop on mu */
 
-#ifdef HAVE_TMLQCD_LIBWRAPPER
-  }  /* end of if read propagator */
+      get_filename(filename, mu, ia, 1); 
+      exitstatus = read_lime_spinor(g_spinor_field[60+mu*12+ia], filename, 1-g_propagator_position);
+
+      if(exitstatus != 0) {
+        fprintf(stderr, "[p2gg_xspace] Error from read_lime_spinor, status was %d\n", exitstatus);
+        EXIT(7);
+      }
+      xchange_field(g_spinor_field[60+mu*12+ia]);
+    }  /* of loop on ia */
+  }    /* of loop on mu */
+
+#ifndef HAVE_TMLQCD_LIBWRAPPER
+  if(g_cart_id == 0) {
+    fprintf(stderr, "[p2gg_xspace] Error, need tmLQCD libwrapper for inversion\n");
+    EXIT(8);
+  }
 #endif
 
-#ifdef HAVE_TMLQCD_LIBWRAPPER
-  if(!g_read_propagator) {
+  /***********************************************************
+   * invert using tmLQCD invert
+   ***********************************************************/
 
-    /***********************************************************
-     * invert using tmLQCD invert
-     ***********************************************************/
-    if(g_tmLQCD_lat.no_operators != 2) {
-      fprintf(stderr, "[] Error, confused about number of operators, expected 2 operators (up-type, dn-tpye)\n");
-      EXIT(6);
+  if(g_tmLQCD_lat.no_operators > 2) {
+    fprintf(stderr, "[p2gg_xspace] Error, confused about number of operators, expected 1 operator (up-type)\n");
+    EXIT(9);
+  }
+ 
+  op_id = g_propagator_position;  
+  if(g_cart_id == 0) fprintf(stdout, "# [p2gg_xspace] using op_id = %d\n", op_id);
+
+    /* the global sequential source timeslice */
+    shifted_source_coords[0] = ( gsx0 + g_sequential_source_timeslice + T_global ) % T_global;
+
+    /* TEST */
+/*
+    shifted_source_coords[1] = ( gsx1 + g_sequential_source_location_x + LX_global ) % LX_global;
+    shifted_source_coords[2] = ( gsx2 + g_sequential_source_location_y + LY_global ) % LY_global;
+    shifted_source_coords[3] = ( gsx3 + g_sequential_source_location_z + LZ_global ) % LZ_global;
+*/  
+
+    shifted_source_proc_coords[0] = shifted_source_coords[0] / T;
+
+    /* TEST */
+/*
+    shifted_source_proc_coords[1] = shifted_source_coords[1] / LX;
+    shifted_source_proc_coords[2] = shifted_source_coords[2] / LY;
+    shifted_source_proc_coords[3] = shifted_source_coords[3] / LZ;
+*/  
+    have_shifted_source_flag = ( g_proc_coords[0] == shifted_source_proc_coords[0] );
+/*
+    &&
+        g_proc_coords[1] == shifted_source_proc_coords[1]  &&
+        g_proc_coords[2] == shifted_source_proc_coords[2]  &&
+        g_proc_coords[3] == shifted_source_proc_coords[3] );
+*/
+    if(have_shifted_source_flag) {
+      fprintf(stdout, "# [p2gg_xspace] process %4d has global sequential source timeslice %d -> %d\n", g_cart_id, gsx0, shifted_source_coords[0] );
+/*
+      fprintf(stdout, "# [p2gg_xspace] process %4d has global sequential source timeslice (%d,%d, %d, %d) -> (%d, %d, %d, %d)\n", g_cart_id, 
+          gsx0, gsx1, gsx2, gsx3, shifted_source_coords[0], shifted_source_coords[1], shifted_source_coords[2], shifted_source_coords[3]);
+*/
     }
- 
-    /* op_id runs over 0 / up-type quarks and 1 / dn-type quarks */
+    
+    shifted_source_coords[0] = shifted_source_coords[0] % T;  /* local sequential source timeslice */
+/*
+    shifted_source_coords[1] = shifted_source_coords[1] % LX;
+    shifted_source_coords[2] = shifted_source_coords[2] % LY;
+    shifted_source_coords[3] = shifted_source_coords[3] % LZ;
+*/
+    if(have_shifted_source_flag) {
+      fprintf(stdout, "# [p2gg_xspace] process %4d has local sequential source timeslice %d\n", g_cart_id, shifted_source_coords[0]);
+    }
 
-    /*************************************************************
-     *************************************************************
-     **
-     ** make sure eigenvectors are recalculated when chaning from
-     **   op_id 0 to op_id 1
-     **
-     *************************************************************
-     *************************************************************/
+    for(mu=0; mu<5; mu++) {
+      for(ia=0; ia<12; ia++) {
 
-    for ( op_id = 0; op_id < 2; op_id++ ) {
+        if(g_read_sequential_propagator) {
+          /**********************************************************
+           * read up-type sequential propagator
+           **********************************************************/
+          sprintf(filename, "%s.%.4d.%.2d.%.2d.inverted", filename_prefix3, Nconf, mu, ia);
+          exitstatus = read_lime_spinor(g_spinor_field[mu*12+ia], filename, g_propagator_position);
+          if(exitstatus != 0) {
+            fprintf(stderr, "[p2gg_xspace] Error from read_lime_spinor, status was %d\n", exitstatus);
+            EXIT(10);
+          }
+          xchange_field(g_spinor_field[mu*12+ia]);
 
-      if(g_cart_id == 0) fprintf(stdout, "# [] using op_id = %d\n", op_id);
+        } else {
+          /**********************************************************
+           * read up spinor fields
+           **********************************************************/
+          get_filename(filename, mu, ia, 1);
+          exitstatus = read_lime_spinor(g_spinor_field[mu*12+ia], filename, g_propagator_position);
+          if(exitstatus != 0) {
+            fprintf(stderr, "[p2gg_xspace] Error from read_lime_spinor, status was %d\n", exitstatus);
+            EXIT(11);
+          }
+          xchange_field(g_spinor_field[mu*12+ia]);
 
-      /* for(mu=0; mu<5; mu++) */
-      for(mu=4; mu<5; mu++)
-      {
-  
-        shifted_source_coords[0] = gsx0;
-        shifted_source_coords[1] = gsx1;
-        shifted_source_coords[2] = gsx2;
-        shifted_source_coords[3] = gsx3;
-  
-        /* fprintf(stdout, "# [] proc%.4d global source coords = ( %d, %d, %d, %d )\n", g_cart_id,
-            shifted_source_coords[0], shifted_source_coords[1],
-            shifted_source_coords[2], shifted_source_coords[3]); */
+          /**********************************************************
+           * prepare sequential source
+           **********************************************************/
+          if(g_cart_id == 0) fprintf(stdout, "# [p2gg_xspace] preparing sequential source for spin-color component (%d, %d)\n", ia/3, ia%3);
 
-
-
-        if(mu < 4) shifted_source_coords[mu] = ( shifted_source_coords[mu] + 1 ) % LLBase[mu];
-
-        /* fprintf(stdout, "# [] proc%.4d shifted global source coords (%d) = ( %d, %d, %d, %d )\n", g_cart_id, mu,
-            shifted_source_coords[0], shifted_source_coords[1],
-            shifted_source_coords[2], shifted_source_coords[3]); */
-        
-        shifted_source_proc_coords[0] = shifted_source_coords[0] / T;
-        shifted_source_proc_coords[1] = shifted_source_coords[1] / LX;
-        shifted_source_proc_coords[2] = shifted_source_coords[2] / LY;
-        shifted_source_proc_coords[3] = shifted_source_coords[3] / LZ;
- 
-        /* fprintf(stdout, "# [] proc%.4d shifted source proc coords (%d) = ( %d, %d, %d, %d )\n", g_cart_id, mu,
-          shifted_source_proc_coords[0], shifted_source_proc_coords[1],
-          shifted_source_proc_coords[2], shifted_source_proc_coords[3]); */
-
-        MPI_Cart_rank(g_cart_grid, shifted_source_proc_coords, &source_proc_id);
-        have_shifted_source_flag = (int)(g_cart_id == source_proc_id);
-  
-        shifted_source_coords[0] = shifted_source_coords[0] % T;
-        shifted_source_coords[1] = shifted_source_coords[1] % LX;
-        shifted_source_coords[2] = shifted_source_coords[2] % LY;
-        shifted_source_coords[3] = shifted_source_coords[3] % LZ;
-
-        /* fprintf(stdout, "# [] proc%.4d shifted local source coords (%d) = ( %d, %d, %d, %d )\n", g_cart_id, mu,
-            shifted_source_coords[0], shifted_source_coords[1],
-            shifted_source_coords[2], shifted_source_coords[3]); */
-
-        if(have_shifted_source_flag) {
-          fprintf(stdout, "# [] proc%.4d have shifted source flag\n", g_cart_id);
-          fprintf(stdout, "# [] shifted source proc coords  (%d) = ( %d, %d, %d, %d )\n", mu,
-              shifted_source_proc_coords[0], shifted_source_proc_coords[1],
-              shifted_source_proc_coords[2], shifted_source_proc_coords[3]);
-          fprintf(stdout, "# [] global shifted source coords (%d) = ( %d, %d, %d, %d )\n", mu,
-              shifted_source_coords[0] + g_proc_coords[0] * T,  shifted_source_coords[1] + g_proc_coords[1] * LX,
-              shifted_source_coords[2] + g_proc_coords[2] * LY, shifted_source_coords[3] + g_proc_coords[3] * LZ );
-          fprintf(stdout, "# [] local shifted source coords  (%d) = ( %d, %d, %d, %d )\n", mu,
-              shifted_source_coords[0], shifted_source_coords[1],
-              shifted_source_coords[2], shifted_source_coords[3] );
-        }
-
-        for(ia=0; ia<12; ia++) {
-
-          if(g_cart_id == 0) fprintf(stdout, "# [] inverting for operator %d for spin-color component (%d, %d)\n", op_id, ia/3, ia%3);
+          propagator = g_spinor_field[12 * mu + ia];
 
           memset(source, 0, 24*VOLUME*sizeof(double));
+
           if(have_shifted_source_flag) {
-            source[ _GSI( g_ipt[shifted_source_coords[0]][shifted_source_coords[1]][shifted_source_coords[2]][shifted_source_coords[3]] ) + 2*ia ] = 1.;
-          }
+
+            x0 = shifted_source_coords[0];
+            for(x1=0;x1<LX;x1++) {
+            for(x2=0;x2<LY;x2++) {
+            for(x3=0;x3<LZ;x3++) {
+              ix = g_ipt[x0][x1][x2][x3];
+              phase = (1. - 2. * g_propagator_position) * 2. * M_PI * ( ( x1 + g_proc_coords[1]*LX ) * g_seq_source_momentum[0] / (double)LX_global
+                                  + ( x2 + g_proc_coords[2]*LY ) * g_seq_source_momentum[1] / (double)LY_global
+                                  + ( x3 + g_proc_coords[3]*LZ ) * g_seq_source_momentum[2] / (double)LZ_global );
+              w.re = cos(phase);
+              w.im = sin(phase);
+              _fv_eq_gamma_ti_fv(spinor1, g_sequential_source_gamma_id, propagator + _GSI(ix));
+              _fv_eq_fv_ti_co(source + _GSI(ix), spinor1, &w);
+            }}}
+
+
+            /* TEST */
+/*
+            ix = g_ipt[shifted_source_coords[0]][shifted_source_coords[1]][shifted_source_coords[2]][shifted_source_coords[3]];
+            _fv_eq_fv(source + _GSI(ix), propagator + _GSI(ix));
+*/
+
+          }  /* end of if have_shifted_source_flag */
 
           xchange_field(source);
 
-          propagator = g_spinor_field[12 * ( op_id * 5 + mu ) + ia];
-  
+
+          /* TEST */
+/*
+          sprintf(filename, "sequential_source.%.2d.%.2d.%.4d", mu, ia, g_cart_id);
+          ofs = fopen(filename, "w");
+          for(x0=0;x0<T;x0++) {
+          for(x1=0;x1<LX;x1++) {
+          for(x2=0;x2<LY;x2++) {
+          for(x3=0;x3<LZ;x3++) {
+            ix = g_ipt[x0][x1][x2][x3];
+            fprintf(ofs, "# t=%2d x=%2d y=%2d z=%2d\n", x0+g_proc_coords[0]*T, x1+g_proc_coords[1]*LX, x2+g_proc_coords[2]*LY, x3+g_proc_coords[3]*LZ);
+            for(i=0; i<12; i++) {
+              fprintf(ofs, "%3d%25.16e%25.16e\n", i, source[_GSI(ix)+2*i], source[_GSI(ix)+2*i+1]);
+            }
+          }}}}
+          fclose(ofs);
+*/
+
+
+          /**********************************************************
+           * invert
+           **********************************************************/
+          if(g_cart_id == 0) fprintf(stdout, "# [p2gg_xspace] inverting for spin-color component (%d, %d)\n", ia/3, ia%3);
           exitstatus = tmLQCD_invert(propagator, source, op_id, g_write_propagator);
           if(exitstatus != 0) {
-            fprintf(stderr, "[] Error from tmLQCD_invert, status was %d\n", exitstatus);
-            EXIT(7);
+            fprintf(stderr, "[p2gg_xspace] Error from tmLQCD_invert, status was %d\n", exitstatus);
+            EXIT(12);
           }
-
           xchange_field(propagator);
 
-        }  /* end of loop on spin-color component */
+        }  /* end of else of if read sequential propagator */
 
-      }  /* end of loop on mu shift direction */
+      }  /* end of loop on spin-color component */
+    }  /* end of loop on mu shift direction */
 
-    }  /* end of loop on op_id */
-
-  }  /* end of if not read propagator */
-
-
-#endif  /* of ifdef HAVE_TMLQCD_LIBWRAPPER */
 
 #ifdef HAVE_MPI
   retime = MPI_Wtime();
 #else
   retime = (double)clock() / CLOCKS_PER_SEC;
 #endif
-  if(g_cart_id==0) fprintf(stdout, "# [cvc_exact2_xspace] reading / invert in %e seconds\n", retime-ratime);
-
+  if(g_cart_id==0) fprintf(stdout, "# [p2gg_xspace] reading / invert in %e seconds\n", retime-ratime);
 
   /**********************************************************
    **********************************************************
@@ -708,7 +746,7 @@ int main(int argc, char **argv) {
   }  // of nu
 
   if(have_source_flag == g_cart_id) {
-    fprintf(stdout, "# [cvc_exact2_xspace] contact term after 1st part:\n");
+    fprintf(stdout, "# [p2gg_xspace] contact term after 1st part:\n");
     fprintf(stdout, "\t%d\t%25.16e%25.16e\n", 0, contact_term[0], contact_term[1]);
     fprintf(stdout, "\t%d\t%25.16e%25.16e\n", 1, contact_term[2], contact_term[3]);
     fprintf(stdout, "\t%d\t%25.16e%25.16e\n", 2, contact_term[4], contact_term[5]);
@@ -848,7 +886,7 @@ int main(int argc, char **argv) {
   
   /* print contact term */
   if(g_cart_id == have_source_flag) {
-    fprintf(stdout, "# [cvc_exact2_xspace] contact term\n");
+    fprintf(stdout, "# [p2gg_xspace] contact term\n");
     for(i=0;i<4;i++) {
       fprintf(stdout, "\t%d%25.16e%25.16e\n", i, contact_term[2*i], contact_term[2*i+1]);
     }
@@ -865,7 +903,7 @@ int main(int argc, char **argv) {
 #else
   retime = (double)clock() / CLOCKS_PER_SEC;
 #endif
-  if(g_cart_id==0) fprintf(stdout, "# [cvc_exact2_xspace] contractions in %e seconds\n", retime-ratime);
+  if(g_cart_id==0) fprintf(stdout, "# [p2gg_xspace] contractions in %e seconds\n", retime-ratime);
 
   /* save results */
 #ifdef HAVE_MPI
@@ -874,11 +912,11 @@ int main(int argc, char **argv) {
   ratime = (double)clock() / CLOCKS_PER_SEC;
 #endif
   if(strcmp(g_outfile_prefix, "NA") == 0) {
-    sprintf(filename, "cvc2_v_x.%.4d", Nconf);
+    sprintf(filename, "%s_x.%.4d", outfile_name, Nconf);
   } else {
-    sprintf(filename, "%s/cvc2_v_x.%.4d", g_outfile_prefix, Nconf);
+    sprintf(filename, "%s/%s_x.%.4d", g_outfile_prefix, outfile_name, Nconf);
   }
-  sprintf(contype, "cvc - cvc in position space, all 16 components");
+  sprintf(contype, "P - cvc - cvc in position space, all 16 components");
   write_lime_contraction(conn, filename, 64, 16, contype, Nconf, 0);
 
 /*
@@ -892,13 +930,13 @@ int main(int argc, char **argv) {
   if(write_ascii) {
 #ifndef HAVE_MPI
     if(strcmp(g_outfile_prefix, "NA") == 0) {
-      sprintf(filename, "cvc2_v_x.%.4d.ascii", Nconf);
+      sprintf(filename, "%s_x.%.4d.ascii", outfile_name, Nconf);
     } else {
-      sprintf(filename, "%s/cvc2_v_x.%.4d.ascii", g_outfile_prefix, Nconf);
+      sprintf(filename, "%s/%s_x.%.4d.ascii", g_outfile_prefix, outfile_name, Nconf);
     }
     write_contraction(conn, NULL, filename, 16, 2, 0);
 #else
-    sprintf(filename, "cvc2_v_x.%.4d.ascii.%.2d", Nconf, g_cart_id);
+    sprintf(filename, "%s_x.%.4d.ascii.%.2d", outfile_name, Nconf, g_cart_id);
     ofs = fopen(filename, "w");
     for(x0=0; x0<T;  x0++) {
     for(x1=0; x1<LX; x1++) {
@@ -921,74 +959,20 @@ int main(int argc, char **argv) {
 #else
   retime = (double)clock() / CLOCKS_PER_SEC;
 #endif
-  if(g_cart_id==0) fprintf(stdout, "# [cvc_exact2_xspace] saved position space results in %e seconds\n", retime-ratime);
+  if(g_cart_id==0) fprintf(stdout, "# [p2gg_xspace] saved position space results in %e seconds\n", retime-ratime);
 
 
   /* check the Ward identity in position space */
   if(check_position_space_WI) {
-#ifdef HAVE_MPI
     xchange_contraction(conn, 32);
-    sprintf(filename, "post_xchange.%.4d", g_cart_id);
-    ofs = fopen(filename,"w");
-
-    int start_valuet = 1;
-#  if defined PARALLELTX || defined PARALLELTXY || defined PARALLELTXYZ
-    int start_valuex = 1;
-#  else
-    int start_valuex = 0;
-#  endif
-#  if defined PARALLELTXY || defined PARALLELTXYZ
-    int start_valuey = 1;
-#  else
-    int start_valuey = 0;
-#  endif
-#  if defined PARALLELTXYZ
-    int start_valuez = 1;
-#  else
-    int start_valuez = 0;
-#  endif
-
-    int y0, y1, y2, y3, isboundary;
-    for(x0=-start_valuet; x0<T+start_valuet;  x0++) {
-    for(x1=-start_valuex; x1<LX+start_valuex; x1++) {
-    for(x2=-start_valuey; x2<LY+start_valuey; x2++) {
-    for(x3=-start_valuez; x3<LZ+start_valuez; x3++) {
-      y0=x0; y1=x1; y2=x2; y3=x3;
-      if(x0==-1) y0=T +1;
-      if(x1==-1) y1=LX+1;
-      if(x2==-1) y2=LY+1;
-      if(x3==-1) y3=LZ+1;
-
-      int z0 = ( (x0 + T  * g_proc_coords[0] ) + T_global  ) % T_global;
-      int z1 = ( (x1 + LX * g_proc_coords[1] ) + LX_global ) % LX_global;
-      int z2 = ( (x2 + LY * g_proc_coords[2] ) + LY_global ) % LY_global;
-      int z3 = ( (x3 + LZ * g_proc_coords[3] ) + LZ_global ) % LZ_global;
-     
-
-      isboundary = 0;
-      if(x0==-1 || x0== T) isboundary++;
-      if(x1==-1 || x1==LX) isboundary++;
-      if(x2==-1 || x2==LY) isboundary++;
-      if(x3==-1 || x3==LZ) isboundary++;
-      if(isboundary > 1) { continue; }
-      ix = g_ipt[y0][y1][y2][y3];
-
-      fprintf(ofs, "# t=%2d x=%2d y=%2d z=%2d\n", z0, z1, z2, z3);
-      for(nu=0; nu < 16; nu++) {
-        fprintf(ofs, "\t%3d%25.16e%25.16e\n", nu, conn[_GWI(nu,ix,VOLUME)], conn[_GWI(nu,ix,VOLUME)+1]);
-      }
-    }}}}
-    fclose(ofs);
-
-#endif
     sprintf(filename, "WI_X.%.4d.%.4d", Nconf, g_cart_id);
     ofs = fopen(filename,"w");
-    fprintf(stdout, "\n# [cvc_exact2_xspace] checking Ward identity in position space ...\n");
+    fprintf(stdout, "\n# [p2gg_xspace] checking Ward identity in position space ...\n");
     for(x0=0; x0<T;  x0++) {
     for(x1=0; x1<LX; x1++) {
     for(x2=0; x2<LY; x2++) {
     for(x3=0; x3<LZ; x3++) {
-      fprintf(ofs, "# t=%2d x=%2d y=%2d z=%2d\n", x0, x1, x2, x3);
+      fprintf(ofs, "# t=%2d x=%2d y=%2d z=%2d\n", x0+g_proc_coords[0] * T, x1+g_proc_coords[1]*LX, x2+g_proc_coords[2]*LY, x3+g_proc_coords[3]*LZ);
       ix=g_ipt[x0][x1][x2][x3];
       for(nu=0; nu<4; nu++) {
         w.re = conn[_GWI(4*0+nu,ix          ,VOLUME)  ] + conn[_GWI(4*1+nu,ix          ,VOLUME)  ]
@@ -1007,14 +991,16 @@ int main(int argc, char **argv) {
     fclose(ofs);
   }
 
+
 #ifdef HAVE_MPI
-  if(g_cart_id==0) fprintf(stdout, "# [cvc_exact2_xspace] broadcasing contact term ...\n");
+  if(g_cart_id==0) fprintf(stdout, "# [p2gg_xspace] broadcasing contact term ...\n");
   MPI_Bcast(contact_term, 8, MPI_DOUBLE, have_source_flag, g_cart_grid);
   fprintf(stdout, "[%2d] contact term = "\
       "(%e + I %e, %e + I %e, %e + I %e, %e +I %e)\n",
       g_cart_id, contact_term[0], contact_term[1], contact_term[2], contact_term[3],
       contact_term[4], contact_term[5], contact_term[6], contact_term[7]);
 #endif
+
 
 
   /****************************************
@@ -1025,23 +1011,21 @@ int main(int argc, char **argv) {
   free(g_spinor_field);
   free_geometry();
   free(conn);
-#if 0
-#endif  /* of if 0 */
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
   tmLQCD_finalise();
 #endif
 
 #ifdef HAVE_MPI
-  free(status);
   mpi_fini_xchange_contraction();
+  free(status);
   MPI_Finalize();
 #endif
 
   if(g_cart_id==0) {
     g_the_time = time(NULL);
-    fprintf(stdout, "# [cvc_exact2_xspace] %s# [cvc_exact2_xspace] end of run\n", ctime(&g_the_time));
-    fprintf(stderr, "# [cvc_exact2_xspace] %s# [cvc_exact2_xspace] end of run\n", ctime(&g_the_time));
+    fprintf(stdout, "# [p2gg_xspace] %s# [p2gg_xspace] end of run\n", ctime(&g_the_time));
+    fprintf(stderr, "# [p2gg_xspace] %s# [p2gg_xspace] end of run\n", ctime(&g_the_time));
   }
 
   return(0);

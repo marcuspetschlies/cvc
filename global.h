@@ -56,7 +56,10 @@
 #define _GVI(_ix) ( 6*(_ix))
 #define _GGI(_ix,_mu) (18*(4*(_ix)+(_mu)))
 #define _GJI(_ix,_mu) (2*(4*(_ix)+(_mu)))
-#define _GWI(_ix,_mu,_N) (2*((_N)*(_ix)+(_mu)))
+
+/* #define _GWI(_ix,_mu,_N) (2*((_N)*(_ix)+(_mu))) */
+#define _GWI(_ix,_mu,_N) (2 * ( 16 * (_mu) + (_ix) ) )
+
 #define _G5DI(_is,_ix) ((_is)*VOLUME+(_ix))
 
 #ifndef _Q2EPS
@@ -163,7 +166,7 @@ EXTERN double g_qhatsqr_min, g_qhatsqr_max;
 EXTERN int Nlong, N_ape, N_Jacobi;
 EXTERN double alpha_ape, kappa_Jacobi;
 EXTERN int g_source_timeslice, g_no_extra_masses, g_no_light_masses, g_no_strange_masses, \
-         g_sequential_source_timeslice;
+         g_sequential_source_timeslice, g_sequential_source_location_x, g_sequential_source_location_y, g_sequential_source_location_z;
 EXTERN int N_hyp;
 EXTERN double alpha_hyp[3];
 
@@ -182,7 +185,7 @@ EXTERN char g_rng_filename[100];
 EXTERN int g_source_index[2];
 EXTERN int g_propagator_bc_type, g_propagator_gamma_basis;
 EXTERN int g_propagator_precision;
-EXTERN int g_write_source, g_read_source, g_write_propagator;
+EXTERN int g_write_source, g_read_source, g_write_propagator, g_read_propagator, g_read_sequential_propagator;
 EXTERN int g_nsample;
 EXTERN int g_sv_dim, g_cv_dim, g_fv_dim, g_cm_dim, g_fp_dim;
 EXTERN double g_as_over_a;
@@ -199,6 +202,8 @@ EXTERN char g_inverter_type_name[200];
 EXTERN int g_space_dilution_depth;
 EXTERN int g_mms_id;
 EXTERN int g_check_inversion;
+
+EXTERN int g_src_snk_time_separation, g_sequential_source_gamma_id;
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
 EXTERN tmLQCD_mpi_params g_tmLQCD_mpi;

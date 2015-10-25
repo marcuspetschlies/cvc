@@ -1799,7 +1799,14 @@ void set_default_input_values(void) {
 
 
   g_source_timeslice  = _default_source_timeslice;
+
   g_sequential_source_timeslice  = _default_sequential_source_timeslice;
+
+  g_sequential_source_location_x = _default_sequential_source_location_x;
+  g_sequential_source_location_y = _default_sequential_source_location_y;
+  g_sequential_source_location_z = _default_sequential_source_location_z;
+
+
   g_no_extra_masses = _default_no_extra_masses;
   g_no_light_masses = _default_no_light_masses;
   g_no_strange_masses = _default_no_strange_masses;
@@ -1824,7 +1831,10 @@ void set_default_input_values(void) {
   g_propagator_precision = _default_propagator_precision;
   g_write_source = _default_write_source;
   g_read_source = _default_read_source;
+
   g_write_propagator = _default_write_propagator;
+  g_read_propagator = _default_read_propagator;
+  g_read_sequential_propagator = _default_read_sequential_propagator;
 
   g_nsample = _default_nsample;
   g_sv_dim = 4;
@@ -1865,6 +1875,9 @@ void set_default_input_values(void) {
 
   g_mms_id = _default_mms_id;
   g_check_inversion = _default_check_inversion;
+
+  g_src_snk_time_separation = _default_src_snk_time_separation;
+  g_sequential_source_gamma_id = _default_seq_source_gamma_id;
 
 }
 
@@ -4642,6 +4655,7 @@ void xchange_contraction(double *phi, int N) {
   MPI_Irecv(&phi[N*(VOLUME+2*(LX*LY*LZ+T*LY*LZ+T*LX*LZ)+T*LX*LY)], 1, contraction_z_slice_cont,   g_nb_z_dn, 90, g_cart_grid, &request[cntr]);
   cntr++;
 #endif
+
   MPI_Waitall(cntr, request, status);
 #endif  /* of ifdef HAVE_MPI */
 }  /* xchange_contraction */
