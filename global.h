@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/time.h>
-#if defined ( MPI )
+#ifdef  HAVE_MPI
 #  include <mpi.h>
 #endif
 #include <math.h>

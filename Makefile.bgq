@@ -1,0 +1,74 @@
+# ##########
+
+srcdir=/homea/hch02/hch02q/cvc_libwrapper_cpp
+limedir=/homec/hbn28/hbn280/head/lime-1.3.2
+lemondir=/homec/hbn28/hbn280/lib/lemon
+
+tmLQCD=/homea/hch02/hch02q/tmLQCD_repo2/build_4dim
+
+fftwdir=/homea/hch02/hch02q/fftw-2.1.5/build_mpixlc
+arpackdir=/homea/hch02/hch02q/Local/packages/bgq/20150125/arpack
+
+CXX=mpixlcxx_r 
+# -qcpluscmt
+
+CXXFLAGS= -g  -qformat=all -O2 -DHAVE_MPI -DHAVE_TMLQCD_LIBWRAPPER -DPARALLELTXYZ -DHAVE_LIBLEMON -qsrcmsg -I/bgsys/drivers/ppcfloor/arch/include/ -I/bgsys/drivers/ppcfloor/comm/xl.ndebug/include -qsmp=omp:noauto:schedule=static -qthreaded
+
+# CXXFLAGS= -g  -qformat=all -O2 -DF_ -DHAVE_MPI -DHAVE_TMLQCD_LIBWRAPPER -DPARALLELTXYZ -DHAVE_LIBLEMON
+
+CCDEP = g++ 
+DEPFLAGS = -MM
+
+INCLUDE = -I$(lemondir)/include -I$(limedir)/include/ -I$(srcdir) -I$(fftwdir)/include
+
+LIBS = -L$(fftwdir)/lib -lfftw_mpi -lfftw  -L$(tmLQCD)/lib/  -lwrapper -lhmc -lmonomial -loperator -lsolver -linit -llinalg -lhmc -lxchange -lrational -lio -L/bgsys/local/lib/ -L/usr/local/bg_soft/lapack/3.3.0/lib -lesslbg -llapack -lesslbg -lxlf90_r -L/opt/ibmcmp/xlf/bg/14.1/lib64 -lxl -lxlopt -lxlf90_r -lxlfmath -L/opt/ibmcmp/xlsmp/bg/3.1/bglib64 -lxlsmp -lpthread -llemon -llime -L$(arpackdir)/lib -lparpack -larpack  -L/opt/ibmcmp/xlf/bg/14.1/lib64 -L/usr/local/bg_soft/lapack/3.3.0 -L/opt/ibmcmp/xlsmp/bg/3.1/bglib64 -L/bgsys/ibm_essl/prod/opt/ibmmath/lib64 -L$(arpackdir)/lib -L/opt/ibmcmp/xlmass/bg/7.3/bglib64 -L/opt/ibmcmp/xlf/bg/14.1/bglib64 -R/opt/ibmcmp/lib64/bg/bglib64 -L/bgsys/drivers/toolchain/V1R2M3_base/gnu-linux/lib/gcc/powerpc64-bgq-linux/4.4.7 -L/bgsys/drivers/toolchain/V1R2M3_base/gnu-linux/lib/gcc -L/bgsys/drivers/toolchain/V1R2M3_base/gnu-linux/lib/gcc/powerpc64-bgq-linux/4.4.7/../../../../powerpc64-bgq-linux/lib -lparpack -larpack -lxl -lxlopt -lxlf90_r -lxlfmath -lxlsmp -lpthread -lxlf90 -lxlomp_ser -ldl -lm -lnss_files -lnss_dns -lresolv -lm
+
+LDFLAGS = -lparpack -larpack -L/opt/ibmcmp/xlf/bg/14.1/lib64 -lwrapper -lhmc -lmonomial -loperator -lsolver -linit -lmeas -llinalg -lhmc -lxchange -lrational -lmeas -lio -L$(limedir)/lib -L$(lemondir)/lib -llemon -llime -L$(arpackdir)/lib -lparpack -larpack /homea/hch02/hch02q/Local/packages/bgq/20150125/lapack/lib/liblapack.a -L/usr/local/bg_soft/lapack/3.3.0 -llapack -lesslbg  -lxl  -lxlopt -lxlf90_r -lxlfmath -L/opt/ibmcmp/xlsmp/bg/3.1/bglib64 -lxlsmp -lpthread -L/bgsys/ibm_essl/prod/opt/ibmmath/lib64 -qsmp=omp:noauto:schedule=static -qthreaded
+
+
+LINK = $(CXX) -o $@ ${LDFLAGS}
+COMPILE = ${CXX} $(INCLUDE) -o $@ ${CXXFLAGS}
+
+MODULES = DML_crc32 dml getopt cvc_utils cvc_geometry mpi_init io io_utils propagator_io read_input_parser_cvc \
+	  get_index gauge_io contractions_io ranlxd ranlxs Q_phi invert_Qtm
+
+HEADERS = getopt cvc_complex cvc_geometry cvc_linalg cvc_utils default_input_values dml global io io_utils \
+	  mpi_init propagator_io read_input_parser get_index gauge_io contractions_io \
+	  ranlxd ranlxs Q_phi invert_Qtm
+
+PROGRAM =  cvc_exact2_xspace test p2gg_xspace apply_Dtm
+
+all: dep $(PROGRAM) 
+
+
+# ##########
+
+read_input_parser_cvc.cpp: ${srcdir}/read_input_parser_cvc.l
+	${LEX} -P cvc_ -i -t $< > ${srcdir}/read_input_parser_cvc.cpp
+
+$(addsuffix .d,$(MODULES)): %.d: ${srcdir}/%.cpp
+	 @ $(CCDEP) ${DEPFLAGS} ${INCLUDE} $< > $@
+
+$(addsuffix .d,$(PROGRAM)): %.d: ${srcdir}/%.cpp
+	 @ $(CCDEP) ${DEPFLAGS} ${INCLUDE} $< > $@
+
+dep: $(addsuffix .d,$(MODULES) ${PROGRAM})
+
+$(addsuffix .o,${MODULES}): %.o: ${srcdir}/%.cpp $(addprefix ${srcdir}/, $(addsuffix .h, ${HEADERS})) %.d
+	${COMPILE} ${OPTARGS} -c $< 
+
+$(addsuffix .o,${PROGRAM}): %.o: ${srcdir}/%.cpp %.d
+	${COMPILE} ${OPTARGS} -c $< 
+
+${PROGRAM}: %: %.o $(addsuffix .o,${MODULES})
+	${LINK}  $(addsuffix .o,${MODULES}) $@.o $(LIBS)
+
+# ##########
+
+
+clean:
+	rm -f *~ *.o *.d $(PROGRAM)
+
+.PHONY: clean
+
+# ##########

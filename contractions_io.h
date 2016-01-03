@@ -8,10 +8,10 @@ extern "C"
 {
 #endif
 
-#  include "lime.h"
-#  ifdef HAVE_LIBLEMON
-#    include "lemon.h"
-#  endif
+#include "lime.h"
+#ifdef HAVE_LIBLEMON
+#include "lemon.h"
+#endif
 
 #ifdef __cplusplus
 }

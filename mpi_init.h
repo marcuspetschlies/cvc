@@ -1,11 +1,12 @@
 #ifndef _MPI_INIT_H
 #define _MPI_INIT_H
 
-namespace cvc {
+#ifdef HAVE_MPI
+#  include <mpi.h>
+#endif
 
-#  ifdef HAVE_MPI
-#    include <mpi.h>
-#  endif
+namespace cvc
+{
 
 #  ifdef HAVE_MPI
 extern MPI_Datatype gauge_point;

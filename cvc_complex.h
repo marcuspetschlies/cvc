@@ -1,5 +1,4 @@
 /* cvc_complex.h */
-
 #ifndef _CVC_COMPLEX_H
 #define _CVC_COMPLEX_H
 
@@ -11,7 +10,8 @@
 #undef complex
 #endif
 
-namespace cvc {
+namespace cvc 
+{
 
 typedef struct {
   double re, im;
