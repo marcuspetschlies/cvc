@@ -84,7 +84,7 @@ int main(int argc, char **argv) {
   double *conn = (double*)NULL;
   double contact_term[8];
   int verbose = 0;
-  char filename[100], contype[400];
+  char filename[100], contype[800];
   double ratime, retime;
   double plaq;
   double spinor1[24], spinor2[24], U_[18];
@@ -934,7 +934,26 @@ int main(int argc, char **argv) {
     sprintf(filename, "%s/%s_x.%.4d", g_outfile_prefix, outfile_name, Nconf);
   }
   sprintf(contype, "P - cvc - cvc in position space, all 16 components");
-  write_lime_contraction(conn, filename, 64, 16, contype, Nconf, 0);
+
+  sprintf(contype, "\n<description>P - cvc - cvc in position space, all 16 components</description>\n"\
+    "<source_coords_t>%2d</source_coords_t>\n"\
+    "<source_coords_x>%2d</source_coords_x>\n"\
+    "<source_coords_y>%2d</source_coords_y>\n"\
+    "<source_coords_z>%2d</source_coords_z>\n"\
+    "<seq_source_momentum_x>%2d</seq_source_momentum_x>\n"\
+    "<seq_source_momentum_y>%2d</seq_source_momentum_y>\n"\
+    "<seq_source_momentum_z>%2d</seq_source_momentum_z>\n"\
+    "<seq_source_gamma>g%.2d</seq_source_gamma>\n"\
+    "<seq_source_timeslice>g%.2d</seq_source_timeslice>\n",
+    gsx0, gsx1, gsx2, gsx3,
+    g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2],
+    g_sequential_source_gamma_id, g_sequential_source_timeslice);
+
+  exitstatus = write_lime_contraction(conn, filename, 64, 16, contype, Nconf, 0);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[p2gg_xspace] Error from write_lime_contraction, status was %d\n", exitstatus);
+    EXIT(23);
+  }
 
 /*
   for(ix=0;ix<VOLUME;ix++) {
