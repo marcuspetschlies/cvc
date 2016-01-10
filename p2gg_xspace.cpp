@@ -628,7 +628,7 @@ int main(int argc, char **argv) {
                 exitstatus = write_propagator(source, filename, g_propagator_position, 0);
               }
               if( exitstatus != 0) {
-                fprintf(stderr, "[p2gg_xspace] Error from write_propagator, status was %d\n");
+                fprintf(stderr, "[p2gg_xspace] Error from write_propagator, status was %d\n", exitstatus);
                 EXIT(24);
               }
             }
