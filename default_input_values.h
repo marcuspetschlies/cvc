@@ -27,6 +27,11 @@ namespace cvc {
 #define _default_BCangleZ (0.)
 #define _default_filename_prefix "prop."
 #define _default_filename_prefix2 "prop."
+#define _default_filename_prefix3 "prop."
+
+#define _default_sequential_filename_prefix "seq_prop."
+#define _default_sequential_filename_prefix2 "seq_prop."
+
 #define _default_gaugefilename_prefix "conf."
 #define _default_outfile_prefix "out."
 #define _default_path_prefix "./"
@@ -135,6 +140,8 @@ namespace cvc {
 #define _default_write_propagator 0
 #define _default_read_propagator 1
 #define _default_read_sequential_propagator 0
+#define _default_write_sequential_source 0
+#define _default_write_sequential_propagator 0
 
 #define _default_nsample 1
 #define _default_num_threads 1

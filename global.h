@@ -133,6 +133,7 @@ EXTERN int g_sourceid, g_sourceid2, g_sourceid_step, Nsave;
 EXTERN int g_gaugeid, g_gaugeid2, g_gauge_step;
 
 EXTERN char filename_prefix[200], filename_prefix2[200], filename_prefix3[200], gaugefilename_prefix[200], g_outfile_prefix[200], g_path_prefix[200];
+EXTERN char g_sequential_filename_prefix[200], g_sequential_filename_prefix2[200];
 EXTERN int format, rotate;
 EXTERN double BCangle[4];
 
@@ -185,7 +186,7 @@ EXTERN char g_rng_filename[100];
 EXTERN int g_source_index[2];
 EXTERN int g_propagator_bc_type, g_propagator_gamma_basis;
 EXTERN int g_propagator_precision;
-EXTERN int g_write_source, g_read_source, g_write_propagator, g_read_propagator, g_read_sequential_propagator;
+EXTERN int g_write_source, g_read_source, g_write_propagator, g_read_propagator, g_read_sequential_propagator, g_write_sequential_source, g_write_sequential_propagator;
 EXTERN int g_nsample;
 EXTERN int g_sv_dim, g_cv_dim, g_fv_dim, g_cm_dim, g_fp_dim;
 EXTERN double g_as_over_a;
