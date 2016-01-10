@@ -999,9 +999,15 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
 #endif
 */
-  for(ix=0; ix<32*VOLUME; ix++) {
-    conn_buffer[0][ix] += conn_buffer[1][ix];
-    conn_buffer[0][ix] *= -0.25;
+
+  for(ix=0; ix<16*VOLUME; ix++) {
+    /* real part */
+    conn_buffer[0][2*ix  ] += conn_buffer[1][2*ix  ];
+    conn_buffer[0][2*ix  ] *= -0.25;
+
+    /* imaginary part */
+    conn_buffer[0][2*ix+1] -= conn_buffer[1][2*ix+1];
+    conn_buffer[0][2*ix+1] *= -0.25;
   }
 
 #ifdef HAVE_MPI
