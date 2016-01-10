@@ -1748,6 +1748,11 @@ void set_default_input_values(void) {
   g_source_location = _default_source_location;
   strcpy(filename_prefix,      _default_filename_prefix);
   strcpy(filename_prefix2,     _default_filename_prefix2);
+  strcpy(filename_prefix3,     _default_filename_prefix3);
+
+  strcpy(g_sequential_filename_prefix,      _default_sequential_filename_prefix);
+  strcpy(g_sequential_filename_prefix2,     _default_sequential_filename_prefix2);
+
   strcpy(gaugefilename_prefix, _default_gaugefilename_prefix);
   strcpy(g_outfile_prefix, _default_outfile_prefix);
   g_gaugeid   = _default_gaugeid; 
@@ -1834,7 +1839,10 @@ void set_default_input_values(void) {
 
   g_write_propagator = _default_write_propagator;
   g_read_propagator = _default_read_propagator;
+
   g_read_sequential_propagator = _default_read_sequential_propagator;
+  g_write_sequential_source = _default_write_sequential_source;
+  g_write_sequential_propagator = _default_write_sequential_propagator;
 
   g_nsample = _default_nsample;
   g_sv_dim = 4;

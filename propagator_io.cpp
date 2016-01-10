@@ -646,7 +646,7 @@ int write_lemon_spinor(double * const s, char * filename, const int append, cons
   header = lemonCreateHeader(MB_flag, ME_flag, "cvc_contraction-format", bytes);
   status = lemonWriteRecordHeader(header, writer);
   lemonDestroyHeader(header);
-  lemonWriteRecordData( message, (MPI_Offset*)&bytes, writer);
+  lemonWriteRecordData( message, (uint64_t*)&bytes, writer);
   lemonWriterCloseRecord(writer);
   free(message);
 
@@ -680,7 +680,7 @@ int write_lemon_spinor(double * const s, char * filename, const int append, cons
   header = lemonCreateHeader(MB_flag, ME_flag, "scidac-checksum", bytes);
   status = lemonWriteRecordHeader(header, writer);
   lemonDestroyHeader(header);
-  lemonWriteRecordData( message, (MPI_Offset*)&bytes, writer);
+  lemonWriteRecordData( message, (uint64_t*)&bytes, writer);
   lemonWriterCloseRecord(writer);
   free(message);
 

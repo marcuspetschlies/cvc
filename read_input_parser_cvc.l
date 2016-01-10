@@ -81,6 +81,8 @@ namespace cvc {
 %x PREFIX
 %x PREFIX2
 %x PREFIX3
+%x SEQPREFIX
+%x SEQPREFIX2
 %x GAUGEPREFIX
 %x OUTPREFIX
 %x PATHPREFIX
@@ -159,6 +161,8 @@ namespace cvc {
 %x WRITEPROP
 %x READPROP
 %x READSEQPROP
+%x WRITESEQSRC
+%x WRITESEQPROP
 %x NSAMPLE
 %x ASOVERA
 %x NUMTHREADS
@@ -210,6 +214,8 @@ namespace cvc {
 ^filename_prefix{SPC}*={SPC}*              BEGIN(PREFIX);
 ^filename_prefix2{SPC}*={SPC}*             BEGIN(PREFIX2);
 ^filename_prefix3{SPC}*={SPC}*             BEGIN(PREFIX3);
+^sequential_filename_prefix{SPC}*={SPC}*   BEGIN(SEQPREFIX);
+^sequential_filename_prefix2{SPC}*={SPC}*  BEGIN(SEQPREFIX2);
 ^gaugefilename_prefix{SPC}*={SPC}*         BEGIN(GAUGEPREFIX);
 ^outfile_prefix{SPC}*={SPC}*               BEGIN(OUTPREFIX);
 ^path_prefix{SPC}*={SPC}*                  BEGIN(PATHPREFIX);
@@ -290,7 +296,10 @@ namespace cvc {
 
 ^write_propagator{SPC}*={SPC}*             BEGIN(WRITEPROP);
 ^read_propagator{SPC}*={SPC}*              BEGIN(READPROP);
+
 ^read_sequential_propagator{SPC}*={SPC}*   BEGIN(READSEQPROP);
+^write_sequential_source{SPC}*={SPC}*      BEGIN(WRITESEQSRC);
+^write_sequential_propagator{SPC}*={SPC}*  BEGIN(WRITESEQPROP);
 
 ^samples{SPC}*={SPC}*                      BEGIN(NSAMPLE);
 ^as_over_a{SPC}*={SPC}*                    BEGIN(ASOVERA);
@@ -430,6 +439,17 @@ namespace cvc {
   strcpy(cvc::filename_prefix3,yytext);
   if(cvc::myverbose!=0) printf("# [read_input_parser] prop. 3 filename prefix set to %s\n",yytext);
 }
+
+<SEQPREFIX>{FILENAME} {
+  strcpy(cvc::g_sequential_filename_prefix,yytext);
+  if(cvc::myverbose!=0) printf("# [read_input_parser] sequential prop. filename prefix set to %s\n",yytext);
+}
+
+<SEQPREFIX2>{FILENAME} {
+  strcpy(cvc::g_sequential_filename_prefix2,yytext);
+  if(cvc::myverbose!=0) printf("# [read_input_parser] sequential prop. filename prefix 2 set to %s\n",yytext);
+}
+
 <GAUGEPREFIX>{FILENAME} {
   strcpy(cvc::gaugefilename_prefix,yytext);
   if(cvc::myverbose!=0) printf("# [read_input_parser] gauge filename prefix set to %s\n",yytext);
@@ -806,6 +826,24 @@ namespace cvc {
     cvc::g_read_sequential_propagator = 0;
   }
   if(cvc::myverbose!=0) printf("# [read_input_parser] set read sequential propagator to %d\n", cvc::g_read_sequential_propagator);  
+}
+
+<WRITESEQSRC>{NAME} {
+  if(strcmp(yytext,"yes")==0) {
+    cvc::g_write_sequential_source = 1;
+  } else if(strcmp(yytext,"no")==0) {
+    cvc::g_write_sequential_source = 0;
+  }
+  if(cvc::myverbose!=0) printf("# [read_input_parser] set write sequential source  to %d\n", cvc::g_write_sequential_source);
+}
+
+<WRITESEQPROP>{NAME} {
+  if(strcmp(yytext,"yes")==0) {
+    cvc::g_write_sequential_propagator = 1;
+  } else if(strcmp(yytext,"no")==0) {
+    cvc::g_write_sequential_propagator = 0;
+  }
+  if(cvc::myverbose!=0) printf("# [read_input_parser] set write sequential propagator  to %d\n", cvc::g_write_sequential_propagator);
 }
 
 <PROPGAMMA>{NAME} {

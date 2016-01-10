@@ -415,12 +415,13 @@ int main(int argc, char **argv) {
      **********************************************************/
     for(mu=0; mu<5; mu++) {
       for(ia=0; ia<12; ia++) {
-/*
+
         get_filename(filename, mu, ia, -1);
         exitstatus = read_lime_spinor(g_spinor_field[60+mu*12+ia], filename, 0);
-*/
+/*
         get_filename(filename, mu, ia, 1);
         exitstatus = read_lime_spinor(g_spinor_field[60+mu*12+ia], filename, 1);
+*/
         if(exitstatus != 0) {
           fprintf(stderr, "[cvc_exact2_xspace] Error from read_lime_spinor, status was %d\n", exitstatus);
           EXIT(112);
