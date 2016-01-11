@@ -63,7 +63,15 @@ void usage() {
 
 int main(int argc, char **argv) {
   
+  /*
+   * sign for g5 Gamma^\dagger g5
+   *                                                0,  1,  2,  3, id,  5, 0_5, 1_5, 2_5, 3_5, 0_1, 0_2, 0_3, 1_2, 1_3, 2_3
+   * */
+  const int sequential_source_gamma_id_sign[16] ={ -1, -1, -1, -1, +1, +1,  +1,  +1,  +1,  +1,  -1,  -1,  -1,  -1,  -1,  -1 };
+
   char outfile_name[] = "p2gg";
+
+  const double PI2 =  2. * M_PI;
 
   int c, i, j, mu, nu, ir, is, ia, ib, imunu;
   int op_id = 0, iflavor;
@@ -80,13 +88,15 @@ int main(int argc, char **argv) {
   int write_ascii=0;
   int source_proc_coords[4], source_proc_id = -1;
   int shifted_source_coords[4], shifted_source_proc_coords[4];
-  int seq_source_momentum[3];
+  int seq_source_momentum[3], iseq_source_momentum;
   int ud_one_file = 0;
+  int sequential_source_gamma_id, isequential_source_gamma_id, isequential_source_timeslice;
   double gperm_sign[5][4], gperm2_sign[4][4];
   double *conn  = NULL,  **conn_buffer = NULL;
   double contact_term[8];
   int verbose = 0;
   char filename[100], contype[800], sequential_filename_prefix[200];
+  char outfile_tag[200];
   double ratime, retime;
   double plaq;
   double spinor1[24], spinor2[24], U_[18];
@@ -407,6 +417,45 @@ int main(int argc, char **argv) {
     }
   }
 
+
+
+  /***************************************************************************
+   * loop on sequential source time slices
+   ***************************************************************************/
+  for(isequential_source_timeslice=0; isequential_source_timeslice < g_sequential_source_timeslice_number; isequential_source_timeslice++) {
+
+    g_sequential_source_timeslice = g_sequential_source_timeslice_list[ isequential_source_timeslice ];
+
+    if(g_cart_id == 0) {
+      fprintf(stdout, "# [] using sequential source timeslice %d\n", g_sequential_source_timeslice);
+    }
+
+  /***************************************************************************
+   * loop on sequential source gamma matrices
+   ***************************************************************************/
+
+  for(iseq_source_momentum=0; iseq_source_momentum < g_seq_source_momentum_number; iseq_source_momentum++) {
+
+    g_seq_source_momentum[0] = g_seq_source_momentum_list[iseq_source_momentum][0];
+    g_seq_source_momentum[1] = g_seq_source_momentum_list[iseq_source_momentum][1];
+    g_seq_source_momentum[2] = g_seq_source_momentum_list[iseq_source_momentum][2];
+
+    if(g_cart_id == 0) {
+      fprintf(stdout, "# [p2gg_xspace] using sequential source momentum = (%d, %d, %d)\n", g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2]);
+    }
+
+  /***************************************************************************
+   * loop on sequential source gamma matrices
+   ***************************************************************************/
+  for(isequential_source_gamma_id=0; isequential_source_gamma_id < g_sequential_source_gamma_id_number; isequential_source_gamma_id++) {
+
+    sequential_source_gamma_id = g_sequential_source_gamma_id_list[ isequential_source_gamma_id ];
+
+    if(g_cart_id == 0) {
+      fprintf(stdout, "# [p2gg_xspace] using sequential source gamma id = %d\n", sequential_source_gamma_id);
+    }
+
+
   // initialize the contact term
   memset(contact_term, 0, 8*sizeof(double));
 
@@ -422,9 +471,18 @@ int main(int argc, char **argv) {
     g_propagator_position = iflavor;
     conn = conn_buffer[iflavor];
 
+    /* reset conn to zero */
+    memset(conn, 0, 32*(VOLUME+RAND)*sizeof(double));
+
+    /* flavor-dependent sequential source momentum */
     seq_source_momentum[0] = (1 - 2*iflavor) * g_seq_source_momentum[0];
     seq_source_momentum[1] = (1 - 2*iflavor) * g_seq_source_momentum[1];
     seq_source_momentum[2] = (1 - 2*iflavor) * g_seq_source_momentum[2];
+
+    if(g_cart_id == 0) {
+      fprintf(stdout, "# [] using flavor-dependent sequential source momentum (%d, %d, %d)\n", 
+          seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2]);
+    }
 
     if(iflavor == 0) {
       strcpy(sequential_filename_prefix, g_sequential_filename_prefix);
@@ -436,6 +494,13 @@ int main(int argc, char **argv) {
       }
     }
   
+    sprintf( outfile_tag, "t%.2dx%.2dy%.2dz%.2d.tseq%.2d.g%.2d.px%.2dpy%.2dpz%.2d", 
+      gsx0, gsx1, gsx2, gsx3, g_sequential_source_timeslice,
+      sequential_source_gamma_id, g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2]);
+    if(g_cart_id == 0) {
+      fprintf(stdout, "# [p2gg_xspace] output file flag set to %s\n", outfile_tag);
+    }
+
     /**********************************************************
      * read dn spinor fields
      **********************************************************/
@@ -458,22 +523,22 @@ int main(int argc, char **argv) {
       }  /* of loop on ia */
     }    /* of loop on mu */
   
-  #ifndef HAVE_TMLQCD_LIBWRAPPER
+#ifndef HAVE_TMLQCD_LIBWRAPPER
     if(g_cart_id == 0) {
       fprintf(stderr, "[p2gg_xspace] Error, need tmLQCD libwrapper for inversion\n");
       EXIT(8);
     }
-  #endif
+#endif
   
     /***********************************************************
      * invert using tmLQCD invert
      ***********************************************************/
-  #ifdef HAVE_TMLQCD_LIBWRAPPER
+#ifdef HAVE_TMLQCD_LIBWRAPPER
     if(g_tmLQCD_lat.no_operators > 2) {
       fprintf(stderr, "[p2gg_xspace] Error, confused about number of operators, expected 1 operator (up-type)\n");
       EXIT(9);
     }
-  #endif
+#endif
   
     if(g_cart_id == 0) fprintf(stdout, "# [p2gg_xspace] using op_id = %d\n", op_id);
   
@@ -567,7 +632,7 @@ int main(int argc, char **argv) {
   
             propagator = g_spinor_field[12 * mu + ia];
   
-            memset(source, 0, 24*VOLUME*sizeof(double));
+            memset(source, 0, 24*(VOLUME+RAND)*sizeof(double));
   
             if(have_shifted_source_flag) {
   
@@ -576,12 +641,13 @@ int main(int argc, char **argv) {
               for(x2=0;x2<LY;x2++) {
               for(x3=0;x3<LZ;x3++) {
                 ix = g_ipt[x0][x1][x2][x3];
-                phase = (1. - 2. * g_propagator_position) * 2. * M_PI * ( ( x1 + g_proc_coords[1]*LX ) * seq_source_momentum[0] / (double)LX_global
-                                    + ( x2 + g_proc_coords[2]*LY ) * seq_source_momentum[1] / (double)LY_global
-                                    + ( x3 + g_proc_coords[3]*LZ ) * seq_source_momentum[2] / (double)LZ_global );
+                phase = PI2 * ( 
+                    ( x1 + g_proc_coords[1]*LX - gsx1 ) * seq_source_momentum[0] / (double)LX_global
+                  + ( x2 + g_proc_coords[2]*LY - gsx2 ) * seq_source_momentum[1] / (double)LY_global
+                  + ( x3 + g_proc_coords[3]*LZ - gsx3 ) * seq_source_momentum[2] / (double)LZ_global );
                 w.re = cos(phase);
                 w.im = sin(phase);
-                _fv_eq_gamma_ti_fv(spinor1, g_sequential_source_gamma_id, propagator + _GSI(ix));
+                _fv_eq_gamma_ti_fv(spinor1, sequential_source_gamma_id, propagator + _GSI(ix));
                 _fv_eq_fv_ti_co(source + _GSI(ix), spinor1, &w);
               }}}
   
@@ -718,17 +784,17 @@ int main(int argc, char **argv) {
           {
   
             imunu = 4*mu+nu;
-  /* #ifdef OPENMP */
-  /* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
-  /* #endif */
+/* #ifdef OPENMP */
+/* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
+/* #endif */
             for(ix=0; ix<VOLUME; ix++) {
-  /*
-  #  ifdef OPENMP
+/*
+#  ifdef OPENMP
               threadid = omp_get_thread_num();
               nthreads = omp_get_num_threads();
               fprintf(stdout, "[thread%d] number of threads = %d\n", threadid, nthreads);
-  #  endif
-  */
+#  endif
+*/
   
               _cm_eq_cm_ti_co(U_, &g_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
   
@@ -748,9 +814,9 @@ int main(int argc, char **argv) {
           
             }  /* of ix */
   
-  /* #ifdef OPENMP */
-  /* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
-  /* #endif */
+/* #ifdef OPENMP */
+/* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
+/* #endif */
             for(ix=0; ix<VOLUME; ix++) {
               _cm_eq_cm_ti_co(U_, &g_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
   
@@ -786,9 +852,9 @@ int main(int argc, char **argv) {
   
             imunu = 4*mu+nu;
   
-  /* #ifdef OPENMP */
-  /* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
-  /* #endif */
+/* #ifdef OPENMP */
+/* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
+/* #endif */
             for(ix=0; ix<VOLUME; ix++) {
               _cm_eq_cm_ti_co(U_, &g_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
   
@@ -803,9 +869,9 @@ int main(int argc, char **argv) {
   
             }  /* of ix */
   
-  /* #ifdef OPENMP */
-  /* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
-  /* #endif */
+/* #ifdef OPENMP */
+/* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
+/* #endif */
             for(ix=0; ix<VOLUME; ix++) {
               _cm_eq_cm_ti_co(U_, &g_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
   
@@ -871,9 +937,9 @@ int main(int argc, char **argv) {
   
             imunu = 4*mu+nu;
   
-  /* #ifdef OPENMP */
-  /* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
-  /* #endif */
+/* #ifdef OPENMP */
+/* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
+/* #endif */
             for(ix=0; ix<VOLUME; ix++) {
               _cm_eq_cm_ti_co(U_, &g_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
   
@@ -893,9 +959,9 @@ int main(int argc, char **argv) {
           
             }  /* of ix */
   
-  /* #ifdef OPENMP */
-  /* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
-  /* #endif */
+/* #ifdef OPENMP */
+/* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
+/* #endif */
             for(ix=0; ix<VOLUME; ix++) {
               _cm_eq_cm_ti_co(U_, &g_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
   
@@ -931,9 +997,9 @@ int main(int argc, char **argv) {
   
             imunu = 4*mu+nu;
   
-  /* #ifdef OPENMP */
-  /* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
-  /* #endif */
+/* #ifdef OPENMP */
+/* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
+/* #endif */
             for(ix=0; ix<VOLUME; ix++) {
               _cm_eq_cm_ti_co(U_, &g_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
   
@@ -948,9 +1014,9 @@ int main(int argc, char **argv) {
           
             }  /* of ix */
   
-  /* #ifdef OPENMP */
-  /* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
-  /* #endif */
+/* #ifdef OPENMP */
+/* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
+/* #endif */
             for(ix=0; ix<VOLUME; ix++) {
               _cm_eq_cm_ti_co(U_, &g_gauge_field[_GGI(ix,mu)], &co_phase_up[mu]);
   
@@ -983,6 +1049,38 @@ int main(int argc, char **argv) {
       }    /* of ir */
     }      /* of nu */
 
+
+#if 0
+    if(check_position_space_WI) {
+      xchange_contraction(conn, 32);
+      sprintf(filename, "WI_X.%s.%.4d.%d.%.4d", outfile_tag, Nconf, iflavor, g_cart_id);
+      ofs = fopen(filename,"w");
+      if(g_cart_id == 0) fprintf(stdout, "# [p2gg_xspace] checking Ward identity in position space\n");
+      for(x0=0; x0<T;  x0++) {
+      for(x1=0; x1<LX; x1++) {
+      for(x2=0; x2<LY; x2++) {
+      for(x3=0; x3<LZ; x3++) {
+        fprintf(ofs, "# t=%2d x=%2d y=%2d z=%2d\n", x0+g_proc_coords[0] * T, x1+g_proc_coords[1]*LX, x2+g_proc_coords[2]*LY, x3+g_proc_coords[3]*LZ);
+        ix=g_ipt[x0][x1][x2][x3];
+        for(nu=0; nu<4; nu++) {
+          w.re = conn[_GWI(4*0+nu,ix          ,VOLUME)  ] + conn[_GWI(4*1+nu,ix          ,VOLUME)  ]
+               + conn[_GWI(4*2+nu,ix          ,VOLUME)  ] + conn[_GWI(4*3+nu,ix          ,VOLUME)  ]
+	       - conn[_GWI(4*0+nu,g_idn[ix][0],VOLUME)  ] - conn[_GWI(4*1+nu,g_idn[ix][1],VOLUME)  ]
+	       - conn[_GWI(4*2+nu,g_idn[ix][2],VOLUME)  ] - conn[_GWI(4*3+nu,g_idn[ix][3],VOLUME)  ];
+
+          w.im = conn[_GWI(4*0+nu,ix          ,VOLUME)+1] + conn[_GWI(4*1+nu,ix          ,VOLUME)+1]
+               + conn[_GWI(4*2+nu,ix          ,VOLUME)+1] + conn[_GWI(4*3+nu,ix          ,VOLUME)+1]
+               - conn[_GWI(4*0+nu,g_idn[ix][0],VOLUME)+1] - conn[_GWI(4*1+nu,g_idn[ix][1],VOLUME)+1]
+               - conn[_GWI(4*2+nu,g_idn[ix][2],VOLUME)+1] - conn[_GWI(4*3+nu,g_idn[ix][3],VOLUME)+1];
+      
+          fprintf(ofs, "\t%3d%25.16e%25.16e\n", nu, w.re, w.im);
+        }
+      }}}}
+      fclose(ofs);
+    }
+#endif  /* of if 0 */
+
+
   }  /* end of loop on flavors up and down */
   
   /* print contact term */
@@ -993,7 +1091,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  /* normalisation of contractions */
+  /* combine up-type and dn-type part, normalisation of contractions */
 /*
 #ifdef OPENMP
 #pragma omp parallel for
@@ -1002,11 +1100,11 @@ int main(int argc, char **argv) {
 
   for(ix=0; ix<16*VOLUME; ix++) {
     /* real part */
-    conn_buffer[0][2*ix  ] += conn_buffer[1][2*ix  ];
+    conn_buffer[0][2*ix  ] += sequential_source_gamma_id_sign[ sequential_source_gamma_id ] * conn_buffer[1][2*ix  ];
     conn_buffer[0][2*ix  ] *= -0.25;
 
     /* imaginary part */
-    conn_buffer[0][2*ix+1] -= conn_buffer[1][2*ix+1];
+    conn_buffer[0][2*ix+1] -= sequential_source_gamma_id_sign[ sequential_source_gamma_id ] * conn_buffer[1][2*ix+1];
     conn_buffer[0][2*ix+1] *= -0.25;
   }
 
@@ -1024,9 +1122,9 @@ int main(int argc, char **argv) {
   ratime = (double)clock() / CLOCKS_PER_SEC;
 #endif
   if(strcmp(g_outfile_prefix, "NA") == 0) {
-    sprintf(filename, "%s_x.%.4d", outfile_name, Nconf);
+    sprintf(filename, "%s_x.%s.%.4d", outfile_name, outfile_tag, Nconf);
   } else {
-    sprintf(filename, "%s/%s_x.%.4d", g_outfile_prefix, outfile_name, Nconf);
+    sprintf(filename, "%s/%s_x.%s.%.4d", g_outfile_prefix, outfile_name, outfile_tag, Nconf);
   }
 
   sprintf(contype, "\n<description>P - cvc - cvc in position space, 4x4 components</description>\n"\
@@ -1045,7 +1143,7 @@ int main(int argc, char **argv) {
       "<contact_term_z>%25.16e%25.16e</contact_term_z>\n",
       gsx0, gsx1, gsx2, gsx3,
       g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2],
-      g_sequential_source_gamma_id, g_sequential_source_timeslice,
+      sequential_source_gamma_id, g_sequential_source_timeslice,
       contact_term[0], contact_term[1],
       contact_term[2], contact_term[3],
       contact_term[4], contact_term[5],
@@ -1062,15 +1160,16 @@ int main(int argc, char **argv) {
 */
 
   if(write_ascii) {
+    conn = conn_buffer[0];
 #ifndef HAVE_MPI
     if(strcmp(g_outfile_prefix, "NA") == 0) {
-      sprintf(filename, "%s_x.%.4d.ascii", outfile_name, Nconf);
+      sprintf(filename, "%s_x.%s.%.4d.ascii", outfile_name, outfile_tag, Nconf);
     } else {
-      sprintf(filename, "%s/%s_x.%.4d.ascii", g_outfile_prefix, outfile_name, Nconf);
+      sprintf(filename, "%s/%s_x.%s.%.4d.ascii", g_outfile_prefix, outfile_name, outfile_tag, Nconf);
     }
     write_contraction(conn, NULL, filename, 16, 2, 0);
 #else
-    sprintf(filename, "%s_x.%.4d.ascii.%.2d", outfile_name, Nconf, g_cart_id);
+    sprintf(filename, "%s_x.%s.%.4d.ascii.%.2d", outfile_name, outfile_tag, Nconf, g_cart_id);
     ofs = fopen(filename, "w");
     for(x0=0; x0<T;  x0++) {
     for(x1=0; x1<LX; x1++) {
@@ -1102,7 +1201,7 @@ int main(int argc, char **argv) {
   if(check_position_space_WI) {
     conn = conn_buffer[0];
     xchange_contraction(conn, 32);
-    sprintf(filename, "WI_X.%.4d.%.4d", Nconf, g_cart_id);
+    sprintf(filename, "WI_X.%s.%.4d.%.4d", outfile_tag, Nconf, g_cart_id);
     ofs = fopen(filename,"w");
     if(g_cart_id == 0) fprintf(stdout, "# [p2gg_xspace] checking Ward identity in position space\n");
     for(x0=0; x0<T;  x0++) {
@@ -1141,6 +1240,11 @@ int main(int argc, char **argv) {
 */
 
 
+  }  /* end of loop on sequential gamma id */
+
+  }  /* end of loop on sequential source momentum */
+
+  }  /* end of loop on sequential source timeslices */
 
   /****************************************
    * free the allocated memory, finalize
