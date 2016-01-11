@@ -83,6 +83,7 @@ namespace cvc {
 
 #define _default_source_timeslice 0
 #define _default_sequential_source_timeslice -1
+#define _default_sequential_source_timeslice_number 0
 
 #define _default_sequential_source_location_x 0
 #define _default_sequential_source_location_y 0
@@ -157,6 +158,9 @@ namespace cvc {
 #define _default_seq_source_momentum_y 0
 #define _default_seq_source_momentum_z 0
 #define _default_seq_source_momentum_set 0
+
+#define _default_seq_source_momentum_number 0
+
 #define _default_rng_state NULL
 #define _default_verbose  0
 #define _default_m0 0.
@@ -177,5 +181,6 @@ namespace cvc {
 
 #define _default_src_snk_time_separation 0
 #define _default_seq_source_gamma_id 4
+#define _default_seq_source_gamma_id_number 0
 }
 #endif

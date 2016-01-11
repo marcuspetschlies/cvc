@@ -1806,6 +1806,7 @@ void set_default_input_values(void) {
   g_source_timeslice  = _default_source_timeslice;
 
   g_sequential_source_timeslice  = _default_sequential_source_timeslice;
+  g_sequential_source_timeslice_number = _default_sequential_source_timeslice_number;
 
   g_sequential_source_location_x = _default_sequential_source_location_x;
   g_sequential_source_location_y = _default_sequential_source_location_y;
@@ -1867,6 +1868,7 @@ void set_default_input_values(void) {
   g_seq_source_momentum[1] = _default_seq_source_momentum_y;
   g_seq_source_momentum[2] = _default_seq_source_momentum_z;
   g_seq_source_momentum_set = _default_seq_source_momentum_set;
+  g_seq_source_momentum_number = _default_seq_source_momentum_number;
 
   g_rng_state = _default_rng_state;
 
@@ -1886,6 +1888,7 @@ void set_default_input_values(void) {
 
   g_src_snk_time_separation = _default_src_snk_time_separation;
   g_sequential_source_gamma_id = _default_seq_source_gamma_id;
+  g_sequential_source_gamma_id_number = _default_seq_source_gamma_id_number;
 
 }
 

@@ -172,6 +172,7 @@ namespace cvc {
 %x SNKMOMX
 %x SNKMOMY
 %x SNKMOMZ
+%x SEQSRCMOM
 %x SEQSRCMOMX
 %x SEQSRCMOMY
 %x SEQSRCMOMZ
@@ -313,6 +314,7 @@ namespace cvc {
 ^seq_source_momentum_x{SPC}*={SPC}*        BEGIN(SEQSRCMOMX);
 ^seq_source_momentum_y{SPC}*={SPC}*        BEGIN(SEQSRCMOMY);
 ^seq_source_momentum_z{SPC}*={SPC}*        BEGIN(SEQSRCMOMZ);
+^seq_source_momentum{SPC}*={SPC}*          BEGIN(SEQSRCMOM);
 ^cpu_precision{SPC}*={SPC}*                BEGIN(CPUPREC);
 ^gpu_precision{SPC}*={SPC}*                BEGIN(GPUPREC);
 ^gpu_precision_sloppy{SPC}*={SPC}*         BEGIN(GPUPRECSLOPPY);
@@ -646,8 +648,12 @@ namespace cvc {
   if(cvc::myverbose!=0) printf("# [read_input_parser] set source timeslice to %s\n", yytext);
 }
 <SEQSRCTIMESLICE>{SDIGIT}+ {
-  cvc::g_sequential_source_timeslice = atoi(yytext);
-  if(cvc::myverbose!=0) printf("# [read_input_parser] set sequential source timeslice to %s\n", yytext);
+  if( cvc::g_sequential_source_timeslice_number == 0) {
+    cvc::g_sequential_source_timeslice = atoi(yytext);
+  }
+  cvc::g_sequential_source_timeslice_list[ cvc::g_sequential_source_timeslice_number ] = atoi(yytext);
+  cvc::g_sequential_source_timeslice_number++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] added sequential source timeslice  %s; total number is now %d\n", yytext, cvc::g_sequential_source_timeslice_number);
 }
 
 <SEQSRCLOCATIONX>{SDIGIT}+ {
@@ -664,8 +670,9 @@ namespace cvc {
 }
 
 <SEQSRCGAMMAID>{DIGIT}+ {
-  cvc::g_sequential_source_gamma_id = atoi(yytext);
-  if(cvc::myverbose!=0) printf("# [read_input_parser] set sequential source gamma id to %s\n", yytext);
+  cvc::g_sequential_source_gamma_id_list[cvc::g_sequential_source_gamma_id_number] = atoi(yytext);
+  cvc::g_sequential_source_gamma_id_number++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] set new entry in sequential source gamma id list to %s, total number is now %d\n", yytext, cvc::g_sequential_source_gamma_id_number);
 }
 
 <MMSNOMASSES>{DIGIT}+ {
@@ -915,6 +922,14 @@ namespace cvc {
   cvc::g_seq_source_momentum_set = 1;
   if(cvc::myverbose!=0) printf("# [read_input_parser] z-comp. of sequential source momentum set to %d\n", cvc::g_seq_source_momentum[2]);
 }
+
+<SEQSRCMOM>{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
+  sscanf(yytext, "%d,%d,%d", cvc::g_seq_source_momentum_list[cvc::g_seq_source_momentum_number],
+      cvc::g_seq_source_momentum_list[cvc::g_seq_source_momentum_number]+1, cvc::g_seq_source_momentum_list[cvc::g_seq_source_momentum_number]+2);
+  cvc::g_seq_source_momentum_number++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] added sequential source momentum %s to list; total number is now %d\n", yytext, cvc::g_seq_source_momentum_number);
+}
+
 <CPUPREC>{NAME} {
   if(strcmp(yytext, "half")==0 ) {
     cvc::g_cpu_prec = 0;

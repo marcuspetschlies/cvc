@@ -167,7 +167,8 @@ EXTERN double g_qhatsqr_min, g_qhatsqr_max;
 EXTERN int Nlong, N_ape, N_Jacobi;
 EXTERN double alpha_ape, kappa_Jacobi;
 EXTERN int g_source_timeslice, g_no_extra_masses, g_no_light_masses, g_no_strange_masses, \
-         g_sequential_source_timeslice, g_sequential_source_location_x, g_sequential_source_location_y, g_sequential_source_location_z;
+         g_sequential_source_timeslice, g_sequential_source_location_x, g_sequential_source_location_y, g_sequential_source_location_z, \
+         g_sequential_source_timeslice_list[12], g_sequential_source_timeslice_number;
 EXTERN int N_hyp;
 EXTERN double alpha_hyp[3];
 
@@ -193,7 +194,7 @@ EXTERN double g_as_over_a;
 EXTERN int g_num_threads;
 EXTERN int g_source_momentum[3], g_source_momentum_set;
 EXTERN int g_sink_momentum[3], g_sink_momentum_set;
-EXTERN int g_seq_source_momentum[3], g_seq_source_momentum_set;
+EXTERN int g_seq_source_momentum[3], g_seq_source_momentum_set, g_seq_source_momentum_list[100][3], g_seq_source_momentum_number;
 EXTERN int *g_rng_state;
 EXTERN int g_verbose;
 EXTERN int g_source_proc_id;
@@ -204,7 +205,7 @@ EXTERN int g_space_dilution_depth;
 EXTERN int g_mms_id;
 EXTERN int g_check_inversion;
 
-EXTERN int g_src_snk_time_separation, g_sequential_source_gamma_id;
+EXTERN int g_src_snk_time_separation, g_sequential_source_gamma_id, g_sequential_source_gamma_id_list[16], g_sequential_source_gamma_id_number;
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
 EXTERN tmLQCD_mpi_params g_tmLQCD_mpi;
