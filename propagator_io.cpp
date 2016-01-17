@@ -1407,7 +1407,7 @@ int read_lime_spinor_single(float * const s, char * filename, const int position
   DML_Checksum checksum;
   
   if((ifs = fopen(filename, "r")) == (FILE*)NULL) {
-    fprintf(stderr, "Error opening file %s\n", filename);
+    fprintf(stderr, "[read_lime_spinor_single] Error opening file %s\n", filename);
     return(-1);
   }
   if(g_proc_id==0) fprintf(stdout, "# [read_lime_spinor_single] Reading Dirac-fermion field in LIME format from %s, single prec output\n", filename);

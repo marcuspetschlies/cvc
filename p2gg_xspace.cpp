@@ -45,6 +45,7 @@ extern "C"
 #include "cvc_geometry.h"
 #include "cvc_utils.h"
 #include "mpi_init.h"
+#include "set_default.h"
 #include "io.h"
 #include "propagator_io.h"
 #include "read_input_parser.h"
@@ -95,7 +96,7 @@ int main(int argc, char **argv) {
   double *conn  = NULL,  **conn_buffer = NULL;
   double contact_term[8];
   int verbose = 0;
-  char filename[100], contype[800], sequential_filename_prefix[200];
+  char filename[100], contype[1200], sequential_filename_prefix[200];
   char outfile_tag[200];
   double ratime, retime;
   double plaq;
@@ -257,7 +258,7 @@ int main(int argc, char **argv) {
   if(g_cart_id==0) fprintf(stdout, "# [p2gg_xspace] measured plaquette value: %25.16e\n", plaq);
 
   /* allocate memory for the spinor fields */
-  no_fields = 120;
+  no_fields = 180;
 #ifdef HAVE_TMLQCD_LIBWRAPPER
   no_fields++;
 #endif
@@ -417,7 +418,45 @@ int main(int argc, char **argv) {
     }
   }
 
+  /**********************************************************
+   * read up spinor fields
+   **********************************************************/
+  for(mu=0; mu<5; mu++) {
+    for(ia=0; ia<12; ia++) {
 
+      get_filename(filename, mu, ia,  1 );
+      exitstatus = read_lime_spinor(g_spinor_field[mu*12+ia], filename, 0);
+      
+      if(exitstatus != 0) {
+        fprintf(stderr, "[p2gg_xspace] Error from read_lime_spinor, status was %d\n", exitstatus);
+        EXIT(7);
+      }
+      xchange_field(g_spinor_field[mu*12+ia]);
+    }  /* of loop on ia */
+  }    /* of loop on mu */
+
+  /**********************************************************
+   * read dn spinor fields
+   **********************************************************/
+  for(mu=0; mu<5; mu++) {
+    for(ia=0; ia<12; ia++) {
+
+      if(ud_one_file) {
+        get_filename(filename, mu, ia,  1); 
+        exitstatus = read_lime_spinor(g_spinor_field[60+mu*12+ia], filename, 1);
+      } else {
+        get_filename(filename, mu, ia, -1);
+        exitstatus = read_lime_spinor(g_spinor_field[60+mu*12+ia], filename, 0);
+      }
+
+      if(exitstatus != 0) {
+        fprintf(stderr, "[p2gg_xspace] Error from read_lime_spinor, status was %d\n", exitstatus);
+        EXIT(7);
+      }
+      xchange_field(g_spinor_field[60+mu*12+ia]);
+    }  /* of loop on ia */
+  }    /* of loop on mu */
+  
 
   /***************************************************************************
    * loop on sequential source time slices
@@ -456,8 +495,8 @@ int main(int argc, char **argv) {
     }
 
 
-  // initialize the contact term
-  memset(contact_term, 0, 8*sizeof(double));
+    // initialize the contact term
+    memset(contact_term, 0, 8*sizeof(double));
 
   for(iflavor=0; iflavor<2; iflavor++) {
 
@@ -501,28 +540,6 @@ int main(int argc, char **argv) {
       fprintf(stdout, "# [p2gg_xspace] output file flag set to %s\n", outfile_tag);
     }
 
-    /**********************************************************
-     * read dn spinor fields
-     **********************************************************/
-    for(mu=0; mu<5; mu++) {
-      for(ia=0; ia<12; ia++) {
-  
-        if(ud_one_file) {
-          get_filename(filename, mu, ia, 1); 
-          exitstatus = read_lime_spinor(g_spinor_field[60+mu*12+ia], filename, 1-g_propagator_position);
-        } else {
-          get_filename(filename, mu, ia,  (2 * g_propagator_position - 1)  );
-          exitstatus = read_lime_spinor(g_spinor_field[60+mu*12+ia], filename, 0);
-        }
-
-        if(exitstatus != 0) {
-          fprintf(stderr, "[p2gg_xspace] Error from read_lime_spinor, status was %d\n", exitstatus);
-          EXIT(7);
-        }
-        xchange_field(g_spinor_field[60+mu*12+ia]);
-      }  /* of loop on ia */
-    }    /* of loop on mu */
-  
 #ifndef HAVE_TMLQCD_LIBWRAPPER
     if(g_cart_id == 0) {
       fprintf(stderr, "[p2gg_xspace] Error, need tmLQCD libwrapper for inversion\n");
@@ -596,20 +613,21 @@ int main(int argc, char **argv) {
                 seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], ia);
   
             if(ud_one_file) {
-              exitstatus = read_lime_spinor(g_spinor_field[mu*12+ia], filename, g_propagator_position);
+              exitstatus = read_lime_spinor(g_spinor_field[120 + mu*12+ia], filename, g_propagator_position);
             } else {
-              exitstatus = read_lime_spinor(g_spinor_field[mu*12+ia], filename, 0);
+              exitstatus = read_lime_spinor(g_spinor_field[120 + mu*12+ia], filename, 0);
             }
             if(exitstatus != 0) {
               fprintf(stderr, "[p2gg_xspace] Error from read_lime_spinor, status was %d\n", exitstatus);
               EXIT(10);
             }
-            xchange_field(g_spinor_field[mu*12+ia]);
+            xchange_field(g_spinor_field[120 + mu*12+ia]);
   
           } else {
             /**********************************************************
              * read up spinor fields
              **********************************************************/
+/*            
             if(ud_one_file) {
               get_filename(filename, mu, ia, 1 );
               exitstatus = read_lime_spinor(g_spinor_field[mu*12+ia], filename, g_propagator_position);
@@ -617,20 +635,20 @@ int main(int argc, char **argv) {
               get_filename(filename, mu, ia, (1-2*g_propagator_position) );
               exitstatus = read_lime_spinor(g_spinor_field[mu*12+ia], filename, 0);
             }
-
-
             if(exitstatus != 0) {
               fprintf(stderr, "[p2gg_xspace] Error from read_lime_spinor, status was %d\n", exitstatus);
               EXIT(11);
             }
-            xchange_field(g_spinor_field[mu*12+ia]);
+*/
+
+            propagator = g_spinor_field[120 + 12 * mu + ia];
+            memcpy(propagator, g_spinor_field[g_propagator_position*60 + mu*12+ia], 24*VOLUME*sizeof(double) );
+            xchange_field(propagator);
   
             /**********************************************************
              * prepare sequential source
              **********************************************************/
             if(g_cart_id == 0) fprintf(stdout, "# [p2gg_xspace] preparing sequential source for spin-color component (%d, %d)\n", ia/3, ia%3);
-  
-            propagator = g_spinor_field[12 * mu + ia];
   
             memset(source, 0, 24*(VOLUME+RAND)*sizeof(double));
   
@@ -774,10 +792,12 @@ int main(int argc, char **argv) {
       for(ir=0; ir<4; ir++) {
   
         for(ia=0; ia<3; ia++) {
-          phi = g_spinor_field[      4*12 + 3*ir            + ia];
+          /* phi = g_spinor_field[      4*12 + 3*ir            + ia]; */
+          phi = g_spinor_field[120 +     4*12 + 3*ir            + ia];
   
         for(ib=0; ib<3; ib++) {
-          chi = g_spinor_field[60 + nu*12 + 3*gperm[nu][ir] + ib];
+          /* chi = g_spinor_field[60 + nu*12 + 3*gperm[nu][ir] + ib]; */
+          chi = g_spinor_field[(1 - g_propagator_position) * 60 + nu*12 + 3*gperm[nu][ir] + ib];
   
           /* 1) gamma_nu gamma_5 x U */
           for(mu=0; mu<4; mu++) 
@@ -840,10 +860,12 @@ int main(int argc, char **argv) {
         }      /* of ia */
   
         for(ia=0; ia<3; ia++) {
-          phi = g_spinor_field[      4*12 + 3*ir            + ia];
+          /* phi = g_spinor_field[      4*12 + 3*ir            + ia]; */
+          phi = g_spinor_field[120 +      4*12 + 3*ir            + ia];
   
         for(ib=0; ib<3; ib++) {
-          chi = g_spinor_field[60 + nu*12 + 3*gperm[ 4][ir] + ib];
+          /* chi = g_spinor_field[60 + nu*12 + 3*gperm[ 4][ir] + ib]; */
+          chi = g_spinor_field[(1 - g_propagator_position) * 60 + nu*12 + 3*gperm[ 4][ir] + ib];
           
   
           /* -gamma_5 x U */
@@ -925,10 +947,12 @@ int main(int argc, char **argv) {
       for(ir=0; ir<4; ir++) {
   
         for(ia=0; ia<3; ia++) {
-          phi = g_spinor_field[     nu*12 + 3*ir            + ia];
+          /* phi = g_spinor_field[     nu*12 + 3*ir            + ia]; */
+          phi = g_spinor_field[120 +     nu*12 + 3*ir            + ia];
   
         for(ib=0; ib<3; ib++) {
-          chi = g_spinor_field[60 +  4*12 + 3*gperm[nu][ir] + ib];
+          /* chi = g_spinor_field[60 +  4*12 + 3*gperm[nu][ir] + ib]; */
+          chi = g_spinor_field[(1 - g_propagator_position) * 60 +  4*12 + 3*gperm[nu][ir] + ib];
   
       
           /* 1) gamma_nu gamma_5 x U^dagger */
@@ -986,10 +1010,12 @@ int main(int argc, char **argv) {
         } /* of ia */
   
         for(ia=0; ia<3; ia++) {
-          phi = g_spinor_field[     nu*12 + 3*ir            + ia];
+          /* phi = g_spinor_field[     nu*12 + 3*ir            + ia]; */
+          phi = g_spinor_field[120 +     nu*12 + 3*ir            + ia];
   
         for(ib=0; ib<3; ib++) {
-          chi = g_spinor_field[60 +  4*12 + 3*gperm[ 4][ir] + ib];
+          /* chi = g_spinor_field[60 +  4*12 + 3*gperm[ 4][ir] + ib]; */
+          chi = g_spinor_field[(1 - g_propagator_position) * 60 +  4*12 + 3*gperm[ 4][ir] + ib];
   
           /* -gamma_5 x U */
           for(mu=0; mu<4; mu++)

@@ -118,7 +118,7 @@ int write_binary_contraction_data(double * const s, LimeWriter * limewriter, con
   tgeom[0] = Tstart;
   tgeom[1] = T;
   if( (buffer = (double*)malloc(2*N*LX*LY*LZ*sizeof(double))) == (double*)NULL ) {
-    fprintf(stderr, "Error from malloc for buffer\n");
+    fprintf(stderr, "[write_binary_contraction_data] Error from malloc for buffer\n");
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
   }
@@ -126,7 +126,7 @@ int write_binary_contraction_data(double * const s, LimeWriter * limewriter, con
     if(g_cart_id==0) {
       tag = 2 * iproc;
       MPI_Recv((void*)tgeom, 2, MPI_INT, iproc, tag, g_cart_grid, &mstatus);
-      fprintf(stdout, "# iproc = %d; Tstart = %d, T = %d\n", iproc, tgeom[0], tgeom[1]);
+      fprintf(stdout, "# [write_binary_contraction_data] iproc = %d; Tstart = %d, T = %d\n", iproc, tgeom[0], tgeom[1]);
        
       for(t=0; t<tgeom[1]; t++) {
         tag = 2 * ( t*g_nproc + iproc ) + 1;
@@ -195,7 +195,7 @@ int write_binary_contraction_data(double * const s, LimeWriter * limewriter, con
   tmp2 = (float*)malloc(2*N*LZ*sizeof(float));
 
   if( (buffer = (double*)malloc(2*N*LZ*sizeof(double))) == (double*)NULL ) {
-    fprintf(stderr, "Error from malloc for buffer\n");
+    fprintf(stderr, "[write_binary_contraction_data] Error from malloc for buffer\n");
     MPI_Abort(MPI_COMM_WORLD, 115);
     MPI_Finalize();
     exit(115);
@@ -348,7 +348,7 @@ int write_binary_contraction_data(double * const s, LemonWriter * writer, const 
   char *filebuffer = NULL;
   DML_checksum_init(ans);
 
-  if(g_cart_id == 0) fprintf(stdout, "\n# [] words_bigendian = %d\n", words_bigendian);
+  if(g_cart_id == 0) fprintf(stdout, "\n# [write_binary_contraction_data] words_bigendian = %d\n", words_bigendian);
 
   if(prec == 32) bytes = (n_uint64_t)2*N*sizeof(float);   // single precision 
   else           bytes = (n_uint64_t)2*N*sizeof(double);  // double precision
@@ -510,14 +510,14 @@ int write_contraction_format(char * filename, const int prec, const int N, char 
   LimeRecordHeader * limeheader = NULL;
   int status = 0;
   int ME_flag=0, MB_flag=1;
-  char message[500];
+  char message[3000];
   n_uint64_t bytes;
 
   if(g_cart_id==0) {
     ofs = fopen(filename, "w");
   
     if(ofs == (FILE*)NULL) {
-      fprintf(stderr, "Could not open file %s for writing!\n Aborting...\n", filename);
+      fprintf(stderr, "[write_contraction_format] Could not open file %s for writing!\n Aborting...\n", filename);
 #ifdef HAVE_MPI
       MPI_Abort(MPI_COMM_WORLD, 1);
       MPI_Finalize();
@@ -526,7 +526,7 @@ int write_contraction_format(char * filename, const int prec, const int N, char 
     }
     limewriter = limeCreateWriter( ofs );
     if(limewriter == (LimeWriter*)NULL) {
-      fprintf(stderr, "LIME error in file %s for writing!\n Aborting...\n", filename);
+      fprintf(stderr, "[write_contraction_format] LIME error in file %s for writing!\n Aborting...\n", filename);
 #ifdef HAVE_MPI
       MPI_Abort(MPI_COMM_WORLD, 1);
       MPI_Finalize();
@@ -539,7 +539,7 @@ int write_contraction_format(char * filename, const int prec, const int N, char 
     limeheader = limeCreateHeader(MB_flag, ME_flag, "cvc-contraction-format", bytes);
     status = limeWriteRecordHeader( limeheader, limewriter);
     if(status < 0 ) {
-      fprintf(stderr, "LIME write header error %d\n", status);
+      fprintf(stderr, "[write_contraction_format] LIME write header error %d\n", status);
 #ifdef HAVE_MPI
       MPI_Abort(MPI_COMM_WORLD, 1);
       MPI_Finalize();
@@ -576,7 +576,7 @@ int write_lime_contraction(double * const s, char * filename, const int prec, co
   if(g_cart_id==0) {
     ofs = fopen(filename, "a");
     if(ofs == (FILE*)NULL) {
-      fprintf(stderr, "Could not open file %s for writing!\n Aborting...\n", filename);
+      fprintf(stderr, "[write_lime_contraction] Could not open file %s for writing!\n Aborting...\n", filename);
 #ifdef HAVE_MPI
       MPI_Abort(MPI_COMM_WORLD, 1);
       MPI_Finalize();
@@ -586,7 +586,7 @@ int write_lime_contraction(double * const s, char * filename, const int prec, co
   
     limewriter = limeCreateWriter( ofs );
     if(limewriter == (LimeWriter*)NULL) {
-      fprintf(stderr, "LIME error in file %s for writing!\n Aborting...\n", filename);
+      fprintf(stderr, "[write_lime_contraction] LIME error in file %s for writing!\n Aborting...\n", filename);
 #ifdef HAVE_MPI
       MPI_Abort(MPI_COMM_WORLD, 1);
       MPI_Finalize();
@@ -599,7 +599,7 @@ int write_lime_contraction(double * const s, char * filename, const int prec, co
     limeheader = limeCreateHeader(MB_flag, ME_flag, "scidac-binary-data", bytes);
     status = limeWriteRecordHeader( limeheader, limewriter);
     if(status < 0 ) {
-      fprintf(stderr, "LIME write header (scidac-binary-data) error %d\n", status);
+      fprintf(stderr, "[write_lime_contraction] LIME write header (scidac-binary-data) error %d\n", status);
 #ifdef HAVE_MPI
       MPI_Abort(MPI_COMM_WORLD, 1);
       MPI_Finalize();
@@ -615,9 +615,9 @@ int write_lime_contraction(double * const s, char * filename, const int prec, co
     exit(502);
   }
   if(g_cart_id==0) {
-    printf("# Final check sum is (%#lx  %#lx)\n", checksum.suma, checksum.sumb);
+    printf("# [write_lime_contraction] Final check sum is (%#lx  %#lx)\n", checksum.suma, checksum.sumb);
     if(ferror(ofs)) {
-      fprintf(stderr, "Warning! Error while writing to file %s \n", filename);
+      fprintf(stderr, "[write_lime_contraction] Warning! Error while writing to file %s \n", filename);
     }
     limeDestroyWriter( limewriter );
     fflush(ofs);
@@ -716,7 +716,7 @@ int read_lime_contraction(double * const s, char * filename, const int N, const 
 
   if((ifs = fopen(filename, "r")) == (FILE*)NULL) {
     if(g_proc_id == 0) {
-      fprintf(stderr, "Error opening file %s\n", filename);
+      fprintf(stderr, "[read_lime_contraction] Error opening file %s\n", filename);
     }
     return(106);
   }
@@ -724,13 +724,13 @@ int read_lime_contraction(double * const s, char * filename, const int N, const 
   limereader = limeCreateReader( ifs );
   if( limereader == (LimeReader *)NULL ) {
     if(g_proc_id == 0) {
-      fprintf(stderr, "Unable to open LimeReader\n");
+      fprintf(stderr, "[read_lime_contraction] Unable to open LimeReader\n");
     }
     return(-1);
   }
   while( (status = limeReaderNextRecord(limereader)) != LIME_EOF ) {
     if(status != LIME_SUCCESS ) {
-      fprintf(stderr, "limeReaderNextRecord returned error with status = %d!\n", status);
+      fprintf(stderr, "[read_lime_contraction] limeReaderNextRecord returned error with status = %d!\n", status);
       status = LIME_EOF;
       break;
     }
@@ -740,12 +740,12 @@ int read_lime_contraction(double * const s, char * filename, const int N, const 
   }
   if(status == LIME_EOF) {
     if(g_proc_id == 0) {
-      fprintf(stderr, "no scidac-binary-data record found in file %s\n",filename);
+      fprintf(stderr, "[read_lime_contraction] no scidac-binary-data record found in file %s\n",filename);
     }
     limeDestroyReader(limereader);
     fclose(ifs);
     if(g_proc_id == 0) {
-      fprintf(stderr, "try to read in non-lime format\n");
+      fprintf(stderr, "[read_lime_contraction] try to read in non-lime format\n");
     }
     return(read_contraction(s, NULL, filename, N));
   }
@@ -754,23 +754,23 @@ int read_lime_contraction(double * const s, char * filename, const int N, const 
   else if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*(n_uint64_t)(LZ*g_nproc_z)*T_global*2*N*sizeof(float)) prec = 32;
   else {
     if(g_proc_id == 0) {
-      fprintf(stderr, "wrong length in contraction: bytes = %lu, not %d. Aborting read!\n", bytes, (LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*2*N*(int)sizeof(float));
+      fprintf(stderr, "[read_lime_contraction] wrong length in contraction: bytes = %lu, not %d. Aborting read!\n", bytes, (LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*2*N*(int)sizeof(float));
     }
     return(-1);
   }
   if(g_proc_id == 0) {
-    printf("# %d Bit precision read\n", prec);
+    printf("# [read_lime_contraction] %d Bit precision read\n", prec);
   }
 
   status = read_binary_contraction_data(s, limereader, prec, N, &checksum);
 
   if(g_proc_id == 0) {
-    printf("# checksum for contractions in file %s position %d is %#x %#x\n",
+    printf("# [read_lime_contraction] checksum for contractions in file %s position %d is %#x %#x\n",
            filename, position, checksum.suma, checksum.sumb);
   }
 
   if(status < 0) {
-    fprintf(stderr, "LIME read error occured with status = %d while reading file %s!\n Aborting...\n",
+    fprintf(stderr, "[read_lime_contraction] LIME read error occured with status = %d while reading file %s!\n Aborting...\n",
             status, filename);
 #ifdef HAVE_MPI
     MPI_Abort(MPI_COMM_WORLD, 1);
