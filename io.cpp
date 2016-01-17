@@ -83,14 +83,14 @@ int read_lime_gauge_field_doubleprec(const char * filename) {
   status = MPI_File_open(g_cart_grid, (char*)filename, MPI_MODE_RDONLY, MPI_INFO_NULL, ifs);
   status = (status == MPI_SUCCESS) ? 0 : 1;
   if(status) {
-    fprintf(stderr, "Could not open file for reading. Aborting...\n");
+    fprintf(stderr, "[read_lime_gauge_field_doubleprec] Could not open file for reading. Aborting...\n");
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
     exit(505);
   }
 
   if( (reader = lemonCreateReader(ifs, g_cart_grid)) == NULL ) {
-    fprintf(stderr, "Could not create reader. Aborting...\n");
+    fprintf(stderr, "[read_lime_gauge_field_doubleprec] Could not create reader. Aborting...\n");
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
     exit(503);
@@ -98,7 +98,7 @@ int read_lime_gauge_field_doubleprec(const char * filename) {
 
   while ((status = lemonReaderNextRecord(reader)) != LIME_EOF) {
     if (status != LIME_SUCCESS) {
-      fprintf(stderr, "lemonReaderNextRecord returned status %d.\n", status);
+      fprintf(stderr, "[read_lime_gauge_field_doubleprec] lemonReaderNextRecord returned status %d.\n", status);
       status = LIME_EOF;
       break;
     }
@@ -106,7 +106,7 @@ int read_lime_gauge_field_doubleprec(const char * filename) {
     if (strcmp("ildg-binary-data", header_type) == 0) break;
   }
   if(status==LIME_EOF) {
-    fprintf(stderr, "no ildg-binary-data record found in file %s\n",filename);
+    fprintf(stderr, "[read_lime_gauge_field_doubleprec] no ildg-binary-data record found in file %s\n",filename);
     lemonDestroyReader(reader);
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
@@ -121,8 +121,8 @@ int read_lime_gauge_field_doubleprec(const char * filename) {
     if (bytes == (n_uint64_t)g_nproc * (n_uint64_t)VOLUME * 72 * (n_uint64_t)sizeof(float)) {
       prec = 32;
     } else {
-      fprintf(stderr, "Probably wrong lattice size or precision (bytes=%lu).\n", (unsigned long)bytes);
-      fprintf(stderr, "Panic! Aborting...\n");
+      fprintf(stderr, "[read_lime_gauge_field_doubleprec] Probably wrong lattice size or precision (bytes=%lu).\n", (unsigned long)bytes);
+      fprintf(stderr, "[read_lime_gauge_field_doubleprec] Panic! Aborting...\n");
       fflush(stdout);
       MPI_File_close(reader->fp);
       MPI_Abort(MPI_COMM_WORLD, 1);
@@ -131,20 +131,20 @@ int read_lime_gauge_field_doubleprec(const char * filename) {
     }
   }
   
-  if(g_cart_id==0) fprintf(stdout, "# %d Bit precision read.\n", prec);
+  if(g_cart_id==0) fprintf(stdout, "# [read_lime_gauge_field_doubleprec] %d Bit precision read.\n", prec);
 
   fbsu3 = 18*sizeof(double);
   if (prec == 32) fbsu3 /= 2;
   bytes = 4 * fbsu3;
 
   if((void*)(filebuffer = (char*)malloc(VOLUME * bytes)) == NULL) {
-    printf ("malloc errno in read_binary_gauge_data_parallel\n");
+    printf ("[read_lime_gauge_field_doubleprec] malloc errno in read_binary_gauge_data_parallel\n");
     return 1;
   }
   status = lemonReadLatticeParallelMapped(reader, filebuffer, bytes, latticeSize, scidacMapping);
 
   if (status < 0 && status != LEMON_EOR)  {
-    fprintf(stderr, "LEMON read error occured with status = %d while reading!\nPanic! Aborting...\n", status);
+    fprintf(stderr, "[read_lime_gauge_field_doubleprec] LEMON read error occured with status = %d while reading!\nPanic! Aborting...\n", status);
     MPI_File_close(reader->fp);
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
@@ -187,7 +187,7 @@ int read_lime_gauge_field_doubleprec(const char * filename) {
   DML_global_xor(&checksum.suma);
   DML_global_xor(&checksum.sumb);
   if(g_cart_id==0) {
-    fprintf(stdout, "# checksum for gaugefield %s\n is %#x %#x.\n", filename, checksum.suma, checksum.sumb);
+    fprintf(stdout, "# [read_lime_gauge_field_doubleprec] checksum for gaugefield %s\n is %#x %#x.\n", filename, checksum.suma, checksum.sumb);
     fflush(stdout); 
   }
 
@@ -218,12 +218,12 @@ int read_lime_gauge_field_doubleprec(const char * filename) {
   words_bigendian = big_endian();
   ifs = fopen(filename, "r");
   if(ifs == (FILE *)NULL) {
-    fprintf(stderr, "Could not open file %s\n Aborting...\n", filename);
+    fprintf(stderr, "[read_lime_gauge_field_doubleprec] Could not open file %s\n Aborting...\n", filename);
     return(500);
   }
   limereader = limeCreateReader( ifs );
   if( limereader == (LimeReader *)NULL ) {
-    fprintf(stderr, "Unable to open LimeReader\n");
+    fprintf(stderr, "[read_lime_gauge_field_doubleprec] Unable to open LimeReader\n");
 #ifdef HAVE_MPI
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
@@ -232,7 +232,7 @@ int read_lime_gauge_field_doubleprec(const char * filename) {
   }
   while( (status = limeReaderNextRecord(limereader)) != LIME_EOF ) {
     if(status != LIME_SUCCESS ) {
-      fprintf(stderr, "limeReaderNextRecord returned error with status = %d!\n", status);
+      fprintf(stderr, "[read_lime_gauge_field_doubleprec] limeReaderNextRecord returned error with status = %d!\n", status);
       status = LIME_EOF;
       break;
     }
@@ -240,7 +240,7 @@ int read_lime_gauge_field_doubleprec(const char * filename) {
     if(strcmp("ildg-binary-data",header_type) == 0) break;
   }
   if(status == LIME_EOF) {
-    fprintf(stderr, "no ildg-binary-data record found in file %s\n",filename);
+    fprintf(stderr, "[read_lime_gauge_field_doubleprec] no ildg-binary-data record found in file %s\n",filename);
     limeDestroyReader(limereader);
     fclose(ifs);
 #ifdef HAVE_MPI
@@ -253,9 +253,9 @@ int read_lime_gauge_field_doubleprec(const char * filename) {
   //fprintf(stdout, "[%d] lime_reader bytes = %llu\n", g_cart_id, bytes);
   if(bytes != (n_uint64_t)(LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*72*(n_uint64_t)sizeof(double)) {
     if(bytes != (n_uint64_t)(LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*72*(n_uint64_t)sizeof(double)/2) {
-      fprintf(stderr, "Probably wrong lattice size or precision (bytes=%llu) in file %s expected %llu\n", 
+      fprintf(stderr, "[read_lime_gauge_field_doubleprec] Probably wrong lattice size or precision (bytes=%llu) in file %s expected %llu\n", 
 	      (n_uint64_t)bytes, filename, (n_uint64_t)(LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*72*(n_uint64_t)sizeof(double));
-      fprintf(stderr, "Aborting...!\n");
+      fprintf(stderr, "[read_lime_gauge_field_doubleprec] Aborting...!\n");
       fflush( stdout );
 #ifdef HAVE_MPI
       MPI_Abort(MPI_COMM_WORLD, 1);
@@ -265,7 +265,7 @@ int read_lime_gauge_field_doubleprec(const char * filename) {
     }
     else {
       fclose(ifs);
-      fprintf(stderr, "single precision read!\n");
+      fprintf(stderr, "[read_lime_gauge_field_doubleprec] single precision read!\n");
       return( read_lime_gauge_field_singleprec(filename) );
     }
   }
@@ -324,7 +324,7 @@ int read_lime_gauge_field_doubleprec(const char * filename) {
 	    }
  	  }
 	  if(status < 0 && status != LIME_EOR) {
-	    fprintf(stderr, "LIME read error occured with status = %d while reading file %s!\n Aborting...\n", 
+	    fprintf(stderr, "[read_lime_gauge_field_doubleprec] LIME read error occured with status = %d while reading file %s!\n Aborting...\n", 
 		    status, filename);
 #ifdef HAVE_MPI
             MPI_Abort(MPI_COMM_WORLD, 1);
@@ -341,7 +341,7 @@ int read_lime_gauge_field_doubleprec(const char * filename) {
 #ifdef HAVE_MPI
   DML_checksum_combine(&checksum); 
 #endif
-  if(g_cart_id==0) fprintf(stdout, "# checksum for gaugefield %s is %#x %#x\n",
+  if(g_cart_id==0) fprintf(stdout, "# [read_lime_gauge_field_doubleprec] checksum for gaugefield %s is %#x %#x\n",
             filename, checksum.suma, checksum.sumb); 
   return(0);
 }
@@ -372,14 +372,14 @@ int read_lime_gauge_field_singleprec(const char * filename) {
   status = MPI_File_open(g_cart_grid, (char*)filename, MPI_MODE_RDONLY, MPI_INFO_NULL, ifs);
   status = (status == MPI_SUCCESS) ? 0 : 1;
   if(status) {
-    fprintf(stderr, "Could not open file for reading. Aborting...\n");
+    fprintf(stderr, "[read_lime_gauge_field_singleprec] Could not open file for reading. Aborting...\n");
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
     exit(505);
   }
 
   if( (reader = lemonCreateReader(ifs, g_cart_grid)) == NULL ) {
-    fprintf(stderr, "Could not create reader. Aborting...\n");
+    fprintf(stderr, "[read_lime_gauge_field_singleprec] Could not create reader. Aborting...\n");
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
     exit(503);
@@ -387,7 +387,7 @@ int read_lime_gauge_field_singleprec(const char * filename) {
 
   while ((status = lemonReaderNextRecord(reader)) != LIME_EOF) {
     if (status != LIME_SUCCESS) {
-      fprintf(stderr, "lemonReaderNextRecord returned status %d.\n", status);
+      fprintf(stderr, "[read_lime_gauge_field_singleprec] lemonReaderNextRecord returned status %d.\n", status);
       status = LIME_EOF;
       break;
     }
@@ -395,7 +395,7 @@ int read_lime_gauge_field_singleprec(const char * filename) {
     if (strcmp("ildg-binary-data", header_type) == 0) break;
   }
   if(status==LIME_EOF) {
-    fprintf(stderr, "no ildg-binary-data record found in file %s\n",filename);
+    fprintf(stderr, "[read_lime_gauge_field_singleprec] no ildg-binary-data record found in file %s\n",filename);
     lemonDestroyReader(reader);
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
@@ -410,8 +410,8 @@ int read_lime_gauge_field_singleprec(const char * filename) {
     if (bytes == (n_uint64_t)g_nproc * (n_uint64_t)VOLUME * 72 * (n_uint64_t)sizeof(float)) {
       prec = 32;
     } else {
-      fprintf(stderr, "Probably wrong lattice size or precision (bytes=%lu).\n", (unsigned long)bytes);
-      fprintf(stderr, "Panic! Aborting...\n");
+      fprintf(stderr, "[read_lime_gauge_field_singleprec] Probably wrong lattice size or precision (bytes=%lu).\n", (unsigned long)bytes);
+      fprintf(stderr, "[read_lime_gauge_field_singleprec] Panic! Aborting...\n");
       fflush(stdout);
       MPI_File_close(reader->fp);
       MPI_Abort(MPI_COMM_WORLD, 1);
@@ -420,20 +420,20 @@ int read_lime_gauge_field_singleprec(const char * filename) {
     }
   }
   
-  if(g_cart_id==0) fprintf(stdout, "# %d Bit precision read.\n", prec);
+  if(g_cart_id==0) fprintf(stdout, "# [read_lime_gauge_field_singleprec] %d Bit precision read.\n", prec);
 
   fbsu3 = 18*sizeof(double);
   if (prec == 32) fbsu3 /= 2;
   bytes = 4 * fbsu3;
 
   if((void*)(filebuffer = (char*)malloc(VOLUME * bytes)) == NULL) {
-    printf ("malloc errno in read_binary_gauge_data_parallel\n");
+    printf ("[read_lime_gauge_field_singleprec] malloc errno in read_binary_gauge_data_parallel\n");
     return 1;
   }
   status = lemonReadLatticeParallelMapped(reader, filebuffer, bytes, latticeSize, scidacMapping);
 
   if (status < 0 && status != LEMON_EOR)  {
-    fprintf(stderr, "LEMON read error occured with status = %d while reading!\nPanic! Aborting...\n", status);
+    fprintf(stderr, "[read_lime_gauge_field_singleprec] LEMON read error occured with status = %d while reading!\nPanic! Aborting...\n", status);
     MPI_File_close(reader->fp);
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
@@ -476,7 +476,7 @@ int read_lime_gauge_field_singleprec(const char * filename) {
   DML_global_xor(&checksum.suma);
   DML_global_xor(&checksum.sumb);
   if(g_cart_id==0) {
-    fprintf(stdout, "# checksum for gaugefield %s\n is %#x %#x.\n", filename, checksum.suma, checksum.sumb);
+    fprintf(stdout, "# [read_lime_gauge_field_singleprec] checksum for gaugefield %s\n is %#x %#x.\n", filename, checksum.suma, checksum.sumb);
     fflush(stdout); 
   }
 
@@ -505,12 +505,12 @@ int read_lime_gauge_field_singleprec(const char * filename) {
   words_bigendian = big_endian();
   ifs = fopen(filename, "r");
   if(ifs == (FILE *)NULL) {
-    fprintf(stderr, "Could not open file %s\n Aborting...\n", filename);
+    fprintf(stderr, "[read_lime_gauge_field_singleprec] Could not open file %s\n Aborting...\n", filename);
     return(500);
   }
   limereader = limeCreateReader( ifs );
   if( limereader == (LimeReader *)NULL ) {
-    fprintf(stderr, "Unable to open LimeReader\n");
+    fprintf(stderr, "[read_lime_gauge_field_singleprec] Unable to open LimeReader\n");
 #ifdef HAVE_MPI
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
@@ -519,7 +519,7 @@ int read_lime_gauge_field_singleprec(const char * filename) {
   }
   while( (status = limeReaderNextRecord(limereader)) != LIME_EOF ) {
     if(status != LIME_SUCCESS ) {
-      fprintf(stderr, "limeReaderNextRecord returned error with status = %d!\n", status);
+      fprintf(stderr, "[read_lime_gauge_field_singleprec] limeReaderNextRecord returned error with status = %d!\n", status);
       status = LIME_EOF;
       break;
     }
@@ -527,7 +527,7 @@ int read_lime_gauge_field_singleprec(const char * filename) {
     if( strcmp("ildg-binary-data",header_type) == 0) break;
   }
   if(status == LIME_EOF) {
-    fprintf(stderr, "no ildg-binary-data record found in file %s\n",filename);
+    fprintf(stderr, "[read_lime_gauge_field_singleprec] no ildg-binary-data record found in file %s\n",filename);
     limeDestroyReader(limereader);
     fclose(ifs);
 #ifdef HAVE_MPI
@@ -538,8 +538,8 @@ int read_lime_gauge_field_singleprec(const char * filename) {
   }
   bytes = limeReaderBytes(limereader);
   if(bytes != (n_uint64_t)(LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*(T*g_nproc_t)*72*(n_uint64_t)sizeof(float)) {
-    fprintf(stderr, "Probably wrong lattice size or precision (bytes=%d) in file %s\n", (int)bytes, filename);
-    fprintf(stderr, "Aborting...!\n");
+    fprintf(stderr, "[read_lime_gauge_field_singleprec] Probably wrong lattice size or precision (bytes=%d) in file %s\n", (int)bytes, filename);
+    fprintf(stderr, "[read_lime_gauge_field_singleprec] Aborting...!\n");
     fflush( stdout );
 #ifdef HAVE_MPI
     MPI_Abort(MPI_COMM_WORLD, 1);
@@ -594,7 +594,7 @@ int read_lime_gauge_field_singleprec(const char * filename) {
 	  }
 
 	  if(status < 0 && status != LIME_EOR) {
-	    fprintf(stderr, "LIME read error occured with status = %d while reading file %s!\n Aborting...\n", 
+	    fprintf(stderr, "[read_lime_gauge_field_singleprec] LIME read error occured with status = %d while reading file %s!\n Aborting...\n", 
 		    status, filename);
 #ifdef HAVE_MPI
             MPI_Abort(MPI_COMM_WORLD, 1);
@@ -611,7 +611,7 @@ int read_lime_gauge_field_singleprec(const char * filename) {
 #ifdef HAVE_MPI
   DML_checksum_combine(&checksum);
 #endif
-  if(g_cart_id==0) fprintf(stdout, "# checksum for gaugefield %s is %#x %#x\n",
+  if(g_cart_id==0) fprintf(stdout, "# [read_lime_gauge_field_singleprec] checksum for gaugefield %s is %#x %#x\n",
              filename, checksum.suma, checksum.sumb);
   return(0);
 }
@@ -641,17 +641,17 @@ int read_lime_gauge_field_doubleprec_timeslice(double *gfield, const char * file
   words_bigendian = big_endian();
   ifs = fopen(filename, "r");
   if(ifs == (FILE *)NULL) {
-    fprintf(stderr, "Could not open file %s\n Aborting...\n", filename);
+    fprintf(stderr, "[read_lime_gauge_field_doubleprec_timeslice] Could not open file %s\n Aborting...\n", filename);
     return(500);
   }
   limereader = limeCreateReader( ifs );
   if( limereader == (LimeReader *)NULL ) {
-    fprintf(stderr, "Unable to open LimeReader\n");
+    fprintf(stderr, "[read_lime_gauge_field_doubleprec_timeslice] Unable to open LimeReader\n");
     exit(500);
   }
   while( (status = limeReaderNextRecord(limereader)) != LIME_EOF ) {
     if(status != LIME_SUCCESS ) {
-      fprintf(stderr, "limeReaderNextRecord returned error with status = %d!\n", status);
+      fprintf(stderr, "[read_lime_gauge_field_doubleprec_timeslice] limeReaderNextRecord returned error with status = %d!\n", status);
       status = LIME_EOF;
       break;
     }
@@ -659,7 +659,7 @@ int read_lime_gauge_field_doubleprec_timeslice(double *gfield, const char * file
     if(strcmp("ildg-binary-data",header_type) == 0) break;
   }
   if(status == LIME_EOF) {
-    fprintf(stderr, "no ildg-binary-data record found in file %s\n",filename);
+    fprintf(stderr, "[read_lime_gauge_field_doubleprec_timeslice] no ildg-binary-data record found in file %s\n",filename);
     limeDestroyReader(limereader);
     fclose(ifs);
     exit(-2);
@@ -667,7 +667,7 @@ int read_lime_gauge_field_doubleprec_timeslice(double *gfield, const char * file
   bytes = limeReaderBytes(limereader);
   if(bytes != (n_uint64_t)LX*LY*LZ*T_global*72*(n_uint64_t)sizeof(double)) {
     if(bytes != (n_uint64_t)LX*LY*LZ*T_global*72*(n_uint64_t)sizeof(double)/2) {
-      fprintf(stderr, "Probably wrong lattice size or precision (bytes=%llu) in file %s expected %llu\n", 
+      fprintf(stderr, "[read_lime_gauge_field_doubleprec_timeslice] Probably wrong lattice size or precision (bytes=%llu) in file %s expected %llu\n", 
 	      (n_uint64_t)bytes, filename, (n_uint64_t)LX*LY*LZ*T_global*72*(n_uint64_t)sizeof(double));
       fprintf(stderr, "Aborting...!\n");
       fflush( stdout );
@@ -675,7 +675,7 @@ int read_lime_gauge_field_doubleprec_timeslice(double *gfield, const char * file
     }
     else {
       fclose(ifs);
-      fprintf(stderr, "Warning: trying to use single precision reading\n");
+      fprintf(stderr, "[read_lime_gauge_field_doubleprec_timeslice] Warning: trying to use single precision reading\n");
       return( read_lime_gauge_field_singleprec_timeslice(gfield, filename, timeslice, checksum) );
     }
   }
@@ -723,7 +723,7 @@ int read_lime_gauge_field_doubleprec_timeslice(double *gfield, const char * file
         k++; 	    
       }}
       if(status < 0 && status != LIME_EOR) {
-        fprintf(stderr, "LIME read error occured with status = %d while reading file %s!\n Aborting...\n", 
+        fprintf(stderr, "[read_lime_gauge_field_doubleprec_timeslice] LIME read error occured with status = %d while reading file %s!\n Aborting...\n", 
           status, filename);
 	exit(500);
       }
@@ -732,7 +732,7 @@ int read_lime_gauge_field_doubleprec_timeslice(double *gfield, const char * file
   
   limeDestroyReader(limereader);
   fclose(ifs);
-  if(timeslice==T_global-1) fprintf(stdout, "# checksum for gaugefield %s is %#x %#x\n",
+  if(timeslice==T_global-1) fprintf(stdout, "# [read_lime_gauge_field_doubleprec_timeslice] checksum for gaugefield %s is %#x %#x\n",
             filename, (*checksum).suma, (*checksum).sumb); 
   return(0);
 #else
@@ -765,17 +765,17 @@ int read_lime_gauge_field_singleprec_timeslice(double *gfield, const char * file
   words_bigendian = big_endian();
   ifs = fopen(filename, "r");
   if(ifs == (FILE *)NULL) {
-    fprintf(stderr, "Could not open file %s\n Aborting...\n", filename);
+    fprintf(stderr, "[read_lime_gauge_field_singleprec_timeslice] Could not open file %s\n Aborting...\n", filename);
     return(500);
   }
   limereader = limeCreateReader( ifs );
   if( limereader == (LimeReader *)NULL ) {
-    fprintf(stderr, "Unable to open LimeReader\n");
+    fprintf(stderr, "[read_lime_gauge_field_singleprec_timeslice] Unable to open LimeReader\n");
     exit(500);
   }
   while( (status = limeReaderNextRecord(limereader)) != LIME_EOF ) {
     if(status != LIME_SUCCESS ) {
-      fprintf(stderr, "limeReaderNextRecord returned error with status = %d!\n", status);
+      fprintf(stderr, "[read_lime_gauge_field_singleprec_timeslice] limeReaderNextRecord returned error with status = %d!\n", status);
       status = LIME_EOF;
       break;
     }
@@ -783,7 +783,7 @@ int read_lime_gauge_field_singleprec_timeslice(double *gfield, const char * file
     if(strcmp("ildg-binary-data",header_type) == 0) break;
   }
   if(status == LIME_EOF) {
-    fprintf(stderr, "no ildg-binary-data record found in file %s\n",filename);
+    fprintf(stderr, "[read_lime_gauge_field_singleprec_timeslice] no ildg-binary-data record found in file %s\n",filename);
     limeDestroyReader(limereader);
     fclose(ifs);
     exit(-2);
@@ -791,15 +791,15 @@ int read_lime_gauge_field_singleprec_timeslice(double *gfield, const char * file
   bytes = limeReaderBytes(limereader);
   if(bytes != (n_uint64_t)LX*LY*LZ*T_global*72*(n_uint64_t)sizeof(float)) {
     if(bytes != (n_uint64_t)LX*LY*LZ*T_global*72*(n_uint64_t)sizeof(double)) {
-      fprintf(stderr, "[] Error, Probably wrong lattice size or precision (bytes=%llu) in file %s expected %llu\n", 
+      fprintf(stderr, "[read_lime_gauge_field_singleprec_timeslice] Error, Probably wrong lattice size or precision (bytes=%llu) in file %s expected %llu\n", 
 	      (n_uint64_t)bytes, filename, (n_uint64_t)LX*LY*LZ*T_global*72*(n_uint64_t)sizeof(double));
-      fprintf(stderr, "[] Aborting...!\n");
+      fprintf(stderr, "[read_lime_gauge_field_singleprec_timeslice] Aborting...!\n");
       fflush( stdout );
       exit(501);
     }
     else {
       fclose(ifs);
-      fprintf(stderr, "[] Error, use double precision reading\n");
+      fprintf(stderr, "[read_lime_gauge_field_singleprec_timeslice] Error, use double precision reading\n");
       exit(501);
     }
   }
@@ -848,7 +848,7 @@ int read_lime_gauge_field_singleprec_timeslice(double *gfield, const char * file
         k++; 	    
       }}
       if(status < 0 && status != LIME_EOR) {
-        fprintf(stderr, "LIME read error occured with status = %d while reading file %s!\n Aborting...\n", 
+        fprintf(stderr, "[read_lime_gauge_field_singleprec_timeslice] LIME read error occured with status = %d while reading file %s!\n Aborting...\n", 
           status, filename);
 	exit(500);
       }
@@ -857,11 +857,11 @@ int read_lime_gauge_field_singleprec_timeslice(double *gfield, const char * file
   
   limeDestroyReader(limereader);
   fclose(ifs);
-  if(timeslice==T_global-1) fprintf(stdout, "# checksum for gaugefield %s is %#x %#x\n",
+  if(timeslice==T_global-1) fprintf(stdout, "# [read_lime_gauge_field_singleprec_timeslice] checksum for gaugefield %s is %#x %#x\n",
             filename, (*checksum).suma, (*checksum).sumb); 
   return(0);
 #else
-  if(g_cart_id==0) fprintf(stderr, "[read_lime_gauge_field_doubleprec_timeslice] Error, no MPI version\n ");
+  if(g_cart_id==0) fprintf(stderr, "[read_lime_gauge_field_singleprec_timeslice] Error, no MPI version\n ");
   return(-1);
 #endif
 }
@@ -887,12 +887,12 @@ int read_ildg_nersc_gauge_field(const double * gauge, const char * filename) {
   words_bigendian = big_endian();
   ifs = fopen(filename, "r");
   if(ifs == (FILE *)NULL) {
-    fprintf(stderr, "Could not open file %s\n Aborting...\n", filename);
+    fprintf(stderr, "[read_ildg_nersc_gauge_field] Could not open file %s\n Aborting...\n", filename);
     return(500);
   }
   limereader = limeCreateReader( ifs );
   if( limereader == (LimeReader *)NULL ) {
-    fprintf(stderr, "Unable to open LimeReader\n");
+    fprintf(stderr, "[read_ildg_nersc_gauge_field] Unable to open LimeReader\n");
 #ifdef HAVE_MPI
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
@@ -901,16 +901,16 @@ int read_ildg_nersc_gauge_field(const double * gauge, const char * filename) {
   }
   while( (status = limeReaderNextRecord(limereader)) != LIME_EOF ) {
     if(status != LIME_SUCCESS ) {
-      fprintf(stderr, "limeReaderNextRecord returned error with status = %d!\n", status);
+      fprintf(stderr, "[read_ildg_nersc_gauge_field] limeReaderNextRecord returned error with status = %d!\n", status);
       status = LIME_EOF;
       break;
     }
     header_type = limeReaderType(limereader);
-    fprintf(stdout, "# [] header: %s\n", header_type);
+    fprintf(stdout, "# [read_ildg_nersc_gauge_field] header: %s\n", header_type);
     if( strcmp("ildg-binary-data",header_type) == 0) break;
   }
   if(status == LIME_EOF) {
-    fprintf(stderr, "no ildg-binary-data record found in file %s\n",filename);
+    fprintf(stderr, "[read_ildg_nersc_gauge_field] no ildg-binary-data record found in file %s\n",filename);
     limeDestroyReader(limereader);
     fclose(ifs);
 #ifdef HAVE_MPI
@@ -921,8 +921,8 @@ int read_ildg_nersc_gauge_field(const double * gauge, const char * filename) {
   }
   bytes = limeReaderBytes(limereader);
   if(bytes != (n_uint64_t)(LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T*72*(n_uint64_t)sizeof(float)) {
-    fprintf(stderr, "Probably wrong lattice size or precision (bytes=%d) in file %s\n", (int)bytes, filename);
-    fprintf(stderr, "Aborting...!\n");
+    fprintf(stderr, "[read_ildg_nersc_gauge_field] Probably wrong lattice size or precision (bytes=%d) in file %s\n", (int)bytes, filename);
+    fprintf(stderr, "[read_ildg_nersc_gauge_field] Aborting...!\n");
     fflush( stdout );
 #ifdef HAVE_MPI
     MPI_Abort(MPI_COMM_WORLD, 1);
@@ -933,7 +933,7 @@ int read_ildg_nersc_gauge_field(const double * gauge, const char * filename) {
 
   status = read_nersc_gauge_binary_data_3col(limereader->fp, (double*)gauge, &checksum);
   if(status != 0) {
-    fprintf(stderr, "Error from read_nersc_gauge_binary_data_3col, status was %d\n", status);
+    fprintf(stderr, "[read_ildg_nersc_gauge_field] Error from read_nersc_gauge_binary_data_3col, status was %d\n", status);
     return(511);
   }
 
@@ -942,7 +942,7 @@ int read_ildg_nersc_gauge_field(const double * gauge, const char * filename) {
 #ifdef HAVE_MPI
   DML_checksum_combine(&checksum);
 #endif
-  if(g_cart_id==0) fprintf(stdout, "# checksum for gaugefield %s is %#x %#x\n",
+  if(g_cart_id==0) fprintf(stdout, "# [read_ildg_nersc_gauge_field] checksum for gaugefield %s is %#x %#x\n",
              filename, checksum.suma, checksum.sumb);
   return(0);
 }
