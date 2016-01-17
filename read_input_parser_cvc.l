@@ -25,6 +25,7 @@ STRING [a-zA-z0-9"."_"-""/"","]+
 #include "global.h"
 #include "read_input_parser.h"
 #include "default_input_values.h"
+#include "set_default.h"
 #include "cvc_utils.h"
 #include "laphs.h"
 
