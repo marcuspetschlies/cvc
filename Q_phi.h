@@ -8,7 +8,16 @@
 namespace cvc {
 
 void Q_phi_tbc(double *xi, double *phi);
+
 void Hopping(double *xi, double *phi);
+void Hopping_eo(double *s, double *r, double *gauge_field, int EO);
+
+void M_zz (double*s, double*r, double mass);
+void M_zz_inv (double*s, double*r, double mass);
+  
+void C_oo (double*s, double*r, double *gauge_field, double mass, double *s_aux);
+
+
 void gamma5_BdagH4_gamma5 (double *xi, double *phi, double *work);
 void mul_one_pm_imu_inv (double *phi, double sign, int V);
 void BH  (double *xi, double *phi);
@@ -26,6 +35,13 @@ void test_cm_eq_cm_dag_ti_cm(void);
 void Qf5(double *xi, double *phi, double mutm);
 
 void Q_phi(double *xi, double *phi, const double mutm);
+
+void Q_phi_eo (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double mass, double *aux);
+
+void Q_eo_SchurDecomp_A (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double mass, double *aux);
+void Q_eo_SchurDecomp_B (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double mass, double *aux);
+
+
 void Q_Wilson_phi_tbc(double *xi, double *phi);
 void Q_Wilson_phi(double *xi, double *phi);
 void Q_g5_Wilson_phi(double *xi, double *phi);

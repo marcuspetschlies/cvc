@@ -20,7 +20,12 @@ void plaquette(double*);
 void plaquette2(double *pl, double*gfield);
 
 void xchange_gauge(void);
+void xchange_gauge_field(double*);
+
 void xchange_field(double*);
+
+void xchange_eo_field(double *phi, int eo);
+
 void xchange_contraction(double *phi, int N);
 
 int write_contraction (double *s, int *nsource, char *filename, int Nmu,
@@ -48,6 +53,8 @@ void random_gauge_field(double *gfield, double h);
 void random_gauge_point(double **gauge_point, double heat);
 void random_gauge_field2(double *gfield);
 int read_pimn(double *pimn, const int read_flag);
+
+void random_spinor_field (double *s, unsigned int V);
 
 int init_hpe_fields(int ***loop_tab, int ***sigma_tab, int ***shift_start, double **tcf, double **tcb);
 int free_hpe_fields(int ***loop_tab, int ***sigma_tab, int ***shift_start, double **tcf, double **tcb);
@@ -91,6 +98,11 @@ void check_source(double *sf, double*work, double mass, unsigned int location, i
 void reunit(double *A);
 void su3_proj_step (double *A, double *B);
 void cm_proj_iterate(double *A, double *B, int maxiter, double tol);
+
+void spinor_field_lexic2eo (double *r_lexic, double*r_e, double *r_o);
+void spinor_field_eo2lexic (double *r_lexic, double*r_e, double *r_o);
+
+
 }
 #endif
 
