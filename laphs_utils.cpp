@@ -532,4 +532,176 @@ int test_eigensystem (eigensystem_type *es, double* gauge_field) {
 }  /* end of test_eigensystem */
 
 
+/************************************************************************************************
+ * s = V x r
+ * output: fermion vector s
+ * input:  eigensystem V, randomvector r
+ ************************************************************************************************/
+
+int fv_eq_eigensystem_ti_randomvector (double*s, eigensystem_type *v, randomvector_type*r) {
+
+  int iv, it, is;
+  int nv = v->nv;
+  int nt = v->nt;
+  int ns = r->ns;
+  unsigned int ix, iix;
+  unsigned int VOL3 = LX*LY*LZ;
+  int r_idx;
+  double *phi = NULL;
+  complex w, w1;
+
+  if(nv != r->nv) {
+    fprintf(stderr, "[fv_eq_eigensystem_ti_randomvector] Error inconsistent nv in eigensystem and randomvector\n");
+    return(1);
+  }
+
+  if(nt != r->nt ) {
+    fprintf(stderr, "[fv_eq_eigensystem_ti_randomvector] Error inconsistent nt in eigensystem and randomvector\n");
+    return(2);
+  }
+
+  if(nt != T ) {
+    fprintf(stderr, "[fv_eq_eigensystem_ti_randomvector] Error eigensystem has to few t-values\n");
+    return(3);
+  }
+
+  if(ns != 4 ) {
+    fprintf(stderr, "[fv_eq_eigensystem_ti_randomvector] Error spin value in randomvector too low\n");
+    return(4);
+  }
+  
+  memset(s, 0, 24*VOLUME*sizeof(double));
+
+  for(it = 0; it<T; it++) {
+    for(iix = 0; iix<VOL3; iix++) {
+
+      ix = it * VOL3 + iix;
+
+      for(is=0; is < ns; is++) {
+
+        phi = s + _GSI(ix) + 6*is;
+
+        for(iv=0; iv<nv; iv++) {
+
+
+          r_idx = ( it * ns + is ) * nv + iv;
+
+          w1.re = r->rvec[2*r_idx  ];
+          w1.im = r->rvec[2*r_idx+1];
+
+          /* 1st color component */
+          w.re = v->v[it][iv][6*iix+ 0];
+          w.im = v->v[it][iv][6*iix+ 1];
+
+
+          _co_pl_eq_co_ti_co( (complex*)(phi+0), &w, &w1);
+
+          /* 2nd color component */
+          w.re = v->v[it][iv][6*iix+ 2];
+          w.im = v->v[it][iv][6*iix+ 3];
+
+          _co_pl_eq_co_ti_co( (complex*)(phi+2), &w, &w1);
+
+
+          /* 3rd color component */
+          w.re = v->v[it][iv][6*iix+ 4];
+          w.im = v->v[it][iv][6*iix+ 5];
+
+          _co_pl_eq_co_ti_co( (complex*)(phi+4), &w, &w1);
+
+
+        }  /* end loop on eigenvectors */
+      }    /* end of loop on spin */
+    }      /* end of loop on 3-dim. volume */
+  }        /* end of loop on time */
+
+  return(0);
+}  /* end of fv_eq_eigensystem_ti_randomvector */
+
+
+/************************************************************************************************
+ * perambulator = V^+ D^{-1} s
+ * output: perambulator p
+ * input:  eigensystem V, fermion vector s
+ *         {it,is,iv}_src the src-component the perambulator is associated with
+ *
+ * TODO: change to color vector scalar product
+ ************************************************************************************************/
+
+int perambulator_eq_eigensystem_dag_ti_fv (perambulator_type*p, eigensystem_type*v, double*s, int it_src, int is_src, int iv_src) {
+
+  int it, is, iv;
+  unsigned int ix, iix, p_idx;
+  unsigned int VOL3 = LX*LY*LZ;
+  int nt = p->nt_snk;
+  int ns = p->ns_snk;
+  int nv = p->nv_snk;
+  double *phi=NULL;
+  double *p_ptr = NULL;
+  complex w, w1;
+
+
+  if( nt != v->nt || nt != T) {
+    fprintf(stderr, "[perambulator_eq_eigensystem_dag_ti_fv] Error, inconsistent nt from perambulator and eigensystem or nt not equal to T\n");
+    exit(1);
+  }
+
+  if( ns != 4) {
+    fprintf(stderr, "[perambulator_eq_eigensystem_dag_ti_fv] Error, need ns = 4 at sink to set perambulator from fermion vector\n");
+    exit(2);
+  }
+
+  if( nv != v->nv ) {
+    fprintf(stderr, "[perambulator_eq_eigensystem_dag_ti_fv] Error, inconsistent nv from perambulator and eigensystem\n");
+    exit(3);
+  }
+
+  for(it=0; it<nt; it++) {
+    for(is=0; is<ns; is++) {
+      for(iv=0; iv<nv; iv++) {
+
+        p_idx = (it * ns  + is ) * nv + iv;
+
+        p_ptr = p->v[it_src][is_src][iv_src] + 2*p_idx;
+        p_ptr[0] = 0.;
+        p_ptr[1] = 0.;
+
+        for(iix = 0; iix < VOL3; iix++) {
+          ix = it * VOL3 + iix;
+
+          phi = s + _GSI(ix) + 6*is;
+
+          /* 1st color component */
+          w.re  = v->v[it][iv][6*iix + 0];
+          w.im  = v->v[it][iv][6*iix + 1];
+          w1.re = phi[0];
+          w1.im = phi[1];
+          _co_pl_eq_co_ti_co_conj( (complex*)p_ptr, &w1, &w);
+                    
+          /* 2nd color component */
+          w.re  = v->v[it][iv][6*iix + 2];
+          w.im  = v->v[it][iv][6*iix + 3];
+          w1.re = phi[2];
+          w1.im = phi[3];
+          _co_pl_eq_co_ti_co_conj( (complex*)p_ptr, &w1, &w);
+                    
+          /* 3rd color component */
+          w.re  = v->v[it][iv][6*iix + 4];
+          w.im  = v->v[it][iv][6*iix + 5];
+          w1.re = phi[4];
+          w1.im = phi[5];
+          _co_pl_eq_co_ti_co_conj( (complex*)p_ptr, &w1, &w);
+
+
+
+        }  /* end of loop on 3-dim. volume */
+      }    /* end of loop on eigenvectors */
+    }      /* end of loop on spin */
+  }        /* end of loop on time */
+
+  return(0);
+}
+
+#if 0
+#endif
 }

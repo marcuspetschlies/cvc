@@ -15,7 +15,7 @@
 #include <math.h>
 #include <time.h>
 #include <getopt.h>
-#ifdef MPI
+#ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
 #ifdef OPENMP
@@ -30,7 +30,7 @@
 #include "global.h"
 #include "cvc_geometry.h"
 #include "cvc_utils.h"
-#include "set_default_input.h"
+#include "set_default.h"
 #include "mpi_init.h"
 #include "io.h"
 #include "io_utils.h"
@@ -54,11 +54,15 @@ void usage(void) {
 int main(int argc, char **argv) {
   
   int c, mu, nu, status, sid;
+  int it_src = 1;
+  int is_src = 2;
+  int iv_src = 3;
   int i, j, ncon=-1, is, idx;
   int filename_set = 0;
   int x0, x1, x2, x3, ix, iix;
   int y0, y1, y2, y3;
   int threadid, nthreads;
+  int no_fields = 2;
   double dtmp[4], norm, norm2, norm3;
 
   double plaq=0.;
@@ -66,16 +70,16 @@ int main(int argc, char **argv) {
   int verbose = 0;
   char filename[200];
   FILE *ofs=NULL;
-  unsigned int VOL3;
   double v1[6], v2[6];
   size_t items, bytes;
   complex w, w1, w2;
   double **perambulator = NULL;
+  double ratime, retime;
   eigensystem_type es;
   randomvector_type rv, prv;
   perambulator_type peram;
 
-#ifdef MPI
+#ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
@@ -101,12 +105,26 @@ int main(int argc, char **argv) {
   if(g_cart_id==0) fprintf(stdout, "# [test_laph] Reading input from file %s\n", filename);
   read_input_parser(filename);
 
+#ifdef HAVE_TMLQCD_LIBWRAPPER
 
-  /* some checks on the input data */
-  if((T_global == 0) || (LX==0) || (LY==0) || (LZ==0)) {
-    if(g_proc_id==0) fprintf(stdout, "# [test_laph] T and L's must be set\n");
-    usage();
+  fprintf(stdout, "# [p2gg_xspace] calling tmLQCD wrapper init functions\n");
+
+  /*********************************
+   * initialize MPI parameters for cvc
+   *********************************/
+  status = tmLQCD_invert_init(argc, argv, 1);
+  if(status != 0) {
+    EXIT(14);
   }
+  status = tmLQCD_get_mpi_params(&g_tmLQCD_mpi);
+  if(status != 0) {
+    EXIT(15);
+  }
+  status = tmLQCD_get_lat_params(&g_tmLQCD_lat);
+  if(status != 0) {
+    EXIT(16);
+  }
+#endif
 
   /* initialize MPI parameters */
   mpi_init(argc, argv);
@@ -133,7 +151,6 @@ int main(int argc, char **argv) {
 
   geometry();
 
-  VOL3 = LX*LY*LZ;
 
   /* read the gauge field */
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
@@ -178,6 +195,13 @@ int main(int argc, char **argv) {
   }
 #endif
 
+  /* init and allocate spinor fields */
+  no_fields = 2;
+  g_spinor_field = (double**)calloc(no_fields, sizeof(double*));
+  for(i=0; i<no_fields; i++) alloc_spinor_field(&g_spinor_field[i], VOLUME+RAND);
+
+
+
   init_eigensystem(&es);
   init_perambulator(&peram);
   init_randomvector(&rv);
@@ -188,22 +212,71 @@ int main(int argc, char **argv) {
     EXIT(7);
   }
 
+  ratime = _GET_TIME;
+  status = read_eigensystem(&es);
+  if (status != 0) {
+    fprintf(stderr, "# [test_laph] Error from read_eigensystem, status was %d\n", status);
+  }
+  retime = _GET_TIME;
+  fprintf(stdout, "# [] time to read eigensystem %e\n", retime-ratime);
+
+/*
+  ratime = _GET_TIME;
+  status = test_eigensystem(&es, g_gauge_field);
+  retime = _GET_TIME;
+  fprintf(stdout, "# [] time to test eigensystem %e\n", retime-ratime);
+*/
+
   status = alloc_randomvector(&rv, T, 4, laphs_eigenvector_number);
   status = alloc_randomvector(&prv, T, 4, laphs_eigenvector_number);
   status = read_randomvector(&rv, "u", 0);
 
-  status = project_randomvector (&prv, &rv, 1, 2, 3);
+  /*****************************************************************
+   * project the random vector
+   *****************************************************************/
+  ratime = _GET_TIME;
+  status = project_randomvector (&prv, &rv, it_src, is_src, iv_src);
   if(status != 0) {
     fprintf(stderr, "[test_laph] Error from project_randomvector, status was %d\n", status);
     EXIT(8);
   }
+  retime = _GET_TIME;
+  fprintf(stdout, "# [] time to project randomvector %e\n", retime-ratime);
 
-  print_randomvector(&rv, stdout);
+  /* print_randomvector(&rv, stdout); */
+  sprintf(filename, "projected_randomvector.t%d_s%d_v%d", it_src, is_src, iv_src);
+  ofs = fopen(filename, "w");
+  print_randomvector(&prv, ofs);
+  fclose(ofs);
 
-  print_randomvector(&prv, stdout);
+  /*****************************************************************
+   * prepare the source for the inversion
+   *****************************************************************/
+  ratime = _GET_TIME;
+  status = fv_eq_eigensystem_ti_randomvector (g_spinor_field[0], &es, &prv);
+  if(status != 0) {
+    fprintf(stderr, "[test_laph] Error from , status was %d\n", status);
+    EXIT(9);
+  }
+  retime = _GET_TIME;
+  fprintf(stdout, "# [] time for fv = V x r %e\n", retime-ratime);
+
+  sprintf(filename, "v_projected_randomvector.t%d_s%d_v%d", it_src, is_src, iv_src);
+  status = write_propagator(g_spinor_field[0], filename, 0, 64);
+
+/*
+  sprintf(filename, "v_projected_randomvector.t%d_s%d_v%d.ascii", it_src, is_src, iv_src);
+  ofs = fopen(filename, "w");
+  status = printf_spinor_field(g_spinor_field[0], ofs);
+  fclose(ofs);
+*/
+  /* invert with V P rv as the source */
 
 
+  /* contract with eigensystem V^+ S V P rv */
+    
 
+#if 0
   status = alloc_perambulator(&peram, laphs_time_src_number, laphs_spin_src_number, laphs_evec_src_number, T, 4, laphs_eigenvector_number, 3, "u", "smeared1", 0 );
 
   print_perambulator_info (&peram);
@@ -213,16 +286,9 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[test_laph] Error from read_perambulator, status was %d\n", status);
     exit(12);
   }
-#if 0
+
 #endif
 
-/*
-  status = read_eigensystem(&es);
-  if (status != 0) {
-    fprintf(stderr, "# [test_laph] Error from read_eigensystem, status was %d\n", status);
-  }
-  status = test_eigensystem(&es, g_gauge_field);
-*/
 
   /***********************************************
    * free the allocated memory, finalize 
@@ -234,6 +300,9 @@ int main(int argc, char **argv) {
 
 
   free(g_gauge_field);
+  for(i=0; i<no_fields; i++) free(g_spinor_field[i]);
+  free(g_spinor_field);
+
   free_geometry();
 
   g_the_time = time(NULL);
@@ -243,7 +312,7 @@ int main(int argc, char **argv) {
   fflush(stderr);
 
 
-#ifdef MPI
+#ifdef HAVE_MPI
   MPI_Finalize();
 #endif
   return(0);

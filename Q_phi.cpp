@@ -439,6 +439,7 @@ void Hopping(double *xi, double *phi) {
       _fv_eq_cm_ti_fv(spinor2, SU3_1, spinor1);
       _fv_pl_eq_fv(xi_, spinor2);
 
+
       /* Negative x-direction. */
       phi_ = phi + _GSI(g_idn[index_s][1]);
 
@@ -518,14 +519,15 @@ void Hopping(double *xi, double *phi) {
       _fv_pl_eq_fv(xi_, spinor2);
 
       /* Multiplication with -kappa (hopping parameter repr.) */
-      _fv_ti_eq_re(xi_, -g_kappa);
+      /* _fv_ti_eq_re(xi_, -g_kappa); */
+      _fv_ti_eq_re(xi_, -0.5);
 
   }
   }
   }
   }
   
-}
+}  /* end of Hopping */
 
 /*****************************************************
  * gamma5_BH4_gamma5 
@@ -3260,4 +3262,321 @@ void spinor_5d_to_4d_L5h_sign(double*s, double*t, int isign) {
  return;
 }
 
+/***********************************************************
+ * M_eo and M_oe
+ *   input: r, EO = 0/ 1 for eo / oe
+ *   output: s
+ ***********************************************************/
+
+void Hopping_eo(double *s, double *r, double *gauge_field, int EO) {
+
+  unsigned int ix, ix_lexic;
+  unsigned int N  = VOLUME / 2;
+  unsigned int N2 = (VOLUME+RAND) / 2;
+  unsigned int ix_fwd, ix_bwd;
+  double *U_fwd = NULL, *U_bwd = NULL;
+  double sp1[24], sp2[24];
+  double *s_ = NULL, *r_fwd_ = NULL, *r_bwd_ = NULL;
+  double V_fwd[18], V_bwd[18];
+
+  for(ix=0; ix<N; ix++) {
+    
+    s_ = s + _GSI(ix);
+      
+    _fv_eq_zero(s_);
+
+    /* ix is an even / odd point */
+    ix_lexic = g_eo2lexic[ix + (unsigned int)(EO * N2)];
+
+    /* =========================================== */
+    /* =============== direction 0 =============== */
+    U_fwd = gauge_field+_GGI(ix_lexic,0);
+    _cm_eq_cm_ti_co(V_fwd, U_fwd, &co_phase_up[0]);
+
+    U_bwd = gauge_field+_GGI( g_idn[ix_lexic][0],0);
+    _cm_eq_cm_ti_co(V_bwd, U_bwd, &co_phase_up[0]);
+
+    /* ix_fwd and ix_bwd are odd / even points */
+    ix_fwd = g_lexic2eosub[ g_iup[ix_lexic][0] ];
+    ix_bwd = g_lexic2eosub[ g_idn[ix_lexic][0] ];
+
+    r_fwd_ = r + _GSI(ix_fwd);
+    r_bwd_ = r + _GSI(ix_bwd);
+
+    /* s += U_fwd ( 1 - g0 ) r_fwd */
+    _fv_eq_gamma_ti_fv(sp1, 0, r_fwd_);
+    _fv_eq_fv_mi_fv(sp2, r_fwd_, sp1);
+    _fv_eq_cm_ti_fv(sp1, V_fwd, sp2);
+    _fv_pl_eq_fv(s_, sp1);
+
+    /* s += U_bwd^+ ( 1 + g0 ) r_bwd */
+    _fv_eq_gamma_ti_fv(sp1, 0, r_bwd_);
+    _fv_eq_fv_pl_fv(sp2, r_bwd_, sp1);
+    _fv_eq_cm_dag_ti_fv(sp1, V_bwd, sp2);
+    _fv_pl_eq_fv(s_, sp1);
+
+
+    /* =========================================== */
+    /* =============== direction 1 =============== */
+    U_fwd = gauge_field+_GGI(ix_lexic,1);
+    _cm_eq_cm_ti_co(V_fwd, U_fwd, &co_phase_up[1]);
+
+    U_bwd = gauge_field+_GGI( g_idn[ix_lexic][1],1);
+    _cm_eq_cm_ti_co(V_bwd, U_bwd, &co_phase_up[1]);
+
+    /* ix_fwd and ix_bwd are odd points */
+    ix_fwd = g_lexic2eosub[ g_iup[ix_lexic][1] ];
+    ix_bwd = g_lexic2eosub[ g_idn[ix_lexic][1] ];
+
+    r_fwd_ = r + _GSI(ix_fwd);
+    r_bwd_ = r + _GSI(ix_bwd);
+
+    /* s += U_fwd ( 1 - g1 ) r_fwd */
+    _fv_eq_gamma_ti_fv(sp1, 1, r_fwd_);
+    _fv_eq_fv_mi_fv(sp2, r_fwd_, sp1);
+    _fv_eq_cm_ti_fv(sp1, V_fwd, sp2);
+    _fv_pl_eq_fv(s_, sp1);
+
+    /* s += U_bwd^+ ( 1 + g1 ) r_bwd */
+    _fv_eq_gamma_ti_fv(sp1, 1, r_bwd_);
+    _fv_eq_fv_pl_fv(sp2, r_bwd_, sp1);
+    _fv_eq_cm_dag_ti_fv(sp1, V_bwd, sp2);
+    _fv_pl_eq_fv(s_, sp1);
+    
+    /* =========================================== */
+    /* =============== direction 2 =============== */
+    U_fwd = gauge_field+_GGI(ix_lexic,2);
+    _cm_eq_cm_ti_co(V_fwd, U_fwd, &co_phase_up[2]);
+
+    U_bwd = gauge_field+_GGI( g_idn[ix_lexic][2],2);
+    _cm_eq_cm_ti_co(V_bwd, U_bwd, &co_phase_up[2]);
+
+    /* ix_fwd and ix_bwd are odd points */
+    ix_fwd = g_lexic2eosub[ g_iup[ix_lexic][2] ];
+    ix_bwd = g_lexic2eosub[ g_idn[ix_lexic][2] ];
+
+    r_fwd_ = r + _GSI(ix_fwd);
+    r_bwd_ = r + _GSI(ix_bwd);
+
+    /* s += U_fwd ( 1 - g2 ) r_fwd */
+    _fv_eq_gamma_ti_fv(sp1, 2, r_fwd_);
+    _fv_eq_fv_mi_fv(sp2, r_fwd_, sp1);
+    _fv_eq_cm_ti_fv(sp1, V_fwd, sp2);
+    _fv_pl_eq_fv(s_, sp1);
+
+    /* s += U_bwd^+ ( 1 + g2 ) r_bwd */
+    _fv_eq_gamma_ti_fv(sp1, 2, r_bwd_);
+    _fv_eq_fv_pl_fv(sp2, r_bwd_, sp1);
+    _fv_eq_cm_dag_ti_fv(sp1, V_bwd, sp2);
+    _fv_pl_eq_fv(s_, sp1);
+
+    /* =========================================== */
+    /* =============== direction 3 =============== */
+    U_fwd = gauge_field+_GGI(ix_lexic,3);
+    _cm_eq_cm_ti_co(V_fwd, U_fwd, &co_phase_up[3]);
+
+    U_bwd = gauge_field+_GGI( g_idn[ix_lexic][3],3);
+    _cm_eq_cm_ti_co(V_bwd, U_bwd, &co_phase_up[3]);
+
+    /* ix_fwd and ix_bwd are odd points */
+    ix_fwd = g_lexic2eosub[ g_iup[ix_lexic][3] ];
+    ix_bwd = g_lexic2eosub[ g_idn[ix_lexic][3] ];
+
+    r_fwd_ = r + _GSI(ix_fwd);
+    r_bwd_ = r + _GSI(ix_bwd);
+
+    /* s += U_fwd ( 1 - g3 ) r_fwd */
+    _fv_eq_gamma_ti_fv(sp1, 3, r_fwd_);
+    _fv_eq_fv_mi_fv(sp2, r_fwd_, sp1);
+    _fv_eq_cm_ti_fv(sp1, V_fwd, sp2);
+    _fv_pl_eq_fv(s_, sp1);
+
+    /* s += U_bwd^+ ( 1 + g3 ) r_bwd */
+    _fv_eq_gamma_ti_fv(sp1, 3, r_bwd_);
+    _fv_eq_fv_pl_fv(sp2, r_bwd_, sp1);
+    _fv_eq_cm_dag_ti_fv(sp1, V_bwd, sp2);
+    _fv_pl_eq_fv(s_, sp1);
+
+    _fv_ti_eq_re(s_, -0.5);
+
+  }  /* end of loop on ix over VOLUME / 2 */
+
+
+}  /* end of Hopping_eo */
+
+
+/***********************************************************
+ * M_ee and M_oo
+ ***********************************************************/
+void M_zz (double*s, double*r, double mass) {
+
+  unsigned int N = VOLUME/2;
+  unsigned int ix;
+  double *s_= NULL, *r_ = NULL;
+  double sp1[24];
+  double mutilde = 2. * g_kappa * mass;
+
+  for(ix = 0; ix<N; ix++) {
+    s_ = s + _GSI(ix);
+    r_ = r + _GSI(ix);
+
+    /* sp1 = g5 r_ */
+    _fv_eq_gamma_ti_fv(sp1, 5, r_);
+    /* s_ = i mass sp1 */
+    _fv_eq_fv_ti_im(s_, sp1, mutilde);
+    /* s_ += (1 + i mass g5) r_ */
+    _fv_pl_eq_fv(s_, r_);
+    /* s_ *= 1/2kappa */
+    _fv_ti_eq_re(s_, 0.5/g_kappa);
+
+  }  /* end of loop in ix over VOLUME/2 */
+
+}  /* end of M_zz */
+
+void M_zz_inv (double*s, double*r, double mass) {
+
+  unsigned int N = VOLUME/2;
+  unsigned int ix;
+  double *s_= NULL, *r_ = NULL;
+  double sp1[24];
+  double mutilde = 2. * g_kappa * mass;
+
+  for(ix = 0; ix<N; ix++) {
+    s_ = s + _GSI(ix);
+    r_ = r + _GSI(ix);
+
+    /* sp1 = g5 r_ */
+    _fv_eq_gamma_ti_fv(sp1, 5, r_);
+    /* s_ = i mass sp1 */
+    _fv_eq_fv_ti_im(s_, sp1, -mutilde);
+    /* s_ += (1 - i mass g5) r_ */
+    _fv_pl_eq_fv(s_, r_);
+    /* s_ *= 2kappa / (1 + mutilde^2) */
+    _fv_ti_eq_re(s_, 2.*g_kappa / (1.+ mutilde*mutilde));
+
+  }  /* end of loop in ix over VOLUME/2 */
+
+}  /* end of M_zz_inv */
+
+/***********************************************************
+ * C_oo
+ *   input: r (remains unchanged), gauge_field, mass
+ *   output: s (changed)
+ *   work space: s_aux (changed)
+ ***********************************************************/
+void C_oo (double*s, double*r, double *gauge_field, double mass, double *s_aux) {
+
+  unsigned int ix;
+  unsigned int N = VOLUME / 2;
+  double *s_ = NULL, *s_aux_ = NULL;
+  double sp1[24];
+
+
+  /* s_aux = M_oe M_ee^-1 M_eo r */
+  Hopping_eo(s_aux, r, gauge_field, 0);
+  M_zz_inv(s, s_aux, mass);
+
+  /* xchange before next application of M_oe */
+  /* NOTE: s exchanged as even field */
+  xchange_eo_field(s, 0);
+
+  Hopping_eo(s_aux, s, gauge_field, 1);
+
+  /* s = M_oo r */
+  M_zz(s, r, mass);
+ 
+  for(ix=0; ix<N; ix++) {
+    s_ = s + _GSI(ix);
+    s_aux_ = s_aux + _GSI(ix);
+    
+    /* sp1 = s - s_aux = ( M_oo - M_oe M_ee^-1 M_eo ) r */
+    _fv_eq_fv_mi_fv(sp1, s_, s_aux_);
+
+    /* s = g5 sp1 */
+    _fv_eq_gamma_ti_fv(s_, 5, sp1);
+
+  }  /* end of  */
+
+}  /* end of C_oo */
+
+/***********************************************************
+ * apply Dirac full Dirac operator on eve-odd decomposed
+ *   field
+ ***********************************************************/
+void Q_phi_eo (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double mass, double *aux) {
+
+  unsigned int ix;
+  unsigned int N = VOLUME / 2;
+
+  /* e_new = M_ee e_old + M_eo o_old */
+  Hopping_eo(e_new, o_old, gauge_field, 0);
+  /* aux = M_ee e_old */
+  M_zz (aux, e_old, mass);
+
+  /* e_new = e_new + aux = M_ee e_old  M_eo_o_old */
+  for(ix=0; ix < N; ix++) {
+    _fv_pl_eq_fv(e_new+_GSI(ix), aux+_GSI(ix));
+  }
+
+  /* o_new = M_oo o_old + M_oe e_old */
+  Hopping_eo(o_new, e_old, gauge_field, 1);
+  /* aux = M_oo o_old*/
+  M_zz (aux, o_old, mass);
+  /* o_new  = o_new + aux = M_oe e_old + M_oo o_old */
+  for(ix=0; ix < N; ix++) {
+    _fv_pl_eq_fv(o_new+_GSI(ix), aux+_GSI(ix));
+  }
+
+}  /* end of Q_phi_eo */
+
+/********************************************************************
+ * ( g5 M_ee & 0 )
+ * ( g5 M_oe & 1 )
+ ********************************************************************/
+void Q_eo_SchurDecomp_A (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double mass, double *aux) {
+
+  unsigned int ix;
+  unsigned int N = VOLUME / 2;
+
+  /* aux = M_ee e_old */
+  M_zz (aux, e_old, mass);
+  /* e_new = g5 aux */
+  for(ix=0; ix<N; ix++) {
+    _fv_eq_gamma_ti_fv(e_new+_GSI(ix), 5, aux+_GSI(ix));
+  }
+
+  /* aux = M_oe e_old */
+  Hopping_eo(aux, e_old, gauge_field, 1);
+  /* o_new = g5 aux */
+  /* o_new += o_old */
+  for(ix=0; ix<N; ix++) {
+    _fv_eq_gamma_ti_fv(o_new+_GSI(ix), 5, aux+_GSI(ix));
+    _fv_pl_eq_fv( o_new+_GSI(ix), o_old+_GSI(ix) );
+  }
+}  /* end of Q_SchurDecomp_A */
+
+/********************************************************************
+ * ( 1 & M_ee^(-1) M_eo )
+ * ( 0 &        C       )
+ ********************************************************************/
+void Q_eo_SchurDecomp_B (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double mass, double *aux) {
+
+  unsigned int ix;
+  unsigned int N = VOLUME / 2;
+  
+  /* aux = M_eo o_old */
+  Hopping_eo(aux, o_old, gauge_field, 0);
+  /* e_new = M_ee^(-1) aux */
+  M_zz_inv(e_new, aux, mass);
+  /* e_new += e_old */
+  for(ix=0; ix<N; ix++) {
+    _fv_pl_eq_fv( e_new+_GSI(ix), e_old+_GSI(ix));
+  }
+
+  /* o_new = C_oo o_old */
+  C_oo (o_new, o_old, gauge_field, mass, aux);
+
+}  /* end of Q_SchurDecomp_B */
 }
+
+

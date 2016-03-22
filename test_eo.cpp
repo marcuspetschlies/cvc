@@ -1,7 +1,7 @@
 /****************************************************
- * test_invert.cpp 
+ * test_eo.cpp 
  *
- * Fr 8. Jan 15:38:18 CET 2016
+ * Mi 16. Mär 09:50:59 CET 2016
  *
  * PURPOSE:
  * TODO:
@@ -57,24 +57,23 @@ using namespace cvc;
 
 int main(int argc, char **argv) {
   
-  int c, mu, nu, exitstatus;
+  int c, exitstatus;
   int i, j;
   int filename_set = 0;
   int x0, x1, x2, x3, ix, iix;
-  int y0, y1, y2, y3;
   /* int start_valuet=0, start_valuex=0, start_valuey=0; */
   /* int threadid, nthreads; */
   /* double diff1, diff2; */
   double plaq=0;
-  /* double spinor1[24], spinor2[24]; */
-  double *pl_gather=NULL;
-  /* complex prod, w; */
+  double spinor1[24], spinor2[24];
+  complex w, w2;
   int verbose = 0;
   char filename[200];
   /* FILE *ofs=NULL; */
   double norm, norm2;
-  unsigned int VOL3;
-  int op_id = 0;
+  unsigned int Vhalf;
+  double **eo_spinor_field = NULL;
+  int no_eo_fields;
 
 
 #ifdef HAVE_MPI
@@ -105,27 +104,6 @@ int main(int argc, char **argv) {
   read_input_parser(filename);
 
 
-#ifdef HAVE_TMLQCD_LIBWRAPPER
-
-  fprintf(stdout, "# [test_invert] calling tmLQCD wrapper init functions\n");
-
-  /*********************************
-   * initialize MPI parameters for cvc
-   *********************************/
-  exitstatus = tmLQCD_invert_init(argc, argv, 1);
-  if(exitstatus != 0) {
-    EXIT(14);
-  }
-  exitstatus = tmLQCD_get_mpi_params(&g_tmLQCD_mpi);
-  if(exitstatus != 0) {
-    EXIT(15);
-  }
-  exitstatus = tmLQCD_get_lat_params(&g_tmLQCD_lat);
-  if(exitstatus != 0) {
-    EXIT(16);
-  }
-#endif
-
   /*********************************
    * initialize MPI parameters for cvc
    *********************************/
@@ -154,48 +132,32 @@ int main(int argc, char **argv) {
 
   geometry();
 
-  VOL3 = LX*LY*LZ;
+  Vhalf = VOLUME / 2;
 
-#ifndef HAVE_TMLQCD_LIBWRAPPER
+
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
   if(!(strcmp(gaugefilename_prefix,"identity")==0)) {
     /* read the gauge field */
     sprintf(filename, "%s.%.4d", gaugefilename_prefix, Nconf);
     if(g_cart_id==0) fprintf(stdout, "# [test_invert] reading gauge field from file %s\n", filename);
-      read_lime_gauge_field_doubleprec(filename);
-    } else {
-      /* initialize unit matrices */
-      if(g_cart_id==0) fprintf(stdout, "\n# [test_invert] initializing unit matrices\n");
-      for(ix=0;ix<VOLUME;ix++) {
-        _cm_eq_id( g_gauge_field + _GGI(ix, 0) );
-        _cm_eq_id( g_gauge_field + _GGI(ix, 1) );
-        _cm_eq_id( g_gauge_field + _GGI(ix, 2) );
-        _cm_eq_id( g_gauge_field + _GGI(ix, 3) );
-      }
+    exitstatus = read_lime_gauge_field_doubleprec(filename);
+    if(exitstatus != 0) { EXIT(4); }
+
+  } else {
+    /* initialize unit matrices */
+    if(g_cart_id==0) fprintf(stdout, "\n# [test_invert] initializing unit matrices\n");
+    for(ix=0;ix<VOLUME;ix++) {
+      _cm_eq_id( g_gauge_field + _GGI(ix, 0) );
+      _cm_eq_id( g_gauge_field + _GGI(ix, 1) );
+      _cm_eq_id( g_gauge_field + _GGI(ix, 2) );
+      _cm_eq_id( g_gauge_field + _GGI(ix, 3) );
     }
-#else
-   Nconf = g_tmLQCD_lat.nstore;
-   if(g_cart_id== 0) fprintf(stdout, "[test_invert] Nconf = %d\n", Nconf);
+  }
 
-   exitstatus = tmLQCD_read_gauge(Nconf);
-   if(exitstatus != 0) {
-     EXIT(3);
-   }
-
-   exitstatus = tmLQCD_get_gauge_field_pointer(&g_gauge_field);
-   if(exitstatus != 0) {
-     EXIT(4);
-   }
-   if(&g_gauge_field == NULL) {
-     fprintf(stderr, "[test_invert] Error, &g_gauge_field is NULL\n");
-     EXIT(5);
-   }
-#endif
 
 #ifdef HAVE_MPI
    xchange_gauge();
 #endif
-
 
 
   // measure the plaquette
@@ -207,52 +169,89 @@ int main(int argc, char **argv) {
   g_spinor_field = (double**)calloc(no_fields, sizeof(double*));
   for(i=0; i<no_fields; i++) alloc_spinor_field(&g_spinor_field[i], VOLUME+RAND);
 
-  /****************************************
-   * set a point source 
-   ****************************************/
-  memset(g_spinor_field[0], 0, 24*VOLUME*sizeof(double));
-
-  strcpy(filename, filename_prefix3);
-  exitstatus = read_lime_spinor(g_spinor_field[0], filename, 0);
-  if(exitstatus != 0) {
-    fprintf(stderr, "[test_invert] Error from read_lime_spinor, status was %d\n", exitstatus);
-    EXIT(14);
-  }
-  xchange_field(g_spinor_field[0]);
+  no_eo_fields = 4;
+  eo_spinor_field = (double**)calloc(no_eo_fields, sizeof(double*));
+  for(i=0; i<no_eo_fields; i++) alloc_spinor_field(&eo_spinor_field[i], (VOLUME+RAND)/2);
 
 
-  /****************************************
-   * invert for flavor type
-   *   g_propagator_position
-   ****************************************/
-  op_id = 0;
-  exitstatus = tmLQCD_invert(g_spinor_field[1], g_spinor_field[0], op_id, 0);
-  if(exitstatus != 0) {
-    fprintf(stderr, "[test_invert] Error from tmLQCD_invert, status was %d\n", exitstatus);
-    EXIT(12);
-  }
-
-  sprintf(filename, "%s.inverted", filename_prefix3);
-  exitstatus = write_propagator(g_spinor_field[1], filename, 0, 64);
-  if(exitstatus != 0) {
-    fprintf(stderr, "[test_invert] Error from write_propagator, status was %d\n", exitstatus);
-    EXIT(15);
-  }
+  /* set the spinor field */
+  /* rangauss (g_spinor_field[0], VOLUME*24); */
+  rangauss (eo_spinor_field[0], VOLUME*12);
+  /* g_spinor_field[0][_GSI(g_source_location) ] = 1.; */
 
 #if 0
-  /****************************************
-   * invert for flavor type
-   *   1 - g_propagator_position
-   ****************************************/
 
-  op_id = g_propagator_position;
-  exitstatus = tmLQCD_invert(g_spinor_field[2], g_spinor_field[0], op_id, 0);
+  /* TODO: exchange for eo spinor fields */
+  /* xchange_field(g_spinor_field[0]); */
 
-  if(exitstatus != 0) {
-    fprintf(stderr, "[test_invert] Error from tmLQCD_invert, status was %d\n", exitstatus);
-    EXIT(12);
+  /* apply Hopping matrix to lexic spinor field */
+  Hopping(g_spinor_field[1], g_spinor_field[0]);
+
+  for(ix=0; ix<VOLUME; ix++) {
+    _fv_ti_eq_re(g_spinor_field[1]+_GSI(ix), 1./(2.*g_kappa));
+  }
+
+  /* decompose into even and odd part */
+  spinor_field_lexic2eo(g_spinor_field[0], eo_spinor_field[0], eo_spinor_field[1]);
+
+  /* apply Hopping_eo */
+  Hopping_eo(eo_spinor_field[2], eo_spinor_field[1], g_gauge_field, 0);
+
+  /* apply Hopping_oe */
+  Hopping_eo(eo_spinor_field[3], eo_spinor_field[0], g_gauge_field, 1);
+
+  /*  re-compose to single lexic field */
+  spinor_field_eo2lexic(g_spinor_field[0], eo_spinor_field[2], eo_spinor_field[3]);
+#endif
+
+  /* check the difference */
+#if 0
+  for(ix=0; ix<VOLUME; ix++) {
+    _fv_eq_fv_mi_fv(spinor1, g_spinor_field[0]+_GSI(ix), g_spinor_field[1]+_GSI(ix));
+    _co_eq_fv_dag_ti_fv(&w, spinor1, spinor1);
+    _co_eq_fv_dag_ti_fv(&w2,g_spinor_field[0]+_GSI(ix), g_spinor_field[0]+_GSI(ix));
+    fprintf(stdout, "\t%8u %16.7e %16.7e\n", ix, w.re, w2.re);
   }
 #endif
+
+
+  M_zz (eo_spinor_field[1], eo_spinor_field[0], g_mu);
+  M_zz_inv (eo_spinor_field[2], eo_spinor_field[1], g_mu);
+
+/*
+  for(x0=0; x0 < T; x0++) {
+  for(x1=0; x1 < LX; x1++) {
+  for(x2=0; x2 < LY; x2++) {
+  for(x3=0; x3 < LZ; x3++) {
+*/
+  for(ix=0; ix < Vhalf; ix++) {
+    /* ix = g_ipt[x0][x1][x2][x3]; */
+    /* c = g_iseven[ix]; */
+/*
+
+    if(c) {
+      iix = g_lexic2eo[ix];
+      _fv_eq_fv( spinor1, eo_spinor_field[0]+_GSI(iix));
+    } else {
+      iix = g_lexic2eo[ix] - Vhalf;
+      _fv_eq_fv( spinor1, eo_spinor_field[1]+_GSI(iix));
+    }
+    fprintf(stdout, "# x = (%d, %d, %d, %d) - even %d \t %u %u\n", x0, x1, x2, x3, c, ix, iix);
+*/
+
+    /* fprintf(stdout, "# x = (%d, %d, %d, %d) - eo %d \t %u\n", x0, x1, x2, x3, c, ix); */
+    fprintf(stdout, "# ix = %u\n", ix);
+    for(i = 0; i<12;i++) { 
+      fprintf(stdout, "\t%3d %25.16e %25.16e \t %25.16e %25.16e %25.16e %25.16e\n", i, 
+          eo_spinor_field[0][_GSI(ix)+2*i+0], eo_spinor_field[0][_GSI(ix)+2*i+1],
+          eo_spinor_field[1][_GSI(ix)+2*i+0], eo_spinor_field[1][_GSI(ix)+2*i+1],
+          eo_spinor_field[2][_GSI(ix)+2*i+0], eo_spinor_field[2][_GSI(ix)+2*i+1]);
+    }
+  }
+/*
+  }}}}
+*/
+
 
   /***********************************************
    * free the allocated memory, finalize 
@@ -263,6 +262,12 @@ int main(int argc, char **argv) {
     for(i=0; i<no_fields; i++) free(g_spinor_field[i]);
     free(g_spinor_field);
   }
+  if(eo_spinor_field != NULL) {
+    for(i=0; i<no_eo_fields; i++) free(eo_spinor_field[i]);
+    free(eo_spinor_field);
+  }
+
+
 
   if(g_cart_id == 0) {
     g_the_time = time(NULL);
@@ -273,14 +278,9 @@ int main(int argc, char **argv) {
   }
 
 
-#ifdef HAVE_TMLQCD_LIBWRAPPER
-  tmLQCD_finalise();
-#endif
-
 #ifdef HAVE_MPI
   MPI_Finalize();
 #endif
 
   return(0);
 }
-

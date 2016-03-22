@@ -32,6 +32,11 @@ void print_randomvector (randomvector_type *rv, FILE*fp);
 
 int project_randomvector (randomvector_type *prv, randomvector_type *rv, int bt, int bs, int bv);;
 
+int fv_eq_eigensystem_ti_randomvector (double*s, eigensystem_type *v, randomvector_type*r);
+int perambulator_eq_eigensystem_dag_ti_fv (perambulator_type*p, eigensystem_type*v, double*s, int it_src, int is_src, int iv_src);
+
+
+
 }
 
 #endif

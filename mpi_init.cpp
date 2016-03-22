@@ -19,6 +19,8 @@ MPI_Datatype contraction_point;
 MPI_Datatype gauge_time_slice_cont;
 MPI_Datatype spinor_time_slice_cont;
 
+MPI_Datatype eo_spinor_time_slice_cont;
+
 MPI_Datatype contraction_time_slice_cont;
 #  if defined PARALLELTX || defined PARALLELTXY || defined PARALLELTXYZ
 
@@ -75,6 +77,20 @@ MPI_Datatype spinor_y_slice_cont;
 MPI_Datatype spinor_z_slice_vector;
 MPI_Datatype spinor_z_subslice_cont;
 MPI_Datatype spinor_z_slice_cont;
+
+/* slices of even-odd spinors */
+
+MPI_Datatype eo_spinor_x_slice_vector;
+MPI_Datatype eo_spinor_x_subslice_cont;
+MPI_Datatype eo_spinor_x_slice_cont;
+
+MPI_Datatype eo_spinor_y_slice_vector;
+MPI_Datatype eo_spinor_y_subslice_cont;
+MPI_Datatype eo_spinor_y_slice_cont;
+
+MPI_Datatype eo_spinor_z_slice_vector;
+MPI_Datatype eo_spinor_z_subslice_cont;
+MPI_Datatype eo_spinor_z_slice_cont;
 
 /* contraction slices */
 
@@ -200,6 +216,9 @@ void mpi_init(int argc,char *argv[]) {
 
   MPI_Type_contiguous(LX*LY*LZ*24, MPI_DOUBLE, &spinor_time_slice_cont);
   MPI_Type_commit(&spinor_time_slice_cont);
+
+  MPI_Type_contiguous(LX*LY*LZ*24/2, MPI_DOUBLE, &eo_spinor_time_slice_cont);
+  MPI_Type_commit(&eo_spinor_time_slice_cont);
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
   LX = g_tmLQCD_lat.LX ;
@@ -396,6 +415,9 @@ void mpi_init(int argc,char *argv[]) {
   MPI_Type_contiguous(LX*LY*LZ, spinor_point, &spinor_time_slice_cont);
   MPI_Type_commit(&spinor_time_slice_cont);
 
+  MPI_Type_contiguous(LX*LY*LZ/2, spinor_point, &eo_spinor_time_slice_cont);
+  MPI_Type_commit(&eo_spinor_time_slice_cont);
+
   /* ------------------------------------------------------------------------ */
 
   MPI_Type_contiguous(LY*LZ, spinor_point, &spinor_x_subslice_cont);
@@ -428,6 +450,47 @@ void mpi_init(int argc,char *argv[]) {
 
   MPI_Type_contiguous(T*LX*LY, spinor_point, &spinor_z_slice_cont);
   MPI_Type_commit(&spinor_z_slice_cont);
+
+  /* ========= eo spinor slices ============================================= */
+
+  /* define eo_spinor_... here */
+
+  /* eo contiguous slices for a spinor field */
+
+
+  /* ========= eo spinor slices ============================================= */
+
+  /* ---------- x direction ------------------------------------------------- */
+  MPI_Type_contiguous(T*LY*LZ/2, spinor_point, &eo_spinor_x_slice_cont);
+  MPI_Type_commit(&eo_spinor_x_slice_cont);
+
+  MPI_Type_contiguous(LY*LZ/2, spinor_point, &eo_spinor_x_subslice_cont);
+  MPI_Type_commit(&eo_spinor_x_subslice_cont);
+
+  MPI_Type_vector(T, 1, LX, eo_spinor_x_subslice_cont, &eo_spinor_x_slice_vector);
+  MPI_Type_commit(&eo_spinor_x_slice_vector);
+
+  /* ---------- y direction ------------------------------------------------- */
+  MPI_Type_contiguous(T*LX*LZ/2, spinor_point, &eo_spinor_y_slice_cont);
+  MPI_Type_commit(&eo_spinor_y_slice_cont);
+  
+  MPI_Type_contiguous(LZ/2, spinor_point, &eo_spinor_y_subslice_cont);
+  MPI_Type_commit(&eo_spinor_y_subslice_cont);
+
+  MPI_Type_vector(T*LX, 1, LY, spinor_y_subslice_cont, &eo_spinor_y_slice_vector);
+  MPI_Type_commit(&eo_spinor_y_slice_vector);
+
+/* int MPI_Type_vector(int count, int blocklength, int stride, MPI_Datatype oldtype, MPI_Datatype *newtype) */
+
+  /* ---------- z direction ------------------------------------------------- */
+  MPI_Type_contiguous(T*LX*LY/2, spinor_point, &eo_spinor_z_slice_cont);
+  MPI_Type_commit(&eo_spinor_z_slice_cont);
+
+  MPI_Type_contiguous(LX*LY, spinor_point, &eo_spinor_z_subslice_cont);
+  MPI_Type_commit(&eo_spinor_z_subslice_cont);
+
+  MPI_Type_vector(T*LX*LY/2, 1, LZ, spinor_point, &eo_spinor_z_slice_vector);
+  MPI_Type_commit(&eo_spinor_z_slice_vector);
 
   /* ========= the edges ==================================================== */
 
@@ -653,6 +716,9 @@ void mpi_init(int argc,char *argv[]) {
 
   MPI_Type_contiguous(LX*LY*LZ, spinor_point, &spinor_time_slice_cont);
   MPI_Type_commit(&spinor_time_slice_cont);
+
+  MPI_Type_contiguous(LX*LY*LZ/2, spinor_point, &eo_spinor_time_slice_cont);
+  MPI_Type_commit(&eo_spinor_time_slice_cont);
 
   /* ------------------------------------------------------------------------ */
 
@@ -907,6 +973,57 @@ void mpi_fini_xchange_contraction (void) {
   MPI_Type_free(&contraction_x_slice_cont);
   MPI_Type_free(&contraction_x_slice_vector);
   MPI_Type_free(&contraction_x_subslice_cont);
+#endif
+#endif
+}
+
+
+void mpi_fini_datatypes (void) {
+#ifdef HAVE_MPI
+  MPI_Type_free(&gauge_point);
+  MPI_Type_free(&gauge_time_slice_cont);
+  MPI_Type_free(&spinor_point);
+  MPI_Type_free(&eo_spinor_time_slice_cont);
+  MPI_Type_free(&spinor_time_slice_cont);
+#if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ)
+  MPI_Type_free(&eo_spinor_x_slice_cont);
+  MPI_Type_free(&eo_spinor_x_subslice_cont);
+  MPI_Type_free(&eo_spinor_y_slice_cont);
+  MPI_Type_free(&eo_spinor_y_slice_vector);
+  MPI_Type_free(&eo_spinor_y_subslice_cont);
+  MPI_Type_free(&eo_spinor_z_slice_cont);
+  MPI_Type_free(&eo_spinor_z_slice_vector);
+  MPI_Type_free(&eo_spinor_z_subslice_cont);
+  MPI_Type_free(&gauge_x_slice_cont);
+  MPI_Type_free(&gauge_x_slice_vector);
+  MPI_Type_free(&gauge_x_subslice_cont);
+  MPI_Type_free(&gauge_xt_edge_cont);
+  MPI_Type_free(&gauge_xt_edge_vector);
+  MPI_Type_free(&gauge_y_slice_cont);
+  MPI_Type_free(&gauge_y_slice_vector);
+  MPI_Type_free(&gauge_y_subslice_cont);
+  MPI_Type_free(&gauge_yt_edge_cont);
+  MPI_Type_free(&gauge_yt_edge_vector);
+  MPI_Type_free(&gauge_yx_edge_cont);
+  MPI_Type_free(&gauge_yx_edge_vector);
+  MPI_Type_free(&gauge_z_slice_cont);
+  MPI_Type_free(&gauge_z_slice_vector);
+  MPI_Type_free(&gauge_z_subslice_cont);
+  MPI_Type_free(&gauge_zt_edge_cont);
+  MPI_Type_free(&gauge_zt_edge_vector);
+  MPI_Type_free(&gauge_zx_edge_cont);
+  MPI_Type_free(&gauge_zx_edge_vector);
+  MPI_Type_free(&gauge_zy_edge_cont);
+  MPI_Type_free(&gauge_zy_edge_vector);
+  MPI_Type_free(&spinor_x_slice_cont);
+  MPI_Type_free(&spinor_x_slice_vector);
+  MPI_Type_free(&spinor_x_subslice_cont);
+  MPI_Type_free(&spinor_y_slice_cont);
+  MPI_Type_free(&spinor_y_slice_vector);
+  MPI_Type_free(&spinor_y_subslice_cont);
+  MPI_Type_free(&spinor_z_slice_cont);
+  MPI_Type_free(&spinor_z_slice_vector);
+  MPI_Type_free(&spinor_z_subslice_cont);
 #endif
 #endif
 }

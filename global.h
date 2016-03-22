@@ -96,7 +96,7 @@ EXTERN int Nconf;
 EXTERN int **** g_ipt, *****g_ipt_5d;
 EXTERN int ** g_iup, **g_iup_5d;
 EXTERN int ** g_idn, **g_idn_5d;
-EXTERN int *g_lexic2eo, *g_eo2lexic, *g_iseven, *g_isevent, *g_lexic2eot, *g_eot2lexic;
+EXTERN int *g_lexic2eo, *g_eo2lexic, *g_iseven, *g_isevent, *g_lexic2eot, *g_eot2lexic, *g_lexic2eosub;
 EXTERN int *g_lexic2eo_5d, *g_eo2lexic_5d, *g_iseven_5d, *g_isevent_5d, *g_lexic2eot_5d, *g_eot2lexic_5d;
 
 EXTERN double **g_spinor_field;

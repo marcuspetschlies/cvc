@@ -251,33 +251,39 @@ void geometry() {
     g_idn[ix][3] = get_index(x0, x1, x2, x3-1);
 
     // is even / odd
-    if(isboundary == 0) {
+    /* if(isboundary == 0) { */
       g_iseven[ix] = ( x0 + T *g_proc_coords[0] + x1 + LX*g_proc_coords[1] \
                      + x2 + LY*g_proc_coords[2] + x3 + LZ*g_proc_coords[3] ) % 2 == 0;
 
       // replace this by indext function
-      itzyx = ( ( x0*LZ + x3 ) * LY + x2 ) * LX + x1;
-      g_isevent[itzyx] = g_iseven[ix];
-    }
+      if(isboundary == 0) {
+        itzyx = ( ( x0*LZ + x3 ) * LY + x2 ) * LX + x1;
+        g_isevent[itzyx] = g_iseven[ix];
+      }
+    /* } */
 
   }}}} // of x3, x2, x1, x0
 
 
   i_even = 0; i_odd = 0;
-  for(ix=0; ix<VOLUME;ix++) {
-    // this will have to be changed if to be used with MPI
+  for(ix=0; ix<(VOLUME+RAND);ix++) {
+
     if(g_iseven[ix]) {
-      g_lexic2eo[ix] = i_even;
+      g_lexic2eo[ix]     = i_even;
+      g_lexic2eosub[ix]  = i_even;
       g_eo2lexic[i_even] = ix;
       i_even++;
     } else {
-      g_lexic2eo[ix] = i_odd + VOLUME/2;
-      g_eo2lexic[i_odd+VOLUME/2] = ix;
+      g_lexic2eo[ix]     = i_odd + (VOLUME+RAND)/2;
+      g_lexic2eosub[ix]  = i_odd;
+      g_eo2lexic[i_odd + (VOLUME+RAND)/2] = ix;
       i_odd++;
     }
   }
 
-  // this will have to be changed if to be used with MPI
+  /* TODO */
+  /* this will have to be changed if to be used with MPI */
+  /* needs neighrest neighbours as well */
   itzyx = 0;
   i_even = 0; i_odd = 0;
   for(x0=0;x0<T; x0++) {
@@ -432,6 +438,9 @@ int init_geometry(void) {
   g_lexic2eo = (int*)calloc(V, sizeof(int));
   if(g_lexic2eo == NULL) return(9);
 
+  g_lexic2eosub = (int*)calloc(V, sizeof(int));
+  if(g_lexic2eosub == NULL) return(14);
+
   g_lexic2eot = (int*)calloc(V, sizeof(int));
   if(g_lexic2eot == NULL) return(10);
 
@@ -475,6 +484,7 @@ void free_geometry() {
   free(g_idn);
   free(g_iup);
   free(g_lexic2eo);
+  free(g_lexic2eosub);
   free(g_lexic2eot);
   free(g_eo2lexic);
   free(g_eot2lexic);
