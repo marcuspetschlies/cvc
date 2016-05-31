@@ -127,6 +127,7 @@ int read_eigensystem(eigensystem_type *es ) {
       return(2);
     }
 
+#if 0
     status = read_eigenvalue_timeslice(es, it);
     if(status != 0 ) {
       fprintf(stderr, "# [read_eigensystem] Error from read_eigenvalue_timeslice for t = %u\n", it);
@@ -138,7 +139,7 @@ int read_eigensystem(eigensystem_type *es ) {
       fprintf(stderr, "# [read_eigensystem] Error from read_phase_timeslice for t = %u\n", it);
       return(4);
     }
-
+#endif
 
   }
 

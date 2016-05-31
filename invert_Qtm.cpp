@@ -73,7 +73,7 @@ void spinor_scalar_product_re(double *r, double *xi, double *phi, int V) {
     w += p.re;
     iix+=24;
   }
-  //fprintf(stdout, "# [spinor_scalar_product_re] %d local: %e\n", g_cart_id, w);
+  /* fprintf(stdout, "# [spinor_scalar_product_re] %d local: %e\n", g_cart_id, w); */
 #ifdef HAVE_MPI
   wall = 0.;
   MPI_Allreduce(&w, &wall, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid);
@@ -81,7 +81,35 @@ void spinor_scalar_product_re(double *r, double *xi, double *phi, int V) {
 #else
   *r = w;
 #endif
-}
+}  /* end of spinor_scalar_product_re */
+
+/*************************************************
+ * eo = 0 --- even subfield
+ * eo = 1 --- odd subfield
+ *************************************************/
+void eo_spinor_spatial_scalar_product_co(complex *w, double *xi, double *phi, int eo) {
+
+  int ix, iix, it;
+  complex p[T];
+  unsigned int N = VOLUME / 2;
+
+  memset(p, 0, T*sizeof(complex));
+  
+  for(ix=0; ix<N; ix++) {
+    iix = _GSI(ix);
+    it  = g_eosub2t[eo][ix];
+    _co_pl_eq_fv_dag_ti_fv( (p+it), xi+iix, phi+iix);
+  }
+
+  /* fprintf(stdout, "# [spinor_scalar_product_co] %d local: %e %e\n", g_cart_id, p2.re, p2.im); */
+
+#ifdef HAVE_MPI
+  memset(w, 0, T*sizeof(complex));
+  MPI_Allreduce(p, w, 2*T, MPI_DOUBLE, MPI_SUM, g_ts_comm);
+#else
+  memcpy(w, p, T*sizeof(complex));
+#endif
+}  /* eo_spinor_spatial_scalar_product_co */
 
 int invert_Qtm(double *xi, double *phi, int kwork) {
 
