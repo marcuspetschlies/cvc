@@ -150,6 +150,9 @@ namespace cvc {
 #define _default_source_momentum_y 0
 #define _default_source_momentum_z 0
 #define _default_source_momentum_set 0
+
+#define _default_source_momentum_number 0
+
 #define _default_sink_momentum_x 0
 #define _default_sink_momentum_y 0
 #define _default_sink_momentum_z 0
@@ -180,8 +183,12 @@ namespace cvc {
 #define _default_laph_evec_proj_type "NA"
 
 #define _default_src_snk_time_separation 0
+
 #define _default_seq_source_gamma_id -1
 #define _default_seq_source_gamma_id_number 0
+
+#define _default_source_gamma_id -1
+#define _default_source_gamma_id_number 0
 
 #define _default_laphs_time_proj_type "NA"
 #define _default_laphs_spin_proj_type "NA"

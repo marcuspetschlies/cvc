@@ -111,6 +111,44 @@ void eo_spinor_spatial_scalar_product_co(complex *w, double *xi, double *phi, in
 #endif
 }  /* eo_spinor_spatial_scalar_product_co */
 
+void eo_spinor_dag_gamma_spinor(complex*gsp, double*xi, int gid, double*phi) {
+
+  unsigned int ix, iix;
+  unsigned int N = VOLUME / 2;
+  double spinor1[24];
+
+  for(ix=0; ix<N; ix++) {
+    iix = _GSI(ix);
+    _fv_eq_gamma_ti_fv(spinor1, gid, phi+iix);
+    _co_eq_fv_dag_ti_fv(gsp+ix, xi+iix, spinor1);
+  }
+}  /* end of eo_spinor_dag_gamma_spinor */
+
+/*************************************************************
+ * Note, that the phase field must be the even phase field for eo = 0
+ * and the odd phase field for eo = 1
+ *************************************************************/
+void eo_gsp_momentum_projection (complex *gsp_p, complex *gsp_x, complex *phase, int eo) {
+  
+  unsigned int ix, it;
+  unsigned int N = VOLUME / 2;
+  complex p[T];
+
+  memset(p, 0, T*sizeof(complex));
+
+  for(ix=0; ix<N; ix++) {
+    it = g_eosub2t[eo][ix];
+    _co_pl_eq_co_ti_co(p+it, gsp_x+ix, phase+ix );
+  }
+
+#ifdef HAVE_MPI
+  MPI_Allreduce(p, gsp_p, 2*T, MPI_DOUBLE, MPI_SUM, g_ts_comm);
+#else
+  memcpy(gsp_p, p, 2*T*sizeof(double));
+#endif
+}  /* end of eo_gsp_momentum_projection */
+
+
 int invert_Qtm(double *xi, double *phi, int kwork) {
 
   int ix, niter, iix;

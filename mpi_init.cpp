@@ -522,6 +522,11 @@ void mpi_init(int argc,char *argv[]) {
   MPI_Cart_shift(g_ts_comm, 1, 1, &g_ts_nb_y_dn, &g_ts_nb_y_up);
   MPI_Cart_shift(g_ts_comm, 2, 1, &g_ts_nb_z_dn, &g_ts_nb_z_up);
 
+  dims[0]=1; dims[1]=0; dims[2]=0; dims[3]=0;
+  MPI_Cart_sub (g_cart_grid, dims, &g_tr_comm);
+  MPI_Comm_size(g_tr_comm, &g_tr_nproc);
+  MPI_Comm_rank(g_tr_comm, &g_tr_id);
+
   /* ------------------------------------------------------------------------ */
 
   dims[0]=1; dims[1]=0; dims[2]=1; dims[3]=1;
@@ -821,7 +826,7 @@ void mpi_init(int argc,char *argv[]) {
 
 #endif  /* of ifdef PARALLELTX || PARALLELTXY || PARALLELTXYZ */
 
-  fprintf(stdout, "[mpi_init] proc%.2d one host %s\n", g_cart_id, processor_name);
+  fprintf(stdout, "# [mpi_init] proc%.2d on host %s\n", g_cart_id, processor_name);
 #else
 
 /****************************************************************

@@ -4956,4 +4956,30 @@ void xchange_eo_field(double *phi, int eo) {
 }  /* xchange_eo_field */
 
 
+/***********************************************************
+ * unpack lexic to odd,odd
+ * - decompose lexicorgraphic spinor field into 2 odd parts
+ *   by shifting in 0-direction
+ ***********************************************************/
+void spinor_field_unpack_lexic2eo (double *r_lexic, double*r_o1, double *r_o2) {
+
+  unsigned int ix, iy;
+  unsigned int N     = (VOLUME+RAND) / 2;
+  unsigned int Vhalf =  VOLUME       / 2;
+
+  xchange_field(r_lexic);
+  /* even part to shift direction 0 to odd r_o1 */
+  for(iy=0; iy<Vhalf; iy++) {
+    ix = g_idn[ g_eo2lexic[iy + N ] ][0];
+    _fv_eq_fv(r_o1+_GSI(iy), r_lexic+_GSI(ix) );
+  }
+
+  /* odd part to odd r_o2 */
+  for(iy=0; iy<Vhalf; iy++) {
+    ix = g_eo2lexic[iy + N ];
+    _fv_eq_fv(r_o2+_GSI(iy), r_lexic+_GSI(ix) );
+  }
+}  /* end of spinor_field_unpack_lexic2eo */
+
+
 }  /* end of namespace cvc */

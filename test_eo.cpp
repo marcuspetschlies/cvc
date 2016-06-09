@@ -50,6 +50,7 @@ extern "C"
 #include "propagator_io.h"
 #include "Q_phi.h"
 #include "read_input_parser.h"
+#include "ranlxd.h"
 #include "invert_Qtm.h"
 
 
@@ -61,6 +62,7 @@ int main(int argc, char **argv) {
   int i, j;
   int filename_set = 0;
   int x0, x1, x2, x3, ix, iix;
+  int ix_even, ix_odd, y0, y1, y2, y3;
   /* int start_valuet=0, start_valuex=0, start_valuey=0; */
   /* int threadid, nthreads; */
   /* double diff1, diff2; */
@@ -69,7 +71,7 @@ int main(int argc, char **argv) {
   complex w, w2;
   int verbose = 0;
   char filename[200];
-  /* FILE *ofs=NULL; */
+  FILE *ofs=NULL;
   double norm, norm2;
   unsigned int Vhalf;
   double **eo_spinor_field = NULL;
@@ -132,6 +134,8 @@ int main(int argc, char **argv) {
 
   geometry();
 
+  mpi_init_xchange_eo_spinor();
+
   Vhalf = VOLUME / 2;
 
 
@@ -173,85 +177,73 @@ int main(int argc, char **argv) {
   eo_spinor_field = (double**)calloc(no_eo_fields, sizeof(double*));
   for(i=0; i<no_eo_fields; i++) alloc_spinor_field(&eo_spinor_field[i], (VOLUME+RAND)/2);
 
+  g_seed = 10000 + g_cart_id;
+  rlxd_init(2, g_seed);
 
   /* set the spinor field */
-  /* rangauss (g_spinor_field[0], VOLUME*24); */
   rangauss (eo_spinor_field[0], VOLUME*12);
-  /* g_spinor_field[0][_GSI(g_source_location) ] = 1.; */
-
-#if 0
-
-  /* TODO: exchange for eo spinor fields */
-  /* xchange_field(g_spinor_field[0]); */
-
-  /* apply Hopping matrix to lexic spinor field */
-  Hopping(g_spinor_field[1], g_spinor_field[0]);
-
-  for(ix=0; ix<VOLUME; ix++) {
-    _fv_ti_eq_re(g_spinor_field[1]+_GSI(ix), 1./(2.*g_kappa));
-  }
-
-  /* decompose into even and odd part */
-  spinor_field_lexic2eo(g_spinor_field[0], eo_spinor_field[0], eo_spinor_field[1]);
-
-  /* apply Hopping_eo */
-  Hopping_eo(eo_spinor_field[2], eo_spinor_field[1], g_gauge_field, 0);
-
-  /* apply Hopping_oe */
-  Hopping_eo(eo_spinor_field[3], eo_spinor_field[0], g_gauge_field, 1);
-
-  /*  re-compose to single lexic field */
-  spinor_field_eo2lexic(g_spinor_field[0], eo_spinor_field[2], eo_spinor_field[3]);
+#ifdef HAVE_MPI
+  xchange_eo_field( eo_spinor_field[0], 1);
 #endif
 
-  /* check the difference */
-#if 0
-  for(ix=0; ix<VOLUME; ix++) {
-    _fv_eq_fv_mi_fv(spinor1, g_spinor_field[0]+_GSI(ix), g_spinor_field[1]+_GSI(ix));
-    _co_eq_fv_dag_ti_fv(&w, spinor1, spinor1);
-    _co_eq_fv_dag_ti_fv(&w2,g_spinor_field[0]+_GSI(ix), g_spinor_field[0]+_GSI(ix));
-    fprintf(stdout, "\t%8u %16.7e %16.7e\n", ix, w.re, w2.re);
+  for(ix_even = 0; ix_even < Vhalf; ix_even++) {
+    ix_odd = g_lexic2eosub[g_iup[g_eo2lexic[ix_even]][0] ];
+    _fv_eq_fv(eo_spinor_field[1]+_GSI(ix_even), eo_spinor_field[0]+_GSI(ix_odd));
   }
+
+  sprintf(filename, "spinor_up.%.2d", g_cart_id);
+  ofs = fopen(filename, "w");
+  for(ix=0; ix<Vhalf; ix++) {
+    ix_even = g_eo2lexic[ix];
+    x0 = ix_even                  / (LX*LY*LZ) + g_proc_coords[0]*T;
+    x1 = ( ix_even % (LX*LY*LZ) ) / (   LY*LZ) + g_proc_coords[1]*LX;
+    x2 = ( ix_even % (   LY*LZ) ) / (      LZ) + g_proc_coords[2]*LY;
+    x3 = ( ix_even % (      LZ) )              + g_proc_coords[3]*LZ;
+    ix_odd  = g_eo2lexic[ix+(VOLUME+RAND)/2];
+    y0 = ix_odd                  / (LX*LY*LZ) + g_proc_coords[0]*T;
+    y1 = ( ix_odd % (LX*LY*LZ) ) / (   LY*LZ) + g_proc_coords[1]*LX;
+    y2 = ( ix_odd % (   LY*LZ) ) / (      LZ) + g_proc_coords[2]*LY;
+    y3 = ( ix_odd % (      LZ) )              + g_proc_coords[3]*LZ;
+    fprintf(ofs, "# eo = %8d lexic e = %8d = %2d %2d %2d %2d\t lexic o =%8d =  %2d %2d %2d %2d\n", ix,
+        ix_even, x0, x1, x2, x3, ix_odd,  y0, y1, y2, y3 );
+      for(i=0; i<12; i++) {
+      fprintf(ofs, "\t%3d%3d\t%16.7e%16.7e\t%16.7e%16.7e\n", i/3, i%3,
+          eo_spinor_field[1][_GSI(ix)+2*i], eo_spinor_field[1][_GSI(ix)+2*i+1],
+          eo_spinor_field[0][_GSI(ix)+2*i], eo_spinor_field[0][_GSI(ix)+2*i+1]);
+    }
+  }
+  fclose(ofs);
+
+#ifdef HAVE_MPI
+  xchange_eo_field( eo_spinor_field[1], 0);
 #endif
+  for(ix_odd = 0; ix_odd < Vhalf; ix_odd++) {
+    ix_even = g_lexic2eosub[g_idn[g_eo2lexic[ix_odd+(VOLUME+RAND)/2]][0] ];
+    _fv_eq_fv(eo_spinor_field[0]+_GSI(ix_odd), eo_spinor_field[1]+_GSI(ix_even));
+  }
 
-
-  M_zz (eo_spinor_field[1], eo_spinor_field[0], g_mu);
-  M_zz_inv (eo_spinor_field[2], eo_spinor_field[1], g_mu);
-
-/*
-  for(x0=0; x0 < T; x0++) {
-  for(x1=0; x1 < LX; x1++) {
-  for(x2=0; x2 < LY; x2++) {
-  for(x3=0; x3 < LZ; x3++) {
-*/
-  for(ix=0; ix < Vhalf; ix++) {
-    /* ix = g_ipt[x0][x1][x2][x3]; */
-    /* c = g_iseven[ix]; */
-/*
-
-    if(c) {
-      iix = g_lexic2eo[ix];
-      _fv_eq_fv( spinor1, eo_spinor_field[0]+_GSI(iix));
-    } else {
-      iix = g_lexic2eo[ix] - Vhalf;
-      _fv_eq_fv( spinor1, eo_spinor_field[1]+_GSI(iix));
-    }
-    fprintf(stdout, "# x = (%d, %d, %d, %d) - even %d \t %u %u\n", x0, x1, x2, x3, c, ix, iix);
-*/
-
-    /* fprintf(stdout, "# x = (%d, %d, %d, %d) - eo %d \t %u\n", x0, x1, x2, x3, c, ix); */
-    fprintf(stdout, "# ix = %u\n", ix);
-    for(i = 0; i<12;i++) { 
-      fprintf(stdout, "\t%3d %25.16e %25.16e \t %25.16e %25.16e %25.16e %25.16e\n", i, 
-          eo_spinor_field[0][_GSI(ix)+2*i+0], eo_spinor_field[0][_GSI(ix)+2*i+1],
-          eo_spinor_field[1][_GSI(ix)+2*i+0], eo_spinor_field[1][_GSI(ix)+2*i+1],
-          eo_spinor_field[2][_GSI(ix)+2*i+0], eo_spinor_field[2][_GSI(ix)+2*i+1]);
+  sprintf(filename, "spinor_dn.%.2d", g_cart_id);
+  ofs = fopen(filename, "w");
+  for(ix=0; ix<Vhalf; ix++) {
+    ix_even = g_eo2lexic[ix];
+    x0 = ix_even                  / (LX*LY*LZ) + g_proc_coords[0]*T;
+    x1 = ( ix_even % (LX*LY*LZ) ) / (   LY*LZ) + g_proc_coords[1]*LX;
+    x2 = ( ix_even % (   LY*LZ) ) / (      LZ) + g_proc_coords[2]*LY;
+    x3 = ( ix_even % (      LZ) )              + g_proc_coords[3]*LZ;
+    ix_odd  = g_eo2lexic[ix+(VOLUME+RAND)/2];
+    y0 = ix_odd                  / (LX*LY*LZ) + g_proc_coords[0]*T;
+    y1 = ( ix_odd % (LX*LY*LZ) ) / (   LY*LZ) + g_proc_coords[1]*LX;
+    y2 = ( ix_odd % (   LY*LZ) ) / (      LZ) + g_proc_coords[2]*LY;
+    y3 = ( ix_odd % (      LZ) )              + g_proc_coords[3]*LZ;
+    fprintf(ofs, "# eo = %8d lexic e = %8d = %2d %2d %2d %2d\t lexic o =%8d =  %2d %2d %2d %2d\n", ix,
+        ix_even, x0, x1, x2, x3, ix_odd,  y0, y1, y2, y3 );
+      for(i=0; i<12; i++) {
+      fprintf(ofs, "\t%3d%3d\t%16.7e%16.7e\t%16.7e%16.7e\n", i/3, i%3,
+          eo_spinor_field[1][_GSI(ix)+2*i], eo_spinor_field[1][_GSI(ix)+2*i+1],
+          eo_spinor_field[0][_GSI(ix)+2*i], eo_spinor_field[0][_GSI(ix)+2*i+1]);
     }
   }
-/*
-  }}}}
-*/
-
+  fclose(ofs);
 
   /***********************************************
    * free the allocated memory, finalize 

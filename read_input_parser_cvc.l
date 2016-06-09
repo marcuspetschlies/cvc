@@ -133,6 +133,7 @@ namespace cvc {
 %x SEQSRCLOCATIONY
 %x SEQSRCLOCATIONZ
 %x SEQSRCGAMMAID
+%x SRCGAMMAID
 %x MMSNOMASSES
 %x NOLIGHTMASSES
 %x NOSTRANGEMASSES
@@ -168,6 +169,7 @@ namespace cvc {
 %x NSAMPLE
 %x ASOVERA
 %x NUMTHREADS
+%x SRCMOM
 %x SRCMOMX
 %x SRCMOMY
 %x SRCMOMZ
@@ -282,6 +284,9 @@ namespace cvc {
 ^sequential_source_location_z{SPC}*={SPC}* BEGIN(SEQSRCLOCATIONZ);
 
 ^sequential_source_gamma_id{SPC}*={SPC}*   BEGIN(SEQSRCGAMMAID);
+^source_gamma_id{SPC}*={SPC}*              BEGIN(SRCGAMMAID);
+
+
 ^no_extra_masses{SPC}*={SPC}*              BEGIN(MMSNOMASSES);
 ^no_light_masses{SPC}*={SPC}*              BEGIN(NOLIGHTMASSES);
 ^no_strange_masses{SPC}*={SPC}*            BEGIN(NOSTRANGEMASSES);
@@ -319,6 +324,7 @@ namespace cvc {
 ^samples{SPC}*={SPC}*                      BEGIN(NSAMPLE);
 ^as_over_a{SPC}*={SPC}*                    BEGIN(ASOVERA);
 ^num_threads{SPC}*={SPC}*                  BEGIN(NUMTHREADS);
+^source_momentum{SPC}*={SPC}*              BEGIN(SRCMOM);
 ^source_momentum_x{SPC}*={SPC}*            BEGIN(SRCMOMX);
 ^source_momentum_y{SPC}*={SPC}*            BEGIN(SRCMOMY);
 ^source_momentum_z{SPC}*={SPC}*            BEGIN(SRCMOMZ);
@@ -706,6 +712,16 @@ namespace cvc {
   if(cvc::myverbose!=0) printf("# [read_input_parser] set new entry in sequential source gamma id list to %s, total number is now %d\n", yytext, cvc::g_sequential_source_gamma_id_number);
 }
 
+<SRCGAMMAID>{DIGIT}+ {
+  cvc::g_source_gamma_id_list[cvc::g_source_gamma_id_number] = atoi(yytext);
+  if( cvc::g_source_gamma_id_number == 0 ) {
+    cvc::g_source_gamma_id = cvc::g_source_gamma_id_list[cvc::g_source_gamma_id_number];
+  }
+  cvc::g_source_gamma_id_number++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] set new entry in source gamma id list to %s, total number is now %d\n", yytext, cvc::g_source_gamma_id_number);
+}
+
+
 <MMSNOMASSES>{DIGIT}+ {
   cvc::g_no_extra_masses = atoi(yytext);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set no. of extra masses for mms to %s\n", yytext);
@@ -908,6 +924,7 @@ namespace cvc {
   cvc::g_num_threads = atoi(yytext);
   if(cvc::myverbose!=0) printf("# [read_input_parser] number of threads =%d\n", cvc::g_num_threads);
 }
+
 <SRCMOMX>{SDIGIT}+ {
   cvc::g_source_momentum[0] = atoi(yytext);
   cvc::g_source_momentum_set = 1;
@@ -923,6 +940,15 @@ namespace cvc {
   cvc::g_source_momentum_set = 1;
   if(cvc::myverbose!=0) printf("# [read_input_parser] z-comp. of source momentum set to %d\n", cvc::g_source_momentum[2]);
 }
+
+<SRCMOM>{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
+  sscanf(yytext, "%d,%d,%d", cvc::g_source_momentum_list[cvc::g_source_momentum_number],
+      cvc::g_source_momentum_list[cvc::g_source_momentum_number]+1, cvc::g_source_momentum_list[cvc::g_source_momentum_number]+2);
+  cvc::g_source_momentum_number++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] added source momentum %s to list; total number is now %d\n", yytext, cvc::g_source_momentum_number);
+}
+
+
 <SNKMOMX>{SDIGIT}+ {
   cvc::g_sink_momentum[0] = atoi(yytext);
   cvc::g_sink_momentum_set = 1;

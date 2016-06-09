@@ -24,6 +24,10 @@
 
 #define MAIN_PROGRAM
 
+#ifdef HAVE_LHPC_AFF
+#include "lhpc-aff.h"
+#endif
+
 #include "types.h"
 #include "cvc_complex.h"
 #include "ilinalg.h"
@@ -44,8 +48,19 @@
 #include "laphs.h"
 #include "Q_phi.h"
 #include "invert_Qtm.h"
+#include "gsp.h"
 
 using namespace cvc;
+
+
+const int g_gamma_adjoint_sign[16] = {
+  /*   the sequence is:
+   *        0, 1, 2, 3, id, 5, 0_5, 1_5, 2_5, 3_5, 0_1, 0_2, 0_3, 1_2, 1_3, 2_3
+   *          id 0  1  2  3   4  5    6    7    8    9   10   11   12   13   14   15
+   *          */
+       1, 1, 1, 1,  1, 1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1
+};
+
 
 
 void usage(void) {
@@ -56,34 +71,49 @@ void usage(void) {
 int main(int argc, char **argv) {
   
   int c, status;
-  int i;
+  int i, k, ievecs, kevecs;
   int filename_set = 0;
-  int ix;
+  int ix, iix, x0, x1, x2, x3;
+  int isource_momentum, isource_gamma_id;
   /* int threadid, nthreads; */
   int no_eo_fields;
-  int gsx0, gsx1, gsx2, gsx3;
-  int lsx0, lsx1, lsx2, lsx3;
+  int evecs_num=0;
 
-  double norm, norm2;
+  double norm, dtmp;
+  double evecs_lambda;
+  double *phase_e=NULL, *phase_o = NULL;
+  double *****gsp = NULL, *****gsp_buffer = NULL;
+  double *buffer=NULL, *buffer2 = NULL;
+  complex w;
 
   double plaq=0.;
   int verbose = 0;
   char filename[200];
-/*
+
   FILE *ofs=NULL;
   size_t items, bytes;
-*/
-  double **eo_spinor_field=NULL;
-  double ratime, retime;
+
+  double **eo_spinor_field=NULL, *eo_spinor_work=NULL, *eo_spinor_work2 = NULL, *eo_spinor_work3=NULL;
+  double ratime, retime, momentum_ratime, momentum_retime, gamma_ratime, gamma_retime;
   unsigned int Vhalf;
-  int source_proc_coords[4], source_proc_id=0;
-  int l_source_location;
+
+  int check_eigenvectors = 0;
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?vf:")) != -1) {
+#ifdef HAVE_LHPC_AFF
+  struct AffWriter_s *affw = NULL;
+  struct AffNode_s *affn = NULL, *affdir=NULL;
+  char * aff_status_str;
+  double _Complex *aff_buffer = NULL;
+  char aff_buffer_path[200];
+  uint32_t aff_buffer_size;
+#endif
+
+
+  while ((c = getopt(argc, argv, "ch?vf:n:")) != -1) {
     switch (c) {
     case 'v':
       verbose = 1;
@@ -91,6 +121,14 @@ int main(int argc, char **argv) {
     case 'f':
       strcpy(filename, optarg);
       filename_set=1;
+      break;
+    case 'n':
+      evecs_num = atoi(optarg);
+      fprintf(stdout, "# [calculate_gsp] dimension of eigenspace set to%d\n", evecs_num);
+      break;
+    case 'c':
+      check_eigenvectors = 1;
+      fprintf(stdout, "# [calculate_gsp] check eigenvectors set to %d\n", check_eigenvectors);
       break;
     case 'h':
     case '?':
@@ -102,7 +140,7 @@ int main(int argc, char **argv) {
 
   /* set the default values */
   if(filename_set==0) strcpy(filename, "cvc.input");
-  if(g_cart_id==0) fprintf(stdout, "# [apply_QSchur] Reading input from file %s\n", filename);
+  if(g_cart_id==0) fprintf(stdout, "# [calculate_gsp] Reading input from file %s\n", filename);
   read_input_parser(filename);
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
@@ -129,23 +167,9 @@ int main(int argc, char **argv) {
   /* initialize MPI parameters */
   mpi_init(argc, argv);
 
-  /* initialize T etc. */
-  fprintf(stdout, "# [%2d] parameters:\n"\
-                  "# [%2d] T_global     = %3d\n"\
-                  "# [%2d] T            = %3d\n"\
-		  "# [%2d] Tstart       = %3d\n"\
-                  "# [%2d] LX_global    = %3d\n"\
-                  "# [%2d] LX           = %3d\n"\
-		  "# [%2d] LXstart      = %3d\n"\
-                  "# [%2d] LY_global    = %3d\n"\
-                  "# [%2d] LY           = %3d\n"\
-		  "# [%2d] LYstart      = %3d\n",\
-		  g_cart_id, g_cart_id, T_global, g_cart_id, T, g_cart_id, Tstart,
-		             g_cart_id, LX_global, g_cart_id, LX, g_cart_id, LXstart,
-		             g_cart_id, LY_global, g_cart_id, LY, g_cart_id, LYstart);
-
+  /* initialize geometry */
   if(init_geometry() != 0) {
-    fprintf(stderr, "[apply_QSchur] ERROR from init_geometry\n");
+    fprintf(stderr, "[calculate_gsp] ERROR from init_geometry\n");
     EXIT(101);
   }
 
@@ -156,131 +180,374 @@ int main(int argc, char **argv) {
 
   Vhalf = VOLUME / 2;
 
-  /* read the gauge field */
-  alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
-  sprintf(filename, "%s.%.4d", gaugefilename_prefix, Nconf);
-  if(g_cart_id==0) fprintf(stdout, "# [apply_QSchur] reading gauge field from file %s\n", filename);
-
-  if(strcmp(gaugefilename_prefix,"identity")==0) {
-    status = unit_gauge_field(g_gauge_field, VOLUME);
-  } else {
-    // status = read_nersc_gauge_field_3x3(g_gauge_field, filename, &plaq);
-    // status = read_ildg_nersc_gauge_field(g_gauge_field, filename);
-    status = read_lime_gauge_field_doubleprec(filename);
-    // status = read_nersc_gauge_field(g_gauge_field, filename, &plaq);
-  }
-  if(status != 0) {
-    fprintf(stderr, "[apply_QSchur] Error, could not read gauge field\n");
-    EXIT(11);
-  }
-  xchange_gauge();
-
-  /* measure the plaquette */
-  if(g_cart_id==0) fprintf(stdout, "# [apply_QSchur] read plaquette value 1st field: %25.16e\n", plaq);
-  plaquette(&plaq);
-  if(g_cart_id==0) fprintf(stdout, "# [apply_QSchur] measured plaquette value 1st field: %25.16e\n", plaq);
-
-  /* init and allocate spinor fields */
-  no_fields = 3;
-  g_spinor_field = (double**)calloc(no_fields, sizeof(double*));
-  for(i=0; i<no_fields; i++) alloc_spinor_field(&g_spinor_field[i], VOLUME+RAND);
-
-  no_eo_fields = 5;
-  eo_spinor_field = (double**)calloc(no_eo_fields, sizeof(double*));
-  for(i=0; i<no_eo_fields; i++) alloc_spinor_field(&eo_spinor_field[i], (VOLUME+RAND)/2);
-
-
-  /***********************************************
-   * read eo eigenvector
-   ***********************************************/
-
-  /* strcpy(filename, filename_prefix); */
-  sprintf(filename, "%s", filename_prefix2);
-  if(g_cart_id == 0) fprintf(stdout, "# [apply_QSchur] reading C_oo_sym eigenvector from file %s\n", filename);
-
-  status = read_lime_spinor(g_spinor_field[0], filename, 0);
-  if( status != 0) {
-    fprintf(stderr, "[apply_QSchur] Error from read_lime_spinor, status was %d\n");
+  if (evecs_num == 0) {
+    if(g_cart_id==0) fprintf(stderr, "[calculate_gsp] eigenspace dimension is 0\n");
     EXIT(1);
   }
 
-  /* random_spinor_field (g_spinor_field[0], VOLUME); */
+  /* read the gauge field */
+  alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
+  sprintf(filename, "%s.%.4d", gaugefilename_prefix, Nconf);
+  if(g_cart_id==0) fprintf(stdout, "# [calculate_gsp] reading gauge field from file %s\n", filename);
 
-
-  gsx0 = g_source_location / (LX_global * LY_global * LZ_global);
-  gsx1 = (g_source_location % (LX_global * LY_global * LZ_global) ) / (LY_global * LZ_global);
-  gsx2 = (g_source_location % (LY_global * LZ_global) ) / LZ_global;
-  gsx3 = g_source_location % LZ_global;
-  if(g_cart_id == 0) fprintf(stdout, "# [apply_QSchur] global source coordinates = (%d, %d, %d, %d)\n", gsx0, gsx1, gsx2, gsx3);
-  source_proc_coords[0] = gsx0 / T;
-  source_proc_coords[1] = gsx1 / LX;
-  source_proc_coords[2] = gsx2 / LY;
-  source_proc_coords[3] = gsx3 / LZ;
-
-  lsx0 = gsx0 % T;
-  lsx1 = gsx1 % LX;
-  lsx2 = gsx2 % LY;
-  lsx3 = gsx3 % LZ;
-
-  l_source_location = g_ipt[lsx0][lsx1][lsx2][lsx3];
-
+  if(strcmp(gaugefilename_prefix,"identity")==0) {
+    status = unit_gauge_field(g_gauge_field, VOLUME);
 #ifdef HAVE_MPI
-  MPI_Cart_rank(g_cart_grid, source_proc_coords, &source_proc_id);
+  xchange_gauge();
 #endif
-  if(source_proc_id == g_cart_id) {
-    fprintf(stdout, "# [apply_QSchur] process %d has the source at %d with local coordinates = (%d, %d, %d, %d)\n", source_proc_id, l_source_location, lsx0, lsx1, lsx2, lsx3);
+  } else if(strcmp(gaugefilename_prefix, "NA") != 0) {
+    /* status = read_nersc_gauge_field_3x3(g_gauge_field, filename, &plaq); */
+    /* status = read_ildg_nersc_gauge_field(g_gauge_field, filename); */
+    status = read_lime_gauge_field_doubleprec(filename);
+    /* status = read_nersc_gauge_field(g_gauge_field, filename, &plaq); */
+#ifdef HAVE_MPI
+    xchange_gauge();
+#endif
+    if(status != 0) {
+      fprintf(stderr, "[calculate_gsp] Error, could not read gauge field\n");
+      EXIT(11);
+    }
+
+    /* measure the plaquette */
+    if(g_cart_id==0) fprintf(stdout, "# [calculate_gsp] read plaquette value 1st field: %25.16e\n", plaq);
+    plaquette(&plaq);
+    if(g_cart_id==0) fprintf(stdout, "# [calculate_gsp] measured plaquette value 1st field: %25.16e\n", plaq);
+  } else {
+    if(g_cart_id == 0) fprintf(stderr, "# [calculate_gsp] need gauge field\n");
+    EXIT(20);
+  }
+
+  /***********************************************
+   * allocate spinor fields
+   ***********************************************/
+  no_fields = 1;
+  g_spinor_field = (double**)calloc(no_fields, sizeof(double*));
+  for(i=0; i<no_fields; i++) alloc_spinor_field(&g_spinor_field[i], VOLUME+RAND);
+
+  no_eo_fields = 2*evecs_num + 3;
+  eo_spinor_field = (double**)calloc(no_eo_fields, sizeof(double*));
+  for(i=0; i<no_eo_fields; i++) alloc_spinor_field(&eo_spinor_field[i], (VOLUME+RAND)/2);
+  eo_spinor_work  = eo_spinor_field[2*evecs_num];
+  eo_spinor_work2 = eo_spinor_field[2*evecs_num+1];
+  eo_spinor_work3 = eo_spinor_field[2*evecs_num+2];
+
+  /***********************************************
+   * allocate gsp space
+   ***********************************************/
+  status = gsp_init (&gsp, g_source_momentum_number, g_source_gamma_id_number, T, evecs_num);
+  if(status != 0) {
+    fprintf(stderr, "[calculate_gsp] Error from gsp_init, status was %d\n", status);
+    EXIT(15);
   }
 
 
-  /* apply Q on even-odd decomposed field */
+  /***********************************************
+   * read eo eigenvectors
+   ***********************************************/
+  for(ievecs = 0; ievecs<evecs_num; ievecs+=2) {
+    
+    sprintf(filename, "%s%.5d", filename_prefix, ievecs);
+    if(g_cart_id == 0) fprintf(stdout, "# [calculate_gsp] reading C_oo_sym eigenvector from file %s\n", filename);
 
-  /* xchange_field(g_spinor_field[0]); */
+    status = read_lime_spinor(g_spinor_field[0], filename, 0);
+    if( status != 0) {
+      fprintf(stderr, "[calculate_gsp] Error from read_lime_spinor, status was %d\n", status);
+      EXIT(1);
+    }
 
-  spinor_field_lexic2eo (g_spinor_field[0], eo_spinor_field[0], eo_spinor_field[1]);
+    ratime = _GET_TIME;
+    spinor_field_unpack_lexic2eo (g_spinor_field[0], eo_spinor_field[ievecs], eo_spinor_field[ievecs+1]);
+    retime = _GET_TIME;
+    if(g_cart_id == 0) fprintf(stdout, "# [calculate_gsp] time for unpacking = %e\n", retime - ratime);
 
-#ifdef HAVE_MPI
-  xchange_eo_field(eo_spinor_field[0], 0);
-  xchange_eo_field(eo_spinor_field[1], 1);
+  }  /* end of loop on evecs number */
+
+  if (check_eigenvectors) {
+
+    /***********************************************
+     * check eigenvector equation
+     ***********************************************/
+    for(ievecs = 0; ievecs<evecs_num; ievecs++) {
+  
+      ratime = _GET_TIME;
+  #ifdef HAVE_MPI
+      xchange_eo_field(eo_spinor_field[ievecs], 1);
+  #endif
+      C_oo(eo_spinor_work, eo_spinor_field[ievecs], g_gauge_field, -g_mu, eo_spinor_work3);
+  #ifdef HAVE_MPI
+      xchange_eo_field( eo_spinor_work, 1);
+  #endif
+      C_oo(eo_spinor_work2, eo_spinor_work, g_gauge_field,  g_mu, eo_spinor_work3);
+  
+      norm = 4 * g_kappa * g_kappa;
+      for(ix=0; ix<Vhalf; ix++ ) {
+        _fv_ti_eq_re(eo_spinor_work2+_GSI(ix), norm);
+      }
+      retime = _GET_TIME;
+      if(g_cart_id == 0) fprintf(stdout, "# [calculate_gsp] time to apply C_oo_sym = %e\n", retime - ratime);
+  
+      /* determine eigenvalue */
+      spinor_scalar_product_re(&norm,  eo_spinor_field[ievecs], eo_spinor_field[ievecs], Vhalf);
+      spinor_scalar_product_co(&w,  eo_spinor_field[ievecs], eo_spinor_work2, Vhalf);
+      evecs_lambda = w.re / norm;
+      if(g_cart_id == 0) {
+        fprintf(stdout, "# [calculate_gsp] estimated eigenvalue(%d) = %16.7e\n", ievecs, evecs_lambda);
+      }
+  
+  
+      /* check evec equation */
+      for(ix=0; ix<Vhalf; ix++) {
+        _fv_mi_eq_fv_ti_re(eo_spinor_work2+_GSI(ix), eo_spinor_field[ievecs]+_GSI(ix), evecs_lambda);
+      }
+      spinor_scalar_product_re(&norm, eo_spinor_work2, eo_spinor_work2, Vhalf);
+      if(g_cart_id == 0) {
+        fprintf(stdout, "# [calculate_gsp] eigenvector(%d) || A x - lambda x || = %16.7e\n", ievecs, sqrt(norm) );
+      }
+    }  /* end of loop on evecs_num */
+
+  }  /* end of if check_eigenvectors */
+
+
+  /***********************************************
+   * output file
+   ***********************************************/
+#ifdef HAVE_LHPC_AFF
+  if(g_cart_id == 0) {
+
+    aff_status_str = (char*)aff_version();
+    fprintf(stdout, "# [calculate_gsp] using aff version %s\n", aff_status_str);
+
+    
+    sprintf(filename, "gsp.%.4d.aff", Nconf);
+    fprintf(stdout, "# [calculate_gsp] writing correlator data from file %s\n", filename);
+    affw = aff_writer(filename);
+    aff_status_str = (char*)aff_writer_errstr(affw);
+    if( aff_status_str != NULL ) {
+      fprintf(stderr, "[calculate_gsp] Error from aff_reader, status was %s\n", aff_status_str);
+      EXIT(102);
+    }
+
+    if( (affn = aff_writer_root(affw)) == NULL ) {
+      fprintf(stderr, "[calculate_gsp] Error, aff writer is not initialized\n");
+      EXIT(103);
+    }
+
+    if(g_cart_id == 0) {
+      aff_buffer = (double _Complex*)malloc(2*evecs_num*evecs_num*sizeof(double _Complex));
+      if(aff_buffer == NULL) {
+        fprintf(stderr, "[calculate_gsp] Error from malloc\n");
+        EXIT(22);
+      }
+    }
+
+  }
 #endif
 
-  /* apply Q in Schur-decompositon on even-odd decomosed field */
 
-  Q_eo_SchurDecomp_B (eo_spinor_field[2], eo_spinor_field[3], eo_spinor_field[0], eo_spinor_field[1], g_gauge_field, g_mu, eo_spinor_field[4]);
+
+  phase_e = (double*)malloc(Vhalf*2*sizeof(double));
+  phase_o = (double*)malloc(Vhalf*2*sizeof(double));
+  if(phase_e == NULL || phase_o == NULL) {
+    fprintf(stderr, "[calculate_gsp] Error from malloc\n");
+    EXIT(14);
+  }
+
+  buffer = (double*)malloc(2*Vhalf*sizeof(double));
+  if(buffer == NULL)  {
+    fprintf(stderr, "[calculate_gsp] Error from malloc\n");
+    EXIT(19);
+  }
+
+  buffer2 = (double*)malloc(2*T*sizeof(double));
+  if(buffer2 == NULL)  {
+    fprintf(stderr, "[calculate_gsp] Error from malloc\n");
+    EXIT(20);
+  }
+
+  for(isource_momentum=0; isource_momentum < g_source_momentum_number; isource_momentum++) {
+
+    g_source_momentum[0] = g_source_momentum_list[isource_momentum][0];
+    g_source_momentum[1] = g_source_momentum_list[isource_momentum][1];
+    g_source_momentum[2] = g_source_momentum_list[isource_momentum][2];
+
+    if(g_cart_id == 0) {
+      fprintf(stdout, "# [calculate_gsp] using source momentum = (%d, %d, %d)\n", g_source_momentum[0], g_source_momentum[1], g_source_momentum[2]);
+    }
+    momentum_ratime = _GET_TIME;
+
+    /* make phase field in eo ordering */
+    for(x0=0; x0<T; x0++) {
+      for(x1=0; x1<LX; x1++) {
+      for(x2=0; x2<LY; x2++) {
+      for(x3=0; x3<LZ; x3++) {
+        ix  = g_ipt[x0][x1][x2][x3];
+        iix = g_lexic2eosub[ix];
+        dtmp = 2. * M_PI * (
+            (x1 + g_proc_coords[1]*LX) * g_source_momentum[0] / (double)LX_global +
+            (x2 + g_proc_coords[2]*LY) * g_source_momentum[1] / (double)LY_global +
+            (x3 + g_proc_coords[3]*LZ) * g_source_momentum[2] / (double)LZ_global );
+        if(g_iseven[ix]) {
+          phase_e[2*iix  ] = cos(dtmp);
+          phase_e[2*iix+1] = sin(dtmp);
+        } else {
+          phase_o[2*iix  ] = cos(dtmp);
+          phase_o[2*iix+1] = sin(dtmp);
+        }
+      }}}
+    }
+
+    for(isource_gamma_id=0; isource_gamma_id < g_source_gamma_id_number; isource_gamma_id++) {
+      if(g_cart_id == 0) fprintf(stdout, "# [calculate_gsp] using source gamma id %d\n", g_source_gamma_id_list[isource_gamma_id]);
+      gamma_ratime = _GET_TIME;
+
+      /* loop on eigenvectors */
+      for(ievecs = 0; ievecs<evecs_num; ievecs++) {
+        for(kevecs = ievecs; kevecs<evecs_num; kevecs++) {
+
+          ratime = _GET_TIME;
+          eo_spinor_dag_gamma_spinor((complex*)buffer, eo_spinor_field[ievecs], g_source_gamma_id_list[isource_gamma_id], eo_spinor_field[kevecs]);
+          retime = _GET_TIME;
+          if(g_cart_id == 0) fprintf(stdout, "# [calculate_gsp] time for eo_spinor_dag_gamma_spinor = %e\n", retime - ratime);
+
+          ratime = _GET_TIME;
+          eo_gsp_momentum_projection ((complex*)buffer2, (complex*)buffer, (complex*)phase_o, 1);
+          retime = _GET_TIME;
+          if(g_cart_id == 0) fprintf(stdout, "# [calculate_gsp] time for eo_gsp_momentum_projection = %e\n", retime - ratime);
+
+          for(x0=0; x0<T; x0++) {
+            memcpy(gsp[isource_momentum][isource_gamma_id][x0][ievecs] + 2*kevecs, buffer2+2*x0, 2*sizeof(double));
+          }
+
+        }
+      }
+
+      /* gsp[k,i] = sigma_Gamma gsp[i,k]^+ */
+      for(x0=0; x0<T; x0++) {
+        for(ievecs = 0; ievecs<evecs_num-1; ievecs++) {
+          for(kevecs = ievecs+1; kevecs<evecs_num; kevecs++) {
+            gsp[isource_momentum][isource_gamma_id][x0][kevecs][2*ievecs  ] =  g_gamma_adjoint_sign[g_source_gamma_id_list[isource_gamma_id]] * gsp[isource_momentum][isource_gamma_id][x0][ievecs][2*kevecs  ];
+            gsp[isource_momentum][isource_gamma_id][x0][kevecs][2*ievecs+1] = -g_gamma_adjoint_sign[g_source_gamma_id_list[isource_gamma_id]] * gsp[isource_momentum][isource_gamma_id][x0][ievecs][2*kevecs+1];
+          }
+        }
+      }
+
+      /***********************************************
+       * write gsp to disk
+       ***********************************************/
 
 #ifdef HAVE_MPI
-  xchange_eo_field(eo_spinor_field[2], 0);
-  xchange_eo_field(eo_spinor_field[3], 1);
+
+      status = gsp_init (&gsp_buffer, 1, 1, T_global, evecs_num);
+      if(gsp_buffer == NULL) {
+        fprintf(stderr, "[calculate_gsp] Error from gsp_init\n");
+        EXIT(18);
+      }
+      k = 2*T*evecs_num*evecs_num; /* number of items to be sent and received */
+
+#if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ)
+
+      fprintf(stdout, "# [] proc%.2d g_tr_id = %d; g_tr_nproc =%d\n", g_cart_id, g_tr_id, g_tr_nproc);
+      MPI_Allgather(gsp[isource_momentum][isource_gamma_id][0][0], k, MPI_DOUBLE, gsp_buffer[0][0][0][0], k, MPI_DOUBLE, g_tr_comm);
+  
+#else
+      /* collect at 0 from all times */
+      MPI_Gather(gsp[isource_momentum][isource_gamma_id][0][0], k, MPI_DOUBLE, gsp_buffer[0][0][0][0], k, MPI_DOUBLE, 0, g_cart_grid);
 #endif
 
-  Q_eo_SchurDecomp_A (eo_spinor_field[0], eo_spinor_field[1], eo_spinor_field[2], eo_spinor_field[3], g_gauge_field, g_mu, eo_spinor_field[4]);
+#else
+      gsp_buffer = gsp;
+#endif  /* of ifdef HAVE_MPI */
 
-  if(source_proc_id == g_cart_id) {
-    ix = l_source_location;
-    fprintf(stdout, "# [apply_QSchur] g_lexic2eosub = %d, g_lexic2eo = %d, VOUME = %d, RAND = %d\n", g_lexic2eosub[ix], g_lexic2eo[ix], VOLUME, RAND);
-    if(g_iseven[ix]) {
-      eo_spinor_field[0][+_GSI(g_lexic2eosub[ix]) ] -= 1.;
-    } else {
-      eo_spinor_field[1][+_GSI(g_lexic2eosub[ix]) ] -= 1.;
+      if(g_cart_id == 0) {
+#ifdef HAVE_LHPC_AFF
+
+        for(x0=0; x0<T_global; x0++) {
+          sprintf(aff_buffer_path, "/px%.2dpy%.2dpz%.2d/g%.2d/t%.2d", g_source_momentum[0], g_source_momentum[1], g_source_momentum[2], g_source_gamma_id_list[isource_gamma_id], x0);
+          if(g_cart_id == 0) fprintf(stdout, "# [] current aff path = %s\n", aff_buffer_path);
+
+          affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
+          items = evecs_num*evecs_num;
+          memcpy(aff_buffer, gsp_buffer[0][0][x0][0], 2*items*sizeof(double));
+          status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)items); 
+          if(status != 0) {
+            fprintf(stderr, "[calculate_gsp] Error  from aff_node_put_double, status was %d\n", status);
+            EXIT(104);
+          }
+        }  /* end of loop on x0 */
+#else
+
+        sprintf(filename, "gsp.%.4d.px%.2dpy%.2dpz%.2d.g%.2d", 
+            Nconf, g_source_momentum[0], g_source_momentum[1], g_source_momentum[2],
+            g_source_gamma_id_list[isource_gamma_id]);
+        ofs = fopen(filename, "w");
+        if(ofs == NULL) {
+          fprintf(stderr, "[calculate_gsp] Error, could not open file %s for writing\n", filename);
+          EXIT(103);
+        }
+        items = 2 * (size_t)T * evecs_num*evecs_num;
+        if( fwrite(gsp_buffer[0][0][0][0], sizeof(double), items, ofs) != items ) {
+          fprintf(stderr, "[calculate_gsp] Error, could not write proper amount of data to file %s\n", filename);
+          EXIT(104);
+        }
+        fclose(ofs);
+
+#endif
+      }  /* end of if g_cart_id == 0 */
+
+
+#ifdef HAVE_MPI
+      gsp_fini(&gsp_buffer);
+#else
+      gsp_buffer = NULL;
+#endif
+
+     gamma_retime = _GET_TIME;
+     if(g_cart_id == 0) fprintf(stdout, "# [calculate_gsp] time for gamma id %d = %e seconds\n", g_source_gamma_id_list[isource_gamma_id], gamma_retime - gamma_ratime);
+
+   }  /* end of loop on source gamma id */
+
+   momentum_retime = _GET_TIME;
+   if(g_cart_id == 0) fprintf(stdout, "# [calculate_gsp] time for momentum (%d, %d, %d) = %e seconds\n", g_source_momentum[0], g_source_momentum[1], g_source_momentum[2], momentum_retime - momentum_ratime);
+
+  }   /* end of loop on source momenta */
+
+/***********************************************
+ * close the output files
+ ***********************************************/
+#ifdef HAVE_LHPC_AFF
+  if(g_cart_id == 0) {
+    aff_status_str = (char*)aff_writer_close (affw);
+    if( aff_status_str != NULL ) {
+      fprintf(stderr, "[calculate_gsp] Error from aff_writer_close, status was %s\n", aff_status_str);
+      EXIT(104);
     }
   }
+  if(aff_buffer     != NULL) free(aff_buffer);
+  if(aff_status_str != NULL) free(aff_status_str);
+#endif
 
-  spinor_scalar_product_re(&norm,  eo_spinor_field[0], eo_spinor_field[0], Vhalf);
-  spinor_scalar_product_re(&norm2, eo_spinor_field[1], eo_spinor_field[1], Vhalf);
-  if(g_cart_id == 0) fprintf(stdout, "# [apply_QSchur] eo norm = %e; norm2 = %e, sum = %e\n", sqrt(norm), sqrt(norm2), sqrt(norm + norm2));
 
 
   /***********************************************
    * free the allocated memory, finalize 
    ***********************************************/
 
-  free(g_gauge_field);
+  if(phase_e != NULL) free(phase_e);
+  if(phase_o != NULL) free(phase_o);
+  if(buffer  != NULL) free(buffer);
+  if(buffer2 != NULL) free(buffer2);
+
+  if(g_gauge_field != NULL) free(g_gauge_field);
   for(i=0; i<no_fields; i++) free(g_spinor_field[i]);
   free(g_spinor_field);
 
   for(i=0; i<no_eo_fields; i++) free(eo_spinor_field[i]);
   free(eo_spinor_field);
 
+  gsp_fini(&gsp);
+
   free_geometry();
+
 
 #ifdef HAVE_MPI
   mpi_fini_xchange_eo_spinor();
@@ -289,9 +556,9 @@ int main(int argc, char **argv) {
 
   if (g_cart_id == 0) {
     g_the_time = time(NULL);
-    fprintf(stdout, "# [apply_QSchur] %s# [apply_QSchur] end fo run\n", ctime(&g_the_time));
+    fprintf(stdout, "# [calculate_gsp] %s# [calculate_gsp] end fo run\n", ctime(&g_the_time));
     fflush(stdout);
-    fprintf(stderr, "# [apply_QSchur] %s# [apply_QSchur] end fo run\n", ctime(&g_the_time));
+    fprintf(stderr, "# [calculate_gsp] %s# [calculate_gsp] end fo run\n", ctime(&g_the_time));
     fflush(stderr);
   }
 
