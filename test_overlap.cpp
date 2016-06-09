@@ -89,12 +89,15 @@ int main(int argc, char **argv) {
   int source_proc_coords[4], source_proc_id=0;
   int l_source_location;
   double spinor1[24];
+  double **coo_evecs = NULL, *coo_buffer=NULL;
+  int coo_nev = 0, coo_prec=32;
+
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?vf:")) != -1) {
+  while ((c = getopt(argc, argv, "h?vf:N:p:")) != -1) {
     switch (c) {
     case 'v':
       verbose = 1;
@@ -102,6 +105,14 @@ int main(int argc, char **argv) {
     case 'f':
       strcpy(filename, optarg);
       filename_set=1;
+      break;
+    case 'N':
+      coo_nev = atoi(optarg);
+      fprintf(stdout, "# [] number of C_oo eigenvectors set to %d\n", coo_nev);
+      break;
+    case 'p':
+      coo_prec = atoi(optarg);
+      fprintf(stdout, "# [] using C_oo eigenvector precision %d\n", coo_prec);
       break;
     case 'h':
     case '?':
@@ -246,15 +257,61 @@ int main(int argc, char **argv) {
   /***********************************************
    * read eo eigenvector
    ***********************************************/
+/* arpack_evecs.0740.00100.pt00px00py00pz00 */
+  sprintf(filename, "%s.pt%.2dpx%.2dpy%.2dpz%.2d", filename_prefix, 
+      g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3]);
 
-  strcpy(filename, filename_prefix);
+
   /* sprintf(filename, "%s", filename_prefix2); */
   if(g_cart_id == 0) fprintf(stdout, "# [test_overlap] reading C_oo_sym eigenvector from file %s\n", filename);
 
+/*
   status = read_lime_spinor(g_spinor_field[0], filename, 0);
   if( status != 0) {
     fprintf(stderr, "[test_overlap] Error from read_lime_spinor, status was %d\n");
     EXIT(1);
+  }
+*/
+
+  if (coo_prec == 32)  {
+    bytes = sizeof(float);
+  } else if(coo_prec == 64) {
+    bytes = sizeof(double);
+  }
+  coo_buffer = (double*)malloc(coo_nev * VOLUME*12*sizeof(double) );
+  if(coo_buffer == NULL) {
+    fprintf(stderr, "[] Error, could not allocate buffer\n");
+    EXIT(11);
+  }
+
+  coo_evecs = (double**)malloc(coo_nev * sizeof(double*) );
+  if(coo_evecs == NULL) {
+    fprintf(stderr, "[] Error, could not allocate evecs\n");
+    EXIT(12);
+  }
+  for(i=0; i<coo_nev; i++) {
+    coo_evecs[i] = coo_buffer + (size_t)i * VOLUME*12;
+  }
+
+
+  ofs = fopen(filename, "r");
+  if(ofs == NULL) {
+    fprintf(stderr, "[] Error, could not open file %s for reading\n", filename);
+    EXIT(1);
+  }
+
+  items = fread(coo_buffer, bytes, coo_nev*12*VOLUME, ofs);
+  if( items != ((size_t)coo_nev)*12*VOLUME ) {
+    fprintf(stderr, "[] Error, could not read proper amount of data from file %s\n", filename);
+    EXIT(2);
+  }
+
+  fclose(ofs);
+
+  if(coo_prec == 32) {
+    for(ix = 12*VOLUME*coo_nev-1; ix >= 0; ix--) {
+      ((double*)coo_buffer)[ix] = (double) (((float*)coo_buffer)[ix]);
+    }
   }
 
   /* random_spinor_field (g_spinor_field[0], VOLUME); */
@@ -303,7 +360,7 @@ int main(int argc, char **argv) {
 #endif
 
   /* decompose into even and odd part */
-  spinor_field_lexic2eo (g_spinor_field[0], eo_spinor_field[0], eo_spinor_field[1]);
+  /* spinor_field_lexic2eo (g_spinor_field[0], eo_spinor_field[0], eo_spinor_field[1]); */
 
 #if 0
   /* apply Hopping matrix in eo decompositon */
@@ -411,24 +468,29 @@ int main(int argc, char **argv) {
   if(g_cart_id == 0) fprintf(stdout, "# [test_overlap] eo2lexic norm = %e\n", sqrt(norm));
 #endif
 
+
+  /* copy first eigenvector to eo_spinor_field */
+  memcpy(eo_spinor_field[0],  coo_evecs[0], VOLUME*12*sizeof(double));
+
   /* apply C^+ C^- */
+  xchange_eo_field( eo_spinor_field[0], 1);
+#if 0
+  C_oo(eo_spinor_field[1], eo_spinor_field[0], g_gauge_field, -g_mu, eo_spinor_field[4]);
   xchange_eo_field( eo_spinor_field[1], 1);
-  C_oo(eo_spinor_field[2], eo_spinor_field[1], g_gauge_field, -g_mu, eo_spinor_field[4]);
-  xchange_eo_field( eo_spinor_field[2], 1);
-  C_oo(eo_spinor_field[3], eo_spinor_field[2], g_gauge_field,  g_mu, eo_spinor_field[4]);
+  C_oo(eo_spinor_field[2], eo_spinor_field[1], g_gauge_field,  g_mu, eo_spinor_field[4]);
 
   norm = 4 * g_kappa * g_kappa;
   for(ix=0; ix<Vhalf; ix++ ) {
-    _fv_ti_eq_re(eo_spinor_field[3]+_GSI(ix), norm);
+    _fv_ti_eq_re(eo_spinor_field[2]+_GSI(ix), norm);
   }
 
-  spinor_scalar_product_re(&norm,  eo_spinor_field[1], eo_spinor_field[1], Vhalf);
-  spinor_scalar_product_co(&w,  eo_spinor_field[1], eo_spinor_field[3], Vhalf);
+  spinor_scalar_product_re(&norm,  eo_spinor_field[0], eo_spinor_field[0], Vhalf);
+  spinor_scalar_product_co(&w,  eo_spinor_field[0], eo_spinor_field[2], Vhalf);
   
   if(g_cart_id == 0) {
     fprintf(stdout, "# [] eigenvalue = %16.7e %16.7e; norm = %16.7e\n", w.re / norm, w.im / norm, sqrt(norm));
   }
-
+#endif
 #if 0
   for(ix=0; ix<Vhalf; ix++ )
 /*  for(ix=0; ix<VOLUME; ix++ ) */
@@ -495,6 +557,10 @@ int main(int argc, char **argv) {
   free(eo_spinor_field);
 
   free_geometry();
+
+  if(coo_evecs != NULL) free(coo_evecs);
+  if(coo_buffer != NULL) free(coo_buffer);
+
 
   if (g_cart_id == 0) {
     g_the_time = time(NULL);
