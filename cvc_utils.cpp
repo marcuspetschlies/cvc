@@ -1790,7 +1790,80 @@ int printf_spinor_field(double *s, FILE *ofs) {
   }}}}
 
   return(0);
-}
+}  /* end of printf_spinor_field */
+
+/*******************************************************************
+ * print an even-odd spinor field
+ *******************************************************************/
+int printf_eo_spinor_field(double *s, int use_even, FILE *ofs) {
+
+  int i, start_valuet=0, start_valuex=0, start_valuey=0, start_valuez=0;
+  int x0, x1, x2, x3, ix;
+  int y0, y1, y2, y3;
+  int z0, z1, z2, z3;
+  int boundary;
+  int jx;
+
+  if( (ofs == (FILE*)NULL) || (s==(double*)NULL) ) return(108);
+#ifdef HAVE_MPI
+  start_valuet = 1;
+
+#  if defined PARALLELTX || defined PARALLELTXY || defined PARALLELTXYZ
+  start_valuex = 1;
+#  else
+  start_valuex = 0;
+# endif
+
+#  if defined PARALLELTXY || defined PARALLELTXYZ
+  start_valuey = 1;
+#  else
+  start_valuey = 0;
+# endif
+
+#  if defined PARALLELTXYZ
+  start_valuez = 1;
+#  else
+  start_valuez = 0;
+# endif
+
+#else
+  start_valuet = 0;
+#endif
+
+
+  for(x0= -start_valuet; x0 < T +start_valuet; x0++) {
+  for(x1= -start_valuex; x1 < LX+start_valuex; x1++) {
+  for(x2= -start_valuey; x2 < LY+start_valuey; x2++) {
+  for(x3= -start_valuez; x3 < LZ+start_valuez; x3++) {
+    boundary =  (x0==-1 || x0==T) + (x1==-1 || x1==LX) + (x2==-1 || x2==LY) + (x3==-1 || x3==LZ);
+    if(boundary>1) continue;
+    y0=x0; y1=x1; y2=x2; y3=x3;
+    if(x0==-1) y0=T+1;
+    if(x1==-1) y1=LX+1;
+    if(x2==-1) y2=LY+1;
+    if(x3==-1) y3=LZ+1;
+
+    ix = g_ipt[y0][y1][y2][y3];
+
+    jx = g_lexic2eosub[ix];
+
+    if( use_even != g_iseven[ix] ) continue;
+
+    // fprintf(ofs, "# [%2d] t=%3d, x=%3d, y=%3d, z=%3d\n", g_cart_id, x0, x1, x2, x3);
+    z0 = (x0 + g_proc_coords[0] * T  + T_global  ) % T_global ;
+    z1 = (x1 + g_proc_coords[1] * LX + LX_global ) % LX_global;
+    z2 = (x2 + g_proc_coords[2] * LY + LY_global ) % LY_global;
+    z3 = (x3 + g_proc_coords[3] * LZ + LZ_global ) % LZ_global;
+    /* fprintf(ofs, "# t=%d, x=%d, y=%d, z=%d %8d %3d\n", z0, z1, z2, z3, jx, boundary); */
+    fprintf(ofs, "# t=%d x=%d y=%d z=%d lt=%d lx=%d ly=%d lz=%d ieo=%d b=%d\n", z0, z1, z2, z3, y0, y1, y2, y3, jx, boundary);
+
+    for(i=0; i<12; i++) {
+      fprintf(ofs, "\t%3d %18.9e %18.9e\n", i, s[_GSI(jx)+2*i], s[_GSI(jx)+2*i+1]);
+    }
+  }}}}
+
+  return(0);
+}  /* end of printf_eo_spinor_field */
 
 int printf_spinor_field_5d(double *s, FILE *ofs) {
 
@@ -4745,6 +4818,10 @@ void xchange_eo_field(double *phi, int eo) {
   const unsigned int TXYslice =                LZ / 2;
   /* =================================================== */
   int cntr=0;
+/*
+  int i, error_string_length;
+  char error_string[400];
+*/
 
   const unsigned int Zshift_start = eo ? LZ / 2 : 0;
   const unsigned int Zshift_end   = eo ? 0 : LZ / 2;
@@ -4752,15 +4829,17 @@ void xchange_eo_field(double *phi, int eo) {
   MPI_Request request[220];
   MPI_Status status[220];
 
+  /* t - boundary faces */
   MPI_Isend(&phi[0],                                          1, eo_spinor_time_slice_cont, g_nb_t_dn, 183, g_cart_grid, &request[cntr]);
   cntr++;
   MPI_Irecv(&phi[24*Vhalf],                                   1, eo_spinor_time_slice_cont, g_nb_t_up, 183, g_cart_grid, &request[cntr]);
   cntr++;
-  
+ 
   MPI_Isend(&phi[24*(T-1)*Tslice],                            1, eo_spinor_time_slice_cont, g_nb_t_up, 184, g_cart_grid, &request[cntr]);
   cntr++;
   MPI_Irecv(&phi[24*(T+1)*Tslice],                            1, eo_spinor_time_slice_cont, g_nb_t_dn, 184, g_cart_grid, &request[cntr]);
   cntr++;
+
 #if (defined PARALLELTX) || (defined PARALLELTXY)  || (defined PARALLELTXYZ) 
  
   /* x - boundary faces */
@@ -4777,37 +4856,130 @@ void xchange_eo_field(double *phi, int eo) {
 
 
 #if defined PARALLELTXY || (defined PARALLELTXYZ) 
+
   /* y - boundary faces */
   MPI_Isend(&phi[0],                                          1, eo_spinor_y_slice_vector, g_nb_y_dn, 187, g_cart_grid, &request[cntr]);
   cntr++;
   MPI_Irecv(&phi[24*(Vhalf+2*(Tslice+Xslice))],               1, eo_spinor_y_slice_cont,   g_nb_y_up, 187, g_cart_grid, &request[cntr]);
   cntr++;
-  
+
   MPI_Isend(&phi[24*( TXslice - TXYslice)],                   1, eo_spinor_y_slice_vector, g_nb_y_up, 188, g_cart_grid, &request[cntr]);
   cntr++;
   MPI_Irecv(&phi[24*(Vhalf+2*(Tslice+Xslice)+Yslice)],        1, eo_spinor_y_slice_cont,   g_nb_y_dn, 188, g_cart_grid, &request[cntr]);
   cntr++;
+
 #endif
+
 
 #if (defined PARALLELTXYZ) 
 
   /* z - boundary faces */
 
+
+#if 0
+  /* 1st half z boundary, backward */
   MPI_Isend(&phi[24*Zshift_start],                            1, eo_spinor_z_slice_vector, g_nb_z_dn, 189, g_cart_grid, &request[cntr]);
   cntr++;
   MPI_Irecv(&phi[24*(Vhalf+2*(Tslice+Xslice+Yslice))],        1, eo_spinor_z_slice_cont,   g_nb_z_up, 189, g_cart_grid, &request[cntr]);
   cntr++;
 
-  MPI_Isend(&phi[24*(LZh-1+Zshift_end)],                      1, eo_spinor_z_slice_vector, g_nb_z_up, 190, g_cart_grid, &request[cntr]);
+  /* 1st half z boundary, forward */
+  MPI_Isend(&phi[24*Zshift_start],                            1, eo_spinor_z_slice_vector, g_nb_z_dn, 190, g_cart_grid, &request[cntr]);
   cntr++;
-  MPI_Irecv(&phi[24*(Vhalf+2*(Tslice+Xslice+Yslice)+Zslice)], 1, eo_spinor_z_slice_cont,   g_nb_z_dn, 190, g_cart_grid, &request[cntr]);
+  MPI_Irecv(&phi[24*(Vhalf+2*(Tslice+Xslice+Yslice))],        1, eo_spinor_z_slice_cont,   g_nb_z_up, 190, g_cart_grid, &request[cntr]);
   cntr++;
 
+  /* 2nd half z boundary, forward */
+  MPI_Isend(&phi[24*(LZh-1+Zshift_end)],                      1, eo_spinor_z_slice_vector, g_nb_z_up, 191, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[24*(Vhalf+2*(Tslice+Xslice+Yslice)+Zslice)], 1, eo_spinor_z_slice_cont,   g_nb_z_dn, 191, g_cart_grid, &request[cntr]);
+  cntr++;
+
+  /* 2nd half z boundary, backward */
+  MPI_Isend(&phi[24*(LZh-1+Zshift_end)],                      1, eo_spinor_z_slice_vector, g_nb_z_up, 192, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[24*(Vhalf+2*(Tslice+Xslice+Yslice)+Zslice)], 1, eo_spinor_z_slice_cont,   g_nb_z_dn, 192, g_cart_grid, &request[cntr]);
+  cntr++;
 #endif
+
+
+  if ( eo == 0 ) {
+    /* even field */
+
+    MPI_Isend(&phi[0],                                          1, eo_spinor_z_even_bwd_slice_struct, g_nb_z_dn, 189, g_cart_grid, &request[cntr]);
+    cntr++;
+
+    MPI_Irecv(&phi[24*(Vhalf+2*(Tslice+Xslice+Yslice))],        1, eo_spinor_z_slice_cont,            g_nb_z_up, 189, g_cart_grid, &request[cntr]);
+    cntr++;
+
+    MPI_Isend(&phi[0],                                          1, eo_spinor_z_even_fwd_slice_struct, g_nb_z_up, 190, g_cart_grid, &request[cntr]);
+    cntr++;
+
+    MPI_Irecv(&phi[24*(Vhalf+2*(Tslice+Xslice+Yslice)+Zslice)], 1, eo_spinor_z_slice_cont,            g_nb_z_dn, 190, g_cart_grid, &request[cntr]);
+    cntr++;
+
+  } else {
+    /* odd field */
+
+    MPI_Isend(&phi[0],                                          1, eo_spinor_z_odd_bwd_slice_struct,  g_nb_z_dn, 189, g_cart_grid, &request[cntr]);
+    cntr++;
+
+    MPI_Irecv(&phi[24*(Vhalf+2*(Tslice+Xslice+Yslice))],        1, eo_spinor_z_slice_cont,            g_nb_z_up, 189, g_cart_grid, &request[cntr]);
+    cntr++;
+
+    MPI_Isend(&phi[0],                                          1, eo_spinor_z_odd_fwd_slice_struct,  g_nb_z_up, 190, g_cart_grid, &request[cntr]);
+    cntr++;
+
+    MPI_Irecv(&phi[24*(Vhalf+2*(Tslice+Xslice+Yslice)+Zslice)], 1, eo_spinor_z_slice_cont,            g_nb_z_dn, 190, g_cart_grid, &request[cntr]);
+    cntr++;
+
+  }
+#if 0
+#endif  /* of if 0 */
+
+#endif  /* of if defined PARALLELTXYZ */
+
+  /* fprintf(stdout, "# [xchange_eo_field] proc%.4d starting MPI_Waitall\n", g_cart_id); */
 
   MPI_Waitall(cntr, request, status);
+
+/* TEST
+  if(g_cart_id == 0) {
+    for(i=0; i<cntr; i++) {
+      MPI_Error_string(status[i].MPI_ERROR, error_string, &error_string_length);
+      fprintf(stdout, "# [xchange_eo_field] %3d %s\n", i,  error_string);
+    }
+  }
+*/
+
 #endif
-}  /* xchange_odd_field */
+}  /* xchange_eo_field */
+
+
+/***********************************************************
+ * unpack lexic to odd,odd
+ * - decompose lexicorgraphic spinor field into 2 odd parts
+ *   by shifting in 0-direction
+ ***********************************************************/
+void spinor_field_unpack_lexic2eo (double *r_lexic, double*r_o1, double *r_o2) {
+
+  unsigned int ix, iy;
+  unsigned int N     = (VOLUME+RAND) / 2;
+  unsigned int Vhalf =  VOLUME       / 2;
+
+  xchange_field(r_lexic);
+  /* even part to shift direction 0 to odd r_o1 */
+  for(iy=0; iy<Vhalf; iy++) {
+    ix = g_idn[ g_eo2lexic[iy + N ] ][0];
+    _fv_eq_fv(r_o1+_GSI(iy), r_lexic+_GSI(ix) );
+  }
+
+  /* odd part to odd r_o2 */
+  for(iy=0; iy<Vhalf; iy++) {
+    ix = g_eo2lexic[iy + N ];
+    _fv_eq_fv(r_o2+_GSI(iy), r_lexic+_GSI(ix) );
+  }
+}  /* end of spinor_field_unpack_lexic2eo */
 
 
 }  /* end of namespace cvc */

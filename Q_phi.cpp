@@ -3476,6 +3476,7 @@ void C_oo (double*s, double*r, double *gauge_field, double mass, double *s_aux) 
   Hopping_eo(s_aux, r, gauge_field, 0);
   M_zz_inv(s, s_aux, mass);
 
+
   /* xchange before next application of M_oe */
   /* NOTE: s exchanged as even field */
   xchange_eo_field(s, 0);
@@ -3577,6 +3578,58 @@ void Q_eo_SchurDecomp_B (double *e_new, double *o_new, double *e_old, double *o_
   C_oo (o_new, o_old, gauge_field, mass, aux);
 
 }  /* end of Q_SchurDecomp_B */
-}
 
 
+/********************************************************************
+ * X_eo    = -M_ee^-1 M_eo,    mu > 0
+ * Xbar_eo = -Mbar_ee^-1 M_eo, mu < 0
+ * the input field is always odd, the output field is always even
+ ********************************************************************/
+void X_eo (double *even, double *odd, double mu, double *gauge_field) {
+
+  unsigned int ix;
+  unsigned int N = VOLUME/2;
+  double mutilde = 2. * g_kappa * mu;
+  double a_re = -2. * g_kappa / ( 1 + mutilde * mutilde);
+  double a_im = -a_re * mutilde;
+  double *ptr, sp[24];
+
+  /* M_eo */
+  Hopping_eo(even, odd, gauge_field, 0);
+
+  /* -M_ee^-1 */
+  for(ix=0; ix<N; ix++) {
+    ptr = even + _GSI(ix);
+    _fv_eq_fv(sp, ptr);
+    _fv_eq_a_pl_ib_g5_ti_fv(ptr, sp, a_re, a_im);
+  }  /* end of loop in ix = 0, N-1 */
+
+}  /* end of X_eo */
+
+
+/********************************************************************
+ * C_with_Xeo
+ * - apply C = g5 M_oo + g5 M_oe X_eo
+ ********************************************************************/
+void C_with_Xeo (double *r, double *s, double *gauge_field, double mu, double *r_aux) {
+
+  unsigned int ix, iix;
+  unsigned int N = VOLUME / 2;
+  double a_re = 1./(2. * g_kappa);
+  double a_im = mu;
+
+  xchange_eo_field(s, 1);
+  X_eo (r_aux, s, mu, gauge_field);
+
+  xchange_eo_field(r_aux, 0);
+  Hopping_eo(r, r_aux, gauge_field, 1);
+
+  for(ix=0; ix<N; ix++) {
+    iix = _GSI(ix);
+    _fv_ti_eq_g5 (r+iix);
+    _fv_pl_eq_a_g5_pl_ib_ti_fv(r+iix, s+iix, a_re, a_im);
+  }
+
+}  /* C_with_Xeo */
+
+}  /* end of namespace cvc */

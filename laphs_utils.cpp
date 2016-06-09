@@ -702,6 +702,5 @@ int perambulator_eq_eigensystem_dag_ti_fv (perambulator_type*p, eigensystem_type
   return(0);
 }
 
-#if 0
-#endif
+
 }

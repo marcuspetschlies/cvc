@@ -70,5 +70,11 @@ void spinor_4d_to_5d_sign_threaded(double *s, double*t, int isign, int threadid,
 
 void spinor_5d_to_4d_L5h(double*s, double*t);
 void spinor_5d_to_4d_L5h_sign(double*s, double*t, int isign);
-}
+
+void X_eo (double *even, double *odd, double mu, double *gauge_field);
+
+void C_with_Xeo (double *r, double *s, double *gauge_field, double mu, double *r_aux);
+
+
+}  /* end of namespace cvc */
 #endif

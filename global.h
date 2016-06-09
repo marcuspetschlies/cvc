@@ -87,7 +87,6 @@ typedef struct momentum_info_struct {
   char filename[200];
 } momentum_info_type;
 
-
 EXTERN int T_global, LX_global, LY_global, LZ_global;
 EXTERN int T, L, LX, LY, LZ, VOLUME, Tstart, LXstart, LYstart, LZstart, FFTW_LOC_VOLUME, L5;
 EXTERN int RAND, EDGES, VOLUMEPLUSRAND;
@@ -97,7 +96,9 @@ EXTERN int **** g_ipt, *****g_ipt_5d;
 EXTERN int ** g_iup, **g_iup_5d;
 EXTERN int ** g_idn, **g_idn_5d;
 EXTERN int *g_lexic2eo, *g_eo2lexic, *g_iseven, *g_isevent, *g_lexic2eot, *g_eot2lexic, *g_lexic2eosub;
+EXTERN int **g_eosub2t;
 EXTERN int *g_lexic2eo_5d, *g_eo2lexic_5d, *g_iseven_5d, *g_isevent_5d, *g_lexic2eot_5d, *g_eot2lexic_5d;
+
 
 EXTERN double **g_spinor_field;
 
@@ -114,9 +115,11 @@ EXTERN int g_proc_coords[4];
 EXTERN MPI_Comm g_cart_grid;
 EXTERN MPI_Status status;
 EXTERN MPI_Comm g_ts_comm, g_xs_comm;
+EXTERN MPI_Comm g_tr_comm;
 #endif
 
 EXTERN int g_ts_id, g_ts_nproc;
+EXTERN int g_tr_id, g_tr_nproc;
 EXTERN int g_xs_id, g_xs_nproc;
 EXTERN int g_nb_t_up, g_nb_t_dn;
 EXTERN int g_nb_x_up, g_nb_x_dn;
@@ -192,7 +195,7 @@ EXTERN int g_nsample;
 EXTERN int g_sv_dim, g_cv_dim, g_fv_dim, g_cm_dim, g_fp_dim;
 EXTERN double g_as_over_a;
 EXTERN int g_num_threads;
-EXTERN int g_source_momentum[3], g_source_momentum_set;
+EXTERN int g_source_momentum[3], g_source_momentum_set, g_source_momentum_list[100][3], g_source_momentum_number;
 EXTERN int g_sink_momentum[3], g_sink_momentum_set;
 EXTERN int g_seq_source_momentum[3], g_seq_source_momentum_set, g_seq_source_momentum_list[100][3], g_seq_source_momentum_number;
 EXTERN int *g_rng_state;
@@ -206,6 +209,7 @@ EXTERN int g_mms_id;
 EXTERN int g_check_inversion;
 
 EXTERN int g_src_snk_time_separation, g_sequential_source_gamma_id, g_sequential_source_gamma_id_list[16], g_sequential_source_gamma_id_number;
+EXTERN int g_source_gamma_id, g_source_gamma_id_list[16], g_source_gamma_id_number;
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
 EXTERN tmLQCD_mpi_params g_tmLQCD_mpi;

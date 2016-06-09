@@ -69,8 +69,9 @@ int main(int argc, char **argv) {
   int no_eo_fields;
   int gsx0, gsx1, gsx2, gsx3;
   int lsx0, lsx1, lsx2, lsx3;
+  int k1, k2, k3;
 
-  double dtmp[4], norm, norm2, norm3;
+  double dtmp[2], dtmp2[2], norm;
 
   double plaq=0.;
   double *gauge_field_smeared = NULL;
@@ -85,13 +86,18 @@ int main(int argc, char **argv) {
   eigensystem_type es;
   randomvector_type rv, prv;
   perambulator_type peram;
-  unsigned int Vhalf;
+  unsigned int Vhalf, VOL3, ioffset;
   int source_proc_coords[4], source_proc_id=0;
   int l_source_location;
   double spinor1[24];
+
   double **coo_evecs = NULL, *coo_buffer=NULL;
   int coo_nev = 0, coo_prec=32;
 
+  int momentum_vector[3], momentum_number=1;
+  double *momentum_phase = NULL;
+  double phase;
+  double ***tripleV = NULL;
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
@@ -173,53 +179,65 @@ int main(int argc, char **argv) {
 
   geometry();
 
+  mpi_init_xchange_eo_spinor();
+
+
   Vhalf = VOLUME / 2;
+  VOL3 = (unsigned int)LX * LY * LZ;
 
   /* read the gauge field */
-  alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
-  sprintf(filename, "%s.%.4d", gaugefilename_prefix, Nconf);
-  if(g_cart_id==0) fprintf(stdout, "# [test_overlap] reading gauge field from file %s\n", filename);
-
-  if(strcmp(gaugefilename_prefix,"identity")==0) {
-    status = unit_gauge_field(g_gauge_field, VOLUME);
+  if (strcmp(gaugefilename_prefix, "noread")  == 0) {
+    if(g_cart_id == 0) fprintf(stdout, "# [test_overlap] NOT reading setting gauge field\n");
+    g_gauge_field = NULL;
   } else {
-    // status = read_nersc_gauge_field_3x3(g_gauge_field, filename, &plaq);
-    // status = read_ildg_nersc_gauge_field(g_gauge_field, filename);
-    status = read_lime_gauge_field_doubleprec(filename);
-    // status = read_nersc_gauge_field(g_gauge_field, filename, &plaq);
-  }
-  if(status != 0) {
-    fprintf(stderr, "[test_overlap] Error, could not read gauge field\n");
-    EXIT(11);
-  }
-  xchange_gauge();
 
-  /* measure the plaquette */
-  if(g_cart_id==0) fprintf(stdout, "# [test_overlap] read plaquette value 1st field: %25.16e\n", plaq);
-  plaquette(&plaq);
-  if(g_cart_id==0) fprintf(stdout, "# [test_overlap] measured plaquette value 1st field: %25.16e\n", plaq);
+    alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
+    sprintf(filename, "%s.%.4d", gaugefilename_prefix, Nconf);
+    if(g_cart_id==0) fprintf(stdout, "# [test_overlap] reading gauge field from file %s\n", filename);
+  
+    if(strcmp(gaugefilename_prefix,"identity")==0) {
+      status = unit_gauge_field(g_gauge_field, VOLUME);
+    } else {
+      // status = read_nersc_gauge_field_3x3(g_gauge_field, filename, &plaq);
+      // status = read_ildg_nersc_gauge_field(g_gauge_field, filename);
+      status = read_lime_gauge_field_doubleprec(filename);
+      // status = read_nersc_gauge_field(g_gauge_field, filename, &plaq);
+    }
+    if(status != 0) {
+      fprintf(stderr, "[test_overlap] Error, could not read gauge field\n");
+      EXIT(11);
+    }
+    xchange_gauge();
+  
+    /* measure the plaquette */
+    if(g_cart_id==0) fprintf(stdout, "# [test_overlap] read plaquette value 1st field: %25.16e\n", plaq);
+    plaquette(&plaq);
+    if(g_cart_id==0) fprintf(stdout, "# [test_overlap] measured plaquette value 1st field: %25.16e\n", plaq);
+  
+    if (N_hyp > 0) {
+      /* smear the gauge field */
+      status = hyp_smear_3d (g_gauge_field, N_hyp, alpha_hyp, 0, 0);
+      if(status != 0) {
+        fprintf(stderr, "[test_overlap] Error from hyp_smear_3d, status was %d\n", status);
+        EXIT(7);
+      }
+  
+      plaquette(&plaq);
+      if(g_cart_id==0) fprintf(stdout, "# [test_overlap] measured plaquette value ofter hyp smearing = %25.16e\n", plaq);
+   
+      sprintf(filename, "%s_hyp.%.4d", gaugefilename_prefix, Nconf);
+      if(g_cart_id==0) fprintf(stdout, "# [test_overlap] writing hyp-smeared gauge field to file %s\n", filename);
+   
+      status = write_lime_gauge_field(filename, plaq, Nconf, 64);
+      if(status != 0) {
+        fprintf(stderr, "[apply_lapace] Error friom write_lime_gauge_field, status was %d\n", status);
+        EXIT(7);
+      }
+    }  /* of if N_hyp > 0 */
+
+  }  /* end of if gaugefilename_prefix == noread */
 
 #if 0
-  /* smear the gauge field */
-  status = hyp_smear_3d (g_gauge_field, N_hyp, alpha_hyp, 0, 0);
-  if(status != 0) {
-    fprintf(stderr, "[test_overlap] Error from hyp_smear_3d, status was %d\n", status);
-    EXIT(7);
-  }
-
-  plaquette(&plaq);
-  if(g_cart_id==0) fprintf(stdout, "# [test_overlap] measured plaquette value ofter hyp smearing = %25.16e\n", plaq);
-
-  sprintf(filename, "%s_hyp.%.4d", gaugefilename_prefix, Nconf);
-  if(g_cart_id==0) fprintf(stdout, "# [test_overlap] writing hyp-smeared gauge field to file %s\n", filename);
-
-  status = write_lime_gauge_field(filename, plaq, Nconf, 64);
-  if(status != 0) {
-    fprintf(stderr, "[apply_lapace] Error friom write_lime_gauge_field, status was %d\n", status);
-    EXIT(7);
-  }
-#endif
-
   /* init and allocate spinor fields */
   no_fields = 3;
   g_spinor_field = (double**)calloc(no_fields, sizeof(double*));
@@ -228,9 +246,9 @@ int main(int argc, char **argv) {
   no_eo_fields = 5;
   eo_spinor_field = (double**)calloc(no_eo_fields, sizeof(double*));
   for(i=0; i<no_eo_fields; i++) alloc_spinor_field(&eo_spinor_field[i], (VOLUME+RAND)/2);
-
+#endif
   /* init_eigensystem(&es); */
-#if 0
+
   status = alloc_eigensystem (&es, T, laphs_eigenvector_number);
   if(status != 0) {
     fprintf(stderr, "[test_overlap] Error from alloc_eigensystem, status was %d\n", status);
@@ -339,24 +357,50 @@ int main(int argc, char **argv) {
 #endif
   if(source_proc_id == g_cart_id) {
     fprintf(stdout, "# [test_overlap] process %d has the source at %d with local coordinates = (%d, %d, %d, %d)\n", source_proc_id, l_source_location, lsx0, lsx1, lsx2, lsx3);
-  }
-#endif
 
-#if 0
-  xchange_field(g_spinor_field[0]);
-  Q_phi(g_spinor_field[1], g_spinor_field[0], g_mu);
-#endif
+  momentum_phase = (double*)malloc(2*VOL3 * sizeof(double));
+  if(momentum_phase == NULL) {
+    fprintf(stderr, "[] Error, could not allocate momentum_phase\n");
+    EXIT(7);
+  }
+  momentum_vector[0] = 0;
+  momentum_vector[1] = 0;
+  momentum_vector[2] = 0;
+  for(x1=0; x1<LX; x1++) {
+    y1 = x1 + g_proc_coords[1] * LX;
+  for(x2=0; x2<LY; x2++) {
+    y2 = x2 + g_proc_coords[2] * LY;
+  for(x3=0; x3<LZ; x3++) {
+    y3 = x3 + g_proc_coords[3] * LZ;
 
-#if 0
-  if(source_proc_id == g_cart_id) {
-    g_spinor_field[1][_GSI( g_ipt[lsx0][lsx1][lsx2][lsx3] )] -= 1.;
+    ix = g_ipt[0][x1][x2][x3];
+
+    phase = 2 * M_PI * ( 
+        momentum_vector[0] * y1 / LX_global +
+        momentum_vector[1] * y2 / LY_global +
+        momentum_vector[2] * y3 / LZ_global );
+
+    momentum_phase[2*ix  ] = cos( phase );
+    momentum_phase[2*ix+1] = sin( phase );
+  }}}
+
+  /* TEST */
+  for(ix=0; ix<VOL3; ix++) {
+    fprintf(stdout, "\tmomentum_phase[%6d] = %26.16e + I %25.16e\n", ix, momentum_phase[2*ix], momentum_phase[2*ix+1]);
+
   }
 
-  spinor_scalar_product_re(&norm, g_spinor_field[1], g_spinor_field[1],VOLUME);
-  spinor_scalar_product_re(&norm2, g_spinor_field[0], g_spinor_field[0],VOLUME);
-  if(g_cart_id == 0) {
-    fprintf(stdout, "# [test_overlap] lexic norm = %e; norm2 = %e\n", sqrt(norm), sqrt(norm2));
+  tripleV = (double***)malloc(T*sizeof(double**));
+  if(tripleV == NULL) {
+    fprintf(stderr, "[] Error, could not allocate tripleV\n");
+    EXIT(80);
   }
+  tripleV[0] = (double**)malloc(T*momentum_number*sizeof(double*));
+  if(tripleV[0] == NULL) {
+    fprintf(stderr, "[] Error, could not allocate tripleV\n");
+    EXIT(81);
+  }
+
 #endif
 
   /* decompose into even and odd part */
@@ -367,117 +411,136 @@ int main(int argc, char **argv) {
   Hopping_eo(eo_spinor_field[2], eo_spinor_field[1], g_gauge_field, 0);
   Hopping_eo(eo_spinor_field[3], eo_spinor_field[0], g_gauge_field, 1);
 
-  /* combine eo to lexic */
-  spinor_field_eo2lexic(g_spinor_field[2], eo_spinor_field[2], eo_spinor_field[3]);
-#endif
+  for(i=1; i<T; i++) {
+    tripleV[i] = tripleV[i-1] + momentum_number;
+  }
+  /* items = laphs_eigenvector_number * (laphs_eigenvector_number-1) * (laphs_eigenvector_number-2) / 6; */
+  items = laphs_eigenvector_number * laphs_eigenvector_number * laphs_eigenvector_number;
 
-#if 0
-#ifdef HAVE_MPI
-  xchange_field(g_spinor_field[0]);
-#endif
-  Hopping(g_spinor_field[1], g_spinor_field[0]);
 
-  sprintf( filename, "Hopping_comp_proc%.2d", g_cart_id);
-  ofs = fopen(filename, "w");
-
-  for(ix=0; ix<VOLUME; ix++) {
-
-    _fv_eq_fv_mi_fv(spinor1, g_spinor_field[1]+_GSI(ix), g_spinor_field[2]+_GSI(ix));
-    _co_eq_fv_dag_ti_fv(&w, spinor1, spinor1);
-    fprintf(ofs, "proc%.2d %8d %16.7e %16.7e\n", g_cart_id, ix, w.re, w.im);
-
-/*
-    fprintf(ofs, "# proc%.2d ix = %8d\n", g_cart_id, ix);
-    for(i=0; i<12; i++) {
-      fprintf(ofs,"proc%.2d %3d%16.7e%17.7e\t%16.7e%16.7e\n", g_cart_id, i,
-          g_spinor_field[1][_GSI(ix)+2*i], g_spinor_field[1][_GSI(ix)+2*i+1],
-          g_spinor_field[2][_GSI(ix)+2*i], g_spinor_field[2][_GSI(ix)+2*i+1]);
+  tripleV[0][0] = (double*)malloc(T*momentum_number*items*2*sizeof(double));
+  if(tripleV[0][0] == NULL) {
+    fprintf(stderr, "[] Error, could not allocate tripleV[0][0]\n");
+    EXIT(82);
+  }
+  k1 = 0;
+  for(i=0; i<T; i++) {
+    for(j=0; j<momentum_number; j++) {
+      if (k1 == 0) {
+        k1++;
+        continue;
+      }
+      tripleV[i][j] = tripleV[0][0] + 2 * items * k1;
+      k1++;
     }
+  }
+
+
+  /* triple product and projection to momentum */
+  for(x0 = 0; x0<T; x0++) {
+    is = 0;
+  /*
+    for(k1 = 0; k1<laphs_eigenvector_number-2; k1++) {
+      for(k2 = k1+1; k2<laphs_eigenvector_number-1; k2++) {
+        for(k3 = k2+1; k3<laphs_eigenvector_number; k3++) {
+   */    
+    for(k1 = 0; k1<laphs_eigenvector_number; k1++) {
+      for(k2 = 0; k2<laphs_eigenvector_number; k2++) {
+        for(k3 = 0; k3<laphs_eigenvector_number; k3++) {
+          dtmp2[0] = 0.;
+          dtmp2[1] = 0.;
+          for(ix=0; ix<VOL3; ix++) {
+            ioffset = _GVI(ix);
+            _co_eq_cv_dot_cv_cross_cv (dtmp, &(es.v[x0][k1][ioffset]), &(es.v[x0][k2][ioffset]), &(es.v[x0][k3][ioffset]) );
+
+            dtmp2[0] += momentum_phase[2*ix  ] * dtmp[0] - momentum_phase[2*ix+1] * dtmp[1];
+            dtmp2[1] += momentum_phase[2*ix  ] * dtmp[1] + momentum_phase[2*ix+1] * dtmp[0];
+          }
+
+          tripleV[x0][0][2*is  ] = dtmp2[0];
+          tripleV[x0][0][2*is+1] = dtmp2[1];
+
+          is++;
+
+        }  /* end of loop on k3 */
+      }    /* end of loop on k2 */
+    }      /* end of loop on k1 */
+
+  }  /* end of loop on x0 */
+
+  /* TEST */
+  /* write tripleV to file */
+  sprintf(filename, "tripleV.%.4d.px%.2dpy%.2dpz%.2d.%.2d", Nconf, momentum_vector[0], momentum_vector[1], momentum_vector[2], g_cart_id);
+  ofs = fopen(filename, "w");
+  fprintf(ofs, "# [] number of eigenvectors = %d\n# [] number of timeslices = %d\n# [] momentum vector = %3d %3d %3d\n", laphs_eigenvector_number, T, momentum_vector[0], momentum_vector[1], momentum_vector[2]);
+  for(x0 = 0; x0<T; x0++) {
+    is = 0;
+/*
+    for(k1 = 0; k1<laphs_eigenvector_number-2; k1++) {
+      for(k2 = k1+1; k2<laphs_eigenvector_number-1; k2++) {
+        for(k3 = k2+1; k3<laphs_eigenvector_number; k3++) {
 */
+
+    for(k1 = 0; k1<laphs_eigenvector_number; k1++) {
+      for(k2 = 0; k2<laphs_eigenvector_number; k2++) {
+        for(k3 = 0; k3<laphs_eigenvector_number; k3++) {
+
+          fprintf(ofs, "%3d\t%3d%3d%3d\t%25.16e%25.16e\n", x0, k1, k2, k3, tripleV[x0][0][2*is], tripleV[x0][0][2*is+1]);
+          is++; 
+        }
+      }
+    }
   }
   fclose(ofs);
-#endif
 
-#if 0
-  /* apply Q on even-odd decomposed field */
-  Q_phi_eo( eo_spinor_field[2], eo_spinor_field[3], eo_spinor_field[0], eo_spinor_field[1], g_gauge_field, g_mu, eo_spinor_field[4]);
 
-  if(source_proc_id == g_cart_id) {
-    ix = l_source_location;
-    fprintf(stdout, "# [test_overlap] g_lexic2eosub = %d, g_lexic2eo = %d, VOUME = %d, RAND = %d\n", g_lexic2eosub[ix], g_lexic2eo[ix], VOLUME, RAND);
-    if(g_iseven[ix]) {
-      eo_spinor_field[2][+_GSI(g_lexic2eosub[ix]) ] -= 1.;
-    } else {
-      eo_spinor_field[3][+_GSI(g_lexic2eosub[ix]) ] -= 1.;
+  /* free the allocated fields */
+  if(momentum_phase != NULL) free(momentum_phase);
+  if(tripleV        != NULL) {
+    if(tripleV[0] != NULL ) {
+      if(tripleV[0][0] != NULL) {
+        free(tripleV[0][0]);
+      }
+      free(tripleV[0]);
     }
+    free(tripleV);
   }
 
-  spinor_scalar_product_re(&norm,  eo_spinor_field[2], eo_spinor_field[2], Vhalf);
-  spinor_scalar_product_re(&norm2, eo_spinor_field[3], eo_spinor_field[3], Vhalf);
-  if(g_cart_id == 0) fprintf(stdout, "# [test_overlap] eo norm = %e; norm2 = %e, sum = %e\n", sqrt(norm), sqrt(norm2), sqrt(norm + norm2));
 
-  spinor_field_eo2lexic(g_spinor_field[2], eo_spinor_field[2], eo_spinor_field[3]);
-  for(ix=0; ix<VOLUME; ix++) {
-    _fv_mi_eq_fv(g_spinor_field[1]+_GSI(ix), g_spinor_field[2]+_GSI(ix));
-  }
-  spinor_scalar_product_re(&norm,  g_spinor_field[1], g_spinor_field[1], VOLUME);
-  if(g_cart_id == 0) fprintf(stdout, "# [test_overlap] eo2lexic norm = %e\n", sqrt(norm));
-
-#endif
-
+  /***********************************************
+   * read eo eigenvector
+   ***********************************************/
 #if 0
-  /* apply Q in Schur-decompositon on even-odd decomosed field */
+  strcpy(filename, filename_prefix);
+  if(g_cart_id == 0) fprintf(stdout, "# [test_overlap] reading C_oo_sym eigenvector from file %s\n", filename);
 
-#ifdef HAVE_MPI
-  xchange_eo_field( eo_spinor_field[0], 0);
-  xchange_eo_field( eo_spinor_field[1], 1);
-#endif
-
-  Q_eo_SchurDecomp_B (eo_spinor_field[2], eo_spinor_field[3], eo_spinor_field[0], eo_spinor_field[1], g_gauge_field, g_mu, eo_spinor_field[4]);
-
-#ifdef HAVE_MPI
-  xchange_eo_field(eo_spinor_field[2], 0);
-  xchange_eo_field(eo_spinor_field[3], 1);
-#endif
-
-  Q_eo_SchurDecomp_A (eo_spinor_field[0], eo_spinor_field[1], eo_spinor_field[2], eo_spinor_field[3], g_gauge_field, g_mu, eo_spinor_field[4]);
-#endif
-#if 0
-  if(source_proc_id == g_cart_id) {
-    ix = l_source_location;
-    fprintf(stdout, "# [test_overlap] g_lexic2eosub = %d, g_lexic2eo = %d, VOUME = %d, RAND = %d\n", g_lexic2eosub[ix], g_lexic2eo[ix], VOLUME, RAND);
-    if(g_iseven[ix]) {
-      eo_spinor_field[0][+_GSI(g_lexic2eosub[ix]) ] -= 1.;
-    } else {
-      eo_spinor_field[1][+_GSI(g_lexic2eosub[ix]) ] -= 1.;
-    }
+  status = read_lime_spinor(g_spinor_field[0], filename, 0);
+  if( status != 0) {
+    fprintf(stderr, "[test_overlap] Error from read_lime_spinor, status was %d\n");
+    EXIT(1);
   }
-
-  spinor_scalar_product_re(&norm,  eo_spinor_field[0], eo_spinor_field[0], Vhalf);
-  spinor_scalar_product_re(&norm2, eo_spinor_field[1], eo_spinor_field[1], Vhalf);
-  if(g_cart_id == 0) fprintf(stdout, "# [test_overlap] eo norm = %e; norm2 = %e, sum = %e\n", sqrt(norm), sqrt(norm2), sqrt(norm + norm2));
-#endif
-#if 0
-  spinor_field_eo2lexic(g_spinor_field[2], eo_spinor_field[0], eo_spinor_field[1]);
-
-  for(ix=0; ix<VOLUME; ix++) {
-    _fv_eq_gamma_ti_fv(spinor1, 5, g_spinor_field[2]+_GSI(ix));
-    _fv_mi_eq_fv(g_spinor_field[1]+_GSI(ix), spinor1);
-  }
-  spinor_scalar_product_re(&norm,  g_spinor_field[1], g_spinor_field[1], VOLUME);
-  if(g_cart_id == 0) fprintf(stdout, "# [test_overlap] eo2lexic norm = %e\n", sqrt(norm));
-#endif
 
 
   /* copy first eigenvector to eo_spinor_field */
   memcpy(eo_spinor_field[0],  coo_evecs[0], VOLUME*12*sizeof(double));
 
   /* apply C^+ C^- */
+
   xchange_eo_field( eo_spinor_field[0], 1);
 #if 0
   C_oo(eo_spinor_field[1], eo_spinor_field[0], g_gauge_field, -g_mu, eo_spinor_field[4]);
   xchange_eo_field( eo_spinor_field[1], 1);
   C_oo(eo_spinor_field[2], eo_spinor_field[1], g_gauge_field,  g_mu, eo_spinor_field[4]);
+
+
+  xchange_eo_field( eo_spinor_field[1], 1);
+
+  C_oo(eo_spinor_field[2], eo_spinor_field[1], g_gauge_field, -g_mu, eo_spinor_field[4]);
+
+  xchange_eo_field( eo_spinor_field[2], 1);
+
+  C_oo(eo_spinor_field[3], eo_spinor_field[2], g_gauge_field,  g_mu, eo_spinor_field[4]);
+
 
   norm = 4 * g_kappa * g_kappa;
   for(ix=0; ix<Vhalf; ix++ ) {
@@ -490,6 +553,7 @@ int main(int argc, char **argv) {
   if(g_cart_id == 0) {
     fprintf(stdout, "# [] eigenvalue = %16.7e %16.7e; norm = %16.7e\n", w.re / norm, w.im / norm, sqrt(norm));
   }
+
 #endif
 #if 0
   for(ix=0; ix<Vhalf; ix++ )
@@ -540,13 +604,15 @@ int main(int argc, char **argv) {
     fprintf(ofs, "proc%.2d %8d \t x=%8d  x0=%2d x1=%2d x2=%2d x3=%2d \t y=%8d y0=%2d y1=%2d y2=%2d y3=%2d\n", g_cart_id, ix, i, x0, x1, x2, x3, j, y0, y1, y2, y3);
   }
   fclose(ofs);
+
+
 #endif
 
   /***********************************************
    * free the allocated memory, finalize 
    ***********************************************/
 
-  /* fini_eigensystem (&es); */
+  fini_eigensystem (&es);
 
 
   free(g_gauge_field);
@@ -558,8 +624,15 @@ int main(int argc, char **argv) {
 
   free_geometry();
 
+
   if(coo_evecs != NULL) free(coo_evecs);
   if(coo_buffer != NULL) free(coo_buffer);
+
+
+#ifdef HAVE_MPI
+  mpi_fini_xchange_eo_spinor();
+  mpi_fini_datatypes();
+#endif
 
 
   if (g_cart_id == 0) {
@@ -572,7 +645,6 @@ int main(int argc, char **argv) {
 
 
 #ifdef HAVE_MPI
-  mpi_fini_datatypes();
   MPI_Finalize();
 #endif
 

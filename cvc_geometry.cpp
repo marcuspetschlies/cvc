@@ -303,6 +303,39 @@ void geometry() {
     itzyx++;
   }}}}
 
+  /* set projection of eosub to t value */
+  for(x0=-start_valuet; x0<T +start_valuet; x0++) {
+    for(x1=-start_valuex; x1<LX+start_valuex; x1++) {
+      for(x2=-start_valuey; x2<LY+start_valuey; x2++) {
+        for(x3=-start_valuez; x3<LZ+start_valuez; x3++) {
+
+          isboundary = 0;
+          if(x0==-1 || x0== T) isboundary++;
+          if(x1==-1 || x1==LX) isboundary++;
+          if(x2==-1 || x2==LY) isboundary++;
+          if(x3==-1 || x3==LZ) isboundary++;
+
+          y0=x0; y1=x1; y2=x2; y3=x3;
+          if(x0==-1) y0=T +1;
+          if(x1==-1) y1=LX+1;
+          if(x2==-1) y2=LY+1;
+          if(x3==-1) y3=LZ+1;
+
+          if(isboundary > 1) {
+            continue;
+          }
+
+          ix = g_ipt[y0][y1][y2][y3];
+          g_eosub2t[1 - g_iseven[ix]][g_lexic2eosub[ix]] = y0;
+          /* TEST */
+          /* fprintf(stdout, "\t%2d\t%3d %3d %3d %3d\t%3d %3d %3d %3d\t%8d\n", g_cart_id, x0, x1, x2, x3, y0, y1, y2, y3, g_lexic2eosub[ix]); */
+
+        }
+      }
+    }
+  }
+
+
 /*
     for(x0=-start_valuet; x0< T+start_valuet; x0++) {
     for(x1=-start_valuex; x1<LX+start_valuex; x1++) {
@@ -454,7 +487,17 @@ int init_geometry(void) {
   if(g_iseven == NULL) return(12);
 
   g_isevent = (int*)calloc(V, sizeof(int));
-  if(g_isevent == NULL) return(12);
+  if(g_isevent == NULL) return(14);
+
+  /* eo sub index to t */
+
+  g_eosub2t = (int**)calloc(2, sizeof(int*));
+  if(g_eosub2t == NULL) return(15);
+
+  g_eosub2t[0] = (int*)calloc(V, sizeof(int));
+  if(g_eosub2t[0] == NULL) return(16);
+  g_eosub2t[1] = g_eosub2t[0] + V/2;
+
 
 
   /* initialize the boundary condition */

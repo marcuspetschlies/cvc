@@ -180,6 +180,7 @@ void set_default_input_values(void) {
   g_source_momentum[1] = _default_source_momentum_y;
   g_source_momentum[2] = _default_source_momentum_z;
   g_source_momentum_set = _default_source_momentum_set;
+  g_source_momentum_number = _default_source_momentum_number;
 
   g_sink_momentum[0] = _default_sink_momentum_x;
   g_sink_momentum[1] = _default_sink_momentum_y;
@@ -209,6 +210,7 @@ void set_default_input_values(void) {
   g_check_inversion = _default_check_inversion;
 
   g_src_snk_time_separation = _default_src_snk_time_separation;
+
   g_sequential_source_gamma_id = _default_seq_source_gamma_id;
   g_sequential_source_gamma_id_list[ 0] = _default_seq_source_gamma_id;
   g_sequential_source_gamma_id_list[ 1] = _default_seq_source_gamma_id;
@@ -228,6 +230,24 @@ void set_default_input_values(void) {
   g_sequential_source_gamma_id_list[15] = _default_seq_source_gamma_id;
 
   g_sequential_source_gamma_id_number = _default_seq_source_gamma_id_number;
+
+  g_source_gamma_id_number = _default_source_gamma_id_number;
+  g_source_gamma_id_list[ 0] = _default_source_gamma_id;
+  g_source_gamma_id_list[ 1] = _default_source_gamma_id;
+  g_source_gamma_id_list[ 2] = _default_source_gamma_id;
+  g_source_gamma_id_list[ 3] = _default_source_gamma_id;
+  g_source_gamma_id_list[ 4] = _default_source_gamma_id;
+  g_source_gamma_id_list[ 5] = _default_source_gamma_id;
+  g_source_gamma_id_list[ 6] = _default_source_gamma_id;
+  g_source_gamma_id_list[ 7] = _default_source_gamma_id;
+  g_source_gamma_id_list[ 8] = _default_source_gamma_id;
+  g_source_gamma_id_list[ 9] = _default_source_gamma_id;
+  g_source_gamma_id_list[10] = _default_source_gamma_id;
+  g_source_gamma_id_list[11] = _default_source_gamma_id;
+  g_source_gamma_id_list[12] = _default_source_gamma_id;
+  g_source_gamma_id_list[13] = _default_source_gamma_id;
+  g_source_gamma_id_list[14] = _default_source_gamma_id;
+  g_source_gamma_id_list[15] = _default_source_gamma_id;
 
   strcpy( laphs_time_proj_type ,  _default_laphs_time_proj_type);
   strcpy( laphs_spin_proj_type ,  _default_laphs_spin_proj_type);

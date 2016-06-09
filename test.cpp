@@ -20,6 +20,7 @@
 #  include <omp.h>
 #endif
 #include <getopt.h>
+#include "ranlxd.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -71,6 +72,8 @@ int main(int argc, char **argv) {
   char filename[100];
   /* double ratime, retime; */
   double plaq;
+  double spinor1[24], spinor2[24], spinor3[24];
+  double dtmp[2];
   /* double *phi=NULL, *chi=NULL; */
   /* complex w, w1; */
   /* FILE *ofs; */
@@ -150,7 +153,36 @@ int main(int argc, char **argv) {
 
   geometry();
 
+#if 0
+  ranlxd(spinor1, 24);
+  ranlxd(spinor2, 24);
+  _fv_eq_fv(spinor3, spinor1);
+  ranlxd(dtmp, 2);
+  /* _fv_eq_a_pl_ib_g5_ti_fv(spinor2, spinor1, dtmp[0], dtmp[1]); */
+  /* _fv_pl_eq_a_pl_ib_g5_ti_fv(spinor1, spinor2, dtmp[0], dtmp[1]); */
+  /* _fv_pl_eq_a_g5_pl_ib_ti_fv(spinor1, spinor2, dtmp[0], dtmp[1]); */
 
+  fprintf(stdout, "a <- %25.16e;  b <- %25.16e;\n", dtmp[0], dtmp[1]);
+  for(i=0; i<12; i++) {
+    fprintf(stdout, "s1[%d,%d] <- %25.16e+1.i*%25.16e; s3[%d,%d] <- %25.16e+1.i*%25.16e; s2[%d,%d] <- %25.16e+1.i*%25.16e\n", 
+        i/3+1, i%3+1, spinor3[2*i], spinor3[2*i+1],
+        i/3+1, i%3+1, spinor1[2*i], spinor1[2*i+1],
+        i/3+1, i%3+1, spinor2[2*i], spinor2[2*i+1]);
+  }
+
+/*
+  _fv_eq_fv(spinor2, spinor1);
+  _fv_ti_eq_g5 (spinor2);
+  _fv_eq_gamma_ti_fv(spinor3, 5, spinor1);
+  for(i=0; i<12; i++) {
+    fprintf(stdout, "\t%3d%25.16e%25.16e\t%25.16e%25.16e\n", i, spinor2[2*i], spinor2[2*i+1], spinor3[2*i], spinor3[2*i+1]);
+  }
+*/
+#endif
+   
+
+
+#if 0
 
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
@@ -267,7 +299,7 @@ int main(int argc, char **argv) {
     for(i=0; i<no_fields; i++) free(g_spinor_field[i]);
     free(g_spinor_field);
   }
-
+#endif
 
   free_geometry();
 
