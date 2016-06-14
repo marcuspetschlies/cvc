@@ -16,7 +16,7 @@
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
 #  include <omp.h>
 #endif
 #include <getopt.h>
@@ -158,7 +158,7 @@ int main(int argc, char **argv) {
   /*********************************
    * set number of openmp threads
    *********************************/
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
   omp_set_num_threads(g_num_threads);
 #endif
 
@@ -591,12 +591,12 @@ int main(int argc, char **argv) {
         {
 
           imunu = 4*mu+nu;
-/* #ifdef OPENMP */
+/* #ifdef HAVE_OPENMP */
 /* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
 /* #endif */
           for(ix=0; ix<VOLUME; ix++) {
 /*
-#  ifdef OPENMP
+#  ifdef HAVE_OPENMP
             threadid = omp_get_thread_num();
             nthreads = omp_get_num_threads();
             fprintf(stdout, "[thread%d] number of threads = %d\n", threadid, nthreads);
@@ -621,7 +621,7 @@ int main(int argc, char **argv) {
         
           }  /* of ix */
 
-/* #ifdef OPENMP */
+/* #ifdef HAVE_OPENMP */
 /* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
 /* #endif */
           for(ix=0; ix<VOLUME; ix++) {
@@ -659,7 +659,7 @@ int main(int argc, char **argv) {
 
           imunu = 4*mu+nu;
 
-/* #ifdef OPENMP */
+/* #ifdef HAVE_OPENMP */
 /* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
 /* #endif */
           for(ix=0; ix<VOLUME; ix++) {
@@ -676,7 +676,7 @@ int main(int argc, char **argv) {
 
           }  /* of ix */
 
-/* #ifdef OPENMP */
+/* #ifdef HAVE_OPENMP */
 /* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
 /* #endif */
           for(ix=0; ix<VOLUME; ix++) {
@@ -739,7 +739,7 @@ int main(int argc, char **argv) {
 
           imunu = 4*mu+nu;
 
-/* #ifdef OPENMP */
+/* #ifdef HAVE_OPENMP */
 /* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
 /* #endif */
           for(ix=0; ix<VOLUME; ix++) {
@@ -761,7 +761,7 @@ int main(int argc, char **argv) {
         
           }  /* of ix */
 
-/* #ifdef OPENMP */
+/* #ifdef HAVE_OPENMP */
 /* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
 /* #endif */
           for(ix=0; ix<VOLUME; ix++) {
@@ -799,7 +799,7 @@ int main(int argc, char **argv) {
 
           imunu = 4*mu+nu;
 
-/* #ifdef OPENMP */
+/* #ifdef HAVE_OPENMP */
 /* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
 /* #endif */
           for(ix=0; ix<VOLUME; ix++) {
@@ -816,7 +816,7 @@ int main(int argc, char **argv) {
         
           }  /* of ix */
 
-/* #ifdef OPENMP */
+/* #ifdef HAVE_OPENMP */
 /* #pragma omp parallel for private(ix, spinor1, spinor2, U_, w, w1)  shared(imunu, ia, ib, nu, mu) */
 /* #endif */
           for(ix=0; ix<VOLUME; ix++) {
@@ -856,7 +856,7 @@ int main(int argc, char **argv) {
   }
 
   /* normalisation of contractions */
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
   for(ix=0; ix<32*VOLUME; ix++) conn[ix] *= -0.25;

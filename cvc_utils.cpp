@@ -11,6 +11,9 @@
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
+#ifdef HAVE_OPENMP
+#include <omp.h>
+#endif
 
 #include "cvc_complex.h"
 #include "global.h"
@@ -3215,7 +3218,7 @@ void contract_twopoint(double *contr, const int idsource, const int idsink, doub
 /*****************************************************************************************************************
  * contraction of meson 2-point functions with sink momentum
  *****************************************************************************************************************/
-#ifndef OPENMP
+#ifndef HAVE_OPENMP
 void contract_twopoint_snk_momentum(double *contr, const int idsource, const int idsink, double **chi, double **phi, int n_c, int* snk_mom) {
 
   int x0, x1, x2, x3, ix, iix, psource[4], tt=0, isimag, mu, c, j;
@@ -3424,7 +3427,7 @@ void contract_twopoint_snk_momentum(double *contr, const int idsource, const int
  * contraction of meson 2-point functions with sink momentum and for a time interval
  * - 0 <= tmin, tmax <= T-1
  *****************************************************************************************************************/
-#ifndef OPENMP
+#ifndef HAVE_OPENMP
 void contract_twopoint_snk_momentum_trange(double *contr, const int idsource, const int idsink, double **chi, double **phi, int n_c, int* snk_mom, int tmin, int tmax) {
 
   int x0, x1, x2, x3, ix, iix, psource[4], tt=0, isimag, mu, c, j;
@@ -4981,5 +4984,30 @@ void spinor_field_unpack_lexic2eo (double *r_lexic, double*r_o1, double *r_o2) {
   }
 }  /* end of spinor_field_unpack_lexic2eo */
 
+
+/***********************************************************
+ * r -= c * s
+ ***********************************************************/
+void spinor_field_mi_eq_spinor_field_ti_re(double*r, double*s, double c, unsigned int N) {
+
+  const int nthreads = g_num_threads;
+
+  unsigned int ix;
+  int threadid = 0;
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel default(shared) private(ix,threadid) firstprivate(N,nthreads) shared(r,s,c)
+{
+  threadid = omp_get_thread_num();
+#endif
+
+  for(ix = threadid; ix < N; ix += nthreads) {
+    _fv_mi_eq_fv_ti_re(r + _GSI(ix), s + _GSI(ix), c);
+  }
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+}  /* end of spinor_field_mi_eq_spinor_field_ti_re */
 
 }  /* end of namespace cvc */

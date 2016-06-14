@@ -17,7 +17,7 @@
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
 #  include <omp.h>
 #endif
 #include "ifftw.h"
@@ -125,7 +125,7 @@ int main(int argc, char **argv) {
   /*********************************
    * set number of openmp threads
    *********************************/
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
   omp_set_num_threads(g_num_threads);
 #endif
 
@@ -152,7 +152,7 @@ int main(int argc, char **argv) {
   /*******************************
    * initialize fftw
    *******************************/
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
   exitstatus = fftw_threads_init();
   if(exitstatus != 0) {
     fprintf(stderr, "[p2gg_pspace] Error from fftw_init_threads; status was %d\n", exitstatus);
@@ -337,7 +337,7 @@ int main(int argc, char **argv) {
 #ifdef HAVE_MPI
     fftwnd_mpi(plan_p, 1, in, NULL, FFTW_NORMAL_ORDER);
 #else
-#  ifdef OPENMP
+#  ifdef HAVE_OPENMP
     fftwnd_threads_one(num_threads, plan_p, in, NULL);
 #  else
     fftwnd_one(plan_p, in, NULL);

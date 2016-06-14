@@ -16,7 +16,7 @@
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
 #  include <omp.h>
 #endif
 #include <getopt.h>
@@ -135,7 +135,7 @@ int main(int argc, char **argv) {
   /*********************************
    * set number of openmp threads
    *********************************/
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
   omp_set_num_threads(g_num_threads);
 #endif
 

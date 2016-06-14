@@ -18,7 +18,7 @@
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
 
@@ -75,7 +75,7 @@ int main(int argc, char **argv) {
   int filename_set = 0;
   int ix, iix, x0, x1, x2, x3;
   int isource_momentum, isource_gamma_id;
-  /* int threadid, nthreads; */
+  int threadid, nthreads;
   int no_eo_fields;
   int evecs_num=0;
 
@@ -145,7 +145,7 @@ int main(int argc, char **argv) {
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
 
-  fprintf(stdout, "# [p2gg_xspace] calling tmLQCD wrapper init functions\n");
+  fprintf(stdout, "# [calculate_gsp] calling tmLQCD wrapper init functions\n");
 
   /*********************************
    * initialize MPI parameters for cvc
@@ -179,6 +179,23 @@ int main(int argc, char **argv) {
 
 
   Vhalf = VOLUME / 2;
+
+#ifdef HAVE_OPENMP
+  if(g_cart_id == 0) fprintf(stdout, "[calculate_gsp] setting omp number of threads to %d\n", g_num_threads);
+  omp_set_num_threads(g_num_threads);
+#pragma omp parallel private(nthreads,threadid)
+{
+  threadid = omp_get_thread_num();
+  nthreads = omp_get_num_threads();
+  fprintf(stdout, "# [calculate_gsp] proc%.4d thread%.4d using %d threads\n", g_cart_id, threadid, nthreads);
+}
+#else
+  if(g_cart_id == 0) fprintf(stdout, "[calculate_gsp] Warning, resetting global thread number to 1\n");
+  g_num_threads = 1;
+#endif
+
+
+
 
   if (evecs_num == 0) {
     if(g_cart_id==0) fprintf(stderr, "[calculate_gsp] eigenspace dimension is 0\n");
@@ -296,9 +313,8 @@ int main(int argc, char **argv) {
   
   
       /* check evec equation */
-      for(ix=0; ix<Vhalf; ix++) {
-        _fv_mi_eq_fv_ti_re(eo_spinor_work2+_GSI(ix), eo_spinor_field[ievecs]+_GSI(ix), evecs_lambda);
-      }
+      spinor_field_mi_eq_spinor_field_ti_re(eo_spinor_work2, eo_spinor_field[ievecs], evecs_lambda, Vhalf);
+
       spinor_scalar_product_re(&norm, eo_spinor_work2, eo_spinor_work2, Vhalf);
       if(g_cart_id == 0) {
         fprintf(stdout, "# [calculate_gsp] eigenvector(%d) || A x - lambda x || = %16.7e\n", ievecs, sqrt(norm) );
@@ -376,25 +392,7 @@ int main(int argc, char **argv) {
     momentum_ratime = _GET_TIME;
 
     /* make phase field in eo ordering */
-    for(x0=0; x0<T; x0++) {
-      for(x1=0; x1<LX; x1++) {
-      for(x2=0; x2<LY; x2++) {
-      for(x3=0; x3<LZ; x3++) {
-        ix  = g_ipt[x0][x1][x2][x3];
-        iix = g_lexic2eosub[ix];
-        dtmp = 2. * M_PI * (
-            (x1 + g_proc_coords[1]*LX) * g_source_momentum[0] / (double)LX_global +
-            (x2 + g_proc_coords[2]*LY) * g_source_momentum[1] / (double)LY_global +
-            (x3 + g_proc_coords[3]*LZ) * g_source_momentum[2] / (double)LZ_global );
-        if(g_iseven[ix]) {
-          phase_e[2*iix  ] = cos(dtmp);
-          phase_e[2*iix+1] = sin(dtmp);
-        } else {
-          phase_o[2*iix  ] = cos(dtmp);
-          phase_o[2*iix+1] = sin(dtmp);
-        }
-      }}}
-    }
+    gsp_make_eo_phase_field (phase_e, phase_o, g_source_momentum);
 
     for(isource_gamma_id=0; isource_gamma_id < g_source_gamma_id_number; isource_gamma_id++) {
       if(g_cart_id == 0) fprintf(stdout, "# [calculate_gsp] using source gamma id %d\n", g_source_gamma_id_list[isource_gamma_id]);
@@ -446,7 +444,7 @@ int main(int argc, char **argv) {
 
 #if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ)
 
-      fprintf(stdout, "# [] proc%.2d g_tr_id = %d; g_tr_nproc =%d\n", g_cart_id, g_tr_id, g_tr_nproc);
+      fprintf(stdout, "# [calculate_gsp] proc%.2d g_tr_id = %d; g_tr_nproc =%d\n", g_cart_id, g_tr_id, g_tr_nproc);
       MPI_Allgather(gsp[isource_momentum][isource_gamma_id][0][0], k, MPI_DOUBLE, gsp_buffer[0][0][0][0], k, MPI_DOUBLE, g_tr_comm);
   
 #else
@@ -463,7 +461,7 @@ int main(int argc, char **argv) {
 
         for(x0=0; x0<T_global; x0++) {
           sprintf(aff_buffer_path, "/px%.2dpy%.2dpz%.2d/g%.2d/t%.2d", g_source_momentum[0], g_source_momentum[1], g_source_momentum[2], g_source_gamma_id_list[isource_gamma_id], x0);
-          if(g_cart_id == 0) fprintf(stdout, "# [] current aff path = %s\n", aff_buffer_path);
+          if(g_cart_id == 0) fprintf(stdout, "# [calculate_gsp] current aff path = %s\n", aff_buffer_path);
 
           affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
           items = evecs_num*evecs_num;

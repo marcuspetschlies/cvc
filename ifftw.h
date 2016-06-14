@@ -3,11 +3,11 @@
 
 #ifdef HAVE_MPI
 #  include "fftw_mpi.h"
-#  ifdef OPENMP
+#  ifdef HAVE_OPENMP
 #    include "fftw_threads.h"
 #  endif
 #else
-#  ifdef OPENMP
+#  ifdef HAVE_OPENMP
 #    include "fftw_threads.h"
 #    include "fftw.h"
 #  else

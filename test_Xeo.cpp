@@ -18,7 +18,7 @@
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
 
@@ -56,14 +56,14 @@ void usage(void) {
 int main(int argc, char **argv) {
   
   /* const double preset_eigenvalue = 7.864396614243382E-06; */
-  const evecs_num = 4;
+  const int evecs_num = 4;
 
   int c, status; 
   int i;
   int x0, x1, x2, x3;
   int filename_set = 0;
   int ix, iix, it;
-  /* int threadid, nthreads; */
+  int threadid, nthreads;
   int no_eo_fields;
   double norm;
   double plaq=0.;
@@ -156,6 +156,21 @@ int main(int argc, char **argv) {
 
   Vhalf = VOLUME / 2;
 
+#ifdef HAVE_OPENMP
+  if(g_cart_id == 0) fprintf(stdout, "[test_Xeo] setting omp number of threads to %d\n", g_num_threads);
+  omp_set_num_threads(g_num_threads);
+#pragma omp parallel private(i,threadid) 
+{
+  nthreads = omp_get_num_threads();
+  threadid = omp_get_thread_num();
+  fprintf(stdout, "# [test_Xeo] thread%.4d number of threads = %d\n", threadid, nthreads);
+}
+#else
+  if(g_cart_id == 0) fprintf(stdout, "[test_Xeo] Warning, resetting global thread number to 1\n");
+  g_num_threads = 1;
+#endif
+
+
   /* read the gauge field */
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
   sprintf(filename, "%s.%.4d", gaugefilename_prefix, Nconf);
@@ -186,78 +201,62 @@ int main(int argc, char **argv) {
   for(i=0; i<no_fields; i++) alloc_spinor_field(&g_spinor_field[i], VOLUME+RAND);
 
 
-  no_eo_fields = 4;
+  no_eo_fields = 5;
   eo_spinor_field = (double**)calloc(no_eo_fields, sizeof(double*));
   for(i=0; i<no_eo_fields; i++) alloc_spinor_field(&eo_spinor_field[i], (VOLUME+RAND)/2);
 
   /***********************************************
    * read eo eigenvector
    ***********************************************/
-  for(i_evec = 0; i_evec < evecs_num; i_evec+=2) {
 
-    sprintf(filename, "%s%.5d", filename_prefix, i_evec);
-    if(g_cart_id == 0) fprintf(stdout, "# [test_Xeo] reading C_oo_sym eigenvector from file %s\n", filename);
+  sprintf(filename, "%s%.5d", filename_prefix, 0);
+  if(g_cart_id == 0) fprintf(stdout, "# [test_Xeo] reading C_oo_sym eigenvector from file %s\n", filename);
 
-    status = read_lime_spinor(g_spinor_field[0], filename, 0);
-    if( status != 0) {
-      fprintf(stderr, "[test_Xeo] Error from read_lime_spinor, status was %d\n");
-      EXIT(1);
-    }
+  status = read_lime_spinor(g_spinor_field[0], filename, 0);
+  if( status != 0) {
+    fprintf(stderr, "[test_Xeo] Error from read_lime_spinor, status was %d\n", status);
+    EXIT(1);
+  }
 
-    ratime = _GET_TIME;
-    spinor_field_unpack_lexic2eo (g_spinor_field[0], eo_spinor_field[0], eo_spinor_field[1]);
-    retime = _GET_TIME;
-    if(g_cart_id == 0) fprintf(stdout, "# [test_Xeo] time for unpacking = %e\n", retime - ratime);
+  ratime = _GET_TIME;
+  spinor_field_unpack_lexic2eo (g_spinor_field[0], eo_spinor_field[0], eo_spinor_field[1]);
+  retime = _GET_TIME;
+  if(g_cart_id == 0) fprintf(stdout, "# [test_Xeo] time for unpacking = %e\n", retime - ratime);
 
-    ratime = _GET_TIME;
-    xchange_eo_field( eo_spinor_field[0], 1);
-    retime = _GET_TIME;
-    if(g_cart_id == 0) fprintf(stdout, "# [test_Xeo] time for odd exchange = %e\n", retime - ratime);
+  ratime = _GET_TIME;
+  xchange_eo_field( eo_spinor_field[0], 1);
+  retime = _GET_TIME;
+  if(g_cart_id == 0) fprintf(stdout, "# [test_Xeo] time for odd exchange = %e\n", retime - ratime);
 
-    ratime = _GET_TIME;
-    C_oo(eo_spinor_field[2], eo_spinor_field[0], g_gauge_field, -g_mu, eo_spinor_field[4]);
-    retime = _GET_TIME;
-    if(g_cart_id == 0) fprintf(stdout, "# [test_Xeo] time for C_oo = %e\n", retime - ratime);
+  ratime = _GET_TIME;
+  xchange_eo_field( eo_spinor_field[1], 1);
+  retime = _GET_TIME;
+  if(g_cart_id == 0) fprintf(stdout, "# [test_Xeo] time for odd exchange = %e\n", retime - ratime);
 
-    ratime = _GET_TIME;
-    xchange_eo_field( eo_spinor_field[2], 1);
-    retime = _GET_TIME;
-    if(g_cart_id == 0) fprintf(stdout, "# [test_Xeo] time for odd exchange = %e\n", retime - ratime);
-
-    ratime = _GET_TIME;
-    C_oo(eo_spinor_field[3], eo_spinor_field[2], g_gauge_field,  g_mu, eo_spinor_field[4]);
-    retime = _GET_TIME;
-    if(g_cart_id == 0) fprintf(stdout, "# [test_Xeo] time for C_oo = %e\n", retime - ratime);
-
-    norm = 4 * g_kappa * g_kappa;
-    for(ix=0; ix<Vhalf; ix++ ) {
-      _fv_ti_eq_re(eo_spinor_field[3]+_GSI(ix), norm);
-    }
-
-    spinor_scalar_product_re(&norm,  eo_spinor_field[1], eo_spinor_field[1], Vhalf);
-    spinor_scalar_product_co(&w,  eo_spinor_field[1], eo_spinor_field[3], Vhalf);
-    evecs_lambda = w.re / norm;
-  
-    if(g_cart_id == 0) {
-      fprintf(stdout, "# [test_Xeo] eigenvalue = %16.7e %16.7e; norm = %16.7e\n", w.re / norm, w.im / norm, sqrt(norm));
-    }
-    /* check evec equation */
-    for(ix=0; ix<Vhalf; ix++) {
-      _fv_mi_eq_fv_ti_re(eo_spinor_field[3]+_GSI(ix), eo_spinor_field[0], evecs_lambda);
-    }
-
-#if 0
   /* apply C_oo */
   ratime = _GET_TIME;
-  C_oo(eo_spinor_field[2], eo_spinor_field[1], g_gauge_field, g_mu, eo_spinor_field[4]);
+  C_oo(eo_spinor_field[2], eo_spinor_field[1], g_gauge_field, -g_mu, eo_spinor_field[4]);
   retime = _GET_TIME;
   if(g_cart_id == 0) fprintf(stdout, "# [test_Xeo] time for C_oo = %e\n", retime - ratime);
 
   /* apply C_oo using X_eo */
   ratime = _GET_TIME;
-  C_with_Xeo (eo_spinor_field[3], eo_spinor_field[1], g_gauge_field, g_mu, eo_spinor_field[4] );
+  C_with_Xeo (eo_spinor_field[3], eo_spinor_field[1], g_gauge_field, -g_mu, eo_spinor_field[4] );
   retime = _GET_TIME;
-  if(g_cart_id == 0) fprintf(stdout, "# [test_Xeo] time for C_oo wit X_eo = %e\n", retime - ratime);
+  if(g_cart_id == 0) fprintf(stdout, "# [test_Xeo] time for C_oo with X_eo = %e\n", retime - ratime);
+
+  spinor_scalar_product_co(&w, eo_spinor_field[3], eo_spinor_field[3], Vhalf);
+  w.re *= 4.*g_kappa*g_kappa;
+  w.im *= 4.*g_kappa*g_kappa;
+  if(g_cart_id == 0) fprintf(stdout, "# [test_Xeo] Xeo w(1) = %25.16e +I %25.16e\n", w.re, w.im);
+
+  spinor_scalar_product_co(&w, eo_spinor_field[2], eo_spinor_field[2], Vhalf);
+  w.re *= 4.*g_kappa*g_kappa;
+  w.im *= 4.*g_kappa*g_kappa;
+  if(g_cart_id == 0) fprintf(stdout, "# [test_Xeo] std w(1) = %25.16e +I %25.16e\n", w.re, w.im);
+
+  spinor_scalar_product_co(&w, eo_spinor_field[1], eo_spinor_field[1], Vhalf);
+  if(g_cart_id == 0) fprintf(stdout, "# [test_Xeo] norm(1) = %25.16e +I %25.16e\n", w.re, w.im);
 
 
   sprintf(filename, "coo_xeo_diff.%.2d", g_cart_id);
@@ -270,7 +269,7 @@ int main(int argc, char **argv) {
     }
   }
   fclose(ofs);
-#endif
+
 
   /***********************************************
    * free the allocated memory, finalize 

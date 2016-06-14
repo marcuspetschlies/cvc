@@ -14,7 +14,10 @@
 #include <string.h>
 #include <math.h>
 #ifdef HAVE_MPI
-#  include <mpi.h>
+#include <mpi.h>
+#endif
+#ifdef HAVE_OPENMP
+#include <omp.h>
 #endif
 #include "global.h"
 #include "cvc_complex.h"
@@ -27,52 +30,108 @@
 namespace cvc {
 void spinor_scalar_product_co(complex *w, double *xi, double *phi, int V) {
 
+  const int nthreads = g_num_threads;
+  const int sincr = _GSI(nthreads);
+
   int ix, iix;
-  complex p, p2;
+  complex p2, paccum;
+  int threadid = 0;
 #ifdef HAVE_MPI
   complex pall;
 #endif
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+#endif
+  paccum.re = 0.;
+  paccum.im = 0.;
 
+#ifdef HAVE_OPENMP
+  omp_init_lock(&writelock);
+#pragma omp parallel default(shared) private(ix,iix,p2) firstprivate(V) shared(xi,phi,paccum)
+{
+  threadid = omp_get_thread_num();
+#endif
   p2.re = 0.;
   p2.im = 0.;
 
-  iix=0;
-  for(ix=0; ix<V; ix++) {
-    _co_eq_fv_dag_ti_fv(&p, xi+iix, phi+iix);
-    p2.re += p.re;
-    p2.im += p.im;
-    iix+=24;
+  iix = _GSI(threadid);
+  for(ix = threadid; ix < V; ix += nthreads) {
+    _co_pl_eq_fv_dag_ti_fv(&p2, xi+iix, phi+iix);
+    iix += sincr;
   }
+#ifdef HAVE_OPENMP
 
-  //fprintf(stdout, "# [spinor_scalar_product_co] %d local: %e %e\n", g_cart_id, p2.re, p2.im);
+  omp_set_lock(&writelock);
+  paccum.re += p2.re;
+  paccum.im += p2.im;
+  omp_unset_lock(&writelock);
+
+}  /* end of parallel region */
+
+  omp_destroy_lock(&writelock);
+
+#else
+  paccum.re = p2.re;
+  paccum.im = p2.im;
+#endif
+
+  /* fprintf(stdout, "# [spinor_scalar_product_co] %d local: %e %e\n", g_cart_id, p2.re, p2.im); */
 
 #ifdef HAVE_MPI
   pall.re=0.; pall.im=0.;
-  MPI_Allreduce(&p2, &pall, 2, MPI_DOUBLE, MPI_SUM, g_cart_grid);
+  MPI_Allreduce(&paccum, &pall, 2, MPI_DOUBLE, MPI_SUM, g_cart_grid);
   w->re = pall.re;
   w->im = pall.im;
 #else
-  w->re = p2.re;
-  w->im = p2.im;
+  w->re = paccum.re;
+  w->im = paccum.im;
 #endif
-}
+}  /* end of spinor_scalar_product_co */
 
 void spinor_scalar_product_re(double *r, double *xi, double *phi, int V) {
 
+  const int nthreads = g_num_threads;
+  const int sincr = _GSI(nthreads);
+
   int ix, iix;
-  double w;
-  complex p;
+  int threadid = 0;
+  double w, w2;
+
 #ifdef HAVE_MPI
   double wall;
 #endif
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+#endif
   
   w = 0.;
-  iix=0;
-  for(ix=0; ix<V; ix++) {
-    _co_eq_fv_dag_ti_fv(&p, xi+iix, phi+iix);
-    w += p.re;
-    iix+=24;
+
+#ifdef HAVE_OPENMP
+  omp_init_lock(&writelock);
+#pragma omp parallel default(shared) private(ix,iix,threadid,w2) firstprivate(V,nthreads) shared(w,xi,phi)
+{
+  threadid = omp_get_thread_num();
+#endif
+  iix = _GSI(threadid);
+  w2 = 0.;
+  for(ix = threadid; ix < V; ix += nthreads) {
+    _re_pl_eq_fv_dag_ti_fv(w2, xi+iix, phi+iix);
+    iix += sincr;
   }
+#ifdef HAVE_OPENMP
+
+  omp_set_lock(&writelock);
+  w += w2;
+  omp_unset_lock(&writelock);
+
+}  /* end of parallel region */
+
+  omp_destroy_lock(&writelock);
+
+#else
+  w = w2;
+#endif
+
   /* fprintf(stdout, "# [spinor_scalar_product_re] %d local: %e\n", g_cart_id, w); */
 #ifdef HAVE_MPI
   wall = 0.;
@@ -88,19 +147,49 @@ void spinor_scalar_product_re(double *r, double *xi, double *phi, int V) {
  * eo = 1 --- odd subfield
  *************************************************/
 void eo_spinor_spatial_scalar_product_co(complex *w, double *xi, double *phi, int eo) {
+ 
+  const int nthreads = g_num_threads;
+  const int sincr = _GSI(nthreads);
 
   int ix, iix, it;
+  int threadid = 0;
   complex p[T];
+#ifdef HAVE_OPENMP
+  complex p2[T];
+  omp_lock_t writelock;
+#else
+  complex *p2 = p;
+#endif
   unsigned int N = VOLUME / 2;
 
   memset(p, 0, T*sizeof(complex));
-  
-  for(ix=0; ix<N; ix++) {
-    iix = _GSI(ix);
-    it  = g_eosub2t[eo][ix];
-    _co_pl_eq_fv_dag_ti_fv( (p+it), xi+iix, phi+iix);
-  }
 
+#ifdef HAVE_OPENMP
+  omp_init_lock(&writelock);
+#pragma omp parallel default(shared) private(ix,iix,it,threadid,p2) firstprivate(N,nthreads) shared(p,xi,phi,eo)
+{
+  threadid = omp_get_thread_num();
+#endif
+  memset(p2, 0, T*sizeof(complex));
+  iix = _GSI(threadid);
+  for(ix = threadid; ix < N; ix += nthreads) {
+    it  = g_eosub2t[eo][ix];
+    _co_pl_eq_fv_dag_ti_fv( (p2+it), xi+iix, phi+iix);
+    iix += sincr;
+  }
+#ifdef HAVE_OPENMP
+
+  omp_set_lock(&writelock);
+  for(it=0; it<T; it++) {
+    _co_pl_eq_co(p+it, p2+it);
+    /* TEST */
+    /* fprintf(stdout, "# [eo_spinor_spatial_scalar_product_co] proc%.4d thread%.4d %3d %25.16e %25.16e\n", g_cart_id, threadid, it, p2[it].re, p2[it].im); */
+  }
+  omp_unset_lock(&writelock);
+
+}  /* end of parallel region */
+  omp_destroy_lock(&writelock);
+#endif
   /* fprintf(stdout, "# [spinor_scalar_product_co] %d local: %e %e\n", g_cart_id, p2.re, p2.im); */
 
 #ifdef HAVE_MPI
@@ -113,15 +202,30 @@ void eo_spinor_spatial_scalar_product_co(complex *w, double *xi, double *phi, in
 
 void eo_spinor_dag_gamma_spinor(complex*gsp, double*xi, int gid, double*phi) {
 
+  const int nthreads = g_num_threads;
+
   unsigned int ix, iix;
   unsigned int N = VOLUME / 2;
   double spinor1[24];
-
-  for(ix=0; ix<N; ix++) {
+  int threadid=0;
+#ifdef HAVE_OPENMP
+#pragma omp parallel default(shared) private(spinor1,ix,iix,threadid) firstprivate(N,nthreads) shared(xi,gid,phi)
+{
+  threadid = omp_get_thread_num();
+  /* TEST */
+/*
+  ix = omp_get_num_threads();
+  fprintf(stdout, "# [eo_spinor_dag_gamma_spinor] proc%.4d thread%.4d using %d threads\n", g_cart_id, threadid, ix);
+*/
+#endif
+  for(ix=threadid; ix<N; ix+=nthreads) {
     iix = _GSI(ix);
     _fv_eq_gamma_ti_fv(spinor1, gid, phi+iix);
     _co_eq_fv_dag_ti_fv(gsp+ix, xi+iix, spinor1);
   }
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
 }  /* end of eo_spinor_dag_gamma_spinor */
 
 /*************************************************************
@@ -130,16 +234,44 @@ void eo_spinor_dag_gamma_spinor(complex*gsp, double*xi, int gid, double*phi) {
  *************************************************************/
 void eo_gsp_momentum_projection (complex *gsp_p, complex *gsp_x, complex *phase, int eo) {
   
+  const int nthreads = g_num_threads;
+
   unsigned int ix, it;
   unsigned int N = VOLUME / 2;
   complex p[T];
+#ifdef HAVE_OPENMP
+  complex p2[T];
+  omp_lock_t writelock;
+#else
+  complex *p2 = p;
+#endif
+  int threadid=0;
+  int *index_ptr = g_eosub2t[eo];
 
   memset(p, 0, T*sizeof(complex));
-
-  for(ix=0; ix<N; ix++) {
-    it = g_eosub2t[eo][ix];
-    _co_pl_eq_co_ti_co(p+it, gsp_x+ix, phase+ix );
+#ifdef HAVE_OPENMP
+  omp_init_lock(&writelock);
+#pragma omp parallel default(shared) private(threadid,ix,it,p2) firstprivate(nthreads,N,index_ptr) shared(phase,gsp_x,p)
+{
+  threadid = omp_get_thread_num();
+  memset(p2, 0, T*sizeof(complex));
+#endif
+  for(ix=threadid; ix<N; ix+=nthreads) {
+    it = index_ptr[ix];
+    _co_pl_eq_co_ti_co(p2+it, gsp_x+ix, phase+ix );
   }
+#ifdef HAVE_OPENMP
+  omp_set_lock(&writelock);
+  for(it=0; it<T; it++) {
+    _co_pl_eq_co(p+it, p2+it);
+  }
+  omp_unset_lock(&writelock);
+}  /* end of parallel region */
+
+  omp_destroy_lock(&writelock);
+
+#endif
+
 
 #ifdef HAVE_MPI
   MPI_Allreduce(p, gsp_p, 2*T, MPI_DOUBLE, MPI_SUM, g_ts_comm);
