@@ -5,7 +5,7 @@
 #ifdef MPI
 #  include <mpi.h>
 #endif
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
 #include "cvc_complex.h"

@@ -104,6 +104,9 @@ void spinor_field_eo2lexic (double *r_lexic, double*r_e, double *r_o);
 void spinor_field_unpack_lexic2eo (double *r_lexic, double*r_o1, double *r_o2);
 int printf_eo_spinor_field(double *s, int use_even, FILE *ofs);
 
-}
+void spinor_field_mi_eq_spinor_field_ti_re(double*r, double*s, double c, unsigned int N);
+
+
+}  /* end of namespace cvc */
 #endif
 

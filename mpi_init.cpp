@@ -151,7 +151,7 @@ void mpi_init(int argc,char *argv[]) {
   if(g_cart_id == 0) fprintf(stdout, "# [mpi_init] copying data from tmLQCD_mpi struct\n");
 #endif
 
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
   g_num_threads = g_tmLQCD_mpi.omp_num_threads;
 #endif
 
@@ -308,7 +308,7 @@ void mpi_init(int argc,char *argv[]) {
 
   /* determine the neighbours in +/-t-direction */
 #ifndef HAVE_TMLQCD_LIBWRAPPER
-  g_nproc_t = g_nproc / ( g_nproc_x * g_nproc_y * g_nproc_z);
+  g_nproc_t = g_nproc / ( g_nproc_x * g_nproc_y * g_nproc_z );
 #endif
   dims[0] = g_nproc_t;
   dims[1] = g_nproc_x;
@@ -608,7 +608,7 @@ void mpi_init(int argc,char *argv[]) {
   MPI_Get_processor_name(processor_name, &namelen);
 
   // determine the neighbours in +/-t-direction
-  g_nproc_t = g_nproc / ( g_nproc_x * g_nproc_y * g_nproc_z );
+  g_nproc_t = g_nproc / ( g_nproc_x * g_nproc_y * g_nproc_z);
   dims[0] = g_nproc_z;
   dims[1] = g_nproc_y;
   dims[2] = g_nproc_x;

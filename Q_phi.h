@@ -46,7 +46,7 @@ void Q_Wilson_phi_tbc(double *xi, double *phi);
 void Q_Wilson_phi(double *xi, double *phi);
 void Q_g5_Wilson_phi(double *xi, double *phi);
 void Q_Wilson_phi_nobc(double *xi, double *phi);
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
 void Q_Wilson_phi_threads(double *xi, double *phi);
 #endif
 

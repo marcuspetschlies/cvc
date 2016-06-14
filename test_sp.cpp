@@ -18,7 +18,7 @@
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
 
@@ -61,11 +61,9 @@ int main(int argc, char **argv) {
   int x0, x1, x2, x3;
   int filename_set = 0;
   int ix, iix, it;
-  /* int threadid, nthreads; */
+  int threadid, nthreads;
   int no_eo_fields;
-  double norm;
-  double plaq=0.;
-  double evecs_lambda;
+  double dnorm, dnorm2;
   int verbose = 0;
   char filename[200];
 
@@ -74,6 +72,7 @@ int main(int argc, char **argv) {
   size_t items, bytes;
 */
   complex *sp_eo_e=NULL, *sp_eo_o=NULL, *sp_le_e=NULL, *sp_le_o=NULL, w;
+  complex znorm, znorm2;
   double **eo_spinor_field=NULL;
   double ratime, retime;
   double *buffer;
@@ -153,6 +152,20 @@ int main(int argc, char **argv) {
 
   mpi_init_xchange_eo_spinor();
 
+#ifdef HAVE_OPENMP
+  if(g_cart_id == 0) fprintf(stdout, "[apply_Coo] setting omp number of threads to %d\n", g_num_threads);
+  omp_set_num_threads(g_num_threads);
+#pragma omp parallel private(i,threadid) 
+{
+  nthreads = omp_get_num_threads();
+  threadid = omp_get_thread_num();
+  fprintf(stdout, "# [test_sp] thread%.4d number of threads = %d\n", threadid, nthreads);
+}
+#else
+  if(g_cart_id == 0) fprintf(stdout, "[test_sp] Warning, resetting global thread number to 1\n");
+  g_num_threads = 1;
+#endif
+
   Vhalf = VOLUME / 2;
   VOL3  = LX*LY*LZ;
 
@@ -166,12 +179,32 @@ int main(int argc, char **argv) {
   eo_spinor_field = (double**)calloc(no_eo_fields, sizeof(double*));
   for(i=0; i<no_eo_fields; i++) alloc_spinor_field(&eo_spinor_field[i], (VOLUME+RAND)/2);
 
+#if 0
   g_seed = 10000 + g_cart_id;
   rlxd_init(2, g_seed);
 
   /* set the spinor field */
   rangauss (g_spinor_field[0], VOLUME*24);
   rangauss (g_spinor_field[1], VOLUME*24);
+
+  spinor_field_lexic2eo (g_spinor_field[0], eo_spinor_field[0], eo_spinor_field[1]);
+  spinor_field_lexic2eo (g_spinor_field[1], eo_spinor_field[2], eo_spinor_field[3]);
+#endif
+  sprintf(filename, "%s%.5d", filename_prefix, 0);
+  if(g_cart_id == 0) fprintf(stdout, "# [apply_Coo] reading C_oo_sym eigenvector from file %s\n", filename);
+  status = read_lime_spinor(g_spinor_field[0], filename, 0);
+  if( status != 0) {
+    fprintf(stderr, "[apply_Coo] Error from read_lime_spinor, status was %d\n", status);
+    EXIT(1);
+  }
+
+  sprintf(filename, "%s%.5d", filename_prefix, 2);
+  if(g_cart_id == 0) fprintf(stdout, "# [apply_Coo] reading C_oo_sym eigenvector from file %s\n", filename);
+  status = read_lime_spinor(g_spinor_field[1], filename, 0);
+  if( status != 0) {
+    fprintf(stderr, "[apply_Coo] Error from read_lime_spinor, status was %d\n", status);
+    EXIT(1);
+  }
 
   spinor_field_lexic2eo (g_spinor_field[0], eo_spinor_field[0], eo_spinor_field[1]);
   spinor_field_lexic2eo (g_spinor_field[1], eo_spinor_field[2], eo_spinor_field[3]);
@@ -184,6 +217,24 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[test_sp] Error from malloc\n");
     EXIT(1);
   }
+#if 0
+  /* scalar product complex and real part */
+  spinor_scalar_product_co(&znorm, g_spinor_field[1], g_spinor_field[1], VOLUME);
+  spinor_scalar_product_re(&dnorm, g_spinor_field[1], g_spinor_field[1], VOLUME);
+
+  znorm2.re = 0.;
+  znorm2.im = 0.;
+  dnorm2    = 0.;
+  for(ix=0; ix<VOLUME; ix++) {
+    _co_eq_fv_dag_ti_fv(&w, g_spinor_field[1]+_GSI(ix), g_spinor_field[1]+_GSI(ix));
+    znorm2.re += w.re;
+    znorm2.im += w.im;
+    dnorm2    += w.re;
+  }
+  fprintf(stdout, "# [test_sp] co\t%25.16e +I %25.16e\t%25.16e +I %25.16e\n", znorm.re, znorm.im, znorm2.re, znorm2.im);
+  fprintf(stdout, "# [test_sp] re\t%25.16e\t%25.16e\n", dnorm, dnorm2);
+#endif
+
 
   /* t-dependent scalar product in eo ordering */
   ratime = _GET_TIME;

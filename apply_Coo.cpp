@@ -18,7 +18,7 @@
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
 
@@ -63,7 +63,7 @@ int main(int argc, char **argv) {
   int x0, x1, x2, x3;
   int filename_set = 0;
   int ix, iix, it;
-  /* int threadid, nthreads; */
+  int threadid, nthreads;
   int no_eo_fields;
   double norm, norm2;
   double plaq=0.;
@@ -153,6 +153,22 @@ int main(int argc, char **argv) {
   mpi_init_xchange_eo_spinor();
 
   Vhalf = VOLUME / 2;
+
+#ifdef HAVE_OPENMP
+  if(g_cart_id == 0) fprintf(stdout, "[apply_Coo] setting omp number of threads to %d\n", g_num_threads);
+  omp_set_num_threads(g_num_threads);
+#pragma omp parallel private(i,threadid) 
+{
+  nthreads = omp_get_num_threads();
+  threadid = omp_get_thread_num();
+  fprintf(stdout, "# [apply_Coo] thread%.4d number of threads = %d\n", threadid, nthreads);
+}
+#else
+  if(g_cart_id == 0) fprintf(stdout, "[apply_Coo] Warning, resetting global thread number to 1\n");
+  g_num_threads = 1;
+#endif
+
+
 
   /* read the gauge field */
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);

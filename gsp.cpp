@@ -11,6 +11,9 @@
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
+#ifdef HAVE_OPENMP
+#include <omp.h>
+#endif
 
 #include "cvc_complex.h"
 #include "global.h"
@@ -134,6 +137,57 @@ int gsp_fini(double******gsp) {
 
   return(0);
 }  /* end of gsp_fini */
+
+void gsp_make_eo_phase_field (double*phase_e, double*phase_o, int *momentum) {
+
+  const int nthreads = g_num_threads;
+
+  int ix, iix;
+  int x0, x1, x2, x3;
+  int threadid = 0;
+  double ratime, retime;
+  double dtmp;
+
+
+  if(g_cart_id == 0) {
+    fprintf(stdout, "# [gsp_make_eo_phase_field] using phase momentum = (%d, %d, %d)\n", momentum[0], momentum[1], momentum[2]);
+  }
+
+  ratime = _GET_TIME;
+#ifdef HAVE_OPENMP
+#pragma omp parallel default(shared) private(ix,iix,x0,x1,x2,x3,dtmp,threadid) firstprivate(nthreads,T,LX,LY,LZ) shared(phase_e, phase_o, momentum)
+{
+  threadid = omp_get_thread_num();
+#endif
+  /* make phase field in eo ordering */
+  for(x0 = threadid; x0<T; x0 += nthreads) {
+    for(x1=0; x1<LX; x1++) {
+    for(x2=0; x2<LY; x2++) {
+    for(x3=0; x3<LZ; x3++) {
+      ix  = g_ipt[x0][x1][x2][x3];
+      iix = g_lexic2eosub[ix];
+      dtmp = 2. * M_PI * (
+          (x1 + g_proc_coords[1]*LX) * momentum[0] / (double)LX_global +
+          (x2 + g_proc_coords[2]*LY) * momentum[1] / (double)LY_global +
+          (x3 + g_proc_coords[3]*LZ) * momentum[2] / (double)LZ_global );
+      if(g_iseven[ix]) {
+        phase_e[2*iix  ] = cos(dtmp);
+        phase_e[2*iix+1] = sin(dtmp);
+      } else {
+        phase_o[2*iix  ] = cos(dtmp);
+        phase_o[2*iix+1] = sin(dtmp);
+      }
+    }}}
+  }
+
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+
+  retime = _GET_TIME;
+  if(g_cart_id == 0) fprintf(stdout, "# [] time for making eo phase field = %e seconds\n", retime-ratime);
+}  /* end of gsp_make_eo_phase_field */
 
 }  /* end of namespace cvc */
 
