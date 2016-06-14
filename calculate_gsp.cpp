@@ -244,9 +244,9 @@ int main(int argc, char **argv) {
   no_eo_fields = 2*evecs_num + 3;
   eo_spinor_field = (double**)calloc(no_eo_fields, sizeof(double*));
   for(i=0; i<no_eo_fields; i++) alloc_spinor_field(&eo_spinor_field[i], (VOLUME+RAND)/2);
-  eo_spinor_work  = eo_spinor_field[2*evecs_num];
-  eo_spinor_work2 = eo_spinor_field[2*evecs_num+1];
-  eo_spinor_work3 = eo_spinor_field[2*evecs_num+2];
+  eo_spinor_work  = eo_spinor_field[no_eo_fields - 3];
+  eo_spinor_work2 = eo_spinor_field[no_eo_fields - 2];
+  eo_spinor_work3 = eo_spinor_field[no_eo_fields - 1];
 
   /***********************************************
    * allocate gsp space
@@ -521,7 +521,7 @@ int main(int argc, char **argv) {
     }
   }
   if(aff_buffer     != NULL) free(aff_buffer);
-  if(aff_status_str != NULL) free(aff_status_str);
+  /* if(aff_status_str != NULL) free(aff_status_str); */
 #endif
 
 
