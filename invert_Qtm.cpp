@@ -155,7 +155,6 @@ void eo_spinor_spatial_scalar_product_co(complex *w, double *xi, double *phi, in
   int threadid = 0;
   complex p[T];
 #ifdef HAVE_OPENMP
-  complex p2[T];
   omp_lock_t writelock;
 #else
   complex *p2 = p;
@@ -166,8 +165,9 @@ void eo_spinor_spatial_scalar_product_co(complex *w, double *xi, double *phi, in
 
 #ifdef HAVE_OPENMP
   omp_init_lock(&writelock);
-#pragma omp parallel default(shared) private(ix,iix,it,threadid,p2) firstprivate(N,nthreads) shared(p,xi,phi,eo)
+#pragma omp parallel default(shared) private(ix,iix,it,threadid) firstprivate(N,nthreads) shared(xi,phi,eo)
 {
+  complex p2[T];
   threadid = omp_get_thread_num();
 #endif
   memset(p2, 0, T*sizeof(complex));
@@ -240,7 +240,6 @@ void eo_gsp_momentum_projection (complex *gsp_p, complex *gsp_x, complex *phase,
   unsigned int N = VOLUME / 2;
   complex p[T];
 #ifdef HAVE_OPENMP
-  complex p2[T];
   omp_lock_t writelock;
 #else
   complex *p2 = p;
@@ -251,8 +250,9 @@ void eo_gsp_momentum_projection (complex *gsp_p, complex *gsp_x, complex *phase,
   memset(p, 0, T*sizeof(complex));
 #ifdef HAVE_OPENMP
   omp_init_lock(&writelock);
-#pragma omp parallel default(shared) private(threadid,ix,it,p2) firstprivate(nthreads,N,index_ptr) shared(phase,gsp_x,p)
+#pragma omp parallel default(shared) private(threadid,ix,it) firstprivate(nthreads,N,index_ptr) shared(phase,gsp_x)
 {
+  complex p2[T];
   threadid = omp_get_thread_num();
   memset(p2, 0, T*sizeof(complex));
 #endif
