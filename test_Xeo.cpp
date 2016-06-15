@@ -70,6 +70,7 @@ int main(int argc, char **argv) {
   double evecs_lambda;
   int verbose = 0;
   char filename[200];
+  int printf_to_file = 0;
 
   FILE *ofs=NULL;
 /*
@@ -84,7 +85,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?vf:")) != -1) {
+  while ((c = getopt(argc, argv, "ph?vf:")) != -1) {
     switch (c) {
     case 'v':
       verbose = 1;
@@ -92,6 +93,10 @@ int main(int argc, char **argv) {
     case 'f':
       strcpy(filename, optarg);
       filename_set=1;
+      break;
+    case 'p':
+      printf_to_file = 1;
+      fprintf(stdout, "# [test_Xeo] will print fields to file\n");
       break;
     case 'h':
     case '?':
@@ -239,11 +244,24 @@ int main(int argc, char **argv) {
   retime = _GET_TIME;
   if(g_cart_id == 0) fprintf(stdout, "# [test_Xeo] time for C_oo = %e\n", retime - ratime);
 
+#if 0
   /* apply C_oo using X_eo */
   ratime = _GET_TIME;
   C_with_Xeo (eo_spinor_field[3], eo_spinor_field[1], g_gauge_field, -g_mu, eo_spinor_field[4] );
   retime = _GET_TIME;
   if(g_cart_id == 0) fprintf(stdout, "# [test_Xeo] time for C_oo with X_eo = %e\n", retime - ratime);
+#endif
+
+  ratime = _GET_TIME;
+  X_eo (eo_spinor_field[4], eo_spinor_field[1], -g_mu, g_gauge_field);
+  retime = _GET_TIME;
+  if(g_cart_id == 0) fprintf(stdout, "# [test_Xeo] time for X_eo = %e\n", retime - ratime);
+
+  ratime = _GET_TIME;
+  C_from_Xeo (eo_spinor_field[3], eo_spinor_field[4], eo_spinor_field[1], g_gauge_field, -g_mu);
+  retime = _GET_TIME;
+  if(g_cart_id == 0) fprintf(stdout, "# [test_Xeo] time for C_from_Xeo = %e\n", retime - ratime);
+    
 
   spinor_scalar_product_co(&w, eo_spinor_field[3], eo_spinor_field[3], Vhalf);
   w.re *= 4.*g_kappa*g_kappa;
@@ -258,17 +276,18 @@ int main(int argc, char **argv) {
   spinor_scalar_product_co(&w, eo_spinor_field[1], eo_spinor_field[1], Vhalf);
   if(g_cart_id == 0) fprintf(stdout, "# [test_Xeo] norm(1) = %25.16e +I %25.16e\n", w.re, w.im);
 
-
-  sprintf(filename, "coo_xeo_diff.%.2d", g_cart_id);
-  ofs = fopen(filename, "w");
-  for(ix=0; ix<Vhalf; ix++) {
-    fprintf(ofs, "# ix = %8d\n", ix);
-    for(i = 0;i<12; i++) {
-      fprintf(ofs, "\t%3d%25.16e%25.16e\t%25.16e%25.16e\n", i,
-          eo_spinor_field[2][_GSI(ix)+2*i], eo_spinor_field[2][_GSI(ix)+2*i+1], eo_spinor_field[3][_GSI(ix)+2*i], eo_spinor_field[3][_GSI(ix)+2*i+1]);
+  if(printf_to_file) {
+    sprintf(filename, "coo_xeo_diff.%.2d", g_cart_id);
+    ofs = fopen(filename, "w");
+    for(ix=0; ix<Vhalf; ix++) {
+      fprintf(ofs, "# ix = %8d\n", ix);
+      for(i = 0;i<12; i++) {
+        fprintf(ofs, "\t%3d%25.16e%25.16e\t%25.16e%25.16e\n", i,
+            eo_spinor_field[2][_GSI(ix)+2*i], eo_spinor_field[2][_GSI(ix)+2*i+1], eo_spinor_field[3][_GSI(ix)+2*i], eo_spinor_field[3][_GSI(ix)+2*i+1]);
+      }
     }
-  }
-  fclose(ofs);
+    fclose(ofs);
+  }  /* of if printf to file */
 
 
   /***********************************************

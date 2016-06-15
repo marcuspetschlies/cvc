@@ -186,7 +186,7 @@ void gsp_make_eo_phase_field (double*phase_e, double*phase_o, int *momentum) {
 
 
   retime = _GET_TIME;
-  if(g_cart_id == 0) fprintf(stdout, "# [] time for making eo phase field = %e seconds\n", retime-ratime);
+  if(g_cart_id == 0) fprintf(stdout, "# [gsp_make_eo_phase_field] time for making eo phase field = %e seconds\n", retime-ratime);
 }  /* end of gsp_make_eo_phase_field */
 
 }  /* end of namespace cvc */

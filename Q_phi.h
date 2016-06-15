@@ -75,6 +75,7 @@ void X_eo (double *even, double *odd, double mu, double *gauge_field);
 
 void C_with_Xeo (double *r, double *s, double *gauge_field, double mu, double *r_aux);
 
+void C_from_Xeo (double *r, double *s, double *t, double *gauge_field, double mu);
 
 }  /* end of namespace cvc */
 #endif

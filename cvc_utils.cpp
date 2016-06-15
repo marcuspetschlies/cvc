@@ -5010,4 +5010,50 @@ void spinor_field_mi_eq_spinor_field_ti_re(double*r, double*s, double c, unsigne
 
 }  /* end of spinor_field_mi_eq_spinor_field_ti_re */
 
+void spinor_field_ti_eq_re (double *r, double c, unsigned int N) {
+
+  const int nthreads = g_num_threads;
+
+  unsigned int ix;
+  int threadid = 0;
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel default(shared) private(threadid,ix) firstprivate(nthreads) shared(r,c,N)
+{
+  threadid = omp_get_thread_num();
+#endif
+  for(ix = threadid; ix < N; ix += nthreads ) {
+    _fv_ti_eq_re(r+_GSI(ix), c);
+  }
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+}  /* end of spinor_field_ti_eq_re */
+
+void spinor_field_eq_spinor_field_ti_re (double *r, double *s, double c, unsigned int N) {
+
+  const int nthreads = g_num_threads;
+  const int sincr    = _GSI(nthreads);
+
+  unsigned int ix, iix;
+  int threadid = 0;
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel default(shared) private(threadid,ix,iix) firstprivate(nthreads,sincr) shared(r,s,c,N)
+{
+  threadid = omp_get_thread_num();
+#endif
+  iix = _GSI(threadid);
+  for(ix = threadid; ix < N; ix += nthreads ) {
+    _fv_eq_fv_ti_re(r+iix, s+iix, c);
+    iix += sincr;
+  }
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+}  /* end of spinor_field_eq_spinor_field_ti_re */
+
+
 }  /* end of namespace cvc */
