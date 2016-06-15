@@ -3509,6 +3509,7 @@ void C_oo (double*s, double*r, double *gauge_field, double mass, double *s_aux) 
 
 
   /* s_aux = M_oe M_ee^-1 M_eo r */
+  xchange_eo_field(r, 1);
   Hopping_eo(s_aux, r, gauge_field, 0);
   M_zz_inv(s, s_aux, mass);
 
@@ -3516,7 +3517,6 @@ void C_oo (double*s, double*r, double *gauge_field, double mass, double *s_aux) 
   /* xchange before next application of M_oe */
   /* NOTE: s exchanged as even field */
   xchange_eo_field(s, 0);
-
   Hopping_eo(s_aux, s, gauge_field, 1);
 
   /* s = M_oo r */
@@ -3643,6 +3643,7 @@ void X_eo (double *even, double *odd, double mu, double *gauge_field) {
   int threadid = 0;
 
   /* M_eo */
+  xchange_eo_field(odd, 1);
   Hopping_eo(even, odd, gauge_field, 0);
 
 #ifdef HAVE_OPENMP
@@ -3673,7 +3674,7 @@ void C_with_Xeo (double *r, double *s, double *gauge_field, double mu, double *r
   double a_re = 1./(2. * g_kappa);
   double a_im = mu;
 
-  xchange_eo_field(s, 1);
+  /* xchange_eo_field(s, 1); */
   X_eo (r_aux, s, mu, gauge_field);
 
   xchange_eo_field(r_aux, 0);
@@ -3686,5 +3687,43 @@ void C_with_Xeo (double *r, double *s, double *gauge_field, double mu, double *r
   }
 
 }  /* C_with_Xeo */
+
+/********************************************************************
+ * C_with_Xeo
+ * - apply C = g5 M_oo + g5 M_oe X_eo
+ *
+ * output r
+ * input s = X_eo v
+ *       t = v
+ ********************************************************************/
+void C_from_Xeo (double *r, double *s, double *t, double *gauge_field, double mu) {
+
+  const int nthreads = g_num_threads;
+  const double a_re = 1./(2. * g_kappa);
+  const double a_im = mu;
+
+  unsigned int ix, iix;
+  unsigned int N = VOLUME / 2;
+  int threadid = 0;
+
+  xchange_eo_field(s, 0);
+  Hopping_eo(r, s, gauge_field, 1);
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel default(shared) private(threadid,ix,iix) firstprivate(nthreads,N) shared(r,t)
+{
+  threadid = omp_get_thread_num();
+#endif
+
+  for(ix = threadid; ix < N; ix += nthreads) {
+    iix = _GSI(ix);
+    _fv_ti_eq_g5 (r+iix);
+    _fv_pl_eq_a_g5_pl_ib_ti_fv(r+iix, t+iix, a_re, a_im);
+  }
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+}  /* C_from_Xeo */
 
 }  /* end of namespace cvc */
