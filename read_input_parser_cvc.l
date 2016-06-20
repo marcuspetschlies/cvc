@@ -69,6 +69,7 @@ namespace cvc {
 %x M5
 %x M0
 %x EPSBAR
+%x CSW
 %x SOURCEID
 %x SOURCEID2
 %x GAUGEID
@@ -215,6 +216,7 @@ namespace cvc {
 ^m5{SPC}*={SPC}*                           BEGIN(M5);
 ^m0{SPC}*={SPC}*                           BEGIN(M0);
 ^epsbar{SPC}*={SPC}*                       BEGIN(EPSBAR);
+^csw{SPC}*={SPC}*                          BEGIN(CSW);
 ^Nconf{SPC}*={SPC}*                        BEGIN(NNCONF);
 ^kappa{SPC}*={SPC}*                        BEGIN(KAPPA);
 ^sourceid{SPC}*={SPC}*                     BEGIN(SOURCEID);
@@ -415,6 +417,12 @@ namespace cvc {
   cvc::g_epsbar=atof(yytext);
   if(cvc::myverbose!=0) printf("# [read_input_parser] mu=%s \n", yytext);
 }
+
+<CSW>{FLT}  {
+  cvc::g_csw = atof(yytext);
+  if(cvc::myverbose!=0) printf("# [read_input_parser] csw = %s \n", yytext);
+}
+
 <NNSAVE>{SDIGIT}+ {
   cvc::Nsave=atoi(yytext); 
   if(cvc::myverbose!=0) printf("# [read_input_parser] cvc::Nsave= %s \n",yytext);

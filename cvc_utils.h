@@ -107,6 +107,7 @@ int printf_eo_spinor_field(double *s, int use_even, FILE *ofs);
 void spinor_field_mi_eq_spinor_field_ti_re(double*r, double*s, double c, unsigned int N);
 void spinor_field_ti_eq_re (double *r, double c, unsigned int N);
 void spinor_field_eq_spinor_field_ti_re (double *r, double *s, double c, unsigned int N);
+void spinor_field_norm_diff (double*d, double *r, double *s, unsigned int N);
 
 }  /* end of namespace cvc */
 #endif

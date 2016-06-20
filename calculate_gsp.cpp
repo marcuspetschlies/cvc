@@ -76,7 +76,9 @@ int main(int argc, char **argv) {
   int isource_momentum, isource_gamma_id;
   int threadid, nthreads;
   int no_eo_fields;
+
   int evecs_num=0;
+  double *evecs_eval = NULL;
 
   double norm, dtmp;
   double evecs_lambda;
@@ -200,6 +202,11 @@ int main(int argc, char **argv) {
   if (evecs_num == 0) {
     if(g_cart_id==0) fprintf(stderr, "[calculate_gsp] eigenspace dimension is 0\n");
     EXIT(1);
+  }
+  evecs_eval = (double*)malloc(evecs_num * sizeof(double));
+  if(evecs_eval == NULL) {
+    fprintf(stderr, "[calculate_gsp] Error from malloc\n");
+    EXIT(117);
   }
 
   /* read the gauge field */
@@ -427,12 +434,12 @@ int main(int argc, char **argv) {
           ratime = _GET_TIME;
           eo_spinor_dag_gamma_spinor((complex*)buffer, eo_spinor_field[ievecs], g_source_gamma_id_list[isource_gamma_id], eo_spinor_field[kevecs]);
           retime = _GET_TIME;
-          if(g_cart_id == 0) fprintf(stdout, "# [calculate_gsp] time for eo_spinor_dag_gamma_spinor = %e\n", retime - ratime);
+          if(g_cart_id == 0) fprintf(stdout, "# [calculate_gsp] time for eo_spinor_dag_gamma_spinor = %e seconds\n", retime - ratime);
 
           ratime = _GET_TIME;
           eo_gsp_momentum_projection ((complex*)buffer2, (complex*)buffer, (complex*)phase_o, 1);
           retime = _GET_TIME;
-          if(g_cart_id == 0) fprintf(stdout, "# [calculate_gsp] time for eo_gsp_momentum_projection = %e\n", retime - ratime);
+          if(g_cart_id == 0) fprintf(stdout, "# [calculate_gsp] time for eo_gsp_momentum_projection = %e seconds\n", retime - ratime);
 
           for(x0=0; x0<T; x0++) {
             memcpy(gsp_V[isource_momentum][isource_gamma_id][x0][ievecs] + 2*kevecs, buffer2+2*x0, 2*sizeof(double));
@@ -763,9 +770,19 @@ int main(int argc, char **argv) {
     ratime = _GET_TIME;
     C_from_Xeo (eo_spinor_work, eo_spinor_field[evecs_num+ievecs], eo_spinor_field[ievecs], g_gauge_field, -g_mu);
     /* memcpy( eo_spinor_field[ievecs], eo_spinor_work, 24*Vhalf*sizeof(double) ); */
-    spinor_field_eq_spinor_field_ti_re (eo_spinor_field[ievecs],  eo_spinor_work, (2.*g_kappa) , Vhalf);
+    spinor_scalar_product_re(&norm, eo_spinor_work, eo_spinor_work, Vhalf);
+    evecs_eval[ievecs] = norm  * 4.*g_kappa*g_kappa;
+    norm = 1./sqrt( norm );
+    spinor_field_eq_spinor_field_ti_re (eo_spinor_field[ievecs],  eo_spinor_work, norm, Vhalf);
     retime = _GET_TIME;
     if(g_cart_id == 0) fprintf(stdout, "# [calculate_gsp] time for C_from_Xeo = %e seconds\n", retime-ratime);
+  }
+
+  /* TEST */
+  if(g_cart_id == 0) {
+    for(ievecs = 0; ievecs<evecs_num; ievecs++) {
+      fprintf(stdout, "# [calculate_gsp] eval %4d %25.16e\n", ievecs, evecs_eval[ievecs]);
+    }
   }
   
   for(isource_momentum=0; isource_momentum < g_source_momentum_number; isource_momentum++) {
@@ -1100,6 +1117,7 @@ int main(int argc, char **argv) {
   if(phase_o != NULL) free(phase_o);
   if(buffer  != NULL) free(buffer);
   if(buffer2 != NULL) free(buffer2);
+  if(evecs_eval != NULL) free(evecs_eval);
 
   if(g_gauge_field != NULL) free(g_gauge_field);
   for(i=0; i<no_fields; i++) free(g_spinor_field[i]);

@@ -215,5 +215,7 @@ namespace cvc {
 #define _default_laphs_perambulator_path_prefix "./"
 #define _default_laphs_perambulator_file_prefix "perambulator"
 
+#define _default_csw 0
+
 }
 #endif

@@ -56,6 +56,7 @@ void set_default_input_values(void) {
   g_mudelta   = _default_mudelta;
   g_mubar     = _default_mubar;
   g_epsbar    = _default_epsbar;
+  g_csw       = _default_csw;
   g_sourceid  = _default_sourceid;
   g_sourceid2 = _default_sourceid2;
   g_sourceid_step = _default_sourceid_step;

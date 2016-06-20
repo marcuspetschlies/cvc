@@ -3554,6 +3554,7 @@ void Q_phi_eo (double *e_new, double *o_new, double *e_old, double *o_old, doubl
   unsigned int ix;
   unsigned int N = VOLUME / 2;
 
+  xchange_eo_field(e_old, 0);
   /* e_new = M_ee e_old + M_eo o_old */
   Hopping_eo(e_new, o_old, gauge_field, 0);
   /* aux = M_ee e_old */
@@ -3564,6 +3565,7 @@ void Q_phi_eo (double *e_new, double *o_new, double *e_old, double *o_old, doubl
     _fv_pl_eq_fv(e_new+_GSI(ix), aux+_GSI(ix));
   }
 
+  xchange_eo_field(o_old, 1);
   /* o_new = M_oo o_old + M_oe e_old */
   Hopping_eo(o_new, e_old, gauge_field, 1);
   /* aux = M_oo o_old*/

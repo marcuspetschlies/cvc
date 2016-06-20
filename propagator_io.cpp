@@ -432,7 +432,7 @@ int read_binary_spinor_data(double * const s, LimeReader * limereader,
 #ifdef HAVE_MPI
   DML_checksum_combine(ans);
 #endif
-  if(g_cart_id == 0) printf("[read_binary_spinor_data] The final checksum is %#lx %#lx\n", (*ans).suma, (*ans).sumb);
+  if(g_cart_id == 0) printf("# [read_binary_spinor_data] The final checksum is %#lx %#lx\n", (*ans).suma, (*ans).sumb);
   return(0);
 }
 #endif /* HAVE_LIBLEMON */
