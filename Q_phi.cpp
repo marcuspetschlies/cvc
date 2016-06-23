@@ -3554,6 +3554,7 @@ void Q_phi_eo (double *e_new, double *o_new, double *e_old, double *o_old, doubl
   unsigned int ix;
   unsigned int N = VOLUME / 2;
 
+  xchange_eo_field(e_old, 0);
   /* e_new = M_ee e_old + M_eo o_old */
   Hopping_eo(e_new, o_old, gauge_field, 0);
   /* aux = M_ee e_old */
@@ -3564,6 +3565,7 @@ void Q_phi_eo (double *e_new, double *o_new, double *e_old, double *o_old, doubl
     _fv_pl_eq_fv(e_new+_GSI(ix), aux+_GSI(ix));
   }
 
+  xchange_eo_field(o_old, 1);
   /* o_new = M_oo o_old + M_oe e_old */
   Hopping_eo(o_new, e_old, gauge_field, 1);
   /* aux = M_oo o_old*/
@@ -3692,11 +3694,12 @@ void C_with_Xeo (double *r, double *s, double *gauge_field, double mu, double *r
  * C_with_Xeo
  * - apply C = g5 M_oo + g5 M_oe X_eo
  *
- * output r
+ * output t
  * input s = X_eo v
  *       t = v
+ *       r = auxilliary
  ********************************************************************/
-void C_from_Xeo (double *r, double *s, double *t, double *gauge_field, double mu) {
+void C_from_Xeo (double *t, double *s, double *r, double *gauge_field, double mu) {
 
   const int nthreads = g_num_threads;
   const double a_re = 1./(2. * g_kappa);
@@ -3707,6 +3710,7 @@ void C_from_Xeo (double *r, double *s, double *t, double *gauge_field, double mu
   int threadid = 0;
 
   xchange_eo_field(s, 0);
+  /*r = M_oe s = -M_oe M_ee^-1 M_eo v */
   Hopping_eo(r, s, gauge_field, 1);
 
 #ifdef HAVE_OPENMP
@@ -3714,11 +3718,12 @@ void C_from_Xeo (double *r, double *s, double *t, double *gauge_field, double mu
 {
   threadid = omp_get_thread_num();
 #endif
-
+  /*  */
   for(ix = threadid; ix < N; ix += nthreads) {
     iix = _GSI(ix);
     _fv_ti_eq_g5 (r+iix);
     _fv_pl_eq_a_g5_pl_ib_ti_fv(r+iix, t+iix, a_re, a_im);
+    _fv_eq_fv(t+iix, r+iix);
   }
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */

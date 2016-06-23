@@ -56,6 +56,7 @@
 #define _GVI(_ix) ( 6*(_ix))
 #define _GGI(_ix,_mu) (18*(4*(_ix)+(_mu)))
 #define _GJI(_ix,_mu) (2*(4*(_ix)+(_mu)))
+#define _GSWI(_ix,_mu) (18*(6*(_ix)+(_mu)))
 
 /* #define _GWI(_ix,_mu,_N) (2*((_N)*(_ix)+(_mu))) */
 #define _GWI(_ix,_mu,_N) (2 * ( 16 * (_mu) + (_ix) ) )
@@ -78,6 +79,8 @@
 
 #define _ONE_OVER_SQRT2 (0.707106781186548)
 
+#define MAX_M_M_2PT_NUM 16
+
 namespace cvc {
 
 typedef struct momentum_info_struct {
@@ -88,8 +91,8 @@ typedef struct momentum_info_struct {
 } momentum_info_type;
 
 EXTERN int T_global, LX_global, LY_global, LZ_global;
-EXTERN int T, L, LX, LY, LZ, VOLUME, Tstart, LXstart, LYstart, LZstart, FFTW_LOC_VOLUME, L5;
-EXTERN int RAND, EDGES, VOLUMEPLUSRAND;
+EXTERN int T, L, LX, LY, LZ, Tstart, LXstart, LYstart, LZstart, FFTW_LOC_VOLUME, L5;
+EXTERN unsigned int VOLUME, RAND, EDGES, VOLUMEPLUSRAND;
 EXTERN int Nconf;
 
 EXTERN int **** g_ipt, *****g_ipt_5d;
@@ -211,10 +214,16 @@ EXTERN int g_check_inversion;
 EXTERN int g_src_snk_time_separation, g_sequential_source_gamma_id, g_sequential_source_gamma_id_list[16], g_sequential_source_gamma_id_number;
 EXTERN int g_source_gamma_id, g_source_gamma_id_list[16], g_source_gamma_id_number;
 
+EXTERN double g_csw, *g_clover_term;
+
 #ifdef HAVE_TMLQCD_LIBWRAPPER
 EXTERN tmLQCD_mpi_params g_tmLQCD_mpi;
 EXTERN tmLQCD_lat_params g_tmLQCD_lat;
 #endif
+
+EXTERN m_m_2pt_type g_m_m_2pt_list[MAX_M_M_2PT_NUM];
+EXTERN int g_m_m_2pt_num;
+
 
 }
 

@@ -13,6 +13,7 @@ IDXEX ("-"{DIGIT}+)
 SIGN ("+"|"-")
 FLT {SIGN}?{DIGIT}*+"."{DIGIT}*(e("-"|"+")?{DIGIT}+)?
 FILENAME [a-zA-Z0-9_".""-""/"][a-zA-z0-9"."_"-""/"]+
+CORRCONFIG [0-9","";""-""("")"][0-9",";"-""("")"]+
 NAME [a-zA-Z0-9_]+
 TYPE [0-9A-Z]+
 SDIGIT {SIGN}?[[:digit:]]
@@ -69,6 +70,7 @@ namespace cvc {
 %x M5
 %x M0
 %x EPSBAR
+%x CSW
 %x SOURCEID
 %x SOURCEID2
 %x GAUGEID
@@ -200,6 +202,7 @@ namespace cvc {
 %x LAPHS_PERAMBULATOR_FILE_PREFIX
 %x COMMENT
 %x ERROR
+%x M_M_TWOPT
 
 %%
 ^T{SPC}*={SPC}*                            BEGIN(TT);
@@ -215,6 +218,7 @@ namespace cvc {
 ^m5{SPC}*={SPC}*                           BEGIN(M5);
 ^m0{SPC}*={SPC}*                           BEGIN(M0);
 ^epsbar{SPC}*={SPC}*                       BEGIN(EPSBAR);
+^csw{SPC}*={SPC}*                          BEGIN(CSW);
 ^Nconf{SPC}*={SPC}*                        BEGIN(NNCONF);
 ^kappa{SPC}*={SPC}*                        BEGIN(KAPPA);
 ^sourceid{SPC}*={SPC}*                     BEGIN(SOURCEID);
@@ -356,6 +360,8 @@ namespace cvc {
 ^laphs_perambulator_path_prefix{SPC}*={SPC}* BEGIN(LAPHS_PERAMBULATOR_PATH_PREFIX);
 ^laphs_perambulator_file_prefix{SPC}*={SPC}* BEGIN(LAPHS_PERAMBULATOR_FILE_PREFIX);
 
+^m_m_2pt{SPC}*={SPC}*                      BEGIN(M_M_TWOPT);
+
 
   /* start namespace inclusion here */
 
@@ -415,6 +421,12 @@ namespace cvc {
   cvc::g_epsbar=atof(yytext);
   if(cvc::myverbose!=0) printf("# [read_input_parser] mu=%s \n", yytext);
 }
+
+<CSW>{FLT}  {
+  cvc::g_csw = atof(yytext);
+  if(cvc::myverbose!=0) printf("# [read_input_parser] csw = %s \n", yytext);
+}
+
 <NNSAVE>{SDIGIT}+ {
   cvc::Nsave=atoi(yytext); 
   if(cvc::myverbose!=0) printf("# [read_input_parser] cvc::Nsave= %s \n",yytext);
@@ -1091,9 +1103,26 @@ namespace cvc {
   if(cvc::myverbose!=0) printf("# [read_input_parser] LAPHS perambulator path prefix set to %s\n",yytext);
 }
 
-<LAPHS_PERAMBULATOR_FILE_PREFIX>{FILENAME} {
-  strcpy(cvc::laphs_perambulator_file_prefix, yytext);
-  if(cvc::myverbose!=0) printf("# [read_input_parser] LAPHS perambulator file prefix set to %s\n",yytext);
+<M_M_TWOPT>{CORRCONFIG}+ {
+  if ( cvc::g_m_m_2pt_num == MAX_M_M_2PT_NUM ) {
+    fprintf(stderr, "[read_input_parser] Error, too many m_m_2pt\n");
+    exit(1);
+  } else {
+    fprintf(stdout, "# [read_input_parser] extracting m_m_2pt number %d\n", cvc::g_m_m_2pt_num);
+  }
+  sscanf(yytext, "%d,(%d,%d,%d);%d,(%d,%d,%d)",
+    &(cvc::g_m_m_2pt_list[cvc::g_m_m_2pt_num].gi),
+    cvc::g_m_m_2pt_list[cvc::g_m_m_2pt_num].pi,
+    cvc::g_m_m_2pt_list[cvc::g_m_m_2pt_num].pi+1,
+    cvc::g_m_m_2pt_list[cvc::g_m_m_2pt_num].pi+2,
+    &(cvc::g_m_m_2pt_list[cvc::g_m_m_2pt_num].gf),
+    cvc::g_m_m_2pt_list[cvc::g_m_m_2pt_num].pf,
+    cvc::g_m_m_2pt_list[cvc::g_m_m_2pt_num].pf+1,
+    cvc::g_m_m_2pt_list[cvc::g_m_m_2pt_num].pf+2
+  );
+
+  cvc::g_m_m_2pt_num++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] m_m_2pt no. %d set to %s\n", cvc::g_m_m_2pt_num, yytext);
 }
 
 

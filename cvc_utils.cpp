@@ -281,9 +281,9 @@ void xchange_gauge() {
   cntr++;
 
   /* z-x edges */
-  MPI_Isend(&g_gauge_field[72*(VOLUME+2*( LX*LY*LZ + T*LY*LZ + T*LX*LZ )             )], 1, gauge_zt_edge_vector, g_nb_x_dn, 99, g_cart_grid, &request[cntr]);
+  MPI_Isend(&g_gauge_field[72*(VOLUME+2*( LX*LY*LZ + T*LY*LZ + T*LX*LZ )             )], 1, gauge_zx_edge_vector, g_nb_x_dn, 99, g_cart_grid, &request[cntr]);
   cntr++;
-  MPI_Irecv(&g_gauge_field[72*(VOLUME+RAND+4*(LY*LZ + LX*LZ + T*LZ + LX*LY)          )], 1, gauge_zt_edge_cont,   g_nb_x_up, 99, g_cart_grid, &request[cntr]);
+  MPI_Irecv(&g_gauge_field[72*(VOLUME+RAND+4*(LY*LZ + LX*LZ + T*LZ + LX*LY)          )], 1, gauge_zx_edge_cont,   g_nb_x_up, 99, g_cart_grid, &request[cntr]);
   cntr++;
 
   MPI_Isend(&g_gauge_field[72*(VOLUME+2*( LX*LY*LZ + T*LY*LZ + T*LX*LZ ) + (LX-1)*LY )], 1, gauge_zx_edge_vector, g_nb_x_up, 100, g_cart_grid, &request[cntr]);
@@ -1989,6 +1989,7 @@ void init_gauge_trafo(double **g, double heat) {
     w[ 6] = 0.; w[ 7] = 0.; w[ 8] = 0.; w[ 9] = 0.; w[10] = 0.; w[11] = 0.; 
     w[12] = 0.; w[13] = 0.; w[14] = 0.; w[15] = 0.; w[16] = 0.; w[17] = 0.;
 
+/*
     ran[ 0]=((double)rand()) / ((double)RAND_MAX+1.0);
     ran[ 1]=((double)rand()) / ((double)RAND_MAX+1.0);
     ran[ 2]=((double)rand()) / ((double)RAND_MAX+1.0); 
@@ -2001,7 +2002,8 @@ void init_gauge_trafo(double **g, double heat) {
     ran[ 9]=((double)rand()) / ((double)RAND_MAX+1.0);
     ran[10]=((double)rand()) / ((double)RAND_MAX+1.0);
     ran[11]=((double)rand()) / ((double)RAND_MAX+1.0);
-
+*/
+    ranlxd(ran, 12);
     ran[0] = 1.0 + (ran[0]-0.5)*heat;
     ran[1] = (ran[1]-0.5)*heat;
     ran[2] = (ran[2]-0.5)*heat;
@@ -5053,6 +5055,62 @@ void spinor_field_eq_spinor_field_ti_re (double *r, double *s, double c, unsigne
 }  /* end of parallel region */
 #endif
 
+}  /* end of spinor_field_eq_spinor_field_ti_re */
+
+/****************************************************************************
+ * d = || r - s ||
+ ****************************************************************************/
+void spinor_field_norm_diff (double*d, double *r, double *s, unsigned int N) {
+
+  const int nthreads = g_num_threads;
+  const int sincr    = _GSI(nthreads);
+
+  unsigned int ix, iix;
+  int threadid = 0;
+  double daccum=0., daccumt, sp1[24];
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+#endif
+
+#ifdef HAVE_OPENMP
+  omp_init_lock(&writelock);
+#pragma omp parallel default(shared) private(threadid,ix,iix,daccumt,sp1) firstprivate(nthreads,sincr) shared(d,r,s,N,daccum)
+{
+  threadid = omp_get_thread_num();
+#endif
+  daccumt = 0.;
+  iix = _GSI(threadid);
+  for(ix = threadid; ix < N; ix += nthreads ) {
+    _fv_eq_fv_mi_fv(sp1, r+iix, s+iix);
+    _re_pl_eq_fv_dag_ti_fv(daccumt,sp1,sp1);
+    iix += sincr;
+  }
+#ifdef HAVE_OPENMP
+  omp_set_lock(&writelock);
+  daccum += daccumt;
+
+  /* TEST */
+  /* fprintf(stdout, "# [spinor_field_norm_diff] proc%.4d thread%.2d daccumt = %25.16e\n", g_cart_id, threadid, daccumt); */
+
+  omp_unset_lock(&writelock);
+}  /* end of parallel region */
+  omp_destroy_lock(&writelock);
+#else
+  daccum = daccumt;
+#endif
+
+  /* TEST */
+  /* fprintf(stdout, "# [spinor_field_norm_diff] proc%.4d daccum = %25.16e\n", g_cart_id, daccum); */
+
+#ifdef HAVE_MPI
+  daccumt = 0.;
+  MPI_Allreduce(&daccum, &daccumt, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid);
+  /* TEST */
+  /* fprintf(stdout, "# [spinor_field_norm_diff] proc%.4d full d = %25.16e\n", g_cart_id, daccumt); */
+  *d = sqrt(daccumt);
+#else
+  *d = sqrt( daccum );
+#endif
 }  /* end of spinor_field_eq_spinor_field_ti_re */
 
 

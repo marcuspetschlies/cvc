@@ -489,6 +489,8 @@ void mpi_init(int argc,char *argv[]) {
   MPI_Type_commit(&gauge_zt_edge_cont);
 
   MPI_Type_vector(2, 1, T, gauge_z_subslice_cont, &gauge_zt_edge_vector);
+  /* TEST */
+  /* MPI_Type_vector(2, 1, T-1, gauge_z_subslice_cont, &gauge_zt_edge_vector); */
   MPI_Type_commit(&gauge_zt_edge_vector);
 
   /* --------- z-x-edge ----------------------------------------------------- */

@@ -116,6 +116,7 @@ unsigned long int get_index(const int t, const int x, const int y, const int z)
 #  if defined PARALLELTXYZ
 
   /* z-t-edges */
+/*
   if(z==LZ) {
     if(t==T) {
       ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ)           + xx*LY+yy;
@@ -132,8 +133,26 @@ unsigned long int get_index(const int t, const int x, const int y, const int z)
       ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ) + 3*LX*LY + xx*LY+yy;
     }
   }
-
+*/
+  /* TEST */
+  if(t==T) {
+    if(z==LZ) {
+      ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ)           + xx*LY+yy;
+    }
+    if(z==-1) {
+      ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ) +   LX*LY + xx*LY+yy;
+    }
+  }
+  if(t==-1) {
+    if(z==LZ) {
+      ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ) + 2*LX*LY + xx*LY+yy;
+    }
+    if(z==-1) {
+      ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ) + 3*LX*LY + xx*LY+yy;
+    }
+  }
   /* z-x-edges */
+/*
   if(z==LZ) {
     if(x==LX) {
       ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ + LX*LY)          + tt*LY+yy;
@@ -150,8 +169,28 @@ unsigned long int get_index(const int t, const int x, const int y, const int z)
       ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ + LX*LY) + 3*T*LY + tt*LY+yy;
     }
   }
+*/
+  /* TEST */
+  if(x==LX) {
+    if(z==LZ) {
+      ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ + LX*LY)          + tt*LY+yy;
+    }
+    if(z==-1) {
+      ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ + LX*LY) +   T*LY + tt*LY+yy;
+    }
+  }
+  if(x==-1) {
+    if(z==LZ) {
+      ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ + LX*LY) + 2*T*LY + tt*LY+yy;
+    }
+    if(z==-1) {
+      ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ + LX*LY) + 3*T*LY + tt*LY+yy;
+    }
+  }
+
 
   /* z-y-edges */
+/*
   if(z==LZ) {
     if(y==LY) {
       ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ + LX*LY + T*LY)          + tt*LX+xx;
@@ -168,6 +207,25 @@ unsigned long int get_index(const int t, const int x, const int y, const int z)
       ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ + LX*LY + T*LY) + 3*T*LX + tt*LX+xx;
     }
   }
+*/
+  /* TEST */
+  if(y==LY) {
+    if(z==LZ) {
+      ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ + LX*LY + T*LY)          + tt*LX+xx;
+    }
+    if(z==-1) {
+      ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ + LX*LY + T*LY) +   T*LX + tt*LX+xx;
+    }
+  }
+  if(y==-1) {
+    if(z==LZ) {
+      ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ + LX*LY + T*LY) + 2*T*LX + tt*LX+xx;
+    }
+    if(z==-1) {
+      ix = VOLUME + RAND + 4*(LY*LZ + LX*LZ + T*LZ + LX*LY + T*LY) + 3*T*LX + tt*LX+xx;
+    }
+  }
+
 
 #  endif  /* of if defined PARALLELTXYZ */
 #  endif  /* of if defined PARALLELTXY || defined PARALLELTXYZ */
