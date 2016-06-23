@@ -319,12 +319,12 @@ int gsp_calculate_v_dag_gamma_p_w(double *****gsp, double**V, double**W, int num
             ratime = _GET_TIME;
             eo_spinor_dag_gamma_spinor((complex*)buffer, V[ievecs], gamma_id_list[isource_gamma_id], W[kevecs]);
             retime = _GET_TIME;
-            if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for eo_spinor_dag_gamma_spinor = %e seconds\n", retime - ratime);
+            /* if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for eo_spinor_dag_gamma_spinor = %e seconds\n", retime - ratime); */
   
             ratime = _GET_TIME;
             eo_gsp_momentum_projection ((complex*)buffer2, (complex*)buffer, (complex*)phase_o, 1);
             retime = _GET_TIME;
-            if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for eo_gsp_momentum_projection = %e seconds\n", retime - ratime);
+            /* if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for eo_gsp_momentum_projection = %e seconds\n", retime - ratime); */
   
             for(x0=0; x0<T; x0++) {
               memcpy(gsp[isource_momentum][isource_gamma_id][x0][ievecs] + 2*kevecs, buffer2+2*x0, 2*sizeof(double));
@@ -351,12 +351,12 @@ int gsp_calculate_v_dag_gamma_p_w(double *****gsp, double**V, double**W, int num
             ratime = _GET_TIME;
             eo_spinor_dag_gamma_spinor((complex*)buffer, V[ievecs], gamma_id_list[isource_gamma_id], W[kevecs]);
             retime = _GET_TIME;
-            if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for eo_spinor_dag_gamma_spinor = %e seconds\n", retime - ratime);
+            /* if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for eo_spinor_dag_gamma_spinor = %e seconds\n", retime - ratime); */
   
             ratime = _GET_TIME;
             eo_gsp_momentum_projection ((complex*)buffer2, (complex*)buffer, (complex*)phase_o, 1);
             retime = _GET_TIME;
-            if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for eo_gsp_momentum_projection = %e seconds\n", retime - ratime);
+            /* if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for eo_gsp_momentum_projection = %e seconds\n", retime - ratime); */
   
             for(x0=0; x0<T; x0++) {
               memcpy(gsp[isource_momentum][isource_gamma_id][x0][ievecs] + 2*kevecs, buffer2+2*x0, 2*sizeof(double));
@@ -379,7 +379,7 @@ int gsp_calculate_v_dag_gamma_p_w(double *****gsp, double**V, double**W, int num
       k = 2*T*num*num; /* number of items to be sent and received */
 #if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ)
 
-      fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] proc%.2d g_tr_id = %d; g_tr_nproc =%d\n", g_cart_id, g_tr_id, g_tr_nproc);
+      /* fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] proc%.2d g_tr_id = %d; g_tr_nproc =%d\n", g_cart_id, g_tr_id, g_tr_nproc);*/
       MPI_Allgather(gsp[isource_momentum][isource_gamma_id][0][0], k, MPI_DOUBLE, gsp_buffer[0][0][0][0], k, MPI_DOUBLE, g_tr_comm);
   
 #else
@@ -396,7 +396,7 @@ int gsp_calculate_v_dag_gamma_p_w(double *****gsp, double**V, double**W, int num
 
         for(x0=0; x0<T_global; x0++) {
           sprintf(aff_buffer_path, "/%s/px%.2dpy%.2dpz%.2d/g%.2d/t%.2d", tag, momentum[0], momentum[1], momentum[2], gamma_id_list[isource_gamma_id], x0);
-          if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] current aff path = %s\n", aff_buffer_path);
+          /* if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] current aff path = %s\n", aff_buffer_path); */
 
           affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
           items = num*num;
