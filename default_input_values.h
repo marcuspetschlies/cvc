@@ -217,5 +217,7 @@ namespace cvc {
 
 #define _default_csw 0
 
+#define _default_m_m_2pt_num 0
+
 }
 #endif

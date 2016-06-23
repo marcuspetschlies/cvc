@@ -79,6 +79,8 @@
 
 #define _ONE_OVER_SQRT2 (0.707106781186548)
 
+#define MAX_M_M_2PT_NUM 16
+
 namespace cvc {
 
 typedef struct momentum_info_struct {
@@ -218,6 +220,10 @@ EXTERN double g_csw, *g_clover_term;
 EXTERN tmLQCD_mpi_params g_tmLQCD_mpi;
 EXTERN tmLQCD_lat_params g_tmLQCD_lat;
 #endif
+
+EXTERN m_m_2pt_type g_m_m_2pt_list[MAX_M_M_2PT_NUM];
+EXTERN int g_m_m_2pt_num;
+
 
 }
 

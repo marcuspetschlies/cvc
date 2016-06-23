@@ -266,6 +266,8 @@ void set_default_input_values(void) {
   strcpy(laphs_perambulator_path_prefix, _default_laphs_perambulator_path_prefix);
   strcpy(laphs_perambulator_file_prefix, _default_laphs_perambulator_file_prefix);
 
-}
+  g_m_m_2pt_num = _default_m_m_2pt_num;
 
-}
+}  /* end of set_default_input_values */
+
+}  /* end of namespace cvc */

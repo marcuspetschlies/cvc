@@ -309,13 +309,13 @@ int main(int argc, char **argv) {
     for(ievecs = 0; ievecs<evecs_num; ievecs++) {
   
       ratime = _GET_TIME;
-  #ifdef HAVE_MPI
+#ifdef HAVE_MPI
       xchange_eo_field(eo_spinor_field[ievecs], 1);
-  #endif
+#endif
       C_oo(eo_spinor_work, eo_spinor_field[ievecs], g_gauge_field, -g_mu, eo_spinor_work3);
-  #ifdef HAVE_MPI
+#ifdef HAVE_MPI
       xchange_eo_field( eo_spinor_work, 1);
-  #endif
+#endif
       C_oo(eo_spinor_work2, eo_spinor_work, g_gauge_field,  g_mu, eo_spinor_work3);
   
       norm = 4 * g_kappa * g_kappa;
