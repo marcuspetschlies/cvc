@@ -69,7 +69,9 @@ int main(int argc, char **argv) {
   int i, i2pt, iproc;
   int i_gi, i_gf, i_si, i_sf, i_ti, i_tf, i_tfi, x0;
   int filename_set = 0;
+#ifdef HAVE_OPENMP
   int threadid, nthreads;
+#endif
 
   int evecs_num=0;
   double *evecs_eval = NULL;
@@ -80,6 +82,8 @@ int main(int argc, char **argv) {
   double *****gsp_v_v_i = NULL, *****gsp_xv_xv_i = NULL, *****gsp_v_w_i   = NULL, *****gsp_xv_xw_i = NULL;
 #ifdef HAVE_MPI
   double *****gsp_t=NULL;
+  int mrank, mcoords[4];
+  int io_proc = 0;
 #endif
   double **correlator=NULL;
   char gsp_tag[100];
@@ -212,6 +216,7 @@ int main(int argc, char **argv) {
    * allocate gsp's
    ***********************************************/
   /* allocate */
+  ratime = _GET_TIME;
   status = 0;
   status = status ||  gsp_init (&gsp_w_w_f,   1, 1, T, evecs_num);
   status = status ||  gsp_init (&gsp_xw_xw_f, 1, 1, T, evecs_num);
@@ -231,6 +236,8 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[test_gsp_2pt] Error from gsp_init\n");
     EXIT(155);
   }
+  retime = _GET_TIME;
+  if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_2pt] time to initialize gsp = %e seconds\n", retime - ratime);
 
   /***********************************************
    * correlator
@@ -286,6 +293,24 @@ int main(int argc, char **argv) {
 #endif
   }  /* of if g_cart_id == 0  */
 
+#ifdef HAVE_MPI
+  /***********************************************
+   * set io process
+   ***********************************************/
+  if( g_proc_coords[0] == 0 && g_proc_coords[1] == 0 && g_proc_coords[2] == 0 && g_proc_coords[3] == 0) {
+    io_proc = 2;
+    fprintf(stdout, "# [test_gsp_2pt] proc%.4d is io process\n", g_cart_id);
+  } else {
+    if( g_proc_coords[1] == 0 && g_proc_coords[2] == 0 && g_proc_coords[3] == 0) {
+      io_proc = 1;
+      fprintf(stdout, "# [test_gsp_2pt] proc%.4d is send process\n", g_cart_id);
+    } else {
+      io_proc = 0;
+    }
+  }
+#endif
+
+
   /***********************************************
    * loops on configurations of momenta
    * at source and
@@ -315,6 +340,8 @@ int main(int argc, char **argv) {
     i_sf = gamma_sign_g5_ti_gamma[g_m_m_2pt_list[i2pt].gf];
 
     if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_2pt] (%d, %d); (%d, %d)\n", i_gi, i_si, i_gf, i_sf);
+
+    ratime = _GET_TIME;
 
     /* at source */
     sprintf(gsp_tag, "%s.%.4d", "gsp_v_v", Nconf);
@@ -390,6 +417,9 @@ int main(int argc, char **argv) {
     /* TEST */
     /* gsp_printf (gsp_xv_xw_f[0][0], evecs_num, "gsp_xv_xw_f", stdout); */
 
+    retime = _GET_TIME;
+    if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_2pt] time to read gsp nodes gsp = %e seconds\n", retime - ratime);
+
 
     /* reduce (trace) matrix product 
      *   for all combinations of source and sink time
@@ -397,10 +427,12 @@ int main(int argc, char **argv) {
     memset(correlator[0], 0, 2*T_global*T*sizeof(double));
 
     for(iproc = 0; iproc < g_nproc_t; iproc++) {
+      if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_2pt] processing sink time block %d\n", iproc);
 
       for(i_ti = 0; i_ti<T; i_ti++) {
         for(i_tf = 0; i_tf<T; i_tf++) {
 
+          ratime = _GET_TIME;
           _co_eq_zero(&w);
 
           /* accumulate four trace terms */
@@ -436,49 +468,92 @@ int main(int argc, char **argv) {
           correlator[i_ti][2*i_tfi  ] = w.re;
           correlator[i_ti][2*i_tfi+1] = w.im;
 
+          retime = _GET_TIME;
+          if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_2pt] time for reduction = %e seconds\n", retime - ratime);
+
         }  /* end of loop on tf */
       }    /* end of loop on ti */
+
 #ifdef HAVE_MPI
       items = 2 * T * (size_t)(evecs_num * evecs_num);
       bytes = items * sizeof(double);
 
+      ratime = _GET_TIME;
+
       memcpy( gsp_t[0][0][0][0], gsp_w_w_f[0][0][0][0], bytes );
-      status = MPI_Sendrecv(gsp_t[0][0][0][0], items, MPI_DOUBLE, g_nb_t_up, 101, gsp_w_w_f[0][0][0][0], items, MPI_DOUBLE, g_nb_t_dn, 102, g_cart_grid, &mstatus);
+      status = MPI_Sendrecv(gsp_t[0][0][0][0], items, MPI_DOUBLE, g_nb_t_dn, 101, gsp_w_w_f[0][0][0][0],   items, MPI_DOUBLE, g_nb_t_up, 101, g_cart_grid, &mstatus);
       if (status != MPI_SUCCESS) {
         fprintf(stderr, "[test_gsp_2pt] Error from MPI_Send\n");
         EXIT(169);
       }
 
       memcpy( gsp_t[0][0][0][0], gsp_xw_xw_f[0][0][0][0], bytes );
-      status = MPI_Sendrecv(gsp_t[0][0][0][0], items, MPI_DOUBLE, g_nb_t_up, 103, gsp_xw_xw_f[0][0][0][0], items, MPI_DOUBLE, g_nb_t_dn, 104, g_cart_grid, &mstatus);
+      status = MPI_Sendrecv(gsp_t[0][0][0][0], items, MPI_DOUBLE, g_nb_t_dn, 103, gsp_xw_xw_f[0][0][0][0], items, MPI_DOUBLE, g_nb_t_up, 103, g_cart_grid, &mstatus);
       if (status != MPI_SUCCESS) {
         fprintf(stderr, "[test_gsp_2pt] Error from MPI_Send\n");
         EXIT(170);
       }
 
       memcpy( gsp_t[0][0][0][0], gsp_v_w_f[0][0][0][0], bytes );
-      status = MPI_Sendrecv(gsp_t[0][0][0][0], items, MPI_DOUBLE, g_nb_t_up, 105, gsp_v_w_f[0][0][0][0], items, MPI_DOUBLE, g_nb_t_dn, 106, g_cart_grid, &mstatus);
+      status = MPI_Sendrecv(gsp_t[0][0][0][0], items, MPI_DOUBLE, g_nb_t_dn, 105, gsp_v_w_f[0][0][0][0],   items, MPI_DOUBLE, g_nb_t_up, 105, g_cart_grid, &mstatus);
       if (status != MPI_SUCCESS) {
         fprintf(stderr, "[test_gsp_2pt] Error from MPI_Send\n");
         EXIT(171);
       }
 
       memcpy( gsp_t[0][0][0][0], gsp_xv_xw_f[0][0][0][0], bytes );
-      status = MPI_Sendrecv(gsp_t[0][0][0][0], items, MPI_DOUBLE, g_nb_t_up, 107, gsp_xv_xw_f[0][0][0][0], items, MPI_DOUBLE, g_nb_t_dn, 108, g_cart_grid, &mstatus);
+      status = MPI_Sendrecv(gsp_t[0][0][0][0], items, MPI_DOUBLE, g_nb_t_dn, 107, gsp_xv_xw_f[0][0][0][0], items, MPI_DOUBLE, g_nb_t_up, 107, g_cart_grid, &mstatus);
       if (status != MPI_SUCCESS) {
         fprintf(stderr, "[test_gsp_2pt] Error from MPI_Send\n");
         EXIT(172);
       }
 
       MPI_Barrier(g_cart_grid);
+#if 0
+      /* TEST */
+      memset(gsp_xv_xw_f[0][0][0][0], 0, bytes);
+      memset(gsp_w_w_f[0][0][0][0],   0, bytes);
+      memset(gsp_v_w_f[0][0][0][0],   0, bytes);
+      memset(gsp_xw_xw_f[0][0][0][0], 0, bytes);
 #endif
+      retime = _GET_TIME;
+      if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_2pt] time for xchange = %e seconds\n", retime - ratime);
+#endif
+
+#if 0
+#endif  /* of if 0 */
+
     }  /* end of for iproc */
 
+    /***********************************************
+     * I / O
+     ***********************************************/
+    ratime = _GET_TIME;
     for(iproc=0; iproc<g_nproc_t; iproc++) {
-      if(g_cart_id == 0) {
+
+#ifdef HAVE_MPI
+      items = 2 * T_global * T;
+      if(iproc > 0) {
+        if(io_proc == 2)  {
+          mcoords[0] = iproc; mcoords[1] = 0; mcoords[2] = 0; mcoords[3] = 0;
+          MPI_Cart_rank(g_cart_grid, mcoords, &mrank);
+          fprintf(stdout, "# [test_gsp_2pt] proc%.2d receiving from proc%.2d\n", g_cart_id, mrank);
+          MPI_Recv(correlator[0], items, MPI_DOUBLE, mrank, iproc, g_cart_grid, &mstatus);
+        } else {
+          if(g_proc_coords[0] == iproc && io_proc == 1 ) {
+            mcoords[0] = 0; mcoords[1] = 0; mcoords[2] = 0; mcoords[3] = 0;
+            MPI_Cart_rank(g_cart_grid, mcoords, &mrank);
+            fprintf(stdout, "# [test_gsp_2pt] proc%.2d sending to proc%.2d\n", g_cart_id, mrank);
+            MPI_Send(correlator[0], items, MPI_DOUBLE, mrank, iproc, g_cart_grid);
+          }
+        }
+      }  /* end of if iproc > 0 */
+#endif
+
+      if(io_proc == 2) {
 #ifdef HAVE_LHPC_AFF
         for(i_ti=0; i_ti<T; i_ti++) {
-          x0 = (i_ti + iproc * T ) % T_global;
+          x0 = (i_ti + ( g_proc_coords[0] + iproc ) * T ) % T_global;
           sprintf(aff_buffer_path, "/gi%.2d/pix%.2dpiy%.2dpiz%.2d/gf%.2d/pfx%.2dpfy%.2dpfz%.2d/ti%.2d", 
               g_m_m_2pt_list[i2pt].gi, g_m_m_2pt_list[i2pt].pi[0], g_m_m_2pt_list[i2pt].pi[1], g_m_m_2pt_list[i2pt].pi[2],
               g_m_m_2pt_list[i2pt].gf, g_m_m_2pt_list[i2pt].pf[0], g_m_m_2pt_list[i2pt].pf[1], g_m_m_2pt_list[i2pt].pf[2],
@@ -496,40 +571,26 @@ int main(int argc, char **argv) {
         }  /* end of loop on i_ti */
 #else
         for(i_ti=0; i_ti<T; i_ti++) {
-          x0 = (i_ti + iproc * T ) % T_global;
+          x0 = (i_ti + ( g_proc_coords[0] + iproc ) * T ) % T_global;
           fprintf(ofs, "# /gi%.2d/pix%.2dpiy%.2dpiz%.2d/gf%.2d/pfx%.2dpfy%.2dpfz%.2d/ti%2d\n", 
               g_m_m_2pt_list[i2pt].gi, g_m_m_2pt_list[i2pt].pi[0], g_m_m_2pt_list[i2pt].pi[1], g_m_m_2pt_list[i2pt].pi[2],
               g_m_m_2pt_list[i2pt].gf, g_m_m_2pt_list[i2pt].pf[0], g_m_m_2pt_list[i2pt].pf[1], g_m_m_2pt_list[i2pt].pf[2],
               x0);
-          if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_2pt] current aff path = %s\n", aff_buffer_path);
-
           for(i_tf = 0; i_tf < T_global; i_tf++) {
-            fprintf(stdout, "\t%25.16e%25.16e\n", correlator[i_ti][2*i_tf], correlator[i_ti][2*i_tf+1])
+            fprintf(stdout, "\t%25.16e%25.16e\n", correlator[i_ti][2*i_tf], correlator[i_ti][2*i_tf+1]);
           }
         }  /* end of loop on i_ti */
 #endif
-      }  /* end of if g_cart_id == 0 */
+      }  /* end of if io_proc == 2 */
 
-#ifdef HAVE_MPI
-      items = 2 * T_global * T;
-      if(iproc > 0) {
-        if(g_cart_id == 0)  {
-          mcoords[0] = iproc; mcoords[1] = 0; mcoords[2] = 0; mcoords[3] = 0;
-          MPI_Cart_rank(g_cart_grid, mcoords, &mrank);
-          MPI_Recv(correlator[0], items, MPI_DOUBLE, mrank, iproc, g_cart_grid, &mstatus)
-        } else {
-          if(g_proc_coords[0] == iproc && g_proc_coords[1] == 0 && g_proc_coords[2] == 0 && g_proc_coords[3] == 0) {
-            mcoords[0] = 0; mcoords[1] = 0; mcoords[2] = 0; mcoords[3] = 0;
-            MPI_Cart_rank(g_cart_grid, mcoords, &mrank);
-            MPI_Send(correlator[0], items, MPI_DOUBLE, mrank, iproc, g_cart_id);
-          }
-        }
-      }  /* end of if iproc > 0 */
-#endif
     }  /* end of loop on iproc */
 
-#if 0 
+#if 0
 #endif  /* of if 0 */
+
+    retime = _GET_TIME;
+    if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_2pt] time for writing = %e seconds\n", retime - ratime);
+
   }  /* end of loop on i2pt */
 
   /***********************************************
@@ -575,10 +636,6 @@ int main(int argc, char **argv) {
   }
 
   free_geometry();
-
-#ifdef HAVE_MPI
-  mpi_fini_datatypes();
-#endif
 
   if (g_cart_id == 0) {
     g_the_time = time(NULL);

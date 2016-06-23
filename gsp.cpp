@@ -710,7 +710,7 @@ int gsp_read_eval(double **eval, int num, char*tag) {
     return(5);
   }
   for(ievecs=0; ievecs<num; ievecs++) {
-    fscanf(ofs, "%lf", (*eval)[ievecs] );
+    fscanf(ifs, "%lf", (*eval)[ievecs] );
   }
   fclose(ifs);
 #endif
