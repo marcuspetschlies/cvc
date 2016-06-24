@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
 #endif
 
 
-  while ((c = getopt(argc, argv, "ch?vf:n:")) != -1) {
+  while ((c = getopt(argc, argv, "ch?vf:n:a:")) != -1) {
     switch (c) {
     case 'v':
       verbose = 1;

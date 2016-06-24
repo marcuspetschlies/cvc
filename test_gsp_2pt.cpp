@@ -361,7 +361,7 @@ int main(int argc, char **argv) {
     }
     /* TEST */
     /* gsp_printf (gsp_xv_xv_i[0][0], evecs_num, "gsp_xv_xv_i", stdout); */
-
+#if 0
     sprintf(gsp_tag, "%s.%.4d", "gsp_v_w", Nconf);
     status = gsp_read_node (gsp_v_w_i[0][0], evecs_num, g_m_m_2pt_list[i2pt].pi, i_gi, gsp_tag);
     if(status) {
@@ -379,6 +379,8 @@ int main(int argc, char **argv) {
     }
     /* TEST */
     /* gsp_printf (gsp_xv_xw_i[0][0], evecs_num, "gsp_xv_xw_i", stdout); */
+#endif  /* of if 0 */
+
 
     /* at sink */
     sprintf(gsp_tag, "%s.%.4d", "gsp_w_w", Nconf);
@@ -398,7 +400,7 @@ int main(int argc, char **argv) {
     }
     /* TEST */
     /* gsp_printf (gsp_xw_xw_f[0][0], evecs_num, "gsp_xw_xw_f", stdout); */
-
+#if 0
     sprintf(gsp_tag, "%s.%.4d", "gsp_v_w", Nconf);
     status = gsp_read_node (gsp_v_w_f[0][0], evecs_num, g_m_m_2pt_list[i2pt].pf, i_gf, gsp_tag);
     if(status) {
@@ -416,7 +418,7 @@ int main(int argc, char **argv) {
     }
     /* TEST */
     /* gsp_printf (gsp_xv_xw_f[0][0], evecs_num, "gsp_xv_xw_f", stdout); */
-
+#endif  /* of if 0 */
     retime = _GET_TIME;
     if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_2pt] time to read gsp nodes gsp = %e seconds\n", retime - ratime);
 
