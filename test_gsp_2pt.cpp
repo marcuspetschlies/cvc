@@ -85,7 +85,7 @@ int main(int argc, char **argv) {
   int mrank, mcoords[4];
   int io_proc = 0;
 #endif
-  double **correlator=NULL;
+  double **correlator=NULL, **correlator2=NULL;
   char gsp_tag[100];
 
   int verbose = 0;
@@ -209,7 +209,7 @@ int main(int argc, char **argv) {
    ***********************************************/
   for(i=0; i<evecs_num; i++) {
     if(g_cart_id==0) fprintf(stdout, "# [test_gsp_2pt] eval %4d %25.16e\n", i, evecs_eval[i]) ;
-    evecs_eval[i] = 1. / sqrt(evecs_eval[i]);
+    evecs_eval[i] = 2.*g_kappa / sqrt(evecs_eval[i]);
   }
 
   /***********************************************
@@ -253,6 +253,18 @@ int main(int argc, char **argv) {
     EXIT(164);
   }
   for(i=1; i<T; i++) correlator[i] = correlator[i-1] + 2 * T_global;
+ 
+  correlator2 = (double**)malloc(T*sizeof(double*));
+  if(correlator2 == NULL) {
+    fprintf(stderr, "[test_gsp_2pt] Error from malloc\n");
+    EXIT(163);
+  }
+  correlator2[0] = (double*)malloc(2*T*T_global*sizeof(double));
+  if(correlator2[0] == NULL) {
+    fprintf(stderr, "[test_gsp_2pt] Error from malloc\n");
+    EXIT(164);
+  }
+  for(i=1; i<T; i++) correlator2[i] = correlator2[i-1] + 2 * T_global;
  
 
   /***********************************************
@@ -361,7 +373,7 @@ int main(int argc, char **argv) {
     }
     /* TEST */
     /* gsp_printf (gsp_xv_xv_i[0][0], evecs_num, "gsp_xv_xv_i", stdout); */
-#if 0
+
     sprintf(gsp_tag, "%s.%.4d", "gsp_v_w", Nconf);
     status = gsp_read_node (gsp_v_w_i[0][0], evecs_num, g_m_m_2pt_list[i2pt].pi, i_gi, gsp_tag);
     if(status) {
@@ -379,8 +391,6 @@ int main(int argc, char **argv) {
     }
     /* TEST */
     /* gsp_printf (gsp_xv_xw_i[0][0], evecs_num, "gsp_xv_xw_i", stdout); */
-#endif  /* of if 0 */
-
 
     /* at sink */
     sprintf(gsp_tag, "%s.%.4d", "gsp_w_w", Nconf);
@@ -400,7 +410,7 @@ int main(int argc, char **argv) {
     }
     /* TEST */
     /* gsp_printf (gsp_xw_xw_f[0][0], evecs_num, "gsp_xw_xw_f", stdout); */
-#if 0
+
     sprintf(gsp_tag, "%s.%.4d", "gsp_v_w", Nconf);
     status = gsp_read_node (gsp_v_w_f[0][0], evecs_num, g_m_m_2pt_list[i2pt].pf, i_gf, gsp_tag);
     if(status) {
@@ -418,7 +428,7 @@ int main(int argc, char **argv) {
     }
     /* TEST */
     /* gsp_printf (gsp_xv_xw_f[0][0], evecs_num, "gsp_xv_xw_f", stdout); */
-#endif  /* of if 0 */
+
     retime = _GET_TIME;
     if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_2pt] time to read gsp nodes gsp = %e seconds\n", retime - ratime);
 
@@ -427,6 +437,7 @@ int main(int argc, char **argv) {
      *   for all combinations of source and sink time
      */
     memset(correlator[0], 0, 2*T_global*T*sizeof(double));
+    memset(correlator2[0], 0, 2*T_global*T*sizeof(double));
 
     for(iproc = 0; iproc < g_nproc_t; iproc++) {
       if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_2pt] processing sink time block %d\n", iproc);
@@ -471,7 +482,47 @@ int main(int argc, char **argv) {
           correlator[i_ti][2*i_tfi+1] = w.im;
 
           retime = _GET_TIME;
-          if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_2pt] time for reduction = %e seconds\n", retime - ratime);
+          if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_2pt] time for flavor nonsinglet reduction = %e seconds\n", retime - ratime);
+
+          ratime = _GET_TIME;
+          _co_eq_zero(&w);
+
+          /* accumulate four trace terms */
+          co_eq_tr_gsp_ti_gsp (&w2, gsp_xv_xw_i[0][0][i_ti], gsp_xv_xw_f[0][0][i_tf], evecs_eval, evecs_num);
+          _co_pl_eq_co(&w, &w2);
+
+          /* TEST */
+          /* fprintf(stdout, "# [test_gsp_2pt] ti=%2d tf=%2d xv_xw x xv_xw = %25.16e %25.16e\n", i_ti, i_tf, w2.re, w2.im); */
+
+          co_eq_tr_gsp_ti_gsp (&w2, gsp_v_w_i[0][0][i_ti],   gsp_xv_xw_f[0][0][i_tf], evecs_eval, evecs_num);
+          _co_pl_eq_co(&w, &w2);
+
+          /* TEST */
+          /* fprintf(stdout, "# [test_gsp_2pt] ti=%2d tf=%2d v_w x xv_xw = %25.16e %25.16e\n", i_ti, i_tf, w2.re, w2.im); */
+
+          co_eq_tr_gsp_ti_gsp (&w2, gsp_xv_xw_i[0][0][i_ti], gsp_v_w_f[0][0][i_tf],   evecs_eval, evecs_num);
+          _co_pl_eq_co(&w, &w2);
+
+          /* TEST */
+          /* fprintf(stdout, "# [test_gsp_2pt] ti=%2d tf=%2d xv_xw x v_w = %25.16e %25.16e\n", i_ti, i_tf, w2.re, w2.im); */
+
+          co_eq_tr_gsp_ti_gsp (&w2, gsp_v_w_i[0][0][i_ti],   gsp_v_w_f[0][0][i_tf],   evecs_eval, evecs_num);
+          _co_pl_eq_co(&w, &w2);
+
+          /* TEST */
+          /* fprintf(stdout, "# [test_gsp_2pt] ti=%2d tf=%2d v_w x v_w = %25.16e %25.16e\n\n\n", i_ti, i_tf, w2.re, w2.im); */
+
+          /* multiply with sign from source and sink */
+          _co_ti_eq_re(&w, (i_si * i_sf) );
+  
+          i_tfi = ( i_tf + iproc * T - i_ti + T_global ) % T_global;
+
+          correlator2[i_ti][2*i_tfi  ] = w.re;
+          correlator2[i_ti][2*i_tfi+1] = w.im;
+
+          retime = _GET_TIME;
+          if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_2pt] time for flavor singlet reduction = %e seconds\n", retime - ratime);
+
 
         }  /* end of loop on tf */
       }    /* end of loop on ti */
@@ -511,13 +562,8 @@ int main(int argc, char **argv) {
       }
 
       MPI_Barrier(g_cart_grid);
-#if 0
-      /* TEST */
-      memset(gsp_xv_xw_f[0][0][0][0], 0, bytes);
-      memset(gsp_w_w_f[0][0][0][0],   0, bytes);
-      memset(gsp_v_w_f[0][0][0][0],   0, bytes);
-      memset(gsp_xw_xw_f[0][0][0][0], 0, bytes);
-#endif
+
+
       retime = _GET_TIME;
       if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_2pt] time for xchange = %e seconds\n", retime - ratime);
 #endif
@@ -552,15 +598,17 @@ int main(int argc, char **argv) {
       }  /* end of if iproc > 0 */
 #endif
 
+#ifdef HAVE_MPI
       if(io_proc == 2) {
+#endif
 #ifdef HAVE_LHPC_AFF
         for(i_ti=0; i_ti<T; i_ti++) {
           x0 = (i_ti + ( g_proc_coords[0] + iproc ) * T ) % T_global;
-          sprintf(aff_buffer_path, "/gi%.2d/pix%.2dpiy%.2dpiz%.2d/gf%.2d/pfx%.2dpfy%.2dpfz%.2d/ti%.2d", 
+          sprintf(aff_buffer_path, "/u-d/gi%.2d/pix%.2dpiy%.2dpiz%.2d/gf%.2d/pfx%.2dpfy%.2dpfz%.2d/ti%.2d", 
               g_m_m_2pt_list[i2pt].gi, g_m_m_2pt_list[i2pt].pi[0], g_m_m_2pt_list[i2pt].pi[1], g_m_m_2pt_list[i2pt].pi[2],
               g_m_m_2pt_list[i2pt].gf, g_m_m_2pt_list[i2pt].pf[0], g_m_m_2pt_list[i2pt].pf[1], g_m_m_2pt_list[i2pt].pf[2],
               x0);
-          if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_2pt] current aff path = %s\n", aff_buffer_path);
+          /* if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_2pt] current aff path = %s\n", aff_buffer_path); */
 
           affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
           items = T_global;
@@ -570,11 +618,27 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[test_gsp_2pt] Error from aff_node_put_double, status was %d\n", status);
             EXIT(178);
           }
+          x0 = (i_ti + ( g_proc_coords[0] + iproc ) * T ) % T_global;
+          sprintf(aff_buffer_path, "/u-u/gi%.2d/pix%.2dpiy%.2dpiz%.2d/gf%.2d/pfx%.2dpfy%.2dpfz%.2d/ti%.2d", 
+              g_m_m_2pt_list[i2pt].gi, g_m_m_2pt_list[i2pt].pi[0], g_m_m_2pt_list[i2pt].pi[1], g_m_m_2pt_list[i2pt].pi[2],
+              g_m_m_2pt_list[i2pt].gf, g_m_m_2pt_list[i2pt].pf[0], g_m_m_2pt_list[i2pt].pf[1], g_m_m_2pt_list[i2pt].pf[2],
+              x0);
+          /* if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_2pt] current aff path = %s\n", aff_buffer_path); */
+
+          affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
+          items = T_global;
+          memcpy(aff_buffer, correlator2[i_ti], 2*items*sizeof(double));
+          status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)items);
+          if(status != 0) {
+            fprintf(stderr, "[test_gsp_2pt] Error from aff_node_put_double, status was %d\n", status);
+            EXIT(178);
+          }
+
         }  /* end of loop on i_ti */
 #else
         for(i_ti=0; i_ti<T; i_ti++) {
           x0 = (i_ti + ( g_proc_coords[0] + iproc ) * T ) % T_global;
-          fprintf(ofs, "# /gi%.2d/pix%.2dpiy%.2dpiz%.2d/gf%.2d/pfx%.2dpfy%.2dpfz%.2d/ti%2d\n", 
+          fprintf(ofs, "# /u-d/gi%.2d/pix%.2dpiy%.2dpiz%.2d/gf%.2d/pfx%.2dpfy%.2dpfz%.2d/ti%2d\n", 
               g_m_m_2pt_list[i2pt].gi, g_m_m_2pt_list[i2pt].pi[0], g_m_m_2pt_list[i2pt].pi[1], g_m_m_2pt_list[i2pt].pi[2],
               g_m_m_2pt_list[i2pt].gf, g_m_m_2pt_list[i2pt].pf[0], g_m_m_2pt_list[i2pt].pf[1], g_m_m_2pt_list[i2pt].pf[2],
               x0);
@@ -582,9 +646,21 @@ int main(int argc, char **argv) {
             fprintf(stdout, "\t%25.16e%25.16e\n", correlator[i_ti][2*i_tf], correlator[i_ti][2*i_tf+1]);
           }
         }  /* end of loop on i_ti */
+        for(i_ti=0; i_ti<T; i_ti++) {
+          x0 = (i_ti + ( g_proc_coords[0] + iproc ) * T ) % T_global;
+          fprintf(ofs, "# /u-u/gi%.2d/pix%.2dpiy%.2dpiz%.2d/gf%.2d/pfx%.2dpfy%.2dpfz%.2d/ti%2d\n", 
+              g_m_m_2pt_list[i2pt].gi, g_m_m_2pt_list[i2pt].pi[0], g_m_m_2pt_list[i2pt].pi[1], g_m_m_2pt_list[i2pt].pi[2],
+              g_m_m_2pt_list[i2pt].gf, g_m_m_2pt_list[i2pt].pf[0], g_m_m_2pt_list[i2pt].pf[1], g_m_m_2pt_list[i2pt].pf[2],
+              x0);
+          for(i_tf = 0; i_tf < T_global; i_tf++) {
+            fprintf(stdout, "\t%25.16e%25.16e\n", correlator2[i_ti][2*i_tf], correlator2[i_ti][2*i_tf+1]);
+          }
+        }  /* end of loop on i_ti */
 #endif
-      }  /* end of if io_proc == 2 */
 
+#ifdef HAVE_MPI
+      }  /* end of if io_proc == 2 */
+#endif
     }  /* end of loop on iproc */
 
 #if 0

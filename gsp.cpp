@@ -150,6 +150,16 @@ int gsp_fini(double******gsp) {
   return(0);
 }  /* end of gsp_fini */
 
+
+/***********************************************
+ * reset gsp field to zero
+ ***********************************************/
+int gsp_reset (double ******gsp, int Np, int Ng, int Nt, int Nv) {
+  size_t bytes = 2 * (size_t)(Nv * Nv) * Nt * Np * Ng * sizeof(double);
+  memset((*gsp)[0][0][0][0], 0, bytes);
+}  /* end of gsp_reset */
+
+
 void gsp_make_eo_phase_field (double*phase_e, double*phase_o, int *momentum) {
 
   const int nthreads = g_num_threads;
@@ -244,19 +254,19 @@ int gsp_calculate_v_dag_gamma_p_w(double *****gsp, double**V, double**W, int num
   phase_o = (double*)malloc(Vhalf*2*sizeof(double));
   if(phase_e == NULL || phase_o == NULL) {
     fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error from malloc\n");
-    EXIT(14);
+    return(1);
   }
 
   buffer = (double*)malloc(2*Vhalf*sizeof(double));
   if(buffer == NULL)  {
     fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error from malloc\n");
-    EXIT(19);
+    return(2);
   }
 
   buffer2 = (double*)malloc(2*T*sizeof(double));
   if(buffer2 == NULL)  {
     fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error from malloc\n");
-    EXIT(20);
+    return(3);
   }
 
   /***********************************************
@@ -275,19 +285,19 @@ int gsp_calculate_v_dag_gamma_p_w(double *****gsp, double**V, double**W, int num
     aff_status_str = (char*)aff_writer_errstr(affw);
     if( aff_status_str != NULL ) {
       fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error from aff_writer, status was %s\n", aff_status_str);
-      EXIT(102);
+      return(4);
     }
 
     if( (affn = aff_writer_root(affw)) == NULL ) {
       fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error, aff writer is not initialized\n");
-      EXIT(103);
+      return(5);
     }
 
     if(g_cart_id == 0) {
       aff_buffer = (double _Complex*)malloc(num*num*sizeof(double _Complex));
       if(aff_buffer == NULL) {
         fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error from malloc\n");
-        EXIT(22);
+        return(6);
       }
     }
   }
@@ -373,8 +383,8 @@ int gsp_calculate_v_dag_gamma_p_w(double *****gsp, double**V, double**W, int num
 #ifdef HAVE_MPI
       status = gsp_init (&gsp_buffer, 1, 1, T_global, num);
       if(gsp_buffer == NULL) {
-        fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error from gsp_init\n");
-        EXIT(18);
+        fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error from gsp_init, status was %d\n", status);
+        return(7);
       }
       k = 2*T*num*num; /* number of items to be sent and received */
 #if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ)
@@ -404,7 +414,7 @@ int gsp_calculate_v_dag_gamma_p_w(double *****gsp, double**V, double**W, int num
           status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)items); 
           if(status != 0) {
             fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error from aff_node_put_double, status was %d\n", status);
-            EXIT(104);
+            return(8);
           }
         }  /* end of loop on x0 */
 #else
@@ -414,12 +424,12 @@ int gsp_calculate_v_dag_gamma_p_w(double *****gsp, double**V, double**W, int num
         ofs = fopen(filename, "w");
         if(ofs == NULL) {
           fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error, could not open file %s for writing\n", filename);
-          EXIT(103);
+          return(9);
         }
         items = 2 * (size_t)T * num*num;
         if( fwrite(gsp_buffer[0][0][0][0], sizeof(double), items, ofs) != items ) {
           fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error, could not write proper amount of data to file %s\n", filename);
-          EXIT(104);
+          return(10);
         }
         fclose(ofs);
 
@@ -449,7 +459,7 @@ int gsp_calculate_v_dag_gamma_p_w(double *****gsp, double**V, double**W, int num
     aff_status_str = (char*)aff_writer_close (affw);
     if( aff_status_str != NULL ) {
       fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error from aff_writer_close, status was %s\n", aff_status_str);
-      EXIT(104);
+      return(11);
     }
   }
 #endif
