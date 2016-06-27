@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
       break;
     case 'n':
       evecs_num = atoi(optarg);
-      fprintf(stdout, "# [ama_gsp] dimension of eigenspace set to%d\n", evecs_num);
+      fprintf(stdout, "# [ama_gsp] dimension of eigenspace set to %d\n", evecs_num);
       break;
     case 'c':
       check_eigenvectors = 1;
@@ -241,7 +241,8 @@ int main(int argc, char **argv) {
     }
 
     ratime = _GET_TIME;
-    spinor_field_unpack_lexic2eo (g_spinor_field[0], eo_spinor_field[ievecs], eo_spinor_field[ievecs+1]);
+/*    spinor_field_unpack_lexic2eo (g_spinor_field[0], eo_spinor_field[ievecs], eo_spinor_field[ievecs+1]); */
+    spinor_field_lexic2eo (g_spinor_field[0], eo_spinor_field[ievecs], eo_spinor_field[ievecs+1]);
     retime = _GET_TIME;
     if(g_cart_id == 0) fprintf(stdout, "# [ama_gsp] time for unpacking = %e\n", retime - ratime);
 
@@ -304,6 +305,10 @@ int main(int argc, char **argv) {
   /* scalar products */
   status = gsp_calculate_v_dag_gamma_p_w(gsp, &(eo_spinor_field[0]), &(eo_spinor_field[0]), evecs_num, g_source_momentum_number, g_source_momentum_list,
       g_source_gamma_id_number, g_source_gamma_id_list, gsp_tag, 1);
+  if(status != 0) {
+    fprintf(stderr, "[ama_gsp] Error from gsp_calculate_v_dag_gamma_p_w, status was %d\n", status);
+    EXIT(125);
+  }
   /* deallocate */
   gsp_fini(&gsp);
 
@@ -329,6 +334,10 @@ int main(int argc, char **argv) {
   /* scalar products */
   status = gsp_calculate_v_dag_gamma_p_w(gsp, &(eo_spinor_field[evecs_num]), &(eo_spinor_field[evecs_num]), evecs_num, g_source_momentum_number, g_source_momentum_list,
       g_source_gamma_id_number, g_source_gamma_id_list, gsp_tag, 1);
+  if(status != 0) {
+    fprintf(stderr, "[ama_gsp] Error from gsp_calculate_v_dag_gamma_p_w, status was %d\n", status);
+    EXIT(126);
+  }
   /* deallocate */
   gsp_fini(&gsp);
 
@@ -373,6 +382,10 @@ int main(int argc, char **argv) {
   /* scalar product */
   status = gsp_calculate_v_dag_gamma_p_w(gsp, &(eo_spinor_field[evecs_num]), &(eo_spinor_field[evecs_num]), evecs_num, g_source_momentum_number, g_source_momentum_list,
       g_source_gamma_id_number, g_source_gamma_id_list, gsp_tag, 1);
+  if(status != 0) {
+    fprintf(stderr, "[ama_gsp] Error from gsp_calculate_v_dag_gamma_p_w, status was %d\n", status);
+    EXIT(127);
+  }
   /* deallocate */
   gsp_fini(&gsp);
 
@@ -392,6 +405,10 @@ int main(int argc, char **argv) {
   /*                                            V                      W */
   status = gsp_calculate_v_dag_gamma_p_w(gsp, &(eo_spinor_field[0]), &(eo_spinor_field[evecs_num]), evecs_num, g_source_momentum_number, g_source_momentum_list,
       g_source_gamma_id_number, g_source_gamma_id_list, gsp_tag, 0);
+  if(status != 0) {
+    fprintf(stderr, "[ama_gsp] Error from gsp_calculate_v_dag_gamma_p_w, status was %d\n", status);
+    EXIT(128);
+  }
   /* deallocate */
   gsp_fini(&gsp);
 
@@ -422,6 +439,10 @@ int main(int argc, char **argv) {
   /* scalar products */
   status = gsp_calculate_v_dag_gamma_p_w(gsp, &(eo_spinor_field[evecs_num]), &(eo_spinor_field[evecs_num]), evecs_num, g_source_momentum_number, g_source_momentum_list,
       g_source_gamma_id_number, g_source_gamma_id_list, gsp_tag, 1);
+  if(status != 0) {
+    fprintf(stderr, "[ama_gsp] Error from gsp_calculate_v_dag_gamma_p_w, status was %d\n", status);
+    EXIT(129);
+  }
   /* deallocate */
   gsp_fini(&gsp);
   
@@ -453,6 +474,10 @@ int main(int argc, char **argv) {
   /* scalar products */
   status = gsp_calculate_v_dag_gamma_p_w(gsp, &(eo_spinor_field[0]), &(eo_spinor_field[evecs_num]), evecs_num, g_source_momentum_number, g_source_momentum_list,
       g_source_gamma_id_number, g_source_gamma_id_list, gsp_tag, 0);
+  if(status != 0) {
+    fprintf(stderr, "[ama_gsp] Error from gsp_calculate_v_dag_gamma_p_w, status was %d\n", status);
+    EXIT(124);
+  }
   /* deallocate */
   gsp_fini(&gsp);
   
