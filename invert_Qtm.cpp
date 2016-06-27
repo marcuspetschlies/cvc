@@ -108,7 +108,7 @@ void spinor_scalar_product_re(double *r, double *xi, double *phi, int V) {
 
 #ifdef HAVE_OPENMP
   omp_init_lock(&writelock);
-#pragma omp parallel default(shared) private(ix,iix,threadid,w2) firstprivate(V,nthreads) shared(w,xi,phi)
+#pragma omp parallel default(shared) private(ix,iix,threadid,w2) shared(w,xi,phi,V)
 {
   threadid = omp_get_thread_num();
 #endif
@@ -150,6 +150,7 @@ void eo_spinor_spatial_scalar_product_co(complex *w, double *xi, double *phi, in
  
   const int nthreads = g_num_threads;
   const int sincr = _GSI(nthreads);
+  const unsigned int N = VOLUME / 2;
 
   int ix, iix, it;
   int threadid = 0;
@@ -159,13 +160,12 @@ void eo_spinor_spatial_scalar_product_co(complex *w, double *xi, double *phi, in
 #else
   complex *p2 = p;
 #endif
-  unsigned int N = VOLUME / 2;
 
   memset(p, 0, T*sizeof(complex));
 
 #ifdef HAVE_OPENMP
   omp_init_lock(&writelock);
-#pragma omp parallel default(shared) private(ix,iix,it,threadid) firstprivate(N,nthreads) shared(xi,phi,eo)
+#pragma omp parallel default(shared) private(ix,iix,it,threadid) shared(xi,phi,eo)
 {
   complex p2[T];
   threadid = omp_get_thread_num();
@@ -203,13 +203,13 @@ void eo_spinor_spatial_scalar_product_co(complex *w, double *xi, double *phi, in
 void eo_spinor_dag_gamma_spinor(complex*gsp, double*xi, int gid, double*phi) {
 
   const int nthreads = g_num_threads;
+  const unsigned int N = VOLUME / 2;
 
   unsigned int ix, iix;
-  unsigned int N = VOLUME / 2;
   double spinor1[24];
   int threadid=0;
 #ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(spinor1,ix,iix,threadid) firstprivate(N,nthreads) shared(xi,gid,phi)
+#pragma omp parallel default(shared) private(spinor1,ix,iix,threadid) shared(xi,gid,phi)
 {
   threadid = omp_get_thread_num();
   /* TEST */
@@ -235,9 +235,10 @@ void eo_spinor_dag_gamma_spinor(complex*gsp, double*xi, int gid, double*phi) {
 void eo_gsp_momentum_projection (complex *gsp_p, complex *gsp_x, complex *phase, int eo) {
   
   const int nthreads = g_num_threads;
+  const unsigned int N = VOLUME / 2;
+  const int *index_ptr = g_eosub2t[eo];
 
   unsigned int ix, it;
-  unsigned int N = VOLUME / 2;
   complex p[T];
 #ifdef HAVE_OPENMP
   omp_lock_t writelock;
@@ -245,12 +246,11 @@ void eo_gsp_momentum_projection (complex *gsp_p, complex *gsp_x, complex *phase,
   complex *p2 = p;
 #endif
   int threadid=0;
-  int *index_ptr = g_eosub2t[eo];
 
   memset(p, 0, T*sizeof(complex));
 #ifdef HAVE_OPENMP
   omp_init_lock(&writelock);
-#pragma omp parallel default(shared) private(threadid,ix,it) firstprivate(nthreads,N,index_ptr) shared(phase,gsp_x)
+#pragma omp parallel default(shared) private(threadid,ix,it) shared(phase,gsp_x)
 {
   complex p2[T];
   threadid = omp_get_thread_num();

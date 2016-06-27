@@ -3421,15 +3421,15 @@ void M_zz (double*s, double*r, double mass) {
   const double mutilde            = 2. * g_kappa * mass;
   const double one_over_two_kappa = 0.5/g_kappa;
   const int nthreads = g_num_threads;
+  const unsigned int N = VOLUME/2;
 
-  unsigned int N = VOLUME/2;
   unsigned int ix;
   double *s_= NULL, *r_ = NULL;
   double sp1[24];
   int threadid=0;
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(ix,threadid,s_,r_,sp1) firstprivate(nthreads,N,mutilde,one_over_two_kappa) shared(s,r)
+#pragma omp parallel default(shared) private(ix,threadid,s_,r_,sp1) shared(s,r)
 {
   threadid = omp_get_thread_num();
 #endif
@@ -3459,15 +3459,15 @@ void M_zz_inv (double*s, double*r, double mass) {
   const double mutilde = 2. * g_kappa * mass;
   const double norm    =  2.*g_kappa / (1.+ mutilde*mutilde);
   const int nthreads   = g_num_threads;
+  const unsigned int N = VOLUME/2;
 
-  unsigned int N = VOLUME/2;
   unsigned int ix;
   double *s_= NULL, *r_ = NULL;
   double sp1[24];
   int threadid=0; 
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(ix,threadid,s_,r_,sp1) firstprivate(N,nthreads,mutilde,norm) shared(r,s)
+#pragma omp parallel default(shared) private(ix,threadid,s_,r_,sp1) shared(r,s)
 {
   threadid = omp_get_thread_num();
 #endif
@@ -3500,9 +3500,9 @@ void M_zz_inv (double*s, double*r, double mass) {
 void C_oo (double*s, double*r, double *gauge_field, double mass, double *s_aux) {
 
   const int nthreads = g_num_threads;
+  const unsigned int N = VOLUME / 2;
 
   unsigned int ix;
-  unsigned int N = VOLUME / 2;
   double *s_ = NULL, *s_aux_ = NULL;
   double sp1[24];
   int threadid=0;
@@ -3523,7 +3523,7 @@ void C_oo (double*s, double*r, double *gauge_field, double mass, double *s_aux) 
   M_zz(s, r, mass);
  
 #ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(ix,threadid,sp1,s_,s_aux_) firstprivate(N,nthreads) shared(s,s_aux)
+#pragma omp parallel default(shared) private(ix,threadid,sp1,s_,s_aux_) shared(s,s_aux)
 {
   threadid = omp_get_thread_num();
 #endif
@@ -3635,21 +3635,21 @@ void Q_eo_SchurDecomp_B (double *e_new, double *o_new, double *e_old, double *o_
 void X_eo (double *even, double *odd, double mu, double *gauge_field) {
 
   const int nthreads = g_num_threads;
+  const unsigned int N = VOLUME/2;
+  const double mutilde = 2. * g_kappa * mu;
+  const double a_re = -2. * g_kappa / ( 1 + mutilde * mutilde);
+  const double a_im = -a_re * mutilde;
 
-  unsigned int ix;
-  unsigned int N = VOLUME/2;
-  double mutilde = 2. * g_kappa * mu;
-  double a_re = -2. * g_kappa / ( 1 + mutilde * mutilde);
-  double a_im = -a_re * mutilde;
   double *ptr, sp[24];
   int threadid = 0;
+  unsigned int ix;
 
   /* M_eo */
   xchange_eo_field(odd, 1);
   Hopping_eo(even, odd, gauge_field, 0);
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(ix,threadid,ptr,sp) firstprivate(nthreads,a_re,a_im) shared(even)
+#pragma omp parallel default(shared) private(ix,threadid,ptr,sp) shared(even)
 {
   threadid = omp_get_thread_num();
 #endif
@@ -3704,9 +3704,9 @@ void C_from_Xeo (double *t, double *s, double *r, double *gauge_field, double mu
   const int nthreads = g_num_threads;
   const double a_re = 1./(2. * g_kappa);
   const double a_im = mu;
+  const unsigned int N = VOLUME / 2;
 
   unsigned int ix, iix;
-  unsigned int N = VOLUME / 2;
   int threadid = 0;
 
   xchange_eo_field(s, 0);
@@ -3714,7 +3714,7 @@ void C_from_Xeo (double *t, double *s, double *r, double *gauge_field, double mu
   Hopping_eo(r, s, gauge_field, 1);
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(threadid,ix,iix) firstprivate(nthreads,N) shared(r,t)
+#pragma omp parallel default(shared) private(threadid,ix,iix) shared(r,t)
 {
   threadid = omp_get_thread_num();
 #endif

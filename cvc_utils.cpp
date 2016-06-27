@@ -4998,7 +4998,7 @@ void spinor_field_mi_eq_spinor_field_ti_re(double*r, double*s, double c, unsigne
   int threadid = 0;
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(ix,threadid) firstprivate(N,nthreads) shared(r,s,c)
+#pragma omp parallel default(shared) private(ix,threadid) shared(r,s,c,N)
 {
   threadid = omp_get_thread_num();
 #endif
@@ -5020,7 +5020,7 @@ void spinor_field_ti_eq_re (double *r, double c, unsigned int N) {
   int threadid = 0;
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(threadid,ix) firstprivate(nthreads) shared(r,c,N)
+#pragma omp parallel default(shared) private(threadid,ix) shared(r,c,N)
 {
   threadid = omp_get_thread_num();
 #endif
@@ -5042,7 +5042,7 @@ void spinor_field_eq_spinor_field_ti_re (double *r, double *s, double c, unsigne
   int threadid = 0;
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(threadid,ix,iix) firstprivate(nthreads,sincr) shared(r,s,c,N)
+#pragma omp parallel default(shared) private(threadid,ix,iix) shared(r,s,c,N)
 {
   threadid = omp_get_thread_num();
 #endif
@@ -5074,7 +5074,7 @@ void spinor_field_norm_diff (double*d, double *r, double *s, unsigned int N) {
 
 #ifdef HAVE_OPENMP
   omp_init_lock(&writelock);
-#pragma omp parallel default(shared) private(threadid,ix,iix,daccumt,sp1) firstprivate(nthreads,sincr) shared(d,r,s,N,daccum)
+#pragma omp parallel default(shared) private(threadid,ix,iix,daccumt,sp1) shared(d,r,s,N,daccum)
 {
   threadid = omp_get_thread_num();
 #endif
