@@ -167,7 +167,7 @@ void gsp_make_eo_phase_field (double*phase_e, double*phase_o, int *momentum) {
 
   ratime = _GET_TIME;
 #ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(ix,iix,x0,x1,x2,x3,dtmp,threadid) firstprivate(nthreads,T,LX,LY,LZ) shared(phase_e, phase_o, momentum)
+#pragma omp parallel default(shared) private(ix,iix,x0,x1,x2,x3,dtmp,threadid) firstprivate(T,LX,LY,LZ) shared(phase_e, phase_o, momentum)
 {
   threadid = omp_get_thread_num();
 #endif
@@ -244,19 +244,19 @@ int gsp_calculate_v_dag_gamma_p_w(double *****gsp, double**V, double**W, int num
   phase_o = (double*)malloc(Vhalf*2*sizeof(double));
   if(phase_e == NULL || phase_o == NULL) {
     fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error from malloc\n");
-    EXIT(14);
+    return(1);
   }
 
   buffer = (double*)malloc(2*Vhalf*sizeof(double));
   if(buffer == NULL)  {
     fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error from malloc\n");
-    EXIT(19);
+    return(2);
   }
 
   buffer2 = (double*)malloc(2*T*sizeof(double));
   if(buffer2 == NULL)  {
     fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error from malloc\n");
-    EXIT(20);
+    return(3);
   }
 
   /***********************************************
@@ -275,19 +275,19 @@ int gsp_calculate_v_dag_gamma_p_w(double *****gsp, double**V, double**W, int num
     aff_status_str = (char*)aff_writer_errstr(affw);
     if( aff_status_str != NULL ) {
       fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error from aff_writer, status was %s\n", aff_status_str);
-      EXIT(102);
+      return(4);
     }
 
     if( (affn = aff_writer_root(affw)) == NULL ) {
       fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error, aff writer is not initialized\n");
-      EXIT(103);
+      return(5);
     }
 
     if(g_cart_id == 0) {
       aff_buffer = (double _Complex*)malloc(num*num*sizeof(double _Complex));
       if(aff_buffer == NULL) {
         fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error from malloc\n");
-        EXIT(22);
+        return(6);
       }
     }
   }
@@ -319,12 +319,12 @@ int gsp_calculate_v_dag_gamma_p_w(double *****gsp, double**V, double**W, int num
             ratime = _GET_TIME;
             eo_spinor_dag_gamma_spinor((complex*)buffer, V[ievecs], gamma_id_list[isource_gamma_id], W[kevecs]);
             retime = _GET_TIME;
-            if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for eo_spinor_dag_gamma_spinor = %e seconds\n", retime - ratime);
+            /* if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for eo_spinor_dag_gamma_spinor = %e seconds\n", retime - ratime); */
   
             ratime = _GET_TIME;
             eo_gsp_momentum_projection ((complex*)buffer2, (complex*)buffer, (complex*)phase_o, 1);
             retime = _GET_TIME;
-            if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for eo_gsp_momentum_projection = %e seconds\n", retime - ratime);
+            /* if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for eo_gsp_momentum_projection = %e seconds\n", retime - ratime); */
   
             for(x0=0; x0<T; x0++) {
               memcpy(gsp[isource_momentum][isource_gamma_id][x0][ievecs] + 2*kevecs, buffer2+2*x0, 2*sizeof(double));
@@ -351,13 +351,13 @@ int gsp_calculate_v_dag_gamma_p_w(double *****gsp, double**V, double**W, int num
             ratime = _GET_TIME;
             eo_spinor_dag_gamma_spinor((complex*)buffer, V[ievecs], gamma_id_list[isource_gamma_id], W[kevecs]);
             retime = _GET_TIME;
-            if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for eo_spinor_dag_gamma_spinor = %e seconds\n", retime - ratime);
+            /* if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for eo_spinor_dag_gamma_spinor = %e seconds\n", retime - ratime); */
   
             ratime = _GET_TIME;
             eo_gsp_momentum_projection ((complex*)buffer2, (complex*)buffer, (complex*)phase_o, 1);
             retime = _GET_TIME;
-            if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for eo_gsp_momentum_projection = %e seconds\n", retime - ratime);
-  
+            /* if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for eo_gsp_momentum_projection = %e seconds\n", retime - ratime); */  
+
             for(x0=0; x0<T; x0++) {
               memcpy(gsp[isource_momentum][isource_gamma_id][x0][ievecs] + 2*kevecs, buffer2+2*x0, 2*sizeof(double));
             }
@@ -373,8 +373,8 @@ int gsp_calculate_v_dag_gamma_p_w(double *****gsp, double**V, double**W, int num
 #ifdef HAVE_MPI
       status = gsp_init (&gsp_buffer, 1, 1, T_global, num);
       if(gsp_buffer == NULL) {
-        fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error from gsp_init\n");
-        EXIT(18);
+        fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error from gsp_init, status was %d\n", status);
+        return(7);
       }
       k = 2*T*num*num; /* number of items to be sent and received */
 #if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ)
@@ -404,7 +404,7 @@ int gsp_calculate_v_dag_gamma_p_w(double *****gsp, double**V, double**W, int num
           status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)items); 
           if(status != 0) {
             fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error from aff_node_put_double, status was %d\n", status);
-            EXIT(104);
+            return(8);
           }
         }  /* end of loop on x0 */
 #else
@@ -414,12 +414,12 @@ int gsp_calculate_v_dag_gamma_p_w(double *****gsp, double**V, double**W, int num
         ofs = fopen(filename, "w");
         if(ofs == NULL) {
           fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error, could not open file %s for writing\n", filename);
-          EXIT(103);
+          return(9);
         }
         items = 2 * (size_t)T * num*num;
         if( fwrite(gsp_buffer[0][0][0][0], sizeof(double), items, ofs) != items ) {
           fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error, could not write proper amount of data to file %s\n", filename);
-          EXIT(104);
+          return(10);
         }
         fclose(ofs);
 
@@ -449,7 +449,7 @@ int gsp_calculate_v_dag_gamma_p_w(double *****gsp, double**V, double**W, int num
     aff_status_str = (char*)aff_writer_close (affw);
     if( aff_status_str != NULL ) {
       fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error from aff_writer_close, status was %s\n", aff_status_str);
-      EXIT(104);
+      return(11);
     }
   }
 #endif
@@ -465,7 +465,7 @@ int gsp_calculate_v_dag_gamma_p_w(double *****gsp, double**V, double**W, int num
 
   return(0);
 
-}  /* end of calculate_gsp */
+}  /* end of gsp_calculate_v_dag_gamma_p_w */
 
 /***********************************************************************************************
  ***********************************************************************************************
@@ -524,7 +524,7 @@ int gsp_read_node (double ***gsp, int num, int momentum[3], int gamma_id, char*t
   for(x0=0; x0<T; x0++) {
     sprintf(aff_buffer_path, "/%s/px%.2dpy%.2dpz%.2d/g%.2d/t%.2d", tag, momentum[0], momentum[1], momentum[2], gamma_id, 
         x0+g_proc_coords[0]*T);
-    if(g_cart_id == 0) fprintf(stdout, "# [gsp_read_node] current aff path = %s\n", aff_buffer_path);
+    /* if(g_cart_id == 0) fprintf(stdout, "# [gsp_read_node] current aff path = %s\n", aff_buffer_path); */
 
     affdir = aff_reader_chpath(affr, affn, aff_buffer_path);
     items = num*num;
@@ -730,7 +730,7 @@ void co_eq_tr_gsp_ti_gsp (complex *w, double**gsp1, double**gsp2, double*lambda,
   _co_eq_zero(w);
 #ifdef HAVE_OPENMP
   omp_init_lock(&writelock);
-#pragma omp parallel private(threadid) firstprivate(nthreads) shared(w,gsp1,gsp2,lambda,num)
+#pragma omp parallel private(threadid) shared(w,gsp1,gsp2,lambda,num)
 {
   threadid = omp_get_thread_num();
 #endif
