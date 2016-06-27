@@ -580,19 +580,28 @@ int main(int argc, char **argv) {
     for(iproc=0; iproc<g_nproc_t; iproc++) {
 
 #ifdef HAVE_MPI
+      /***********************************************
+       * exchange correlator nad correlator2
+       ***********************************************/
       items = 2 * T_global * T;
       if(iproc > 0) {
         if(io_proc == 2)  {
           mcoords[0] = iproc; mcoords[1] = 0; mcoords[2] = 0; mcoords[3] = 0;
           MPI_Cart_rank(g_cart_grid, mcoords, &mrank);
           fprintf(stdout, "# [test_gsp_2pt] proc%.2d receiving from proc%.2d\n", g_cart_id, mrank);
-          MPI_Recv(correlator[0], items, MPI_DOUBLE, mrank, iproc, g_cart_grid, &mstatus);
+          /* receive correlator with tag 2*iproc */
+          MPI_Recv(correlator[0],  items, MPI_DOUBLE, mrank, 2*iproc,   g_cart_grid, &mstatus);
+          /* receive correlator2 with tag 2*iproc */
+          MPI_Recv(correlator2[0], items, MPI_DOUBLE, mrank, 2*iproc+1, g_cart_grid, &mstatus);
         } else {
           if(g_proc_coords[0] == iproc && io_proc == 1 ) {
             mcoords[0] = 0; mcoords[1] = 0; mcoords[2] = 0; mcoords[3] = 0;
             MPI_Cart_rank(g_cart_grid, mcoords, &mrank);
             fprintf(stdout, "# [test_gsp_2pt] proc%.2d sending to proc%.2d\n", g_cart_id, mrank);
-            MPI_Send(correlator[0], items, MPI_DOUBLE, mrank, iproc, g_cart_grid);
+            /* send correlator with tag 2*iproc */
+            MPI_Send(correlator[0],  items, MPI_DOUBLE, mrank, 2*iproc,   g_cart_grid);
+            /* send correlator2 with tag 2*iproc+1 */
+            MPI_Send(correlator2[0], items, MPI_DOUBLE, mrank, 2*iproc+1, g_cart_grid);
           }
         }
       }  /* end of if iproc > 0 */
@@ -603,6 +612,10 @@ int main(int argc, char **argv) {
 #endif
 #ifdef HAVE_LHPC_AFF
         for(i_ti=0; i_ti<T; i_ti++) {
+
+          /***********************************************
+           * write correlator
+           ***********************************************/
           x0 = (i_ti + ( g_proc_coords[0] + iproc ) * T ) % T_global;
           sprintf(aff_buffer_path, "/u-d/gi%.2d/pix%.2dpiy%.2dpiz%.2d/gf%.2d/pfx%.2dpfy%.2dpfz%.2d/ti%.2d", 
               g_m_m_2pt_list[i2pt].gi, g_m_m_2pt_list[i2pt].pi[0], g_m_m_2pt_list[i2pt].pi[1], g_m_m_2pt_list[i2pt].pi[2],
@@ -618,6 +631,10 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[test_gsp_2pt] Error from aff_node_put_double, status was %d\n", status);
             EXIT(178);
           }
+
+          /***********************************************
+           * write correlator2
+           ***********************************************/
           x0 = (i_ti + ( g_proc_coords[0] + iproc ) * T ) % T_global;
           sprintf(aff_buffer_path, "/u-u/gi%.2d/pix%.2dpiy%.2dpiz%.2d/gf%.2d/pfx%.2dpfy%.2dpfz%.2d/ti%.2d", 
               g_m_m_2pt_list[i2pt].gi, g_m_m_2pt_list[i2pt].pi[0], g_m_m_2pt_list[i2pt].pi[1], g_m_m_2pt_list[i2pt].pi[2],
@@ -636,6 +653,9 @@ int main(int argc, char **argv) {
 
         }  /* end of loop on i_ti */
 #else
+        /***********************************************
+         * write correlator
+         ***********************************************/
         for(i_ti=0; i_ti<T; i_ti++) {
           x0 = (i_ti + ( g_proc_coords[0] + iproc ) * T ) % T_global;
           fprintf(ofs, "# /u-d/gi%.2d/pix%.2dpiy%.2dpiz%.2d/gf%.2d/pfx%.2dpfy%.2dpfz%.2d/ti%2d\n", 
@@ -646,6 +666,10 @@ int main(int argc, char **argv) {
             fprintf(stdout, "\t%25.16e%25.16e\n", correlator[i_ti][2*i_tf], correlator[i_ti][2*i_tf+1]);
           }
         }  /* end of loop on i_ti */
+
+        /***********************************************
+         * write correlator2
+         ***********************************************/
         for(i_ti=0; i_ti<T; i_ti++) {
           x0 = (i_ti + ( g_proc_coords[0] + iproc ) * T ) % T_global;
           fprintf(ofs, "# /u-u/gi%.2d/pix%.2dpiy%.2dpiz%.2d/gf%.2d/pfx%.2dpfy%.2dpfz%.2d/ti%2d\n", 
@@ -711,6 +735,12 @@ int main(int argc, char **argv) {
       free(correlator[0]);
     }
     free(correlator);
+  }
+ if(correlator2 != NULL) {
+   if(correlator2[0] != NULL) {
+     free(correlator2[0]);
+   }
+   free(correlator2);
   }
 
   free_geometry();
