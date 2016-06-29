@@ -518,8 +518,9 @@ int gsp_calculate_v_dag_gamma_p_w(double**V, double**W, int num, int momentum_nu
 #endif
 
      gsp_reset (&gsp, 1, 1, T, num);
-
+#ifdef HAVE_MPI
      MPI_Barrier(g_cart_grid);
+#endif
 
      gamma_retime = _GET_TIME;
      if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for gamma id %d = %e seconds\n", gamma_id_list[isource_gamma_id], gamma_retime - gamma_ratime);
@@ -887,5 +888,43 @@ int gsp_printf (double ***gsp, int num, char *name, FILE*ofs) {
 
   return(0);
 }  /* end of gsp_printf */
+
+void co_eq_tr_gsp (complex *w, double**gsp1, double*lambda, int num) {
+
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+#endif
+
+  _co_eq_zero(w);
+#ifdef HAVE_OPENMP
+  omp_init_lock(&writelock);
+#pragma omp parallel shared(w,gsp1,lambda,num)
+{
+#endif
+  int i;
+  complex waccum;
+  complex z1;
+  double r;
+
+  _co_eq_zero(&waccum);
+
+#pragma omp for
+  for(i = 0; i < num; i++) {
+      r = lambda[i];
+      /* multiply with real, diagonal Lambda matrix */
+      waccum.re += gsp1[i][2*i  ] *r;
+      waccum.im += gsp1[i][2*i+1] *r;
+  }
+#ifdef HAVE_OPENMP
+  omp_set_lock(&writelock);
+  _co_pl_eq_co(w, &waccum);
+  omp_unset_lock(&writelock);
+}  /* end of parallel region */
+  omp_destroy_lock(&writelock);
+#else
+  _co_eq_co(w, &waccum);
+#endif
+
+}  /* co_eq_tr_gsp */
 
 }  /* end of namespace cvc */

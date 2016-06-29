@@ -21,6 +21,7 @@ int gsp_write_eval(double *eval, int num, char*tag);
 int gsp_read_eval(double **eval, int num, char*tag);
 
 void co_eq_tr_gsp_ti_gsp (complex *w, double**gsp1, double**gsp2, double*lambda, int num);
+void co_eq_tr_gsp (complex *w, double**gsp1, double*lambda, int num);
 
 int gsp_printf (double ***gsp, int num, char*name, FILE*ofs);
 
