@@ -75,7 +75,6 @@ int main(int argc, char **argv) {
   double norm, dtmp;
   complex w;
 
-  double *****gsp = NULL;
   char gsp_tag[100];
 
   double plaq=0.;
@@ -305,16 +304,6 @@ int main(int argc, char **argv) {
 
   }  /* end of if check_eigenvectors */
 
-  
-  /***********************************************
-   * allocate
-   ***********************************************/
-  status = gsp_init (&gsp, g_source_momentum_number, g_source_gamma_id_number, T, evecs_num);
-  if(status != 0) {
-    fprintf(stderr, "[ama_gsp] Error from gsp_init, status was %d\n", status);
-    EXIT(10);
-  }
-
   /***********************************************
    * (1) calculate gsp_v_v
    ***********************************************/
@@ -322,14 +311,12 @@ int main(int argc, char **argv) {
   sprintf(gsp_tag, "%s.%.4d", "gsp_v_v", Nconf);
   if(g_cart_id == 0) fprintf(stdout, "# [ama_gsp] calculating %s\n", gsp_tag);
   /* scalar products */
-  status = gsp_calculate_v_dag_gamma_p_w(gsp, &(eo_evecs_field[0]), &(eo_evecs_field[0]), evecs_num, g_source_momentum_number, g_source_momentum_list,
+  status = gsp_calculate_v_dag_gamma_p_w(&(eo_evecs_field[0]), &(eo_evecs_field[0]), evecs_num, g_source_momentum_number, g_source_momentum_list,
       g_source_gamma_id_number, g_source_gamma_id_list, gsp_tag, 1);
   if(status != 0) {
     fprintf(stderr, "[ama_gsp] Error from gsp_calculate_v_dag_gamma_p_w, status was %d\n", status);
     EXIT(11);
   }
-  /* reset */
-  gsp_reset (&gsp, g_source_momentum_number, g_source_gamma_id_number, T, evecs_num);
 
   /***********************************************
    * (2) calculate gsp_xeobarv_xeobarv
@@ -351,14 +338,12 @@ int main(int argc, char **argv) {
   if(g_cart_id == 0) fprintf(stdout, "# [ama_gsp] calculating %s\n", gsp_tag);
   
   /* scalar products */
-  status = gsp_calculate_v_dag_gamma_p_w(gsp, &(eo_evecs_field[evecs_num]), &(eo_evecs_field[evecs_num]), evecs_num, g_source_momentum_number, g_source_momentum_list,
+  status = gsp_calculate_v_dag_gamma_p_w(&(eo_evecs_field[evecs_num]), &(eo_evecs_field[evecs_num]), evecs_num, g_source_momentum_number, g_source_momentum_list,
       g_source_gamma_id_number, g_source_gamma_id_list, gsp_tag, 1);
   if(status != 0) {
     fprintf(stderr, "[ama_gsp] Error from gsp_calculate_v_dag_gamma_p_w, status was %d\n", status);
     EXIT(13);
   }
-  /* reset */
-  gsp_reset (&gsp, g_source_momentum_number, g_source_gamma_id_number, T, evecs_num);
 
   /***********************************************
    * calculate gsp_w_w
@@ -398,14 +383,12 @@ int main(int argc, char **argv) {
   if(g_cart_id == 0) fprintf(stdout, "# [ama_gsp] calculating %s\n", gsp_tag);
 
   /* scalar product */
-  status = gsp_calculate_v_dag_gamma_p_w(gsp, &(eo_evecs_field[evecs_num]), &(eo_evecs_field[evecs_num]), evecs_num, g_source_momentum_number, g_source_momentum_list,
+  status = gsp_calculate_v_dag_gamma_p_w(&(eo_evecs_field[evecs_num]), &(eo_evecs_field[evecs_num]), evecs_num, g_source_momentum_number, g_source_momentum_list,
       g_source_gamma_id_number, g_source_gamma_id_list, gsp_tag, 1);
   if(status != 0) {
     fprintf(stderr, "[ama_gsp] Error from gsp_calculate_v_dag_gamma_p_w, status was %d\n", status);
     EXIT(16);
   }
-  /* reset */
-  gsp_reset (&gsp, g_source_momentum_number, g_source_gamma_id_number, T, evecs_num);
 
   /***********************************************
    * calculate gsp_v_w
@@ -416,14 +399,12 @@ int main(int argc, char **argv) {
 
   /* scalar product */
   /*                                            V                      W */
-  status = gsp_calculate_v_dag_gamma_p_w(gsp, &(eo_evecs_field[0]), &(eo_evecs_field[evecs_num]), evecs_num, g_source_momentum_number, g_source_momentum_list,
+  status = gsp_calculate_v_dag_gamma_p_w(&(eo_evecs_field[0]), &(eo_evecs_field[evecs_num]), evecs_num, g_source_momentum_number, g_source_momentum_list,
       g_source_gamma_id_number, g_source_gamma_id_list, gsp_tag, 0);
   if(status != 0) {
     fprintf(stderr, "[ama_gsp] Error from gsp_calculate_v_dag_gamma_p_w, status was %d\n", status);
     EXIT(18);
   }
-  /* reset */
-  gsp_reset (&gsp, g_source_momentum_number, g_source_gamma_id_number, T, evecs_num);
 
 
   /***********************************************
@@ -447,14 +428,12 @@ int main(int argc, char **argv) {
   if(g_cart_id == 0) fprintf(stdout, "# [ama_gsp] calculating %s\n", gsp_tag);
 
   /* scalar products */
-  status = gsp_calculate_v_dag_gamma_p_w(gsp, &(eo_evecs_field[evecs_num]), &(eo_evecs_field[evecs_num]), evecs_num, g_source_momentum_number, g_source_momentum_list,
+  status = gsp_calculate_v_dag_gamma_p_w(&(eo_evecs_field[evecs_num]), &(eo_evecs_field[evecs_num]), evecs_num, g_source_momentum_number, g_source_momentum_list,
       g_source_gamma_id_number, g_source_gamma_id_list, gsp_tag, 1);
   if(status != 0) {
     fprintf(stderr, "[ama_gsp] Error from gsp_calculate_v_dag_gamma_p_w, status was %d\n", status);
     EXIT(20);
   }
-  /* reset */
-  gsp_reset (&gsp, g_source_momentum_number, g_source_gamma_id_number, T, evecs_num);
 
   /***********************************************
    * calculate gsp_xeobarv_xeow
@@ -478,14 +457,12 @@ int main(int argc, char **argv) {
   if(g_cart_id == 0) fprintf(stdout, "# [ama_gsp] calculating %s\n", gsp_tag);
 
   /* scalar products */
-  status = gsp_calculate_v_dag_gamma_p_w(gsp, &(eo_evecs_field[0]), &(eo_evecs_field[evecs_num]), evecs_num, g_source_momentum_number, g_source_momentum_list,
+  status = gsp_calculate_v_dag_gamma_p_w(&(eo_evecs_field[0]), &(eo_evecs_field[evecs_num]), evecs_num, g_source_momentum_number, g_source_momentum_list,
       g_source_gamma_id_number, g_source_gamma_id_list, gsp_tag, 0);
   if(status != 0) {
     fprintf(stderr, "[ama_gsp] Error from gsp_calculate_v_dag_gamma_p_w, status was %d\n", status);
     EXIT(22);
   }
-  /* reset */
-  gsp_reset (&gsp, g_source_momentum_number, g_source_gamma_id_number, T, evecs_num);
 
   /***********************************************
    * free the allocated memory, finalize 
@@ -501,8 +478,6 @@ int main(int argc, char **argv) {
 
   for(i=0; i<2*evecs_num; i++) free(eo_evecs_field[i]);
   free(eo_evecs_field);
-
-  gsp_fini(&gsp);
 
   free_geometry();
 

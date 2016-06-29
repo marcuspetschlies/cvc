@@ -351,7 +351,7 @@ int main(int argc, char **argv) {
     i_si = gamma_sign_g5_ti_gamma[g_m_m_2pt_list[i2pt].gi];
     i_sf = gamma_sign_g5_ti_gamma[g_m_m_2pt_list[i2pt].gf];
 
-    if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_2pt] (%d, %d); (%d, %d)\n", i_gi, i_si, i_gf, i_sf);
+    if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_2pt] (%d, %d) to (%d, %d); (%d, %d)\n", g_m_m_2pt_list[i2pt].gi, g_m_m_2pt_list[i2pt].gf, i_gi, i_si, i_gf, i_sf);
 
     ratime = _GET_TIME;
 
@@ -663,7 +663,7 @@ int main(int argc, char **argv) {
               g_m_m_2pt_list[i2pt].gf, g_m_m_2pt_list[i2pt].pf[0], g_m_m_2pt_list[i2pt].pf[1], g_m_m_2pt_list[i2pt].pf[2],
               x0);
           for(i_tf = 0; i_tf < T_global; i_tf++) {
-            fprintf(stdout, "\t%25.16e%25.16e\n", correlator[i_ti][2*i_tf], correlator[i_ti][2*i_tf+1]);
+            fprintf(ofs, "\t%25.16e%25.16e\n", correlator[i_ti][2*i_tf], correlator[i_ti][2*i_tf+1]);
           }
         }  /* end of loop on i_ti */
 
@@ -677,7 +677,7 @@ int main(int argc, char **argv) {
               g_m_m_2pt_list[i2pt].gf, g_m_m_2pt_list[i2pt].pf[0], g_m_m_2pt_list[i2pt].pf[1], g_m_m_2pt_list[i2pt].pf[2],
               x0);
           for(i_tf = 0; i_tf < T_global; i_tf++) {
-            fprintf(stdout, "\t%25.16e%25.16e\n", correlator2[i_ti][2*i_tf], correlator2[i_ti][2*i_tf+1]);
+            fprintf(ofs, "\t%25.16e%25.16e\n", correlator2[i_ti][2*i_tf], correlator2[i_ti][2*i_tf+1]);
           }
         }  /* end of loop on i_ti */
 #endif
