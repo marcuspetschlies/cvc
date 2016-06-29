@@ -207,25 +207,16 @@ void eo_spinor_dag_gamma_spinor(complex*gsp, double*xi, int gid, double*phi) {
 
   unsigned int ix, iix;
   double spinor1[24];
-  int threadid=0;
+
 #ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(spinor1,ix,iix,threadid) shared(xi,gid,phi)
-{
-  threadid = omp_get_thread_num();
-  /* TEST */
-/*
-  ix = omp_get_num_threads();
-  fprintf(stdout, "# [eo_spinor_dag_gamma_spinor] proc%.4d thread%.4d using %d threads\n", g_cart_id, threadid, ix);
-*/
+#pragma omp parallel for default(shared) private(spinor1,ix,iix) shared(xi,gid,phi)
 #endif
-  for(ix=threadid; ix<N; ix+=nthreads) {
+  for(ix=0; ix<N; ix++) {
     iix = _GSI(ix);
     _fv_eq_gamma_ti_fv(spinor1, gid, phi+iix);
     _co_eq_fv_dag_ti_fv(gsp+ix, xi+iix, spinor1);
   }
-#ifdef HAVE_OPENMP
-}  /* end of parallel region */
-#endif
+
 }  /* end of eo_spinor_dag_gamma_spinor */
 
 /*************************************************************
@@ -245,18 +236,18 @@ void eo_gsp_momentum_projection (complex *gsp_p, complex *gsp_x, complex *phase,
 #else
   complex *p2 = p;
 #endif
-  int threadid=0;
 
   memset(p, 0, T*sizeof(complex));
 #ifdef HAVE_OPENMP
   omp_init_lock(&writelock);
-#pragma omp parallel default(shared) private(threadid,ix,it) shared(phase,gsp_x)
+#pragma omp parallel default(shared) private(ix,it) shared(phase,gsp_x)
 {
   complex p2[T];
-  threadid = omp_get_thread_num();
+
   memset(p2, 0, T*sizeof(complex));
+#pragma omp for
 #endif
-  for(ix=threadid; ix<N; ix+=nthreads) {
+  for(ix=0; ix<N; ix++) {
     it = index_ptr[ix];
     _co_pl_eq_co_ti_co(p2+it, gsp_x+ix, phase+ix );
   }

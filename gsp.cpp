@@ -47,6 +47,7 @@ int gsp_init (double ******gsp_out, int Np, int Ng, int Nt, int Nv) {
 
   double *****gsp;
   int i, k, l, c, x0;
+  size_t bytes;
 
   /***********************************************
    * allocate gsp space
@@ -102,7 +103,10 @@ int gsp_init (double ******gsp_out, int Np, int Ng, int Nt, int Nv) {
     }
   }
 
-  gsp[0][0][0][0] = (double*)calloc(2 * Nv * Nv * Nt * Np * Ng, sizeof(double));
+  bytes = 2 * (size_t)(Nv * Nv * Nt * Np * Ng) * sizeof(double);
+  fprintf(stdout, "# [gsp_init] bytes = %lu\n", bytes);
+  gsp[0][0][0][0] = (double*)malloc( bytes );
+
   if(gsp[0][0][0][0] == NULL) {
     fprintf(stderr, "[gsp_init] Error from malloc\n");
     return(5);
@@ -122,6 +126,8 @@ int gsp_init (double ******gsp_out, int Np, int Ng, int Nt, int Nv) {
       }
     }
   }
+  memset(gsp[0][0][0][0], 0, bytes);
+
   *gsp_out = gsp;
   return(0);
 } /* end of gsp_init */
@@ -137,18 +143,33 @@ int gsp_fini(double******gsp) {
         if((*gsp)[0][0][0] != NULL ) {
           if((*gsp)[0][0][0][0] != NULL ) {
             free((*gsp)[0][0][0][0]);
+            (*gsp)[0][0][0][0] = NULL;
           }
           free((*gsp)[0][0][0]);
+          (*gsp)[0][0][0] = NULL;
         }
         free((*gsp)[0][0]);
+        (*gsp)[0][0] = NULL;
       }
       free((*gsp)[0]);
+      (*gsp)[0] = NULL;
     }
     free((*gsp));
+    (*gsp) = NULL;
   }
 
   return(0);
 }  /* end of gsp_fini */
+
+
+/***********************************************
+ * reset gsp field to zero
+ ***********************************************/
+int gsp_reset (double ******gsp, int Np, int Ng, int Nt, int Nv) {
+  size_t bytes = 2 * (size_t)(Nv * Nv) * Nt * Np * Ng * sizeof(double);
+  memset((*gsp)[0][0][0][0], 0, bytes);
+}  /* end of gsp_reset */
+
 
 void gsp_make_eo_phase_field (double*phase_e, double*phase_o, int *momentum) {
 
@@ -356,8 +377,8 @@ int gsp_calculate_v_dag_gamma_p_w(double *****gsp, double**V, double**W, int num
             ratime = _GET_TIME;
             eo_gsp_momentum_projection ((complex*)buffer2, (complex*)buffer, (complex*)phase_o, 1);
             retime = _GET_TIME;
-            /* if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for eo_gsp_momentum_projection = %e seconds\n", retime - ratime); */  
-
+            /* if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for eo_gsp_momentum_projection = %e seconds\n", retime - ratime); */
+  
             for(x0=0; x0<T; x0++) {
               memcpy(gsp[isource_momentum][isource_gamma_id][x0][ievecs] + 2*kevecs, buffer2+2*x0, 2*sizeof(double));
             }
@@ -379,7 +400,7 @@ int gsp_calculate_v_dag_gamma_p_w(double *****gsp, double**V, double**W, int num
       k = 2*T*num*num; /* number of items to be sent and received */
 #if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ)
 
-      fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] proc%.2d g_tr_id = %d; g_tr_nproc =%d\n", g_cart_id, g_tr_id, g_tr_nproc);
+      /* fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] proc%.2d g_tr_id = %d; g_tr_nproc =%d\n", g_cart_id, g_tr_id, g_tr_nproc);*/
       MPI_Allgather(gsp[isource_momentum][isource_gamma_id][0][0], k, MPI_DOUBLE, gsp_buffer[0][0][0][0], k, MPI_DOUBLE, g_tr_comm);
   
 #else
@@ -396,7 +417,7 @@ int gsp_calculate_v_dag_gamma_p_w(double *****gsp, double**V, double**W, int num
 
         for(x0=0; x0<T_global; x0++) {
           sprintf(aff_buffer_path, "/%s/px%.2dpy%.2dpz%.2d/g%.2d/t%.2d", tag, momentum[0], momentum[1], momentum[2], gamma_id_list[isource_gamma_id], x0);
-          if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] current aff path = %s\n", aff_buffer_path);
+          /* if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] current aff path = %s\n", aff_buffer_path); */
 
           affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
           items = num*num;
