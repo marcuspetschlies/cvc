@@ -104,7 +104,7 @@ int gsp_init (double ******gsp_out, int Np, int Ng, int Nt, int Nv) {
   }
 
   bytes = 2 * (size_t)(Nv * Nv * Nt * Np * Ng) * sizeof(double);
-  fprintf(stdout, "# [gsp_init] bytes = %lu\n", bytes);
+  /* fprintf(stdout, "# [gsp_init] bytes = %lu\n", bytes); */
   gsp[0][0][0][0] = (double*)malloc( bytes );
 
   if(gsp[0][0][0][0] == NULL) {
@@ -168,6 +168,7 @@ int gsp_fini(double******gsp) {
 int gsp_reset (double ******gsp, int Np, int Ng, int Nt, int Nv) {
   size_t bytes = 2 * (size_t)(Nv * Nv) * Nt * Np * Ng * sizeof(double);
   memset((*gsp)[0][0][0][0], 0, bytes);
+  return(0);
 }  /* end of gsp_reset */
 
 
@@ -446,6 +447,7 @@ int gsp_calculate_v_dag_gamma_p_w(double**V, double**W, int num, int momentum_nu
        ***********************************************/
       for(iproc=0; iproc < g_nproc_t; iproc++) {
 #ifdef HAVE_MPI
+        ratime = _GET_TIME;
         if(iproc > 0) {
           /***********************************************
            * gather at root
@@ -478,7 +480,8 @@ int gsp_calculate_v_dag_gamma_p_w(double**V, double**W, int num, int momentum_nu
             memcpy(gsp_buffer[0][0][0][0], gsp[0][0][0][0], k*sizeof(double));
           }
         }  /* end of if iproc > 0 */
-
+        retime = _GET_TIME;
+        /* if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for gsp exchange = %e seconds\n", retime     - ratime); */
 #endif  /* of ifdef HAVE_MPI */
 
         /***********************************************
@@ -487,7 +490,7 @@ int gsp_calculate_v_dag_gamma_p_w(double**V, double**W, int num, int momentum_nu
 #ifdef HAVE_MPI
         if(io_proc == 2) {
 #endif
-
+          ratime = _GET_TIME;
 #ifdef HAVE_LHPC_AFF
           for(x0=0; x0<T; x0++) {
             sprintf(aff_buffer_path, "/%s/px%.2dpy%.2dpz%.2d/g%.2d/t%.2d", tag, momentum[0], momentum[1], momentum[2], gamma_id_list[isource_gamma_id], x0+iproc*T);
@@ -516,7 +519,8 @@ int gsp_calculate_v_dag_gamma_p_w(double**V, double**W, int num, int momentum_nu
           }
           fclose(ofs);
 #endif
-
+          retime = _GET_TIME;
+          /* fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for writing = %e seconds\n", retime     - ratime); */
 #ifdef HAVE_MPI
         }  /* end of if io_proc == 2 */
 #endif
