@@ -394,6 +394,48 @@ void geometry() {
   }
 
 
+  /* set g_eosub2sliced3d and g_sliced3d2eosub*/
+  for(x0=-start_valuet; x0<T +start_valuet; x0++) {
+    i_even = 0; i_odd = 0;
+    for(x1=-start_valuex; x1<LX+start_valuex; x1++) {
+      for(x2=-start_valuey; x2<LY+start_valuey; x2++) {
+        for(x3=-start_valuez; x3<LZ+start_valuez; x3++) {
+          isboundary = 0;
+          if(x0==-1 || x0== T) isboundary++;
+          if(x1==-1 || x1==LX) isboundary++;
+          if(x2==-1 || x2==LY) isboundary++;
+          if(x3==-1 || x3==LZ) isboundary++;
+
+          y0=x0; y1=x1; y2=x2; y3=x3;
+          if(x0==-1) y0=T +1;
+          if(x1==-1) y1=LX+1;
+          if(x2==-1) y2=LY+1;
+          if(x3==-1) y3=LZ+1;
+
+          /* without boundary */
+          if(isboundary > 0) {
+            continue;
+          }
+
+          ix = g_ipt[y0][y1][y2][y3];
+          if(g_iseven[ix]) {
+           g_eosub2sliced3d[0][g_lexic2eosub[ix]] = i_even;
+            g_sliced3d2eosub[0][x0][i_even] = g_lexic2eosub[ix];
+            i_even++;
+          } else {
+            g_eosub2sliced3d[1][g_lexic2eosub[ix]] = i_odd;
+            g_sliced3d2eosub[1][x0][i_odd] = g_lexic2eosub[ix];
+            i_odd++;
+          }
+
+        }
+      }
+    }
+  }
+
+
+
+
 /*
     for(x0=-start_valuet; x0< T+start_valuet; x0++) {
     for(x1=-start_valuex; x1<LX+start_valuex; x1++) {
@@ -435,7 +477,7 @@ void geometry() {
     }}}}
   }
 */
-}
+}  /* end of geometry */
 
 int init_geometry(void) {
 
@@ -556,6 +598,38 @@ int init_geometry(void) {
   if(g_eosub2t[0] == NULL) return(16);
   g_eosub2t[1] = g_eosub2t[0] + V/2;
 
+  /* init 3d geometry */
+
+  if ( LX%2 != 0 || LY%2 != 0 || LZ%2 != 0 ) { 
+    fprintf(stderr, "[init_geometry] Error, local lattice size L must be 0 mod 2\n");
+    return(22);
+  }
+
+  /* g_eosub2sliced3d */
+  g_eosub2sliced3d = (int**)calloc(2, sizeof(int*));
+  if(g_eosub2sliced3d == NULL) return(17);
+
+  g_eosub2sliced3d[0] = (int*)calloc(T*LX*LY*LZ, sizeof(int));
+  if(g_eosub2sliced3d[0] == NULL) return(18);
+  g_eosub2sliced3d[1] = g_eosub2sliced3d[0] + (T*LX*LY*LZ)/2;
+
+  /* g_sliced3d2eosub */
+  g_sliced3d2eosub = (int***)calloc(2, sizeof(int**));
+  if(g_sliced3d2eosub == NULL) return(19);
+  g_sliced3d2eosub[0] = (int**)calloc(2*T, sizeof(int*));
+  if(g_sliced3d2eosub[0] == NULL) return(20);
+  g_sliced3d2eosub[1] = g_sliced3d2eosub[0] + T;
+
+  g_sliced3d2eosub[0][0] = (int*)calloc(T*LX*LY*LZ, sizeof(int));
+  if(g_sliced3d2eosub[0] == NULL) return(21);
+
+  for(ix=1; ix<T; ix++) {
+    g_sliced3d2eosub[0][ix] = g_sliced3d2eosub[0][0] + ix * LX*LY*LZ/2;
+  }
+  for(ix=0; ix<T; ix++) {
+    g_sliced3d2eosub[1][ix] = g_sliced3d2eosub[0][0] + (T + ix) * LX*LY*LZ/2;
+  }
+
 
 
   /* initialize the boundary condition */
@@ -572,7 +646,7 @@ int init_geometry(void) {
   init_gamma();
 
   return(0);
-}
+}  /* end of init_geometry */
 
 void free_geometry() {
 
@@ -591,6 +665,13 @@ void free_geometry() {
   free(g_eot2lexic);
   free(g_iseven);
   free(g_isevent);
+  free(g_eosub2t[0]);
+  free(g_eosub2t);
+  free(g_eosub2sliced3d[0]);
+  free(g_eosub2sliced3d);
+  free(g_sliced3d2eosub[0][0]);
+  free(g_sliced3d2eosub[0]);
+  free(g_sliced3d2eosub);
 }
 
 
