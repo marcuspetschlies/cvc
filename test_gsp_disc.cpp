@@ -1,5 +1,5 @@
 /****************************************************
- * test_gsp_loop.cpp
+ * test_gsp_disc.cpp
  *
  * Mi 22. Jun 12:51:35 CEST 2016
  *
@@ -73,13 +73,12 @@ int main(int argc, char **argv) {
   int threadid, nthreads;
 #endif
 
-  int evecs_num=0;
+  int evecs_num=0, evecs_num_contract=0;
   double *evecs_eval = NULL;
 
   complex w, w2;
 
-  double *****gsp_w_w_f = NULL, *****gsp_v_w_f   = NULL, *****gsp_xw_xw_f = NULL, *****gsp_xv_xw_f = NULL;
-  double *****gsp_v_v_i = NULL, *****gsp_xv_xv_i = NULL, *****gsp_v_w_i   = NULL, *****gsp_xv_xw_i = NULL;
+  double *****gsp_v_w_f = NULL, *****gsp_xv_xw_f = NULL, *****gsp_v_w_i = NULL, *****gsp_xv_xw_i = NULL;
 #ifdef HAVE_MPI
   double *****gsp_t=NULL;
   int mrank, mcoords[4];
@@ -114,7 +113,7 @@ int main(int argc, char **argv) {
 #endif
 
 
-  while ((c = getopt(argc, argv, "h?vf:n:")) != -1) {
+  while ((c = getopt(argc, argv, "h?vf:n:c:")) != -1) {
     switch (c) {
     case 'v':
       verbose = 1;
@@ -125,7 +124,11 @@ int main(int argc, char **argv) {
       break;
     case 'n':
       evecs_num = atoi(optarg);
-      fprintf(stdout, "# [test_gsp_loop] dimension of eigenspace set to%d\n", evecs_num);
+      fprintf(stdout, "# [test_gsp_disc] dimension of eigenspace set to%d\n", evecs_num);
+      break;
+    case 'c':
+      evecs_num_contract = atoi(optarg);
+      fprintf(stdout, "# [test_gsp_disc] use first %d eigenvectors for contraction\n", evecs_num_contract);
       break;
     case 'h':
     case '?':
@@ -137,12 +140,12 @@ int main(int argc, char **argv) {
 
   /* set the default values */
   if(filename_set==0) strcpy(filename, "cvc.input");
-  if(g_cart_id==0) fprintf(stdout, "# [test_gsp_loop] Reading input from file %s\n", filename);
+  if(g_cart_id==0) fprintf(stdout, "# [test_gsp_disc] Reading input from file %s\n", filename);
   read_input_parser(filename);
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
 
-  fprintf(stdout, "# [test_gsp_loop] calling tmLQCD wrapper init functions\n");
+  fprintf(stdout, "# [test_gsp_disc] calling tmLQCD wrapper init functions\n");
 
   /*********************************
    * initialize MPI parameters for cvc
@@ -166,33 +169,33 @@ int main(int argc, char **argv) {
 
   /* initialize geometry */
   if(init_geometry() != 0) {
-    fprintf(stderr, "[test_gsp_loop] ERROR from init_geometry\n");
+    fprintf(stderr, "[test_gsp_disc] ERROR from init_geometry\n");
     EXIT(4);
   }
 
   geometry();
 
 #if (defined HAVE_MPI) && ( (defined PARALLELTX) ||  (defined PARALLELTXY) ||  (defined PARALLELTXYZ) )
-  fprintf(stderr, "[test_gsp_loop] Error, for now only 1-dimensional MPI-parallelization\n");
+  fprintf(stderr, "[test_gsp_disc] Error, for now only 1-dimensional MPI-parallelization\n");
   EXIT(5);
 #endif
 
 #ifdef HAVE_OPENMP
-  if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_loop] setting omp number of threads to %d\n", g_num_threads);
+  if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_disc] setting omp number of threads to %d\n", g_num_threads);
   omp_set_num_threads(g_num_threads);
 #pragma omp parallel private(nthreads,threadid)
 {
   threadid = omp_get_thread_num();
   nthreads = omp_get_num_threads();
-  fprintf(stdout, "# [test_gsp_loop] proc%.4d thread%.4d using %d threads\n", g_cart_id, threadid, nthreads);
+  fprintf(stdout, "# [test_gsp_disc] proc%.4d thread%.4d using %d threads\n", g_cart_id, threadid, nthreads);
 }
 #else
-  if(g_cart_id == 0) fprintf(stdout, "[test_gsp_loop] Warning, resetting global thread number to 1\n");
+  if(g_cart_id == 0) fprintf(stdout, "[test_gsp_disc] Warning, resetting global thread number to 1\n");
   g_num_threads = 1;
 #endif
 
   if (evecs_num == 0) {
-    if(g_cart_id==0) fprintf(stderr, "[test_gsp_loop] eigenspace dimension is 0\n");
+    if(g_cart_id==0) fprintf(stderr, "[test_gsp_disc] eigenspace dimension is 0\n");
     EXIT(6);
   }
 
@@ -202,7 +205,7 @@ int main(int argc, char **argv) {
   sprintf(gsp_tag, "%s.%.4d", "gsp_eval", Nconf);
   status = gsp_read_eval(&evecs_eval, evecs_num, gsp_tag);
   if( status != 0) {
-    fprintf(stderr, "[test_gsp_loop] Error from gsp_read_eval, status was %d\n", status);
+    fprintf(stderr, "[test_gsp_disc] Error from gsp_read_eval, status was %d\n", status);
     EXIT(7);
   }
 
@@ -210,7 +213,7 @@ int main(int argc, char **argv) {
    * inverse square root of diagonal elements
    ***********************************************/
   for(i=0; i<evecs_num; i++) {
-    if(g_cart_id==0) fprintf(stdout, "# [test_gsp_loop] eval %4d %25.16e\n", i, evecs_eval[i]) ;
+    if(g_cart_id==0) fprintf(stdout, "# [test_gsp_disc] eval %4d %25.16e\n", i, evecs_eval[i]) ;
     evecs_eval[i] = 2.*g_kappa / sqrt(evecs_eval[i]);
   }
 
@@ -229,23 +232,23 @@ int main(int argc, char **argv) {
   status = status ||  gsp_init (&gsp_t,   1, 1, T, evecs_num);
 #endif
   if(status) {
-    fprintf(stderr, "[test_gsp_loop] Error from gsp_init\n");
+    fprintf(stderr, "[test_gsp_disc] Error from gsp_init\n");
     EXIT(8);
   }
   retime = _GET_TIME;
-  if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_loop] time to initialize gsp = %e seconds\n", retime - ratime);
+  if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_disc] time to initialize gsp = %e seconds\n", retime - ratime);
 
   /***********************************************
    * correlator
    ***********************************************/
   correlator = (double*)malloc(2*T_global*sizeof(double));
   if(correlator == NULL) {
-    fprintf(stderr, "[test_gsp_loop] Error from malloc\n");
+    fprintf(stderr, "[test_gsp_disc] Error from malloc\n");
     EXIT(9);
   }
   correlator2 = (double*)malloc(2*T_global*sizeof(double));
   if(correlator2 == NULL) {
-    fprintf(stderr, "[test_gsp_loop] Error from malloc\n");
+    fprintf(stderr, "[test_gsp_disc] Error from malloc\n");
     EXIT(10);
   }
  
@@ -256,11 +259,11 @@ int main(int argc, char **argv) {
    ***********************************************/
   if( g_proc_coords[0] == 0 && g_proc_coords[1] == 0 && g_proc_coords[2] == 0 && g_proc_coords[3] == 0) {
     io_proc = 2;
-    fprintf(stdout, "# [test_gsp_loop] proc%.4d is io process\n", g_cart_id);
+    fprintf(stdout, "# [test_gsp_disc] proc%.4d is io process\n", g_cart_id);
   } else {
     if( g_proc_coords[1] == 0 && g_proc_coords[2] == 0 && g_proc_coords[3] == 0) {
       io_proc = 1;
-      fprintf(stdout, "# [test_gsp_loop] proc%.4d is send process\n", g_cart_id);
+      fprintf(stdout, "# [test_gsp_disc] proc%.4d is send process\n", g_cart_id);
     } else {
       io_proc = 0;
     }
@@ -276,32 +279,32 @@ int main(int argc, char **argv) {
 #ifdef HAVE_LHPC_AFF
 
     aff_status_str = (char*)aff_version();
-    fprintf(stdout, "# [test_gsp_loop] using aff version %s\n", aff_status_str);
+    fprintf(stdout, "# [test_gsp_disc] using aff version %s\n", aff_status_str);
 
     sprintf(filename, "%s.%.4d.aff", "gsp_correlator_disc", Nconf);
-    fprintf(stdout, "# [test_gsp_loop] writing gsp data to file %s\n", filename);
+    fprintf(stdout, "# [test_gsp_disc] writing gsp data to file %s\n", filename);
     affw = aff_writer(filename);
     aff_status_str = (char*)aff_writer_errstr(affw);
     if( aff_status_str != NULL ) {
-      fprintf(stderr, "[test_gsp_loop] Error from aff_writer, status was %s\n", aff_status_str);
+      fprintf(stderr, "[test_gsp_disc] Error from aff_writer, status was %s\n", aff_status_str);
       EXIT(11);
     }
 
     if( (affn = aff_writer_root(affw)) == NULL ) {
-      fprintf(stderr, "[test_gsp_loop] Error, aff writer is not initialized\n");
+      fprintf(stderr, "[test_gsp_disc] Error, aff writer is not initialized\n");
       EXIT(12);
     }
 
     aff_buffer = (double _Complex*)malloc(T_global*sizeof(double _Complex));
     if(aff_buffer == NULL) {
-      fprintf(stderr, "[test_gsp_loop] Error from malloc\n");
+      fprintf(stderr, "[test_gsp_disc] Error from malloc\n");
       EXIT(13);
     }
 #else
-    sprintf(filename, "%s.%.4d", "gsp_correlator_disc", Nconf);
+    sprintf(filename, "%s.%.4d.%.4d", "gsp_correlator_disc", Nconf, evecs_num_contract);
     ofs = fopen(filename, "w");
     if(ofs == NULL) {
-      fprintf(stderr, "[test_gsp_loop] Error, could not open file %s for writing\n", filename);
+      fprintf(stderr, "[test_gsp_disc] Error, could not open file %s for writing\n", filename);
       EXIT(14);
     }
 #endif
@@ -313,34 +316,42 @@ int main(int argc, char **argv) {
    ***********************************************/
   buffer = (double*)malloc(2*T_global*sizeof(double));
   if( buffer == NULL ) {
-    fprintf(stderr, "[test_gsp_loop] Error from malloc\n");
+    fprintf(stderr, "[test_gsp_disc] Error from malloc\n");
     EXIT(15);
   }
   if(io_proc == 2) {
     buffer_re_re = (double*)malloc(T_global*sizeof(double));
     if( buffer_re_re == NULL ) {
-      fprintf(stderr, "[test_gsp_loop] Error from malloc\n");
+      fprintf(stderr, "[test_gsp_disc] Error from malloc\n");
       EXIT(24);
     }
 
     buffer_re_im = (double*)malloc(T_global*sizeof(double));
     if( buffer_re_im == NULL ) {
-      fprintf(stderr, "[test_gsp_loop] Error from malloc\n");
+      fprintf(stderr, "[test_gsp_disc] Error from malloc\n");
       EXIT(25);
     }
 
     buffer_im_re = (double*)malloc(T_global*sizeof(double));
     if( buffer_im_re == NULL ) {
-      fprintf(stderr, "[test_gsp_loop] Error from malloc\n");
+      fprintf(stderr, "[test_gsp_disc] Error from malloc\n");
       EXIT(24);
     }
 
     buffer_im_im = (double*)malloc(T_global*sizeof(double));
     if( buffer_im_im == NULL ) {
-      fprintf(stderr, "[test_gsp_loop] Error from malloc\n");
+      fprintf(stderr, "[test_gsp_disc] Error from malloc\n");
       EXIT(24);
     }
   }  /* end of if io_proc == 2 */
+
+  /***********************************************
+   * check, whether evecs_num_contract was set
+   ***********************************************/
+  if(evecs_num_contract == 0) {
+    evecs_num_contract = evecs_num;
+    if(g_cart_id == 0) fprintf(stdout, "[test_gsp_2pt] reset evecs_num_contract to default value %d\n", evecs_num_contract);
+  }
 
   /***********************************************
    * loops on configurations of momenta
@@ -366,7 +377,7 @@ int main(int argc, char **argv) {
     i_si = gamma_sign_g5_ti_gamma[g_m_m_2pt_list[i2pt].gi];
     i_sf = gamma_sign_g5_ti_gamma[g_m_m_2pt_list[i2pt].gf];
 
-    if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_loop] (%d, %d) to (%d, %d); (%d, %d)\n", g_m_m_2pt_list[i2pt].gi, g_m_m_2pt_list[i2pt].gf, i_gi, i_si, i_gf, i_sf);
+    if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_disc] (%d, %d) to (%d, %d); (%d, %d)\n", g_m_m_2pt_list[i2pt].gi, g_m_m_2pt_list[i2pt].gf, i_gi, i_si, i_gf, i_sf);
 
     ratime = _GET_TIME;
 
@@ -374,7 +385,7 @@ int main(int argc, char **argv) {
     sprintf(gsp_tag, "%s.%.4d", "gsp_v_w", Nconf);
     status = gsp_read_node (gsp_v_w_i[0][0], evecs_num, g_m_m_2pt_list[i2pt].pi, i_gi, gsp_tag);
     if(status) {
-      fprintf(stderr, "[test_gsp_loop] Error from gsp_read_node\n");
+      fprintf(stderr, "[test_gsp_disc] Error from gsp_read_node\n");
       EXIT(16);
     }
     /* TEST */
@@ -383,7 +394,7 @@ int main(int argc, char **argv) {
     sprintf(gsp_tag, "%s.%.4d", "gsp_xeobarv_xeow", Nconf);
     status = gsp_read_node (gsp_xv_xw_i[0][0], evecs_num, g_m_m_2pt_list[i2pt].pi, i_gi, gsp_tag);
     if(status) {
-      fprintf(stderr, "[test_gsp_loop] Error from gsp_read_node\n");
+      fprintf(stderr, "[test_gsp_disc] Error from gsp_read_node\n");
       EXIT(17);
     }
     /* TEST */
@@ -393,7 +404,7 @@ int main(int argc, char **argv) {
     sprintf(gsp_tag, "%s.%.4d", "gsp_v_w", Nconf);
     status = gsp_read_node (gsp_v_w_f[0][0], evecs_num, g_m_m_2pt_list[i2pt].pf, i_gf, gsp_tag);
     if(status) {
-      fprintf(stderr, "[test_gsp_loop] Error from gsp_read_node\n");
+      fprintf(stderr, "[test_gsp_disc] Error from gsp_read_node\n");
       EXIT(18);
     }
     /* TEST */
@@ -402,14 +413,14 @@ int main(int argc, char **argv) {
     sprintf(gsp_tag, "%s.%.4d", "gsp_xeobarv_xeow", Nconf);
     status = gsp_read_node (gsp_xv_xw_f[0][0], evecs_num, g_m_m_2pt_list[i2pt].pf, i_gf, gsp_tag);
     if(status) {
-      fprintf(stderr, "[test_gsp_loop] Error from gsp_read_node\n");
+      fprintf(stderr, "[test_gsp_disc] Error from gsp_read_node\n");
       EXIT(19);
     }
     /* TEST */
     /* gsp_printf (gsp_xv_xw_f[0][0], evecs_num, "gsp_xv_xw_f", stdout); */
 
     retime = _GET_TIME;
-    if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_loop] time to read gsp nodes gsp = %e seconds\n", retime - ratime);
+    if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_disc] time to read gsp nodes gsp = %e seconds\n", retime - ratime);
 
 
     /* reduce (trace) matrix product 
@@ -424,10 +435,10 @@ int main(int argc, char **argv) {
 
       _co_eq_zero(&w);
       /* accumulate four trace terms */
-      co_eq_tr_gsp (&w2, gsp_xv_xw_i[0][0][i_ti], evecs_eval, evecs_num);
+      co_eq_tr_gsp (&w2, gsp_xv_xw_i[0][0][i_ti], evecs_eval, evecs_num_contract);
       _co_pl_eq_co(&w, &w2);
 
-      co_eq_tr_gsp (&w2, gsp_v_w_i[0][0][i_ti],   evecs_eval, evecs_num);
+      co_eq_tr_gsp (&w2, gsp_v_w_i[0][0][i_ti],   evecs_eval, evecs_num_contract);
       _co_pl_eq_co(&w, &w2);
 
       _co_ti_eq_re(&w, i_si);
@@ -435,21 +446,21 @@ int main(int argc, char **argv) {
       correlator[2*x0  ] = w.re;
       correlator[2*x0+1] = w.im;
       /* TEST */
-      /* fprintf(stdout, "# [test_gsp_loop] correlator[%2d] = %25.16e %25.16e\n", x0, correlator[2*x0  ], correlator[2*x0+1]); */
+      /* fprintf(stdout, "# [test_gsp_disc] correlator[%2d] = %25.16e %25.16e\n", x0, correlator[2*x0  ], correlator[2*x0+1]); */
 
     }  /* end of loop on tf */
     retime = _GET_TIME;
-    if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_loop] time for souce loop reduction = %e seconds\n", retime - ratime);
+    if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_disc] time for souce loop reduction = %e seconds\n", retime - ratime);
 
     for(i_tf = 0; i_tf<T; i_tf++) {
       x0 = i_tf + g_proc_coords[0] * T;
 
       _co_eq_zero(&w);
       /* accumulate four trace terms */
-      co_eq_tr_gsp (&w2, gsp_xv_xw_f[0][0][i_tf], evecs_eval, evecs_num);
+      co_eq_tr_gsp (&w2, gsp_xv_xw_f[0][0][i_tf], evecs_eval, evecs_num_contract);
       _co_pl_eq_co(&w, &w2);
 
-      co_eq_tr_gsp (&w2, gsp_v_w_f[0][0][i_tf],   evecs_eval, evecs_num);
+      co_eq_tr_gsp (&w2, gsp_v_w_f[0][0][i_tf],   evecs_eval, evecs_num_contract);
       _co_pl_eq_co(&w, &w2);
 
       _co_ti_eq_re(&w, i_sf);
@@ -458,10 +469,10 @@ int main(int argc, char **argv) {
       correlator2[2*x0+1] = w.im;
 
       /* TEST */
-      /* fprintf(stdout, "# [test_gsp_loop] correlator2[%2d] = %25.16e %25.16e\n", x0, correlator2[2*x0  ], correlator2[2*x0+1]); */
+      /* fprintf(stdout, "# [test_gsp_disc] correlator2[%2d] = %25.16e %25.16e\n", x0, correlator2[2*x0  ], correlator2[2*x0+1]); */
     }    /* end of loop on tf */
     retime = _GET_TIME;
-    if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_loop] time for sink loop reduction = %e seconds\n", retime - ratime);
+    if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_disc] time for sink loop reduction = %e seconds\n", retime - ratime);
 
 #ifdef HAVE_MPI
     ratime = _GET_TIME;
@@ -471,19 +482,19 @@ int main(int argc, char **argv) {
     memcpy(buffer, correlator, bytes);
     status = MPI_Allreduce(buffer, correlator, (2*T_global), MPI_DOUBLE, MPI_SUM, g_cart_grid);
     if (status != MPI_SUCCESS) {
-      fprintf(stderr, "[test_gsp_loop] Error from MPI_Allreduce\n");
+      fprintf(stderr, "[test_gsp_disc] Error from MPI_Allreduce\n");
       EXIT(20);
     }
 
     memcpy(buffer, correlator2, bytes);
     status = MPI_Allreduce(buffer, correlator2, (2*T_global), MPI_DOUBLE, MPI_SUM, g_cart_grid);
     if (status != MPI_SUCCESS) {
-      fprintf(stderr, "[test_gsp_loop] Error from MPI_Allreduce\n");
+      fprintf(stderr, "[test_gsp_disc] Error from MPI_Allreduce\n");
       EXIT(21);
     }
 
     retime = _GET_TIME;
-    if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_loop] time for xchange = %e seconds\n", retime - ratime);
+    if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_disc] time for xchange = %e seconds\n", retime - ratime);
 #endif
 
     /***********************************************
@@ -515,11 +526,11 @@ int main(int argc, char **argv) {
             g_m_m_2pt_list[i2pt].gi, g_m_m_2pt_list[i2pt].pi[0], g_m_m_2pt_list[i2pt].pi[1], g_m_m_2pt_list[i2pt].pi[2],
             g_m_m_2pt_list[i2pt].gf, g_m_m_2pt_list[i2pt].pf[0], g_m_m_2pt_list[i2pt].pf[1], g_m_m_2pt_list[i2pt].pf[2],
             x0);
-        /* if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_loop] current aff path = %s\n", aff_buffer_path); */
+        /* if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_disc] current aff path = %s\n", aff_buffer_path); */
         affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
         status = aff_node_put_double (affw, affdir, buffer_re_re, (uint32_t)items);
         if(status != 0) {
-          fprintf(stderr, "[test_gsp_loop] Error from aff_node_put_double, status was %d\n", status);
+          fprintf(stderr, "[test_gsp_disc] Error from aff_node_put_double, status was %d\n", status);
           EXIT(26);
         }
 
@@ -527,11 +538,11 @@ int main(int argc, char **argv) {
             g_m_m_2pt_list[i2pt].gi, g_m_m_2pt_list[i2pt].pi[0], g_m_m_2pt_list[i2pt].pi[1], g_m_m_2pt_list[i2pt].pi[2],
             g_m_m_2pt_list[i2pt].gf, g_m_m_2pt_list[i2pt].pf[0], g_m_m_2pt_list[i2pt].pf[1], g_m_m_2pt_list[i2pt].pf[2],
             x0);
-        /* if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_loop] current aff path = %s\n", aff_buffer_path); */
+        /* if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_disc] current aff path = %s\n", aff_buffer_path); */
         affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
         status = aff_node_put_double (affw, affdir, buffer_re_im, (uint32_t)items);
         if(status != 0) {
-          fprintf(stderr, "[test_gsp_loop] Error from aff_node_put_double, status was %d\n", status);
+          fprintf(stderr, "[test_gsp_disc] Error from aff_node_put_double, status was %d\n", status);
           EXIT(27);
         }
 
@@ -539,11 +550,11 @@ int main(int argc, char **argv) {
             g_m_m_2pt_list[i2pt].gi, g_m_m_2pt_list[i2pt].pi[0], g_m_m_2pt_list[i2pt].pi[1], g_m_m_2pt_list[i2pt].pi[2],
             g_m_m_2pt_list[i2pt].gf, g_m_m_2pt_list[i2pt].pf[0], g_m_m_2pt_list[i2pt].pf[1], g_m_m_2pt_list[i2pt].pf[2],
             x0);
-        /* if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_loop] current aff path = %s\n", aff_buffer_path); */
+        /* if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_disc] current aff path = %s\n", aff_buffer_path); */
         affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
         status = aff_node_put_double (affw, affdir, buffer_im_re, (uint32_t)items);
         if(status != 0) {
-          fprintf(stderr, "[test_gsp_loop] Error from aff_node_put_double, status was %d\n", status);
+          fprintf(stderr, "[test_gsp_disc] Error from aff_node_put_double, status was %d\n", status);
           EXIT(28);
         }
 
@@ -551,11 +562,11 @@ int main(int argc, char **argv) {
             g_m_m_2pt_list[i2pt].gi, g_m_m_2pt_list[i2pt].pi[0], g_m_m_2pt_list[i2pt].pi[1], g_m_m_2pt_list[i2pt].pi[2],
             g_m_m_2pt_list[i2pt].gf, g_m_m_2pt_list[i2pt].pf[0], g_m_m_2pt_list[i2pt].pf[1], g_m_m_2pt_list[i2pt].pf[2],
             x0);
-        /* if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_loop] current aff path = %s\n", aff_buffer_path); */
+        /* if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_disc] current aff path = %s\n", aff_buffer_path); */
         affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
         status = aff_node_put_double (affw, affdir, buffer_im_im, (uint32_t)items);
         if(status != 0) {
-          fprintf(stderr, "[test_gsp_loop] Error from aff_node_put_double, status was %d\n", status);
+          fprintf(stderr, "[test_gsp_disc] Error from aff_node_put_double, status was %d\n", status);
           EXIT(29);
         }
 
@@ -564,8 +575,8 @@ int main(int argc, char **argv) {
         /***********************************************
          * write correlator
          ***********************************************/
-        x0 = i_ti
-        fprintf(ofs, "# /re-re/gi%.2d/pix%.2dpiy%.2dpiz%.2d/gf%.2d/pfx%.2dpfy%.2dpfz%.2d/ti%2d\n", 
+        x0 = i_ti;
+        fprintf(ofs, "# /re-re/gi%.2d/pix%.2dpiy%.2dpiz%.2d/gf%.2d/pfx%.2dpfy%.2dpfz%.2d/ti%.2d\n", 
             g_m_m_2pt_list[i2pt].gi, g_m_m_2pt_list[i2pt].pi[0], g_m_m_2pt_list[i2pt].pi[1], g_m_m_2pt_list[i2pt].pi[2],
             g_m_m_2pt_list[i2pt].gf, g_m_m_2pt_list[i2pt].pf[0], g_m_m_2pt_list[i2pt].pf[1], g_m_m_2pt_list[i2pt].pf[2],
             x0);
@@ -573,7 +584,7 @@ int main(int argc, char **argv) {
           fprintf(ofs, "\t%25.16e\n", buffer_re_re[i_tf] );
         }
 
-        fprintf(ofs, "# /re-im/gi%.2d/pix%.2dpiy%.2dpiz%.2d/gf%.2d/pfx%.2dpfy%.2dpfz%.2d/ti%2d\n", 
+        fprintf(ofs, "# /re-im/gi%.2d/pix%.2dpiy%.2dpiz%.2d/gf%.2d/pfx%.2dpfy%.2dpfz%.2d/ti%.2d\n", 
             g_m_m_2pt_list[i2pt].gi, g_m_m_2pt_list[i2pt].pi[0], g_m_m_2pt_list[i2pt].pi[1], g_m_m_2pt_list[i2pt].pi[2],
             g_m_m_2pt_list[i2pt].gf, g_m_m_2pt_list[i2pt].pf[0], g_m_m_2pt_list[i2pt].pf[1], g_m_m_2pt_list[i2pt].pf[2],
             x0);
@@ -581,7 +592,7 @@ int main(int argc, char **argv) {
           fprintf(ofs, "\t%25.16e\n", buffer_re_im[i_tf] );
         }
 
-        fprintf(ofs, "# /im-re/gi%.2d/pix%.2dpiy%.2dpiz%.2d/gf%.2d/pfx%.2dpfy%.2dpfz%.2d/ti%2d\n", 
+        fprintf(ofs, "# /im-re/gi%.2d/pix%.2dpiy%.2dpiz%.2d/gf%.2d/pfx%.2dpfy%.2dpfz%.2d/ti%.2d\n", 
             g_m_m_2pt_list[i2pt].gi, g_m_m_2pt_list[i2pt].pi[0], g_m_m_2pt_list[i2pt].pi[1], g_m_m_2pt_list[i2pt].pi[2],
             g_m_m_2pt_list[i2pt].gf, g_m_m_2pt_list[i2pt].pf[0], g_m_m_2pt_list[i2pt].pf[1], g_m_m_2pt_list[i2pt].pf[2],
             x0);
@@ -589,7 +600,7 @@ int main(int argc, char **argv) {
           fprintf(ofs, "\t%25.16e\n", buffer_im_re[i_tf] );
         }
 
-        fprintf(ofs, "# /im-im/gi%.2d/pix%.2dpiy%.2dpiz%.2d/gf%.2d/pfx%.2dpfy%.2dpfz%.2d/ti%2d\n", 
+        fprintf(ofs, "# /im-im/gi%.2d/pix%.2dpiy%.2dpiz%.2d/gf%.2d/pfx%.2dpfy%.2dpfz%.2d/ti%.2d\n", 
             g_m_m_2pt_list[i2pt].gi, g_m_m_2pt_list[i2pt].pi[0], g_m_m_2pt_list[i2pt].pi[1], g_m_m_2pt_list[i2pt].pi[2],
             g_m_m_2pt_list[i2pt].gf, g_m_m_2pt_list[i2pt].pf[0], g_m_m_2pt_list[i2pt].pf[1], g_m_m_2pt_list[i2pt].pf[2],
             x0);
@@ -604,7 +615,7 @@ int main(int argc, char **argv) {
 #endif
 
     retime = _GET_TIME;
-    if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_loop] time for writing = %e seconds\n", retime - ratime);
+    if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_disc] time for writing = %e seconds\n", retime - ratime);
 
   }  /* end of loop on i2pt */
 
@@ -615,7 +626,7 @@ int main(int argc, char **argv) {
   if(io_proc == 2 ) {
     aff_status_str = (char*)aff_writer_close (affw);
     if( aff_status_str != NULL ) {
-      fprintf(stderr, "[test_gsp_loop] Error from aff_writer_close, status was %s\n", aff_status_str);
+      fprintf(stderr, "[test_gsp_disc] Error from aff_writer_close, status was %s\n", aff_status_str);
       EXIT(23);
     }
   }
@@ -659,9 +670,9 @@ int main(int argc, char **argv) {
 
   if (g_cart_id == 0) {
     g_the_time = time(NULL);
-    fprintf(stdout, "# [test_gsp_loop] %s# [test_gsp_loop] end fo run\n", ctime(&g_the_time));
+    fprintf(stdout, "# [test_gsp_disc] %s# [test_gsp_disc] end fo run\n", ctime(&g_the_time));
     fflush(stdout);
-    fprintf(stderr, "# [test_gsp_loop] %s# [test_gsp_loop] end fo run\n", ctime(&g_the_time));
+    fprintf(stderr, "# [test_gsp_disc] %s# [test_gsp_disc] end fo run\n", ctime(&g_the_time));
     fflush(stderr);
   }
 
