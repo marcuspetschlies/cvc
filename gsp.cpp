@@ -22,6 +22,7 @@
 #include "global.h"
 #include "ilinalg.h"
 #include "cvc_geometry.h"
+#include "io_utils.h"
 #include "read_input_parser.h"
 #include "invert_Qtm.h"
 #include "gsp.h"
@@ -732,6 +733,9 @@ int gsp_read_node (double ***gsp, int num, int momentum[3], int gamma_id, char*t
   }
   fclose(ifs);
 
+  byte_swap64_v2(gsp[0][0], 2*T*num*num);
+
+
 #endif
 
 #ifdef HAVE_LHPC_AFF
@@ -940,7 +944,7 @@ int gsp_printf (double ***gsp, int num, char *name, FILE*ofs) {
 
   int it, k, l;
   if(ofs == NULL) {
-    fprintf(stderr, "[] Error, ofs is NULL\n");
+    fprintf(stderr, "[gsp_printf] Error, ofs is NULL\n");
     return(1);
   }
  
