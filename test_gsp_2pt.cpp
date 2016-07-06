@@ -73,7 +73,7 @@ int main(int argc, char **argv) {
   int threadid, nthreads;
 #endif
 
-  int evecs_num=0;
+  int evecs_num=0, evecs_num_contract=0;
   double *evecs_eval = NULL;
 
   complex w, w2;
@@ -112,7 +112,7 @@ int main(int argc, char **argv) {
 #endif
 
 
-  while ((c = getopt(argc, argv, "h?vf:n:")) != -1) {
+  while ((c = getopt(argc, argv, "h?vf:n:c:")) != -1) {
     switch (c) {
     case 'v':
       verbose = 1;
@@ -123,7 +123,11 @@ int main(int argc, char **argv) {
       break;
     case 'n':
       evecs_num = atoi(optarg);
-      fprintf(stdout, "# [test_gsp_2pt] dimension of eigenspace set to%d\n", evecs_num);
+      fprintf(stdout, "# [test_gsp_2pt] dimension of eigenspace set to %d\n", evecs_num);
+      break;
+    case 'c':
+      evecs_num_contract = atoi(optarg);
+      fprintf(stdout, "# [test_gsp_2pt] use first %d eigenvectors for contraction\n", evecs_num_contract);
       break;
     case 'h':
     case '?':
@@ -296,7 +300,7 @@ int main(int argc, char **argv) {
       EXIT(175);
     }
 #else
-    sprintf(filename, "%s.%.4d", "gsp_correlator", Nconf);
+    sprintf(filename, "%s.%.4d.%.4d", "gsp_correlator", Nconf, evecs_num_contract);
     ofs = fopen(filename, "w");
     if(ofs == NULL) {
       fprintf(stderr, "[test_gsp_2pt] Error, could not open file %s for writing\n", filename);
@@ -322,6 +326,13 @@ int main(int argc, char **argv) {
   }
 #endif
 
+  /***********************************************
+   * check, whether evecs_num_contract was set
+   ***********************************************/
+  if(evecs_num_contract == 0) {
+    evecs_num_contract = evecs_num;
+    if(g_cart_id == 0) fprintf(stdout, "[test_gsp_2pt] reset evecs_num_contract to default value %d\n", evecs_num_contract);
+  }
 
   /***********************************************
    * loops on configurations of momenta
@@ -449,25 +460,25 @@ int main(int argc, char **argv) {
           _co_eq_zero(&w);
 
           /* accumulate four trace terms */
-          co_eq_tr_gsp_ti_gsp (&w2, gsp_xv_xv_i[0][0][i_ti], gsp_xw_xw_f[0][0][i_tf], evecs_eval, evecs_num);
+          co_eq_tr_gsp_ti_gsp (&w2, gsp_xv_xv_i[0][0][i_ti], gsp_xw_xw_f[0][0][i_tf], evecs_eval, evecs_num_contract);
           _co_pl_eq_co(&w, &w2);
 
           /* TEST */
           /* fprintf(stdout, "# [test_gsp_2pt] ti=%2d tf=%2d xv_xv x xw_xw = %25.16e %25.16e\n", i_ti, i_tf, w2.re, w2.im); */
 
-          co_eq_tr_gsp_ti_gsp (&w2, gsp_v_v_i[0][0][i_ti],   gsp_xw_xw_f[0][0][i_tf], evecs_eval, evecs_num);
+          co_eq_tr_gsp_ti_gsp (&w2, gsp_v_v_i[0][0][i_ti],   gsp_xw_xw_f[0][0][i_tf], evecs_eval, evecs_num_contract);
           _co_pl_eq_co(&w, &w2);
 
           /* TEST */
           /* fprintf(stdout, "# [test_gsp_2pt] ti=%2d tf=%2d v_v x xw_xw = %25.16e %25.16e\n", i_ti, i_tf, w2.re, w2.im); */
 
-          co_eq_tr_gsp_ti_gsp (&w2, gsp_xv_xv_i[0][0][i_ti], gsp_w_w_f[0][0][i_tf],   evecs_eval, evecs_num);
+          co_eq_tr_gsp_ti_gsp (&w2, gsp_xv_xv_i[0][0][i_ti], gsp_w_w_f[0][0][i_tf],   evecs_eval, evecs_num_contract);
           _co_pl_eq_co(&w, &w2);
 
           /* TEST */
           /* fprintf(stdout, "# [test_gsp_2pt] ti=%2d tf=%2d xv_xv x w_w = %25.16e %25.16e\n", i_ti, i_tf, w2.re, w2.im); */
 
-          co_eq_tr_gsp_ti_gsp (&w2, gsp_v_v_i[0][0][i_ti],   gsp_w_w_f[0][0][i_tf],   evecs_eval, evecs_num);
+          co_eq_tr_gsp_ti_gsp (&w2, gsp_v_v_i[0][0][i_ti],   gsp_w_w_f[0][0][i_tf],   evecs_eval, evecs_num_contract);
           _co_pl_eq_co(&w, &w2);
 
           /* TEST */
@@ -488,25 +499,25 @@ int main(int argc, char **argv) {
           _co_eq_zero(&w);
 
           /* accumulate four trace terms */
-          co_eq_tr_gsp_ti_gsp (&w2, gsp_xv_xw_i[0][0][i_ti], gsp_xv_xw_f[0][0][i_tf], evecs_eval, evecs_num);
+          co_eq_tr_gsp_ti_gsp (&w2, gsp_xv_xw_i[0][0][i_ti], gsp_xv_xw_f[0][0][i_tf], evecs_eval, evecs_num_contract);
           _co_pl_eq_co(&w, &w2);
 
           /* TEST */
           /* fprintf(stdout, "# [test_gsp_2pt] ti=%2d tf=%2d xv_xw x xv_xw = %25.16e %25.16e\n", i_ti, i_tf, w2.re, w2.im); */
 
-          co_eq_tr_gsp_ti_gsp (&w2, gsp_v_w_i[0][0][i_ti],   gsp_xv_xw_f[0][0][i_tf], evecs_eval, evecs_num);
+          co_eq_tr_gsp_ti_gsp (&w2, gsp_v_w_i[0][0][i_ti],   gsp_xv_xw_f[0][0][i_tf], evecs_eval, evecs_num_contract);
           _co_pl_eq_co(&w, &w2);
 
           /* TEST */
           /* fprintf(stdout, "# [test_gsp_2pt] ti=%2d tf=%2d v_w x xv_xw = %25.16e %25.16e\n", i_ti, i_tf, w2.re, w2.im); */
 
-          co_eq_tr_gsp_ti_gsp (&w2, gsp_xv_xw_i[0][0][i_ti], gsp_v_w_f[0][0][i_tf],   evecs_eval, evecs_num);
+          co_eq_tr_gsp_ti_gsp (&w2, gsp_xv_xw_i[0][0][i_ti], gsp_v_w_f[0][0][i_tf],   evecs_eval, evecs_num_contract);
           _co_pl_eq_co(&w, &w2);
 
           /* TEST */
           /* fprintf(stdout, "# [test_gsp_2pt] ti=%2d tf=%2d xv_xw x v_w = %25.16e %25.16e\n", i_ti, i_tf, w2.re, w2.im); */
 
-          co_eq_tr_gsp_ti_gsp (&w2, gsp_v_w_i[0][0][i_ti],   gsp_v_w_f[0][0][i_tf],   evecs_eval, evecs_num);
+          co_eq_tr_gsp_ti_gsp (&w2, gsp_v_w_i[0][0][i_ti],   gsp_v_w_f[0][0][i_tf],   evecs_eval, evecs_num_contract);
           _co_pl_eq_co(&w, &w2);
 
           /* TEST */
@@ -568,8 +579,6 @@ int main(int argc, char **argv) {
       if(g_cart_id == 0) fprintf(stdout, "# [test_gsp_2pt] time for xchange = %e seconds\n", retime - ratime);
 #endif
 
-#if 0
-#endif  /* of if 0 */
 
     }  /* end of for iproc */
 
@@ -658,7 +667,7 @@ int main(int argc, char **argv) {
          ***********************************************/
         for(i_ti=0; i_ti<T; i_ti++) {
           x0 = (i_ti + ( g_proc_coords[0] + iproc ) * T ) % T_global;
-          fprintf(ofs, "# /u-d/gi%.2d/pix%.2dpiy%.2dpiz%.2d/gf%.2d/pfx%.2dpfy%.2dpfz%.2d/ti%2d\n", 
+          fprintf(ofs, "# /u-d/gi%.2d/pix%.2dpiy%.2dpiz%.2d/gf%.2d/pfx%.2dpfy%.2dpfz%.2d/ti%.2d\n", 
               g_m_m_2pt_list[i2pt].gi, g_m_m_2pt_list[i2pt].pi[0], g_m_m_2pt_list[i2pt].pi[1], g_m_m_2pt_list[i2pt].pi[2],
               g_m_m_2pt_list[i2pt].gf, g_m_m_2pt_list[i2pt].pf[0], g_m_m_2pt_list[i2pt].pf[1], g_m_m_2pt_list[i2pt].pf[2],
               x0);
@@ -672,7 +681,7 @@ int main(int argc, char **argv) {
          ***********************************************/
         for(i_ti=0; i_ti<T; i_ti++) {
           x0 = (i_ti + ( g_proc_coords[0] + iproc ) * T ) % T_global;
-          fprintf(ofs, "# /u-u/gi%.2d/pix%.2dpiy%.2dpiz%.2d/gf%.2d/pfx%.2dpfy%.2dpfz%.2d/ti%2d\n", 
+          fprintf(ofs, "# /u-u/gi%.2d/pix%.2dpiy%.2dpiz%.2d/gf%.2d/pfx%.2dpfy%.2dpfz%.2d/ti%.2d\n", 
               g_m_m_2pt_list[i2pt].gi, g_m_m_2pt_list[i2pt].pi[0], g_m_m_2pt_list[i2pt].pi[1], g_m_m_2pt_list[i2pt].pi[2],
               g_m_m_2pt_list[i2pt].gf, g_m_m_2pt_list[i2pt].pf[0], g_m_m_2pt_list[i2pt].pf[1], g_m_m_2pt_list[i2pt].pf[2],
               x0);

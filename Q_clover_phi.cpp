@@ -169,7 +169,7 @@ void clover_term_eo (double**s, double*gauge_field) {
   const double norm  = 0.25;
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel firstprivate(nthreads) shared(s,gauge_field)
+#pragma omp parallel shared(s,gauge_field)
 {
   const int threadid = omp_get_thread_num();
 #else
@@ -297,7 +297,7 @@ void clover_mzz_matrix (double**mzz, double**cl, double mu, double csw) {
   const unsigned int N = VOLUME/2;
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel firstprivate(mutilde,cswtilde,incrcl,nthreads) shared(mzz,cl)
+#pragma omp parallel shared(mzz,cl)
 {
   const int threadid = omp_get_thread_num();
 #else
@@ -500,7 +500,7 @@ void M_clover_zz_matrix (double*s, double*r, double*mzz) {
   const int nthreads = g_num_threads;
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel firstprivate(N,incrcl,vincr,one_over_two_kappa,nthreads) shared(s,r,mzz)
+#pragma omp parallel shared(s,r,mzz)
 {
   const int threadid = omp_get_thread_num();
 #else
@@ -639,16 +639,15 @@ void M_clover_zz (double*s, double*r, double mass, double*cl) {
   const int clover_term_gamma_id[] = {10,11,12,13,14,15};
   const int incrcl  = _GSWI(nthreads,0);
   const int incrcl2 = _GSWI(0,1);
+  const unsigned int N = VOLUME/2;
 
-  unsigned int N = VOLUME/2;
   int threadid=0;
 
   /* TEST */
   /* fprintf(stdout, "# [M_clover_zz] incrcl = %d, incrcl2 = %d\n", incrcl, incrcl2); */
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(threadid) firstprivate(nthreads,N,mutilde,one_over_two_kappa,incrcl, incrcl2) \
-  shared(s,r,cl)
+#pragma omp parallel default(shared) private(threadid) shared(s,r,cl)
 {
   threadid = omp_get_thread_num();
 #endif
@@ -735,7 +734,7 @@ void M_clover_zz_inv_matrix (double*s, double*r, double *mzzinv) {
 
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel firstprivate(N,nthreads,incrcl,vincr) shared(r,s,mzzinv)
+#pragma omp parallel shared(r,s,mzzinv)
 {
   const int threadid = omp_get_thread_num();
 #else
@@ -805,8 +804,8 @@ void C_clover_oo (double*s, double*r, double *gauge_field, double *s_aux, double
 
   const int nthreads = g_num_threads;
   const unsigned int N = VOLUME / 2;
-  unsigned int ix;
 
+  unsigned int ix;
   double *s_ = NULL, *s_aux_ = NULL;
   double sp1[24];
   int threadid=0;
@@ -826,7 +825,7 @@ void C_clover_oo (double*s, double*r, double *gauge_field, double *s_aux, double
   M_clover_zz_matrix(s, r, mzz);
  
 #ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(ix,threadid,sp1,s_,s_aux_) firstprivate(N,nthreads) shared(s,s_aux)
+#pragma omp parallel default(shared) private(ix,threadid,sp1,s_,s_aux_) shared(s,s_aux)
 {
   threadid = omp_get_thread_num();
 #endif
@@ -868,7 +867,7 @@ void X_clover_eo (double *even, double *odd, double *gauge_field, double*mzzinv)
   M_clover_zz_inv_matrix (even, even, mzzinv);
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(ix,threadid,ptr,sp) firstprivate(nthreads) shared(even)
+#pragma omp parallel default(shared) private(ix,threadid,ptr,sp) shared(even)
 {
   threadid = omp_get_thread_num();
 #endif
@@ -910,7 +909,7 @@ void C_clover_from_Xeo (double *t, double *s, double *r, double *gauge_field, do
 
   /* t <- g5 ( t + r ) = g5 ( M_oo t + M_oe X_eo t )*/
 #ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(threadid,ix,iix) firstprivate(nthreads,N) shared(r,t)
+#pragma omp parallel default(shared) private(threadid,ix,iix) shared(r,t)
 {
   threadid = omp_get_thread_num();
 #endif

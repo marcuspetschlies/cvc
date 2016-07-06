@@ -277,7 +277,7 @@ int main(int argc, char **argv) {
       spinor_field_lexic2eo (full_spinor_field[0], eo_evecs_field[ievecs], eo_evecs_field[ievecs+1]);
     }
     retime = _GET_TIME;
-    if(g_cart_id == 0) fprintf(stdout, "# [ama_gsp2] time for unpacking = %e\n", retime - ratime);
+    if(g_cart_id == 0) fprintf(stdout, "# [ama_gsp2] time for unpacking = %e seconds\n", retime - ratime);
 
   }  /* end of loop on evecs number */
 
@@ -300,7 +300,7 @@ int main(int argc, char **argv) {
       norm = 4 * g_kappa * g_kappa;
       spinor_field_ti_eq_re (eo_spinor_work2, norm, Vhalf);
       retime = _GET_TIME;
-      if(g_cart_id == 0) fprintf(stdout, "# [ama_gsp2] time to apply C_oo_sym = %e\n", retime - ratime);
+      if(g_cart_id == 0) fprintf(stdout, "# [ama_gsp2] time to apply C_oo_sym = %e seconds\n", retime - ratime);
   
       /* determine eigenvalue */
       spinor_scalar_product_re(&norm,  eo_spinor_work0, eo_spinor_work0, Vhalf);

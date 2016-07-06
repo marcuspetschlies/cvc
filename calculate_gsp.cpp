@@ -248,7 +248,8 @@ int main(int argc, char **argv) {
   g_spinor_field = (double**)calloc(no_fields, sizeof(double*));
   for(i=0; i<no_fields; i++) alloc_spinor_field(&g_spinor_field[i], VOLUME+RAND);
 
-  no_eo_fields = 2*evecs_num + 3;
+  /* no_eo_fields = 2*evecs_num + 3; */
+  no_eo_fields = evecs_num + 3;
   eo_spinor_field = (double**)calloc(no_eo_fields, sizeof(double*));
   for(i=0; i<no_eo_fields; i++) alloc_spinor_field(&eo_spinor_field[i], (VOLUME+RAND)/2);
   eo_spinor_work  = eo_spinor_field[no_eo_fields - 3];
