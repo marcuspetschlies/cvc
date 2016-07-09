@@ -13,7 +13,7 @@ IDXEX ("-"{DIGIT}+)
 SIGN ("+"|"-")
 FLT {SIGN}?{DIGIT}*+"."{DIGIT}*(e("-"|"+")?{DIGIT}+)?
 FILENAME [a-zA-Z0-9_".""-""/"][a-zA-z0-9"."_"-""/"]+
-CORRCONFIG [0-9","";""-""("")"][0-9",";"-""("")"]+
+CORRCONFIG [0-9","";""\-""("")"][0-9","";""\-""("")"]+
 NAME [a-zA-Z0-9_]+
 TYPE [0-9A-Z]+
 SDIGIT {SIGN}?[[:digit:]]
@@ -1103,13 +1103,15 @@ namespace cvc {
   if(cvc::myverbose!=0) printf("# [read_input_parser] LAPHS perambulator path prefix set to %s\n",yytext);
 }
 
-<M_M_TWOPT>{CORRCONFIG}+ {
+<M_M_TWOPT>{CORRCONFIG} {
+
   if ( cvc::g_m_m_2pt_num == MAX_M_M_2PT_NUM ) {
     fprintf(stderr, "[read_input_parser] Error, too many m_m_2pt\n");
     exit(1);
   } else {
     fprintf(stdout, "# [read_input_parser] extracting m_m_2pt number %d\n", cvc::g_m_m_2pt_num);
   }
+
   sscanf(yytext, "%d,(%d,%d,%d);%d,(%d,%d,%d)",
     &(cvc::g_m_m_2pt_list[cvc::g_m_m_2pt_num].gi),
     cvc::g_m_m_2pt_list[cvc::g_m_m_2pt_num].pi,
