@@ -69,6 +69,7 @@ int main(int argc, char **argv) {
   int i, i2pt, iproc;
   int i_gi, i_gf, i_si, i_sf, i_ti, i_tf, i_tfi, x0;
   int filename_set = 0;
+  int append_output = 0;
 #ifdef HAVE_OPENMP
   int threadid, nthreads;
 #endif
@@ -112,7 +113,7 @@ int main(int argc, char **argv) {
 #endif
 
 
-  while ((c = getopt(argc, argv, "h?vf:n:c:")) != -1) {
+  while ((c = getopt(argc, argv, "ah?vf:n:c:")) != -1) {
     switch (c) {
     case 'v':
       verbose = 1;
@@ -128,6 +129,10 @@ int main(int argc, char **argv) {
     case 'c':
       evecs_num_contract = atoi(optarg);
       fprintf(stdout, "# [test_gsp_2pt] use first %d eigenvectors for contraction\n", evecs_num_contract);
+      break;
+    case 'a':
+      append_output = 1;
+      fprintf(stdout, "# [test_gsp_2pt] will append output\n");
       break;
     case 'h':
     case '?':
@@ -301,7 +306,11 @@ int main(int argc, char **argv) {
     }
 #else
     sprintf(filename, "%s.%.4d.%.4d", "gsp_correlator", Nconf, evecs_num_contract);
-    ofs = fopen(filename, "w");
+    if(append_output == 1 ) {
+      ofs = fopen(filename, "a");
+    } else {
+      ofs = fopen(filename, "w");
+    }
     if(ofs == NULL) {
       fprintf(stderr, "[test_gsp_2pt] Error, could not open file %s for writing\n", filename);
       EXIT(177);
