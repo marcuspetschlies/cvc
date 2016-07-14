@@ -75,7 +75,7 @@ void spinor_scalar_product_co(complex *w, double *xi, double *phi, int V) {
   paccum.im = p2.im;
 #endif
 
-  /* fprintf(stdout, "# [spinor_scalar_product_co] %d local: %e %e\n", g_cart_id, p2.re, p2.im); */
+  /* fprintf(stdout, "# [spinor_scalar_product_co] %d local: %e %e\n", g_cart_id, paccum.re, paccum.im); */
 
 #ifdef HAVE_MPI
   pall.re=0.; pall.im=0.;

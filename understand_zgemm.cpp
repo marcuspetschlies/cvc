@@ -54,6 +54,8 @@ using namespace cvc;
 extern "C" void _F(zgemm) ( char*TRANSA, char*TRANSB, int *M, int *N, int *K, double _Complex *ALPHA, double _Complex *A, int *LDA, double _Complex *B,
         int *LDB, double _Complex *BETA, double _Complex * C, int *LDC, int len_TRANSA, int len_TRANSB);
 
+extern "C" void _F(zgemv) ( char*TRANS, int *M, int *N, double _Complex *ALPHA, double _Complex *A, int *LDA, double _Complex *X,
+      int *INCX, double _Complex *BETA, double _Complex * Y, int *INCY, int len_TRANS);
 
 int main(int argc, char **argv) {
   
@@ -76,14 +78,18 @@ int main(int argc, char **argv) {
   double _Complex C[DIMM * DIMN];
   double _Complex TC[DIMM * DIMN];
 
-  char BLAS_TRANSA, BLAS_TRANSB;
+  double _Complex X[DIMM];
+  double _Complex Y[DIMK];
+
+  char BLAS_TRANSA, BLAS_TRANSB, BLAS_TRANS;
   int BLAS_M,  BLAS_N, BLAS_K;
   double _Complex BLAS_ALPHA;
   double _Complex BLAS_BETA;
-  double _Complex *BLAS_A = NULL, *BLAS_B = NULL, *BLAS_C = NULL;
+  double _Complex *BLAS_A = NULL, *BLAS_B = NULL, *BLAS_C = NULL, *BLAS_X=NULL, *BLAS_Y=NULL;
   int BLAS_LDA;
   int BLAS_LDB;
   int BLAS_LDC;
+  int BLAS_INCX, BLAS_INCY;
 
 
 
@@ -151,19 +157,20 @@ int main(int argc, char **argv) {
   rangauss ((double*)A, 2*DIMM*DIMK);
   rangauss ((double*)B, 2*DIMK*DIMN);
 
+  rangauss ((double*)X, 2*DIMK);
+
   for(im=0; im<DIMM; im++) {
     for(ik=0; ik<DIMK; ik++) {
       TA[ik*DIMM+im] = A[im*DIMK+ik];
     }
   }
-
+#if 0
   for(ik=0; ik<DIMK; ik++) {
     for(in=0; in<DIMN; in++) {
       TB[in*DIMK+ik] = B[ik*DIMN+in];
     }
   }
-#if 0
-#endif
+
   BLAS_ALPHA = 1.;
   BLAS_BETA  = 0.;
 /*
@@ -193,7 +200,7 @@ int main(int argc, char **argv) {
   BLAS_LDC = DIMM;
 
   _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
-
+#endif
   fprintf(stdout, "A <- array(dim=c(%d,%d))\n", DIMM, DIMK);
   for(im=0; im<DIMM; im++) {
     for(ik=0; ik<DIMK; ik++) {
@@ -206,7 +213,7 @@ int main(int argc, char **argv) {
       fprintf(stdout, "TA[%d,%d] <- %25.16e + %25.16e*1.i\n", ik+1,im+1, creal(TA[ik*DIMM+im]), cimag(TA[ik*DIMM+im]));
     }
   }
-
+#if 0
   fprintf(stdout, "B <- array(dim=c(%d,%d))\n", DIMK, DIMN);
   for(ik=0; ik<DIMK; ik++) {
     for(in=0; in<DIMN; in++) {
@@ -237,6 +244,39 @@ int main(int argc, char **argv) {
       fprintf(stdout, "TC[%d,%d] <- %25.16e + %25.16e*1.i\n", in+1,im+1, creal(TC[in*DIMM+im]), cimag(TC[in*DIMM+im]));
     }
   } 
+#endif
+
+  fprintf(stdout, "X <- numeric(%d)\n", DIMM);
+  for(ik=0; ik<DIMM; ik++) {
+    fprintf(stdout, "X[%d] <- %25.16e + %25.16e*1.i\n", ik+1, creal(X[ik]), cimag(X[ik]));
+  }
+  for(ik=0; ik<DIMM; ik++) {
+    X[ik] = conj(X[ik]);
+  }
+
+
+  BLAS_M     = DIMK;
+  BLAS_N     = DIMM;
+  BLAS_TRANS = 'N';
+  BLAS_ALPHA = 1.;
+  BLAS_BETA  = 0.;
+  BLAS_A     = A;
+  BLAS_LDA   = BLAS_M;
+  BLAS_X     = X;
+  BLAS_Y     = Y;
+  BLAS_INCX  = 1;
+  BLAS_INCY  = 1;
+
+  _F(zgemv) ( &BLAS_TRANS, &BLAS_M, &BLAS_N, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_X, &BLAS_INCX, &BLAS_BETA, BLAS_Y, &BLAS_INCY, 1);
+
+  for(im=0; im<DIMK; im++) {
+    Y[im] = conj(Y[im]);
+  }
+
+  fprintf(stdout, "Y <- numeric(%d)\n", DIMK);
+  for(im=0; im<DIMK; im++) {
+    fprintf(stdout, "Y[%d] <- %25.16e + %25.16e*1.i\n", im+1, creal(Y[im]), cimag(Y[im]));
+  }
 
   /***********************************************
    * free the allocated memory, finalize 

@@ -48,7 +48,7 @@ int wilson_loop(complex *w, const int xstart, const int dir, const int Ldir);
 
 int IRand(int min, int max);
 double Random_Z2();
-int ranz2(double * y, int NRAND);
+int ranz2(double * y, unsigned int NRAND);
 void random_gauge_field(double *gfield, double h);
 void random_gauge_point(double **gauge_point, double heat);
 void random_gauge_field2(double *gfield);
@@ -58,7 +58,7 @@ void random_spinor_field (double *s, unsigned int V);
 
 int init_hpe_fields(int ***loop_tab, int ***sigma_tab, int ***shift_start, double **tcf, double **tcb);
 int free_hpe_fields(int ***loop_tab, int ***sigma_tab, int ***shift_start, double **tcf, double **tcb);
-int rangauss (double * y1, int NRAND);
+int rangauss (double * y1, unsigned int NRAND);
 
 void cm_proj(double *A);
 void contract_twopoint(double *contr, const int idsource, const int idsink, double **chi, double **phi, int n_c);
@@ -72,7 +72,6 @@ int decompress_gauge(double*gauge_aux, float*gauge_field_flt);
 int compress_gauge(float*gauge_field_flt, double *gauge_aux);
 int set_temporal_gauge(double*gauge_transform);
 int apply_gauge_transform(double*gauge_new, double*gauge_transform, double*gauge_old);
-int init_rng_stat_file (int seed, char*filename);
 
 void free_sp_field(spinor_propagator_type **fp);
 
@@ -84,7 +83,7 @@ void printf_fp(fermion_propagator_type f, char*name, FILE*ofs);
 void printf_sp(spinor_propagator_type f, char*name, FILE*ofs);
 void norm2_sp(spinor_propagator_type f, double*res);
 
-int init_rng_stat_file (int seed, char*filename);
+int init_rng_stat_file (unsigned int seed, char*filename);
 int init_rng_state (int seed, int **rng_state);
 int fini_rng_state (int **rng_state);
 int sync_rng_state(int id, int reset);

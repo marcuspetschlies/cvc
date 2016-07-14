@@ -2298,25 +2298,22 @@ double Random_Z2() {
   if(IRand(0, 1) == 0)
     return(+1.0 / sqrt(2.0));
   return( -1.0 / sqrt(2.0));
-}
+}  /* end of Random_Z2 */
 
-int ranz2(double * y, int NRAND) {
-  int k;
-  double r[2];
-  double sqrt2inv = 1. / sqrt(2.);
+int ranz2(double * y, unsigned int NRAND) {
+  const double sqrt2inv = 1. / sqrt(2.);
+  unsigned int k;
 
-  if(NRAND%2 != 0) {
-    fprintf(stderr, "ERROR, NRAND must be an even number\n");
-    return(1);
-  }
+  ranlxd(y, NRAND);
 
-  for(k=0; k<NRAND/2; k++) {
-    ranlxd(r,2);
-    y[2*k  ] = (double)(2 * (int)(r[0]>=0.5) - 1) * sqrt2inv;
-    y[2*k+1] = (double)(2 * (int)(r[1]>=0.5) - 1) * sqrt2inv;
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for(k=0; k<NRAND; k++) {
+    y[k] = (double)(2 * (int)(y[k]>=0.5) - 1) * sqrt2inv;
   }
   return(0);
-}
+}  /* end of ranz2 */
 
 /********************************************************
  * random_gauge_field
@@ -2812,29 +2809,32 @@ int free_hpe_fields(int ***loop_tab, int ***sigma_tab, int ***shift_start, doubl
  * Second Edition. Cambridge University Press, 2002
  *************************************************************************/
 
-int rangauss (double * y1, int NRAND) {
+int rangauss (double * y1, unsigned int NRAND) {
 
-  int k;
-  int nrandh;
-  double x1, x2;
+  const double TWO_MPI = 2. * M_PI;
+  const unsigned int nrandh = NRAND/2;
+  unsigned int k, k2, k2p1;
+  double x1;
 
   if(NRAND%2 != 0) {
     fprintf(stderr, "ERROR, NRAND must be an even number\n");
     return(1);
   }
 
-  nrandh = NRAND/2;
+  /* fill the complete field y1 */
+  ranlxd(y1,NRAND);
 
+#ifdef HAVE_OPEMP
+#pragma omp parallel for private(k2,k2p1,x1)
+#endif
   for(k=0; k<nrandh; k++) {
-/*
-    x1 = (1. + (double)rand() ) / ( (double)(RAND_MAX) + 1. );
-    x2 = (double)rand() / ( (double)(RAND_MAX) + 1. );
-*/
-    ranlxd(&x1,1);
-    ranlxd(&x2,1);
-    y1[2*k  ] = sqrt(-2.*log(x1)) * cos(2*M_PI*x2);
-    y1[2*k+1] = sqrt(-2.*log(x1)) * sin(2*M_PI*x2);
-  }
+    k2   = 2*k;
+    k2p1 = k2+1;
+
+    x1       = sqrt( -2. * log(y1[k2]) );
+    y1[k2]   = x1 * cos( TWO_MPI * y1[k2p1] );
+    y1[k2p1] = x1 * sin( TWO_MPI * y1[k2p1] );
+  }  /* end of loop on nrandh */
   return(0);
 }
 
@@ -4098,16 +4098,52 @@ int apply_gauge_transform(double*gauge_new, double*gauge_transform, double*gauge
 
 /******************************************************************
  * initialize rng; write first state to file
+ * - method as in
+ *   tmLQCD/start.c, function start_ranlux
  ******************************************************************/
-int init_rng_stat_file (int seed, char*filename) {
+int init_rng_stat_file (unsigned int seed, char*filename) {
 
-  int c, i;
+  int c, i, j;
   int *rng_state=NULL;
+#ifdef HAVE_MPI
+  unsigned int *buffer = NULL;
+#endif
+  unsigned int step = g_proc_coords[0] * g_nproc_x * g_nproc_y * g_nproc_z 
+                    + g_proc_coords[1] *             g_nproc_y * g_nproc_z 
+                    + g_proc_coords[2] *                         g_nproc_z 
+                    +                                            g_nproc_z;
+  unsigned int max_seed = 2147483647 / g_nproc;
+  unsigned int l_seed = ( seed + step * max_seed ) % 2147483647;
+
+  char *default_filename = "rng_stat.out";
   FILE*ofs=NULL;
 
+  if(l_seed == 0) l_seed++; /* why zero not allowed? */
+
+#ifdef HAVE_MPI
+  /* check all seeds */
+  buffer = (unsigned int*)malloc(g_nproc * sizeof(unsigned int));
+  if(buffer == NULL) {
+    fprintf(stderr, "[init_rng_stat_file] Error from malloc\n");
+    return(1);
+  }
+  MPI_Gather(&l_seed, 1, MPI_UNSIGNED, buffer, 1, MPI_UNSIGNED, 0, g_cart_grid);  
+  if(g_cart_id == 0) {
+    for(i=0; i<g_nproc-1; i++) {
+      for(j=i+1; j<g_nproc; j++) {
+        if(buffer[i] == buffer[j]) {
+          fprintf(stderr, "[init_rng_stat_file] Error, two seeds (%u, %u) are equal\n", buffer[i], buffer[j]);
+          EXIT(1);
+        }
+      }
+    }
+  }  /* of if g_cart_id == 0 */
+  free(buffer);
+#endif
+
   if(g_cart_id==0) {
-    fprintf(stdout, "# [] ranldxd: using seed %u and level 2\n", seed);
-    rlxd_init(2, seed);
+    fprintf(stdout, "# [init_rng_stat_file] ranldxd: using seed %u and level 2\n", l_seed);
+    rlxd_init(2, l_seed);
 
     c = rlxd_size();
     if( (rng_state = (int*)malloc(c*sizeof(int))) == (int*)NULL ) {
@@ -4115,17 +4151,19 @@ int init_rng_stat_file (int seed, char*filename) {
       return(102);
     }
     rlxd_get(rng_state);
-    if( (ofs = fopen(filename, "w")) == (FILE*)NULL) {
-      fprintf(stderr, "Error, could not save the random number generator state\n");
+    if(filename == NULL) { filename = default_filename; }
+    ofs = fopen(filename, "w");
+    if( ofs == (FILE*)NULL ) {
+      fprintf(stderr, "[init_rng_stat_file] Error, could not save the random number generator state\n");
       return(103);
     }
-    fprintf(stdout, "# writing rng state to file %s\n", filename);
+    fprintf(stdout, "# [init_rng_stat_file] writing rng state to file %s\n", filename);
     for(i=0; i<c; i++) fprintf(ofs, "%d\n", rng_state[i]);
     fclose(ofs);
     free(rng_state);
   }
   return(0);
-}
+}  /* end of init_rng_stat_file */
 
 int sync_rng_state(int id, int reset) {
 #ifdef HAVE_MPI
