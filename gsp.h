@@ -32,5 +32,9 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, double**W, int num, int momen
 
 void gsp_pl_eq_gsp (double _Complex **gsp1, double _Complex **gsp2, int num);
 
+int gsp_calculate_v_dag_gamma_p_xi_block(double**V, double*W, int num, int momentum_number, int (*momentum_list)[3], int gamma_id_number, int*gamma_id_list, char*tag);
+
+int gsp_calculate_v_dag_gamma_p_w_block_asym(double**V, double**W, int numV, int numW, int momentum_number, int (*momentum_list)[3], int gamma_id_number, int*gamma_id_list, char*tag);
+
 }  /* end of namespace cvc */
 #endif
