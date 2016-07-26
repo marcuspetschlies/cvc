@@ -1141,6 +1141,16 @@ int main(int argc, char **argv) {
 #endif
   if(g_cart_id==0) fprintf(stdout, "# [p2gg_xspace] contractions in %e seconds\n", retime-ratime);
 
+#ifdef HAVE_MPI
+  if(g_cart_id==0) fprintf(stdout, "# [p2gg_xspace] broadcasing contact term ...\n");
+  MPI_Bcast(contact_term, 8, MPI_DOUBLE, have_source_flag, g_cart_grid);
+  fprintf(stdout, "[%2d] contact term = "\
+      "(%e + I %e, %e + I %e, %e + I %e, %e +I %e)\n",
+      g_cart_id, contact_term[0], contact_term[1], contact_term[2], contact_term[3],
+      contact_term[4], contact_term[5], contact_term[6], contact_term[7]);
+#endif
+
+
   /* save results */
 #ifdef HAVE_MPI
   ratime = MPI_Wtime();
@@ -1252,18 +1262,6 @@ int main(int argc, char **argv) {
     }}}}
     fclose(ofs);
   }
-
-
-/*
-#ifdef HAVE_MPI
-  if(g_cart_id==0) fprintf(stdout, "# [p2gg_xspace] broadcasing contact term ...\n");
-  MPI_Bcast(contact_term, 8, MPI_DOUBLE, have_source_flag, g_cart_grid);
-  fprintf(stdout, "[%2d] contact term = "\
-      "(%e + I %e, %e + I %e, %e + I %e, %e +I %e)\n",
-      g_cart_id, contact_term[0], contact_term[1], contact_term[2], contact_term[3],
-      contact_term[4], contact_term[5], contact_term[6], contact_term[7]);
-#endif
-*/
 
 
   }  /* end of loop on sequential gamma id */

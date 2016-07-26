@@ -749,8 +749,9 @@ int gsp_read_node (double ***gsp, int num, int momentum[3], int gamma_id, char*t
   }
   fclose(ifs);
 
+/*
   byte_swap64_v2(gsp[0][0], 2*T*num*num);
-
+*/
 
 #endif
 
@@ -1015,6 +1016,94 @@ void co_eq_tr_gsp (complex *w, double**gsp1, double*lambda, int num) {
 #endif
 
 }  /* co_eq_tr_gsp */
+
+
+/********************************************************************************
+ * multiply diagonals element-wise and sum
+ ********************************************************************************/
+void co_eq_gsp_diag_ti_gsp_diag (complex *w, double**gsp1, double**gsp2, double*lambda, int num) {
+
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+#endif
+ 
+  _co_eq_zero(w);
+#ifdef HAVE_OPENMP
+  omp_init_lock(&writelock);
+#pragma omp parallel shared(w,gsp1,lambda,num)
+{
+#endif
+  int i;
+  complex waccum;
+  complex z1;
+  double r;
+ 
+  _co_eq_zero(&waccum);
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(i = 0; i < num; i++) {
+    r = lambda[i];
+    _co_eq_co_ti_co(&z1, (complex*)(gsp1[i]+2*i),  (complex*)(gsp2[i]+2*i) );
+    _co_pl_eq_co_ti_re(&waccum, &z1, r);
+  }
+#ifdef HAVE_OPENMP
+  omp_set_lock(&writelock);
+  _co_pl_eq_co(w, &waccum);
+  omp_unset_lock(&writelock);
+}  /* end of parallel region */
+  omp_destroy_lock(&writelock);
+#else
+  _co_eq_co(w, &waccum);
+#endif
+
+}  /* end of co_eq_gsp_diag_ti_gsp_diag */
+
+
+/********************************************************************************
+ * extract diagonal of gsp, no weight or sum
+ ********************************************************************************/
+void co_eq_gsp_diag (complex *w, double**gsp1, int num) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel shared(w,gsp1,num)
+{
+#endif
+  int i;
+ 
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(i = 0; i < num; i++) {
+    _co_eq_co(w+i, (complex*)(gsp1[i]+2*i) );
+  }
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+}  /* end of co_eq_gsp_diag */
+
+
+/********************************************************************************
+ * extract diagonal of gsp, no weight or sum
+ ********************************************************************************/
+void co_pl_eq_gsp_diag (complex *w, double**gsp1, int num) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel shared(w,gsp1,num)
+{
+#endif
+  int i;
+ 
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(i = 0; i < num; i++) {
+    _co_pl_eq_co(w+i, (complex*)(gsp1[i]+2*i) );
+  }
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+}  /* end of co_pl_eq_gsp_diag */
 
 /***********************************************
  * calculate gsp using t-blocks
@@ -1609,9 +1698,6 @@ int gsp_calculate_v_dag_gamma_p_xi_block(double**V, double*W, int num, int momen
           memcpy(V_buffer+ievecs*12*VOL3half, V_ptr+ 12*(ievecs*Vhalf + x0*VOL3half), VOL3half * sizeof_spinor_point );
         }
 
-#ifdef HAVE_OPENMP
-#pragma omp parallel for shared(x0)
-#endif
         memcpy(W_buffer, W_ptr+ 12*(x0*VOL3half), VOL3half * sizeof_spinor_point);
 
         /***********************************************

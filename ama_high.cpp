@@ -103,9 +103,9 @@ int main(int argc, char **argv) {
 
   size_t sizeof_eo_spinor_field;
 
-#ifdef HAVE_TMLQCD_LIBWRAPPER
+
   int op_id = -1;
-#endif
+
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
@@ -123,7 +123,7 @@ int main(int argc, char **argv) {
       break;
     case 'n':
       evecs_num = atoi(optarg);
-      fprintf(stdout, "# [ama_high] dimension of eigenspace set to%d\n", evecs_num);
+      fprintf(stdout, "# [ama_high] dimension of eigenspace set to %d\n", evecs_num);
       break;
     case 'c':
       check_eigenvectors = 1;
@@ -435,6 +435,7 @@ int main(int argc, char **argv) {
    ***********************************************/
   for(isample = 0; isample < g_nsample; isample++) {
 
+#ifdef HAVE_TMLQCD_LIBWRAPPER
     /***********************************************
      * prepare a volume source
      ***********************************************/
@@ -463,19 +464,12 @@ int main(int argc, char **argv) {
       }
     }
 
-    /* TEST */
-    for(i=0; i<evecs_num; i++) {
-      spinor_scalar_product_co(&w, eo_evecs_field[i], eo_spinor_field[isample], Vhalf);
-      if(g_cart_id == 0) {
-        fprintf(stdout, "# [ama_high] after %3d %25.16e %25.16e\n", i, w.re, w.im);
-      }
-    }
-
 
     /***********************************************
      * invert
      ***********************************************/
     memcpy(eo_spinor_work0, eo_spinor_field[isample], sizeof_eo_spinor_field);
+    if(g_cart_id == 0) fprintf(stdout, "# [ama_high] calling tmLQCD_invert_eo\n");
     status = tmLQCD_invert_eo(eo_spinor_work1, eo_spinor_work0, op_id);
     if(status != 0) {
       fprintf(stderr, "[ama_high] Error from tmLQCD_invert_eo, status was %d\n", status);
@@ -491,22 +485,31 @@ int main(int argc, char **argv) {
         fprintf(stdout, "# [ama_high] after inversion %3d %25.16e %25.16e\n", i, w.re, w.im);
       }
     }
-
+#endif   /* of if HAVE_TMLQCD_LIBWRAPPER */
 
     /***********************************************
      * check residuum, apply C_oo Cbar_oo
      ***********************************************/
-    C_oo(eo_spinor_work2, eo_spinor_work1, g_gauge_field,  g_mu, eo_spinor_work3);
 
+    C_oo(eo_spinor_work2, eo_spinor_work1, g_gauge_field,  g_mu, eo_spinor_work3);
     norm = 2. * g_kappa;
     spinor_field_ti_eq_re (eo_spinor_work2, norm, Vhalf);
     spinor_field_norm_diff (&norm, eo_spinor_work2, eo_spinor_work0, Vhalf);
+    spinor_scalar_product_re (&dtmp, eo_spinor_work0, eo_spinor_work0, Vhalf);
 
-    if(g_cart_id == 0) {
-      fprintf(stdout, "# [ama_high] norm diff = %e\n", norm);
-    }
+    if(g_cart_id == 0) { fprintf(stdout, "# [ama_high] abs norm diff = %e; rel norm diff = %e\n", norm, norm / sqrt(dtmp)); }
 
+#if 0
+    C_oo(eo_spinor_work2, eo_spinor_work1, g_gauge_field, -g_mu, eo_spinor_work3);
+    C_oo(eo_spinor_work1, eo_spinor_work2, g_gauge_field,  g_mu, eo_spinor_work3);
+
+    norm = 4. * g_kappa * g_kappa;
+    spinor_field_ti_eq_re (eo_spinor_work1, norm, Vhalf);
+    spinor_field_norm_diff (&norm, eo_spinor_work1, eo_spinor_work0, Vhalf);
+    if(g_cart_id == 0) { fprintf(stdout, "# [ama_high] norm diff = %e\n", norm); }
+#endif
   }  /* end of loop on samples */
+
 
   /***********************************************
    * scalar products

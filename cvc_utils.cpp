@@ -4111,7 +4111,7 @@ int init_rng_stat_file (unsigned int seed, char*filename) {
   unsigned int step = g_proc_coords[0] * g_nproc_x * g_nproc_y * g_nproc_z 
                     + g_proc_coords[1] *             g_nproc_y * g_nproc_z 
                     + g_proc_coords[2] *                         g_nproc_z 
-                    +                                            g_nproc_z;
+                    + g_proc_coords[3];
   unsigned int max_seed = 2147483647 / g_nproc;
   unsigned int l_seed = ( seed + step * max_seed ) % 2147483647;
 
@@ -4119,6 +4119,8 @@ int init_rng_stat_file (unsigned int seed, char*filename) {
   FILE*ofs=NULL;
 
   if(l_seed == 0) l_seed++; /* why zero not allowed? */
+
+  fprintf(stdout, "# [init_rng_stat_file] proc%.4d l_seed = %u, max_seed = %u, step = %u\n", g_cart_id, l_seed, max_seed, step);
 
 #ifdef HAVE_MPI
   /* check all seeds */
