@@ -12,7 +12,7 @@ ZT [0-9(10)(11)]
 IDXEX ("-"{DIGIT}+)
 SIGN ("+"|"-")
 FLT {SIGN}?{DIGIT}*+"."{DIGIT}*(e("-"|"+")?{DIGIT}+)?
-FILENAME [a-zA-Z0-9_".""-""/"][a-zA-z0-9"."_"-""/"]+
+FILENAME [a-zA-Z0-9_".""\-""/"][a-zA-z0-9"."_"\-""/"]+
 CORRCONFIG [0-9","";""\-""("")"][0-9","";""\-""("")"]+
 NAME [a-zA-Z0-9_]+
 TYPE [0-9A-Z]+
@@ -175,6 +175,7 @@ namespace cvc {
 %x SRCMOMX
 %x SRCMOMY
 %x SRCMOMZ
+%x SNKMOM
 %x SNKMOMX
 %x SNKMOMY
 %x SNKMOMZ
@@ -332,6 +333,7 @@ namespace cvc {
 ^source_momentum_x{SPC}*={SPC}*            BEGIN(SRCMOMX);
 ^source_momentum_y{SPC}*={SPC}*            BEGIN(SRCMOMY);
 ^source_momentum_z{SPC}*={SPC}*            BEGIN(SRCMOMZ);
+^sink_momentum{SPC}*={SPC}*                BEGIN(SNKMOM);
 ^sink_momentum_x{SPC}*={SPC}*              BEGIN(SNKMOMX);
 ^sink_momentum_y{SPC}*={SPC}*              BEGIN(SNKMOMY);
 ^sink_momentum_z{SPC}*={SPC}*              BEGIN(SNKMOMZ);
@@ -960,7 +962,6 @@ namespace cvc {
   if(cvc::myverbose!=0) printf("# [read_input_parser] added source momentum %s to list; total number is now %d\n", yytext, cvc::g_source_momentum_number);
 }
 
-
 <SNKMOMX>{SDIGIT}+ {
   cvc::g_sink_momentum[0] = atoi(yytext);
   cvc::g_sink_momentum_set = 1;
@@ -976,6 +977,13 @@ namespace cvc {
   cvc::g_sink_momentum_set = 1;
   if(cvc::myverbose!=0) printf("# [read_input_parser] z-comp. of sink momentum set to %d\n", cvc::g_sink_momentum[2]);
 }
+<SNKMOM>{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
+  sscanf(yytext, "%d,%d,%d", cvc::g_sink_momentum_list[cvc::g_sink_momentum_number],
+      cvc::g_sink_momentum_list[cvc::g_sink_momentum_number]+1, cvc::g_sink_momentum_list[cvc::g_sink_momentum_number]+2);
+  cvc::g_sink_momentum_number++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] added sink momentum %s to list; total number is now %d\n", yytext, cvc::g_sink_momentum_number);
+}
+
 <SEQSRCMOMX>{SDIGIT}+ {
   cvc::g_seq_source_momentum[0] = atoi(yytext);
   cvc::g_seq_source_momentum_set = 1;

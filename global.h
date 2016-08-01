@@ -200,7 +200,7 @@ EXTERN int g_sv_dim, g_cv_dim, g_fv_dim, g_cm_dim, g_fp_dim;
 EXTERN double g_as_over_a;
 EXTERN int g_num_threads;
 EXTERN int g_source_momentum[3], g_source_momentum_set, g_source_momentum_list[100][3], g_source_momentum_number;
-EXTERN int g_sink_momentum[3], g_sink_momentum_set;
+EXTERN int g_sink_momentum[3], g_sink_momentum_set, g_sink_momentum_list[100][3], g_sink_momentum_number;
 EXTERN int g_seq_source_momentum[3], g_seq_source_momentum_set, g_seq_source_momentum_list[100][3], g_seq_source_momentum_number;
 EXTERN int *g_rng_state;
 EXTERN int g_verbose;
