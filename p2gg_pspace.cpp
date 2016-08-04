@@ -255,7 +255,13 @@ int main(int argc, char **argv) {
   }
 
   /* sprintf(filename, "%s/%s_x.%s.%.4d", filename_prefix, outfile_name, outfile_tag, Nconf); */
-  sprintf(filename, "%s/%s_x.%.4d", filename_prefix, outfile_name, Nconf);
+  /* sprintf(filename, "%s/%s_x.%.4d", filename_prefix, outfile_name, Nconf); */
+
+  sprintf( filename, "%s/%s_x.t%.2dx%.2dy%.2dz%.2d.tseq%.2d.g%.2d.px%.2dpy%.2dpz%.2d.%.4d",
+      filename_prefix, outfile_name,
+      gsx0, gsx1, gsx2, gsx3, g_sequential_source_timeslice,
+      g_sequential_source_gamma_id, g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2], Nconf);
+
   if(g_cart_id == 0 ) fprintf(stdout, "# [p2gg_pspace] reading contraction from file %s\n", filename);
   exitstatus = read_lime_contraction(conn, filename, 16, 0);
   if(exitstatus != 0) {
@@ -531,7 +537,7 @@ int main(int argc, char **argv) {
         w.re  = cos(phase);
         w.im  = sin(phase);
 
-        if(g_cart_id == 0) fprintf(stdout, "# [p2gg_pspace] phase at souce = %e, %e\n", w.re, w.im);
+        /* if(g_cart_id == 0) fprintf(stdout, "# [p2gg_pspace] phase at souce = %e, %e\n", w.re, w.im); */
 
         _co_eq_co_ti_co(&w1, conn_ptr_p, &w);
         _co_eq_co(conn_ptr_p, &w1);
