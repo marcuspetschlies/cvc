@@ -25,22 +25,12 @@
 #include "io_utils.h"
 #include "read_input_parser.h"
 #include "invert_Qtm.h"
+#include "iblas.h"
+#include "matrix_init.h"
 #include "gsp.h"
 
 
 namespace cvc {
-
-#ifdef F_
-#define _F(s) s##_
-#else
-#define _F(s) s
-#endif
-
-extern "C" void _F(zgemm) ( char*TRANSA, char*TRANSB, int *M, int *N, int *K, double _Complex *ALPHA, double _Complex *A, int *LDA, double _Complex *B,
-    int *LDB, double _Complex *BETA, double _Complex * C, int *LDC, int len_TRANSA, int len_TRANSB);
-
-extern "C" void _F(zgemv) ( char*TRANS, int *M, int *N, double _Complex *ALPHA, double _Complex *A, int *LDA, double _Complex *X,
-      int *INCX, double _Complex *BETA, double _Complex * Y, int *INCY, int len_TRANS);
 
 const int gamma_adjoint_sign[16] = {
   /* the sequence is:
@@ -280,6 +270,64 @@ void gsp_make_o_phase_field_sliced3d (double _Complex**phase, int *momentum) {
       iix = g_eosub2sliced3d[1][g_lexic2eosub[ix] ];
       dtmp = ( phase_part + x1*p[0] + x2*p[1] + x3*p[2] ) * I; 
       if(!g_iseven[ix]) {
+        phase[x0][iix] = cexp(dtmp);
+      }
+    }}}
+  }
+
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+  retime = _GET_TIME;
+  if(g_cart_id == 0) fprintf(stdout, "# [gsp_make_o_phase_field_sliced3d] time for making eo phase field = %e seconds\n", retime-ratime);
+}  /* end of gsp_make_o_phase_field_sliced3d */
+
+/***********************************************
+ * phase field on even/odd sublattice in sliced 3d
+ * ordering (which I think is the same as odd
+ * ordering)
+ * eo - even 0 / odd 1
+ ***********************************************/
+void gsp_make_eo_phase_field_sliced3d (double _Complex**phase, int *momentum, int eo) {
+
+  double ratime, retime;
+  int eo_iseven = (int)(eo == 0);
+
+  if(g_cart_id == 0) {
+    fprintf(stdout, "# [gsp_make_o_phase_field_sliced3d] using phase momentum = (%d, %d, %d)\n", momentum[0], momentum[1], momentum[2]);
+  }
+
+  ratime = _GET_TIME;
+#ifdef HAVE_OPENMP
+#pragma omp parallel default(shared) shared(phase, momentum)
+{
+#endif
+  const double TWO_MPI = 2. * M_PI;
+  double phase_part;
+  double p[3];
+
+  unsigned int ix, iix;
+  int x0, x1, x2, x3;
+  double _Complex dtmp;
+
+  p[0] = TWO_MPI * momentum[0] / (double)LX_global;
+  p[1] = TWO_MPI * momentum[1] / (double)LY_global;
+  p[2] = TWO_MPI * momentum[2] / (double)LZ_global;
+  
+  phase_part = (g_proc_coords[1]*LX) * p[0] + (g_proc_coords[2]*LY) * p[1] + (g_proc_coords[3]*LZ) * p[2];
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  /* make phase field in o ordering */
+  for(x0 = 0; x0<T; x0 ++) {
+    for(x1=0; x1<LX; x1++) {
+    for(x2=0; x2<LY; x2++) {
+    for(x3=0; x3<LZ; x3++) {
+      ix  = g_ipt[x0][x1][x2][x3];
+      iix = g_eosub2sliced3d[1][g_lexic2eosub[ix] ];
+      dtmp = ( phase_part + x1*p[0] + x2*p[1] + x3*p[2] ) * I; 
+      if(g_iseven[ix] == eo_iseven) {
         phase[x0][iix] = cexp(dtmp);
       }
     }}}
@@ -1860,50 +1908,46 @@ int gsp_calculate_v_dag_gamma_p_xi_block(double**V, double*W, int num, int momen
 }  /* end of gsp_calculate_v_dag_gamma_p_xi_block */
 
 
-/***********************************************
+/************************************************************
  * calculate gsp using t-blocks
  *
           subroutine zgemm  (   character   TRANSA,
-            character   TRANSB,
-            integer   M,
-            integer   N,
-            integer   K,
-            complex*16    ALPHA,
-            complex*16, dimension(lda,*)    A,
-            integer   LDA,
-            complex*16, dimension(ldb,*)    B,
-            integer   LDB,
-            complex*16    BETA,
-            complex*16, dimension(ldc,*)    C,
-            integer   LDC 
-          )
           V^+ Gamma(p) W
-          V is numV x 12 Vhalf
-          W is numW x 12 Vhalf
+          eo - scalar product over even 0 / odd 1 sites
+
+          V is numV x (12 VOL3half) (C) = (12 VOL3half) x numV (F)
+
+          W is numW x (12 VOL3half) (C) = (12 VOL3half) x numW (F)
+
+          zgemm calculates
+          V^H x [ (Gamma(p) x W) ] which is numV x numW (F) = numW x numV (C)
  *
- ***********************************************/
-int gsp_calculate_v_dag_gamma_p_w_block_asym(double**V, double**W, int numV, int numW, int momentum_number, int (*momentum_list)[3], int gamma_id_number, int*gamma_id_list, char*tag) {
+ ************************************************************/
+int gsp_calculate_v_dag_gamma_p_w_block_asym(double*gsp_out, double**V, double**W, int numV, int numW, int momentum_number, int (*momentum_list)[3], int gamma_id_number, int*gamma_id_list, char*tag, int eo) {
   
   const double _Complex *V_ptr = (double _Complex *)V[0];
   const double _Complex *W_ptr = (double _Complex *)W[0];
   const size_t sizeof_spinor_point = 12 * sizeof(double _Complex);
   const unsigned int Vhalf = VOLUME / 2;
   const unsigned int VOL3half = (LX*LY*LZ)/2;
+  const size_t V_buffer_items = (size_t)VOL3half * 12* (size_t)numV;
+  const size_t V_buffer_bytes = V_buffer_items *sizeof(double _Complex);
+  const size_t W_buffer_items = (size_t)VOL3half * 12* (size_t)numW;
+  const size_t W_buffer_bytes = W_buffer_items *sizeof(double _Complex);
 
   int status, iproc, gamma_id;
   int x0, ievecs, k;
   int i_momentum, i_gamma_id, momentum[3];
   int io_proc = 2;
   unsigned int ix;
-  size_t items;
+  size_t items, offset;
 
   double ratime, retime, momentum_ratime, momentum_retime, gamma_ratime, gamma_retime;
-  double spinor1[24], spinor2[24];
   double _Complex **phase = NULL;
-  double _Complex *V_buffer = NULL, *W_buffer = NULL, **Z_buffer = NULL;
+  double _Complex *V_buffer = NULL, *W_buffer = NULL, *Z_buffer = NULL;
   double _Complex *zptr=NULL, ztmp;
 #ifdef HAVE_MPI
-  double _Complex **mZ_buffer = NULL;
+  double _Complex *mZ_buffer = NULL;
 #endif
   char filename[200];
 
@@ -1913,7 +1957,7 @@ int gsp_calculate_v_dag_gamma_p_w_block_asym(double**V, double**W, int numV, int
 
   char BLAS_TRANSA, BLAS_TRANSB;
   int BLAS_M, BLAS_N, BLAS_K;
-  double _Complex *BLAS_A, *BLAS_B, *BLAS_C;
+  double _Complex *BLAS_A=NULL, *BLAS_B=NULL, *BLAS_C=NULL;
   int BLAS_LDA, BLAS_LDB, BLAS_LDC;
 
 #ifdef HAVE_MPI
@@ -1927,21 +1971,23 @@ int gsp_calculate_v_dag_gamma_p_w_block_asym(double**V, double**W, int numV, int
   /***********************************************
    * set io process
    ***********************************************/
-  if( g_proc_coords[0] == 0 && g_proc_coords[1] == 0 && g_proc_coords[2] == 0 && g_proc_coords[3] == 0) {
-    io_proc = 2;
-    fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] proc%.4d is io process\n", g_cart_id);
-  } else {
-    if( g_proc_coords[1] == 0 && g_proc_coords[2] == 0 && g_proc_coords[3] == 0) {
-      io_proc = 1;
-      fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] proc%.4d is send process\n", g_cart_id);
+  if(tag != NULL) {
+    if( g_proc_coords[0] == 0 && g_proc_coords[1] == 0 && g_proc_coords[2] == 0 && g_proc_coords[3] == 0) {
+      io_proc = 2;
+      fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block_asym] proc%.4d is io process\n", g_cart_id);
     } else {
-      io_proc = 0;
+      if( g_proc_coords[1] == 0 && g_proc_coords[2] == 0 && g_proc_coords[3] == 0) {
+        io_proc = 1;
+        fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block_asym] proc%.4d is send process\n", g_cart_id);
+      } else {
+        io_proc = 0;
+      }
     }
-  }
-  if(io_proc == 1) {
-    mcoords[0] = 0; mcoords[1] = 0; mcoords[2] = 0; mcoords[3] = 0;
-    MPI_Cart_rank(g_cart_grid, mcoords, &mrank);
-  }
+    if(io_proc == 1) {
+      mcoords[0] = 0; mcoords[1] = 0; mcoords[2] = 0; mcoords[3] = 0;
+      MPI_Cart_rank(g_cart_grid, mcoords, &mrank);
+    }
+  }  /* end of if tag != NULL */
 #endif
 
   /***********************************************
@@ -1949,12 +1995,12 @@ int gsp_calculate_v_dag_gamma_p_w_block_asym(double**V, double**W, int numV, int
    ***********************************************/
   phase = (double _Complex**)malloc(T*sizeof(double _Complex*));
   if(phase == NULL) {
-    fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error from malloc\n");
+    fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block_asym] Error from malloc\n");
     return(1);
   }
   phase[0] = (double _Complex*)malloc(Vhalf*sizeof(double _Complex));
   if(phase[0] == NULL) {
-    fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error from malloc\n");
+    fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block_asym] Error from malloc\n");
     return(2);
   }
   for(x0=1; x0<T; x0++) {
@@ -1962,58 +2008,16 @@ int gsp_calculate_v_dag_gamma_p_w_block_asym(double**V, double**W, int numV, int
   }
 
   /***********************************************
-   * buffer for result of matrix multiplication
-   ***********************************************/
-  Z_buffer = (double _Complex**)malloc(T*sizeof(double _Complex*));
-  Z_buffer[0] = (double _Complex*)malloc(T*numV*numW*sizeof(double _Complex));
-  if(Z_buffer[0] == NULL) {
-   fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error from malloc\n");
-   return(3);
-  }
-  for(k=1; k<T; k++) Z_buffer[k] = Z_buffer[k-1] + numV*numW;
-
-#ifdef HAVE_MPI
-  mZ_buffer = (double _Complex**)malloc(T*sizeof(double _Complex*));
-  mZ_buffer[0] = (double _Complex*)malloc(T*numV*numW*sizeof(double _Complex));
-  if(mZ_buffer[0] == NULL) {
-   fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error from malloc\n");
-   return(4);
-  }
-  for(k=1; k<T; k++) mZ_buffer[k] = mZ_buffer[k-1] + numV*numW;
-#endif
-
-  /***********************************************
-   * buffer for input matrices
-   ***********************************************/
-  V_buffer = (double _Complex*)malloc(VOL3half*12*numV*sizeof(double _Complex));
-  if(V_buffer == NULL) {
-   fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error from malloc\n");
-   return(5);
-  }
-  BLAS_B = V_buffer;
-
-  W_buffer = (double _Complex*)malloc(VOL3half*12*numW*sizeof(double _Complex));
-  if(V_buffer == NULL) {
-   fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error from malloc\n");
-   return(6);
-  }
-  BLAS_A = W_buffer;
-
-  /***********************************************
    * set BLAS zgemm parameters
    ***********************************************/
-  /* this set leads to getting V^+ Gamma(p) W 
-   * BUT: requires complex conjugation of V and (Gamma(p) W) */
   BLAS_TRANSA = 'C';
   BLAS_TRANSB = 'N';
-  BLAS_M   = numV;
-  BLAS_K   = 12*VOL3half;
-  BLAS_N   = numW;
-  BLAS_A   = W_buffer;
-  BLAS_B   = V_buffer;
-  BLAS_LDA = BLAS_K;
-  BLAS_LDB = BLAS_K;
-  BLAS_LDC = BLAS_M;
+  BLAS_M     = numV;
+  BLAS_K     = 12*VOL3half;
+  BLAS_N     = numW;
+  BLAS_LDA   = BLAS_K;
+  BLAS_LDB   = BLAS_K;
+  BLAS_LDC   = BLAS_M;
 
   /***********************************************
    * loop on momenta
@@ -2025,12 +2029,12 @@ int gsp_calculate_v_dag_gamma_p_w_block_asym(double**V, double**W, int numV, int
     momentum[2] = momentum_list[i_momentum][2];
 
     if(g_cart_id == 0) {
-      fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] using source momentum = (%d, %d, %d)\n", momentum[0], momentum[1], momentum[2]);
+      fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block_asym] using source momentum = (%d, %d, %d)\n", momentum[0], momentum[1], momentum[2]);
     }
     momentum_ratime = _GET_TIME;
 
     /* make phase field in eo ordering */
-    gsp_make_o_phase_field_sliced3d (phase, momentum);
+    gsp_make_eo_phase_field_sliced3d (phase, momentum, eo);
 
 
     /***********************************************
@@ -2039,186 +2043,352 @@ int gsp_calculate_v_dag_gamma_p_w_block_asym(double**V, double**W, int numV, int
     for(i_gamma_id=0; i_gamma_id < gamma_id_number; i_gamma_id++) {
 
       gamma_id = gamma_id_list[i_gamma_id];
-      if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] using source gamma id %d\n", gamma_id);
+      if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block_asym] using source gamma id %d\n", gamma_id);
       gamma_ratime = _GET_TIME;
 
+      Z_buffer = ((double _Complex*)gsp_out) + ( i_momentum * gamma_id_number + i_gamma_id ) * T * numV * numW;
+
+      /* buffer for input matrices */
+      if( (V_buffer = (double _Complex*)malloc(V_buffer_bytes) ) == NULL ) {
+       fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block_asym] Error from malloc\n");
+       return(5);
+      }
+      
+      if( (W_buffer = (double _Complex*)malloc(W_buffer_bytes)) == NULL ) {
+       fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block_asym] Error from malloc\n");
+       return(6);
+      }
+
+      BLAS_A = V_buffer;
+      BLAS_B = W_buffer;
 
       /***********************************************
        * loop on timeslices
        ***********************************************/
-      for(x0 = 0; x0 < T; x0++)
-      {
+      for(x0 = 0; x0 < T; x0++) {
+
         /* copy to timeslice of V to V_buffer */
 #ifdef HAVE_OPENMP
-#pragma omp parallel for shared(x0)
+#pragma omp parallel shared(x0)
+{
+#endif
+        bytes  = VOL3half * sizeof_spinor_point;
+        offset = 12 * VOL3half;
+        items  = 12 * Vhalf;
+#ifdef HAVE_OPENMP
+#pragma omp for
 #endif
         for(ievecs=0; ievecs<numV; ievecs++) {
-          memcpy(V_buffer+ievecs*12*VOL3half, V_ptr+ 12*(ievecs*Vhalf + x0*VOL3half), VOL3half * sizeof_spinor_point );
+          memcpy(V_buffer+ievecs*offset, V_ptr+(ievecs*items + x0*offset), bytes );
         }
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel for shared(x0)
+#pragma omp for
 #endif
         for(ievecs=0; ievecs<numW; ievecs++) {
-          memcpy(W_buffer+ievecs*12*VOL3half, W_ptr+ 12*(ievecs*Vhalf + x0*VOL3half), VOL3half * sizeof_spinor_point  );
+          memcpy(W_buffer+ievecs*offset, W_ptr+(ievecs*items + x0*offset), bytes );
         }
 
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
         /***********************************************
          * apply Gamma(pvec) to W
          ***********************************************/
         ratime = _GET_TIME;
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(spinor1,spinor2,zptr,ztmp)
+#pragma omp parallel for private(zptr,ztmp)
+{
+#endif
+       
+        double spinor2[24];
+        zptr = W_buffer;
+#ifdef HAVE_OPENMP
+#pragma omp for
 #endif
         for(ix=0; ix<numW*VOL3half; ix++) {
-          /* W <- conj( gamma exp ip W ) */
-          zptr = W_buffer + 12 * ix;
+          /* W <- gamma exp ip W */
           ztmp = phase[x0][ix % VOL3half];
-          memcpy(spinor1, zptr, sizeof_spinor_point);
-          _fv_eq_gamma_ti_fv(spinor2, gamma_id, spinor1);
-          zptr[ 0] = conj(ztmp * (spinor2[ 0] + spinor2[ 1] * I));
-          zptr[ 1] = conj(ztmp * (spinor2[ 2] + spinor2[ 3] * I));
-          zptr[ 2] = conj(ztmp * (spinor2[ 4] + spinor2[ 5] * I));
-          zptr[ 3] = conj(ztmp * (spinor2[ 6] + spinor2[ 7] * I));
-          zptr[ 4] = conj(ztmp * (spinor2[ 8] + spinor2[ 9] * I));
-          zptr[ 5] = conj(ztmp * (spinor2[10] + spinor2[11] * I));
-          zptr[ 6] = conj(ztmp * (spinor2[12] + spinor2[13] * I));
-          zptr[ 7] = conj(ztmp * (spinor2[14] + spinor2[15] * I));
-          zptr[ 8] = conj(ztmp * (spinor2[16] + spinor2[17] * I));
-          zptr[ 9] = conj(ztmp * (spinor2[18] + spinor2[19] * I));
-          zptr[10] = conj(ztmp * (spinor2[20] + spinor2[21] * I));
-          zptr[11] = conj(ztmp * (spinor2[22] + spinor2[23] * I));
+          _fv_eq_gamma_ti_fv(spinor2, gamma_id, zptr);
+          zptr[ 0] = ztmp * (spinor2[ 0] + spinor2[ 1] * I);
+          zptr[ 1] = ztmp * (spinor2[ 2] + spinor2[ 3] * I);
+          zptr[ 2] = ztmp * (spinor2[ 4] + spinor2[ 5] * I);
+          zptr[ 3] = ztmp * (spinor2[ 6] + spinor2[ 7] * I);
+          zptr[ 4] = ztmp * (spinor2[ 8] + spinor2[ 9] * I);
+          zptr[ 5] = ztmp * (spinor2[10] + spinor2[11] * I);
+          zptr[ 6] = ztmp * (spinor2[12] + spinor2[13] * I);
+          zptr[ 7] = ztmp * (spinor2[14] + spinor2[15] * I);
+          zptr[ 8] = ztmp * (spinor2[16] + spinor2[17] * I);
+          zptr[ 9] = ztmp * (spinor2[18] + spinor2[19] * I);
+          zptr[10] = ztmp * (spinor2[20] + spinor2[21] * I);
+          zptr[11] = ztmp * (spinor2[22] + spinor2[23] * I);
+          zptr += 12;
         }
-        retime = _GET_TIME;
-        if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for conj gamma p W = %e seconds\n", retime - ratime);
-
-        ratime = _GET_TIME;
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(ztmp)
+}  /* end of parallel region */
 #endif
-        for(ix=0; ix<12*numV*VOL3half; ix++) {
-          /* V <- conj( V )*/
-          ztmp = V_buffer[ix];
-          V_buffer[ix] = conj(ztmp);
-        }
         retime = _GET_TIME;
-        if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for conj V = %e seconds\n", retime - ratime);
+        if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block_asym] time for conj gamma p W = %e seconds\n", retime - ratime);
 
         /***********************************************
          * scalar products as matrix multiplication
          ***********************************************/
         ratime = _GET_TIME;
-        BLAS_C = Z_buffer[x0];
-        _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+
+        /* output buffer */
+        BLAS_C = Z_buffer + x0 * numV*numW;
+
+        _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC, 1, 1);
+
         retime = _GET_TIME;
-        if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for zgemm = %e seconds\n", retime - ratime);
+        if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block_asym] time for zgemm = %e seconds\n", retime - ratime);
 
       }  /* end of loop on timeslice x0 */
+      free(V_buffer); V_buffer = NULL;
+      free(W_buffer); W_buffer = NULL;
 
-      ratime = _GET_TIME;
 #ifdef HAVE_MPI
+      ratime = _GET_TIME;
       /* reduce within global timeslice */
-      memcpy(mZ_buffer[0], Z_buffer[0], T*numV*numW*sizeof(double _Complex));
-      MPI_Allreduce(mZ_buffer[0], Z_buffer[0], 2*T*numV*numW, MPI_DOUBLE, MPI_SUM, g_ts_comm);
-#endif
+      items = T * numV * numW;
+      bytes = items * sizeof(double _Complex);
+      if( (mZ_buffer = (double _Complex*)malloc( bytes )) == NULL ) {
+        fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block_asym] Error, could not open file %s for writing\n", filename);
+        return(5);
+      }
+      memcpy(mZ_buffer, Z_buffer, bytes);
+      MPI_Allreduce(mZ_buffer, Z_buffer, 2*T*numV*numW, MPI_DOUBLE, MPI_SUM, g_ts_comm);
+      free(mZ_buffer); mZ_buffer = NULL;
       retime = _GET_TIME;
-      if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for allreduce = %e seconds\n", retime - ratime);
+      if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block_asym] time for allreduce = %e seconds\n", retime - ratime);
+#endif
 
 
       /***********************************************
        * write gsp to disk
        ***********************************************/
-      if(io_proc == 2) {
-        sprintf(filename, "%s.px%.2dpy%.2dpz%.2d.g%.2d", tag, momentum[0], momentum[1], momentum[2], gamma_id);
-        ofs = fopen(filename, "w");
-        if(ofs == NULL) {
-          fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error, could not open file %s for writing\n", filename);
-          return(12);
-        }
-      }
-      for(iproc=0; iproc < g_nproc_t; iproc++) {
-#ifdef HAVE_MPI
-        ratime = _GET_TIME;
-        if(iproc > 0) {
-          /***********************************************
-           * gather at root
-           ***********************************************/
-          k = 2*T*numV*numW; /* number of items to be sent and received */
-          if(io_proc == 2) {
-            mcoords[0] = iproc; mcoords[1] = 0; mcoords[2] = 0; mcoords[3] = 0;
-            MPI_Cart_rank(g_cart_grid, mcoords, &mrank);
-
-            /* receive gsp with tag iproc; overwrite Z_buffer */
-            status = MPI_Recv(Z_buffer[0], k, MPI_DOUBLE, mrank, iproc, g_cart_grid, &mstatus);
-            if(status != MPI_SUCCESS ) {
-              fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] proc%.4d Error from MPI_Recv, status was %d\n", g_cart_id, status);
-              return(9);
-            }
-          } else if (g_proc_coords[0] == iproc && io_proc == 1) {
-            /* send correlator with tag 2*iproc */
-            status = MPI_Send(Z_buffer[0], k, MPI_DOUBLE, mrank, iproc, g_cart_grid);
-            if(status != MPI_SUCCESS ) {
-              fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] proc%.4d Error from MPI_Recv, status was %d\n", g_cart_id, status);
-              return(10);
-            }
-          }
-        }  /* end of if iproc > 0 */
-
-        retime = _GET_TIME;
-        if(io_proc == 2) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for exchange = %e seconds\n", retime-ratime);
-#endif  /* of ifdef HAVE_MPI */
-
-        /***********************************************
-         * I/O process write to file
-         ***********************************************/
+      if(tag != NULL) {
         if(io_proc == 2) {
-          ratime = _GET_TIME;
-          items = (size_t)(T*numV*numW);
-
-          if( fwrite(Z_buffer[0], sizeof(double _Complex), items, ofs) != items ) {
-            fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w] Error, could not write proper amount of data to file %s\n", filename);
-            return(13);
+          sprintf(filename, "%s.px%.2dpy%.2dpz%.2d.g%.2d", tag, momentum[0], momentum[1], momentum[2], gamma_id);
+          ofs = fopen(filename, "w");
+          if(ofs == NULL) {
+            fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block_asym] Error, could not open file %s for writing\n", filename);
+            return(12);
           }
+        }
+#ifdef HAVE_MPI
+        items = T * numV * numW;
+        bytes = items * sizeof(double _Complex);
+        if(io_proc == 2) {
+          if( (mZ_buffer = (double _Complex*)malloc( bytes )) == NULL ) {
+            fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block_asym] Error, could not open file %s for writing\n", filename);
+            return(7);
+          }
+        }
+#endif
+
+        for(iproc=0; iproc < g_nproc_t; iproc++) {
+#ifdef HAVE_MPI
+          ratime = _GET_TIME;
+          if(iproc > 0) {
+            /***********************************************
+             * gather at root
+             ***********************************************/
+            k = 2*T*numV*numW; /* number of items to be sent and received */
+            if(io_proc == 2) {
+              mcoords[0] = iproc; mcoords[1] = 0; mcoords[2] = 0; mcoords[3] = 0;
+              MPI_Cart_rank(g_cart_grid, mcoords, &mrank);
+
+              /* receive gsp with tag iproc; overwrite Z_buffer */
+              status = MPI_Recv(mZ_buffer, k, MPI_DOUBLE, mrank, iproc, g_cart_grid, &mstatus);
+              if(status != MPI_SUCCESS ) {
+                fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block_asym] proc%.4d Error from MPI_Recv, status was %d\n", g_cart_id, status);
+                return(9);
+              }
+            } else if (g_proc_coords[0] == iproc && io_proc == 1) {
+              /* send correlator with tag 2*iproc */
+              status = MPI_Send(Z_buffer, k, MPI_DOUBLE, mrank, iproc, g_cart_grid);
+              if(status != MPI_SUCCESS ) {
+                fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block_asym] proc%.4d Error from MPI_Recv, status was %d\n", g_cart_id, status);
+                return(10);
+              }
+            }
+          }  /* end of if iproc > 0 */
 
           retime = _GET_TIME;
-          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for writing = %e seconds\n", retime-ratime);
-        }  /* end of if io_proc == 2 */
+          if(io_proc == 2) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block_asym] time for exchange = %e seconds\n", retime-ratime);
+#endif  /* of ifdef HAVE_MPI */
 
-      }  /* end of loop on iproc */
-      if(io_proc == 2) fclose(ofs);
+          /***********************************************
+           * I/O process write to file
+           ***********************************************/
+          if(io_proc == 2) {
+            ratime = _GET_TIME;
+            
+            zptr = iproc == 0 ? Z_buffer : mZ_buffer;
+            if( fwrite(zptr, sizeof(double _Complex), items, ofs) != items ) {
+              fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block_asym] Error, could not write proper amount of data to file %s\n", filename);
+              return(13);
+            }
+
+            retime = _GET_TIME;
+            fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block_asym] time for writing = %e seconds\n", retime-ratime);
+          }  /* end of if io_proc == 2 */
+
+        }  /* end of loop on iproc */
+        if(io_proc == 2) {
+#ifdef HAVE_MPI
+          free(mZ_buffer);
+#endif
+          fclose(ofs);
+        }
+      }  /* end of if tag != NULL */
 
       gamma_retime = _GET_TIME;
-      if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for gamma id %d = %e seconds\n", gamma_id_list[i_gamma_id], gamma_retime - gamma_ratime);
+      if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block_asym] time for gamma id %d = %e seconds\n", gamma_id_list[i_gamma_id], gamma_retime - gamma_ratime);
 
    }  /* end of loop on gamma id */
 
    momentum_retime = _GET_TIME;
-   if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for momentum (%d, %d, %d) = %e seconds\n",
+   if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block_asym] time for momentum (%d, %d, %d) = %e seconds\n",
        momentum[0], momentum[1], momentum[2], momentum_retime - momentum_ratime);
 
   }   /* end of loop on source momenta */
 
-
-  if(phase != NULL) {
-    if(phase[0] != NULL) free(phase[0]);
-    free(phase);
-  }
-  if(V_buffer != NULL) free(V_buffer);
-  if(W_buffer != NULL) free(W_buffer);
-  if(Z_buffer != NULL) {
-    if(Z_buffer[0] != NULL) free(Z_buffer[0]);
-    free(Z_buffer);
-  }
-#ifdef HAVE_MPI
-  if(mZ_buffer != NULL) {
-    if(mZ_buffer[0] != NULL) free(mZ_buffer[0]);
-    free(mZ_buffer);
-  }
-#endif
+  free(phase[0]); free(phase);
 
   return(0);
 
 }  /* end of gsp_calculate_v_dag_gamma_p_w_block_asym */
 
+
+/************************************************************
+ * 
+ *  input V: Nev x eo spinor field
+ *        W: 60 x Nev coefficients
+ *
+          V is numV x 12 Vhalf (C) = 12 Vhalf x numV (F)
+          W is numW x numV     (C) = numV     x numW (F)
+
+          zgemm calculates V x W which is 12 Vhalf x numW (F) = numW x 12 Vhalf (C)
+ *
+ ************************************************************/
+int gsp_calculate_v_w_block_asym(double*gsp_out, double**V, double**W, unsigned int numV, unsigned int numW) {
+
+  const double _Complex *V_ptr = (double _Complex *)V[0];
+  const double _Complex *W_ptr = (double _Complex *)W[0];
+  const double _Complex *Z_ptr = (double _Complex *)gsp_out;
+  const unsigned int Vhalf = VOLUME / 2;
+
+  double ratime, retime;
+
+  char BLAS_TRANSA, BLAS_TRANSB;
+  int BLAS_M, BLAS_K, BLAS_N, BLAS_LDA, BLAS_LDB, BLAS_LDC;
+  double _Complex *BLAS_A = NULL, *BLAS_B = NULL, *BLAS_C = NULL;
+  double _Complex BLAS_ALPHA = 1.;
+  double _Complex BLAS_BETA  = 0.;
+
+  /***********************************************
+   * set BLAS zgemm parameters
+   ***********************************************/
+  BLAS_TRANSA = 'N';
+  BLAS_TRANSB = 'N';
+  BLAS_M     = 12 * Vhalf;
+  BLAS_K     = numV;
+  BLAS_N     = numW;
+  BLAS_A     = V_ptr;
+  BLAS_B     = W_ptr;
+  BLAS_C     = Z_ptr;
+  BLAS_LDA   = BLAS_M;
+  BLAS_LDB   = BLAS_K;
+  BLAS_LDC   = BLAS_M;
+
+
+  /***********************************************
+   * matrix multiplication
+   ***********************************************/
+  ratime = _GET_TIME;
+  _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+  retime = _GET_TIME;
+  if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_w_block_asym] time for zgemm = %e seconds\n", retime - ratime);
+
+  return(0);
+
+}  /* end of gsp_calculate_v_w_block_asym */
+
+/**************************************************************************************************************
+ * V     is nv              x VOL3 (C) = VOL3 x nv (F)
+ * phase is momentum_number x VOL3 (C) = VOL3 x momentum_number (F)
+ *
+ * zgemm calculates t(V) x phase, which is  nv x momentum_number (F) = momentum_number x nv (C)
+ **************************************************************************************************************/
+int momentum_projection (double*V, double *W, unsigned int nv, int momentum_number, int (*momentum_list)[3]) {
+
+  const unsigned int VOL3 = LX*LY*LZ;
+
+  int x1, x2, x3;
+  unsigned int i, ix;
+  double _Complex **zphase = NULL;
+  double q[3], q_offset=0, q_phase = 0.;;
+
+  char BLAS_TRANSA, BLAS_TRANSB;
+  int BLAS_M, BLAS_K, BLAS_N, BLAS_LDA, BLAS_LDB, BLAS_LDC;
+  double _Complex *BLAS_A = NULL, *BLAS_B = NULL, *BLAS_C = NULL;
+  double _Complex BLAS_ALPHA = 1.;
+  double _Complex BLAS_BETA  = 0.;
+
+  init_2level_buffer( (double***)(&zphase), momentum_number, 2*VOL3 );
+
+  for(i=0; i < momentum_number; i++) {
+    /* phase field */
+    q[0] = MPI2 * g_sink_momentum_list[i][0] / LX_global;
+    q[1] = MPI2 * g_sink_momentum_list[i][1] / LY_global;
+    q[2] = MPI2 * g_sink_momentum_list[i][2] / LZ_global;
+    q_offset = g_proc_coords[1]*LX * q[0] + g_proc_coords[2]*LY * q[1] + g_proc_coords[3]*LZ * q[2];
+#ifdef HAVE_OPENMP
+#pragma omp parallel for default(shared)
+#endif
+    for(x1=0; x1<LX; x1++) {
+    for(x2=0; x2<LY; x2++) {
+    for(x3=0; x3<LZ; x3++) {
+      ix = g_ipt[0][x1][x2][x3];
+      q_phase = x1*q[0] + x2*q[1] + x3*q[2] + q_offset;
+      zphase[ix] = cos(q_phase) - I*sin(q_phase);
+    }}}
+  }
+
+  BLAS_TRANSA = 'T';
+  BLAS_TRANSB = 'N';
+  BLAS_M     = nv;
+  BLAS_K     = VOL3;
+  BLAS_N     = momentum_number;
+  BLAS_A     = (double _Complex*)V;
+  BLAS_B     = zphase[0];
+  BLAS_C     = (double _Complex*)W;
+  BLAS_LDA   = BLAS_K;
+  BLAS_LDB   = BLAS_K;
+  BLAS_LDC   = BLAS_M;
+
+  _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+
+  fini_2level_buffer((double***)(&zphase));
+
+#ifdef HAVE_MPI
+  i = 2 * nv * nmom;
+  void *buffer = malloc(i * sizeof(double));
+  if(buffer == NULL) {
+    return(1);
+  }
+  memcpy(buffer, W, i*sizeof(double));
+  int status = MPI_Allreduce(buffer, (void*)W, i, MPI_DOUBLE, MPI_SUM, g_ts_comm);
+  if(status != MPI_SUCCESS) {
+    fprintf(stderr, "[momentum_projection] Error from MPI_Allreduce, status was %d\n", status);
+    return(2);
+  }
+  free(buffer);
+#endif
+
+  return(0);
+}  /* end of momentum_projection */
 
 }  /* end of namespace cvc */

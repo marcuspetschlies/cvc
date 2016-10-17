@@ -269,6 +269,12 @@ void set_default_input_values(void) {
 
   g_m_m_2pt_num = _default_m_m_2pt_num;
 
+  g_clover = NULL;
+  g_mzz_up = NULL;
+  g_mzz_dn = NULL;
+  g_mzzinv_up = NULL;
+  g_mzzinv_dn = NULL;
+
 }  /* end of set_default_input_values */
 
 }  /* end of namespace cvc */

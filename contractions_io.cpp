@@ -645,6 +645,8 @@ int write_lime_contraction(double * const s, char * filename, const int prec, co
 
   ifs = (MPI_File*)malloc(sizeof(MPI_File));
   status = MPI_File_open(g_cart_grid, filename, MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, ifs);
+  /* append with MPI_MODE_APPEND ? */
+
   if(status == MPI_SUCCESS) status = MPI_File_set_size(*ifs, 0);
   status = (status == MPI_SUCCESS) ? 0 : 1;
   writer = lemonCreateWriter(ifs, g_cart_grid);

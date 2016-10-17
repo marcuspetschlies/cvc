@@ -22,6 +22,19 @@
 #include <omp.h>
 #endif
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+#  ifdef HAVE_TMLQCD_LIBWRAPPER
+#    include "tmLQCD.h"
+#  endif
+
+#ifdef __cplusplus
+}
+#endif
+
 #define MAIN_PROGRAM
 
 #include "types.h"
@@ -57,7 +70,7 @@ int main(int argc, char **argv) {
   int it_src = 1;
   int is_src = 2;
   int iv_src = 3;
-  int i, j, ncon=-1, is, idx;
+  int i, j, k, ncon=-1, is, idx;
   int filename_set = 0;
   int x0, x1, x2, x3, ix, iix;
   int y0, y1, y2, y3;
@@ -76,8 +89,8 @@ int main(int argc, char **argv) {
   double **perambulator = NULL;
   double ratime, retime;
   eigensystem_type es;
-  randomvector_type rv, prv;
-  perambulator_type peram;
+  randomvector_type rv[3];
+  perambulator_type peram[3];
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
@@ -243,6 +256,20 @@ int main(int argc, char **argv) {
   retime = _GET_TIME;
   fprintf(stdout, "# [] time to project randomvector %e\n", retime-ratime);
 
+  /* TEST */
+  sprintf(filename, "projected_randomvector.t%d_s%d_v%d.ascii", it_src, is_src, iv_src);
+  ofs = fopen(filename, "w");
+  ix=0; 
+  for(x0=0; x0<prv.nt; x0++) {
+    for(i=0; i<prv.ns; i++) {
+      for(k=0; k<prv.nv; k++) {
+        fprintf(ofs, "%3d%3d%5d%25.16e%25.16e\n", x0, i, k, prv.rvec[2*ix], prv.rvec[2*ix+1]);
+        ix++;
+      }
+    }
+  }
+  fclose(ofs);
+#if 0
   /* print_randomvector(&rv, stdout); */
   sprintf(filename, "projected_randomvector.t%d_s%d_v%d", it_src, is_src, iv_src);
   ofs = fopen(filename, "w");
@@ -263,6 +290,28 @@ int main(int argc, char **argv) {
 
   sprintf(filename, "v_projected_randomvector.t%d_s%d_v%d", it_src, is_src, iv_src);
   status = write_propagator(g_spinor_field[0], filename, 0, 64);
+
+
+  /* TEST */
+  /* write ascii file */
+  sprintf(filename, "v_projected_randomvector.t%d_s%d_v%d.ascii", it_src, is_src, iv_src);
+  ofs = fopen(filename, "w");
+  for(x0=0; x0<T; x0++) {
+    for(x1=0; x1<LX; x1++) {
+    for(x2=0; x2<LX; x2++) {
+    for(x3=0; x3<LX; x3++) {
+      ix = g_ipt[x0][x1][x2][x3];
+      iix = _GSI(ix);
+      fprintf(stdout, "")
+      for(i=0; i<12; i++) {
+        fprintf(ofs, "%3d%3d%26.16e%25.16e\n", i/3, i%3, )
+      }
+
+
+    }}}
+  }
+  fclose(ofs);
+#endif
 
 /*
   sprintf(filename, "v_projected_randomvector.t%d_s%d_v%d.ascii", it_src, is_src, iv_src);

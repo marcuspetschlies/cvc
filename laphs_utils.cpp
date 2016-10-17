@@ -700,7 +700,212 @@ int perambulator_eq_eigensystem_dag_ti_fv (perambulator_type*p, eigensystem_type
   }        /* end of loop on time */
 
   return(0);
-}
+}  /* end of perambulator_eq_eigensystem_dag_ti_fv */
+
+/*************************************************************
+ * rotation from physical/twisted basis 
+ * to twisted/physical basis
+ *   requires full spin dilution at source
+ *
+ * rotation matrix is diagonal
+ * 1/sqrt(2) ( 1 + s i g5 ) = 1/sqrt(2) diag(1 + s i, 1 + s i, 1 - s i, 1 - s i)
+ * sign s = +/-1
+ *************************************************************/
+int rotate_perambulator(perambulator_type*p, int sign) {
+
+  const double one_over_sqrt2 = 7.0710678118654746e-01;
+  int t1, t2, ev1, ev2, k1, k2, dirac1, dirac2;
+
+  int time_snk_number = p->nt_snk;
+  int time_src_number = p->nt_src;
+  int spin_snk_number = p->ns_snk;
+  int spin_src_number = p->ns_src;
+  int evec_snk_number = p->nv_snk;
+  int evec_src_number = p->nv_src;
+
+  int nrow = (size_t)( evec_snk_number * spin_snk_number * time_snk_number );
+
+  int vzre[4][4] = { {-sign, -sign, 1, 1}, {-sign, -sign, 1, 1}, {1, 1,  sign,  sign}, {1, 1,  sign,  sign} };
+  int vzim[4][4] = { { sign,  sign, 1, 1}, { sign,  sign, 1, 1}, {1, 1, -sign, -sign}, {1, 1, -sign, -sign} };
+
+  int idx[4][4] = { {1,1,0,0}, {1,1,0,0}, {0,0,1,1}, {0,0,1,1} };
+
+  double a[2];
+
+  if( p->ns_src != 4 ) {
+    fprintf(stderr, "[rotate_perambulator] Error, need full spin dilution at source\n");
+    return(1);
+  }
+  
+  for(t1     = 0; t1     < time_snk_number; ++t1) {
+  for(ev1    = 0; ev1    < evec_snk_number; ++ev1) {
+  for(dirac1 = 0; dirac1 < spin_snk_number; ++dirac1) {
+
+  for(t2     = 0; t2     < time_src_number; ++t2) {
+  for(ev2    = 0; ev2    < evec_src_number; ++ev2) {
+  for(dirac2 = 0; dirac2 < spin_src_number; ++dirac2){
+
+    k1 = ( t1 * spin_snk_number + dirac1 ) * evec_snk_number + ev1;
+    k2 = ( t2 * spin_src_number + dirac2 ) * evec_src_number + ev2;
+    a[0] = p->p[2*(k2 * nrow + k1)  ];
+    a[1] = p->p[2*(k2 * nrow + k1)+1];
+
+    p->p[2*(k2 * nrow + k1)  ] = vzre[dirac1][dirac2] * a[idx[dirac1][dirac1]];
+    p->p[2*(k2 * nrow + k1)+1] = vzim[dirac1][dirac2] * a[1-idx[dirac1][dirac1]];
+
+  }}}
+  }}}
+
+  return(0);
+}  /* end of rotate_perambulator */
+
+void init_tripleV (tripleV_type *s, int nt, int np, int nv) {
+
+  int i, k, l, m, count;
+  size_t items, bytes=0;
+  s->nt = nt;
+  s->np = np;
+  s->nv = nv;
+
+  items = nt * (size_t)(nv*nv*nv) * (size_t)np;
+  bytes = items * sizeof(double) * 2;
+
+  /* allocate the field */
+  s->p = (double*)malloc(bytes);
+  if(s->p == NULL ) {
+    fprintf(stderr, "[init_tripleV] Error, could not allocate %lu bytes\n", bytes);
+    EXIT(1);
+  }
+
+  /* allocate v 
+   *
+   * s->v[t][p][(v1,v2,v3)]
+   * */
+
+  s->v = (double*****)malloc(nt*sizeof(double****));
+  if(s->v == NULL ) {
+    fprintf(stderr, "[init_tripleV] Error, could not allocate v\n");
+    EXIT(2);
+  }
+  s->v[0] = (double****)malloc(nt*np*sizeof(double***));
+  if(s->v[0] == NULL ) {
+    fprintf(stderr, "[init_tripleV] Error, could not allocate v[0]\n");
+    EXIT(2);
+  }
+  for(i=1; i<nt; i++) s->v[i] = s->v[i-1] + np;
+
+  s->v[0][0] = (double***)malloc(nt*np*nv*sizeof(double**));
+  if(s->v[0][0] == NULL ) {
+    fprintf(stderr, "[init_tripleV] Error, could not allocate v[0][0]\n");
+    EXIT(2);
+  }
+  count=-1;
+  for(i=0; i<nt; i++) {
+  for(k=0; k<np; k++) {
+      count++;
+      if(count==0) continue;
+      s->v[i][k] = s->v[0][0] + count * nv;
+  }}
+
+  s->v[0][0][0] = (double**)malloc(nt*np*nv*nv*sizeof(double*));
+  if(s->v[0][0][0] == NULL ) {
+    fprintf(stderr, "[init_tripleV] Error, could not allocate v[0][0][0]\n");
+    EXIT(2);
+  }
+  count=-1;
+  for(i=0; i<nt; i++) {
+  for(k=0; k<np; k++) {
+    for(l=0; l<nv; l++) {
+      count++;
+      if(count==0) continue;
+      s->v[i][k][l] = s->v[0][0][0] + count * nv;
+    }
+  }}
 
 
-}
+  count=-1;
+  for(i=0; i<nt; i++) {
+  for(k=0; k<np; k++) {
+    for(l=0; l<nv; l++) {
+    for(m=0; m<nv; m++) {
+      count++;
+      s->v[i][k][l][m] = s->p + count * nv;
+    }}
+  }}
+
+
+
+}  /* end of init_tripleV */
+
+void fini_tripleV ( tripleV_type*s) {
+
+  s->nt = 0;
+  s->np = 0;
+  s->nv = 0;
+  if(s->p != NULL) {
+    free(s->p);
+    s->p = NULL;
+  }
+  if(s->v != NULL) {
+    if(s->v[0] != NULL) {
+      if(s->v[0][0] != NULL) {
+        if(s->v[0][0][0] != NULL) {
+          free(s->v[0][0][0]);
+          s->v[0][0][0] = NULL;
+        }
+        free(s->v[0][0]);
+        s->v[0][0] = NULL;
+      }
+      free (s->v[0]);
+      s->v[0] = NULL;
+    }
+    free(s->v);
+    s->v = NULL;
+  }
+}  /* end of fini_tripleV */
+
+
+/********************************************************************************************
+ * reduce 3 eigenvectors from eigensystem to 3-tensor in eigenvector number
+ *   x0   = timeslice
+ *   imom = number of momentum
+ *   momentum_phase = exp(ipvec xvec) for corresponding timeslice and momentum number imom
+ ********************************************************************************************/
+int reduce_triple_eigensystem_timeslice (tripleV_type*tripleV, eigensystem_type*es, int x0, int imom, double*momentum_phase) {
+
+  int is;
+  unsigned int ix;
+  int k1, k2, k3;
+  double dtmp[2], dtmp2[2];
+  unsigned ioffset;
+  unsigned int VOL3 = LX*LY*LZ;
+
+  is = 0;
+  for(k1 = 0; k1<laphs_eigenvector_number; k1++) {
+    for(k2 = 0; k2<laphs_eigenvector_number; k2++) {
+      for(k3 = 0; k3<laphs_eigenvector_number; k3++) {
+        dtmp2[0] = 0.;
+        dtmp2[1] = 0.;
+        for(ix=0; ix<VOL3; ix++) {
+          ioffset = _GVI(ix);
+          _co_eq_cv_dot_cv_cross_cv (dtmp, &(es->v[x0][k1][ioffset]), &(es->v[x0][k2][ioffset]), &(es->v[x0][k3][ioffset]) );
+
+          dtmp2[0] += momentum_phase[2*ix  ] * dtmp[0] - momentum_phase[2*ix+1] * dtmp[1];
+          dtmp2[1] += momentum_phase[2*ix  ] * dtmp[1] + momentum_phase[2*ix+1] * dtmp[0];
+        }
+
+        tripleV->v[x0][imom][k1][k2][2*k3  ] = dtmp2[0];
+        tripleV->v[x0][imom][k1][k2][2*k3+1] = dtmp2[1];
+
+        is++;
+
+      }  /* end of loop on k3 */
+    }    /* end of loop on k2 */
+  }      /* end of loop on k1 */
+
+  return(0);
+
+}  /* end of reduce_triple_eigensystem_timeslice */
+
+
+}  /* end of namespace cvc */

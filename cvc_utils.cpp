@@ -5153,5 +5153,31 @@ void spinor_field_norm_diff (double*d, double *r, double *s, unsigned int N) {
 #endif
 }  /* end of spinor_field_eq_spinor_field_ti_re */
 
+/***********************************************************
+ * r -= c * s
+ ***********************************************************/
+void spinor_field_pl_eq_spinor_field(double*r, double*s, unsigned int N) {
+
+  const int nthreads = g_num_threads;
+
+  unsigned int ix;
+  int threadid = 0;
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel default(shared) private(ix,threadid) shared(r,s,N)
+{
+  threadid = omp_get_thread_num();
+#endif
+
+  for(ix = threadid; ix < N; ix += nthreads) {
+    _fv_pl_eq_fv(r + _GSI(ix), s + _GSI(ix));
+  }
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+}  /* end of spinor_field_mi_eq_spinor_field_ti_re */
+
+
 
 }  /* end of namespace cvc */

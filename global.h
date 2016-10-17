@@ -226,6 +226,9 @@ EXTERN tmLQCD_deflator_params g_tmLQCD_defl;
 EXTERN m_m_2pt_type g_m_m_2pt_list[MAX_M_M_2PT_NUM];
 EXTERN int g_m_m_2pt_num;
 
+EXTERN double **g_clover=NULL, **g_mzz_up=NULL, **g_mzz_dn=NULL, **g_mzzinv_up=NULL, **g_mzzinv_dn=NULL;
+
+
 
 }
 

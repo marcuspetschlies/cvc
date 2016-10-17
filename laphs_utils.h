@@ -35,8 +35,12 @@ int project_randomvector (randomvector_type *prv, randomvector_type *rv, int bt,
 int fv_eq_eigensystem_ti_randomvector (double*s, eigensystem_type *v, randomvector_type*r);
 int perambulator_eq_eigensystem_dag_ti_fv (perambulator_type*p, eigensystem_type*v, double*s, int it_src, int is_src, int iv_src);
 
+int rotate_perambulator(perambulator_type*p, int sign);
 
+void init_tripleV (tripleV_type *s, int nt, int np, int nv);
+void fini_tripleV ( tripleV_type*s);
 
-}
+int reduce_triple_eigensystem_timeslice (tripleV_type *tripleV, eigensystem_type*es, int x0, int imom, double*momentum_phase);
+}  /* end of namespace cvc */
 
 #endif

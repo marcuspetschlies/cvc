@@ -163,4 +163,80 @@ int project_spinor_field(double *s, double * r, int parallel, double *V, int num
   return(0);
 }  /* end of project_spinor_field */
 
+/*********************************************************
+ * out: s_even, s_odd, even and odd part of source field
+ * in: source_coords, global source coordinates
+ *     have_source == 1 if process has source, otherwise 0
+ *     work0, work1,... auxilliary eo work fields
+ *
+ * IMPORTANT: s_even and s_odd must have halo sites 
+ *********************************************************/
+int init_eo_spincolor_pointsource_propagator(double *s_even, double *s_odd, int global_source_coords[4], int isc, int sign, int have_source, double *work0) {
+ 
+  unsigned int Vhalf = VOLUME/2;
+
+  int local_source_coords[4] = { global_source_coords[0]%T, global_source_coords[1]%LX, global_source_coords[2]%LY, global_source_coords[3]%LZ };
+
+  int source_location_iseven = have_source ? g_iseven[ g_ipt[local_source_coords[0]][local_source_coords[1]][local_source_coords[2]][local_source_coords[3]] ] : -1;
+
+  unsigned int eo_source_location = g_lexic2eosub[ g_ipt[local_source_coords[0]][local_source_coords[1]][local_source_coords[2]][local_source_coords[3]] ];
+
+  double spinor1[24];
+  size_t bytes = 24*Vhalf*sizeof(double);
+
+  /* all procs: initialize to zero */
+  memset(s_even, 0, bytes);
+  memset(s_odd,  0, bytes);
+
+  /* source node: set source */
+
+  if(source_location_iseven) {
+
+    if(have_source) {
+      work0[_GSI(eo_source_location) + 2*isc] = 1.0;
+    }
+
+    /* all procs:
+     *  g5 X_oe = g5 (g5 Xbar_eo^+ g5) = Xbar_eo^+ g5
+     */
+    X_oe (s_odd, work0, sign*g_mu, g_gauge_field);
+    g5_phi(s_odd, Vhalf);
+
+    /* M_oo^-1 even */
+    M_zz_inv (s_even, work0, sign*g_mu);
+  } else {
+    if(have_source) {
+      spinor1[2*isc] = 1.0;
+      _fv_eq_gamma_ti_fv( s_odd+_GSI( eo_source_location ), 5, spinor1 );
+    }
+  }
+
+  /* all procs: xchange even field */
+  xchange_eo_field(s_even, 0);
+  /* all procs: xchange odd field */
+  xchange_eo_field(s_odd,  1);
+
+  /* done */
+
+  return(0);
+}  /* end of prepare_eo_spincolor_point_source */
+
+int fini_eo_spincolor_pointsource_propagator(double *p_even, double *p_odd, double *r_even, double *r_odd , int sign, double *work0) {
+ 
+  unsigned int Vhalf = VOLUME/2;
+
+  size_t bytes = 24*Vhalf*sizeof(double);
+
+  memcpy( p_odd, r_odd, bytes);
+  spinor_field_ti_eq_re (p_odd, 2.*g_kappa, Vhalf);
+
+  X_eo (p_even, p_odd, sign*g_mu, g_gauge_field);
+  spinor_field_pl_eq_spinor_field(p_even, r_even, Vhalf);
+
+  /* done */
+
+  return(0);
+}  /* end of fini_eo_spincolor_pointsource_propagator */
+
+
 }  /* end of namespace cvc */

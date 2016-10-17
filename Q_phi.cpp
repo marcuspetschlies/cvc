@@ -344,26 +344,26 @@ void Q_phi_tbc(double *xi, double *phi) {
 
 }  // end of parallel region
 }
-#endif  // of ifndef HAVE_OPENMP
+#endif  /* of ifndef HAVE_OPENMP */
 
 #ifndef HAVE_OPENMP
-void g5_phi(double *phi) {
+void g5_phi(double *phi, unsigned int N) {
   double spinor1[24];
   int ix;
   double *phi_;
 
-  for(ix = 0; ix < VOLUME; ix++)
+  for(ix = 0; ix < N; ix++)
   {
       phi_ = phi + _GSI(ix);
       _fv_eq_gamma_ti_fv(spinor1, 5, phi_);
       _fv_eq_fv(phi_, spinor1);
   }
 
-}  // end of g5_phi
+}  /* end of g5_phi */
 
 #else
-void g5_phi(double *phi) {
-#pragma omp parallel shared(phi, VOLUME)
+void g5_phi(double *phi, unsigned int N) {
+#pragma omp parallel shared(phi, N)
 {
   double spinor1[24];
   int threadid = omp_get_thread_num();
@@ -371,18 +371,18 @@ void g5_phi(double *phi) {
   int ix;
   double *phi_;
 
-  // TEST
-  // fprintf(stdout, "# [g5_phi] thread%.4d number of threads %d\n", threadid, num_threads);
+  /* TEST */
+  /* fprintf(stdout, "# [g5_phi] thread%.4d number of threads %d\n", threadid, num_threads); */
 
-  for(ix = threadid; ix < VOLUME; ix+=num_threads)
+  for(ix = threadid; ix < N; ix+=num_threads)
   {
       phi_ = phi + _GSI(ix);
       _fv_eq_gamma_ti_fv(spinor1, 5, phi_);
       _fv_eq_fv(phi_, spinor1);
   }
 
-}  // end of parallel region
-}  // end of g5_phi
+}  /* end of parallel region */
+}  /* end of g5_phi */
 
 #endif
 
@@ -3664,6 +3664,42 @@ void X_eo (double *even, double *odd, double mu, double *gauge_field) {
 #endif
 }  /* end of X_eo */
 
+/********************************************************************
+ * X_oe    = -M_oo^-1 M_oe,    mu > 0
+ * Xbar_oe = -Mbar_oo^-1 M_oe, mu < 0
+ * the input field is always even, the output field is always odd
+ ********************************************************************/
+void X_oe (double *odd, double *even, double mu, double *gauge_field) {
+
+  const int nthreads = g_num_threads;
+  const unsigned int N = VOLUME/2;
+  const double mutilde = 2. * g_kappa * mu;
+  const double a_re = -2. * g_kappa / ( 1 + mutilde * mutilde);
+  const double a_im = -a_re * mutilde;
+
+  double *ptr, sp[24];
+  int threadid = 0;
+  unsigned int ix;
+
+  /* M_eo */
+  xchange_eo_field(even, 0);
+  Hopping_eo(odd, even, gauge_field, 1);
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel default(shared) private(ix,threadid,ptr,sp) shared(odd)
+{
+  threadid = omp_get_thread_num();
+#endif
+  /* -M_oo^-1 */
+  for(ix = threadid; ix < N; ix+=nthreads) {
+    ptr = even + _GSI(ix);
+    _fv_eq_fv(sp, ptr);
+    _fv_eq_a_pl_ib_g5_ti_fv(ptr, sp, a_re, a_im);
+  }  /* end of loop in ix = 0, N-1 */
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+}  /* end of X_oe */
 
 /********************************************************************
  * C_with_Xeo

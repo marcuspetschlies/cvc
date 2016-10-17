@@ -64,6 +64,14 @@ typedef struct {
   int nc_snk;
 } perambulator_type;
 
-}
+typedef struct {
+  int nt;
+  int nv;
+  int np;
+  double *****v;
+  double *p;
+} tripleV_type;
+
+}  /* end of namespace cvc */
 
 #endif

@@ -50,9 +50,10 @@ void Q_Wilson_phi_nobc(double *xi, double *phi);
 void Q_Wilson_phi_threads(double *xi, double *phi);
 #endif
 
-void g5_phi(double *phi);
+void g5_phi(double *phi, unsigned int N);
 
-// functions for DWF
+
+/* functions for DWF */
 void Q_DW_Wilson_4d_phi(double *xi, double *phi);
 void Q_DW_Wilson_dag_4d_phi(double *xi, double *phi);
 void Q_DW_Wilson_5th_phi(double *xi, double *phi);
@@ -72,6 +73,7 @@ void spinor_5d_to_4d_L5h(double*s, double*t);
 void spinor_5d_to_4d_L5h_sign(double*s, double*t, int isign);
 
 void X_eo (double *even, double *odd, double mu, double *gauge_field);
+void X_oe (double *odd, double *even, double mu, double *gauge_field);
 
 void C_with_Xeo (double *r, double *s, double *gauge_field, double mu, double *r_aux);
 
