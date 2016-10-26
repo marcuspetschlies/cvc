@@ -35,7 +35,7 @@ int read_contraction(double *s, int *nsource, char *filename, int Nmu);
 void init_gamma(void);
 
 int printf_gauge_field( double *gauge, FILE *ofs);
-int printf_spinor_field(double *s,     FILE *ofs);
+int printf_spinor_field(double *s, int print_halo, FILE *ofs);
 int printf_spinor_field_5d(double *s,     FILE *ofs);
 
 void set_default_input_values(void);
@@ -101,14 +101,19 @@ void cm_proj_iterate(double *A, double *B, int maxiter, double tol);
 void spinor_field_lexic2eo (double *r_lexic, double*r_e, double *r_o);
 void spinor_field_eo2lexic (double *r_lexic, double*r_e, double *r_o);
 void spinor_field_unpack_lexic2eo (double *r_lexic, double*r_o1, double *r_o2);
-int printf_eo_spinor_field(double *s, int use_even, FILE *ofs);
+int printf_eo_spinor_field(double *s, int use_even, int print_halo, FILE *ofs);
+
+void spinor_field_eq_spinor_field_pl_spinor_field_ti_re(double*r, double*s, double *t, double c, unsigned int N);
+void spinor_field_eq_spinor_field_ti_re (double *r, double *s, double c, unsigned int N);
+void spinor_field_eq_spinor_field_mi_spinor_field(double*r, double*s, double*t, unsigned int N);
+void spinor_field_eq_spinor_field_pl_spinor_field(double*r, double*s, double*t, unsigned int N);
+void spinor_field_eq_gamma_ti_spinor_field(double*r, int gid, double*s, unsigned int N);
 
 void spinor_field_mi_eq_spinor_field_ti_re(double*r, double*s, double c, unsigned int N);
 void spinor_field_ti_eq_re (double *r, double c, unsigned int N);
-void spinor_field_eq_spinor_field_ti_re (double *r, double *s, double c, unsigned int N);
-void spinor_field_norm_diff (double*d, double *r, double *s, unsigned int N);
 void spinor_field_pl_eq_spinor_field(double*r, double*s, unsigned int N);
 
+void spinor_field_norm_diff (double*d, double *r, double *s, unsigned int N);
 }  /* end of namespace cvc */
 #endif
 

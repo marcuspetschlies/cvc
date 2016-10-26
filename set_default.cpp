@@ -274,7 +274,6 @@ void set_default_input_values(void) {
   g_mzz_dn = NULL;
   g_mzzinv_up = NULL;
   g_mzzinv_dn = NULL;
-
 }  /* end of set_default_input_values */
 
 }  /* end of namespace cvc */

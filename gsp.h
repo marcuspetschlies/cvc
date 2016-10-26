@@ -38,14 +38,18 @@ void co_eq_gsp_diag_ti_gsp_diag (complex *w, double**gsp1, double**gsp2, double*
 
 int gsp_calculate_v_dag_gamma_p_xi_block(double**V, double*W, int num, int momentum_number, int (*momentum_list)[3], int gamma_id_number, int*gamma_id_list, char*tag);
 
-int gsp_calculate_v_dag_gamma_p_w_block_asym(double*gsp_out, double**V, double**W, int numV, int numW, int momentum_number, int (*momentum_list)[3], int gamma_id_number, int*gamma_id_list, char*tag);
+int gsp_calculate_v_dag_gamma_p_w_block_asym(double*gsp_out, double**V, double**W, int numV, int numW, int momentum_number, int (*momentum_list)[3], int gamma_id_number, int*gamma_id_list, char*tag, int eo);
 
 int gsp_calculate_v_w_block_asym(double*gsp_out, double**V, double**W, unsigned int numV, unsigned int numW);
-
 
 void co_eq_gsp_diag (complex *w, double**gsp1, int num);
 
 void co_pl_eq_gsp_diag (complex *w, double**gsp1, int num);
+
+int gsp_calculate_xv_from_v (double **xv, double **v, double **work, int num, double mass, unsigned int N);
+
+int gsp_calculate_w_from_xv_and_v (double **w, double **xv, double **v, double **work, int num, double mass, unsigned int N);
+
 
 }  /* end of namespace cvc */
 #endif

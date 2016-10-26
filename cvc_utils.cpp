@@ -1723,7 +1723,7 @@ int printf_SU3_link (double *u, FILE*ofs) {
   return(0);
 }  // end of printf_SU3_link
 
-int printf_spinor_field(double *s, FILE *ofs) {
+int printf_spinor_field(double *s, int print_halo, FILE *ofs) {
 
   int i, start_valuet=0, start_valuex=0, start_valuey=0, start_valuez=0;
   int x0, x1, x2, x3, ix;
@@ -1732,6 +1732,8 @@ int printf_spinor_field(double *s, FILE *ofs) {
   int boundary;
 
   if( (ofs == (FILE*)NULL) || (s==(double*)NULL) ) return(108);
+
+  if(print_halo) {
 #ifdef HAVE_MPI
   start_valuet = 1;
 
@@ -1756,7 +1758,7 @@ int printf_spinor_field(double *s, FILE *ofs) {
 #else
   start_valuet = 0;
 #endif
-
+  }
 
   for(x0= -start_valuet; x0 < T +start_valuet; x0++) {
   for(x1= -start_valuex; x1 < LX+start_valuex; x1++) {
@@ -1798,7 +1800,7 @@ int printf_spinor_field(double *s, FILE *ofs) {
 /*******************************************************************
  * print an even-odd spinor field
  *******************************************************************/
-int printf_eo_spinor_field(double *s, int use_even, FILE *ofs) {
+int printf_eo_spinor_field(double *s, int use_even, int print_halo, FILE *ofs) {
 
   int i, start_valuet=0, start_valuex=0, start_valuey=0, start_valuez=0;
   int x0, x1, x2, x3, ix;
@@ -1808,31 +1810,35 @@ int printf_eo_spinor_field(double *s, int use_even, FILE *ofs) {
   int jx;
 
   if( (ofs == (FILE*)NULL) || (s==(double*)NULL) ) return(108);
+
+  if(print_halo > 0) {
 #ifdef HAVE_MPI
-  start_valuet = 1;
+    start_valuet = 1;
 
 #  if defined PARALLELTX || defined PARALLELTXY || defined PARALLELTXYZ
-  start_valuex = 1;
+    start_valuex = 1;
 #  else
-  start_valuex = 0;
+    start_valuex = 0;
 # endif
 
 #  if defined PARALLELTXY || defined PARALLELTXYZ
-  start_valuey = 1;
+    start_valuey = 1;
 #  else
-  start_valuey = 0;
+    start_valuey = 0;
 # endif
 
 #  if defined PARALLELTXYZ
-  start_valuez = 1;
+    start_valuez = 1;
 #  else
-  start_valuez = 0;
+    start_valuez = 0;
 # endif
 
 #else
-  start_valuet = 0;
+    start_valuet = 0;
 #endif
+  }  /* end of if print halo */
 
+  if(g_cart_id == 0) fprintf(stdout, "# [printf_eo_spinor_field] start values = (%d, %d, %d, %d)\n", start_valuet, start_valuex, start_valuey, start_valuez);
 
   for(x0= -start_valuet; x0 < T +start_valuet; x0++) {
   for(x1= -start_valuex; x1 < LX+start_valuex; x1++) {
@@ -2401,7 +2407,7 @@ void random_spinor_field (double *s, unsigned int V)  {
   } else if(g_noise_type == 2) {
     /* Z2 x Z2 */
     for(ix=0; ix<24*V; ix++) {
-      r = (double)( s[ix] < 0.5 );
+      r = 2. * (double)( s[ix] < 0.5 ) - 1.;
       s[ix] = r * norm;
     }
   }
@@ -5028,73 +5034,72 @@ void spinor_field_unpack_lexic2eo (double *r_lexic, double*r_o1, double *r_o2) {
 
 
 /***********************************************************
+ * r = s + c * t
+ ***********************************************************/
+void spinor_field_eq_spinor_field_pl_spinor_field_ti_re(double*r, double*s, double *t, double c, unsigned int N) {
+
+  unsigned int ix, offset;
+  double *rr, *ss, *tt;
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for private(offset,rr,ss,tt) shared(r,s,t,c,N)
+#endif
+  for(ix = 0; ix < N; ix++) {
+    offset = _GSI(ix);
+    rr = r + offset;
+    ss = s + offset;
+    tt = t + offset;
+    _fv_eq_fv_pl_fv_ti_re(rr, ss, tt, c);
+  }
+}  /* end of spinor_field_eq_spinor_field_pl_spinor_field_ti_re */
+
+/***********************************************************
  * r -= c * s
  ***********************************************************/
 void spinor_field_mi_eq_spinor_field_ti_re(double*r, double*s, double c, unsigned int N) {
 
-  const int nthreads = g_num_threads;
-
-  unsigned int ix;
-  int threadid = 0;
+  unsigned int ix, offset;
+  double *rr, *ss;
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(ix,threadid) shared(r,s,c,N)
-{
-  threadid = omp_get_thread_num();
+#pragma omp parallel for private(offset,rr,ss) shared(r,s,c,N)
 #endif
-
-  for(ix = threadid; ix < N; ix += nthreads) {
-    _fv_mi_eq_fv_ti_re(r + _GSI(ix), s + _GSI(ix), c);
+  for(ix = 0; ix < N; ix++) {
+    offset = _GSI(ix);
+    rr = r + offset;
+    ss = s + offset;
+    _fv_mi_eq_fv_ti_re(rr, ss, c);
   }
-#ifdef HAVE_OPENMP
-}  /* end of parallel region */
-#endif
-
 }  /* end of spinor_field_mi_eq_spinor_field_ti_re */
 
+/* r *= c */
 void spinor_field_ti_eq_re (double *r, double c, unsigned int N) {
 
-  const int nthreads = g_num_threads;
-
   unsigned int ix;
-  int threadid = 0;
-
+  double *rr;
 #ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(threadid,ix) shared(r,c,N)
-{
-  threadid = omp_get_thread_num();
+#pragma omp parallel for private(rr) shared(r,c,N)
 #endif
-  for(ix = threadid; ix < N; ix += nthreads ) {
-    _fv_ti_eq_re(r+_GSI(ix), c);
+  for(ix = 0; ix < N; ix++ ) {
+    rr = r + _GSI(ix);
+    _fv_ti_eq_re(rr, c);
   }
-#ifdef HAVE_OPENMP
-}  /* end of parallel region */
-#endif
-
 }  /* end of spinor_field_ti_eq_re */
 
+/* r = s * c */
 void spinor_field_eq_spinor_field_ti_re (double *r, double *s, double c, unsigned int N) {
 
-  const int nthreads = g_num_threads;
-  const int sincr    = _GSI(nthreads);
-
-  unsigned int ix, iix;
-  int threadid = 0;
-
+  unsigned int ix, offset;
+  double *rr, *ss;
 #ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(threadid,ix,iix) shared(r,s,c,N)
-{
-  threadid = omp_get_thread_num();
+#pragma omp parallel for private(offset,rr,ss) shared(r,s,c,N)
 #endif
-  iix = _GSI(threadid);
-  for(ix = threadid; ix < N; ix += nthreads ) {
-    _fv_eq_fv_ti_re(r+iix, s+iix, c);
-    iix += sincr;
+  for(ix = 0; ix < N; ix++ ) {
+    offset = _GSI(ix);
+    rr = r + offset;
+    ss = s + offset;
+    _fv_eq_fv_ti_re(rr, ss, c);
   }
-#ifdef HAVE_OPENMP
-}  /* end of parallel region */
-#endif
-
 }  /* end of spinor_field_eq_spinor_field_ti_re */
 
 /****************************************************************************
@@ -5154,30 +5159,100 @@ void spinor_field_norm_diff (double*d, double *r, double *s, unsigned int N) {
 }  /* end of spinor_field_eq_spinor_field_ti_re */
 
 /***********************************************************
- * r -= c * s
+ * r += s
  ***********************************************************/
 void spinor_field_pl_eq_spinor_field(double*r, double*s, unsigned int N) {
 
-  const int nthreads = g_num_threads;
-
-  unsigned int ix;
-  int threadid = 0;
-
+  unsigned int ix, offset;
+  double *rr, *ss;
 #ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(ix,threadid) shared(r,s,N)
-{
-  threadid = omp_get_thread_num();
+#pragma omp parallel for private(offset,rr,ss) shared(r,s,N)
 #endif
-
-  for(ix = threadid; ix < N; ix += nthreads) {
-    _fv_pl_eq_fv(r + _GSI(ix), s + _GSI(ix));
+  for(ix = 0; ix < N; ix++) {
+    offset = _GSI(ix);
+    rr = r + offset;
+    ss = s + offset;
+    _fv_pl_eq_fv(rr, ss);
   }
+}  /* end of spinor_field_pl_eq_spinor_field_ti_re */
+
+
+/***********************************************************
+ * r = s - t
+ ***********************************************************/
+void spinor_field_eq_spinor_field_mi_spinor_field(double*r, double*s, double*t, unsigned int N) {
+
+  unsigned int ix, offset;
+  double *rr, *ss, *tt;
+#ifdef HAVE_OPENMP
+#pragma omp parallel for private(offset,rr,ss,tt) shared(r,s,t,N)
+#endif
+  for(ix = 0; ix < N; ix++ ) {
+    offset = _GSI(ix);
+    rr = r + offset;
+    ss = s + offset;
+    tt = t + offset;
+    _fv_eq_fv_mi_fv(rr, ss, tt);
+  }
+}  /* end of spinor_field_eq_spinor_field_mi_spinor_field */
+
+/***********************************************************
+ * r = s + t
+ ***********************************************************/
+void spinor_field_eq_spinor_field_pl_spinor_field(double*r, double*s, double*t, unsigned int N) {
+
+  unsigned int ix, offset;
+  double *rr, *ss, *tt;
+#ifdef HAVE_OPENMP
+#pragma omp parallel for private(offset,rr,ss,tt) shared(r,s,t,N)
+#endif
+  for(ix = 0; ix < N; ix++ ) {
+    offset = _GSI(ix);
+    rr = r + offset;
+    ss = s + offset;
+    tt = t + offset;
+    _fv_eq_fv_pl_fv(rr, ss, tt);
+  }
+}  /* end of spinor_field_eq_spinor_field_pl_spinor_field */
+
+/***********************************************************
+ * r = gamma[ gid ] x s
+ * r and s can be same memory region
+ ***********************************************************/
+void spinor_field_eq_gamma_ti_spinor_field(double*r, int gid, double*s, unsigned int N) {
+
+  unsigned int ix, offset;
+  double *rr, *ss;
+  if(r != s) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for private(offset,rr,ss) shared(r,s,N)
+#endif
+    for(ix = 0; ix < N; ix++ ) {
+      offset = _GSI(ix);
+      rr = r + offset;
+      ss = s + offset;
+      _fv_eq_gamma_ti_fv(rr, gid, ss);
+    }
+  } else {
+#ifdef HAVE_OPENMP
+#pragma omp parallel private(offset,rr,ss) shared(r,s,N)
+{
+#endif
+    double spinor1[24];
+#ifdef HAVE_OPENMP
+#pragma omp parallel for 
+#endif
+    for(ix = 0; ix < N; ix++ ) {
+      offset = _GSI(ix);
+      rr = r + offset;
+      ss = s + offset;
+      _fv_eq_gamma_ti_fv(spinor1, gid, ss);
+      _fv_eq_fv(rr, spinor1);
+    }
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */
 #endif
-
-}  /* end of spinor_field_mi_eq_spinor_field_ti_re */
-
-
+  }
+}  /* end of spinor_field_eq_gamma_ti_spinor_field */
 
 }  /* end of namespace cvc */

@@ -19,11 +19,21 @@
 #ifdef HAVE_OPENMP
 #  include <omp.h>
 #endif
+#include "matrix_init.h"
+
+#ifndef EXIT
+#ifdef HAVE_MPI
+#define EXIT(_i) { MPI_Abort(MPI_COMM_WORLD, (_i)); MPI_Finalize(); exit((_i)); }
+#else
+#define EXIT(_i) { exit(_i); }
+#endif
+#endif
+
 
 namespace cvc {
 
 /************************************************************************************
- * (de-)allocate 2-level buffer (n1 x n2 matrix)
+ * (de-)allocate 2-level buffer (n1 x n2 double matrix)
  ************************************************************************************/
 int init_2level_buffer (double***buffer, unsigned int n1, unsigned int n2) {
 
@@ -51,7 +61,7 @@ int init_2level_buffer (double***buffer, unsigned int n1, unsigned int n2) {
   }
   for(i=1; i<n1; i++) (*buffer)[i] = (*buffer)[i-1] + items;
   memset( (*buffer)[0], 0, bytes);
-  return(0)
+  return(0);
 }  /* end of init_2level_buffer */
 
 int fini_2level_buffer (double***buffer) {
@@ -107,7 +117,7 @@ int init_3level_buffer (double****buffer, unsigned int n1, unsigned int n2, unsi
     (*buffer)[i][k] = (*buffer)[0][0] + l*n3;
   }}
   memset( (*buffer)[0][0], 0, bytes);
-  return(0)
+  return(0);
 }  /* end of init_3level_buffer */
 
 int fini_3level_buffer (double****buffer) {

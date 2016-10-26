@@ -316,7 +316,7 @@ int main(int argc, char **argv) {
 /*
   sprintf(filename, "v_projected_randomvector.t%d_s%d_v%d.ascii", it_src, is_src, iv_src);
   ofs = fopen(filename, "w");
-  status = printf_spinor_field(g_spinor_field[0], ofs);
+  status = printf_spinor_field(g_spinor_field[0], 1, ofs);
   fclose(ofs);
 */
   /* invert with V P rv as the source */

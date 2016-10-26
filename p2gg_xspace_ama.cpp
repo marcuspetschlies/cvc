@@ -11,6 +11,11 @@
  *   and stochastic high-mode contribution
  * DONE:
  * TODO:
+ * - add phases from source location
+ * - test and verify
+ * - high-mode part
+ * - loop on source locations
+ * - add disconnected with vector loop and P-V-2-point
  ****************************************************/
 
 #include <stdlib.h>
@@ -568,9 +573,9 @@ int main(int argc, char **argv) {
         EXIT(35);
       }
   
-      exitstatus = fini_eo_spincolor_pointsource_propagator (eo_spinor_field[12*mu+ia], eo_spinor_field[60+12*mu+ia],  eo_spinor_work[0], eo_spinor_work[2], flavor_sign, eo_spinor_work[1]);
+      exitstatus = fini_eo_propagator (eo_spinor_field[12*mu+ia], eo_spinor_field[60+12*mu+ia],  eo_spinor_work[0], eo_spinor_work[2], flavor_sign, eo_spinor_work[1]);
       if(exitstatus != 0 ) {
-        fprintf(stderr, "[] Error from fini_eo_spincolor_pointsource_propagator; status was %d\n", exitstatus);
+        fprintf(stderr, "[] Error from fini_eo_propagator; status was %d\n", exitstatus);
         EXIT(37);
       }
 
@@ -591,9 +596,9 @@ int main(int argc, char **argv) {
         EXIT(35);
       }
 
-      exitstatus = fini_eo_spincolor_pointsource_propagator (eo_spinor_field[120+12*mu+ia], eo_spinor_field[180+12*mu+ia],  eo_spinor_work[0], eo_spinor_work[2], -flavor_sign, eo_spinor_work[1]);
+      exitstatus = fini_eo_propagator (eo_spinor_field[120+12*mu+ia], eo_spinor_field[180+12*mu+ia],  eo_spinor_work[0], eo_spinor_work[2], -flavor_sign, eo_spinor_work[1]);
       if(exitstatus != 0 ) {
-        fprintf(stderr, "[] Error from fini_eo_spincolor_pointsource_propagator; status was %d\n", exitstatus);
+        fprintf(stderr, "[] Error from fini_eo_propagator; status was %d\n", exitstatus);
         EXIT(37);
       }
     

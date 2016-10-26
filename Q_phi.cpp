@@ -346,45 +346,31 @@ void Q_phi_tbc(double *xi, double *phi) {
 }
 #endif  /* of ifndef HAVE_OPENMP */
 
-#ifndef HAVE_OPENMP
 void g5_phi(double *phi, unsigned int N) {
-  double spinor1[24];
-  int ix;
-  double *phi_;
-
-  for(ix = 0; ix < N; ix++)
-  {
-      phi_ = phi + _GSI(ix);
-      _fv_eq_gamma_ti_fv(spinor1, 5, phi_);
-      _fv_eq_fv(phi_, spinor1);
-  }
-
-}  /* end of g5_phi */
-
-#else
-void g5_phi(double *phi, unsigned int N) {
+#ifdef HAVE_OPENMP
 #pragma omp parallel shared(phi, N)
 {
-  double spinor1[24];
-  int threadid = omp_get_thread_num();
-  int num_threads = omp_get_num_threads();
+#endif
   int ix;
+  double spinor1[24];
   double *phi_;
 
-  /* TEST */
-  /* fprintf(stdout, "# [g5_phi] thread%.4d number of threads %d\n", threadid, num_threads); */
-
-  for(ix = threadid; ix < N; ix+=num_threads)
-  {
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(ix = 0; ix < N; ix++) {
       phi_ = phi + _GSI(ix);
+/*
       _fv_eq_gamma_ti_fv(spinor1, 5, phi_);
       _fv_eq_fv(phi_, spinor1);
+*/
+      _fv_ti_eq_g5(phi_);
   }
 
+#ifdef HAVE_OPENMP
 }  /* end of parallel region */
-}  /* end of g5_phi */
-
 #endif
+}  /* end of g5_phi */
 
 /**********************************************************************
  * Hopping 
@@ -3415,34 +3401,38 @@ void Hopping_eo(double *s, double *r, double *gauge_field, int EO) {
 
 /***********************************************************
  * M_ee and M_oo
+ *
+ * safe, if r == s (same memory region)
  ***********************************************************/
 void M_zz (double*s, double*r, double mass) {
 
   const double mutilde            = 2. * g_kappa * mass;
   const double one_over_two_kappa = 0.5/g_kappa;
-  const int nthreads = g_num_threads;
   const unsigned int N = VOLUME/2;
 
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel shared(s,r, mass)
+{
+#endif
   unsigned int ix;
   double *s_= NULL, *r_ = NULL;
   double sp1[24];
-  int threadid=0;
-
 #ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(ix,threadid,s_,r_,sp1) shared(s,r)
-{
-  threadid = omp_get_thread_num();
+#pragma omp for
 #endif
-  for(ix = threadid; ix < N; ix += nthreads) {
+  for(ix = 0; ix < N; ix++) {
     s_ = s + _GSI(ix);
     r_ = r + _GSI(ix);
 
-    /* sp1 = g5 r_ */
-    _fv_eq_gamma_ti_fv(sp1, 5, r_);
-    /* s_ = i mass sp1 */
-    _fv_eq_fv_ti_im(s_, sp1, mutilde);
-    /* s_ += (1 + i mass g5) r_ */
-    _fv_pl_eq_fv(s_, r_);
+    /* sp1 = i mass r_ */
+    _fv_eq_fv_ti_im(sp1, r_, mutilde);
+    /* sp1 *= g5 */
+    _fv_ti_eq_g5(sp1);
+    /* s_ = r_ */
+    _fv_eq_fv(s_, r_);
+    /* s_ <- s_ + sp1 = r_ + i mu g5 r_ = (1 + i mu g5) r_ */
+    _fv_pl_eq_fv(s_, sp1);
     /* s_ *= 1/2kappa */
     _fv_ti_eq_re(s_, one_over_two_kappa);
 
@@ -3454,33 +3444,41 @@ void M_zz (double*s, double*r, double mass) {
 
 }  /* end of M_zz */
 
+/********************************************************
+ * M^-1, same for even and odd
+ *
+ * safe, if s = r
+ ********************************************************/
 void M_zz_inv (double*s, double*r, double mass) {
 
   const double mutilde = 2. * g_kappa * mass;
   const double norm    =  2.*g_kappa / (1.+ mutilde*mutilde);
   const int nthreads   = g_num_threads;
   const unsigned int N = VOLUME/2;
+#ifdef HAVE_OPENMP
+#pragma omp parallel default(shared) shared(s,r,mass)
+{
+#endif
 
   unsigned int ix;
   double *s_= NULL, *r_ = NULL;
-  double sp1[24];
-  int threadid=0; 
+  double sp1[24], sp2[24];
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(ix,threadid,s_,r_,sp1) shared(r,s)
-{
-  threadid = omp_get_thread_num();
+#pragma omp for
 #endif
-  for(ix = threadid; ix < N; ix += nthreads) {
+  for(ix = 0; ix < N; ix++) {
     s_ = s + _GSI(ix);
     r_ = r + _GSI(ix);
 
+    /* sp2 = r_ */
+    _fv_eq_fv(sp2, r_);
     /* sp1 = g5 r_ */
-    _fv_eq_gamma_ti_fv(sp1, 5, r_);
+    _fv_eq_gamma_ti_fv(sp1, 5, sp2);
     /* s_ = i mass sp1 */
     _fv_eq_fv_ti_im(s_, sp1, -mutilde);
     /* s_ += (1 - i mass g5) r_ */
-    _fv_pl_eq_fv(s_, r_);
+    _fv_pl_eq_fv(s_, sp2);
     /* s_ *= 2kappa / (1 + mutilde^2) */
     _fv_ti_eq_re(s_, norm );
 
@@ -3501,13 +3499,14 @@ void C_oo (double*s, double*r, double *gauge_field, double mass, double *s_aux) 
 
   const int nthreads = g_num_threads;
   const unsigned int N = VOLUME / 2;
+  const size_t sizeof_field = _GSI(N) * sizeof(double);
 
   unsigned int ix;
   double *s_ = NULL, *s_aux_ = NULL;
   double sp1[24];
   int threadid=0;
 
-
+#if 0
   /* s_aux = M_oe M_ee^-1 M_eo r */
   xchange_eo_field(r, 1);
   Hopping_eo(s_aux, r, gauge_field, 0);
@@ -3541,8 +3540,32 @@ void C_oo (double*s, double*r, double *gauge_field, double mass, double *s_aux) 
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */
 #endif
+#endif  /* of if 0 */
 
+  /* s_aux = <- r */
+  memcpy(s_aux, r, sizeof_field);
+  xchange_eo_field(s_aux, 1);
+  /* s <- M_eo s_aux */
+  Hopping_eo(s, s_aux, gauge_field, 0);
+  /* s <- M^-1 s */
+  M_zz_inv(s, s, mass);
 
+  /* xchange before next application of M_oe */
+  /* NOTE: s exchanged as even field */
+  /* s_aux <- s */
+  memcpy(s_aux, s, sizeof_field);
+  xchange_eo_field(s_aux, 0);
+  /* s <- M_oe s_aux = M_oe M^-1 M_eo r */
+  Hopping_eo(s, s_aux, gauge_field, 1);
+  memcpy(s_aux, s, sizeof_field);
+
+  /* s = M_oo r */
+  M_zz(s, r, mass);
+  /* s <- s - s_aux = M r - M_oe M^-1 M_eo r */
+  spinor_field_eq_spinor_field_mi_spinor_field(s, s, s_aux, N);
+  /* s <- g5 s */
+  g5_phi(s, N);
+ 
 }  /* end of C_oo */
 
 /***********************************************************
@@ -3580,28 +3603,100 @@ void Q_phi_eo (double *e_new, double *o_new, double *e_old, double *o_old, doubl
 /********************************************************************
  * ( g5 M_ee & 0 )
  * ( g5 M_oe & 1 )
+ *
+ * safe, if e_new = e_old and / or o_new = o_old
  ********************************************************************/
 void Q_eo_SchurDecomp_A (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double mass, double *aux) {
 
+  const unsigned int N = VOLUME / 2;
+  const size_t  sizeof_field = _GSI(N) * sizeof(double);
+
   unsigned int ix;
-  unsigned int N = VOLUME / 2;
+  size_t offset;
+  double *o_new_=NULL, *e_new_=NULL, *aux_=NULL, *o_old_=NULL;
 
-  /* aux = M_ee e_old */
-  M_zz (aux, e_old, mass);
+  /* aux <- e_old */
+  memcpy(aux, e_old, sizeof_field);
+  /* exchange even field aux */
+  xchange_eo_field(aux, 0);
+  /* o_new = M_oe aux = M_oe e_old */
+  Hopping_eo(e_new, aux, gauge_field, 1);
+  /* o_new <- g5 e_new + o_old  = g5 M_oe e_old + o_old */
+#ifdef HAVE_OPENMP
+#pragma omp parallel for private(offset, o_new_, e_new_, aux_, o_old_)
+#endif
+  for(ix=0; ix<N; ix++) {
+    offset = _GSI(ix);
+    o_new_ = o_new + offset;
+    e_new_ = e_new + offset;
+    o_old_ = o_old + offset;
+    aux_   = aux + offset;
+    _fv_ti_eq_g5(e_new_);
+    _fv_eq_fv_pl_fv( o_new_, o_old_, e_new_);
+  }
+
+  /* e_new = M_zz aux = M_zz e_old */
+  M_zz (e_new, aux, mass);
   /* e_new = g5 aux */
+#ifdef HAVE_OPENMP
+#pragma omp parallel for private(e_new_)
+#endif
   for(ix=0; ix<N; ix++) {
-    _fv_eq_gamma_ti_fv(e_new+_GSI(ix), 5, aux+_GSI(ix));
+    e_new_ = e_new + _GSI(ix);
+    _fv_ti_eq_g5(e_new_);
   }
 
-  /* aux = M_oe e_old */
-  Hopping_eo(aux, e_old, gauge_field, 1);
-  /* o_new = g5 aux */
-  /* o_new += o_old */
-  for(ix=0; ix<N; ix++) {
-    _fv_eq_gamma_ti_fv(o_new+_GSI(ix), 5, aux+_GSI(ix));
-    _fv_pl_eq_fv( o_new+_GSI(ix), o_old+_GSI(ix) );
-  }
 }  /* end of Q_SchurDecomp_A */
+
+/********************************************************************
+ * ( M_ee^-1 g5 & 0 )
+ * ( -g5 M_oe M_ee^-1 g5 & 1 )
+ *
+ * e_new, o_new, e_old, o_old do not need halo sites
+ * aux needs halo sites
+ *
+ * safe, if e_new = e_old and/or o_new = o_old
+ ********************************************************************/
+void Q_eo_SchurDecomp_Ainv (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double mass, double *aux) {
+
+  const unsigned int N = VOLUME / 2;
+  const size_t size_of_spinor_point = 24*sizeof(double);
+
+  unsigned int ix, iix;
+  double spinor1[24];
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for private(ix)
+#endif
+  /* aux = g5 e_old */
+  for(ix=0; ix<N; ix++) {
+    _fv_eq_gamma_ti_fv(aux+_GSI(ix), 5, e_old+_GSI(ix));
+  }
+
+  /* aux <- M_ee^-1 aux = M_ee^-1 g5 e_old */
+  M_zz_inv (aux, aux, mass);
+
+  /* xchange aux (even) field */
+  xchange_eo_field(aux,0);
+
+  /* e_new = M_oe aux  */
+  Hopping_eo(e_new, aux, gauge_field, 1);
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for private(ix,iix,spinor1)
+#endif
+  /* o_new = -g5 o_new + o_old */
+  for(ix=0; ix<N; ix++) {
+    iix = _GSI(ix);
+    _fv_eq_gamma_ti_fv(spinor1, 5, e_new+iix);
+    _fv_eq_fv_mi_fv( o_new+iix, o_old+iix, spinor1 );
+  }
+
+  memcpy(e_new, aux, N*size_of_spinor_point);
+
+}  /* end of Q_SchurDecomp_Ainv */
+
+
 
 /********************************************************************
  * ( 1 & M_ee^(-1) M_eo )
@@ -3612,6 +3707,7 @@ void Q_eo_SchurDecomp_B (double *e_new, double *o_new, double *e_old, double *o_
   unsigned int ix;
   unsigned int N = VOLUME / 2;
   
+  xchange_eo_field(o_old,1);
   /* aux = M_eo o_old */
   Hopping_eo(aux, o_old, gauge_field, 0);
   /* e_new = M_ee^(-1) aux */
@@ -3626,35 +3722,67 @@ void Q_eo_SchurDecomp_B (double *e_new, double *o_new, double *e_old, double *o_
 
 }  /* end of Q_SchurDecomp_B */
 
+/********************************************************************
+ * ( 1 & -M_ee^(-1) M_eo 2kappa )
+ * ( 0 &        2kappa          )
+ *
+ * safe, if e_new = e_old or o_new = o_old
+ ********************************************************************/
+void Q_eo_SchurDecomp_Binv (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double mass, double *aux) {
+
+  const double twokappa = 2. * g_kappa;
+  const unsigned int N = VOLUME / 2;
+  const size_t sizeof_eo_spinor_field = _GSI(N) * sizeof(double);
+  unsigned int ix;
+
+  spinor_field_eq_spinor_field_ti_re (aux, o_old, twokappa, N);
+
+  xchange_eo_field(aux, 1);
+  /* o_new = M_eo aux */
+  Hopping_eo(o_new, aux, gauge_field, 0);
+  /* o_new = M_ee^(-1) o_new */
+  M_zz_inv(o_new, o_new, mass);
+  /* e_new = e_old - o_new */
+  spinor_field_eq_spinor_field_pl_spinor_field_ti_re(e_new, e_old, o_new, -1, N);
+  /* o_new <- aux */
+  memcpy(o_new, aux, sizeof_eo_spinor_field);
+
+}  /* end of Q_SchurDecomp_Binv */
+
+
 
 /********************************************************************
  * X_eo    = -M_ee^-1 M_eo,    mu > 0
  * Xbar_eo = -Mbar_ee^-1 M_eo, mu < 0
  * the input field is always odd, the output field is always even
+ * even does not need halo sites
+ * odd needs halo sites
  ********************************************************************/
 void X_eo (double *even, double *odd, double mu, double *gauge_field) {
 
-  const int nthreads = g_num_threads;
   const unsigned int N = VOLUME/2;
   const double mutilde = 2. * g_kappa * mu;
   const double a_re = -2. * g_kappa / ( 1 + mutilde * mutilde);
   const double a_im = -a_re * mutilde;
 
-  double *ptr, sp[24];
-  int threadid = 0;
-  unsigned int ix;
-
   /* M_eo */
   xchange_eo_field(odd, 1);
   Hopping_eo(even, odd, gauge_field, 0);
 
+//  M_zz_inv(even, even, mu);
+//  spinor_field_ti_eq_re(even, -1., N);
+
 #ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(ix,threadid,ptr,sp) shared(even)
+#pragma omp parallel default(shared) shared(even, odd)
 {
-  threadid = omp_get_thread_num();
 #endif
+  double *ptr, sp[24];
+  unsigned int ix;
   /* -M_ee^-1 */
-  for(ix = threadid; ix < N; ix+=nthreads) {
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(ix = 0; ix < N; ix++) {
     ptr = even + _GSI(ix);
     _fv_eq_fv(sp, ptr);
     _fv_eq_a_pl_ib_g5_ti_fv(ptr, sp, a_re, a_im);
@@ -3662,10 +3790,13 @@ void X_eo (double *even, double *odd, double mu, double *gauge_field) {
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */
 #endif
+
 }  /* end of X_eo */
 
+#if 0
+DOES NOT WORK LIKE THAT
 /********************************************************************
- * X_oe    = -M_oo^-1 M_oe,    mu > 0
+ * X_oe    = -M_oe M_ee^-1,    mu > 0
  * Xbar_oe = -Mbar_oo^-1 M_oe, mu < 0
  * the input field is always even, the output field is always odd
  ********************************************************************/
@@ -3681,16 +3812,12 @@ void X_oe (double *odd, double *even, double mu, double *gauge_field) {
   int threadid = 0;
   unsigned int ix;
 
-  /* M_eo */
-  xchange_eo_field(even, 0);
-  Hopping_eo(odd, even, gauge_field, 1);
-
 #ifdef HAVE_OPENMP
 #pragma omp parallel default(shared) private(ix,threadid,ptr,sp) shared(odd)
 {
   threadid = omp_get_thread_num();
 #endif
-  /* -M_oo^-1 */
+  /* -M_ee^-1 */
   for(ix = threadid; ix < N; ix+=nthreads) {
     ptr = even + _GSI(ix);
     _fv_eq_fv(sp, ptr);
@@ -3699,7 +3826,12 @@ void X_oe (double *odd, double *even, double mu, double *gauge_field) {
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */
 #endif
+
+  /* M_oe */
+  xchange_eo_field(even, 0);
+  Hopping_eo(odd, even, gauge_field, 1);
 }  /* end of X_oe */
+#endif
 
 /********************************************************************
  * C_with_Xeo

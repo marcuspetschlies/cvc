@@ -261,7 +261,7 @@ int main(int argc, char **argv) {
 /*
   sprintf( filename, "eo_field%.2d", g_cart_id);
   ofs = fopen(filename, "w");
-  printf_eo_spinor_field(eo_spinor_field[0], 1, ofs);
+  printf_eo_spinor_field(eo_spinor_field[0], 1, 1, ofs);
   fclose(ofs);
 */
 

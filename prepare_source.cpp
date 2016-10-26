@@ -18,24 +18,19 @@
 #include <getopt.h>
 
 #include "cvc_linalg.h"
+#include "cvc_complex.h"
+#include "iblas.h"
 #include "global.h"
 #include "cvc_geometry.h"
 #include "cvc_utils.h"
 #include "mpi_init.h"
 #include "io.h"
 #include "propagator_io.h"
+#include "Q_phi.h"
+#include "Q_clover_phi.h"
 #include "ranlxd.h"
 
 namespace cvc {
-
-#ifdef F_
-#define _F(s) s##_
-#else
-#define _F(s) s
-#endif
-
-extern "C" void _F(zgemv) ( char*TRANS, int *M, int *N, double _Complex *ALPHA, double _Complex *A, int *LDA, double _Complex *X,
-  int *INCX, double _Complex *BETA, double _Complex * Y, int *INCY, int len_TRANS);
 
 int prepare_volume_source(double *s, unsigned int V) {
 
@@ -53,123 +48,14 @@ int prepare_volume_source(double *s, unsigned int V) {
   return(status);
 }  /* end of prepare_volume_source */
 
-
-int project_spinor_field(double *s, double * r, int parallel, double *V, int num, unsigned int N) {
-
-  unsigned int k, status;
-  double _Complex *r_ptr = (double _Complex *)r;
-  double _Complex *s_ptr = (double _Complex *)s;
-  double _Complex *V_ptr = (double _Complex *)V;
-  double _Complex *p = NULL, *p_buffer = NULL;
-  int BLAS_M = 12*N;
-  int BLAS_N = num;
-  int BLAS_LDA = BLAS_M;
-  int BLAS_INCX = 1;
-  int BLAS_INCY = 1;
-  double _Complex BLAS_ALPHA=1., BLAS_BETA=0.;
-  char BLAS_TRANS = 'T';
-
-  double _Complex *BLAS_A = (double _Complex *)V;
-  double _Complex *BLAS_X = s_ptr;
-  double _Complex *BLAS_Y = NULL;
- 
-  if (s == NULL || r == NULL || V == NULL || num <= 0 ) {
-    fprintf(stderr, "[project_spinor_field] Error, wrong parameter values\n");
-    return(4);
-  }
-
-  if( (p = (double _Complex*)malloc(num * sizeof(double _Complex))) == NULL ) {
-    fprintf(stderr, "[project_spinor_field] Error from malloc\n");
-    return(1);
-  }
-  BLAS_Y = p;
-
-  if( (p_buffer = (double _Complex*)malloc(num * sizeof(double _Complex))) == NULL ) {
-    fprintf(stderr, "[project_spinor_field] Error from malloc\n");
-    return(2);
-  }
-
-  /* complex conjugate r */
-#ifdef HAVE_OPENMP
-#pragma omp parallel for shared(s_ptr,r_ptr)
-#endif
-  for(k=0; k<12*N; k++) { 
-    s_ptr[k] = conj(r_ptr[k]); 
-  } 
-
-/*
-  for(k=0; k<12*N; k++) { 
-    fprintf(stdout, "sc_ptr[%d,%d] = %25.16e + %25.16e*1.i\n", g_cart_id+1,k+1,creal(s_ptr[k]), cimag(s_ptr[k]));
-  }
-  for(k=0; k<12*N; k++) { 
-    fprintf(stdout, "V[%d,%d] = %25.16e + %25.16e*1.i\n", g_cart_id+1,k+1,creal(V_ptr[k]), cimag(V_ptr[k]));
-  }
-*/
-
-  /* multiply p = (V^+ r)^* */
-  _F(zgemv)(&BLAS_TRANS, &BLAS_M, &BLAS_N, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_X, &BLAS_INCX, &BLAS_BETA, BLAS_Y, &BLAS_INCY,1);
-
-  /* for(k=0; k<num; k++) { fprintf(stdout, "# p %3d %3d %25.16e %25.16e\n", g_cart_id, k, creal(p[k]), cimag(p[k])); } */
-
-  /* complex conjugate p */
-#ifdef HAVE_OPENMP
-#pragma omp parallel for shared(p_buffer,p)
-#endif
-  for(k=0; k<num; k++) { p_buffer[k] = conj(p[k]); } 
-
-#ifdef HAVE_MPI
-  status = MPI_Allreduce(p_buffer, p, 2*num, MPI_DOUBLE, MPI_SUM, g_cart_grid);
-  if(status != MPI_SUCCESS) {
-    fprintf(stderr, "[project_spinor_field] Error from MPI_Allreduce, status was %d\n", status);
-    return(1);
-  }
-#else
-  memcpy(p, p_buffer, num*sizeof(double _Complex));
-#endif
-
-/*
-  if(g_cart_id == 1) {
-    for(k=0; k<num; k++) { 
-      fprintf(stdout, "# [project_spinor_field] %3d %25.16e %25.16e\n", k, creal(p[k]), cimag(p[k])); 
-    } 
-  }
-*/
-  /* s = V r */
-  BLAS_TRANS = 'N';
-  BLAS_M = 12*N;
-  BLAS_N = num;
-  BLAS_LDA = BLAS_M;
-  BLAS_A = (double _Complex*)V;
-  BLAS_X = p;
-  BLAS_Y = s_ptr;
-  BLAS_INCX =1.;
-  BLAS_INCY =1.;
-
-  if(parallel) {
-    BLAS_ALPHA = 1.;
-    BLAS_BETA  = 0.;
-  } else {
-    memcpy(s,r,24*N*sizeof(double));
-    BLAS_ALPHA = -1.;
-    BLAS_BETA  =  1.;
-  }
-
-  _F(zgemv)(&BLAS_TRANS, &BLAS_M, &BLAS_N, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_X, &BLAS_INCX, &BLAS_BETA, BLAS_Y, &BLAS_INCY,1);
-
-
-  if(p != NULL) free(p);
-  if(p_buffer != NULL) free(p_buffer);
-
-  return(0);
-}  /* end of project_spinor_field */
-
 /*********************************************************
  * out: s_even, s_odd, even and odd part of source field
  * in: source_coords, global source coordinates
  *     have_source == 1 if process has source, otherwise 0
  *     work0, work1,... auxilliary eo work fields
  *
- * IMPORTANT: s_even and s_odd must have halo sites 
+ * s_even and s_odd do not need to have halo sites
+ * work0 should have halo sites
  *********************************************************/
 int init_eo_spincolor_pointsource_propagator(double *s_even, double *s_odd, int global_source_coords[4], int isc, int sign, int have_source, double *work0) {
  
@@ -177,7 +63,7 @@ int init_eo_spincolor_pointsource_propagator(double *s_even, double *s_odd, int 
 
   int local_source_coords[4] = { global_source_coords[0]%T, global_source_coords[1]%LX, global_source_coords[2]%LY, global_source_coords[3]%LZ };
 
-  int source_location_iseven = have_source ? g_iseven[ g_ipt[local_source_coords[0]][local_source_coords[1]][local_source_coords[2]][local_source_coords[3]] ] : -1;
+  int source_location_iseven =  ( global_source_coords[0] + global_source_coords[1] + global_source_coords[2] + global_source_coords[3] ) % 2 == 0;
 
   unsigned int eo_source_location = g_lexic2eosub[ g_ipt[local_source_coords[0]][local_source_coords[1]][local_source_coords[2]][local_source_coords[3]] ];
 
@@ -191,52 +77,139 @@ int init_eo_spincolor_pointsource_propagator(double *s_even, double *s_odd, int 
   /* source node: set source */
 
   if(source_location_iseven) {
+    if(have_source) fprintf(stdout, "# [init_eo_spincolor_pointsource_propagator] even source location\n");
 
+    /* source proces set point source */
+    memset(work0,  0, bytes);
     if(have_source) {
       work0[_GSI(eo_source_location) + 2*isc] = 1.0;
     }
-
-    /* all procs:
-     *  g5 X_oe = g5 (g5 Xbar_eo^+ g5) = Xbar_eo^+ g5
-     */
-    X_oe (s_odd, work0, sign*g_mu, g_gauge_field);
-    g5_phi(s_odd, Vhalf);
-
-    /* M_oo^-1 even */
+    /* even component */
+    /* xi_e = M^-1 eta_e */
     M_zz_inv (s_even, work0, sign*g_mu);
+
+    /* odd component */
+    /* xi_o = g5 X_oe M^-1 eta_e */
+    memcpy(work0, s_even, bytes);
+    xchange_eo_field(work0, 0);
+    Hopping_eo(s_odd, work0, g_gauge_field, 1);
+    g5_phi(s_odd, Vhalf);
+    spinor_field_ti_eq_re(s_odd, -1., Vhalf);
   } else {
+    if(have_source) fprintf(stdout, "# [init_eo_spincolor_pointsource_propagator] odd source location\n");
     if(have_source) {
+      memset(spinor1, 0, 24*sizeof(double));
       spinor1[2*isc] = 1.0;
       _fv_eq_gamma_ti_fv( s_odd+_GSI( eo_source_location ), 5, spinor1 );
     }
   }
 
-  /* all procs: xchange even field */
-  xchange_eo_field(s_even, 0);
-  /* all procs: xchange odd field */
-  xchange_eo_field(s_odd,  1);
-
-  /* done */
-
   return(0);
 }  /* end of prepare_eo_spincolor_point_source */
 
-int fini_eo_spincolor_pointsource_propagator(double *p_even, double *p_odd, double *r_even, double *r_odd , int sign, double *work0) {
+
+/*********************************************************
+ * finalize inversion (1 & X \\ 0 & 1) acting on C^-1 xi_o
+ *
+ * p_even, p_odd, r_even, r_odd do not need halo sites
+ * work0 needs halo sites
+ * p_even and r_even can be same memory region
+ * p_odd  and r_odd  can be same memory region
+ *********************************************************/
+int fini_eo_propagator(double *p_even, double *p_odd, double *r_even, double *r_odd , int sign, double *work0) {
  
-  unsigned int Vhalf = VOLUME/2;
+  const unsigned int Vhalf = VOLUME/2;
+  const size_t bytes = 24*Vhalf*sizeof(double);
 
-  size_t bytes = 24*Vhalf*sizeof(double);
-
-  memcpy( p_odd, r_odd, bytes);
-  spinor_field_ti_eq_re (p_odd, 2.*g_kappa, Vhalf);
-
-  X_eo (p_even, p_odd, sign*g_mu, g_gauge_field);
-  spinor_field_pl_eq_spinor_field(p_even, r_even, Vhalf);
-
-  /* done */
+  /* work0 <- r_odd */
+  memcpy( work0, r_odd, bytes);
+  /* account for missing 1/2k in C / Cbar */
+  /* work0 <- work0 x 2kappa = r_odd x 2kappa */
+  spinor_field_ti_eq_re (work0, 2.*g_kappa, Vhalf);
+  /* p_odd <- X_eo work0 = X_eo 2kappa r_odd; p_odd auxilliary field */
+  X_eo (p_odd, work0, sign*g_mu, g_gauge_field);
+  /* p_even <- p_odd + r_even = r_even + X_eo 2kappa r_odd */
+  spinor_field_eq_spinor_field_pl_spinor_field(p_even, p_odd, r_even, Vhalf);
+  /* p_odd <- work0 = 2kappa r_odd */
+  memcpy(p_odd, work0, bytes);
 
   return(0);
-}  /* end of fini_eo_spincolor_pointsource_propagator */
+}  /* end of fini_eo_propagator */
 
+/***************************************************************************************************
+ * prepare sequential source from propagator
+ *
+ * safe, if s_even = p_even or s_odd = p_odd
+ ***************************************************************************************************/
+int init_eo_sequential_source(double *s_even, double *s_odd, double *p_even, double *p_odd, int tseq, int sign, int pseq[3], int gseq, double *work0) {
+  const unsigned int Vhalf = VOLUME/2;
+  const unsigned int VOL3half = LX*LY*LZ/2;
+  const int tloc = tseq % T;
+  const size_t sizeof_eo_spinor_field = 24 * Vhalf * sizeof(double);
+  const double MPI2 = 2. * M_PI;
+
+  const double  q[3] = {MPI2 * pseq[0] / LX_global, MPI2 * pseq[1] / LY_global, MPI2 * pseq[2] / LZ_global};
+  const double  q_offset = q[0] * g_proc_coords[1] * LX + q[1] * g_proc_coords[2] * LY + q[2] * g_proc_coords[3] * LZ;
+
+  const size_t offset = _GSI(VOL3half);
+  const size_t bytes  = offset * sizeof(double);
+
+  int i, exitstatus, x0, x1, x2, x3;
+  unsigned int ix;
+  int source_proc_id = 0;
+  double q_phase;
+  double *s_=NULL, *p_=NULL, spinor1[24], spinor2[24];
+  complex w;
+
+#ifdef HAVE_MPI
+  /* have seq source timeslice ? */
+  i = tseq / T;
+  exitstatus = MPI_Cart_rank(g_tr_comm, &i, &source_proc_id);
+  if(exitstatus !=  MPI_SUCCESS ) {
+    fprintf(stderr, "[init_eo_sequential_source] Error from MPI_Cart_rank, status was %d\n", exitstatus);
+    EXIT(9);
+  }
+  if(g_tr_id == source_proc_id) fprintf(stdout, "# [init_eo_sequential_source] proc %d / %d = (%d,%d,%d,%d) has t sequential %2d / %2d\n", g_cart_id, g_tr_id,
+     g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3], tseq, tloc);
+#endif
+
+  if(g_tr_id == source_proc_id) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for private(x1,x2,x3,ix,q_phase,w,spinor1,spinor2,s_,p_)
+#endif
+    for(x1=0; x1<LX; x1++) {
+    for(x2=0; x2<LY; x2++) {
+    for(x3=0; x3<LZ; x3++) {
+      ix  = g_ipt[tloc][x1][x2][x3];
+      q_phase = q[0] * x1 + q[1] * x2 + q[2] * x3 + q_offset;
+      w.re = cos(q_phase);
+      w.im = sin(q_phase);
+      if(g_iseven[ix]) {
+        s_ = s_even + _GSI(g_lexic2eosub[ix]);
+        p_ = p_even + _GSI(g_lexic2eosub[ix]);
+      } else {
+        s_ = s_odd + _GSI(g_lexic2eosub[ix]);
+        p_ = p_odd + _GSI(g_lexic2eosub[ix]);
+      }
+      _fv_eq_fv_ti_co(spinor1, p_, &w);
+      _fv_eq_gamma_ti_fv(spinor2, gseq, spinor1);
+      // _fv_eq_fv(s_, spinor2);
+      _fv_eq_gamma_ti_fv(s_, 5, spinor2);
+    }}}
+    for(i=1; i<T; i++) {
+      x0 = (tloc + i) % T;
+      memset(s_even+x0*offset, 0, bytes);
+      memset(s_odd +x0*offset, 0, bytes);
+    }
+  } else {
+    // printf("# [] process %d setting source to zero\n", g_cart_id);
+    memset(s_even, 0, sizeof_eo_spinor_field);
+    memset(s_odd,  0, sizeof_eo_spinor_field);
+  }
+
+  Q_eo_SchurDecomp_Ainv (s_even, s_odd, s_even, s_odd, g_gauge_field, sign*g_mu, work0);
+
+  return(0);
+}  /* end of init_eo_sequential_source */
 
 }  /* end of namespace cvc */

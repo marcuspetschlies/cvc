@@ -24,6 +24,8 @@
 #include "cvc_geometry.h"
 #include "io_utils.h"
 #include "read_input_parser.h"
+#include "cvc_utils.h"
+#include "Q_phi.h"
 #include "invert_Qtm.h"
 #include "iblas.h"
 #include "matrix_init.h"
@@ -383,6 +385,8 @@ int gsp_calculate_v_dag_gamma_p_w(double**V, double**W, int num, int momentum_nu
   FILE *ofs = NULL;
 #endif
 
+  ratime = _GET_TIME;
+
 #ifdef HAVE_MPI
   /***********************************************
    * set io process
@@ -701,6 +705,9 @@ int gsp_calculate_v_dag_gamma_p_w(double**V, double**W, int num, int momentum_nu
 
 #endif  /* of ifdef HAVE_LHPC_AFF */
 
+  retime = _GET_TIME;
+  if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for = %e seconds\n", retime-ratime);
+
   return(0);
 
 }  /* end of gsp_calculate_v_dag_gamma_p_w */
@@ -715,7 +722,6 @@ int gsp_calculate_v_dag_gamma_p_w(double**V, double**W, int num, int momentum_nu
  ***********************************************************************************************/
 int gsp_read_node (double ***gsp, int num, int momentum[3], int gamma_id, char*tag) {
 
-  int status;
   size_t items;
   char filename[200];
 
@@ -815,7 +821,6 @@ int gsp_read_node (double ***gsp, int num, int momentum[3], int gamma_id, char*t
 
 int gsp_write_eval(double *eval, int num, char*tag) {
   
-  int status;
   int ievecs;
 
   double ratime, retime;
@@ -831,6 +836,8 @@ int gsp_write_eval(double *eval, int num, char*tag) {
 #else
   FILE *ofs = NULL;
 #endif
+ 
+  ratime = _GET_TIME;
 
   if(g_cart_id == 0) {
   /***********************************************
@@ -882,12 +889,14 @@ int gsp_write_eval(double *eval, int num, char*tag) {
 #endif
   }  /* end of if g_cart_id == 0 */
 
+  retime = _GET_TIME;
+  if(g_cart_id == 0) fprintf(stdout, "# [gsp_write_eval] time for gsp_write_eval = %e seconds\n", retime-ratime);
+
   return(0);
 }  /* end of gsp_write_eval */
 
 int gsp_read_eval(double **eval, int num, char*tag) {
   
-  int status;
   int ievecs;
 
   double ratime, retime;
@@ -903,6 +912,9 @@ int gsp_read_eval(double **eval, int num, char*tag) {
 #else
   FILE *ifs = NULL;
 #endif
+
+
+  ratime = _GET_TIME;
 
   /* allocate */
   if(*eval == NULL) {
@@ -952,10 +964,14 @@ int gsp_read_eval(double **eval, int num, char*tag) {
     return(5);
   }
   for(ievecs=0; ievecs<num; ievecs++) {
-    fscanf(ifs, "%lf", (*eval)+ievecs );
+    if( fscanf(ifs, "%lf", (*eval)+ievecs ) != 1 ) {
+      return(6);
+    }
   }
   fclose(ifs);
 #endif
+  retime = _GET_TIME;
+  if(g_cart_id == 0) fprintf(stdout, "# [gsp_read_eval] time for gsp_read_eval = %e seconds\n", retime-ratime);
 
   return(0);
 }  /* end of gsp_read_eval */
@@ -1040,7 +1056,6 @@ void co_eq_tr_gsp (complex *w, double**gsp1, double*lambda, int num) {
 #endif
   int i;
   complex waccum;
-  complex z1;
   double r;
 
   _co_eq_zero(&waccum);
@@ -1940,7 +1955,7 @@ int gsp_calculate_v_dag_gamma_p_w_block_asym(double*gsp_out, double**V, double**
   int i_momentum, i_gamma_id, momentum[3];
   int io_proc = 2;
   unsigned int ix;
-  size_t items, offset;
+  size_t items, offset, bytes;
 
   double ratime, retime, momentum_ratime, momentum_retime, gamma_ratime, gamma_retime;
   double _Complex **phase = NULL;
@@ -2109,7 +2124,7 @@ int gsp_calculate_v_dag_gamma_p_w_block_asym(double*gsp_out, double**V, double**
         for(ix=0; ix<numW*VOL3half; ix++) {
           /* W <- gamma exp ip W */
           ztmp = phase[x0][ix % VOL3half];
-          _fv_eq_gamma_ti_fv(spinor2, gamma_id, zptr);
+          _fv_eq_gamma_ti_fv(spinor2, gamma_id, (double*)zptr);
           zptr[ 0] = ztmp * (spinor2[ 0] + spinor2[ 1] * I);
           zptr[ 1] = ztmp * (spinor2[ 2] + spinor2[ 3] * I);
           zptr[ 2] = ztmp * (spinor2[ 4] + spinor2[ 5] * I);
@@ -2275,9 +2290,6 @@ int gsp_calculate_v_dag_gamma_p_w_block_asym(double*gsp_out, double**V, double**
  ************************************************************/
 int gsp_calculate_v_w_block_asym(double*gsp_out, double**V, double**W, unsigned int numV, unsigned int numW) {
 
-  const double _Complex *V_ptr = (double _Complex *)V[0];
-  const double _Complex *W_ptr = (double _Complex *)W[0];
-  const double _Complex *Z_ptr = (double _Complex *)gsp_out;
   const unsigned int Vhalf = VOLUME / 2;
 
   double ratime, retime;
@@ -2296,9 +2308,9 @@ int gsp_calculate_v_w_block_asym(double*gsp_out, double**V, double**W, unsigned 
   BLAS_M     = 12 * Vhalf;
   BLAS_K     = numV;
   BLAS_N     = numW;
-  BLAS_A     = V_ptr;
-  BLAS_B     = W_ptr;
-  BLAS_C     = Z_ptr;
+  BLAS_A     = (double _Complex *)V[0];
+  BLAS_B     = (double _Complex *)W[0];
+  BLAS_C     = (double _Complex *)gsp_out;
   BLAS_LDA   = BLAS_M;
   BLAS_LDB   = BLAS_K;
   BLAS_LDC   = BLAS_M;
@@ -2324,6 +2336,7 @@ int gsp_calculate_v_w_block_asym(double*gsp_out, double**V, double**W, unsigned 
  **************************************************************************************************************/
 int momentum_projection (double*V, double *W, unsigned int nv, int momentum_number, int (*momentum_list)[3]) {
 
+  const double MPI2 = M_PI * 2.;
   const unsigned int VOL3 = LX*LY*LZ;
 
   int x1, x2, x3;
@@ -2353,7 +2366,7 @@ int momentum_projection (double*V, double *W, unsigned int nv, int momentum_numb
     for(x3=0; x3<LZ; x3++) {
       ix = g_ipt[0][x1][x2][x3];
       q_phase = x1*q[0] + x2*q[1] + x3*q[2] + q_offset;
-      zphase[ix] = cos(q_phase) - I*sin(q_phase);
+      zphase[i][ix] = cos(q_phase) - I*sin(q_phase);
     }}}
   }
 
@@ -2374,7 +2387,7 @@ int momentum_projection (double*V, double *W, unsigned int nv, int momentum_numb
   fini_2level_buffer((double***)(&zphase));
 
 #ifdef HAVE_MPI
-  i = 2 * nv * nmom;
+  i = 2 * nv * momentum_number;
   void *buffer = malloc(i * sizeof(double));
   if(buffer == NULL) {
     return(1);
@@ -2390,5 +2403,69 @@ int momentum_projection (double*V, double *W, unsigned int nv, int momentum_numb
 
   return(0);
 }  /* end of momentum_projection */
+
+/**********************************************************************************
+ * calculate XV from V
+ **********************************************************************************/
+int gsp_calculate_xv_from_v (double **xv, double **v, double **work, int num, double mass, unsigned int N) {
+
+  const size_t sizeof_field = 24 * N * sizeof(double);
+
+  int i;
+  double ratime, retime;
+
+  if(xv == NULL || v == NULL || work == NULL || num<=0) {
+    fprintf(stderr, "[gsp_calculate_xbarv_from_v] Error, insufficient input\n");
+    return(1);
+  }
+
+  ratime = _GET_TIME;
+  for(i= 0; i<num; i++) {
+    /* work0 <- v */
+    memcpy(work[0], v[i], sizeof_field);
+    /* work1 <- X_eo work0 */
+    X_eo (work[1], work[0], mass, g_gauge_field);
+    /* xv <- work1 */
+    memcpy(xv[i], work[1], sizeof_field);
+    retime = _GET_TIME;
+  }
+  if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_xbarv_from_v] time for XV = %e seconds\n", retime-ratime);
+
+  return(0);
+}  /* end of gsp_calculate_xv_from_v */
+
+/******************************************************************************************************************
+ * w <- Cbar v = Cbar_from_Xeo(v, xv)
+ * w and xv can be same memory region
+ ******************************************************************************************************************/
+int gsp_calculate_w_from_xv_and_v (double **w, double **xv, double **v, double **work, int num, double mass, unsigned int N) {
+
+  const size_t sizeof_field = 24 * N * sizeof(double);
+
+  int i;
+  double ratime, retime;
+  double norm;
+
+  ratime = _GET_TIME;
+  for(i = 0; i<num; i++) {
+    /* work0 <- v */
+    memcpy(work[0], v[i], sizeof_field);
+    /* work1 <- xv */
+    memcpy(work[1], xv[i], sizeof_field);
+    /* work0 <- Cbar_from_Xeo (work0, work1; aux = work2 */
+    C_from_Xeo (work[0], work[1], work[2], g_gauge_field, mass);
+    /*square norm  < work0 | work0 > */
+    spinor_scalar_product_re(&norm, work[0], work[0], N);
+    if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_w_from_xv_and_v] eval %4d %25.16e\n", i, norm*4.*g_kappa*g_kappa);
+    norm = 1./sqrt( norm );
+    /* w <- work0 x norm */
+    spinor_field_eq_spinor_field_ti_re (w[i],  work[0], norm, N);
+  }
+  retime = _GET_TIME;
+  if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_w_from_xv_and_v] time for W = %e seconds\n", retime-ratime);
+
+  return(0);
+}  /* end of gsp_calculate_w_from_xv_and_v */
+
 
 }  /* end of namespace cvc */
