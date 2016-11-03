@@ -11,6 +11,8 @@ int fini_eo_propagator(double *s_even, double *s_odd, double *phi_even, double *
 
 int init_eo_sequential_source(double *s_even, double *s_odd, double *p_even, double *p_odd, int tseq, int sign, int pseq[3], int gseq, double *work0);
 
+int check_vvdagger_locality (double** V, int numV, int gcoords[4], char*tag, double **sp);
+
 }  /* end of namespace cvc */
 
 #endif

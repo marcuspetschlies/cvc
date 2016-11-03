@@ -726,7 +726,7 @@ int gsp_read_node (double ***gsp, int num, int momentum[3], int gamma_id, char*t
   char filename[200];
 
 #ifdef HAVE_LHPC_AFF
-  int x0;
+  int x0, status;
   struct AffReader_s *affr = NULL;
   struct AffNode_s *affn = NULL, *affdir=NULL;
   char * aff_status_str;
@@ -2239,8 +2239,11 @@ int gsp_calculate_v_dag_gamma_p_w_block_asym(double*gsp_out, double**V, double**
            ***********************************************/
           if(io_proc == 2) {
             ratime = _GET_TIME;
-            
+#ifdef HAVE_MPI
             zptr = iproc == 0 ? Z_buffer : mZ_buffer;
+#else
+            zptr = Z_buffer;
+#endif
             if( fwrite(zptr, sizeof(double _Complex), items, ofs) != items ) {
               fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block_asym] Error, could not write proper amount of data to file %s\n", filename);
               return(13);
