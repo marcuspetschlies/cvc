@@ -2112,7 +2112,7 @@ int gsp_calculate_v_dag_gamma_p_w_block_asym(double*gsp_out, double**V, double**
          ***********************************************/
         ratime = _GET_TIME;
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(zptr,ztmp)
+#pragma omp parallel private(zptr,ztmp)
 {
 #endif
        

@@ -196,6 +196,21 @@ int main(int argc, char **argv) {
   Vhalf = VOLUME / 2;
   sizeof_eo_spinor_field = 24*Vhalf*sizeof(double);
 
+#ifdef HAVE_OPENMP
+  if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators] setting omp number of threads to %d\n", g_num_threads);
+  omp_set_num_threads(g_num_threads);
+#pragma omp parallel private(nthreads,threadid)
+  {
+    threadid = omp_get_thread_num();
+    nthreads = omp_get_num_threads();
+    fprintf(stdout, "# [test_lm_propagators] proc%.4d thread%.4d using %d threads\n", g_cart_id, threadid, nthreads);
+  }
+#else
+  if(g_cart_id == 0) fprintf(stdout, "[test_lm_propagators] Warning, resetting global thread number to 1\n");
+  g_num_threads = 1;
+#endif
+
+
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
   if(!(strcmp(gaugefilename_prefix,"identity")==0)) {
@@ -401,6 +416,28 @@ int main(int argc, char **argv) {
   for(i=0; i<evecs_num; i++) {
     evecs_lambdaOneHalf[i] = 2. * g_kappa / sqrt( evecs_eval[i] );
     if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators] eval %4d %25.16e %25.16e\n", i, evecs_eval[i], evecs_lambdaOneHalf[i]);
+  }
+
+  /***********************************************************
+   * test eigenvectors
+   ***********************************************************/
+  if(g_cart_id == 0) {
+    fprintf(stdout, "# [test_lm_propagators] eigenvector test\n");
+  }
+  for(i=0; i<evecs_num; i++) {
+    C_oo (eo_spinor_work[0], eo_evecs_field[i], g_gauge_field, -g_mu, eo_spinor_work[2]);
+    C_oo (eo_spinor_work[1], eo_spinor_work[0], g_gauge_field,  g_mu, eo_spinor_work[2]);
+
+    spinor_scalar_product_re(&norm, eo_evecs_field[i], eo_evecs_field[i], Vhalf);
+    spinor_scalar_product_co(&w, eo_spinor_work[1], eo_evecs_field[i], Vhalf);
+
+    w.re *= 4.*g_kappa*g_kappa;
+    w.im *= 4.*g_kappa*g_kappa;
+   
+    if(g_cart_id == 0) {
+      fprintf(stdout, "# [] evec %.4d norm = %16.7e w = %16.7e +I %16.7e\n", i, norm, w.re, w.im);
+    }
+
   }
 
 #if 0
