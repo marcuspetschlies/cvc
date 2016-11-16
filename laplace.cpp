@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef MPI
+#ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
 #ifdef HAVE_OPENMP

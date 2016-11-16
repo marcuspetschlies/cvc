@@ -204,6 +204,8 @@ namespace cvc {
 %x COMMENT
 %x ERROR
 %x M_M_TWOPT
+%x MXB_MXB_TWOPT
+%x FERMION_TYPE
 
 %%
 ^T{SPC}*={SPC}*                            BEGIN(TT);
@@ -363,6 +365,9 @@ namespace cvc {
 ^laphs_perambulator_file_prefix{SPC}*={SPC}* BEGIN(LAPHS_PERAMBULATOR_FILE_PREFIX);
 
 ^m_m_2pt{SPC}*={SPC}*                      BEGIN(M_M_TWOPT);
+^mxb_mxb_2pt{SPC}*={SPC}*                  BEGIN(MXB_MXB_TWOPT);
+
+^fermion_type{SPC}*={SPC}*                  BEGIN(FERMION_TYPE);
 
 
   /* start namespace inclusion here */
@@ -1135,6 +1140,48 @@ namespace cvc {
   if(cvc::myverbose!=0) printf("# [read_input_parser] m_m_2pt no. %d set to %s\n", cvc::g_m_m_2pt_num, yytext);
 }
 
+<MXB_MXB_TWOPT>{CORRCONFIG} {
+
+  if ( cvc::g_mxb_mxb_2pt_num == MAX_MXB_MXB_2PT_NUM ) {
+    fprintf(stderr, "[read_input_parser] Error, too many mxb_mxb_2pt\n");
+    exit(1);
+  } else {
+    fprintf(stdout, "# [read_input_parser] extracting mxb_mxb_2pt number %d\n", cvc::g_mxb_mxb_2pt_num);
+  }
+
+  sscanf(yytext, "%d,(%d,%d,%d);%d,(%d,%d,%d);%d,(%d,%d,%d);%d,(%d,%d,%d)",
+    &(cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].gi1),
+      cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].pi1,
+      cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].pi1+1,
+      cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].pi1+2,
+    &(cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].gi2),
+      cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].pi2,
+      cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].pi2+1,
+      cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].pi2+2,
+    &(cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].gf1),
+      cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].pf1,
+      cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].pf1+1,
+      cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].pf1+2,
+    &(cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].gf2),
+      cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].pf2,
+      cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].pf2+1,
+      cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].pf2+2
+  );
+
+  cvc::g_mxm_mxm_2pt_num++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] mxb_mxb_2pt no. %d set to %s\n", cvc::g_mxm_mxm_2pt_num, yytext);
+}
+
+<FERMION_TYPE>{FILENAME} {
+  if(strcmp(yytext, "TwistedMass")==0) {
+    cvc::g_fermion_type = _TM_FERMION;
+  } else if (strcmp(yytext, "Wilson")==0 ) {
+    cvc::g_fermion_type = _WILSON_FERMION;
+  } else if (strcmp(yytext, "DomainWall")==0 ) {
+    cvc::g_fermion_type = _DW_FERMION;
+  }
+  if(cvc::myverbose!=0) printf("# [read_input_parser] fermion type set to %d\n", cvc::g_fermion_type);
+}
 
 
 

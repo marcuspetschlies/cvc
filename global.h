@@ -60,6 +60,7 @@
 
 /* #define _GWI(_ix,_mu,_N) (2*((_N)*(_ix)+(_mu))) */
 #define _GWI(_ix,_mu,_N) (2 * ( 16 * (_mu) + (_ix) ) )
+#define _GCI(_x,_k,_N) ( 2*( (_N) * (_x) + (_k) ) )
 
 #define _G5DI(_is,_ix) ((_is)*VOLUME+(_ix))
 
@@ -80,6 +81,7 @@
 #define _ONE_OVER_SQRT2 (0.707106781186548)
 
 #define MAX_M_M_2PT_NUM 16
+#define MAX_MXB_MXB_2PT_NUM 16
 
 namespace cvc {
 
@@ -225,10 +227,12 @@ EXTERN tmLQCD_deflator_params g_tmLQCD_defl;
 
 EXTERN m_m_2pt_type g_m_m_2pt_list[MAX_M_M_2PT_NUM];
 EXTERN int g_m_m_2pt_num;
+EXTERN mxb_mxb_2pt_type g_mxb_mxb_2pt_list[MAX_MXB_MXB_2PT_NUM];
+EXTERN int g_mxb_mxb_2pt_num;
 
 EXTERN double **g_clover, **g_mzz_up, **g_mzz_dn, **g_mzzinv_up, **g_mzzinv_dn;
 
-
+EXTERN int g_fermion_type;
 
 }
 

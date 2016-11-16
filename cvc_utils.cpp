@@ -4361,13 +4361,21 @@ void printf_fp(fermion_propagator_type f, char*name, FILE*ofs) {
 void printf_sp(spinor_propagator_type f, char*name, FILE*ofs) {
   int i,j;
   FILE *my_ofs = ofs==NULL ? stdout : ofs;
-  fprintf(my_ofs, "# [] spinor propagator point:\n");
-  fprintf(my_ofs, "%s <- array(0, dim=c(%d, %d))\n", name, g_sv_dim, g_sv_dim);
-  for(i=0;i<g_sv_dim;i++) {
-  for(j=0;j<g_sv_dim;j++) {
-    // fprintf(my_ofs, "\t%s[%2d,%2d] <- %25.16e + %25.16e*1.i\n", name, i+1,j+1,f[i][2*j], f[i][2*j+1]);
-    fprintf(my_ofs, "\t%s[%2d,%2d] <- %25.16e + %25.16e*1.i\n", name, i+1,j+1,f[j][2*i], f[j][2*i+1]);
-  }}
+  if(name[0] =='#') {
+    fprintf(my_ofs, "%s\n", name);
+    for(i=0;i<g_sv_dim;i++) {
+    for(j=0;j<g_sv_dim;j++) {
+      fprintf(my_ofs, "\t%3d%3d%25.16e%25.16e\n", i, j, f[j][2*i], f[j][2*i+1]);
+    }}
+  } else {
+    fprintf(my_ofs, "# [printf_sp] spinor propagator point:\n");
+    fprintf(my_ofs, "%s <- array(0, dim=c(%d, %d))\n", name, g_sv_dim, g_sv_dim);
+    for(i=0;i<g_sv_dim;i++) {
+    for(j=0;j<g_sv_dim;j++) {
+      // fprintf(my_ofs, "\t%s[%2d,%2d] <- %25.16e + %25.16e*1.i\n", name, i+1,j+1,f[i][2*j], f[i][2*j+1]);
+      fprintf(my_ofs, "\t%s[%2d,%2d] <- %25.16e + %25.16e*1.i\n", name, i+1,j+1,f[j][2*i], f[j][2*i+1]);
+    }}
+  }
 }
 
 /*****************************************************
@@ -5254,5 +5262,32 @@ void spinor_field_eq_gamma_ti_spinor_field(double*r, int gid, double*s, unsigned
 #endif
   }
 }  /* end of spinor_field_eq_gamma_ti_spinor_field */
+
+void g5_phi(double *phi, unsigned int N) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel shared(phi, N)
+{
+#endif
+  int ix;
+  double spinor1[24];
+  double *phi_;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(ix = 0; ix < N; ix++) {
+    phi_ = phi + _GSI(ix);
+    /*
+    _fv_eq_gamma_ti_fv(spinor1, 5, phi_);
+    _fv_eq_fv(phi_, spinor1);
+     */
+    _fv_ti_eq_g5(phi_);
+  }
+
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+}  /* end of g5_phi */
+
 
 }  /* end of namespace cvc */

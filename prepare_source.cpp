@@ -343,4 +343,236 @@ int check_vvdagger_locality (double** V, int numV, int gcoords[4], char*tag, dou
 }  /* check_vvdagger_locality */
 
 
+
+/*********************************************************
+ * out: s_even, s_odd, even and odd part of source field
+ * in: source_coords, global source coordinates
+ *     have_source == 1 if process has source, otherwise 0
+ *     work0, work1,... auxilliary eo work fields
+ *
+ * s_even and s_odd do not need to have halo sites
+ * work0 should have halo sites
+ *********************************************************/
+int init_clover_eo_spincolor_pointsource_propagator(double *s_even, double *s_odd, int global_source_coords[4], int isc, double*mzzinv, int have_source, double *work0) {
+ 
+  unsigned int Vhalf = VOLUME/2;
+
+  int local_source_coords[4] = { global_source_coords[0]%T, global_source_coords[1]%LX, global_source_coords[2]%LY, global_source_coords[3]%LZ };
+
+  int source_location_iseven =  ( global_source_coords[0] + global_source_coords[1] + global_source_coords[2] + global_source_coords[3] ) % 2 == 0;
+
+  unsigned int eo_source_location = g_lexic2eosub[ g_ipt[local_source_coords[0]][local_source_coords[1]][local_source_coords[2]][local_source_coords[3]] ];
+
+  double spinor1[24];
+  size_t bytes = 24*Vhalf*sizeof(double);
+
+  /* all procs: initialize to zero */
+  memset(s_even, 0, bytes);
+  memset(s_odd,  0, bytes);
+
+  /* source node: set source */
+
+  if(source_location_iseven) {
+    if(have_source) fprintf(stdout, "# [init_eo_spincolor_pointsource_propagator] even source location\n");
+
+    /* source proces set point source */
+    memset(work0,  0, bytes);
+    if(have_source) {
+      work0[_GSI(eo_source_location) + 2*isc] = 1.0;
+    }
+    /* even component */
+    /* xi_e = M^-1 eta_e */
+    M_clover_zz_inv_matrix (s_even, work0, mzzinv);
+
+
+    /* odd component */
+    /* xi_o = g5 X_oe M^-1 eta_e */
+    memcpy(work0, s_even, bytes);
+    xchange_eo_field(work0, 0);
+    Hopping_eo(s_odd, work0, g_gauge_field, 1);
+    g5_phi(s_odd, Vhalf);
+    spinor_field_ti_eq_re(s_odd, -1., Vhalf);
+  } else {
+    if(have_source) fprintf(stdout, "# [init_eo_spincolor_pointsource_propagator] odd source location\n");
+    if(have_source) {
+      memset(spinor1, 0, 24*sizeof(double));
+      spinor1[2*isc] = 1.0;
+      _fv_eq_gamma_ti_fv( s_odd+_GSI( eo_source_location ), 5, spinor1 );
+    }
+  }
+
+  return(0);
+}  /* end of prepare_clover_eo_spincolor_point_source */
+
+
+/*********************************************************
+ * finalize inversion (1 & X \\ 0 & 1) acting on C^-1 xi_o
+ *
+ * p_even, p_odd, r_even, r_odd do not need halo sites
+ * work0 needs halo sites
+ * p_even and r_even can be same memory region
+ * p_odd  and r_odd  can be same memory region
+ *********************************************************/
+int fini_clover_eo_propagator(double *p_even, double *p_odd, double *r_even, double *r_odd , double*mzzinv, double *work0) {
+ 
+  const unsigned int Vhalf = VOLUME/2;
+  const size_t bytes = 24*Vhalf*sizeof(double);
+
+  /* work0 <- r_odd */
+  memcpy( work0, r_odd, bytes);
+  /* account for missing 1/2k in C / Cbar */
+  /* work0 <- work0 x 2kappa = r_odd x 2kappa */
+  spinor_field_ti_eq_re (work0, 2.*g_kappa, Vhalf);
+  /* p_odd <- X_eo work0 = X_eo 2kappa r_odd; p_odd auxilliary field */
+  X_clover_eo (p_odd, work0, g_gauge_field, mzzinv);
+
+  /* p_even <- p_odd + r_even = r_even + X_eo 2kappa r_odd */
+  spinor_field_eq_spinor_field_pl_spinor_field(p_even, p_odd, r_even, Vhalf);
+  /* p_odd <- work0 = 2kappa r_odd */
+  memcpy(p_odd, work0, bytes);
+
+  return(0);
+}  /* end of fini_clover_eo_propagator */
+
+/***************************************************************************************************
+ * prepare sequential source from propagator
+ *
+ * safe, if s_even = p_even or s_odd = p_odd
+ ***************************************************************************************************/
+int init_clover_eo_sequential_source(double *s_even, double *s_odd, double *p_even, double *p_odd, int tseq, double*mzzinv, int pseq[3], int gseq, double *work0) {
+  const unsigned int Vhalf = VOLUME/2;
+  const unsigned int VOL3half = LX*LY*LZ/2;
+  const int tloc = tseq % T;
+  const size_t sizeof_eo_spinor_field = 24 * Vhalf * sizeof(double);
+  const double MPI2 = 2. * M_PI;
+
+  const double  q[3] = {MPI2 * pseq[0] / LX_global, MPI2 * pseq[1] / LY_global, MPI2 * pseq[2] / LZ_global};
+  const double  q_offset = q[0] * g_proc_coords[1] * LX + q[1] * g_proc_coords[2] * LY + q[2] * g_proc_coords[3] * LZ;
+
+  const size_t offset = _GSI(VOL3half);
+  const size_t bytes  = offset * sizeof(double);
+
+  int i, exitstatus, x0, x1, x2, x3;
+  unsigned int ix;
+  int source_proc_id = 0;
+  double q_phase;
+  double *s_=NULL, *p_=NULL, spinor1[24], spinor2[24];
+  complex w;
+
+#ifdef HAVE_MPI
+  /* have seq source timeslice ? */
+  i = tseq / T;
+  exitstatus = MPI_Cart_rank(g_tr_comm, &i, &source_proc_id);
+  if(exitstatus !=  MPI_SUCCESS ) {
+    fprintf(stderr, "[init_eo_sequential_source] Error from MPI_Cart_rank, status was %d\n", exitstatus);
+    EXIT(9);
+  }
+  if(g_tr_id == source_proc_id) fprintf(stdout, "# [init_eo_sequential_source] proc %d / %d = (%d,%d,%d,%d) has t sequential %2d / %2d\n", g_cart_id, g_tr_id,
+     g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3], tseq, tloc);
+#endif
+
+  if(g_tr_id == source_proc_id) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for private(x1,x2,x3,ix,q_phase,w,spinor1,spinor2,s_,p_)
+#endif
+    for(x1=0; x1<LX; x1++) {
+    for(x2=0; x2<LY; x2++) {
+    for(x3=0; x3<LZ; x3++) {
+      ix  = g_ipt[tloc][x1][x2][x3];
+      q_phase = q[0] * x1 + q[1] * x2 + q[2] * x3 + q_offset;
+      w.re = cos(q_phase);
+      w.im = sin(q_phase);
+      if(g_iseven[ix]) {
+        s_ = s_even + _GSI(g_lexic2eosub[ix]);
+        p_ = p_even + _GSI(g_lexic2eosub[ix]);
+      } else {
+        s_ = s_odd + _GSI(g_lexic2eosub[ix]);
+        p_ = p_odd + _GSI(g_lexic2eosub[ix]);
+      }
+      _fv_eq_fv_ti_co(spinor1, p_, &w);
+      _fv_eq_gamma_ti_fv(spinor2, gseq, spinor1);
+      // _fv_eq_fv(s_, spinor2);
+      _fv_eq_gamma_ti_fv(s_, 5, spinor2);
+    }}}
+    for(i=1; i<T; i++) {
+      x0 = (tloc + i) % T;
+      memset(s_even+x0*offset, 0, bytes);
+      memset(s_odd +x0*offset, 0, bytes);
+    }
+  } else {
+    // printf("# [] process %d setting source to zero\n", g_cart_id);
+    memset(s_even, 0, sizeof_eo_spinor_field);
+    memset(s_odd,  0, sizeof_eo_spinor_field);
+  }
+
+  Q_clover_eo_SchurDecomp_Ainv (s_even, s_odd, s_even, s_odd, g_gauge_field, mzzinv, work0);
+
+  return(0);
+}  /* end of init_clover_eo_sequential_source */
+
+
+/*************************************************************************
+ * prepare a sequential source
+ *************************************************************************/
+int init_sequential_source(double *s, double *p, int tseq, int pseq[3], int gseq) {
+
+  const double px = 2. * M_PI * pseq[0] / (double)LX_global;
+  const double py = 2. * M_PI * pseq[1] / (double)LY_global;
+  const double pz = 2. * M_PI * pseq[2] / (double)LZ_global;
+  const double phase_offset =  g_proc_coords[1]*LX * px + g_proc_coords[2]*LY * py + g_proc_coords[3]*LZ * pz;
+
+  int have_source=0, lts=-1;
+
+  if(s == NULL || p == NULL) {
+    fprintf(stderr, "[init_sequential_source] Error, field is null\n");
+    return(1);
+  }
+
+  /* (0) which processes have source? */
+#if ( (defined PARALLELTX) || (defined PARALLELTXY) ) && (defined HAVE_QUDA)
+  if(g_proc_coords[3] == tseq / T ) {
+#else
+  if(g_proc_coords[0] == tseq / T ) {
+#endif
+    have_source = 1;
+    lts = tseq % T;
+  } else {
+    have_source = 0;
+    lts = -1;
+  }
+  if(have_source) fprintf(stdout, "# [init_sequential_source] process %d has source\n", g_cart_id);
+
+  /* (1) multiply with phase and Gamma structure */
+  if(have_source) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+    double spinor1[24], phase;
+    unsigned int ix;
+    int x1, x2, x3;
+    complex w;
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(x1=0;x1<LX;x1++) {
+    for(x2=0;x2<LY;x2++) {
+    for(x3=0;x3<LZ;x3++) {
+      ix = _GSI(g_ipt[lts][x1][x2][x3]);
+      phase = phase_offset + x1 * px + x2 * py + x3 * pz;
+      w.re =  cos(phase);
+      w.im =  sin(phase);
+      _fv_eq_gamma_ti_fv(spinor1, gseq, p + ix);
+      _fv_eq_fv_ti_co(p + ix, spinor1, &w);
+    }}}
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+  }  /* of if have_source */
+
+  return(0);
+}  /* end of function init_sequential_source */
+
+
 }  /* end of namespace cvc */

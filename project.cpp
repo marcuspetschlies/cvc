@@ -25,6 +25,7 @@
 #include "mpi_init.h"
 #include "Q_phi.h"
 #include "Q_clover_phi.h"
+#include "matrix_init.h"
 #include "project.h"
 
 namespace cvc {
@@ -362,5 +363,166 @@ int project_expand_to_propagator_field(double *s, double *p, double *V, int num1
 
   return(0);
 }  /* end of project_expand_to_propagator_field */
+
+
+/**************************************************************************************************************
+ * V     is nv              x VOL3 (C) = VOL3 x nv (F)
+ * phase is momentum_number x VOL3 (C) = VOL3 x momentum_number (F)
+ *
+ * zgemm calculates t(V) x phase, which is  nv x momentum_number (F) = momentum_number x nv (C)
+ **************************************************************************************************************/
+int momentum_projection (double*V, double *W, unsigned int nv, int momentum_number, int (*momentum_list)[3]) {
+
+  const double MPI2 = M_PI * 2.;
+  const unsigned int VOL3 = LX*LY*LZ;
+
+  int x1, x2, x3;
+  unsigned int i, ix;
+  double _Complex **zphase = NULL;
+  double q[3], q_offset=0, q_phase = 0.;;
+
+  char BLAS_TRANSA, BLAS_TRANSB;
+  int BLAS_M, BLAS_K, BLAS_N, BLAS_LDA, BLAS_LDB, BLAS_LDC;
+  double _Complex *BLAS_A = NULL, *BLAS_B = NULL, *BLAS_C = NULL;
+  double _Complex BLAS_ALPHA = 1.;
+  double _Complex BLAS_BETA  = 0.;
+
+  init_2level_buffer( (double***)(&zphase), momentum_number, 2*VOL3 );
+
+  for(i=0; i < momentum_number; i++) {
+    /* phase field */
+    q[0] = MPI2 * g_sink_momentum_list[i][0] / LX_global;
+    q[1] = MPI2 * g_sink_momentum_list[i][1] / LY_global;
+    q[2] = MPI2 * g_sink_momentum_list[i][2] / LZ_global;
+    q_offset = g_proc_coords[1]*LX * q[0] + g_proc_coords[2]*LY * q[1] + g_proc_coords[3]*LZ * q[2];
+#ifdef HAVE_OPENMP
+#pragma omp parallel for default(shared)
+#endif
+    for(x1=0; x1<LX; x1++) {
+    for(x2=0; x2<LY; x2++) {
+    for(x3=0; x3<LZ; x3++) {
+      ix = g_ipt[0][x1][x2][x3];
+      q_phase = x1*q[0] + x2*q[1] + x3*q[2] + q_offset;
+      zphase[i][ix] = cos(q_phase) - I*sin(q_phase);
+    }}}
+  }
+
+  BLAS_TRANSA = 'T';
+  BLAS_TRANSB = 'N';
+  BLAS_M     = nv;
+  BLAS_K     = VOL3;
+  BLAS_N     = momentum_number;
+  BLAS_A     = (double _Complex*)V;
+  BLAS_B     = zphase[0];
+  BLAS_C     = (double _Complex*)W;
+  BLAS_LDA   = BLAS_K;
+  BLAS_LDB   = BLAS_K;
+  BLAS_LDC   = BLAS_M;
+
+  _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+
+  fini_2level_buffer((double***)(&zphase));
+
+#ifdef HAVE_MPI
+  i = 2 * nv * momentum_number;
+  void *buffer = malloc(i * sizeof(double));
+  if(buffer == NULL) {
+    return(1);
+  }
+  memcpy(buffer, W, i*sizeof(double));
+  int status = MPI_Allreduce(buffer, (void*)W, i, MPI_DOUBLE, MPI_SUM, g_ts_comm);
+  if(status != MPI_SUCCESS) {
+    fprintf(stderr, "[momentum_projection] Error from MPI_Allreduce, status was %d\n", status);
+    return(2);
+  }
+  free(buffer);
+#endif
+
+  return(0);
+}  /* end of momentum_projection */
+
+/**************************************************************************************************************
+ * V     is VOL3            x nv   (C) = nv   x VOL3            (F)
+ * phase is momentum_number x VOL3 (C) = VOL3 x momentum_number (F)
+ *
+ * zgemm calculates V x phase, which is  nv x momentum_number (F) = momentum_number x nv (C)
+ **************************************************************************************************************/
+int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_number, int (*momentum_list)[3], int gshift[3]) {
+
+  const double MPI2 = M_PI * 2.;
+  const unsigned int VOL3 = LX*LY*LZ;
+
+  int x1, x2, x3;
+  unsigned int i, ix;
+  double _Complex **zphase = NULL;
+  double q[3], q_offset=0, q_phase = 0.;;
+
+  char BLAS_TRANSA, BLAS_TRANSB;
+  int BLAS_M, BLAS_K, BLAS_N, BLAS_LDA, BLAS_LDB, BLAS_LDC;
+  int shift[3];
+  double _Complex *BLAS_A = NULL, *BLAS_B = NULL, *BLAS_C = NULL;
+  double _Complex BLAS_ALPHA = 1.;
+  double _Complex BLAS_BETA  = 0.;
+
+  if(gshift == NULL) {
+    memset( shift, 0, 3*sizeof(int) );
+  } else {
+    memcpy( shift, gshift, 3*sizeof(int) );
+  }
+  if(g_cart_id == 0) fprintf(stdout, "# [momentum_projection2] using shift vector (%d, %d, %d)\n", shift[0], shift[1], shift[2]);
+
+  init_2level_buffer( (double***)(&zphase), momentum_number, 2*VOL3 );
+
+  for(i=0; i < momentum_number; i++) {
+    /* phase field */
+    q[0] = MPI2 * g_sink_momentum_list[i][0] / LX_global;
+    q[1] = MPI2 * g_sink_momentum_list[i][1] / LY_global;
+    q[2] = MPI2 * g_sink_momentum_list[i][2] / LZ_global;
+    q_offset = ( g_proc_coords[1]*LX - shift[0] ) * q[0] + ( g_proc_coords[2]*LY - shift[1] ) * q[1] + ( g_proc_coords[3]*LZ - shift[2] ) * q[2];
+#ifdef HAVE_OPENMP
+#pragma omp parallel for default(shared)
+#endif
+    for(x1=0; x1<LX; x1++) {
+    for(x2=0; x2<LY; x2++) {
+    for(x3=0; x3<LZ; x3++) {
+      ix = g_ipt[0][x1][x2][x3];
+      q_phase = x1*q[0] + x2*q[1] + x3*q[2] + q_offset;
+      zphase[i][ix] = cos(q_phase) - I*sin(q_phase);
+    }}}
+  }
+
+  BLAS_TRANSA = 'N';
+  BLAS_TRANSB = 'N';
+  BLAS_M     = nv;
+  BLAS_K     = VOL3;
+  BLAS_N     = momentum_number;
+  BLAS_A     = (double _Complex*)V;
+  BLAS_B     = zphase[0];
+  BLAS_C     = (double _Complex*)W;
+  BLAS_LDA   = BLAS_M;
+  BLAS_LDB   = BLAS_K;
+  BLAS_LDC   = BLAS_M;
+
+  _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+
+  fini_2level_buffer((double***)(&zphase));
+
+#ifdef HAVE_MPI
+  i = 2 * nv * momentum_number;
+  void *buffer = malloc(i * sizeof(double));
+  if(buffer == NULL) {
+    return(1);
+  }
+  memcpy(buffer, W, i*sizeof(double));
+  int status = MPI_Allreduce(buffer, (void*)W, i, MPI_DOUBLE, MPI_SUM, g_ts_comm);
+  if(status != MPI_SUCCESS) {
+    fprintf(stderr, "[momentum_projection] Error from MPI_Allreduce, status was %d\n", status);
+    return(2);
+  }
+  free(buffer);
+#endif
+
+  return(0);
+}  /* end of momentum_projection */
 
 }  /* end of namespace cvc */

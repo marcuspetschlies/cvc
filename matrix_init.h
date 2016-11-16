@@ -26,6 +26,14 @@ int init_3level_buffer (double****buffer, unsigned int n1, unsigned int n2, unsi
 
 int fini_3level_buffer (double****buffer);
 
+/************************************************************************************
+ * (de-)allocate 4-level buffer (n1 x n2 x n3 x n4 matrix)
+ ************************************************************************************/
+
+int init_4level_buffer (double*****buffer, unsigned int n1, unsigned int n2, unsigned int n3, unsigned int n4);
+
+int fini_4level_buffer (double*****buffer);
+
 }  /* end of namespace cvc */
 
 #endif

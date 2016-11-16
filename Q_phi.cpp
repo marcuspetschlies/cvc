@@ -345,7 +345,8 @@ void Q_phi_tbc(double *xi, double *phi) {
 }  // end of parallel region
 }
 #endif  /* of ifndef HAVE_OPENMP */
-
+#if 0
+/* this has been moved to cvc_utils.cpp
 void g5_phi(double *phi, unsigned int N) {
 #ifdef HAVE_OPENMP
 #pragma omp parallel shared(phi, N)
@@ -371,6 +372,7 @@ void g5_phi(double *phi, unsigned int N) {
 }  /* end of parallel region */
 #endif
 }  /* end of g5_phi */
+#endif
 
 /**********************************************************************
  * Hopping 

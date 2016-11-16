@@ -19,5 +19,10 @@ void C_clover_oo (double*s, double*r, double *gauge_field, double *s_aux, double
 void X_clover_eo (double *even, double *odd, double *gauge_field, double*mzzinv);
 void C_clover_from_Xeo (double *t, double *s, double *r, double *gauge_field, double*mzz);
 
+void Q_clover_eo_SchurDecomp_A    (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double *mzz,   double *aux);
+void Q_clover_eo_SchurDecomp_Ainv (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double*mzzinv, double *aux);
+void Q_clover_eo_SchurDecomp_B    (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double*mzz,    double*mzzinv, double *aux);
+void Q_clover_eo_SchurDecomp_Binv (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double*mzzinv, double *aux);
+
 }  /* end of namespace cvc */
 #endif

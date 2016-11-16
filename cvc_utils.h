@@ -114,6 +114,12 @@ void spinor_field_ti_eq_re (double *r, double c, unsigned int N);
 void spinor_field_pl_eq_spinor_field(double*r, double*s, unsigned int N);
 
 void spinor_field_norm_diff (double*d, double *r, double *s, unsigned int N);
+void g5_phi(double *phi, unsigned int N);
+
+spinor_propagator_type *create_sp_field(size_t N);
+fermion_propagator_type *create_fp_field(size_t N);
+
+
 }  /* end of namespace cvc */
 #endif
 

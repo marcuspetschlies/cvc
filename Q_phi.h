@@ -52,9 +52,6 @@ void Q_Wilson_phi_nobc(double *xi, double *phi);
 void Q_Wilson_phi_threads(double *xi, double *phi);
 #endif
 
-void g5_phi(double *phi, unsigned int N);
-
-
 /* functions for DWF */
 void Q_DW_Wilson_4d_phi(double *xi, double *phi);
 void Q_DW_Wilson_dag_4d_phi(double *xi, double *phi);

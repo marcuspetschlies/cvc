@@ -15,6 +15,17 @@ typedef struct {
 } m_m_2pt_type;
 
 typedef struct {
+  int gi1;
+  int gi2;
+  int gf1;
+  int gf2;
+  int pi1[3];
+  int pi2[3];
+  int pf1[3];
+  int pf2[3];
+} mxb_mxb_2pt_type;
+
+typedef struct {
   double *****v;
   double *ptr;
   int np;

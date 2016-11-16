@@ -15,7 +15,7 @@
 #include <math.h>
 #include <time.h>
 #include <getopt.h>
-#ifdef MPI
+#ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
 #ifdef HAVE_OPENMP
@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
   size_t items, bytes;
   complex w, w1, w2;
 
-#ifdef MPI
+#ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
@@ -371,7 +371,7 @@ int main(int argc, char **argv) {
   fflush(stderr);
 
 
-#ifdef MPI
+#ifdef HAVE_MPI
   MPI_Finalize();
 #endif
   return(0);

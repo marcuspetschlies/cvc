@@ -731,8 +731,6 @@ void M_clover_zz_inv_matrix (double*s, double*r, double *mzzinv) {
   const int vincr      = _GVI(1);
   const double two_kappa = 2.*g_kappa;
 
-
-
 #ifdef HAVE_OPENMP
 #pragma omp parallel shared(r,s,mzzinv)
 {
@@ -791,94 +789,83 @@ void M_clover_zz_inv_matrix (double*s, double*r, double *mzzinv) {
 }  /* end of parallel region */
 #endif
 
-}  /* end of M_clover_zz_inv */
+}  /* end of M_clover_zz_inv_matrix */
 
 
 /***********************************************************
  * s = C_oo r
- *   input: r (remains unchanged), gauge_field, mass
- *   output: s (changed)
- *   work space: s_aux (changed)
+ *   in    : r (remains unchanged), gauge_field, mass
+ *   out   : s (changed)
+ *   in/out: space: s_aux (changed)
+ *   r, s do not need halo
+ *   s_aux MUST HAVE halo
+ *   s MUST NOT be ne same memory region as r
  ***********************************************************/
 void C_clover_oo (double*s, double*r, double *gauge_field, double *s_aux, double*mzz, double*mzzinv) {
 
-  const int nthreads = g_num_threads;
   const unsigned int N = VOLUME / 2;
+  const size_t sizeof_field = _GSI(N) * sizeof(double);
 
-  unsigned int ix;
-  double *s_ = NULL, *s_aux_ = NULL;
-  double sp1[24];
-  int threadid=0;
+  if(s == r ) {
+    fprintf(stderr, "[C_clover_oo] Error, in and out pointer coincide\n");
+    EXIT(1);
+  }
 
-  /* s_aux = M_oe M_ee^-1 M_eo r */
-  xchange_eo_field(r, 1);
-  Hopping_eo(s_aux, r, gauge_field, 0);
-  M_clover_zz_inv_matrix(s, s_aux, mzzinv);
+  /* s_aux = r */
+  memcpy(s_aux, r, sizeof_field);
+  /* exchange odd s_aux */
+  xchange_eo_field(s_aux, 1);
+  /* s = M_eo s_aux */
+  Hopping_eo(s, s_aux, gauge_field, 0);
+  /* s = M_ee^-1 M_eo s_aux */
+  M_clover_zz_inv_matrix(s, s, mzzinv);
 
+  /* s_aux = s */
+  memcpy(s_aux, s, sizeof_field);
+  /* exchange EVEN s_aux */
+  xchange_eo_field(s_aux, 0);
+  /* s = M_oe s_aux = M_oe M_ee^-1 M_eo r */
+  Hopping_eo(s, s_aux, gauge_field, 1);
 
-  /* xchange before next application of M_oe */
-  /* NOTE: s exchanged as even field */
-  xchange_eo_field(s, 0);
-  Hopping_eo(s_aux, s, gauge_field, 1);
+  /* s_aux = M_oo r */
+  M_clover_zz_matrix(s_aux, r, mzz);
 
-  /* s = M_oo r */
-  M_clover_zz_matrix(s, r, mzz);
+  /* s = s_aux - s = M_oo r - M_oe M_ee^-1 M_eo r */
+  spinor_field_eq_spinor_field_mi_spinor_field(s, s_aux, s, N);
+  /* s = g5 s */
+  g5_phi(s, N);
  
-#ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(ix,threadid,sp1,s_,s_aux_) shared(s,s_aux)
-{
-  threadid = omp_get_thread_num();
-#endif
-  for(ix = threadid; ix < N; ix+=nthreads) {
-    s_ = s + _GSI(ix);
-    s_aux_ = s_aux + _GSI(ix);
-    
-    /* sp1 = s - s_aux = ( M_oo - M_oe M_ee^-1 M_eo ) r */
-    _fv_eq_fv_mi_fv(sp1, s_, s_aux_);
-
-    /* s = g5 sp1 */
-    _fv_eq_gamma_ti_fv(s_, 5, sp1);
-
-  }  /* end of  */
-#ifdef HAVE_OPENMP
-}  /* end of parallel region */
-#endif
-
 }  /* end of C_clover_oo */
 
 /********************************************************************
  * X_eo    = -M_ee^-1 M_eo,    mu > 0
  * Xbar_eo = -Mbar_ee^-1 M_eo, mu < 0
  * the input field is always odd, the output field is always even
+ *
+ * even does not need halo sites
+ * odd MUST HAVE halo sites
+ * even MUST NOT be same memory region as odd
  ********************************************************************/
 void X_clover_eo (double *even, double *odd, double *gauge_field, double*mzzinv) {
 
-  const int nthreads = g_num_threads;
   const unsigned int N = VOLUME/2;
 
   unsigned int ix;
   double *ptr, sp[24];
-  int threadid = 0;
 
-  /* M_eo */
+  if(even == odd ) {
+    fprintf(stderr, "[X_clover_eo] Error, in and out pointer coincide\n");
+    EXIT(1);
+  }
+
+  /* exchange ODD field odd */
   xchange_eo_field(odd, 1);
+  /* even = M_eo odd */
   Hopping_eo(even, odd, gauge_field, 0);
-  /* M_ee^-1 */
+  /* even = M_ee^-1 even = M_ee^-1 M_eo odd */
   M_clover_zz_inv_matrix (even, even, mzzinv);
-
-#ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(ix,threadid,ptr,sp) shared(even)
-{
-  threadid = omp_get_thread_num();
-#endif
-  /* x -2 kappa */
-  for(ix = threadid; ix < N; ix+=nthreads) {
-    ptr = even + _GSI(ix);
-    _fv_ti_eq_re(ptr, -1.);
-  }  /* end of loop in ix */
-#ifdef HAVE_OPENMP
-}  /* end of parallel region */
-#endif
+  /* even *= -1 */
+  spinor_field_ti_eq_re(even, -1., N);
 }  /* end of X_clover_eo */
 
 
@@ -886,42 +873,188 @@ void X_clover_eo (double *even, double *odd, double *gauge_field, double*mzzinv)
  * C_with_Xeo
  * - apply C = g5 ( M_oo + M_oe X_eo )
  *
- * output t
- * input s = X_eo v
- *       t = v
- *       r = auxilliary
- * NOTE: input spinor field t is modified
+ * out t
+ * in     s = X_eo v, unchanged
+ * in/out t = v, modified
+ *        r = auxilliary, modified
+ * 
+ * t does not need halo
+ * s MUST HAVE halo
  ********************************************************************/
 void C_clover_from_Xeo (double *t, double *s, double *r, double *gauge_field, double*mzz) {
 
-  const int nthreads = g_num_threads;
   const unsigned int N = VOLUME / 2;
+  const size_t sizeof_field = _GSI(N) * sizeof(double);
 
-  unsigned int ix, iix;
-  int threadid = 0;
-
+  /* exchange even field s */
   xchange_eo_field(s, 0);
   /* r = M_oe s = M_oe X_eo t  */
   Hopping_eo(r, s, gauge_field, 1);
-
   /* t = M_zz t */
   M_clover_zz_matrix (t, t, mzz);
+  /* t = t + r = M_oo^-1 t + M_oe X_eo t*/
+  spinor_field_pl_eq_spinor_field (t,r,N);
+  /* t = g5 t */
+  g5_phi(t,N);
 
-  /* t <- g5 ( t + r ) = g5 ( M_oo t + M_oe X_eo t )*/
+}  /* C_clover_from_Xeo */
+
+/********************************************************************
+ * ( g5 M_ee & 0 )
+ * ( g5 M_oe & 1 )
+ *
+ * safe, if e_new = e_old or o_new = o_old
+ * e/o_new/old do not need halo
+ * aux MUST HAVE halo
+ ********************************************************************/
+void Q_clover_eo_SchurDecomp_A (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double *mzz, double *aux) {
+
+  const unsigned int N = VOLUME / 2;
+  const size_t  sizeof_field = _GSI(N) * sizeof(double);
+
+  /* aux <- e_old */
+  memcpy(aux, e_old, sizeof_field);
+  /* exchange even field aux */
+  xchange_eo_field(aux, 0);
+  /* o_new = M_oe aux = M_oe e_old */
+  Hopping_eo(e_new, aux, gauge_field, 1);
+  /* e_new = g5 e_new = g5 M_oe e_old */
+  spinor_field_eq_gamma_ti_spinor_field(e_new, 5, e_new, N);
+  /* o_new = o_old + e_new = o_old + g5 M_oe e_old */
+  spinor_field_eq_spinor_field_pl_spinor_field(o_new, o_old, e_new, N);
+  /* e_new = M_zz aux = M_zz e_old */
+  M_clover_zz_matrix (e_new, aux, mzz);
+  /* e_new = g5 aux */
+  spinor_field_eq_gamma_ti_spinor_field(e_new, 5, e_new, N);
+
+}  /* end of Q_clover_eo_SchurDecomp_A */
+
+
+
+/********************************************************************
+ * apply A^-1
+ *
+ * from Schur-decomposition Q = g5 A B g5 times the Dirac operator
+ *
+ * A^-1 =
+ *   ( M_ee^-1 g5         & 0 )
+ *   ( g5 M_oe M_ee^-1 g5 & 1 )
+ *
+ * safe, if e_new = e_old or o_new = o_old
+ *
+ * e/o_new/old do not need halo
+ * aux MUST HAVE halo
+ ********************************************************************/
+void Q_clover_eo_SchurDecomp_Ainv (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double*mzzinv, double *aux) {
+
+  const unsigned int N = VOLUME / 2;
+  const size_t sizeof_field = _GSI(N)*sizeof(double);
+
+  /* aux = g5 e_old */
+  spinor_field_eq_gamma_ti_spinor_field(aux, 5, e_old, N);
+
+  /* aux <- M_ee^-1 aux = M_ee^-1 g5 e_old */
+  M_clover_zz_inv_matrix (aux, aux, mzzinv);
+
+  /* exchange EVEN field aux */
+  xchange_eo_field(aux,0);
+
+  /* e_new = M_oe aux; e_new is auxilliary field here */
+  Hopping_eo(e_new, aux, gauge_field, 1);
+
 #ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(threadid,ix,iix) shared(r,t)
+#pragma omp parallel shared(o_new, o_old, e_new)
 {
-  threadid = omp_get_thread_num();
 #endif
-  for(ix = threadid; ix < N; ix += nthreads) {
+  unsigned int ix, iix;
+  double spinor1[24], *r_=NULL, *s_=NULL, *t_=NULL;
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(ix=0; ix<N; ix++) {
     iix = _GSI(ix);
-    _fv_pl_eq_fv(t+iix, r+iix);
-    _fv_ti_eq_g5 (t+iix);
+    r_ = o_new + iix;
+    s_ = e_new + iix;
+    t_ = o_old + iix;
+    /* sp1 = g5 s_ = g5 e_new = g5 M_oe M_ee^-1 g5 e_old */
+    _fv_eq_gamma_ti_fv(spinor1, 5, s_);
+    /* r_ = t_ - sp1 <=>  o_new = -g5 M_oe M_ee^-1 g5 e_old + o_old */
+    _fv_eq_fv_mi_fv(r_, t_, spinor1 );
   }
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */
 #endif
+  /* e_new = aux = M_ee^-1 e_old */
+  memcpy(e_new, aux, sizeof_field);
 
-}  /* C_clover_from_Xeo */
+}  /* end of Q_clover_SchurDecomp_Ainv */
+
+/********************************************************************
+ * apply B
+ *
+ * B =
+ *   ( 1 & M_ee^(-1) M_eo )
+ *   ( 0 &        C       )
+ ********************************************************************/
+void Q_clover_eo_SchurDecomp_B (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double*mzz, double*mzzinv, double *aux) {
+
+  const unsigned int N = VOLUME / 2;
+  const size_t sizeof_field = _GSI(N)*sizeof(double);
+
+  if(o_new == o_old ) {
+    fprintf(stderr, "[Q_clover_eo_SchurDecomp_B] Error, o_old = o_new\n");
+    EXIT(1);
+  }
+
+  /* aux = o_old */
+  memcpy(aux, o_old, sizeof_field);
+  /* exchange ODD field aux = o_old */
+  xchange_eo_field(aux,1);
+  /* o_new = M_eo o_old, o_new auxilliary field */
+  Hopping_eo(o_new, aux, gauge_field, 0);
+  /* o_new = M_ee^(-1) o_new */
+  M_clover_zz_inv_matrix(o_new, o_new, mzzinv);
+  /* e_new = e_old + o_new = e_old + M_ee^-1 M_eo o_old */
+  spinor_field_eq_spinor_field_pl_spinor_field(e_new, e_old, o_new, N);
+  /* o_new = C_oo o_old */
+  C_clover_oo (o_new, o_old, gauge_field, aux, mzz, mzzinv);
+
+}  /* end of Q_clover_eo_SchurDecomp_B */
+
+/********************************************************************
+ * apply B^-1
+ *
+ * from Schur-decomposition Q = g5 A B of g5 times the Dirac operator
+ *
+ * ( 1 & -M_ee^(-1) M_eo 2kappa )
+ * ( 0 &        2kappa          )
+ *
+ * safe, if e_new = e_old or o_new = o_old
+ * e/o_new/old do not need halo
+ * aux MUST HAVE halo
+ *
+ * NOTE: THIS IS B^-1 WITHOUT the C^-1 ! o_old is supposed to be some 
+ *   o_old = C^-1 psi
+ ********************************************************************/
+void Q_clover_eo_SchurDecomp_Binv (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double*mzzinv, double *aux) {
+
+  const double twokappa = 2. * g_kappa;
+  const unsigned int N = VOLUME / 2;
+  const size_t sizeof_field = _GSI(N) * sizeof(double);
+
+  spinor_field_eq_spinor_field_ti_re (aux, o_old, twokappa, N);
+
+  xchange_eo_field(aux, 1);
+  /* o_new = M_eo aux */
+  Hopping_eo(o_new, aux, gauge_field, 0);
+  /* o_new = M_ee^(-1) o_new */
+  M_clover_zz_inv_matrix(o_new, o_new, mzzinv);
+  /* e_new = e_old - o_new */
+  spinor_field_eq_spinor_field_pl_spinor_field_ti_re(e_new, e_old, o_new, -1, N);
+  /* o_new <- aux */
+  memcpy(o_new, aux, sizeof_field);
+
+}  /* end of Q_clover_eo_SchurDecomp_Binv */
+
 
 }  /* end of namespace cvc */
