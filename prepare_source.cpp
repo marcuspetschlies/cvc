@@ -221,14 +221,14 @@ int init_eo_sequential_source(double *s_even, double *s_odd, double *p_even, dou
  * numV number of eigenvectors
  *********************************************************************************************************/
 
-int check_vvdagger_locality (double** V, int numV, int gcoords[4], char*tag, double **sp) {
+int check_vvdagger_locality (double** V, int numV, int base_coords[4], char*tag, double **sp) {
 
   const unsigned int N = T*LX*LY*LZ / 2;
   const size_t sizeof_field = _GSI(N) * sizeof(double);
 
   unsigned int ix;
-  int i, k, ia, iproc;
-  int lcoords[4], source_proc_id=0, source_proc_coords[4];
+  int i, k, ia, iproc, isrc, ishift[4];
+  int gcoords[4], lcoords[4], source_proc_id=0, source_proc_coords[4];
   int exitstatus;
   double norm[12];
   complex w;
@@ -239,108 +239,131 @@ int check_vvdagger_locality (double** V, int numV, int gcoords[4], char*tag, dou
   double **buffer=NULL;
 
 
-  lcoords[0] = gcoords[0] % T;
-  lcoords[1] = gcoords[1] % LX;
-  lcoords[2] = gcoords[2] % LY;
-  lcoords[3] = gcoords[3] % LZ;
-#ifdef HAVE_MPI
-  source_proc_coords[0] = gcoords[0] / T;
-  source_proc_coords[1] = gcoords[1] / LX;
-  source_proc_coords[2] = gcoords[2] / LY;
-  source_proc_coords[3] = gcoords[3] / LZ;
-  exitstatus = MPI_Cart_rank(g_cart_grid, source_proc_coords, &source_proc_id);
-  if(exitstatus != MPI_SUCCESS) {
-    return(1);
-  }
-  if(source_proc_id == g_cart_id) {
-    printf("# [check_vvdagger_locality] process %d has the source\n", g_cart_id);
-  }
-#endif
+  for(isrc=0; isrc<16; isrc++)
+  {
+    ishift[0] =  isrc      / 8;
+    ishift[1] = (isrc % 8) / 4;
+    ishift[2] = (isrc % 4) / 2;
+    ishift[3] =  isrc % 2;
 
-  if(source_proc_id == g_cart_id) ix = g_lexic2eosub[g_ipt[lcoords[0]][lcoords[1]][lcoords[2]][lcoords[3]]];
-  for(ia=0; ia<12; ia++) {
-    memset(sp[ia], 0, sizeof_field);
+    gcoords[0] = ( base_coords[0] + ishift[0] * T_global /2 ) % T_global;
+    gcoords[1] = ( base_coords[1] + ishift[1] * LX_global/2 ) % LX_global;
+    gcoords[2] = ( base_coords[2] + ishift[2] * LY_global/2 ) % LY_global;
+    gcoords[3] = ( base_coords[3] + ishift[3] * LZ_global/2 ) % LZ_global;
+
+    if( ( gcoords[0] + gcoords[1] + gcoords[2] + gcoords[3]  )%2 == 0 ) {
+      if(g_cart_id == 0) fprintf(stderr, "[check_vvdagger_locality] Warning, (%d, %d, %d, %d) is an even location, change by 1 in z-direction\n", 
+            gcoords[0], gcoords[1], gcoords[2], gcoords[3]);
+      gcoords[3] = ( gcoords[3] + 1 ) % LZ_global;
+    }
+
+    lcoords[0] = gcoords[0] % T;
+    lcoords[1] = gcoords[1] % LX;
+    lcoords[2] = gcoords[2] % LY;
+    lcoords[3] = gcoords[3] % LZ;
+#ifdef HAVE_MPI
+    source_proc_coords[0] = gcoords[0] / T;
+    source_proc_coords[1] = gcoords[1] / LX;
+    source_proc_coords[2] = gcoords[2] / LY;
+    source_proc_coords[3] = gcoords[3] / LZ;
+    exitstatus = MPI_Cart_rank(g_cart_grid, source_proc_coords, &source_proc_id);
+    if(exitstatus != MPI_SUCCESS) {
+      return(1);
+    }
     if(source_proc_id == g_cart_id) {
-      sp[ia][_GSI(ix)+2*ia] = 1.;
+      printf("# [check_vvdagger_locality] process %d has the source\n", g_cart_id);
     }
-  }
-
-  exitstatus = project_propagator_field(sp[0], sp[0], 1, V[0], 12, numV, N);
-  if(exitstatus != 0) {
-    return(3);
-  }
-
-
-  for(ia=0; ia<12; ia++) {
-    if(g_cart_id == source_proc_id) {
-      ix = g_lexic2eosub[g_ipt[lcoords[0]][lcoords[1]][lcoords[2]][lcoords[3]]];
-      _co_eq_fv_dag_ti_fv(&w, sp[ia]+_GSI(ix), sp[ia]+_GSI(ix));
-      norm[ia] = w.re;
-    }
-  }
-#ifdef HAVE_MPI
-  exitstatus = MPI_Bcast(norm, 12, MPI_DOUBLE, source_proc_id, g_cart_grid);
-  if(exitstatus != MPI_SUCCESS) {
-    fprintf(stderr, "[check_vvdagger_locality] Error from MPI_Bcast, status was %d\n", exitstatus);
-  }
 #endif
 
-  for(ia=0; ia<12; ia++) {
+    if(source_proc_id == g_cart_id) {
+      ix = g_lexic2eosub[g_ipt[lcoords[0]][lcoords[1]][lcoords[2]][lcoords[3]]];
+    }
+    for(ia=0; ia<12; ia++) {
+      memset(sp[ia], 0, sizeof_field);
+      if(source_proc_id == g_cart_id) {
+        sp[ia][_GSI(ix)+2*ia] = 1.;
+      }
+    }
+
+    exitstatus = project_propagator_field(sp[0], sp[0], 1, V[0], 12, numV, N);
+    if(exitstatus != 0) {
+      return(3);
+    }
+
+    for(ia=0; ia<12; ia++) {
+      if(g_cart_id == source_proc_id) {
+        ix = g_lexic2eosub[g_ipt[lcoords[0]][lcoords[1]][lcoords[2]][lcoords[3]]];
+        _co_eq_fv_dag_ti_fv(&w, sp[ia]+_GSI(ix), sp[ia]+_GSI(ix));
+        norm[ia] = w.re;
+      }
+    }
+#ifdef HAVE_MPI
+    exitstatus = MPI_Bcast(norm, 12, MPI_DOUBLE, source_proc_id, g_cart_grid);
+    if(exitstatus != MPI_SUCCESS) {
+      fprintf(stderr, "[check_vvdagger_locality] Error from MPI_Bcast, status was %d\n", exitstatus);
+    }
+#endif
+
+    for(ia=0; ia<12; ia++) {
 #ifdef HAVE_OPENMP
 #pragma omp parallel for private(ix,w) shared(sp)
 #endif
-    for(ix=0; ix<N; ix++) {
-      _co_eq_fv_dag_ti_fv(&w, sp[ia]+_GSI(ix), sp[ia]+_GSI(ix) );
-      sp[0][_GSI(ix)+2*ia  ] = w.re;
-      sp[0][_GSI(ix)+2*ia+1] = w.im;
-    }
-  }
-
-  exitstatus = init_x_orbits_4d(&xid, &xid_count, &xid_val, &xid_nc, &xid_member, gcoords);
-  if(exitstatus != 0 ) {
-    fprintf(stderr, "[check_vvdagger_locality] Error from init_x_orbits_4d, status was %d\n", exitstatus);
-    return(4);
-  }
-  fprintf(stdout, "# [check_vvdagger_locality] proc%.4d number of classes = %u\n", g_cart_id, xid_nc);
-
-  init_2level_buffer(&buffer, 12, 2*xid_nc);
-  memset(buffer[0], 0, 12*xid_nc*sizeof(double));
-  for(ia=0; ia<12; ia++) {
-    for(i=0; i<xid_nc; i++) {
-      for(k=0; k<xid_count[i]; k++) {
-        buffer[ia][2*i  ] += sp[0][_GSI(xid_member[i][k])+2*ia  ];
-        buffer[ia][2*i+1] += sp[0][_GSI(xid_member[i][k])+2*ia+1];
+      for(ix=0; ix<N; ix++) {
+        _co_eq_fv_dag_ti_fv(&w, sp[ia]+_GSI(ix), sp[ia]+_GSI(ix) );
+        sp[0][_GSI(ix)+2*ia  ] = w.re;
+        sp[0][_GSI(ix)+2*ia+1] = w.im;
       }
     }
-  }
-  for(ia=0; ia<12; ia++) {
-    for(i=0; i<xid_nc; i++) {
-      buffer[ia][2*i  ] /= xid_count[i];
-      buffer[ia][2*i+1] /= xid_count[i];
+
+
+    exitstatus = init_x_orbits_4d(&xid, &xid_count, &xid_val, &xid_nc, &xid_member, gcoords);
+    if(exitstatus != 0 ) {
+      fprintf(stderr, "[check_vvdagger_locality] Error from init_x_orbits_4d, status was %d\n", exitstatus);
+      return(4);
     }
-  }
+    fprintf(stdout, "# [check_vvdagger_locality] proc%.4d number of classes = %u\n", g_cart_id, xid_nc);
 
-  sprintf(filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d", tag, numV, gcoords[0], gcoords[1], gcoords[2], gcoords[3]);
-  for(iproc = 0; iproc < g_nproc; iproc++) {
-    if(g_cart_id == iproc ) {
-      ofs = (iproc == 0) ?  fopen(filename, "w") : fopen(filename, "a");
-
+    init_2level_buffer(&buffer, 12, 2*xid_nc);
+    memset(buffer[0], 0, 12*xid_nc*sizeof(double));
+    for(ia=0; ia<12; ia++) {
       for(i=0; i<xid_nc; i++) {
-
-        for(ia=0; ia<12; ia++) {
-          fprintf(ofs, "%6d %16.7e %6u %3d %25.16e\n", i, xid_val[i], xid_count[i], ia, buffer[ia][2*i] );
+        for(k=0; k<xid_count[i]; k++) {
+          buffer[ia][2*i  ] += sp[0][_GSI(xid_member[i][k])+2*ia  ];
+          buffer[ia][2*i+1] += sp[0][_GSI(xid_member[i][k])+2*ia+1];
         }
       }
-      fclose(ofs);
     }
+    for(ia=0; ia<12; ia++) {
+      for(i=0; i<xid_nc; i++) {
+        buffer[ia][2*i  ] /= xid_count[i];
+        buffer[ia][2*i+1] /= xid_count[i];
+      }
+    }
+  
+    sprintf(filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d", tag, numV, gcoords[0], gcoords[1], gcoords[2], gcoords[3]);
+    for(iproc = 0; iproc < g_nproc; iproc++) {
+      if(g_cart_id == iproc ) {
+        ofs = (iproc == 0) ?  fopen(filename, "w") : fopen(filename, "a");
+  
+        for(i=0; i<xid_nc; i++) {
+  
+          for(ia=0; ia<12; ia++) {
+            fprintf(ofs, "%6d %16.7e %6u %3d %25.16e\n", i, xid_val[i], xid_count[i], ia, buffer[ia][2*i] );
+          }
+        }
+        fclose(ofs);
+      }
 #ifdef HAVE_MPI
-    MPI_Barrier(g_cart_grid);
+      MPI_Barrier(g_cart_grid);
 #endif
-  }
-  fini_2level_buffer(&buffer);
-  fini_x_orbits_4d(&xid, &xid_count, &xid_val, &xid_member);
+    }
+    fini_2level_buffer(&buffer);
+
+    fini_x_orbits_4d(&xid, &xid_count, &xid_val, &xid_member);
+  }  /* end of loop on shifted source locations */
+
   return(0);
-}  /* check_vvdagger_locality */
+}  /* end of check_vvdagger_locality */
 
 
 

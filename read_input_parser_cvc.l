@@ -206,6 +206,7 @@ namespace cvc {
 %x M_M_TWOPT
 %x MXB_MXB_TWOPT
 %x FERMION_TYPE
+%x SOURCECOORDS
 
 %%
 ^T{SPC}*={SPC}*                            BEGIN(TT);
@@ -246,6 +247,7 @@ namespace cvc {
 ^resume{SPC}*={SPC}*                       BEGIN(RESUME);
 ^subtract{SPC}*={SPC}*                     BEGIN(SUBTRACT);
 ^source_location{SPC}*={SPC}*              BEGIN(SOURCELOC);
+^source_coords{SPC}*={SPC}*                BEGIN(SOURCECOORDS);
 ^seed{SPC}*={SPC}*                         BEGIN(SSEED);
 ^noise_type{SPC}*={SPC}*                   BEGIN(NOISETYPE);
 ^source_type{SPC}*={SPC}*                  BEGIN(SRCTYPE);
@@ -1138,6 +1140,25 @@ namespace cvc {
 
   cvc::g_m_m_2pt_num++;
   if(cvc::myverbose!=0) printf("# [read_input_parser] m_m_2pt no. %d set to %s\n", cvc::g_m_m_2pt_num, yytext);
+}
+
+<SOURCECOORDS>{CORRCONFIG} {
+
+  if ( cvc::g_source_location_number == MAX_SOURCE_LOCATION_NUMBER ) {
+    fprintf(stderr, "[read_input_parser] Error, too many source locations\n");
+    exit(1);
+  } else {
+    fprintf(stdout, "# [read_input_parser] extracting source coords %d\n", cvc::g_source_location_number);
+  }
+
+  sscanf(yytext, "%d,%d,%d,%d",
+    cvc::g_source_coords_list[cvc::g_source_location_number],
+    cvc::g_source_coords_list[cvc::g_source_location_number]+1,
+    cvc::g_source_coords_list[cvc::g_source_location_number]+2,
+    cvc::g_source_coords_list[cvc::g_source_location_number]+3);
+
+  cvc::g_source_location_number++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] source coords no. %d set to %s\n", cvc::g_source_location_number, yytext);
 }
 
 <MXB_MXB_TWOPT>{CORRCONFIG} {

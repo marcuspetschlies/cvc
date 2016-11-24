@@ -23,6 +23,10 @@
 #endif
 #include <getopt.h>
 
+#ifdef HAVE_LHPC_AFF
+#include "lhpc-aff.h"
+#endif
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -59,16 +63,15 @@ extern "C"
 #define EO_FLAG_EVEN 0
 #define EO_FLAG_ODD  1
 
-#define OP_ID_UP 0
-#define OP_ID_DN 1
+#define _OP_ID_UP 0
+#define _OP_ID_DN 1
 
 using namespace cvc;
 
 void usage() {
   fprintf(stdout, "Code to perform cvc correlator conn. contractions\n");
   fprintf(stdout, "Usage:    [options]\n");
-  fprintf(stdout, "Options: -v verbose\n");
-  fprintf(stdout, "         -f input filename [default cvc.input]\n");
+  fprintf(stdout, "Options:  -f input filename [default cvc.input]\n");
   EXIT(0);
 }
 
@@ -80,59 +83,30 @@ int main(int argc, char **argv) {
   
   char outfile_name[] = "test_locality";
 
-  const double PI2 =  2. * M_PI;
-
-  int c, i, k, mu, ia;
-  int no_eo_fields = 0, no_eo_work_fields=0;
-  int op_id = -1, flavor_sign=0;
+  int c, i;
+  int no_eo_fields = 0;
   int filename_set = 0;
-  int source_location, source_location_iseven;
-  int x0, x1, x2, x3;
-  unsigned int ix, Vhalf;
+  unsigned int Vhalf;
   int gsx[4];
-  int sx0, sx1, sx2, sx3;
-  int isimag[4];
-  int gperm[5][4], gperm2[4][4];
-  int check_position_space_WI=0;
-  int nthreads=-1, threadid=-1;
   int exitstatus;
-  int write_ascii=0;
   int source_proc_coords[4], source_proc_id = -1;
   size_t sizeof_eo_spinor_field;
-  double ***gsp_u=NULL;
-  /* double ***gsp_d=NULL; */
-  int verbose = 0;
   char filename[100];
   char outfile_tag[200];
   double ratime, retime;
-  double plaq, norm;
-#ifndef HAVE_OPENMP
-  double spinor1[24], spinor2[24], U_[18];
-#endif
-/*  double *gauge_trafo = NULL; */
-  double **pcoeff=NULL;
-  double ***p3coeff=NULL;
-  complex w, w1;
-  FILE *ofs;
+  double plaq;
 
-  int evecs_num=0, evecs_eval_set = 0;
-  double *evecs_lambdaOneHalf=NULL, *evecs_eval = NULL;
-  double *eo_evecs_block[2], **eo_spinor_field=NULL, **eo_spinor_work=NULL, **full_spinor_work_halo=NULL;
+  int evecs_num=0;
+  double *evecs_eval = NULL;
+  double *eo_evecs_block[2], **eo_spinor_field=NULL;
   double **eo_evecs_field=NULL;
-
-  unsigned int *xid=NULL, *xid_count=NULL, xid_nc=0, **xid_member=NULL;
-  double *xid_val = NULL;
-
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?vf:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:")) != -1) {
     switch (c) {
-    case 'v':
-      verbose = 1;
-      break;
     case 'f':
       strcpy(filename, optarg);
       filename_set=1;
@@ -177,14 +151,22 @@ int main(int argc, char **argv) {
    * initialize MPI parameters for cvc
    *********************************/
   mpi_init(argc, argv);
-/*  mpi_init_xchange_contraction(32); */
 
   /*********************************
    * set number of openmp threads
    *********************************/
 #ifdef HAVE_OPENMP
-  omp_set_num_threads(g_num_threads);
+  if(g_cart_id == 0) fprintf(stdout, "# [test_locality] setting omp number of threads to %d\n", g_num_threads);
+    omp_set_num_threads(g_num_threads);
+#pragma omp parallel
+{
+    fprintf(stdout, "# [test_locality] proc%.4d thread%.4d using %d threads\n", g_cart_id, omp_get_thread_num(), omp_get_num_threads());
+}
+#else
+  if(g_cart_id == 0) fprintf(stdout, "[test_locality] Warning, resetting global thread number to 1\n");
+  g_num_threads = 1;
 #endif
+
 
   if(init_geometry() != 0) {
     fprintf(stderr, "[test_lm_propagators] Error from init_geometry\n");
@@ -208,6 +190,7 @@ int main(int argc, char **argv) {
   } else {
     /* initialize unit matrices */
     if(g_cart_id==0) fprintf(stdout, "\n# [test_lm_propagators] initializing unit matrices\n");
+    unsigned int ix;
     for(ix=0;ix<VOLUME;ix++) {
       _cm_eq_id( g_gauge_field + _GGI(ix, 0) );
       _cm_eq_id( g_gauge_field + _GGI(ix, 1) );
@@ -246,16 +229,13 @@ int main(int argc, char **argv) {
   /***********************************************
    * retrieve deflator paramters from tmLQCD
    ***********************************************/
-  op_id = OP_ID_UP;
-  flavor_sign = 1;
-
-  exitstatus = tmLQCD_init_deflator(op_id);
+  exitstatus = tmLQCD_init_deflator(_OP_ID_UP);
   if( exitstatus > 0) {
     fprintf(stderr, "[test_lm_propagators] Error from tmLQCD_init_deflator, status was %d\n", exitstatus);
     EXIT(9);
   }
 
-  exitstatus = tmLQCD_get_deflator_params(&g_tmLQCD_defl, op_id);
+  exitstatus = tmLQCD_get_deflator_params(&g_tmLQCD_defl, _OP_ID_UP);
   if(exitstatus != 0) {
     fprintf(stderr, "[test_lm_propagators] Error from tmLQCD_get_deflator_params, status was %d\n", exitstatus);
     EXIT(30);
@@ -326,10 +306,6 @@ int main(int argc, char **argv) {
   gsx[2] = (g_source_location % ( LY_global * LZ_global)) / LZ_global;
   gsx[3] = (g_source_location % LZ_global);
   /* local source coordinates */
-  sx0 = gsx[0] % T;
-  sx1 = gsx[1] % LX;
-  sx2 = gsx[2] % LY;
-  sx3 = gsx[3] % LZ;
   source_proc_id = 0;
 #ifdef HAVE_MPI
   source_proc_coords[0] = gsx[0] / T;
@@ -350,11 +326,6 @@ int main(int argc, char **argv) {
 #endif
   if( source_proc_id == g_cart_id) {
     fprintf(stdout, "# [test_lm_propagators] process %2d has source location\n", source_proc_id);
-  }
-
-  if( source_proc_id == g_cart_id) {
-    source_location_iseven = g_iseven[g_ipt[sx0][sx1][sx2][sx3]];
-    fprintf(stdout, "# [test_lm_propagators] source site (%d, %d, %d, %d) is even = %d\n", gsx[0], gsx[1], gsx[2], gsx[3], source_location_iseven);
   }
 
   /***********************************************************

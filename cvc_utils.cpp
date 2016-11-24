@@ -4837,20 +4837,26 @@ void spinor_field_eo2lexic (double *r_lexic, double*r_e, double *r_o) {
 
   if(r_e != NULL) {
     /* for(ix=0; ix<N; ix++) */
+#ifdef HAVE_OPENMP
+#pragma omp parallel for private(ix_e2lexic)
+#endif
     for(ix=0; ix<VOLUME/2; ix++)
     {
       ix_e2lexic = g_eo2lexic[ix];
       _fv_eq_fv(  r_lexic+_GSI(ix_e2lexic) , r_e + _GSI(ix) );
-    }  /* end of loop on ix over (VOLUME+RAND)/2 */
+    }  /* end of loop on ix */
   }
 
   if(r_o != NULL) {
     /* for(ix=0; ix<N; ix++) */
+#ifdef HAVE_OPENMP
+#pragma omp parallel for private(ix_o2lexic)
+#endif
     for(ix=0; ix<VOLUME/2; ix++)
     {
       ix_o2lexic = g_eo2lexic[ix+N];
       _fv_eq_fv(  r_lexic+_GSI(ix_o2lexic) , r_o + _GSI(ix) );
-    }  /* end of loop on ix over (VOLUME+RAND)/2 */
+    }  /* end of loop on ix */
   }
 }  /* end of spinor_field_eo2lexic */
 

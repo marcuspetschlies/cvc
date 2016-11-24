@@ -58,8 +58,8 @@
 #define _GJI(_ix,_mu) (2*(4*(_ix)+(_mu)))
 #define _GSWI(_ix,_mu) (18*(6*(_ix)+(_mu)))
 
-/* #define _GWI(_ix,_mu,_N) (2*((_N)*(_ix)+(_mu))) */
-#define _GWI(_ix,_mu,_N) (2 * ( 16 * (_mu) + (_ix) ) )
+#define _GWI(_ix,_mu,_N) (2*((_N)*(_ix)+(_mu)))
+/* #define _GWI(_ix,_mu,_N) (2 * ( 16 * (_mu) + (_ix) ) ) */
 #define _GCI(_x,_k,_N) ( 2*( (_N) * (_x) + (_k) ) )
 
 #define _G5DI(_is,_ix) ((_is)*VOLUME+(_ix))
@@ -82,6 +82,7 @@
 
 #define MAX_M_M_2PT_NUM 16
 #define MAX_MXB_MXB_2PT_NUM 16
+#define MAX_SOURCE_LOCATION_NUMBER 128
 
 namespace cvc {
 
@@ -155,7 +156,7 @@ EXTERN int perm_tab_3[6][3], perm_tab_4[24][4], perm_tab_3e[3][3], perm_tab_3o[3
 EXTERN double perm_tab_3_sign[6];
 
 EXTERN int g_resume, g_subtract;
-EXTERN int g_source_location;
+EXTERN int g_source_location, g_source_coords_list[MAX_SOURCE_LOCATION_NUMBER][4], g_source_location_number;
 
 EXTERN unsigned int g_seed;
 EXTERN int g_noise_type, g_source_type;

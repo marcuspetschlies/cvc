@@ -61,8 +61,8 @@ extern "C"
 #define EO_FLAG_EVEN 0
 #define EO_FLAG_ODD  1
 
-#define OP_ID_UP 0
-#define OP_ID_DN 1
+#define _OP_ID_UP 0
+#define _OP_ID_DN 1
 
 using namespace cvc;
 
@@ -86,7 +86,8 @@ int main(int argc, char **argv) {
 
   int c, i, k, mu, ia;
   int no_eo_fields = 0, no_eo_work_fields=0;
-  int op_id = -1, flavor_sign=0;
+  int op_id;
+  int flavor_sign=0;
   int filename_set = 0;
   int source_location, source_location_iseven;
   int x0, x1, x2, x3;
@@ -259,16 +260,14 @@ int main(int argc, char **argv) {
   /***********************************************
    * retrieve deflator paramters from tmLQCD
    ***********************************************/
-  op_id = OP_ID_UP;
-  flavor_sign = 1;
 
-  exitstatus = tmLQCD_init_deflator(op_id);
+  exitstatus = tmLQCD_init_deflator(_OP_ID_UP);
   if( exitstatus > 0) {
     fprintf(stderr, "[test_lm_propagators] Error from tmLQCD_init_deflator, status was %d\n", exitstatus);
     EXIT(9);
   }
 
-  exitstatus = tmLQCD_get_deflator_params(&g_tmLQCD_defl, op_id);
+  exitstatus = tmLQCD_get_deflator_params(&g_tmLQCD_defl, _OP_ID_UP);
   if(exitstatus != 0) {
     fprintf(stderr, "[test_lm_propagators] Error from tmLQCD_get_deflator_params, status was %d\n", exitstatus);
     EXIT(30);
@@ -291,6 +290,12 @@ int main(int argc, char **argv) {
   if(evecs_num == 0) {
     fprintf(stderr, "[test_lm_propagators] Error, dimension of eigenspace is zero\n");
     EXIT(33);
+  }
+
+  exitstatus = tmLQCD_set_deflator_fields(_OP_ID_DN, _OP_ID_UP);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[test_lm_propagators] Error from tmLQCD_set_deflator_fields, status was %d\n", exitstatus);
+    EXIT(30);
   }
 
 #endif  /* of ifdef HAVE_TMLQCD_LIBWRAPPER */
@@ -418,12 +423,10 @@ int main(int argc, char **argv) {
     if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators] eval %4d %25.16e %25.16e\n", i, evecs_eval[i], evecs_lambdaOneHalf[i]);
   }
 
+#if 0
   /***********************************************************
    * test eigenvectors
    ***********************************************************/
-  if(g_cart_id == 0) {
-    fprintf(stdout, "# [test_lm_propagators] eigenvector test\n");
-  }
   for(i=0; i<evecs_num; i++) {
     C_oo (eo_spinor_work[0], eo_evecs_field[i], g_gauge_field, -g_mu, eo_spinor_work[2]);
     C_oo (eo_spinor_work[1], eo_spinor_work[0], g_gauge_field,  g_mu, eo_spinor_work[2]);
@@ -437,7 +440,22 @@ int main(int argc, char **argv) {
     if(g_cart_id == 0) {
       fprintf(stdout, "# [] evec %.4d norm = %16.7e w = %16.7e +I %16.7e\n", i, norm, w.re, w.im);
     }
+  }
 
+#endif
+
+  /***********************************************************
+   * make Wtilde field
+   ***********************************************************/
+  for(i=0; i<evecs_num; i++) {
+    double dnorm, dnorm2;
+    C_oo (eo_evecs_field[i+evecs_num], eo_evecs_field[i], g_gauge_field, -g_mu, eo_spinor_work[0]);
+    spinor_scalar_product_re(&dnorm,  eo_evecs_field[i], eo_evecs_field[i], Vhalf);
+    spinor_scalar_product_re(&dnorm2, eo_evecs_field[i+evecs_num], eo_evecs_field[i+evecs_num], Vhalf);
+    norm    = 1./sqrt(dnorm2);
+    dnorm2 *= 4.*g_kappa*g_kappa;
+    if(g_cart_id == 0) fprintf(stdout, "# [] evec %.4d ||V||^2 = %16.7e ||W||^2 = %16.7e\n", i, dnorm, dnorm2);
+    spinor_field_ti_eq_re(eo_evecs_field[evecs_num+i], norm, Vhalf);
   }
 
 #if 0
@@ -511,8 +529,12 @@ int main(int argc, char **argv) {
 
 
   /**********************************************************
-   * up-type full propagators
+   * full propagators
    **********************************************************/
+
+  flavor_sign = -1;
+  op_id = (1 - flavor_sign ) / 2;
+  if(g_cart_id==0) fprintf(stdout, "# [test_lm_propagators] flavor sign = %d; op id = %d\n", flavor_sign, op_id);
 
   /* loop on spin-color components of point source */
   ratime = _GET_TIME;
@@ -520,9 +542,6 @@ int main(int argc, char **argv) {
 
   for(ia=0; ia<12; ia++)
   {
-    if(g_cart_id == 0) {
-      fprintf(stdout, "# [test_lm_propagators] processing spin-color component no. %d\n", ia);
-    }
 #if 0
     random_spinor_field (eo_spinor_work[0], Vhalf);
     random_spinor_field (eo_spinor_work[1], Vhalf);
@@ -544,7 +563,7 @@ int main(int argc, char **argv) {
     }
 #if 0
     /* 2,3 <- g5 A 0,1*/
-    Q_eo_SchurDecomp_A (eo_spinor_work[0], eo_spinor_work[1], eo_spinor_field[ia], eo_spinor_field[12+ia], g_gauge_field, g_mu, eo_spinor_work[2]);
+    Q_eo_SchurDecomp_A (eo_spinor_work[0], eo_spinor_work[1], eo_spinor_field[ia], eo_spinor_field[12+ia], g_gauge_field, flavor_sign*g_mu, eo_spinor_work[2]);
     g5_phi(eo_spinor_work[0], Vhalf);
     g5_phi(eo_spinor_work[1], Vhalf);
 
@@ -563,13 +582,13 @@ int main(int argc, char **argv) {
 #endif
   }  /* end of loop on spin-color */
 
-/*
-  exitstatus = project_propagator_field(eo_spinor_field[12], eo_spinor_field[12], 1, eo_evecs_block[0], 12, evecs_num, Vhalf);
+#if 0
+  exitstatus = project_propagator_field(eo_spinor_field[12], eo_spinor_field[12], 1, eo_evecs_block[op_id], 12, evecs_num, Vhalf);
   if(exitstatus != 0 ) {
     fprintf(stderr, "[test_lm_propagators] Error from project_propagator_field; status was %d\n", exitstatus);
     EXIT(36);
   }
-*/
+#endif
 
 #if 0
   for(ia=0; ia<12; ia++) {
@@ -612,7 +631,6 @@ int main(int argc, char **argv) {
       EXIT(35);
     }
     memcpy(eo_spinor_field[12+ia], eo_spinor_work[1], sizeof_eo_spinor_field);
-
 /*
     C_oo ( eo_spinor_work[0], eo_spinor_work[2], g_gauge_field, g_mu, eo_spinor_work[3]);
     spinor_field_ti_eq_re (eo_spinor_work[0], 2.*g_kappa, Vhalf);
@@ -651,6 +669,7 @@ int main(int argc, char **argv) {
     fclose(ofs);
 */
   }  /* of loop on spin-color component ia */
+
 
 
 #if 0
@@ -708,7 +727,7 @@ int main(int argc, char **argv) {
  */
   }
 
-  exitstatus = project_propagator_field(eo_spinor_field[36], eo_spinor_field[36], 1, eo_evecs_block[0], 12, evecs_num, Vhalf);
+  exitstatus = project_propagator_field(eo_spinor_field[36], eo_spinor_field[36], 1, eo_evecs_block[op_id], 12, evecs_num, Vhalf);
   if(exitstatus != 0) {
     fprintf(stderr, "[test_lm_propagators] Error from project_propagator_fiel, status was %d\n", exitstatus);
     EXIT(35);
@@ -795,6 +814,11 @@ int main(int argc, char **argv) {
   for(ia=0; ia<12; ia++) {
     exitstatus = init_eo_sequential_source(eo_spinor_field[ia], eo_spinor_field[12+ia], eo_spinor_field[ia], eo_spinor_field[12+ia],
         g_sequential_source_timeslice, flavor_sign, g_seq_source_momentum, g_sequential_source_gamma_id, eo_spinor_work[0]);
+
+    if(flavor_sign == -1) {
+      memcpy(eo_spinor_work[0], eo_spinor_field[12+ia], sizeof_eo_spinor_field);
+      C_oo ( eo_spinor_field[12+ia], eo_spinor_work[0], g_gauge_field, g_mu, eo_spinor_work[1]);
+    }
   }
 
   init_2level_buffer(&pcoeff, 12, 2*evecs_num);
@@ -823,20 +847,22 @@ int main(int argc, char **argv) {
 #endif
 
   exitstatus = project_expand_to_propagator_field(eo_spinor_field[12], pcoeff[0], eo_evecs_block[0], 12, evecs_num, Vhalf);
-  for(ia=0; ia<12; ia++) {
-    memcpy(eo_spinor_work[0], eo_spinor_field[12+ia], sizeof_eo_spinor_field);
-    C_oo (eo_spinor_field[12+ia], eo_spinor_work[0], g_gauge_field, -g_mu, eo_spinor_work[2]);
+  if(flavor_sign == 1) {
+    for(ia=0; ia<12; ia++) {
+      memcpy(eo_spinor_work[0], eo_spinor_field[12+ia], sizeof_eo_spinor_field);
+      C_oo (eo_spinor_field[12+ia], eo_spinor_work[0], g_gauge_field, -g_mu, eo_spinor_work[2]);
 /*
-    sprintf(filename, "spinor.%.2d.%.2d.o", ia, g_cart_id);
-    ofs = fopen(filename, "w");
-    printf_eo_spinor_field(eo_spinor_field[12+ia], 1, 0, ofs);
-    fclose(ofs);
+      sprintf(filename, "spinor.%.2d.%.2d.o", ia, g_cart_id);
+      ofs = fopen(filename, "w");
+      printf_eo_spinor_field(eo_spinor_field[12+ia], 1, 0, ofs);
+      fclose(ofs);
 */
+    }
   }
   fini_2level_buffer(&pcoeff);
 
   for(ia=0; ia<12; ia++) {
-    Q_eo_SchurDecomp_Binv (eo_spinor_field[ia], eo_spinor_field[12+ia], eo_spinor_field[ia], eo_spinor_field[12+ia], g_gauge_field, g_mu, eo_spinor_work[4]);
+    Q_eo_SchurDecomp_Binv (eo_spinor_field[ia], eo_spinor_field[12+ia], eo_spinor_field[ia], eo_spinor_field[12+ia], g_gauge_field, flavor_sign*g_mu, eo_spinor_work[4]);
   }
 
   for(ia=0; ia<12; ia++) {
@@ -908,7 +934,7 @@ int main(int argc, char **argv) {
   if(g_cart_id==0) {
     g_the_time = time(NULL);
     fprintf(stdout, "# [test_lm_propagators] %s# [test_lm_propagators] end of run\n", ctime(&g_the_time));
-    fprintf(stderr, "# [test_lm_propagators] %s# [test_lm_propagators] end of run\n", ctime(&g_the_time));
+    fprintf(stderr, "[test_lm_propagators] %s[test_lm_propagators] end of run\n", ctime(&g_the_time));
   }
 
   return(0);

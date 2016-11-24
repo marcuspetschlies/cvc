@@ -523,6 +523,6 @@ int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_num
 #endif
 
   return(0);
-}  /* end of momentum_projection */
+}  /* end of momentum_projection2 */
 
 }  /* end of namespace cvc */

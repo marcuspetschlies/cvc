@@ -223,6 +223,7 @@ namespace cvc {
 #define _default_mxb_mxb_2pt_num 0
 
 #define _default_fermion_type -1
+#define _default_source_location_number 0
 
 }
 #endif

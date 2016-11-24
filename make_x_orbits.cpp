@@ -118,7 +118,7 @@ int init_x_orbits_4d(unsigned int **xid, unsigned int **xid_count, double **xid_
       }
     }
     if(i == Nclasses) {
-      fprintf(stderr, "[] Error, could not find matching radius for %u within %u classes\n", radii[ix], Nclasses);
+      fprintf(stderr, "[make_x_orbits_4d] Error, could not find matching radius for %u within %u classes\n", radii[ix], Nclasses);
       return(4);
     }
   }}}}
@@ -148,17 +148,17 @@ int init_x_orbits_4d(unsigned int **xid, unsigned int **xid_count, double **xid_
     radii[i]++;
   }
   free(radii);
+
 #if 0
-/*
   for(ix=0; ix<Vhalf; ix++) {
-    fprintf(stdout, "\t%8u %8u\n", ix, (*xid)[ix]);
+    fprintf(stdout, "xid \t%8u %8u\n", ix, (*xid)[ix]);
   }
-*/
-/*
+
+
   ix = 0;
   for(i=0; i<Nclasses; i++) ix += (*xid_count)[i];
-  fprintf(stdout, "# [] total number of members in %u classes  %u\n", Nclasses, ix);
-*/
+  fprintf(stdout, "# [make_x_orbits_4d] total number of members in %u classes  %u\n", Nclasses, ix);
+
 
   sprintf(filename, "init_x_orbits_4d.%.4d", g_cart_id);
   if( ( ofs = fopen(filename, "w") ) == NULL ) { return(1); }

@@ -277,6 +277,7 @@ void set_default_input_values(void) {
   g_mzzinv_dn = NULL;
 
   g_fermion_type = _default_fermion_type;
+  g_source_location_number = _default_source_location_number;
 
 }  /* end of set_default_input_values */
 
