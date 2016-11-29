@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <complex.h>
 #include <math.h>
 #include <time.h>
 #ifdef HAVE_MPI
@@ -88,7 +89,7 @@ int main(int argc, char **argv) {
   int filename_set = 0;
   int exitstatus;
   int it, ir, is;
-  int gsx[4], sx0, sx1, sx2, sx3;
+  int gsx[4], sx[4];
   int write_ascii=0;
   int fermion_type = -1;
   int write_xspace = 0;
@@ -138,6 +139,10 @@ int main(int argc, char **argv) {
     case 'x':
       write_xspace = 1;
       fprintf(stdout, "# [proton_2pt] will write x-space correlator\n");
+      break;
+    case 'a':
+      write_ascii = 1;
+      fprintf(stdout, "# [proton_2pt] will write x-space correlator in ASCII format\n");
       break;
     case 'h':
     case '?':
@@ -210,11 +215,11 @@ int main(int argc, char **argv) {
    ***********************************************/
   if( g_proc_coords[0] == 0 && g_proc_coords[1] == 0 && g_proc_coords[2] == 0 && g_proc_coords[3] == 0) {
     io_proc = 2;
-    fprintf(stdout, "# [proton_2pt] proc%.4d is io process\n", g_cart_id);
+    fprintf(stdout, "# [proton_2pt] proc%.4d tr%.4d is io process\n", g_cart_id, g_tr_id);
   } else {
     if( g_proc_coords[1] == 0 && g_proc_coords[2] == 0 && g_proc_coords[3] == 0) {
       io_proc = 1;
-      fprintf(stdout, "# [proton_2pt] proc%.4d is send process\n", g_cart_id);
+      fprintf(stdout, "# [proton_2pt] proc%.4d tr%.4d is send process\n", g_cart_id, g_tr_id);
     } else {
       io_proc = 0;
     }
@@ -271,6 +276,59 @@ int main(int argc, char **argv) {
   if(g_cart_id==0) fprintf(stdout, "# [proton_2pt] read plaquette value    : %25.16e\n", plaq_r);
   if(g_cart_id==0) fprintf(stdout, "# [proton_2pt] measured plaquette value: %25.16e\n", plaq_m);
 
+#ifdef HAVE_TMLQCD_LIBWRAPPER
+  /***********************************************
+   * retrieve deflator paramters from tmLQCD
+   ***********************************************/
+#if 0
+  exitstatus = tmLQCD_init_deflator(_OP_ID_UP);
+  if( exitstatus > 0) {
+    fprintf(stderr, "[proton_2pt] Error from tmLQCD_init_deflator, status was %d\n", exitstatus);
+    EXIT(8);
+  }
+
+  exitstatus = tmLQCD_get_deflator_params(&g_tmLQCD_defl, _OP_ID_UP);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[proton_2pt] Error from tmLQCD_get_deflator_params, status was %d\n", exitstatus);
+    EXIT(9);
+  }
+
+  if(g_cart_id == 1) {
+    fprintf(stdout, "# [proton_2pt] deflator type name = %s\n", g_tmLQCD_defl.type_name);
+    fprintf(stdout, "# [proton_2pt] deflator eo prec   = %d\n", g_tmLQCD_defl.eoprec);
+    fprintf(stdout, "# [proton_2pt] deflator precision = %d\n", g_tmLQCD_defl.prec);
+    fprintf(stdout, "# [proton_2pt] deflator nev       = %d\n", g_tmLQCD_defl.nev);
+  }
+
+  eo_evecs_block = (double*)(g_tmLQCD_defl.evecs);
+  if(eo_evecs_block == NULL) {
+    fprintf(stderr, "[proton_2pt] Error, eo_evecs_block is NULL\n");
+    EXIT(10);
+  }
+
+  evecs_num = g_tmLQCD_defl.nev;
+  if(evecs_num == 0) {
+    fprintf(stderr, "[proton_2pt] Error, dimension of eigenspace is zero\n");
+    EXIT(11);
+  }
+
+  exitstatus = tmLQCD_set_deflator_fields(_OP_ID_DN, _OP_ID_UP);
+  if( exitstatus > 0) {
+    fprintf(stderr, "[proton_2pt] Error from tmLQCD_init_deflator, status was %d\n", exitstatus);
+    EXIT(8);
+  }
+
+  evecs_eval = (double*)malloc(evecs_num*sizeof(double));
+  if(evecs_eval == NULL) {
+    fprintf(stderr, "[proton_2pt] Error from malloc\n");
+    EXIT(39);
+  }
+  for(i=0; i<evecs_num; i++) {
+    evecs_eval[i] = ((double*)(g_tmLQCD_defl.evals))[2*i];
+  }
+#endif
+#endif  /* of ifdef HAVE_TMLQCD_LIBWRAPPER */
+
 
   /***********************************************************
    * allocate memory for the spinor fields
@@ -280,7 +338,7 @@ int main(int argc, char **argv) {
   if(fermion_type == _TM_FERMION) { no_fields *= 2; }
   no_fields += 2;
   g_spinor_field = (double**)calloc(no_fields, sizeof(double*));
-  for(i=0; i<no_fields-1; i++) alloc_spinor_field(&g_spinor_field[i], VOLUME);
+  for(i=0; i<no_fields-2; i++) alloc_spinor_field(&g_spinor_field[i], VOLUME);
   alloc_spinor_field(&g_spinor_field[no_fields-2], VOLUMEPLUSRAND);
   alloc_spinor_field(&g_spinor_field[no_fields-1], VOLUMEPLUSRAND);
   spinor_work[0] = g_spinor_field[no_fields-2];
@@ -304,10 +362,10 @@ int main(int argc, char **argv) {
   gsx[2] = (g_source_location % ( LY_global * LZ_global)) / LZ_global;
   gsx[3] = (g_source_location % LZ_global);
   /* local source coordinates */
-  sx0 = gsx[0] % T;
-  sx1 = gsx[1] % LX;
-  sx2 = gsx[2] % LY;
-  sx3 = gsx[3] % LZ;
+  sx[0] = gsx[0] % T;
+  sx[1] = gsx[1] % LX;
+  sx[2] = gsx[2] % LY;
+  sx[3] = gsx[3] % LZ;
   source_proc_id = 0;
 #ifdef HAVE_MPI
   source_proc_coords[0] = gsx[0] / T;
@@ -336,11 +394,11 @@ int main(int argc, char **argv) {
    ***********************************************************/
   ratime = _GET_TIME;
   for(is=0;is<n_s*n_c;is++) {
-
+    if(g_cart_id == 0) fprintf(stdout, "# [proton_2pt] up-type inversion\n");
     memset(spinor_work[0], 0, sizeof_spinor_field);
     memset(spinor_work[1], 0, sizeof_spinor_field);
     if(source_proc_id == g_cart_id)  {
-      spinor_work[0][_GSI(g_ipt[sx0][sx1][sx2][sx3])+2*is] = 1.;
+      spinor_work[0][_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]])+2*is] = 1.;
     }
 
     exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], 0, 0);
@@ -357,13 +415,14 @@ int main(int argc, char **argv) {
    * 12 dn-type propagators and smear them
    ***********************************************************/
   if(fermion_type == _TM_FERMION) {
+    if(g_cart_id == 0) fprintf(stdout, "# [proton_2pt] dn-type inversion\n");
     ratime = _GET_TIME;
     for(is=0;is<n_s*n_c;is++) {
 
       memset(spinor_work[0], 0, sizeof_spinor_field);
       memset(spinor_work[1], 0, sizeof_spinor_field);
       if(source_proc_id == g_cart_id)  {
-        spinor_work[0][_GSI(g_ipt[sx0][sx1][sx2][sx3])+2*is] = 1.;
+        spinor_work[0][_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]])+2*is] = 1.;
       }
 
       exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], 1, 0);
@@ -389,6 +448,16 @@ int main(int argc, char **argv) {
   /* variables */
   fermion_propagator_type fp1, fp2, fp3, uprop, dprop;
   spinor_propagator_type sp1, sp2;
+
+  create_fp(&fp1);
+  create_fp(&fp2);
+  create_fp(&fp3);
+  create_fp(&uprop);
+  create_fp(&dprop);
+
+  create_sp(&sp1);
+  create_sp(&sp2);
+
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
@@ -396,11 +465,14 @@ int main(int argc, char **argv) {
 
     // assign the propagators
     _assign_fp_point_from_field(uprop, g_spinor_field, ix);
+
     if(fermion_type==_TM_FERMION) {
       _assign_fp_point_from_field(dprop, g_spinor_field+n_s*n_c, ix);
     } else {
       _fp_eq_fp(dprop, uprop);
     }
+
+
 
     // flavor rotation for twisted mass fermions
     if(fermion_type == _TM_FERMION) {
@@ -449,20 +521,36 @@ int main(int argc, char **argv) {
     _sp_pl_eq_sp(sp1, sp2);
 
     _sp_eq_sp( connq[ix], sp1);
+
+
+
   }  // end of loop on VOLUME
+
+ free_fp(&fp1);
+ free_fp(&fp2);
+ free_fp(&fp3);
+ free_fp(&uprop);
+ free_fp(&dprop);
+
+ free_sp(&sp1);
+ free_sp(&sp2);
+
 #ifdef OPENMP
 }  /* end of parallel region */
 #endif
+
   retime = _GET_TIME;
   if(g_cart_id == 0)  fprintf(stdout, "# [proton_2pt] time for contractions = %e seconds\n", retime-ratime);
 
   /***********************************************
    * free gauge fields and spinor fields
    ***********************************************/
+#ifndef HAVE_TMLQCD_LIBWRAPPER
   if(g_gauge_field != NULL) {
     free(g_gauge_field);
     g_gauge_field=(double*)NULL;
   }
+#endif
   if(g_spinor_field!=NULL) {
     for(i=0; i<no_fields; i++) free(g_spinor_field[i]);
     free(g_spinor_field); g_spinor_field=(double**)NULL;
@@ -476,15 +564,16 @@ int main(int argc, char **argv) {
   if(g_propagator_bc_type == 0) {
     // multiply with phase factor
     fprintf(stdout, "# [proton_2pt] multiplying with boundary phase factor\n");
-    iix = 0;
-    for(it=0;it<T_global;it++) {
-      ir = (it - gsx[0] + T_global) % T_global;
+    for(it=0;it<T;it++) {
+      ir = (it + g_proc_coords[0] * T - gsx[0] + T_global) % T_global;
       const complex w1 = { cos( 3. * M_PI*(double)ir / (double)T_global ), sin( 3. * M_PI*(double)ir / (double)T_global ) };
 #ifdef HAVE_OPENMP
-#pragma omp parallel private(ix,iix) shared(connq)
+#pragma omp parallel private(ix) shared(connq)
 {
 #endif
       spinor_propagator_type sp1;
+      create_sp(&sp1);
+      iix = it * VOL3;
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
@@ -493,6 +582,7 @@ int main(int argc, char **argv) {
         _sp_eq_sp_ti_co( connq[iix], sp1, w1);
         iix++;
       }
+      free_sp(&sp1);
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */
 #endif
@@ -508,15 +598,18 @@ int main(int argc, char **argv) {
 {
 #endif
         spinor_propagator_type sp1;
+        create_sp(&sp1);
         iix = it * VOL3;
 #ifdef HAVE_OPENMP
-#pragma omp for
+#pragma omp for firstprivate(iix)
 #endif
         for(ix=0;ix<VOL3;ix++) {
           _sp_eq_sp(sp1, connq[iix] );
           _sp_eq_sp_ti_re( connq[iix], sp1, -1.);
           iix++;
         }
+
+        free_sp(&sp1);
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */
 #endif
@@ -526,10 +619,12 @@ int main(int argc, char **argv) {
   retime = _GET_TIME;
   if(g_cart_id == 0)  fprintf(stdout, "# [proton_2pt] time for boundary phase = %e seconds\n", retime-ratime);
 
+
   if(write_ascii) {
     /***********************************************
      * each MPI process dump his part in ascii format
      ***********************************************/
+    int x0, x1, x2, x3;
     ratime = _GET_TIME;
     sprintf(filename, "%s_x.%.4d.t%.2dx%.2dy%.2dz%.2d.proct%.2dprocx%.2dprocy%.2dprocz%.2d.ascii", outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
        g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3]);
@@ -538,14 +633,18 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[proton_2pt] Error opening file %s\n", filename);
       EXIT(56);
     }
-    for(ix=0; ix<VOLUME; ix++) {
-      sprintf(contype, "# ix = %u", ix);
+    for(x0=0; x0 < T; x0++) {
+    for(x1=0; x1 < LX; x1++) {
+    for(x2=0; x2 < LY; x2++) {
+    for(x3=0; x3 < LZ; x3++) {
+      sprintf(contype, "# t= %2d, x= %2d, y= %2d, z= %2d", x0 + g_proc_coords[0]*T, x1 + g_proc_coords[1]*LX, x2 + g_proc_coords[2]*LY, x3 + g_proc_coords[3]*LZ);
       printf_sp(connq[ix], contype, ofs);
-    }
+    }}}}
     fclose(ofs);
     retime = _GET_TIME;
     if(g_cart_id == 0)  fprintf(stdout, "# [proton_2pt] time for writing ascii = %e seconds\n", retime-ratime);
-  }
+  }  /* end of if write ascii */
+
 
   /***********************************************
    * write to file
@@ -569,18 +668,46 @@ int main(int argc, char **argv) {
     if(g_cart_id == 0) {
       fprintf(stdout, "# [proton_2pt] time for writing xspace = %e seconds\n", retime-ratime);
     }
-  }
+  }  /* end of if write x-space */
 
   /***********************************************
    * momentum projections
    ***********************************************/
   init_4level_buffer(&connt, T, g_sink_momentum_number, g_sv_dim, 2*g_sv_dim);
   for(it=0; it<T; it++) {
+    fprintf(stdout, "# [proton_2pt] proc%.4d momentum projection for t = %2d\n", g_cart_id, it); fflush(stdout);
     exitstatus = momentum_projection2 (connq[it*VOL3][0], connt[it][0][0], g_sv_dim*g_sv_dim, g_sink_momentum_number, g_sink_momentum_list, &(gsx[1]) );
+    /* exitstatus = momentum_projection2 (connq[it*VOL3][0], connt[it][0][0], g_sv_dim*g_sv_dim, g_sink_momentum_number, g_sink_momentum_list, NULL ); */
   }
 
-  init_2level_buffer(&connt_p, g_sink_momentum_number, 2*T);
-  init_2level_buffer(&connt_n, g_sink_momentum_number, 2*T);
+  init_2level_buffer(&connt_p, T, g_sink_momentum_number * 2);
+  init_2level_buffer(&connt_n, T, g_sink_momentum_number * 2);
+
+
+  if(write_ascii) {
+    sprintf(filename, "%s_tq.%.4d.t%.2dx%.2dy%.2dz%.2d.proct%.2dprocx%.2dprocy%.2dprocz%.2d.ascii", outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
+        g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3]);
+
+    FILE *ofs = fopen(filename, "w");
+    if(ofs == NULL) {
+      fprintf(stderr, "[proton_2pt] Error opening file %s\n", filename);
+      EXIT(56);
+    }
+    for(it=0; it<T; it++) {
+      for(k=0; k<g_sink_momentum_number; k++) {
+        fprintf(ofs, "# t = %2d p = (%d, %d, %d)\n", it+g_proc_coords[0]*T, g_sink_momentum_list[k][0], g_sink_momentum_list[k][1], g_sink_momentum_list[k][2]);
+        int j;
+        for(i=0; i<g_sv_dim; i++) {
+          for(j=0; j<g_sv_dim; j++) {
+            fprintf(ofs, "%3d%3d%25.16e%25.16e\n", i, j, connt[it][k][i][2*j], connt[it][k][i][2*j+1] );
+          }
+        }
+      }
+    }
+    fclose(ofs);
+  }  /* end of if write ascii */
+
+
 #ifdef HAVE_OPENMP
 #pragma omp parallel
 {
@@ -590,26 +717,65 @@ int main(int argc, char **argv) {
 #endif
   for(it=0; it<T; it++) {
     spinor_propagator_type sp1, sp2;
+    create_sp(&sp1);
+    create_sp(&sp2);
     complex w;
     for(k=0; k<g_sink_momentum_number; k++) {
       _sp_eq_sp(sp1, connt[it][k]);
       _sp_eq_gamma_ti_sp(sp2, 0, sp1);
       _sp_pl_eq_sp(sp1, sp2);
       _co_eq_tr_sp(&w, sp1);
-      connt_p[k][2*it  ] = w.re * 0.25;
-      connt_p[k][2*it+1] = w.im * 0.25;
+      connt_p[it][2*k  ] = w.re * 0.25;
+      connt_p[it][2*k+1] = w.im * 0.25;
       _sp_eq_sp(sp1, connt[it][k]);
       _sp_eq_gamma_ti_sp(sp2, 0, sp1);
       _sp_mi_eq_sp(sp1, sp2);
       _co_eq_tr_sp(&w, sp1);
-      connt_n[k][2*(T+it)  ] = w.re * 0.25;
-      connt_n[k][2*(T+it)+1] = w.im * 0.25;
+      connt_n[it][2*k  ] = w.re * 0.25;
+      connt_n[it][2*k+1] = w.im * 0.25;
     }  /* end of loop on sink momenta */
+    free_sp(&sp1);
+    free_sp(&sp2);
   }  /* end of loop on T */
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */
 #endif
+
   fini_4level_buffer(&connt);
+
+  if(write_ascii) {
+    sprintf(filename, "%s_fw.%.4d.t%.2dx%.2dy%.2dz%.2d.proct%.2dprocx%.2dprocy%.2dprocz%.2d.ascii", outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
+        g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3]);
+
+    FILE *ofs = fopen(filename, "w");
+    if(ofs == NULL) {
+      fprintf(stderr, "[proton_2pt] Error opening file %s\n", filename);
+      EXIT(56);
+    }
+    for(k=0; k<g_sink_momentum_number; k++) {
+      fprintf(ofs, "# p = (%d, %d, %d)\n", g_sink_momentum_list[k][0], g_sink_momentum_list[k][1], g_sink_momentum_list[k][2]);
+      for(it=0; it<T; it++) {
+          fprintf(ofs, "%3d%25.16e%25.16e\n", it+g_proc_coords[0]*T, connt_p[it][2*k], connt_p[it][2*k+1]);
+      }
+    }
+    fclose(ofs);
+
+    sprintf(filename, "%s_bw.%.4d.t%.2dx%.2dy%.2dz%.2d.proct%.2dprocx%.2dprocy%.2dprocz%.2d.ascii", outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
+        g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3]);
+
+    ofs = fopen(filename, "w");
+    if(ofs == NULL) {
+      fprintf(stderr, "[proton_2pt] Error opening file %s\n", filename);
+      EXIT(56);
+    }
+    for(k=0; k<g_sink_momentum_number; k++) {
+      fprintf(ofs, "# p = (%d, %d, %d)\n", g_sink_momentum_list[k][0], g_sink_momentum_list[k][1], g_sink_momentum_list[k][2]);
+      for(it=0; it<T; it++) {
+          fprintf(ofs, "%3d%25.16e%25.16e\n", it+g_proc_coords[0]*T, connt_n[it][2*k], connt_n[it][2*k+1]);
+      }
+    }
+    fclose(ofs);
+  }  /* end of if write ascii */
 
 #ifdef HAVE_LHPC_AFF
   /***********************************************
@@ -621,7 +787,7 @@ int main(int argc, char **argv) {
     fprintf(stdout, "# [proton_2pt] using aff version %s\n", aff_status_str);
 
     sprintf(filename, "%s.%.4d.aff", outfile_prefix, Nconf);
-    fprintf(stdout, "# [proton_2pt] writing gsp data from file %s\n", filename);
+    fprintf(stdout, "# [proton_2pt] writing data to file %s\n", filename);
     affw = aff_writer(filename);
     aff_status_str = (char*)aff_writer_errstr(affw);
     if( aff_status_str != NULL ) {
@@ -642,13 +808,17 @@ int main(int argc, char **argv) {
   }  /* end of if io_proc == 2 */
 #endif
 
+
+  /***********************************************
+   * output for positive parity spin-projection
+   ***********************************************/
   ratime = _GET_TIME;
 #ifdef HAVE_MPI
-  if(io_proc == 2) {
-    init_2level_buffer(&buffer, g_sink_mommentum_number, 2*T_global);
-  }
   if(io_proc>0) {
-    exitstatus = MPI_Gather(connt_p[0], 2*g_sink_mommentum_number*T, MPI_DOUBLE, buffer[0],  2*g_sink_mommentum_number*T, MPI_DOULBE, 0, g_tr_comm);
+    fprintf(stdout, "# [proton_2pt] proc%.4d taking part in Gather\n", g_cart_id);
+    init_2level_buffer(&buffer, T_global, 2*g_sink_momentum_number);
+    k = 2 * g_sink_momentum_number * T;
+    exitstatus = MPI_Allgather(connt_p[0], k, MPI_DOUBLE, buffer[0], k, MPI_DOUBLE, g_tr_comm);
     if(exitstatus != MPI_SUCCESS) {
       EXIT(124);
     }
@@ -656,6 +826,7 @@ int main(int argc, char **argv) {
 #else
   buffer = connt_p;
 #endif
+
   if(io_proc == 2) {
 #ifdef HAVE_LHPC_AFF
     for(k=0; k<g_sink_momentum_number; k++) {
@@ -664,7 +835,11 @@ int main(int argc, char **argv) {
           gsx[0], gsx[1], gsx[2], gsx[3]);
       fprintf(stdout, "# [proton_2pt] current aff path = %s\n", aff_buffer_path);
       affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
-      memcpy(aff_buffer, buffer[k], 2*T_global*sizeof(double));
+      for(it=0; it<T_global; it++) {
+        ir = ( it - gsx[0] + T_global ) % T_global;
+        aff_buffer[ir] = buffer[it][2*k] + buffer[it][2*k+1] * I;
+      }
+      /* memcpy(aff_buffer, buffer[k], 2*T_global*sizeof(double)); */
       int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global);
       if(status != 0) {
         fprintf(stderr, "[proton_2pt] Error from aff_node_put_double, status was %d\n", status);
@@ -674,9 +849,13 @@ int main(int argc, char **argv) {
 #endif
   }
 
+  /***********************************************
+   * output for negative parity spin-projection
+   ***********************************************/
 #ifdef HAVE_MPI
   if(io_proc>0) {
-    exitstatus = MPI_Gather(connt_n[0], 2*g_sink_mommentum_number*T, MPI_DOUBLE, buffer[0],  2*g_sink_mommentum_number*T, MPI_DOULBE, 0, g_tr_comm);
+    k = 2 * g_sink_momentum_number * T;
+    exitstatus = MPI_Allgather(connt_n[0], k, MPI_DOUBLE, buffer[0], k, MPI_DOUBLE, g_tr_comm);
     if(exitstatus != MPI_SUCCESS) {
       EXIT(124);
     }
@@ -684,6 +863,7 @@ int main(int argc, char **argv) {
 #else
   buffer = connt_n;
 #endif
+
   if(io_proc == 2) {
 #ifdef HAVE_LHPC_AFF
     for(k=0; k<g_sink_momentum_number; k++) {
@@ -692,7 +872,11 @@ int main(int argc, char **argv) {
           gsx[0], gsx[1], gsx[2], gsx[3]);
       fprintf(stdout, "# [proton_2pt] current aff path = %s\n", aff_buffer_path);
       affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
-      memcpy(aff_buffer, connt_n[k], 2*T_global*sizeof(double));
+      for(it=0; it<T_global; it++) {
+        ir = ( it - gsx[0] + T_global ) % T_global;
+        aff_buffer[ir] = buffer[it][2*k] + buffer[it][2*k+1] * I;
+      }
+      /* memcpy(aff_buffer, buffer[k], 2*T_global*sizeof(double)); */
       int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global);
       if(status != 0) {
         fprintf(stderr, "[proton_2pt] Error from aff_node_put_double, status was %d\n", status);
@@ -701,14 +885,16 @@ int main(int argc, char **argv) {
     }  /* end of loop on sink momenta */
 #endif
   }  /* end of if io_proc == 2 */
+
   retime = _GET_TIME;
   if(io_proc == 2) fprintf(stdout, "# [proton_2pt] time for writing = %e seconds\n", retime - ratime);
 
 #ifdef HAVE_MPI
-  if(io_proc == 2) {
+  if(io_proc > 0) {
     fini_2level_buffer(&buffer);
   }
 #endif
+
 #ifdef HAVE_LHPC_AFF
   if(io_proc == 2) {
     aff_status_str = (char*)aff_writer_close (affw);
@@ -737,11 +923,13 @@ int main(int argc, char **argv) {
 #ifdef HAVE_MPI
   MPI_Finalize();
 #endif
-  g_the_time = time(NULL);
-  fprintf(stdout, "# [proton_2pt] %s# [proton_2pt] end fo run\n", ctime(&g_the_time));
-  fflush(stdout);
-  fprintf(stderr, "# [proton_2pt] %s# [proton_2pt] end fo run\n", ctime(&g_the_time));
-  fflush(stderr);
+  if(g_cart_id == 0) {
+    g_the_time = time(NULL);
+    fprintf(stdout, "# [proton_2pt] %s# [proton_2pt] end fo run\n", ctime(&g_the_time));
+    fflush(stdout);
+    fprintf(stderr, "# [proton_2pt] %s# [proton_2pt] end fo run\n", ctime(&g_the_time));
+    fflush(stderr);
+  }
 
   return(0);
 }

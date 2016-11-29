@@ -4109,7 +4109,7 @@ int apply_gauge_transform(double*gauge_new, double*gauge_transform, double*gauge
  ******************************************************************/
 int init_rng_stat_file (unsigned int seed, char*filename) {
 
-  int c, i, j;
+  int c, i, j, iproc;
   int *rng_state=NULL;
 #ifdef HAVE_MPI
   unsigned int *buffer = NULL;
@@ -4149,27 +4149,33 @@ int init_rng_stat_file (unsigned int seed, char*filename) {
   free(buffer);
 #endif
 
-  if(g_cart_id==0) {
-    fprintf(stdout, "# [init_rng_stat_file] ranldxd: using seed %u and level 2\n", l_seed);
-    rlxd_init(2, l_seed);
+  fprintf(stdout, "# [init_rng_stat_file] proc%.4d ranldxd: using seed %u and level 2\n", g_cart_id, l_seed);
+  rlxd_init(2, l_seed);
 
-    c = rlxd_size();
-    if( (rng_state = (int*)malloc(c*sizeof(int))) == (int*)NULL ) {
-      fprintf(stderr, "Error, could not save the random number generator state\n");
-      return(102);
-    }
-    rlxd_get(rng_state);
-    if(filename == NULL) { filename = default_filename; }
-    ofs = fopen(filename, "w");
-    if( ofs == (FILE*)NULL ) {
-      fprintf(stderr, "[init_rng_stat_file] Error, could not save the random number generator state\n");
-      return(103);
-    }
-    fprintf(stdout, "# [init_rng_stat_file] writing rng state to file %s\n", filename);
-    for(i=0; i<c; i++) fprintf(ofs, "%d\n", rng_state[i]);
-    fclose(ofs);
-    free(rng_state);
+  c = rlxd_size();
+  if( (rng_state = (int*)malloc(c*sizeof(int))) == (int*)NULL ) {
+    fprintf(stderr, "Error, could not save the random number generator state\n");
+    return(102);
   }
+  rlxd_get(rng_state);
+
+  for(iproc=0; iproc<g_nproc; iproc++) {
+    if(filename == NULL) { filename = default_filename; }
+    if(iproc == g_cart_id) {
+      ofs = iproc == 0 ? fopen(filename, "w") : fopen(filename, "a");
+      if( ofs == (FILE*)NULL ) {
+        fprintf(stderr, "[init_rng_stat_file] Error, could not save the random number generator state\n");
+        EXIT(103);
+      }
+      /* fprintf(stdout, "# [init_rng_stat_file] writing rng state to file %s\n", filename); */
+      fprintf(ofs, "# proc %3d %3d %3d %3d\n", g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3]);
+      for(i=0; i<c; i++) fprintf(ofs, "%d\n", rng_state[i]);
+      fclose(ofs);
+    }
+    MPI_Barrier(g_cart_grid);
+  }
+
+  free(rng_state);
   return(0);
 }  /* end of init_rng_stat_file */
 
@@ -5294,6 +5300,64 @@ void g5_phi(double *phi, unsigned int N) {
 }  /* end of parallel region */
 #endif
 }  /* end of g5_phi */
+
+
+/********************************************
+ * check Ward-identity in position space
+ * for conn
+ ********************************************/
+
+int check_cvc_wi_position_space (double *conn) {
+
+  int nu;
+  int exitstatus;
+  double ratime, retime;
+
+  /********************************************
+   * check the Ward identity in position space 
+   ********************************************/
+  ratime = _GET_TIME;
+  double *conn_buffer = (double*)malloc(32*(VOLUME+RAND)*sizeof(double));
+  if(conn_buffer == NULL)  {
+    fprintf(stderr, "# [check_cvc_wi_position_space] Error from malloc\n");
+    return(1);
+  }
+  memcpy(conn_buffer, conn, 32*VOLUME*sizeof(double));
+  xchange_contraction(conn_buffer, 32);
+  if(g_cart_id == 0) fprintf(stdout, "# [check_cvc_wi_position_space] checking Ward identity in position space\n");
+  for(nu=0; nu<4; nu++) {
+    double norm = 0.;
+    complex w;
+    unsigned int ix;
+    for(ix=0; ix<VOLUME; ix++ ) {
+      w.re = conn_buffer[_GWI(4*0+nu,ix          ,VOLUME)  ] + conn_buffer[_GWI(4*1+nu,ix          ,VOLUME)  ]
+           + conn_buffer[_GWI(4*2+nu,ix          ,VOLUME)  ] + conn_buffer[_GWI(4*3+nu,ix          ,VOLUME)  ]
+           - conn_buffer[_GWI(4*0+nu,g_idn[ix][0],VOLUME)  ] - conn_buffer[_GWI(4*1+nu,g_idn[ix][1],VOLUME)  ]
+           - conn_buffer[_GWI(4*2+nu,g_idn[ix][2],VOLUME)  ] - conn_buffer[_GWI(4*3+nu,g_idn[ix][3],VOLUME)  ];
+
+      w.im = conn_buffer[_GWI(4*0+nu,ix          ,VOLUME)+1] + conn_buffer[_GWI(4*1+nu,ix          ,VOLUME)+1]
+           + conn_buffer[_GWI(4*2+nu,ix          ,VOLUME)+1] + conn_buffer[_GWI(4*3+nu,ix          ,VOLUME)+1]
+           - conn_buffer[_GWI(4*0+nu,g_idn[ix][0],VOLUME)+1] - conn_buffer[_GWI(4*1+nu,g_idn[ix][1],VOLUME)+1]
+           - conn_buffer[_GWI(4*2+nu,g_idn[ix][2],VOLUME)+1] - conn_buffer[_GWI(4*3+nu,g_idn[ix][3],VOLUME)+1];
+      
+      norm += w.re*w.re + w.im*w.im;
+    }
+#ifdef HAVE_MPI
+    double dtmp = norm;
+    exitstatus = MPI_Allreduce(&dtmp, &norm, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid);
+    if(exitstatus != MPI_SUCCESS) {
+      fprintf(stderr, "[check_cvc_wi_position_space] Error from MPI_Allreduce, status was %d\n", exitstatus);
+      return(2);
+    }
+#endif
+    if(g_cart_id == 0) fprintf(stdout, "# [check_cvc_wi_position_space] WI nu = %2d norm = %25.16e\n", nu, norm);
+  }  /* end of loop on nu */
+  free(conn_buffer);
+  retime = _GET_TIME;
+  if(g_cart_id==0) fprintf(stdout, "# [check_cvc_wi_position_space] time for saving momentum space results = %e seconds\n", retime-ratime);
+
+  return(0);
+}  /* end of check_cvc_wi_position_space */
 
 
 }  /* end of namespace cvc */

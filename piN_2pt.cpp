@@ -292,7 +292,7 @@ int main(int argc, char **argv) {
   no_fields += 2;
 
   g_spinor_field = (double**)calloc(no_fields, sizeof(double*));
-  for(i=0; i<no_fields-1; i++) alloc_spinor_field(&g_spinor_field[i], VOLUME);
+  for(i=0; i<no_fields-2; i++) alloc_spinor_field(&g_spinor_field[i], VOLUME);
   alloc_spinor_field(&g_spinor_field[no_fields-2], VOLUMEPLUSRAND);
   alloc_spinor_field(&g_spinor_field[no_fields-1], VOLUMEPLUSRAND);
   spinor_work[0] = g_spinor_field[no_fields-2];

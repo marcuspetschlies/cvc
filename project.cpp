@@ -403,7 +403,7 @@ int momentum_projection (double*V, double *W, unsigned int nv, int momentum_numb
     for(x3=0; x3<LZ; x3++) {
       ix = g_ipt[0][x1][x2][x3];
       q_phase = x1*q[0] + x2*q[1] + x3*q[2] + q_offset;
-      zphase[i][ix] = cos(q_phase) - I*sin(q_phase);
+      zphase[i][ix] = cos(q_phase) + I*sin(q_phase);
     }}}
   }
 
@@ -487,7 +487,7 @@ int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_num
     for(x3=0; x3<LZ; x3++) {
       ix = g_ipt[0][x1][x2][x3];
       q_phase = x1*q[0] + x2*q[1] + x3*q[2] + q_offset;
-      zphase[i][ix] = cos(q_phase) - I*sin(q_phase);
+      zphase[i][ix] = cos(q_phase) + I*sin(q_phase);
     }}}
   }
 
