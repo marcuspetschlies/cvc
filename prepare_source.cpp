@@ -563,7 +563,10 @@ int init_sequential_source(double *s, double *p, int tseq, int pseq[3], int gseq
     have_source = 0;
     lts = -1;
   }
-  if(have_source) fprintf(stdout, "# [init_sequential_source] process %d has source\n", g_cart_id);
+  if(have_source) {
+    fprintf(stdout, "# [init_sequential_source] process %d has source\n", g_cart_id);
+    fprintf(stdout, "# [init_sequential_source] t = %2d gamma id = %d p = (%d, %d, %d)\n", tseq, gseq, pseq[0], pseq[1], pseq[2]);
+  }
 
   /* (1) multiply with phase and Gamma structure */
   if(have_source) {
@@ -586,7 +589,7 @@ int init_sequential_source(double *s, double *p, int tseq, int pseq[3], int gseq
       w.re =  cos(phase);
       w.im =  sin(phase);
       _fv_eq_gamma_ti_fv(spinor1, gseq, p + ix);
-      _fv_eq_fv_ti_co(p + ix, spinor1, &w);
+      _fv_eq_fv_ti_co(s + ix, spinor1, &w);
     }}}
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */
