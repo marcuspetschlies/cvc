@@ -115,6 +115,7 @@ int init_3level_buffer (double****buffer, unsigned int n1, unsigned int n2, unsi
   for(i=0; i<n1; i++) {
   for(k=0; k<n2; k++) {
     (*buffer)[i][k] = (*buffer)[0][0] + l*n3;
+    l++;
   }}
   memset( (*buffer)[0][0], 0, bytes);
   return(0);
