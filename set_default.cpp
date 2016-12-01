@@ -195,6 +195,12 @@ void set_default_input_values(void) {
   g_seq_source_momentum_set = _default_seq_source_momentum_set;
   g_seq_source_momentum_number = _default_seq_source_momentum_number;
 
+  g_seq2_source_momentum[0]     = _default_seq_source_momentum_x;
+  g_seq2_source_momentum[1]     = _default_seq_source_momentum_y;
+  g_seq2_source_momentum[2]     = _default_seq_source_momentum_z;
+  g_seq2_source_momentum_set    = _default_seq_source_momentum_set;
+  g_seq2_source_momentum_number = _default_seq_source_momentum_number;
+
   g_rng_state = _default_rng_state;
 
   g_verbose = _default_verbose;

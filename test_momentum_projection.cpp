@@ -17,7 +17,7 @@
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
 #include <getopt.h>
@@ -85,7 +85,7 @@ int main(int argc, char **argv) {
   fprintf(stdout, "# reading input from file %s\n", filename);
   read_input_parser(filename);
 
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
   omp_set_num_threads(g_num_threads);
 #else
   fprintf(stdout, "[test_momentum_projection] Warning, resetting global thread number to 1\n");

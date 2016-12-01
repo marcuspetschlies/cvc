@@ -20,7 +20,7 @@
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
 #include <getopt.h>
@@ -185,7 +185,7 @@ int main(int argc, char **argv) {
 
 
 
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
   omp_set_num_threads(g_num_threads);
 #else
   fprintf(stdout, "[proton_2pt] Warning, resetting global thread number to 1\n");
@@ -442,7 +442,7 @@ int main(int argc, char **argv) {
    ******************************************************/
   ratime = _GET_TIME;
 #ifdef HAVE_OPENMP
-#pragma omp parallel 
+#pragma omp parallel private(ix,icomp)
 {
 #endif
   /* variables */
@@ -535,7 +535,7 @@ int main(int argc, char **argv) {
  free_sp(&sp1);
  free_sp(&sp2);
 
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
 }  /* end of parallel region */
 #endif
 
@@ -568,14 +568,14 @@ int main(int argc, char **argv) {
       ir = (it + g_proc_coords[0] * T - gsx[0] + T_global) % T_global;
       const complex w1 = { cos( 3. * M_PI*(double)ir / (double)T_global ), sin( 3. * M_PI*(double)ir / (double)T_global ) };
 #ifdef HAVE_OPENMP
-#pragma omp parallel private(ix) shared(connq)
+#pragma omp parallel private(ix) shared(connq,it)
 {
 #endif
       spinor_propagator_type sp1;
       create_sp(&sp1);
       iix = it * VOL3;
 #ifdef HAVE_OPENMP
-#pragma omp for
+#pragma omp for firstprivate(iix)
 #endif
       for(ix=0;ix<VOL3;ix++) {
         _sp_eq_sp(sp1, connq[iix] );
@@ -594,7 +594,7 @@ int main(int argc, char **argv) {
       it = ir + g_proc_coords[0] * T;  // global t-value, 0 <= t < T_global
       if(it < gsx[0]) {
 #ifdef HAVE_OPENMP
-#pragma omp parallel private(ix,iix) firstprivate(it)
+#pragma omp parallel private(ix) shared(connq,it)
 {
 #endif
         spinor_propagator_type sp1;
@@ -710,7 +710,7 @@ int main(int argc, char **argv) {
 
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel
+#pragma omp parallel private(it,k)
 {
 #endif
 #ifdef HAVE_OPENMP

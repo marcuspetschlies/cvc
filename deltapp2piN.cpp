@@ -18,7 +18,7 @@
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
 #include <getopt.h>
@@ -195,7 +195,7 @@ int main(int argc, char **argv) {
 
 
 
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
   omp_set_num_threads(g_num_threads);
 #else
   fprintf(stdout, "[deltapp2piN] Warning, resetting global thread number to 1\n");
@@ -423,7 +423,7 @@ int main(int argc, char **argv) {
     memcpy( g_spinor_field[is], spinor_work[1], sizeof_spinor_field);
   }
   retime = _GET_TIME;
-  if(g_cart_id == 0) fprintf(stderr, "# [deltapp2piN] time for up propagators = %e seconds\n", retime-ratime);
+  if(g_cart_id == 0) fprintf(stderr, "# [deltapp2piN] time for up propagator = %e seconds\n", retime-ratime);
 
 
   /***********************************************************
@@ -448,7 +448,7 @@ int main(int argc, char **argv) {
       memcpy( g_spinor_field[n_s*n_c+is], spinor_work[1], sizeof_spinor_field);
     }
     retime = _GET_TIME;
-    if(g_cart_id == 0) fprintf(stderr, "# [deltapp2piN] time for dn propagators = %e seconds\n", retime-ratime);
+    if(g_cart_id == 0) fprintf(stdout, "# [deltapp2piN] time for dn propagator = %e seconds\n", retime-ratime);
   }
 
   for(iseq_mom=0; iseq_mom < g_seq_source_momentum_number; iseq_mom++) {
@@ -487,16 +487,18 @@ int main(int argc, char **argv) {
       }  /* end of if write sequential propagator */
     }  /* end of loop on spin-color component */
     retime = _GET_TIME;
-    if(g_cart_id == 0) fprintf(stderr, "# [deltapp2piN] time for dn propagators = %e seconds\n", retime-ratime);
+    if(g_cart_id == 0) fprintf(stderr, "# [deltapp2piN] time for seq propagator = %e seconds\n", retime-ratime);
   
     /******************************************************
      * contractions
      ******************************************************/
     ratime = _GET_TIME;
+
 #ifdef HAVE_OPENMP
-#pragma omp parallel 
+#pragma omp parallel private(ix,icomp)
 {
 #endif
+
     /* variables */
     fermion_propagator_type fp1, fp2, fp3, fp4, fpaux, uprop, dprop;
     spinor_propagator_type sp1, sp2;
@@ -511,12 +513,12 @@ int main(int argc, char **argv) {
   
     create_sp(&sp1);
     create_sp(&sp2);
-  
+
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-    for(ix=0; ix<VOLUME; ix++)
-    {
+
+    for(ix=0; ix<VOLUME; ix++) {
       int seq_prop_id = ( (int)( fermion_type == _TM_FERMION ) + 1 ) * n_s*n_c;
       /* assign the propagators */
       _assign_fp_point_from_field(uprop, g_spinor_field, ix);
@@ -560,7 +562,7 @@ int main(int argc, char **argv) {
         _fp_eq_gamma_ti_fp(fp4, gamma_component[0][icomp], dprop);
         _fp_eq_gamma_ti_fp(fpaux, 2, fp4);
         _fp_eq_gamma_ti_fp(fp4,   0, fpaux);
-  
+
         /* (1) */
         /* reduce */
         _fp_eq_zero(fpaux);
@@ -621,7 +623,7 @@ int main(int argc, char **argv) {
         _sp_pl_eq_sp(sp1, sp2);
         _sp_eq_sp_ti_re(sp2, sp1, -gamma_component_sign[icomp]);
         _sp_pl_eq_sp( connq[ix*num_component+icomp], sp2);
-  
+
 
       }  /* of icomp */
 
@@ -637,14 +639,17 @@ int main(int argc, char **argv) {
   
    free_sp(&sp1);
    free_sp(&sp2);
-  
-#ifdef OPENMP
+
+
+#ifdef HAVE_OPENMP
 }  /* end of parallel region */
 #endif
-  
+
     retime = _GET_TIME;
     if(g_cart_id == 0)  fprintf(stdout, "# [deltapp2piN] time for contractions = %e seconds\n", retime-ratime);
   
+
+
   
     /***********************************************
      * finish calculation of connq
@@ -657,16 +662,16 @@ int main(int argc, char **argv) {
         ir = (it + g_proc_coords[0] * T - gsx[0] + T_global) % T_global;
         const complex w1 = { cos( 3. * M_PI*(double)ir / (double)T_global ), sin( 3. * M_PI*(double)ir / (double)T_global ) };
 #ifdef HAVE_OPENMP
-#pragma omp parallel private(ix) shared(connq)
+#pragma omp parallel private(ix,icomp) shared(connq,it)
 {
 #endif
         spinor_propagator_type sp1;
         create_sp(&sp1);
-        iix = it * VOL3 * num_component;
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
         for(ix=0;ix<VOL3;ix++) {
+          unsigned int iix = (it * VOL3 + ix) * num_component;
           for(icomp=0; icomp<num_component; icomp++) {
             _sp_eq_sp(sp1, connq[iix] );
             _sp_eq_sp_ti_co( connq[iix], sp1, w1);
@@ -675,7 +680,7 @@ int main(int argc, char **argv) {
         }
         free_sp(&sp1);
 #ifdef HAVE_OPENMP
-}  /* end of parallel region */
+}  
 #endif
       }
     } else if (g_propagator_bc_type == 1) {
@@ -685,16 +690,16 @@ int main(int argc, char **argv) {
         it = ir + g_proc_coords[0] * T;  // global t-value, 0 <= t < T_global
         if(it < gsx[0]) {
 #ifdef HAVE_OPENMP
-#pragma omp parallel private(ix,iix) firstprivate(it)
+#pragma omp parallel private(ix,icomp) shared(it,connq)
 {
 #endif
           spinor_propagator_type sp1;
           create_sp(&sp1);
-          iix = it * VOL3 * num_component;
 #ifdef HAVE_OPENMP
-#pragma omp for firstprivate(iix)
+#pragma omp for
 #endif
           for(ix=0;ix<VOL3;ix++) {
+            unsigned int iix = (it * VOL3 + ix) * num_component;
             for(icomp=0; icomp<num_component; icomp++) {
               _sp_eq_sp(sp1, connq[iix] );
               _sp_eq_sp_ti_re( connq[iix], sp1, -1.);
@@ -793,7 +798,7 @@ int main(int argc, char **argv) {
      * multiply with phase from source location
      ***********************************************/
 #ifdef HAVE_OPENMP
-#pragma omp parallel for
+#pragma omp parallel for private(icomp)
 #endif
     for(it=0; it<T; it++) {
       double phase;
@@ -854,7 +859,7 @@ int main(int argc, char **argv) {
   
   
 #ifdef HAVE_OPENMP
-#pragma omp parallel
+#pragma omp parallel private(k,icomp, it)
 {
 #endif
 #ifdef HAVE_OPENMP
@@ -912,7 +917,8 @@ int main(int argc, char **argv) {
       }
       fclose(ofs);
   
-      sprintf(filename, "%s_bw.%.4d.t%.2dx%.2dy%.2dz%.2d.proct%.2dprocx%.2dprocy%.2dprocz%.2d.ascii", outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
+      sprintf(filename, "%s_bw.%.4d.t%.2dx%.2dy%.2dz%.2d.px%.2dpy%.2dpz%.2d.proct%.2dprocx%.2dprocy%.2dprocz%.2d.ascii", outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
+          g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
           g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3]);
   
       ofs = fopen(filename, "w");
@@ -1062,7 +1068,7 @@ int main(int argc, char **argv) {
       aff_status_str = (char*)aff_writer_close (affw);
       if( aff_status_str != NULL ) {
         fprintf(stderr, "[deltapp2piN] Error from aff_writer_close, status was %s\n", aff_status_str);
-        return(11);
+        EXIT(11);
       }
       if(aff_buffer != NULL) free(aff_buffer);
     }  /* end of if io_proc == 2 */
@@ -1072,6 +1078,8 @@ int main(int argc, char **argv) {
     fini_3level_buffer(&connt_p);
     fini_3level_buffer(&connt_n);
   
+
+
   }  /* end of loop on sequential source momentum */
 
   /***********************************************

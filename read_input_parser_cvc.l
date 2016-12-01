@@ -183,6 +183,10 @@ namespace cvc {
 %x SEQSRCMOMX
 %x SEQSRCMOMY
 %x SEQSRCMOMZ
+%x SEQ2SRCMOM
+%x SEQ2SRCMOMX
+%x SEQ2SRCMOMY
+%x SEQ2SRCMOMZ
 %x CPUPREC
 %x GPUPREC
 %x GPUPRECSLOPPY
@@ -345,6 +349,10 @@ namespace cvc {
 ^seq_source_momentum_y{SPC}*={SPC}*        BEGIN(SEQSRCMOMY);
 ^seq_source_momentum_z{SPC}*={SPC}*        BEGIN(SEQSRCMOMZ);
 ^seq_source_momentum{SPC}*={SPC}*          BEGIN(SEQSRCMOM);
+^seq2_source_momentum_x{SPC}*={SPC}*       BEGIN(SEQ2SRCMOMX);
+^seq2_source_momentum_y{SPC}*={SPC}*       BEGIN(SEQ2SRCMOMY);
+^seq2_source_momentum_z{SPC}*={SPC}*       BEGIN(SEQ2SRCMOMZ);
+^seq2_source_momentum{SPC}*={SPC}*         BEGIN(SEQ2SRCMOM);
 ^cpu_precision{SPC}*={SPC}*                BEGIN(CPUPREC);
 ^gpu_precision{SPC}*={SPC}*                BEGIN(GPUPREC);
 ^gpu_precision_sloppy{SPC}*={SPC}*         BEGIN(GPUPRECSLOPPY);
@@ -1012,6 +1020,29 @@ namespace cvc {
       cvc::g_seq_source_momentum_list[cvc::g_seq_source_momentum_number]+1, cvc::g_seq_source_momentum_list[cvc::g_seq_source_momentum_number]+2);
   cvc::g_seq_source_momentum_number++;
   if(cvc::myverbose!=0) printf("# [read_input_parser] added sequential source momentum %s to list; total number is now %d\n", yytext, cvc::g_seq_source_momentum_number);
+}
+
+<SEQ2SRCMOMX>{SDIGIT}+ {
+  cvc::g_seq2_source_momentum[0] = atoi(yytext);
+  cvc::g_seq2_source_momentum_set = 1;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] x-comp. of sequential^2 source momentum set to %d\n", cvc::g_seq2_source_momentum[0]);
+}
+<SEQ2SRCMOMY>{SDIGIT}+ {
+  cvc::g_seq2_source_momentum[1] = atoi(yytext);
+  cvc::g_seq2_source_momentum_set = 1;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] y-comp. of sequential^2 source momentum set to %d\n", cvc::g_seq2_source_momentum[1]);
+}
+<SEQ2SRCMOMZ>{SDIGIT}+ {
+  cvc::g_seq2_source_momentum[2] = atoi(yytext);
+  cvc::g_seq2_source_momentum_set = 1;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] z-comp. of sequential^2 source momentum set to %d\n", cvc::g_seq2_source_momentum[2]);
+}
+
+<SEQ2SRCMOM>{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
+  sscanf(yytext, "%d,%d,%d", cvc::g_seq2_source_momentum_list[cvc::g_seq2_source_momentum_number],
+      cvc::g_seq2_source_momentum_list[cvc::g_seq2_source_momentum_number]+1, cvc::g_seq2_source_momentum_list[cvc::g_seq2_source_momentum_number]+2);
+  cvc::g_seq2_source_momentum_number++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] added sequential^2 source momentum %s to list; total number is now %d\n", yytext, cvc::g_seq2_source_momentum_number);
 }
 
 <CPUPREC>{NAME} {

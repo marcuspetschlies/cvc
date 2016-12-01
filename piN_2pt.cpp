@@ -19,7 +19,7 @@
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
 #include <getopt.h>
@@ -177,7 +177,7 @@ int main(int argc, char **argv) {
   }
 #endif
 
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
   omp_set_num_threads(g_num_threads);
 #else
   fprintf(stdout, "[piN_2pt] Warning, resetting global thread number to 1\n");
@@ -529,7 +529,7 @@ int main(int argc, char **argv) {
 
     _sp_eq_sp( connq[ix], sp1);
   }  // end of loop on VOLUME
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
 }  /* end of parallel region */
 #endif
   retime = _GET_TIME;
