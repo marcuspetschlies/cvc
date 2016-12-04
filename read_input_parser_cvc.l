@@ -211,6 +211,7 @@ namespace cvc {
 %x MXB_MXB_TWOPT
 %x FERMION_TYPE
 %x SOURCECOORDS
+%x SRCSNKTIMESEP
 
 %%
 ^T{SPC}*={SPC}*                            BEGIN(TT);
@@ -376,8 +377,8 @@ namespace cvc {
 
 ^m_m_2pt{SPC}*={SPC}*                      BEGIN(M_M_TWOPT);
 ^mxb_mxb_2pt{SPC}*={SPC}*                  BEGIN(MXB_MXB_TWOPT);
-
-^fermion_type{SPC}*={SPC}*                  BEGIN(FERMION_TYPE);
+^fermion_type{SPC}*={SPC}*                 BEGIN(FERMION_TYPE);
+^src_snk_time_separation{SPC}*={SPC}*      BEGIN(SRCSNKTIMESEP);
 
 
   /* start namespace inclusion here */
@@ -1202,26 +1203,26 @@ namespace cvc {
   }
 
   sscanf(yytext, "%d,(%d,%d,%d);%d,(%d,%d,%d);%d,(%d,%d,%d);%d,(%d,%d,%d)",
-    &(cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].gi1),
-      cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].pi1,
-      cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].pi1+1,
-      cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].pi1+2,
-    &(cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].gi2),
-      cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].pi2,
-      cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].pi2+1,
-      cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].pi2+2,
-    &(cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].gf1),
-      cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].pf1,
-      cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].pf1+1,
-      cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].pf1+2,
-    &(cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].gf2),
-      cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].pf2,
-      cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].pf2+1,
-      cvc::g_mxm_mxm_2pt_list[cvc::g_mxm_mxm_2pt_num].pf2+2
+    &(cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].gi1),
+      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pi1,
+      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pi1+1,
+      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pi1+2,
+    &(cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].gi2),
+      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pi2,
+      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pi2+1,
+      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pi2+2,
+    &(cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].gf1),
+      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pf1,
+      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pf1+1,
+      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pf1+2,
+    &(cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].gf2),
+      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pf2,
+      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pf2+1,
+      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pf2+2
   );
 
-  cvc::g_mxm_mxm_2pt_num++;
-  if(cvc::myverbose!=0) printf("# [read_input_parser] mxb_mxb_2pt no. %d set to %s\n", cvc::g_mxm_mxm_2pt_num, yytext);
+  cvc::g_mxb_mxb_2pt_num++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] mxb_mxb_2pt no. %d set to %s\n", cvc::g_mxb_mxb_2pt_num, yytext);
 }
 
 <FERMION_TYPE>{FILENAME} {
@@ -1230,11 +1231,15 @@ namespace cvc {
   } else if (strcmp(yytext, "Wilson")==0 ) {
     cvc::g_fermion_type = _WILSON_FERMION;
   } else if (strcmp(yytext, "DomainWall")==0 ) {
-    cvc::g_fermion_type = _DW_FERMION;
+    cvc::g_fermion_type = _DW_WILSON_FERMION;
   }
   if(cvc::myverbose!=0) printf("# [read_input_parser] fermion type set to %d\n", cvc::g_fermion_type);
 }
 
+<SRCSNKTIMESEP>{DIGIT}+ {
+  cvc::g_src_snk_time_separation = atoi(yytext);
+  if(cvc::myverbose!=0) printf("# [read_input_parser] cvc::g_src_snk_time_separation = %s\n", yytext);
+}
 
 
 <*>^#   {

@@ -91,7 +91,6 @@ int main(int argc, char **argv) {
   int it, ir, is;
   int gsx[4], sx[4];
   int write_ascii=0;
-  int fermion_type = -1;
   int write_xspace = 0;
   int source_proc_id = 0, source_proc_coords[4];
   char filename[200], contype[1200];
@@ -137,22 +136,11 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "xah?f:F:")) != -1) {
+  while ((c = getopt(argc, argv, "xah?f:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
       filename_set=1;
-      break;
-    case 'F':
-      if(strcmp(optarg, "Wilson") == 0) {
-        fermion_type = _WILSON_FERMION;
-      } else if(strcmp(optarg, "tm") == 0) {
-        fermion_type = _TM_FERMION;
-      } else {
-        fprintf(stderr, "[deltapp_2pt] Error, unrecognized fermion type\n");
-        exit(145);
-      }
-      fprintf(stdout, "# [deltapp_2pt] will use fermion type %s ---> no. %d\n", optarg, fermion_type);
       break;
     case 'x':
       write_xspace = 1;
@@ -175,7 +163,7 @@ int main(int argc, char **argv) {
   fprintf(stdout, "# reading input from file %s\n", filename);
   read_input_parser(filename);
 
-  if(fermion_type == -1 ) {
+  if(g_fermion_type == -1 ) {
     fprintf(stderr, "# [deltapp_2pt] fermion_type must be set\n");
     exit(1);
   }
@@ -353,7 +341,7 @@ int main(int argc, char **argv) {
    ***********************************************************/
   g_spinor_field = NULL;
   no_fields = n_s*n_c;
-  if(fermion_type == _TM_FERMION) { no_fields *= 2; }
+  if(g_fermion_type == _TM_FERMION) { no_fields *= 2; }
   no_fields += 2;
   g_spinor_field = (double**)calloc(no_fields, sizeof(double*));
   for(i=0; i<no_fields-2; i++) alloc_spinor_field(&g_spinor_field[i], VOLUME);
@@ -433,7 +421,7 @@ int main(int argc, char **argv) {
   /***********************************************************
    * 12 dn-type propagators and smear them
    ***********************************************************/
-  if(fermion_type == _TM_FERMION) {
+  if(g_fermion_type == _TM_FERMION) {
     if(g_cart_id == 0) fprintf(stdout, "# [deltapp_2pt] dn-type inversion\n");
     ratime = _GET_TIME;
     for(is=0;is<n_s*n_c;is++) {
@@ -484,9 +472,9 @@ int main(int argc, char **argv) {
   {
     /* assign the propagators */
     _assign_fp_point_from_field(uprop, g_spinor_field, ix);
-    if(fermion_type == _TM_FERMION) {
-      _fp_eq_rot_ti_fp(fp1, uprop, +1, fermion_type, fp2);
-      _fp_eq_fp_ti_rot(uprop, fp1, +1, fermion_type, fp2);
+    if(g_fermion_type == _TM_FERMION) {
+      _fp_eq_rot_ti_fp(fp1, uprop, +1, g_fermion_type, fp2);
+      _fp_eq_fp_ti_rot(uprop, fp1, +1, g_fermion_type, fp2);
     }
 
     for(icomp=0; icomp<num_component; icomp++) {
