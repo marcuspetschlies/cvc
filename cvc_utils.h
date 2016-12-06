@@ -118,8 +118,15 @@ void g5_phi(double *phi, unsigned int N);
 
 spinor_propagator_type *create_sp_field(size_t N);
 fermion_propagator_type *create_fp_field(size_t N);
+int fermion_propagator_field_tm_rotation(fermion_propagator_type *s, fermion_propagator_type *r, int sign, int fermion_type, unsigned int N);
+int spinor_field_tm_rotation(double*s, double*r, int sign, int fermion_type, unsigned int N);
 
 int check_cvc_wi_position_space (double *conn);
+
+int assign_fermion_propagaptor_from_spinor_field (fermion_propagator_type *s, double**prop_list, unsigned int N);
+int assign_spinor_field_from_fermion_propagaptor (double**prop_list, fermion_propagator_type *s, unsigned int N);
+int assign_spinor_field_from_fermion_propagaptor_component (double*spinor_field, fermion_propagator_type *s, int icomp, unsigned int N);
+
 
 }  /* end of namespace cvc */
 #endif

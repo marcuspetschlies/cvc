@@ -285,6 +285,8 @@ void set_default_input_values(void) {
   g_fermion_type = _default_fermion_type;
   g_source_location_number = _default_source_location_number;
 
+  g_coherent_source_number = _default_coherent_source_number;
+
 }  /* end of set_default_input_values */
 
 }  /* end of namespace cvc */

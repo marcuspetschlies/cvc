@@ -5359,5 +5359,183 @@ int check_cvc_wi_position_space (double *conn) {
   return(0);
 }  /* end of check_cvc_wi_position_space */
 
+/***************************************************
+ * rotate fermion propagator field from
+ * twisted to physical basis (depending on sign)
+ *
+ * safe, if s = r
+ ***************************************************/
+int fermion_propagator_field_tm_rotation(fermion_propagator_type *s, fermion_propagator_type *r, int sign, int fermion_type, unsigned int N) {
+
+  if( fermion_type == _TM_FERMION ) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+    unsigned int ix;
+    fermion_propagator_type fp1, fp2, s_, r_;
+  
+    create_fp(&fp1);
+    create_fp(&fp2);
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(ix=0; ix<N; ix++) {
+
+      s_ = s[ix];
+      r_ = r[ix];
+
+      /* flavor rotation */
+  
+      _fp_eq_rot_ti_fp(fp1, r_, sign, fermion_type, fp2);
+      _fp_eq_fp_ti_rot(s_, fp1, sign, fermion_type, fp2);
+
+    }  /* end of loop on ix */
+
+    free_fp(&fp1);
+    free_fp(&fp2);
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+  } else if ( fermion_type == _WILSON_FERMION && s != r) {
+    size_t bytes = N * g_fv_dim * g_fv_dim * 2 * sizeof(double);
+    memcpy(s[0][0], r[0][0], bytes);
+  }
+  return(0);
+}  /* end of fermion_propagator_field_tm_rotation */
+
+/***************************************************
+ * rotate spinor field from
+ * twisted to physical basis (depending on sign)
+ *
+ * safe, if s = r
+ ***************************************************/
+int spinor_field_tm_rotation(double*s, double*r, int sign, int fermion_type, unsigned int N) {
+
+  const double norm = 1. / sqrt(2.);
+
+  if( fermion_type == _TM_FERMION ) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+    unsigned int ix;
+    double sp1[_GSI(1)], sp2[_GSI(1)], *s_, *r_;
+  
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(ix=0; ix<N; ix++) {
+
+      s_ = s + _GSI(ix);
+      r_ = r + _GSI(ix);
+
+      /* flavor rotation */
+      _fv_eq_gamma_ti_fv(sp1, 5, r_);
+      _fv_eq_fv_ti_im(sp2, sp1, (double)sign );
+      _fv_eq_fv_pl_fv(sp1, r_, sp2);
+      _fv_eq_fv_ti_re(s_, sp1, norm);
+    }  /* end of loop on ix */
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+  } else if ( fermion_type == _WILSON_FERMION  && s != r ) {
+    memcpy(s, r, _GSI(N)*sizeof(double));
+  }
+  return(0);
+}  /* end of fermion_propagator_field_tm_rotation */
+
+/***************************************************
+ * spinor fields to fermion propagator points
+ ***************************************************/
+int assign_fermion_propagaptor_from_spinor_field (fermion_propagator_type *s, double**prop_list, unsigned int N) {
+
+  if(s == prop_list) {
+    fprintf(stderr, "[assign_fermion_propagaptor_from_spinor_field] Error, input fields have same address\n");
+    return(1);
+  }
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  unsigned int ix;
+  fermion_propagator_type s_;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(ix=0; ix<N; ix++) {
+    s_ = s[ix];
+    _assign_fp_point_from_field(s_, prop_list, ix);
+  }
+#ifdef HAVE_OPENMP
+}
+#endif
+  return(0);
+}  /* end of assign_fermion_propagaptor_from_spinor_field */
+
+/***************************************************
+ * fermion propagator points to spinor fields
+ ***************************************************/
+int assign_spinor_field_from_fermion_propagaptor (double**prop_list, fermion_propagator_type *s, unsigned int N) {
+
+  if(s == prop_list) {
+    fprintf(stderr, "[assign_spinor_field_from_fermion_propagaptor] Error, input fields have same address\n");
+    return(1);
+  }
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  unsigned int ix;
+  fermion_propagator_type s_;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(ix=0; ix<N; ix++) {
+    s_ = s[ix];
+    _assign_fp_field_from_point(prop_list, s_, ix);
+  }
+#ifdef HAVE_OPENMP
+}
+#endif
+  return(0);
+}  /* end of assign_spinor_field_from_fermion_propagaptor */
+
+/***************************************************
+ * component of fermion propagator points
+ * to spinor fields
+ ***************************************************/
+int assign_spinor_field_from_fermion_propagaptor_component (double*spinor_field, fermion_propagator_type *s, int icomp, unsigned int N) {
+
+  if(s == prop_list) {
+    fprintf(stderr, "[assign_spinor_field_from_fermion_propagaptor] Error, input fields have same address\n");
+    return(1);
+  }
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  unsigned int ix;
+  fermion_propagator_type s_;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(ix=0; ix<N; ix++) {
+    s_ = s[ix];
+    _assign_fp_field_from_point_component (spinor_field, s_, icomp, ix);
+  }
+#ifdef HAVE_OPENMP
+}
+#endif
+  return(0);
+}  /* end of assign_spinor_field_from_fermion_propagaptor_component */
+
 
 }  /* end of namespace cvc */

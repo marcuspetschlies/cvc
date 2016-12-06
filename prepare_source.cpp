@@ -41,10 +41,12 @@ int prepare_volume_source(double *s, unsigned int V) {
 
   switch(g_noise_type) {
     case 1:
-      status = rangauss(s, 24*V);
+      /* status = rangauss(s, 24*V); */
+      status = rangauss(s, _GSI(V) );
       break;
     case 2:
-      status = ranz2(s, 24*V);
+      /* status = ranz2(s, 24*V); */
+      status = ranz2(s, _GSI(V) );
       break;
   }
 
@@ -543,8 +545,11 @@ int init_sequential_source(double *s, double *p, int tseq, int pseq[3], int gseq
   const double py = 2. * M_PI * pseq[1] / (double)LY_global;
   const double pz = 2. * M_PI * pseq[2] / (double)LZ_global;
   const double phase_offset =  g_proc_coords[1]*LX * px + g_proc_coords[2]*LY * py + g_proc_coords[3]*LZ * pz;
+  const size_t sizeof_spinor_field = _GSI(VOLUME) * sizeof(double);
 
   int have_source=0, lts=-1;
+
+  memset(s, 0, sizeof_spinor_field);
 
   if(s == NULL || p == NULL) {
     fprintf(stderr, "[init_sequential_source] Error, field is null\n");
@@ -601,4 +606,85 @@ int init_sequential_source(double *s, double *p, int tseq, int pseq[3], int gseq
 }  /* end of function init_sequential_source */
 
 
+/*************************************************************************
+ * prepare a coherent sequential source
+ *************************************************************************/
+int init_coherent_sequential_source(double *s, double **p, int tseq, int ncoh, int pseq[3], int gseq) {
+
+  const double px = 2. * M_PI * pseq[0] / (double)LX_global;
+  const double py = 2. * M_PI * pseq[1] / (double)LY_global;
+  const double pz = 2. * M_PI * pseq[2] / (double)LZ_global;
+  const double phase_offset =  g_proc_coords[1]*LX * px + g_proc_coords[2]*LY * py + g_proc_coords[3]*LZ * pz;
+  const size_t sizeof_spinor_field = _GSI(VOLUME) * sizeof(double);
+  const size_t sizeof_spinor_field_timeslice = _GSI(LX*LY*LZ) * sizeof(double);
+
+  int have_source=0, lts=-1, icoh;
+
+  if(s == NULL || p == NULL) {
+    fprintf(stderr, "[init_sequential_source] Error, field is null\n");
+    return(1);
+  }
+
+  /* initalize target field s to zero */
+  memset(s, 0, sizeof_spinor_field);
+
+  /* loop on coherent source timeslices */
+  for(icoh=0; icoh<ncoh; icoh++) {
+
+    int tcoh = ( tseq + (T_global / ncoh) * icoh ) % T_global;
+
+    /* (0) which processes have source? */
+#if ( (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) ) && (defined HAVE_QUDA)
+    if(g_proc_coords[3] == tcoh / T )
+#else
+    if(g_proc_coords[0] == tcoh / T )
+#endif
+    {
+      have_source = 1;
+      lts = tcoh % T;
+    } else {
+      have_source = 0;
+      lts = -1;
+    }
+    if(have_source) {
+      fprintf(stdout, "# [init_sequential_source] process %d has source using t = %2d gamma id = %2d p = (%3d, %3d, %3d)\n",
+          g_cart_id, tcoh, gseq, pseq[0], pseq[1], pseq[2]);
+    }
+
+    /* (1) multiply with phase and Gamma structure */
+    if(have_source) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+      double spinor1[24], phase;
+      unsigned int ix;
+      int x1, x2, x3;
+      complex w;
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+      for(x1=0;x1<LX;x1++) {
+      for(x2=0;x2<LY;x2++) {
+      for(x3=0;x3<LZ;x3++) {
+        ix = _GSI(g_ipt[lts][x1][x2][x3]);
+        phase = phase_offset + x1 * px + x2 * py + x3 * pz;
+        w.re =  cos(phase);
+        w.im =  sin(phase);
+        _fv_eq_gamma_ti_fv(spinor1, gseq, p[icoh] + ix);
+        _fv_eq_fv_ti_co(s + ix, spinor1, &w);
+      }}}
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+    }  /* of if have_source */
+
+  }  /* end of loop on coherent sources */
+
+  return(0);
+}  /* end of function init_sequential_source */
+
+
+}  /* end of namespace cvc */
 }  /* end of namespace cvc */

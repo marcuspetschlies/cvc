@@ -4,6 +4,9 @@
  * Thu Dec  1 15:14:13 CET 2016
  *
  * PURPOSE:
+ *   pi N - pi N 2-point function contractions
+ *   with point-source propagators, sequential
+ *   propagators and stochastic propagagtors
  * TODO:
  * DONE:
  *
@@ -61,6 +64,150 @@ extern "C"
 
 using namespace cvc;
 
+
+/************************************************************************************
+ * determine all stochastic source timeslices needed; make a source timeslice list
+ ************************************************************************************/
+int **stochastic_source_timeslice_lookup_table;
+int *stochastic_source_timeslice_list;
+int stochastic_source_timeslice_number;
+
+int get_stochastic_source_timeslices (void) {
+  int tmp_list[T_global];
+  int t, i_src, i_snk;
+  int i_coherent;
+
+  for(t = 0; t<T_global; t++) { tmp_list[t] = -1; }
+
+  i_snk = 0;
+  for(i_src = 0; i_src<g_source_location_number; i_src++) {
+    int t_base = g_source_coords_list[i_src][0];
+    for(i_coherent = 0; i_coherent < g_coherent_source_number; i_coherent++) {
+      int t_coherent = ( t_base + i_coherent * ( T_global / g_coherent_source_number) ) % T_global;
+      for(t = 0; t<=g_src_snk_time_separation; t++) {
+        int t_snk = ( t_coherent + t ) % T_global;
+        if( tmp_list[t_snk] == -1 ) {
+          tmp_list[t_snk] = i_snk;
+          i_snk++;
+        }
+      }
+    }  /* of loop on coherent source timeslices */
+  }    /* of loop on base source timeslices */
+  if(g_cart_id == 0) { fprintf(stdout, "# [get_stochastic_source_timeslices] number of stochastic timeslices = %2d\n", i_snk); }
+
+  stochastic_source_timeslice_number = i_snk;
+  if(stochastic_source_timeslice_number == 0) {
+    fprintf(stderr, "# [get_stochastic_source_timeslices] Error, stochastic_source_timeslice_number = 0\n");
+    return(4);
+  }
+
+  stochastic_source_timeslice_list = (int*)malloc(i_snk*sizeof(int));
+  if(stochastic_source_timeslice_list == NULL) {
+    fprintf(stderr, "[get_stochastic_source_timeslices] Error from malloc\n");
+    return(1);
+  }
+
+  i_src = g_source_location_number * g_coherent_source_number;
+  stochastic_source_timeslice_lookup_table = (int**)malloc(i_src * sizeof(int*));
+  if(stochastic_source_timeslice_lookup_table == NULL) {
+    fprintf(stderr, "[get_stochastic_source_timeslices] Error from malloc\n");
+    return(2);
+  }
+
+  stochastic_source_timeslice_lookup_table[0] = (int*)malloc( (g_src_snk_time_separation+1) * i_src * sizeof(int));
+  if(stochastic_source_timeslice_lookup_table[0] == NULL) {
+    fprintf(stderr, "[get_stochastic_source_timeslices] Error from malloc\n");
+    return(3);
+  }
+  for(i_src=1; i_src<g_source_location_number*g_coherent_source_number; i_src++) {
+    stochastic_source_timeslice_lookup_table[i_src] = stochastic_source_timeslice_lookup_table[i_src-1] + (g_src_snk_time_separation+1);
+  }
+
+  for(i_src = 0; i_src<g_source_location_number; i_src++) {
+    int t_base = g_source_coords_list[i_src][0];
+    for(i_coherent = 0; i_coherent < g_coherent_source_number; i_coherent++) {
+      int i_prop = i_src * g_coherent_source_number + i_coherent;
+      int t_coherent = ( t_base + i_coherent * ( T_global / g_coherent_source_number) ) % T_global;
+      for(t = 0; t<=g_src_snk_time_separation; t++) {
+        int t_snk = ( t_coherent + t ) % T_global;
+        if( tmp_list[t_snk] != -1 ) {
+          stochastic_source_timeslice_list[ tmp_list[t_snk] ] = t_snk;
+          stochastic_source_timeslice_lookup_table[i_prop][t] = tmp_list[t_snk];
+        }
+      }
+    }  /* of loop on coherent source timeslices */
+  }    /* of loop on base source timeslices */
+
+  if(g_cart_id == 0) {
+    /* TEST */
+    for(i_src = 0; i_src<g_source_location_number; i_src++) {
+      int t_base = g_source_coords_list[i_src][0];
+      for(i_coherent = 0; i_coherent < g_coherent_source_number; i_coherent++) {
+        int i_prop = i_src * g_coherent_source_number + i_coherent;
+        int t_coherent = ( t_base + i_coherent * ( T_global / g_coherent_source_number) ) % T_global;
+
+        for(t = 0; t <= g_src_snk_time_separation; t++) {
+          fprintf(stdout, "# [get_stochastic_source_timeslices] i_src = %d, i_prop = %d, t_src = %d, dt = %d, t_snk = %d, lookup table = %d\n",
+              i_src, i_prop, t_coherent, t,
+              stochastic_source_timeslice_list[ stochastic_source_timeslice_lookup_table[i_prop][t] ],
+              stochastic_source_timeslice_lookup_table[i_prop][t]);
+        }
+      }
+    }
+
+    /* TEST */
+    for(t=0; t<stochastic_source_timeslice_number; t++) {
+      fprintf(stdout, "# [get_stochastic_source_timeslices] stochastic source timeslice no. %d is t = %d\n", t, stochastic_source_timeslice_list[t]);
+    }
+  }  /* end of if g_cart_id == 0 */
+  return(0);
+}  /* end of get_stochastic_source_timeslices */
+
+
+/***********************************************************
+ * determine source coordinates, find out, if source_location is in this process
+ *   gcoords: global source coordinates (in)
+ *   lcoords: local source coordinates (out)
+ *   proc_id: source proc id (out)
+ *   location: local lexic source location (out)
+ ***********************************************************/
+int get_point_source_info (int gcoords[4], int lcoords[4], int*proc_id) {
+  /* local source coordinates */
+  int source_proc_id = 0;
+#ifdef HAVE_MPI
+  int source_proc_coords[4];
+  source_proc_coords[0] = gcoords[0] / T;
+  source_proc_coords[1] = gcoords[1] / LX;
+  source_proc_coords[2] = gcoords[2] / LY;
+  source_proc_coords[3] = gcoords[3] / LZ;
+  exitstatus = MPI_Cart_rank(g_cart_grid, source_proc_coords, &source_proc_id);
+  if(exitstatus !=  MPI_SUCCESS ) {
+    fprintf(stderr, "[get_point_source_info] Error from MPI_Cart_rank, status was %d\n", exitstatus);
+    EXIT(9);
+  }
+  if(source_proc_id == g_cart_id) {
+    fprintf(stdout, "# [get_point_source_info] process %2d = (%3d,%3d,%3d,%3d) has source location\n", source_proc_id,
+        source_proc_coords[0], source_proc_coords[1], source_proc_coords[2], source_proc_coords[3]);
+  }
+#endif
+
+  if(proc_id != NULL) *proc_id = source_proc_id;
+  int x[4] = {-1,-1,-1,-1};
+  /* local coordinates */
+  if(g_cart_id == source_proc_id) {
+    x[0] = gcoords[0] % T;
+    x[1] = gcoords[1] % LX;
+    x[2] = gcoords[2] % LY;
+    x[3] = gcoords[3] % LZ;
+    if(lcoords != NULL) {
+      memcpy(lcoords,x,4*sizeof(int));
+    }
+  }
+}  /* end of get_point_source_info */
+
+/***********************************************************
+ * usage function
+ ***********************************************************/
 void usage() {
   fprintf(stdout, "Code to perform contractions for proton 2-pt. function\n");
   fprintf(stdout, "Usage:    [options]\n");
@@ -75,8 +222,11 @@ void usage() {
 #endif
   exit(0);
 }
-
-
+  
+  
+/***********************************************************
+ * main program
+ ***********************************************************/
 int main(int argc, char **argv) {
   
   const int n_c=3;
@@ -106,13 +256,14 @@ int main(int argc, char **argv) {
   double ***buffer=NULL;
   int io_proc = -1;
   int icomp, iseq_mom, iseq2_mom;
+  double **propagator_list_up = NULL, **propagator_list_dn = NULL, **sequential_propagator_list = NULL, **stochastic_propagator_list = NULL,
+         *stochastic_source_list = NULL;
 
 /*******************************************************************
  * Gamma components for the Delta:
  *                                                                 */
   const int num_component = 1;
-  int gamma_component[2][1] = { {5},
-                                {5} };
+  int gamma_component[1][2] = { {5, 5} };
   double gamma_component_sign[1] = {+1.};
 /*
  *******************************************************************/
@@ -211,6 +362,7 @@ int main(int argc, char **argv) {
   VOL3 = LX*LY*LZ;
   sizeof_spinor_field = _GSI(VOLUME)*sizeof(double);
   sizeof_spinor_field_timeslice = _GSI(VOL3)*sizeof(double);
+
 
 #ifdef HAVE_MPI
   /***********************************************
@@ -334,22 +486,67 @@ int main(int argc, char **argv) {
 
 
   /***********************************************************
+   * determine the stochastic source timeslices
+   ***********************************************************/
+  exitstatus = get_stochastic_source_timeslices();
+  if(exitstatus != 0) {
+    fprintf(stderr, "[piN2piN] Error from get_stochastic_source_timeslices, status was %d\n", exitstatus);
+    EXIT(19);
+  }
+
+  /***********************************************************
    * allocate memory for the spinor fields
    ***********************************************************/
-  g_spinor_field = NULL;
-  no_fields = n_s*n_c;
-  if(g_fermion_type == _TM_FERMION) {
-    no_fields *= 6;
-  } else {
-    no_fields *= 5;
+
+  g_spinor_field    = (double**)malloc(n_s*n_c * sizeof(double*));
+  g_spinor_field[0] = (double*)malloc( n_s*n_c * sizeof_spinor_field);
+  if(g_spinor_field == NULL) {
+    fprintf(stderr, "[piN2piN] Error from malloc\n");
+    EXIT(42);
   }
-  no_fields += 2;
-  g_spinor_field = (double**)calloc(no_fields, sizeof(double*));
-  for(i=0; i<no_fields-2; i++) alloc_spinor_field(&g_spinor_field[i], VOLUME);
-  alloc_spinor_field(&g_spinor_field[no_fields-2], VOLUMEPLUSRAND);
-  alloc_spinor_field(&g_spinor_field[no_fields-1], VOLUMEPLUSRAND);
-  spinor_work[0] = g_spinor_field[no_fields-2];
-  spinor_work[1] = g_spinor_field[no_fields-1];
+  for(i = 1; i < n_s*n_c; i++) g_spinor_field[i] = g_spinor_field[i-1] + _GSI(VOLUME);
+
+  no_fields = (  g_coherent_source_number * g_source_location_number      /* up propagators at all base x coherent source locations */ \
+               + g_source_location_number * g_seq_source_momentum_number  /* sequential propagators at all base source locations */ \
+              ) * n_s*n_c                                                 /* times number of spin-color components */\
+              + g_nsample                                                 /* stochastic timeslice propagators */ \
+              + g_nsample                                                 /* stochastic sources */;
+
+
+  if(g_fermion_type == _TM_FERMION) {
+    no_fields +=                                                          /* dn propagators at all base x coherent source locations */ \
+      g_coherent_source_number * g_source_location_number * n_s*n_c;
+
+  }
+
+  no_fields = g_coherent_source_number * g_source_location_number; /* up propagators at all base x coherent source locations */ 
+  propagator_list_up = (fermion_propagator_type**)malloc(no_fields * sizeof(fermion_propagator_type*));
+  for(i=0; i<no_fields; i++) propagator_list_up[i] = create_fp_field( VOLUME );
+
+  if(g_fermion_type == _TM_FERMION) {
+    no_fields = g_coherent_source_number * g_source_location_number; /* dn propagators at all base x coherent source locations */ 
+    propagator_list_dn = (fermion_propagator_type**)malloc(no_fields * sizeof(fermion_propagator_type*));
+    for(i=0; i<no_fields; i++) propagator_list_dn[i] = create_fp_field( VOLUME );
+  } else {
+    propagator_list_dn  = propagator_list_up;
+  }
+
+  no_fields = g_source_location_number * g_seq_source_momentum_number  /* sequential propagators at all base source locations */ 
+  sequential_propagator_list = (fermion_propagator_type**)malloc(no_fields * sizeof(fermion_propagator_type*));
+  for(i=0; i<no_fields; i++) sequential_propagator_list[i] = create_fp_field( VOLUME );
+
+
+  stochastic_propagator_list    = (double**)malloc(g_nsample * sizeof(double*));
+  stochastic_propagator_list[0] = (double* )malloc(g_nsample * sizeof_spinor_field);
+  for(i=1; i<g_nsample; i++) stochastic_propagator_list[i] = stochastic_propagator_list[i-1] + _GSI(VOLUME);
+
+  stochastic_source_list = (double**)malloc(g_nsample * sizeof(double*));
+  stochastic_source_list[0] = (double*)malloc(g_nsample * sizeof_spinor_field);
+  for(i=1; i<g_nsample; i++) stochastic_source_list[i] = stochastic_source_list[i-1] + _GSI(VOLUME);
+
+  /* work spaces with halo */
+  alloc_spinor_field(&spinor_work[0], VOLUMEPLUSRAND);
+  alloc_spinor_field(&spinor_work[1], VOLUMEPLUSRAND);
 
   /***********************************************************
    * allocate memory for the contractions
@@ -358,41 +555,6 @@ int main(int argc, char **argv) {
   if(connq == NULL) {
     fprintf(stderr, "[piN2piN] Error, could not alloc connq\n");
     EXIT(2);
-  }
-
-  /***********************************************************
-   * determine source coordinates, find out, if source_location is in this process
-   ***********************************************************/
-  /* global source coordinates */
-  gsx[0] = g_source_location / ( LX_global * LY_global * LZ_global);
-  gsx[1] = (g_source_location % ( LX_global * LY_global * LZ_global)) / (LY_global * LZ_global);
-  gsx[2] = (g_source_location % ( LY_global * LZ_global)) / LZ_global;
-  gsx[3] = (g_source_location % LZ_global);
-  /* local source coordinates */
-  sx[0] = gsx[0] % T;
-  sx[1] = gsx[1] % LX;
-  sx[2] = gsx[2] % LY;
-  sx[3] = gsx[3] % LZ;
-  source_proc_id = 0;
-#ifdef HAVE_MPI
-  source_proc_coords[0] = gsx[0] / T;
-  source_proc_coords[1] = gsx[1] / LX;
-  source_proc_coords[2] = gsx[2] / LY;
-  source_proc_coords[3] = gsx[3] / LZ;
-
-  if(g_cart_id == 0) {
-    fprintf(stdout, "# [piN2piN] global source coordinates: (%3d,%3d,%3d,%3d)\n",  gsx[0], gsx[1], gsx[2], gsx[3]);
-    fprintf(stdout, "# [piN2piN] source proc coordinates: (%3d,%3d,%3d,%3d)\n",  source_proc_coords[0], source_proc_coords[1], source_proc_coords[2], source_proc_coords[3]);
-  }
-
-  exitstatus = MPI_Cart_rank(g_cart_grid, source_proc_coords, &source_proc_id);
-  if(exitstatus !=  MPI_SUCCESS ) {
-    fprintf(stderr, "[piN2piN] Error from MPI_Cart_rank, status was %d\n", exitstatus);
-    EXIT(9);
-  }
-#endif
-  if( source_proc_id == g_cart_id) {
-    fprintf(stdout, "# [piN2piN] process %2d has source location\n", source_proc_id);
   }
 
 
@@ -413,22 +575,38 @@ int main(int argc, char **argv) {
    ***********************************************************/
   ratime = _GET_TIME;
   if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] up-type inversion\n");
-  for(is=0;is<n_s*n_c;is++) {
-    memset(spinor_work[0], 0, sizeof_spinor_field);
-    memset(spinor_work[1], 0, sizeof_spinor_field);
-    if(source_proc_id == g_cart_id)  {
-      spinor_work[0][_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]])+2*is] = 1.;
-    }
+  for(i_src = 0; i_src<g_source_location_number; isrc++) {
+    int t_base = g_source_coords_list[i_src][0];
+    for(i_coherent=0; i_coherent<g_coherent_source_number; i_coherent++) {
+      int t_coherent = ( t_base + ( T_global / g_coherent_source_number ) * i_coherent ) % T_global; 
+      int i_prop = i_src * g_coherent_source_number + i_coherent;
+      gsx[0] = t_coherent;
+      gsx[1] = ( g_source_coords_list[i_src][1] + (LX_global/2) * i_coherent ) % LX_global;
+      gsx[2] = ( g_source_coords_list[i_src][2] + (LY_global/2) * i_coherent ) % LY_global;
+      gsx[3] = ( g_source_coords_list[i_src][3] + (LZ_global/2) * i_coherent ) % LZ_global;
+      get_point_source_info (gsx, sx, &source_proc_id);
 
-    exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_up, 0);
-    if(exitstatus != 0) {
-      fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
-      EXIT(12);
-    }
-    memcpy( g_spinor_field[is], spinor_work[1], sizeof_spinor_field);
-  }
-  retime = _GET_TIME;
-  if(g_cart_id == 0) fprintf(stderr, "# [piN2piN] time for up propagator = %e seconds\n", retime-ratime);
+      for(is=0;is<n_s*n_c;is++) {
+        memset(spinor_work[0], 0, sizeof_spinor_field);
+        memset(spinor_work[1], 0, sizeof_spinor_field);
+        if(source_proc_id == g_cart_id)  {
+          spinor_work[0][_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]])+2*is] = 1.;
+        }
+
+        exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_up, 0);
+        if(exitstatus != 0) {
+          fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
+          EXIT(12);
+        }
+        memcpy( g_spinor_field[is], spinor_work[1], sizeof_spinor_field);
+      }
+      assign_fermion_propagaptor_from_spinor_field (propagator_list_up[i_prop], g_spinor_field, VOLUME);
+      fermion_propagator_field_tm_rotation (propagator_list_up[i_prop], propagator_list_up[i_prop], +1, g_fermion_type, VOLUME );
+
+      retime = _GET_TIME;
+      if(g_cart_id == 0) fprintf(stderr, "# [piN2piN] time for up propagator = %e seconds\n", retime-ratime);
+    }  /* end of loop on coherent source timeslices */
+  }    /* end of loop on base source timeslices */
 
 
   /***********************************************************
@@ -437,23 +615,39 @@ int main(int argc, char **argv) {
   if(g_fermion_type == _TM_FERMION) {
     if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] dn-type inversion\n");
     ratime = _GET_TIME;
-    for(is=0;is<n_s*n_c;is++) {
+    for(i_src = 0; i_src<g_source_location_number; isrc++) {
+      int t_base = g_source_coords_list[i_src][0];
+      for(i_coherent=0; i_coherent<g_coherent_source_number; i_coherent++) {
+        int t_coherent = ( t_base + ( T_global / g_coherent_source_number ) * i_coherent ) % T_global; 
+        int i_prop = i_src * g_coherent_source_number + i_coherent;
+        gsx[0] = t_coherent;
+        gsx[1] = ( g_source_coords_list[i_src][1] + (LX_global/2) * i_coherent ) % LX_global;
+        gsx[2] = ( g_source_coords_list[i_src][2] + (LY_global/2) * i_coherent ) % LY_global;
+        gsx[3] = ( g_source_coords_list[i_src][3] + (LZ_global/2) * i_coherent ) % LZ_global;
 
-      memset(spinor_work[0], 0, sizeof_spinor_field);
-      memset(spinor_work[1], 0, sizeof_spinor_field);
-      if(source_proc_id == g_cart_id)  {
-        spinor_work[0][_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]])+2*is] = 1.;
-      }
+        get_point_source_info (gsx, sx, &source_proc_id);
+        for(is=0;is<n_s*n_c;is++) {
 
-      exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_dn, 0);
-      if(exitstatus != 0) {
-        fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
-        EXIT(12);
-      }
-      memcpy( g_spinor_field[n_s*n_c+is], spinor_work[1], sizeof_spinor_field);
-    }
-    retime = _GET_TIME;
-    if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] time for dn propagator = %e seconds\n", retime-ratime);
+          memset(spinor_work[0], 0, sizeof_spinor_field);
+          memset(spinor_work[1], 0, sizeof_spinor_field);
+          if(source_proc_id == g_cart_id)  {
+            spinor_work[0][_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]])+2*is] = 1.;
+          }
+
+          exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_dn, 0);
+          if(exitstatus != 0) {
+            fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
+            EXIT(12);
+          }
+          memcpy( g_spinor_field[is], spinor_work[1], sizeof_spinor_field);
+        }
+        assign_fermion_propagaptor_from_spinor_field (propagator_list_dn[i_prop], g_spinor_field, VOLUME);
+        fermion_propagator_field_tm_rotation (propagator_list_dn[i_prop], propagator_list_dn[i_prop], -1, g_fermion_type, VOLUME );
+
+        retime = _GET_TIME;
+        if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] time for dn propagator = %e seconds\n", retime-ratime);
+      } /* end of loop on coherent source timeslices */
+    }  /* end of loop on base source timeslices */
   }
 
   for(iseq_mom=0; iseq_mom < g_seq_source_momentum_number; iseq_mom++) {
@@ -464,468 +658,180 @@ int main(int argc, char **argv) {
     if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] sequential inversion fpr pi2 = (%d, %d, %d)\n", 
         g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2]);
     ratime = _GET_TIME;
-    for(is=0;is<n_s*n_c;is++) {
-      int idprop = (int)( g_fermion_type == _TM_FERMION ) * n_s*n_c + is;
-      memset(spinor_work[0], 0, sizeof_spinor_field);
-      exitstatus = init_sequential_source(spinor_work[0], g_spinor_field[idprop], gsx[0], g_seq_source_momentum_list[iseq_mom], 5);
-      if(exitstatus != 0) {
-        fprintf(stderr, "[piN2piN] Error from init_sequential_source, status was %d\n", exitstatus);
-        EXIT(14);
-      }
-      memset(spinor_work[1], 0, sizeof_spinor_field);
+    double **prop_list = (double**)malloc(g_coherent_source_number * sizeof(double*));
+    prop_list[0] = (double*)malloc(g_coherent_source_number * sizeof_spinor_field);
+    if(prop_list[0] == NULL) {
+      fprintf(stderr, "[piN2piN] Error from malloc\n");
+      EXIT(43);
+    }
+    for(is=1; is<g_coherent_source_number; is++) prop_list[i] = prop_list[i-1] + _GSI(VOLUME);
 
-      exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_up, 0);
+    for(i_src=0; i_src<g_source_location_number; i_src++) {
+  
+      for(is=0;is<n_s*n_c;is++) {
+
+        /* extract spin-color source-component is from coherent source dn propagators */
+        for(i=0; i<g_coherent_source_number; i++) {
+          assign_spinor_field_from_fermion_propagaptor_component (prop_list[i], propagator_list_dn[i_src * g_coherent_source_number + i], is, VOLUME);
+        }
+
+        /* build sequential source */
+        exitstatus = init_coherent_sequential_source(spinor_work[0], prop_list, gsx[0], g_coherent_source_number, g_seq_source_momentum_list[iseq_mom], 5);
+        if(exitstatus != 0) {
+          fprintf(stderr, "[piN2piN] Error from nit_coherent_sequential_source, status was %d\n", exitstatus);
+          EXIT(14);
+        }
+        /* tm-rotate sequential source */
+        spinor_field_tm_rotation(spinor_work[0], spinor_work[0], +1, g_fermion_type, VOLUME);
+
+        memset(spinor_work[1], 0, sizeof_spinor_field);
+        /* invert */
+        exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_up, 0);
+        if(exitstatus != 0) {
+          fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
+          EXIT(12);
+        }
+        /* tm-rotate at sink */
+        spinor_field_tm_rotation(spinor_work[1], spinor_work[1], +1, g_fermion_type, VOLUME);
+
+        memcpy( g_spinor_field[is], spinor_work[1], sizeof_spinor_field);
+
+        if(g_write_sequential_propagator) { /* write sequential propagator to file */
+          sprintf(filename, "seq_%s.%.4d.t%.2dx%.2dy%.2dz%.2d.%.2d.qx%.2dqy%.2dqz%.2d.inverted",
+              filename_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3], is,
+              g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2]);
+          if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] writing propagator to file %s\n", filename);
+          exitstatus = write_propagator(spinor_work[1], filename, 0, 64);
+          if(exitstatus != 0) {
+            fprintf(stderr, "[piN2piN] Error from write_propagator, status was %d\n", exitstatus);
+            EXIT(15);
+          }
+        }  /* end of if write sequential propagator */
+      }  /* end of loop on spin-color component */
+
+      int i_prop = iseq_mom * g_source_location_number + i_src;
+      assign_fermion_propagaptor_from_spinor_field ( sequential_propagator_list[i_prop], g_spinor_field, VOLUME);
+
+    }  /* end of loop on base source locations */
+    retime = _GET_TIME;
+    if(g_cart_id == 0) fprintf(stderr, "# [piN2piN] time for seq propagator = %e seconds\n", retime-ratime);
+    free(prop_list[0]);
+    free(prop_list);
+  }  /* end of loop on sequential momentum list */
+ 
+  /******************************************************
+   ******************************************************
+   **
+   ** contractions without stochastic propagators
+   **
+   ******************************************************
+   ******************************************************/
+
+  /* N     - N     2pt */
+  /* Delta - Delta 2pt */
+  /* pi    - pi    2pt */
+  /* Delta - pi N  3pt */
+
+  /* to be added */
+
+  /******************************************************
+   ******************************************************
+   **
+   ** stochastic inversions
+   **  
+   **  dn-type inversions
+   ******************************************************
+   ******************************************************/
+  /* loop on stochastic samples */
+  for(isample = 0; isample < g_nsample, isample++) {
+
+    /* set a stochstic volume source */
+    exitstatus = prepare_volume_source(stochastic_source_list[isample], VOLUME);
+    if(exitstatus != 0) {
+      fprintf(stderr, "[piN2piN] Error from prepare_volume_source, status was %d\n", exitstatus);
+      EXIT(39);
+    }
+
+    /* project to timeslices, invert */
+    for(i_src = 0; i_src < stochastic_timeslice_number; i_src++) {
+      int t_src = stochastic_timeslice_list[i_src];
+      memset(spinor_work[0], 0, sizeof_spinor_field);
+
+      int have_source = ( g_proc_coords[0] == t_src / T );
+      if( have_source ) {
+        /* this process copies timeslice t_src%T from source */
+        unsigned int shift = _GSI(g_ipt[t_src%T][0][0][0]);
+        memcpy(spinor_work[0]+shift, stochastic_source_list[isample]+shift, sizeof_spinor_field_timeslice );
+      }
+
+      memset(spinor_work[1], 0, sizeof_spinor_field);
+      exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_dn, 0);
       if(exitstatus != 0) {
         fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
         EXIT(12);
       }
-      memcpy( g_spinor_field[idprop + n_s*n_c], spinor_work[1], sizeof_spinor_field);
-      if(g_write_sequential_propagator) {
-        sprintf(filename, "seq_%s.%.4d.t%.2dx%.2dy%.2dz%.2d.%.2d.qx%.2dqy%.2dqz%.2d.inverted",
-            filename_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3], is,
-            g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2]);
-        if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] writing propagator to file %s\n", filename);
-        exitstatus = write_propagator(spinor_work[1], filename, 0, 64);
-        if(exitstatus != 0) {
-          fprintf(stderr, "[piN2piN] Error from write_propagator, status was %d\n", exitstatus);
-          EXIT(15);
-        }
-      }  /* end of if write sequential propagator */
-    }  /* end of loop on spin-color component */
-    retime = _GET_TIME;
-    if(g_cart_id == 0) fprintf(stderr, "# [piN2piN] time for seq propagator = %e seconds\n", retime-ratime);
-  
+      /* tm-rotate stochastic propagator at sink */
+      spinor_field_tm_rotation(spinor_work[1], spinor_work[1], -1, g_fermion_type, VOLUME);
+
+      /* copy only source timeslice from propagator */
+      if(have_source) {
+        unsigned int shift = _GSI(g_ipt[t_src%T][0][0][0]);
+        memcpy( stochastic_propagator_list[isample]+shift, spinor_work[1]+shift, sizeof_spinor_field_timeslice);
+      }
+
+    }
+    /* tm-rotate stochastic source */
+    spinor_field_tm_rotation ( stochastic_source_list[isample], stochastic_source_list[isample], -1, g_fermion_type, VOLUME);
+
+  }  /* end of loop on samples */
+
+  /******************************************************
+   ******************************************************
+   **
+   ** contractions using stochastic propagator
+   **
+   ** B and W diagrams
+   ******************************************************
+   ******************************************************/
+  /* loop on pi2 */
+  for(iseq_mom=0; iseq_mom < g_seq_source_momentum_number; iseq_mom++) {
+    if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] pi2 = (%d, %d, %d)\n",
+        g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2]);
+
+    /* loop on pf2 */
     for(iseq2_mom=0; iseq2_mom < g_seq2_source_momentum_number; iseq2_mom++) {
       if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] seq2 inversion for pf2 = (%d, %d, %d)\n",
-        g_seq2_source_momentum_list[iseq2_mom][0], g_seq2_source_momentum_list[iseq2_mom][1], g_seq2_source_momentum_list[iseq2_mom][2]);
-      /******************************************************
-       * seq2 propagators for B diagrams: pffii
-       *   D-after-U-after-D
-       ******************************************************/
-      for(is=0; is<n_s*n_c; is++) memset(g_spinor_field[( (int)( g_fermion_type == _TM_FERMION ) + 2 ) * n_s*n_c + is], 0, sizeof_spinor_field);
+          g_seq2_source_momentum_list[iseq2_mom][0], g_seq2_source_momentum_list[iseq2_mom][1], g_seq2_source_momentum_list[iseq2_mom][2]);
 
-      for(isink_timeslice=0; isink_timeslice <= g_src_snk_time_separation; isink_timeslice++) {
-        /******************************************************
-         * seq2 source
-         ******************************************************/
-        sink_timeslice = ( gsx[0] + isink_timeslice ) % T_global;
-        sink_proc_id = sink_timeslice / T == g_proc_coords[0] ? g_cart_id : -1;
-        if(sink_proc_id == g_cart_id ) fprintf(stdout, "# [piN2piN] proc%.4d pffii t_sink = %2d\n", g_cart_id, sink_timeslice);
-        for(is=0; is<n_s*n_c; is++) {
-          int idprop = ( (int)( g_fermion_type == _TM_FERMION ) + 1 ) * n_s*n_c + is;
-          if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] pffii source field id = %d\n", idprop);
-
-          exitstatus = init_sequential_source(spinor_work[0], g_spinor_field[idprop], sink_timeslice, g_seq2_source_momentum_list[iseq2_mom], 5);
-          if(exitstatus != 0) {
-            fprintf(stderr, "[piN2piN] Error from init_sequential_source, status was %d\n", exitstatus);
-            EXIT(14);
-          }
-          memset(spinor_work[1], 0, sizeof_spinor_field);
-
-          exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_dn, 0);
-          if(exitstatus != 0) {
-            fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
-            EXIT(12);
-          }
-          /******************************************************
-           * processes, which have the sink timeslice, copy this
-           * timeslice
-           ******************************************************/
-          if(sink_proc_id == g_cart_id) {
-            size_t offset = (size_t) (sink_timeslice%T) * _GSI(VOL3);
-            idprop = ( (int)( g_fermion_type == _TM_FERMION ) + 2 ) * n_s*n_c + is;
-            if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] pffii propagator field id = %d\n", idprop);
-            memcpy( g_spinor_field[idprop]+offset, spinor_work[1]+offset, sizeof_spinor_field_timeslice);
-          }
-        }  /* end of loop on spin-color */
-      }  /* end of loop on sink timeslices */
-
-      /******************************************************
-       * seq propagators for W diagrams: tffi
-       *   D-after-U
-       ******************************************************/
-      for(is=0; is<n_s*n_c; is++) memset(g_spinor_field[( (int)( g_fermion_type == _TM_FERMION ) + 3 ) * n_s*n_c + is], 0, sizeof_spinor_field);
-
-      for(isink_timeslice=0; isink_timeslice <= g_src_snk_time_separation; isink_timeslice++) {
-        /******************************************************
-         * seq source
-         ******************************************************/
-        sink_timeslice = ( gsx[0] + isink_timeslice ) % T_global;
-        sink_proc_id = sink_timeslice / T == g_proc_coords[0] ? g_cart_id : -1;
-
-        if(sink_proc_id == g_cart_id ) fprintf(stdout, "# [piN2piN] proc%.4d tffi t_sink = %2d\n", g_cart_id, sink_timeslice);
-
-        for(is=0; is<n_s*n_c; is++) {
-          int idprop = is;  /* source from up-propagator */
-          if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] tffi source field id = %d\n", idprop);
-
-          exitstatus = init_sequential_source(spinor_work[0], g_spinor_field[idprop], sink_timeslice, g_seq2_source_momentum_list[iseq2_mom], 5);
-          if(exitstatus != 0) {
-            fprintf(stderr, "[piN2piN] Error from init_sequential_source, status was %d\n", exitstatus);
-            EXIT(14);
-          }
-          memset(spinor_work[1], 0, sizeof_spinor_field);
-
-          exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_dn, 0);
-          if(exitstatus != 0) {
-            fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
-            EXIT(12);
-          }
-          /******************************************************
-           * processes, which have the sink timeslice, copy this
-           * timeslice
-           ******************************************************/
-          if(sink_proc_id == g_cart_id) {
-            size_t offset = (size_t) (sink_timeslice%T) * _GSI(VOL3);
-            idprop = ( (int)( g_fermion_type == _TM_FERMION ) + 3 ) * n_s*n_c + is;
-            if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] tffi propagator field id = %d\n", idprop);
-            memcpy( g_spinor_field[idprop]+offset, spinor_work[1]+offset, sizeof_spinor_field_timeslice);
-          }
-        }  /* end of loop on spin-color */
-      }  /* end of loop on sink timeslices */
-
-      /******************************************************
-       * seq2 propagators for Z diagrams: pfifi
-       *   U-after-D-after-U
-       ******************************************************/
-      for(is=0; is<n_s*n_c; is++) memset(g_spinor_field[( (int)( g_fermion_type == _TM_FERMION ) + 4 ) * n_s*n_c + is], 0, sizeof_spinor_field);
-
-      for(isink_timeslice=0; isink_timeslice <= g_src_snk_time_separation; isink_timeslice++) {
-        /******************************************************
-         * seq2 source
-         ******************************************************/
-        sink_timeslice = ( gsx[0] + isink_timeslice ) % T_global;
-        sink_proc_id = sink_timeslice / T == g_proc_coords[0] ? g_cart_id : -1;
-        if(sink_proc_id == g_cart_id ) fprintf(stdout, "# [piN2piN] proc%.4d pfifi t_sink = %2d\n", g_cart_id, sink_timeslice);
-        for(is=0; is<n_s*n_c; is++) {
-          int idprop = ( (int)( g_fermion_type == _TM_FERMION ) + 3 ) * n_s*n_c + is; /* source from tffi just calculated */
-          if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] pfifi source field id = %d\n", idprop);
-
-          exitstatus = init_sequential_source(spinor_work[0], g_spinor_field[idprop], sink_timeslice, g_seq2_source_momentum_list[iseq2_mom], 5);
-          if(exitstatus != 0) {
-            fprintf(stderr, "[piN2piN] Error from init_sequential_source, status was %d\n", exitstatus);
-            EXIT(14);
-          }
-          memset(spinor_work[1], 0, sizeof_spinor_field);
-
-          exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_up, 0);
-          if(exitstatus != 0) {
-            fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
-            EXIT(12);
-          }
-          /******************************************************
-           * processes, which have the sink timeslice, copy this
-           * timeslice
-           ******************************************************/
-          if(sink_proc_id == g_cart_id) {
-            size_t offset = (size_t) (sink_timeslice%T) * _GSI(VOL3);
-            idprop = ( (int)( g_fermion_type == _TM_FERMION ) + 4 ) * n_s*n_c + is;
-            if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] pfifi propagator field id = %d\n", idprop);
-            memcpy( g_spinor_field[idprop]+offset, spinor_work[1]+offset, sizeof_spinor_field_timeslice);
-          }
-        }  /* end of loop on spin-color */
-      }  /* end of loop on sink timeslices */
+      /* make momentum phase field */
+      double *phase = (double*)malloc(2*VOL3 * sizeof(double));
+      if( phase == NULL ) {
+        fprintf(stderr, "[piN2piN] Error from malloc\n");
+        EXIT(44);
+      }
+      make_lexic_phase_field_3d (phase, g_seq2_source_momentum_list[iseq2_mom]);
 
 
-      /******************************************************
-       * contractions
-       *
-       * REMEMBER:
-       *
-       *   uprop = S_u
-       *   dprop = S_d  // not needed for Wilson fermions (u and d degenerate)
-       *   tfii  = sequential propagator t_f <- t_i <- t_i
-       *   tffi  = sequential propagator t_f <- t_f <- t_i
-       *   pffii = sequential^2 propagator t_f <- t_f <- t_i <- t_i
-       *   pfifi = sequential^2 propagator t_f <- t_i <- t_f <- t_i
-       *   fp1   = C Gamma_1 S_u
-       *   fp2   = C Gamma_1 S_u C Gamma_2
-       *   fp3   =           S_u C Gamma_2
-       *   fp4   = C Gamma_1 tffi
-       *   fp5   = C Gamma_1 S_d C Gamma_2
-       *   fp6   = C Gamma_1 tffi C Gamma_2
-       ******************************************************/
+      /* prepare the tffi propagator */
+
+
+      /* prepare the pffii propagator */
+
+
+      /* contractions */
+
       ratime = _GET_TIME;
-#ifdef HAVE_OPENMP
-#pragma omp parallel private (ix,icomp) shared(connq)
-{
-#endif
-      fermion_propagator_type fp1, fp2, fp3, fpaux, fp4, fp5, fp6, uprop, dprop;
-      fermion_propagator_type tfii, tffi, pffii, pfifi;
-      spinor_propagator_type sp_c1, sp_c2, sp_c3, sp1, sp2;
+      exitstatus = contract_piN2piN (connq,
+          &(propagator_list_up[i_prop*n_s*n_c]), &(propagator_list_dn[i_prop*n_s*n_c]),
+          &(sequential_propagator_list[ (iseq_mom*g_source_location_number+i_src)*n_s*n_c ]),
+          tffi_propagator_list,
+          pffii_propagator_list,
+          num_component, gamma_component, gamma_component_sign);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[] Error from contract_piN2piN, status was %d\n", exitstatus);
+        EXIT(41);
+      }
 
-      create_fp(&uprop);
-      create_fp(&dprop);
-      create_fp(&tfii);
-      create_fp(&tffi);
-      create_fp(&pfifi);
-      create_fp(&pffii);
-      create_fp(&fp1);
-      create_fp(&fp2);
-      create_fp(&fp3);
-      create_fp(&fp4);
-      create_fp(&fp5);
-      create_fp(&fp6);
-      create_fp(&fpaux);
-
-      create_sp(&sp_c1);
-      create_sp(&sp_c2);
-      create_sp(&sp_c3);
-      create_sp(&sp1);
-      create_sp(&sp2);
-
-      const int _UU    = 0;
-      const int _DD    =  (int)(g_fermion_type == _TM_FERMION)      * n_s*n_c;
-      const int _TFII  = ((int)(g_fermion_type == _TM_FERMION) +1 ) * n_s*n_c;
-      const int _PFFII = ((int)(g_fermion_type == _TM_FERMION) +2 ) * n_s*n_c;
-      const int _TFFI  = ((int)(g_fermion_type == _TM_FERMION) +3 ) * n_s*n_c;
-      const int _PFIFI = ((int)(g_fermion_type == _TM_FERMION) +4 ) * n_s*n_c;
-
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-      for(ix=0; ix<VOLUME; ix++)
-      {
-        /* assign the propagator points */
-
-        _assign_fp_point_from_field(uprop, g_spinor_field + _UU,    ix);
-
-        _assign_fp_point_from_field(tfii,  g_spinor_field + _TFII,  ix);
-
-        _assign_fp_point_from_field(tffi,  g_spinor_field + _TFFI,  ix);
-
-        _assign_fp_point_from_field(pffii, g_spinor_field + _PFFII, ix);
-
-        _assign_fp_point_from_field(pfifi, g_spinor_field + _PFIFI, ix);
-
-        _assign_fp_point_from_field(dprop, g_spinor_field + _DD,    ix);
-
-
-        /* flavor rotation for twisted mass fermions */
-        if(g_fermion_type == _TM_FERMION) {
-          /* S_u */
-          _fp_eq_rot_ti_fp(fp1, uprop, +1, g_fermion_type, fp2);
-          _fp_eq_fp_ti_rot(uprop, fp1, +1, g_fermion_type, fp2);
-
-          /* S_d */
-          _fp_eq_rot_ti_fp(fp1, dprop, -1, g_fermion_type, fp2);
-          _fp_eq_fp_ti_rot(dprop, fp1, -1, g_fermion_type, fp2);
-
-          /* T_fii^ud */
-          _fp_eq_rot_ti_fp(fp1, tfii, +1, g_fermion_type, fp2);
-          _fp_eq_fp_ti_rot(tfii, fp1, -1, g_fermion_type, fp2);
-
-          /* T_ffi^du */
-          _fp_eq_rot_ti_fp(fp1, tffi, -1, g_fermion_type, fp2);
-          _fp_eq_fp_ti_rot(tffi, fp1, +1, g_fermion_type, fp2);
-
-          /* P_ffii^dud */
-          _fp_eq_rot_ti_fp(fp1, pffii, -1, g_fermion_type, fp2);
-          _fp_eq_fp_ti_rot(pffii, fp1, -1, g_fermion_type, fp2);
-
-          /* P_fifi^udu */
-          _fp_eq_rot_ti_fp(fp1, pfifi, +1, g_fermion_type, fp2);
-          _fp_eq_fp_ti_rot(pfifi, fp1, +1, g_fermion_type, fp2);
-        }
-
-        for(icomp=0; icomp<num_component; icomp++) {
-
-          _sp_eq_zero( connq[ix*num_component+icomp]);
-
-          /******************************************************
-           * prepare fermion propagators
-           ******************************************************/
-          _fp_eq_zero(fp1);
-          _fp_eq_zero(fp2);
-          _fp_eq_zero(fp3);
-          _fp_eq_zero(fp4);
-          _fp_eq_zero(fp5);
-          _fp_eq_zero(fp6);
-          _fp_eq_zero(fpaux);
-
-          /* fp1 = C Gamma_1 x S_u = g0 g2 Gamma_1 S_u */
-          _fp_eq_gamma_ti_fp(fp1, gamma_component[0][icomp], uprop);
-          _fp_eq_gamma_ti_fp(fpaux, 2, fp1);
-          _fp_eq_gamma_ti_fp(fp1,   0, fpaux);
-
-          /* fp2 = C Gamma_1 x S_u x C Gamma_2 = fp1 x g0 g2 Gamma_2 */
-          _fp_eq_fp_ti_gamma(fp2, 0, fp1);
-          _fp_eq_fp_ti_gamma(fpaux, 2, fp2);
-          _fp_eq_fp_ti_gamma(fp2, gamma_component[1][icomp], fpaux);
-
-          /* fp5 = C Gamma_1 x S_d x C Gamma_2 */
-          if(g_fermion_type == _TM_FERMION) {
-            _fp_eq_gamma_ti_fp(fp5, gamma_component[0][icomp], dprop);
-            _fp_eq_gamma_ti_fp(fpaux, 2, fp5);
-            _fp_eq_gamma_ti_fp(fp5,   0, fpaux);
-            _fp_eq_fp_ti_gamma(fpaux, 0, fp5);
-            _fp_eq_fp_ti_gamma(fp5, 2, fpaux);
-            _fp_eq_fp_ti_gamma(fpaux, gamma_component[1][icomp], fp5);
-            _fp_eq_fp(fp5, fpaux);
-          } else {
-            _fp_eq_fp(fp5, fp2);
-          }
-
-          /* fp3 = S_u x C Gamma_2 = uprop x g0 g2 Gamma_2 */
-          _fp_eq_fp_ti_gamma(fp3,   0, uprop);
-          _fp_eq_fp_ti_gamma(fpaux, 2, fp3);
-          _fp_eq_fp_ti_gamma(fp3, gamma_component[1][icomp], fpaux);
-
-          /* fp4 = [ C Gamma_1 x tffi ] x C Gamma_2 */
-          _fp_eq_gamma_ti_fp(fp4, gamma_component[0][icomp], tffi);
-          _fp_eq_gamma_ti_fp(fpaux, 2, fp4);
-          _fp_eq_gamma_ti_fp(fp4,   0, fpaux);
-
-          _fp_eq_fp_ti_gamma(fp6, 0, fp4);
-          _fp_eq_fp_ti_gamma(fpaux, 2, fp6);
-          _fp_eq_fp_ti_gamma(fp6, gamma_component[1][icomp], fpaux);
-
-          /*********************
-           * C_1
-           *********************/
-          _sp_eq_zero( sp_c1 );
-//#if 0  /* pffii */
-          /* (1) */
-          /* reduce */
-          /*_fp_eq_zero(fpaux); */
-          _fp_eq_fp_eps_contract13_fp(fpaux, pffii, fp1);
-          /* reduce to spin propagator */
-          /*_sp_eq_zero( sp1 ); */
-          _sp_eq_fp_del_contract23_fp(sp1, fp3, fpaux);
-          _sp_pl_eq_sp(sp_c1, sp1);
-//#endif
-//#if 0  /* tr */
-          /* (2) */
-          /* reduce */
-          /*_fp_eq_zero(fpaux); */
-          _fp_eq_fp_eps_contract13_fp(fpaux, pffii, fp2);
-          /* reduce to spin propagator */
-          /* _sp_eq_zero( sp1 ); */
-          _sp_eq_fp_del_contract34_fp(sp1, uprop, fpaux);
-          _sp_pl_eq_sp(sp_c1, sp1);
-//#endif
-          /* add and assign */
-          _sp_pl_eq_sp_ti_re( connq[ix*num_component+icomp], sp_c1, gamma_component_sign[icomp]);
-
-          /*********************
-           * C_2
-           *********************/
-          _sp_eq_zero( sp_c2 );
-//#if 0
-          /* (1) */
-          /* reduce */
-          /*_fp_eq_zero(fpaux); */
-          _fp_eq_fp_eps_contract13_fp(fpaux, fp3, fp4);
-          /* reduce to spin propagator */
-          /*_sp_eq_zero( sp1 ); */
-          _sp_eq_fp_del_contract23_fp(sp1, tfii, fpaux);
-          _sp_pl_eq_sp(sp_c2, sp1);
-//#endif
-//#if 0
-          /* (2) */
-          /* reduce */
-          /*_fp_eq_zero(fpaux); */
-          _fp_eq_fp_eps_contract13_fp(fpaux, fp6, uprop);
-          /* reduce to spin propagator */
-          /*_sp_eq_zero( sp1 ); */
-          _sp_eq_fp_del_contract23_fp(sp1, tfii, fpaux);
-          _sp_pl_eq_sp(sp_c2, sp1);
-//#endif
-//#if 0
-          /* (3) */
-          /* reduce */
-          /*_fp_eq_zero(fpaux); */
-          _fp_eq_fp_eps_contract13_fp(fpaux, tfii, fp4);
-          /* reduce to spin propagator */
-          /*_sp_eq_zero( sp1 ); */
-          _sp_eq_fp_del_contract23_fp(sp1, fp3, fpaux);
-          _sp_pl_eq_sp(sp_c2, sp1);
-//#endif
-//#if 0  /* tr */
-          /* (4) */
-          /* reduce */
-          /*_fp_eq_zero(fpaux); */
-          _fp_eq_fp_eps_contract13_fp(fpaux, tfii, fp6);
-          /* reduce to spin propagator */
-          /*_sp_eq_zero( sp1 ); */
-          _sp_eq_fp_del_contract34_fp(sp1, uprop, fpaux);
-          _sp_pl_eq_sp(sp_c2, sp1);
-//#endif
-          /* add and assign */
-          _sp_pl_eq_sp_ti_re( connq[ix*num_component+icomp], sp_c2, -gamma_component_sign[icomp]);
-
-          /*********************
-           * C_3
-           *********************/
-          _sp_eq_zero( sp_c3 );
-//#if 0  /* tr */
-          /* (1) */
-          /* reduce */
-          /*_fp_eq_zero(fpaux); */
-          _fp_eq_fp_eps_contract13_fp(fpaux, fp5, uprop);
-          /* reduce to spin propagator */
-          /*_sp_eq_zero( sp1 ); */
-          _sp_eq_fp_del_contract34_fp(sp1, pfifi, fpaux);
-          _sp_pl_eq_sp(sp_c3, sp1);
-//#endif
-//#if 0
-          /* (2) */
-          /* reduce */
-          /*_fp_eq_zero(fpaux); */
-          _fp_eq_fp_eps_contract13_fp(fpaux, fp5, uprop);
-          /* reduce to spin propagator */
-          /*_sp_eq_zero( sp1 );*/
-          _sp_eq_fp_del_contract23_fp(sp1, pfifi, fpaux);
-          _sp_pl_eq_sp(sp_c3, sp1);
-//#endif
-//#if 0
-          /* (3) */
-          /* reduce */
-          /*_fp_eq_zero(fpaux); */
-          _fp_eq_fp_eps_contract13_fp(fpaux, fp5, pfifi);
-          /* reduce to spin propagator */
-          /*_sp_eq_zero( sp1 ); */
-          _sp_eq_fp_del_contract23_fp(sp1, uprop, fpaux);
-          _sp_pl_eq_sp(sp_c3, sp1);
-//#endif
-//#if 0  /* tr */
-          /* (4) */
-          /* reduce */
-          /*_fp_eq_zero(fpaux); */
-          _fp_eq_fp_eps_contract13_fp(fpaux, fp5, pfifi);
-          /* reduce to spin propagator */
-          /*_sp_eq_zero( sp1 ); */
-          _sp_eq_fp_del_contract34_fp(sp1, uprop, fpaux);
-          _sp_pl_eq_sp(sp_c3, sp1);
-//#endif
-          _sp_pl_eq_sp_ti_re( connq[ix*num_component+icomp], sp_c3, gamma_component_sign[icomp]);
-        }  /* of icomp */
-
-      }    /* of ix */
-
-      free_fp(&uprop);
-      free_fp(&dprop);
-      free_fp(&tfii);
-      free_fp(&tffi);
-      free_fp(&pfifi);
-      free_fp(&pffii);
-      free_fp(&fp1);
-      free_fp(&fp2);
-      free_fp(&fp3);
-      free_fp(&fp4);
-      free_fp(&fp5);
-      free_fp(&fp6);
-      free_fp(&fpaux);
-
-      free_sp(&sp_c1);
-      free_sp(&sp_c2);
-      free_sp(&sp_c3);
-      free_sp(&sp1);
-      free_sp(&sp2);
-
-#ifdef OPENMP
-}
-#endif
       retime = _GET_TIME;
       if(g_cart_id == 0)  fprintf(stdout, "# [piN2piN] time for contractions = %e seconds\n", retime-ratime);
   
@@ -1385,6 +1291,8 @@ int main(int argc, char **argv) {
 #ifdef HAVE_TMLQCD_LIBWRAPPER
   tmLQCD_finalise();
 #endif
+
+
 
 #ifdef HAVE_MPI
   MPI_Finalize();

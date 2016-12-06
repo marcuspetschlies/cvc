@@ -236,6 +236,8 @@ EXTERN double **g_clover, **g_mzz_up, **g_mzz_dn, **g_mzzinv_up, **g_mzzinv_dn;
 
 EXTERN int g_fermion_type;
 
+EXTERN int g_coherent_source_number;
+
 }
 
 #endif

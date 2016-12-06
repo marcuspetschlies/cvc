@@ -212,6 +212,7 @@ namespace cvc {
 %x FERMION_TYPE
 %x SOURCECOORDS
 %x SRCSNKTIMESEP
+%x COHERENTSOURCENUMBER
 
 %%
 ^T{SPC}*={SPC}*                            BEGIN(TT);
@@ -380,6 +381,7 @@ namespace cvc {
 ^fermion_type{SPC}*={SPC}*                 BEGIN(FERMION_TYPE);
 ^src_snk_time_separation{SPC}*={SPC}*      BEGIN(SRCSNKTIMESEP);
 
+^coherent_source_number{SPC}*={SPC}*       BEGIN(COHERENTSOURCENUMBER);
 
   /* start namespace inclusion here */
 
@@ -1239,6 +1241,11 @@ namespace cvc {
 <SRCSNKTIMESEP>{DIGIT}+ {
   cvc::g_src_snk_time_separation = atoi(yytext);
   if(cvc::myverbose!=0) printf("# [read_input_parser] cvc::g_src_snk_time_separation = %s\n", yytext);
+}
+
+<COHERENTSOURCENUMBER>{DIGIT}+                  {
+  cvc::g_coherent_source_number = atoi(yytext);
+  if(cvc::myverbose!=0) printf("# [read_input_parser] coherent source number set to =%d\n", cvc::g_coherent_source_number);
 }
 
 

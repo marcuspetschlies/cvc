@@ -224,6 +224,7 @@ namespace cvc {
 
 #define _default_fermion_type -1
 #define _default_source_location_number 0
+#define _default_coherent_source_number 1
 
 }
 #endif

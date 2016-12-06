@@ -27,8 +27,9 @@ namespace cvc {
 #include "Q_phi.h"
 #include "read_input_parser.h"
 #include "ranlxd.h"
-#include "smearing_techniques.h"
-#include "fuzz.h"
+/* #include "smearing_techniques.h" */
+/* #include "fuzz.h" */
+#include "project.h"
 
 #ifndef _NON_ZERO
 #  define _NON_ZERO (5.e-14)
@@ -162,5 +163,64 @@ int prepare_prop_point_from_stochastic (double**fp_out, double*phi, double*chi,
   }    // of loop on iprop
   return(0);
 }  // end of prepare_prop_point_from_stochastic
+
+/*******************************************************************
+ * seqn using stochastic
+ *
+ * shoulde be safe, if sfp = fp
+ *
+ * fp is T x VOL3 x g_fv_dim x g_fv_dim x 2
+ *
+ *******************************************************************/
+
+int prepare_seqn_stochastic_vertex_propagator_sliced3d (fermion_propagator_type*sfp, double**stoch_prop, double**stoch_source, 
+    fermion_propagator_type *fp, int nstoch, int momentum[3], int gid) {
+
+  const unsigned int VOL3 = LX*LY*LZ;
+  const size_t sizeof_spinor_field_timeslice = _GSI(VOL3) * sizeof(double);
+
+  double *phase = (double*)malloc(2*VOL3*sizeof(double)) ;
+  if( phase == NULL ) {
+    fprintf(stderr, "[] Error from malloc\n");
+    return(1);
+  }
+  make_lexic_phase_field_3d (phase,momentum);
+
+  double **fpaux = (double**)malloc(g_fv_dim * sizeof(double*));
+  fpaux[0] = (double*)malloc(g_fv_dim * sizeof_spinor_field_timeslice);
+  if(fpaux[0] == NULL) {
+    fprintf(stderr, "[] Error from malloc\n");
+    return(2);
+  }
+  for(i=1; i<g_fv_dim; i++) fp_aux[i] = fp_aux[i-1] + _GSI(VOL3);
+
+  for(it=0; it<T; it++) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+    unsigned int ix;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(ix=0; ix<VOL3; ix++) {
+      _fv_eq_gamma_ti_fv()
+
+
+    }  /* end of loop on ix */
+
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+  }  /* end of loop on timeslices */
+
+  free(phase);
+  free(fpaux[0]);
+  free(fpaux);
+
+  return(0);
+}  /* prepare_seqn_stochastic_vertex_propagator_sliced3d */
 
 }
