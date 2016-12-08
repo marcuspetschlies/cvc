@@ -61,6 +61,7 @@ extern "C"
 #include "matrix_init.h"
 #include "project.h"
 #include "prepare_source.h"
+#include "contract_baryon.h"
 
 using namespace cvc;
 
@@ -251,20 +252,32 @@ int main(int argc, char **argv) {
   unsigned int ix;
   unsigned int VOL3;
   size_t sizeof_spinor_field = 0, sizeof_spinor_field_timeslice = 0;
-  spinor_propagator_type *connq=NULL;
+  spinor_propagator_type **conn_piN_piN=NULL, **conn_N_N=NULL, **conn_D_D=NULL, **conn_piN_D=NULL;
   double ****connt = NULL, ***connt_p=NULL, ***connt_n=NULL;
-  double ***buffer=NULL;
+  double ****buffer=NULL;
   int io_proc = -1;
   int icomp, iseq_mom, iseq2_mom;
   double **propagator_list_up = NULL, **propagator_list_dn = NULL, **sequential_propagator_list = NULL, **stochastic_propagator_list = NULL,
          *stochastic_source_list = NULL;
 
 /*******************************************************************
- * Gamma components for the Delta:
+ * Gamma components for the piN and Delta:
  *                                                                 */
-  const int num_component = 1;
-  int gamma_component[1][2] = { {5, 5} };
-  double gamma_component_sign[1] = {+1.};
+  const int num_component_piN_piN = 1;
+  int gamma_component_piN_piN[1][2] = { {5, 5} };
+  double gamma_component_sign_piN_piN[1] = {+1.};
+
+  const int num_component_D_D = 4;
+  int gamma_component_D_D[2][4] = { {0, 1, 2, 3},
+                                        {0, 1, 2, 3} };
+  double gamma_component_sign_D_D[4] = {+1.,+1.,-1.,+1.};
+
+
+
+  const int num_component_piN_D = 4;
+  int gamma_component_piN_D[2][4] = { {0, 1, 2, 3},
+                                      {5, 5, 5, 5} };
+  double gamma_component_sign_piN_D[4] = {+1., +1., +1., +1.};
 /*
  *******************************************************************/
 
@@ -498,42 +511,36 @@ int main(int argc, char **argv) {
    * allocate memory for the spinor fields
    ***********************************************************/
 
-  g_spinor_field    = (double**)malloc(n_s*n_c * sizeof(double*));
-  g_spinor_field[0] = (double*)malloc( n_s*n_c * sizeof_spinor_field);
-  if(g_spinor_field == NULL) {
+  no_fields = g_coherent_source_number * g_source_location_number * n_s*n_c; /* up propagators at all base x coherent source locations */ 
+  propagator_list_up = (double**)malloc(no_fields * sizeof(double*));
+  propagator_list_up[0] = (double*)malloc(no_fields * sizeof_spinor_field);
+  if(propagator_list_up[0] == NULL) {
     fprintf(stderr, "[piN2piN] Error from malloc\n");
-    EXIT(42);
+    EXIT(44);
   }
-  for(i = 1; i < n_s*n_c; i++) g_spinor_field[i] = g_spinor_field[i-1] + _GSI(VOLUME);
-
-  no_fields = (  g_coherent_source_number * g_source_location_number      /* up propagators at all base x coherent source locations */ \
-               + g_source_location_number * g_seq_source_momentum_number  /* sequential propagators at all base source locations */ \
-              ) * n_s*n_c                                                 /* times number of spin-color components */\
-              + g_nsample                                                 /* stochastic timeslice propagators */ \
-              + g_nsample                                                 /* stochastic sources */;
-
+  for(i=1; i<no_fields; i++) propagator_list_up[i] = propagator_list_up[i-1] + _GSI(VOLUME);
 
   if(g_fermion_type == _TM_FERMION) {
-    no_fields +=                                                          /* dn propagators at all base x coherent source locations */ \
-      g_coherent_source_number * g_source_location_number * n_s*n_c;
-
-  }
-
-  no_fields = g_coherent_source_number * g_source_location_number; /* up propagators at all base x coherent source locations */ 
-  propagator_list_up = (fermion_propagator_type**)malloc(no_fields * sizeof(fermion_propagator_type*));
-  for(i=0; i<no_fields; i++) propagator_list_up[i] = create_fp_field( VOLUME );
-
-  if(g_fermion_type == _TM_FERMION) {
-    no_fields = g_coherent_source_number * g_source_location_number; /* dn propagators at all base x coherent source locations */ 
-    propagator_list_dn = (fermion_propagator_type**)malloc(no_fields * sizeof(fermion_propagator_type*));
-    for(i=0; i<no_fields; i++) propagator_list_dn[i] = create_fp_field( VOLUME );
+    no_fields = g_coherent_source_number * g_source_location_number * n_s*n_c; /* dn propagators at all base x coherent source locations */ 
+    propagator_list_dn = (double**)malloc(no_fields * sizeof( double*));
+    propagator_list_dn[0] = (double*)malloc(no_fields * sizeof_spinor_field);
+    if(propagator_list_dn[0] == NULL) {
+      fprintf(stderr, "[piN2piN] Error from malloc\n");
+      EXIT(45);
+    }
+    for(i=1; i<no_fields; i++) propagator_list_dn[i] = propagator_list_dn[i-1] + _GSI(VOLUME);
   } else {
     propagator_list_dn  = propagator_list_up;
   }
 
   no_fields = g_source_location_number * g_seq_source_momentum_number  /* sequential propagators at all base source locations */ 
-  sequential_propagator_list = (fermion_propagator_type**)malloc(no_fields * sizeof(fermion_propagator_type*));
-  for(i=0; i<no_fields; i++) sequential_propagator_list[i] = create_fp_field( VOLUME );
+  sequential_propagator_list = (double**)malloc(no_fields * sizeof(double*));
+  sequential_propagator_list[0] = (double*)malloc(no_fields * sizeof_spinor_field);
+  if( sequential_propagator_list[0] == NULL) {
+    fprintf(stderr, "[piN2piN] Error from malloc\n");
+    EXIT(46);
+  }
+  for(i=1; i<no_fields; i++) sequential_propagator_list[i] = sequential_propagator_list[i-1] + _GSI(VOLUME);
 
 
   stochastic_propagator_list    = (double**)malloc(g_nsample * sizeof(double*));
@@ -551,12 +558,40 @@ int main(int argc, char **argv) {
   /***********************************************************
    * allocate memory for the contractions
    **********************************************************/
-  connq = create_sp_field( (size_t)VOLUME * num_component );
-  if(connq == NULL) {
-    fprintf(stderr, "[piN2piN] Error, could not alloc connq\n");
-    EXIT(2);
+  conn_piN_piN = (spinor_propagator_type**)malloc(10 * sizeof(spinor_propagator_type*));
+  for(i=0; i<10; i++) {
+    conn_piN_piN[i] = create_sp_field( (size_t)VOLUME * num_component_piN_piN );
+    if(conn_piN_piN[i] == NULL) {
+      fprintf(stderr, "[piN2piN] Error, could not alloc conn_piN_piN\n");
+      EXIT(2);
+    }
+  }
+  conn_N_N = (spinor_propagator_type**)malloc(2 * sizeof(spinor_propagator_type*));
+  for(i=0; i<2; i++) {
+    conn_N_N[i] = create_sp_field( (size_t)VOLUME );
+    if(conn_N_N[i] == NULL) {
+      fprintf(stderr, "[piN2piN] Error, could not alloc conn_N_N\n");
+      EXIT(2);
+    }
   }
 
+  conn_D_D = (spinor_propagator_type**)malloc(6 * sizeof(spinor_propagator_type*));
+  for(i=0; i<6; i++) {
+    conn_D_D[i] = create_sp_field( (size_t)VOLUME * num_component_D_D );
+    if(conn_D_D[i] == NULL) {
+      fprintf(stderr, "[piN2piN] Error, could not alloc conn_D_D\n");
+      EXIT(2);
+    }
+  }
+
+  conn_piN_D = (spinor_propagator_type**)malloc(6 * sizeof(spinor_propagator_type*));
+  for(i=0; i<6; i++) {
+    conn_piN_D[i] = create_sp_field( (size_t)VOLUME * num_component_piN_D );
+    if(conn_piN_D[i] == NULL) {
+      fprintf(stderr, "[piN2piN] Error, could not alloc conn_piN_D\n");
+      EXIT(2);
+    }
+  }
 
   /***********************************************************
    * set operator ids depending on fermion type
@@ -592,16 +627,20 @@ int main(int argc, char **argv) {
         if(source_proc_id == g_cart_id)  {
           spinor_work[0][_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]])+2*is] = 1.;
         }
+        if( g_fermion_type == _TM_FERMION ) {
+          spinor_field_tm_rotation(spinor_work[0], spinor_work[0], +1, g_fermion_type, VOLUME);
+        }
 
         exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_up, 0);
         if(exitstatus != 0) {
           fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
           EXIT(12);
         }
-        memcpy( g_spinor_field[is], spinor_work[1], sizeof_spinor_field);
-      }
-      assign_fermion_propagaptor_from_spinor_field (propagator_list_up[i_prop], g_spinor_field, VOLUME);
-      fermion_propagator_field_tm_rotation (propagator_list_up[i_prop], propagator_list_up[i_prop], +1, g_fermion_type, VOLUME );
+        if( g_fermion_type == _TM_FERMION ) {
+          spinor_field_tm_rotation(spinor_work[1], spinor_work[1], +1, g_fermion_type, VOLUME);
+        }
+        memcpy( propagator_list_up[i_prop*n_s*n_c + is], spinor_work[1], sizeof_spinor_field);
+      }  /* end of loop on spin color */
 
       retime = _GET_TIME;
       if(g_cart_id == 0) fprintf(stderr, "# [piN2piN] time for up propagator = %e seconds\n", retime-ratime);
@@ -633,17 +672,20 @@ int main(int argc, char **argv) {
           if(source_proc_id == g_cart_id)  {
             spinor_work[0][_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]])+2*is] = 1.;
           }
+          if( g_fermion_type == _TM_FERMION ) {
+            spinor_field_tm_rotation(spinor_work[0], spinor_work[0], -1, g_fermion_type, VOLUME);
+          }
 
           exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_dn, 0);
           if(exitstatus != 0) {
             fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
             EXIT(12);
           }
-          memcpy( g_spinor_field[is], spinor_work[1], sizeof_spinor_field);
+          if( g_fermion_type == _TM_FERMION ) {
+            spinor_field_tm_rotation(spinor_work[1], spinor_work[1], -1, g_fermion_type, VOLUME);
+          }
+          memcpy( propagator_list_dn[i_prop*n_s*n_c + is], spinor_work[1], sizeof_spinor_field);
         }
-        assign_fermion_propagaptor_from_spinor_field (propagator_list_dn[i_prop], g_spinor_field, VOLUME);
-        fermion_propagator_field_tm_rotation (propagator_list_dn[i_prop], propagator_list_dn[i_prop], -1, g_fermion_type, VOLUME );
-
         retime = _GET_TIME;
         if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] time for dn propagator = %e seconds\n", retime-ratime);
       } /* end of loop on coherent source timeslices */
@@ -659,8 +701,7 @@ int main(int argc, char **argv) {
         g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2]);
     ratime = _GET_TIME;
     double **prop_list = (double**)malloc(g_coherent_source_number * sizeof(double*));
-    prop_list[0] = (double*)malloc(g_coherent_source_number * sizeof_spinor_field);
-    if(prop_list[0] == NULL) {
+    if(prop_list == NULL) {
       fprintf(stderr, "[piN2piN] Error from malloc\n");
       EXIT(43);
     }
@@ -668,11 +709,12 @@ int main(int argc, char **argv) {
 
     for(i_src=0; i_src<g_source_location_number; i_src++) {
   
+      int i_prop = iseq_mom * g_source_location_number + i_src;
       for(is=0;is<n_s*n_c;is++) {
 
         /* extract spin-color source-component is from coherent source dn propagators */
         for(i=0; i<g_coherent_source_number; i++) {
-          assign_spinor_field_from_fermion_propagaptor_component (prop_list[i], propagator_list_dn[i_src * g_coherent_source_number + i], is, VOLUME);
+          prop_list[i] = propagator_list_dn[i_src * g_coherent_source_number + i + is];
         }
 
         /* build sequential source */
@@ -682,7 +724,9 @@ int main(int argc, char **argv) {
           EXIT(14);
         }
         /* tm-rotate sequential source */
-        spinor_field_tm_rotation(spinor_work[0], spinor_work[0], +1, g_fermion_type, VOLUME);
+        if( g_fermion_type == _TM_FERMION ) {
+          spinor_field_tm_rotation(spinor_work[0], spinor_work[0], +1, g_fermion_type, VOLUME);
+        }
 
         memset(spinor_work[1], 0, sizeof_spinor_field);
         /* invert */
@@ -692,9 +736,11 @@ int main(int argc, char **argv) {
           EXIT(12);
         }
         /* tm-rotate at sink */
-        spinor_field_tm_rotation(spinor_work[1], spinor_work[1], +1, g_fermion_type, VOLUME);
+        if( g_fermion_type == _TM_FERMION ) {
+          spinor_field_tm_rotation(spinor_work[1], spinor_work[1], +1, g_fermion_type, VOLUME);
+        }
 
-        memcpy( g_spinor_field[is], spinor_work[1], sizeof_spinor_field);
+        memcpy( sequential_propagator_list[i_prop*n_s*n_c + is], spinor_work[1], sizeof_spinor_field);
 
         if(g_write_sequential_propagator) { /* write sequential propagator to file */
           sprintf(filename, "seq_%s.%.4d.t%.2dx%.2dy%.2dz%.2d.%.2d.qx%.2dqy%.2dqz%.2d.inverted",
@@ -709,13 +755,10 @@ int main(int argc, char **argv) {
         }  /* end of if write sequential propagator */
       }  /* end of loop on spin-color component */
 
-      int i_prop = iseq_mom * g_source_location_number + i_src;
-      assign_fermion_propagaptor_from_spinor_field ( sequential_propagator_list[i_prop], g_spinor_field, VOLUME);
 
     }  /* end of loop on base source locations */
     retime = _GET_TIME;
     if(g_cart_id == 0) fprintf(stderr, "# [piN2piN] time for seq propagator = %e seconds\n", retime-ratime);
-    free(prop_list[0]);
     free(prop_list);
   }  /* end of loop on sequential momentum list */
  
@@ -727,12 +770,240 @@ int main(int argc, char **argv) {
    ******************************************************
    ******************************************************/
 
-  /* N     - N     2pt */
-  /* Delta - Delta 2pt */
-  /* pi    - pi    2pt */
-  /* Delta - pi N  3pt */
+  for(i_src=0; i_src < g_source_location_number ) {
 
-  /* to be added */
+    for(i_coherent=0; i_coherent<g_coherent_source_number; i_coherent++) {
+      int t_coherent = ( t_base + ( T_global / g_coherent_source_number ) * i_coherent ) % T_global;
+      int i_prop = i_src * g_coherent_source_number + i_coherent;
+      gsx[0] = t_coherent;
+      gsx[1] = ( g_source_coords_list[i_src][1] + (LX_global/2) * i_coherent ) % LX_global;
+      gsx[2] = ( g_source_coords_list[i_src][2] + (LY_global/2) * i_coherent ) % LY_global;
+      gsx[3] = ( g_source_coords_list[i_src][3] + (LZ_global/2) * i_coherent ) % LZ_global;
+      get_point_source_info (gsx, sx, &source_proc_id);
+
+
+      /* N     - N     2pt */
+      /* Delta - Delta 2pt */
+      /* pi    - pi    2pt */
+      /* Delta - pi N  3pt */
+
+      exitstatus = contract_N_N (conn_N_N, &(propagator_list_up[i_prop*n_s*n_c]), &(propagator_list_dn[i_prop*n_s*n_c]) );
+      for(i=0; i<2; i++) {
+        /* phase from quark field boundary condition */
+        add_baryon_boundary_phase (conn_N_N[i], gsx[0], 1);
+
+        /* momentum projection */
+        double ****connt;
+        init_4level_buffer(&connt, T, g_sink_momentum_number, g_sv_dim, 2*g_sv_dim);
+        for(it=0; it<T; it++) {
+          exitstatus = momentum_projection2 (conn_N_N[i][it*VOL3][0], connt[it][0][0], g_sv_dim*g_sv_dim, g_sink_momentum_number, g_sink_momentum_list, NULL );
+        }
+        /* add complex phase from source location and source momentum
+         *   assumes momentum conservation 
+         */
+        add_source_phase (connt, NULL, NULL, &(gsx[1]), 1);
+
+        /* write to file */
+       
+        ratime = _GET_TIME;
+#ifdef HAVE_MPI
+        if(io_proc>0) {
+          init_4level_buffer(&buffer, T_global, g_sink_momentum_number, g_sv_dim, 2*g_sv_dim);
+          k = T * g_sink_momentum_number * g_sv_dim * g_sv_dim * 2;
+          exitstatus = MPI_Allgather(connt[0][0][0], k, MPI_DOUBLE, buffer[0][0][0], k, MPI_DOUBLE, g_tr_comm);
+          if(exitstatus != MPI_SUCCESS) {
+            fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d\n", exitstatus);
+            EXIT(124);
+          }
+        }
+#else
+        buffer = connt;
+#endif
+    
+        if(io_proc == 2) {
+#ifdef HAVE_LHPC_AFF
+          for(k=0; k<g_sink_momentum_number; k++) {
+
+            sprintf(aff_buffer_path, "/%s/diag%d/pf1x%.2dpf1y%.2dpf1z%.2d/t%.2dx%.2dy%.2dz%.2d",
+                "N-N", i,
+                g_sink_momentum_list[k][0],                g_sink_momentum_list[k][1],                g_sink_momentum_list[k][2],
+                gsx[0], gsx[1], gsx[2], gsx[3]);
+
+            fprintf(stdout, "# [piN2piN] current aff path = %s\n", aff_buffer_path);
+
+            affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
+            for(it=0; it<T_global; it++) {
+              ir = ( it - gsx[0] + T_global ) % T_global;
+              memcpy(aff_buffer + ir*g_sv*dim*g_sv_dim,  buffer[it][k][icomp*g_sv_dim] , g_sv_dim*g_sv_dim*sizeof(double _Complex) );
+            }
+            int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
+            if(status != 0) {
+              fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d\n", status);
+              EXIT(8);
+            }
+          }  /* end of loop on sink momenta */
+#endif
+        }  /* end of if io_proc == 2 */
+    
+#ifdef HAVE_MPI
+        if(io_proc > 0) { fini_3level_buffer(&buffer); }
+#endif
+
+        fini_4level_buffer(&connt);
+      }  /* end of loop on diagrams */
+
+
+      exitstatus = contract_D_D (conn_D_D, &(propagator_list_up[i_prop*n_s*n_c]), &(propagator_list_dn[i_prop*n_s*n_c]),
+         num_component_D_D, gamma_component_D_D, gamma_component_sign_D_D);
+
+      for(i=0; i<6; i++) {
+        /* phase from quark field boundary condition */
+        add_baryon_boundary_phase (conn_D_D[i], gsx[0], num_component_D_D);
+
+        /* momentum projection */
+        double ****connt;
+        init_4level_buffer(&connt, T, g_sink_momentum_number, num_component_D_D * g_sv_dim, 2*g_sv_dim);
+        for(it=0; it<T; it++) {
+          exitstatus = momentum_projection2 (conn_D_D[i][it*VOL3*num_component_D_D][0], connt[it][0][0], num_component_D_D*g_sv_dim*g_sv_dim,
+              g_sink_momentum_number, g_sink_momentum_list, NULL );
+        }
+        /* add complex phase from source location and source momentum
+         *   assumes momentum conservation 
+         */
+        add_source_phase (connt, NULL, NULL, &(gsx[1]), num_component_D_D);
+
+        /* write to file */
+       
+        ratime = _GET_TIME;
+#ifdef HAVE_MPI
+        if(io_proc>0) {
+          init_4level_buffer(&buffer, T_global, g_sink_momentum_number, num_component_D_D*g_sv_dim, 2*g_sv_dim);
+          k = T * g_sink_momentum_number * num_component_D_D * g_sv_dim * g_sv_dim * 2;
+          exitstatus = MPI_Allgather(connt[0][0][0], k, MPI_DOUBLE, buffer[0][0][0], k, MPI_DOUBLE, g_tr_comm);
+          if(exitstatus != MPI_SUCCESS) {
+            fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d\n", exitstatus);
+            EXIT(124);
+          }
+        }
+#else
+        buffer = connt;
+#endif
+    
+        if(io_proc == 2) {
+#ifdef HAVE_LHPC_AFF
+          for(k=0; k<g_sink_momentum_number; k++) {
+
+            for(icomp=0; icomp<num_component_D_D; icomp++) {
+
+              sprintf(aff_buffer_path, "/%s/diag%d/pf1x%.2dpf1y%.2dpf1z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d",
+                  "D-D", i,
+                  g_sink_momentum_list[k][0],                g_sink_momentum_list[k][1],                g_sink_momentum_list[k][2],
+                  gsx[0], gsx[1], gsx[2], gsx[3],
+                  gamma_component_D_D[icomp][0], gamma_component_D_D[icomp][1]);
+
+              fprintf(stdout, "# [piN2piN] current aff path = %s\n", aff_buffer_path);
+
+              affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
+              for(it=0; it<T_global; it++) {
+                ir = ( it - gsx[0] + T_global ) % T_global;
+                memcpy(aff_buffer + ir*g_sv*dim*g_sv_dim,  buffer[it][k][icomp*g_sv_dim] , g_sv_dim*g_sv_dim*sizeof(double _Complex) );
+              }
+              int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
+              if(status != 0) {
+                fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d\n", status);
+                EXIT(8);
+              }
+            }  /* end of loop on components */
+          }  /* end of loop on sink momenta */
+#endif
+        }  /* end of if io_proc == 2 */
+    
+#ifdef HAVE_MPI
+        if(io_proc > 0) { fini_3level_buffer(&buffer); }
+#endif
+
+        fini_4level_buffer(&connt);
+      }  /* end of loop on diagrams */
+
+      for(iseq_mom = 0; iseq_mom < g_seq_source_momentum_number; iseq_mom++) {
+        int i_seq_prop = iseq_mom * g_source_location_number + i_src;
+
+        exitstatus = contract_piN_D (conn_piN_D, &(propagator_list_up[i_prop*n_s*n_c]), &(propagator_list_dn[i_prop*n_s*n_c]), 
+            &(sequential_propagator_list[i_seq_prop*n_s*n_c]), num_component_piN_D, gamma_component_piN_D, gamma_component_sign_piN_D);
+
+        for(i=0; i<6; i++) {
+          /* phase from quark field boundary condition */
+          add_baryon_boundary_phase (conn_piN_D[i], gsx[0], num_component_piN_D);
+
+          /* momentum projection */
+          double ****connt;
+          init_4level_buffer(&connt, T, g_sink_momentum_number, num_component_piN_D*g_sv_dim, 2*g_sv_dim);
+          for(it=0; it<T; it++) {
+            exitstatus = momentum_projection2 (conn_piN_D[i][it*VOL3*num_component_piN_D][0], connt[it][0][0], 
+                num_component_piN_D*g_sv_dim*g_sv_dim, g_sink_momentum_number, g_sink_momentum_list, NULL );
+          }
+          /* add complex phase from source location and source momentum
+           *   assumes momentum conservation 
+           */
+          add_source_phase (connt, g_seq_source_momentum_list[iseq_mom], NULL, &(gsx[1]), num_component_piN_D);
+
+          /* write to file */
+       
+          ratime = _GET_TIME;
+#ifdef HAVE_MPI
+          if(io_proc>0) {
+            init_4level_buffer(&buffer, T_global, g_sink_momentum_number, num_component_piN_D*g_sv_dim, 2*g_sv_dim);
+            k = T * g_sink_momentum_number * num_component_piN_D * g_sv_dim * g_sv_dim * 2;
+            exitstatus = MPI_Allgather(connt[0][0][0], k, MPI_DOUBLE, buffer[0][0][0], k, MPI_DOUBLE, g_tr_comm);
+            if(exitstatus != MPI_SUCCESS) {
+              fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d\n", exitstatus);
+              EXIT(124);
+            }
+          }
+#else
+          buffer = connt;
+#endif
+    
+          if(io_proc == 2) {
+#ifdef HAVE_LHPC_AFF
+            for(k=0; k<g_sink_momentum_number; k++) {
+
+              for(icomp=0; icomp<num_component_piN_D; icomp++) {
+
+                sprintf(aff_buffer_path, "/%s/diag%d/pi2x%.2dpi2y%.2dpi2z%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d",
+                    "pixN-D", i,
+                    g_seq_source_momentum_list[iseq_mom][0],   g_seq_source_momentum_list[iseq_mom][1],   g_seq_source_momentum_list[iseq_mom][2],
+                    g_sink_momentum_list[k][0],                g_sink_momentum_list[k][1],                g_sink_momentum_list[k][2],
+                    gsx[0], gsx[1], gsx[2], gsx[3],
+                    gamma_component_piN_D[icomp][0], gamma_component_piN_D[icomp][1]);
+
+                fprintf(stdout, "# [piN2piN] current aff path = %s\n", aff_buffer_path);
+
+                affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
+                for(it=0; it<T_global; it++) {
+                  ir = ( it - gsx[0] + T_global ) % T_global;
+                  memcpy(aff_buffer + ir*g_sv*dim*g_sv_dim,  buffer[it][k][icomp*g_sv_dim] , g_sv_dim*g_sv_dim*sizeof(double _Complex) );
+                }
+                int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
+                if(status != 0) {
+                  fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d\n", status);
+                  EXIT(8);
+                }
+              }  /* end of loop on components */
+            }  /* end of loop on sink momenta */
+#endif
+          }  /* end of if io_proc == 2 */
+    
+#ifdef HAVE_MPI
+          if(io_proc > 0) { fini_3level_buffer(&buffer); }
+#endif
+
+          fini_4level_buffer(&connt);
+        }  /* end of loop on diagrams */
+     
+      }  /* end of loop on sequential source momenta */       
+    }  /* end of loop on coherent source locations */
+  }  /* end of loop on base source locations */
 
   /******************************************************
    ******************************************************
@@ -763,6 +1034,10 @@ int main(int argc, char **argv) {
         unsigned int shift = _GSI(g_ipt[t_src%T][0][0][0]);
         memcpy(spinor_work[0]+shift, stochastic_source_list[isample]+shift, sizeof_spinor_field_timeslice );
       }
+      /* tm-rotate stochastic source */
+      if( g_fermion_type == _TM_FERMION ) {
+        spinor_field_tm_rotation ( spinor_work[0], spinor_work[0], -1, g_fermion_type, VOLUME);
+      }
 
       memset(spinor_work[1], 0, sizeof_spinor_field);
       exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_dn, 0);
@@ -771,7 +1046,9 @@ int main(int argc, char **argv) {
         EXIT(12);
       }
       /* tm-rotate stochastic propagator at sink */
-      spinor_field_tm_rotation(spinor_work[1], spinor_work[1], -1, g_fermion_type, VOLUME);
+      if( g_fermion_type == _TM_FERMION ) {
+        spinor_field_tm_rotation(spinor_work[1], spinor_work[1], -1, g_fermion_type, VOLUME);
+      }
 
       /* copy only source timeslice from propagator */
       if(have_source) {
@@ -780,8 +1057,6 @@ int main(int argc, char **argv) {
       }
 
     }
-    /* tm-rotate stochastic source */
-    spinor_field_tm_rotation ( stochastic_source_list[isample], stochastic_source_list[isample], -1, g_fermion_type, VOLUME);
 
   }  /* end of loop on samples */
 
@@ -793,481 +1068,191 @@ int main(int argc, char **argv) {
    ** B and W diagrams
    ******************************************************
    ******************************************************/
-  /* loop on pi2 */
-  for(iseq_mom=0; iseq_mom < g_seq_source_momentum_number; iseq_mom++) {
-    if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] pi2 = (%d, %d, %d)\n",
-        g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2]);
 
-    /* loop on pf2 */
-    for(iseq2_mom=0; iseq2_mom < g_seq2_source_momentum_number; iseq2_mom++) {
-      if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] seq2 inversion for pf2 = (%d, %d, %d)\n",
-          g_seq2_source_momentum_list[iseq2_mom][0], g_seq2_source_momentum_list[iseq2_mom][1], g_seq2_source_momentum_list[iseq2_mom][2]);
-
-      /* make momentum phase field */
-      double *phase = (double*)malloc(2*VOL3 * sizeof(double));
-      if( phase == NULL ) {
-        fprintf(stderr, "[piN2piN] Error from malloc\n");
-        EXIT(44);
-      }
-      make_lexic_phase_field_3d (phase, g_seq2_source_momentum_list[iseq2_mom]);
-
-
-      /* prepare the tffi propagator */
-
-
-      /* prepare the pffii propagator */
-
-
-      /* contractions */
-
-      ratime = _GET_TIME;
-      exitstatus = contract_piN2piN (connq,
-          &(propagator_list_up[i_prop*n_s*n_c]), &(propagator_list_dn[i_prop*n_s*n_c]),
-          &(sequential_propagator_list[ (iseq_mom*g_source_location_number+i_src)*n_s*n_c ]),
-          tffi_propagator_list,
-          pffii_propagator_list,
-          num_component, gamma_component, gamma_component_sign);
-      if(exitstatus != 0) {
-        fprintf(stderr, "[] Error from contract_piN2piN, status was %d\n", exitstatus);
-        EXIT(41);
-      }
-
-      retime = _GET_TIME;
-      if(g_cart_id == 0)  fprintf(stdout, "# [piN2piN] time for contractions = %e seconds\n", retime-ratime);
+#ifdef HAVE_LHPC_AFF
+  /***********************************************
+   * open aff output file
+   ***********************************************/
+    
+  if(io_proc == 2) {
+    aff_status_str = (char*)aff_version();
+    fprintf(stdout, "# [piN2piN] using aff version %s\n", aff_status_str);
+    
+    sprintf(filename, "%s.%.4d.aff", "piN_piN", Nconf );
+    fprintf(stdout, "# [piN2piN] writing data to file %s\n", filename);
+    affw = aff_writer(filename);
+    aff_status_str = (char*)aff_writer_errstr(affw);
+    if( aff_status_str != NULL ) {
+      fprintf(stderr, "[piN2piN] Error from aff_writer, status was %s\n", aff_status_str);
+      EXIT(4);
+    }
+    
+    if( (affn = aff_writer_root(affw)) == NULL ) {
+      fprintf(stderr, "[piN2piN] Error, aff writer is not initialized\n");
+      EXIT(5);
+    }
   
-      /***********************************************
-       * finish calculation of connq
-       ***********************************************/
-      ratime = _GET_TIME;
-      if(g_propagator_bc_type == 0) {
-        // multiply with phase factor
-        fprintf(stdout, "# [piN2piN] multiplying with boundary phase factor\n");
-        for(it=0;it<T;it++) {
-          ir = (it + g_proc_coords[0] * T - gsx[0] + T_global) % T_global;
-          const complex w1 = { cos( 3. * M_PI*(double)ir / (double)T_global ), sin( 3. * M_PI*(double)ir / (double)T_global ) };
-#ifdef HAVE_OPENMP
-#pragma omp parallel private(ix,icomp) shared(connq,it)
-{
+    aff_buffer = (double _Complex*)malloc(T_global*g_sv_dim*g_sv_dim*sizeof(double _Complex));
+    if(aff_buffer == NULL) {
+      fprintf(stderr, "[piN2piN] Error from malloc\n");
+      EXIT(6);
+    }
+  }  /* end of if io_proc == 2 */
 #endif
-          spinor_propagator_type sp1;
-          create_sp(&sp1);
-#ifdef HAVE_OPENMP
-#pragma omp for
-#endif
-          for(ix=0;ix<VOL3;ix++) {
-            unsigned int iix = (it * VOL3 + ix) * num_component;
-            for(icomp=0; icomp<num_component; icomp++) {
-              _sp_eq_sp(sp1, connq[iix] );
-              _sp_eq_sp_ti_co( connq[iix], sp1, w1);
-              iix++;
-            }
+
+  /* loop on base source locations */
+  for(i_src = 0; i_src < g_source_location_number; i_src++) {
+
+    double **tffi_list, **pffii_list;
+    init_2level_buffer(&tffi_list, n_s*n_c, _GSI(VOLUME));
+    init_2level_buffer(&pffii_list, n_s*n_c, _GSI(VOLUME));
+
+    /* loop on coherent source locations */
+    for(i_coherent=0; i_coherent < g_coherent_source_number; i_coherent++) {
+
+      int t_coherent = ( t_base + ( T_global / g_coherent_source_number ) * i_coherent ) % T_global;
+      int i_prop = i_src * g_coherent_source_number + i_coherent;
+      gsx[0] = t_coherent;
+      gsx[1] = ( g_source_coords_list[i_src][1] + (LX_global/2) * i_coherent ) % LX_global;
+      gsx[2] = ( g_source_coords_list[i_src][2] + (LY_global/2) * i_coherent ) % LY_global;
+      gsx[3] = ( g_source_coords_list[i_src][3] + (LZ_global/2) * i_coherent ) % LZ_global;
+      get_point_source_info (gsx, sx, &source_proc_id);
+
+      /* loop on pi2 */
+      for(iseq_mom=0; iseq_mom < g_seq_source_momentum_number; iseq_mom++) {
+        if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] pi2 = (%d, %d, %d)\n",
+            g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2]);
+
+        int i_seq_prop = iseq_mom * g_source_location_number + i_src;
+
+
+        /* loop on pf2 */
+        for(iseq2_mom=0; iseq2_mom < g_seq2_source_momentum_number; iseq2_mom++) {
+          if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] seq2 inversion for pf2 = (%d, %d, %d)\n",
+              g_seq2_source_momentum_list[iseq2_mom][0], g_seq2_source_momentum_list[iseq2_mom][1], g_seq2_source_momentum_list[iseq2_mom][2]);
+
+          /* prepare the tffi propagator */
+          exitstatus = prepare_seqn_stochastic_vertex_propagator_sliced3d (tffi_list, stochastic_propagator_list, stochastic_source_list,
+              propgator_list_up[i_prop*n_s*n_c], g_nsample, n_s*n_c, g_seq2_source_momentum[iseq2_mom], 5);
+
+          /* prepare the pffii propagator */
+          exitstatus = prepare_seqn_stochastic_vertex_propagator_sliced3d (pffii_list, stochastic_propagator_list, stochastic_source_list,
+              propgator_list_up[i_seq_prop*n_s*n_c], g_nsample, n_s*n_c, g_seq2_source_momentum[iseq2_mom], 5);
+
+
+          /* contractions */
+
+          ratime = _GET_TIME;
+          exitstatus = contract_piN_piN (conn_piN_piN,
+              &(propagator_list_up[i_prop*n_s*n_c]), &(propagator_list_dn[i_prop*n_s*n_c]),
+              &(sequential_propagator_list[ (iseq_mom*g_source_location_number+i_src)*n_s*n_c ]),
+              tffi_propagator_list,
+              pffii_propagator_list,
+              num_component_piN_piN, gamma_component_piN_piN, gamma_component_sign_piN_piN);
+
+
+          exitstatus = contract_piN_piN (conn_piN_piN, &(propagator_list_up[i_prop*n_s*n_c]), &(propagator_list_dn[i_prop*n_s*n_c]), 
+              &(sequential_propagator_list[i_seq_prop*n_s*n_c]), tffi_list, pffii_list, num_component_piN_piN, gamma_component_piN_piN, gamma_component_sign_piN_piN);
+
+          if(exitstatus != 0) {
+            fprintf(stderr, "[] Error from contract_piN_piN, status was %d\n", exitstatus);
+            EXIT(41);
           }
-          free_sp(&sp1);
-#ifdef HAVE_OPENMP
-}  
-#endif
-        }
-      } else if (g_propagator_bc_type == 1) {
-        // multiply with step function
-        fprintf(stdout, "# [piN2piN] multiplying with boundary step function\n");
-        for(ir=0; ir<T; ir++) {
-          it = ir + g_proc_coords[0] * T;  // global t-value, 0 <= t < T_global
-          if(it < gsx[0]) {
-#ifdef HAVE_OPENMP
-#pragma omp parallel private(ix,icomp) shared(it,connq)
-{
-#endif
-            spinor_propagator_type sp1;
-            create_sp(&sp1);
-#ifdef HAVE_OPENMP
-#pragma omp for
-#endif
-            for(ix=0;ix<VOL3;ix++) {
-              unsigned int iix = (it * VOL3 + ix) * num_component;
-              for(icomp=0; icomp<num_component; icomp++) {
-                _sp_eq_sp(sp1, connq[iix] );
-                _sp_eq_sp_ti_re( connq[iix], sp1, -1.);
-                iix++;
+
+          retime = _GET_TIME;
+          if(g_cart_id == 0)  fprintf(stdout, "# [piN2piN] time for contractions = %e seconds\n", retime-ratime);
+  
+          for(i=0; i<6; i++) {
+            /* phase from quark field boundary condition */
+            add_baryon_boundary_phase (conn_piN_piN[i], gsx[0], num_component_piN_piN);
+
+            /* momentum projection */
+            double ****connt;
+            init_4level_buffer(&connt, T, g_sink_momentum_number, num_component_piN_piN*g_sv_dim, 2*g_sv_dim);
+            for(it=0; it<T; it++) {
+              exitstatus = momentum_projection2 (conn_piN_piN[i][it*VOL3*num_component_piN_piN][0], connt[it][0][0],
+                  num_component_piN_piN*g_sv_dim*g_sv_dim, g_sink_momentum_number, g_sink_momentum_list, NULL );
+            }
+            /* add complex phase from source location and source momentum
+             *   assumes momentum conservation 
+             */
+            add_source_phase (connt, g_seq_source_momentum_list[iseq_mom], g_seq2_source_momentum_list[iseq2_mom], &(gsx[1]), num_component_piN_piN);
+
+            /* write to file */
+       
+            ratime = _GET_TIME;
+#ifdef HAVE_MPI
+            if(io_proc>0) {
+              init_4level_buffer(&buffer, T_global, g_sink_momentum_number, num_component_piN_piN*g_sv_dim, 2*g_sv_dim);
+              k = T * g_sink_momentum_number * num_component_piN_piN * g_sv_dim * g_sv_dim * 2;
+              exitstatus = MPI_Allgather(connt[0][0][0], k, MPI_DOUBLE, buffer[0][0][0], k, MPI_DOUBLE, g_tr_comm);
+              if(exitstatus != MPI_SUCCESS) {
+                fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d\n", exitstatus);
+                EXIT(124);
               }
             }
-  
-            free_sp(&sp1);
-#ifdef HAVE_OPENMP
-}  /* end of parallel region */
-#endif
-          }
-        }  /* end of if it < gsx[0] */
-      }
-      retime = _GET_TIME;
-      if(g_cart_id == 0)  fprintf(stdout, "# [piN2piN] time for boundary phase = %e seconds\n", retime-ratime);
-  
-  
-      if(write_ascii) {
-        /***********************************************
-         * each MPI process dump his part in ascii format
-         ***********************************************/
-        int x0, x1, x2, x3;
-        ratime = _GET_TIME;
-        sprintf(filename, "%s_x.%.4d.t%.2dx%.2dy%.2dz%.2d.px%.2dpy%.2dpz%.2d.proct%.2dprocx%.2dprocy%.2dprocz%.2d.ascii", outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
-            g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
-            g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3]);
-        FILE *ofs = fopen(filename, "w");
-        if(ofs == NULL) {
-          fprintf(stderr, "[piN2piN] Error opening file %s\n", filename);
-          EXIT(56);
-        }
-        for(x0=0; x0 < T; x0++) {
-        for(x1=0; x1 < LX; x1++) {
-        for(x2=0; x2 < LY; x2++) {
-        for(x3=0; x3 < LZ; x3++) {
-          ix = g_ipt[x0][x1][x2][x3];
-          for(icomp=0; icomp<num_component; icomp++) {
-            unsigned int iix = num_component * ix + icomp;
-            sprintf(contype, "# t= %2d, x= %2d, y= %2d, z= %2d comp = %2d %2d", x0 + g_proc_coords[0]*T, x1 + g_proc_coords[1]*LX, x2 + g_proc_coords[2]*LY, x3 + g_proc_coords[3]*LZ,
-                gamma_component[0][icomp], gamma_component[1][icomp]);
-            printf_sp(connq[iix], contype, ofs);
-          }
-        }}}}
-        fclose(ofs);
-        retime = _GET_TIME;
-        if(g_cart_id == 0)  fprintf(stdout, "# [piN2piN] time for writing ascii = %e seconds\n", retime-ratime);
-      }  /* end of if write ascii */
-  
-  
-      /***********************************************
-       * write to file
-       ***********************************************/
-      if(write_xspace) {
-        ratime = _GET_TIME;
-        char xml_msg[200];
-        sprintf(contype, "\n<description> proton 2pt spinor propagator position space\n"\
-          "<components>%dx%d</components>\n"\
-          "<data_type>%s</data_type>\n"\
-          "<precision>%d</precision>\n"\
-          "<source_coords_t>%2d</source_coords_t>\n"\
-          "<source_coords_x>%2d</source_coords_x>\n"\
-          "<source_coords_y>%2d</source_coords_y>\n"\
-          "<source_coords_z>%2d</source_coords_z>\n"\
-          "<sequential_source_momentum_x>%2d</sequential_source_momentum_x>\n"\
-          "<sequential_source_momentum_y>%2d</sequential_source_momentum_y>\n"\
-          "<sequential_source_momentum_z>%2d</sequential_source_momentum_z>\n",\
-          g_sv_dim, g_sv_dim, "complex", 64, gsx[0], gsx[1], gsx[2], gsx[3],
-          g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2]);
-
-        for(icomp=0; icomp<num_component; icomp++) {
-          sprintf(xml_msg, "<spin_structure>Cg%.2d-Cg%.2d</spin_structure>\n",\
-              gamma_component[0][icomp], gamma_component[1][icomp]);
-          sprintf(contype, "%s\n%s", contype, xml_msg);
-        }
-        sprintf(filename, "%s_x.%.4d.t%.2dx%.2dy%.2dz%.2d.px%.2dpy%.2dpz%.2d", outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
-            g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2]);
-        write_lime_contraction(connq[0][0], filename, 64, num_component*g_sv_dim*g_sv_dim, contype, Nconf, 0);
-        retime = _GET_TIME;
-        if(g_cart_id == 0) {
-          fprintf(stdout, "# [piN2piN] time for writing xspace = %e seconds\n", retime-ratime);
-        }
-      }  /* end of if write x-space */
-  
-      /***********************************************
-       * momentum projections
-       ***********************************************/
-      init_4level_buffer(&connt, T, g_sink_momentum_number, num_component*g_sv_dim, 2*g_sv_dim);
-      for(it=0; it<T; it++) {
-        fprintf(stdout, "# [piN2piN] proc%.4d momentum projection for t = %2d\n", g_cart_id, it); fflush(stdout);
-        /* exitstatus = momentum_projection2 (connq[it*VOL3*num_component][0], connt[it][0][0], num_component*g_sv_dim*g_sv_dim, g_sink_momentum_number, g_sink_momentum_list, &(gsx[1]) ); */
-        exitstatus = momentum_projection2 (connq[it*VOL3*num_component][0], connt[it][0][0], num_component*g_sv_dim*g_sv_dim, g_sink_momentum_number, g_sink_momentum_list, NULL );
-      }
-
-      /***********************************************
-       * multiply with phase from source location
-       * - using pi1 + pi2 = - ( pf1 + pf2 ), so
-       *   pi1 = - ( pi2 + pf1 + pf2 )
-       ***********************************************/
-#ifdef HAVE_OPENMP
-#pragma omp parallel for private(icomp)
-#endif
-      for(it=0; it<T; it++) {
-        double phase;
-        complex w;
-        spinor_propagator_type sp1;
-        create_sp(&sp1);
-        for(k=0; k<g_sink_momentum_number; k++) {
-          phase = -2 * M_PI * (
-            (double)(g_sink_momentum_list[k][0] + g_seq_source_momentum_list[iseq_mom][0] + g_seq2_source_momentum_list[iseq2_mom][0] ) / (double)LX_global * gsx[1]
-          + (double)(g_sink_momentum_list[k][1] + g_seq_source_momentum_list[iseq_mom][1] + g_seq2_source_momentum_list[iseq2_mom][1] ) / (double)LY_global * gsx[2]
-          + (double)(g_sink_momentum_list[k][2] + g_seq_source_momentum_list[iseq_mom][2] + g_seq2_source_momentum_list[iseq2_mom][2] ) / (double)LZ_global * gsx[3]
-          );
-          w.re = cos(phase);
-          w.im = sin(phase);
-          for(icomp=0; icomp<num_component; icomp++) {
-            spinor_propagator_type connt_sp = &(connt[it][k][icomp*g_sv_dim]);
-            _sp_eq_sp(sp1, connt_sp );
-            _sp_eq_sp_ti_co(connt_sp, sp1, w);
-          }  /* end of loop on components */
-        }  /* end of loop on sink momenta */
-        free_sp(&sp1);
-      }  /* end of loop on T */
-
-      /***********************************************
-       * init connt_p/n for positive/negative parity
-       * spin-projection
-       ***********************************************/
-      init_3level_buffer(&connt_p, T, g_sink_momentum_number, num_component * 2);
-      init_3level_buffer(&connt_n, T, g_sink_momentum_number, num_component * 2);
-  
-  
-      if(write_ascii) {
-        sprintf(filename, "%s_tq.%.4d.t%.2dx%.2dy%.2dz%.2d.px%.2dpy%.2dpz%.2d.proct%.2dprocx%.2dprocy%.2dprocz%.2d.ascii", outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
-            g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
-            g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3]);
-  
-        FILE *ofs = fopen(filename, "w");
-        if(ofs == NULL) {
-          fprintf(stderr, "[piN2piN] Error opening file %s\n", filename);
-          EXIT(56);
-        }
-        for(it=0; it<T; it++) {
-          for(k=0; k<g_sink_momentum_number; k++) {
-            for(icomp=0; icomp<num_component; icomp++) {
-              fprintf(ofs, "# t = %2d p = (%d, %d, %d) comp = (%d, %d)\n", it+g_proc_coords[0]*T, g_sink_momentum_list[k][0], g_sink_momentum_list[k][1], g_sink_momentum_list[k][2],
-                  gamma_component[0][icomp], gamma_component[1][icomp]);
-              int j;
-              for(i=0; i<g_sv_dim; i++) {
-                for(j=0; j<g_sv_dim; j++) {
-                  fprintf(ofs, "%3d%3d%25.16e%25.16e\n", i, j, connt[it][k][icomp*g_sv_dim+i][2*j], connt[it][k][icomp*g_sv_dim+i][2*j+1] );
-                }
-              }
-            }
-          }
-        }
-        fclose(ofs);
-      }  /* end of if write ascii */
-  
-  
-#ifdef HAVE_OPENMP
-#pragma omp parallel private(k,icomp, it)
-{
-#endif
-#ifdef HAVE_OPENMP
-#pragma omp for
-#endif
-      for(it=0; it<T; it++) {
-        spinor_propagator_type sp1, sp2;
-        create_sp(&sp1);
-        create_sp(&sp2);
-        complex w;
-        for(k=0; k<g_sink_momentum_number; k++) {
-          for(icomp=0; icomp<num_component; icomp++) {
-            _sp_eq_sp(sp1, &(connt[it][k][icomp*g_sv_dim]) );
-            _sp_eq_gamma_ti_sp(sp2, 0, sp1);
-            _sp_pl_eq_sp(sp1, sp2);
-            _co_eq_tr_sp(&w, sp1);
-            connt_p[it][k][2*icomp  ] = w.re * 0.25;
-            connt_p[it][k][2*icomp+1] = w.im * 0.25;
-            /* printf("# [piN2piN] proc%.4d it=%d k=%d icomp=%d w= %25.16e %25.16e\n", g_cart_id, it, k, icomp, connt_p[it][k][2*icomp], connt_p[it][k][2*icomp+1]); */
-            _sp_eq_sp(sp1, &(connt[it][k][icomp*g_sv_dim]) );
-            _sp_eq_gamma_ti_sp(sp2, 0, sp1);
-            _sp_mi_eq_sp(sp1, sp2);
-            _co_eq_tr_sp(&w, sp1);
-            connt_n[it][k][2*icomp  ] = w.re * 0.25;
-            connt_n[it][k][2*icomp+1] = w.im * 0.25;
-         }  /* end of loop on components */
-         }  /* end of loop on sink momenta */
-        free_sp(&sp1);
-        free_sp(&sp2);
-      }  /* end of loop on T */
-#ifdef HAVE_OPENMP
-}  /* end of parallel region */
-#endif
-  
-      fini_4level_buffer(&connt);
-  
-      if(write_ascii) {
-        sprintf(filename, "%s_fw.%.4d.t%.2dx%.2dy%.2dz%.2d.px%.2dpy%.2dpz%.2d.proct%.2dprocx%.2dprocy%.2dprocz%.2d.ascii", outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
-            g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
-            g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3]);
-
-        FILE *ofs = fopen(filename, "w");
-        if(ofs == NULL) {
-          fprintf(stderr, "[piN2piN] Error opening file %s\n", filename);
-          EXIT(56);
-        }
-        for(k=0; k<g_sink_momentum_number; k++) {
-          for(icomp=0; icomp<num_component; icomp++) {
-            fprintf(ofs, "# p = (%d, %d, %d) comp = (%d, %d)\n", g_sink_momentum_list[k][0], g_sink_momentum_list[k][1], g_sink_momentum_list[k][2],
-                gamma_component[0][icomp], gamma_component[1][icomp]);
-            for(it=0; it<T; it++) {
-                fprintf(ofs, "%3d%25.16e%25.16e\n", it+g_proc_coords[0]*T, connt_p[it][k][2*icomp], connt_p[it][k][2*icomp+1]);
-            }
-          }
-        }
-        fclose(ofs);
-  
-        sprintf(filename, "%s_bw.%.4d.t%.2dx%.2dy%.2dz%.2d.px%.2dpy%.2dpz%.2d.proct%.2dprocx%.2dprocy%.2dprocz%.2d.ascii", outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
-            g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
-            g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3]);
-  
-        ofs = fopen(filename, "w");
-        if(ofs == NULL) {
-          fprintf(stderr, "[piN2piN] Error opening file %s\n", filename);
-          EXIT(56);
-        }
-        for(k=0; k<g_sink_momentum_number; k++) {
-          for(icomp=0; icomp<num_component; icomp++) {
-            fprintf(ofs, "# p = (%d, %d, %d) comp = (%d, %d)\n", g_sink_momentum_list[k][0], g_sink_momentum_list[k][1], g_sink_momentum_list[k][2],
-                gamma_component[0][icomp], gamma_component[1][icomp]);
-            for(it=0; it<T; it++) {
-              fprintf(ofs, "%3d%25.16e%25.16e\n", it+g_proc_coords[0]*T, connt_n[it][k][2*icomp], connt_n[it][k][2*icomp+1]);
-            }
-          }
-        }
-        fclose(ofs);
-      }  /* end of if write ascii */
-  
-#ifdef HAVE_LHPC_AFF
-      /***********************************************
-       * open aff output file
-       ***********************************************/
-    
-      if(io_proc == 2) {
-        aff_status_str = (char*)aff_version();
-        fprintf(stdout, "# [piN2piN] using aff version %s\n", aff_status_str);
-    
-        sprintf(filename, "%s.%.4d.px%.2dpy%.2dpz%.2d.aff", outfile_prefix, Nconf,
-            g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2]);
-        fprintf(stdout, "# [piN2piN] writing data to file %s\n", filename);
-        affw = aff_writer(filename);
-        aff_status_str = (char*)aff_writer_errstr(affw);
-        if( aff_status_str != NULL ) {
-          fprintf(stderr, "[piN2piN] Error from aff_writer, status was %s\n", aff_status_str);
-          EXIT(4);
-        }
-    
-        if( (affn = aff_writer_root(affw)) == NULL ) {
-          fprintf(stderr, "[piN2piN] Error, aff writer is not initialized\n");
-          EXIT(5);
-        }
-    
-        aff_buffer = (double _Complex*)malloc(T_global*sizeof(double _Complex));
-        if(aff_buffer == NULL) {
-          fprintf(stderr, "[piN2piN] Error from malloc\n");
-          EXIT(6);
-        }
-      }  /* end of if io_proc == 2 */
-#endif
-    
-    
-      /***********************************************
-       * output for positive parity spin-projection
-       ***********************************************/
-      ratime = _GET_TIME;
-#ifdef HAVE_MPI
-      if(io_proc>0) {
-        fprintf(stdout, "# [piN2piN] proc%.4d taking part in Gather\n", g_cart_id);
-        init_3level_buffer(&buffer, T_global, g_sink_momentum_number, 2*num_component);
-        k = 2 * g_sink_momentum_number * T * num_component;
-        exitstatus = MPI_Allgather(connt_p[0][0], k, MPI_DOUBLE, buffer[0][0], k, MPI_DOUBLE, g_tr_comm);
-        if(exitstatus != MPI_SUCCESS) {
-          EXIT(124);
-        }
-      }
 #else
-      buffer = connt_p;
+            buffer = connt;
 #endif
     
-      if(io_proc == 2) {
+            if(io_proc == 2) {
 #ifdef HAVE_LHPC_AFF
-        for(k=0; k<g_sink_momentum_number; k++) {
-          for(icomp=0; icomp<num_component; icomp++) {
-            sprintf(aff_buffer_path, "/%s/P+/qx%.2dqy%.2dqz%.2d/px%.2dpy%.2dpz%.2d/t%.2dx%.2dy%.2dz%.2d/mu%dnu%d", outfile_prefix, 
-                g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
-                g_sink_momentum_list[k][0], g_sink_momentum_list[k][1], g_sink_momentum_list[k][2],
-                gsx[0], gsx[1], gsx[2], gsx[3], gamma_component[0][icomp], gamma_component[1][icomp]);
-            fprintf(stdout, "# [piN2piN] current aff path = %s\n", aff_buffer_path);
-            affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
-            for(it=0; it<T_global; it++) {
-              ir = ( it - gsx[0] + T_global ) % T_global;
-              aff_buffer[ir] = buffer[it][k][2*icomp] + buffer[it][k][2*icomp+1] * I;
-            }
-            /* memcpy(aff_buffer, buffer[k], 2*T_global*sizeof(double)); */
-            int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global);
-            if(status != 0) {
-              fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d\n", status);
-              EXIT(8);
-            }
-          }
-        }
+              for(k=0; k<g_sink_momentum_number; k++) {
+
+                for(icomp=0; icomp<num_component_piN_piN; icomp++) {
+
+                  sprintf(aff_buffer_path, "/%s/diag%d/pi2x%.2dpi2y%.2dpi2z%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d",
+                      "pixN-pixN", i,
+                      g_seq_source_momentum_list[iseq_mom][0],   g_seq_source_momentum_list[iseq_mom][1],   g_seq_source_momentum_list[iseq_mom][2],
+                      g_sink_momentum_list[k][0],                g_sink_momentum_list[k][1],                g_sink_momentum_list[k][2],
+                      g_seq2_source_momentum_list[iseq2_mom][0], g_seq2_source_momentum_list[iseq2_mom][1], g_seq2_source_momentum_list[iseq2_mom][2],
+                      gsx[0], gsx[1], gsx[2], gsx[3],
+                      gamma_component_piN_piN[icomp][0], gamma_component_piN_piN[icomp][1]);
+
+                  fprintf(stdout, "# [piN2piN] current aff path = %s\n", aff_buffer_path);
+
+                  affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
+                  for(it=0; it<T_global; it++) {
+                    ir = ( it - gsx[0] + T_global ) % T_global;
+                    memcpy(aff_buffer + ir*g_sv*dim*g_sv_dim,  buffer[it][k][icomp*g_sv_dim] , g_sv_dim*g_sv_dim*sizeof(double _Complex) );
+                  }
+                  int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
+                  if(status != 0) {
+                    fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d\n", status);
+                    EXIT(8);
+                  }
+                }  /* end of loop on components */
+              }  /* end of loop on sink momenta */
 #endif
-      }
-    
-      /***********************************************
-       * output for negative parity spin-projection
-       ***********************************************/
-#ifdef HAVE_MPI
-      if(io_proc>0) {
-        k = 2 * g_sink_momentum_number * T * num_component;
-        exitstatus = MPI_Allgather(connt_n[0][0], k, MPI_DOUBLE, buffer[0][0], k, MPI_DOUBLE, g_tr_comm);
-        if(exitstatus != MPI_SUCCESS) {
-          EXIT(124);
-        }
-      }
-#else
-      buffer = connt_n;
-#endif
-    
-      if(io_proc == 2) {
-#ifdef HAVE_LHPC_AFF
-        for(k=0; k<g_sink_momentum_number; k++) {
-          for(icomp=0; icomp<num_component; icomp++) {
-            sprintf(aff_buffer_path, "/%s/P-/qx%.2dqy%.2dqz%.2d/px%.2dpy%.2dpz%.2d/t%.2dx%.2dy%.2dz%.2d/m%dn%d", outfile_prefix, 
-                g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
-                g_sink_momentum_list[k][0], g_sink_momentum_list[k][1], g_sink_momentum_list[k][2],
-                gsx[0], gsx[1], gsx[2], gsx[3], gamma_component[0][icomp], gamma_component[1][icomp]);
-            fprintf(stdout, "# [piN2piN] current aff path = %s\n", aff_buffer_path);
-            affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
-            for(it=0; it<T_global; it++) {
-              ir = ( it - gsx[0] + T_global ) % T_global;
-              aff_buffer[ir] = buffer[it][k][2*icomp] + buffer[it][k][icomp] * I;
-            }
-            /* memcpy(aff_buffer, buffer[k], 2*T_global*sizeof(double)); */
-            int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global);
-            if(status != 0) {
-              fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d\n", status);
-              EXIT(8);
-            }
-          }
-        }  /* end of loop on sink momenta */
-#endif
-      }  /* end of if io_proc == 2 */
-    
-      retime = _GET_TIME;
-      if(io_proc == 2) fprintf(stdout, "# [piN2piN] time for writing = %e seconds\n", retime - ratime);
+            }  /* end of if io_proc == 2 */
     
 #ifdef HAVE_MPI
-      if(io_proc > 0) {
-        fini_3level_buffer(&buffer);
-      }
+            if(io_proc > 0) { fini_3level_buffer(&buffer); }
 #endif
+
+            fini_4level_buffer(&connt);
+          }
+
+        }  /* end of loop on pf2 */
+      } /* end of loop on pi2 */
+
+    }  /* end of loop on coherent source locations */
+
+    fini_2level_buffer(&tffi_list);
+    fini_2level_buffer(&pffii_list);
+  }  /* end of loop on base source locations */
     
 #ifdef HAVE_LHPC_AFF
-      if(io_proc == 2) {
-        aff_status_str = (char*)aff_writer_close (affw);
-        if( aff_status_str != NULL ) {
-          fprintf(stderr, "[piN2piN] Error from aff_writer_close, status was %s\n", aff_status_str);
-          EXIT(11);
-        }
-        if(aff_buffer != NULL) free(aff_buffer);
-      }  /* end of if io_proc == 2 */
+  if(io_proc == 2) {
+    aff_status_str = (char*)aff_writer_close (affw);
+    if( aff_status_str != NULL ) {
+      fprintf(stderr, "[piN2piN] Error from aff_writer_close, status was %s\n", aff_status_str);
+      EXIT(11);
+    }
+    if(aff_buffer != NULL) free(aff_buffer);
+  }  /* end of if io_proc == 2 */
 #endif  /* of ifdef HAVE_LHPC_AFF */
     
-    
-      fini_3level_buffer(&connt_p);
-      fini_3level_buffer(&connt_n);
-  
-    }  /* end of loop on seq2 source momenta */
-
-  }  /* end of loop on sequential source momentum */
-
   /***********************************************
    * free gauge fields and spinor fields
    ***********************************************/
@@ -1277,22 +1262,45 @@ int main(int argc, char **argv) {
     g_gauge_field=(double*)NULL;
   }
 #endif
-  if(g_spinor_field!=NULL) {
-    for(i=0; i<no_fields; i++) free(g_spinor_field[i]);
-    free(g_spinor_field); g_spinor_field=(double**)NULL;
+
+  free(propagator_list_up[0]);
+  free(propagator_list_up);
+  if( g_fermion_type == _TM_FERMION ) {
+    free(propagator_list_dn[0]);
+    free(propagator_list_dn);
   }
+  free( sequential_propagator_list[0]);
+  free( sequential_propagator_list);
+
+  free( stochastic_source_list[0] );
+  free( stochastic_source_list );
+
+  free( stochastic_propagator_list[0] );
+  free( stochastic_propagator_list );
+
 
   /***********************************************
    * free the allocated memory, finalize
    ***********************************************/
   free_geometry();
-  free_sp_field(&connq);
+  for(i=0; i<10; i++) { free_sp_field(&conn_piN_piN[i]); }
+  free(conn_piN_piN);
+
+  for(i=0; i<6; i++) { free_sp_field(&conn_D_D[i]); }
+  free(conn_D_D);
+
+  for(i=0; i<2; i++) { free_sp_field(&conn_N_N[i]); }
+  free(conn_N_N);
+
+  for(i=0; i<6; i++) { free_sp_field(&conn_piN_D[i]); }
+  free(conn_piN_D);
+
+  free( &spinor_work[0] );
+  free( &spinor_work[1] );
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
   tmLQCD_finalise();
 #endif
-
-
 
 #ifdef HAVE_MPI
   MPI_Finalize();

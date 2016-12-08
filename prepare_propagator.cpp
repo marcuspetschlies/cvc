@@ -167,58 +167,145 @@ int prepare_prop_point_from_stochastic (double**fp_out, double*phi, double*chi,
 /*******************************************************************
  * seqn using stochastic
  *
- * shoulde be safe, if sfp = fp
+ * shoulde be safe, if seq_prop = prop
  *
- * fp is T x VOL3 x g_fv_dim x g_fv_dim x 2
+ * prop_aux  is nprop  x [VOL3x12] (C) = [12xVOL3] x nprop (F)
+ *
+ * stoch_aux is nstoch x [VOL3x12] (C) = [12xVOL3] x nstoch (F)
+ *
+ * we calculate p = stoch_aux^H x prop_aux, which is nstoch x nprop (F)
+ * 
+ * we calculate prop_aux = stoch_aux x p, which is
+ *
+ * [12xVOL3] x nstoch (F) x nstoch x nprop (F) = [12xVOL3] x nprop (F) = nprop x [VOL3x12] (C)
  *
  *******************************************************************/
 
-int prepare_seqn_stochastic_vertex_propagator_sliced3d (fermion_propagator_type*sfp, double**stoch_prop, double**stoch_source, 
-    fermion_propagator_type *fp, int nstoch, int momentum[3], int gid) {
+int prepare_seqn_stochastic_vertex_propagator_sliced3d (double**seq_prop, double*stoch_prop, double**stoch_source, 
+    double**prop, int nstoch, int nprop, int momentum[3], int gid) {
 
   const unsigned int VOL3 = LX*LY*LZ;
   const size_t sizeof_spinor_field_timeslice = _GSI(VOL3) * sizeof(double);
+  const unsigned int spinor_field_timeslice_items = g_fv_dim * VOL3;
+  unsigned int items_p = nstoch * nprop;
+  size_t bytes_p       = items_p * sizeof(double _Complex);
+
+  int BLAS_M, BLAS_N, BLAS_K;
+  int BLAS_LDA, BLAS_LDB ,BLAS_LDC;
+  char BLAS_TRANSA, BLAS_TRANSB;
+  double _Complex *p = NULL, *p_buffer = NULL;
+  double _Complex BLAS_ALPHA, BLAS_BETA;
+  double _Complex *BLAS_A = NULL, *BLAS_B = NULL, *BLAS_C = NULL;
+
 
   double *phase = (double*)malloc(2*VOL3*sizeof(double)) ;
   if( phase == NULL ) {
-    fprintf(stderr, "[] Error from malloc\n");
+    fprintf(stderr, "[prepare_seqn_stochastic_vertex_propagator_sliced3d] Error from malloc\n");
     return(1);
   }
   make_lexic_phase_field_3d (phase,momentum);
-
-  double **fpaux = (double**)malloc(g_fv_dim * sizeof(double*));
-  fpaux[0] = (double*)malloc(g_fv_dim * sizeof_spinor_field_timeslice);
-  if(fpaux[0] == NULL) {
-    fprintf(stderr, "[] Error from malloc\n");
+  /***************************
+   * apply vertex
+   ***************************/
+  for(i=0; i<nprop; i++) {
+    /* multiply with gamma[gid] */
+    spinor_field_eq_gamma_ti_spinor_field ( seq_prop[i], gid, prop[i], VOLUME);
+    /* multiply with complex phase */
+    for(it=0; it<T; it++) {
+      unsigned int ix = _GSI( g_ipt[it][0][0][0] );
+      spinor_field_eq_spinor_field_ti_complex_field (seq_prop[i]+ix, prop[i]+ix, phase, VOL3);
+    }
+  }
+  free(phase);
+ 
+  if( (prop_aux = (double _Complex*)malloc(nprop * sizeof_spinor_field_timeslice)) == NULL ) {
+    fprintf(stderr, "[prepare_seqn_stochastic_vertex_propagator_sliced3d] Error from malloc\n");
+    return(1);
+  }
+  if( (stoch_aux = (double _Complex*)malloc(nstoch * sizeof_spinor_field_timeslice)) == NULL ) {
+    fprintf(stderr, "[prepare_seqn_stochastic_vertex_propagator_sliced3d] Error from malloc\n");
     return(2);
   }
-  for(i=1; i<g_fv_dim; i++) fp_aux[i] = fp_aux[i-1] + _GSI(VOL3);
+  if( (p = (double _Complex*)malloc( bytes_p )) == NULL ) {
+    fprintf(stderr, "[prepare_seqn_stochastic_vertex_propagator_sliced3d] Error from malloc\n");
+    return(3);
+  }
 
-  for(it=0; it<T; it++) {
-#ifdef HAVE_OPENMP
-#pragma omp parallel
-{
+  /* loop on timeslices */
+  for(it = 0; it<T; it++) {
+    unsigned int offset = it * _GSI(VOL3);
+
+    for(i=0; i<nprop; i++) {
+      memcpy(prop_aux  + i*spinor_field_timeslice_items, seq_prop[i] + offset, sizeof_spinor_field_timeslice );
+    }
+    for(i=0; i<nstoch; i++) {
+      memcpy(stoch_aux + i*spinor_field_timeslice_items, stoch_source[i] + offset, sizeof_spinor_field_timeslice );
+    }
+
+    /* projection on stochastic source */
+    BLAS_ALPHA  = 1.;
+    BLAS_BETA   = 0.;
+    BLAS_TRANSA = 'C';
+    BLAS_TRANSB = 'N';
+    BLAS_M      = nstoch;
+    BLAS_K      = g_fv_dim*VOL3;
+    BLAS_N      = nprop;
+    BLAS_A      = stoch_aux;
+    BLAS_B      = prop_aux;
+    BLAS_C      = p;
+    BLAS_LDA    = BLAS_K;
+    BLAS_LDB    = BLAS_K;
+    BLAS_LDC    = BLAS_M;
+
+    _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+
+#ifdef HAVE_MPI
+    /* allreduce across all processes */
+    double _Complex *p_buffer = (double _Complex*)malloc( bytes_p );
+    if( (p_buffer == NULL ) {
+      fprintf(stderr, "[prepare_seqn_stochastic_vertex_propagator_sliced3d] Error from malloc\n");
+      return(2);
+    }
+
+    memcpy(p_buffer, p, bytes_p);
+    status = MPI_Allreduce(p_buffer, p, 2*items_p, MPI_DOUBLE, MPI_SUM, g_cart_grid);
+    if(status != MPI_SUCCESS) {
+      fprintf(stderr, "[prepare_seqn_stochastic_vertex_propagator_sliced3d] Error from MPI_Allreduce, status was %d\n", status);
+      return(1);
+    }
+    free(p_buffer); p_buffer = NULL;
 #endif
-    unsigned int ix;
 
-#ifdef HAVE_OPENMP
-#pragma omp for
-#endif
-    for(ix=0; ix<VOL3; ix++) {
-      _fv_eq_gamma_ti_fv()
+    for(i=0; i<nstoch; i++) {
+      memcpy(stoch_aux + i*spinor_field_timeslice_items, stoch_prop[i] + offset, sizeof_spinor_field_timeslice );
+    }
 
+    /* expand in stochastic propagator */
+    BLAS_ALPHA  =  1.;
+    BLAS_BETA   =  0.;
+    BLAS_TRANSA = 'N';
+    BLAS_TRANSB = 'N';
+    BLAS_M      = g_fv_dim * VOL3;
+    BLAS_K      = nstoch;
+    BLAS_N      = nprop;
+    BLAS_A      = stoch_aux
+    BLAS_B      = p;
+    BLAS_C      = prop_aux;
+    BLAS_LDA    = BLAS_M;
+    BLAS_LDB    = BLAS_K;
+    BLAS_LDC    = BLAS_M;
 
-    }  /* end of loop on ix */
+    _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
 
-#ifdef HAVE_OPENMP
-}  /* end of parallel region */
-#endif
+    for(i=0; i<nprop; i++) {
+      memcpy( seq_prop[i] + offset, prop_aux  + i*spinor_field_timeslice_items, sizeof_spinor_field_timeslice );
+    }
 
-  }  /* end of loop on timeslices */
+  }  /* end of loop on timeslices */ 
 
-  free(phase);
-  free(fpaux[0]);
-  free(fpaux);
+  free(prop_aux);
+  free(stoch_aux);
+  free(p);
 
   return(0);
 }  /* prepare_seqn_stochastic_vertex_propagator_sliced3d */

@@ -5537,5 +5537,25 @@ int assign_spinor_field_from_fermion_propagaptor_component (double*spinor_field,
   return(0);
 }  /* end of assign_spinor_field_from_fermion_propagaptor_component */
 
+/***********************************************************
+ * r = s * c
+ * safe, if r = s
+ ***********************************************************/
+void spinor_field_eq_spinor_field_ti_real_field (double*r, double*s, double *c, unsigned int N) {
+
+  unsigned int ix, offset;
+  double *rr, *ss, cc;
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for private(offset,rr,ss,cc) shared(r,s,c,N)
+#endif
+  for(ix = 0; ix < N; ix++) {
+    offset = _GSI(ix);
+    rr = r + offset;
+    ss = s + offset;
+    cc = c[ix];
+    _fv_eq_fv_ti_re(rr, ss, cc);
+  }
+}  /* end of spinor_field_eq_spinor_field_ti_real_field */
 
 }  /* end of namespace cvc */
