@@ -158,7 +158,7 @@ int contract_piN_piN (spinor_propagator_type **res, double**uprop_list, double**
           /*_fp_eq_zero(fpaux); */
           _fp_eq_fp_eps_contract13_fp(fpaux, pffii, fp1);
           /* reduce to spin propagator */
-          _sp_eq_zero( sp1 );/
+          _sp_eq_zero( sp1 );
           _sp_eq_fp_del_contract23_fp(sp1, fp3, fpaux);
           _sp_eq_sp_ti_re( res[0][iix], sp1, comp_list_sign[icomp]);
 //#endif
@@ -307,16 +307,9 @@ int contract_piN_piN_oet (spinor_propagator_type **res, double**uprop_list, doub
       {
         /* assign the propagator points */
 
-        _assign_fp_point_from_field(uprop, uprop_list,    ix);
-        _assign_fp_point_from_field(dprop, dprop_list,    ix);
-
-        _assign_fp_point_from_field(tfii,  tfii_list,  ix);
-
-        _assign_fp_point_from_field(tffi,  tffi_list,  ix);
-
-        _assign_fp_point_from_field(pffii, pffii_list, ix);
-
-        _assign_fp_point_from_field(pfifi, g_spinor_field + _PFIFI, ix);
+        _assign_fp_point_from_field(uprop, uprop_list, ix);
+        _assign_fp_point_from_field(dprop, dprop_list, ix);
+        _assign_fp_point_from_field(pfifi, pfifi_list, ix);
 
 
         for(icomp=0; icomp<ncomp; icomp++) {
@@ -459,7 +452,7 @@ int contract_N_N (spinor_propagator_type **res, double**uprop_list, double**dpro
     _assign_fp_point_from_field(uprop, uprop_list, ix);
 
     if(g_fermion_type==_TM_FERMION) {
-      _assign_fp_point_from_field(dprop, dprop_List, ix);
+      _assign_fp_point_from_field(dprop, dprop_list, ix);
     } else {
       _fp_eq_fp(dprop, uprop);
     }
@@ -531,7 +524,7 @@ int contract_D_D (spinor_propagator_type **res, double**uprop_list, double**dpro
   /******************************************************
    * contractions
    ******************************************************/
-  ratime = _GET_TIME;
+  double ratime = _GET_TIME;
 #ifdef HAVE_OPENMP
 #pragma omp parallel
 {
@@ -570,7 +563,7 @@ int contract_D_D (spinor_propagator_type **res, double**uprop_list, double**dpro
       /* fp1 = C Gamma_1 x S_u = g0 g2 Gamma_1 S_u */
       _fp_eq_zero(fp1);
       _fp_eq_zero(fpaux);
-      _fp_eq_gamma_ti_fp(fp1, gamma_component[0][icomp], uprop);
+      _fp_eq_gamma_ti_fp(fp1, comp_list[icomp][0], uprop);
       _fp_eq_gamma_ti_fp(fpaux, 2, fp1);
       _fp_eq_gamma_ti_fp(fp1, 0, fpaux);
       /* fp2 = C Gamma_1 x S_u x C Gamma_2 */
@@ -578,13 +571,13 @@ int contract_D_D (spinor_propagator_type **res, double**uprop_list, double**dpro
       _fp_eq_zero(fpaux);
       _fp_eq_fp_ti_gamma(fp2, 0, fp1);
       _fp_eq_fp_ti_gamma(fpaux, 2, fp2);
-      _fp_eq_fp_ti_gamma(fp2, gamma_component[1][icomp], fpaux);
+      _fp_eq_fp_ti_gamma(fp2, comp_list[icomp][1], fpaux);
       /* fp3 = S_u x C Gamma_2 = S_u g0 g2 Gamma_2 */
       _fp_eq_zero(fp3);
       _fp_eq_zero(fpaux);
       _fp_eq_fp_ti_gamma(fp3, 0, uprop);
       _fp_eq_fp_ti_gamma(fpaux, 2, fp3);
-      _fp_eq_fp_ti_gamma(fp3, gamma_component[1][icomp], fpaux);
+      _fp_eq_fp_ti_gamma(fp3, comp_list[icomp][1], fpaux);
 
 
       /******************************************************
@@ -597,13 +590,13 @@ int contract_D_D (spinor_propagator_type **res, double**uprop_list, double**dpro
       /* reduce to spin propagator */
       _sp_eq_zero( sp1 );
       _sp_eq_fp_del_contract23_fp(sp1, fp3, fpaux);
-      _sp_eq_sp_ti_re(res[0][iix], sp1, -gamma_component_sign[icomp]);
+      _sp_eq_sp_ti_re(res[0][iix], sp1, -comp_list_sign[icomp]);
 
       /* (2) */
       /* reduce to spin propagator */
       _sp_eq_zero( sp2 );
       _sp_eq_fp_del_contract24_fp(sp2, fp3, fpaux);
-      _sp_eq_sp_ti_re(res[1][iix], sp2, -gamma_component_sign[icomp]);
+      _sp_eq_sp_ti_re(res[1][iix], sp2, -comp_list_sign[icomp]);
 
 
       /* (3) */
@@ -613,7 +606,7 @@ int contract_D_D (spinor_propagator_type **res, double**uprop_list, double**dpro
       /* reduce to spin propagator */
       _sp_eq_zero( sp1 );
       _sp_eq_fp_del_contract23_fp(sp1, uprop, fpaux);
-      _sp_eq_sp_ti_re(res[2][iix], sp1, -gamma_component_sign[icomp]);
+      _sp_eq_sp_ti_re(res[2][iix], sp1, -comp_list_sign[icomp]);
 
 
       /* (4) */
@@ -623,7 +616,7 @@ int contract_D_D (spinor_propagator_type **res, double**uprop_list, double**dpro
       /* reduce to spin propagator */
       _sp_eq_zero( sp2 );
       _sp_eq_fp_del_contract24_fp(sp2, uprop, fpaux);
-      _sp_eq_sp_ti_re(res[3][iix], sp2, -gamma_component_sign[icomp]);
+      _sp_eq_sp_ti_re(res[3][iix], sp2, -comp_list_sign[icomp]);
 
       /* (5) */
       /* reduce */
@@ -632,7 +625,7 @@ int contract_D_D (spinor_propagator_type **res, double**uprop_list, double**dpro
       /* reduce to spin propagator */
       _sp_eq_zero( sp1 );
       _sp_eq_fp_del_contract34_fp(sp1, uprop, fpaux);
-      _sp_eq_sp_ti_re(res[4][iix], sp1, -gamma_component_sign[icomp]);
+      _sp_eq_sp_ti_re(res[4][iix], sp1, -comp_list_sign[icomp]);
 
       /* (6) */
       /* reduce */
@@ -641,7 +634,7 @@ int contract_D_D (spinor_propagator_type **res, double**uprop_list, double**dpro
       /* reduce to spin propagator */
       _sp_eq_zero( sp2 );
       _sp_eq_fp_del_contract34_fp(sp2, uprop, fpaux);
-      _sp_eq_sp_ti_re(res[5][iix], sp2, -gamma_component_sign[icomp]);
+      _sp_eq_sp_ti_re(res[5][iix], sp2, -comp_list_sign[icomp]);
     }  /* of icomp */
 
   }    /* of ix */
@@ -660,7 +653,7 @@ int contract_D_D (spinor_propagator_type **res, double**uprop_list, double**dpro
 }  /* end of parallel region */
 #endif
 
-  retime = _GET_TIME;
+  double retime = _GET_TIME;
   if(g_cart_id == 0)  fprintf(stdout, "# [deltapp_2pt] time for contractions = %e seconds\n", retime-ratime);
 
   return(0);
@@ -724,22 +717,22 @@ int contract_piN_D (spinor_propagator_type **res, double**uprop_list, double**dp
         _fp_eq_zero(fp4);
         _fp_eq_zero(fpaux);
         /* fp1 = C Gamma_1 x S_u = g0 g2 Gamma_1 S_u */
-        _fp_eq_gamma_ti_fp(fp1, gamma_component[0][icomp], uprop);
+        _fp_eq_gamma_ti_fp(fp1, comp_list[icomp][0], uprop);
         _fp_eq_gamma_ti_fp(fpaux, 2, fp1);
         _fp_eq_gamma_ti_fp(fp1,   0, fpaux);
 
         /*  fp2 = C Gamma_1 x S_u x C Gamma_2 = fp1 x g0 g2 Gamma_2 */
         _fp_eq_fp_ti_gamma(fp2, 0, fp1);
         _fp_eq_fp_ti_gamma(fpaux, 2, fp2);
-        _fp_eq_fp_ti_gamma(fp2, gamma_component[1][icomp], fpaux);
+        _fp_eq_fp_ti_gamma(fp2, comp_list[icomp][1], fpaux);
  
         /* fp3 = S_u x C Gamma_2 = uprop x g0 g2 Gamma_2 */
         _fp_eq_fp_ti_gamma(fp3,   0, uprop);
         _fp_eq_fp_ti_gamma(fpaux, 2, fp3);
-        _fp_eq_fp_ti_gamma(fp3, gamma_component[1][icomp], fpaux);
+        _fp_eq_fp_ti_gamma(fp3, comp_list[icomp][1], fpaux);
  
         /* fp4 = C Gamma_1 x S_seq = g0 g2 Gamma_1 dprop  */
-        _fp_eq_gamma_ti_fp(fp4, gamma_component[0][icomp], dprop);
+        _fp_eq_gamma_ti_fp(fp4, comp_list[icomp][0], dprop);
         _fp_eq_gamma_ti_fp(fpaux, 2, fp4);
         _fp_eq_gamma_ti_fp(fp4,   0, fpaux);
 
@@ -750,7 +743,7 @@ int contract_piN_D (spinor_propagator_type **res, double**uprop_list, double**dp
         /* reduce to spin propagator */
         _sp_eq_zero( sp1 );
         _sp_eq_fp_del_contract23_fp(sp1, dprop, fpaux);
-        _sp_eq_sp_ti_re(res[0][iix], sp1, -gamma_component_sign[icomp]);
+        _sp_eq_sp_ti_re(res[0][iix], sp1, -comp_list_sign[icomp]);
 
 
         /* (2) */
@@ -760,7 +753,7 @@ int contract_piN_D (spinor_propagator_type **res, double**uprop_list, double**dp
         /* reduce to spin propagator */
         _sp_eq_zero( sp2 );
         _sp_eq_fp_del_contract24_fp(sp2, dprop, fpaux);
-        _sp_eq_sp_ti_re(res[1][iix], sp2, -gamma_component_sign[icomp]);
+        _sp_eq_sp_ti_re(res[1][iix], sp2, -comp_list_sign[icomp]);
   
         /* (3) */
         /* reduce */
@@ -769,7 +762,7 @@ int contract_piN_D (spinor_propagator_type **res, double**uprop_list, double**dp
         /* reduce to spin propagator */
         _sp_eq_zero( sp1 );
         _sp_eq_fp_del_contract23_fp(sp1, fp3, fpaux);
-        _sp_eq_sp_ti_re(res[2][iix], sp1, -gamma_component_sign[icomp]);
+        _sp_eq_sp_ti_re(res[2][iix], sp1, -comp_list_sign[icomp]);
 
         /* (4) */
         /* reduce */
@@ -778,7 +771,7 @@ int contract_piN_D (spinor_propagator_type **res, double**uprop_list, double**dp
         /* reduce to spin propagator */
         _sp_eq_zero( sp2 );
         _sp_eq_fp_del_contract24_fp(sp2, fp3, fpaux);
-        _sp_eq_sp_ti_re(res[3][iix], sp2, -gamma_component_sign[icomp]);
+        _sp_eq_sp_ti_re(res[3][iix], sp2, -comp_list_sign[icomp]);
   
         /* (5) */
         /* reduce */
@@ -787,7 +780,7 @@ int contract_piN_D (spinor_propagator_type **res, double**uprop_list, double**dp
         /* reduce to spin propagator */
         _sp_eq_zero( sp1 );
         _sp_eq_fp_del_contract34_fp(sp1, uprop, fpaux);
-        _sp_eq_sp_ti_re(res[4][iix], sp1, -gamma_component_sign[icomp]);
+        _sp_eq_sp_ti_re(res[4][iix], sp1, -comp_list_sign[icomp]);
         
         /* (6) */
         /* reduce */
@@ -796,7 +789,7 @@ int contract_piN_D (spinor_propagator_type **res, double**uprop_list, double**dp
         /* reduce to spin propagator */
         _sp_eq_zero( sp2 );
         _sp_eq_fp_del_contract34_fp(sp2, uprop, fpaux);
-        _sp_eq_sp_ti_re(res[5][iix], sp2, -gamma_component_sign[icomp]);
+        _sp_eq_sp_ti_re(res[5][iix], sp2, -comp_list_sign[icomp]);
 
       }  /* of icomp */
 
@@ -830,6 +823,8 @@ int contract_piN_D (spinor_propagator_type **res, double**uprop_list, double**dp
  *   with boundary phase
  ***********************************************/
 int add_baryon_boundary_phase (spinor_propagator_type*sp, int tsrc, int ncomp) {
+
+  const unsigned int VOL3 = LX * LY * LZ;
 
   int it;
   double ratime = _GET_TIME;
@@ -897,7 +892,7 @@ int add_baryon_boundary_phase (spinor_propagator_type*sp, int tsrc, int ncomp) {
       }  /* end of if it < tsrc */
     }  /* end of loop on ir */
   }
-  retime = _GET_TIME;
+  double retime = _GET_TIME;
   if(g_cart_id == 0)  fprintf(stdout, "# [] time for boundary phase = %e seconds\n", retime-ratime);
 
   return(0);
@@ -909,11 +904,9 @@ int add_baryon_boundary_phase (spinor_propagator_type*sp, int tsrc, int ncomp) {
  * - using pi1 + pi2 = - ( pf1 + pf2 ), so
  *   pi1 = - ( pi2 + pf1 + pf2 )
  ***********************************************/
-int add_source_phase (double****connt, int (*pi2[3]), int (*pf2)[3], int source_coords[3], int ncomp) {
+int add_source_phase (double****connt, int pi2[3], int pf2[3], int source_coords[3], int ncomp) {
 
   const double TWO_MPI = 2. * M_PI;
-  const int pi2_[3] = pi2 == NULL ? {0,0,0} : {pi2[0], pi2[1], pi2[3]};
-  const int pf2_[3] = pf2 == NULL ? {0,0,0} : {pf2[0], pf2[1], pf2[3]};
 
   int it;
 
@@ -924,8 +917,12 @@ int add_source_phase (double****connt, int (*pi2[3]), int (*pf2)[3], int source_
     int k, icomp;
     double phase;
     complex w;
+    int pi2_[3] = {0,0,0}, pf2_[3] = {0,0,0};
     spinor_propagator_type sp1;
     create_sp(&sp1);
+    if( pi2 != NULL ) memcpy(pi2_, pi2, 3*sizeof(int));
+    if( pf2 != NULL ) memcpy(pf2_, pf2, 3*sizeof(int));
+
     for(k=0; k<g_sink_momentum_number; k++) {
       int pf1_[3] = {  g_sink_momentum_list[k][0], g_sink_momentum_list[k][1], g_sink_momentum_list[k][2]};
       phase = -TWO_MPI * (
@@ -945,5 +942,6 @@ int add_source_phase (double****connt, int (*pi2[3]), int (*pf2)[3], int source_
   }  /* end of loop on T */
 
   return(0);
+}  /* end of add_source_phase */
 
 }  /* end of namespace cvc */

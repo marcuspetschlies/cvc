@@ -145,6 +145,7 @@ namespace cvc {
 #define _default_write_sequential_propagator 0
 
 #define _default_nsample 1
+#define _default_nsample_oet 1
 #define _default_num_threads 1
 #define _default_source_momentum_x 0
 #define _default_source_momentum_y 0

@@ -560,8 +560,8 @@ void make_lexic_phase_field_3d (double*phase, int *momentum) {
   for(x3=0; x3<LZ; x3++) {
     ix  = g_ipt[0][x1][x2][x3];
     dtmp = phase_part + x1 * p[0] + x2 * p[1] + x3 * p[2];
-    phase_e[2*ix  ] = cos(dtmp);
-    phase_e[2*ix+1] = sin(dtmp);
+    phase[2*ix  ] = cos(dtmp);
+    phase[2*ix+1] = sin(dtmp);
   }}}
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */

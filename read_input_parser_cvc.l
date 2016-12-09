@@ -169,6 +169,7 @@ namespace cvc {
 %x WRITESEQSRC
 %x WRITESEQPROP
 %x NSAMPLE
+%x NSAMPLEOET
 %x ASOVERA
 %x NUMTHREADS
 %x SRCMOM
@@ -337,6 +338,8 @@ namespace cvc {
 ^write_sequential_propagator{SPC}*={SPC}*  BEGIN(WRITESEQPROP);
 
 ^samples{SPC}*={SPC}*                      BEGIN(NSAMPLE);
+^samples_oet{SPC}*={SPC}*                  BEGIN(NSAMPLEOET);
+
 ^as_over_a{SPC}*={SPC}*                    BEGIN(ASOVERA);
 ^num_threads{SPC}*={SPC}*                  BEGIN(NUMTHREADS);
 ^source_momentum{SPC}*={SPC}*              BEGIN(SRCMOM);
@@ -944,10 +947,17 @@ namespace cvc {
   cvc::g_propagator_precision = atoi(yytext);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set propagator precision to %d\n", cvc::g_propagator_precision);
 }
+
 <NSAMPLE>{DIGIT}+ {
   cvc::g_nsample = atoi(yytext);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set number of samples to %d\n", cvc::g_nsample);
 }
+
+<NSAMPLEOET>{DIGIT}+ {
+  cvc::g_nsample_oet = atoi(yytext);
+  if(cvc::myverbose!=0) printf("# [read_input_parser] set number of oet samples to %d\n", cvc::g_nsample_oet);
+}
+
 <ASOVERA>{FLT} {
   cvc::g_as_over_a = atof(yytext);
   if(cvc::myverbose!=0) printf("# [read_input_parser] as / a set to  %s\n",yytext);

@@ -5453,7 +5453,7 @@ int spinor_field_tm_rotation(double*s, double*r, int sign, int fermion_type, uns
  ***************************************************/
 int assign_fermion_propagaptor_from_spinor_field (fermion_propagator_type *s, double**prop_list, unsigned int N) {
 
-  if(s == prop_list) {
+  if(s[0][0] == prop_list[0] ) {
     fprintf(stderr, "[assign_fermion_propagaptor_from_spinor_field] Error, input fields have same address\n");
     return(1);
   }
@@ -5483,7 +5483,7 @@ int assign_fermion_propagaptor_from_spinor_field (fermion_propagator_type *s, do
  ***************************************************/
 int assign_spinor_field_from_fermion_propagaptor (double**prop_list, fermion_propagator_type *s, unsigned int N) {
 
-  if(s == prop_list) {
+  if(s[0][0] == prop_list[0]) {
     fprintf(stderr, "[assign_spinor_field_from_fermion_propagaptor] Error, input fields have same address\n");
     return(1);
   }
@@ -5513,7 +5513,7 @@ int assign_spinor_field_from_fermion_propagaptor (double**prop_list, fermion_pro
  ***************************************************/
 int assign_spinor_field_from_fermion_propagaptor_component (double*spinor_field, fermion_propagator_type *s, int icomp, unsigned int N) {
 
-  if(s == prop_list) {
+  if(s[0][0] == spinor_field) {
     fprintf(stderr, "[assign_spinor_field_from_fermion_propagaptor] Error, input fields have same address\n");
     return(1);
   }
@@ -5529,7 +5529,7 @@ int assign_spinor_field_from_fermion_propagaptor_component (double*spinor_field,
 #endif
   for(ix=0; ix<N; ix++) {
     s_ = s[ix];
-    _assign_fp_field_from_point_component (spinor_field, s_, icomp, ix);
+    _assign_fp_field_from_point_component (&(spinor_field), s_, icomp, ix);
   }
 #ifdef HAVE_OPENMP
 }
@@ -5556,6 +5556,38 @@ void spinor_field_eq_spinor_field_ti_real_field (double*r, double*s, double *c, 
     cc = c[ix];
     _fv_eq_fv_ti_re(rr, ss, cc);
   }
+}  /* end of spinor_field_eq_spinor_field_ti_real_field */
+
+/***********************************************************
+ * r = s * c
+ * safe, if r = s
+ ***********************************************************/
+void spinor_field_eq_spinor_field_ti_complex_field (double*r, double*s, double *c, unsigned int N) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel shared(r,s,c,N)
+{
+#endif
+  unsigned int ix, offset;
+  double *rr, *ss;
+  complex w;
+  double sp1[_GSI(1)];
+
+#ifdef HAVE_OPENMP
+#pragma omp for private
+#endif
+  for(ix = 0; ix < N; ix++) {
+    offset = _GSI(ix);
+    rr = r + offset;
+    ss = s + offset;
+    w.re = c[2*ix  ];
+    w.im = c[2*ix+1];
+    _fv_eq_fv_ti_co(sp1, ss, &w);
+    _fv_eq_fv(rr, sp1);
+  }
+#ifdef HAVE_OPENMP
+}
+#endif
 }  /* end of spinor_field_eq_spinor_field_ti_real_field */
 
 }  /* end of namespace cvc */

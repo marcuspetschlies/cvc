@@ -168,7 +168,8 @@ void set_default_input_values(void) {
   g_write_sequential_source = _default_write_sequential_source;
   g_write_sequential_propagator = _default_write_sequential_propagator;
 
-  g_nsample = _default_nsample;
+  g_nsample     = _default_nsample;
+  g_nsample_oet = _default_nsample_oet;
   g_sv_dim = 4;
   g_cv_dim = 3;
 

@@ -198,7 +198,7 @@ EXTERN int g_source_index[2];
 EXTERN int g_propagator_bc_type, g_propagator_gamma_basis;
 EXTERN int g_propagator_precision;
 EXTERN int g_write_source, g_read_source, g_write_propagator, g_read_propagator, g_read_sequential_propagator, g_write_sequential_source, g_write_sequential_propagator;
-EXTERN int g_nsample;
+EXTERN int g_nsample, g_nsample_oet;
 EXTERN int g_sv_dim, g_cv_dim, g_fv_dim, g_cm_dim, g_fp_dim;
 EXTERN double g_as_over_a;
 EXTERN int g_num_threads;

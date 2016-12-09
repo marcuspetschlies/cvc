@@ -17,7 +17,7 @@ int contract_piN_D (spinor_propagator_type **res, double**uprop_list, double**dp
 
 int add_baryon_boundary_phase (spinor_propagator_type*sp, int tsrc, int ncomp);
 
-int add_source_phase (double****connt, int (*pi2[3]), int (*pf2)[3], int source_coords[3], int ncomp);
+int add_source_phase (double****connt, int pi2[3], int pf2[3], int source_coords[3], int ncomp);
 
 }  /* end of namespace cvc */
 #endif

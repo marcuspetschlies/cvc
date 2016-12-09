@@ -1,5 +1,5 @@
 /************************************************
- * prepare_propagator.c
+ * prepare_propagator.cpp
  *
  * Wed Feb  5 16:32:16 EET 2014
  *
@@ -7,17 +7,17 @@
  * - build propagator points
  ************************************************/
 
-namespace cvc {
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <complex.h>
 #include <math.h>
 #include <time.h>
 #include <getopt.h>
 
 #include "cvc_complex.h"
 #include "cvc_linalg.h"
+#include "iblas.h"
 #include "global.h"
 #include "cvc_geometry.h"
 #include "cvc_utils.h"
@@ -35,6 +35,8 @@ namespace cvc {
 #  define _NON_ZERO (5.e-14)
 #endif
 
+namespace cvc {
+#if 0
 /************************************************************
  * prepare_seqprop_point_from_stochastic_oneend
  *   prepare propagator point from stochastic propagators
@@ -111,7 +113,9 @@ int prepare_seqprop_point_from_stochastic_oneend (double**fp_out, double **phi, 
   }  // of loop on iprop
   return(0);
 }  // end of prepare_seqprop_point_from_stochastic_oneend
+#endif
 
+#if 0
 /************************************************************
  * prepare_prop_point_from_stochastic
  *   prepare propagator point from stochastic sources
@@ -163,6 +167,7 @@ int prepare_prop_point_from_stochastic (double**fp_out, double*phi, double*chi,
   }    // of loop on iprop
   return(0);
 }  // end of prepare_prop_point_from_stochastic
+#endif
 
 /*******************************************************************
  * seqn using stochastic
@@ -181,21 +186,23 @@ int prepare_prop_point_from_stochastic (double**fp_out, double*phi, double*chi,
  *
  *******************************************************************/
 
-int prepare_seqn_stochastic_vertex_propagator_sliced3d (double**seq_prop, double*stoch_prop, double**stoch_source, 
+int prepare_seqn_stochastic_vertex_propagator_sliced3d (double**seq_prop, double**stoch_prop, double**stoch_source, 
     double**prop, int nstoch, int nprop, int momentum[3], int gid) {
 
   const unsigned int VOL3 = LX*LY*LZ;
   const size_t sizeof_spinor_field_timeslice = _GSI(VOL3) * sizeof(double);
   const unsigned int spinor_field_timeslice_items = g_fv_dim * VOL3;
-  unsigned int items_p = nstoch * nprop;
-  size_t bytes_p       = items_p * sizeof(double _Complex);
+  const unsigned int items_p = nstoch * nprop;
+  const size_t bytes_p       = items_p * sizeof(double _Complex);
 
+  int i, it;
   int BLAS_M, BLAS_N, BLAS_K;
   int BLAS_LDA, BLAS_LDB ,BLAS_LDC;
   char BLAS_TRANSA, BLAS_TRANSB;
-  double _Complex *p = NULL, *p_buffer = NULL;
+  double _Complex *p = NULL;
   double _Complex BLAS_ALPHA, BLAS_BETA;
   double _Complex *BLAS_A = NULL, *BLAS_B = NULL, *BLAS_C = NULL;
+  double _Complex *prop_aux=NULL, *stoch_aux=NULL;
 
 
   double *phase = (double*)malloc(2*VOL3*sizeof(double)) ;
@@ -262,13 +269,13 @@ int prepare_seqn_stochastic_vertex_propagator_sliced3d (double**seq_prop, double
 #ifdef HAVE_MPI
     /* allreduce across all processes */
     double _Complex *p_buffer = (double _Complex*)malloc( bytes_p );
-    if( (p_buffer == NULL ) {
+    if( p_buffer == NULL ) {
       fprintf(stderr, "[prepare_seqn_stochastic_vertex_propagator_sliced3d] Error from malloc\n");
       return(2);
     }
 
     memcpy(p_buffer, p, bytes_p);
-    status = MPI_Allreduce(p_buffer, p, 2*items_p, MPI_DOUBLE, MPI_SUM, g_cart_grid);
+    int status = MPI_Allreduce(p_buffer, p, 2*items_p, MPI_DOUBLE, MPI_SUM, g_ts_comm);
     if(status != MPI_SUCCESS) {
       fprintf(stderr, "[prepare_seqn_stochastic_vertex_propagator_sliced3d] Error from MPI_Allreduce, status was %d\n", status);
       return(1);
@@ -288,7 +295,7 @@ int prepare_seqn_stochastic_vertex_propagator_sliced3d (double**seq_prop, double
     BLAS_M      = g_fv_dim * VOL3;
     BLAS_K      = nstoch;
     BLAS_N      = nprop;
-    BLAS_A      = stoch_aux
+    BLAS_A      = stoch_aux;
     BLAS_B      = p;
     BLAS_C      = prop_aux;
     BLAS_LDA    = BLAS_M;
@@ -310,4 +317,199 @@ int prepare_seqn_stochastic_vertex_propagator_sliced3d (double**seq_prop, double
   return(0);
 }  /* prepare_seqn_stochastic_vertex_propagator_sliced3d */
 
-}
+/*******************************************************************
+ * seqn using stochastic
+ *
+ * shoulde be safe, if seq_prop = prop
+ *
+ * prop_aux  is nprop  x [VOL3x12] (C) = [12xVOL3] x nprop (F)
+ *
+ * stoch_aux is nstoch x [VOL3x12] (C) = [12xVOL3] x nstoch (F)
+ *
+ * we calculate p = stoch_aux^H x prop_aux, which is nstoch x nprop (F) = nprop x nstoch (C)
+ * 
+ * we calculate prop_aux = stoch_aux x p, which is
+ *
+ * [12xVOL3] x nstoch (F) x nstoch x nprop (F) = [12xVOL3] x nprop (F) = nprop x [VOL3x12] (C)
+ *
+ *******************************************************************/
+
+int prepare_seqn_stochastic_vertex_propagator_sliced3d_oet (double**seq_prop, double**stoch_prop_0, double**stoch_prop_p, 
+    double**prop, int momentum[3], int gid, int idsource)
+{
+  const int nprop = g_fv_dim;
+  const int nstoch = 4;
+
+  const unsigned int VOL3 = LX*LY*LZ;
+  const size_t sizeof_spinor_field_timeslice = _GSI(VOL3) * sizeof(double);
+  const unsigned int spinor_field_timeslice_items = g_fv_dim * VOL3;
+  const unsigned int items_p = nstoch * nprop;
+  const size_t bytes_p       = items_p * sizeof(double _Complex);
+
+  const int psource[4] = { gamma_permutation[idsource][ 0] / 6,
+                           gamma_permutation[idsource][ 6] / 6,
+                           gamma_permutation[idsource][12] / 6,
+                           gamma_permutation[idsource][18] / 6 };
+  const int isimag = gamma_permutation[idsource][ 0] % 2;
+            /* sign from the source gamma matrix; the minus sign
+             *    * in the lower two lines is the action of gamma_5 */
+  const double ssource[4] =  { gamma_sign[idsource][ 0] * gamma_sign[5][gamma_permutation[idsource][ 0]],
+                               gamma_sign[idsource][ 6] * gamma_sign[5][gamma_permutation[idsource][ 6]],
+                               gamma_sign[idsource][12] * gamma_sign[5][gamma_permutation[idsource][12]],
+                               gamma_sign[idsource][18] * gamma_sign[5][gamma_permutation[idsource][18]] };
+
+
+  int i, it;
+  int BLAS_M, BLAS_N, BLAS_K;
+  int BLAS_LDA, BLAS_LDB ,BLAS_LDC;
+  char BLAS_TRANSA, BLAS_TRANSB;
+  double _Complex *p = NULL;
+  double _Complex BLAS_ALPHA, BLAS_BETA;
+  double _Complex *BLAS_A = NULL, *BLAS_B = NULL, *BLAS_C = NULL;
+  double _Complex *prop_aux=NULL, *stoch_aux=NULL;
+
+
+  double *phase = (double*)malloc(2*VOL3*sizeof(double)) ;
+  if( phase == NULL ) {
+    fprintf(stderr, "[prepare_seqn_stochastic_vertex_propagator_sliced3d_oet] Error from malloc\n");
+    return(1);
+  }
+  make_lexic_phase_field_3d (phase,momentum);
+  /*********************************************************************
+   * apply vertex
+   * 
+   * note: we should apply the adjoint vertex to stoch_prop_0 instead,
+   * only 4 fields
+   *********************************************************************/
+  for(i=0; i<nprop; i++) {
+    /* multiply with g5  gamma[gid] */
+    spinor_field_eq_gamma_ti_spinor_field ( seq_prop[i], gid, prop[i], VOLUME);
+    g5_phi( seq_prop[i], VOLUME );
+    /* multiply with complex phase */
+    for(it=0; it<T; it++) {
+      unsigned int ix = _GSI( g_ipt[it][0][0][0] );
+      spinor_field_eq_spinor_field_ti_complex_field (seq_prop[i]+ix, prop[i]+ix, phase, VOL3);
+    }
+  }
+  free(phase);
+ 
+  if( (prop_aux = (double _Complex*)malloc(nprop * sizeof_spinor_field_timeslice)) == NULL ) {
+    fprintf(stderr, "[prepare_seqn_stochastic_vertex_propagator_sliced3d_oet] Error from malloc\n");
+    return(1);
+  }
+  if( (stoch_aux = (double _Complex*)malloc(nstoch * sizeof_spinor_field_timeslice)) == NULL ) {
+    fprintf(stderr, "[prepare_seqn_stochastic_vertex_propagator_sliced3d_oet] Error from malloc\n");
+    return(2);
+  }
+  if( (p = (double _Complex*)malloc( bytes_p )) == NULL ) {
+    fprintf(stderr, "[prepare_seqn_stochastic_vertex_propagator_sliced3d_oet] Error from malloc\n");
+    return(3);
+  }
+
+  /* loop on timeslices */
+  for(it = 0; it<T; it++) {
+    unsigned int offset = it * _GSI(VOL3);
+
+    for(i=0; i<nprop; i++) {
+      memcpy(prop_aux  + i*spinor_field_timeslice_items, seq_prop[i] + offset, sizeof_spinor_field_timeslice );
+    }
+    for(i=0; i<nstoch; i++) {
+      memcpy(stoch_aux + i*spinor_field_timeslice_items, stoch_prop_0[i] + offset, sizeof_spinor_field_timeslice );
+    }
+
+    /* projection on stochastic source */
+    BLAS_ALPHA  = 1.;
+    BLAS_BETA   = 0.;
+    BLAS_TRANSA = 'C';
+    BLAS_TRANSB = 'N';
+    BLAS_M      = nstoch;
+    BLAS_K      = g_fv_dim*VOL3;
+    BLAS_N      = nprop;
+    BLAS_A      = stoch_aux;
+    BLAS_B      = prop_aux;
+    BLAS_C      = p;
+    BLAS_LDA    = BLAS_K;
+    BLAS_LDB    = BLAS_K;
+    BLAS_LDC    = BLAS_M;
+
+    _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+
+#ifdef HAVE_MPI
+    /* allreduce across all processes */
+    double _Complex *p_buffer = (double _Complex*)malloc( bytes_p );
+    if( p_buffer == NULL ) {
+      fprintf(stderr, "[prepare_seqn_stochastic_vertex_propagator_sliced3d_oet] Error from malloc\n");
+      return(2);
+    }
+
+    memcpy(p_buffer, p, bytes_p);
+    int status = MPI_Allreduce(p_buffer, p, 2*items_p, MPI_DOUBLE, MPI_SUM, g_ts_comm);
+    if(status != MPI_SUCCESS) {
+      fprintf(stderr, "[prepare_seqn_stochastic_vertex_propagator_sliced3d_oet] Error from MPI_Allreduce, status was %d\n", status);
+      return(1);
+    }
+    free(p_buffer); p_buffer = NULL;
+#endif
+
+    for(i=0; i<nstoch; i++) {
+      memcpy(stoch_aux + i*spinor_field_timeslice_items, stoch_prop_p[i] + offset, sizeof_spinor_field_timeslice );
+    }
+
+    /******************************************
+     ******************************************
+     **
+     ** remember: ssource CONTAINS signs from
+     **   multiplication with i; so we only need
+     **   to swap real and imaginary part if
+     **   isimag is true; we do
+     **   conj(a+ib)*i = (a-ib)*i = b + ia
+     **
+     ******************************************
+     ******************************************/
+    for(i=0; i<nprop; i++) {
+      double _Complex ztmp[4];
+      memcpy(ztmp, p+i*4, 4*sizeof(double _Complex));
+      if(isimag) {
+        p[4*i + 0] = conj( ztmp[psource[0]] ) * I * ssource[0];
+        p[4*i + 1] = conj( ztmp[psource[1]] ) * I * ssource[1];
+        p[4*i + 2] = conj( ztmp[psource[2]] ) * I * ssource[2];
+        p[4*i + 3] = conj( ztmp[psource[3]] ) * I * ssource[3];
+      } else {
+        p[4*i + 0] = ztmp[psource[0]] * ssource[0];
+        p[4*i + 1] = ztmp[psource[1]] * ssource[1];
+        p[4*i + 2] = ztmp[psource[2]] * ssource[2];
+        p[4*i + 3] = ztmp[psource[3]] * ssource[3];
+      }
+    }
+
+    /* expand in stochastic propagator */
+    BLAS_ALPHA  =  1.;
+    BLAS_BETA   =  0.;
+    BLAS_TRANSA = 'N';
+    BLAS_TRANSB = 'N';
+    BLAS_M      = g_fv_dim * VOL3;
+    BLAS_K      = nstoch;
+    BLAS_N      = nprop;
+    BLAS_A      = stoch_aux;
+    BLAS_B      = p;
+    BLAS_C      = prop_aux;
+    BLAS_LDA    = BLAS_M;
+    BLAS_LDB    = BLAS_K;
+    BLAS_LDC    = BLAS_M;
+
+    _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+
+    for(i=0; i<nprop; i++) {
+      memcpy( seq_prop[i] + offset, prop_aux  + i*spinor_field_timeslice_items, sizeof_spinor_field_timeslice );
+    }
+
+  }  /* end of loop on timeslices */ 
+
+  free(prop_aux);
+  free(stoch_aux);
+  free(p);
+
+  return(0);
+}  /* end of prepare_seqn_stochastic_vertex_propagator_sliced3d_oet */
+
+}  /* end of namespace cvc */
