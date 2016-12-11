@@ -4172,7 +4172,9 @@ int init_rng_stat_file (unsigned int seed, char*filename) {
       for(i=0; i<c; i++) fprintf(ofs, "%d\n", rng_state[i]);
       fclose(ofs);
     }
+#ifdef HAVE_MPI
     MPI_Barrier(g_cart_grid);
+#endif
   }
 
   free(rng_state);
