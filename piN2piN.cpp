@@ -56,7 +56,7 @@ extern "C"
 #include "propagator_io.h"
 #include "gauge_io.h"
 #include "read_input_parser.h"
-/* #include "smearing_techniques.h" */
+#include "smearing_techniques.h"
 #include "contractions_io.h"
 #include "matrix_init.h"
 #include "project.h"
@@ -212,12 +212,10 @@ int get_point_source_info (int gcoords[4], int lcoords[4], int*proc_id) {
  * usage function
  ***********************************************************/
 void usage() {
-  fprintf(stdout, "Code to perform contractions for proton 2-pt. function\n");
+  fprintf(stdout, "Code to perform contractions for piN 2-pt. function\n");
   fprintf(stdout, "Usage:    [options]\n");
   fprintf(stdout, "Options: -f input filename [default cvc.input]\n");
   fprintf(stdout, "         -a write ascii output too [default no ascii output]\n");
-  fprintf(stdout, "         -F fermion type, must be set [default -1, no type]\n");
-  fprintf(stdout, "         -q/Q/p/P p[i,f][1,2] source and sink momenta [default 0]\n");
   fprintf(stdout, "         -h? this help\n");
 #ifdef HAVE_MPI
   MPI_Abort(MPI_COMM_WORLD, 1);
@@ -234,6 +232,7 @@ int main(int argc, char **argv) {
   
   const int n_c=3;
   const int n_s=4;
+  const int max_num_diagram = 6;
 
 
   int c, i, k, i_src, i_coherent, isample;
@@ -260,6 +259,7 @@ int main(int argc, char **argv) {
   int icomp, iseq_mom, iseq2_mom;
   double **propagator_list_up = NULL, **propagator_list_dn = NULL, **sequential_propagator_list = NULL, **stochastic_propagator_list = NULL,
          **stochastic_source_list = NULL;
+  double *gauge_field_smeared = NULL;
 
 /*******************************************************************
  * Gamma components for the piN and Delta:
@@ -445,6 +445,25 @@ int main(int argc, char **argv) {
   if(g_cart_id==0) fprintf(stdout, "# [piN2piN] read plaquette value    : %25.16e\n", plaq_r);
   if(g_cart_id==0) fprintf(stdout, "# [piN2piN] measured plaquette value: %25.16e\n", plaq_m);
 
+
+  /***********************************************
+   * smeared gauge field
+   ***********************************************/
+  if( N_Jacobi > 0 ) {
+    if(N_ape > 0 ) {
+      alloc_gauge_field(&gauge_field_smeared, VOLUMEPLUSRAND);
+      memcpy(gauge_field_smeared, g_gauge_field, 72*VOLUME*sizeof(double));
+      exitstatus = APE_Smearing(gauge_field_smeared, alpha_ape, N_ape);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[piN2piN] Error from APE_Smearing, status was %d\n", exitstatus);
+        EXIT(47);
+      }
+  
+    } else {
+      gauge_field_smeared = g_gauge_field;
+    }
+  }
+
 #ifdef HAVE_TMLQCD_LIBWRAPPER
   /***********************************************
    * retrieve deflator paramters from tmLQCD
@@ -559,8 +578,8 @@ int main(int argc, char **argv) {
   /***********************************************************
    * allocate memory for the contractions
    **********************************************************/
-  conn_X = (spinor_propagator_type**)malloc(10 * sizeof(spinor_propagator_type*));
-  for(i=0; i<10; i++) {
+  conn_X = (spinor_propagator_type**)malloc(max_num_diagram * sizeof(spinor_propagator_type*));
+  for(i=0; i<max_num_diagram; i++) {
     conn_X[i] = create_sp_field( (size_t)VOLUME * num_component_max );
     if(conn_X[i] == NULL) {
       fprintf(stderr, "[piN2piN] Error, could not alloc conn_X\n");
@@ -602,6 +621,9 @@ int main(int argc, char **argv) {
         if(source_proc_id == g_cart_id)  {
           spinor_work[0][_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]])+2*is] = 1.;
         }
+        /* source-smear the point source */
+        exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
+
         if( g_fermion_type == _TM_FERMION ) {
           spinor_field_tm_rotation(spinor_work[0], spinor_work[0], +1, g_fermion_type, VOLUME);
         }
@@ -611,6 +633,10 @@ int main(int argc, char **argv) {
           fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
           EXIT(12);
         }
+
+        /* sink-smear the point-source propagator */
+        exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
+
         if( g_fermion_type == _TM_FERMION ) {
           spinor_field_tm_rotation(spinor_work[1], spinor_work[1], +1, g_fermion_type, VOLUME);
         }
@@ -647,6 +673,10 @@ int main(int argc, char **argv) {
           if(source_proc_id == g_cart_id)  {
             spinor_work[0][_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]])+2*is] = 1.;
           }
+
+          /* source-smear the point source */
+          exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
+
           if( g_fermion_type == _TM_FERMION ) {
             spinor_field_tm_rotation(spinor_work[0], spinor_work[0], -1, g_fermion_type, VOLUME);
           }
@@ -656,6 +686,10 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
             EXIT(12);
           }
+
+          /* sink-smear the point-source propagator */
+          exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
+
           if( g_fermion_type == _TM_FERMION ) {
             spinor_field_tm_rotation(spinor_work[1], spinor_work[1], -1, g_fermion_type, VOLUME);
           }
@@ -698,6 +732,10 @@ int main(int argc, char **argv) {
           fprintf(stderr, "[piN2piN] Error from nit_coherent_sequential_source, status was %d\n", exitstatus);
           EXIT(14);
         }
+
+        /* source-smear the coherent source */
+        exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
+
         /* tm-rotate sequential source */
         if( g_fermion_type == _TM_FERMION ) {
           spinor_field_tm_rotation(spinor_work[0], spinor_work[0], +1, g_fermion_type, VOLUME);
@@ -710,6 +748,10 @@ int main(int argc, char **argv) {
           fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
           EXIT(12);
         }
+
+        /* sink-smear the coherent-source propagator */
+        exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
+
         /* tm-rotate at sink */
         if( g_fermion_type == _TM_FERMION ) {
           spinor_field_tm_rotation(spinor_work[1], spinor_work[1], +1, g_fermion_type, VOLUME);
@@ -1038,6 +1080,9 @@ int main(int argc, char **argv) {
       EXIT(39);
     }
 
+    /* source-smear the stochastic source */
+    exitstatus = Jacobi_Smearing(gauge_field_smeared, stochastic_source_list[isample], N_Jacobi, kappa_Jacobi);
+
     /* project to timeslices, invert */
     for(i_src = 0; i_src < stochastic_source_timeslice_number; i_src++) {
       int t_src = stochastic_source_timeslice_list[i_src];
@@ -1049,6 +1094,7 @@ int main(int argc, char **argv) {
         unsigned int shift = _GSI(g_ipt[t_src%T][0][0][0]);
         memcpy(spinor_work[0]+shift, stochastic_source_list[isample]+shift, sizeof_spinor_field_timeslice );
       }
+
       /* tm-rotate stochastic source */
       if( g_fermion_type == _TM_FERMION ) {
         spinor_field_tm_rotation ( spinor_work[0], spinor_work[0], -1, g_fermion_type, VOLUME);
@@ -1060,6 +1106,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
         EXIT(12);
       }
+
       /* tm-rotate stochastic propagator at sink */
       if( g_fermion_type == _TM_FERMION ) {
         spinor_field_tm_rotation(spinor_work[1], spinor_work[1], -1, g_fermion_type, VOLUME);
@@ -1072,6 +1119,9 @@ int main(int argc, char **argv) {
       }
 
     }
+ 
+    /* sink-smear the stochastic propagator */
+    exitstatus = Jacobi_Smearing(gauge_field_smeared, stochastic_propagator_list[isample], N_Jacobi, kappa_Jacobi);
 
   }  /* end of loop on samples */
 
@@ -1528,9 +1578,12 @@ int main(int argc, char **argv) {
    * free the allocated memory, finalize
    ***********************************************/
   free_geometry();
-  for(i=0; i<10; i++) { free_sp_field(&conn_X[i]); }
+  for(i=0; i<max_num_diagram; i++) { free_sp_field(&conn_X[i]); }
   free(conn_X);
 
+  if( N_ape > 0 ) {
+    if( gauge_field_smeared != NULL ) free(gauge_field_smeared);
+  }
 #ifdef HAVE_TMLQCD_LIBWRAPPER
   tmLQCD_finalise();
 #endif
