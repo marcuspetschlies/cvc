@@ -621,7 +621,7 @@ int init_coherent_sequential_source(double *s, double **p, int tseq, int ncoh, i
   int have_source=0, lts=-1, icoh;
 
   if(s == NULL || p == NULL) {
-    fprintf(stderr, "[init_sequential_source] Error, field is null\n");
+    fprintf(stderr, "[init_coherent_sequential_source] Error, field is null\n");
     return(1);
   }
 
@@ -647,7 +647,7 @@ int init_coherent_sequential_source(double *s, double **p, int tseq, int ncoh, i
       lts = -1;
     }
     if(have_source) {
-      fprintf(stdout, "# [init_sequential_source] process %d has source using t = %2d gamma id = %2d p = (%3d, %3d, %3d)\n",
+      fprintf(stdout, "# [init_coherent_sequential_source] process %d has source using t = %2d gamma id = %2d p = (%3d, %3d, %3d)\n",
           g_cart_id, tcoh, gseq, pseq[0], pseq[1], pseq[2]);
     }
 
@@ -706,7 +706,7 @@ int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init) {
     if(have_source) {
       ran = (double*)malloc(6*VOL3*sizeof(double));
       if(ran == NULL) {
-        fprintf(stderr, "[init_timeslice_source_one_end] Error from malloc\n");
+        fprintf(stderr, "[init_timeslice_source_oet] Error from malloc\n");
         return(1);
       }
     }
@@ -720,7 +720,7 @@ int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init) {
 
   if(have_source) {
     if(init > 0) {
-      fprintf(stdout, "# [init_timeslice_source_one_end] proc%.4d drawing random vector\n");
+      fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d drawing random vector\n");
 
       switch(g_noise_type) {
         case 1:
@@ -731,7 +731,7 @@ int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init) {
           break;
       }
     } else {
-      fprintf(stdout, "# [init_timeslice_source_one_end] proc%.4d using existing random vector\n");
+      fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d using existing random vector\n");
     }
 
     const int timeslice = tsrc % T;  /*local timeslice */

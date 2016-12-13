@@ -63,6 +63,7 @@ extern "C"
 #include "prepare_source.h"
 #include "prepare_propagator.h"
 #include "contract_baryon.h"
+#include "invert_Qtm.h"
 
 using namespace cvc;
 
@@ -253,7 +254,7 @@ int main(int argc, char **argv) {
   unsigned int VOL3;
   size_t sizeof_spinor_field = 0, sizeof_spinor_field_timeslice = 0;
   spinor_propagator_type **conn_X=NULL;
-  double ****connt = NULL, ***connt_p=NULL, ***connt_n=NULL;
+  double ***connt_p=NULL, ***connt_n=NULL;
   double ****buffer=NULL;
   int io_proc = -1;
   int icomp, iseq_mom, iseq2_mom;
@@ -553,7 +554,7 @@ int main(int argc, char **argv) {
     propagator_list_dn  = propagator_list_up;
   }
 
-  no_fields = g_source_location_number * g_seq_source_momentum_number;  /* sequential propagators at all base source locations */ 
+  no_fields = g_source_location_number * g_seq_source_momentum_number * n_s*n_c;  /* sequential propagators at all base source locations */ 
   sequential_propagator_list = (double**)malloc(no_fields * sizeof(double*));
   sequential_propagator_list[0] = (double*)malloc(no_fields * sizeof_spinor_field);
   if( sequential_propagator_list[0] == NULL) {
@@ -701,6 +702,7 @@ int main(int argc, char **argv) {
     }  /* end of loop on base source timeslices */
   }
 
+
   for(iseq_mom=0; iseq_mom < g_seq_source_momentum_number; iseq_mom++) {
 
     /***********************************************************
@@ -714,27 +716,38 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[piN2piN] Error from malloc\n");
       EXIT(43);
     }
-    for(is=1; is<g_coherent_source_number; is++) prop_list[i] = prop_list[i-1] + _GSI(VOLUME);
 
     for(i_src=0; i_src<g_source_location_number; i_src++) {
   
       int i_prop = iseq_mom * g_source_location_number + i_src;
+
+      gsx[0] = g_source_coords_list[i_src][0];
+      gsx[1] = g_source_coords_list[i_src][1];
+      gsx[2] = g_source_coords_list[i_src][2];
+      gsx[3] = g_source_coords_list[i_src][3];
+
       for(is=0;is<n_s*n_c;is++) {
+
 
         /* extract spin-color source-component is from coherent source dn propagators */
         for(i=0; i<g_coherent_source_number; i++) {
-          prop_list[i] = propagator_list_dn[i_src * g_coherent_source_number + i + is];
+          if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] using dn prop id %d / %d\n", (i_src * g_coherent_source_number + i), (i_src * g_coherent_source_number + i)*n_s*n_c + is);
+          prop_list[i] = propagator_list_dn[(i_src * g_coherent_source_number + i)*n_s*n_c + is];
         }
 
         /* build sequential source */
         exitstatus = init_coherent_sequential_source(spinor_work[0], prop_list, gsx[0], g_coherent_source_number, g_seq_source_momentum_list[iseq_mom], 5);
         if(exitstatus != 0) {
-          fprintf(stderr, "[piN2piN] Error from nit_coherent_sequential_source, status was %d\n", exitstatus);
+          fprintf(stderr, "[piN2piN] Error from init_coherent_sequential_source, status was %d\n", exitstatus);
           EXIT(14);
         }
 
         /* source-smear the coherent source */
         exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
+
+        double norm;
+        spinor_scalar_product_re(&norm, spinor_work[0], spinor_work[0], VOLUME);
+        if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] inverting for i_src = %d, i_prop = %d, is = %d, initial norm = %f\n", i_src, i_prop, is, norm);
 
         /* tm-rotate sequential source */
         if( g_fermion_type == _TM_FERMION ) {
@@ -778,7 +791,8 @@ int main(int argc, char **argv) {
     if(g_cart_id == 0) fprintf(stderr, "# [piN2piN] time for seq propagator = %e seconds\n", retime-ratime);
     free(prop_list);
   }  /* end of loop on sequential momentum list */
- 
+
+
 #ifdef HAVE_LHPC_AFF
   if(io_proc == 2) {
     aff_status_str = (char*)aff_version();
@@ -837,7 +851,7 @@ int main(int argc, char **argv) {
         add_baryon_boundary_phase (conn_X[i], gsx[0], 1);
 
         /* momentum projection */
-        double ****connt;
+        double ****connt = NULL;
         init_4level_buffer(&connt, T, g_sink_momentum_number, g_sv_dim, 2*g_sv_dim);
         for(it=0; it<T; it++) {
           exitstatus = momentum_projection2 (conn_X[i][it*VOL3][0], connt[it][0][0], g_sv_dim*g_sv_dim, g_sink_momentum_number, g_sink_momentum_list, NULL );
@@ -854,7 +868,7 @@ int main(int argc, char **argv) {
         if(io_proc>0) {
           init_4level_buffer(&buffer, T_global, g_sink_momentum_number, g_sv_dim, 2*g_sv_dim);
           k = T * g_sink_momentum_number * g_sv_dim * g_sv_dim * 2;
-          exitstatus = MPI_Allgather(connt[0][0][0], k, MPI_DOUBLE, buffer[0][0][0], k, MPI_DOUBLE, g_ts_comm);
+          exitstatus = MPI_Allgather(connt[0][0][0], k, MPI_DOUBLE, buffer[0][0][0], k, MPI_DOUBLE, g_tr_comm);
           if(exitstatus != MPI_SUCCESS) {
             fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d\n", exitstatus);
             EXIT(124);
@@ -1221,7 +1235,7 @@ int main(int argc, char **argv) {
               &(sequential_propagator_list[i_seq_prop*n_s*n_c]), tffi_list, pffii_list, num_component_piN_piN, gamma_component_piN_piN, gamma_component_sign_piN_piN);
 
           if(exitstatus != 0) {
-            fprintf(stderr, "[] Error from contract_piN_piN, status was %d\n", exitstatus);
+            fprintf(stderr, "[piN2piN] Error from contract_piN_piN, status was %d\n", exitstatus);
             EXIT(41);
           }
 
@@ -1447,7 +1461,7 @@ int main(int argc, char **argv) {
           exitstatus = prepare_seqn_stochastic_vertex_propagator_sliced3d_oet (pfifi_list, stochastic_propagator_list, &(stochastic_propagator_list[4]),
                   &(propagator_list_up[i_prop*n_s*n_c]), g_seq2_source_momentum_list[iseq_mom], 5, 5);
           if( exitstatus != 0 ) {
-            fprintf(stderr, "[] Error from prepare_seqn_stochastic_vertex_propagator_sliced3d_oet, status was %d\n", exitstatus);
+            fprintf(stderr, "[piN2piN] Error from prepare_seqn_stochastic_vertex_propagator_sliced3d_oet, status was %d\n", exitstatus);
             EXIT(45);
           }
 
@@ -1455,7 +1469,7 @@ int main(int argc, char **argv) {
           exitstatus = contract_piN_piN_oet ( conn_X, &(propagator_list_up[i_prop*n_s*n_c]), &(propagator_list_dn[i_prop*n_s*n_c]), 
               pfifi_list, num_component_piN_piN, gamma_component_piN_piN, gamma_component_sign_piN_piN);
           if( exitstatus != 0 ) {
-            fprintf(stderr, "[] Error from contract_piN_piN_oet, status was %d\n", exitstatus);
+            fprintf(stderr, "[piN2piN] Error from contract_piN_piN_oet, status was %d\n", exitstatus);
             EXIT(46);
           }
 
@@ -1548,6 +1562,7 @@ int main(int argc, char **argv) {
     if(aff_buffer != NULL) free(aff_buffer);
   }  /* end of if io_proc == 2 */
 #endif  /* of ifdef HAVE_LHPC_AFF */
+
 
 
   /***********************************************
