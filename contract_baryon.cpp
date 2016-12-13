@@ -489,7 +489,7 @@ int contract_N_N (spinor_propagator_type **res, double**uprop_list, double**dpro
     _sp_eq_zero( sp2 );
     _sp_eq_fp_del_contract23_fp(sp2, fp3, uprop);
 
-    _sp_eq_sp( res[1][ix], sp1);
+    _sp_eq_sp( res[1][ix], sp2);
 
   }  // end of loop on VOLUME
 
@@ -654,7 +654,7 @@ int contract_D_D (spinor_propagator_type **res, double**uprop_list, double**dpro
 #endif
 
   double retime = _GET_TIME;
-  if(g_cart_id == 0)  fprintf(stdout, "# [deltapp_2pt] time for contractions = %e seconds\n", retime-ratime);
+  if(g_cart_id == 0)  fprintf(stdout, "# [contract_D_D] time for contractions = %e seconds\n", retime-ratime);
 
   return(0);
 }  /* end of contract_D_D */
@@ -812,7 +812,7 @@ int contract_piN_D (spinor_propagator_type **res, double**uprop_list, double**dp
 #endif
 
     double retime = _GET_TIME;
-    if(g_cart_id == 0)  fprintf(stdout, "# [deltapp2piN] time for contractions = %e seconds\n", retime-ratime);
+    if(g_cart_id == 0)  fprintf(stdout, "# [contract_piN_D] time for contractions = %e seconds\n", retime-ratime);
 
     return(0);
 }  /* end of contract_piN_D */
@@ -830,7 +830,7 @@ int add_baryon_boundary_phase (spinor_propagator_type*sp, int tsrc, int ncomp) {
   double ratime = _GET_TIME;
   if(g_propagator_bc_type == 0) {
     // multiply with phase factor
-    fprintf(stdout, "# [piN2piN] multiplying with boundary phase factor\n");
+    fprintf(stdout, "# [add_baryon_boundary_phase] multiplying with boundary phase factor\n");
     for(it=0;it<T;it++) {
       int ir = (it + g_proc_coords[0] * T - tsrc + T_global) % T_global;
       const complex w1 = { cos( 3. * M_PI*(double)ir / (double)T_global ), sin( 3. * M_PI*(double)ir / (double)T_global ) };
@@ -861,7 +861,7 @@ int add_baryon_boundary_phase (spinor_propagator_type*sp, int tsrc, int ncomp) {
   } else if (g_propagator_bc_type == 1) {
     // multiply with step function
     int ir;
-    fprintf(stdout, "# [piN2piN] multiplying with boundary step function\n");
+    fprintf(stdout, "# [add_baryon_boundary_phase] multiplying with boundary step function\n");
     for(ir=0; ir<T; ir++) {
       it = ir + g_proc_coords[0] * T;  // global t-value, 0 <= t < T_global
       if(it < tsrc) {
@@ -893,7 +893,7 @@ int add_baryon_boundary_phase (spinor_propagator_type*sp, int tsrc, int ncomp) {
     }  /* end of loop on ir */
   }
   double retime = _GET_TIME;
-  if(g_cart_id == 0)  fprintf(stdout, "# [] time for boundary phase = %e seconds\n", retime-ratime);
+  if(g_cart_id == 0)  fprintf(stdout, "# [add_baryon_boundary_phase] time for boundary phase = %e seconds\n", retime-ratime);
 
   return(0);
 }  /* end of add_boundary_phase */

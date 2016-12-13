@@ -220,7 +220,7 @@ int prepare_seqn_stochastic_vertex_propagator_sliced3d (double**seq_prop, double
     /* multiply with complex phase */
     for(it=0; it<T; it++) {
       unsigned int ix = _GSI( g_ipt[it][0][0][0] );
-      spinor_field_eq_spinor_field_ti_complex_field (seq_prop[i]+ix, prop[i]+ix, phase, VOL3);
+      spinor_field_eq_spinor_field_ti_complex_field (seq_prop[i]+ix, seq_prop[i]+ix, phase, VOL3);
     }
   }
   free(phase);
@@ -281,6 +281,18 @@ int prepare_seqn_stochastic_vertex_propagator_sliced3d (double**seq_prop, double
       return(1);
     }
     free(p_buffer); p_buffer = NULL;
+#endif
+
+#if 0
+    /* TEST */
+    {
+      int i, k;
+      for(i=0; i<nprop; i++) {
+        for(k=0; k<nstoch; k++) {
+          fprintf(stdout, "p2 proc%.2d t%.2d %2d %2d %25.16e %25.16e\n", g_cart_id, it, i, k, creal(p[i*nstoch+k]), cimag(p[i*nstoch+k]) );
+        }
+      }
+    }
 #endif
 
     for(i=0; i<nstoch; i++) {
@@ -388,7 +400,7 @@ int prepare_seqn_stochastic_vertex_propagator_sliced3d_oet (double**seq_prop, do
     /* multiply with complex phase */
     for(it=0; it<T; it++) {
       unsigned int ix = _GSI( g_ipt[it][0][0][0] );
-      spinor_field_eq_spinor_field_ti_complex_field (seq_prop[i]+ix, prop[i]+ix, phase, VOL3);
+      spinor_field_eq_spinor_field_ti_complex_field (seq_prop[i]+ix, seq_prop[i]+ix, phase, VOL3);
     }
   }
   free(phase);
@@ -470,10 +482,10 @@ int prepare_seqn_stochastic_vertex_propagator_sliced3d_oet (double**seq_prop, do
       double _Complex ztmp[4];
       memcpy(ztmp, p+i*4, 4*sizeof(double _Complex));
       if(isimag) {
-        p[4*i + 0] = conj( ztmp[psource[0]] ) * I * ssource[0];
-        p[4*i + 1] = conj( ztmp[psource[1]] ) * I * ssource[1];
-        p[4*i + 2] = conj( ztmp[psource[2]] ) * I * ssource[2];
-        p[4*i + 3] = conj( ztmp[psource[3]] ) * I * ssource[3];
+        p[4*i + 0] = ztmp[psource[0]] * (-I) * ssource[0];
+        p[4*i + 1] = ztmp[psource[1]] * (-I) * ssource[1];
+        p[4*i + 2] = ztmp[psource[2]] * (-I) * ssource[2];
+        p[4*i + 3] = ztmp[psource[3]] * (-I) * ssource[3];
       } else {
         p[4*i + 0] = ztmp[psource[0]] * ssource[0];
         p[4*i + 1] = ztmp[psource[1]] * ssource[1];
@@ -481,6 +493,18 @@ int prepare_seqn_stochastic_vertex_propagator_sliced3d_oet (double**seq_prop, do
         p[4*i + 3] = ztmp[psource[3]] * ssource[3];
       }
     }
+
+    /* TEST */
+/*
+    {
+      int i, k;
+      for(i=0; i<nprop; i++) {
+        for(k=0; k<nstoch; k++) {
+          fprintf(stdout, "p2 proc%.2d t%.2d %2d %2d %25.16e %25.16e\n", g_cart_id, it, i, k, creal(p[i*nstoch+k]), cimag(p[i*nstoch+k]) );
+        }
+      }
+    }
+*/
 
     /* expand in stochastic propagator */
     BLAS_ALPHA  =  1.;

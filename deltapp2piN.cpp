@@ -58,6 +58,8 @@ extern "C"
 #include "matrix_init.h"
 #include "project.h"
 #include "prepare_source.h"
+/* TEST */
+/* #include "contract_baryon.h" */
 
 using namespace cvc;
 
@@ -90,7 +92,6 @@ int main(int argc, char **argv) {
   int it, ir, is;
   int gsx[4], sx[4];
   int write_ascii=0;
-  int fermion_type = -1;
   int write_xspace = 0;
   int source_proc_id = 0, source_proc_coords[4];
   char filename[200], contype[1200];
@@ -129,22 +130,11 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "xah?f:F:")) != -1) {
+  while ((c = getopt(argc, argv, "xah?f:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
       filename_set=1;
-      break;
-    case 'F':
-      if(strcmp(optarg, "Wilson") == 0) {
-        fermion_type = _WILSON_FERMION;
-      } else if(strcmp(optarg, "tm") == 0) {
-        fermion_type = _TM_FERMION;
-      } else {
-        fprintf(stderr, "[deltapp2piN] Error, unrecognized fermion type\n");
-        exit(145);
-      }
-      fprintf(stdout, "# [deltapp2piN] will use fermion type %s ---> no. %d\n", optarg, fermion_type);
       break;
     case 'x':
       write_xspace = 1;
@@ -167,7 +157,7 @@ int main(int argc, char **argv) {
   fprintf(stdout, "# reading input from file %s\n", filename);
   read_input_parser(filename);
 
-  if(fermion_type == -1 ) {
+  if(g_fermion_type == -1 ) {
     fprintf(stderr, "# [deltapp2piN] fermion_type must be set\n");
     exit(1);
   }
@@ -345,7 +335,7 @@ int main(int argc, char **argv) {
    ***********************************************************/
   g_spinor_field = NULL;
   no_fields = n_s*n_c;
-  if(fermion_type == _TM_FERMION) {
+  if(g_fermion_type == _TM_FERMION) {
     no_fields *= 3;
   } else {
     no_fields *= 2;
@@ -429,7 +419,7 @@ int main(int argc, char **argv) {
   /***********************************************************
    * dn-type propagator
    ***********************************************************/
-  if(fermion_type == _TM_FERMION) {
+  if(g_fermion_type == _TM_FERMION) {
     if(g_cart_id == 0) fprintf(stdout, "# [deltapp2piN] dn-type inversion\n");
     ratime = _GET_TIME;
     for(is=0;is<n_s*n_c;is++) {
@@ -459,7 +449,7 @@ int main(int argc, char **argv) {
     if(g_cart_id == 0) fprintf(stdout, "# [deltapp2piN] sequential inversion\n");
     ratime = _GET_TIME;
     for(is=0;is<n_s*n_c;is++) {
-      int idprop = (int)( fermion_type == _TM_FERMION ) * n_s*n_c + is;
+      int idprop = (int)( g_fermion_type == _TM_FERMION ) * n_s*n_c + is;
       memset(spinor_work[0], 0, sizeof_spinor_field);
       exitstatus = init_sequential_source(spinor_work[0], g_spinor_field[idprop], gsx[0], g_seq_source_momentum_list[iseq_mom], 5);
       if(exitstatus != 0) {
@@ -519,16 +509,16 @@ int main(int argc, char **argv) {
 #endif
 
     for(ix=0; ix<VOLUME; ix++) {
-      int seq_prop_id = ( (int)( fermion_type == _TM_FERMION ) + 1 ) * n_s*n_c;
+      int seq_prop_id = ( (int)( g_fermion_type == _TM_FERMION ) + 1 ) * n_s*n_c;
       /* assign the propagators */
       _assign_fp_point_from_field(uprop, g_spinor_field, ix);
       _assign_fp_point_from_field(dprop, g_spinor_field+seq_prop_id, ix);
       /* flavor rotation for twisted mass fermions */
-      if(fermion_type == _TM_FERMION) {
-        _fp_eq_rot_ti_fp(fp1, uprop, +1, fermion_type, fp2);
-        _fp_eq_fp_ti_rot(uprop, fp1, +1, fermion_type, fp2);
-        _fp_eq_rot_ti_fp(fp1, dprop, +1, fermion_type, fp2);
-        _fp_eq_fp_ti_rot(dprop, fp1, -1, fermion_type, fp2);
+      if(g_fermion_type == _TM_FERMION) {
+        _fp_eq_rot_ti_fp(fp1, uprop, +1, g_fermion_type, fp2);
+        _fp_eq_fp_ti_rot(uprop, fp1, +1, g_fermion_type, fp2);
+        _fp_eq_rot_ti_fp(fp1, dprop, +1, g_fermion_type, fp2);
+        _fp_eq_fp_ti_rot(dprop, fp1, -1, g_fermion_type, fp2);
       }
 
       for(icomp=0; icomp<num_component; icomp++) {
@@ -600,7 +590,7 @@ int main(int argc, char **argv) {
         _sp_pl_eq_sp(sp1, sp2);
         _sp_eq_sp_ti_re(sp2, sp1, -gamma_component_sign[icomp]);
         _sp_pl_eq_sp( connq[ix*num_component+icomp], sp2);
-  
+ 
         /* (5) */
         /* reduce */
         _fp_eq_zero(fpaux);
@@ -629,16 +619,16 @@ int main(int argc, char **argv) {
 
     }    /* of ix */
   
-   free_fp(&fp1);
-   free_fp(&fp2);
-   free_fp(&fp3);
-   free_fp(&fp4);
-   free_fp(&fpaux);
-   free_fp(&uprop);
-   free_fp(&dprop);
+    free_fp(&fp1);
+    free_fp(&fp2);
+    free_fp(&fp3);
+    free_fp(&fp4);
+    free_fp(&fpaux);
+    free_fp(&uprop);
+    free_fp(&dprop);
   
-   free_sp(&sp1);
-   free_sp(&sp2);
+    free_sp(&sp1);
+    free_sp(&sp2);
 
 
 #ifdef HAVE_OPENMP
@@ -648,8 +638,62 @@ int main(int argc, char **argv) {
     retime = _GET_TIME;
     if(g_cart_id == 0)  fprintf(stdout, "# [deltapp2piN] time for contractions = %e seconds\n", retime-ratime);
   
+#if 0
+  {
+    /* TEST */
+    int i;
+    int x0, x1, x2, x3;
+    int dn_prop_id  = ( (int)( g_fermion_type == _TM_FERMION )     ) * n_s*n_c;
+    int seq_prop_id = ( (int)( g_fermion_type == _TM_FERMION ) + 1 ) * n_s*n_c;
+    const int num_component_max = 4;
+ 
+    int gamma_component_piN_D[4][2] = { {0,5}, {1,5}, {2,5}, {3,5} };
+
+    spinor_propagator_type **conn_X = (spinor_propagator_type**)malloc(6 * sizeof(spinor_propagator_type*));
+    for(i=0; i<6; i++) {
+      conn_X[i] = create_sp_field( (size_t)VOLUME * num_component_max );
+      if(conn_X[i] == NULL) {
+        fprintf(stderr, "[piN2piN] Error, could not alloc conn_X\n");
+        EXIT(2);
+      }
+    }
+
+    exitstatus = contract_piN_D (conn_X, g_spinor_field, &(g_spinor_field[dn_prop_id]), &(g_spinor_field[seq_prop_id]), num_component, gamma_component_piN_D, gamma_component_sign);
+
+    for(i=0; i<6; i++) { 
+      exitstatus = add_baryon_boundary_phase (conn_X[i], gsx[0], num_component);
+    }
+
+    sprintf(filename, "test.%.2d", g_cart_id);
+    FILE*ofs = fopen(filename, "w");
+ 
+    for(x0=0; x0 < T; x0++) {
+      spinor_propagator_type sp1;
+      create_sp(&sp1);
+    for(x1=0; x1 < LX; x1++) {
+    for(x2=0; x2 < LY; x2++) {
+    for(x3=0; x3 < LZ; x3++) {
+      unsigned int ix = g_ipt[x0][x1][x2][x3];
+      for(icomp=0; icomp<num_component; icomp++) {
+        unsigned int iix = num_component * ix + icomp;
+        sprintf(contype, "# t= %2d, x= %2d, y= %2d, z= %2d comp = %2d %2d",
+            x0 + g_proc_coords[0]*T, x1 + g_proc_coords[1]*LX, x2 + g_proc_coords[2]*LY, x3 + g_proc_coords[3]*LZ,
+            gamma_component[0][icomp], gamma_component[1][icomp]);
+        _sp_eq_zero(sp1);
+        for(i=0; i<6; i++) {
+          _sp_pl_eq_sp(sp1, conn_X[i][iix]);
+        }
+        printf_sp(sp1, contype, ofs);
+      }
+    }}}
+    free_sp(&sp1);
+    }
 
 
+    fclose(ofs);
+    for(i=0; i<6; i++) { free_sp_field(&conn_X[i]); }
+  }  /* end of TEST */
+#endif
   
     /***********************************************
      * finish calculation of connq

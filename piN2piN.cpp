@@ -812,7 +812,7 @@ int main(int argc, char **argv) {
         if(io_proc>0) {
           init_4level_buffer(&buffer, T_global, g_sink_momentum_number, g_sv_dim, 2*g_sv_dim);
           k = T * g_sink_momentum_number * g_sv_dim * g_sv_dim * 2;
-          exitstatus = MPI_Allgather(connt[0][0][0], k, MPI_DOUBLE, buffer[0][0][0], k, MPI_DOUBLE, g_tr_comm);
+          exitstatus = MPI_Allgather(connt[0][0][0], k, MPI_DOUBLE, buffer[0][0][0], k, MPI_DOUBLE, g_ts_comm);
           if(exitstatus != MPI_SUCCESS) {
             fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d\n", exitstatus);
             EXIT(124);
@@ -1395,7 +1395,7 @@ int main(int argc, char **argv) {
 
           /* prepare pfifi */
           exitstatus = prepare_seqn_stochastic_vertex_propagator_sliced3d_oet (pfifi_list, stochastic_propagator_list, &(stochastic_propagator_list[4]),
-                  &(propagator_list_up[i_prop*n_s*n_c]), g_seq_source_momentum_list[iseq_mom], 5, 5);
+                  &(propagator_list_up[i_prop*n_s*n_c]), g_seq2_source_momentum_list[iseq_mom], 5, 5);
           if( exitstatus != 0 ) {
             fprintf(stderr, "[] Error from prepare_seqn_stochastic_vertex_propagator_sliced3d_oet, status was %d\n", exitstatus);
             EXIT(45);

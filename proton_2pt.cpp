@@ -59,6 +59,8 @@ extern "C"
 #include "contractions_io.h"
 #include "matrix_init.h"
 #include "project.h"
+/* TEST */
+/* #include "contract_baryon.h" */
 
 using namespace cvc;
 
@@ -531,6 +533,54 @@ int main(int argc, char **argv) {
 
   retime = _GET_TIME;
   if(g_cart_id == 0)  fprintf(stdout, "# [proton_2pt] time for contractions = %e seconds\n", retime-ratime);
+#if 0
+  {
+    /* TEST */
+    int i;
+    int x0, x1, x2, x3;
+    int dn_prop_id  = ( (int)( g_fermion_type == _TM_FERMION )     ) * n_s*n_c;
+                                             
+    spinor_propagator_type **conn_X = (spinor_propagator_type**)malloc(2 * sizeof(spinor_propagator_type*));
+    for(i=0; i<2; i++) {
+      conn_X[i] = create_sp_field( (size_t)VOLUME);
+      if(conn_X[i] == NULL) {
+        fprintf(stderr, "[piN2piN] Error, could not alloc conn_X\n");
+        EXIT(2);
+      }
+    }
+
+    exitstatus = contract_N_N (conn_X, g_spinor_field, &(g_spinor_field[dn_prop_id]) );
+
+    for(i=0; i<2; i++) { 
+      exitstatus = add_baryon_boundary_phase (conn_X[i], gsx[0], 1);
+    }
+
+    sprintf(filename, "test.%.2d", g_cart_id);
+    FILE*ofs = fopen(filename, "w");
+    
+    for(x0=0; x0 < T; x0++) {
+      spinor_propagator_type sp1;
+      create_sp(&sp1);
+      for(x1=0; x1 < LX; x1++) {
+      for(x2=0; x2 < LY; x2++) {
+      for(x3=0; x3 < LZ; x3++) {
+        unsigned int ix = g_ipt[x0][x1][x2][x3];
+          sprintf(contype, "# t= %2d, x= %2d, y= %2d, z= %2d",
+              x0 + g_proc_coords[0]*T, x1 + g_proc_coords[1]*LX, x2 + g_proc_coords[2]*LY, x3 + g_proc_coords[3]*LZ );
+          _sp_eq_zero(sp1);
+          for(i=0; i<2; i++) {
+            _sp_pl_eq_sp(sp1, conn_X[i][ix]);
+          }
+          printf_sp(sp1, contype, ofs);
+
+      }}}
+      free_sp(&sp1);
+    }
+
+    fclose(ofs);
+    for(i=0; i<2; i++) { free_sp_field(&conn_X[i]); }
+  }  /* end of TEST */
+#endif
 
   /***********************************************
    * free gauge fields and spinor fields
