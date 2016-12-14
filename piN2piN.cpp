@@ -645,7 +645,7 @@ int main(int argc, char **argv) {
       }  /* end of loop on spin color */
 
       retime = _GET_TIME;
-      if(g_cart_id == 0) fprintf(stderr, "# [piN2piN] time for up propagator = %e seconds\n", retime-ratime);
+      if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] time for up propagator = %e seconds\n", retime-ratime);
     }  /* end of loop on coherent source timeslices */
   }    /* end of loop on base source timeslices */
 
@@ -788,11 +788,11 @@ int main(int argc, char **argv) {
 
     }  /* end of loop on base source locations */
     retime = _GET_TIME;
-    if(g_cart_id == 0) fprintf(stderr, "# [piN2piN] time for seq propagator = %e seconds\n", retime-ratime);
+    if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] time for seq propagator = %e seconds\n", retime-ratime);
     free(prop_list);
   }  /* end of loop on sequential momentum list */
 
-
+#if 0
 #ifdef HAVE_LHPC_AFF
   if(io_proc == 2) {
     aff_status_str = (char*)aff_version();
@@ -819,6 +819,8 @@ int main(int argc, char **argv) {
     }
   }  /* end of if io_proc == 2 */
 #endif
+
+
 
   /******************************************************
    ******************************************************
@@ -877,7 +879,7 @@ int main(int argc, char **argv) {
 #else
         buffer = connt;
 #endif
-    
+
         if(io_proc == 2) {
 #ifdef HAVE_LHPC_AFF
           for(k=0; k<g_sink_momentum_number; k++) {
@@ -890,26 +892,29 @@ int main(int argc, char **argv) {
             fprintf(stdout, "# [piN2piN] current aff path = %s\n", aff_buffer_path);
 
             affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
+
             for(it=0; it<T_global; it++) {
               ir = ( it - gsx[0] + T_global ) % T_global;
-              memcpy(aff_buffer + ir*g_sv_dim*g_sv_dim,  buffer[it][k][icomp*g_sv_dim] , g_sv_dim*g_sv_dim*sizeof(double _Complex) );
+              memcpy(aff_buffer + ir*g_sv_dim*g_sv_dim,  buffer[it][k][0] , g_sv_dim*g_sv_dim*sizeof(double _Complex) );
             }
+
             int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
             if(status != 0) {
               fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d\n", status);
               EXIT(8);
             }
+ 
           }  /* end of loop on sink momenta */
 #endif
         }  /* end of if io_proc == 2 */
-    
+
 #ifdef HAVE_MPI
         if(io_proc > 0) { fini_4level_buffer(&buffer); }
 #endif
 
+
         fini_4level_buffer(&connt);
       }  /* end of loop on diagrams */
-
 
       exitstatus = contract_D_D (conn_X, &(propagator_list_up[i_prop*n_s*n_c]), &(propagator_list_dn[i_prop*n_s*n_c]),
          num_component_D_D, gamma_component_D_D, gamma_component_sign_D_D);
@@ -919,7 +924,7 @@ int main(int argc, char **argv) {
         add_baryon_boundary_phase (conn_X[i], gsx[0], num_component_D_D);
 
         /* momentum projection */
-        double ****connt;
+        double ****connt = NULL;
         init_4level_buffer(&connt, T, g_sink_momentum_number, num_component_D_D * g_sv_dim, 2*g_sv_dim);
         for(it=0; it<T; it++) {
           exitstatus = momentum_projection2 (conn_X[i][it*VOL3*num_component_D_D][0], connt[it][0][0], num_component_D_D*g_sv_dim*g_sv_dim,
@@ -995,7 +1000,7 @@ int main(int argc, char **argv) {
           add_baryon_boundary_phase (conn_X[i], gsx[0], num_component_piN_D);
 
           /* momentum projection */
-          double ****connt;
+          double ****connt = NULL;
           init_4level_buffer(&connt, T, g_sink_momentum_number, num_component_piN_D*g_sv_dim, 2*g_sv_dim);
           for(it=0; it<T; it++) {
             exitstatus = momentum_projection2 (conn_X[i][it*VOL3*num_component_piN_D][0], connt[it][0][0], 
@@ -1059,8 +1064,10 @@ int main(int argc, char **argv) {
 
           fini_4level_buffer(&connt);
         }  /* end of loop on diagrams */
-     
+
       }  /* end of loop on sequential source momenta */       
+
+
     }  /* end of loop on coherent source locations */
   }  /* end of loop on base source locations */
 
@@ -1074,6 +1081,8 @@ int main(int argc, char **argv) {
     if(aff_buffer != NULL) free(aff_buffer);
   }  /* end of if io_proc == 2 */
 #endif  /* of ifdef HAVE_LHPC_AFF */
+
+#endif
 
 
   /******************************************************
@@ -1104,6 +1113,8 @@ int main(int argc, char **argv) {
 
       int have_source = ( g_proc_coords[0] == t_src / T );
       if( have_source ) {
+        fprintf(stdout, "# [piN2piN] proc %4d = ( %d, %d, %d, %d) has t_src = %3d \n", g_cart_id, 
+            g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3], t_src);
         /* this process copies timeslice t_src%T from source */
         unsigned int shift = _GSI(g_ipt[t_src%T][0][0][0]);
         memcpy(spinor_work[0]+shift, stochastic_source_list[isample]+shift, sizeof_spinor_field_timeslice );
@@ -1138,7 +1149,7 @@ int main(int argc, char **argv) {
     exitstatus = Jacobi_Smearing(gauge_field_smeared, stochastic_propagator_list[isample], N_Jacobi, kappa_Jacobi);
 
   }  /* end of loop on samples */
-
+#if 0
   /******************************************************
    ******************************************************
    **
@@ -1341,7 +1352,10 @@ int main(int argc, char **argv) {
   free( stochastic_source_list );
   free( stochastic_propagator_list[0] );
   free( stochastic_propagator_list );
-  
+#endif
+
+#if 0
+
   /***********************************************
    ***********************************************
    **
@@ -1563,7 +1577,7 @@ int main(int argc, char **argv) {
   }  /* end of if io_proc == 2 */
 #endif  /* of ifdef HAVE_LHPC_AFF */
 
-
+#endif
 
   /***********************************************
    * free gauge fields and spinor fields
