@@ -254,7 +254,6 @@ int main(int argc, char **argv) {
   unsigned int VOL3;
   size_t sizeof_spinor_field = 0, sizeof_spinor_field_timeslice = 0;
   spinor_propagator_type **conn_X=NULL;
-  double ***connt_p=NULL, ***connt_n=NULL;
   double ****buffer=NULL;
   int io_proc = -1;
   int icomp, iseq_mom, iseq2_mom;
@@ -635,12 +634,13 @@ int main(int argc, char **argv) {
           EXIT(12);
         }
 
-        /* sink-smear the point-source propagator */
-        exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
-
         if( g_fermion_type == _TM_FERMION ) {
           spinor_field_tm_rotation(spinor_work[1], spinor_work[1], +1, g_fermion_type, VOLUME);
         }
+
+        /* sink-smear the point-source propagator */
+        exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
+
         memcpy( propagator_list_up[i_prop*n_s*n_c + is], spinor_work[1], sizeof_spinor_field);
       }  /* end of loop on spin color */
 
@@ -688,12 +688,14 @@ int main(int argc, char **argv) {
             EXIT(12);
           }
 
-          /* sink-smear the point-source propagator */
-          exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
-
           if( g_fermion_type == _TM_FERMION ) {
             spinor_field_tm_rotation(spinor_work[1], spinor_work[1], -1, g_fermion_type, VOLUME);
           }
+
+          /* sink-smear the point-source propagator */
+          exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
+
+
           memcpy( propagator_list_dn[i_prop*n_s*n_c + is], spinor_work[1], sizeof_spinor_field);
         }
         retime = _GET_TIME;
@@ -762,13 +764,13 @@ int main(int argc, char **argv) {
           EXIT(12);
         }
 
-        /* sink-smear the coherent-source propagator */
-        exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
-
         /* tm-rotate at sink */
         if( g_fermion_type == _TM_FERMION ) {
           spinor_field_tm_rotation(spinor_work[1], spinor_work[1], +1, g_fermion_type, VOLUME);
         }
+
+        /* sink-smear the coherent-source propagator */
+        exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
 
         memcpy( sequential_propagator_list[i_prop*n_s*n_c + is], spinor_work[1], sizeof_spinor_field);
 
@@ -792,7 +794,7 @@ int main(int argc, char **argv) {
     free(prop_list);
   }  /* end of loop on sequential momentum list */
 
-#if 0
+
 #ifdef HAVE_LHPC_AFF
   if(io_proc == 2) {
     aff_status_str = (char*)aff_version();
@@ -847,6 +849,8 @@ int main(int argc, char **argv) {
       /* pi    - pi    2pt */
       /* Delta - pi N  3pt */
 
+      for(i=0; i<max_num_diagram; i++) { memset(conn_X[i][0][0], 0, 2*VOLUME*g_sv_dim*g_sv_dim*sizeof(double)); }
+
       exitstatus = contract_N_N (conn_X, &(propagator_list_up[i_prop*n_s*n_c]), &(propagator_list_dn[i_prop*n_s*n_c]) );
       for(i=0; i<2; i++) {
         /* phase from quark field boundary condition */
@@ -854,7 +858,10 @@ int main(int argc, char **argv) {
 
         /* momentum projection */
         double ****connt = NULL;
-        init_4level_buffer(&connt, T, g_sink_momentum_number, g_sv_dim, 2*g_sv_dim);
+        if( (exitstatus = init_4level_buffer(&connt, T, g_sink_momentum_number, g_sv_dim, 2*g_sv_dim) ) != 0 ) {
+          fprintf(stderr, "[piN2piN] Error from init_4level_buffer, status was %d\n", exitstatus);
+          EXIT(57);
+        }
         for(it=0; it<T; it++) {
           exitstatus = momentum_projection2 (conn_X[i][it*VOL3][0], connt[it][0][0], g_sv_dim*g_sv_dim, g_sink_momentum_number, g_sink_momentum_list, NULL );
         }
@@ -868,7 +875,10 @@ int main(int argc, char **argv) {
         ratime = _GET_TIME;
 #ifdef HAVE_MPI
         if(io_proc>0) {
-          init_4level_buffer(&buffer, T_global, g_sink_momentum_number, g_sv_dim, 2*g_sv_dim);
+          if( (init_4level_buffer(&buffer, T_global, g_sink_momentum_number, g_sv_dim, 2*g_sv_dim) ) != 0 ) {
+            fprintf(stderr, "[piN2piN] Error from init_4level_buffer, status was %d\n", exitstatus);
+            EXIT(58);
+          }
           k = T * g_sink_momentum_number * g_sv_dim * g_sv_dim * 2;
           exitstatus = MPI_Allgather(connt[0][0][0], k, MPI_DOUBLE, buffer[0][0][0], k, MPI_DOUBLE, g_tr_comm);
           if(exitstatus != MPI_SUCCESS) {
@@ -916,6 +926,8 @@ int main(int argc, char **argv) {
         fini_4level_buffer(&connt);
       }  /* end of loop on diagrams */
 
+      for(i=0; i<max_num_diagram; i++) { memset(conn_X[i][0][0], 0, 2*VOLUME*g_sv_dim*g_sv_dim*sizeof(double)); }
+
       exitstatus = contract_D_D (conn_X, &(propagator_list_up[i_prop*n_s*n_c]), &(propagator_list_dn[i_prop*n_s*n_c]),
          num_component_D_D, gamma_component_D_D, gamma_component_sign_D_D);
 
@@ -925,7 +937,10 @@ int main(int argc, char **argv) {
 
         /* momentum projection */
         double ****connt = NULL;
-        init_4level_buffer(&connt, T, g_sink_momentum_number, num_component_D_D * g_sv_dim, 2*g_sv_dim);
+        if( (exitstatus = init_4level_buffer(&connt, T, g_sink_momentum_number, num_component_D_D * g_sv_dim, 2*g_sv_dim) ) != 0 ) {
+          fprintf(stderr, "[piN2piN] Error from init_4level_buffer, status was %d\n", exitstatus);
+          EXIT(59);
+        }
         for(it=0; it<T; it++) {
           exitstatus = momentum_projection2 (conn_X[i][it*VOL3*num_component_D_D][0], connt[it][0][0], num_component_D_D*g_sv_dim*g_sv_dim,
               g_sink_momentum_number, g_sink_momentum_list, NULL );
@@ -940,7 +955,10 @@ int main(int argc, char **argv) {
         ratime = _GET_TIME;
 #ifdef HAVE_MPI
         if(io_proc>0) {
-          init_4level_buffer(&buffer, T_global, g_sink_momentum_number, num_component_D_D*g_sv_dim, 2*g_sv_dim);
+          if( (exitstatus = init_4level_buffer(&buffer, T_global, g_sink_momentum_number, num_component_D_D*g_sv_dim, 2*g_sv_dim) ) != 0 ) {
+            fprintf(stderr, "[piN2piN] Error from init_4level_buffer, status was %d\n", exitstatus);
+            EXIT(60);
+          }
           k = T * g_sink_momentum_number * num_component_D_D * g_sv_dim * g_sv_dim * 2;
           exitstatus = MPI_Allgather(connt[0][0][0], k, MPI_DOUBLE, buffer[0][0][0], k, MPI_DOUBLE, g_tr_comm);
           if(exitstatus != MPI_SUCCESS) {
@@ -992,6 +1010,9 @@ int main(int argc, char **argv) {
       for(iseq_mom = 0; iseq_mom < g_seq_source_momentum_number; iseq_mom++) {
         int i_seq_prop = iseq_mom * g_source_location_number + i_src;
 
+
+        for(i=0; i<max_num_diagram; i++) { memset(conn_X[i][0][0], 0, 2*VOLUME*g_sv_dim*g_sv_dim*sizeof(double)); }
+
         exitstatus = contract_piN_D (conn_X, &(propagator_list_up[i_prop*n_s*n_c]), &(propagator_list_dn[i_prop*n_s*n_c]), 
             &(sequential_propagator_list[i_seq_prop*n_s*n_c]), num_component_piN_D, gamma_component_piN_D, gamma_component_sign_piN_D);
 
@@ -1001,7 +1022,10 @@ int main(int argc, char **argv) {
 
           /* momentum projection */
           double ****connt = NULL;
-          init_4level_buffer(&connt, T, g_sink_momentum_number, num_component_piN_D*g_sv_dim, 2*g_sv_dim);
+          if( (exitstatus = init_4level_buffer(&connt, T, g_sink_momentum_number, num_component_piN_D*g_sv_dim, 2*g_sv_dim) ) != 0 ) {
+            fprintf(stderr, "[piN2piN] Error from init_4level_buffer, status was %d\n", exitstatus);
+            EXIT(61);
+          }
           for(it=0; it<T; it++) {
             exitstatus = momentum_projection2 (conn_X[i][it*VOL3*num_component_piN_D][0], connt[it][0][0], 
                 num_component_piN_D*g_sv_dim*g_sv_dim, g_sink_momentum_number, g_sink_momentum_list, NULL );
@@ -1016,7 +1040,10 @@ int main(int argc, char **argv) {
           ratime = _GET_TIME;
 #ifdef HAVE_MPI
           if(io_proc>0) {
-            init_4level_buffer(&buffer, T_global, g_sink_momentum_number, num_component_piN_D*g_sv_dim, 2*g_sv_dim);
+            if( (exitstatus = init_4level_buffer(&buffer, T_global, g_sink_momentum_number, num_component_piN_D*g_sv_dim, 2*g_sv_dim) ) != 0 ) {
+              fprintf(stderr, "[piN2piN] Error from init_4level_buffer, status was %d\n", exitstatus);
+              EXIT(62);
+            }
             k = T * g_sink_momentum_number * num_component_piN_D * g_sv_dim * g_sv_dim * 2;
             exitstatus = MPI_Allgather(connt[0][0][0], k, MPI_DOUBLE, buffer[0][0][0], k, MPI_DOUBLE, g_tr_comm);
             if(exitstatus != MPI_SUCCESS) {
@@ -1082,7 +1109,7 @@ int main(int argc, char **argv) {
   }  /* end of if io_proc == 2 */
 #endif  /* of ifdef HAVE_LHPC_AFF */
 
-#endif
+
 
 
   /******************************************************
@@ -1103,11 +1130,19 @@ int main(int argc, char **argv) {
       EXIT(39);
     }
 
-    /* source-smear the stochastic source */
-    exitstatus = Jacobi_Smearing(gauge_field_smeared, stochastic_source_list[isample], N_Jacobi, kappa_Jacobi);
+    memset( stochastic_propagator_list[isample], 0, sizeof_spinor_field);
+
 
     /* project to timeslices, invert */
     for(i_src = 0; i_src < stochastic_source_timeslice_number; i_src++) {
+
+      
+      /******************************************************
+       * i_src is just a counter; we take the timeslices from
+       * the list stochastic_source_timeslice_list, which are
+       * in some order;
+       * t_src should be used to address the fields
+       ******************************************************/
       int t_src = stochastic_source_timeslice_list[i_src];
       memset(spinor_work[0], 0, sizeof_spinor_field);
 
@@ -1145,11 +1180,14 @@ int main(int argc, char **argv) {
 
     }
  
+    /* source-smear the stochastic source */
+    exitstatus = Jacobi_Smearing(gauge_field_smeared, stochastic_source_list[isample], N_Jacobi, kappa_Jacobi);
+
     /* sink-smear the stochastic propagator */
     exitstatus = Jacobi_Smearing(gauge_field_smeared, stochastic_propagator_list[isample], N_Jacobi, kappa_Jacobi);
 
   }  /* end of loop on samples */
-#if 0
+
   /******************************************************
    ******************************************************
    **
@@ -1168,7 +1206,7 @@ int main(int argc, char **argv) {
     aff_status_str = (char*)aff_version();
     fprintf(stdout, "# [piN2piN] using aff version %s\n", aff_status_str);
     
-    sprintf(filename, "%s.%.4d.aff", "piN_piN", Nconf );
+    sprintf(filename, "%s.%.4d.aff", "MB_MB", Nconf );
     fprintf(stdout, "# [piN2piN] writing data to file %s\n", filename);
     affw = aff_writer(filename);
     aff_status_str = (char*)aff_writer_errstr(affw);
@@ -1193,9 +1231,15 @@ int main(int argc, char **argv) {
   /* loop on base source locations */
   for(i_src = 0; i_src < g_source_location_number; i_src++) {
 
-    double **tffi_list, **pffii_list;
-    init_2level_buffer(&tffi_list, n_s*n_c, _GSI(VOLUME));
-    init_2level_buffer(&pffii_list, n_s*n_c, _GSI(VOLUME));
+    double **tffi_list=NULL, **pffii_list=NULL;
+    if( (exitstatus = init_2level_buffer(&tffi_list, n_s*n_c, _GSI(VOLUME)) ) != 0 ) {
+      fprintf(stderr, "[piN2piN] Error from init_2level_buffer, status was %d\n", exitstatus);
+      EXIT(50);
+    }
+    if( (exitstatus = init_2level_buffer(&pffii_list, n_s*n_c, _GSI(VOLUME)) ) != 0 ) {
+      fprintf(stderr, "[piN2piN] Error from init_2level_buffer, status was %d\n", exitstatus);
+      EXIT(51);
+    }
     int t_base = g_source_coords_list[i_src][0];
 
     /* loop on coherent source locations */
@@ -1219,7 +1263,7 @@ int main(int argc, char **argv) {
 
         /* loop on pf2 */
         for(iseq2_mom=0; iseq2_mom < g_seq2_source_momentum_number; iseq2_mom++) {
-          if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] seq2 inversion for pf2 = (%d, %d, %d)\n",
+          if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] pf2 = (%d, %d, %d)\n",
               g_seq2_source_momentum_list[iseq2_mom][0], g_seq2_source_momentum_list[iseq2_mom][1], g_seq2_source_momentum_list[iseq2_mom][2]);
 
           /* prepare the tffi propagator */
@@ -1234,16 +1278,15 @@ int main(int argc, char **argv) {
           /* contractions */
 
           ratime = _GET_TIME;
+
+          for(i=0; i<max_num_diagram; i++) { memset(conn_X[i][0][0], 0, 2*VOLUME*g_sv_dim*g_sv_dim*sizeof(double)); }
+
           exitstatus = contract_piN_piN (conn_X,
-              &(propagator_list_up[i_prop*n_s*n_c]), &(propagator_list_dn[i_prop*n_s*n_c]),
-              &(sequential_propagator_list[ (iseq_mom*g_source_location_number+i_src)*n_s*n_c ]),
+              &(propagator_list_up[i_prop*n_s*n_c]), &(propagator_list_dn[i_prop*n_s*n_c]), 
+              &(sequential_propagator_list[i_seq_prop*n_s*n_c]),
               tffi_list,
               pffii_list,
               num_component_piN_piN, gamma_component_piN_piN, gamma_component_sign_piN_piN);
-
-
-          exitstatus = contract_piN_piN (conn_X, &(propagator_list_up[i_prop*n_s*n_c]), &(propagator_list_dn[i_prop*n_s*n_c]), 
-              &(sequential_propagator_list[i_seq_prop*n_s*n_c]), tffi_list, pffii_list, num_component_piN_piN, gamma_component_piN_piN, gamma_component_sign_piN_piN);
 
           if(exitstatus != 0) {
             fprintf(stderr, "[piN2piN] Error from contract_piN_piN, status was %d\n", exitstatus);
@@ -1258,8 +1301,11 @@ int main(int argc, char **argv) {
             add_baryon_boundary_phase (conn_X[i], gsx[0], num_component_piN_piN);
 
             /* momentum projection */
-            double ****connt;
-            init_4level_buffer(&connt, T, g_sink_momentum_number, num_component_piN_piN*g_sv_dim, 2*g_sv_dim);
+            double ****connt=NULL;
+            if( (exitstatus = init_4level_buffer(&connt, T, g_sink_momentum_number, num_component_piN_piN*g_sv_dim, 2*g_sv_dim) ) != 0 ) {
+              fprintf(stderr, "[piN2piN] Error from init_4level_buffer, status was %d\n", exitstatus);
+              EXIT(52);
+            }
             for(it=0; it<T; it++) {
               exitstatus = momentum_projection2 (conn_X[i][it*VOL3*num_component_piN_piN][0], connt[it][0][0],
                   num_component_piN_piN*g_sv_dim*g_sv_dim, g_sink_momentum_number, g_sink_momentum_list, NULL );
@@ -1274,7 +1320,10 @@ int main(int argc, char **argv) {
             ratime = _GET_TIME;
 #ifdef HAVE_MPI
             if(io_proc>0) {
-              init_4level_buffer(&buffer, T_global, g_sink_momentum_number, num_component_piN_piN*g_sv_dim, 2*g_sv_dim);
+              if( (exitstatus = init_4level_buffer(&buffer, T_global, g_sink_momentum_number, num_component_piN_piN*g_sv_dim, 2*g_sv_dim) ) != 0 ) {
+                fprintf(stderr, "[piN2piN] Error from init_4level_buffer, status was %d\n", exitstatus);
+                EXIT(53);
+              }
               k = T * g_sink_momentum_number * num_component_piN_piN * g_sv_dim * g_sv_dim * 2;
               exitstatus = MPI_Allgather(connt[0][0][0], k, MPI_DOUBLE, buffer[0][0][0], k, MPI_DOUBLE, g_tr_comm);
               if(exitstatus != MPI_SUCCESS) {
@@ -1352,9 +1401,6 @@ int main(int argc, char **argv) {
   free( stochastic_source_list );
   free( stochastic_propagator_list[0] );
   free( stochastic_propagator_list );
-#endif
-
-#if 0
 
   /***********************************************
    ***********************************************
@@ -1409,7 +1455,10 @@ int main(int argc, char **argv) {
   for(isample=0; isample < g_nsample_oet; isample++) {
 
     double **pfifi_list = NULL;
-    init_2level_buffer(&pfifi_list, n_s*n_c, _GSI(VOLUME));
+    if( (exitstatus = init_2level_buffer(&pfifi_list, n_s*n_c, _GSI(VOLUME)) ) != 0 ) {
+      fprintf(stderr, "[piN2piN] Error from init_2level_buffer, status was %d\n", exitstatus);
+      EXIT(54);
+    }
 
     for(i_src=0; i_src < g_source_location_number; i_src++) {
       int t_base = g_source_coords_list[i_src][0];
@@ -1423,11 +1472,18 @@ int main(int argc, char **argv) {
         gsx[2] = ( g_source_coords_list[i_src][2] + (LY_global/2) * i_coherent ) % LY_global;
         gsx[3] = ( g_source_coords_list[i_src][3] + (LZ_global/2) * i_coherent ) % LZ_global;
 
-        exitstatus = init_timeslice_source_oet(stochastic_source_list, gsx[0], NULL, 1);
+        if( (exitstatus = init_timeslice_source_oet(stochastic_source_list, gsx[0], NULL, 1)) != 0 ) {
+          fprintf(stderr, "[piN2piN] Error from init_timeslice_source_oet, status was %d\n", exitstatus);
+          EXIT(63);
+        }
 
         /* zero-momentum propagator */
         for(i=0; i<4; i++) {
           memcpy(spinor_work[0], stochastic_source_list[i], sizeof_spinor_field);
+
+          /* source-smearing stochastic momentum source */
+          exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
+
           /* tm-rotate stochastic source */
           if( g_fermion_type == _TM_FERMION ) {
             spinor_field_tm_rotation ( spinor_work[0], spinor_work[0], -1, g_fermion_type, VOLUME);
@@ -1439,20 +1495,33 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
             EXIT(44);
           }
+
           /* tm-rotate stochastic propagator at sink */
           if( g_fermion_type == _TM_FERMION ) {
             spinor_field_tm_rotation(spinor_work[1], spinor_work[1], -1, g_fermion_type, VOLUME);
           }
+
+          /* sink smearing stochastic propagator */
+          exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
+
+
           memcpy( stochastic_propagator_list[i], spinor_work[1], sizeof_spinor_field_timeslice);
         }
 
         for(iseq_mom=0; iseq_mom < g_seq_source_momentum_number; iseq_mom++) {
 
-          exitstatus = init_timeslice_source_oet(stochastic_source_list, gsx[0], g_seq_source_momentum_list[iseq_mom], 0);
+          if( (exitstatus = init_timeslice_source_oet(stochastic_source_list, gsx[0], g_seq_source_momentum_list[iseq_mom], 0) ) != 0 ) {
+            fprintf(stderr, "[piN2piN] Error from init_timeslice_source_oet, status was %d\n", exitstatus);
+            EXIT(64);
+          }
 
           /* zero-momentum propagator */
           for(i=0; i<4; i++) {
             memcpy(spinor_work[0], stochastic_source_list[i], sizeof_spinor_field);
+
+            /* source-smearing stochastic momentum source */
+            exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
+
             /* tm-rotate stochastic source */
             if( g_fermion_type == _TM_FERMION ) {
               spinor_field_tm_rotation ( spinor_work[0], spinor_work[0], +1, g_fermion_type, VOLUME);
@@ -1464,101 +1533,119 @@ int main(int argc, char **argv) {
               fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
               EXIT(44);
             }
+
             /* tm-rotate stochastic propagator at sink */
             if( g_fermion_type == _TM_FERMION ) {
               spinor_field_tm_rotation(spinor_work[1], spinor_work[1], +1, g_fermion_type, VOLUME);
             }
+
+            /* sink smearing stochastic propagator */
+            exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
+
             memcpy( stochastic_propagator_list[4+i], spinor_work[1], sizeof_spinor_field_timeslice);
           }
 
-          /* prepare pfifi */
-          exitstatus = prepare_seqn_stochastic_vertex_propagator_sliced3d_oet (pfifi_list, stochastic_propagator_list, &(stochastic_propagator_list[4]),
-                  &(propagator_list_up[i_prop*n_s*n_c]), g_seq2_source_momentum_list[iseq_mom], 5, 5);
-          if( exitstatus != 0 ) {
-            fprintf(stderr, "[piN2piN] Error from prepare_seqn_stochastic_vertex_propagator_sliced3d_oet, status was %d\n", exitstatus);
-            EXIT(45);
-          }
+          for(iseq2_mom=0; iseq2_mom < g_seq2_source_momentum_number; iseq2_mom++) {
 
-          /* contract 4 oet diagrams */
-          exitstatus = contract_piN_piN_oet ( conn_X, &(propagator_list_up[i_prop*n_s*n_c]), &(propagator_list_dn[i_prop*n_s*n_c]), 
-              pfifi_list, num_component_piN_piN, gamma_component_piN_piN, gamma_component_sign_piN_piN);
-          if( exitstatus != 0 ) {
-            fprintf(stderr, "[piN2piN] Error from contract_piN_piN_oet, status was %d\n", exitstatus);
-            EXIT(46);
-          }
-
-          /* write to file etc. */
-          for(i=0; i<4; i++) {
-            /* phase from quark field boundary condition */
-            add_baryon_boundary_phase (conn_X[i], gsx[0], num_component_piN_piN);
-
-            /* momentum projection */
-            double ****connt;
-            init_4level_buffer(&connt, T, g_sink_momentum_number, num_component_piN_piN*g_sv_dim, 2*g_sv_dim);
-            for(it=0; it<T; it++) {
-              exitstatus = momentum_projection2 (conn_X[i][it*VOL3*num_component_piN_piN][0], connt[it][0][0],
-                  num_component_piN_piN*g_sv_dim*g_sv_dim, g_sink_momentum_number, g_sink_momentum_list, NULL );
+            /* prepare pfifi */
+            exitstatus = prepare_seqn_stochastic_vertex_propagator_sliced3d_oet (pfifi_list, stochastic_propagator_list, &(stochastic_propagator_list[4]),
+                    &(propagator_list_up[i_prop*n_s*n_c]), g_seq2_source_momentum_list[iseq2_mom], 5, 5);
+            if( exitstatus != 0 ) {
+              fprintf(stderr, "[piN2piN] Error from prepare_seqn_stochastic_vertex_propagator_sliced3d_oet, status was %d\n", exitstatus);
+              EXIT(45);
             }
-            /* add complex phase from source location and source momentum
-             *   assumes momentum conservation 
-             */
-            add_source_phase (connt, g_seq_source_momentum_list[iseq_mom], g_seq2_source_momentum_list[iseq2_mom], &(gsx[1]), num_component_piN_piN);
 
-            /* write to file */
-       
-            ratime = _GET_TIME;
-#ifdef HAVE_MPI
-            if(io_proc>0) {
-              init_4level_buffer(&buffer, T_global, g_sink_momentum_number, num_component_piN_piN*g_sv_dim, 2*g_sv_dim);
-              k = T * g_sink_momentum_number * num_component_piN_piN * g_sv_dim * g_sv_dim * 2;
-              exitstatus = MPI_Allgather(connt[0][0][0], k, MPI_DOUBLE, buffer[0][0][0], k, MPI_DOUBLE, g_tr_comm);
-              if(exitstatus != MPI_SUCCESS) {
-                fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d\n", exitstatus);
-                EXIT(124);
+            /* contract 4 oet diagrams */
+
+            for(i=0; i<max_num_diagram; i++) { memset(conn_X[i][0][0], 0, 2*VOLUME*g_sv_dim*g_sv_dim*sizeof(double)); }
+
+            exitstatus = contract_piN_piN_oet ( conn_X, &(propagator_list_up[i_prop*n_s*n_c]), &(propagator_list_dn[i_prop*n_s*n_c]), 
+                pfifi_list, num_component_piN_piN, gamma_component_piN_piN, gamma_component_sign_piN_piN);
+            if( exitstatus != 0 ) {
+              fprintf(stderr, "[piN2piN] Error from contract_piN_piN_oet, status was %d\n", exitstatus);
+              EXIT(46);
+            }
+  
+            /* write to file etc. */
+            for(i=0; i<4; i++) {
+              /* phase from quark field boundary condition */
+              add_baryon_boundary_phase (conn_X[i], gsx[0], num_component_piN_piN);
+  
+              /* momentum projection */
+              double ****connt = NULL;
+              if( (exitstatus = init_4level_buffer(&connt, T, g_sink_momentum_number, num_component_piN_piN*g_sv_dim, 2*g_sv_dim) ) != 0 ) {
+                fprintf(stderr, "[piN2piN] Error from init_4level_buffer, status was %d\n", exitstatus);
+                EXIT(55);
               }
-            }
-#else
-            buffer = connt;
-#endif
-    
-            if(io_proc == 2) {
-#ifdef HAVE_LHPC_AFF
-              for(k=0; k<g_sink_momentum_number; k++) {
+  
+              for(it=0; it<T; it++) {
+                exitstatus = momentum_projection2 (conn_X[i][it*VOL3*num_component_piN_piN][0], connt[it][0][0],
+                    num_component_piN_piN*g_sv_dim*g_sv_dim, g_sink_momentum_number, g_sink_momentum_list, NULL );
+              }
+              /* add complex phase from source location and source momentum
+               *   assumes momentum conservation 
+               */
+              add_source_phase (connt, g_seq_source_momentum_list[iseq_mom], g_seq2_source_momentum_list[iseq2_mom], &(gsx[1]), num_component_piN_piN);
+  
+              /* write to file */
+         
+              ratime = _GET_TIME;
+  #ifdef HAVE_MPI
+              if(io_proc>0) {
+                if( (exitstatus = init_4level_buffer(&buffer, T_global, g_sink_momentum_number, num_component_piN_piN*g_sv_dim, 2*g_sv_dim) ) != 0 ) {
+                  fprintf(stderr, "[piN2piN] Error from init_4level_buffer, status was %d\n", exitstatus);
+                  EXIT(56);
+                }
+                k = T * g_sink_momentum_number * num_component_piN_piN * g_sv_dim * g_sv_dim * 2;
+                exitstatus = MPI_Allgather(connt[0][0][0], k, MPI_DOUBLE, buffer[0][0][0], k, MPI_DOUBLE, g_tr_comm);
+                if(exitstatus != MPI_SUCCESS) {
+                  fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d\n", exitstatus);
+                  EXIT(124);
+                }
+              }
+  #else
+              buffer = connt;
+  #endif
+      
+              if(io_proc == 2) {
+  #ifdef HAVE_LHPC_AFF
+                for(k=0; k<g_sink_momentum_number; k++) {
+  
+                  for(icomp=0; icomp<num_component_piN_piN; icomp++) {
+  
+                    sprintf(aff_buffer_path, "/%s/sample%d/diag%d/pi2x%.2dpi2y%.2dpi2z%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d",
+                        "pixN-pixN", isample, i,
+                        g_seq_source_momentum_list[iseq_mom][0],   g_seq_source_momentum_list[iseq_mom][1],   g_seq_source_momentum_list[iseq_mom][2],
+                        g_sink_momentum_list[k][0],                g_sink_momentum_list[k][1],                g_sink_momentum_list[k][2],
+                        g_seq2_source_momentum_list[iseq2_mom][0], g_seq2_source_momentum_list[iseq2_mom][1], g_seq2_source_momentum_list[iseq2_mom][2],
+                        gsx[0], gsx[1], gsx[2], gsx[3],
+                        gamma_component_piN_piN[icomp][0], gamma_component_piN_piN[icomp][1]);
+  
+                    fprintf(stdout, "# [piN2piN] current aff path = %s\n", aff_buffer_path);
+  
+                    affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
+                    for(it=0; it<T_global; it++) {
+                      ir = ( it - gsx[0] + T_global ) % T_global;
+                      memcpy(aff_buffer + ir*g_sv_dim*g_sv_dim,  buffer[it][k][icomp*g_sv_dim] , g_sv_dim*g_sv_dim*sizeof(double _Complex) );
+                    }
+                    int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
+                    if(status != 0) {
+                      fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d\n", status);
+                      EXIT(8);
+                    }
+                  }  /* end of loop on components */
+                }  /* end of loop on sink momenta */
+  #endif
+              }  /* end of if io_proc == 2 */
+      
+  #ifdef HAVE_MPI
+              if(io_proc > 0) { fini_4level_buffer(&buffer); }
+  #endif
+  
+              fini_4level_buffer(&connt);
+            }  /* end of loop on diagrams */
 
-                for(icomp=0; icomp<num_component_piN_piN; icomp++) {
-
-                  sprintf(aff_buffer_path, "/%s/sample%d/diag%d/pi2x%.2dpi2y%.2dpi2z%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d",
-                      "pixN-pixN", isample, i,
-                      g_seq_source_momentum_list[iseq_mom][0],   g_seq_source_momentum_list[iseq_mom][1],   g_seq_source_momentum_list[iseq_mom][2],
-                      g_sink_momentum_list[k][0],                g_sink_momentum_list[k][1],                g_sink_momentum_list[k][2],
-                      g_seq2_source_momentum_list[iseq2_mom][0], g_seq2_source_momentum_list[iseq2_mom][1], g_seq2_source_momentum_list[iseq2_mom][2],
-                      gsx[0], gsx[1], gsx[2], gsx[3],
-                      gamma_component_piN_piN[icomp][0], gamma_component_piN_piN[icomp][1]);
-
-                  fprintf(stdout, "# [piN2piN] current aff path = %s\n", aff_buffer_path);
-
-                  affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
-                  for(it=0; it<T_global; it++) {
-                    ir = ( it - gsx[0] + T_global ) % T_global;
-                    memcpy(aff_buffer + ir*g_sv_dim*g_sv_dim,  buffer[it][k][icomp*g_sv_dim] , g_sv_dim*g_sv_dim*sizeof(double _Complex) );
-                  }
-                  int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
-                  if(status != 0) {
-                    fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d\n", status);
-                    EXIT(8);
-                  }
-                }  /* end of loop on components */
-              }  /* end of loop on sink momenta */
-#endif
-            }  /* end of if io_proc == 2 */
-    
-#ifdef HAVE_MPI
-            if(io_proc > 0) { fini_4level_buffer(&buffer); }
-#endif
-
-            fini_4level_buffer(&connt);
-          }  /* end of loop on diagrams */
-
+          }  /* end of loop on seq2 source momentum pf2 */
         }  /* end of loop on sequential source momenta pi2 */
       }  /* end of loop on coherent sources */
     }  /* end of loop on base sources */
@@ -1577,7 +1664,7 @@ int main(int argc, char **argv) {
   }  /* end of if io_proc == 2 */
 #endif  /* of ifdef HAVE_LHPC_AFF */
 
-#endif
+
 
   /***********************************************
    * free gauge fields and spinor fields
@@ -1588,6 +1675,7 @@ int main(int argc, char **argv) {
     g_gauge_field=(double*)NULL;
   }
 #endif
+
 
   free(propagator_list_up[0]);
   free(propagator_list_up);
@@ -1607,10 +1695,10 @@ int main(int argc, char **argv) {
    * free the allocated memory, finalize
    ***********************************************/
   free_geometry();
-  for(i=0; i<max_num_diagram; i++) { free_sp_field(&conn_X[i]); }
+  for(i=0; i<max_num_diagram; i++) { free_sp_field( &(conn_X[i]) ); }
   free(conn_X);
 
-  if( N_ape > 0 ) {
+  if( N_Jacobi > 0 && N_ape > 0 ) {
     if( gauge_field_smeared != NULL ) free(gauge_field_smeared);
   }
 #ifdef HAVE_TMLQCD_LIBWRAPPER

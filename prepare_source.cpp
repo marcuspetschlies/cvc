@@ -692,25 +692,42 @@ int init_coherent_sequential_source(double *s, double **p, int tseq, int ncoh, i
 int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init) {
   const unsigned int sf_items = _GSI(VOLUME);
   const size_t       sf_bytes = sf_items * sizeof(double);
-  const int          have_source = tsrc / T == g_proc_coords[0] ? 1 : 0;
+  const int          have_source = ( tsrc / T == g_proc_coords[0] ) ? 1 : 0;
   const unsigned int VOL3 = LX*LY*LZ;
 
   int c;
   unsigned int ix, iix, x1, x2, x3;
   int i, id;
   static double *ran = NULL;
+  double ratime, retime;
   
+  ratime = _GET_TIME;
+
   if(init > 0) {
-    if(ran != NULL) free(ran);
+    if(ran != NULL) {
+      free(ran);
+      ran = NULL;
+    }
   
     if(have_source) {
+      fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d = (%d, %d, %d, %d) allocates random field\n", g_cart_id,
+          g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3]);
       ran = (double*)malloc(6*VOL3*sizeof(double));
       if(ran == NULL) {
         fprintf(stderr, "[init_timeslice_source_oet] Error from malloc\n");
         return(1);
       }
     }
-  }
+  } else {
+    if( have_source ) {
+      if( ran == NULL ) {
+        fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d Error, illegal call to function init_timeslice_source_oet with init = 0, random field is not initialized\n", g_cart_id);
+        fflush(stdout);
+        fprintf(stderr, "[init_timeslice_source_oet] proc%.4d Error, illegal call to function init_timeslice_source_oet with init = 0, random field is not initialized\n", g_cart_id);
+        return(2);
+      }
+    }
+  }  /* end of if init > 0 */
 
   /* initialize spinor fields to zero */
   memset(s[0], 0, sf_bytes);
@@ -720,7 +737,7 @@ int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init) {
 
   if(have_source) {
     if(init > 0) {
-      fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d drawing random vector\n");
+      fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d drawing random vector\n", g_cart_id);
 
       switch(g_noise_type) {
         case 1:
@@ -731,7 +748,7 @@ int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init) {
           break;
       }
     } else {
-      fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d using existing random vector\n");
+      fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d using existing random vector\n", g_cart_id);
     }
 
     const int timeslice = tsrc % T;  /*local timeslice */
@@ -806,8 +823,17 @@ int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init) {
   }  /* end of if have source */
 
   if(init == 2) free(ran);
+
+  retime = _GET_TIME;
+
+  if(g_cart_id == 0) {
+    fprintf(stdout, "# [init_timeslice_source_oet] time for init_timeslice_source_oet = %e seconds\n", retime-ratime);
+    fflush(stdout);
+  }
+
+
   return(0);
-}  /* end of init_timeslice_source_one_end */
+}  /* end of init_timeslice_source_oet */
 
 
 }  /* end of namespace cvc */

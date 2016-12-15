@@ -203,7 +203,9 @@ int prepare_seqn_stochastic_vertex_propagator_sliced3d (double**seq_prop, double
   double _Complex BLAS_ALPHA, BLAS_BETA;
   double _Complex *BLAS_A = NULL, *BLAS_B = NULL, *BLAS_C = NULL;
   double _Complex *prop_aux=NULL, *stoch_aux=NULL;
+  double ratime, retime;
 
+  ratime = _GET_TIME;
 
   double *phase = (double*)malloc(2*VOL3*sizeof(double)) ;
   if( phase == NULL ) {
@@ -326,6 +328,8 @@ int prepare_seqn_stochastic_vertex_propagator_sliced3d (double**seq_prop, double
   free(stoch_aux);
   free(p);
 
+  retime = _GET_TIME;
+  if(g_cart_id == 0) fprintf(stdout, "[prepare_seqn_stochastic_vertex_propagator_sliced3d] time for prepare_seqn_stochastic_vertex_propagator_sliced3d = %e seconds\n", retime-ratime);
   return(0);
 }  /* prepare_seqn_stochastic_vertex_propagator_sliced3d */
 
@@ -379,7 +383,9 @@ int prepare_seqn_stochastic_vertex_propagator_sliced3d_oet (double**seq_prop, do
   double _Complex BLAS_ALPHA, BLAS_BETA;
   double _Complex *BLAS_A = NULL, *BLAS_B = NULL, *BLAS_C = NULL;
   double _Complex *prop_aux=NULL, *stoch_aux=NULL;
+  double ratime, retime;
 
+  ratime = _GET_TIME;
 
   double *phase = (double*)malloc(2*VOL3*sizeof(double)) ;
   if( phase == NULL ) {
@@ -532,6 +538,9 @@ int prepare_seqn_stochastic_vertex_propagator_sliced3d_oet (double**seq_prop, do
   free(prop_aux);
   free(stoch_aux);
   free(p);
+
+  retime = _GET_TIME;
+  if(g_cart_id == 0) fprintf(stdout, "[prepare_seqn_stochastic_vertex_propagator_sliced3d_oet] time for prepare_seqn_stochastic_vertex_propagator_sliced3d_oet = %e seconds\n", retime-ratime);
 
   return(0);
 }  /* end of prepare_seqn_stochastic_vertex_propagator_sliced3d_oet */
