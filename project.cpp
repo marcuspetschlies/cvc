@@ -543,7 +543,7 @@ void make_lexic_phase_field_3d (double*phase, int *momentum) {
 
   ratime = _GET_TIME;
 #ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) shared(phase_e, phase_o)
+#pragma omp parallel default(shared) shared(phase)
 {
 #endif
   unsigned int ix;

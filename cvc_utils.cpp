@@ -5576,7 +5576,7 @@ void spinor_field_eq_spinor_field_ti_complex_field (double*r, double*s, double *
   double sp1[_GSI(1)];
 
 #ifdef HAVE_OPENMP
-#pragma omp for private
+#pragma omp for
 #endif
   for(ix = 0; ix < N; ix++) {
     offset = _GSI(ix);

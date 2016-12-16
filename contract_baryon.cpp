@@ -235,7 +235,7 @@ int contract_piN_piN (spinor_propagator_type **res, double**uprop_list, double**
 
       free_sp(&sp1);
 
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
 }
 #endif
       retime = _GET_TIME;
@@ -280,7 +280,7 @@ int contract_piN_piN_oet (spinor_propagator_type **res, double**uprop_list, doub
    ******************************************************/
   ratime = _GET_TIME;
 #ifdef HAVE_OPENMP
-#pragma omp parallel private shared(res)
+#pragma omp parallel shared(res)
 {
 #endif
   unsigned int ix, iix;
@@ -403,7 +403,7 @@ int contract_piN_piN_oet (spinor_propagator_type **res, double**uprop_list, doub
 
       free_sp(&sp1);
 
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
 }
 #endif
       retime = _GET_TIME;

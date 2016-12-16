@@ -926,7 +926,7 @@ int main(int argc, char **argv) {
       free_sp(&sp1);
       free_sp(&sp2);
 
-#ifdef OPENMP
+#ifdef HAVE_OPENMP
 }
 #endif
       retime = _GET_TIME;

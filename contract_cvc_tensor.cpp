@@ -395,6 +395,7 @@ void contract_cvc_tensor(double *conn, double *contact_term, double*fwd_list[5][
   
         /* contribution to contact term */
         if(source_proc_id == g_cart_id) {
+          double spinor1[24], spinor2[24];
           _fv_eq_cm_ti_fv(spinor1, Usource[nu], phi+_GSI(g_iup[source_location][nu]));
           _fv_eq_gamma_ti_fv(spinor2, nu, spinor1);
           _fv_mi_eq_fv(spinor2, spinor1);
@@ -580,6 +581,7 @@ void contract_cvc_tensor(double *conn, double *contact_term, double*fwd_list[5][
   
         /* contribution to contact term */
         if(source_proc_id == g_cart_id)  {
+          double spinor1[24], spinor2[24];
           _fv_eq_cm_dag_ti_fv(spinor1, Usource[nu], phi+_GSI(source_location));
           _fv_eq_gamma_ti_fv(spinor2, nu, spinor1);
           _fv_pl_eq_fv(spinor2, spinor1);
@@ -1066,7 +1068,7 @@ void contract_m_loop (double*conn, double**field_list, int field_number, int *gi
         complex *zconn_ = (complex*)(conn + 2* ( ig * momentum_number + imom ) * T);
         double q_phase;
 #ifdef HAVE_OPENMP
-#pragma omp for firstprivate(conn_)
+#pragma omp for
 #endif
         for(ix=0; ix<Vhalf; ix++) {
           q_phase = q_offset + q[0] * eo2lexic_coords[ix].x[1] + q[1] * eo2lexic_coords[ix].x[2] + q[2] * eo2lexic_coords[ix].x[3];
@@ -1076,7 +1078,7 @@ void contract_m_loop (double*conn, double**field_list, int field_number, int *gi
           _co_pl_eq_co_ti_co( zconn_+x0 , (complex*)(buffer+2*ix), &w1 );
         }
 #ifdef HAVE_OPENMP
-#pragma omp for firstprivate(conn_)
+#pragma omp for
 #endif
         for(ix=Vhalf; ix<VOLUME; ix++) {
           q_phase = q_offset + q[0] * eo2lexic_coords[ix].x[1] + q[1] * eo2lexic_coords[ix].x[2] + q[2] * eo2lexic_coords[ix].x[3];
@@ -1242,7 +1244,7 @@ void contract_cvc_loop (double*conn, double**field_list, int field_number, int *
         complex *zconn_ = (complex*)(conn + 2* ( mu * momentum_number + imom ) * T);
         double q_phase;
 #ifdef HAVE_OPENMP
-#pragma omp for firstprivate(conn_)
+#pragma omp for
 #endif
         for(ix=0; ix<VOLUME; ix++) {
           q_phase = q_offset + q[0] * lexic_coords[ix].x[1] + q[1] * lexic_coords[ix].x[2] + q[2] * lexic_coords[ix].x[3];
