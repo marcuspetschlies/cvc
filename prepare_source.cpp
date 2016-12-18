@@ -227,7 +227,7 @@ int check_vvdagger_locality (double** V, int numV, int base_coords[4], char*tag,
   const size_t sizeof_field = _GSI(N) * sizeof(double);
 
   unsigned int ix;
-  int i, k, ia, iproc, isrc, ishift[4];
+  int i, k, ia, isrc, ishift[4];
   int gcoords[4], lcoords[4], source_proc_id=0, source_proc_coords[4];
   int exitstatus;
   double norm[12];
@@ -340,23 +340,21 @@ int check_vvdagger_locality (double** V, int numV, int base_coords[4], char*tag,
       }
     }
   
-    sprintf(filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d", tag, numV, gcoords[0], gcoords[1], gcoords[2], gcoords[3]);
-    for(iproc = 0; iproc < g_nproc; iproc++) {
-      if(g_cart_id == iproc ) {
-        ofs = (iproc == 0) ?  fopen(filename, "w") : fopen(filename, "a");
-  
-        for(i=0; i<xid_nc; i++) {
-  
-          for(ia=0; ia<12; ia++) {
-            fprintf(ofs, "%6d %16.7e %6u %3d %25.16e\n", i, xid_val[i], xid_count[i], ia, buffer[ia][2*i] );
-          }
-        }
-        fclose(ofs);
-      }
-#ifdef HAVE_MPI
-      MPI_Barrier(g_cart_grid);
-#endif
+    sprintf(filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.proc%.4d", tag, numV, gcoords[0], gcoords[1], gcoords[2], gcoords[3], g_cart_id);
+    ofs = fopen(filename, "w");
+    if( ofs == NULL ) {
+      fprintf(stderr, "[check_vvdagger_locality] Error from fopen\n");
+      EXIT(2);
     }
+    for(i=0; i<xid_nc; i++) {
+      for(ia=0; ia<12; ia++) {
+        fprintf(ofs, "%6d %16.7e %6u %3d %25.16e\n", i, xid_val[i], xid_count[i], ia, buffer[ia][2*i] );
+      }
+    }
+    fclose(ofs);
+#ifdef HAVE_MPI
+    MPI_Barrier(g_cart_grid);
+#endif
     fini_2level_buffer(&buffer);
 
     fini_x_orbits_4d(&xid, &xid_count, &xid_val, &xid_member);
