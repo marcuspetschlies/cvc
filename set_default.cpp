@@ -168,7 +168,8 @@ void set_default_input_values(void) {
   g_write_sequential_source = _default_write_sequential_source;
   g_write_sequential_propagator = _default_write_sequential_propagator;
 
-  g_nsample = _default_nsample;
+  g_nsample     = _default_nsample;
+  g_nsample_oet = _default_nsample_oet;
   g_sv_dim = 4;
   g_cv_dim = 3;
 
@@ -194,6 +195,12 @@ void set_default_input_values(void) {
   g_seq_source_momentum[2] = _default_seq_source_momentum_z;
   g_seq_source_momentum_set = _default_seq_source_momentum_set;
   g_seq_source_momentum_number = _default_seq_source_momentum_number;
+
+  g_seq2_source_momentum[0]     = _default_seq_source_momentum_x;
+  g_seq2_source_momentum[1]     = _default_seq_source_momentum_y;
+  g_seq2_source_momentum[2]     = _default_seq_source_momentum_z;
+  g_seq2_source_momentum_set    = _default_seq_source_momentum_set;
+  g_seq2_source_momentum_number = _default_seq_source_momentum_number;
 
   g_rng_state = _default_rng_state;
 
@@ -278,6 +285,8 @@ void set_default_input_values(void) {
 
   g_fermion_type = _default_fermion_type;
   g_source_location_number = _default_source_location_number;
+
+  g_coherent_source_number = _default_coherent_source_number;
 
 }  /* end of set_default_input_values */
 

@@ -419,10 +419,16 @@ int main(int argc, char **argv) {
   }
 #endif
 
-
   /***********************************************
    * stochastic propagators
    ***********************************************/
+
+  exitstatus = init_rng_stat_file (g_seed, NULL);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[p2gg] Error from init_rng_stat_file status was %d\n", exitstatus);
+    EXIT(38);
+  }
+
   /* make a source */
   exitstatus = prepare_volume_source(eo_sample_block, g_nsample*VOLUME/2);
   if(exitstatus != 0) {
@@ -823,7 +829,7 @@ int main(int argc, char **argv) {
 #endif
           if(io_proc == 2) {
             for(i=0; i<g_sink_momentum_number; i++) {
-              sprintf(aff_buffer_path, "/PJJ/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/px%.2dpy%.2dpz%.2d", 
+              sprintf(aff_buffer_path, "/lm/PJJ/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/px%.2dpy%.2dpz%.2d", 
                   gsx[0], gsx[1], gsx[2], gsx[3],
                   g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2],
                   g_sequential_source_gamma_id, g_sequential_source_timeslice, 
@@ -841,53 +847,10 @@ int main(int argc, char **argv) {
 
           retime = _GET_TIME;
           if(g_cart_id==0) fprintf(stdout, "# [p2gg] time for saving momentum space results = %e seconds\n", retime-ratime);
-
-          /********************************************
-           * check the Ward identity in position space 
-           ********************************************/
+          
           if(check_position_space_WI) {
-            ratime = _GET_TIME;
-            double *conn_buffer = (double*)malloc(32*(VOLUME+RAND)*sizeof(double));
-            if(conn_buffer == NULL)  {
-              fprintf(stderr, "# [p2gg] Error from malloc\n");
-              EXIT(30);
-            }
-            memcpy(conn_buffer, cvc_tensor[0], 32*VOLUME*sizeof(double));
-            xchange_contraction(conn_buffer, 32);
-            if(g_cart_id == 0) fprintf(stdout, "# [p2gg] checking Ward identity in position space\n");
-            for(nu=0; nu<4; nu++) {
-              double norm = 0.;
-              complex w;
-              for(x0=0; x0<T;  x0++) {
-              for(x1=0; x1<LX; x1++) {
-              for(x2=0; x2<LY; x2++) {
-              for(x3=0; x3<LZ; x3++) {
-                ix=g_ipt[x0][x1][x2][x3];
-                w.re = conn_buffer[_GWI(4*0+nu,ix          ,VOLUME)  ] + conn_buffer[_GWI(4*1+nu,ix          ,VOLUME)  ]
-                     + conn_buffer[_GWI(4*2+nu,ix          ,VOLUME)  ] + conn_buffer[_GWI(4*3+nu,ix          ,VOLUME)  ]
-                     - conn_buffer[_GWI(4*0+nu,g_idn[ix][0],VOLUME)  ] - conn_buffer[_GWI(4*1+nu,g_idn[ix][1],VOLUME)  ]
-                     - conn_buffer[_GWI(4*2+nu,g_idn[ix][2],VOLUME)  ] - conn_buffer[_GWI(4*3+nu,g_idn[ix][3],VOLUME)  ];
-
-                w.im = conn_buffer[_GWI(4*0+nu,ix          ,VOLUME)+1] + conn_buffer[_GWI(4*1+nu,ix          ,VOLUME)+1]
-                     + conn_buffer[_GWI(4*2+nu,ix          ,VOLUME)+1] + conn_buffer[_GWI(4*3+nu,ix          ,VOLUME)+1]
-                     - conn_buffer[_GWI(4*0+nu,g_idn[ix][0],VOLUME)+1] - conn_buffer[_GWI(4*1+nu,g_idn[ix][1],VOLUME)+1]
-                     - conn_buffer[_GWI(4*2+nu,g_idn[ix][2],VOLUME)+1] - conn_buffer[_GWI(4*3+nu,g_idn[ix][3],VOLUME)+1];
-      
-                norm += w.re*w.re + w.im*w.im;
-              }}}}
-#ifdef HAVE_MPI
-              double dtmp = norm;
-              exitstatus = MPI_Allreduce(&dtmp, &norm, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid);
-              if(exitstatus != MPI_SUCCESS) {
-                fprintf(stderr, "[p2gg] Error from MPI_Allreduce, status was %d\n", exitstatus);
-                EXIT(31);
-              }
-#endif
-              if(g_cart_id == 0) fprintf(stdout, "# [p2gg] WI nu = %2d norm = %25.16e\n", nu, norm);
-            }  /* end of loop on nu */
-            retime = _GET_TIME;
-            if(g_cart_id==0) fprintf(stdout, "# [p2gg] time for saving momentum space results = %e seconds\n", retime-ratime);
-          }  /* end of if check_position_space_WI */
+            exitstatus = check_cvc_wi_position_space (cvc_tensor[0]);
+          }
 
           free(cvc_tensor[0]);
         }  /* end of loop on sequential gamma id */

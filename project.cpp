@@ -403,7 +403,7 @@ int momentum_projection (double*V, double *W, unsigned int nv, int momentum_numb
     for(x3=0; x3<LZ; x3++) {
       ix = g_ipt[0][x1][x2][x3];
       q_phase = x1*q[0] + x2*q[1] + x3*q[2] + q_offset;
-      zphase[i][ix] = cos(q_phase) - I*sin(q_phase);
+      zphase[i][ix] = cos(q_phase) + I*sin(q_phase);
     }}}
   }
 
@@ -487,7 +487,7 @@ int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_num
     for(x3=0; x3<LZ; x3++) {
       ix = g_ipt[0][x1][x2][x3];
       q_phase = x1*q[0] + x2*q[1] + x3*q[2] + q_offset;
-      zphase[i][ix] = cos(q_phase) - I*sin(q_phase);
+      zphase[i][ix] = cos(q_phase) + I*sin(q_phase);
     }}}
   }
 
@@ -524,5 +524,217 @@ int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_num
 
   return(0);
 }  /* end of momentum_projection2 */
+
+
+/*************************************************************************
+ * 3d momentum phase field in lexicographic ordering
+ *************************************************************************/
+void make_lexic_phase_field_3d (double*phase, int *momentum) {
+
+  const double TWO_MPI = 2. * M_PI;
+  const double p[3] = { TWO_MPI * momentum[0] / (double)LX_global, TWO_MPI * momentum[1] / (double)LY_global, TWO_MPI * momentum[2] / (double)LZ_global };
+  const double phase_part = (g_proc_coords[1]*LX) * p[0] + (g_proc_coords[2]*LY) * p[1] + (g_proc_coords[3]*LZ) * p[2];
+
+  double ratime, retime;
+
+  if(g_cart_id == 0) {
+    fprintf(stdout, "# [make_lexic_phase_field_3d] using phase momentum = (%d, %d, %d)\n", momentum[0], momentum[1], momentum[2]);
+  }
+
+  ratime = _GET_TIME;
+#ifdef HAVE_OPENMP
+#pragma omp parallel default(shared) shared(phase)
+{
+#endif
+  unsigned int ix;
+  int x1, x2, x3;
+  double dtmp;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  /* make phase field in lexic ordering */
+
+  for(x1=0; x1<LX; x1++) {
+  for(x2=0; x2<LY; x2++) {
+  for(x3=0; x3<LZ; x3++) {
+    ix  = g_ipt[0][x1][x2][x3];
+    dtmp = phase_part + x1 * p[0] + x2 * p[1] + x3 * p[2];
+    phase[2*ix  ] = cos(dtmp);
+    phase[2*ix+1] = sin(dtmp);
+  }}}
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+  retime = _GET_TIME;
+  if(g_cart_id == 0) fprintf(stdout, "# [make_lexic_phase_field_3d] time for making lexic phase field = %e seconds\n", retime-ratime);
+}  /* end of make_lexic_phase_field_3d */
+
+/*************************************************************************
+ * momentum phase field separated in even and odd part
+ *************************************************************************/
+void make_eo_phase_field (double*phase_e, double*phase_o, int *momentum) {
+
+  const double TWO_MPI = 2. * M_PI;
+  const double p[3] = { TWO_MPI * momentum[0] / (double)LX_global, TWO_MPI * momentum[1] / (double)LY_global, TWO_MPI * momentum[2] / (double)LZ_global };
+  const double phase_part = (g_proc_coords[1]*LX) * p[0] + (g_proc_coords[2]*LY) * p[1] + (g_proc_coords[3]*LZ) * p[2];
+
+  double ratime, retime;
+
+  if(g_cart_id == 0) {
+    fprintf(stdout, "# [make_eo_phase_field] using phase momentum = (%d, %d, %d)\n", momentum[0], momentum[1], momentum[2]);
+  }
+
+  ratime = _GET_TIME;
+#ifdef HAVE_OPENMP
+#pragma omp parallel default(shared) shared(phase_e, phase_o)
+{
+#endif
+  unsigned int ix, iix;
+  int x0, x1, x2, x3;
+  double dtmp;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  /* make phase field in eo ordering */
+  for(x0 = 0; x0<T; x0++) {
+    for(x1=0; x1<LX; x1++) {
+    for(x2=0; x2<LY; x2++) {
+    for(x3=0; x3<LZ; x3++) {
+      ix  = g_ipt[x0][x1][x2][x3];
+      iix = g_lexic2eosub[ix];
+      dtmp = phase_part + x1 * p[0] + x2 * p[1] + x3 * p[2];
+      if(g_iseven[ix]) {
+        phase_e[2*iix  ] = cos(dtmp);
+        phase_e[2*iix+1] = sin(dtmp);
+      } else {
+        phase_o[2*iix  ] = cos(dtmp);
+        phase_o[2*iix+1] = sin(dtmp);
+      }
+    }}}
+  }
+
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+
+  retime = _GET_TIME;
+  if(g_cart_id == 0) fprintf(stdout, "# [make_eo_phase_field] time for making eo phase field = %e seconds\n", retime-ratime);
+}  /* end of make_eo_phase_field */
+
+
+/***********************************************
+ * phase field on odd sublattice in sliced 3d
+ * ordering (which I think is the same as odd
+ * ordering)
+ ***********************************************/
+void make_o_phase_field_sliced3d (double _Complex**phase, int *momentum) {
+
+  const double TWO_MPI = 2. * M_PI;
+  const double p[3] = { TWO_MPI * momentum[0] / (double)LX_global, TWO_MPI * momentum[1] / (double)LY_global, TWO_MPI * momentum[2] / (double)LZ_global };
+  const double phase_part = (g_proc_coords[1]*LX) * p[0] + (g_proc_coords[2]*LY) * p[1] + (g_proc_coords[3]*LZ) * p[2];
+
+  double ratime, retime;
+
+  if(g_cart_id == 0) {
+    fprintf(stdout, "# [make_o_phase_field_sliced3d] using phase momentum = (%d, %d, %d)\n", momentum[0], momentum[1], momentum[2]);
+  }
+
+  ratime = _GET_TIME;
+#ifdef HAVE_OPENMP
+#pragma omp parallel default(shared) shared(phase, momentum)
+{
+#endif
+
+  unsigned int ix, iix;
+  int x0, x1, x2, x3;
+  double _Complex dtmp;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  /* make phase field in o ordering */
+  for(x0 = 0; x0<T; x0 ++) {
+    for(x1=0; x1<LX; x1++) {
+    for(x2=0; x2<LY; x2++) {
+    for(x3=0; x3<LZ; x3++) {
+      ix  = g_ipt[x0][x1][x2][x3];
+      iix = g_eosub2sliced3d[1][g_lexic2eosub[ix] ];
+      dtmp = ( phase_part + x1*p[0] + x2*p[1] + x3*p[2] ) * I; 
+      if(!g_iseven[ix]) {
+        phase[x0][iix] = cexp(dtmp);
+      }
+    }}}
+  }
+
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+  retime = _GET_TIME;
+  if(g_cart_id == 0) fprintf(stdout, "# [make_o_phase_field_sliced3d] time for making eo phase field = %e seconds\n", retime-ratime);
+}  /* end of make_o_phase_field_sliced3d */
+
+/***********************************************
+ * phase field on even/odd sublattice in sliced 3d
+ * ordering (which I think is the same as odd
+ * ordering)
+ * eo - even 0 / odd 1
+ ***********************************************/
+void make_eo_phase_field_sliced3d (double _Complex**phase, int *momentum, int eo) {
+
+  const double TWO_MPI = 2. * M_PI;
+  const int eo_iseven = (int)(eo == 0);
+  const double p[3] = { TWO_MPI * momentum[0] / (double)LX_global, TWO_MPI * momentum[1] / (double)LY_global, TWO_MPI * momentum[2] / (double)LZ_global };
+  const double phase_part = (g_proc_coords[1]*LX) * p[0] + (g_proc_coords[2]*LY) * p[1] + (g_proc_coords[3]*LZ) * p[2];
+
+  double ratime, retime;
+
+  if(g_cart_id == 0) {
+    fprintf(stdout, "# [make_o_phase_field_sliced3d] using phase momentum = (%d, %d, %d)\n", momentum[0], momentum[1], momentum[2]);
+  }
+
+  ratime = _GET_TIME;
+#ifdef HAVE_OPENMP
+#pragma omp parallel default(shared) shared(phase, momentum)
+{
+#endif
+
+  unsigned int ix, iix;
+  int x0, x1, x2, x3;
+  double _Complex dtmp;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  /* make phase field in o ordering */
+  for(x0 = 0; x0<T; x0 ++) {
+    for(x1=0; x1<LX; x1++) {
+    for(x2=0; x2<LY; x2++) {
+    for(x3=0; x3<LZ; x3++) {
+      ix  = g_ipt[x0][x1][x2][x3];
+      iix = g_eosub2sliced3d[1][g_lexic2eosub[ix] ];
+      dtmp = ( phase_part + x1*p[0] + x2*p[1] + x3*p[2] ) * I; 
+      if(g_iseven[ix] == eo_iseven) {
+        phase[x0][iix] = cexp(dtmp);
+      }
+    }}}
+  }
+
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+  retime = _GET_TIME;
+  if(g_cart_id == 0) fprintf(stdout, "# [make_o_phase_field_sliced3d] time for making eo phase field = %e seconds\n", retime-ratime);
+}  /* end of make_o_phase_field_sliced3d */
+
+/*******************************************************************
+ * project nv spinor fields on a fermion propagator
+ *******************************************************************/
+
 
 }  /* end of namespace cvc */

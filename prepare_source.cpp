@@ -41,10 +41,12 @@ int prepare_volume_source(double *s, unsigned int V) {
 
   switch(g_noise_type) {
     case 1:
-      status = rangauss(s, 24*V);
+      /* status = rangauss(s, 24*V); */
+      status = rangauss(s, _GSI(V) );
       break;
     case 2:
-      status = ranz2(s, 24*V);
+      /* status = ranz2(s, 24*V); */
+      status = ranz2(s, _GSI(V) );
       break;
   }
 
@@ -541,8 +543,11 @@ int init_sequential_source(double *s, double *p, int tseq, int pseq[3], int gseq
   const double py = 2. * M_PI * pseq[1] / (double)LY_global;
   const double pz = 2. * M_PI * pseq[2] / (double)LZ_global;
   const double phase_offset =  g_proc_coords[1]*LX * px + g_proc_coords[2]*LY * py + g_proc_coords[3]*LZ * pz;
+  const size_t sizeof_spinor_field = _GSI(VOLUME) * sizeof(double);
 
   int have_source=0, lts=-1;
+
+  memset(s, 0, sizeof_spinor_field);
 
   if(s == NULL || p == NULL) {
     fprintf(stderr, "[init_sequential_source] Error, field is null\n");
@@ -561,7 +566,10 @@ int init_sequential_source(double *s, double *p, int tseq, int pseq[3], int gseq
     have_source = 0;
     lts = -1;
   }
-  if(have_source) fprintf(stdout, "# [init_sequential_source] process %d has source\n", g_cart_id);
+  if(have_source) {
+    fprintf(stdout, "# [init_sequential_source] process %d has source\n", g_cart_id);
+    fprintf(stdout, "# [init_sequential_source] t = %2d gamma id = %d p = (%d, %d, %d)\n", tseq, gseq, pseq[0], pseq[1], pseq[2]);
+  }
 
   /* (1) multiply with phase and Gamma structure */
   if(have_source) {
@@ -584,7 +592,7 @@ int init_sequential_source(double *s, double *p, int tseq, int pseq[3], int gseq
       w.re =  cos(phase);
       w.im =  sin(phase);
       _fv_eq_gamma_ti_fv(spinor1, gseq, p + ix);
-      _fv_eq_fv_ti_co(p + ix, spinor1, &w);
+      _fv_eq_fv_ti_co(s + ix, spinor1, &w);
     }}}
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */
@@ -594,6 +602,236 @@ int init_sequential_source(double *s, double *p, int tseq, int pseq[3], int gseq
 
   return(0);
 }  /* end of function init_sequential_source */
+
+
+/*************************************************************************
+ * prepare a coherent sequential source
+ *************************************************************************/
+int init_coherent_sequential_source(double *s, double **p, int tseq, int ncoh, int pseq[3], int gseq) {
+
+  const double px = 2. * M_PI * pseq[0] / (double)LX_global;
+  const double py = 2. * M_PI * pseq[1] / (double)LY_global;
+  const double pz = 2. * M_PI * pseq[2] / (double)LZ_global;
+  const double phase_offset =  g_proc_coords[1]*LX * px + g_proc_coords[2]*LY * py + g_proc_coords[3]*LZ * pz;
+  const size_t sizeof_spinor_field = _GSI(VOLUME) * sizeof(double);
+  const size_t sizeof_spinor_field_timeslice = _GSI(LX*LY*LZ) * sizeof(double);
+
+  int have_source=0, lts=-1, icoh;
+
+  if(s == NULL || p == NULL) {
+    fprintf(stderr, "[init_coherent_sequential_source] Error, field is null\n");
+    return(1);
+  }
+
+  /* initalize target field s to zero */
+  memset(s, 0, sizeof_spinor_field);
+
+  /* loop on coherent source timeslices */
+  for(icoh=0; icoh<ncoh; icoh++) {
+
+    int tcoh = ( tseq + (T_global / ncoh) * icoh ) % T_global;
+
+    /* (0) which processes have source? */
+#if ( (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) ) && (defined HAVE_QUDA)
+    if(g_proc_coords[3] == tcoh / T )
+#else
+    if(g_proc_coords[0] == tcoh / T )
+#endif
+    {
+      have_source = 1;
+      lts = tcoh % T;
+    } else {
+      have_source = 0;
+      lts = -1;
+    }
+    if(have_source) {
+      fprintf(stdout, "# [init_coherent_sequential_source] process %d has source using t = %2d gamma id = %2d p = (%3d, %3d, %3d)\n",
+          g_cart_id, tcoh, gseq, pseq[0], pseq[1], pseq[2]);
+    }
+
+    /* (1) multiply with phase and Gamma structure */
+    if(have_source) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+      double spinor1[24], phase;
+      unsigned int ix;
+      int x1, x2, x3;
+      complex w;
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+      for(x1=0;x1<LX;x1++) {
+      for(x2=0;x2<LY;x2++) {
+      for(x3=0;x3<LZ;x3++) {
+        ix = _GSI(g_ipt[lts][x1][x2][x3]);
+        phase = phase_offset + x1 * px + x2 * py + x3 * pz;
+        w.re =  cos(phase);
+        w.im =  sin(phase);
+        _fv_eq_gamma_ti_fv(spinor1, gseq, p[icoh] + ix);
+        _fv_eq_fv_ti_co(s + ix, spinor1, &w);
+      }}}
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+    }  /* of if have_source */
+
+  }  /* end of loop on coherent sources */
+
+  return(0);
+}  /* end of function init_sequential_source */
+
+
+/**********************************************************
+ * timeslice sources for one-end trick with spin dilution 
+ **********************************************************/
+int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init) {
+  const unsigned int sf_items = _GSI(VOLUME);
+  const size_t       sf_bytes = sf_items * sizeof(double);
+  const int          have_source = ( tsrc / T == g_proc_coords[0] ) ? 1 : 0;
+  const unsigned int VOL3 = LX*LY*LZ;
+
+  int c;
+  unsigned int ix, iix, x1, x2, x3;
+  int i, id;
+  static double *ran = NULL;
+  double ratime, retime;
+  
+  ratime = _GET_TIME;
+
+  if(init > 0) {
+    if(ran != NULL) {
+      free(ran);
+      ran = NULL;
+    }
+  
+    if(have_source) {
+      fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d = (%d, %d, %d, %d) allocates random field\n", g_cart_id,
+          g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3]);
+      ran = (double*)malloc(6*VOL3*sizeof(double));
+      if(ran == NULL) {
+        fprintf(stderr, "[init_timeslice_source_oet] Error from malloc\n");
+        return(1);
+      }
+    }
+  } else {
+    if( have_source ) {
+      if( ran == NULL ) {
+        fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d Error, illegal call to function init_timeslice_source_oet with init = 0, random field is not initialized\n", g_cart_id);
+        fflush(stdout);
+        fprintf(stderr, "[init_timeslice_source_oet] proc%.4d Error, illegal call to function init_timeslice_source_oet with init = 0, random field is not initialized\n", g_cart_id);
+        return(2);
+      }
+    }
+  }  /* end of if init > 0 */
+
+  /* initialize spinor fields to zero */
+  memset(s[0], 0, sf_bytes);
+  memset(s[1], 0, sf_bytes);
+  memset(s[2], 0, sf_bytes);
+  memset(s[3], 0, sf_bytes);
+
+  if(have_source) {
+    if(init > 0) {
+      fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d drawing random vector\n", g_cart_id);
+
+      switch(g_noise_type) {
+        case 1:
+          rangauss(ran, 6*VOL3);
+          break;
+        case 2:
+          ranz2(ran, 6*VOL3);
+          break;
+      }
+    } else {
+      fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d using existing random vector\n", g_cart_id);
+    }
+
+    const int timeslice = tsrc % T;  /*local timeslice */
+    double *buffer = NULL;
+
+    if(momentum != NULL) {
+      const double       TWO_MPI = 2. * M_PI;
+      const double       p[3] = {
+         TWO_MPI * (double)momentum[0]/(double)LX_global,
+         TWO_MPI * (double)momentum[1]/(double)LY_global,
+         TWO_MPI * (double)momentum[2]/(double)LZ_global };
+      const double phase_offset = p[0] * g_proc_coords[1] * LX + p[1] * g_proc_coords[2] * LY + p[2] * g_proc_coords[3] * LZ;
+      buffer = (double*)malloc(6*VOL3*sizeof(double));
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+      unsigned int ix, iix;
+      double phase, cphase, sphase, tmp[6], *ptr;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+      for(x1=0;x1<LX;x1++) {
+      for(x2=0;x2<LY;x2++) {
+      for(x3=0;x3<LZ;x3++) {
+        phase = phase_offset + x1 * p[0] + x2 * p[1] + x3 * p[2];
+        cphase = cos( phase );
+        sphase = sin( phase );
+        iix = 6 * g_ipt[0][x1][x2][x3];
+        ptr = buffer + iix;
+        memcpy(tmp, ran+iix, 6*sizeof(double));
+        ptr[0] = tmp[0] * cphase - tmp[1] * sphase;
+        ptr[1] = tmp[0] * sphase + tmp[1] * cphase;
+        ptr[2] = tmp[2] * cphase - tmp[3] * sphase;
+        ptr[3] = tmp[2] * sphase + tmp[3] * cphase;
+        ptr[4] = tmp[4] * cphase - tmp[5] * sphase;
+        ptr[5] = tmp[4] * sphase + tmp[5] * cphase;
+      }}}
+#ifdef HAVE_OPENMP
+}
+#endif
+    } else {
+      buffer = ran;
+    } /* end of if momentum != NULL */
+
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+    unsigned int ix, iix;
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(ix=0; ix<VOL3; ix++) {
+
+      iix = _GSI(timeslice * VOL3 + ix);
+
+      /* set ith spin-component in ith spinor field */
+      memcpy(s[0]+(iix + 6*0) , buffer+(6*ix), 6*sizeof(double) );
+      memcpy(s[1]+(iix + 6*1) , buffer+(6*ix), 6*sizeof(double) );
+      memcpy(s[2]+(iix + 6*2) , buffer+(6*ix), 6*sizeof(double) );
+      memcpy(s[3]+(iix + 6*3) , buffer+(6*ix), 6*sizeof(double) );
+
+    }  /* of ix */
+
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+    if (momentum != NULL) free(buffer);
+  }  /* end of if have source */
+
+  if(init == 2) free(ran);
+
+  retime = _GET_TIME;
+
+  if(g_cart_id == 0) {
+    fprintf(stdout, "# [init_timeslice_source_oet] time for init_timeslice_source_oet = %e seconds\n", retime-ratime);
+    fflush(stdout);
+  }
+
+
+  return(0);
+}  /* end of init_timeslice_source_oet */
 
 
 }  /* end of namespace cvc */

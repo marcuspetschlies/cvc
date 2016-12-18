@@ -22,6 +22,10 @@ int check_vvdagger_locality (double** V, int numV, int gcoords[4], char*tag, dou
 
 int init_sequential_source(double *s, double *p, int tseq, int pseq[3], int gseq);
 
+int init_coherent_sequential_source(double *s, double **p, int tseq, int ncoh, int pseq[3], int gseq);
+
+int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init);
+
 }  /* end of namespace cvc */
 
 #endif

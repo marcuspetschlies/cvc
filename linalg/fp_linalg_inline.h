@@ -1976,6 +1976,9 @@ static inline void _assign_fp_field_from_point(fermion_propagator_type _g, fermi
   _fv_eq_fv( (_g)[11]+_GSI((_i)), (_r)[11] );
 }
 
+static inline void _assign_fp_field_from_point_component(fermion_propagator_type _g, fermion_propagator_type _r, unsigned int _k, unsigned int _i) {
+  _fv_eq_fv( (_g)[0]+_GSI((_i)), (_r)[(_k)] );
+}
 
 static inline void _project_fp_to_basis(double *b, fermion_propagator_type _r, int icol) {
 int idx;

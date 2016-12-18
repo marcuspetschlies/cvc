@@ -1,7 +1,7 @@
 /****************************************************
- * test.c
+ * test.cpp
  *
- * Do 6. Aug 16:43:59 CEST 2015
+ * Fri Dec  9 17:34:16 CET 2016
  *
  * PURPOSE:
  * DONE:
@@ -47,6 +47,9 @@ extern "C"
 #include "propagator_io.h"
 #include "read_input_parser.h"
 #include "contractions_io.h"
+#include "prepare_source.h"
+#include "prepare_propagator.h"
+#include "matrix_init.h"
 
 using namespace cvc;
 
@@ -60,33 +63,30 @@ void usage() {
 
 
 int main(int argc, char **argv) {
-  
-  int c, i, no_fields=0;
+ 
+  const int n_s = 4;
+  const int n_c = 3;
+
+  int c, i, k, no_fields=0;
   int filename_set = 0;
-  int have_source_flag = 0;
-  /* int x0, x1, x2, x3, ix; */
-  int sx0, sx1, sx2, sx3;
+  /* int have_source_flag = 0; */
+  // int gsx[4];
+  int x0, x1, x2, x3;
+  /* int sx[4]; */
   int exitstatus;
-  int source_proc_coords[4], source_proc_id = -1;
-  int verbose = 0;
+  /* int source_proc_coords[4], source_proc_id = -1; */
+  unsigned int ix;
   char filename[100];
   /* double ratime, retime; */
-  double plaq;
-  double spinor1[24], spinor2[24], spinor3[24];
-  double dtmp[2];
-  /* double *phi=NULL, *chi=NULL; */
-  /* complex w, w1; */
-  /* FILE *ofs; */
+  // double plaq;
+  FILE *ofs;
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?vf:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:")) != -1) {
     switch (c) {
-    case 'v':
-      verbose = 1;
-      break;
     case 'f':
       strcpy(filename, optarg);
       filename_set=1;
@@ -137,14 +137,9 @@ int main(int argc, char **argv) {
    *********************************/
 #ifdef HAVE_OPENMP
   omp_set_num_threads(g_num_threads);
+#else
+  g_num_threads = 1;
 #endif
-
-  /* some checks on the input data */
-  if((T_global == 0) || (LX==0) || (LY==0) || (LZ==0)) {
-    if(g_proc_id==0) fprintf(stderr, "[test] T and L's must be set\n");
-    usage();
-  }
-
 
   if(init_geometry() != 0) {
     fprintf(stderr, "[test] Error from init_geometry\n");
@@ -154,156 +149,345 @@ int main(int argc, char **argv) {
   geometry();
 
 #if 0
-  ranlxd(spinor1, 24);
-  ranlxd(spinor2, 24);
-  _fv_eq_fv(spinor3, spinor1);
-  ranlxd(dtmp, 2);
-  /* _fv_eq_a_pl_ib_g5_ti_fv(spinor2, spinor1, dtmp[0], dtmp[1]); */
-  /* _fv_pl_eq_a_pl_ib_g5_ti_fv(spinor1, spinor2, dtmp[0], dtmp[1]); */
-  /* _fv_pl_eq_a_g5_pl_ib_ti_fv(spinor1, spinor2, dtmp[0], dtmp[1]); */
+  no_fields = 5 * n_s*n_c;
+  g_spinor_field = (double**)malloc(no_fields * sizeof(double*));
+  for(i=0; i<no_fields; i++) alloc_spinor_field(&(g_spinor_field[i]), VOLUME);
 
-  fprintf(stdout, "a <- %25.16e;  b <- %25.16e;\n", dtmp[0], dtmp[1]);
-  for(i=0; i<12; i++) {
-    fprintf(stdout, "s1[%d,%d] <- %25.16e+1.i*%25.16e; s3[%d,%d] <- %25.16e+1.i*%25.16e; s2[%d,%d] <- %25.16e+1.i*%25.16e\n", 
-        i/3+1, i%3+1, spinor3[2*i], spinor3[2*i+1],
-        i/3+1, i%3+1, spinor1[2*i], spinor1[2*i+1],
-        i/3+1, i%3+1, spinor2[2*i], spinor2[2*i+1]);
+  init_rng_stat_file (g_seed, NULL);
+
+  for(i=0; i<3*n_s*n_c; i++) {
+    ranlxd(g_spinor_field[i], _GSI(VOLUME));
   }
+
+  spinor_field_tm_rotation(g_spinor_field[1], g_spinor_field[0], +1, _TM_FERMION, VOLUME);
+  spinor_field_tm_rotation(g_spinor_field[2], g_spinor_field[0], -1, _TM_FERMION, VOLUME);
+
+  for(ix=0; ix<VOLUME; ix++) {
+    fprintf(stdout, "# [] ix = %u\n", ix);
+
+    for(i=0; i<12; i++) {
+      fprintf(stdout, "%d %d %25.16e %25.16e \t %25.16e %25.16e \t %25.16e %25.16e\n", 
+        i/3, i%3,
+        g_spinor_field[0][_GSI(ix)+2*i], g_spinor_field[0][_GSI(ix)+2*i+1],
+        g_spinor_field[1][_GSI(ix)+2*i], g_spinor_field[1][_GSI(ix)+2*i+1],
+        g_spinor_field[2][_GSI(ix)+2*i], g_spinor_field[2][_GSI(ix)+2*i+1] );
+    }
+  }
+#endif
+
+#if 0
+  int iseq_mom = 0;
+  memcpy(gsx, g_source_coords_list[0], 4*sizeof(int));
+  fprintf(stdout, "# [test] source coords = (%d, %d, %d, %d)\n", gsx[0], gsx[1], gsx[2], gsx[3]);
+  double *prop_list[2] = {g_spinor_field[0], g_spinor_field[1]};
+  exitstatus = init_coherent_sequential_source(g_spinor_field[2], prop_list, gsx[0], g_coherent_source_number, g_seq_source_momentum_list[iseq_mom], 5);
+
+  sprintf(filename, "coh.%d", g_cart_id);
+  ofs = fopen(filename, "w");
+
+  for(x0 = 0; x0 < T; x0++) {
+  for(x1 = 0; x1 < LX; x1++) {
+  for(x2 = 0; x2 < LY; x2++) {
+  for(x3 = 0; x3 < LZ; x3++) {
+
+    ix = g_ipt[x0][x1][x2][x3];
+    fprintf(ofs, "# [] x %3d %3d %3d %3d \n", 
+        x0+g_proc_coords[0]*T, x1+g_proc_coords[1]*LX, x2+g_proc_coords[2]*LY, x3+g_proc_coords[3]*LZ);
+
+    for(i=0; i<12; i++) {
+      fprintf(ofs, "%d %d %25.16e %25.16e \t %25.16e %25.16e \t %25.16e %25.16e\n", 
+        i/3, i%3,
+        g_spinor_field[0][_GSI(ix)+2*i], g_spinor_field[0][_GSI(ix)+2*i+1],
+        g_spinor_field[1][_GSI(ix)+2*i], g_spinor_field[1][_GSI(ix)+2*i+1],
+        g_spinor_field[2][_GSI(ix)+2*i], g_spinor_field[2][_GSI(ix)+2*i+1] );
+    }
+  }}}}
+
+  fclose(ofs);
+#endif
+
+
+
+  /* prepare_seqn_stochastic_vertex_propagator_sliced3d */
+#if 0
+  int gseq2 = 5;
+  int g_nsample = n_s*n_c;
+  double *pffii_list[n_s*n_c];
+  double *stochastic_propagator_list[n_s*n_c], *stochastic_source_list[n_s*n_c];
+  double *sequential_propagator_list[n_s*n_c];
+  double *spinor_test[n_s*n_c];
+
+  g_seq2_source_momentum_list[0][0] =  1;
+  g_seq2_source_momentum_list[0][1] = -2;
+  g_seq2_source_momentum_list[0][2] =  3;
+
+  memcpy(gsx, g_source_coords_list[0], 4*sizeof(int));
+
+  for(i=0; i<n_s*n_c; i++) {
+    sequential_propagator_list[i] = g_spinor_field[            i];
+    stochastic_propagator_list[i] = g_spinor_field[  n_s*n_c + i];
+    stochastic_source_list[i]     = g_spinor_field[2*n_s*n_c + i];
+    pffii_list[i]                 = g_spinor_field[3*n_s*n_c + i];
+    spinor_test[i]                = g_spinor_field[4*n_s*n_c + i];
+  }
+
+  exitstatus = prepare_seqn_stochastic_vertex_propagator_sliced3d (pffii_list, stochastic_propagator_list, stochastic_source_list,
+                           sequential_propagator_list, g_nsample, n_s*n_c, g_seq2_source_momentum_list[0], gseq2);
+
+
+  /* calculation by hand */
+  for(x0 = 0; x0 < T; x0++) {
+    double **p = NULL;
+    double sp1[24], sp2[24];
+    init_2level_buffer(&p, n_s*n_c, 2*g_nsample);
+    for(x1 = 0; x1 < LX; x1++) {
+    for(x2 = 0; x2 < LY; x2++) {
+    for(x3 = 0; x3 < LZ; x3++) {
+      ix = g_ipt[x0][x1][x2][x3];
+      /* apply vertex, reduce */
+      double phase = 2.*M_PI * ( 
+            g_seq2_source_momentum_list[0][0] * (x1 + g_proc_coords[1]*LX)/(double)LX_global
+          + g_seq2_source_momentum_list[0][1] * (x2 + g_proc_coords[2]*LY)/(double)LY_global
+          + g_seq2_source_momentum_list[0][2] * (x3 + g_proc_coords[3]*LZ)/(double)LZ_global );
+      complex w = {cos(phase), sin(phase)};
+      for(i=0; i<n_s*n_c; i++) {
+        for(k=0; k<g_nsample; k++) {
+          _fv_eq_gamma_ti_fv(sp1, gseq2, sequential_propagator_list[i]+_GSI(ix));
+          _fv_eq_fv_ti_co(sp2, sp1, &w);
+          _co_pl_eq_fv_dag_ti_fv((complex*)(p[i]+2*k), stochastic_source_list[k]+_GSI(ix), sp2);
+        }
+      }
+
+    }}}
+#ifdef HAVE_MPI
+    double *buffer = (double*)malloc(2*n_s*n_c*g_nsample*sizeof(double));
+    memcpy(buffer, p[0], 2*n_s*n_c*g_nsample*sizeof(double));
+    if( (exitstatus = MPI_Allreduce(buffer, p[0], 2*n_s*n_c*g_nsample, MPI_DOUBLE, MPI_SUM, g_ts_comm) ) != MPI_SUCCESS ) {
+      fprintf(stderr, "[] Error from MPI_Allreduce, status was %d\n", exitstatus);
+      EXIT(1);
+    }
+    free(buffer);
+#endif
 
 /*
-  _fv_eq_fv(spinor2, spinor1);
-  _fv_ti_eq_g5 (spinor2);
-  _fv_eq_gamma_ti_fv(spinor3, 5, spinor1);
-  for(i=0; i<12; i++) {
-    fprintf(stdout, "\t%3d%25.16e%25.16e\t%25.16e%25.16e\n", i, spinor2[2*i], spinor2[2*i+1], spinor3[2*i], spinor3[2*i+1]);
-  }
-*/
-#endif
-   
-
-
-#if 0
-
-#ifndef HAVE_TMLQCD_LIBWRAPPER
-  alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
-  if(!(strcmp(gaugefilename_prefix,"identity")==0)) {
-    /* read the gauge field */
-    sprintf(filename, "%s.%.4d", gaugefilename_prefix, Nconf);
-    if(g_cart_id==0) fprintf(stdout, "# [test] reading gauge field from file %s\n", filename);
-    read_lime_gauge_field_doubleprec(filename);
-  } else {
-    /* initialize unit matrices */
-    if(g_cart_id==0) fprintf(stdout, "\n# [cvc_exact] initializing unit matrices\n");
-    for(ix=0;ix<VOLUME;ix++) {
-      _cm_eq_id( g_gauge_field + _GGI(ix, 0) );
-      _cm_eq_id( g_gauge_field + _GGI(ix, 1) );
-      _cm_eq_id( g_gauge_field + _GGI(ix, 2) );
-      _cm_eq_id( g_gauge_field + _GGI(ix, 3) );
-    }
-  }
-#else
-  Nconf = g_tmLQCD_lat.nstore;
-  if(g_cart_id== 0) fprintf(stdout, "[test] Nconf = %d\n", Nconf);
-
-  exitstatus = tmLQCD_read_gauge(Nconf);
-  if(exitstatus != 0) {
-    EXIT(560);
-  }
-
-  exitstatus = tmLQCD_get_gauge_field_pointer(&g_gauge_field);
-  if(exitstatus != 0) {
-    EXIT(561);
-  }
-  if(g_gauge_field == NULL) {
-    fprintf(stderr, "[test] Error, g_gauge_field is NULL\n");
-    EXIT(563);
-  }
-#endif
-
-#ifdef HAVE_MPI
-  xchange_gauge();
-#endif
-
-
-  /* measure the plaquette */
-
-  plaquette(&plaq);
-  if(g_cart_id==0) fprintf(stdout, "# [test] measured plaquette value: %25.16e\n", plaq);
-
-  /* allocate memory for the spinor fields */
-  no_fields = 120;
-  if( (g_spinor_field = (double**)calloc(no_fields, sizeof(double*)) ) == NULL ) {
-    fprintf(stderr, "[] Error from calloc, exit\n");
-    EXIT(5);
-  } else {
-    for(i=0; i<no_fields; i++) {
-      if( alloc_spinor_field(&g_spinor_field[i], VOLUME+RAND) != 0 ) {
-        fprintf(stderr, "[] Error from alloc_spinor_field, exit\n");
-        EXIT(6);
+    for(i=0; i<n_s*n_c; i++) {
+      for(k=0; k<g_nsample; k++) {
+        fprintf(stdout, "p proc%.2d t%.2d %2d %2d %25.16e %25.16e\n", g_cart_id, x0, i, k, p[i][2*k], p[i][2*k+1]);
       }
     }
-  }
-#if 0
-#endif  /* of if 0 */
-  /***********************************************************
-   * determine source coordinates, find out, if source_location is in this process
-   ***********************************************************/
+*/
 
-  sx0 = g_source_location / ( LX_global * LY_global * LZ_global);
-  sx1 = (g_source_location % ( LX_global * LY_global * LZ_global)) / (LY_global * LZ_global);
-  sx2 = (g_source_location % ( LY_global * LZ_global)) / LZ_global;
-  sx3 = (g_source_location % LZ_global);
-  source_proc_coords[0] = sx0 / T;
-  source_proc_coords[1] = sx1 / LX;
-  source_proc_coords[2] = sx2 / LY;
-  source_proc_coords[3] = sx3 / LZ;
+    /* expand */
+    for(x1 = 0; x1 < LX; x1++) {
+    for(x2 = 0; x2 < LY; x2++) {
+    for(x3 = 0; x3 < LZ; x3++) {
+      ix = g_ipt[x0][x1][x2][x3];
+      for(i=0; i<n_s*n_c; i++) {
+        _fv_eq_zero( spinor_test[i]+_GSI(ix) );
+        for(k=0; k<g_nsample; k++) {
+          _fv_eq_fv_ti_co(sp1, stochastic_propagator_list[k]+_GSI(ix), (complex*)(p[i]+2*k) );
+          _fv_pl_eq_fv(spinor_test[i]+_GSI(ix), sp1);
+        }
+      }
+    }}}
+    fini_2level_buffer(&p);
+
+  }
+
+
+  sprintf(filename, "vertex.%d", g_cart_id);
+  ofs = fopen(filename, "w");
+
+  for(x0 = 0; x0 < T; x0++) {
+  for(x1 = 0; x1 < LX; x1++) {
+  for(x2 = 0; x2 < LY; x2++) {
+  for(x3 = 0; x3 < LZ; x3++) {
+
+    ix = g_ipt[x0][x1][x2][x3];
+    fprintf(ofs, "# [] x %3d %3d %3d %3d \n", 
+        x0+g_proc_coords[0]*T, x1+g_proc_coords[1]*LX, x2+g_proc_coords[2]*LY, x3+g_proc_coords[3]*LZ);
+
+    for(i=0; i<n_s*n_c; i++) {
+      for(k=0; k<n_s*n_c; k++) {
+        fprintf(ofs, "%2d %d %d %25.16e %25.16e \t %25.16e %25.16e\n", 
+          i, k/n_c, k%n_c,
+          pffii_list[i][ _GSI(ix)+2*k], pffii_list[i][ _GSI(ix)+2*k+1],
+          spinor_test[i][_GSI(ix)+2*k], spinor_test[i][_GSI(ix)+2*k+1] );
+      }
+    }
+  }}}}
+
+  fclose(ofs);
+#endif
+
+  no_fields = 3 * n_s*n_c + 8;
+  g_spinor_field = (double**)malloc(no_fields * sizeof(double*));
+  for(i=0; i<no_fields; i++) alloc_spinor_field(&(g_spinor_field[i]), VOLUME);
+
+  init_rng_stat_file (g_seed, NULL);
+
+  int gseq = 5, gseq2 = 5;
+  int g_nsample = n_s*n_c;
+  double *pfifi_list[n_s*n_c];
+  double *stochastic_propagator_list[8];
+  double *propagator_list_up[n_s*n_c];
+  double *spinor_test[n_s*n_c];
+
+  g_seq2_source_momentum_list[0][0] =  1;
+  g_seq2_source_momentum_list[0][1] = -2;
+  g_seq2_source_momentum_list[0][2] =  3;
+
+  for(i=0; i<n_s*n_c; i++) {
+    propagator_list_up[i]         = g_spinor_field[            i];
+    pfifi_list[i]                 = g_spinor_field[  n_s*n_c + i];
+    spinor_test[i]                = g_spinor_field[2*n_s*n_c + i];
+  }
+  for(i=0; i<8; i++) {
+    stochastic_propagator_list[i] = g_spinor_field[3*n_s*n_c + i];
+  }
+
+  for(i=0; i<n_s*n_c; i++) {
+    ranlxd(propagator_list_up[i], _GSI(VOLUME));
+  }
+
+  for(i=0; i<8; i++) {
+    ranlxd(stochastic_propagator_list[i], _GSI(VOLUME));
+  }
+
+  exitstatus = prepare_seqn_stochastic_vertex_propagator_sliced3d_oet (pfifi_list, stochastic_propagator_list, &(stochastic_propagator_list[4]),
+                   propagator_list_up, g_seq2_source_momentum_list[0], gseq2, gseq);
+  if( exitstatus != 0 ) {
+    fprintf(stderr, "[] Error from prepare_seqn_stochastic_vertex_propagator_sliced3d_oet, status was %d\n", exitstatus);
+    EXIT(45);
+  }
+
+  /* calculation by hand */
+  for(x0 = 0; x0 < T; x0++) {
+    double **p = NULL;
+    double sp1[24], sp2[24];
+    init_2level_buffer(&p, n_s*n_c, 8);
+    for(x1 = 0; x1 < LX; x1++) {
+    for(x2 = 0; x2 < LY; x2++) {
+    for(x3 = 0; x3 < LZ; x3++) {
+      ix = g_ipt[x0][x1][x2][x3];
+      /* apply vertex, reduce */
+      double phase = 2.*M_PI * ( 
+            g_seq2_source_momentum_list[0][0] * (x1 + g_proc_coords[1]*LX)/(double)LX_global
+          + g_seq2_source_momentum_list[0][1] * (x2 + g_proc_coords[2]*LY)/(double)LY_global
+          + g_seq2_source_momentum_list[0][2] * (x3 + g_proc_coords[3]*LZ)/(double)LZ_global );
+      complex w = {cos(phase), sin(phase)};
+      for(i=0; i<n_s*n_c; i++) {
+        for(k=0; k<4; k++) {
+          _fv_eq_gamma_ti_fv(sp1, gseq2, propagator_list_up[i]+_GSI(ix));
+          _fv_eq_gamma_ti_fv(sp2, 5, sp1);
+          _fv_eq_fv_ti_co(sp1, sp2, &w);
+          _co_pl_eq_fv_dag_ti_fv((complex*)(p[i]+2*k), stochastic_propagator_list[k]+_GSI(ix), sp1);
+        }
+      }
+    }}}
 #ifdef HAVE_MPI
-  MPI_Cart_rank(g_cart_grid, source_proc_coords, &source_proc_id);
-#else
-  source_proc_id = 0;
+    double *buffer = (double*)malloc(2*n_s*n_c*4*sizeof(double));
+    memcpy(buffer, p[0], 2*n_s*n_c*4*sizeof(double));
+    if( (exitstatus = MPI_Allreduce(buffer, p[0], 2*n_s*n_c*4, MPI_DOUBLE, MPI_SUM, g_ts_comm) ) != MPI_SUCCESS ) {
+      fprintf(stderr, "[] Error from MPI_Allreduce, status was %d\n", exitstatus);
+      EXIT(1);
+    }
+    free(buffer);
 #endif
-  have_source_flag = (int)(g_cart_id == source_proc_id);
-  if(have_source_flag==1) {
-    fprintf(stdout, "# [test] process %2d has source location\n", source_proc_id);
-    fprintf(stdout, "# [test] global source coordinates: (%3d,%3d,%3d,%3d)\n",  sx0, sx1, sx2, sx3);
-    fprintf(stdout, "# [test] source proc coordinates:   (%3d,%3d,%3d,%3d)\n",  source_proc_coords[0],
-        source_proc_coords[1], source_proc_coords[2], source_proc_coords[3]);
-  }
-  sx0 = sx0 % T;
-  sx1 = sx1 % LX;
-  sx2 = sx2 % LY;
-  sx3 = sx3 % LZ;
-  if(have_source_flag==1)
-    fprintf(stdout, "# [test] local source coordinates:  (%3d,%3d,%3d,%3d)\n",  sx0, sx1, sx2, sx3);
 
+
+    double **paux = NULL;
+    init_2level_buffer(&paux, n_s*n_c, 8);
+
+    memcpy(paux[0], p[0], 2*n_s*n_c*4*sizeof(double));
+    int isimag = gamma_permutation[5][0]%2;
+    for(i=0; i<n_s*n_c; i++) {
+      for(k=0; k<4; k++) {
+        p[i][2*k  ] = paux[i][2*(gamma_permutation[5][6*k]/6) +   isimag] * gamma_sign[5][6*k  ];
+        // p[i][2*k+1] = paux[i][2*(gamma_permutation[5][6*k]/6) + 1-isimag] * gamma_sign[5][6*k+1];
+        p[i][2*k+1] = (isimag ? -1 : 1) * paux[i][2*(gamma_permutation[5][6*k]/6) + 1-isimag] * gamma_sign[5][6*k];
+      }
+    }
+
+    memcpy(paux[0], p[0], 2*n_s*n_c*4*sizeof(double));
+    isimag = gamma_permutation[gseq][0]%2;
+    for(i=0; i<n_s*n_c; i++) {
+      for(k=0; k<4; k++) {
+        p[i][2*k  ] = paux[i][2*(gamma_permutation[gseq][6*k]/6) +   isimag] * gamma_sign[gseq][6*k  ];
+        // p[i][2*k+1] = paux[i][2*(gamma_permutation[gseq][6*k]/6) + 1-isimag] * gamma_sign[gseq][6*k+1];
+        p[i][2*k+1] = (isimag ? -1 : 1) * paux[i][2*(gamma_permutation[gseq][6*k]/6) + 1-isimag] * gamma_sign[gseq][6*k];
+      }
+    }
+
+    fini_2level_buffer(&paux);
+
+    for(i=0; i<n_s*n_c; i++) {
+      for(k=0; k<4; k++) {
+        fprintf(stdout, "p  proc%.2d t%.2d %2d %2d %25.16e %25.16e\n", g_cart_id, x0, i, k, p[i][2*k], p[i][2*k+1]);
+      }
+    }
+
+    /* expand */
+    for(x1 = 0; x1 < LX; x1++) {
+    for(x2 = 0; x2 < LY; x2++) {
+    for(x3 = 0; x3 < LZ; x3++) {
+      ix = g_ipt[x0][x1][x2][x3];
+      for(i=0; i<n_s*n_c; i++) {
+        _fv_eq_zero( spinor_test[i]+_GSI(ix) );
+        for(k=0; k<4; k++) {
+          _fv_eq_fv_ti_co(sp1, stochastic_propagator_list[4+k]+_GSI(ix), (complex*)(p[i]+2*k) );
+          _fv_pl_eq_fv(spinor_test[i]+_GSI(ix), sp1);
+        }
+      }
+    }}}
+    fini_2level_buffer(&p);
+
+  }
+
+
+  sprintf(filename, "vertex2.%d", g_cart_id);
+  ofs = fopen(filename, "w");
+
+  for(i=0; i<n_s*n_c; i++) {
+    double norm = 0.;
+    spinor_field_norm_diff (&norm, pfifi_list[i], spinor_test[i], VOLUME);
+    if(g_cart_id == 0) fprintf(stdout, "# [test] norm %2d %25.16e\n", i, norm);
+  }
 
 #if 0
-#if defined HAVE_MPI
-  if(g_cart_id==0) fprintf(stdout, "# [cvc_exact2_xspace_xspace] broadcasing contact term ...\n");
-  MPI_Bcast(contact_term, 8, MPI_DOUBLE, have_source_flag, g_cart_grid);
-  fprintf(stdout, "[%2d] contact term = "\
-      "(%e + I %e, %e + I %e, %e + I %e, %e +I %e)\n",
-      g_cart_id, contact_term[0], contact_term[1], contact_term[2], contact_term[3],
-      contact_term[4], contact_term[5], contact_term[6], contact_term[7]);
-#endif
+  for(x0 = 0; x0 < T; x0++) {
+  for(x1 = 0; x1 < LX; x1++) {
+  for(x2 = 0; x2 < LY; x2++) {
+  for(x3 = 0; x3 < LZ; x3++) {
+
+    ix = g_ipt[x0][x1][x2][x3];
+    fprintf(ofs, "# [] x %3d %3d %3d %3d \n", 
+        x0+g_proc_coords[0]*T, x1+g_proc_coords[1]*LX, x2+g_proc_coords[2]*LY, x3+g_proc_coords[3]*LZ);
+
+    for(i=0; i<n_s*n_c; i++) {
+      for(k=0; k<n_s*n_c; k++) {
+        fprintf(ofs, "%2d %d %d %25.16e %25.16e \t %25.16e %25.16e\n", 
+          i, k/n_c, k%n_c,
+          pfifi_list[i][ _GSI(ix)+2*k], pfifi_list[i][ _GSI(ix)+2*k+1],
+          spinor_test[i][_GSI(ix)+2*k], spinor_test[i][_GSI(ix)+2*k+1] );
+
+      }
+    }
+  }}}}
+
+  fclose(ofs);
 #endif
 
 
   /****************************************
    * free the allocated memory, finalize
    ****************************************/
-#ifndef HAVE_TMLQCD_LIBWRAPPER
-  free(g_gauge_field);
-#endif
   if(no_fields > 0 && g_spinor_field != NULL) { 
     for(i=0; i<no_fields; i++) free(g_spinor_field[i]);
     free(g_spinor_field);
   }
-#endif
 
   free_geometry();
-
-
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
   tmLQCD_finalise();

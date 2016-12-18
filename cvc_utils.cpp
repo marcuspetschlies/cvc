@@ -4109,7 +4109,7 @@ int apply_gauge_transform(double*gauge_new, double*gauge_transform, double*gauge
  ******************************************************************/
 int init_rng_stat_file (unsigned int seed, char*filename) {
 
-  int c, i, j;
+  int c, i, j, iproc;
   int *rng_state=NULL;
 #ifdef HAVE_MPI
   unsigned int *buffer = NULL;
@@ -4149,27 +4149,35 @@ int init_rng_stat_file (unsigned int seed, char*filename) {
   free(buffer);
 #endif
 
-  if(g_cart_id==0) {
-    fprintf(stdout, "# [init_rng_stat_file] ranldxd: using seed %u and level 2\n", l_seed);
-    rlxd_init(2, l_seed);
+  fprintf(stdout, "# [init_rng_stat_file] proc%.4d ranldxd: using seed %u and level 2\n", g_cart_id, l_seed);
+  rlxd_init(2, l_seed);
 
-    c = rlxd_size();
-    if( (rng_state = (int*)malloc(c*sizeof(int))) == (int*)NULL ) {
-      fprintf(stderr, "Error, could not save the random number generator state\n");
-      return(102);
-    }
-    rlxd_get(rng_state);
-    if(filename == NULL) { filename = default_filename; }
-    ofs = fopen(filename, "w");
-    if( ofs == (FILE*)NULL ) {
-      fprintf(stderr, "[init_rng_stat_file] Error, could not save the random number generator state\n");
-      return(103);
-    }
-    fprintf(stdout, "# [init_rng_stat_file] writing rng state to file %s\n", filename);
-    for(i=0; i<c; i++) fprintf(ofs, "%d\n", rng_state[i]);
-    fclose(ofs);
-    free(rng_state);
+  c = rlxd_size();
+  if( (rng_state = (int*)malloc(c*sizeof(int))) == (int*)NULL ) {
+    fprintf(stderr, "Error, could not save the random number generator state\n");
+    return(102);
   }
+  rlxd_get(rng_state);
+
+  for(iproc=0; iproc<g_nproc; iproc++) {
+    if(filename == NULL) { filename = default_filename; }
+    if(iproc == g_cart_id) {
+      ofs = iproc == 0 ? fopen(filename, "w") : fopen(filename, "a");
+      if( ofs == (FILE*)NULL ) {
+        fprintf(stderr, "[init_rng_stat_file] Error, could not save the random number generator state\n");
+        EXIT(103);
+      }
+      /* fprintf(stdout, "# [init_rng_stat_file] writing rng state to file %s\n", filename); */
+      fprintf(ofs, "# proc %3d %3d %3d %3d\n", g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3]);
+      for(i=0; i<c; i++) fprintf(ofs, "%d\n", rng_state[i]);
+      fclose(ofs);
+    }
+#ifdef HAVE_MPI
+    MPI_Barrier(g_cart_grid);
+#endif
+  }
+
+  free(rng_state);
   return(0);
 }  /* end of init_rng_stat_file */
 
@@ -5295,5 +5303,293 @@ void g5_phi(double *phi, unsigned int N) {
 #endif
 }  /* end of g5_phi */
 
+
+/********************************************
+ * check Ward-identity in position space
+ * for conn
+ ********************************************/
+
+int check_cvc_wi_position_space (double *conn) {
+
+  int nu;
+  int exitstatus;
+  double ratime, retime;
+
+  /********************************************
+   * check the Ward identity in position space 
+   ********************************************/
+  ratime = _GET_TIME;
+  double *conn_buffer = (double*)malloc(32*(VOLUME+RAND)*sizeof(double));
+  if(conn_buffer == NULL)  {
+    fprintf(stderr, "# [check_cvc_wi_position_space] Error from malloc\n");
+    return(1);
+  }
+  memcpy(conn_buffer, conn, 32*VOLUME*sizeof(double));
+  xchange_contraction(conn_buffer, 32);
+  if(g_cart_id == 0) fprintf(stdout, "# [check_cvc_wi_position_space] checking Ward identity in position space\n");
+  for(nu=0; nu<4; nu++) {
+    double norm = 0.;
+    complex w;
+    unsigned int ix;
+    for(ix=0; ix<VOLUME; ix++ ) {
+      w.re = conn_buffer[_GWI(4*0+nu,ix          ,VOLUME)  ] + conn_buffer[_GWI(4*1+nu,ix          ,VOLUME)  ]
+           + conn_buffer[_GWI(4*2+nu,ix          ,VOLUME)  ] + conn_buffer[_GWI(4*3+nu,ix          ,VOLUME)  ]
+           - conn_buffer[_GWI(4*0+nu,g_idn[ix][0],VOLUME)  ] - conn_buffer[_GWI(4*1+nu,g_idn[ix][1],VOLUME)  ]
+           - conn_buffer[_GWI(4*2+nu,g_idn[ix][2],VOLUME)  ] - conn_buffer[_GWI(4*3+nu,g_idn[ix][3],VOLUME)  ];
+
+      w.im = conn_buffer[_GWI(4*0+nu,ix          ,VOLUME)+1] + conn_buffer[_GWI(4*1+nu,ix          ,VOLUME)+1]
+           + conn_buffer[_GWI(4*2+nu,ix          ,VOLUME)+1] + conn_buffer[_GWI(4*3+nu,ix          ,VOLUME)+1]
+           - conn_buffer[_GWI(4*0+nu,g_idn[ix][0],VOLUME)+1] - conn_buffer[_GWI(4*1+nu,g_idn[ix][1],VOLUME)+1]
+           - conn_buffer[_GWI(4*2+nu,g_idn[ix][2],VOLUME)+1] - conn_buffer[_GWI(4*3+nu,g_idn[ix][3],VOLUME)+1];
+      
+      norm += w.re*w.re + w.im*w.im;
+    }
+#ifdef HAVE_MPI
+    double dtmp = norm;
+    exitstatus = MPI_Allreduce(&dtmp, &norm, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid);
+    if(exitstatus != MPI_SUCCESS) {
+      fprintf(stderr, "[check_cvc_wi_position_space] Error from MPI_Allreduce, status was %d\n", exitstatus);
+      return(2);
+    }
+#endif
+    if(g_cart_id == 0) fprintf(stdout, "# [check_cvc_wi_position_space] WI nu = %2d norm = %25.16e\n", nu, norm);
+  }  /* end of loop on nu */
+  free(conn_buffer);
+  retime = _GET_TIME;
+  if(g_cart_id==0) fprintf(stdout, "# [check_cvc_wi_position_space] time for saving momentum space results = %e seconds\n", retime-ratime);
+
+  return(0);
+}  /* end of check_cvc_wi_position_space */
+
+/***************************************************
+ * rotate fermion propagator field from
+ * twisted to physical basis (depending on sign)
+ *
+ * safe, if s = r
+ ***************************************************/
+int fermion_propagator_field_tm_rotation(fermion_propagator_type *s, fermion_propagator_type *r, int sign, int fermion_type, unsigned int N) {
+
+  if( fermion_type == _TM_FERMION ) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+    unsigned int ix;
+    fermion_propagator_type fp1, fp2, s_, r_;
+  
+    create_fp(&fp1);
+    create_fp(&fp2);
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(ix=0; ix<N; ix++) {
+
+      s_ = s[ix];
+      r_ = r[ix];
+
+      /* flavor rotation */
+  
+      _fp_eq_rot_ti_fp(fp1, r_, sign, fermion_type, fp2);
+      _fp_eq_fp_ti_rot(s_, fp1, sign, fermion_type, fp2);
+
+    }  /* end of loop on ix */
+
+    free_fp(&fp1);
+    free_fp(&fp2);
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+  } else if ( fermion_type == _WILSON_FERMION && s != r) {
+    size_t bytes = N * g_fv_dim * g_fv_dim * 2 * sizeof(double);
+    memcpy(s[0][0], r[0][0], bytes);
+  }
+  return(0);
+}  /* end of fermion_propagator_field_tm_rotation */
+
+/***************************************************
+ * rotate spinor field from
+ * twisted to physical basis (depending on sign)
+ *
+ * safe, if s = r
+ ***************************************************/
+int spinor_field_tm_rotation(double*s, double*r, int sign, int fermion_type, unsigned int N) {
+
+  const double norm = 1. / sqrt(2.);
+
+  if( fermion_type == _TM_FERMION ) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+    unsigned int ix;
+    double sp1[_GSI(1)], sp2[_GSI(1)], *s_, *r_;
+  
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(ix=0; ix<N; ix++) {
+
+      s_ = s + _GSI(ix);
+      r_ = r + _GSI(ix);
+
+      /* flavor rotation */
+      _fv_eq_gamma_ti_fv(sp1, 5, r_);
+      _fv_eq_fv_ti_im(sp2, sp1, (double)sign );
+      _fv_eq_fv_pl_fv(sp1, r_, sp2);
+      _fv_eq_fv_ti_re(s_, sp1, norm);
+    }  /* end of loop on ix */
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+  } else if ( fermion_type == _WILSON_FERMION  && s != r ) {
+    memcpy(s, r, _GSI(N)*sizeof(double));
+  }
+  return(0);
+}  /* end of fermion_propagator_field_tm_rotation */
+
+/***************************************************
+ * spinor fields to fermion propagator points
+ ***************************************************/
+int assign_fermion_propagaptor_from_spinor_field (fermion_propagator_type *s, double**prop_list, unsigned int N) {
+
+  if(s[0][0] == prop_list[0] ) {
+    fprintf(stderr, "[assign_fermion_propagaptor_from_spinor_field] Error, input fields have same address\n");
+    return(1);
+  }
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  unsigned int ix;
+  fermion_propagator_type s_;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(ix=0; ix<N; ix++) {
+    s_ = s[ix];
+    _assign_fp_point_from_field(s_, prop_list, ix);
+  }
+#ifdef HAVE_OPENMP
+}
+#endif
+  return(0);
+}  /* end of assign_fermion_propagaptor_from_spinor_field */
+
+/***************************************************
+ * fermion propagator points to spinor fields
+ ***************************************************/
+int assign_spinor_field_from_fermion_propagaptor (double**prop_list, fermion_propagator_type *s, unsigned int N) {
+
+  if(s[0][0] == prop_list[0]) {
+    fprintf(stderr, "[assign_spinor_field_from_fermion_propagaptor] Error, input fields have same address\n");
+    return(1);
+  }
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  unsigned int ix;
+  fermion_propagator_type s_;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(ix=0; ix<N; ix++) {
+    s_ = s[ix];
+    _assign_fp_field_from_point(prop_list, s_, ix);
+  }
+#ifdef HAVE_OPENMP
+}
+#endif
+  return(0);
+}  /* end of assign_spinor_field_from_fermion_propagaptor */
+
+/***************************************************
+ * component of fermion propagator points
+ * to spinor fields
+ ***************************************************/
+int assign_spinor_field_from_fermion_propagaptor_component (double*spinor_field, fermion_propagator_type *s, int icomp, unsigned int N) {
+
+  if(s[0][0] == spinor_field) {
+    fprintf(stderr, "[assign_spinor_field_from_fermion_propagaptor] Error, input fields have same address\n");
+    return(1);
+  }
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  unsigned int ix;
+  fermion_propagator_type s_;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(ix=0; ix<N; ix++) {
+    s_ = s[ix];
+    _assign_fp_field_from_point_component (&(spinor_field), s_, icomp, ix);
+  }
+#ifdef HAVE_OPENMP
+}
+#endif
+  return(0);
+}  /* end of assign_spinor_field_from_fermion_propagaptor_component */
+
+/***********************************************************
+ * r = s * c
+ * safe, if r = s
+ ***********************************************************/
+void spinor_field_eq_spinor_field_ti_real_field (double*r, double*s, double *c, unsigned int N) {
+
+  unsigned int ix, offset;
+  double *rr, *ss, cc;
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for private(offset,rr,ss,cc) shared(r,s,c,N)
+#endif
+  for(ix = 0; ix < N; ix++) {
+    offset = _GSI(ix);
+    rr = r + offset;
+    ss = s + offset;
+    cc = c[ix];
+    _fv_eq_fv_ti_re(rr, ss, cc);
+  }
+}  /* end of spinor_field_eq_spinor_field_ti_real_field */
+
+/***********************************************************
+ * r = s * c
+ * safe, if r = s
+ ***********************************************************/
+void spinor_field_eq_spinor_field_ti_complex_field (double*r, double*s, double *c, unsigned int N) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel shared(r,s,c,N)
+{
+#endif
+  unsigned int ix, offset;
+  double *rr, *ss;
+  complex w;
+  double sp1[_GSI(1)];
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(ix = 0; ix < N; ix++) {
+    offset = _GSI(ix);
+    rr = r + offset;
+    ss = s + offset;
+    w.re = c[2*ix  ];
+    w.im = c[2*ix+1];
+    _fv_eq_fv_ti_co(sp1, ss, &w);
+    _fv_eq_fv(rr, sp1);
+  }
+#ifdef HAVE_OPENMP
+}
+#endif
+}  /* end of spinor_field_eq_spinor_field_ti_real_field */
 
 }  /* end of namespace cvc */

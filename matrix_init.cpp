@@ -115,6 +115,7 @@ int init_3level_buffer (double****buffer, unsigned int n1, unsigned int n2, unsi
   for(i=0; i<n1; i++) {
   for(k=0; k<n2; k++) {
     (*buffer)[i][k] = (*buffer)[0][0] + l*n3;
+    l++;
   }}
   memset( (*buffer)[0][0], 0, bytes);
   return(0);
@@ -175,6 +176,7 @@ int init_4level_buffer (double*****buffer, unsigned int n1, unsigned int n2, uns
   for(i=0; i<n1; i++) {
   for(k=0; k<n2; k++) {
     (*buffer)[i][k] = (*buffer)[0][0] + l*n3;
+    l++;
   }}
 
   /* 4th, innermost level */
@@ -190,6 +192,7 @@ int init_4level_buffer (double*****buffer, unsigned int n1, unsigned int n2, uns
   for(k=0; k<n2; k++) {
   for(l=0; l<n3; l++) {
     (*buffer)[i][k][l] = (*buffer)[0][0][0] + m*n4;
+    m++;
   }}}
 
   memset( (*buffer)[0][0][0], 0, bytes);
