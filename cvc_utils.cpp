@@ -3667,93 +3667,103 @@ void contract_twopoint_snk_momentum_trange(double *contr, const int idsource, co
 
 /******************************************************************************
  * contract_twopoint_xdep
+ *   contr - contraction field (2*VOLUME), out
+ *   idsource - gamma id at source, in
+ *   idsink - gamma id at sink, in
+ *   chi - backward propagator, in
+ *   phi - forward propagator, in
+ *   n_c - number of colors, in
+ *   stride - stride for contr, in
+ *   factor - normalization of contractions, in
+ *   prec - precision type, 64 for double precision, single precision else
+ *
  ******************************************************************************/
 void contract_twopoint_xdep(void*contr, const int idsource, const int idsink, void*chi, void*phi, int n_c, int stride, double factor, size_t prec) {
 
-  int ix, iix, psource[4], isimag, mu, c, j;
-  int VOL3 = LX*LY*LZ;
-  double ssource[4], spinor1[24], spinor2[24];
-  complex w;
-
-  psource[0] = gamma_permutation[idsource][ 0] / 6;
-  psource[1] = gamma_permutation[idsource][ 6] / 6;
-  psource[2] = gamma_permutation[idsource][12] / 6;
-  psource[3] = gamma_permutation[idsource][18] / 6;
-  isimag = gamma_permutation[idsource][ 0] % 2;
+  const int psource[4] = { gamma_permutation[idsource][ 0] / 6,
+                           gamma_permutation[idsource][ 6] / 6,
+                           gamma_permutation[idsource][12] / 6,
+                           gamma_permutation[idsource][18] / 6 };
+  const int isimag = gamma_permutation[idsource][ 0] % 2;
   /* sign from the source gamma matrix; the minus sign
    * in the lower two lines is the action of gamma_5 */
-  ssource[0] =  gamma_sign[idsource][ 0] * gamma_sign[5][gamma_permutation[idsource][ 0]];
-  ssource[1] =  gamma_sign[idsource][ 6] * gamma_sign[5][gamma_permutation[idsource][ 6]];
-  ssource[2] =  gamma_sign[idsource][12] * gamma_sign[5][gamma_permutation[idsource][12]];
-  ssource[3] =  gamma_sign[idsource][18] * gamma_sign[5][gamma_permutation[idsource][18]];
+  const double ssource[4] =  { gamma_sign[idsource][ 0] * gamma_sign[5][gamma_permutation[idsource][ 0]],
+                  gamma_sign[idsource][ 6] * gamma_sign[5][gamma_permutation[idsource][ 6]],
+                  gamma_sign[idsource][12] * gamma_sign[5][gamma_permutation[idsource][12]],
+                  gamma_sign[idsource][18] * gamma_sign[5][gamma_permutation[idsource][18]] };
 /*
-  fprintf(stdout, "__________________________________\n");
-  fprintf(stdout, "isource=%d, idsink=%d, p[0] = %d, s[0] = %e\n", idsource, idsink, psource[0], ssource[0]);
-  fprintf(stdout, "isource=%d, idsink=%d, p[1] = %d, s[1] = %e\n", idsource, idsink, psource[1], ssource[1]);
-  fprintf(stdout, "isource=%d, idsink=%d, p[2] = %d, s[2] = %e\n", idsource, idsink, psource[2], ssource[2]);
-  fprintf(stdout, "isource=%d, idsink=%d, p[3] = %d, s[3] = %e\n", idsource, idsink, psource[3], ssource[3]);
-  fprintf(stdout, "isource=%d, idsink=%d, factor = %e\n", idsource, idsink, factor);
-  
-*/
-/*  if(g_cart_id==0) fprintf(stdout, "# %3d %3d ssource = %e\t%e\t%e\t%e\n", idsource, idsink,
-    ssource[0], ssource[1], ssource[2], ssource[3]); */
+ * if( g_cart_id == 0 ) {
+    fprintf(stdout, "__________________________________\n");
+    fprintf(stdout, "isource=%d, idsink=%d, p[0] = %d, s[0] = %e\n", idsource, idsink, psource[0], ssource[0]);
+    fprintf(stdout, "isource=%d, idsink=%d, p[1] = %d, s[1] = %e\n", idsource, idsink, psource[1], ssource[1]);
+    fprintf(stdout, "isource=%d, idsink=%d, p[2] = %d, s[2] = %e\n", idsource, idsink, psource[2], ssource[2]);
+    fprintf(stdout, "isource=%d, idsink=%d, p[3] = %d, s[3] = %e\n", idsource, idsink, psource[3], ssource[3]);
+    fprintf(stdout, "isource=%d, idsink=%d, factor = %e\n", idsource, idsink, factor);
 
-  //fprintf(stdout, "\n# [contract_twopoint_xdep] ix mu c re im\n");
+    fprintf(stdout, "# %3d %3d ssource = %e\t%e\t%e\t%e\n", idsource, idsink,
+        ssource[0], ssource[1], ssource[2], ssource[3]);
+  }
+*/
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  int mu, c, j;
+  unsigned int ix, iix;
+  double  spinor1[24], spinor2[24];
+  complex w;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
   for(ix=0; ix<VOLUME; ix++) {
     iix = ix * stride;
 
     for(mu=0; mu<4; mu++) {
       for(c=0; c<n_c; c++) {
-/*
-         if(g_cart_id==0 && (iix==0 || iix==111)) {
-           fprintf(stdout, "iix=%4d, c=%d, mu=%d, idsource=%d, idsink=%d\n", iix, c, mu, idsource, idsink); 
-           for(j=0; j<12; j++) 
-             fprintf(stdout, "phi = %e +I %e\n", phi[mu*n_c+c][_GSI(iix)+2*j], phi[mu*n_c+c][_GSI(iix)+2*j+1]);
-         }
-*/
+
         if(prec==64) {
           _fv_eq_gamma_ti_fv(spinor1, idsink, (double*)(((double**)phi)[mu*n_c+c])+_GSI(ix));
           _fv_eq_gamma_ti_fv(spinor2, 5, spinor1);
           _co_eq_fv_dag_ti_fv(&w, (double*)(((double**)chi)[psource[mu]*n_c+c])+_GSI(ix), spinor2);
+
+          if( !isimag ) {
+            ((double*)contr)[2*iix  ] += factor * ssource[mu] * w.re;
+            ((double*)contr)[2*iix+1] += factor * ssource[mu] * w.im;
+          } else {
+            ((double*)contr)[2*iix  ] +=  factor * ssource[mu] * w.im;
+            ((double*)contr)[2*iix+1] += -factor * ssource[mu] * w.re;
+          }
         } else {
           _fv_eq_gamma_ti_fv(spinor1, idsink, (float*)(((float**)phi)[mu*n_c+c])+_GSI(ix));
           _fv_eq_gamma_ti_fv(spinor2, 5, spinor1);
           _co_eq_fv_dag_ti_fv(&w, (float*)(((float**)chi)[psource[mu]*n_c+c])+_GSI(ix), spinor2);
-        }
 
-
-        if( !isimag ) {
-          if(prec==64) {
-            ((double*)contr)[2*iix  ] += factor * ssource[mu] * w.re;
-            ((double*)contr)[2*iix+1] += factor * ssource[mu] * w.im;
-          } else {
+          if( !isimag ) {
             ((float*)contr)[2*iix  ] += factor * ssource[mu] * w.re;
             ((float*)contr)[2*iix+1] += factor * ssource[mu] * w.im;
-          }
-        } else {
-/*
-            contr[2*tt  ] += ssource[mu]*w.im;
-            contr[2*tt+1] += ssource[mu]*w.re;
-*/
-          if(prec==64) {
-            ((double*)contr)[2*iix  ] +=  factor * ssource[mu] * w.im;
-            ((double*)contr)[2*iix+1] += -factor * ssource[mu] * w.re;
           } else {
             ((float*)contr)[2*iix  ] +=  factor * ssource[mu] * w.im;
             ((float*)contr)[2*iix+1] += -factor * ssource[mu] * w.re;
           }
         }
-        //if(g_cart_id==0) 
-        //  fprintf(stdout, "# source[%2d, %2d] = %25.16e +I %25.16e\n", mu, tt, 
-        //    ssource[mu]*w.re, ssource[mu]*w.im);
-        //if(idsink==idsource && (idsink==1 || idsink==2 || idsink==3) && phi!=chi ) {
-        //  fprintf(stdout, "%8d%3d%3d\t%e, %e\n",ix,mu,c, 
-        //    ssource[mu] * w.re ,ssource[mu] * w.im  );
-        //}
+/*
+        if(g_cart_id==0) 
+          fprintf(stdout, "# source[%2d, %2d] = %25.16e +I %25.16e\n", mu, tt, 
+            ssource[mu]*w.re, ssource[mu]*w.im);
+        if(idsink==idsource && (idsink==1 || idsink==2 || idsink==3) && phi!=chi ) {
+          fprintf(stdout, "%8d%3d%3d\t%e, %e\n",ix,mu,c, 
+            ssource[mu] * w.re ,ssource[mu] * w.im  );
+        }
+*/
         
-      }  // of c
-    }  // of mu
-  }  // of ix
+      }  /* of c */
+    }  /* of mu */
+  }  /* of ix */
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
 }  /* end of contract_twopoint_xdep */
 
 
