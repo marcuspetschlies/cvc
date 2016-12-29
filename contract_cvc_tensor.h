@@ -23,6 +23,12 @@ void contract_cvc_loop (double*conn, double**field_list, int field_number, int *
 
 void contract_m_loop (double*conn, double**field_list, int field_number, int *gid_list, int gid_number, int *momentum_list[3], int momentum_number, double*weight, double mass, double**eo_work);
 
+void contract_cvc_loop_clover (double*conn, double**field_list, int field_number, int *momentum_list[3], int momentum_number, double*weight,
+       double*mzz_dn, double*mzzinv_up, double*mzzinv_dn, double**eo_work);
+
+void contract_m_loop_clover (double*conn, double**field_list, int field_number, int *gid_list, int gid_number,
+        int *momentum_list[3], int momentum_number, double*weight, double*mzz_dn, double*mzzinv_up, double*mzzinv_dn, double**eo_work);
+
 }  /* end of namespace cvc */
 
 #endif

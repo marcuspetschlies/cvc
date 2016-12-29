@@ -1,5 +1,5 @@
 /****************************************************
- * cvc_exact3_xspace.c
+ * cvc_exact3_xspace.cpp
  *
  * Sun Nov 20 12:42:18 CET 2016
  *
@@ -47,6 +47,8 @@ extern "C"
 #include "read_input_parser.h"
 #include "contractions_io.h"
 #include "contract_cvc_tensor.h"
+#include "matrix_init.h"
+#include "project.h"
 
 using namespace cvc;
 
@@ -64,15 +66,14 @@ void usage() {
 
 int main(int argc, char **argv) {
   
-  int c, i, mu, nu, ir, ia, ib, imunu;
+  int c, i, mu, nu, ia,imunu;
   int op_id = 0;
   int filename_set = 0;
-  int source_location=0, have_source_flag = 0, have_shifted_source_flag = 0;
+  int have_source_flag = 0, have_shifted_source_flag = 0;
   int x0, x1, x2, x3, ix;
   int gsx[4];
   int sx0, sx1, sx2, sx3;
   int check_position_space_WI=0;
-  int threadid=0;
   int exitstatus;
   int write_ascii=0;
   int source_proc_coords[4], source_proc_id = -1;
@@ -83,7 +84,7 @@ int main(int argc, char **argv) {
   double ratime, retime;
   double plaq;
   double *source=NULL, *propagator=NULL;
-  complex w, w1;
+  complex w;
 /*
   int gperm[5][4], gperm2[4][4];
   int isimag[4];
@@ -517,7 +518,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  contract_cvc_tensor(conn, contact_term, fwd_list, bwd_list);
+  contract_cvc_tensor(conn, contact_term, fwd_list, bwd_list, NULL, NULL);
 
   /* normalisation of contractions */
 #ifdef HAVE_OPENMP
@@ -539,9 +540,9 @@ int main(int argc, char **argv) {
   ratime = (double)clock() / CLOCKS_PER_SEC;
 #endif
   if(strcmp(g_outfile_prefix, "NA") == 0) {
-    sprintf(filename, "cvc2_v_x.%.4d", Nconf);
+    sprintf(filename, "cvc3_v_x.%.4d", Nconf);
   } else {
-    sprintf(filename, "%s/cvc2_v_x.%.4d", g_outfile_prefix, Nconf);
+    sprintf(filename, "%s/cvc3_v_x.%.4d", g_outfile_prefix, Nconf);
   }
   sprintf(contype, "cvc - cvc in position space, all 16 components");
   write_lime_contraction(conn, filename, 64, 16, contype, Nconf, 0);
@@ -554,33 +555,6 @@ int main(int argc, char **argv) {
     }
   }
 */
-
-  if(write_ascii) {
-#ifndef HAVE_MPI
-    if(strcmp(g_outfile_prefix, "NA") == 0) {
-      sprintf(filename, "cvc2_v_x.%.4d.ascii", Nconf);
-    } else {
-      sprintf(filename, "%s/cvc2_v_x.%.4d.ascii", g_outfile_prefix, Nconf);
-    }
-    write_contraction(conn, NULL, filename, 16, 2, 0);
-#else
-    sprintf(filename, "cvc2_v_x.%.4d.ascii.%.2d", Nconf, g_cart_id);
-    ofs = fopen(filename, "w");
-    for(x0=0; x0<T;  x0++) {
-    for(x1=0; x1<LX; x1++) {
-    for(x2=0; x2<LY; x2++) {
-    for(x3=0; x3<LZ; x3++) {
-      fprintf(ofs, "# t=%2d x=%2d y=%2d z=%2d\n", x0+g_proc_coords[0]*T, x1+g_proc_coords[1]*LX, x2+g_proc_coords[2]*LY, x3+g_proc_coords[3]*LZ);
-      ix=g_ipt[x0][x1][x2][x3];
-      for(mu=0; mu<4; mu++) {
-      for(nu=0; nu<4; nu++) {
-        imunu = 4*mu + nu;
-        fprintf(ofs, "%3d%25.16e%25.16e\n", imunu, conn[_GWI(imunu,ix,VOLUME)], conn[_GWI(imunu,ix,VOLUME)+1]);
-      }}
-    }}}}
-    fclose(ofs);
-#endif
-  }
 
 #ifdef HAVE_MPI
   retime = MPI_Wtime();
@@ -609,6 +583,40 @@ int main(int argc, char **argv) {
     }
   }
   
+  if(write_ascii) {
+#ifndef HAVE_MPI
+    if(strcmp(g_outfile_prefix, "NA") == 0) {
+      sprintf(filename, "cvc3_v_x.%.4d.ascii", Nconf);
+    } else {
+      sprintf(filename, "%s/cvc3_v_x.%.4d.ascii", g_outfile_prefix, Nconf);
+    }
+    write_contraction(conn, NULL, filename, 16, 2, 0);
+#else
+    sprintf(filename, "cvc3_v_x.%.4d.ascii.%.2d", Nconf, g_cart_id);
+    ofs = fopen(filename, "w");
+    if( ofs == NULL ) {
+      fprintf(stderr, "# [] Error from fopen\n");
+      EXIT(116);
+    }
+    if( g_cart_id == 0 ) fprintf(ofs, "w <- array(dim=c(%d, %d, %d, %d, %d, %d))\n", 4,4,T_global,LX_global,LY_global,LZ_global);
+    for(x0=0; x0<T;  x0++) {
+    for(x1=0; x1<LX; x1++) {
+    for(x2=0; x2<LY; x2++) {
+    for(x3=0; x3<LZ; x3++) {
+      ix=g_ipt[x0][x1][x2][x3];
+      for(mu=0; mu<4; mu++) {
+      for(nu=0; nu<4; nu++) {
+        imunu = 4*mu + nu;
+        fprintf(ofs, "w[%d, %d, %d, %d, %d, %d] <- %25.16e + %25.16e*1.i\n", mu+1, nu+1, 
+            x0+g_proc_coords[0]*T+1, x1+g_proc_coords[1]*LX+1, 
+            x2+g_proc_coords[2]*LY+1, x3+g_proc_coords[3]*LZ+1,
+            conn[_GWI(imunu,ix,VOLUME)], conn[_GWI(imunu,ix,VOLUME)+1]);
+      }}
+    }}}}
+    fclose(ofs);
+#endif
+  }
+
 
 
   /* check the Ward identity in position space */
@@ -734,6 +742,45 @@ int main(int argc, char **argv) {
     /* fclose(ofs); */
   }  /* end of if check_position_space_WI */
 
+
+  /***************************************************************************
+   * momentum projections
+   ***************************************************************************/
+
+  double ***cvc_tp = NULL;
+  exitstatus = init_3level_buffer(&cvc_tp, g_sink_momentum_number, 16, 2*T);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[] Error from init_3level_buffer, status was %d\n", exitstatus);
+    EXIT(26);
+  }
+
+  ratime = _GET_TIME;
+  exitstatus = momentum_projection (conn, cvc_tp[0][0], T*16, g_sink_momentum_number, g_sink_momentum_list);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[] Error from momentum_projection, status was %d\n", exitstatus);
+    EXIT(26);
+  }
+  retime = _GET_TIME;
+  if(g_cart_id==0) fprintf(stdout, "# [] time for momentum projection = %e seconds\n", retime-ratime);
+
+  sprintf(filename, "cvc3_v_p.%.4d.ascii.%.2d", Nconf, g_cart_id);
+  ofs = fopen(filename, "w");
+  if( ofs == NULL ) {
+    fprintf(stderr, "[] Error from fopen\n");
+    EXIT(12);
+  }
+  if(g_cart_id == 0) fprintf(ofs, "v <- array(dim=c(%d,%d,%d,%d))\n", g_sink_momentum_number, 4, 4, T_global);
+  for(i = 0; i < g_sink_momentum_number; i++ ) {
+    fprintf(ofs, "# %3d %3d %3d\n", g_sink_momentum_list[i][0], g_sink_momentum_list[i][1], g_sink_momentum_list[i][2]);
+    for(mu=0; mu < 16; mu++) {
+      for (x0 = 0; x0 < T; x0++) {
+        fprintf(ofs, "v[%d, %d, %d, %d] <- %25.16e + %25.16e*1.i\n", i+1,
+            mu/4+1, mu%4+1, x0+g_proc_coords[0]*T+1, cvc_tp[i][mu][2*x0], cvc_tp[i][mu][2*x0+1]);
+      }
+    }
+  }
+  fclose(ofs);
+  fini_3level_buffer(&cvc_tp);
 
 
   /****************************************

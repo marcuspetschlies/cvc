@@ -373,13 +373,16 @@ int project_expand_to_propagator_field(double *s, double *p, double *V, int num1
  **************************************************************************************************************/
 int momentum_projection (double*V, double *W, unsigned int nv, int momentum_number, int (*momentum_list)[3]) {
 
+  typedef struct {
+    int x[3];
+  } point;
+
   const double MPI2 = M_PI * 2.;
   const unsigned int VOL3 = LX*LY*LZ;
 
   int x1, x2, x3;
   unsigned int i, ix;
   double _Complex **zphase = NULL;
-  double q[3], q_offset=0, q_phase = 0.;;
 
   char BLAS_TRANSA, BLAS_TRANSB;
   int BLAS_M, BLAS_K, BLAS_N, BLAS_LDA, BLAS_LDB, BLAS_LDC;
@@ -389,23 +392,49 @@ int momentum_projection (double*V, double *W, unsigned int nv, int momentum_numb
 
   init_2level_buffer( (double***)(&zphase), momentum_number, 2*VOL3 );
 
+  point *lexic_coords = (point*)malloc(VOL3*sizeof(point));
+  if(lexic_coords == NULL) {
+    fprintf(stderr, "[momentum_projection] Error from malloc\n");
+    EXIT(1);
+  }
+  for(x1=0; x1<LX; x1++) {
+  for(x2=0; x2<LY; x2++) {
+  for(x3=0; x3<LZ; x3++) {
+    ix = g_ipt[0][x1][x2][x3];
+    lexic_coords[ix].x[0] = x1;
+    lexic_coords[ix].x[1] = x2;
+    lexic_coords[ix].x[2] = x3;
+  }}}
+
+  /* loop on sink momenta */
   for(i=0; i < momentum_number; i++) {
     /* phase field */
-    q[0] = MPI2 * g_sink_momentum_list[i][0] / LX_global;
-    q[1] = MPI2 * g_sink_momentum_list[i][1] / LY_global;
-    q[2] = MPI2 * g_sink_momentum_list[i][2] / LZ_global;
-    q_offset = g_proc_coords[1]*LX * q[0] + g_proc_coords[2]*LY * q[1] + g_proc_coords[3]*LZ * q[2];
 #ifdef HAVE_OPENMP
-#pragma omp parallel for default(shared)
+#pragma omp parallel
+{
 #endif
-    for(x1=0; x1<LX; x1++) {
-    for(x2=0; x2<LY; x2++) {
-    for(x3=0; x3<LZ; x3++) {
-      ix = g_ipt[0][x1][x2][x3];
-      q_phase = x1*q[0] + x2*q[1] + x3*q[2] + q_offset;
+    const double q[3] = { MPI2 * momentum_list[i][0] / LX_global,
+                          MPI2 * momentum_list[i][1] / LY_global,
+                          MPI2 * momentum_list[i][2] / LZ_global };
+    const double q_offset = g_proc_coords[1]*LX * q[0] + g_proc_coords[2]*LY * q[1] + g_proc_coords[3]*LZ * q[2];
+    double q_phase;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(ix=0; ix<VOL3; ix++) {
+      q_phase = q_offset \
+        + lexic_coords[ix].x[0] * q[0] \
+        + lexic_coords[ix].x[1] * q[1] \
+        + lexic_coords[ix].x[2] * q[2];
       zphase[i][ix] = cos(q_phase) + I*sin(q_phase);
-    }}}
-  }
+    }
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+  }  /* end of loop on sink momenta */
+
+  free( lexic_coords );
 
   BLAS_TRANSA = 'T';
   BLAS_TRANSB = 'N';
@@ -449,13 +478,16 @@ int momentum_projection (double*V, double *W, unsigned int nv, int momentum_numb
  **************************************************************************************************************/
 int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_number, int (*momentum_list)[3], int gshift[3]) {
 
+  typedef struct {
+    int x[3];
+  } point;
+
   const double MPI2 = M_PI * 2.;
   const unsigned int VOL3 = LX*LY*LZ;
 
   int x1, x2, x3;
   unsigned int i, ix;
   double _Complex **zphase = NULL;
-  double q[3], q_offset=0, q_phase = 0.;;
 
   char BLAS_TRANSA, BLAS_TRANSB;
   int BLAS_M, BLAS_K, BLAS_N, BLAS_LDA, BLAS_LDB, BLAS_LDC;
@@ -463,6 +495,20 @@ int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_num
   double _Complex *BLAS_A = NULL, *BLAS_B = NULL, *BLAS_C = NULL;
   double _Complex BLAS_ALPHA = 1.;
   double _Complex BLAS_BETA  = 0.;
+
+  point *lexic_coords = (point*)malloc(VOL3*sizeof(point));
+  if(lexic_coords == NULL) {
+    fprintf(stderr, "[momentum_projection] Error from malloc\n");
+    EXIT(1);
+  }
+  for(x1=0; x1<LX; x1++) {
+  for(x2=0; x2<LY; x2++) {
+  for(x3=0; x3<LZ; x3++) {
+    ix = g_ipt[0][x1][x2][x3];
+    lexic_coords[ix].x[0] = x1;
+    lexic_coords[ix].x[1] = x2;
+    lexic_coords[ix].x[2] = x3;
+  }}}
 
   if(gshift == NULL) {
     memset( shift, 0, 3*sizeof(int) );
@@ -475,21 +521,35 @@ int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_num
 
   for(i=0; i < momentum_number; i++) {
     /* phase field */
-    q[0] = MPI2 * g_sink_momentum_list[i][0] / LX_global;
-    q[1] = MPI2 * g_sink_momentum_list[i][1] / LY_global;
-    q[2] = MPI2 * g_sink_momentum_list[i][2] / LZ_global;
-    q_offset = ( g_proc_coords[1]*LX - shift[0] ) * q[0] + ( g_proc_coords[2]*LY - shift[1] ) * q[1] + ( g_proc_coords[3]*LZ - shift[2] ) * q[2];
 #ifdef HAVE_OPENMP
-#pragma omp parallel for default(shared)
+#pragma omp parallel
+{
 #endif
-    for(x1=0; x1<LX; x1++) {
-    for(x2=0; x2<LY; x2++) {
-    for(x3=0; x3<LZ; x3++) {
+    const double  q[3] = { MPI2 * momentum_list[i][0] / LX_global,
+                           MPI2 * momentum_list[i][1] / LY_global,
+                           MPI2 * momentum_list[i][2] / LZ_global };
+    const double q_offset = ( g_proc_coords[1]*LX - shift[0] ) * q[0] + ( g_proc_coords[2]*LY - shift[1] ) * q[1] + ( g_proc_coords[3]*LZ - shift[2] ) * q[2];
+    double q_phase;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(ix=0; ix < VOL3; ix++) {
       ix = g_ipt[0][x1][x2][x3];
-      q_phase = x1*q[0] + x2*q[1] + x3*q[2] + q_offset;
+      q_phase = q_offset \
+         + lexic_coords[ix].x[0]*q[0] \
+         + lexic_coords[ix].x[1]*q[1] \
+         + lexic_coords[ix].x[2]*q[2];
+
       zphase[i][ix] = cos(q_phase) + I*sin(q_phase);
-    }}}
-  }
+    }
+
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+  }  /* end of loop on sink momenta */
+
+  free( lexic_coords );
 
   BLAS_TRANSA = 'N';
   BLAS_TRANSB = 'N';

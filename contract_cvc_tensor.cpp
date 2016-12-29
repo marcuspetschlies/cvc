@@ -214,7 +214,7 @@ void contract_cvc_tensor(double *conn, double *contact_term, double*fwd_list[5][
 #endif
   double *phi=NULL, *chi=NULL;
   double **spinor_work = NULL;
-  size_t sizeof_spinor_field = _GSI(VOLUME) * sizeof(double);
+  const size_t sizeof_spinor_field = _GSI(VOLUME) * sizeof(double);
 
   spinor_work = (double**)malloc(24*sizeof(double*));
   for(mu=0; mu<24; mu++ ) alloc_spinor_field(&spinor_work[mu], VOLUME+RAND);
@@ -234,26 +234,32 @@ void contract_cvc_tensor(double *conn, double *contact_term, double*fwd_list[5][
      **********************************************************/  
   
     /* load fwd-running propagator */
-    for(ia=0; ia<12; ia++) {
-      if(fwd_list != NULL) {
+    if(fwd_list != NULL) {
+      for(ia=0; ia<12; ia++) {
         memcpy( spinor_work[ia], fwd_list[4][ia], sizeof_spinor_field);
-      } else {
-        spinor_field_eo2lexic( spinor_work[ia], fwd_list_eo[0][4][ia], fwd_list_eo[1][4][ia] );
+        xchange_field(spinor_work[ia]);
       }
-      xchange_field(spinor_work[ia]);
+    } else {
+      for(ia=0; ia<12; ia++) {
+        spinor_field_eo2lexic( spinor_work[ia], fwd_list_eo[0][4][ia], fwd_list_eo[1][4][ia] );
+        xchange_field(spinor_work[ia]);
+      }
     }
 
     /* loop on the Lorentz index nu at source */
     for(nu=0; nu<4; nu++) 
     {
       /* load backward running propagator, depends on nu */
-      for(ib=0; ib<12; ib++) {
-        if(bwd_list != NULL) {
+      if(bwd_list != NULL) {
+        for(ib=0; ib<12; ib++) {
           memcpy( spinor_work[12+ib], bwd_list[nu][ib], sizeof_spinor_field);
-        } else {
-          spinor_field_eo2lexic( spinor_work[12+ib], bwd_list_eo[0][nu][ib], bwd_list_eo[1][nu][ib] );
+          xchange_field(spinor_work[12+ib]);
         }
-        xchange_field(spinor_work[12+ib]);
+      } else {
+        for(ib=0; ib<12; ib++) {
+          spinor_field_eo2lexic( spinor_work[12+ib], bwd_list_eo[0][nu][ib], bwd_list_eo[1][nu][ib] );
+          xchange_field(spinor_work[12+ib]);
+        }
       }
   
       for(ir=0; ir<4; ir++) {
@@ -424,24 +430,30 @@ void contract_cvc_tensor(double *conn, double *contact_term, double*fwd_list[5][
      **********************************************************/  
   
     /* loop on the Lorentz index nu at source */
-    for(ib=0; ib<12; ib++) {
-      if(bwd_list != NULL) {
+    if(bwd_list != NULL) {
+      for(ib=0; ib<12; ib++) {
         memcpy( spinor_work[12+ib], bwd_list[4][ib], sizeof_spinor_field);
-      } else {
-        spinor_field_eo2lexic( spinor_work[12+ib], bwd_list_eo[0][4][ib], bwd_list_eo[1][4][ib] );
+        xchange_field(spinor_work[12+ib]);
       }
-      xchange_field(spinor_work[12+ib]);
+    } else {
+      for(ib=0; ib<12; ib++) {
+        spinor_field_eo2lexic( spinor_work[12+ib], bwd_list_eo[0][4][ib], bwd_list_eo[1][4][ib] );
+        xchange_field(spinor_work[12+ib]);
+      }
     }
 
     for(nu=0; nu<4; nu++) 
     {
-      for(ia=0; ia<12; ia++) {
-        if(fwd_list != NULL) {
+      if(fwd_list != NULL) {
+        for(ia=0; ia<12; ia++) {
           memcpy( spinor_work[ia], fwd_list[nu][ia], sizeof_spinor_field);
-        } else {
+          xchange_field(spinor_work[ia]);
+        } 
+      } else {
+        for(ia=0; ia<12; ia++) {
           spinor_field_eo2lexic( spinor_work[ia], fwd_list_eo[0][nu][ia], fwd_list_eo[1][nu][ia] );
+          xchange_field(spinor_work[ia]);
         }
-        xchange_field(spinor_work[ia]);
       }
 
       for(ir=0; ir<4; ir++) {
@@ -610,7 +622,7 @@ void contract_cvc_tensor(double *conn, double *contact_term, double*fwd_list[5][
   }
 
 #ifdef HAVE_MPI
-  if(g_cart_id == source_proc_id) fprintf(stdout, "# [contract_cvc_tensor] broadcasing contact term ...\n");
+  if(g_cart_id == source_proc_id) fprintf(stdout, "# [contract_cvc_tensor] broadcasting contact term ...\n");
   MPI_Bcast(contact_term, 8, MPI_DOUBLE, source_proc_id, g_cart_grid);
   /* TEST */
   /* fprintf(stdout, "[%2d] contact term = "\
@@ -636,7 +648,6 @@ void contract_cvc_m(double *conn, int gid, double*fwd_list[5][12], double*bwd_li
 #ifndef HAVE_OPENMP
   complex w, w1;
 #endif
-  double *phi=NULL, *chi=NULL;
   double **spinor_work = NULL;
 
   spinor_work = (double**)malloc(24*sizeof(double*));
@@ -657,12 +668,16 @@ void contract_cvc_m(double *conn, int gid, double*fwd_list[5][12], double*bwd_li
      **********************************************************/  
   
     
-    for(ia=0; ia<12; ia++) {
-      if(fwd_list != NULL) {
+    if(fwd_list != NULL) {
+      for(ia=0; ia<12; ia++) {
         memcpy( spinor_work[ia], fwd_list[4][ia], sizeof_spinor_field);
-      } else {
+      }
+    } else {
+      for(ia=0; ia<12; ia++) {
         spinor_field_eo2lexic( spinor_work[ia], fwd_list_eo[0][4][ia], fwd_list_eo[1][4][ia] );
       }
+    }
+    for(ia=0; ia<12; ia++) {
       spinor_field_eq_gamma_ti_spinor_field(spinor_work[ia], gid, spinor_work[ia], VOLUME);
       g5_phi(spinor_work[ia], VOLUME);
     }
@@ -670,10 +685,12 @@ void contract_cvc_m(double *conn, int gid, double*fwd_list[5][12], double*bwd_li
     /* loop on the Lorentz index nu at source */
     for(nu=0; nu<4; nu++) 
     {
-      for(ib=0; ib<12; ib++) {
-        if(bwd_list != NULL) {
+      if(bwd_list != NULL) {
+        for(ib=0; ib<12; ib++) {
           memcpy( spinor_work[12+ib], bwd_list[nu][ib], sizeof_spinor_field);
-        } else {
+        }
+      } else {
+        for(ib=0; ib<12; ib++) {
           spinor_field_eo2lexic( spinor_work[12+ib], bwd_list_eo[0][nu][ib], bwd_list_eo[1][nu][ib] );
         }
       }
@@ -683,12 +700,12 @@ void contract_cvc_m(double *conn, int gid, double*fwd_list[5][12], double*bwd_li
         for(ia=0; ia<3; ia++) {
           /* phi = g_spinor_field[      4*12 + 3*ir + ia]; */
           /* phi = g_spinor_field[120 + 4*12 + 3*ir + ia]; */
-          phi = spinor_work[3*ir+ia];
+          double *phi = spinor_work[3*ir+ia];
   
         for(ib=0; ib<3; ib++) {
           /* chi = g_spinor_field[60 + nu*12 + 3*gperm[nu][ir] + ib]; */
           /* chi = g_spinor_field[(1 - g_propagator_position) * 60 + nu*12 + 3*gperm[nu][ir] + ib]; */
-          chi = spinor_work[12 + 3*gperm[nu][ir] + ib];
+          double *chi = spinor_work[12 + 3*gperm[nu][ir] + ib];
   
           /* 1) gamma_nu gamma_5 x U */
   
@@ -719,12 +736,12 @@ void contract_cvc_m(double *conn, int gid, double*fwd_list[5][12], double*bwd_li
         for(ia=0; ia<3; ia++) {
           /* phi = g_spinor_field[      4*12 + 3*ir            + ia]; */
           /* phi = g_spinor_field[120 +      4*12 + 3*ir            + ia]; */
-          phi = spinor_work[3*ir + ia];
+          double *phi = spinor_work[3*ir + ia];
   
         for(ib=0; ib<3; ib++) {
           /* chi = g_spinor_field[60 + nu*12 + 3*gperm[ 4][ir] + ib]; */
           /* chi = g_spinor_field[(1 - g_propagator_position) * 60 + nu*12 + 3*gperm[ 4][ir] + ib]; */
-          chi = spinor_work[12 + 3*gperm[ 4][ir] + ib];
+          double *chi = spinor_work[12 + 3*gperm[ 4][ir] + ib];
 
   
           /* -gamma_5 x U */
@@ -757,23 +774,28 @@ void contract_cvc_m(double *conn, int gid, double*fwd_list[5][12], double*bwd_li
      **********************************************************/  
   
     /* loop on the Lorentz index nu at source */
-    for(ib=0; ib<12; ib++) {
-      if(bwd_list != NULL) {
+    if(bwd_list != NULL) {
+      for(ib=0; ib<12; ib++) {
         memcpy( spinor_work[12+ib], bwd_list[4][ib], sizeof_spinor_field);
-      } else {
+      }
+    } else {
+      for(ib=0; ib<12; ib++) {
         spinor_field_eo2lexic( spinor_work[12+ib], bwd_list_eo[0][4][ib], bwd_list_eo[1][4][ib] );
       }
-      xchange_field(spinor_work[12+ib]);
     }
 
     for(nu=0; nu<4; nu++) 
     {
-      for(ia=0; ia<12; ia++) {
-        if(fwd_list != NULL) {
+      if(fwd_list != NULL) {
+        for(ia=0; ia<12; ia++) {
           memcpy( spinor_work[ia], fwd_list[nu][ia], sizeof_spinor_field);
-        } else {
+        }
+      } else {
+        for(ia=0; ia<12; ia++) {
           spinor_field_eo2lexic( spinor_work[ia], fwd_list_eo[0][nu][ia], fwd_list_eo[1][nu][ia] );
         }
+      }
+      for(ia=0; ia<12; ia++) {
         spinor_field_eq_gamma_ti_spinor_field(spinor_work[ia], gid, spinor_work[ia], VOLUME);
         g5_phi(spinor_work[ia], VOLUME);
       }
@@ -783,12 +805,12 @@ void contract_cvc_m(double *conn, int gid, double*fwd_list[5][12], double*bwd_li
         for(ia=0; ia<3; ia++) {
           /* phi = g_spinor_field[     nu*12 + 3*ir            + ia]; */
           /* phi = g_spinor_field[120 +     nu*12 + 3*ir            + ia]; */
-          phi = spinor_work[3*ir + ia];
+          double *phi = spinor_work[3*ir + ia];
   
         for(ib=0; ib<3; ib++) {
           /* chi = g_spinor_field[60 +  4*12 + 3*gperm[nu][ir] + ib]; */
           /* chi = g_spinor_field[(1 - g_propagator_position) * 60 +  4*12 + 3*gperm[nu][ir] + ib]; */
-          chi = spinor_work[12 + 3*gperm[nu][ir] + ib];
+          double *chi = spinor_work[12 + 3*gperm[nu][ir] + ib];
   
       
           /* 1) gamma_nu gamma_5 x U^dagger */
@@ -823,12 +845,12 @@ void contract_cvc_m(double *conn, int gid, double*fwd_list[5][12], double*bwd_li
         for(ia=0; ia<3; ia++) {
           /* phi = g_spinor_field[     nu*12 + 3*ir            + ia]; */
           /* phi = g_spinor_field[120 +     nu*12 + 3*ir            + ia]; */
-          phi = spinor_work[3*ir + ia];
+          double *phi = spinor_work[3*ir + ia];
   
         for(ib=0; ib<3; ib++) {
           /* chi = g_spinor_field[60 +  4*12 + 3*gperm[ 4][ir] + ib]; */
           /* chi = g_spinor_field[(1 - g_propagator_position) * 60 +  4*12 + 3*gperm[ 4][ir] + ib]; */
-          chi = spinor_work[12 + 3*gperm[ 4][ir] + ib];
+          double *chi = spinor_work[12 + 3*gperm[ 4][ir] + ib];
   
           /* -gamma_5 x U */
   
@@ -879,7 +901,6 @@ void contract_m_m(double *conn, int idsource, int idsink, double*fwd_list[12], d
   complex w;
   unsigned int ix;
 #endif
-  double *phi=NULL, *chi=NULL;
   double *spinor_work[2];
 
   int psource[4] = { gamma_permutation[idsource][ 0] / 6,  gamma_permutation[idsource][ 6] / 6, 
@@ -912,14 +933,14 @@ void contract_m_m(double *conn, int idsource, int idsink, double*fwd_list[12], d
       }
       spinor_field_eq_gamma_ti_spinor_field(spinor_work[0], idsink, spinor_work[0], VOLUME);
       g5_phi(spinor_work[0], VOLUME);
+      double *phi = spinor_work[0];
 
-      phi = spinor_work[0];
       if(bwd_list != NULL) {
         memcpy(spinor_work[1], bwd_list[3*+psource[ir] + ia], sizeof_spinor_field);
       } else {
         spinor_field_eo2lexic( spinor_work[1], bwd_list_eo[0][3*+psource[ir] + ia], bwd_list_eo[1][3*+psource[ir] + ia]);
       }
-      chi = spinor_work[1];
+      double *chi = spinor_work[1];
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel shared(ia, ir)
@@ -961,6 +982,7 @@ void contract_m_m(double *conn, int idsource, int idsink, double*fwd_list[12], d
 
 /*************************************************************************************************
  * contract loop with eigenvectors of stochastic propagators
+ *  - contraction for twisted mass (only important for X_eo and C_from_Xeo)
  *************************************************************************************************/
 void contract_m_loop (double*conn, double**field_list, int field_number, int *gid_list, int gid_number, int *momentum_list[3], int momentum_number, double*weight, double mass, double**eo_work) {
 
@@ -1101,8 +1123,156 @@ void contract_m_loop (double*conn, double**field_list, int field_number, int *gi
   return;
 }  /* end of contract_m_loop */
 
+
+/*************************************************************************************************
+ * contract meson loop with eigenvectors of stochastic propagators
+ * - tm-clover version
+ *
+ *************************************************************************************************/
+void contract_m_loop_clover (double*conn, double**field_list, int field_number, int *gid_list, int gid_number,
+    int *momentum_list[3], int momentum_number, double*weight, double*mzz_dn, double*mzzinv_up, double*mzzinv_dn, double**eo_work) {
+
+  typedef struct {
+    int x[4];
+  } point;
+
+  const unsigned int Vhalf = VOLUME/2;
+  const size_t sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
+
+  int i, ig, imom;
+  unsigned int ix, iy;
+  int x0, x1, x2, x3;
+  point *eo2lexic_coords;
+  double *buffer;
+
+  eo2lexic_coords = (point*)malloc(VOLUME*sizeof(point));
+  if(eo2lexic_coords == NULL) {
+    fprintf(stderr, "[contract_m_loop] Error from malloc\n");
+    EXIT(1);
+  }
+  for(x0=0; x0<T; x0++) {
+    for(x1=0; x1<LX; x1++) {
+    for(x2=0; x2<LY; x2++) {
+    for(x3=0; x3<LZ; x3++) {
+      ix = g_ipt[x0][x1][x2][x3];
+      iy = g_lexic2eosub[ix];
+      if(g_iseven[ix]) {
+        eo2lexic_coords[iy].x[0] = x0;
+        eo2lexic_coords[iy].x[1] = x1;
+        eo2lexic_coords[iy].x[2] = x2;
+        eo2lexic_coords[iy].x[3] = x3;
+      } else {
+        eo2lexic_coords[iy+Vhalf].x[0] = x0;
+        eo2lexic_coords[iy+Vhalf].x[1] = x1;
+        eo2lexic_coords[iy+Vhalf].x[2] = x2;
+        eo2lexic_coords[iy+Vhalf].x[3] = x3;
+      }
+    }}}
+  }
+
+  buffer = (double*)malloc(2*VOLUME*sizeof(double));
+  if( buffer == NULL ) {
+    fprintf(stderr, "[contract_m_loop] Error from malloc\n");
+    EXIT(2);
+  }
+
+  memset( conn, 0, 2*T*momentum_number*gid_number*sizeof(double) );
+
+  /* loop on fields */
+  for(i=0; i<field_number; i++) {
+    memcpy(eo_work[3], field_list[i], sizeof_eo_spinor_field);
+    /* Xbar V */
+    X_clover_eo (eo_work[0], eo_work[3], g_gauge_field, mzzinv_dn);
+    /* Wtilde  = Cbar V */
+    C_clover_from_Xeo (eo_work[1], eo_work[0], field_list[i], g_gauge_field, mzz_dn);
+    /* XW = X W*/
+    X_clover_eo (eo_work[2], eo_work[1], g_gauge_field, mzzinv_up);
+
+    for(ig=0; ig<gid_number; ig++) {
+      int gid = gid_list[ig];
+      memset(buffer, 0, 2*VOLUME*sizeof(double));
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{         
+#endif
+      double spinor1[24];
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+      for(ix=0; ix<Vhalf; ix++) {
+        /* even part */
+        /* sp1 = gamma x X Wtilde  */
+        _fv_eq_gamma_ti_fv( spinor1, gid, eo_work[2]+_GSI(ix) );
+        /* sp1 = g5 sp1 */
+        _fv_ti_eq_g5(spinor1);
+        /* buffer = (Xbar V)^+ sp1 */
+        _co_eq_fv_dag_ti_fv((complex*)(buffer+2*ix), eo_work[0]+_GSI(ix), spinor1);
+      }
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+      for(ix=0; ix<Vhalf; ix++) {
+        /* odd part */
+        /* sp1 = gamma x Wtilde  */
+        _fv_eq_gamma_ti_fv( spinor1, gid, eo_work[1]+_GSI(ix) );
+        /* sp1 = g5 sp1 */
+        _fv_ti_eq_g5(spinor1);
+        /* buffer = V^+ sp1 */
+        _co_eq_fv_dag_ti_fv((complex*)(buffer+2*(Vhalf+ix)), field_list[i]+_GSI(ix), spinor1);
+      }
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+    for(imom=0; imom<momentum_number; imom++) {
+      double q[3] = { 2.*M_PI * momentum_list[imom][0] / LX_global, 2.*M_PI * momentum_list[imom][1] / LY_global, 2.*M_PI * momentum_list[imom][2] / LZ_global };
+      double q_offset = q[0] * g_proc_coords[1]*LX + q[1] * g_proc_coords[2]*LY + q[2] * g_proc_coords[3]*LZ;
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{         
+#endif
+        complex w1;
+        complex *zconn_ = (complex*)(conn + 2* ( ig * momentum_number + imom ) * T);
+        double q_phase;
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+        for(ix=0; ix<Vhalf; ix++) {
+          q_phase = q_offset + q[0] * eo2lexic_coords[ix].x[1] + q[1] * eo2lexic_coords[ix].x[2] + q[2] * eo2lexic_coords[ix].x[3];
+          x0 = eo2lexic_coords[ix].x[0];
+          /* even part */
+          w1.re = cos(q_phase)*weight[i]; w1.im = sin(q_phase)*weight[i];
+          _co_pl_eq_co_ti_co( zconn_+x0 , (complex*)(buffer+2*ix), &w1 );
+        }
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+        for(ix=Vhalf; ix<VOLUME; ix++) {
+          q_phase = q_offset + q[0] * eo2lexic_coords[ix].x[1] + q[1] * eo2lexic_coords[ix].x[2] + q[2] * eo2lexic_coords[ix].x[3];
+          x0 = eo2lexic_coords[ix].x[0];
+          /* even part */
+          w1.re = cos(q_phase)*weight[i]; w1.im = sin(q_phase)*weight[i];
+          _co_pl_eq_co_ti_co( zconn_+x0 , (complex*)(buffer+2*ix), &w1 );
+        }
+
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+      }  /* end of loop on gamma */
+    }  /* end of loop on momenta */
+  }  /* end of loop on fields */
+
+
+  free(eo2lexic_coords);
+  free(buffer);
+  return;
+}  /* end of contract_m_loop_clover */
+
+
 /*************************************************************************************************
  * contract loop with eigenvectors of stochastic propagators
+ * - contractions for tm-clover (only for Xeo and C_from_Xeo)
  *************************************************************************************************/
 void contract_cvc_loop (double*conn, double**field_list, int field_number, int *momentum_list[3], int momentum_number, double*weight, double mass, double**eo_work) {
 
@@ -1234,8 +1404,8 @@ void contract_cvc_loop (double*conn, double**field_list, int field_number, int *
 #endif
 
     for(imom=0; imom<momentum_number; imom++) {
-      double q[3] = { 2.*M_PI * momentum_list[imom][0] / LX_global, 2.*M_PI * momentum_list[imom][1] / LY_global, 2.*M_PI * momentum_list[imom][2] / LZ_global };
-      double q_offset = q[0] * g_proc_coords[1]*LX + q[1] * g_proc_coords[2]*LY + q[2] * g_proc_coords[3]*LZ;
+      const double q[3] = { 2.*M_PI * momentum_list[imom][0] / LX_global, 2.*M_PI * momentum_list[imom][1] / LY_global, 2.*M_PI * momentum_list[imom][2] / LZ_global };
+      const double q_offset = q[0] * g_proc_coords[1]*LX + q[1] * g_proc_coords[2]*LY + q[2] * g_proc_coords[3]*LZ;
 #ifdef HAVE_OPENMP
 #pragma omp parallel
 {         
@@ -1257,8 +1427,8 @@ void contract_cvc_loop (double*conn, double**field_list, int field_number, int *
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */
 #endif
-      }  /* end of loop on gamma */
-    }  /* end of loop on momenta */
+      }  /* end of loop on momenta */  
+    }  /* end of loop on mu */
   }  /* end of loop on fields */
 
 
@@ -1266,5 +1436,178 @@ void contract_cvc_loop (double*conn, double**field_list, int field_number, int *
   free(buffer);
   return;
 }  /* end of contract_cvc_loop */
+
+
+/*************************************************************************************************
+ * contract loop with eigenvectors of stochastic propagators
+ * - contractions for tm-clover (only for Xeo and C_from_Xeo)
+ *   what should be passed:
+ *   mzz_dn[1] (odd part) for C_from_Xeo
+ *   mzzinv_dn[0] (even part) for Xbar
+ *   mzzinv_up[0] (even part) for X
+ *************************************************************************************************/
+void contract_cvc_loop_clover (double*conn, double**field_list, int field_number, int *momentum_list[3], int momentum_number, double*weight,
+   double*mzz_dn, double*mzzinv_up, double*mzzinv_dn, double**eo_work) {
+
+  typedef struct {
+    int x[4];
+  } point;
+
+  const unsigned int Vhalf = VOLUME/2;
+  const unsigned int VpRhalf = (VOLUME+RAND)/2;
+  const size_t sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
+
+  int i, x0, x1, x2, x3, mu, imom;
+  unsigned int ix;
+  point *lexic_coords;
+  double *buffer;
+
+  lexic_coords = (point*)malloc(VOLUME*sizeof(point));
+  if(lexic_coords == NULL) {
+    fprintf(stderr, "[contract_cvc_loop] Error from malloc\n");
+    EXIT(1);
+  }
+  for(x0=0; x0<T; x0++) {
+    for(x1=0; x1<LX; x1++) {
+    for(x2=0; x2<LY; x2++) {
+    for(x3=0; x3<LZ; x3++) {
+      ix = g_ipt[x0][x1][x2][x3];
+      lexic_coords[ix].x[0] = x0;
+      lexic_coords[ix].x[1] = x1;
+      lexic_coords[ix].x[2] = x2;
+      lexic_coords[ix].x[3] = x3;
+    }}}
+  }
+
+  buffer = (double*)malloc(2*VOLUME*sizeof(double));
+  if( buffer == NULL ) {
+    fprintf(stderr, "[contract_m_loop] Error from malloc\n");
+    EXIT(2);
+  }
+
+  memset( conn, 0, 8*T*momentum_number*sizeof(double) );
+
+  /* loop on fields */
+  for(i=0; i<field_number; i++) {
+    memcpy(eo_work[3], field_list[i], sizeof_eo_spinor_field);
+    /* Xbar V */
+    X_clover_eo (eo_work[0], eo_work[3], g_gauge_field, mzzinv_dn);
+    /* Wtilde  = Cbar V */
+    C_clover_from_Xeo (eo_work[1], eo_work[0], field_list[i], g_gauge_field, mzz_dn);
+    /* XW = X W*/
+    X_clover_eo (eo_work[2], eo_work[1], g_gauge_field, mzzinv_up);
+
+    memcpy(eo_work[3], field_list[i], sizeof_eo_spinor_field);
+
+    /* xchange even fields */
+    xchange_eo_field(eo_work[0], 0);
+    xchange_eo_field(eo_work[2], 0);
+    /* xchange odd fields */
+    xchange_eo_field(eo_work[1], 1);
+    xchange_eo_field(eo_work[3], 1);
+
+    for(mu=0; mu<4; mu++) {
+
+      memset(buffer, 0, 2*VOLUME*sizeof(double));
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{         
+#endif
+      double spinor1[24], spinor2[24], U_[18];
+      unsigned int ixeo, ix, ixpmueo;
+      complex *zbuffer_ = NULL;
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+      for(ixeo=0; ixeo<Vhalf; ixeo++) {
+        /*************
+         * even part *
+         *************/
+        ix = g_eo2lexic[ixeo];
+        zbuffer_ = (complex*)(buffer + 2*ix);
+        /* odd ix + mu */
+        ixpmueo = g_lexic2eosub[g_iup[ix][mu]];
+
+        _cm_eq_cm_ti_co(U_, g_gauge_field+_GGI(ix,mu), &(co_phase_up[mu]) );
+        _fv_eq_cm_ti_fv(spinor1, U_, eo_work[1]+_GSI(ixpmueo));
+        _fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
+        _fv_mi_eq_fv(spinor2, spinor1);
+        _fv_ti_eq_g5(spinor2);
+        _co_eq_fv_dag_ti_fv( zbuffer_, eo_work[0]+_GSI(ixeo), spinor2);
+
+        _fv_eq_cm_dag_ti_fv(spinor1, U_, eo_work[2]+_GSI(ixeo));
+        _fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
+        _fv_pl_eq_fv(spinor2, spinor1);
+        _fv_ti_eq_g5(spinor2);
+        _co_pl_eq_fv_dag_ti_fv( zbuffer_, eo_work[3]+_GSI(ixpmueo), spinor2);
+
+        _co_ti_eq_re( zbuffer_, weight[i]);
+      }
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+      for(ixeo=0; ixeo<Vhalf; ixeo++) {
+        /*************
+         * odd part *
+         *************/
+        /* odd ix */
+        ix = g_eo2lexic[ixeo + VpRhalf];
+        zbuffer_ = (complex*)(buffer + 2 * ix);
+        /* even ix + mu */
+        ixpmueo = g_lexic2eosub[g_iup[ix][mu]];
+
+        _cm_eq_cm_ti_co(U_, g_gauge_field+_GGI(ix,mu), &(co_phase_up[mu]) );
+        _fv_eq_cm_ti_fv(spinor1, U_, eo_work[2]+_GSI(ixpmueo));
+        _fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
+        _fv_mi_eq_fv(spinor2, spinor1);
+        _fv_ti_eq_g5(spinor2);
+        _co_eq_fv_dag_ti_fv( zbuffer_, eo_work[3]+_GSI(ixeo), spinor2);
+
+        _fv_eq_cm_dag_ti_fv(spinor1, U_, eo_work[1]+_GSI(ixeo));
+        _fv_eq_gamma_ti_fv(spinor2, mu, spinor1);
+        _fv_pl_eq_fv(spinor2, spinor1);
+        _fv_ti_eq_g5(spinor2);
+        _co_pl_eq_fv_dag_ti_fv( zbuffer_, eo_work[0]+_GSI(ixpmueo), spinor2);
+
+        _co_ti_eq_re( zbuffer_, weight[i]);
+      }
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+    for(imom=0; imom<momentum_number; imom++) {
+      const double q[3] = { 2.*M_PI * momentum_list[imom][0] / LX_global, 2.*M_PI * momentum_list[imom][1] / LY_global, 2.*M_PI * momentum_list[imom][2] / LZ_global };
+      const double q_offset = q[0] * g_proc_coords[1]*LX + q[1] * g_proc_coords[2]*LY + q[2] * g_proc_coords[3]*LZ;
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{         
+#endif
+        complex w1;
+        complex *zconn_ = (complex*)(conn + 2* ( mu * momentum_number + imom ) * T);
+        double q_phase;
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+        for(ix=0; ix<VOLUME; ix++) {
+          q_phase = q_offset + q[0] * lexic_coords[ix].x[1] + q[1] * lexic_coords[ix].x[2] + q[2] * lexic_coords[ix].x[3];
+          x0 = lexic_coords[ix].x[0];
+          /* even part */
+          w1.re = cos(q_phase); w1.im = sin(q_phase);
+          _co_pl_eq_co_ti_co( zconn_+x0 , (complex*)(buffer+2*ix), &w1 );
+        }
+
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+      }  /* end of loop on momenta */  
+    }  /* end of loop on mu */
+  }  /* end of loop on fields */
+
+
+  free(lexic_coords);
+  free(buffer);
+  return;
+}  /* end of contract_cvc_loop_clover */
 
 }  /* end of namespace cvc */

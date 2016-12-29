@@ -60,6 +60,9 @@
 
 #define _GWI(_ix,_mu,_N) (2*((_N)*(_ix)+(_mu)))
 /* #define _GWI(_ix,_mu,_N) (2 * ( 16 * (_mu) + (_ix) ) ) */
+
+
+
 #define _GCI(_x,_k,_N) ( 2*( (_N) * (_x) + (_k) ) )
 
 #define _G5DI(_is,_ix) ((_is)*VOLUME+(_ix))
