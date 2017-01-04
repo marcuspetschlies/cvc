@@ -533,38 +533,9 @@ int main(int argc, char **argv) {
 #endif
   if(g_cart_id==0) fprintf(stdout, "# [cvc_exact3_xspace] contractions in %e seconds\n", retime-ratime);
 
-  /* save results */
-#ifdef HAVE_MPI
-  ratime = MPI_Wtime();
-#else
-  ratime = (double)clock() / CLOCKS_PER_SEC;
-#endif
-  if(strcmp(g_outfile_prefix, "NA") == 0) {
-    sprintf(filename, "cvc3_v_x.%.4d", Nconf);
-  } else {
-    sprintf(filename, "%s/cvc3_v_x.%.4d", g_outfile_prefix, Nconf);
-  }
-  sprintf(contype, "cvc - cvc in position space, all 16 components");
-  write_lime_contraction(conn, filename, 64, 16, contype, Nconf, 0);
-
-  /* TEST */
-/*
-  for(ix=0;ix<VOLUME;ix++) {
-    for(mu=0;mu<16;mu++) {
-      fprintf(stdout, "%2d%6d%3d%25.16e%25.16e\n", g_cart_id, ix, mu, conn[_GWI(mu,ix,VOLUME)], conn[_GWI(mu,ix,VOLUME)+1]);
-    }
-  }
-*/
 
 #ifdef HAVE_MPI
-  retime = MPI_Wtime();
-#else
-  retime = (double)clock() / CLOCKS_PER_SEC;
-#endif
-  if(g_cart_id==0) fprintf(stdout, "# [cvc_exact3_xspace] saved position space results in %e seconds\n", retime-ratime);
-
-
-#ifdef HAVE_MPI
+  /* broadcast contact term */
   if(g_cart_id==0) fprintf(stdout, "# [cvc_exact3_xspace] broadcasing contact term ...\n");
   MPI_Bcast(contact_term, 8, MPI_DOUBLE, have_source_flag, g_cart_grid);
   fprintf(stdout, "[%2d] contact term = "\
@@ -582,7 +553,22 @@ int main(int argc, char **argv) {
       conn[_GWI(5*mu,ix,VOLUME) + 1] -= contact_term[2*mu+1];
     }
   }
+
+  /* save results as lime / lemon file */
+  ratime = _GET_TIME;
+  if(strcmp(g_outfile_prefix, "NA") == 0) {
+    sprintf(filename, "cvc3_v_x.%.4d", Nconf);
+  } else {
+    sprintf(filename, "%s/cvc3_v_x.%.4d", g_outfile_prefix, Nconf);
+  }
+  for(mu=0; mu<16; mu++) {
+    sprintf(contype, "<comment>\n  cvc - cvc in position space\n</comment>\n<component>\n  %2d-%2d\n</component>\n", mu/4, mu%4);
+    write_lime_contraction(&(conn[_GWI(mu,0,VOLUME)]), filename, 64, 1, contype, Nconf, mu>0);
+  }
+  retime = _GET_TIME;
+  if(g_cart_id==0) fprintf(stdout, "# [cvc_exact3_xspace] saved position space results in %e seconds\n", retime-ratime);
   
+  /* save results in plain text */
   if(write_ascii) {
 #ifndef HAVE_MPI
     if(strcmp(g_outfile_prefix, "NA") == 0) {

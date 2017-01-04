@@ -67,11 +67,10 @@ int main(int argc, char **argv) {
   int write_ascii=0;
   int outfile_prefix_set = 0;
   double *conn = (double*)NULL;
-  double contact_term[8];
+  double contact_term[8] = {0., 0., 0., 0., 0., 0., 0., 0.};
   double phase[4];
   char filename[100], contype[400], outfile_prefix[400];
   double ratime, retime;
-  double *phi=NULL, *chi=NULL;
   complex w, w1;
   FILE *ofs;
 
@@ -96,19 +95,19 @@ int main(int argc, char **argv) {
       break;
     case 'w':
       check_position_space_WI = 1;
-      fprintf(stdout, "\n# [avc_exact2_lowmem_pspace] will check Ward identity in position space\n");
+      fprintf(stdout, "\n# [cvc_exact2_pspace] will check Ward identity in position space\n");
       break;
     case 'W':
       check_momentum_space_WI = 1;
-      fprintf(stdout, "\n# [avc_exact2_lowmem_pspace] will check Ward identity in momentum space\n");
+      fprintf(stdout, "\n# [cvc_exact2_pspace] will check Ward identity in momentum space\n");
       break;
     case 'a':
       write_ascii = 1;
-      fprintf(stdout, "\n# [avc_exact2_lowmem_pspace] will write data in ASCII format too\n");
+      fprintf(stdout, "\n# [cvc_exact2_pspace] will write data in ASCII format too\n");
       break;
     case 'o':
       strcpy(outfile_prefix, optarg);
-      fprintf(stdout, "\n# [avc_exact2_lowmem_pspace] will use prefix %s for output filenames\n", outfile_prefix);
+      fprintf(stdout, "\n# [cvc_exact2_pspace] will use prefix %s for output filenames\n", outfile_prefix);
       outfile_prefix_set = 1;
       break;
     case 'h':
@@ -121,7 +120,7 @@ int main(int argc, char **argv) {
 
   if(g_cart_id==0) {
     g_the_time = time(NULL);
-    fprintf(stdout, "\n# [avc_exact2_lowmem_pspace] using global time stamp %s", ctime(&g_the_time));
+    fprintf(stdout, "\n# [cvc_exact2_pspace] using global time stamp %s", ctime(&g_the_time));
   }
 
 #if (defined PARALLELTX) || (defined PARALLELTXY)
@@ -136,11 +135,11 @@ int main(int argc, char **argv) {
 
   /* some checks on the input data */
   if((T_global == 0) || (LX==0) || (LY==0) || (LZ==0)) {
-    if(g_proc_id==0) fprintf(stderr, "\n[avc_exact2_lowmem_pspace] T and L's must be set\n");
+    if(g_proc_id==0) fprintf(stderr, "\n[cvc_exact2_pspace] T and L's must be set\n");
     usage();
   }
   if(g_kappa == 0.) {
-    if(g_proc_id==0) fprintf(stderr, "\n[avc_exact2_lowmem_pspace] kappa should be > 0.n");
+    if(g_proc_id==0) fprintf(stderr, "\n[cvc_exact2_pspace] kappa should be > 0.n");
     usage();
   }
 
@@ -167,7 +166,7 @@ int main(int argc, char **argv) {
 #ifdef HAVE_OPENMP
   int exitstatus = fftw_threads_init();
   if(exitstatus != 0) {
-    fprintf(stderr, "\n[avc_exact2_lowmem_pspace] Error from fftw_init_threads; status was %d\n", exitstatus);
+    fprintf(stderr, "\n[cvc_exact2_pspace] Error from fftw_init_threads; status was %d\n", exitstatus);
     EXIT(120);
   }
 #endif
@@ -233,56 +232,67 @@ int main(int argc, char **argv) {
   sx2 = (g_source_location%(LY*LZ)) / LZ;
   sx3 = (g_source_location%LZ);
 
-#ifdef HAVE_MPI
-      ratime = MPI_Wtime();
-#else
-      ratime = (double)clock() / CLOCKS_PER_SEC;
-#endif
-
   /* read the position space contractions */
-#ifdef HAVE_MPI
-  ratime = MPI_Wtime();
-#else
-  ratime = (double)clock() / CLOCKS_PER_SEC;
-#endif
+  ratime = _GET_TIME;
   if(outfile_prefix_set) {
     sprintf(filename, "%s/%s_v_x.%.4d", outfile_prefix, filename_prefix, Nconf);
   } else {
     sprintf(filename, "%s_v_x.%.4d", filename_prefix, Nconf);
   }
-  read_lime_contraction(conn, filename, 16, 0);
-#ifdef HAVE_MPI
-  retime = MPI_Wtime();
-#else
-  retime = (double)clock() / CLOCKS_PER_SEC;
-#endif
-  if(g_cart_id==0) fprintf(stdout, "\n# [avc_exact2_lowmem_pspace] time to read contraction data: %e seconds\n", retime-ratime);
 
+  for(mu=0; mu<16; mu++) {
+    int exitstatus = read_lime_contraction( &(conn[_GWI(mu,0,VOLUME)]), filename, 1, mu);
+
+    if(exitstatus != 0 ) {
+      fprintf(stderr, "[cvc_exact2_pspace] Error from read_lime_contractions, status was %d\n", exitstatus);
+      EXIT(12);
+    }
+  }
+  /* read_lime_contraction(conn, filename, 16, 0); */
+
+  retime = _GET_TIME;
+  if(g_cart_id==0) fprintf(stdout, "\n# [cvc_exact2_pspace] time to read contraction data: %e seconds\n", retime-ratime);
+
+  /* TEST */
+  for(x0=0; x0<T;  x0++) {
+  for(x1=0; x1<LX; x1++) {
+  for(x2=0; x2<LY; x2++) {
+  for(x3=0; x3<LZ; x3++) {
+    ix=g_ipt[x0][x1][x2][x3];
+    for(mu=0; mu<4; mu++) {
+    for(nu=0; nu<4; nu++) {
+      fprintf(stdout, "%2d %2d %2d %2d \t %2d %2d \t %25.16e%25.16e\n", x0, x1, x2, x3, mu, nu, 
+          conn[_GWI(4*mu+nu,ix,VOLUME)],
+          conn[_GWI(4*mu+nu,ix,VOLUME)+1]);
+    }}
+  }}}}
+
+#if 0
   // read the contact terms
   sprintf(filename, "%s_v_ct.%.4d", filename_prefix, Nconf);
   if( (ofs = fopen(filename, "r")) == NULL ) {
-    fprintf(stderr, "\n[avc_exact2_lowmem_pspace] Error, could not open file %s for reading\n", filename);
+    fprintf(stderr, "\n[cvc_exact2_pspace] Error, could not open file %s for reading\n", filename);
     EXIT(117);
   }
-
   for(mu=0;mu<4;mu++) {
     fscanf(ofs, "%lf%lf", contact_term+2*mu, contact_term+2*mu+1);
   }
   fclose(ofs);
   // print contact term
   if(have_source_flag) {
-    fprintf(stdout, "\n# [avc_exact2_lowmem_pspace] contact term\n");
+    fprintf(stdout, "\n# [cvc_exact2_pspace] contact term\n");
     for(i=0;i<4;i++) {
       fprintf(stdout, "\t%d%25.16e%25.16e\n", i, contact_term[2*i], contact_term[2*i+1]);
     }
   }
+#endif
 
 #ifndef HAVE_MPI
   /* check the Ward identity in position space */
   if(check_position_space_WI) {
     sprintf(filename, "WI_X.%.4d", Nconf);
     ofs = fopen(filename,"w");
-    fprintf(stdout, "\n# [avc_exact2_lowmem_pspace] checking Ward identity in position space ...\n");
+    fprintf(stdout, "\n# [cvc_exact2_pspace] checking Ward identity in position space ...\n");
     for(x0=0; x0<T;  x0++) {
     for(x1=0; x1<LX; x1++) {
     for(x2=0; x2<LY; x2++) {
@@ -310,11 +320,7 @@ int main(int argc, char **argv) {
   /*********************************************
    * Fourier transformation 
    *********************************************/
-#ifdef HAVE_MPI
-  ratime = MPI_Wtime();
-#else
-  ratime = (double)clock() / CLOCKS_PER_SEC;
-#endif
+  ratime = _GET_TIME;
   for(mu=0; mu<16; mu++) {
     memcpy((void*)in, (void*)&conn[_GWI(mu,0,VOLUME)], 2*VOLUME*sizeof(double));
 #ifdef HAVE_MPI
@@ -329,11 +335,13 @@ int main(int argc, char **argv) {
     memcpy((void*)&conn[_GWI(mu,0,VOLUME)], (void*)in, 2*VOLUME*sizeof(double));
   }
 
+#if 0
+
   /*****************************************
    * add phase factors
    *****************************************/
   for(mu=0; mu<4; mu++) {
-    phi = conn + _GWI(5*mu,0,VOLUME);
+    double *phi = conn + _GWI(5*mu,0,VOLUME);
 
     for(x0=0; x0<T; x0++) {
       phase[0] = 2. * (double)(Tstart+x0) * M_PI / (double)T_global;
@@ -354,8 +362,8 @@ int main(int argc, char **argv) {
 
   for(mu=0; mu<3; mu++) {
   for(nu=mu+1; nu<4; nu++) {
-    phi = conn + _GWI(4*mu+nu,0,VOLUME);
-    chi = conn + _GWI(4*nu+mu,0,VOLUME);
+    double *phi = conn + _GWI(4*mu+nu,0,VOLUME);
+    double *chi = conn + _GWI(4*nu+mu,0,VOLUME);
 
     for(x0=0; x0<T; x0++) {
       phase[0] =  (double)(Tstart+x0) * M_PI / (double)T_global;
@@ -380,45 +388,62 @@ int main(int argc, char **argv) {
     }}}}
   }}  /* of mu and nu */
 
-#ifdef HAVE_MPI
-  retime = MPI_Wtime();
-#else
-  retime = (double)clock() / CLOCKS_PER_SEC;
 #endif
+  retime = _GET_TIME;
   if(g_cart_id==0) fprintf(stdout, "Fourier transform in %e seconds\n", retime-ratime);
 
   /********************************
    * save momentum space results
    ********************************/
-#ifdef HAVE_MPI
-  ratime = MPI_Wtime();
-#else
-  ratime = (double)clock() / CLOCKS_PER_SEC;
-#endif
+  ratime = _GET_TIME;
   if(outfile_prefix_set) {
-    sprintf(filename, "%s/avc2_v_p.%.4d", outfile_prefix, Nconf);
+    sprintf(filename, "%s/cvc2_v_p.%.4d", outfile_prefix, Nconf);
   } else {
-    sprintf(filename, "avc2_v_p.%.4d", Nconf);
+    sprintf(filename, "cvc2_v_p.%.4d", Nconf);
   }
-  sprintf(contype, "cvc - cvc in momentum space, all 16 components");
-  write_lime_contraction(conn, filename, 64, 16, contype, Nconf, 0);
-#ifndef HAVE_MPI
-  if(write_ascii) {
-    if(outfile_prefix_set) {
-      sprintf(filename, "%s/avc2_v_p.%.4d", outfile_prefix, Nconf);
-    } else {
-      sprintf(filename, "avc2_v_p.%.4d.ascii", Nconf);
-    }
-    write_contraction(conn, (int*)NULL, filename, 16, 2, 0);
+  /* sprintf(contype, "cvc - cvc in momentum space, all 16 components");
+  write_lime_contraction(conn, filename, 64, 16, contype, Nconf, 0); */
+  for(mu=0; mu<16; mu++) {
+    sprintf(contype, "<comment>\n  cvc - cvc in momentum space\n</comment>\n<component>\n  %2d-%2d\n</component>\n", mu/4, mu%4);
+    write_lime_contraction(&(conn[_GWI(mu,0,VOLUME)]), filename, 64, 1, contype, Nconf, mu>0);
   }
-#endif
 
-#ifdef HAVE_MPI
-  retime = MPI_Wtime();
+  if(write_ascii) {
+#ifndef HAVE_MPI
+    if(outfile_prefix_set) {
+      sprintf(filename, "%s/cvc2_v_p.%.4d", outfile_prefix, Nconf);
+    } else {
+      sprintf(filename, "cvc2_v_p.%.4d.ascii", Nconf);
+    }
+    /* write_contraction(conn, (int*)NULL, filename, 16, 2, 0); */
 #else
-  retime = (double)clock() / CLOCKS_PER_SEC;
+    sprintf(filename, "cvc2_v_p.%.4d.ascii.%.2d", Nconf, g_cart_id);
 #endif
-  if(g_cart_id==0) fprintf(stdout, "saved momentum space results in %e seconds\n", retime-ratime);
+    ofs = fopen(filename, "w");
+    if( ofs == NULL ) {
+      fprintf(stderr, "[cvc_exact2_pspace] Error from fopen\n");
+      EXIT(116);
+    }
+    if( g_cart_id == 0 ) fprintf(ofs, "cvc2_v_p <- array(dim=c(%d, %d, %d, %d, %d, %d))\n", 4,4,T_global,LX_global,LY_global,LZ_global);
+    for(x0=0; x0<T;  x0++) {
+    for(x1=0; x1<LX; x1++) {
+    for(x2=0; x2<LY; x2++) {
+    for(x3=0; x3<LZ; x3++) {
+      ix=g_ipt[x0][x1][x2][x3];
+      for(mu=0; mu<4; mu++) {
+      for(nu=0; nu<4; nu++) {
+        int imunu = 4*mu + nu;
+        fprintf(ofs, "cvc2_v_p[%d, %d, %d, %d, %d, %d] <- %25.16e + %25.16e*1.i\n", mu+1, nu+1,
+            x0+g_proc_coords[0]*T+1, x1+g_proc_coords[1]*LX+1,
+            x2+g_proc_coords[2]*LY+1, x3+g_proc_coords[3]*LZ+1,
+            conn[_GWI(imunu,ix,VOLUME)], conn[_GWI(imunu,ix,VOLUME)+1]);
+      }}
+    }}}}
+    fclose(ofs);
+  }  /* end of if write ascii */
+
+  retime = _GET_TIME;
+  if(g_cart_id==0) fprintf(stdout, "# [cvc_exact2_pspace] saved momentum space results in %e seconds\n", retime-ratime);
 
   if(check_momentum_space_WI) {
 #ifdef HAVE_MPI
@@ -427,7 +452,7 @@ int main(int argc, char **argv) {
     sprintf(filename, "WI_P.%.4d", Nconf);
 #endif  
     ofs = fopen(filename,"w");
-    if(g_cart_id == 0) fprintf(stdout, "\n# [avc_exact2_lowmem_pspace] checking Ward identity in momentum space ...\n");
+    if(g_cart_id == 0) fprintf(stdout, "\n# [cvc_exact2_pspace] checking Ward identity in momentum space ...\n");
     for(x0=0; x0<T; x0++) {
       phase[0] = 2. * sin( (double)(Tstart+x0) * M_PI / (double)T_global );
     for(x1=0; x1<LX; x1++) {
@@ -472,8 +497,8 @@ int main(int argc, char **argv) {
 
   if(g_cart_id==0) {
     g_the_time = time(NULL);
-    fprintf(stdout, "\n# [avc_exact2_lowmem_pspace] %s# [avc_exact2_lowmem_pspace] end of run\n", ctime(&g_the_time));
-    fprintf(stderr, "\n# [avc_exact2_lowmem_pspace] %s# [avc_exact2_lowmem_pspace] end of run\n", ctime(&g_the_time));
+    fprintf(stdout, "\n# [cvc_exact2_pspace] %s# [cvc_exact2_pspace] end of run\n", ctime(&g_the_time));
+    fprintf(stderr, "\n# [cvc_exact2_pspace] %s# [cvc_exact2_pspace] end of run\n", ctime(&g_the_time));
   }
 
   return(0);

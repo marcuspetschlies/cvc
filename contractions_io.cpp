@@ -372,7 +372,7 @@ int read_binary_contraction_data(double * const s, LimeReader * limereader, cons
  * write_contraction_format
  **************************************************************/
 
-int write_contraction_format(char * filename, const int prec, const int N, char * type, const int gid, const int sid) {
+int write_contraction_format(char * filename, const int prec, const int N, char * type, const int gid, const int append) {
   FILE * ofs = NULL;
   LimeWriter * limewriter = NULL;
   LimeRecordHeader * limeheader = NULL;
@@ -382,7 +382,12 @@ int write_contraction_format(char * filename, const int prec, const int N, char 
   n_uint64_t bytes;
 
   if(g_cart_id==0) {
-    ofs = fopen(filename, "w");
+    if( append ) {
+      ofs = fopen(filename, "a");
+      fseek(ofs, 0, SEEK_END);
+    } else {
+      ofs = fopen(filename, "w");
+    }
   
     if(ofs == (FILE*)NULL) {
       fprintf(stderr, "[write_contraction_format] Could not open file %s for writing!\n Aborting...\n", filename);
@@ -394,7 +399,8 @@ int write_contraction_format(char * filename, const int prec, const int N, char 
       EXIT(500);
     }
   
-    sprintf(message, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<cvcFormat>\n<type>%s</type>\n<precision>%d</precision>\n<components>%d</components>\n<lx>%d</lx>\n<ly>%d</ly>\n<lz>%d</lz>\n<lt>%d</lt>\n<nconf>%d</nconf>\n<source>%d</source>\n</cvcFormat>", type, prec, N, LX*g_nproc_x, LY*g_nproc_y, LZ*g_nproc_z, T_global, gid, sid);
+    sprintf(message, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<cvcFormat>\n<type>%s</type>\n<precision>%d</precision>\n<components>%d</components>\n<lx>%d</lx>\n<ly>%d</ly>\n<lz>%d</lz>\n<lt>%d</lt>\n<nconf>%d</nconf>\n</cvcFormat>", 
+        type, prec, N, LX*g_nproc_x, LY*g_nproc_y, LZ*g_nproc_z, T_global, gid);
     bytes = strlen( message );
     limeheader = limeCreateHeader(MB_flag, ME_flag, "cvc-contraction-format", bytes);
     status = limeWriteRecordHeader( limeheader, limewriter);
@@ -417,7 +423,7 @@ int write_contraction_format(char * filename, const int prec, const int N, char 
  * write_lime_contraction
  ***********************************************************/
 #ifndef HAVE_LIBLEMON
-int write_lime_contraction(double * const s, char * filename, const int prec, const int N, char * type, const int gid, const int sid) {
+int write_lime_contraction(double * const s, char * filename, const int prec, const int N, char * type, const int gid, const int append) {
 
   FILE * ofs = NULL;
   LimeWriter * limewriter = NULL;
@@ -427,7 +433,7 @@ int write_lime_contraction(double * const s, char * filename, const int prec, co
   n_uint64_t bytes;
   DML_Checksum checksum;
 
-  write_contraction_format(filename, prec, N, type, gid, sid);
+  write_contraction_format(filename, prec, N, type, gid, append);
 
   if(g_cart_id==0) {
     ofs = fopen(filename, "a");
@@ -471,7 +477,7 @@ int write_lime_contraction(double * const s, char * filename, const int prec, co
   return(0);
 }
 #else  // HAVE_LIBLEMON
-int write_lime_contraction(double * const s, char * filename, const int prec, const int N, char * type, const int gid, const int sid) {
+int write_lime_contraction(double * const s, char * filename, const int prec, const int N, char * type, const int gid, const int append) {
 
   MPI_File * ifs = NULL;
   LemonWriter * writer = NULL;
@@ -488,22 +494,30 @@ int write_lime_contraction(double * const s, char * filename, const int prec, co
   if(g_cart_id == 0) fprintf(stdout, "\n# [write_lime_contraction] constructing lemon writer for file %s\n", filename);
 
   ifs = (MPI_File*)malloc(sizeof(MPI_File));
-  status = MPI_File_open(g_cart_grid, filename, MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, ifs);
-  /* append with MPI_MODE_APPEND ? */
-
-  if(status == MPI_SUCCESS) status = MPI_File_set_size(*ifs, 0);
+  if(append) {
+    status = MPI_File_open(g_cart_grid, filename, MPI_MODE_WRONLY | MPI_MODE_APPEND, MPI_INFO_NULL, ifs);
+    /* if(status == MPI_SUCCESS) status = MPI_File_seek (*ifs, 0, MPI_SEEK_END); */
+  } else {
+    status = MPI_File_open(g_cart_grid, filename, MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, ifs);
+    if(status == MPI_SUCCESS) status = MPI_File_set_size(*ifs, 0);
+  }
   status = (status == MPI_SUCCESS) ? 0 : 1;
+  if(status) {
+    fprintf(stderr, "[write_lime_contraction] Error, could not open file %s\n", filename);
+    EXIT(119);
+  }
+
   writer = lemonCreateWriter(ifs, g_cart_grid);
   status = status || (writer == NULL);
 
   if(status) {
-    fprintf(stderr, "[write_lime_contraction] Error, could not open file for writing\n");
+    fprintf(stderr, "[write_lime_contraction] Error from lemonCreateWriter\n");
     EXIT(120);
   }
 
   // format message
   message = (char*)malloc(2048);
-  sprintf(message, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<cvcFormat>\n<type>%s</type>\n<precision>%d</precision>\n<components>%d</components>\n<lx>%d</lx>\n<ly>%d</ly>\n<lz>%d</lz>\n<lt>%d</lt>\n<nconf>%d</nconf>\n<source>%d</source>\n</cvcFormat>\ndate %s", type, prec, N, LX*g_nproc_x, LY*g_nproc_y, LZ*g_nproc_z, T_global, gid, sid, ctime(&g_the_time));
+  sprintf(message, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<cvcFormat>\n<type>%s</type>\n<precision>%d</precision>\n<components>%d</components>\n<lx>%d</lx>\n<ly>%d</ly>\n<lz>%d</lz>\n<lt>%d</lt>\n<nconf>%d</nconf>\n</cvcFormat>\ndate %s", type, prec, N, LX*g_nproc_x, LY*g_nproc_y, LZ*g_nproc_z, T_global, gid, ctime(&g_the_time));
   bytes = strlen(message);
   MB_flag=1, ME_flag=1;
   header = lemonCreateHeader(MB_flag, ME_flag, "cvc_contraction-format", bytes);
