@@ -907,7 +907,7 @@ int main(int argc, char **argv) {
             int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
             if(status != 0) {
               fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d\n", status);
-              EXIT(8);
+              EXIT(80);
             }
  
           }  /* end of loop on sink momenta */
@@ -995,7 +995,7 @@ int main(int argc, char **argv) {
               int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
               if(status != 0) {
                 fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d\n", status);
-                EXIT(8);
+                EXIT(81);
               }
             }  /* end of loop on components */
           }  /* end of loop on sink momenta */
@@ -1088,8 +1088,8 @@ int main(int argc, char **argv) {
                 }
                 int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
                 if(status != 0) {
-                  fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d\n", status);
-                  EXIT(8);
+                  fprintf(stderr, "[piN2piN] Error from aff_node_put_complex, status was %d\n", status);
+                  EXIT(82);
                 }
               }  /* end of loop on components */
             }  /* end of loop on sink momenta */
@@ -1173,8 +1173,8 @@ int main(int argc, char **argv) {
           }
           int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global);
           if(status != 0) {
-            fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d\n", status);
-            EXIT(8);
+            fprintf(stderr, "[piN2piN] Error from aff_node_put_complex, status was %d\n", status);
+            EXIT(83);
           }
 
         }  /* end of loop on sink momenta */
@@ -1450,8 +1450,8 @@ int main(int argc, char **argv) {
                   }
                   int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
                   if(status != 0) {
-                    fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d\n", status);
-                    EXIT(8);
+                    fprintf(stderr, "[piN2piN] Error from aff_node_put_complex, status was %d\n", status);
+                    EXIT(84);
                   }
                 }  /* end of loop on components */
               }  /* end of loop on sink momenta */
@@ -1691,8 +1691,9 @@ int main(int argc, char **argv) {
 #ifdef HAVE_LHPC_AFF
             for(k=0; k<g_sink_momentum_number; k++) {
     
-              sprintf(aff_buffer_path, "/%s/pf1x%.2dpf1y%.2dpf1z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d",
-                  "pi-pi",
+              sprintf(aff_buffer_path, "/%s/pi1x%.2dpi1y%.2dpi1z%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d",
+                  "m-m",
+                  g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
                   g_sink_momentum_list[k][0], g_sink_momentum_list[k][1], g_sink_momentum_list[k][2],
                   gsx[0], gsx[1], gsx[2], gsx[3], 5, 5);
     
@@ -1705,8 +1706,8 @@ int main(int argc, char **argv) {
               }
               int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global);
               if(status != 0) {
-                fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d\n", status);
-                EXIT(8);
+                fprintf(stderr, "[piN2piN] Error from aff_node_put_complex, status was %d\n", status);
+                EXIT(85);
               }
     
             }  /* end of loop on sink momenta */
@@ -1814,7 +1815,7 @@ int main(int argc, char **argv) {
                     int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
                     if(status != 0) {
                       fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d\n", status);
-                      EXIT(8);
+                      EXIT(86);
                     }
                   }  /* end of loop on components */
                 }  /* end of loop on sink momenta */

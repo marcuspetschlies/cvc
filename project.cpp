@@ -535,7 +535,6 @@ int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_num
 #pragma omp for
 #endif
     for(ix=0; ix < VOL3; ix++) {
-      ix = g_ipt[0][x1][x2][x3];
       q_phase = q_offset \
          + lexic_coords[ix].x[0]*q[0] \
          + lexic_coords[ix].x[1]*q[1] \
