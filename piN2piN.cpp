@@ -207,6 +207,7 @@ int get_point_source_info (int gcoords[4], int lcoords[4], int*proc_id) {
       memcpy(lcoords,x,4*sizeof(int));
     }
   }
+  return(0);
 }  /* end of get_point_source_info */
 
 /***********************************************************
@@ -242,15 +243,11 @@ int main(int argc, char **argv) {
   int it, ir, is;
   int op_id_up= -1, op_id_dn = -1;
   int gsx[4], sx[4];
-  int write_ascii=0;
-  int write_xspace = 0;
-  int source_proc_id = 0, source_proc_coords[4];
-  int sink_proc_id = 0, sink_timeslice, isink_timeslice;
-  char filename[200], contype[1200];
+  int source_proc_id = 0;
+  char filename[200];
   double ratime, retime;
-  double plaq_m, plaq_r;
+  double plaq_m = 0., plaq_r = 0.;
   double *spinor_work[2];
-  unsigned int ix;
   unsigned int VOL3;
   size_t sizeof_spinor_field = 0, sizeof_spinor_field_timeslice = 0;
   spinor_propagator_type **conn_X=NULL;
@@ -295,19 +292,11 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "xah?f:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
       filename_set=1;
-      break;
-    case 'x':
-      write_xspace = 1;
-      fprintf(stdout, "# [piN2piN] will write x-space correlator\n");
-      break;
-    case 'a':
-      write_ascii = 1;
-      fprintf(stdout, "# [piN2piN] will write x-space correlator in ASCII format\n");
       break;
     case 'h':
     case '?':
@@ -845,11 +834,17 @@ int main(int argc, char **argv) {
       get_point_source_info (gsx, sx, &source_proc_id);
 
 
-      /* N     - N     2pt */
       /* Delta - Delta 2pt */
       /* pi    - pi    2pt */
       /* Delta - pi N  3pt */
 
+      /***********************
+       ***********************
+       **
+       ** N     - N     2pt
+       **
+       ***********************
+       ***********************/
       for(i=0; i<max_num_diagram; i++) { memset(conn_X[i][0][0], 0, 2*VOLUME*g_sv_dim*g_sv_dim*sizeof(double)); }
 
       exitstatus = contract_N_N (conn_X, &(propagator_list_up[i_prop*n_s*n_c]), &(propagator_list_dn[i_prop*n_s*n_c]) );
@@ -869,6 +864,7 @@ int main(int argc, char **argv) {
         /* add complex phase from source location and source momentum
          *   assumes momentum conservation 
          */
+        if( g_cart_id == 0 ) fprintf(stderr, "[piN2piN] Warning, add_source_phase called for N - N 2-point function\n");
         add_source_phase (connt, NULL, NULL, &(gsx[1]), 1);
 
         /* write to file */
@@ -912,7 +908,7 @@ int main(int argc, char **argv) {
             int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
             if(status != 0) {
               fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d\n", status);
-              EXIT(8);
+              EXIT(80);
             }
  
           }  /* end of loop on sink momenta */
@@ -927,6 +923,13 @@ int main(int argc, char **argv) {
         fini_4level_buffer(&connt);
       }  /* end of loop on diagrams */
 
+      /***********************
+       ***********************
+       **
+       ** D - D 2-pt
+       **
+       ***********************
+       ***********************/
       for(i=0; i<max_num_diagram; i++) { memset(conn_X[i][0][0], 0, 2*VOLUME*g_sv_dim*g_sv_dim*sizeof(double)); }
 
       exitstatus = contract_D_D (conn_X, &(propagator_list_up[i_prop*n_s*n_c]), &(propagator_list_dn[i_prop*n_s*n_c]),
@@ -993,7 +996,7 @@ int main(int argc, char **argv) {
               int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
               if(status != 0) {
                 fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d\n", status);
-                EXIT(8);
+                EXIT(81);
               }
             }  /* end of loop on components */
           }  /* end of loop on sink momenta */
@@ -1006,6 +1009,14 @@ int main(int argc, char **argv) {
 
         fini_4level_buffer(&connt);
       }  /* end of loop on diagrams */
+
+      /***********************
+       ***********************
+       **
+       ** piN - D 2-pt
+       **
+       ***********************
+       ***********************/
 
       /* loop on sequential source momenta */
       for(iseq_mom = 0; iseq_mom < g_seq_source_momentum_number; iseq_mom++) {
@@ -1078,8 +1089,8 @@ int main(int argc, char **argv) {
                 }
                 int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
                 if(status != 0) {
-                  fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d\n", status);
-                  EXIT(8);
+                  fprintf(stderr, "[piN2piN] Error from aff_node_put_complex, status was %d\n", status);
+                  EXIT(82);
                 }
               }  /* end of loop on components */
             }  /* end of loop on sink momenta */
@@ -1095,6 +1106,87 @@ int main(int argc, char **argv) {
 
       }  /* end of loop on sequential source momenta */       
 
+#if 0
+      /***********************
+       ***********************
+       **
+       ** pi - pi 2-pt
+       **
+       ** we abuse conn_X here, which is an array for spin-propagator fields;
+       ** but its entry conn_X(0,0,0) points to space several times VOLUME,
+       ** which is sufficiently large for meson-meson contractions
+       **
+       ***********************
+       ***********************/
+      for(i=0; i<max_num_diagram; i++) { memset(conn_X[i][0][0], 0, 2*VOLUME*g_sv_dim*g_sv_dim*sizeof(double)); }
+      double *conn_M = conn_X[0][0][0];
+      contract_twopoint_xdep(conn_M, 5, 5, (void*)(&(propagator_list_up[i_prop*n_s*n_c])), (void*)(&(propagator_list_up[i_prop*n_s*n_c])), n_c, 1, 1., 64);
+
+      double **connt = NULL;
+      if( (exitstatus = init_2level_buffer(&connt, g_sink_momentum_number, 2*T) ) != 0 ) {
+        fprintf(stderr, "[piN2piN] Error from init_2level_buffer, status was %d\n", exitstatus);
+        EXIT(61);
+      }
+
+      /* momentum projection */
+      exitstatus = momentum_projection ( conn_M, connt[0], T, g_sink_momentum_number, g_sink_momentum_list);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[piN2piN] Error from momentum_projection, status was %d\n", exitstatus);
+        EXIT(8);
+      }
+
+      /* write to file */
+
+      ratime = _GET_TIME;
+      double **buffer2 = NULL;
+#ifdef HAVE_MPI
+      if(io_proc>0) {
+        if( (exitstatus = init_2level_buffer(&buffer2, g_sink_momentum_number, 2*T_global) ) != 0 ) {
+          fprintf(stderr, "[piN2piN] Error from init_2level_buffer, status was %d\n", exitstatus);
+          EXIT(62);
+        }
+        k = T * g_sink_momentum_number * 2;
+        exitstatus = MPI_Allgather(connt[0], k, MPI_DOUBLE, buffer2[0], k, MPI_DOUBLE, g_tr_comm);
+        if(exitstatus != MPI_SUCCESS) {
+          fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d\n", exitstatus);
+          EXIT(124);
+        }
+      }
+#else
+      buffer2 = connt;
+#endif
+
+      if(io_proc == 2) {
+#ifdef HAVE_LHPC_AFF
+        for(k=0; k<g_sink_momentum_number; k++) {
+
+          sprintf(aff_buffer_path, "/%s/pf1x%.2dpf1y%.2dpf1z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d",
+              "pi-pi",
+              g_sink_momentum_list[k][0], g_sink_momentum_list[k][1], g_sink_momentum_list[k][2],
+              gsx[0], gsx[1], gsx[2], gsx[3], 5, 5);
+
+          fprintf(stdout, "# [piN2piN] current aff path = %s\n", aff_buffer_path);
+
+          affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
+          for(it=0; it<T_global; it++) {
+            ir = ( it - gsx[0] + T_global ) % T_global;
+            aff_buffer[ir] = buffer2[k][2*it]  + I * buffer2[k][2*it+1];
+          }
+          int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global);
+          if(status != 0) {
+            fprintf(stderr, "[piN2piN] Error from aff_node_put_complex, status was %d\n", status);
+            EXIT(83);
+          }
+
+        }  /* end of loop on sink momenta */
+#endif
+      }  /* end of if io_proc == 2 */
+
+#ifdef HAVE_MPI
+      if(io_proc > 0) { fini_2level_buffer(&buffer2); }
+#endif
+      fini_2level_buffer(&connt);
+#endif  /* of if 0 */
 
     }  /* end of loop on coherent source locations */
   }  /* end of loop on base source locations */
@@ -1359,8 +1451,8 @@ int main(int argc, char **argv) {
                   }
                   int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
                   if(status != 0) {
-                    fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d\n", status);
-                    EXIT(8);
+                    fprintf(stderr, "[piN2piN] Error from aff_node_put_complex, status was %d\n", status);
+                    EXIT(84);
                   }
                 }  /* end of loop on components */
               }  /* end of loop on sink momenta */
@@ -1406,7 +1498,8 @@ int main(int argc, char **argv) {
   /***********************************************
    ***********************************************
    **
-   ** oet part
+   ** stochastic contractions using the 
+   **   one-end-trick
    **
    ***********************************************
    ***********************************************/
@@ -1546,6 +1639,97 @@ int main(int argc, char **argv) {
             memcpy( stochastic_propagator_list[4+i], spinor_work[1], sizeof_spinor_field_timeslice);
           }
 
+          /***********************
+           ***********************
+           **
+           ** pi - pi 2-pt
+           **
+           ** we abuse conn_X here, which is an array for spin-propagator fields;
+           ** but its entry conn_X(0,0,0) points to space several times VOLUME,
+           ** which is sufficiently large for meson-meson contractions
+           **
+           ***********************
+           ***********************/
+          for(i=0; i<max_num_diagram; i++) { memset(conn_X[i][0][0], 0, 2*VOLUME*g_sv_dim*g_sv_dim*sizeof(double)); }
+          double *conn_M = conn_X[0][0][0];
+          contract_twopoint_xdep(conn_M, 5, 5, (void*)(&(stochastic_propagator_list[0])), (void*)(&(stochastic_propagator_list[4])), 1, 1, 1., 64);
+    
+          double **connt = NULL;
+          if( (exitstatus = init_2level_buffer(&connt, g_sink_momentum_number, 2*T) ) != 0 ) {
+            fprintf(stderr, "[piN2piN] Error from init_2level_buffer, status was %d\n", exitstatus);
+            EXIT(61);
+          }
+    
+          /* momentum projection */
+          exitstatus = momentum_projection ( conn_M, connt[0], T, g_sink_momentum_number, g_sink_momentum_list);
+          if(exitstatus != 0) {
+            fprintf(stderr, "[piN2piN] Error from momentum_projection, status was %d\n", exitstatus);
+            EXIT(8);
+          }
+    
+          /* write to file */
+    
+          ratime = _GET_TIME;
+          double **buffer2 = NULL;
+#ifdef HAVE_MPI
+          if(io_proc>0) {
+            if( (exitstatus = init_2level_buffer(&buffer2, g_sink_momentum_number, 2*T_global) ) != 0 ) {
+              fprintf(stderr, "[piN2piN] Error from init_2level_buffer, status was %d\n", exitstatus);
+              EXIT(62);
+            }
+            k = T * g_sink_momentum_number * 2;
+            exitstatus = MPI_Allgather(connt[0], k, MPI_DOUBLE, buffer2[0], k, MPI_DOUBLE, g_tr_comm);
+            if(exitstatus != MPI_SUCCESS) {
+              fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d\n", exitstatus);
+              EXIT(124);
+            }
+          }
+#else
+          buffer2 = connt;
+#endif
+    
+          if(io_proc == 2) {
+#ifdef HAVE_LHPC_AFF
+            for(k=0; k<g_sink_momentum_number; k++) {
+    
+              sprintf(aff_buffer_path, "/%s/pi1x%.2dpi1y%.2dpi1z%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d",
+                  "m-m",
+                  g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
+                  g_sink_momentum_list[k][0], g_sink_momentum_list[k][1], g_sink_momentum_list[k][2],
+                  gsx[0], gsx[1], gsx[2], gsx[3], 5, 5);
+    
+              fprintf(stdout, "# [piN2piN] current aff path = %s\n", aff_buffer_path);
+    
+              affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
+              for(it=0; it<T_global; it++) {
+                ir = ( it - gsx[0] + T_global ) % T_global;
+                aff_buffer[ir] = buffer2[k][2*it]  + I * buffer2[k][2*it+1];
+              }
+              int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global);
+              if(status != 0) {
+                fprintf(stderr, "[piN2piN] Error from aff_node_put_complex, status was %d\n", status);
+                EXIT(85);
+              }
+    
+            }  /* end of loop on sink momenta */
+#endif
+          }  /* end of if io_proc == 2 */
+    
+#ifdef HAVE_MPI
+          if(io_proc > 0) { fini_2level_buffer(&buffer2); }
+#endif
+          fini_2level_buffer(&connt);
+
+
+          /***********************************************
+           ***********************************************
+           **
+           ** piN - piN
+           ** Z-type diagram contraction
+           **
+           ***********************************************
+           ***********************************************/
+          /* loop on seq2 source momentum pf2 */
           for(iseq2_mom=0; iseq2_mom < g_seq2_source_momentum_number; iseq2_mom++) {
 
             /* prepare pfifi */
@@ -1632,7 +1816,7 @@ int main(int argc, char **argv) {
                     int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
                     if(status != 0) {
                       fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d\n", status);
-                      EXIT(8);
+                      EXIT(86);
                     }
                   }  /* end of loop on components */
                 }  /* end of loop on sink momenta */

@@ -19,10 +19,10 @@ extern "C"
 
 namespace cvc {
 
-int write_contraction_format(char * filename, const int prec, const int N, char * type, const int gid, const int sid);
+int write_contraction_format(char * filename, const int prec, const int N, char * type, const int gid, const int append);
 
 
-int write_lime_contraction(double * const s, char * filename, const int prec, const int N, char * type, const int gid, const int sid);
+int write_lime_contraction(double * const s, char * filename, const int prec, const int N, char * type, const int gid, const int append);
 #ifdef HAVE_LIBLEMON
 int write_binary_contraction_data(double * const s, LemonWriter * writer, const int prec, const int N, DML_Checksum * ans);
 #else
