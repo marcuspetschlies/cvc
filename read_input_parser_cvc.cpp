@@ -26,8 +26,8 @@
 
 #define FLEX_SCANNER
 #define YY_FLEX_MAJOR_VERSION 2
-#define YY_FLEX_MINOR_VERSION 5
-#define YY_FLEX_SUBMINOR_VERSION 39
+#define YY_FLEX_MINOR_VERSION 6
+#define YY_FLEX_SUBMINOR_VERSION 0
 #if YY_FLEX_SUBMINOR_VERSION > 0
 #define FLEX_BETA
 #endif
@@ -371,11 +371,17 @@ extern int cvc_lineno;
 int cvc_lineno = 1;
 
 extern char *cvc_text;
+#ifdef yytext_ptr
+#undef yytext_ptr
+#endif
 #define yytext_ptr cvc_text
 
 static yy_state_type yy_get_previous_state (void );
 static yy_state_type yy_try_NUL_trans (yy_state_type current_state  );
 static int yy_get_next_buffer (void );
+#if defined(__GNUC__) && __GNUC__ >= 3
+__attribute__((__noreturn__))
+#endif
 static void yy_fatal_error (yyconst char msg[]  );
 
 /* Done after the current pattern has been matched and before the
@@ -682,7 +688,7 @@ static yyconst flex_int16_t yy_accept[2552] =
         0
     } ;
 
-static yyconst flex_int32_t yy_ec[256] =
+static yyconst YY_CHAR yy_ec[256] =
     {   0,
         1,    1,    1,    1,    1,    1,    1,    1,    2,    3,
         1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
@@ -714,7 +720,7 @@ static yyconst flex_int32_t yy_ec[256] =
         1,    1,    1,    1,    1
     } ;
 
-static yyconst flex_int32_t yy_meta[75] =
+static yyconst YY_CHAR yy_meta[75] =
     {   0,
         1,    2,    3,    1,    4,    1,    1,    1,    1,    4,
         4,    4,    5,    5,    5,    5,    5,    5,    5,    1,
@@ -726,7 +732,7 @@ static yyconst flex_int32_t yy_meta[75] =
         5,    5,    5,    5
     } ;
 
-static yyconst flex_int16_t yy_base[2676] =
+static yyconst flex_uint16_t yy_base[2676] =
     {   0,
         0,    6,   79,   97,  115,  133,  151,  169,  187,  205,
       223,  241,  259,  277,  295,  313,  331,  349,  367,  385,
@@ -1322,7 +1328,7 @@ static yyconst flex_int16_t yy_def[2676] =
      2551, 2551, 2551, 2551, 2551
     } ;
 
-static yyconst flex_int16_t yy_nxt[12804] =
+static yyconst flex_uint16_t yy_nxt[12804] =
     {   0,
      2551,  323,  324,  323,  923,  325,  322,  323,  324,  323,
       322,  326,  322,  322,  322,  322,  322,  322,  322,  322,
@@ -4162,13 +4168,13 @@ int cvc__flex_debug = 0;
 #define YY_MORE_ADJ 0
 #define YY_RESTORE_YY_MORE_OFFSET
 char *cvc_text;
-#line 1 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1 "../cvc/read_input_parser_cvc.l"
 /***********************************************************************
  * read_input_parser.l
  * - parsing cvc.input to program
  * - use flex -P <prefix_> ...
  ***********************************************************************/
-#line 23 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 23 "../cvc/read_input_parser_cvc.l"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -4359,7 +4365,7 @@ namespace cvc {
 
 
 
-#line 4363 "<stdout>"
+#line 4369 "<stdout>"
 
 #define INITIAL 0
 #define TT 1
@@ -4551,11 +4557,11 @@ void cvc_set_extra (YY_EXTRA_TYPE user_defined  );
 
 FILE *cvc_get_in (void );
 
-void cvc_set_in  (FILE * in_str  );
+void cvc_set_in  (FILE * _in_str  );
 
 FILE *cvc_get_out (void );
 
-void cvc_set_out  (FILE * out_str  );
+void cvc_set_out  (FILE * _out_str  );
 
 yy_size_t cvc_get_leng (void );
 
@@ -4563,7 +4569,7 @@ char *cvc_get_text (void );
 
 int cvc_get_lineno (void );
 
-void cvc_set_lineno (int line_number  );
+void cvc_set_lineno (int _line_number  );
 
 /* Macros after this point can all be overridden by user definitions in
  * section 1.
@@ -4577,8 +4583,12 @@ extern int cvc_wrap (void );
 #endif
 #endif
 
+#ifndef YY_NO_UNPUT
+    
     static void yyunput (int c,char *buf_ptr  );
     
+#endif
+
 #ifndef yytext_ptr
 static void yy_flex_strncpy (char *,yyconst char *,int );
 #endif
@@ -4623,7 +4633,7 @@ static int input (void );
 	if ( YY_CURRENT_BUFFER_LVALUE->yy_is_interactive ) \
 		{ \
 		int c = '*'; \
-		int n; \
+		size_t n; \
 		for ( n = 0; n < max_size && \
 			     (c = getc( cvc_in )) != EOF && c != '\n'; ++n ) \
 			buf[n] = (char) c; \
@@ -4636,7 +4646,7 @@ static int input (void );
 	else \
 		{ \
 		errno=0; \
-		while ( (result = fread(buf, 1, (yy_size_t) max_size, cvc_in)) == 0 && ferror(cvc_in)) \
+		while ( (result = fread(buf, 1, max_size, cvc_in))==0 && ferror(cvc_in)) \
 			{ \
 			if( errno != EINTR) \
 				{ \
@@ -4691,7 +4701,7 @@ extern int cvc_lex (void);
 
 /* Code executed at the end of each rule. */
 #ifndef YY_BREAK
-#define YY_BREAK break;
+#define YY_BREAK /*LINTED*/break;
 #endif
 
 #define YY_RULE_SETUP \
@@ -4704,9 +4714,9 @@ extern int cvc_lex (void);
  */
 YY_DECL
 {
-	register yy_state_type yy_current_state;
-	register char *yy_cp, *yy_bp;
-	register int yy_act;
+	yy_state_type yy_current_state;
+	char *yy_cp, *yy_bp;
+	int yy_act;
     
 	if ( !(yy_init) )
 		{
@@ -4735,11 +4745,11 @@ YY_DECL
 		}
 
 	{
-#line 218 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 218 "../cvc/read_input_parser_cvc.l"
 
-#line 4741 "<stdout>"
+#line 4751 "<stdout>"
 
-	while ( 1 )		/* loops until end-of-file is reached */
+	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
 		yy_cp = (yy_c_buf_p);
 
@@ -4756,7 +4766,7 @@ YY_DECL
 yy_match:
 		do
 			{
-			register YY_CHAR yy_c = yy_ec[YY_SC_TO_UI(*yy_cp)] ;
+			YY_CHAR yy_c = yy_ec[YY_SC_TO_UI(*yy_cp)] ;
 			if ( yy_accept[yy_current_state] )
 				{
 				(yy_last_accepting_state) = yy_current_state;
@@ -4793,793 +4803,793 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 219 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 219 "../cvc/read_input_parser_cvc.l"
 BEGIN(TT);
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 220 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 220 "../cvc/read_input_parser_cvc.l"
 BEGIN(LL);
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 221 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 221 "../cvc/read_input_parser_cvc.l"
 BEGIN(LL5);
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 222 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 222 "../cvc/read_input_parser_cvc.l"
 BEGIN(LLX);
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 223 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 223 "../cvc/read_input_parser_cvc.l"
 BEGIN(LLY);
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 224 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 224 "../cvc/read_input_parser_cvc.l"
 BEGIN(LLZ);
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 225 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 225 "../cvc/read_input_parser_cvc.l"
 BEGIN(MU);
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 226 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 226 "../cvc/read_input_parser_cvc.l"
 BEGIN(MUSIGMA);
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 227 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 227 "../cvc/read_input_parser_cvc.l"
 BEGIN(MUDELTA);
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 228 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 228 "../cvc/read_input_parser_cvc.l"
 BEGIN(MUBAR);
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 229 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 229 "../cvc/read_input_parser_cvc.l"
 BEGIN(M5);
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 230 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 230 "../cvc/read_input_parser_cvc.l"
 BEGIN(M0);
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 231 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 231 "../cvc/read_input_parser_cvc.l"
 BEGIN(EPSBAR);
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 232 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 232 "../cvc/read_input_parser_cvc.l"
 BEGIN(CSW);
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 233 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 233 "../cvc/read_input_parser_cvc.l"
 BEGIN(NNCONF);
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 234 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 234 "../cvc/read_input_parser_cvc.l"
 BEGIN(KAPPA);
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 235 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 235 "../cvc/read_input_parser_cvc.l"
 BEGIN(SOURCEID);
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 236 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 236 "../cvc/read_input_parser_cvc.l"
 BEGIN(SOURCEID2);
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 237 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 237 "../cvc/read_input_parser_cvc.l"
 BEGIN(GAUGEID);
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 238 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 238 "../cvc/read_input_parser_cvc.l"
 BEGIN(GAUGEID2);
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 239 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 239 "../cvc/read_input_parser_cvc.l"
 BEGIN(GAUGESTEP);
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 240 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 240 "../cvc/read_input_parser_cvc.l"
 BEGIN(NNSAVE);
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 241 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 241 "../cvc/read_input_parser_cvc.l"
 BEGIN(FFORMAT);
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 242 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 242 "../cvc/read_input_parser_cvc.l"
 BEGIN(BCT);
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 243 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 243 "../cvc/read_input_parser_cvc.l"
 BEGIN(BCX);
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 244 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 244 "../cvc/read_input_parser_cvc.l"
 BEGIN(BCY);
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 245 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 245 "../cvc/read_input_parser_cvc.l"
 BEGIN(BCZ);
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 246 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 246 "../cvc/read_input_parser_cvc.l"
 BEGIN(PREFIX);
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 247 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 247 "../cvc/read_input_parser_cvc.l"
 BEGIN(PREFIX2);
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 248 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 248 "../cvc/read_input_parser_cvc.l"
 BEGIN(PREFIX3);
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 249 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 249 "../cvc/read_input_parser_cvc.l"
 BEGIN(SEQPREFIX);
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 250 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 250 "../cvc/read_input_parser_cvc.l"
 BEGIN(SEQPREFIX2);
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 251 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 251 "../cvc/read_input_parser_cvc.l"
 BEGIN(GAUGEPREFIX);
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 252 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 252 "../cvc/read_input_parser_cvc.l"
 BEGIN(OUTPREFIX);
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 253 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 253 "../cvc/read_input_parser_cvc.l"
 BEGIN(PATHPREFIX);
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 254 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 254 "../cvc/read_input_parser_cvc.l"
 BEGIN(RESUME);
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
-#line 255 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 255 "../cvc/read_input_parser_cvc.l"
 BEGIN(SUBTRACT);
 	YY_BREAK
 case 38:
 YY_RULE_SETUP
-#line 256 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 256 "../cvc/read_input_parser_cvc.l"
 BEGIN(SOURCELOC);
 	YY_BREAK
 case 39:
 YY_RULE_SETUP
-#line 257 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 257 "../cvc/read_input_parser_cvc.l"
 BEGIN(SOURCECOORDS);
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
-#line 258 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 258 "../cvc/read_input_parser_cvc.l"
 BEGIN(SSEED);
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
-#line 259 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 259 "../cvc/read_input_parser_cvc.l"
 BEGIN(NOISETYPE);
 	YY_BREAK
 case 42:
 YY_RULE_SETUP
-#line 260 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 260 "../cvc/read_input_parser_cvc.l"
 BEGIN(SRCTYPE);
 	YY_BREAK
 case 43:
 YY_RULE_SETUP
-#line 261 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 261 "../cvc/read_input_parser_cvc.l"
 BEGIN(SPREC);
 	YY_BREAK
 case 44:
 YY_RULE_SETUP
-#line 262 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 262 "../cvc/read_input_parser_cvc.l"
 BEGIN(RELDELTA);
 	YY_BREAK
 case 45:
 YY_RULE_SETUP
-#line 263 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 263 "../cvc/read_input_parser_cvc.l"
 BEGIN(MAXITER);
 	YY_BREAK
 case 46:
 YY_RULE_SETUP
-#line 264 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 264 "../cvc/read_input_parser_cvc.l"
 BEGIN(SOURCEIDSTEP);
 	YY_BREAK
 case 47:
 YY_RULE_SETUP
-#line 265 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 265 "../cvc/read_input_parser_cvc.l"
 BEGIN(HPEMIN);
 	YY_BREAK
 case 48:
 YY_RULE_SETUP
-#line 266 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 266 "../cvc/read_input_parser_cvc.l"
 BEGIN(HPEMAX);
 	YY_BREAK
 case 49:
 YY_RULE_SETUP
-#line 267 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 267 "../cvc/read_input_parser_cvc.l"
 BEGIN(HPEORD);
 	YY_BREAK
 case 50:
 YY_RULE_SETUP
-#line 268 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 268 "../cvc/read_input_parser_cvc.l"
 BEGIN(CUTANG);
 	YY_BREAK
 case 51:
 YY_RULE_SETUP
-#line 269 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 269 "../cvc/read_input_parser_cvc.l"
 BEGIN(CUTRAD);
 	YY_BREAK
 case 52:
 YY_RULE_SETUP
-#line 270 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 270 "../cvc/read_input_parser_cvc.l"
 BEGIN(CUTDIRT);
 	YY_BREAK
 case 53:
 YY_RULE_SETUP
-#line 271 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 271 "../cvc/read_input_parser_cvc.l"
 BEGIN(CUTDIRX);
 	YY_BREAK
 case 54:
 YY_RULE_SETUP
-#line 272 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 272 "../cvc/read_input_parser_cvc.l"
 BEGIN(CUTDIRY);
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
-#line 273 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 273 "../cvc/read_input_parser_cvc.l"
 BEGIN(CUTDIRZ);
 	YY_BREAK
 case 56:
 YY_RULE_SETUP
-#line 274 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 274 "../cvc/read_input_parser_cvc.l"
 BEGIN(RMIN);
 	YY_BREAK
 case 57:
 YY_RULE_SETUP
-#line 275 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 275 "../cvc/read_input_parser_cvc.l"
 BEGIN(RMAX);
 	YY_BREAK
 case 58:
 YY_RULE_SETUP
-#line 276 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 276 "../cvc/read_input_parser_cvc.l"
 BEGIN(AVGTT);
 	YY_BREAK
 case 59:
 YY_RULE_SETUP
-#line 277 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 277 "../cvc/read_input_parser_cvc.l"
 BEGIN(AVGLL);
 	YY_BREAK
 case 60:
 YY_RULE_SETUP
-#line 278 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 278 "../cvc/read_input_parser_cvc.l"
 BEGIN(MODEL_DCOEFFRE);
 	YY_BREAK
 case 61:
 YY_RULE_SETUP
-#line 279 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 279 "../cvc/read_input_parser_cvc.l"
 BEGIN(MODEL_DCOEFFIM);
 	YY_BREAK
 case 62:
 YY_RULE_SETUP
-#line 280 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 280 "../cvc/read_input_parser_cvc.l"
 BEGIN(MODEL_MRHO);
 	YY_BREAK
 case 63:
 YY_RULE_SETUP
-#line 281 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 281 "../cvc/read_input_parser_cvc.l"
 BEGIN(FTRMAX1);
 	YY_BREAK
 case 64:
 YY_RULE_SETUP
-#line 282 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 282 "../cvc/read_input_parser_cvc.l"
 BEGIN(FTRMAX2);
 	YY_BREAK
 case 65:
 YY_RULE_SETUP
-#line 283 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 283 "../cvc/read_input_parser_cvc.l"
 BEGIN(FTRMAX3);
 	YY_BREAK
 case 66:
 YY_RULE_SETUP
-#line 284 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 284 "../cvc/read_input_parser_cvc.l"
 BEGIN(FTRMAX4);
 	YY_BREAK
 case 67:
 YY_RULE_SETUP
-#line 285 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 285 "../cvc/read_input_parser_cvc.l"
 BEGIN(PROPNORMSQR);
 	YY_BREAK
 case 68:
 YY_RULE_SETUP
-#line 286 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 286 "../cvc/read_input_parser_cvc.l"
 BEGIN(QHATSQRMIN);
 	YY_BREAK
 case 69:
 YY_RULE_SETUP
-#line 287 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 287 "../cvc/read_input_parser_cvc.l"
 BEGIN(QHATSQRMAX);
 	YY_BREAK
 case 70:
 YY_RULE_SETUP
-#line 288 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 288 "../cvc/read_input_parser_cvc.l"
 BEGIN(NLONG);
 	YY_BREAK
 case 71:
 YY_RULE_SETUP
-#line 289 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 289 "../cvc/read_input_parser_cvc.l"
 BEGIN(NAPE);
 	YY_BREAK
 case 72:
 YY_RULE_SETUP
-#line 290 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 290 "../cvc/read_input_parser_cvc.l"
 BEGIN(NJACOBI);
 	YY_BREAK
 case 73:
 YY_RULE_SETUP
-#line 291 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 291 "../cvc/read_input_parser_cvc.l"
 BEGIN(ALPHAAPE);
 	YY_BREAK
 case 74:
 YY_RULE_SETUP
-#line 292 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 292 "../cvc/read_input_parser_cvc.l"
 BEGIN(NHYP);
 	YY_BREAK
 case 75:
 YY_RULE_SETUP
-#line 293 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 293 "../cvc/read_input_parser_cvc.l"
 BEGIN(ALPHAHYP);
 	YY_BREAK
 case 76:
 YY_RULE_SETUP
-#line 294 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 294 "../cvc/read_input_parser_cvc.l"
 BEGIN(KAPPAJACOBI);
 	YY_BREAK
 case 77:
 YY_RULE_SETUP
-#line 295 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 295 "../cvc/read_input_parser_cvc.l"
 BEGIN(SRCTIMESLICE);
 	YY_BREAK
 case 78:
 YY_RULE_SETUP
-#line 297 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 297 "../cvc/read_input_parser_cvc.l"
 BEGIN(SEQSRCTIMESLICE);
 	YY_BREAK
 case 79:
 YY_RULE_SETUP
-#line 298 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 298 "../cvc/read_input_parser_cvc.l"
 BEGIN(SEQSRCLOCATIONX);
 	YY_BREAK
 case 80:
 YY_RULE_SETUP
-#line 299 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 299 "../cvc/read_input_parser_cvc.l"
 BEGIN(SEQSRCLOCATIONY);
 	YY_BREAK
 case 81:
 YY_RULE_SETUP
-#line 300 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 300 "../cvc/read_input_parser_cvc.l"
 BEGIN(SEQSRCLOCATIONZ);
 	YY_BREAK
 case 82:
 YY_RULE_SETUP
-#line 302 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 302 "../cvc/read_input_parser_cvc.l"
 BEGIN(SEQSRCGAMMAID);
 	YY_BREAK
 case 83:
 YY_RULE_SETUP
-#line 303 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 303 "../cvc/read_input_parser_cvc.l"
 BEGIN(SRCGAMMAID);
 	YY_BREAK
 case 84:
 YY_RULE_SETUP
-#line 306 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 306 "../cvc/read_input_parser_cvc.l"
 BEGIN(MMSNOMASSES);
 	YY_BREAK
 case 85:
 YY_RULE_SETUP
-#line 307 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 307 "../cvc/read_input_parser_cvc.l"
 BEGIN(NOLIGHTMASSES);
 	YY_BREAK
 case 86:
 YY_RULE_SETUP
-#line 308 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 308 "../cvc/read_input_parser_cvc.l"
 BEGIN(NOSTRANGEMASSES);
 	YY_BREAK
 case 87:
 YY_RULE_SETUP
-#line 309 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 309 "../cvc/read_input_parser_cvc.l"
 BEGIN(NOTPROCS);
 	YY_BREAK
 case 88:
 YY_RULE_SETUP
-#line 310 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 310 "../cvc/read_input_parser_cvc.l"
 BEGIN(NOXPROCS);
 	YY_BREAK
 case 89:
 YY_RULE_SETUP
-#line 311 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 311 "../cvc/read_input_parser_cvc.l"
 BEGIN(NOYPROCS);
 	YY_BREAK
 case 90:
 YY_RULE_SETUP
-#line 312 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 312 "../cvc/read_input_parser_cvc.l"
 BEGIN(NOZPROCS);
 	YY_BREAK
 case 91:
 YY_RULE_SETUP
-#line 313 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 313 "../cvc/read_input_parser_cvc.l"
 BEGIN(LOCLOC);
 	YY_BREAK
 case 92:
 YY_RULE_SETUP
-#line 314 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 314 "../cvc/read_input_parser_cvc.l"
 BEGIN(LOCSME);
 	YY_BREAK
 case 93:
 YY_RULE_SETUP
-#line 315 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 315 "../cvc/read_input_parser_cvc.l"
 BEGIN(SMELOC);
 	YY_BREAK
 case 94:
 YY_RULE_SETUP
-#line 316 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 316 "../cvc/read_input_parser_cvc.l"
 BEGIN(SMESME);
 	YY_BREAK
 case 95:
 YY_RULE_SETUP
-#line 317 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 317 "../cvc/read_input_parser_cvc.l"
 BEGIN(ROTATE);
 	YY_BREAK
 case 96:
 YY_RULE_SETUP
-#line 318 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 318 "../cvc/read_input_parser_cvc.l"
 BEGIN(PROPPOS);
 	YY_BREAK
 case 97:
 YY_RULE_SETUP
-#line 319 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 319 "../cvc/read_input_parser_cvc.l"
 BEGIN(GPUDEVICENUMBER);
 	YY_BREAK
 case 98:
 YY_RULE_SETUP
-#line 320 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 320 "../cvc/read_input_parser_cvc.l"
 BEGIN(GPUPERNODE);
 	YY_BREAK
 case 99:
 YY_RULE_SETUP
-#line 321 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 321 "../cvc/read_input_parser_cvc.l"
 BEGIN(COHSRC);
 	YY_BREAK
 case 100:
 YY_RULE_SETUP
-#line 322 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 322 "../cvc/read_input_parser_cvc.l"
 BEGIN(COHSRCBASE);
 	YY_BREAK
 case 101:
 YY_RULE_SETUP
-#line 323 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 323 "../cvc/read_input_parser_cvc.l"
 BEGIN(COHSRCDELTA);
 	YY_BREAK
 case 102:
 YY_RULE_SETUP
-#line 324 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 324 "../cvc/read_input_parser_cvc.l"
 BEGIN(GAUGEFILEFORMAT);
 	YY_BREAK
 case 103:
 YY_RULE_SETUP
-#line 325 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 325 "../cvc/read_input_parser_cvc.l"
 BEGIN(RNGFILE);
 	YY_BREAK
 case 104:
 YY_RULE_SETUP
-#line 326 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 326 "../cvc/read_input_parser_cvc.l"
 BEGIN(SRCINDEX);
 	YY_BREAK
 case 105:
 YY_RULE_SETUP
-#line 327 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 327 "../cvc/read_input_parser_cvc.l"
 BEGIN(PROPBCTYPE);
 	YY_BREAK
 case 106:
 YY_RULE_SETUP
-#line 328 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 328 "../cvc/read_input_parser_cvc.l"
 BEGIN(PROPGAMMA);
 	YY_BREAK
 case 107:
 YY_RULE_SETUP
-#line 329 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 329 "../cvc/read_input_parser_cvc.l"
 BEGIN(PROPPREC);
 	YY_BREAK
 case 108:
 YY_RULE_SETUP
-#line 330 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 330 "../cvc/read_input_parser_cvc.l"
 BEGIN(WRITESRC);
 	YY_BREAK
 case 109:
 YY_RULE_SETUP
-#line 331 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 331 "../cvc/read_input_parser_cvc.l"
 BEGIN(READSRC);
 	YY_BREAK
 case 110:
 YY_RULE_SETUP
-#line 333 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 333 "../cvc/read_input_parser_cvc.l"
 BEGIN(WRITEPROP);
 	YY_BREAK
 case 111:
 YY_RULE_SETUP
-#line 334 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 334 "../cvc/read_input_parser_cvc.l"
 BEGIN(READPROP);
 	YY_BREAK
 case 112:
 YY_RULE_SETUP
-#line 336 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 336 "../cvc/read_input_parser_cvc.l"
 BEGIN(READSEQPROP);
 	YY_BREAK
 case 113:
 YY_RULE_SETUP
-#line 337 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 337 "../cvc/read_input_parser_cvc.l"
 BEGIN(WRITESEQSRC);
 	YY_BREAK
 case 114:
 YY_RULE_SETUP
-#line 338 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 338 "../cvc/read_input_parser_cvc.l"
 BEGIN(WRITESEQPROP);
 	YY_BREAK
 case 115:
 YY_RULE_SETUP
-#line 340 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 340 "../cvc/read_input_parser_cvc.l"
 BEGIN(NSAMPLE);
 	YY_BREAK
 case 116:
 YY_RULE_SETUP
-#line 341 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 341 "../cvc/read_input_parser_cvc.l"
 BEGIN(NSAMPLEOET);
 	YY_BREAK
 case 117:
 YY_RULE_SETUP
-#line 343 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 343 "../cvc/read_input_parser_cvc.l"
 BEGIN(ASOVERA);
 	YY_BREAK
 case 118:
 YY_RULE_SETUP
-#line 344 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 344 "../cvc/read_input_parser_cvc.l"
 BEGIN(NUMTHREADS);
 	YY_BREAK
 case 119:
 YY_RULE_SETUP
-#line 345 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 345 "../cvc/read_input_parser_cvc.l"
 BEGIN(SRCMOM);
 	YY_BREAK
 case 120:
 YY_RULE_SETUP
-#line 346 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 346 "../cvc/read_input_parser_cvc.l"
 BEGIN(SRCMOMX);
 	YY_BREAK
 case 121:
 YY_RULE_SETUP
-#line 347 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 347 "../cvc/read_input_parser_cvc.l"
 BEGIN(SRCMOMY);
 	YY_BREAK
 case 122:
 YY_RULE_SETUP
-#line 348 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 348 "../cvc/read_input_parser_cvc.l"
 BEGIN(SRCMOMZ);
 	YY_BREAK
 case 123:
 YY_RULE_SETUP
-#line 349 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 349 "../cvc/read_input_parser_cvc.l"
 BEGIN(SNKMOM);
 	YY_BREAK
 case 124:
 YY_RULE_SETUP
-#line 350 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 350 "../cvc/read_input_parser_cvc.l"
 BEGIN(SNKMOMX);
 	YY_BREAK
 case 125:
 YY_RULE_SETUP
-#line 351 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 351 "../cvc/read_input_parser_cvc.l"
 BEGIN(SNKMOMY);
 	YY_BREAK
 case 126:
 YY_RULE_SETUP
-#line 352 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 352 "../cvc/read_input_parser_cvc.l"
 BEGIN(SNKMOMZ);
 	YY_BREAK
 case 127:
 YY_RULE_SETUP
-#line 353 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 353 "../cvc/read_input_parser_cvc.l"
 BEGIN(SEQSRCMOMX);
 	YY_BREAK
 case 128:
 YY_RULE_SETUP
-#line 354 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 354 "../cvc/read_input_parser_cvc.l"
 BEGIN(SEQSRCMOMY);
 	YY_BREAK
 case 129:
 YY_RULE_SETUP
-#line 355 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 355 "../cvc/read_input_parser_cvc.l"
 BEGIN(SEQSRCMOMZ);
 	YY_BREAK
 case 130:
 YY_RULE_SETUP
-#line 356 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 356 "../cvc/read_input_parser_cvc.l"
 BEGIN(SEQSRCMOM);
 	YY_BREAK
 case 131:
 YY_RULE_SETUP
-#line 357 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 357 "../cvc/read_input_parser_cvc.l"
 BEGIN(SEQ2SRCMOMX);
 	YY_BREAK
 case 132:
 YY_RULE_SETUP
-#line 358 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 358 "../cvc/read_input_parser_cvc.l"
 BEGIN(SEQ2SRCMOMY);
 	YY_BREAK
 case 133:
 YY_RULE_SETUP
-#line 359 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 359 "../cvc/read_input_parser_cvc.l"
 BEGIN(SEQ2SRCMOMZ);
 	YY_BREAK
 case 134:
 YY_RULE_SETUP
-#line 360 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 360 "../cvc/read_input_parser_cvc.l"
 BEGIN(SEQ2SRCMOM);
 	YY_BREAK
 case 135:
 YY_RULE_SETUP
-#line 361 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 361 "../cvc/read_input_parser_cvc.l"
 BEGIN(CPUPREC);
 	YY_BREAK
 case 136:
 YY_RULE_SETUP
-#line 362 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 362 "../cvc/read_input_parser_cvc.l"
 BEGIN(GPUPREC);
 	YY_BREAK
 case 137:
 YY_RULE_SETUP
-#line 363 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 363 "../cvc/read_input_parser_cvc.l"
 BEGIN(GPUPRECSLOPPY);
 	YY_BREAK
 case 138:
 YY_RULE_SETUP
-#line 364 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 364 "../cvc/read_input_parser_cvc.l"
 BEGIN(INVERTERTYPE);
 	YY_BREAK
 case 139:
 YY_RULE_SETUP
-#line 365 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 365 "../cvc/read_input_parser_cvc.l"
 BEGIN(MMSID);
 	YY_BREAK
 case 140:
 YY_RULE_SETUP
-#line 366 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 366 "../cvc/read_input_parser_cvc.l"
 BEGIN(CHKINVERSION);
 	YY_BREAK
 case 141:
 YY_RULE_SETUP
-#line 368 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 368 "../cvc/read_input_parser_cvc.l"
 BEGIN(LAPHSTIMEPROJTYPE);
 	YY_BREAK
 case 142:
 YY_RULE_SETUP
-#line 369 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 369 "../cvc/read_input_parser_cvc.l"
 BEGIN(LAPHSSPINPROJTYPE);
 	YY_BREAK
 case 143:
 YY_RULE_SETUP
-#line 370 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 370 "../cvc/read_input_parser_cvc.l"
 BEGIN(LAPHSEVECPROJTYPE);
 	YY_BREAK
 case 144:
 YY_RULE_SETUP
-#line 371 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 371 "../cvc/read_input_parser_cvc.l"
 BEGIN(LAPHSEVECNUMBER);
 	YY_BREAK
 case 145:
 YY_RULE_SETUP
-#line 372 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 372 "../cvc/read_input_parser_cvc.l"
 BEGIN(LAPHSRNDVECNUMBER);
 	YY_BREAK
 case 146:
 YY_RULE_SETUP
-#line 373 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 373 "../cvc/read_input_parser_cvc.l"
 BEGIN(LAPHSEVECPATHPRFX);
 	YY_BREAK
 case 147:
 YY_RULE_SETUP
-#line 374 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 374 "../cvc/read_input_parser_cvc.l"
 BEGIN(LAPHSEVECFILEPRFX);
 	YY_BREAK
 case 148:
 YY_RULE_SETUP
-#line 375 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 375 "../cvc/read_input_parser_cvc.l"
 BEGIN(LAPHS_TIME_SRC_NUMBER);
 	YY_BREAK
 case 149:
 YY_RULE_SETUP
-#line 376 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 376 "../cvc/read_input_parser_cvc.l"
 BEGIN(LAPHS_SPIN_SRC_NUMBER);
 	YY_BREAK
 case 150:
 YY_RULE_SETUP
-#line 377 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 377 "../cvc/read_input_parser_cvc.l"
 BEGIN(LAPHS_EVEC_SRC_NUMBER);
 	YY_BREAK
 case 151:
 YY_RULE_SETUP
-#line 379 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 379 "../cvc/read_input_parser_cvc.l"
 BEGIN(LAPHS_PERAMBULATOR_PATH_PREFIX);
 	YY_BREAK
 case 152:
 YY_RULE_SETUP
-#line 380 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 380 "../cvc/read_input_parser_cvc.l"
 BEGIN(LAPHS_PERAMBULATOR_FILE_PREFIX);
 	YY_BREAK
 case 153:
 YY_RULE_SETUP
-#line 382 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 382 "../cvc/read_input_parser_cvc.l"
 BEGIN(M_M_TWOPT);
 	YY_BREAK
 case 154:
 YY_RULE_SETUP
-#line 383 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 383 "../cvc/read_input_parser_cvc.l"
 BEGIN(MXB_MXB_TWOPT);
 	YY_BREAK
 case 155:
 YY_RULE_SETUP
-#line 384 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 384 "../cvc/read_input_parser_cvc.l"
 BEGIN(FERMION_TYPE);
 	YY_BREAK
 case 156:
 YY_RULE_SETUP
-#line 385 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 385 "../cvc/read_input_parser_cvc.l"
 BEGIN(SRCSNKTIMESEP);
 	YY_BREAK
 case 157:
 YY_RULE_SETUP
-#line 387 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 387 "../cvc/read_input_parser_cvc.l"
 BEGIN(COHERENTSOURCENUMBER);
 	YY_BREAK
 /* start namespace inclusion here */
 case 158:
 YY_RULE_SETUP
-#line 391 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 391 "../cvc/read_input_parser_cvc.l"
 {
   cvc::T_global = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] cvc::T_global =%s\n", cvc_text);
@@ -5587,7 +5597,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 159:
 YY_RULE_SETUP
-#line 395 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 395 "../cvc/read_input_parser_cvc.l"
 {
   cvc::L = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] cvc::L =%s\n", cvc_text);
@@ -5595,7 +5605,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 160:
 YY_RULE_SETUP
-#line 399 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 399 "../cvc/read_input_parser_cvc.l"
 {
   cvc::L5 = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] cvc::L5 =%s\n", cvc_text);
@@ -5603,7 +5613,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 161:
 YY_RULE_SETUP
-#line 403 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 403 "../cvc/read_input_parser_cvc.l"
 {
   cvc::LX = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] cvc::LX =%s\n", cvc_text);
@@ -5611,7 +5621,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 162:
 YY_RULE_SETUP
-#line 407 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 407 "../cvc/read_input_parser_cvc.l"
 {
   cvc::LY = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] cvc::LY =%s\n", cvc_text);
@@ -5619,7 +5629,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 163:
 YY_RULE_SETUP
-#line 411 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 411 "../cvc/read_input_parser_cvc.l"
 {
   cvc::LZ = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] cvc::LZ =%s\n", cvc_text);
@@ -5627,7 +5637,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 164:
 YY_RULE_SETUP
-#line 415 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 415 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_kappa=atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] kappa=%s \n", cvc_text);
@@ -5635,7 +5645,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 165:
 YY_RULE_SETUP
-#line 419 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 419 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_mu=atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] mu=%s \n", cvc_text);
@@ -5643,7 +5653,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 166:
 YY_RULE_SETUP
-#line 423 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 423 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_m5 = atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] m5=%s \n", cvc_text);
@@ -5651,7 +5661,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 167:
 YY_RULE_SETUP
-#line 427 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 427 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_musigma=atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] musigma=%s \n", cvc_text);
@@ -5659,7 +5669,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 168:
 YY_RULE_SETUP
-#line 431 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 431 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_mudelta=atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] mudelta=%s \n", cvc_text);
@@ -5667,7 +5677,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 169:
 YY_RULE_SETUP
-#line 435 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 435 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_mubar=atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] mubar=%s \n", cvc_text);
@@ -5675,7 +5685,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 170:
 YY_RULE_SETUP
-#line 439 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 439 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_m0 = atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] m0=%s \n", cvc_text);
@@ -5683,7 +5693,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 171:
 YY_RULE_SETUP
-#line 443 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 443 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_epsbar=atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] mu=%s \n", cvc_text);
@@ -5691,7 +5701,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 172:
 YY_RULE_SETUP
-#line 448 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 448 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_csw = atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] csw = %s \n", cvc_text);
@@ -5699,7 +5709,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 173:
 YY_RULE_SETUP
-#line 453 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 453 "../cvc/read_input_parser_cvc.l"
 {
   cvc::Nsave=atoi(cvc_text); 
   if(cvc::myverbose!=0) printf("# [read_input_parser] cvc::Nsave= %s \n",cvc_text);
@@ -5707,7 +5717,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 174:
 YY_RULE_SETUP
-#line 457 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 457 "../cvc/read_input_parser_cvc.l"
 {
   cvc::Nconf=atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] cvc::Nconf=%s\n", cvc_text);
@@ -5715,7 +5725,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 175:
 YY_RULE_SETUP
-#line 461 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 461 "../cvc/read_input_parser_cvc.l"
 {
   cvc::BCangle[0]=atof(cvc_text);
   if(cvc::myverbose != 0) printf("# [read_input_parser] cvc::BCangle[0] for bound. in time set to %e\n", cvc::BCangle[0]);
@@ -5723,7 +5733,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 176:
 YY_RULE_SETUP
-#line 465 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 465 "../cvc/read_input_parser_cvc.l"
 {
   cvc::BCangle[1]=atof(cvc_text);
   if(cvc::myverbose != 0) printf("# [read_input_parser] cvc::BCangle[1] for bound. in x set to %e\n", cvc::BCangle[1]);
@@ -5731,7 +5741,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 177:
 YY_RULE_SETUP
-#line 469 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 469 "../cvc/read_input_parser_cvc.l"
 {
   cvc::BCangle[2]=atof(cvc_text);
   if(cvc::myverbose != 0) printf("# [read_input_parser] cvc::BCangle[2] for bound. in y set to %e\n", cvc::BCangle[2]);
@@ -5739,7 +5749,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 178:
 YY_RULE_SETUP
-#line 473 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 473 "../cvc/read_input_parser_cvc.l"
 {
   cvc::BCangle[3]=atof(cvc_text);
   if(cvc::myverbose != 0) printf("# [read_input_parser] cvc::BCangle[3] for bound. in z set to %e\n", cvc::BCangle[3]);
@@ -5747,7 +5757,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 179:
 YY_RULE_SETUP
-#line 477 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 477 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_sourceid = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] first source id set to %s\n", cvc_text);
@@ -5755,7 +5765,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 180:
 YY_RULE_SETUP
-#line 481 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 481 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_sourceid2 = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] second source id set to %s\n", cvc_text);
@@ -5763,7 +5773,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 181:
 YY_RULE_SETUP
-#line 485 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 485 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_sourceid_step = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] source id step set to %s\n", cvc_text);
@@ -5771,7 +5781,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 182:
 YY_RULE_SETUP
-#line 489 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 489 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_gaugeid = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] first gauge id set to %s\n", cvc_text);
@@ -5779,7 +5789,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 183:
 YY_RULE_SETUP
-#line 493 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 493 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_gaugeid2 = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] second gauge id set to %s\n", cvc_text);
@@ -5787,7 +5797,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 184:
 YY_RULE_SETUP
-#line 497 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 497 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_gauge_step = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] gauge step size set to %s\n", cvc_text);
@@ -5795,7 +5805,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 185:
 YY_RULE_SETUP
-#line 501 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 501 "../cvc/read_input_parser_cvc.l"
 {
   strcpy(cvc::filename_prefix,cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] prop. filename prefix set to %s\n",cvc_text);
@@ -5803,7 +5813,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 186:
 YY_RULE_SETUP
-#line 505 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 505 "../cvc/read_input_parser_cvc.l"
 {
   strcpy(cvc::filename_prefix2,cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] prop. 2 filename prefix set to %s\n",cvc_text);
@@ -5811,7 +5821,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 187:
 YY_RULE_SETUP
-#line 509 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 509 "../cvc/read_input_parser_cvc.l"
 {
   strcpy(cvc::filename_prefix3,cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] prop. 3 filename prefix set to %s\n",cvc_text);
@@ -5819,7 +5829,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 188:
 YY_RULE_SETUP
-#line 514 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 514 "../cvc/read_input_parser_cvc.l"
 {
   strcpy(cvc::g_sequential_filename_prefix,cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] sequential prop. filename prefix set to %s\n",cvc_text);
@@ -5827,7 +5837,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 189:
 YY_RULE_SETUP
-#line 519 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 519 "../cvc/read_input_parser_cvc.l"
 {
   strcpy(cvc::g_sequential_filename_prefix2,cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] sequential prop. filename prefix 2 set to %s\n",cvc_text);
@@ -5835,7 +5845,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 190:
 YY_RULE_SETUP
-#line 524 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 524 "../cvc/read_input_parser_cvc.l"
 {
   strcpy(cvc::gaugefilename_prefix,cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] gauge filename prefix set to %s\n",cvc_text);
@@ -5843,7 +5853,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 191:
 YY_RULE_SETUP
-#line 528 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 528 "../cvc/read_input_parser_cvc.l"
 {
   strcpy(cvc::g_outfile_prefix,cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] out filename prefix set to %s\n",cvc_text);
@@ -5851,7 +5861,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 192:
 YY_RULE_SETUP
-#line 532 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 532 "../cvc/read_input_parser_cvc.l"
 {
   strcpy(cvc::g_path_prefix,cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] path prefix set to %s\n",cvc_text);
@@ -5859,7 +5869,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 193:
 YY_RULE_SETUP
-#line 536 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 536 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_resume=atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] cvc::g_resume set to %s\n",cvc_text);
@@ -5867,7 +5877,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 194:
 YY_RULE_SETUP
-#line 540 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 540 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_subtract=atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] cvc::g_subtract set to %s\n",cvc_text);
@@ -5875,7 +5885,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 195:
 YY_RULE_SETUP
-#line 544 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 544 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_source_location=atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] source location set to %s\n",cvc_text);
@@ -5883,7 +5893,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 196:
 YY_RULE_SETUP
-#line 548 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 548 "../cvc/read_input_parser_cvc.l"
 {
   cvc::format = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] cvc::format set to %s\n",cvc_text);
@@ -5891,7 +5901,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 197:
 YY_RULE_SETUP
-#line 552 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 552 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_seed = (unsigned int)atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] cvc::g_seed set to %s\n",cvc_text);
@@ -5899,7 +5909,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 198:
 YY_RULE_SETUP
-#line 556 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 556 "../cvc/read_input_parser_cvc.l"
 {
   if(strcmp(cvc_text, "Gaussian")==0 ) {
     cvc::g_noise_type = 1;
@@ -5911,7 +5921,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 199:
 YY_RULE_SETUP
-#line 564 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 564 "../cvc/read_input_parser_cvc.l"
 {
   if(strcmp(cvc_text, "Point")==0) {
     cvc::g_source_type = 0;
@@ -5933,7 +5943,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 200:
 YY_RULE_SETUP
-#line 582 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 582 "../cvc/read_input_parser_cvc.l"
 {
   cvc::solver_precision = atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] solver precision set to %s\n",cvc_text);
@@ -5941,7 +5951,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 201:
 YY_RULE_SETUP
-#line 586 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 586 "../cvc/read_input_parser_cvc.l"
 {
   cvc::reliable_delta = atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] reliable delta set to %s\n",cvc_text);
@@ -5949,7 +5959,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 202:
 YY_RULE_SETUP
-#line 590 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 590 "../cvc/read_input_parser_cvc.l"
 {
   cvc::niter_max = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] max. number of iterations set to %s\n",cvc_text);
@@ -5957,7 +5967,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 203:
 YY_RULE_SETUP
-#line 594 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 594 "../cvc/read_input_parser_cvc.l"
 {
   cvc::hpe_order_min = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] min. HPE order set to %s\n",cvc_text);
@@ -5965,7 +5975,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 204:
 YY_RULE_SETUP
-#line 598 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 598 "../cvc/read_input_parser_cvc.l"
 {
   cvc::hpe_order_max = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] max. HPE order set to %s\n",cvc_text);
@@ -5973,7 +5983,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 205:
 YY_RULE_SETUP
-#line 602 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 602 "../cvc/read_input_parser_cvc.l"
 {
   cvc::hpe_order = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] HPE order set to %s\n",cvc_text);
@@ -5981,7 +5991,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 206:
 YY_RULE_SETUP
-#line 606 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 606 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_cutangle = atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] cone cut angle set to %s\n",cvc_text);
@@ -5989,7 +5999,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 207:
 YY_RULE_SETUP
-#line 610 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 610 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_cutradius = atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] cone cut radius set to %s\n",cvc_text);
@@ -5997,7 +6007,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 208:
 YY_RULE_SETUP
-#line 614 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 614 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_cutdir[0] = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] t-comp. of cut dir angle set to %s\n",cvc_text);
@@ -6005,7 +6015,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 209:
 YY_RULE_SETUP
-#line 618 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 618 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_cutdir[1] = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] x-comp. of cut dir angle set to %s\n",cvc_text);
@@ -6013,7 +6023,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 210:
 YY_RULE_SETUP
-#line 622 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 622 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_cutdir[2] = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] y-comp. of cut dir angle set to %s\n",cvc_text);
@@ -6021,7 +6031,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 211:
 YY_RULE_SETUP
-#line 626 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 626 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_cutdir[3] = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] z-comp. of cut dir angle set to %s\n",cvc_text);
@@ -6029,7 +6039,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 212:
 YY_RULE_SETUP
-#line 630 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 630 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_rmin = atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] minimal distance set to %s\n",cvc_text);
@@ -6037,7 +6047,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 213:
 YY_RULE_SETUP
-#line 634 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 634 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_rmax = atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] maximal distance set to %s\n",cvc_text);
@@ -6045,7 +6055,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 214:
 YY_RULE_SETUP
-#line 638 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 638 "../cvc/read_input_parser_cvc.l"
 {
   cvc::avgT = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] cvc::avgT =%s\n", cvc_text);
@@ -6053,7 +6063,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 215:
 YY_RULE_SETUP
-#line 642 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 642 "../cvc/read_input_parser_cvc.l"
 {
   cvc::avgL = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] cvc::avgL =%s\n", cvc_text);
@@ -6061,7 +6071,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 216:
 YY_RULE_SETUP
-#line 646 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 646 "../cvc/read_input_parser_cvc.l"
 {
   cvc::model_dcoeff_re = atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] real part of d-coeff. set to %s\n", cvc_text);
@@ -6069,7 +6079,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 217:
 YY_RULE_SETUP
-#line 650 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 650 "../cvc/read_input_parser_cvc.l"
 {
   cvc::model_dcoeff_im = atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] imaginary part of d-coeff. set to %s\n", cvc_text);
@@ -6077,7 +6087,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 218:
 YY_RULE_SETUP
-#line 654 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 654 "../cvc/read_input_parser_cvc.l"
 {
   cvc::model_mrho = atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] rho-meson mass set to %s\n", cvc_text);
@@ -6085,7 +6095,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 219:
 YY_RULE_SETUP
-#line 658 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 658 "../cvc/read_input_parser_cvc.l"
 {
   cvc::ft_rmax[0] = atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] 1st rmax for FT set to %s\n", cvc_text);
@@ -6093,7 +6103,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 220:
 YY_RULE_SETUP
-#line 662 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 662 "../cvc/read_input_parser_cvc.l"
 {
   cvc::ft_rmax[1] = atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] 2nd rmax for FT set to %s\n", cvc_text);
@@ -6101,7 +6111,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 221:
 YY_RULE_SETUP
-#line 666 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 666 "../cvc/read_input_parser_cvc.l"
 {
   cvc::ft_rmax[2] = atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] 3rd rmax for FT set to %s\n", cvc_text);
@@ -6109,7 +6119,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 222:
 YY_RULE_SETUP
-#line 670 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 670 "../cvc/read_input_parser_cvc.l"
 {
   cvc::ft_rmax[3] = atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] 4th rmax for FT set to %s\n", cvc_text);
@@ -6117,7 +6127,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 223:
 YY_RULE_SETUP
-#line 674 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 674 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_prop_normsqr = atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] propagator norm squared set to %s\n", cvc_text);
@@ -6125,7 +6135,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 224:
 YY_RULE_SETUP
-#line 678 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 678 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_qhatsqr_min = atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set minimal squared Qhat to %s\n", cvc_text);
@@ -6133,7 +6143,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 225:
 YY_RULE_SETUP
-#line 682 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 682 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_qhatsqr_max = atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set maximal squared Qhat to %s\n", cvc_text);
@@ -6141,7 +6151,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 226:
 YY_RULE_SETUP
-#line 686 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 686 "../cvc/read_input_parser_cvc.l"
 {
   cvc::Nlong = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set cvc::Nlong to %s\n", cvc_text);
@@ -6149,7 +6159,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 227:
 YY_RULE_SETUP
-#line 690 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 690 "../cvc/read_input_parser_cvc.l"
 {
   cvc::N_ape = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set cvc::N_ape to %s\n", cvc_text);
@@ -6157,7 +6167,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 228:
 YY_RULE_SETUP
-#line 694 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 694 "../cvc/read_input_parser_cvc.l"
 {
   cvc::N_hyp = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set cvc::N_hyp to %s\n", cvc_text);
@@ -6165,7 +6175,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 229:
 YY_RULE_SETUP
-#line 698 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 698 "../cvc/read_input_parser_cvc.l"
 {
   cvc::N_Jacobi = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set cvc::N_Jacobi to %s\n", cvc_text);
@@ -6173,7 +6183,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 230:
 YY_RULE_SETUP
-#line 702 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 702 "../cvc/read_input_parser_cvc.l"
 {
   cvc::alpha_ape = atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set cvc::alpha_ape to %s\n", cvc_text);
@@ -6181,7 +6191,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 231:
 YY_RULE_SETUP
-#line 706 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 706 "../cvc/read_input_parser_cvc.l"
 {
   sscanf(cvc_text, "%lf/%lf/%lf", cvc::alpha_hyp, cvc::alpha_hyp+1, cvc::alpha_hyp+2);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set alpha_hyp to %f, %f, %f\n", cvc::alpha_hyp[0], cvc::alpha_hyp[1], cvc::alpha_hyp[2]);
@@ -6190,7 +6200,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 232:
 YY_RULE_SETUP
-#line 711 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 711 "../cvc/read_input_parser_cvc.l"
 {
   cvc::kappa_Jacobi = atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set cvc::kappa_Jacobi to %s\n", cvc_text);
@@ -6198,7 +6208,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 233:
 YY_RULE_SETUP
-#line 715 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 715 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_source_timeslice = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set source timeslice to %s\n", cvc_text);
@@ -6206,7 +6216,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 234:
 YY_RULE_SETUP
-#line 719 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 719 "../cvc/read_input_parser_cvc.l"
 {
   if( cvc::g_sequential_source_timeslice_number == 0) {
     cvc::g_sequential_source_timeslice = atoi(cvc_text);
@@ -6218,7 +6228,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 235:
 YY_RULE_SETUP
-#line 728 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 728 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_sequential_source_location_x = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set sequential source location x to %s\n", cvc_text);
@@ -6226,7 +6236,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 236:
 YY_RULE_SETUP
-#line 732 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 732 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_sequential_source_location_y = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set sequential source location y to %s\n", cvc_text);
@@ -6234,7 +6244,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 237:
 YY_RULE_SETUP
-#line 736 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 736 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_sequential_source_location_z = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set sequential source location z to %s\n", cvc_text);
@@ -6242,7 +6252,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 238:
 YY_RULE_SETUP
-#line 741 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 741 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_sequential_source_gamma_id_list[cvc::g_sequential_source_gamma_id_number] = atoi(cvc_text);
   if( cvc::g_sequential_source_gamma_id_number == 0 ) {
@@ -6254,7 +6264,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 239:
 YY_RULE_SETUP
-#line 750 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 750 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_source_gamma_id_list[cvc::g_source_gamma_id_number] = atoi(cvc_text);
   if( cvc::g_source_gamma_id_number == 0 ) {
@@ -6266,7 +6276,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 240:
 YY_RULE_SETUP
-#line 760 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 760 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_no_extra_masses = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set no. of extra masses for mms to %s\n", cvc_text);
@@ -6274,7 +6284,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 241:
 YY_RULE_SETUP
-#line 764 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 764 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_no_light_masses = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set no. of light masses for mms to %s\n", cvc_text);
@@ -6282,7 +6292,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 242:
 YY_RULE_SETUP
-#line 768 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 768 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_no_strange_masses = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set no. of strange masses for mms to %s\n", cvc_text);
@@ -6290,7 +6300,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 243:
 YY_RULE_SETUP
-#line 772 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 772 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_nproc_t = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set cvc::g_nproc_t to %s\n", cvc_text);
@@ -6298,7 +6308,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 244:
 YY_RULE_SETUP
-#line 776 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 776 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_nproc_x = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set cvc::g_nproc_x to %s\n", cvc_text);
@@ -6306,7 +6316,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 245:
 YY_RULE_SETUP
-#line 780 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 780 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_nproc_y = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set cvc::g_nproc_y to %s\n", cvc_text);
@@ -6314,7 +6324,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 246:
 YY_RULE_SETUP
-#line 784 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 784 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_nproc_z = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set cvc::g_nproc_z to %s\n", cvc_text);
@@ -6322,7 +6332,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 247:
 YY_RULE_SETUP
-#line 789 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 789 "../cvc/read_input_parser_cvc.l"
 {
   if(strcmp(cvc_text, "yes")==0) {
     cvc::g_local_local = 1;
@@ -6332,7 +6342,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 248:
 YY_RULE_SETUP
-#line 795 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 795 "../cvc/read_input_parser_cvc.l"
 {
   if(strcmp(cvc_text, "yes")==0) {
     cvc::g_local_smeared = 1;
@@ -6342,7 +6352,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 249:
 YY_RULE_SETUP
-#line 801 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 801 "../cvc/read_input_parser_cvc.l"
 {
   if(strcmp(cvc_text, "yes")==0) {
     cvc::g_smeared_local = 1;
@@ -6352,7 +6362,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 250:
 YY_RULE_SETUP
-#line 807 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 807 "../cvc/read_input_parser_cvc.l"
 {
   if(strcmp(cvc_text, "yes")==0) {
     cvc::g_smeared_smeared = 1;
@@ -6362,7 +6372,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 251:
 YY_RULE_SETUP
-#line 813 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 813 "../cvc/read_input_parser_cvc.l"
 {
   if(strcmp(cvc_text, "yes")==0) {
     cvc::g_rotate_ETMC_UKQCD = 1;
@@ -6372,7 +6382,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 252:
 YY_RULE_SETUP
-#line 819 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 819 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_propagator_position = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set propagator position to %s\n", cvc_text);
@@ -6380,7 +6390,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 253:
 YY_RULE_SETUP
-#line 824 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 824 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_gpu_device_number = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set GPU device number to %s\n", cvc_text);
@@ -6388,7 +6398,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 254:
 YY_RULE_SETUP
-#line 828 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 828 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_gpu_per_node = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set number of GPUs  per node to %s\n", cvc_text);
@@ -6396,7 +6406,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 255:
 YY_RULE_SETUP
-#line 833 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 833 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_coherent_source = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set coherent source to %s\n", cvc_text);
@@ -6404,7 +6414,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 256:
 YY_RULE_SETUP
-#line 838 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 838 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_coherent_source_base = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set coherent source base to %s\n", cvc_text);
@@ -6412,7 +6422,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 257:
 YY_RULE_SETUP
-#line 843 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 843 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_coherent_source_delta = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set coherent source delta to %s\n", cvc_text);
@@ -6420,7 +6430,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 258:
 YY_RULE_SETUP
-#line 847 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 847 "../cvc/read_input_parser_cvc.l"
 {
   if(strcmp(cvc_text, "ildg")==0) {
     cvc::g_gauge_file_format = 0;
@@ -6432,7 +6442,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 259:
 YY_RULE_SETUP
-#line 855 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 855 "../cvc/read_input_parser_cvc.l"
 {
 //  cvc::g_rng_filename = (char*)malloc((strlen(cvc_text)+1)*sizeof(char));
   strcpy(cvc::g_rng_filename, cvc_text);
@@ -6441,7 +6451,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 260:
 YY_RULE_SETUP
-#line 860 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 860 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_source_index[0] = atoi(cvc_text);
   cvc::g_source_index[1] = cvc::g_source_index[0];
@@ -6450,7 +6460,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 261:
 YY_RULE_SETUP
-#line 865 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 865 "../cvc/read_input_parser_cvc.l"
 {
   sscanf(cvc_text, "-%d", cvc::g_source_index+1);
   if(cvc::myverbose!=0) printf("# [read_input_parser] end index set to %d\n", cvc::g_source_index[1]);
@@ -6458,7 +6468,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 262:
 YY_RULE_SETUP
-#line 869 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 869 "../cvc/read_input_parser_cvc.l"
 {
   if(strcmp(cvc_text, "Phase")==0) {
     cvc::g_propagator_bc_type = 0;
@@ -6472,7 +6482,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 263:
 YY_RULE_SETUP
-#line 879 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 879 "../cvc/read_input_parser_cvc.l"
 {
   if(strcmp(cvc_text,"yes")==0) {
     cvc::g_write_source = 1;
@@ -6484,7 +6494,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 264:
 YY_RULE_SETUP
-#line 887 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 887 "../cvc/read_input_parser_cvc.l"
 {
   if(strcmp(cvc_text,"yes")==0) {
     cvc::g_read_source = 1;
@@ -6496,7 +6506,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 265:
 YY_RULE_SETUP
-#line 895 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 895 "../cvc/read_input_parser_cvc.l"
 {
   if(strcmp(cvc_text,"yes")==0) {
     cvc::g_write_propagator = 1;
@@ -6508,7 +6518,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 266:
 YY_RULE_SETUP
-#line 903 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 903 "../cvc/read_input_parser_cvc.l"
 {
   if(strcmp(cvc_text,"yes")==0) {
     cvc::g_read_propagator = 1;
@@ -6520,7 +6530,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 267:
 YY_RULE_SETUP
-#line 911 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 911 "../cvc/read_input_parser_cvc.l"
 {
   if(strcmp(cvc_text,"yes")==0) {
     cvc::g_read_sequential_propagator = 1;
@@ -6532,7 +6542,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 268:
 YY_RULE_SETUP
-#line 920 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 920 "../cvc/read_input_parser_cvc.l"
 {
   if(strcmp(cvc_text,"yes")==0) {
     cvc::g_write_sequential_source = 1;
@@ -6544,7 +6554,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 269:
 YY_RULE_SETUP
-#line 929 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 929 "../cvc/read_input_parser_cvc.l"
 {
   if(strcmp(cvc_text,"yes")==0) {
     cvc::g_write_sequential_propagator = 1;
@@ -6556,7 +6566,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 270:
 YY_RULE_SETUP
-#line 938 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 938 "../cvc/read_input_parser_cvc.l"
 {
   if(strcmp(cvc_text,"DeGrandRossi")==0) {
     cvc::g_propagator_gamma_basis = 1;
@@ -6568,7 +6578,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 271:
 YY_RULE_SETUP
-#line 946 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 946 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_propagator_precision = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set propagator precision to %d\n", cvc::g_propagator_precision);
@@ -6576,7 +6586,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 272:
 YY_RULE_SETUP
-#line 951 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 951 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_nsample = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set number of samples to %d\n", cvc::g_nsample);
@@ -6584,7 +6594,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 273:
 YY_RULE_SETUP
-#line 956 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 956 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_nsample_oet = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set number of oet samples to %d\n", cvc::g_nsample_oet);
@@ -6592,7 +6602,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 274:
 YY_RULE_SETUP
-#line 961 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 961 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_as_over_a = atof(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] as / a set to  %s\n",cvc_text);
@@ -6600,7 +6610,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 275:
 YY_RULE_SETUP
-#line 965 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 965 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_num_threads = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] number of threads =%d\n", cvc::g_num_threads);
@@ -6608,7 +6618,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 276:
 YY_RULE_SETUP
-#line 970 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 970 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_source_momentum[0] = atoi(cvc_text);
   cvc::g_source_momentum_set = 1;
@@ -6617,7 +6627,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 277:
 YY_RULE_SETUP
-#line 975 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 975 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_source_momentum[1] = atoi(cvc_text);
   cvc::g_source_momentum_set = 1;
@@ -6626,7 +6636,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 278:
 YY_RULE_SETUP
-#line 980 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 980 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_source_momentum[2] = atoi(cvc_text);
   cvc::g_source_momentum_set = 1;
@@ -6635,7 +6645,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 279:
 YY_RULE_SETUP
-#line 986 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 986 "../cvc/read_input_parser_cvc.l"
 {
   sscanf(cvc_text, "%d,%d,%d", cvc::g_source_momentum_list[cvc::g_source_momentum_number],
       cvc::g_source_momentum_list[cvc::g_source_momentum_number]+1, cvc::g_source_momentum_list[cvc::g_source_momentum_number]+2);
@@ -6645,7 +6655,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 280:
 YY_RULE_SETUP
-#line 993 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 993 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_sink_momentum[0] = atoi(cvc_text);
   cvc::g_sink_momentum_set = 1;
@@ -6654,7 +6664,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 281:
 YY_RULE_SETUP
-#line 998 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 998 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_sink_momentum[1] = atoi(cvc_text);
   cvc::g_sink_momentum_set = 1;
@@ -6663,7 +6673,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 282:
 YY_RULE_SETUP
-#line 1003 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1003 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_sink_momentum[2] = atoi(cvc_text);
   cvc::g_sink_momentum_set = 1;
@@ -6672,7 +6682,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 283:
 YY_RULE_SETUP
-#line 1008 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1008 "../cvc/read_input_parser_cvc.l"
 {
   sscanf(cvc_text, "%d,%d,%d", cvc::g_sink_momentum_list[cvc::g_sink_momentum_number],
       cvc::g_sink_momentum_list[cvc::g_sink_momentum_number]+1, cvc::g_sink_momentum_list[cvc::g_sink_momentum_number]+2);
@@ -6682,7 +6692,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 284:
 YY_RULE_SETUP
-#line 1015 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1015 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_seq_source_momentum[0] = atoi(cvc_text);
   cvc::g_seq_source_momentum_set = 1;
@@ -6691,7 +6701,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 285:
 YY_RULE_SETUP
-#line 1020 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1020 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_seq_source_momentum[1] = atoi(cvc_text);
   cvc::g_seq_source_momentum_set = 1;
@@ -6700,7 +6710,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 286:
 YY_RULE_SETUP
-#line 1025 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1025 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_seq_source_momentum[2] = atoi(cvc_text);
   cvc::g_seq_source_momentum_set = 1;
@@ -6709,7 +6719,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 287:
 YY_RULE_SETUP
-#line 1031 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1031 "../cvc/read_input_parser_cvc.l"
 {
   sscanf(cvc_text, "%d,%d,%d", cvc::g_seq_source_momentum_list[cvc::g_seq_source_momentum_number],
       cvc::g_seq_source_momentum_list[cvc::g_seq_source_momentum_number]+1, cvc::g_seq_source_momentum_list[cvc::g_seq_source_momentum_number]+2);
@@ -6719,7 +6729,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 288:
 YY_RULE_SETUP
-#line 1038 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1038 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_seq2_source_momentum[0] = atoi(cvc_text);
   cvc::g_seq2_source_momentum_set = 1;
@@ -6728,7 +6738,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 289:
 YY_RULE_SETUP
-#line 1043 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1043 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_seq2_source_momentum[1] = atoi(cvc_text);
   cvc::g_seq2_source_momentum_set = 1;
@@ -6737,7 +6747,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 290:
 YY_RULE_SETUP
-#line 1048 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1048 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_seq2_source_momentum[2] = atoi(cvc_text);
   cvc::g_seq2_source_momentum_set = 1;
@@ -6746,7 +6756,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 291:
 YY_RULE_SETUP
-#line 1054 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1054 "../cvc/read_input_parser_cvc.l"
 {
   sscanf(cvc_text, "%d,%d,%d", cvc::g_seq2_source_momentum_list[cvc::g_seq2_source_momentum_number],
       cvc::g_seq2_source_momentum_list[cvc::g_seq2_source_momentum_number]+1, cvc::g_seq2_source_momentum_list[cvc::g_seq2_source_momentum_number]+2);
@@ -6756,7 +6766,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 292:
 YY_RULE_SETUP
-#line 1061 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1061 "../cvc/read_input_parser_cvc.l"
 {
   if(strcmp(cvc_text, "half")==0 ) {
     cvc::g_cpu_prec = 0;
@@ -6770,7 +6780,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 293:
 YY_RULE_SETUP
-#line 1071 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1071 "../cvc/read_input_parser_cvc.l"
 {
   if(strcmp(cvc_text, "half")==0 ) {
     cvc::g_gpu_prec = 0;
@@ -6784,7 +6794,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 294:
 YY_RULE_SETUP
-#line 1081 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1081 "../cvc/read_input_parser_cvc.l"
 {
   if(strcmp(cvc_text, "half")==0 ) {
     cvc::g_gpu_prec_sloppy = 0;
@@ -6798,7 +6808,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 295:
 YY_RULE_SETUP
-#line 1091 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1091 "../cvc/read_input_parser_cvc.l"
 {
   strcpy(cvc::g_inverter_type_name, cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] inverter type name set to %s\n",cvc_text);
@@ -6806,7 +6816,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 296:
 YY_RULE_SETUP
-#line 1095 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1095 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_mms_id = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set mms id to %s\n", cvc_text);
@@ -6814,7 +6824,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 297:
 YY_RULE_SETUP
-#line 1099 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1099 "../cvc/read_input_parser_cvc.l"
 {
   if(strcmp(cvc_text, "yes")==0) {
     cvc::g_check_inversion = 1;
@@ -6826,7 +6836,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 298:
 YY_RULE_SETUP
-#line 1108 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1108 "../cvc/read_input_parser_cvc.l"
 {
   strcpy(cvc::laphs_time_proj_type, cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] LAPHS time proj set to %s\n",cvc_text);
@@ -6834,7 +6844,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 299:
 YY_RULE_SETUP
-#line 1113 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1113 "../cvc/read_input_parser_cvc.l"
 {
   strcpy(cvc::laphs_spin_proj_type, cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] LAPHS spin proj set to %s\n",cvc_text);
@@ -6842,7 +6852,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 300:
 YY_RULE_SETUP
-#line 1118 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1118 "../cvc/read_input_parser_cvc.l"
 {
   strcpy(cvc::laphs_evec_proj_type, cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] LAPHS evec pro set to %s\n",cvc_text);
@@ -6850,7 +6860,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 301:
 YY_RULE_SETUP
-#line 1124 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1124 "../cvc/read_input_parser_cvc.l"
 {
   cvc::laphs_eigenvector_number = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] LAPHS number of eigenvectors set to %s\n",cvc_text);
@@ -6858,7 +6868,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 302:
 YY_RULE_SETUP
-#line 1129 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1129 "../cvc/read_input_parser_cvc.l"
 {
   cvc::laphs_randomvector_number = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] LAPHS number of randomvectors set to %s\n",cvc_text);
@@ -6866,7 +6876,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 303:
 YY_RULE_SETUP
-#line 1134 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1134 "../cvc/read_input_parser_cvc.l"
 {
   strcpy(cvc::laphs_eigenvector_path_prefix, cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] LAPHS eigenvector path prefix set to %s\n",cvc_text);
@@ -6874,7 +6884,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 304:
 YY_RULE_SETUP
-#line 1139 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1139 "../cvc/read_input_parser_cvc.l"
 {
   strcpy(cvc::laphs_eigenvector_file_prefix, cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] LAPHS eigenvector file prefix set to %s\n",cvc_text);
@@ -6882,7 +6892,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 305:
 YY_RULE_SETUP
-#line 1144 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1144 "../cvc/read_input_parser_cvc.l"
 {
   cvc::laphs_time_src_number = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] LAPHS number of times at source set to  %s\n",cvc_text);
@@ -6890,7 +6900,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 306:
 YY_RULE_SETUP
-#line 1149 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1149 "../cvc/read_input_parser_cvc.l"
 {
   cvc::laphs_spin_src_number = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] LAPHS number of spin at source set to  %s\n",cvc_text);
@@ -6898,7 +6908,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 307:
 YY_RULE_SETUP
-#line 1154 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1154 "../cvc/read_input_parser_cvc.l"
 {
   cvc::laphs_evec_src_number = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] LAPHS number of evec at set to  %s\n",cvc_text);
@@ -6906,7 +6916,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 308:
 YY_RULE_SETUP
-#line 1160 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1160 "../cvc/read_input_parser_cvc.l"
 {
   strcpy(cvc::laphs_perambulator_path_prefix, cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] LAPHS perambulator path prefix set to %s\n",cvc_text);
@@ -6914,7 +6924,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 309:
 YY_RULE_SETUP
-#line 1165 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1165 "../cvc/read_input_parser_cvc.l"
 {
 
   if ( cvc::g_m_m_2pt_num == MAX_M_M_2PT_NUM ) {
@@ -6941,7 +6951,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 310:
 YY_RULE_SETUP
-#line 1189 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1189 "../cvc/read_input_parser_cvc.l"
 {
 
   if ( cvc::g_source_location_number == MAX_SOURCE_LOCATION_NUMBER ) {
@@ -6963,7 +6973,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 311:
 YY_RULE_SETUP
-#line 1208 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1208 "../cvc/read_input_parser_cvc.l"
 {
 
   if ( cvc::g_mxb_mxb_2pt_num == MAX_MXB_MXB_2PT_NUM ) {
@@ -6998,7 +7008,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 312:
 YY_RULE_SETUP
-#line 1240 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1240 "../cvc/read_input_parser_cvc.l"
 {
   if(strcmp(cvc_text, "TwistedMass")==0) {
     cvc::g_fermion_type = _TM_FERMION;
@@ -7012,7 +7022,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 313:
 YY_RULE_SETUP
-#line 1251 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1251 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_src_snk_time_separation = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] cvc::g_src_snk_time_separation = %s\n", cvc_text);
@@ -7020,7 +7030,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 314:
 YY_RULE_SETUP
-#line 1256 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1256 "../cvc/read_input_parser_cvc.l"
 {
   cvc::g_coherent_source_number = atoi(cvc_text);
   if(cvc::myverbose!=0) printf("# [read_input_parser] coherent source number set to =%d\n", cvc::g_coherent_source_number);
@@ -7028,7 +7038,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 315:
 YY_RULE_SETUP
-#line 1262 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1262 "../cvc/read_input_parser_cvc.l"
 {
    cvc::comment_caller = YY_START;   
    BEGIN(COMMENT);
@@ -7036,7 +7046,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 316:
 YY_RULE_SETUP
-#line 1266 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1266 "../cvc/read_input_parser_cvc.l"
 {
    cvc::comment_caller = YY_START;
    BEGIN(COMMENT);
@@ -7044,7 +7054,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 317:
 YY_RULE_SETUP
-#line 1270 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1270 "../cvc/read_input_parser_cvc.l"
 {
   BEGIN(cvc::comment_caller);
 }
@@ -7052,7 +7062,7 @@ YY_RULE_SETUP
 case 318:
 /* rule 318 can match eol */
 YY_RULE_SETUP
-#line 1274 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1274 "../cvc/read_input_parser_cvc.l"
 {
   cvc::line_of_file++;
   BEGIN(0);
@@ -7060,14 +7070,14 @@ YY_RULE_SETUP
 	YY_BREAK
 case 319:
 YY_RULE_SETUP
-#line 1279 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1279 "../cvc/read_input_parser_cvc.l"
 {
   BEGIN(ERROR);
 }
 	YY_BREAK
 case 320:
 YY_RULE_SETUP
-#line 1282 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1282 "../cvc/read_input_parser_cvc.l"
 {
   printf("# [read_input_parser] Parsing error in line %d\nAborting...!\n", cvc::line_of_file);
   exit(1);
@@ -7076,10 +7086,10 @@ YY_RULE_SETUP
 /* end namespace inclusion here */
 case 321:
 YY_RULE_SETUP
-#line 1289 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1289 "../cvc/read_input_parser_cvc.l"
 ECHO;
 	YY_BREAK
-#line 7083 "<stdout>"
+#line 7093 "<stdout>"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(TT):
 case YY_STATE_EOF(LLX):
@@ -7382,9 +7392,9 @@ case YY_STATE_EOF(COHERENTSOURCENUMBER):
  */
 static int yy_get_next_buffer (void)
 {
-    	register char *dest = YY_CURRENT_BUFFER_LVALUE->yy_ch_buf;
-	register char *source = (yytext_ptr);
-	register int number_to_move, i;
+    	char *dest = YY_CURRENT_BUFFER_LVALUE->yy_ch_buf;
+	char *source = (yytext_ptr);
+	yy_size_t number_to_move, i;
 	int ret_val;
 
 	if ( (yy_c_buf_p) > &YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[(yy_n_chars) + 1] )
@@ -7413,7 +7423,7 @@ static int yy_get_next_buffer (void)
 	/* Try to read more data. */
 
 	/* First move last chars to start of buffer. */
-	number_to_move = (int) ((yy_c_buf_p) - (yytext_ptr)) - 1;
+	number_to_move = (yy_size_t) ((yy_c_buf_p) - (yytext_ptr)) - 1;
 
 	for ( i = 0; i < number_to_move; ++i )
 		*(dest++) = *(source++);
@@ -7426,7 +7436,7 @@ static int yy_get_next_buffer (void)
 
 	else
 		{
-			int num_to_read =
+			yy_size_t num_to_read =
 			YY_CURRENT_BUFFER_LVALUE->yy_buf_size - number_to_move - 1;
 
 		while ( num_to_read <= 0 )
@@ -7516,15 +7526,15 @@ static int yy_get_next_buffer (void)
 
     static yy_state_type yy_get_previous_state (void)
 {
-	register yy_state_type yy_current_state;
-	register char *yy_cp;
+	yy_state_type yy_current_state;
+	char *yy_cp;
     
 	yy_current_state = (yy_start);
 	yy_current_state += YY_AT_BOL();
 
 	for ( yy_cp = (yytext_ptr) + YY_MORE_ADJ; yy_cp < (yy_c_buf_p); ++yy_cp )
 		{
-		register YY_CHAR yy_c = (*yy_cp ? yy_ec[YY_SC_TO_UI(*yy_cp)] : 1);
+		YY_CHAR yy_c = (*yy_cp ? yy_ec[YY_SC_TO_UI(*yy_cp)] : 1);
 		if ( yy_accept[yy_current_state] )
 			{
 			(yy_last_accepting_state) = yy_current_state;
@@ -7549,10 +7559,10 @@ static int yy_get_next_buffer (void)
  */
     static yy_state_type yy_try_NUL_trans  (yy_state_type yy_current_state )
 {
-	register int yy_is_jam;
-    	register char *yy_cp = (yy_c_buf_p);
+	int yy_is_jam;
+    	char *yy_cp = (yy_c_buf_p);
 
-	register YY_CHAR yy_c = 1;
+	YY_CHAR yy_c = 1;
 	if ( yy_accept[yy_current_state] )
 		{
 		(yy_last_accepting_state) = yy_current_state;
@@ -7570,9 +7580,11 @@ static int yy_get_next_buffer (void)
 		return yy_is_jam ? 0 : yy_current_state;
 }
 
-    static void yyunput (int c, register char * yy_bp )
+#ifndef YY_NO_UNPUT
+
+    static void yyunput (int c, char * yy_bp )
 {
-	register char *yy_cp;
+	char *yy_cp;
     
     yy_cp = (yy_c_buf_p);
 
@@ -7582,10 +7594,10 @@ static int yy_get_next_buffer (void)
 	if ( yy_cp < YY_CURRENT_BUFFER_LVALUE->yy_ch_buf + 2 )
 		{ /* need to shift things up to make room */
 		/* +2 for EOB chars. */
-		register yy_size_t number_to_move = (yy_n_chars) + 2;
-		register char *dest = &YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[
+		yy_size_t number_to_move = (yy_n_chars) + 2;
+		char *dest = &YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[
 					YY_CURRENT_BUFFER_LVALUE->yy_buf_size + 2];
-		register char *source =
+		char *source =
 				&YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[number_to_move];
 
 		while ( source > YY_CURRENT_BUFFER_LVALUE->yy_ch_buf )
@@ -7606,6 +7618,8 @@ static int yy_get_next_buffer (void)
 	(yy_hold_char) = *yy_cp;
 	(yy_c_buf_p) = yy_cp;
 }
+
+#endif
 
 #ifndef YY_NO_INPUT
 #ifdef __cplusplus
@@ -7758,7 +7772,7 @@ static void cvc__load_buffer_state  (void)
 	if ( ! b )
 		YY_FATAL_ERROR( "out of dynamic memory in cvc__create_buffer()" );
 
-	b->yy_buf_size = size;
+	b->yy_buf_size = (yy_size_t)size;
 
 	/* yy_ch_buf has to be 2 characters longer than the size given because
 	 * we need to put in 2 end-of-buffer characters.
@@ -7913,7 +7927,7 @@ static void cvc_ensure_buffer_stack (void)
 		 * scanner will even need a stack. We use 2 instead of 1 to avoid an
 		 * immediate realloc on the next call.
          */
-		num_to_alloc = 1;
+		num_to_alloc = 1; // After all that talk, this was set to 1 anyways...
 		(yy_buffer_stack) = (struct yy_buffer_state**)cvc_alloc
 								(num_to_alloc * sizeof(struct yy_buffer_state*)
 								);
@@ -7930,7 +7944,7 @@ static void cvc_ensure_buffer_stack (void)
 	if ((yy_buffer_stack_top) >= ((yy_buffer_stack_max)) - 1){
 
 		/* Increase the buffer to prepare for a possible push. */
-		int grow_size = 8 /* arbitrary grow size */;
+		yy_size_t grow_size = 8 /* arbitrary grow size */;
 
 		num_to_alloc = (yy_buffer_stack_max) + grow_size;
 		(yy_buffer_stack) = (struct yy_buffer_state**)cvc_realloc
@@ -8038,7 +8052,7 @@ YY_BUFFER_STATE cvc__scan_bytes  (yyconst char * yybytes, yy_size_t  _yybytes_le
 
 static void yy_fatal_error (yyconst char* msg )
 {
-    	(void) fprintf( stderr, "%s\n", msg );
+			(void) fprintf( stderr, "%s\n", msg );
 	exit( YY_EXIT_FAILURE );
 }
 
@@ -8104,29 +8118,29 @@ char *cvc_get_text  (void)
 }
 
 /** Set the current line number.
- * @param line_number
+ * @param _line_number line number
  * 
  */
-void cvc_set_lineno (int  line_number )
+void cvc_set_lineno (int  _line_number )
 {
     
-    cvc_lineno = line_number;
+    cvc_lineno = _line_number;
 }
 
 /** Set the input stream. This does not discard the current
  * input buffer.
- * @param in_str A readable stream.
+ * @param _in_str A readable stream.
  * 
  * @see cvc__switch_to_buffer
  */
-void cvc_set_in (FILE *  in_str )
+void cvc_set_in (FILE *  _in_str )
 {
-        cvc_in = in_str ;
+        cvc_in = _in_str ;
 }
 
-void cvc_set_out (FILE *  out_str )
+void cvc_set_out (FILE *  _out_str )
 {
-        cvc_out = out_str ;
+        cvc_out = _out_str ;
 }
 
 int cvc_get_debug  (void)
@@ -8134,9 +8148,9 @@ int cvc_get_debug  (void)
         return cvc__flex_debug;
 }
 
-void cvc_set_debug (int  bdebug )
+void cvc_set_debug (int  _bdebug )
 {
-        cvc__flex_debug = bdebug ;
+        cvc__flex_debug = _bdebug ;
 }
 
 static int yy_init_globals (void)
@@ -8196,7 +8210,8 @@ int cvc_lex_destroy  (void)
 #ifndef yytext_ptr
 static void yy_flex_strncpy (char* s1, yyconst char * s2, int n )
 {
-	register int i;
+		
+	int i;
 	for ( i = 0; i < n; ++i )
 		s1[i] = s2[i];
 }
@@ -8205,7 +8220,7 @@ static void yy_flex_strncpy (char* s1, yyconst char * s2, int n )
 #ifdef YY_NEED_STRLEN
 static int yy_flex_strlen (yyconst char * s )
 {
-	register int n;
+	int n;
 	for ( n = 0; s[n]; ++n )
 		;
 
@@ -8215,11 +8230,12 @@ static int yy_flex_strlen (yyconst char * s )
 
 void *cvc_alloc (yy_size_t  size )
 {
-	return (void *) malloc( size );
+			return (void *) malloc( size );
 }
 
 void *cvc_realloc  (void * ptr, yy_size_t  size )
 {
+		
 	/* The cast to (char *) in the following accommodates both
 	 * implementations that use char* generic pointers, and those
 	 * that use void* generic pointers.  It works with the latter
@@ -8232,12 +8248,12 @@ void *cvc_realloc  (void * ptr, yy_size_t  size )
 
 void cvc_free (void * ptr )
 {
-	free( (char *) ptr );	/* see cvc_realloc() for (char *) cast */
+			free( (char *) ptr );	/* see cvc_realloc() for (char *) cast */
 }
 
 #define YYTABLES_NAME "yytables"
 
-#line 1288 "/home/marcuspe/software/cvc/read_input_parser_cvc.l"
+#line 1289 "../cvc/read_input_parser_cvc.l"
 
 
 
