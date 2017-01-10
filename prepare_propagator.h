@@ -14,7 +14,9 @@ int prepare_seqn_stochastic_vertex_propagator_sliced3d (double**seq_prop, double
 
 int prepare_seqn_stochastic_vertex_propagator_sliced3d_oet (double**seq_prop, double**stoch_prop_0, double**stoch_prop_p,
     double**prop, int momentum[3], int gid, int idsource);
-  
+ 
+int prepare_seq_stochastic_vertex_stochastic_oet (double**seq_prop, double**stoch_prop_0, double**stoch_prop_p,
+        int gid, int source_coords[4], int nsample);
 
 }  /* end of namespace cvc */
 #endif

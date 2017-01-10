@@ -5613,6 +5613,66 @@ void spinor_field_eq_spinor_field_ti_complex_field (double*r, double*s, double *
 #ifdef HAVE_OPENMP
 }
 #endif
-}  /* end of spinor_field_eq_spinor_field_ti_real_field */
+}  /* end of spinor_field_eq_spinor_field_ti_complex_field */
+
+/***********************************************************
+ * r = s * w
+ * safe, if r = s
+ ***********************************************************/
+void spinor_field_eq_spinor_field_ti_co (double*r, double*s, complex w, unsigned int N) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel shared(r,s,w,N)
+{
+#endif
+  unsigned int ix, offset;
+  double *rr, *ss;
+  double sp1[_GSI(1)];
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(ix = 0; ix < N; ix++) {
+    offset = _GSI(ix);
+    rr = r + offset;
+    ss = s + offset;
+    _fv_eq_fv_ti_co(sp1, ss, &w);
+    _fv_eq_fv(rr, sp1);
+  }
+#ifdef HAVE_OPENMP
+}
+#endif
+}  /* end of spinor_field_eq_spinor_field_ti_co */
+
+
+/***********************************************************
+ * r = s * w
+ * safe, if r = s
+ ***********************************************************/
+void spinor_field_pl_eq_spinor_field_ti_co (double*r, double*s, complex w, unsigned int N) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel shared(r,s,w,N)
+{
+#endif
+  unsigned int ix, offset;
+  double *rr, *ss;
+  double sp1[_GSI(1)];
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(ix = 0; ix < N; ix++) {
+    offset = _GSI(ix);
+    rr = r + offset;
+    ss = s + offset;
+    _fv_eq_fv_ti_co(sp1, ss, &w);
+    _fv_pl_eq_fv(rr, sp1);
+  }
+#ifdef HAVE_OPENMP
+}
+#endif
+}  /* end of spinor_field_pl_eq_spinor_field_ti_co */
+
 
 }  /* end of namespace cvc */

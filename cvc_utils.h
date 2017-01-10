@@ -130,6 +130,9 @@ int assign_fermion_propagaptor_from_spinor_field (fermion_propagator_type *s, do
 int assign_spinor_field_from_fermion_propagaptor (double**prop_list, fermion_propagator_type *s, unsigned int N);
 int assign_spinor_field_from_fermion_propagaptor_component (double*spinor_field, fermion_propagator_type *s, int icomp, unsigned int N);
 
+void spinor_field_eq_spinor_field_ti_co (double*r, double*s, complex w, unsigned int N);
+void spinor_field_pl_eq_spinor_field_ti_co (double*r, double*s, complex w, unsigned int N);
+
 
 }  /* end of namespace cvc */
 #endif
