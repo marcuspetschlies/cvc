@@ -92,6 +92,11 @@ typedef struct {
   (c1)->re = (c2)->re; \
   (c1)->im = (c2)->im;}
 
+/* c1 = c2^* */
+#define _co_eq_co_conj(c1,c2) {\
+  (c1)->re =  (c2)->re; \
+  (c1)->im = -(c2)->im;}
+
 /* c = r+0i */
 #define _co_eq_re(c,r) {\
   (c)->re = r; \

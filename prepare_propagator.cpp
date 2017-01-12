@@ -545,4 +545,115 @@ int prepare_seqn_stochastic_vertex_propagator_sliced3d_oet (double**seq_prop, do
   return(0);
 }  /* end of prepare_seqn_stochastic_vertex_propagator_sliced3d_oet */
 
+/*******************************************************************
+ * seqn using stochastic - vertex - stochastic oet
+ *
+ *******************************************************************/
+
+int prepare_seq_stochastic_vertex_stochastic_oet (double**seq_prop, double**stoch_prop_0, double**stoch_prop_p, 
+    int gid, int source_coords[4], int nsample)
+{
+  const int nprop = g_fv_dim;
+  const int nstoch = 4;
+
+  const size_t sizeof_spinor_field = _GSI(VOLUME) * sizeof(double);
+
+  const int pvertex[4] = { gamma_permutation[gid][ 0] / 6,
+                           gamma_permutation[gid][ 6] / 6,
+                           gamma_permutation[gid][12] / 6,
+                           gamma_permutation[gid][18] / 6 };
+  const int isimag = gamma_permutation[gid][ 0] % 2;
+            /* sign from the source gamma matrix; the minus sign
+             *    * in the lower two lines is the action of gamma_5 */
+  const double svertex[4] =  { gamma_sign[gid][ 0] * gamma_sign[5][gamma_permutation[gid][ 0]],
+                               gamma_sign[gid][ 6] * gamma_sign[5][gamma_permutation[gid][ 6]],
+                               gamma_sign[gid][12] * gamma_sign[5][gamma_permutation[gid][12]],
+                               gamma_sign[gid][18] * gamma_sign[5][gamma_permutation[gid][18]] };
+
+
+  int i, isample;
+  double ratime, retime;
+  double sp_source[96];
+  int source_proc_id = 0;
+  unsigned int offset = 0;
+
+  ratime = _GET_TIME;
+
+  /* initialize seq_prop to zero */
+  for(i=0; i<12; i++) {
+    memset( seq_prop[i], 0, sizeof_spinor_field );
+  }
+
+#ifdef HAVE_MPI
+  int source_proc_coords[4] = { source_coords[0] / T, source_coords[1] / LX, source_coords[2] / LY, source_coords[3] / LZ };
+
+  if(g_cart_id == 0) {
+    fprintf(stdout, "# [prepare_seq_stochastic_vertex_stochastic_oet] global source coordinates: (%3d,%3d,%3d,%3d)\n",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3]);
+    fprintf(stdout, "# [prepare_seq_stochastic_vertex_stochastic_oet] source proc coordinates: (%3d,%3d,%3d,%3d)\n",
+        source_proc_coords[0], source_proc_coords[1], source_proc_coords[2], source_proc_coords[3]);
+  }
+
+  MPI_Cart_rank(g_cart_grid, source_proc_coords, &source_proc_id);
+  if(source_proc_id == g_cart_id) {
+    fprintf(stdout, "# [prepare_seq_stochastic_vertex_stochastic_oet] process %4d has source location\n", source_proc_id);
+  }
+#endif
+  if(source_proc_id == g_cart_id) {
+    offset = _GSI( g_ipt[source_coords[0]%T][source_coords[1]%LX][source_coords[2]%LY][source_coords[3]%LZ] );
+  }
+
+  /* loop on samples */
+  for(isample = 0; isample < nsample; isample++) {
+
+    if(source_proc_id == g_cart_id) {
+      if( !isimag ) {
+        for(i=0; i<4; i++) {
+          _fv_eq_fv( sp_source+i*24, stoch_prop_0[4*isample + pvertex[i]] + offset );
+          _fv_ti_eq_re( sp_source+i*24, svertex[i] );
+        }
+      } else {
+        double sp2[24];
+        for(i=0; i<4; i++) {
+          _fv_eq_fv( sp2, stoch_prop_0[4*isample + pvertex[i]] + offset );
+          _fv_eq_fv_ti_im ( sp_source+i*24, sp2, -svertex[i] );
+        }
+      }
+    } else {
+      memset(sp_source, 0, 96 * sizeof(double) );
+    }  /* end of if source_proc_id = g_cart_id */
+
+#ifdef HAVE_MPI
+    if( MPI_Bcast( sp_source, 96, MPI_DOUBLE, source_proc_id, g_cart_grid ) != MPI_SUCCESS ) {
+      fprintf(stderr, "[prepare_seq_stochastic_vertex_stochastic_oet] Error from MPI_Bcast\n");
+      return(1);
+    }
+#endif
+ 
+    /* loop on source spin-color index */
+    for(i=0; i<12; i++) {
+      double *phi = seq_prop[i];
+      complex w;
+
+      _co_eq_co_conj(&w, (complex*)(sp_source+2*i) );
+      spinor_field_pl_eq_spinor_field_ti_co (phi, stoch_prop_p[4*isample+0], w, VOLUME);
+
+      _co_eq_co_conj(&w, (complex*)(sp_source+24+2*i) );
+      spinor_field_pl_eq_spinor_field_ti_co (phi, stoch_prop_p[4*isample+1], w, VOLUME);
+
+      _co_eq_co_conj(&w, (complex*)(sp_source+48+2*i) );
+      spinor_field_pl_eq_spinor_field_ti_co (phi, stoch_prop_p[4*isample+2], w, VOLUME);
+
+      _co_eq_co_conj(&w, (complex*)(sp_source+72+2*i) );
+      spinor_field_pl_eq_spinor_field_ti_co (phi, stoch_prop_p[4*isample+3], w, VOLUME);
+
+    }  /* end of loop on source spin-color */
+
+  }  /* end of loop on samples */
+  retime = _GET_TIME;
+  if(g_cart_id == 0) fprintf(stdout, "[prepare_seq_stochastic_vertex_stochastic_oet] time for prepare_seq_stochastic_vertex_stochastic_oet = %e seconds\n", retime-ratime);
+
+  return(0);
+}  /* end of prepare_seq_stochastic_vertex_stochastic_oet */
+
 }  /* end of namespace cvc */

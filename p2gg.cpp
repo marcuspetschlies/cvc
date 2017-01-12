@@ -73,6 +73,17 @@ void usage() {
   EXIT(0);
 }
 
+int dummy_eo_solver (double * const propagator, double * const source, const int op_id) {
+  memcpy(propagator, source, _GSI(VOLUME)/2*sizeof(double) );
+  return(0);
+}
+
+
+#ifdef USE_DUMMY_EO_SOLVER 
+#  define _TMLQCD_INVERT_EO dummy_eo_solver
+#else
+#  define _TMLQCD_INVERT_EO tmLQCD_invert_eo
+#endif
 
 int main(int argc, char **argv) {
   
@@ -199,6 +210,8 @@ int main(int argc, char **argv) {
 
   geometry();
 
+  mpi_init_xchange_eo_spinor();
+
   Vhalf = VOLUME / 2;
   sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
 
@@ -295,9 +308,12 @@ int main(int argc, char **argv) {
   }
   for(i=0; i<evecs_num; i++) {
     evecs_eval[i] = ((double*)(g_tmLQCD_defl.evals))[2*i];
+    if( g_cart_id == 0 ) fprintf(stdout, "# [p2gg] eval %4d %16.7e\n", i, evecs_eval[i] );
   }
 
 #endif  /* of ifdef HAVE_TMLQCD_LIBWRAPPER */
+
+
 
   /*************************************************
    * allocate memory for the eigenvector fields
@@ -485,9 +501,9 @@ int main(int argc, char **argv) {
     /* invert */
     memset(eo_spinor_work[1], 0, sizeof_eo_spinor_field);
     memcpy(eo_spinor_work[0], eo_sample_field[i], sizeof_eo_spinor_field);
-    exitstatus = tmLQCD_invert_eo(eo_spinor_work[1], eo_spinor_work[0], _OP_ID_UP);
+    exitstatus = _TMLQCD_INVERT_EO(eo_spinor_work[1], eo_spinor_work[0], _OP_ID_UP);
     if(exitstatus != 0) {
-      fprintf(stderr, "[p2gg] Error from tmLQCD_invert_eo, status was %d\n", exitstatus);
+      fprintf(stderr, "[p2gg] Error from _TMLQCD_INVERT_EO, status was %d\n", exitstatus);
       EXIT(19);
     }
     memcpy(eo_sample_field[g_nsample+i], eo_spinor_work[1], sizeof_eo_spinor_field);
@@ -626,12 +642,12 @@ int main(int argc, char **argv) {
         }
 
         /* C^-1 */
-        if(g_cart_id == 0) fprintf(stdout, "# [p2gg] calling tmLQCD_invert_eo\n");
+        if(g_cart_id == 0) fprintf(stdout, "# [p2gg] calling _TMLQCD_INVERT_EO\n");
         memset(eo_spinor_work[1], 0, sizeof_eo_spinor_field);
         memcpy(eo_spinor_work[0], eo_spinor_field[eo_spinor_field_id_o], sizeof_eo_spinor_field);
-        exitstatus = tmLQCD_invert_eo(eo_spinor_work[1], eo_spinor_work[0], _OP_ID_UP);
+        exitstatus = _TMLQCD_INVERT_EO(eo_spinor_work[1], eo_spinor_work[0], _OP_ID_UP);
         if(exitstatus != 0) {
-          fprintf(stderr, "[p2gg] Error from tmLQCD_invert_eo, status was %d\n", exitstatus);
+          fprintf(stderr, "[p2gg] Error from _TMLQCD_INVERT_EO, status was %d\n", exitstatus);
           EXIT(19);
         }
         memcpy(eo_spinor_field[eo_spinor_field_id_o], eo_spinor_work[1], sizeof_eo_spinor_field);
@@ -644,6 +660,8 @@ int main(int argc, char **argv) {
           EXIT(20);
         }
       }  /* end of loop on spin-color */
+
+
 
       /**********************************************************
        * dn-type propagators
@@ -661,12 +679,12 @@ int main(int argc, char **argv) {
         }
 
         /* C^-1 */
-        if(g_cart_id == 0) fprintf(stdout, "# [p2gg] calling tmLQCD_invert_eo\n");
+        if(g_cart_id == 0) fprintf(stdout, "# [p2gg] calling _TMLQCD_INVERT_EO\n");
         memset(eo_spinor_work[1], 0, sizeof_eo_spinor_field);
         memcpy(eo_spinor_work[0], eo_spinor_field[eo_spinor_field_id_o], sizeof_eo_spinor_field);
-        exitstatus = tmLQCD_invert_eo(eo_spinor_work[1], eo_spinor_work[0], _OP_ID_DN);
+        exitstatus = _TMLQCD_INVERT_EO(eo_spinor_work[1], eo_spinor_work[0], _OP_ID_DN);
         if(exitstatus != 0) {
-          fprintf(stderr, "[p2gg] Error from tmLQCD_invert_eo, status was %d\n", exitstatus);
+          fprintf(stderr, "[p2gg] Error from _TMLQCD_INVERT_EO, status was %d\n", exitstatus);
           EXIT(22);
         }
         memcpy(eo_spinor_field[eo_spinor_field_id_o], eo_spinor_work[1], sizeof_eo_spinor_field);
@@ -682,7 +700,7 @@ int main(int argc, char **argv) {
 
     }    /* end of loop on shift direction mu */
 
-  
+
     /***************************************************************************
      * loop on sequential source gamma matrices
      ***************************************************************************/
@@ -1239,14 +1257,15 @@ int main(int argc, char **argv) {
            ***************************************************************************
            ***************************************************************************/
 
+        }  /* end of loop on sequential source timeslices */
 
-        }  /* end of loop on sequential gamma id */
+      }  /* end of loop on sequential gamma id */
 
-      }  /* end of loop on sequential source momentum */
+    }  /* end of loop on sequential source momentum */
 
-    }  /* end of loop on sequential source timeslices */
 
   }  /* end of loop on source locations */
+
 
 #ifdef HAVE_LHPC_AFF
   if(io_proc == 2) {
@@ -1288,6 +1307,8 @@ int main(int argc, char **argv) {
   free( sequential_propagator_list[0] );
   free( sequential_propagator_list[1] );
 
+
+
   free_geometry();
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
@@ -1296,6 +1317,8 @@ int main(int argc, char **argv) {
 
 #ifdef HAVE_MPI
   mpi_fini_xchange_contraction();
+  mpi_fini_xchange_eo_spinor();
+  mpi_fini_datatypes();
   MPI_Finalize();
 #endif
 
