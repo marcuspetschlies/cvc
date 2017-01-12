@@ -1317,6 +1317,8 @@ int main(int argc, char **argv) {
 
 #ifdef HAVE_MPI
   mpi_fini_xchange_contraction();
+  mpi_fini_xchange_eo_spinor();
+  mpi_fini_datatypes();
   MPI_Finalize();
 #endif
 
