@@ -728,9 +728,9 @@ int main(int argc, char **argv) {
 
           g_sequential_source_timeslice = g_sequential_source_timeslice_list[ isequential_source_timeslice ];
           /* shift sequential source timeslice by source timeslice gsx[0] */
-          int shifted_sequential_source_timeslice = ( gsx[0] + g_sequential_source_timeslice ) % T_global;
+          int shifted_sequential_source_timeslice = ( gsx[0] + g_sequential_source_timeslice + T_global ) % T_global;
 
-          if(g_cart_id == 0) fprintf(stdout, "# [p2gg] using sequential source timeslice %d\n", g_sequential_source_timeslice);
+          if(g_cart_id == 0) fprintf(stdout, "# [p2gg] using sequential source timeslice %d / %d\n", g_sequential_source_timeslice, shifted_sequential_source_timeslice);
 
 
           /***************************************************************************
@@ -975,7 +975,7 @@ int main(int argc, char **argv) {
               sprintf(aff_buffer_path, "/lm/PJJ/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/px%.2dpy%.2dpz%.2d", 
                   gsx[0], gsx[1], gsx[2], gsx[3],
                   g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2],
-                  g_sequential_source_gamma_id, g_sequential_source_timeslice, 
+                  sequential_source_gamma_id, g_sequential_source_timeslice, 
                   g_sink_momentum_list[i][0], g_sink_momentum_list[i][1], g_sink_momentum_list[i][2]);
               fprintf(stdout, "# [p2gg] current aff path = %s\n", aff_buffer_path);
               affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
@@ -1226,7 +1226,7 @@ int main(int argc, char **argv) {
               sprintf(aff_buffer_path, "/hm/PJJ/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/px%.2dpy%.2dpz%.2d", 
                   gsx[0], gsx[1], gsx[2], gsx[3],
                   g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2],
-                  g_sequential_source_gamma_id, g_sequential_source_timeslice, 
+                  sequential_source_gamma_id, g_sequential_source_timeslice, 
                   g_sink_momentum_list[i][0], g_sink_momentum_list[i][1], g_sink_momentum_list[i][2]);
               fprintf(stdout, "# [p2gg] current aff path = %s\n", aff_buffer_path);
               affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
