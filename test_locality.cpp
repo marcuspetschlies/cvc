@@ -275,7 +275,7 @@ int main(int argc, char **argv) {
   }
 #endif  /* of ifdef HAVE_TMLQCD_LIBWRAPPER */
 
-  eo_evecs_field = (double**)calloc(2*evecs_num, sizeof(double*));
+  eo_evecs_field = (double**)calloc(evecs_num, sizeof(double*));
   eo_evecs_field[0] = eo_evecs_block[0];
   for(i=1; i<evecs_num; i++) eo_evecs_field[i] = eo_evecs_field[i-1] + 24*Vhalf;
 
@@ -378,9 +378,6 @@ int main(int argc, char **argv) {
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   if( evecs_eval          != NULL ) free( evecs_eval );
 #endif
-
-
-
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
   tmLQCD_finalise();

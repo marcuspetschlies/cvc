@@ -325,6 +325,7 @@ int main(int argc, char **argv) {
   /*********************************
    * initialize MPI parameters for cvc
    *********************************/
+  /* exitstatus = tmLQCD_invert_init(argc, argv, 1, 0); */
   exitstatus = tmLQCD_invert_init(argc, argv, 1);
   if(exitstatus != 0) {
     EXIT(14);
@@ -517,50 +518,8 @@ int main(int argc, char **argv) {
   }
 
   /***********************************************************
-   * allocate memory for the spinor fields
+   * allocate work spaces with halo
    ***********************************************************/
-
-  no_fields = g_coherent_source_number * g_source_location_number * n_s*n_c; /* up propagators at all base x coherent source locations */ 
-  propagator_list_up = (double**)malloc(no_fields * sizeof(double*));
-  propagator_list_up[0] = (double*)malloc(no_fields * sizeof_spinor_field);
-  if(propagator_list_up[0] == NULL) {
-    fprintf(stderr, "[piN2piN] Error from malloc\n");
-    EXIT(44);
-  }
-  for(i=1; i<no_fields; i++) propagator_list_up[i] = propagator_list_up[i-1] + _GSI(VOLUME);
-
-  if(g_fermion_type == _TM_FERMION) {
-    no_fields = g_coherent_source_number * g_source_location_number * n_s*n_c; /* dn propagators at all base x coherent source locations */ 
-    propagator_list_dn = (double**)malloc(no_fields * sizeof( double*));
-    propagator_list_dn[0] = (double*)malloc(no_fields * sizeof_spinor_field);
-    if(propagator_list_dn[0] == NULL) {
-      fprintf(stderr, "[piN2piN] Error from malloc\n");
-      EXIT(45);
-    }
-    for(i=1; i<no_fields; i++) propagator_list_dn[i] = propagator_list_dn[i-1] + _GSI(VOLUME);
-  } else {
-    propagator_list_dn  = propagator_list_up;
-  }
-
-  no_fields = g_source_location_number * g_seq_source_momentum_number * n_s*n_c;  /* sequential propagators at all base source locations */ 
-  sequential_propagator_list = (double**)malloc(no_fields * sizeof(double*));
-  sequential_propagator_list[0] = (double*)malloc(no_fields * sizeof_spinor_field);
-  if( sequential_propagator_list[0] == NULL) {
-    fprintf(stderr, "[piN2piN] Error from malloc\n");
-    EXIT(46);
-  }
-  for(i=1; i<no_fields; i++) sequential_propagator_list[i] = sequential_propagator_list[i-1] + _GSI(VOLUME);
-
-
-  stochastic_propagator_list    = (double**)malloc(g_nsample * sizeof(double*));
-  stochastic_propagator_list[0] = (double* )malloc(g_nsample * sizeof_spinor_field);
-  for(i=1; i<g_nsample; i++) stochastic_propagator_list[i] = stochastic_propagator_list[i-1] + _GSI(VOLUME);
-
-  stochastic_source_list = (double**)malloc(g_nsample * sizeof(double*));
-  stochastic_source_list[0] = (double*)malloc(g_nsample * sizeof_spinor_field);
-  for(i=1; i<g_nsample; i++) stochastic_source_list[i] = stochastic_source_list[i-1] + _GSI(VOLUME);
-
-  /* work spaces with halo */
   alloc_spinor_field(&spinor_work[0], VOLUMEPLUSRAND);
   alloc_spinor_field(&spinor_work[1], VOLUMEPLUSRAND);
 
@@ -591,6 +550,15 @@ int main(int argc, char **argv) {
   /***********************************************************
    * up-type propagator
    ***********************************************************/
+  no_fields = g_coherent_source_number * g_source_location_number * n_s*n_c; /* up propagators at all base x coherent source locations */ 
+  propagator_list_up = (double**)malloc(no_fields * sizeof(double*));
+  propagator_list_up[0] = (double*)malloc(no_fields * sizeof_spinor_field);
+  if(propagator_list_up[0] == NULL) {
+    fprintf(stderr, "[piN2piN] Error from malloc\n");
+    EXIT(44);
+  }
+  for(i=1; i<no_fields; i++) propagator_list_up[i] = propagator_list_up[i-1] + _GSI(VOLUME);
+
   ratime = _GET_TIME;
   if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] up-type inversion\n");
   for(i_src = 0; i_src<g_source_location_number; i_src++) {
@@ -643,6 +611,15 @@ int main(int argc, char **argv) {
    * dn-type propagator
    ***********************************************************/
   if(g_fermion_type == _TM_FERMION) {
+    no_fields = g_coherent_source_number * g_source_location_number * n_s*n_c; /* dn propagators at all base x coherent source locations */ 
+    propagator_list_dn = (double**)malloc(no_fields * sizeof( double*));
+    propagator_list_dn[0] = (double*)malloc(no_fields * sizeof_spinor_field);
+    if(propagator_list_dn[0] == NULL) {
+      fprintf(stderr, "[piN2piN] Error from malloc\n");
+      EXIT(45);
+    }
+    for(i=1; i<no_fields; i++) propagator_list_dn[i] = propagator_list_dn[i-1] + _GSI(VOLUME);
+
     if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] dn-type inversion\n");
     ratime = _GET_TIME;
     for(i_src = 0; i_src<g_source_location_number; i_src++) {
@@ -691,9 +668,31 @@ int main(int argc, char **argv) {
         if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] time for dn propagator = %e seconds\n", retime-ratime);
       } /* end of loop on coherent source timeslices */
     }  /* end of loop on base source timeslices */
+  } else {
+    propagator_list_dn  = propagator_list_up;
   }
 
+  /***********************************************************
+   ***********************************************************
+   **
+   ** sequential inversions
+   **
+   ***********************************************************
+   ***********************************************************/
 
+  /***********************************************************
+   * allocate memory for the sequential propagators
+   ***********************************************************/
+  no_fields = g_source_location_number * g_seq_source_momentum_number * n_s*n_c;  /* sequential propagators at all base source locations */ 
+  sequential_propagator_list = (double**)malloc(no_fields * sizeof(double*));
+  sequential_propagator_list[0] = (double*)malloc(no_fields * sizeof_spinor_field);
+  if( sequential_propagator_list[0] == NULL) {
+    fprintf(stderr, "[piN2piN] Error from malloc\n");
+    EXIT(46);
+  }
+  for(i=1; i<no_fields; i++) sequential_propagator_list[i] = sequential_propagator_list[i-1] + _GSI(VOLUME);
+
+  /* loop on sequential source momenta */
   for(iseq_mom=0; iseq_mom < g_seq_source_momentum_number; iseq_mom++) {
 
     /***********************************************************
@@ -1212,6 +1211,20 @@ int main(int argc, char **argv) {
    **  dn-type inversions
    ******************************************************
    ******************************************************/
+
+  /******************************************************
+   * allocate memory for stochastic sources
+   *   and propagators
+   ******************************************************/
+  stochastic_propagator_list    = (double**)malloc(g_nsample * sizeof(double*));
+  stochastic_propagator_list[0] = (double* )malloc(g_nsample * sizeof_spinor_field);
+  for(i=1; i<g_nsample; i++) stochastic_propagator_list[i] = stochastic_propagator_list[i-1] + _GSI(VOLUME);
+
+  stochastic_source_list = (double**)malloc(g_nsample * sizeof(double*));
+  stochastic_source_list[0] = (double*)malloc(g_nsample * sizeof_spinor_field);
+  for(i=1; i<g_nsample; i++) stochastic_source_list[i] = stochastic_source_list[i-1] + _GSI(VOLUME);
+
+
   /* loop on stochastic samples */
   for(isample = 0; isample < g_nsample; isample++) {
 
