@@ -158,7 +158,7 @@ int main(int argc, char **argv) {
 
   /* set the default values */
   if(filename_set==0) strcpy(filename, "p2gg.input");
-  fprintf(stdout, "# [p2gg] Reading input from file %s\n", filename);
+  /* fprintf(stdout, "# [p2gg] Reading input from file %s\n", filename); */
   read_input_parser(filename);
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER

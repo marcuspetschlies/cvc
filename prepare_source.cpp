@@ -165,7 +165,9 @@ int init_eo_sequential_source(double *s_even, double *s_odd, double *p_even, dou
   double q_phase;
   double *s_=NULL, *p_=NULL, spinor1[24], spinor2[24];
   complex w;
+  double ratime, retime;
 
+  ratime = _GET_TIME;
 #ifdef HAVE_MPI
   /* have seq source timeslice ? */
   i = tseq / T;
@@ -174,8 +176,8 @@ int init_eo_sequential_source(double *s_even, double *s_odd, double *p_even, dou
     fprintf(stderr, "[init_eo_sequential_source] Error from MPI_Cart_rank, status was %d\n", exitstatus);
     EXIT(9);
   }
-  if(g_tr_id == source_proc_id) fprintf(stdout, "# [init_eo_sequential_source] proc %d / %d = (%d,%d,%d,%d) has t sequential %2d / %2d\n", g_cart_id, g_tr_id,
-     g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3], tseq, tloc);
+  /* if(g_tr_id == source_proc_id) fprintf(stdout, "# [init_eo_sequential_source] proc %d / %d = (%d,%d,%d,%d) has t sequential %2d / %2d\n", g_cart_id, g_tr_id,
+     g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3], tseq, tloc); */
 #endif
 
   if(g_tr_id == source_proc_id) {
@@ -213,6 +215,9 @@ int init_eo_sequential_source(double *s_even, double *s_odd, double *p_even, dou
   }
 
   Q_eo_SchurDecomp_Ainv (s_even, s_odd, s_even, s_odd, g_gauge_field, sign*g_mu, work0);
+  retime = _GET_TIME;
+
+  if( g_cart_id == 0 ) fprintf(stdout, "# [init_eo_sequential_source] time for init_eo_sequential_source = %e seconds\n" retime-ratime);
 
   return(0);
 }  /* end of init_eo_sequential_source */
