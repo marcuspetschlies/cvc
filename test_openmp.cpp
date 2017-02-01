@@ -100,7 +100,7 @@ int main(int argc, char **argv) {
 
   /* set the default values */
   if(filename_set==0) strcpy(filename, "cvc.input");
-  fprintf(stdout, "# [test] Reading input from file %s\n", filename);
+  /* fprintf(stdout, "# [test] Reading input from file %s\n", filename); */
   read_input_parser(filename);
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER

@@ -252,7 +252,8 @@ void mpi_init(int argc,char *argv[]) {
   g_ts_nb_up = 0;
   g_ts_nb_dn = 0;
 
-  fprintf(stdout, "# [%2d] MPI parameters:\n"\
+  if(g_verbose > 0 ) {
+    fprintf(stdout, "# [%2d] MPI parameters:\n"\
                   "# [%2d] g_nproc   = %3d\n"\
 		  "# [%2d] g_proc_id = %3d\n"\
 		  "# [%2d] g_cart_id = %3d\n"\
@@ -291,6 +292,7 @@ void mpi_init(int argc,char *argv[]) {
 		  g_cart_id, g_nb_list[5],
 		  g_cart_id, g_nb_list[6],
 		  g_cart_id, g_nb_list[7]);
+  }
 
 #else  /* of if !(defined PARALLELTX || defined PARALLELTXY || defined PARALLELTXYZ) */
 
@@ -535,7 +537,8 @@ void mpi_init(int argc,char *argv[]) {
   MPI_Comm_size(g_xs_comm, &g_xs_nproc);
   MPI_Comm_rank(g_xs_comm, &g_xs_id);
 
-  fprintf(stdout, "# [%2d] MPI parameters:\n"\
+  if( g_verbose > 0 ) {
+    fprintf(stdout, "# [%2d] MPI parameters:\n"\
                   "# [%2d] g_nproc   = %3d\n"\
                   "# [%2d] g_nproc_t = %3d\n"\
                   "# [%2d] g_nproc_x = %3d\n"\
@@ -602,6 +605,7 @@ void mpi_init(int argc,char *argv[]) {
 		  g_cart_id, g_ts_nb_y_dn,
 		  g_cart_id, g_ts_nb_z_up,
 		  g_cart_id, g_ts_nb_z_dn);
+  }
 #else  // of ifndef HAVE_QUDA
 
 
@@ -758,7 +762,8 @@ void mpi_init(int argc,char *argv[]) {
   MPI_Comm_size(g_xs_comm, &g_xs_nproc);
   MPI_Comm_rank(g_xs_comm, &g_xs_id);
 
-  fprintf(stdout, "# [%2d] MPI parameters:\n"\
+  if( g_verbose > 0  ) {
+    fprintf(stdout, "# [%2d] MPI parameters:\n"\
                   "# [%2d] g_nproc   = %3d\n"\
                   "# [%2d] g_nproc_t = %3d\n"\
                   "# [%2d] g_nproc_x = %3d\n"\
@@ -821,6 +826,7 @@ void mpi_init(int argc,char *argv[]) {
 		  g_cart_id, g_ts_nb_x_dn,
 		  g_cart_id, g_ts_nb_y_up,
 		  g_cart_id, g_ts_nb_y_dn);
+  }
 
 #endif  /* of ifndef HAVE_QUDA */
 
@@ -866,7 +872,9 @@ void mpi_init(int argc,char *argv[]) {
   LYstart   = 0;
   LZ_global = LZ;
   LZstart   = 0;
-  fprintf(stdout, "# [%2d] MPI parameters:\n"\
+
+  if( g_verbose > 0 ) {
+    fprintf(stdout, "# [%2d] MPI parameters:\n"\
                   "# [%2d] g_nproc   = %3d\n"\
 		  "# [%2d] g_proc_id = %3d\n"\
 		  "# [%2d] g_cart_id = %3d\n"\
@@ -881,6 +889,7 @@ void mpi_init(int argc,char *argv[]) {
 		  g_cart_id, g_nb_t_dn,
 		  g_cart_id, g_nb_list[0],
 		  g_cart_id, g_nb_list[1]);
+  }
 #endif  /* of ifdef HAVE_MPI */
 
 }  /* end of mpi_init */

@@ -217,7 +217,7 @@ int init_eo_sequential_source(double *s_even, double *s_odd, double *p_even, dou
   Q_eo_SchurDecomp_Ainv (s_even, s_odd, s_even, s_odd, g_gauge_field, sign*g_mu, work0);
   retime = _GET_TIME;
 
-  if( g_cart_id == 0 ) fprintf(stdout, "# [init_eo_sequential_source] time for init_eo_sequential_source = %e seconds\n" retime-ratime);
+  if( g_cart_id == 0 ) fprintf(stdout, "# [init_eo_sequential_source] time for init_eo_sequential_source = %e seconds\n", retime-ratime);
 
   return(0);
 }  /* end of init_eo_sequential_source */

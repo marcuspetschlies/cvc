@@ -1349,7 +1349,7 @@ int read_input_parser(char * conf_file){
 
 int reread_input_parser(char * conf_file){
 
-  if(cvc_verbose && g_proc_id == 0) {
+  if(g_verbose > 1 && g_proc_id == 0) {
     myverbose = 1;
   }
   reread = 1;
