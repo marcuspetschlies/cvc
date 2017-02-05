@@ -1,7 +1,7 @@
 /****************************************************
  * contract_cvc_tensor.cpp
  *
- * Thu Nov 17 10:37:10 CET 2016
+ * Sun Feb  5 13:23:50 CET 2017
  *
  * - originally copied from p2gg_xspace.c
  *

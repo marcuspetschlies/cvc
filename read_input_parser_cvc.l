@@ -28,7 +28,6 @@ STRING [a-zA-z0-9"."_"-""/"","]+
 #include "default_input_values.h"
 #include "set_default.h"
 #include "cvc_utils.h"
-#include "laphs.h"
 
 namespace cvc {
 
@@ -194,18 +193,6 @@ namespace cvc {
 %x INVERTERTYPE
 %x MMSID
 %x CHKINVERSION
-%x LAPHSTIMEPROJTYPE
-%x LAPHSSPINPROJTYPE
-%x LAPHSEVECPROJTYPE
-%x LAPHSEVECNUMBER
-%x LAPHSRNDVECNUMBER
-%x LAPHSEVECPATHPRFX
-%x LAPHSEVECFILEPRFX
-%x LAPHS_TIME_SRC_NUMBER
-%x LAPHS_SPIN_SRC_NUMBER
-%x LAPHS_EVEC_SRC_NUMBER
-%x LAPHS_PERAMBULATOR_PATH_PREFIX
-%x LAPHS_PERAMBULATOR_FILE_PREFIX
 %x COMMENT
 %x ERROR
 %x M_M_TWOPT
@@ -364,20 +351,6 @@ namespace cvc {
 ^inverter_type{SPC}*={SPC}*                BEGIN(INVERTERTYPE);
 ^mms_id{SPC}*={SPC}*                       BEGIN(MMSID);
 ^check_inversion{SPC}*={SPC}*              BEGIN(CHKINVERSION);
-
-^laphs_time_proj_type{SPC}*={SPC}*         BEGIN(LAPHSTIMEPROJTYPE);
-^laphs_spin_proj_type{SPC}*={SPC}*         BEGIN(LAPHSSPINPROJTYPE);
-^laphs_evec_proj_type{SPC}*={SPC}*         BEGIN(LAPHSEVECPROJTYPE);
-^laphs_eigenvector_number{SPC}*={SPC}*     BEGIN(LAPHSEVECNUMBER);
-^laphs_randomvector_number{SPC}*={SPC}*    BEGIN(LAPHSRNDVECNUMBER);
-^laphs_eigenvector_path_prefix{SPC}*={SPC}* BEGIN(LAPHSEVECPATHPRFX);
-^laphs_eigenvector_file_prefix{SPC}*={SPC}* BEGIN(LAPHSEVECFILEPRFX);
-^laphs_time_src_number{SPC}*={SPC}*         BEGIN(LAPHS_TIME_SRC_NUMBER);
-^laphs_spin_src_number{SPC}*={SPC}*         BEGIN(LAPHS_SPIN_SRC_NUMBER);
-^laphs_evec_src_number{SPC}*={SPC}*         BEGIN(LAPHS_EVEC_SRC_NUMBER);
-
-^laphs_perambulator_path_prefix{SPC}*={SPC}* BEGIN(LAPHS_PERAMBULATOR_PATH_PREFIX);
-^laphs_perambulator_file_prefix{SPC}*={SPC}* BEGIN(LAPHS_PERAMBULATOR_FILE_PREFIX);
 
 ^m_m_2pt{SPC}*={SPC}*                      BEGIN(M_M_TWOPT);
 ^mxb_mxb_2pt{SPC}*={SPC}*                  BEGIN(MXB_MXB_TWOPT);
@@ -1103,63 +1076,6 @@ namespace cvc {
     cvc::g_check_inversion = 0;
   }
   if(cvc::myverbose!=0) printf("# [read_input_parser] check inversion %d\n",cvc::g_check_inversion);
-}
-
-<LAPHSTIMEPROJTYPE>{NAME} {
-  strcpy(cvc::laphs_time_proj_type, yytext);
-  if(cvc::myverbose!=0) printf("# [read_input_parser] LAPHS time proj set to %s\n",yytext);
-}
-
-<LAPHSSPINPROJTYPE>{NAME} {
-  strcpy(cvc::laphs_spin_proj_type, yytext);
-  if(cvc::myverbose!=0) printf("# [read_input_parser] LAPHS spin proj set to %s\n",yytext);
-}
-
-<LAPHSEVECPROJTYPE>{NAME} {
-  strcpy(cvc::laphs_evec_proj_type, yytext);
-  if(cvc::myverbose!=0) printf("# [read_input_parser] LAPHS evec pro set to %s\n",yytext);
-}
-
-
-<LAPHSEVECNUMBER>{DIGIT}+ {
-  cvc::laphs_eigenvector_number = atoi(yytext);
-  if(cvc::myverbose!=0) printf("# [read_input_parser] LAPHS number of eigenvectors set to %s\n",yytext);
-}
-
-<LAPHSRNDVECNUMBER>{DIGIT}+ {
-  cvc::laphs_randomvector_number = atoi(yytext);
-  if(cvc::myverbose!=0) printf("# [read_input_parser] LAPHS number of randomvectors set to %s\n",yytext);
-}
-
-<LAPHSEVECPATHPRFX>{FILENAME} {
-  strcpy(cvc::laphs_eigenvector_path_prefix, yytext);
-  if(cvc::myverbose!=0) printf("# [read_input_parser] LAPHS eigenvector path prefix set to %s\n",yytext);
-}
-
-<LAPHSEVECFILEPRFX>{FILENAME} {
-  strcpy(cvc::laphs_eigenvector_file_prefix, yytext);
-  if(cvc::myverbose!=0) printf("# [read_input_parser] LAPHS eigenvector file prefix set to %s\n",yytext);
-}
-
-<LAPHS_TIME_SRC_NUMBER>{DIGIT}+ {
-  cvc::laphs_time_src_number = atoi(yytext);
-  if(cvc::myverbose!=0) printf("# [read_input_parser] LAPHS number of times at source set to  %s\n",yytext);
-}
-
-<LAPHS_SPIN_SRC_NUMBER>{DIGIT}+ {
-  cvc::laphs_spin_src_number = atoi(yytext);
-  if(cvc::myverbose!=0) printf("# [read_input_parser] LAPHS number of spin at source set to  %s\n",yytext);
-}
-
-<LAPHS_EVEC_SRC_NUMBER>{DIGIT}+ {
-  cvc::laphs_evec_src_number = atoi(yytext);
-  if(cvc::myverbose!=0) printf("# [read_input_parser] LAPHS number of evec at set to  %s\n",yytext);
-}
-
-
-<LAPHS_PERAMBULATOR_PATH_PREFIX>{FILENAME} {
-  strcpy(cvc::laphs_perambulator_path_prefix, yytext);
-  if(cvc::myverbose!=0) printf("# [read_input_parser] LAPHS perambulator path prefix set to %s\n",yytext);
 }
 
 <M_M_TWOPT>{CORRCONFIG} {

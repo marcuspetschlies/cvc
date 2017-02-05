@@ -18,10 +18,8 @@
 #include "cvc_geometry.h"
 #include "mpi_init.h"
 #include "default_input_values.h"
-#include "laphs.h"
 #include "get_index.h"
 #include "read_input_parser.h"
-#include "laphs.h"
 
 namespace cvc {
 
@@ -257,22 +255,6 @@ void set_default_input_values(void) {
   g_source_gamma_id_list[13] = _default_source_gamma_id;
   g_source_gamma_id_list[14] = _default_source_gamma_id;
   g_source_gamma_id_list[15] = _default_source_gamma_id;
-
-  strcpy( laphs_time_proj_type ,  _default_laphs_time_proj_type);
-  strcpy( laphs_spin_proj_type ,  _default_laphs_spin_proj_type);
-  strcpy( laphs_evec_proj_type ,  _default_laphs_evec_proj_type);
-  laphs_eigenvector_number  = _default_laphs_eigenvector_number;
-  laphs_randomvector_number = _default_laphs_randomvector_number;
-  strcpy(laphs_eigenvector_path_prefix, _default_laphs_eigenvector_path_prefix);
-  strcpy(laphs_eigenvector_file_prefix, _default_laphs_eigenvector_file_prefix);
-  strcpy(laphs_eigenvalue_file_prefix, _default_laphs_eigenvalue_file_prefix);
-  strcpy(laphs_phase_file_prefix, _default_laphs_phase_file_prefix);
-  strcpy(laphs_randomvector_path_prefix, _default_laphs_randomvector_path_prefix);
-  strcpy(laphs_randomvector_file_prefix, _default_laphs_randomvector_file_prefix);
-  strcpy(laphs_perambulator_path_prefix, _default_laphs_perambulator_path_prefix);
-  strcpy(laphs_perambulator_file_prefix, _default_laphs_perambulator_file_prefix);
-  strcpy(laphs_perambulator_path_prefix, _default_laphs_perambulator_path_prefix);
-  strcpy(laphs_perambulator_file_prefix, _default_laphs_perambulator_file_prefix);
 
   g_m_m_2pt_num = _default_m_m_2pt_num;
   g_mxb_mxb_2pt_num = _default_mxb_mxb_2pt_num;
