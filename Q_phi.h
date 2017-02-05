@@ -78,5 +78,9 @@ void C_with_Xeo (double *r, double *s, double *gauge_field, double mu, double *r
 
 void C_from_Xeo (double *t, double *s, double *r, double *gauge_field, double mu);
 
+void apply_cvc_vertex_eo(double *s, double *r, int mu, int fbwd, double *gauge_field, int EO);
+
+void apply_cvc_vertex(double *s, double *r, int mu, int fbwd, double *gauge_field);
+
 }  /* end of namespace cvc */
 #endif
