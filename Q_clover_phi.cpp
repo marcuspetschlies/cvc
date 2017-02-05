@@ -497,14 +497,10 @@ void M_clover_zz_matrix (double*s, double*r, double*mzz) {
   const int incrcl = _GSWI(0,1);
   const int vincr  = _GVI(1);
   const double one_over_two_kappa = 0.5/g_kappa;
-  const int nthreads = g_num_threads;
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel shared(s,r,mzz)
 {
-  const int threadid = omp_get_thread_num();
-#else
-  const int threadid = 0;
 #endif
 
   unsigned int ix;
@@ -513,7 +509,10 @@ void M_clover_zz_matrix (double*s, double*r, double*mzz) {
   double v1[6], v2[6];
   double *mzz11_, *mzz12_, *mzz22_, *mzz33_, *mzz34_, *mzz44_;
 
-  for(ix = threadid; ix < N; ix += nthreads) {
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(ix = 0; ix < N; ix++ ) {
     mzz11_ = mzz + _GSWI(ix,0);
     mzz12_ = mzz11_ + incrcl;
     mzz22_ = mzz12_ + incrcl;
@@ -566,11 +565,8 @@ void M_clover_zz_matrix (double*s, double*r, double*mzz) {
  ***********************************************************/
 void Q_clover_phi_matrix_eo (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double *aux, double**mzz) {
 
+  const unsigned int N = VOLUME / 2;
   unsigned int ix;
-  unsigned int N = VOLUME / 2;
-
-  xchange_eo_field(e_old, 0);
-  xchange_eo_field(o_old, 1);
 
   /* e_new = M_ee e_old + M_eo o_old */
   Hopping_eo(e_new, o_old, gauge_field, 0);
@@ -578,18 +574,14 @@ void Q_clover_phi_matrix_eo (double *e_new, double *o_new, double *e_old, double
   M_clover_zz_matrix (aux, e_old, mzz[0]);
 
   /* e_new = e_new + aux = M_ee e_old + M_eo o_old */
-  for(ix=0; ix < N; ix++) {
-    _fv_pl_eq_fv(e_new+_GSI(ix), aux+_GSI(ix));
-  }
+  spinor_field_pl_eq_spinor_field ( e_new, aux, N);
 
   /* o_new = M_oo o_old + M_oe e_old */
   Hopping_eo(o_new, e_old, gauge_field, 1);
   /* aux = M_oo o_old*/
   M_clover_zz_matrix (aux, o_old, mzz[1]);
   /* o_new  = o_new + aux = M_oe e_old + M_oo o_old */
-  for(ix=0; ix < N; ix++) {
-    _fv_pl_eq_fv(o_new+_GSI(ix), aux+_GSI(ix));
-  }
+  spinor_field_pl_eq_spinor_field ( o_new, aux, N );
 
 }  /* end of Q_clover_phi_eo */
 
@@ -599,11 +591,8 @@ void Q_clover_phi_matrix_eo (double *e_new, double *o_new, double *e_old, double
  ***********************************************************/
 void Q_clover_phi_eo (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double mass, double *aux, double**cl) {
 
+  const unsigned int N = VOLUME / 2;
   unsigned int ix;
-  unsigned int N = VOLUME / 2;
-
-  xchange_eo_field(e_old, 0);
-  xchange_eo_field(o_old, 1);
 
   /* e_new = M_ee e_old + M_eo o_old */
   Hopping_eo(e_new, o_old, gauge_field, 0);
@@ -611,18 +600,14 @@ void Q_clover_phi_eo (double *e_new, double *o_new, double *e_old, double *o_old
   M_clover_zz (aux, e_old, mass, cl[0]);
 
   /* e_new = e_new + aux = M_ee e_old + M_eo o_old */
-  for(ix=0; ix < N; ix++) {
-    _fv_pl_eq_fv(e_new+_GSI(ix), aux+_GSI(ix));
-  }
+  spinor_field_pl_eq_spinor_field ( e_new, aux, N);
 
   /* o_new = M_oo o_old + M_oe e_old */
   Hopping_eo(o_new, e_old, gauge_field, 1);
   /* aux = M_oo o_old*/
   M_clover_zz (aux, o_old, mass, cl[1]);
   /* o_new  = o_new + aux = M_oe e_old + M_oo o_old */
-  for(ix=0; ix < N; ix++) {
-    _fv_pl_eq_fv(o_new+_GSI(ix), aux+_GSI(ix));
-  }
+  spinor_field_pl_eq_spinor_field ( o_new, aux, N);
 
 }  /* end of Q_clover_phi_eo */
 
@@ -634,31 +619,25 @@ void M_clover_zz (double*s, double*r, double mass, double*cl) {
 
   const double mutilde            = 2. * g_kappa * mass;
   const double one_over_two_kappa = 0.5/g_kappa;
-  const int nthreads = g_num_threads;
   const double csw_coeff = -g_csw * g_kappa;
   const int clover_term_gamma_id[] = {10,11,12,13,14,15};
-  const int incrcl  = _GSWI(nthreads,0);
   const int incrcl2 = _GSWI(0,1);
   const unsigned int N = VOLUME/2;
 
-  int threadid=0;
-
-  /* TEST */
-  /* fprintf(stdout, "# [M_clover_zz] incrcl = %d, incrcl2 = %d\n", incrcl, incrcl2); */
-
 #ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(threadid) shared(s,r,cl)
+#pragma omp parallel default(shared) shared(s,r,cl)
 {
-  threadid = omp_get_thread_num();
 #endif
   unsigned int ix;
   double *cl_, sp1[24], sp2[24], sp3[24], *s_= NULL, *r_ = NULL;
-  unsigned int ixcl = _GSWI(threadid,0);
 
-  for(ix = threadid; ix < N; ix += nthreads) {
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(ix = 0; ix < N; ix++) {
     s_  = s  + _GSI(ix);
     r_  = r  + _GSI(ix);
-    cl_ = cl + ixcl;
+    cl_ = cl + _GSWI(ix,0);;
 
     /* sp1 = g5 r_ */
     _fv_eq_gamma_ti_fv(sp1, 5, r_);
@@ -708,8 +687,6 @@ void M_clover_zz (double*s, double*r, double mass, double*cl) {
     /* s_ *= 1/2kappa */
     _fv_ti_eq_re(s_, one_over_two_kappa);
 
-    ixcl += incrcl;
-
   }  /* end of loop in ix over VOLUME/2 */
 
 #ifdef HAVE_OPENMP
@@ -725,7 +702,6 @@ void M_clover_zz (double*s, double*r, double mass, double*cl) {
  ***********************************************************/
 void M_clover_zz_inv_matrix (double*s, double*r, double *mzzinv) {
 
-  const int nthreads   = g_num_threads;
   const unsigned int N = VOLUME/2;
   const int incrcl     = _GSWI(0,1);
   const int vincr      = _GVI(1);
@@ -734,16 +710,16 @@ void M_clover_zz_inv_matrix (double*s, double*r, double *mzzinv) {
 #ifdef HAVE_OPENMP
 #pragma omp parallel shared(r,s,mzzinv)
 {
-  const int threadid = omp_get_thread_num();
-#else
-  const int threadid = 0;
 #endif
   unsigned int ix;
   double *s1_, *s2_, *r1_, *r2_;
   double v1[6], v2[6];
   double *u11_, *u12_, *u21_, *u22_;
 
-  for(ix = threadid; ix < N; ix += nthreads) {
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(ix = 0; ix < N; ix++ ) {
     s1_ = s   + _GSI(ix);
     s2_ = s1_ + vincr;
     r1_ = r   + _GSI(ix);
@@ -813,8 +789,6 @@ void C_clover_oo (double*s, double*r, double *gauge_field, double *s_aux, double
 
   /* s_aux = r */
   memcpy(s_aux, r, sizeof_field);
-  /* exchange odd s_aux */
-  xchange_eo_field(s_aux, 1);
   /* s = M_eo s_aux */
   Hopping_eo(s, s_aux, gauge_field, 0);
   /* s = M_ee^-1 M_eo s_aux */
@@ -822,8 +796,6 @@ void C_clover_oo (double*s, double*r, double *gauge_field, double *s_aux, double
 
   /* s_aux = s */
   memcpy(s_aux, s, sizeof_field);
-  /* exchange EVEN s_aux */
-  xchange_eo_field(s_aux, 0);
   /* s = M_oe s_aux = M_oe M_ee^-1 M_eo r */
   Hopping_eo(s, s_aux, gauge_field, 1);
 
@@ -850,16 +822,11 @@ void X_clover_eo (double *even, double *odd, double *gauge_field, double*mzzinv)
 
   const unsigned int N = VOLUME/2;
 
-  unsigned int ix;
-  double *ptr, sp[24];
-
   if(even == odd ) {
     fprintf(stderr, "[X_clover_eo] Error, in and out pointer coincide\n");
     EXIT(1);
   }
 
-  /* exchange ODD field odd */
-  xchange_eo_field(odd, 1);
   /* even = M_eo odd */
   Hopping_eo(even, odd, gauge_field, 0);
   /* even = M_ee^-1 even = M_ee^-1 M_eo odd */
@@ -870,7 +837,7 @@ void X_clover_eo (double *even, double *odd, double *gauge_field, double*mzzinv)
 
 
 /********************************************************************
- * C_with_Xeo
+ * C_from_Xeo
  * - apply C = g5 ( M_oo + M_oe X_eo )
  *
  * out t
@@ -884,10 +851,7 @@ void X_clover_eo (double *even, double *odd, double *gauge_field, double*mzzinv)
 void C_clover_from_Xeo (double *t, double *s, double *r, double *gauge_field, double*mzz) {
 
   const unsigned int N = VOLUME / 2;
-  const size_t sizeof_field = _GSI(N) * sizeof(double);
 
-  /* exchange even field s */
-  xchange_eo_field(s, 0);
   /* r = M_oe s = M_oe X_eo t  */
   Hopping_eo(r, s, gauge_field, 1);
   /* t = M_zz t */
@@ -914,16 +878,19 @@ void Q_clover_eo_SchurDecomp_A (double *e_new, double *o_new, double *e_old, dou
 
   /* aux <- e_old */
   memcpy(aux, e_old, sizeof_field);
-  /* exchange even field aux */
-  xchange_eo_field(aux, 0);
+
   /* o_new = M_oe aux = M_oe e_old */
   Hopping_eo(e_new, aux, gauge_field, 1);
+
   /* e_new = g5 e_new = g5 M_oe e_old */
   spinor_field_eq_gamma_ti_spinor_field(e_new, 5, e_new, N);
+
   /* o_new = o_old + e_new = o_old + g5 M_oe e_old */
   spinor_field_eq_spinor_field_pl_spinor_field(o_new, o_old, e_new, N);
+
   /* e_new = M_zz aux = M_zz e_old */
   M_clover_zz_matrix (e_new, aux, mzz);
+
   /* e_new = g5 aux */
   spinor_field_eq_gamma_ti_spinor_field(e_new, 5, e_new, N);
 
@@ -955,9 +922,6 @@ void Q_clover_eo_SchurDecomp_Ainv (double *e_new, double *o_new, double *e_old, 
 
   /* aux <- M_ee^-1 aux = M_ee^-1 g5 e_old */
   M_clover_zz_inv_matrix (aux, aux, mzzinv);
-
-  /* exchange EVEN field aux */
-  xchange_eo_field(aux,0);
 
   /* e_new = M_oe aux; e_new is auxilliary field here */
   Hopping_eo(e_new, aux, gauge_field, 1);
@@ -1008,14 +972,16 @@ void Q_clover_eo_SchurDecomp_B (double *e_new, double *o_new, double *e_old, dou
 
   /* aux = o_old */
   memcpy(aux, o_old, sizeof_field);
-  /* exchange ODD field aux = o_old */
-  xchange_eo_field(aux,1);
+ 
   /* o_new = M_eo o_old, o_new auxilliary field */
   Hopping_eo(o_new, aux, gauge_field, 0);
+
   /* o_new = M_ee^(-1) o_new */
   M_clover_zz_inv_matrix(o_new, o_new, mzzinv);
+
   /* e_new = e_old + o_new = e_old + M_ee^-1 M_eo o_old */
   spinor_field_eq_spinor_field_pl_spinor_field(e_new, e_old, o_new, N);
+
   /* o_new = C_oo o_old */
   C_clover_oo (o_new, o_old, gauge_field, aux, mzz, mzzinv);
 
@@ -1044,13 +1010,16 @@ void Q_clover_eo_SchurDecomp_Binv (double *e_new, double *o_new, double *e_old, 
 
   spinor_field_eq_spinor_field_ti_re (aux, o_old, twokappa, N);
 
-  xchange_eo_field(aux, 1);
+
   /* o_new = M_eo aux */
   Hopping_eo(o_new, aux, gauge_field, 0);
+
   /* o_new = M_ee^(-1) o_new */
   M_clover_zz_inv_matrix(o_new, o_new, mzzinv);
+
   /* e_new = e_old - o_new */
   spinor_field_eq_spinor_field_pl_spinor_field_ti_re(e_new, e_old, o_new, -1, N);
+
   /* o_new <- aux */
   memcpy(o_new, aux, sizeof_field);
 
