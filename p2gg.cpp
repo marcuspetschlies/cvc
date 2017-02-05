@@ -510,36 +510,6 @@ int main(int argc, char **argv) {
   }  /* end of loop on samples */
 
 
-#ifdef HAVE_LHPC_AFF
-  /***********************************************
-   ***********************************************
-   **
-   ** writer for aff output file
-   **
-   ***********************************************
-   ***********************************************/
-  if(io_proc == 2) {
-    aff_status_str = (char*)aff_version();
-    fprintf(stdout, "# [p2gg] using aff version %s\n", aff_status_str);
-
-    sprintf(filename, "%s.%.4d.aff", outfile_prefix, Nconf);
-    fprintf(stdout, "# [p2gg] writing data to file %s\n", filename);
-    affw = aff_writer(filename);
-    aff_status_str = (char*)aff_writer_errstr(affw);
-    if( aff_status_str != NULL ) {
-      fprintf(stderr, "[p2gg] Error from aff_writer, status was %s\n", aff_status_str);
-      EXIT(15);
-    }
-
-    if( (affn = aff_writer_root(affw)) == NULL ) {
-      fprintf(stderr, "[p2gg] Error, aff writer is not initialized\n");
-      EXIT(16);
-    }
-
-  }  /* end of if io_proc == 2 */
-#endif
-
-
   /***********************************************************
    ***********************************************************
    **
@@ -555,6 +525,7 @@ int main(int argc, char **argv) {
     gsx[1] = g_source_coords_list[isource_location][1];
     gsx[2] = g_source_coords_list[isource_location][2];
     gsx[3] = g_source_coords_list[isource_location][3];
+
     source_proc_id = 0;
 #if HAVE_MPI
     source_proc_coords[0] = gsx[0] / T;
@@ -699,6 +670,35 @@ int main(int argc, char **argv) {
       }  /* end of loop on spin-color */
 
     }    /* end of loop on shift direction mu */
+
+#ifdef HAVE_LHPC_AFF
+    /***********************************************
+     ***********************************************
+     **
+     ** writer for aff output file
+     **
+     ***********************************************
+     ***********************************************/
+    if(io_proc == 2) {
+      aff_status_str = (char*)aff_version();
+      fprintf(stdout, "# [p2gg] using aff version %s\n", aff_status_str);
+
+      sprintf(filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3]);
+      fprintf(stdout, "# [p2gg] writing data to file %s\n", filename);
+      affw = aff_writer(filename);
+      aff_status_str = (char*)aff_writer_errstr(affw);
+      if( aff_status_str != NULL ) {
+        fprintf(stderr, "[p2gg] Error from aff_writer, status was %s\n", aff_status_str);
+        EXIT(15);
+      }
+
+      if( (affn = aff_writer_root(affw)) == NULL ) {
+        fprintf(stderr, "[p2gg] Error, aff writer is not initialized\n");
+        EXIT(16);
+      }
+
+    }  /* end of if io_proc == 2 */
+#endif
 
 
     /***************************************************************************
@@ -1263,20 +1263,18 @@ int main(int argc, char **argv) {
 
     }  /* end of loop on sequential source momentum */
 
-
-  }  /* end of loop on source locations */
-
-
 #ifdef HAVE_LHPC_AFF
-  if(io_proc == 2) {
-    aff_status_str = (char*)aff_writer_close (affw);
-    if( aff_status_str != NULL ) {
-      fprintf(stderr, "[p2gg] Error from aff_writer_close, status was %s\n", aff_status_str);
-      EXIT(32);
-    }
-  }  /* end of if io_proc == 2 */
+    if(io_proc == 2) {
+      aff_status_str = (char*)aff_writer_close (affw);
+      if( aff_status_str != NULL ) {
+        fprintf(stderr, "[p2gg] Error from aff_writer_close, status was %s\n", aff_status_str);
+        EXIT(32);
+      }
+    }  /* end of if io_proc == 2 */
 #endif  /* of ifdef HAVE_LHPC_AFF */
 
+
+  }  /* end of loop on source locations */
 
   /****************************************
    * free the allocated memory, finalize
