@@ -775,7 +775,7 @@ void make_eo_phase_field_sliced3d (double _Complex**phase, int *momentum, int eo
     for(x2=0; x2<LY; x2++) {
     for(x3=0; x3<LZ; x3++) {
       ix  = g_ipt[x0][x1][x2][x3];
-      iix = g_eosub2sliced3d[1][g_lexic2eosub[ix] ];
+      iix = g_eosub2sliced3d[eo][g_lexic2eosub[ix] ];
       dtmp = ( phase_part + x1*p[0] + x2*p[1] + x3*p[2] ) * I; 
       if(g_iseven[ix] == eo_iseven) {
         phase[x0][iix] = cexp(dtmp);
@@ -791,9 +791,55 @@ void make_eo_phase_field_sliced3d (double _Complex**phase, int *momentum, int eo
   if(g_cart_id == 0) fprintf(stdout, "# [make_o_phase_field_sliced3d] time for making eo phase field = %e seconds\n", retime-ratime);
 }  /* end of make_o_phase_field_sliced3d */
 
-/*******************************************************************
- * project nv spinor fields on a fermion propagator
- *******************************************************************/
+/****************************************************************
+ * phase field on a timeslice of even/odd sublattice
+ * input:
+ *   momentum_number - number of momenta in momentum_list
+ *   momentum_list - list of integer 3-momentum vectors
+ *   timeslice - timeslice for which phase field is constructed
+ *   eo - even 0 / odd 
+ * output:
+ *   phase 2-dim array of phases momentum_number x VOL3/2
+ ****************************************************************/
+void make_eo_phase_field_timeslice (double _Complex**phase, int momentum_number, int (*momentum_list)[3], int timeslice, int eo) {
 
+  const double TWO_MPI = 2. * M_PI;
+  const unsigned int VOL3half = LX*LY*LZ/2;
+
+  int imom;
+  double ratime, retime;
+
+  ratime = _GET_TIME;
+  for( imom = 0; imom < momentum_number; imom++ ) {
+    const double p[3] = { TWO_MPI * momentum_list[imom][0] / (double)LX_global, TWO_MPI * momentum_list[imom][1] / (double)LY_global, TWO_MPI * momentum_list[imom][2] / (double)LZ_global };
+    const double phase_part = (g_proc_coords[1]*LX) * p[0] + (g_proc_coords[2]*LY) * p[1] + (g_proc_coords[3]*LZ) * p[2];
+
+    if(g_verbose > 1 && g_cart_id == 0) {
+      fprintf(stdout, "# [make_eo_phase_field_timeslice] using phase momentum = (%d, %d, %d)\n", p[0], p[1], p[2]);
+    }
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel shared(phase,timeslice,eo)
+{
+#endif
+    unsigned int ix;
+    double _Complex ztmp;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    /* make phase field in eo ordering */
+    for(ix=0; ix < VOL3half; ix++) {
+      ztmp = ( phase_part + g_eot2xyz[eo][timeslice][ix][0] * p[0] + g_eot2xyz[eo][timeslice][ix][1] * p[1] + g_eot2xyz[eo][timeslice][ix][2] * p[2] ) * I;
+      phase[imom][ix] = cexp(ztmp);
+    }
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+  }  /* end of loop on momenta */
+  retime = _GET_TIME;
+  if(g_verbose > 0 && g_cart_id == 0) fprintf(stdout, "# [make_eo_phase_field_timeslice] time for make_eo_phase_field_timeslice = %e seconds\n", retime-ratime);
+}  /* end of make_eo_phase_field_timeslice */
 
 }  /* end of namespace cvc */
