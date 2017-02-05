@@ -3255,7 +3255,7 @@ void spinor_5d_to_4d_L5h_sign(double*s, double*t, int isign) {
  *   input: r, EO = 0/ 1 for eo / oe
  *   output: s
  ***********************************************************/
-
+#if 0
 void Hopping_eo(double *s, double *r, double *gauge_field, int EO) {
 
   unsigned int ix, ix_lexic;
@@ -3274,6 +3274,153 @@ void Hopping_eo(double *s, double *r, double *gauge_field, int EO) {
   threadid = omp_get_thread_num();
 #endif
   for(ix = threadid; ix < N; ix += nthreads) {
+    
+    s_ = s + _GSI(ix);
+      
+    _fv_eq_zero(s_);
+
+    /* ix is an even / odd point */
+    ix_lexic = g_eo2lexic[ix + (unsigned int)(EO * N2)];
+
+    /* =========================================== */
+    /* =============== direction 0 =============== */
+    U_fwd = gauge_field+_GGI(ix_lexic,0);
+    _cm_eq_cm_ti_co(V_fwd, U_fwd, &co_phase_up[0]);
+
+    U_bwd = gauge_field+_GGI( g_idn[ix_lexic][0],0);
+    _cm_eq_cm_ti_co(V_bwd, U_bwd, &co_phase_up[0]);
+
+    /* ix_fwd and ix_bwd are odd / even points */
+    ix_fwd = g_lexic2eosub[ g_iup[ix_lexic][0] ];
+    ix_bwd = g_lexic2eosub[ g_idn[ix_lexic][0] ];
+
+    r_fwd_ = r + _GSI(ix_fwd);
+    r_bwd_ = r + _GSI(ix_bwd);
+
+    /* s += U_fwd ( 1 - g0 ) r_fwd */
+    _fv_eq_gamma_ti_fv(sp1, 0, r_fwd_);
+    _fv_eq_fv_mi_fv(sp2, r_fwd_, sp1);
+    _fv_eq_cm_ti_fv(sp1, V_fwd, sp2);
+    _fv_pl_eq_fv(s_, sp1);
+
+    /* s += U_bwd^+ ( 1 + g0 ) r_bwd */
+    _fv_eq_gamma_ti_fv(sp1, 0, r_bwd_);
+    _fv_eq_fv_pl_fv(sp2, r_bwd_, sp1);
+    _fv_eq_cm_dag_ti_fv(sp1, V_bwd, sp2);
+    _fv_pl_eq_fv(s_, sp1);
+
+
+    /* =========================================== */
+    /* =============== direction 1 =============== */
+    U_fwd = gauge_field+_GGI(ix_lexic,1);
+    _cm_eq_cm_ti_co(V_fwd, U_fwd, &co_phase_up[1]);
+
+    U_bwd = gauge_field+_GGI( g_idn[ix_lexic][1],1);
+    _cm_eq_cm_ti_co(V_bwd, U_bwd, &co_phase_up[1]);
+
+    /* ix_fwd and ix_bwd are odd points */
+    ix_fwd = g_lexic2eosub[ g_iup[ix_lexic][1] ];
+    ix_bwd = g_lexic2eosub[ g_idn[ix_lexic][1] ];
+
+    r_fwd_ = r + _GSI(ix_fwd);
+    r_bwd_ = r + _GSI(ix_bwd);
+
+    /* s += U_fwd ( 1 - g1 ) r_fwd */
+    _fv_eq_gamma_ti_fv(sp1, 1, r_fwd_);
+    _fv_eq_fv_mi_fv(sp2, r_fwd_, sp1);
+    _fv_eq_cm_ti_fv(sp1, V_fwd, sp2);
+    _fv_pl_eq_fv(s_, sp1);
+
+    /* s += U_bwd^+ ( 1 + g1 ) r_bwd */
+    _fv_eq_gamma_ti_fv(sp1, 1, r_bwd_);
+    _fv_eq_fv_pl_fv(sp2, r_bwd_, sp1);
+    _fv_eq_cm_dag_ti_fv(sp1, V_bwd, sp2);
+    _fv_pl_eq_fv(s_, sp1);
+    
+    /* =========================================== */
+    /* =============== direction 2 =============== */
+    U_fwd = gauge_field+_GGI(ix_lexic,2);
+    _cm_eq_cm_ti_co(V_fwd, U_fwd, &co_phase_up[2]);
+
+    U_bwd = gauge_field+_GGI( g_idn[ix_lexic][2],2);
+    _cm_eq_cm_ti_co(V_bwd, U_bwd, &co_phase_up[2]);
+
+    /* ix_fwd and ix_bwd are odd points */
+    ix_fwd = g_lexic2eosub[ g_iup[ix_lexic][2] ];
+    ix_bwd = g_lexic2eosub[ g_idn[ix_lexic][2] ];
+
+    r_fwd_ = r + _GSI(ix_fwd);
+    r_bwd_ = r + _GSI(ix_bwd);
+
+    /* s += U_fwd ( 1 - g2 ) r_fwd */
+    _fv_eq_gamma_ti_fv(sp1, 2, r_fwd_);
+    _fv_eq_fv_mi_fv(sp2, r_fwd_, sp1);
+    _fv_eq_cm_ti_fv(sp1, V_fwd, sp2);
+    _fv_pl_eq_fv(s_, sp1);
+
+    /* s += U_bwd^+ ( 1 + g2 ) r_bwd */
+    _fv_eq_gamma_ti_fv(sp1, 2, r_bwd_);
+    _fv_eq_fv_pl_fv(sp2, r_bwd_, sp1);
+    _fv_eq_cm_dag_ti_fv(sp1, V_bwd, sp2);
+    _fv_pl_eq_fv(s_, sp1);
+
+    /* =========================================== */
+    /* =============== direction 3 =============== */
+    U_fwd = gauge_field+_GGI(ix_lexic,3);
+    _cm_eq_cm_ti_co(V_fwd, U_fwd, &co_phase_up[3]);
+
+    U_bwd = gauge_field+_GGI( g_idn[ix_lexic][3],3);
+    _cm_eq_cm_ti_co(V_bwd, U_bwd, &co_phase_up[3]);
+
+    /* ix_fwd and ix_bwd are odd points */
+    ix_fwd = g_lexic2eosub[ g_iup[ix_lexic][3] ];
+    ix_bwd = g_lexic2eosub[ g_idn[ix_lexic][3] ];
+
+    r_fwd_ = r + _GSI(ix_fwd);
+    r_bwd_ = r + _GSI(ix_bwd);
+
+    /* s += U_fwd ( 1 - g3 ) r_fwd */
+    _fv_eq_gamma_ti_fv(sp1, 3, r_fwd_);
+    _fv_eq_fv_mi_fv(sp2, r_fwd_, sp1);
+    _fv_eq_cm_ti_fv(sp1, V_fwd, sp2);
+    _fv_pl_eq_fv(s_, sp1);
+
+    /* s += U_bwd^+ ( 1 + g3 ) r_bwd */
+    _fv_eq_gamma_ti_fv(sp1, 3, r_bwd_);
+    _fv_eq_fv_pl_fv(sp2, r_bwd_, sp1);
+    _fv_eq_cm_dag_ti_fv(sp1, V_bwd, sp2);
+    _fv_pl_eq_fv(s_, sp1);
+
+    _fv_ti_eq_re(s_, -0.5);
+
+  }  /* end of loop on ix over VOLUME / 2 */
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+}  /* end of Hopping_eo */
+#endif  /* of if 0 */
+
+void Hopping_eo(double *s, double *r, double *gauge_field, int EO) {
+
+  const unsigned int N  = VOLUME / 2;
+  const unsigned int N2 = (VOLUME+RAND) / 2;
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel shared(s,r,gauge_field,co_phase_up,EO)
+{
+#endif
+  unsigned int ix_fwd, ix_bwd;
+  unsigned int ix, ix_lexic;
+  double *U_fwd = NULL, *U_bwd = NULL;
+  double sp1[24], sp2[24];
+  double *s_ = NULL, *r_fwd_ = NULL, *r_bwd_ = NULL;
+  double V_fwd[18], V_bwd[18];
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(ix = 0; ix < N; ix++) {
     
     s_ = s + _GSI(ix);
       
@@ -3900,5 +4047,225 @@ void C_from_Xeo (double *t, double *s, double *r, double *gauge_field, double mu
 #endif
 
 }  /* C_from_Xeo */
+
+
+/***********************************************************
+ * apply the cvc vertex structure to an even/odd spinor
+ * field
+ *   input: r, direction mu \in {0,1,2,3}, fbwd forward 0 / backward 1
+ *   EO = 0/ 1 for eo / oe, gauge field
+ *   output: s
+ ***********************************************************/
+
+void apply_cvc_vertex_eo(double *s, double *r, int mu, int fbwd, double *gauge_field, int EO) {
+
+  const unsigned int N  = VOLUME / 2;
+  const unsigned int N2 = (VOLUME+RAND) / 2;
+
+  if ( fbwd == 0 ) {
+    /**************************************************************
+     * FORWARD
+     **************************************************************/
+#ifdef HAVE_OPENMP
+#pragma omp parallel shared(s,r,gauge_field,co_phase_up,EO)
+{
+#endif
+    unsigned int ix, ix_lexic;
+    unsigned int ix_fwd;
+    double *U_fwd = NULL;
+    double sp1[24], sp2[24];
+    double *s_ = NULL, *r_fwd_ = NULL;
+    double V_fwd[18];
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(ix = 0; ix < N; ix++ ) {
+    
+      s_ = s + _GSI(ix);
+      
+      _fv_eq_zero(s_);
+
+      /* ix is an even / odd point */
+      ix_lexic = g_eo2lexic[ix + (unsigned int)(EO * N2)];
+
+      /* ============================================ */
+      /* =============== direction mu =============== */
+      U_fwd = gauge_field+_GGI(ix_lexic,mu);
+      _cm_eq_cm_ti_co(V_fwd, U_fwd, &co_phase_up[mu]);
+
+      /* ix_fwd is odd / even points */
+      ix_fwd = g_lexic2eosub[ g_iup[ix_lexic][mu] ];
+
+      r_fwd_ = r + _GSI(ix_fwd);
+
+      /* s = U_fwd ( g0 - 1 ) r_fwd */
+      _fv_eq_gamma_ti_fv(sp1, 0, r_fwd_);
+      _fv_eq_fv_mi_fv(sp2, sp1, r_fwd_ );
+      _fv_eq_cm_ti_fv(sp1, V_fwd, sp2);
+      _fv_eq_fv_ti_re(s_, sp1, 0.5);
+
+  }  /* end of loop on ix over VOLUME / 2 */
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+ } else if ( fbwd == 1 ) {
+    /**************************************************************
+     * BACKWARD
+     **************************************************************/
+#ifdef HAVE_OPENMP
+#pragma omp parallel shared(s,r,gauge_field,co_phase_up,EO)
+{
+#endif
+    unsigned int ix, ix_lexic;
+    unsigned int ix_bwd;
+    double *U_bwd = NULL;
+    double sp1[24], sp2[24];
+    double *s_ = NULL, *r_bwd_ = NULL;
+    double V_bwd[18];
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(ix = 0; ix < N; ix++ ) {
+    
+      s_ = s + _GSI(ix);
+      
+      _fv_eq_zero(s_);
+
+      /* ix is an even / odd point */
+      ix_lexic = g_eo2lexic[ix + (unsigned int)(EO * N2)];
+
+      /* ============================================ */
+      /* =============== direction mu =============== */
+      U_bwd = gauge_field+_GGI( g_idn[ix_lexic][mu], mu);
+      _cm_eq_cm_ti_co(V_bwd, U_bwd, &co_phase_up[mu]);
+
+      /* ix_bwd is odd / even point */
+      ix_bwd = g_lexic2eosub[ g_idn[ix_lexic][mu] ];
+
+      r_bwd_ = r + _GSI(ix_bwd);
+
+      /* s += U_bwd^+ ( g0 + 1 ) r_bwd */
+      _fv_eq_gamma_ti_fv(sp1, 0, r_bwd_);
+      _fv_eq_fv_pl_fv(sp2, r_bwd_, sp1);
+      _fv_eq_cm_dag_ti_fv(sp1, V_bwd, sp2);
+      _fv_eq_fv_ti_re(s_, sp1, 0.5);
+  }  /* end of loop on ix over VOLUME / 2 */
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+ }  /* end of if fbwd = 0 or 1 */
+
+}  /* end of apply_cvc_vertex_eo */
+
+/***********************************************************
+ * apply the cvc vertex structure to a full spinor * field
+ *   input: r, direction mu \in {0,1,2,3},
+ *   fbwd forward 0 / backward 1,
+ *   gauge field
+ *   output: s
+ ***********************************************************/
+
+void apply_cvc_vertex(double *s, double *r, int mu, int fbwd, double *gauge_field) {
+
+  const unsigned int N = VOLUME;
+
+  if ( fbwd == 0 ) {
+    /**************************************************************
+     * FORWARD
+     **************************************************************/
+#ifdef HAVE_OPENMP
+#pragma omp parallel shared(s,r,gauge_field,co_phase_up,EO)
+{
+#endif
+    unsigned int ix, ix_lexic;
+    unsigned int ix_fwd;
+    double *U_fwd = NULL;
+    double sp1[24], sp2[24];
+    double *s_ = NULL, *r_fwd_ = NULL;
+    double V_fwd[18];
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(ix = 0; ix < N; ix++ ) {
+    
+      s_ = s + _GSI(ix);
+      
+      _fv_eq_zero(s_);
+
+      /* ix is same as ix_lexic */
+      ix_lexic = ix;
+
+      /* ============================================ */
+      /* =============== direction mu =============== */
+      U_fwd = gauge_field+_GGI(ix_lexic,mu);
+      _cm_eq_cm_ti_co(V_fwd, U_fwd, &co_phase_up[mu]);
+
+      /* ix_fwd */
+      ix_fwd = g_iup[ix_lexic][mu];
+
+      r_fwd_ = r + _GSI(ix_fwd);
+
+      /* s = U_fwd ( g0 - 1 ) r_fwd */
+      _fv_eq_gamma_ti_fv(sp1, 0, r_fwd_);
+      _fv_eq_fv_mi_fv(sp2, sp1, r_fwd_ );
+      _fv_eq_cm_ti_fv(sp1, V_fwd, sp2);
+      _fv_eq_fv_ti_re(s_, sp1, 0.5);
+
+  }  /* end of loop on ix over VOLUME / 2 */
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+ } else if ( fbwd == 1 ) {
+    /**************************************************************
+     * BACKWARD
+     **************************************************************/
+#ifdef HAVE_OPENMP
+#pragma omp parallel shared(s,r,gauge_field,co_phase_up,EO)
+{
+#endif
+    unsigned int ix, ix_lexic;
+    unsigned int ix_bwd;
+    double *U_bwd = NULL;
+    double sp1[24], sp2[24];
+    double *s_ = NULL, *r_bwd_ = NULL;
+    double V_bwd[18];
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(ix = 0; ix < N; ix++ ) {
+    
+      s_ = s + _GSI(ix);
+      
+      _fv_eq_zero(s_);
+
+      /* ix is ix_lexic */
+      ix_lexic = ix;
+
+      /* ============================================ */
+      /* =============== direction mu =============== */
+      U_bwd = gauge_field+_GGI( g_idn[ix_lexic][mu], mu);
+      _cm_eq_cm_ti_co(V_bwd, U_bwd, &co_phase_up[mu]);
+
+      /* ix_bwd */
+      ix_bwd = g_idn[ix_lexic][mu];
+
+      r_bwd_ = r + _GSI(ix_bwd);
+
+      /* s += U_bwd^+ ( g0 + 1 ) r_bwd */
+      _fv_eq_gamma_ti_fv(sp1, 0, r_bwd_);
+      _fv_eq_fv_pl_fv(sp2, r_bwd_, sp1);
+      _fv_eq_cm_dag_ti_fv(sp1, V_bwd, sp2);
+      _fv_eq_fv_ti_re(s_, sp1, 0.5);
+  }  /* end of loop on ix over VOLUME / 2 */
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+ }  /* end of if fbwd = 0 or 1 */
+
+}  /* end of apply_cvc_vertex_eo */
 
 }  /* end of namespace cvc */
