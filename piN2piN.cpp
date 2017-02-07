@@ -1544,30 +1544,6 @@ int main(int argc, char **argv) {
           EXIT(63);
         }
 
-        sprintf(filename, "oet_ref_source.t%.2d.proc%.2d", gsx[0], g_cart_id );
-
-        FILE*ofs = fopen(filename, "w");
-        int x0, x1, x2, x3;
-        unsigned int ix;
-
-        for(x0=0; x0<T; x0++) {
-        for(x1=0; x1<LX; x1++) {
-        for(x2=0; x2<LY; x2++) {
-        for(x3=0; x3<LZ; x3++) {
-          ix = g_ipt[x0][x1][x2][x3];
-          fprintf(ofs, "# x = %3d %3d %3d %3d\n",
-              x0+g_proc_coords[0]*T, x1+g_proc_coords[1]*LX, x2+g_proc_coords[2]*LY, x3+g_proc_coords[3]*LZ);
-          for(i=0; i<12; i++) {
-            fprintf(ofs, "%e %e %e %e %e %e %e %e\n",
-                stochastic_source_list[0][_GSI(ix)+2*i], stochastic_source_list[0][_GSI(ix)+2*i+1],
-                stochastic_source_list[1][_GSI(ix)+2*i], stochastic_source_list[1][_GSI(ix)+2*i+1],
-                stochastic_source_list[2][_GSI(ix)+2*i], stochastic_source_list[2][_GSI(ix)+2*i+1],
-                stochastic_source_list[3][_GSI(ix)+2*i], stochastic_source_list[3][_GSI(ix)+2*i+1]);
-          }
-        }}}}
-        fclose(ofs);
-
-
         /* zero-momentum propagator */
         for(i=0; i<4; i++) {
           memcpy(spinor_work[0], stochastic_source_list[i], sizeof_spinor_field);
@@ -1635,32 +1611,6 @@ int main(int argc, char **argv) {
 
             memcpy( stochastic_propagator_list[4+i], spinor_work[1], sizeof_spinor_field);
           }
-
-  
-          sprintf(filename, "oet_seqmom_source.t%.2d.px%.2dpy%.2dpz%.2d.proc%.2d", gsx[0], 
-              g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
-              g_cart_id );
-
-          FILE*ofs = fopen(filename, "w");
-          int x0, x1, x2, x3;
-          unsigned int ix;
-
-          for(x0=0; x0<T; x0++) {
-          for(x1=0; x1<LX; x1++) {
-          for(x2=0; x2<LY; x2++) {
-          for(x3=0; x3<LZ; x3++) {
-            ix = g_ipt[x0][x1][x2][x3];
-            fprintf(ofs, "# x = %3d %3d %3d %3d\n", 
-                x0+g_proc_coords[0]*T, x1+g_proc_coords[1]*LX, x2+g_proc_coords[2]*LY, x3+g_proc_coords[3]*LZ);
-            for(i=0; i<12; i++) {
-              fprintf(ofs, "%e %e %e %e %e %e %e %e\n",
-                  stochastic_source_list[0][_GSI(ix)+2*i], stochastic_source_list[0][_GSI(ix)+2*i+1],
-                  stochastic_source_list[1][_GSI(ix)+2*i], stochastic_source_list[1][_GSI(ix)+2*i+1],
-                  stochastic_source_list[2][_GSI(ix)+2*i], stochastic_source_list[2][_GSI(ix)+2*i+1],
-                  stochastic_source_list[3][_GSI(ix)+2*i], stochastic_source_list[3][_GSI(ix)+2*i+1]);
-            }
-          }}}}
-          fclose(ofs);
 
           /***********************
            ***********************
