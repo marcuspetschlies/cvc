@@ -726,34 +726,35 @@ int main(int argc, char **argv) {
   }  /* end of loop on sequential momentum list */
 
 
+  for(i_src=0; i_src < g_source_location_number; i_src++ ) {
+    int t_base = g_source_coords_list[i_src][0];
+
 #ifdef HAVE_LHPC_AFF
-  if(io_proc == 2) {
-    aff_status_str = (char*)aff_version();
-    fprintf(stdout, "# [piN2piN] using aff version %s\n", aff_status_str);
+    if(io_proc == 2) {
+      aff_status_str = (char*)aff_version();
+      fprintf(stdout, "# [piN2piN] using aff version %s\n", aff_status_str);
     
-    sprintf(filename, "%s.%.4d.aff", "B_B", Nconf );
-    fprintf(stdout, "# [piN2piN] writing data to file %s\n", filename);
-    affw = aff_writer(filename);
-    aff_status_str = (char*)aff_writer_errstr(affw);
-    if( aff_status_str != NULL ) {
-      fprintf(stderr, "[piN2piN] Error from aff_writer, status was %s\n", aff_status_str);
-      EXIT(4);
-    }
+      sprintf(filename, "%s.%.4d.tsrc%.2d.aff", "B_B", Nconf, t_base );
+      fprintf(stdout, "# [piN2piN] writing data to file %s\n", filename);
+      affw = aff_writer(filename);
+      aff_status_str = (char*)aff_writer_errstr(affw);
+      if( aff_status_str != NULL ) {
+        fprintf(stderr, "[piN2piN] Error from aff_writer, status was %s\n", aff_status_str);
+        EXIT(4);
+      }
     
-    if( (affn = aff_writer_root(affw)) == NULL ) {
-      fprintf(stderr, "[piN2piN] Error, aff writer is not initialized\n");
-      EXIT(5);
-    }
+      if( (affn = aff_writer_root(affw)) == NULL ) {
+        fprintf(stderr, "[piN2piN] Error, aff writer is not initialized\n");
+        EXIT(5);
+      }
   
-    aff_buffer = (double _Complex*)malloc(T_global*g_sv_dim*g_sv_dim*sizeof(double _Complex));
-    if(aff_buffer == NULL) {
-      fprintf(stderr, "[piN2piN] Error from malloc\n");
-      EXIT(6);
-    }
-  }  /* end of if io_proc == 2 */
+      aff_buffer = (double _Complex*)malloc(T_global*g_sv_dim*g_sv_dim*sizeof(double _Complex));
+        if(aff_buffer == NULL) {
+        fprintf(stderr, "[piN2piN] Error from malloc\n");
+        EXIT(6);
+      }
+    }  /* end of if io_proc == 2 */
 #endif
-
-
 
   /******************************************************
    ******************************************************
@@ -763,8 +764,6 @@ int main(int argc, char **argv) {
    ******************************************************
    ******************************************************/
 
-  for(i_src=0; i_src < g_source_location_number; i_src++ ) {
-      int t_base = g_source_coords_list[i_src][0];
     for(i_coherent=0; i_coherent<g_coherent_source_number; i_coherent++) {
       int t_coherent = ( t_base + ( T_global / g_coherent_source_number ) * i_coherent ) % T_global;
       int i_prop = i_src * g_coherent_source_number + i_coherent;
@@ -1130,19 +1129,19 @@ int main(int argc, char **argv) {
 #endif  /* of if 0 */
 
     }  /* end of loop on coherent source locations */
-  }  /* end of loop on base source locations */
 
 #ifdef HAVE_LHPC_AFF
-  if(io_proc == 2) {
-    aff_status_str = (char*)aff_writer_close (affw);
-    if( aff_status_str != NULL ) {
-      fprintf(stderr, "[piN2piN] Error from aff_writer_close, status was %s\n", aff_status_str);
-      EXIT(11);
-    }
-    if(aff_buffer != NULL) free(aff_buffer);
-  }  /* end of if io_proc == 2 */
+    if(io_proc == 2) {
+      aff_status_str = (char*)aff_writer_close (affw);
+      if( aff_status_str != NULL ) {
+        fprintf(stderr, "[piN2piN] Error from aff_writer_close, status was %s\n", aff_status_str);
+        EXIT(11);
+      }
+      if(aff_buffer != NULL) free(aff_buffer);
+    }  /* end of if io_proc == 2 */
 #endif  /* of ifdef HAVE_LHPC_AFF */
 
+  }  /* end of loop on base source locations */
 
 
 
@@ -1254,39 +1253,40 @@ int main(int argc, char **argv) {
    ******************************************************
    ******************************************************/
 
-#ifdef HAVE_LHPC_AFF
-  /***********************************************
-   * open aff output file
-   ***********************************************/
-    
-  if(io_proc == 2) {
-    aff_status_str = (char*)aff_version();
-    fprintf(stdout, "# [piN2piN] using aff version %s\n", aff_status_str);
-    
-    sprintf(filename, "%s.%.4d.aff", "MB_MB", Nconf );
-    fprintf(stdout, "# [piN2piN] writing data to file %s\n", filename);
-    affw = aff_writer(filename);
-    aff_status_str = (char*)aff_writer_errstr(affw);
-    if( aff_status_str != NULL ) {
-      fprintf(stderr, "[piN2piN] Error from aff_writer, status was %s\n", aff_status_str);
-      EXIT(4);
-    }
-    
-    if( (affn = aff_writer_root(affw)) == NULL ) {
-      fprintf(stderr, "[piN2piN] Error, aff writer is not initialized\n");
-      EXIT(5);
-    }
-  
-    aff_buffer = (double _Complex*)malloc(T_global*g_sv_dim*g_sv_dim*sizeof(double _Complex));
-    if(aff_buffer == NULL) {
-      fprintf(stderr, "[piN2piN] Error from malloc\n");
-      EXIT(6);
-    }
-  }  /* end of if io_proc == 2 */
-#endif
-
   /* loop on base source locations */
   for(i_src = 0; i_src < g_source_location_number; i_src++) {
+    int t_base = g_source_coords_list[i_src][0];
+
+#ifdef HAVE_LHPC_AFF
+    /***********************************************
+     * open aff output file
+     ***********************************************/
+    
+    if(io_proc == 2) {
+      aff_status_str = (char*)aff_version();
+      fprintf(stdout, "# [piN2piN] using aff version %s\n", aff_status_str);
+    
+      sprintf(filename, "%s.%.4d.tsrc%.2d.aff", "MB_MB", Nconf, t_base );
+      fprintf(stdout, "# [piN2piN] writing data to file %s\n", filename);
+      affw = aff_writer(filename);
+      aff_status_str = (char*)aff_writer_errstr(affw);
+      if( aff_status_str != NULL ) {
+        fprintf(stderr, "[piN2piN] Error from aff_writer, status was %s\n", aff_status_str);
+        EXIT(4);
+      }
+    
+      if( (affn = aff_writer_root(affw)) == NULL ) {
+        fprintf(stderr, "[piN2piN] Error, aff writer is not initialized\n");
+        EXIT(5);
+      }
+  
+      aff_buffer = (double _Complex*)malloc(T_global*g_sv_dim*g_sv_dim*sizeof(double _Complex));
+      if(aff_buffer == NULL) {
+        fprintf(stderr, "[piN2piN] Error from malloc\n");
+        EXIT(6);
+      }
+    }  /* end of if io_proc == 2 */
+#endif
 
     double **tffi_list=NULL, **pffii_list=NULL;
     if( (exitstatus = init_2level_buffer(&tffi_list, n_s*n_c, _GSI(VOLUME)) ) != 0 ) {
@@ -1297,7 +1297,6 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[piN2piN] Error from init_2level_buffer, status was %d\n", exitstatus);
       EXIT(51);
     }
-    int t_base = g_source_coords_list[i_src][0];
 
     /* loop on coherent source locations */
     for(i_coherent=0; i_coherent < g_coherent_source_number; i_coherent++) {
@@ -1437,18 +1436,19 @@ int main(int argc, char **argv) {
 
     fini_2level_buffer(&tffi_list);
     fini_2level_buffer(&pffii_list);
-  }  /* end of loop on base source locations */
     
 #ifdef HAVE_LHPC_AFF
-  if(io_proc == 2) {
-    aff_status_str = (char*)aff_writer_close (affw);
-    if( aff_status_str != NULL ) {
-      fprintf(stderr, "[piN2piN] Error from aff_writer_close, status was %s\n", aff_status_str);
-      EXIT(11);
-    }
-    if(aff_buffer != NULL) free(aff_buffer);
-  }  /* end of if io_proc == 2 */
+    if(io_proc == 2) {
+      aff_status_str = (char*)aff_writer_close (affw);
+      if( aff_status_str != NULL ) {
+        fprintf(stderr, "[piN2piN] Error from aff_writer_close, status was %s\n", aff_status_str);
+        EXIT(11);
+      }
+      if(aff_buffer != NULL) free(aff_buffer);
+    }  /* end of if io_proc == 2 */
 #endif  /* of ifdef HAVE_LHPC_AFF */
+
+  }  /* end of loop on base source locations */
    
   /* sequential propagator list not needed after this point */ 
   free( sequential_propagator_list[0]);
@@ -1479,37 +1479,6 @@ int main(int argc, char **argv) {
   stochastic_source_list[0] = (double*)malloc(no_fields * sizeof_spinor_field);
   for(i=1; i < no_fields; i++) stochastic_source_list[i] = stochastic_source_list[i-1] + _GSI(VOLUME);
 
-#ifdef HAVE_LHPC_AFF
-  /***********************************************
-   * open aff output file
-   ***********************************************/
-    
-  if(io_proc == 2) {
-    aff_status_str = (char*)aff_version();
-    fprintf(stdout, "# [piN2piN] using aff version %s\n", aff_status_str);
-    
-    sprintf(filename, "%s.%.4d.aff", "piN_piN_oet", Nconf );
-    fprintf(stdout, "# [piN2piN] writing data to file %s\n", filename);
-    affw = aff_writer(filename);
-    aff_status_str = (char*)aff_writer_errstr(affw);
-    if( aff_status_str != NULL ) {
-      fprintf(stderr, "[piN2piN] Error from aff_writer, status was %s\n", aff_status_str);
-      EXIT(4);
-    }
-    
-    if( (affn = aff_writer_root(affw)) == NULL ) {
-      fprintf(stderr, "[piN2piN] Error, aff writer is not initialized\n");
-      EXIT(5);
-    }
-  
-    aff_buffer = (double _Complex*)malloc(T_global*g_sv_dim*g_sv_dim*sizeof(double _Complex));
-    if(aff_buffer == NULL) {
-      fprintf(stderr, "[piN2piN] Error from malloc\n");
-      EXIT(6);
-    }
-  }  /* end of if io_proc == 2 */
-#endif
-
 
   /* loop on oet samples */
   for(isample=0; isample < g_nsample_oet; isample++) {
@@ -1522,7 +1491,38 @@ int main(int argc, char **argv) {
 
     for(i_src=0; i_src < g_source_location_number; i_src++) {
       int t_base = g_source_coords_list[i_src][0];
-      
+
+#ifdef HAVE_LHPC_AFF
+      /***********************************************
+       * open aff output file
+       ***********************************************/
+    
+      if(io_proc == 2) {
+        aff_status_str = (char*)aff_version();
+        fprintf(stdout, "# [piN2piN] using aff version %s\n", aff_status_str);
+    
+        sprintf(filename, "%s.%.4d.sample%.2d.tsrc%.2d.aff", "piN_piN_oet", Nconf, isample, t_base );
+        fprintf(stdout, "# [piN2piN] writing data to file %s\n", filename);
+        affw = aff_writer(filename);
+        aff_status_str = (char*)aff_writer_errstr(affw);
+        if( aff_status_str != NULL ) {
+          fprintf(stderr, "[piN2piN] Error from aff_writer, status was %s\n", aff_status_str);
+          EXIT(4);
+        }
+    
+        if( (affn = aff_writer_root(affw)) == NULL ) {
+          fprintf(stderr, "[piN2piN] Error, aff writer is not initialized\n");
+          EXIT(5);
+        }
+  
+        aff_buffer = (double _Complex*)malloc(T_global*g_sv_dim*g_sv_dim*sizeof(double _Complex));
+        if(aff_buffer == NULL) {
+          fprintf(stderr, "[piN2piN] Error from malloc\n");
+          EXIT(6);
+        }
+      }  /* end of if io_proc == 2 */
+#endif
+
       for(i_coherent = 0; i_coherent < g_coherent_source_number; i_coherent++) {
 
         int t_coherent = ( t_base + ( T_global / g_coherent_source_number ) * i_coherent ) % T_global;
@@ -1799,21 +1799,22 @@ int main(int argc, char **argv) {
 
         }  /* end of loop on sequential source momenta pi2 */
       }  /* end of loop on coherent sources */
+
+#ifdef HAVE_LHPC_AFF
+      if(io_proc == 2) {
+        aff_status_str = (char*)aff_writer_close (affw);
+        if( aff_status_str != NULL ) {
+          fprintf(stderr, "[piN2piN] Error from aff_writer_close, status was %s\n", aff_status_str);
+          EXIT(111);
+        }
+        if(aff_buffer != NULL) free(aff_buffer);
+      }  /* end of if io_proc == 2 */
+#endif  /* of ifdef HAVE_LHPC_AFF */
+
     }  /* end of loop on base sources */
 
     fini_2level_buffer(&pfifi_list);
   }  /* end of loop on oet samples */
-
-#ifdef HAVE_LHPC_AFF
-  if(io_proc == 2) {
-    aff_status_str = (char*)aff_writer_close (affw);
-    if( aff_status_str != NULL ) {
-      fprintf(stderr, "[piN2piN] Error from aff_writer_close, status was %s\n", aff_status_str);
-      EXIT(111);
-    }
-    if(aff_buffer != NULL) free(aff_buffer);
-  }  /* end of if io_proc == 2 */
-#endif  /* of ifdef HAVE_LHPC_AFF */
 
 
 
