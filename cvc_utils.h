@@ -134,6 +134,8 @@ void spinor_field_eq_spinor_field_ti_co (double*r, double*s, complex w, unsigned
 void spinor_field_pl_eq_spinor_field_ti_co (double*r, double*s, complex w, unsigned int N);
 
 
+void xchange_eo_propagator ( fermion_propagator_type *fp, int eo, int dir);
+
 }  /* end of namespace cvc */
 #endif
 

@@ -14,6 +14,7 @@ namespace cvc {
 #ifdef HAVE_MPI
 MPI_Datatype gauge_point;
 MPI_Datatype spinor_point;
+MPI_Datatype propagator_point;
 MPI_Datatype contraction_point;
 
 MPI_Datatype gauge_time_slice_cont;
@@ -88,14 +89,28 @@ MPI_Datatype eo_spinor_y_slice_vector;
 MPI_Datatype eo_spinor_y_subslice_cont;
 MPI_Datatype eo_spinor_y_slice_cont;
 
-/* MPI_Datatype eo_spinor_z_slice_vector; */
-
 MPI_Datatype eo_spinor_z_subslice_cont;
 MPI_Datatype eo_spinor_z_slice_cont;
 MPI_Datatype eo_spinor_z_odd_fwd_slice_struct;
 MPI_Datatype eo_spinor_z_even_fwd_slice_struct;
 MPI_Datatype eo_spinor_z_odd_bwd_slice_struct;
 MPI_Datatype eo_spinor_z_even_bwd_slice_struct;
+
+/* slices of even-odd propagators */
+MPI_Datatype eo_propagator_x_slice_vector;
+MPI_Datatype eo_propagator_x_subslice_cont;
+MPI_Datatype eo_propagator_x_slice_cont;
+
+MPI_Datatype eo_propagator_y_slice_vector;
+MPI_Datatype eo_propagator_y_subslice_cont;
+MPI_Datatype eo_propagator_y_slice_cont;
+
+MPI_Datatype eo_propagator_z_subslice_cont;
+MPI_Datatype eo_propagator_z_slice_cont;
+MPI_Datatype eo_propagator_z_odd_fwd_slice_struct;
+MPI_Datatype eo_propagator_z_even_fwd_slice_struct;
+MPI_Datatype eo_propagator_z_odd_bwd_slice_struct;
+MPI_Datatype eo_propagator_z_even_bwd_slice_struct;
 
 /* contraction slices */
 
@@ -376,6 +391,9 @@ void mpi_init(int argc,char *argv[]) {
 
   MPI_Type_contiguous(24, MPI_DOUBLE, &spinor_point);
   MPI_Type_commit(&spinor_point);
+
+  MPI_Type_contiguous(12, spinor_point, &propagator_point);
+  MPI_Type_commit(&propagator_point);
 
   MPI_Type_contiguous(LX*LY*LZ, gauge_point, &gauge_time_slice_cont);
   MPI_Type_commit(&gauge_time_slice_cont);
@@ -1169,6 +1187,249 @@ void mpi_fini_xchange_eo_spinor (void) {
 #endif
 #endif
 }  /* mpi_fini_xchange_eo_spinor */
+
+  /******************************************************************************
+   * init exchange data types for a fermion propagator field
+   ******************************************************************************/
+void mpi_init_xchange_eo_propagator(void) {
+
+#ifdef HAVE_MPI
+
+#if (defined PARALLELTX || defined PARALLELTXY || defined PARALLELTXYZ)
+  int count, i;
+  int *blocklengths = NULL;
+  int x0, x1, x2, x3, ix, iix;
+  MPI_Aint *displacements = NULL;
+  MPI_Datatype *datatypes = NULL;
+  MPI_Aint size_of_propagator_point;
+  char errorString[400];
+  int errorStringLength;
+#endif
+
+
+  /* ========= eo propagator slices ============================================= */
+
+  /* ---------- t direction ------------------------------------------------- */
+  MPI_Type_contiguous(LX*LY*LZ/2, propagator_point, &eo_propagator_time_slice_cont);
+  MPI_Type_commit(&eo_propagator_time_slice_cont);
+
+
+#if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ)
+  /* ---------- x direction ------------------------------------------------- */
+  MPI_Type_contiguous(T*LY*LZ/2, propagator_point, &eo_propagator_x_slice_cont);
+  MPI_Type_commit(&eo_propagator_x_slice_cont);
+
+  MPI_Type_contiguous(LY*LZ/2, propagator_point, &eo_propagator_x_subslice_cont);
+  MPI_Type_commit(&eo_propagator_x_subslice_cont);
+
+  MPI_Type_vector(T, 1, LX, eo_propagator_x_subslice_cont, &eo_propagator_x_slice_vector);
+  MPI_Type_commit(&eo_propagator_x_slice_vector);
+
+  /* ---------- y direction ------------------------------------------------- */
+  MPI_Type_contiguous(T*LX*LZ/2, propagator_point, &eo_propagator_y_slice_cont);
+  MPI_Type_commit(&eo_propagator_y_slice_cont);
+  
+  MPI_Type_contiguous(LZ/2, propagator_point, &eo_propagator_y_subslice_cont);
+  MPI_Type_commit(&eo_propagator_y_subslice_cont);
+
+  MPI_Type_vector(T*LX, 1, LY, eo_propagator_y_subslice_cont, &eo_propagator_y_slice_vector);
+  MPI_Type_commit(&eo_propagator_y_slice_vector);
+
+  /* ---------- z direction ------------------------------------------------- */
+  MPI_Type_contiguous(T*LX*LY/2, propagator_point, &eo_propagator_z_slice_cont);
+  MPI_Type_commit(&eo_propagator_z_slice_cont);
+
+  MPI_Type_vector( LY/2, 1, LZ, propagator_point, &eo_propagator_z_subslice_cont );
+  MPI_Type_commit(&eo_propagator_z_subslice_cont);
+
+
+  count = T * LX * LY / 2;
+  MPI_Type_extent(propagator_point, &size_of_propagator_point);
+  if(g_cart_id == 0) fprintf(stdout, "# [mpi_init] size_of_propagator_point = %lu\n", size_of_propagator_point);
+
+  if( (blocklengths = (int*)malloc(count*sizeof(int)) ) == NULL ) {
+    fprintf(stderr, "[mpi_init] Error, count not allocate blocklengths\n");
+    EXIT(12);
+  }
+
+  if( (displacements = (MPI_Aint*)malloc(count*sizeof(MPI_Aint)) ) == NULL ) {
+    fprintf(stderr, "[mpi_init] Error, count not allocate displacements\n");
+    EXIT(13);
+  }
+
+  if( (datatypes = (MPI_Datatype*)malloc(count*sizeof(MPI_Datatype)) ) == NULL ) {
+    fprintf(stderr, "[mpi_init] Error, count not allocate datatypes\n");
+    EXIT(14);
+  }
+
+  /* odd, backward z == 0 */
+
+  x3 = 0;
+  i = 0;
+  for(x0=0; x0 < T;  x0++) {
+  for(x1=0; x1 < LX; x1++) {
+  for(x2=0; x2 < LY; x2++) {
+        ix  = g_ipt[x0][x1][x2][x3];
+        iix = g_lexic2eosub[ix];
+        if(g_iseven[ix]) continue;
+
+        datatypes    [i] = propagator_point;
+        displacements[i] = (MPI_Aint)iix * size_of_propagator_point;
+        blocklengths [i] = 1;
+
+        i++;
+      }
+    }
+  }
+
+  i = MPI_Type_struct(count, blocklengths, displacements, datatypes, &eo_propagator_z_odd_bwd_slice_struct );
+  if(i != MPI_SUCCESS ) {
+    MPI_Error_string(i, errorString, &errorStringLength);
+    fprintf(stderr, "[mpi_init] Error from MPI_Type_struct, status was %s\n", errorString);
+    EXIT(15);
+  }
+  i = MPI_Type_commit(&eo_propagator_z_odd_bwd_slice_struct);
+  if(i != MPI_SUCCESS ) {
+    MPI_Error_string(i, errorString, &errorStringLength);
+    fprintf(stderr, "[mpi_init] Error from MPI_Type_commit, status was %s\n", errorString);
+    EXIT(15);
+  }
+
+  /* even, backward z == 0 */
+
+  x3 = 0;
+  i = 0;
+  for(x0=0; x0 < T;  x0++) {
+  for(x1=0; x1 < LX; x1++) {
+  for(x2=0; x2 < LY; x2++) {
+    ix  = g_ipt[x0][x1][x2][x3];
+    iix = g_lexic2eosub[ix];
+    if(!g_iseven[ix]) continue;
+
+    datatypes    [i] = propagator_point;
+    displacements[i] = (MPI_Aint)iix * size_of_propagator_point;
+    blocklengths [i] = 1;
+
+    i++;
+  }}}
+
+  i = MPI_Type_struct(count, blocklengths, displacements, datatypes, &eo_propagator_z_even_bwd_slice_struct );
+  if(i != MPI_SUCCESS ) {
+    MPI_Error_string(i, errorString, &errorStringLength);
+    fprintf(stderr, "[mpi_init] Error from MPI_Type_struct, status was %s\n", errorString);
+    EXIT(16);
+  }
+  i = MPI_Type_commit(&eo_propagator_z_even_bwd_slice_struct);
+  if(i != MPI_SUCCESS ) {
+    MPI_Error_string(i, errorString, &errorStringLength);
+    fprintf(stderr, "[mpi_init] Error from MPI_Type_commit, status was %s\n", errorString);
+    EXIT(17);
+  }
+
+
+  /* odd, forward z == LZ-1 */
+
+  x3 = LZ-1;
+  i = 0;
+  for(x0=0; x0 < T;  x0++) {
+  for(x1=0; x1 < LX; x1++) {
+  for(x2=0; x2 < LY; x2++) {
+    ix  = g_ipt[x0][x1][x2][x3];
+    iix = g_lexic2eosub[ix];
+    if(g_iseven[ix]) continue;
+
+    datatypes    [i] = propagator_point;
+    displacements[i] = (MPI_Aint)iix * size_of_propagator_point;
+    blocklengths [i] = 1;
+
+    i++;
+  }}}
+
+  i = MPI_Type_struct(count, blocklengths, displacements, datatypes, &eo_propagator_z_odd_fwd_slice_struct );
+  if(i != MPI_SUCCESS ) {
+    MPI_Error_string(i, errorString, &errorStringLength);
+    fprintf(stderr, "[mpi_init] Error from MPI_Type_struct, status was %s\n", errorString);
+    EXIT(18);
+  }
+  
+  i = MPI_Type_commit(&eo_propagator_z_odd_fwd_slice_struct);
+  if(i != MPI_SUCCESS ) {
+    MPI_Error_string(i, errorString, &errorStringLength);
+    fprintf(stderr, "[mpi_init] Error from MPI_Type_commit, status was %s\n", errorString);
+    EXIT(19);
+  }
+
+
+
+  /* even, forward z == LZ-1 */
+
+  x3 = LZ-1;
+  i = 0;
+  for(x0=0; x0 < T;  x0++) {
+  for(x1=0; x1 < LX; x1++) {
+  for(x2=0; x2 < LY; x2++) {
+    ix  = g_ipt[x0][x1][x2][x3];
+    iix = g_lexic2eosub[ix];
+    if(!g_iseven[ix]) continue;
+
+    datatypes    [i] = propagator_point;
+    displacements[i] = (MPI_Aint)iix * size_of_propagator_point;
+    blocklengths [i] = 1;
+
+    i++;
+  }}}
+
+  i = MPI_Type_struct(count, blocklengths, displacements, datatypes, &eo_propagator_z_even_fwd_slice_struct );
+  if(i != MPI_SUCCESS ) {
+    MPI_Error_string(i, errorString, &errorStringLength);
+    fprintf(stderr, "[mpi_init] Error from MPI_Type_struct, status was %s\n", errorString);
+    EXIT(20);
+  }
+
+  i = MPI_Type_commit(&eo_propagator_z_even_fwd_slice_struct);
+  if(i != MPI_SUCCESS ) {
+    MPI_Error_string(i, errorString, &errorStringLength);
+    fprintf(stderr, "[mpi_init] Error from MPI_Type_commit, status was %s\n", errorString);
+    EXIT(21);
+  }
+
+  if(datatypes     != NULL) free( datatypes );
+  if(displacements != NULL) free( displacements );
+  if(blocklengths  != NULL) free( blocklengths );
+
+#endif  /* of if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) */
+#endif  /* of ifdef HAVE_MPI */
+
+
+}   /* mpi_init_xchange_eo_propagator */
+
+void mpi_fini_xchange_eo_propagator (void) {
+#ifdef HAVE_MPI
+  MPI_Type_free(&eo_propagator_time_slice_cont);
+
+#if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) 
+  MPI_Type_free(&eo_propagator_x_slice_vector);
+  MPI_Type_free(&eo_propagator_x_subslice_cont);
+  MPI_Type_free(&eo_propagator_x_slice_cont);
+
+  MPI_Type_free(&eo_propagator_y_slice_vector);
+  MPI_Type_free(&eo_propagator_y_subslice_cont);
+  MPI_Type_free(&eo_propagator_y_slice_cont);
+
+
+  MPI_Type_free(&eo_propagator_z_slice_cont);
+  MPI_Type_free(&eo_propagator_z_odd_fwd_slice_struct);
+  MPI_Type_free(&eo_propagator_z_even_fwd_slice_struct);
+  MPI_Type_free(&eo_propagator_z_odd_bwd_slice_struct);
+  MPI_Type_free(&eo_propagator_z_even_bwd_slice_struct);
+  MPI_Type_free(&eo_propagator_z_subslice_cont);
+#endif
+#endif  /* of ifdef HAVE_MPI */
+
+}  /* mpi_fini_xchange_eo_propagator */
+
+
+
 
 /******************************************************************************/
 

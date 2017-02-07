@@ -58,13 +58,29 @@ extern MPI_Datatype eo_spinor_y_slice_vector;
 extern MPI_Datatype eo_spinor_y_subslice_cont;
 extern MPI_Datatype eo_spinor_y_slice_cont;
 
-/* extern MPI_Datatype eo_spinor_z_slice_vector; */
 extern MPI_Datatype eo_spinor_z_subslice_cont;
 extern MPI_Datatype eo_spinor_z_slice_cont;
 extern MPI_Datatype eo_spinor_z_odd_fwd_slice_struct;
 extern MPI_Datatype eo_spinor_z_even_fwd_slice_struct;
 extern MPI_Datatype eo_spinor_z_odd_bwd_slice_struct;
 extern MPI_Datatype eo_spinor_z_even_bwd_slice_struct;
+
+/* slices for even-odd propagator */
+
+extern MPI_Datatype eo_propagator_x_slice_vector;
+extern MPI_Datatype eo_propagator_x_slice_cont;
+extern MPI_Datatype eo_propagator_x_subslice_cont;
+
+extern MPI_Datatype eo_propagator_y_slice_vector;
+extern MPI_Datatype eo_propagator_y_subslice_cont;
+extern MPI_Datatype eo_propagator_y_slice_cont;
+
+extern MPI_Datatype eo_propagator_z_subslice_cont;
+extern MPI_Datatype eo_propagator_z_slice_cont;
+extern MPI_Datatype eo_propagator_z_odd_fwd_slice_struct;
+extern MPI_Datatype eo_propagator_z_even_fwd_slice_struct;
+extern MPI_Datatype eo_propagator_z_odd_bwd_slice_struct;
+extern MPI_Datatype eo_propagator_z_even_bwd_slice_struct;
 
 
 /* edges */
@@ -106,5 +122,10 @@ void mpi_fini_xchange_contraction(void);
 
 void mpi_init_xchange_eo_spinor (void);
 void mpi_fini_xchange_eo_spinor (void);
-}
+
+void mpi_init_xchange_eo_propagator(void);
+void mpi_fini_xchange_eo_propagator(void);
+
+
+}  /* end of namespace cvc */
 #endif

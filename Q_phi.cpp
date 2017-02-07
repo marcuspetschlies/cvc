@@ -1081,8 +1081,8 @@ void apply_cvc_vertex_eo(double *s, double *r, int mu, int fbwd, double *gauge_f
 
       r_fwd_ = r + _GSI(ix_fwd);
 
-      /* s = U_fwd ( g0 - 1 ) r_fwd */
-      _fv_eq_gamma_ti_fv(sp1, 0, r_fwd_);
+      /* s = U_fwd ( g_mu - 1 ) r_fwd */
+      _fv_eq_gamma_ti_fv(sp1, mu, r_fwd_);
       _fv_eq_fv_mi_fv(sp2, sp1, r_fwd_ );
       _fv_eq_cm_ti_fv(sp1, U_fwd, sp2);
       _fv_eq_fv_ti_re(s_, sp1, 0.5);
@@ -1126,8 +1126,8 @@ void apply_cvc_vertex_eo(double *s, double *r, int mu, int fbwd, double *gauge_f
 
       r_bwd_ = r + _GSI(ix_bwd);
 
-      /* s += U_bwd^+ ( g0 + 1 ) r_bwd */
-      _fv_eq_gamma_ti_fv(sp1, 0, r_bwd_);
+      /* s += U_bwd^+ ( g_mu + 1 ) r_bwd */
+      _fv_eq_gamma_ti_fv(sp1, mu, r_bwd_);
       _fv_eq_fv_pl_fv(sp2, r_bwd_, sp1);
       _fv_eq_cm_dag_ti_fv(sp1, U_bwd, sp2);
       _fv_eq_fv_ti_re(s_, sp1, 0.5);
@@ -1190,8 +1190,8 @@ void apply_cvc_vertex(double *s, double *r, int mu, int fbwd, double *gauge_fiel
 
       r_fwd_ = r + _GSI(ix_fwd);
 
-      /* s = U_fwd ( g0 - 1 ) r_fwd */
-      _fv_eq_gamma_ti_fv(sp1, 0, r_fwd_);
+      /* s = U_fwd ( g_mu - 1 ) r_fwd */
+      _fv_eq_gamma_ti_fv(sp1, mu, r_fwd_);
       _fv_eq_fv_mi_fv(sp2, sp1, r_fwd_ );
       _fv_eq_cm_ti_fv(sp1, U_fwd, sp2);
       _fv_eq_fv_ti_re(s_, sp1, 0.5);
@@ -1235,8 +1235,8 @@ void apply_cvc_vertex(double *s, double *r, int mu, int fbwd, double *gauge_fiel
 
       r_bwd_ = r + _GSI(ix_bwd);
 
-      /* s += U_bwd^+ ( g0 + 1 ) r_bwd */
-      _fv_eq_gamma_ti_fv(sp1, 0, r_bwd_);
+      /* s += U_bwd^+ ( g_mu + 1 ) r_bwd */
+      _fv_eq_gamma_ti_fv(sp1, mu, r_bwd_);
       _fv_eq_fv_pl_fv(sp2, r_bwd_, sp1);
       _fv_eq_cm_dag_ti_fv(sp1, U_bwd, sp2);
       _fv_eq_fv_ti_re(s_, sp1, 0.5);
@@ -1248,4 +1248,229 @@ void apply_cvc_vertex(double *s, double *r, int mu, int fbwd, double *gauge_fiel
 
 }  /* end of apply_cvc_vertex_eo */
 
+
+/***********************************************************
+ * apply the cvc vertex structure to an even/odd propagator
+ * field
+ *   input: r, direction mu \in {0,1,2,3}, fbwd forward 0 / backward 1
+ *          r must have halo for exchange
+ *          EO = 0/ 1 for eo / oe;  EO property of output field 
+ *          (cvc vertex toggles EO property of fields )
+ *          gauge field
+ *   output: s
+ ***********************************************************/
+
+void apply_cvc_vertex_propagator_eo ( fermion_propagator_type *s, fermion_propagator_type *r, int mu, int fbwd, double *gauge_field, int EO) {
+
+  const unsigned int N  = VOLUME / 2;
+  const unsigned int N2 = (VOLUME+RAND) / 2;
+
+#ifdef HAVE_MPI
+  xchange_eo_propagator ( r , 1-EO, mu);
+#endif
+
+  if ( fbwd == 0 ) {
+    /**************************************************************
+     * FORWARD
+     **************************************************************/
+#ifdef HAVE_OPENMP
+#pragma omp parallel shared(s,r,gauge_field,EO)
+{
+#endif
+    unsigned int ix, ix_lexic;
+    unsigned int ix_fwd;
+    double *U_fwd = NULL;
+    fermion_propagator_type fp1, fp2;
+    fermion_propagator_type *s_ = NULL, *r_fwd_ = NULL;
+
+    create_fp(&fp1);
+    create_fp(&fp2);
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(ix = 0; ix < N; ix++ ) {
+    
+      s_ = s[ix];
+      
+      _fp_eq_zero(s_);
+
+      /* ix is an even / odd point */
+      ix_lexic = g_eo2lexic[ix + (unsigned int)(EO * N2)];
+
+      /* ============================================ */
+      /* =============== direction mu =============== */
+      U_fwd = gauge_field+_GGI(ix_lexic,mu);
+
+      /* ix_fwd is odd / even points */
+      ix_fwd = g_lexic2eosub[ g_iup[ix_lexic][mu] ];
+
+      r_fwd_ = r[ix_fwd];
+
+      /* s = U_fwd ( g_mu - 1 ) r_fwd */
+      _fp_eq_gamma_ti_fp(fp1, mu, r_fwd_);
+      _fp_eq_fp_mi_fp(fp2, fp1, r_fwd_ );
+      _fp_eq_cm_ti_fp(fp1, U_fwd, fp2);
+      _fp_eq_fp_ti_re(s_, fp1, 0.5);
+
+    }  /* end of loop on ix over VOLUME / 2 */
+
+    free_fp(&fp1);
+    free_fp(&fp2);
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+ } else if ( fbwd == 1 ) {
+    /**************************************************************
+     * BACKWARD
+     **************************************************************/
+#ifdef HAVE_OPENMP
+#pragma omp parallel shared(s,r,gauge_field,EO)
+{
+#endif
+    unsigned int ix, ix_lexic;
+    unsigned int ix_bwd;
+    double *U_bwd = NULL;
+    fermion_propagator_type fp1, fp2;
+    fermion_propagator_type *s_ = NULL, *r_bwd_ = NULL;
+
+    create_fp(&fp1);
+    create_fp(&fp2);
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(ix = 0; ix < N; ix++ ) {
+    
+      s_ = s[ix];
+      
+      _fp_eq_zero(s_);
+
+      /* ix is an even / odd point */
+      ix_lexic = g_eo2lexic[ix + (unsigned int)(EO * N2)];
+
+      /* ============================================ */
+      /* =============== direction mu =============== */
+      U_bwd = gauge_field+_GGI( g_idn[ix_lexic][mu], mu);
+
+      /* ix_bwd is odd / even point */
+      ix_bwd = g_lexic2eosub[ g_idn[ix_lexic][mu] ];
+
+      r_bwd_ = r[ix_bwd];
+
+      /* s = U_bwd^+ ( g_mu + 1 ) r_bwd */
+      _fp_eq_gamma_ti_fp(fp1, mu, r_bwd_);
+      _fp_eq_fp_pl_fp(fp2, r_bwd_, fp1);
+      _fp_eq_cm_dag_ti_fp(fp1, U_bwd, fp2);
+      _fp_eq_fp_ti_re(s_, fp1, 0.5);
+    }  /* end of loop on ix over VOLUME / 2 */
+
+    free_fp(&fp1);
+    free_fp(&fp2);
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+ }  /* end of if fbwd = 0 or 1 */
+
+}  /* end of apply_cvc_vertex_propagator_eo */
+
+/***********************************************************
+ * apply the cvc vertex structure to an even/odd propagator
+ *   from the right
+ * field
+ *   input: r, direction mu \in {0,1,2,3}, fbwd forward 0 / backward 1
+ *          r must have halo for exchange
+ *          EO = 0/ 1 for eo / oe;  EO property of output field 
+ *          (cvc vertex toggles EO property of fields )
+ *          gauge field
+ *   output: s
+ *
+ *   safe, if r and s point to the same memory region
+ ***********************************************************/
+void apply_propagator_constant_cvc_vertex ( fermion_propagator_type *s, fermion_propagator_type *r, int mu, int fbwd, double U[18] ) {
+
+
+  const unsigned int N  = VOLUME / 2;
+  const unsigned int N2 = (VOLUME+RAND) / 2;
+
+  if ( fbwd == 0 ) {
+    /**************************************************************
+     * FORWARD
+     **************************************************************/
+#ifdef HAVE_OPENMP
+#pragma omp parallel shared(s,r,gauge_field,EO)
+{
+#endif
+    unsigned int ix;
+    fermion_propagator_type fp1, fp2;
+    fermion_propagator_type *s_ = NULL, *r_ = NULL;
+
+    create_fp(&fp1);
+    create_fp(&fp2);
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(ix = 0; ix < N; ix++ ) {
+    
+      s_ = s[ix];
+      r_ = r[ix];
+      
+      /* ============================================ */
+      /* =============== direction mu =============== */
+
+      /* s = r_ U ( g_mu - 1 ) */
+      _fp_eq_fp_ti_gamma(fp1, mu, r_);
+      _fp_eq_fp_mi_fp(fp2, fp1, r_ );
+      _fp_eq_fp_ti_cm(fp1, U, fp2);
+      _fp_eq_fp_ti_re(s_, fp1, 0.5);
+
+    }  /* end of loop on ix over VOLUME / 2 */
+
+    free_fp(&fp1);
+    free_fp(&fp2);
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+ } else if ( fbwd == 1 ) {
+    /**************************************************************
+     * BACKWARD
+     **************************************************************/
+#ifdef HAVE_OPENMP
+#pragma omp parallel shared(s,r,gauge_field,EO)
+{
+#endif
+    unsigned int ix;
+    fermion_propagator_type fp1, fp2;
+    fermion_propagator_type *s_ = NULL, *r_ = NULL;
+
+    create_fp(&fp1);
+    create_fp(&fp2);
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(ix = 0; ix < N; ix++ ) {
+    
+      s_ = s[ix];
+      r_ = r[ix];
+      
+      /* ============================================ */
+      /* =============== direction mu =============== */
+
+      /* s = r_ U^+ ( g_mu + 1 ) */
+      _fp_eq_fp_ti_gamma_(fp1, mu, r_ );
+      _fp_eq_fp_pl_fp(fp2, r_, fp1);
+      _fp_eq_fp_ti_cm_dagger(fp1, U, fp2);
+      _fp_eq_fp_ti_re(s_, fp1, 0.5);
+    }  /* end of loop on ix over VOLUME / 2 */
+
+    free_fp(&fp1);
+    free_fp(&fp2);
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+ }  /* end of if fbwd = 0 or 1 */
+
+}  /* end of apply_cvc_vertex_propagator_eo */
+
+}  /* end of namespace cvc */
 }  /* end of namespace cvc */

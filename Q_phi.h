@@ -37,5 +37,7 @@ void apply_cvc_vertex_eo(double *s, double *r, int mu, int fbwd, double *gauge_f
 
 void apply_cvc_vertex(double *s, double *r, int mu, int fbwd, double *gauge_field);
 
+void apply_cvc_vertex_propagator_eo ( fermion_propagator_type *s, fermion_propagator_type *r, int mu, int fbwd, double *gauge_field, int EO);
+
 }  /* end of namespace cvc */
 #endif

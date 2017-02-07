@@ -5039,6 +5039,144 @@ void xchange_eo_field(double *phi, int eo) {
 }  /* xchange_eo_field */
 
 
+/*****************************************************
+ * exchange an eo propagator field
+ *   input: fp  - even or odd propagator field
+ *          eo  - flag for even (0) and odd (1)
+ *          dir - direction in which to exchange or -1 for
+ *                all directions
+ *****************************************************/
+void xchange_eo_propagator ( fermion_propagator_type *fp, int eo, int dir) {
+#ifdef HAVE_MPI
+  const unsigned int Vhalf = VOLUME / 2;
+  const int LZh = LZ / 2;
+  /* =================================================== */
+  const unsigned int Tslice   =      LX * LY * LZ / 2;
+  const unsigned int Xslice   =  T *      LY * LZ / 2;
+  const unsigned int Yslice   =  T * LX *      LZ / 2;
+  const unsigned int Zslice   =  T * LX * LY      / 2;
+  /* =================================================== */
+  const unsigned int TXslice  =           LY * LZ / 2;
+  const unsigned int TXYslice =                LZ / 2;
+  /* =================================================== */
+  int cntr=0;
+/*
+  int i, error_string_length;
+  char error_string[400];
+*/
+
+  const unsigned int Zshift_start = eo ? LZ / 2 : 0;
+  const unsigned int Zshift_end   = eo ? 0 : LZ / 2;
+
+  double *phi = &(fp[0][0][0])
+
+  MPI_Request request[220];
+  MPI_Status status[220];
+
+  if( dir == -1 || dir == 0) {
+    /* t - boundary faces */
+    MPI_Isend(&phi[0],                                          1, eo_propagator_time_slice_cont, g_nb_t_dn, 183, g_cart_grid, &request[cntr]);
+    cntr++;
+    MPI_Irecv(&phi[288*Vhalf],                                   1, eo_propagator_time_slice_cont, g_nb_t_up, 183, g_cart_grid, &request[cntr]);
+    cntr++;
+ 
+    MPI_Isend(&phi[288*(T-1)*Tslice],                            1, eo_propagator_time_slice_cont, g_nb_t_up, 184, g_cart_grid, &request[cntr]);
+    cntr++;
+    MPI_Irecv(&phi[288*(T+1)*Tslice],                            1, eo_propagator_time_slice_cont, g_nb_t_dn, 184, g_cart_grid, &request[cntr]);
+    cntr++;
+
+  }
+#if (defined PARALLELTX) || (defined PARALLELTXY)  || (defined PARALLELTXYZ) 
+ 
+  if(dir == -1 || dir == 1) {
+    /* x - boundary faces */
+    MPI_Isend(&phi[0],                                          1, eo_propagator_x_slice_vector, g_nb_x_dn, 185, g_cart_grid, &request[cntr]);
+    cntr++;
+    MPI_Irecv(&phi[288*(Vhalf+2*Tslice)],                        1, eo_propagator_x_slice_cont,   g_nb_x_up, 185, g_cart_grid, &request[cntr]);
+    cntr++;
+
+    MPI_Isend(&phi[288*(Tslice-TXslice)],                        1, eo_propagator_x_slice_vector, g_nb_x_up, 186, g_cart_grid, &request[cntr]);
+    cntr++;
+    MPI_Irecv(&phi[288*(Vhalf+2*Tslice+Xslice)],                 1, eo_propagator_x_slice_cont,   g_nb_x_dn, 186, g_cart_grid, &request[cntr]);
+    cntr++;
+  }
+#endif
+
+
+#if defined PARALLELTXY || (defined PARALLELTXYZ) 
+
+  if(dir == -1 || dir == 2) {
+    /* y - boundary faces */
+    MPI_Isend(&phi[0],                                          1, eo_propagator_y_slice_vector, g_nb_y_dn, 187, g_cart_grid, &request[cntr]);
+    cntr++;
+    MPI_Irecv(&phi[288*(Vhalf+2*(Tslice+Xslice))],               1, eo_propagator_y_slice_cont,   g_nb_y_up, 187, g_cart_grid, &request[cntr]);
+    cntr++;
+
+    MPI_Isend(&phi[288*( TXslice - TXYslice)],                   1, eo_propagator_y_slice_vector, g_nb_y_up, 188, g_cart_grid, &request[cntr]);
+    cntr++;
+    MPI_Irecv(&phi[288*(Vhalf+2*(Tslice+Xslice)+Yslice)],        1, eo_propagator_y_slice_cont,   g_nb_y_dn, 188, g_cart_grid, &request[cntr]);
+    cntr++;
+  }
+#endif
+
+
+#if (defined PARALLELTXYZ) 
+
+  if( dir == -1 || dir == 3 ) {
+    /* z - boundary faces */
+
+    if ( eo == 0 ) {
+      /* even field */
+ 
+      MPI_Isend(&phi[0],                                          1, eo_propagator_z_even_bwd_slice_struct, g_nb_z_dn, 189, g_cart_grid, &request[cntr]);
+      cntr++;
+
+      MPI_Irecv(&phi[288*(Vhalf+2*(Tslice+Xslice+Yslice))],        1, eo_propagator_z_slice_cont,            g_nb_z_up, 189, g_cart_grid, &request[cntr]);
+      cntr++;
+
+      MPI_Isend(&phi[0],                                          1, eo_propagator_z_even_fwd_slice_struct, g_nb_z_up, 190, g_cart_grid, &request[cntr]);
+      cntr++;
+
+      MPI_Irecv(&phi[288*(Vhalf+2*(Tslice+Xslice+Yslice)+Zslice)], 1, eo_propagator_z_slice_cont,            g_nb_z_dn, 190, g_cart_grid, &request[cntr]);
+      cntr++;
+
+    } else {
+      /* odd field */
+
+      MPI_Isend(&phi[0],                                          1, eo_propagator_z_odd_bwd_slice_struct,  g_nb_z_dn, 189, g_cart_grid, &request[cntr]);
+      cntr++;
+
+      MPI_Irecv(&phi[288*(Vhalf+2*(Tslice+Xslice+Yslice))],        1, eo_propagator_z_slice_cont,            g_nb_z_up, 189, g_cart_grid, &request[cntr]);
+      cntr++;
+
+      MPI_Isend(&phi[0],                                          1, eo_propagator_z_odd_fwd_slice_struct,  g_nb_z_up, 190, g_cart_grid, &request[cntr]);
+      cntr++;
+
+      MPI_Irecv(&phi[288*(Vhalf+2*(Tslice+Xslice+Yslice)+Zslice)], 1, eo_propagator_z_slice_cont,            g_nb_z_dn, 190, g_cart_grid, &request[cntr]);
+      cntr++;
+
+    }
+  }
+
+#endif  /* of if defined PARALLELTXYZ */
+
+  /* fprintf(stdout, "# [xchange_eo_field] proc%.4d starting MPI_Waitall\n", g_cart_id); */
+
+  MPI_Waitall(cntr, request, status);
+
+/* TEST
+  if(g_cart_id == 0) {
+    for(i=0; i<cntr; i++) {
+      MPI_Error_string(status[i].MPI_ERROR, error_string, &error_string_length);
+      fprintf(stdout, "# [xchange_eo_field] %3d %s\n", i,  error_string);
+    }
+  }
+*/
+
+#endif
+}  /* xchange_eo_propagator */
+
+
 /***********************************************************
  * unpack lexic to odd,odd
  * - decompose lexicorgraphic spinor field into 2 odd parts
