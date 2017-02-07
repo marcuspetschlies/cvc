@@ -1827,14 +1827,14 @@ int main(int argc, char **argv) {
   }
 #endif
 
-/*
+
   free(propagator_list_up[0]);
   free(propagator_list_up);
   if( g_fermion_type == _TM_FERMION ) {
     free(propagator_list_dn[0]);
     free(propagator_list_dn);
   }
-*/
+
   free( stochastic_source_list[0] );
   free( stochastic_source_list );
 
