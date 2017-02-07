@@ -63,7 +63,6 @@ extern "C"
 #include "prepare_source.h"
 #include "prepare_propagator.h"
 #include "contract_baryon.h"
-/* #include "invert_Qtm.h" */
 
 using namespace cvc;
 
@@ -683,12 +682,6 @@ int main(int argc, char **argv) {
         /* source-smear the coherent source */
         exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
 
-        /* 
-        double norm;
-        spinor_scalar_product_re(&norm, spinor_work[0], spinor_work[0], VOLUME);
-        if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] inverting for i_src = %d, i_prop = %d, is = %d, initial norm = %f\n", i_src, i_prop, is, norm);
-        */
-
         /* tm-rotate sequential source */
         if( g_fermion_type == _TM_FERMION ) {
           spinor_field_tm_rotation(spinor_work[0], spinor_work[0], +1, g_fermion_type, VOLUME);
@@ -811,10 +804,10 @@ int main(int argc, char **argv) {
         }
         /* add complex phase from source location and source momentum
          *   assumes momentum conservation 
-         */
+
         if( g_cart_id == 0 ) fprintf(stderr, "[piN2piN] Warning, add_source_phase called for N - N 2-point function\n");
         add_source_phase (connt, NULL, NULL, &(gsx[1]), 1);
-
+         */
         /* write to file */
        
         ratime = _GET_TIME;
