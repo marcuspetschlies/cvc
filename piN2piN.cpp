@@ -1596,11 +1596,11 @@ int main(int argc, char **argv) {
 
           /* tm-rotate stochastic source */
           if( g_fermion_type == _TM_FERMION ) {
-            spinor_field_tm_rotation ( spinor_work[0], spinor_work[0], -1, g_fermion_type, VOLUME);
+            spinor_field_tm_rotation ( spinor_work[0], spinor_work[0], +1, g_fermion_type, VOLUME);
           }
 
           memset(spinor_work[1], 0, sizeof_spinor_field);
-          exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_dn, 0);
+          exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_up, 0);
           if(exitstatus != 0) {
             fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
             EXIT(44);
@@ -1608,7 +1608,7 @@ int main(int argc, char **argv) {
 
           /* tm-rotate stochastic propagator at sink */
           if( g_fermion_type == _TM_FERMION ) {
-            spinor_field_tm_rotation(spinor_work[1], spinor_work[1], -1, g_fermion_type, VOLUME);
+            spinor_field_tm_rotation(spinor_work[1], spinor_work[1], +1, g_fermion_type, VOLUME);
           }
 
           /* sink smearing stochastic propagator */
@@ -1654,8 +1654,6 @@ int main(int argc, char **argv) {
 
             memcpy( stochastic_propagator_list[4+i], spinor_work[1], sizeof_spinor_field_timeslice);
           }
-
-          FILE*ofs 
 
           /***********************
            ***********************
