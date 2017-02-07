@@ -3719,22 +3719,28 @@ void contract_twopoint_xdep(void*contr, const int idsource, const int idsink, vo
 #endif
   for(ix=0; ix<VOLUME; ix++) {
     iix = ix * stride;
+    double *contr_ = ((double*)contr) + 2*iix;
+    contr_[0] = 0.;
+    contr_[1] = 0.;
 
     for(mu=0; mu<4; mu++) {
       for(c=0; c<n_c; c++) {
 
+#if 0
         if(prec==64) {
+#endif /* olf if 0  */
           _fv_eq_gamma_ti_fv(spinor1, idsink, (double*)(((double**)phi)[mu*n_c+c])+_GSI(ix));
           _fv_eq_gamma_ti_fv(spinor2, 5, spinor1);
           _co_eq_fv_dag_ti_fv(&w, (double*)(((double**)chi)[psource[mu]*n_c+c])+_GSI(ix), spinor2);
 
           if( !isimag ) {
-            ((double*)contr)[2*iix  ] += factor * ssource[mu] * w.re;
-            ((double*)contr)[2*iix+1] += factor * ssource[mu] * w.im;
+            contr_[0] += factor * ssource[mu] * w.re;
+            contr_[1] += factor * ssource[mu] * w.im;
           } else {
-            ((double*)contr)[2*iix  ] +=  factor * ssource[mu] * w.im;
-            ((double*)contr)[2*iix+1] += -factor * ssource[mu] * w.re;
+            contr_[0] +=  factor * ssource[mu] * w.im;
+            contr_[1] += -factor * ssource[mu] * w.re;
           }
+#if 0
         } else {
           _fv_eq_gamma_ti_fv(spinor1, idsink, (float*)(((float**)phi)[mu*n_c+c])+_GSI(ix));
           _fv_eq_gamma_ti_fv(spinor2, 5, spinor1);
@@ -3748,6 +3754,7 @@ void contract_twopoint_xdep(void*contr, const int idsource, const int idsink, vo
             ((float*)contr)[2*iix+1] += -factor * ssource[mu] * w.re;
           }
         }
+#endif  /* of if 0 */
 /*
         if(g_cart_id==0) 
           fprintf(stdout, "# source[%2d, %2d] = %25.16e +I %25.16e\n", mu, tt, 
