@@ -672,6 +672,8 @@ int main(int argc, char **argv) {
     propagator_list_dn  = propagator_list_up;
   }
 
+#if 0
+
   /***********************************************************
    ***********************************************************
    **
@@ -1507,6 +1509,8 @@ int main(int argc, char **argv) {
   free( stochastic_propagator_list[0] );
   free( stochastic_propagator_list );
 
+#endif  /* of if 0 */
+
   /***********************************************
    ***********************************************
    **
@@ -1650,6 +1654,8 @@ int main(int argc, char **argv) {
 
             memcpy( stochastic_propagator_list[4+i], spinor_work[1], sizeof_spinor_field_timeslice);
           }
+
+          FILE*ofs 
 
           /***********************
            ***********************
