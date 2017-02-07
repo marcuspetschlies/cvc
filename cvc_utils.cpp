@@ -4166,7 +4166,7 @@ int init_rng_stat_file (unsigned int seed, char*filename) {
   free(buffer);
 #endif
 
-  fprintf(stdout, "# [init_rng_stat_file] proc%.4d ranldxd: using seed %u and level 2\n", g_cart_id, l_seed);
+  /* fprintf(stdout, "# [init_rng_stat_file] proc%.4d ranldxd: using seed %u and level 2\n", g_cart_id, l_seed); */
   rlxd_init(2, l_seed);
 
   c = rlxd_size();
