@@ -1,5 +1,5 @@
 /****************************************************
- * piN2piN.cpp
+ * piN2piN.c
  * 
  * Thu Dec  1 15:14:13 CET 2016
  *
@@ -64,8 +64,81 @@ extern "C"
 #include "prepare_propagator.h"
 #include "contract_baryon.h"
 
+#include <string>
+#include <iostream>
+#include <iomanip>
+
 using namespace cvc;
 
+
+/**
+ * class for time measurement
+ */
+
+class TimeMeas{
+
+private:
+  double t;
+  std::string secname;
+
+public:
+
+  TimeMeas() {};
+
+  void begin(std::string name){
+    end();
+    t = MPI_Wtime();
+    secname = name;
+  }
+
+  void end(){
+    if(secname == "") return;
+    int world_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+    if(world_rank != 0) return;
+    double dt = MPI_Wtime() - t;
+    std::cout << "# [GlobTimeMeas] (" << g_proc_coords[0] << "," << g_proc_coords[1] << "," << g_proc_coords[2] << "," << g_proc_coords[3] << ") section " << secname << " finished in " << std::setprecision(4) << ((float)dt) << "s" << std::endl;
+    secname = "";
+    t = 0;
+  }
+
+
+};
+
+/*
+ * Functions to reduce output
+ * */
+int mpi_fprintf(FILE* stream, const char * format, ...){
+  int world_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+  if(world_rank == 0){
+    va_list arg;
+    int done;
+
+    va_start(arg,format);
+    done = vfprintf(stream,format,arg);
+    va_end(arg);
+
+    return done;
+  }
+  return 0;
+}
+
+int mpi_printf(const char * format, ...){
+  int world_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+  if(world_rank == 0){
+    va_list arg;
+    int done;
+
+    va_start(arg,format);
+    done = vfprintf(stdout,format,arg);
+    va_end(arg);
+
+    return done;
+  }
+  return 0;
+}
 
 /************************************************************************************
  * determine all stochastic source timeslices needed; make a source timeslice list
@@ -213,11 +286,10 @@ int get_point_source_info (int gcoords[4], int lcoords[4], int*proc_id) {
  * usage function
  ***********************************************************/
 void usage() {
-  fprintf(stdout, "Code to perform contractions for piN 2-pt. function\n");
-  fprintf(stdout, "Usage:    [options]\n");
-  fprintf(stdout, "Options: -f input filename [default cvc.input]\n");
-  fprintf(stdout, "         -a write ascii output too [default no ascii output]\n");
-  fprintf(stdout, "         -h? this help\n");
+  mpi_fprintf(stdout, "Code to perform contractions for piN 2-pt. function\n");
+  mpi_fprintf(stdout, "Usage:    [options]\n");
+  mpi_fprintf(stdout, "Options: -f input filename [default cvc.input]\n");
+  mpi_fprintf(stdout, "         -h? this help\n");
 #ifdef HAVE_MPI
   MPI_Abort(MPI_COMM_WORLD, 1);
   MPI_Finalize();
@@ -256,25 +328,30 @@ int main(int argc, char **argv) {
   double **propagator_list_up = NULL, **propagator_list_dn = NULL, **sequential_propagator_list = NULL, **stochastic_propagator_list = NULL,
          **stochastic_source_list = NULL;
   double *gauge_field_smeared = NULL;
+  TimeMeas tm;
 
 /*******************************************************************
  * Gamma components for the piN and Delta:
  *                                                                 */
-  const int num_component_piN_piN        = 1;
-  int gamma_component_piN_piN[1][2]      = { {5, 5} };
-  double gamma_component_sign_piN_piN[1] = {+1.};
+// gamma_6 = 0_5
+// gamma_4 = id
+  const int num_component_piN_piN        = 9;
+  int gamma_component_piN_piN[9][2]      = { {5, 5}, {4,4}, {6,6}, {5,4}, {5,6}, {4,5}, {4,6}, {6,5}, {6,4} };
+  double gamma_component_sign_piN_piN[9] = {+1, +1, +1, +1, +1, +1, +1, +1, +1};
 
-  const int num_component_D_D        = 4;
-  int gamma_component_D_D[4][2]      = { {0,0}, {1, 1}, {2, 2}, {3, 3}};
-  double gamma_component_sign_D_D[4] = {+1.,+1.,-1.,+1.};
+  const int num_component_N_N        = 9;
+  int gamma_component_N_N[9][2]      = { {5, 5}, {4,4}, {6,6}, {5,4}, {5,6}, {4,5}, {4,6}, {6,5}, {6,4} };
+  double gamma_component_sign_N_N[9] = {+1, +1, +1, +1, +1, +1, +1, +1, +1};
 
+  const int num_component_D_D        = 9;
+  int gamma_component_D_D[9][2]      = {{1,1}, {1,2}, {1,3}, {2,1}, {2,2}, {2,3}, {3,1}, {3,2}, {3,3}};
+  double gamma_component_sign_D_D[9] = {+1.,-1.,+1.,+1,-1,+1,+1,-1,+1};
 
+  const int num_component_piN_D        = 9;
+  int gamma_component_piN_D[9][2]      = { {1, 5}, {2, 5}, {3, 5}, {1,4}, {2,4}, {3,4}, {1,6}, {2,6}, {3,6}};
+  double gamma_component_sign_piN_D[9] = {+1., +1., +1., +1., +1., +1., +1., +1. ,+1.};
 
-  const int num_component_piN_D        = 4;
-  int gamma_component_piN_D[4][2]      = { {0,5}, {1, 5}, {2, 5}, {3, 5}};
-  double gamma_component_sign_piN_D[4] = {+1., +1., +1., +1.};
-
-  int num_component_max = 4;
+  int num_component_max = 9;
 /*
  *******************************************************************/
 
@@ -307,19 +384,19 @@ int main(int argc, char **argv) {
 
   /* set the default values */
   if(filename_set==0) strcpy(filename, "cvc.input");
-  fprintf(stdout, "# reading input from file %s\n", filename);
+  mpi_fprintf(stdout, "# reading input from file %s\n", filename);
   read_input_parser(filename);
 
   if(g_fermion_type == -1 ) {
     fprintf(stderr, "# [piN2piN] fermion_type must be set\n");
     exit(1);
   } else {
-    fprintf(stdout, "# [piN2piN] using fermion type %d\n", g_fermion_type);
+    mpi_fprintf(stdout, "# [piN2piN] using fermion type %d\n", g_fermion_type);
   }
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
 
-  fprintf(stdout, "# [piN2piN] calling tmLQCD wrapper init functions\n");
+  mpi_fprintf(stdout, "# [piN2piN] calling tmLQCD wrapper init functions\n");
 
   /*********************************
    * initialize MPI parameters for cvc
@@ -344,7 +421,7 @@ int main(int argc, char **argv) {
 #ifdef HAVE_OPENMP
   omp_set_num_threads(g_num_threads);
 #else
-  fprintf(stdout, "[piN2piN] Warning, resetting global thread number to 1\n");
+  mpi_fprintf(stdout, "[piN2piN] Warning, resetting global thread number to 1\n");
   g_num_threads = 1;
 #endif
 
@@ -787,36 +864,37 @@ int main(int argc, char **argv) {
        ***********************/
       for(i=0; i<max_num_diagram; i++) { memset(conn_X[i][0][0], 0, 2*VOLUME*g_sv_dim*g_sv_dim*sizeof(double)); }
 
-      exitstatus = contract_N_N (conn_X, &(propagator_list_up[i_prop*n_s*n_c]), &(propagator_list_dn[i_prop*n_s*n_c]) );
+      exitstatus = contract_N_N (conn_X, &(propagator_list_up[i_prop*n_s*n_c]), &(propagator_list_dn[i_prop*n_s*n_c]) , num_component_N_N, gamma_component_N_N, gamma_component_sign_N_N);
+
       for(i=0; i<2; i++) {
         /* phase from quark field boundary condition */
-        add_baryon_boundary_phase (conn_X[i], gsx[0], 1);
+        add_baryon_boundary_phase (conn_X[i], gsx[0], num_component_N_N);
 
         /* momentum projection */
         double ****connt = NULL;
-        if( (exitstatus = init_4level_buffer(&connt, T, g_sink_momentum_number, g_sv_dim, 2*g_sv_dim) ) != 0 ) {
+        if( (exitstatus = init_4level_buffer(&connt, T, g_sink_momentum_number, num_component_N_N * g_sv_dim, 2*g_sv_dim) ) != 0 ) {
           fprintf(stderr, "[piN2piN] Error from init_4level_buffer, status was %d\n", exitstatus);
           EXIT(57);
         }
         for(it=0; it<T; it++) {
-          exitstatus = momentum_projection2 (conn_X[i][it*VOL3][0], connt[it][0][0], g_sv_dim*g_sv_dim, g_sink_momentum_number, g_sink_momentum_list, NULL );
+          exitstatus = momentum_projection2 (conn_X[i][it*VOL3*num_component_N_N][0], connt[it][0][0], num_component_N_N*g_sv_dim*g_sv_dim, g_sink_momentum_number, g_sink_momentum_list, NULL );
         }
         /* add complex phase from source location and source momentum
          *   assumes momentum conservation 
-
-        if( g_cart_id == 0 ) fprintf(stderr, "[piN2piN] Warning, add_source_phase called for N - N 2-point function\n");
-        add_source_phase (connt, NULL, NULL, &(gsx[1]), 1);
          */
+        //if( g_cart_id == 0 ) fprintf(stderr, "[piN2piN] Warning, add_source_phase called for N - N 2-point function\n");
+        //add_source_phase (connt, NULL, NULL, &(gsx[1]), num_component_N_N);
+
         /* write to file */
        
         ratime = _GET_TIME;
 #ifdef HAVE_MPI
         if(io_proc>0) {
-          if( (init_4level_buffer(&buffer, T_global, g_sink_momentum_number, g_sv_dim, 2*g_sv_dim) ) != 0 ) {
+          if( (exitstatus = init_4level_buffer(&buffer, T_global, g_sink_momentum_number, num_component_N_N*g_sv_dim, 2*g_sv_dim) ) != 0 ) {
             fprintf(stderr, "[piN2piN] Error from init_4level_buffer, status was %d\n", exitstatus);
             EXIT(58);
           }
-          k = T * g_sink_momentum_number * g_sv_dim * g_sv_dim * 2;
+          k = T * g_sink_momentum_number * num_component_N_N * g_sv_dim * g_sv_dim * 2;
           exitstatus = MPI_Allgather(connt[0][0][0], k, MPI_DOUBLE, buffer[0][0][0], k, MPI_DOUBLE, g_tr_comm);
           if(exitstatus != MPI_SUCCESS) {
             fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d\n", exitstatus);
@@ -830,27 +908,27 @@ int main(int argc, char **argv) {
         if(io_proc == 2) {
 #ifdef HAVE_LHPC_AFF
           for(k=0; k<g_sink_momentum_number; k++) {
+            for(icomp=0; icomp<num_component_N_N; icomp++) {
 
-            sprintf(aff_buffer_path, "/%s/diag%d/pf1x%.2dpf1y%.2dpf1z%.2d/t%.2dx%.2dy%.2dz%.2d",
-                "N-N", i,
-                g_sink_momentum_list[k][0],                g_sink_momentum_list[k][1],                g_sink_momentum_list[k][2],
-                gsx[0], gsx[1], gsx[2], gsx[3]);
+              sprintf(aff_buffer_path, "/%s/diag%d/pf1x%.2dpf1y%.2dpf1z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d",
+                  "N-N", i,
+                  g_sink_momentum_list[k][0],                g_sink_momentum_list[k][1],                g_sink_momentum_list[k][2],
+                  gsx[0], gsx[1], gsx[2], gsx[3],
+                  gamma_component_N_N[icomp][0], gamma_component_N_N[icomp][1]);
 
-            fprintf(stdout, "# [piN2piN] current aff path = %s\n", aff_buffer_path);
+              fprintf(stdout, "# [piN2piN] current aff path = %s\n", aff_buffer_path);
 
-            affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
-
-            for(it=0; it<T_global; it++) {
-              ir = ( it - gsx[0] + T_global ) % T_global;
-              memcpy(aff_buffer + ir*g_sv_dim*g_sv_dim,  buffer[it][k][0] , g_sv_dim*g_sv_dim*sizeof(double _Complex) );
-            }
-
-            int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
-            if(status != 0) {
-              fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d\n", status);
-              EXIT(80);
-            }
- 
+              affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
+              for(it=0; it<T_global; it++) {
+                ir = ( it - gsx[0] + T_global ) % T_global;
+                memcpy(aff_buffer + ir*g_sv_dim*g_sv_dim,  buffer[it][k][icomp*g_sv_dim] , g_sv_dim*g_sv_dim*sizeof(double _Complex) );
+              }
+              int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
+              if(status != 0) {
+                fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d\n", status);
+                EXIT(81);
+              }
+            }  /* end of loop on components */
           }  /* end of loop on sink momenta */
 #endif
         }  /* end of if io_proc == 2 */
