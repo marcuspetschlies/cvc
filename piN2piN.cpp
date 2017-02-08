@@ -581,7 +581,6 @@ int main(int argc, char **argv) {
   }
   for(i=1; i<no_fields; i++) propagator_list_up[i] = propagator_list_up[i-1] + _GSI(VOLUME);
 
-  ratime = _GET_TIME;
   if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] up-type inversion\n");
   for(i_src = 0; i_src<g_source_location_number; i_src++) {
     int t_base = g_source_coords_list[i_src][0];
@@ -592,6 +591,8 @@ int main(int argc, char **argv) {
       gsx[1] = ( g_source_coords_list[i_src][1] + (LX_global/2) * i_coherent ) % LX_global;
       gsx[2] = ( g_source_coords_list[i_src][2] + (LY_global/2) * i_coherent ) % LY_global;
       gsx[3] = ( g_source_coords_list[i_src][3] + (LZ_global/2) * i_coherent ) % LZ_global;
+
+      ratime = _GET_TIME;
       get_point_source_info (gsx, sx, &source_proc_id);
 
       for(is=0;is<n_s*n_c;is++) {
@@ -622,12 +623,11 @@ int main(int argc, char **argv) {
 
         memcpy( propagator_list_up[i_prop*n_s*n_c + is], spinor_work[1], sizeof_spinor_field);
       }  /* end of loop on spin color */
-
       retime = _GET_TIME;
       if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] time for up propagator = %e seconds\n", retime-ratime);
+
     }  /* end of loop on coherent source timeslices */
   }    /* end of loop on base source timeslices */
-
 
   /***********************************************************
    * dn-type propagator
@@ -643,7 +643,6 @@ int main(int argc, char **argv) {
     for(i=1; i<no_fields; i++) propagator_list_dn[i] = propagator_list_dn[i-1] + _GSI(VOLUME);
 
     if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] dn-type inversion\n");
-    ratime = _GET_TIME;
     for(i_src = 0; i_src<g_source_location_number; i_src++) {
       int t_base = g_source_coords_list[i_src][0];
       for(i_coherent=0; i_coherent<g_coherent_source_number; i_coherent++) {
@@ -654,7 +653,9 @@ int main(int argc, char **argv) {
         gsx[2] = ( g_source_coords_list[i_src][2] + (LY_global/2) * i_coherent ) % LY_global;
         gsx[3] = ( g_source_coords_list[i_src][3] + (LZ_global/2) * i_coherent ) % LZ_global;
 
+        ratime = _GET_TIME;
         get_point_source_info (gsx, sx, &source_proc_id);
+
         for(is=0;is<n_s*n_c;is++) {
 
           memset(spinor_work[0], 0, sizeof_spinor_field);
@@ -724,7 +725,7 @@ int main(int argc, char **argv) {
      ***********************************************************/
     if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] sequential inversion fpr pi2 = (%d, %d, %d)\n", 
         g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2]);
-    ratime = _GET_TIME;
+
     double **prop_list = (double**)malloc(g_coherent_source_number * sizeof(double*));
     if(prop_list == NULL) {
       fprintf(stderr, "[piN2piN] Error from malloc\n");
@@ -740,6 +741,7 @@ int main(int argc, char **argv) {
       gsx[2] = g_source_coords_list[i_src][2];
       gsx[3] = g_source_coords_list[i_src][3];
 
+      ratime = _GET_TIME;
       for(is=0;is<n_s*n_c;is++) {
 
 
@@ -794,11 +796,11 @@ int main(int argc, char **argv) {
           }
         }  /* end of if write sequential propagator */
       }  /* end of loop on spin-color component */
+      retime = _GET_TIME;
+      if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] time for seq propagator = %e seconds\n", retime-ratime);
 
 
     }  /* end of loop on base source locations */
-    retime = _GET_TIME;
-    if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] time for seq propagator = %e seconds\n", retime-ratime);
     free(prop_list);
   }  /* end of loop on sequential momentum list */
 
@@ -939,6 +941,8 @@ int main(int argc, char **argv) {
 
 
         fini_4level_buffer(&connt);
+        retime = _GET_TIME;
+        if( io_proc == 2 ) fprintf(stdout, "# [piN2piN] time for writing N-N = %e seconds\n", retime-ratime);
       }  /* end of loop on diagrams */
 
       /***********************
@@ -1026,6 +1030,8 @@ int main(int argc, char **argv) {
 #endif
 
         fini_4level_buffer(&connt);
+        retime = _GET_TIME;
+        if( io_proc == 2 ) fprintf(stdout, "# [piN2piN] time for writing D-D = %e seconds\n", retime-ratime);
       }  /* end of loop on diagrams */
 
       /***********************
@@ -1120,6 +1126,8 @@ int main(int argc, char **argv) {
 #endif
 
           fini_4level_buffer(&connt);
+          retime = _GET_TIME;
+          if( io_proc == 2 ) fprintf(stdout, "# [piN2piN] time for writing piN-D = %e seconds\n", retime-ratime);
         }  /* end of loop on diagrams */
 
       }  /* end of loop on sequential source momenta */       
@@ -1505,6 +1513,9 @@ int main(int argc, char **argv) {
 #endif
 
             fini_4level_buffer(&connt);
+
+            retime = _GET_TIME;
+            if( io_proc == 2 ) fprintf(stdout, "# [piN2piN] time for writing piN-piN BW = %e seconds\n", retime-ratime);
           }
 
         }  /* end of loop on pf2 */
@@ -1763,6 +1774,8 @@ int main(int argc, char **argv) {
           if(io_proc > 0) { fini_2level_buffer(&buffer2); }
 #endif
           fini_2level_buffer(&connt);
+          retime = _GET_TIME;
+          if( io_proc == 2 ) fprintf(stdout, "# [piN2piN] time for writing pi-pi = %e seconds\n", retime-ratime);
 
           /***********************************************
            ***********************************************
@@ -1871,6 +1884,9 @@ int main(int argc, char **argv) {
 #endif
   
               fini_4level_buffer(&connt);
+
+              retime = _GET_TIME;
+              if( io_proc == 2 ) fprintf(stdout, "# [piN2piN] time for writing piN-piN Z = %e seconds\n", retime-ratime);
             }  /* end of loop on diagrams */
 
           }  /* end of loop on seq2 source momentum pf2 */
