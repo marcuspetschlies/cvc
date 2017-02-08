@@ -383,12 +383,15 @@ int momentum_projection (double*V, double *W, unsigned int nv, int momentum_numb
   int x1, x2, x3;
   unsigned int i, ix;
   double _Complex **zphase = NULL;
+  double ratime, retime;
 
   char BLAS_TRANSA, BLAS_TRANSB;
   int BLAS_M, BLAS_K, BLAS_N, BLAS_LDA, BLAS_LDB, BLAS_LDC;
   double _Complex *BLAS_A = NULL, *BLAS_B = NULL, *BLAS_C = NULL;
   double _Complex BLAS_ALPHA = 1.;
   double _Complex BLAS_BETA  = 0.;
+
+  ratime = _GET_TIME;
 
   init_2level_buffer( (double***)(&zphase), momentum_number, 2*VOL3 );
 
@@ -467,6 +470,8 @@ int momentum_projection (double*V, double *W, unsigned int nv, int momentum_numb
   free(buffer);
 #endif
 
+  retime = _GET_TIME;
+  if( g_cart_id == 0 ) fprintf(stdout, "# [momentum_projection] time for momentum_projection = %e seconds\n", retime-ratime);
   return(0);
 }  /* end of momentum_projection */
 
@@ -488,6 +493,7 @@ int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_num
   int x1, x2, x3;
   unsigned int i, ix;
   double _Complex **zphase = NULL;
+  double ratime, retime;
 
   char BLAS_TRANSA, BLAS_TRANSB;
   int BLAS_M, BLAS_K, BLAS_N, BLAS_LDA, BLAS_LDB, BLAS_LDC;
@@ -495,6 +501,8 @@ int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_num
   double _Complex *BLAS_A = NULL, *BLAS_B = NULL, *BLAS_C = NULL;
   double _Complex BLAS_ALPHA = 1.;
   double _Complex BLAS_BETA  = 0.;
+
+  ratime = _GET_TIME;
 
   point *lexic_coords = (point*)malloc(VOL3*sizeof(point));
   if(lexic_coords == NULL) {
@@ -581,6 +589,8 @@ int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_num
   free(buffer);
 #endif
 
+  retime = _GET_TIME;
+  if( g_cart_id == 0 ) fprintf(stdout, "# [momentum_projection2] time for momentum_projection2 = %e seconds\n", retime-ratime);
   return(0);
 }  /* end of momentum_projection2 */
 
@@ -609,12 +619,15 @@ int momentum_projection3 (double*V, double *W, unsigned int nv, int momentum_num
   int x1, x2, x3;
   unsigned int i, ix;
   double _Complex **zphase = NULL;
+  double ratime, retime;
 
   char BLAS_TRANSA, BLAS_TRANSB;
   int BLAS_M, BLAS_K, BLAS_N, BLAS_LDA, BLAS_LDB, BLAS_LDC;
   double _Complex *BLAS_A = NULL, *BLAS_B = NULL, *BLAS_C = NULL;
   double _Complex BLAS_ALPHA = 1.;
   double _Complex BLAS_BETA  = 0.;
+
+  ratime = _GET_TIME;
 
   init_2level_buffer( (double***)(&zphase), momentum_number, 2*VOL3 );
 
@@ -693,6 +706,8 @@ int momentum_projection3 (double*V, double *W, unsigned int nv, int momentum_num
   free(buffer);
 #endif
 
+  retime = _GET_TIME;
+  if( g_cart_id == 0 ) fprintf(stdout, "# [momentum_projection3] time for momentum_projection3 = %e seconds\n", retime-ratime);
   return(0);
 }  /* end of momentum_projection3 */
 
