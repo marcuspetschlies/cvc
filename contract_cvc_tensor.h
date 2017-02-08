@@ -3,31 +3,15 @@
 /****************************************************
  * contract_cvc_tensor.h
  *
- * Thu Nov 17 10:37:10 CET 2016
+ * Tue Feb  7 15:28:04 CET 2017
  *
  ****************************************************/
 
 namespace cvc {
 
-void init_contract_cvc_tensor_gperm(void);
-
 void init_contract_cvc_tensor_usource(double *gauge_field, int source_coords[4]);
 
-void contract_cvc_tensor(double *conn, double *contact_term, double*fwd_list[5][12], double*bwd_list[5][12], double*fwd_list_eo[2][5][12], double*bwd_list_eo[2][5][12]);
-
-void contract_cvc_m(double *conn, int gid, double*fwd_list[5][12], double*bwd_list[5][12], double*fwd_list_eo[2][5][12], double*bwd_list_eo[2][5][12]);
-
-void contract_m_m(double *conn, int idsource, int idsink, double*fwd_list[12], double*bwd_list[12], double*fwd_list_eo[2][12], double*bwd_list_eo[2][12]);
-
-void contract_cvc_loop (double*conn, double**field_list, int field_number, int *momentum_list[3], int momentum_number, double*weight, double mass, double**eo_work);
-
-void contract_m_loop (double*conn, double**field_list, int field_number, int *gid_list, int gid_number, int *momentum_list[3], int momentum_number, double*weight, double mass, double**eo_work);
-
-void contract_cvc_loop_clover (double*conn, double**field_list, int field_number, int *momentum_list[3], int momentum_number, double*weight,
-       double*mzz_dn, double*mzzinv_up, double*mzzinv_dn, double**eo_work);
-
-void contract_m_loop_clover (double*conn, double**field_list, int field_number, int *gid_list, int gid_number,
-        int *momentum_list[3], int momentum_number, double*weight, double*mzz_dn, double*mzzinv_up, double*mzzinv_dn, double**eo_work);
+void contract_cvc_tensor_eo ( double *conn, double *contact_term, double**sprop_list_e, double**sprop_list_o, double**tprop_list_e, double**tprop_list_o  );
 
 }  /* end of namespace cvc */
 
