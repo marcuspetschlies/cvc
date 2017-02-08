@@ -38,7 +38,9 @@ namespace cvc {
 int prepare_volume_source(double *s, unsigned int V) {
 
   int status = 0;
+  double ratime, retime;
 
+  ratime = _GET_TIME;
   switch(g_noise_type) {
     case 1:
       /* status = rangauss(s, 24*V); */
@@ -49,7 +51,8 @@ int prepare_volume_source(double *s, unsigned int V) {
       status = ranz2(s, _GSI(V) );
       break;
   }
-
+  retime = _GET_TIME;
+  if( g_cart_id == 0 ) fprintf(stdout, "# [prepare_volume_source] time for prepare_volume_source = %e seconds\n", retime-ratime);
   return(status);
 }  /* end of prepare_volume_source */
 
@@ -622,6 +625,9 @@ int init_coherent_sequential_source(double *s, double **p, int tseq, int ncoh, i
   const size_t sizeof_spinor_field_timeslice = _GSI(LX*LY*LZ) * sizeof(double);
 
   int have_source=0, lts=-1, icoh;
+  double ratime, retime;
+
+  ratime = _GET_TIME;
 
   if(s == NULL || p == NULL) {
     fprintf(stderr, "[init_coherent_sequential_source] Error, field is null\n");
@@ -685,8 +691,10 @@ int init_coherent_sequential_source(double *s, double **p, int tseq, int ncoh, i
 
   }  /* end of loop on coherent sources */
 
+  retime = _GET_TIME;
+  if( g_cart_id == 0 ) fprintf(stdout, "# [init_coherent_sequential_source] time for init_coherent_sequential_source = %e seconds\n", retime-ratime);
   return(0);
-}  /* end of function init_sequential_source */
+}  /* end of init_coherent_sequential_source */
 
 
 /**********************************************************
