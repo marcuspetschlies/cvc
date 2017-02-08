@@ -9,7 +9,7 @@ int contract_piN_piN (spinor_propagator_type **res, double**uprop_list, double**
 int contract_piN_piN_oet (spinor_propagator_type **res, double**uprop_list, double**dprop_list, double**pfifi_list, int ncomp, int(*comp_list)[2], double*comp_list_sign);
 
 
-int contract_N_N (spinor_propagator_type **res, double**uprop_list, double**dprop_list );
+int contract_N_N (spinor_propagator_type **res, double**uprop_list, double**dprop_list, int ncomp, int(*comp_list)[2], double*comp_list_sign);
 
 int contract_D_D (spinor_propagator_type **res, double**uprop_list, double**dprop_list, int ncomp, int(*comp_list)[2], double*comp_list_sign);
 
