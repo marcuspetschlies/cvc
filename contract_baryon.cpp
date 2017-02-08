@@ -407,7 +407,7 @@ int contract_piN_piN_oet (spinor_propagator_type **res, double**uprop_list, doub
 }
 #endif
       retime = _GET_TIME;
-      if(g_cart_id == 0)  fprintf(stdout, "# [contract_piN_piN] time for contractions = %e seconds\n", retime-ratime);
+      if(g_cart_id == 0)  fprintf(stdout, "# [contract_piN_piN_oet] time for oet contractions = %e seconds\n", retime-ratime);
   
   return(0);
 }  /* end of contract_piN_piN_oet */
@@ -926,8 +926,10 @@ int add_source_phase (double****connt, int pi2[3], int pf2[3], int source_coords
 
   const double TWO_MPI = 2. * M_PI;
 
+  double ratime, retime;
   int it;
 
+  ratime = _GET_TIME;
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
@@ -959,6 +961,8 @@ int add_source_phase (double****connt, int pi2[3], int pf2[3], int source_coords
     free_sp(&sp1);
   }  /* end of loop on T */
 
+  retime = _GET_TIME;
+  if(g_cart_id == 0)  fprintf(stdout, "# [add_source_phase] time for source phase = %e seconds\n", retime-ratime);
   return(0);
 }  /* end of add_source_phase */
 
