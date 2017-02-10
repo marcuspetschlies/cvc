@@ -802,7 +802,7 @@ void make_eo_phase_field_sliced3d (double _Complex**phase, int *momentum, int eo
  *   phase 2-dim array of phases momentum_number x VOL3/2
  ****************************************************************/
 void make_eo_phase_field_timeslice (double _Complex**phase, int momentum_number, int (*momentum_list)[3], int timeslice, int eo) {
-
+#if 0
   const double TWO_MPI = 2. * M_PI;
   const unsigned int VOL3half = LX*LY*LZ/2;
 
@@ -840,6 +840,7 @@ void make_eo_phase_field_timeslice (double _Complex**phase, int momentum_number,
   }  /* end of loop on momenta */
   retime = _GET_TIME;
   if(g_verbose > 0 && g_cart_id == 0) fprintf(stdout, "# [make_eo_phase_field_timeslice] time for make_eo_phase_field_timeslice = %e seconds\n", retime-ratime);
+#endif
 }  /* end of make_eo_phase_field_timeslice */
 
 }  /* end of namespace cvc */
