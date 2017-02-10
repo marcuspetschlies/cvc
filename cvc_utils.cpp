@@ -1697,21 +1697,28 @@ int printf_gauge_field(double *gauge, FILE *ofs) {
                    "[%2d] (%12.5e)+(%12.5e)\t(%12.5e)+(%12.5e)\t(%12.5e)+(%12.5e)\n"\
                    "[%2d] (%12.5e)+(%12.5e)\t(%12.5e)+(%12.5e)\t(%12.5e)+(%12.5e)\n",
                     g_cart_id,
-                    g_gauge_field[ix+ 0], g_gauge_field[ix+ 1],
-                    g_gauge_field[ix+ 2], g_gauge_field[ix+ 3],
-                    g_gauge_field[ix+ 4], g_gauge_field[ix+ 5],
+                    gauge[ix+ 0], gauge[ix+ 1],
+                    gauge[ix+ 2], gauge[ix+ 3],
+                    gauge[ix+ 4], gauge[ix+ 5],
                     g_cart_id,
-                    g_gauge_field[ix+ 6], g_gauge_field[ix+ 7],
-                    g_gauge_field[ix+ 8], g_gauge_field[ix+ 9],
-                    g_gauge_field[ix+10], g_gauge_field[ix+11],
+                    gauge[ix+ 6], gauge[ix+ 7],
+                    gauge[ix+ 8], gauge[ix+ 9],
+                    gauge[ix+10], gauge[ix+11],
                     g_cart_id,
-                    g_gauge_field[ix+12], g_gauge_field[ix+13],
-                    g_gauge_field[ix+14], g_gauge_field[ix+15],
-                    g_gauge_field[ix+16], g_gauge_field[ix+17]);
+                    gauge[ix+12], gauge[ix+13],
+                    gauge[ix+14], gauge[ix+15],
+                    gauge[ix+16], gauge[ix+17]);
     }
   }}}}
 
   return(0);
+}  /* end of printf_gauge_field */
+
+void printf_cm( double*A, char*name, FILE*file) {
+
+  fprintf(file, "%s <- array(0, dim=c(3,3))\n", name);
+  _cm_fprintf(A, name,file);
+
 }
 
 int printf_SU3_link (double *u, FILE*ofs) {
@@ -2513,6 +2520,67 @@ int read_pimn(double *pimn, const int read_flag) {
 
 
 /*********************************************
+ * random_cm
+ *********************************************/
+void random_cm(double *A, double heat) {
+
+  double ran[12], inorm, u[18], v[18], w[18], aux[18];
+
+  u[ 0] = 0.; u[ 1] = 0.; u[ 2] = 0.; u[ 3] = 0.; u[ 4] = 0.; u[ 5] = 0.;
+  u[ 6] = 0.; u[ 7] = 0.; u[ 8] = 0.; u[ 9] = 0.; u[10] = 0.; u[11] = 0.;
+  u[12] = 0.; u[13] = 0.; u[14] = 0.; u[15] = 0.; u[16] = 0.; u[17] = 0.;
+  v[ 0] = 0.; v[ 1] = 0.; v[ 2] = 0.; v[ 3] = 0.; v[ 4] = 0.; v[ 5] = 0.;
+  v[ 6] = 0.; v[ 7] = 0.; v[ 8] = 0.; v[ 9] = 0.; v[10] = 0.; v[11] = 0.; 
+  v[12] = 0.; v[13] = 0.; v[14] = 0.; v[15] = 0.; v[16] = 0.; v[17] = 0.;
+  w[ 0] = 0.; w[ 1] = 0.; w[ 2] = 0.; w[ 3] = 0.; w[ 4] = 0.; w[ 5] = 0.;
+  w[ 6] = 0.; w[ 7] = 0.; w[ 8] = 0.; w[ 9] = 0.; w[10] = 0.; w[11] = 0.; 
+  w[12] = 0.; w[13] = 0.; w[14] = 0.; w[15] = 0.; w[16] = 0.; w[17] = 0.;
+
+  ranlxd(ran,12);
+
+  ran[0] = 1.0 + (ran[0]-0.5)*heat;
+  ran[1] = (ran[1]-0.5)*heat;
+  ran[2] = (ran[2]-0.5)*heat;
+  ran[3] = (ran[3]-0.5)*heat;
+  inorm = 1.0 / sqrt(ran[0]*ran[0] + ran[1]*ran[1] + ran[2]*ran[2] + ran[3]*ran[3]);
+
+  u[ 0] = ran[0]*inorm; u[1] = ran[1]*inorm;
+  u[ 2] = ran[2]*inorm; u[3] = ran[3]*inorm;
+  u[ 6] = -u[2]; u[7] =  u[3];
+  u[ 8] =  u[0]; u[9] = -u[1];
+  u[16] = 1.;
+
+  ran[0] = 1.0 + (ran[4]-0.5)*heat;
+  ran[1] = (ran[5]-0.5)*heat;
+  ran[2] = (ran[6]-0.5)*heat;
+  ran[3] = (ran[7]-0.5)*heat;
+  inorm = 1.0 / sqrt(ran[0]*ran[0] + ran[1]*ran[1] + ran[2]*ran[2] + ran[3]*ran[3]);
+
+  v[0] = 1.;
+  v[ 8] = ran[0]*inorm; v[ 9] = ran[1]*inorm;
+  v[14] = ran[2]*inorm; v[15] = ran[3]*inorm;
+  v[10] = -v[14]; v[11] =  v[15];
+  v[16] =  v[ 8]; v[17] = -v[ 9];
+
+  _cm_eq_cm_ti_cm(aux, u, v);
+
+  ran[0] = 1.0 + (ran[8]-0.5)*heat;
+  ran[1] = (ran[9]-0.5)*heat;
+  ran[2] = (ran[10]-0.5)*heat;
+  ran[3] = (ran[11]-0.5)*heat;
+  inorm = 1.0 / sqrt(ran[0]*ran[0] + ran[1]*ran[1] + ran[2]*ran[2] + ran[3]*ran[3]);
+
+  w[8] = 1.;
+  w[ 0] = ran[0]*inorm; w[ 1] = ran[1]*inorm;
+  w[12] = ran[2]*inorm; w[13] = ran[3]*inorm;
+  w[ 4] = -w[12]; w[ 5] =  w[13];
+  w[16] =  w[ 0]; w[17] = -w[ 1];
+
+  _cm_eq_cm_ti_cm(A, aux, w);
+}  /* end of random_cm */
+
+
+/*********************************************
  * random_gauge_point
  * - now with factors from 3 SU(2) subgroups
  *********************************************/
@@ -2533,6 +2601,8 @@ void random_gauge_point(double **gauge_point, double heat) {
     w[ 6] = 0.; w[ 7] = 0.; w[ 8] = 0.; w[ 9] = 0.; w[10] = 0.; w[11] = 0.; 
     w[12] = 0.; w[13] = 0.; w[14] = 0.; w[15] = 0.; w[16] = 0.; w[17] = 0.;
 
+    ranlxd(ran,12);
+/*
     ran[ 0]=((double)rand()) / ((double)RAND_MAX+1.0);
     ran[ 1]=((double)rand()) / ((double)RAND_MAX+1.0);
     ran[ 2]=((double)rand()) / ((double)RAND_MAX+1.0); 
@@ -2545,6 +2615,7 @@ void random_gauge_point(double **gauge_point, double heat) {
     ran[ 9]=((double)rand()) / ((double)RAND_MAX+1.0);
     ran[10]=((double)rand()) / ((double)RAND_MAX+1.0);
     ran[11]=((double)rand()) / ((double)RAND_MAX+1.0);
+*/
 
     ran[0] = 1.0 + (ran[0]-0.5)*heat;
     ran[1] = (ran[1]-0.5)*heat;
@@ -2585,11 +2656,8 @@ void random_gauge_point(double **gauge_point, double heat) {
     w[16] =  w[ 0]; w[17] = -w[ 1];
 
     _cm_eq_cm_ti_cm(gauge_point[mu], aux, w);
-
   }
-
-
-}
+}  /* end of random_gauge_point */
 
 
 /********************************************************

@@ -37,6 +37,8 @@ void init_gamma(void);
 int printf_gauge_field( double *gauge, FILE *ofs);
 int printf_spinor_field(double *s, int print_halo, FILE *ofs);
 int printf_spinor_field_5d(double *s,     FILE *ofs);
+void printf_cm( double*A, char*name, FILE*file);
+
 
 void set_default_input_values(void);
 
@@ -51,6 +53,8 @@ double Random_Z2();
 int ranz2(double * y, unsigned int NRAND);
 void random_gauge_field(double *gfield, double h);
 void random_gauge_point(double **gauge_point, double heat);
+void random_cm(double *A, double heat);
+
 void random_gauge_field2(double *gfield);
 int read_pimn(double *pimn, const int read_flag);
 
