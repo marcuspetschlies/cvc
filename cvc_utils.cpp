@@ -4583,7 +4583,7 @@ void check_source(double *sf, double*work, double mass, unsigned int glocation, 
 
   xchange_field(sf);
 
-  Q_phi(work, sf, mass);
+  Q_phi(work, sf, g_gauge_field, mass);
   if(src_proc_id == g_cart_id) {
     work[_GSI(llocation)+2*sc] -= 1.0;
   }

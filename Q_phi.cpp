@@ -15,6 +15,7 @@
 
 #include "cvc_complex.h"
 #include "global.h"
+#include "ilinalg.h"
 #include "cvc_linalg.h"
 #include "cvc_geometry.h"
 #include "cvc_utils.h"
