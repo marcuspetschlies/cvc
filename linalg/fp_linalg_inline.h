@@ -596,6 +596,21 @@ static inline void _fp_eq_zero(fermion_propagator_type _r) {
 }
 
 
+static inline void _fp_eq_fp_pl_fp(fermion_propagator_type _r, fermion_propagator_type _s, fermion_propagator_type _t) {
+_fv_eq_fv_pl_fv( (_r)[ 0], (_s)[ 0], (_t)[ 0] );
+_fv_eq_fv_pl_fv( (_r)[ 1], (_s)[ 1], (_t)[ 1] );
+_fv_eq_fv_pl_fv( (_r)[ 2], (_s)[ 2], (_t)[ 2] );
+_fv_eq_fv_pl_fv( (_r)[ 3], (_s)[ 3], (_t)[ 3] );
+_fv_eq_fv_pl_fv( (_r)[ 4], (_s)[ 4], (_t)[ 4] );
+_fv_eq_fv_pl_fv( (_r)[ 5], (_s)[ 5], (_t)[ 5] );
+_fv_eq_fv_pl_fv( (_r)[ 6], (_s)[ 6], (_t)[ 6] );
+_fv_eq_fv_pl_fv( (_r)[ 7], (_s)[ 7], (_t)[ 7] );
+_fv_eq_fv_pl_fv( (_r)[ 8], (_s)[ 8], (_t)[ 8] );
+_fv_eq_fv_pl_fv( (_r)[ 9], (_s)[ 9], (_t)[ 9] );
+_fv_eq_fv_pl_fv( (_r)[10], (_s)[10], (_t)[10] );
+_fv_eq_fv_pl_fv( (_r)[11], (_s)[11], (_t)[11] );
+}
+
 static inline void _fp_pl_eq_fp(fermion_propagator_type _r, fermion_propagator_type _s) {
 _fv_pl_eq_fv( (_r)[ 0], (_s)[ 0] );
 _fv_pl_eq_fv( (_r)[ 1], (_s)[ 1] );
@@ -611,6 +626,21 @@ _fv_pl_eq_fv( (_r)[10], (_s)[10] );
 _fv_pl_eq_fv( (_r)[11], (_s)[11] );
 }
 
+
+static inline void _fp_eq_fp_mi_fp(fermion_propagator_type _r, fermion_propagator_type _s, fermion_propagator_type _t) {
+_fv_eq_fv_mi_fv( (_r)[ 0], (_s)[ 0], (_t)[ 0] );
+_fv_eq_fv_mi_fv( (_r)[ 1], (_s)[ 1], (_t)[ 1] );
+_fv_eq_fv_mi_fv( (_r)[ 2], (_s)[ 2], (_t)[ 2] );
+_fv_eq_fv_mi_fv( (_r)[ 3], (_s)[ 3], (_t)[ 3] );
+_fv_eq_fv_mi_fv( (_r)[ 4], (_s)[ 4], (_t)[ 4] );
+_fv_eq_fv_mi_fv( (_r)[ 5], (_s)[ 5], (_t)[ 5] );
+_fv_eq_fv_mi_fv( (_r)[ 6], (_s)[ 6], (_t)[ 6] );
+_fv_eq_fv_mi_fv( (_r)[ 7], (_s)[ 7], (_t)[ 7] );
+_fv_eq_fv_mi_fv( (_r)[ 8], (_s)[ 8], (_t)[ 8] );
+_fv_eq_fv_mi_fv( (_r)[ 9], (_s)[ 9], (_t)[ 9] );
+_fv_eq_fv_mi_fv( (_r)[10], (_s)[10], (_t)[10] );
+_fv_eq_fv_mi_fv( (_r)[11], (_s)[11], (_t)[11] );
+}
 
 static inline void _fp_mi_eq_fp(fermion_propagator_type _r, fermion_propagator_type _s) {
 _fv_mi_eq_fv( (_r)[ 0], (_s)[ 0] );
@@ -3712,7 +3742,6 @@ static inline void _fp_eq_fp_ti_cm_dagger(fermion_propagator_type _r, double *_c
 
 // create, free fermion propagator
 static inline void create_fp(fermion_propagator_type*fp) {
-  int i;
   *fp = (double**) malloc(12 * sizeof(double*));
   if( *fp == NULL) return;
   (*fp)[0] = (double*)malloc( 288 * sizeof(double));
@@ -3738,7 +3767,6 @@ static inline void create_fp(fermion_propagator_type*fp) {
 
 
 static inline void free_fp(fermion_propagator_type*fp) {
-  int i;
   if( *fp != NULL ) {
     if( (*fp)[0] != NULL) free( (*fp)[0] );
     free(*fp);
@@ -10860,6 +10888,50 @@ static inline void _co_eq_tr_fp_dagger_ti_fp ( complex*_w, fermion_propagator_ty
     dtmp += (_r)[0][286] * (_s)[0][287] - (_r)[0][287] * (_s)[0][286];
   (_w)->im = dtmp;
 } /* end of _co_eq_tr_fp_dagger_ti_fp */ 
+
+static inline void _fp_eq_cm_dagger_ti_fp(fermion_propagator_type _r, double *_c, fermion_propagator_type _s) {
+  _fv_eq_cm_dag_ti_fv( (_r)[ 0], (_c), (_s)[ 0] );
+  _fv_eq_cm_dag_ti_fv( (_r)[ 1], (_c), (_s)[ 1] );
+  _fv_eq_cm_dag_ti_fv( (_r)[ 2], (_c), (_s)[ 2] );
+  _fv_eq_cm_dag_ti_fv( (_r)[ 3], (_c), (_s)[ 3] );
+  _fv_eq_cm_dag_ti_fv( (_r)[ 4], (_c), (_s)[ 4] );
+  _fv_eq_cm_dag_ti_fv( (_r)[ 5], (_c), (_s)[ 5] );
+  _fv_eq_cm_dag_ti_fv( (_r)[ 6], (_c), (_s)[ 6] );
+  _fv_eq_cm_dag_ti_fv( (_r)[ 7], (_c), (_s)[ 7] );
+  _fv_eq_cm_dag_ti_fv( (_r)[ 8], (_c), (_s)[ 8] );
+  _fv_eq_cm_dag_ti_fv( (_r)[ 9], (_c), (_s)[ 9] );
+  _fv_eq_cm_dag_ti_fv( (_r)[10], (_c), (_s)[10] );
+  _fv_eq_cm_dag_ti_fv( (_r)[11], (_c), (_s)[11] );
+}  /* end of _fp_eq_cm_dagger_ti_fp */
+
+static inline void _co_eq_tr_fp(complex* _w, fermion_propagator_type _r ) {
+  (_w)->re  = (_r)[ 0][ 0];
+  (_w)->re += (_r)[ 1][ 2];
+  (_w)->re += (_r)[ 2][ 4];
+  (_w)->re += (_r)[ 3][ 6];
+  (_w)->re += (_r)[ 4][ 8];
+  (_w)->re += (_r)[ 5][10];
+  (_w)->re += (_r)[ 6][12];
+  (_w)->re += (_r)[ 7][14];
+  (_w)->re += (_r)[ 8][16];
+  (_w)->re += (_r)[ 9][18];
+  (_w)->re += (_r)[10][20];
+  (_w)->re += (_r)[11][22];
+
+  (_w)->im  = (_r)[ 0][ 1];
+  (_w)->im += (_r)[ 1][ 3];
+  (_w)->im += (_r)[ 2][ 5];
+  (_w)->im += (_r)[ 3][ 7];
+  (_w)->im += (_r)[ 4][ 9];
+  (_w)->im += (_r)[ 5][11];
+  (_w)->im += (_r)[ 6][13];
+  (_w)->im += (_r)[ 7][15];
+  (_w)->im += (_r)[ 8][17];
+  (_w)->im += (_r)[ 9][19];
+  (_w)->im += (_r)[10][21];
+  (_w)->im += (_r)[11][23];
+}  /* end of _co_eq_tr_fp */
+
 
 }  /* end of namespace cvc */
 #endif
