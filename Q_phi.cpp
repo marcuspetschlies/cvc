@@ -352,7 +352,6 @@ void Q_phi(double *xi, double *phi, double*gauge_field, const double mutm) {
 {
 #endif
 
-  int it, ix, iy, iz;
   int index_s; 
   double spinor1[24], spinor2[24];
   double *xi_, *phi_, *U_;
@@ -687,7 +686,6 @@ void M_zz_inv (double*s, double*r, double mass) {
 
   const double mutilde = 2. * g_kappa * mass;
   const double norm    =  2.*g_kappa / (1.+ mutilde*mutilde);
-  const int nthreads   = g_num_threads;
   const unsigned int N = VOLUME/2;
 #ifdef HAVE_OPENMP
 #pragma omp parallel default(shared) shared(s,r,mass)
@@ -731,14 +729,8 @@ void M_zz_inv (double*s, double*r, double mass) {
  ***********************************************************/
 void C_oo (double*s, double*r, double *gauge_field, double mass, double *s_aux) {
 
-  const int nthreads = g_num_threads;
   const unsigned int N = VOLUME / 2;
   const size_t sizeof_field = _GSI(N) * sizeof(double);
-
-  unsigned int ix;
-  double *s_ = NULL, *s_aux_ = NULL;
-  double sp1[24];
-  int threadid=0;
 
   /* s_aux = <- r */
   memcpy(s_aux, r, sizeof_field);
@@ -770,7 +762,6 @@ void C_oo (double*s, double*r, double *gauge_field, double mass, double *s_aux) 
  ***********************************************************/
 void Q_phi_eo (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double mass, double *aux) {
 
-  unsigned int ix;
   unsigned int N = VOLUME / 2;
 
   /* e_new = M_ee e_old + M_eo o_old */
@@ -803,7 +794,7 @@ void Q_eo_SchurDecomp_A (double *e_new, double *o_new, double *e_old, double *o_
 
   unsigned int ix;
   size_t offset;
-  double *o_new_=NULL, *e_new_=NULL, *aux_=NULL, *o_old_=NULL;
+  double *o_new_=NULL, *e_new_=NULL, *o_old_=NULL;
 
   /* aux <- e_old */
   memcpy(aux, e_old, sizeof_field);
@@ -811,14 +802,13 @@ void Q_eo_SchurDecomp_A (double *e_new, double *o_new, double *e_old, double *o_
   Hopping_eo(e_new, aux, gauge_field, 1);
   /* o_new <- g5 e_new + o_old  = g5 M_oe e_old + o_old */
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(offset, o_new_, e_new_, aux_, o_old_)
+#pragma omp parallel for private(offset, o_new_, e_new_, o_old_)
 #endif
   for(ix=0; ix<N; ix++) {
     offset = _GSI(ix);
     o_new_ = o_new + offset;
     e_new_ = e_new + offset;
     o_old_ = o_old + offset;
-    aux_   = aux + offset;
     _fv_ti_eq_g5(e_new_);
     _fv_eq_fv_pl_fv( o_new_, o_old_, e_new_);
   }
@@ -889,7 +879,6 @@ void Q_eo_SchurDecomp_Ainv (double *e_new, double *o_new, double *e_old, double 
  ********************************************************************/
 void Q_eo_SchurDecomp_B (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double mass, double *aux) {
 
-  unsigned int ix;
   unsigned int N = VOLUME / 2;
   
   /* aux = M_eo o_old */
@@ -915,7 +904,6 @@ void Q_eo_SchurDecomp_Binv (double *e_new, double *o_new, double *e_old, double 
   const double twokappa = 2. * g_kappa;
   const unsigned int N = VOLUME / 2;
   const size_t sizeof_eo_spinor_field = _GSI(N) * sizeof(double);
-  unsigned int ix;
 
   spinor_field_eq_spinor_field_ti_re (aux, o_old, twokappa, N);
 
@@ -1282,7 +1270,7 @@ void apply_cvc_vertex_propagator_eo ( fermion_propagator_type *s, fermion_propag
     unsigned int ix_fwd;
     double *U_fwd = NULL;
     fermion_propagator_type fp1, fp2;
-    fermion_propagator_type *s_ = NULL, *r_fwd_ = NULL;
+    fermion_propagator_type s_ = NULL, r_fwd_ = NULL;
 
     create_fp(&fp1);
     create_fp(&fp2);
@@ -1333,7 +1321,7 @@ void apply_cvc_vertex_propagator_eo ( fermion_propagator_type *s, fermion_propag
     unsigned int ix_bwd;
     double *U_bwd = NULL;
     fermion_propagator_type fp1, fp2;
-    fermion_propagator_type *s_ = NULL, *r_bwd_ = NULL;
+    fermion_propagator_type s_ = NULL, r_bwd_ = NULL;
 
     create_fp(&fp1);
     create_fp(&fp2);
@@ -1361,7 +1349,7 @@ void apply_cvc_vertex_propagator_eo ( fermion_propagator_type *s, fermion_propag
       /* s = U_bwd^+ ( g_mu + 1 ) r_bwd */
       _fp_eq_gamma_ti_fp(fp1, mu, r_bwd_);
       _fp_eq_fp_pl_fp(fp2, r_bwd_, fp1);
-      _fp_eq_cm_dag_ti_fp(fp1, U_bwd, fp2);
+      _fp_eq_cm_dagger_ti_fp(fp1, U_bwd, fp2);
       _fp_eq_fp_ti_re(s_, fp1, 0.5);
     }  /* end of loop on ix over VOLUME / 2 */
 
@@ -1387,11 +1375,7 @@ void apply_cvc_vertex_propagator_eo ( fermion_propagator_type *s, fermion_propag
  *
  *   safe, if r and s point to the same memory region
  ***********************************************************/
-void apply_propagator_constant_cvc_vertex ( fermion_propagator_type *s, fermion_propagator_type *r, int mu, int fbwd, double U[18] ) {
-
-
-  const unsigned int N  = VOLUME / 2;
-  const unsigned int N2 = (VOLUME+RAND) / 2;
+void apply_propagator_constant_cvc_vertex ( fermion_propagator_type *s, fermion_propagator_type *r, int mu, int fbwd, double U[18],  const unsigned int N ) {
 
   if ( fbwd == 0 ) {
     /**************************************************************
@@ -1403,7 +1387,7 @@ void apply_propagator_constant_cvc_vertex ( fermion_propagator_type *s, fermion_
 #endif
     unsigned int ix;
     fermion_propagator_type fp1, fp2;
-    fermion_propagator_type *s_ = NULL, *r_ = NULL;
+    fermion_propagator_type s_ = NULL, r_ = NULL;
 
     create_fp(&fp1);
     create_fp(&fp2);
@@ -1442,7 +1426,7 @@ void apply_propagator_constant_cvc_vertex ( fermion_propagator_type *s, fermion_
 #endif
     unsigned int ix;
     fermion_propagator_type fp1, fp2;
-    fermion_propagator_type *s_ = NULL, *r_ = NULL;
+    fermion_propagator_type s_ = NULL, r_ = NULL;
 
     create_fp(&fp1);
     create_fp(&fp2);
@@ -1458,7 +1442,7 @@ void apply_propagator_constant_cvc_vertex ( fermion_propagator_type *s, fermion_
       /* =============== direction mu =============== */
 
       /* s = r_ U^+ ( g_mu + 1 ) */
-      _fp_eq_fp_ti_gamma_(fp1, mu, r_ );
+      _fp_eq_fp_ti_gamma(fp1, mu, r_ );
       _fp_eq_fp_pl_fp(fp2, r_, fp1);
       _fp_eq_fp_ti_cm_dagger(fp1, U, fp2);
       _fp_eq_fp_ti_re(s_, fp1, 0.5);
@@ -1473,5 +1457,4 @@ void apply_propagator_constant_cvc_vertex ( fermion_propagator_type *s, fermion_
 
 }  /* end of apply_cvc_vertex_propagator_eo */
 
-}  /* end of namespace cvc */
 }  /* end of namespace cvc */
