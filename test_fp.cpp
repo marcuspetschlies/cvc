@@ -43,6 +43,7 @@
 #include "Q_clover_phi.h"
 #include "ranlxd.h"
 #include "scalar_products.h"
+#include "contract_cvc_tensor.h"
 
 using namespace cvc;
 
@@ -78,7 +79,7 @@ int main(int argc, char **argv) {
   double *gauge_trafo=NULL, *gauge_ptr, U1[18], U2[18];
   double spinor1[24], norm, norm2;
   unsigned int Vhalf, VOL3;
-  fermion_propagator_type *fp1=NULL, *fp2=NULL;
+  
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
@@ -195,6 +196,66 @@ int main(int argc, char **argv) {
   plaquette(&plaq);
   if(g_cart_id==0) fprintf(stdout, "# [test_fp] measured plaquette value 1st field: %25.16e\n", plaq);
 
+  /* init rng */
+  exitstatus = init_rng_stat_file (g_seed, NULL );
+
+  fermion_propagator_type fp1, fp2;
+  create_fp(&fp1);
+  create_fp(&fp2);
+
+  ofs = fopen("test_fp.data", "w");
+
+  rangauss(fp1[0], 288);
+  rangauss(fp2[0], 288);
+
+  printf_fp( fp1, "fp1", ofs);
+
+/*
+  _co_eq_tr_fp( &w, fp1 );
+  fprintf(stdout, "# [test_fp] w = %e + I %e\n", w.re, w.im);
+*/
+
+  double U[18];
+  
+  random_cm(U, 1.);
+
+  printf_cm(U, "U", ofs);
+
+  /* _fp_eq_cm_ti_fp(fp2, U, fp1); */
+  /* _fp_eq_cm_dagger_ti_fp(fp2, U, fp1); */
+  /* _fp_eq_fp_ti_cm(fp2, U, fp1); */
+  /* _fp_eq_fp_ti_cm_dagger(fp2, U, fp1); */
+
+
+  /* _co_eq_tr_fp_dagger_ti_fp (&w, fp1, fp2); */
+  /* fprintf(stdout, "# [test_fp] w = %25.16e +I %25.16e\n", w.re, w.im); */
+ 
+  /* _fp_eq_gamma_ti_fp(fp2, 10, fp1); */
+  /* _fp_eq_fp_ti_gamma(fp2, 7, fp1); */
+
+  /*
+  _fp_eq_cm_ti_fp(fp2, U, fp1);
+  _fp_eq_cm_dagger_ti_fp(fp1, U, fp2);
+  _fp_eq_fp_ti_cm_dagger(fp2, U, fp1);
+  _fp_eq_fp_ti_cm(fp1, U, fp2);
+*/
+  printf_fp( fp2, "fp2", ofs);
+
+  /* _co_eq_zero(&w); */
+  /* co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field (&w, &fp1, &fp2, 1., 1); */
+  /* fprintf(stdout, "# [test_fp] w = %25.16e +I %25.16e\n", w.re, w.im); */
+
+  apply_propagator_constant_cvc_vertex ( &fp2, &fp1, 0, 0, U, 1 );
+  printf_fp( fp2, "fp2", ofs);
+
+ 
+  free_fp(&fp1);
+  free_fp(&fp2);
+
+  fclose(ofs);
+
+#if 0
+
   /* init and allocate spinor fields */
 
   no_fields = 24;
@@ -211,8 +272,6 @@ int main(int argc, char **argv) {
   fp1 = create_fp_field( (VOLUME+RAND)/2);
   fp2 = create_fp_field( (VOLUME+RAND)/2);
  
-  /* init rng */
-  exitstatus = init_rng_stat_file (g_seed, NULL );
 
   /* set random spinor fields */
   for( i=0; i<12; i++ ) {
@@ -242,7 +301,7 @@ int main(int argc, char **argv) {
 
   free_fp_field(&fp1);
   free_fp_field(&fp2);
-
+#endif  /* of if 0 */
 #ifdef HAVE_MPI
   mpi_fini_xchange_eo_spinor();
   mpi_fini_datatypes();
