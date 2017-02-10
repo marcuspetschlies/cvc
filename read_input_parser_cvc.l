@@ -201,6 +201,7 @@ namespace cvc {
 %x SOURCECOORDS
 %x SRCSNKTIMESEP
 %x COHERENTSOURCENUMBER
+%x VERBOSITYLEVEL
 
 %%
 ^T{SPC}*={SPC}*                            BEGIN(TT);
@@ -358,6 +359,8 @@ namespace cvc {
 ^src_snk_time_separation{SPC}*={SPC}*      BEGIN(SRCSNKTIMESEP);
 
 ^coherent_source_number{SPC}*={SPC}*       BEGIN(COHERENTSOURCENUMBER);
+
+^verbosity_level{SPC}*={SPC}*              BEGIN(VERBOSITYLEVEL);
 
   /* start namespace inclusion here */
 
@@ -1172,6 +1175,11 @@ namespace cvc {
 <COHERENTSOURCENUMBER>{DIGIT}+                  {
   cvc::g_coherent_source_number = atoi(yytext);
   if(cvc::myverbose!=0) printf("# [read_input_parser] coherent source number set to =%d\n", cvc::g_coherent_source_number);
+}
+
+<VERBOSITYLEVEL>{DIGIT}+                  {
+  cvc::g_verbose = atoi(yytext);
+  if(cvc::myverbose!=0) printf("# [read_input_parser] global verbosity level set to =%d\n", cvc::g_verbose);
 }
 
 
