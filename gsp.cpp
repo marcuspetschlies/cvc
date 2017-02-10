@@ -26,7 +26,7 @@
 #include "read_input_parser.h"
 #include "cvc_utils.h"
 #include "Q_phi.h"
-#include "invert_Qtm.h"
+#include "scalar_products.h"
 #include "iblas.h"
 #include "project.h"
 #include "gsp.h"

@@ -41,8 +41,8 @@
 #include "hyp_smear.h"
 #include "Q_phi.h"
 #include "Q_clover_phi.h"
-#include "invert_Qtm.h"
 #include "ranlxd.h"
+#include "scalar_products.h"
 
 using namespace cvc;
 
@@ -65,6 +65,7 @@ int main(int argc, char **argv) {
   int filename_set = 0;
   int ix, iix;
   int no_eo_fields;
+  int exitstatus;
   double plaq;
 /*  double U1[18], U2[18]; */
   int verbose = 0;
@@ -199,11 +200,11 @@ int main(int argc, char **argv) {
   no_fields = 24;
   g_spinor_field = (double**)calloc(no_fields, sizeof(double*));
   g_spinor_field[0 ] = (double*)malloc(no_fields * _GSI(VOLUME+RAND)*sizeof(double) );
-  for(i=1; i<no_fields; i++) g_spinor_field[i] + g_spinor_field[i-1] +  _GSI( VOLUME+RAND );
+  for(i=1; i<no_fields; i++) g_spinor_field[i] = g_spinor_field[i-1] +  _GSI( VOLUME+RAND );
 
   no_eo_fields = 24;
   eo_spinor_field = (double**)calloc(no_eo_fields, sizeof(double*));
-  eo_spinor_field = (double**)calloc(no_eo_fields * _GSI((VOLUME+RAND)/2) sizeof(double));
+  eo_spinor_field = (double**)calloc(no_eo_fields * _GSI((VOLUME+RAND)/2), sizeof(double));
   for(i=1; i<no_eo_fields; i++) eo_spinor_field[i] = eo_spinor_field[i-1] + _GSI( (VOLUME+RAND)/2 );
 
   /* fp fields */
@@ -232,11 +233,8 @@ int main(int argc, char **argv) {
 
  
 
-
- 
-
-
   free_geometry();
+
   free(g_spinor_field[0]);
   free(g_spinor_field);
   free(eo_spinor_field[0]);

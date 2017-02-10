@@ -57,7 +57,7 @@ extern "C"
 #include "prepare_source.h"
 #include "project.h"
 #include "Q_phi.h"
-#include "invert_Qtm.h"
+#include "scalar_products.h"
 #include "make_x_orbits.h"
 
 #define EO_FLAG_EVEN 0

@@ -63,7 +63,7 @@ extern "C"
 #include "prepare_source.h"
 #include "prepare_propagator.h"
 #include "contract_baryon.h"
-#include "invert_Qtm.h"
+#include "scalar_products.h"
 
 using namespace cvc;
 

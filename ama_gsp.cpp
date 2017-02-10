@@ -43,7 +43,7 @@
 #include "read_input_parser.h"
 #include "laplace_linalg.h"
 #include "Q_phi.h"
-#include "invert_Qtm.h"
+#include "scalar_products.h"
 #include "gsp.h"
 
 using namespace cvc;
