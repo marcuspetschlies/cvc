@@ -129,6 +129,7 @@ void co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field (
     r_ = r[ix];
     s_ = s[ix];
 
+    /* multiply fermion propagator from the left and right with gamma_5 */
     _fp_eq_gamma_ti_fp( fp1, 5, r_ );
     _fp_eq_fp_ti_gamma( fp2, 5, fp1 );
     _co_eq_tr_fp_dagger_ti_fp ( &wtmp, fp2,  s_);

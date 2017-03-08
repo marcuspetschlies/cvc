@@ -1368,7 +1368,6 @@ void apply_cvc_vertex_propagator_eo ( fermion_propagator_type *s, fermion_propag
  * field
  *   input: r, direction mu \in {0,1,2,3}, fbwd forward 0 / backward 1
  *          r must have halo for exchange
- *          EO = 0/ 1 for eo / oe;  EO property of output field 
  *          (cvc vertex toggles EO property of fields )
  *          gauge field
  *   output: s

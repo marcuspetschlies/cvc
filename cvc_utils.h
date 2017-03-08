@@ -60,8 +60,6 @@ int read_pimn(double *pimn, const int read_flag);
 
 void random_spinor_field (double *s, unsigned int V);
 
-int init_hpe_fields(int ***loop_tab, int ***sigma_tab, int ***shift_start, double **tcf, double **tcb);
-int free_hpe_fields(int ***loop_tab, int ***sigma_tab, int ***shift_start, double **tcf, double **tcb);
 int rangauss (double * y1, unsigned int NRAND);
 
 void cm_proj(double *A);

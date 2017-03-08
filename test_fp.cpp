@@ -47,6 +47,44 @@
 
 using namespace cvc;
 
+int get_point_source_info (int gcoords[4], int lcoords[4], int*proc_id) {
+
+  int source_proc_id = 0;
+  int exitstatus;
+#ifdef HAVE_MPI
+  int source_proc_coords[4];
+  source_proc_coords[0] = gcoords[0] / T;
+  source_proc_coords[1] = gcoords[1] / LX;
+  source_proc_coords[2] = gcoords[2] / LY;
+  source_proc_coords[3] = gcoords[3] / LZ;
+  exitstatus = MPI_Cart_rank(g_cart_grid, source_proc_coords, &source_proc_id);
+  if(exitstatus !=  MPI_SUCCESS ) {
+    fprintf(stderr, "[get_point_source_info] Error from MPI_Cart_rank, status was %d\n", exitstatus);
+    EXIT(9);
+  }
+  if(source_proc_id == g_cart_id) {
+    fprintf(stdout, "# [get_point_source_info] process %2d = (%3d,%3d,%3d,%3d) has source location\n", source_proc_id,
+        source_proc_coords[0], source_proc_coords[1], source_proc_coords[2], source_proc_coords[3]);
+  }
+#endif
+
+  if(proc_id != NULL) *proc_id = source_proc_id;
+  int x[4] = {-1,-1,-1,-1};
+  /* local coordinates */
+  if(g_cart_id == source_proc_id) {
+    x[0] = gcoords[0] % T;
+    x[1] = gcoords[1] % LX;
+    x[2] = gcoords[2] % LY;
+    x[3] = gcoords[3] % LZ;
+    if(lcoords != NULL) {
+      memcpy(lcoords,x,4*sizeof(int));
+    }
+  }
+  return(0);
+}  /* end of get_point_source_info */
+
+
+
 
 void usage(void) {
   fprintf(stdout, "usage:\n");
@@ -61,10 +99,9 @@ int main(int argc, char **argv) {
   int y0, y1, y2, y3;
   int z0, z1, z2, z3;
   int isboundary, start_value_t, start_value_x, start_value_y, start_value_z;
-  int xsrc[4], psrc[4], have_source = 0, xsrc_iseven;
-  unsigned int ixsrc;
+  int source_proc_id = 0;
   int filename_set = 0;
-  int ix, iix;
+  unsigned int ix, iix;
   int no_eo_fields;
   int exitstatus;
   double plaq;
@@ -199,6 +236,7 @@ int main(int argc, char **argv) {
   /* init rng */
   exitstatus = init_rng_stat_file (g_seed, NULL );
 
+/*
   fermion_propagator_type fp1, fp2;
   create_fp(&fp1);
   create_fp(&fp2);
@@ -209,17 +247,18 @@ int main(int argc, char **argv) {
   rangauss(fp2[0], 288);
 
   printf_fp( fp1, "fp1", ofs);
-
+*/
 /*
   _co_eq_tr_fp( &w, fp1 );
   fprintf(stdout, "# [test_fp] w = %e + I %e\n", w.re, w.im);
 */
-
+/*
   double U[18];
   
   random_cm(U, 1.);
 
   printf_cm(U, "U", ofs);
+*/
 
   /* _fp_eq_cm_ti_fp(fp2, U, fp1); */
   /* _fp_eq_cm_dagger_ti_fp(fp2, U, fp1); */
@@ -239,18 +278,87 @@ int main(int argc, char **argv) {
   _fp_eq_fp_ti_cm_dagger(fp2, U, fp1);
   _fp_eq_fp_ti_cm(fp1, U, fp2);
 */
+/*
   printf_fp( fp2, "fp2", ofs);
+  _co_eq_zero(&w);
+   co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field (&w, &fp1, &fp2, -1., 1);
+  fprintf(stdout, "# [test_fp] w = %25.16e +I %25.16e\n", w.re, w.im);
+*/
 
-  /* _co_eq_zero(&w); */
-  /* co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field (&w, &fp1, &fp2, 1., 1); */
-  /* fprintf(stdout, "# [test_fp] w = %25.16e +I %25.16e\n", w.re, w.im); */
-
-  apply_propagator_constant_cvc_vertex ( &fp2, &fp1, 0, 0, U, 1 );
+/*
+  apply_propagator_constant_cvc_vertex ( &fp2, &fp1, 0, 1, U, 1 );
   printf_fp( fp2, "fp2", ofs);
-
- 
+  apply_propagator_constant_cvc_vertex ( &fp2, &fp1, 1, 1, U, 1 );
+  printf_fp( fp2, "fp3", ofs);
+  apply_propagator_constant_cvc_vertex ( &fp2, &fp1, 2, 1, U, 1 );
+  printf_fp( fp2, "fp4", ofs);
+  apply_propagator_constant_cvc_vertex ( &fp2, &fp1, 3, 1, U, 1 );
+  printf_fp( fp2, "fp5", ofs);
+*/
+/*
   free_fp(&fp1);
   free_fp(&fp2);
+  fclose(ofs);
+*/
+
+  fermion_propagator_type *fp1 = NULL, *fp2 = NULL;
+  fp1 = create_fp_field ( (VOLUME+RAND)/2 );
+  fp2 = create_fp_field ( (VOLUME+RAND)/2 );
+
+  rangauss(fp1[0][0], 288*Vhalf);
+
+
+  int LL[4] = {T_global, LX_global, LY_global, LZ_global };
+  int source_coords[4], g_shifted_source_coords[4], shifted_source_coords[4], shifted_source_proc_id=0;
+  get_point_source_info (g_source_coords_list[0], source_coords, &source_proc_id);
+
+  ix = g_ipt[source_coords[0]][source_coords[1]][source_coords[2]][source_coords[3]];
+
+  int dir  = 3;
+  int fbwd = 1;  /* 0 fwd, 1 bwd */
+
+  /* void apply_cvc_vertex_propagator_eo ( fermion_propagator_type *s, fermion_propagator_type *r, int mu, int fbwd, double *gauge_field, int EO) */
+  apply_cvc_vertex_propagator_eo ( fp2, fp1, dir, fbwd, g_gauge_field, (int)(g_iseven[ix] == 0 ) );
+
+
+  unsigned int ixeo = g_lexic2eosub[ix];
+  memcpy( g_shifted_source_coords, g_source_coords_list[0], 4*sizeof(int) );
+  if( fbwd == 0) {
+    g_shifted_source_coords[dir] = ( g_shifted_source_coords[dir] + 1 ) % LL[dir];
+  } else if ( fbwd == 1 ) {
+    g_shifted_source_coords[dir] = ( g_shifted_source_coords[dir] - 1 + LL[dir] ) % LL[dir];
+  }
+  get_point_source_info (g_shifted_source_coords, shifted_source_coords, &shifted_source_proc_id);
+
+  unsigned int ixshifted = g_ipt[shifted_source_coords[0]][shifted_source_coords[1]][shifted_source_coords[2]][shifted_source_coords[3]];
+  unsigned int ixshiftedeo = g_lexic2eosub[ixshifted];
+  
+  ofs = fopen("test_fp.data", "w");
+
+
+  /* print the gauge matrix at ix, direction dir */
+  if ( fbwd == 0 ) {
+    if( source_proc_id == g_cart_id ) {
+      printf_cm(g_gauge_field+_GGI(ix, dir), "U", ofs);
+    }
+  } else if ( fbwd == 0 ) {
+    if( shifted_source_proc_id == g_cart_id ) {
+      printf_cm(g_gauge_field+_GGI(ixshifted, dir), "U", ofs);
+    }
+  }
+
+  /* print the source field at ixshifted */
+  if( shifted_source_proc_id == g_cart_id ) {
+    printf_fp( fp1[ixshiftedeo], "fp1", ofs);
+  }
+
+  /* print the target field at ix */
+  if( source_proc_id == g_cart_id ) {
+    printf_fp( fp2[ixeo], "fp2", ofs);
+  }
+
+  free_fp_field( &fp1 );
+  free_fp_field( &fp2 );
 
   fclose(ofs);
 
@@ -289,11 +397,6 @@ int main(int argc, char **argv) {
   /* odd part */
   exitstatus = assign_fermion_propagaptor_from_spinor_field (fp2, eo_spinor_field+12, Vhalf);
 
-
- 
-
-  free_geometry();
-
   free(g_spinor_field[0]);
   free(g_spinor_field);
   free(eo_spinor_field[0]);
@@ -302,6 +405,8 @@ int main(int argc, char **argv) {
   free_fp_field(&fp1);
   free_fp_field(&fp2);
 #endif  /* of if 0 */
+
+  free_geometry();
 #ifdef HAVE_MPI
   mpi_fini_xchange_eo_spinor();
   mpi_fini_datatypes();

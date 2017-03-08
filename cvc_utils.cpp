@@ -2330,6 +2330,11 @@ int ranz2(double * y, unsigned int NRAND) {
 
 /********************************************************
  * random_gauge_field
+ *
+ * NOTE: we assume the random number generator has
+ * been properly initialized in the case of MPI usage;
+ * we cease to have g_cart_id 0 do all the sampling
+ * and sending
  ********************************************************/
 void random_gauge_field(double *gfield, double h) {
 
@@ -2346,12 +2351,13 @@ void random_gauge_field(double *gfield, double h) {
   gauge_point[2] = buffer + 36;
   gauge_point[3] = buffer + 54;
 
-  if(g_cart_id==0) {
+/*  if(g_cart_id==0) { */
     for(ix=0; ix<VOLUME; ix++) {
       random_gauge_point(gauge_point, h);
       memcpy((void*)(gfield + _GGI(ix,0)), (void*)buffer, 72*sizeof(double));
     }
-  }
+/*  } */
+#if 0
 #ifdef HAVE_MPI
   if(g_cart_id==0) {
     if( (gauge_ts = (double*)malloc(72*LX*LY*LZ*sizeof(double))) == (double*)NULL ) {
@@ -2388,7 +2394,8 @@ void random_gauge_field(double *gfield, double h) {
   }
   if(g_cart_id==0) free(gauge_ts);
 #endif  
-}
+#endif  /* of if 0 */
+}  /* end of random_gauge_field */
 
 /********************************************************
  * random spinor field
@@ -2829,46 +2836,6 @@ void random_gauge_field2(double *gfield) {
   }
   if(g_cart_id==0) free(gauge_ts);
 #endif  
-}
-
-int init_hpe_fields(int ***loop_tab, int ***sigma_tab, int ***shift_start, double **tcf, double **tcb) {
-  int i;
-  if(loop_tab    != (int***)NULL) { for(i=0; i<HPE_MAX_ORDER; i++) loop_tab[i]    = (int**)NULL; }
-  if(sigma_tab   != (int***)NULL) { for(i=0; i<HPE_MAX_ORDER; i++) sigma_tab[i]   = (int**)NULL; }
-  if(shift_start != (int***)NULL) { for(i=0; i<HPE_MAX_ORDER; i++) shift_start[i] = (int**)NULL; }
-  if(tcf != (double**)NULL) { for(i=0; i<HPE_MAX_ORDER; i++) tcf[i] = (double*)NULL; }
-  if(tcb != (double**)NULL) { for(i=0; i<HPE_MAX_ORDER; i++) tcb[i] = (double*)NULL; }
-  return(0);
-}
-
-int free_hpe_fields(int ***loop_tab, int ***sigma_tab, int ***shift_start, double **tcf, double **tcb) {
-  int i;
-  if(loop_tab    != (int***)NULL) { 
-    for(i=0; i<HPE_MAX_ORDER; i++) {
-      if(loop_tab[i]  != (int**)NULL) { free(loop_tab[i][0]); free(loop_tab[i]); }
-    }
-  }
-  if(sigma_tab   != (int***)NULL) { 
-    for(i=0; i<HPE_MAX_ORDER; i++) {
-      if(sigma_tab[i] != (int**)NULL) { free(sigma_tab[i][0]); free(sigma_tab[i]); }
-    }
-  }
-  if(shift_start    != (int***)NULL) { 
-    for(i=0; i<HPE_MAX_ORDER; i++) {
-      if(shift_start[i]!=(int**)NULL) { free(shift_start[i][0]); free(shift_start[i]); }
-    }
-  }
-  if(tcf != (double**)NULL) { 
-    for(i=0; i<HPE_MAX_ORDER; i++) {
-      if(tcf[i]!=(double*)NULL) { free(tcf[i]); }
-    }
-  }
-  if(tcb != (double**)NULL) { 
-    for(i=0; i<HPE_MAX_ORDER; i++) {
-      if(tcb[i]!=(double*)NULL) { free(tcb[i]); }
-    }
-  }
-  return(0);
 }
 
 /***************************************************

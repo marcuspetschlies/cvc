@@ -1,2 +1,12 @@
 # Sun Feb  5 13:26:28 CET 2017
 - gauge field in cvc should be already multiplied with hopping phases
+
+# Wed Mar  8 14:11:58 CET 2017
+- checked apply_propagator_constant_cvc_vertex for all directions mu, fwd / bwd with N = 1
+- cheched co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field for sign = +1, -1
+
+- checked apply_cvc_vertex_propagator_eo for fwd, dir = 0,1,2,3 even target point
+
+TODO
+- check apply_cvc_vertex_propagator_eo
+- check exchange routine for fermion propagator field
