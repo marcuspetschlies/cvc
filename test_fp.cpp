@@ -190,6 +190,7 @@ int main(int argc, char **argv) {
   geometry();
 
   mpi_init_xchange_eo_spinor();
+  mpi_init_xchange_eo_propagator();
 
 #ifdef HAVE_OPENMP
   if(g_cart_id == 0) fprintf(stdout, "[test_fp] setting omp number of threads to %d\n", g_num_threads);
@@ -301,6 +302,14 @@ int main(int argc, char **argv) {
   fclose(ofs);
 */
 
+  /* TEST apply_cvc_vertex_propagator_eo point-wise */
+  /* TEST compare apply_cvc_vertex_propagator_eo and apply_cvc_vertex_eo */
+
+  no_eo_fields = 24;
+  eo_spinor_field = (double**)malloc(no_eo_fields * sizeof(double*));
+  eo_spinor_field[0] = (double*)malloc(no_eo_fields * _GSI((VOLUME+RAND)/2) * sizeof(double));
+  for(i=1; i<no_eo_fields; i++) eo_spinor_field[i] = eo_spinor_field[i-1] + _GSI( (VOLUME+RAND)/2 );
+
   fermion_propagator_type *fp1 = NULL, *fp2 = NULL;
   fp1 = create_fp_field ( (VOLUME+RAND)/2 );
   fp2 = create_fp_field ( (VOLUME+RAND)/2 );
@@ -312,15 +321,44 @@ int main(int argc, char **argv) {
   int source_coords[4], g_shifted_source_coords[4], shifted_source_coords[4], shifted_source_proc_id=0;
   get_point_source_info (g_source_coords_list[0], source_coords, &source_proc_id);
 
-  ix = g_ipt[source_coords[0]][source_coords[1]][source_coords[2]][source_coords[3]];
 
-  int dir  = 3;
-  int fbwd = 1;  /* 0 fwd, 1 bwd */
+  ix = g_cart_id == source_proc_id ?  g_ipt[source_coords[0]][source_coords[1]][source_coords[2]][source_coords[3]] : 0;
 
-  /* void apply_cvc_vertex_propagator_eo ( fermion_propagator_type *s, fermion_propagator_type *r, int mu, int fbwd, double *gauge_field, int EO) */
-  apply_cvc_vertex_propagator_eo ( fp2, fp1, dir, fbwd, g_gauge_field, (int)(g_iseven[ix] == 0 ) );
+  int dir  = 1;
+  int fbwd = 0;  /* 0 fwd, 1 bwd */
+  int ieo = (int)(g_iseven[ix] == 0 );
+  if(g_cart_id == source_proc_id ) fprintf(stdout, "# [] %6d = (%d, %d, %d, %d) has iseven = %d and ieo = %d\n", ix, 
+      g_source_coords_list[0][0], g_source_coords_list[0][1], g_source_coords_list[0][2], g_source_coords_list[0][3], g_iseven[ix], ieo);
 
+  for( dir = 0; dir<4; dir++ ) {
 
+    for( fbwd = 0; fbwd<2; fbwd++ ) {
+
+      /* void apply_cvc_vertex_propagator_eo ( fermion_propagator_type *s, fermion_propagator_type *r, int mu, int fbwd, double *gauge_field, int EO) */
+      apply_cvc_vertex_propagator_eo ( fp2, fp1, dir, fbwd, g_gauge_field, ieo );
+
+      /* copy spinor field to propagator */
+      exitstatus = assign_spinor_field_from_fermion_propagaptor (eo_spinor_field, fp1, Vhalf);
+
+      for( i=0; i<12; i++) {
+        apply_cvc_vertex_eo( eo_spinor_field[12+i], eo_spinor_field[i] , dir, fbwd, g_gauge_field, ieo);
+      }
+
+      exitstatus = assign_spinor_field_from_fermion_propagaptor (eo_spinor_field, fp2, Vhalf);
+
+      for( i=0; i<12; i++ ) {
+        spinor_field_norm_diff (&norm, eo_spinor_field[i], eo_spinor_field[12+i], Vhalf);
+        spinor_scalar_product_re (&norm2, eo_spinor_field[i], eo_spinor_field[i], Vhalf);
+        if( g_cart_id == 0 ) {
+          fprintf(stdout, "# [test_fp] dir %d fbwd %d  norm %2d %16.7e %16.7e\n", dir, fbwd, i, norm, norm2);
+        }
+      }
+    }  /* end of loop on fbwd */
+  }  /* end of loop on dir */
+#if 0
+#endif
+
+#if 0 
   unsigned int ixeo = g_lexic2eosub[ix];
   memcpy( g_shifted_source_coords, g_source_coords_list[0], 4*sizeof(int) );
   if( fbwd == 0) {
@@ -333,6 +371,8 @@ int main(int argc, char **argv) {
   unsigned int ixshifted = g_ipt[shifted_source_coords[0]][shifted_source_coords[1]][shifted_source_coords[2]][shifted_source_coords[3]];
   unsigned int ixshiftedeo = g_lexic2eosub[ixshifted];
   
+
+
   ofs = fopen("test_fp.data", "w");
 
 
@@ -341,7 +381,7 @@ int main(int argc, char **argv) {
     if( source_proc_id == g_cart_id ) {
       printf_cm(g_gauge_field+_GGI(ix, dir), "U", ofs);
     }
-  } else if ( fbwd == 0 ) {
+  } else if ( fbwd == 1 ) {
     if( shifted_source_proc_id == g_cart_id ) {
       printf_cm(g_gauge_field+_GGI(ixshifted, dir), "U", ofs);
     }
@@ -361,25 +401,32 @@ int main(int argc, char **argv) {
   free_fp_field( &fp2 );
 
   fclose(ofs);
+#endif
+  free(eo_spinor_field[0]);
+  free(eo_spinor_field);
+  free_fp_field(&fp1);
+  free_fp_field(&fp2);
 
 #if 0
+  /* TEST exchange for propagator field */
 
   /* init and allocate spinor fields */
 
   no_fields = 24;
-  g_spinor_field = (double**)calloc(no_fields, sizeof(double*));
+  g_spinor_field = (double**)malloc(no_fields * sizeof(double*));
   g_spinor_field[0 ] = (double*)malloc(no_fields * _GSI(VOLUME+RAND)*sizeof(double) );
   for(i=1; i<no_fields; i++) g_spinor_field[i] = g_spinor_field[i-1] +  _GSI( VOLUME+RAND );
 
+
   no_eo_fields = 24;
-  eo_spinor_field = (double**)calloc(no_eo_fields, sizeof(double*));
-  eo_spinor_field = (double**)calloc(no_eo_fields * _GSI((VOLUME+RAND)/2), sizeof(double));
+  eo_spinor_field = (double**)malloc(no_eo_fields * sizeof(double*));
+  eo_spinor_field[0] = (double*)malloc(no_eo_fields * _GSI((VOLUME+RAND)/2) * sizeof(double));
   for(i=1; i<no_eo_fields; i++) eo_spinor_field[i] = eo_spinor_field[i-1] + _GSI( (VOLUME+RAND)/2 );
 
+
   /* fp fields */
-  fp1 = create_fp_field( (VOLUME+RAND)/2);
-  fp2 = create_fp_field( (VOLUME+RAND)/2);
- 
+  fermion_propagator_type *fp1 = create_fp_field( (VOLUME+RAND)/2);
+  fermion_propagator_type *fp2 = create_fp_field( (VOLUME+RAND)/2);
 
   /* set random spinor fields */
   for( i=0; i<12; i++ ) {
@@ -397,6 +444,28 @@ int main(int argc, char **argv) {
   /* odd part */
   exitstatus = assign_fermion_propagaptor_from_spinor_field (fp2, eo_spinor_field+12, Vhalf);
 
+  xchange_eo_propagator ( fp1, 0, -1 );
+
+
+  /* reverse action */
+  /* even part */
+  exitstatus = assign_spinor_field_from_fermion_propagaptor (eo_spinor_field, fp1, Vhalf);
+  /* odd part */
+  exitstatus = assign_spinor_field_from_fermion_propagaptor (eo_spinor_field+12, fp2, Vhalf);
+
+  /* compose from eo spinor fields */
+  for( i=0; i<12; i++ ) {
+    spinor_field_eo2lexic (g_spinor_field[12+i], eo_spinor_field[i], eo_spinor_field[12+i]);
+  }
+
+  for( i=0; i<12; i++ ) {
+    spinor_field_norm_diff (&norm, g_spinor_field[i], g_spinor_field[12+i], VOLUME);
+    spinor_scalar_product_re (&norm2, g_spinor_field[i], g_spinor_field[i], VOLUME);
+    if( g_cart_id == 0 ) {
+      fprintf(stdout, "# [test_fp] norm %2d %16.7e %16.7e\n", i, norm, norm2);
+    }
+  }
+
   free(g_spinor_field[0]);
   free(g_spinor_field);
   free(eo_spinor_field[0]);
@@ -404,11 +473,12 @@ int main(int argc, char **argv) {
 
   free_fp_field(&fp1);
   free_fp_field(&fp2);
-#endif  /* of if 0 */
+#endif
 
   free_geometry();
 #ifdef HAVE_MPI
   mpi_fini_xchange_eo_spinor();
+  mpi_fini_xchange_eo_propagator();
   mpi_fini_datatypes();
 #endif
 

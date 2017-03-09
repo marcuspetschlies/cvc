@@ -5103,7 +5103,11 @@ void xchange_eo_propagator ( fermion_propagator_type *fp, int eo, int dir) {
   const unsigned int Zshift_start = eo ? LZ / 2 : 0;
   const unsigned int Zshift_end   = eo ? 0 : LZ / 2;
 
-  double *phi = &(fp[0][0][0])
+  double *phi = &(fp[0][0][0]);
+
+  if ( g_cart_id == 0 ) {
+    fprintf(stdout, "# [xchange_eo_propagator] exchanging eo propagator field %d in direction %d\n", eo, dir);
+  }
 
   MPI_Request request[220];
   MPI_Status status[220];

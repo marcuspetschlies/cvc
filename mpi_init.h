@@ -67,6 +67,8 @@ extern MPI_Datatype eo_spinor_z_even_bwd_slice_struct;
 
 /* slices for even-odd propagator */
 
+extern MPI_Datatype eo_propagator_time_slice_cont;
+
 extern MPI_Datatype eo_propagator_x_slice_vector;
 extern MPI_Datatype eo_propagator_x_slice_cont;
 extern MPI_Datatype eo_propagator_x_subslice_cont;
