@@ -4855,27 +4855,33 @@ void xchange_contraction(double *phi, int N) {
  ***********************************************************/
 void spinor_field_lexic2eo (double *r_lexic, double*r_e, double *r_o) {
 
+  const unsigned int N = (VOLUME+RAND)/2;
   unsigned int ix, ix_e2lexic, ix_o2lexic;
-  unsigned int N = (VOLUME+RAND)/2;
 
   if(r_e != NULL) {
     /* for(ix=0; ix<N; ix++) */
+#ifdef HAVE_OPENMP
+#pragma omp parallel for private(ix_e2lexic)
+#endif
     for(ix=0; ix < VOLUME/2; ix++)
     {
       ix_e2lexic = g_eo2lexic[ix];
       /* fprintf(stdout, "# [spinor_field_lexic2eo] ix = %u, ix_e2lexic = %u\n", ix, ix_e2lexic); */
       _fv_eq_fv(r_e + _GSI(ix), r_lexic+_GSI(ix_e2lexic) );
-    }  /* end of loop on ix over (VOLUME+RAND)/2 */
+    }  /* end of loop on ix over VOLUME / 2 */
   }
 
   if(r_o != NULL) {
     /* for(ix=0; ix<N; ix++) */
+#ifdef HAVE_OPENMP
+#pragma omp parallel for private(ix_o2lexic)
+#endif
     for(ix=0; ix<VOLUME/2; ix++)
     {
       ix_o2lexic = g_eo2lexic[ix+N];
       /* fprintf(stdout, "# [spinor_field_lexic2eo] ix = %u, ix_o2lexic = %u\n", ix, ix_o2lexic); */
       _fv_eq_fv(r_o + _GSI(ix), r_lexic+_GSI(ix_o2lexic) );
-    }  /* end of loop on ix over (VOLUME+RAND)/2 */
+    }  /* end of loop on ix over VOLUME / 2 */
   }
 }  /* end of spinor_field_lexic2eo */
 
@@ -4913,7 +4919,99 @@ void spinor_field_eo2lexic (double *r_lexic, double*r_e, double *r_o) {
   }
 }  /* end of spinor_field_eo2lexic */
 
+/***********************************************************
+ * complex_field_eo2lexic
+ * - compose lexicographic complex field from even and odd part
+ * - complex as in 2 doubles
+ ***********************************************************/
+void complex_field_eo2lexic (double *r_lexic, double*r_e, double *r_o) {
 
+  const unsigned int Vhalf = VOLUME / 2;
+  const unsigned int N = (VOLUME+RAND)/2;
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  unsigned int ix, idx, idx_e2lexic, idx_o2lexic;
+  if(r_e != NULL) {
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(ix=0, idx=0; ix<Vhalf; ix++, idx+=2)
+    {
+      idx_e2lexic = 2 * g_eo2lexic[ix];
+      r_lexic[idx_e2lexic  ] = r_e[idx  ];
+      r_lexic[idx_e2lexic+1] = r_e[idx+1];
+    }  /* end of loop on ix */
+  }
+
+  if(r_o != NULL) {
+    /* for(ix=0; ix<N; ix++) */
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(ix=0, idx=0; ix<Vhalf; ix++, idx+=2)
+    {
+      idx_o2lexic = 2 * g_eo2lexic[ix+N];
+      r_lexic[idx_o2lexic  ] = r_o[idx  ];
+      r_lexic[idx_o2lexic+1] = r_o[idx+1];
+    }  /* end of loop on ix */
+  }
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+}  /* end of complex_field_eo2lexic */
+
+
+
+/***********************************************************
+ * complex_field_lexic2eo
+ * - decompose lexicorgraphic complex field in even and odd part
+ ***********************************************************/
+void complex_field_lexic2eo (double *r_lexic, double*r_e, double *r_o) {
+
+  const unsigned int Vhalf = VOLUME / 2;
+  const unsigned int N = (VOLUME+RAND)/2;
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  unsigned int ix, idx, idx_e2lexic, idx_o2lexic;
+
+  if(r_e != NULL) {
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(ix=0, idx=0; ix < Vhalf; ix++, idx+=2)
+    {
+      idx_e2lexic = 2 * g_eo2lexic[ix];
+      r_e[idx  ] = r_lexic[idx_e2lexic  ];
+      r_e[idx+1] = r_lexic[idx_e2lexic+1];
+    }  /* end of loop on ix over VOLUME / 2 */
+  }
+
+  if(r_o != NULL) {
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(ix=0, idx=0; ix<Vhalf; ix++, idx+=2)
+    {
+      idx_o2lexic = 2 * g_eo2lexic[ix+N];
+
+      r_o[idx  ] = r_lexic[idx_o2lexic  ];
+      r_o[idx+1] = r_lexic[idx_o2lexic+1];
+    }  /* end of loop on ix over VOLUME / 2 */
+  }
+
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+}  /* end of complex_field_lexic2eo */
 
 
 

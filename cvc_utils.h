@@ -102,7 +102,13 @@ void cm_proj_iterate(double *A, double *B, int maxiter, double tol);
 
 void spinor_field_lexic2eo (double *r_lexic, double*r_e, double *r_o);
 void spinor_field_eo2lexic (double *r_lexic, double*r_e, double *r_o);
+
 void spinor_field_unpack_lexic2eo (double *r_lexic, double*r_o1, double *r_o2);
+
+void complex_field_lexic2eo (double *r_lexic, double*r_e, double *r_o);
+void complex_field_eo2lexic (double *r_lexic, double*r_e, double *r_o);
+
+
 int printf_eo_spinor_field(double *s, int use_even, int print_halo, FILE *ofs);
 
 void spinor_field_eq_spinor_field_pl_spinor_field_ti_re(double*r, double*s, double *t, double c, unsigned int N);

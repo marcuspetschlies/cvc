@@ -153,7 +153,7 @@ int main(int argc, char **argv) {
    * initialize MPI parameters for cvc
    *********************************/
   mpi_init(argc, argv);
-  mpi_init_xchange_contraction(32);
+  mpi_init_xchange_contraction(2);
 
   /*********************************
    * set number of openmp threads
@@ -460,8 +460,8 @@ int main(int argc, char **argv) {
 
       if(g_cart_id == 0) fprintf(stdout, "# [] using op_id = %d\n", op_id);
 
-      /* for(mu=0; mu<5; mu++) */
-      for(mu=4; mu<5; mu++)
+      for(mu=0; mu<5; mu++)
+      /* for(mu=4; mu<5; mu++) */
       {
   
         shifted_source_coords[0] = gsx0;
@@ -924,7 +924,7 @@ int main(int argc, char **argv) {
 #endif
   if(g_cart_id==0) fprintf(stdout, "# [cvc_exact2_xspace] saved position space results in %e seconds\n", retime-ratime);
 
-
+#if 0
   /* check the Ward identity in position space */
   if(check_position_space_WI) {
 #ifdef HAVE_MPI
@@ -1006,7 +1006,92 @@ int main(int argc, char **argv) {
       }
     }}}}
     fclose(ofs);
-  }
+  }  /* end if if check_position_space_WI */
+
+#endif  /* of if 0 */
+
+
+  if(check_position_space_WI) {
+
+#ifdef HAVE_MPI
+    unsigned int VOLUMEplusRAND = VOLUME + RAND;
+    unsigned int stride = VOLUMEplusRAND;
+    double *conn_buffer = (double*)malloc(32*VOLUMEplusRAND*sizeof(double));
+    if(conn_buffer == NULL) {
+      EXIT(14);
+    }
+    /* size_t bytes = 32 * VOLUME * sizeof(double);
+     memcpy(conn_buffer, conn, bytes);
+    xchange_contraction(conn_buffer, 32); */
+    for(mu=0; mu<16; mu++) {
+      memcpy(conn_buffer+2*mu*VOLUMEplusRAND, conn+2*mu*VOLUME, 2*VOLUME*sizeof(double));
+    }
+
+    /* subtract contact term */
+    if( have_source_flag == g_cart_id ) {
+      fprintf(stdout, "# [cvc_exact2_xspace] process %d subtracting contact term\n", g_cart_id);
+      ix = g_ipt[sx0][sx1][sx2][sx3];
+      for(mu=0; mu<4; mu++) {
+        conn_buffer[_GWI(5*mu,ix,stride)    ] -= contact_term[2*mu  ];
+        conn_buffer[_GWI(5*mu,ix,stride) + 1] -= contact_term[2*mu+1];
+      }
+    }
+
+    /* exchange contraction fields */
+    for(mu=0; mu<16; mu++) {
+      xchange_contraction(conn_buffer+2*mu*VOLUMEplusRAND, 2);
+      /* if(g_cart_id == 0) { fprintf(stdout, "# [] xchanged for mu = %d\n", mu); fflush(stdout);} */
+    }
+#else
+    double *conn_buffer = conn;
+#endif
+    /* sprintf(filename, "WI_X.%.4d.%.4d", Nconf, g_cart_id);
+    ofs = fopen(filename,"w");
+    */
+
+    if( g_cart_id == 0 ) fprintf(stdout, "\n# [cvc_exact2_xspace] checking Ward identity in position space ...\n");
+    for(nu=0; nu<4; nu++) {
+      double norm=0;
+
+      for(x0=0; x0<T;  x0++) {
+      for(x1=0; x1<LX; x1++) {
+      for(x2=0; x2<LY; x2++) {
+      for(x3=0; x3<LZ; x3++) {
+        /* fprintf(ofs, "# t=%2d x=%2d y=%2d z=%2d\n", x0, x1, x2, x3); */
+        ix=g_ipt[x0][x1][x2][x3];
+
+        w.re = conn_buffer[_GWI(4*0+nu,ix          ,stride)  ] + conn_buffer[_GWI(4*1+nu,ix          ,stride)  ]
+             + conn_buffer[_GWI(4*2+nu,ix          ,stride)  ] + conn_buffer[_GWI(4*3+nu,ix          ,stride)  ]
+             - conn_buffer[_GWI(4*0+nu,g_idn[ix][0],stride)  ] - conn_buffer[_GWI(4*1+nu,g_idn[ix][1],stride)  ]
+             - conn_buffer[_GWI(4*2+nu,g_idn[ix][2],stride)  ] - conn_buffer[_GWI(4*3+nu,g_idn[ix][3],stride)  ];
+
+        w.im = conn_buffer[_GWI(4*0+nu,ix          ,stride)+1] + conn_buffer[_GWI(4*1+nu,ix          ,stride)+1]
+             + conn_buffer[_GWI(4*2+nu,ix          ,stride)+1] + conn_buffer[_GWI(4*3+nu,ix          ,stride)+1]
+             - conn_buffer[_GWI(4*0+nu,g_idn[ix][0],stride)+1] - conn_buffer[_GWI(4*1+nu,g_idn[ix][1],stride)+1]
+             - conn_buffer[_GWI(4*2+nu,g_idn[ix][2],stride)+1] - conn_buffer[_GWI(4*3+nu,g_idn[ix][3],stride)+1];
+
+        /* fprintf(ofs, "\t%3d%25.16e%25.16e\n", nu, w.re, w.im); */
+          norm += w.re*w.re + w.im*w.im;
+      }}}}
+
+#ifdef HAVE_MPI
+      double norm2 = norm;
+      if( MPI_Allreduce(&norm2, &norm, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid) != MPI_SUCCESS ) {
+        fprintf(stderr, "[cvc_exact2_xspace] Error from MPI_Allreduce\n");
+        EXIT(12);
+      }
+#endif
+      if(g_cart_id == 0) fprintf(stdout, "# [cvc_exact2_xspace] WI nu = %d norm = %25.16e\n", nu, sqrt(norm));
+    }
+
+
+#ifdef HAVE_MPI
+    free(conn_buffer);
+#endif
+    /* fclose(ofs); */
+  }  /* end of if check_position_space_WI */
+#if 0
+#endif
 
 #ifdef HAVE_MPI
   if(g_cart_id==0) fprintf(stdout, "# [cvc_exact2_xspace] broadcasing contact term ...\n");
