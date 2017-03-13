@@ -152,9 +152,10 @@ void co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field (
   /***********************************************************************************************************/
 
 /***********************************************************
- * contractions for cvc - cvc tensor
+ * eo-prec contractions for cvc - cvc tensor
  *
- * NOTE: neither conn_e nor conn_o are initialized here
+ * NOTE: neither conn_e nor conn_o nor contact_term 
+ *       are initialized to zero here
  ***********************************************************/
 void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_term, double**sprop_list_e, double**sprop_list_o, double**tprop_list_e, double**tprop_list_o , double*gauge_field ) {
   
@@ -163,7 +164,6 @@ void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_te
 
   int mu, nu;
   int exitstatus;
-  unsigned int ix;
   double ratime, retime;
   complex *conn_ = NULL;
 
@@ -180,11 +180,13 @@ void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_te
   fermion_propagator_type *fp_Y_gamma       = create_fp_field( Vhalf );
   fermion_propagator_type *gamma_fp_Y_gamma = create_fp_field( Vhalf );
   fermion_propagator_type *fp_X             = create_fp_field( Vhalf );
-  
+
+#if 0
   contact_term[0] = 0.; contact_term[1] = 0.;
   contact_term[2] = 0.; contact_term[3] = 0.;
   contact_term[4] = 0.; contact_term[5] = 0.;
   contact_term[6] = 0.; contact_term[7] = 0.;
+#endif  /* of if 0 */
 
   /**********************************************************
    **********************************************************
@@ -211,8 +213,9 @@ void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_te
   }
 
   /* loop on nu */
-  for( nu=0; nu<4; nu++ ) {
-  
+  for( nu=0; nu<4; nu++ )
+  {
+
     /* fp_Y_gamma^o = sprop^o , source + nu */
     exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_Y_gamma, sprop_list_o+12*nu, Vhalf);
 
@@ -224,7 +227,7 @@ void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_te
       conn_ = (complex*)( conn_o + (4*mu+nu)*2*Vhalf );
 
       /* contract S^o Gamma_nu, Gamma_mu T^e */
-      co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field (conn_, fp_Y_gamma, gamma_fp_X[mu], -1., Vhalf);
+      co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field (conn_, fp_Y_gamma, gamma_fp_X[mu], 1., Vhalf);
 
 
       /* fp_aux^o = fp_Y_gamma^o */
@@ -236,17 +239,19 @@ void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_te
       conn_ = (complex*)( conn_e + (4*mu+nu)*2*Vhalf );
 
       /* contract gamma_fp_Y_gamma^e, T^e */
-      co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field (conn_, gamma_fp_Y_gamma, fp_X, 1., Vhalf);
+      co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field (conn_, gamma_fp_Y_gamma, fp_X, -1., Vhalf);
 
     }
+#if 0 
+#endif  /* of if 0 */
 
     /* contribution to contact term */
     if( (source_proc_id == g_cart_id) && !source_location_iseven ) {
       /* gamma_fp_X[nu] = Gamma_nu^f T^e */
       complex w;
-      _co_eq_tr_fp ( &w, gamma_fp_X[nu][source_location] );
-      contact_term[2*nu  ] += -0.5 * w.re;
-      contact_term[2*nu+1] += -0.5 * w.im;
+      _co_eq_tr_fp ( &w, gamma_fp_X[nu][g_lexic2eosub[source_location]] );
+      contact_term[2*nu  ] -= w.re;
+      contact_term[2*nu+1] -= w.im;
     }
 
   }  /* end of loop on nu */
@@ -266,9 +271,11 @@ void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_te
   }
 
   /* loop on nu */
-  for( nu=0; nu<4; nu++ ) {
+  for( nu=0; nu<4; nu++ ) 
+  {
   
-    /* fp_Y_gamma^o = sprop^o , source + nu */
+
+    /* fp_Y_gamma^o = tprop^o , source + nu */
     exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_Y_gamma, tprop_list_o+12*nu, Vhalf);
 
     /* fp_Y_gamma^o = fp_Y_gamma^o * Gamma_nu^b  */
@@ -279,7 +286,7 @@ void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_te
       conn_ = (complex*)( conn_o + (4*mu+nu)*2*Vhalf );
 
       /* contract Gamma_mu^f S^e, T^o Gamma_nu^b */
-      co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field (conn_, gamma_fp_X[mu], fp_Y_gamma, -1., Vhalf);
+      co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field (conn_, gamma_fp_X[mu], fp_Y_gamma, 1., Vhalf);
 
       /* fp_aux^o = fp_Y_gamma^o */
       memcpy(fp_aux[0][0], fp_Y_gamma[0][0], sizeof_eo_propagator_field );
@@ -289,18 +296,21 @@ void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_te
 
       conn_ = (complex*)( conn_e + (4*mu+nu)*2*Vhalf );
 
-      /* contract gamma_fp_Y_gamma^e, T^e */
-      co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field (conn_, fp_X, gamma_fp_Y_gamma, 1., Vhalf);
+      /* contract S^e , gamma_fp_Y_gamma^e */
+      co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field (conn_, fp_X, gamma_fp_Y_gamma, -1., Vhalf);
 
     }
+
+#if 0
+#endif  /* of if 0 */
 
     /* contribution to contact term */
     if( (source_proc_id == g_cart_id) && !source_location_iseven ) {
       /* fp_Y_gamma = T^o Gamma_nu^b */
       complex w;
-      _co_eq_tr_fp ( &w, fp_Y_gamma[source_location] );
-      contact_term[2*nu  ] += 0.5 * w.re;
-      contact_term[2*nu+1] += 0.5 * w.im;
+      _co_eq_tr_fp ( &w, fp_Y_gamma[ g_lexic2eosub[source_location] ] );
+      contact_term[2*nu  ] += w.re;
+      contact_term[2*nu+1] += w.im;
     }
 
   }  /* end of loop on nu */
@@ -320,8 +330,10 @@ void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_te
   }
 
   /* loop on nu */
-  for( nu=0; nu<4; nu++ ) {
+  for( nu=0; nu<4; nu++ )
+  {
   
+
     /* fp_Y_gamma^e = sprop^e , source + nu */
     exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_Y_gamma, sprop_list_e+12*nu, Vhalf);
 
@@ -333,7 +345,7 @@ void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_te
       conn_ = (complex*)( conn_e + (4*mu+nu)*2*Vhalf );
 
       /* contract S^e Gamma_nu^b, Gamma_mu^f T^o */
-      co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field (conn_, fp_Y_gamma, gamma_fp_X[mu], -1., Vhalf);
+      co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field (conn_, fp_Y_gamma, gamma_fp_X[mu], 1., Vhalf);
 
       /* fp_aux^e = fp_Y_gamma^e */
       memcpy(fp_aux[0][0], fp_Y_gamma[0][0], sizeof_eo_propagator_field );
@@ -344,17 +356,19 @@ void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_te
       conn_ = (complex*)( conn_o + (4*mu+nu)*2*Vhalf );
 
       /* contract gamma_fp_Y_gamma^o, T^o */
-      co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field (conn_, gamma_fp_Y_gamma, fp_X, 1., Vhalf);
+      co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field (conn_, gamma_fp_Y_gamma, fp_X, -1., Vhalf);
 
     }
+#if 0
+#endif  /* of if 0 */
 
     /* contribution to contact term */
     if( (source_proc_id == g_cart_id) && source_location_iseven ) {
       /* gamma_fp_X = Gamma_nu^f T^o */
       complex w;
-      _co_eq_tr_fp ( &w, gamma_fp_X[nu][source_location] );
-      contact_term[2*nu  ] -= 0.5 * w.re;
-      contact_term[2*nu+1] -= 0.5 * w.im;
+      _co_eq_tr_fp ( &w, gamma_fp_X[nu][ g_lexic2eosub[source_location] ] );
+      contact_term[2*nu  ] -= w.re;
+      contact_term[2*nu+1] -= w.im;
     }
 
   }  /* end of loop on nu */
@@ -374,8 +388,9 @@ void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_te
   }
 
   /* loop on nu */
-  for( nu=0; nu<4; nu++ ) {
-  
+  for( nu=0; nu<4; nu++ ) 
+  {
+
     /* fp_Y_gamma^e = tprop^e , source + nu */
     exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_Y_gamma, tprop_list_e+12*nu, Vhalf);
 
@@ -387,7 +402,7 @@ void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_te
       conn_ = (complex*)( conn_e + (4*mu+nu)*2*Vhalf );
 
       /* contract Gamma_mu^f S^o, T^e Gamma_nu^b */
-      co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field (conn_, gamma_fp_X[mu], fp_Y_gamma, -1., Vhalf);
+      co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field (conn_, gamma_fp_X[mu], fp_Y_gamma, 1., Vhalf);
 
       /* fp_aux^e = fp_Y_gamma^e */
       memcpy(fp_aux[0][0], fp_Y_gamma[0][0], sizeof_eo_propagator_field );
@@ -398,22 +413,25 @@ void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_te
       conn_ = (complex*)( conn_o + (4*mu+nu)*2*Vhalf );
 
       /* contract S^o, gamma_fp_Y_gamma^o */
-      co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field (conn_, fp_X, gamma_fp_Y_gamma, 1., Vhalf);
+      co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field (conn_, fp_X, gamma_fp_Y_gamma, -1., Vhalf);
 
     }
+#if 0
+#endif  /* of if 0 */
 
     /* contribution to contact term */
     if( (source_proc_id == g_cart_id) && source_location_iseven ) {
       /* fp_Y_gamma = T^e Gamma_nu^b */
       complex w;
-      _co_eq_tr_fp ( &w, fp_Y_gamma[source_location] );
-      contact_term[2*nu  ] = 0.5 * w.re;
-      contact_term[2*nu+1] = 0.5 * w.im;
+      _co_eq_tr_fp ( &w, fp_Y_gamma[ g_lexic2eosub[source_location] ] );
+      contact_term[2*nu  ] += w.re;
+      contact_term[2*nu+1] += w.im;
     }
 
   }  /* end of loop on nu */
 
   /* normalization */
+#if 0
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
@@ -422,7 +440,7 @@ void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_te
 #pragma omp parallel for
 #endif
   for(ix=0; ix<32*Vhalf; ix++) conn_o[ix] *= -0.25;
-
+#endif  /* of if 0 */
 
   /* free auxilliary fields */
   free_fp_field(&fp_aux);
@@ -435,16 +453,22 @@ void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_te
   free_fp_field( &gamma_fp_Y_gamma );
 
   retime = _GET_TIME;
-  if(g_cart_id==0) fprintf(stdout, "# [contract_cvc_tensor] time for contract_cvc_tensor = %e seconds\n", retime-ratime);
+  if(g_cart_id==0) fprintf(stdout, "# [contract_cvc_tensor_eo] time for contract_cvc_tensor = %e seconds\n", retime-ratime);
 
 #ifdef HAVE_MPI
-  if(g_cart_id == source_proc_id) fprintf(stdout, "# [contract_cvc_tensor] broadcasting contact term\n");
+  if(g_cart_id == source_proc_id) fprintf(stdout, "# [contract_cvc_tensor_eo] broadcasting contact term\n");
   MPI_Bcast(contact_term, 8, MPI_DOUBLE, source_proc_id, g_cart_grid);
   /* TEST */
   /* fprintf(stdout, "[%2d] contact term = "\
       "(%e + I %e, %e + I %e, %e + I %e, %e +I %e)\n",
       g_cart_id, contact_term[0], contact_term[1], contact_term[2], contact_term[3],
       contact_term[4], contact_term[5], contact_term[6], contact_term[7]); */
+  if( source_proc_id == g_cart_id ) {
+    fprintf(stdout, "# [contract_cvc_tensor_eo] contact term[0] = %25.16e + I %25.16e\n", contact_term[0], contact_term[1]);
+    fprintf(stdout, "# [contract_cvc_tensor_eo] contact term[1] = %25.16e + I %25.16e\n", contact_term[2], contact_term[3]);
+    fprintf(stdout, "# [contract_cvc_tensor_eo] contact term[2] = %25.16e + I %25.16e\n", contact_term[4], contact_term[5]);
+    fprintf(stdout, "# [contract_cvc_tensor_eo] contact term[3] = %25.16e + I %25.16e\n", contact_term[6], contact_term[7]);
+  }
 #endif
 
 #ifdef HAVE_MPI

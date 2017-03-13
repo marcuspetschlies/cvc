@@ -60,7 +60,7 @@ int dummy_solver (double * const propagator, double * const source, const int op
 }
 
 
-#ifdef USE_DUMMY_EO_SOLVER 
+#ifdef USE_DUMMY_SOLVER 
 #  define _TMLQCD_INVERT dummy_solver
 #else
 #  define _TMLQCD_INVERT tmLQCD_invert
@@ -124,8 +124,8 @@ int main(int argc, char **argv) {
   int c, i, mu, nu, ia,imunu;
   int op_id = 0;
   int filename_set = 0;
-  int have_source_flag = 0, have_shifted_source_flag = 0;
-  int x0, x1, x2, x3, ix;
+  int x0, x1, x2, x3;
+  unsigned int ix, ixeo;
   int gsx[4];
   int sx[4];
   int check_position_space_WI=0;
@@ -137,7 +137,8 @@ int main(int argc, char **argv) {
   unsigned int Vhalf;
   double *conn_e=NULL, *conn_o=NULL; 
   double contact_term[8];
-  char filename[100], contype[400];
+  char filename[100];
+  /* char contype[400]; */
   double ratime, retime;
   double plaq;
   double *source=NULL, *propagator=NULL, **eo_spinor_field = NULL;
@@ -333,8 +334,6 @@ int main(int argc, char **argv) {
     EXIT(3);
   }
   conn_o = conn_e + 32*Vhalf;
-  memset(conn_e, 0, 32*Vhalf*sizeof(double));
-  memset(conn_o, 0, 32*Vhalf*sizeof(double));
 
   /***********************************************************
    * determine source coordinates, find out, if source_location is in this process
@@ -345,9 +344,6 @@ int main(int argc, char **argv) {
   gsx[3] = (g_source_location % LZ_global);
 
   exitstatus = get_point_source_info (gsx, sx, &source_proc_id );
-
-  // initialize the contact term
-  memset(contact_term, 0, 8*sizeof(double));
 
   ratime = _GET_TIME;
 
@@ -434,7 +430,7 @@ int main(int argc, char **argv) {
 
         for ( op_id = 0; op_id < 2; op_id++ ) {
           if(g_cart_id == 0) fprintf(stdout, "# [cvc_exact3_xspace] inverting for operator %d for spin-color component (%d, %d)\n", op_id, ia/3, ia%3);
-          exitstatus = TMLQCD_INVERT(propagator, source, op_id, g_write_propagator);
+          exitstatus = _TMLQCD_INVERT(propagator, source, op_id, g_write_propagator);
           if(exitstatus != 0) {
             fprintf(stderr, "[cvc_exact3_xspace] Error from solver, status was %d\n", exitstatus);
             EXIT(7);
@@ -471,12 +467,16 @@ int main(int argc, char **argv) {
    **********************************************************/
   init_contract_cvc_tensor_usource(g_gauge_field, gsx);
 
+  memset(conn_e, 0, 32*Vhalf*sizeof(double));
+  memset(conn_o, 0, 32*Vhalf*sizeof(double));
+  memset(contact_term, 0, 8*sizeof(double));
+
   ratime = _GET_TIME;
 
   /**********************************************************
    * propagator lists
    **********************************************************/
-  for( mu=0; mu<4; mu++ ) {
+  for( mu=0; mu<5; mu++ ) {
     for( i=0; i<12; i++ ) {
       /* up-type - even */
       tprop_list_e [mu*12 + i] = eo_spinor_field[      mu*12 + i];
@@ -497,26 +497,27 @@ int main(int argc, char **argv) {
   retime = _GET_TIME;
   if(g_cart_id==0) fprintf(stdout, "# [cvc_exact3_xspace] time for contract_cvc_tensor_eo ions in %e seconds\n", retime-ratime);
 
-#if 0
+
   /**********************************************************
    * subtract contact term
    **********************************************************/
   if( source_proc_id == g_cart_id ) {
     fprintf(stdout, "# [cvc_exact3_xspace] process %d subtracting contact term\n", g_cart_id);
     ix = g_ipt[sx[0]][sx[1]][sx[2]][sx[3]];
+    ixeo = g_lexic2eosub[ix];
     if ( g_iseven[ix] ) {
       for(mu=0; mu<4; mu++) {
-        conn_e[_GWI(5*mu,ix,VOLUME)    ] -= contact_term[2*mu  ];
-        conn_e[_GWI(5*mu,ix,VOLUME) + 1] -= contact_term[2*mu+1];
+        conn_e[_GWI(5*mu,ixeo,Vhalf)    ] -= contact_term[2*mu  ];
+        conn_e[_GWI(5*mu,ixeo,Vhalf) + 1] -= contact_term[2*mu+1];
       }
     } else {
       for(mu=0; mu<4; mu++) {
-        conn_o[_GWI(5*mu,ix,VOLUME)    ] -= contact_term[2*mu  ];
-        conn_o[_GWI(5*mu,ix,VOLUME) + 1] -= contact_term[2*mu+1];
+        conn_o[_GWI(5*mu,ixeo,Vhalf)    ] -= contact_term[2*mu  ];
+        conn_o[_GWI(5*mu,ixeo,Vhalf) + 1] -= contact_term[2*mu+1];
       }
     }
   }
-
+#if 0
   /* save results as lime / lemon file */
   ratime = _GET_TIME;
   if(strcmp(g_outfile_prefix, "NA") == 0) {
@@ -682,10 +683,19 @@ int main(int argc, char **argv) {
 
 
 
-#if 0
+
   /***************************************************************************
    * momentum projections
    ***************************************************************************/
+
+  double *conn_buffer = (double*)malloc(32 * VOLUME * sizeof(double));
+  if(conn_buffer == NULL) {
+    EXIT(14);
+  }
+
+  for(mu=0; mu<16; mu++) {
+    complex_field_eo2lexic (conn_buffer+2 * mu * VOLUME, conn_e+2*mu*Vhalf, conn_o+2*mu*Vhalf );
+  }
 
   double ***cvc_tp = NULL;
   exitstatus = init_3level_buffer(&cvc_tp, g_sink_momentum_number, 16, 2*T);
@@ -695,7 +705,7 @@ int main(int argc, char **argv) {
   }
 
   ratime = _GET_TIME;
-  exitstatus = momentum_projection (conn, cvc_tp[0][0], T*16, g_sink_momentum_number, g_sink_momentum_list);
+  exitstatus = momentum_projection (conn_buffer, cvc_tp[0][0], T*16, g_sink_momentum_number, g_sink_momentum_list);
   if(exitstatus != 0) {
     fprintf(stderr, "[cvc_exact3_xspace] Error from momentum_projection, status was %d\n", exitstatus);
     EXIT(26);
@@ -720,14 +730,18 @@ int main(int argc, char **argv) {
     }
   }
   fclose(ofs);
+  free( conn_buffer );
   fini_3level_buffer(&cvc_tp);
+#if 0
 #endif /* of if 0 */
 
 
   /****************************************
    * free the allocated memory, finalize
    ****************************************/
-  /* free(g_gauge_field); */
+#ifndef HAVE_TMLQCD_LIBWRAPPER
+  free(g_gauge_field);
+#endif
   free( g_spinor_field[0] );
   free( g_spinor_field );
   free( eo_spinor_field[0] );
@@ -754,7 +768,5 @@ int main(int argc, char **argv) {
     fprintf(stdout, "# [cvc_exact3_xspace] %s# [cvc_exact3_xspace] end of run\n", ctime(&g_the_time));
     fprintf(stderr, "# [cvc_exact3_xspace] %s# [cvc_exact3_xspace] end of run\n", ctime(&g_the_time));
   }
-
   return(0);
-
 }

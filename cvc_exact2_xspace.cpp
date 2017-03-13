@@ -528,10 +528,24 @@ int main(int argc, char **argv) {
 
           propagator = g_spinor_field[12 * ( op_id * 5 + mu ) + ia];
   
-          exitstatus = tmLQCD_invert(propagator, source, op_id, g_write_propagator);
+          exitstatus = tmLQCD_invert(propagator, source, op_id, 0);
           if(exitstatus != 0) {
             fprintf(stderr, "[] Error from tmLQCD_invert, status was %d\n", exitstatus);
             EXIT(7);
+          }
+
+          if( g_write_propagator ) {
+            if( op_id ==  0 ) { 
+              sprintf(filename, "%s.%.4d.%.2d.%.2d.inverted", filename_prefix,  Nconf, mu, ia); 
+            } else if( op_id == 1 ) { 
+              sprintf(filename, "%s.%.4d.%.2d.%.2d.inverted", filename_prefix2, Nconf, mu, ia); 
+            }
+
+            if( write_propagator(propagator, filename, 0, g_propagator_precision) != 0 ) {
+              fprintf(stderr, "[] Error from write_propagator\n");
+              EXIT(11);
+            }
+
           }
 
           xchange_field(propagator);
@@ -573,7 +587,7 @@ int main(int argc, char **argv) {
    * first contribution
    **********************************************************/  
 
-  
+
   /* loop on the Lorentz index nu at source */
   for(nu=0; nu<4; nu++) 
   {
@@ -705,9 +719,11 @@ int main(int argc, char **argv) {
       }
       }  /* of ia */
     }    /* of ir */
+  }  /* of nu */
+#if 0 
+#endif  /* of if 0 */
 
-  }  // of nu
-
+/*
   if(have_source_flag == g_cart_id) {
     fprintf(stdout, "# [cvc_exact2_xspace] contact term after 1st part:\n");
     fprintf(stdout, "\t%d\t%25.16e%25.16e\n", 0, contact_term[0], contact_term[1]);
@@ -715,6 +731,9 @@ int main(int argc, char **argv) {
     fprintf(stdout, "\t%d\t%25.16e%25.16e\n", 2, contact_term[4], contact_term[5]);
     fprintf(stdout, "\t%d\t%25.16e%25.16e\n", 3, contact_term[6], contact_term[7]);
   }
+*/
+
+
 
   /**********************************************************
    * second contribution
@@ -846,7 +865,9 @@ int main(int argc, char **argv) {
       }  /* of ia */
     }    /* of ir */
   }      /* of nu */
-  
+#if 0
+#endif  /* of if 0 */
+
   /* print contact term */
   if(g_cart_id == have_source_flag) {
     fprintf(stdout, "# [cvc_exact2_xspace] contact term\n");
@@ -879,8 +900,10 @@ int main(int argc, char **argv) {
   } else {
     sprintf(filename, "%s/cvc2_v_x.%.4d", g_outfile_prefix, Nconf);
   }
-  sprintf(contype, "cvc - cvc in position space, all 16 components");
-  write_lime_contraction(conn, filename, 64, 16, contype, Nconf, 0);
+  for( mu=0; mu<16; mu++ ) {
+    sprintf(contype, "cvc - cvc in position space, component %d %d", mu/4, mu%4 );
+    write_lime_contraction(conn+2*mu*VOLUME, filename, 64, 1, contype, Nconf, (int)(mu>0) );
+  }
 
 /*
   for(ix=0;ix<VOLUME;ix++) {
