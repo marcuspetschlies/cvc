@@ -53,6 +53,22 @@ extern "C"
 
 using namespace cvc;
 
+
+int dummy_solver (double * const propagator, double * const source, const int op_id, int write_propagator) {
+  memcpy(propagator, source, _GSI(VOLUME)*sizeof(double) );
+  return(0);
+}
+
+
+#ifdef USE_DUMMY_EO_SOLVER 
+#  define _TMLQCD_INVERT dummy_solver
+#else
+#  define _TMLQCD_INVERT tmLQCD_invert
+#endif
+
+
+
+
 int get_point_source_info (int gcoords[4], int lcoords[4], int*proc_id) {
 
   int source_proc_id = 0;
@@ -418,9 +434,9 @@ int main(int argc, char **argv) {
 
         for ( op_id = 0; op_id < 2; op_id++ ) {
           if(g_cart_id == 0) fprintf(stdout, "# [cvc_exact3_xspace] inverting for operator %d for spin-color component (%d, %d)\n", op_id, ia/3, ia%3);
-          exitstatus = tmLQCD_invert(propagator, source, op_id, g_write_propagator);
+          exitstatus = TMLQCD_INVERT(propagator, source, op_id, g_write_propagator);
           if(exitstatus != 0) {
-            fprintf(stderr, "[cvc_exact3_xspace] Error from tmLQCD_invert, status was %d\n", exitstatus);
+            fprintf(stderr, "[cvc_exact3_xspace] Error from solver, status was %d\n", exitstatus);
             EXIT(7);
           }
           // xchange_field(propagator);
@@ -604,9 +620,9 @@ int main(int argc, char **argv) {
     fclose(ofs);
 #endif
 #endif  /* of if 0 */
-#ifdef HAVE_MPI
     unsigned int VOLUMEplusRAND = VOLUME + RAND;
     unsigned int stride = VOLUMEplusRAND;
+
     double *conn_buffer = (double*)malloc(32*VOLUMEplusRAND*sizeof(double));
     if(conn_buffer == NULL) {
       EXIT(14);
@@ -620,9 +636,12 @@ int main(int argc, char **argv) {
       xchange_contraction(conn_buffer+2*mu*VOLUMEplusRAND, 2);
       /* if(g_cart_id == 0) { fprintf(stdout, "# [cvc_exact3_xspace] xchanged for mu = %d\n", mu); fflush(stdout);} */
     }
+/*
+#ifdef HAVE_MPI
 #else
     double *conn_buffer = conn;
 #endif
+*/
     if( g_cart_id == 0 ) fprintf(stdout, "\n# [cvc_exact3_xspace] checking Ward identity in position space\n");
     for(nu=0; nu<4; nu++) {
       double norm=0;
