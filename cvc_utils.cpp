@@ -5949,5 +5949,69 @@ void spinor_field_pl_eq_spinor_field_ti_co (double*r, double*s, complex w, unsig
 #endif
 }  /* end of spinor_field_pl_eq_spinor_field_ti_co */
 
+/**************************************************************************
+ * determine the source process id and local source coordinates from
+ * global source coordinates
+ **************************************************************************/
+int get_point_source_info (int gcoords[4], int lcoords[4], int*proc_id) {
+
+  int source_proc_id = 0;
+  int exitstatus;
+#ifdef HAVE_MPI
+  int source_proc_coords[4] { gcoords[0] / T, gcoords[1] / LX, gcoords[2] / LY, gcoords[3] / LZ };
+  exitstatus = MPI_Cart_rank(g_cart_grid, source_proc_coords, &source_proc_id);
+  if(exitstatus !=  MPI_SUCCESS ) {
+    fprintf(stderr, "[get_point_source_info] Error from MPI_Cart_rank, status was %d\n", exitstatus);
+    EXIT(9);
+  }
+  if(source_proc_id == g_cart_id) {
+    fprintf(stdout, "# [get_point_source_info] process %2d = (%3d,%3d,%3d,%3d) has source location\n", source_proc_id,
+        source_proc_coords[0], source_proc_coords[1], source_proc_coords[2], source_proc_coords[3]);
+  }
+#endif
+
+  if(proc_id != NULL) *proc_id = source_proc_id;
+  int x[4] = {-1,-1,-1,-1};
+  /* local coordinates */
+  if(g_cart_id == source_proc_id) {
+    x[0] = gcoords[0] % T;
+    x[1] = gcoords[1] % LX;
+    x[2] = gcoords[2] % LY;
+    x[3] = gcoords[3] % LZ;
+  }
+  if(lcoords != NULL) {
+    memcpy(lcoords,x,4*sizeof(int));
+  }
+  return(0);
+}  /* end of get_point_source_info */
+
+
+/* r *= c */
+void complex_field_ti_eq_re (double *r, double c, unsigned int N) {
+
+  unsigned int ix;
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for shared(r,c,N)
+#endif
+  for(ix=0; ix < 2*N; ix++ ) {
+    r[ix] *= c;
+  }
+}  /* end of complex_field_ti_eq_re */
+
+/* r *= c */
+void complex_field_eq_complex_field_conj_ti_re (double *r, double c, unsigned int N) {
+
+  unsigned int ix;
+  double *rr;
+#ifdef HAVE_OPENMP
+#pragma omp parallel for private(rr) shared(r,c,N)
+#endif
+  for(ix=0; ix < N; ix++ ) {
+    rr = r + 2*ix;
+    rr[0] *=  c;
+    rr[1] *= -c;
+  }
+}  /* end of complex_field_eq_complex_field_conj_ti_re */
 
 }  /* end of namespace cvc */

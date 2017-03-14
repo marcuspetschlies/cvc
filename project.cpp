@@ -843,4 +843,123 @@ void make_eo_phase_field_timeslice (double _Complex**phase, int momentum_number,
 #endif
 }  /* end of make_eo_phase_field_timeslice */
 
+
+#if 0
+/**************************************************************************************************************
+ * V     is nv              x VOL3 (C) = VOL3 x nv (F)
+ * phase is momentum_number x VOL3 (C) = VOL3 x momentum_number (F)
+ *
+ * zgemm calculates t(V) x phase, which is  nv x momentum_number (F) = momentum_number x nv (C)
+ **************************************************************************************************************/
+int momentum_projection_eo (double*V, double *W, unsigned int nv, int momentum_number, int (*momentum_list)[3], int set_phase) {
+
+  typedef struct {
+    int x[3];
+  } point;
+
+  const double MPI2 = M_PI * 2.;
+  const unsigned int VOL3 = LX*LY*LZ;
+
+  int x1, x2, x3;
+  unsigned int i, ix;
+  static double _Complex **zphase = NULL;
+
+  char BLAS_TRANSA, BLAS_TRANSB;
+  int BLAS_M, BLAS_K, BLAS_N, BLAS_LDA, BLAS_LDB, BLAS_LDC;
+  double _Complex *BLAS_A = NULL, *BLAS_B = NULL, *BLAS_C = NULL;
+  double _Complex BLAS_ALPHA = 1.;
+  double _Complex BLAS_BETA  = 0.;
+
+  if ( set_phase>0 ) {
+
+    if( zphase != 0 ) fini_2level_buffer( (double***)(&zphase) );
+
+    if ( init_2level_buffer( (double***)(&zphase), momentum_number, 2*VOL3 ) != 0 ) {
+      fprintf(stderr, "[momentum_projection_eo] Error from init_2level_buffer\n");
+      return(2);
+    }
+
+    point *lexic_coords = (point*)malloc(VOL3*sizeof(point));
+    if(lexic_coords == NULL) {
+      fprintf(stderr, "[momentum_projection] Error from malloc\n");
+      EXIT(1);
+    }
+    for(x1=0; x1<LX; x1++) {
+    for(x2=0; x2<LY; x2++) {
+    for(x3=0; x3<LZ; x3++) {
+      ix = g_ipt[0][x1][x2][x3];
+      lexic_coords[ix].x[0] = x1;
+      lexic_coords[ix].x[1] = x2;
+      lexic_coords[ix].x[2] = x3;
+    }}}
+
+    /* loop on sink momenta */
+    for(i=0; i < momentum_number; i++) {
+      /* phase field */
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+      const double q[3] = { MPI2 * momentum_list[i][0] / LX_global,
+                            MPI2 * momentum_list[i][1] / LY_global,
+                            MPI2 * momentum_list[i][2] / LZ_global };
+      const double q_offset = g_proc_coords[1]*LX * q[0] + g_proc_coords[2]*LY * q[1] + g_proc_coords[3]*LZ * q[2];
+      double q_phase;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+      for(ix=0; ix<VOL3; ix++) {
+        q_phase = q_offset \
+          + lexic_coords[ix].x[0] * q[0] \
+          + lexic_coords[ix].x[1] * q[1] \
+          + lexic_coords[ix].x[2] * q[2];
+        zphase[i][ix] = cos(q_phase) + I*sin(q_phase);
+      }
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+    }  /* end of loop on sink momenta */
+
+    free( lexic_coords );
+
+  } else { 
+    if ( zphase == NULL ) return(1);
+  } /* end of if set_phase */
+
+  BLAS_TRANSA = 'T';
+  BLAS_TRANSB = 'N';
+  BLAS_M     = nv;
+  BLAS_K     = VOL3;
+  BLAS_N     = momentum_number;
+  BLAS_A     = (double _Complex*)V;
+  BLAS_B     = zphase[0];
+  BLAS_C     = (double _Complex*)W;
+  BLAS_LDA   = BLAS_K;
+  BLAS_LDB   = BLAS_K;
+  BLAS_LDC   = BLAS_M;
+
+  _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+
+  fini_2level_buffer((double***)(&zphase));
+
+#ifdef HAVE_MPI
+  i = 2 * nv * momentum_number;
+  void *buffer = malloc(i * sizeof(double));
+  if(buffer == NULL) {
+    return(1);
+  }
+  memcpy(buffer, W, i*sizeof(double));
+  int status = MPI_Allreduce(buffer, (void*)W, i, MPI_DOUBLE, MPI_SUM, g_ts_comm);
+  if(status != MPI_SUCCESS) {
+    fprintf(stderr, "[momentum_projection] Error from MPI_Allreduce, status was %d\n", status);
+    return(2);
+  }
+  free(buffer);
+#endif
+
+  return(0);
+}  /* end of momentum_projection_eo */
+#endif  /* of if 0 */
+
 }  /* end of namespace cvc */

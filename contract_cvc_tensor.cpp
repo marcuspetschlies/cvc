@@ -40,12 +40,14 @@ static int source_location_iseven;
 
 /***********************************************************
  * initialize Usource
+ *
+ * NOTE: the gauge field at source is multiplied with the
+ *       boundary phase
  ***********************************************************/
 void init_contract_cvc_tensor_usource(double *gauge_field, int source_coords[4]) {
 
-  int gsx0 = source_coords[0], gsx1 = source_coords[1], gsx2 = source_coords[2], gsx3 = source_coords[3];
-  int sx0, sx1, sx2, sx3;
-  int source_proc_coords[4];
+  int gsx[4] = {source_coords[0], source_coords[1], source_coords[2], source_coords[3] };
+  int sx[4];
   int exitstatus;
   double ratime, retime;
 
@@ -53,31 +55,11 @@ void init_contract_cvc_tensor_usource(double *gauge_field, int source_coords[4])
    * determine source coordinates, find out, if source_location is in this process
    ***********************************************************/
   ratime = _GET_TIME;
-#ifdef HAVE_MPI
-  source_proc_coords[0] = gsx0 / T;
-  source_proc_coords[1] = gsx1 / LX;
-  source_proc_coords[2] = gsx2 / LY;
-  source_proc_coords[3] = gsx3 / LZ;
 
-  if(g_cart_id == 0) {
-    fprintf(stdout, "# [init_contract_cvc_tensor_usource] global source coordinates: (%3d,%3d,%3d,%3d)\n",  gsx0, gsx1, gsx2, gsx3);
-    fprintf(stdout, "# [init_contract_cvc_tensor_usource] source proc coordinates: (%3d,%3d,%3d,%3d)\n",  source_proc_coords[0], source_proc_coords[1], source_proc_coords[2], source_proc_coords[3]);
-  }
-
-  exitstatus = MPI_Cart_rank(g_cart_grid, source_proc_coords, &source_proc_id);
-  if(exitstatus != MPI_SUCCESS) {
-    fprintf(stderr, "[init_contract_cvc_tensor_usource] Error from MPI_Cart_rank, status was %d\n", exitstatus);
+  if( ( exitstatus = get_point_source_info (gsx, sx, &source_proc_id) ) != 0  ) {
+    fprintf(stderr, "[init_contract_cvc_tensor_usource] Error from get_point_source_info, status was %d\n", exitstatus);
     EXIT(1);
   }
-  if( source_proc_id == g_cart_id ) {
-    fprintf(stdout, "# [init_contract_cvc_tensor_usource] process %2d has source location\n", source_proc_id);
-  }
-#endif
-
-  sx0 = gsx0 % T;
-  sx1 = gsx1 % LX;
-  sx2 = gsx2 % LY;
-  sx3 = gsx3 % LZ;
 
   Usource[0] = Usourcebuffer;
   Usource[1] = Usourcebuffer+18;
@@ -85,9 +67,10 @@ void init_contract_cvc_tensor_usource(double *gauge_field, int source_coords[4])
   Usource[3] = Usourcebuffer+54;
 
   if( source_proc_id == g_cart_id ) { 
-    source_location = g_ipt[sx0][sx1][sx2][sx3];
+    source_location = g_ipt[sx[0]][sx[1]][sx[2]][sx[3]];
     source_location_iseven = g_iseven[source_location] ;
-    fprintf(stdout, "# [init_contract_cvc_tensor_usource] local source coordinates: (%3d,%3d,%3d,%3d), is even = %d\n", sx0, sx1, sx2, sx3, source_location_iseven);
+    fprintf(stdout, "# [init_contract_cvc_tensor_usource] local source coordinates: %u = (%3d,%3d,%3d,%3d), is even = %d\n",
+       source_location, sx[0], sx[1], sx[2], sx[3], source_location_iseven);
     _cm_eq_cm_ti_co(Usource[0], &g_gauge_field[_GGI(source_location,0)], &co_phase_up[0]);
     _cm_eq_cm_ti_co(Usource[1], &g_gauge_field[_GGI(source_location,1)], &co_phase_up[1]);
     _cm_eq_cm_ti_co(Usource[2], &g_gauge_field[_GGI(source_location,2)], &co_phase_up[2]);
