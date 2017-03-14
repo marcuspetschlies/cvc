@@ -130,7 +130,7 @@ int main(int argc, char **argv) {
   int sx[4];
   int check_position_space_WI=0;
   int exitstatus;
-  int write_ascii=0;
+  int write_ascii=0, write_binary=0;
   int source_proc_id = 0;
   int g_shifted_source_coords[4], shifted_source_coords[4], shifted_source_proc_id = 0;
   int no_eo_fields = 0;
@@ -138,7 +138,7 @@ int main(int argc, char **argv) {
   double *conn_e=NULL, *conn_o=NULL; 
   double contact_term[8];
   char filename[100];
-  /* char contype[400]; */
+  char contype[400];
   double ratime, retime;
   double plaq;
   double *source=NULL, *propagator=NULL, **eo_spinor_field = NULL;
@@ -156,7 +156,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "wah?f:")) != -1) {
+  while ((c = getopt(argc, argv, "bwah?f:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -169,6 +169,10 @@ int main(int argc, char **argv) {
     case 'a':
       write_ascii = 1;
       fprintf(stdout, "\n# [cvc_exact3_xspace] will write data in ASCII format too\n");
+      break;
+    case 'b':
+      write_binary = 1;
+      fprintf(stdout, "\n# [cvc_exact3_xspace] will write data in binary format\n");
       break;
     case 'h':
     case '?':
@@ -517,21 +521,28 @@ int main(int argc, char **argv) {
       }
     }
   }
-#if 0
-  /* save results as lime / lemon file */
-  ratime = _GET_TIME;
-  if(strcmp(g_outfile_prefix, "NA") == 0) {
-    sprintf(filename, "cvc3_v_x.%.4d", Nconf);
-  } else {
-    sprintf(filename, "%s/cvc3_v_x.%.4d", g_outfile_prefix, Nconf);
-  }
-  for(mu=0; mu<16; mu++) {
-    sprintf(contype, "<comment>\n  cvc - cvc in position space\n</comment>\n<component>\n  %2d-%2d\n</component>\n", mu/4, mu%4);
-    write_lime_contraction(&(conn[_GWI(mu,0,VOLUME)]), filename, 64, 1, contype, Nconf, mu>0);
-  }
-  retime = _GET_TIME;
-  if(g_cart_id==0) fprintf(stdout, "# [cvc_exact3_xspace] saved position space results in %e seconds\n", retime-ratime);
 
+  /* save results as lime / lemon file */
+  if( write_binary ) {
+    ratime = _GET_TIME;
+    if(strcmp(g_outfile_prefix, "NA") == 0) {
+      sprintf(filename, "cvc3_v_x.%.4d", Nconf);
+    } else {
+      sprintf(filename, "%s/cvc3_v_x.%.4d", g_outfile_prefix, Nconf);
+    }
+    double *conn_buffer = (double*)malloc(2*VOLUME*sizeof(double));
+    if(conn_buffer == NULL) {
+      EXIT(14);
+    }
+    for(mu=0; mu<16; mu++) {
+      complex_field_eo2lexic (conn_buffer, conn_e+2*mu*Vhalf, conn_o+2*mu*Vhalf );
+      sprintf(contype, "<comment>\n  cvc - cvc in position space\n</comment>\n<component>\n  %2d-%2d\n</component>\n", mu/4, mu%4);
+      write_lime_contraction(conn_buffer, filename, 64, 1, contype, Nconf, mu>0);
+    }
+    retime = _GET_TIME;
+    if(g_cart_id==0) fprintf(stdout, "# [cvc_exact3_xspace] saved position space results in %e seconds\n", retime-ratime);
+  }
+#if 0
 #endif  /* of if 0 */
 
   /* save results in plain text */
@@ -713,23 +724,24 @@ int main(int argc, char **argv) {
   retime = _GET_TIME;
   if(g_cart_id==0) fprintf(stdout, "# [cvc_exact3_xspace] time for momentum projection = %e seconds\n", retime-ratime);
 
-  sprintf(filename, "cvc3_v_p.%.4d.ascii.%.2d", Nconf, g_cart_id);
-  ofs = fopen(filename, "w");
-  if( ofs == NULL ) {
-    fprintf(stderr, "[cvc_exact3_xspace] Error from fopen\n");
-    EXIT(12);
-  }
-  if(g_cart_id == 0) fprintf(ofs, "v <- array(dim=c(%d,%d,%d,%d))\n", g_sink_momentum_number, 4, 4, T_global);
-  for(i = 0; i < g_sink_momentum_number; i++ ) {
-    fprintf(ofs, "# %3d %3d %3d\n", g_sink_momentum_list[i][0], g_sink_momentum_list[i][1], g_sink_momentum_list[i][2]);
-    for(mu=0; mu < 16; mu++) {
+  for(mu=0; mu < 16; mu++) {
+    sprintf(filename, "cvc3_v_p.%.4d.mu%.2dnu%.2d.ascii.%.2d", Nconf, mu/4, mu%4, g_cart_id);
+    ofs = fopen(filename, "w");
+    if( ofs == NULL ) {
+      fprintf(stderr, "[cvc_exact3_xspace] Error from fopen\n");
+      EXIT(12);
+    }
+    if(g_cart_id == 0) fprintf(ofs, "v <- array(dim=c(%d,%d))\n", g_sink_momentum_number, T_global);
+    for(i = 0; i < g_sink_momentum_number; i++ ) {
+      fprintf(ofs, "# %3d %3d %3d\n", g_sink_momentum_list[i][0], g_sink_momentum_list[i][1], g_sink_momentum_list[i][2]);
+  
       for (x0 = 0; x0 < T; x0++) {
-        fprintf(ofs, "v[%d, %d, %d, %d] <- %25.16e + %25.16e*1.i\n", i+1,
-            mu/4+1, mu%4+1, x0+g_proc_coords[0]*T+1, cvc_tp[i][mu][2*x0], cvc_tp[i][mu][2*x0+1]);
+        fprintf(ofs, "v[%d, %d] <- %25.16e + %25.16e*1.i\n", i+1,
+            x0+g_proc_coords[0]*T+1, cvc_tp[i][mu][2*x0], cvc_tp[i][mu][2*x0+1]);
       }
     }
+    fclose(ofs);
   }
-  fclose(ofs);
   free( conn_buffer );
   fini_3level_buffer(&cvc_tp);
 #if 0

@@ -235,9 +235,9 @@ int main(int argc, char **argv) {
   /* read the position space contractions */
   ratime = _GET_TIME;
   if(outfile_prefix_set) {
-    sprintf(filename, "%s/cvc2_v_x.%.4d", outfile_prefix, Nconf);
+    sprintf(filename, "%s/%s_v_x.%.4d", outfile_prefix, filename_prefix3, Nconf);
   } else {
-    sprintf(filename, "cvc2_v_x.%.4d", Nconf);
+    sprintf(filename, "%s_v_x.%.4d", filename_prefix3, Nconf);
   }
 
   for(mu=0; mu<16; mu++) {
@@ -254,7 +254,7 @@ int main(int argc, char **argv) {
   if(g_cart_id==0) fprintf(stdout, "\n# [cvc_exact2_pspace] time to read contraction data: %e seconds\n", retime-ratime);
 
   /* TEST */
-
+/*
   for(x0=0; x0<T;  x0++) {
   for(x1=0; x1<LX; x1++) {
   for(x2=0; x2<LY; x2++) {
@@ -267,12 +267,13 @@ int main(int argc, char **argv) {
           conn[_GWI(4*mu+nu,ix,VOLUME)+1]);
     }}
   }}}}
+*/
 
 
 
-
-  // read the contact terms
-  sprintf(filename, "cvc2_v_ct.%.4d", Nconf);
+  /* read the contact terms */
+/*
+  sprintf(filename, "%s_v_ct.%.4d", filename_prefix3, Nconf);
   if( (ofs = fopen(filename, "r")) == NULL ) {
     fprintf(stderr, "\n[cvc_exact2_pspace] Error, could not open file %s for reading\n", filename);
     EXIT(117);
@@ -288,7 +289,7 @@ int main(int argc, char **argv) {
       fprintf(stdout, "\t%d%25.16e%25.16e\n", i, contact_term[2*i], contact_term[2*i+1]);
     }
   }
-
+*/
 
 #ifndef HAVE_MPI
   /* check the Ward identity in position space */
@@ -337,7 +338,7 @@ int main(int argc, char **argv) {
 #endif
     memcpy((void*)&conn[_GWI(mu,0,VOLUME)], (void*)in, 2*VOLUME*sizeof(double));
   }
-
+/*
   for(x0=0; x0<T;  x0++) {
   for(x1=0; x1<LX; x1++) {
   for(x2=0; x2<LY; x2++) {
@@ -349,10 +350,10 @@ int main(int argc, char **argv) {
           conn[_GWI(4*mu+nu,ix,VOLUME)], conn[_GWI(4*mu+nu,ix,VOLUME)+1]);
     }}
   }}}}
+*/
 
 
 
-#if 0
   /*****************************************
    * add phase factors
    *****************************************/
@@ -368,21 +369,19 @@ int main(int argc, char **argv) {
     for(x3=0; x3<LZ; x3++) {
       phase[3] = 2. * (double)(x3) * M_PI / (double)LZ;
       ix = g_ipt[x0][x1][x2][x3];
-/*
+
       w.re =  cos( phase[0]*(sx0+Tstart)+phase[1]*sx1+phase[2]*sx2+phase[3]*sx3 );
       w.im = -sin( phase[0]*(sx0+Tstart)+phase[1]*sx1+phase[2]*sx2+phase[3]*sx3 );
-*/
-      w.re = 1.;
-      w.im = 0.;
 
       _co_eq_co_ti_co(&w1,(complex*)( phi+2*ix ), &w);
-      phi[2*ix  ] = w1.re - contact_term[2*mu  ];
-      phi[2*ix+1] = w1.im - contact_term[2*mu+1];
+      phi[2*ix  ] = w1.re; /* - contact_term[2*mu  ]; */
+      phi[2*ix+1] = w1.im; /* - contact_term[2*mu+1]; */
     }}}}
   }  /* of mu */
+#if 0
 #endif  /* of if 0 */
 
-#if 0
+
   for(mu=0; mu<3; mu++) {
   for(nu=mu+1; nu<4; nu++) {
     double *phi = conn + _GWI(4*mu+nu,0,VOLUME);
@@ -410,7 +409,7 @@ int main(int argc, char **argv) {
       chi[2*ix+1] = w1.im;
     }}}}
   }}  /* of mu and nu */
-
+#if 0
 #endif
   retime = _GET_TIME;
   if(g_cart_id==0) fprintf(stdout, "Fourier transform in %e seconds\n", retime-ratime);
@@ -420,9 +419,9 @@ int main(int argc, char **argv) {
    ********************************/
   ratime = _GET_TIME;
   if(outfile_prefix_set) {
-    sprintf(filename, "%s/cvc2_v_p.%.4d", outfile_prefix, Nconf);
+    sprintf(filename, "%s/%s_v_p.%.4d", outfile_prefix, filename_prefix3, Nconf);
   } else {
-    sprintf(filename, "cvc2_v_p.%.4d", Nconf);
+    sprintf(filename, "%s_v_p.%.4d", filename_prefix3, Nconf);
   }
   /* sprintf(contype, "cvc - cvc in momentum space, all 16 components");
   write_lime_contraction(conn, filename, 64, 16, contype, Nconf, 0); */
@@ -437,26 +436,26 @@ int main(int argc, char **argv) {
       int imunu = 4*mu + nu;
 #ifndef HAVE_MPI
       if(outfile_prefix_set) {
-        sprintf(filename, "%s/cvc2_v_p.%.4d.mu%.2dnu%.2d.ascii", outfile_prefix, Nconf, mu, nu);
+        sprintf(filename, "%s/%s_v_p.%.4d.mu%.2dnu%.2d.ascii", outfile_prefix, filename_prefix3, Nconf, mu, nu);
       } else {
-        sprintf(filename, "cvc2_v_p.%.4d.mu%.2dnu%.2d.ascii", Nconf, mu, nu);
+        sprintf(filename, "%s_v_p.%.4d.mu%.2dnu%.2d.ascii", filename_prefix3, Nconf, mu, nu);
       }
       /* write_contraction(conn, (int*)NULL, filename, 16, 2, 0); */
 #else
-      sprintf(filename, "cvc2_v_p.%.4d.mu%.2dnu%.2d.ascii.%.2d", Nconf, mu, nu, g_cart_id);
+      sprintf(filename, "%s_v_p.%.4d.mu%.2dnu%.2d.ascii.%.2d", filename_prefix3, Nconf, mu, nu, g_cart_id);
 #endif
       ofs = fopen(filename, "w");
       if( ofs == NULL ) {
         fprintf(stderr, "[cvc_exact2_pspace] Error from fopen\n");
         EXIT(116);
       }
-      if( g_cart_id == 0 ) fprintf(ofs, "cvc2_v_p <- array(dim=c(%d, %d, %d, %d))\n", T_global,LX_global,LY_global,LZ_global);
+      if( g_cart_id == 0 ) fprintf(ofs, "%s_v_p <- array(dim=c(%d, %d, %d, %d))\n", filename_prefix3, T_global,LX_global,LY_global,LZ_global);
       for(x0=0; x0<T;  x0++) {
       for(x1=0; x1<LX; x1++) {
       for(x2=0; x2<LY; x2++) {
       for(x3=0; x3<LZ; x3++) {
         ix=g_ipt[x0][x1][x2][x3];
-          fprintf(ofs, "cvc2_v_p[%d, %d, %d, %d] <- %25.16e + %25.16e*1.i\n",
+          fprintf(ofs, "%s_v_p[%d, %d, %d, %d] <- %25.16e + %25.16e*1.i\n", filename_prefix3,
               x0+g_proc_coords[0]*T+1, x1+g_proc_coords[1]*LX+1,
               x2+g_proc_coords[2]*LY+1, x3+g_proc_coords[3]*LZ+1,
               conn[_GWI(imunu,ix,VOLUME)], conn[_GWI(imunu,ix,VOLUME)+1]);

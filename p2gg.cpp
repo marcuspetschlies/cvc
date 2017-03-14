@@ -117,7 +117,7 @@ int main(int argc, char **argv) {
   double *evecs_eval = NULL;
   double **propagator_list[2][2] = { {NULL, NULL}, {NULL, NULL} };
   double **sequential_propagator_list[2] = {NULL, NULL};
-  double *fwd_list_eo[2][5][12], *bwd_list_eo[2][5][12];
+  double *sprop_list_e[60], *sprop_list_o[60],*tprop_list_e[60], *tprop_list_o[60];
   char filename[100];
   double ratime, retime;
   double plaq;
