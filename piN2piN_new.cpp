@@ -415,7 +415,7 @@ void allocate_memory_for_propagator_list(double ***propagator_list,int no_fields
   int i;
   (*propagator_list) = (double**)malloc(no_fields * sizeof(double*));
   (*propagator_list)[0] = (double*)malloc(no_fields * sizeof_spinor_field);
-  if((*propagator_list_up)[0] == NULL) {
+  if((*propagator_list)[0] == NULL) {
     write_to_stderr("[piN2piN] Error from malloc\n");
     EXIT(exit_code);
   }
@@ -583,7 +583,7 @@ void compute_forward_down_propagators(forward_propagators_type* forward_propagat
 
 void compute_forward_propagators(forward_propagators_type* forward_propagators,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type * cvc_and_tmLQCD_information){
   compute_forward_up_propagators(forward_propagators,program_instructions,cvc_and_tmLQCD_information);
-  compute_forward_dn_propagators(forward_propagators,program_instructions,cvc_and_tmLQCD_information);
+  compute_forward_down_propagators(forward_propagators,program_instructions,cvc_and_tmLQCD_information);
 }
 
 void compute_and_store_correlators(program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type *cvc_and_tmLQCD_information){

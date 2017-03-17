@@ -71,6 +71,7 @@ struct N_N_final_side_contracted_type{
 
 struct forward_propagators_type{
   double **propagator_list_up;
+  double **propagator_list_dn;
   int no_fields;
 };
 
