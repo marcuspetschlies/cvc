@@ -411,21 +411,35 @@ void set_operator_ids_depending_on_fermion_type(program_instruction_type *progra
   }
 }
 
-void allocate_memory_for_forward_propagators(forward_propagators_type* forward_propagators,program_instruction_type *program_instructions){
+void allocate_memory_for_propagator_list(double ***propagator_list,int no_fields,int sizeof_spinor_field,int exit_code){
   int i;
-  forward_propagators->no_fields = g_coherent_source_number * g_source_location_number * n_s*n_c; /* up propagators at all base x coherent source locations */ 
-  forward_propagators->propagator_list_up = (double**)malloc(forward_propagators->no_fields * sizeof(double*));
-  forward_propagators->propagator_list_up[0] = (double*)malloc(forward_propagators->no_fields * program_instructions->sizeof_spinor_field);
-  if(forward_propagators->propagator_list_up[0] == NULL) {
+  (*propagator_list) = (double**)malloc(no_fields * sizeof(double*));
+  (*propagator_list)[0] = (double*)malloc(no_fields * sizeof_spinor_field);
+  if((*propagator_list_up)[0] == NULL) {
     write_to_stderr("[piN2piN] Error from malloc\n");
-    EXIT(44);
+    EXIT(exit_code);
   }
-  for(i=1; i<forward_propagators->no_fields; i++) forward_propagators->propagator_list_up[i] = forward_propagators->propagator_list_up[i-1] + _GSI(VOLUME);
+  for(i=1; i<no_fields; i++) (*propagator_list)[i] = (*propagator_list)[i-1] + _GSI(VOLUME);
+}
+
+void allocate_memory_for_forward_propagators(forward_propagators_type* forward_propagators,program_instruction_type *program_instructions){
+  forward_propagators->no_fields = g_coherent_source_number * g_source_location_number * n_s*n_c; /* forward propagators at all base x coherent source locations */ 
+  allocate_memory_for_propagator_list(&forward_propagators->propagator_list_up,forward_propagators->no_fields,program_instructions->sizeof_spinor_field,44);
+  if(g_fermion_type == _TM_FERMION) {
+    allocate_memory_for_propagator_list(&forward_propagators->propagator_list_dn,forward_propagators->no_fields,program_instructions->sizeof_spinor_field,45);
+  }
+}
+
+void free_memory_for_propagator_list(double **propagator_list){
+  free(propagator_list[0]);
+  free(propagator_list);
 }
 
 void free_memory_for_forward_propagators(forward_propagators_type* forward_propagators,program_instruction_type *program_instructions){
-  free(forward_propagators->propagator_list_up[0]);
-  free(forward_propagators->propagator_list_up);
+  free_memory_for_propagator_list(forward_propagators->propagator_list_up);
+  if(g_fermion_type == _TM_FERMION) {
+    free_memory_for_propagator_list(forward_propagators->propagator_list_dn);
+  }
 }
 
 void set_spinor_field_to_zero(double* spinor_field,program_instruction_type *program_instructions){
@@ -517,20 +531,24 @@ int get_forward_propagator_index(int i_src,int i_coherent,int is){
   return (i_src * g_coherent_source_number + i_coherent)*n_s*n_c+is;
 }
 
-void compute_forward_propagators_for_coherent_source_location(int i_src,int i_coherent,forward_propagators_type* forward_propagators,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type * cvc_and_tmLQCD_information){
-  double ratime, retime;
+void get_local_coherent_source_location(local_source_location_type *dest,int i_src,int i_coherent){
   global_source_location_type gsl;
   get_global_coherent_source_location(&gsl,i_src,i_coherent);
+  convert_global_to_local_source_location(dest,gsl);
+}
+
+void compute_forward_propagators_for_coherent_source_location(int i_src,int i_coherent,double **propagator_list,int op_id,int rotation_direction,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type * cvc_and_tmLQCD_information){
+  double ratime, retime;
 
   ratime = _GET_TIME;
 
   local_source_location_type lsl;
-  convert_global_to_local_source_location(&lsl,gsl);
+  get_local_coherent_source_location(&lsl,i_src,i_coherent);
 
   int is;
   for(is=0;is<n_s*n_c;is++) {  
     set_spinor_field_to_point_source(program_instructions->spinor_work[0],lsl,is,program_instructions);
-    compute_inversion_with_tm_rotation_and_smearing(forward_propagators->propagator_list_up[get_forward_propagator_index(i_src,i_coherent,is)],program_instructions->spinor_work[0],program_instructions->spinor_work[1],program_instructions->op_id_up,+1,program_instructions);
+    compute_inversion_with_tm_rotation_and_smearing(propagator_list[get_forward_propagator_index(i_src,i_coherent,is)],program_instructions->spinor_work[0],program_instructions->spinor_work[1],op_id,rotation_direction,program_instructions);
   }  /* end of loop on spin color */
 
   retime = _GET_TIME;
@@ -538,14 +556,34 @@ void compute_forward_propagators_for_coherent_source_location(int i_src,int i_co
   write_to_stdout("# [piN2piN] time for up propagator = %e seconds\n", retime-ratime);
 }
 
-void compute_forward_propagators(forward_propagators_type* forward_propagators,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type * cvc_and_tmLQCD_information){
+void compute_forward_up_propagators(forward_propagators_type* forward_propagators,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type * cvc_and_tmLQCD_information){
   write_to_stdout("# [piN2piN] up-type inversion\n");
   int i_src,i_coherent;
   for(i_src = 0; i_src<g_source_location_number; i_src++) {
     for(i_coherent=0; i_coherent<g_coherent_source_number; i_coherent++) {
-      compute_forward_propagators_for_coherent_source_location(i_src,i_coherent,forward_propagators,program_instructions,cvc_and_tmLQCD_information);
+      compute_forward_propagators_for_coherent_source_location(i_src,i_coherent,forward_propagators->propagator_list_up,program_instructions->op_id_up,+1,program_instructions,cvc_and_tmLQCD_information);
     }  /* end of loop on coherent source timeslices */
   }    /* end of loop on base source timeslices */
+}
+
+void compute_forward_down_propagators(forward_propagators_type* forward_propagators,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type * cvc_and_tmLQCD_information){
+  if(g_fermion_type == _TM_FERMION) {
+    write_to_stdout("# [piN2piN] dn-type inversion\n");
+    int i_src,i_coherent;
+    for(i_src = 0; i_src<g_source_location_number; i_src++) {
+      for(i_coherent=0; i_coherent<g_coherent_source_number; i_coherent++) {
+        compute_forward_propagators_for_coherent_source_location(i_src,i_coherent,forward_propagators->propagator_list_dn,program_instructions->op_id_dn,-1,program_instructions,cvc_and_tmLQCD_information);
+      }  /* end of loop on coherent source timeslices */
+    }    /* end of loop on base source timeslices */
+  }
+  else{
+    forward_propagators->propagator_list_dn  = forward_propagators->propagator_list_up;
+  }
+}
+
+void compute_forward_propagators(forward_propagators_type* forward_propagators,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type * cvc_and_tmLQCD_information){
+  compute_forward_up_propagators(forward_propagators,program_instructions,cvc_and_tmLQCD_information);
+  compute_forward_dn_propagators(forward_propagators,program_instructions,cvc_and_tmLQCD_information);
 }
 
 void compute_and_store_correlators(program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type *cvc_and_tmLQCD_information){
@@ -558,8 +596,8 @@ void compute_and_store_correlators(program_instruction_type *program_instruction
 	sequential_propagators_type sequential_propagators;
 
   allocate_memory_for_forward_propagators(&forward_propagators,program_instructions);
-
 	compute_forward_propagators(&forward_propagators,program_instructions,cvc_and_tmLQCD_information);
+
 //	compute_sequential_propagators(&sequential_propagators,program_instructions,cvc_and_tmLQCD_information);
 
 	compute_and_store_correlators_which_need_only_forward_and_sequential_propagators(&forward_propagators,&sequential_propagators,program_instructions,cvc_and_tmLQCD_information);
@@ -712,7 +750,7 @@ void init_gauge_field(program_instruction_type *program_instructions){
 void determine_stoachastic_source_timeslices(program_instruction_type *program_instructions){
   int exitstatus = get_stochastic_source_timeslices();
   if(exitstatus != 0) {
-    write_to_stdout("[piN2piN] Error from get_stochastic_source_timeslices, status was %d\n", exitstatus);
+    write_to_stderr("[piN2piN] Error from get_stochastic_source_timeslices, status was %d\n", exitstatus);
     EXIT(19);
   }
 }

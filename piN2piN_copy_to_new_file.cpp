@@ -385,70 +385,6 @@ int main(int argc, char **argv) {
   /***********************************************************
    * dn-type propagator
    ***********************************************************/
-  if(g_fermion_type == _TM_FERMION) {
-    no_fields = g_coherent_source_number * g_source_location_number * n_s*n_c; /* dn propagators at all base x coherent source locations */ 
-    propagator_list_dn = (double**)malloc(no_fields * sizeof( double*));
-    propagator_list_dn[0] = (double*)malloc(no_fields * sizeof_spinor_field);
-    if(propagator_list_dn[0] == NULL) {
-      fprintf(stderr, "[piN2piN] Error from malloc\n");
-      EXIT(45);
-    }
-    for(i=1; i<no_fields; i++) propagator_list_dn[i] = propagator_list_dn[i-1] + _GSI(VOLUME);
-
-    if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] dn-type inversion\n");
-    for(i_src = 0; i_src<g_source_location_number; i_src++) {
-      int t_base = g_source_coords_list[i_src][0];
-      for(i_coherent=0; i_coherent<g_coherent_source_number; i_coherent++) {
-        int t_coherent = ( t_base + ( T_global / g_coherent_source_number ) * i_coherent ) % T_global; 
-        int i_prop = i_src * g_coherent_source_number + i_coherent;
-        gsx[0] = t_coherent;
-        gsx[1] = ( g_source_coords_list[i_src][1] + (LX_global/2) * i_coherent ) % LX_global;
-        gsx[2] = ( g_source_coords_list[i_src][2] + (LY_global/2) * i_coherent ) % LY_global;
-        gsx[3] = ( g_source_coords_list[i_src][3] + (LZ_global/2) * i_coherent ) % LZ_global;
-
-        ratime = _GET_TIME;
-        get_point_source_info (gsx, sx, &source_proc_id);
-
-        for(is=0;is<n_s*n_c;is++) {
-
-          memset(spinor_work[0], 0, sizeof_spinor_field);
-          memset(spinor_work[1], 0, sizeof_spinor_field);
-          if(source_proc_id == g_cart_id)  {
-            spinor_work[0][_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]])+2*is] = 1.;
-          }
-
-          /* source-smear the point source */
-          exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
-
-          if( g_fermion_type == _TM_FERMION ) {
-            spinor_field_tm_rotation(spinor_work[0], spinor_work[0], -1, g_fermion_type, VOLUME);
-          }
-
-          exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_dn, 0);
-          if(exitstatus != 0) {
-            fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
-            EXIT(12);
-          }
-
-          if( g_fermion_type == _TM_FERMION ) {
-            spinor_field_tm_rotation(spinor_work[1], spinor_work[1], -1, g_fermion_type, VOLUME);
-          }
-
-          /* sink-smear the point-source propagator */
-          exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
-
-
-          memcpy( propagator_list_dn[i_prop*n_s*n_c + is], spinor_work[1], sizeof_spinor_field);
-        }
-        retime = _GET_TIME;
-        if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] time for dn propagator = %e seconds\n", retime-ratime);
-      } /* end of loop on coherent source timeslices */
-    }  /* end of loop on base source timeslices */
-  } else {
-    propagator_list_dn  = propagator_list_up;
-  }
-
-
 
   /***********************************************************
    ***********************************************************
@@ -1676,12 +1612,6 @@ int main(int argc, char **argv) {
 #endif
 
 
-  free(propagator_list_up[0]);
-  free(propagator_list_up);
-  if( g_fermion_type == _TM_FERMION ) {
-    free(propagator_list_dn[0]);
-    free(propagator_list_dn);
-  }
 
   free( stochastic_source_list[0] );
   free( stochastic_source_list );
