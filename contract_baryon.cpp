@@ -946,9 +946,9 @@ int add_source_phase (double****connt, int pi2[3], int pf2[3], int source_coords
     for(k=0; k<g_sink_momentum_number; k++) {
       int pf1_[3] = {  g_sink_momentum_list[k][0], g_sink_momentum_list[k][1], g_sink_momentum_list[k][2]};
       phase = -TWO_MPI * (
-          (double)(pf1_[0] + pi2_[0] + pf2_[0] ) / (double)LX_global * source_coords[1]
-        + (double)(pf1_[1] + pi2_[1] + pf2_[1] ) / (double)LY_global * source_coords[2]
-        + (double)(pf1_[2] + pi2_[2] + pf2_[2] ) / (double)LZ_global * source_coords[3]
+          (double)(pf1_[0] + pi2_[0] + pf2_[0] ) / (double)LX_global * source_coords[0]
+        + (double)(pf1_[1] + pi2_[1] + pf2_[1] ) / (double)LY_global * source_coords[1]
+        + (double)(pf1_[2] + pi2_[2] + pf2_[2] ) / (double)LZ_global * source_coords[2]
                                                                                                           );
       w.re = cos(phase);
       w.im = sin(phase);
