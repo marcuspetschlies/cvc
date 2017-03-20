@@ -70,12 +70,19 @@ extern "C"
 #include <iostream>
 #include <iomanip>
 
+#include <sys/stat.h>
+
 using namespace cvc;
 
 #include "basic_types.h"
 
 const int n_c = 3;
 const int n_s = 4;
+
+inline bool test_whether_pathname_exists(pathname_type pathname){
+  struct stat buffer;
+  return (stat(pathname,&buffer) == 0);
+}
 
 /*
  * Functions to reduce output
@@ -307,6 +314,10 @@ double gamma_component_sign_piN_D[9] = {+1., +1., +1., +1., +1., +1., +1., +1. ,
 
 int num_component_max = 9;
 
+int get_forward_complete_is_propagator_index(int i_src,int i_coherent){
+  return i_src * g_coherent_source_number + i_coherent;
+}
+
 void get_global_source_location(global_source_location_type *dest,int i_src){
   dest->x[0] = g_source_coords_list[i_src][0];
   dest->x[1] = g_source_coords_list[i_src][1];
@@ -333,8 +344,177 @@ void get_local_coherent_source_location(local_source_location_type *dest,int i_s
   convert_global_to_local_source_location(dest,gsl);
 }
 
-void compute_and_store_N_N_contractions(int i_src,int i_coherent,local_source_location_type lsl,forward_propagators_type *forward_propagators,sequential_propagators_type *sequential_propagators,program_instruction_type *program_instructions,contraction_writer_type *contraction_writer){
+void set_memory_for_Whick_Dirac_and_color_contractions_to_zero(program_instruction_type *program_instructions){
+  int i;
+  for(i=0; i<program_instructions->max_num_diagram; i++) { memset(program_instructions->conn_X[i][0][0], 0, 2*VOLUME*g_sv_dim*g_sv_dim*sizeof(double)); }
+}
 
+void get_sink_momentum(three_momentum_type *momentum,int i_sink_momentum){
+  momentum->p[0] = g_sink_momentum_list[i_sink_momentum][0];
+  momentum->p[1] = g_sink_momentum_list[i_sink_momentum][1];
+  momentum->p[2] = g_sink_momentum_list[i_sink_momentum][2];
+}
+
+void get_aff_key_for_N_N_contractions(pathname_type aff_key_to_write_contractions_to,int diagram,three_momentum_type sink_momentum,global_source_location_type gsl,int icomp){
+  sprintf(aff_key_to_write_contractions_to, "/%s/diag%d/pf1x%.2dpf1y%.2dpf1z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d",
+    "N-N", diagram,
+    sink_momentum.p[0],                sink_momentum.p[1],                sink_momentum.p[2],
+    gsl.x[0], gsl.x[1], gsl.x[2], gsl.x[3],
+    gamma_component_N_N[icomp][0], gamma_component_N_N[icomp][1]);
+}
+
+void store_contraction_under_aff_key(contraction_writer_type *contraction_writer,pathname_type aff_key_to_write_contractions_to,gathered_FT_WDc_contractions_type *gathered_FT_WDc_contractions,global_source_location_type gsl,int i_sink_momentum,int icomp,int exit_code){
+  write_to_stdout("# [piN2piN] current aff path = %s\n", aff_key_to_write_contractions_to);
+
+  contraction_writer->affdir = aff_writer_mkpath(contraction_writer->affw, contraction_writer->affn, aff_key_to_write_contractions_to);
+  int it;
+  for(it=0; it<T_global; it++) {
+    int ir = ( it - gsl.x[0] + T_global ) % T_global;
+    memcpy(contraction_writer->aff_buffer + ir*g_sv_dim*g_sv_dim,  (*gathered_FT_WDc_contractions)[it][i_sink_momentum][icomp*g_sv_dim] , g_sv_dim*g_sv_dim*sizeof(double _Complex) );
+  }
+  int status = aff_node_put_complex (contraction_writer->affw, contraction_writer->affdir, contraction_writer->aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
+  if(status != 0) {
+    write_to_stderr("[piN2piN] Error from aff_node_put_double, status was %d\n", status);
+    EXIT(exit_code);
+  }
+}
+
+void store_N_N_contractions(contraction_writer_type *contraction_writer,gathered_FT_WDc_contractions_type *gathered_FT_WDc_contractions,int diagram,global_source_location_type gsl,program_instruction_type *program_instructions,int exit_code){
+  int k,icomp;
+  if(program_instructions->io_proc == 2) {
+    for(k=0; k<g_sink_momentum_number; k++) {
+      for(icomp=0; icomp<num_component_N_N; icomp++) {
+        pathname_type aff_key_to_write_contractions_to;
+        three_momentum_type sink_momentum;
+        get_sink_momentum(&sink_momentum,k);
+        get_aff_key_for_N_N_contractions(aff_key_to_write_contractions_to,diagram,sink_momentum,gsl,icomp);
+        store_contraction_under_aff_key(contraction_writer,aff_key_to_write_contractions_to,gathered_FT_WDc_contractions,gsl,k,icomp,exit_code);
+      }
+    }
+  }
+}
+
+void compute_Whick_Dirac_and_color_contractions_for_N_N(int i_src,int i_coherent,program_instruction_type *program_instructions,forward_propagators_type *forward_propagators){
+  int i_prop = get_forward_complete_is_propagator_index(i_src,i_coherent);
+  int exitstatus = contract_N_N (program_instructions->conn_X, &(forward_propagators->propagator_list_up[i_prop*n_s*n_c]), &(forward_propagators->propagator_list_dn[i_prop*n_s*n_c]) , num_component_N_N, gamma_component_N_N, gamma_component_sign_N_N);
+}
+
+void add_baryon_boundary_phase_to_WDc_contractions(program_instruction_type *program_instructions,int diagram,int t_coherent,int num_component){
+  add_baryon_boundary_phase(program_instructions->conn_X[diagram], t_coherent, num_component);
+}
+
+void init_FT_WDc_contractions(FT_WDc_contractions_type *FT_WDc_contractions,int num_component,int exit_code){
+  (*FT_WDc_contractions) = NULL;
+  int exitstatus;
+  if( (exitstatus = init_4level_buffer(FT_WDc_contractions, T, g_sink_momentum_number, num_component * g_sv_dim, 2*g_sv_dim) ) != 0 ) {
+    write_to_stderr("[piN2piN] Error from init_4level_buffer, status was %d\n", exitstatus);
+    EXIT(exit_code);
+  }  
+}
+
+void compute_fourier_transformation_on_local_lattice_from_WDc_contractions(FT_WDc_contractions_type *FT_WDc_contractions,program_instruction_type *program_instructions,int diagram,int num_component){
+  int it,exitstatus;
+  for(it=0; it<T; it++) {
+    exitstatus = momentum_projection2 (program_instructions->conn_X[diagram][it*program_instructions->VOL3*num_component][0], (*FT_WDc_contractions)[it][0][0], num_component*g_sv_dim*g_sv_dim, g_sink_momentum_number, g_sink_momentum_list, NULL );
+  }
+}
+
+void init_gathered_FT_WDc_contractions(gathered_FT_WDc_contractions_type *gathered_FT_WDc_contractions,int num_component,program_instruction_type *program_instructions,int exit_code){
+  int exitstatus;
+  if(program_instructions->io_proc>0) {
+    (*gathered_FT_WDc_contractions) = NULL;
+    if( (exitstatus = init_4level_buffer(gathered_FT_WDc_contractions, T_global, g_sink_momentum_number, num_component*g_sv_dim, 2*g_sv_dim) ) != 0 ) {
+      write_to_stderr("[piN2piN] Error from init_4level_buffer, status was %d\n", exitstatus);
+      EXIT(exit_code);
+    }
+  }
+}
+
+void gather_FT_WDc_contractions_on_timeline(gathered_FT_WDc_contractions_type *gathered_FT_WDc_contractions,FT_WDc_contractions_type *FT_WDc_contractions,int num_component,program_instruction_type *program_instructions,int exit_code){
+  int exitstatus;
+  if(program_instructions->io_proc>0) {
+    int k = T * g_sink_momentum_number * num_component * g_sv_dim * g_sv_dim * 2;
+    exitstatus = MPI_Allgather((*FT_WDc_contractions)[0][0][0], k, MPI_DOUBLE, (*gathered_FT_WDc_contractions)[0][0][0], k, MPI_DOUBLE, g_tr_comm);
+    if(exitstatus != MPI_SUCCESS) {
+      write_to_stderr("[piN2piN] Error from MPI_Allgather, status was %d\n", exitstatus);
+      EXIT(exit_code);
+    }
+  }
+}
+
+void set_gathered_FT_WDc_contractions_to_FT_WDc_contractions(gathered_FT_WDc_contractions_type *gathered_FT_WDc_contractions,FT_WDc_contractions_type *FT_WDc_contractions){
+  (*gathered_FT_WDc_contractions) = (*FT_WDc_contractions);
+}
+
+void exit_gathered_FT_WDc_contractions(gathered_FT_WDc_contractions_type *gathered_FT_WDc_contractions,program_instruction_type *program_instructions){
+  if(program_instructions->io_proc > 0) { fini_4level_buffer(gathered_FT_WDc_contractions); }
+}
+
+void exit_FT_WDc_contractions(FT_WDc_contractions_type *FT_WDc_contractions){
+  fini_4level_buffer(FT_WDc_contractions);
+}
+
+void allocate_memory_for_ft_and_gathering(FT_WDc_contractions_type *FT_WDc_contractions,gathered_FT_WDc_contractions_type *gathered_FT_WDc_contractions,int num_component,program_instruction_type *program_instructions,int exit_code_1,int exit_code_2){
+    init_FT_WDc_contractions(FT_WDc_contractions,num_component,exit_code_1);
+#ifdef HAVE_MPI
+    init_gathered_FT_WDc_contractions(gathered_FT_WDc_contractions,num_component,program_instructions,exit_code_2);
+#endif
+}
+
+void free_memory_for_ft_and_gathering(FT_WDc_contractions_type *FT_WDc_contractions,gathered_FT_WDc_contractions_type *gathered_FT_WDc_contractions,program_instruction_type *program_instructions){
+#ifdef HAVE_MPI
+    exit_gathered_FT_WDc_contractions(gathered_FT_WDc_contractions,program_instructions);
+#endif
+    exit_FT_WDc_contractions(FT_WDc_contractions);
+}
+
+void compute_gathered_FT_WDc_contractions(FT_WDc_contractions_type *FT_WDc_contractions,gathered_FT_WDc_contractions_type *gathered_FT_WDc_contractions,global_source_location_type gsl,int diagram,int num_component,program_instruction_type *program_instructions,int exit_code_1){
+    add_baryon_boundary_phase_to_WDc_contractions(program_instructions,diagram,gsl.x[0],num_component);
+    compute_fourier_transformation_on_local_lattice_from_WDc_contractions(FT_WDc_contractions,program_instructions,diagram,num_component);
+#ifdef HAVE_MPI
+    gather_FT_WDc_contractions_on_timeline(gathered_FT_WDc_contractions,FT_WDc_contractions,num_component,program_instructions,exit_code_1);
+#else
+    set_gathered_FT_WDc_contractions_to_FT_WDc_contractions(gathered_FT_WDc_contractions,FT_WDc_contractions);
+#endif
+}
+
+void compute_and_store_N_N_contractions(int i_src,int i_coherent,local_source_location_type lsl,forward_propagators_type *forward_propagators,sequential_propagators_type *sequential_propagators,program_instruction_type *program_instructions,contraction_writer_type *contraction_writer){
+  set_memory_for_Whick_Dirac_and_color_contractions_to_zero(program_instructions);
+
+  compute_Whick_Dirac_and_color_contractions_for_N_N(i_src,i_coherent,program_instructions,forward_propagators);
+
+  global_source_location_type gsl;
+  get_global_coherent_source_location(&gsl,i_src,i_coherent);
+
+  int diagram;
+  for(diagram=0; diagram<2; diagram++){
+    FT_WDc_contractions_type FT_WDc_contractions;
+    gathered_FT_WDc_contractions_type gathered_FT_WDc_contractions;
+    allocate_memory_for_ft_and_gathering(&FT_WDc_contractions,&gathered_FT_WDc_contractions,num_component_N_N,program_instructions,57,58);
+
+    compute_gathered_FT_WDc_contractions(&FT_WDc_contractions,&gathered_FT_WDc_contractions,gsl,diagram,num_component_N_N,program_instructions,124);
+    store_N_N_contractions(contraction_writer,&gathered_FT_WDc_contractions,diagram,gsl,program_instructions,81);
+
+    free_memory_for_ft_and_gathering(&FT_WDc_contractions,&gathered_FT_WDc_contractions,program_instructions);
+
+/*    add_baryon_boundary_phase_to_WDc_contractions(program_instructions,diagram,gsl.x[0],num_component_N_N);
+    FT_WDc_contractions_type FT_WDc_contractions;
+    init_FT_WDc_contractions(&FT_WDc_contractions,num_component_N_N,57);
+    compute_fourier_transformation_on_local_lattice_from_WDc_contractions(&FT_WDc_contractions,program_instructions,diagram,num_component_N_N);
+
+    gathered_FT_WDc_contractions_type gathered_FT_WDc_contractions;
+#ifdef HAVE_MPI
+    init_gathered_FT_WDc_contractions(&gathered_FT_WDc_contractions,num_component_N_N,program_instructions,58);
+    gather_FT_WDc_contractions_on_timeline(&gathered_FT_WDc_contractions,&FT_WDc_contractions,num_component_N_N,program_instructions,124);
+#else
+    init_gathered_FT_WDc_contractions_from_FT_WDc_contractions(&gathered_FT_WDc_contractions,&FT_WDc_contractions);
+#endif
+    store_N_N_contractions(contraction_writer,&gathered_FT_WDc_contractions,diagram,gsl,program_instructions,81);
+#ifdef HAVE_MPI
+    exit_gathered_FT_WDc_contractions(&gathered_FT_WDc_contractions,program_instructions);
+#endif
+    exit_FT_WDc_contractions(&FT_WDc_contractions);*/
+  }
 }
 
 void compute_and_store_D_D_contractions(int i_src,int i_coherent,local_source_location_type lsl,forward_propagators_type *forward_propagators,sequential_propagators_type *sequential_propagators,program_instruction_type *program_instructions,contraction_writer_type *contraction_writer){
@@ -360,6 +540,10 @@ void init_contraction_writer(contraction_writer_type *contraction_writer,const c
     pathname_type filename;
     sprintf(filename, "%s.%.4d.tsrc%.2d.aff", name, Nconf, gsl.x[0] );
     write_to_stdout("# [piN2piN] writing data to file %s\n", filename);
+    if(test_whether_pathname_exists(filename)){
+      write_to_stderr("# [piN2piN] destination file %s already exists\n", filename);
+      EXIT(1);
+    }
     contraction_writer->affw = aff_writer(filename);
     aff_status_str = (char*)aff_writer_errstr(contraction_writer->affw);
     if( aff_status_str != NULL ) {
@@ -583,10 +767,6 @@ void compute_inversion_with_tm_rotation_and_smearing(double* inversion,double* s
 
 int get_forward_propagator_index(int i_src,int i_coherent,int is){
   return (i_src * g_coherent_source_number + i_coherent)*n_s*n_c+is;
-}
-
-int get_forward_complete_is_propagator_index(int i_src,int i_coherent){
-  return i_src * g_coherent_source_number + i_coherent;
 }
 
 void compute_forward_propagators_for_coherent_source_location(int i_src,int i_coherent,double **propagator_list,int op_id,int rotation_direction,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type * cvc_and_tmLQCD_information){

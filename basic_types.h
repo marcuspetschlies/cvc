@@ -61,6 +61,9 @@ struct three_momentum_type{
   int p[3];
 };
 
+typedef double**** FT_WDc_contractions_type;
+typedef double**** gathered_FT_WDc_contractions_type;
+
 typedef double** propagator_pointer_list_type;
 
 struct forward_propagators_type{
