@@ -394,105 +394,6 @@ int main(int argc, char **argv) {
    ***********************************************************
    ***********************************************************/
 
-  /***********************************************************
-   * allocate memory for the sequential propagators
-   ***********************************************************/
-  no_fields = g_source_location_number * g_seq_source_momentum_number * n_s*n_c;  /* sequential propagators at all base source locations */ 
-  sequential_propagator_list = (double**)malloc(no_fields * sizeof(double*));
-  sequential_propagator_list[0] = (double*)malloc(no_fields * sizeof_spinor_field);
-  if( sequential_propagator_list[0] == NULL) {
-    fprintf(stderr, "[piN2piN] Error from malloc\n");
-    EXIT(46);
-  }
-  for(i=1; i<no_fields; i++) sequential_propagator_list[i] = sequential_propagator_list[i-1] + _GSI(VOLUME);
-
-  /* loop on sequential source momenta */
-  for(iseq_mom=0; iseq_mom < g_seq_source_momentum_number; iseq_mom++) {
-
-    /***********************************************************
-     * sequential propagator U^{-1} g5 exp(ip) D^{-1}: tfii
-     ***********************************************************/
-    if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] sequential inversion fpr pi2 = (%d, %d, %d)\n", 
-        g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2]);
-
-    double **prop_list = (double**)malloc(g_coherent_source_number * sizeof(double*));
-    if(prop_list == NULL) {
-      fprintf(stderr, "[piN2piN] Error from malloc\n");
-      EXIT(43);
-    }
-
-    for(i_src=0; i_src<g_source_location_number; i_src++) {
-  
-      int i_prop = iseq_mom * g_source_location_number + i_src;
-
-      gsx[0] = g_source_coords_list[i_src][0];
-      gsx[1] = g_source_coords_list[i_src][1];
-      gsx[2] = g_source_coords_list[i_src][2];
-      gsx[3] = g_source_coords_list[i_src][3];
-
-      ratime = _GET_TIME;
-      for(is=0;is<n_s*n_c;is++) {
-
-
-        /* extract spin-color source-component is from coherent source dn propagators */
-        for(i=0; i<g_coherent_source_number; i++) {
-          if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] using dn prop id %d / %d\n", (i_src * g_coherent_source_number + i), (i_src * g_coherent_source_number + i)*n_s*n_c + is);
-          prop_list[i] = propagator_list_dn[(i_src * g_coherent_source_number + i)*n_s*n_c + is];
-        }
-
-        /* build sequential source */
-        exitstatus = init_coherent_sequential_source(spinor_work[0], prop_list, gsx[0], g_coherent_source_number, g_seq_source_momentum_list[iseq_mom], 5);
-        if(exitstatus != 0) {
-          fprintf(stderr, "[piN2piN] Error from init_coherent_sequential_source, status was %d\n", exitstatus);
-          EXIT(14);
-        }
-
-        /* source-smear the coherent source */
-        exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
-
-        /* tm-rotate sequential source */
-        if( g_fermion_type == _TM_FERMION ) {
-          spinor_field_tm_rotation(spinor_work[0], spinor_work[0], +1, g_fermion_type, VOLUME);
-        }
-
-        memset(spinor_work[1], 0, sizeof_spinor_field);
-        /* invert */
-        exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_up, 0);
-        if(exitstatus != 0) {
-          fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
-          EXIT(12);
-        }
-
-        /* tm-rotate at sink */
-        if( g_fermion_type == _TM_FERMION ) {
-          spinor_field_tm_rotation(spinor_work[1], spinor_work[1], +1, g_fermion_type, VOLUME);
-        }
-
-        /* sink-smear the coherent-source propagator */
-        exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
-
-        memcpy( sequential_propagator_list[i_prop*n_s*n_c + is], spinor_work[1], sizeof_spinor_field);
-
-        if(g_write_sequential_propagator) { /* write sequential propagator to file */
-          sprintf(filename, "seq_%s.%.4d.t%.2dx%.2dy%.2dz%.2d.%.2d.qx%.2dqy%.2dqz%.2d.inverted",
-              filename_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3], is,
-              g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2]);
-          if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] writing propagator to file %s\n", filename);
-          exitstatus = write_propagator(spinor_work[1], filename, 0, 64);
-          if(exitstatus != 0) {
-            fprintf(stderr, "[piN2piN] Error from write_propagator, status was %d\n", exitstatus);
-            EXIT(15);
-          }
-        }  /* end of if write sequential propagator */
-      }  /* end of loop on spin-color component */
-      retime = _GET_TIME;
-      if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] time for seq propagator = %e seconds\n", retime-ratime);
-
-
-    }  /* end of loop on base source locations */
-    free(prop_list);
-  }  /* end of loop on sequential momentum list */
-
 
   for(i_src=0; i_src < g_source_location_number; i_src++ ) {
     int t_base = g_source_coords_list[i_src][0];
@@ -1228,9 +1129,6 @@ int main(int argc, char **argv) {
 
   }  /* end of loop on base source locations */
    
-  /* sequential propagator list not needed after this point */ 
-  free( sequential_propagator_list[0]);
-  free( sequential_propagator_list);
   /* stochast source and propagators will be used differently */
   free( stochastic_source_list[0] );
   free( stochastic_source_list );

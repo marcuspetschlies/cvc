@@ -18,6 +18,8 @@ struct gamma_components_type{
 extern const int n_c;
 extern const int n_s;
 
+typedef char pathname_type[255];
+
 struct program_instruction_type{
   int filename_set;
 	char filename[255];
@@ -55,19 +57,11 @@ struct local_source_location_type{
   int proc_id;
 };
 
-struct N_N_correlators_type{
-  double **data;
-  int size;
+struct three_momentum_type{
+  int p[3];
 };
 
-struct N_N_Wick_contractions_type{
-  double **data;
-  int size;
-};
-
-struct N_N_final_side_contracted_type{
-  double **data;
-};
+typedef double** propagator_pointer_list_type;
 
 struct forward_propagators_type{
   double **propagator_list_up;
@@ -76,7 +70,8 @@ struct forward_propagators_type{
 };
 
 struct sequential_propagators_type{
-  double **data;
+  double **propagator_list;
+  int no_fields;
 };
 
 struct stochastic_propagators_type{
@@ -87,4 +82,8 @@ struct cvc_and_tmLQCD_information_type{
   double **data;
 };
 
-
+struct contraction_writer_type{
+  struct AffWriter_s *affw;
+  struct AffNode_s *affn, *affdir;
+  double _Complex *aff_buffer;
+};

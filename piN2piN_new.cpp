@@ -307,62 +307,129 @@ double gamma_component_sign_piN_D[9] = {+1., +1., +1., +1., +1., +1., +1., +1. ,
 
 int num_component_max = 9;
 
+void get_global_source_location(global_source_location_type *dest,int i_src){
+  dest->x[0] = g_source_coords_list[i_src][0];
+  dest->x[1] = g_source_coords_list[i_src][1];
+  dest->x[2] = g_source_coords_list[i_src][2];
+  dest->x[3] = g_source_coords_list[i_src][3];
+}
 
-void compute_N_N_correlators(N_N_correlators_type *N_N_correlators,forward_propagators_type *forward_propagators,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type *cvc_and_tmLQCD_information){
+void get_global_coherent_source_location(global_source_location_type *dest,int i_src,int i_coherent){
+  int t_base = g_source_coords_list[i_src][0];
+  int t_coherent = ( t_base + ( T_global / g_coherent_source_number ) * i_coherent ) % T_global; 
+  dest->x[0] = t_coherent;
+  dest->x[1] = ( g_source_coords_list[i_src][1] + (LX_global/2) * i_coherent ) % LX_global;
+  dest->x[2] = ( g_source_coords_list[i_src][2] + (LY_global/2) * i_coherent ) % LY_global;
+  dest->x[3] = ( g_source_coords_list[i_src][3] + (LZ_global/2) * i_coherent ) % LZ_global;
+}
 
-/*	N_N_Wick_contractions_type N_N_Wick_contractions;
+void convert_global_to_local_source_location(local_source_location_type *dest,global_source_location_type src){
+  get_point_source_info (src.x, dest->x, &dest->proc_id);
+}
 
-	compute_N_N_Wick_contractions(&N_N_Wick_contractions,forward_propagators,program_instructions,cvc_and_tmLQCD_information);
+void get_local_coherent_source_location(local_source_location_type *dest,int i_src,int i_coherent){
+  global_source_location_type gsl;
+  get_global_coherent_source_location(&gsl,i_src,i_coherent);
+  convert_global_to_local_source_location(dest,gsl);
+}
 
-	N_N_final_side_contracted_type N_N_final_side_contracted;
-
-	N_N_contract_final_side(&N_N_final_side_contracted,&N_N_Wick_contractions,program_instructions,cvc_and_tmLQCD_information);
-
-	N_N_contract_inital_side(N_N_correlators,&N_N_final_side_contracted,program_instructions,cvc_and_tmLQCD_information);
-
-	add_time_boundary_phase(N_N_correlators,program_instructions,cvc_and_tmLQCD_information);
-	
-	add_source_momentum_phase(N_N_correlators,program_instructions,cvc_and_tmLQCD_information);*/
+void compute_and_store_N_N_contractions(int i_src,int i_coherent,local_source_location_type lsl,forward_propagators_type *forward_propagators,sequential_propagators_type *sequential_propagators,program_instruction_type *program_instructions,contraction_writer_type *contraction_writer){
 
 }
 
-void compute_and_store_N_N_correlators(forward_propagators_type *forward_propagators,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type *cvc_and_tmLQCD_information){
-	
-	N_N_correlators_type N_N_correlators;
-
-	compute_N_N_correlators(&N_N_correlators,forward_propagators,program_instructions,cvc_and_tmLQCD_information);
-
-//	store_N_N_correlators(&N_N_correlators,forward_propagators,program_instructions,cvc_and_tmLQCD_information);
+void compute_and_store_D_D_contractions(int i_src,int i_coherent,local_source_location_type lsl,forward_propagators_type *forward_propagators,sequential_propagators_type *sequential_propagators,program_instruction_type *program_instructions,contraction_writer_type *contraction_writer){
 
 }
 
-void compute_and_store_D_D_correlators(forward_propagators_type *forward_propagators,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type *cvc_and_tmLQCD_information){
-	
+void compute_and_store_piN_D_contractions(int iseq_mom,int i_src,int i_coherent,local_source_location_type lsl,forward_propagators_type *forward_propagators,sequential_propagators_type *sequential_propagators,program_instruction_type *program_instructions,contraction_writer_type *contraction_writer){
+
 }
 
-void compute_and_store_piN_D_correlators(forward_propagators_type *forward_propagators,sequential_propagators_type *sequential_propagators,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type *cvc_and_tmLQCD_information){
-	
+void init_contraction_writer(contraction_writer_type *contraction_writer,const char *name,int i_src,int exit_code_1,int exit_code_2, int exit_code_3,program_instruction_type *program_instructions){
+  contraction_writer->affw = NULL;
+  contraction_writer->affn = NULL;
+  contraction_writer->affdir = NULL;
+
+  if(program_instructions->io_proc == 2) {
+    global_source_location_type gsl;
+    get_global_source_location(&gsl,i_src);
+
+    char *aff_status_str = (char*)aff_version();
+    write_to_stdout("# [piN2piN] using aff version %s\n", aff_status_str);
+  
+    pathname_type filename;
+    sprintf(filename, "%s.%.4d.tsrc%.2d.aff", name, Nconf, gsl.x[0] );
+    write_to_stdout("# [piN2piN] writing data to file %s\n", filename);
+    contraction_writer->affw = aff_writer(filename);
+    aff_status_str = (char*)aff_writer_errstr(contraction_writer->affw);
+    if( aff_status_str != NULL ) {
+      write_to_stderr("[piN2piN] Error from aff_writer, status was %s\n", aff_status_str);
+      EXIT(exit_code_1);
+    }
+  
+    if( (contraction_writer->affn = aff_writer_root(contraction_writer->affw)) == NULL ) {
+      write_to_stderr("[piN2piN] Error, aff writer is not initialized\n");
+      EXIT(exit_code_2);
+    }
+
+    contraction_writer->aff_buffer = (double _Complex*)malloc(T_global*g_sv_dim*g_sv_dim*sizeof(double _Complex));
+      if(contraction_writer->aff_buffer == NULL) {
+      write_to_stderr("[piN2piN] Error from malloc\n");
+      EXIT(exit_code_3);
+    }
+  }
+}
+
+void exit_contraction_writer(contraction_writer_type *contraction_writer,int exit_code,program_instruction_type *program_instructions){
+  if(program_instructions->io_proc == 2) {
+    char *aff_status_str = (char*)aff_writer_close (contraction_writer->affw);
+    if( aff_status_str != NULL ) {
+      write_to_stderr("[piN2piN] Error from aff_writer_close, status was %s\n", aff_status_str);
+      EXIT(exit_code);
+    }
+    if(contraction_writer->aff_buffer != NULL) free(contraction_writer->aff_buffer);
+  }
 }
 
 void compute_and_store_correlators_which_need_only_forward_and_sequential_propagators(forward_propagators_type *forward_propagators,sequential_propagators_type *sequential_propagators,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type *cvc_and_tmLQCD_information){
 
-	compute_and_store_N_N_correlators(forward_propagators,program_instructions,cvc_and_tmLQCD_information);
-	compute_and_store_D_D_correlators(forward_propagators,program_instructions,cvc_and_tmLQCD_information);
-	compute_and_store_piN_D_correlators(forward_propagators,sequential_propagators,program_instructions,cvc_and_tmLQCD_information);
+  int i_src;
+  for(i_src=0; i_src < g_source_location_number; i_src++ ) {
+    contraction_writer_type contraction_writer;
+
+    init_contraction_writer(&contraction_writer,"B_B",i_src,4,5,6,program_instructions);
+
+    int i_coherent;
+    for(i_coherent=0; i_coherent<g_coherent_source_number; i_coherent++) {
+      local_source_location_type lsl;
+      get_local_coherent_source_location(&lsl,i_src,i_coherent);
+     
+      compute_and_store_N_N_contractions(i_src,i_coherent,lsl,forward_propagators,sequential_propagators,program_instructions,&contraction_writer); 
+      compute_and_store_D_D_contractions(i_src,i_coherent,lsl,forward_propagators,sequential_propagators,program_instructions,&contraction_writer); 
+
+      int iseq_mom;
+      for(iseq_mom = 0; iseq_mom < g_seq_source_momentum_number; iseq_mom++) {
+        compute_and_store_piN_D_contractions(iseq_mom,i_src,i_coherent,lsl,forward_propagators,sequential_propagators,program_instructions,&contraction_writer); 
+      }
+    }
+
+    exit_contraction_writer(&contraction_writer,11,program_instructions);
+  }
 
 }
 
 void compute_and_store_correlators_which_need_stochastic_propagators(forward_propagators_type *forward_propagators,sequential_propagators_type *sequential_propagators,stochastic_propagators_type *stochastic_propagators,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type *cvc_and_tmLQCD_information){
 
-//	compute_and_store_piN_piN_correlators_which_need_stoachastic_propagators(forward_propagators,sequential_propagators,stochastic_propagators,program_instructions,cvc_and_tmLQCD_information);
 
 }
 
 void compute_and_store_correlators_which_use_oet(forward_propagators_type *forward_propagators,sequential_propagators_type *sequential_propagators,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type *cvc_and_tmLQCD_information){
 
-//	compute_and_store_piN_piN_correlators_which_use_oet(forward_propagators,sequential_propagators,stochastic_propagators,program_instructions,cvc_and_tmLQCD_information);
-//	compute_and_store_pi_pi_correlator(forward_propagators,sequential_propagators,stochastic_propagators,program_instructions,cvc_and_tmLQCD_information);
 }
+
+/*****************************************************************************
+* Allocate and free memory
+*****************************************************************************/
 
 void allocate_work_spaces(program_instruction_type *program_instructions){
   alloc_spinor_field(&program_instructions->spinor_work[0], VOLUMEPLUSRAND);
@@ -401,16 +468,6 @@ void free_memory_needed_for_the_correlator_computation_in_general(program_instru
   free_memory_for_the_contractions(program_instructions);
 }
 
-void set_operator_ids_depending_on_fermion_type(program_instruction_type *program_instructions){
-  if(g_fermion_type == _TM_FERMION) {
-    program_instructions->op_id_up = 0;
-    program_instructions->op_id_dn = 1;
-  } else if(g_fermion_type == _WILSON_FERMION) {
-    program_instructions->op_id_up = 0;
-    program_instructions->op_id_dn = 0;
-  }
-}
-
 void allocate_memory_for_propagator_list(double ***propagator_list,int no_fields,int sizeof_spinor_field,int exit_code){
   int i;
   (*propagator_list) = (double**)malloc(no_fields * sizeof(double*));
@@ -430,6 +487,11 @@ void allocate_memory_for_forward_propagators(forward_propagators_type* forward_p
   }
 }
 
+void allocate_memory_for_sequential_propagators(sequential_propagators_type* sequential_propagators,program_instruction_type *program_instructions){
+  sequential_propagators->no_fields = g_source_location_number * g_seq_source_momentum_number * n_s*n_c;
+  allocate_memory_for_propagator_list(&sequential_propagators->propagator_list,sequential_propagators->no_fields,program_instructions->sizeof_spinor_field,46);
+}
+
 void free_memory_for_propagator_list(double **propagator_list){
   free(propagator_list[0]);
   free(propagator_list);
@@ -441,6 +503,11 @@ void free_memory_for_forward_propagators(forward_propagators_type* forward_propa
     free_memory_for_propagator_list(forward_propagators->propagator_list_dn);
   }
 }
+
+void free_memory_for_sequential_propagators(sequential_propagators_type* sequential_propagators,program_instruction_type *program_instructions){
+  free_memory_for_propagator_list(sequential_propagators->propagator_list);
+}
+
 
 void set_spinor_field_to_zero(double* spinor_field,program_instruction_type *program_instructions){
   memset(spinor_field, 0, program_instructions->sizeof_spinor_field);
@@ -514,27 +581,12 @@ void compute_inversion_with_tm_rotation_and_smearing(double* inversion,double* s
   copy_spinor_fields(inversion,spinor_field_for_intermediate_storage,program_instructions);
 }
 
-void get_global_coherent_source_location(global_source_location_type *dest,int i_src,int i_coherent){
-  int t_base = g_source_coords_list[i_src][0];
-  int t_coherent = ( t_base + ( T_global / g_coherent_source_number ) * i_coherent ) % T_global; 
-  dest->x[0] = t_coherent;
-  dest->x[1] = ( g_source_coords_list[i_src][1] + (LX_global/2) * i_coherent ) % LX_global;
-  dest->x[2] = ( g_source_coords_list[i_src][2] + (LY_global/2) * i_coherent ) % LY_global;
-  dest->x[3] = ( g_source_coords_list[i_src][3] + (LZ_global/2) * i_coherent ) % LZ_global;
-}
-
-void convert_global_to_local_source_location(local_source_location_type *dest,global_source_location_type src){
-      get_point_source_info (src.x, dest->x, &dest->proc_id);
-}
-
 int get_forward_propagator_index(int i_src,int i_coherent,int is){
   return (i_src * g_coherent_source_number + i_coherent)*n_s*n_c+is;
 }
 
-void get_local_coherent_source_location(local_source_location_type *dest,int i_src,int i_coherent){
-  global_source_location_type gsl;
-  get_global_coherent_source_location(&gsl,i_src,i_coherent);
-  convert_global_to_local_source_location(dest,gsl);
+int get_forward_complete_is_propagator_index(int i_src,int i_coherent){
+  return i_src * g_coherent_source_number + i_coherent;
 }
 
 void compute_forward_propagators_for_coherent_source_location(int i_src,int i_coherent,double **propagator_list,int op_id,int rotation_direction,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type * cvc_and_tmLQCD_information){
@@ -586,6 +638,115 @@ void compute_forward_propagators(forward_propagators_type* forward_propagators,p
   compute_forward_down_propagators(forward_propagators,program_instructions,cvc_and_tmLQCD_information);
 }
 
+void get_seq_source_momentum(three_momentum_type *momentum,int iseq_mom){
+  momentum->p[0] = g_seq_source_momentum_list[iseq_mom][0];
+  momentum->p[1] = g_seq_source_momentum_list[iseq_mom][1];
+  momentum->p[2] = g_seq_source_momentum_list[iseq_mom][2];
+}
+
+void allocate_propagator_pointer_list(propagator_pointer_list_type *pointer_list,int size,int exit_code){
+  (*pointer_list) = (double**)malloc(size * sizeof(double*));
+  if((*pointer_list) == NULL) {
+    write_to_stderr("[piN2piN] Error from malloc\n");
+    EXIT(exit_code);
+  }
+}
+
+void free_propagator_pointer_list(propagator_pointer_list_type pointer_list){
+  free(pointer_list);
+}
+
+int get_sequential_propagator_index(int iseq_mom,int i_src){
+  return iseq_mom * g_source_location_number + i_src;
+}
+
+void set_spinor_field_to_sequential_source_from_coherent_down_propagators(double *sequential_source,three_momentum_type seq_source_momentum,int i_src,global_source_location_type gsl,int is,forward_propagators_type *forward_propagators,propagator_pointer_list_type pointers_to_coherent_source_forward_propagators,int exit_code){
+  int exitstatus;
+  /* extract spin-color source-component is from coherent source dn propagators */
+  int i;
+  for(i=0; i<g_coherent_source_number; i++) {
+    write_to_stdout("# [piN2piN] using dn prop id %d / %d\n", get_forward_complete_is_propagator_index(i_src,i), get_forward_propagator_index(i_src,i,is));
+    pointers_to_coherent_source_forward_propagators[i] = forward_propagators->propagator_list_dn[get_forward_propagator_index(i_src,i,is)];
+  }
+
+  /* build sequential source */
+  exitstatus = init_coherent_sequential_source(sequential_source, pointers_to_coherent_source_forward_propagators, gsl.x[0], g_coherent_source_number, seq_source_momentum.p, 5);
+  if(exitstatus != 0) {
+    write_to_stderr("[piN2piN] Error from init_coherent_sequential_source, status was %d\n", exitstatus);
+    EXIT(exit_code);
+  }
+}
+
+void get_filename_for_sequential_propagator(pathname_type filename,global_source_location_type gsl,int is,three_momentum_type seq_source_momentum){
+ sprintf(filename, "seq_%s.%.4d.t%.2dx%.2dy%.2dz%.2d.%.2d.qx%.2dqy%.2dqz%.2d.inverted",
+    filename_prefix, Nconf, gsl.x[0], gsl.x[1], gsl.x[2], gsl.x[3], is,
+    seq_source_momentum.p[0], seq_source_momentum.p[1], seq_source_momentum.p[2]); 
+}
+
+void write_propagator_to_file(double *sequential_propagator_to_write,pathname_type filename,int exit_code){
+  int exitstatus;
+  write_to_stdout("# [piN2piN] writing propagator to file %s\n", filename);
+  exitstatus = write_propagator(sequential_propagator_to_write, filename, 0, 64);
+  if(exitstatus != 0) {
+    write_to_stderr("[piN2piN] Error from write_propagator, status was %d\n", exitstatus);
+    EXIT(exit_code);
+  }
+}
+
+void write_sequential_propagator_to_file(double *sequential_propagator_to_write,global_source_location_type gsl,int is,three_momentum_type seq_source_momentum,int exit_code){
+  pathname_type filename;
+  get_filename_for_sequential_propagator(filename,gsl,is,seq_source_momentum);
+  write_propagator_to_file(sequential_propagator_to_write,filename,exit_code);
+}
+
+void compute_sequential_propagators(sequential_propagators_type* sequential_propagators,forward_propagators_type *forward_propagators,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type * cvc_and_tmLQCD_information){
+  double ratime, retime;
+  /* loop on sequential source momenta */
+  int iseq_mom;
+  for(iseq_mom=0; iseq_mom < g_seq_source_momentum_number; iseq_mom++) {
+    three_momentum_type seq_source_momentum;
+    get_seq_source_momentum(&seq_source_momentum,iseq_mom);
+    
+    /***********************************************************
+     * sequential propagator U^{-1} g5 exp(ip) D^{-1}: tfii
+     ***********************************************************/
+    write_to_stdout("# [piN2piN] sequential inversion fpr pi2 = (%d, %d, %d)\n",seq_source_momentum.p[0],seq_source_momentum.p[1],seq_source_momentum.p[2]); 
+
+    propagator_pointer_list_type pointers_to_coherent_source_forward_propagators;
+    allocate_propagator_pointer_list(&pointers_to_coherent_source_forward_propagators,g_coherent_source_number,43);
+
+    int i_src;
+    for(i_src=0; i_src<g_source_location_number; i_src++) {
+      global_source_location_type gsl;
+      get_global_source_location(&gsl,i_src);
+
+      ratime = _GET_TIME;
+      int is;
+      for(is=0;is<n_s*n_c;is++) {
+        set_spinor_field_to_sequential_source_from_coherent_down_propagators(program_instructions->spinor_work[0],seq_source_momentum,i_src,gsl,is,forward_propagators,pointers_to_coherent_source_forward_propagators,14);
+        compute_inversion_with_tm_rotation_and_smearing(sequential_propagators->propagator_list[get_sequential_propagator_index(iseq_mom,i_src)],program_instructions->spinor_work[0],program_instructions->spinor_work[1],program_instructions->op_id_up,+1,program_instructions);
+        if(g_write_sequential_propagator) {
+          write_sequential_propagator_to_file(program_instructions->spinor_work[1],gsl,is,seq_source_momentum,15);
+        }
+      }
+      retime = _GET_TIME;
+      write_to_stdout("# [piN2piN] time for seq propagator = %e seconds\n", retime-ratime);
+    }  
+
+    free_propagator_pointer_list(pointers_to_coherent_source_forward_propagators);
+  }
+}
+
+void set_operator_ids_depending_on_fermion_type(program_instruction_type *program_instructions){
+  if(g_fermion_type == _TM_FERMION) {
+    program_instructions->op_id_up = 0;
+    program_instructions->op_id_dn = 1;
+  } else if(g_fermion_type == _WILSON_FERMION) {
+    program_instructions->op_id_up = 0;
+    program_instructions->op_id_dn = 0;
+  }
+}
+
 void compute_and_store_correlators(program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type *cvc_and_tmLQCD_information){
 
   allocate_memory_needed_for_the_correlator_computation_in_general(program_instructions);
@@ -598,13 +759,17 @@ void compute_and_store_correlators(program_instruction_type *program_instruction
   allocate_memory_for_forward_propagators(&forward_propagators,program_instructions);
 	compute_forward_propagators(&forward_propagators,program_instructions,cvc_and_tmLQCD_information);
 
-//	compute_sequential_propagators(&sequential_propagators,program_instructions,cvc_and_tmLQCD_information);
+  allocate_memory_for_sequential_propagators(&sequential_propagators,program_instructions);
+	compute_sequential_propagators(&sequential_propagators,&forward_propagators,program_instructions,cvc_and_tmLQCD_information);
 
 	compute_and_store_correlators_which_need_only_forward_and_sequential_propagators(&forward_propagators,&sequential_propagators,program_instructions,cvc_and_tmLQCD_information);
 
 	stochastic_propagators_type stochastic_propagators;
 
 	compute_and_store_correlators_which_need_stochastic_propagators(&forward_propagators,&sequential_propagators,&stochastic_propagators,program_instructions,cvc_and_tmLQCD_information);
+
+  /* sequential propagator list not needed after this point */ 
+  free_memory_for_sequential_propagators(&sequential_propagators,program_instructions);
 
 	compute_and_store_correlators_which_use_oet(&forward_propagators,&sequential_propagators,program_instructions,cvc_and_tmLQCD_information);
 
