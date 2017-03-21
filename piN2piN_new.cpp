@@ -84,6 +84,13 @@ inline bool test_whether_pathname_exists(pathname_type pathname){
   return (stat(pathname,&buffer) == 0);
 }
 
+void print_spinor_field(const char *msg,double *spinor_field){
+  int i;
+  for(i = 0;i < 4;i++){
+    write_to_stdout("%s: %d %e\n",msg,i,spinor_field[i]);
+  }
+}
+
 /*
  * Functions to reduce output
  * */
@@ -318,6 +325,10 @@ int get_forward_complete_is_propagator_index(int i_src,int i_coherent){
   return i_src * g_coherent_source_number + i_coherent;
 }
 
+int get_sequential_propagator_index(int iseq_mom,int i_src){
+  return iseq_mom * g_source_location_number + i_src;
+}
+
 void get_global_source_location(global_source_location_type *dest,int i_src){
   dest->x[0] = g_source_coords_list[i_src][0];
   dest->x[1] = g_source_coords_list[i_src][1];
@@ -353,6 +364,12 @@ void get_sink_momentum(three_momentum_type *momentum,int i_sink_momentum){
   momentum->p[0] = g_sink_momentum_list[i_sink_momentum][0];
   momentum->p[1] = g_sink_momentum_list[i_sink_momentum][1];
   momentum->p[2] = g_sink_momentum_list[i_sink_momentum][2];
+}
+
+void get_seq_source_momentum(three_momentum_type *momentum,int iseq_mom){
+  momentum->p[0] = g_seq_source_momentum_list[iseq_mom][0];
+  momentum->p[1] = g_seq_source_momentum_list[iseq_mom][1];
+  momentum->p[2] = g_seq_source_momentum_list[iseq_mom][2];
 }
 
 void get_aff_key_for_N_N_contractions(pathname_type aff_key_to_write_contractions_to,int diagram,three_momentum_type sink_momentum,global_source_location_type gsl,int icomp){
@@ -468,15 +485,15 @@ void free_memory_for_ft_and_gathering(FT_WDc_contractions_type *FT_WDc_contracti
     exit_FT_WDc_contractions(FT_WDc_contractions);
 }
 
-void add_source_phase_to_FT_WDc_contractions(FT_WDc_contractions_type *FT_WDc_contractions,global_source_location_type gsl,int num_component){
-  add_source_phase((*FT_WDc_contractions), NULL, NULL, &(gsl.x[1]), num_component);
+void add_source_phase_to_FT_WDc_contractions(FT_WDc_contractions_type *FT_WDc_contractions,information_needed_for_source_phase_type *information_needed_for_source_phase,global_source_location_type gsl,int num_component){
+  add_source_phase((*FT_WDc_contractions), information_needed_for_source_phase->pi2.p,information_needed_for_source_phase->pf2.p, &(gsl.x[1]), num_component);
 }
 
-void compute_gathered_FT_WDc_contractions(FT_WDc_contractions_type *FT_WDc_contractions,gathered_FT_WDc_contractions_type *gathered_FT_WDc_contractions,global_source_location_type gsl,int diagram,int num_component,program_instruction_type *program_instructions,bool add_source_phase,int exit_code_1){
+void compute_gathered_FT_WDc_contractions(FT_WDc_contractions_type *FT_WDc_contractions,gathered_FT_WDc_contractions_type *gathered_FT_WDc_contractions,global_source_location_type gsl,int diagram,int num_component,program_instruction_type *program_instructions,information_needed_for_source_phase_type *information_needed_for_source_phase,int exit_code_1){
   add_baryon_boundary_phase_to_WDc_contractions(program_instructions,diagram,gsl.x[0],num_component);
   compute_fourier_transformation_on_local_lattice_from_WDc_contractions(FT_WDc_contractions,program_instructions,diagram,num_component);
-  if(add_source_phase){
-    add_source_phase_to_FT_WDc_contractions(FT_WDc_contractions,gsl,num_component);
+  if(information_needed_for_source_phase->add_source_phase){
+    add_source_phase_to_FT_WDc_contractions(FT_WDc_contractions,information_needed_for_source_phase,gsl,num_component);
   }
 #ifdef HAVE_MPI
   gather_FT_WDc_contractions_on_timeline(gathered_FT_WDc_contractions,FT_WDc_contractions,num_component,program_instructions,exit_code_1);
@@ -485,13 +502,45 @@ void compute_gathered_FT_WDc_contractions(FT_WDc_contractions_type *FT_WDc_contr
 #endif
 }
 
+void set_three_momentum_to_three_momentum(three_momentum_type *dest,three_momentum_type src){
+  dest->p[0] = src.p[0];
+  dest->p[1] = src.p[1];
+  dest->p[2] = src.p[2];
+}
+
+void set_three_momentum_to_zero(three_momentum_type *dest){
+  dest->p[0] = 0;
+  dest->p[1] = 0;
+  dest->p[2] = 0;
+}
+
+void init_information_needed_for_source_phase_so_that_no_source_phase_is_computed(information_needed_for_source_phase_type *information_needed_for_source_phase){
+  information_needed_for_source_phase->add_source_phase = false;
+  set_three_momentum_to_zero(&information_needed_for_source_phase->pi2);
+  set_three_momentum_to_zero(&information_needed_for_source_phase->pf2);
+}
+
+void init_information_needed_for_source_phase_so_that_source_phase_with_no_additional_momenta_is_computed(information_needed_for_source_phase_type *information_needed_for_source_phase){
+  information_needed_for_source_phase->add_source_phase = true;
+  set_three_momentum_to_zero(&information_needed_for_source_phase->pi2);
+  set_three_momentum_to_zero(&information_needed_for_source_phase->pf2);
+}
+
+void init_information_needed_for_source_phase_so_that_source_phase_with_sequential_source_momentum_is_computed(information_needed_for_source_phase_type *information_needed_for_source_phase,three_momentum_type seq_source_momentum){
+  information_needed_for_source_phase->add_source_phase = true;
+  set_three_momentum_to_three_momentum(&information_needed_for_source_phase->pi2,seq_source_momentum);
+  set_three_momentum_to_zero(&information_needed_for_source_phase->pf2);
+}
 
 void compute_and_store_N_N_contractions_for_diagram(int diagram,global_source_location_type gsl,program_instruction_type *program_instructions,contraction_writer_type *contraction_writer){
   FT_WDc_contractions_type FT_WDc_contractions;
   gathered_FT_WDc_contractions_type gathered_FT_WDc_contractions;
   allocate_memory_for_ft_and_gathering(&FT_WDc_contractions,&gathered_FT_WDc_contractions,num_component_N_N,program_instructions,57,58);
 
-  compute_gathered_FT_WDc_contractions(&FT_WDc_contractions,&gathered_FT_WDc_contractions,gsl,diagram,num_component_N_N,program_instructions,false,124);
+  information_needed_for_source_phase_type information_needed_for_source_phase;
+  init_information_needed_for_source_phase_so_that_no_source_phase_is_computed(&information_needed_for_source_phase);
+
+  compute_gathered_FT_WDc_contractions(&FT_WDc_contractions,&gathered_FT_WDc_contractions,gsl,diagram,num_component_N_N,program_instructions,&information_needed_for_source_phase,124);
   store_N_N_contractions(contraction_writer,&gathered_FT_WDc_contractions,diagram,gsl,program_instructions,81);
 
   free_memory_for_ft_and_gathering(&FT_WDc_contractions,&gathered_FT_WDc_contractions,program_instructions);
@@ -541,7 +590,10 @@ void compute_and_store_D_D_contractions_for_diagram(int diagram,global_source_lo
   gathered_FT_WDc_contractions_type gathered_FT_WDc_contractions;
   allocate_memory_for_ft_and_gathering(&FT_WDc_contractions,&gathered_FT_WDc_contractions,num_component_D_D,program_instructions,59,60);
 
-  compute_gathered_FT_WDc_contractions(&FT_WDc_contractions,&gathered_FT_WDc_contractions,gsl,diagram,num_component_D_D,program_instructions,true,124);
+  information_needed_for_source_phase_type information_needed_for_source_phase;
+  init_information_needed_for_source_phase_so_that_source_phase_with_no_additional_momenta_is_computed(&information_needed_for_source_phase);
+
+  compute_gathered_FT_WDc_contractions(&FT_WDc_contractions,&gathered_FT_WDc_contractions,gsl,diagram,num_component_D_D,program_instructions,&information_needed_for_source_phase,124);
   store_D_D_contractions(contraction_writer,&gathered_FT_WDc_contractions,diagram,gsl,program_instructions,81);
 
   free_memory_for_ft_and_gathering(&FT_WDc_contractions,&gathered_FT_WDc_contractions,program_instructions);
@@ -558,7 +610,66 @@ void compute_and_store_D_D_contractions(int i_src,int i_coherent,global_source_l
   }
 }
 
+void compute_Whick_Dirac_and_color_contractions_for_piN_D(int iseq_mom,int i_src,int i_coherent,program_instruction_type *program_instructions,forward_propagators_type *forward_propagators,sequential_propagators_type *sequential_propagators){
+  int i_prop = get_forward_complete_is_propagator_index(i_src,i_coherent);
+  int i_seq_prop = get_sequential_propagator_index(iseq_mom,i_src);
+  int exitstatus = contract_piN_D (program_instructions->conn_X, &(forward_propagators->propagator_list_up[i_prop*n_s*n_c]), &(forward_propagators->propagator_list_dn[i_prop*n_s*n_c]), 
+    &(sequential_propagators->propagator_list[i_seq_prop*n_s*n_c]), num_component_piN_D, gamma_component_piN_D, gamma_component_sign_piN_D);
+}
+
+void get_aff_key_for_piN_D_contractions(pathname_type aff_key_to_write_contractions_to,int diagram,three_momentum_type seq_source_momentum,three_momentum_type sink_momentum,global_source_location_type gsl,int icomp){
+  sprintf(aff_key_to_write_contractions_to, "/%s/diag%d/pi2x%.2dpi2y%.2dpi2z%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d",
+    "pixN-D", diagram,
+    seq_source_momentum.p[0],   seq_source_momentum.p[1],   seq_source_momentum.p[2],
+    sink_momentum.p[0],                sink_momentum.p[1],                sink_momentum.p[2],
+    gsl.x[0], gsl.x[1], gsl.x[2], gsl.x[3],
+    gamma_component_piN_D[icomp][0], gamma_component_piN_D[icomp][1]);
+}
+
+void store_piN_D_contractions(contraction_writer_type *contraction_writer,gathered_FT_WDc_contractions_type *gathered_FT_WDc_contractions,int iseq_mom,int diagram,global_source_location_type gsl,program_instruction_type *program_instructions,int exit_code){
+  int k,icomp;
+  if(program_instructions->io_proc == 2) {
+    for(k=0; k<g_sink_momentum_number; k++) {
+      for(icomp=0; icomp<num_component_piN_D; icomp++) {
+        pathname_type aff_key_to_write_contractions_to;
+        three_momentum_type sink_momentum;
+        get_sink_momentum(&sink_momentum,k);
+        three_momentum_type seq_source_momentum;
+        get_seq_source_momentum(&seq_source_momentum,iseq_mom);
+        get_aff_key_for_piN_D_contractions(aff_key_to_write_contractions_to,diagram,seq_source_momentum,sink_momentum,gsl,icomp);
+        store_contraction_under_aff_key(contraction_writer,aff_key_to_write_contractions_to,gathered_FT_WDc_contractions,gsl,k,icomp,exit_code);
+      }
+    }
+  }
+}
+
+void compute_and_store_piN_D_contractions_for_diagram(int iseq_mom,int diagram,global_source_location_type gsl,program_instruction_type *program_instructions,contraction_writer_type *contraction_writer){
+  FT_WDc_contractions_type FT_WDc_contractions;
+  gathered_FT_WDc_contractions_type gathered_FT_WDc_contractions;
+  allocate_memory_for_ft_and_gathering(&FT_WDc_contractions,&gathered_FT_WDc_contractions,num_component_piN_D,program_instructions,61,62);
+
+  three_momentum_type seq_source_momentum;
+  get_seq_source_momentum(&seq_source_momentum,iseq_mom);
+
+  information_needed_for_source_phase_type information_needed_for_source_phase;
+  //init_information_needed_for_source_phase_so_that_source_phase_with_sequential_source_momentum_is_computed(&information_needed_for_source_phase,seq_source_momentum);
+  init_information_needed_for_source_phase_so_that_no_source_phase_is_computed(&information_needed_for_source_phase);
+
+  compute_gathered_FT_WDc_contractions(&FT_WDc_contractions,&gathered_FT_WDc_contractions,gsl,diagram,num_component_piN_D,program_instructions,&information_needed_for_source_phase,124);
+  store_piN_D_contractions(contraction_writer,&gathered_FT_WDc_contractions,iseq_mom,diagram,gsl,program_instructions,82);
+
+  free_memory_for_ft_and_gathering(&FT_WDc_contractions,&gathered_FT_WDc_contractions,program_instructions);
+}
+
 void compute_and_store_piN_D_contractions(int iseq_mom,int i_src,int i_coherent,global_source_location_type gsl,forward_propagators_type *forward_propagators,sequential_propagators_type *sequential_propagators,program_instruction_type *program_instructions,contraction_writer_type *contraction_writer){
+  set_memory_for_Whick_Dirac_and_color_contractions_to_zero(program_instructions);
+
+  compute_Whick_Dirac_and_color_contractions_for_piN_D(iseq_mom,i_src,i_coherent,program_instructions,forward_propagators,sequential_propagators);
+
+  int diagram;
+  for(diagram=0; diagram<6; diagram++){
+    compute_and_store_piN_D_contractions_for_diagram(iseq_mom,diagram,gsl,program_instructions,contraction_writer);
+  }
 
 }
 
@@ -855,12 +966,6 @@ void compute_forward_propagators(forward_propagators_type* forward_propagators,p
   compute_forward_down_propagators(forward_propagators,program_instructions,cvc_and_tmLQCD_information);
 }
 
-void get_seq_source_momentum(three_momentum_type *momentum,int iseq_mom){
-  momentum->p[0] = g_seq_source_momentum_list[iseq_mom][0];
-  momentum->p[1] = g_seq_source_momentum_list[iseq_mom][1];
-  momentum->p[2] = g_seq_source_momentum_list[iseq_mom][2];
-}
-
 void allocate_propagator_pointer_list(propagator_pointer_list_type *pointer_list,int size,int exit_code){
   (*pointer_list) = (double**)malloc(size * sizeof(double*));
   if((*pointer_list) == NULL) {
@@ -871,10 +976,6 @@ void allocate_propagator_pointer_list(propagator_pointer_list_type *pointer_list
 
 void free_propagator_pointer_list(propagator_pointer_list_type pointer_list){
   free(pointer_list);
-}
-
-int get_sequential_propagator_index(int iseq_mom,int i_src){
-  return iseq_mom * g_source_location_number + i_src;
 }
 
 void set_spinor_field_to_sequential_source_from_coherent_down_propagators(double *sequential_source,three_momentum_type seq_source_momentum,int i_src,global_source_location_type gsl,int is,forward_propagators_type *forward_propagators,propagator_pointer_list_type pointers_to_coherent_source_forward_propagators,int exit_code){
@@ -913,6 +1014,11 @@ void write_propagator_to_file(double *sequential_propagator_to_write,pathname_ty
 void write_sequential_propagator_to_file(double *sequential_propagator_to_write,global_source_location_type gsl,int is,three_momentum_type seq_source_momentum,int exit_code){
   pathname_type filename;
   get_filename_for_sequential_propagator(filename,gsl,is,seq_source_momentum);
+  if(test_whether_pathname_exists(filename)){
+    write_to_stderr("File %s already exists\n",filename);
+    EXIT(1);
+  }
+
   write_propagator_to_file(sequential_propagator_to_write,filename,exit_code);
 }
 

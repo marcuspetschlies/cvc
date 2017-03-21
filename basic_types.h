@@ -61,6 +61,12 @@ struct three_momentum_type{
   int p[3];
 };
 
+struct information_needed_for_source_phase_type{
+  bool add_source_phase;
+  three_momentum_type pi2;
+  three_momentum_type pf2;
+};
+
 typedef double**** FT_WDc_contractions_type;
 typedef double**** gathered_FT_WDc_contractions_type;
 
