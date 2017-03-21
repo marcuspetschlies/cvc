@@ -84,13 +84,6 @@ inline bool test_whether_pathname_exists(pathname_type pathname){
   return (stat(pathname,&buffer) == 0);
 }
 
-void print_spinor_field(const char *msg,double *spinor_field){
-  int i;
-  for(i = 0;i < 4;i++){
-    write_to_stdout("%s: %d %e\n",msg,i,spinor_field[i]);
-  }
-}
-
 /*
  * Functions to reduce output
  * */
@@ -156,6 +149,13 @@ int write_to_stderr(const char * format, ...){
     return done;
   }
   return 0;
+}
+
+void print_spinor_field(const char *msg,double *spinor_field){
+  int i;
+  for(i = 0;i < 4;i++){
+    write_to_stdout("%s: %d %e\n",msg,i,spinor_field[i]);
+  }
 }
 
 /************************************************************************************
@@ -325,8 +325,16 @@ int get_forward_complete_is_propagator_index(int i_src,int i_coherent){
   return i_src * g_coherent_source_number + i_coherent;
 }
 
-int get_sequential_propagator_index(int iseq_mom,int i_src){
+int get_sequential_complete_is_propagator_index(int iseq_mom,int i_src){
   return iseq_mom * g_source_location_number + i_src;
+}
+
+int get_sequential_propagator_index(int iseq_mom,int i_src,int is){
+  return (iseq_mom * g_source_location_number + i_src)*n_s*n_c+is;
+}
+
+int get_forward_propagator_index(int i_src,int i_coherent,int is){
+  return (i_src * g_coherent_source_number + i_coherent)*n_s*n_c+is;
 }
 
 void get_global_source_location(global_source_location_type *dest,int i_src){
@@ -372,6 +380,37 @@ void get_seq_source_momentum(three_momentum_type *momentum,int iseq_mom){
   momentum->p[2] = g_seq_source_momentum_list[iseq_mom][2];
 }
 
+void set_three_momentum_to_three_momentum(three_momentum_type *dest,three_momentum_type src){
+  dest->p[0] = src.p[0];
+  dest->p[1] = src.p[1];
+  dest->p[2] = src.p[2];
+}
+
+void set_three_momentum_to_zero(three_momentum_type *dest){
+  dest->p[0] = 0;
+  dest->p[1] = 0;
+  dest->p[2] = 0;
+}
+
+void init_information_needed_for_source_phase_so_that_no_source_phase_is_computed(information_needed_for_source_phase_type *information_needed_for_source_phase){
+  information_needed_for_source_phase->add_source_phase = false;
+  set_three_momentum_to_zero(&information_needed_for_source_phase->pi2);
+  set_three_momentum_to_zero(&information_needed_for_source_phase->pf2);
+}
+
+void init_information_needed_for_source_phase_so_that_source_phase_with_no_additional_momenta_is_computed(information_needed_for_source_phase_type *information_needed_for_source_phase){
+  information_needed_for_source_phase->add_source_phase = true;
+  set_three_momentum_to_zero(&information_needed_for_source_phase->pi2);
+  set_three_momentum_to_zero(&information_needed_for_source_phase->pf2);
+}
+
+void init_information_needed_for_source_phase_so_that_source_phase_with_sequential_source_momentum_is_computed(information_needed_for_source_phase_type *information_needed_for_source_phase,three_momentum_type seq_source_momentum){
+  information_needed_for_source_phase->add_source_phase = true;
+  set_three_momentum_to_three_momentum(&information_needed_for_source_phase->pi2,seq_source_momentum);
+  set_three_momentum_to_zero(&information_needed_for_source_phase->pf2);
+}
+
+
 void get_aff_key_for_N_N_contractions(pathname_type aff_key_to_write_contractions_to,int diagram,three_momentum_type sink_momentum,global_source_location_type gsl,int icomp){
   sprintf(aff_key_to_write_contractions_to, "/%s/diag%d/pf1x%.2dpf1y%.2dpf1z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d",
     "N-N", diagram,
@@ -409,11 +448,6 @@ void store_N_N_contractions(contraction_writer_type *contraction_writer,gathered
       }
     }
   }
-}
-
-void compute_Whick_Dirac_and_color_contractions_for_N_N(int i_src,int i_coherent,program_instruction_type *program_instructions,forward_propagators_type *forward_propagators){
-  int i_prop = get_forward_complete_is_propagator_index(i_src,i_coherent);
-  int exitstatus = contract_N_N (program_instructions->conn_X, &(forward_propagators->propagator_list_up[i_prop*n_s*n_c]), &(forward_propagators->propagator_list_dn[i_prop*n_s*n_c]) , num_component_N_N, gamma_component_N_N, gamma_component_sign_N_N);
 }
 
 void add_baryon_boundary_phase_to_WDc_contractions(program_instruction_type *program_instructions,int diagram,int t_coherent,int num_component){
@@ -502,34 +536,9 @@ void compute_gathered_FT_WDc_contractions(FT_WDc_contractions_type *FT_WDc_contr
 #endif
 }
 
-void set_three_momentum_to_three_momentum(three_momentum_type *dest,three_momentum_type src){
-  dest->p[0] = src.p[0];
-  dest->p[1] = src.p[1];
-  dest->p[2] = src.p[2];
-}
-
-void set_three_momentum_to_zero(three_momentum_type *dest){
-  dest->p[0] = 0;
-  dest->p[1] = 0;
-  dest->p[2] = 0;
-}
-
-void init_information_needed_for_source_phase_so_that_no_source_phase_is_computed(information_needed_for_source_phase_type *information_needed_for_source_phase){
-  information_needed_for_source_phase->add_source_phase = false;
-  set_three_momentum_to_zero(&information_needed_for_source_phase->pi2);
-  set_three_momentum_to_zero(&information_needed_for_source_phase->pf2);
-}
-
-void init_information_needed_for_source_phase_so_that_source_phase_with_no_additional_momenta_is_computed(information_needed_for_source_phase_type *information_needed_for_source_phase){
-  information_needed_for_source_phase->add_source_phase = true;
-  set_three_momentum_to_zero(&information_needed_for_source_phase->pi2);
-  set_three_momentum_to_zero(&information_needed_for_source_phase->pf2);
-}
-
-void init_information_needed_for_source_phase_so_that_source_phase_with_sequential_source_momentum_is_computed(information_needed_for_source_phase_type *information_needed_for_source_phase,three_momentum_type seq_source_momentum){
-  information_needed_for_source_phase->add_source_phase = true;
-  set_three_momentum_to_three_momentum(&information_needed_for_source_phase->pi2,seq_source_momentum);
-  set_three_momentum_to_zero(&information_needed_for_source_phase->pf2);
+void compute_Whick_Dirac_and_color_contractions_for_N_N(int i_src,int i_coherent,program_instruction_type *program_instructions,forward_propagators_type *forward_propagators){
+  int i_prop = get_forward_complete_is_propagator_index(i_src,i_coherent);
+  int exitstatus = contract_N_N (program_instructions->conn_X, &(forward_propagators->propagator_list_up[i_prop*n_s*n_c]), &(forward_propagators->propagator_list_dn[i_prop*n_s*n_c]) , num_component_N_N, gamma_component_N_N, gamma_component_sign_N_N);
 }
 
 void compute_and_store_N_N_contractions_for_diagram(int diagram,global_source_location_type gsl,program_instruction_type *program_instructions,contraction_writer_type *contraction_writer){
@@ -612,7 +621,7 @@ void compute_and_store_D_D_contractions(int i_src,int i_coherent,global_source_l
 
 void compute_Whick_Dirac_and_color_contractions_for_piN_D(int iseq_mom,int i_src,int i_coherent,program_instruction_type *program_instructions,forward_propagators_type *forward_propagators,sequential_propagators_type *sequential_propagators){
   int i_prop = get_forward_complete_is_propagator_index(i_src,i_coherent);
-  int i_seq_prop = get_sequential_propagator_index(iseq_mom,i_src);
+  int i_seq_prop = get_sequential_complete_is_propagator_index(iseq_mom,i_src);
   int exitstatus = contract_piN_D (program_instructions->conn_X, &(forward_propagators->propagator_list_up[i_prop*n_s*n_c]), &(forward_propagators->propagator_list_dn[i_prop*n_s*n_c]), 
     &(sequential_propagators->propagator_list[i_seq_prop*n_s*n_c]), num_component_piN_D, gamma_component_piN_D, gamma_component_sign_piN_D);
 }
@@ -856,35 +865,6 @@ void set_spinor_field_to_point_source(double *spinor_field,local_source_location
   }
 }
 
-/*void compute_up_propagator(int is,int sx[],int i_prop,int source_proc_id,forward_propagators_type* forward_propagators,program_instruction_type *program_instructions){
-  int exitstatus;
-
-  set_spinor_field_to_point_source(program_instructions->spinor_work[0],source_proc_id,sx,is,program_instructions);
-  set_spinor_field_to_zero(program_instructions->spinor_work[1],program_instructions);
-  
-  // source-smear the point source
-  exitstatus = Jacobi_Smearing(program_instructions->gauge_field_smeared, program_instructions->spinor_work[0], N_Jacobi, kappa_Jacobi);
-
-  if( g_fermion_type == _TM_FERMION ) {
-    spinor_field_tm_rotation(program_instructions->spinor_work[0], program_instructions->spinor_work[0], +1, g_fermion_type, VOLUME);
-  }
-
-  exitstatus = tmLQCD_invert(program_instructions->spinor_work[1], program_instructions->spinor_work[0], program_instructions->op_id_up, 0);
-  if(exitstatus != 0) {
-    write_to_stdout("[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
-    EXIT(12);
-  }
-
-  if( g_fermion_type == _TM_FERMION ) {
-    spinor_field_tm_rotation(program_instructions->spinor_work[1], program_instructions->spinor_work[1], +1, g_fermion_type, VOLUME);
-  }
-
-  // sink-smear the point-source propagator 
-  exitstatus = Jacobi_Smearing(program_instructions->gauge_field_smeared, program_instructions->spinor_work[1], N_Jacobi, kappa_Jacobi);
-
-  memcpy( propagator_list_up[i_prop*n_s*n_c + is], program_instructions->spinor_work[1], program_instructions->sizeof_spinor_field);
-}*/
-
 void compute_inversion_with_tm_rotation_and_smearing(double* inversion,double* source,double* spinor_field_for_intermediate_storage,int op_id,int rotation_direction,program_instruction_type *program_instructions){
   int exitstatus;
 
@@ -911,10 +891,6 @@ void compute_inversion_with_tm_rotation_and_smearing(double* inversion,double* s
   exitstatus = Jacobi_Smearing(program_instructions->gauge_field_smeared, spinor_field_for_intermediate_storage, N_Jacobi, kappa_Jacobi);
 
   copy_spinor_fields(inversion,spinor_field_for_intermediate_storage,program_instructions);
-}
-
-int get_forward_propagator_index(int i_src,int i_coherent,int is){
-  return (i_src * g_coherent_source_number + i_coherent)*n_s*n_c+is;
 }
 
 void compute_forward_propagators_for_coherent_source_location(int i_src,int i_coherent,double **propagator_list,int op_id,int rotation_direction,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type * cvc_and_tmLQCD_information){
@@ -996,13 +972,55 @@ void set_spinor_field_to_sequential_source_from_coherent_down_propagators(double
 }
 
 void get_filename_for_sequential_propagator(pathname_type filename,global_source_location_type gsl,int is,three_momentum_type seq_source_momentum){
- sprintf(filename, "seq_%s.%.4d.t%.2dx%.2dy%.2dz%.2d.%.2d.qx%.2dqy%.2dqz%.2d.inverted",
+ sprintf(filename, "/storage/oehm/piN2piN_crosscheck/seq_%s.%.4d.t%.2dx%.2dy%.2dz%.2d.%.2d.qx%.2dqy%.2dqz%.2d.inverted",
     filename_prefix, Nconf, gsl.x[0], gsl.x[1], gsl.x[2], gsl.x[3], is,
-    seq_source_momentum.p[0], seq_source_momentum.p[1], seq_source_momentum.p[2]); 
+    seq_source_momentum.p[0], seq_source_momentum.p[1], seq_source_momentum.p[2]);
+}
+
+void get_filename_for_sequential_source(pathname_type filename,global_source_location_type gsl,int is,three_momentum_type seq_source_momentum){
+ sprintf(filename, "/storage/oehm/piN2piN_crosscheck/seq_source_%s.%.4d.t%.2dx%.2dy%.2dz%.2d.%.2d.qx%.2dqy%.2dqz%.2d.source",
+    filename_prefix, Nconf, gsl.x[0], gsl.x[1], gsl.x[2], gsl.x[3], is,
+    seq_source_momentum.p[0], seq_source_momentum.p[1], seq_source_momentum.p[2]);
+}
+
+void get_filename_for_sequential_propagator_with_g_cart_id(pathname_type filename,global_source_location_type gsl,int is,three_momentum_type seq_source_momentum){
+ sprintf(filename, "/storage/oehm/piN2piN_crosscheck/seq_%s.%.4d.t%.2dx%.2dy%.2dz%.2d.%.2d.qx%.2dqy%.2dqz%.2d.g_cart_id%d.inverted",
+    filename_prefix, Nconf, gsl.x[0], gsl.x[1], gsl.x[2], gsl.x[3], is,
+    seq_source_momentum.p[0], seq_source_momentum.p[1], seq_source_momentum.p[2],g_cart_id);
+}
+
+void get_filename_for_sequential_source_with_g_cart_id(pathname_type filename,global_source_location_type gsl,int is,three_momentum_type seq_source_momentum){
+ sprintf(filename, "/storage/oehm/piN2piN_crosscheck/seq_source_%s.%.4d.t%.2dx%.2dy%.2dz%.2d.%.2d.qx%.2dqy%.2dqz%.2d.g_cart_id%d.source",
+    filename_prefix, Nconf, gsl.x[0], gsl.x[1], gsl.x[2], gsl.x[3], is,
+    seq_source_momentum.p[0], seq_source_momentum.p[1], seq_source_momentum.p[2],g_cart_id);
+}
+
+
+void write_spinor_field_to_file(double *spinor_field,int sizeof_spinor_field,pathname_type filename){
+  FILE *f;
+
+  if(test_whether_pathname_exists(filename)){
+    write_to_stderr("File %s already exists\n",filename);
+    EXIT(1);
+  }
+
+  f = fopen(filename,"w");
+  if(f == NULL){
+    write_to_stderr("could not open file %s for writing\n",filename);
+    EXIT(1);
+  }
+  fwrite(spinor_field,sizeof(double),sizeof_spinor_field/sizeof(double),f);
+  fclose(f);
 }
 
 void write_propagator_to_file(double *sequential_propagator_to_write,pathname_type filename,int exit_code){
   int exitstatus;
+
+  if(test_whether_pathname_exists(filename)){
+    write_to_stderr("File %s already exists\n",filename);
+    EXIT(1);
+  }
+
   write_to_stdout("# [piN2piN] writing propagator to file %s\n", filename);
   exitstatus = write_propagator(sequential_propagator_to_write, filename, 0, 64);
   if(exitstatus != 0) {
@@ -1014,12 +1032,22 @@ void write_propagator_to_file(double *sequential_propagator_to_write,pathname_ty
 void write_sequential_propagator_to_file(double *sequential_propagator_to_write,global_source_location_type gsl,int is,three_momentum_type seq_source_momentum,int exit_code){
   pathname_type filename;
   get_filename_for_sequential_propagator(filename,gsl,is,seq_source_momentum);
-  if(test_whether_pathname_exists(filename)){
-    write_to_stderr("File %s already exists\n",filename);
-    EXIT(1);
-  }
 
   write_propagator_to_file(sequential_propagator_to_write,filename,exit_code);
+}
+
+void write_sequential_source_to_file_2ndversion(double *sequential_propagator_to_write,program_instruction_type *program_instructions,global_source_location_type gsl,int is,three_momentum_type seq_source_momentum){
+  pathname_type filename;
+  get_filename_for_sequential_source_with_g_cart_id(filename,gsl,is,seq_source_momentum);
+
+  write_spinor_field_to_file(sequential_propagator_to_write,program_instructions->sizeof_spinor_field,filename);
+}
+
+void write_sequential_propagator_to_file_2ndversion(double *sequential_propagator_to_write,program_instruction_type *program_instructions,global_source_location_type gsl,int is,three_momentum_type seq_source_momentum){
+  pathname_type filename;
+  get_filename_for_sequential_propagator_with_g_cart_id(filename,gsl,is,seq_source_momentum);
+
+  write_spinor_field_to_file(sequential_propagator_to_write,program_instructions->sizeof_spinor_field,filename);
 }
 
 void compute_sequential_propagators(sequential_propagators_type* sequential_propagators,forward_propagators_type *forward_propagators,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type * cvc_and_tmLQCD_information){
@@ -1047,10 +1075,12 @@ void compute_sequential_propagators(sequential_propagators_type* sequential_prop
       int is;
       for(is=0;is<n_s*n_c;is++) {
         set_spinor_field_to_sequential_source_from_coherent_down_propagators(program_instructions->spinor_work[0],seq_source_momentum,i_src,gsl,is,forward_propagators,pointers_to_coherent_source_forward_propagators,14);
-        compute_inversion_with_tm_rotation_and_smearing(sequential_propagators->propagator_list[get_sequential_propagator_index(iseq_mom,i_src)],program_instructions->spinor_work[0],program_instructions->spinor_work[1],program_instructions->op_id_up,+1,program_instructions);
+        //write_sequential_source_to_file_2ndversion(program_instructions->spinor_work[0],program_instructions,gsl,is,seq_source_momentum);
+        compute_inversion_with_tm_rotation_and_smearing(sequential_propagators->propagator_list[get_sequential_propagator_index(iseq_mom,i_src,is)],program_instructions->spinor_work[0],program_instructions->spinor_work[1],program_instructions->op_id_up,+1,program_instructions);
         if(g_write_sequential_propagator) {
           write_sequential_propagator_to_file(program_instructions->spinor_work[1],gsl,is,seq_source_momentum,15);
         }
+        //write_sequential_propagator_to_file_2ndversion(program_instructions->spinor_work[1],program_instructions,gsl,is,seq_source_momentum);
       }
       retime = _GET_TIME;
       write_to_stdout("# [piN2piN] time for seq propagator = %e seconds\n", retime-ratime);
