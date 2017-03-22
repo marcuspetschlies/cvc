@@ -416,11 +416,6 @@ int main(int argc, char **argv) {
   /******************************************************
    * initialize random number generator
    ******************************************************/
-  exitstatus = init_rng_stat_file (g_seed, NULL);
-  if(exitstatus != 0) {
-    fprintf(stderr, "[piN2piN] Error from init_rng_stat_file status was %d\n", exitstatus);
-    EXIT(38);
-  }
 
   /******************************************************
    * allocate memory for stochastic sources

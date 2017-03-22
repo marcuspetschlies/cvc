@@ -809,46 +809,56 @@ void free_memory_needed_for_the_correlator_computation_in_general(program_instru
   free_memory_for_the_contractions(program_instructions);
 }
 
-void allocate_memory_for_propagator_list(double ***propagator_list,int no_fields,int sizeof_spinor_field,int exit_code){
+void allocate_memory_for_spinor_field_list(double ***spinor_field_list,int no_fields,int sizeof_spinor_field,int exit_code){
   int i;
-  (*propagator_list) = (double**)malloc(no_fields * sizeof(double*));
-  (*propagator_list)[0] = (double*)malloc(no_fields * sizeof_spinor_field);
-  if((*propagator_list)[0] == NULL) {
+  (*spinor_field_list) = (double**)malloc(no_fields * sizeof(double*));
+  (*spinor_field_list)[0] = (double*)malloc(no_fields * sizeof_spinor_field);
+  if((*spinor_field_list)[0] == NULL) {
     write_to_stderr("[piN2piN] Error from malloc\n");
     EXIT(exit_code);
   }
-  for(i=1; i<no_fields; i++) (*propagator_list)[i] = (*propagator_list)[i-1] + _GSI(VOLUME);
+  for(i=1; i<no_fields; i++) (*spinor_field_list)[i] = (*spinor_field_list)[i-1] + _GSI(VOLUME);
 }
 
 void allocate_memory_for_forward_propagators(forward_propagators_type* forward_propagators,program_instruction_type *program_instructions){
   forward_propagators->no_fields = g_coherent_source_number * g_source_location_number * n_s*n_c; /* forward propagators at all base x coherent source locations */ 
-  allocate_memory_for_propagator_list(&forward_propagators->propagator_list_up,forward_propagators->no_fields,program_instructions->sizeof_spinor_field,44);
+  allocate_memory_for_spinor_field_list(&forward_propagators->propagator_list_up,forward_propagators->no_fields,program_instructions->sizeof_spinor_field,44);
   if(g_fermion_type == _TM_FERMION) {
-    allocate_memory_for_propagator_list(&forward_propagators->propagator_list_dn,forward_propagators->no_fields,program_instructions->sizeof_spinor_field,45);
+    allocate_memory_for_spinor_field_list(&forward_propagators->propagator_list_dn,forward_propagators->no_fields,program_instructions->sizeof_spinor_field,45);
   }
 }
 
 void allocate_memory_for_sequential_propagators(sequential_propagators_type* sequential_propagators,program_instruction_type *program_instructions){
   sequential_propagators->no_fields = g_source_location_number * g_seq_source_momentum_number * n_s*n_c;
-  allocate_memory_for_propagator_list(&sequential_propagators->propagator_list,sequential_propagators->no_fields,program_instructions->sizeof_spinor_field,46);
+  allocate_memory_for_spinor_field_list(&sequential_propagators->propagator_list,sequential_propagators->no_fields,program_instructions->sizeof_spinor_field,46);
 }
 
-void free_memory_for_propagator_list(double **propagator_list){
-  free(propagator_list[0]);
-  free(propagator_list);
+void allocate_memory_for_stochastic_propagators(stochastic_propagators_type *stochastic_propagators,program_instruction_type *program_instructions){
+  stochastic_propagators->no_fields = g_nsample;
+  allocate_memory_for_spinor_field_list(&stochastic_propagators->propagator_list,stochastic_propagators->no_fields,program_instructions->sizeof_spinor_field,48);
+  allocate_memory_for_spinor_field_list(&stochastic_propagators->source_list,stochastic_propagators->no_fields,program_instructions->sizeof_spinor_field,49);
+}
+
+void free_memory_for_spinor_field_list(double **spinor_field_list){
+  free(spinor_field_list[0]);
+  free(spinor_field_list);
 }
 
 void free_memory_for_forward_propagators(forward_propagators_type* forward_propagators,program_instruction_type *program_instructions){
-  free_memory_for_propagator_list(forward_propagators->propagator_list_up);
+  free_memory_for_spinor_field_list(forward_propagators->propagator_list_up);
   if(g_fermion_type == _TM_FERMION) {
-    free_memory_for_propagator_list(forward_propagators->propagator_list_dn);
+    free_memory_for_spinor_field_list(forward_propagators->propagator_list_dn);
   }
 }
 
 void free_memory_for_sequential_propagators(sequential_propagators_type* sequential_propagators,program_instruction_type *program_instructions){
-  free_memory_for_propagator_list(sequential_propagators->propagator_list);
+  free_memory_for_spinor_field_list(sequential_propagators->propagator_list);
 }
 
+void free_memory_for_stochastic_propagators(stochastic_propagators_type *stochastic_propagators,program_instruction_type *program_instructions){
+  free_memory_for_spinor_field_list(stochastic_propagators->propagator_list);
+  free_memory_for_spinor_field_list(stochastic_propagators->source_list);
+}
 
 void set_spinor_field_to_zero(double* spinor_field,program_instruction_type *program_instructions){
   memset(spinor_field, 0, program_instructions->sizeof_spinor_field);
@@ -1100,6 +1110,14 @@ void set_operator_ids_depending_on_fermion_type(program_instruction_type *progra
   }
 }
 
+void init_random_number_generator(int exit_code){
+  int exitstatus = init_rng_stat_file (g_seed, NULL);
+  if(exitstatus != 0) {
+    write_to_stderr("[piN2piN] Error from init_rng_stat_file status was %d\n", exitstatus);
+    EXIT(exit_code);
+  }
+}
+
 void compute_and_store_correlators(program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type *cvc_and_tmLQCD_information){
 
   allocate_memory_needed_for_the_correlator_computation_in_general(program_instructions);
@@ -1118,13 +1136,15 @@ void compute_and_store_correlators(program_instruction_type *program_instruction
 	compute_and_store_correlators_which_need_only_forward_and_sequential_propagators(&forward_propagators,&sequential_propagators,program_instructions,cvc_and_tmLQCD_information);
 
 	stochastic_propagators_type stochastic_propagators;
-//  allocate_memory_for_stochastic_propagators(&stochastic_propagators,program_instructions);
+  allocate_memory_for_stochastic_propagators(&stochastic_propagators,program_instructions);
 
-//  init_random_number_generator();
+  init_random_number_generator(38);
+
+//	compute_stochastic_propagators(&stochastic_propagators,program_instructions,cvc_and_tmLQCD_information);
 
 	compute_and_store_correlators_which_need_stochastic_propagators(&forward_propagators,&sequential_propagators,&stochastic_propagators,program_instructions,cvc_and_tmLQCD_information);
 
-//  free_memory_for_stochastic_propagators(&stochastic_propagators,program_instructions);
+  free_memory_for_stochastic_propagators(&stochastic_propagators,program_instructions);
 
   /* sequential propagator list not needed after this point */ 
   free_memory_for_sequential_propagators(&sequential_propagators,program_instructions);

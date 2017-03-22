@@ -84,7 +84,9 @@ struct sequential_propagators_type{
 };
 
 struct stochastic_propagators_type{
-  double **data;
+  double **propagator_list;
+  double **source_list;
+  int no_fields;
 };
 
 struct cvc_and_tmLQCD_information_type{
