@@ -1118,13 +1118,20 @@ void compute_and_store_correlators(program_instruction_type *program_instruction
 	compute_and_store_correlators_which_need_only_forward_and_sequential_propagators(&forward_propagators,&sequential_propagators,program_instructions,cvc_and_tmLQCD_information);
 
 	stochastic_propagators_type stochastic_propagators;
+//  allocate_memory_for_stochastic_propagators(&stochastic_propagators,program_instructions);
+
+//  init_random_number_generator();
 
 	compute_and_store_correlators_which_need_stochastic_propagators(&forward_propagators,&sequential_propagators,&stochastic_propagators,program_instructions,cvc_and_tmLQCD_information);
+
+//  free_memory_for_stochastic_propagators(&stochastic_propagators,program_instructions);
 
   /* sequential propagator list not needed after this point */ 
   free_memory_for_sequential_propagators(&sequential_propagators,program_instructions);
 
 	compute_and_store_correlators_which_use_oet(&forward_propagators,&sequential_propagators,program_instructions,cvc_and_tmLQCD_information);
+
+  
 
   free_memory_for_forward_propagators(&forward_propagators,program_instructions);
 
@@ -1213,6 +1220,20 @@ void init_cvc_and_tmLQCD(program_instruction_type *program_instructions,cvc_and_
   set_io_process(program_instructions);
 }
 
+void exit_cvc(program_instruction_type *program_instructions){
+  free_geometry();
+}
+
+void exit_tmLQCD(program_instruction_type *program_instructions){
+  tmLQCD_finalise();
+}
+
+void exit_cvc_and_tmLQCD(program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type *cvc_and_tmLQCD_information){
+  exit_cvc(program_instructions);
+
+  exit_tmLQCD(program_instructions);
+}
+
 void read_gauge_field(program_instruction_type *program_instructions){
   Nconf = g_tmLQCD_lat.nstore;
   if(g_cart_id== 0) fprintf(stdout, "[piN2piN] Nconf = %d\n", Nconf);
@@ -1265,6 +1286,16 @@ void init_gauge_field(program_instruction_type *program_instructions){
   smeare_gauge_field(program_instructions);
 }
 
+void free_smeared_gauge_field(program_instruction_type *program_instructions){
+  if( N_Jacobi > 0 && N_ape > 0 ) {
+    if( program_instructions->gauge_field_smeared != NULL ) free(program_instructions->gauge_field_smeared);
+  }
+}
+
+void exit_gauge_field(program_instruction_type *program_instructions){
+  free_smeared_gauge_field(program_instructions);
+}
+
 void determine_stoachastic_source_timeslices(program_instruction_type *program_instructions){
   int exitstatus = get_stochastic_source_timeslices();
   if(exitstatus != 0) {
@@ -1285,7 +1316,9 @@ void execute_program_instructions(program_instruction_type *program_instructions
 
 	compute_and_store_correlators(program_instructions,&cvc_and_tmLQCD_information);
 
-//	exit_cvc_and_tmLQCD(&cvc_and_tmLQCD_information);
+  exit_gauge_field(program_instructions);
+
+  exit_cvc_and_tmLQCD(program_instructions,&cvc_and_tmLQCD_information);
 }
 
 void init_MPI(int argc,char** argv){
