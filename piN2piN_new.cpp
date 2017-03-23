@@ -119,6 +119,28 @@ int mpi_printf(const char * format, ...){
   return 0;
 }
 
+int all_processes_write_to_stdout(const char * format, ...){
+  va_list arg;
+  int done;
+
+  va_start(arg,format);
+  done = vfprintf(stdout,format,arg);
+  va_end(arg);
+
+  return done;
+}
+
+int all_processes_write_to_stderr(const char * format, ...){
+  va_list arg;
+  int done;
+
+  va_start(arg,format);
+  done = vfprintf(stderr,format,arg);
+  va_end(arg);
+
+  return done;
+}
+
 int write_to_stdout(const char * format, ...){
   int world_rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
@@ -870,7 +892,7 @@ void set_spinor_field_to_zero(double* spinor_field,program_instruction_type *pro
   memset(spinor_field, 0, program_instructions->sizeof_spinor_field);
 }
 
-void copy_spinor_fields(double* dest,double* src,program_instruction_type *program_instructions){
+void copy_spinor_field(double* dest,double* src,program_instruction_type *program_instructions){
   memcpy( dest, src, program_instructions->sizeof_spinor_field);
 }
 
@@ -881,32 +903,41 @@ void set_spinor_field_to_point_source(double *spinor_field,local_source_location
   }
 }
 
-void compute_inversion_with_tm_rotation_and_smearing(double* inversion,double* source,double* spinor_field_for_intermediate_storage,int op_id,int rotation_direction,program_instruction_type *program_instructions){
-  int exitstatus;
+void smear_spinor_field(double *spinor_field,program_instruction_type *program_instructions){
+  int exitstatus = Jacobi_Smearing(program_instructions->gauge_field_smeared, spinor_field, N_Jacobi, kappa_Jacobi);
+}
 
-  set_spinor_field_to_zero(spinor_field_for_intermediate_storage,program_instructions);
+void compute_inversion_with_tm_rotation(double* source,double* dest,int op_id,int rotation_direction,program_instruction_type *program_instructions){
+  int exitstatus;
   
-  /* source-smear the point source */
-  exitstatus = Jacobi_Smearing(program_instructions->gauge_field_smeared, source, N_Jacobi, kappa_Jacobi);
+  set_spinor_field_to_zero(dest,program_instructions);
 
   if( g_fermion_type == _TM_FERMION ) {
     spinor_field_tm_rotation(source, source, rotation_direction, g_fermion_type, VOLUME);
   }
 
-  exitstatus = tmLQCD_invert(spinor_field_for_intermediate_storage, source, op_id, 0);
+  exitstatus = tmLQCD_invert(dest, source, op_id, 0);
   if(exitstatus != 0) {
     write_to_stdout("[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
     EXIT(12);
   }
 
   if( g_fermion_type == _TM_FERMION ) {
-    spinor_field_tm_rotation(spinor_field_for_intermediate_storage, spinor_field_for_intermediate_storage, rotation_direction, g_fermion_type, VOLUME);
+    spinor_field_tm_rotation(dest, dest, rotation_direction, g_fermion_type, VOLUME);
   }
+}
+
+void compute_inversion_with_tm_rotation_and_smearing(double* inversion,double* source,double* spinor_field_for_intermediate_storage,int op_id,int rotation_direction,program_instruction_type *program_instructions){
+
+  /* source-smear the point source */
+  smear_spinor_field(source,program_instructions);
+
+  compute_inversion_with_tm_rotation(source,spinor_field_for_intermediate_storage,op_id,rotation_direction,program_instructions);
 
   /* sink-smear the point-source propagator */
-  exitstatus = Jacobi_Smearing(program_instructions->gauge_field_smeared, spinor_field_for_intermediate_storage, N_Jacobi, kappa_Jacobi);
+  smear_spinor_field(spinor_field_for_intermediate_storage,program_instructions);
 
-  copy_spinor_fields(inversion,spinor_field_for_intermediate_storage,program_instructions);
+  copy_spinor_field(inversion,spinor_field_for_intermediate_storage,program_instructions);
 }
 
 void compute_forward_propagators_for_coherent_source_location(int i_src,int i_coherent,double **propagator_list,int op_id,int rotation_direction,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type * cvc_and_tmLQCD_information){
@@ -1106,19 +1137,55 @@ void compute_sequential_propagators(sequential_propagators_type* sequential_prop
   }
 }
 
+void copy_stochastic_source_for_timeslice_to_spinor(double *spinor,double *source,global_and_local_stochastic_source_timeslice_type *global_and_local_stochastic_source_timeslice,program_instruction_type *program_instructions){
+  if(global_and_local_stochastic_source_timeslice->local_grid_contains_t_src) {
+    all_processes_write_to_stdout("# [piN2piN] proc %4d = ( %d, %d, %d, %d) has t_src = %3d \n", g_cart_id, 
+        g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3], global_and_local_stochastic_source_timeslice->t_src);
+    /* this process copies timeslice t_src%T from source */
+    unsigned int shift = _GSI(g_ipt[global_and_local_stochastic_source_timeslice->local_t_src][0][0][0]);
+    memcpy(spinor+shift, source+shift, program_instructions->sizeof_spinor_field_timeslice );
+  }
+}
+
+void copy_one_timeslice_from_spinor_field_to_spinor_field(double *dest,double *src,global_and_local_stochastic_source_timeslice_type *global_and_local_stochastic_source_timeslice,program_instruction_type *program_instructions){
+  /* copy only source timeslice from propagator */
+  if(global_and_local_stochastic_source_timeslice->local_grid_contains_t_src) {
+    unsigned int shift = _GSI(g_ipt[global_and_local_stochastic_source_timeslice->local_t_src][0][0][0]);
+    memcpy( dest+shift, src+shift, program_instructions->sizeof_spinor_field_timeslice);
+  }
+}
+
+void fill_stochastic_propagator_with_inversion_for_timeslice(global_and_local_stochastic_source_timeslice_type *global_and_local_stochastic_source_timeslice,double *source,double *propagator,program_instruction_type *program_instructions){
+  copy_stochastic_source_for_timeslice_to_spinor(program_instructions->spinor_work[0],source,global_and_local_stochastic_source_timeslice,program_instructions);
+  compute_inversion_with_tm_rotation(program_instructions->spinor_work[0],program_instructions->spinor_work[1],program_instructions->op_id_dn,-1,program_instructions);
+  copy_one_timeslice_from_spinor_field_to_spinor_field(propagator,program_instructions->spinor_work[1],global_and_local_stochastic_source_timeslice,program_instructions);
+}
+
+void compute_stochastic_volume_source(double *source,int exit_code){
+  /* set a stochstic volume source */
+  int exitstatus = prepare_volume_source(source, VOLUME);
+  if(exitstatus != 0) {
+    write_to_stderr("[piN2piN] Error from prepare_volume_source, status was %d\n", exitstatus);
+    EXIT(exit_code);
+  }
+}
+
 void compute_stochastic_sources_and_propagators_for_sample(int isample,stochastic_sources_and_propagators_type *stochastic_sources_and_propagators,program_instruction_type *program_instructions){
-/*  compute_stochastic_volume_source(stochastic_sources_and_propagators->source_list[isample]);
+  compute_stochastic_volume_source(stochastic_sources_and_propagators->source_list[isample],39);
+
   set_spinor_field_to_zero(stochastic_sources_and_propagators->propagator_list[isample],program_instructions);
 
   // loop over sink times. The sink time is the source time for the stochastic source. 
   int i_src;
   for(i_src = 0; i_src < stochastic_source_timeslice_number; i_src++) {
     global_and_local_stochastic_source_timeslice_type global_and_local_stochastic_source_timeslice;
-    get_global_and_local_stochastic_source_timeslice(&global_and_local_stochastic_source_timeslice);
+    get_global_and_local_stochastic_source_timeslice(&global_and_local_stochastic_source_timeslice,i_src);
     fill_stochastic_propagator_with_inversion_for_timeslice(&global_and_local_stochastic_source_timeslice,stochastic_sources_and_propagators->source_list[isample],stochastic_sources_and_propagators->propagator_list[isample],program_instructions);
   }
 
-*/
+  smear_spinor_field(stochastic_sources_and_propagators->source_list[isample],program_instructions);
+  smear_spinor_field(stochastic_sources_and_propagators->propagator_list[isample],program_instructions);
+
 }
 
 void compute_stochastic_sources_and_propagators(stochastic_sources_and_propagators_type *stochastic_sources_and_propagators,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type * cvc_and_tmLQCD_information){
