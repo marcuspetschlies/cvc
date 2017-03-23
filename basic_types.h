@@ -72,6 +72,12 @@ typedef double**** gathered_FT_WDc_contractions_type;
 
 typedef double** propagator_pointer_list_type;
 
+struct global_and_local_stochastic_source_timeslice_type{
+  int t_src;
+  int local_t_src;
+  int local_grid_contains_t_src;
+};
+
 struct forward_propagators_type{
   double **propagator_list_up;
   double **propagator_list_dn;
@@ -83,7 +89,7 @@ struct sequential_propagators_type{
   int no_fields;
 };
 
-struct stochastic_propagators_type{
+struct stochastic_sources_and_propagators_type{
   double **propagator_list;
   double **source_list;
   int no_fields;

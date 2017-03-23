@@ -363,6 +363,12 @@ void get_local_coherent_source_location(local_source_location_type *dest,int i_s
   convert_global_to_local_source_location(dest,gsl);
 }
 
+void get_global_and_local_stochastic_source_timeslice(global_and_local_stochastic_source_timeslice_type *dest,int i_src){
+  dest->t_src = stochastic_source_timeslice_list[i_src];
+  dest->local_t_src = dest->t_src%T;
+  dest->local_grid_contains_t_src = ( g_proc_coords[0] == dest->t_src/T );
+}
+
 void set_memory_for_Whick_Dirac_and_color_contractions_to_zero(program_instruction_type *program_instructions){
   int i;
   for(i=0; i<program_instructions->max_num_diagram; i++) { memset(program_instructions->conn_X[i][0][0], 0, 2*VOLUME*g_sv_dim*g_sv_dim*sizeof(double)); }
@@ -759,7 +765,7 @@ void compute_and_store_correlators_which_need_only_forward_and_sequential_propag
 
 }
 
-void compute_and_store_correlators_which_need_stochastic_propagators(forward_propagators_type *forward_propagators,sequential_propagators_type *sequential_propagators,stochastic_propagators_type *stochastic_propagators,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type *cvc_and_tmLQCD_information){
+void compute_and_store_correlators_which_need_stochastic_sources_and_propagators(forward_propagators_type *forward_propagators,sequential_propagators_type *sequential_propagators,stochastic_sources_and_propagators_type *stochastic_sources_and_propagators,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type *cvc_and_tmLQCD_information){
 
 
 }
@@ -833,10 +839,10 @@ void allocate_memory_for_sequential_propagators(sequential_propagators_type* seq
   allocate_memory_for_spinor_field_list(&sequential_propagators->propagator_list,sequential_propagators->no_fields,program_instructions->sizeof_spinor_field,46);
 }
 
-void allocate_memory_for_stochastic_propagators(stochastic_propagators_type *stochastic_propagators,program_instruction_type *program_instructions){
-  stochastic_propagators->no_fields = g_nsample;
-  allocate_memory_for_spinor_field_list(&stochastic_propagators->propagator_list,stochastic_propagators->no_fields,program_instructions->sizeof_spinor_field,48);
-  allocate_memory_for_spinor_field_list(&stochastic_propagators->source_list,stochastic_propagators->no_fields,program_instructions->sizeof_spinor_field,49);
+void allocate_memory_for_stochastic_sources_and_propagators(stochastic_sources_and_propagators_type *stochastic_sources_and_propagators,program_instruction_type *program_instructions){
+  stochastic_sources_and_propagators->no_fields = g_nsample;
+  allocate_memory_for_spinor_field_list(&stochastic_sources_and_propagators->propagator_list,stochastic_sources_and_propagators->no_fields,program_instructions->sizeof_spinor_field,48);
+  allocate_memory_for_spinor_field_list(&stochastic_sources_and_propagators->source_list,stochastic_sources_and_propagators->no_fields,program_instructions->sizeof_spinor_field,49);
 }
 
 void free_memory_for_spinor_field_list(double **spinor_field_list){
@@ -855,9 +861,9 @@ void free_memory_for_sequential_propagators(sequential_propagators_type* sequent
   free_memory_for_spinor_field_list(sequential_propagators->propagator_list);
 }
 
-void free_memory_for_stochastic_propagators(stochastic_propagators_type *stochastic_propagators,program_instruction_type *program_instructions){
-  free_memory_for_spinor_field_list(stochastic_propagators->propagator_list);
-  free_memory_for_spinor_field_list(stochastic_propagators->source_list);
+void free_memory_for_stochastic_sources_and_propagators(stochastic_sources_and_propagators_type *stochastic_sources_and_propagators,program_instruction_type *program_instructions){
+  free_memory_for_spinor_field_list(stochastic_sources_and_propagators->propagator_list);
+  free_memory_for_spinor_field_list(stochastic_sources_and_propagators->source_list);
 }
 
 void set_spinor_field_to_zero(double* spinor_field,program_instruction_type *program_instructions){
@@ -1100,6 +1106,29 @@ void compute_sequential_propagators(sequential_propagators_type* sequential_prop
   }
 }
 
+void compute_stochastic_sources_and_propagators_for_sample(int isample,stochastic_sources_and_propagators_type *stochastic_sources_and_propagators,program_instruction_type *program_instructions){
+/*  compute_stochastic_volume_source(stochastic_sources_and_propagators->source_list[isample]);
+  set_spinor_field_to_zero(stochastic_sources_and_propagators->propagator_list[isample],program_instructions);
+
+  // loop over sink times. The sink time is the source time for the stochastic source. 
+  int i_src;
+  for(i_src = 0; i_src < stochastic_source_timeslice_number; i_src++) {
+    global_and_local_stochastic_source_timeslice_type global_and_local_stochastic_source_timeslice;
+    get_global_and_local_stochastic_source_timeslice(&global_and_local_stochastic_source_timeslice);
+    fill_stochastic_propagator_with_inversion_for_timeslice(&global_and_local_stochastic_source_timeslice,stochastic_sources_and_propagators->source_list[isample],stochastic_sources_and_propagators->propagator_list[isample],program_instructions);
+  }
+
+*/
+}
+
+void compute_stochastic_sources_and_propagators(stochastic_sources_and_propagators_type *stochastic_sources_and_propagators,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type * cvc_and_tmLQCD_information){
+  write_to_stdout("# [piN2piN] stochastic inversion\n");
+  int isample;
+  for(isample = 0; isample < g_nsample; isample++) {
+    compute_stochastic_sources_and_propagators_for_sample(isample,stochastic_sources_and_propagators,program_instructions);
+  }
+}
+
 void set_operator_ids_depending_on_fermion_type(program_instruction_type *program_instructions){
   if(g_fermion_type == _TM_FERMION) {
     program_instructions->op_id_up = 0;
@@ -1135,16 +1164,16 @@ void compute_and_store_correlators(program_instruction_type *program_instruction
 
 	compute_and_store_correlators_which_need_only_forward_and_sequential_propagators(&forward_propagators,&sequential_propagators,program_instructions,cvc_and_tmLQCD_information);
 
-	stochastic_propagators_type stochastic_propagators;
-  allocate_memory_for_stochastic_propagators(&stochastic_propagators,program_instructions);
+	stochastic_sources_and_propagators_type stochastic_sources_and_propagators;
+  allocate_memory_for_stochastic_sources_and_propagators(&stochastic_sources_and_propagators,program_instructions);
 
   init_random_number_generator(38);
 
-//	compute_stochastic_propagators(&stochastic_propagators,program_instructions,cvc_and_tmLQCD_information);
+	compute_stochastic_sources_and_propagators(&stochastic_sources_and_propagators,program_instructions,cvc_and_tmLQCD_information);
 
-	compute_and_store_correlators_which_need_stochastic_propagators(&forward_propagators,&sequential_propagators,&stochastic_propagators,program_instructions,cvc_and_tmLQCD_information);
+	compute_and_store_correlators_which_need_stochastic_sources_and_propagators(&forward_propagators,&sequential_propagators,&stochastic_sources_and_propagators,program_instructions,cvc_and_tmLQCD_information);
 
-  free_memory_for_stochastic_propagators(&stochastic_propagators,program_instructions);
+  free_memory_for_stochastic_sources_and_propagators(&stochastic_sources_and_propagators,program_instructions);
 
   /* sequential propagator list not needed after this point */ 
   free_memory_for_sequential_propagators(&sequential_propagators,program_instructions);
