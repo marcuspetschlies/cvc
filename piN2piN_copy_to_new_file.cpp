@@ -707,13 +707,6 @@ int main(int argc, char **argv) {
 
   }  /* end of loop on base source locations */
    
-  /* stochast source and propagators will be used differently */
-  free( stochastic_source_list[0] );
-  free( stochastic_source_list );
-  free( stochastic_propagator_list[0] );
-  free( stochastic_propagator_list );
-
-
 
   /***********************************************
    ***********************************************

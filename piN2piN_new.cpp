@@ -789,6 +789,36 @@ void compute_and_store_correlators_which_need_only_forward_and_sequential_propag
 
 void compute_and_store_correlators_which_need_stochastic_sources_and_propagators(forward_propagators_type *forward_propagators,sequential_propagators_type *sequential_propagators,stochastic_sources_and_propagators_type *stochastic_sources_and_propagators,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type *cvc_and_tmLQCD_information){
 
+  int i_src;
+  for(i_src=0; i_src < g_source_location_number; i_src++ ) {
+    contraction_writer_type contraction_writer;
+
+    init_contraction_writer(&contraction_writer,"MB_MB",i_src,4,5,6,program_instructions);
+
+    general_propagator_tffi_type general_propagator_tffi;
+    general_propagator_pffii_type general_propagator_pffii;
+    
+    allocate_memory_for_general_propagators_tffi_and_pffii(&general_propagator_tffi,&general_propagator_pffii);
+
+    int i_coherent;
+    for(i_coherent=0; i_coherent<g_coherent_source_number; i_coherent++) {
+      global_source_location_type gsl;
+      get_global_coherent_source_location(&gsl,i_src,i_coherent);
+
+      int iseq_mom,iseq2_mom;
+      // loop on pi2
+      for(iseq_mom=0; iseq_mom < g_seq_source_momentum_number; iseq_mom++) {
+        // loop on pf2
+        for(iseq2_mom=0; iseq2_mom < g_seq2_source_momentum_number; iseq2_mom++) {
+          compute_and_store_correlators_which_need_stochastic_sources_and_propagators_for_coherent_source_location_for_momenta(i_src,i_coherent,gsl,iseq_mom,iseq2_mom,&general_propagator_tffi,&general_propagator_pffii,forward_propagators,sequential_propagators,stochastic_sources_and_propagators,program_instructions,&contraction_writer);
+        }
+      }
+    }
+
+    free_memory_for_general_propagators_tffi_and_pffii(general_propagator_tffi,general_propagator_pffii);
+ 
+    exit_contraction_writer(&contraction_writer,11,program_instructions);
+  }
 
 }
 
@@ -1245,9 +1275,7 @@ void compute_and_store_correlators(program_instruction_type *program_instruction
   /* sequential propagator list not needed after this point */ 
   free_memory_for_sequential_propagators(&sequential_propagators,program_instructions);
 
-	compute_and_store_correlators_which_use_oet(&forward_propagators,&sequential_propagators,program_instructions,cvc_and_tmLQCD_information);
-
-  
+  compute_and_store_correlators_which_use_oet(&forward_propagators,&sequential_propagators,program_instructions,cvc_and_tmLQCD_information); 
 
   free_memory_for_forward_propagators(&forward_propagators,program_instructions);
 
