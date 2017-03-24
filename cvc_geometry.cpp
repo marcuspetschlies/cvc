@@ -477,12 +477,74 @@ void geometry() {
     }}}}
   }
 */
+
+  /* initialize g_eosubt2coords 
+   *
+   *   no halo required
+   */
+
+  for(x0=0; x0<T; x0++) {
+    i_even = 0; i_odd = 0;
+    for(x1=0; x1<LX; x1++) {
+    for(x2=0; x2<LY; x2++) {
+    for(x3=0; x3<LZ; x3++) {
+      ix = g_ipt[x0][x1][x2][x3];
+      int ieo = g_iseven[ix];
+      if( ieo ) {  /* even lattice point */
+        g_eosubt2coords[0][x0][i_even][0] = x1;
+        g_eosubt2coords[0][x0][i_even][1] = x2;
+        g_eosubt2coords[0][x0][i_even][2] = x3;
+        /*fprintf(stdout, "# [geometry] proc%.4d even %6d %6d   %3d %3d %3d %3d    %d    %3d %3d %3d \n", g_cart_id, ix, i_even,
+            x0+g_proc_coords[0]*T, x1+g_proc_coords[1]*LX, x2+g_proc_coords[2]*LY, x3+g_proc_coords[3]*LZ,
+            1-ieo,  g_eosubt2coords[0][x0][i_even][0], g_eosubt2coords[0][x0][i_even][1], g_eosubt2coords[0][x0][i_even][2]);*/
+        i_even++;
+      } else {     /* odd  lattice point */
+        g_eosubt2coords[1][x0][i_odd][0] = x1;
+        g_eosubt2coords[1][x0][i_odd][1] = x2;
+        g_eosubt2coords[1][x0][i_odd][2] = x3;
+        /* fprintf(stdout, "# [geometry] proc%.4d odd  %6d %6d   %3d %3d %3d %3d   %d   %3d %3d %3d \n", g_cart_id, ix, i_odd,
+            x0+g_proc_coords[0]*T, x1+g_proc_coords[1]*LX, x2+g_proc_coords[2]*LY, x3+g_proc_coords[3]*LZ,
+            1-ieo,  g_eosubt2coords[1][x0][i_odd][0], g_eosubt2coords[1][x0][i_odd][1], g_eosubt2coords[1][x0][i_odd][2]);*/
+        i_odd++;
+      }
+    }}}  /* end of loop on x,y,z */
+  }      /* end of loop on time */
+
+#if 0
+  /* TEST */
+  for(x0=0; x0<T; x0++) {
+    i_even = 0; i_odd = 0;
+    for(x1=0; x1<LX; x1++) {
+    for(x2=0; x2<LY; x2++) {
+    for(x3=0; x3<LZ; x3++) {
+      ix = g_ipt[x0][x1][x2][x3];
+      int ieo = g_iseven[ix];
+      if( ieo ) {  /* even lattice point */
+        /* TEST g_eosubt2coords */
+        fprintf(stdout, "# [geometry] proc%.4d %6d %6d   %2d %2d %2d %2d   %d   %2d %2d %2d\n", g_cart_id, ix, i_even,
+            x0+g_proc_coords[0]*T, x1+g_proc_coords[1]*LX, x2+g_proc_coords[2]*LY, x3+g_proc_coords[3]*LZ,
+            1-ieo,  g_eosubt2coords[0][x0][i_even][0], g_eosubt2coords[0][x0][i_even][1], g_eosubt2coords[0][x0][i_even][2]);
+
+        i_even++;
+      } else {     /* odd  lattice point */
+        /* TEST g_eosubt2coords */
+        fprintf(stdout, "# [geometry] proc%.4d %6d %6d   %2d %2d %2d %2d   %d   %2d %2d %2d\n", g_cart_id, ix, i_odd,
+            x0+g_proc_coords[0]*T, x1+g_proc_coords[1]*LX, x2+g_proc_coords[2]*LY, x3+g_proc_coords[3]*LZ,
+            1-ieo,  g_eosubt2coords[1][x0][i_odd][0], g_eosubt2coords[1][x0][i_odd][1], g_eosubt2coords[1][x0][i_odd][2]);
+        i_odd++;
+      }
+    }}}  /* end of loop on x,y,z */
+  }      /* end of loop on time */
+#endif  /* of if 0 */
+
 }  /* end of geometry */
 
 int init_geometry(void) {
 
   int ix = 0, V;
+  int j;
   int dx = 0, dy = 0, dz = 0;
+  unsigned int VOL3half;
 
   VOLUME         = T*LX*LY*LZ;
   VOLUMEPLUSRAND = VOLUME;
@@ -525,6 +587,8 @@ int init_geometry(void) {
   }
 
   V = VOLUMEPLUSRAND;
+
+  VOL3half = LX * LY * LZ / 2;
 
   g_idn = (int**)calloc(V, sizeof(int*));
   if((void*)g_idn == NULL) return(1);
@@ -630,7 +694,32 @@ int init_geometry(void) {
     g_sliced3d2eosub[1][ix] = g_sliced3d2eosub[0][0] + (T + ix) * LX*LY*LZ/2;
   }
 
+  g_eosubt2coords = (int****)calloc(2, sizeof(int***));
+  if( g_eosubt2coords == NULL ) return(21);
 
+  g_eosubt2coords[0] = (int***)calloc(2*T, sizeof(int**));
+  if( g_eosubt2coords[0] == NULL ) return(22);
+  g_eosubt2coords[1] = g_eosubt2coords[0] + T;
+
+  g_eosubt2coords[0][0] = (int**)calloc(T*VOLUME, sizeof(int*));
+  if( g_eosubt2coords[0][0] == NULL ) return(23);
+  g_eosubt2coords[1][0] = g_eosubt2coords[0][0] + T*VOL3half;
+
+  for( ix=1; ix<T; ix++ ) {
+    g_eosubt2coords[0][ix] =  g_eosubt2coords[0][ix-1] + VOL3half;
+    g_eosubt2coords[1][ix] =  g_eosubt2coords[1][ix-1] + VOL3half;
+  }
+
+  g_eosubt2coords[0][0][0] = (int*)calloc(3*T*VOLUME, sizeof(int));
+  if( g_eosubt2coords[0][0][0] == NULL ) return(24);
+  g_eosubt2coords[1][0][0] = g_eosubt2coords[0][0][0] + 3*T*VOL3half;
+
+  for( j=0; j<T; j++ ) {
+    for( ix=0; ix<VOL3half; ix++ ) {
+      g_eosubt2coords[0][j][ix] =  g_eosubt2coords[0][0][0] + 3*(j*VOL3half+ix);
+      g_eosubt2coords[1][j][ix] =  g_eosubt2coords[1][0][0] + 3*(j*VOL3half+ix);
+    }
+  }
 
   /* initialize the boundary condition */
   co_phase_up[0].re = cos(BCangle[0]*M_PI / (double)T_global);
@@ -667,12 +756,22 @@ void free_geometry() {
   free(g_isevent);
   free(g_eosub2t[0]);
   free(g_eosub2t);
+
+  /* free g_eosub2sliced3d 2level buffer */
   free(g_eosub2sliced3d[0]);
   free(g_eosub2sliced3d);
+
+  /* free g_sliced3d2eosub 3level buffer */
   free(g_sliced3d2eosub[0][0]);
   free(g_sliced3d2eosub[0]);
   free(g_sliced3d2eosub);
-}
+
+  /* free g_eosubt2coords 4level buffer */
+  free( g_eosubt2coords[0][0][0] );
+  free( g_eosubt2coords[0][0] );
+  free( g_eosubt2coords[0] );
+  free( g_eosubt2coords );
+}  /* end of free_geometry */
 
 
 }  /* end of namespace cvc */
