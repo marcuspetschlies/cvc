@@ -26,6 +26,7 @@
 #include "cvc_utils.h"
 #include "ranlxd.h"
 #include "Q_phi.h"
+#include "Q_clover_phi.h"
 #include "scalar_products.h"
 
 namespace cvc {
@@ -2103,31 +2104,31 @@ void init_gauge_trafo(double **g, double heat) {
 */
 }
 
-void apply_gt_gauge(double *g) {
+void apply_gt_gauge(double *g, double*gauge_field) {
 
   int ix, mu;
   double u[18];
   FILE* ofs;
 
-  if(g_cart_id==0) fprintf(stdout, "applying gauge transformation to gauge field\n");
+  if(g_cart_id==0) fprintf(stdout, "# [apply_gt_gauge] applying gauge transformation to gauge field\n");
 /*
-  ofs = fopen("gauge_field_before", "w");
-  printf_gauge_field(g_gauge_field, ofs);
+  ofs = fopen("# [apply_gt_gauge] gauge_field_before", "w");
+  printf_gauge_field(gauge_field, ofs);
   fclose(ofs);
 */
   for(ix=0; ix<VOLUME; ix++) {
     for(mu=0; mu<4; mu++) {
-      _cm_eq_cm_ti_cm(u, &g[18*ix], &g_gauge_field[_GGI(ix,mu)]);
-      _cm_eq_cm_ti_cm_dag(&g_gauge_field[_GGI(ix, mu)], u, &g[18*g_iup[ix][mu]]);
+      _cm_eq_cm_ti_cm(u, &g[18*ix], &gauge_field[_GGI(ix,mu)]);
+      _cm_eq_cm_ti_cm_dag(&gauge_field[_GGI(ix, mu)], u, &g[18*g_iup[ix][mu]]);
     }
   }
   xchange_gauge();
 /*
-  ofs = fopen("gauge_field_after", "w");
-  printf_gauge_field(g_gauge_field, ofs);
+  ofs = fopen("# [apply_gt_gauge] gauge_field_after", "w");
+  printf_gauge_field(gauge_field, ofs);
   fclose(ofs);
 */
-}
+}  /* end of apply_gt_gauge */
 
 /* apply gt to propagator; (is,ic) = (spin, colour)-index */
 void apply_gt_prop(double *g, double *phi, int is, int ic, int mu, char *basename, int source_location) {
@@ -2259,7 +2260,7 @@ void get_filename(char *filename, const int nu, const int sc, const int sign) {
   // else if(format==1) {  // GWC format }
 }
 
-int wilson_loop(complex *w, const int xstart, const int dir, const int Ldir) {
+int wilson_loop(complex *w, double*gauge_field, const int xstart, const int dir, const int Ldir) {
 
   int ix, i;
   double U_[18], V_[18], *u1=(double*)NULL, *u2=(double*)NULL, *u3=(double*)NULL;
@@ -2267,12 +2268,12 @@ int wilson_loop(complex *w, const int xstart, const int dir, const int Ldir) {
 
   if(dir==0) {
     ix=g_iup[xstart][dir];
-    _cm_eq_cm_ti_cm(V_, g_gauge_field+_GGI(xstart, dir), g_gauge_field+_GGI(ix, dir));
+    _cm_eq_cm_ti_cm(V_, gauge_field+_GGI(xstart, dir), gauge_field+_GGI(ix, dir));
     u1=U_; u2=V_;
     for(i=2; i<Ldir; i++) {
       ix = g_iup[ix][dir];
       u3=u1; u1=u2; u2=u3;
-      _cm_eq_cm_ti_cm(u2, u1, g_gauge_field+_GGI(ix,dir));
+      _cm_eq_cm_ti_cm(u2, u1, gauge_field+_GGI(ix,dir));
     }
 #ifdef HAVE_MPI
     if(g_cart_id==0) {
@@ -2283,12 +2284,12 @@ int wilson_loop(complex *w, const int xstart, const int dir, const int Ldir) {
     _co_eq_tr_cm(&tr, u2);
   } else {
     ix=g_iup[xstart][dir];
-    _cm_eq_cm_ti_cm(V_, g_gauge_field+_GGI(xstart, dir), g_gauge_field+_GGI(ix, dir));
+    _cm_eq_cm_ti_cm(V_, gauge_field+_GGI(xstart, dir), gauge_field+_GGI(ix, dir));
     u1=U_; u2=V_;
     for(i=2; i<Ldir; i++) {
       ix = g_iup[ix][dir];
       u3=u1; u1=u2; u2=u3;
-      _cm_eq_cm_ti_cm(u2, u1, g_gauge_field+_GGI(ix,dir));
+      _cm_eq_cm_ti_cm(u2, u1, gauge_field+_GGI(ix,dir));
     }
     _co_eq_tr_cm(&tr, u2);
   }
@@ -4090,7 +4091,7 @@ int compress_gauge(float*gauge_field_flt, double *gauge_aux) {
 /***********************************************************************
  * set temporal gauge transform field
  ***********************************************************************/
-int set_temporal_gauge(double*gauge_transform) {
+int set_temporal_gauge(double*gauge_transform, double*gauge_field) {
   int ix, iix, count;
   int VOL3 = LX*LY*LZ;
 
@@ -4102,14 +4103,14 @@ int set_temporal_gauge(double*gauge_transform) {
   }
   count=0;
   for(ix=18*VOL3; ix<36*VOL3; ix+=18) {
-    memcpy((void*)(gauge_transform+ix), (void*)(g_gauge_field+count), 18*sizeof(double));
+    memcpy((void*)(gauge_transform+ix), (void*)(gauge_field+count), 18*sizeof(double));
     count += 72;
   }
 
   count = 72*VOL3;
   iix   = 18*VOL3;
   for(ix=36*VOL3; ix<18*VOLUME; ix+=18) {
-    _cm_eq_cm_ti_cm(gauge_transform+ix, gauge_transform+iix, g_gauge_field+count);
+    _cm_eq_cm_ti_cm(gauge_transform+ix, gauge_transform+iix, gauge_field+count);
     iix+=18;
     count+=72;
   }
@@ -4576,7 +4577,7 @@ int shift_spinor_field (double *s, double *r, int *d) {
  *   (cf. apply_Dtm.c)
  * - assumes that sf has been exchanged beforehand
  ***********************************************************************/
-void check_source(double *sf, double*work, double mass, unsigned int glocation, int sc) {
+void check_source(double *sf, double*work, double*gauge_field, double mass, unsigned int glocation, int sc) {
 
   int src0, src1, src2, src3;
   int lsrc0, lsrc1, lsrc2, lsrc3;
@@ -4618,7 +4619,7 @@ void check_source(double *sf, double*work, double mass, unsigned int glocation, 
 
   xchange_field(sf);
 
-  Q_phi(work, sf, g_gauge_field, mass);
+  Q_phi(work, sf, gauge_field, mass);
   if(src_proc_id == g_cart_id) {
     work[_GSI(llocation)+2*sc] -= 1.0;
   }
@@ -4630,7 +4631,90 @@ void check_source(double *sf, double*work, double mass, unsigned int glocation, 
     fprintf(stdout, "# [check_source] norm of solution    = %e\n", norm1);
     fprintf(stdout, "# [check_source] norm of A x - delta = %e\n", norm2);
   }
-}
+}  /* end of check_source */
+
+/***************************************************************************
+ * apply D = g5 Q = g5 A B to eo-decomposed propagator;
+ *
+ * for B:
+ *   mzzinv must be ee
+ *   mzz    must be oo
+ * for A:
+ *   mzz    must be ee
+ ***************************************************************************/
+int check_point_source_propagator_clover_eo(double**prop_e, double**prop_o, double**work, double*gf, double**mzz, double**mzzinv, int gcoords[4], int nf ) {
+
+  const unsigned int Vhalf = VOLUME/2;
+  const size_t sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
+
+  int lcoords[4] = { gcoords[0]%T, gcoords[1]%LX, gcoords[2]%LY, gcoords[3]%LZ};
+  int source_proc_id=0;
+  int status;
+  int k;
+
+  double norm;
+
+#ifdef HAVE_MPI
+  int source_proc_coords[4] = { gcoords[0]/T, gcoords[1]/LX, gcoords[2]/LY, gcoords[3]/LZ };
+  if( ( status = MPI_Cart_rank(g_cart_grid, source_proc_coords, &source_proc_id)  ) != MPI_SUCCESS ) {
+    fprintf(stderr, "[check_point_source_propagator_clover_eo] Error from MPI_Cart_rank, status was %d\n", status);
+    return(1);
+  }
+#endif
+  for(k=0; k<nf; k++) {
+
+    Q_clover_eo_SchurDecomp_B (work[0], work[1], prop_e[k], prop_o[k], gf, mzz[1], mzzinv[0], work[4]);
+    Q_clover_eo_SchurDecomp_A (work[2], work[3], work[0], work[1], gf, mzz[0], work[4] );
+    g5_phi( work[2], Vhalf);
+    g5_phi( work[3], Vhalf);
+
+    if(source_proc_id == g_cart_id) {
+      unsigned int ix = g_ipt[lcoords[0]][lcoords[1]][lcoords[2]][lcoords[3]];
+      if ( g_iseven[ix] ) {
+        work[2][_GSI(g_lexic2eosub[ix])+2*k] -= 1.0;
+      } else {
+        work[3][_GSI(g_lexic2eosub[ix])+2*k] -= 1.0;
+      }
+    }
+
+    spinor_scalar_product_re(&norm, work[2], work[2], Vhalf );
+    if(g_cart_id==0) fprintf(stdout, "# [check_point_source_propagator_clover_eo] %3d norm even part = %e\n", k, sqrt(norm) );
+    spinor_scalar_product_re(&norm, work[3], work[3], Vhalf );
+    if(g_cart_id==0) fprintf(stdout, "# [check_point_source_propagator_clover_eo] %3d norm odd  part = %e\n", k, sqrt(norm) );
+  }  /* end of loop on nf */
+
+  return(0);
+}  /* end of check_source */
+
+/***************************************************************************
+ * apply C_oo to oo propagator;
+ *
+ * for C_clover_oo:
+ *   mzzinv must be ee
+ *   mzz    must be oo
+ ***************************************************************************/
+int check_oo_propagator_clover_eo(double**prop_o, double**source, double**work, double*gf, double**mzz, double**mzzinv, int nf ) {
+
+  const unsigned int Vhalf = VOLUME/2;
+  const size_t sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
+  const double twokappa = 2. * g_kappa;
+
+  int status;
+  int k;
+  double norm;
+
+  for(k=0; k<nf; k++) {
+
+    C_clover_oo (work[0], prop_o[k], gf, work[1], mzz[1], mzzinv[0]);
+    spinor_field_ti_eq_re (work[0], twokappa, Vhalf);
+
+    spinor_field_norm_diff (&norm, source[k], work[0], Vhalf);
+    if(g_cart_id==0) fprintf(stdout, "# [check_oo_propagator_clover_eo] %3d norm diff = %e\n", k, norm );
+  }  /* end of loop on nf */
+
+  return(0);
+}  /* end of check_source */
+
 
 
 /***********************************************************
@@ -5957,18 +6041,21 @@ int get_point_source_info (int gcoords[4], int lcoords[4], int*proc_id) {
 
   int source_proc_id = 0;
   int exitstatus;
+
 #ifdef HAVE_MPI
-  int source_proc_coords[4] { gcoords[0] / T, gcoords[1] / LX, gcoords[2] / LY, gcoords[3] / LZ };
+  int source_proc_coords[4] = { gcoords[0] / T, gcoords[1] / LX, gcoords[2] / LY, gcoords[3] / LZ };
   exitstatus = MPI_Cart_rank(g_cart_grid, source_proc_coords, &source_proc_id);
   if(exitstatus !=  MPI_SUCCESS ) {
     fprintf(stderr, "[get_point_source_info] Error from MPI_Cart_rank, status was %d\n", exitstatus);
     EXIT(9);
   }
-  if(source_proc_id == g_cart_id) {
+  if(source_proc_id == g_cart_id && g_verbose > 0) {
     fprintf(stdout, "# [get_point_source_info] process %2d = (%3d,%3d,%3d,%3d) has source location\n", source_proc_id,
         source_proc_coords[0], source_proc_coords[1], source_proc_coords[2], source_proc_coords[3]);
   }
 #endif
+  if( g_cart_id == source_proc_id && g_verbose > 2 ) fprintf(stdout, "# [get_point_source_info] global source coordinates (%3d,%3d,%3d,%3d)\n",
+      gcoords[0], gcoords[1], gcoords[2], gcoords[3]); 
 
   if(proc_id != NULL) *proc_id = source_proc_id;
   int x[4] = {-1,-1,-1,-1};
@@ -5981,7 +6068,12 @@ int get_point_source_info (int gcoords[4], int lcoords[4], int*proc_id) {
   }
   if(lcoords != NULL) {
     memcpy(lcoords,x,4*sizeof(int));
+    if( g_cart_id == source_proc_id && g_verbose > 2 ) fprintf(stdout, "# [get_point_source_info] local source coordinates (%3d,%3d,%3d,%3d)\n",
+        lcoords[0], lcoords[1], lcoords[2], lcoords[3]); 
   }
+#ifdef HAVE_MPI
+  MPI_Barrier(g_cart_grid);
+#endif
   return(0);
 }  /* end of get_point_source_info */
 
