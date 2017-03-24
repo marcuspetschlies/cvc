@@ -65,12 +65,10 @@ extern "C"
 using namespace cvc;
 
 void usage() {
-  fprintf(stdout, "Code to perform contractions for proton 2-pt. function\n");
+  fprintf(stdout, "Code to perform contractions for pi N - pi N\n");
   fprintf(stdout, "Usage:    [options]\n");
   fprintf(stdout, "Options: -f input filename [default cvc.input]\n");
   fprintf(stdout, "         -a write ascii output too [default no ascii output]\n");
-  fprintf(stdout, "         -F fermion type, must be set [default -1, no type]\n");
-  fprintf(stdout, "         -q/Q/p/P p[i,f][1,2] source and sink momenta [default 0]\n");
   fprintf(stdout, "         -h? this help\n");
 #ifdef HAVE_MPI
   MPI_Abort(MPI_COMM_WORLD, 1);
