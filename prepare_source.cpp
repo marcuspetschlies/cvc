@@ -505,7 +505,8 @@ int init_clover_eo_sequential_source(double *s_even, double *s_odd, double *p_ev
   if(g_cart_id == source_proc_id) {
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel 
+#pragma omp parallel
+{
 #endif
     unsigned int ix, ixeosub;
     double q_phase;

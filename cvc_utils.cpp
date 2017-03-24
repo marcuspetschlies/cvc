@@ -5019,27 +5019,30 @@ void complex_field_eo2lexic (double *r_lexic, double*r_e, double *r_o) {
 #endif
   unsigned int ix, idx, idx_e2lexic, idx_o2lexic;
   if(r_e != NULL) {
+    idx=0;
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-    for(ix=0, idx=0; ix<Vhalf; ix++, idx+=2)
+    for(ix=0; ix<Vhalf; ix++)
     {
       idx_e2lexic = 2 * g_eo2lexic[ix];
       r_lexic[idx_e2lexic  ] = r_e[idx  ];
       r_lexic[idx_e2lexic+1] = r_e[idx+1];
+      idx+=2;
     }  /* end of loop on ix */
   }
 
   if(r_o != NULL) {
-    /* for(ix=0; ix<N; ix++) */
+    idx=0;
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-    for(ix=0, idx=0; ix<Vhalf; ix++, idx+=2)
+    for(ix=0; ix<Vhalf; ix++)
     {
       idx_o2lexic = 2 * g_eo2lexic[ix+N];
       r_lexic[idx_o2lexic  ] = r_o[idx  ];
       r_lexic[idx_o2lexic+1] = r_o[idx+1];
+      idx+=2;
     }  /* end of loop on ix */
   }
 #ifdef HAVE_OPENMP
@@ -5066,29 +5069,31 @@ void complex_field_lexic2eo (double *r_lexic, double*r_e, double *r_o) {
   unsigned int ix, idx, idx_e2lexic, idx_o2lexic;
 
   if(r_e != NULL) {
-
+    idx=0;
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-    for(ix=0, idx=0; ix < Vhalf; ix++, idx+=2)
+    for(ix=0; ix < Vhalf; ix++)
     {
       idx_e2lexic = 2 * g_eo2lexic[ix];
       r_e[idx  ] = r_lexic[idx_e2lexic  ];
       r_e[idx+1] = r_lexic[idx_e2lexic+1];
+      idx+=2;
     }  /* end of loop on ix over VOLUME / 2 */
   }
 
   if(r_o != NULL) {
-
+    idx=0;
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-    for(ix=0, idx=0; ix<Vhalf; ix++, idx+=2)
+    for(ix=0; ix<Vhalf; ix++)
     {
       idx_o2lexic = 2 * g_eo2lexic[ix+N];
 
       r_o[idx  ] = r_lexic[idx_o2lexic  ];
       r_o[idx+1] = r_lexic[idx_o2lexic+1];
+      idx+=2;
     }  /* end of loop on ix over VOLUME / 2 */
   }
 

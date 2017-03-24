@@ -348,7 +348,7 @@ void Q_phi(double *xi, double *phi, double*gauge_field, const double mutm) {
 #endif
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel  shared(xi,phi,gauge_field,mutm)
+#pragma omp parallel  shared(xi,phi,gauge_field)
 {
 #endif
 
@@ -1149,7 +1149,7 @@ void apply_cvc_vertex(double *s, double *r, int mu, int fbwd, double *gauge_fiel
      * FORWARD
      **************************************************************/
 #ifdef HAVE_OPENMP
-#pragma omp parallel shared(s,r,gauge_field,EO)
+#pragma omp parallel shared(s,r,gauge_field)
 {
 #endif
     unsigned int ix, ix_lexic;
@@ -1194,7 +1194,7 @@ void apply_cvc_vertex(double *s, double *r, int mu, int fbwd, double *gauge_fiel
      * BACKWARD
      **************************************************************/
 #ifdef HAVE_OPENMP
-#pragma omp parallel shared(s,r,gauge_field,EO)
+#pragma omp parallel shared(s,r,gauge_field)
 {
 #endif
     unsigned int ix, ix_lexic;
@@ -1381,7 +1381,7 @@ void apply_propagator_constant_cvc_vertex ( fermion_propagator_type *s, fermion_
      * FORWARD
      **************************************************************/
 #ifdef HAVE_OPENMP
-#pragma omp parallel shared(s,r,gauge_field,EO)
+#pragma omp parallel shared(s,r,mu,U)
 {
 #endif
     unsigned int ix;
@@ -1420,7 +1420,7 @@ void apply_propagator_constant_cvc_vertex ( fermion_propagator_type *s, fermion_
      * BACKWARD
      **************************************************************/
 #ifdef HAVE_OPENMP
-#pragma omp parallel shared(s,r,gauge_field,EO)
+#pragma omp parallel shared(s,r,mu,U)
 {
 #endif
     unsigned int ix;
