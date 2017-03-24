@@ -72,6 +72,9 @@ typedef double**** gathered_FT_WDc_contractions_type;
 
 typedef double** propagator_pointer_list_type;
 
+typedef double** general_propagator_tffi_type;
+typedef double** general_propagator_pffii_type;
+
 struct global_and_local_stochastic_source_timeslice_type{
   int t_src;
   int local_t_src;
