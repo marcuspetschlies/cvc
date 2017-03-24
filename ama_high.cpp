@@ -176,7 +176,7 @@ int main(int argc, char **argv) {
 
   /* initialize geometry */
   if(init_geometry() != 0) {
-    fprintf(stderr, "[ama_high] ERROR from init_geometry\n");
+    fprintf(stderr, "[ama_high] Error from init_geometry\n");
     EXIT(4);
   }
 

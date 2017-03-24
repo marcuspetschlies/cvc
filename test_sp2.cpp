@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
 		             g_cart_id, LY_global, g_cart_id, LY, g_cart_id, LYstart);
 
   if(init_geometry() != 0) {
-    fprintf(stderr, "[test_sp2] ERROR from init_geometry\n");
+    fprintf(stderr, "[test_sp2] Error from init_geometry\n");
     EXIT(101);
   }
 

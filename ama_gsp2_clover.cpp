@@ -152,7 +152,7 @@ int main(int argc, char **argv) {
 
   /* initialize geometry */
   if(init_geometry() != 0) {
-    fprintf(stderr, "[ama_gsp2_clover] ERROR from init_geometry\n");
+    fprintf(stderr, "[ama_gsp2_clover] Error from init_geometry\n");
     EXIT(4);
   }
 

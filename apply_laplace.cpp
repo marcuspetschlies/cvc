@@ -124,7 +124,7 @@ int main(int argc, char **argv) {
 		             g_cart_id, LY_global, g_cart_id, LY, g_cart_id, LYstart);
 
   if(init_geometry() != 0) {
-    fprintf(stderr, "[apply_laplace] ERROR from init_geometry\n");
+    fprintf(stderr, "[apply_laplace] Error from init_geometry\n");
     exit(101);
   }
 

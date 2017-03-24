@@ -192,7 +192,7 @@ int main(int argc, char **argv) {
 
   /* initialize geometry */
   if(init_geometry() != 0) {
-    fprintf(stderr, "[test_gsp_oet] ERROR from init_geometry\n");
+    fprintf(stderr, "[test_gsp_oet] Error from init_geometry\n");
     EXIT(4);
   }
 

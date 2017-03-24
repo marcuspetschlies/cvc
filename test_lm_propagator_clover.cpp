@@ -89,11 +89,12 @@ int main(int argc, char **argv) {
   int sx0, sx1, sx2, sx3;
   int exitstatus;
   int source_proc_coords[4], source_proc_id = -1;
-  size_t sizeof_eo_spinor_field;
+  size_t sizeof_eo_spinor_field, sizeof_spinor_field;
   char filename[100];
   double ratime, retime;
   double plaq, norm;
   double **mzz[2], **mzzinv[2];
+  double *gauge_field_with_phase = NULL;
 
 
 /*  double *gauge_trafo = NULL; */
@@ -168,6 +169,7 @@ int main(int argc, char **argv) {
 
   Vhalf = VOLUME / 2;
   sizeof_eo_spinor_field = 24*Vhalf*sizeof(double);
+  sizeof_spinor_field    = 24*VOLUME*sizeof(double);
 
 #ifdef HAVE_OPENMP
   if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagator_clover] setting omp number of threads to %d\n", g_num_threads);
@@ -218,13 +220,27 @@ int main(int argc, char **argv) {
   }
 #endif
 
+  alloc_gauge_field(&gauge_field_with_phase, VOLUMEPLUSRAND);
+#ifdef HAVE_OPENMP
+#pragma omp parallel for private(mu)
+#endif
+  for( unsigned int ix=0; ix<VOLUME; ix++ ) {
+    for (int mu=0; mu<4; mu++ ) {
+      _cm_eq_cm_ti_co ( gauge_field_with_phase+_GGI(ix,mu), g_gauge_field+_GGI(ix,mu), &co_phase_up[mu] );
+    }
+  }
+
 #ifdef HAVE_MPI
   xchange_gauge();
+  xchange_gauge_field(gauge_field_with_phase);
 #endif
 
   /* measure the plaquette */
   plaquette(&plaq);
   if(g_cart_id==0) fprintf(stdout, "# [test_lm_propagator_clover] measured plaquette value: %25.16e\n", plaq);
+
+  plaquette2(&plaq, gauge_field_with_phase);
+  if(g_cart_id==0) fprintf(stdout, "# [test_lm_propagator_clover] gauge field with phase measured plaquette value: %25.16e\n", plaq);
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
   /***********************************************
@@ -268,9 +284,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[test_lm_propagator_clover] Error from tmLQCD_set_deflator_fields, status was %d\n", exitstatus);
     EXIT(30);
   }
-
 #endif  /* of ifdef HAVE_TMLQCD_LIBWRAPPER */
-
 
   /***********************************************
    * allocate memory for the spinor fields
@@ -443,12 +457,12 @@ int main(int argc, char **argv) {
     EXIT(32);
   }
 
-  flavor_sign = -1;
+  flavor_sign = 1;
   flavor_id = ( 1 - flavor_sign) / 2;
   op_id = flavor_id;
   if(g_cart_id==0) fprintf(stdout, "# [] flavor sign = %d, flavor id = %d, op id = %d\n", flavor_sign, flavor_id, op_id);
 
-
+#if 0
   /***********************************************************
    * test eigenvectors
    ***********************************************************/
@@ -457,8 +471,8 @@ int main(int argc, char **argv) {
   }
   for(i=0; i<evecs_num; i++) {
     complex w;
-    C_clover_oo (eo_spinor_field[0], eo_evecs_field[i],  g_gauge_field, eo_spinor_work[2], g_mzz_dn[1], g_mzzinv_dn[0]);
-    C_clover_oo (eo_spinor_field[1], eo_spinor_field[0], g_gauge_field, eo_spinor_work[2], g_mzz_up[1], g_mzzinv_up[0]);
+    C_clover_oo (eo_spinor_field[0], eo_evecs_field[i],  gauge_field_with_phase, eo_spinor_work[2], g_mzz_dn[1], g_mzzinv_dn[0]);
+    C_clover_oo (eo_spinor_field[1], eo_spinor_field[0], gauge_field_with_phase, eo_spinor_work[2], g_mzz_up[1], g_mzzinv_up[0]);
 
     spinor_scalar_product_re(&norm, eo_evecs_field[i], eo_evecs_field[i], Vhalf);
     spinor_scalar_product_co(&w, eo_spinor_field[1], eo_evecs_field[i], Vhalf);
@@ -470,14 +484,15 @@ int main(int argc, char **argv) {
       fprintf(stdout, "# [] evec %.4d norm = %16.7e w = %16.7e +I %16.7e\n", i, norm, w.re, w.im);
     }
   }
+#endif
 
-
+#if 0
   /***********************************************************
    * make Wtilde field
    ***********************************************************/
   for(i=0; i<evecs_num; i++) {
     double dnorm, dnorm2;
-    C_clover_oo (eo_evecs_field[i+evecs_num], eo_evecs_field[i],  g_gauge_field, eo_spinor_work[0], g_mzz_dn[1], g_mzzinv_dn[0]);
+    C_clover_oo (eo_evecs_field[i+evecs_num], eo_evecs_field[i], gauge_field_with_phase, eo_spinor_work[0], g_mzz_dn[1], g_mzzinv_dn[0]);
     spinor_scalar_product_re(&dnorm,  eo_evecs_field[i], eo_evecs_field[i], Vhalf);
     spinor_scalar_product_re(&dnorm2, eo_evecs_field[i+evecs_num], eo_evecs_field[i+evecs_num], Vhalf);
     norm    = 1./sqrt(dnorm2);
@@ -485,6 +500,7 @@ int main(int argc, char **argv) {
     if(g_cart_id == 0) fprintf(stdout, "# [] evec %.4d ||V||^2 = %16.7e ||W||^2 = %16.7e\n", i, dnorm, dnorm2);
     spinor_field_ti_eq_re(eo_evecs_field[evecs_num+i], norm, Vhalf);
   }
+#endif
 
 #if 0
   /***********************************************************
@@ -493,14 +509,14 @@ int main(int argc, char **argv) {
   random_spinor_field (eo_spinor_field[0], Vhalf);
   random_spinor_field (eo_spinor_field[1], Vhalf);
 
-  Q_clover_eo_SchurDecomp_B (eo_spinor_field[2], eo_spinor_field[3], eo_spinor_field[0], eo_spinor_field[1], g_gauge_field, mzz[flavor_id][1], mzzinv[flavor_id][0], eo_spinor_work[0]);
-  Q_clover_eo_SchurDecomp_A (eo_spinor_field[4], eo_spinor_field[5], eo_spinor_field[2], eo_spinor_field[3], g_gauge_field, mzz[flavor_id][0], eo_spinor_work[0]);
+  Q_clover_eo_SchurDecomp_B (eo_spinor_field[2], eo_spinor_field[3], eo_spinor_field[0], eo_spinor_field[1], gauge_field_with_phase, mzz[flavor_id][1], mzzinv[flavor_id][0], eo_spinor_work[0]);
+  Q_clover_eo_SchurDecomp_A (eo_spinor_field[4], eo_spinor_field[5], eo_spinor_field[2], eo_spinor_field[3], gauge_field_with_phase, mzz[flavor_id][0], eo_spinor_work[0]);
   g5_phi(eo_spinor_field[4], Vhalf);
   g5_phi(eo_spinor_field[5], Vhalf);
 
   memcpy(eo_spinor_work[0], eo_spinor_field[0], sizeof_eo_spinor_field);
   memcpy(eo_spinor_work[1], eo_spinor_field[1], sizeof_eo_spinor_field);
-  Q_clover_phi_matrix_eo (eo_spinor_work[2], eo_spinor_work[3], eo_spinor_work[0], eo_spinor_work[1], g_gauge_field, eo_spinor_work[4], mzz[flavor_id]);
+  Q_clover_phi_matrix_eo (eo_spinor_work[2], eo_spinor_work[3], eo_spinor_work[0], eo_spinor_work[1], gauge_field_with_phase, eo_spinor_work[4], mzz[flavor_id]);
 
   spinor_scalar_product_re( &norm, eo_spinor_field[0], eo_spinor_field[0], Vhalf);
   if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] orig even norm %e\n", norm);
@@ -508,9 +524,9 @@ int main(int argc, char **argv) {
   if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] orig odd  norm %e\n", norm);
 
   spinor_field_norm_diff( &norm, eo_spinor_work[2], eo_spinor_field[4], Vhalf);
-  if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] even norm diff %e\n", norm);
+  if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] Q g5 A B even norm diff %e\n", norm);
   spinor_field_norm_diff( &norm, eo_spinor_work[3], eo_spinor_field[5], Vhalf);
-  if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] odd  norm diff %e\n", norm);
+  if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] Q g5 A B odd  norm diff %e\n", norm);
   /* end of TEST */
 #endif
 
@@ -521,25 +537,69 @@ int main(int argc, char **argv) {
   random_spinor_field (eo_spinor_field[0], Vhalf);
   random_spinor_field (eo_spinor_field[1], Vhalf);
 
-  Q_clover_eo_SchurDecomp_A    (eo_spinor_field[2], eo_spinor_field[3], eo_spinor_field[0], eo_spinor_field[1], g_gauge_field, mzz[flavor_id][0],    eo_spinor_work[0]);
-  Q_clover_eo_SchurDecomp_Ainv (eo_spinor_field[4], eo_spinor_field[5], eo_spinor_field[2], eo_spinor_field[3], g_gauge_field, mzzinv[flavor_id][0], eo_spinor_work[0]);
+  Q_clover_eo_SchurDecomp_A    (eo_spinor_field[2], eo_spinor_field[3], eo_spinor_field[0], eo_spinor_field[1], gauge_field_with_phase, mzz[flavor_id][0],    eo_spinor_work[0]);
+  Q_clover_eo_SchurDecomp_Ainv (eo_spinor_field[4], eo_spinor_field[5], eo_spinor_field[2], eo_spinor_field[3], gauge_field_with_phase, mzzinv[flavor_id][0], eo_spinor_work[0]);
 
   spinor_field_norm_diff( &norm, eo_spinor_field[4], eo_spinor_field[0], Vhalf);
-  if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] even norm diff %e\n", norm);
+  if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] A^-1 A even norm diff %e\n", norm);
   spinor_field_norm_diff( &norm, eo_spinor_field[5], eo_spinor_field[1], Vhalf);
-  if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] odd  norm diff %e\n", norm);
+  if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] A^-1 A odd  norm diff %e\n", norm);
 #endif
 
 #if 0
   /***********************************************************
-   * TEST step-wise propagator construction incl. inversion
+   * TEST Q_clover_phi_matrix_eo and
+   *   Q_clover_eo_SchurDecomp_A, Q_clover_eo_SchurDecomp_B
+   *   against tmLQCD_invert with lexic return field
    ***********************************************************/
   random_spinor_field (eo_spinor_field[0], Vhalf);
   random_spinor_field (eo_spinor_field[1], Vhalf);
+
+  spinor_field_eo2lexic (full_spinor_work_halo[0], eo_spinor_field[0], eo_spinor_field[1] );
+  memset(full_spinor_work_halo[1], 0, sizeof_spinor_field);
+
+  exitstatus = tmLQCD_invert( full_spinor_work_halo[1], full_spinor_work_halo[0], op_id, 0);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[test_lm_propagator_clover] Error from tmLQCD_invert_eo, status was %d\n", exitstatus);
+    EXIT(35);
+  }
+  spinor_field_lexic2eo (full_spinor_work_halo[1], eo_spinor_work[0], eo_spinor_work[1] );
+
+  /* apply the full operator Q_clover_phi_matrix_eo */
+  Q_clover_phi_matrix_eo (eo_spinor_field[2], eo_spinor_field[3], eo_spinor_work[0], eo_spinor_work[1], gauge_field_with_phase, eo_spinor_work[4], mzz[flavor_id]);
+
+  spinor_field_norm_diff( &norm, eo_spinor_field[2], eo_spinor_field[0], Vhalf);
+  if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] Q Q_tm^-1 even norm diff %e\n", norm);
+  spinor_field_norm_diff( &norm, eo_spinor_field[3], eo_spinor_field[1], Vhalf);
+  if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] Q Q_tm^-1 odd  norm diff %e\n", norm);
+
+  /* apply the eo-decomposed operator Q = g5 A B */
+  Q_clover_eo_SchurDecomp_B (eo_spinor_field[4], eo_spinor_field[5], eo_spinor_work[0], eo_spinor_work[1], gauge_field_with_phase, mzz[flavor_id][1], mzzinv[flavor_id][0], eo_spinor_work[2]);
+  Q_clover_eo_SchurDecomp_A (eo_spinor_field[2], eo_spinor_field[3], eo_spinor_field[4], eo_spinor_field[5], gauge_field_with_phase, mzz[flavor_id][0], eo_spinor_work[2]);
+  spinor_field_eq_gamma_ti_spinor_field(eo_spinor_field[2], 5, eo_spinor_field[2], Vhalf);
+  spinor_field_eq_gamma_ti_spinor_field(eo_spinor_field[3], 5, eo_spinor_field[3], Vhalf);
+
+  spinor_field_norm_diff( &norm, eo_spinor_field[2], eo_spinor_field[0], Vhalf);
+  if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] g5 A B Q_tm^-1 even norm diff %e\n", norm);
+  spinor_field_norm_diff( &norm, eo_spinor_field[3], eo_spinor_field[1], Vhalf);
+  if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] g5 A B Q_tm^-1 odd  norm diff %e\n", norm);
+#endif
+
+#if 0
+  /***********************************************************
+   * TEST step-wise propagator construction with
+   *   Q_clover_eo_SchurDecomp_Ainv, tmLQCD_invert_eo
+   *   with eo return field and Q_clover_eo_SchurDecomp_Binv
+   *   agains Q_clover_eo_SchurDecomp_B, Q_clover_eo_SchurDecomp_A
+   *   and spinor_field_eq_gamma_ti_spinor_field 
+   ***********************************************************/
+  random_spinor_field (eo_spinor_field[0], Vhalf);
+  random_spinor_field (eo_spinor_field[1], Vhalf);
+
   spinor_field_eq_gamma_ti_spinor_field(eo_spinor_field[2], 5, eo_spinor_field[0], Vhalf);
   spinor_field_eq_gamma_ti_spinor_field(eo_spinor_field[3], 5, eo_spinor_field[1], Vhalf);
 
-  Q_clover_eo_SchurDecomp_Ainv (eo_spinor_field[2], eo_spinor_field[3], eo_spinor_field[2], eo_spinor_field[3], g_gauge_field, mzzinv[flavor_id][0], eo_spinor_work[0]);
+  Q_clover_eo_SchurDecomp_Ainv (eo_spinor_field[2], eo_spinor_field[3], eo_spinor_field[2], eo_spinor_field[3], gauge_field_with_phase, mzzinv[flavor_id][0], eo_spinor_work[0]);
   memcpy(eo_spinor_work[0], eo_spinor_field[3], sizeof_eo_spinor_field);
   memset(eo_spinor_work[1], 0, sizeof_eo_spinor_field);
   exitstatus = tmLQCD_invert_eo(eo_spinor_work[1], eo_spinor_work[0], op_id);
@@ -548,19 +608,21 @@ int main(int argc, char **argv) {
     EXIT(35);
   }
   memcpy(eo_spinor_field[3], eo_spinor_work[1], sizeof_eo_spinor_field);
-  Q_clover_eo_SchurDecomp_Binv (eo_spinor_field[2], eo_spinor_field[3], eo_spinor_field[2], eo_spinor_field[3], g_gauge_field, mzzinv[flavor_id][0], eo_spinor_work[0]);
+  Q_clover_eo_SchurDecomp_Binv (eo_spinor_field[2], eo_spinor_field[3], eo_spinor_field[2], eo_spinor_field[3], gauge_field_with_phase, mzzinv[flavor_id][0], eo_spinor_work[0]);
 
-  memcpy(eo_spinor_work[0], eo_spinor_field[2], sizeof_eo_spinor_field);
-  memcpy(eo_spinor_work[1], eo_spinor_field[3], sizeof_eo_spinor_field);
-  Q_clover_phi_matrix_eo (eo_spinor_work[2], eo_spinor_work[3], eo_spinor_work[0], eo_spinor_work[1], g_gauge_field, eo_spinor_work[4], mzz[flavor_id]);
+  Q_clover_eo_SchurDecomp_B (eo_spinor_field[4], eo_spinor_field[5], eo_spinor_field[2], eo_spinor_field[3], gauge_field_with_phase, mzz[flavor_id][1], mzzinv[flavor_id][0], eo_spinor_work[0]);
+  Q_clover_eo_SchurDecomp_A (eo_spinor_field[2], eo_spinor_field[3], eo_spinor_field[4], eo_spinor_field[5], gauge_field_with_phase, mzz[flavor_id][0], eo_spinor_work[0]);
+  spinor_field_eq_gamma_ti_spinor_field(eo_spinor_field[2], 5, eo_spinor_field[2], Vhalf);
+  spinor_field_eq_gamma_ti_spinor_field(eo_spinor_field[3], 5, eo_spinor_field[3], Vhalf);
 
-  spinor_field_norm_diff( &norm, eo_spinor_work[2], eo_spinor_field[0], Vhalf);
-  if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] even norm diff %e\n", norm);
-  spinor_field_norm_diff( &norm, eo_spinor_work[3], eo_spinor_field[1], Vhalf);
-  if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] odd  norm diff %e\n", norm);
-#endif
+  spinor_field_norm_diff( &norm, eo_spinor_field[2], eo_spinor_field[0], Vhalf);
+  if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] eo step-wise propagator even norm diff %e\n", norm);
+  spinor_field_norm_diff( &norm, eo_spinor_field[3], eo_spinor_field[1], Vhalf);
+  if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] eo step-wise propagator odd  norm diff %e\n", norm);
+#endif  /* of if 0 */
 
 
+#if 0
   /**********************************************************
    * up-type full propagators
    **********************************************************/
@@ -697,6 +759,7 @@ int main(int argc, char **argv) {
     fprintf(stdout, "# [test_lm_propagator_clover] time for propagators = %e seconds\n", retime-ratime);
   }
 
+#endif  /* of if 0 */
   /****************************************
    * free the allocated memory, finalize
    ****************************************/

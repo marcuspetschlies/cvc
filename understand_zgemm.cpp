@@ -39,7 +39,7 @@ int rangauss (double * y1, unsigned int NRAND) {
   double x1;
 
   if(NRAND%2 != 0) {
-    fprintf(stderr, "ERROR, NRAND must be an even number\n");
+    fprintf(stderr, "Error, NRAND must be an even number\n");
     return(1);
   }
 

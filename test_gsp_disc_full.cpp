@@ -177,7 +177,7 @@ int main(int argc, char **argv) {
 
   /* initialize geometry */
   if(init_geometry() != 0) {
-    fprintf(stderr, "[test_gsp_disc_full] ERROR from init_geometry\n");
+    fprintf(stderr, "[test_gsp_disc_full] Error from init_geometry\n");
     EXIT(4);
   }
 

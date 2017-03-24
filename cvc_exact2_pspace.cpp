@@ -200,7 +200,7 @@ int main(int argc, char **argv) {
 #endif
 
   if(init_geometry() != 0) {
-    fprintf(stderr, "ERROR from init_geometry\n");
+    fprintf(stderr, "Error from init_geometry\n");
     EXIT(1);
   }
 
