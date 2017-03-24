@@ -457,7 +457,7 @@ int main(int argc, char **argv) {
     EXIT(32);
   }
 
-  flavor_sign = 1;
+  flavor_sign = -1;
   flavor_id = ( 1 - flavor_sign) / 2;
   op_id = flavor_id;
   if(g_cart_id==0) fprintf(stdout, "# [] flavor sign = %d, flavor id = %d, op id = %d\n", flavor_sign, flavor_id, op_id);
@@ -621,7 +621,6 @@ int main(int argc, char **argv) {
   if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] eo step-wise propagator odd  norm diff %e\n", norm);
 #endif  /* of if 0 */
 
-
 #if 0
   /**********************************************************
    * up-type full propagators
@@ -633,7 +632,7 @@ int main(int argc, char **argv) {
   for(ia=0; ia<12; ia++) {
 
     /* A^-1 g5 source */
-    exitstatus = init_clover_eo_spincolor_pointsource_propagator (eo_spinor_field[ia], eo_spinor_field[12+ia], gsx, ia, mzzinv[flavor_id][0], source_proc_id==g_cart_id, eo_spinor_work[2]);
+    exitstatus = init_clover_eo_spincolor_pointsource_propagator (eo_spinor_field[ia], eo_spinor_field[12+ia], gsx, ia, gauge_field_with_phase, mzzinv[flavor_id][0], source_proc_id==g_cart_id, eo_spinor_work[2]);
     if(exitstatus != 0 ) {
       fprintf(stderr, "[test_lm_propagator_clover] Error from init_eo_spincolor_pointsource_propagator; status was %d\n", exitstatus);
       EXIT(36);
@@ -651,7 +650,7 @@ int main(int argc, char **argv) {
     memcpy(eo_spinor_field[12+ia], eo_spinor_work[1], sizeof_eo_spinor_field);
 
     /* B^-1 excl. C^-1 */
-    exitstatus = fini_clover_eo_propagator (eo_spinor_field[ia], eo_spinor_field[12+ia], eo_spinor_field[ia], eo_spinor_field[12+ia], mzzinv[flavor_id][0], eo_spinor_work[4]);
+    exitstatus = fini_clover_eo_propagator (eo_spinor_field[ia], eo_spinor_field[12+ia], eo_spinor_field[ia], eo_spinor_field[12+ia], gauge_field_with_phase, mzzinv[flavor_id][0], eo_spinor_work[4]);
     if(exitstatus != 0) {
       fprintf(stderr, "[test_lm_propagator_clover] Error from fini_eo_propagator, status was %d\n", exitstatus);
       EXIT(35);
@@ -661,10 +660,10 @@ int main(int argc, char **argv) {
     /* TEST against Q_clover_phi_matrix_eo */
     memcpy(eo_spinor_work[0], eo_spinor_field[   ia], sizeof_eo_spinor_field);
     memcpy(eo_spinor_work[1], eo_spinor_field[12+ia], sizeof_eo_spinor_field);
-    Q_clover_phi_matrix_eo (eo_spinor_work[2], eo_spinor_work[3], eo_spinor_work[0], eo_spinor_work[1], g_gauge_field, eo_spinor_work[4], mzz[flavor_id]);
+    Q_clover_phi_matrix_eo (eo_spinor_work[2], eo_spinor_work[3], eo_spinor_work[0], eo_spinor_work[1], gauge_field_with_phase, eo_spinor_work[4], mzz[flavor_id]);
 
     if(source_proc_id == g_cart_id) {
-      ix = _GSI(g_lexic2eosub[g_ipt[sx0][sx1][sx2][sx3]]);
+      unsigned int ix = _GSI(g_lexic2eosub[g_ipt[sx0][sx1][sx2][sx3]]);
       if(source_location_iseven) {
         eo_spinor_work[2][ix+2*ia] -= 1.;
       } else {
@@ -673,24 +672,78 @@ int main(int argc, char **argv) {
     }
 
     spinor_scalar_product_re( &norm, eo_spinor_work[2], eo_spinor_work[2], Vhalf);
-    if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] even norm diff %e\n", sqrt(norm));
+    if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagator_clover] even norm diff %e\n", sqrt(norm));
     spinor_scalar_product_re( &norm, eo_spinor_work[3], eo_spinor_work[3], Vhalf);
-    if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] odd  norm diff %e\n", sqrt(norm));
+    if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagator_clover] odd  norm diff %e\n", sqrt(norm));
 #endif
   }  /* of loop on spin-color component ia */
 
 
   g_seq_source_momentum[0] = 1;
   g_seq_source_momentum[1] = 2;
-  g_seq_source_momentum[2] = 3;
+  g_seq_source_momentum[2] = -3;
   g_sequential_source_timeslice = 7;
-  g_sequential_source_gamma_id = 7;
+  g_sequential_source_gamma_id = 14;
+  int g_sequential_source_gamma_sqr_sign = -1;
 
   for(ia=0; ia<12; ia++) {
     exitstatus = init_clover_eo_sequential_source(eo_spinor_field[24+ia], eo_spinor_field[36+ia], eo_spinor_field[ia], eo_spinor_field[12+ia],
-        g_sequential_source_timeslice, mzzinv[flavor_id][0], g_seq_source_momentum, g_sequential_source_gamma_id, eo_spinor_work[0]);
+        g_sequential_source_timeslice, gauge_field_with_phase, mzzinv[flavor_id][0], g_seq_source_momentum, g_sequential_source_gamma_id, eo_spinor_work[0]);
   }
 
+  for(ia=0; ia<12; ia++) {
+    /* multiply with A */
+    Q_clover_eo_SchurDecomp_A (eo_spinor_field[24+ia], eo_spinor_field[36+ia], eo_spinor_field[24+ia], eo_spinor_field[36+ia], gauge_field_with_phase, mzz[flavor_id][0], eo_spinor_work[0]);
+
+    /* multiply with g5 */
+    g5_phi( eo_spinor_field[24+ia], Vhalf );
+    g5_phi( eo_spinor_field[36+ia], Vhalf );
+
+    /* multiply with gseq */
+    spinor_field_eq_gamma_ti_spinor_field(eo_spinor_field[24+ia], g_sequential_source_gamma_id, eo_spinor_field[24+ia], Vhalf );
+    spinor_field_eq_gamma_ti_spinor_field(eo_spinor_field[36+ia], g_sequential_source_gamma_id, eo_spinor_field[36+ia], Vhalf );
+    spinor_field_ti_eq_re ( eo_spinor_field[24+ia], g_sequential_source_gamma_sqr_sign, Vhalf);
+    spinor_field_ti_eq_re ( eo_spinor_field[36+ia], g_sequential_source_gamma_sqr_sign, Vhalf);
+
+
+    double q[3] = { 2.*M_PI * g_seq_source_momentum[0] / LX_global, 2.*M_PI * g_seq_source_momentum[1] / LY_global, 2.*M_PI * g_seq_source_momentum[2] / LZ_global};
+    
+    double q_offset = q[0] * g_proc_coords[1] * LX + q[1] * g_proc_coords[2] * LY + q[2] * g_proc_coords[3] * LZ;
+    int x0, x1, x2, x3;
+    /* multiply with inverse phase */
+    for( x0=0; x0<T; x0++ ) {
+    for( x1=0; x1<LX; x1++ ) {
+    for( x2=0; x2<LY; x2++ ) {
+    for( x3=0; x3<LZ; x3++ ) {
+      unsigned int ix = g_ipt[x0][x1][x2][x3];
+      unsigned int ixeosub = g_lexic2eosub[ix];
+      double q_phase = q[0] * x1 + q[1] * x2 + q[2] * x3 + q_offset;
+      double spinor1[24];
+      complex w = { cos(q_phase), sin(-q_phase) };
+      double *s_ = g_iseven[ix] ? eo_spinor_field[24+ia]+_GSI(ixeosub) : eo_spinor_field[36+ia]+_GSI(ixeosub);
+      _fv_eq_fv(spinor1, s_ );
+      _fv_eq_fv_ti_co(s_, spinor1, &w);
+    }}}}
+
+    if(  g_sequential_source_timeslice / T == g_proc_coords[0] ) {
+      unsigned int VOL3half = LX * LY * LZ / 2;
+      unsigned int offset = _GSI( ( g_sequential_source_timeslice % T ) * VOL3half );
+      spinor_field_mi_eq_spinor_field_ti_re( eo_spinor_field[24+ia]+offset, eo_spinor_field[   ia]+offset, 1., VOL3half );
+      spinor_field_mi_eq_spinor_field_ti_re( eo_spinor_field[36+ia]+offset, eo_spinor_field[12+ia]+offset, 1., VOL3half );
+    }
+
+    spinor_scalar_product_re(&norm, eo_spinor_field[24+ia], eo_spinor_field[24+ia], Vhalf);
+    if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagator_clover] even part norm = %e\n", sqrt(norm));
+    spinor_scalar_product_re(&norm, eo_spinor_field[36+ia], eo_spinor_field[36+ia], Vhalf);
+    if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagator_clover] odd  part norm = %e\n", sqrt(norm));
+
+  }  /* end of loop on spin-color */
+
+#endif  /* of if 0 */
+  
+
+
+#if 0
   exitstatus = project_propagator_field(eo_spinor_field[36], eo_spinor_field[36], 1, eo_evecs_block[op_id], 12, evecs_num, Vhalf);
   if(exitstatus != 0) {
     fprintf(stderr, "[test_lm_propagator_clover] Error from project_propagator_field, status was %d\n", exitstatus);
@@ -758,8 +811,8 @@ int main(int argc, char **argv) {
   if(g_cart_id == 0) {
     fprintf(stdout, "# [test_lm_propagator_clover] time for propagators = %e seconds\n", retime-ratime);
   }
-
 #endif  /* of if 0 */
+
   /****************************************
    * free the allocated memory, finalize
    ****************************************/
