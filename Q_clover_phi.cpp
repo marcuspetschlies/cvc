@@ -143,20 +143,28 @@ void clover_term_fini(double***s) {
 
 void clover_term_init (double***s, int nmat) {
 
-  const size_t N = (size_t)(VOLUME+RAND) / 2;
+  /* why VOLUME+RAND ? VOLUME should be enough 
+   * Yes, but the index layout in g_lexic2eosub, which is used below,
+   * is even interior - even halo - odd interior - odd halo.
+   * IF this indexing is NOT used later on in application
+   * of g_clover, it can be changed to g_lexic2eosub + g_iseven during
+   * construction
+   */
+  /* const size_t N = (size_t)(VOLUME+RAND) / 2; */
+  const size_t N = (size_t)VOLUME / 2;
   const size_t sizeof_su3 = 18;
 
   if ( (*s) == NULL) {
-    if(g_cart_id == 0) fprintf(stdout, "# [clover_term_eo] allocating clover term\n");
+    if(g_cart_id == 0) fprintf(stdout, "# [clover_term_init] allocating clover term\n");
 
     (*s) = (double**)malloc(2*sizeof(double*));
     if( (*s)==NULL) {
-      fprintf(stderr, "[clover_term_eo] Error from malloc\n");
+      fprintf(stderr, "[clover_term_init] Error from malloc\n");
       EXIT(1);
     }
     (*s)[0] = (double*)malloc(2*N*nmat*sizeof_su3*sizeof(double));
     if( (*s)[0]==NULL) {
-      fprintf(stderr, "[clover_term_eo] Error from malloc\n");
+      fprintf(stderr, "[clover_term_init] Error from malloc\n");
       EXIT(2);
     }
     (*s)[1] = (*s)[0] + N * sizeof_su3 * nmat;
@@ -165,24 +173,26 @@ void clover_term_init (double***s, int nmat) {
 
 void clover_term_eo (double**s, double*gauge_field) {
 
-  const int nthreads = g_num_threads;
   const double norm  = 0.25;
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel shared(s,gauge_field)
 {
-  const int threadid = omp_get_thread_num();
-#else
-  const int threadid = 0;
 #endif
   unsigned int ix;
   unsigned int ix_pl_mu, ix_mi_mu, ix_pl_nu, ix_mi_nu, ix_mi_mu_mi_nu, ix_mi_mu_pl_nu, ix_pl_mu_mi_nu;
   int imu, inu, imunu;
   double *s_ptr;
   double U1[18], U2[18], U3[18];
+  int ieo;
 
-  for(ix = threadid; ix < VOLUME; ix += nthreads)
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(ix = 0; ix < VOLUME; ix++ )
   {
+    /* ieo = 0 for ix even and 1 for ix odd */
+    ieo = 1 - g_iseven[ix];
     imunu = 0;
     for(imu = 0; imu<3; imu++) {
 
@@ -191,7 +201,8 @@ void clover_term_eo (double**s, double*gauge_field) {
 
       for(inu = imu+1; inu<4; inu++) {
 
-        s_ptr = s[0] + _GSWI( g_lexic2eo[ix],imunu);
+        /* s_ptr = s[0] + _GSWI( g_lexic2eo[ix],imunu); */
+        s_ptr = s[ieo] + _GSWI( g_lexic2eosub[ix],imunu);
 
         ix_pl_nu = g_iup[ix][inu];
         ix_mi_nu = g_idn[ix][inu];
@@ -293,16 +304,13 @@ void clover_mzz_matrix (double**mzz, double**cl, double mu, double csw) {
   const double mutilde = 2. * g_kappa * mu;
   const double cswtilde = g_kappa * csw;
   const int incrcl = _GSWI(0,1);
-  const int nthreads = g_num_threads;
   const unsigned int N = VOLUME/2;
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel shared(mzz,cl)
 {
-  const int threadid = omp_get_thread_num();
-#else
-  const int threadid = 0;
 #endif
+
   unsigned int ix, ieo;
   double U1[18];
   double *mzz11_, *mzz12_, *mzz22_, *mzz33_, *mzz34_, *mzz44_;
@@ -315,7 +323,10 @@ void clover_mzz_matrix (double**mzz, double**cl, double mu, double csw) {
   cone_mi_imutilde.im = -mutilde;
 
   for(ieo = 0; ieo<2; ieo++) {
-    for(ix = threadid; ix < N; ix += nthreads) {
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(ix = 0; ix < N; ix++ ) {
   
       cl01_ = cl[ieo] + _GSWI(ix,0);
       cl02_ = cl01_ + incrcl;
@@ -376,7 +387,7 @@ void clover_mzz_matrix (double**mzz, double**cl, double mu, double csw) {
 void clover_mzz_inv_matrix (double**mzzinv, double**mzz) {
   
   const int incrcl = _GSWI(0,1);
-  const int Vhalf = VOLUME / 2;
+  const unsigned int Vhalf = VOLUME / 2;
 
   unsigned int ix, ieo;
   /* int i; */
@@ -562,11 +573,12 @@ void M_clover_zz_matrix (double*s, double*r, double*mzz) {
 /***********************************************************
  * Dirac operator with clover term
  * M_zz in block matrix form
+ *
+ * - e_old and o_old MUST have halo
  ***********************************************************/
 void Q_clover_phi_matrix_eo (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double *aux, double**mzz) {
 
   const unsigned int N = VOLUME / 2;
-  unsigned int ix;
 
   /* e_new = M_ee e_old + M_eo o_old */
   Hopping_eo(e_new, o_old, gauge_field, 0);
@@ -583,7 +595,7 @@ void Q_clover_phi_matrix_eo (double *e_new, double *o_new, double *e_old, double
   /* o_new  = o_new + aux = M_oe e_old + M_oo o_old */
   spinor_field_pl_eq_spinor_field ( o_new, aux, N );
 
-}  /* end of Q_clover_phi_eo */
+}  /* end of Q_clover_phi_matrix_eo */
 
 
 /***********************************************************
@@ -592,7 +604,6 @@ void Q_clover_phi_matrix_eo (double *e_new, double *o_new, double *e_old, double
 void Q_clover_phi_eo (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double mass, double *aux, double**cl) {
 
   const unsigned int N = VOLUME / 2;
-  unsigned int ix;
 
   /* e_new = M_ee e_old + M_eo o_old */
   Hopping_eo(e_new, o_old, gauge_field, 0);
@@ -774,8 +785,9 @@ void M_clover_zz_inv_matrix (double*s, double*r, double *mzzinv) {
  *   out   : s (changed)
  *   in/out: space: s_aux (changed)
  *   r, s do not need halo
- *   s_aux MUST HAVE halo
  *   s MUST NOT be ne same memory region as r
+ *
+ *   s_aux MUST HAVE halo
  ***********************************************************/
 void C_clover_oo (double*s, double*r, double *gauge_field, double *s_aux, double*mzz, double*mzzinv) {
 
@@ -905,7 +917,7 @@ void Q_clover_eo_SchurDecomp_A (double *e_new, double *o_new, double *e_old, dou
  *
  * A^-1 =
  *   ( M_ee^-1 g5         & 0 )
- *   ( g5 M_oe M_ee^-1 g5 & 1 )
+ *   ( -g5 M_oe M_ee^-1 g5 & 1 )
  *
  * safe, if e_new = e_old or o_new = o_old
  *
@@ -959,6 +971,10 @@ void Q_clover_eo_SchurDecomp_Ainv (double *e_new, double *o_new, double *e_old, 
  * B =
  *   ( 1 & M_ee^(-1) M_eo )
  *   ( 0 &        C       )
+ *
+ * - o_old, o_new do not need halo
+ *
+ * - aux MUST have halo
  ********************************************************************/
 void Q_clover_eo_SchurDecomp_B (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double*mzz, double*mzzinv, double *aux) {
 
