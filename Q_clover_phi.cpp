@@ -1046,6 +1046,8 @@ void Q_clover_eo_SchurDecomp_Binv (double *e_new, double *o_new, double *e_old, 
  ********************************************************************/
 int Q_clover_invert (double*prop, double*source, double*gauge_field, double *mzzinv, int op_id) {
 
+#ifdef HAVE_TMLQCD_LIBWRAPPER
+
   const size_t sizeof_eo_spinor_field_with_halo = _GSI(VOLUME+RAND)/2;
 
   int exitstatus;
@@ -1068,8 +1070,11 @@ int Q_clover_invert (double*prop, double*source, double*gauge_field, double *mzz
   free( eo_spinor_work[0] );
   free( eo_spinor_work[1] );
   free( eo_spinor_work[2] );
-
   return(0);
+#else
+  if( g_cart_id == 0 ) fprintf(stderr, "[Q_clover_invert] Error, no inverter\n");
+  return(2);
+#endif
 }  /* Q_clover_invert */
 
 }  /* end of namespace cvc */
