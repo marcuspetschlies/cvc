@@ -61,6 +61,7 @@ extern "C"
 #include "matrix_init.h"
 #include "project.h"
 #include "prepare_source.h"
+#include "Q_clover_phi.c"
 
 using namespace cvc;
 
@@ -418,17 +419,23 @@ int main(int argc, char **argv) {
   if(g_cart_id == 0) fprintf(stdout, "# [piN2piN_exact] up-type inversion\n");
   for(is=0;is<n_s*n_c;is++) {
     memset(spinor_work[0], 0, sizeof_spinor_field);
-    memset(spinor_work[1], 0, sizeof_spinor_field);
     if(source_proc_id == g_cart_id)  {
       spinor_work[0][_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]])+2*is] = 1.;
     }
-
+/*
+    memset(spinor_work[1], 0, sizeof_spinor_field);
     exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_up, 0);
     if(exitstatus != 0) {
       fprintf(stderr, "[piN2piN_exact] Error from tmLQCD_invert, status was %d\n", exitstatus);
       EXIT(12);
     }
     memcpy( g_spinor_field[is], spinor_work[1], sizeof_spinor_field);
+*/
+    exitstatus = Q_clover_invert (g_spinor_field[is], spinor_work[0], gauge_field_with_phase, mzzinv[0][0], op_id_up );
+    if(exitstatus != 0) {
+      fprintf(stderr, "[piN2piN_exact] Error from Q_clover_invert, status was %d\n", exitstatus);
+      EXIT(12);
+    }
   }
   retime = _GET_TIME;
   if(g_cart_id == 0) fprintf(stderr, "# [piN2piN_exact] time for up propagator = %e seconds\n", retime-ratime);
@@ -443,17 +450,23 @@ int main(int argc, char **argv) {
     for(is=0;is<n_s*n_c;is++) {
 
       memset(spinor_work[0], 0, sizeof_spinor_field);
-      memset(spinor_work[1], 0, sizeof_spinor_field);
       if(source_proc_id == g_cart_id)  {
         spinor_work[0][_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]])+2*is] = 1.;
       }
-
+/*
+      memset(spinor_work[1], 0, sizeof_spinor_field);
       exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_dn, 0);
       if(exitstatus != 0) {
         fprintf(stderr, "[piN2piN_exact] Error from tmLQCD_invert, status was %d\n", exitstatus);
         EXIT(12);
       }
       memcpy( g_spinor_field[n_s*n_c+is], spinor_work[1], sizeof_spinor_field);
+*/
+      exitstatus = Q_clover_invert (g_spinor_field[n_s*n_c+is], spinor_work[0], gauge_field_with_phase, mzzinv[1][0], op_id_dn );
+      if(exitstatus != 0) {
+        fprintf(stderr, "[piN2piN_exact] Error from Q_clover_invert, status was %d\n", exitstatus);
+        EXIT(12);
+      }
     }
     retime = _GET_TIME;
     if(g_cart_id == 0) fprintf(stdout, "# [piN2piN_exact] time for dn propagator = %e seconds\n", retime-ratime);
@@ -475,14 +488,21 @@ int main(int argc, char **argv) {
         fprintf(stderr, "[piN2piN_exact] Error from init_sequential_source, status was %d\n", exitstatus);
         EXIT(14);
       }
+/*
       memset(spinor_work[1], 0, sizeof_spinor_field);
-
       exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_up, 0);
       if(exitstatus != 0) {
         fprintf(stderr, "[piN2piN_exact] Error from tmLQCD_invert, status was %d\n", exitstatus);
         EXIT(12);
       }
       memcpy( g_spinor_field[idprop + n_s*n_c], spinor_work[1], sizeof_spinor_field);
+*/
+      exitstatus = Q_clover_invert (g_spinor_field[idprop + n_s*n_c], spinor_work[0], gauge_field_with_phase, mzzinv[0][0], op_id_up );
+      if(exitstatus != 0) {
+        fprintf(stderr, "[piN2piN_exact] Error from Q_clover_invert, status was %d\n", exitstatus);
+        EXIT(12);
+      }
+
       if(g_write_sequential_propagator) {
         sprintf(filename, "seq_%s.%.4d.t%.2dx%.2dy%.2dz%.2d.%.2d.qx%.2dqy%.2dqz%.2d.inverted",
             filename_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3], is,
@@ -523,13 +543,20 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[piN2piN_exact] Error from init_sequential_source, status was %d\n", exitstatus);
             EXIT(14);
           }
+/*
           memset(spinor_work[1], 0, sizeof_spinor_field);
-
           exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_dn, 0);
           if(exitstatus != 0) {
             fprintf(stderr, "[piN2piN_exact] Error from tmLQCD_invert, status was %d\n", exitstatus);
             EXIT(12);
           }
+*/
+          exitstatus = Q_clover_invert (spinor_work[1], spinor_work[0], gauge_field_with_phase, mzzinv[1][0], op_id_dn );
+          if(exitstatus != 0) {
+            fprintf(stderr, "[piN2piN_exact] Error from Q_clover_invert, status was %d\n", exitstatus);
+            EXIT(12);
+          }
+
           /******************************************************
            * processes, which have the sink timeslice, copy this
            * timeslice
@@ -567,13 +594,20 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[piN2piN_exact] Error from init_sequential_source, status was %d\n", exitstatus);
             EXIT(14);
           }
+/*
           memset(spinor_work[1], 0, sizeof_spinor_field);
-
           exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_dn, 0);
           if(exitstatus != 0) {
             fprintf(stderr, "[piN2piN_exact] Error from tmLQCD_invert, status was %d\n", exitstatus);
             EXIT(12);
           }
+*/
+          exitstatus = Q_clover_invert (spinor_work[1], spinor_work[0], gauge_field_with_phase, mzzinv[1][0], op_id_dn );
+          if(exitstatus != 0) {
+            fprintf(stderr, "[piN2piN_exact] Error from Q_clover_invert, status was %d\n", exitstatus);
+            EXIT(12);
+          }
+
           /******************************************************
            * processes, which have the sink timeslice, copy this
            * timeslice
@@ -609,13 +643,20 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[piN2piN_exact] Error from init_sequential_source, status was %d\n", exitstatus);
             EXIT(14);
           }
+/*
           memset(spinor_work[1], 0, sizeof_spinor_field);
-
           exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_up, 0);
           if(exitstatus != 0) {
             fprintf(stderr, "[piN2piN_exact] Error from tmLQCD_invert, status was %d\n", exitstatus);
             EXIT(12);
           }
+*/
+          exitstatus = Q_clover_invert (spinor_work[1], spinor_work[0], gauge_field_with_phase, mzzinv[0][0], op_id_up );
+          if(exitstatus != 0) {
+            fprintf(stderr, "[piN2piN_exact] Error from Q_clover_invert, status was %d\n", exitstatus);
+            EXIT(12);
+          }
+
           /******************************************************
            * processes, which have the sink timeslice, copy this
            * timeslice
