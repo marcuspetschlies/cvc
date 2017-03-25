@@ -844,10 +844,7 @@ int main(int argc, char **argv) {
   free_geometry();
 
   if( evecs_lambdaOneHalf != NULL ) free( evecs_lambdaOneHalf );
-#ifndef HAVE_TMLQCD_LIBWRAPPER
   if( evecs_eval          != NULL ) free( evecs_eval );
-#endif
-
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
   tmLQCD_finalise();
