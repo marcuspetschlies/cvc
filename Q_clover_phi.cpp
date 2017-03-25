@@ -1041,5 +1041,35 @@ void Q_clover_eo_SchurDecomp_Binv (double *e_new, double *o_new, double *e_old, 
 
 }  /* end of Q_clover_eo_SchurDecomp_Binv */
 
+/********************************************************************
+ * prop and source full spinor fields
+ ********************************************************************/
+int Q_clover_invert (double*prop, double*source, double*gauge_field, double *mzzinv, int op_id) {
+
+  const size_t sizeof_eo_spinor_field_with_halo = _GSI(VOLUME+RAND)/2;
+
+  int exitstatus;
+  double *eo_spinor_work[3];
+
+  eo_spinor_work[0]  = (double*)malloc( sizeof_eo_spinor_field_with_halo );
+  eo_spinor_work[1]  = (double*)malloc( sizeof_eo_spinor_field_with_halo );
+  eo_spinor_work[2]  = (double*)malloc( sizeof_eo_spinor_field_with_halo );
+  
+  spinor_field_lexic2eo (source, eo_spinor_work[0], eo_spinor_work[1] );
+
+  Q_clover_eo_SchurDecomp_Ainv (eo_spinor_work[0], eo_spinor_work[1], eo_spinor_work[0], eo_spinor_work[1], gauge_field, mzzinv, eo_spinor_work[2]);
+  exitstatus = tmLQCD_invert_eo(eo_spinor_work[2], eo_spinor_work[1], op_id);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_invert] Error from tmLQCD_invert_eo, status was %d\n", exitstatus);
+    return(1);
+  }
+  Q_clover_eo_SchurDecomp_Binv (eo_spinor_work[0], eo_spinor_work[2], eo_spinor_work[0], eo_spinor_work[2], gauge_field, mzzinv, eo_spinor_work[1]);
+  spinor_field_eo2lexic (prop, eo_spinor_work[0], eo_spinor_work[2] );
+  free( eo_spinor_work[0] );
+  free( eo_spinor_work[1] );
+  free( eo_spinor_work[2] );
+
+  return(0);
+}  /* Q_clover_invert */
 
 }  /* end of namespace cvc */

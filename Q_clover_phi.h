@@ -24,5 +24,7 @@ void Q_clover_eo_SchurDecomp_Ainv (double *e_new, double *o_new, double *e_old, 
 void Q_clover_eo_SchurDecomp_B    (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double*mzz,    double*mzzinv, double *aux);
 void Q_clover_eo_SchurDecomp_Binv (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double*mzzinv, double *aux);
 
+int Q_clover_invert (double*prop, double*source, double*gauge_field, double *mzzinv, int op_id);
+
 }  /* end of namespace cvc */
 #endif
