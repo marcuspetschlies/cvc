@@ -481,6 +481,39 @@ void store_contraction_under_aff_key(contraction_writer_type *contraction_writer
   }
 }
 
+void compute_inversion_with_tm_rotation(double* source,double* dest,int op_id,int rotation_direction,program_instruction_type *program_instructions){
+  int exitstatus;
+  
+  set_spinor_field_to_zero(dest,program_instructions);
+
+  if( g_fermion_type == _TM_FERMION ) {
+    spinor_field_tm_rotation(source, source, rotation_direction, g_fermion_type, VOLUME);
+  }
+
+  exitstatus = tmLQCD_invert(dest, source, op_id, 0);
+  if(exitstatus != 0) {
+    write_to_stdout("[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
+    EXIT(12);
+  }
+
+  if( g_fermion_type == _TM_FERMION ) {
+    spinor_field_tm_rotation(dest, dest, rotation_direction, g_fermion_type, VOLUME);
+  }
+}
+
+void compute_inversion_with_tm_rotation_and_smearing(double* inversion,double* source,double* spinor_field_for_intermediate_storage,int op_id,int rotation_direction,program_instruction_type *program_instructions){
+
+  /* source-smear the point source */
+  smear_spinor_field(source,program_instructions);
+
+  compute_inversion_with_tm_rotation(source,spinor_field_for_intermediate_storage,op_id,rotation_direction,program_instructions);
+
+  /* sink-smear the point-source propagator */
+  smear_spinor_field(spinor_field_for_intermediate_storage,program_instructions);
+
+  copy_spinor_field(inversion,spinor_field_for_intermediate_storage,program_instructions);
+}
+
 void store_N_N_contractions(contraction_writer_type *contraction_writer,gathered_FT_WDc_contractions_type *gathered_FT_WDc_contractions,int diagram,global_source_location_type gsl,program_instruction_type *program_instructions,int exit_code){
   int k,icomp;
   if(program_instructions->io_proc == 2) {
@@ -958,7 +991,163 @@ void compute_and_store_correlators_which_need_stochastic_sources_and_propagators
 
 }
 
+void compute_stochastic_propagator_for_oet(double *dest,double *source,program_instructions_type *program_instructions){
+  copy_spinor_field(program_instructions->spinor_work[0],source,program_instructions);
+
+  compute_inversion_with_tm_rotation_and_smearing(dest,program_instructions->spinor_work[0],program_instructions->spinor_work[1],program_instructions->op_id_up,+1,program_instructions);
+}
+
+void compute_buffer_with_random_variables_and_set_timeslice_source_without_momentum(){
+  int exitstatus;
+  if( (exitstatus = init_timeslice_source_oet(stochastic_source_list, gsx[0], NULL, 1)) != 0 ) {
+    fprintf(stderr, "[piN2piN] Error from init_timeslice_source_oet, status was %d\n", exitstatus);
+    EXIT(63);
+  }
+}
+
+void compute_sources_and_propagators_without_momentum_for_oet(){
+  compute_buffer_with_random_variables_and_set_timeslice_source_without_momentum();
+
+  int dirac_index;
+  for(dirac_index=0; dirac_index<4; dirac_index++){
+    compute_stochastic_propagator_for_oet(stochastic_sources_and_propagators_for_oet->propagator_list[dirac_index],stochastic_sources_and_propagators_for_oet->source_list[dirac_index],program_instructions);
+  }
+}
+
+void compute_timeslice_source_with_momentum_from_buffer_with_random_numbers(){
+  int exitstatus;
+  if( (exitstatus = init_timeslice_source_oet(stochastic_source_list, gsx[0], g_seq_source_momentum_list[iseq_mom], 0) ) != 0 ) {
+    fprintf(stderr, "[piN2piN] Error from init_timeslice_source_oet, status was %d\n", exitstatus);
+    EXIT(64);
+  }
+}
+
+void compute_sources_and_propagators_with_momentum_for_oet(){
+  compute_timeslice_source_with_momentum_from_buffer_with_random_numbers();
+
+  for(dirac_index=0; dirac_index<4; dirac_index++){
+    compute_stochastic_propagator_for_oet(stochastic_sources_and_propagators_for_oet->propagator_list[dirac_index],stochastic_sources_and_propagators_for_oet->source_list[dirac_index],program_instructions);
+  }
+}
+ 
+void compute_and_store_correlators_for_pi_pi_with_oet_from_WDc_contractions(){
+
+  FT_WDc_contractions_type FT_WDc_contractions;
+  gathered_FT_WDc_contractions_type gathered_FT_WDc_contractions;
+  allocate_memory_for_ft_and_gathering(&FT_WDc_contractions,&gathered_FT_WDc_contractions,num_component_piN_piN,program_instructions,52,53);
+
+  compute_gathered_FT_WDc_contractions();
+
+  store_correlators_for_pi_pi_with_oet();
+  
+  free_memory_for_ft_and_gathering(&FT_WDc_contractions,&gathered_FT_WDc_contractions,program_instructions);
+}
+
+void compute_and_store_correlators_for_pi_pi_with_oet_for_coherent_source_location(){
+
+  set_memory_for_Whick_Dirac_and_color_contractions_to_zero(program_instructions);
+
+  compute_Whick_Dirac_and_color_contractions_for_pi_pi_with_oet();
+
+  compute_and_store_correlators_for_pi_pi_with_oet_from_WDc_contractions();
+}
+
+void compute_and_store_correlators_for_piN_piN_with_oet_for_diagram(){
+  FT_WDc_contractions_type FT_WDc_contractions;
+  gathered_FT_WDc_contractions_type gathered_FT_WDc_contractions;
+  allocate_memory_for_ft_and_gathering(&FT_WDc_contractions,&gathered_FT_WDc_contractions,num_component_piN_piN,program_instructions,52,53);
+
+  three_momentum_type seq_source_momentum;
+  get_seq_source_momentum(&seq_source_momentum,iseq_mom);
+
+  three_momentum_type seq2_source_momentum;
+  get_seq2_source_momentum(&seq2_source_momentum,iseq2_mom);
+
+  information_needed_for_source_phase_type information_needed_for_source_phase;
+  init_information_needed_for_source_phase_so_that_source_phase_with_both_sequential_source_momenta_is_computed(&information_needed_for_source_phase,seq_source_momentum,seq2_source_momentum);
+
+  compute_gathered_FT_WDc_contractions(&FT_WDc_contractions,&gathered_FT_WDc_contractions,gsl,diagram,num_component_piN_piN,program_instructions,&information_needed_for_source_phase,124);
+  store_piN_piN_contractions_for_piN_piN_with_oet_for_diagram(contraction_writer,&gathered_FT_WDc_contractions,iseq_mom,iseq2_mom,diagram,gsl,program_instructions,84);
+
+  free_memory_for_ft_and_gathering(&FT_WDc_contractions,&gathered_FT_WDc_contractions,program_instructions);
+}
+
+void compute_and_store_correlators_for_piN_piN_with_oet_for_coherent_source_location(){
+
+  compute_general_propagator_pfifi();
+
+  set_memory_for_Whick_Dirac_and_color_contractions_to_zero(program_instructions);
+
+  compute_Whick_Dirac_and_color_contractions_for_piN_piN_with_oet();
+
+  int diagram;
+  for(diagram = 0; diagram < 4; diagram++){
+    compute_and_store_correlators_for_piN_piN_with_oet_for_diagram();
+  }
+}
+
+void allocate_memory_for_general_propagator_pfifi(general_propagator_pfifi_type *general_propagator_pfifi){
+  int exitstatus;
+  (*general_propagator_pfifi) = NULL;
+  if( (exitstatus = init_2level_buffer(general_propagator_pfifi, n_s*n_c, _GSI(VOLUME)) ) != 0 ) {
+    write_to_stderr("[piN2piN] Error from init_2level_buffer, status was %d\n", exitstatus);
+    EXIT(54);
+  }
+}
+
+void free_memory_for_general_propagator_pfifi(general_propagator_pfifi_type *general_propagator_pfifi){
+  fini_2level_buffer(general_propagator_pfifi);
+}
+
+void compute_and_store_correlators_which_use_oet_for_sample(int isample,forward_propagators_type *forward_propagators,sequential_propagators_type *sequential_propagators,stochastic_sources_and_propagators_for_oet_type *stochastic_sources_and_propagators_for_oet,program_instruction_type *program_instructions){
+  general_propagator_pfifi_type general_propagator_pfifi;
+
+  allocate_memory_for_general_propagator_pfifi(&general_propagator_pfifi);
+
+  int i_src;
+  for(i_src=0; i_src < g_source_location_number; i_src++) {
+    contraction_writer_type contraction_writer;
+
+    init_contraction_writer(&contraction_writer,"piN_piN_oet",i_src,4,5,6,program_instructions);
+   
+    int i_coherent;
+    for(i_coherent = 0; i_coherent < g_coherent_source_number; i_coherent++) {
+      global_source_location_type gsl;
+      get_global_coherent_source_location(&gsl,i_src,i_coherent);
+      
+      compute_sources_and_propagators_without_momentum_for_oet(stochastic_sources_and_propagators_for_oet);
+
+      int iseq_mom;
+      for(iseq_mom=0; iseq_mom < g_seq_source_momentum_number; iseq_mom++) {
+        compute_sources_and_propagators_with_momentum_for_oet(stochastic_sources_and_propagators_for_oet);
+
+        compute_and_store_correlators_for_pi_pi_with_oet_for_coherent_source_location();
+
+        int iseq2_mom;
+        for(iseq2_mom=0; iseq2_mom < g_seq2_source_momentum_number; iseq2_mom++) {
+          compute_and_store_correlators_for_piN_piN_with_oet_for_coherent_source_location();
+        }
+      }
+    }
+ 
+    exit_contraction_writer(&contraction_writer,11,program_instructions);
+  }
+  
+  free_memory_for_general_propagator_pfifi(&general_propagator_pfifi);
+}
+
 void compute_and_store_correlators_which_use_oet(forward_propagators_type *forward_propagators,sequential_propagators_type *sequential_propagators,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type *cvc_and_tmLQCD_information){
+
+  stochastic_sources_and_propagators_for_oet_type stochastic_sources_and_propagators_for_oet_type;
+
+  allocate_memory_for_stochastic_propagators_for_oet(&stochastic_propagators_for_oet_type,program_instructions);
+
+  int isample;
+  for(isample=0; isample < g_nsample_oet; isample++) {
+    compute_and_store_correlators_which_use_oet_for_sample(isample,forward_propagators,sequential_propagators,&stochastic_sources_and_propagators_for_oet,program_instructions);
+  }
+
+  free_memory_for_stochastic_propagators_for_oet(&stochastic_propagators_for_oet_type);
 
 }
 
@@ -1071,39 +1260,6 @@ void set_spinor_field_to_point_source(double *spinor_field,local_source_location
 
 void smear_spinor_field(double *spinor_field,program_instruction_type *program_instructions){
   int exitstatus = Jacobi_Smearing(program_instructions->gauge_field_smeared, spinor_field, N_Jacobi, kappa_Jacobi);
-}
-
-void compute_inversion_with_tm_rotation(double* source,double* dest,int op_id,int rotation_direction,program_instruction_type *program_instructions){
-  int exitstatus;
-  
-  set_spinor_field_to_zero(dest,program_instructions);
-
-  if( g_fermion_type == _TM_FERMION ) {
-    spinor_field_tm_rotation(source, source, rotation_direction, g_fermion_type, VOLUME);
-  }
-
-  exitstatus = tmLQCD_invert(dest, source, op_id, 0);
-  if(exitstatus != 0) {
-    write_to_stdout("[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
-    EXIT(12);
-  }
-
-  if( g_fermion_type == _TM_FERMION ) {
-    spinor_field_tm_rotation(dest, dest, rotation_direction, g_fermion_type, VOLUME);
-  }
-}
-
-void compute_inversion_with_tm_rotation_and_smearing(double* inversion,double* source,double* spinor_field_for_intermediate_storage,int op_id,int rotation_direction,program_instruction_type *program_instructions){
-
-  /* source-smear the point source */
-  smear_spinor_field(source,program_instructions);
-
-  compute_inversion_with_tm_rotation(source,spinor_field_for_intermediate_storage,op_id,rotation_direction,program_instructions);
-
-  /* sink-smear the point-source propagator */
-  smear_spinor_field(spinor_field_for_intermediate_storage,program_instructions);
-
-  copy_spinor_field(inversion,spinor_field_for_intermediate_storage,program_instructions);
 }
 
 void compute_forward_propagators_for_coherent_source_location(int i_src,int i_coherent,double **propagator_list,int op_id,int rotation_direction,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type * cvc_and_tmLQCD_information){
