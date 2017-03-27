@@ -414,6 +414,11 @@ int init_clover_eo_spincolor_pointsource_propagator(double *s_even, double *s_od
       unsigned int eo_source_location = g_lexic2eosub[ g_ipt[local_source_coords[0]][local_source_coords[1]][local_source_coords[2]][local_source_coords[3]] ];
       work0[_GSI(eo_source_location) + 2*isc] = 1.0;
     }
+    /**********************************************
+     * apply A^-1 g5
+     * A^-1 = ( M_ee^-1 g5          0 )
+     *        ( -g5 M_eo M_ee^-1 g5 1 )
+     **********************************************/
     /* even component */
     /* xi_e = M^-1 eta_e */
     M_clover_zz_inv_matrix (s_even, work0, mzzinv);
@@ -421,7 +426,7 @@ int init_clover_eo_spincolor_pointsource_propagator(double *s_even, double *s_od
     /* odd component */
     /* xi_o = g5 X_oe M^-1 eta_e */
     memcpy(work0, s_even, sizeof_eo_spinor_field );
-    xchange_eo_field(work0, 0);
+    // xchange_eo_field(work0, 0);
     Hopping_eo(s_odd, work0, gauge_field, 1);
     g5_phi(s_odd, Vhalf);
     spinor_field_ti_eq_re(s_odd, -1., Vhalf);
