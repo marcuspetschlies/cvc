@@ -481,6 +481,29 @@ void store_contraction_under_aff_key(contraction_writer_type *contraction_writer
   }
 }
 
+void store_contraction_under_aff_key_for_meson(contraction_writer_type *contraction_writer,pathname_type aff_key_to_write_contractions_to,gathered_FT_WDc_contractions_for_meson_type *gathered_FT_WDc_contractions_for_meson,global_source_location_type gsl,int i_sink_momentum,int exit_code){
+  write_to_stdout("# [piN2piN] current aff path = %s\n", aff_key_to_write_contractions_to);
+
+  contraction_writer->affdir = aff_writer_mkpath(contraction_writer->affw, contraction_writer->affn, aff_key_to_write_contractions_to);
+  if(contraction_writer->affdir == NULL) {
+    write_to_stderr("[piN2piN] Error from aff_writer_mkpath\n");
+    write_to_stderr("[piN2piN] Aff err msg: %s\n", aff_writer_errstr(contraction_writer->affw));
+    EXIT(exit_code);
+  }
+
+  int it;
+  for(it=0; it<T_global; it++) {
+    int ir = ( it - gsl.x[0] + T_global ) % T_global;
+    contraction_writer->aff_buffer[ir] = (*gathered_FT_WDc_contractions_for_meson)[it][2*i_sink_momentum]  + I * (*gathered_FT_WDc_contractions_for_meson)[it][2*i_sink_momentum+1];
+  }
+  int status = aff_node_put_complex (contraction_writer->affw, contraction_writer->affdir, contraction_writer->aff_buffer, (uint32_t)T_global);
+  if(status != 0) {
+    write_to_stderr("[piN2piN] Error from aff_node_put_double, status was %d\n", status);
+    write_to_stderr("[piN2piN] Aff err msg: %s\n", aff_writer_errstr(contraction_writer->affw));
+    EXIT(exit_code);
+  }
+}
+
 void allocate_memory_for_spinor_field_list(double ***spinor_field_list,int no_fields,int sizeof_spinor_field,int exit_code){
   int i;
   (*spinor_field_list) = (double**)malloc(no_fields * sizeof(double*));
@@ -570,10 +593,30 @@ void init_FT_WDc_contractions(FT_WDc_contractions_type *FT_WDc_contractions,int 
   }  
 }
 
+void init_FT_WDc_contractions_for_meson(FT_WDc_contractions_for_meson_type *FT_WDc_contractions_for_meson,int exit_code){
+  (*FT_WDc_contractions_for_meson) = NULL;
+  int exitstatus;
+  if( (exitstatus = init_2level_buffer(FT_WDc_contractions_for_meson, T, 2*g_sink_momentum_number)) != 0 ) {
+    write_to_stderr("[piN2piN] Error from init_2level_buffer, status was %d\n", exitstatus);
+    EXIT(exit_code);
+  }  
+}
+
 void compute_fourier_transformation_on_local_lattice_from_WDc_contractions(FT_WDc_contractions_type *FT_WDc_contractions,program_instruction_type *program_instructions,int diagram,int num_component){
   int it,exitstatus;
   for(it=0; it<T; it++) {
     exitstatus = momentum_projection2 (program_instructions->conn_X[diagram][it*program_instructions->VOL3*num_component][0], (*FT_WDc_contractions)[it][0][0], num_component*g_sv_dim*g_sv_dim, g_sink_momentum_number, g_sink_momentum_list, NULL );
+  }
+}
+
+void compute_fourier_transformation_on_local_lattice_from_WDc_contractions_for_meson(double *conn_M,FT_WDc_contractions_for_meson_type *FT_WDc_contractions_for_meson,program_instruction_type *program_instructions){
+  int exitstatus;
+
+  /* momentum projection */
+  exitstatus = momentum_projection3 ( conn_M, (*FT_WDc_contractions_for_meson)[0], T, g_sink_momentum_number, g_sink_momentum_list);
+  if(exitstatus != 0) {
+    all_processes_write_to_stderr("[piN2piN] Error from momentum_projection, status was %d\n", exitstatus);
+    EXIT(8);
   }
 }
 
@@ -583,6 +626,17 @@ void init_gathered_FT_WDc_contractions(gathered_FT_WDc_contractions_type *gather
     (*gathered_FT_WDc_contractions) = NULL;
     if( (exitstatus = init_4level_buffer(gathered_FT_WDc_contractions, T_global, g_sink_momentum_number, num_component*g_sv_dim, 2*g_sv_dim) ) != 0 ) {
       write_to_stderr("[piN2piN] Error from init_4level_buffer, status was %d\n", exitstatus);
+      EXIT(exit_code);
+    }
+  }
+}
+
+void init_gathered_FT_WDc_contractions_for_meson(gathered_FT_WDc_contractions_for_meson_type *gathered_FT_WDc_contractions_for_meson,program_instruction_type *program_instructions,int exit_code){
+  int exitstatus;
+  if(program_instructions->io_proc>0) {
+    (*gathered_FT_WDc_contractions_for_meson) = NULL;
+    if( (exitstatus = init_2level_buffer(gathered_FT_WDc_contractions_for_meson, T_global, 2*g_sink_momentum_number ) ) != 0 ) {
+      all_processes_write_to_stderr("[piN2piN] Error from init_2level_buffer, status was %d\n", exitstatus);
       EXIT(exit_code);
     }
   }
@@ -600,16 +654,40 @@ void gather_FT_WDc_contractions_on_timeline(gathered_FT_WDc_contractions_type *g
   }
 }
 
+void gather_FT_WDc_contractions_on_timeline_for_meson(gathered_FT_WDc_contractions_for_meson_type *gathered_FT_WDc_contractions_for_meson,FT_WDc_contractions_for_meson_type *FT_WDc_contractions_for_meson,program_instruction_type *program_instructions,int exit_code){
+  int exitstatus;
+  if(program_instructions->io_proc>0) {
+    int k = T * g_sink_momentum_number * 2;
+    exitstatus = MPI_Allgather((*FT_WDc_contractions_for_meson)[0], k, MPI_DOUBLE, (*gathered_FT_WDc_contractions_for_meson)[0], k, MPI_DOUBLE, g_tr_comm);
+    if(exitstatus != MPI_SUCCESS) {
+      all_processes_write_to_stderr("[piN2piN] Error from MPI_Allgather, status was %d\n", exitstatus);
+      EXIT(exit_code);
+    }
+  }
+}
+
 void set_gathered_FT_WDc_contractions_to_FT_WDc_contractions(gathered_FT_WDc_contractions_type *gathered_FT_WDc_contractions,FT_WDc_contractions_type *FT_WDc_contractions){
   (*gathered_FT_WDc_contractions) = (*FT_WDc_contractions);
+}
+
+void set_gathered_FT_WDc_contractions_for_meson_to_FT_WDc_contractions_for_meson(gathered_FT_WDc_contractions_for_meson_type *gathered_FT_WDc_contractions_for_meson,FT_WDc_contractions_for_meson_type *FT_WDc_contractions_for_meson){
+  (*gathered_FT_WDc_contractions_for_meson) = (*FT_WDc_contractions_for_meson);
 }
 
 void exit_gathered_FT_WDc_contractions(gathered_FT_WDc_contractions_type *gathered_FT_WDc_contractions,program_instruction_type *program_instructions){
   if(program_instructions->io_proc > 0) { fini_4level_buffer(gathered_FT_WDc_contractions); }
 }
 
+void exit_gathered_FT_WDc_contractions_for_meson(gathered_FT_WDc_contractions_for_meson_type *gathered_FT_WDc_contractions_for_meson,program_instruction_type *program_instructions){
+  if(program_instructions->io_proc > 0) { fini_2level_buffer(gathered_FT_WDc_contractions_for_meson); }
+}
+
 void exit_FT_WDc_contractions(FT_WDc_contractions_type *FT_WDc_contractions){
   fini_4level_buffer(FT_WDc_contractions);
+}
+
+void exit_FT_WDc_contractions_for_meson(FT_WDc_contractions_for_meson_type *FT_WDc_contractions_for_meson){
+  fini_2level_buffer(FT_WDc_contractions_for_meson);
 }
 
 void allocate_memory_for_ft_and_gathering(FT_WDc_contractions_type *FT_WDc_contractions,gathered_FT_WDc_contractions_type *gathered_FT_WDc_contractions,int num_component,program_instruction_type *program_instructions,int exit_code_1,int exit_code_2){
@@ -619,11 +697,25 @@ void allocate_memory_for_ft_and_gathering(FT_WDc_contractions_type *FT_WDc_contr
 #endif
 }
 
+void allocate_memory_for_ft_and_gathering_for_meson(FT_WDc_contractions_for_meson_type *FT_WDc_contractions_for_meson,gathered_FT_WDc_contractions_for_meson_type *gathered_FT_WDc_contractions_for_meson,program_instruction_type *program_instructions,int exit_code_1,int exit_code_2){
+    init_FT_WDc_contractions_for_meson(FT_WDc_contractions_for_meson,exit_code_1);
+#ifdef HAVE_MPI
+    init_gathered_FT_WDc_contractions_for_meson(gathered_FT_WDc_contractions_for_meson,program_instructions,exit_code_2);
+#endif
+}
+
 void free_memory_for_ft_and_gathering(FT_WDc_contractions_type *FT_WDc_contractions,gathered_FT_WDc_contractions_type *gathered_FT_WDc_contractions,program_instruction_type *program_instructions){
 #ifdef HAVE_MPI
     exit_gathered_FT_WDc_contractions(gathered_FT_WDc_contractions,program_instructions);
 #endif
     exit_FT_WDc_contractions(FT_WDc_contractions);
+}
+
+void free_memory_for_ft_and_gathering_for_meson(FT_WDc_contractions_for_meson_type *FT_WDc_contractions_for_meson,gathered_FT_WDc_contractions_for_meson_type *gathered_FT_WDc_contractions_for_meson,program_instruction_type *program_instructions){
+#ifdef HAVE_MPI
+    exit_gathered_FT_WDc_contractions_for_meson(gathered_FT_WDc_contractions_for_meson,program_instructions);
+#endif
+    exit_FT_WDc_contractions_for_meson(FT_WDc_contractions_for_meson);
 }
 
 void add_source_phase_to_FT_WDc_contractions(FT_WDc_contractions_type *FT_WDc_contractions,information_needed_for_source_phase_type *information_needed_for_source_phase,global_source_location_type gsl,int num_component){
@@ -640,6 +732,15 @@ void compute_gathered_FT_WDc_contractions(FT_WDc_contractions_type *FT_WDc_contr
   gather_FT_WDc_contractions_on_timeline(gathered_FT_WDc_contractions,FT_WDc_contractions,num_component,program_instructions,exit_code_1);
 #else
   set_gathered_FT_WDc_contractions_to_FT_WDc_contractions(gathered_FT_WDc_contractions,FT_WDc_contractions);
+#endif
+}
+
+void compute_gathered_FT_WDc_contractions_for_meson(double *conn_M,FT_WDc_contractions_for_meson_type *FT_WDc_contractions_for_meson,gathered_FT_WDc_contractions_for_meson_type *gathered_FT_WDc_contractions_for_meson,global_source_location_type gsl,program_instruction_type *program_instructions,int exit_code_1){
+  compute_fourier_transformation_on_local_lattice_from_WDc_contractions_for_meson(conn_M,FT_WDc_contractions_for_meson,program_instructions);
+#ifdef HAVE_MPI
+  gather_FT_WDc_contractions_on_timeline_for_meson(gathered_FT_WDc_contractions_for_meson,FT_WDc_contractions_for_meson,program_instructions,exit_code_1);
+#else
+  set_gathered_FT_WDc_contractions_for_meson_to_FT_WDc_contractions_for_meson(gathered_FT_WDc_contractions_for_meson,FT_WDc_contractions_for_meson);
 #endif
 }
 
@@ -1071,27 +1172,57 @@ void compute_sources_and_propagators_with_momentum_for_oet(int iseq_mom,stochast
     compute_stochastic_propagator_for_oet(stochastic_sources_and_propagators_for_oet->propagator_list[4+dirac_index],stochastic_sources_and_propagators_for_oet->source_list[dirac_index],program_instructions);
   }
 }
- 
-void compute_and_store_correlators_for_pi_pi_with_oet_from_WDc_contractions(){
-/*
-  FT_WDc_contractions_type FT_WDc_contractions;
-  gathered_FT_WDc_contractions_type gathered_FT_WDc_contractions;
-  allocate_memory_for_ft_and_gathering(&FT_WDc_contractions,&gathered_FT_WDc_contractions,num_component_piN_piN,program_instructions,52,53);
 
-  compute_gathered_FT_WDc_contractions();
-
-  store_correlators_for_pi_pi_with_oet();
-  
-  free_memory_for_ft_and_gathering(&FT_WDc_contractions,&gathered_FT_WDc_contractions,program_instructions);*/
+void get_aff_key_for_pi_pi_contractions_with_oet(pathname_type aff_key_to_write_contractions_to,three_momentum_type seq_source_momentum,three_momentum_type sink_momentum,global_source_location_type gsl){
+  sprintf(aff_key_to_write_contractions_to, "/%s/pi1x%.2dpi1y%.2dpi1z%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d",
+    "m-m",
+    seq_source_momentum.p[0],                seq_source_momentum.p[1],                seq_source_momentum.p[2],
+    sink_momentum.p[0],                sink_momentum.p[1],                sink_momentum.p[2],
+    gsl.x[0], gsl.x[1], gsl.x[2], gsl.x[3],
+    5, 5);
 }
 
-void compute_and_store_correlators_for_pi_pi_with_oet_for_coherent_source_location(){
-/*
+void store_correlators_for_pi_pi_with_oet(contraction_writer_type *contraction_writer,gathered_FT_WDc_contractions_for_meson_type *gathered_FT_WDc_contractions_for_meson,three_momentum_type seq_source_momentum,global_source_location_type gsl,program_instruction_type *program_instructions,int exit_code){
+  int k;
+  if(program_instructions->io_proc == 2) {
+    for(k=0; k<g_sink_momentum_number; k++) {
+      pathname_type aff_key_to_write_contractions_to;
+      three_momentum_type sink_momentum;
+      get_sink_momentum(&sink_momentum,k);
+      get_aff_key_for_pi_pi_contractions_with_oet(aff_key_to_write_contractions_to,seq_source_momentum,sink_momentum,gsl); 
+      store_contraction_under_aff_key_for_meson(contraction_writer,aff_key_to_write_contractions_to,gathered_FT_WDc_contractions_for_meson,gsl,k,exit_code);
+    }
+  }
+}
+ 
+void compute_and_store_correlators_for_pi_pi_with_oet_from_WDc_contractions(double *conn_M,three_momentum_type seq_source_momentum,global_source_location_type gsl,program_instruction_type *program_instructions,contraction_writer_type *contraction_writer){
+
+  FT_WDc_contractions_for_meson_type FT_WDc_contractions_for_meson;
+  gathered_FT_WDc_contractions_for_meson_type gathered_FT_WDc_contractions_for_meson;
+  allocate_memory_for_ft_and_gathering_for_meson(&FT_WDc_contractions_for_meson,&gathered_FT_WDc_contractions_for_meson,program_instructions,61,62);
+
+  compute_gathered_FT_WDc_contractions_for_meson(conn_M,&FT_WDc_contractions_for_meson,&gathered_FT_WDc_contractions_for_meson,gsl,program_instructions,124);
+
+  store_correlators_for_pi_pi_with_oet(contraction_writer,&gathered_FT_WDc_contractions_for_meson,seq_source_momentum,gsl,program_instructions,85);
+  
+  free_memory_for_ft_and_gathering_for_meson(&FT_WDc_contractions_for_meson,&gathered_FT_WDc_contractions_for_meson,program_instructions);
+}
+
+void compute_Whick_Dirac_and_color_contractions_for_pi_pi_with_oet(double *conn_M,stochastic_sources_and_propagators_for_oet_type *stochastic_sources_and_propagators_for_oet){
+  contract_twopoint_xdep( (void*)conn_M, 5, 5, (void*)(&(stochastic_sources_and_propagators_for_oet->propagator_list[0])), (void*)(&(stochastic_sources_and_propagators_for_oet->propagator_list[4])), 1, 1, 1., 64);
+}
+
+void compute_and_store_correlators_for_pi_pi_with_oet_for_coherent_source_location(int iseq_mom,stochastic_sources_and_propagators_for_oet_type *stochastic_sources_and_propagators_for_oet,global_source_location_type gsl,program_instruction_type *program_instructions,contraction_writer_type *contraction_writer){
+
+  three_momentum_type seq_source_momentum;
+  get_seq_source_momentum(&seq_source_momentum,iseq_mom);
+
   set_memory_for_Whick_Dirac_and_color_contractions_to_zero(program_instructions);
+  double *conn_M = program_instructions->conn_X[0][0][0];
 
-  compute_Whick_Dirac_and_color_contractions_for_pi_pi_with_oet();
+  compute_Whick_Dirac_and_color_contractions_for_pi_pi_with_oet(conn_M,stochastic_sources_and_propagators_for_oet);
 
-  compute_and_store_correlators_for_pi_pi_with_oet_from_WDc_contractions();*/
+  compute_and_store_correlators_for_pi_pi_with_oet_from_WDc_contractions(conn_M,seq_source_momentum,gsl,program_instructions,contraction_writer);
 }
 
 void get_aff_key_for_piN_piN_contractions_with_oet(pathname_type aff_key_to_write_contractions_to,int isample,int diagram,three_momentum_type seq_source_momentum,three_momentum_type seq2_source_momentum,three_momentum_type sink_momentum,global_source_location_type gsl,int icomp){
@@ -1215,7 +1346,7 @@ void compute_and_store_correlators_which_use_oet_for_sample(int isample,forward_
       for(iseq_mom=0; iseq_mom < g_seq_source_momentum_number; iseq_mom++) {
         compute_sources_and_propagators_with_momentum_for_oet(iseq_mom,stochastic_sources_and_propagators_for_oet,gsl,program_instructions);
 
-        compute_and_store_correlators_for_pi_pi_with_oet_for_coherent_source_location();
+        compute_and_store_correlators_for_pi_pi_with_oet_for_coherent_source_location(iseq_mom,stochastic_sources_and_propagators_for_oet,gsl,program_instructions,&contraction_writer);
 
         int iseq2_mom;
         for(iseq2_mom=0; iseq2_mom < g_seq2_source_momentum_number; iseq2_mom++) {

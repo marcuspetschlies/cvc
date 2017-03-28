@@ -70,6 +70,9 @@ struct information_needed_for_source_phase_type{
 typedef double**** FT_WDc_contractions_type;
 typedef double**** gathered_FT_WDc_contractions_type;
 
+typedef double** FT_WDc_contractions_for_meson_type;
+typedef double** gathered_FT_WDc_contractions_for_meson_type;
+
 typedef double** propagator_pointer_list_type;
 
 typedef double** general_propagator_tffi_type;
