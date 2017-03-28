@@ -24,6 +24,9 @@
 #include "cvc_geometry.h"
 #include "cvc_utils.h"
 #include "Q_phi.h"
+#include "matrix_init.h"
+#include "project.h"
+#include "scalar_products.h"
 #include "Q_clover_phi.h"
 
 #ifdef F_
@@ -1076,5 +1079,229 @@ int Q_clover_invert (double*prop, double*source, double*gauge_field, double *mzz
   return(2);
 #endif
 }  /* Q_clover_invert */
+
+
+/********************************************************************
+ * invert on eo-precon eigenvector subspace
+ * prop and source are full spinor fields
+ ********************************************************************/
+int Q_clover_invert_subspace ( double**prop, double**source, int nsf, double*evecs, double*evecs_norm, int nev, double*gauge_field, double **mzz[2], double **mzzinv[2], int flavor_id) {
+
+  const unsigned int Vhalf = VOLUME / 2;
+  const unsigned int sizeof_eo_spinor_field = _GSI(Vhalf);
+
+  int i;
+  int exitstatus;
+  double **pcoeff = NULL, **eo_spinor_field=NULL, **eo_spinor_work=NULL;
+  double ratime, retime;
+
+  ratime = _GET_TIME;
+  
+  for(i=0; i<nsf; i++) {
+    spinor_field_lexic2eo ( source[i], eo_spinor_field[i] , eo_spinor_field[nsf+i] );
+  }
+
+  exitstatus = init_2level_buffer(&eo_spinor_field, 2*nsf, _GSI(Vhalf) );
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_invert_subspace] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(41);
+  }
+
+  exitstatus = init_2level_buffer(&eo_spinor_work, 2, _GSI( (VOLUME+RAND)/2 ) );
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_invert_subspace] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(41);
+  }
+
+  exitstatus = init_2level_buffer(&pcoeff, nsf, 2*nev);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_invert_subspace] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(41);
+  }
+
+
+  if( flavor_id == 1 ) {
+    /************************
+     * multiply with C_oo 
+     ************************/
+    for(i=0; i<nsf; i++) {
+      /* copy work0 <- eo field */
+      memcpy( eo_spinor_work[0], eo_spinor_field[nsf+i], sizeof_eo_spinor_field );
+      /* apply eo*/
+      C_clover_oo (eo_spinor_field[nsf+i], eo_spinor_work[0], gauge_field, eo_spinor_work[1], mzz[1-flavor_id][1], mzzinv[1-flavor_id][0]);
+    }  /* end of loop on spin-color */
+
+  }  /* end of if flavor_id == 1 */
+
+  /* odd projection coefficients pcoeff = V^+ sp_o */
+  exitstatus = project_reduce_from_propagator_field (pcoeff[0], eo_spinor_field[nsf], evecs, nsf, nev, Vhalf);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_invert_subspace] Error from project_reduce_from_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(42);
+  }
+
+  for(i=0; i<nsf; i++) {
+    int k;
+    for(k=0; k < nev; k++) {
+      pcoeff[i][2*k  ] *= evecs_norm[k];
+      pcoeff[i][2*k+1] *= evecs_norm[k];
+    }
+  }
+
+  exitstatus = project_expand_to_propagator_field(eo_spinor_field[nsf], pcoeff[0], evecs, nsf, nev, Vhalf);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_invert_subspace] Error from project_expand_to_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(42);
+  }
+
+  if(flavor_id == 0 ) {
+    for(i=0; i<nsf; i++) {
+      memcpy(eo_spinor_work[0], eo_spinor_field[nsf + i], sizeof_eo_spinor_field);
+      C_clover_oo (eo_spinor_field[nsf+i], eo_spinor_work[0], gauge_field, eo_spinor_work[1], mzz[1-flavor_id][1], mzzinv[1-flavor_id][0]);
+    }  /* end of loop on spin-color */
+  }  /* end of if flavor_id == 0 */
+
+  /* complete the propagator by call to B^{-1} */
+  for(i=0; i<nsf; i++) {
+    Q_clover_eo_SchurDecomp_Binv (eo_spinor_field[i], eo_spinor_field[nsf+i], eo_spinor_field[i], eo_spinor_field[nsf+i], gauge_field, mzzinv[flavor_id][0], eo_spinor_work[0]);
+  }
+
+  for(i=0; i<nsf; i++) {
+    spinor_field_lexic2eo ( prop[i], eo_spinor_field[i] , eo_spinor_field[nsf+i] );
+  }
+
+  fini_2level_buffer(&pcoeff);
+  fini_2level_buffer(&eo_spinor_field);
+  fini_2level_buffer(&eo_spinor_work);
+
+  retime = _GET_TIME;
+  if(g_cart_id==0) fprintf(stdout, "# [Q_clover_invert_subspace] time for preparing sequential propagator = %e seconds\n", retime-ratime);
+  return(0);
+}  /* end of Q_clover_invert_subspace */
+
+
+/********************************************************************
+ *
+ *  inversion for eo-precon spinor fields
+ *
+ *  NOTE: A^-1 g5 must have been applied beforehand;
+ *
+ *  here ONLY application of
+ *
+ *  ( 1  X ) x ( 1 0    ) x ( 1 0   ) for up / flavor_id = 0
+ *  ( 0  1 )   ( 0 C^-1 )   ( 0 P_V )
+ *
+ *  ( 1  Xbar ) x ( 1 0       ) x ( 1 0        ) for dn / flavor_id = 1
+ *  ( 0     1 )   ( 0 Cbar^-1 )   ( 0 P_Wtilde )
+ *
+ * safe, if prop_e = source_e and / or prop_o = source_o
+ ********************************************************************/
+
+int Q_clover_eo_invert_subspace ( double**prop_e,   double**prop_o, 
+                                  double**source_e, double**source_o, 
+                                  int nsf, double*evecs, double*evecs_norm, int nev, double*gauge_field, double **mzz[2], double **mzzinv[2], int flavor_id, double**eo_spinor_aux) {
+
+  const unsigned int Vhalf = VOLUME / 2;
+  const size_t sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
+
+  int i, exitstatus;
+  int fini_eo_spinor_work=0;
+  double **pcoeff = NULL, **eo_spinor_work=NULL;
+  double ratime, retime;
+
+  ratime = _GET_TIME;
+
+  if ( eo_spinor_aux == NULL ) {
+    exitstatus = init_2level_buffer(&eo_spinor_work, 2, _GSI( ( (VOLUME+RAND) / 2) ) );
+    if(exitstatus != 0) {
+      fprintf(stderr, "[Q_clover_eo_invert_subspace] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(1);
+    }
+    fini_eo_spinor_work = 1;
+  } else {
+    eo_spinor_work = eo_spinor_aux;
+    fini_eo_spinor_work = 0;
+  }
+
+
+  if( flavor_id == 1 ) {
+    /************************
+     * multiply with C_oo 
+     ************************/
+    for(i=0; i<nsf; i++) {
+      /* copy work0 <- eo field */
+      memcpy( eo_spinor_work[0], source_o[i], sizeof_eo_spinor_field );
+      /* prop_o <- C_oo work0 */
+      C_clover_oo ( prop_o[i], eo_spinor_work[0], gauge_field, eo_spinor_work[1], mzz[1-flavor_id][1], mzzinv[1-flavor_id][0]);
+    }  /* end of loop on spin-color */
+
+  } else {
+    /**********************************
+     * if prop_o and source_o 
+     * are the same fields in memory, 
+     * nothing needs to be copied;
+     *
+     * if they are different regions
+     * in memory, then copy source
+     * to prop
+     **********************************/
+    if ( prop_o != source_o ) {
+      for(i=0; i<nsf; i++) {
+        memcpy( prop_o[i], source_o[i], sizeof_eo_spinor_field );
+      }
+    }
+  }  /* end of if flavor_id == 1 */
+
+  exitstatus = init_2level_buffer(&pcoeff, nsf, 2*nev);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_eo_invert_subspace] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(2);
+  }
+
+  /* odd projection coefficients pcoeff = V^+ prop_o */
+  exitstatus = project_reduce_from_propagator_field (pcoeff[0], prop_o[0], evecs, nsf, nev, Vhalf);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_eo_invert_subspace] Error from project_reduce_from_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(3);
+  }
+
+  /* pcoeff <- Lambda^{-1] x proceff */
+  for(i=0; i<nsf; i++) {
+    int k;
+    for(k=0; k < nev; k++) {
+      if(g_cart_id == 0) fprintf(stdout, "# [Q_clover_eo_invert_subspace] pcoeff[%d, %d] = %25.16e %25.16e\n", i, k, pcoeff[i][2*k], pcoeff[i][2*k+1]);
+      pcoeff[i][2*k  ] *= evecs_norm[k];
+      pcoeff[i][2*k+1] *= evecs_norm[k];
+    }
+  }
+
+  /* prop_o <- V x pcoeff */
+  exitstatus = project_expand_to_propagator_field( prop_o[0], pcoeff[0], evecs, nsf, nev, Vhalf);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_eo_invert_subspace] Error from project_expand_to_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(4);
+  }
+
+  if(flavor_id == 0 ) {
+    for(i=0; i<nsf; i++) {
+      /* work0 <- prop_o */
+      memcpy( eo_spinor_work[0], prop_o[i], sizeof_eo_spinor_field);
+      /* prop_o <- C_oo work0 */
+      C_clover_oo ( prop_o[i], eo_spinor_work[0], gauge_field, eo_spinor_work[1], mzz[1-flavor_id][1], mzzinv[1-flavor_id][0]);
+    }  /* end of loop on spin-color */
+  }  /* end of if flavor_id == 0 */
+
+  /* complete the propagator by call to B^{-1} */
+  for(i=0; i<nsf; i++) {
+    Q_clover_eo_SchurDecomp_Binv ( prop_e[i], prop_o[i], source_e[i], prop_o[i], gauge_field, mzzinv[flavor_id][0], eo_spinor_work[0]);
+  }
+  fini_2level_buffer(&pcoeff);
+  if ( fini_eo_spinor_work == 1 ) fini_2level_buffer(&eo_spinor_work);
+  retime = _GET_TIME;
+  if(g_cart_id==0) fprintf(stdout, "# [Q_clover_eo_invert_subspace] time for subspace inversion = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+
+  return(0);
+
+}  /* end of Q_clover_eo_invert_subspace */
 
 }  /* end of namespace cvc */
