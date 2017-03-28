@@ -99,6 +99,11 @@ struct stochastic_sources_and_propagators_type{
   int no_fields;
 };
 
+struct stochastic_sources_and_propagators_for_oet_type{
+  double **propagator_list;
+  double **source_list;
+};
+
 struct cvc_and_tmLQCD_information_type{
   double **data;
 };
@@ -108,3 +113,4 @@ struct contraction_writer_type{
   struct AffNode_s *affn, *affdir;
   double _Complex *aff_buffer;
 };
+

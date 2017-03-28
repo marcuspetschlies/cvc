@@ -481,6 +481,34 @@ void store_contraction_under_aff_key(contraction_writer_type *contraction_writer
   }
 }
 
+void allocate_memory_for_spinor_field_list(double ***spinor_field_list,int no_fields,int sizeof_spinor_field,int exit_code){
+  int i;
+  (*spinor_field_list) = (double**)malloc(no_fields * sizeof(double*));
+  (*spinor_field_list)[0] = (double*)malloc(no_fields * sizeof_spinor_field);
+  if((*spinor_field_list)[0] == NULL) {
+    write_to_stderr("[piN2piN] Error from malloc\n");
+    EXIT(exit_code);
+  }
+  for(i=1; i<no_fields; i++) (*spinor_field_list)[i] = (*spinor_field_list)[i-1] + _GSI(VOLUME);
+}
+
+void free_memory_for_spinor_field_list(double **spinor_field_list){
+  free(spinor_field_list[0]);
+  free(spinor_field_list);
+}
+
+void set_spinor_field_to_zero(double* spinor_field,program_instruction_type *program_instructions){
+  memset(spinor_field, 0, program_instructions->sizeof_spinor_field);
+}
+
+void copy_spinor_field(double* dest,double* src,program_instruction_type *program_instructions){
+  memcpy( dest, src, program_instructions->sizeof_spinor_field);
+}
+
+void smear_spinor_field(double *spinor_field,program_instruction_type *program_instructions){
+  int exitstatus = Jacobi_Smearing(program_instructions->gauge_field_smeared, spinor_field, N_Jacobi, kappa_Jacobi);
+}
+
 void compute_inversion_with_tm_rotation(double* source,double* dest,int op_id,int rotation_direction,program_instruction_type *program_instructions){
   int exitstatus;
   
@@ -761,20 +789,29 @@ void compute_and_store_piN_D_contractions(int iseq_mom,int i_src,int i_coherent,
 
 }
 
-void init_contraction_writer(contraction_writer_type *contraction_writer,const char *name,int i_src,int exit_code_1,int exit_code_2, int exit_code_3,program_instruction_type *program_instructions){
+void get_filename_for_aff_writer(char *dest,const char *name,int i_src){
+  global_source_location_type gsl;
+  get_global_source_location(&gsl,i_src);
+
+  sprintf(dest, "%s.%.4d.tsrc%.2d.aff", name, Nconf, gsl.x[0] );
+}
+
+void get_filename_for_aff_writer_including_sample(char *dest,const char *name,int i_src,int isample){
+  global_source_location_type gsl;
+  get_global_source_location(&gsl,i_src);
+
+  sprintf(dest, "%s.%.4d.sample%02d.tsrc%.2d.aff", name, Nconf, isample, gsl.x[0] );
+}
+
+void init_contraction_writer(contraction_writer_type *contraction_writer,pathname_type filename,int exit_code_1,int exit_code_2, int exit_code_3,program_instruction_type *program_instructions){
   contraction_writer->affw = NULL;
   contraction_writer->affn = NULL;
   contraction_writer->affdir = NULL;
 
   if(program_instructions->io_proc == 2) {
-    global_source_location_type gsl;
-    get_global_source_location(&gsl,i_src);
-
     char *aff_status_str = (char*)aff_version();
     write_to_stdout("# [piN2piN] using aff version %s\n", aff_status_str);
   
-    pathname_type filename;
-    sprintf(filename, "%s.%.4d.tsrc%.2d.aff", name, Nconf, gsl.x[0] );
     write_to_stdout("# [piN2piN] writing data to file %s\n", filename);
     if(test_whether_pathname_exists(filename)){
       write_to_stderr("# [piN2piN] destination file %s already exists\n", filename);
@@ -817,7 +854,9 @@ void compute_and_store_correlators_which_need_only_forward_and_sequential_propag
   for(i_src=0; i_src < g_source_location_number; i_src++ ) {
     contraction_writer_type contraction_writer;
 
-    init_contraction_writer(&contraction_writer,"B_B",i_src,4,5,6,program_instructions);
+    pathname_type filename;
+    get_filename_for_aff_writer(filename,"B_B",i_src);
+    init_contraction_writer(&contraction_writer,filename,4,5,6,program_instructions);
 
     int i_coherent;
     for(i_coherent=0; i_coherent<g_coherent_source_number; i_coherent++) {
@@ -962,7 +1001,9 @@ void compute_and_store_correlators_which_need_stochastic_sources_and_propagators
   for(i_src=0; i_src < g_source_location_number; i_src++ ) {
     contraction_writer_type contraction_writer;
 
-    init_contraction_writer(&contraction_writer,"MB_MB",i_src,4,5,6,program_instructions);
+    pathname_type filename;
+    get_filename_for_aff_writer(filename,"MB_MB",i_src);
+    init_contraction_writer(&contraction_writer,filename,4,5,6,program_instructions);
 
     general_propagator_tffi_type general_propagator_tffi;
     general_propagator_pffii_type general_propagator_pffii;
@@ -991,22 +1032,22 @@ void compute_and_store_correlators_which_need_stochastic_sources_and_propagators
 
 }
 
-void compute_stochastic_propagator_for_oet(double *dest,double *source,program_instructions_type *program_instructions){
+void compute_stochastic_propagator_for_oet(double *dest,double *source,program_instruction_type *program_instructions){
   copy_spinor_field(program_instructions->spinor_work[0],source,program_instructions);
 
   compute_inversion_with_tm_rotation_and_smearing(dest,program_instructions->spinor_work[0],program_instructions->spinor_work[1],program_instructions->op_id_up,+1,program_instructions);
 }
 
-void compute_buffer_with_random_variables_and_set_timeslice_source_without_momentum(){
+void compute_buffer_with_random_variables_and_set_timeslice_source_without_momentum(double **dest,global_source_location_type gsl){
   int exitstatus;
-  if( (exitstatus = init_timeslice_source_oet(stochastic_source_list, gsx[0], NULL, 1)) != 0 ) {
-    fprintf(stderr, "[piN2piN] Error from init_timeslice_source_oet, status was %d\n", exitstatus);
+  if( (exitstatus = init_timeslice_source_oet(dest, gsl.x[0], NULL, 1)) != 0 ) {
+    all_processes_write_to_stderr("[piN2piN] Error from init_timeslice_source_oet, status was %d\n", exitstatus);
     EXIT(63);
   }
 }
 
-void compute_sources_and_propagators_without_momentum_for_oet(){
-  compute_buffer_with_random_variables_and_set_timeslice_source_without_momentum();
+void compute_sources_and_propagators_without_momentum_for_oet(stochastic_sources_and_propagators_for_oet_type *stochastic_sources_and_propagators_for_oet,global_source_location_type gsl,program_instruction_type *program_instructions){
+  compute_buffer_with_random_variables_and_set_timeslice_source_without_momentum(stochastic_sources_and_propagators_for_oet->source_list,gsl);
 
   int dirac_index;
   for(dirac_index=0; dirac_index<4; dirac_index++){
@@ -1014,24 +1055,25 @@ void compute_sources_and_propagators_without_momentum_for_oet(){
   }
 }
 
-void compute_timeslice_source_with_momentum_from_buffer_with_random_numbers(){
+void compute_timeslice_source_with_momentum_from_buffer_with_random_numbers(int iseq_mom,double **dest,global_source_location_type gsl){
   int exitstatus;
-  if( (exitstatus = init_timeslice_source_oet(stochastic_source_list, gsx[0], g_seq_source_momentum_list[iseq_mom], 0) ) != 0 ) {
-    fprintf(stderr, "[piN2piN] Error from init_timeslice_source_oet, status was %d\n", exitstatus);
+  if( (exitstatus = init_timeslice_source_oet(dest, gsl.x[0], g_seq_source_momentum_list[iseq_mom], 0) ) != 0 ) {
+    all_processes_write_to_stderr("[piN2piN] Error from init_timeslice_source_oet, status was %d\n", exitstatus);
     EXIT(64);
   }
 }
 
-void compute_sources_and_propagators_with_momentum_for_oet(){
-  compute_timeslice_source_with_momentum_from_buffer_with_random_numbers();
+void compute_sources_and_propagators_with_momentum_for_oet(int iseq_mom,stochastic_sources_and_propagators_for_oet_type *stochastic_sources_and_propagators_for_oet,global_source_location_type gsl,program_instruction_type *program_instructions){
+  compute_timeslice_source_with_momentum_from_buffer_with_random_numbers(iseq_mom,stochastic_sources_and_propagators_for_oet->source_list,gsl);
 
+  int dirac_index;
   for(dirac_index=0; dirac_index<4; dirac_index++){
-    compute_stochastic_propagator_for_oet(stochastic_sources_and_propagators_for_oet->propagator_list[dirac_index],stochastic_sources_and_propagators_for_oet->source_list[dirac_index],program_instructions);
+    compute_stochastic_propagator_for_oet(stochastic_sources_and_propagators_for_oet->propagator_list[4+dirac_index],stochastic_sources_and_propagators_for_oet->source_list[dirac_index],program_instructions);
   }
 }
  
 void compute_and_store_correlators_for_pi_pi_with_oet_from_WDc_contractions(){
-
+/*
   FT_WDc_contractions_type FT_WDc_contractions;
   gathered_FT_WDc_contractions_type gathered_FT_WDc_contractions;
   allocate_memory_for_ft_and_gathering(&FT_WDc_contractions,&gathered_FT_WDc_contractions,num_component_piN_piN,program_instructions,52,53);
@@ -1040,19 +1082,49 @@ void compute_and_store_correlators_for_pi_pi_with_oet_from_WDc_contractions(){
 
   store_correlators_for_pi_pi_with_oet();
   
-  free_memory_for_ft_and_gathering(&FT_WDc_contractions,&gathered_FT_WDc_contractions,program_instructions);
+  free_memory_for_ft_and_gathering(&FT_WDc_contractions,&gathered_FT_WDc_contractions,program_instructions);*/
 }
 
 void compute_and_store_correlators_for_pi_pi_with_oet_for_coherent_source_location(){
-
+/*
   set_memory_for_Whick_Dirac_and_color_contractions_to_zero(program_instructions);
 
   compute_Whick_Dirac_and_color_contractions_for_pi_pi_with_oet();
 
-  compute_and_store_correlators_for_pi_pi_with_oet_from_WDc_contractions();
+  compute_and_store_correlators_for_pi_pi_with_oet_from_WDc_contractions();*/
 }
 
-void compute_and_store_correlators_for_piN_piN_with_oet_for_diagram(){
+void get_aff_key_for_piN_piN_contractions_with_oet(pathname_type aff_key_to_write_contractions_to,int isample,int diagram,three_momentum_type seq_source_momentum,three_momentum_type seq2_source_momentum,three_momentum_type sink_momentum,global_source_location_type gsl,int icomp){
+    sprintf(aff_key_to_write_contractions_to, "/%s/sample%d/diag%d/pi2x%.2dpi2y%.2dpi2z%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d",
+        "pixN-pixN", isample, diagram,
+        seq_source_momentum.p[0],   seq_source_momentum.p[1],   seq_source_momentum.p[2],
+        sink_momentum.p[0],                sink_momentum.p[1],                sink_momentum.p[2],
+        seq2_source_momentum.p[0],   seq2_source_momentum.p[1],   seq2_source_momentum.p[2],
+        gsl.x[0], gsl.x[1], gsl.x[2], gsl.x[3],
+        gamma_component_piN_piN[icomp][0], gamma_component_piN_piN[icomp][1]);
+
+}
+
+void store_piN_piN_contractions_for_piN_piN_with_oet_for_diagram(contraction_writer_type *contraction_writer,gathered_FT_WDc_contractions_type *gathered_FT_WDc_contractions,int isample,int iseq_mom,int iseq2_mom,int diagram,global_source_location_type gsl,program_instruction_type *program_instructions,int exit_code){
+  int k,icomp;
+  if(program_instructions->io_proc == 2) {
+    for(k=0; k<g_sink_momentum_number; k++) {
+      for(icomp=0; icomp<num_component_piN_piN; icomp++) {
+        pathname_type aff_key_to_write_contractions_to;
+        three_momentum_type sink_momentum;
+        get_sink_momentum(&sink_momentum,k);
+        three_momentum_type seq_source_momentum;
+        get_seq_source_momentum(&seq_source_momentum,iseq_mom);
+        three_momentum_type seq2_source_momentum;
+        get_seq2_source_momentum(&seq2_source_momentum,iseq2_mom);
+        get_aff_key_for_piN_piN_contractions_with_oet(aff_key_to_write_contractions_to,isample,diagram,seq_source_momentum,seq2_source_momentum,sink_momentum,gsl,icomp);
+        store_contraction_under_aff_key(contraction_writer,aff_key_to_write_contractions_to,gathered_FT_WDc_contractions,gsl,k,icomp,exit_code);
+      }
+    }
+  }
+}
+
+void compute_and_store_correlators_for_piN_piN_with_oet_for_diagram(int isample,int diagram,int iseq_mom,int iseq2_mom,global_source_location_type gsl,program_instruction_type *program_instructions,contraction_writer_type *contraction_writer){
   FT_WDc_contractions_type FT_WDc_contractions;
   gathered_FT_WDc_contractions_type gathered_FT_WDc_contractions;
   allocate_memory_for_ft_and_gathering(&FT_WDc_contractions,&gathered_FT_WDc_contractions,num_component_piN_piN,program_instructions,52,53);
@@ -1067,22 +1139,42 @@ void compute_and_store_correlators_for_piN_piN_with_oet_for_diagram(){
   init_information_needed_for_source_phase_so_that_source_phase_with_both_sequential_source_momenta_is_computed(&information_needed_for_source_phase,seq_source_momentum,seq2_source_momentum);
 
   compute_gathered_FT_WDc_contractions(&FT_WDc_contractions,&gathered_FT_WDc_contractions,gsl,diagram,num_component_piN_piN,program_instructions,&information_needed_for_source_phase,124);
-  store_piN_piN_contractions_for_piN_piN_with_oet_for_diagram(contraction_writer,&gathered_FT_WDc_contractions,iseq_mom,iseq2_mom,diagram,gsl,program_instructions,84);
+  store_piN_piN_contractions_for_piN_piN_with_oet_for_diagram(contraction_writer,&gathered_FT_WDc_contractions,isample,iseq_mom,iseq2_mom,diagram,gsl,program_instructions,84);
 
   free_memory_for_ft_and_gathering(&FT_WDc_contractions,&gathered_FT_WDc_contractions,program_instructions);
 }
 
-void compute_and_store_correlators_for_piN_piN_with_oet_for_coherent_source_location(){
+void compute_general_propagator_pfifi(int i_src,int i_coherent,int iseq2_mom,general_propagator_pfifi_type *general_propagator_pfifi,forward_propagators_type *forward_propagators,stochastic_sources_and_propagators_for_oet_type *stochastic_sources_and_propagators_for_oet){
+  /* prepare pfifi */
+  int exitstatus = prepare_seqn_stochastic_vertex_propagator_sliced3d_oet ((*general_propagator_pfifi), stochastic_sources_and_propagators_for_oet->propagator_list, &(stochastic_sources_and_propagators_for_oet->propagator_list[4]),
+          &(forward_propagators->propagator_list_up[get_forward_complete_is_propagator_index(i_src,i_coherent)*n_s*n_c]), g_seq2_source_momentum_list[iseq2_mom], 5, 5);
+  if( exitstatus != 0 ) {
+    all_processes_write_to_stderr("[piN2piN] Error from prepare_seqn_stochastic_vertex_propagator_sliced3d_oet, status was %d\n", exitstatus);
+    EXIT(45);
+  }
+}
 
-  compute_general_propagator_pfifi();
+void compute_Whick_Dirac_and_color_contractions_for_piN_piN_with_oet(int i_src,int i_coherent,general_propagator_pfifi_type *general_propagator_pfifi,forward_propagators_type *forward_propagators,program_instruction_type *program_instructions){
+  int i_prop = get_forward_complete_is_propagator_index(i_src,i_coherent);
+  int exitstatus = contract_piN_piN_oet ( program_instructions->conn_X, &(forward_propagators->propagator_list_up[i_prop*n_s*n_c]), &(forward_propagators->propagator_list_dn[i_prop*n_s*n_c]), 
+      (*general_propagator_pfifi), num_component_piN_piN, gamma_component_piN_piN, gamma_component_sign_piN_piN);
+  if( exitstatus != 0 ) {
+    all_processes_write_to_stderr("[piN2piN] Error from contract_piN_piN_oet, status was %d\n", exitstatus);
+    EXIT(46);
+  }
+}
+
+void compute_and_store_correlators_for_piN_piN_with_oet_for_coherent_source_location(int isample,int i_src,int i_coherent,int iseq_mom,int iseq2_mom,general_propagator_pfifi_type *general_propagator_pfifi,forward_propagators_type *forward_propagators,stochastic_sources_and_propagators_for_oet_type *stochastic_sources_and_propagators_for_oet,contraction_writer_type *contraction_writer,program_instruction_type *program_instructions,global_source_location_type gsl){
+
+  compute_general_propagator_pfifi(i_src,i_coherent,iseq2_mom,general_propagator_pfifi,forward_propagators,stochastic_sources_and_propagators_for_oet);
 
   set_memory_for_Whick_Dirac_and_color_contractions_to_zero(program_instructions);
 
-  compute_Whick_Dirac_and_color_contractions_for_piN_piN_with_oet();
+  compute_Whick_Dirac_and_color_contractions_for_piN_piN_with_oet(i_src,i_coherent,general_propagator_pfifi,forward_propagators,program_instructions);
 
   int diagram;
   for(diagram = 0; diagram < 4; diagram++){
-    compute_and_store_correlators_for_piN_piN_with_oet_for_diagram();
+    compute_and_store_correlators_for_piN_piN_with_oet_for_diagram(isample,diagram,iseq_mom,iseq2_mom,gsl,program_instructions,contraction_writer);
   }
 }
 
@@ -1090,7 +1182,7 @@ void allocate_memory_for_general_propagator_pfifi(general_propagator_pfifi_type 
   int exitstatus;
   (*general_propagator_pfifi) = NULL;
   if( (exitstatus = init_2level_buffer(general_propagator_pfifi, n_s*n_c, _GSI(VOLUME)) ) != 0 ) {
-    write_to_stderr("[piN2piN] Error from init_2level_buffer, status was %d\n", exitstatus);
+    all_processes_write_to_stderr("[piN2piN] Error from init_2level_buffer, status was %d\n", exitstatus);
     EXIT(54);
   }
 }
@@ -1108,24 +1200,26 @@ void compute_and_store_correlators_which_use_oet_for_sample(int isample,forward_
   for(i_src=0; i_src < g_source_location_number; i_src++) {
     contraction_writer_type contraction_writer;
 
-    init_contraction_writer(&contraction_writer,"piN_piN_oet",i_src,4,5,6,program_instructions);
+    pathname_type filename;
+    get_filename_for_aff_writer_including_sample(filename,"piN_piN_oet",i_src,isample);
+    init_contraction_writer(&contraction_writer,filename,4,5,6,program_instructions);
    
     int i_coherent;
     for(i_coherent = 0; i_coherent < g_coherent_source_number; i_coherent++) {
       global_source_location_type gsl;
       get_global_coherent_source_location(&gsl,i_src,i_coherent);
       
-      compute_sources_and_propagators_without_momentum_for_oet(stochastic_sources_and_propagators_for_oet);
+      compute_sources_and_propagators_without_momentum_for_oet(stochastic_sources_and_propagators_for_oet,gsl,program_instructions);
 
       int iseq_mom;
       for(iseq_mom=0; iseq_mom < g_seq_source_momentum_number; iseq_mom++) {
-        compute_sources_and_propagators_with_momentum_for_oet(stochastic_sources_and_propagators_for_oet);
+        compute_sources_and_propagators_with_momentum_for_oet(iseq_mom,stochastic_sources_and_propagators_for_oet,gsl,program_instructions);
 
         compute_and_store_correlators_for_pi_pi_with_oet_for_coherent_source_location();
 
         int iseq2_mom;
         for(iseq2_mom=0; iseq2_mom < g_seq2_source_momentum_number; iseq2_mom++) {
-          compute_and_store_correlators_for_piN_piN_with_oet_for_coherent_source_location();
+          compute_and_store_correlators_for_piN_piN_with_oet_for_coherent_source_location(isample,i_src,i_coherent,iseq_mom,iseq2_mom,&general_propagator_pfifi,forward_propagators,stochastic_sources_and_propagators_for_oet,&contraction_writer,program_instructions,gsl);
         }
       }
     }
@@ -1136,18 +1230,28 @@ void compute_and_store_correlators_which_use_oet_for_sample(int isample,forward_
   free_memory_for_general_propagator_pfifi(&general_propagator_pfifi);
 }
 
+void allocate_memory_for_stochastic_sources_and_propagators_for_oet(stochastic_sources_and_propagators_for_oet_type *stochastic_sources_and_propagators_for_oet,program_instruction_type *program_instructions){
+  allocate_memory_for_spinor_field_list(&stochastic_sources_and_propagators_for_oet->propagator_list,8,program_instructions->sizeof_spinor_field,1);
+  allocate_memory_for_spinor_field_list(&stochastic_sources_and_propagators_for_oet->source_list,4,program_instructions->sizeof_spinor_field,1);
+}
+
+void free_memory_for_stochastic_sources_and_propagators_for_oet(stochastic_sources_and_propagators_for_oet_type *stochastic_sources_and_propagators_for_oet){
+  free_memory_for_spinor_field_list(stochastic_sources_and_propagators_for_oet->propagator_list);
+  free_memory_for_spinor_field_list(stochastic_sources_and_propagators_for_oet->source_list);
+}
+
 void compute_and_store_correlators_which_use_oet(forward_propagators_type *forward_propagators,sequential_propagators_type *sequential_propagators,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type *cvc_and_tmLQCD_information){
 
-  stochastic_sources_and_propagators_for_oet_type stochastic_sources_and_propagators_for_oet_type;
+  stochastic_sources_and_propagators_for_oet_type stochastic_sources_and_propagators_for_oet;
 
-  allocate_memory_for_stochastic_propagators_for_oet(&stochastic_propagators_for_oet_type,program_instructions);
+  allocate_memory_for_stochastic_sources_and_propagators_for_oet(&stochastic_sources_and_propagators_for_oet,program_instructions);
 
   int isample;
   for(isample=0; isample < g_nsample_oet; isample++) {
     compute_and_store_correlators_which_use_oet_for_sample(isample,forward_propagators,sequential_propagators,&stochastic_sources_and_propagators_for_oet,program_instructions);
   }
 
-  free_memory_for_stochastic_propagators_for_oet(&stochastic_propagators_for_oet_type);
+  free_memory_for_stochastic_sources_and_propagators_for_oet(&stochastic_sources_and_propagators_for_oet);
 
 }
 
@@ -1192,17 +1296,6 @@ void free_memory_needed_for_the_correlator_computation_in_general(program_instru
   free_memory_for_the_contractions(program_instructions);
 }
 
-void allocate_memory_for_spinor_field_list(double ***spinor_field_list,int no_fields,int sizeof_spinor_field,int exit_code){
-  int i;
-  (*spinor_field_list) = (double**)malloc(no_fields * sizeof(double*));
-  (*spinor_field_list)[0] = (double*)malloc(no_fields * sizeof_spinor_field);
-  if((*spinor_field_list)[0] == NULL) {
-    write_to_stderr("[piN2piN] Error from malloc\n");
-    EXIT(exit_code);
-  }
-  for(i=1; i<no_fields; i++) (*spinor_field_list)[i] = (*spinor_field_list)[i-1] + _GSI(VOLUME);
-}
-
 void allocate_memory_for_forward_propagators(forward_propagators_type* forward_propagators,program_instruction_type *program_instructions){
   forward_propagators->no_fields = g_coherent_source_number * g_source_location_number * n_s*n_c; /* forward propagators at all base x coherent source locations */ 
   allocate_memory_for_spinor_field_list(&forward_propagators->propagator_list_up,forward_propagators->no_fields,program_instructions->sizeof_spinor_field,44);
@@ -1222,11 +1315,6 @@ void allocate_memory_for_stochastic_sources_and_propagators(stochastic_sources_a
   allocate_memory_for_spinor_field_list(&stochastic_sources_and_propagators->source_list,stochastic_sources_and_propagators->no_fields,program_instructions->sizeof_spinor_field,49);
 }
 
-void free_memory_for_spinor_field_list(double **spinor_field_list){
-  free(spinor_field_list[0]);
-  free(spinor_field_list);
-}
-
 void free_memory_for_forward_propagators(forward_propagators_type* forward_propagators,program_instruction_type *program_instructions){
   free_memory_for_spinor_field_list(forward_propagators->propagator_list_up);
   if(g_fermion_type == _TM_FERMION) {
@@ -1243,23 +1331,11 @@ void free_memory_for_stochastic_sources_and_propagators(stochastic_sources_and_p
   free_memory_for_spinor_field_list(stochastic_sources_and_propagators->source_list);
 }
 
-void set_spinor_field_to_zero(double* spinor_field,program_instruction_type *program_instructions){
-  memset(spinor_field, 0, program_instructions->sizeof_spinor_field);
-}
-
-void copy_spinor_field(double* dest,double* src,program_instruction_type *program_instructions){
-  memcpy( dest, src, program_instructions->sizeof_spinor_field);
-}
-
 void set_spinor_field_to_point_source(double *spinor_field,local_source_location_type lsl,int is,program_instruction_type *program_instructions){
   set_spinor_field_to_zero(spinor_field,program_instructions);
   if(lsl.proc_id == g_cart_id)  {
     spinor_field[_GSI(g_ipt[lsl.x[0]][lsl.x[1]][lsl.x[2]][lsl.x[3]])+2*is] = 1.;
   }
-}
-
-void smear_spinor_field(double *spinor_field,program_instruction_type *program_instructions){
-  int exitstatus = Jacobi_Smearing(program_instructions->gauge_field_smeared, spinor_field, N_Jacobi, kappa_Jacobi);
 }
 
 void compute_forward_propagators_for_coherent_source_location(int i_src,int i_coherent,double **propagator_list,int op_id,int rotation_direction,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type * cvc_and_tmLQCD_information){
