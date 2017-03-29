@@ -32,5 +32,9 @@ int Q_clover_eo_invert_subspace ( double**prop_e,   double**prop_o, double**sour
                                   int nsf, double*evecs, double*evecs_norm, int nev, double*gauge_field, double **mzz[2], double **mzzinv[2], int flavor_id, double**eo_spinor_aux);
 
 
+int Q_clover_eo_invert_subspace_stochastic ( double**prop_e, double**prop_o, double**source_e, double**source_o,
+                                             int nsf, double*sample_prop, double*sample_source, int nsample,
+                                             double*gauge_field, double**mzz[2], double**mzzinv[2], int flavor_id, double**eo_spinor_aux );
+
 }  /* end of namespace cvc */
 #endif
