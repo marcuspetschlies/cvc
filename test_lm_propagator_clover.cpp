@@ -102,7 +102,7 @@ int main(int argc, char **argv) {
   /* complex w; */
 
   int evecs_num=0;
-  double *evecs_lambdaOneHalf=NULL, *evecs_eval = NULL;
+  double *evecs_lambdaOneHalf=NULL, *evecs_eval = NULL, *evecs_lambdainv=NULL;
   double *eo_evecs_block[2], **eo_spinor_field=NULL, **eo_spinor_work=NULL, **full_spinor_work_halo=NULL;
   double **eo_evecs_field=NULL;
 
@@ -342,6 +342,12 @@ int main(int argc, char **argv) {
     EXIT(63);
   }
 
+  evecs_lambdainv = (double*)malloc(evecs_num * sizeof(double));
+  if(evecs_lambdainv == NULL) {
+    fprintf(stderr, "[test_lm_propagator_clover] Error from calloc\n");
+    EXIT(68);
+  }
+
   evecs_lambdaOneHalf = (double*)malloc(evecs_num * sizeof(double));
   if(evecs_lambdaOneHalf == NULL) {
     fprintf(stderr, "[test_lm_propagator_clover] Error from calloc\n");
@@ -444,8 +450,9 @@ int main(int argc, char **argv) {
   }
 #endif
   for(i=0; i<evecs_num; i++) {
+    evecs_lambdainv[i] = 2.* g_kappa / evecs_eval[i];
     evecs_lambdaOneHalf[i] = 2. * g_kappa / sqrt( evecs_eval[i] );
-    if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagator_clover] eval %4d %25.16e %25.16e\n", i, evecs_eval[i], evecs_lambdaOneHalf[i]);
+    if(g_cart_id == 0 && g_verbose > 0 ) fprintf(stdout, "# [test_lm_propagator_clover] eval %4d %25.16e %25.16e\n", i, evecs_eval[i], evecs_lambdaOneHalf[i]);
   }
 
   /***********************************************
@@ -460,7 +467,7 @@ int main(int argc, char **argv) {
   flavor_sign = -1;
   flavor_id = ( 1 - flavor_sign) / 2;
   op_id = flavor_id;
-  if(g_cart_id==0) fprintf(stdout, "# [] flavor sign = %d, flavor id = %d, op id = %d\n", flavor_sign, flavor_id, op_id);
+  if(g_cart_id==0) fprintf(stdout, "# [test_lm_propagator_clover] flavor sign = %d, flavor id = %d, op id = %d\n", flavor_sign, flavor_id, op_id);
 
 #if 0
   /***********************************************************
@@ -481,7 +488,7 @@ int main(int argc, char **argv) {
     w.im *= 4.*g_kappa*g_kappa;
    
     if(g_cart_id == 0) {
-      fprintf(stdout, "# [] evec %.4d norm = %16.7e w = %16.7e +I %16.7e\n", i, norm, w.re, w.im);
+      fprintf(stdout, "# [test_lm_propagator_clover] evec %.4d norm = %16.7e w = %16.7e +I %16.7e\n", i, norm, w.re, w.im);
     }
   }
 #endif
@@ -497,9 +504,33 @@ int main(int argc, char **argv) {
     spinor_scalar_product_re(&dnorm2, eo_evecs_field[i+evecs_num], eo_evecs_field[i+evecs_num], Vhalf);
     norm    = 1./sqrt(dnorm2);
     dnorm2 *= 4.*g_kappa*g_kappa;
-    if(g_cart_id == 0) fprintf(stdout, "# [] evec %.4d ||V||^2 = %16.7e ||W||^2 = %16.7e\n", i, dnorm, dnorm2);
+    if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagator_clover] evec %.4d ||V||^2 = %16.7e ||W||^2 = %16.7e\n", i, dnorm, dnorm2);
     spinor_field_ti_eq_re(eo_evecs_field[evecs_num+i], norm, Vhalf);
   }
+#endif
+
+#if 0
+  /***********************************************************
+   * test subspace inversion on point source
+   ***********************************************************/
+  random_spinor_field (eo_spinor_field[0], Vhalf);
+  random_spinor_field (eo_spinor_field[1], Vhalf);
+
+  /* apply B^-1 P */
+  exitstatus = Q_clover_eo_invert_subspace ( &(eo_spinor_field[2]), &(eo_spinor_field[3]),
+                                             &(eo_spinor_field[0]), &(eo_spinor_field[1]),
+                                             1, eo_evecs_block[0], evecs_lambdainv, evecs_num, gauge_field_with_phase, mzz, mzzinv, flavor_id, eo_spinor_work) ;
+  /* apply B */
+  Q_clover_eo_SchurDecomp_B (  eo_spinor_field[4], eo_spinor_field[5],
+                               eo_spinor_field[2], eo_spinor_field[3],
+                               gauge_field_with_phase, mzz[flavor_id][1], mzzinv[flavor_id][0], eo_spinor_work[0]);
+
+  exitstatus = project_propagator_field ( eo_spinor_field[1], eo_spinor_field[1], 1, eo_evecs_block[flavor_id], 1, evecs_num, Vhalf);
+
+  spinor_field_norm_diff( &norm, eo_spinor_field[0], eo_spinor_field[4], Vhalf);
+  if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] P vs B [B^-1 P] even norm %e\n", norm);
+  spinor_field_norm_diff( &norm, eo_spinor_field[1], eo_spinor_field[5], Vhalf);
+  if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] P vs B [B^-1 P] odd  norm %e\n", norm);
 #endif
 
 #if 0
@@ -844,10 +875,8 @@ int main(int argc, char **argv) {
   free_geometry();
 
   if( evecs_lambdaOneHalf != NULL ) free( evecs_lambdaOneHalf );
-#ifndef HAVE_TMLQCD_LIBWRAPPER
   if( evecs_eval          != NULL ) free( evecs_eval );
-#endif
-
+  if( evecs_lambdainv     != NULL ) free( evecs_lambdainv );
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
   tmLQCD_finalise();

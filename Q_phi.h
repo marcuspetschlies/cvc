@@ -41,5 +41,7 @@ void apply_cvc_vertex_propagator_eo ( fermion_propagator_type *s, fermion_propag
 
 void apply_propagator_constant_cvc_vertex ( fermion_propagator_type *s, fermion_propagator_type *r, int mu, int fbwd, double U[18], const unsigned int N );
 
+int Q_invert (double*prop, double*source, double*gauge_field, double mass, int op_id);
+
 }  /* end of namespace cvc */
 #endif

@@ -344,7 +344,7 @@ void Q_phi(double *xi, double *phi, double*gauge_field, const double mutm) {
 
   const double _1_2_kappa = 0.5 / g_kappa;
 #ifdef HAVE_MPI
-  xchange_field(xi);
+  xchange_field( phi );
 #endif
 
 #ifdef HAVE_OPENMP
@@ -1455,5 +1455,43 @@ void apply_propagator_constant_cvc_vertex ( fermion_propagator_type *s, fermion_
  }  /* end of if fbwd = 0 or 1 */
 
 }  /* end of apply_cvc_vertex_propagator_eo */
+
+
+/********************************************************************
+ * prop and source full spinor fields
+ ********************************************************************/
+int Q_invert (double*prop, double*source, double*gauge_field, double mass, int op_id) {
+#ifdef HAVE_TMLQCD_LIBWRAPPER
+  const size_t sizeof_eo_spinor_field_with_halo = _GSI(VOLUME+RAND)/2;
+
+  int exitstatus;
+  double *eo_spinor_work[3];
+
+  eo_spinor_work[0]  = (double*)malloc( sizeof_eo_spinor_field_with_halo );
+  eo_spinor_work[1]  = (double*)malloc( sizeof_eo_spinor_field_with_halo );
+  eo_spinor_work[2]  = (double*)malloc( sizeof_eo_spinor_field_with_halo );
+
+  spinor_field_lexic2eo (source, eo_spinor_work[0], eo_spinor_work[1] );
+
+  Q_eo_SchurDecomp_Ainv (eo_spinor_work[0], eo_spinor_work[1], eo_spinor_work[0], eo_spinor_work[1], gauge_field, mass, eo_spinor_work[2]);
+
+  exitstatus = tmLQCD_invert_eo(eo_spinor_work[2], eo_spinor_work[1], op_id);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_invert] Error from tmLQCD_invert_eo, status was %d\n", exitstatus);
+    return(1);
+  }
+  Q_eo_SchurDecomp_Binv (eo_spinor_work[0], eo_spinor_work[2], eo_spinor_work[0], eo_spinor_work[2], gauge_field, mass, eo_spinor_work[1]);
+  spinor_field_eo2lexic (prop, eo_spinor_work[0], eo_spinor_work[2] );
+  free( eo_spinor_work[0] );
+  free( eo_spinor_work[1] );
+  free( eo_spinor_work[2] );
+
+  return(0);
+#else
+  if( g_cart_id == 0 ) fprintf(stderr, "[Q_invert] Error, no inverter\n");
+  return(2);
+#endif
+}  /* Q_invert */
+
 
 }  /* end of namespace cvc */

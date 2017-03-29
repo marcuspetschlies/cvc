@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <complex.h>
 #include <math.h>
 #include <time.h>
 #ifdef HAVE_MPI
@@ -21,6 +22,10 @@
 #endif
 #include <getopt.h>
 
+#ifdef HAVE_LHPC_AFF
+#include "lhpc-aff.h"
+#endif
+
 #include "cvc_complex.h"
 #include "ilinalg.h"
 #include "cvc_linalg.h"
@@ -28,8 +33,11 @@
 #include "cvc_geometry.h"
 #include "cvc_utils.h"
 #include "mpi_init.h"
+#include "matrix_init.h"
+#include "project.h"
 #include "Q_phi.h"
 #include "Q_clover_phi.h"
+#include "contract_cvc_tensor.h"
 
 namespace cvc {
 
@@ -460,5 +468,261 @@ void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_te
   return;
 
 }  /* end of contract_cvc_tensor_eo */
+
+/***************************************************************************
+ * subtract contact term
+ *
+ * - only by process that has source location
+ ***************************************************************************/
+void cvc_tensor_eo_subtract_contact_term (double**tensor_eo, double*contact_term, int gsx[4], int have_source ) {
+
+  const unsigned int Vhalf = VOLUME / 2;
+
+  if( have_source ) {
+    int mu, sx[4] = { gsx[0] % T, gsx[1] % LX, gsx[2] % LY, gsx[3] % LZ };
+    unsigned int ix   = g_ipt[sx[0]][sx[1]][sx[2]][sx[3]];
+    unsigned int ixeo = g_lexic2eosub[ix];
+
+    if( g_verbose > 0 ) fprintf(stdout, "# [cvc_tensor_eo_subtract_contact_term] process %d subtracting contact term\n", g_cart_id);
+    if ( g_iseven[ix] ) {
+      for(mu=0; mu<4; mu++) {
+        tensor_eo[0][_GWI(5*mu,ixeo,Vhalf)    ] -= contact_term[2*mu  ];
+        tensor_eo[0][_GWI(5*mu,ixeo,Vhalf) + 1] -= contact_term[2*mu+1];
+      }
+    } else {
+      for(mu=0; mu<4; mu++) {
+        tensor_eo[1][_GWI(5*mu,ixeo,Vhalf)    ] -= contact_term[2*mu  ];
+        tensor_eo[1][_GWI(5*mu,ixeo,Vhalf) + 1] -= contact_term[2*mu+1];
+      }
+    }
+  }  /* end of if have source */
+}  /* end of cvc_tensor_eo_subtract_contact_term */
+
+
+/***************************************************************************
+ * momentum projections
+ ***************************************************************************/
+
+int cvc_tensor_eo_momentum_projection (double****tensor_tp, double**tensor_eo, int (*momentum_list)[3], int momentum_number) {
+
+  const unsigned int Vhalf = VOLUME / 2;
+  int exitstatus, mu;
+  double ***cvc_tp = NULL, *cvc_tensor_lexic=NULL;
+  double ratime, retime;
+
+  ratime = _GET_TIME;
+
+  if ( *tensor_tp == NULL ) {
+    exitstatus = init_3level_buffer(tensor_tp, momentum_number, 16, 2*T);
+    if(exitstatus != 0) {
+      fprintf(stderr, "[cvc_tensor_eo_momentum_projection] Error from init_3level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(1);
+    }
+  }
+  cvc_tp = *tensor_tp;
+
+  cvc_tensor_lexic = (double*)malloc(32*VOLUME*sizeof(double));
+  if( cvc_tensor_lexic == NULL ) {
+    fprintf(stderr, "[cvc_tensor_eo_momentum_projection] Error from malloc %s %d\n", __FILE__, __LINE__);
+    return(2);
+  }
+  for ( mu=0; mu<16; mu++ ) {
+    complex_field_eo2lexic (cvc_tensor_lexic+2*mu*VOLUME, tensor_eo[0]+2*mu*Vhalf, tensor_eo[1]+2*mu*Vhalf );
+  }
+
+  exitstatus = momentum_projection (cvc_tensor_lexic, cvc_tp[0][0], T*16, momentum_number, momentum_list);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[cvc_tensor_eo_momentum_projection] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(3);
+  }
+  retime = _GET_TIME;
+  if( g_cart_id == 0 ) fprintf(stdout, "# [cvc_tensor_eo_momentum_projection] time for momentum projection = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+
+  return(0);
+}  /* end of cvc_tensor_eo_momentum_projection */
+
+/***************************************************************************
+ * write tp-tensor results to file
+ ***************************************************************************/
+
+int cvc_tensor_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, char*tag, int (*momentum_list)[3], int momentum_number, int io_proc ) {
+
+  int exitstatus, i;
+  double ratime, retime;
+  struct AffNode_s *affn = NULL, *affdir=NULL;
+  char aff_buffer_path[200];
+  double *buffer = NULL;
+  double _Complex *aff_buffer = NULL;
+  double _Complex *zbuffer = NULL;
+
+  if ( io_proc == 2 ) {
+    if( (affn = aff_writer_root(affw)) == NULL ) {
+      fprintf(stderr, "[cvc_tensor_tp_write_to_aff_file] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
+      return(1);
+    }
+
+    zbuffer = (double _Complex*)malloc(  momentum_number * 16 * T_global * sizeof(double _Complex) );
+    if( zbuffer == NULL ) {
+      fprintf(stderr, "[cvc_tensor_tp_write_to_aff_file] Error from malloc %s %d\n", __FILE__, __LINE__);
+      return(6);
+    }
+  }
+
+  ratime = _GET_TIME;
+
+  /* reorder cvc_tp into buffer with order time - munu - momentum */
+  buffer = (double*)malloc(  momentum_number * 32 * T * sizeof(double) );
+  if( buffer == NULL ) {
+    fprintf(stderr, "[cvc_tensor_tp_write_to_aff_file] Error from malloc %s %d\n", __FILE__, __LINE__);
+    return(6);
+  }
+  i = 0;
+  for( int it = 0; it < T; it++ ) {
+    for( int mu=0; mu<16; mu++ ) {
+      for( int ip=0; ip<momentum_number; ip++) {
+        buffer[i++] = cvc_tp[ip][mu][2*it  ];
+        buffer[i++] = cvc_tp[ip][mu][2*it+1];
+      }
+    }
+  }
+
+#ifdef HAVE_MPI
+  i = momentum_number * 32 * T;
+#  if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) 
+  if(io_proc>0) {
+    exitstatus = MPI_Gather(buffer, i, MPI_DOUBLE, zbuffer, i, MPI_DOUBLE, 0, g_tr_comm);
+    if(exitstatus != MPI_SUCCESS) {
+      fprintf(stderr, "[cvc_tensor_tp_write_to_aff_file] Error from MPI_Gather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(3);
+    }
+  }
+#  else
+  exitstatus = MPI_Gather(buffer, i, MPI_DOUBLE, zbuffer, i, MPI_DOUBLE, 0, g_cart_grid);
+  if(exitstatus != MPI_SUCCESS) {
+    fprintf(stderr, "[cvc_tensor_tp_write_to_aff_file] Error from MPI_Gather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(4);
+  }
+#  endif
+
+#else
+  memcpy(zbuffer, buffer, momentum_number * 32 * T * sizeof(double) );
+#endif
+  free( buffer );
+
+  if(io_proc == 2) {
+
+    /* reverse the ordering back to momentum - munu - time */
+    aff_buffer = (double _Complex*)malloc( momentum_number * 16 * T_global * sizeof(double _Complex) );
+    if(aff_buffer == NULL) {
+      fprintf(stderr, "[cvc_tensor_tp_write_to_aff_file] Error from malloc %s %d\n", __FILE__, __LINE__);
+      return(2);
+    }
+    i = 0;
+    for( int ip=0; ip<momentum_number; ip++) {
+      for( int mu=0; mu<16; mu++ ) {
+        for( int it = 0; it < T_global; it++ ) {
+          int offset = (it * 16 + mu ) * momentum_number + ip;
+          aff_buffer[i++] = zbuffer[offset];
+        }
+      }
+    }
+    free( zbuffer );
+
+    for(i=0; i < momentum_number; i++) {
+      sprintf(aff_buffer_path, "%s/px%.2dpy%.2dpz%.2d", tag, momentum_list[i][0], momentum_list[i][1], momentum_list[i][2] );
+      /* fprintf(stdout, "# [cvc_tensor_tp_write_to_aff_file] current aff path = %s\n", aff_buffer_path); */
+      affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
+      exitstatus = aff_node_put_complex (affw, affdir, aff_buffer+16*T_global*i, (uint32_t)T_global*16);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[cvc_tensor_tp_write_to_aff_file] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(5);
+      }
+    }
+    free( aff_buffer );
+  }  /* if io_proc == 2 */
+
+#ifdef HAVE_MPI
+  MPI_Barrier( g_cart_grid );
+#endif
+
+  retime = _GET_TIME;
+  if(io_proc == 2) fprintf(stdout, "# [cvc_tensor_tp_write_to_aff_file] time for saving momentum space results = %e seconds\n", retime-ratime);
+
+  return(0);
+
+}  /* end of cvc_tensor_tp_write_to_aff_file */
+
+
+/********************************************
+ * check Ward-identity in position space
+ *
+ *   starting from eo-precon tensor
+ ********************************************/
+
+int cvc_tensor_eo_check_wi_position_space (double **tensor_eo) {
+
+  const unsigned int Vhalf = VOLUME / 2;
+
+  int nu;
+  int exitstatus;
+  double ratime, retime;
+
+  /********************************************
+   * check the Ward identity in position space 
+   ********************************************/
+  ratime = _GET_TIME;
+
+  const unsigned int VOLUMEplusRAND = VOLUME + RAND;
+  const unsigned int stride = VOLUMEplusRAND;
+  double *conn_buffer = (double*)malloc(32*VOLUMEplusRAND*sizeof(double));
+  if(conn_buffer == NULL)  {
+    fprintf(stderr, "# [cvc_tensor_eo_check_wi_position_space] Error from malloc %s %d\n", __FILE__, __LINE__);
+    return(1);
+  }
+
+  for(nu=0; nu<16; nu++) {
+    complex_field_eo2lexic (conn_buffer+2*nu*VOLUMEplusRAND, tensor_eo[0]+2*nu*Vhalf, tensor_eo[1]+2*nu*Vhalf );
+#ifdef HAVE_MPI
+    xchange_contraction( conn_buffer+2*nu*VOLUMEplusRAND, 2 );
+#endif
+  }
+
+  if(g_cart_id == 0 && g_verbose > 1) fprintf(stdout, "# [cvc_tensor_eo_check_wi_position_space] checking Ward identity in position space\n");
+  for(nu=0; nu<4; nu++) {
+    double norm = 0.;
+    complex w;
+    unsigned int ix;
+    for(ix=0; ix<VOLUME; ix++ ) {
+      w.re = conn_buffer[_GWI(4*0+nu,ix          ,stride)  ] + conn_buffer[_GWI(4*1+nu,ix          ,stride)  ]
+           + conn_buffer[_GWI(4*2+nu,ix          ,stride)  ] + conn_buffer[_GWI(4*3+nu,ix          ,stride)  ]
+           - conn_buffer[_GWI(4*0+nu,g_idn[ix][0],stride)  ] - conn_buffer[_GWI(4*1+nu,g_idn[ix][1],stride)  ]
+           - conn_buffer[_GWI(4*2+nu,g_idn[ix][2],stride)  ] - conn_buffer[_GWI(4*3+nu,g_idn[ix][3],stride)  ];
+
+      w.im = conn_buffer[_GWI(4*0+nu,ix          ,stride)+1] + conn_buffer[_GWI(4*1+nu,ix          ,stride)+1]
+           + conn_buffer[_GWI(4*2+nu,ix          ,stride)+1] + conn_buffer[_GWI(4*3+nu,ix          ,stride)+1]
+           - conn_buffer[_GWI(4*0+nu,g_idn[ix][0],stride)+1] - conn_buffer[_GWI(4*1+nu,g_idn[ix][1],stride)+1]
+           - conn_buffer[_GWI(4*2+nu,g_idn[ix][2],stride)+1] - conn_buffer[_GWI(4*3+nu,g_idn[ix][3],stride)+1];
+      
+      norm += w.re*w.re + w.im*w.im;
+    }
+#ifdef HAVE_MPI
+    double dtmp = norm;
+    exitstatus = MPI_Allreduce(&dtmp, &norm, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid);
+    if(exitstatus != MPI_SUCCESS) {
+      fprintf(stderr, "[cvc_tensor_eo_check_wi_position_space] Error from MPI_Allreduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(2);
+    }
+#endif
+    if(g_cart_id == 0) fprintf(stdout, "# [cvc_tensor_eo_check_wi_position_space] WI nu = %2d norm = %25.16e %s %d\n", nu, norm, __FILE__, __LINE__);
+  }  /* end of loop on nu */
+
+  free(conn_buffer);
+
+  retime = _GET_TIME;
+  if(g_cart_id==0) fprintf(stdout, "# [cvc_tensor_eo_check_wi_position_space] time for checking position space WI = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+
+  return(0);
+}  /* end of cvc_tensor_eo_check_wi_position_space */
+
 
 }  /* end of namespace cvc */

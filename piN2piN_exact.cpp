@@ -61,6 +61,7 @@ extern "C"
 #include "matrix_init.h"
 #include "project.h"
 #include "prepare_source.h"
+#include "Q_clover_phi.c"
 
 using namespace cvc;
 
@@ -106,7 +107,10 @@ int main(int argc, char **argv) {
   size_t sizeof_spinor_field = 0, sizeof_spinor_field_timeslice = 0;
   spinor_propagator_type *connq=NULL;
   double ****connt = NULL, ***connt_p=NULL, ***connt_n=NULL;
+  double **mzz[2], **mzzinv[2];
   double ***buffer=NULL;
+  double *gauge_field_with_phase = NULL;
+  double *eo_evecs_block = NULL;
   int io_proc = -1;
   int icomp, iseq_mom, iseq2_mom;
 
@@ -210,6 +214,7 @@ int main(int argc, char **argv) {
   }
 
   geometry();
+  mpi_init_xchange_eo_spinor();
 
   VOL3 = LX*LY*LZ;
   sizeof_spinor_field = _GSI(VOLUME)*sizeof(double);
@@ -282,11 +287,32 @@ int main(int argc, char **argv) {
   if(g_cart_id==0) fprintf(stdout, "# [piN2piN_exact] read plaquette value    : %25.16e\n", plaq_r);
   if(g_cart_id==0) fprintf(stdout, "# [piN2piN_exact] measured plaquette value: %25.16e\n", plaq_m);
 
+  alloc_gauge_field(&gauge_field_with_phase, VOLUMEPLUSRAND);
+#ifdef HAVE_OPENMP
+#pragma omp parallel for private(mu)
+#endif
+  for( unsigned int ix=0; ix<VOLUME; ix++ ) {
+    for (int mu=0; mu<4; mu++ ) {
+      _cm_eq_cm_ti_co ( gauge_field_with_phase+_GGI(ix,mu), g_gauge_field+_GGI(ix,mu), &co_phase_up[mu] );
+    }
+  }
+
+#ifdef HAVE_MPI
+  xchange_gauge();
+  xchange_gauge_field(gauge_field_with_phase);
+#endif
+
+  /* measure the plaquette */
+  plaquette(&plaq);
+  if(g_cart_id==0) fprintf(stdout, "# [piN2piN_exact] measured plaquette value: %25.16e\n", plaq);
+
+  plaquette2(&plaq, gauge_field_with_phase);
+  if(g_cart_id==0) fprintf(stdout, "# [piN2piN_exact] gauge field with phase measured plaquette value: %25.16e\n", plaq);
+
 #ifdef HAVE_TMLQCD_LIBWRAPPER
   /***********************************************
    * retrieve deflator paramters from tmLQCD
    ***********************************************/
-#if 0
   exitstatus = tmLQCD_init_deflator(_OP_ID_UP);
   if( exitstatus > 0) {
     fprintf(stderr, "[piN2piN_exact] Error from tmLQCD_init_deflator, status was %d\n", exitstatus);
@@ -332,8 +358,61 @@ int main(int argc, char **argv) {
   for(i=0; i<evecs_num; i++) {
     evecs_eval[i] = ((double*)(g_tmLQCD_defl.evals))[2*i];
   }
-#endif
+
+  evecs_eval = (double*)malloc(evecs_num * sizeof(double));
+  if(evecs_eval == NULL) {
+    fprintf(stderr, "[test_lm_propagator_clover] Error from calloc\n");
+    EXIT(63);
+  }
+
+  for(i=0; i<evecs_num; i++) {
+    evecs_eval[i] = ((double*)(g_tmLQCD_defl.evals))[2*i];
+  }
+
+
 #endif  /* of ifdef HAVE_TMLQCD_LIBWRAPPER */
+
+  /***********************************************
+   * initialize clover, mzz and mzz_inv
+   ***********************************************/
+  clover_term_init(&g_clover, 6);
+
+  clover_term_init(&g_mzz_up, 6);
+  clover_term_init(&g_mzz_dn, 6);
+  clover_term_init(&g_mzzinv_up, 8);
+  clover_term_init(&g_mzzinv_dn, 8);
+
+  ratime = _GET_TIME;
+  clover_term_eo (g_clover, g_gauge_field);
+  retime = _GET_TIME;
+  if(g_cart_id == 0) fprintf(stdout, "# [piN2piN_exact] time for clover_term_eo = %e seconds\n", retime-ratime);
+
+  ratime = _GET_TIME;
+  clover_mzz_matrix (g_mzz_up, g_clover, g_mu, g_csw);
+  retime = _GET_TIME;
+  if(g_cart_id == 0) fprintf(stdout, "# [piN2piN_exact] time for clover_mzz_matrix = %e seconds\n", retime-ratime);
+
+  ratime = _GET_TIME;
+  clover_mzz_matrix (g_mzz_dn, g_clover, -g_mu, g_csw);
+  retime = _GET_TIME;
+  if(g_cart_id == 0) fprintf(stdout, "# [piN2piN_exact] time for clover_mzz_matrix = %e seconds\n", retime-ratime);
+
+  ratime = _GET_TIME;
+  clover_mzz_inv_matrix (g_mzzinv_up, g_mzz_up);
+  retime = _GET_TIME;
+  fprintf(stdout, "# [piN2piN_exact] time for clover_mzz_inv_matrix = %e seconds\n", retime-ratime);
+
+  ratime = _GET_TIME;
+  clover_mzz_inv_matrix (g_mzzinv_dn, g_mzz_dn);
+  retime = _GET_TIME;
+  fprintf(stdout, "# [piN2piN_exact] time for clover_mzz_inv_matrix = %e seconds\n", retime-ratime);
+
+  mzz[0] = g_mzz_up;
+  mzz[1] = g_mzz_dn;
+  mzzinv[0] = g_mzzinv_up;
+  mzzinv[1] = g_mzzinv_dn;
+
+  clover_term_fini(&g_clover);
 
 
   /***********************************************************
@@ -418,17 +497,23 @@ int main(int argc, char **argv) {
   if(g_cart_id == 0) fprintf(stdout, "# [piN2piN_exact] up-type inversion\n");
   for(is=0;is<n_s*n_c;is++) {
     memset(spinor_work[0], 0, sizeof_spinor_field);
-    memset(spinor_work[1], 0, sizeof_spinor_field);
     if(source_proc_id == g_cart_id)  {
       spinor_work[0][_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]])+2*is] = 1.;
     }
-
+/*
+    memset(spinor_work[1], 0, sizeof_spinor_field);
     exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_up, 0);
     if(exitstatus != 0) {
       fprintf(stderr, "[piN2piN_exact] Error from tmLQCD_invert, status was %d\n", exitstatus);
       EXIT(12);
     }
     memcpy( g_spinor_field[is], spinor_work[1], sizeof_spinor_field);
+*/
+    exitstatus = Q_clover_invert (g_spinor_field[is], spinor_work[0], gauge_field_with_phase, mzzinv[0][0], op_id_up );
+    if(exitstatus != 0) {
+      fprintf(stderr, "[piN2piN_exact] Error from Q_clover_invert, status was %d\n", exitstatus);
+      EXIT(12);
+    }
   }
   retime = _GET_TIME;
   if(g_cart_id == 0) fprintf(stderr, "# [piN2piN_exact] time for up propagator = %e seconds\n", retime-ratime);
@@ -443,17 +528,23 @@ int main(int argc, char **argv) {
     for(is=0;is<n_s*n_c;is++) {
 
       memset(spinor_work[0], 0, sizeof_spinor_field);
-      memset(spinor_work[1], 0, sizeof_spinor_field);
       if(source_proc_id == g_cart_id)  {
         spinor_work[0][_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]])+2*is] = 1.;
       }
-
+/*
+      memset(spinor_work[1], 0, sizeof_spinor_field);
       exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_dn, 0);
       if(exitstatus != 0) {
         fprintf(stderr, "[piN2piN_exact] Error from tmLQCD_invert, status was %d\n", exitstatus);
         EXIT(12);
       }
       memcpy( g_spinor_field[n_s*n_c+is], spinor_work[1], sizeof_spinor_field);
+*/
+      exitstatus = Q_clover_invert (g_spinor_field[n_s*n_c+is], spinor_work[0], gauge_field_with_phase, mzzinv[1][0], op_id_dn );
+      if(exitstatus != 0) {
+        fprintf(stderr, "[piN2piN_exact] Error from Q_clover_invert, status was %d\n", exitstatus);
+        EXIT(12);
+      }
     }
     retime = _GET_TIME;
     if(g_cart_id == 0) fprintf(stdout, "# [piN2piN_exact] time for dn propagator = %e seconds\n", retime-ratime);
@@ -475,14 +566,21 @@ int main(int argc, char **argv) {
         fprintf(stderr, "[piN2piN_exact] Error from init_sequential_source, status was %d\n", exitstatus);
         EXIT(14);
       }
+/*
       memset(spinor_work[1], 0, sizeof_spinor_field);
-
       exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_up, 0);
       if(exitstatus != 0) {
         fprintf(stderr, "[piN2piN_exact] Error from tmLQCD_invert, status was %d\n", exitstatus);
         EXIT(12);
       }
       memcpy( g_spinor_field[idprop + n_s*n_c], spinor_work[1], sizeof_spinor_field);
+*/
+      exitstatus = Q_clover_invert (g_spinor_field[idprop + n_s*n_c], spinor_work[0], gauge_field_with_phase, mzzinv[0][0], op_id_up );
+      if(exitstatus != 0) {
+        fprintf(stderr, "[piN2piN_exact] Error from Q_clover_invert, status was %d\n", exitstatus);
+        EXIT(12);
+      }
+
       if(g_write_sequential_propagator) {
         sprintf(filename, "seq_%s.%.4d.t%.2dx%.2dy%.2dz%.2d.%.2d.qx%.2dqy%.2dqz%.2d.inverted",
             filename_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3], is,
@@ -523,13 +621,20 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[piN2piN_exact] Error from init_sequential_source, status was %d\n", exitstatus);
             EXIT(14);
           }
+/*
           memset(spinor_work[1], 0, sizeof_spinor_field);
-
           exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_dn, 0);
           if(exitstatus != 0) {
             fprintf(stderr, "[piN2piN_exact] Error from tmLQCD_invert, status was %d\n", exitstatus);
             EXIT(12);
           }
+*/
+          exitstatus = Q_clover_invert (spinor_work[1], spinor_work[0], gauge_field_with_phase, mzzinv[1][0], op_id_dn );
+          if(exitstatus != 0) {
+            fprintf(stderr, "[piN2piN_exact] Error from Q_clover_invert, status was %d\n", exitstatus);
+            EXIT(12);
+          }
+
           /******************************************************
            * processes, which have the sink timeslice, copy this
            * timeslice
@@ -567,13 +672,20 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[piN2piN_exact] Error from init_sequential_source, status was %d\n", exitstatus);
             EXIT(14);
           }
+/*
           memset(spinor_work[1], 0, sizeof_spinor_field);
-
           exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_dn, 0);
           if(exitstatus != 0) {
             fprintf(stderr, "[piN2piN_exact] Error from tmLQCD_invert, status was %d\n", exitstatus);
             EXIT(12);
           }
+*/
+          exitstatus = Q_clover_invert (spinor_work[1], spinor_work[0], gauge_field_with_phase, mzzinv[1][0], op_id_dn );
+          if(exitstatus != 0) {
+            fprintf(stderr, "[piN2piN_exact] Error from Q_clover_invert, status was %d\n", exitstatus);
+            EXIT(12);
+          }
+
           /******************************************************
            * processes, which have the sink timeslice, copy this
            * timeslice
@@ -609,13 +721,20 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[piN2piN_exact] Error from init_sequential_source, status was %d\n", exitstatus);
             EXIT(14);
           }
+/*
           memset(spinor_work[1], 0, sizeof_spinor_field);
-
           exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_up, 0);
           if(exitstatus != 0) {
             fprintf(stderr, "[piN2piN_exact] Error from tmLQCD_invert, status was %d\n", exitstatus);
             EXIT(12);
           }
+*/
+          exitstatus = Q_clover_invert (spinor_work[1], spinor_work[0], gauge_field_with_phase, mzzinv[0][0], op_id_up );
+          if(exitstatus != 0) {
+            fprintf(stderr, "[piN2piN_exact] Error from Q_clover_invert, status was %d\n", exitstatus);
+            EXIT(12);
+          }
+
           /******************************************************
            * processes, which have the sink timeslice, copy this
            * timeslice
@@ -1378,6 +1497,11 @@ int main(int argc, char **argv) {
     for(i=0; i<no_fields; i++) free(g_spinor_field[i]);
     free(g_spinor_field); g_spinor_field=(double**)NULL;
   }
+
+  clover_term_fini(&g_mzz_up);
+  clover_term_fini(&g_mzz_dn);
+  clover_term_fini(&g_mzzinv_up);
+  clover_term_fini(&g_mzzinv_dn);
 
   /***********************************************
    * free the allocated memory, finalize
