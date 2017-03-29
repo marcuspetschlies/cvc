@@ -109,11 +109,13 @@ int main(int argc, char **argv) {
   int no_eo_fields = 0;
   int io_proc = -1;
   int evecs_num = 0;
+  int check_propagator_residual = 0;
   unsigned int Vhalf;
   size_t sizeof_eo_spinor_field;
   double **eo_spinor_field=NULL, **eo_spinor_work=NULL, *eo_evecs_block=NULL, *eo_sample_block=NULL,   **eo_sample_field=NULL;
   double **eo_evecs_field=NULL;
   double *cvc_tensor_eo[2] = {NULL, NULL}, contact_term[2][8], *cvc_tensor_lexic=NULL;
+  double ***cvc_tp = NULL;
   double *evecs_eval = NULL, *evecs_lambdainv=NULL;
   double *uprop_list_e[60], *uprop_list_o[60], *tprop_list_e[60], *tprop_list_o[60], *dprop_list_e[60], *dprop_list_o[60];
   char filename[100];
@@ -126,10 +128,11 @@ int main(int argc, char **argv) {
 
 #ifdef HAVE_LHPC_AFF
   struct AffWriter_s *affw = NULL;
-  struct AffNode_s *affn = NULL, *affdir=NULL;
+  /* struct AffNode_s *affn = NULL, *affdir=NULL; */
   char * aff_status_str;
-  double _Complex *aff_buffer = NULL;
-  char aff_buffer_path[200];
+  /* double _Complex *aff_buffer = NULL; */
+  /* char aff_buffer_path[200]; */
+  char aff_tag[400];
   /*  uint32_t aff_buffer_size; */
 #endif
 
@@ -137,7 +140,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "wh?f:")) != -1) {
+  while ((c = getopt(argc, argv, "cwh?f:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -145,6 +148,9 @@ int main(int argc, char **argv) {
       break;
     case 'w':
       check_position_space_WI = 1;
+      break;
+    case 'c':
+      check_propagator_residual = 1;
       break;
     case 'h':
     case '?':
@@ -519,7 +525,7 @@ int main(int argc, char **argv) {
     memcpy(eo_sample_field[g_nsample+i], eo_spinor_work[1], sizeof_eo_spinor_field);
   }  /* end of loop on samples */
 
-  exitstatus = check_oo_propagator_clover_eo( &(eo_sample_field[g_nsample]), eo_sample_field, eo_spinor_work, gauge_field_with_phase, g_mzz_up, g_mzzinv_up, g_nsample );
+  if( check_propagator_residual ) exitstatus = check_oo_propagator_clover_eo( &(eo_sample_field[g_nsample]), eo_sample_field, eo_spinor_work, gauge_field_with_phase, g_mzz_up, g_mzzinv_up, g_nsample );
 
 
   /***********************************************************
@@ -620,7 +626,8 @@ int main(int argc, char **argv) {
         }
 
       }  /* end of loop on spin-color */
-      check_point_source_propagator_clover_eo( &(eo_spinor_field[12*mu]), &(eo_spinor_field[60+12*mu]), eo_spinor_work, gauge_field_with_phase, g_mzz_up, g_mzzinv_up, g_shifted_source_coords, 12 );
+      if( check_propagator_residual )
+        check_point_source_propagator_clover_eo( &(eo_spinor_field[12*mu]), &(eo_spinor_field[60+12*mu]), eo_spinor_work, gauge_field_with_phase, g_mzz_up, g_mzzinv_up, g_shifted_source_coords, 12 );
 
       /**********************************************************
        * dn-type propagators
@@ -656,7 +663,26 @@ int main(int argc, char **argv) {
           EXIT(23);
         }
       }  /* end of loop on spin-color */
-      check_point_source_propagator_clover_eo( &(eo_spinor_field[120+12*mu]), &(eo_spinor_field[180+12*mu]), eo_spinor_work, gauge_field_with_phase, g_mzz_dn, g_mzzinv_dn, g_shifted_source_coords, 12 );
+      if ( check_propagator_residual ) 
+        check_point_source_propagator_clover_eo( &(eo_spinor_field[120+12*mu]), &(eo_spinor_field[180+12*mu]), eo_spinor_work, gauge_field_with_phase, g_mzz_dn, g_mzzinv_dn, g_shifted_source_coords, 12 );
+
+      /**********************************************************
+       * A^-1 g5 for up-type propagators from sub-space
+       * inversion
+       **********************************************************/
+      for(i=0; i<12; i++)
+      {
+        int eo_spinor_field_id_e = 240 + mu * 12 + i;
+        int eo_spinor_field_id_o = eo_spinor_field_id_e + 60;
+
+        /* A^-1 g5 source */
+        exitstatus = init_clover_eo_spincolor_pointsource_propagator (eo_spinor_field[eo_spinor_field_id_e], eo_spinor_field[eo_spinor_field_id_o],
+          g_shifted_source_coords, i, gauge_field_with_phase, g_mzzinv_up[0], (int)(shifted_source_proc_id == g_cart_id), eo_spinor_work[0]);
+        if(exitstatus != 0 ) {
+          fprintf(stderr, "[p2gg] Error from init_eo_spincolor_pointsource_propagator; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(18);
+        }
+      }  /* end of loop on spin-color */
 
     }    /* end of loop on shift direction mu */
 
@@ -681,7 +707,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "[p2gg] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
         EXIT(15);
       }
-
+/*
       if( (affn = aff_writer_root(affw)) == NULL ) {
         fprintf(stderr, "[p2gg] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
         EXIT(16);
@@ -694,9 +720,195 @@ int main(int argc, char **argv) {
         fprintf(stderr, "[p2gg] Error from malloc %s %d\n", __FILE__, __LINE__);
         EXIT(27);
       }
+*/
     }  /* end of if io_proc == 2 */
 #endif
 
+    /***************************************************************************
+     ***************************************************************************
+     **
+     ** contractions for the photon hvp tensor
+     **
+     ***************************************************************************
+     ***************************************************************************/
+
+    exitstatus = Q_clover_eo_invert_subspace ( &(eo_spinor_field[240]), &(eo_spinor_field[300]),
+                                               &(eo_spinor_field[240]), &(eo_spinor_field[300]), 60, eo_evecs_block, evecs_lambdainv, evecs_num,
+                                               gauge_field_with_phase, mzz, mzzinv, 0, eo_spinor_work );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[p2gg] Error from Q_clover_eo_invert_subspace, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(28);
+    }
+
+    /* allocate memory for contractions, initialize */
+    cvc_tensor_eo[0] = (double*)malloc( 32*VOLUME *sizeof(double) );
+    if( cvc_tensor_eo[0] == NULL ) {
+      fprintf(stderr, "[p2gg] could not allocate memory for eo contraction fields %s %d\n", __FILE__, __LINE__);
+      EXIT(24);
+    }
+    cvc_tensor_eo[1] = cvc_tensor_eo[0] + 32 * Vhalf;
+
+    /***************************************************************************
+     * full tensor
+     ***************************************************************************/
+    memset(cvc_tensor_eo[0], 0, 32*VOLUME*sizeof(double) );
+    memset(contact_term[0], 0, 8*sizeof(double));
+    /* contraction */
+    contract_cvc_tensor_eo ( cvc_tensor_eo[0], cvc_tensor_eo[1], contact_term[0], dprop_list_e, dprop_list_o, uprop_list_e, uprop_list_o , gauge_field_with_phase );
+
+    /* subtract contact term */
+    cvc_tensor_eo_subtract_contact_term (cvc_tensor_eo, contact_term[0], gsx, (int)( source_proc_id == g_cart_id ) );
+
+    /* momentum projections */
+    exitstatus = cvc_tensor_eo_momentum_projection ( &cvc_tp, cvc_tensor_eo, g_sink_momentum_list, g_sink_momentum_number);
+    if(exitstatus != 0) {
+      fprintf(stderr, "[p2gg] Error from cvc_tensor_eo_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(26);
+    }
+    /* write results to file */
+    sprintf(aff_tag, "/full/hvp/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
+    exitstatus = cvc_tensor_tp_write_to_aff_file ( cvc_tp, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+    if(exitstatus != 0 ) {
+      fprintf(stderr, "[p2gg] Error from cvc_tensor_tp_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(45);
+    }
+    fini_3level_buffer(&cvc_tp);
+
+    /* check position space WI */
+    if(check_position_space_WI) {
+      exitstatus = cvc_tensor_eo_check_wi_position_space ( cvc_tensor_eo );
+      if(exitstatus != 0) {
+        fprintf(stderr, "[p2gg] Error from cvc_tensor_eo_check_wi_position_space for lm, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(38);
+      }
+    }
+
+    /***************************************************************************
+     * low-mode tensor
+     ***************************************************************************/
+    memset(cvc_tensor_eo[0], 0, 32*VOLUME*sizeof(double) );
+    memset(contact_term[0], 0, 8*sizeof(double));
+    /* contraction */
+    contract_cvc_tensor_eo ( cvc_tensor_eo[0], cvc_tensor_eo[1], contact_term[0], dprop_list_e, dprop_list_o, tprop_list_e, tprop_list_o , gauge_field_with_phase );
+
+    /* subtract contact term */
+    cvc_tensor_eo_subtract_contact_term (cvc_tensor_eo, contact_term[0], gsx, (int)( source_proc_id == g_cart_id ) );
+
+    /* momentum projections */
+    exitstatus = cvc_tensor_eo_momentum_projection ( &cvc_tp, cvc_tensor_eo, g_sink_momentum_list, g_sink_momentum_number);
+    if(exitstatus != 0) {
+      fprintf(stderr, "[p2gg] Error from cvc_tensor_eo_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(26);
+    }
+    /* write results to file */
+    sprintf(aff_tag, "/lm/hvp/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
+    exitstatus = cvc_tensor_tp_write_to_aff_file ( cvc_tp, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+    if(exitstatus != 0 ) {
+      fprintf(stderr, "[p2gg] Error from cvc_tensor_tp_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(45);
+    }
+    fini_3level_buffer(&cvc_tp);
+
+    /* check position space WI */
+    if(check_position_space_WI) {
+      exitstatus = cvc_tensor_eo_check_wi_position_space ( cvc_tensor_eo );
+      if(exitstatus != 0) {
+        fprintf(stderr, "[p2gg] Error from cvc_tensor_eo_check_wi_position_space for lm, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(38);
+      }
+    }
+
+    /***************************************************************************
+     * high-mode tensor
+     ***************************************************************************/
+
+    for(mu = 0; mu< 5; mu++ ) {
+
+      int g_shifted_source_coords[4], shifted_source_coords[4], shifted_source_proc_id=0;
+      memcpy( g_shifted_source_coords, gsx, 4*sizeof(int));
+      switch(mu) {
+        case 0: g_shifted_source_coords[0] = ( g_shifted_source_coords[0] + 1 ) % T_global; break;;
+        case 1: g_shifted_source_coords[1] = ( g_shifted_source_coords[1] + 1 ) % LX_global; break;;
+        case 2: g_shifted_source_coords[2] = ( g_shifted_source_coords[2] + 1 ) % LY_global; break;;
+        case 3: g_shifted_source_coords[3] = ( g_shifted_source_coords[3] + 1 ) % LZ_global; break;;
+      }
+
+      /**********************************************************
+       * A^-1 g5 for up-type propagators from sub-space
+       * inversion
+       **********************************************************/
+      for(i=0; i<12; i++)
+      {
+        /* eo spinor field indices */
+        int eo_spinor_field_id_e = 240 + mu * 12 + i;
+        int eo_spinor_field_id_o = eo_spinor_field_id_e + 60;
+        /* A^-1 g5 source */
+        exitstatus = init_clover_eo_spincolor_pointsource_propagator (eo_spinor_field[eo_spinor_field_id_e], eo_spinor_field[eo_spinor_field_id_o],
+          g_shifted_source_coords, i, gauge_field_with_phase, g_mzzinv_up[0], (int)(shifted_source_proc_id == g_cart_id), eo_spinor_work[0]);
+        if(exitstatus != 0 ) {
+          fprintf(stderr, "[p2gg] Error from init_eo_spincolor_pointsource_propagator; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(18);
+        }
+        /* set even part to zero */
+        memset( eo_spinor_field[eo_spinor_field_id_e], 0, sizeof_eo_spinor_field );
+      }  /* end of loop on spin-color */
+    }    /* end of loop on shift direction mu */
+
+    exitstatus = Q_clover_eo_invert_subspace_stochastic ( &(eo_spinor_field[240]), &(eo_spinor_field[300]),
+                                                          &(eo_spinor_field[240]), &(eo_spinor_field[300]), 60,
+                                                          eo_sample_field[g_nsample], eo_sample_field[0], g_nsample,
+                                                          gauge_field_with_phase, mzz, mzzinv, 0, eo_spinor_work );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[p2gg] Error from Q_clover_eo_invert_subspace_stochastic, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(28);
+    }
+
+    memset(cvc_tensor_eo[0], 0, 32*VOLUME*sizeof(double) );
+    memset(contact_term[0], 0, 8*sizeof(double));
+    /* contraction */
+    contract_cvc_tensor_eo ( cvc_tensor_eo[0], cvc_tensor_eo[1], contact_term[0], dprop_list_e, dprop_list_o, tprop_list_e, tprop_list_o , gauge_field_with_phase );
+
+    /* subtract contact term */
+    cvc_tensor_eo_subtract_contact_term (cvc_tensor_eo, contact_term[0], gsx, (int)( source_proc_id == g_cart_id ) );
+
+    /* momentum projections */
+    exitstatus = cvc_tensor_eo_momentum_projection ( &cvc_tp, cvc_tensor_eo, g_sink_momentum_list, g_sink_momentum_number);
+    if(exitstatus != 0) {
+      fprintf(stderr, "[p2gg] Error from cvc_tensor_eo_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(26);
+    }
+    /* write results to file */
+    sprintf(aff_tag, "/hm/hvp/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
+    exitstatus = cvc_tensor_tp_write_to_aff_file ( cvc_tp, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+    if(exitstatus != 0 ) {
+      fprintf(stderr, "[p2gg] Error from cvc_tensor_tp_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(45);
+    }
+    fini_3level_buffer(&cvc_tp);
+
+    /* check position space WI */
+    if(check_position_space_WI) {
+      exitstatus = cvc_tensor_eo_check_wi_position_space ( cvc_tensor_eo );
+      if(exitstatus != 0) {
+        fprintf(stderr, "[p2gg] Error from cvc_tensor_eo_check_wi_position_space for lm, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(38);
+      }
+    }
+
+
+    /* free tensor array */
+    free( cvc_tensor_eo[0] ); cvc_tensor_eo[0] = NULL; cvc_tensor_eo[1] = NULL;
+
+#if 0
+#endif  /* of if 0 */
+
+    /***************************************************************************
+     ***************************************************************************
+     **
+     ** contractions for the P -> gg tensor
+     **
+     ***************************************************************************
+     ***************************************************************************/
 
     /***************************************************************************
      * loop on sequential source gamma matrices
@@ -791,196 +1003,45 @@ int main(int argc, char **argv) {
                 }
             }  /* end of loop on spin-color */
 
-            if( iflavor == 1 ) {
-              /************************
-               * multiply with C_oo 
-               ************************/
-              for(i=0; i<60; i++) {
-                /* eo field index for seq+odd */
-                int eo_seq_spinor_field_id_o = 300 + i;
-                /* copy work0 <- eo field */
-                memcpy( eo_spinor_work[0], eo_spinor_field[eo_seq_spinor_field_id_o], sizeof_eo_spinor_field );
-                /* apply eo*/
-                C_clover_oo (eo_spinor_field[eo_seq_spinor_field_id_o], eo_spinor_work[0], gauge_field_with_phase, eo_spinor_work[1], mzz[1-iflavor][1], mzzinv[1-iflavor][0]);
-              }  /* end of loop on spin-color */
-
-            }  /* end of if iflavor == 1 */
-
-            double **pcoeff = NULL;
-            exitstatus = init_2level_buffer(&pcoeff, 60, 2*evecs_num);
+            /* invert sequential source on eigenvector subspace */
+            exitstatus = Q_clover_eo_invert_subspace ( &(eo_spinor_field[240]), &(eo_spinor_field[300]),
+                                                       &(eo_spinor_field[240]), &(eo_spinor_field[300]),
+                                                       60, eo_evecs_block, evecs_lambdainv, evecs_num, gauge_field_with_phase, mzz, mzzinv, iflavor, eo_spinor_work);
             if(exitstatus != 0) {
-              fprintf(stderr, "[p2gg] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              EXIT(41);
+              fprintf(stderr, "[p2gg] Error from Q_clover_eo_invert_subspace, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              return(27);
             }
 
-            /* odd projection coefficients pcoeff = V^+ sp_o */
-            exitstatus = project_reduce_from_propagator_field (pcoeff[0], eo_spinor_field[300], eo_evecs_block, 60, evecs_num, Vhalf);
-            if(exitstatus != 0) {
-              fprintf(stderr, "[p2gg] Error from project_reduce_from_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              EXIT(42);
-            }
-
-            for(i=0; i<60; i++) {
-              int k;
-              for(k=0; k<evecs_num; k++) {
-                pcoeff[i][2*k  ] *= evecs_lambdainv[k];
-                pcoeff[i][2*k+1] *= evecs_lambdainv[k];
-              }
-            }
-
-            exitstatus = project_expand_to_propagator_field(eo_spinor_field[300], pcoeff[0], eo_evecs_block, 60, evecs_num, Vhalf);
-            if(exitstatus != 0) {
-              fprintf(stderr, "[p2gg] Error from project_expand_to_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              EXIT(42);
-            }
-
-            if(iflavor == 0 ) {
-              for(i=0; i<60; i++) {
-                int eo_seq_spinor_field_id_o = 300 + i;
-                memcpy(eo_spinor_work[0], eo_spinor_field[eo_seq_spinor_field_id_o], sizeof_eo_spinor_field);
-                C_clover_oo (eo_spinor_field[eo_seq_spinor_field_id_o], eo_spinor_work[0], gauge_field_with_phase, eo_spinor_work[1], mzz[1-iflavor][1], mzzinv[1-iflavor][0]);
-              }  /* end of loop on spin-color */
-            }  /* end of if iflavor == 0 */
-
-            /* complete the propagator by call to B^{-1} */
-            for(i=0; i<60; i++) {
-              int eo_seq_spinor_field_id_e = 240 + i;
-              int eo_seq_spinor_field_id_o = 300 + i;
-              Q_clover_eo_SchurDecomp_Binv (eo_spinor_field[eo_seq_spinor_field_id_e], eo_spinor_field[eo_seq_spinor_field_id_o],
-                                            eo_spinor_field[eo_seq_spinor_field_id_e], eo_spinor_field[eo_seq_spinor_field_id_o],
-                                            gauge_field_with_phase, mzzinv[iflavor][0], eo_spinor_work[0]);
-            }
-            fini_2level_buffer(&pcoeff);
-
-            retime = _GET_TIME;
-            if(g_cart_id==0) fprintf(stdout, "# [p2gg] time for preparing sequential propagator = %e seconds\n", retime-ratime);
-
-            
-            /***************************************************************************
-             * contraction function
-             ***************************************************************************/
-            ratime = _GET_TIME;
-
+            /* contraction function */
             if ( iflavor == 1 ) {
               contract_cvc_tensor_eo ( cvc_tensor_eo[0], cvc_tensor_eo[1], contact_term[iflavor], uprop_list_e, uprop_list_o, tprop_list_e, tprop_list_o , gauge_field_with_phase );
             } else {
               contract_cvc_tensor_eo ( cvc_tensor_eo[0], cvc_tensor_eo[1], contact_term[iflavor], dprop_list_e, dprop_list_o, tprop_list_e, tprop_list_o , gauge_field_with_phase );
             }
-
-            retime = _GET_TIME;
-            if(g_cart_id==0) fprintf(stdout, "# [p2gg] time for cvc_tensor contraction = %e seconds\n", retime-ratime);
-
           }  /* end of loop on iflavor */
 
-          /***************************************************************************
-           * subtract contact term
-           *
-           * - only by process that has source location
-           ***************************************************************************/
-          if( source_proc_id == g_cart_id ) {
-            fprintf(stdout, "# [cvc_exact3_xspace] process %d subtracting contact term\n", g_cart_id);
-            ix = g_ipt[sx[0]][sx[1]][sx[2]][sx[3]];
-            unsigned int ixeo = g_lexic2eosub[ix];
-            if ( g_iseven[ix] ) {
-              for(mu=0; mu<4; mu++) {
-                cvc_tensor_eo[0][_GWI(5*mu,ixeo,Vhalf)    ] -= contact_term[0][2*mu  ];
-                cvc_tensor_eo[0][_GWI(5*mu,ixeo,Vhalf) + 1] -= contact_term[0][2*mu+1];
-              }
-            } else {
-              for(mu=0; mu<4; mu++) {
-                cvc_tensor_eo[1][_GWI(5*mu,ixeo,Vhalf)    ] -= contact_term[0][2*mu  ];
-                cvc_tensor_eo[1][_GWI(5*mu,ixeo,Vhalf) + 1] -= contact_term[0][2*mu+1];
-              }
-            }
-          }  /* end of if source_proc_id = g_cart_id */
+          /* subtract contact term */
+          cvc_tensor_eo_subtract_contact_term ( cvc_tensor_eo, contact_term[0], gsx, (int)( source_proc_id == g_cart_id ) );
 
-
-          /***************************************************************************
-           * momentum projections
-           ***************************************************************************/
-
-          double ***cvc_tp = NULL;
-          exitstatus = init_3level_buffer(&cvc_tp, g_sink_momentum_number, 16, 2*T);
+          /* momentum projections */
+          exitstatus = cvc_tensor_eo_momentum_projection ( &cvc_tp, cvc_tensor_eo, g_sink_momentum_list, g_sink_momentum_number);
           if(exitstatus != 0) {
-            fprintf(stderr, "[p2gg] Error from init_3level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(26);
+            fprintf(stderr, "[p2gg] Error from cvc_tensor_eo_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(28);
           }
-     
-          cvc_tensor_lexic = (double*)malloc(32*VOLUME*sizeof(double));
-          if( cvc_tensor_lexic == NULL ) {
-            fprintf(stderr, "[p2gg-fp] Error from malloc %s %d\n", __FILE__, __LINE__);
-            EXIT(19);
-          }
-          for ( mu=0; mu<16; mu++ ) {
-            complex_field_eo2lexic (cvc_tensor_lexic+2*mu*VOLUME, cvc_tensor_eo[0]+2*mu*Vhalf, cvc_tensor_eo[1]+2*mu*Vhalf );
-          }
-
-          ratime = _GET_TIME;
-
-          exitstatus = momentum_projection (cvc_tensor_lexic, cvc_tp[0][0], T*16, g_sink_momentum_number, g_sink_momentum_list);
-          if(exitstatus != 0) {
-            fprintf(stderr, "[p2gg] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(26);
-          }
-          retime = _GET_TIME;
-          if(g_cart_id==0) fprintf(stdout, "# [p2gg] time for momentum projection = %e seconds\n", retime-ratime);
 
           /***************************************************************************
            * write results to file
            ***************************************************************************/
-          ratime = _GET_TIME;
+          sprintf(aff_tag, "/lm/PJJ/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d",
+                  gsx[0], gsx[1], gsx[2], gsx[3], g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2], sequential_source_gamma_id, g_sequential_source_timeslice);
 
-#ifdef HAVE_MPI
-          i = g_sink_momentum_number * 32 * T;
-#if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) 
-          if(io_proc>0) {
-            exitstatus = MPI_Gather(cvc_tp[0][0], i, MPI_DOUBLE, aff_buffer, i, MPI_DOUBLE, 0, g_tr_comm);
-            if(exitstatus != MPI_SUCCESS) {
-              fprintf(stderr, "[p2gg] Error from MPI_Gather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              EXIT(28);
-            }
+          exitstatus = cvc_tensor_tp_write_to_aff_file (cvc_tp, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+          if(exitstatus != 0) {
+            fprintf(stderr, "[p2gg] Error from cvc_tensor_tp_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(29);
           }
-#else
-          exitstatus = MPI_Gather(cvc_tp[0][0], i, MPI_DOUBLE, aff_buffer, i, MPI_DOUBLE, 0, g_cart_grid);
-          if(exitstatus != MPI_SUCCESS) {
-            fprintf(stderr, "[p2gg] Error from MPI_Gather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(44);
-          }
-#endif
-#else
-          memcpy(aff_buffer, cvc_tp[0][0], g_sink_momentum_number * 32 * T * sizeof(double) );
-#endif
-
           fini_3level_buffer(&cvc_tp);
-
-          if(io_proc == 2) {
-            for(i=0; i<g_sink_momentum_number; i++) {
-              sprintf(aff_buffer_path, "/lm/PJJ/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/px%.2dpy%.2dpz%.2d", 
-                  gsx[0], gsx[1], gsx[2], gsx[3],
-                  g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2],
-                  sequential_source_gamma_id, g_sequential_source_timeslice, 
-                  g_sink_momentum_list[i][0], g_sink_momentum_list[i][1], g_sink_momentum_list[i][2]);
-              /* fprintf(stdout, "# [p2gg] current aff path = %s\n", aff_buffer_path); */
-              affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
-              exitstatus = aff_node_put_complex (affw, affdir, aff_buffer+16*T_global*i, (uint32_t)T_global*16);
-              if(exitstatus != 0) {
-                fprintf(stderr, "[p2gg] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                EXIT(29);
-              }
-            }
-          }  /* if io_proc == 2 */
-
-          retime = _GET_TIME;
-          if(g_cart_id==0) fprintf(stdout, "# [p2gg] time for saving momentum space results = %e seconds\n", retime-ratime);
-          
-          if(check_position_space_WI) {
-            exitstatus = check_cvc_wi_position_space (cvc_tensor_lexic);
-            if(exitstatus != 0) {
-              fprintf(stderr, "[p2gg] Error from check_cvc_wi_position_space for lm, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              EXIT(38);
-            }
-          }
-
           free( cvc_tensor_lexic ); cvc_tensor_lexic = NULL;
           free( cvc_tensor_eo[0] ); cvc_tensor_eo[0] = NULL; cvc_tensor_eo[1] = NULL;
 
@@ -991,6 +1052,10 @@ int main(int argc, char **argv) {
            **
            ***************************************************************************
            ***************************************************************************/
+
+
+          /***************************************************************************/
+          /***************************************************************************/
 
 
           /***************************************************************************
@@ -1010,7 +1075,6 @@ int main(int argc, char **argv) {
             EXIT(24);
           }
           cvc_tensor_eo[1] = cvc_tensor_eo[0] + 32 * Vhalf;
-
 
           /* loop on up-type and down-type flavor */
           for( iflavor=1; iflavor>=0; iflavor-- ) {
@@ -1047,171 +1111,52 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "[p2gg] Error from init_clover_eo_sequential_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(25);
               }
+              /* set even part of sequential source to zero */
+              memset( eo_spinor_field[eo_seq_spinor_field_id_e] , 0, sizeof_eo_spinor_field );
             }  /* end of loop on spin-color */
 
-            double **pcoeff = NULL;
-            exitstatus = init_2level_buffer(&pcoeff, 60, 2*g_nsample);
+
+            /* stochastic inversion on odd, orthogonal subspace */
+            exitstatus = Q_clover_eo_invert_subspace_stochastic ( &(eo_spinor_field[240]), &(eo_spinor_field[300]),
+                                                                  &(eo_spinor_field[240]), &(eo_spinor_field[300]),
+                                                                  60, eo_sample_field[g_nsample], eo_sample_field[0], g_nsample,
+                                                                  gauge_field_with_phase, mzz, mzzinv, iflavor, eo_spinor_work );
             if(exitstatus != 0) {
-              fprintf(stderr, "[p2gg] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              fprintf(stderr, "[p2gg] Error from Q_clover_eo_invert_subspace_stochastic, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(41);
             }
 
-            /* odd projection coefficients pcoeff = Xi^+ sp_o */
-            if( iflavor == 0 ) {
-              exitstatus = project_reduce_from_propagator_field (pcoeff[0], eo_spinor_field[300], eo_sample_field[0], 60, g_nsample, Vhalf);
-            } else {
-              exitstatus = project_reduce_from_propagator_field (pcoeff[0], eo_spinor_field[300], eo_sample_field[g_nsample], 60, g_nsample, Vhalf);
-            }
-            if(exitstatus != 0) {
-              fprintf(stderr, "[p2gg] Error from project_reduce_from_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              EXIT(42);
-            }
-
-            if( iflavor == 0 ) {
-              exitstatus = project_expand_to_propagator_field(eo_spinor_field[300], pcoeff[0], eo_sample_field[g_nsample], 60, g_nsample, Vhalf);
-            } else {
-              exitstatus = project_expand_to_propagator_field(eo_spinor_field[300], pcoeff[0], eo_sample_field[0], 60, g_nsample, Vhalf);
-            }
-            if(exitstatus != 0) {
-              fprintf(stderr, "[p2gg] Error from project_expand_to_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              EXIT(42);
-            }
-
-            for(i=0; i<60; i++) {
-              int eo_seq_spinor_field_id_e = 240 + i;
-              int eo_seq_spinor_field_id_o = eo_seq_spinor_field_id_e + 60;
-              /* set even part to zero; was already included in low-mode part */
-              memset( eo_spinor_field[eo_seq_spinor_field_id_e], 0, sizeof_eo_spinor_field );
-              /* apply B^{-1} */
-              Q_clover_eo_SchurDecomp_Binv (eo_spinor_field[eo_seq_spinor_field_id_e], eo_spinor_field[eo_seq_spinor_field_id_o],
-                                            eo_spinor_field[eo_seq_spinor_field_id_e], eo_spinor_field[eo_seq_spinor_field_id_o], gauge_field_with_phase, mzzinv[iflavor][0], eo_spinor_work[0]);
-            }
-            fini_2level_buffer(&pcoeff);
-            retime = _GET_TIME;
-            if(g_cart_id==0) fprintf(stdout, "# [p2gg] time for preparing sequential propagator = %e seconds\n", retime-ratime);
-
-            
-            ratime = _GET_TIME;
+            /* contract */
             if( iflavor == 1 ) {
               contract_cvc_tensor_eo(cvc_tensor_eo[0], cvc_tensor_eo[1], contact_term[iflavor], uprop_list_e, uprop_list_o, tprop_list_e, tprop_list_o, gauge_field_with_phase);
             } else {
               contract_cvc_tensor_eo(cvc_tensor_eo[0], cvc_tensor_eo[1], contact_term[iflavor], dprop_list_e, dprop_list_o, tprop_list_e, tprop_list_o, gauge_field_with_phase);
             }
-            retime = _GET_TIME;
-            if(g_cart_id==0) fprintf(stdout, "# [p2gg] time for cvc_tensor contraction = %e seconds\n", retime-ratime);
 
           }  /* end of loop on iflavor */
   
+          /* subtract contact term */
+          cvc_tensor_eo_subtract_contact_term ( cvc_tensor_eo, contact_term[0], gsx, (int)( source_proc_id == g_cart_id ) );
 
-          /***************************************************************************
-           * subtract contact term
-           *
-           * - only by process that has source location
-           ***************************************************************************/
-          if( source_proc_id == g_cart_id ) {
-            fprintf(stdout, "# [cvc_exact3_xspace] process %d subtracting contact term\n", g_cart_id);
-            ix = g_ipt[sx[0]][sx[1]][sx[2]][sx[3]];
-            unsigned int ixeo = g_lexic2eosub[ix];
-            if ( g_iseven[ix] ) {
-              for(mu=0; mu<4; mu++) {
-                cvc_tensor_eo[0][_GWI(5*mu,ixeo,Vhalf)    ] -= contact_term[0][2*mu  ];
-                cvc_tensor_eo[0][_GWI(5*mu,ixeo,Vhalf) + 1] -= contact_term[0][2*mu+1];
-              }
-            } else {
-              for(mu=0; mu<4; mu++) {
-                cvc_tensor_eo[1][_GWI(5*mu,ixeo,Vhalf)    ] -= contact_term[0][2*mu  ];
-                cvc_tensor_eo[1][_GWI(5*mu,ixeo,Vhalf) + 1] -= contact_term[0][2*mu+1];
-              }
-            }
-          }  /* end of if source_proc_id = g_cart_id */
-
-
-
-          /***************************************************************************
-           * momentum projections
-           ***************************************************************************/
-
-          exitstatus = init_3level_buffer(&cvc_tp, g_sink_momentum_number, 16, 2*T);
+          /* momentum projections */
+          exitstatus = cvc_tensor_eo_momentum_projection ( &cvc_tp, cvc_tensor_eo, g_sink_momentum_list, g_sink_momentum_number);
           if(exitstatus != 0) {
-            fprintf(stderr, "[p2gg] Error from init_3level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(26);
+            fprintf(stderr, "[p2gg] Error from cvc_tensor_eo_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(28);
           }
-
-          cvc_tensor_lexic = (double*)malloc(32*VOLUME*sizeof(double));
-          if( cvc_tensor_lexic == NULL ) {
-            fprintf(stderr, "[p2gg-fp] Error from malloc %s %d\n", __FILE__, __LINE__);
-            EXIT(19);
-          }
-          for ( mu=0; mu<16; mu++ ) {
-            complex_field_eo2lexic (cvc_tensor_lexic+2*mu*VOLUME, cvc_tensor_eo[0]+2*mu*Vhalf, cvc_tensor_eo[1]+2*mu*Vhalf );
-          }
-
-          ratime = _GET_TIME;
-
-          exitstatus = momentum_projection (cvc_tensor_lexic, cvc_tp[0][0], T*16, g_sink_momentum_number, g_sink_momentum_list);
-          if(exitstatus != 0) {
-            fprintf(stderr, "[p2gg] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(26);
-          }
-          retime = _GET_TIME;
-          if(g_cart_id==0) fprintf(stdout, "# [p2gg] time for momentum projection = %e seconds\n", retime-ratime);
 
           /***************************************************************************
            * write results to file
            ***************************************************************************/
-          ratime = _GET_TIME;
+          sprintf(aff_tag, "/hm/PJJ/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d",
+                  gsx[0], gsx[1], gsx[2], gsx[3], g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2], sequential_source_gamma_id, g_sequential_source_timeslice);
 
-#ifdef HAVE_MPI
-          i = g_sink_momentum_number * 32 * T;
-#  if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) 
-          if(io_proc>0) {
-            exitstatus = MPI_Gather(cvc_tp[0][0], i, MPI_DOUBLE, aff_buffer, i, MPI_DOUBLE, 0, g_tr_comm);
-            if(exitstatus != MPI_SUCCESS) {
-              fprintf(stderr, "[p2gg] Error from MPI_Gather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              EXIT(28);
-            }
+          exitstatus = cvc_tensor_tp_write_to_aff_file (cvc_tp, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+          if(exitstatus != 0) {
+            fprintf(stderr, "[p2gg] Error from cvc_tensor_tp_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(29);
           }
-#  else
-          exitstatus = MPI_Gather(cvc_tp[0][0], i, MPI_DOUBLE, aff_buffer, i, MPI_DOUBLE, 0, g_cart_grid);
-          if(exitstatus != MPI_SUCCESS) {
-            fprintf(stderr, "[p2gg] Error from MPI_Gather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(44);
-          }
-#  endif
-#else
-          memcpy(aff_buffer, cvc_tp[0][0], g_sink_momentum_number * 32 * T * sizeof(double) );
-#endif
-
           fini_3level_buffer(&cvc_tp);
-
-          if(io_proc == 2) {
-            for(i=0; i<g_sink_momentum_number; i++) {
-              sprintf(aff_buffer_path, "/hm/PJJ/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/px%.2dpy%.2dpz%.2d", 
-                  gsx[0], gsx[1], gsx[2], gsx[3],
-                  g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2],
-                  sequential_source_gamma_id, g_sequential_source_timeslice, 
-                  g_sink_momentum_list[i][0], g_sink_momentum_list[i][1], g_sink_momentum_list[i][2]);
-              /* fprintf(stdout, "# [p2gg] current aff path = %s\n", aff_buffer_path); */
-              affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
-              exitstatus = aff_node_put_complex (affw, affdir, aff_buffer+16*T_global*i, (uint32_t)T_global*16);
-              if(exitstatus != 0) {
-                fprintf(stderr, "[p2gg] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                EXIT(29);
-              }
-            }
-          }  /* if io_proc == 2 */
-
-          retime = _GET_TIME;
-          if(g_cart_id==0) fprintf(stdout, "# [p2gg] time for saving momentum space results = %e seconds\n", retime-ratime);
-          
-          if(check_position_space_WI) {
-            exitstatus = check_cvc_wi_position_space (cvc_tensor_lexic );
-            if(exitstatus != 0) {
-              fprintf(stderr, "[p2gg] Error from check_cvc_wi_position_space for hm, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              EXIT(38);
-            }
-          }
-
           free( cvc_tensor_lexic ); cvc_tensor_lexic = NULL;
           free( cvc_tensor_eo[0] ); cvc_tensor_eo[0] = NULL; cvc_tensor_eo[1] = NULL;
 
@@ -1223,13 +1168,15 @@ int main(int argc, char **argv) {
            **
            ***************************************************************************
            ***************************************************************************/
-#if 0
-#endif /* of if 0 */
+
         }  /* end of loop on sequential source timeslices */
 
       }  /* end of loop on sequential gamma id */
 
     }  /* end of loop on sequential source momentum */
+
+#if 0
+#endif /* of if 0 */
 
 #ifdef HAVE_LHPC_AFF
     if(io_proc == 2) {
@@ -1238,7 +1185,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "[p2gg] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
         EXIT(32);
       }
-      free(aff_buffer);
+      /* free(aff_buffer); */
     }  /* end of if io_proc == 2 */
 #endif  /* of ifdef HAVE_LHPC_AFF */
 
