@@ -73,8 +73,10 @@ int main(int argc, char **argv) {
   double ratime, retime;
   complex w, w1;
   FILE *ofs;
+  unsigned int VOL3;
 
   fftw_complex *in=(fftw_complex*)NULL;
+  fftw_complex *in3d=(fftw_complex*)NULL;
 
 #ifdef HAVE_MPI
   fftwnd_mpi_plan plan_p;
@@ -82,6 +84,7 @@ int main(int argc, char **argv) {
 #else
   fftwnd_plan plan_p;
 #endif
+  fftwnd_plan plan_p3d;
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
@@ -184,6 +187,7 @@ int main(int argc, char **argv) {
   l_LXstart_at = 0;
   FFTW_LOC_VOLUME = T*LX*LY*LZ;
 #endif
+  plan_p3d = fftwnd_create_plan(3, &(dims[1]), FFTW_BACKWARD, FFTW_MEASURE | FFTW_IN_PLACE);
   fprintf(stdout, "# [%2d] fftw parameters:\n"\
                   "# [%2d] T            = %3d\n"\
 		  "# [%2d] Tstart       = %3d\n"\
@@ -206,6 +210,8 @@ int main(int argc, char **argv) {
 
   geometry();
 
+  VOL3 = LX*LY*LZ;
+
   /* allocate memory for the contractions */
   conn = (double*)calloc(2 * 16 * VOLUME, sizeof(double));
   if( conn==(double*)NULL ) {
@@ -221,6 +227,10 @@ int main(int argc, char **argv) {
     EXIT(4);
   }
 
+  in3d  = (fftw_complex*)malloc( VOL3 * sizeof(fftw_complex));
+  if(in3d == (fftw_complex*)NULL) {    
+    EXIT(41);
+  }
 
   /***********************************************************
    * determine source coordinates, find out, if source_location is in this process
@@ -325,6 +335,7 @@ int main(int argc, char **argv) {
    * Fourier transformation 
    *********************************************/
   ratime = _GET_TIME;
+#if 0
   for(mu=0; mu<16; mu++) {
     memcpy((void*)in, (void*)&conn[_GWI(mu,0,VOLUME)], 2*VOLUME*sizeof(double));
 #ifdef HAVE_MPI
@@ -338,6 +349,19 @@ int main(int argc, char **argv) {
 #endif
     memcpy((void*)&conn[_GWI(mu,0,VOLUME)], (void*)in, 2*VOLUME*sizeof(double));
   }
+#endif
+
+  ratime = _GET_TIME;
+  for(mu=0; mu<16; mu++) {
+    for( x0=0; x0<T; x0++) {
+      ix = g_ipt[x0][0][0][0];
+      memcpy((void*)in3d, (void*)&conn[_GWI(mu,ix,VOLUME)], 2*VOL3*sizeof(double));
+      fftwnd_one(plan_p3d, in3d, NULL);
+      memcpy((void*)&conn[_GWI(mu,ix,VOLUME)], (void*)in3d, 2*VOL3*sizeof(double));
+    }
+  }
+
+
 /*
   for(x0=0; x0<T;  x0++) {
   for(x1=0; x1<LX; x1++) {
@@ -354,6 +378,7 @@ int main(int argc, char **argv) {
 
 
 
+#if 0
   /*****************************************
    * add phase factors
    *****************************************/
@@ -378,10 +403,9 @@ int main(int argc, char **argv) {
       phi[2*ix+1] = w1.im; /* - contact_term[2*mu+1]; */
     }}}}
   }  /* of mu */
-#if 0
 #endif  /* of if 0 */
 
-
+#if 0
   for(mu=0; mu<3; mu++) {
   for(nu=mu+1; nu<4; nu++) {
     double *phi = conn + _GWI(4*mu+nu,0,VOLUME);
@@ -409,8 +433,7 @@ int main(int argc, char **argv) {
       chi[2*ix+1] = w1.im;
     }}}}
   }}  /* of mu and nu */
-#if 0
-#endif
+#endif  /* of if 0 */
   retime = _GET_TIME;
   if(g_cart_id==0) fprintf(stdout, "Fourier transform in %e seconds\n", retime-ratime);
 
@@ -430,42 +453,43 @@ int main(int argc, char **argv) {
     write_lime_contraction(&(conn[_GWI(mu,0,VOLUME)]), filename, 64, 1, contype, Nconf, mu>0);
   }
 
-  if(write_ascii) {
-    for(mu=0; mu<4; mu++) {
-    for(nu=0; nu<4; nu++) {
-      int imunu = 4*mu + nu;
 #ifndef HAVE_MPI
+  if(write_ascii) {
       if(outfile_prefix_set) {
-        sprintf(filename, "%s/%s_v_p.%.4d.mu%.2dnu%.2d.ascii", outfile_prefix, filename_prefix3, Nconf, mu, nu);
+        sprintf(filename, "%s/%s_v_p.%.4d.ascii", outfile_prefix, filename_prefix3, Nconf);
       } else {
-        sprintf(filename, "%s_v_p.%.4d.mu%.2dnu%.2d.ascii", filename_prefix3, Nconf, mu, nu);
+        sprintf(filename, "%s_v_p.%.4d.ascii", filename_prefix3, Nconf);
       }
       /* write_contraction(conn, (int*)NULL, filename, 16, 2, 0); */
-#else
-      sprintf(filename, "%s_v_p.%.4d.mu%.2dnu%.2d.ascii.%.2d", filename_prefix3, Nconf, mu, nu, g_cart_id);
-#endif
+
+      // sprintf(filename, "%s_v_p.%.4d.ascii.%.2d", filename_prefix3, Nconf, g_cart_id);
       ofs = fopen(filename, "w");
       if( ofs == NULL ) {
         fprintf(stderr, "[cvc_exact2_pspace] Error from fopen\n");
         EXIT(116);
       }
-      if( g_cart_id == 0 ) fprintf(ofs, "%s_v_p <- array(dim=c(%d, %d, %d, %d))\n", filename_prefix3, T_global,LX_global,LY_global,LZ_global);
-      for(x0=0; x0<T;  x0++) {
+      // if( g_cart_id == 0 ) fprintf(ofs, "# %s_v_p <- array(dim=c(%d, %d, %d, %d))\n", filename_prefix3, T_global,LX_global,LY_global,LZ_global);
       for(x1=0; x1<LX; x1++) {
       for(x2=0; x2<LY; x2++) {
       for(x3=0; x3<LZ; x3++) {
-        ix=g_ipt[x0][x1][x2][x3];
-          fprintf(ofs, "%s_v_p[%d, %d, %d, %d] <- %25.16e + %25.16e*1.i\n", filename_prefix3,
-              x0+g_proc_coords[0]*T+1, x1+g_proc_coords[1]*LX+1,
-              x2+g_proc_coords[2]*LY+1, x3+g_proc_coords[3]*LZ+1,
-              conn[_GWI(imunu,ix,VOLUME)], conn[_GWI(imunu,ix,VOLUME)+1]);
-      }}}}
+        fprintf(ofs, "# p %3d %3d %3d\n", x1, x2, x3 );
+        for(mu=0; mu<4; mu++) {
+        for(nu=0; nu<4; nu++) {
+          int imunu = 4*mu + nu;
+          fprintf(ofs, "# mu nu %3d %3d\n", mu, nu );
+          for(x0=0; x0<T;  x0++) {
+            ix=g_ipt[x0][x1][x2][x3];
+            // fprintf(ofs, "%s_v_p[%d, %d, %d, %d] <- %25.16e + %25.16e*1.i\n", filename_prefix3,
+            fprintf(ofs, "%3d %25.16e %25.16e\n", x0+g_proc_coords[0]*T, conn[_GWI(imunu,ix,VOLUME)], conn[_GWI(imunu,ix,VOLUME)+1]);
+          }
+        }}
+      }}}
       fclose(ofs);
-    }}
   }  /* end of if write ascii */
 
   retime = _GET_TIME;
   if(g_cart_id==0) fprintf(stdout, "# [cvc_exact2_pspace] saved momentum space results in %e seconds\n", retime-ratime);
+#endif
 
   if(check_momentum_space_WI) {
 #ifdef HAVE_MPI
@@ -508,6 +532,7 @@ int main(int argc, char **argv) {
    ****************************************/
   free_geometry();
   fftw_free(in);
+  fftw_free(in3d);
   free(conn);
 #ifdef HAVE_MPI
   fftwnd_mpi_destroy_plan(plan_p);
@@ -516,6 +541,7 @@ int main(int argc, char **argv) {
 #else
   fftwnd_destroy_plan(plan_p);
 #endif
+  fftwnd_destroy_plan(plan_p3d);
 
   if(g_cart_id==0) {
     g_the_time = time(NULL);
