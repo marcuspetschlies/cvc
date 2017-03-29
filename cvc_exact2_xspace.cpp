@@ -882,6 +882,17 @@ int main(int argc, char **argv) {
 #endif
   for(ix=0; ix<32*VOLUME; ix++) conn[ix] *= -0.25;
 
+  /* subtract contact term */
+  if( have_source_flag == g_cart_id ) {
+    fprintf(stdout, "# [cvc_exact2_xspace] process %d subtracting contact term\n", g_cart_id);
+    ix = g_ipt[sx0][sx1][sx2][sx3];
+    for(mu=0; mu<4; mu++) {
+      conn[_GWI(5*mu,ix,VOLUME)    ] -= contact_term[2*mu  ];
+      conn[_GWI(5*mu,ix,VOLUME) + 1] -= contact_term[2*mu+1];
+    }
+  }
+
+
 #ifdef HAVE_MPI
   retime = MPI_Wtime();
 #else
@@ -1048,16 +1059,6 @@ int main(int argc, char **argv) {
     xchange_contraction(conn_buffer, 32); */
     for(mu=0; mu<16; mu++) {
       memcpy(conn_buffer+2*mu*VOLUMEplusRAND, conn+2*mu*VOLUME, 2*VOLUME*sizeof(double));
-    }
-
-    /* subtract contact term */
-    if( have_source_flag == g_cart_id ) {
-      fprintf(stdout, "# [cvc_exact2_xspace] process %d subtracting contact term\n", g_cart_id);
-      ix = g_ipt[sx0][sx1][sx2][sx3];
-      for(mu=0; mu<4; mu++) {
-        conn_buffer[_GWI(5*mu,ix,stride)    ] -= contact_term[2*mu  ];
-        conn_buffer[_GWI(5*mu,ix,stride) + 1] -= contact_term[2*mu+1];
-      }
     }
 
     /* exchange contraction fields */
