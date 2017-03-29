@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <complex.h>
+#include <time.h>
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
@@ -1269,7 +1270,7 @@ int Q_clover_eo_invert_subspace ( double**prop_e,   double**prop_o,
   for(i=0; i<nsf; i++) {
     int k;
     for(k=0; k < nev; k++) {
-      if(g_cart_id == 0) fprintf(stdout, "# [Q_clover_eo_invert_subspace] pcoeff[%d, %d] = %25.16e %25.16e\n", i, k, pcoeff[i][2*k], pcoeff[i][2*k+1]);
+      /* if(g_cart_id == 0 ) fprintf(stdout, "# [Q_clover_eo_invert_subspace] pcoeff[%d, %d] = %25.16e %25.16e\n", i, k, pcoeff[i][2*k], pcoeff[i][2*k+1]); */
       pcoeff[i][2*k  ] *= evecs_norm[k];
       pcoeff[i][2*k+1] *= evecs_norm[k];
     }
@@ -1303,5 +1304,87 @@ int Q_clover_eo_invert_subspace ( double**prop_e,   double**prop_o,
   return(0);
 
 }  /* end of Q_clover_eo_invert_subspace */
+
+/********************************************************************
+ * invert on odd stochastic subspace
+ * we apply
+ *
+ * ( 0 X ) x ( 0 0       ) 
+ * ( 0 1 )   ( 0 S_stoch )
+ *
+ * S_stoch = sum_r phi_r xi_r^+
+ *
+ * safe for prop_e = source_e and / or prop_o = source_o
+ ********************************************************************/
+int Q_clover_eo_invert_subspace_stochastic ( double**prop_e, double**prop_o, double**source_e, double**source_o,
+                                             int nsf, double*sample_prop, double*sample_source, int nsample,
+                                             double*gauge_field, double**mzz[2], double**mzzinv[2], int flavor_id, double**eo_spinor_aux ) {
+
+
+  const unsigned int Vhalf = VOLUME / 2;
+  const size_t sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
+
+  int i, exitstatus;
+  int fini_eo_spinor_work=0;
+  double **pcoeff = NULL, **eo_spinor_work=NULL;
+  double ratime, retime;
+
+  ratime = _GET_TIME;
+
+  if ( eo_spinor_aux == NULL ) {
+    exitstatus = init_2level_buffer(&eo_spinor_work, 1, _GSI( ( (VOLUME+RAND) / 2) ) );
+    if(exitstatus != 0) {
+      fprintf(stderr, "[Q_clover_eo_invert_subspace_stochastic] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(1);
+    }
+    fini_eo_spinor_work = 1;
+  } else {
+    eo_spinor_work = eo_spinor_aux;
+    fini_eo_spinor_work = 0;
+  }
+
+  exitstatus = init_2level_buffer(&pcoeff, nsf, 2*nsample);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_eo_invert_subspace_stochastic] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(2);
+  }
+
+  /* odd projection coefficients pcoeff = Xi^+ sp_o */
+  if( flavor_id == 0 ) {
+    exitstatus = project_reduce_from_propagator_field (pcoeff[0], source_o[0], sample_source, nsf, nsample, Vhalf);
+  } else {
+    exitstatus = project_reduce_from_propagator_field (pcoeff[0], source_o[0], sample_prop, nsf, nsample, Vhalf);
+  }
+ 
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_eo_invert_subspace_stochastic] Error from project_reduce_from_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(2);
+  }
+
+  if( flavor_id == 0 ) {
+    exitstatus = project_expand_to_propagator_field(prop_o[0], pcoeff[0], sample_prop, nsf, nsample, Vhalf);
+  } else {
+    exitstatus = project_expand_to_propagator_field(prop_o[0], pcoeff[0], sample_source, nsf, nsample, Vhalf);
+  }
+ 
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_eo_invert_subspace_stochastic] Error from project_expand_to_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(3);
+  }
+
+  /* complete the propagator by call to B^{-1} */
+  for(i=0; i<nsf; i++) {
+    Q_clover_eo_SchurDecomp_Binv ( prop_e[i], prop_o[i], source_e[i], prop_o[i], gauge_field, mzzinv[flavor_id][0], eo_spinor_work[0]);
+  }
+  fini_2level_buffer(&pcoeff);
+  if ( fini_eo_spinor_work == 1 ) fini_2level_buffer(&eo_spinor_work);
+  retime = _GET_TIME;
+  if(g_cart_id==0) fprintf(stdout, "# [Q_clover_eo_invert_subspace_stochastic] time for subspace inversion = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+
+  return(0);
+
+}  /* end of Q_clover_eo_invert_subspace_stochastic */
+
+
 
 }  /* end of namespace cvc */
