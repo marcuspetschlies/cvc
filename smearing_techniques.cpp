@@ -37,6 +37,8 @@ int APE_Smearing(double *smeared_gauge_field, double APE_smearing_alpha, int APE
   const unsigned int gf_items = 72*VOLUME;
   const size_t gf_bytes = gf_items * sizeof(double);
 
+  if ( APE_smearing_niter == 0 ) return(0);
+
   int iter;
   double *smeared_gauge_field_old = NULL;
   alloc_gauge_field(&smeared_gauge_field_old, VOLUMEPLUSRAND);
@@ -259,6 +261,8 @@ int Jacobi_Smearing(double *smeared_gauge_field, double *psi, int N, double kapp
   const unsigned int sf_items = _GSI(VOLUME);
   const size_t sf_bytes = sf_items * sizeof(double);
   const double norm = 1.0 / (1.0 + 6.0*kappa);
+
+  if ( N == 0 ) return(0);
 
   int i1;
   double *psi_old = (double*)malloc( _GSI(VOLUME+RAND)*sizeof(double));
