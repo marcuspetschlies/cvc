@@ -456,12 +456,12 @@ int contract_N_N (spinor_propagator_type **res, double**uprop_list, double**dpro
   /* variables */
   unsigned int ix, iix;
   int icomp;
-  fermion_propagator_type fp1, fp2, fp3, fpaux, uprop, dprop;
+  fermion_propagator_type fp1, fp2, fpaux, uprop, dprop;
   spinor_propagator_type sp1, sp2;
 
   create_fp(&fp1);
   create_fp(&fp2);
-  create_fp(&fp3);
+  create_fp(&fpaux);
   create_fp(&uprop);
   create_fp(&dprop);
 
@@ -473,72 +473,76 @@ int contract_N_N (spinor_propagator_type **res, double**uprop_list, double**dpro
 #endif
   for(ix=0; ix<VOLUME; ix++) {
 
+    /* assign the propagators */
+    _assign_fp_point_from_field(uprop, uprop_list, ix);
+
+    if(g_fermion_type==_TM_FERMION) {
+      _assign_fp_point_from_field(dprop, dprop_list, ix);
+    } else {
+      _fp_eq_fp(dprop, uprop);
+    }
+
     for(icomp=0; icomp<ncomp; icomp++) {
       iix = ix*ncomp+icomp;
 
-      // assign the propagators
-      _assign_fp_point_from_field(uprop, uprop_list, ix);
+      /******************************************************
+       * prepare propagators
+       *
+       * input fermion propagators
+       *   uprop = S_u
+       *   dprop = S_d
+       * auxilliary fermion propagatos
+       *   fp1 = S_d C Gamma_1
+       *   fp2 = C Gamma_2 _Sd C Gamma_1
+       ******************************************************/
 
-      if(g_fermion_type==_TM_FERMION) {
-        _assign_fp_point_from_field(dprop, dprop_list, ix);
-      } else {
-        _fp_eq_fp(dprop, uprop);
-      }
-
-      // S_u x Cg5
-      //_fp_eq_fp_ti_Cg5(fp1, uprop, fp3);
-      //
-      // S_u x C x Gamma_1
+      /* fp1 = S_d x C x Gamma_1 = dprop g0 g2 Gamma_1 */
       _fp_eq_zero(fp1);
-      _fp_eq_zero(fp3);
-      _fp_eq_fp_ti_gamma(fp1, 0, uprop);
-      _fp_eq_fp_ti_gamma(fp3, 2, fp1);
-      _fp_eq_fp_ti_gamma(fp1, comp_list[icomp][0], fp3);
+      _fp_eq_zero(fpaux);
+      _fp_eq_fp_ti_gamma(fp1, 0, dprop);
+      _fp_eq_fp_ti_gamma(fpaux, 2, fp1);
+      _fp_eq_fp_ti_gamma(fp1, comp_list[icomp][0], fpaux);
 
-      // Cg5 x S_d
-      // _fp_eq_Cg5_ti_fp(fp2, dprop, fp3);
-      //
-      // C x Gamma_2 x S_d
-      _fp_eq_zero(fp2);
-      _fp_eq_zero(fp3);
-      _fp_eq_gamma_ti_fp(fp2, comp_list[icomp][1], dprop);
-      _fp_eq_gamma_ti_fp(fp3, 2, fp2);
-      _fp_eq_gamma_ti_fp(fp2, 0, fp3);
+      /* fp2 = C x Gamma_2 x S_d = g0 g2 Gamma_2 fp1 */
+      _fp_eq_zero(fpaux);
+      _fp_eq_gamma_ti_fp(fp2, comp_list[icomp][1], fp1);
+      _fp_eq_gamma_ti_fp(fpaux, 2, fp2);
+      _fp_eq_gamma_ti_fp(fp2, 0, fpaux);
       
       /******************************************************
-       * first contribution
+       * contract
        ******************************************************/
 
+      /*********************
+       * N2
+       *********************/
       // reduce
-      _fp_eq_zero(fp3);
-      _fp_eq_fp_eps_contract13_fp(fp3, fp1, fp2);
-
+      _fp_eq_zero(fpaux);
+      _fp_eq_fp_eps_contract13_fp(fpaux, fp2, uprop);
       // reduce to spin propagator
       _sp_eq_zero( sp1 );
-      _sp_eq_fp_del_contract34_fp(sp1, uprop, fp3);
+      _sp_eq_fp_del_contract34_fp(sp1, uprop, fpaux);
 
-      _sp_eq_sp_ti_re( res[0][iix], sp1,comp_list_sign[icomp]);
+      _sp_eq_sp_ti_re( res[0][iix], sp1, -comp_list_sign[icomp]);
 
-      /******************************************************
-       * second contribution
-       ******************************************************/
-
+      /*********************
+       * N1
+       *********************/
       // reduce
-      _fp_eq_zero(fp3);
-      _fp_eq_fp_eps_contract24_fp(fp3, fp1, fp2);
-
+      _fp_eq_zero(fpaux);
+      _fp_eq_fp_eps_contract13_fp(fpaux, fp2, uprop);
       // reduce to spin propagator
       _sp_eq_zero( sp2 );
-      _sp_eq_fp_del_contract23_fp(sp2, fp3, uprop);
+      _sp_eq_fp_del_contract23_fp(sp2, uprop, fpaux);
 
-      _sp_eq_sp_ti_re( res[1][iix], sp2,comp_list_sign[icomp]);
+      _sp_eq_sp_ti_re( res[1][iix], sp2, -comp_list_sign[icomp]);
     }  /* of icomp */
 
   }  // end of loop on VOLUME
 
  free_fp(&fp1);
  free_fp(&fp2);
- free_fp(&fp3);
+ free_fp(&fpaux);
  free_fp(&uprop);
  free_fp(&dprop);
 
