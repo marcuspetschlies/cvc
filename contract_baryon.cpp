@@ -724,13 +724,12 @@ int contract_piN_D (spinor_propagator_type **res, double**uprop_list, double**dp
     /* variables */
     unsigned int ix, iix;
     int icomp;
-    fermion_propagator_type fp1, fp2, fp3, fp4, fpaux, uprop, dprop;
+    fermion_propagator_type fp1, fp4, fp5, fpaux, uprop, dprop;
     spinor_propagator_type sp1, sp2;
   
     create_fp(&fp1);
-    create_fp(&fp2);
-    create_fp(&fp3);
     create_fp(&fp4);
+    create_fp(&fp5);
     create_fp(&fpaux);
     create_fp(&uprop);
     create_fp(&dprop);
@@ -753,82 +752,102 @@ int contract_piN_D (spinor_propagator_type **res, double**uprop_list, double**dp
 
         /******************************************************
          * prepare fermion propagators
+         * 
+         * input fields:
+         * uprop = U
+         * dprop = T_fii
+         *
+         * auxilliary fermion propagators:
+         * fp1 = C Gamma_1 U
+         * fp4 = T_fii C Gamma_2
+         * fp5 = C Gamma_1 T_fii C Gamma_2 = C Gamma_1 fp4
+         *
          ******************************************************/
         _fp_eq_zero(fp1);
-        _fp_eq_zero(fp2);
-        _fp_eq_zero(fp3);
         _fp_eq_zero(fp4);
+        _fp_eq_zero(fp5);
         _fp_eq_zero(fpaux);
         /* fp1 = C Gamma_1 x S_u = g0 g2 Gamma_1 S_u */
         _fp_eq_gamma_ti_fp(fp1, comp_list[icomp][0], uprop);
         _fp_eq_gamma_ti_fp(fpaux, 2, fp1);
         _fp_eq_gamma_ti_fp(fp1,   0, fpaux);
 
-        /*  fp2 = C Gamma_1 x S_u x C Gamma_2 = fp1 x g0 g2 Gamma_2 */
-        _fp_eq_fp_ti_gamma(fp2, 0, fp1);
-        _fp_eq_fp_ti_gamma(fpaux, 2, fp2);
-        _fp_eq_fp_ti_gamma(fp2, comp_list[icomp][1], fpaux);
+        /* fp4 = T_fii x C Gamma_2 = dprop x g0 g2 Gamma_2 */
+        _fp_eq_fp_ti_gamma(fp4,   0, dprop);
+        _fp_eq_fp_ti_gamma(fpaux, 2, fp4);
+        _fp_eq_fp_ti_gamma(fp4, comp_list[icomp][1], fpaux)
  
-        /* fp3 = S_u x C Gamma_2 = uprop x g0 g2 Gamma_2 */
-        _fp_eq_fp_ti_gamma(fp3,   0, uprop);
-        _fp_eq_fp_ti_gamma(fpaux, 2, fp3);
-        _fp_eq_fp_ti_gamma(fp3, comp_list[icomp][1], fpaux);
- 
-        /* fp4 = C Gamma_1 x S_seq = g0 g2 Gamma_1 dprop  */
-        _fp_eq_gamma_ti_fp(fp4, comp_list[icomp][0], dprop);
-        _fp_eq_gamma_ti_fp(fpaux, 2, fp4);
-        _fp_eq_gamma_ti_fp(fp4,   0, fpaux);
+        /* fp5 = C Gamma_1 x T_fii C Gamma_2 = g0 g2 Gamma_1 fp4  */
+        _fp_eq_gamma_ti_fp(fp5, comp_list[icomp][0], fp4);
+        _fp_eq_gamma_ti_fp(fpaux, 2, fp5);
+        _fp_eq_gamma_ti_fp(fp5,   0, fpaux);
 
-        /* (1) */
+        /******************************************************
+         * contractions
+         ******************************************************/
+
+        /*************
+         * T1
+         *************/
         /* reduce */
         _fp_eq_zero(fpaux);
-        _fp_eq_fp_eps_contract13_fp(fpaux, fp2, uprop);
+        _fp_eq_fp_eps_contract13_fp(fpaux, fp1, uprop);
         /* reduce to spin propagator */
         _sp_eq_zero( sp1 );
-        _sp_eq_fp_del_contract23_fp(sp1, dprop, fpaux);
+        _sp_eq_fp_del_contract23_fp(sp1, fp4, fpaux);
         _sp_eq_sp_ti_re(res[0][iix], sp1, -comp_list_sign[icomp]);
 
 
-        /* (2) */
+        /*************
+         * T2
+         *************/
         /* reduce */
         _fp_eq_zero(fpaux);
-        _fp_eq_fp_eps_contract13_fp(fpaux, fp1, fp3);
+        _fp_eq_fp_eps_contract13_fp(fpaux, uprop, fp1);
         /* reduce to spin propagator */
         _sp_eq_zero( sp2 );
-        _sp_eq_fp_del_contract24_fp(sp2, dprop, fpaux);
+        _sp_eq_fp_del_contract23_fp(sp2, fp4, fpaux);
         _sp_eq_sp_ti_re(res[1][iix], sp2, -comp_list_sign[icomp]);
   
-        /* (3) */
+        /*************
+         * T3
+         *************/
         /* reduce */
         _fp_eq_zero(fpaux);
-        _fp_eq_fp_eps_contract13_fp(fpaux, fp4, uprop);
+        _fp_eq_fp_eps_contract13_fp(fpaux, fp5, uprop);
         /* reduce to spin propagator */
         _sp_eq_zero( sp1 );
-        _sp_eq_fp_del_contract23_fp(sp1, fp3, fpaux);
+        _sp_eq_fp_del_contract23_fp(sp1, uprop, fpaux);
         _sp_eq_sp_ti_re(res[2][iix], sp1, -comp_list_sign[icomp]);
 
-        /* (4) */
+        /*************
+         * T4
+         *************/
         /* reduce */
         _fp_eq_zero(fpaux);
-        _fp_eq_fp_eps_contract13_fp(fpaux, fp1, dprop);
+        _fp_eq_fp_eps_contract13_fp(fpaux, fp4, fp1);
         /* reduce to spin propagator */
         _sp_eq_zero( sp2 );
-        _sp_eq_fp_del_contract24_fp(sp2, fp3, fpaux);
+        _sp_eq_fp_del_contract23_fp(sp2, uprop, fpaux);
         _sp_eq_sp_ti_re(res[3][iix], sp2, -comp_list_sign[icomp]);
   
-        /* (5) */
+        /*************
+         * T5 
+         *************/
         /* reduce */
         _fp_eq_zero(fpaux);
-        _fp_eq_fp_eps_contract13_fp(fpaux, fp4, fp3);
+        _fp_eq_fp_eps_contract13_fp(fpaux, uprop, fp5);
         /* reduce to spin propagator */
         _sp_eq_zero( sp1 );
         _sp_eq_fp_del_contract34_fp(sp1, uprop, fpaux);
         _sp_eq_sp_ti_re(res[4][iix], sp1, -comp_list_sign[icomp]);
         
-        /* (6) */
+        /*************
+         * T6
+         *************/
         /* reduce */
         _fp_eq_zero(fpaux);
-        _fp_eq_fp_eps_contract13_fp(fpaux, fp2, dprop);
+        _fp_eq_fp_eps_contract13_fp(fpaux, fp1, fp4);
         /* reduce to spin propagator */
         _sp_eq_zero( sp2 );
         _sp_eq_fp_del_contract34_fp(sp2, uprop, fpaux);
@@ -839,9 +858,8 @@ int contract_piN_D (spinor_propagator_type **res, double**uprop_list, double**dp
     }    /* of ix */
   
    free_fp(&fp1);
-   free_fp(&fp2);
-   free_fp(&fp3);
    free_fp(&fp4);
+   free_fp(&fp5);
    free_fp(&fpaux);
    free_fp(&uprop);
    free_fp(&dprop);
