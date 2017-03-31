@@ -181,10 +181,6 @@ namespace cvc {
 #define _default_mms_id -1
 #define _default_check_inversion 0
 
-#define _default_laph_time_proj_type "NA"
-#define _default_laph_spin_proj_type "NA"
-#define _default_laph_evec_proj_type "NA"
-
 #define _default_src_snk_time_separation 0
 
 #define _default_seq_source_gamma_id -1
@@ -192,31 +188,6 @@ namespace cvc {
 
 #define _default_source_gamma_id -1
 #define _default_source_gamma_id_number 0
-
-#define _default_laphs_time_proj_type "NA"
-#define _default_laphs_spin_proj_type "NA"
-#define _default_laphs_evec_proj_type "NA"
-
-#define _default_laphs_eigenvector_number 0
-#define _default_laphs_randomvector_number 0
-
-#define _default_laphs_eigenvector_path_prefix "NA"
-
-#define _default_laphs_eigenvector_file_prefix "eigenvectors"
-#define _default_laphs_eigenvalue_file_prefix "eigenvalues"
-#define _default_laphs_phase_file_prefix "phases"
-#define _default_laphs_randomvector_file_prefix "randomvector"
-#define _default_laphs_randomvector_path_prefix "."
-
-#define _default_perambulator_quark_type "x"
-#define _default_perambulator_snk_type  "NA"
-
-#define _default_laphs_time_src_number 0
-#define _default_laphs_spinc_src_number 0
-#define _default_laphs_evec_src_number 0
-
-#define _default_laphs_perambulator_path_prefix "./"
-#define _default_laphs_perambulator_file_prefix "perambulator"
 
 #define _default_csw 0
 
