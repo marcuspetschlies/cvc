@@ -163,8 +163,8 @@ int contract_piN_piN (spinor_propagator_type **res, double**uprop_list, double**
           _fp_eq_fp_ti_gamma(fpaux, 2, fp6);
           _fp_eq_fp_ti_gamma(fp6, comp_list[icomp][1], fpaux);
 
-          /* fp5 = C Gamma_1 x P_fifi = g0 g2 Gamma_1 pfifi */
-          _fp_eq_gamma_ti_fp(fp5, comp_list[icomp][0], pfifi);
+          /* fp5 = C Gamma_1 x P_ffii = g0 g2 Gamma_1 pffii */
+          _fp_eq_gamma_ti_fp(fp5, comp_list[icomp][0], pffii);
           _fp_eq_gamma_ti_fp(fpaux, 2, fp5);
           _fp_eq_gamma_ti_fp(fp5,   0, fpaux);
 
@@ -775,9 +775,9 @@ int contract_piN_D (spinor_propagator_type **res, double**uprop_list, double**dp
         /* fp4 = T_fii x C Gamma_2 = dprop x g0 g2 Gamma_2 */
         _fp_eq_fp_ti_gamma(fp4,   0, dprop);
         _fp_eq_fp_ti_gamma(fpaux, 2, fp4);
-        _fp_eq_fp_ti_gamma(fp4, comp_list[icomp][1], fpaux)
+        _fp_eq_fp_ti_gamma(fp4, comp_list[icomp][1], fpaux);
  
-        /* fp5 = C Gamma_1 x T_fii C Gamma_2 = g0 g2 Gamma_1 fp4  */
+        /* fp5 = C Gamma_1 x T_fii C Gamma_2 = g0 g2 Gamma_1 fp4 */
         _fp_eq_gamma_ti_fp(fp5, comp_list[icomp][0], fp4);
         _fp_eq_gamma_ti_fp(fpaux, 2, fp5);
         _fp_eq_gamma_ti_fp(fp5,   0, fpaux);
