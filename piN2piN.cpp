@@ -87,16 +87,18 @@ public:
 
   void begin(std::string name){
     end();
-    t = MPI_Wtime();
+    t = _GET_TIME;
     secname = name;
   }
 
   void end(){
     if(secname == "") return;
-    int world_rank;
+    int world_rank = 0;
+#ifdef HAVE_MPI
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+#endif
     if(world_rank != 0) return;
-    double dt = MPI_Wtime() - t;
+    double dt = _GET_TIME - t;
     std::cout << "# [GlobTimeMeas] (" << g_proc_coords[0] << "," << g_proc_coords[1] << "," << g_proc_coords[2] << "," << g_proc_coords[3] << ") section " << secname << " finished in " << std::setprecision(4) << ((float)dt) << "s" << std::endl;
     secname = "";
     t = 0;
@@ -109,8 +111,10 @@ public:
  * Functions to reduce output
  * */
 int mpi_fprintf(FILE* stream, const char * format, ...){
-  int world_rank;
+  int world_rank = 0;
+#ifdef HAVE_MPI
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+#endif
   if(world_rank == 0){
     va_list arg;
     int done;
@@ -125,8 +129,10 @@ int mpi_fprintf(FILE* stream, const char * format, ...){
 }
 
 int mpi_printf(const char * format, ...){
-  int world_rank;
+  int world_rank = 0;
+#ifdef HAVE_MPI
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+#endif
   if(world_rank == 0){
     va_list arg;
     int done;
