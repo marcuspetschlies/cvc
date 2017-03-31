@@ -41,7 +41,7 @@
 #include "hyp_smear.h"
 #include "Q_phi.h"
 #include "Q_clover_phi.h"
-#include "invert_Qtm.h"
+#include "scalar_products.h"
 #include "ranlxd.h"
 
 using namespace cvc;

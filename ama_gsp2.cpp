@@ -44,7 +44,7 @@
 #include "laplace_linalg.h"
 #include "hyp_smear.h"
 #include "Q_phi.h"
-#include "invert_Qtm.h"
+#include "scalar_products.h"
 #include "gsp.h"
 
 using namespace cvc;

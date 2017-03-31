@@ -50,7 +50,7 @@ extern "C"
 #include "propagator_io.h"
 #include "Q_phi.h"
 #include "read_input_parser.h"
-#include "invert_Qtm.h"
+#include "scalar_products.h"
 #include "ranlxd.h"
 
 #define _OP_ID_UP 0

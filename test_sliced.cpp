@@ -51,7 +51,7 @@ extern "C"
 #include "Q_phi.h"
 #include "read_input_parser.h"
 #include "ranlxd.h"
-#include "invert_Qtm.h"
+#include "scalar_products.h"
 
 
 using namespace cvc;

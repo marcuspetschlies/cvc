@@ -42,7 +42,7 @@
 #include "gauge_io.h"
 #include "read_input_parser.h"
 #include "laplace_linalg.h"
-#include "invert_Qtm.h"
+#include "scalar_products.h"
 #include "Q_phi.h"
 #include "Q_clover_phi.h"
 #include "gsp.h"

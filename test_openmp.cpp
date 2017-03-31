@@ -51,7 +51,7 @@ extern "C"
 #include "prepare_propagator.h"
 #include "matrix_init.h"
 #include "contract_cvc_tensor.h"
-#include "invert_Qtm.h"
+#include "scalar_products.h"
 
 using namespace cvc;
 

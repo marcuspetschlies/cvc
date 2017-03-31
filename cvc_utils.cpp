@@ -26,7 +26,7 @@
 #include "cvc_utils.h"
 #include "ranlxd.h"
 #include "Q_phi.h"
-#include "invert_Qtm.h"
+#include "scalar_products.h"
 
 namespace cvc {
 
