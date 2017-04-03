@@ -26,6 +26,8 @@ void Q_clover_eo_SchurDecomp_Binv (double *e_new, double *o_new, double *e_old, 
 
 int Q_clover_invert (double*prop, double*source, double*gauge_field, double *mzzinv, int op_id);
 
+int Q_clover_eo_invert (double*prop_e, double*prop_o, double*source_e, double*source_o, double*gauge_field, double *mzzinv, int op_id);
+
 int Q_clover_invert_subspace ( double**prop, double**source, int nsf, double*evecs, double*evecs_norm, int nev, double*gauge_field, double **mzz[2], double **mzzinv[2], int flavor_id);
 
 int Q_clover_eo_invert_subspace ( double**prop_e,   double**prop_o, double**source_e, double**source_o,
