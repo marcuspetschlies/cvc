@@ -685,7 +685,7 @@ int main(int argc, char **argv) {
           EXIT(12);
         }
         for(i = 0; i < g_sink_momentum_number; i++ ) {
-          fprintf(ofs, "/full/hvp/t%.2dx%.2dy%.2dz%.2d/px%.2dpy%.2dpz%.2d", 
+          fprintf(ofs, "/full/hvp/t%.2dx%.2dy%.2dz%.2d/px%.2dpy%.2dpz%.2d\n", 
             gsx[0], gsx[1], gsx[2], gsx[3], g_sink_momentum_list[i][0], g_sink_momentum_list[i][1], g_sink_momentum_list[i][2]);
   
           for (x0 = 0; x0 < T; x0++) {
