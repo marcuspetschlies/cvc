@@ -1052,7 +1052,7 @@ int Q_clover_invert (double*prop, double*source, double*gauge_field, double *mzz
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
 
-  const size_t sizeof_eo_spinor_field_with_halo = _GSI(VOLUME+RAND)/2;
+  const size_t sizeof_eo_spinor_field_with_halo = _GSI(VOLUME+RAND)/2 * sizeof(double);
 
   int exitstatus;
   double *eo_spinor_work[3];
@@ -1083,13 +1083,71 @@ int Q_clover_invert (double*prop, double*source, double*gauge_field, double *mzz
 
 
 /********************************************************************
+ * apply inverse Dirac operator in eo-precon form
+ *
+ * D^-1 = B^-1 A^-1 g5 
+ *
+ * input spinor fields: source_e/o
+ * output spinor fields: prop_e/o
+ *
+ * source_e = prop_e and / or source_o = prop_o is allowed
+ ********************************************************************/
+int Q_clover_eo_invert (double*prop_e, double*prop_o, double*source_e, double*source_o, double*gauge_field, double *mzzinv, int op_id) {
+
+#ifdef HAVE_TMLQCD_LIBWRAPPER
+  if ( prop_e == NULL || prop_o == NULL || source_e == NULL || source_o == NULL || gauge_field == NULL || mzzinv == NULL ) {
+    fprintf(stderr, "[Q_clover_eo_invert] input/output fields are NULL %s %d\n", __FILE__, __LINE__);
+    return(3);
+  }
+
+  const unsigned int Vhalf = VOLUME / 2;
+  const size_t sizeof_eo_spinor_field_with_halo = _GSI(VOLUME+RAND)/2 * sizeof(double);
+
+  int exitstatus;
+
+  /* auxilliary spinor fields with halo */
+  double *eo_spinor_work[3];
+  eo_spinor_work[0]  = (double*)malloc( sizeof_eo_spinor_field_with_halo );
+  eo_spinor_work[1]  = (double*)malloc( sizeof_eo_spinor_field_with_halo );
+  eo_spinor_work[2]  = (double*)malloc( sizeof_eo_spinor_field_with_halo );
+
+  /* work <- g5 source */
+  spinor_field_eq_gamma_ti_spinor_field(eo_spinor_work[0], 5, source_e, Vhalf );
+  spinor_field_eq_gamma_ti_spinor_field(eo_spinor_work[1], 5, source_o, Vhalf );
+
+  /* work <- A^-1 work */
+  Q_clover_eo_SchurDecomp_Ainv (eo_spinor_work[0], eo_spinor_work[1], eo_spinor_work[0], eo_spinor_work[1], gauge_field, mzzinv, eo_spinor_work[2]);
+
+  /* work_o <- C^-1 work_o */
+  exitstatus = tmLQCD_invert_eo(eo_spinor_work[2], eo_spinor_work[1], op_id);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_eo_invert] Error from tmLQCD_invert_eo, status was %d\n", exitstatus);
+    return(1);
+  }
+
+  /* prop <- B^-1 work */
+  Q_clover_eo_SchurDecomp_Binv ( prop_e, prop_o, eo_spinor_work[0], eo_spinor_work[2], gauge_field, mzzinv, eo_spinor_work[1]);
+
+  free( eo_spinor_work[0] );
+  free( eo_spinor_work[1] );
+  free( eo_spinor_work[2] );
+  return(0);
+#else
+  if( g_cart_id == 0 ) fprintf(stderr, "[Q_clover_eo_invert] Error, no inverter\n");
+  return(2);
+#endif
+}  /* Q_clover_eo_invert */
+
+
+
+/********************************************************************
  * invert on eo-precon eigenvector subspace
  * prop and source are full spinor fields
  ********************************************************************/
 int Q_clover_invert_subspace ( double**prop, double**source, int nsf, double*evecs, double*evecs_norm, int nev, double*gauge_field, double **mzz[2], double **mzzinv[2], int flavor_id) {
 
   const unsigned int Vhalf = VOLUME / 2;
-  const unsigned int sizeof_eo_spinor_field = _GSI(Vhalf);
+  const unsigned int sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
 
   int i;
   int exitstatus;
