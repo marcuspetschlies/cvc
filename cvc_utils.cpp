@@ -3723,10 +3723,13 @@ void contract_twopoint_xdep(void*contr, const int idsource, const int idsink, vo
   const int isimag = gamma_permutation[idsource][ 0] % 2;
   /* sign from the source gamma matrix; the minus sign
    * in the lower two lines is the action of gamma_5 */
-  const double ssource[4] =  { gamma_sign[idsource][ 0] * gamma_sign[5][gamma_permutation[idsource][ 0]],
-                  gamma_sign[idsource][ 6] * gamma_sign[5][gamma_permutation[idsource][ 6]],
-                  gamma_sign[idsource][12] * gamma_sign[5][gamma_permutation[idsource][12]],
-                  gamma_sign[idsource][18] * gamma_sign[5][gamma_permutation[idsource][18]] };
+  double ssource[4];
+
+  ssource[0] = (double)( gamma_sign[idsource][ 0] * gamma_sign[5][gamma_permutation[idsource][ 0]] );
+  ssource[1] = (double)( gamma_sign[idsource][ 6] * gamma_sign[5][gamma_permutation[idsource][ 6]] );
+  ssource[2] = (double)( gamma_sign[idsource][12] * gamma_sign[5][gamma_permutation[idsource][12]] );
+  ssource[3] = (double)( gamma_sign[idsource][18] * gamma_sign[5][gamma_permutation[idsource][18]] );
+
 /*
  * if( g_cart_id == 0 ) {
     fprintf(stdout, "__________________________________\n");
@@ -4167,7 +4170,7 @@ int init_rng_stat_file (unsigned int seed, char*filename) {
   unsigned int max_seed = 2147483647 / g_nproc;
   unsigned int l_seed = ( seed + step * max_seed ) % 2147483647;
 
-  char *default_filename = "rng_stat.out";
+  char default_filename[] = "rng_stat.out";
   FILE*ofs=NULL;
 
   if(l_seed == 0) l_seed++; /* why zero not allowed? */
