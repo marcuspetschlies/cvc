@@ -205,6 +205,7 @@ void clover_term_eo (double**s, double*gauge_field) {
 
       for(inu = imu+1; inu<4; inu++) {
 
+
         /* s_ptr = s[0] + _GSWI( g_lexic2eo[ix],imunu); */
         s_ptr = s[ieo] + _GSWI( g_lexic2eosub[ix],imunu);
 
@@ -217,7 +218,7 @@ void clover_term_eo (double**s, double*gauge_field) {
 
         _cm_eq_zero(s_ptr);
 
-        /* fprintf(stdout, "# [clover_term] xle=%8d xeo=%8d imu=%d inu=%d imunu=%d\n", ix, g_lexic2eo[ix], imu, inu, imunu); */
+        /* if (g_cart_id == 0 ) fprintf(stdout, "# [clover_term] xle=%8d xeo=%8d imu=%d inu=%d imunu=%d\n", ix, g_lexic2eosub[ix], imu, inu, imunu); */
 
         /********************************
          *    x + nu
@@ -232,6 +233,9 @@ void clover_term_eo (double**s, double*gauge_field) {
         _cm_eq_cm_ti_cm(U2, gauge_field+_GGI(ix,inu), gauge_field+_GGI(ix_pl_nu,imu) );
         _cm_eq_cm_ti_cm_dag( U3 , U1, U2 );
         _cm_pl_eq_cm( s_ptr , U3 );
+#if 0
+#endif
+
 
         /********************************
          *    x 
@@ -251,6 +255,24 @@ void clover_term_eo (double**s, double*gauge_field) {
         _cm_eq_cm_ti_cm_dag(U2, gauge_field+_GGI(ix_pl_mu_mi_nu, inu), gauge_field+_GGI(ix, imu) );
         _cm_eq_cm_ti_cm(U3, U1, U2 );
         _cm_pl_eq_cm( s_ptr , U3 );
+#if 0
+        char name[30];
+        sprintf(name, "%u_mi_%d__%d", ix, inu, inu);
+
+         _cm_fprintf(gauge_field+_GGI(ix_mi_nu,inu),        name, stdout);
+
+        sprintf(name, "%u_mi_%d__%d", ix, inu, imu);
+
+         _cm_fprintf(gauge_field+_GGI(ix_mi_nu, imu),       name, stdout);
+
+        sprintf(name, "%u_pl_%d_mi_%d__%d", ix, imu, inu, inu);
+
+         _cm_fprintf(gauge_field+_GGI(ix_pl_mu_mi_nu, inu), name, stdout);
+
+        sprintf(name, "%u__%d", ix, imu);
+
+         _cm_fprintf(gauge_field+_GGI(ix, imu),             name, stdout);
+#endif
 
 
         /********************************
@@ -267,6 +289,8 @@ void clover_term_eo (double**s, double*gauge_field) {
         _cm_eq_cm_dag_ti_cm(U2, gauge_field+_GGI(ix_mi_mu,inu), gauge_field+_GGI(ix_mi_mu, imu) );
         _cm_eq_cm_ti_cm(U3, U1, U2 );
         _cm_pl_eq_cm( s_ptr , U3 );
+
+
 
         /********************************
          *    x-mu
@@ -287,7 +311,8 @@ void clover_term_eo (double**s, double*gauge_field) {
         _cm_pl_eq_cm( s_ptr , U3 );
 
         _cm_eq_antiherm_cm(U3, s_ptr);
-
+#if 0
+#endif
         /* TEST */
         _cm_eq_cm_ti_re( s_ptr , U3, norm );
         /* _cm_eq_cm_ti_im( s_ptr , U3, norm ); */
@@ -1052,6 +1077,8 @@ int Q_clover_invert (double*prop, double*source, double*gauge_field, double *mzz
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
 
+  const unsigned int Vhalf = VOLUME / 2;
+  const size_t sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof(double);
   const size_t sizeof_eo_spinor_field_with_halo = _GSI(VOLUME+RAND)/2 * sizeof(double);
 
   int exitstatus;
@@ -1063,7 +1090,11 @@ int Q_clover_invert (double*prop, double*source, double*gauge_field, double *mzz
   
   spinor_field_lexic2eo (source, eo_spinor_work[0], eo_spinor_work[1] );
 
+  g5_phi( eo_spinor_work[0], Vhalf );
+  g5_phi( eo_spinor_work[1], Vhalf );
+
   Q_clover_eo_SchurDecomp_Ainv (eo_spinor_work[0], eo_spinor_work[1], eo_spinor_work[0], eo_spinor_work[1], gauge_field, mzzinv, eo_spinor_work[2]);
+  memset( eo_spinor_work[2], 0, sizeof_eo_spinor_field );
   exitstatus = tmLQCD_invert_eo(eo_spinor_work[2], eo_spinor_work[1], op_id);
   if(exitstatus != 0) {
     fprintf(stderr, "[Q_clover_invert] Error from tmLQCD_invert_eo, status was %d\n", exitstatus);
@@ -1101,7 +1132,8 @@ int Q_clover_eo_invert (double*prop_e, double*prop_o, double*source_e, double*so
   }
 
   const unsigned int Vhalf = VOLUME / 2;
-  const size_t sizeof_eo_spinor_field_with_halo = _GSI(VOLUME+RAND)/2 * sizeof(double);
+  const size_t sizeof_eo_spinor_field = ( _GSI(Vhalf) * sizeof(double) );
+  const size_t sizeof_eo_spinor_field_with_halo = ( _GSI(VOLUME+RAND) * sizeof(double) ) / 2 ;
 
   int exitstatus;
 
@@ -1111,6 +1143,10 @@ int Q_clover_eo_invert (double*prop_e, double*prop_o, double*source_e, double*so
   eo_spinor_work[1]  = (double*)malloc( sizeof_eo_spinor_field_with_halo );
   eo_spinor_work[2]  = (double*)malloc( sizeof_eo_spinor_field_with_halo );
 
+  memset( eo_spinor_work[0], 0, sizeof_eo_spinor_field );
+  memset( eo_spinor_work[1], 0, sizeof_eo_spinor_field );
+  memset( eo_spinor_work[2], 0, sizeof_eo_spinor_field );
+
   /* work <- g5 source */
   spinor_field_eq_gamma_ti_spinor_field(eo_spinor_work[0], 5, source_e, Vhalf );
   spinor_field_eq_gamma_ti_spinor_field(eo_spinor_work[1], 5, source_o, Vhalf );
@@ -1119,6 +1155,7 @@ int Q_clover_eo_invert (double*prop_e, double*prop_o, double*source_e, double*so
   Q_clover_eo_SchurDecomp_Ainv (eo_spinor_work[0], eo_spinor_work[1], eo_spinor_work[0], eo_spinor_work[1], gauge_field, mzzinv, eo_spinor_work[2]);
 
   /* work_o <- C^-1 work_o */
+  memset( eo_spinor_work[2], 0, sizeof_eo_spinor_field );
   exitstatus = tmLQCD_invert_eo(eo_spinor_work[2], eo_spinor_work[1], op_id);
   if(exitstatus != 0) {
     fprintf(stderr, "[Q_clover_eo_invert] Error from tmLQCD_invert_eo, status was %d\n", exitstatus);
