@@ -431,9 +431,9 @@ void xchange_gauge_field(double *gfield) {
   cntr++;
 
   /* z-x edges */
-  MPI_Isend(&gfield[72*(VOLUME+2*( LX*LY*LZ + T*LY*LZ + T*LX*LZ )             )], 1, gauge_zt_edge_vector, g_nb_x_dn, 99, g_cart_grid, &request[cntr]);
+  MPI_Isend(&gfield[72*(VOLUME+2*( LX*LY*LZ + T*LY*LZ + T*LX*LZ )             )], 1, gauge_zx_edge_vector, g_nb_x_dn, 99, g_cart_grid, &request[cntr]);
   cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+RAND+4*(LY*LZ + LX*LZ + T*LZ + LX*LY)          )], 1, gauge_zt_edge_cont,   g_nb_x_up, 99, g_cart_grid, &request[cntr]);
+  MPI_Irecv(&gfield[72*(VOLUME+RAND+4*(LY*LZ + LX*LZ + T*LZ + LX*LY)          )], 1, gauge_zx_edge_cont,   g_nb_x_up, 99, g_cart_grid, &request[cntr]);
   cntr++;
 
   MPI_Isend(&gfield[72*(VOLUME+2*( LX*LY*LZ + T*LY*LZ + T*LX*LZ ) + (LX-1)*LY )], 1, gauge_zx_edge_vector, g_nb_x_up, 100, g_cart_grid, &request[cntr]);
@@ -2321,7 +2321,7 @@ int ranz2(double * y, unsigned int NRAND) {
   ranlxd(y, NRAND);
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel for
+#pragma omp parallel for private(k) shared(y,NRAND)
 #endif
   for(k=0; k<NRAND; k++) {
     y[k] = (double)(2 * (int)(y[k]>=0.5) - 1) * sqrt2inv;
@@ -2867,7 +2867,7 @@ int rangauss (double * y1, unsigned int NRAND) {
   ranlxd(y1,NRAND);
 
 #ifdef HAVE_OPEMP
-#pragma omp parallel for private(k2,k2p1,x1)
+#pragma omp parallel for private(k,k2,k2p1,x1) shared(y1,NRAND)
 #endif
   for(k=0; k<nrandh; k++) {
     k2   = 2*k;
@@ -3716,6 +3716,10 @@ void contract_twopoint_snk_momentum_trange(double *contr, const int idsource, co
  ******************************************************************************/
 void contract_twopoint_xdep(void*contr, const int idsource, const int idsink, void*chi, void*phi, int n_c, int stride, double factor, size_t prec) {
 
+#ifdef HAVE_OPENMP
+#pragma omp parallel shared(idsource,idsink,chi,phi,stride,n_c,factor,prec,contr)
+{
+#endif
   const int psource[4] = { gamma_permutation[idsource][ 0] / 6,
                            gamma_permutation[idsource][ 6] / 6,
                            gamma_permutation[idsource][12] / 6,
@@ -3744,10 +3748,6 @@ void contract_twopoint_xdep(void*contr, const int idsource, const int idsink, vo
   }
 */
 
-#ifdef HAVE_OPENMP
-#pragma omp parallel
-{
-#endif
   int mu, c, j;
   unsigned int ix, iix;
   double  spinor1[24], spinor2[24];
@@ -4948,7 +4948,7 @@ void spinor_field_lexic2eo (double *r_lexic, double*r_e, double *r_o) {
   if(r_e != NULL) {
     /* for(ix=0; ix<N; ix++) */
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(ix_e2lexic)
+#pragma omp parallel for private(ix,ix_e2lexic) shared(r_lexic,r_e,r_o)
 #endif
     for(ix=0; ix < VOLUME/2; ix++)
     {
@@ -4961,7 +4961,7 @@ void spinor_field_lexic2eo (double *r_lexic, double*r_e, double *r_o) {
   if(r_o != NULL) {
     /* for(ix=0; ix<N; ix++) */
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(ix_o2lexic)
+#pragma omp parallel for private(ix,ix_o2lexic) shared(r_lexic,r_e,r_o)
 #endif
     for(ix=0; ix<VOLUME/2; ix++)
     {
@@ -4984,7 +4984,7 @@ void spinor_field_eo2lexic (double *r_lexic, double*r_e, double *r_o) {
   if(r_e != NULL) {
     /* for(ix=0; ix<N; ix++) */
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(ix_e2lexic)
+#pragma omp parallel for private(ix,ix_e2lexic) shared(r_lexic,r_e,r_o)
 #endif
     for(ix=0; ix<VOLUME/2; ix++)
     {
@@ -4996,7 +4996,7 @@ void spinor_field_eo2lexic (double *r_lexic, double*r_e, double *r_o) {
   if(r_o != NULL) {
     /* for(ix=0; ix<N; ix++) */
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(ix_o2lexic)
+#pragma omp parallel for private(ix,ix_o2lexic) shared(r_lexic,r_e,r_o)
 #endif
     for(ix=0; ix<VOLUME/2; ix++)
     {
@@ -5022,30 +5022,28 @@ void complex_field_eo2lexic (double *r_lexic, double*r_e, double *r_o) {
 #endif
   unsigned int ix, idx, idx_e2lexic, idx_o2lexic;
   if(r_e != NULL) {
-    idx=0;
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
     for(ix=0; ix<Vhalf; ix++)
     {
+      idx         = 2 * ix;
       idx_e2lexic = 2 * g_eo2lexic[ix];
       r_lexic[idx_e2lexic  ] = r_e[idx  ];
       r_lexic[idx_e2lexic+1] = r_e[idx+1];
-      idx+=2;
     }  /* end of loop on ix */
   }
 
   if(r_o != NULL) {
-    idx=0;
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
     for(ix=0; ix<Vhalf; ix++)
     {
+      idx         = 2 * ix;
       idx_o2lexic = 2 * g_eo2lexic[ix+N];
       r_lexic[idx_o2lexic  ] = r_o[idx  ];
       r_lexic[idx_o2lexic+1] = r_o[idx+1];
-      idx+=2;
     }  /* end of loop on ix */
   }
 #ifdef HAVE_OPENMP
@@ -5072,31 +5070,28 @@ void complex_field_lexic2eo (double *r_lexic, double*r_e, double *r_o) {
   unsigned int ix, idx, idx_e2lexic, idx_o2lexic;
 
   if(r_e != NULL) {
-    idx=0;
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
     for(ix=0; ix < Vhalf; ix++)
     {
+      idx         = 2 * ix;
       idx_e2lexic = 2 * g_eo2lexic[ix];
       r_e[idx  ] = r_lexic[idx_e2lexic  ];
       r_e[idx+1] = r_lexic[idx_e2lexic+1];
-      idx+=2;
     }  /* end of loop on ix over VOLUME / 2 */
   }
 
   if(r_o != NULL) {
-    idx=0;
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
     for(ix=0; ix<Vhalf; ix++)
     {
+      idx         = 2 * ix;
       idx_o2lexic = 2 * g_eo2lexic[ix+N];
-
       r_o[idx  ] = r_lexic[idx_o2lexic  ];
       r_o[idx+1] = r_lexic[idx_o2lexic+1];
-      idx+=2;
     }  /* end of loop on ix over VOLUME / 2 */
   }
 
@@ -5441,7 +5436,7 @@ void spinor_field_eq_spinor_field_pl_spinor_field_ti_re(double*r, double*s, doub
   double *rr, *ss, *tt;
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(offset,rr,ss,tt) shared(r,s,t,c,N)
+#pragma omp parallel for private(ix,offset,rr,ss,tt) shared(r,s,t,c,N)
 #endif
   for(ix = 0; ix < N; ix++) {
     offset = _GSI(ix);
@@ -5461,7 +5456,7 @@ void spinor_field_mi_eq_spinor_field_ti_re(double*r, double*s, double c, unsigne
   double *rr, *ss;
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(offset,rr,ss) shared(r,s,c,N)
+#pragma omp parallel for private(ix,offset,rr,ss) shared(r,s,c,N)
 #endif
   for(ix = 0; ix < N; ix++) {
     offset = _GSI(ix);
@@ -5477,7 +5472,7 @@ void spinor_field_ti_eq_re (double *r, double c, unsigned int N) {
   unsigned int ix;
   double *rr;
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(rr) shared(r,c,N)
+#pragma omp parallel for private(ix,rr) shared(r,c,N)
 #endif
   for(ix = 0; ix < N; ix++ ) {
     rr = r + _GSI(ix);
@@ -5491,7 +5486,7 @@ void spinor_field_eq_spinor_field_ti_re (double *r, double *s, double c, unsigne
   unsigned int ix, offset;
   double *rr, *ss;
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(offset,rr,ss) shared(r,s,c,N)
+#pragma omp parallel for private(ix,offset,rr,ss) shared(r,s,c,N)
 #endif
   for(ix = 0; ix < N; ix++ ) {
     offset = _GSI(ix);
@@ -5565,7 +5560,7 @@ void spinor_field_pl_eq_spinor_field(double*r, double*s, unsigned int N) {
   unsigned int ix, offset;
   double *rr, *ss;
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(offset,rr,ss) shared(r,s,N)
+#pragma omp parallel for private(ix,offset,rr,ss) shared(r,s,N)
 #endif
   for(ix = 0; ix < N; ix++) {
     offset = _GSI(ix);
@@ -5584,7 +5579,7 @@ void spinor_field_eq_spinor_field_mi_spinor_field(double*r, double*s, double*t, 
   unsigned int ix, offset;
   double *rr, *ss, *tt;
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(offset,rr,ss,tt) shared(r,s,t,N)
+#pragma omp parallel for private(ix,offset,rr,ss,tt) shared(r,s,t,N)
 #endif
   for(ix = 0; ix < N; ix++ ) {
     offset = _GSI(ix);
@@ -5603,7 +5598,7 @@ void spinor_field_eq_spinor_field_pl_spinor_field(double*r, double*s, double*t, 
   unsigned int ix, offset;
   double *rr, *ss, *tt;
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(offset,rr,ss,tt) shared(r,s,t,N)
+#pragma omp parallel for private(ix,offset,rr,ss,tt) shared(r,s,t,N)
 #endif
   for(ix = 0; ix < N; ix++ ) {
     offset = _GSI(ix);
@@ -5624,7 +5619,7 @@ void spinor_field_eq_gamma_ti_spinor_field(double*r, int gid, double*s, unsigned
   double *rr, *ss;
   if(r != s) {
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(offset,rr,ss) shared(r,s,N)
+#pragma omp parallel for private(ix,offset,rr,ss) shared(r,gid,s,N)
 #endif
     for(ix = 0; ix < N; ix++ ) {
       offset = _GSI(ix);
@@ -5634,12 +5629,12 @@ void spinor_field_eq_gamma_ti_spinor_field(double*r, int gid, double*s, unsigned
     }
   } else {
 #ifdef HAVE_OPENMP
-#pragma omp parallel private(offset,rr,ss) shared(r,s,N)
+#pragma omp parallel private(ix,offset,rr,ss) shared(r,gid,s,N)
 {
 #endif
     double spinor1[24];
 #ifdef HAVE_OPENMP
-#pragma omp parallel for 
+#pragma omp for 
 #endif
     for(ix = 0; ix < N; ix++ ) {
       offset = _GSI(ix);
@@ -6092,7 +6087,7 @@ void complex_field_ti_eq_re (double *r, double c, unsigned int N) {
   unsigned int ix;
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel for shared(r,c,N)
+#pragma omp parallel for private(ix) shared(r,c,N)
 #endif
   for(ix=0; ix < 2*N; ix++ ) {
     r[ix] *= c;
@@ -6105,7 +6100,7 @@ void complex_field_eq_complex_field_conj_ti_re (double *r, double c, unsigned in
   unsigned int ix;
   double *rr;
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(rr) shared(r,c,N)
+#pragma omp parallel for private(ix,rr) shared(r,c,N)
 #endif
   for(ix=0; ix < N; ix++ ) {
     rr = r + 2*ix;
@@ -6113,5 +6108,165 @@ void complex_field_eq_complex_field_conj_ti_re (double *r, double c, unsigned in
     rr[1] *= -c;
   }
 }  /* end of complex_field_eq_complex_field_conj_ti_re */
+
+/***********************************************************
+ * calculate plaquettes in four different ways
+ *   +mu, +nu direction
+ *   +mu, -nu direction
+ *   -mu, +nu direction
+ *   -mu, -nu direction
+ ***********************************************************/
+
+int plaquetteria  (double*gauge_field ) {
+
+  const double norm  = 1. / (g_nproc * VOLUME * 18.);
+
+  double ratime, retime;
+  double plaq[4] = {0.,0.,0.,0.};
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+#endif
+
+
+  ratime = _GET_TIME;
+#ifdef HAVE_OPENMP
+  omp_init_lock(&writelock);
+#pragma omp parallel shared(gauge_field,plaq)
+{
+#endif
+  unsigned int ix;
+  unsigned int ix_pl_mu, ix_mi_mu, ix_pl_nu, ix_mi_nu, ix_mi_mu_mi_nu, ix_mi_mu_pl_nu, ix_pl_mu_mi_nu;
+  int imu, inu, imunu;
+  double *s_ptr;
+  double U1[18], U2[18], U3[18];
+  int ieo;
+  complex w;
+  double ploc[4] = {0.,0.,0.,0.};
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(ix = 0; ix < VOLUME; ix++ )
+  {
+    imunu = 0;
+    for(imu = 0; imu<3; imu++) {
+
+      ix_pl_mu = g_iup[ix][imu];
+      ix_mi_mu = g_idn[ix][imu];
+
+      for(inu = imu+1; inu<4; inu++) {
+
+        ix_pl_nu = g_iup[ix][inu];
+        ix_mi_nu = g_idn[ix][inu];
+
+        ix_mi_mu_mi_nu = g_idn[ix_mi_mu][inu];
+        ix_mi_mu_pl_nu = g_iup[ix_mi_mu][inu];
+        ix_pl_mu_mi_nu = g_idn[ix_pl_mu][inu];
+
+        /********************************
+         *    x + nu
+         *     ____  x + mu+nu
+         *    |    |
+         *    |    | ^
+         *   _|____|
+         *    |x     x + mu
+         *
+         ********************************/
+        _cm_eq_cm_ti_cm(U1, gauge_field+_GGI(ix,imu), gauge_field+_GGI(ix_pl_mu,inu) );
+        _cm_eq_cm_ti_cm(U2, gauge_field+_GGI(ix,inu), gauge_field+_GGI(ix_pl_nu,imu) );
+        _cm_eq_cm_ti_cm_dag( U3 , U1, U2 );
+        _co_eq_tr_cm( &w , U3 );
+        ploc[0] += w.re;
+
+        /********************************
+         *    x 
+         *   _|____  x + mu
+         *    |    |
+         *    |    | ^
+         *    |____|
+         *           x + mu - nu
+         *    x - nu
+         *
+         ********************************/
+        _cm_eq_cm_dag_ti_cm(U1, gauge_field+_GGI(ix_mi_nu,inu), gauge_field+_GGI(ix_mi_nu, imu) );
+        _cm_eq_cm_ti_cm_dag(U2, gauge_field+_GGI(ix_pl_mu_mi_nu, inu), gauge_field+_GGI(ix, imu) );
+        _cm_eq_cm_ti_cm(U3, U1, U2 );
+        _co_eq_tr_cm( &w , U3 );
+        ploc[1] += w.re;
+
+        /********************************
+         *    x-mu+nu 
+         *     ____  x + nu
+         *    |    |
+         *    |    | ^
+         *    |____|_
+         *         | x
+         *    x-mu
+         *
+         ********************************/
+        _cm_eq_cm_ti_cm_dag(U1, gauge_field+_GGI(ix, inu), gauge_field+_GGI(ix_mi_mu_pl_nu, imu) );
+        _cm_eq_cm_dag_ti_cm(U2, gauge_field+_GGI(ix_mi_mu,inu), gauge_field+_GGI(ix_mi_mu, imu) );
+        _cm_eq_cm_ti_cm(U3, U1, U2 );
+        _co_eq_tr_cm( &w , U3 );
+        ploc[2] += w.re;
+
+
+        /********************************
+         *    x-mu
+         *     ____|_  x
+         *    |    |
+         *    |    | ^
+         *    |____| x-nu
+         *  x-mu-nu 
+         *    
+         ********************************/
+        _cm_eq_cm_ti_cm(U1, gauge_field+_GGI(ix_mi_mu_mi_nu, inu), gauge_field+_GGI(ix_mi_mu, imu) );
+        _cm_eq_cm_ti_cm(U2, gauge_field+_GGI(ix_mi_mu_mi_nu, imu),  gauge_field+_GGI(ix_mi_nu, inu) );
+        _cm_eq_cm_dag_ti_cm(U3, U1, U2 );
+        _co_eq_tr_cm( &w , U3 );
+        ploc[3] += w.re;
+
+        imunu++;
+      }  /* end of loop on nu */
+    }    /* end of loop on mu */
+  }      /* end of loop on ix */
+#ifdef HAVE_OPENMP
+  omp_set_lock(&writelock);
+  plaq[0] += ploc[0];
+  plaq[1] += ploc[1];
+  plaq[2] += ploc[2];
+  plaq[3] += ploc[3];
+  omp_unset_lock(&writelock);
+}  /* end of parallel region */
+  omp_destroy_lock(&writelock);
+#endif
+
+#ifdef HAVE_MPI
+  double pbuffer[4];
+  int estat;
+  memcpy(pbuffer, plaq, 4*sizeof(double));
+  estat = MPI_Reduce(&pbuffer, plaq, 4, MPI_DOUBLE, MPI_SUM, 0, g_cart_grid);
+  if( estat != MPI_SUCCESS ) {
+    fprintf(stderr, "[plaquetteria] Error from MPI_Reduce, status was %d %s %d\n", estat, __FILE__, __LINE__);
+    return(1);
+  }
+#endif
+  plaq[0] *= norm;
+  plaq[1] *= norm;
+  plaq[2] *= norm;
+  plaq[3] *= norm;
+
+  if ( g_cart_id == 0 ) {
+    fprintf(stdout, "# [plaquetteria] plaquette (1) = %25.16e\n", plaq[0]);
+    fprintf(stdout, "# [plaquetteria] plaquette (2) = %25.16e\n", plaq[1]);
+    fprintf(stdout, "# [plaquetteria] plaquette (3) = %25.16e\n", plaq[2]);
+    fprintf(stdout, "# [plaquetteria] plaquette (4) = %25.16e\n", plaq[3]);
+  }
+  retime = _GET_TIME;
+  if (g_cart_id == 0 ) fprintf(stdout, "# [plaquetteria] time for calculating plaquettes %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+
+  return(0);
+
+}  /* end of plaquetteria */
 
 }  /* end of namespace cvc */
