@@ -1381,14 +1381,14 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, double**W, int num, int momen
       {
         /* copy to timeslice of V to V_buffer */
 #ifdef HAVE_OPENMP
-#pragma omp parallel for shared(x0)
+#pragma omp parallel for private(ievecs) shared(x0)
 #endif
         for(ievecs=0; ievecs<num; ievecs++) {
           memcpy(V_buffer+ievecs*12*VOL3half, V_ptr+ 12*(ievecs*Vhalf + x0*VOL3half), VOL3half * sizeof_spinor_point );
         }
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel for shared(x0)
+#pragma omp parallel for private(ievecs) shared(x0)
 #endif
         for(ievecs=0; ievecs<num; ievecs++) {
           memcpy(W_buffer+ievecs*12*VOL3half, W_ptr+ 12*(ievecs*Vhalf + x0*VOL3half), VOL3half * sizeof_spinor_point  );
@@ -1423,7 +1423,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, double**W, int num, int momen
 #endif  /* of if 0 */
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(spinor1,spinor2,zptr,ztmp)
+#pragma omp parallel for private(ix,spinor1,spinor2,zptr,ztmp)
 #endif
         for(ix=0; ix<num*VOL3half; ix++) {
           /* W <- conj( gamma exp ip W ) */
@@ -1449,7 +1449,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, double**W, int num, int momen
 
         ratime = _GET_TIME;
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(ztmp)
+#pragma omp parallel for private(ix,ztmp)
 #endif
         for(ix=0; ix<12*num*VOL3half; ix++) {
           /* V <- conj( V )*/
@@ -1580,7 +1580,7 @@ void gsp_pl_eq_gsp (double _Complex **gsp1, double _Complex **gsp2, int num) {
   int i;
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel for shared(gsp1,gsp2)
+#pragma omp parallel for private(i) shared(gsp1,gsp2)
 #endif
   for(i = 0; i < num*num; i++) {
       gsp1[0][i] += gsp2[0][i];
@@ -1757,7 +1757,7 @@ int gsp_calculate_v_dag_gamma_p_xi_block(double**V, double*W, int num, int momen
       {
         /* copy to timeslice of V to V_buffer */
 #ifdef HAVE_OPENMP
-#pragma omp parallel for shared(x0)
+#pragma omp parallel for private(ievecs) shared(x0)
 #endif
         for(ievecs=0; ievecs<num; ievecs++) {
           memcpy(V_buffer+ievecs*12*VOL3half, V_ptr+ 12*(ievecs*Vhalf + x0*VOL3half), VOL3half * sizeof_spinor_point );
@@ -1771,7 +1771,7 @@ int gsp_calculate_v_dag_gamma_p_xi_block(double**V, double*W, int num, int momen
         ratime = _GET_TIME;
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(spinor1,spinor2,zptr,ztmp)
+#pragma omp parallel for private(ix,spinor1,spinor2,zptr,ztmp)
 #endif
         for(ix=0; ix<VOL3half; ix++) {
           /* W <- conj( gamma exp ip W ) */
@@ -1813,7 +1813,7 @@ int gsp_calculate_v_dag_gamma_p_xi_block(double**V, double*W, int num, int momen
 
       /* Z_buffer <- Z_buffer^* */
 #ifdef HAVE_OPENMP
-#pragma omp parallel for shared(Z_buffer,T,num)
+#pragma omp parallel for private(x0) shared(Z_buffer,T,num)
 #endif
       for(x0=0; x0<T*num; x0++) {
         Z_buffer[0][x0] = conj( Z_buffer[0][x0] );
