@@ -878,7 +878,7 @@ int main(int argc, char **argv) {
 
   /* normalisation of contractions */
 #ifdef HAVE_OPENMP
-#pragma omp parallel for
+#pragma omp parallel for private(ix) shared(conn, contact_term)
 #endif
   for(ix=0; ix<32*VOLUME; ix++) conn[ix] *= -0.25;
 
