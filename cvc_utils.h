@@ -156,6 +156,7 @@ int check_oo_propagator_clover_eo(double**prop_o, double**source, double**work, 
 
 int plaquetteria  (double*gauge_field );
 
+int gauge_field_eq_gauge_field_ti_phase (double**gauge_field_with_phase, double*gauge_field, complex co_phase[4] );
 
 }  /* end of namespace cvc */
 #endif

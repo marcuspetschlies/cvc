@@ -6269,4 +6269,51 @@ int plaquetteria  (double*gauge_field ) {
 
 }  /* end of plaquetteria */
 
+
+/***********************************************************
+ * multiply the phase to the gauge field
+ ***********************************************************/
+int gauge_field_eq_gauge_field_ti_phase (double**gauge_field_with_phase, double*gauge_field, complex co_phase[4] ) {
+
+  int mu, exitstatus;
+  unsigned int ix, iix;
+  double retime, ratime;
+  
+  ratime = _GET_TIME;
+  /* allocate gauge field if necessary */
+  if( *gauge_field_with_phase == NULL ) {
+    if( g_cart_id == 0 ) fprintf(stdout, "# [gauge_field_eq_gauge_field_ti_phase] allocating new gauge field\n" );
+
+    alloc_gauge_field( gauge_field_with_phase, VOLUMEPLUSRAND);
+    if( *gauge_field_with_phase == NULL )  {
+      fprintf(stderr, "[gauge_field_eq_gauge_field_ti_phase] Error from alloc_gauge_field %s %d\n", __FILE__, __LINE__);
+      return(1);
+    }
+  }
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for private(ix,iix,mu)
+#endif
+  for( ix=0; ix<VOLUME; ix++ ) {
+    for ( mu=0; mu<4; mu++ ) {
+      iix = _GGI(ix,mu);
+      _cm_eq_cm_ti_co ( (*gauge_field_with_phase) + iix, g_gauge_field + iix, &co_phase[mu] );
+    }
+  }
+
+#ifdef HAVE_MPI
+  xchange_gauge_field( *gauge_field_with_phase );
+#endif
+
+  /* measure the plaquette */
+  exitstatus = plaquetteria( *gauge_field_with_phase );
+  if( exitstatus != 0 ) {
+    fprintf(stderr, "[gauge_field_eq_gauge_field_ti_phase] Error from plaquetteria, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(2);
+  }
+  retime = _GET_TIME;
+  if( g_cart_id == 0 ) fprintf(stdout, "# [gauge_field_eq_gauge_field_ti_phase] time for gauge_field_eq_gauge_field_ti_phase = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+  return(0);
+}  /* end of gauge_field_eq_gauge_field_ti_phase */
+
 }  /* end of namespace cvc */
