@@ -154,6 +154,9 @@ int check_point_source_propagator_clover_eo(double**prop_e, double**prop_o, doub
 
 int check_oo_propagator_clover_eo(double**prop_o, double**source, double**work, double*gf, double**mzz, double**mzzinv, int nf );
 
+int plaquetteria  (double*gauge_field );
+
+
 }  /* end of namespace cvc */
 #endif
 
