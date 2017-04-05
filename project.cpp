@@ -67,7 +67,7 @@ int project_spinor_field(double *s, double * r, int parallel, double *V, int num
 
   /* complex conjugate r */
 #ifdef HAVE_OPENMP
-#pragma omp parallel for shared(s_ptr,r_ptr)
+#pragma omp parallel for private(k) shared(s_ptr,r_ptr)
 #endif
   for(k=0; k<12*N; k++) { 
     s_ptr[k] = conj(r_ptr[k]); 
@@ -89,7 +89,7 @@ int project_spinor_field(double *s, double * r, int parallel, double *V, int num
 
   /* complex conjugate p */
 #ifdef HAVE_OPENMP
-#pragma omp parallel for shared(p_buffer,p)
+#pragma omp parallel for private(k) shared(p_buffer,p)
 #endif
   for(k=0; k<num; k++) { p_buffer[k] = conj(p[k]); } 
 
