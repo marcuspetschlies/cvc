@@ -713,7 +713,7 @@ int cvc_tensor_eo_check_wi_position_space (double **tensor_eo) {
       return(2);
     }
 #endif
-    if(g_cart_id == 0) fprintf(stdout, "# [cvc_tensor_eo_check_wi_position_space] WI nu = %2d norm = %25.16e %s %d\n", nu, norm, __FILE__, __LINE__);
+    if(g_cart_id == 0) fprintf(stdout, "# [cvc_tensor_eo_check_wi_position_space] WI nu = %2d norm = %25.16e %s %d\n", nu, sqrt(norm), __FILE__, __LINE__);
   }  /* end of loop on nu */
 
   free(conn_buffer);
