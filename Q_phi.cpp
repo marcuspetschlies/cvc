@@ -802,7 +802,7 @@ void Q_eo_SchurDecomp_A (double *e_new, double *o_new, double *e_old, double *o_
   Hopping_eo(e_new, aux, gauge_field, 1);
   /* o_new <- g5 e_new + o_old  = g5 M_oe e_old + o_old */
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(offset, o_new_, e_new_, o_old_)
+#pragma omp parallel for private(ix,offset, o_new_, e_new_, o_old_) shared(o_new,o_old,e_new)
 #endif
   for(ix=0; ix<N; ix++) {
     offset = _GSI(ix);
@@ -817,7 +817,7 @@ void Q_eo_SchurDecomp_A (double *e_new, double *o_new, double *e_old, double *o_
   M_zz (e_new, aux, mass);
   /* e_new = g5 aux */
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(e_new_)
+#pragma omp parallel for private(ix,e_new_) shared(e_new)
 #endif
   for(ix=0; ix<N; ix++) {
     e_new_ = e_new + _GSI(ix);
@@ -844,11 +844,12 @@ void Q_eo_SchurDecomp_Ainv (double *e_new, double *o_new, double *e_old, double 
   double spinor1[24];
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(ix)
+#pragma omp parallel for private(ix,iix) shared(aux)
 #endif
   /* aux = g5 e_old */
   for(ix=0; ix<N; ix++) {
-    _fv_eq_gamma_ti_fv(aux+_GSI(ix), 5, e_old+_GSI(ix));
+    iix = _GSI(ix);
+    _fv_eq_gamma_ti_fv(aux + iix, 5, e_old + iix );
   }
 
   /* aux <- M_ee^-1 aux = M_ee^-1 g5 e_old */
@@ -858,7 +859,7 @@ void Q_eo_SchurDecomp_Ainv (double *e_new, double *o_new, double *e_old, double 
   Hopping_eo(e_new, aux, gauge_field, 1);
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(ix,iix,spinor1)
+#pragma omp parallel for private(ix,iix,spinor1) shared(e_new, o_new, o_old)
 #endif
   /* o_new = -g5 o_new + o_old */
   for(ix=0; ix<N; ix++) {
