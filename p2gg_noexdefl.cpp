@@ -740,7 +740,7 @@ int main(int argc, char **argv) {
            * combine up-type and dn-type part, normalisation of contractions
            ***************************************************************************/
 #ifdef HAVE_OPENMP
-#pragma omp parallel for
+#pragma omp parallel for private(ix)
 #endif
           for(ix=0; ix<16*VOLUME; ix++) {
             /* real part */
