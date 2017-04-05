@@ -258,31 +258,6 @@ int main(int argc, char **argv) {
   }
 #endif
 
-  /***********************************************************
-   * multiply the phase to the gauge field
-   ***********************************************************/
-  alloc_gauge_field(&gauge_field_with_phase, VOLUMEPLUSRAND);
-#ifdef HAVE_OPENMP
-#pragma omp parallel for private(mu)
-#endif
-  for( ix=0; ix<VOLUME; ix++ ) {
-    for ( mu=0; mu<4; mu++ ) {
-      _cm_eq_cm_ti_co ( gauge_field_with_phase+_GGI(ix,mu), g_gauge_field+_GGI(ix,mu), &co_phase_up[mu] );
-    }
-  }
-
-
-#ifdef HAVE_MPI
-  xchange_gauge();
-  xchange_gauge_field(gauge_field_with_phase);
-#endif
-
-  /* measure the plaquette */
-  plaquette(&plaq);
-  if(g_cart_id==0) fprintf(stdout, "# [p2gg] measured plaquette value: %25.16e\n", plaq);
-
-  plaquette2(&plaq, gauge_field_with_phase);
-  if(g_cart_id==0) fprintf(stdout, "# [p2gg] gauge field with phase measured plaquette value: %25.16e\n", plaq);
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
   /***********************************************
@@ -414,6 +389,14 @@ int main(int argc, char **argv) {
     tprop_list_o[i] = eo_spinor_field[300 + i];
   }
   
+  /***********************************************************
+   * multiply the phase to the gauge field
+   ***********************************************************/
+  exitstatus = gauge_field_eq_gauge_field_ti_phase ( &gauge_field_with_phase, g_gauge_field, co_phase_up );
+  if(exitstatus != 0) {
+    fprintf(stderr, "[p2gg] Error from gauge_field_eq_gauge_field_ti_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(38);
+  }
 
   /***********************************************
    * initialize clover, mzz and mzz_inv
@@ -424,7 +407,7 @@ int main(int argc, char **argv) {
 
 
   ratime = _GET_TIME;
-  clover_term_eo (g_clover, g_gauge_field);
+  clover_term_eo (g_clover, gauge_field_with_phase);
   retime = _GET_TIME;
   if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagator_clover] time for clover_term_eo = %e seconds\n", retime-ratime);
 
@@ -525,7 +508,13 @@ int main(int argc, char **argv) {
     memcpy(eo_sample_field[g_nsample+i], eo_spinor_work[1], sizeof_eo_spinor_field);
   }  /* end of loop on samples */
 
-  if( check_propagator_residual ) exitstatus = check_oo_propagator_clover_eo( &(eo_sample_field[g_nsample]), eo_sample_field, eo_spinor_work, gauge_field_with_phase, g_mzz_up, g_mzzinv_up, g_nsample );
+  if( check_propagator_residual ) {
+    exitstatus = check_oo_propagator_clover_eo( &(eo_sample_field[g_nsample]), eo_sample_field, eo_spinor_work, gauge_field_with_phase, g_mzz_up, g_mzzinv_up, g_nsample );
+    if(exitstatus != 0) {
+      fprintf(stderr, "[p2gg] Error from check_oo_propagator_clover_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(19);
+    }
+  }
 
 
   /***********************************************************
@@ -626,8 +615,15 @@ int main(int argc, char **argv) {
         }
 
       }  /* end of loop on spin-color */
-      if( check_propagator_residual )
+      if( check_propagator_residual ) {
         check_point_source_propagator_clover_eo( &(eo_spinor_field[12*mu]), &(eo_spinor_field[60+12*mu]), eo_spinor_work, gauge_field_with_phase, g_mzz_up, g_mzzinv_up, g_shifted_source_coords, 12 );
+        if(exitstatus != 0 ) {
+          fprintf(stderr, "[p2gg] Error from check_point_source_propagator_clover_eo; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(21);
+        }
+      }
+
+
 
       /**********************************************************
        * dn-type propagators
@@ -663,8 +659,13 @@ int main(int argc, char **argv) {
           EXIT(23);
         }
       }  /* end of loop on spin-color */
-      if ( check_propagator_residual ) 
+      if ( check_propagator_residual ) {
         check_point_source_propagator_clover_eo( &(eo_spinor_field[120+12*mu]), &(eo_spinor_field[180+12*mu]), eo_spinor_work, gauge_field_with_phase, g_mzz_dn, g_mzzinv_dn, g_shifted_source_coords, 12 );
+        if(exitstatus != 0 ) {
+          fprintf(stderr, "[p2gg] Error from check_point_source_propagator_clover_eo; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(21);
+        }
+      }
 
       /**********************************************************
        * A^-1 g5 for up-type propagators from sub-space
@@ -707,20 +708,6 @@ int main(int argc, char **argv) {
         fprintf(stderr, "[p2gg] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
         EXIT(15);
       }
-/*
-      if( (affn = aff_writer_root(affw)) == NULL ) {
-        fprintf(stderr, "[p2gg] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
-        EXIT(16);
-      }
-
-      unsigned int items = g_sink_momentum_number * 16 * T_global;
-      size_t bytes = items * sizeof(double _Complex);
-      aff_buffer = (double _Complex*)malloc(bytes);
-      if(aff_buffer == NULL) {
-        fprintf(stderr, "[p2gg] Error from malloc %s %d\n", __FILE__, __LINE__);
-        EXIT(27);
-      }
-*/
     }  /* end of if io_proc == 2 */
 #endif
 
@@ -778,7 +765,7 @@ int main(int argc, char **argv) {
     if(check_position_space_WI) {
       exitstatus = cvc_tensor_eo_check_wi_position_space ( cvc_tensor_eo );
       if(exitstatus != 0) {
-        fprintf(stderr, "[p2gg] Error from cvc_tensor_eo_check_wi_position_space for lm, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        fprintf(stderr, "[p2gg] Error from cvc_tensor_eo_check_wi_position_space for full, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(38);
       }
     }
@@ -1185,17 +1172,10 @@ int main(int argc, char **argv) {
         fprintf(stderr, "[p2gg] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
         EXIT(32);
       }
-      /* free(aff_buffer); */
     }  /* end of if io_proc == 2 */
 #endif  /* of ifdef HAVE_LHPC_AFF */
 
-
-
   }  /* end of loop on source locations */
-
-
-
-
 
   /****************************************
    * free the allocated memory, finalize
