@@ -86,7 +86,7 @@ int main(int argc, char **argv) {
   int write_ascii=0, write_binary=0;
   int source_proc_id = 0;
   int g_shifted_source_coords[4], shifted_source_coords[4], shifted_source_proc_id = 0;
-  int no_eo_fields = 0;
+  int no_eo_fields = 0, no_eo_work_fields = 0;
   int evecs_num = 0;
   unsigned int Vhalf;
   size_t sizeof_eo_spinor_field;
@@ -96,7 +96,7 @@ int main(int argc, char **argv) {
   char contype[400];
   double ratime, retime;
   double plaq;
-  double **eo_spinor_field = NULL, *eo_evecs_block=NULL, *evecs_eval = NULL;
+  double **eo_spinor_field = NULL, *eo_evecs_block=NULL, *evecs_eval = NULL, **eo_spinor_work = NULL;
   complex w;
   double *sprop_list_e[60], *sprop_list_o[60], *tprop_list_e[60], *tprop_list_o[60];
   double **mzz[2], **mzzinv[2];
@@ -243,33 +243,11 @@ int main(int argc, char **argv) {
   if(exitstatus != 0) {
     EXIT(561);
   }
-  if(&g_gauge_field == NULL) {
-    fprintf(stderr, "[cvc_exact_eo_xspace] Error, &g_gauge_field is NULL\n");
+  if(g_gauge_field == NULL) {
+    fprintf(stderr, "[cvc_exact_eo_xspace] Error, g_gauge_field is NULL\n");
     EXIT(563);
   }
 #endif
-
-  /***********************************************************
-   * multiply the phase to the gauge field
-   ***********************************************************/
-  alloc_gauge_field(&gauge_field_with_phase, VOLUMEPLUSRAND);
-  for( ix=0; ix<VOLUME; ix++ ) {
-    for ( mu=0; mu<4; mu++ ) {
-      _cm_eq_cm_ti_co ( gauge_field_with_phase+_GGI(ix,mu), g_gauge_field+_GGI(ix,mu), &co_phase_up[mu] );
-    }
-  }
-
-#ifdef HAVE_MPI
-  xchange_gauge();
-  xchange_gauge_field(gauge_field_with_phase);
-#endif
-
-  /* measure the plaquette */
-  plaquette(&plaq);
-  if(g_cart_id==0) fprintf(stdout, "# [cvc_exact_eo_xspace] measured plaquette value: %25.16e\n", plaq);
-
-  plaquette2(&plaq, gauge_field_with_phase );
-  if(g_cart_id==0) fprintf(stdout, "# [cvc_exact_eo_xspace] gauge field with phase measured plaquette value: %25.16e\n", plaq);
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
   /***********************************************
@@ -324,6 +302,33 @@ int main(int argc, char **argv) {
   }
 #endif  /* of ifdef HAVE_TMLQCD_LIBWRAPPER */
 
+  /***********************************************************
+   * multiply the phase to the gauge field
+   ***********************************************************/
+  alloc_gauge_field(&gauge_field_with_phase, VOLUMEPLUSRAND);
+  for( ix=0; ix<VOLUME; ix++ ) {
+    for ( mu=0; mu<4; mu++ ) {
+      _cm_eq_cm_ti_co ( gauge_field_with_phase+_GGI(ix,mu), g_gauge_field+_GGI(ix,mu), &co_phase_up[mu] );
+    }
+  }
+
+#ifdef HAVE_MPI
+  /* xchange_gauge(); */
+  xchange_gauge_field(gauge_field_with_phase);
+#endif
+
+  /* measure the plaquette */
+/*
+  plaquette(&plaq);
+  if(g_cart_id==0) fprintf(stdout, "# [cvc_exact_eo_xspace] measured plaquette value: %25.16e\n", plaq);
+*/
+  exitstatus = plaquetteria( gauge_field_with_phase );
+  if( exitstatus !=  0  ) {
+    fprintf(stderr, "[cvc_exact_eo_xspace] Error from plaquetteria, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(39);
+  }
+
+
   /***********************************************
    * initialize clover, mzz and mzz_inv
    ***********************************************/
@@ -333,7 +338,7 @@ int main(int argc, char **argv) {
 
 
   ratime = _GET_TIME;
-  clover_term_eo (g_clover, g_gauge_field);
+  clover_term_eo (g_clover, gauge_field_with_phase);
   retime = _GET_TIME;
   if(g_cart_id == 0) fprintf(stdout, "# [cvc_exact_eo_xspace] time for clover_term_eo = %e seconds\n", retime-ratime);
 
@@ -375,6 +380,18 @@ int main(int argc, char **argv) {
   eo_spinor_field[0] = (double*)malloc(no_eo_fields * _GSI(Vhalf) * sizeof(double));
   for(i=1; i<no_eo_fields; i++) eo_spinor_field[i] = eo_spinor_field[i-1] + _GSI(Vhalf);
 
+  /* (3) fermion fields with halo sites */
+  no_eo_work_fields = 8;
+  eo_spinor_work = (double**)calloc(no_eo_work_fields, sizeof(double*));
+  eo_spinor_work[0] = (double*)calloc( no_eo_work_fields*12*(VOLUME+RAND), sizeof(double) );
+  if(eo_spinor_work[0] == NULL) {
+    fprintf(stderr, "[cvc_exact_eo_xspace] Error from calloc %s %d\n", __FILE__, __LINE__ );
+    EXIT(36);
+  }
+  for(i=1; i<no_eo_work_fields; i++) {
+    eo_spinor_work[i] = eo_spinor_work[i-1] + 12*(VOLUME+RAND);
+  }
+
   /**********************************************************
    * set the propagator lists
    **********************************************************/
@@ -397,7 +414,7 @@ int main(int argc, char **argv) {
    ***********************************************/
   conn_e = (double*)malloc(32 * VOLUME * sizeof(double));
   if( conn_e == NULL ) {
-    fprintf(stderr, "[cvc_exact_eo_xspace] could not allocate memory for contr. fields\n");
+    fprintf(stderr, "[cvc_exact_eo_xspace] could not allocate memory for contr. fields %s %d\n", __FILE__, __LINE__);
     EXIT(3);
   }
   conn_o = conn_e + 32*Vhalf;
@@ -407,12 +424,12 @@ int main(int argc, char **argv) {
     /***********************************************************
      * determine source coordinates and source process
      ***********************************************************/
-  #if 0
+#if 0
     gsx[0] = g_source_location / ( LX_global * LY_global * LZ_global);
     gsx[1] = (g_source_location % ( LX_global * LY_global * LZ_global)) / (LY_global * LZ_global);
     gsx[2] = (g_source_location % ( LY_global * LZ_global)) / LZ_global;
     gsx[3] = (g_source_location % LZ_global);
-  #endif  /* of if 0 */
+#endif  /* of if 0 */
   
     memcpy( gsx, g_source_coords_list[isource_location], 4*sizeof(int) );
     if(g_cart_id == 0 && g_verbose > 0) fprintf(stdout, "# [cvc_exact_eo_xspace] source location = (%3d,%3d,%3d,%3d)\n", gsx[0], gsx[1], gsx[2], gsx[3] );
@@ -429,7 +446,7 @@ int main(int argc, char **argv) {
      * invert using tmLQCD invert
      ***********************************************************/
     if(g_tmLQCD_lat.no_operators != 2) {
-      fprintf(stderr, "[cvc_exact_eo_xspace] Error, confused about number of operators, expected 2 operators (up-type, dn-tpye)\n");
+      fprintf(stderr, "[cvc_exact_eo_xspace] Error, confused about number of operators, expected 2 operators (up-type, dn-tpye) %s %d\n", __FILE__, __LINE__ );
       EXIT(6);
     }
    
@@ -473,12 +490,25 @@ int main(int argc, char **argv) {
   
           exitstatus = Q_clover_eo_invert ( prop_e, prop_o, source_e, source_o, gauge_field_with_phase, mzzinv[op_id][0], op_id);
           if(exitstatus != 0) {
-            fprintf(stderr, "[cvc_exact_eo_xspace] Error from solver, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            fprintf(stderr, "[cvc_exact_eo_xspace] Error from Q_clover_eo_invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(7);
           }
         }  /* end of loop on op_id */
   
       }  /* end of loop on spin-color component */
+
+      exitstatus = check_point_source_propagator_clover_eo( &(eo_spinor_field[12*mu]), &(eo_spinor_field[60 + 12*mu]), eo_spinor_work, gauge_field_with_phase, mzz[0], mzzinv[0], g_shifted_source_coords, 12 );
+      if(exitstatus != 0) {
+        fprintf(stderr, "[cvc_exact_eo_xspace] Error from check_point_source_propagator_clover_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(7);
+      }
+
+      exitstatus = check_point_source_propagator_clover_eo( &(eo_spinor_field[120+12*mu]), &(eo_spinor_field[180 + 12*mu]), eo_spinor_work, gauge_field_with_phase, mzz[1], mzzinv[1], g_shifted_source_coords, 12 );
+      if(exitstatus != 0) {
+        fprintf(stderr, "[cvc_exact_eo_xspace] Error from check_point_source_propagator_clover_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(7);
+      }
+
   
     }  /* end of loop on mu shift direction */
   
@@ -552,7 +582,7 @@ int main(int argc, char **argv) {
         write_lime_contraction(conn_buffer, filename, 64, 1, contype, Nconf, mu>0);
       }
       retime = _GET_TIME;
-      if(g_cart_id==0) fprintf(stdout, "# [cvc_exact_eo_xspace] saved position space results in %e seconds\n", retime-ratime);
+      if(g_cart_id==0) fprintf(stdout, "# [cvc_exact_eo_xspace] saved position space results in %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
     }
 #if 0
 #endif  /* of if 0 */
@@ -642,13 +672,9 @@ int main(int argc, char **argv) {
 #endif
     }  /* end of if check_position_space_WI */
   
-  
-  
-  
     /***************************************************************************
      * momentum projections
      ***************************************************************************/
-  
     double *conn_buffer = (double*)malloc(32 * VOLUME * sizeof(double));
     if(conn_buffer == NULL) {
       EXIT(14);
@@ -661,7 +687,7 @@ int main(int argc, char **argv) {
     double ***cvc_tp = NULL;
     exitstatus = init_3level_buffer(&cvc_tp, g_sink_momentum_number, 16, 2*T);
     if(exitstatus != 0) {
-      fprintf(stderr, "[cvc_exact_eo_xspace] Error from init_3level_buffer, status was %d\n", exitstatus);
+      fprintf(stderr, "[cvc_exact_eo_xspace] Error from init_3level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(26);
     }
   
@@ -724,6 +750,9 @@ int main(int argc, char **argv) {
   clover_term_fini( &g_mzz_dn    );
   clover_term_fini( &g_mzzinv_up );
   clover_term_fini( &g_mzzinv_dn );
+
+  free( eo_spinor_work[0] );
+  free( eo_spinor_work );
 
   free_geometry();
 
