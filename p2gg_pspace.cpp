@@ -295,7 +295,7 @@ int main(int argc, char **argv) {
 
     /* combine as in p2gg_xspace */
 #ifdef HAVE_OPENMP
-#pragma omp parallel for shared(conn,conn_buffer,sequential_source_gamma_id_sign,g_sequential_source_gamma_id)
+#pragma omp parallel for private(ix) shared(conn,conn_buffer,sequential_source_gamma_id_sign,g_sequential_source_gamma_id)
 #endif
     for(ix=0; ix<16*VOLUME; ix++) {
       /* real part */
@@ -499,7 +499,7 @@ int main(int argc, char **argv) {
     }
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel for
+#pragma omp parallel for private(x1,x2,x3,ix,phase) shared(phase_shift)
 #endif
     for(x1=0; x1<LX; x1++) {
     for(x2=0; x2<LY; x2++) {
@@ -523,7 +523,7 @@ int main(int argc, char **argv) {
         conn_ptr_p = (complex*)(conn_ft[i_sink_momentum][imunu] + 2*(x0 + g_proc_coords[0]*T) );
         
 #ifdef HAVE_OPENMP
-#pragma omp parallel for
+#pragma omp parallel for private(ix)
 #endif
         for(ix=0; ix<VOL3; ix++) {
           conn_ptr_x = (complex*)(conn + _GWI(imunu,(x0*VOL3+ix),VOLUME) );
