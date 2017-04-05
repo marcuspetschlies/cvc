@@ -115,6 +115,7 @@ int main(int argc, char **argv) {
 /*  double *gauge_trafo = NULL; */
   double **pcoeff=NULL;
   double ***p3coeff=NULL;
+  double *gauge_field_with_phase = NULL;
   complex w, w1;
   FILE *ofs;
 
@@ -147,7 +148,7 @@ int main(int argc, char **argv) {
   g_the_time = time(NULL);
 
   /* set the default values */
-  if(filename_set==0) strcpy(filename, "p2gg.input");
+  if(filename_set==0) strcpy(filename, "cvc.input");
   fprintf(stdout, "# [test_lm_propagators] Reading input from file %s\n", filename);
   read_input_parser(filename);
 
@@ -248,14 +249,6 @@ int main(int argc, char **argv) {
   }
 #endif
 
-#ifdef HAVE_MPI
-  xchange_gauge();
-#endif
-
-  /* measure the plaquette */
-  plaquette(&plaq);
-  if(g_cart_id==0) fprintf(stdout, "# [test_lm_propagators] measured plaquette value: %25.16e\n", plaq);
-
 #ifdef HAVE_TMLQCD_LIBWRAPPER
   /***********************************************
    * retrieve deflator paramters from tmLQCD
@@ -300,6 +293,29 @@ int main(int argc, char **argv) {
 
 #endif  /* of ifdef HAVE_TMLQCD_LIBWRAPPER */
 
+
+  alloc_gauge_field(&gauge_field_with_phase, VOLUMEPLUSRAND);
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for( unsigned int ix=0; ix<VOLUME; ix++ ) {
+    for (int mu=0; mu<4; mu++ ) {
+      _cm_eq_cm_ti_co ( gauge_field_with_phase+_GGI(ix,mu), g_gauge_field+_GGI(ix,mu), &co_phase_up[mu] );
+    }
+  }
+
+#ifdef HAVE_MPI
+  // xchange_gauge();
+  xchange_gauge_field(gauge_field_with_phase);
+#endif
+        
+  /* measure the plaquette */
+  //plaquette(&plaq);
+  //if(g_cart_id==0) fprintf(stdout, "# [test_lm_propagator] measured plaquette value: %25.16e\n", plaq);
+        
+  plaquette2(&plaq, gauge_field_with_phase);
+  if(g_cart_id==0) fprintf(stdout, "# [test_lm_propagator] gauge field with phase measured plaquette value: %25.16e\n", plaq);
+        
 
   /***********************************************
    * allocate memory for the spinor fields
@@ -423,13 +439,13 @@ int main(int argc, char **argv) {
     if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators] eval %4d %25.16e %25.16e\n", i, evecs_eval[i], evecs_lambdaOneHalf[i]);
   }
 
-#if 0
+
   /***********************************************************
    * test eigenvectors
    ***********************************************************/
   for(i=0; i<evecs_num; i++) {
-    C_oo (eo_spinor_work[0], eo_evecs_field[i], g_gauge_field, -g_mu, eo_spinor_work[2]);
-    C_oo (eo_spinor_work[1], eo_spinor_work[0], g_gauge_field,  g_mu, eo_spinor_work[2]);
+    C_oo (eo_spinor_work[0], eo_evecs_field[i], gauge_field_with_phase, -g_mu, eo_spinor_work[2]);
+    C_oo (eo_spinor_work[1], eo_spinor_work[0], gauge_field_with_phase,  g_mu, eo_spinor_work[2]);
 
     spinor_scalar_product_re(&norm, eo_evecs_field[i], eo_evecs_field[i], Vhalf);
     spinor_scalar_product_co(&w, eo_spinor_work[1], eo_evecs_field[i], Vhalf);
@@ -438,10 +454,10 @@ int main(int argc, char **argv) {
     w.im *= 4.*g_kappa*g_kappa;
    
     if(g_cart_id == 0) {
-      fprintf(stdout, "# [] evec %.4d norm = %16.7e w = %16.7e +I %16.7e\n", i, norm, w.re, w.im);
+      fprintf(stdout, "# [test_lm_propagator] evec %.4d norm = %25.16e w = %25.16e +I %25.16e\n", i, norm, w.re, w.im);
     }
   }
-
+#if 0
 #endif
 
   /***********************************************************
@@ -449,14 +465,16 @@ int main(int argc, char **argv) {
    ***********************************************************/
   for(i=0; i<evecs_num; i++) {
     double dnorm, dnorm2;
-    C_oo (eo_evecs_field[i+evecs_num], eo_evecs_field[i], g_gauge_field, -g_mu, eo_spinor_work[0]);
+    C_oo (eo_evecs_field[i+evecs_num], eo_evecs_field[i], gauge_field_with_phase, -g_mu, eo_spinor_work[0]);
     spinor_scalar_product_re(&dnorm,  eo_evecs_field[i], eo_evecs_field[i], Vhalf);
     spinor_scalar_product_re(&dnorm2, eo_evecs_field[i+evecs_num], eo_evecs_field[i+evecs_num], Vhalf);
     norm    = 1./sqrt(dnorm2);
     dnorm2 *= 4.*g_kappa*g_kappa;
-    if(g_cart_id == 0) fprintf(stdout, "# [] evec %.4d ||V||^2 = %16.7e ||W||^2 = %16.7e\n", i, dnorm, dnorm2);
+    if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagator] evec %.4d ||V||^2 = %25.16e ||W||^2 = %25.16e\n", i, dnorm, dnorm2);
     spinor_field_ti_eq_re(eo_evecs_field[evecs_num+i], norm, Vhalf);
   }
+
+#if 0
 
 #if 0
   random_spinor_field (eo_spinor_field[0], 24*Vhalf);
@@ -465,8 +483,8 @@ int main(int argc, char **argv) {
   memcpy(eo_spinor_work[0], eo_spinor_field[0], sizeof_eo_spinor_field);
   memcpy(eo_spinor_work[1], eo_spinor_field[1], sizeof_eo_spinor_field);
 
-  Q_eo_SchurDecomp_B (eo_spinor_work[2], eo_spinor_work[3], eo_spinor_work[0], eo_spinor_work[1], g_gauge_field, g_mu, eo_spinor_work[4]);
-  Q_eo_SchurDecomp_A (eo_spinor_work[0], eo_spinor_work[1], eo_spinor_work[2], eo_spinor_work[3], g_gauge_field, g_mu, eo_spinor_work[4]);
+  Q_eo_SchurDecomp_B (eo_spinor_work[2], eo_spinor_work[3], eo_spinor_work[0], eo_spinor_work[1], gauge_field_with_phase, g_mu, eo_spinor_work[4]);
+  Q_eo_SchurDecomp_A (eo_spinor_work[0], eo_spinor_work[1], eo_spinor_work[2], eo_spinor_work[3], gauge_field_with_phase, g_mu, eo_spinor_work[4]);
   g5_phi(eo_spinor_work[0], Vhalf);
   g5_phi(eo_spinor_work[1], Vhalf);
 
@@ -494,15 +512,15 @@ int main(int argc, char **argv) {
 
   g5_phi(eo_spinor_field[2], Vhalf);
   g5_phi(eo_spinor_field[3], Vhalf);
-  // Q_eo_SchurDecomp_Ainv (eo_spinor_work[0], eo_spinor_work[1], eo_spinor_field[2], eo_spinor_field[3], g_gauge_field, g_mu, eo_spinor_work[4]);
-  Q_eo_SchurDecomp_Ainv (eo_spinor_field[2], eo_spinor_field[3], eo_spinor_field[2], eo_spinor_field[3], g_gauge_field, g_mu, eo_spinor_work[4]);
+  // Q_eo_SchurDecomp_Ainv (eo_spinor_work[0], eo_spinor_work[1], eo_spinor_field[2], eo_spinor_field[3], gauge_field_with_phase, g_mu, eo_spinor_work[4]);
+  Q_eo_SchurDecomp_Ainv (eo_spinor_field[2], eo_spinor_field[3], eo_spinor_field[2], eo_spinor_field[3], gauge_field_with_phase, g_mu, eo_spinor_work[4]);
 
   memset(eo_spinor_work[2], 0, sizeof_eo_spinor_field);
   memcpy(eo_spinor_work[1], eo_spinor_field[3], sizeof_eo_spinor_field);
   exitstatus = tmLQCD_invert_eo(eo_spinor_work[2], eo_spinor_work[1], op_id);
   memcpy(eo_spinor_field[3], eo_spinor_work[2], sizeof_eo_spinor_field);
 
-  Q_eo_SchurDecomp_Binv (eo_spinor_field[2], eo_spinor_field[3], eo_spinor_field[2], eo_spinor_field[3], g_gauge_field, g_mu, eo_spinor_work[4]);
+  Q_eo_SchurDecomp_Binv (eo_spinor_field[2], eo_spinor_field[3], eo_spinor_field[2], eo_spinor_field[3], gauge_field_with_phase, g_mu, eo_spinor_work[4]);
 
   spinor_field_eo2lexic( full_spinor_work_halo[0], eo_spinor_field[2], eo_spinor_field[3]);
   xchange_field(full_spinor_work_halo[0]);
@@ -545,8 +563,8 @@ int main(int argc, char **argv) {
 #if 0
     random_spinor_field (eo_spinor_work[0], Vhalf);
     random_spinor_field (eo_spinor_work[1], Vhalf);
-    Q_eo_SchurDecomp_Ainv (eo_spinor_work[2], eo_spinor_work[3], eo_spinor_work[0], eo_spinor_work[1], g_gauge_field, g_mu, eo_spinor_work[6]);
-    Q_eo_SchurDecomp_A    (eo_spinor_work[4], eo_spinor_work[5], eo_spinor_work[2], eo_spinor_work[3], g_gauge_field, g_mu, eo_spinor_work[6]);
+    Q_eo_SchurDecomp_Ainv (eo_spinor_work[2], eo_spinor_work[3], eo_spinor_work[0], eo_spinor_work[1], gauge_field_with_phase, g_mu, eo_spinor_work[6]);
+    Q_eo_SchurDecomp_A    (eo_spinor_work[4], eo_spinor_work[5], eo_spinor_work[2], eo_spinor_work[3], gauge_field_with_phase, g_mu, eo_spinor_work[6]);
     spinor_field_norm_diff( &norm, eo_spinor_work[0], eo_spinor_work[4], Vhalf);
     if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators] even resdiue %e\n", norm);
     spinor_field_norm_diff( &norm, eo_spinor_work[1], eo_spinor_work[5], Vhalf);
@@ -563,7 +581,7 @@ int main(int argc, char **argv) {
     }
 #if 0
     /* 2,3 <- g5 A 0,1*/
-    Q_eo_SchurDecomp_A (eo_spinor_work[0], eo_spinor_work[1], eo_spinor_field[ia], eo_spinor_field[12+ia], g_gauge_field, flavor_sign*g_mu, eo_spinor_work[2]);
+    Q_eo_SchurDecomp_A (eo_spinor_work[0], eo_spinor_work[1], eo_spinor_field[ia], eo_spinor_field[12+ia], gauge_field_with_phase, flavor_sign*g_mu, eo_spinor_work[2]);
     g5_phi(eo_spinor_work[0], Vhalf);
     g5_phi(eo_spinor_work[1], Vhalf);
 
@@ -600,7 +618,7 @@ int main(int argc, char **argv) {
   exitstatus = project_reduce_from_propagator_field (pcoeff[0], eo_spinor_field[ 0], eo_spinor_field[ 0], 12, 12, Vhalf);
   for(i=0; i<12; i++) {
     for(k=0; k<12; k++) {
-      fprintf(stdout, "pceff %3d%3d%16.7e%16.7e\n", i,k,pcoeff[i][2*k], pcoeff[i][2*k+1]);
+      fprintf(stdout, "pceff %3d%3d%25.16e%25.16e\n", i,k,pcoeff[i][2*k], pcoeff[i][2*k+1]);
     }
   }
 
@@ -609,7 +627,7 @@ int main(int argc, char **argv) {
 #if 0
   for(ia=0; ia<12; ia++) {
     spinor_field_norm_diff(&norm, eo_spinor_field[ia], eo_spinor_field[12+ia], Vhalf);
-    if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagator] norm idff %2d %16.7e\n", ia, norm);
+    if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagator] norm idff %2d %25.16e\n", ia, norm);
   }
 #endif
 /*
@@ -632,7 +650,7 @@ int main(int argc, char **argv) {
     }
     memcpy(eo_spinor_field[12+ia], eo_spinor_work[1], sizeof_eo_spinor_field);
 /*
-    C_oo ( eo_spinor_work[0], eo_spinor_work[2], g_gauge_field, g_mu, eo_spinor_work[3]);
+    C_oo ( eo_spinor_work[0], eo_spinor_work[2], gauge_field_with_phase, g_mu, eo_spinor_work[3]);
     spinor_field_ti_eq_re (eo_spinor_work[0], 2.*g_kappa, Vhalf);
     spinor_field_norm_diff( &norm, eo_spinor_work[0], eo_spinor_work[1], Vhalf);
     if(g_cart_id == 0) {
@@ -640,7 +658,7 @@ int main(int argc, char **argv) {
     }
 */
 
-    /* Q_eo_SchurDecomp_Binv (eo_spinor_work[0], eo_spinor_work[1], eo_spinor_field[ia], eo_spinor_field[12+ia], g_gauge_field, g_mu, eo_spinor_work[4]); */
+    /* Q_eo_SchurDecomp_Binv (eo_spinor_work[0], eo_spinor_work[1], eo_spinor_field[ia], eo_spinor_field[12+ia], gauge_field_with_phase, g_mu, eo_spinor_work[4]); */
 
     exitstatus = fini_eo_propagator (eo_spinor_field[ia], eo_spinor_field[12+ia], eo_spinor_field[ia], eo_spinor_field[12+ia], flavor_sign, eo_spinor_work[4]);
     if(exitstatus != 0) {
@@ -687,7 +705,7 @@ int main(int argc, char **argv) {
   /* even new = even_old + X_eo odd_new */
   for(ia=0; ia<12; ia++) {
     memcpy(eo_spinor_work[0], eo_spinor_field[36+ia], sizeof_eo_spinor_field);
-    X_eo (eo_spinor_work[1], eo_spinor_work[0], g_mu, g_gauge_field);
+    X_eo (eo_spinor_work[1], eo_spinor_work[0], g_mu, gauge_field_with_phase);
     spinor_field_pl_eq_spinor_field(eo_spinor_field[24+ia], eo_spinor_work[1], Vhalf);
   }
 
@@ -751,15 +769,15 @@ int main(int argc, char **argv) {
     xchange_field(full_spinor_work_halo[0]);
     Q_phi( full_spinor_work_halo[1], full_spinor_work_halo[0], g_mu);
 /*
-    Q_eo_SchurDecomp_Ainv (eo_spinor_field[24+ia], eo_spinor_field[36+ia], eo_spinor_field[   ia], eo_spinor_field[12+ia], g_gauge_field, g_mu, eo_spinor_work[0]);
-    Q_eo_SchurDecomp_A    (eo_spinor_work[1], eo_spinor_work[2], eo_spinor_field[24+ia], eo_spinor_field[36+ia], g_gauge_field, g_mu, eo_spinor_work[0]);
-    Q_eo_SchurDecomp_A    (eo_spinor_field[24+ia], eo_spinor_field[36+ia], eo_spinor_field[24+ia], eo_spinor_field[36+ia], g_gauge_field, g_mu, eo_spinor_work[0]);
+    Q_eo_SchurDecomp_Ainv (eo_spinor_field[24+ia], eo_spinor_field[36+ia], eo_spinor_field[   ia], eo_spinor_field[12+ia], gauge_field_with_phase, g_mu, eo_spinor_work[0]);
+    Q_eo_SchurDecomp_A    (eo_spinor_work[1], eo_spinor_work[2], eo_spinor_field[24+ia], eo_spinor_field[36+ia], gauge_field_with_phase, g_mu, eo_spinor_work[0]);
+    Q_eo_SchurDecomp_A    (eo_spinor_field[24+ia], eo_spinor_field[36+ia], eo_spinor_field[24+ia], eo_spinor_field[36+ia], gauge_field_with_phase, g_mu, eo_spinor_work[0]);
 */
 /*
     spinor_field_norm_diff (&norm, eo_spinor_field[ia], eo_spinor_field[24+ia], Vhalf);
-    if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators] even norm diff %2d %16.7e\n", ia, norm);
+    if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators] even norm diff %2d %25.16e\n", ia, norm);
     spinor_field_norm_diff (&norm, eo_spinor_field[12+ia], eo_spinor_field[36+ia], Vhalf);
-    if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators] odd  norm diff %2d %16.7e\n", ia, norm);
+    if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators] odd  norm diff %2d %25.16e\n", ia, norm);
 */
     spinor_field_eo2lexic(full_spinor_work_halo[0], eo_spinor_field[ia], eo_spinor_field[12+ia] );
 /*
@@ -796,7 +814,7 @@ int main(int argc, char **argv) {
     spinor_field_mi_eq_spinor_field_ti_re(full_spinor_work_halo[1], full_spinor_work_halo[0], -1., VOLUME);
     spinor_scalar_product_re(&norm, full_spinor_work_halo[1], full_spinor_work_halo[1], VOLUME);
     // spinor_field_norm_diff (&norm, full_spinor_work_halo[1], full_spinor_work_halo[0], VOLUME);
-    if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators] seq %2d norm diff = %16.7e\n", ia, sqrt(norm));
+    if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators] seq %2d norm diff = %25.16e\n", ia, sqrt(norm));
 
 /*
     sprintf(filename, "spinor0.%.2d.%.2d", ia, g_cart_id);
@@ -817,7 +835,7 @@ int main(int argc, char **argv) {
 
     if(flavor_sign == -1) {
       memcpy(eo_spinor_work[0], eo_spinor_field[12+ia], sizeof_eo_spinor_field);
-      C_oo ( eo_spinor_field[12+ia], eo_spinor_work[0], g_gauge_field, g_mu, eo_spinor_work[1]);
+      C_oo ( eo_spinor_field[12+ia], eo_spinor_work[0], gauge_field_with_phase, g_mu, eo_spinor_work[1]);
     }
   }
 
@@ -850,7 +868,7 @@ int main(int argc, char **argv) {
   if(flavor_sign == 1) {
     for(ia=0; ia<12; ia++) {
       memcpy(eo_spinor_work[0], eo_spinor_field[12+ia], sizeof_eo_spinor_field);
-      C_oo (eo_spinor_field[12+ia], eo_spinor_work[0], g_gauge_field, -g_mu, eo_spinor_work[2]);
+      C_oo (eo_spinor_field[12+ia], eo_spinor_work[0], gauge_field_with_phase, -g_mu, eo_spinor_work[2]);
 /*
       sprintf(filename, "spinor.%.2d.%.2d.o", ia, g_cart_id);
       ofs = fopen(filename, "w");
@@ -862,14 +880,14 @@ int main(int argc, char **argv) {
   fini_2level_buffer(&pcoeff);
 
   for(ia=0; ia<12; ia++) {
-    Q_eo_SchurDecomp_Binv (eo_spinor_field[ia], eo_spinor_field[12+ia], eo_spinor_field[ia], eo_spinor_field[12+ia], g_gauge_field, flavor_sign*g_mu, eo_spinor_work[4]);
+    Q_eo_SchurDecomp_Binv (eo_spinor_field[ia], eo_spinor_field[12+ia], eo_spinor_field[ia], eo_spinor_field[12+ia], gauge_field_with_phase, flavor_sign*g_mu, eo_spinor_work[4]);
   }
 
   for(ia=0; ia<12; ia++) {
     spinor_field_norm_diff(&norm, eo_spinor_field[ia], eo_spinor_field[24+ia], Vhalf);
-    if(g_cart_id == 0) printf("# even norm %2d %16.7e\n", ia, norm);
+    if(g_cart_id == 0) printf("# even norm %2d %25.16e\n", ia, norm);
     spinor_field_norm_diff(&norm, eo_spinor_field[12+ia], eo_spinor_field[36+ia], Vhalf);
-    if(g_cart_id == 0) printf("# odd  norm %2d %16.7e\n", ia, norm);
+    if(g_cart_id == 0) printf("# odd  norm %2d %25.16e\n", ia, norm);
   }
 
   retime = _GET_TIME;
@@ -879,7 +897,7 @@ int main(int argc, char **argv) {
 #if 0
   for(ia=0; ia<evecs_num; ia++) {
     memcpy(eo_spinor_field[0], eo_evecs_field[ia], sizeof_eo_spinor_field);
-    C_oo (eo_spinor_field[1], eo_spinor_field[0], g_gauge_field, -g_mu, eo_spinor_work[2]);
+    C_oo (eo_spinor_field[1], eo_spinor_field[0], gauge_field_with_phase, -g_mu, eo_spinor_work[2]);
     spinor_scalar_product_re(&norm, eo_spinor_field[1], eo_spinor_field[1], Vhalf);
     spinor_field_ti_eq_re(eo_spinor_field[1], sqrt(1./norm), Vhalf);
 
@@ -888,9 +906,11 @@ int main(int argc, char **argv) {
     gsp_calculate_w_from_xv_and_v (&(eo_spinor_work[1]), &(eo_spinor_work[1]), &(eo_spinor_work[0]), &(eo_spinor_work[4]), 1, -g_mu, Vhalf);
 
     spinor_field_norm_diff(&norm, eo_spinor_field[1], eo_spinor_work[1], Vhalf);
-    if(g_cart_id == 0) printf("# [test_lm_propagators] eo norm %4d %16.7e\n", ia, norm);
+    if(g_cart_id == 0) printf("# [test_lm_propagators] eo norm %4d %25.16e\n", ia, norm);
   }
 #endif
+
+#endif  /* of if 0 */
 
   /****************************************
    * free the allocated memory, finalize
