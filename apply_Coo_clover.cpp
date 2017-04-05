@@ -287,7 +287,7 @@ int main(int argc, char **argv) {
 
       norm = 4 * g_kappa * g_kappa;
 #ifdef HAVE_OPENMP
-#pragma omp parallel for
+#pragma omp parallel for private(ix) shared(norm)
 #endif
       for(ix=0; ix<Vhalf; ix++ ) {
         _fv_ti_eq_re(eo_spinor_field[3]+_GSI(ix), norm);
@@ -303,7 +303,7 @@ int main(int argc, char **argv) {
 
       /* check evec equation */
 #ifdef HAVE_OPENMP
-#pragma omp parallel for
+#pragma omp parallel for private(ix) shared(evecs_lambda)
 #endif
       for(ix=0; ix<Vhalf; ix++) {
         _fv_mi_eq_fv_ti_re(eo_spinor_field[3]+_GSI(ix), eo_spinor_field[i]+_GSI(ix), evecs_lambda);
