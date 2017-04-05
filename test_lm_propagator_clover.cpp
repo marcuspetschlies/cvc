@@ -475,7 +475,7 @@ int main(int argc, char **argv) {
   op_id = flavor_id;
   if(g_cart_id==0) fprintf(stdout, "# [test_lm_propagator_clover] flavor sign = %d, flavor id = %d, op id = %d\n", flavor_sign, flavor_id, op_id);
 
-#if 0
+
   /***********************************************************
    * test eigenvectors
    ***********************************************************/
@@ -509,10 +509,10 @@ int main(int argc, char **argv) {
     }
 
   }
-
+#if 0
 #endif
 
-#if 0
+
   /***********************************************************
    * make Wtilde field
    ***********************************************************/
@@ -526,6 +526,7 @@ int main(int argc, char **argv) {
     if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagator_clover] evec %.4d ||V||^2 = %25.16e ||W||^2 = %25.16e diff = %25.16e\n", i, dnorm, dnorm2, fabs(dnorm2-evecs_eval[i]));
     spinor_field_ti_eq_re(eo_evecs_field[evecs_num+i], norm, Vhalf);
   }
+#if 0
 #endif
 
 #if 0
@@ -685,13 +686,12 @@ int main(int argc, char **argv) {
 #endif  /* of if 0 */
 
 
-#if 0
+
   /**********************************************************
    * up-type full propagators
    **********************************************************/
 
   /* loop on spin-color components of point source */
-  ratime = _GET_TIME;
 
   for(ia=0; ia<12; ia++) {
 
@@ -741,10 +741,10 @@ int main(int argc, char **argv) {
     if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagator_clover] odd  norm diff %e\n", sqrt(norm));
 
   }  /* of loop on spin-color component ia */
-
+#if 0
 #endif
 
-#if 0
+
   g_seq_source_momentum[0] = 1;
   g_seq_source_momentum[1] = 2;
   g_seq_source_momentum[2] = -3;
@@ -756,7 +756,12 @@ int main(int argc, char **argv) {
     exitstatus = init_clover_eo_sequential_source(eo_spinor_field[24+ia], eo_spinor_field[36+ia], eo_spinor_field[ia], eo_spinor_field[12+ia],
         g_sequential_source_timeslice, gauge_field_with_phase, mzzinv[flavor_id][0], g_seq_source_momentum, g_sequential_source_gamma_id, eo_spinor_work[0]);
   }
+#if 0
+#endif  /* of if 0 */
 
+#if 0
+  /* TEST
+   *   check the sequential source */
   for(ia=0; ia<12; ia++) {
     /* multiply with A */
     Q_clover_eo_SchurDecomp_A (eo_spinor_field[24+ia], eo_spinor_field[36+ia], eo_spinor_field[24+ia], eo_spinor_field[36+ia], gauge_field_with_phase, mzz[flavor_id][0], eo_spinor_work[0]);
@@ -802,20 +807,17 @@ int main(int argc, char **argv) {
     if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagator_clover] even part norm = %e\n", sqrt(norm));
     spinor_scalar_product_re(&norm, eo_spinor_field[36+ia], eo_spinor_field[36+ia], Vhalf);
     if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagator_clover] odd  part norm = %e\n", sqrt(norm));
-
   }  /* end of loop on spin-color */
-
 #endif  /* of if 0 */
   
-
-
-#if 0
+  /* project odd sequential source part on eigenvector subspace */
   exitstatus = project_propagator_field(eo_spinor_field[36], eo_spinor_field[36], 1, eo_evecs_block[op_id], 12, evecs_num, Vhalf);
   if(exitstatus != 0) {
     fprintf(stderr, "[test_lm_propagator_clover] Error from project_propagator_field, status was %d\n", exitstatus);
     EXIT(35);
   }
 
+  /* invert projected sequential source */
   for(ia=0; ia<12; ia++) {
     memset(eo_spinor_work[1], 0, sizeof_eo_spinor_field);
     memcpy(eo_spinor_work[0], eo_spinor_field[36+ia], sizeof_eo_spinor_field);
@@ -825,18 +827,20 @@ int main(int argc, char **argv) {
       EXIT(35);
     }
     memcpy(eo_spinor_field[36+ia], eo_spinor_work[1], sizeof_eo_spinor_field);
-    fini_clover_eo_propagator(eo_spinor_field[24+ia], eo_spinor_field[36+ia], eo_spinor_field[24+ia], eo_spinor_field[36+ia], mzzinv[flavor_id][0], eo_spinor_work[0]);
+    fini_clover_eo_propagator(eo_spinor_field[24+ia], eo_spinor_field[36+ia], eo_spinor_field[24+ia], eo_spinor_field[36+ia], gauge_field_with_phase, mzzinv[flavor_id][0], eo_spinor_work[0]);
   }
 
+  /* initialize sequential source again in-place */
   for(ia=0; ia<12; ia++) {
     exitstatus = init_clover_eo_sequential_source(eo_spinor_field[ia], eo_spinor_field[12+ia], eo_spinor_field[ia], eo_spinor_field[12+ia],
-        g_sequential_source_timeslice, mzzinv[flavor_id][0], g_seq_source_momentum, g_sequential_source_gamma_id, eo_spinor_work[0]);
+        g_sequential_source_timeslice, gauge_field_with_phase, mzzinv[flavor_id][0], g_seq_source_momentum, g_sequential_source_gamma_id, eo_spinor_work[0]);
   }
 
+  /* invert on eigenvector subspace by hand */
+#if 0
   init_2level_buffer(&pcoeff, 12, 2*evecs_num);
 
   /* odd projection coefficients v^+ sp_o */
-
   if(flavor_id == 1) {
     for(ia=0; ia<12; ia++) {
       memcpy(eo_spinor_work[0], eo_spinor_field[12+ia], sizeof_eo_spinor_field);
@@ -865,18 +869,24 @@ int main(int argc, char **argv) {
   for(ia=0; ia<12; ia++) {
     Q_clover_eo_SchurDecomp_Binv (eo_spinor_field[ia], eo_spinor_field[12+ia], eo_spinor_field[ia], eo_spinor_field[12+ia], gauge_field_with_phase, mzzinv[flavor_id][0], eo_spinor_work[4]);
   }
+#endif  /* of if 0 */
+
+  exitstatus = Q_clover_eo_invert_subspace ( &(eo_spinor_field[0]), &(eo_spinor_field[12]), &(eo_spinor_field[0]), &(eo_spinor_field[12]), 12, eo_evecs_block[0], evecs_lambdainv, evecs_num,
+      gauge_field_with_phase, mzz, mzzinv, flavor_id, eo_spinor_work );
+  if(exitstatus != 0) {
+    fprintf(stderr, "[test_lm_propagator_clover] Error from  Q_clover_eo_invert_subspace, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(35);
+  }
+
 
   for(ia=0; ia<12; ia++) {
     spinor_field_norm_diff(&norm, eo_spinor_field[ia], eo_spinor_field[24+ia], Vhalf);
-    if(g_cart_id == 0) printf("# even norm %2d %25.16e\n", ia, norm);
+    if(g_cart_id == 0) printf("# [test_lm_propagator_clover] subspace inversion comparison  even norm %2d %25.16e\n", ia, norm);
     spinor_field_norm_diff(&norm, eo_spinor_field[12+ia], eo_spinor_field[36+ia], Vhalf);
-    if(g_cart_id == 0) printf("# odd  norm %2d %25.16e\n", ia, norm);
+    if(g_cart_id == 0) printf("# [test_lm_propagator_clover] subspace inversion comparison   odd norm %2d %25.16e\n", ia, norm);
   }
 
-  retime = _GET_TIME;
-  if(g_cart_id == 0) {
-    fprintf(stdout, "# [test_lm_propagator_clover] time for propagators = %e seconds\n", retime-ratime);
-  }
+#if 0
 #endif  /* of if 0 */
 
   /****************************************
