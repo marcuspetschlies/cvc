@@ -703,7 +703,7 @@ int main(int argc, char **argv) {
       }
     
 #ifdef HAVE_OPENMP
-#pragma omp parallel for
+#pragma omp parallel for private(ix,ievecs,iix)
 #endif
       for(ix=0; ix < T*60; ix++) {
         for(ievecs=0; ievecs < evecs_num; ievecs++) {
@@ -775,7 +775,7 @@ int main(int argc, char **argv) {
       }
 
 
-#pragma omp parallel for
+#pragma omp parallel for private(ix,ievecs,iix)
       for(ix=0; ix < T*60; ix++) {
         for(ievecs=0; ievecs < evecs_num; ievecs++) {
           iix = 2 * (ix * evecs_num + ievecs);
@@ -1314,10 +1314,10 @@ int main(int argc, char **argv) {
 
       /* combine up-type and dn-type part, normalisation of contractions */
 
-#ifdef HAVE_OPENMP
-#pragma omp parallel for default(shared)
-#endif
       items = 16 * VOLUME * T_global;
+#ifdef HAVE_OPENMP
+#pragma omp parallel for default(shared) private(ix) firstprivate(items)
+#endif
       for(ix=0; ix<items; ix++) {
         /* real part */
         conn_buffer[0][0][2*ix  ] += sequential_source_gamma_id_sign[ sequential_source_gamma_id ] * conn_buffer[1][0][2*ix  ];
