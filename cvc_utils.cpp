@@ -6232,10 +6232,12 @@ int plaquetteria  (double*gauge_field ) {
   }      /* end of loop on ix */
 #ifdef HAVE_OPENMP
   omp_set_lock(&writelock);
+#endif
   plaq[0] += ploc[0];
   plaq[1] += ploc[1];
   plaq[2] += ploc[2];
   plaq[3] += ploc[3];
+#ifdef HAVE_OPENMP
   omp_unset_lock(&writelock);
 }  /* end of parallel region */
   omp_destroy_lock(&writelock);
