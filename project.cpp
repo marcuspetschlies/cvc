@@ -830,7 +830,8 @@ void make_eo_phase_field_timeslice (double _Complex**phase, int momentum_number,
 #endif
     /* make phase field in eo ordering */
     for(ix=0; ix < VOL3half; ix++) {
-      ztmp = ( phase_part + g_eot2xyz[eo][timeslice][ix][0] * p[0] + g_eot2xyz[eo][timeslice][ix][1] * p[1] + g_eot2xyz[eo][timeslice][ix][2] * p[2] ) * I;
+      /* ztmp = ( phase_part + g_eot2xyz[eo][timeslice][ix][0] * p[0] + g_eot2xyz[eo][timeslice][ix][1] * p[1] + g_eot2xyz[eo][timeslice][ix][2] * p[2] ) * I; */
+      ztmp = ( phase_part +   g_eosubt2coords[eo][timeslice][ix][0] * p[0] +   g_eosubt2coords[eo][timeslice][ix][1] * p[1] +   g_eosubt2coords[eo][timeslice][ix][2] * p[2] ) * I;
       phase[imom][ix] = cexp(ztmp);
     }
 #ifdef HAVE_OPENMP
