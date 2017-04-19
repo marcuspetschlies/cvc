@@ -506,7 +506,7 @@ int main(int argc, char **argv) {
   if(exitstatus != 0) {
     EXIT(4);
   }
-  if(&g_gauge_field == NULL) {
+  if(g_gauge_field == NULL) {
     fprintf(stderr, "[piN2piN] Error, &g_gauge_field is NULL\n");
     EXIT(5);
   }
@@ -870,7 +870,10 @@ int main(int argc, char **argv) {
        **
        ***********************
        ***********************/
-      for(i=0; i<max_num_diagram; i++) { memset(conn_X[i][0][0], 0, 2*VOLUME*g_sv_dim*g_sv_dim*sizeof(double)); }
+      for(i=0; i<max_num_diagram; i++) { 
+        /* memset(conn_X[i][0][0], 0, 2*VOLUME*g_sv_dim*g_sv_dim*sizeof(double));  */
+        exitstatus = zero_sp_field ( conn_X[i], num_component_max*VOLUME );
+      }
 
       exitstatus = contract_N_N (conn_X, &(propagator_list_up[i_prop*n_s*n_c]), &(propagator_list_dn[i_prop*n_s*n_c]) , num_component_N_N, gamma_component_N_N, gamma_component_sign_N_N);
 
@@ -958,7 +961,10 @@ int main(int argc, char **argv) {
        **
        ***********************
        ***********************/
-      for(i=0; i<max_num_diagram; i++) { memset(conn_X[i][0][0], 0, 2*VOLUME*g_sv_dim*g_sv_dim*sizeof(double)); }
+      for(i=0; i<max_num_diagram; i++) { 
+        /* memset(conn_X[i][0][0], 0, 2*VOLUME*g_sv_dim*g_sv_dim*sizeof(double));  */
+        exitstatus = zero_sp_field ( conn_X[i], num_component_max*VOLUME );
+      }
 
       exitstatus = contract_D_D (conn_X, &(propagator_list_up[i_prop*n_s*n_c]), &(propagator_list_dn[i_prop*n_s*n_c]),
          num_component_D_D, gamma_component_D_D, gamma_component_sign_D_D);
@@ -1053,7 +1059,10 @@ int main(int argc, char **argv) {
         int i_seq_prop = iseq_mom * g_source_location_number + i_src;
 
 
-        for(i=0; i<max_num_diagram; i++) { memset(conn_X[i][0][0], 0, 2*VOLUME*g_sv_dim*g_sv_dim*sizeof(double)); }
+        for(i=0; i<max_num_diagram; i++) { 
+          /* memset(conn_X[i][0][0], 0, 2*VOLUME*g_sv_dim*g_sv_dim*sizeof(double)); */
+          exitstatus = zero_sp_field ( conn_X[i], num_component_max*VOLUME );
+        }
 
         exitstatus = contract_piN_D (conn_X, &(propagator_list_up[i_prop*n_s*n_c]), &(propagator_list_dn[i_prop*n_s*n_c]), 
             &(sequential_propagator_list[i_seq_prop*n_s*n_c]), num_component_piN_D, gamma_component_piN_D, gamma_component_sign_piN_D);
@@ -1150,7 +1159,10 @@ int main(int argc, char **argv) {
        **
        ***********************
        ***********************/
-      for(i=0; i<max_num_diagram; i++) { memset(conn_X[i][0][0], 0, 2*VOLUME*g_sv_dim*g_sv_dim*sizeof(double)); }
+      for(i=0; i<max_num_diagram; i++) { 
+        /* memset(conn_X[i][0][0], 0, 2*VOLUME*g_sv_dim*g_sv_dim*sizeof(double)); */
+        exitstatus = zero_sp_field ( conn_X[i], num_component_max*VOLUME );
+      }
       double *conn_M = conn_X[0][0][0];
       contract_twopoint_xdep(conn_M, 5, 5, (void*)(&(propagator_list_up[i_prop*n_s*n_c])), (void*)(&(propagator_list_up[i_prop*n_s*n_c])), n_c, 1, 1., 64);
 
@@ -1427,7 +1439,10 @@ int main(int argc, char **argv) {
 
           ratime = _GET_TIME;
 
-          for(i=0; i<max_num_diagram; i++) { memset(conn_X[i][0][0], 0, 2*VOLUME*g_sv_dim*g_sv_dim*sizeof(double)); }
+          for(i=0; i<max_num_diagram; i++) { 
+            /* memset(conn_X[i][0][0], 0, 2*VOLUME*g_sv_dim*g_sv_dim*sizeof(double)); */
+            exitstatus = zero_sp_field ( conn_X[i], num_component_max*VOLUME );
+          }
 
           exitstatus = contract_piN_piN (conn_X,
               &(propagator_list_up[i_prop*n_s*n_c]), &(propagator_list_dn[i_prop*n_s*n_c]), 
@@ -1711,7 +1726,10 @@ int main(int argc, char **argv) {
            **
            ***********************
            ***********************/
-          for(i=0; i<max_num_diagram; i++) { memset(conn_X[i][0][0], 0, 2*VOLUME*g_sv_dim*g_sv_dim*sizeof(double)); }
+          for(i=0; i<max_num_diagram; i++) { 
+            /* memset(conn_X[i][0][0], 0, 2*VOLUME*g_sv_dim*g_sv_dim*sizeof(double)); */
+            exitstatus = zero_sp_field ( conn_X[i], num_component_max*VOLUME );
+          }
           double *conn_M = conn_X[0][0][0];
           contract_twopoint_xdep( (void*)conn_M, 5, 5, (void*)(&(stochastic_propagator_list[0])), (void*)(&(stochastic_propagator_list[4])), 1, 1, 1., 64);
     
@@ -1804,7 +1822,10 @@ int main(int argc, char **argv) {
 
             /* contract 4 oet diagrams */
 
-            for(i=0; i<max_num_diagram; i++) { memset(conn_X[i][0][0], 0, 2*VOLUME*g_sv_dim*g_sv_dim*sizeof(double)); }
+            for(i=0; i<max_num_diagram; i++) { 
+              /* memset(conn_X[i][0][0], 0, 2*VOLUME*g_sv_dim*g_sv_dim*sizeof(double)); */
+              exitstatus = zero_sp_field ( conn_X[i], num_component_max*VOLUME );
+            }
 
             exitstatus = contract_piN_piN_oet ( conn_X, &(propagator_list_up[i_prop*n_s*n_c]), &(propagator_list_dn[i_prop*n_s*n_c]), 
                 pfifi_list, num_component_piN_piN, gamma_component_piN_piN, gamma_component_sign_piN_piN);
