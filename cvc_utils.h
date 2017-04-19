@@ -120,6 +120,9 @@ void spinor_field_norm_diff (double*d, double *r, double *s, unsigned int N);
 void g5_phi(double *phi, unsigned int N);
 
 spinor_propagator_type *create_sp_field(size_t N);
+int zero_sp_field (spinor_propagator_type *fp, unsigned int N );
+
+
 fermion_propagator_type *create_fp_field(size_t N);
 int fermion_propagator_field_tm_rotation(fermion_propagator_type *s, fermion_propagator_type *r, int sign, int fermion_type, unsigned int N);
 int spinor_field_tm_rotation(double*s, double*r, int sign, int fermion_type, unsigned int N);
