@@ -390,7 +390,7 @@ int contract_piN_piN_oet (spinor_propagator_type **res, double**uprop_list, doub
           /* reduce to spin propagator */
           _sp_eq_zero( sp1 );
           _sp_eq_fp_del_contract34_fp(sp1, uprop, fpaux);
-          _sp_pl_eq_sp_ti_re( res[3][iix], sp1, -comp_list_sign[icomp]);
+          _sp_eq_sp_ti_re( res[3][iix], sp1, -comp_list_sign[icomp]);
 //#endif
         }  /* of icomp */
 
