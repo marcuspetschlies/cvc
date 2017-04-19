@@ -721,6 +721,39 @@ int init_geometry(void) {
     }
   }
 
+#if 0
+  /***********************************************************
+   * initialize g_eot2xyz
+   *
+   * NOTE: g_eot2xyz is the same as g_eosubt2coords
+   ***********************************************************/
+  g_eot2xyz          = (int****)malloc(                   2 * sizeof(int***));
+  if( g_eot2xyz == NULL ) return(25);
+
+  g_eot2xyz[0]       = (int*** )malloc(               T * 2 * sizeof(int**));
+  if( g_eot2xyz[0] == NULL ) return(26);
+  g_eot2xyz[1] = g_eot2xyz[0] + T;
+
+  g_eot2xyz[0][0]    = (int**  )malloc(    VOL3half * T * 2 * sizeof(int*));
+  if( g_eot2xyz[0][0] == NULL ) return(27);
+  g_eot2xyz[1][0] = g_eot2xyz[0][0] + T * VOL3half;
+  for( j=1; j<T; j++ ) {
+    g_eot2xyz[0][j] = g_eot2xyz[0][j-1] + VOL3half;
+    g_eot2xyz[1][j] = g_eot2xyz[1][j-1] + VOL3half;
+  }
+
+  g_eot2xyz[0][0][0] = (int*   )malloc(3 * VOL3half * T * 2 * sizeof(int));
+  if( g_eot2xyz[0][0][0] == NULL ) return(28);
+  g_eot2xyz[1][0][0] = g_eot2xyz[0][0][0] + 3 * T * VOL3half;
+  for( j=0; j<T; j++ ) {
+    for( ix=0; ix<VOL3half; ix++ ) {
+      g_eot2xyz[0][j][ix] = g_eot2xyz[0][0][0] + 3 * ( j * VOL3half + ix);
+      g_eot2xyz[1][j][ix] = g_eot2xyz[1][0][0] + 3 * ( j * VOL3half + ix);
+    }
+  }
+#endif  /* of if 0 */
+
+
   /* initialize the boundary condition */
   co_phase_up[0].re = cos(BCangle[0]*M_PI / (double)T_global);
   co_phase_up[0].im = sin(BCangle[0]*M_PI / (double)T_global);
@@ -771,6 +804,14 @@ void free_geometry() {
   free( g_eosubt2coords[0][0] );
   free( g_eosubt2coords[0] );
   free( g_eosubt2coords );
+
+#if 0
+  free( g_eot2xyz[0][0][0] );
+  free( g_eot2xyz[0][0] );
+  free( g_eot2xyz[0] );
+  free( g_eot2xyz );
+#endif  /* of if 0 */
+
 }  /* end of free_geometry */
 
 
