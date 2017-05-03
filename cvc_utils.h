@@ -158,6 +158,10 @@ int plaquetteria  (double*gauge_field );
 
 int gauge_field_eq_gauge_field_ti_phase (double**gauge_field_with_phase, double*gauge_field, complex co_phase[4] );
 
+void co_field_eq_fv_dag_ti_fv (double*c, double*r, double*s, unsigned int N );
+
+void co_field_eq_fv_dag_ti_gamma_ti_fv (double*c, double*r, int gid, double*s, unsigned int N );
+
 }  /* end of namespace cvc */
 #endif
 
