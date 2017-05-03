@@ -6318,4 +6318,80 @@ int gauge_field_eq_gauge_field_ti_phase (double**gauge_field_with_phase, double*
   return(0);
 }  /* end of gauge_field_eq_gauge_field_ti_phase */
 
+/* c = r^+ s point-wise */
+void co_field_eq_fv_dag_ti_fv (double*c, double*r, double*s, unsigned int N ) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  unsigned int ix;
+  double *r_ = NULL, *s_ = NULL;
+  complex *c_ = NULL;
+  unsigned int offset;
+
+#pragma omp for
+  for(ix=0; ix<N; ix++ ) {
+    offset = _GSI( ix );
+    r_ = r + offset;
+    s_ = s + offset;
+    c_ = (complex*)c + ix;
+    _co_eq_fv_dag_ti_fv( c_, r_, s_);
+  }
+#ifdef HAVE_OPENMP
+}
+#endif
+
+}  /* co_field_eq_fv_dag_ti_fv */
+
+
+/* c = r^+ gamma s point-wise */
+void co_field_eq_fv_dag_ti_gamma_ti_fv (double*c, double*r, int gid, double*s, unsigned int N ) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  unsigned int ix;
+  double *r_ = NULL, *s_ = NULL;
+  double spinor1[24];
+  complex *c_ = NULL;
+  unsigned int offset;
+
+#pragma omp for
+  for(ix=0; ix<N; ix++ ) {
+    offset = _GSI( ix );
+    r_ = r + offset;
+    s_ = s + offset;
+    c_ = (complex*)c + ix;
+    _fv_eq_gamma_ti_fv(spinor1, gid, s_);
+    _co_eq_fv_dag_ti_fv( c_, r_, spinor1);
+  }
+#ifdef HAVE_OPENMP
+}
+#endif
+}  /* co_field_eq_fv_dag_ti_gamma_ti_fv */
+
+/*****************************************************
+ * r[x] = s[ x +/- dir ]
+ *
+ * s MUST have halo for xchange
+ * r and s MUST NOT be same memory region
+ * eo = 0 for even, 1 for odd
+ *****************************************************/
+void spinor_field_shift_eo (double *r, double*s, int dir, int fbw, int eo) {
+  if (r == s ) {
+    fprintf(stderr, "[spinor_field_shift_eo] input / output field must not be the same\n");
+    EXIT(1);
+  }
+
+  if ( fbw == 1 ) {
+    /* shift forward */
+
+
+  } else {
+    /* shift backward */
+  }
+
+
+}  /* end of spinor_field_shift */
+
 }  /* end of namespace cvc */
