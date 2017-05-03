@@ -1480,7 +1480,7 @@ int Q_clover_eo_invert_subspace_stochastic ( double**prop_e, double**prop_o, dou
 
 }  /* end of Q_clover_eo_invert_subspace_stochastic */
 
-
+#if 0
 /********************************************************************
  *
  *  inversion for eo-precon spinor fields
@@ -1534,9 +1534,6 @@ int Q_clover_eo_invert_subspace_orthogonal (
   } else if ( source_o != prop_o ) {
     memcpy(prop_o[0], source_o[0], nsf * sizeof_eo_spinor_field );
   }
-
-  _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
-
 
   exitstatus = project_reduce_from_propagator_field(pcoeff, prop_o[0], evecs, nsf, nev, Vhalf);
   if(exitstatus != 0) {
@@ -1633,5 +1630,6 @@ int Q_clover_eo_invert_subspace_orthogonal (
   return(0);
 
 }  /* end of Q_clover_eo_invert_subspace_orthogonal */
+#endif  /* of if 0 */
 
 }  /* end of namespace cvc */
