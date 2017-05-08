@@ -1813,7 +1813,7 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
           }
     
           if ( io_proc == 2 ) {
-            sprintf(aff_path, "%s/w_dag_cvc_s/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+            sprintf(aff_path, "%s/w_dag_cvc_s/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
     
             affdir = aff_writer_mkpath(affw, affn, aff_path);
             exitstatus = aff_node_put_complex (affw, affdir, contr_allt_buffer, (uint32_t)(T_global*numV*block_size ) );
@@ -1927,7 +1927,7 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
           }
     
           if ( io_proc == 2 ) {
-            sprintf(aff_path, "%s/xw_dag_cvc_s/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+            sprintf(aff_path, "%s/xw_dag_cvc_s/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
     
             affdir = aff_writer_mkpath(affw, affn, aff_path);
             exitstatus = aff_node_put_complex (affw, affdir, contr_allt_buffer, (uint32_t)(T_global*numV*block_size ) );
@@ -2085,7 +2085,7 @@ int contract_vdag_gloc_w_blocked (double**V, int numV, int momentum_number, int 
   const unsigned int Vhalf = VOLUME / 2;
   const unsigned int VOL3half = ( LX * LY * LZ ) / 2;
   const size_t sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof(double);
-  const size_t sizeof_eo_spinor_field_timeslice = _GSI( VOL3half ) * sizeof(double);
+  /* const size_t sizeof_eo_spinor_field_timeslice = _GSI( VOL3half ) * sizeof(double); */
 
   int exitstatus;
   double *spinor_work = NULL, *spinor_aux = NULL;
@@ -2093,7 +2093,6 @@ int contract_vdag_gloc_w_blocked (double**V, int numV, int momentum_number, int 
   double _Complex **V_ts = NULL;
   double _Complex **W = NULL, **W_phase = NULL, **W_gamma_phase = NULL, **W_ts = NULL, **W_aux = NULL;
   double _Complex ***contr = NULL;
-  double _Complex *contr_allt_buffer = NULL;
 
   double *mcontr_buffer = NULL;
   double ratime, retime;
@@ -2511,7 +2510,7 @@ int contract_vdag_gloc_phi_blocked (double**V, double**Phi, int numV, int numPhi
   const unsigned int Vhalf = VOLUME / 2;
   const unsigned int VOL3half = ( LX * LY * LZ ) / 2;
   const size_t sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof(double);
-  const size_t sizeof_eo_spinor_field_timeslice = _GSI( VOL3half ) * sizeof(double);
+  /* const size_t sizeof_eo_spinor_field_timeslice = _GSI( VOL3half ) * sizeof(double); */
 
   int exitstatus;
   double *spinor_work = NULL, *spinor_aux = NULL;
@@ -2521,7 +2520,6 @@ int contract_vdag_gloc_phi_blocked (double**V, double**Phi, int numV, int numPhi
   double _Complex **Phi_phase = NULL, **Phi_gamma_phase = NULL, **Phi_ts = NULL,
          **Phi_aux1 = NULL, **Phi_aux2 = NULL;
   double _Complex ***contr = NULL;
-  double _Complex *contr_allt_buffer = NULL;
 
   double *mcontr_buffer = NULL;
   double ratime, retime;
@@ -2961,5 +2959,942 @@ int contract_vdag_gloc_phi_blocked (double**V, double**Phi, int numV, int numPhi
 
 }  /* end of contract_v_dag_gloc_phi */
 
+
+/*******************************************************************************************
+ * calculate V^+ cvc-vertex S
+ *
+          subroutine zgemm  (   character   TRANSA,
+          V^+ Gamma(p) S
+          eo - scalar product over even 0 / odd 1 sites
+
+          V is numV x (12 VOL3half) (C) = (12 VOL3half) x numV (F)
+
+          prop is nsf x (12 VOL3half) (C) = (12 VOL3half) x nsf (F)
+
+          zgemm calculates
+          V^H x [ (Gamma(p) x prop) ] which is numV x nsf (F) = nsf x numV (C)
+ *
+ *******************************************************************************************/
+int contract_vdag_cvc_w_blocked (double**V, int numV, int momentum_number, int (*momentum_list)[3], struct AffWriter_s*affw, char*tag, int io_proc, double*gauge_field, double **mzz[2], double**mzzinv[2], int block_size ) {
+ 
+  const unsigned int Vhalf = VOLUME / 2;
+  const unsigned int VOL3half = ( LX * LY * LZ ) / 2;
+  const size_t sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof(double);
+  /* const size_t sizeof_eo_spinor_field_timeslice = _GSI( VOL3half ) * sizeof(double); */
+
+  int exitstatus;
+  double **eo_spinor_work = NULL;
+  double _Complex **phase_field = NULL;
+
+  /* auxilliary V fields */
+  double _Complex **V_ts = NULL;
+
+  /* auxilliary W fields */
+  double _Complex **W = NULL;
+  double _Complex **W_ts = NULL, **W_vertex = NULL,**W_phase = NULL, **W_aux;
+
+  /* fields for contractions */
+  double _Complex ***contr = NULL;
+
+  double *mcontr_buffer = NULL;
+  double ratime, retime;
+
+  struct AffNode_s *affn = NULL;
+  char aff_path[200];
+
+  int block_num = (int)( numV / block_size);
+  if ( block_num * block_size != numV ) {
+    fprintf(stderr, "[contract_vdag_cvc_w_blocked] Error, numV must be divisible by block size %s %d\n", __FILE__, __LINE__);
+    return(1);
+  }
+
+  ratime = _GET_TIME;
+
+  exitstatus = init_2level_buffer ( (double***)(&eo_spinor_work), 1, _GSI( (VOLUME+RAND)/2) );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_vdag_cvc_w_blocked] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+
+  /* Fourier phases */
+  exitstatus = init_2level_buffer ( (double***)(&phase_field), T, 2*VOL3half );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_vdag_cvc_w_blocked] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+
+  /* auxilliary V fields */
+  exitstatus = init_2level_buffer ( (double***)(&V_ts), numV, _GSI(VOL3half) );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_vdag_cvc_w_blocked] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(2);
+  }
+
+  /* auxilliary W fields  */
+  exitstatus = init_2level_buffer ( (double***)(&W), numV, _GSI(Vhalf) );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_vdag_cvc_w_blocked] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(3);
+  }
+
+  exitstatus = init_2level_buffer ( (double***)(&W_aux), block_size, _GSI(Vhalf) );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_vdag_cvc_w_blocked] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(3);
+  }
+
+  exitstatus = init_2level_buffer ( (double***)(&W_ts), block_size, _GSI(VOL3half) );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_vdag_cvc_w_blocked] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(3);
+  }
+
+  exitstatus = init_2level_buffer ( (double***)(&W_vertex), block_size, _GSI(Vhalf) );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_vdag_cvc_w_blocked] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(4);
+  }
+
+  exitstatus = init_2level_buffer ( (double***)(&W_phase), block_size, _GSI(Vhalf) );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_vdag_cvc_w_blocked] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(4);
+  }
+
+  /* fields for contractions */
+  exitstatus = init_3level_buffer ( (double****)(&contr), T, block_size, 2*numV );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_vdag_cvc_w_blocked] Error from init_3level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(5);
+  }
+
+#ifdef HAVE_MPI
+  /* buffer for xchange */
+  mcontr_buffer = (double*)malloc(numV * block_size * 2 * sizeof(double) ) ;
+  if ( mcontr_buffer == NULL ) {
+    fprintf(stderr, "[contract_vdag_cvc_w_blocked] Error from malloc %s %d\n", __FILE__, __LINE__);
+    return(6);
+  }
+#endif
+
+  if ( io_proc == 2 ) {
+    if( (affn = aff_writer_root(affw)) == NULL ) {
+      fprintf(stderr, "[contract_vdag_cvc_w_blocked] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
+      return(1);
+    }
+  }
+
+  /************************************************
+   ************************************************
+   **
+   ** calculate W from V
+   **
+   ************************************************
+   ************************************************/
+  for( int i=0; i < numV; i++ ) {
+    /* W = Cbar_oo V */
+    C_clover_oo ( (double*)(W[i]), (double*)(V[i]), gauge_field, eo_spinor_work[0], mzz[1][1], mzzinv[1][0]);
+  }
+
+  /************************************************
+   ************************************************
+   **
+   ** V - Xbar V
+   ** V - X W
+   ** W - Xbar V
+   ** W - X W
+   **
+   ************************************************
+   ************************************************/
+
+  for ( int iblock=0; iblock < block_num; iblock++ ) {
+
+    /* calculate a block of Xbar V */
+    for( int i=0; i < block_size; i++ ) {
+      /* spinor_work = V */
+      memcpy( eo_spinor_work[0], V[iblock*block_size + i], sizeof_eo_spinor_field );
+      /* W_aux = Xbar V */
+      X_clover_eo ( (double*)(W_aux[i]), eo_spinor_work[0], gauge_field, mzzinv[1][0]);
+    }
+
+    /************************************************
+     *
+     * V - Xbar V and
+     * W - Xbar V
+     *
+     ************************************************/
+
+    /* loop on directions mu */
+    for( int mu=0; mu<4; mu++ ) {
+
+      /* loop on fwd / bwd */
+      for( int fbwd=0; fbwd<2; fbwd++ ) {
+
+        /* apply the cvc vertex in direction mu, fbwd to current block of fields */
+        for( int i=0; i < block_size; i++) {
+          /* spinor_work = W_aux = Xbar V */
+          memcpy( eo_spinor_work[0], (double*)(W_aux[i]), sizeof_eo_spinor_field );
+          /* W_vertex = CVC(mu, fbwd) Xbar V
+           *   ODD target field
+           * */
+          apply_cvc_vertex_eo( (double*)(W_vertex[i]), eo_spinor_work[0], mu, fbwd, gauge_field, 1);
+        }
+
+        /* loop on momenta */
+        for( int im=0; im<momentum_number; im++ ) {
+  
+          /* make odd phase field */
+          make_eo_phase_field_sliced3d ( phase_field, momentum_list[im], 1);
+
+          /* multiply by momentum phase */
+          for( int i=0; i < block_size; i++) {
+            spinor_field_eq_spinor_field_ti_complex_field ( (double*)(W_phase[i]), (double*)(W_vertex[i]), (double*)(phase_field[0]), Vhalf);
+          }
+          g5_phi( (double*)(W_phase[0]), block_size*Vhalf);
+
+          /************************************************
+           * (1) V - Xbar V
+           ************************************************/
+          sprintf(aff_path, "%s/v_dag_cvc_xv/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+
+/******************************************
+ * NOTE: DANGEROUS TYPECAST
+ ******************************************/
+          exitstatus = vdag_w_reduce_write ( contr, (double _Complex**)V, W_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, W_ts, mcontr_buffer);
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[contract_vdag_cvc_w_blocked] Error from vdag_w_reduce_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            return(2);
+          }
+
+          /************************************************
+           * (2) W - Xbar V
+           ************************************************/
+          sprintf(aff_path, "%s/w_dag_cvc_xv/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+
+          exitstatus = vdag_w_reduce_write ( contr, W, W_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, W_ts, mcontr_buffer);
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[contract_vdag_cvc_w_blocked] Error from vdag_w_reduce_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            return(2);
+          }
+
+        } /* end of loop on momenta */ 
+      }  /* end of loop on fwd, bwd */ 
+    }  /* end of loop on shift directions */
+
+    /************************************************
+     *
+     * V - X W and
+     * W - X W
+     *
+     ************************************************/
+
+    /* calculate a block of X W */
+    for( int i=0; i < block_size; i++ ) {
+      /* spinor_work = W */
+      memcpy( eo_spinor_work[0], W[iblock*block_size + i], sizeof_eo_spinor_field );
+      /* W_aux = X W */
+      X_clover_eo ( (double*)(W_aux[i]), eo_spinor_work[0], gauge_field, mzzinv[0][0]);
+    }
+
+    /* loop on directions mu */
+    for( int mu=0; mu<4; mu++ ) {
+
+      /* loop on fwd / bwd */
+      for( int fbwd=0; fbwd<2; fbwd++ ) {
+
+        /* apply the cvc vertex in direction mu, fbwd to current block of fields */
+        for( int i=0; i < block_size; i++) {
+          /* spinor_work = W_aux = X W */
+          memcpy( eo_spinor_work[0], (double*)(W_aux[i]), sizeof_eo_spinor_field );
+          /* W_vertex = CVC(mu, fbwd) X W
+           *   ODD target field
+           * */
+          apply_cvc_vertex_eo( (double*)(W_vertex[i]), eo_spinor_work[0], mu, fbwd, gauge_field, 1);
+        }
+
+        /* loop on momenta */
+        for( int im=0; im<momentum_number; im++ ) {
+  
+          /* make odd phase field */
+          make_eo_phase_field_sliced3d ( phase_field, momentum_list[im], 1);
+
+          /* multiply by momentum phase */
+          for( int i=0; i < block_size; i++) {
+            spinor_field_eq_spinor_field_ti_complex_field ( (double*)(W_phase[i]), (double*)(W_vertex[i]), (double*)(phase_field[0]), Vhalf);
+          }
+          g5_phi( (double*)(W_phase[0]), block_size*Vhalf);
+
+          /************************************************
+           * (3) V - X W
+           ************************************************/
+          sprintf(aff_path, "%s/v_dag_cvc_xw/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+
+/******************************************
+ * NOTE: DANGEROUS TYPECAST
+ ******************************************/
+          exitstatus = vdag_w_reduce_write ( contr, (double _Complex**)V, W_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, W_ts, mcontr_buffer);
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[contract_vdag_cvc_w_blocked] Error from vdag_w_reduce_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            return(2);
+          }
+
+          /************************************************
+           * (4) W - X W
+           ************************************************/
+          sprintf(aff_path, "%s/w_dag_cvc_xw/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+
+          exitstatus = vdag_w_reduce_write ( contr, W, W_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, W_ts, mcontr_buffer);
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[contract_vdag_cvc_w_blocked] Error from vdag_w_reduce_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            return(2);
+          }
+
+        } /* end of loop on momenta */ 
+      }  /* end of loop on fwd, bwd */ 
+    }  /* end of loop on shift directions */
+
+  }  /* end of loop on blocks */
+
+#ifdef HAVE_MPI
+  free ( mcontr_buffer );
+#endif
+  fini_2level_buffer ( (double***)(&eo_spinor_work) );
+  fini_2level_buffer ( (double***)(&phase_field) );
+  fini_2level_buffer ( (double***)(&V_ts) );
+  fini_2level_buffer ( (double***)(&W) );
+  fini_2level_buffer ( (double***)(&W_ts) );
+  fini_2level_buffer ( (double***)(&W_aux) );
+  fini_2level_buffer ( (double***)(&W_vertex) );
+  fini_2level_buffer ( (double***)(&W_phase) );
+  fini_3level_buffer ( (double****)(&contr) );
+
+  retime = _GET_TIME;
+  if ( io_proc  == 2 ) {
+    fprintf(stdout, "# [contract_vdag_cvc_w_blocked] time for contract_vdag_cvc_w_blocked = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+  }
+
+  return(0);
+
+}  /* end of contract_v_dag_cvc_w_blocked */
+
+
+/*******************************************************************************************
+ * calculate V^+ cvc-vertex Phi
+ *
+          V^+ point-split vertex Phi
+          eo - scalar product over even 0 / odd 1 sites
+ *
+ *******************************************************************************************/
+int contract_vdag_cvc_phi_blocked (double**V, double**Phi, int numV, int numPhi, int momentum_number, int (*momentum_list)[3], struct AffWriter_s*affw, char*tag, int io_proc, double*gauge_field, double **mzz[2], double**mzzinv[2], int block_size ) {
+ 
+  const unsigned int Vhalf = VOLUME / 2;
+  const unsigned int VOL3half = ( LX * LY * LZ ) / 2;
+  const size_t sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof(double);
+  /* const size_t sizeof_eo_spinor_field_timeslice = _GSI( VOL3half ) * sizeof(double); */
+
+  int exitstatus;
+  double **eo_spinor_work = NULL;
+  double _Complex **phase_field = NULL;
+
+  /* auxilliary V fields */
+  double _Complex **V_ts = NULL;
+  double _Complex **W = NULL;
+
+  /* auxilliary Phi fields */
+  double _Complex **Phi_ts = NULL, **Phi_vertex = NULL,**Phi_phase = NULL, **Phi_aux = NULL;
+
+  /* fields for contractions */
+  double _Complex ***contr = NULL;
+
+  double *mcontr_buffer = NULL;
+  double ratime, retime;
+
+  struct AffNode_s *affn = NULL;
+  char aff_path[200];
+
+  int block_num = (int)( numPhi / block_size);
+  if ( block_num * block_size != numPhi ) {
+    fprintf(stderr, "[contract_vdag_cvc_phi_blocked] Error, numPhi must be divisible by block size %s %d\n", __FILE__, __LINE__);
+    return(1);
+  }
+
+  ratime = _GET_TIME;
+
+  exitstatus = init_2level_buffer ( (double***)(&eo_spinor_work), 1, _GSI( (VOLUME+RAND)/2) );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_vdag_cvc_phi_blocked] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+
+  /* Fourier phases */
+  exitstatus = init_2level_buffer ( (double***)(&phase_field), T, 2*VOL3half );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_vdag_cvc_phi_blocked] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+
+  /* auxilliary V fields */
+  exitstatus = init_2level_buffer ( (double***)(&V_ts), numV, _GSI(VOL3half) );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_vdag_cvc_phi_blocked] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(2);
+  }
+
+  /* auxilliary W fields  */
+  exitstatus = init_2level_buffer ( (double***)(&W), numV, _GSI(Vhalf) );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_vdag_cvc_phi_blocked] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(3);
+  }
+
+  /* auxilliary fields for Phi */
+  exitstatus = init_2level_buffer ( (double***)(&Phi_aux), block_size, _GSI(Vhalf) );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_vdag_cvc_phi_blocked] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(3);
+  }
+
+  exitstatus = init_2level_buffer ( (double***)(&Phi_ts), block_size, _GSI(VOL3half) );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_vdag_cvc_phi_blocked] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(3);
+  }
+
+  exitstatus = init_2level_buffer ( (double***)(&Phi_vertex), block_size, _GSI(Vhalf) );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_vdag_cvc_phi_blocked] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(4);
+  }
+
+  exitstatus = init_2level_buffer ( (double***)(&Phi_phase), block_size, _GSI(Vhalf) );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_vdag_cvc_phi_blocked] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(4);
+  }
+
+  /* fields for contractions */
+  exitstatus = init_3level_buffer ( (double****)(&contr), T, block_size, 2*numV );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_vdag_cvc_phi_blocked] Error from init_3level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(5);
+  }
+
+#ifdef HAVE_MPI
+  /* buffer for xchange */
+  mcontr_buffer = (double*)malloc(numV * block_size * 2 * sizeof(double) ) ;
+  if ( mcontr_buffer == NULL ) {
+    fprintf(stderr, "[contract_vdag_cvc_phi_blocked] Error from malloc %s %d\n", __FILE__, __LINE__);
+    return(6);
+  }
+#endif
+
+  if ( io_proc == 2 ) {
+    if( (affn = aff_writer_root(affw)) == NULL ) {
+      fprintf(stderr, "[contract_vdag_cvc_phi_blocked] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
+      return(1);
+    }
+  }
+
+  /************************************************
+   ************************************************
+   **
+   ** calculate Xbarm V from V
+   **
+   **   all vectors
+   **
+   ************************************************
+   ************************************************/
+  for( int i=0; i < numV; i++ ) {
+    /* spinor_work = V */
+    memcpy( eo_spinor_work[0], (double*)(V[i]), sizeof_eo_spinor_field );
+    /* W = Xbar V */
+    X_clover_eo ( (double*)(W[i]), eo_spinor_work[0], gauge_field, mzzinv[1][0]);
+  }
+
+
+  /************************************************
+   ************************************************
+   **
+   ** Xbar V - Phi
+   ** V      - Xbar Phi
+   ** Xbar V - Sigma
+   ** V      - X Sigma
+   **
+   ************************************************
+   ************************************************/
+
+  for ( int iblock=0; iblock < block_num; iblock++ ) {
+
+    /* calculate a block of Xbar Phi */
+    for( int i=0; i < block_size; i++ ) {
+      /* spinor_work = Phi */
+      memcpy( eo_spinor_work[0], (double*)(Phi[iblock*block_size + i]), sizeof_eo_spinor_field );
+      /* Phi_aux = Xbar spinor_work = Xbar Phi */
+      X_clover_eo ( (double*)(Phi_aux[i]), eo_spinor_work[0], gauge_field, mzzinv[1][0]);
+    }
+
+    /* loop on directions mu */
+    for( int mu=0; mu<4; mu++ ) {
+
+      /* loop on fwd / bwd */
+      for( int fbwd=0; fbwd<2; fbwd++ ) {
+
+        /************************************************
+         * (1) Xbar V - Phi
+         ************************************************/
+
+        /* apply the cvc vertex in direction mu, fbwd to current block of fields */
+        for( int i=0; i < block_size; i++) {
+          /* spinor_work = Phi */
+          memcpy( eo_spinor_work[0], (double*)(Phi[iblock*block_size + i]), sizeof_eo_spinor_field );
+          /* Phi_vertex = CVC(mu, fbwd) Phi 
+           *   EVEN target field
+           * */
+          apply_cvc_vertex_eo( (double*)(Phi_vertex[i]), eo_spinor_work[0], mu, fbwd, gauge_field, 0);
+        }
+
+        /* loop on momenta */
+        for( int im=0; im<momentum_number; im++ ) {
+  
+          /* make even phase field */
+          make_eo_phase_field_sliced3d ( phase_field, momentum_list[im], 0);
+
+          /* multiply by momentum phase */
+          for( int i=0; i < block_size; i++) {
+            spinor_field_eq_spinor_field_ti_complex_field ( (double*)(Phi_phase[i]), (double*)(Phi_vertex[i]), (double*)(phase_field[0]), Vhalf);
+          }
+          g5_phi( (double*)(Phi_phase[0]), block_size*Vhalf);
+
+
+          sprintf(aff_path, "%s/xv_dag_cvc_phi/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+
+          exitstatus = vdag_w_reduce_write ( contr, W, Phi_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, Phi_ts, mcontr_buffer);
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[contract_vdag_cvc_phi_blocked] Error from vdag_w_reduce_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            return(2);
+          }
+
+        } /* end of loop on momenta */ 
+
+        /************************************************
+         * (2) V - Xbar Phi
+         ************************************************/
+
+        /* apply the cvc vertex in direction mu, fbwd to current block of fields */
+        for( int i=0; i < block_size; i++) {
+          /* spinor_work = Phi_aux = Xbar Phi */
+          memcpy( eo_spinor_work[0], (double*)(Phi_aux[i]), sizeof_eo_spinor_field );
+          /* Phi_vertex = CVC(mu, fbwd) Xbar Phi
+           *   ODD target field
+           * */
+          apply_cvc_vertex_eo( (double*)(Phi_vertex[i]), eo_spinor_work[0], mu, fbwd, gauge_field, 1);
+        }
+
+        /* loop on momenta */
+        for( int im=0; im<momentum_number; im++ ) {
+  
+          /* make odd phase field */
+          make_eo_phase_field_sliced3d ( phase_field, momentum_list[im], 1);
+
+          /* multiply by momentum phase */
+          for( int i=0; i < block_size; i++) {
+            spinor_field_eq_spinor_field_ti_complex_field ( (double*)(Phi_phase[i]), (double*)(Phi_vertex[i]), (double*)(phase_field[0]), Vhalf);
+          }
+          g5_phi( (double*)(Phi_phase[0]), block_size*Vhalf);
+
+          sprintf(aff_path, "%s/v_dag_cvc_xphi/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+
+/************************************************
+ * NOTE: DANGEROUS TYPECAST
+ ************************************************/
+          exitstatus = vdag_w_reduce_write ( contr, (double _Complex**)V, Phi_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, Phi_ts, mcontr_buffer);
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[contract_vdag_cvc_phi_blocked] Error from vdag_w_reduce_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            return(2);
+          }
+
+        } /* end of loop on momenta */ 
+
+      }  /* end of loop on fwd, bwd */ 
+    }  /* end of loop on shift directions */
+
+    /************************************************
+     * (3) Xbar V - Sigma
+     ************************************************/
+
+    /* calculate block of Sigma from Xbar Phi and Phi */
+    for( int i = 0; i < block_size; i++  ) {
+      /* eo_spinor = Xbar Phi */
+      memcpy( eo_spinor_work[0], (double*)(Phi_aux[i]), sizeof_eo_spinor_field );
+      /* Phi_aux = Phi */
+      memcpy( (double*)(Phi_aux[i]), (double*)(Phi[iblock*block_size+i]) , sizeof_eo_spinor_field );
+      /* Phi_aux = Cbar_oo ( Phi_aux, Phi ) = Sigma */
+      C_clover_from_Xeo ( (double*)(Phi_aux[i]), eo_spinor_work[0], eo_spinor_work[1], gauge_field, mzz[1][1]);
+    }
+
+    /* loop on directions mu */
+    for( int mu=0; mu<4; mu++ ) {
+
+      /* loop on fwd / bwd */
+      for( int fbwd=0; fbwd<2; fbwd++ ) {
+
+        /* apply the cvc vertex in direction mu, fbwd to current block of fields */
+        for( int i=0; i < block_size; i++) {
+          /* spinor_work = Phi_aux = Sigma */
+          memcpy( eo_spinor_work[0], (double*)(Phi_aux[i]), sizeof_eo_spinor_field );
+          /* Phi_vertex = CVC(mu, fbwd) Sigma
+           *   EVEN target field
+           * */
+          apply_cvc_vertex_eo( (double*)(Phi_vertex[i]), eo_spinor_work[0], mu, fbwd, gauge_field, 0);
+        }
+
+        /* loop on momenta */
+        for( int im=0; im<momentum_number; im++ ) {
+  
+          /* make even phase field */
+          make_eo_phase_field_sliced3d ( phase_field, momentum_list[im], 0);
+
+          /* multiply by momentum phase */
+          for( int i=0; i < block_size; i++) {
+            spinor_field_eq_spinor_field_ti_complex_field ( (double*)(Phi_phase[i]), (double*)(Phi_vertex[i]), (double*)(phase_field[0]), Vhalf);
+          }
+          g5_phi( (double*)(Phi_phase[0]), block_size*Vhalf);
+
+
+          sprintf(aff_path, "%s/xv_dag_cvc_sigma/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+
+          exitstatus = vdag_w_reduce_write ( contr, W, Phi_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, Phi_ts, mcontr_buffer);
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[contract_vdag_cvc_phi_blocked] Error from vdag_w_reduce_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            return(2);
+          }
+
+        } /* end of loop on momenta */ 
+
+      }  /* end of loop on fwd, bwd */
+    }  /* end of loop on shift directions */
+
+    /************************************************
+     * (4) V - X Sigma
+     ************************************************/
+
+    /* calculate block of X Sigma from Sigma */
+    for( int i = 0; i < block_size; i++  ) {
+      /* eo_spinor = Sigma */
+      memcpy( eo_spinor_work[0], (double*)(Phi_aux[i]), sizeof_eo_spinor_field );
+      /* Phi_aux = X Sigma */
+      X_clover_eo ( (double*)(Phi_aux[i]), eo_spinor_work[0], gauge_field, mzzinv[0][0]);
+    }
+
+    /* loop on directions mu */
+    for( int mu=0; mu<4; mu++ ) {
+
+      /* loop on fwd / bwd */
+      for( int fbwd=0; fbwd<2; fbwd++ ) {
+
+        /* apply the cvc vertex in direction mu, fbwd to current block of fields */
+        for( int i=0; i < block_size; i++) {
+          /* spinor_work = Phi_aux = X Sigma */
+          memcpy( eo_spinor_work[0], (double*)(Phi_aux[i]), sizeof_eo_spinor_field );
+          /* Phi_vertex = CVC(mu, fbwd) X Sigma
+           *   ODD target field
+           * */
+          apply_cvc_vertex_eo( (double*)(Phi_vertex[i]), eo_spinor_work[0], mu, fbwd, gauge_field, 1);
+        }
+
+        /* loop on momenta */
+        for( int im=0; im<momentum_number; im++ ) {
+  
+          /* make odd phase field */
+          make_eo_phase_field_sliced3d ( phase_field, momentum_list[im], 1);
+
+          /* multiply by momentum phase */
+          for( int i=0; i < block_size; i++) {
+            spinor_field_eq_spinor_field_ti_complex_field ( (double*)(Phi_phase[i]), (double*)(Phi_vertex[i]), (double*)(phase_field[0]), Vhalf);
+          }
+          g5_phi( (double*)(Phi_phase[0]), block_size*Vhalf);
+
+
+          sprintf(aff_path, "%s/v_dag_cvc_xsigma/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+
+/************************************************
+ * NOTE: DANGEROUS TYPECAST
+ ************************************************/
+          exitstatus = vdag_w_reduce_write ( contr, (double _Complex**)V, Phi_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, Phi_ts, mcontr_buffer);
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[contract_vdag_cvc_phi_blocked] Error from vdag_w_reduce_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            return(2);
+          }
+
+        } /* end of loop on momenta */ 
+
+      }  /* end of loop on fwd, bwd */
+    }  /* end of loop on shift directions */
+  }  /* end of loop on blocks */
+
+  /************************************************
+   * W - Xbar Phi and
+   * W - X Sigma
+   ************************************************/
+
+  /* calculate W from V, Xbar V */
+  for( int i = 0; i < numV; i++ ) {
+    /* spinor_work = W = Xbar V */
+    memcpy( eo_spinor_work[0], (double*)(W[i]), sizeof_eo_spinor_field );
+    /* W = V */
+    memcpy( (double*)(W[i]), (double*)(V[i]), sizeof_eo_spinor_field );
+    /* W = Cbar_oo ( W, spinor_work )*/
+    C_clover_from_Xeo ( (double*)(W[i]), eo_spinor_work[0], eo_spinor_work[1], gauge_field, mzz[1][1]);
+  }
+
+  /* loop on blocks of fields */
+  for ( int iblock=0; iblock < block_num; iblock++ ) {
+
+    /* calculate a block of Xbar Phi */
+    for( int i=0; i < block_size; i++ ) {
+      /* spinor_work = Phi */
+      memcpy( eo_spinor_work[0], (double*)(Phi[iblock*block_size + i]), sizeof_eo_spinor_field );
+      /* Phi_aux = Xbar Phi */
+      X_clover_eo ( (double*)(Phi_aux[i]), eo_spinor_work[0], gauge_field, mzzinv[1][0]);
+    }
+
+    /************************************************
+     * (5) W - Xbar Phi
+     ************************************************/
+
+    /* loop on directions mu */
+    for( int mu=0; mu<4; mu++ ) {
+
+      /* loop on fwd / bwd */
+      for( int fbwd=0; fbwd<2; fbwd++ ) {
+
+        /* apply the cvc vertex in direction mu, fbwd to current block of fields */
+        for( int i=0; i < block_size; i++) {
+          /* spinor_work = Phi_aux = Xbar Phi */
+          memcpy( eo_spinor_work[0], (double*)(Phi_aux[i]), sizeof_eo_spinor_field );
+          /* Phi_vertex = CVC(mu, fbwd) Xbar Phi 
+           *   ODD target field
+           * */
+          apply_cvc_vertex_eo( (double*)(Phi_vertex[i]), eo_spinor_work[0], mu, fbwd, gauge_field, 1);
+        }
+
+        /* loop on momenta */
+        for( int im=0; im<momentum_number; im++ ) {
+  
+          /* make odd phase field */
+          make_eo_phase_field_sliced3d ( phase_field, momentum_list[im], 1);
+
+          /* multiply by momentum phase */
+          for( int i=0; i < block_size; i++) {
+            spinor_field_eq_spinor_field_ti_complex_field ( (double*)(Phi_phase[i]), (double*)(Phi_vertex[i]), (double*)(phase_field[0]), Vhalf);
+          }
+          g5_phi( (double*)(Phi_phase[0]), block_size*Vhalf);
+
+          sprintf(aff_path, "%s/w_dag_cvc_xphi/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+
+          exitstatus = vdag_w_reduce_write ( contr, W, Phi_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, Phi_ts, mcontr_buffer);
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[contract_vdag_cvc_phi_blocked] Error from vdag_w_reduce_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            return(2);
+          }
+
+        }  /* end of loop on momenta */
+      }  /* end of loop on fwd, bwd */
+    }  /* end of loop on shift directions */
+
+    /************************************************
+     * (6) W - X Sigma
+     ************************************************/
+
+    /* calculate a block of X Sigma */
+    for( int i = 0; i < block_size; i++  ) {
+      /* spinor_work = Phi_aux = Xbar Phi */
+      memcpy( eo_spinor_work[0], (double*)(Phi_aux[i]), sizeof_eo_spinor_field );
+      /* Phi_aux = Phi */
+      memcpy( (double*)(Phi_aux[i]), (double*)(Phi[iblock*block_size+i]) , sizeof_eo_spinor_field );
+      /* Phi_aux = C_oo ( Phi_aux, Phi ) = Sigma */
+      C_clover_from_Xeo ( (double*)(Phi_aux[i]), eo_spinor_work[0], eo_spinor_work[1], gauge_field, mzz[1][1]);
+      /* spinor_work = Phi_aux = Sigma */
+      memcpy( eo_spinor_work[0], (double*)(Phi_aux[i]), sizeof_eo_spinor_field );
+      /* Phi_aux = X spinor_work  = */
+      X_clover_eo ( (double*)(Phi_aux[i]), eo_spinor_work[0], gauge_field, mzzinv[0][0]);
+    }
+
+    /* loop on directions mu */
+    for( int mu=0; mu<4; mu++ ) {
+
+      /* loop on fwd / bwd */
+      for( int fbwd=0; fbwd<2; fbwd++ ) {
+
+        /* apply the cvc vertex in direction mu, fbwd to current block of fields */
+        for( int i=0; i < block_size; i++) {
+          /* spinor_work = Phi_aux = X Sigma */
+          memcpy( eo_spinor_work[0], (double*)(Phi_aux[i]), sizeof_eo_spinor_field );
+          /* Phi_vertex = CVC(mu, fbwd) X Sigma
+           *   ODD target field
+           * */
+          apply_cvc_vertex_eo( (double*)(Phi_vertex[i]), eo_spinor_work[0], mu, fbwd, gauge_field, 1);
+        }
+
+        /* loop on momenta */
+        for( int im=0; im<momentum_number; im++ ) {
+
+          /* make odd phase field */
+          make_eo_phase_field_sliced3d ( phase_field, momentum_list[im], 1);
+
+          /* multiply by momentum phase */
+          for( int i=0; i < block_size; i++) {
+            spinor_field_eq_spinor_field_ti_complex_field ( (double*)(Phi_phase[i]), (double*)(Phi_vertex[i]), (double*)(phase_field[0]), Vhalf);
+          }
+          g5_phi( (double*)(Phi_phase[0]), block_size*Vhalf);
+
+          sprintf(aff_path, "%s/w_dag_cvc_xsigma/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+
+          exitstatus = vdag_w_reduce_write ( contr, W, Phi_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, Phi_ts, mcontr_buffer);
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[contract_vdag_cvc_phi_blocked] Error from vdag_w_reduce_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            return(2);
+          }
+
+
+        }  /* end of loop on momenta */
+      }  /* end of loop on fwd, bwd */
+    }  /* end of loop on shift directions */
+
+  }  /* end of loop on blocks */
+
+  /************************************************
+   * X W - Phi and
+   * X W - Sigma
+   ************************************************/
+
+  /* calculate W <- X W from W */
+  for( int i=0; i < numV; i++ ) {
+    /* spinor_work = W */
+    memcpy( eo_spinor_work[0], (double*)(W[i]), sizeof_eo_spinor_field );
+    /* W = X spinor_work = X W */
+    X_clover_eo ( (double*)(W[i]), eo_spinor_work[0], gauge_field, mzzinv[0][0]);
+  }
+
+  /* loop on blocks of fields */
+  for ( int iblock=0; iblock < block_num; iblock++ ) {
+
+    /* calculate a block of Sigma */
+    for( int i = 0; i < block_size; i++  ) {
+      /* Phi_aux = Cbar_oo Phi */
+      C_clover_oo ( (double*)(Phi_aux[i]), (double*)(Phi[iblock * block_size + i]), gauge_field, eo_spinor_work[0], mzz[1][1], mzzinv[1][0] );
+    }
+
+    /************************************************
+     * (7) X W - Phi
+     ************************************************/
+
+    /* loop on directions mu */
+    for( int mu=0; mu<4; mu++ ) {
+
+      /* loop on fwd / bwd */
+      for( int fbwd=0; fbwd<2; fbwd++ ) {
+
+        /* apply the cvc vertex in direction mu, fbwd to current block of fields */
+        for( int i=0; i < block_size; i++) {
+          /* spinor_work = Phi */
+          memcpy( eo_spinor_work[0], (double*)(Phi[iblock*block_size+i]), sizeof_eo_spinor_field );
+          /* Phi_vertex = CVC(mu, fbwd) Phi
+           *   EVEN target field
+           * */
+          apply_cvc_vertex_eo( (double*)(Phi_vertex[i]), eo_spinor_work[0], mu, fbwd, gauge_field, 0);
+        }
+
+        /* loop on momenta */
+        for( int im=0; im<momentum_number; im++ ) {
+
+          /* make even phase field */
+          make_eo_phase_field_sliced3d ( phase_field, momentum_list[im], 0);
+
+          /* multiply by momentum phase */
+          for( int i=0; i < block_size; i++) {
+            spinor_field_eq_spinor_field_ti_complex_field ( (double*)(Phi_phase[i]), (double*)(Phi_vertex[i]), (double*)(phase_field[0]), Vhalf);
+          }
+          g5_phi( (double*)(Phi_phase[0]), block_size*Vhalf);
+
+          sprintf(aff_path, "%s/xw_dag_cvc_phi/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+
+          exitstatus = vdag_w_reduce_write ( contr, W, Phi_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, Phi_ts, mcontr_buffer);
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[contract_vdag_cvc_phi_blocked] Error from vdag_w_reduce_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            return(2);
+          }
+
+        }  /* end of loop on momenta */
+      }  /* end of loop on fwd, bwd */
+    }  /* end of loop on shift directions */
+
+    /************************************************
+     * (8) X W - Sigma
+     ************************************************/
+
+    /* loop on directions mu */
+    for( int mu=0; mu<4; mu++ ) {
+
+      /* loop on fwd / bwd */
+      for( int fbwd=0; fbwd<2; fbwd++ ) {
+
+        /* apply the cvc vertex in direction mu, fbwd to current block of fields */
+        for( int i=0; i < block_size; i++) {
+          /* spinor_work = Phi_aux = Sigma */
+          memcpy( eo_spinor_work[0], (double*)(Phi_aux[i]), sizeof_eo_spinor_field );
+          /* Phi_vertex = CVC(mu, fbwd) Sigma
+           *   EVEN target field
+           * */
+          apply_cvc_vertex_eo( (double*)(Phi_vertex[i]), eo_spinor_work[0], mu, fbwd, gauge_field, 0);
+        }
+
+        /* loop on momenta */
+        for( int im=0; im<momentum_number; im++ ) {
+
+          /* make even phase field */
+          make_eo_phase_field_sliced3d ( phase_field, momentum_list[im], 0);
+
+          /* multiply by momentum phase */
+          for( int i=0; i < block_size; i++) {
+            spinor_field_eq_spinor_field_ti_complex_field ( (double*)(Phi_phase[i]), (double*)(Phi_vertex[i]), (double*)(phase_field[0]), Vhalf);
+          }
+          g5_phi( (double*)(Phi_phase[0]), block_size*Vhalf);
+
+          sprintf(aff_path, "%s/xw_dag_cvc_sigma/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+
+          exitstatus = vdag_w_reduce_write ( contr, W, Phi_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, Phi_ts, mcontr_buffer);
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[contract_vdag_cvc_phi_blocked] Error from vdag_w_reduce_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            return(2);
+          }
+
+        }  /* end of loop on momenta */
+      }  /* end of loop on fwd, bwd */
+    }  /* end of loop on shift directions */
+  }  /* end of loop on blocks */
+
+
+#ifdef HAVE_MPI
+  free ( mcontr_buffer );
+#endif
+  fini_2level_buffer ( (double***)(&eo_spinor_work) );
+  fini_2level_buffer ( (double***)(&phase_field) );
+  fini_2level_buffer ( (double***)(&V_ts) );
+  fini_2level_buffer ( (double***)(&W) );
+  fini_2level_buffer ( (double***)(&Phi_ts) );
+  fini_2level_buffer ( (double***)(&Phi_aux) );
+  fini_2level_buffer ( (double***)(&Phi_vertex) );
+  fini_2level_buffer ( (double***)(&Phi_phase) );
+  fini_3level_buffer ( (double****)(&contr) );
+
+  retime = _GET_TIME;
+  if ( io_proc  == 2 ) {
+    fprintf(stdout, "# [contract_vdag_cvc_phi_blocked] time for contract_v_dag_cvc_phi_blocked = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+  }
+
+  return(0);
+
+}  /* end of contract_v_dag_cvc_phi_blocked */
 
 }  /* end of namespace cvc */
