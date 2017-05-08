@@ -897,7 +897,7 @@ void C_clover_from_Xeo (double *t, double *s, double *r, double *gauge_field, do
   Hopping_eo(r, s, gauge_field, 1);
   /* t = M_zz t */
   M_clover_zz_matrix (t, t, mzz);
-  /* t = t + r = M_oo^-1 t + M_oe X_eo t*/
+  /* t = t + r = M_oo t + M_oe X_eo t*/
   spinor_field_pl_eq_spinor_field (t,r,N);
   /* t = g5 t */
   g5_phi(t,N);
