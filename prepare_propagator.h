@@ -12,6 +12,9 @@ int prepare_prop_point_from_stochastic (double**fp_out, double**phi, double**chi
 int prepare_seqn_stochastic_vertex_propagator_sliced3d (double**seq_prop, double**stoch_prop, double**stoch_source,
         double**prop, int nstoch, int nprop, int momentum[3], int gid);
 
+int stochastic_source_ti_vertex_ti_propagator (double** seq_stochastic_source, double**stoch_source, 
+    double**prop, int nstoch, int nprop, int momentum[3], int gid);
+
 int prepare_seqn_stochastic_vertex_propagator_sliced3d_oet (double**seq_prop, double**stoch_prop_0, double**stoch_prop_p,
     double**prop, int momentum[3], int gid, int idsource);
  

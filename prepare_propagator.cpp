@@ -333,6 +333,140 @@ int prepare_seqn_stochastic_vertex_propagator_sliced3d (double**seq_prop, double
   return(0);
 }  /* prepare_seqn_stochastic_vertex_propagator_sliced3d */
 
+
+/*******************************************************************
+ * stochastic_source_ti_vertex_ti_propagator
+ *
+ * prop_aux  is nprop  x [VOL3x12] (C) = [12xVOL3] x nprop (F)
+ *
+ * stoch_aux is nstoch x [VOL3x12] (C) = [12xVOL3] x nstoch (F)
+ *
+ * we calculate seq_stochasic_source = stoch_aux^H x prop_aux, which is nstoch x nprop (F) = nprop x nstoch (C)
+ * 
+ *******************************************************************/
+
+int stochastic_source_ti_vertex_ti_propagator (double** seq_stochastic_source, double**stoch_source, 
+    double**prop, int nstoch, int nprop, int momentum[3], int gid) {
+
+  const unsigned int VOL3 = LX*LY*LZ;
+  const size_t sizeof_spinor_field_timeslice = _GSI(VOL3) * sizeof(double);
+  const unsigned int spinor_field_timeslice_items = g_fv_dim * VOL3;
+  const unsigned int items_p = nstoch * nprop;
+  const size_t bytes_p       = items_p * sizeof(double _Complex);
+
+  int i, it;
+  int BLAS_M, BLAS_N, BLAS_K;
+  int BLAS_LDA, BLAS_LDB ,BLAS_LDC;
+  char BLAS_TRANSA, BLAS_TRANSB;
+  double _Complex *p = NULL;
+  double _Complex BLAS_ALPHA, BLAS_BETA;
+  double _Complex *BLAS_A = NULL, *BLAS_B = NULL, *BLAS_C = NULL;
+  double _Complex *prop_aux=NULL, *stoch_aux=NULL;
+  double ratime, retime;
+
+  ratime = _GET_TIME;
+
+  double *phase = (double*)malloc(2*VOL3*sizeof(double)) ;
+  if( phase == NULL ) {
+    fprintf(stderr, "[prepare_seqn_stochastic_vertex_propagator_sliced3d] Error from malloc\n");
+    return(1);
+  }
+  make_lexic_phase_field_3d (phase,momentum);
+  /***************************
+   * apply vertex
+   ***************************/
+  for(i=0; i<nprop; i++) {
+    /* multiply with gamma[gid] */
+    spinor_field_eq_gamma_ti_spinor_field ( prop[i], gid, prop[i], VOLUME);
+    /* multiply with complex phase */
+    for(it=0; it<T; it++) {
+      unsigned int ix = _GSI( g_ipt[it][0][0][0] );
+      spinor_field_eq_spinor_field_ti_complex_field (prop[i]+ix, prop[i]+ix, phase, VOL3);
+    }
+  }
+  free(phase);
+ 
+  if( (prop_aux = (double _Complex*)malloc(nprop * sizeof_spinor_field_timeslice)) == NULL ) {
+    fprintf(stderr, "[stochastic_source_ti_vertex_ti_propagator] Error from malloc\n");
+    return(1);
+  }
+  if( (stoch_aux = (double _Complex*)malloc(nstoch * sizeof_spinor_field_timeslice)) == NULL ) {
+    fprintf(stderr, "[stochastic_source_ti_vertex_ti_propagator] Error from malloc\n");
+    return(2);
+  }
+  if( (p = (double _Complex*)malloc( bytes_p )) == NULL ) {
+    fprintf(stderr, "[stochastic_source_ti_vertex_ti_propagator] Error from malloc\n");
+    return(3);
+  }
+
+  /* loop on timeslices */
+  for(it = 0; it<T; it++) {
+    unsigned int offset = it * _GSI(VOL3);
+
+    for(i=0; i<nprop; i++) {
+      memcpy(prop_aux  + i*spinor_field_timeslice_items, prop[i] + offset, sizeof_spinor_field_timeslice );
+    }
+    for(i=0; i<nstoch; i++) {
+      memcpy(stoch_aux + i*spinor_field_timeslice_items, stoch_source[i] + offset, sizeof_spinor_field_timeslice );
+    }
+
+    /* projection on stochastic source */
+    BLAS_ALPHA  = 1.;
+    BLAS_BETA   = 0.;
+    BLAS_TRANSA = 'C';
+    BLAS_TRANSB = 'N';
+    BLAS_M      = nstoch;
+    BLAS_K      = g_fv_dim*VOL3;
+    BLAS_N      = nprop;
+    BLAS_A      = stoch_aux;
+    BLAS_B      = prop_aux;
+    BLAS_C      = p;
+    BLAS_LDA    = BLAS_K;
+    BLAS_LDB    = BLAS_K;
+    BLAS_LDC    = BLAS_M;
+
+    _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+
+#ifdef HAVE_MPI
+    /* allreduce across all processes */
+    double _Complex *p_buffer = (double _Complex*)malloc( bytes_p );
+    if( p_buffer == NULL ) {
+      fprintf(stderr, "[stochastic_source_ti_vertex_ti_propagator] Error from malloc\n");
+      return(2);
+    }
+
+    memcpy(p_buffer, p, bytes_p);
+    int status = MPI_Allreduce(p_buffer, p, 2*items_p, MPI_DOUBLE, MPI_SUM, g_ts_comm);
+    if(status != MPI_SUCCESS) {
+      fprintf(stderr, "[stochastic_source_ti_vertex_ti_propagator] Error from MPI_Allreduce, status was %d\n", status);
+      return(1);
+    }
+    free(p_buffer); p_buffer = NULL;
+#endif
+
+    // copy result to seq_stochastic_source
+    int i, k;
+    for(i=0; i<nprop; i++) {
+      for(k=0; k<nstoch; k++) {
+        ((double _Complex*)seq_stochastic_source[it])[k*nprop+i] = p[i*nstoch+k];
+      }
+    }
+
+  }  /* end of loop on timeslices */ 
+
+  free(prop_aux);
+  free(stoch_aux);
+  free(p);
+
+  retime = _GET_TIME;
+  if(g_cart_id == 0) fprintf(stdout, "[stochastic_source_ti_vertex_ti_propagator] time for stochastic_source_ti_vertex_ti_propagator = %e seconds\n", retime-ratime);
+  return(0);
+}  /* stochastic_source_ti_vertex_ti_propagator */
+
+
+
+
+
 /*******************************************************************
  * seqn using stochastic
  *
