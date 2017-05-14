@@ -75,6 +75,7 @@ extern "C"
 using namespace cvc;
 
 #include "basic_types.h"
+#include "contract_baryon_2ndversion.h"
 
 const int n_c = 3;
 const int n_s = 4;
@@ -328,6 +329,9 @@ int get_point_source_info (int gcoords[4], int lcoords[4], int*proc_id) {
 const int num_component_piN_piN        = 9;
 int gamma_component_piN_piN[9][2]      = { {5, 5}, {4,4}, {6,6}, {5,4}, {5,6}, {4,5}, {4,6}, {6,5}, {6,4} };
 double gamma_component_sign_piN_piN[9] = {+1, +1, +1, +1, +1, +1, +1, +1, +1};
+
+const int num_component_piN        = 3;
+int gamma_component_piN[3]      = { 5, 4, 6};
 
 const int num_component_N_N        = 9;
 int gamma_component_N_N[9][2]      = { {5, 5}, {4,4}, {6,6}, {5,4}, {5,6}, {4,5}, {4,6}, {6,5}, {6,4} };
@@ -1067,14 +1071,14 @@ void compute_b_1_xi_and_w_1_xi(int i_src,int i_coherent,int iseq_mom,int iseq2_m
   stochastic_source_ti_vertex_ti_propagator(*w_1_xi,stochastic_sources_and_propagators->source_list,&(forward_propagators->propagator_list_up[get_forward_complete_is_propagator_index(i_src,i_coherent)*n_s*n_c]),g_nsample,n_s*n_c, g_seq2_source_momentum_list[iseq2_mom], 5);
 }
 
-void compute_and_store_correlators_which_need_stochastic_sources_and_propagators_for_coherent_source_location_for_momenta(int i_src,int i_coherent,global_source_location_type gsl,int iseq_mom,int iseq2_mom,b_1_xi_type *b_1_xi,w_1_xi_type *w_1_xi,b_all_phis_type *b_all_phis,w_all_phis_type *w_all_phis,forward_propagators_type *forward_propagators,sequential_propagators_type *sequential_propagators,stochastic_sources_and_propagators_type *stochastic_sources_and_propagators,program_instruction_type *program_instructions,contraction_writer_type *contraction_writer){
+void compute_and_store_correlators_which_need_stochastic_sources_and_propagators_for_coherent_source_location_for_momenta(int i_src,int i_coherent,global_source_location_type gsl,int iseq_mom,int iseq2_mom,b_1_xi_type *b_1_xi,w_1_xi_type *w_1_xi,V2_for_b_and_w_diagrams_type *V2_for_b_and_w_diagrams,forward_propagators_type *forward_propagators,sequential_propagators_type *sequential_propagators,stochastic_sources_and_propagators_type *stochastic_sources_and_propagators,program_instruction_type *program_instructions,contraction_writer_type *contraction_writer){
   write_pi2_and_pf2_to_stdout(iseq_mom,iseq2_mom);
 
   compute_b_1_xi_and_w_1_xi(i_src,i_coherent,iseq_mom,iseq2_mom,b_1_xi,w_1_xi,stochastic_sources_and_propagators,forward_propagators,sequential_propagators);
 
-  compute_all_b_phis_and_all_w_phis(i_src,i_coherent,b_all_phis,w_all_phis,program_instructions,forward_propagators,sequential_propagators,stochastic_sources_and_propagators);
+  compute_V2_for_b_and_w_diagrams(i_src,i_coherent,num_component_piN,gamma_component_piN,gamma_component_sign_piN_piN,g_nsample,V2_for_b_and_w_diagrams,program_instructions,forward_propagators,sequential_propagators,stochastic_sources_and_propagators);
 
-  compute_piN2piN_contractions_from_all_b_phis_and_xis_and_all_w_phis_and_xis(i_src,i_coherent,b_1_xi,w_1_xi,b_all_phis,w_all_phis,program_instructions);
+//  compute_piN2piN_contractions_from_all_b_phis_and_xis_and_all_w_phis_and_xis(i_src,i_coherent,b_1_xi,w_1_xi,b_all_phis,w_all_phis,program_instructions);
 }
 
 void allocate_memory_for_general_propagators_tffi_and_pffii(general_propagator_tffi_type *general_propagator_tffi,general_propagator_pffii_type *general_propagator_pffii){
@@ -1096,6 +1100,53 @@ void free_memory_for_general_propagators_tffi_and_pffii(general_propagator_tffi_
   fini_2level_buffer(general_propagator_pffii);
 }
 
+void allocate_memory_for_b_1_xi_and_w_1_xi(b_1_xi_type *b_1_xi,w_1_xi_type *w_1_xi){
+  int exitstatus;
+  if( (exitstatus = init_3level_buffer(b_1_xi, T, g_nsample,n_s*n_c*2 ) ) != 0 ) {
+    all_processes_write_to_stderr("[piN2piN] Error from init_3level_buffer, status was %d\n", exitstatus);
+    EXIT(1);
+  }
+  if( (exitstatus = init_3level_buffer(w_1_xi, T, g_nsample,n_s*n_c*2 ) ) != 0 ) {
+    all_processes_write_to_stderr("[piN2piN] Error from init_3level_buffer, status was %d\n", exitstatus);
+    EXIT(1);
+  }
+}
+
+void allocate_memory_for_b_all_phis_and_w_all_phis(b_all_phis_type *b_all_phis,w_all_phis_type *w_all_phis){
+  int exitstatus;
+  // about 148MB for the standard setup
+  if( (exitstatus = init_4level_buffer(b_all_phis, T, g_nsample*g_sink_momentum_number,num_component_piN, n_s*n_s*n_s*n_c*2 ) ) != 0 ) {
+    all_processes_write_to_stderr("[piN2piN] Error from init_4level_buffer, status was %d\n", exitstatus);
+    EXIT(1);
+  }
+  if( (exitstatus = init_4level_buffer(w_all_phis, T, g_nsample*g_sink_momentum_number,num_component_piN, n_s*n_s*n_s*n_c*2 ) ) != 0 ) {
+    all_processes_write_to_stderr("[piN2piN] Error from init_4level_buffer, status was %d\n", exitstatus);
+    EXIT(1);
+  }
+}
+
+void allocate_memory_for_V2_for_b_and_w_diagrams(V2_for_b_and_w_diagrams_type *V2_for_b_and_w_diagrams){
+  int exitstatus;
+  if( (exitstatus = init_4level_buffer(V2_for_b_and_w_diagrams, T*g_nsample,3,g_sink_momentum_number*num_component_piN*n_s*n_s*n_s*n_c*2 ) ) != 0 ) {
+    all_processes_write_to_stderr("[piN2piN] Error from init_3level_buffer, status was %d\n", exitstatus);
+    EXIT(1);
+  }
+}
+
+void free_memory_for_b_1_xi_and_w_1_xi(b_1_xi_type *b_1_xi,w_1_xi_type *w_1_xi){
+  fini_3level_buffer(b_1_xi);
+  fini_3level_buffer(w_1_xi);
+}
+
+void free_memory_for_b_all_phis_and_w_all_phis(b_all_phis_type *b_all_phis,w_all_phis_type *w_all_phis){
+  fini_4level_buffer(b_all_phis);
+  fini_4level_buffer(w_all_phis);
+}
+
+void free_memory_for_V2_for_b_and_w_diagrams(V2_for_b_and_w_diagrams_type *V2_for_b_and_w_diagrams){
+  fini_4level_buffer(V2_for_b_and_w_diagrams);
+}
+
 void compute_and_store_correlators_which_need_stochastic_sources_and_propagators(forward_propagators_type *forward_propagators,sequential_propagators_type *sequential_propagators,stochastic_sources_and_propagators_type *stochastic_sources_and_propagators,program_instruction_type *program_instructions,cvc_and_tmLQCD_information_type *cvc_and_tmLQCD_information){
 
   int i_src;
@@ -1108,11 +1159,10 @@ void compute_and_store_correlators_which_need_stochastic_sources_and_propagators
 
     b_1_xi_type b_1_xi;
     w_1_xi_type w_1_xi;
-    b_all_phis_type b_all_phis;
-    w_all_phis_type w_all_phis;   
+    V2_for_b_and_w_diagrams_type V2_for_b_and_w_diagrams;
  
     allocate_memory_for_b_1_xi_and_w_1_xi(&b_1_xi,&w_1_xi);
-    allocate_memory_for_b_all_phis_and_w_all_phis(&b_all_phis,&w_all_phis);
+    allocate_memory_for_V2_for_b_and_w_diagrams(&V2_for_b_and_w_diagrams);
 
     int i_coherent;
     for(i_coherent=0; i_coherent<g_coherent_source_number; i_coherent++) {
@@ -1124,13 +1174,13 @@ void compute_and_store_correlators_which_need_stochastic_sources_and_propagators
       for(iseq_mom=0; iseq_mom < g_seq_source_momentum_number; iseq_mom++) {
         // loop on pf2
         for(iseq2_mom=0; iseq2_mom < g_seq2_source_momentum_number; iseq2_mom++) {
-          compute_and_store_correlators_which_need_stochastic_sources_and_propagators_for_coherent_source_location_for_momenta(i_src,i_coherent,gsl,iseq_mom,iseq2_mom,&b_1_xi,&w_1_xi,&b_all_phis,&w_all_phis,forward_propagators,sequential_propagators,stochastic_sources_and_propagators,program_instructions,&contraction_writer);
+          compute_and_store_correlators_which_need_stochastic_sources_and_propagators_for_coherent_source_location_for_momenta(i_src,i_coherent,gsl,iseq_mom,iseq2_mom,&b_1_xi,&w_1_xi,&V2_for_b_and_w_diagrams,forward_propagators,sequential_propagators,stochastic_sources_and_propagators,program_instructions,&contraction_writer);
         }
       }
     }
 
     free_memory_for_b_1_xi_and_w_1_xi(&b_1_xi,&w_1_xi);
-    free_memory_for_b_all_phis_and_w_all_phis(&b_all_phis,&w_all_phis);
+    free_memory_for_V2_for_b_and_w_diagrams(&V2_for_b_and_w_diagrams);
  
     exit_contraction_writer(&contraction_writer,11,program_instructions);
   }

@@ -345,7 +345,7 @@ int prepare_seqn_stochastic_vertex_propagator_sliced3d (double**seq_prop, double
  * 
  *******************************************************************/
 
-int stochastic_source_ti_vertex_ti_propagator (double** seq_stochastic_source, double**stoch_source, 
+int stochastic_source_ti_vertex_ti_propagator (double*** seq_stochastic_source, double**stoch_source, 
     double**prop, int nstoch, int nprop, int momentum[3], int gid) {
 
   const unsigned int VOL3 = LX*LY*LZ;
@@ -448,7 +448,7 @@ int stochastic_source_ti_vertex_ti_propagator (double** seq_stochastic_source, d
     int i, k;
     for(i=0; i<nprop; i++) {
       for(k=0; k<nstoch; k++) {
-        ((double _Complex*)seq_stochastic_source[it])[k*nprop+i] = p[i*nstoch+k];
+        ((double _Complex*)seq_stochastic_source[it][k])[i] = p[i*nstoch+k];
       }
     }
 

@@ -1,6 +1,4 @@
 
-
-
 /*struct gamma_component_information_type{
   int num_component;
   int** gamma_component;
@@ -116,4 +114,5 @@ struct contraction_writer_type{
   struct AffNode_s *affn, *affdir;
   double _Complex *aff_buffer;
 };
+
 
