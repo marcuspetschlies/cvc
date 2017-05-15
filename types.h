@@ -10,7 +10,7 @@ typedef double *** b_1_xi_type;
 typedef double *** w_1_xi_type;
 typedef double **** b_all_phis_type;
 typedef double **** w_all_phis_type;
-typedef double **** V2_for_b_and_w_diagrams_type;
+typedef double *** V2_for_b_and_w_diagrams_type;
 
 typedef struct {
   int gi;
