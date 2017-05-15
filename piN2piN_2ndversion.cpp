@@ -1138,7 +1138,7 @@ void allocate_memory_for_b_all_phis_and_w_all_phis(b_all_phis_type *b_all_phis,w
 void allocate_memory_for_V2_for_b_and_w_diagrams(V2_for_b_and_w_diagrams_type *V2_for_b_and_w_diagrams){
   int exitstatus;
   *V2_for_b_and_w_diagrams = NULL;
-  if( (exitstatus = init_3level_buffer(V2_for_b_and_w_diagrams, T_global*g_nsample,3,g_sink_momentum_number*num_component_piN*n_s*n_s*n_s*n_c*2 ) ) != 0 ) {
+  if( (exitstatus = init_3level_buffer(V2_for_b_and_w_diagrams, g_nsample*T_global,3,g_sink_momentum_number*num_component_piN*n_s*n_s*n_s*n_c*2 ) ) != 0 ) {
     all_processes_write_to_stderr("[piN2piN] Error from init_3level_buffer, status was %d\n", exitstatus);
     EXIT(1);
   }

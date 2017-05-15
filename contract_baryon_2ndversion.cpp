@@ -88,27 +88,28 @@ namespace cvc {
     }}}} }
   }
 
-  void V2_eq_fft_V2_x(double **V2_for_b_and_w_diagrams,V2_x_type V2_x,int io_proc,int num_combinations,int ncomp,int momentum_number, int (*momentum_list)[3]){
+  void V2_eq_fft_V2_x(double **V2_local_fft,V2_x_type V2_x,int io_proc,int num_combinations,int ncomp,int momentum_number, int (*momentum_list)[3]){
     int icombination;
     double **buffer=NULL;
-    init_2level_buffer(&buffer,momentum_number,ncomp*V2_double_size());
     for(icombination=0;icombination<num_combinations;icombination++){
-      momentum_projection2((double*)V2_x[icombination][0],&(buffer[0][0]),ncomp*V2_double_size()/2,momentum_number,momentum_list,NULL);
+      momentum_projection2((double*)V2_x[icombination][0],&(V2_local_fft[0][0]),ncomp*V2_double_size()/2,momentum_number,momentum_list,NULL);
+    }
+  }
+
+void V2_local_fft_to_V2_global_fft(double ***V2_for_b_and_w_diagrams,double ***V2_local_fft,int num_combinations,int ncomp,int momentum_number,program_instruction_type *program_instructions){
+      int k = T*momentum_number*ncomp*V2_double_size();
  #ifdef HAVE_MPI
-      if(io_proc>0) {
-        int k = momentum_number*ncomp*V2_double_size();
-        int exitstatus = MPI_Allgather(&(buffer[0][0]), k, MPI_DOUBLE, &(V2_for_b_and_w_diagrams[icombination][0]), k, MPI_DOUBLE, g_tr_comm);
+      if(program_instructions->io_proc>0) {
+        int exitstatus = MPI_Allgather(&(V2_local_fft[0][0][0]), k, MPI_DOUBLE, &(V2_for_b_and_w_diagrams[0][0][0]), k, MPI_DOUBLE, g_tr_comm);
         if(exitstatus != MPI_SUCCESS) {
           fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d\n", exitstatus);
           EXIT(124);
         }
       }
 #else
-      memcpy(&(V2_for_b_and_w_diagrams[icombination][0]),&(buffer[0][0]),momentum_number*ncomp*V2_double_size());
+      memcpy(&(V2_for_b_and_w_diagrams[0][0][0]),&(V2_local_fft[0][0][0]),k);
 #endif
-    }
-    fini_2level_buffer(&buffer);
-  }
+}
 
   void create_fv(fermion_vector_type *fv){
     *fv = (fermion_vector_type)malloc(16*2*sizeof(double));
@@ -142,7 +143,10 @@ namespace cvc {
 
     V2_x_type V2_x = NULL;
 
-    init_3level_buffer((double****)&tmp,3,VOL3*ncomp,V2_double_size());
+    init_3level_buffer((double****)&V2_x,3,VOL3*ncomp,V2_double_size());
+
+    double ***V2_local_fft = NULL;
+    init_3level_buffer(&V2_local_fft,T,g_sink_momentum_number,ncomp*V2_double_size());
 
     unsigned int it,isample;
     for(isample=0;isample < nsample;isample++){
@@ -220,11 +224,14 @@ namespace cvc {
    
       printf("t: %d\n" ,it);
       // local fourier transformation
-      V2_eq_fft_V2_x((double**)V2_for_b_and_w_diagrams[T*nsample+isample],V2_x,program_instructions->io_proc,3,ncomp,g_sink_momentum_number,g_sink_momentum_list);
+      V2_eq_fft_V2_x((double**)V2_local_fft[it],V2_x,program_instructions->io_proc,3,ncomp,g_sink_momentum_number,g_sink_momentum_list);
     }
+      
+      V2_local_fft_to_V2_global_fft(&((*V2_for_b_and_w_diagrams)[isample*T]),V2_local_fft,3,ncomp,g_sink_momentum_number,program_instructions);
     }
 
     fini_3level_buffer((double****)&V2_x);
+    fini_3level_buffer(&V2_local_fft);
 
     retime = _GET_TIME;
     if(g_cart_id == 0)  fprintf(stdout, "# [contract_piN_piN] time for contractions = %e seconds\n", retime-ratime);
