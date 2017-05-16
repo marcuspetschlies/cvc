@@ -144,7 +144,7 @@ void gather_V2_ffts(double ***V2_for_b_and_w_diagrams,double ***V2_fft,int num_c
 }
 
   void create_fv(fermion_vector_type *fv){
-    *fv = (fermion_vector_type)malloc(16*2*sizeof(double));
+    *fv = (fermion_vector_type)malloc(12*2*sizeof(double));
   }
 
   void free_fv(fermion_vector_type *fv){
@@ -171,7 +171,8 @@ void gather_V2_ffts(double ***V2_for_b_and_w_diagrams,double ***V2_fft,int num_c
 
     ratime = _GET_TIME;
 
-    unsigned int VOL3 = program_instructions->VOL3;
+    //unsigned int VOL3 = program_instructions->VOL3;
+    unsigned int VOL3 = LX*LY*LZ;
 
     V2_x_type V2_x = NULL;
 
@@ -182,6 +183,7 @@ void gather_V2_ffts(double ***V2_for_b_and_w_diagrams,double ***V2_fft,int num_c
 
     unsigned int it,isample;
     for(isample=0;isample < nsample;isample++){
+    double sum2 = 0;
     for(it=0; it<T;it++){
   #ifdef HAVE_OPENMP
   #pragma omp parallel shared(res)
@@ -200,6 +202,7 @@ void gather_V2_ffts(double ***V2_for_b_and_w_diagrams,double ***V2_fft,int num_c
       create_fv(&fv2);
       create_V1(&V1);
       printf("test2\n");
+      double sum = 0;
 
   #ifdef HAVE_OPENMP
   #pragma omp parallel for
@@ -210,12 +213,15 @@ void gather_V2_ffts(double ***V2_for_b_and_w_diagrams,double ***V2_fft,int num_c
         _assign_fp_point_from_field(uprop, uprop_list, ix);
         _assign_fp_point_from_field(tfii,  tfii_list,  ix);
         assign_fv_point_from_field(fv_phi, phi_list[isample], ix);
+        for(int j = 0;j < 24;j++){
+          sum += fv_phi[j];
+        }
 
-        if(ix < 100 && g_cart_id == 0){
+        if(ix >= 1000 && ix < 1100 && g_cart_id == 0){
 //          printf("uprop: %d %e\n",ix,comp_fp_sum(uprop));
 //          printf("tfii: %d %e\n",ix,comp_fp_sum(tfii));
 //          printf("fv_phi: %d %e\n",ix,comp_fv_sum(fv_phi));
-          printf("phi_list[isample][0]: %d %e\n",ix,phi_list[isample][0]);
+//          printf("phi_list[isample][0]: %d %e\n",ix,phi_list[isample][0]);
         }
 
         for(icomp=0; icomp<ncomp; icomp++) {
@@ -250,6 +256,9 @@ void gather_V2_ffts(double ***V2_for_b_and_w_diagrams,double ***V2_fft,int num_c
 
       }    /* end of loop on ix */
 
+      printf("sum: %d %d %e\n",g_cart_id,isample,sum);
+      sum2 += sum;
+
       free_fp(&uprop);
       free_fp(&tfii);
       free_fv(&fv_phi);
@@ -269,6 +278,7 @@ void gather_V2_ffts(double ***V2_for_b_and_w_diagrams,double ***V2_fft,int num_c
       //printf("V2_fft:\n");
       //print_2level_buffer((double**)V2_fft[it],g_sink_momentum_number,ncomp*V2_double_size());
     }
+      printf("sum2: %d %d %e\n",g_cart_id,isample,sum2);
       
       gather_V2_ffts(&((*V2_for_b_and_w_diagrams)[isample*T]),V2_fft,3,ncomp,g_sink_momentum_number,program_instructions);
     }
@@ -411,6 +421,16 @@ void gather_V2_ffts(double ***V2_for_b_and_w_diagrams,double ***V2_fft,int num_c
         }}}}}}}}
 
       }
+      else{
+        for(int it=0;it<T_global;it++){
+        for(int isample=0;isample<g_nsample;isample++){
+        for(int i_sink_mom=0;i_sink_mom<g_sink_momentum_number;i_sink_mom++){
+        for(int alpha=0;alpha<4;alpha++){
+        for(int beta=0;beta<4;beta++){
+        ((double _Complex ****)*gathered_FT_WDc_contractions)[it][i_sink_mom][icomp*4+alpha][beta] = 0;
+        }}}}}
+      }
+
       fini_dmat(&dmat1);
       fini_dmat(&dmat2);
 
