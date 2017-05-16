@@ -35,6 +35,38 @@ using namespace cvc;
 
 namespace cvc {
 
+  void print_2level_buffer(double **buffer,int n1,int n2){
+    for(int i1=0;i1<n1;i1++){
+    for(int i2=0;i2<n2;i2++){
+      printf("%d %d %e\n",i1,i2,buffer[i1][i2]);
+    }}
+  }
+
+  void print_3level_buffer(double ***buffer,int n1,int n2,int n3){
+    for(int i1=0;i1<n1;i1++){
+    for(int i2=0;i2<n2;i2++){
+    for(int i3=0;i3<n3;i3++){
+      printf("%d %d %d %e\n",i1,i2,i3,buffer[i1][i2][i3]);
+    }}}
+  }
+
+  double comp_fp_sum(fermion_propagator_type fp){
+    double sum = 0;
+    for(int i1 = 0;i1 < 12; i1++){
+    for(int i2 = 0;i2 < 24; i2++){
+      sum += fp[i1][i2];
+    }}
+    return sum;
+  }
+
+  double comp_fv_sum(fermion_vector_type fv){
+    double sum = 0;
+    for(int i1 = 0;i1 < 24; i1++){
+      sum += fv[i1];
+    }
+    return sum;
+  }
+
   typedef double _Complex* V1_type;
   typedef double _Complex*** V2_x_type;
   typedef double _Complex**** V2_type;
@@ -179,6 +211,13 @@ void gather_V2_ffts(double ***V2_for_b_and_w_diagrams,double ***V2_fft,int num_c
         _assign_fp_point_from_field(tfii,  tfii_list,  ix);
         assign_fv_point_from_field(fv_phi, phi_list[isample], ix);
 
+        if(ix < 100 && g_cart_id == 0){
+//          printf("uprop: %d %e\n",ix,comp_fp_sum(uprop));
+//          printf("tfii: %d %e\n",ix,comp_fp_sum(tfii));
+//          printf("fv_phi: %d %e\n",ix,comp_fv_sum(fv_phi));
+          printf("phi_list[isample][0]: %d %e\n",ix,phi_list[isample][0]);
+        }
+
         for(icomp=0; icomp<ncomp; icomp++) {
 
           iivx = ivx*ncomp+icomp;
@@ -223,8 +262,12 @@ void gather_V2_ffts(double ***V2_for_b_and_w_diagrams,double ***V2_fft,int num_c
   #endif
    
       printf("t: %d\n" ,it);
+/*      if(g_cart_id == 0)
+        print_3level_buffer((double***)V2_x,3,3*ncomp,20);*/
       // local fourier transformation
       V2_eq_fft_V2_x((double**)V2_fft[it],V2_x,program_instructions->io_proc,3,ncomp,g_sink_momentum_number,g_sink_momentum_list);
+      //printf("V2_fft:\n");
+      //print_2level_buffer((double**)V2_fft[it],g_sink_momentum_number,ncomp*V2_double_size());
     }
       
       gather_V2_ffts(&((*V2_for_b_and_w_diagrams)[isample*T]),V2_fft,3,ncomp,g_sink_momentum_number,program_instructions);
@@ -263,6 +306,11 @@ void gather_V2_ffts(double ***V2_for_b_and_w_diagrams,double ***V2_fft,int num_c
     (*gammas)[2][1][2] = +1;
     (*gammas)[2][2][1] = +1;
     (*gammas)[2][3][0] = -1;
+
+    (*gammas)[4][0][0] = +1;
+    (*gammas)[4][1][1] = +1;
+    (*gammas)[4][2][2] = +1;
+    (*gammas)[4][3][3] = +1;
 
     (*gammas)[5][0][0] = +1;
     (*gammas)[5][1][1] = +1;
@@ -311,6 +359,20 @@ void gather_V2_ffts(double ***V2_for_b_and_w_diagrams,double ***V2_fft,int num_c
     fini_2level_buffer((double***)dmat);
   }
 
+  void print_V2_for_b_diagrams(V2_for_b_and_w_diagrams_type *V2_for_b_and_w_diagrams,int num_component_f1,int icomp_f1){
+    for(int it=0;it<T_global;it++){
+    for(int isample=0;isample<g_nsample;isample++){
+    for(int i_sink_mom=0;i_sink_mom<g_sink_momentum_number;i_sink_mom++){
+//    for(int alpha=0;alpha<4;alpha++){
+//    for(int beta=0;beta<4;beta++){
+//    for(int delta=0;delta<4;delta++){
+//    for(int m=0;m<3;m++){
+      int alpha=1,beta=1,delta=1,m=1;
+      double _Complex c = ((double _Complex ***)*V2_for_b_and_w_diagrams)[isample*T_global+it][0][(i_sink_mom*num_component_f1+icomp_f1)*V2_double_size()/2+V2_complex_index(beta,alpha,delta,m)];
+      printf("isample: %d, it: %d, i_sink_mom: %d, icomp_f1: %d alpha: %d, beta: %d, delta: %d, m: %d, %e %e\n",isample,it,i_sink_mom,icomp_f1,alpha,beta,delta,m,creal(c),cimag(c));
+    }}}//}}}}
+  }
+
   void compute_b_or_w_diagram_from_V2(gathered_FT_WDc_contractions_type *gathered_FT_WDc_contractions,int diagram,b_1_xi_type *b_1_xi,w_1_xi_type *w_1_xi,V2_for_b_and_w_diagrams_type *V2_for_b_and_w_diagrams,program_instruction_type *program_instructions,int num_component_f1,int *component_f1,int num_component_i1,int *component_i1,int num_components,int(*component)[2]){
 
     if(program_instructions->io_proc<=0) return;
@@ -330,10 +392,11 @@ void gather_V2_ffts(double ***V2_for_b_and_w_diagrams,double ***V2_fft,int num_c
   
       if(diagram == 0){
 
-/*          if(g_cart_id == 0){
+        if(g_cart_id == 0){
           printf("comp_i1=%d\n",component_i1[icomp_i1]);
-          print_dmat((double _Complex**)dmat2);
-        }*/
+          //print_dmat((double _Complex**)dmat2);
+          //print_V2_for_b_diagrams(V2_for_b_and_w_diagrams,num_component_f1,icomp_f1);
+        }
 
         for(int it=0;it<T_global;it++){
         for(int isample=0;isample<g_nsample;isample++){
@@ -344,7 +407,7 @@ void gather_V2_ffts(double ***V2_for_b_and_w_diagrams,double ***V2_fft,int num_c
         for(int delta=0;delta<4;delta++){
         for(int gamma=0;gamma<4;gamma++){
         for(int m=0;m<3;m++){
-          ((double _Complex ****)*gathered_FT_WDc_contractions)[it][i_sink_mom][icomp*4+alpha][beta] = -((double _Complex ***)*V2_for_b_and_w_diagrams)[isample*T_global+it][0][(i_sink_mom*num_component_f1+icomp_f1)*V2_double_size()/2+V2_complex_index(beta,alpha,delta,m)]*dmat2[gamma][delta]*((double _Complex ***)*b_1_xi)[it][isample][gamma*3+m];
+          ((double _Complex ****)*gathered_FT_WDc_contractions)[it][i_sink_mom][icomp*4+alpha][beta] += -((double _Complex ***)*V2_for_b_and_w_diagrams)[isample*T_global+it][0][(i_sink_mom*num_component_f1+icomp_f1)*V2_double_size()/2+V2_complex_index(beta,alpha,delta,m)]*dmat2[gamma][delta]*((double _Complex ***)*b_1_xi)[it][isample][gamma*3+m];
         }}}}}}}}
 
       }

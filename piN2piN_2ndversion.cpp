@@ -1794,6 +1794,14 @@ void write_stochastic_propagator_to_file(int isample,double *stochastic_propagat
   write_spinor_field_to_file(stochastic_propagator_to_write,program_instructions->sizeof_spinor_field,filename);
 }
 
+double compute_sum_over_propagator(double *propagator){
+  double sum = 0;
+  for(int i = 0;i < VOLUME*24;i++){
+    sum += propagator[i];
+  }
+  return sum;
+}
+
 void compute_stochastic_sources_and_propagators_for_sample(int isample,stochastic_sources_and_propagators_type *stochastic_sources_and_propagators,program_instruction_type *program_instructions){
   compute_stochastic_volume_source(stochastic_sources_and_propagators->source_list[isample],39);
 
@@ -1805,6 +1813,8 @@ void compute_stochastic_sources_and_propagators_for_sample(int isample,stochasti
     global_and_local_stochastic_source_timeslice_type global_and_local_stochastic_source_timeslice;
     get_global_and_local_stochastic_source_timeslice(&global_and_local_stochastic_source_timeslice,i_src);
     fill_stochastic_propagator_with_inversion_for_timeslice(&global_and_local_stochastic_source_timeslice,stochastic_sources_and_propagators->source_list[isample],stochastic_sources_and_propagators->propagator_list[isample],program_instructions);
+//    if(g_cart_id == 0)
+//      printf("should not be zero %d %d = %e\n",i_src,isample,compute_sum_over_propagator(stochastic_sources_and_propagators->propagator_list[isample]));
   }
 
   smear_spinor_field(stochastic_sources_and_propagators->source_list[isample],program_instructions);
