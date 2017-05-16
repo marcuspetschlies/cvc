@@ -77,6 +77,18 @@ namespace cvc {
     return dirac*3+color;
   }
 
+  int fp_complex_index(int dirac1,int color1,int dirac2,int color2){
+    return ((dirac2*3+color2)*4+dirac1)*3+color1;
+  }
+
+  double _Complex get_cmplx_from_fp_at(fermion_propagator_type fp,int dirac1,int color1,int dirac2,int color2){
+    return ((double _Complex*)fp[0])[fp_complex_index(dirac1,color1,dirac2,color2)];
+  }
+
+  double _Complex get_cmplx_from_fv_at(fermion_vector_type fv,int dirac,int color){
+    return ((double _Complex*)fv)[f_complex_index(dirac,color)];
+  }
+
   int V1_complex_index(int alpha2,int a,int m){
     return (alpha2*3+m)*3+a;
   }
@@ -97,7 +109,7 @@ namespace cvc {
     return V2_complex_size()*2;
   }
 
-  void V1_eq_epsilon_fv_ti_fp(double _Complex *V1,fermion_vector_type fv,fermion_propagator_type fp){ // looked at it a second time
+  void V1_eq_epsilon_fv_ti_fp(double _Complex *V1,fermion_vector_type fv,fermion_propagator_type fp){
     memset((double*)V1,0,V1_double_size());
 
     for(int m = 0;m < 3;m++){
@@ -108,11 +120,11 @@ namespace cvc {
       int b = epsilon[i][1];
       int a = epsilon[i][2];
       int sign = epsilon[i][3];
-      V1[V1_complex_index(alpha2,a,m)] += sign*((double _Complex*)fv)[f_complex_index(alpha1,c)]*((double _Complex*)fp[f_complex_index(alpha1,b)])[f_complex_index(alpha2,m)];
+      V1[V1_complex_index(alpha2,a,m)] += sign*get_cmplx_from_fv_at(fv,alpha1,c)*get_cmplx_from_fp_at(fp,alpha1,b,alpha2,m);
     }}}}
   }
 
-  void V2_eq_epsilon_V1_ti_fp(double _Complex *V2,double _Complex *V1,fermion_propagator_type fp){ // looked at it a second time
+  void V2_eq_epsilon_V1_ti_fp(double _Complex *V2,double _Complex *V1,fermion_propagator_type fp){
     memset((double*)V2,0,V2_double_size());
 
     for(int a = 0;a < 3;a++){
@@ -124,7 +136,7 @@ namespace cvc {
       int m = epsilon[i][1];
       int l = epsilon[i][2];
       int sign = epsilon[i][3];
-      V2[V2_complex_index(alpha1,alpha2,alpha3,n)] += sign*V1[V1_complex_index(alpha1,a,m)]*((double _Complex*)fp[f_complex_index(alpha2,a)])[f_complex_index(alpha3,l)];
+      V2[V2_complex_index(alpha1,alpha2,alpha3,n)] += sign*V1[V1_complex_index(alpha1,a,m)]*get_cmplx_from_fp_at(fp,alpha2,a,alpha3,l);
     }}}} }
   }
 
