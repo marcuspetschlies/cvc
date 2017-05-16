@@ -1080,7 +1080,7 @@ void compute_and_store_correlators_which_need_stochastic_sources_and_propagators
   gathered_FT_WDc_contractions_type gathered_FT_WDc_contractions;
   init_gathered_FT_WDc_contractions(&gathered_FT_WDc_contractions,num_component_piN_piN,program_instructions,1);
   for(int diagram=0;diagram<6;diagram++){
-    compute_b_or_w_diagram_from_V2(&gathered_FT_WDc_contractions,diagram,b_1_xi,w_1_xi,V2_for_b_and_w_diagrams,program_instructions,num_component_piN,gamma_component_piN,num_component_piN,gamma_component_piN,num_component_piN_piN,gamma_component_piN_piN);
+    compute_b_or_w_diagram_from_V2(&gathered_FT_WDc_contractions,diagram,b_1_xi,w_1_xi,V2_for_b_and_w_diagrams,program_instructions,num_component_piN,gamma_component_piN,num_component_piN,gamma_component_piN,num_component_piN_piN,gamma_component_piN_piN,gsl.x[0]);
     store_piN_piN_contractions_from_stochastic_sources_and_propgators(contraction_writer,&gathered_FT_WDc_contractions,iseq_mom,iseq2_mom,diagram,gsl,program_instructions,84);
   }
 

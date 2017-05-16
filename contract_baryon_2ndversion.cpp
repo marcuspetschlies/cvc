@@ -89,11 +89,17 @@ namespace cvc {
     return ((alpha1*4+alpha2)*4+alpha3)*3+n;
   }
 
-  int V2_double_size(){
-    return 4*4*4*3*2;
+  int V2_complex_size(){
+    return 4*4*4*3;
   }
 
-  void V1_eq_epsilon_fv_ti_fp(double _Complex *V1,fermion_vector_type fv,fermion_propagator_type fp){
+  int V2_double_size(){
+    return V2_complex_size()*2;
+  }
+
+  void V1_eq_epsilon_fv_ti_fp(double _Complex *V1,fermion_vector_type fv,fermion_propagator_type fp){ // looked at it a second time
+    memset((double*)V1,0,V1_double_size());
+
     for(int m = 0;m < 3;m++){
     for(int alpha1 = 0;alpha1 < 3;alpha1++){
     for(int alpha2 = 0;alpha2 < 3;alpha2++){
@@ -102,11 +108,13 @@ namespace cvc {
       int b = epsilon[i][1];
       int a = epsilon[i][2];
       int sign = epsilon[i][3];
-      V1[V1_complex_index(alpha2,a,m)] = sign*fv[f_complex_index(alpha1,c)]*((double _Complex*)fp[f_complex_index(alpha1,b)])[f_complex_index(alpha2,m)];
+      V1[V1_complex_index(alpha2,a,m)] += sign*((double _Complex*)fv)[f_complex_index(alpha1,c)]*((double _Complex*)fp[f_complex_index(alpha1,b)])[f_complex_index(alpha2,m)];
     }}}}
   }
 
-  void V2_eq_epsilon_V1_ti_fp(double _Complex *V2,double _Complex *V1,fermion_propagator_type fp){
+  void V2_eq_epsilon_V1_ti_fp(double _Complex *V2,double _Complex *V1,fermion_propagator_type fp){ // looked at it a second time
+    memset((double*)V2,0,V2_double_size());
+
     for(int a = 0;a < 3;a++){
     for(int alpha1 = 0;alpha1 < 3;alpha1++){
     for(int alpha2 = 0;alpha2 < 3;alpha2++){
@@ -116,20 +124,19 @@ namespace cvc {
       int m = epsilon[i][1];
       int l = epsilon[i][2];
       int sign = epsilon[i][3];
-      V2[V2_complex_index(alpha1,alpha2,alpha3,n)] = sign*V1[V1_complex_index(alpha1,a,m)]*((double _Complex*)fp[f_complex_index(alpha2,a)])[f_complex_index(alpha3,l)];
+      V2[V2_complex_index(alpha1,alpha2,alpha3,n)] += sign*V1[V1_complex_index(alpha1,a,m)]*((double _Complex*)fp[f_complex_index(alpha2,a)])[f_complex_index(alpha3,l)];
     }}}} }
   }
 
   void V2_eq_fft_V2_x(double **V2_fft,V2_x_type V2_x,int io_proc,int num_combinations,int ncomp,int momentum_number, int (*momentum_list)[3]){
     int icombination;
-    double **buffer=NULL;
     for(icombination=0;icombination<num_combinations;icombination++){
-      momentum_projection2((double*)V2_x[icombination][0],&(V2_fft[0][0]),ncomp*V2_double_size()/2,momentum_number,momentum_list,NULL);
+      momentum_projection2((double*)V2_x[icombination][0],&(V2_fft[icombination*momentum_number][0]),ncomp*V2_complex_size(),momentum_number,momentum_list,NULL);
     }
   }
 
 void gather_V2_ffts(double ***V2_for_b_and_w_diagrams,double ***V2_fft,int num_combinations,int ncomp,int momentum_number,program_instruction_type *program_instructions){
-      int k = T*momentum_number*ncomp*V2_double_size();
+      int k = T*num_combinations*momentum_number*ncomp*V2_double_size();
  #ifdef HAVE_MPI
       if(program_instructions->io_proc>0) {
         int exitstatus = MPI_Allgather(&(V2_fft[0][0][0]), k, MPI_DOUBLE, &(V2_for_b_and_w_diagrams[0][0][0]), k, MPI_DOUBLE, g_tr_comm);
@@ -171,19 +178,17 @@ void gather_V2_ffts(double ***V2_for_b_and_w_diagrams,double ***V2_fft,int num_c
 
     ratime = _GET_TIME;
 
-    //unsigned int VOL3 = program_instructions->VOL3;
-    unsigned int VOL3 = LX*LY*LZ;
+    unsigned int VOL3 = program_instructions->VOL3;
 
     V2_x_type V2_x = NULL;
 
     init_3level_buffer((double****)&V2_x,3,VOL3*ncomp,V2_double_size());
 
     double ***V2_fft = NULL;
-    init_3level_buffer(&V2_fft,T,g_sink_momentum_number,ncomp*V2_double_size());
+    init_3level_buffer(&V2_fft,T,3*g_sink_momentum_number,ncomp*V2_double_size());
 
     unsigned int it,isample;
     for(isample=0;isample < nsample;isample++){
-    double sum2 = 0;
     for(it=0; it<T;it++){
   #ifdef HAVE_OPENMP
   #pragma omp parallel shared(res)
@@ -202,7 +207,6 @@ void gather_V2_ffts(double ***V2_for_b_and_w_diagrams,double ***V2_fft,int num_c
       create_fv(&fv2);
       create_V1(&V1);
       printf("test2\n");
-      double sum = 0;
 
   #ifdef HAVE_OPENMP
   #pragma omp parallel for
@@ -210,19 +214,9 @@ void gather_V2_ffts(double ***V2_for_b_and_w_diagrams,double ***V2_fft,int num_c
       for(ivx=0;ivx<VOL3;ivx++){
         ix = it*VOL3+ivx;
         /* assign the propagator points */
-        _assign_fp_point_from_field(uprop, uprop_list, ix);
-        _assign_fp_point_from_field(tfii,  tfii_list,  ix);
-        assign_fv_point_from_field(fv_phi, phi_list[isample], ix);
-        for(int j = 0;j < 24;j++){
-          sum += fv_phi[j];
-        }
-
-        if(ix >= 1000 && ix < 1100 && g_cart_id == 0){
-//          printf("uprop: %d %e\n",ix,comp_fp_sum(uprop));
-//          printf("tfii: %d %e\n",ix,comp_fp_sum(tfii));
-//          printf("fv_phi: %d %e\n",ix,comp_fv_sum(fv_phi));
-//          printf("phi_list[isample][0]: %d %e\n",ix,phi_list[isample][0]);
-        }
+        _assign_fp_point_from_field(uprop, uprop_list, ix);  // should work
+        _assign_fp_point_from_field(tfii,  tfii_list,  ix); // should work
+        assign_fv_point_from_field(fv_phi, phi_list[isample], ix); // should work
 
         for(icomp=0; icomp<ncomp; icomp++) {
 
@@ -256,9 +250,6 @@ void gather_V2_ffts(double ***V2_for_b_and_w_diagrams,double ***V2_fft,int num_c
 
       }    /* end of loop on ix */
 
-      printf("sum: %d %d %e\n",g_cart_id,isample,sum);
-      sum2 += sum;
-
       free_fp(&uprop);
       free_fp(&tfii);
       free_fv(&fv_phi);
@@ -278,10 +269,11 @@ void gather_V2_ffts(double ***V2_for_b_and_w_diagrams,double ***V2_fft,int num_c
       //printf("V2_fft:\n");
       //print_2level_buffer((double**)V2_fft[it],g_sink_momentum_number,ncomp*V2_double_size());
     }
-      printf("sum2: %d %d %e\n",g_cart_id,isample,sum2);
       
-      gather_V2_ffts(&((*V2_for_b_and_w_diagrams)[isample*T]),V2_fft,3,ncomp,g_sink_momentum_number,program_instructions);
+      gather_V2_ffts(&((*V2_for_b_and_w_diagrams)[isample*T_global]),V2_fft,3,ncomp,g_sink_momentum_number,program_instructions);
     }
+
+    //memset(&((*V2_for_b_and_w_diagrams)[0][0][0]),0,g_nsample*T_global*3*g_sink_momentum_number*ncomp*V2_double_size());
 
     fini_3level_buffer((double****)&V2_x);
     fini_3level_buffer(&V2_fft);
@@ -357,6 +349,7 @@ void gather_V2_ffts(double ***V2_for_b_and_w_diagrams,double ***V2_fft,int num_c
       if(component[i][0] == icomp_f1 && component[i][1] == icomp_i1)
         return i;
     }
+    fprintf(stderr,"comp not found %d %d\n\n",icomp_f1,icomp_i1);
     return 0;
   }
 
@@ -383,7 +376,7 @@ void gather_V2_ffts(double ***V2_for_b_and_w_diagrams,double ***V2_fft,int num_c
     }}}//}}}}
   }
 
-  void compute_b_or_w_diagram_from_V2(gathered_FT_WDc_contractions_type *gathered_FT_WDc_contractions,int diagram,b_1_xi_type *b_1_xi,w_1_xi_type *w_1_xi,V2_for_b_and_w_diagrams_type *V2_for_b_and_w_diagrams,program_instruction_type *program_instructions,int num_component_f1,int *component_f1,int num_component_i1,int *component_i1,int num_components,int(*component)[2]){
+  void compute_b_or_w_diagram_from_V2(gathered_FT_WDc_contractions_type *gathered_FT_WDc_contractions,int diagram,b_1_xi_type *b_1_xi,w_1_xi_type *w_1_xi,V2_for_b_and_w_diagrams_type *V2_for_b_and_w_diagrams,program_instruction_type *program_instructions,int num_component_f1,int *component_f1,int num_component_i1,int *component_i1,int num_components,int(*component)[2],int tsrc){
 
     if(program_instructions->io_proc<=0) return;
 
@@ -392,7 +385,7 @@ void gather_V2_ffts(double ***V2_for_b_and_w_diagrams,double ***V2_fft,int num_c
 
     for(int icomp_f1=0;icomp_f1<num_component_f1;icomp_f1++){
     for(int icomp_i1=0;icomp_i1<num_component_i1;icomp_i1++){
-      int icomp=get_icomp_from_single_comps(icomp_f1,icomp_i1,num_components,component);
+      int icomp=get_icomp_from_single_comps(component_f1[icomp_f1],component_i1[icomp_i1],num_components,component);
 
       double _Complex **dmat1,**dmat2;
       init_dmat(&dmat1);
@@ -409,6 +402,8 @@ void gather_V2_ffts(double ***V2_for_b_and_w_diagrams,double ***V2_fft,int num_c
         }
 
         for(int it=0;it<T_global;it++){
+          int ir = (it - tsrc + T_global) % T_global;
+          double _Complex w1 = cos( 3. * M_PI*(double)ir / (double)T_global )+sin( 3. * M_PI*(double)ir / (double)T_global )*_Complex_I;
         for(int isample=0;isample<g_nsample;isample++){
         for(int i_sink_mom=0;i_sink_mom<g_sink_momentum_number;i_sink_mom++){
         for(int alpha=0;alpha<4;alpha++){
@@ -417,7 +412,7 @@ void gather_V2_ffts(double ***V2_for_b_and_w_diagrams,double ***V2_fft,int num_c
         for(int delta=0;delta<4;delta++){
         for(int gamma=0;gamma<4;gamma++){
         for(int m=0;m<3;m++){
-          ((double _Complex ****)*gathered_FT_WDc_contractions)[it][i_sink_mom][icomp*4+alpha][beta] += -((double _Complex ***)*V2_for_b_and_w_diagrams)[isample*T_global+it][0][(i_sink_mom*num_component_f1+icomp_f1)*V2_double_size()/2+V2_complex_index(beta,alpha,delta,m)]*dmat2[gamma][delta]*((double _Complex ***)*b_1_xi)[it][isample][gamma*3+m];
+          ((double _Complex ****)*gathered_FT_WDc_contractions)[it][i_sink_mom][icomp*4+alpha][beta] += -((double _Complex ***)*V2_for_b_and_w_diagrams)[isample*T_global+it][0][(i_sink_mom*num_component_f1+icomp_f1)*V2_complex_size()+V2_complex_index(beta,alpha,delta,m)]*dmat2[gamma][delta]*((double _Complex ***)*b_1_xi)[it][isample][gamma*3+m]*w1;
         }}}}}}}}
 
       }
