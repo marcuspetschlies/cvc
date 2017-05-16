@@ -1080,7 +1080,7 @@ void compute_and_store_correlators_which_need_stochastic_sources_and_propagators
   gathered_FT_WDc_contractions_type gathered_FT_WDc_contractions;
   init_gathered_FT_WDc_contractions(&gathered_FT_WDc_contractions,num_component_piN_piN,program_instructions,1);
   for(int diagram=0;diagram<6;diagram++){
-//    compute_b_or_w_diagram_from_V2(gathered_FT_WDc_contractions,diagram,b_1_xi,w_1_xi,V2_for_b_and_w_diagrams,program_instructions);
+    compute_b_or_w_diagram_from_V2(&gathered_FT_WDc_contractions,diagram,b_1_xi,w_1_xi,V2_for_b_and_w_diagrams,program_instructions,num_component_piN,gamma_component_piN,num_component_piN,gamma_component_piN,num_component_piN_piN,gamma_component_piN_piN);
     store_piN_piN_contractions_from_stochastic_sources_and_propgators(contraction_writer,&gathered_FT_WDc_contractions,iseq_mom,iseq2_mom,diagram,gsl,program_instructions,84);
   }
 
@@ -1109,12 +1109,12 @@ void free_memory_for_general_propagators_tffi_and_pffii(general_propagator_tffi_
 void allocate_memory_for_b_1_xi_and_w_1_xi(b_1_xi_type *b_1_xi,w_1_xi_type *w_1_xi){
   int exitstatus;
   *b_1_xi = NULL;
-  if( (exitstatus = init_3level_buffer(b_1_xi, T, g_nsample,n_s*n_c*2 ) ) != 0 ) {
+  if( (exitstatus = init_3level_buffer(b_1_xi, T_global, g_nsample,n_s*n_c*2 ) ) != 0 ) {
     all_processes_write_to_stderr("[piN2piN] Error from init_3level_buffer, status was %d\n", exitstatus);
     EXIT(1);
   }
   *w_1_xi = NULL;
-  if( (exitstatus = init_3level_buffer(w_1_xi, T, g_nsample,n_s*n_c*2 ) ) != 0 ) {
+  if( (exitstatus = init_3level_buffer(w_1_xi, T_global, g_nsample,n_s*n_c*2 ) ) != 0 ) {
     all_processes_write_to_stderr("[piN2piN] Error from init_3level_buffer, status was %d\n", exitstatus);
     EXIT(1);
   }
@@ -1851,10 +1851,10 @@ void compute_and_store_correlators(program_instruction_type *program_instruction
 	sequential_propagators_type sequential_propagators;
 
   allocate_memory_for_forward_propagators(&forward_propagators,program_instructions);
-//	compute_forward_propagators(&forward_propagators,program_instructions,cvc_and_tmLQCD_information);
+	compute_forward_propagators(&forward_propagators,program_instructions,cvc_and_tmLQCD_information);
 
   allocate_memory_for_sequential_propagators(&sequential_propagators,program_instructions);
-//	compute_sequential_propagators(&sequential_propagators,&forward_propagators,program_instructions,cvc_and_tmLQCD_information);
+	compute_sequential_propagators(&sequential_propagators,&forward_propagators,program_instructions,cvc_and_tmLQCD_information);
 
 //	compute_and_store_correlators_which_need_only_forward_and_sequential_propagators(&forward_propagators,&sequential_propagators,program_instructions,cvc_and_tmLQCD_information);
 
@@ -1863,7 +1863,7 @@ void compute_and_store_correlators(program_instruction_type *program_instruction
 
   init_random_number_generator(38);
 
-//	compute_stochastic_sources_and_propagators(&stochastic_sources_and_propagators,program_instructions,cvc_and_tmLQCD_information);
+	compute_stochastic_sources_and_propagators(&stochastic_sources_and_propagators,program_instructions,cvc_and_tmLQCD_information);
 
 	compute_and_store_correlators_which_need_stochastic_sources_and_propagators(&forward_propagators,&sequential_propagators,&stochastic_sources_and_propagators,program_instructions,cvc_and_tmLQCD_information);
 

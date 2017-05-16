@@ -88,26 +88,26 @@ namespace cvc {
     }}}} }
   }
 
-  void V2_eq_fft_V2_x(double **V2_local_fft,V2_x_type V2_x,int io_proc,int num_combinations,int ncomp,int momentum_number, int (*momentum_list)[3]){
+  void V2_eq_fft_V2_x(double **V2_fft,V2_x_type V2_x,int io_proc,int num_combinations,int ncomp,int momentum_number, int (*momentum_list)[3]){
     int icombination;
     double **buffer=NULL;
     for(icombination=0;icombination<num_combinations;icombination++){
-      momentum_projection2((double*)V2_x[icombination][0],&(V2_local_fft[0][0]),ncomp*V2_double_size()/2,momentum_number,momentum_list,NULL);
+      momentum_projection2((double*)V2_x[icombination][0],&(V2_fft[0][0]),ncomp*V2_double_size()/2,momentum_number,momentum_list,NULL);
     }
   }
 
-void V2_local_fft_to_V2_global_fft(double ***V2_for_b_and_w_diagrams,double ***V2_local_fft,int num_combinations,int ncomp,int momentum_number,program_instruction_type *program_instructions){
+void gather_V2_ffts(double ***V2_for_b_and_w_diagrams,double ***V2_fft,int num_combinations,int ncomp,int momentum_number,program_instruction_type *program_instructions){
       int k = T*momentum_number*ncomp*V2_double_size();
  #ifdef HAVE_MPI
       if(program_instructions->io_proc>0) {
-        int exitstatus = MPI_Allgather(&(V2_local_fft[0][0][0]), k, MPI_DOUBLE, &(V2_for_b_and_w_diagrams[0][0][0]), k, MPI_DOUBLE, g_tr_comm);
+        int exitstatus = MPI_Allgather(&(V2_fft[0][0][0]), k, MPI_DOUBLE, &(V2_for_b_and_w_diagrams[0][0][0]), k, MPI_DOUBLE, g_tr_comm);
         if(exitstatus != MPI_SUCCESS) {
           fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d\n", exitstatus);
           EXIT(124);
         }
       }
 #else
-      memcpy(&(V2_for_b_and_w_diagrams[0][0][0]),&(V2_local_fft[0][0][0]),k);
+      memcpy(&(V2_for_b_and_w_diagrams[0][0][0]),&(V2_fft[0][0][0]),k);
 #endif
 }
 
@@ -145,8 +145,8 @@ void V2_local_fft_to_V2_global_fft(double ***V2_for_b_and_w_diagrams,double ***V
 
     init_3level_buffer((double****)&V2_x,3,VOL3*ncomp,V2_double_size());
 
-    double ***V2_local_fft = NULL;
-    init_3level_buffer(&V2_local_fft,T,g_sink_momentum_number,ncomp*V2_double_size());
+    double ***V2_fft = NULL;
+    init_3level_buffer(&V2_fft,T,g_sink_momentum_number,ncomp*V2_double_size());
 
     unsigned int it,isample;
     for(isample=0;isample < nsample;isample++){
@@ -224,54 +224,138 @@ void V2_local_fft_to_V2_global_fft(double ***V2_for_b_and_w_diagrams,double ***V
    
       printf("t: %d\n" ,it);
       // local fourier transformation
-      V2_eq_fft_V2_x((double**)V2_local_fft[it],V2_x,program_instructions->io_proc,3,ncomp,g_sink_momentum_number,g_sink_momentum_list);
+      V2_eq_fft_V2_x((double**)V2_fft[it],V2_x,program_instructions->io_proc,3,ncomp,g_sink_momentum_number,g_sink_momentum_list);
     }
       
-      V2_local_fft_to_V2_global_fft(&((*V2_for_b_and_w_diagrams)[isample*T]),V2_local_fft,3,ncomp,g_sink_momentum_number,program_instructions);
+      gather_V2_ffts(&((*V2_for_b_and_w_diagrams)[isample*T]),V2_fft,3,ncomp,g_sink_momentum_number,program_instructions);
     }
 
     fini_3level_buffer((double****)&V2_x);
-    fini_3level_buffer(&V2_local_fft);
+    fini_3level_buffer(&V2_fft);
 
     retime = _GET_TIME;
     if(g_cart_id == 0)  fprintf(stdout, "# [contract_piN_piN] time for contractions = %e seconds\n", retime-ratime);
 
   }
-}
 
-void gammas_eq_gammas_ti_gammas(int dest_permutation[24],int dest_sign[24],int gamma_permutation_1[24],int gamma_sign_1[24],int gamma_permutation_2[24],int gamma_sign_2[24]){
-  for(int i = 0;i < 24;i++){
-    dest_permutation[i] = gamma_permutation_1[gamma_permutation_2[i]];
-    dest_sign[i] = gamma_sign_2[i]*gamma_sign_1[gamma_permutation_2[i]];
+  void dmat_eq_dmat_ti_dmat(double _Complex** dest,double _Complex** left,double _Complex** right){
+    memset((double*)&(dest[0][0]),0,4*4*2);
+    for(int a=0;a<4;a++){
+    for(int b=0;b<4;b++){
+    for(int c=0;c<4;c++){
+      dest[a][c] += left[a][b]*right[b][c];
+    }}}
   }
-}
 
-int get_icomp_from_single_comps(int icomp_f1,int icomp_i1,int num_components,int *component[2]){
-  for(int i=0;i<num_components;i++){
-    if(component[i][0] == icomp_f1 && component[i][1] == icomp_i1)
-      return i;
+  void init_gammas(double _Complex**** gammas){
+
+    (*gammas) = NULL;
+    init_3level_buffer((double****)gammas,16,4,4*2);
+
+    memset((double*)&((*gammas)[0][0][0]),0,16*4*4*2);
+
+    (*gammas)[0][0][2] = -1;
+    (*gammas)[0][1][3] = -1;
+    (*gammas)[0][2][0] = -1;
+    (*gammas)[0][3][1] = -1;
+
+    (*gammas)[2][0][3] = -1;
+    (*gammas)[2][1][2] = +1;
+    (*gammas)[2][2][1] = +1;
+    (*gammas)[2][3][0] = -1;
+
+    (*gammas)[5][0][0] = +1;
+    (*gammas)[5][1][1] = +1;
+    (*gammas)[5][2][2] = -1;
+    (*gammas)[5][3][3] = -1;
+
+    dmat_eq_dmat_ti_dmat((*gammas)[6],(*gammas)[0],(*gammas)[5]);
   }
-  return 0;
+
+  void fini_gammas(double _Complex**** gammas){
+    fini_3level_buffer((double****)gammas);
+  }
+
+  void print_dmat(double _Complex **dmat){
+    printf("---------------------------------------\n");
+    for(int a=0;a<4;a++){
+    for(int b=0;b<4;b++){
+      printf("%+.2f %+.2fi  ",creal(dmat[a][b]),cimag(dmat[a][b]));
+    }
+    printf("\n");
+    }
+    printf("---------------------------------------\n");
+  }
+
+  void gammas_eq_gammas_ti_gammas(int dest_permutation[24],int dest_sign[24],int gamma_permutation_1[24],int gamma_sign_1[24],int gamma_permutation_2[24],int gamma_sign_2[24]){
+    for(int i = 0;i < 24;i++){
+      dest_permutation[i] = gamma_permutation_1[gamma_permutation_2[i]];
+      dest_sign[i] = gamma_sign_2[i]*gamma_sign_1[gamma_permutation_2[i]];
+    }
+  }
+
+  int get_icomp_from_single_comps(int icomp_f1,int icomp_i1,int num_components,int(*component)[2]){
+    for(int i=0;i<num_components;i++){
+      if(component[i][0] == icomp_f1 && component[i][1] == icomp_i1)
+        return i;
+    }
+    return 0;
+  }
+
+  void init_dmat(double _Complex*** dmat){
+    *dmat = NULL;
+    init_2level_buffer((double***)dmat,4,4*2);
+  }
+
+  void fini_dmat(double _Complex*** dmat){
+    fini_2level_buffer((double***)dmat);
+  }
+
+  void compute_b_or_w_diagram_from_V2(gathered_FT_WDc_contractions_type *gathered_FT_WDc_contractions,int diagram,b_1_xi_type *b_1_xi,w_1_xi_type *w_1_xi,V2_for_b_and_w_diagrams_type *V2_for_b_and_w_diagrams,program_instruction_type *program_instructions,int num_component_f1,int *component_f1,int num_component_i1,int *component_i1,int num_components,int(*component)[2]){
+
+    if(program_instructions->io_proc<=0) return;
+
+    double _Complex ***gammas;
+    init_gammas(&gammas);
+
+    for(int icomp_f1=0;icomp_f1<num_component_f1;icomp_f1++){
+    for(int icomp_i1=0;icomp_i1<num_component_i1;icomp_i1++){
+      int icomp=get_icomp_from_single_comps(icomp_f1,icomp_i1,num_components,component);
+
+      double _Complex **dmat1,**dmat2;
+      init_dmat(&dmat1);
+      init_dmat(&dmat2);
+      dmat_eq_dmat_ti_dmat(dmat1,gammas[0],gammas[2]);
+      dmat_eq_dmat_ti_dmat(dmat2,dmat1,gammas[component_i1[icomp_i1]]);
+  
+      if(diagram == 0){
+
+/*          if(g_cart_id == 0){
+          printf("comp_i1=%d\n",component_i1[icomp_i1]);
+          print_dmat((double _Complex**)dmat2);
+        }*/
+
+        for(int it=0;it<T_global;it++){
+        for(int isample=0;isample<g_nsample;isample++){
+        for(int i_sink_mom=0;i_sink_mom<g_sink_momentum_number;i_sink_mom++){
+        for(int alpha=0;alpha<4;alpha++){
+        for(int beta=0;beta<4;beta++){
+        ((double _Complex ****)*gathered_FT_WDc_contractions)[it][i_sink_mom][icomp*4+alpha][beta] = 0;
+        for(int delta=0;delta<4;delta++){
+        for(int gamma=0;gamma<4;gamma++){
+        for(int m=0;m<3;m++){
+          ((double _Complex ****)*gathered_FT_WDc_contractions)[it][i_sink_mom][icomp*4+alpha][beta] = -((double _Complex ***)*V2_for_b_and_w_diagrams)[isample*T_global+it][0][(i_sink_mom*num_component_f1+icomp_f1)*V2_double_size()/2+V2_complex_index(beta,alpha,delta,m)]*dmat2[gamma][delta]*((double _Complex ***)*b_1_xi)[it][isample][gamma*3+m];
+        }}}}}}}}
+
+      }
+      fini_dmat(&dmat1);
+      fini_dmat(&dmat2);
+
+    }}
+
+    fini_gammas(&gammas);
+
+  }
+
 }
-
-void compute_b_or_w_diagram_from_V2(gathered_FT_WDc_contractions_type *gathered_FT_WDc_contractions,int diagram,b_1_xi_type *b_1_xi,w_1_xi_type *w_1_xi,V2_for_b_and_w_diagrams_type *V2_for_b_and_w_diagrams,program_instruction_type *program_instructions,int num_component_f1,int *component_f1,int num_component_i1,int *component_i1,int num_components,int *component[2]){
-
-  int gamma_permutation_1[24],gamma_permutation_2[24];
-  int gamma_sign_1[24],gamma_sign_2[24];
-
-  for(int icomp_f1=0;icomp_f1<num_component_f1;icomp_f1++){
-  for(int icomp_i1=0;icomp_i1<num_component_i1;icomp_i1++){
-    int icomp=get_icomp_from_single_comps(icomp_f1,icomp_i1,num_components,component);
-    gammas_eq_gammas_ti_gammas(gamma_permutation_2,gamma_sign_2,gamma_permutation[0],gamma_sign[0],gamma_permutation[2],gamma_sign[2]);
-    gammas_eq_gammas_ti_gammas(gamma_permutation_1,gamma_sign_1,gamma_permutation_2,gamma_sign_2,gamma_permutation[icomp_i1],gamma_sign[icomp_i1]);
-    
-//    for(int it=0;it<T;it++){
-//    for(
-
-//    }
-
-  }}
-
-}
-
 

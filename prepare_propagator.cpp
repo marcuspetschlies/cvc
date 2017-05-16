@@ -30,6 +30,7 @@
 /* #include "smearing_techniques.h" */
 /* #include "fuzz.h" */
 #include "project.h"
+#include "matrix_init.h"
 
 #ifndef _NON_ZERO
 #  define _NON_ZERO (5.e-14)
@@ -366,6 +367,9 @@ int stochastic_source_ti_vertex_ti_propagator (double*** seq_stochastic_source, 
 
   ratime = _GET_TIME;
 
+  double ***local_seq_stochastic_source = NULL;
+  init_3level_buffer(&local_seq_stochastic_source,T,nstoch,nprop*2);
+
   double *phase = (double*)malloc(2*VOL3*sizeof(double)) ;
   if( phase == NULL ) {
     fprintf(stderr, "[prepare_seqn_stochastic_vertex_propagator_sliced3d] Error from malloc\n");
@@ -448,15 +452,21 @@ int stochastic_source_ti_vertex_ti_propagator (double*** seq_stochastic_source, 
     int i, k;
     for(i=0; i<nprop; i++) {
       for(k=0; k<nstoch; k++) {
-        ((double _Complex*)seq_stochastic_source[it][k])[i] = p[i*nstoch+k];
+        ((double _Complex*)local_seq_stochastic_source[it][k])[i] = p[i*nstoch+k];
       }
     }
 
   }  /* end of loop on timeslices */ 
 
+  // gather local_seq_stochastic_source
+  int k = T*nstoch*nprop;
+  MPI_Allgather((double*)(&local_seq_stochastic_source[0][0][0]),k,MPI_DOUBLE,(double*)(&seq_stochastic_source[0][0][0]),k,MPI_DOUBLE,g_tr_comm);
+
   free(prop_aux);
   free(stoch_aux);
   free(p);
+
+  fini_3level_buffer(&local_seq_stochastic_source);
 
   retime = _GET_TIME;
   if(g_cart_id == 0) fprintf(stdout, "[stochastic_source_ti_vertex_ti_propagator] time for stochastic_source_ti_vertex_ti_propagator = %e seconds\n", retime-ratime);
