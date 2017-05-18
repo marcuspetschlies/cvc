@@ -4695,6 +4695,8 @@ int check_point_source_propagator_clover_eo(double**prop_e, double**prop_o, doub
  * for C_clover_oo:
  *   mzzinv must be ee
  *   mzz    must be oo
+ *
+ *   requires 2 work fields, work[0] and work[1]
  ***************************************************************************/
 int check_oo_propagator_clover_eo(double**prop_o, double**source, double**work, double*gf, double**mzz, double**mzzinv, int nf ) {
 
@@ -6176,6 +6178,10 @@ int plaquetteria  (double*gauge_field ) {
         _cm_eq_cm_ti_cm(U2, gauge_field+_GGI(ix,inu), gauge_field+_GGI(ix_pl_nu,imu) );
         _cm_eq_cm_ti_cm_dag( U3 , U1, U2 );
         _co_eq_tr_cm( &w , U3 );
+
+        /* TEST */
+        /* fprintf(stdout, "# [] %8u %2d %2d %25.16e\n", ix, imu, inu, w.re); */
+
         ploc[0] += w.re;
 
         /********************************
