@@ -772,10 +772,14 @@ int rot_gauge_field ( double*gf_rot, double *gf, double _Complex **R) {
 
 
   /* loop on blocks */
+#if 0
   for( int ibx = 0; ibx < n_block[0]; ibx++ ) {
   for( int iby = 0; iby < n_block[1]; iby++ ) {
   for( int ibz = 0; ibz < n_block[2]; ibz++ ) {
-
+#endif
+  for( int ibx = 0; ibx < 1; ibx++ ) {
+  for( int iby = 0; iby < 1; iby++ ) {
+  for( int ibz = 0; ibz < 1; ibz++ ) {
     /******************************************************
      * rotate a local block of the lattice
      *
@@ -952,7 +956,8 @@ int rot_gauge_field ( double*gf_rot, double *gf, double _Complex **R) {
         proc_coords[0], proc_coords[1], proc_coords[2], proc_id_send );
     fflush(stdout);
 
-    if ( proc_id_send != g_ts_id ) {   /* don't send to oneself */
+    if ( proc_id_send != g_ts_id ) {   /* I don't send to myself */
+      fprintf(stdout, "# [rot_gauge_field] proc%.4d /%.4d  block %2d %2d %2d starting send to process %2d\n", g_cart_id, g_ts_id, ibx,iby,ibz, proc_id_send);
       MPI_Isend ( gf_buffer[0], items, MPI_DOUBLE, proc_id_send, 101, g_ts_comm, &request[cntr]);
       cntr++;
     }
@@ -1021,7 +1026,8 @@ int rot_gauge_field ( double*gf_rot, double *gf, double _Complex **R) {
         }
 
         if ( proc_id_recv != g_ts_id ) {   /* recv from different process */
-          MPI_Irecv( gf_mbuffer[recv_counter][0], items, MPI_DOUBLE, proc_id_recv, 101, g_cart_grid, &request[cntr]);
+          fprintf(stdout, "# [rot_gauge_field] proc%.4d / %2d  block %2d %2d %2d starting recv from process %2d\n", g_cart_id, g_ts_id, ibx,iby,ibz, proc_id_recv);
+          MPI_Irecv( gf_mbuffer[recv_counter][0], items, MPI_DOUBLE, proc_id_recv, 101, g_ts_comm, &request[cntr]);
           cntr++;
         } else { /* this is myself, just memcpy */
           memcpy( gf_mbuffer[recv_counter][0], gf_buffer[0], bytes ); 
@@ -1034,8 +1040,12 @@ int rot_gauge_field ( double*gf_rot, double *gf, double _Complex **R) {
       }
     }}}
         
+    fprintf(stdout, "# [rot_gauge_field] proc%.4d / %2d  waiting %d send/recv to finish\n", g_cart_id, g_ts_id, cntr);
+    fflush(stdout);
     MPI_Waitall(cntr, request, status);
 
+    fprintf(stdout, "# [rot_gauge_field] proc%.4d / %2d  waiting done\n", g_cart_id, g_ts_id);
+    fflush(stdout);
     /* loop on receives */
     for ( int irecv = 0; irecv < recv_counter; irecv++ ) {
         
