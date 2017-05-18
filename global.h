@@ -80,6 +80,7 @@
 #define HPE_MAX_ORDER 11
 
 #define _MAX(_a,_b) ((_a) > (_b) ? (_a) : (_b) )
+#define _MIN(_a,_b) ((_a) < (_b) ? (_a) : (_b) )
 
 #define _ONE_OVER_SQRT2 (0.707106781186548)
 
