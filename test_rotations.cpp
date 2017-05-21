@@ -90,6 +90,10 @@ int main(int argc, char **argv) {
   int exitstatus;
   double norm, norm2;
   FILE *ofs = NULL;
+  double _Complex **R = NULL;
+  double _Complex **A = NULL;
+  double _Complex **B = NULL;
+
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
@@ -177,10 +181,6 @@ int main(int argc, char **argv) {
   double w = 4*M_PI/3.;
 */
 
-  double _Complex **R = NULL;
-  double _Complex **A = NULL;
-  double _Complex **B = NULL;
-
   rot_init_rotation_table();
 
 
@@ -197,7 +197,7 @@ int main(int argc, char **argv) {
       _cm_eq_id( g_gauge_field + _GGI(ix, 2) );
       _cm_eq_id( g_gauge_field + _GGI(ix, 3) );
     }
-  } else if ( strcmp(filename_prefix, "random") == 0 ) {
+  } else if ( strcmp( gaugefilename_prefix, "random") == 0 ) {
     random_gauge_field( g_gauge_field, 1.);
   } else {
     /* read the gauge field */
@@ -279,12 +279,12 @@ int main(int argc, char **argv) {
     sprintf(name, "A[%.2d]", irot);
     rot_printf_rint_matrix (A, Ndim, name, stdout );
 
-
     exitstatus = rot_gauge_field ( gauge_field_rot, g_gauge_field, A);
     if ( exitstatus != 0 ) {
       fprintf(stderr, "[test_rotations] Error from rot_gauge_field, status was %d\n", exitstatus);
       EXIT(23);
     }
+
 /*
     sprintf(filename, "gf_rot.%.2d", g_cart_id);
     ofs = fopen(filename, "w");
@@ -341,8 +341,8 @@ int main(int argc, char **argv) {
 #ifdef HAVE_MPI
     xchange_field ( g_spinor_field[0] );
 #endif
-#if 0
-#endif  /* of if 0 */
+
+
 
 #if 0
     /**************************
@@ -448,6 +448,8 @@ int main(int argc, char **argv) {
 
     rot_fini_rotation_matrix (&ASpin);
 
+#if 0
+#endif  /* of if 0 */
   }  /* end of loop on rotations */
 
   rot_fini_rotation_matrix( &R );
