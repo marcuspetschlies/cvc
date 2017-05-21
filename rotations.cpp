@@ -950,30 +950,30 @@ int rot_gauge_field ( double*gf_rot, double *gf, double _Complex **R) {
 #if (defined HAVE_MPI) && (defined PARALLELTXYZ)
         }
 #endif
-      }
-      /* TEST */
-      /* fprintf(stdout, "# [rot_gauge_field] proc %.4d block  %2d %2d %2d  n %2d %2d %2d --- %2d %2d %2d --- %2d %2d %2d\n", g_cart_id,
-          ibx, iby,ibz,
-          x,y, z, 
-          point_coords_rot[0], point_coords_rot[1], point_coords_rot[2],
-          point_coords_shift[0], point_coords_shift[1], point_coords_shift[2]); */
-
-      /* direction 0 */
-      for( int it=0; it<T; it++ ) {
-        iy = g_ipt[it][point_coords_shift[0]][point_coords_shift[1]][point_coords_shift[2]];
+      } else {
         /* TEST */
-        /* fprintf(stdout, "# [rot_gauge_field] proc %.4d iy = %u = %2d %2d %2d %2d\n", g_cart_id, iy, it, point_coords_shift[0], point_coords_shift[1], point_coords_shift[2]);
-        fflush(stdout);
+        /* fprintf(stdout, "# [rot_gauge_field] proc %.4d block  %2d %2d %2d  n %2d %2d %2d --- %2d %2d %2d --- %2d %2d %2d\n", g_cart_id,
+            ibx, iby,ibz,
+            x,y, z, 
+            point_coords_rot[0], point_coords_rot[1], point_coords_rot[2],
+            point_coords_shift[0], point_coords_shift[1], point_coords_shift[2]); */
+
+        /* direction 0 */
+        for( int it=0; it<T; it++ ) {
+          iy = g_ipt[it][point_coords_shift[0]][point_coords_shift[1]][point_coords_shift[2]];
+          /* TEST */
+          /* fprintf(stdout, "# [rot_gauge_field] proc %.4d iy = %u = %2d %2d %2d %2d\n", g_cart_id, iy, it, point_coords_shift[0], point_coords_shift[1], point_coords_shift[2]);
+          fflush(stdout);
 #ifdef HAVE_MPI
-        MPI_Barrier(g_cart_grid );
+          MPI_Barrier(g_cart_grid );
 #endif
-         */
-        /* copy color matrix for ix, 0 <- iy, 0 */
-        _cm_eq_cm ( gf_buffer[it] + _GGI(ix3d, 0), gf + _GGI(iy,0) );
-      }
+           */
+          /* copy color matrix for ix, 0 <- iy, 0 */
+          _cm_eq_cm ( gf_buffer[it] + _GGI(ix3d, 0), gf + _GGI(iy,0) );
+        }
 #if 0
 #endif  /* of if 0 */
-
+      }  /* end of else of if rot_check_point_bnd > 2 */
 
       /* loop on directions 1, 2, 3 */
       for( int i=0; i<3; i++) {
@@ -1023,8 +1023,8 @@ int rot_gauge_field ( double*gf_rot, double *gf, double _Complex **R) {
 #if 0
 #endif  /* of if 0 */
     }}}
-#if 0
-#endif  /* of if 0 */
+
+
 
 #if (defined HAVE_MPI) && ( (defined PARALLELTX) ||(defined PARALLELTXY) || (defined PARALLELTXYZ) )
     /******************************************************
@@ -1189,10 +1189,12 @@ int rot_gauge_field ( double*gf_rot, double *gf, double _Complex **R) {
     for ( int irecv = 0; irecv < recv_counter; irecv++ ) {
         
       memcpy( gf_buffer[0], gf_mbuffer[irecv][0], bytes ); 
+
 #else
       int irecv = 0;
       int recv_block_coords[1][3] = { { ibx, iby, ibz} };  /* 0,0,0 in this case */
 #endif  /* of if HAVE_MPI and need distribution */
+
 
       /* TEST */
       /* fprintf(stdout, "# [rot_gauge_field] proc%.4d block %2d %2d %2d replacing block %2d %2d %2d\n", g_cart_id,
@@ -1227,8 +1229,7 @@ int rot_gauge_field ( double*gf_rot, double *gf, double _Complex **R) {
         }
       }}}
     }
-#if 0
-#endif  /* of if 0 */
+
 
 #if (defined HAVE_MPI) && ( (defined PARALLELTX) ||(defined PARALLELTXY) || (defined PARALLELTXYZ) )
 
@@ -1241,6 +1242,9 @@ int rot_gauge_field ( double*gf_rot, double *gf, double _Complex **R) {
     free( recv_block_coords );
 
 #endif  /* of if HAVE_MPI and need distribution */
+
+#if 0
+#endif  /* of if 0 */
 
   }}}  /* end of loop on blocks */
 
@@ -1406,27 +1410,28 @@ int rot_spinor_field ( double*sf_rot, double *sf, double _Complex **R) {
 #if (defined HAVE_MPI) && (defined PARALLELTXYZ)
         }
 #endif
-      }
-      /* TEST */
-      /* fprintf(stdout, "# [rot_spinor_field] proc %.4d block  %2d %2d %2d  n %2d %2d %2d --- %2d %2d %2d --- %2d %2d %2d\n", g_cart_id,
-          ibx, iby,ibz,
-          x,y, z, 
-          point_coords_rot[0], point_coords_rot[1], point_coords_rot[2],
-          point_coords_shift[0], point_coords_shift[1], point_coords_shift[2]);*/
-
-      /* set the spinor field */
-      for( int it=0; it<T; it++ ) {
-        iy = g_ipt[it][point_coords_shift[0]][point_coords_shift[1]][point_coords_shift[2]];
+      } else {
         /* TEST */
-        /* fprintf(stdout, "# [rot_spinor_field] proc %.4d iy = %u = %2d %2d %2d %2d\n", g_cart_id, iy, it, point_coords_shift[0], point_coords_shift[1], point_coords_shift[2]);
-        fflush(stdout);
+        /* fprintf(stdout, "# [rot_spinor_field] proc %.4d block  %2d %2d %2d  n %2d %2d %2d --- %2d %2d %2d --- %2d %2d %2d\n", g_cart_id,
+            ibx, iby,ibz,
+            x,y, z, 
+            point_coords_rot[0], point_coords_rot[1], point_coords_rot[2],
+            point_coords_shift[0], point_coords_shift[1], point_coords_shift[2]);*/
+
+        /* set the spinor field */
+        for( int it=0; it<T; it++ ) {
+          iy = g_ipt[it][point_coords_shift[0]][point_coords_shift[1]][point_coords_shift[2]];
+          /* TEST */
+          /* fprintf(stdout, "# [rot_spinor_field] proc %.4d iy = %u = %2d %2d %2d %2d\n", g_cart_id, iy, it, point_coords_shift[0], point_coords_shift[1], point_coords_shift[2]);
+          fflush(stdout);
 #ifdef HAVE_MPI
-        MPI_Barrier(g_cart_grid );
+          MPI_Barrier(g_cart_grid );
 #endif
-         */
-        /* copy color matrix for ix, 0 <- iy, 0 */
-        _fv_eq_fv ( sf_buffer[it] + _GSI(ix3d), sf_aux + _GSI(iy) );
-      }
+           */
+          /* copy color matrix for ix, 0 <- iy, 0 */
+          _fv_eq_fv ( sf_buffer[it] + _GSI(ix3d), sf_aux + _GSI(iy) );
+        }
+      }  /* end of else of if rot_check_point_bnd > 2 */
     }}}
 #if 0
 #endif  /* of if 0 */
