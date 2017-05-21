@@ -1701,4 +1701,22 @@ void rot_spinor_field_ti_bispinor_mat ( double**sf_rot, double _Complex ** R, do
   }
 }  /* end of rot_spinor_field_ti_bispinor_mat */
 
+void rot_bispinor_mat_ti_sp_field ( spinor_propagator_type *sp_rot, double _Complex ** R, spinor_propagator_type *sp, unsigned int N ) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for( unsigned int ix = 0; ix < N; ix++ ) { 
+    rot_bispinor_mat_ti_sp ( sp_rot[ix], R, sp[ix] );
+  }
+}  /* end of rot_bispinor_mat_ti_sp_field */
+
+void rot_sp_field_ti_bispinor_mat ( spinor_propagator_type *sp_rot, double _Complex ** R, spinor_propagator_type *sp, unsigned int N ) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for( unsigned int ix = 0; ix < N; ix++ ) { 
+    rot_sp_ti_bispinor_mat ( sp_rot[ix], R, sp[ix] );
+  }
+}  /* end of rot_sp_field_bispinor_mat */
+
 }  /* end of namespace cvc */
