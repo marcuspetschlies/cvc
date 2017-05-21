@@ -188,12 +188,7 @@ int main(int argc, char **argv) {
 
 
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
-  if(!(strcmp(gaugefilename_prefix,"identity")==0)) {
-    /* read the gauge field */
-    sprintf(filename, "%s.%.4d", gaugefilename_prefix, Nconf);
-    if(g_cart_id==0) fprintf(stdout, "# [p2gg] reading gauge field from file %s\n", filename);
-    read_lime_gauge_field_doubleprec(filename);
-  } else {
+  if( strcmp(gaugefilename_prefix,"identity") == 0 ) {
     /* initialize unit matrices */
     if(g_cart_id==0) fprintf(stdout, "\n# [p2gg] initializing unit matrices\n");
     for( unsigned int ix=0;ix<VOLUME;ix++) {
@@ -202,6 +197,13 @@ int main(int argc, char **argv) {
       _cm_eq_id( g_gauge_field + _GGI(ix, 2) );
       _cm_eq_id( g_gauge_field + _GGI(ix, 3) );
     }
+  } else if ( strcmp(filename_prefix, "random") == 0 ) {
+    random_gauge_field( g_gauge_field, 1.);
+  } else {
+    /* read the gauge field */
+    sprintf(filename, "%s.%.4d", gaugefilename_prefix, Nconf);
+    if(g_cart_id==0) fprintf(stdout, "# [p2gg] reading gauge field from file %s\n", filename);
+    read_lime_gauge_field_doubleprec(filename);
   }
 #ifdef HAVE_MPI
   xchange_gauge_field( g_gauge_field );
