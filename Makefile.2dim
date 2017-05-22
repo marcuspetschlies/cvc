@@ -32,19 +32,17 @@ LINK = $(CXX) -o $@ ${LDFLAGS}
 COMPILE = ${CXX} $(INCLUDE) -o $@ ${CXXFLAGS}
 
 MODULES = DML_crc32 dml getopt cvc_utils cvc_geometry mpi_init io io_utils propagator_io read_input_parser_cvc \
-	  get_index gauge_io contractions_io ranlxd ranlxs Q_phi invert_Qtm set_default laphs_utils laplace \
-	  Q_clover_phi gsp prepare_source matrix_init project make_x_orbits contract_cvc_tensor smearing_techniques \
-	  contract_baryon prepare_propagator
+	  get_index gauge_io contractions_io ranlxd ranlxs Q_phi set_default laplace \
+	  Q_clover_phi gsp prepare_source matrix_init project make_x_orbits smearing_techniques \
+	  contract_baryon prepare_propagator scalar_products
 
 HEADERS = getopt cvc_complex cvc_geometry cvc_linalg iblas icontract cvc_utils default_input_values dml global io io_utils \
 	  mpi_init propagator_io read_input_parser get_index gauge_io contractions_io \
-	  ranlxd ranlxs Q_phi invert_Qtm set_default laphs_utils laplace_linalg laplace Q_clover_phi \
-	  gsp prepare_source matrix_init project make_x_orbits contract_cvc_tensor smearing_techniques \
-	  contract_baryon prepare_propagator
+	  ranlxd ranlxs Q_phi set_default laplace_linalg laplace Q_clover_phi \
+	  gsp prepare_source matrix_init project make_x_orbits smearing_techniques \
+	  contract_baryon prepare_propagator scalar_products
 
-PROGRAM =  p2gg_xspace test_invert deflate p2gg_pspace  test_overlap apply_Coo ama_lma ama_high test_lm_propagator test_locality \
-	   test_lm_propagator_clover proton_2pt cvc_exact3_xspace p2gg test_momentum_projection deltapp_2pt deltapp2piN \
-	   piN2piN test
+PROGRAM = piN2piN
 
 all: dep $(PROGRAM) 
 
