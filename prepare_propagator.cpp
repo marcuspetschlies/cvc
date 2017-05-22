@@ -15,6 +15,10 @@
 #include <time.h>
 #include <getopt.h>
 
+#ifdef HAVE_MPI
+#include <mpi.h>
+#endif
+
 #include "cvc_complex.h"
 #include "cvc_linalg.h"
 #include "iblas.h"
@@ -460,7 +464,11 @@ int stochastic_source_ti_vertex_ti_propagator (double*** seq_stochastic_source, 
 
   // gather local_seq_stochastic_source
   int k = T*nstoch*nprop;
+#ifdef HAVE_MPI
   MPI_Allgather((double*)(&local_seq_stochastic_source[0][0][0]),k,MPI_DOUBLE,(double*)(&seq_stochastic_source[0][0][0]),k,MPI_DOUBLE,g_tr_comm);
+#else
+  memcpy ( seq_stochastic_source[0][0], local_seq_stochastic_source[0][0], k * sizeof(double) );
+#endif
 
   free(prop_aux);
   free(stoch_aux);
