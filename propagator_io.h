@@ -46,7 +46,7 @@ int write_binary_spinor_data_timeslice(double * const s, LimeWriter * limewriter
 int write_lime_spinor_timeslice(double * const s, char * filename,
    const int prec, int timeslice, DML_Checksum *checksum);
 
-int prepare_propagator(int timeslice, int iread, int is_mms, int no_mass, double sign, double mass, int isave, double *work, int pos);
+int prepare_propagator(int timeslice, int iread, int is_mms, int no_mass, double sign, double mass, int isave, double *work, int pos, double*gauge_field);
 
 int prepare_propagator2(int *source_coords, int iread, int sign, void *work, int pos, int format, size_t prec_out);
 

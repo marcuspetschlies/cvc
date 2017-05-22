@@ -1210,7 +1210,7 @@ int write_source_type(const int type, char * filename) {
  * prepare_propagator
  *
  **************************************************/
-int prepare_propagator(int timeslice, int iread, int is_mms, int no_mass, double sign, double mass, int isave, double *work, int pos) {
+int prepare_propagator(int timeslice, int iread, int is_mms, int no_mass, double sign, double mass, int isave, double *work, int pos, double*gauge_field) {
 
   char filename[200];
   int status;
@@ -1221,9 +1221,12 @@ int prepare_propagator(int timeslice, int iread, int is_mms, int no_mass, double
     signed_mass = sign * mass;
     status = read_lime_spinor(work, filename, pos);
     xchange_field(work);
-    Qf5(g_spinor_field[isave], work, signed_mass);
+    /* Qf5(g_spinor_field[isave], work, signed_mass); */
+    Q_phi(g_spinor_field[isave], work, gauge_field, signed_mass);
+    g5_phi(g_spinor_field[isave], VOLUME);
+
     if(g_check_inversion==1) {
-      check_source(g_spinor_field[isave], work, -signed_mass, g_source_location, iread);
+      check_source(g_spinor_field[isave], work, gauge_field, -signed_mass, g_source_location, iread);
       // work contains D iread, reread original solution to work
       status = read_lime_spinor(work, filename, pos);
       xchange_field(work);
