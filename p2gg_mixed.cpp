@@ -453,15 +453,16 @@ int main(int argc, char **argv) {
       EXIT(19);
     }
     memcpy(eo_sample_field[i], eo_spinor_work[1], sizeof_eo_spinor_field);
+
+   if( check_propagator_residual ) {
+      exitstatus = check_oo_propagator_clover_eo( &(eo_sample_field[i]), &(eo_spinor_work[0]), &(eo_spinor_work[1]), gauge_field_with_phase, g_mzz_up, g_mzzinv_up, 1 );
+      if(exitstatus != 0) {
+        fprintf(stderr, "[p2gg_mixed] Error from check_oo_propagator_clover_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(19);
+      }
+    }
   }  /* end of loop on samples */
 
-  if( check_propagator_residual ) {
-    exitstatus = check_oo_propagator_clover_eo( &(eo_sample_field[g_nsample]), eo_sample_field, eo_spinor_work, gauge_field_with_phase, g_mzz_up, g_mzzinv_up, g_nsample );
-    if(exitstatus != 0) {
-      fprintf(stderr, "[p2gg_mixed] Error from check_oo_propagator_clover_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(19);
-    }
-  }
 
 
   /***********************************************************
@@ -521,8 +522,6 @@ int main(int argc, char **argv) {
      ***********************************************************/
     init_contract_cvc_tensor_usource(g_gauge_field, gsx);
 
-#if 0
-#endif  /* of if 0 */
 
     /**********************************************************
      **********************************************************
@@ -607,6 +606,7 @@ int main(int argc, char **argv) {
       }
     }  /* end of loop on shifts */
   
+
     /**********************************************************
      * contractions with eigenvectors
      **********************************************************/
@@ -621,7 +621,7 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[p2gg_mixed] Error from check_point_source_propagator_clover_eo; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(22);
     }
-
+#if 0
     /**********************************************************
      * contractions with stochastic propagators
      **********************************************************/
@@ -636,8 +636,9 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[p2gg_mixed] Error from check_point_source_propagator_clover_eo; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(22);
     }
+#endif  /* of if 0 */
 
-
+#if 0
     for(mu=0; mu<5; mu++)
     {
       /**********************************************************
@@ -742,7 +743,6 @@ int main(int argc, char **argv) {
       EXIT(22);
     }
 
-#if 0
 #endif  /* of if 0 */
 
 #ifdef HAVE_LHPC_AFF
@@ -757,6 +757,8 @@ int main(int argc, char **argv) {
 
   }  /* end of loop on source locations */
 
+#if 0
+#endif  /* of if 0 */
   /****************************************
    * free the allocated memory, finalize
    ****************************************/
