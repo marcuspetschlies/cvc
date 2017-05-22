@@ -38,9 +38,7 @@ namespace cvc {
 int prepare_volume_source(double *s, unsigned int V) {
 
   int status = 0;
-  double ratime, retime;
 
-  ratime = _GET_TIME;
   switch(g_noise_type) {
     case 1:
       /* status = rangauss(s, 24*V); */
@@ -51,8 +49,7 @@ int prepare_volume_source(double *s, unsigned int V) {
       status = ranz2(s, _GSI(V) );
       break;
   }
-  retime = _GET_TIME;
-  if( g_cart_id == 0 ) fprintf(stdout, "# [prepare_volume_source] time for prepare_volume_source = %e seconds\n", retime-ratime);
+
   return(status);
 }  /* end of prepare_volume_source */
 
@@ -65,15 +62,13 @@ int prepare_volume_source(double *s, unsigned int V) {
  * s_even and s_odd do not need to have halo sites
  * work0 should have halo sites
  *********************************************************/
-int init_eo_spincolor_pointsource_propagator(double *s_even, double *s_odd, int global_source_coords[4], int isc, int sign, int have_source, double *work0) {
+int init_eo_spincolor_pointsource_propagator(double *s_even, double *s_odd, int global_source_coords[4], int isc, double*gauge_field, int sign, int have_source, double *work0) {
  
   unsigned int Vhalf = VOLUME/2;
 
   int local_source_coords[4] = { global_source_coords[0]%T, global_source_coords[1]%LX, global_source_coords[2]%LY, global_source_coords[3]%LZ };
 
   int source_location_iseven =  ( global_source_coords[0] + global_source_coords[1] + global_source_coords[2] + global_source_coords[3] ) % 2 == 0;
-
-  unsigned int eo_source_location = g_lexic2eosub[ g_ipt[local_source_coords[0]][local_source_coords[1]][local_source_coords[2]][local_source_coords[3]] ];
 
   double spinor1[24];
   size_t bytes = 24*Vhalf*sizeof(double);
@@ -85,11 +80,13 @@ int init_eo_spincolor_pointsource_propagator(double *s_even, double *s_odd, int 
   /* source node: set source */
 
   if(source_location_iseven) {
-    if(have_source) fprintf(stdout, "# [init_eo_spincolor_pointsource_propagator] even source location\n");
+    if(have_source && g_verbose > 2 ) fprintf(stdout, "# [init_eo_spincolor_pointsource_propagator] even source location (%d,%d,%d,%d)\n",
+        global_source_coords[0], global_source_coords[1], global_source_coords[2], global_source_coords[3]);
 
     /* source proces set point source */
     memset(work0,  0, bytes);
     if(have_source) {
+      unsigned int eo_source_location = g_lexic2eosub[ g_ipt[local_source_coords[0]][local_source_coords[1]][local_source_coords[2]][local_source_coords[3]] ];
       work0[_GSI(eo_source_location) + 2*isc] = 1.0;
     }
     /* even component */
@@ -100,16 +97,21 @@ int init_eo_spincolor_pointsource_propagator(double *s_even, double *s_odd, int 
     /* xi_o = g5 X_oe M^-1 eta_e */
     memcpy(work0, s_even, bytes);
     xchange_eo_field(work0, 0);
-    Hopping_eo(s_odd, work0, g_gauge_field, 1);
+    Hopping_eo(s_odd, work0, gauge_field, 1);
     g5_phi(s_odd, Vhalf);
     spinor_field_ti_eq_re(s_odd, -1., Vhalf);
+
   } else {
-    if(have_source) fprintf(stdout, "# [init_eo_spincolor_pointsource_propagator] odd source location\n");
+    if(have_source && g_verbose > 2 ) fprintf(stdout, "# [init_eo_spincolor_pointsource_propagator] odd source location (%d,%d,%d,%d)\n",
+        global_source_coords[0], global_source_coords[1], global_source_coords[2], global_source_coords[3]);
+
     if(have_source) {
+      unsigned int eo_source_location = g_lexic2eosub[ g_ipt[local_source_coords[0]][local_source_coords[1]][local_source_coords[2]][local_source_coords[3]] ];
       memset(spinor1, 0, 24*sizeof(double));
       spinor1[2*isc] = 1.0;
       _fv_eq_gamma_ti_fv( s_odd+_GSI( eo_source_location ), 5, spinor1 );
     }
+
   }
 
   return(0);
@@ -124,7 +126,7 @@ int init_eo_spincolor_pointsource_propagator(double *s_even, double *s_odd, int 
  * p_even and r_even can be same memory region
  * p_odd  and r_odd  can be same memory region
  *********************************************************/
-int fini_eo_propagator(double *p_even, double *p_odd, double *r_even, double *r_odd , int sign, double *work0) {
+int fini_eo_propagator(double *p_even, double *p_odd, double *r_even, double *r_odd , double*gauge_field, int sign, double *work0) {
  
   const unsigned int Vhalf = VOLUME/2;
   const size_t bytes = 24*Vhalf*sizeof(double);
@@ -135,7 +137,7 @@ int fini_eo_propagator(double *p_even, double *p_odd, double *r_even, double *r_
   /* work0 <- work0 x 2kappa = r_odd x 2kappa */
   spinor_field_ti_eq_re (work0, 2.*g_kappa, Vhalf);
   /* p_odd <- X_eo work0 = X_eo 2kappa r_odd; p_odd auxilliary field */
-  X_eo (p_odd, work0, sign*g_mu, g_gauge_field);
+  X_eo (p_odd, work0, sign*g_mu, gauge_field);
   /* p_even <- p_odd + r_even = r_even + X_eo 2kappa r_odd */
   spinor_field_eq_spinor_field_pl_spinor_field(p_even, p_odd, r_even, Vhalf);
   /* p_odd <- work0 = 2kappa r_odd */
@@ -149,7 +151,7 @@ int fini_eo_propagator(double *p_even, double *p_odd, double *r_even, double *r_
  *
  * safe, if s_even = p_even or s_odd = p_odd
  ***************************************************************************************************/
-int init_eo_sequential_source(double *s_even, double *s_odd, double *p_even, double *p_odd, int tseq, int sign, int pseq[3], int gseq, double *work0) {
+int init_eo_sequential_source(double *s_even, double *s_odd, double *p_even, double *p_odd, int tseq, double*gauge_field, int sign, int pseq[3], int gseq, double *work0) {
   const unsigned int Vhalf = VOLUME/2;
   const unsigned int VOL3half = LX*LY*LZ/2;
   const int tloc = tseq % T;
@@ -217,7 +219,7 @@ int init_eo_sequential_source(double *s_even, double *s_odd, double *p_even, dou
     memset(s_odd,  0, sizeof_eo_spinor_field);
   }
 
-  Q_eo_SchurDecomp_Ainv (s_even, s_odd, s_even, s_odd, g_gauge_field, sign*g_mu, work0);
+  Q_eo_SchurDecomp_Ainv (s_even, s_odd, s_even, s_odd, gauge_field, sign*g_mu, work0);
   retime = _GET_TIME;
 
   if( g_cart_id == 0 ) fprintf(stdout, "# [init_eo_sequential_source] time for init_eo_sequential_source = %e seconds\n", retime-ratime);
@@ -238,7 +240,7 @@ int check_vvdagger_locality (double** V, int numV, int base_coords[4], char*tag,
 
   unsigned int ix;
   int i, k, ia, isrc, ishift[4];
-  int gcoords[4], lcoords[4], source_proc_id=0, source_proc_coords[4];
+  int gcoords[4], lcoords[4], source_proc_id=0;
   int exitstatus;
   double norm[12];
   complex w;
@@ -272,10 +274,7 @@ int check_vvdagger_locality (double** V, int numV, int base_coords[4], char*tag,
     lcoords[2] = gcoords[2] % LY;
     lcoords[3] = gcoords[3] % LZ;
 #ifdef HAVE_MPI
-    source_proc_coords[0] = gcoords[0] / T;
-    source_proc_coords[1] = gcoords[1] / LX;
-    source_proc_coords[2] = gcoords[2] / LY;
-    source_proc_coords[3] = gcoords[3] / LZ;
+    int source_proc_coords[4] =  { gcoords[0] / T, gcoords[1] / LX, gcoords[2] / LY, gcoords[3] / LZ};
     exitstatus = MPI_Cart_rank(g_cart_grid, source_proc_coords, &source_proc_id);
     if(exitstatus != MPI_SUCCESS) {
       return(1);
@@ -381,56 +380,72 @@ int check_vvdagger_locality (double** V, int numV, int base_coords[4], char*tag,
  *     have_source == 1 if process has source, otherwise 0
  *     work0, work1,... auxilliary eo work fields
  *
- * s_even and s_odd do not need to have halo sites
- * work0 should have halo sites
+ * - s_even and s_odd do not need to have halo sites
+ *   work0 should have halo sites
+ *
+ * - for A^-1:
+ *     mzzinv must ee
  *********************************************************/
-int init_clover_eo_spincolor_pointsource_propagator(double *s_even, double *s_odd, int global_source_coords[4], int isc, double*mzzinv, int have_source, double *work0) {
+int init_clover_eo_spincolor_pointsource_propagator(double *s_even, double *s_odd, int global_source_coords[4], int isc, double *gauge_field, double*mzzinv, int have_source, double *work0) {
  
   unsigned int Vhalf = VOLUME/2;
 
   int local_source_coords[4] = { global_source_coords[0]%T, global_source_coords[1]%LX, global_source_coords[2]%LY, global_source_coords[3]%LZ };
 
-  int source_location_iseven =  ( global_source_coords[0] + global_source_coords[1] + global_source_coords[2] + global_source_coords[3] ) % 2 == 0;
-
-  unsigned int eo_source_location = g_lexic2eosub[ g_ipt[local_source_coords[0]][local_source_coords[1]][local_source_coords[2]][local_source_coords[3]] ];
+  int source_location_iseven =  (int)( ( global_source_coords[0] + global_source_coords[1] + global_source_coords[2] + global_source_coords[3] ) % 2 == 0 );
 
   double spinor1[24];
-  size_t bytes = 24*Vhalf*sizeof(double);
+  size_t sizeof_eo_spinor_field = 24*Vhalf*sizeof(double);
 
   /* all procs: initialize to zero */
-  memset(s_even, 0, bytes);
-  memset(s_odd,  0, bytes);
+  memset(s_even, 0, sizeof_eo_spinor_field );
+  memset(s_odd,  0, sizeof_eo_spinor_field );
 
   /* source node: set source */
 
   if(source_location_iseven) {
-    if(have_source) fprintf(stdout, "# [init_eo_spincolor_pointsource_propagator] even source location\n");
+
+    if(have_source && g_verbose > 2 ) fprintf(stdout, "# [init_clover_eo_spincolor_pointsource_propagator] even source location (%d,%d,%d,%d)\n",
+        global_source_coords[0], global_source_coords[1], global_source_coords[2], global_source_coords[3]);
 
     /* source proces set point source */
-    memset(work0,  0, bytes);
+    memset(work0,  0, sizeof_eo_spinor_field );
     if(have_source) {
+      unsigned int eo_source_location = g_lexic2eosub[ g_ipt[local_source_coords[0]][local_source_coords[1]][local_source_coords[2]][local_source_coords[3]] ];
       work0[_GSI(eo_source_location) + 2*isc] = 1.0;
     }
+    /**********************************************
+     * apply A^-1 g5
+     * A^-1 = ( M_ee^-1 g5          0 )
+     *        ( -g5 M_eo M_ee^-1 g5 1 )
+     **********************************************/
     /* even component */
     /* xi_e = M^-1 eta_e */
     M_clover_zz_inv_matrix (s_even, work0, mzzinv);
 
-
     /* odd component */
     /* xi_o = g5 X_oe M^-1 eta_e */
-    memcpy(work0, s_even, bytes);
-    xchange_eo_field(work0, 0);
-    Hopping_eo(s_odd, work0, g_gauge_field, 1);
+    memcpy(work0, s_even, sizeof_eo_spinor_field );
+    // xchange_eo_field(work0, 0);
+    Hopping_eo(s_odd, work0, gauge_field, 1);
     g5_phi(s_odd, Vhalf);
     spinor_field_ti_eq_re(s_odd, -1., Vhalf);
+
   } else {
-    if(have_source) fprintf(stdout, "# [init_eo_spincolor_pointsource_propagator] odd source location\n");
+    /* odd source location */
+    if(have_source && g_verbose > 2 ) fprintf(stdout, "# [init_clover_eo_spincolor_pointsource_propagator] odd source location (%d,%d,%d,%d)\n",
+        global_source_coords[0], global_source_coords[1], global_source_coords[2], global_source_coords[3]);
+
     if(have_source) {
+      unsigned int eo_source_location = g_lexic2eosub[ g_ipt[local_source_coords[0]][local_source_coords[1]][local_source_coords[2]][local_source_coords[3]] ];
       memset(spinor1, 0, 24*sizeof(double));
       spinor1[2*isc] = 1.0;
       _fv_eq_gamma_ti_fv( s_odd+_GSI( eo_source_location ), 5, spinor1 );
     }
   }
+#ifdef HAVE_MPI
+  MPI_Barrier(g_cart_grid);
+#endif
 
   return(0);
 }  /* end of prepare_clover_eo_spincolor_point_source */
@@ -444,7 +459,7 @@ int init_clover_eo_spincolor_pointsource_propagator(double *s_even, double *s_od
  * p_even and r_even can be same memory region
  * p_odd  and r_odd  can be same memory region
  *********************************************************/
-int fini_clover_eo_propagator(double *p_even, double *p_odd, double *r_even, double *r_odd , double*mzzinv, double *work0) {
+int fini_clover_eo_propagator(double *p_even, double *p_odd, double *r_even, double *r_odd , double*gauge_field, double*mzzinv, double *work0) {
  
   const unsigned int Vhalf = VOLUME/2;
   const size_t bytes = 24*Vhalf*sizeof(double);
@@ -455,7 +470,7 @@ int fini_clover_eo_propagator(double *p_even, double *p_odd, double *r_even, dou
   /* work0 <- work0 x 2kappa = r_odd x 2kappa */
   spinor_field_ti_eq_re (work0, 2.*g_kappa, Vhalf);
   /* p_odd <- X_eo work0 = X_eo 2kappa r_odd; p_odd auxilliary field */
-  X_clover_eo (p_odd, work0, g_gauge_field, mzzinv);
+  X_clover_eo (p_odd, work0, gauge_field, mzzinv);
 
   /* p_even <- p_odd + r_even = r_even + X_eo 2kappa r_odd */
   spinor_field_eq_spinor_field_pl_spinor_field(p_even, p_odd, r_even, Vhalf);
@@ -470,7 +485,7 @@ int fini_clover_eo_propagator(double *p_even, double *p_odd, double *r_even, dou
  *
  * safe, if s_even = p_even or s_odd = p_odd
  ***************************************************************************************************/
-int init_clover_eo_sequential_source(double *s_even, double *s_odd, double *p_even, double *p_odd, int tseq, double*mzzinv, int pseq[3], int gseq, double *work0) {
+int init_clover_eo_sequential_source(double *s_even, double *s_odd, double *p_even, double *p_odd, int tseq, double*gauge_field, double*mzzinv, int pseq[3], int gseq, double *work0) {
   const unsigned int Vhalf = VOLUME/2;
   const unsigned int VOL3half = LX*LY*LZ/2;
   const int tloc = tseq % T;
@@ -481,54 +496,81 @@ int init_clover_eo_sequential_source(double *s_even, double *s_odd, double *p_ev
   const double  q_offset = q[0] * g_proc_coords[1] * LX + q[1] * g_proc_coords[2] * LY + q[2] * g_proc_coords[3] * LZ;
 
   const size_t offset = _GSI(VOL3half);
-  const size_t bytes  = offset * sizeof(double);
+  const size_t sizeof_eo_spinor_field_timeslice  = offset * sizeof(double);
 
-  int i, exitstatus, x0, x1, x2, x3;
-  unsigned int ix;
-  int source_proc_id = 0;
-  double q_phase;
-  double *s_=NULL, *p_=NULL, spinor1[24], spinor2[24];
-  complex w;
+  int i, exitstatus, x0;
 
-#ifdef HAVE_MPI
   /* have seq source timeslice ? */
-  i = tseq / T;
-  exitstatus = MPI_Cart_rank(g_tr_comm, &i, &source_proc_id);
-  if(exitstatus !=  MPI_SUCCESS ) {
-    fprintf(stderr, "[init_eo_sequential_source] Error from MPI_Cart_rank, status was %d\n", exitstatus);
-    EXIT(9);
-  }
-  if(g_tr_id == source_proc_id) fprintf(stdout, "# [init_eo_sequential_source] proc %d / %d = (%d,%d,%d,%d) has t sequential %2d / %2d\n", g_cart_id, g_tr_id,
-     g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3], tseq, tloc);
-#endif
+  const int source_proc_id = ( g_proc_coords[0] == tseq / T ) ? g_cart_id : -1;
 
-  if(g_tr_id == source_proc_id) {
+  if(g_cart_id == source_proc_id && g_verbose > 2) fprintf(stdout, "# [init_clover_eo_sequential_source] proc %d = (%d,%d,%d,%d) has t sequential %2d / %2d\n", g_cart_id,
+     g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3], tseq, tloc);
+
+
+  if(g_cart_id == source_proc_id) {
+
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(x1,x2,x3,ix,q_phase,w,spinor1,spinor2,s_,p_)
+#pragma omp parallel
+{
 #endif
-    for(x1=0; x1<LX; x1++) {
-    for(x2=0; x2<LY; x2++) {
-    for(x3=0; x3<LZ; x3++) {
-      ix  = g_ipt[tloc][x1][x2][x3];
-      q_phase = q[0] * x1 + q[1] * x2 + q[2] * x3 + q_offset;
+    unsigned int ix, ixeosub;
+    double q_phase;
+    double *s_=NULL, *p_=NULL, spinor1[24];
+    complex w;
+    /*************/
+    /* even part */
+    /*************/
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(ix=0; ix<VOL3half; ix++) {
+      ixeosub  = tloc * VOL3half + ix;
+      q_phase = q[0] * g_eosubt2coords[0][tloc][ix][0] + q[1] * g_eosubt2coords[0][tloc][ix][1] + q[2] * g_eosubt2coords[0][tloc][ix][2] + q_offset;
+      /* fprintf(stdout, "# [init_clover_eo_sequential_source] proc%.4d t = %3d x_e = %6u = %3d %3d %3d\n", g_cart_id, tloc, ixeosub, 
+          g_eosubt2coords[0][tloc][ix][0], g_eosubt2coords[0][tloc][ix][1], g_eosubt2coords[0][tloc][ix][2]); */
       w.re = cos(q_phase);
       w.im = sin(q_phase);
-      if(g_iseven[ix]) {
-        s_ = s_even + _GSI(g_lexic2eosub[ix]);
-        p_ = p_even + _GSI(g_lexic2eosub[ix]);
-      } else {
-        s_ = s_odd + _GSI(g_lexic2eosub[ix]);
-        p_ = p_odd + _GSI(g_lexic2eosub[ix]);
-      }
+      s_ = s_even + _GSI(ixeosub);
+      p_ = p_even + _GSI(ixeosub);
+      
       _fv_eq_fv_ti_co(spinor1, p_, &w);
-      _fv_eq_gamma_ti_fv(spinor2, gseq, spinor1);
-      // _fv_eq_fv(s_, spinor2);
-      _fv_eq_gamma_ti_fv(s_, 5, spinor2);
-    }}}
+      _fv_eq_gamma_ti_fv(s_, gseq, spinor1);
+      _fv_ti_eq_g5(s_);
+    }  /* end of loop on ix */
+
+
+    /*************/
+    /* odd part  */
+    /*************/
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(ix=0; ix<VOL3half; ix++) {
+      ixeosub  = tloc * VOL3half + ix;
+      q_phase = q[0] * g_eosubt2coords[1][tloc][ix][0] + q[1] * g_eosubt2coords[1][tloc][ix][1] + q[2] * g_eosubt2coords[1][tloc][ix][2] + q_offset;
+      /* fprintf(stdout, "# [init_clover_eo_sequential_source] proc%.4d t = %3d x_o = %6u = %3d %3d %3d\n", g_cart_id, tloc, ixeosub,
+          g_eosubt2coords[1][tloc][ix][0], g_eosubt2coords[1][tloc][ix][1], g_eosubt2coords[1][tloc][ix][2]); */
+      w.re = cos(q_phase);
+      w.im = sin(q_phase);
+      s_ = s_odd + _GSI(ixeosub);
+      p_ = p_odd + _GSI(ixeosub);
+      
+      _fv_eq_fv_ti_co(spinor1, p_, &w);
+      _fv_eq_gamma_ti_fv(s_, gseq, spinor1);
+      _fv_ti_eq_g5(s_);
+    }  /* end of loop on ix */
+
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+    /***************************************/
+    /* remaining timeslice are set to zero */
+    /***************************************/
     for(i=1; i<T; i++) {
       x0 = (tloc + i) % T;
-      memset(s_even+x0*offset, 0, bytes);
-      memset(s_odd +x0*offset, 0, bytes);
+      memset(s_even+x0*offset, 0, sizeof_eo_spinor_field_timeslice );
+      memset(s_odd +x0*offset, 0, sizeof_eo_spinor_field_timeslice );
     }
   } else {
     // printf("# [] process %d setting source to zero\n", g_cart_id);
@@ -536,8 +578,11 @@ int init_clover_eo_sequential_source(double *s_even, double *s_odd, double *p_ev
     memset(s_odd,  0, sizeof_eo_spinor_field);
   }
 
-  Q_clover_eo_SchurDecomp_Ainv (s_even, s_odd, s_even, s_odd, g_gauge_field, mzzinv, work0);
+  Q_clover_eo_SchurDecomp_Ainv (s_even, s_odd, s_even, s_odd, gauge_field, mzzinv, work0);
 
+#ifdef HAVE_MPI
+  MPI_Barrier( g_cart_grid );
+#endif
   return(0);
 }  /* end of init_clover_eo_sequential_source */
 
@@ -625,9 +670,6 @@ int init_coherent_sequential_source(double *s, double **p, int tseq, int ncoh, i
   const size_t sizeof_spinor_field_timeslice = _GSI(LX*LY*LZ) * sizeof(double);
 
   int have_source=0, lts=-1, icoh;
-  double ratime, retime;
-
-  ratime = _GET_TIME;
 
   if(s == NULL || p == NULL) {
     fprintf(stderr, "[init_coherent_sequential_source] Error, field is null\n");
@@ -691,10 +733,8 @@ int init_coherent_sequential_source(double *s, double **p, int tseq, int ncoh, i
 
   }  /* end of loop on coherent sources */
 
-  retime = _GET_TIME;
-  if( g_cart_id == 0 ) fprintf(stdout, "# [init_coherent_sequential_source] time for init_coherent_sequential_source = %e seconds\n", retime-ratime);
   return(0);
-}  /* end of init_coherent_sequential_source */
+}  /* end of function init_sequential_source */
 
 
 /**********************************************************
@@ -706,9 +746,7 @@ int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init) {
   const int          have_source = ( tsrc / T == g_proc_coords[0] ) ? 1 : 0;
   const unsigned int VOL3 = LX*LY*LZ;
 
-  int c;
-  unsigned int ix, iix, x1, x2, x3;
-  int i, id;
+  unsigned int x1, x2, x3;
   static double *ran = NULL;
   double ratime, retime;
   
@@ -777,7 +815,7 @@ int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init) {
 #pragma omp parallel
 {
 #endif
-      unsigned int ix, iix;
+      unsigned int iix;
       double phase, cphase, sphase, tmp[6], *ptr;
 
 #ifdef HAVE_OPENMP
