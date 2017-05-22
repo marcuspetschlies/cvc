@@ -24,6 +24,8 @@ void xchange_gauge_field(double*);
 
 void xchange_field(double*);
 
+void xchange_spinor_field_bnd2(double*);
+
 void xchange_eo_field(double *phi, int eo);
 
 void xchange_contraction(double *phi, int N);
@@ -157,6 +159,18 @@ int check_oo_propagator_clover_eo(double**prop_o, double**source, double**work, 
 int plaquetteria  (double*gauge_field );
 
 int gauge_field_eq_gauge_field_ti_phase (double**gauge_field_with_phase, double*gauge_field, complex co_phase[4] );
+
+void co_field_eq_fv_dag_ti_fv (double*c, double*r, double*s, unsigned int N );
+
+void co_field_eq_fv_dag_ti_gamma_ti_fv (double*c, double*r, int gid, double*s, unsigned int N );
+
+void spinor_field_eq_cm_field_ti_spinor_field (double*r, double *u, double*s, unsigned int N);
+
+void spinor_field_eq_gauge_field_ti_spinor_field (double*r, double *gf, double*s, int mu, unsigned int N);
+
+void spinor_field_eq_gauge_field_dag_ti_spinor_field (double*r, double *gf, double*s, int mu, unsigned int N);
+
+void spinor_field_eq_gauge_field_fbwd_ti_spinor_field (double*r, double *gf, double*s, int mu, int fbwd, unsigned int N);
 
 }  /* end of namespace cvc */
 #endif
