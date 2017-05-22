@@ -113,7 +113,7 @@ int contract_piN_piN (spinor_propagator_type **res, double**uprop_list, double**
       create_sp(&sp1);
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel for
+#pragma omp for
 #endif
       for(ix=0; ix<VOLUME; ix++)
       {
@@ -315,7 +315,7 @@ int contract_piN_piN_oet (spinor_propagator_type **res, double**uprop_list, doub
   create_sp(&sp1);
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel for
+#pragma omp for
 #endif
       for(ix=0; ix<VOLUME; ix++)
       {
