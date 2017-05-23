@@ -18,5 +18,9 @@ int prepare_seqn_stochastic_vertex_propagator_sliced3d_oet (double**seq_prop, do
 int prepare_seq_stochastic_vertex_stochastic_oet (double**seq_prop, double**stoch_prop_0, double**stoch_prop_p,
         int gid, int source_coords[4], int nsample);
 
+int point_to_all_fermion_propagator_clover_eo ( double **eo_spinor_field_e, double **eo_spinor_field_o,  int op_id,
+        int global_source_coords[4], double *gauge_field, double **mzz, double **mzzinv, int check_propagator_residual, double **eo_spinor_work );
+
+
 }  /* end of namespace cvc */
 #endif

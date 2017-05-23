@@ -15,6 +15,21 @@
 #include <time.h>
 #include <getopt.h>
 
+#ifdef HAVE_MPI
+#include <mpi.h>"
+#endif
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+#  ifdef HAVE_TMLQCD_LIBWRAPPER
+#    include "tmLQCD.h"
+#  endif
+#ifdef __cplusplus
+}
+#endif
+
 #include "cvc_complex.h"
 #include "cvc_linalg.h"
 #include "iblas.h"
@@ -30,6 +45,7 @@
 /* #include "smearing_techniques.h" */
 /* #include "fuzz.h" */
 #include "project.h"
+#include "prepare_source.h"
 
 #ifndef _NON_ZERO
 #  define _NON_ZERO (5.e-14)
@@ -655,5 +671,69 @@ int prepare_seq_stochastic_vertex_stochastic_oet (double**seq_prop, double**stoc
 
   return(0);
 }  /* end of prepare_seq_stochastic_vertex_stochastic_oet */
+
+
+/**********************************************************
+ * make a poin-to-all propagator
+ * 4 (spin) x 3 (color) right-hand sides
+ **********************************************************/
+int point_to_all_fermion_propagator_clover_eo ( double **eo_spinor_field_e, double **eo_spinor_field_o,  int op_id,
+    int global_source_coords[4], double *gauge_field, double **mzz, double **mzzinv, int check_propagator_residual, double **eo_spinor_work ) {
+
+  const size_t sizeof_eo_spinor_field = _GSI( VOLUME / 2 ) * sizeof(double);
+
+  int exitstatus;
+  int local_source_coords[4];
+  int source_proc_id;
+
+  /* source info for shifted source location */
+  if( (exitstatus = get_point_source_info ( global_source_coords, local_source_coords, &source_proc_id) ) != 0 ) {
+    fprintf(stderr, "[point_to_all_fermion_propagator_clover_eo] Error from get_point_source_info, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(15);
+  }
+
+  /* loop on spin and color indices */
+  for(int i=0; i<12; i++) {
+
+    /* A^-1 g5 source */
+    exitstatus = init_clover_eo_spincolor_pointsource_propagator (eo_spinor_field_e[i], eo_spinor_field_o[i],
+      global_source_coords, i, gauge_field, mzzinv[0], (int)(source_proc_id == g_cart_id), eo_spinor_work[0]);
+    if(exitstatus != 0 ) {
+      fprintf(stderr, "[point_to_all_fermion_propagator_clover_eo] Error from init_eo_spincolor_pointsource_propagator; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(18);
+    }
+
+    /* C^-1 */
+    if(g_cart_id == 0 && g_verbose > 1) fprintf(stdout, "# [point_to_all_fermion_propagator_clover_eo] calling tmLQCD_invert_eo\n");
+    memset(eo_spinor_work[1], 0, sizeof_eo_spinor_field);
+    memcpy(eo_spinor_work[0], eo_spinor_field_o[i], sizeof_eo_spinor_field);
+    exitstatus = tmLQCD_invert_eo ( eo_spinor_work[1], eo_spinor_work[0], op_id);
+    if(exitstatus != 0) {
+      fprintf(stderr, "[point_to_all_fermion_propagator_clover_eo] Error from _TMLQCD_INVERT_EO, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(19);
+    }
+    memcpy(eo_spinor_field_o[i], eo_spinor_work[1], sizeof_eo_spinor_field);
+
+    /* B^-1 excl. C^-1 */
+    exitstatus = fini_clover_eo_propagator (eo_spinor_field_e[i], eo_spinor_field_o[i], eo_spinor_field_e[i], eo_spinor_field_o[i],
+      gauge_field, mzzinv[0], eo_spinor_work[0]);
+    if(exitstatus != 0) {
+      fprintf(stderr, "[point_to_all_fermion_propagator_clover_eo] Error from fini_eo_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(20);
+    }
+
+  }  /* end of loop on spin-color */
+
+  if( check_propagator_residual ) {
+    check_point_source_propagator_clover_eo( eo_spinor_field_e, eo_spinor_field_o, eo_spinor_work, gauge_field, mzz, mzzinv, global_source_coords, 12 );
+    if(exitstatus != 0 ) {
+      fprintf(stderr, "[point_to_all_fermion_propagator_clover_eo] Error from check_point_source_propagator_clover_eo; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(21);
+    }
+  }
+
+  return(0);
+}  /* end of point_to_all_fermion_propagator_clover_eo */
+
 
 }  /* end of namespace cvc */
