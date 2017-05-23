@@ -49,6 +49,9 @@ extern "C"
 #include "matrix_init.h"
 #include "rotations.h"
 #include "ranlxd.h"
+#include "prepare_source.h"
+#include "Q_phi.h"
+#include "scalar_products.h"
 
 using namespace cvc;
 
@@ -60,6 +63,22 @@ void usage() {
   exit(0);
 }
 
+void print_sf (double*sf, char*name) {
+
+  FILE *ofs = fopen(name, "w");
+  for( int x0 = 0; x0 < T; x0++ ) {
+  for( int x1 = 0; x1 < LX; x1++ ) {
+  for( int x2 = 0; x2 < LY; x2++ ) {
+  for( int x3 = 0; x3 < LZ; x3++ ) {
+    unsigned int ix = g_ipt[x0][x1][x2][x3];
+    fprintf(ofs, "# x %3d%3d%3d%3d\n", x0, x1, x2, x3);
+    for( int mu=0; mu<12; mu++ ) {
+      fprintf(ofs, "%3d %3d %25.16e %25.16e\n", mu/3, mu%3, sf[_GSI(ix)+2*mu], sf[_GSI(ix)+2*mu+1]);
+    }
+  }}}}
+  fclose(ofs);
+}  /* end of print_sf */
+
 int main(int argc, char **argv) {
 
   const double ONE_OVER_SQRT2 = 1. / sqrt(2.);
@@ -69,7 +88,12 @@ int main(int argc, char **argv) {
   int filename_set = 0;
   char filename[100];
   int exitstatus;
-  // FILE *ofs = NULL;
+  double norm, norm2;
+  FILE *ofs = NULL;
+  double _Complex **R = NULL;
+  double _Complex **A = NULL;
+  double _Complex **B = NULL;
+
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
@@ -157,23 +181,14 @@ int main(int argc, char **argv) {
   double w = 4*M_PI/3.;
 */
 
-  double _Complex **R = NULL;
-  double _Complex **A = NULL;
-  double _Complex **B = NULL;
+  rot_init_rotation_table();
 
-  init_rotation_table();
 
-#if 0
-  // rlxd_init(2, g_seed);
-#endif 
+  rlxd_init(2, g_seed);
+
 
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
-  if(!(strcmp(gaugefilename_prefix,"identity")==0)) {
-    /* read the gauge field */
-    sprintf(filename, "%s.%.4d", gaugefilename_prefix, Nconf);
-    if(g_cart_id==0) fprintf(stdout, "# [p2gg] reading gauge field from file %s\n", filename);
-    read_lime_gauge_field_doubleprec(filename);
-  } else {
+  if( strcmp(gaugefilename_prefix,"identity") == 0 ) {
     /* initialize unit matrices */
     if(g_cart_id==0) fprintf(stdout, "\n# [p2gg] initializing unit matrices\n");
     for( unsigned int ix=0;ix<VOLUME;ix++) {
@@ -182,6 +197,13 @@ int main(int argc, char **argv) {
       _cm_eq_id( g_gauge_field + _GGI(ix, 2) );
       _cm_eq_id( g_gauge_field + _GGI(ix, 3) );
     }
+  } else if ( strcmp( gaugefilename_prefix, "random") == 0 ) {
+    random_gauge_field( g_gauge_field, 1.);
+  } else {
+    /* read the gauge field */
+    sprintf(filename, "%s.%.4d", gaugefilename_prefix, Nconf);
+    if(g_cart_id==0) fprintf(stdout, "# [p2gg] reading gauge field from file %s\n", filename);
+    read_lime_gauge_field_doubleprec(filename);
   }
 #ifdef HAVE_MPI
   xchange_gauge_field( g_gauge_field );
@@ -199,15 +221,43 @@ int main(int argc, char **argv) {
   }
   plaquetteria  ( g_gauge_field );
 
+/*
+  sprintf(filename, "gf_orig.%.2d", g_cart_id);
+  ofs = fopen(filename, "w");
+  for( int x0 = 0; x0 < T; x0++ ) {
+  for( int x1 = 0; x1 < LX; x1++ ) {
+  for( int x2 = 0; x2 < LY; x2++ ) {
+  for( int x3 = 0; x3 < LZ; x3++ ) {
+    unsigned int ix = g_ipt[x0][x1][x2][x3];
+    fprintf(ofs, "# x %3d%3d%3d%3d\n", x0, x1, x2, x3);
+    for( int mu=0; mu<36; mu++ ) {
+      fprintf(ofs, "%3d %3d %25.16e %25.16e\n", mu/9, mu%9, 
+          g_gauge_field[_GGI(ix,0)+2*mu], g_gauge_field[_GGI(ix,0)+2*mu+1]);
+    }
+  }}}}
+  fclose(ofs);
+*/
+
   double *gauge_field_rot = NULL;
   alloc_gauge_field(&gauge_field_rot, VOLUMEPLUSRAND);
 
-  init_2level_buffer ( (double***)(&R), Ndim, 2*Ndim );
-  init_2level_buffer ( (double***)(&A), Ndim, 2*Ndim );
+  no_fields = 5;
+  g_spinor_field = (double**)malloc( no_fields * sizeof(double*));
+  g_spinor_field[0] = (double*)malloc( no_fields * _GSI(VOLUME+RAND)*sizeof(double) );
+  for( int i=1; i<no_fields; i++  ) {
+    g_spinor_field[i] = g_spinor_field[i-1] +  _GSI(VOLUME+RAND);
+  }
 
+  R = rot_init_rotation_matrix (Ndim);
+  A = rot_init_rotation_matrix (Ndim);
+  B = rot_init_rotation_matrix (Ndim);
 
-  // for(int irot=0; irot < 48; irot++ )
-  for(int irot = 46; irot < 47; irot++ )
+  /***********************************************************
+   * loop on rotations
+   ***********************************************************/
+  for(int irot=0; irot < 48; irot++ )
+  // for(int irot = 46; irot < 47; irot++ )
+  // for(int irot = 0; irot < 1; irot++ )
   {
 
     if (g_cart_id == 0 ) {
@@ -216,8 +266,8 @@ int main(int argc, char **argv) {
           cubic_group_double_cover_rotations[irot].w);
     }
 
-    rotation_matrix_spherical_basis ( R, Ndim-1, cubic_group_double_cover_rotations[irot].n, cubic_group_double_cover_rotations[irot].w );
-    spherical2cartesian_3x3 (A, R);
+    rot_rotation_matrix_spherical_basis ( R, Ndim-1, cubic_group_double_cover_rotations[irot].n, cubic_group_double_cover_rotations[irot].w );
+    rot_spherical2cartesian_3x3 (A, R);
     if ( rot_mat_check_is_real_int ( A, Ndim ) ) {
       if (g_cart_id == 0 )
         fprintf(stdout, "# [test_rotations] rot_mat_check_is_real_int matrix A rot %2d ok\n", irot);
@@ -225,17 +275,32 @@ int main(int argc, char **argv) {
       EXIT(6);
     }
 
-    char name[6];
+    char name[12];
     sprintf(name, "A[%.2d]", irot);
     rot_printf_rint_matrix (A, Ndim, name, stdout );
-
 
     exitstatus = rot_gauge_field ( gauge_field_rot, g_gauge_field, A);
     if ( exitstatus != 0 ) {
       fprintf(stderr, "[test_rotations] Error from rot_gauge_field, status was %d\n", exitstatus);
       EXIT(23);
     }
-#if 0
+
+/*
+    sprintf(filename, "gf_rot.%.2d", g_cart_id);
+    ofs = fopen(filename, "w");
+    for( int x0 = 0; x0 < T; x0++ ) {
+    for( int x1 = 0; x1 < LX; x1++ ) {
+    for( int x2 = 0; x2 < LY; x2++ ) {
+    for( int x3 = 0; x3 < LZ; x3++ ) {
+      unsigned int ix = g_ipt[x0][x1][x2][x3];
+      fprintf(ofs, "# x %3d%3d%3d%3d\n", x0, x1, x2, x3);
+      for( int mu=0; mu<36; mu++ ) {
+        fprintf(ofs, "%3d %3d %25.16e %25.16e\n", mu/9, mu%9, 
+            gauge_field_rot[_GGI(ix,0)+2*mu], gauge_field_rot[_GGI(ix,0)+2*mu+1]);
+      }
+    }}}}
+    fclose(ofs);
+*/
 #ifdef HAVE_MPI
     xchange_gauge_field ( gauge_field_rot );
 #endif
@@ -245,12 +310,154 @@ int main(int argc, char **argv) {
     }
     plaquetteria  ( gauge_field_rot );
 
+#if 0
+    /* B = A^-1 */
+    rot_mat_adj (B, A, Ndim);
+    if ( rot_mat_check_is_real_int ( B, Ndim ) ) {
+      if (g_cart_id == 0 )
+        fprintf(stdout, "# [test_rotations] rot_mat_check_is_real_int matrix B rot %2d ok\n", irot);
+    } else {
+      EXIT(6);
+    }
+    sprintf(name, "B[%.2d]", irot);
+    rot_printf_rint_matrix (B, Ndim, name, stdout );
 
+/*
+    rot_mat_ti_mat (R, A, B, Ndim);
+    if ( rot_mat_check_is_real_int ( R, Ndim ) ) {
+      if (g_cart_id == 0 )
+        fprintf(stdout, "# [test_rotations] rot_mat_check_is_real_int matrix R = A B rot %2d ok\n", irot);
+    } else {         
+      EXIT(6);               
+    }         
+    sprintf(name, "AxB[%.2d]", irot);
+    rot_printf_rint_matrix (R, Ndim, name, stdout );
+*/
+#endif  /* of if 0 */
+
+
+    prepare_volume_source(g_spinor_field[0], VOLUME);
+
+#ifdef HAVE_MPI
+    xchange_field ( g_spinor_field[0] );
+#endif
+
+
+
+#if 0
+    /**************************
+     * direction dir
+     **************************/
+    int dir = -3, dir_rot = 0;
+    int fbwd = dir/abs(dir);
+
+    spinor_field_eq_gauge_field_fbwd_ti_spinor_field ( g_spinor_field[1], g_gauge_field, g_spinor_field[0], abs(dir), fbwd, VOLUME);
+
+    //sprintf(filename, "sf.%d.%.2d", dir, g_cart_id);
+    //print_sf( g_spinor_field[1], filename );
+
+    rot_spinor_field ( g_spinor_field[2], g_spinor_field[1], A);
+    sprintf(filename, "sf.%d.%.2d", dir, g_cart_id);
+    // print_sf( g_spinor_field[2], filename );
+
+    /*(2) V_0 psi ° R */
+    rot_spinor_field ( g_spinor_field[1], g_spinor_field[0], A);
+    // memcpy( g_spinor_field[1], g_spinor_field[0], _GSI(VOLUME)*sizeof(double));
+#ifdef HAVE_MPI
+    xchange_field ( g_spinor_field[1] );
+#endif
+
+    /* rotate direction dir */
+    int d[3] = {0,0,0};
+    int drot[3] = {0,0,0};
+    d[ abs(dir)-1 ] = dir / abs(dir);
+    /* inverse rotation */
+    rot_point_inv ( drot, d, A);
+    dir_rot =  drot[0] != 0 ? drot[0] : ( drot[1] != 0 ? 2*drot[1] : 3*drot[2] );
+    if ( g_cart_id == 0 ) {
+      fprintf(stdout, "# [test_rotations] dir %2d to dir rot %2d\n", dir, dir_rot);
+    }
+
+    int fbwd_rot = dir_rot / abs( dir_rot );
+    spinor_field_eq_gauge_field_fbwd_ti_spinor_field ( g_spinor_field[3], gauge_field_rot, g_spinor_field[1], abs(dir_rot), fbwd_rot, VOLUME);
+
+    sprintf(filename, "sf_rot.%d.%.2d", dir_rot, g_cart_id);
+    // print_sf( g_spinor_field[3], filename );
+    spinor_field_norm_diff( &norm, g_spinor_field[2], g_spinor_field[3], VOLUME);
+    if ( g_cart_id == 0 ) {
+      fprintf(stdout, "# [test_rotations] norm rot %2d dir %2d = %25.16e\n", irot, dir, norm);
+    }
+#endif  /* of if 0 */
+
+    double _Complex **ASpin = rot_bispinor_rotation_matrix_spherical_basis ( cubic_group_double_cover_rotations[irot].n, cubic_group_double_cover_rotations[irot].w );
+
+    rot_mat_adj(ASpin, ASpin, 4);
+    /*
+    sprintf(name, "ASpind[%.2d]", irot);
+    rot_printf_matrix (ASpin, 4, name, stdout );
+    */
+
+    sprintf(name, "ASpin[%.2d]", irot);
+    rot_printf_matrix (ASpin, 4, name, stdout );
+/*
+    int ispin = 0;
+    unsigned int source_location = 0;
+    memset( g_spinor_field[0], 0, _GSI(VOLUME)*sizeof(double) );
+    g_spinor_field[0][_GSI(source_location)+2*(3*ispin+0)] = 1.;
+    sprintf(filename, "sf.%d.%.2d", ispin, g_cart_id);
+    print_sf( g_spinor_field[0], filename );
+*/
+
+    Q_phi( g_spinor_field[1], g_spinor_field[0], g_gauge_field, g_mu);
+    rot_spinor_field ( g_spinor_field[2], g_spinor_field[1], A);
+    // rot_bispinor_mat_ti_spinor_field ( g_spinor_field[2], ASpin, g_spinor_field[2], VOLUME);
+    //sprintf(filename, "sf_RQ.%d.%.2d", ispin, g_cart_id);
+    //print_sf( g_spinor_field[2], filename );
+#if 0
+#endif  /* of if 0 */
+
+    rot_spinor_field ( g_spinor_field[1], g_spinor_field[0], A);
+    rot_bispinor_mat_ti_spinor_field ( g_spinor_field[1], ASpin, g_spinor_field[1], VOLUME);
+    Q_phi( g_spinor_field[3], g_spinor_field[1], gauge_field_rot, g_mu);
+    rot_mat_adj(ASpin, ASpin, 4);
+    rot_bispinor_mat_ti_spinor_field ( g_spinor_field[3], ASpin, g_spinor_field[3], VOLUME);
+    //sprintf(filename, "sf_QR.%d.%.2d", ispin, g_cart_id);
+    //print_sf( g_spinor_field[3], filename );
+
+    // rot_bispinor_mat_ti_spinor_field ( g_spinor_field[3], ASpin, g_spinor_field[3], VOLUME);
+    spinor_field_norm_diff( &norm, g_spinor_field[2], g_spinor_field[3], VOLUME);
+    spinor_scalar_product_re ( &norm2, g_spinor_field[0], g_spinor_field[0], VOLUME);
+    if ( g_cart_id == 0 ) {
+      fprintf(stdout, "# [test_rotations] norm rot %2d %25.16e %25.16e\n", irot, norm2, norm / sqrt(norm2) );
+    }
+
+#if 0
+    rot_bispinor_mat_ti_spinor_field ( g_spinor_field[1], ASpin, g_spinor_field[0], VOLUME);
+    spinor_field_norm_diff( &norm, g_spinor_field[1], g_spinor_field[0], VOLUME);
+    if ( g_cart_id == 0 ) {
+      fprintf(stdout, "# [test_rotations] norm rot %2d = %25.16e\n", irot, norm);
+    }
+
+    rot_mat_adj(ASpin, ASpin, 4);
+    rot_bispinor_mat_ti_spinor_field ( g_spinor_field[1], ASpin, g_spinor_field[1], VOLUME);
+    spinor_field_norm_diff( &norm, g_spinor_field[1], g_spinor_field[0], VOLUME);
+    if ( g_cart_id == 0 ) {
+      fprintf(stdout, "# [test_rotations] norm id %2d = %25.16e\n", irot, norm);
+    }
+#endif  /* of if 0 */
+
+    rot_fini_rotation_matrix (&ASpin);
+
+#if 0
 #endif  /* of if 0 */
   }  /* end of loop on rotations */
 
-  fini_2level_buffer ( (double***)(&A) );
-  fini_2level_buffer ( (double***)(&R) );
+  rot_fini_rotation_matrix( &R );
+  rot_fini_rotation_matrix( &A );
+  rot_fini_rotation_matrix( &B );
+
+  free( g_spinor_field[0] );
+  free( g_spinor_field );
 
   if(g_cart_id==0) {
     g_the_time = time(NULL);

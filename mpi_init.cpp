@@ -79,6 +79,32 @@ MPI_Datatype spinor_z_slice_vector;
 MPI_Datatype spinor_z_subslice_cont;
 MPI_Datatype spinor_z_slice_cont;
 
+/* edges for spinor fields */
+
+/* spinor x-t-edge */
+MPI_Datatype spinor_xt_edge_vector;
+MPI_Datatype spinor_xt_edge_cont;
+
+/* spinor y-t-edge */
+MPI_Datatype spinor_yt_edge_vector;
+MPI_Datatype spinor_yt_edge_cont;
+
+/* spinor y-x-edge */
+MPI_Datatype spinor_yx_edge_vector;
+MPI_Datatype spinor_yx_edge_cont;
+
+/* spinor z-t-edge */
+MPI_Datatype spinor_zt_edge_vector;
+MPI_Datatype spinor_zt_edge_cont;
+
+/* spinor z-x-edge */
+MPI_Datatype spinor_zx_edge_vector;
+MPI_Datatype spinor_zx_edge_cont;
+
+/* spinor z-y-edge */
+MPI_Datatype spinor_zy_edge_vector;
+MPI_Datatype spinor_zy_edge_cont;
+
 /* slices of even-odd spinors */
 
 MPI_Datatype eo_spinor_x_slice_vector;
@@ -479,7 +505,7 @@ void mpi_init(int argc,char *argv[]) {
   MPI_Type_commit(&spinor_z_slice_cont);
 
 
-  /* ========= the edges ==================================================== */
+  /* ========= the gauge edges ==================================================== */
 
   /* --------- x-t-edge ----------------------------------------------------- */
   MPI_Type_contiguous(2*LY*LZ, gauge_point, &gauge_xt_edge_cont);
@@ -530,6 +556,64 @@ void mpi_init(int argc,char *argv[]) {
 
   MPI_Type_vector(2*T*LX, 1, LY, gauge_point, &gauge_zy_edge_vector);
   MPI_Type_commit(&gauge_zy_edge_vector);
+
+  /* ------------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------------ */
+
+  /* ========= the spinor edges ==================================================== */
+
+  /* --------- x-t-edge ----------------------------------------------------- */
+  MPI_Type_contiguous(2*LY*LZ, spinor_point, &spinor_xt_edge_cont);
+  MPI_Type_commit(&spinor_xt_edge_cont);
+
+  MPI_Type_vector(2, 1, T, spinor_x_subslice_cont, &spinor_xt_edge_vector);
+  MPI_Type_commit(&spinor_xt_edge_vector);
+
+  /* --------- y-t-edge ----------------------------------------------------- */
+
+  MPI_Type_contiguous(2*LX*LZ, spinor_point, &spinor_yt_edge_cont);
+  MPI_Type_commit(&spinor_yt_edge_cont);
+
+  MPI_Type_vector(2, 1, T, spinor_y_subslice_cont, &spinor_yt_edge_vector);
+  MPI_Type_commit(&spinor_yt_edge_vector);
+
+  /* --------- y-x-edge ----------------------------------------------------- */
+
+  MPI_Type_contiguous( 2*T*LZ, spinor_point, &spinor_yx_edge_cont);
+  MPI_Type_commit(&spinor_yx_edge_cont);
+
+  MPI_Type_vector(2*T, LZ, LX*LZ, spinor_point, &spinor_yx_edge_vector);
+  MPI_Type_commit(&spinor_yx_edge_vector);
+
+
+  /* --------- z-t-edge ----------------------------------------------------- */
+
+  MPI_Type_contiguous( 2*LX*LY, spinor_point, &spinor_zt_edge_cont);
+  MPI_Type_commit(&spinor_zt_edge_cont);
+
+  MPI_Type_vector(2, 1, T, spinor_z_subslice_cont, &spinor_zt_edge_vector);
+  /* TEST */
+  /* MPI_Type_vector(2, 1, T-1, spinor_z_subslice_cont, &spinor_zt_edge_vector); */
+  MPI_Type_commit(&spinor_zt_edge_vector);
+
+  /* --------- z-x-edge ----------------------------------------------------- */
+
+  MPI_Type_contiguous( 2*T*LY, spinor_point, &spinor_zx_edge_cont);
+  MPI_Type_commit(&spinor_zx_edge_cont);
+
+  MPI_Type_vector(2*T, LY, LX*LY, spinor_point, &spinor_zx_edge_vector);
+  MPI_Type_commit(&spinor_zx_edge_vector);
+
+  /* --------- z-y-edge ----------------------------------------------------- */
+
+  MPI_Type_contiguous( 2*T*LX, spinor_point, &spinor_zy_edge_cont);
+  MPI_Type_commit(&spinor_zy_edge_cont);
+
+  MPI_Type_vector(2*T*LX, 1, LY, spinor_point, &spinor_zy_edge_vector);
+  MPI_Type_commit(&spinor_zy_edge_vector);
+
+
 
   /* --------- sub lattices ------------------------------------------------- */
 
@@ -1527,6 +1611,7 @@ void mpi_fini_datatypes (void) {
   MPI_Type_free(&gauge_zx_edge_vector);
   MPI_Type_free(&gauge_zy_edge_cont);
   MPI_Type_free(&gauge_zy_edge_vector);
+
   MPI_Type_free(&spinor_x_slice_cont);
   MPI_Type_free(&spinor_x_slice_vector);
   MPI_Type_free(&spinor_x_subslice_cont);
@@ -1536,6 +1621,20 @@ void mpi_fini_datatypes (void) {
   MPI_Type_free(&spinor_z_slice_cont);
   MPI_Type_free(&spinor_z_slice_vector);
   MPI_Type_free(&spinor_z_subslice_cont);
+
+  MPI_Type_free(&spinor_xt_edge_cont);
+  MPI_Type_free(&spinor_xt_edge_vector);
+  MPI_Type_free(&spinor_yt_edge_cont);
+  MPI_Type_free(&spinor_yt_edge_vector);
+  MPI_Type_free(&spinor_yx_edge_cont);
+  MPI_Type_free(&spinor_yx_edge_vector);
+  MPI_Type_free(&spinor_zt_edge_cont);
+  MPI_Type_free(&spinor_zt_edge_vector);
+  MPI_Type_free(&spinor_zx_edge_cont);
+  MPI_Type_free(&spinor_zx_edge_vector);
+  MPI_Type_free(&spinor_zy_edge_cont);
+  MPI_Type_free(&spinor_zy_edge_vector);
+
 #endif
 #endif
 }
