@@ -822,28 +822,45 @@ int apply_constant_cvc_vertex_at_source (double**s, int mu, int fbwd, const unsi
           V^H x [ (Gamma(p) x prop) ] which is numV x nsf (F) = nsf x numV (C)
  *
  ************************************************************/
-int contract_vdag_gloc_spinor_field (double**prop_list_e, double**prop_list_o, int nsf, double**V, int numV, int momentum_number, int (*momentum_list)[3], int gamma_id_number, int*gamma_id_list, struct AffWriter_s*affw, char*tag, int io_proc, double*gauge_field, double **mzz[2], double**mzzinv[2] ) {
+int contract_vdag_gloc_spinor_field (
+    double**prop_list_e, 
+    double**prop_list_o, 
+    int nsf,
+    double**V, 
+    int numV, 
+    int momentum_number, 
+    int (*momentum_list)[3], 
+    int gamma_id_number, 
+    int*gamma_id_list, 
+    struct AffWriter_s*affw, 
+    char*tag, int io_proc, 
+    double*gauge_field, 
+    double **mzz[2], 
+    double**mzzinv[2] ) 
+{
  
-  const unsigned int Vhalf = VOLUME / 2;
+  const unsigned int Vhalf    = VOLUME / 2;
   const unsigned int VOL3half = ( LX * LY * LZ ) / 2;
-  const size_t sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof(double);
+  const size_t sizeof_eo_spinor_field           = _GSI(  Vhalf )          * sizeof(double);
   const size_t sizeof_eo_spinor_field_with_halo = _GSI( (VOLUME+RAND)/2 ) * sizeof(double);
-  const size_t sizeof_eo_spinor_field_timeslice = _GSI( VOL3half ) * sizeof(double);
+  const size_t sizeof_eo_spinor_field_timeslice = _GSI(  VOL3half )       * sizeof(double);
 
   int exitstatus;
-  double *spinor_work = NULL, *spinor_aux = NULL;
+  double *spinor_work = NULL;
+  double *spinor_aux  = NULL;
   double _Complex **phase_field = NULL;
-  double _Complex **W = NULL;
-  double _Complex **V_ts = NULL;
-  double _Complex **prop_ts = NULL, **prop_phase = NULL;
-  double _Complex ***contr = NULL;
+  double _Complex **W           = NULL;
+  double _Complex **V_ts        = NULL;
+  double _Complex **prop_ts     = NULL;
+  double _Complex **prop_phase  = NULL;
+  double _Complex ***contr      = NULL;
   double _Complex *contr_allt_buffer = NULL;
 
   double *mcontr_buffer = NULL;
   double ratime, retime;
 
   struct AffNode_s *affn = NULL, *affdir=NULL;
-  char aff_path[200];
+  char aff_path[400];
 
   /* BLAS parameters for zgemm */
   char BLAS_TRANSA = 'C';
@@ -904,8 +921,6 @@ int contract_vdag_gloc_spinor_field (double**prop_list_e, double**prop_list_o, i
       return(1);
     }
   }
-
-
 
   /************************************************
    ************************************************
@@ -1020,6 +1035,7 @@ int contract_vdag_gloc_spinor_field (double**prop_list_e, double**prop_list_o, i
 #if 0
 #endif  /* of if 0 */
 
+
   /************************************************
    ************************************************
    **
@@ -1036,7 +1052,6 @@ int contract_vdag_gloc_spinor_field (double**prop_list_e, double**prop_list_o, i
     fprintf(stderr, "[contract_vdag_gloc_spinor_field] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     return(4);
   }
-
 
   spinor_work = (double*)malloc( sizeof_eo_spinor_field_with_halo );
   if ( spinor_work == NULL ) {
@@ -1071,7 +1086,7 @@ int contract_vdag_gloc_spinor_field (double**prop_list_e, double**prop_list_o, i
 
         /* copy timslice of V  */
         unsigned int offset = _GSI(VOL3half) * it;
-        for( int i=0; i<numV; i++ ) memcpy( V_ts[i], W[i]+offset, sizeof_eo_spinor_field_timeslice );
+        for( int i=0; i<numV; i++ ) memcpy( V_ts[i], (double*)(W[i])+offset, sizeof_eo_spinor_field_timeslice );
 
         /* calculate Gamma times spinor field timeslice 
          *
@@ -1103,12 +1118,14 @@ int contract_vdag_gloc_spinor_field (double**prop_list_e, double**prop_list_o, i
            return(8);
          }
 #endif
+
       }  /* end of loop on timeslices */
 
       /************************************************
        * write to file
        ************************************************/
 #ifdef HAVE_MPI
+#if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ)
       if ( io_proc == 2 ) {
         contr_allt_buffer = (double _Complex *)malloc(numV*nsf*T_global*sizeof(double _Complex) );
         if(contr_allt_buffer == NULL ) {
@@ -1126,7 +1143,13 @@ int contract_vdag_gloc_spinor_field (double**prop_list_e, double**prop_list_o, i
           return(10);
          }
       }
-
+#else
+      if (io_proc == 2) fprintf(stderr, "[contract_vdag_gloc_spinor_field] 1-dim MPI gathering currently not implemented\n");
+      return(1);
+#endif
+#else
+     contr_allt_buffer = contr[0][0];
+#endif
       if ( io_proc == 2 ) {
         sprintf(aff_path, "%s/xv_dag_gloc_s/px%.2dpy%.2dpz%.2d/g%.2d", tag, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
 
@@ -1136,11 +1159,14 @@ int contract_vdag_gloc_spinor_field (double**prop_list_e, double**prop_list_o, i
           fprintf(stderr, "[contract_vdag_gloc_spinor_field] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           return(11);
         }
-
+#ifdef HAVE_MPI
         free( contr_allt_buffer );
-      }
 #endif
+      }
+
     }  /* end of loop on Gamma structures */
+
+
   }  /* end of loop on momenta */
 
 
@@ -1151,7 +1177,6 @@ int contract_vdag_gloc_spinor_field (double**prop_list_e, double**prop_list_o, i
 #endif
 #if 0
 #endif  /* of if 0 */
-
 
   /************************************************
    ************************************************
@@ -1175,9 +1200,14 @@ int contract_vdag_gloc_spinor_field (double**prop_list_e, double**prop_list_o, i
     memcpy( spinor_work, (double*)(W[i]), sizeof_eo_spinor_field );
     memcpy( (double*)(W[i]), (double*)(V[i]), sizeof_eo_spinor_field );
     C_clover_from_Xeo ( (double*)(W[i]), spinor_work, spinor_aux, gauge_field, mzz[1][1]);
+                  
+    // memcpy( spinor_aux, (double*)(V[i]), sizeof_eo_spinor_field );
+    // C_clover_oo ( (double*)(W[i]), spinor_aux, gauge_field, spinor_work, mzz[1][1], mzzinv[1][0]);
+
   }
   free ( spinor_work ); spinor_work = NULL;
   free ( spinor_aux  ); spinor_aux = NULL;
+
 
   /* loop on momenta */
   for( int im=0; im<momentum_number; im++ ) {
@@ -1196,7 +1226,7 @@ int contract_vdag_gloc_spinor_field (double**prop_list_e, double**prop_list_o, i
 
         /* copy timslice of V  */
         unsigned int offset = _GSI(VOL3half) * it;
-        for( int i=0; i<numV; i++ ) memcpy( V_ts[i], W[i]+offset, sizeof_eo_spinor_field_timeslice );
+        for( int i=0; i<numV; i++ ) memcpy( (double*)(V_ts[i]), (double*)(W[i])+offset, sizeof_eo_spinor_field_timeslice );
 
         /* calculate Gamma times spinor field timeslice 
          *
@@ -1234,6 +1264,7 @@ int contract_vdag_gloc_spinor_field (double**prop_list_e, double**prop_list_o, i
        * write to file
        ************************************************/
 #ifdef HAVE_MPI
+#if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ)
       if ( io_proc == 2 ) {
         contr_allt_buffer = (double _Complex *)malloc(numV*nsf*T_global*sizeof(double _Complex) );
         if(contr_allt_buffer == NULL ) {
@@ -1251,7 +1282,13 @@ int contract_vdag_gloc_spinor_field (double**prop_list_e, double**prop_list_o, i
           return(10);
          }
       }
-
+#else
+      if (io_proc == 2) fprintf(stderr, "[contract_vdag_gloc_spinor_field] 1-dim MPI gathering currently not implemented\n");
+      return(1);
+#endif
+#else
+      contr_allt_buffer = contr[0][0];
+#endif
       if ( io_proc == 2 ) {
         sprintf(aff_path, "%s/w_dag_gloc_s/px%.2dpy%.2dpz%.2d/g%.2d", tag, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
 
@@ -1262,9 +1299,10 @@ int contract_vdag_gloc_spinor_field (double**prop_list_e, double**prop_list_o, i
           return(11);
         }
 
+#if HAVE_MPI
         free( contr_allt_buffer );
-      }
 #endif
+      }
     }  /* end of loop on Gamma structures */
   }  /* end of loop on momenta */
 
@@ -1275,7 +1313,6 @@ int contract_vdag_gloc_spinor_field (double**prop_list_e, double**prop_list_o, i
 #endif
 #if 0
 #endif  /* of if 0 */
-
 
   /************************************************
    ************************************************
@@ -1318,7 +1355,7 @@ int contract_vdag_gloc_spinor_field (double**prop_list_e, double**prop_list_o, i
 
         /* copy timslice of V  */
         unsigned int offset = _GSI(VOL3half) * it;
-        for( int i=0; i<numV; i++ ) memcpy( V_ts[i], W[i]+offset, sizeof_eo_spinor_field_timeslice );
+        for( int i=0; i<numV; i++ ) memcpy( V_ts[i], (double*)(W[i])+offset, sizeof_eo_spinor_field_timeslice );
 
         /* calculate Gamma times spinor field timeslice 
          *
@@ -1395,6 +1432,7 @@ int contract_vdag_gloc_spinor_field (double**prop_list_e, double**prop_list_o, i
 #ifdef HAVE_MPI
   MPI_Barrier( g_cart_grid );
 #endif
+
 #if 0
 #endif  /* of if 0 */
 
