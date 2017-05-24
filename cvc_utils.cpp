@@ -5840,10 +5840,10 @@ int spinor_field_tm_rotation(double*s, double*r, int sign, int fermion_type, uns
 /***************************************************
  * spinor fields to fermion propagator points
  ***************************************************/
-int assign_fermion_propagaptor_from_spinor_field (fermion_propagator_type *s, double**prop_list, unsigned int N) {
+int assign_fermion_propagator_from_spinor_field (fermion_propagator_type *s, double**prop_list, unsigned int N) {
 
   if(s[0][0] == prop_list[0] ) {
-    fprintf(stderr, "[assign_fermion_propagaptor_from_spinor_field] Error, input fields have same address\n");
+    fprintf(stderr, "[assign_fermion_propagator_from_spinor_field] Error, input fields have same address\n");
     return(1);
   }
 
@@ -5865,7 +5865,7 @@ int assign_fermion_propagaptor_from_spinor_field (fermion_propagator_type *s, do
 }
 #endif
   return(0);
-}  /* end of assign_fermion_propagaptor_from_spinor_field */
+}  /* end of assign_fermion_propagator_from_spinor_field */
 
 /***************************************************
  * fermion propagator points to spinor fields
