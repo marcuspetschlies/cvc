@@ -1393,6 +1393,7 @@ int contract_vdag_gloc_spinor_field (
        * write to file
        ************************************************/
 #ifdef HAVE_MPI
+#if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ)
       if ( io_proc == 2 ) {
         contr_allt_buffer = (double _Complex *)malloc(numV*nsf*T_global*sizeof(double _Complex) );
         if(contr_allt_buffer == NULL ) {
@@ -1410,6 +1411,13 @@ int contract_vdag_gloc_spinor_field (
           return(10);
          }
       }
+#else
+      if (io_proc == 2) fprintf(stderr, "[contract_vdag_gloc_spinor_field] 1-dim MPI gathering currently not implemented\n");
+      return(1);
+#endif
+#else
+      contr_allt_buffer = contr[0][0];
+#endif
 
       if ( io_proc == 2 ) {
         sprintf(aff_path, "%s/xw_dag_gloc_s/px%.2dpy%.2dpz%.2d/g%.2d", tag, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
@@ -1420,10 +1428,10 @@ int contract_vdag_gloc_spinor_field (
           fprintf(stderr, "[contract_vdag_gloc_spinor_field] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           return(11);
         }
-
+#ifdef HAVE_MPI
         free( contr_allt_buffer );
-      }
 #endif
+      }
     }  /* end of loop on Gamma structures */
   }  /* end of loop on momenta */
 
@@ -1565,7 +1573,6 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
     }
   }
 
-#if 0
 
   /************************************************
    ************************************************
@@ -1601,7 +1608,7 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
 
             /* copy timslice of V  */
             unsigned int offset = _GSI(VOL3half) * it;
-            for( int i=0; i<numV; i++ ) memcpy( V_ts[i], V[i]+offset, sizeof_eo_spinor_field_timeslice );
+            for( int i=0; i<numV; i++ ) memcpy( V_ts[i], (double*)(V[i])+offset, sizeof_eo_spinor_field_timeslice );
 
             /*
              *
@@ -1638,6 +1645,7 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
            * write to file
            ************************************************/
 #ifdef HAVE_MPI
+#if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ)
           if ( io_proc == 2 ) {
             contr_allt_buffer = (double _Complex *)malloc(numV*block_size*T_global*sizeof(double _Complex) );
             if(contr_allt_buffer == NULL ) {
@@ -1655,9 +1663,15 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
               return(10);
              }
           }
-    
+#else
+          if (io_proc == 2) fprintf(stderr, "[contract_vdag_gloc_spinor_field] 1-dim MPI gathering currently not implemented\n");
+          return(1);
+#endif
+#else
+          contr_allt_buffer = contr[0][0];
+#endif
           if ( io_proc == 2 ) {
-            sprintf(aff_path, "%s/v_dag_cvc_s/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+            sprintf(aff_path, "%s/v_dag_cvc_s/block%.2d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
     
             affdir = aff_writer_mkpath(affw, affn, aff_path);
             exitstatus = aff_node_put_complex (affw, affdir, contr_allt_buffer, (uint32_t)(T_global*numV*block_size ) );
@@ -1665,16 +1679,17 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
               fprintf(stderr, "[contract_vdag_cvc_spinor_field] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               return(11);
             }
-    
+#ifdef HAVE_MPI
             free( contr_allt_buffer );
-          }
 #endif
+          }
         }  /* end of loop on Gamma structures */
       }  /* end of loop on momenta */
 
     }  /* end of loop on shift directions */
 
   }  /* end of loop on blocks */
+#if 0
 #endif  /* of if 0 */
 
   /************************************************
@@ -1694,7 +1709,7 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
     return(4);
   }
 
-#if 0
+
   /* calculate Xbar V */
   for( int i=0; i<numV; i++ ) {
     /*
@@ -1729,7 +1744,7 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
     
             /* copy timslice of V  */
             unsigned int offset = _GSI(VOL3half) * it;
-            for( int i=0; i<numV; i++ ) memcpy( V_ts[i], W[i]+offset, sizeof_eo_spinor_field_timeslice );
+            for( int i=0; i<numV; i++ ) memcpy( V_ts[i], (double*)(W[i])+offset, sizeof_eo_spinor_field_timeslice );
     
             /*
              *
@@ -1765,7 +1780,8 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
           /************************************************
            * write to file
            ************************************************/
-    #ifdef HAVE_MPI
+#ifdef HAVE_MPI
+#if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ)
           if ( io_proc == 2 ) {
             contr_allt_buffer = (double _Complex *)malloc(numV*block_size*T_global*sizeof(double _Complex) );
             if(contr_allt_buffer == NULL ) {
@@ -1783,9 +1799,16 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
               return(10);
              }
           }
-    
+#else
+          if (io_proc == 2) fprintf(stderr, "[contract_vdag_gloc_spinor_field] 1-dim MPI gathering currently not implemented\n");
+          return(1);
+#endif
+#else
+          contr_allt_buffer = contr[0][0];
+#endif
+
           if ( io_proc == 2 ) {
-            sprintf(aff_path, "%s/xv_dag_cvc_s/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+            sprintf(aff_path, "%s/xv_dag_cvc_s/block%.2d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
     
             affdir = aff_writer_mkpath(affw, affn, aff_path);
             exitstatus = aff_node_put_complex (affw, affdir, contr_allt_buffer, (uint32_t)(T_global*numV*block_size ) );
@@ -1793,16 +1816,17 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
               fprintf(stderr, "[contract_vdag_cvc_spinor_field] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               return(11);
             }
-    
+#ifdef HAVE_MPI
             free( contr_allt_buffer );
           }
-    #endif
+#endif
         }  /* end of loop on momenta */  
       }  /* end of loop on fbwd */
 
     }  /* end of loop on shift directions mu */
 
   }  /* end of loop on blocks */
+#if 0
 #endif  /* of if 0 */
 
 
@@ -1814,7 +1838,7 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
    ************************************************
    ************************************************/
 
-#if 0
+
   /* calculate W from V and Xbar V */
   exitstatus = init_2level_buffer ( (double***)(&eo_spinor_aux), 1, _GSI( Vhalf ) );
   if ( exitstatus != 0 ) {
@@ -1840,9 +1864,9 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
         /* apply the cvc vertex in direction mu, fbwd to current block of fields */
         for( int i=0; i < block_size; i++) {
           /* copy propagator to field with halo */
-          memcpy( eo_spinor_work[0], prop_list_o[iblock*block_size + i], sizeof_eo_spinor_field );
+          memcpy( eo_spinor_work[0], prop_list_e[iblock*block_size + i], sizeof_eo_spinor_field );
           /* apply vertex for ODD target field */
-          apply_cvc_vertex_eo((double*)(prop_vertex[i]), eo_spinor_work[0], mu, fbwd, gauge_field, 0);
+          apply_cvc_vertex_eo((double*)(prop_vertex[i]), eo_spinor_work[0], mu, fbwd, gauge_field, 1);
         }
 
         /* loop on momenta */
@@ -1855,7 +1879,7 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
     
             /* copy timslice of V  */
             unsigned int offset = _GSI(VOL3half) * it;
-            for( int i=0; i<numV; i++ ) memcpy( V_ts[i], W[i]+offset, sizeof_eo_spinor_field_timeslice );
+            for( int i=0; i<numV; i++ ) memcpy( V_ts[i], (double*)(W[i])+offset, sizeof_eo_spinor_field_timeslice );
     
             /* 
              *
@@ -1891,6 +1915,7 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
            * write to file
            ************************************************/
 #ifdef HAVE_MPI
+#if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ)
           if ( io_proc == 2 ) {
             contr_allt_buffer = (double _Complex *)malloc(numV*block_size*T_global*sizeof(double _Complex) );
             if(contr_allt_buffer == NULL ) {
@@ -1908,9 +1933,16 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
               return(10);
              }
           }
-    
+
+#else
+          if (io_proc == 2) fprintf(stderr, "[contract_vdag_gloc_spinor_field] 1-dim MPI gathering currently not implemented\n");
+          return(1);
+#endif
+#else
+          contr_allt_buffer = contr[0][0];
+#endif
           if ( io_proc == 2 ) {
-            sprintf(aff_path, "%s/w_dag_cvc_s/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+            sprintf(aff_path, "%s/w_dag_cvc_s/block%.2d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
     
             affdir = aff_writer_mkpath(affw, affn, aff_path);
             exitstatus = aff_node_put_complex (affw, affdir, contr_allt_buffer, (uint32_t)(T_global*numV*block_size ) );
@@ -1919,14 +1951,16 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
               return(11);
             }
     
+#ifdef HAVE_MPI
             free( contr_allt_buffer );
-          }
 #endif
+          }
+
         }  /* end of loop on momenta */ 
       }  /* end of loop on fbwd */
     }  /* end of loop on shift directions mu */
   }  /* end of loop on blocks */
-
+#if 0
 #endif  /* of if 0 */
 
 
@@ -1937,7 +1971,7 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
    **
    ************************************************
    ************************************************/
-#if 0
+
   /* calculate X W */
   for( int i=0; i<numV; i++ ) {
     /*
@@ -1971,7 +2005,7 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
     
             /* copy timslice of V  */
             unsigned int offset = _GSI(VOL3half) * it;
-            for( int i=0; i<numV; i++ ) memcpy( V_ts[i], W[i]+offset, sizeof_eo_spinor_field_timeslice );
+            for( int i=0; i<numV; i++ ) memcpy( V_ts[i], (double*)(W[i])+offset, sizeof_eo_spinor_field_timeslice );
     
             /*
              *
@@ -2008,6 +2042,7 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
            * write to file
            ************************************************/
 #ifdef HAVE_MPI
+#if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ)
           if ( io_proc == 2 ) {
             contr_allt_buffer = (double _Complex *)malloc(numV*block_size*T_global*sizeof(double _Complex) );
             if(contr_allt_buffer == NULL ) {
@@ -2025,9 +2060,16 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
               return(10);
              }
           }
-    
+#else
+          if (io_proc == 2) fprintf(stderr, "[contract_vdag_gloc_spinor_field] 1-dim MPI gathering currently not implemented\n");
+          return(1);
+#endif
+#else
+          contr_allt_buffer = contr[0][0];
+#endif
+
           if ( io_proc == 2 ) {
-            sprintf(aff_path, "%s/xw_dag_cvc_s/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+            sprintf(aff_path, "%s/xw_dag_cvc_s/block%.2d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
     
             affdir = aff_writer_mkpath(affw, affn, aff_path);
             exitstatus = aff_node_put_complex (affw, affdir, contr_allt_buffer, (uint32_t)(T_global*numV*block_size ) );
@@ -2035,15 +2077,16 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
               fprintf(stderr, "[contract_vdag_cvc_spinor_field] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               return(11);
             }
-    
+#if 0   
             free( contr_allt_buffer );
-          }
 #endif
+          }
+
         }  /* end of loop on momenta */  
       }  /* end of loop on fbwd */
     }  /* end of loop on shift directions mu */
   }  /* end of loop on blocks */
-
+#if 0
 #endif  /* of if 0 */
 
   fini_2level_buffer ( (double***)(&W) );
@@ -2312,7 +2355,7 @@ int contract_vdag_gloc_w_blocked (double**V, int numV, int momentum_number, int 
         g5_phi( (double*)(W_gamma_phase[0]), block_size * Vhalf);
 
         /* prepare the AFF key */
-        sprintf(aff_path, "%s/v_dag_gloc_v/block%d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
+        sprintf(aff_path, "%s/v_dag_gloc_v/block%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
 
 /************************************************
  * NOTE: this casting may be dangerous
@@ -2372,7 +2415,7 @@ int contract_vdag_gloc_w_blocked (double**V, int numV, int momentum_number, int 
         spinor_field_eq_gamma_ti_spinor_field( (double*)(W_gamma_phase[0]), gamma_id_list[ig], (double*)(W_phase[0]), block_size * Vhalf );
         g5_phi( (double*)(W_gamma_phase[0]), block_size * Vhalf);
 
-        sprintf(aff_path, "%s/xv_dag_gloc_xv/block%d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
+        sprintf(aff_path, "%s/xv_dag_gloc_xv/block%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
 
         exitstatus = vdag_w_reduce_write ( contr, W, W_gamma_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, W_ts, mcontr_buffer);
         if ( exitstatus != 0 ) {
@@ -2430,7 +2473,7 @@ int contract_vdag_gloc_w_blocked (double**V, int numV, int momentum_number, int 
         spinor_field_eq_gamma_ti_spinor_field( (double*)(W_gamma_phase[0]), gamma_id_list[ig], (double*)(W_phase[0]), block_size*Vhalf );
         g5_phi( (double*)(W_gamma_phase[0]), block_size * Vhalf );
 
-        sprintf(aff_path, "%s/v_dag_gloc_w/block%d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
+        sprintf(aff_path, "%s/v_dag_gloc_w/block%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
 
 /************************************************
  * NOTE: this casting may be dangerous
@@ -2443,7 +2486,7 @@ int contract_vdag_gloc_w_blocked (double**V, int numV, int momentum_number, int 
           return(2);
         }
 
-        sprintf(aff_path, "%s/w_dag_gloc_w/block%d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
+        sprintf(aff_path, "%s/w_dag_gloc_w/block%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
 
         exitstatus = vdag_w_reduce_write ( contr, W, W_gamma_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, W_ts, mcontr_buffer);
         if ( exitstatus != 0 ) {
@@ -2497,7 +2540,7 @@ int contract_vdag_gloc_w_blocked (double**V, int numV, int momentum_number, int 
         spinor_field_eq_gamma_ti_spinor_field( (double*)(W_gamma_phase[0]), gamma_id_list[ig], (double*)(W_phase[0]), block_size*Vhalf );
         g5_phi( (double*)(W_gamma_phase[0]), block_size * Vhalf );
 
-        sprintf(aff_path, "%s/xw_dag_gloc_xw/block%d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
+        sprintf(aff_path, "%s/xw_dag_gloc_xw/block%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
 
         exitstatus = vdag_w_reduce_write ( contr, W, W_gamma_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, W_ts, mcontr_buffer);
         if ( exitstatus != 0 ) {
@@ -2555,7 +2598,7 @@ int contract_vdag_gloc_w_blocked (double**V, int numV, int momentum_number, int 
         spinor_field_eq_gamma_ti_spinor_field( (double*)(W_gamma_phase[0]), gamma_id_list[ig], (double*)(W_phase[0]), block_size*Vhalf );
         g5_phi( (double*)(W_gamma_phase[0]), block_size * Vhalf );
 
-        sprintf(aff_path, "%s/xw_dag_gloc_xv/block%d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
+        sprintf(aff_path, "%s/xw_dag_gloc_xv/block%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
 
         exitstatus = vdag_w_reduce_write ( contr, W, W_gamma_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, W_ts, mcontr_buffer);
         if ( exitstatus != 0 ) {
@@ -2769,7 +2812,7 @@ int contract_vdag_gloc_phi_blocked (double**V, double**Phi, int numV, int numPhi
         g5_phi( (double*)(Phi_gamma_phase[0]), block_size * Vhalf);
 
         /* prepare the AFF key */
-        sprintf(aff_path, "%s/v_dag_gloc_phi/block%d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
+        sprintf(aff_path, "%s/v_dag_gloc_phi/block%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
 
 /************************************************
  * NOTE: dangerous type cast
@@ -2783,7 +2826,7 @@ int contract_vdag_gloc_phi_blocked (double**V, double**Phi, int numV, int numPhi
         }
 
         /* prepare the AFF key */
-        sprintf(aff_path, "%s/w_dag_gloc_phi/block%d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
+        sprintf(aff_path, "%s/w_dag_gloc_phi/block%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
 
         exitstatus = vdag_w_reduce_write ( contr, W, Phi_gamma_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, Phi_ts, mcontr_buffer);
         if ( exitstatus != 0 ) {
@@ -2811,7 +2854,7 @@ int contract_vdag_gloc_phi_blocked (double**V, double**Phi, int numV, int numPhi
         g5_phi( (double*)(Phi_gamma_phase[0]), block_size * Vhalf);
 
         /* prepare the AFF key */
-        sprintf(aff_path, "%s/v_dag_gloc_xi/block%d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
+        sprintf(aff_path, "%s/v_dag_gloc_xi/block%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
 
 /************************************************
  * NOTE: dangerous type cast
@@ -2825,7 +2868,7 @@ int contract_vdag_gloc_phi_blocked (double**V, double**Phi, int numV, int numPhi
         }
 
         /* prepare the AFF key */
-        sprintf(aff_path, "%s/w_dag_gloc_xi/block%d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
+        sprintf(aff_path, "%s/w_dag_gloc_xi/block%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
 
         exitstatus = vdag_w_reduce_write ( contr, W, Phi_gamma_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, Phi_ts, mcontr_buffer);
         if ( exitstatus != 0 ) {
@@ -2895,7 +2938,7 @@ int contract_vdag_gloc_phi_blocked (double**V, double**Phi, int numV, int numPhi
         spinor_field_eq_gamma_ti_spinor_field( (double*)(Phi_gamma_phase[0]), gamma_id_list[ig], (double*)(Phi_phase[0]), block_size * Vhalf );
         g5_phi( (double*)(Phi_gamma_phase[0]), block_size * Vhalf);
 
-        sprintf(aff_path, "%s/xv_dag_gloc_xphi/block%d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
+        sprintf(aff_path, "%s/xv_dag_gloc_xphi/block%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
 
         exitstatus = vdag_w_reduce_write ( contr, W, Phi_gamma_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, Phi_ts, mcontr_buffer);
         if ( exitstatus != 0 ) {
@@ -2922,7 +2965,7 @@ int contract_vdag_gloc_phi_blocked (double**V, double**Phi, int numV, int numPhi
         spinor_field_eq_gamma_ti_spinor_field( (double*)(Phi_gamma_phase[0]), gamma_id_list[ig], (double*)(Phi_phase[0]), block_size * Vhalf );
         g5_phi( (double*)(Phi_gamma_phase[0]), block_size * Vhalf);
 
-        sprintf(aff_path, "%s/xv_dag_gloc_xxi/block%d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
+        sprintf(aff_path, "%s/xv_dag_gloc_xxi/block%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
 
         exitstatus = vdag_w_reduce_write ( contr, W, Phi_gamma_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, Phi_ts, mcontr_buffer);
         if ( exitstatus != 0 ) {
@@ -3000,7 +3043,7 @@ int contract_vdag_gloc_phi_blocked (double**V, double**Phi, int numV, int numPhi
         spinor_field_eq_gamma_ti_spinor_field( (double*)(Phi_gamma_phase[0]), gamma_id_list[ig], (double*)(Phi_phase[0]), block_size * Vhalf );
         g5_phi( (double*)(Phi_gamma_phase[0]), block_size * Vhalf);
 
-        sprintf(aff_path, "%s/xw_dag_gloc_xphi/block%d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
+        sprintf(aff_path, "%s/xw_dag_gloc_xphi/block%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
 
         exitstatus = vdag_w_reduce_write ( contr, W, Phi_gamma_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, Phi_ts, mcontr_buffer);
         if ( exitstatus != 0 ) {
@@ -3027,7 +3070,7 @@ int contract_vdag_gloc_phi_blocked (double**V, double**Phi, int numV, int numPhi
         spinor_field_eq_gamma_ti_spinor_field( (double*)(Phi_gamma_phase[0]), gamma_id_list[ig], (double*)(Phi_phase[0]), block_size * Vhalf );
         g5_phi( (double*)(Phi_gamma_phase[0]), block_size * Vhalf);
 
-        sprintf(aff_path, "%s/xw_dag_gloc_xxi/block%d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
+        sprintf(aff_path, "%s/xw_dag_gloc_xxi/block%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, iblock, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
 
         exitstatus = vdag_w_reduce_write ( contr, W, Phi_gamma_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, Phi_ts, mcontr_buffer);
         if ( exitstatus != 0 ) {
@@ -3257,7 +3300,7 @@ int contract_vdag_cvc_w_blocked (double**V, int numV, int momentum_number, int (
           /************************************************
            * (1) V - Xbar V
            ************************************************/
-          sprintf(aff_path, "%s/v_dag_cvc_xv/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+          sprintf(aff_path, "%s/v_dag_cvc_xv/block%.2d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
 
 /******************************************
  * NOTE: DANGEROUS TYPECAST
@@ -3271,7 +3314,7 @@ int contract_vdag_cvc_w_blocked (double**V, int numV, int momentum_number, int (
           /************************************************
            * (2) W - Xbar V
            ************************************************/
-          sprintf(aff_path, "%s/w_dag_cvc_xv/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+          sprintf(aff_path, "%s/w_dag_cvc_xv/block%.2d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
 
           exitstatus = vdag_w_reduce_write ( contr, W, W_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, W_ts, mcontr_buffer);
           if ( exitstatus != 0 ) {
@@ -3329,7 +3372,7 @@ int contract_vdag_cvc_w_blocked (double**V, int numV, int momentum_number, int (
           /************************************************
            * (3) V - X W
            ************************************************/
-          sprintf(aff_path, "%s/v_dag_cvc_xw/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+          sprintf(aff_path, "%s/v_dag_cvc_xw/block%.2d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
 
 /******************************************
  * NOTE: DANGEROUS TYPECAST
@@ -3343,7 +3386,7 @@ int contract_vdag_cvc_w_blocked (double**V, int numV, int momentum_number, int (
           /************************************************
            * (4) W - X W
            ************************************************/
-          sprintf(aff_path, "%s/w_dag_cvc_xw/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+          sprintf(aff_path, "%s/w_dag_cvc_xw/block%.2d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
 
           exitstatus = vdag_w_reduce_write ( contr, W, W_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, W_ts, mcontr_buffer);
           if ( exitstatus != 0 ) {
@@ -3568,7 +3611,7 @@ int contract_vdag_cvc_phi_blocked (double**V, double**Phi, int numV, int numPhi,
           g5_phi( (double*)(Phi_phase[0]), block_size*Vhalf);
 
 
-          sprintf(aff_path, "%s/xv_dag_cvc_phi/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+          sprintf(aff_path, "%s/xv_dag_cvc_phi/block%.2d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
 
           exitstatus = vdag_w_reduce_write ( contr, W, Phi_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, Phi_ts, mcontr_buffer);
           if ( exitstatus != 0 ) {
@@ -3604,7 +3647,7 @@ int contract_vdag_cvc_phi_blocked (double**V, double**Phi, int numV, int numPhi,
           }
           g5_phi( (double*)(Phi_phase[0]), block_size*Vhalf);
 
-          sprintf(aff_path, "%s/v_dag_cvc_xphi/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+          sprintf(aff_path, "%s/v_dag_cvc_xphi/block%.2d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
 
 /************************************************
  * NOTE: DANGEROUS TYPECAST
@@ -3663,7 +3706,7 @@ int contract_vdag_cvc_phi_blocked (double**V, double**Phi, int numV, int numPhi,
           g5_phi( (double*)(Phi_phase[0]), block_size*Vhalf);
 
 
-          sprintf(aff_path, "%s/xv_dag_cvc_sigma/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+          sprintf(aff_path, "%s/xv_dag_cvc_sigma/block%.2d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
 
           exitstatus = vdag_w_reduce_write ( contr, W, Phi_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, Phi_ts, mcontr_buffer);
           if ( exitstatus != 0 ) {
@@ -3717,7 +3760,7 @@ int contract_vdag_cvc_phi_blocked (double**V, double**Phi, int numV, int numPhi,
           g5_phi( (double*)(Phi_phase[0]), block_size*Vhalf);
 
 
-          sprintf(aff_path, "%s/v_dag_cvc_xsigma/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+          sprintf(aff_path, "%s/v_dag_cvc_xsigma/block%.2d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
 
 /************************************************
  * NOTE: DANGEROUS TYPECAST
@@ -3792,7 +3835,7 @@ int contract_vdag_cvc_phi_blocked (double**V, double**Phi, int numV, int numPhi,
           }
           g5_phi( (double*)(Phi_phase[0]), block_size*Vhalf);
 
-          sprintf(aff_path, "%s/w_dag_cvc_xphi/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+          sprintf(aff_path, "%s/w_dag_cvc_xphi/block%.2d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
 
           exitstatus = vdag_w_reduce_write ( contr, W, Phi_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, Phi_ts, mcontr_buffer);
           if ( exitstatus != 0 ) {
@@ -3850,7 +3893,7 @@ int contract_vdag_cvc_phi_blocked (double**V, double**Phi, int numV, int numPhi,
           }
           g5_phi( (double*)(Phi_phase[0]), block_size*Vhalf);
 
-          sprintf(aff_path, "%s/w_dag_cvc_xsigma/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+          sprintf(aff_path, "%s/w_dag_cvc_xsigma/block%.2d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
 
           exitstatus = vdag_w_reduce_write ( contr, W, Phi_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, Phi_ts, mcontr_buffer);
           if ( exitstatus != 0 ) {
@@ -3919,7 +3962,7 @@ int contract_vdag_cvc_phi_blocked (double**V, double**Phi, int numV, int numPhi,
           }
           g5_phi( (double*)(Phi_phase[0]), block_size*Vhalf);
 
-          sprintf(aff_path, "%s/xw_dag_cvc_phi/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+          sprintf(aff_path, "%s/xw_dag_cvc_phi/block%.2d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
 
           exitstatus = vdag_w_reduce_write ( contr, W, Phi_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, Phi_ts, mcontr_buffer);
           if ( exitstatus != 0 ) {
@@ -3963,7 +4006,7 @@ int contract_vdag_cvc_phi_blocked (double**V, double**Phi, int numV, int numPhi,
           }
           g5_phi( (double*)(Phi_phase[0]), block_size*Vhalf);
 
-          sprintf(aff_path, "%s/xw_dag_cvc_sigma/block%d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+          sprintf(aff_path, "%s/xw_dag_cvc_sigma/block%.2d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
 
           exitstatus = vdag_w_reduce_write ( contr, W, Phi_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, Phi_ts, mcontr_buffer);
           if ( exitstatus != 0 ) {
