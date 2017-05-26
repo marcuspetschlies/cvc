@@ -4710,6 +4710,11 @@ int check_oo_propagator_clover_eo(double**prop_o, double**source, double**work, 
 
   for(k=0; k<nf; k++) {
 
+    if ( work[0] == prop_o[k] || work[0] == source[k] || work[1] == prop_o[k] || work[1] == source[k] ) {
+      fprintf(stderr, "[check_oo_propagator_clover_eo] Error, work fields overlap with propagator or source\n");
+      return(1);
+    }
+
     C_clover_oo (work[0], prop_o[k], gf, work[1], mzz[1], mzzinv[0]);
     spinor_field_ti_eq_re (work[0], twokappa, Vhalf);
 
