@@ -16,6 +16,8 @@ void make_o_phase_field_sliced3d (double _Complex**phase, int *momentum);
 void make_eo_phase_field_sliced3d (double _Complex**phase, int *momentum, int eo);
 void make_eo_phase_field_timeslice (double _Complex**phase, int momentum_number, int (*momentum_list)[3], int timeslice, int eo);
 
+int project_propagator_field_weighted(double *s, double * r, int parallel, double *V, double *weights, int num1, int num2, unsigned int N);
+
 }  /* end of namespace cvc */
 
 #endif
