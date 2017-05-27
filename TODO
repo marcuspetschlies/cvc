@@ -1,9 +1,8 @@
-# Wed Feb  1 16:41:12 CET 2017
+# Wed Apr 12 20:45:46 CEST 2017
 
-- output file per source location; done
+- gsp loops for local
+- gsp loops for point-split
 
-- store propagators in lexic order, full fields?
+- gsp V^+ Gamma propagator, local
 
-- speed-up of cvc contraction part?
-
-- check timers for bottlenecks
+- gsp V^+ Gamma propagator, point-split

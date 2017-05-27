@@ -85,7 +85,7 @@ extern MPI_Datatype eo_propagator_z_odd_bwd_slice_struct;
 extern MPI_Datatype eo_propagator_z_even_bwd_slice_struct;
 
 
-/* edges */
+/* edges for gauge field */
 
 extern MPI_Datatype gauge_xt_edge_vector;
 extern MPI_Datatype gauge_xt_edge_cont;
@@ -101,6 +101,28 @@ extern MPI_Datatype gauge_zx_edge_cont;
 extern MPI_Datatype gauge_zy_edge_vector;
 extern MPI_Datatype gauge_zy_edge_cont;
 
+/* edges for spinor fields */
+
+extern MPI_Datatype spinor_xt_edge_vector;
+extern MPI_Datatype spinor_xt_edge_cont;
+
+extern MPI_Datatype spinor_yt_edge_vector;
+extern MPI_Datatype spinor_yt_edge_cont;
+
+extern MPI_Datatype spinor_yx_edge_vector;
+extern MPI_Datatype spinor_yx_edge_cont;
+
+extern MPI_Datatype spinor_zt_edge_vector;
+extern MPI_Datatype spinor_zt_edge_cont;
+
+extern MPI_Datatype spinor_zx_edge_vector;
+extern MPI_Datatype spinor_zx_edge_cont;
+
+extern MPI_Datatype spinor_zy_edge_vector;
+extern MPI_Datatype spinor_zy_edge_cont;
+
+
+/* slices for contraction fields  */
 extern MPI_Datatype contraction_x_slice_vector;
 extern MPI_Datatype contraction_x_subslice_cont;
 extern MPI_Datatype contraction_x_slice_cont;
@@ -112,6 +134,8 @@ extern MPI_Datatype contraction_y_slice_cont;
 extern MPI_Datatype contraction_z_slice_vector;
 extern MPI_Datatype contraction_z_subslice_cont;
 extern MPI_Datatype contraction_z_slice_cont;
+
+
 
 #  endif
 #  endif

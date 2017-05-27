@@ -34,6 +34,29 @@ int init_4level_buffer (double*****buffer, unsigned int n1, unsigned int n2, uns
 
 int fini_4level_buffer (double*****buffer);
 
+
+/************************************************************************************
+ * (de-)allocate 2-level zbuffer (n1 x n2 matrix)
+ ************************************************************************************/
+int init_2level_zbuffer (double _Complex***zbuffer, unsigned int n1, unsigned int n2);
+
+int fini_2level_zbuffer (double _Complex***zbuffer);
+
+/************************************************************************************
+ * (de-)allocate 3-level zbuffer (n1 x n2 x n3 matrix)
+ ************************************************************************************/
+int init_3level_zbuffer (double _Complex****zbuffer, unsigned int n1, unsigned int n2, unsigned int n3);
+
+int fini_3level_zbuffer (double _Complex****zbuffer);
+
+/************************************************************************************
+ * (de-)allocate 4-level zbuffer (n1 x n2 x n3 x n4 matrix)
+ ************************************************************************************/
+
+int init_4level_zbuffer (double _Complex*****zbuffer, unsigned int n1, unsigned int n2, unsigned int n3, unsigned int n4);
+
+int fini_4level_zbuffer (double _Complex*****zbuffer);
+
 }  /* end of namespace cvc */
 
 #endif

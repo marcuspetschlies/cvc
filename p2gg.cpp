@@ -428,12 +428,12 @@ int main(int argc, char **argv) {
   ratime = _GET_TIME;
   clover_mzz_inv_matrix (g_mzzinv_up, g_mzz_up);
   retime = _GET_TIME;
-  fprintf(stdout, "# [test_lm_propagator_clover] time for clover_mzz_inv_matrix = %e seconds\n", retime-ratime);
+  if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagator_clover] time for clover_mzz_inv_matrix = %e seconds\n", retime-ratime);
 
   ratime = _GET_TIME;
   clover_mzz_inv_matrix (g_mzzinv_dn, g_mzz_dn);
   retime = _GET_TIME;
-  fprintf(stdout, "# [test_lm_propagator_clover] time for clover_mzz_inv_matrix = %e seconds\n", retime-ratime);
+  if ( g_cart_id == 0) fprintf(stdout, "# [test_lm_propagator_clover] time for clover_mzz_inv_matrix = %e seconds\n", retime-ratime);
 
   mzz[0] = g_mzz_up;
   mzz[1] = g_mzz_dn;

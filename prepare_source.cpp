@@ -38,6 +38,9 @@ namespace cvc {
 int prepare_volume_source(double *s, unsigned int V) {
 
   int status = 0;
+  double ratime, retime;
+
+  ratime = _GET_TIME;
 
   switch(g_noise_type) {
     case 1:
@@ -48,6 +51,11 @@ int prepare_volume_source(double *s, unsigned int V) {
       /* status = ranz2(s, 24*V); */
       status = ranz2(s, _GSI(V) );
       break;
+  }
+
+  retime = _GET_TIME;
+  if ( g_cart_id == 0 ) {
+    fprintf(stdout, "# [prepare_volume_source] time for prepare_volume_source = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__ );
   }
 
   return(status);
@@ -396,6 +404,9 @@ int init_clover_eo_spincolor_pointsource_propagator(double *s_even, double *s_od
 
   double spinor1[24];
   size_t sizeof_eo_spinor_field = 24*Vhalf*sizeof(double);
+  double ratime, retime;
+
+  ratime = _GET_TIME;
 
   /* all procs: initialize to zero */
   memset(s_even, 0, sizeof_eo_spinor_field );
@@ -447,6 +458,10 @@ int init_clover_eo_spincolor_pointsource_propagator(double *s_even, double *s_od
   MPI_Barrier(g_cart_grid);
 #endif
 
+  retime = _GET_TIME;
+  if ( g_cart_id == 0 ) {
+    fprintf(stdout, "# [init_clover_eo_spincolor_pointsource_propagator] time for init_clover_eo_spincolor_pointsource_propagator = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+  }
   return(0);
 }  /* end of prepare_clover_eo_spincolor_point_source */
 

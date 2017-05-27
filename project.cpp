@@ -245,6 +245,123 @@ int project_propagator_field(double *s, double * r, int parallel, double *V, int
   return(0);
 }  /* end of project_propagator_field */
 
+
+/******************************************************************************************************
+ * project propagator field (num1 spinor fields)
+ *
+ * B = s is num1 x [12N] (C) = [12N] x num1 (F)
+ * A = V is num2 x [12N] (C) = [12N] x num2 (F)
+ *
+ * zgemm calculates p = V^H x s, which is num2  x num1 (F) = num1 x num2  (C)
+ *
+ * zgemm calculates V x p, which is [12N] x num1 (F) = num1 x [12N] (C)
+ *
+ * r and s can be identical
+ *
+ ******************************************************************************************************/
+int project_propagator_field_weighted(double *s, double * r, int parallel, double *V, double *weights, int num1, int num2, unsigned int N) {
+
+  const int items_p = num1 * num2;  /* number of double _Complex items */
+  const size_t bytes_p = (size_t)items_p * sizeof(double _Complex);
+  unsigned int status;
+  int BLAS_M, BLAS_N, BLAS_K; 
+  int BLAS_LDA, BLAS_LDB ,BLAS_LDC;
+  char BLAS_TRANSA, BLAS_TRANSB;
+  double _Complex **p = NULL, *p_buffer = NULL;
+  double _Complex BLAS_ALPHA, BLAS_BETA;
+  double _Complex *BLAS_A = NULL, *BLAS_B = NULL, *BLAS_C = NULL;
+  double ratime, retime;
+ 
+  if (s == NULL || r == NULL || V == NULL || num1 <= 0 || num2 <= 0) {
+    fprintf(stderr, "[project_propagator_field_weighted] Error, wrong parameter values\n");
+    return(4);
+  }
+ 
+  ratime = _GET_TIME;
+
+  if ( init_2level_zbuffer ( &p, num1, num2) != 0 ) {
+    fprintf(stderr, "[project_propagator_field_weighted] Error from init_2level_zbuffer %s %d\n", __FILE__, __LINE__);
+    return(1);
+  }
+  
+  /* projection on V-basis */
+  BLAS_ALPHA  = 1.;
+  BLAS_BETA   = 0.;
+  BLAS_TRANSA = 'C';
+  BLAS_TRANSB = 'N';
+  BLAS_M      = num2;
+  BLAS_K      = 12*N;
+  BLAS_N      = num1;
+  BLAS_A      = (double _Complex*)V;
+  BLAS_B      = (double _Complex*)r;
+  BLAS_C      = p[0];
+  BLAS_LDA    = BLAS_K;
+  BLAS_LDB    = BLAS_K;
+  BLAS_LDC    = BLAS_M;
+
+  _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+
+#ifdef HAVE_MPI
+  /* allreduce across all processes */
+  if( (p_buffer = (double _Complex*)malloc( bytes_p )) == NULL ) {
+    fprintf(stderr, "[project_propagator_field_weighted] Error from malloc\n");
+    return(2);
+  }
+
+  memcpy(p_buffer, p[0], bytes_p);
+  status = MPI_Allreduce(p_buffer, p[0], 2*items_p, MPI_DOUBLE, MPI_SUM, g_cart_grid);
+  if(status != MPI_SUCCESS) {
+    fprintf(stderr, "[project_propagator_field_weighted] Error from MPI_Allreduce, status was %d\n", status);
+    return(1);
+  }
+  free(p_buffer); p_buffer = NULL;
+#endif
+
+  /* weight the projection coefficients */
+  for( int i = 0; i < num1; i++ ) {
+#ifdef HAVE_OPENMP
+#pragma omp parallal for shared(i)
+#endif
+    for( int k = 0; k < num2; k++ ) {
+      p[i][k] *= weights[k];
+    }
+  }
+
+  /* expand in V-basis or subtract expansion in V-basis  */
+  if(parallel) {
+    BLAS_ALPHA  =  1.;
+    BLAS_BETA   =  0.;
+  } else {
+    if(r != s) {
+      /* copy r to s */
+      size_t bytes = 24 * (size_t)num1 * (size_t)N * sizeof(double);
+      memcpy(s, r, bytes ) ;
+    }
+    BLAS_ALPHA  = -1.;
+    BLAS_BETA   =  1.;
+  }
+  BLAS_TRANSA = 'N';
+  BLAS_TRANSB = 'N';
+  BLAS_M      = 12*N;
+  BLAS_K      = num2;
+  BLAS_N      = num1;
+  BLAS_A      = (double _Complex*)V;
+  BLAS_B      = p[0];
+  BLAS_C      = (double _Complex*)s;
+  BLAS_LDA    = BLAS_M;
+  BLAS_LDB    = BLAS_K;
+  BLAS_LDC    = BLAS_M;
+
+  _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+
+  fini_2level_zbuffer ( &p );
+
+  retime = _GET_TIME;
+  if(g_cart_id == 0) fprintf(stdout, "# [project_propagator_field_weighted] time for projection = %e seconds\n", retime-ratime);
+
+  return(0);
+}  /* end of project_propagator_field_weighted */
+
 /******************************************************************************************************
  * project coefficents
  *
@@ -802,7 +919,7 @@ void make_eo_phase_field_sliced3d (double _Complex**phase, int *momentum, int eo
  *   phase 2-dim array of phases momentum_number x VOL3/2
  ****************************************************************/
 void make_eo_phase_field_timeslice (double _Complex**phase, int momentum_number, int (*momentum_list)[3], int timeslice, int eo) {
-#if 0
+
   const double TWO_MPI = 2. * M_PI;
   const unsigned int VOL3half = LX*LY*LZ/2;
 
@@ -830,7 +947,8 @@ void make_eo_phase_field_timeslice (double _Complex**phase, int momentum_number,
 #endif
     /* make phase field in eo ordering */
     for(ix=0; ix < VOL3half; ix++) {
-      ztmp = ( phase_part + g_eot2xyz[eo][timeslice][ix][0] * p[0] + g_eot2xyz[eo][timeslice][ix][1] * p[1] + g_eot2xyz[eo][timeslice][ix][2] * p[2] ) * I;
+      /* ztmp = ( phase_part + g_eot2xyz[eo][timeslice][ix][0] * p[0] + g_eot2xyz[eo][timeslice][ix][1] * p[1] + g_eot2xyz[eo][timeslice][ix][2] * p[2] ) * I; */
+      ztmp = ( phase_part +   g_eosubt2coords[eo][timeslice][ix][0] * p[0] +   g_eosubt2coords[eo][timeslice][ix][1] * p[1] +   g_eosubt2coords[eo][timeslice][ix][2] * p[2] ) * I;
       phase[imom][ix] = cexp(ztmp);
     }
 #ifdef HAVE_OPENMP
@@ -840,7 +958,7 @@ void make_eo_phase_field_timeslice (double _Complex**phase, int momentum_number,
   }  /* end of loop on momenta */
   retime = _GET_TIME;
   if(g_verbose > 0 && g_cart_id == 0) fprintf(stdout, "# [make_eo_phase_field_timeslice] time for make_eo_phase_field_timeslice = %e seconds\n", retime-ratime);
-#endif
+
 }  /* end of make_eo_phase_field_timeslice */
 
 

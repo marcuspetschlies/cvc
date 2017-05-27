@@ -129,7 +129,7 @@ int main(int argc, char **argv) {
 
   /* set the default values */
   if(filename_set==0) strcpy(filename, "p2gg.input");
-  fprintf(stdout, "# [test_lm_propagator_clover] Reading input from file %s\n", filename);
+  /* fprintf(stdout, "# [test_lm_propagator_clover] Reading input from file %s\n", filename); */
   read_input_parser(filename);
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
@@ -266,26 +266,11 @@ int main(int argc, char **argv) {
   }
 #endif  /* of ifdef HAVE_TMLQCD_LIBWRAPPER */
 
-  alloc_gauge_field(&gauge_field_with_phase, VOLUMEPLUSRAND);
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-  for( unsigned int ix=0; ix<VOLUME; ix++ ) {
-    for (int mu=0; mu<4; mu++ ) {
-      _cm_eq_cm_ti_co ( gauge_field_with_phase+_GGI(ix,mu), g_gauge_field+_GGI(ix,mu), &co_phase_up[mu] );
-    }
+  exitstatus = gauge_field_eq_gauge_field_ti_phase ( &gauge_field_with_phase, g_gauge_field, co_phase_up );
+  if(exitstatus != 0) {
+    fprintf(stderr, "[test_lm_propagator_clover] Error from gauge_field_eq_gauge_field_ti_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(30);
   }
-
-#ifdef HAVE_MPI
-  // xchange_gauge();
-  xchange_gauge_field(gauge_field_with_phase);
-#endif
-
-  /* measure the plaquette */
-  //plaquette(&plaq);
-  //if(g_cart_id==0) fprintf(stdout, "# [test_lm_propagator_clover] measured plaquette value: %25.16e\n", plaq);
-
-  plaquetteria (gauge_field_with_phase);
 
   /***********************************************
    * allocate memory for the spinor fields
@@ -529,7 +514,7 @@ int main(int argc, char **argv) {
 #if 0
 #endif
 
-#if 0
+
   /***********************************************************
    * test subspace inversion on point source
    ***********************************************************/
@@ -551,10 +536,10 @@ int main(int argc, char **argv) {
   if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] P vs B [B^-1 P] even norm %e\n", norm);
   spinor_field_norm_diff( &norm, eo_spinor_field[1], eo_spinor_field[5], Vhalf);
   if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] P vs B [B^-1 P] odd  norm %e\n", norm);
-
+#if 0
 #endif
 
-#if 0
+
   /***********************************************************
    * TEST A,B Schur decomposition against Q_clover_phi
    ***********************************************************/
@@ -580,10 +565,10 @@ int main(int argc, char **argv) {
   spinor_field_norm_diff( &norm, eo_spinor_work[3], eo_spinor_field[5], Vhalf);
   if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] Q g5 A B odd  norm diff %e\n", norm);
   /* end of TEST */
-
+#if 0
 #endif
 
-#if 0
+
   /***********************************************************
    * TEST A Schur decomposition against Ainv
    ***********************************************************/
@@ -597,7 +582,7 @@ int main(int argc, char **argv) {
   if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] A^-1 A even norm diff %e\n", norm);
   spinor_field_norm_diff( &norm, eo_spinor_field[5], eo_spinor_field[1], Vhalf);
   if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] A^-1 A odd  norm diff %e\n", norm);
-
+#if 0
 #endif
 
 #if 0
@@ -640,7 +625,7 @@ int main(int argc, char **argv) {
 
 #endif
 
-#if 0
+
   /***********************************************************
    * TEST step-wise propagator construction with
    *   Q_clover_eo_SchurDecomp_Ainv, tmLQCD_invert_eo
@@ -683,6 +668,7 @@ int main(int argc, char **argv) {
   if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] eo step-wise propagator against g5 A B even norm diff %e\n", norm);
   spinor_field_norm_diff( &norm, eo_spinor_field[3], eo_spinor_field[1], Vhalf);
   if(g_cart_id == 0) fprintf(stdout, "# [test_lm_propagators_clover] eo step-wise propagator against g5 A B  odd norm diff %e\n", norm);
+#if 0
 #endif  /* of if 0 */
 
 
@@ -744,7 +730,7 @@ int main(int argc, char **argv) {
 #if 0
 #endif
 
-
+#if 0
   g_seq_source_momentum[0] = 1;
   g_seq_source_momentum[1] = 2;
   g_seq_source_momentum[2] = -3;
@@ -756,7 +742,7 @@ int main(int argc, char **argv) {
     exitstatus = init_clover_eo_sequential_source(eo_spinor_field[24+ia], eo_spinor_field[36+ia], eo_spinor_field[ia], eo_spinor_field[12+ia],
         g_sequential_source_timeslice, gauge_field_with_phase, mzzinv[flavor_id][0], g_seq_source_momentum, g_sequential_source_gamma_id, eo_spinor_work[0]);
   }
-#if 0
+
 #endif  /* of if 0 */
 
 #if 0
@@ -810,6 +796,7 @@ int main(int argc, char **argv) {
   }  /* end of loop on spin-color */
 #endif  /* of if 0 */
   
+#if 0
   /* project odd sequential source part on eigenvector subspace */
   exitstatus = project_propagator_field(eo_spinor_field[36], eo_spinor_field[36], 1, eo_evecs_block[op_id], 12, evecs_num, Vhalf);
   if(exitstatus != 0) {
@@ -886,7 +873,6 @@ int main(int argc, char **argv) {
     if(g_cart_id == 0) printf("# [test_lm_propagator_clover] subspace inversion comparison   odd norm %2d %25.16e\n", ia, norm);
   }
 
-#if 0
 #endif  /* of if 0 */
 
   /****************************************

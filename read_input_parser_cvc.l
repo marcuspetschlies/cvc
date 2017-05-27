@@ -47,7 +47,7 @@ namespace cvc {
   char * type;
   double ft_rmax[4];
 
-  int cvc_verbose = 1;
+  int cvc_verbose = 0;
   int myverbose = 0;
 }
 %}
