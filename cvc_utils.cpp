@@ -4654,8 +4654,10 @@ int check_point_source_propagator_clover_eo(double**prop_e, double**prop_o, doub
   int source_proc_id=0;
   int status;
   int k;
-
   double norm;
+  double ratime, retime;
+
+  ratime = _GET_TIME;
 
 #ifdef HAVE_MPI
   int source_proc_coords[4] = { gcoords[0]/T, gcoords[1]/LX, gcoords[2]/LY, gcoords[3]/LZ };
@@ -4686,6 +4688,10 @@ int check_point_source_propagator_clover_eo(double**prop_e, double**prop_o, doub
     if(g_cart_id==0) fprintf(stdout, "# [check_point_source_propagator_clover_eo] %3d norm odd  part = %e\n", k, sqrt(norm) );
   }  /* end of loop on nf */
 
+  retime = _GET_TIME;
+  if ( g_cart_id == 0 ) {
+    fprintf(stdout, "# [check_point_source_propagator_clover_eo] time for check_point_source_propagator_clover_eo = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+  }
   return(0);
 }  /* end of check_source */
 
@@ -6232,10 +6238,12 @@ int plaquetteria  (double*gauge_field ) {
   }      /* end of loop on ix */
 #ifdef HAVE_OPENMP
   omp_set_lock(&writelock);
+#endif
   plaq[0] += ploc[0];
   plaq[1] += ploc[1];
   plaq[2] += ploc[2];
   plaq[3] += ploc[3];
+#ifdef HAVE_OPENMP
   omp_unset_lock(&writelock);
 }  /* end of parallel region */
   omp_destroy_lock(&writelock);
