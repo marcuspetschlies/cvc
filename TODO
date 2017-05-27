@@ -1,0 +1,9 @@
+# Wed Feb  1 16:41:12 CET 2017
+
+- output file per source location; done
+
+- store propagators in lexic order, full fields?
+
+- speed-up of cvc contraction part?
+
+- check timers for bottlenecks
