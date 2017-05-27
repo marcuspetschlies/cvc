@@ -1003,7 +1003,7 @@ int contract_vdag_gloc_spinor_field (
 #endif
       if ( io_proc == 2 ) {
         sprintf(aff_path, "%s/v_dag_gloc_s/px%.2dpy%.2dpz%.2d/g%.2d", tag, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2], gamma_id_list[ig]);
-
+        /* fprintf(stdout, "# [contract_vdag_gloc_spinor_field] node = %s\n", aff_path); */
         affdir = aff_writer_mkpath(affw, affn, aff_path);
         exitstatus = aff_node_put_complex (affw, affdir, contr_allt_buffer, (uint32_t)(T_global*numV*nsf ) );
         if(exitstatus != 0) {
@@ -3106,6 +3106,8 @@ int contract_vdag_gloc_phi_blocked (double**V, double**Phi, int numV, int numPhi
   fini_2level_buffer ( (double***)(&Phi_ts) );
   fini_2level_buffer ( (double***)(&Phi_phase) );
   fini_2level_buffer ( (double***)(&Phi_gamma_phase) );
+  fini_2level_buffer ( (double***)(&Phi_aux1) );
+  fini_2level_buffer ( (double***)(&Phi_aux2) );
   fini_3level_buffer ( (double****)(&contr) );
 
   retime = _GET_TIME;
