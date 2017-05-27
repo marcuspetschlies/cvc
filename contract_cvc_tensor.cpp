@@ -3150,7 +3150,7 @@ int contract_vdag_cvc_w_blocked (double**V, int numV, int momentum_number, int (
 
   /* auxilliary W fields */
   double _Complex **W = NULL;
-  double _Complex **W_ts = NULL, **W_vertex = NULL,**W_phase = NULL, **W_aux;
+  double _Complex **W_ts = NULL, **W_vertex = NULL,**W_phase = NULL, **W_aux = NULL;
 
   /* fields for contractions */
   double _Complex ***contr = NULL;
