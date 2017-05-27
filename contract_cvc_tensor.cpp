@@ -42,12 +42,6 @@
 
 namespace cvc {
 
-static const unsigned int Vhalf = VOLUME / 2;
-static const unsigned int VOL3half = ( LX * LY * LZ ) / 2;
-static const size_t sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof(double);
-static const size_t sizeof_eo_spinor_field_timeslice = _GSI( VOL3half ) * sizeof(double);
-
-
 static double *Usource[4], Usourcebuffer[72];
 static double _Complex UsourceMatrix[4][144];
 static int source_proc_id;
@@ -805,8 +799,6 @@ int apply_constant_cvc_vertex_at_source (double**s, int mu, int fbwd, const unsi
   return(0);
 }  /* end of apply_constant_cvc_vertex_at_source */
 
-
-
 /************************************************************
  * calculate gsp using t-blocks
  *
@@ -836,8 +828,7 @@ int contract_vdag_gloc_spinor_field (
     char*tag, int io_proc, 
     double*gauge_field, 
     double **mzz[2], 
-    double**mzzinv[2] ) 
-{
+    double**mzzinv[2] ) {
  
   const unsigned int Vhalf    = VOLUME / 2;
   const unsigned int VOL3half = ( LX * LY * LZ ) / 2;
@@ -1464,6 +1455,7 @@ int contract_vdag_gloc_spinor_field (
 
 }  /* end of contract_v_dag_gloc_spinor_field */
 
+
 /*******************************************************************************************
  * calculate V^+ cvc-vertex S
  *
@@ -1683,11 +1675,9 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
             free( contr_allt_buffer );
 #endif
           }
-        }  /* end of loop on Gamma structures */
-      }  /* end of loop on momenta */
-
+        }  /* end of loop on momenta */
+      }   /* end of loop on momenta */
     }  /* end of loop on shift directions */
-
   }  /* end of loop on blocks */
 #if 0
 #endif  /* of if 0 */
@@ -1767,14 +1757,14 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
     
             _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
     
-    #ifdef HAVE_MPI
+#ifdef HAVE_MPI
             memcpy( mcontr_buffer,  contr[it][0], numV*block_size*sizeof(double _Complex) );
             exitstatus = MPI_Allreduce(mcontr_buffer, contr[it][0], 2*numV*block_size, MPI_DOUBLE, MPI_SUM, g_ts_comm);
             if( exitstatus != MPI_SUCCESS ) {
               fprintf(stderr, "[contract_vdag_cvc_spinor_field] Error from MPI_Allreduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               return(8);
             }
-    #endif
+#endif
           }  /* end of loop on timeslices */
     
           /************************************************
@@ -1818,8 +1808,8 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
             }
 #ifdef HAVE_MPI
             free( contr_allt_buffer );
-          }
 #endif
+          }
         }  /* end of loop on momenta */  
       }  /* end of loop on fbwd */
 
@@ -2077,7 +2067,7 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
               fprintf(stderr, "[contract_vdag_cvc_spinor_field] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               return(11);
             }
-#if 0   
+#ifdef HAVE_MPI   
             free( contr_allt_buffer );
 #endif
           }
@@ -2110,6 +2100,7 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
 
 }  /* end of contract_v_dag_cvc_spinor_field */
 
+
 /************************************************************
  ************************************************************
  **
@@ -2117,8 +2108,12 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
  **
  ************************************************************
  ************************************************************/
-int vdag_w_reduce_write (double _Complex ***contr, double _Complex **V, double _Complex **W, int dimV, int dimW, char *aff_path, struct AffWriter_s *affw, struct AffNode_s *affn,
-    int io_proc, double _Complex **V_ts, double _Complex **W_ts, double *mcontr_buffer) {
+int vdag_w_reduce_write (double _Complex ***contr, double _Complex **V, double _Complex **W, int dimV, int dimW, char *aff_path, struct AffWriter_s *affw, struct AffNode_s *affn, int io_proc, double _Complex **V_ts, double _Complex **W_ts, double *mcontr_buffer) {
+
+  static const unsigned int Vhalf = VOLUME / 2;
+  static const unsigned int VOL3half = ( LX * LY * LZ ) / 2;
+  static const size_t sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof(double);
+  static const size_t sizeof_eo_spinor_field_timeslice = _GSI( VOL3half ) * sizeof(double);
 
   int exitstatus;
   /* BLAS parameters for zgemm */
@@ -2141,8 +2136,8 @@ int vdag_w_reduce_write (double _Complex ***contr, double _Complex **V, double _
 
     /* copy timslice of V  */
     unsigned int offset = _GSI(VOL3half) * it;
-    for( int i=0; i<dimV; i++ ) memcpy( V_ts[i], V[i]+offset, sizeof_eo_spinor_field_timeslice );
-    for( int i=0; i<dimW; i++ ) memcpy( W_ts[i], W[i]+offset, sizeof_eo_spinor_field_timeslice );
+    for( int i=0; i<dimV; i++ ) memcpy( V_ts[i], (double*)(V[i])+offset, sizeof_eo_spinor_field_timeslice );
+    for( int i=0; i<dimW; i++ ) memcpy( W_ts[i], (double*)(W[i])+offset, sizeof_eo_spinor_field_timeslice );
 
     BLAS_C = contr[it][0];
 
@@ -2230,6 +2225,7 @@ int contract_vdag_gloc_w_blocked (double**V, int numV, int momentum_number, int 
   const unsigned int Vhalf = VOLUME / 2;
   const unsigned int VOL3half = ( LX * LY * LZ ) / 2;
   const size_t sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof(double);
+  const size_t sizeof_eo_spinor_field_with_halo = _GSI( (VOLUME+RAND)/2 ) * sizeof(double);
   /* const size_t sizeof_eo_spinor_field_timeslice = _GSI( VOL3half ) * sizeof(double); */
 
   int exitstatus;
@@ -2322,6 +2318,7 @@ int contract_vdag_gloc_w_blocked (double**V, int numV, int momentum_number, int 
     }
   }
 
+
   /************************************************
    ************************************************
    **
@@ -2367,11 +2364,14 @@ int contract_vdag_gloc_w_blocked (double**V, int numV, int momentum_number, int 
           fprintf(stderr, "[contract_v_dag_gloc_w_blocked] Error from vdag_w_reduce_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           return(2);
         }
-
       }  /* end of loop on Gamma structures */
+
+
     }  /* end of loop on momenta */
 
   }  /* end of loops on blocks */
+
+
 
   /************************************************
    ************************************************
@@ -2381,8 +2381,9 @@ int contract_vdag_gloc_w_blocked (double**V, int numV, int momentum_number, int 
    ************************************************
    ************************************************/
 
+
   /* calculate Xbar V */
-  spinor_work = (double*)malloc( _GSI( (VOLUME+RAND)/2 ) );
+  spinor_work = (double*)malloc( sizeof_eo_spinor_field_with_halo );
   if ( spinor_work == NULL ) {
     fprintf(stderr, "[contract_v_dag_gloc_w_blocked] Error from malloc %s %d\n", __FILE__, __LINE__);
     return(12);
@@ -2401,7 +2402,6 @@ int contract_vdag_gloc_w_blocked (double**V, int numV, int momentum_number, int 
 
     /* loop on momenta */
     for( int im=0; im<momentum_number; im++ ) {
-  
       /* make even phase field */
       make_eo_phase_field_sliced3d ( phase_field, momentum_list[im], 0);
 
@@ -2426,6 +2426,9 @@ int contract_vdag_gloc_w_blocked (double**V, int numV, int momentum_number, int 
       }  /* end of loop on Gamma structures */
     }  /* end of loop on momenta */  
   }  /* end of loop on blocks */
+#if 0 
+#endif  /* of if 0 */
+
 
 
   /************************************************
@@ -2437,8 +2440,8 @@ int contract_vdag_gloc_w_blocked (double**V, int numV, int momentum_number, int 
    ************************************************
    ************************************************/
   /* calculate W from V and Xbar V */
-  spinor_work = (double*)malloc( _GSI( (VOLUME+RAND)/2 ) );
-  spinor_aux  = (double*)malloc( _GSI( (VOLUME)/2 ) );
+  spinor_work = (double*)malloc( sizeof_eo_spinor_field_with_halo );
+  spinor_aux  = (double*)malloc( sizeof_eo_spinor_field );
   if ( spinor_work == NULL || spinor_aux == NULL ) {
     fprintf(stderr, "[contract_v_dag_gloc_w_blocked] Error from malloc %s %d\n", __FILE__, __LINE__);
     return(12);
@@ -2498,6 +2501,9 @@ int contract_vdag_gloc_w_blocked (double**V, int numV, int momentum_number, int 
       }  /* end of loop on Gamma structures */
     }  /* end of loop on momenta */  
   }  /* end of loop on blocks */
+#if 0
+#endif  /* of if 0 */
+
 
   /************************************************
    ************************************************
@@ -2507,7 +2513,7 @@ int contract_vdag_gloc_w_blocked (double**V, int numV, int momentum_number, int 
    ************************************************
    ************************************************/
   /* calculate X W */
-  spinor_work = (double*)malloc( _GSI( (VOLUME+RAND)/2 ) );
+  spinor_work = (double*)malloc( sizeof_eo_spinor_field_with_halo );
   if ( spinor_work == NULL ) {
     fprintf(stderr, "[contract_v_dag_gloc_w_blocked] Error from malloc %s %d\n", __FILE__, __LINE__);
     return(12);
@@ -2532,7 +2538,7 @@ int contract_vdag_gloc_w_blocked (double**V, int numV, int momentum_number, int 
 
       /* calculate the propagators including current Fourier phase */
       for( int i=0; i < block_size; i++) {
-        spinor_field_eq_spinor_field_ti_complex_field ( (double*)(W_phase[i]), (double*)(W[i]), (double*)(phase_field[0]), Vhalf);
+        spinor_field_eq_spinor_field_ti_complex_field ( (double*)(W_phase[i]), (double*)(W[iblock*block_size + i]), (double*)(phase_field[0]), Vhalf);
       }
 
       for( int ig=0; ig<gamma_id_number; ig++ ) {
@@ -2550,7 +2556,8 @@ int contract_vdag_gloc_w_blocked (double**V, int numV, int momentum_number, int 
       }  /* end of loop on Gamma structures */
     }  /* end of loop on momenta */
   }  /* end of loop on blocks */
-
+#if 0
+#endif  /* of if 0 */
 
   /************************************************
    ************************************************
@@ -2559,8 +2566,9 @@ int contract_vdag_gloc_w_blocked (double**V, int numV, int momentum_number, int 
    **
    ************************************************
    ************************************************/
+
   /* calculate X W */
-  spinor_work = (double*)malloc( _GSI( (VOLUME+RAND)/2 ) );
+  spinor_work = (double*)malloc( sizeof_eo_spinor_field_with_halo );
   if ( spinor_work == NULL ) {
     fprintf(stderr, "[contract_v_dag_gloc_w_blocked] Error from malloc %s %d\n", __FILE__, __LINE__);
     return(12);
@@ -2574,7 +2582,7 @@ int contract_vdag_gloc_w_blocked (double**V, int numV, int momentum_number, int 
 
   for( int iblock=0; iblock < block_num; iblock++ ) {
 
-    for( int i=0; i<numV; i++ ) {
+    for( int i=0; i<block_size; i++ ) {
       /*
        * Xbar V = Xbar V = -M_ee^-1[dn] M_eo V
        */
@@ -2610,6 +2618,8 @@ int contract_vdag_gloc_w_blocked (double**V, int numV, int momentum_number, int 
   }  /* end of loop on blocks */
   free ( spinor_work ); spinor_work = NULL;
   fini_2level_buffer ( (double***)(&W_aux) );
+#if 0
+#endif  /* of if 0 */
 
 #ifdef HAVE_MPI
   free ( mcontr_buffer );
@@ -2655,6 +2665,7 @@ int contract_vdag_gloc_phi_blocked (double**V, double**Phi, int numV, int numPhi
   const unsigned int Vhalf = VOLUME / 2;
   const unsigned int VOL3half = ( LX * LY * LZ ) / 2;
   const size_t sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof(double);
+  const size_t sizeof_eo_spinor_field_with_halo = _GSI( (VOLUME+RAND)/2 ) * sizeof(double);
   /* const size_t sizeof_eo_spinor_field_timeslice = _GSI( VOL3half ) * sizeof(double); */
 
   int exitstatus;
@@ -2772,7 +2783,7 @@ int contract_vdag_gloc_phi_blocked (double**V, double**Phi, int numV, int numPhi
   /* calculate W from V 
    * W = Cbar V
    * */
-  spinor_work = (double*)malloc( _GSI( (VOLUME+RAND)/2 ) );
+  spinor_work = (double*)malloc( sizeof_eo_spinor_field_with_halo );
   if ( spinor_work == NULL ) {
     fprintf(stderr, "[contract_v_dag_gloc_phi_blocked] Error from malloc %s %d\n", __FILE__, __LINE__);
     return(12);
@@ -2890,8 +2901,8 @@ int contract_vdag_gloc_phi_blocked (double**V, double**Phi, int numV, int numPhi
    ************************************************/
 
   /* calculate Xbar V */
-  spinor_work = (double*)malloc( _GSI( (VOLUME+RAND)/2 ) );
-  spinor_aux  = (double*)malloc( _GSI( VOLUME/2 ) );
+  spinor_work = (double*)malloc( sizeof_eo_spinor_field_with_halo );
+  spinor_aux  = (double*)malloc( sizeof_eo_spinor_field );
   if ( spinor_work == NULL || spinor_aux == NULL ) {
     fprintf(stderr, "[contract_v_dag_gloc_phi_blocked] Error from malloc %s %d\n", __FILE__, __LINE__);
     return(12);
@@ -2907,7 +2918,9 @@ int contract_vdag_gloc_phi_blocked (double**V, double**Phi, int numV, int numPhi
 
   for( int iblock=0; iblock < block_num; iblock++ ) {
 
-    /* calculate Xbar Phi */
+    /* calculate Xbar Phi 
+     * calculate X Xi 
+     */
     for( int i = 0; i < block_size; i++ ) {
       memcpy( spinor_work, Phi[iblock * block_size + i], sizeof_eo_spinor_field );
       X_clover_eo ( (double*)(Phi_aux1[i]), spinor_work, gauge_field, mzzinv[1][0] );
@@ -2919,7 +2932,7 @@ int contract_vdag_gloc_phi_blocked (double**V, double**Phi, int numV, int numPhi
 
       /* calculate X Xi */
       memcpy(spinor_work, Phi_aux2[i], sizeof_eo_spinor_field );
-      X_clover_eo ( (double*)(Phi_aux2[i]), spinor_work, gauge_field, mzzinv[1][0] );
+      X_clover_eo ( (double*)(Phi_aux2[i]), spinor_work, gauge_field, mzzinv[0][0] );
     }
 
     /* loop on momenta */
@@ -2988,8 +3001,8 @@ int contract_vdag_gloc_phi_blocked (double**V, double**Phi, int numV, int numPhi
    ************************************************/
 
   /* calculate Xbar V */
-  spinor_work = (double*)malloc( _GSI( (VOLUME+RAND)/2 ) );
-  spinor_aux  = (double*)malloc( _GSI( VOLUME/2 ) );
+  spinor_work = (double*)malloc( sizeof_eo_spinor_field_with_halo );
+  spinor_aux  = (double*)malloc( sizeof_eo_spinor_field );
   if ( spinor_work == NULL || spinor_aux == NULL ) {
     fprintf(stderr, "[contract_v_dag_gloc_phi_blocked] Error from malloc %s %d\n", __FILE__, __LINE__);
     return(12);
@@ -3125,6 +3138,7 @@ int contract_vdag_cvc_w_blocked (double**V, int numV, int momentum_number, int (
   const unsigned int Vhalf = VOLUME / 2;
   const unsigned int VOL3half = ( LX * LY * LZ ) / 2;
   const size_t sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof(double);
+  const size_t sizeof_eo_spinor_field_with_halo = _GSI( (VOLUME+RAND)/2 ) * sizeof(double);
   /* const size_t sizeof_eo_spinor_field_timeslice = _GSI( VOL3half ) * sizeof(double); */
 
   int exitstatus;
@@ -3465,7 +3479,7 @@ int contract_vdag_cvc_phi_blocked (double**V, double**Phi, int numV, int numPhi,
 
   ratime = _GET_TIME;
 
-  exitstatus = init_2level_buffer ( (double***)(&eo_spinor_work), 1, _GSI( (VOLUME+RAND)/2) );
+  exitstatus = init_2level_buffer ( (double***)(&eo_spinor_work), 2, _GSI( (VOLUME+RAND)/2) );
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[contract_vdag_cvc_phi_blocked] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     return(1);
@@ -3664,7 +3678,7 @@ int contract_vdag_cvc_phi_blocked (double**V, double**Phi, int numV, int numPhi,
     }  /* end of loop on shift directions */
 
     /************************************************
-     * (3) Xbar V - Sigma
+     * (3) Xbar V - Xi
      ************************************************/
 
     /* calculate block of Sigma from Xbar Phi and Phi */
@@ -3706,7 +3720,7 @@ int contract_vdag_cvc_phi_blocked (double**V, double**Phi, int numV, int numPhi,
           g5_phi( (double*)(Phi_phase[0]), block_size*Vhalf);
 
 
-          sprintf(aff_path, "%s/xv_dag_cvc_sigma/block%.2d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+          sprintf(aff_path, "%s/xv_dag_cvc_xi/block%.2d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
 
           exitstatus = vdag_w_reduce_write ( contr, W, Phi_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, Phi_ts, mcontr_buffer);
           if ( exitstatus != 0 ) {
@@ -3718,9 +3732,12 @@ int contract_vdag_cvc_phi_blocked (double**V, double**Phi, int numV, int numPhi,
 
       }  /* end of loop on fwd, bwd */
     }  /* end of loop on shift directions */
+#if 0
+#endif  /* of if 0*/
+
 
     /************************************************
-     * (4) V - X Sigma
+     * (4) V - X Xi
      ************************************************/
 
     /* calculate block of X Sigma from Sigma */
@@ -3730,6 +3747,7 @@ int contract_vdag_cvc_phi_blocked (double**V, double**Phi, int numV, int numPhi,
       /* Phi_aux = X Sigma */
       X_clover_eo ( (double*)(Phi_aux[i]), eo_spinor_work[0], gauge_field, mzzinv[0][0]);
     }
+
 
     /* loop on directions mu */
     for( int mu=0; mu<4; mu++ ) {
@@ -3760,7 +3778,7 @@ int contract_vdag_cvc_phi_blocked (double**V, double**Phi, int numV, int numPhi,
           g5_phi( (double*)(Phi_phase[0]), block_size*Vhalf);
 
 
-          sprintf(aff_path, "%s/v_dag_cvc_xsigma/block%.2d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+          sprintf(aff_path, "%s/v_dag_cvc_xxi/block%.2d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
 
 /************************************************
  * NOTE: DANGEROUS TYPECAST
@@ -3775,11 +3793,15 @@ int contract_vdag_cvc_phi_blocked (double**V, double**Phi, int numV, int numPhi,
 
       }  /* end of loop on fwd, bwd */
     }  /* end of loop on shift directions */
+#if 0
+#endif  /* of if 0 */
   }  /* end of loop on blocks */
+
+
 
   /************************************************
    * W - Xbar Phi and
-   * W - X Sigma
+   * W - X Xi
    ************************************************/
 
   /* calculate W from V, Xbar V */
@@ -3848,7 +3870,7 @@ int contract_vdag_cvc_phi_blocked (double**V, double**Phi, int numV, int numPhi,
     }  /* end of loop on shift directions */
 
     /************************************************
-     * (6) W - X Sigma
+     * (6) W - X Xi
      ************************************************/
 
     /* calculate a block of X Sigma */
@@ -3893,7 +3915,7 @@ int contract_vdag_cvc_phi_blocked (double**V, double**Phi, int numV, int numPhi,
           }
           g5_phi( (double*)(Phi_phase[0]), block_size*Vhalf);
 
-          sprintf(aff_path, "%s/w_dag_cvc_xsigma/block%.2d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+          sprintf(aff_path, "%s/w_dag_cvc_xxi/block%.2d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
 
           exitstatus = vdag_w_reduce_write ( contr, W, Phi_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, Phi_ts, mcontr_buffer);
           if ( exitstatus != 0 ) {
@@ -3907,10 +3929,13 @@ int contract_vdag_cvc_phi_blocked (double**V, double**Phi, int numV, int numPhi,
     }  /* end of loop on shift directions */
 
   }  /* end of loop on blocks */
+#if 0
+#endif  /* of if 0 */
+
 
   /************************************************
    * X W - Phi and
-   * X W - Sigma
+   * X W - Xi
    ************************************************/
 
   /* calculate W <- X W from W */
@@ -4006,7 +4031,7 @@ int contract_vdag_cvc_phi_blocked (double**V, double**Phi, int numV, int numPhi,
           }
           g5_phi( (double*)(Phi_phase[0]), block_size*Vhalf);
 
-          sprintf(aff_path, "%s/xw_dag_cvc_sigma/block%.2d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
+          sprintf(aff_path, "%s/xw_dag_cvc_xi/block%.2d/mu%d/fbwd%d/px%.2dpy%.2dpz%.2d", tag, iblock, mu, fbwd, momentum_list[im][0], momentum_list[im][1], momentum_list[im][2]);
 
           exitstatus = vdag_w_reduce_write ( contr, W, Phi_phase, numV, block_size, aff_path, affw, affn, io_proc, V_ts, Phi_ts, mcontr_buffer);
           if ( exitstatus != 0 ) {
@@ -4018,7 +4043,8 @@ int contract_vdag_cvc_phi_blocked (double**V, double**Phi, int numV, int numPhi,
       }  /* end of loop on fwd, bwd */
     }  /* end of loop on shift directions */
   }  /* end of loop on blocks */
-
+#if 0
+#endif  /* of if 0 */
 
 #ifdef HAVE_MPI
   free ( mcontr_buffer );
@@ -4041,5 +4067,7 @@ int contract_vdag_cvc_phi_blocked (double**V, double**Phi, int numV, int numPhi,
   return(0);
 
 }  /* end of contract_v_dag_cvc_phi_blocked */
+#if 0
+#endif  /* of if 0 */
 
 }  /* end of namespace cvc */
