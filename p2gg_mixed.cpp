@@ -101,6 +101,7 @@ int main(int argc, char **argv) {
   const int sequential_source_gamma_id_sign[16] ={ -1, -1, -1, -1, +1, +1,  +1,  +1,  +1,  +1,  -1,  -1,  -1,  -1,  -1,  -1 };
 
   const char outfile_prefix[] = "p2gg";
+  const int block_size = 5;
 
   int c, i, mu;
   int iflavor;
@@ -431,6 +432,7 @@ int main(int argc, char **argv) {
     EXIT(38);
   }
 
+
   /* make a source */
   exitstatus = prepare_volume_source(eo_sample_block, g_nsample*Vhalf);
   if(exitstatus != 0) {
@@ -470,8 +472,8 @@ int main(int argc, char **argv) {
     /* work1 <- sample - work0 */
     spinor_field_eq_spinor_field_mi_spinor_field( eo_spinor_work[1], eo_sample_field[i], eo_spinor_work[0], Vhalf);
 
-    /* TEST W W^+ projection */
 #if 0
+    /* TEST W W^+ projection */
     spinor_scalar_product_re ( &norm, eo_spinor_work[1], eo_spinor_work[1], Vhalf );
     if ( g_cart_id == 0 ) { fprintf(stdout, "# [p2gg_mixed] proj orth sample norm %25.16e\n", sqrt(norm) ); }
     spinor_scalar_product_re ( &norm, eo_spinor_work[0], eo_spinor_work[0], Vhalf );
@@ -490,7 +492,7 @@ int main(int argc, char **argv) {
         fprintf(stdout, " vdag s %4d %25.16e %25.16e %25.16e %25.16e %25.16e\n", ievec, w.re/norm, w.im/norm, w2.re/norm, w2.im/norm , sqrt(norm2) );
       }
     }
-#endif
+#endif  /* of if 0 */
 
     /* invert */
     memset(eo_spinor_work[0], 0, sizeof_eo_spinor_field);
@@ -512,33 +514,107 @@ int main(int argc, char **argv) {
   }  /* end of loop on samples */
 
 
-
 #ifdef HAVE_LHPC_AFF
-    /***********************************************
-     ***********************************************
-     **
-     ** writer for aff output file
-     **
-     ** one file per source location
-     **
-     ***********************************************
-     ***********************************************/
-    if(io_proc == 2) {
-      aff_status_str = (char*)aff_version();
-      fprintf(stdout, "# [p2gg_mixed] using aff version %s\n", aff_status_str);
-
-      // sprintf(filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3]);
-      sprintf(filename, "%s.%.4d.aff", outfile_prefix, Nconf );
-      fprintf(stdout, "# [p2gg_mixed] writing data to file %s\n", filename);
-      affw = aff_writer(filename);
-      aff_status_str = (char*)aff_writer_errstr(affw);
-      if( aff_status_str != NULL ) {
-        fprintf(stderr, "[p2gg_mixed] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-        EXIT(15);
-      }
-    }  /* end of if io_proc == 2 */
+  /***********************************************
+   ***********************************************
+   **
+   ** writer for aff output file
+   **
+   ** one file per source location
+   **
+   ***********************************************
+   ***********************************************/
+  if(io_proc == 2) {
+    aff_status_str = (char*)aff_version();
+    fprintf(stdout, "# [p2gg_mixed] using aff version %s\n", aff_status_str);
+    sprintf(filename, "%s.%.4d.aff", outfile_prefix, Nconf );
+    fprintf(stdout, "# [p2gg_mixed] writing data to file %s\n", filename);
+    affw = aff_writer(filename);
+    aff_status_str = (char*)aff_writer_errstr(affw);
+    if( aff_status_str != NULL ) {
+      fprintf(stderr, "[p2gg_mixed] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+      EXIT(15);
+    }
+  }  /* end of if io_proc == 2 */
 #endif
 
+  /***********************************************
+   ***********************************************
+   **
+   ** contractions with local vertex
+   **
+   ** - use sequential vertex data
+   **
+   ***********************************************
+   ***********************************************/
+
+  sprintf( aff_tag, "/lm-lm" );
+  exitstatus = contract_vdag_gloc_w_blocked ( eo_evecs_field, evecs_num, g_seq_source_momentum_number, g_seq_source_momentum_list, g_sequential_source_gamma_id_number, g_sequential_source_gamma_id_list, affw, aff_tag, io_proc, gauge_field_with_phase, mzz, mzzinv, block_size );
+
+  if(exitstatus != 0 ) {
+    fprintf(stderr, "[p2gg_mixed] Error from contract_vdag_gloc_w_blocked; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(22);
+  }
+
+  sprintf( aff_tag, "/lm-hm" );
+  exitstatus = contract_vdag_gloc_phi_blocked ( eo_evecs_field, eo_sample_field, evecs_num, g_nsample, g_seq_source_momentum_number, g_seq_source_momentum_list, g_sequential_source_gamma_id_number,  g_sequential_source_gamma_id_list, affw, aff_tag, io_proc, gauge_field_with_phase, mzz, mzzinv, block_size );
+
+  if(exitstatus != 0 ) {
+    fprintf(stderr, "[p2gg_mixed] Error from contract_vdag_gloc_phi_blocked; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(22);
+  }
+
+  sprintf( aff_tag, "/hm-hm" );
+  exitstatus = contract_vdag_gloc_w_blocked ( eo_sample_field, g_nsample, g_seq_source_momentum_number, g_seq_source_momentum_list, g_sequential_source_gamma_id_number, g_sequential_source_gamma_id_list, affw, aff_tag, io_proc, gauge_field_with_phase, mzz, mzzinv, block_size );
+
+  if(exitstatus != 0 ) {
+    fprintf(stderr, "[p2gg_mixed] Error from contract_vdag_gloc_phi_blocked; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(22);
+  }
+
+
+  /***********************************************
+   ***********************************************
+   **
+   ** contractions with cvc vertex
+   **
+   ** - use sink vertex data
+   **
+   ***********************************************
+   ***********************************************/
+  sprintf( aff_tag, "/lm-hm" );
+  exitstatus = contract_vdag_cvc_phi_blocked ( eo_evecs_field, eo_sample_field, evecs_num, g_nsample, g_sink_momentum_number, g_sink_momentum_list, affw, aff_tag, io_proc, gauge_field_with_phase, mzz, mzzinv, block_size );
+
+  if(exitstatus != 0 ) {
+    fprintf(stderr, "[p2gg_mixed] Error from contract_vdag_cvc_phi_blocked; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(22);
+  }
+
+  sprintf( aff_tag, "/lm-lm" );
+  exitstatus = contract_vdag_cvc_w_blocked ( eo_evecs_field, evecs_num, g_sink_momentum_number, g_sink_momentum_list, affw, aff_tag, io_proc, gauge_field_with_phase, mzz, mzzinv, block_size );
+
+  if(exitstatus != 0 ) {
+    fprintf(stderr, "[p2gg_mixed] Error from contract_vdag_cvc_phi_blocked; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(22);
+  }
+
+  sprintf( aff_tag, "/hm-hm" );
+  exitstatus = contract_vdag_cvc_w_blocked ( eo_sample_field, g_nsample, g_sink_momentum_number, g_sink_momentum_list, affw, aff_tag, io_proc, gauge_field_with_phase, mzz, mzzinv, block_size );
+
+  if(exitstatus != 0 ) {
+    fprintf(stderr, "[p2gg_mixed] Error from contract_vdag_cvc_phi_blocked; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(22);
+  }
+
+#ifdef HAVE_LHPC_AFF
+  if(io_proc == 2) {
+    aff_status_str = (char*)aff_writer_close (affw);
+    if( aff_status_str != NULL ) {
+      fprintf(stderr, "[p2gg_mixed] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+      EXIT(32);
+    }
+  }  /* end of if io_proc == 2 */
+#endif  /* of ifdef HAVE_LHPC_AFF */
 
   /***********************************************************
    ***********************************************************
@@ -562,6 +638,32 @@ int main(int argc, char **argv) {
       EXIT(123);
     }
 
+#ifdef HAVE_LHPC_AFF
+    /***********************************************
+     ***********************************************
+     **
+     ** writer for aff output file
+     **
+     ** one file per source location
+     **
+     ***********************************************
+     ***********************************************/
+    if(io_proc == 2) {
+      aff_status_str = (char*)aff_version();
+      fprintf(stdout, "# [p2gg_mixed] using aff version %s\n", aff_status_str);
+
+      sprintf(filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3]);
+      fprintf(stdout, "# [p2gg_mixed] writing data to file %s\n", filename);
+      affw = aff_writer(filename);
+      aff_status_str = (char*)aff_writer_errstr(affw);
+      if( aff_status_str != NULL ) {
+        fprintf(stderr, "[p2gg_mixed] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+        EXIT(15);
+      }
+    }  /* end of if io_proc == 2 */
+#endif
+
+
 
     /***********************************************************
      * init Usource and source_proc_id
@@ -577,7 +679,7 @@ int main(int argc, char **argv) {
     /**********************************************************
      **********************************************************
      **
-     ** propagators with source at gsx and gsx + mu
+     ** up-type propagators with source at gsx and gsx + mu
      **
      **********************************************************
      **********************************************************/
@@ -595,7 +697,6 @@ int main(int argc, char **argv) {
         case 2: g_shifted_source_coords[2] = ( g_shifted_source_coords[2] + 1 ) % LY_global; break;;
         case 3: g_shifted_source_coords[3] = ( g_shifted_source_coords[3] + 1 ) % LZ_global; break;;
       }
-
 
       /**********************************************************
        * up-type propagators
@@ -618,13 +719,16 @@ int main(int argc, char **argv) {
 
     }  /* end of loop on shifts */
 
-
     /**********************************************************
-     * contractions with eigenvectors
+     **********************************************************
+     **
+     ** contractions for local vertex
+     **
+     ** up-type propagator
+     **
+     **********************************************************
      **********************************************************/
-#if 0
     sprintf( aff_tag, "/lm/up-prop/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
-
     exitstatus = contract_vdag_gloc_spinor_field ( 
         &(eo_spinor_field[0]), &(eo_spinor_field[60]), 60,
         eo_evecs_field, evecs_num, g_seq_source_momentum_number, g_seq_source_momentum_list, g_sequential_source_gamma_id_number, g_sequential_source_gamma_id_list,
@@ -634,10 +738,30 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[p2gg_mixed] Error from contract_vdag_gloc_spinor_field; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(22);
     }
-#endif
-    const int block_size = 5;
-    sprintf( aff_tag, "/lm/up-prop/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
 
+    sprintf( aff_tag, "/hm/up-prop/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
+    exitstatus = contract_vdag_gloc_spinor_field ( 
+        &(eo_spinor_field[0]), &(eo_spinor_field[60]), 60,
+        eo_sample_field, g_nsample, g_seq_source_momentum_number, g_seq_source_momentum_list, g_sequential_source_gamma_id_number, g_sequential_source_gamma_id_list,
+        affw, aff_tag, io_proc, gauge_field_with_phase, mzz, mzzinv);
+
+    if(exitstatus != 0 ) {
+      fprintf(stderr, "[p2gg_mixed] Error from contract_vdag_gloc_spinor_field; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(22);
+    }
+
+    sprintf( aff_tag, "/lm/up-prop/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
+    exitstatus = contract_vdag_cvc_spinor_field (
+        &(eo_spinor_field[0]), &(eo_spinor_field[60]), 60,
+        eo_evecs_field, evecs_num, g_seq_source_momentum_number, g_seq_source_momentum_list,
+        affw, aff_tag, io_proc, gauge_field_with_phase, mzz, mzzinv, block_size );
+
+    if(exitstatus != 0 ) {
+      fprintf(stderr, "[p2gg_mixed] Error from contract_vdag_cvc_spinor_field; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(22);
+    }
+
+    sprintf( aff_tag, "/hm/up-prop/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
     exitstatus = contract_vdag_cvc_spinor_field (
         &(eo_spinor_field[0]), &(eo_spinor_field[60]), 60,
         eo_sample_field, g_nsample, g_seq_source_momentum_number, g_seq_source_momentum_list,
@@ -648,294 +772,21 @@ int main(int argc, char **argv) {
       EXIT(22);
     }
 
-    fflush(stdout);
-    fflush(stderr);
-#ifdef HAVE_MPI
-    MPI_Barrier(g_cart_grid );
-#endif
 
-#if 0
-    /* TEST */
-    for( int imom = 0; imom < g_seq_source_momentum_number; imom++ ) {
-      for( int igamma = 0; igamma < g_sequential_source_gamma_id_number; igamma++ ) {
-        double ***buffer = NULL;
-        init_3level_buffer( &buffer, T, 60, 2*evecs_num);
-        for( int x0 = 0; x0 < T; x0 ++ ) {
-          for( int isf = 0; isf < 60; isf++) 
-          // for( int isf = 0; isf < 1; isf++) 
-          {
-            for(int ievec = 0; ievec<evecs_num; ievec++ ) {
-
-              // memcpy( eo_spinor_work[1], eo_evecs_field[ievec], sizeof_eo_spinor_field);
-              // memcpy( eo_spinor_work[0], eo_evecs_field[ievec], sizeof_eo_spinor_field);
-              // X_clover_eo ( eo_spinor_work[1], eo_spinor_work[0], gauge_field_with_phase, g_mzzinv_dn[0]);
-
-              memcpy( eo_spinor_work[1], eo_evecs_field[ievec], sizeof_eo_spinor_field);
-              C_clover_oo ( eo_spinor_work[0], eo_spinor_work[1], gauge_field_with_phase, eo_spinor_work[2], g_mzz_dn[1], g_mzzinv_dn[0]);
-              X_clover_eo ( eo_spinor_work[1], eo_spinor_work[0], gauge_field_with_phase, g_mzzinv_up[0]);
-
-              complex w;
-              complex zsp = {0,0};
-
-              for( int x1 = 0; x1 < LX; x1++ )  {
-              for( int x2 = 0; x2 < LY; x2++ )  {
-              for( int x3 = 0; x3 < LZ; x3++ )  {
-                unsigned int ix = g_ipt[x0][x1][x2][x3];
-                unsigned int ixeosub = g_lexic2eosub[ix];
-                if ( !g_iseven[ix] ) continue;
-                double spinor1[24], spinor2[24];
-                double phase = 2. * M_PI * ( 
-                    + ( g_proc_coords[1] * LX + x1 ) * g_seq_source_momentum_list[imom][0] / (double)LX_global
-                    + ( g_proc_coords[2] * LY + x2 ) * g_seq_source_momentum_list[imom][1] / (double)LY_global
-                    + ( g_proc_coords[3] * LZ + x3 ) * g_seq_source_momentum_list[imom][2] / (double)LZ_global );
-                w.re = cos(phase);
-                w.im = sin(phase);
-
-                /* odd - odd */
-                // _fv_eq_gamma_ti_fv( spinor1, g_sequential_source_gamma_id_list[igamma], eo_spinor_field[60+isf]+_GSI(ixeosub) );
-                /* even - even  */
-                _fv_eq_gamma_ti_fv( spinor1, g_sequential_source_gamma_id_list[igamma], eo_spinor_field[isf]+_GSI(ixeosub) );
-
-                _fv_ti_eq_g5( spinor1 );
-
-                _fv_eq_fv_ti_co ( spinor2, spinor1, &w );
-
-                _co_eq_fv_dag_ti_fv ( &w, eo_spinor_work[1]+_GSI(ixeosub), spinor2 );
-                _co_pl_eq_co( &zsp, &w);
-
-              }}}
-#ifdef HAVE_MPI
-              MPI_Allreduce( &zsp, &w, 2, MPI_DOUBLE, MPI_SUM, g_ts_comm);
-              _co_eq_co (&zsp, &w);
-#endif
-              buffer[x0][isf][2*ievec  ] = zsp.re;
-              buffer[x0][isf][2*ievec+1] = zsp.im;
-            }
-          }
-        }
-
-        for ( int iproc = 0; iproc < g_nproc_t; iproc++ ) {
-          if ( io_proc >= 1 && iproc == g_tr_id ) {
-            for( int x0 = 0; x0 < T; x0 ++ ) {
-              for( int isf = 0; isf < 60; isf++) {
-                for(int ievec = 0; ievec<evecs_num; ievec++ ) {
-                  if ( io_proc >= 1 ) {
-                    fprintf(stdout, "%2d %2d %2d %2d p %3d %3d %3d gamma %2d t %2d isf %2d ievec %3d zsp %25.16e %25.16e\n",
-                            gsx[0], gsx[1], gsx[2], gsx[3],
-                            g_seq_source_momentum_list[imom][0], g_seq_source_momentum_list[imom][1], g_seq_source_momentum_list[imom][2],
-                            g_sequential_source_gamma_id_list[igamma], 
-                            x0 + g_proc_coords[0]*T, isf, ievec,
-                            buffer[x0][isf][2*ievec],  buffer[x0][isf][2*ievec+1] );
-                  }
-                }
-              }
-            }
-          }
-#ifdef HAVE_MPI
-          MPI_Barrier( g_cart_grid );
-#endif
-        }
-
-        fini_3level_buffer( &buffer );
-      }
-    }
-#endif  /* of if 0 */
-
-    double **eo_evecs_w = NULL;
-    // init_2level_buffer ( &eo_evecs_w, evecs_num, _GSI(Vhalf) );
-    init_2level_buffer ( &eo_evecs_w, g_nsample, _GSI(Vhalf) );
-
-    // for(int ievec = 0; ievec<evecs_num; ievec++ )
-    for(int ievec = 0; ievec < g_nsample; ievec++ )
-    {
-      //memcpy( eo_spinor_work[1], eo_evecs_field[ievec], sizeof_eo_spinor_field);
-      // C_clover_oo ( eo_evecs_w[ievec], eo_spinor_work[1], gauge_field_with_phase, eo_spinor_work[2], g_mzz_dn[1], g_mzzinv_dn[0]);
-      // memcpy( eo_spinor_work[1], eo_evecs_field[ievec], sizeof_eo_spinor_field);
-      // memcpy( eo_spinor_work[0], eo_evecs_field[ievec], sizeof_eo_spinor_field);
-      // X_clover_eo ( eo_spinor_work[1], eo_spinor_work[0], gauge_field_with_phase, g_mzzinv_dn[0]);
-
-      memcpy( eo_spinor_work[1], eo_sample_field[ievec], sizeof_eo_spinor_field);
-      C_clover_oo ( eo_spinor_work[0], eo_spinor_work[1], gauge_field_with_phase, eo_spinor_work[2], g_mzz_dn[1], g_mzzinv_dn[0]);
-      X_clover_eo ( eo_evecs_w[ievec], eo_spinor_work[0], gauge_field_with_phase, g_mzzinv_up[0]);
-    }
-
-    /* TEST */
-    for( int imom = 0; imom < g_seq_source_momentum_number; imom++ ) {
-      for( int igamma = 0; igamma < 4; igamma++ ) {
-
-        double ***buffer = NULL;
-        double ***buffer2 = NULL;
-        init_3level_buffer( &buffer, T, 60, 2*evecs_num);
-        init_3level_buffer( &buffer2, T, 60, 2*evecs_num);
-
-         for( int isf = 0; isf < 60; isf++) 
-         //for( int isf = 0; isf < 1; isf++) 
-         {
-
-          //memcpy(eo_spinor_work[4], eo_spinor_field[isf], sizeof_eo_spinor_field ); 
-          memcpy(eo_spinor_work[4], eo_spinor_field[60+isf], sizeof_eo_spinor_field ); 
-          xchange_eo_field ( eo_spinor_work[4], 1 );
-
-          // for(int ievec = 0; ievec<evecs_num; ievec++ )
-          for(int ievec = 0; ievec < g_nsample; ievec++ )
-          {
-
-
-            for( int x0 = 0; x0 < T; x0 ++ ) {
-              complex expiphase, w;
-              complex zsp = {0,0}, zsp2 = {0,0};
-              double *U1 = NULL;
-
-              for( int x1 = 0; x1 < LX; x1++ )  {
-              for( int x2 = 0; x2 < LY; x2++ )  {
-              for( int x3 = 0; x3 < LZ; x3++ )  {
-                unsigned int ix = g_ipt[x0][x1][x2][x3];
-                unsigned int ixeosub = g_lexic2eosub[ix];
-                unsigned ixpmeosub = g_lexic2eosub[ g_iup[ix][igamma] ];
-                unsigned ixmmeosub = g_lexic2eosub[ g_idn[ix][igamma] ];
-
-                /* use odd target points */
-                if ( !g_iseven[ix] ) continue;
-                /* use even target points */
-                // if ( !g_iseven[ix] ) continue;
-
-                double spinor1[24], spinor2[24];
-                double phase = 2. * M_PI * ( 
-                    + ( g_proc_coords[1] * LX + x1 ) * g_seq_source_momentum_list[imom][0] / (double)LX_global
-                    + ( g_proc_coords[2] * LY + x2 ) * g_seq_source_momentum_list[imom][1] / (double)LY_global
-                    + ( g_proc_coords[3] * LZ + x3 ) * g_seq_source_momentum_list[imom][2] / (double)LZ_global );
-                expiphase.re = cos(phase);
-                expiphase.im = sin(phase);
-
-
-                /* fwd */
-                U1 = gauge_field_with_phase + _GGI(ix, igamma);
-                _fv_eq_cm_ti_fv ( spinor1, U1,  eo_spinor_work[4]+_GSI(ixpmeosub) );
-                _fv_eq_gamma_ti_fv ( spinor2, igamma, spinor1 );
-                _fv_mi_eq_fv( spinor2, spinor1);
-                _fv_ti_eq_re ( spinor2, 0.5 );
-                _fv_ti_eq_g5( spinor2 );
-                _fv_eq_fv_ti_co ( spinor1, spinor2, &expiphase );
-                _co_eq_fv_dag_ti_fv ( &w, eo_evecs_w[ievec]+_GSI(ixeosub), spinor1 );
-                _co_pl_eq_co( &zsp, &w);
-
-                /* bwd */
-                U1 = gauge_field_with_phase + _GGI( g_idn[ix][igamma], igamma);
-                _fv_eq_cm_dag_ti_fv ( spinor1, U1,  eo_spinor_work[4]+_GSI(ixmmeosub) );
-                _fv_eq_gamma_ti_fv ( spinor2, igamma, spinor1 );
-                _fv_pl_eq_fv( spinor2, spinor1);
-                _fv_ti_eq_re ( spinor2, 0.5 );
-                _fv_ti_eq_g5( spinor2 );
-                _fv_eq_fv_ti_co ( spinor1, spinor2, &expiphase );
-                _co_eq_fv_dag_ti_fv ( &w, eo_evecs_w[ievec]+_GSI(ixeosub), spinor1 );
-                _co_pl_eq_co( &zsp2, &w);
-              }}}
-#ifdef HAVE_MPI
-              MPI_Allreduce( &zsp, &w, 2, MPI_DOUBLE, MPI_SUM, g_ts_comm);
-              _co_eq_co (&zsp, &w);
-              MPI_Allreduce( &zsp2, &w, 2, MPI_DOUBLE, MPI_SUM, g_ts_comm);
-              _co_eq_co (&zsp2, &w);
-#endif
-              buffer[x0][isf][2*ievec  ]  = zsp.re;
-              buffer[x0][isf][2*ievec+1]  = zsp.im;
-              buffer2[x0][isf][2*ievec  ] = zsp2.re;
-              buffer2[x0][isf][2*ievec+1] = zsp2.im;
-            }
-          }
-        }
-
-        for ( int iblock=0; iblock<(60/block_size); iblock++ ) {
-          sprintf(filename, "lm_up-prop_t%.2dx%.2dy%.2dz%.2d_xw_dag_cvc_s_block%.2d_mu%d_fbwd%d_px%.2dpy%.2dpz%.2d_2", 
-              gsx[0], gsx[1], gsx[2], gsx[3],
-              iblock, igamma, 0,
-              g_seq_source_momentum_list[imom][0], g_seq_source_momentum_list[imom][1], g_seq_source_momentum_list[imom][2]);
-
-          for ( int iproc = 0; iproc < g_nproc_t; iproc++ ) {
-            if ( io_proc >= 1 && iproc == g_tr_id ) {
-              FILE *ofs = fopen(filename, "a");
-              for( int x0 = 0; x0 < T; x0 ++ ) {
-                for( int isf = iblock*block_size; isf < (iblock+1)*block_size; isf++) {
-                  // for(int ievec = 0; ievec<evecs_num; ievec++ )
-                  for(int ievec = 0; ievec < g_nsample; ievec++ )
-                  {
-                    if ( io_proc >= 1 ) {
-                      fprintf(ofs, "%25.16e %25.16e\n", buffer[x0][isf][2*ievec],  buffer[x0][isf][2*ievec+1] );
-                    }
-                  }
-                }
-              }
-              fclose( ofs );
-            }
-#ifdef HAVE_MPI
-            MPI_Barrier( g_cart_grid );
-#endif
-          }
-        }
- 
-        for ( int iblock=0; iblock<(60/block_size); iblock++ ) {
-          sprintf(filename, "lm_up-prop_t%.2dx%.2dy%.2dz%.2d_xw_dag_cvc_s_block%.2d_mu%d_fbwd%d_px%.2dpy%.2dpz%.2d_2", 
-              gsx[0], gsx[1], gsx[2], gsx[3],
-              iblock, igamma, 1,
-              g_seq_source_momentum_list[imom][0], g_seq_source_momentum_list[imom][1], g_seq_source_momentum_list[imom][2]);
-          for ( int iproc = 0; iproc < g_nproc_t; iproc++ ) {
-            if ( io_proc >= 1 && iproc == g_tr_id ) {
-              FILE *ofs = fopen(filename, "a");
-              for( int x0 = 0; x0 < T; x0 ++ ) {
-                for( int isf = iblock*block_size; isf < (iblock+1)*block_size; isf++) {
-                  // for(int ievec = 0; ievec<evecs_num; ievec++ )
-                  for(int ievec = 0; ievec < g_nsample; ievec++ )
-                  {
-                    if ( io_proc >= 1 ) {
-                      fprintf(ofs, "%25.16e %25.16e\n", buffer2[x0][isf][2*ievec],  buffer2[x0][isf][2*ievec+1] );
-                    }
-                  }
-                }
-              }
-              fclose( ofs );
-            }
-#ifdef HAVE_MPI
-            MPI_Barrier( g_cart_grid );
-#endif
-          }
-        }
-        fini_3level_buffer( &buffer );
-        fini_3level_buffer( &buffer2 );
-
-      }
-    }
-
-    fini_2level_buffer ( &eo_evecs_w );
-#if 0
-#endif  /* of if 0 */
-
-#if 0
     /**********************************************************
-     * contractions with stochastic propagators
+     **********************************************************
+     **
+     ** dn-type propagators with source at gsx and gsx + mu
+     **
+     **********************************************************
      **********************************************************/
-    sprintf( aff_tag, "/hm/up-prop/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
 
-    exitstatus = contract_vdag_gloc_spinor_field ( 
-        &(eo_spinor_field[0]), &(eo_spinor_field[60]), 60,
-        eo_sample_field, g_nsample, g_seq_source_momentum_number, g_seq_source_momentum_list, g_sequential_source_gamma_id_number, g_sequential_source_gamma_id_list,
-        affw, aff_tag, io_proc, gauge_field_with_phase, mzz, mzzinv);
-
-    if(exitstatus != 0 ) {
-      fprintf(stderr, "[p2gg_mixed] Error from check_point_source_propagator_clover_eo; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(22);
-    }
-#endif  /* of if 0 */
-
-#if 0
     for(mu=0; mu<5; mu++)
-    {
-      /**********************************************************
-       * dn-type propagators
-       **********************************************************/
-
+    {  /* loop on shifts in direction mu */
       /**********************************************************
        * shifted source coords and source proc coords
        **********************************************************/
-      int g_shifted_source_coords[4], shifted_source_coords[4], shifted_source_proc_id=0;
+      int g_shifted_source_coords[4];
       memcpy( g_shifted_source_coords, gsx, 4*sizeof(int));
       switch(mu) {
         case 0: g_shifted_source_coords[0] = ( g_shifted_source_coords[0] + 1 ) % T_global; break;;
@@ -944,58 +795,79 @@ int main(int argc, char **argv) {
         case 3: g_shifted_source_coords[3] = ( g_shifted_source_coords[3] + 1 ) % LZ_global; break;;
       }
 
+      /**********************************************************
+       * up-type propagators
+       **********************************************************/
       exitstatus = point_to_all_fermion_propagator_clover_eo ( &(eo_spinor_field[mu*12]), &(eo_spinor_field[60+12*mu]),  _OP_ID_DN,
-          g_shifted_source_coords, gauge_field_with_phase, g_mzz_dn, g_mzzinv_dn, check_propagator_residual, eo_spinor_work );
+        g_shifted_source_coords, gauge_field_with_phase, g_mzz_up, g_mzzinv_up, check_propagator_residual, eo_spinor_work );
       if ( exitstatus != 0 ) {
         fprintf(stderr, "[p2gg_mixed] Error from point_to_all_fermion_propagator_clover_eo; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(21);
       }
 
-
       if ( mu < 4 ) {
         /**********************************************************
          * apply backward cvc vertex
          *   with constant gauge field from source location
+         *
          **********************************************************/
         exitstatus = apply_constant_cvc_vertex_at_source ( &(eo_spinor_field[mu*12]), mu, 1, Vhalf );
       }
 
-    }    /* end of loop on shift direction mu */
+    }  /* end of loop on shifts */
 
     /**********************************************************
-     * contractions for down-type propagator with eigenvectors
+     **********************************************************
+     **
+     ** contractions for local vertex
+     **
+     ** dn-type propagator
+     **
+     **********************************************************
      **********************************************************/
     sprintf( aff_tag, "/lm/dn-prop/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
-
-    exitstatus = contract_vdag_gloc_spinor_field (
+    exitstatus = contract_vdag_gloc_spinor_field ( 
         &(eo_spinor_field[0]), &(eo_spinor_field[60]), 60,
         eo_evecs_field, evecs_num, g_seq_source_momentum_number, g_seq_source_momentum_list, g_sequential_source_gamma_id_number, g_sequential_source_gamma_id_list,
         affw, aff_tag, io_proc, gauge_field_with_phase, mzz, mzzinv);
 
     if(exitstatus != 0 ) {
-      fprintf(stderr, "[p2gg_mixed] Error from check_point_source_propagator_clover_eo; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      fprintf(stderr, "[p2gg_mixed] Error from contract_vdag_gloc_spinor_field; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(22);
     }
 
-    /**********************************************************
-     * contractions for down-type propagator
-     *   with stochastic propagators
-     **********************************************************/
     sprintf( aff_tag, "/hm/dn-prop/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
-
-    exitstatus = contract_vdag_gloc_spinor_field (
+    exitstatus = contract_vdag_gloc_spinor_field ( 
         &(eo_spinor_field[0]), &(eo_spinor_field[60]), 60,
         eo_sample_field, g_nsample, g_seq_source_momentum_number, g_seq_source_momentum_list, g_sequential_source_gamma_id_number, g_sequential_source_gamma_id_list,
         affw, aff_tag, io_proc, gauge_field_with_phase, mzz, mzzinv);
 
     if(exitstatus != 0 ) {
-      fprintf(stderr, "[p2gg_mixed] Error from check_point_source_propagator_clover_eo; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      fprintf(stderr, "[p2gg_mixed] Error from contract_vdag_gloc_spinor_field; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(22);
     }
 
-#endif  /* of if 0 */
+    sprintf( aff_tag, "/lm/dn-prop/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
+    exitstatus = contract_vdag_cvc_spinor_field (
+        &(eo_spinor_field[0]), &(eo_spinor_field[60]), 60,
+        eo_evecs_field, evecs_num, g_seq_source_momentum_number, g_seq_source_momentum_list,
+        affw, aff_tag, io_proc, gauge_field_with_phase, mzz, mzzinv, block_size );
 
-  }  /* end of loop on source locations */
+    if(exitstatus != 0 ) {
+      fprintf(stderr, "[p2gg_mixed] Error from contract_vdag_cvc_spinor_field; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(22);
+    }
+
+    sprintf( aff_tag, "/hm/dn-prop/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
+    exitstatus = contract_vdag_cvc_spinor_field (
+        &(eo_spinor_field[0]), &(eo_spinor_field[60]), 60,
+        eo_sample_field, g_nsample, g_seq_source_momentum_number, g_seq_source_momentum_list,
+        affw, aff_tag, io_proc, gauge_field_with_phase, mzz, mzzinv, block_size );
+
+    if(exitstatus != 0 ) {
+      fprintf(stderr, "[p2gg_mixed] Error from contract_vdag_cvc_spinor_field; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(22);
+    }
 
 #ifdef HAVE_LHPC_AFF
     if(io_proc == 2) {
@@ -1006,8 +878,8 @@ int main(int argc, char **argv) {
       }
     }  /* end of if io_proc == 2 */
 #endif  /* of ifdef HAVE_LHPC_AFF */
-#if 0
-#endif  /* of if 0 */
+
+  }  /* end of loop on source locations */
 
   /****************************************
    * free the allocated memory, finalize
