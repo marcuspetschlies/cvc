@@ -16,7 +16,7 @@
 #include <getopt.h>
 
 #ifdef HAVE_MPI
-#include <mpi.h>"
+#include <mpi.h>
 #endif
 
 #ifdef __cplusplus
