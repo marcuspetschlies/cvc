@@ -79,6 +79,8 @@ int apply_gauge_transform(double*gauge_new, double*gauge_transform, double*gauge
 
 void free_sp_field(spinor_propagator_type **fp);
 
+int zero_sp_field (spinor_propagator_type *fp, unsigned int N );
+
 void free_fp_field(fermion_propagator_type **fp);
   
 int unit_gauge_field(double*g, unsigned int N);

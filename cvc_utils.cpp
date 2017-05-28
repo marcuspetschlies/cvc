@@ -4336,6 +4336,30 @@ void free_sp_field(spinor_propagator_type **fp) {
   return;
 }
 
+int zero_sp_field (spinor_propagator_type *fp, unsigned int N ) {
+
+  const size_t sizeof_sp_field = N * g_sv_dim * g_sv_dim * 2 * sizeof(double);
+
+  if ( fp != NULL ) {
+    if ( fp[0] != NULL ) {
+      if ( fp[0][0] != NULL ) {
+        memset( fp[0][0], 0, sizeof_sp_field );
+      } else {
+        fprintf(stderr, "[zero_sp_field] Error, fp[0][0] = NULL %s %d\n", __FILE__, __LINE__);
+        return(1);
+      }
+    } else {
+      fprintf(stderr, "[zero_sp_field] Error, fp[0] = NULL %s %d\n", __FILE__, __LINE__);
+      return(2);
+    }
+  } else {
+    fprintf(stderr, "[zero_sp_field] Error, fp = NULL %s %d\n", __FILE__, __LINE__);
+    return(3);
+  }
+  return(0);
+}  /* end of zero_sp_field */
+
+
 // create, free fermion propagator field
 fermion_propagator_type *create_fp_field(size_t N) {
   size_t i, j;
