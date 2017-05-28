@@ -3717,7 +3717,7 @@ void contract_twopoint_snk_momentum_trange(double *contr, const int idsource, co
 void contract_twopoint_xdep(void*contr, const int idsource, const int idsink, void*chi, void*phi, int n_c, int stride, double factor, size_t prec) {
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel shared(idsource,idsink,chi,phi,stride,n_c,factor,prec,contr)
+#pragma omp parallel shared(chi,phi,stride,n_c,factor,prec,contr)
 {
 #endif
   const int psource[4] = { gamma_permutation[idsource][ 0] / 6,
@@ -6109,7 +6109,7 @@ void spinor_field_eq_gauge_field_ti_spinor_field (double*r, double *gf, double*s
     EXIT(1);
   }
 #ifdef HAVE_OPENMP
-#pragma omp parallel shared(r,s,gf,dir,N)
+#pragma omp parallel shared(r,s,gf,mu,N)
 {
 #endif
   unsigned int ix;
@@ -6146,7 +6146,7 @@ void spinor_field_eq_gauge_field_dag_ti_spinor_field (double*r, double *gf, doub
     EXIT(1);
   }
 #ifdef HAVE_OPENMP
-#pragma omp parallel shared(r,s,gf,dir,N)
+#pragma omp parallel shared(r,s,gf,mu,N)
 {
 #endif
   unsigned int ix;
