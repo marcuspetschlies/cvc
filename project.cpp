@@ -320,7 +320,7 @@ int project_propagator_field_weighted(double *s, double * r, int parallel, doubl
   /* weight the projection coefficients */
   for( int i = 0; i < num1; i++ ) {
 #ifdef HAVE_OPENMP
-#pragma omp parallal for shared(i)
+#pragma omp parallel for shared(i)
 #endif
     for( int k = 0; k < num2; k++ ) {
       p[i][k] *= weights[k];
