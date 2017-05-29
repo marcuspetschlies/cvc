@@ -100,8 +100,8 @@ int main(int argc, char **argv) {
    * */
   const int sequential_source_gamma_id_sign[16] ={ -1, -1, -1, -1, +1, +1,  +1,  +1,  +1,  +1,  -1,  -1,  -1,  -1,  -1,  -1 };
 
-  const char outfile_prefix[] = "p2gg";
-  const int block_size = 5;
+  const char outfile_prefix[] = "p2gg_mixed";
+  const int block_size = 120;
 
   int c, i, mu;
   int iflavor;
@@ -514,108 +514,6 @@ int main(int argc, char **argv) {
   }  /* end of loop on samples */
 
 
-#ifdef HAVE_LHPC_AFF
-  /***********************************************
-   ***********************************************
-   **
-   ** writer for aff output file
-   **
-   ** one file per source location
-   **
-   ***********************************************
-   ***********************************************/
-  if(io_proc == 2) {
-    aff_status_str = (char*)aff_version();
-    fprintf(stdout, "# [p2gg_mixed] using aff version %s\n", aff_status_str);
-    sprintf(filename, "%s.%.4d.aff", outfile_prefix, Nconf );
-    fprintf(stdout, "# [p2gg_mixed] writing data to file %s\n", filename);
-    affw = aff_writer(filename);
-    aff_status_str = (char*)aff_writer_errstr(affw);
-    if( aff_status_str != NULL ) {
-      fprintf(stderr, "[p2gg_mixed] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-      EXIT(15);
-    }
-  }  /* end of if io_proc == 2 */
-#endif
-
-  /***********************************************
-   ***********************************************
-   **
-   ** contractions with local vertex
-   **
-   ** - use sequential vertex data
-   **
-   ***********************************************
-   ***********************************************/
-
-  sprintf( aff_tag, "/lm-lm" );
-  exitstatus = contract_vdag_gloc_w_blocked ( eo_evecs_field, evecs_num, g_seq_source_momentum_number, g_seq_source_momentum_list, g_sequential_source_gamma_id_number, g_sequential_source_gamma_id_list, affw, aff_tag, io_proc, gauge_field_with_phase, mzz, mzzinv, block_size );
-
-  if(exitstatus != 0 ) {
-    fprintf(stderr, "[p2gg_mixed] Error from contract_vdag_gloc_w_blocked; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(22);
-  }
-
-  sprintf( aff_tag, "/lm-hm" );
-  exitstatus = contract_vdag_gloc_phi_blocked ( eo_evecs_field, eo_sample_field, evecs_num, g_nsample, g_seq_source_momentum_number, g_seq_source_momentum_list, g_sequential_source_gamma_id_number,  g_sequential_source_gamma_id_list, affw, aff_tag, io_proc, gauge_field_with_phase, mzz, mzzinv, block_size );
-
-  if(exitstatus != 0 ) {
-    fprintf(stderr, "[p2gg_mixed] Error from contract_vdag_gloc_phi_blocked; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(22);
-  }
-
-  sprintf( aff_tag, "/hm-hm" );
-  exitstatus = contract_vdag_gloc_w_blocked ( eo_sample_field, g_nsample, g_seq_source_momentum_number, g_seq_source_momentum_list, g_sequential_source_gamma_id_number, g_sequential_source_gamma_id_list, affw, aff_tag, io_proc, gauge_field_with_phase, mzz, mzzinv, block_size );
-
-  if(exitstatus != 0 ) {
-    fprintf(stderr, "[p2gg_mixed] Error from contract_vdag_gloc_phi_blocked; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(22);
-  }
-
-
-  /***********************************************
-   ***********************************************
-   **
-   ** contractions with cvc vertex
-   **
-   ** - use sink vertex data
-   **
-   ***********************************************
-   ***********************************************/
-  sprintf( aff_tag, "/lm-hm" );
-  exitstatus = contract_vdag_cvc_phi_blocked ( eo_evecs_field, eo_sample_field, evecs_num, g_nsample, g_sink_momentum_number, g_sink_momentum_list, affw, aff_tag, io_proc, gauge_field_with_phase, mzz, mzzinv, block_size );
-
-  if(exitstatus != 0 ) {
-    fprintf(stderr, "[p2gg_mixed] Error from contract_vdag_cvc_phi_blocked; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(22);
-  }
-
-  sprintf( aff_tag, "/lm-lm" );
-  exitstatus = contract_vdag_cvc_w_blocked ( eo_evecs_field, evecs_num, g_sink_momentum_number, g_sink_momentum_list, affw, aff_tag, io_proc, gauge_field_with_phase, mzz, mzzinv, block_size );
-
-  if(exitstatus != 0 ) {
-    fprintf(stderr, "[p2gg_mixed] Error from contract_vdag_cvc_phi_blocked; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(22);
-  }
-
-  sprintf( aff_tag, "/hm-hm" );
-  exitstatus = contract_vdag_cvc_w_blocked ( eo_sample_field, g_nsample, g_sink_momentum_number, g_sink_momentum_list, affw, aff_tag, io_proc, gauge_field_with_phase, mzz, mzzinv, block_size );
-
-  if(exitstatus != 0 ) {
-    fprintf(stderr, "[p2gg_mixed] Error from contract_vdag_cvc_phi_blocked; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(22);
-  }
-
-#ifdef HAVE_LHPC_AFF
-  if(io_proc == 2) {
-    aff_status_str = (char*)aff_writer_close (affw);
-    if( aff_status_str != NULL ) {
-      fprintf(stderr, "[p2gg_mixed] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-      EXIT(32);
-    }
-  }  /* end of if io_proc == 2 */
-#endif  /* of ifdef HAVE_LHPC_AFF */
-
   /***********************************************************
    ***********************************************************
    **
@@ -754,7 +652,7 @@ int main(int argc, char **argv) {
     exitstatus = contract_vdag_cvc_spinor_field (
         &(eo_spinor_field[0]), &(eo_spinor_field[60]), 60,
         eo_evecs_field, evecs_num, g_seq_source_momentum_number, g_seq_source_momentum_list,
-        affw, aff_tag, io_proc, gauge_field_with_phase, mzz, mzzinv, block_size );
+        affw, aff_tag, io_proc, gauge_field_with_phase, mzz, mzzinv, 60 );
 
     if(exitstatus != 0 ) {
       fprintf(stderr, "[p2gg_mixed] Error from contract_vdag_cvc_spinor_field; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -765,7 +663,7 @@ int main(int argc, char **argv) {
     exitstatus = contract_vdag_cvc_spinor_field (
         &(eo_spinor_field[0]), &(eo_spinor_field[60]), 60,
         eo_sample_field, g_nsample, g_seq_source_momentum_number, g_seq_source_momentum_list,
-        affw, aff_tag, io_proc, gauge_field_with_phase, mzz, mzzinv, block_size );
+        affw, aff_tag, io_proc, gauge_field_with_phase, mzz, mzzinv, 60 );
 
     if(exitstatus != 0 ) {
       fprintf(stderr, "[p2gg_mixed] Error from contract_vdag_cvc_spinor_field; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -796,10 +694,10 @@ int main(int argc, char **argv) {
       }
 
       /**********************************************************
-       * up-type propagators
+       * dn-type propagators
        **********************************************************/
       exitstatus = point_to_all_fermion_propagator_clover_eo ( &(eo_spinor_field[mu*12]), &(eo_spinor_field[60+12*mu]),  _OP_ID_DN,
-        g_shifted_source_coords, gauge_field_with_phase, g_mzz_up, g_mzzinv_up, check_propagator_residual, eo_spinor_work );
+        g_shifted_source_coords, gauge_field_with_phase, g_mzz_dn, g_mzzinv_dn, check_propagator_residual, eo_spinor_work );
       if ( exitstatus != 0 ) {
         fprintf(stderr, "[p2gg_mixed] Error from point_to_all_fermion_propagator_clover_eo; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(21);
@@ -851,7 +749,7 @@ int main(int argc, char **argv) {
     exitstatus = contract_vdag_cvc_spinor_field (
         &(eo_spinor_field[0]), &(eo_spinor_field[60]), 60,
         eo_evecs_field, evecs_num, g_seq_source_momentum_number, g_seq_source_momentum_list,
-        affw, aff_tag, io_proc, gauge_field_with_phase, mzz, mzzinv, block_size );
+        affw, aff_tag, io_proc, gauge_field_with_phase, mzz, mzzinv, 60 );
 
     if(exitstatus != 0 ) {
       fprintf(stderr, "[p2gg_mixed] Error from contract_vdag_cvc_spinor_field; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -862,7 +760,7 @@ int main(int argc, char **argv) {
     exitstatus = contract_vdag_cvc_spinor_field (
         &(eo_spinor_field[0]), &(eo_spinor_field[60]), 60,
         eo_sample_field, g_nsample, g_seq_source_momentum_number, g_seq_source_momentum_list,
-        affw, aff_tag, io_proc, gauge_field_with_phase, mzz, mzzinv, block_size );
+        affw, aff_tag, io_proc, gauge_field_with_phase, mzz, mzzinv, 60 );
 
     if(exitstatus != 0 ) {
       fprintf(stderr, "[p2gg_mixed] Error from contract_vdag_cvc_spinor_field; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);

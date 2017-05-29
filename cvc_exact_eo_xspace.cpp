@@ -120,15 +120,15 @@ int main(int argc, char **argv) {
       break;
     case 'w':
       check_position_space_WI = 1;
-      fprintf(stdout, "\n# [cvc_exact_eo_xspace] will check Ward identity in position space\n");
+      /* fprintf(stdout, "\n# [cvc_exact_eo_xspace] will check Ward identity in position space\n"); */
       break;
     case 'a':
       write_ascii = 1;
-      fprintf(stdout, "\n# [cvc_exact_eo_xspace] will write data in ASCII format too\n");
+      /* fprintf(stdout, "\n# [cvc_exact_eo_xspace] will write data in ASCII format too\n"); */
       break;
     case 'b':
       write_binary = 1;
-      fprintf(stdout, "\n# [cvc_exact_eo_xspace] will write data in binary format\n");
+      /* fprintf(stdout, "\n# [cvc_exact_eo_xspace] will write data in binary format\n"); */
       break;
     case 'h':
     case '?':
@@ -249,6 +249,7 @@ int main(int argc, char **argv) {
   }
 #endif
 
+
 #ifdef HAVE_TMLQCD_LIBWRAPPER
   /***********************************************
    * retrieve deflator paramters from tmLQCD
@@ -271,6 +272,7 @@ int main(int argc, char **argv) {
     fprintf(stdout, "# [cvc_exact_eo_xspace] deflator eo prec   = %d\n", g_tmLQCD_defl.eoprec);
     fprintf(stdout, "# [cvc_exact_eo_xspace] deflator precision = %d\n", g_tmLQCD_defl.prec);
     fprintf(stdout, "# [cvc_exact_eo_xspace] deflator nev       = %d\n", g_tmLQCD_defl.nev);
+    fflush(stdout);
   }
 
   eo_evecs_block = (double*)(g_tmLQCD_defl.evecs);
@@ -298,9 +300,14 @@ int main(int argc, char **argv) {
   }
   for(i=0; i<evecs_num; i++) {
     evecs_eval[i] = ((double*)(g_tmLQCD_defl.evals))[2*i];
-    if( g_cart_id == 0 ) fprintf(stdout, "# [cvc_exact_eo_xspace] eval %4d %16.7e\n", i, evecs_eval[i] );
+    if( g_cart_id == 1 ) fprintf(stdout, "# [cvc_exact_eo_xspace] eval %4d %16.7e\n", i, evecs_eval[i] );
   }
+#ifdef HAVE_MPI
+  MPI_Barrier( g_cart_grid );
+#endif
+
 #endif  /* of ifdef HAVE_TMLQCD_LIBWRAPPER */
+
 
   /***********************************************************
    * multiply the phase to the gauge field
@@ -418,6 +425,8 @@ int main(int argc, char **argv) {
     EXIT(3);
   }
   conn_o = conn_e + 32*Vhalf;
+
+
 
   for ( int isource_location = 0; isource_location < g_source_location_number; isource_location++ ) {
 
@@ -745,14 +754,16 @@ int main(int argc, char **argv) {
 
   free( evecs_eval );
 
+  free( eo_spinor_work[0] );
+  free( eo_spinor_work );
+
+
+
   /* free remaining clover matrix terms */
   clover_term_fini( &g_mzz_up    );
   clover_term_fini( &g_mzz_dn    );
   clover_term_fini( &g_mzzinv_up );
   clover_term_fini( &g_mzzinv_dn );
-
-  free( eo_spinor_work[0] );
-  free( eo_spinor_work );
 
   free_geometry();
 
@@ -764,6 +775,9 @@ int main(int argc, char **argv) {
   free(status);
   mpi_fini_xchange_contraction();
   mpi_fini_xchange_eo_propagator();
+#endif
+
+#ifdef HAVE_MPI
   MPI_Finalize();
 #endif
 
