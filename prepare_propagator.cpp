@@ -707,7 +707,11 @@ int point_to_all_fermion_propagator_clover_eo ( double **eo_spinor_field_e, doub
     if(g_cart_id == 0 && g_verbose > 1) fprintf(stdout, "# [point_to_all_fermion_propagator_clover_eo] calling tmLQCD_invert_eo\n");
     memset(eo_spinor_work[1], 0, sizeof_eo_spinor_field);
     memcpy(eo_spinor_work[0], eo_spinor_field_o[i], sizeof_eo_spinor_field);
+#ifdef HAVE_TMLQCD_LIBWRAPPER
     exitstatus = tmLQCD_invert_eo ( eo_spinor_work[1], eo_spinor_work[0], op_id);
+#else
+    exitstatus = 1;
+#endif
     if(exitstatus != 0) {
       fprintf(stderr, "[point_to_all_fermion_propagator_clover_eo] Error from _TMLQCD_INVERT_EO, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(19);
