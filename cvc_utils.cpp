@@ -6115,7 +6115,7 @@ void spinor_field_eq_gauge_field_ti_spinor_field (double*r, double *gf, double*s
     EXIT(1);
   }
 #ifdef HAVE_OPENMP
-#pragma omp parallel shared(r,s,gf,dir,N)
+#pragma omp parallel shared(r,s,gf,mu,N)
 {
 #endif
   unsigned int ix;
@@ -6152,7 +6152,7 @@ void spinor_field_eq_gauge_field_dag_ti_spinor_field (double*r, double *gf, doub
     EXIT(1);
   }
 #ifdef HAVE_OPENMP
-#pragma omp parallel shared(r,s,gf,dir,N)
+#pragma omp parallel shared(r,s,gf,mu,N)
 {
 #endif
   unsigned int ix;
