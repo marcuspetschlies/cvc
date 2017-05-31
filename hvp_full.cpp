@@ -88,12 +88,12 @@ int main(int argc, char **argv) {
    * sign for g5 Gamma^\dagger g5
    *                                                0,  1,  2,  3, id,  5, 0_5, 1_5, 2_5, 3_5, 0_1, 0_2, 0_3, 1_2, 1_3, 2_3
    * */
-  const int sequential_source_gamma_id_sign[16] ={ -1, -1, -1, -1, +1, +1,  +1,  +1,  +1,  +1,  -1,  -1,  -1,  -1,  -1,  -1 };
+  // const int sequential_source_gamma_id_sign[16] ={ -1, -1, -1, -1, +1, +1,  +1,  +1,  +1,  +1,  -1,  -1,  -1,  -1,  -1,  -1 };
 
   const char infile_prefix[]  = "p2gg";
   const char outfile_prefix[] = "hvp_full";
 
-  int c, i, mu;
+  int c;
   int filename_set = 0;
   int isource_location;
   int gsx[4];
@@ -102,7 +102,7 @@ int main(int argc, char **argv) {
   int evecs_num = 0;
   int append = 0;
   char filename[100];
-  double ratime, retime;
+  // double ratime, retime;
   FILE *ofs = NULL;
 
   fftw_complex *fftw_buffer_in = NULL, *fftw_buffer_out = NULL;
@@ -121,7 +121,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "ah?f:n:")) != -1) {
+  while (( c = getopt(argc, argv, "ah?f:n:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -253,7 +253,7 @@ int main(int argc, char **argv) {
         exit(103);
       }
     }  /* end of if io_proc == 2 */
-    sprintf(aff_tag, "/lm/hvp/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
+    sprintf(aff_tag, "/full/hvp/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
 
     exitstatus = init_3level_zbuffer ( &aff_buffer, 4, 4, T_global );
     if(exitstatus != 0 ) {
@@ -270,9 +270,9 @@ int main(int argc, char **argv) {
     /* loop on sink momenta  */
     for ( int ip = 0; ip < g_sink_momentum_number; ip++ ) {
       double p[4] = { 0.,
-       2.*M_PI * g_sink_momentum_list[ip][0] / LX_global,
-       2.*M_PI * g_sink_momentum_list[ip][1] / LY_global,
-       2.*M_PI * g_sink_momentum_list[ip][2] / LZ_global }; 
+       2.*M_PI * g_sink_momentum_list[ip][0] / (double)LX_global,
+       2.*M_PI * g_sink_momentum_list[ip][1] / (double)LY_global,
+       2.*M_PI * g_sink_momentum_list[ip][2] / (double)LZ_global }; 
 
       /* phase factor from shift by source location 3-vector */
       double _Complex phase_factor_source = cexp ( -I* ( p[1] * gsx[1] + p[2] * gsx[2] + p[3] * gsx[3] ));
@@ -315,16 +315,20 @@ int main(int argc, char **argv) {
       }}
  
       /* FT in t <-> p_0; write energy dependence for fixed 3-momentum */
+      memset( hvp_buffer[0][0], 0, T_global*16*sizeof(double _Complex) );
       for( int mu = 0; mu < 4; mu++ ) {
       for( int nu = 0; nu < 4; nu++ ) {
-        int imunu = 4 * mu + nu;
    
         /* FT */
+#if 0
         memcpy(fftw_buffer_in,  hvp_buffer[mu][nu], T_global * sizeof(double _Complex) );
         fftw_one(plan_p, fftw_buffer_in, fftw_buffer_out);
         memcpy( hvp_buffer[mu][nu], fftw_buffer_out, T_global * sizeof(double _Complex) );
+#endif  /* of if 0 */
+        fftw_one(plan_p, (fftw_complex*)(aff_buffer[mu][nu]), (fftw_complex*)(hvp_buffer[mu][nu]) );
+
         for ( int it = 0; it < T_global; it++ ) {
-          p[0] = 2. * M_PI * it / T_global;
+          p[0] = 2. * M_PI * it / (double)T_global;
           /* phase factor due to shift by source location */
           double _Complex phase_factor_source = cexp ( -I* (p[0] * gsx[0] +  p[1] * gsx[1] + p[2] * gsx[2] + p[3] * gsx[3] ));
           /* phase factor due to half-site shift */
@@ -345,7 +349,25 @@ int main(int argc, char **argv) {
         fclose(ofs);
       }}
 
- 
+      /* check momentum space WI */
+
+      for ( int nu = 0; nu < 4; nu++ ) {
+        for ( int it = 0; it < T_global; it++ ) {
+           double plat[4] = {
+             2.*sin( M_PI*it / (double)T_global),
+             2.*sin( M_PI * g_sink_momentum_list[ip][0] / (double)LX_global ),
+             2.*sin( M_PI * g_sink_momentum_list[ip][1] / (double)LY_global ),
+             2.*sin( M_PI * g_sink_momentum_list[ip][2] / (double)LZ_global ) };
+
+           double _Complex wi_res1 = plat[0] * hvp_buffer[ 0][nu][it] + plat[1] * hvp_buffer[ 1][nu][it] + plat[2] * hvp_buffer[ 2][nu][it] + plat[3] * hvp_buffer[ 3][nu][it];
+           double _Complex wi_res2 = plat[0] * hvp_buffer[nu][ 0][it] + plat[1] * hvp_buffer[nu][ 1][it] + plat[2] * hvp_buffer[nu][ 2][it] + plat[3] * hvp_buffer[nu][ 3][it];
+
+           fprintf(stdout, "# [hvp_full] WI p %2d %2d %2d %2d nu %d res1 %25.16e %25.16e res2 %25.16e %25.16e \n",
+               it, g_sink_momentum_list[ip][0], g_sink_momentum_list[ip][1], g_sink_momentum_list[ip][2], nu,
+               creal(wi_res1), cimag(wi_res1),
+               creal(wi_res2), cimag(wi_res2) );
+        }
+      }
     }  /* end of loop on sink momenta */
 
     if(io_proc == 2) {
