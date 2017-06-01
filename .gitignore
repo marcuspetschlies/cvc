@@ -2,3 +2,5 @@ read_input_parser_cvc.cpp
 **/tmp.cpp
 **/tmp.h
 **/*.backup
+**/.RData
+**/.Rhistory
