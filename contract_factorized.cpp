@@ -93,6 +93,21 @@ int contract_v1 (double **v1, double *phi, fermion_propagator_type *prop1, unsig
 
 
 /******************************************************
+ *
+ ******************************************************/
+int contract_v2_from_v1 (double **v2, double **v1, fermion_propagator_type *prop, unsigned int N ) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for(unsigned int ix=0; ix < N; ix++) {
+    _v2_eq_v1_eps_fp( v2[ix], v1[ix], prop[ix] );
+  }
+  return(0);
+}  /* end of contract_v2 */
+
+
+/******************************************************
  * vp[t][p][c]
  *
  * t timeslice
