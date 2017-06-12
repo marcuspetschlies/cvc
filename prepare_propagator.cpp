@@ -31,7 +31,7 @@
 #include "Q_phi.h"
 #include "read_input_parser.h"
 #include "ranlxd.h"
-/* #include "smearing_techniques.h" */
+#include "smearing_techniques.h"
 /* #include "fuzz.h" */
 #include "project.h"
 #include "matrix_init.h"
@@ -807,5 +807,66 @@ int prepare_seq_stochastic_vertex_stochastic_oet (double**seq_prop, double**stoc
 
   return(0);
 }  /* end of prepare_seq_stochastic_vertex_stochastic_oet */
+
+
+int point_source_propagator (double **prop, int gsx[4], int op_id, int smear_source, int smear_sink, double *gauge_field_smeared ) {
+
+  const size_t sizeof_spinor_field = _GSI(VOLUME) * sizeof(double);
+
+  int sx[4];
+  int source_proc_id = 0;
+  int exitstatus;
+  double ratime, retime;
+  double **spinor_work = NULL;
+  int rotation_direction = op_id == 0 ? +1 : -1;
+
+  ratime = _GET_TIME;
+  get_point_source_info (gsx, sx, &source_proc_id);
+
+  exitstatus = init_2level_buffer ( &spinor_work, 2, _GSI( (VOLUME+RAND) ) );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[point_source_propagator] Error from init_2level_buffer, status was %d\n", exitstatus);
+    return(1);
+  }
+
+  for( int is = 0;is < 12; is++) {
+    memset(spinor_work[0], 0, sizeof_spinor_field);
+    memset(spinor_work[1], 0, sizeof_spinor_field);
+    if(source_proc_id == g_cart_id)  {
+      spinor_work[0][_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]])+2*is] = 1.;
+    }
+    /* source-smear the point source */
+    if ( smear_source ) {
+      exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
+    }
+
+    if( g_fermion_type == _TM_FERMION ) {
+      spinor_field_tm_rotation(spinor_work[0], spinor_work[0], rotation_direction, g_fermion_type, VOLUME);
+    }
+
+    exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id, 0);
+    if(exitstatus != 0) {
+      fprintf(stderr, "[point_source_propagator] Error from tmLQCD_invert, status was %d\n", exitstatus);
+      EXIT(12);
+    }
+
+    if( g_fermion_type == _TM_FERMION ) {
+      spinor_field_tm_rotation(spinor_work[1], spinor_work[1], rotation_direction, g_fermion_type, VOLUME);
+    }
+
+    /* sink-smear the point-source propagator */
+    if ( smear_sink ) {
+      exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
+    }
+
+    memcpy( prop[is], spinor_work[1], sizeof_spinor_field);
+  }  /* end of loop on spin color */
+  fini_2level_buffer ( &spinor_work );
+  retime = _GET_TIME;
+  if(g_cart_id == 0) fprintf(stdout, "# [point_source_propagator] time for up propagator = %e seconds\n", retime-ratime);
+
+  return(0);
+}  /* end of point_source_propagator */
+
 
 }  /* end of namespace cvc */
