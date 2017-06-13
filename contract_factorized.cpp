@@ -159,6 +159,12 @@ int contract_vn_write_aff (double ***vp, int n, struct AffWriter_s*affw, char*ta
       fprintf(stderr, "[contract_vn_write_aff] Error from init_3level_zbuffer %s %d\n", __FILE__, __LINE__);
       return(6);
     }
+  } else if (io_proc == 1 ) {
+    exitstatus = init_3level_zbuffer ( &zbuffer,  1, 1, 1 );
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[contract_vn_write_aff] Error from init_3level_zbuffer %s %d\n", __FILE__, __LINE__);
+      return(6);
+    }
   }
 
   ratime = _GET_TIME;
@@ -179,7 +185,6 @@ int contract_vn_write_aff (double ***vp, int n, struct AffWriter_s*affw, char*ta
 #else
   memcpy(zbuffer[0][0], vp[0][0], momentum_number * n * T * sizeof(double _Complex) );
 #endif
-
 
   if(io_proc == 2) {
 
@@ -213,8 +218,10 @@ int contract_vn_write_aff (double ***vp, int n, struct AffWriter_s*affw, char*ta
     }
     fini_2level_zbuffer ( &aff_buffer );
   }  /* if io_proc == 2 */
+  if ( io_proc > 0 ) {
+    fini_3level_zbuffer ( &zbuffer );
+  }
 
-  fini_3level_zbuffer ( &zbuffer );
 #ifdef HAVE_MPI
   MPI_Barrier( g_cart_grid );
 #endif
