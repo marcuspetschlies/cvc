@@ -3717,7 +3717,7 @@ void contract_twopoint_snk_momentum_trange(double *contr, const int idsource, co
 void contract_twopoint_xdep(void*contr, const int idsource, const int idsink, void*chi, void*phi, int n_c, int stride, double factor, size_t prec) {
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel shared(idsource,idsink,chi,phi,stride,n_c,factor,prec,contr)
+#pragma omp parallel shared(chi,phi,stride,n_c,factor,prec,contr)
 {
 #endif
   const int psource[4] = { gamma_permutation[idsource][ 0] / 6,
@@ -6128,7 +6128,7 @@ void spinor_field_eq_gauge_field_ti_spinor_field (double*r, double *gf, double*s
     EXIT(1);
   }
 #ifdef HAVE_OPENMP
-#pragma omp parallel shared(r,s,gf,dir,N)
+#pragma omp parallel shared(r,s,gf,mu,N)
 {
 #endif
   unsigned int ix;
@@ -6165,7 +6165,7 @@ void spinor_field_eq_gauge_field_dag_ti_spinor_field (double*r, double *gf, doub
     EXIT(1);
   }
 #ifdef HAVE_OPENMP
-#pragma omp parallel shared(r,s,gf,dir,N)
+#pragma omp parallel shared(r,s,gf,mu,N)
 {
 #endif
   unsigned int ix;
@@ -6705,5 +6705,36 @@ void xchange_spinor_field_bnd2(double *sfield ) {
 */
 #endif
 }  /* end of xchange_spinor_field_bnd2 */
+
+/*****************************************************
+ * r = gamma[mu] s
+ *
+ * safe, if r == s
+ *****************************************************/
+void fermion_propagator_field_eq_gamma_ti_fermion_propagator_field (fermion_propagator_type*r, int mu, fermion_propagator_type*s, unsigned int N) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel 
+{
+#endif
+  fermion_propagator_type _f, _r, _s;
+  create_fp( &_f );
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for( unsigned int ix = 0; ix < N; ix++ ) {
+    _r = r[ix];
+    _s = s[ix];
+    _fp_eq_gamma_ti_fp( _f, mu, _s );
+    _fp_eq_fp( _r, _f );
+  }
+  free_fp( &_f );
+
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+}  /* end of fermion_propagator_field_eq_gamma_ti_fermion_propagator_field  */
 
 }  /* end of namespace cvc */
