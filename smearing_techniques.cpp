@@ -288,10 +288,10 @@ int Jacobi_Smearing(double *smeared_gauge_field, double *psi, int N, double kapp
 {
 #endif
 
-  int idx, idy;
-  int index_s, index_s_mx, index_s_px, index_s_my, index_s_py, index_s_mz, index_s_pz, index_g_mx;
-  int index_g_px, index_g_my, index_g_py, index_g_mz, index_g_pz; 
-  double *s=NULL, spinor[24];
+    int idx, idy;
+    int index_s, index_s_mx, index_s_px, index_s_my, index_s_py, index_s_mz, index_s_pz, index_g_mx;
+    int index_g_px, index_g_my, index_g_py, index_g_mz, index_g_pz; 
+    double *s=NULL, spinor[24];
 
 #ifdef HAVE_OPENMP
 #pragma omp for
