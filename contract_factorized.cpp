@@ -104,7 +104,39 @@ int contract_v2_from_v1 (double **v2, double **v1, fermion_propagator_type *prop
     _v2_eq_v1_eps_fp( v2[ix], v1[ix], prop[ix] );
   }
   return(0);
-}  /* end of contract_v2 */
+}  /* end of contract_v2_from_v1 */
+
+
+/******************************************************
+ *
+ ******************************************************/
+int contract_v4 (double **v4, double *phi, fermion_propagator_type *prop1, fermion_propagator_type *prop2, unsigned int N ) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  fermion_propagator_type fp;
+  create_fp( &fp );
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(unsigned int ix=0; ix < N; ix++) {
+
+    _fp_eq_fp_eps_contract13_fp( fp, prop1[ix], prop2[ix] );
+
+    _v4_eq_fv_dot_fp( v4[ix], phi+_GSI(ix), fp);
+  }
+  free_fp( &fp );
+
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+  return(0);
+}  /* end of contract_v4 */
+
+
 
 
 /******************************************************
