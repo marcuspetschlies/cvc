@@ -23,6 +23,8 @@ perm_tab_3[7]=1
 perm_tab_3[8]=2
 #
 
+if [ 1 -eq 0 ]; then
+
 echo "#ifndef _CONTRACTVN_INLINE_H"
 echo "#define _CONTRACTVN_INLINE_H"
 
@@ -31,6 +33,10 @@ echo "// color dimension: $N_COLOR_DIM"
 echo ""
 
 echo -e "namespace cvc {\n\n"
+
+fi
+
+if [ 1 -eq 0 ]; then
 
 echo "static inline void _v1_eq_fv_eps_fp( double *_v1, double *_fv, fermion_propagator_type _fp) {"
 echo "  double _cre, _cim;"
@@ -127,8 +133,41 @@ for((alpha2=0; alpha2<$N_SPINOR_DIM;  alpha2++)); do
 done
 echo "}   /* end of _v3_eq_fv_dot_fp */"
 
+fi
+
+
+echo "static inline void _v4_eq_fv_dot_fp( double *_v4, double *_fv, fermion_propagator_type _fp) {"
+echo "  double _cre, _cim;"
+for((l=0; l<$N_COLOR_DIM; l++ )); do
+for((gamma=0; gamma<$N_SPINOR_DIM;  gamma++)); do
+for((beta=0; beta<$N_SPINOR_DIM;  beta++)); do
+for((alpha=0; alpha<$N_SPINOR_DIM;  alpha++)); do
+
+    echo "  _cre = 0.;"
+    echo "  _cim = 0.;"
+
+    for((a=0; a<$N_COLOR_DIM; a++ )); do
+        echo -e "  _cre += "
+        echo -e "    + _fv[$((2*($N_COLOR_DIM*$alpha+$a)  ))] * _fp[$(($N_COLOR_DIM*$gamma+$l))][$((2*($N_COLOR_DIM*$beta+$a)  ))] "
+        echo -e "    - _fv[$((2*($N_COLOR_DIM*$alpha+$a)+1))] * _fp[$(($N_COLOR_DIM*$gamma+$l))][$((2*($N_COLOR_DIM*$beta+$a)+1))];"
+
+        echo -e "  _cim += "
+        echo -e "    + _fv[$((2*($N_COLOR_DIM*$alpha+$a)  ))] * _fp[$(($N_COLOR_DIM*$gamma+$l))][$((2*($N_COLOR_DIM*$beta+$a)+1))] "
+        echo -e "    + _fv[$((2*($N_COLOR_DIM*$alpha+$a)+1))] * _fp[$(($N_COLOR_DIM*$gamma+$l))][$((2*($N_COLOR_DIM*$beta+$a)  ))];"
+    done
+
+    echo "  _v4[$(( 2* ( $N_COLOR_DIM * (  $N_SPINOR_DIM * ( $N_SPINOR_DIM * $alpha + $beta) +  $gamma ) + $l )   ))] = _cre;"
+    echo "  _v4[$(( 2* ( $N_COLOR_DIM * (  $N_SPINOR_DIM * ( $N_SPINOR_DIM * $alpha + $beta) +  $gamma ) + $l )+1 ))] = _cim;"
+done
+done
+done
+done
+echo "}   /* end of _v4_eq_fv_dot_fp */"
+
+if [ 1 -eq 0 ]; then
+
 echo -e "\n}  /* end of namespace cvc */"
 echo -e "\n#endif"
 
-
+fi
 exit 0
