@@ -246,49 +246,6 @@ int get_stochastic_source_timeslices (void) {
 
 
 /***********************************************************
- * determine source coordinates, find out, if source_location is in this process
- *   gcoords: global source coordinates (in)
- *   lcoords: local source coordinates (out)
- *   proc_id: source proc id (out)
- *   location: local lexic source location (out)
- ***********************************************************/
-int get_point_source_info (int gcoords[4], int lcoords[4], int*proc_id) {
-  /* local source coordinates */
-  int source_proc_id = 0;
-  int exitstatus;
-#ifdef HAVE_MPI
-  int source_proc_coords[4];
-  source_proc_coords[0] = gcoords[0] / T;
-  source_proc_coords[1] = gcoords[1] / LX;
-  source_proc_coords[2] = gcoords[2] / LY;
-  source_proc_coords[3] = gcoords[3] / LZ;
-  exitstatus = MPI_Cart_rank(g_cart_grid, source_proc_coords, &source_proc_id);
-  if(exitstatus !=  MPI_SUCCESS ) {
-    fprintf(stderr, "[get_point_source_info] Error from MPI_Cart_rank, status was %d\n", exitstatus);
-    EXIT(9);
-  }
-  if(source_proc_id == g_cart_id) {
-    fprintf(stdout, "# [get_point_source_info] process %2d = (%3d,%3d,%3d,%3d) has source location\n", source_proc_id,
-        source_proc_coords[0], source_proc_coords[1], source_proc_coords[2], source_proc_coords[3]);
-  }
-#endif
-
-  if(proc_id != NULL) *proc_id = source_proc_id;
-  int x[4] = {-1,-1,-1,-1};
-  /* local coordinates */
-  if(g_cart_id == source_proc_id) {
-    x[0] = gcoords[0] % T;
-    x[1] = gcoords[1] % LX;
-    x[2] = gcoords[2] % LY;
-    x[3] = gcoords[3] % LZ;
-    if(lcoords != NULL) {
-      memcpy(lcoords,x,4*sizeof(int));
-    }
-  }
-  return(0);
-}  /* end of get_point_source_info */
-
-/***********************************************************
  * usage function
  ***********************************************************/
 void usage() {
@@ -422,8 +379,6 @@ int main(int argc, char **argv) {
   }
 #endif
 
-
-
 #ifdef HAVE_OPENMP
   omp_set_num_threads(g_num_threads);
 #else
@@ -442,12 +397,11 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[piN2piN] Error from init_geometry\n");
     EXIT(1);
   }
-
   geometry();
 
   VOL3 = LX*LY*LZ;
-  sizeof_spinor_field = _GSI(VOLUME)*sizeof(double);
-  sizeof_spinor_field_timeslice = _GSI(VOL3)*sizeof(double);
+  sizeof_spinor_field           = _GSI(VOLUME) * sizeof(double);
+  sizeof_spinor_field_timeslice = _GSI(VOL3)   * sizeof(double);
 
 
 #ifdef HAVE_MPI
@@ -471,9 +425,9 @@ int main(int argc, char **argv) {
 
 
 
-#ifndef HAVE_TMLQCD_LIBWRAPPER
   /* read the gauge field */
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
+#ifndef HAVE_TMLQCD_LIBWRAPPER
   switch(g_gauge_file_format) {
     case 0:
       sprintf(filename, "%s.%.4d", gaugefilename_prefix, Nconf);
@@ -490,9 +444,6 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[piN2piN] Error, could not read gauge field\n");
     EXIT(21);
   }
-#  ifdef HAVE_MPI
-  xchange_gauge();
-#  endif
 #else
   Nconf = g_tmLQCD_lat.nstore;
   if(g_cart_id== 0) fprintf(stdout, "[piN2piN] Nconf = %d\n", Nconf);
@@ -502,39 +453,45 @@ int main(int argc, char **argv) {
     EXIT(3);
   }
 
-  exitstatus = tmLQCD_get_gauge_field_pointer(&g_gauge_field);
+  exitstatus = tmLQCD_get_gauge_field_pointer(&tmLQCD_gauge_field);
   if(exitstatus != 0) {
     EXIT(4);
   }
-  if(g_gauge_field == NULL) {
-    fprintf(stderr, "[piN2piN] Error, &g_gauge_field is NULL\n");
+  if( tmLQCD_gauge_field == NULL) {
+    fprintf(stderr, "[piN2piN] Error, tmLQCD_gauge_field is NULL\n");
     EXIT(5);
   }
+  memcpy( g_gauge_field, tmLQCD_gauge_field, 72*VOLUME*sizeof(double));
 #endif
 
+#ifdef HAVE_MPI
+  xchange_gauge_field ( g_gauge_field );
+#endif
   /* measure the plaquette */
-  plaquette(&plaq_m);
-  if(g_cart_id==0) fprintf(stdout, "# [piN2piN] read plaquette value    : %25.16e\n", plaq_r);
-  if(g_cart_id==0) fprintf(stdout, "# [piN2piN] measured plaquette value: %25.16e\n", plaq_m);
-
+  
+  if ( ( exitstatus = plaquetteria  ( g_gauge_field ) ) != 0 ) {
+    fprintf(stderr, "[piN2piN] Error from plaquetteria, status was %d\n", exitstatus);
+    EXIT(2);
+  }
+  free ( g_gauge_field ); g_gauge_field = NULL;
 
   /***********************************************
    * smeared gauge field
    ***********************************************/
   if( N_Jacobi > 0 ) {
-    if(N_ape > 0 ) {
-      alloc_gauge_field(&gauge_field_smeared, VOLUMEPLUSRAND);
-      memcpy(gauge_field_smeared, g_gauge_field, 72*VOLUME*sizeof(double));
+
+    alloc_gauge_field(&gauge_field_smeared, VOLUMEPLUSRAND);
+
+    memcpy(gauge_field_smeared, tmLQCD_gauge_field, 72*VOLUME*sizeof(double));
+
+    if ( N_ape > 0 ) {
       exitstatus = APE_Smearing(gauge_field_smeared, alpha_ape, N_ape);
       if(exitstatus != 0) {
         fprintf(stderr, "[piN2piN] Error from APE_Smearing, status was %d\n", exitstatus);
         EXIT(47);
       }
-  
-    } else {
-      gauge_field_smeared = g_gauge_field;
-    }
-  }
+    }  /* end of if N_aoe > 0 */
+  }  /* end of if N_Jacobi > 0 */
 
   /***********************************************************
    * determine the stochastic source timeslices
