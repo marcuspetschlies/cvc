@@ -6738,6 +6738,38 @@ void fermion_propagator_field_eq_gamma_ti_fermion_propagator_field (fermion_prop
 }  /* end of fermion_propagator_field_eq_gamma_ti_fermion_propagator_field  */
 
 
+/*****************************************************
+ * r = gamma[mu] s
+ *
+ * safe, if r == s
+ *****************************************************/
+void fermion_propagator_field_eq_fermion_propagator_field_ti_gamma (fermion_propagator_type*r, int mu, fermion_propagator_type*s, unsigned int N) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel 
+{
+#endif
+  fermion_propagator_type _f, _r, _s;
+  create_fp( &_f );
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for( unsigned int ix = 0; ix < N; ix++ ) {
+    _r = r[ix];
+    _s = s[ix];
+    _fp_eq_fp_ti_gamma( _f, mu, _s );
+    _fp_eq_fp( _r, _f );
+  }
+  free_fp( &_f );
+
+#ifdef HAVE_OPENMP
+  }  /* end of parallel region */
+#endif
+}  /* end of fermion_propagator_field_eq_fermion_propagator_field_ti_gamma  */
+
+
+
 
 /*****************************************************
  * r = gamma[mu] s
