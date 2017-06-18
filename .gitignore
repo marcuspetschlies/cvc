@@ -5,3 +5,4 @@ read_input_parser_cvc.cpp
 **/*.patch
 **/*.rej
 **/*.orig
+gitversion.cpp
