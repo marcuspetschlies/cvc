@@ -137,7 +137,67 @@ int contract_v4 (double **v4, double *phi, fermion_propagator_type *prop1, fermi
 }  /* end of contract_v4 */
 
 
+/******************************************************
+ *
+ ******************************************************/
+int contract_v5 (double **v5, fermion_propagator_type *prop1, fermion_propagator_type *prop2, fermion_propagator_type *prop3, unsigned int N ) {
+  const size_t bytes = 32 * sizeof(double);
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  fermion_propagator_type fp;
+  create_fp ( &fp );
+  spinor_propagator_type sp;
+  create_sp ( &sp );
 
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(unsigned int ix=0; ix < N; ix++) {
+
+    _fp_eq_fp_eps_contract13_fp( fp, prop2[ix], prop3[ix] );
+    _sp_eq_fp_del_contract23_fp( sp, prop1[ix], fp);
+    memcpy(v5[ix], sp[0], bytes );
+  }
+  free_fp( &fp );
+  free_fp( &sp );
+#ifdef HAVE_OPENMP
+  }  /* end of parallel region */
+#endif
+    return(0);
+}  /* end of contract_v5 */
+
+/******************************************************
+ *
+ ******************************************************/
+int contract_v6 (double **v6, fermion_propagator_type *prop1, fermion_propagator_type *prop2, fermion_propagator_type *prop3, unsigned int N ) {
+  const size_t bytes = 32 * sizeof(double);
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  fermion_propagator_type fp;
+  create_fp ( &fp );
+  spinor_propagator_type sp;
+  create_sp ( &sp );
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(unsigned int ix=0; ix < N; ix++) {
+
+    _fp_eq_fp_eps_contract13_fp( fp, prop2[ix], prop3[ix] );
+    _sp_eq_fp_del_contract34_fp( sp, prop1[ix], fp);
+    memcpy(v6[ix], sp[0], bytes );
+  }
+  free_fp( &fp );
+  free_fp( &sp );
+#ifdef HAVE_OPENMP
+  }  /* end of parallel region */
+#endif
+    return(0);
+}  /* end of contract_v6 */
 
 /******************************************************
  * vp[t][p][c]
