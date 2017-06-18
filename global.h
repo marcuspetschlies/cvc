@@ -100,6 +100,8 @@ typedef struct momentum_info_struct {
   char filename[200];
 } momentum_info_type;
 
+extern const char *g_gitversion;
+
 EXTERN int T_global, LX_global, LY_global, LZ_global;
 EXTERN int T, L, LX, LY, LZ, Tstart, LXstart, LYstart, LZstart, FFTW_LOC_VOLUME, L5;
 EXTERN unsigned int VOLUME, RAND, EDGES, VOLUMEPLUSRAND;
