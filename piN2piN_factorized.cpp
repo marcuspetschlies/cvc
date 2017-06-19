@@ -221,33 +221,37 @@ int main(int argc, char **argv) {
  *                                                                 */
   /* vertex i2, gamma_5 only */
   const int gamma_i2_number = 1;
-  int gamma_i2_list[1]      = {  5 };
-  double gamma_i2_sign[1]   = { +1 };
+  int gamma_i2_list[gamma_i2_number]    = {  5 };
+  double gamma_i2_sign[gamma_i2_number] = { +1 };
 
   /* vertex f2, gamma_5 and id,  vector indices and pseudo-vector */
   const int gamma_f2_number = 1;
-  int gamma_f2_list[1]      = {  5 };
-  double gamma_f2_sign[1]   = { +1 };
-  double gamma_f2_adjoint_sign[1]   = { +1 };
-  double gamma_f2_g5_adjoint_sign[1]   = { +1 };
+  int gamma_f2_list[gamma_f2_number]               = {  5 };
+  double gamma_f2_sign[gamma_f2_number]            = { +1 };
+  double gamma_f2_adjoint_sign[gamma_f2_number]    = { +1 };
+  double gamma_f2_g5_adjoint_sign[gamma_f2_number] = { +1 };
 
   /* vertex c, vector indices and pseudo-vector */
   const int gamma_c_number = 6;
-  int gamma_c_list[6]       = {  1,  2,  3,  7,  8,  9 };
-  double gamma_c_sign[6]    = { +1, +1, +1, +1, +1, +1 };
+  int gamma_c_list[gamma_c_number]    = {  1,  2,  3,  7,  8,  9 };
+  double gamma_c_sign[gamma_c_number] = { +1, +1, +1, +1, +1, +1 };
 
 
   /* vertex f1 for nucleon-type, C g5, C, C g0 g5, C g0 */
   const int gamma_f1_nucleon_number = 4;
-  int gamma_f1_nucleon_list[4]      = { 14, 11,  8,  2 };
-  double gamma_f1_nucleon_sign[4]   = { +1, +1, -1, -1 };
-  double gamma_f1_nucleon_transposed_sign[4]   = { -1, -1, +1, -1 };
+  int gamma_f1_nucleon_list[gamma_f1_nucleon_number]               = { 14, 11,  8,  2 };
+  double gamma_f1_nucleon_sign[gamma_f1_nucleon_number]            = { +1, +1, -1, -1 };
+  double gamma_f1_nucleon_transposed_sign[gamma_f1_nucleon_number] = { -1, -1, +1, -1 };
 
   /* vertex f1 for Delta-type operators, C gi, C gi g0 */
   const int gamma_f1_delta_number = 6;
-  int gamma_f1_delta_list[6]      = { 9,  0,  7, 13,  4, 15 };
-  double gamma_f1_delta_src_sign[6]   = {-1, +1, +1, +1, +1, -1 };
-  double gamma_f1_delta_snk_sign[6]   = {+1, +1, -1, -1, +1, +1 };
+  int gamma_f1_delta_list[gamma_f1_delta_number]        = { 9,  0,  7, 13,  4, 15 };
+  double gamma_f1_delta_src_sign[gamma_f1_delta_number] = {-1, +1, +1, +1, +1, -1 };
+  double gamma_f1_delta_snk_sign[gamma_f1_delta_number] = {+1, +1, -1, -1, +1, +1 };
+
+  const int gamma_rho_number = 6;
+                                          /* g1, g2, g3, g0 g1, g0 g2, g0 g3 */
+  int gamma_rho_list[gamma_rho_number] = {    1,  2,  3,    10,    11,    12 };
 
 /*
  *******************************************************************/
@@ -979,6 +983,78 @@ int main(int argc, char **argv) {
       fini_2level_buffer ( &v2 );
       fini_3level_buffer ( &vp );
 
+      /*****************************************************************/
+      /*****************************************************************/
+
+      /*****************************************************************
+       * contraction for pion - pion and rho - rho 2-point function
+       *****************************************************************/
+
+      exitstatus= init_2level_buffer ( &v3, VOLUME, 2 );
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[piN2piN_factorized] Error from init_2level_buffer, status was %d\n", exitstatus);
+        EXIT(47);
+      }
+
+      exitstatus= init_3level_buffer ( &vp, T, g_sink_momentum_number, 2 );
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[piN2piN_factorized] Error from init_3level_buffer, status was %d\n", exitstatus);
+        EXIT(47);
+      }
+
+      /*****************************************************************/
+      /*****************************************************************/
+
+      /*****************************************************************
+       * contractions for the charged pion - pion correlator
+       *****************************************************************/
+      sprintf(aff_tag, "/m-m/t%.2dx%.2dy%.2dz%.2d/gi%.2d/gf%.2d", gsx[0], gsx[1], gsx[2], gsx[3], 5, 5 );
+
+      contract_twopoint_xdep (v3[0], 5, 5, &(propagator_list_up[i_coherent * n_s*n_c]), &(propagator_list_up[i_coherent * n_s*n_c]), n_c, 1, 1., 64);
+
+      exitstatus = contract_vn_momentum_projection ( vp, v3, 1, g_sink_momentum_list, g_sink_momentum_number);
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+        EXIT(48);
+      }
+
+      exitstatus = contract_vn_write_aff ( vp, 1, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+        EXIT(49);
+      }
+
+      /*****************************************************************
+       * contractions for the neutral rho - rho correlator
+       *****************************************************************/
+      for ( int igi = 0; igi < gamma_rho_number; igi++ ) {
+        for ( int igf = 0; igf < gamma_rho_number; igf++ ) {
+
+          sprintf(aff_tag, "/m-m/t%.2dx%.2dy%.2dz%.2d/gi%.2d/gf%.2d", gsx[0], gsx[1], gsx[2], gsx[3], gamma_rho_list[igi],  gamma_rho_list[igf] );
+
+          contract_twopoint_xdep (v3[0], gamma_rho_list[igi], gamma_rho_list[igf], &(propagator_list_up[i_coherent * n_s*n_c]), &(propagator_list_dn[i_coherent * n_s*n_c]), n_c, 1, 1., 64);
+
+          exitstatus = contract_vn_momentum_projection ( vp, v3, 1, g_sink_momentum_list, g_sink_momentum_number);
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+            EXIT(48);
+          }
+
+          exitstatus = contract_vn_write_aff ( vp, 1, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+            EXIT(49);
+          }
+        }  /* end of loop on gamma rho at sink */
+      }  /* end of loop on gamma rho at source */
+
+      fini_2level_buffer ( &v3 );
+      fini_3level_buffer ( &vp );
+
+
+      /***********************************************************/
+      /***********************************************************/
+
       /***********************************************************
        * contractions with up and dn propagator and stochastic source
        ***********************************************************/
@@ -1064,7 +1140,7 @@ int main(int argc, char **argv) {
           }
 #endif  /* of if 0 */
 
-#if 0
+
           /*****************************************************************
            * phi - gf2 - u
            *****************************************************************/
@@ -1093,7 +1169,7 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_write_aff, status was %d\n", exitstatus);
             EXIT(49);
           }
-
+#if 0
 #endif  /* of if 0 */
 
 #if 0
@@ -1818,6 +1894,55 @@ int main(int argc, char **argv) {
         fini_2level_buffer ( &v2 );
         fini_3level_buffer ( &vp );
         free_fp_field ( &fp4 );
+
+        /*****************************************************************/
+        /*****************************************************************/
+
+        /*****************************************************************
+         * contraction for pi x pi - rho 2-point function
+         *****************************************************************/
+
+        exitstatus= init_2level_buffer ( &v3, VOLUME, 2 );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[piN2piN_factorized] Error from init_2level_buffer, status was %d\n", exitstatus);
+          EXIT(47);
+        }
+
+        exitstatus= init_3level_buffer ( &vp, T, g_sink_momentum_number, 2 );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[piN2piN_factorized] Error from init_3level_buffer, status was %d\n", exitstatus);
+          EXIT(47);
+        }
+
+        /*****************************************************************/
+        /*****************************************************************/
+
+        /*****************************************************************
+         * contractions for the pi^+ pi^- rho^0 correlator
+         *****************************************************************/
+        for ( int igf = 0; igf < gamma_rho_number; igf++ ) {
+
+          sprintf(aff_tag, "/mxm-m/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/gi%.2d/gf%.2d", gsx[0], gsx[1], gsx[2], gsx[3], 
+              g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
+              5,  gamma_rho_list[igf] );
+
+          contract_twopoint_xdep (v3[0], 5, gamma_rho_list[igf], sequential_propagator_list, &(propagator_list_dn[i_coherent * n_s*n_c]), n_c, 1, 1., 64);
+
+          exitstatus = contract_vn_momentum_projection ( vp, v3, 1, g_sink_momentum_list, g_sink_momentum_number);
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+            EXIT(48);
+          }
+
+          exitstatus = contract_vn_write_aff ( vp, 1, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+            EXIT(49);
+          }
+        }  /* end of loop on gamma rho at sink */
+
+        fini_2level_buffer ( &v3 );
+        fini_3level_buffer ( &vp );
 
         /*****************************************************************/
         /*****************************************************************/
