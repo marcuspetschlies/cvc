@@ -1141,12 +1141,16 @@ int main(int argc, char **argv) {
 #endif  /* of if 0 */
 
 
+
           /*****************************************************************
            * phi - gf2 - u
            *****************************************************************/
           /* multiply with Dirac structure at vertex f2 */
           spinor_field_eq_gamma_ti_spinor_field (spinor_work[0], gamma_f2_list[i], stochastic_propagator_list[i_sample], VOLUME );
           spinor_field_ti_eq_re ( spinor_work[0], gamma_f2_adjoint_sign[i], VOLUME);
+#if 0
+          /*****************************************************************/
+          /*****************************************************************/
 
           sprintf(aff_tag, "/v3/t%.2dx%.2dy%.2dz%.2d/phi-g%.2d-u/sample%.2d", 
               gsx[0], gsx[1], gsx[2], gsx[3],
@@ -1169,10 +1173,9 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_write_aff, status was %d\n", exitstatus);
             EXIT(49);
           }
-#if 0
 #endif  /* of if 0 */
 
-#if 0
+
           /*****************************************************************
            * phi - gf2 - d
            *****************************************************************/
@@ -1180,7 +1183,7 @@ int main(int argc, char **argv) {
               gsx[0], gsx[1], gsx[2], gsx[3],
               gamma_f2_list[i], i_sample);
 
-          exitstatus = contract_v3  ( v3, stochastic_propagator_list[i_sample], fp2, VOLUME );
+          exitstatus = contract_v3  ( v3, spinor_work[0], fp2, VOLUME );
           if ( exitstatus != 0 ) {
             fprintf(stderr, "[piN2piN_factorized] Error from init_2level_buffer, status was %d\n", exitstatus);
             EXIT(47);
@@ -1197,7 +1200,7 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_write_aff, status was %d\n", exitstatus);
             EXIT(49);
           }
-
+#if 0
 #endif  /* of if 0 */
 
         }   /* end of loop on samples */
@@ -1245,6 +1248,7 @@ int main(int argc, char **argv) {
             EXIT(47);
           }
 #endif  /* of if 0 */
+
 #if 0
           /*****************************************************************
            * xi - gf1 - u - u
