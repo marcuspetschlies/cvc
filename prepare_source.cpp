@@ -498,6 +498,8 @@ int fini_clover_eo_propagator(double *p_even, double *p_odd, double *r_even, dou
 /***************************************************************************************************
  * prepare sequential source from propagator
  *
+ * calculate A^{-1} g5 Gamma (pvec) (p_even, p_odd)^t on timeslice tseq
+ *
  * safe, if s_even = p_even or s_odd = p_odd
  ***************************************************************************************************/
 int init_clover_eo_sequential_source(double *s_even, double *s_odd, double *p_even, double *p_odd, int tseq, double*gauge_field, double*mzzinv, int pseq[3], int gseq, double *work0) {
@@ -895,9 +897,7 @@ int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init) {
     fflush(stdout);
   }
 
-
   return(0);
 }  /* end of init_timeslice_source_oet */
-
 
 }  /* end of namespace cvc */
