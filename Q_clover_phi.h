@@ -38,5 +38,14 @@ int Q_clover_eo_invert_subspace_stochastic ( double**prop_e, double**prop_o, dou
                                              int nsf, double*sample_prop, double*sample_source, int nsample,
                                              double*gauge_field, double**mzz[2], double**mzzinv[2], int flavor_id, double**eo_spinor_aux );
 
+int Q_clover_eo_invert_subspace_stochastic_timeslice ( 
+  double**prop_e, double**prop_o,
+  double**source_e, double**source_o,
+  int nsf,
+  double***sample_prop, double***sample_source, int nsample,
+  double*gauge_field, double**mzz[2], double**mzzinv[2],
+  int timeslice, int flavor_id );
+
+
 }  /* end of namespace cvc */
 #endif

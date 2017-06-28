@@ -1632,4 +1632,211 @@ int Q_clover_eo_invert_subspace_orthogonal (
 }  /* end of Q_clover_eo_invert_subspace_orthogonal */
 #endif  /* of if 0 */
 
+
+#if 0
+
+This is still wrong; given timeslice, one needs to the sum the contributions
+from timeslice propagators and sources for timeslice - 1, timeslice and timeslice + 1.
+
+/********************************************************************
+ * invert on odd stochastic subspace 
+ * with stochastic timeslice propagators
+ * we apply
+ *
+ * ( 0 X ) x ( 0 0       ) 
+ * ( 0 1 )   ( 0 S_stoch )
+ *
+ * S_stoch = sum_r phi_r xi_r^+
+ *
+ * safe for prop_e = source_e and / or prop_o = source_o
+ ********************************************************************/
+int Q_clover_eo_invert_subspace_stochastic_timeslice ( 
+    double**prop_e, double**prop_o,
+    double**source_e, double**source_o,
+    int nsf,
+    double***sample_prop, double***sample_source, 
+    int nsample,
+    double*gauge_field, double**mzz[2], double**mzzinv[2],
+    int timeslice,
+    int flavor_id 
+) {
+
+
+  const unsigned int Vhalf = VOLUME / 2;
+  const size_t sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
+  const unsigned int VOL3half = LX * LY * LZ / 2;
+  const size_t sizeof_eo_spinor_field_timeslice = _GSI(VOL3half) * sizeof(double);
+
+  int exitstatus;
+  double **eo_spinor_work=NULL;
+  double ratime, retime;
+  double **sf_o_timeslice = NULL;
+
+
+  exitstatus = init_2level_buffer(&sf_o_timeslice, nsf, _GSI(VOL3half) );
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_eo_invert_subspace_stochastic_timeslice] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(2);
+  }
+
+  ratime = _GET_TIME;
+
+  if ( iflavor == 0 ) {
+
+    double **pcoeff = NULL,
+    exitstatus = init_2level_buffer(&pcoeff, nsf, 2*nsample);
+    if(exitstatus != 0) {
+      fprintf(stderr, "[Q_clover_eo_invert_subspace_stochastic_timeslice] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(2);
+    }
+
+    if ( timeslice / T == g_proc_coords[0] ) {
+
+      const unsigned int offset_timeslice = ( timeslice % T ) * _GSI( VOL3half );
+      memset ( sf_o_timeslice[0], 0, nsf * sizeof_eo_spinor_field_timeslice );
+      for ( int isf=0; isf < nsf; isf++ ) {
+        memcpy( sf_o_timeslice[isf], source_o[isf] + offset_timeslice, sizeof_eo_spinor_field_timeslice );
+      }
+
+      /********************************************************************
+       * NOTE: do NOT exchange / reduce in function call; do it afterwards
+       ********************************************************************/
+      exitstatus = project_reduce_from_propagator_field (pcoeff[0], sf_o_timeslice[0], sample_source[timeslice / T][0], nsf, nsample, VOL3half, 0);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[Q_clover_eo_invert_subspace_stochastic_timeslice] Error from project_reduce_from_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(2);
+      }
+
+#ifdef HAVE_MPI
+      /* reduction inside timeslice */
+      double *pcoeff_buffer = (double*)malloc ( nsf * nsample * 2 * sizeof(double));
+      if ( pcoeff_buffer == NULL ) {
+        fprintf(stderr, "[Q_clover_eo_invert_subspace_stochastic_timeslice] Error from malloc %s %d\n", __FILE__, __LINE__);
+        return(3);
+      }
+      memcpy( pcoeff_buffer, pcoeff[0], nsf * nsample * 2 * sizeof(double) );
+      exitstatus = MPI_Allreduce( pcoeff_buffer, pcoeff[0], nsf * nsample * 2, MPI_DOUBLE, MPI_SUM, g_ts_comm );
+      if ( exitstatus != MPI_SUCCESS ) {
+        fprintf(stderr, "[] Error from MPI_Allreduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(4);
+      }
+      free ( pcoeff_buffer ); pcoeff_buffer = NULL;
+#endif
+    }  /* end of if have timeslice */
+
+#ifdef HAVE_MPI
+    /* distribute to all nodes */
+    int coords = timeslice / T, root;
+    MPI_Cart_rank( g_tr_comm, &coords, &root);
+    exitstatus = MPI_Bcast( pcoeff[0], 2*nsample*nsf, MPI_DOUBLE, root, g_tr_comm );
+    if ( exitstatus != MPI_SUCCESS ) {
+      fprintf(stderr, "[] Error from MPI_Bcast, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(4);
+    }
+#endif
+
+    /* re-expand to propagator, per timeslice */
+
+    for ( int it = 0; it < T; it++ ) {
+      memset ( sf_o_timeslice[0], 0, nsf * sizeof_eo_spinor_field_timeslice );
+      exitstatus = project_expand_to_propagator_field( sf_o_timeslice[0], pcoeff[0], sample_prop[it][0], nsf, nsample, VOL3half);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[Q_clover_eo_invert_subspace_stochastic_timeslice] Error from project_expand_to_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(3);
+      }
+      unsigned int offset_timeslice = it * _GSI(VOL3half);
+      for ( int isf = 0; isf < nsf; isf++ ) {
+        memcpy( prop_o[isf] + offset_timeslice, sf_o_timeslice[isf], sizeof_eo_spinor_field_timeslice );
+      }
+    }
+
+    fini_2level_buffer( &pcoeff );
+
+    /********************************************************************/
+    /********************************************************************/
+
+  }  else {  /* of if iflavor == 0 */
+
+    /********************************************************************/
+    /********************************************************************/
+
+    double ***pcoeff = NULL;
+    exitstatus = init_3level_buffer(&pcoeff, T, nsf, 2*nsample);
+    if(exitstatus != 0) {
+      fprintf(stderr, "[Q_clover_eo_invert_subspace_stochastic_timeslice] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(2);
+    }
+
+    for( int it = 0; it < T; it++ ) {
+      const unsigned int offset_timeslice = it * _GSI( VOL3half );
+
+      memset ( sf_o_timeslice[0], 0, nsf * sizeof_eo_spinor_field_timeslice );
+      for ( int isf=0; isf < nsf; isf++ ) {
+        memcpy( sf_o_timeslice[isf], source_o[isf] + offset_timeslice, sizeof_eo_spinor_field_timeslice );
+      }
+
+      /********************************************************************
+       * NOTE: do NOT exchange / reduce in function call; do it afterwards
+       ********************************************************************/
+      exitstatus = project_reduce_from_propagator_field (pcoeff[it][0], sf_o_timeslice[0], sample_prop[it][0], nsf, nsample, VOL3half, 0);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[Q_clover_eo_invert_subspace_stochastic_timeslice] Error from project_reduce_from_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(2);
+      }
+
+#ifdef HAVE_MPI
+      /* reduction inside timeslice */
+      const unsigned int items = T * nsf * nsample * 2;
+      double *pcoeff_buffer = (double*)malloc ( items * sizeof(double));
+      if ( pcoeff_buffer == NULL ) {
+        fprintf(stderr, "[Q_clover_eo_invert_subspace_stochastic_timeslice] Error from malloc %s %d\n", __FILE__, __LINE__);
+        return(3);
+      }
+      memcpy( pcoeff_buffer, pcoeff[0][0], items * sizeof(double) );
+      exitstatus = MPI_Allreduce( pcoeff_buffer, pcoeff[0][0], items, MPI_DOUBLE, MPI_SUM, g_ts_comm );
+      if ( exitstatus != MPI_SUCCESS ) {
+        fprintf(stderr, "[] Error from MPI_Allreduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(4);
+      }
+      free ( pcoeff_buffer ); pcoeff_buffer = NULL;
+#endif
+    }  /* end of if have timeslice */
+
+    /* re-expand to propagator, per timeslice */
+
+    for ( int it = 0; it < T; it++ ) {
+      memset ( sf_o_timeslice[0], 0, nsf * sizeof_eo_spinor_field_timeslice );
+      exitstatus = project_expand_to_propagator_field(sf_o_timeslice[0], pcoeff[it][0], sample_source[it][0], nsf, nsample, VOL3half);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[Q_clover_eo_invert_subspace_stochastic_timeslice] Error from project_expand_to_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(3);
+      }
+      unsigned int offset_timeslice = it * _GSI(VOL3half);
+      for ( int isf = 0; isf < nsf; isf++ ) {
+        memcpy( prop_o[isf] + offset_timeslice, sf_o_timeslice[isf], sizeof_eo_spinor_field_timeslice );
+      }
+    }
+
+    fini_3level_buffer(&pcoeff);
+
+  }  /* end of if iflavor == 0 else branch */
+
+  fini_2level_buffer( &sf_o_timeslice );
+
+  /* complete the propagator by call to B^{-1} */
+  alloc_spinor_field( &eo_spinor_work, (VOLUME+RAND)/2 );
+  for(i=0; i<nsf; i++) {
+    Q_clover_eo_SchurDecomp_Binv ( prop_e[i], prop_o[i], source_e[i], prop_o[i], gauge_field, mzzinv[flavor_id][0], eo_spinor_work[0]);
+  }
+
+  free( eo_spinor_work );
+  retime = _GET_TIME;
+  if(g_cart_id==0) fprintf(stdout, "# [Q_clover_eo_invert_subspace_stochastic_timeslice] time for subspace inversion = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+
+  return(0);
+
+}  /* end of Q_clover_eo_invert_subspace_stochastic_timeslice */
+#endif  /* of if 0  */
+
+
 }  /* end of namespace cvc */
