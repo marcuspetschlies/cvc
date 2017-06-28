@@ -371,7 +371,7 @@ int project_propagator_field_weighted(double *s, double * r, int parallel, doubl
  * zgemm calculates p = V^H x r, which is num2  x num1 (F) = num1 x num2  (C)
  *
  ******************************************************************************************************/
-int project_reduce_from_propagator_field (double *p, double * r, double *V, int num1, int num2, unsigned int N) {
+int project_reduce_from_propagator_field (double *p, double * r, double *V, int num1, int num2, unsigned int N, int xchange) {
 
   const int items_p = num1 * num2;  /* number of double _Complex items */
   const size_t bytes_p = (size_t)items_p * sizeof(double _Complex);
@@ -409,19 +409,21 @@ int project_reduce_from_propagator_field (double *p, double * r, double *V, int 
   _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
 
 #ifdef HAVE_MPI
-  /* allreduce across all processes */
-  if( (p_buffer = (double _Complex*)malloc( bytes_p )) == NULL ) {
-    fprintf(stderr, "[project_reduce_from_propagator_field] Error from malloc\n");
-    return(2);
-  }
+  if ( xchange == 1 ) {
+    /* allreduce across all processes */
+    if( (p_buffer = (double _Complex*)malloc( bytes_p )) == NULL ) {
+      fprintf(stderr, "[project_reduce_from_propagator_field] Error from malloc\n");
+      return(2);
+    }
 
-  memcpy(p_buffer, p, bytes_p);
-  status = MPI_Allreduce(p_buffer, p, 2*items_p, MPI_DOUBLE, MPI_SUM, g_cart_grid);
-  if(status != MPI_SUCCESS) {
-    fprintf(stderr, "[project_reduce_from_propagator_field] Error from MPI_Allreduce, status was %d\n", status);
-    return(1);
-  }
-  free(p_buffer); p_buffer = NULL;
+    memcpy(p_buffer, p, bytes_p);
+    status = MPI_Allreduce(p_buffer, p, 2*items_p, MPI_DOUBLE, MPI_SUM, g_cart_grid);
+    if(status != MPI_SUCCESS) {
+      fprintf(stderr, "[project_reduce_from_propagator_field] Error from MPI_Allreduce, status was %d\n", status);
+      return(1);
+    }
+    free(p_buffer); p_buffer = NULL;
+  }  /* end of if xchange */
 #endif
 
   retime = _GET_TIME;
@@ -1079,5 +1081,115 @@ int momentum_projection_eo (double*V, double *W, unsigned int nv, int momentum_n
   return(0);
 }  /* end of momentum_projection_eo */
 #endif  /* of if 0 */
+
+
+/******************************************************************************************************
+ * projection coefficents, per timeslice
+ *
+ * B = s is num1 x [12N] (C) = [12N] x num1 (F)
+ * A = V is num2 x [12N] (C) = [12N] x num2 (F)
+ *
+ * zgemm calculates p = V^H x r, which is num2  x num1 (F) = num1 x num2  (C)
+ *
+ * - expects fields of space-time size nt x N
+ *   e.g. N = VOL3half, nt = T
+ ******************************************************************************************************/
+int project_reduce_from_propagator_field_per_timeslice (double *p, double * r, double *V, int num1, int num2, int nt, unsigned int N) {
+
+  const unsigned int offset_field           = nt * _GSI( N );
+  const unsigned int offset_field_timeslice =      _GSI( N );
+  const size_t sizeof_field                 = offset_spinor_field * sizeof(double);
+  const unsigned int offset_p               = (unsigned int)num1 * (unsigned int)num2 * 2;
+  const int items_p                         = nt * num1 * num2;  /* number of double _Complex items */
+  const size_t bytes_p                      = (size_t)items_p * sizeof(double _Complex);
+
+  int exitstatus;
+  int BLAS_M, BLAS_N, BLAS_K; 
+  int BLAS_LDA, BLAS_LDB ,BLAS_LDC;
+  char BLAS_TRANSA, BLAS_TRANSB;
+  double _Complex *p_buffer = NULL;
+  double _Complex BLAS_ALPHA, BLAS_BETA;
+  double _Complex *BLAS_A = NULL, *BLAS_B = NULL, *BLAS_C = NULL;
+  double **V_aux = NULL, *r_aux = NULL;
+  double ratime, retime;
+ 
+  if (p == NULL || r == NULL || V == NULL || num1 <= 0 || num2 <= 0) {
+    fprintf(stderr, "[project_reduce_from_propagator_field_per_timeslice] Error, wrong parameter values\n");
+    return(4);
+  }
+ 
+  ratime = _GET_TIME;
+
+  exitstatus = init_2level_buffer ( &V_aux, num2, _GSI(N) );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+
+  exitstatus = init_2level_buffer ( &r_aux, num1, _GSI(N) );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+
+  /* projection on V-basis */
+  BLAS_ALPHA  = 1.;
+  BLAS_BETA   = 0.;
+  BLAS_TRANSA = 'C';
+  BLAS_TRANSB = 'N';
+  BLAS_M      = num2;
+  BLAS_K      = 12*N;
+  BLAS_N      = num1;
+  BLAS_LDA    = BLAS_K;
+  BLAS_LDB    = BLAS_K;
+  BLAS_LDC    = BLAS_M;
+  BLAS_A      = (double _Complex*)( V_aux );
+  BLAS_B      = (double _Complex*)( r_aux );
+
+
+  for ( int it = 0; it < nt; it++ ) {
+    unsigned int offset_time = it * offset_field_timeslice;
+
+    for ( int k = 0; k < num1; k++ ) {
+      unsigned int offset_total = k * offset_field + offset_time;
+      memcpy( r_aux + k*offset_field_timeslice, r + offset_total, sizeof_field );
+    }
+
+    for ( int k = 0; k < num2; k++ ) {
+      unsigned int offset_total = k * offset_field + offset_time;
+      memcpy( V_aux + k*offset_field_timeslice, V + offset_total, sizeof_field );
+    }
+
+    BLAS_C = (double _Complex*)( p + it * offset_p );
+
+    _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+
+  }  /* of loop on it */
+
+  fini_2level_buffer ( &V_aux );
+  fini_2level_buffer ( &r_aux );
+
+#ifdef HAVE_MPI
+    /* allreduce across all processes */
+    if( (p_buffer = (double _Complex*)malloc( bytes_p )) == NULL ) {
+      fprintf(stderr, "[project_reduce_from_propagator_field_per_timeslice] Error from malloc\n");
+      return(2);
+    }
+
+    memcpy(p_buffer, p, bytes_p);
+    exitstatus = MPI_Allreduce(p_buffer, p, 2*items_p, MPI_DOUBLE, MPI_SUM, g_cart_grid);
+    if(exitstatus != MPI_SUCCESS) {
+      fprintf(stderr, "[project_reduce_from_propagator_field_per_timeslice] Error from MPI_Allreduce, exitstatus was %d\n", exitstatus);
+      return(1);
+    }
+    free(p_buffer); p_buffer = NULL;
+#endif
+
+  retime = _GET_TIME;
+  if(g_cart_id == 0) fprintf(stdout, "# [project_reduce_from_propagator_field] time for projection = %e seconds\n", retime-ratime);
+
+  return(0);
+}  /* end of project_reduce_from_propagator_field_per_timeslice */
+
 
 }  /* end of namespace cvc */
