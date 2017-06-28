@@ -264,7 +264,7 @@ int main(int argc, char **argv) {
   }
 
   init_contract_cvc_tensor_gperm();
-  init_contract_cvc_tensor_usource(g_gauge_field, gsx);
+  init_contract_cvc_tensor_usource(g_gauge_field, gsx, co_phase_up);
 
 
   /* cvc at source, gamma_id at sink */
