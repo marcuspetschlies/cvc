@@ -9,7 +9,7 @@
 
 namespace cvc {
 
-void init_contract_cvc_tensor_usource(double *gauge_field, int source_coords[4]);
+void init_contract_cvc_tensor_usource(double *gauge_field, int source_coords[4], complex *phase);
 
 void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_term, double**sprop_list_e, double**sprop_list_o, double**tprop_list_e, double**tprop_list_o , double*gauge_field );
 

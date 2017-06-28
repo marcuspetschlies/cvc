@@ -54,7 +54,7 @@ static int source_location_iseven;
  * NOTE: the gauge field at source is multiplied with the
  *       boundary phase
  ***********************************************************/
-void init_contract_cvc_tensor_usource(double *gauge_field, int source_coords[4]) {
+void init_contract_cvc_tensor_usource(double *gauge_field, int source_coords[4], complex *phase ) {
 
   int gsx[4] = {source_coords[0], source_coords[1], source_coords[2], source_coords[3] };
   int sx[4];
@@ -81,16 +81,24 @@ void init_contract_cvc_tensor_usource(double *gauge_field, int source_coords[4])
     source_location_iseven = g_iseven[source_location] ;
     fprintf(stdout, "# [init_contract_cvc_tensor_usource] local source coordinates: %u = (%3d,%3d,%3d,%3d), is even = %d\n",
        source_location, sx[0], sx[1], sx[2], sx[3], source_location_iseven);
-    _cm_eq_cm_ti_co(Usource[0], &g_gauge_field[_GGI(source_location,0)], &co_phase_up[0]);
-    _cm_eq_cm_ti_co(Usource[1], &g_gauge_field[_GGI(source_location,1)], &co_phase_up[1]);
-    _cm_eq_cm_ti_co(Usource[2], &g_gauge_field[_GGI(source_location,2)], &co_phase_up[2]);
-    _cm_eq_cm_ti_co(Usource[3], &g_gauge_field[_GGI(source_location,3)], &co_phase_up[3]);
+    if ( phase != NULL ) {
+      _cm_eq_cm_ti_co(Usource[0], &g_gauge_field[_GGI(source_location,0)], &phase[0]);
+      _cm_eq_cm_ti_co(Usource[1], &g_gauge_field[_GGI(source_location,1)], &phase[1]);
+      _cm_eq_cm_ti_co(Usource[2], &g_gauge_field[_GGI(source_location,2)], &phase[2]);
+      _cm_eq_cm_ti_co(Usource[3], &g_gauge_field[_GGI(source_location,3)], &phase[3]);
+    } else {
+      _cm_eq_cm(Usource[0], &g_gauge_field[_GGI(source_location,0)] );
+      _cm_eq_cm(Usource[1], &g_gauge_field[_GGI(source_location,1)] );
+      _cm_eq_cm(Usource[2], &g_gauge_field[_GGI(source_location,2)] );
+      _cm_eq_cm(Usource[3], &g_gauge_field[_GGI(source_location,3)] );
+    }
   }
 
 #ifdef HAVE_MPI
   MPI_Bcast(Usourcebuffer, 72, MPI_DOUBLE, source_proc_id, g_cart_grid);
 #endif
 
+#if 0
   /***********************************************************
    * initialize UsourceMatrix
    *
@@ -129,7 +137,7 @@ void init_contract_cvc_tensor_usource(double *gauge_field, int source_coords[4])
       }} 
     }
   }  /* end of loop on mu */
-
+#endif  /* of if 0 */
 
   retime = _GET_TIME;
   if(g_cart_id == 0) fprintf(stdout, "# [init_contract_cvc_tensor_usource] time for init_contract_cvc_tensor_usource = %e seconds\n", retime-ratime);
@@ -4069,7 +4077,106 @@ int contract_vdag_cvc_phi_blocked (double**V, double**Phi, int numV, int numPhi,
   return(0);
 
 }  /* end of contract_v_dag_cvc_phi_blocked */
+
 #if 0
+
+This is not yet correct; for full time dilution on
+the odd subspace, one needs to sum over the time projector
+indices t-1, t, t+1 to get the even part of the local
+loop at time t; this is due to the appearance of
+Xbar^+ xi
+
+/************************************************
+ *
+ ************************************************/
+int contract_local_loop_stochastic_clover (double***eo_stochastic_propagator, double***eo_stochastic_source, int nsample,
+    int *gid_list, int gid_number,
+    int *momentum_list[3], int momentum_number,
+    double**mzz, double**mzzinv, double**eo_spinor_work) {
+
+  const unsigned int VOL3half = LX*LY*LZ/2;
+  const size_t sizeof_eo_spinor_field_timeslice = _GSI(VOL3half) * sizeof(double);
+
+  double _Complex ***loop = NULL;
+  double _Complex **phase = NULL;
+
+  char BLAS_TRANSA, BLAS_TRANSB;
+  int BLAS_M, BLAS_K, BLAS_N, BLAS_LDA, BLAS_LDB, BLAS_LDC;
+  double _Complex *BLAS_A = NULL, *BLAS_B = NULL, *BLAS_C = NULL;
+  double _Complex BLAS_ALPHA = 1.;
+  double _Complex BLAS_BETA  = 0.;
+
+  exitstatus = init_3level_zbuffer ( &loop, T, nsample, VOL3half );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_local_loop_stochastic_clover] Error from init_3level_zbuffer, status was %d\n");
+    return(1);
+  }
+
+  exitstatus = init_3level_zbuffer ( &ploop, T, momentum_number, nsample );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_local_loop_stochastic_clover] Error from init_3level_zbuffer, status was %d\n");
+    return(1);
+  }
+
+  exitstatus = init_2level_zbuffer ( &phase, momentum_number, VOL3half );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_local_loop_stochastic_clover] Error from init_2level_zbuffer, status was %d\n");
+    return(1);
+  }
+
+  for ( int igamma = 0; igamma < gid_number; igamma++ ) {
+    int gid = gid_list[igamma];
+
+    /************************************************
+     * odd part 
+     ************************************************/
+    for ( int isample = 0; isample < nsample; isample++) {
+      for ( int it = 0; it < T; it++) {
+        unsigned int offset_timeslice = _GSI(VOL3half) * it;
+        /* apply gamma gid to stochastic propagator for global timeslice it + g_proc_coords[0]*T for timeslice it */
+        spinor_field_eq_gamma_ti_spinor_field ( eo_spinor_work[0], gid, eo_stochastic_propagator[timeslice+g_proc_coords[0]*T][isample]+offset_timeslice, VOL3half );
+        g5_phi(eo_spinor_work[0], VOL3half);
+
+        co_field_eq_fv_dag_ti_fv ( (double*)(loop[it][isample]), eo_stochastic_source[it][isample], eo_spinor_work[0], VOL3half );
+
+      }
+    }  /* end of loop on stochastic samples */
+
+    for ( int it= 0; it < T; it++ ) {
+      int timeslice = it + g_proc_coords[0] * T;
+      make_eo_phase_field_timeslice ( phase, momentum_number, momentum_list, timeslice, 0 );
+
+      BLAS_TRANSA = 'T';
+      BLAS_TRANSB = 'N';
+      BLAS_M     = nsample;
+      BLAS_K     = VOL3half;
+      BLAS_N     = momentum_number;
+      BLAS_A     = loop[it][0];
+      BLAS_B     = phase[0];
+      BLAS_C     = ploop[it][0];
+      BLAS_LDA   = BLAS_K;
+      BLAS_LDB   = BLAS_K;
+      BLAS_LDC   = BLAS_M;
+
+      _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+
+    }  /* end of loop on timeslices */
+
+    /************************************************/
+    /************************************************/
+
+    /************************************************
+     * even part 
+     ************************************************/
+
+  }  /* end of loop on vertex gamma */
+
+  fini_3level_zbuffer ( &loop );
+  fini_3level_zbuffer ( &ploop );
+  fini_2level_zbuffer ( &phase);
+
+
+}  /* end of contract_local_loop_stochastic_clover */
 #endif  /* of if 0 */
 
 }  /* end of namespace cvc */
