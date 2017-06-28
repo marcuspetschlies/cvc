@@ -547,7 +547,7 @@ int main(int argc, char **argv) {
      *       because the boundary phase is multiplied at
      *       source inside init_contract_cvc_tensor_usource
      ***********************************************************/
-    init_contract_cvc_tensor_usource(g_gauge_field, gsx);
+    init_contract_cvc_tensor_usource(g_gauge_field, gsx, co_phase_up);
 
     
     /**********************************************************

@@ -536,7 +536,7 @@ int main(int argc, char **argv) {
     sx[3] = gsx[3] % LZ;
   
     /* init Usource and source_proc_id */
-    init_contract_cvc_tensor_usource(g_gauge_field, gsx);
+    init_contract_cvc_tensor_usource(g_gauge_field, gsx, co_phase_up);
   
     
     /**********************************************************
