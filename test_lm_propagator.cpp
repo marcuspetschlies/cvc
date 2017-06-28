@@ -615,7 +615,7 @@ int main(int argc, char **argv) {
   }
 
   init_2level_buffer(&pcoeff, 12, 24);
-  exitstatus = project_reduce_from_propagator_field (pcoeff[0], eo_spinor_field[ 0], eo_spinor_field[ 0], 12, 12, Vhalf);
+  exitstatus = project_reduce_from_propagator_field (pcoeff[0], eo_spinor_field[ 0], eo_spinor_field[ 0], 12, 12, Vhalf, 1);
   for(i=0; i<12; i++) {
     for(k=0; k<12; k++) {
       fprintf(stdout, "pceff %3d%3d%25.16e%25.16e\n", i,k,pcoeff[i][2*k], pcoeff[i][2*k+1]);
@@ -842,7 +842,7 @@ int main(int argc, char **argv) {
   init_2level_buffer(&pcoeff, 12, 2*evecs_num);
 
   /* odd projection coefficients v^+ sp_o */
-  exitstatus = project_reduce_from_propagator_field (pcoeff[0], eo_spinor_field[12], eo_evecs_block[0], 12, evecs_num, Vhalf);
+  exitstatus = project_reduce_from_propagator_field (pcoeff[0], eo_spinor_field[12], eo_evecs_block[0], 12, evecs_num, Vhalf, 1);
 
   for(ia=0; ia<12; ia++) {
     for(i=0; i<evecs_num; i++) {

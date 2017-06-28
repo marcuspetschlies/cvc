@@ -834,7 +834,7 @@ int main(int argc, char **argv) {
       C_clover_oo (eo_spinor_field[12+ia], eo_spinor_work[0], gauge_field_with_phase, eo_spinor_work[2], mzz[1-flavor_id][1], mzzinv[1-flavor_id][0]);
     }
   }
-  exitstatus = project_reduce_from_propagator_field (pcoeff[0], eo_spinor_field[12], eo_evecs_block[0], 12, evecs_num, Vhalf);
+  exitstatus = project_reduce_from_propagator_field (pcoeff[0], eo_spinor_field[12], eo_evecs_block[0], 12, evecs_num, Vhalf, 1);
 
   for(ia=0; ia<12; ia++) {
     for(i=0; i<evecs_num; i++) {
