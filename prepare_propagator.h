@@ -21,6 +21,8 @@ int prepare_seq_stochastic_vertex_stochastic_oet (double**seq_prop, double**stoc
 int point_to_all_fermion_propagator_clover_eo ( double **eo_spinor_field_e, double **eo_spinor_field_o,  int op_id,
         int global_source_coords[4], double *gauge_field, double **mzz, double **mzzinv, int check_propagator_residual, double **eo_spinor_work );
 
+int prepare_clover_eo_stochastic_timeslice_propagator ( double***eo_stochastic_source_allt, double***eo_stochastic_propagator_allt,
+        double ***eo_stochastic_source, double ***eo_stochastic_propagator, int sequential_source_timeslice, int ns, int adj );
 
 }  /* end of namespace cvc */
 #endif
