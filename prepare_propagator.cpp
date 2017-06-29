@@ -40,12 +40,15 @@ extern "C"
 #include "io.h"
 #include "propagator_io.h"
 #include "Q_phi.h"
+#include "Q_clover_phi.h"
 #include "read_input_parser.h"
 #include "ranlxd.h"
 /* #include "smearing_techniques.h" */
 /* #include "fuzz.h" */
+#include "matrix_init.h"
 #include "project.h"
 #include "prepare_source.h"
+
 
 #ifndef _NON_ZERO
 #  define _NON_ZERO (5.e-14)
@@ -739,72 +742,88 @@ int point_to_all_fermion_propagator_clover_eo ( double **eo_spinor_field_e, doub
   return(0);
 }  /* end of point_to_all_fermion_propagator_clover_eo */
 
+/**********************************************************
+ * T_global - set of stochastic timeslice propagators
+ * projected onto subspace orthogonal to span { eo_evecs_block }
+ *
+ * NOTE: P_V^orth and P_t do NOT COMMUTE,
+ *       P_V^orth AFTER P_t
+ **********************************************************/
+int prepare_clover_eo_stochastic_timeslice_propagator (
+    double**prop, double*source,
+    double *eo_evecs_block, double*evecs_lambdainv, int evecs_num, 
+    double*gauge_field_with_phase, double **mzz[2], double **mzzinv[2], 
+    int op_id, int check_propagator_residual) {
 
-int prepare_clover_eo_stochastic_timeslice_propagator (double**prop, double*source, double*gauge_field_with_phase, int op_id, int check_propagator_residual) {
+  const unsigned int Vhalf = VOLUME / 2;
+  const unsigned int VOL3half = LX * LY * LZ / 2;
+  const size_t sizeof_eo_spinor_field_timeslice = _GSI( VOL3half ) * sizeof(double);
+  const size_t sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof(double);
 
   double **eo_spinor_work = NULL;
   int exitstatus;
 
-  exitstatus = init_2level_buffer( &eo_spinor_work, 3, _GSI((VOLUME+RAND)/2) );
+  exitstatus = init_2level_buffer( &eo_spinor_work, 4, _GSI((VOLUME+RAND)/2) );
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[prepare_clover_eo_stochastic_timeslice_propagator] Error from init_2level_buffer, status was %d\n", exitstatus);
     return(1);
   }
 
 
-  /* orthogonal projection */
-
-  if ( op_id == 0 ) {
-    /* orthogonal projection */
-    exitstatus = project_propagator_field ( eo_spinor_work[1], source, 0, eo_evecs_block, g_nsample, evecs_num, Vhalf);
-    if(exitstatus != 0) {
-      fprintf(stderr, "[prepare_clover_eo_stochastic_timeslice_propagator] Error from project_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(35);
-    }
-  } else if ( op_id == -1 ) {
-    /* apply C 
-     * work1 <- C sample
-     */
-    C_clover_oo ( eo_spinor_work[1], source, gauge_field_with_phase, eo_spinor_work[2], g_mzz_up[1], g_mzzinv_up[0] );
-
-    /* weighted parallel projection 
-     * work1 <- V 2kappa/Lambda V^+ work1
-     */
-    exitstatus = project_propagator_field_weighted ( eo_spinor_work[1], eo_spinor_work[1], 1, eo_evecs_block, evecs_lambdainv, 1, evecs_num, Vhalf);
-    if (exitstatus != 0) {
-      fprintf(stderr, "[prepare_clover_eo_stochastic_timeslice_propagator] Error from project_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(35);
-    }
-
-    /* work1 <- work1 * 2 kappa */
-    spinor_field_ti_eq_re ( eo_spinor_work[1], 2*g_kappa, Vhalf);
-    /* apply Cbar 
-     * work0 <- Cbar work1
-     */
-    C_clover_oo ( eo_spinor_work[0], eo_spinor_work[1], gauge_field_with_phase, eo_spinor_work[2], g_mzz_dn[1], g_mzzinv_dn[0] );
-
-    /* work1 <- sample - work0 */
-    spinor_field_eq_spinor_field_mi_spinor_field( eo_spinor_work[1], source, eo_spinor_work[0], Vhalf);
-  }
-
   for ( int it = 0; it < T_global; it++ ) {
+
     memset(eo_spinor_work[0], 0, sizeof_eo_spinor_field);
     if ( it / T == g_proc_coords[0] ) {
       unsigned int offset = (it%T) * _GSI(VOL3half);
-      memcpy( eo_spinor_field[0]+offset, eo_spinor_work[1]+offset, sizeof_eo_spinor_field_timeslice  );
+      memcpy( eo_spinor_work[0] + offset, source + offset, sizeof_eo_spinor_field_timeslice  );
     }
-    
+
+    /* orthogonal projection */
+
+    if ( op_id == 0 ) {
+      /* work0 <- orthogonal projection work0 */
+      exitstatus = project_propagator_field ( eo_spinor_work[0], eo_spinor_work[0], 0, eo_evecs_block, 1, evecs_num, Vhalf);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[prepare_clover_eo_stochastic_timeslice_propagator] Error from project_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(35);
+      }
+    } else if ( op_id == -1 ) {
+      /* apply C 
+       * work1 <- C work0; aux work2
+       */
+      C_clover_oo ( eo_spinor_work[1], eo_spinor_work[0], gauge_field_with_phase, eo_spinor_work[2], g_mzz_up[1], g_mzzinv_up[0] );
+
+      /* weighted parallel projection 
+       * work1 <- V 2kappa/Lambda V^+ work1
+       */
+      exitstatus = project_propagator_field_weighted ( eo_spinor_work[1], eo_spinor_work[1], 1, eo_evecs_block, evecs_lambdainv, 1, evecs_num, Vhalf);
+      if (exitstatus != 0) {
+        fprintf(stderr, "[prepare_clover_eo_stochastic_timeslice_propagator] Error from project_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(35);
+      }
+
+      /* work1 <- work1 * 2 kappa */
+      spinor_field_ti_eq_re ( eo_spinor_work[1], 2*g_kappa, Vhalf);
+      /* apply Cbar 
+       * work2 <- Cbar work1, aux work3
+       */
+      C_clover_oo ( eo_spinor_work[2], eo_spinor_work[1], gauge_field_with_phase, eo_spinor_work[3], g_mzz_dn[1], g_mzzinv_dn[0] );
+
+      /* work0 <- work0 - work2 */
+      spinor_field_eq_spinor_field_mi_spinor_field( eo_spinor_work[0], eo_spinor_work[0], eo_spinor_work[2], Vhalf);
+    }
+
     /* invert */
-    memset(eo_spinor_work[2], 0, sizeof_eo_spinor_field);
-    exitstatus = tmlqcd_invert_eo(eo_spinor_work[2], eo_spinor_work[0], op_id);
+    memset(eo_spinor_work[1], 0, sizeof_eo_spinor_field);
+    exitstatus = tmLQCD_invert_eo(eo_spinor_work[1], eo_spinor_work[0], op_id);
     if(exitstatus != 0) {
-      fprintf(stderr, "[prepare_clover_eo_stochastic_timeslice_propagator] Error from _TMLQCD_INVERT_EO, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      fprintf(stderr, "[prepare_clover_eo_stochastic_timeslice_propagator] Error from tmlqcd_invert_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(19);
     }
-    memcpy( prop[it], eo_spinor_work[2], sizeof_eo_spinor_field );
+    memcpy( prop[it], eo_spinor_work[1], sizeof_eo_spinor_field );
 
     if( check_propagator_residual ) {
-      exitstatus = check_oo_propagator_clover_eo( &(prop[it]), &(eo_spinor_work[0]), &(eo_spinor_work[2]), gauge_field_with_phase, mzz[op_id], mzzinv[op_id], 1 );
+      exitstatus = check_oo_propagator_clover_eo( &(prop[it]), &(eo_spinor_work[0]), &(eo_spinor_work[1]), gauge_field_with_phase, mzz[op_id], mzzinv[op_id], 1 );
       if(exitstatus != 0) {
         fprintf(stderr, "[prepare_clover_eo_stochastic_timeslice_propagator] Error from check_oo_propagator_clover_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(19);
@@ -821,25 +840,30 @@ int prepare_clover_eo_stochastic_timeslice_propagator (double**prop, double*sour
 /************************************************************************************
  * build a sequential propagator from forward propagators and a set of stochastic
  * timeslice propagators
+ *
+ * Half the sequential inversion,
+ *
+ * sequential = A^-1 g5 Gamma_seq(pvec_seq) forward
  ************************************************************************************/
 
-int prepare_clover_eo_sequential_propagator_stochastic_timeslice (
+int prepare_clover_eo_sequential_propagator_timeslice (
     double *sequential_propagator_e, double *sequential_propagator_o,
     double *forward_propagator_e,    double *forward_propagator_o,
-    double **stochastic_source,      double **stochastic_propagator,
     int momentum[3], int gamma_id, int timeslice, 
     double*gauge_field, double**mzz, double**mzzinv) {
+
+  typedef int (*mom3_ptr_type)[3];
 
   const unsigned int Vhalf = VOLUME / 2;
   const size_t sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof( double );
   const unsigned int VOL3half = LX * LY * LZ / 2;
 
-
+  int exitstatus;
   double**aux = NULL;
 
   exitstatus = init_2level_buffer ( &aux, 2, _GSI( (VOLUME+RAND)/2 ) );
   if ( exitstatus != 0 ) {
-    fprintf(stderr, "[] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    fprintf(stderr, "[prepare_clover_eo_sequential_propagator_timeslice] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     return(1);
   }
 
@@ -850,23 +874,27 @@ int prepare_clover_eo_sequential_propagator_stochastic_timeslice (
   /* processes with sequential source timeslice, set the sequential source */
   if ( timeslice / T == g_proc_coords[0] ) {
     const unsigned int offset = (timeslice % T) * _GSI(VOL3half);
+    double _Complex ***momentum_phase = NULL;
 
-    exitstatus = init_2level_buffer ( &momentum_phase, 2, VOL3half );
+    exitstatus = init_3level_zbuffer ( &momentum_phase, 2, 1, VOL3half );
     if ( exitstatus != 0 ) {
-      fprintf(stderr, "[] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      fprintf(stderr, "[prepare_clover_eo_sequential_propagator_timeslice] Error from init_3level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       return(1);
     }
 
-    make_eo_phase_field_timeslice ( &(momentum_phase[0]), 1, &momentum, timeslice, 0);
-    make_eo_phase_field_timeslice ( &(momentum_phase[1]), 1, &momentum, timeslice, 1);
+    make_eo_phase_field_timeslice ( momentum_phase[0], 1, (mom3_ptr_type)(&momentum), timeslice, 0);
+    make_eo_phase_field_timeslice ( momentum_phase[1], 1, (mom3_ptr_type)(&momentum), timeslice, 1);
 
-    spinor_field_eq_spinor_field_ti_complex_field ( sequential_propagator_e+offset, forward_propagator_e+offset, momentum_phase[0], VOL3half);
-    spinor_field_eq_spinor_field_ti_complex_field ( sequential_propagator_o+offset, forward_propagator_o+offset, momentum_phase[1], VOL3half);
+    spinor_field_eq_spinor_field_ti_complex_field ( sequential_propagator_e+offset, forward_propagator_e+offset, (double*)(momentum_phase[0][0]), VOL3half);
+    spinor_field_eq_spinor_field_ti_complex_field ( sequential_propagator_o+offset, forward_propagator_o+offset, (double*)(momentum_phase[1][0]), VOL3half);
 
     spinor_field_eq_gamma_ti_spinor_field( sequential_propagator_e+offset, gamma_id, sequential_propagator_e+offset, VOL3half );
     spinor_field_eq_gamma_ti_spinor_field( sequential_propagator_o+offset, gamma_id, sequential_propagator_o+offset, VOL3half );
 
-    fini_2level_buffer ( &momentum_phase );
+    g5_phi ( sequential_propagator_e+offset, VOL3half );
+    g5_phi ( sequential_propagator_o+offset, VOL3half );
+
+    fini_3level_zbuffer ( &momentum_phase );
   }
 
   Q_clover_eo_SchurDecomp_Ainv ( sequential_propagator_e, sequential_propagator_o, sequential_propagator_e, sequential_propagator_o, gauge_field, mzzinv[0], aux[0]);
@@ -874,8 +902,11 @@ int prepare_clover_eo_sequential_propagator_stochastic_timeslice (
   fini_2level_buffer( &aux );
   return(0);
 
-}  /* end of prepare_clover_eo_sequential_propagator_stochastic_timeslice */
+}  /* end of prepare_clover_eo_sequential_propagator_timeslice */
 
+/************************************************************************************
+ *
+ ************************************************************************************/
 int select_stochastic_timeslice_propagator ( double***eo_stochastic_source_allt, double***eo_stochastic_propagator_allt, 
     double ***eo_stochastic_source, double ***eo_stochastic_propagator, int sequential_source_timeslice, int ns, int adj ) {
 
