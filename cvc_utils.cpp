@@ -6693,4 +6693,52 @@ void xchange_spinor_field_bnd2(double *sfield ) {
 #endif
 }  /* end of xchange_spinor_field_bnd2 */
 
+/*****************************************************
+ * r = gamma x s
+ *****************************************************/
+void fermion_propagator_field_eq_gamma_ti_fermion_propagator_field ( fermion_propagator_type *r, int gid, fermion_propagator_type *s, unsigned int N) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+
+  fermion_propagator_type fp;
+  create_fp ( &fp );
+#pragma omp for
+  for ( unsigned int ix = 0; ix < N; ix++ ) {
+    _fp_eq_gamma_ti_fp ( fp, gid, s[ix] );
+    _fp_eq_fp ( r[ix], fp );
+  }
+
+  free_fp ( &fp );
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+}  /* fermion_propagator_field_eq_gamma_ti_fermion_propagator_field */
+
+/*****************************************************
+ * r = s x gamma
+ *****************************************************/
+void fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fermion_propagator_type *r, int gid, fermion_propagator_type *s, unsigned int N) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+
+  fermion_propagator_type fp;
+  create_fp ( &fp );
+#pragma omp for
+  for ( unsigned int ix = 0; ix < N; ix++ ) {
+    _fp_eq_fp_ti_gamma ( fp, gid, s[ix] );
+    _fp_eq_fp ( r[ix], fp );
+  }
+
+  free_fp ( &fp );
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+}  /* fermion_propagator_field_eq_fermion_propagator_field_ti_gamma */
+
 }  /* end of namespace cvc */
