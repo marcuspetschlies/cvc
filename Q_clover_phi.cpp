@@ -1230,7 +1230,7 @@ int Q_clover_invert_subspace ( double**prop, double**source, int nsf, double*eve
   }  /* end of if flavor_id == 1 */
 
   /* odd projection coefficients pcoeff = V^+ sp_o */
-  exitstatus = project_reduce_from_propagator_field (pcoeff[0], eo_spinor_field[nsf], evecs, nsf, nev, Vhalf);
+  exitstatus = project_reduce_from_propagator_field (pcoeff[0], eo_spinor_field[nsf], evecs, nsf, nev, Vhalf, 1);
   if(exitstatus != 0) {
     fprintf(stderr, "[Q_clover_invert_subspace] Error from project_reduce_from_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(42);
@@ -1355,7 +1355,7 @@ int Q_clover_eo_invert_subspace ( double**prop_e,   double**prop_o,
   }
 
   /* odd projection coefficients pcoeff = V^+ prop_o */
-  exitstatus = project_reduce_from_propagator_field (pcoeff[0], prop_o[0], evecs, nsf, nev, Vhalf);
+  exitstatus = project_reduce_from_propagator_field (pcoeff[0], prop_o[0], evecs, nsf, nev, Vhalf, 1);
   if(exitstatus != 0) {
     fprintf(stderr, "[Q_clover_eo_invert_subspace] Error from project_reduce_from_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     return(3);
@@ -1446,9 +1446,9 @@ int Q_clover_eo_invert_subspace_stochastic ( double**prop_e, double**prop_o, dou
 
   /* odd projection coefficients pcoeff = Xi^+ sp_o */
   if( flavor_id == 0 ) {
-    exitstatus = project_reduce_from_propagator_field (pcoeff[0], source_o[0], sample_source, nsf, nsample, Vhalf);
+    exitstatus = project_reduce_from_propagator_field (pcoeff[0], source_o[0], sample_source, nsf, nsample, Vhalf, 1);
   } else {
-    exitstatus = project_reduce_from_propagator_field (pcoeff[0], source_o[0], sample_prop, nsf, nsample, Vhalf);
+    exitstatus = project_reduce_from_propagator_field (pcoeff[0], source_o[0], sample_prop, nsf, nsample, Vhalf, 1);
   }
  
   if(exitstatus != 0) {
