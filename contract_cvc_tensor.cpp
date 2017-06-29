@@ -703,6 +703,120 @@ int cvc_tensor_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, c
 
 }  /* end of cvc_tensor_tp_write_to_aff_file */
 
+/***************************************************************************
+ * write time-momentum-dependent contraction  results to AFF file
+ *
+ * p runs slower than t, i.e. c_tp[momentum][time]
+ *
+ ***************************************************************************/
+
+int contract_write_to_aff_file (double **c_tp, struct AffWriter_s*affw, char*tag, int (*momentum_list)[3], int momentum_number, int io_proc ) {
+
+  int exitstatus, i;
+  double ratime, retime;
+  struct AffNode_s *affn = NULL, *affdir=NULL;
+  char aff_buffer_path[200];
+  double *buffer = NULL;
+  double _Complex *aff_buffer = NULL;
+  double _Complex *zbuffer = NULL;
+
+  if ( io_proc == 2 ) {
+    if( (affn = aff_writer_root(affw)) == NULL ) {
+      fprintf(stderr, "[contract_write_to_aff_file] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
+      return(1);
+    }
+
+    zbuffer = (double _Complex*)malloc(  momentum_number * T_global * sizeof(double _Complex) );
+    if( zbuffer == NULL ) {
+      fprintf(stderr, "[contract_write_to_aff_file] Error from malloc %s %d\n", __FILE__, __LINE__);
+      return(6);
+    }
+  }
+
+  ratime = _GET_TIME;
+
+  /* reorder c_tp into buffer with order time - munu - momentum */
+  buffer = (double*)malloc(  momentum_number * 2 * T * sizeof(double) );
+  if( buffer == NULL ) {
+    fprintf(stderr, "[contract_write_to_aff_file] Error from malloc %s %d\n", __FILE__, __LINE__);
+    return(6);
+  }
+  i = 0;
+  for( int it = 0; it < T; it++ ) {
+    for( int ip=0; ip<momentum_number; ip++) {
+      buffer[i++] = c_tp[ip][2*it  ];
+      buffer[i++] = c_tp[ip][2*it+1];
+    }
+  }
+
+#ifdef HAVE_MPI
+  i = momentum_number * 2 * T;
+#  if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) 
+  if(io_proc>0) {
+    exitstatus = MPI_Gather(buffer, i, MPI_DOUBLE, zbuffer, i, MPI_DOUBLE, 0, g_tr_comm);
+    if(exitstatus != MPI_SUCCESS) {
+      fprintf(stderr, "[contract_write_to_aff_file] Error from MPI_Gather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(3);
+    }
+  }
+#  else
+  exitstatus = MPI_Gather(buffer, i, MPI_DOUBLE, zbuffer, i, MPI_DOUBLE, 0, g_cart_grid);
+  if(exitstatus != MPI_SUCCESS) {
+    fprintf(stderr, "[contract_write_to_aff_file] Error from MPI_Gather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(4);
+  }
+#  endif
+
+#else
+  memcpy(zbuffer, buffer, momentum_number * 2 * T * sizeof(double) );
+#endif
+  free( buffer );
+
+  if(io_proc == 2) {
+
+    /* reverse the ordering back to momentum - munu - time */
+    aff_buffer = (double _Complex*)malloc( momentum_number * T_global * sizeof(double _Complex) );
+    if(aff_buffer == NULL) {
+      fprintf(stderr, "[contract_write_to_aff_file] Error from malloc %s %d\n", __FILE__, __LINE__);
+      return(2);
+    }
+    i = 0;
+    for( int ip=0; ip<momentum_number; ip++) {
+      for( int it = 0; it < T_global; it++ ) {
+        int offset = it * momentum_number + ip;
+        aff_buffer[i++] = zbuffer[offset];
+      }
+    }
+    free( zbuffer );
+
+    for(i=0; i < momentum_number; i++) {
+      sprintf(aff_buffer_path, "%s/px%.2dpy%.2dpz%.2d", tag, momentum_list[i][0], momentum_list[i][1], momentum_list[i][2] );
+      /* fprintf(stdout, "# [contract_write_to_aff_file] current aff path = %s\n", aff_buffer_path); */
+      affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
+      exitstatus = aff_node_put_complex (affw, affdir, aff_buffer+T_global*i, (uint32_t)T_global);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[contract_write_to_aff_file] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(5);
+      }
+    }
+    free( aff_buffer );
+  }  /* if io_proc == 2 */
+
+#ifdef HAVE_MPI
+  if ( MPI_Barrier( g_cart_grid ) != MPI_SUCCESS ) {
+   fprintf(stderr, "[] Error from MPI_Barrier %s %d\n", __FILE__, __LINE__);
+   return(2);
+  }
+#endif
+
+  retime = _GET_TIME;
+  if(io_proc == 2) fprintf(stdout, "# [contract_write_to_aff_file] time for saving momentum space results = %e seconds\n", retime-ratime);
+
+  return(0);
+
+}  /* end of contract_write_to_aff_file */
+
+
 
 /********************************************
  * check Ward-identity in position space
@@ -4178,5 +4292,310 @@ int contract_local_loop_stochastic_clover (double***eo_stochastic_propagator, do
 
 }  /* end of contract_local_loop_stochastic_clover */
 #endif  /* of if 0 */
+
+
+/***********************************************************
+ * eo-prec contractions for local - local 2-point function
+ *
+ * NOTE: neither conn_e nor conn_o nor contact_term 
+ *       are initialized to zero here
+ ***********************************************************/
+int contract_local_local_2pt_eo ( double**sprop_list_e, double**sprop_list_o, double**tprop_list_e, double**tprop_list_o, 
+    int *gamma_sink_list, int gamma_sink_num, int*gamma_source_list, int gamma_source_num, int (*momentum_list)[3], int momentum_number,  struct AffWriter_s*affw, char*tag,
+    int io_proc ) {
+  
+  const unsigned int Vhalf = VOLUME / 2;
+  const unsigned int VOL3 = LX * LY * LZ;
+  const unsigned int VOL3half = VOL3 / 2;
+
+  int exitstatus;
+  double ratime, retime;
+  double **conn_e = NULL, **conn_o = NULL, **conn_lexic = NULL;
+  double **conn_p = NULL;
+  char aff_tag[200];
+
+  /* auxilliary fermion propagator fields ( without halo ) */
+  fermion_propagator_type *fp_S_e = create_fp_field( Vhalf );
+  fermion_propagator_type *fp_S_o = create_fp_field( Vhalf );
+  fermion_propagator_type *fp_T_e = create_fp_field( Vhalf );
+  fermion_propagator_type *fp_T_o = create_fp_field( Vhalf );
+  fermion_propagator_type *fp_aux = create_fp_field( Vhalf );
+
+  /**********************************************************
+   **********************************************************
+   **
+   ** contractions
+   **
+   **********************************************************
+   **********************************************************/  
+  ratime = _GET_TIME;
+
+  exitstatus = init_2level_buffer ( &conn_e, T, 2*VOL3half );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_local_local_2pt_eo] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+
+  exitstatus = init_2level_buffer ( &conn_o, T, 2*VOL3half );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_local_local_2pt_eo] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+
+  exitstatus = init_2level_buffer ( &conn_lexic, T, 2*VOL3 );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_local_local_2pt_eo] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+
+  exitstatus = init_2level_buffer ( &conn_p, momentum_number, 2*T );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_local_local_2pt_eo] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+ 
+  /* fp_S_e = sprop^e */
+  exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_S_e, sprop_list_e, Vhalf);
+  /* fp_S_o = sprop^o */
+  exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_S_o, sprop_list_o, Vhalf);
+  /* fp_T_e = tprop^e */
+  exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_T_e, tprop_list_e, Vhalf);
+  /* fp_T_o = tprop^o */
+  exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_T_o, tprop_list_o, Vhalf);
+
+  /* loop on gamma structures at sink */
+  for ( int idsink = 0; idsink < gamma_sink_num; idsink++ ) {
+    /* loop on gamma structures at source */
+    for ( int idsource = 0; idsource < gamma_source_num; idsource++ ) {
+
+      memset( conn_e[0], 0, 2*Vhalf*sizeof(double) );
+      memset( conn_o[0], 0, 2*Vhalf*sizeof(double) );
+
+      /**********************************************************
+       * even part
+       **********************************************************/
+      /* fp_aux <- Gamma_f x fp_T_e */
+      fermion_propagator_field_eq_gamma_ti_fermion_propagator_field (fp_aux, gamma_sink_list[idsink], fp_T_e, Vhalf );
+      /* fp_aux <- fp_aux x Gamma_i */
+      fermion_propagator_field_eq_fermion_propagator_field_ti_gamma (fp_aux, gamma_source_list[idsource], fp_aux, Vhalf );
+      /* contract g5 fp_S_e^+ g5 fp_aux = g5 S^e^+ g5 Gamma_f T^e Gamma_i */
+      co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field ( (complex *)(conn_e[0]), fp_S_e, fp_aux, -1., Vhalf);
+
+      /**********************************************************
+       * odd part
+       **********************************************************/
+      /* fp_aux <- Gamma_f x fp_T_o */
+      fermion_propagator_field_eq_gamma_ti_fermion_propagator_field (fp_aux, gamma_sink_list[idsink], fp_T_o, Vhalf );
+      /* fp_aux <- fp_aux x Gamma_i */
+      fermion_propagator_field_eq_fermion_propagator_field_ti_gamma (fp_aux, gamma_source_list[idsource], fp_aux, Vhalf );
+      /* contract g5 fp_S_o^+ g5 fp_aux = g5 S^o^+ g5 Gamma_f T^o Gamma_i */
+      co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field ( (complex *)(conn_o[0]), fp_S_o, fp_aux, -1., Vhalf);
+
+      /**********************************************************
+       * Fourier transform
+       **********************************************************/
+      complex_field_eo2lexic ( conn_lexic[0], conn_e[0], conn_o[0] );
+
+      exitstatus = momentum_projection ( conn_lexic[0], conn_p[0], T, momentum_number, momentum_list);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[contract_local_local_2pt_eo] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(3);
+      }
+
+      sprintf(aff_tag, "%s/gf%.2d/gi%.2d", tag, gamma_sink_list[idsink], gamma_source_list[idsource] );
+      exitstatus = contract_write_to_aff_file ( conn_p, affw, aff_tag, momentum_list, momentum_number, io_proc );
+      if(exitstatus != 0) {
+        fprintf(stderr, "[contract_local_local_2pt_eo] Error from contract_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(3);
+      }
+
+    }  /* end of loop on Gamma_i */
+  }  /* end of loop on Gamma_f */
+
+  /* free auxilliary fields */
+  free_fp_field(&fp_aux);
+  free_fp_field(&fp_S_e);
+  free_fp_field(&fp_S_o);
+  free_fp_field(&fp_T_e);
+  free_fp_field(&fp_T_o);
+
+  fini_2level_buffer ( &conn_e );
+  fini_2level_buffer ( &conn_o );
+  fini_2level_buffer ( &conn_lexic );
+  fini_2level_buffer ( &conn_p );
+
+  retime = _GET_TIME;
+  if(g_cart_id==0) fprintf(stdout, "# [contract_local_local_2pt_eo] time for contract_cvc_tensor = %e seconds\n", retime-ratime);
+
+  return(0);
+
+}  /* end of contract_local_local_2pt_eo */
+
+/***********************************************************
+ * eo-prec contractions for local - cvc 2-point function
+ *
+ * NOTE: neither conn_e nor conn_o nor contact_term 
+ *       are initialized to zero here
+ ***********************************************************/
+int contract_local_cvc_2pt_eo ( double**sprop_list_e, double**sprop_list_o, double**tprop_list_e, double**tprop_list_o,
+    int *gamma_sink_list, int gamma_sink_num, int (*momentum_list)[3], int momentum_number,  struct AffWriter_s*affw, char*tag,
+    int io_proc ) {
+
+  const unsigned int Vhalf = VOLUME / 2;
+  const unsigned int VOL3 = LX * LY * LZ;
+  const unsigned int VOL3half = VOL3 / 2;
+
+  int exitstatus;
+  double ratime, retime;
+  double **conn_e = NULL, **conn_o = NULL, **conn_lexic = NULL;
+  double **conn_p = NULL;
+  char aff_tag[200];
+
+  /* auxilliary fermion propagator fields ( without halo ) */
+  fermion_propagator_type *fp_aux     = create_fp_field( Vhalf );
+  fermion_propagator_type *fp_S_e     = create_fp_field( Vhalf );
+  fermion_propagator_type *fp_S_o     = create_fp_field( Vhalf );
+  fermion_propagator_type *fp_T_e     = create_fp_field( Vhalf );
+  fermion_propagator_type *fp_T_o     = create_fp_field( Vhalf );
+  fermion_propagator_type *fp_S_e_mu  = create_fp_field( Vhalf );
+  fermion_propagator_type *fp_S_o_mu  = create_fp_field( Vhalf );
+  fermion_propagator_type *fp_T_e_mu  = create_fp_field( Vhalf );
+  fermion_propagator_type *fp_T_o_mu  = create_fp_field( Vhalf );
+
+  /**********************************************************
+   **********************************************************
+   **
+   ** contractions
+   **
+   **********************************************************
+   **********************************************************/  
+  ratime = _GET_TIME;
+
+  exitstatus = init_2level_buffer ( &conn_e, T, 2*VOL3half );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_local_cvc_2pt_eo] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+
+  exitstatus = init_2level_buffer ( &conn_o, T, 2*VOL3half );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_local_cvc_2pt_eo] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+
+  exitstatus = init_2level_buffer ( &conn_lexic, T, 2*VOL3 );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_local_cvc_2pt_eo] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+
+  exitstatus = init_2level_buffer ( &conn_p, momentum_number, 2*T );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[contract_local_cvc_2pt_eo] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+ 
+  /* fp_S_e = sprop^e */
+  exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_S_e, &(sprop_list_e[48]), Vhalf);
+  /* fp_S_o = sprop^o */
+  exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_S_o, &(sprop_list_o[48]), Vhalf);
+  /* fp_T_e = tprop^e */
+  exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_T_e, &(tprop_list_e[48]), Vhalf);
+  /* fp_T_o = tprop^o */
+  exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_T_o, &(tprop_list_o[48]), Vhalf);
+
+  /* loop on vetor index mu at source */
+  for ( int mu = 0; mu < 4; mu++ ) {
+
+    exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_aux, &(sprop_list_e[mu*12]), Vhalf);
+    apply_propagator_constant_cvc_vertex ( fp_S_e_mu, fp_aux, mu, 1, Usource[mu], Vhalf );
+
+    exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_aux, &(sprop_list_o[mu*12]), Vhalf);
+    apply_propagator_constant_cvc_vertex ( fp_S_o_mu, fp_aux, mu, 1, Usource[mu], Vhalf );
+
+    exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_aux, &(tprop_list_e[mu*12]), Vhalf);
+    apply_propagator_constant_cvc_vertex ( fp_T_e_mu, fp_aux, mu, 1, Usource[mu], Vhalf );
+
+    exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_aux, &(tprop_list_o[mu*12]), Vhalf);
+    apply_propagator_constant_cvc_vertex ( fp_T_o_mu, fp_aux, mu, 1, Usource[mu], Vhalf );
+
+    /* loop on gamma structures at sink */
+    for ( int idsink = 0; idsink < gamma_sink_num; idsink++ ) {
+
+      memset( conn_e[0], 0, 2*Vhalf*sizeof(double) );
+      memset( conn_o[0], 0, 2*Vhalf*sizeof(double) );
+
+      /**********************************************************
+       * even part
+       **********************************************************/
+   
+      /* fp_aux <- Gamma_f x fp_T_e */
+      fermion_propagator_field_eq_gamma_ti_fermion_propagator_field (fp_aux, gamma_sink_list[idsink], fp_T_e, Vhalf );
+      /* contract g5 fp_aux^+ g5 fp_aux2 = g5 ( fp_S_e Gamma_cvc )^+ g5 Gamma_f x fp_T_e */
+      co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field ( (complex *)(conn_e[0]), fp_S_e_mu, fp_aux, 1., Vhalf);
+
+      apply_propagator_constant_cvc_vertex ( fp_aux, fp_T_e, mu, 1, Usource[mu], Vhalf );
+      /* fp_aux <- Gamma_f x fp_T_e_mu */
+      fermion_propagator_field_eq_gamma_ti_fermion_propagator_field (fp_aux, gamma_sink_list[idsink], fp_T_e_mu, Vhalf );
+      /* contract g5 fp_S_e^+ g5 fp_aux = g5 S^e^+ g5 Gamma_f T^e Gamma_cvc */
+      co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field ( (complex *)(conn_e[0]), fp_S_e, fp_aux, -1., Vhalf);
+
+      /**********************************************************
+       * odd part
+       **********************************************************/
+      /* fp_aux <- Gamma_f x fp_T_o */
+      fermion_propagator_field_eq_gamma_ti_fermion_propagator_field (fp_aux, gamma_sink_list[idsink], fp_T_o, Vhalf );
+      /* contract g5 ( fp_S_o Gamma_cvc)^+ g5 fp_T_o */
+      co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field ( (complex *)(conn_o[0]), fp_S_o_mu, fp_aux, 1., Vhalf);
+
+      /* fp_aux <- Gamma_f x fp_T_o_mu */
+      fermion_propagator_field_eq_gamma_ti_fermion_propagator_field (fp_aux, gamma_sink_list[idsink], fp_T_o_mu, Vhalf );
+      /* contract g5 fp_S_o^+ g5 fp_aux = g5 S^o^+ g5 Gamma_f T^o Gamma_cvc */
+      co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field ( (complex *)(conn_o[0]), fp_S_o, fp_aux, -1., Vhalf);
+
+      /**********************************************************
+       * Fourier transform
+       **********************************************************/
+      complex_field_eo2lexic ( conn_lexic[0], conn_e[0], conn_o[0] );
+
+      exitstatus = momentum_projection ( conn_lexic[0], conn_p[0], T, momentum_number, momentum_list);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[contract_local_cvc_2pt_eo] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(3);
+      }
+
+      sprintf(aff_tag, "%s/gf%.2d/mu%.2d", tag, gamma_sink_list[idsink], mu );
+      exitstatus = contract_write_to_aff_file ( conn_p, affw, aff_tag, momentum_list, momentum_number, io_proc );
+      if(exitstatus != 0) {
+        fprintf(stderr, "[contract_local_cvc_2pt_eo] Error from contract_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(3);
+      }
+
+    }  /* end of loop on mu */
+  }  /* end of loop on Gamma_f */
+
+  /* free auxilliary fields */
+  free_fp_field( &fp_aux );
+  free_fp_field( &fp_S_e );
+  free_fp_field( &fp_S_o );
+  free_fp_field( &fp_T_e );
+  free_fp_field( &fp_T_o );
+  free_fp_field( &fp_S_e_mu );
+  free_fp_field( &fp_S_o_mu );
+  free_fp_field( &fp_T_e_mu );
+  free_fp_field( &fp_T_o_mu );
+
+  fini_2level_buffer ( &conn_e );
+  fini_2level_buffer ( &conn_o );
+  fini_2level_buffer ( &conn_lexic );
+  fini_2level_buffer ( &conn_p );
+
+  retime = _GET_TIME;
+  if(g_cart_id==0) fprintf(stdout, "# [contract_local_cvc_2pt_eo] time for contract_cvc_tensor = %e seconds\n", retime-ratime);
+
+  return(0);
+
+}  /* end of contract_local_cvc_2pt_eo */
+
 
 }  /* end of namespace cvc */
