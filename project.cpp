@@ -1098,7 +1098,7 @@ int project_reduce_from_propagator_field_per_timeslice (double *p, double * r, d
 
   const unsigned int offset_field           = nt * _GSI( N );
   const unsigned int offset_field_timeslice =      _GSI( N );
-  const size_t sizeof_field                 = offset_spinor_field * sizeof(double);
+  const size_t sizeof_field                 = offset_field * sizeof(double);
   const unsigned int offset_p               = (unsigned int)num1 * (unsigned int)num2 * 2;
   const int items_p                         = nt * num1 * num2;  /* number of double _Complex items */
   const size_t bytes_p                      = (size_t)items_p * sizeof(double _Complex);
@@ -1110,7 +1110,7 @@ int project_reduce_from_propagator_field_per_timeslice (double *p, double * r, d
   double _Complex *p_buffer = NULL;
   double _Complex BLAS_ALPHA, BLAS_BETA;
   double _Complex *BLAS_A = NULL, *BLAS_B = NULL, *BLAS_C = NULL;
-  double **V_aux = NULL, *r_aux = NULL;
+  double *V_aux = NULL, *r_aux = NULL;
   double ratime, retime;
  
   if (p == NULL || r == NULL || V == NULL || num1 <= 0 || num2 <= 0) {
@@ -1120,17 +1120,9 @@ int project_reduce_from_propagator_field_per_timeslice (double *p, double * r, d
  
   ratime = _GET_TIME;
 
-  exitstatus = init_2level_buffer ( &V_aux, num2, _GSI(N) );
-  if ( exitstatus != 0 ) {
-    fprintf(stderr, "[] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    return(1);
-  }
+  alloc_spinor_field ( &V_aux, num2 * N );
 
-  exitstatus = init_2level_buffer ( &r_aux, num1, _GSI(N) );
-  if ( exitstatus != 0 ) {
-    fprintf(stderr, "[] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    return(1);
-  }
+  alloc_spinor_field ( &r_aux, num1 * N );
 
   /* projection on V-basis */
   BLAS_ALPHA  = 1.;
@@ -1166,8 +1158,8 @@ int project_reduce_from_propagator_field_per_timeslice (double *p, double * r, d
 
   }  /* of loop on it */
 
-  fini_2level_buffer ( &V_aux );
-  fini_2level_buffer ( &r_aux );
+  free ( V_aux );
+  free ( r_aux );
 
 #ifdef HAVE_MPI
     /* allreduce across all processes */
