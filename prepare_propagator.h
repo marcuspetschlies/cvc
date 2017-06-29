@@ -24,5 +24,17 @@ int point_to_all_fermion_propagator_clover_eo ( double **eo_spinor_field_e, doub
 int prepare_clover_eo_stochastic_timeslice_propagator ( double***eo_stochastic_source_allt, double***eo_stochastic_propagator_allt,
         double ***eo_stochastic_source, double ***eo_stochastic_propagator, int sequential_source_timeslice, int ns, int adj );
 
+int prepare_clover_eo_stochastic_timeslice_propagator (
+    double**prop, double*source, 
+    double *eo_evecs_block, double*evecs_lambdainv, int evecs_num, 
+    double*gauge_field_with_phase, double **mzz[2], double **mzzinv[2],
+    int op_id, int check_propagator_residual);
+
+int prepare_clover_eo_sequential_propagator_timeslice (
+  double *sequential_propagator_e, double *sequential_propagator_o,
+  double *forward_propagator_e,    double *forward_propagator_o,
+  int momentum[3], int gamma_id, int timeslice,
+  double*gauge_field, double**mzz, double**mzzinv);
+
 }  /* end of namespace cvc */
 #endif
