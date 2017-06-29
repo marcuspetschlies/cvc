@@ -1,7 +1,7 @@
 /****************************************************
  * p2gg_caa_lma.c
  *
- * Tue Jun  6 11:44:00 CDT 2017
+ * Wed Jun 28 11:53:23 CEST 2017
  *
  * - originally copied from p2gg.cpp
  *
@@ -376,139 +376,6 @@ int main(int argc, char **argv) {
   }
 #endif
 
-  /***********************************************
-   ***********************************************
-   **
-   ** stochastic propagators
-   **
-   ***********************************************
-   ***********************************************/
-
-  exitstatus = init_rng_stat_file (g_seed, NULL);
-  if(exitstatus != 0) {
-    fprintf(stderr, "[p2gg] Error from init_rng_stat_file status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(38);
-  }
-
-  exitstatus = init_3level_buffer( &eo_stochastic_source, T, g_nsample, _GSI(VOL3half));
-  if(exitstatus != 0) {
-    fprintf(stderr, "[p2gg] Error from init_3level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(33);
-  }
-
-  exitstatus = init_3level_buffer( &eo_stochastic_propagator, T_global, g_nsample, _GSI(Vhalf));
-  if(exitstatus != 0) {
-    fprintf(stderr, "[p2gg] Error from init_3level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(33);
-  }
-
-  /* make a source */
-  exitstatus = prepare_volume_source( eo_stochastic_source[0][0], g_nsample*Vhalf);
-  if(exitstatus != 0) {
-    fprintf(stderr, "[p2gg] Error from prepare_volume_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(33);
-  }
-  if ( write_stochastic_source ) {
-    for ( int isample = 0; isample < g_nsample; isample+=2 ) {
-      memset ( eo_spinor_work[0], 0, sizeof_eo_spinor_field );
-      memset ( eo_spinor_work[1], 0, sizeof_eo_spinor_field );
-      for( int it = 0; it < T; it++ ) {
-        memcpy( eo_spinor_work[0]+it*_GSI(VOL3half), eo_stochastic_source[it][isample  ], sizeof_eo_spinor_field_timeslice );
-        memcpy( eo_spinor_work[1]+it*_GSI(VOL3half), eo_stochastic_source[it][isample+1], sizeof_eo_spinor_field_timeslice );
-      }
-      /* eo_spinor_work 2, 3 <- e eo_spinor_work 0 + o eo_spinor_work 1 */
-      spinor_field_eo2lexic ( eo_spinor_work[2], eo_spinor_work[0], eo_spinor_work[1] );
-
-      sprintf(filename, "%s.%.4d.%.5d" filename_prefix, Nconf, isample);
-      exitstatus = write_propagator( eo_spinor_work[2], filename, 0, 64);
-      if ( exitstatus != 0 ) {
-        fprintf(stderr, "[] Error from write_propagator, status was %d\n", exitstatus);
-      }
-    }
-  }  /* end of if write stochastic source */
-
-
-  /* loop on samples  */
-  for( int isample = 0; isample < g_nsample; isample++ ) {
-
-    /* loop on timeslices */
-    for( int it = 0; it < T_global; it++ ) {
-
-      /* eo_spinor_work0 <- 0 */
-      memset( eo_spinor_work[0], 0, sizeof_eo_spinor_field );
-
-      /* eo_spinor_work0 <- stochastic source t = it, isample */
-      if ( it / T == g_proc_coords[0] ) 
-        unsigned int offset = (it % T) * _GSI(VOL3half);
-        memcpy( eo_spinor_work[0]+offset, eo_stochastic_source[(it%T)][isample], sizeof_eo_spinor_field_timeslice);
-      }
-
-      /* orthogonal projection 
-       * eo_spinor_work0 <- P_V eo_spinor_work0
-       */
-      exitstatus = project_propagator_field ( eo_spinor_work[0], eo_spinor_work[0], 0, eo_evecs_block, 1, evecs_num, Vhalf);
-      if(exitstatus != 0) {
-        fprintf(stderr, "[p2gg] Error from project_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(35);
-      }
-      if ( it / T == g_proc_coords[0] ) 
-        unsigned int offset = (it % T) * _GSI(VOL3half);
-        memcpy( eo_stochastic_source[(it%T)][isample], eo_spinor_work[0]+offset, sizeof_eo_spinor_field_timeslice);
-      }
-
-      /* invert */
-      memset(eo_spinor_work[1], 0, sizeof_eo_spinor_field);
-      exitstatus = _TMLQCD_INVERT_EO( eo_spinor_work[1], eo_spinor_work[0], _OP_ID_UP);
-      if(exitstatus != 0) {
-        fprintf(stderr, "[p2gg] Error from _TMLQCD_INVERT_EO, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(19);
-      }
-      memcpy(eo_stochastic_propagator[it][isample], eo_spinor_work[1], sizeof_eo_spinor_field);
-
-    if( check_propagator_residual ) {
-      exitstatus = check_oo_propagator_clover_eo( eo_stochastic_propagator[it][isample], eo_spinor_work[0], &(eo_spinor_work[1]), gauge_field_with_phase, g_mzz_up, g_mzzinv_up, g_nsample );
-      if(exitstatus != 0) {
-        fprintf(stderr, "[p2gg] Error from check_oo_propagator_clover_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(19);
-      }
-    }
-  }  /* end of loop on samples */
-
-  /***********************************************************
-   ***********************************************************
-   **
-   ** NOTE:
-   ** eo_stochastic_source contains the projected stochastic source
-   **    xi^orth
-   **
-   ** eo_stochastic_propagator contains the projected stochastic propagator
-   **    C^-1 xi^orth
-   **
-   ***********************************************************
-   ***********************************************************/
-
-
-
-  /***********************************************************
-   ***********************************************************
-   **
-   ** contractions of loops from (projected) stochastic
-   **   timeslice propagators
-   **
-   ***********************************************************
-   ***********************************************************/
-  
-#ifdef HAVE_LHPC_AFF
-    /***********************************************
-     * AFF version
-     ***********************************************/
-    if(io_proc == 2) {
-      aff_status_str = (char*)aff_version();
-      fprintf(stdout, "# [p2gg] using aff version %s\n", aff_status_str);
-    }
-#endif
-
-
   /***********************************************************
    * allocate eo_spinor_field
    ***********************************************************/
@@ -691,27 +558,6 @@ int main(int argc, char **argv) {
 
         if(g_cart_id == 0) fprintf(stdout, "# [p2gg] using sequential source timeslice %d / %d\n", g_sequential_source_timeslice, g_shifted_sequential_source_timeslice);
  
-        double ***eo_stochastic_source_allt = NULL, ***eo_stochastic_propagator_allt = NULL;
-        exitstatus = init_3level_buffer ( &eo_stochastic_source_allt, T, g_nsample, _GSI(VOL3half) );
-        if(exitstatus != 0 ) {
-          fprintf(stderr, "[p2gg] Error from init_3level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-          EXIT(45);
-        }
-
-        exitstatus = init_3level_buffer ( &eo_stochastic_propagator_allt, T, g_nsample, _GSI(VOL3half) );
-        if(exitstatus != 0 ) {
-          fprintf(stderr, "[p2gg] Error from init_3level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-          EXIT(45);
-        }
-
-        exitstatus = prepare_stochastic_timeslice_propagator ( eo_stochastic_source_allt, eo_stochastic_propagator_allt,
-            eo_stochastic_source, eo_stochastic_propagator, g_shifted_sequential_source_timeslice, g_nsample, iflavor );
-        if(exitstatus != 0 ) {
-          fprintf(stderr, "[p2gg] Error from prepare_stochastic_timeslice_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-          EXIT(45);
-        }
-
-
 
         /***************************************************************************
          * loop on sequential source gamma matrices
@@ -782,177 +628,25 @@ int main(int argc, char **argv) {
                   fprintf(stderr, "[p2gg] Error from init_clover_eo_sequential_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                   EXIT(25);
                 }
-            }  /* end of loop on spin-color */
-
-            /*************************************************
-             * finish the inversion of The Dirac operator
-             *************************************************/
-            exitstatus = Q_clover_eo_invert_subspace_stochastic_timeslice (
-                &(eo_spinor_field[240]), &(eo_spinor_field[300]),
-                &(eo_spinor_field[240]), &(eo_spinor_field[300]),
-                60,
-                eo_stochastic_propagator_allt, eo_stochastic_source_allt, g_nsample,
-                gauge_field_with_phase, mzz, mzzinv, 
-                g_shifted_sequential_source_timeslice,
-                flavor_id);
-            if(exitstatus != 0) {
-              fprintf(stderr, "[p2gg] Error from Q_clover_eo_invert_subspace, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              return(27);
-            }
-
-            /* contraction function */
-            if ( iflavor == 1 ) {
-              contract_cvc_tensor_eo ( cvc_tensor_eo[0], cvc_tensor_eo[1], contact_term[iflavor], uprop_list_e, uprop_list_o, tprop_list_e, tprop_list_o , gauge_field_with_phase );
-            } else {
-              contract_cvc_tensor_eo ( cvc_tensor_eo[0], cvc_tensor_eo[1], contact_term[iflavor], dprop_list_e, dprop_list_o, tprop_list_e, tprop_list_o , gauge_field_with_phase );
-
-              /* for iflavor == 1,
-               * subtract contact term 
-               */
-              cvc_tensor_eo_subtract_contact_term ( cvc_tensor_eo, contact_term[0], gsx, (int)( source_proc_id == g_cart_id ) );
-            }
-
-            /* momentum projections */
-            exitstatus = cvc_tensor_eo_momentum_projection ( &cvc_tp, cvc_tensor_eo, g_sink_momentum_list, g_sink_momentum_number);
-            if(exitstatus != 0) {
-              fprintf(stderr, "[p2gg] Error from cvc_tensor_eo_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              EXIT(28);
-            }
-
-            if ( iflavor == 1 ) {
-              /* multiply with sign from g5 adj */
-              complex_field_eq_complex_field_conj_ti_re (cvc_tensor_eo[0], (double)sequential_source_gamma_id_sign[ sequential_source_gamma_id ], 16*VOLUME );
-            }
 
 
-            /***************************************************************************
-             * write results to file
-             ***************************************************************************/
-            sprintf(aff_tag, "/PJJ/stochastic-hm/fl%d/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d",
-                    iflavor, gsx[0], gsx[1], gsx[2], gsx[3], g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2], sequential_source_gamma_id, g_sequential_source_timeslice);
-
-            exitstatus = cvc_tensor_tp_write_to_aff_file (cvc_tp, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
-            if(exitstatus != 0) {
-              fprintf(stderr, "[p2gg] Error from cvc_tensor_tp_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              EXIT(29);
-            }
-            fini_3level_buffer(&cvc_tp);
-            free( cvc_tensor_lexic ); cvc_tensor_lexic = NULL;
-            fini_2level_buffer ( &cvc_tensor_eo );
-
-            /***************************************************************************
-             ***************************************************************************
-             **
-             **  end of contractions for P - cvc - cvc 3pt
-             **
-             ***************************************************************************
-             ***************************************************************************/
-
-            fini_2level_buffer ( &cvc_tensor_eo );
-
-          }  /* end of loop on sequential gamma id */
-
-
-        }  /* end of loop on sequential source momentum */
-
-        fini_3level_buffer ( &eo_stochastic_source_allt );
-        fini_3level_buffer ( &eo_stochastic_propagator_allt );
-
-        /***************************************************************************/
-        /***************************************************************************/
-
-        /***************************************************************************
-         * contractions with low-mode part of sequential propagator
-         ***************************************************************************/
-
-        /***************************************************************************
-         * loop on sequential source gamma matrices
-         ***************************************************************************/
-        for(iseq_source_momentum=0; iseq_source_momentum < g_seq_source_momentum_number; iseq_source_momentum++) {
-
-          g_seq_source_momentum[0] = g_seq_source_momentum_list[iseq_source_momentum][0];
-          g_seq_source_momentum[1] = g_seq_source_momentum_list[iseq_source_momentum][1];
-          g_seq_source_momentum[2] = g_seq_source_momentum_list[iseq_source_momentum][2];
-
-          if(g_cart_id == 0) fprintf(stdout, "# [p2gg] using sequential source momentum no. %2d = (%d, %d, %d)\n", iseq_source_momentum,
-            g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2]);
-
-          /***************************************************************************
-           * loop on sequential source gamma matrices
-           ***************************************************************************/
-          for(isequential_source_gamma_id=0; isequential_source_gamma_id < g_sequential_source_gamma_id_number; isequential_source_gamma_id++) {
-  
-            int sequential_source_gamma_id = g_sequential_source_gamma_id_list[ isequential_source_gamma_id ];
-            if(g_cart_id == 0) fprintf(stdout, "# [p2gg] using sequential source gamma id no. %2d = %d\n", isequential_source_gamma_id, sequential_source_gamma_id);
-
-
-            /***************************************************************************
-             ***************************************************************************
-             **
-             **  contractions for P - cvc - cvc 3pt
-             **
-             ***************************************************************************
-             ***************************************************************************/
-
-            /*************************************************
-             * allocate memory for the contractions
-             *************************************************/
-            exitstatus = init_2level_buffer( &cvc_tensor_eo, 2, 32*Vhalf);
-            if( exitstatus == 0) {
-              fprintf(stderr, "[p2gg] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              EXIT(24);
-            }
-            memset(contact_term[0], 0, 8*sizeof(double));
-            memset(contact_term[1], 0, 8*sizeof(double));
-
-
-            ratime = _GET_TIME;
-
-             /* flavor-dependent sequential source momentum */
-            int seq_source_momentum[3] = { (1 - 2*iflavor) * g_seq_source_momentum[0],
-                                           (1 - 2*iflavor) * g_seq_source_momentum[1],
-                                           (1 - 2*iflavor) * g_seq_source_momentum[2] };
-
-            if(g_cart_id == 0) fprintf(stdout, "# [p2gg] using flavor-dependent sequential source momentum (%d, %d, %d)\n", 
-                  seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2]);
-
-            for(i=0; i<60; i++) {
-                int eo_spinor_field_id_e     = iflavor * 120 + i;
-                int eo_spinor_field_id_o     = eo_spinor_field_id_e + 60;
-                int eo_seq_spinor_field_id_e = 240 + i;
-                int eo_seq_spinor_field_id_o = eo_seq_spinor_field_id_e + 60;
-
-                /*************************************************
-                 * this is A^{-1} g5 Gamma exp( i pvec ) prop
-                 *************************************************/
-                exitstatus = init_clover_eo_sequential_source (
-                    eo_spinor_field[eo_seq_spinor_field_id_e], eo_spinor_field[eo_seq_spinor_field_id_o],
-                    eo_spinor_field[eo_spinor_field_id_e], eo_spinor_field[eo_spinor_field_id_o],
-                    g_shifted_sequential_source_timeslice, gauge_field_with_phase, mzzinv[iflavor][0], seq_source_momentum, sequential_source_gamma_id, eo_spinor_work[0]);
+                memcpy ( eo_spinor_work[0], eo_spinor_field[eo_seq_spinor_field_id_o], sizeof_eo_spinor_field );
+                memset ( eo_spinor_work[1], 0, sizeof_eo_spinor_field );
+                exitstatus = tmlqcd_invert_eo ( eo_spinor_work[1], eo_spinor_work[0], iflavor );
                 if(exitstatus != 0) {
-                  fprintf(stderr, "[p2gg] Error from init_clover_eo_sequential_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                  fprintf(stderr, "[p2gg] Error from tmlqcd_invert_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                   EXIT(25);
                 }
+
+                exitstatus = fini_clover_eo_propagator ( eo_spinor_field[eo_seq_spinor_field_id_e], eo_spinor_field[eo_seq_spinor_field_id_o],
+                                                         eo_spinor_field[eo_seq_spinor_field_id_e], eo_spinor_work[1],
+                                                         gauge_field, mzzinv[iflavor][0], eo_spinor_work[0] );
+                if(exitstatus != 0) {
+                  fprintf(stderr, "[p2gg] Error from fini_eo_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                  EXIT(20);
+                }
+
             }  /* end of loop on spin-color */
-
-            /*************************************************
-             * finish the inversion of The Dirac operator
-             *************************************************/
-            exitstatus = Q_clover_eo_invert_subspace_stochastic_timeslice (
-                eo_stochastic_propagator_allt, eo_stochastic_source_allt, g_nsample,
-                gauge_field_with_phase, mzz, mzzinv, 
-                g_shifted_sequential_source_timeslice,
-                flavor_id);
-
-            exitstatus = Q_clover_eo_invert_subspace (
-                &(eo_spinor_field[240]), &(eo_spinor_field[300]),
-                &(eo_spinor_field[240]), &(eo_spinor_field[300]),
-                60,
-                eo_evecs_block, eo_evecs_lambdainv, evecs_num, gauge_field_with_phase, mzz,  mzzinv, iflavor, eo_spinor_work );
-            if(exitstatus != 0) {
-              fprintf(stderr, "[p2gg] Error from Q_clover_eo_invert_subspace, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              return(27);
-            }
 
             /* contraction function */
             if ( iflavor == 1 ) {
@@ -982,7 +676,7 @@ int main(int argc, char **argv) {
             /***************************************************************************
              * write results to file
              ***************************************************************************/
-            sprintf(aff_tag, "/PJJ/stochastic-lm/fl%d/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d",
+            sprintf(aff_tag, "/pjj/full/fl%d/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d",
                     iflavor, gsx[0], gsx[1], gsx[2], gsx[3], g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2], sequential_source_gamma_id, g_sequential_source_timeslice);
 
             exitstatus = cvc_tensor_tp_write_to_aff_file (cvc_tp, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
@@ -1009,6 +703,8 @@ int main(int argc, char **argv) {
 
         }  /* end of loop on sequential source momentum */
 
+        /***************************************************************************/
+        /***************************************************************************/
 
       }  /* end of loop on sequential source timeslices */
     
