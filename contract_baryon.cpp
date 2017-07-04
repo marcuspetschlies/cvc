@@ -472,16 +472,16 @@ int contract_N_N (spinor_propagator_type **res, double**uprop_list, double**dpro
        *   fp2 = C Gamma_2 _Sd C Gamma_1
        ******************************************************/
 
-      /* fp1 = S_d x C x Gamma_1 = dprop g0 g2 Gamma_1 */
+      /* fp1 = S_d x C x Gamma_2 = dprop g0 g2 Gamma_2 */
       _fp_eq_zero(fp1);
       _fp_eq_zero(fpaux);
       _fp_eq_fp_ti_gamma(fp1, 0, dprop);
       _fp_eq_fp_ti_gamma(fpaux, 2, fp1);
-      _fp_eq_fp_ti_gamma(fp1, comp_list[icomp][0], fpaux);
+      _fp_eq_fp_ti_gamma(fp1, comp_list[icomp][1], fpaux);
 
-      /* fp2 = C x Gamma_2 x S_d = g0 g2 Gamma_2 fp1 */
+      /* fp2 = C x Gamma_1 x [ S_d x C x Gamma_2 ] = g0 g2 Gamma_1 fp1 */
       _fp_eq_zero(fpaux);
-      _fp_eq_gamma_ti_fp(fp2, comp_list[icomp][1], fp1);
+      _fp_eq_gamma_ti_fp(fp2, comp_list[icomp][0], fp1);
       _fp_eq_gamma_ti_fp(fpaux, 2, fp2);
       _fp_eq_gamma_ti_fp(fp2, 0, fpaux);
       
