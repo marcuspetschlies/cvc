@@ -28,6 +28,8 @@
 #include "Q_phi.h"
 #include "Q_clover_phi.h"
 #include "scalar_products.h"
+#include "matrix_init.h"
+#include "project.h"
 
 namespace cvc {
 
@@ -3342,8 +3344,8 @@ void contract_twopoint_snk_momentum(double *contr, const int idsource, const int
       }    // of spinor index
 
       // multiply by momentum phase factor and add to correlator
-      re = tmp[0]*cphase - tmp[1]*sphase;
-      im = tmp[0]*sphase + tmp[1]*cphase;
+      re = -( tmp[0]*cphase - tmp[1]*sphase );
+      im = -( tmp[0]*sphase + tmp[1]*cphase );
       //fprintf(stdout, "\tephase<-%e+%e*1.i; tmp<-%e+%e*1.i; z<-%e+%e*1.i\n", cphase, sphase, tmp[0], tmp[1], re, im);
       if( !isimag ) {
         contr[2*tt  ] += re;
@@ -4731,6 +4733,73 @@ int check_oo_propagator_clover_eo(double**prop_o, double**source, double**work, 
   return(0);
 }  /* end of check_source */
 
+/***************************************************************************
+ * apply D operator to subspace propagator;
+ *
+ * for C_clover_oo:
+ *   mzzinv must be ee
+ *   mzz    must be oo
+ *
+ *   requires 2 work fields, work[0] and work[1] WITH HALO
+ ***************************************************************************/
+int check_subspace_propagator_clover_eo( 
+    double **prop_e, double**prop_o,
+    double**source_e, double**source_o,
+    int nf, double *eo_evecs_block, double *evecs_norm, int nev, double*gauge_field, double**mzz[2], double**mzzinv[2], int flavor_id ) {
+
+  const unsigned int Vhalf = VOLUME/2;
+  const size_t sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
+  const double twokappa = 2. * g_kappa;
+
+  int exitstatus;
+  double norm;
+  double **work = NULL;
+
+  exitstatus = init_2level_buffer ( &work, 5, _GSI( (VOLUME+RAND)/2 ) );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[check_subspace_propagator_clover_eo] Error, work fields overlap with propagator or source\n");
+    return(1);
+  }
+
+  for( int k = 0; k < nf; k++ ) {
+
+    /* (1) B on propagator */
+    /* work0/1 <- B[flavor_id] prop_e/o, aux work2 */
+    Q_clover_eo_SchurDecomp_B ( work[0], work[1], prop_e[k], prop_o[k], gauge_field, mzz[flavor_id][1], mzzinv[flavor_id][0], work[2]);
+
+    /* (2) project the odd source */
+
+    if ( flavor_id == 0 ) {
+      exitstatus = project_propagator_field( work[2], source_o[k], 1, eo_evecs_block, 1, nev, Vhalf);
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[check_oo_subspace_propagator_clover_eo] Error from project_propagator_field; status was %d\n", exitstatus);
+        return(2);
+      }
+    } else if ( flavor_id == 1 ) {
+      C_clover_oo ( work[2], source_o[k], gauge_field, work[4], mzz[1-flavor_id][1], mzzinv[1-flavor_id][0] );
+ 
+      exitstatus = project_propagator_field_weighted( work[3], work[2], 1, eo_evecs_block, evecs_norm, 1, nev, Vhalf);
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[check_oo_subspace_propagator_clover_eo] Error from project_propagator_field; status was %d\n", exitstatus);
+        return(2);
+      }
+
+      C_clover_oo ( work[2], work[3], gauge_field, work[4], mzz[flavor_id][1], mzzinv[flavor_id][0] );
+    } else {
+      return(3);
+    }
+
+    spinor_field_norm_diff (&norm, work[0], source_e[k], Vhalf);
+    if(g_cart_id==0) fprintf(stdout, "# [check_oo_subspace_propagator_clover_eo] fl %d no %3d even norm diff = %e\n", flavor_id, k, norm );
+
+    spinor_field_norm_diff (&norm, work[1], work[2], Vhalf);
+    if(g_cart_id==0) fprintf(stdout, "# [check_oo_subspace_propagator_clover_eo] fl %d no %3d  odd norm diff = %e\n", flavor_id, k, norm );
+
+  }  /* end of loop on nf */
+
+  fini_2level_buffer ( &work );
+  return(0);
+}  /* end of check_oo_subspace_propagator_clover_eo */
 
 
 /***********************************************************

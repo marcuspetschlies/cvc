@@ -156,6 +156,12 @@ int check_point_source_propagator_clover_eo(double**prop_e, double**prop_o, doub
 
 int check_oo_propagator_clover_eo(double**prop_o, double**source, double**work, double*gf, double**mzz, double**mzzinv, int nf );
 
+int check_subspace_propagator_clover_eo(
+  double **prop_e, double**prop_o,
+  double**source_e, double**source_o,
+  int nf, double *eo_evecs_block, double *evecs_norm, int nev, double*gauge_field, double**mzz[2], double**mzzinv[2], int flavor_id );
+
+
 int plaquetteria  (double*gauge_field );
 
 int gauge_field_eq_gauge_field_ti_phase (double**gauge_field_with_phase, double*gauge_field, complex co_phase[4] );
