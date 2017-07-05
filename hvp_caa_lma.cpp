@@ -119,13 +119,14 @@ int main(int argc, char **argv) {
   double **eo_evecs_field=NULL;
   double **cvc_tensor_eo = NULL, contact_term[2][8], *cvc_tensor_lexic=NULL;
   double ***cvc_tp = NULL;
-  double *evecs_eval = NULL, *evecs_lambdainv=NULL;
+  double *evecs_eval = NULL, *evecs_lambdainv=NULL, *evecs_4kappasqr_lambdainv = NULL;
   double *uprop_list_e[60], *uprop_list_o[60], *tprop_list_e[60], *tprop_list_o[60], *dprop_list_e[60], *dprop_list_o[60];
   char filename[100];
   double ratime, retime;
   double plaq;
   double **mzz[2], **mzzinv[2];
   double *gauge_field_with_phase = NULL;
+  double ***eo_source_buffer = NULL;
 
 
 
@@ -300,15 +301,20 @@ int main(int argc, char **argv) {
     EXIT(8);
   }
 
-  evecs_eval = (double*)malloc(evecs_num*sizeof(double));
-  evecs_lambdainv = (double*)malloc(evecs_num*sizeof(double));
-  if(evecs_eval == NULL || evecs_lambdainv == NULL ) {
+  evecs_eval                = (double*)malloc(evecs_num*sizeof(double));
+  evecs_lambdainv           = (double*)malloc(evecs_num*sizeof(double));
+  evecs_4kappasqr_lambdainv = (double*)malloc(evecs_num*sizeof(double));
+  if(    evecs_eval                == NULL 
+      || evecs_lambdainv           == NULL 
+      || evecs_4kappasqr_lambdainv == NULL 
+    ) {
     fprintf(stderr, "[hvp_caa_lma] Error from malloc %s %d\n", __FILE__, __LINE__);
     EXIT(39);
   }
   for( int i = 0; i < evecs_num; i++) {
-    evecs_eval[i] = ((double*)(g_tmLQCD_defl.evals))[2*i];
-    evecs_lambdainv[i] = 2.* g_kappa / evecs_eval[i];
+    evecs_eval[i]                = ((double*)(g_tmLQCD_defl.evals))[2*i];
+    evecs_lambdainv[i]           = 2.* g_kappa / evecs_eval[i];
+    evecs_4kappasqr_lambdainv[i] = 4.* g_kappa * g_kappa / evecs_eval[i];
     if( g_cart_id == 0 ) fprintf(stdout, "# [hvp_caa_lma] eval %4d %16.7e\n", i, evecs_eval[i] );
   }
 
@@ -420,7 +426,28 @@ int main(int argc, char **argv) {
      ***********************************************************/
     init_contract_cvc_tensor_usource( gauge_field_with_phase, gsx, NULL);
 
-    
+#ifdef HAVE_LHPC_AFF
+    /***********************************************
+     ***********************************************
+     **
+     ** writer for aff output file
+     **
+     ***********************************************
+     ***********************************************/
+    if(io_proc == 2) {
+      sprintf(filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3]);
+      fprintf(stdout, "# [hvp_caa_lma] writing data to file %s\n", filename);
+      affw = aff_writer(filename);
+      aff_status_str = (char*)aff_writer_errstr(affw);
+      if( aff_status_str != NULL ) {
+        fprintf(stderr, "[hvp_caa_lma] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+        EXIT(15);
+      }
+    }  /* end of if io_proc == 2 */
+#endif
+
+
+
     /**********************************************************
      **********************************************************
      **
@@ -471,29 +498,9 @@ int main(int argc, char **argv) {
 
     }  /* end of loop on shift direction mu */
 
-#ifdef HAVE_LHPC_AFF
-    /***********************************************
-     ***********************************************
-     **
-     ** writer for aff output file
-     **
-     ***********************************************
-     ***********************************************/
-    if(io_proc == 2) {
-      sprintf(filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3]);
-      fprintf(stdout, "# [hvp_caa_lma] writing data to file %s\n", filename);
-      affw = aff_writer(filename);
-      aff_status_str = (char*)aff_writer_errstr(affw);
-      if( aff_status_str != NULL ) {
-        fprintf(stderr, "[hvp_caa_lma] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-        EXIT(15);
-      }
-    }  /* end of if io_proc == 2 */
-#endif
-
     /* allocate memory for contractions, initialize */
     exitstatus = init_2level_buffer( &cvc_tensor_eo, 2, 32*Vhalf);
-    if( exitstatus == 0) {
+    if( exitstatus != 0) {
       fprintf(stderr, "[hvp_caa_lma] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(24);
     }
@@ -571,7 +578,8 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[hvp_caa_lma] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(1);
     }
-
+#if 0
+#endif  /* if 0 */
 
     /***************************************************************************/
     /***************************************************************************/
@@ -616,7 +624,7 @@ int main(int argc, char **argv) {
       {
 
         /* A^-1 g5 source */
-        exitstatus = init_clover_eo_spincolor_pointsource_propagator (eo_spinor_field[is], eo_spinor_field[60+is],
+        exitstatus = init_clover_eo_spincolor_pointsource_propagator (eo_spinor_field[mu*12+is], eo_spinor_field[mu*12+60+is],
             g_shifted_source_coords, is, gauge_field_with_phase, g_mzzinv_up[0], (int)(shifted_source_proc_id == g_cart_id), eo_spinor_work[0]);
         if(exitstatus != 0 ) {
           fprintf(stderr, "[hvp_caa_lma] Error from init_eo_spincolor_pointsource_propagator; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -631,7 +639,7 @@ int main(int argc, char **argv) {
       for( int is = 0; is < 12; is++ )
       {
         /* A^-1 g5 source */
-        exitstatus = init_clover_eo_spincolor_pointsource_propagator (eo_spinor_field[120+is], eo_spinor_field[180+is],
+        exitstatus = init_clover_eo_spincolor_pointsource_propagator (eo_spinor_field[120+mu*12+is], eo_spinor_field[180+mu*12+is],
             g_shifted_source_coords, is, gauge_field_with_phase, g_mzzinv_dn[0], (int)(shifted_source_proc_id == g_cart_id), eo_spinor_work[0]);
         if(exitstatus != 0 ) {
           fprintf(stderr, "[hvp_caa_lma] Error from init_eo_spincolor_pointsource_propagator; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -644,6 +652,19 @@ int main(int argc, char **argv) {
     /**********************************************************
      * up-type inversion on deflation subspace
      **********************************************************/
+    if ( check_propagator_residual ) {
+      exitstatus = init_3level_buffer( &eo_source_buffer, 2, 60, _GSI(Vhalf));
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[hvp_caa_lma] Error from init_3level_buffer; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(18);
+      }
+    }  /* end of if check_propagator_residual */
+
+
+    if ( check_propagator_residual ) {
+      memcpy ( eo_source_buffer[0][0], eo_spinor_field[ 0] , 60 * sizeof_eo_spinor_field );
+      memcpy ( eo_source_buffer[1][0], eo_spinor_field[60] , 60 * sizeof_eo_spinor_field );
+    }
     exitstatus = Q_clover_eo_invert_subspace ( 
         &(eo_spinor_field[0]),   &(eo_spinor_field[60]),
         &(eo_spinor_field[0]),   &(eo_spinor_field[60]),
@@ -654,9 +675,25 @@ int main(int argc, char **argv) {
       EXIT(28);
     }
 
+    if ( check_propagator_residual ) {
+      exitstatus = check_subspace_propagator_clover_eo(
+          &(eo_spinor_field[0]), &(eo_spinor_field[60]),
+          eo_source_buffer[0], eo_source_buffer[1],
+          60, eo_evecs_block, evecs_4kappasqr_lambdainv, evecs_num, gauge_field_with_phase, mzz, mzzinv, 0);
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[hvp_caa_lma] Error fromeck_subspace_propagator_clover_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(28);
+      }
+    }  /* end of if check_propagator_residual */
+
+
     /**********************************************************
      * dn-type inversion on deflation subspace
      **********************************************************/
+    if ( check_propagator_residual ) {
+      memcpy ( eo_source_buffer[0][0], eo_spinor_field[120] , 60 * sizeof_eo_spinor_field );
+      memcpy ( eo_source_buffer[1][0], eo_spinor_field[180] , 60 * sizeof_eo_spinor_field );
+    }
     exitstatus = Q_clover_eo_invert_subspace ( 
         &(eo_spinor_field[120]),   &(eo_spinor_field[180]),
         &(eo_spinor_field[120]),   &(eo_spinor_field[180]),
@@ -667,11 +704,28 @@ int main(int argc, char **argv) {
       EXIT(28);
     }
 
+    if ( check_propagator_residual ) {
+      exitstatus = check_subspace_propagator_clover_eo(
+          &(eo_spinor_field[120]), &(eo_spinor_field[180]),
+          eo_source_buffer[0], eo_source_buffer[1],
+          60, eo_evecs_block, evecs_4kappasqr_lambdainv, evecs_num, gauge_field_with_phase, mzz, mzzinv, 1);
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[hvp_caa_lma] Error fromeck_subspace_propagator_clover_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(28);
+      }
+    }  /* end of if check_propagator_residual */
+#if 0
+#endif  /* of if 0 */
+    if ( check_propagator_residual ) {
+      fini_3level_buffer ( &eo_source_buffer );
+    }  /* end of if check_propagator_residual */
+
+
     /***************************************************************************
      * low-mode tensor
      ***************************************************************************/
     exitstatus = init_2level_buffer( &cvc_tensor_eo, 2, 32*Vhalf);
-    if( exitstatus == 0) {
+    if( exitstatus != 0) {
       fprintf(stderr, "[hvp_caa_lma] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(24);
     }
@@ -746,6 +800,62 @@ int main(int argc, char **argv) {
       EXIT(1);
     }
 
+#if 0
+#ifndef HAVE_MPI
+    /* TEST */
+    double **chi = NULL, **phi = NULL;
+    FILE*ofs=NULL;
+    sprintf( filename, "local-local.t%.2dx%.2dy%.2dz%.2d",  gsx[0], gsx[1], gsx[2], gsx[3] );
+    if ( (ofs = fopen( filename, "w") ) == NULL ) {
+      fprintf(stderr, "[] Error from fopen\n");
+      EXIT(1);
+    }
+    double *contr = (double*)malloc( 2*T_global * sizeof(double));
+
+    exitstatus = init_2level_buffer( &chi, 12, _GSI(VOLUME) );
+    if( exitstatus != 0) {
+      fprintf(stderr, "[hvp_caa_lma] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(24);
+    }
+    exitstatus = init_2level_buffer( &phi, 12, _GSI(VOLUME) );
+    if( exitstatus != 0) {
+      fprintf(stderr, "[hvp_caa_lma] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(24);
+    }
+
+    for( int is = 0; is < 12; is++ ) {
+      spinor_field_eo2lexic ( phi[is], eo_spinor_field[ 48+is], eo_spinor_field[108+is]);
+      spinor_field_eo2lexic ( chi[is], eo_spinor_field[168+is], eo_spinor_field[228+is]);
+    }
+
+    /* g_source_location = ( ( gsx[0] * LX_global + gsx[1] ) * LY_global + gsx[2] ) * LZ_global + gsx[3]; */
+    g_source_location = 0;
+    for ( int isink = 0; isink < g_sequential_source_gamma_id_number; isink++ ) {
+    for ( int isource = 0; isource < g_sequential_source_gamma_id_number; isource++ ) {
+      for ( int imom = 0; imom < g_sink_momentum_number; imom++) {
+
+        memset( contr, 0, 2*T_global * sizeof(double));
+        fprintf(ofs, "# /local-local/lm/t%.2dx%.2dy%.2dz%.2d/gf%.2d/gi%.2d/px%.2dpy%.2dpz%.2d\n", 
+            gsx[0], gsx[1], gsx[2], gsx[3],
+            g_sequential_source_gamma_id_list[isink], g_sequential_source_gamma_id_list[isource],
+            g_sink_momentum_list[imom][0],
+            g_sink_momentum_list[imom][1],
+            g_sink_momentum_list[imom][2]);
+
+        contract_twopoint_snk_momentum( contr, g_sequential_source_gamma_id_list[isource], g_sequential_source_gamma_id_list[isink], chi, phi, 3, g_sink_momentum_list[imom] );
+        for ( int it = 0; it < T_global; it++ ) {
+          fprintf(ofs, "%25.16e%25.16e\n", contr[2*it], contr[2*it+1]);
+        }
+      }
+    }}
+    fini_2level_buffer( &chi );
+    fini_2level_buffer( &phi );
+    free ( contr );
+    fclose(ofs);
+    /* end of TEST */
+#endif  /* end of ifndef HAVE_MPI */
+#endif  /* of if 0 */
+
 #ifdef HAVE_LHPC_AFF
     if(io_proc == 2) {
       aff_status_str = (char*)aff_writer_close (affw);
@@ -755,6 +865,7 @@ int main(int argc, char **argv) {
       }
     }  /* end of if io_proc == 2 */
 #endif  /* of ifdef HAVE_LHPC_AFF */
+
 
   }  /* end of loop on source locations */
 
@@ -780,15 +891,10 @@ int main(int argc, char **argv) {
   free ( evecs_eval );
   free ( evecs_lambdainv );
 
-
-  /* free remaining clover matrix terms */
-  clover_term_fini( &g_mzz_up    );
-  clover_term_fini( &g_mzz_dn    );
-  clover_term_fini( &g_mzzinv_up );
-  clover_term_fini( &g_mzzinv_dn );
+  /* free clover matrix terms */
+  fini_clover ();
 
   free_geometry();
-
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
   tmLQCD_finalise();
