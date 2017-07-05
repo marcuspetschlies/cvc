@@ -82,15 +82,15 @@ void init_contract_cvc_tensor_usource(double *gauge_field, int source_coords[4],
     fprintf(stdout, "# [init_contract_cvc_tensor_usource] local source coordinates: %u = (%3d,%3d,%3d,%3d), is even = %d\n",
        source_location, sx[0], sx[1], sx[2], sx[3], source_location_iseven);
     if ( phase != NULL ) {
-      _cm_eq_cm_ti_co(Usource[0], &g_gauge_field[_GGI(source_location,0)], &phase[0]);
-      _cm_eq_cm_ti_co(Usource[1], &g_gauge_field[_GGI(source_location,1)], &phase[1]);
-      _cm_eq_cm_ti_co(Usource[2], &g_gauge_field[_GGI(source_location,2)], &phase[2]);
-      _cm_eq_cm_ti_co(Usource[3], &g_gauge_field[_GGI(source_location,3)], &phase[3]);
+      _cm_eq_cm_ti_co(Usource[0], &gauge_field[_GGI(source_location,0)], &phase[0]);
+      _cm_eq_cm_ti_co(Usource[1], &gauge_field[_GGI(source_location,1)], &phase[1]);
+      _cm_eq_cm_ti_co(Usource[2], &gauge_field[_GGI(source_location,2)], &phase[2]);
+      _cm_eq_cm_ti_co(Usource[3], &gauge_field[_GGI(source_location,3)], &phase[3]);
     } else {
-      _cm_eq_cm(Usource[0], &g_gauge_field[_GGI(source_location,0)] );
-      _cm_eq_cm(Usource[1], &g_gauge_field[_GGI(source_location,1)] );
-      _cm_eq_cm(Usource[2], &g_gauge_field[_GGI(source_location,2)] );
-      _cm_eq_cm(Usource[3], &g_gauge_field[_GGI(source_location,3)] );
+      _cm_eq_cm(Usource[0], &gauge_field[_GGI(source_location,0)] );
+      _cm_eq_cm(Usource[1], &gauge_field[_GGI(source_location,1)] );
+      _cm_eq_cm(Usource[2], &gauge_field[_GGI(source_location,2)] );
+      _cm_eq_cm(Usource[3], &gauge_field[_GGI(source_location,3)] );
     }
   }
 
