@@ -194,6 +194,14 @@ int main(int argc, char **argv) {
   mpi_init(argc, argv);
   mpi_init_xchange_contraction(2);
 
+  /******************************************************
+   * report git version
+   ******************************************************/
+  if ( g_cart_id == 0 ) {
+    fprintf(stdout, "# [p2gg_caa_lma] git version = %s\n", g_gitversion);
+  }
+
+
   /*********************************
    * set number of openmp threads
    *********************************/
