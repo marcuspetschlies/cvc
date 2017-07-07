@@ -418,45 +418,99 @@ int main(int argc, char **argv) {
     }
   }
 
-  /**********************************************************
-   * read up spinor fields
-   **********************************************************/
-  for(mu=0; mu<5; mu++) {
-    for(ia=0; ia<12; ia++) {
+  if ( g_read_propagator ) {
+    /**********************************************************
+     * read up spinor fields
+     **********************************************************/
+    for(mu=0; mu<5; mu++) {
+      for(ia=0; ia<12; ia++) {
 
-      get_filename(filename, mu, ia,  1 );
-      exitstatus = read_lime_spinor(g_spinor_field[mu*12+ia], filename, 0);
+        get_filename(filename, mu, ia,  1 );
+        exitstatus = read_lime_spinor(g_spinor_field[mu*12+ia], filename, 0);
       
-      if(exitstatus != 0) {
-        fprintf(stderr, "[p2gg_xspace] Error from read_lime_spinor, status was %d\n", exitstatus);
-        EXIT(7);
-      }
-      xchange_field(g_spinor_field[mu*12+ia]);
-    }  /* of loop on ia */
-  }    /* of loop on mu */
+        if(exitstatus != 0) {
+          fprintf(stderr, "[p2gg_xspace] Error from read_lime_spinor, status was %d\n", exitstatus);
+          EXIT(7);
+        }
+       xchange_field(g_spinor_field[mu*12+ia]);
+       }  /* of loop on ia */
+    }    /* of loop on mu */
 
-  /**********************************************************
-   * read dn spinor fields
-   **********************************************************/
-  for(mu=0; mu<5; mu++) {
-    for(ia=0; ia<12; ia++) {
+    /**********************************************************
+     * read dn spinor fields
+     **********************************************************/
+    for(mu=0; mu<5; mu++) {
+      for(ia=0; ia<12; ia++) {
 
-      if(ud_one_file) {
-        get_filename(filename, mu, ia,  1); 
-        exitstatus = read_lime_spinor(g_spinor_field[60+mu*12+ia], filename, 1);
-      } else {
-        get_filename(filename, mu, ia, -1);
-        exitstatus = read_lime_spinor(g_spinor_field[60+mu*12+ia], filename, 0);
-      }
+        if(ud_one_file) {
+          get_filename(filename, mu, ia,  1); 
+          exitstatus = read_lime_spinor(g_spinor_field[60+mu*12+ia], filename, 1);
+        } else {
+          get_filename(filename, mu, ia, -1);
+          exitstatus = read_lime_spinor(g_spinor_field[60+mu*12+ia], filename, 0);
+        }
 
-      if(exitstatus != 0) {
-        fprintf(stderr, "[p2gg_xspace] Error from read_lime_spinor, status was %d\n", exitstatus);
-        EXIT(7);
-      }
-      xchange_field(g_spinor_field[60+mu*12+ia]);
-    }  /* of loop on ia */
-  }    /* of loop on mu */
+        if(exitstatus != 0) {
+          fprintf(stderr, "[p2gg_xspace] Error from read_lime_spinor, status was %d\n", exitstatus);
+          EXIT(7);
+        }
+        xchange_field(g_spinor_field[60+mu*12+ia]);
+      }  /* of loop on ia */
+    }    /* of loop on mu */
   
+  } else {
+    /**********************************************************
+     * invert for up and dn propagator
+     **********************************************************/
+    for(mu=0; mu<5; mu++) {
+      int shifted_source_location[4] = { gsx0, gsx1, gsx2, gsx3 };
+      switch (mu) {
+        case 0: shifted_source_location[0] = ( shifted_source_location[0] + 1 ) % T_global; break;;
+        case 1: shifted_source_location[1] = ( shifted_source_location[1] + 1 ) % LX_global; break;;
+        case 2: shifted_source_location[2] = ( shifted_source_location[2] + 1 ) % LY_global; break;;
+        case 3: shifted_source_location[3] = ( shifted_source_location[3] + 1 ) % LZ_global; break;;
+      }
+
+      if ( g_cart_id == 0 ) {
+        fprintf(stdout, "# [] shifted source coords = %3d %3d %3d %3d\n",
+            shifted_source_location[0], shifted_source_location[1], shifted_source_location[2], shifted_source_location[3]);
+      }
+
+      /* loop on spin color */
+      for(ia=0; ia<12; ia++) {
+        memset( g_spinor_field[   mu*12+ia], 0, _GSI(VOLUME) * sizeof(double) );
+        memset( g_spinor_field[60+mu*12+ia], 0, _GSI(VOLUME) * sizeof(double) );
+
+        int have_source = ( shifted_source_location[0] / T  == g_proc_coords[0] &&
+                            shifted_source_location[1] / LX == g_proc_coords[1] &&
+                            shifted_source_location[1] / LY == g_proc_coords[1] &&
+                            shifted_source_location[1] / LZ == g_proc_coords[1] );
+
+        memset ( source, 0, _GSI(VOLUME) * sizeof(double) );
+        propagator = g_spinor_field[mu*12+ia];
+        if ( have_source ) {
+          fprintf(stdout, "# [p2gg_xspace] process %d has the shifted source\n", g_cart_id);
+          source[_GSI(g_ipt[shifted_source_location[0] % T][shifted_source_location[1] % LX][shifted_source_location[2] % LY][shifted_source_location[3] % LZ]) + 2*ia] = 1.;
+        } 
+
+        /* up propagator */
+        exitstatus = tmLQCD_invert(propagator, source, 0, 0);
+        if(exitstatus != 0) {
+          fprintf(stderr, "[p2gg_xspace] Error from tmLQCD_invert, status was %d\n", exitstatus);
+          EXIT(12);
+        }
+
+        propagator = g_spinor_field[60+mu*12+ia];
+        /* dn propagator */
+        exitstatus = tmLQCD_invert(propagator, source, 1, 0);
+        if(exitstatus != 0) {
+          fprintf(stderr, "[p2gg_xspace] Error from tmLQCD_invert, status was %d\n", exitstatus);
+          EXIT(12);
+        }
+      }  /* end of loop on spini-color */
+    }  /* end of loop on shifts mu */
+
+  }  /* end of if read propagator else */
 
   /***************************************************************************
    * loop on sequential source time slices
@@ -1128,10 +1182,12 @@ int main(int argc, char **argv) {
     /* real part */
     conn_buffer[0][2*ix  ] += sequential_source_gamma_id_sign[ sequential_source_gamma_id ] * conn_buffer[1][2*ix  ];
     conn_buffer[0][2*ix  ] *= -0.25;
+    /* conn_buffer[0][2*ix  ] *= 0.25; */
 
     /* imaginary part */
     conn_buffer[0][2*ix+1] -= sequential_source_gamma_id_sign[ sequential_source_gamma_id ] * conn_buffer[1][2*ix+1];
     conn_buffer[0][2*ix+1] *= -0.25;
+    /* conn_buffer[0][2*ix+1] *= 0.25; */
   }
 
 #ifdef HAVE_MPI
@@ -1149,6 +1205,20 @@ int main(int argc, char **argv) {
       g_cart_id, contact_term[0], contact_term[1], contact_term[2], contact_term[3],
       contact_term[4], contact_term[5], contact_term[6], contact_term[7]);
 #endif
+
+  /* subtact the contact term */
+  if(g_cart_id == have_source_flag) {
+    ix = g_ipt[sx0][sx1][sx2][sx3];
+    conn_buffer[0][_GWI( 0,ix,VOLUME)  ] -= contact_term[0];
+    conn_buffer[0][_GWI( 0,ix,VOLUME)+1] -= contact_term[1];
+    conn_buffer[0][_GWI( 5,ix,VOLUME)  ] -= contact_term[2];
+    conn_buffer[0][_GWI( 5,ix,VOLUME)+1] -= contact_term[3];
+    conn_buffer[0][_GWI(10,ix,VOLUME)  ] -= contact_term[4];
+    conn_buffer[0][_GWI(10,ix,VOLUME)+1] -= contact_term[5];
+    conn_buffer[0][_GWI(15,ix,VOLUME)  ] -= contact_term[6];
+    conn_buffer[0][_GWI(15,ix,VOLUME)+1] -= contact_term[7];
+  }
+
 
 
   /* save results */
