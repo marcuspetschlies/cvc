@@ -49,6 +49,9 @@ int contract_local_cvc_2pt_eo ( double**sprop_list_e, double**sprop_list_o, doub
   int *gamma_sink_list, int gamma_sink_num, int (*momentum_list)[3], int momentum_number,  struct AffWriter_s*affw, char*tag,
   int io_proc );
 
+int cvc_tensor_eo_write_contact_term_to_aff_file ( double *contact_term, struct AffWriter_s*affw, char *tag, int io_proc );
+
+
 }  /* end of namespace cvc */
 
 #endif
