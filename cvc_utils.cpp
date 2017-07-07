@@ -6322,6 +6322,36 @@ void complex_field_eq_complex_field_conj_ti_re (double *r, double c, unsigned in
   }
 }  /* end of complex_field_eq_complex_field_conj_ti_re */
 
+/* r = s + conj( t ) * c
+ * N is the number of complex elements in r,s and t
+ * */
+void complex_field_eq_complex_field_pl_complex_field_conj_ti_re (double*r, double*s, double*t, double c, unsigned int N) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  double *rr, *ss, *tt;
+  unsigned int iix;
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for( unsigned int ix = 0; ix < N; ix++ ) {
+    iix = 2 * ix;
+    rr  = r + iix;
+    ss  = s + iix;
+    tt  = t + iix;
+
+    rr[0] =  ss[0] + tt[0] * c;
+    rr[1] =  ss[1] - tt[1] * c;
+  }  /* end of loop on ix */
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+}  /* end of complex_field_eq_complex_field_pl_complex_field_ti_re */
+
+
+
 /***********************************************************
  * calculate plaquettes in four different ways
  *   +mu, +nu direction

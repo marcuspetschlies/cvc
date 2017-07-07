@@ -152,6 +152,8 @@ void complex_field_ti_eq_re (double *r, double c, unsigned int N);
 
 void complex_field_eq_complex_field_conj_ti_re (double *r, double c, unsigned int N);
 
+void complex_field_eq_complex_field_pl_complex_field_conj_ti_re (double*r, double*s, double*t, double c, unsigned int N);
+
 int check_point_source_propagator_clover_eo(double**prop_e, double**prop_o, double**work, double*gf, double**mzz, double**mzzinv, int gcoords[4], int nf );
 
 int check_oo_propagator_clover_eo(double**prop_o, double**source, double**work, double*gf, double**mzz, double**mzzinv, int nf );
