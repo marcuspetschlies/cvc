@@ -85,7 +85,7 @@
 #define _ONE_OVER_SQRT2 (0.707106781186548)
 
 #define MAX_M_M_2PT_NUM 16
-#define MAX_MXB_MXB_2PT_NUM 16
+#define MAX_MXB_MXB_2PT_NUM 320
 #define MAX_SOURCE_LOCATION_NUMBER 128
 
 #define MAX_MOMENTUM_NUMBER 300
@@ -240,6 +240,7 @@ EXTERN tmLQCD_deflator_params g_tmLQCD_defl;
 
 EXTERN m_m_2pt_type g_m_m_2pt_list[MAX_M_M_2PT_NUM];
 EXTERN int g_m_m_2pt_num;
+
 EXTERN mxb_mxb_2pt_type g_mxb_mxb_2pt_list[MAX_MXB_MXB_2PT_NUM];
 EXTERN int g_mxb_mxb_2pt_num;
 
