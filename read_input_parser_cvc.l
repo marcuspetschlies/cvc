@@ -202,6 +202,7 @@ namespace cvc {
 %x SRCSNKTIMESEP
 %x COHERENTSOURCENUMBER
 %x VERBOSITYLEVEL
+%x TOTALMOMENTUM
 
 %%
 ^T{SPC}*={SPC}*                            BEGIN(TT);
@@ -346,6 +347,7 @@ namespace cvc {
 ^seq2_source_momentum_y{SPC}*={SPC}*       BEGIN(SEQ2SRCMOMY);
 ^seq2_source_momentum_z{SPC}*={SPC}*       BEGIN(SEQ2SRCMOMZ);
 ^seq2_source_momentum{SPC}*={SPC}*         BEGIN(SEQ2SRCMOM);
+^total_momentum{SPC}*={SPC}*               BEGIN(TOTALMOMENTUM);
 ^cpu_precision{SPC}*={SPC}*                BEGIN(CPUPREC);
 ^gpu_precision{SPC}*={SPC}*                BEGIN(GPUPREC);
 ^gpu_precision_sloppy{SPC}*={SPC}*         BEGIN(GPUPRECSLOPPY);
@@ -1032,6 +1034,14 @@ namespace cvc {
       cvc::g_seq2_source_momentum_list[cvc::g_seq2_source_momentum_number]+1, cvc::g_seq2_source_momentum_list[cvc::g_seq2_source_momentum_number]+2);
   cvc::g_seq2_source_momentum_number++;
   if(cvc::myverbose!=0) printf("# [read_input_parser] added sequential^2 source momentum %s to list; total number is now %d\n", yytext, cvc::g_seq2_source_momentum_number);
+}
+
+
+<TOTALMOMENTUM>{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
+  sscanf(yytext, "%d,%d,%d", cvc::g_total_momentum_list[cvc::g_total_momentum_number],
+      cvc::g_total_momentum_list[cvc::g_total_momentum_number]+1, cvc::g_total_momentum_list[cvc::g_total_momentum_number]+2);
+  cvc::g_total_momentum_number++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] added total momentum %s to list; total number is now %d\n", yytext, cvc::g_total_momentum_number);
 }
 
 <CPUPREC>{NAME} {
