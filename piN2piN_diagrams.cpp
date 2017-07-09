@@ -90,11 +90,14 @@ int main(int argc, char **argv) {
   const int gamma_f2_number = 1;
   int gamma_f2_list[gamma_f2_number]    = {  5 };
   double gamma_f2_sign[gamma_f2_number] = { +1 };
-
-
+/*
   const int gamma_f1_nucleon_number = 4;
   int gamma_f1_nucleon_list[gamma_f1_nucleon_number]    = {  5,  4,  6,  0 };
   double gamma_f1_nucleon_sign[gamma_f1_nucleon_number] = { +1, +1, +1, +1 };
+*/
+  const int gamma_f1_nucleon_number = 3;
+  int gamma_f1_nucleon_list[gamma_f1_nucleon_number]    = {  5,  4,  6 };
+  double gamma_f1_nucleon_sign[gamma_f1_nucleon_number] = { +1, +1, +1 };
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
@@ -186,7 +189,6 @@ int main(int argc, char **argv) {
     g_source_coords_list[i][2] = ( g_source_coords_list[i][2] + LY_global ) % LY_global;
     g_source_coords_list[i][3] = ( g_source_coords_list[i][3] + LZ_global ) % LZ_global;
   }
-
 
   /******************************************************/
   /******************************************************/
@@ -327,14 +329,46 @@ int main(int argc, char **argv) {
         }  /* end of loop on samples */
       }  /* end of loop on sink momentum pf1 */
 
+      for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ ) {
 
-      for ( int igf1 = 0; igf1 < gamma_f1_nucleon_number; igf1++ ) {
+        int **sink_momentum_list = NULL, **sink_momentum_list_all = NULL;
+        exitstatus = init_2level_ibuffer ( &sink_momentum_list, g_seq2_source_momentum_number, 3 );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[piN2piN_diagrams] Error from init_2level_ibuffer, status was %d\n", exitstatus );
+          EXIT(1);
+        }
+        exitstatus = init_2level_ibuffer ( &sink_momentum_list_all, g_sink_momentum_number, 3 );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[piN2piN_diagrams] Error from init_2level_ibuffer, status was %d\n", exitstatus );
+          EXIT(1);
+        }
+        for ( int ipf1 = 0; ipf1 < g_sink_momentum_number; ipf1++ ) {
+          sink_momentum_list_all[ipf1][0] = g_sink_momentum_list[ipf1][0];
+          sink_momentum_list_all[ipf1][1] = g_sink_momentum_list[ipf1][1];
+          sink_momentum_list_all[ipf1][2] = g_sink_momentum_list[ipf1][2];
+        }
+        for ( int ipf1 = 0; ipf1 < g_seq2_source_momentum_number; ipf1++ ) {
+          sink_momentum_list[ipf1][0] = g_total_momentum_list[iptot][0] - g_seq2_source_momentum_list[ipf1][0];
+          sink_momentum_list[ipf1][1] = g_total_momentum_list[iptot][1] - g_seq2_source_momentum_list[ipf1][1];
+          sink_momentum_list[ipf1][2] = g_total_momentum_list[iptot][2] - g_seq2_source_momentum_list[ipf1][2];
+        }
+        int *sink_momentum_id = NULL;
+        exitstatus = match_momentum_id ( &sink_momentum_id, sink_momentum_list, sink_momentum_list_all, g_seq2_source_momentum_number, g_sink_momentum_number );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[piN2piN_diagrams] Error from match_momentum_id, status was %d\n", exitstatus );
+          EXIT(1);
+        }
+        fini_2level_ibuffer ( &sink_momentum_list );
+        fini_2level_ibuffer ( &sink_momentum_list_all );
 
-        for ( int ipi2 = 0; ipi2 < g_seq_source_momentum_number; ipi2++ ) {
+        for ( int ipf2 = 0; ipf2 < g_seq2_source_momentum_number; ipf2++ ) {
 
-          for ( int ipf2 = 0; ipf2 < g_seq2_source_momentum_number; ipf2++ ) {
+          int ipf1 = sink_momentum_id[ipf2];
+          if ( ipf1 == -1 ) continue;
+           
+          for ( int igf1 = 0; igf1 < gamma_f1_nucleon_number; igf1++ ) {
 
-            for ( int ipf1 = 0; ipf1 < g_sink_momentum_number; ipf1++ ) {
+            for ( int ipi2 = 0; ipi2 < g_seq_source_momentum_number; ipi2++ ) {
 
               for ( int igi1 = 0; igi1 < gamma_f1_nucleon_number; igi1++ ) {
 
@@ -353,9 +387,11 @@ int main(int argc, char **argv) {
 
                 gamma_matrix_mult ( &C_gi1, &gamma_C, &gi1 );
                 gamma_matrix_transposed ( &C_gi1, &C_gi1);
-                char name[20];
-                sprintf(name, "C_g%.2d_transposed", gi1.id);
-                gamma_matrix_printf (&C_gi1, name, stdout);
+                if ( g_verbose > 2 ) {
+                  char name[20];
+                  sprintf(name, "C_g%.2d_transposed", gi1.id);
+                  gamma_matrix_printf (&C_gi1, name, stdout);
+                }
 
                 for ( int isample = 0; isample < g_nsample; isample++ ) {
                   exitstatus = contract_diagram_v2_gamma_v3 ( diagram_buffer, b1phi[igf1][ipf1][isample], b1xi[ipi2][0][ipf2][isample], C_gi1, perm, T_global, (int)(isample==0) );
@@ -408,10 +444,13 @@ int main(int argc, char **argv) {
                   EXIT(105);
                 }
               }  /* end of loop on Gamma_i1 */
-            }  /* end of loop on p_f1 */
-          }  /* end of loop on p_f2 */
-        }  /* end of loop on p_i2 */
-      }  /* end of loop on Gamma_f1 */
+            }  /* end of loop on p_i2 */
+          }  /* end of loop on Gamma_f1 */
+        }  /* end of loop on p_f2 */
+
+        free ( sink_momentum_id );
+
+      }  /* end of loop on p_tot */
 
       fini_5level_zbuffer ( &b1phi );
 
@@ -520,20 +559,53 @@ int main(int argc, char **argv) {
         }  /* end of loop on Gamma_f1 */
       }  /* end of loop on seq source momentum pi2 */
 
-      for ( int igf1 = 0; igf1 < gamma_f1_nucleon_number; igf1++ ) {
+      for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ ) {
 
-        for ( int ipi2 = 0; ipi2 < g_seq_source_momentum_number; ipi2++ ) {
+        int **sink_momentum_list = NULL, **sink_momentum_list_all = NULL;
+        exitstatus = init_2level_ibuffer ( &sink_momentum_list, g_seq2_source_momentum_number, 3 );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[piN2piN_diagrams] Error from init_2level_ibuffer, status was %d\n", exitstatus );
+          EXIT(1);
+        }
+        exitstatus = init_2level_ibuffer ( &sink_momentum_list_all, g_sink_momentum_number, 3 );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[piN2piN_diagrams] Error from init_2level_ibuffer, status was %d\n", exitstatus );
+          EXIT(1);
+        }
+        for ( int ipf1 = 0; ipf1 < g_seq2_source_momentum_number; ipf1++ ) {
+          sink_momentum_list[ipf1][0] = g_total_momentum_list[iptot][0] - g_seq2_source_momentum_list[ipf1][0];
+          sink_momentum_list[ipf1][1] = g_total_momentum_list[iptot][1] - g_seq2_source_momentum_list[ipf1][1];
+          sink_momentum_list[ipf1][2] = g_total_momentum_list[iptot][2] - g_seq2_source_momentum_list[ipf1][2];
+        }
+        for ( int ipf1 = 0; ipf1 < g_sink_momentum_number; ipf1++ ) {
+          sink_momentum_list_all[ipf1][0] = g_sink_momentum_list[ipf1][0];
+          sink_momentum_list_all[ipf1][1] = g_sink_momentum_list[ipf1][1];
+          sink_momentum_list_all[ipf1][2] = g_sink_momentum_list[ipf1][2];
+        }
+        int *sink_momentum_id = NULL;
+        exitstatus = match_momentum_id ( &sink_momentum_id, sink_momentum_list, sink_momentum_list_all, g_seq2_source_momentum_number, g_sink_momentum_number );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[piN2piN_diagrams] Error from match_momentum_id, status was %d\n", exitstatus );
+          EXIT(1);
+        }
+        fini_2level_ibuffer ( &sink_momentum_list );
+        fini_2level_ibuffer ( &sink_momentum_list_all );
 
-          for ( int ipf2 = 0; ipf2 < g_seq2_source_momentum_number; ipf2++ ) {
+        for ( int ipf2 = 0; ipf2 < g_seq2_source_momentum_number; ipf2++ ) {
 
-            for ( int ipf1 = 0; ipf1 < g_sink_momentum_number; ipf1++ ) {
+          int ipf1 = sink_momentum_id[ipf2];
+          if ( ipf1 == -1 ) continue;
+
+          for ( int igf1 = 0; igf1 < gamma_f1_nucleon_number; igf1++ ) {
+
+            for ( int ipi2 = 0; ipi2 < g_seq_source_momentum_number; ipi2++ ) {
 
               for ( int igi1 = 0; igi1 < gamma_f1_nucleon_number; igi1++ ) {
 
                 char aff_tag_suffix[200];
                 sprintf(aff_tag_suffix, "pi2x%.2dpi2y%.2dpi2z%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d",
                     g_seq_source_momentum_list[ipi2][0],  g_seq_source_momentum_list[ipi2][1],  g_seq_source_momentum_list[ipi2][2],
-                    g_sink_momentum_list[ipf1][0],        g_sink_momentum_list[ipf1][1],        g_sink_momentum_list[ipf1][2],
+                    g_sink_momentum_list[ipf1][0], g_sink_momentum_list[ipf1][1], g_sink_momentum_list[ipf1][2],
                     g_seq2_source_momentum_list[ipf2][0], g_seq2_source_momentum_list[ipf2][1], g_seq2_source_momentum_list[ipf2][2],
                     gsx[0], gsx[1], gsx[2], gsx[3],
                     gamma_f1_nucleon_list[igf1], gamma_f1_nucleon_list[igi1]);
@@ -545,9 +617,11 @@ int main(int argc, char **argv) {
                 gamma_matrix_set  ( &gi1, gamma_f1_nucleon_list[igi1], gamma_f1_nucleon_sign[igi1] );
                 gamma_matrix_mult ( &C_gi1, &gamma_C, &gi1 );
                 /* gamma_matrix_transposed ( &C_gi1, &C_gi1); */
-                char name[20];
-                sprintf(name, "C_g%.2d", gi1.id);
-                gamma_matrix_printf (&C_gi1, name, stdout);
+                if ( g_verbose > 2 ) {
+                  char name[20];
+                  sprintf(name, "C_g%.2d", gi1.id);
+                  gamma_matrix_printf (&C_gi1, name, stdout);
+                }
 
                 for ( int isample = 0; isample < g_nsample; isample++ ) {
                   exitstatus = contract_diagram_v2_gamma_v3 ( diagram_buffer, w1phi[ipi2][igf1][ipf1][isample], w1xi[0][ipf2][isample], C_gi1, perm, T_global, (int)(isample==0) );
@@ -657,15 +731,21 @@ int main(int argc, char **argv) {
                 }
 
               }  /* end of loop on Gamma_i1 */
-            }  /* end of loop on p_f1 */
-          }  /* end of loop on p_f2 */
-        }  /* end of loop on p_i2 */
-      }  /* end of loop on Gamma_f1 */
+            }  /* end of loop on p_i2 */
+          }  /* end of loop on Gamma_f1 */
+
+        }  /* end of loop on p_f2 */
+
+        free ( sink_momentum_id );
+
+      }  /* end of loop on p_tot */
 
       fini_6level_zbuffer ( &w1phi );
       fini_6level_zbuffer ( &w3phi );
 
       fini_5level_zbuffer ( &w1xi );
+#if 0
+#endif  /* of if 0 */
 
     }  /* end of loop on coherent source locations */
 
@@ -873,20 +953,54 @@ int main(int argc, char **argv) {
       /*******************************************/
       /*******************************************/
 
-      for ( int igf1 = 0; igf1 < gamma_f1_nucleon_number; igf1++ ) {
 
-        for ( int ipi2 = 0; ipi2 < g_seq_source_momentum_number; ipi2++ ) {
+      for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ ) {
 
-          for ( int ipf2 = 0; ipf2 < g_seq2_source_momentum_number; ipf2++ ) {
+        int **sink_momentum_list = NULL, **sink_momentum_list_all = NULL;
+        exitstatus = init_2level_ibuffer ( &sink_momentum_list, g_seq2_source_momentum_number, 3 );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[piN2piN_diagrams] Error from init_2level_ibuffer, status was %d\n", exitstatus );
+          EXIT(1);
+        }
+        exitstatus = init_2level_ibuffer ( &sink_momentum_list_all, g_sink_momentum_number, 3 );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[piN2piN_diagrams] Error from init_2level_ibuffer, status was %d\n", exitstatus );
+          EXIT(1);
+        }
+        for ( int ipf1 = 0; ipf1 < g_sink_momentum_number; ipf1++ ) {
+          sink_momentum_list_all[ipf1][0] = g_sink_momentum_list[ipf1][0];
+          sink_momentum_list_all[ipf1][1] = g_sink_momentum_list[ipf1][1];
+          sink_momentum_list_all[ipf1][2] = g_sink_momentum_list[ipf1][2];
+        }
+        for ( int ipf1 = 0; ipf1 < g_seq2_source_momentum_number; ipf1++ ) {
+          sink_momentum_list[ipf1][0] = g_total_momentum_list[iptot][0] - g_seq2_source_momentum_list[ipf1][0];
+          sink_momentum_list[ipf1][1] = g_total_momentum_list[iptot][1] - g_seq2_source_momentum_list[ipf1][1];
+          sink_momentum_list[ipf1][2] = g_total_momentum_list[iptot][2] - g_seq2_source_momentum_list[ipf1][2];
+        }
+        int *sink_momentum_id = NULL;
+        exitstatus = match_momentum_id ( &sink_momentum_id, sink_momentum_list, sink_momentum_list_all, g_seq2_source_momentum_number, g_sink_momentum_number );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[piN2piN_diagrams] Error from match_momentum_id, status was %d\n", exitstatus );
+          EXIT(1);
+        }
+        fini_2level_ibuffer ( &sink_momentum_list );
+        fini_2level_ibuffer ( &sink_momentum_list_all );
 
-            for ( int ipf1 = 0; ipf1 < g_sink_momentum_number; ipf1++ ) {
+        for ( int ipf2 = 0; ipf2 < g_seq2_source_momentum_number; ipf2++ ) {
+
+          int ipf1 = sink_momentum_id[ipf2];
+          if ( ipf1 == -1 ) continue;
+
+          for ( int igf1 = 0; igf1 < gamma_f1_nucleon_number; igf1++ ) {
+
+            for ( int ipi2 = 0; ipi2 < g_seq_source_momentum_number; ipi2++ ) {
 
               for ( int igi1 = 0; igi1 < gamma_f1_nucleon_number; igi1++ ) {
 
                 char aff_tag_suffix[200];
                 sprintf(aff_tag_suffix, "pi2x%.2dpi2y%.2dpi2z%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d",
                     g_seq_source_momentum_list[ipi2][0],  g_seq_source_momentum_list[ipi2][1],  g_seq_source_momentum_list[ipi2][2],
-                    g_sink_momentum_list[ipf1][0],        g_sink_momentum_list[ipf1][1],        g_sink_momentum_list[ipf1][2],
+                    g_sink_momentum_list[ipf1][0], g_sink_momentum_list[ipf1][1], g_sink_momentum_list[ipf1][2],
                     g_seq2_source_momentum_list[ipf2][0], g_seq2_source_momentum_list[ipf2][1], g_seq2_source_momentum_list[ipf2][2],
                     gsx[0], gsx[1], gsx[2], gsx[3],
                     gamma_f1_nucleon_list[igf1], gamma_f1_nucleon_list[igi1]);
@@ -897,8 +1011,10 @@ int main(int argc, char **argv) {
                 gamma_matrix_set  ( &gi1, gamma_f1_nucleon_list[igi1], gamma_f1_nucleon_sign[igi1] );
                 gamma_matrix_mult ( &C_gi1, &gamma_C, &gi1 );
                 /* gamma_matrix_transposed ( &C_gi1, &C_gi1); */
-                sprintf(name, "C_g%.2d", gi1.id);
-                gamma_matrix_printf (&C_gi1, name, stdout);
+                if ( g_verbose > 2 ) {
+                  sprintf(name, "C_g%.2d", gi1.id);
+                  gamma_matrix_printf (&C_gi1, name, stdout);
+                }
 
                 /* Z_1 */
                 perm[0] = 0;
@@ -1002,10 +1118,13 @@ int main(int argc, char **argv) {
                 }
 
               }  /* end of loop on Gamma_i1 */
-            }  /* end of loop on p_f1 */
-          }  /* end of loop on p_f2 */
-        }  /* end of loop on p_i2 */
-      }  /* end of loop on Gamma_f1 */
+            }  /* end of loop on p_i2 */
+          }  /* end of loop on Gamma_f1 */
+        }  /* end of loop on p_f2 */
+
+        free ( sink_momentum_id );
+
+      }  /* end of loop on p_tot */
 
       fini_6level_zbuffer ( &z1phi );
       fini_6level_zbuffer ( &z3phi );
@@ -1027,6 +1146,8 @@ int main(int argc, char **argv) {
     fini_2level_zbuffer ( &diagram_buffer );
 
   }  /* end of loop on base source locations */
+#if 0
+#endif  /* of if 0 */
 
   /*******************************************
    * finalize
