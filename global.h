@@ -250,6 +250,9 @@ EXTERN int g_fermion_type;
 
 EXTERN int g_coherent_source_number;
 
+EXTERN int g_total_momentum_list[MAX_MOMENTUM_NUMBER][3], g_total_momentum_number;
+
+
 }
 
 #endif
