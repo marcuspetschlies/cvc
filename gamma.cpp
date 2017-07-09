@@ -80,6 +80,13 @@ void gamma_matrix_fill ( gamma_matrix_type *g) {
 
 }  /* end of gamma_matrix_fill */
 
+void gamma_matrix_set ( gamma_matrix_type *g, int id, double s ) {
+  gamma_matrix_init ( g );
+  g->id = id;
+  g->s  = s;
+  gamma_matrix_fill ( g );
+}  /* end of gamma_matrix_set */
+
 void gamma_matrix_printf (gamma_matrix_type *g, char*name, FILE*ofs) {
 
   fprintf(ofs, "%s <- array(dim=c(4,4))\n", name);

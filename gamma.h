@@ -33,5 +33,7 @@ void gamma_matrix_eq_gamma_matrix_adjoint ( gamma_matrix_type *g, gamma_matrix_t
 
 void init_gamma_matrix (void);
 
+void gamma_matrix_set ( gamma_matrix_type *g, int id, double s );
+
 }
 #endif
