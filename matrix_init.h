@@ -57,6 +57,20 @@ int init_4level_zbuffer (double _Complex*****zbuffer, unsigned int n1, unsigned 
 
 int fini_4level_zbuffer (double _Complex*****zbuffer);
 
+/************************************************************************************
+ * (de-)allocate 5-level zbuffer (n1 x n2 x n3 x n4 x n5 matrix)
+ ************************************************************************************/
+int init_5level_zbuffer (double _Complex******zbuffer, unsigned int n1, unsigned int n2, unsigned int n3, unsigned int n4, unsigned int n5);
+
+int fini_5level_zbuffer (double _Complex******zbuffer );
+
+/************************************************************************************
+ * (de-)allocate 6-level zbuffer (n1 x n2 x n3 x n4 x n5 x n6 matrix)
+ ************************************************************************************/
+int init_6level_zbuffer (double _Complex*******zbuffer, unsigned int n1, unsigned int n2, unsigned int n3, unsigned int n4, unsigned int n5, unsigned int n6);
+
+int fini_6level_zbuffer (double _Complex*******zbuffer );
+
 }  /* end of namespace cvc */
 
 #endif
