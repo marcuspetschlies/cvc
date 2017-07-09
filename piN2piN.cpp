@@ -64,87 +64,7 @@ extern "C"
 #include "prepare_propagator.h"
 #include "contract_baryon.h"
 
-#include <string>
-#include <iostream>
-#include <iomanip>
-
 using namespace cvc;
-
-
-/**
- * class for time measurement
- */
-
-class TimeMeas{
-
-private:
-  double t;
-  std::string secname;
-
-public:
-
-  TimeMeas() {};
-
-  void begin(std::string name){
-    end();
-    t = _GET_TIME;
-    secname = name;
-  }
-
-  void end(){
-    if(secname == "") return;
-    int world_rank = 0;
-#ifdef HAVE_MPI
-    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-#endif
-    if(world_rank != 0) return;
-    double dt = _GET_TIME - t;
-    std::cout << "# [GlobTimeMeas] (" << g_proc_coords[0] << "," << g_proc_coords[1] << "," << g_proc_coords[2] << "," << g_proc_coords[3] << ") section " << secname << " finished in " << std::setprecision(4) << ((float)dt) << "s" << std::endl;
-    secname = "";
-    t = 0;
-  }
-
-
-};
-
-/*
- * Functions to reduce output
- * */
-int mpi_fprintf(FILE* stream, const char * format, ...){
-  int world_rank = 0;
-#ifdef HAVE_MPI
-  MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-#endif
-  if(world_rank == 0){
-    va_list arg;
-    int done;
-
-    va_start(arg,format);
-    done = vfprintf(stream,format,arg);
-    va_end(arg);
-
-    return done;
-  }
-  return 0;
-}
-
-int mpi_printf(const char * format, ...){
-  int world_rank = 0;
-#ifdef HAVE_MPI
-  MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-#endif
-  if(world_rank == 0){
-    va_list arg;
-    int done;
-
-    va_start(arg,format);
-    done = vfprintf(stdout,format,arg);
-    va_end(arg);
-
-    return done;
-  }
-  return 0;
-}
 
 /************************************************************************************
  * determine all stochastic source timeslices needed; make a source timeslice list
@@ -249,10 +169,10 @@ int get_stochastic_source_timeslices (void) {
  * usage function
  ***********************************************************/
 void usage() {
-  mpi_fprintf(stdout, "Code to perform contractions for piN 2-pt. function\n");
-  mpi_fprintf(stdout, "Usage:    [options]\n");
-  mpi_fprintf(stdout, "Options: -f input filename [default cvc.input]\n");
-  mpi_fprintf(stdout, "         -h? this help\n");
+  fprintf(stdout, "Code to perform contractions for piN 2-pt. function\n");
+  fprintf(stdout, "Usage:    [options]\n");
+  fprintf(stdout, "Options: -f input filename [default cvc.input]\n");
+  fprintf(stdout, "         -h? this help\n");
 #ifdef HAVE_MPI
   MPI_Abort(MPI_COMM_WORLD, 1);
   MPI_Finalize();
@@ -290,17 +210,26 @@ int main(int argc, char **argv) {
   int icomp, iseq_mom, iseq2_mom;
   double **propagator_list_up = NULL, **propagator_list_dn = NULL, **sequential_propagator_list = NULL, **stochastic_propagator_list = NULL,
          **stochastic_source_list = NULL;
-  double *gauge_field_smeared = NULL;
-  TimeMeas tm;
+  double *gauge_field_smeared = NULL, *tmLQCD_gauge_field = NULL;
+  int read_stochastic_source = 0;
+  int read_stochastic_propagator = 0;
+
 
 /*******************************************************************
  * Gamma components for the piN and Delta:
  *                                                                 */
 // gamma_6 = 0_5
 // gamma_4 = id
-  const int num_component_piN_piN        = 9;
-  int gamma_component_piN_piN[9][2]      = { {5, 5}, {4,4}, {6,6}, {5,4}, {5,6}, {4,5}, {4,6}, {6,5}, {6,4} };
-  double gamma_component_sign_piN_piN[9] = {+1, +1, +1, +1, +1, +1, +1, +1, +1};
+
+  const int num_component_piN_piN = 9;
+  int gamma_component_piN_piN[num_component_piN_piN][2]      = { {5, 5}, {4,4}, {6,6}, {5,4}, {5,6}, {4,5}, {4,6}, {6,5}, {6,4} };
+  double gamma_component_sign_piN_piN[num_component_piN_piN] = {     +1,    +1,    +1,    +1,    +1,    +1,    +1,    +1,    +1 };
+
+/*
+  const int num_component_piN_piN        = 1;
+  int gamma_component_piN_piN[num_component_piN_piN][2]      = { {5, 5} };
+  double gamma_component_sign_piN_piN[num_component_piN_piN] = {+1 };
+*/
 
   const int num_component_N_N        = 9;
   int gamma_component_N_N[9][2]      = { {5, 5}, {4,4}, {6,6}, {5,4}, {5,6}, {4,5}, {4,6}, {6,5}, {6,4} };
@@ -331,11 +260,19 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:")) != -1) {
+  while ((c = getopt(argc, argv, "rRh?f:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
       filename_set=1;
+      break;
+    case 'r':
+      read_stochastic_source = 1;
+      fprintf(stdout, "# [piN2piN] will read stochastic source\n");
+      break;
+    case 'R':
+      read_stochastic_propagator = 1;
+      fprintf(stdout, "# [piN2piN] will read stochastic propagator\n");
       break;
     case 'h':
     case '?':
@@ -347,19 +284,19 @@ int main(int argc, char **argv) {
 
   /* set the default values */
   if(filename_set==0) strcpy(filename, "cvc.input");
-  mpi_fprintf(stdout, "# reading input from file %s\n", filename);
+  fprintf(stdout, "# reading input from file %s\n", filename);
   read_input_parser(filename);
 
   if(g_fermion_type == -1 ) {
     fprintf(stderr, "# [piN2piN] fermion_type must be set\n");
     exit(1);
   } else {
-    mpi_fprintf(stdout, "# [piN2piN] using fermion type %d\n", g_fermion_type);
+    fprintf(stdout, "# [piN2piN] using fermion type %d\n", g_fermion_type);
   }
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
 
-  mpi_fprintf(stdout, "# [piN2piN] calling tmLQCD wrapper init functions\n");
+  // fprintf(stdout, "# [piN2piN] calling tmLQCD wrapper init functions\n");
 
   /*********************************
    * initialize MPI parameters for cvc
@@ -382,7 +319,7 @@ int main(int argc, char **argv) {
 #ifdef HAVE_OPENMP
   omp_set_num_threads(g_num_threads);
 #else
-  mpi_fprintf(stdout, "[piN2piN] Warning, resetting global thread number to 1\n");
+  fprintf(stdout, "[piN2piN] Warning, resetting global thread number to 1\n");
   g_num_threads = 1;
 #endif
 
@@ -767,7 +704,7 @@ int main(int argc, char **argv) {
     free(prop_list);
   }  /* end of loop on sequential momentum list */
 
-
+#if 0
   for(i_src=0; i_src < g_source_location_number; i_src++ ) {
     int t_base = g_source_coords_list[i_src][0];
 
@@ -797,6 +734,8 @@ int main(int argc, char **argv) {
       }
     }  /* end of if io_proc == 2 */
 #endif
+
+
 
   /******************************************************
    ******************************************************
@@ -836,7 +775,7 @@ int main(int argc, char **argv) {
 
       for(i=0; i<2; i++) {
         /* phase from quark field boundary condition */
-        add_baryon_boundary_phase (conn_X[i], gsx[0], num_component_N_N);
+        // add_baryon_boundary_phase (conn_X[i], gsx[0], num_component_N_N);
 
         /* momentum projection */
         double ****connt = NULL;
@@ -888,7 +827,8 @@ int main(int argc, char **argv) {
 
               affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
               for(it=0; it<T_global; it++) {
-                ir = ( it - gsx[0] + T_global ) % T_global;
+                // ir = ( it - gsx[0] + T_global ) % T_global;
+                ir = it;
                 memcpy(aff_buffer + ir*g_sv_dim*g_sv_dim,  buffer[it][k][icomp*g_sv_dim] , g_sv_dim*g_sv_dim*sizeof(double _Complex) );
               }
               int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
@@ -928,7 +868,7 @@ int main(int argc, char **argv) {
 
       for(i=0; i<6; i++) {
         /* phase from quark field boundary condition */
-        add_baryon_boundary_phase (conn_X[i], gsx[0], num_component_D_D);
+        // add_baryon_boundary_phase (conn_X[i], gsx[0], num_component_D_D);
 
         /* momentum projection */
         double ****connt = NULL;
@@ -943,7 +883,7 @@ int main(int argc, char **argv) {
         /* add complex phase from source location and source momentum
          *   assumes momentum conservation 
          */
-        add_source_phase (connt, NULL, NULL, &(gsx[1]), num_component_D_D);
+        // add_source_phase (connt, NULL, NULL, &(gsx[1]), num_component_D_D);
 
         /* write to file */
        
@@ -981,7 +921,8 @@ int main(int argc, char **argv) {
 
               affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
               for(it=0; it<T_global; it++) {
-                ir = ( it - gsx[0] + T_global ) % T_global;
+                // ir = ( it - gsx[0] + T_global ) % T_global;
+                ir = it;
                 memcpy(aff_buffer + ir*g_sv_dim*g_sv_dim,  buffer[it][k][icomp*g_sv_dim] , g_sv_dim*g_sv_dim*sizeof(double _Complex) );
               }
               int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
@@ -1026,7 +967,7 @@ int main(int argc, char **argv) {
 
         for(i=0; i<6; i++) {
           /* phase from quark field boundary condition */
-          add_baryon_boundary_phase (conn_X[i], gsx[0], num_component_piN_D);
+          // add_baryon_boundary_phase (conn_X[i], gsx[0], num_component_piN_D);
 
           /* momentum projection */
           double ****connt = NULL;
@@ -1041,7 +982,7 @@ int main(int argc, char **argv) {
           /* add complex phase from source location and source momentum
            *   assumes momentum conservation 
            */
-          add_source_phase (connt, g_seq_source_momentum_list[iseq_mom], NULL, &(gsx[1]), num_component_piN_D);
+          // add_source_phase (connt, g_seq_source_momentum_list[iseq_mom], NULL, &(gsx[1]), num_component_piN_D);
 
           /* write to file */
        
@@ -1080,7 +1021,8 @@ int main(int argc, char **argv) {
 
                 affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
                 for(it=0; it<T_global; it++) {
-                  ir = ( it - gsx[0] + T_global ) % T_global;
+                  // ir = ( it - gsx[0] + T_global ) % T_global;
+                  ir = it;
                   memcpy(aff_buffer + ir*g_sv_dim*g_sv_dim,  buffer[it][k][icomp*g_sv_dim] , g_sv_dim*g_sv_dim*sizeof(double _Complex) );
                 }
                 int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
@@ -1170,7 +1112,8 @@ int main(int argc, char **argv) {
 
           affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
           for(it=0; it<T_global; it++) {
-            ir = ( it - gsx[0] + T_global ) % T_global;
+            // ir = ( it - gsx[0] + T_global ) % T_global;
+            ir = it;
             aff_buffer[ir] = buffer2[k][2*it]  + I * buffer2[k][2*it+1];
           }
           int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global);
@@ -1202,9 +1145,9 @@ int main(int argc, char **argv) {
     }  /* end of if io_proc == 2 */
 #endif  /* of ifdef HAVE_LHPC_AFF */
 
+
   }  /* end of loop on base source locations */
-
-
+#endif  /* of if 0 */
 
   /******************************************************
    ******************************************************
@@ -1240,63 +1183,85 @@ int main(int argc, char **argv) {
   /* loop on stochastic samples */
   for(isample = 0; isample < g_nsample; isample++) {
 
-    /* set a stochstic volume source */
-    exitstatus = prepare_volume_source(stochastic_source_list[isample], VOLUME);
-    if(exitstatus != 0) {
-      fprintf(stderr, "[piN2piN] Error from prepare_volume_source, status was %d\n", exitstatus);
-      EXIT(39);
+
+    if ( read_stochastic_source ) {
+
+      sprintf(filename, "%s.%.4d.%.5d", filename_prefix, Nconf, isample);
+      if ( ( exitstatus = read_lime_spinor( stochastic_source_list[isample], filename, 0) ) != 0 ) {
+        fprintf(stderr, "[piN2piN] Error from read_lime_spinor, status was %d\n", exitstatus);
+        EXIT(2);
+      }
+
+    } else {
+      /* set a stochstic volume source */
+      exitstatus = prepare_volume_source(stochastic_source_list[isample], VOLUME);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[piN2piN] Error from prepare_volume_source, status was %d\n", exitstatus);
+        EXIT(39);
+      }
+
     }
 
-    memset( stochastic_propagator_list[isample], 0, sizeof_spinor_field);
+    if ( read_stochastic_propagator ) {
+
+      sprintf(filename, "%s.%.4d.%.5d", filename_prefix2, Nconf, isample);
+      if ( ( exitstatus = read_lime_spinor( stochastic_propagator_list[isample], filename, 0) ) != 0 ) {
+        fprintf(stderr, "[piN2piN] Error from read_lime_spinor, status was %d\n", exitstatus);
+        EXIT(2);
+      }
+    } else {
+      memset( stochastic_propagator_list[isample], 0, sizeof_spinor_field);
 
 
-    /* project to timeslices, invert */
-    for(i_src = 0; i_src < stochastic_source_timeslice_number; i_src++) {
+      /* project to timeslices, invert */
+      for(i_src = 0; i_src < stochastic_source_timeslice_number; i_src++) {
 
       
-      /******************************************************
-       * i_src is just a counter; we take the timeslices from
-       * the list stochastic_source_timeslice_list, which are
-       * in some order;
-       * t_src should be used to address the fields
-       ******************************************************/
-      int t_src = stochastic_source_timeslice_list[i_src];
-      memset(spinor_work[0], 0, sizeof_spinor_field);
+        /******************************************************
+         * i_src is just a counter; we take the timeslices from
+         * the list stochastic_source_timeslice_list, which are
+         * in some order;
+         * t_src should be used to address the fields
+         ******************************************************/
+        int t_src = stochastic_source_timeslice_list[i_src];
+        memset(spinor_work[0], 0, sizeof_spinor_field);
 
-      int have_source = ( g_proc_coords[0] == t_src / T );
-      if( have_source ) {
-        fprintf(stdout, "# [piN2piN] proc %4d = ( %d, %d, %d, %d) has t_src = %3d \n", g_cart_id, 
-            g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3], t_src);
-        /* this process copies timeslice t_src%T from source */
-        unsigned int shift = _GSI(g_ipt[t_src%T][0][0][0]);
-        memcpy(spinor_work[0]+shift, stochastic_source_list[isample]+shift, sizeof_spinor_field_timeslice );
-      }
-
-      /* tm-rotate stochastic source */
-      if( g_fermion_type == _TM_FERMION ) {
-        spinor_field_tm_rotation ( spinor_work[0], spinor_work[0], -1, g_fermion_type, VOLUME);
-      }
-
-      memset(spinor_work[1], 0, sizeof_spinor_field);
-      exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_dn, 0);
-      if(exitstatus != 0) {
-        fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
-        EXIT(12);
-      }
-
-      /* tm-rotate stochastic propagator at sink */
-      if( g_fermion_type == _TM_FERMION ) {
-        spinor_field_tm_rotation(spinor_work[1], spinor_work[1], -1, g_fermion_type, VOLUME);
-      }
-
-      /* copy only source timeslice from propagator */
-      if(have_source) {
-        unsigned int shift = _GSI(g_ipt[t_src%T][0][0][0]);
-        memcpy( stochastic_propagator_list[isample]+shift, spinor_work[1]+shift, sizeof_spinor_field_timeslice);
-      }
-
-    }
+        int have_source = ( g_proc_coords[0] == t_src / T );
+        if( have_source ) {
+          fprintf(stdout, "# [piN2piN] proc %4d = ( %d, %d, %d, %d) has t_src = %3d \n", g_cart_id, 
+              g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3], t_src);
+          /* this process copies timeslice t_src%T from source */
+          unsigned int shift = _GSI(g_ipt[t_src%T][0][0][0]);
+          memcpy(spinor_work[0]+shift, stochastic_source_list[isample]+shift, sizeof_spinor_field_timeslice );
+        }
  
+        /* tm-rotate stochastic source */
+        if( g_fermion_type == _TM_FERMION ) {
+          spinor_field_tm_rotation ( spinor_work[0], spinor_work[0], -1, g_fermion_type, VOLUME);
+        }
+
+        memset(spinor_work[1], 0, sizeof_spinor_field);
+        exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_dn, 0);
+        if(exitstatus != 0) {
+          fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
+          EXIT(12);
+        }
+
+        /* tm-rotate stochastic propagator at sink */
+        if( g_fermion_type == _TM_FERMION ) {
+          spinor_field_tm_rotation(spinor_work[1], spinor_work[1], -1, g_fermion_type, VOLUME);
+        }
+
+        /* copy only source timeslice from propagator */
+        if(have_source) {
+          unsigned int shift = _GSI(g_ipt[t_src%T][0][0][0]);
+          memcpy( stochastic_propagator_list[isample]+shift, spinor_work[1]+shift, sizeof_spinor_field_timeslice);
+        }
+
+      }
+
+    }  /* end of if read stochastic propagator else */
+
     /* source-smear the stochastic source */
     exitstatus = Jacobi_Smearing(gauge_field_smeared, stochastic_source_list[isample], N_Jacobi, kappa_Jacobi);
 
@@ -1416,9 +1381,10 @@ int main(int argc, char **argv) {
           retime = _GET_TIME;
           if(g_cart_id == 0)  fprintf(stdout, "# [piN2piN] time for contractions = %e seconds\n", retime-ratime);
   
-          for(i=0; i<6; i++) {
+          for(i=0; i<6; i++)
+          {
             /* phase from quark field boundary condition */
-            add_baryon_boundary_phase (conn_X[i], gsx[0], num_component_piN_piN);
+            // add_baryon_boundary_phase (conn_X[i], gsx[0], num_component_piN_piN);
 
             /* momentum projection */
             double ****connt=NULL;
@@ -1433,7 +1399,7 @@ int main(int argc, char **argv) {
             /* add complex phase from source location and source momentum
              *   assumes momentum conservation 
              */
-            add_source_phase (connt, g_seq_source_momentum_list[iseq_mom], g_seq2_source_momentum_list[iseq2_mom], &(gsx[1]), num_component_piN_piN);
+            // add_source_phase (connt, g_seq_source_momentum_list[iseq_mom], g_seq2_source_momentum_list[iseq2_mom], &(gsx[1]), num_component_piN_piN);
 
             /* write to file */
        
@@ -1473,7 +1439,8 @@ int main(int argc, char **argv) {
 
                   affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
                   for(it=0; it<T_global; it++) {
-                    ir = ( it - gsx[0] + T_global ) % T_global;
+                    // ir = ( it - gsx[0] + T_global ) % T_global;
+                    ir = it;
                     memcpy(aff_buffer + ir*g_sv_dim*g_sv_dim,  buffer[it][k][icomp*g_sv_dim] , g_sv_dim*g_sv_dim*sizeof(double _Complex) );
                   }
                   int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
@@ -1599,9 +1566,25 @@ int main(int argc, char **argv) {
         gsx[2] = ( g_source_coords_list[i_src][2] + (LY_global/2) * i_coherent ) % LY_global;
         gsx[3] = ( g_source_coords_list[i_src][3] + (LZ_global/2) * i_coherent ) % LZ_global;
 
-        if( (exitstatus = init_timeslice_source_oet(stochastic_source_list, gsx[0], NULL, 1)) != 0 ) {
-          fprintf(stderr, "[piN2piN] Error from init_timeslice_source_oet, status was %d\n", exitstatus);
-          EXIT(63);
+        if ( read_stochastic_source ) {
+          for ( int ispin = 0; ispin < 4; ispin++ ) {
+            sprintf(filename, "%s-oet.%.4d.t%.2d.%.2d.%.5d", filename_prefix, Nconf, gsx[0], ispin, isample);
+            if ( ( exitstatus = read_lime_spinor( stochastic_source_list[ispin], filename, 0) ) != 0 ) {
+              fprintf(stderr, "[piN2piN] Error from read_lime_spinor, status was %d\n", exitstatus);
+              EXIT(2);
+            }
+          }
+          /* recover the random field */
+          if( (exitstatus = init_timeslice_source_oet(stochastic_source_list, gsx[0], NULL, -1 ) ) != 0 ) {
+            fprintf(stderr, "[piN2piN] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(64);
+          }
+
+        } else {
+          if( (exitstatus = init_timeslice_source_oet(stochastic_source_list, gsx[0], NULL, 1)) != 0 ) {
+            fprintf(stderr, "[piN2piN] Error from init_timeslice_source_oet, status was %d\n", exitstatus);
+            EXIT(63);
+          }
         }
 
         /* zero-momentum propagator */
@@ -1738,7 +1721,8 @@ int main(int argc, char **argv) {
     
               affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
               for(it=0; it<T_global; it++) {
-                ir = ( it - gsx[0] + T_global ) % T_global;
+                // ir = ( it - gsx[0] + T_global ) % T_global;
+                ir = it;
                 aff_buffer[ir] = buffer2[it][2*k]  + I * buffer2[it][2*k+1];
               }
               int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global);
@@ -1794,7 +1778,7 @@ int main(int argc, char **argv) {
             /* write to file etc. */
             for(i=0; i<4; i++) {
               /* phase from quark field boundary condition */
-              add_baryon_boundary_phase (conn_X[i], gsx[0], num_component_piN_piN);
+              // add_baryon_boundary_phase (conn_X[i], gsx[0], num_component_piN_piN);
   
               /* momentum projection */
               double ****connt = NULL;
@@ -1810,7 +1794,7 @@ int main(int argc, char **argv) {
               /* add complex phase from source location and source momentum
                *   assumes momentum conservation 
                */
-              add_source_phase (connt, g_seq_source_momentum_list[iseq_mom], g_seq2_source_momentum_list[iseq2_mom], &(gsx[1]), num_component_piN_piN);
+              // add_source_phase (connt, g_seq_source_momentum_list[iseq_mom], g_seq2_source_momentum_list[iseq2_mom], &(gsx[1]), num_component_piN_piN);
   
               /* write to file */
          
@@ -1850,7 +1834,8 @@ int main(int argc, char **argv) {
   
                     affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
                     for(it=0; it<T_global; it++) {
-                      ir = ( it - gsx[0] + T_global ) % T_global;
+                      // ir = ( it - gsx[0] + T_global ) % T_global;
+                      ir = it;
                       memcpy(aff_buffer + ir*g_sv_dim*g_sv_dim,  buffer[it][k][icomp*g_sv_dim] , g_sv_dim*g_sv_dim*sizeof(double _Complex) );
                     }
                     int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
@@ -1894,7 +1879,13 @@ int main(int argc, char **argv) {
     fini_2level_buffer(&pfifi_list);
   }  /* end of loop on oet samples */
 
+  free( stochastic_source_list[0] );
+  free( stochastic_source_list );
 
+  free( stochastic_propagator_list[0] );
+  free( stochastic_propagator_list );
+#if 0
+#endif  /* of if 0 */
 
   /***********************************************
    * free gauge fields and spinor fields
@@ -1913,13 +1904,6 @@ int main(int argc, char **argv) {
     free(propagator_list_dn[0]);
     free(propagator_list_dn);
   }
-
-  free( stochastic_source_list[0] );
-  free( stochastic_source_list );
-
-  free( stochastic_propagator_list[0] );
-  free( stochastic_propagator_list );
-
 
   /***********************************************
    * free the allocated memory, finalize
