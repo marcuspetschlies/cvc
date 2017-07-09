@@ -6,11 +6,6 @@ typedef double * spinor_vector_type;
 typedef double * fermion_vector_type;
 typedef double ** fermion_propagator_type;
 typedef double ** spinor_propagator_type;
-typedef double *** b_1_xi_type;
-typedef double *** w_1_xi_type;
-typedef double **** b_all_phis_type;
-typedef double **** w_all_phis_type;
-typedef double *** V2_for_b_and_w_diagrams_type;
 
 typedef struct {
   int gi;
@@ -18,6 +13,22 @@ typedef struct {
   int pi[3];
   int pf[3];
 } m_m_2pt_type;
+
+typedef struct {
+  int gi;
+  int gf;
+  int pi[3];
+  int pf[3];
+} b_b_2pt_type;
+
+typedef struct {
+  int gi1;
+  int gi2;
+  int gf;
+  int pi1[3];
+  int pi2[3];
+  int pf[3];
+} mxb_b_2pt_type;
 
 typedef struct {
   int gi1;
