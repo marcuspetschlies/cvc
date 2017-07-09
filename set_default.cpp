@@ -270,6 +270,8 @@ void set_default_input_values(void) {
 
   g_coherent_source_number = _default_coherent_source_number;
 
+  g_total_momentum_number = _default_total_momentum_number;
+
 }  /* end of set_default_input_values */
 
 }  /* end of namespace cvc */
