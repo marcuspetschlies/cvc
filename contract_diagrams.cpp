@@ -35,6 +35,7 @@
 #include "mpi_init.h"
 #include "matrix_init.h"
 #include "gamma.h"
+#include "contract_diagrams.h"
 
 namespace cvc {
 
@@ -254,4 +255,61 @@ void contract_b2 (double _Complex ***b2, double _Complex **v3, **double v2, gamm
   }  /* loop on timeslices */
 }  /* end of contract_b2 */
 #endif  /* end of if 0 */
+
+/****************************************************
+ * search for m1 in m2
+ ****************************************************/
+int match_momentum_id ( int **pid, int **m1, int **m2, int N1, int N2 ) {
+#if 0 
+  fprintf(stdout, "# [match_momentum_id] N1 = %d N2 = %d m2 == NULL ? %d\n", N1, N2 , m2 == NULL);
+  for ( int i = 0; i < N1; i++ ) {
+    fprintf(stdout, "# [match_momentum_id] m1 %d  %3d %3d %3d\n", i, m1[i][0], m1[i][1], m1[i][2]);
+  }
+
+  for ( int i = 0; i < N2; i++ ) {
+    fprintf(stdout, "# [match_momentum_id] m2 %d  %3d %3d %3d\n", i, m2[i][0], m2[i][1], m2[i][2]);
+  }
+  return(1);
+#endif
+
+  if ( N1 > N2 ) {
+    fprintf(stderr, "[match_momentum_id] Error, N1 > N2\n");
+    return(1);
+  }
+
+  if ( *pid == NULL ) {
+    *pid = (int*)malloc (N1 * sizeof(int) );
+  }
+
+  for ( int i = 0; i < N1; i++ ) {
+    int found = 0;
+    int p[3] = { m1[i][0], m1[i][1], m1[i][2] };
+
+    for ( int k = 0; k < N2; k++ ) {
+      if ( p[0] == m2[k][0] && p[1] == m2[k][1] && p[2] == m2[k][2] ) {
+        (*pid)[i] = k;
+        found = 1;
+        break;
+      }
+    }
+    if ( found == 0 ) {
+      fprintf(stderr, "[match_momentum_id] Warning, could not find momentum no %d = %3d %3d %3d\n",
+          i, p[0], p[1], p[2]);
+      (*pid)[i] = -1;
+      /* return(2); */
+    }
+  }
+
+  /* TEST */
+  if ( g_verbose > 2 ) {
+    for ( int i = 0; i < N1; i++ ) {
+      fprintf(stdout, "# [match_momentum_id] m1[%2d] = %3d %3d %3d matches m2[%2d] = %3d %3d %3d\n",
+          i, m1[i][0], m1[i][1], m1[i][2],
+          (*pid)[i], m2[(*pid)[i]][0], m2[(*pid)[i]][1], m2[(*pid)[i]][2]);
+    }
+  }
+
+  return(0);
+}  /* end of match_momentum_id */
+
 }  /* end of namespace cvc */

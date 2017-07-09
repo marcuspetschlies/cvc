@@ -17,6 +17,7 @@ void contract_b1 (double _Complex ***b1, double _Complex **v3, **double v2, gamm
 void contract_b2 (double _Complex ***b2, double _Complex **v3, **double v2, gamma_matrix_type g);
 #endif  /* end of if 0 */
 
+int match_momentum_id ( int **pid, int **m1, int **m2, int N1, int N2 );
 
 static inline void zm_4x4_array_transposed (double _Complex *r, double _Complex *s ) {
 
