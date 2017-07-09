@@ -166,6 +166,8 @@ void co_field_eq_fv_dag_ti_fv (double*c, double*r, double*s, unsigned int N );
 
 void co_field_eq_fv_dag_ti_gamma_ti_fv (double*c, double*r, int gid, double*s, unsigned int N );
 
+void co_field_eq_co_field_pl_co_field  ( double*r, double*s, double*t, unsigned int N );
+
 void spinor_field_eq_cm_field_ti_spinor_field (double*r, double *u, double*s, unsigned int N);
 
 void spinor_field_eq_gauge_field_ti_spinor_field (double*r, double *gf, double*s, int mu, unsigned int N);

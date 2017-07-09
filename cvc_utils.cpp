@@ -6531,6 +6531,31 @@ void co_field_eq_fv_dag_ti_gamma_ti_fv (double*c, double*r, int gid, double*s, u
 #endif
 }  /* co_field_eq_fv_dag_ti_gamma_ti_fv */
 
+
+/* c = r + s point-wise */
+void co_field_eq_co_field_pl_co_field  ( double*r, double*s, double*t, unsigned int N ) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  unsigned int ix2;
+  double *r_ = NULL, *s_ = NULL, *t_ = NULL;
+#pragma omp for
+  for( unsigned int ix = 0; ix < N; ix++ ) {
+    ix2 = 2*ix;
+    r_ = r + ix2;
+    s_ = s + ix2;
+    t_ = t + ix2;
+    r_[0] = s_[0] + t_[0];
+    r_[1] = s_[1] + t_[1];
+  }
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+}  /* co_field_eq_co_field_pl_co_field */
+
+
+
 /*****************************************************
  * r[x] = s[ x +/- dir ]
  *
