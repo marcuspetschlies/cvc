@@ -71,6 +71,14 @@ int init_6level_zbuffer (double _Complex*******zbuffer, unsigned int n1, unsigne
 
 int fini_6level_zbuffer (double _Complex*******zbuffer );
 
+/************************************************************************************
+ * (de-)allocate 2-level ibuffer (n1 x n2 matrix)
+ ************************************************************************************/
+int init_2level_ibuffer (int***buffer, unsigned int n1, unsigned int n2);
+
+int fini_2level_ibuffer (int***buffer );
+
+
 }  /* end of namespace cvc */
 
 #endif

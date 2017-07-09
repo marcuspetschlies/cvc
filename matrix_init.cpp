@@ -612,4 +612,45 @@ int fini_6level_zbuffer (double _Complex*******zbuffer) {
   return(0);
 }  /* end of fini_6level_zbuffer */
 
+/************************************************************************************
+ * (de-)allocate 2-level integer buffer (n1 x n2 int matrix)
+ ************************************************************************************/
+int init_2level_ibuffer (int***buffer, unsigned int n1, unsigned int n2) {
+
+  unsigned int i;
+  size_t items = (size_t)n2;
+  size_t bytes = items * n1 * sizeof(int);
+
+  if(*buffer != NULL) {
+    fprintf(stderr, "[init_2level_ibuffer] Error, buffer not NULL\n"); 
+    return(1);
+  }
+
+  /* 1st, outer level */
+  (*buffer) = (int**)malloc(n1 * sizeof(int*));
+  if( *buffer == NULL ) {
+    fprintf(stderr, "[init_2level_ibuffer] Error from malloc\n"); 
+    return(2);
+  }
+
+  /* 2nd, inner level */
+  (*buffer)[0] = (int*)malloc(bytes);
+  if( (*buffer)[0] == NULL ) {
+    fprintf(stderr, "[init_2level_ibuffer] Error from malloc\n"); 
+    return(3);
+  }
+  for(i=1; i<n1; i++) (*buffer)[i] = (*buffer)[i-1] + items;
+  memset( (*buffer)[0], 0, bytes);
+  return(0);
+}  /* end of init_2level_ibuffer */
+
+int fini_2level_ibuffer (int***buffer) {
+  if(*buffer != NULL) {
+    if( (*buffer)[0] != NULL) { free( (*buffer)[0] ); }
+    free( *buffer );
+    *buffer = NULL;
+  }
+  return(0);
+}  /* end of fini_2level_ibuffer */
+
 }  /* end of namespace cvc */
