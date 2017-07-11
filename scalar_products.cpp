@@ -27,17 +27,9 @@
 #include "scalar_products.h"
 
 namespace cvc {
-void spinor_scalar_product_co(complex *w, double *xi, double *phi, int V) {
+void spinor_scalar_product_co(complex *w, double *xi, double *phi, unsigned int V) {
 
-  const int nthreads = g_num_threads;
-  const int sincr = _GSI(nthreads);
-
-  int ix, iix;
-  complex p2, paccum;
-  int threadid = 0;
-#ifdef HAVE_MPI
-  complex pall;
-#endif
+  complex paccum;
 #ifdef HAVE_OPENMP
   omp_lock_t writelock;
 #endif
@@ -46,17 +38,18 @@ void spinor_scalar_product_co(complex *w, double *xi, double *phi, int V) {
 
 #ifdef HAVE_OPENMP
   omp_init_lock(&writelock);
-#pragma omp parallel default(shared) private(ix,iix,p2) firstprivate(V) shared(xi,phi,paccum)
+#pragma omp parallel default(shared) shared(xi,phi,paccum,V)
 {
-  threadid = omp_get_thread_num();
 #endif
+  complex p2;
   p2.re = 0.;
   p2.im = 0.;
 
-  iix = _GSI(threadid);
-  for(ix = threadid; ix < V; ix += nthreads) {
-    _co_pl_eq_fv_dag_ti_fv(&p2, xi+iix, phi+iix);
-    iix += sincr;
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for( unsigned int ix = 0; ix < V; ix++ ) {
+    _co_pl_eq_fv_dag_ti_fv(&p2, xi + _GSI(ix), phi + _GSI(ix) );
   }
 #ifdef HAVE_OPENMP
 
@@ -77,6 +70,7 @@ void spinor_scalar_product_co(complex *w, double *xi, double *phi, int V) {
   /* fprintf(stdout, "# [spinor_scalar_product_co] %d local: %e %e\n", g_cart_id, paccum.re, paccum.im); */
 
 #ifdef HAVE_MPI
+  complex pall;
   pall.re=0.; pall.im=0.;
   MPI_Allreduce(&paccum, &pall, 2, MPI_DOUBLE, MPI_SUM, g_cart_grid);
   w->re = pall.re;
@@ -87,53 +81,44 @@ void spinor_scalar_product_co(complex *w, double *xi, double *phi, int V) {
 #endif
 }  /* end of spinor_scalar_product_co */
 
-void spinor_scalar_product_re(double *r, double *xi, double *phi, int V) {
+/*************************************************************************************
+ * real part of spinor scalar product
+ *************************************************************************************/
+void spinor_scalar_product_re(double *r, double *xi, double *phi, unsigned int V) {
 
-  const int nthreads = g_num_threads;
-  const int sincr = _GSI(nthreads);
+  double w = 0.;
 
-  int ix, iix;
-  int threadid = 0;
-  double w, w2;
-
-#ifdef HAVE_MPI
-  double wall;
-#endif
 #ifdef HAVE_OPENMP
   omp_lock_t writelock;
 #endif
-  
-  w = 0.;
 
 #ifdef HAVE_OPENMP
   omp_init_lock(&writelock);
-#pragma omp parallel default(shared) private(ix,iix,threadid,w2) shared(w,xi,phi,V)
+#pragma omp parallel default(shared) shared(w,xi,phi,V)
 {
-  threadid = omp_get_thread_num();
 #endif
-  iix = _GSI(threadid);
-  w2 = 0.;
-  for(ix = threadid; ix < V; ix += nthreads) {
-    _re_pl_eq_fv_dag_ti_fv(w2, xi+iix, phi+iix);
-    iix += sincr;
-  }
-#ifdef HAVE_OPENMP
+  double w2 = 0;
 
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for( unsigned int ix = 0; ix < V; ix++ ) {
+    _re_pl_eq_fv_dag_ti_fv(w2, xi + _GSI(ix), phi + _GSI(ix) );
+  }
+
+#ifdef HAVE_OPENMP
   omp_set_lock(&writelock);
   w += w2;
   omp_unset_lock(&writelock);
-
 }  /* end of parallel region */
-
   omp_destroy_lock(&writelock);
-
 #else
   w = w2;
 #endif
 
   /* fprintf(stdout, "# [spinor_scalar_product_re] %d local: %e\n", g_cart_id, w); */
 #ifdef HAVE_MPI
-  wall = 0.;
+  double wall = 0.;
   MPI_Allreduce(&w, &wall, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid);
   *r = wall;
 #else
