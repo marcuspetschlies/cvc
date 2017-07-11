@@ -6,3 +6,6 @@ read_input_parser_cvc.cpp
 **/*.rej
 **/*.orig
 gitversion.cpp
+build/
+build_*/
+test/
