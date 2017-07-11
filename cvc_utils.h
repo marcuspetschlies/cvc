@@ -176,6 +176,8 @@ void spinor_field_eq_gauge_field_dag_ti_spinor_field (double*r, double *gf, doub
 
 void spinor_field_eq_gauge_field_fbwd_ti_spinor_field (double*r, double *gf, double*s, int mu, int fbwd, unsigned int N);
 
+void spinor_field_eq_spinor_field_ti_im (double *r, double *s, double c, unsigned int N);
+
 void fermion_propagator_field_eq_gamma_ti_fermion_propagator_field (fermion_propagator_type*r, int mu, fermion_propagator_type*s, unsigned int N);
 
 void fermion_propagator_field_eq_fermion_propagator_field_ti_gamma (fermion_propagator_type*r, int mu, fermion_propagator_type*s, unsigned int N);

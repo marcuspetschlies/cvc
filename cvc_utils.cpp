@@ -5506,6 +5506,33 @@ void spinor_field_ti_eq_re (double *r, double c, unsigned int N) {
   }
 }  /* end of spinor_field_ti_eq_re */
 
+/* r = s * I c 
+ *   safe for r == s
+ */
+void spinor_field_eq_spinor_field_ti_im (double *r, double *s, double c, unsigned int N) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  unsigned int offset;
+  double *rr, *ss;
+  double sp[24];
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for( unsigned ix = 0; ix < N; ix++ ) {
+    offset =  _GSI(ix);
+    rr = r + offset;
+    ss = s + offset;
+    _fv_eq_fv_ti_im(sp, ss, c);
+    _fv_eq_fv ( rr, sp )
+  }
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+}  /* end of spinor_field_eq_spinor_field_ti_im */
+
 /* r = s * c */
 void spinor_field_eq_spinor_field_ti_re (double *r, double *s, double c, unsigned int N) {
 
