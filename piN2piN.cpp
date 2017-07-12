@@ -213,6 +213,8 @@ int main(int argc, char **argv) {
   double *gauge_field_smeared = NULL, *tmLQCD_gauge_field = NULL;
   int read_stochastic_source = 0;
   int read_stochastic_propagator = 0;
+  int read_forward_propagator = 0;
+  int read_sequential_propagator = 0;
 
 
 /*******************************************************************
@@ -220,7 +222,7 @@ int main(int argc, char **argv) {
  *                                                                 */
 // gamma_6 = 0_5
 // gamma_4 = id
-
+#if 0
   const int num_component_piN_piN = 9;
   int gamma_component_piN_piN[num_component_piN_piN][2]      = { {5, 5}, {4,4}, {6,6}, {5,4}, {5,6}, {4,5}, {4,6}, {6,5}, {6,4} };
   double gamma_component_sign_piN_piN[num_component_piN_piN] = {     +1,    +1,    +1,    +1,    +1,    +1,    +1,    +1,    +1 };
@@ -230,11 +232,16 @@ int main(int argc, char **argv) {
   int gamma_component_piN_piN[num_component_piN_piN][2]      = { {5, 5} };
   double gamma_component_sign_piN_piN[num_component_piN_piN] = {+1 };
 */
-
+#endif
   const int num_component_N_N        = 9;
   int gamma_component_N_N[9][2]      = { {5, 5}, {4,4}, {6,6}, {5,4}, {5,6}, {4,5}, {4,6}, {6,5}, {6,4} };
-  double gamma_component_sign_N_N[9] = {+1, +1, +1, +1, +1, +1, +1, +1, +1};
+  double gamma_component_sign_N_N[9] = {     +1,    +1,    +1,    -1,    -1,    -1,    +1,    -1,    +1 };
 
+  //      g_t g_x g_y g_z g5 1
+  // cvc  g0  g1  g2  g3  g5 id
+  // qlua g3  g0  g1  g2  g5 gamma[0]
+
+#if 0
   const int num_component_D_D        = 9;
   int gamma_component_D_D[9][2]      = {{1,1}, {1,2}, {1,3}, {2,1}, {2,2}, {2,3}, {3,1}, {3,2}, {3,3}};
   double gamma_component_sign_D_D[9] = {+1.,-1.,+1.,+1,-1,+1,+1,-1,+1};
@@ -242,7 +249,7 @@ int main(int argc, char **argv) {
   const int num_component_piN_D        = 9;
   int gamma_component_piN_D[9][2]      = { {1, 5}, {2, 5}, {3, 5}, {1,4}, {2,4}, {3,4}, {1,6}, {2,6}, {3,6}};
   double gamma_component_sign_piN_D[9] = {+1., +1., +1., +1., +1., +1., +1., +1. ,+1.};
-
+#endif
   int num_component_max = 9;
 /*
  *******************************************************************/
@@ -260,7 +267,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "rRh?f:")) != -1) {
+  while ((c = getopt(argc, argv, "SFrRh?f:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -273,6 +280,14 @@ int main(int argc, char **argv) {
     case 'R':
       read_stochastic_propagator = 1;
       fprintf(stdout, "# [piN2piN] will read stochastic propagator\n");
+      break;
+    case 'F':
+      read_forward_propagator = 1;
+      fprintf(stdout, "# [piN2piN] will read forward propagator\n");
+      break;
+    case 'S':
+      read_sequential_propagator = 1;
+      fprintf(stdout, "# [piN2piN] will read sequential propagator\n");
       break;
     case 'h':
     case '?':
@@ -482,6 +497,7 @@ int main(int argc, char **argv) {
   for(i=1; i<no_fields; i++) propagator_list_up[i] = propagator_list_up[i-1] + _GSI(VOLUME);
 
   if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] up-type inversion\n");
+
   for(i_src = 0; i_src<g_source_location_number; i_src++) {
     int t_base = g_source_coords_list[i_src][0];
     for(i_coherent=0; i_coherent<g_coherent_source_number; i_coherent++) {
@@ -491,41 +507,55 @@ int main(int argc, char **argv) {
       gsx[1] = ( g_source_coords_list[i_src][1] + (LX_global/2) * i_coherent ) % LX_global;
       gsx[2] = ( g_source_coords_list[i_src][2] + (LY_global/2) * i_coherent ) % LY_global;
       gsx[3] = ( g_source_coords_list[i_src][3] + (LZ_global/2) * i_coherent ) % LZ_global;
-
+  
       ratime = _GET_TIME;
       get_point_source_info (gsx, sx, &source_proc_id);
+  
+      if ( read_forward_propagator ) {
+        
+        // forward_light.230031.x02y07z10t17.lime
+        sprintf(filename, "%s.%d.x%.2dy%.2dz%.2dt%.2d", filename_prefix3, Nconf, gsx[1], gsx[2], gsx[3], gsx[0] );
 
-      for(is=0;is<n_s*n_c;is++) {
-        memset(spinor_work[0], 0, sizeof_spinor_field);
-        memset(spinor_work[1], 0, sizeof_spinor_field);
-        if(source_proc_id == g_cart_id)  {
-          spinor_work[0][_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]])+2*is] = 1.;
+        for(is=0;is<n_s*n_c;is++) {
+          if ( ( exitstatus = read_lime_spinor( propagator_list_up[i_prop*n_s*n_c + is], filename, is) ) != 0 ) {
+            fprintf(stderr, "[piN2piN] Error from read_lime_spinor, status was %d\n", exitstatus);
+            EXIT(2);
+          }
         }
-        /* source-smear the point source */
-        exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
+      } else {
+        for(is=0;is<n_s*n_c;is++) {
+          memset(spinor_work[0], 0, sizeof_spinor_field);
+          memset(spinor_work[1], 0, sizeof_spinor_field);
+          if(source_proc_id == g_cart_id)  {
+            spinor_work[0][_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]])+2*is] = 1.;
+          }
+          /* source-smear the point source */
+          exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
+  
+         if( g_fermion_type == _TM_FERMION ) {
+            spinor_field_tm_rotation(spinor_work[0], spinor_work[0], +1, g_fermion_type, VOLUME);
+          }
+  
+          exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_up, 0);
+          if(exitstatus != 0) {
+            fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
+            EXIT(12);
+          }
+  
+          if( g_fermion_type == _TM_FERMION ) {
+            spinor_field_tm_rotation(spinor_work[1], spinor_work[1], +1, g_fermion_type, VOLUME);
+          }
+  
+          /* sink-smear the point-source propagator */
+          exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
+  
+          memcpy( propagator_list_up[i_prop*n_s*n_c + is], spinor_work[1], sizeof_spinor_field);
+        }  /* end of loop on spin color */
+        retime = _GET_TIME;
+        if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] time for up propagator = %e seconds\n", retime-ratime);
 
-        if( g_fermion_type == _TM_FERMION ) {
-          spinor_field_tm_rotation(spinor_work[0], spinor_work[0], +1, g_fermion_type, VOLUME);
-        }
-
-        exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_up, 0);
-        if(exitstatus != 0) {
-          fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
-          EXIT(12);
-        }
-
-        if( g_fermion_type == _TM_FERMION ) {
-          spinor_field_tm_rotation(spinor_work[1], spinor_work[1], +1, g_fermion_type, VOLUME);
-        }
-
-        /* sink-smear the point-source propagator */
-        exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
-
-        memcpy( propagator_list_up[i_prop*n_s*n_c + is], spinor_work[1], sizeof_spinor_field);
-      }  /* end of loop on spin color */
-      retime = _GET_TIME;
-      if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] time for up propagator = %e seconds\n", retime-ratime);
-
+      }  /* end of if read_forward _propagator */
+  
     }  /* end of loop on coherent source timeslices */
   }    /* end of loop on base source timeslices */
 
@@ -556,47 +586,58 @@ int main(int argc, char **argv) {
         ratime = _GET_TIME;
         get_point_source_info (gsx, sx, &source_proc_id);
 
-        for(is=0;is<n_s*n_c;is++) {
-
-          memset(spinor_work[0], 0, sizeof_spinor_field);
-          memset(spinor_work[1], 0, sizeof_spinor_field);
-          if(source_proc_id == g_cart_id)  {
-            spinor_work[0][_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]])+2*is] = 1.;
+        if ( read_forward_propagator ) {
+          sprintf(filename, "%s.%.4d.%.5d", filename_prefix3, Nconf);
+          for(is=0;is<n_s*n_c;is++) {
+            if ( ( exitstatus = read_lime_spinor( propagator_list_dn[i_prop*n_s*n_c + is], filename, is) ) != 0 ) {
+              fprintf(stderr, "[piN2piN] Error from read_lime_spinor, status was %d\n", exitstatus);
+              EXIT(2);
+            }
           }
+        } else {
 
-          /* source-smear the point source */
-          exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
+          for(is=0;is<n_s*n_c;is++) {
 
-          if( g_fermion_type == _TM_FERMION ) {
-            spinor_field_tm_rotation(spinor_work[0], spinor_work[0], -1, g_fermion_type, VOLUME);
+            memset(spinor_work[0], 0, sizeof_spinor_field);
+            memset(spinor_work[1], 0, sizeof_spinor_field);
+            if(source_proc_id == g_cart_id)  {
+              spinor_work[0][_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]])+2*is] = 1.;
+            }
+
+            /* source-smear the point source */
+            exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
+
+            if( g_fermion_type == _TM_FERMION ) {
+              spinor_field_tm_rotation(spinor_work[0], spinor_work[0], -1, g_fermion_type, VOLUME);
+            }
+
+            exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_dn, 0);
+            if(exitstatus != 0) {
+              fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
+              EXIT(12);
+            }
+
+            if( g_fermion_type == _TM_FERMION ) {
+              spinor_field_tm_rotation(spinor_work[1], spinor_work[1], -1, g_fermion_type, VOLUME);
+            }
+
+            /* sink-smear the point-source propagator */
+            exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
+
+            memcpy( propagator_list_dn[i_prop*n_s*n_c + is], spinor_work[1], sizeof_spinor_field);
           }
+          retime = _GET_TIME;
+          if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] time for dn propagator = %e seconds\n", retime-ratime);
 
-          exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_dn, 0);
-          if(exitstatus != 0) {
-            fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
-            EXIT(12);
-          }
+        }  /* of if read_forward_propagator else */
 
-          if( g_fermion_type == _TM_FERMION ) {
-            spinor_field_tm_rotation(spinor_work[1], spinor_work[1], -1, g_fermion_type, VOLUME);
-          }
-
-          /* sink-smear the point-source propagator */
-          exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
-
-
-          memcpy( propagator_list_dn[i_prop*n_s*n_c + is], spinor_work[1], sizeof_spinor_field);
-        }
-        retime = _GET_TIME;
-        if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] time for dn propagator = %e seconds\n", retime-ratime);
       } /* end of loop on coherent source timeslices */
     }  /* end of loop on base source timeslices */
   } else {
     propagator_list_dn  = propagator_list_up;
   }
 
-
-
+#if 0
   /***********************************************************
    ***********************************************************
    **
@@ -704,7 +745,9 @@ int main(int argc, char **argv) {
     free(prop_list);
   }  /* end of loop on sequential momentum list */
 
-#if 0
+#endif  /* of if 0 */
+
+
   for(i_src=0; i_src < g_source_location_number; i_src++ ) {
     int t_base = g_source_coords_list[i_src][0];
 
@@ -851,6 +894,8 @@ int main(int argc, char **argv) {
         if( io_proc == 2 ) fprintf(stdout, "# [piN2piN] time for writing N-N = %e seconds\n", retime-ratime);
       }  /* end of loop on diagrams */
 
+
+#if 0
       /***********************
        ***********************
        **
@@ -943,7 +988,9 @@ int main(int argc, char **argv) {
         retime = _GET_TIME;
         if( io_proc == 2 ) fprintf(stdout, "# [piN2piN] time for writing D-D = %e seconds\n", retime-ratime);
       }  /* end of loop on diagrams */
+#endif  /* of 0 */
 
+#if 0
       /***********************
        ***********************
        **
@@ -1045,91 +1092,6 @@ int main(int argc, char **argv) {
         }  /* end of loop on diagrams */
 
       }  /* end of loop on sequential source momenta */       
-
-#if 0
-      /***********************
-       ***********************
-       **
-       ** pi - pi 2-pt
-       **
-       ** we abuse conn_X here, which is an array for spin-propagator fields;
-       ** but its entry conn_X(0,0,0) points to space several times VOLUME,
-       ** which is sufficiently large for meson-meson contractions
-       **
-       ***********************
-       ***********************/
-      for(i=0; i<max_num_diagram; i++) { 
-        /* memset(conn_X[i][0][0], 0, 2*VOLUME*g_sv_dim*g_sv_dim*sizeof(double)); */
-        exitstatus = zero_sp_field ( conn_X[i], num_component_max*VOLUME );
-      }
-      double *conn_M = conn_X[0][0][0];
-      contract_twopoint_xdep(conn_M, 5, 5, (void*)(&(propagator_list_up[i_prop*n_s*n_c])), (void*)(&(propagator_list_up[i_prop*n_s*n_c])), n_c, 1, 1., 64);
-
-      double **connt = NULL;
-      if( (exitstatus = init_2level_buffer(&connt, g_sink_momentum_number, 2*T) ) != 0 ) {
-        fprintf(stderr, "[piN2piN] Error from init_2level_buffer, status was %d\n", exitstatus);
-        EXIT(61);
-      }
-
-      /* momentum projection */
-      exitstatus = momentum_projection ( conn_M, connt[0], T, g_sink_momentum_number, g_sink_momentum_list);
-      if(exitstatus != 0) {
-        fprintf(stderr, "[piN2piN] Error from momentum_projection, status was %d\n", exitstatus);
-        EXIT(8);
-      }
-
-      /* write to file */
-
-      ratime = _GET_TIME;
-      double **buffer2 = NULL;
-#ifdef HAVE_MPI
-      if(io_proc>0) {
-        if( (exitstatus = init_2level_buffer(&buffer2, g_sink_momentum_number, 2*T_global) ) != 0 ) {
-          fprintf(stderr, "[piN2piN] Error from init_2level_buffer, status was %d\n", exitstatus);
-          EXIT(62);
-        }
-        k = T * g_sink_momentum_number * 2;
-        exitstatus = MPI_Allgather(connt[0], k, MPI_DOUBLE, buffer2[0], k, MPI_DOUBLE, g_tr_comm);
-        if(exitstatus != MPI_SUCCESS) {
-          fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d\n", exitstatus);
-          EXIT(124);
-        }
-      }
-#else
-      buffer2 = connt;
-#endif
-
-      if(io_proc == 2) {
-#ifdef HAVE_LHPC_AFF
-        for(k=0; k<g_sink_momentum_number; k++) {
-
-          sprintf(aff_buffer_path, "/%s/pf1x%.2dpf1y%.2dpf1z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d",
-              "pi-pi",
-              g_sink_momentum_list[k][0], g_sink_momentum_list[k][1], g_sink_momentum_list[k][2],
-              gsx[0], gsx[1], gsx[2], gsx[3], 5, 5);
-
-          fprintf(stdout, "# [piN2piN] current aff path = %s\n", aff_buffer_path);
-
-          affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
-          for(it=0; it<T_global; it++) {
-            // ir = ( it - gsx[0] + T_global ) % T_global;
-            ir = it;
-            aff_buffer[ir] = buffer2[k][2*it]  + I * buffer2[k][2*it+1];
-          }
-          int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global);
-          if(status != 0) {
-            fprintf(stderr, "[piN2piN] Error from aff_node_put_complex, status was %d\n", status);
-            EXIT(83);
-          }
-
-        }  /* end of loop on sink momenta */
-#endif
-      }  /* end of if io_proc == 2 */
-
-#ifdef HAVE_MPI
-      if(io_proc > 0) { fini_2level_buffer(&buffer2); }
-#endif
-      fini_2level_buffer(&connt);
 #endif  /* of if 0 */
 
     }  /* end of loop on coherent source locations */
@@ -1147,7 +1109,9 @@ int main(int argc, char **argv) {
 
 
   }  /* end of loop on base source locations */
-#endif  /* of if 0 */
+
+
+#if 0
 
   /******************************************************
    ******************************************************
@@ -1269,7 +1233,9 @@ int main(int argc, char **argv) {
     exitstatus = Jacobi_Smearing(gauge_field_smeared, stochastic_propagator_list[isample], N_Jacobi, kappa_Jacobi);
 
   }  /* end of loop on samples */
+#endif  /* of if 0 */
 
+#if 0
   /******************************************************
    ******************************************************
    **
@@ -1493,7 +1459,9 @@ int main(int argc, char **argv) {
   free( stochastic_propagator_list[0] );
   free( stochastic_propagator_list );
 
+#endif  /* of if 0 */
 
+#if 0
 
   /***********************************************
    ***********************************************
@@ -1884,8 +1852,6 @@ int main(int argc, char **argv) {
 
   free( stochastic_propagator_list[0] );
   free( stochastic_propagator_list );
-#if 0
-#endif  /* of if 0 */
 
   /***********************************************
    * free gauge fields and spinor fields
@@ -1904,6 +1870,8 @@ int main(int argc, char **argv) {
     free(propagator_list_dn[0]);
     free(propagator_list_dn);
   }
+
+#endif  /* of if 0 */
 
   /***********************************************
    * free the allocated memory, finalize
