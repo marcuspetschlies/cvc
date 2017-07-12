@@ -95,7 +95,7 @@ int main(int argc, char **argv) {
    * */
   const int sequential_source_gamma_id_sign[16] ={ -1, -1, -1, -1, +1, +1,  +1,  +1,  +1,  +1,  -1,  -1,  -1,  -1,  -1,  -1 };
 
-  const char outfile_prefix[] = "p2gg";
+  const char outfile_prefix[] = "p2gg_caa";
 
   int c;
   int iflavor;
