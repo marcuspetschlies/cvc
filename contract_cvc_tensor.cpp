@@ -586,6 +586,7 @@ int cvc_tensor_eo_momentum_projection (double****tensor_tp, double**tensor_eo, i
     fprintf(stderr, "[cvc_tensor_eo_momentum_projection] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     return(3);
   }
+  free ( cvc_tensor_lexic );
   retime = _GET_TIME;
   if( g_cart_id == 0 ) fprintf(stdout, "# [cvc_tensor_eo_momentum_projection] time for momentum projection = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
 
