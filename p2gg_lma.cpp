@@ -604,7 +604,7 @@ int main(int argc, char **argv) {
       EXIT(26);
     }
     /* write results to file */
-    sprintf(aff_tag, "/hvp/full/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
+    sprintf(aff_tag, "/hvp/lm/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
     exitstatus = cvc_tensor_tp_write_to_aff_file ( cvc_tp, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
     if(exitstatus != 0 ) {
       fprintf(stderr, "[p2gg_lma] Error from cvc_tensor_tp_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -616,7 +616,7 @@ int main(int argc, char **argv) {
     if(check_position_space_WI) {
       exitstatus = cvc_tensor_eo_check_wi_position_space ( cvc_tensor_eo );
       if(exitstatus != 0) {
-        fprintf(stderr, "[p2gg_lma] Error from cvc_tensor_eo_check_wi_position_space for full, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        fprintf(stderr, "[p2gg_lma] Error from cvc_tensor_eo_check_wi_position_space for lm, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(38);
       }
     }
@@ -629,7 +629,7 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * local - cvc 2-point
      ***************************************************************************/
-    sprintf(aff_tag, "/local-cvc/full/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
+    sprintf(aff_tag, "/local-cvc/lm/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
     exitstatus = contract_local_cvc_2pt_eo (
         &(eo_spinor_field[120]), &(eo_spinor_field[180]),
         &(eo_spinor_field[0]), &(eo_spinor_field[60]),
@@ -646,7 +646,7 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * local - local 2-point
      ***************************************************************************/
-    sprintf(aff_tag, "/local-local/full/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
+    sprintf(aff_tag, "/local-local/lm/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
     exitstatus = contract_local_local_2pt_eo (
        &(eo_spinor_field[168]), &(eo_spinor_field[228]),
        &(eo_spinor_field[ 48]), &(eo_spinor_field[108]),
@@ -793,7 +793,7 @@ int main(int argc, char **argv) {
             }
 
             /* flavor-dependent aff tag  */
-            sprintf(aff_tag, "/pgg/full/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d",
+            sprintf(aff_tag, "/pgg/lm/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d",
                                   gsx[0], gsx[1], gsx[2], gsx[3], 
                                   g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2],
                                   sequential_source_gamma_id, g_sequential_source_timeslice, iflavor);
@@ -828,7 +828,7 @@ int main(int argc, char **argv) {
           }
              
           /* flavor-dependent aff tag  */
-          sprintf(aff_tag, "/pgg/full/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d",
+          sprintf(aff_tag, "/pgg/lm/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d",
                                 gsx[0], gsx[1], gsx[2], gsx[3], 
                                 g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2],
                                 sequential_source_gamma_id, g_sequential_source_timeslice);
@@ -845,7 +845,7 @@ int main(int argc, char **argv) {
           if(check_position_space_WI) {
             exitstatus = cvc_tensor_eo_check_wi_position_space ( cvc_tensor_eo );
             if(exitstatus != 0) {
-              fprintf(stderr, "[p2gg_lma] Error from cvc_tensor_eo_check_wi_position_space for full, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              fprintf(stderr, "[p2gg_lma] Error from cvc_tensor_eo_check_wi_position_space for lm, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(38);
             }
           }
