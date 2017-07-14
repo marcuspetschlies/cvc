@@ -340,7 +340,7 @@ int correlator_add_baryon_boundary_phase ( double _Complex ***sp, int tsrc) {
 #pragma omp parallel for
 #endif
     for( int ir = 0; ir < T; ir++) {
-      it = ir + g_proc_coords[0] * T;  /* global t-value, 0 <= t < T_global */
+      int it = ir + g_proc_coords[0] * T;  /* global t-value, 0 <= t < T_global */
       if(it < tsrc) {
         zm4x4_ti_eq_re ( sp[it], -1. );
       }  /* end of if it < tsrc */
@@ -437,7 +437,7 @@ int correlator_spin_projection (double _Complex ***sp_out, double _Complex ***sp
       }
       break;;
     default:
-      fprintf("[correlator_spin_projection] Error, projector P_{%d,%d} not implemented\n", i, k);
+      fprintf(stderr, "[correlator_spin_projection] Error, projector P_{%d,%d} not implemented\n", i, k);
       return(1);
       break;;
   }  /* end of switch i, k */
@@ -453,4 +453,6 @@ int correlator_spin_parity_projection (double _Complex ***sp_out, double _Comple
     zm4x4_eq_spin_parity_projection_zm4x4 ( sp_out[ir], sp_in[ir], c);
   }
   return(0);
+}  /* end of correlator_spin_parity_projection */
+
 }  /* end of namespace cvc */
