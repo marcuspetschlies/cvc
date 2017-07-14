@@ -19,8 +19,8 @@
 
 #include "cvc_linalg.h"
 #include "iblas.h"
-#include "global.h"
-#include "cvc_geometry.h"
+/* #include "global.h" */
+/* #include "cvc_geometry.h" */
 #include "gamma.h"
 #include "gamma_mult_table.h"
 
