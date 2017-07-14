@@ -51,6 +51,7 @@ extern "C"
 #include "matrix_init.h"
 #include "contract_diagrams.h"
 #include "aff_key_conversion.h"
+#include "zm4x4.h"
 #include "gamma.h"
 
 using namespace cvc;
@@ -75,7 +76,7 @@ int main(int argc, char **argv) {
   char tag[20];
   int io_proc = -1;
   double ratime, retime;
-
+  FILE *ofs = NULL;
 #ifdef HAVE_LHPC_AFF
   struct AffReader_s *affr = NULL;
   char * aff_status_str;
@@ -209,10 +210,12 @@ int main(int argc, char **argv) {
         EXIT(4);
       }
 
-      if( (affn2 = aff_writer_root( affw )) == NULL ) {
+      /* if( (affn2 = aff_writer_root( affw )) == NULL ) {
         fprintf(stderr, "[piN2piN_correlators] Error, aff writer is not initialized\n");
         EXIT(103);
-      }
+      } */
+
+
     }  /* end of if io_proc == 2 */
 
     /*******************************************
@@ -239,7 +242,13 @@ int main(int argc, char **argv) {
 
         if ( strcmp( g_twopoint_function_list[i2pt].type , "pixN-pixN") != 0 ) continue; 
 
-        double _Complex **diagram = NULL, **diagram_buffer = NULL;
+        double _Complex *correlator, ***diagram = NULL, ***diagram_buffer = NULL;
+
+        exitstatus= init_1level_zbuffer ( &correlator, T_global );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[piN2piN_correlators] Error from init_1level_zbuffer, status was %d\n", exitstatus);
+          EXIT(47);
+        }
 
         exitstatus= init_3level_zbuffer ( &diagram, T_global, 4, 4 );
         if ( exitstatus != 0 ) {
@@ -247,9 +256,9 @@ int main(int argc, char **argv) {
           EXIT(47);
         }
 
-        exitstatus= init_2level_zbuffer ( &diagram_buffer, T_global, 16 );
+        exitstatus= init_3level_zbuffer ( &diagram_buffer, T_global, 4, 4 );
         if ( exitstatus != 0 ) {
-          fprintf(stderr, "[piN2piN_correlators] Error from init_2level_zbuffer, status was %d\n", exitstatus);
+          fprintf(stderr, "[piN2piN_correlators] Error from init_3level_zbuffer, status was %d\n", exitstatus);
           EXIT(47);
         }
 
@@ -294,8 +303,9 @@ int main(int argc, char **argv) {
             sprintf(aff_tag, "/%s/diag%d/%s", g_twopoint_function_list[i2pt].name, idiag, aff_tag_suffix);
             if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_correlators] key = \"%s\"\n", aff_tag);
   
+            fprintf(stdout, "# [piN2piN_correlators] reading key \"%s\"\n", aff_tag);
             affdir = aff_reader_chpath (affr, affn, aff_tag );
-            exitstatus = aff_node_get_complex (affr, affdir, diagram_buffer[0], T_global*16);
+            exitstatus = aff_node_get_complex (affr, affdir, diagram_buffer[0][0], T_global*16);
             if( exitstatus != 0 ) {
               fprintf(stderr, "[piN2piN_correlators] Error from aff_node_get_complex, status was %d\n", exitstatus);
               EXIT(105);
@@ -304,28 +314,64 @@ int main(int argc, char **argv) {
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-            zm_pl_eq_zm_transposed_4x4_array ( diagram[it][0], diagram_buffer[it] );
+            for ( int it = 0; it < T_global; it++ ) {
+              zm_pl_eq_zm_transposed_4x4_array ( diagram[it][0], diagram_buffer[it][0] );
+            }
 
           }  /* end of if io_proc == 2 */
 
           /* source phase */
-          exitstatus = correlator_add_source_phase ( diagram, g_twopoint_function_list[i2pt].pi1,  &(gsx[1]), T_global );
+          exitstatus = correlator_add_source_phase ( diagram, pi1,  &(gsx[1]), T_global );
   
           /* boundary phase */
           exitstatus = correlator_add_baryon_boundary_phase ( diagram, gsx[0] );
 
+          /* aplly gi1[1] and gf1[1] */
+          gamma_matrix_type gf11, gi11;
+          gamma_matrix_set ( &gi11,  gi1[1], 1. );
+          gamma_matrix_set ( &gf11,  gf1[1], 1. );
+
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+          for ( int it = 0; it < T_global; it++ ) {
+  
+            /* diagram_buffer <- diagram x Gamma_i1_1 */
+            zm4x4_eq_zm4x4_ti_zm4x4 ( diagram_buffer[it], diagram[it],  gi11.m );
+            /* diagram <- Gamma_f1_1 x diagram_buffer */
+            zm4x4_eq_zm4x4_ti_zm4x4 ( diagram[it], gf11.m, diagram_buffer[it] );
+
+            co_eq_tr_zm4x4 ( correlator+it, diagram[it] );
+
+          }
+
           /* ??? projection ??? */
 
-          /* ??? spin-trace ??? */
+          /* write to file  */
+          for ( int it = 0; it < T_global; it++ ) {
+            fprintf(ofs, "  %25.16e %25.16e\n", creal(correlator[it]), cimag(correlator[it]));
+          }
+
 
         }   /* end of loop on diagrams */
 
-        fini_2level_zbuffer ( &diagram_buffer );
+        fini_3level_zbuffer ( &diagram_buffer );
         fini_3level_zbuffer ( &diagram );
       }  /* end of loop on 2-point functions */
 
     }  /* end of loop on coherent source locations */
 
+    if(io_proc == 2) {
+      aff_reader_close (affr);
+
+      /* aff_status_str = (char*)aff_writer_close (affw);
+      if( aff_status_str != NULL ) {
+        fprintf(stderr, "[piN2piN_diagrams] Error from aff_writer_close, status was %s\n", aff_status_str);
+        EXIT(111);
+      } */
+      fclose ( ofs );
+    }  /* end of if io_proc == 2 */
 
   }  /* end of loop on base source locations */
 
