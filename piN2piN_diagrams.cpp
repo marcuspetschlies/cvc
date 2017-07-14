@@ -402,7 +402,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
 #endif
                 for ( int it = 0; it < T_global ; it++ ) {
-                  zm_4x4_array_transposed ( diagram[it], diagram_buffer[it] );
+                  zm_eq_zm_transposed_4x4_array( diagram[it], diagram_buffer[it] );
                 }
 
 
@@ -431,7 +431,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
 #endif
                 for ( int it = 0; it < T_global ; it++ ) {
-                  zm_4x4_array_transposed ( diagram[it], diagram_buffer[it] );
+                  zm_eq_zm_transposed_4x4_array( diagram[it], diagram_buffer[it] );
                 }
 
                 /* sprintf(aff_tag, "/%s/%s", "B2", aff_tag_suffix ); */
@@ -632,7 +632,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
 #endif
                 for ( int it = 0; it < T_global ; it++ ) {
-                  zm_4x4_array_transposed ( diagram[it], diagram_buffer[it] );
+                  zm_eq_zm_transposed_4x4_array( diagram[it], diagram_buffer[it] );
                 }
 
                 /* sprintf(aff_tag, "/%s/%s", "W1", aff_tag_suffix ); */
@@ -660,7 +660,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
 #endif
                 for ( int it = 0; it < T_global ; it++ ) {
-                  zm_4x4_array_transposed ( diagram[it], diagram_buffer[it] );
+                  zm_eq_zm_transposed_4x4_array( diagram[it], diagram_buffer[it] );
                 }
 
                 /* sprintf(aff_tag, "/%s/%s", "W2", aff_tag_suffix );  */
@@ -689,7 +689,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
 #endif
                 for ( int it = 0; it < T_global ; it++ ) {
-                  zm_4x4_array_transposed ( diagram[it], diagram_buffer[it] );
+                  zm_eq_zm_transposed_4x4_array( diagram[it], diagram_buffer[it] );
                 }
 
                 /* sprintf(aff_tag, "/%s/%s", "W3", aff_tag_suffix ); */
@@ -717,7 +717,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
 #endif
                 for ( int it = 0; it < T_global ; it++ ) {
-                  zm_4x4_array_transposed ( diagram[it], diagram_buffer[it] );
+                  zm_eq_zm_transposed_4x4_array( diagram[it], diagram_buffer[it] );
                 }
 
                 /* sprintf(aff_tag, "/%s/%s", "W4", aff_tag_suffix ); */
@@ -1028,7 +1028,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
 #endif
                 for ( int it = 0; it < T_global ; it++ ) {
-                  zm_4x4_array_transposed ( diagram[it], diagram_buffer[it] );
+                  zm_eq_zm_transposed_4x4_array( diagram[it], diagram_buffer[it] );
                 }
 
                 /* sprintf(aff_tag, "/%s/%s", "Z1", aff_tag_suffix ); */
@@ -1053,7 +1053,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
 #endif
                 for ( int it = 0; it < T_global ; it++ ) {
-                  zm_4x4_array_transposed ( diagram[it], diagram_buffer[it] );
+                  zm_eq_zm_transposed_4x4_array( diagram[it], diagram_buffer[it] );
                 }
 
                 /* sprintf(aff_tag, "/%s/%s", "Z2", aff_tag_suffix ); */
@@ -1079,7 +1079,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
 #endif
                 for ( int it = 0; it < T_global ; it++ ) {
-                  zm_4x4_array_transposed ( diagram[it], diagram_buffer[it] );
+                  zm_eq_zm_transposed_4x4_array( diagram[it], diagram_buffer[it] );
                 }
 
                 /* sprintf(aff_tag, "/%s/%s", "Z3", aff_tag_suffix ); */
@@ -1104,7 +1104,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
 #endif
                 for ( int it = 0; it < T_global ; it++ ) {
-                  zm_4x4_array_transposed ( diagram[it], diagram_buffer[it] );
+                  zm_eq_zm_transposed_4x4_array( diagram[it], diagram_buffer[it] );
                 }
 
                 /* sprintf(aff_tag, "/%s/%s", "Z4", aff_tag_suffix ); */
