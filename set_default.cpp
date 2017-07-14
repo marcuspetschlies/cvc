@@ -256,8 +256,7 @@ void set_default_input_values(void) {
   g_source_gamma_id_list[14] = _default_source_gamma_id;
   g_source_gamma_id_list[15] = _default_source_gamma_id;
 
-  g_m_m_2pt_num = _default_m_m_2pt_num;
-  g_mxb_mxb_2pt_num = _default_mxb_mxb_2pt_num;
+  g_twopoint_function_number = _default_twopoint_function_number;
 
   g_clover = NULL;
   g_mzz_up = NULL;
