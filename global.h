@@ -238,11 +238,7 @@ EXTERN tmLQCD_lat_params g_tmLQCD_lat;
 EXTERN tmLQCD_deflator_params g_tmLQCD_defl;
 #endif
 
-EXTERN m_m_2pt_type g_m_m_2pt_list[MAX_M_M_2PT_NUM];
-EXTERN int g_m_m_2pt_num;
-
-EXTERN mxb_mxb_2pt_type g_mxb_mxb_2pt_list[MAX_MXB_MXB_2PT_NUM];
-EXTERN int g_mxb_mxb_2pt_num;
+EXTERN twopoint_function_type g_twopoint_function_list[MAX_MXB_MXB_2PT_NUM], g_twopoint_function_number;
 
 EXTERN double **g_clover, **g_mzz_up, **g_mzz_dn, **g_mzzinv_up, **g_mzzinv_dn;
 
