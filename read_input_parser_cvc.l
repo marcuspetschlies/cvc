@@ -197,12 +197,15 @@ namespace cvc {
 %x ERROR
 %x M_M_TWOPT
 %x MXB_MXB_TWOPT
+%x MXB_B_TWOPT
+%x B_B_TWOPT
 %x FERMION_TYPE
 %x SOURCECOORDS
 %x SRCSNKTIMESEP
 %x COHERENTSOURCENUMBER
 %x VERBOSITYLEVEL
 %x TOTALMOMENTUM
+%x BeginTwopointFunction
 
 %%
 ^T{SPC}*={SPC}*                            BEGIN(TT);
@@ -357,12 +360,18 @@ namespace cvc {
 
 ^m_m_2pt{SPC}*={SPC}*                      BEGIN(M_M_TWOPT);
 ^mxb_mxb_2pt{SPC}*={SPC}*                  BEGIN(MXB_MXB_TWOPT);
+^mxb_b_2pt{SPC}*={SPC}*                    BEGIN(MXB_MXB_TWOPT);
+^b_b_2pt{SPC}*={SPC}*                      BEGIN(MXB_MXB_TWOPT);
+
 ^fermion_type{SPC}*={SPC}*                 BEGIN(FERMION_TYPE);
 ^src_snk_time_separation{SPC}*={SPC}*      BEGIN(SRCSNKTIMESEP);
 
 ^coherent_source_number{SPC}*={SPC}*       BEGIN(COHERENTSOURCENUMBER);
 
 ^verbosity_level{SPC}*={SPC}*              BEGIN(VERBOSITYLEVEL);
+
+^BeginTwopointFunction                     BEGIN(INITTWOPOINT);
+
 
   /* start namespace inclusion here */
 
@@ -1134,36 +1143,72 @@ namespace cvc {
   if(cvc::myverbose!=0) printf("# [read_input_parser] source coords no. %d set to %s\n", cvc::g_source_location_number, yytext);
 }
 
-<MXB_MXB_TWOPT>{CORRCONFIG} {
-
-  if ( cvc::g_mxb_mxb_2pt_num == MAX_MXB_MXB_2PT_NUM ) {
-    fprintf(stderr, "[read_input_parser] Error, too many mxb_mxb_2pt\n");
-    exit(1);
-  } else {
-    fprintf(stdout, "# [read_input_parser] extracting mxb_mxb_2pt number %d\n", cvc::g_mxb_mxb_2pt_num);
+<TWOPOINTFUNCTION>{
+  {SPC}*pi1{EQL}{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
+    sscanf(yytext, "%d,%d,%d", 
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pi1,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pi1+1,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pi1+2 );
+  }
+  {SPC}*pi2{EQL}{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
+    sscanf(yytext, "%d,%d,%d", 
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pi2,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pi2+1,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pi2+2 );
+  }
+  {SPC}*pf1{EQL}{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
+    sscanf(yytext, "%d,%d,%d", 
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pf1,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pf1+1,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pf1+2 );
+  }
+  {SPC}*pf2{EQL}{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
+    sscanf(yytext, "%d,%d,%d", 
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pf2,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pf2+1,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pf2+2 );
   }
 
-  sscanf(yytext, "%d,(%d,%d,%d);%d,(%d,%d,%d);%d,(%d,%d,%d);%d,(%d,%d,%d)",
-    &(cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].gi1),
-      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pi1,
-      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pi1+1,
-      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pi1+2,
-    &(cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].gi2),
-      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pi2,
-      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pi2+1,
-      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pi2+2,
-    &(cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].gf1),
-      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pf1,
-      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pf1+1,
-      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pf1+2,
-    &(cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].gf2),
-      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pf2,
-      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pf2+1,
-      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pf2+2
-  );
+  {SPC}*gi1{EQL}{DIGIT}+,{DIGIT}+ {
+    sscanf(yytext, "%d,%d", 
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].gi1,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].gi1+1);
+  }
 
-  cvc::g_mxb_mxb_2pt_num++;
-  if(cvc::myverbose!=0) printf("# [read_input_parser] mxb_mxb_2pt no. %d set to %s\n", cvc::g_mxb_mxb_2pt_num, yytext);
+  {SPC}*gf1{EQL}{DIGIT}+,{DIGIT}+ {
+    sscanf(yytext, "%d,%d", 
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].gf1,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].gf1+1);
+  }
+
+  {SPC}*gi2{EQL}{DIGIT}+ {
+    sscanf(yytext, "%d", 
+        &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].gi2) );
+  }
+
+  {SPC}*gf2{EQL}{DIGIT}+ {
+    sscanf(yytext, "%d", 
+        &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].gf2) );
+  }
+
+  {SPC}*n{EQL}{DIGIT}+ {
+    sscanf(yytext, "%d", 
+        &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].n) );
+  }
+
+  {SPC}*name{EQL}{FILENAME} {
+    sscanf(yytext, "%s", cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].name );
+  }
+
+  {SPC}*type{EQL}{FILENAME} {
+    sscanf(yytext, "%s", cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].type );
+  }
+
+  EndTwopointFunctionInit{SPC}* {
+  if(myverbose) printf("# [read_input_parser] 2-point function no. %d parsed in line %d\n\n", cvc::g_twopoint_function_number, line_of_file);
+  cvc::g_twopoint_function_number++;
+  BEGIN(0);
+  }
 }
 
 <FERMION_TYPE>{FILENAME} {
