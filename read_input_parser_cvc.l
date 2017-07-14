@@ -17,7 +17,7 @@ CORRCONFIG [0-9","";""\-""("")"][0-9","";""\-""("")"]+
 NAME [a-zA-Z0-9_]+
 TYPE [0-9A-Z]+
 SDIGIT {SIGN}?[[:digit:]]
-STRING [a-zA-z0-9"."_"-""/"","]+
+STRING [a-zA-Z0-9"."_"\-""/"","]+
 EQL {SPC}*={SPC}*
 
 %{
@@ -46,11 +46,12 @@ namespace cvc {
   float c;
   int reread = 0;
   char name[100];
+  char fname[100];
   char * type;
   double ft_rmax[4];
 
   int cvc_verbose = 1;
-  int myverbose = 0;
+  int myverbose = 1;
 }
 %}
 
@@ -1113,70 +1114,72 @@ namespace cvc {
   if(cvc::myverbose!=0) printf("# [read_input_parser] source coords no. %d set to %s\n", cvc::g_source_location_number, yytext);
 }
 
-<INITTWOPOINTFUNCTION>{
+<INITTWOPOINTFUNCTION>Init{SPC}* {
   if(cvc::myverbose) printf("# [read_input_parser] Initialization twopoint_function line %d\n", cvc::line_of_file);
   BEGIN(TWOPOINTFUNCTION);
 }
 
 <TWOPOINTFUNCTION>{
   {SPC}*pi1{EQL}{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
-    sscanf(yytext, "%d,%d,%d", 
+    sscanf(yytext, " %[a-zA-Z0-9] =  %d,%d,%d", cvc::name,
         cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pi1,
         cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pi1+1,
         cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pi1+2 );
   }
   {SPC}*pi2{EQL}{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
-    sscanf(yytext, "%d,%d,%d", 
+    sscanf(yytext, " %[a-zA-Z0-9] = %d,%d,%d", cvc::name,
         cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pi2,
         cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pi2+1,
         cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pi2+2 );
   }
   {SPC}*pf1{EQL}{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
-    sscanf(yytext, "%d,%d,%d", 
+    sscanf(yytext, " %[a-zA-Z0-9] = %d,%d,%d", cvc::name,
         cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pf1,
         cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pf1+1,
         cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pf1+2 );
   }
   {SPC}*pf2{EQL}{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
-    sscanf(yytext, "%d,%d,%d", 
+    sscanf(yytext, " %[a-zA-Z0-9] = %d,%d,%d", cvc::name,
         cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pf2,
         cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pf2+1,
         cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pf2+2 );
   }
 
-  {SPC}*gi1{EQL}{DIGIT}+,{DIGIT}+ {
-    sscanf(yytext, "%d,%d", 
+  {SPC}*gi1{EQL}{SDIGIT}+,{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d,%d", cvc::name,
         cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].gi1,
         cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].gi1+1);
   }
 
-  {SPC}*gf1{EQL}{DIGIT}+,{DIGIT}+ {
-    sscanf(yytext, "%d,%d", 
+  {SPC}*gf1{EQL}{SDIGIT}+,{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d,%d", cvc::name,
         cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].gf1,
         cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].gf1+1);
   }
 
-  {SPC}*gi2{EQL}{DIGIT}+ {
-    sscanf(yytext, "%d", 
+  {SPC}*gi2{EQL}{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d", cvc::name,
         &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].gi2) );
   }
 
-  {SPC}*gf2{EQL}{DIGIT}+ {
-    sscanf(yytext, "%d", 
+  {SPC}*gf2{EQL}{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d", cvc::name,
         &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].gf2) );
   }
 
   {SPC}*n{EQL}{DIGIT}+ {
-    sscanf(yytext, "%d", 
+    sscanf(yytext, " %[a-zA-Z0-9] = %d", cvc::name,
         &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].n) );
   }
 
-  {SPC}*name{EQL}{FILENAME} {
-    sscanf(yytext, "%s", cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].name );
+  {SPC}*tag{EQL}{STRING} {
+    sscanf(yytext, " %[a-zA-Z0-9] = %s", cvc::name, cvc::fname );
+    strcpy( cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].name , cvc::fname );
   }
 
-  {SPC}*type{EQL}{FILENAME} {
-    sscanf(yytext, "%s", cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].type );
+  {SPC}*type{EQL}{STRING} {
+    sscanf(yytext, " %[a-zA-Z0-9] = %s", cvc::name, cvc::fname );
+    strcpy(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].type, cvc::fname );
   }
 
   EndTwopointFunction{SPC}* {
