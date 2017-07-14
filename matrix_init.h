@@ -78,6 +78,9 @@ int init_2level_ibuffer (int***buffer, unsigned int n1, unsigned int n2);
 
 int fini_2level_ibuffer (int***buffer );
 
+int init_1level_zbuffer (double _Complex**zbuffer, unsigned int n1 );
+int fini_1level_zbuffer (double _Complex**zbuffer );
+
 
 }  /* end of namespace cvc */
 

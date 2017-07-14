@@ -206,6 +206,30 @@ int fini_4level_buffer (double*****buffer) {
 }  /* end of fini_4level_buffer */
 
 /************************************************************************************
+ * (de-)allocate 1-level buffer (n1 x n2 double matrix)
+ ************************************************************************************/
+int init_1level_zbuffer (double _Complex**zbuffer, unsigned int n1 ) {
+  if(*zbuffer != NULL) {
+    fprintf(stderr, "[init_1level_zbuffer] Error, zbuffer not NULL\n");
+    return(1);
+  }
+
+  (*zbuffer) = (double _Complex*)malloc(n1 * sizeof(double _Complex));
+  if( *zbuffer == NULL ) {
+    fprintf(stderr, "[init_1level_zbuffer] Error from malloc\n");
+    return(2);
+  }
+}  /* end of init_1level_zbuffer */
+
+int fini_1level_zbuffer (double _Complex**zbuffer ) {
+  if( *zbuffer != NULL) { 
+    free( *zbuffer );
+    *zbuffer = NULL;
+   }
+}  /* end of fini_1level_zbuffer */
+
+
+/************************************************************************************
  * (de-)allocate 2-level buffer (n1 x n2 double matrix)
  ************************************************************************************/
 int init_2level_zbuffer (double _Complex***zbuffer, unsigned int n1, unsigned int n2) {
