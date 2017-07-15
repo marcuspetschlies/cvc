@@ -6,7 +6,7 @@ namespace cvc {
 
 static inline void zm_eq_zm_transposed_4x4_array (double _Complex *r, double _Complex *s ) {
   double _Complex b[16];
-  memcpy( b, s, 16*sizeof(double));
+  memcpy( b, s, 16*sizeof(double _Complex));
   r[ 0] = b[ 0];
   r[ 1] = b[ 4];
   r[ 2] = b[ 8];
@@ -30,7 +30,7 @@ static inline void zm_eq_zm_transposed_4x4_array (double _Complex *r, double _Co
 
 static inline void zm_pl_eq_zm_transposed_4x4_array (double _Complex *r, double _Complex *s ) {
   double _Complex b[16];
-  memcpy( b, s, 16*sizeof(double));
+  memcpy( b, s, 16*sizeof(double _Complex));
   r[ 0] += b[ 0];
   r[ 1] += b[ 4];
   r[ 2] += b[ 8];
