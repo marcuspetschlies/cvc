@@ -219,6 +219,7 @@ int init_1level_zbuffer (double _Complex**zbuffer, unsigned int n1 ) {
     fprintf(stderr, "[init_1level_zbuffer] Error from malloc\n");
     return(2);
   }
+  return(0);
 }  /* end of init_1level_zbuffer */
 
 int fini_1level_zbuffer (double _Complex**zbuffer ) {
