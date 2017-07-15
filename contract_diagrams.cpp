@@ -358,11 +358,11 @@ int correlator_add_baryon_boundary_phase ( double _Complex ***sp, int tsrc) {
  ***********************************************/
 int correlator_add_source_phase ( double _Complex ***sp, int p[3], int source_coords[3], unsigned int N ) {
 
-  const double TWO_MPI = 2. * M_PI;
+  const double _Complex TWO_MPI_I = 2. * M_PI * I;
 
-  const double _Complex w = cexp ( TWO_MPI * ( ( p[0] / (double)LX_global ) * source_coords[0] + 
-                                               ( p[1] / (double)LY_global ) * source_coords[1] + 
-                                               ( p[2] / (double)LZ_global ) * source_coords[2] ) );
+  const double _Complex w = cexp ( TWO_MPI_I * ( ( p[0] / (double)LX_global ) * source_coords[0] + 
+                                                 ( p[1] / (double)LY_global ) * source_coords[1] + 
+                                                 ( p[2] / (double)LZ_global ) * source_coords[2] ) );
   
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
