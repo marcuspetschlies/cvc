@@ -11,6 +11,7 @@ typedef struct {
   char type [20];
   char name[50];
   int n;
+  char diagrams[400];
   int pi1[3];
   int pi2[3];
   int pf1[3];
@@ -19,6 +20,10 @@ typedef struct {
   int gi2;
   int gf1[2];
   int gf2;
+  int spin_project;
+  int parity_project;
+  int source_coords[4];
+  int reorder;
 } twopoint_function_type;
 
 typedef struct {
