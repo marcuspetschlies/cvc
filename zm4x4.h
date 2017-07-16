@@ -330,24 +330,25 @@ static inline void co_eq_tr_zm4x4 (double _Complex *c, double _Complex **r ) {
 /***********************************************************/
 
 static inline void zm4x4_eq_spin_parity_projection_zm4x4 (double _Complex **r, double _Complex **s, double c) {
+  const double norm = 1. / ( 1. + fabs(c) );
   double _Complex b[16];
   memcpy( b, s[0], 16*sizeof(double _Complex ) );
-  r[0][ 0] = ( b[ 0] - b[ 8] * c ) * 0.5;
-  r[0][ 1] = ( b[ 1] - b[ 9] * c ) * 0.5;
-  r[0][ 2] = ( b[ 2] - b[10] * c ) * 0.5;
-  r[0][ 3] = ( b[ 3] - b[11] * c ) * 0.5;
-  r[0][ 4] = ( b[ 4] - b[12] * c ) * 0.5;
-  r[0][ 5] = ( b[ 5] - b[13] * c ) * 0.5;
-  r[0][ 6] = ( b[ 6] - b[14] * c ) * 0.5;
-  r[0][ 7] = ( b[ 7] - b[15] * c ) * 0.5;
-  r[0][ 8] = ( b[ 8] - b[ 0] * c ) * 0.5;
-  r[0][ 9] = ( b[ 9] - b[ 1] * c ) * 0.5;
-  r[0][10] = ( b[10] - b[ 2] * c ) * 0.5;
-  r[0][11] = ( b[11] - b[ 3] * c ) * 0.5;
-  r[0][12] = ( b[12] - b[ 4] * c ) * 0.5;
-  r[0][13] = ( b[13] - b[ 5] * c ) * 0.5;
-  r[0][14] = ( b[14] - b[ 6] * c ) * 0.5;
-  r[0][15] = ( b[15] - b[ 7] * c ) * 0.5;
+  r[0][ 0] = ( b[ 0] - b[ 8] * c ) * norm;
+  r[0][ 1] = ( b[ 1] - b[ 9] * c ) * norm;
+  r[0][ 2] = ( b[ 2] - b[10] * c ) * norm;
+  r[0][ 3] = ( b[ 3] - b[11] * c ) * norm;
+  r[0][ 4] = ( b[ 4] - b[12] * c ) * norm;
+  r[0][ 5] = ( b[ 5] - b[13] * c ) * norm;
+  r[0][ 6] = ( b[ 6] - b[14] * c ) * norm;
+  r[0][ 7] = ( b[ 7] - b[15] * c ) * norm;
+  r[0][ 8] = ( b[ 8] - b[ 0] * c ) * norm;
+  r[0][ 9] = ( b[ 9] - b[ 1] * c ) * norm;
+  r[0][10] = ( b[10] - b[ 2] * c ) * norm;
+  r[0][11] = ( b[11] - b[ 3] * c ) * norm;
+  r[0][12] = ( b[12] - b[ 4] * c ) * norm;
+  r[0][13] = ( b[13] - b[ 5] * c ) * norm;
+  r[0][14] = ( b[14] - b[ 6] * c ) * norm;
+  r[0][15] = ( b[15] - b[ 7] * c ) * norm;
 }  /* end of zm4x4_eq_spin_parity_projection_zm4x4 */
 
 
