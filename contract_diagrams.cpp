@@ -328,7 +328,7 @@ int correlator_add_baryon_boundary_phase ( double _Complex ***sp, int tsrc) {
 #endif
     for( int it = 0; it < T; it++ ) {
       int ir = (it + g_proc_coords[0] * T - tsrc + T_global) % T_global;
-      const double _Complex w = cexp ( 3. * M_PI*(double)ir / (double)T_global  );
+      const double _Complex w = cexp ( I * 3. * M_PI*(double)ir / (double)T_global  );
       zm4x4_ti_eq_co ( sp[it], w );
     }
 
@@ -444,6 +444,9 @@ int correlator_spin_projection (double _Complex ***sp_out, double _Complex ***sp
   return(0);
 }  /* end of correlator_spin_projection */
 
+/***********************************************
+ *
+ ***********************************************/
 int correlator_spin_parity_projection (double _Complex ***sp_out, double _Complex ***sp_in, double c, unsigned N) {
 
 #ifdef HAVE_OPENMP
@@ -454,5 +457,36 @@ int correlator_spin_parity_projection (double _Complex ***sp_out, double _Comple
   }
   return(0);
 }  /* end of correlator_spin_parity_projection */
+
+/***********************************************
+ *
+ ***********************************************/
+int reorder_to_absolute_time (double _Complex ***sp_out, double _Complex ***sp_in, int tsrc, int dir, unsigned N) {
+
+  int exitstatus;
+  double _Complex ***buffer = NULL;
+
+  if ( dir == 0 && sp_out != sp_in ) {
+    memcpy( sp_out[0][0], sp_in[0][0],  N*16*sizeof(double _Complex) );
+    return(0);
+  }
+
+  exitstatus = init_3level_zbuffer ( &buffer, N, 4, 4);
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[reorder_to_absolute_time] Error from init_3level_zbuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+  memcpy( buffer[0][0], sp_in[0][0],  N*16*sizeof(double _Complex) );
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for( unsigned int ir = 0; ir < N; ir++) {
+    unsigned int is = ( ir + ( dir * tsrc + N ) ) % N;
+    zm4x4_eq_zm4x4( sp_out[is], buffer[ir] );
+  }
+  fini_3level_zbuffer ( &buffer );
+  return(0);
+}  /* end of reorder_to_absolute_time */
 
 }  /* end of namespace cvc */
