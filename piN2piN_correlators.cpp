@@ -53,6 +53,7 @@ extern "C"
 #include "aff_key_conversion.h"
 #include "zm4x4.h"
 #include "gamma.h"
+#include "twopoint_function_utils.h"
 
 using namespace cvc;
 
@@ -210,7 +211,17 @@ int main(int argc, char **argv) {
        *******************************************/
       for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
 
-        if ( strcmp( g_twopoint_function_list[i2pt].type , "b-b") != 0 ) continue; 
+        /* set the source coordinates if necessary */
+        if ( g_twopoint_function_list[i2pt].source_coords[0] == -1 ) {
+          g_twopoint_function_list[i2pt].source_coords[0] = gsx[0];
+          g_twopoint_function_list[i2pt].source_coords[1] = gsx[1];
+          g_twopoint_function_list[i2pt].source_coords[2] = gsx[2];
+          g_twopoint_function_list[i2pt].source_coords[3] = gsx[3];
+        }
+
+        twopoint_function_print ( &(g_twopoint_function_list[i2pt]), "A2PT", stdout );
+
+        /* if ( strcmp( g_twopoint_function_list[i2pt].type , "b-b") != 0 ) continue; */
 
         double _Complex *correlator = NULL, ***diagram = NULL, ***diagram_buffer = NULL;
 
@@ -278,30 +289,16 @@ int main(int argc, char **argv) {
           EXIT(103);
         }
 
-        char aff_tag[400], aff_tag_suffix[200];
-
-        if ( strcmp(g_twopoint_function_list[i2pt].type, "b-b") == 0 ) {
-          sprintf(aff_tag_suffix, "pf1x%.2dpf1y%.2dpf1z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d",
-            pf1[0], pf1[1], pf1[2],
-            gsx[0], gsx[1], gsx[2], gsx[3],
-            gf1[0], gi1[0]);
-        }
-        /* sprintf(aff_tag_suffix, "pi2x%.2dpi2y%.2dpi2z%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d",
-            pi2[0], pi2[1], pi2[2],
-            pf1[0], pf1[1], pf1[2],
-            pf2[0], pf2[1], pf2[2],
-            gsx[0], gsx[1], gsx[2], gsx[3],
-            gf1[0], gi1[0]); */
-
         for ( int idiag = 0; idiag < g_twopoint_function_list[i2pt].n; idiag++ )
         // for ( int idiag = 0; idiag < 1; idiag++ )
         {
 
+          // fprintf(stdout, "# [piN2piN_correlators] diagrams %d = %s\n", idiag, g_twopoint_function_list[i2pt].diagrams );
+
           if ( io_proc == 2 ) {
-            sprintf(aff_tag, "/%s/diag%d/%s", g_twopoint_function_list[i2pt].name, idiag, aff_tag_suffix);
-            if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_correlators] key = \"%s\"\n", aff_tag);
-  
-            fprintf(stdout, "# [piN2piN_correlators] reading key \"%s\"\n", aff_tag);
+            char aff_tag[400];
+            twopoint_function_print_diagram_key ( aff_tag, &(g_twopoint_function_list[i2pt]), idiag );
+
             affdir = aff_reader_chpath (affr, affn, aff_tag );
             exitstatus = aff_node_get_complex (affr, affdir, diagram_buffer[0][0], T_global*16);
             if( exitstatus != 0 ) {
@@ -315,6 +312,7 @@ int main(int argc, char **argv) {
             for ( int it = 0; it < T_global; it++ ) {
               zm_pl_eq_zm_transposed_4x4_array ( diagram[it][0], diagram_buffer[it][0] );
             }
+
           }  /* end of if io_proc == 2 */
         }   /* end of loop on diagrams */
 
@@ -323,6 +321,10 @@ int main(int argc, char **argv) {
           fprintf(stdout, "# initial correlator t = %2d\n", it );
           zm4x4_printf ( diagram[it], "c_i", stdout );
         } */
+
+        /* reorder to absolute time */
+        reorder_to_absolute_time (diagram, diagram, g_twopoint_function_list[i2pt].source_coords[0], g_twopoint_function_list[i2pt].reorder, T_global );
+
 
         /* source phase */
         exitstatus = correlator_add_source_phase ( diagram, pi1,  &(gsx[1]), T_global );
@@ -357,25 +359,28 @@ int main(int argc, char **argv) {
           zm4x4_eq_zm4x4_ti_zm4x4 ( diagram_buffer[it], diagram[it],  gi11.m );
           /* diagram <- Gamma_f1_1 x diagram_buffer */
           zm4x4_eq_zm4x4_ti_zm4x4 ( diagram[it], gf11.m, diagram_buffer[it] );
+
+          /* ??? spin / spin-parity projection ??? */
+          correlator_spin_parity_projection ( diagram, diagram, (double)g_twopoint_function_list[i2pt].parity_project, T_global);
+
+
           /* spin-trace */
           co_eq_tr_zm4x4 ( correlator+it, diagram[it] );
         }
 
-        /* ??? spin / spin-parity projection ??? */
+        /* multiply with phase factor per convention */
+        twopoint_function_correlator_phase ( correlator, &(g_twopoint_function_list[i2pt]), T_global );
+
 
         /* write to file  */
-        sprintf(aff_tag, "%s/pi2x%.2dpi2y%.2dpi2z%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d",
-          g_twopoint_function_list[i2pt].name,
-          pi2[0], pi2[1], pi2[2],
-          pf1[0], pf1[1], pf1[2],
-          pf2[0], pf2[1], pf2[2],
-          gsx[0], gsx[1], gsx[2], gsx[3],
-          gf1[0], gi1[0]);
+        twopoint_function_print_correlator_data ( correlator,  &(g_twopoint_function_list[i2pt]), ofs );
 
+        /* twopoint_function_print_correlator_key ( aff_tag, &(g_twopoint_function_list[i2pt]));
         fprintf(ofs, "# %s\n", aff_tag );
         for ( int it = 0; it < T_global; it++ ) {
-          fprintf(ofs, "  %25.16e %25.16e\n", creal(correlator[it]), cimag(correlator[it]));
-        }
+          int ir = ( it + gsx[0] ) % T_global;
+          fprintf(ofs, "  %25.16e %25.16e\n", creal(correlator[ir]), cimag(correlator[ir]));
+        }*/
 
         fini_3level_zbuffer ( &diagram_buffer );
         fini_3level_zbuffer ( &diagram );
