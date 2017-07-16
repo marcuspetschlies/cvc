@@ -201,7 +201,7 @@ void twopoint_function_correlator_phase (double _Complex *c, twopoint_function_t
       p->gf1[0], p->gf1[1], p->gf2, p->gi1[0], p->gi1[1], p->gi2, creal(zsign), cimag(zsign) );
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel for shared (sign)
+#pragma omp parallel for shared (zsign)
 #endif
   for ( unsigned int i = 0; i < N; i++ ) {
     c[i] *= zsign;
