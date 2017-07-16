@@ -27,6 +27,7 @@ int correlator_spin_parity_projection (double _Complex ***sp_out, double _Comple
 
 int correlator_spin_projection (double _Complex ***sp_out, double _Complex ***sp_in, double c, unsigned N);
 
+int reorder_to_absolute_time (double _Complex ***sp_out, double _Complex ***sp_in, int tsrc, int dir, unsigned N);
 
 }  /* end of namespace cvc */
 #endif
