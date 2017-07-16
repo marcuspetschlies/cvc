@@ -231,4 +231,18 @@ void twopoint_function_print_correlator_data ( double _Complex *c, twopoint_func
   return;
 }  /* end of twopoint_function_print_correlator_data */
 
+/********************************************************************************
+ *
+ ********************************************************************************/
+void twopoint_function_get_aff_filename_prefix (char*filename, twopoint_function_type*p) {
+
+  if ( strcmp( p->type , "b-b" ) == 0 || strcmp( p->type , "mxb-b" ) == 0 ) {
+    strcpy(filename, filename_prefix);
+  } else if ( strcmp( p->type , "mxb-mxb" ) == 0 ) {
+    strcpy(filename, filename_prefix2);
+  } else {
+    fprintf(stderr, "[twopoint_function_get_aff_filename] Error, unrecognized type %s\n", p->type);
+  }
+}  /* end of twopoint_function_get_aff_filename */
+
 }  /* end of namespace cvc */

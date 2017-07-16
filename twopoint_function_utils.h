@@ -11,6 +11,8 @@ void twopoint_function_print_correlator_key (char*key, twopoint_function_type *p
 void twopoint_function_correlator_phase (double _Complex *c, twopoint_function_type *p, unsigned int N);
 void twopoint_function_print_correlator_data ( double _Complex *c, twopoint_function_type *p, FILE*ofs );
 
+void twopoint_function_get_aff_filename_prefix (char*filename, twopoint_function_type*p);
+
 }  /* end of namespace cvc */
 
 
