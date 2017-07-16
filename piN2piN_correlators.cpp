@@ -272,7 +272,10 @@ int main(int argc, char **argv) {
 
 
         /* open file */
-        sprintf(filename, "%s.%.4d.tsrc%.2d.aff", "B_B", Nconf, t_base );
+        char filename_prefix[100];
+        twopoint_function_get_aff_filename_prefix ( filename_prefix, &(g_twopoint_function_list[i2pt]) );
+
+        sprintf(filename, "%s.%.4d.tsrc%.2d.aff", filename_prefix, Nconf, t_base );
 
         fprintf(stdout, "# [piN2piN_correlators] reading data from file %s\n", filename);
         affr = aff_reader (filename);
