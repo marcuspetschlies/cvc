@@ -30,6 +30,7 @@ EQL {SPC}*={SPC}*
 #include "default_input_values.h"
 #include "set_default.h"
 #include "cvc_utils.h"
+#include "twopoint_function_utils.h"
 
 namespace cvc {
 
@@ -1115,7 +1116,12 @@ namespace cvc {
 }
 
 <INITTWOPOINTFUNCTION>Init{SPC}* {
+  if(cvc::g_twopoint_function_number==MAX_MXB_MXB_2PT_NUM) {
+    fprintf(stderr, "[read_input_parser] Error, too many twopoint_function\n");
+    exit(1);
+  }
   if(cvc::myverbose) printf("# [read_input_parser] Initialization twopoint_function line %d\n", cvc::line_of_file);
+  twopoint_function_init ( &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number]) );
   BEGIN(TWOPOINTFUNCTION);
 }
 
@@ -1157,6 +1163,14 @@ namespace cvc {
         cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].gf1+1);
   }
 
+  {SPC}*source_coords{EQL}{DIGIT}+,{DIGIT}+,{DIGIT}+,{DIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d,%d,%d,%d", cvc::name,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].source_coords,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].source_coords+1,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].source_coords+2,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].source_coords+3);
+  }
+
   {SPC}*gi2{EQL}{SDIGIT}+ {
     sscanf(yytext, " %[a-zA-Z0-9] = %d", cvc::name,
         &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].gi2) );
@@ -1187,6 +1201,26 @@ namespace cvc {
     cvc::g_twopoint_function_number++;
     BEGIN(0);
   }
+
+  {SPC}*spin_project{EQL}{DIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9_] = %d", cvc::name,
+        &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].spin_project) );
+  }
+
+  {SPC}*parity_project{EQL}{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9_] = %d", cvc::name,
+        &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].parity_project) );
+  }
+
+  {SPC}*diagrams{EQL}{STRING} {
+    sscanf(yytext, " %[a-zA-Z0-9] = %s", cvc::name, cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].diagrams );
+  }
+
+  {SPC}*reorder{EQL}{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d", cvc::name,
+        &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].reorder) );
+  }
+
 }
 
 <FERMION_TYPE>{FILENAME} {
