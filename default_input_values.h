@@ -200,5 +200,7 @@ namespace cvc {
 
 #define _default_twopoint_function_number 0
 
+#define _default_zero 0
+
 }
 #endif
