@@ -35,6 +35,7 @@
 #include "mpi_init.h"
 #include "matrix_init.h"
 #include "gamma.h"
+#include "zm4x4.h"
 #include "contract_diagrams.h"
 
 namespace cvc {
@@ -311,5 +312,214 @@ int match_momentum_id ( int **pid, int **m1, int **m2, int N1, int N2 ) {
 
   return(0);
 }  /* end of match_momentum_id */
+
+/***********************************************
+ * multiply x-space spinor propagator field
+ *   with boundary phase
+ ***********************************************/
+int correlator_add_baryon_boundary_phase ( double _Complex ***sp, int tsrc) {
+
+  if( g_propagator_bc_type == 0 ) {
+    /* multiply with phase factor */
+    fprintf(stdout, "# [correlator_add_baryon_boundary_phase] multiplying with boundary phase factor\n");
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+    for( int it = 0; it < T; it++ ) {
+      int ir = (it + g_proc_coords[0] * T - tsrc + T_global) % T_global;
+      const double _Complex w = cexp ( I * 3. * M_PI*(double)ir / (double)T_global  );
+      zm4x4_ti_eq_co ( sp[it], w );
+    }
+
+  } else if ( g_propagator_bc_type == 1 ) {
+    /* multiply with step function */
+    fprintf(stdout, "# [add_baryon_boundary_phase] multiplying with boundary step function\n");
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+    for( int ir = 0; ir < T; ir++) {
+      int it = ir + g_proc_coords[0] * T;  /* global t-value, 0 <= t < T_global */
+      if(it < tsrc) {
+        zm4x4_ti_eq_re ( sp[it], -1. );
+      }  /* end of if it < tsrc */
+    }  /* end of loop on ir */
+  }
+
+  return(0);
+}  /* end of correlator_add_baryon_boundary_phase */
+
+
+/***********************************************
+ * multiply with phase from source location
+ * - using pi1 + pi2 = - ( pf1 + pf2 ), so
+ *   pi1 = - ( pi2 + pf1 + pf2 )
+ ***********************************************/
+int correlator_add_source_phase ( double _Complex ***sp, int p[3], int source_coords[3], unsigned int N ) {
+
+  const double _Complex TWO_MPI_I = 2. * M_PI * I;
+
+  const double _Complex w = cexp ( TWO_MPI_I * ( ( p[0] / (double)LX_global ) * source_coords[0] + 
+                                                 ( p[1] / (double)LY_global ) * source_coords[1] + 
+                                                 ( p[2] / (double)LZ_global ) * source_coords[2] ) );
+  
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for( unsigned int ix = 0; ix < N; ix++ ) {
+    zm4x4_ti_eq_co ( sp[ix], w );
+  }
+  return(0);
+}  /* end of correlator_add_source_phase */
+
+int correlator_spin_projection (double _Complex ***sp_out, double _Complex ***sp_in, int i, int k, double a, double b, unsigned N) {
+
+  int ik = 4*i+k;
+  
+  switch(ik) {
+    case  5: 
+    case 10: 
+    case 15: 
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+      for( unsigned int ir = 0; ir < N; ir++) {
+        zm4x4_eq_spin_projection_zm4x4_33 (  sp_out[ir], sp_in[ir], a, b );
+      }
+      break;;
+    case  6: 
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+      for( unsigned int ir = 0; ir < N; ir++) {
+        zm4x4_eq_spin_projection_zm4x4_12 (  sp_out[ir], sp_in[ir], a, b );
+      }
+      break;;
+    case  7: 
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+      for( unsigned int ir = 0; ir < N; ir++) {
+        zm4x4_eq_spin_projection_zm4x4_13 (  sp_out[ir], sp_in[ir], a, b );
+      }
+      break;;
+    case  9: 
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+      for( unsigned int ir = 0; ir < N; ir++) {
+        zm4x4_eq_spin_projection_zm4x4_21 (  sp_out[ir], sp_in[ir], a, b );
+      }
+      break;;
+    case 11: 
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+      for( unsigned int ir = 0; ir < N; ir++) {
+        zm4x4_eq_spin_projection_zm4x4_23 (  sp_out[ir], sp_in[ir], a, b );
+      }
+      break;;
+    case 13: 
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+      for( unsigned int ir = 0; ir < N; ir++) {
+        zm4x4_eq_spin_projection_zm4x4_31 (  sp_out[ir], sp_in[ir], a, b );
+      }
+      break;;
+    case 14: 
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+      for( unsigned int ir = 0; ir < N; ir++) {
+        zm4x4_eq_spin_projection_zm4x4_32 (  sp_out[ir], sp_in[ir], a, b );
+      }
+      break;;
+    default:
+      fprintf(stderr, "[correlator_spin_projection] Error, projector P_{%d,%d} not implemented\n", i, k);
+      return(1);
+      break;;
+  }  /* end of switch i, k */
+  return(0);
+}  /* end of correlator_spin_projection */
+
+/***********************************************
+ *
+ ***********************************************/
+int correlator_spin_parity_projection (double _Complex ***sp_out, double _Complex ***sp_in, double c, unsigned N) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for( unsigned int ir = 0; ir < N; ir++) {
+    zm4x4_eq_spin_parity_projection_zm4x4 ( sp_out[ir], sp_in[ir], c);
+  }
+  return(0);
+}  /* end of correlator_spin_parity_projection */
+
+/***********************************************
+ *
+ ***********************************************/
+int reorder_to_absolute_time (double _Complex ***sp_out, double _Complex ***sp_in, int tsrc, int dir, unsigned N) {
+
+  int exitstatus;
+  double _Complex ***buffer = NULL;
+
+  if ( dir == 0 && sp_out != sp_in ) {
+    memcpy( sp_out[0][0], sp_in[0][0],  N*16*sizeof(double _Complex) );
+    return(0);
+  }
+
+  exitstatus = init_3level_zbuffer ( &buffer, N, 4, 4);
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[reorder_to_absolute_time] Error from init_3level_zbuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+  memcpy( buffer[0][0], sp_in[0][0],  N*16*sizeof(double _Complex) );
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for( unsigned int ir = 0; ir < N; ir++) {
+    unsigned int is = ( ir + ( dir * tsrc + N ) ) % N;
+    zm4x4_eq_zm4x4( sp_out[is], buffer[ir] );
+  }
+  fini_3level_zbuffer ( &buffer );
+  return(0);
+}  /* end of reorder_to_absolute_time */
+
+/***********************************************/
+/***********************************************/
+
+int contract_diagram_zmx4x4_field_ti_co_field ( double _Complex ***sp_out, double _Complex ***sp_in, double _Complex *c_in, unsigned int N) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for( unsigned int ir = 0; ir < N; ir++) {
+    zm4x4_eq_zm4x4_ti_co ( sp_out[ir], sp_in[ir], c_in[ir] );
+    if ( ir == 0 ) {
+      zm4x4_printf ( sp_in[ir], "sp_in", stdout );
+      fprintf(stdout, "# [contract_diagram_zmx4x4_field_ti_co_field] c_in = %25.15e %25.16e\n", creal(c_in[ir]), cimag(c_in[ir]));
+    }
+
+  }
+  return(0);
+}  /* end of contract_diagram_zmx4x4_field_ti_co_field */
+
+/***********************************************/
+/***********************************************/
+
+int contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( double _Complex ***sp_out, double _Complex ***sp_in, unsigned int N) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( unsigned int ir = 0; ir < N ; ir++ ) {
+    zm4x4_eq_zm4x4_transposed ( sp_out[ir], sp_in[ir] );
+  }
+  return(0);
+}  /* end of contract_diagram_zm4x4_field_eq_zm4x4_field_transposed */
 
 }  /* end of namespace cvc */

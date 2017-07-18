@@ -19,25 +19,19 @@ void contract_b2 (double _Complex ***b2, double _Complex **v3, **double v2, gamm
 
 int match_momentum_id ( int **pid, int **m1, int **m2, int N1, int N2 );
 
-static inline void zm_4x4_array_transposed (double _Complex *r, double _Complex *s ) {
+int correlator_add_baryon_boundary_phase ( double _Complex ***sp, int tsrc);
 
-  r[ 0] = s[ 0];
-  r[ 1] = s[ 4];
-  r[ 2] = s[ 8];
-  r[ 3] = s[12];
-  r[ 4] = s[ 1];
-  r[ 5] = s[ 5];
-  r[ 6] = s[ 9];
-  r[ 7] = s[13];
-  r[ 8] = s[ 2];
-  r[ 9] = s[ 6];
-  r[10] = s[10];
-  r[11] = s[14];
-  r[12] = s[ 3];
-  r[13] = s[ 7];
-  r[14] = s[11];
-  r[15] = s[15];
-}  /* end of zm_4x4_array_transposed */
+int correlator_add_source_phase ( double _Complex ***sp, int p[3], int source_coords[3], unsigned int N );
+
+int correlator_spin_parity_projection (double _Complex ***sp_out, double _Complex ***sp_in, double c, unsigned N);
+
+int correlator_spin_projection (double _Complex ***sp_out, double _Complex ***sp_in, double c, unsigned N);
+
+int reorder_to_absolute_time (double _Complex ***sp_out, double _Complex ***sp_in, int tsrc, int dir, unsigned N);
+
+int contract_diagram_zmx4x4_field_ti_co_field ( double _Complex ***sp_out, double _Complex ***sp_in, double _Complex *c_in, unsigned int N);
+
+int contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( double _Complex ***sp_out, double _Complex ***sp_in, unsigned int N);
 
 }  /* end of namespace cvc */
 #endif
