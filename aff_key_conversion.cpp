@@ -218,5 +218,58 @@ int vn_oet_read_key ( double _Complex *key_buffer, char*tag, int i_sample, int p
 
 }  /* end vn_oet_read_key */
 
+/**************************************************************************************/
+/**************************************************************************************/
+
+/**************************************************************************************
+ *
+ **************************************************************************************/
+void aff_key_conversion_diagram (  char*key, char*tag, int pi1[3], int pi2[3], int pf1[3], int pf2[3], int gi1, int gi2, int gf1, int gf2, int source_coords[4], char*diag_name, int diag_id ) {
+
+  char diag_str[100];
+
+  if ( diag_name == NULL && diag_id < 0 ) {
+    diag_str[0] = '\0';
+  } else if ( diag_name == NULL && diag_id >= 0 ) {
+    sprintf(diag_str, "diag%d/", diag_id);
+  } else if (diag_id >= 0 ) {
+    sprintf(diag_str, "%s%d/", diag_name, diag_id);
+  } else {
+    fprintf(stderr, "[aff_key_conversion_diagram] Error, have diagram name %s but no id\n", diag_name);
+    strcpy( key, "NA" );
+    return;
+  }
+
+  if ( strcmp(tag, "N-N" ) == 0 || strcmp(tag, "D-D" ) == 0 ) {
+
+    sprintf( key, "/%s/t%.2dx%.2dy%.2dz%.2d/gi%.2d/gf%.2d/%spx%.2dpy%.2dpz%.2d", tag, 
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        C_gamma_to_gamma[gi1][0], C_gamma_to_gamma[gf1][0], diag_str, 
+        pf1[0], pf1[1], pf1[2]);
+
+  } else if ( strcmp(tag, "piN-D" ) == 0 ) {
+
+    sprintf( key, "/%s/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/gi%.2d/gf%.2d/%spx%.2dpy%.2dpz%.2d", tag, 
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        pi2[0], pi2[1], pi2[2],
+        C_gamma_to_gamma[gi1][0], C_gamma_to_gamma[gf1][0], diag_str, 
+        pf1[0], pf1[1], pf1[2]);
+
+  } else if ( strcmp(tag, "m-m" ) == 0 ) {
+
+    sprintf( key, "/%s/t%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/sample%.2d/gi%.2d/gf%.2d/px%.2dpy%.2dpz%.2d", tag,
+        source_coords[0],
+        pi2[0], pi2[1], pi2[2],
+        diag_id, gi2, gf2, pf2[0], pf2[1], pf2[2] );
+
+  } else {
+    fprintf(stderr, "[aff_key_conversion_diagram] Error, unrecognized tag %s\n", tag);
+    strcpy( key, "NA" );
+    return;
+  }
+
+  return;
+}  /* end of aff_key_conversion_diagram  */
+
 
 }  /* end of namespace cvc */
