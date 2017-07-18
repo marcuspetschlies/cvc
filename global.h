@@ -91,6 +91,8 @@
 #define MAX_MOMENTUM_NUMBER 300
 #define MAX_SEQUENTIAL_SOURCE_TIMESLICE_NUMBER 128
 
+#define MAX_GAMMA_NUMBER 16
+
 namespace cvc {
 
 typedef struct momentum_info_struct {
@@ -248,6 +250,9 @@ EXTERN int g_fermion_type;
 EXTERN int g_coherent_source_number;
 
 EXTERN int g_total_momentum_list[MAX_MOMENTUM_NUMBER][3], g_total_momentum_number;
+
+EXTERN char g_gamma_f1_nucleon_list[MAX_GAMMA_NUMBER][100], g_gamma_f2_list[MAX_GAMMA_NUMBER][100], g_gamma_f1_delta_list[MAX_GAMMA_NUMBER][100], g_gamma_current_list[MAX_GAMMA_NUMBER][100];
+EXTERN int g_gamma_f1_nucleon_number, g_gamma_f2_number, g_gamma_f1_delta_number, g_gamma_current_number;
 
 
 }
