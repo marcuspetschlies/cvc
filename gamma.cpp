@@ -73,6 +73,9 @@ void gamma_matrix_fill ( gamma_matrix_type *g) {
 
   gamma_matrix_zero ( g );
 
+  /* fprintf(stdout, "# [gamma_matrix_fill] filling gamma matrix with p = (%d,%d,%d,%d), s = (%f, %f, %f, %f) isimag = %d\n",
+      p[0], p[1], p[2], p[3], s[0], s[1], s[2], s[3], isimag); */
+
   g->m[0][p[0]] = g->s * s[0] * ( isimag ? -I : 1. );
   g->m[1][p[1]] = g->s * s[1] * ( isimag ? -I : 1. );
   g->m[2][p[2]] = g->s * s[2] * ( isimag ? -I : 1. );
@@ -89,6 +92,7 @@ void gamma_matrix_set ( gamma_matrix_type *g, int id, double s ) {
 
 void gamma_matrix_printf (gamma_matrix_type *g, char*name, FILE*ofs) {
 
+  fprintf(ofs, "# [gamma_matrix_printf] %s id %2d sign %16.7e\n", name, g->id, g->s);
   fprintf(ofs, "%s <- array(dim=c(4,4))\n", name);
   for (int i=0; i<4; i++) {
   for (int k=0; k<4; k++) {
