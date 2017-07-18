@@ -843,13 +843,13 @@ int point_source_propagator (double **prop, int gsx[4], int op_id, int smear_sou
     if( g_fermion_type == _TM_FERMION ) {
       spinor_field_tm_rotation(spinor_work[0], spinor_work[0], rotation_direction, g_fermion_type, VOLUME);
     }
-
+#ifdef HAVE_TMLQCD_LIBWRAPPER
     exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id, 0);
     if(exitstatus != 0) {
       fprintf(stderr, "[point_source_propagator] Error from tmLQCD_invert, status was %d\n", exitstatus);
       EXIT(12);
     }
-
+#endif
     if( g_fermion_type == _TM_FERMION ) {
       spinor_field_tm_rotation(spinor_work[1], spinor_work[1], rotation_direction, g_fermion_type, VOLUME);
     }

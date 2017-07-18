@@ -12,22 +12,25 @@ ZT [0-9(10)(11)]
 IDXEX ("-"{DIGIT}+)
 SIGN ("+"|"-")
 FLT {SIGN}?{DIGIT}*+"."{DIGIT}*(e("-"|"+")?{DIGIT}+)?
-FILENAME [a-zA-Z0-9_".""\-""/"][a-zA-z0-9"."_"\-""/"]+
+FILENAME [a-zA-Z0-9_".""\-""/"][a-zA-Z0-9"."_"\-""/"]+
 CORRCONFIG [0-9","";""\-""("")"][0-9","";""\-""("")"]+
 NAME [a-zA-Z0-9_]+
 TYPE [0-9A-Z]+
 SDIGIT {SIGN}?[[:digit:]]
-STRING [a-zA-z0-9"."_"-""/"","]+
+STRING [a-zA-Z0-9"."_"\-""/"","]+
+EQL {SPC}*={SPC}*
 
 %{
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include "types.h"
 #include "global.h"
 #include "read_input_parser.h"
 #include "default_input_values.h"
 #include "set_default.h"
 #include "cvc_utils.h"
+#include "twopoint_function_utils.h"
 
 namespace cvc {
 
@@ -44,11 +47,12 @@ namespace cvc {
   float c;
   int reread = 0;
   char name[100];
+  char fname[100];
   char * type;
   double ft_rmax[4];
 
   int cvc_verbose = 1;
-  int myverbose = 0;
+  int myverbose = 1;
 }
 %}
 
@@ -195,14 +199,14 @@ namespace cvc {
 %x CHKINVERSION
 %x COMMENT
 %x ERROR
-%x M_M_TWOPT
-%x MXB_MXB_TWOPT
 %x FERMION_TYPE
 %x SOURCECOORDS
 %x SRCSNKTIMESEP
 %x COHERENTSOURCENUMBER
 %x VERBOSITYLEVEL
 %x TOTALMOMENTUM
+%x INITTWOPOINTFUNCTION
+%x TWOPOINTFUNCTION
 
 %%
 ^T{SPC}*={SPC}*                            BEGIN(TT);
@@ -355,14 +359,15 @@ namespace cvc {
 ^mms_id{SPC}*={SPC}*                       BEGIN(MMSID);
 ^check_inversion{SPC}*={SPC}*              BEGIN(CHKINVERSION);
 
-^m_m_2pt{SPC}*={SPC}*                      BEGIN(M_M_TWOPT);
-^mxb_mxb_2pt{SPC}*={SPC}*                  BEGIN(MXB_MXB_TWOPT);
 ^fermion_type{SPC}*={SPC}*                 BEGIN(FERMION_TYPE);
 ^src_snk_time_separation{SPC}*={SPC}*      BEGIN(SRCSNKTIMESEP);
 
 ^coherent_source_number{SPC}*={SPC}*       BEGIN(COHERENTSOURCENUMBER);
 
 ^verbosity_level{SPC}*={SPC}*              BEGIN(VERBOSITYLEVEL);
+
+^BeginTwopointFunction                     BEGIN(INITTWOPOINTFUNCTION);
+
 
   /* start namespace inclusion here */
 
@@ -1091,30 +1096,6 @@ namespace cvc {
   if(cvc::myverbose!=0) printf("# [read_input_parser] check inversion %d\n",cvc::g_check_inversion);
 }
 
-<M_M_TWOPT>{CORRCONFIG} {
-
-  if ( cvc::g_m_m_2pt_num == MAX_M_M_2PT_NUM ) {
-    fprintf(stderr, "[read_input_parser] Error, too many m_m_2pt\n");
-    exit(1);
-  } else {
-    fprintf(stdout, "# [read_input_parser] extracting m_m_2pt number %d\n", cvc::g_m_m_2pt_num);
-  }
-
-  sscanf(yytext, "%d,(%d,%d,%d);%d,(%d,%d,%d)",
-    &(cvc::g_m_m_2pt_list[cvc::g_m_m_2pt_num].gi),
-    cvc::g_m_m_2pt_list[cvc::g_m_m_2pt_num].pi,
-    cvc::g_m_m_2pt_list[cvc::g_m_m_2pt_num].pi+1,
-    cvc::g_m_m_2pt_list[cvc::g_m_m_2pt_num].pi+2,
-    &(cvc::g_m_m_2pt_list[cvc::g_m_m_2pt_num].gf),
-    cvc::g_m_m_2pt_list[cvc::g_m_m_2pt_num].pf,
-    cvc::g_m_m_2pt_list[cvc::g_m_m_2pt_num].pf+1,
-    cvc::g_m_m_2pt_list[cvc::g_m_m_2pt_num].pf+2
-  );
-
-  cvc::g_m_m_2pt_num++;
-  if(cvc::myverbose!=0) printf("# [read_input_parser] m_m_2pt no. %d set to %s\n", cvc::g_m_m_2pt_num, yytext);
-}
-
 <SOURCECOORDS>{CORRCONFIG} {
 
   if ( cvc::g_source_location_number == MAX_SOURCE_LOCATION_NUMBER ) {
@@ -1134,36 +1115,112 @@ namespace cvc {
   if(cvc::myverbose!=0) printf("# [read_input_parser] source coords no. %d set to %s\n", cvc::g_source_location_number, yytext);
 }
 
-<MXB_MXB_TWOPT>{CORRCONFIG} {
-
-  if ( cvc::g_mxb_mxb_2pt_num == MAX_MXB_MXB_2PT_NUM ) {
-    fprintf(stderr, "[read_input_parser] Error, too many mxb_mxb_2pt\n");
+<INITTWOPOINTFUNCTION>Init{SPC}* {
+  if(cvc::g_twopoint_function_number==MAX_MXB_MXB_2PT_NUM) {
+    fprintf(stderr, "[read_input_parser] Error, too many twopoint_function\n");
     exit(1);
-  } else {
-    fprintf(stdout, "# [read_input_parser] extracting mxb_mxb_2pt number %d\n", cvc::g_mxb_mxb_2pt_num);
+  }
+  if(cvc::myverbose) printf("# [read_input_parser] Initialization twopoint_function line %d\n", cvc::line_of_file);
+  twopoint_function_init ( &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number]) );
+  BEGIN(TWOPOINTFUNCTION);
+}
+
+<TWOPOINTFUNCTION>{
+  {SPC}*pi1{EQL}{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] =  %d,%d,%d", cvc::name,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pi1,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pi1+1,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pi1+2 );
+  }
+  {SPC}*pi2{EQL}{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d,%d,%d", cvc::name,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pi2,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pi2+1,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pi2+2 );
+  }
+  {SPC}*pf1{EQL}{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d,%d,%d", cvc::name,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pf1,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pf1+1,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pf1+2 );
+  }
+  {SPC}*pf2{EQL}{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d,%d,%d", cvc::name,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pf2,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pf2+1,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pf2+2 );
   }
 
-  sscanf(yytext, "%d,(%d,%d,%d);%d,(%d,%d,%d);%d,(%d,%d,%d);%d,(%d,%d,%d)",
-    &(cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].gi1),
-      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pi1,
-      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pi1+1,
-      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pi1+2,
-    &(cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].gi2),
-      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pi2,
-      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pi2+1,
-      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pi2+2,
-    &(cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].gf1),
-      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pf1,
-      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pf1+1,
-      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pf1+2,
-    &(cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].gf2),
-      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pf2,
-      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pf2+1,
-      cvc::g_mxb_mxb_2pt_list[cvc::g_mxb_mxb_2pt_num].pf2+2
-  );
+  {SPC}*gi1{EQL}{SDIGIT}+,{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d,%d", cvc::name,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].gi1,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].gi1+1);
+  }
 
-  cvc::g_mxb_mxb_2pt_num++;
-  if(cvc::myverbose!=0) printf("# [read_input_parser] mxb_mxb_2pt no. %d set to %s\n", cvc::g_mxb_mxb_2pt_num, yytext);
+  {SPC}*gf1{EQL}{SDIGIT}+,{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d,%d", cvc::name,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].gf1,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].gf1+1);
+  }
+
+  {SPC}*source_coords{EQL}{DIGIT}+,{DIGIT}+,{DIGIT}+,{DIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d,%d,%d,%d", cvc::name,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].source_coords,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].source_coords+1,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].source_coords+2,
+        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].source_coords+3);
+  }
+
+  {SPC}*gi2{EQL}{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d", cvc::name,
+        &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].gi2) );
+  }
+
+  {SPC}*gf2{EQL}{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d", cvc::name,
+        &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].gf2) );
+  }
+
+  {SPC}*n{EQL}{DIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d", cvc::name,
+        &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].n) );
+  }
+
+  {SPC}*tag{EQL}{STRING} {
+    sscanf(yytext, " %[a-zA-Z0-9] = %s", cvc::name, cvc::fname );
+    strcpy( cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].name , cvc::fname );
+  }
+
+  {SPC}*type{EQL}{STRING} {
+    sscanf(yytext, " %[a-zA-Z0-9] = %s", cvc::name, cvc::fname );
+    strcpy(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].type, cvc::fname );
+  }
+
+  EndTwopointFunction{SPC}* {
+    if( cvc::myverbose ) printf("# [read_input_parser] 2-point function no. %d parsed in line %d\n\n", cvc::g_twopoint_function_number, cvc::line_of_file);
+    cvc::g_twopoint_function_number++;
+    BEGIN(0);
+  }
+
+  {SPC}*spin_project{EQL}{DIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9_] = %d", cvc::name,
+        &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].spin_project) );
+  }
+
+  {SPC}*parity_project{EQL}{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9_] = %d", cvc::name,
+        &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].parity_project) );
+  }
+
+  {SPC}*diagrams{EQL}{STRING} {
+    sscanf(yytext, " %[a-zA-Z0-9] = %s", cvc::name, cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].diagrams );
+  }
+
+  {SPC}*reorder{EQL}{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d", cvc::name,
+        &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].reorder) );
+  }
+
 }
 
 <FERMION_TYPE>{FILENAME} {
@@ -1204,6 +1261,11 @@ namespace cvc {
 <COMMENT>[^\n]*             {
   BEGIN(cvc::comment_caller);
 }
+
+<INITTWOPOINTFUNCTION,TWOPOINTFUNCTION>{SPC}*\n   {
+  cvc::line_of_file++;
+}
+
 
 <*>\n                       {
   cvc::line_of_file++;

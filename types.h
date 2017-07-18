@@ -8,38 +8,23 @@ typedef double ** fermion_propagator_type;
 typedef double ** spinor_propagator_type;
 
 typedef struct {
-  int gi;
-  int gf;
-  int pi[3];
-  int pf[3];
-} m_m_2pt_type;
-
-typedef struct {
-  int gi;
-  int gf;
-  int pi[3];
-  int pf[3];
-} b_b_2pt_type;
-
-typedef struct {
-  int gi1;
-  int gi2;
-  int gf;
-  int pi1[3];
-  int pi2[3];
-  int pf[3];
-} mxb_b_2pt_type;
-
-typedef struct {
-  int gi1;
-  int gi2;
-  int gf1;
-  int gf2;
+  char type [20];
+  char name[50];
+  int n;
+  char diagrams[400];
   int pi1[3];
   int pi2[3];
   int pf1[3];
   int pf2[3];
-} mxb_mxb_2pt_type;
+  int gi1[2];
+  int gi2;
+  int gf1[2];
+  int gf2;
+  int spin_project;
+  int parity_project;
+  int source_coords[4];
+  int reorder;
+} twopoint_function_type;
 
 typedef struct {
   double *****v;

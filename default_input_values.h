@@ -192,14 +192,13 @@ namespace cvc {
 
 #define _default_csw 0
 
-#define _default_m_m_2pt_num 0
-#define _default_mxb_mxb_2pt_num 0
-
 #define _default_fermion_type -1
 #define _default_source_location_number 0
 #define _default_coherent_source_number 1
 
 #define _default_total_momentum_number 0
+
+#define _default_twopoint_function_number 0
 
 }
 #endif

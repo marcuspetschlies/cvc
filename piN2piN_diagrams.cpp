@@ -52,6 +52,7 @@ extern "C"
 #include "contract_diagrams.h"
 #include "aff_key_conversion.h"
 #include "gamma.h"
+#include "zm4x4.h"
 
 using namespace cvc;
 
@@ -74,15 +75,12 @@ int main(int argc, char **argv) {
   char filename[200];
   char tag[20];
   int io_proc = -1;
-  double ratime, retime;
-
-  int C_gamma_to_gamma[16][2];
 
 #ifdef HAVE_LHPC_AFF
-  struct AffReader_s *affr = NULL;
+  struct AffReader_s *affr = NULL, *affr_oet = NULL;
   struct AffWriter_s *affw = NULL;
   char * aff_status_str;
-  struct AffNode_s *affn = NULL, *affn2 = NULL, *affdir = NULL;
+  struct AffNode_s *affn = NULL, *affn_oet = NULL, *affn2 = NULL, *affdir = NULL;
   char aff_tag[200];
 #endif
 
@@ -132,9 +130,18 @@ int main(int argc, char **argv) {
   mpi_init(argc, argv);
 
   /******************************************************
+   * set initial timestamp
+   * - con: this is after parsing the input file
+   ******************************************************/
+  if(g_cart_id == 0) {
+    g_the_time = time(NULL);
+    fprintf(stdout, "# [piN2piN_diagrams] %s# [piN2piN_diagrams] start of run\n", ctime(&g_the_time));
+    fflush(stdout);
+  }
+
+  /******************************************************
    *
    ******************************************************/
-
   if(init_geometry() != 0) {
     fprintf(stderr, "[piN2piN_diagrams] Error from init_geometry\n");
     EXIT(1);
@@ -197,9 +204,12 @@ int main(int argc, char **argv) {
   for( int i_src = 0; i_src<g_source_location_number; i_src++) {
     int t_base = g_source_coords_list[i_src][0];
 
+    /******************************************************
+     * open AFF input and output files
+     ******************************************************/
     if(io_proc == 2) {
+      /* AFF input files */
       sprintf(filename, "%s.%.4d.tsrc%.2d.aff", "piN_piN", Nconf, t_base );
-      fprintf(stdout, "# [piN2piN_diagrams] writing data to file %s\n", filename);
       affr = aff_reader (filename);
       aff_status_str = (char*)aff_reader_errstr(affr);
       if( aff_status_str != NULL ) {
@@ -208,12 +218,26 @@ int main(int argc, char **argv) {
       } else {
         fprintf(stdout, "# [piN2piN_diagrams] reading data from aff file %s\n", filename);
       }
-
       if( (affn = aff_reader_root( affr )) == NULL ) {
-        fprintf(stderr, "[piN2piN_diagrams] Error, aff writer is not initialized\n");
+        fprintf(stderr, "[piN2piN_diagrams] Error, aff reader is not initialized\n");
         EXIT(103);
       }
 
+      sprintf(filename, "%s.%.4d.tsrc%.2d.aff", "piN_piN_oet", Nconf, t_base );
+      affr_oet = aff_reader (filename);
+      aff_status_str = (char*)aff_reader_errstr(affr_oet);
+      if( aff_status_str != NULL ) {
+        fprintf(stderr, "[piN2piN_diagrams] Error from aff_reader, status was %s\n", aff_status_str);
+        EXIT(4);
+      } else {
+        fprintf(stdout, "# [piN2piN_diagrams] reading oet data from aff file %s\n", filename);
+      }
+      if( (affn_oet = aff_reader_root( affr_oet )) == NULL ) {
+        fprintf(stderr, "[piN2piN_diagrams] Error, aff oet reader is not initialized\n");
+        EXIT(103);
+      }
+
+      /* AFF output file */
       sprintf(filename, "%s.%.4d.tsrc%.2d.aff", "piN_piN_diagrams", Nconf, t_base );
       affw = aff_writer (filename);
       aff_status_str = (char*)aff_writer_errstr(affw);
@@ -223,25 +247,23 @@ int main(int argc, char **argv) {
       } else {
         fprintf(stdout, "# [piN2piN_diagrams] writing data to file %s\n", filename);
       }
-
       if( (affn2 = aff_writer_root( affw )) == NULL ) {
         fprintf(stderr, "[piN2piN_diagrams] Error, aff writer is not initialized\n");
         EXIT(103);
       }
     }  /* end of if io_proc == 2 */
 
-    double _Complex ******b1xi = NULL;
-    double _Complex **diagram = NULL, **diagram_buffer = NULL;
+    double _Complex ***diagram = NULL, **diagram_buffer = NULL;
 
-    exitstatus= init_2level_zbuffer ( &diagram, T_global, 16 );
+    exitstatus= init_3level_zbuffer ( &diagram, T_global, 4, 4 );
     if ( exitstatus != 0 ) {
-      fprintf(stderr, "[piN2piN_diagrams] Error from init_level_zbuffer, status was %d\n", exitstatus);
+      fprintf(stderr, "[piN2piN_diagrams] Error from init_3level_zbuffer, status was %d\n", exitstatus);
       EXIT(47);
     }
 
     exitstatus= init_2level_zbuffer ( &diagram_buffer, T_global, 16 );
     if ( exitstatus != 0 ) {
-      fprintf(stderr, "[piN2piN_diagrams] Error from init_level_zbuffer, status was %d\n", exitstatus);
+      fprintf(stderr, "[piN2piN_diagrams] Error from init_2level_zbuffer, status was %d\n", exitstatus);
       EXIT(47);
     }
 
@@ -250,6 +272,7 @@ int main(int argc, char **argv) {
      *
      *   Note: only one gamma_f2, which is gamma_5
      *******************************************/
+    double _Complex ******b1xi = NULL;
     exitstatus= init_6level_zbuffer ( &b1xi, g_seq_source_momentum_number, gamma_f2_number, g_seq2_source_momentum_number, g_nsample, T_global, 12 );
     if ( exitstatus != 0 ) {
       fprintf(stderr, "[piN2piN_diagrams] Error from init_6level_zbuffer, status was %d\n", exitstatus);
@@ -293,7 +316,6 @@ int main(int argc, char **argv) {
                     ( g_source_coords_list[i_src][2] + (LY_global/2) * i_coherent ) % LY_global,
                     ( g_source_coords_list[i_src][3] + (LZ_global/2) * i_coherent ) % LZ_global };
 
-      ratime = _GET_TIME;
       get_point_source_info (gsx, sx, &source_proc_id);
 
       /*******************************************
@@ -396,21 +418,17 @@ int main(int argc, char **argv) {
                 for ( int isample = 0; isample < g_nsample; isample++ ) {
                   exitstatus = contract_diagram_v2_gamma_v3 ( diagram_buffer, b1phi[igf1][ipf1][isample], b1xi[ipi2][0][ipf2][isample], C_gi1, perm, T_global, (int)(isample==0) );
                 }
+                memcpy( diagram[0][0], diagram_buffer[0], 16*T_global*sizeof(double _Complex) );
 
                 /* transpose */
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-                for ( int it = 0; it < T_global ; it++ ) {
-                  zm_4x4_array_transposed ( diagram[it], diagram_buffer[it] );
-                }
+                exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global );
 
 
-                /* sprintf(aff_tag, "/%s/%s", "B1", aff_tag_suffix ); */
-                sprintf(aff_tag, "/%s/%s", "/pixN-pixN/diag0", aff_tag_suffix );
+                sprintf(aff_tag, "/%s/%s", "pixN-pixN/b1", aff_tag_suffix );
+                /* sprintf(aff_tag, "/%s/%s", "/pixN-pixN/diag0", aff_tag_suffix ); */
 
                 affdir = aff_writer_mkpath (affw, affn2, aff_tag );
-                exitstatus = aff_node_put_complex (affw, affdir, diagram[0], (uint32_t)T_global*16);
+                exitstatus = aff_node_put_complex (affw, affdir, diagram[0][0], (uint32_t)T_global*16);
                 if( exitstatus != 0 ) {
                   fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_put_complex, status was %d\n", exitstatus);
                   EXIT(105);
@@ -425,20 +443,16 @@ int main(int argc, char **argv) {
                 for ( int isample = 0; isample < g_nsample; isample++ ) {
                   exitstatus = contract_diagram_v2_gamma_v3 ( diagram_buffer, b1phi[igf1][ipf1][isample], b1xi[ipi2][0][ipf2][isample], C_gi1, perm, T_global, (int)(isample==0) );
                 }
+                memcpy( diagram[0][0], diagram_buffer[0], 16*T_global*sizeof(double _Complex) );
 
                 /* transpose */
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-                for ( int it = 0; it < T_global ; it++ ) {
-                  zm_4x4_array_transposed ( diagram[it], diagram_buffer[it] );
-                }
+                exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global );
 
-                /* sprintf(aff_tag, "/%s/%s", "B2", aff_tag_suffix ); */
-                sprintf(aff_tag, "/%s/%s", "/pixN-pixN/diag1", aff_tag_suffix );
+                sprintf(aff_tag, "/%s/%s", "pixN-pixN/b2", aff_tag_suffix );
+                /* sprintf(aff_tag, "/%s/%s", "/pixN-pixN/diag1", aff_tag_suffix ); */
 
                 affdir = aff_writer_mkpath (affw, affn2, aff_tag );
-                exitstatus = aff_node_put_complex (affw, affdir, diagram[0], (uint32_t)T_global*16);
+                exitstatus = aff_node_put_complex (affw, affdir, diagram[0][0], (uint32_t)T_global*16);
                 if( exitstatus != 0 ) {
                   fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_put_complex, status was %d\n", exitstatus);
                   EXIT(105);
@@ -453,7 +467,6 @@ int main(int argc, char **argv) {
       }  /* end of loop on p_tot */
 
       fini_5level_zbuffer ( &b1phi );
-
 
       /*******************************************
        * w_1_xi
@@ -626,20 +639,16 @@ int main(int argc, char **argv) {
                 for ( int isample = 0; isample < g_nsample; isample++ ) {
                   exitstatus = contract_diagram_v2_gamma_v3 ( diagram_buffer, w1phi[ipi2][igf1][ipf1][isample], w1xi[0][ipf2][isample], C_gi1, perm, T_global, (int)(isample==0) );
                 }
+                memcpy( diagram[0][0], diagram_buffer[0], 16*T_global*sizeof(double _Complex) );
 
                 /* transpose */
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-                for ( int it = 0; it < T_global ; it++ ) {
-                  zm_4x4_array_transposed ( diagram[it], diagram_buffer[it] );
-                }
+                contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global );
 
-                /* sprintf(aff_tag, "/%s/%s", "W1", aff_tag_suffix ); */
-                sprintf(aff_tag, "/%s/%s", "/pixN-pixN/diag2", aff_tag_suffix );
+                sprintf(aff_tag, "/%s/%s", "pixN-pixN/w1", aff_tag_suffix );
+                /* sprintf(aff_tag, "/%s/%s", "pixN-pixN/diag2", aff_tag_suffix ); */
 
                 affdir = aff_writer_mkpath (affw, affn2, aff_tag );
-                exitstatus = aff_node_put_complex (affw, affdir, diagram[0], (uint32_t)T_global*16);
+                exitstatus = aff_node_put_complex (affw, affdir, diagram[0][0], (uint32_t)T_global*16);
                 if( exitstatus != 0 ) {
                   fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_put_complex, status was %d\n", exitstatus);
                   EXIT(105);
@@ -654,20 +663,16 @@ int main(int argc, char **argv) {
                 for ( int isample = 0; isample < g_nsample; isample++ ) {
                   exitstatus = contract_diagram_v2_gamma_v3 ( diagram_buffer, w1phi[ipi2][igf1][ipf1][isample], w1xi[0][ipf2][isample], C_gi1, perm, T_global, (int)(isample==0) );
                 }
+                memcpy( diagram[0][0], diagram_buffer[0], 16*T_global*sizeof(double _Complex) );
 
                 /* transpose */
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-                for ( int it = 0; it < T_global ; it++ ) {
-                  zm_4x4_array_transposed ( diagram[it], diagram_buffer[it] );
-                }
+                exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global );
 
-                /* sprintf(aff_tag, "/%s/%s", "W2", aff_tag_suffix );  */
-                sprintf(aff_tag, "/%s/%s", "/pixN-pixN/diag3", aff_tag_suffix );
+                sprintf(aff_tag, "/%s/%s", "pixN-pixN/w2", aff_tag_suffix );
+                /* sprintf(aff_tag, "/%s/%s", "pixN-pixN/diag3", aff_tag_suffix ); */
 
                 affdir = aff_writer_mkpath (affw, affn2, aff_tag );
-                exitstatus = aff_node_put_complex (affw, affdir, diagram[0], (uint32_t)T_global*16);
+                exitstatus = aff_node_put_complex (affw, affdir, diagram[0][0], (uint32_t)T_global*16);
                 if( exitstatus != 0 ) {
                   fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_put_complex, status was %d\n", exitstatus);
                   EXIT(105);
@@ -683,20 +688,16 @@ int main(int argc, char **argv) {
                 for ( int isample = 0; isample < g_nsample; isample++ ) {
                   exitstatus = contract_diagram_v2_gamma_v3 ( diagram_buffer, w3phi[ipi2][igf1][ipf1][isample], w1xi[0][ipf2][isample], C_gi1, perm, T_global, (int)(isample==0) );
                 }
+                memcpy( diagram[0][0], diagram_buffer[0], 16*T_global*sizeof(double _Complex) );
 
                 /* transpose */
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-                for ( int it = 0; it < T_global ; it++ ) {
-                  zm_4x4_array_transposed ( diagram[it], diagram_buffer[it] );
-                }
+                exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global );
 
-                /* sprintf(aff_tag, "/%s/%s", "W3", aff_tag_suffix ); */
-                sprintf(aff_tag, "/%s/%s", "/pixN-pixN/diag4", aff_tag_suffix );
+                sprintf(aff_tag, "/%s/%s", "pixN-pixN/w3", aff_tag_suffix );
+                /* sprintf(aff_tag, "/%s/%s", "pixN-pixN/diag4", aff_tag_suffix ); */
 
                 affdir = aff_writer_mkpath (affw, affn2, aff_tag );
-                exitstatus = aff_node_put_complex (affw, affdir, diagram[0], (uint32_t)T_global*16);
+                exitstatus = aff_node_put_complex (affw, affdir, diagram[0][0], (uint32_t)T_global*16);
                 if( exitstatus != 0 ) {
                   fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_put_complex, status was %d\n", exitstatus);
                   EXIT(105);
@@ -711,20 +712,16 @@ int main(int argc, char **argv) {
                 for ( int isample = 0; isample < g_nsample; isample++ ) {
                   exitstatus = contract_diagram_v2_gamma_v3 ( diagram_buffer, w3phi[ipi2][igf1][ipf1][isample], w1xi[0][ipf2][isample], C_gi1, perm, T_global, (int)(isample==0) );
                 }
+                memcpy( diagram[0][0], diagram_buffer[0], 16*T_global*sizeof(double _Complex) );
 
                 /* transpose */
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-                for ( int it = 0; it < T_global ; it++ ) {
-                  zm_4x4_array_transposed ( diagram[it], diagram_buffer[it] );
-                }
+                exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global );
 
-                /* sprintf(aff_tag, "/%s/%s", "W4", aff_tag_suffix ); */
-                sprintf(aff_tag, "/%s/%s", "/pixN-pixN/diag5", aff_tag_suffix );
+                sprintf(aff_tag, "/%s/%s", "pixN-pixN/w4", aff_tag_suffix );
+                /* sprintf(aff_tag, "/%s/%s", "pixN-pixN/diag5", aff_tag_suffix ); */
 
                 affdir = aff_writer_mkpath (affw, affn2, aff_tag );
-                exitstatus = aff_node_put_complex (affw, affdir, diagram[0], (uint32_t)T_global*16);
+                exitstatus = aff_node_put_complex (affw, affdir, diagram[0][0], (uint32_t)T_global*16);
                 if( exitstatus != 0 ) {
                   fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_put_complex, status was %d\n", exitstatus);
                   EXIT(105);
@@ -744,78 +741,27 @@ int main(int argc, char **argv) {
       fini_6level_zbuffer ( &w3phi );
 
       fini_5level_zbuffer ( &w1xi );
-#if 0
-#endif  /* of if 0 */
+
+
 
     }  /* end of loop on coherent source locations */
 
-    if(io_proc == 2) {
-      aff_reader_close (affr);
-
-      aff_status_str = (char*)aff_writer_close (affw);
-      if( aff_status_str != NULL ) {
-        fprintf(stderr, "[piN2piN_diagrams] Error from aff_writer_close, status was %s\n", aff_status_str);
-        EXIT(111);
-      }
-
-    }  /* end of if io_proc == 2 */
-
     fini_6level_zbuffer ( &b1xi );
-    fini_2level_zbuffer ( &diagram );
-    fini_2level_zbuffer ( &diagram_buffer );
 
-  }  /* end of loop on base source locations */
+    fini_3level_zbuffer (&diagram );
+    fini_2level_zbuffer (&diagram_buffer );
+
+    /*******************************************/
+    /*******************************************/
 
 
-  /*******************************************/
-  /*******************************************/
-   
+    /*******************************************
+     * oet part
+     *******************************************/
 
-  /*******************************************
-   * oet part
-   *******************************************/
-
-  /* loop on source locations */
-  for( int i_src = 0; i_src<g_source_location_number; i_src++) {
-    int t_base = g_source_coords_list[i_src][0];
-
-    if(io_proc == 2) {
-
-      sprintf(filename, "%s.%.4d.tsrc%.2d.aff", "piN_piN_oet", Nconf, t_base );
-      affr = aff_reader (filename);
-      aff_status_str = (char*)aff_reader_errstr(affr);
-      if( aff_status_str != NULL ) {
-        fprintf(stderr, "[piN2piN_diagrams] Error from aff_reader, status was %s\n", aff_status_str);
-        EXIT(4);
-      } else {
-        fprintf(stdout, "# [piN2piN_diagrams] reading data from aff file %s\n", filename);
-      }
-
-      sprintf(filename, "%s.%.4d.tsrc%.2d.aff", "piN_piN_oet_diagrams", Nconf, t_base );
-      affw = aff_writer (filename);
-      aff_status_str = (char*)aff_writer_errstr(affw);
-      if( aff_status_str != NULL ) {
-        fprintf(stderr, "[piN2piN_diagrams] Error from aff_writer, status was %s\n", aff_status_str);
-        EXIT(4);
-      } else {
-        fprintf(stdout, "# [piN2piN_diagrams] writing data to file %s\n", filename);
-      }
-
-      if( (affn = aff_reader_root( affr )) == NULL ) {
-        fprintf(stderr, "[piN2piN_diagrams] Error, aff reader is not initialized\n");
-        EXIT(103);
-      }
-
-      if( (affn2 = aff_writer_root( affw )) == NULL ) {
-        fprintf(stderr, "[piN2piN_diagrams] Error, aff writer is not initialized\n");
-        EXIT(103);
-      }
-    }  /* end of if io_proc == 2 */
-
-    double _Complex **diagram = NULL, **diagram_buffer = NULL;
-    exitstatus= init_2level_zbuffer ( &diagram, T_global, 16 );
+    exitstatus= init_3level_zbuffer ( &diagram, T_global, 4, 4 );
     if ( exitstatus != 0 ) {
-      fprintf(stderr, "[piN2piN_diagrams] Error from init_2level_zbuffer, status was %d\n", exitstatus);
+      fprintf(stderr, "[piN2piN_diagrams] Error from init_3level_zbuffer, status was %d\n", exitstatus);
       EXIT(47);
     }
 
@@ -834,7 +780,6 @@ int main(int argc, char **argv) {
                     ( g_source_coords_list[i_src][2] + (LY_global/2) * i_coherent ) % LY_global,
                     ( g_source_coords_list[i_src][3] + (LZ_global/2) * i_coherent ) % LZ_global };
 
-      ratime = _GET_TIME;
       get_point_source_info (gsx, sx, &source_proc_id);
 
       double _Complex *****z1xi = NULL, ******z1phi = NULL, ******z3phi = NULL;
@@ -860,8 +805,8 @@ int main(int argc, char **argv) {
               aff_key_conversion ( aff_tag, tag, 0, zero_momentum, NULL, g_seq2_source_momentum_list[ipf2], gsx, gamma_f2_list[igf2], ispin );
               if (g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams] key = \"%s\"\n", aff_tag);
  
-              affdir = aff_reader_chpath (affr, affn, aff_tag );
-              exitstatus = aff_node_get_complex (affr, affdir, z1xi[igf2][ipf2][ispin][0], T_global*12);
+              affdir = aff_reader_chpath (affr_oet, affn_oet, aff_tag );
+              exitstatus = aff_node_get_complex (affr_oet, affdir, z1xi[igf2][ipf2][ispin][0], T_global*12);
               if( exitstatus != 0 ) {
                 fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_get_complex, status was %d\n", exitstatus);
                 EXIT(105);
@@ -893,8 +838,8 @@ int main(int argc, char **argv) {
                 aff_key_conversion ( aff_tag, tag, 0, g_seq_source_momentum_list[ipi2], g_sink_momentum_list[ipf1], NULL, gsx, gamma_f1_nucleon_list[igf1], ispin );
                 if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams] key = \"%s\"\n", aff_tag);
  
-                affdir = aff_reader_chpath (affr, affn, aff_tag );
-                exitstatus = aff_node_get_complex (affr, affdir, z3phi[ipi2][igf1][ipf1][ispin][0], T_global*192);
+                affdir = aff_reader_chpath (affr_oet, affn_oet, aff_tag );
+                exitstatus = aff_node_get_complex (affr_oet, affdir, z3phi[ipi2][igf1][ipf1][ispin][0], T_global*192);
                 if( exitstatus != 0 ) {
                   fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_get_complex, status was %d\n", exitstatus);
                   EXIT(105);
@@ -927,8 +872,8 @@ int main(int argc, char **argv) {
                 aff_key_conversion ( aff_tag, tag, 0, g_seq_source_momentum_list[ipi2], g_sink_momentum_list[ipf1], NULL, gsx, gamma_f1_nucleon_list[igf1], ispin );
                 if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams] key = \"%s\"\n", aff_tag);
  
-                affdir = aff_reader_chpath (affr, affn, aff_tag );
-                exitstatus = aff_node_get_complex (affr, affdir, z1phi[ipi2][igf1][ipf1][ispin][0], T_global*192);
+                affdir = aff_reader_chpath (affr_oet, affn_oet, aff_tag );
+                exitstatus = aff_node_get_complex (affr_oet, affdir, z1phi[ipi2][igf1][ipf1][ispin][0], T_global*192);
                 if( exitstatus != 0 ) {
                   fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_get_complex, status was %d\n", exitstatus);
                   EXIT(105);
@@ -1022,20 +967,16 @@ int main(int argc, char **argv) {
                 perm[2] = 1;
                 perm[3] = 3;
                 exitstatus = contract_diagram_oet_v2_gamma_v3 ( diagram_buffer, z1phi[ipi2][igf1][ipf1], z1xi[0][ipf2], goet, C_gi1, perm, T_global, 1 );
+                memcpy( diagram[0][0], diagram_buffer[0], 16*T_global*sizeof(double _Complex) );
 
                 /* transpose */
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-                for ( int it = 0; it < T_global ; it++ ) {
-                  zm_4x4_array_transposed ( diagram[it], diagram_buffer[it] );
-                }
+                exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global );
 
-                /* sprintf(aff_tag, "/%s/%s", "Z1", aff_tag_suffix ); */
-                sprintf(aff_tag, "/%s/%s", "/pixN-pixN/sample0/diag0", aff_tag_suffix );
+                sprintf(aff_tag, "/%s/%s", "pixN-pixN/z1", aff_tag_suffix );
+                /* sprintf(aff_tag, "/%s/%s", "pixN-pixN/sample0/diag6", aff_tag_suffix ); */
 
                 affdir = aff_writer_mkpath (affw, affn2, aff_tag );
-                exitstatus = aff_node_put_complex (affw, affdir, diagram[0], (uint32_t)T_global*16);
+                exitstatus = aff_node_put_complex (affw, affdir, diagram[0][0], (uint32_t)T_global*16);
                 if( exitstatus != 0 ) {
                   fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_put_complex, status was %d\n", exitstatus);
                   EXIT(105);
@@ -1047,20 +988,16 @@ int main(int argc, char **argv) {
                 perm[2] = 3;
                 perm[3] = 1;
                 exitstatus = contract_diagram_oet_v2_gamma_v3 ( diagram_buffer, z1phi[ipi2][igf1][ipf1], z1xi[0][ipf2], goet, C_gi1, perm, T_global, 1 );
+                memcpy( diagram[0][0], diagram_buffer[0], 16*T_global*sizeof(double _Complex) );
 
                 /* transpose */
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-                for ( int it = 0; it < T_global ; it++ ) {
-                  zm_4x4_array_transposed ( diagram[it], diagram_buffer[it] );
-                }
+                exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global );
 
-                /* sprintf(aff_tag, "/%s/%s", "Z2", aff_tag_suffix ); */
-                sprintf(aff_tag, "/%s/%s", "/pixN-pixN/sample0/diag1", aff_tag_suffix );
+                sprintf(aff_tag, "/%s/%s", "pixN-pixN/z2", aff_tag_suffix );
+                /* sprintf(aff_tag, "/%s/%s", "pixN-pixN/sample0/diag7", aff_tag_suffix ); */
 
                 affdir = aff_writer_mkpath (affw, affn2, aff_tag );
-                exitstatus = aff_node_put_complex (affw, affdir, diagram[0], (uint32_t)T_global*16);
+                exitstatus = aff_node_put_complex (affw, affdir, diagram[0][0], (uint32_t)T_global*16);
                 if( exitstatus != 0 ) {
                   fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_put_complex, status was %d\n", exitstatus);
                   EXIT(105);
@@ -1071,22 +1008,18 @@ int main(int argc, char **argv) {
                 perm[1] = 0;
                 perm[2] = 3;
                 perm[3] = 1;
-                memset ( diagram[0], 0, 16*T_global*sizeof(double _Complex) );
+                memset ( diagram[0][0], 0, 16*T_global*sizeof(double _Complex) );
                 exitstatus = contract_diagram_oet_v2_gamma_v3 ( diagram_buffer, z3phi[ipi2][igf1][ipf1], z1xi[0][ipf2], goet, C_gi1, perm, T_global, 1 );
+                memcpy( diagram[0][0], diagram_buffer[0], 16*T_global*sizeof(double _Complex) );
 
                 /* transpose */
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-                for ( int it = 0; it < T_global ; it++ ) {
-                  zm_4x4_array_transposed ( diagram[it], diagram_buffer[it] );
-                }
+                exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global );
 
-                /* sprintf(aff_tag, "/%s/%s", "Z3", aff_tag_suffix ); */
-                sprintf(aff_tag, "/%s/%s", "/pixN-pixN/sample0/diag2", aff_tag_suffix );
+                sprintf(aff_tag, "/%s/%s", "pixN-pixN/z3", aff_tag_suffix );
+                /* sprintf(aff_tag, "/%s/%s", "/pixN-pixN/sample0/diag8", aff_tag_suffix );*/
 
                 affdir = aff_writer_mkpath (affw, affn2, aff_tag );
-                exitstatus = aff_node_put_complex (affw, affdir, diagram[0], (uint32_t)T_global*16);
+                exitstatus = aff_node_put_complex (affw, affdir, diagram[0][0], (uint32_t)T_global*16);
                 if( exitstatus != 0 ) {
                   fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_put_complex, status was %d\n", exitstatus);
                   EXIT(105);
@@ -1098,20 +1031,16 @@ int main(int argc, char **argv) {
                 perm[2] = 1;
                 perm[3] = 3;
                 exitstatus = contract_diagram_oet_v2_gamma_v3 ( diagram_buffer, z3phi[ipi2][igf1][ipf1], z1xi[0][ipf2], goet, C_gi1, perm, T_global, 1 );
+                memcpy( diagram[0][0], diagram_buffer[0], 16*T_global*sizeof(double _Complex) );
 
                 /* transpose */
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-                for ( int it = 0; it < T_global ; it++ ) {
-                  zm_4x4_array_transposed ( diagram[it], diagram_buffer[it] );
-                }
+                exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global );
 
-                /* sprintf(aff_tag, "/%s/%s", "Z4", aff_tag_suffix ); */
-                sprintf(aff_tag, "/%s/%s", "/pixN-pixN/sample0/diag3", aff_tag_suffix );
+                sprintf(aff_tag, "/%s/%s", "pixN-pixN/z4", aff_tag_suffix );
+                /* sprintf(aff_tag, "/%s/%s", "/pixN-pixN/sample0/diag9", aff_tag_suffix ); */
 
                 affdir = aff_writer_mkpath (affw, affn2, aff_tag );
-                exitstatus = aff_node_put_complex (affw, affdir, diagram[0], (uint32_t)T_global*16);
+                exitstatus = aff_node_put_complex (affw, affdir, diagram[0][0], (uint32_t)T_global*16);
                 if( exitstatus != 0 ) {
                   fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_put_complex, status was %d\n", exitstatus);
                   EXIT(105);
@@ -1132,8 +1061,227 @@ int main(int argc, char **argv) {
 
     }  /* end of loop on coherent source locations */
 
+    fini_3level_zbuffer ( &diagram );
+    fini_2level_zbuffer ( &diagram_buffer );
+
+    /*******************************************/
+    /*******************************************/
+
+    /*******************************************
+     * direct diagrams
+     *******************************************/
+
+    exitstatus= init_3level_zbuffer ( &diagram, T_global, 4, 4 );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[piN2piN_diagrams] Error from init_3level_zbuffer, status was %d\n", exitstatus);
+      EXIT(47);
+    }
+
+    /* loop on coherent source locations */
+    for( int i_coherent=0; i_coherent<g_coherent_source_number; i_coherent++) {
+      int t_coherent = ( t_base + ( T_global / g_coherent_source_number ) * i_coherent ) % T_global;
+
+      int source_proc_id, sx[4], gsx[4] = { t_coherent,
+                    ( g_source_coords_list[i_src][1] + (LX_global/2) * i_coherent ) % LX_global,
+                    ( g_source_coords_list[i_src][2] + (LY_global/2) * i_coherent ) % LY_global,
+                    ( g_source_coords_list[i_src][3] + (LZ_global/2) * i_coherent ) % LZ_global };
+
+      get_point_source_info (gsx, sx, &source_proc_id);
+
+      double _Complex ******bb = NULL, *****mm = NULL, ***bb_aux = NULL;
+
+      /*******************************************
+       * bb_aux
+       *******************************************/
+      exitstatus= init_3level_zbuffer ( &bb_aux, T_global, 4, 4 );
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[piN2piN_diagrams] Error from init_3level_zbuffer, status was %d\n", exitstatus);
+        EXIT(47);
+      }
+
+      /*******************************************
+       * bb
+       *******************************************/
+      exitstatus= init_6level_zbuffer ( &bb, gamma_f1_nucleon_number, gamma_f1_nucleon_number, g_sink_momentum_number, 2, T_global, 16 );
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[piN2piN_diagrams] Error from init_6level_zbuffer, status was %d\n", exitstatus);
+        EXIT(47);
+      }
+      strcpy ( tag, "N-N" );
+      fprintf(stdout, "\n\n# [piN2piN_diagrams] tag = %s\n", tag);
+
+      for ( int igi1 = 0; igi1 < gamma_f1_nucleon_number; igi1++ ) {
+        for ( int igf1 = 0; igf1 < gamma_f1_nucleon_number; igf1++ ) {
+          for ( int ipf1 = 0; ipf1 < g_sink_momentum_number; ipf1++ ) {
+            for ( int idiag = 0; idiag < 2; idiag++ ) {
+
+              if ( io_proc == 2 ) {
+
+                aff_key_conversion_diagram ( aff_tag, tag, NULL, NULL, g_sink_momentum_list[ipf1], NULL, gamma_f1_nucleon_list[igi1], -1, gamma_f1_nucleon_list[igf1], -1, gsx, "n", idiag+1 );
+
+                if (g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams] key = \"%s\"\n", aff_tag);
+ 
+                affdir = aff_reader_chpath (affr, affn, aff_tag );
+                exitstatus = aff_node_get_complex (affr, affdir, bb[igi1][igf1][ipf1][idiag][0], T_global*16);
+                if( exitstatus != 0 ) {
+                  fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_get_complex, status was %d\n", exitstatus);
+                  EXIT(105);
+                }
+              }
+            }  /* end of loop on diagrams */
+          }  /* end of loop on sink momentum */
+        }  /* end of loop on Gamma_f1 */
+      }  /* end of loop on Gamma_i1 */
+
+
+      /*******************************************
+       * mm
+       *******************************************/
+      exitstatus= init_5level_zbuffer ( &mm, g_seq_source_momentum_number, gamma_f2_number, gamma_f2_number, g_sink_momentum_number, T_global );
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[piN2piN_diagrams] Error from init_5level_zbuffer, status was %d\n", exitstatus);
+        EXIT(47);
+      }
+      strcpy ( tag, "m-m" );
+      fprintf(stdout, "\n\n# [piN2piN_diagrams] tag = %s\n", tag);
+
+      for ( int ipi2 = 0; ipi2 < g_sink_momentum_number; ipi2++ ) {
+        for ( int igi2 = 0; igi2 < gamma_f2_number; igi2++ ) {
+          for ( int igf2 = 0; igf2 < gamma_f2_number; igf2++ ) {
+            for ( int ipf2 = 0; ipf2 < g_sink_momentum_number; ipf2++ ) {
+
+              if ( io_proc == 2 ) {
+
+                /* sprintf(aff_tag, "/%s/t%.2dx%.2dy%.2dz%.2d/gi%.2d/gf%.2d/px%.2dpy%.2dpz%.2d", tag, gsx[0], gsx[1], gsx[2], gsx[3],
+                    gamma_f2_list[igi2], gamma_f2_list[igf2],
+                    g_sink_momentum_list[ipf2][0], g_sink_momentum_list[ipf2][1], g_sink_momentum_list[ipf2][2] ); */
+
+                aff_key_conversion_diagram (  aff_tag, tag, NULL, g_seq_source_momentum_list[ipi2], NULL, g_sink_momentum_list[ipf2], -1, gamma_f2_list[igi2], -1, gamma_f2_list[igf2], gsx, NULL, 0  );
+
+                if (g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams] key = \"%s\"\n", aff_tag);
+ 
+                affdir = aff_reader_chpath (affr_oet, affn_oet, aff_tag );
+                exitstatus = aff_node_get_complex (affr_oet, affdir, mm[ipi2][igi2][igf2][ipf2], T_global);
+                if( exitstatus != 0 ) {
+                  fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_get_complex, status was %d\n", exitstatus);
+                  EXIT(105);
+                }
+                for ( int it = 0; it < T_global; it++ ) {
+                  fprintf(stdout, "# [piN2piN_diagrams] m-m %3d %25.16e %25.16e\n", it, 
+                      creal( mm[ipi2][igi2][igf2][ipf2][it] ), cimag( mm[ipi2][igi2][igf2][ipf2][it] ));
+                }
+              }  
+            }  /* end of loop on sink momentum */
+          }  /* end of loop on Gamma_f2 */
+        }  /* end of loop on Gamma_i2 */
+      }  /* end of loop in pi2 */
+
+      /*******************************************/
+      /*******************************************/
+
+      for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ ) {
+
+        int **sink_momentum_list = NULL, **sink_momentum_list_all = NULL;
+        exitstatus = init_2level_ibuffer ( &sink_momentum_list, g_seq2_source_momentum_number, 3 );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[piN2piN_diagrams] Error from init_2level_ibuffer, status was %d\n", exitstatus );
+          EXIT(1);
+        }
+        exitstatus = init_2level_ibuffer ( &sink_momentum_list_all, g_sink_momentum_number, 3 );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[piN2piN_diagrams] Error from init_2level_ibuffer, status was %d\n", exitstatus );
+          EXIT(1);
+        }
+        for ( int ipf1 = 0; ipf1 < g_sink_momentum_number; ipf1++ ) {
+          sink_momentum_list_all[ipf1][0] = g_sink_momentum_list[ipf1][0];
+          sink_momentum_list_all[ipf1][1] = g_sink_momentum_list[ipf1][1];
+          sink_momentum_list_all[ipf1][2] = g_sink_momentum_list[ipf1][2];
+        }
+        for ( int ipf1 = 0; ipf1 < g_seq2_source_momentum_number; ipf1++ ) {
+          sink_momentum_list[ipf1][0] = g_total_momentum_list[iptot][0] - g_seq2_source_momentum_list[ipf1][0];
+          sink_momentum_list[ipf1][1] = g_total_momentum_list[iptot][1] - g_seq2_source_momentum_list[ipf1][1];
+          sink_momentum_list[ipf1][2] = g_total_momentum_list[iptot][2] - g_seq2_source_momentum_list[ipf1][2];
+        }
+        int *sink_momentum_id = NULL;
+        exitstatus = match_momentum_id ( &sink_momentum_id, sink_momentum_list, sink_momentum_list_all, g_seq2_source_momentum_number, g_sink_momentum_number );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[piN2piN_diagrams] Error from match_momentum_id, status was %d\n", exitstatus );
+          EXIT(1);
+        }
+        fini_2level_ibuffer ( &sink_momentum_list );
+        fini_2level_ibuffer ( &sink_momentum_list_all );
+
+        for ( int ipf2 = 0; ipf2 < g_seq2_source_momentum_number; ipf2++ ) {
+
+          int ipf1 = sink_momentum_id[ipf2];
+          if ( ipf1 == -1 ) continue;
+
+          for ( int igf1 = 0; igf1 < gamma_f1_nucleon_number; igf1++ ) {
+            int igf2 = 0;
+
+            for ( int ipi2 = 0; ipi2 < g_seq_source_momentum_number; ipi2++ ) {
+
+              for ( int igi1 = 0; igi1 < gamma_f1_nucleon_number; igi1++ ) { 
+                int igi2 = 0;
+
+                char aff_tag_suffix[200];
+                sprintf(aff_tag_suffix, "pi2x%.2dpi2y%.2dpi2z%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d",
+                    g_seq_source_momentum_list[ipi2][0],  g_seq_source_momentum_list[ipi2][1],  g_seq_source_momentum_list[ipi2][2],
+                    g_sink_momentum_list[ipf1][0], g_sink_momentum_list[ipf1][1], g_sink_momentum_list[ipf1][2],
+                    g_seq2_source_momentum_list[ipf2][0], g_seq2_source_momentum_list[ipf2][1], g_seq2_source_momentum_list[ipf2][2],
+                    gsx[0], gsx[1], gsx[2], gsx[3],
+                    gamma_f1_nucleon_list[igf1], gamma_f1_nucleon_list[igi1]);
+
+
+                for ( int idiag = 0; idiag < 2; idiag++ ) {
+
+                  sprintf(aff_tag, "/%s/s%d/%s", "pixN-pixN", idiag+1, aff_tag_suffix );
+                  /* sprintf(aff_tag, "/%s/diag%d/%s", "pixN-pixN", idiag+10, aff_tag_suffix ); */
+                  if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams] aff tag = %s\n", aff_tag);
+
+
+                  memcpy( bb_aux[0][0], bb[igi1][igf1][ipf1][idiag][0], 16*T_global*sizeof(double _Complex) );
+
+                  /* multiply baryon 2-point function with meson 2-point function */
+                  exitstatus = contract_diagram_zmx4x4_field_ti_co_field ( diagram, bb_aux,  mm[ipi2][igi2][igf2][ipf2], T_global );
+                  // memcpy(diagram[0][0],  bb_aux[0][0], 16*T_global*sizeof(double _Complex) );
+
+                  /* transpose */
+                  exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global );
+
+                  affdir = aff_writer_mkpath (affw, affn2, aff_tag );
+                  exitstatus = aff_node_put_complex (affw, affdir, diagram[0][0], (uint32_t)T_global*16);
+                  if( exitstatus != 0 ) {
+                    fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_put_complex, status was %d\n", exitstatus);
+                    EXIT(105);
+                  }
+
+                }  /* end of loop on diagrams */
+              }  /* end of loop on Gamma_i1 */
+            }  /* end of loop on p_i2 */
+          }  /* end of loop on Gamma_f1 */
+        }  /* end of loop on p_f2 */
+
+        free ( sink_momentum_id );
+
+      }  /* end of loop on p_tot */
+
+      fini_6level_zbuffer ( &bb );
+      fini_5level_zbuffer ( &mm );
+      fini_3level_zbuffer ( &bb_aux );
+
+
+    }  /* end of loop on coherent source locations */
+
+    fini_3level_zbuffer ( &diagram );
+
+
+    /*******************************************
+     * close AFF readers for input and output files
+     *******************************************/
     if(io_proc == 2) {
       aff_reader_close (affr);
+      aff_reader_close (affr_oet);
 
       aff_status_str = (char*)aff_writer_close (affw);
       if( aff_status_str != NULL ) {
@@ -1142,12 +1290,7 @@ int main(int argc, char **argv) {
       }
     }  /* end of if io_proc == 2 */
 
-    fini_2level_zbuffer ( &diagram );
-    fini_2level_zbuffer ( &diagram_buffer );
-
   }  /* end of loop on base source locations */
-#if 0
-#endif  /* of if 0 */
 
   /*******************************************
    * finalize
@@ -1167,9 +1310,9 @@ int main(int argc, char **argv) {
 #endif
   if(g_cart_id == 0) {
     g_the_time = time(NULL);
-    fprintf(stdout, "# [piN2piN_diagrams] %s# [piN2piN_diagrams] end fo run\n", ctime(&g_the_time));
+    fprintf(stdout, "# [piN2piN_diagrams] %s# [piN2piN_diagrams] end of run\n", ctime(&g_the_time));
     fflush(stdout);
-    fprintf(stderr, "# [piN2piN_diagrams] %s# [piN2piN_diagrams] end fo run\n", ctime(&g_the_time));
+    fprintf(stderr, "# [piN2piN_diagrams] %s# [piN2piN_diagrams] end of run\n", ctime(&g_the_time));
     fflush(stderr);
   }
 
