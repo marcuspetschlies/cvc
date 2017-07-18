@@ -8,6 +8,7 @@
 
 #include "global.h"
 #include "matrix_init.h"
+#include "gamma.h"
 #include "aff_key_conversion.h"
 
 namespace cvc {
@@ -270,6 +271,63 @@ void aff_key_conversion_diagram (  char*key, char*tag, int pi1[3], int pi2[3], i
 
   return;
 }  /* end of aff_key_conversion_diagram  */
+
+/**************************************************************************************/
+/**************************************************************************************/
+
+/**************************************************************************************
+ *
+ **************************************************************************************/
+void gamma_name_to_gamma_signed_id (int *id, double*sign, char *name ) {
+
+  char *dot = ".";
+  char *ptr;
+  char gname[200];
+  strcpy(gname, name);
+  gamma_matrix_type g_work1, g_work2, g_accum;
+
+  init_gamma_matrix();
+
+  gamma_matrix_set ( &g_accum, 4, 1. );
+  gamma_matrix_init ( &g_work1);
+  gamma_matrix_init ( &g_work2);
+
+  gamma_matrix_fill ( &g_accum );
+  gamma_matrix_printf (&g_accum, "g_accum", stdout);
+
+  if (g_verbose > 2 ) fprintf(stdout, "# [gamma_name_to_gamma_signed_id] name = %s\n", gname );
+  ptr = strtok( gname, dot);
+  if ( ptr == NULL ) {
+    *id = -1;
+    return;
+  }
+  if (g_verbose > 3) fprintf(stdout, "# [gamma_name_to_gamma_signed_id] inital ptr = %s\n", ptr);
+
+  while( ptr != NULL) {
+    if ( ptr[0] == 'C' ) {
+      if (g_verbose > 3 ) fprintf(stdout, "# [gamma_name_to_gamma_signed_id] ptr = %s using C = g0.g2\n", ptr);
+      g_work1.id = 0; g_work1.s = 1.; gamma_matrix_fill ( &g_work1 );
+      g_work2.id = 2; g_work1.s = 1.; gamma_matrix_fill ( &g_work2 );
+      gamma_matrix_mult ( &g_accum, &g_accum, &g_work1 );
+      gamma_matrix_mult ( &g_accum, &g_accum, &g_work2 );
+      // gamma_matrix_printf (&g_accum, "g_accum", stdout);
+    } else if ( ptr[0] == 'g') {
+      int ig = atoi( &(ptr[1]));
+      g_work1.id = ig; g_work1.s = 1.; gamma_matrix_fill ( &g_work1 );
+      gamma_matrix_mult ( &g_accum, &g_accum, &g_work1 );
+      // gamma_matrix_printf (&g_accum, "g_accum", stdout);
+      if (g_verbose > 3 ) fprintf(stdout, "# [gamma_name_to_gamma_signed_id] ptr = %s g%.2d\n", ptr, ig);
+    }
+    ptr = strtok(NULL, dot);
+  }
+  *id = g_accum.id;
+  *sign = g_accum.s;
+  if ( g_verbose > 3 ) {
+    fprintf(stdout, "# [gamma_name_to_gamma_signed_id] accumulated gamma matrix:\n");
+    gamma_matrix_printf (&g_accum, name, stdout);
+  }
+  return;
+}  /* end of gamma_name_to_gamma_id */
 
 
 }  /* end of namespace cvc */
