@@ -207,6 +207,11 @@ namespace cvc {
 %x TOTALMOMENTUM
 %x INITTWOPOINTFUNCTION
 %x TWOPOINTFUNCTION
+%x GAMMA_F1_NUCLEON
+%x GAMMA_F1_DELTA
+%x GAMMA_F2
+%x GAMMA_CURRENT
+
 
 %%
 ^T{SPC}*={SPC}*                            BEGIN(TT);
@@ -365,6 +370,11 @@ namespace cvc {
 ^coherent_source_number{SPC}*={SPC}*       BEGIN(COHERENTSOURCENUMBER);
 
 ^verbosity_level{SPC}*={SPC}*              BEGIN(VERBOSITYLEVEL);
+
+^gamma_f1_nucleon{SPC}*={SPC}*             BEGIN(GAMMA_F1_NUCLEON);
+^gamma_f1_delta{SPC}*={SPC}*               BEGIN(GAMMA_F1_DELTA);
+^gamma_f2{SPC}*={SPC}*                     BEGIN(GAMMA_F2);
+^gamma_current{SPC}*={SPC}*                BEGIN(GAMMA_CURRENT);
 
 ^BeginTwopointFunction                     BEGIN(INITTWOPOINTFUNCTION);
 
@@ -1222,6 +1232,41 @@ namespace cvc {
   }
 
 }
+
+<GAMMA_F1_NUCLEON>{STRING} {
+  if(cvc::g_gamma_f1_nucleon_number==MAX_GAMMA_NUMBER) {
+    fprintf(stderr, "Error, too many f1 nucleon gamma structures\n");
+    exit(1);
+  }
+  strcpy(cvc::g_gamma_f1_nucleon_list[cvc::g_gamma_f1_nucleon_number], yytext);
+  cvc::g_gamma_f1_nucleon_number++;
+}
+
+<GAMMA_F1_DELTA>{STRING} {
+  if(cvc::g_gamma_f1_delta_number==MAX_GAMMA_NUMBER) {
+    fprintf(stderr, "Error, too many f1 delta gamma structures\n");
+    exit(1);
+  }
+  strcpy(cvc::g_gamma_f1_delta_list[cvc::g_gamma_f1_delta_number], yytext );
+  cvc::g_gamma_f1_delta_number++;
+}
+<GAMMA_F2>{STRING} {
+  if(cvc::g_gamma_f2_number==MAX_GAMMA_NUMBER) {
+    fprintf(stderr, "Error, too many f2 gamma structures\n");
+    exit(1);
+  }
+  strcpy(cvc::g_gamma_f2_list[cvc::g_gamma_f2_number], yytext );
+  cvc::g_gamma_f2_number++;
+}
+<GAMMA_CURRENT>{STRING} {
+  if(cvc::g_gamma_current_number==MAX_GAMMA_NUMBER) {
+    fprintf(stderr, "Error, too many current gamma structures\n");
+    exit(1);
+  }
+  strcpy( cvc::g_gamma_current_list[cvc::g_gamma_current_number], yytext );
+  cvc::g_gamma_current_number++;
+}
+
 
 <FERMION_TYPE>{FILENAME} {
   if(strcmp(yytext, "TwistedMass")==0) {
