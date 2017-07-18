@@ -271,6 +271,11 @@ void set_default_input_values(void) {
 
   g_total_momentum_number = _default_total_momentum_number;
 
+  g_gamma_f1_nucleon_number = _default_zero;
+  g_gamma_f1_delta_number   = _default_zero;
+  g_gamma_f2_number         = _default_zero;
+  g_gamma_current_number    = _default_zero;
+
 }  /* end of set_default_input_values */
 
 }  /* end of namespace cvc */
