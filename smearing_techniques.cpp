@@ -418,8 +418,79 @@ int rms_radius ( double *r_rms, double *s, int source_coords[4] ) {
   r_rms_accum = rbuffer[0];
   norm_accum  = rbuffer[1];
 #endif
-    *r_rms = sqrt( r_rms_accum / norm_accum );
-    return(0);
+  *r_rms = sqrt( r_rms_accum / norm_accum );
+  return(0);
 }  /* end of rms_radius */
+
+/*****************************************************
+ *
+ *****************************************************/
+int source_profile ( double *s, int source_coords[4], char*prefix ) {
+  
+  int LL[3] = { LX_global, LY_global, LZ_global };
+
+  int sx[4], source_proc_id, d[3];
+  double norm = 0., rr;
+  complex w;
+  char filename[200];
+
+  get_point_source_info ( source_coords, sx, &source_proc_id);
+
+  if ( g_cart_id == source_proc_id ) {
+    unsigned int ix = _GSI( g_ipt[sx[0]][sx[1]][sx[2]][sx[3]] );
+    _co_eq_fv_dag_ti_fv ( &w, s+ix, s+ix  );
+    norm = w.re;
+    if ( g_verbose > 3 ) fprintf(stdout, "# [source_profile] proc%.4d gsx = %3d %3d %3d %3d norm = %16.7e\n", g_cart_id,
+                             source_coords[0], source_coords[1], source_coords[2], source_coords[3], norm);
+  }
+#ifdef HAVE_MPI
+  if ( MPI_Bcast ( &norm, 1, MPI_DOUBLE, source_proc_id, g_cart_grid ) != MPI_SUCCESS ) {
+    fprintf(stderr, "[source_profile] Error from MPI_Bcast %s %d\n", __FILE__, __LINE__);
+    return(1);
+  }
+#endif
+  
+  if ( source_coords[0] / T == g_proc_coords[0] ) {
+    int t = source_coords[0] % T;
+
+    /* write in partfile format */
+    if ( prefix == NULL ) {
+      sprintf( filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.proct%.2dprocx%.2dprocy%.2dprocz%.2d", "source_profile", Nconf, 
+          source_coords[0], source_coords[1], source_coords[2], source_coords[3], 
+          g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3] );
+    } else {
+      sprintf( filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.proct%.2dprocx%.2dprocy%.2dprocz%.2d", prefix, Nconf, 
+          source_coords[0], source_coords[1], source_coords[2], source_coords[3], 
+          g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3] );
+    }
+    FILE *ofs = fopen( filename, "w");
+    if ( ofs == NULL ) {
+      fprintf(stderr, "[source_profile] Error from fopen %s %d\n", __FILE__, __LINE__);
+      return(2);
+    }
+
+    for ( int x = 0; x < LX; x++ ) {
+      d[0] = x + g_proc_coords[1]*LX;
+      for ( int y = 0; y < LY; y++ ) {
+        d[1] = y + g_proc_coords[2]*LY;
+        for ( int z = 0; z < LZ; z++ ) {
+          d[2] = z + g_proc_coords[3]*LZ;
+          unsigned int ix = _GSI(g_ipt[t][x][y][z]);
+          _co_eq_fv_dag_ti_fv ( &w, s+ix, s+ix  );
+
+          rr = distance_square ( d, &(source_coords[1]), LL, 3 );
+
+          /* fprintf(stdout, "# [rms_radius] proc%.4d x = %2d %2d %2d %2d rr = %25.16e w = %25.16e\n", g_cart_id,
+           *           t+g_proc_coords[0]*T, x+g_proc_coords[1]*LX, y+g_proc_coords[2]*LY, z+g_proc_coords[3]*LZ, rr, w.re ); */
+
+          fprintf(ofs, "%3d %3d %3d %8.0f %16.7e\n", d[0], d[1], d[2], rr, w.re/norm );
+        }
+      }
+    }
+
+    fclose ( ofs );
+  }  /* end of if have source timeslice */
+  return(0);
+}  /* end of source_profile */
 
 }  /* end of namespace cvc */
