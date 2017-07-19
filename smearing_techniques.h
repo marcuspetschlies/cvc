@@ -24,6 +24,8 @@ int Jacobi_Smearing(double *smeared_gauge_field, double *psi, int N, double kapp
 
 int rms_radius ( double *r_rms, double *s, int source_coords[4] );
 
+int source_profile ( double *s, int source_coords[4], char*prefix );
+
 
 }
 #endif
