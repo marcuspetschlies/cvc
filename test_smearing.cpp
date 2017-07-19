@@ -62,10 +62,6 @@ extern "C"
 #include "contract_factorized.h"
 #include "ranlxd.h"
 
-#include <string>
-#include <iostream>
-#include <iomanip>
-
 using namespace cvc;
 
 
@@ -322,7 +318,7 @@ int main(int argc, char **argv) {
 #endif
 
   if ( g_cart_id == 0 ) {
-    fprintf(stdout, "# [] checksum after smearing = %25.16e %25.16e\n", checksum[0], checksum[1]);
+    fprintf(stdout, "# [test_smearing] checksum after smearing = %25.16e %25.16e\n", checksum[0], checksum[1]);
   }
 #endif  /* of if 0 */
   
@@ -331,8 +327,10 @@ int main(int argc, char **argv) {
  
   get_point_source_info (gsx, sx, &source_proc_id);
 
-  memset( spinor_work[0], 0, 24*VOLUME*sizeof(double));
+  memset( spinor_work[0], 0, sizeof_spinor_field );
   if ( source_proc_id == g_cart_id ) {
+    fprintf(stdout, "# [test_smearing] proc%.4d has the source %3d %3d %3d %3d / %3d %3d %3d %3d\n", source_proc_id,
+        gsx[0], gsx[1], gsx[2], gsx[3], sx[0], sx[1], sx[2], sx[3]);
     spinor_work[0][ _GSI( g_ipt[sx[0]][sx[1]][sx[2]][sx[3]]) ] = 1.;
   }
 
