@@ -356,4 +356,70 @@ int Jacobi_Smearing(double *smeared_gauge_field, double *psi, int N, double kapp
   return(0);
 }  /* end of Jacobi_Smearing */
 
+/*****************************************************/
+/*****************************************************/
+
+inline double distance_square ( int *r, int *r0, int *LL, int N ) {
+
+  double rr = 0.;
+
+  for ( int i = 0; i < N; i++ ) {
+    int L  = LL[i];
+    int Lh = L/2;
+    int s  = r[i] - r0[i];
+    int s2 = ( s <= Lh && s > -Lh ) ? s : ( s > Lh/2 ? s - L : s + L);
+    rr += (double)s2 * (double)s2;
+  }
+  return( rr );
+}  /* end of distance_square */
+
+
+/*****************************************************
+ * rms radius of source
+ *****************************************************/
+int rms_radius ( double *r_rms, double *s, int source_coords[4] ) {
+
+  int LL[3] = { LX_global, LY_global, LZ_global };
+
+  int d[3];
+  double rr = 0.;
+  double r_rms_accum = 0.;
+  double norm_accum = 0.;
+  complex w;
+
+  if ( source_coords[0] / T == g_proc_coords[0] ) {
+    int t = source_coords[0] % T;
+
+    for ( int x = 0; x < LX; x++ ) {
+      d[0] = x + g_proc_coords[1]*LX;
+    for ( int y = 0; y < LY; y++ ) {
+      d[1] = y + g_proc_coords[2]*LY;
+    for ( int z = 0; z < LZ; z++ ) {
+      d[2] = z + g_proc_coords[3]*LZ;
+      unsigned int ix = _GSI(g_ipt[t][x][y][z]);
+      _co_eq_fv_dag_ti_fv ( &w, s+ix, s+ix  );
+
+      rr = distance_square ( d, &(source_coords[1]), LL, 3 );
+
+      /* fprintf(stdout, "# [rms_radius] proc%.4d x = %2d %2d %2d %2d rr = %25.16e w = %25.16e\n", g_cart_id,
+          t+g_proc_coords[0]*T, x+g_proc_coords[1]*LX, y+g_proc_coords[2]*LY, z+g_proc_coords[3]*LZ, rr, w.re ); */
+
+      r_rms_accum += rr * w.re;
+      norm_accum  += w.re;
+    }}}
+  }
+  /* fprintf(stdout, "# [rms_radius] proc%.4d r_rms_accum = %25.16e norm_accum = %25.16e\n", g_cart_id, r_rms_accum, norm_accum); */
+#ifdef HAVE_MPI
+  double sbuffer[2] = {r_rms_accum, norm_accum}, rbuffer[2];
+  if ( MPI_Allreduce( sbuffer, rbuffer, 2, MPI_DOUBLE, MPI_SUM, g_cart_grid ) != MPI_SUCCESS) {
+    fprintf(stderr, "[rms_radius] Error from MPI_Allreduce\n");
+    return(1);
+  }
+  r_rms_accum = rbuffer[0];
+  norm_accum  = rbuffer[1];
+#endif
+    *r_rms = sqrt( r_rms_accum / norm_accum );
+    return(0);
+}  /* end of rms_radius */
+
 }  /* end of namespace cvc */
