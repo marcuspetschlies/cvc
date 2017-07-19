@@ -52,7 +52,8 @@ namespace cvc {
   double ft_rmax[4];
 
   int cvc_verbose = 1;
-  int myverbose = 1;
+  int myverbose = 0;
+  int myprocid = 0;
 }
 %}
 
@@ -1112,7 +1113,7 @@ namespace cvc {
     fprintf(stderr, "[read_input_parser] Error, too many source locations\n");
     exit(1);
   } else {
-    fprintf(stdout, "# [read_input_parser] extracting source coords %d\n", cvc::g_source_location_number);
+    if(cvc::myverbose) fprintf(stdout, "# [read_input_parser] extracting source coords %d\n", cvc::g_source_location_number);
   }
 
   sscanf(yytext, "%d,%d,%d,%d",
@@ -1354,13 +1355,17 @@ namespace cvc {
 
 int read_input_parser(char * conf_file){
 
+#ifdef HAVE_MPI
+  MPI_Comm_rank( MPI_COMM_WORLD, &myprocid);
+#endif
+
   /********************************************
    * Setting default values!
    ********************************************/
   reread = 0;
   set_default_input_values();
 
-  if( (g_proc_id == 0) && (cvc_verbose>0) ) {
+  if( (myprocid == 0) && (cvc_verbose>0) ) {
     myverbose = 1;
   }
   if ((yyin = fopen(conf_file, "rt")) == NULL){
@@ -1390,7 +1395,11 @@ int read_input_parser(char * conf_file){
 
 int reread_input_parser(char * conf_file){
 
-  if(g_verbose > 1 && g_proc_id == 0) {
+#ifdef HAVE_MPI
+  MPI_Comm_rank( MPI_COMM_WORLD, &myprocid);
+#endif
+
+  if(  (cvc_verbose>0) && myprocid == 0) {
     myverbose = 1;
   }
   reread = 1;
