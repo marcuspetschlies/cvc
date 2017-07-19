@@ -95,6 +95,7 @@ int main(int argc, char **argv) {
   int read_stochastic_source = 0;
   int write_stochastic_source = 0;
   double **spinor_work = NULL;
+  size_t sizeof_spinor_field = 0, sizeof_gauge_field = 0;
 
 
 #ifdef HAVE_MPI
@@ -167,6 +168,8 @@ int main(int argc, char **argv) {
   }
   geometry();
 
+  sizeof_spinor_field = _GSI( VOLUME ) * sizeof( double );
+  sizeof_gauge_field  = 72 * VOLUME * sizeof( double );
 
   /* read the gauge field */
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
@@ -210,8 +213,10 @@ int main(int argc, char **argv) {
 #ifdef HAVE_MPI
   xchange_gauge_field ( g_gauge_field );
 #endif
-  /* measure the plaquette */
   
+  /* unit_gauge_field( g_gauge_field, VOLUME); */
+
+  /* measure the plaquette */
   if ( ( exitstatus = plaquetteria  ( g_gauge_field ) ) != 0 ) {
     fprintf(stderr, "[test_smearing] Error from plaquetteria, status was %d\n", exitstatus);
     EXIT(2);
@@ -221,7 +226,7 @@ int main(int argc, char **argv) {
 
   if ( g_cart_id == 0 ) { fprintf(stdout, "# [test_smearing] smearing gauge field \n"); }
 
-  memcpy(gauge_field_smeared, tmLQCD_gauge_field, 72*VOLUME*sizeof(double));
+  memcpy(gauge_field_smeared, g_gauge_field, sizeof_gauge_field);
 #ifdef HAVE_MPI
   xchange_gauge_field ( gauge_field_smeared );
 #endif
@@ -237,18 +242,19 @@ int main(int argc, char **argv) {
     EXIT(2);
   }
   
+  exitstatus = init_2level_buffer( &spinor_work, 2, _GSI(VOLUME+RAND) );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[test_smearing] Error from init_2level_buffer, status was %d\n", exitstatus);
+    EXIT(2);
+  }
 
+#if 0
   exitstatus = init_rng_stat_file (g_seed, NULL);
   if(exitstatus != 0) {
     fprintf(stderr, "[test_smearing] Error from init_rng_stat_file status was %d\n", exitstatus);
     EXIT(38);
   }
 
-  exitstatus = init_2level_buffer( &spinor_work, 2, _GSI(VOLUME) );
-  if ( exitstatus != 0 ) {
-    fprintf(stderr, "[] Error from init_2level_buffer, status was %d\n", exitstatus);
-    EXIT(2);
-  }
 
   if ( read_stochastic_source ) {
     sprintf(filename, "%s.%.4d.%.5d", filename_prefix, Nconf, 0);
@@ -318,10 +324,31 @@ int main(int argc, char **argv) {
   if ( g_cart_id == 0 ) {
     fprintf(stdout, "# [] checksum after smearing = %25.16e %25.16e\n", checksum[0], checksum[1]);
   }
-
+#endif  /* of if 0 */
   
-  fini_2level_buffer( &spinor_work );
+  int source_proc_id, sx[4];
+  int gsx[4] = { g_source_coords_list[0][0], g_source_coords_list[0][1], g_source_coords_list[0][2], g_source_coords_list[0][3] };
+ 
+  get_point_source_info (gsx, sx, &source_proc_id);
 
+  memset( spinor_work[0], 0, 24*VOLUME*sizeof(double));
+  if ( source_proc_id == g_cart_id ) {
+    spinor_work[0][ _GSI( g_ipt[sx[0]][sx[1]][sx[2]][sx[3]]) ] = 1.;
+  }
+
+  for ( int Nsmear = 0; Nsmear <= N_Jacobi; Nsmear += 5 ) { 
+
+    double r_rms;
+    exitstatus = rms_radius ( &r_rms, spinor_work[0], gsx );
+
+    if (g_cart_id == 0 ) {
+      fprintf(stdout, "  r_rms %4d %25.16e\n", Nsmear, r_rms);
+    }
+
+    exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], 5, kappa_Jacobi);
+  }
+
+  fini_2level_buffer( &spinor_work );
 
   /*******************************************
    * finalize
