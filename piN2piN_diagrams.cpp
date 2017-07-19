@@ -63,7 +63,6 @@ void usage() {
   EXIT(0);
 }
   
-  
 /***********************************************************
  * main program
  ***********************************************************/
@@ -128,6 +127,13 @@ int main(int argc, char **argv) {
 
   /* initialize MPI parameters */
   mpi_init(argc, argv);
+
+ /******************************************************
+  * report git version
+  ******************************************************/
+  if ( g_cart_id == 0 ) {
+    fprintf(stdout, "# [piN2piN_diagrams] git version = %s\n", g_gitversion);
+  }
 
   /******************************************************
    * set initial timestamp
