@@ -370,10 +370,15 @@ int main(int argc, char **argv) {
           /* diagram <- Gamma_f1_1 x diagram_buffer */
           zm4x4_eq_zm4x4_ti_zm4x4 ( diagram[it], gf11.m, diagram_buffer[it] );
 
-          /* ??? spin / spin-parity projection ??? */
-          correlator_spin_parity_projection ( diagram, diagram, (double)g_twopoint_function_list[i2pt].parity_project, T_global);
+        }  /* end of loop on timeslices */
 
+        /* ??? spin / spin-parity projection ??? */
+        correlator_spin_parity_projection ( diagram, diagram, (double)g_twopoint_function_list[i2pt].parity_project, T_global);
 
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+        for ( int it = 0; it < T_global; it++ ) {
           /* spin-trace */
           co_eq_tr_zm4x4 ( correlator+it, diagram[it] );
         }
