@@ -219,12 +219,12 @@ int main(int argc, char **argv) {
       for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
 
         /* set the source coordinates if necessary */
-        if ( g_twopoint_function_list[i2pt].source_coords[0] == -1 ) {
+        /* if ( g_twopoint_function_list[i2pt].source_coords[0] == -1 ) { */
           g_twopoint_function_list[i2pt].source_coords[0] = gsx[0];
           g_twopoint_function_list[i2pt].source_coords[1] = gsx[1];
           g_twopoint_function_list[i2pt].source_coords[2] = gsx[2];
           g_twopoint_function_list[i2pt].source_coords[3] = gsx[3];
-        }
+        /* } */
 
         twopoint_function_print ( &(g_twopoint_function_list[i2pt]), "A2PT", stdout );
 
