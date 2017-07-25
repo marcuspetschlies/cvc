@@ -85,13 +85,13 @@ void twopoint_function_print ( twopoint_function_type *p, char *name, FILE*ofs )
   fprintf(ofs, "# [print_twopoint_function] %s.name = %s\n", name, p->name);
   fprintf(ofs, "# [print_twopoint_function] %s.type = %s\n", name, p->type);
   fprintf(ofs, "# [print_twopoint_function] %s.pi1  = (%3d,%3d, %3d)\n", name, p->pi1[0], p->pi1[1], p->pi1[2] );
-  fprintf(ofs, "# [print_twopoint_function] %s.pi1  = (%3d,%3d, %3d)\n", name, p->pi2[0], p->pi2[1], p->pi2[2] );
-  fprintf(ofs, "# [print_twopoint_function] %s.pi1  = (%3d,%3d, %3d)\n", name, p->pf1[0], p->pf1[1], p->pf1[2] );
-  fprintf(ofs, "# [print_twopoint_function] %s.pi1  = (%3d,%3d, %3d)\n", name, p->pf2[0], p->pf2[1], p->pf2[2] );
+  fprintf(ofs, "# [print_twopoint_function] %s.pi2  = (%3d,%3d, %3d)\n", name, p->pi2[0], p->pi2[1], p->pi2[2] );
+  fprintf(ofs, "# [print_twopoint_function] %s.pf1  = (%3d,%3d, %3d)\n", name, p->pf1[0], p->pf1[1], p->pf1[2] );
+  fprintf(ofs, "# [print_twopoint_function] %s.pf2  = (%3d,%3d, %3d)\n", name, p->pf2[0], p->pf2[1], p->pf2[2] );
   fprintf(ofs, "# [print_twopoint_function] %s.gi1  = (%3d,%3d)\n", name, p->gi1[0], p->gi1[1] );
-  fprintf(ofs, "# [print_twopoint_function] %s.gi1  =  %3d\n", name, p->gi2 );
-  fprintf(ofs, "# [print_twopoint_function] %s.gi1  = (%3d,%3d)\n", name, p->gf1[0], p->gf1[1] );
-  fprintf(ofs, "# [print_twopoint_function] %s.gi1  =  %3d\n", name, p->gf2 );
+  fprintf(ofs, "# [print_twopoint_function] %s.gi2  =  %3d\n", name, p->gi2 );
+  fprintf(ofs, "# [print_twopoint_function] %s.gf1  = (%3d,%3d)\n", name, p->gf1[0], p->gf1[1] );
+  fprintf(ofs, "# [print_twopoint_function] %s.gf2  =  %3d\n", name, p->gf2 );
   fprintf(ofs, "# [print_twopoint_function] %s.n    =  %3d\n", name, p->n );
   fprintf(ofs, "# [print_twopoint_function] %s.spin_project    =  %3d\n", name, p->spin_project );
   fprintf(ofs, "# [print_twopoint_function] %s.parity_project  =  %3d\n", name, p->parity_project );
@@ -165,7 +165,7 @@ void twopoint_function_print_diagram_key (char*key, twopoint_function_type *p, i
     sprintf( key, "/%s/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/gi%.2d/gf%.2d/%spx%.2dpy%.2dpz%.2d", p->name, 
         p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3],
         p->pi2[0], p->pi2[1], p->pi2[2],
-        p->gi1[0], p->gf1[0],
+        gamma_to_C_gamma[p->gi1[0]][0], gamma_to_C_gamma[p->gf1[0]][0],
         diag_str,
         p->pf1[0], p->pf1[1], p->pf1[2]); 
 
@@ -205,6 +205,11 @@ void twopoint_function_print_correlator_key (char*key, twopoint_function_type *p
         p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3]);
   } else {
     strcpy ( key, "NA" );
+  }
+  if ( p->parity_project == 1 ) {
+    strcat( key, "/parity+1" );
+  } else if ( p->parity_project == -1 ) {
+    strcat( key, "/parity-1" );
   }
   fprintf(stdout, "# [twopoint_function_print_correlator_key] key = \"%s\"\n", key);
   return;
