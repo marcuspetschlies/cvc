@@ -334,28 +334,38 @@ int main(int argc, char **argv) {
     spinor_work[0][ _GSI( g_ipt[sx[0]][sx[1]][sx[2]][sx[3]]) ] = 1.;
   }
 
-  for ( int Nsmear = 0; Nsmear <= N_Jacobi; Nsmear += 5 ) { 
+  /*******************************************
+   * smearing rms source radius
+   *******************************************/
+  memcpy( spinor_work[1], spinor_work[0], sizeof_spinor_field );
+  for ( int Nsmear = 0; Nsmear <= 2*N_Jacobi; Nsmear += 5 ) { 
 
     double r_rms;
-    exitstatus = rms_radius ( &r_rms, spinor_work[0], gsx );
+    exitstatus = rms_radius ( &r_rms, spinor_work[1], gsx );
 
     if (g_cart_id == 0 ) {
       fprintf(stdout, "  r_rms %4d %25.16e\n", Nsmear, r_rms);
     }
 
-    exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], 5, kappa_Jacobi);
+    exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], 5, kappa_Jacobi);
   }
 
-  fini_2level_buffer( &spinor_work );
+  /***********************************************
+   * source profile
+   ***********************************************/
+  memcpy( spinor_work[1], spinor_work[0], sizeof_spinor_field );
+  sprintf( filename, "source_profile.N%.4d.k%4.2f", N_Jacobi, kappa_Jacobi );
 
-  /*******************************************
-   * finalize
-   *******************************************/
+  exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
+
+  exitstatus = source_profile ( spinor_work[1], gsx, filename );
 
   /***********************************************
    * free the allocated memory, finalize
    ***********************************************/
   free_geometry();
+
+  fini_2level_buffer( &spinor_work );
 
   if( g_gauge_field != NULL ) free( g_gauge_field );
 
