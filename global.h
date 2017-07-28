@@ -247,6 +247,8 @@ EXTERN int g_fermion_type;
 
 EXTERN int g_coherent_source_number;
 
+extern const char *g_gitversion;
+
 }
 
 #endif

@@ -4,5 +4,6 @@ read_input_parser_cvc.cpp
 **/*.backup
 **/.RData
 **/.Rhistory
+gitversion.cpp
 TODO
 DONE
