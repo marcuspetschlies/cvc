@@ -6576,7 +6576,9 @@ void co_field_eq_fv_dag_ti_fv (double*c, double*r, double*s, unsigned int N ) {
   complex *c_ = NULL;
   unsigned int offset;
 
+#ifdef HAVE_OPENMP
 #pragma omp for
+#endif
   for(ix=0; ix<N; ix++ ) {
     offset = _GSI( ix );
     r_ = r + offset;
@@ -6589,6 +6591,33 @@ void co_field_eq_fv_dag_ti_fv (double*c, double*r, double*s, unsigned int N ) {
 #endif
 
 }  /* co_field_eq_fv_dag_ti_fv */
+
+/* c += r^+ s point-wise */
+void co_field_pl_eq_fv_dag_ti_fv (double*c, double*r, double*s, unsigned int N ) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  unsigned int ix;
+  double *r_ = NULL, *s_ = NULL;
+  complex *c_ = NULL;
+  unsigned int offset;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(ix=0; ix<N; ix++ ) {
+    offset = _GSI( ix );
+    r_ = r + offset;
+    s_ = s + offset;
+    c_ = (complex*)c + ix;
+    _co_pl_eq_fv_dag_ti_fv( c_, r_, s_);
+  }
+#ifdef HAVE_OPENMP
+}
+#endif
+
+}  /* co_field_pl_eq_fv_dag_ti_fv */
 
 
 /* c = r^+ gamma s point-wise */
@@ -6603,7 +6632,9 @@ void co_field_eq_fv_dag_ti_gamma_ti_fv (double*c, double*r, int gid, double*s, u
   complex *c_ = NULL;
   unsigned int offset;
 
+#ifdef HAVE_OPENMP
 #pragma omp for
+#endif
   for(ix=0; ix<N; ix++ ) {
     offset = _GSI( ix );
     r_ = r + offset;
@@ -6616,6 +6647,36 @@ void co_field_eq_fv_dag_ti_gamma_ti_fv (double*c, double*r, int gid, double*s, u
 }
 #endif
 }  /* co_field_eq_fv_dag_ti_gamma_ti_fv */
+
+/* c -= r^+ s point-wise */
+void co_field_mi_eq_fv_dag_ti_fv (double*c, double*r, double*s, unsigned int N ) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  unsigned int ix;
+  double *r_ = NULL, *s_ = NULL;
+  complex *c_ = NULL;
+  unsigned int offset;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(ix=0; ix<N; ix++ ) {
+    offset = _GSI( ix );
+    r_ = r + offset;
+    s_ = s + offset;
+    c_ = (complex*)c + ix;
+    _co_mi_eq_fv_dag_ti_fv ( c_, r_, s_);
+  }
+#ifdef HAVE_OPENMP
+}
+#endif
+
+}  /* co_field_mi_eq_fv_dag_ti_fv */
+
+
+
 
 /*****************************************************
  * r[x] = s[ x +/- dir ]
@@ -6804,7 +6865,10 @@ void fermion_propagator_field_eq_gamma_ti_fermion_propagator_field ( fermion_pro
 
   fermion_propagator_type fp;
   create_fp ( &fp );
+
+#ifdef HAVE_OPENMP
 #pragma omp for
+#endif
   for ( unsigned int ix = 0; ix < N; ix++ ) {
     _fp_eq_gamma_ti_fp ( fp, gid, s[ix] );
     _fp_eq_fp ( r[ix], fp );
@@ -6828,7 +6892,10 @@ void fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fermion_pro
 
   fermion_propagator_type fp;
   create_fp ( &fp );
+
+#ifdef HAVE_OPENMP
 #pragma omp for
+#endif
   for ( unsigned int ix = 0; ix < N; ix++ ) {
     _fp_eq_fp_ti_gamma ( fp, gid, s[ix] );
     _fp_eq_fp ( r[ix], fp );

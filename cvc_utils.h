@@ -170,6 +170,10 @@ int gauge_field_eq_gauge_field_ti_phase (double**gauge_field_with_phase, double*
 
 void co_field_eq_fv_dag_ti_fv (double*c, double*r, double*s, unsigned int N );
 
+void co_field_pl_eq_fv_dag_ti_fv (double*c, double*r, double*s, unsigned int N );
+
+void co_field_mi_eq_fv_dag_ti_fv (double*c, double*r, double*s, unsigned int N );
+
 void co_field_eq_fv_dag_ti_gamma_ti_fv (double*c, double*r, int gid, double*s, unsigned int N );
 
 void spinor_field_eq_cm_field_ti_spinor_field (double*r, double *u, double*s, unsigned int N);
