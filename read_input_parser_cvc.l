@@ -12,12 +12,12 @@ ZT [0-9(10)(11)]
 IDXEX ("-"{DIGIT}+)
 SIGN ("+"|"-")
 FLT {SIGN}?{DIGIT}*+"."{DIGIT}*(e("-"|"+")?{DIGIT}+)?
-FILENAME [a-zA-Z0-9_".""\-""/"][a-zA-z0-9"."_"\-""/"]+
+FILENAME [a-zA-Z0-9_".""\-""/"][a-zA-Z0-9"."_"\-""/"]+
 CORRCONFIG [0-9","";""\-""("")"][0-9","";""\-""("")"]+
 NAME [a-zA-Z0-9_]+
 TYPE [0-9A-Z]+
 SDIGIT {SIGN}?[[:digit:]]
-STRING [a-zA-z0-9"."_"-""/"","]+
+STRING [a-zA-Z0-9"."_"-""/"","]+
 
 %{
 #include <stdlib.h>
@@ -47,8 +47,9 @@ namespace cvc {
   char * type;
   double ft_rmax[4];
 
-  int cvc_verbose = 0;
+  int cvc_verbose = 1;
   int myverbose = 0;
+  int myprocid = 0;
 }
 %}
 
@@ -1237,13 +1238,17 @@ namespace cvc {
 
 int read_input_parser(char * conf_file){
 
+#ifdef HAVE_MPI
+  MPI_Comm_rank( MPI_COMM_WORLD, &myprocid);
+#endif
+
   /********************************************
    * Setting default values!
    ********************************************/
   reread = 0;
   set_default_input_values();
 
-  if( (g_proc_id == 0) && (cvc_verbose>0) ) {
+  if( ( myprocid == 0) && (cvc_verbose > 0) ) {
     myverbose = 1;
   }
   if ((yyin = fopen(conf_file, "rt")) == NULL){
@@ -1273,7 +1278,11 @@ int read_input_parser(char * conf_file){
 
 int reread_input_parser(char * conf_file){
 
-  if(g_verbose > 1 && g_proc_id == 0) {
+#ifdef HAVE_MPI
+  MPI_Comm_rank( MPI_COMM_WORLD, &myprocid);
+#endif
+
+  if( ( myprocid == 0 ) && ( cvc_verbose > 0 ) ) {
     myverbose = 1;
   }
   reread = 1;
