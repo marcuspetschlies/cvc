@@ -39,6 +39,7 @@
 #include "Q_phi.h"
 #include "Q_clover_phi.h"
 #include "contract_cvc_tensor.h"
+#include "scalar_products.h"
 
 namespace cvc {
 
@@ -1358,5 +1359,726 @@ int contract_local_cvc_2pt_eo ( double**sprop_list_e, double**sprop_list_o, doub
   return(0);
 
 }  /* end of contract_local_cvc_2pt_eo */
+
+/***********************************************************
+ * reduction
+ *
+ * w += tr ( r )
+ ***********************************************************/
+void co_field_pl_eq_tr_propagator_field (complex *w, fermion_propagator_type *r, double sign, unsigned int N) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  complex *w_ = NULL, wtmp;
+  fermion_propagator_type r_=NULL;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for( unsigned int ix=0; ix<N; ix++ ) {
+    w_ = w + ix;
+    r_ = r[ix];
+    _co_eq_tr_fp ( &wtmp, r_ );
+    _co_pl_eq_co_ti_re(w_, &wtmp, sign);
+  }
+
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+}  /* end of co_field_pl_eq_tr_propagator_field */
+
+/***********************************************************
+ * reduction
+ *
+ * w += tr ( r )^*
+ ***********************************************************/
+void co_field_pl_eq_tr_propagator_field_conj (complex *w, fermion_propagator_type *r, double sign, unsigned int N) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  complex *w_ = NULL, wtmp;
+  fermion_propagator_type r_=NULL;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for( unsigned int ix=0; ix<N; ix++ ) {
+    w_ = w + ix;
+    r_ = r[ix];
+    _co_eq_tr_fp ( &wtmp, r_ );
+    _co_pl_eq_co_conj_ti_re(w_, &wtmp, sign);
+  }
+
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+}  /* end of co_field_pl_eq_tr_propagator_field */
+
+
+/***********************************************************
+ *
+ ***********************************************************/
+void contract_cvc_loop_eo ( double ***loop, double**sprop_list_e, double**sprop_list_o, double**tprop_list_e, double**tprop_list_o , double*gauge_field ) {
+
+  const unsigned int Vhalf = VOLUME / 2;
+  int exitstatus;
+
+  fermion_propagator_type *fp       = create_fp_field( (VOLUME+RAND)/2 );
+  fermion_propagator_type *gamma_fp = create_fp_field( Vhalf );
+  
+
+  /* even part of sprop */
+  exitstatus = assign_fermion_propagaptor_from_spinor_field ( fp, sprop_list_e, Vhalf);
+  for ( int mu = 0; mu < 4; mu++ ) {
+    /* input field is even, output field is odd */
+    apply_cvc_vertex_propagator_eo ( gamma_fp, fp, mu, 0, gauge_field, 1);
+    co_field_pl_eq_tr_propagator_field ( (complex*)loop[1][mu], gamma_fp, 1., Vhalf);
+  }
+
+  /* odd part of sprop */
+  exitstatus = assign_fermion_propagaptor_from_spinor_field ( fp, sprop_list_o, Vhalf);
+  for ( int mu = 0; mu < 4; mu++ ) {
+    /* input field is odd, output field is even */
+    apply_cvc_vertex_propagator_eo ( gamma_fp, fp, mu, 0, gauge_field, 0);
+    co_field_pl_eq_tr_propagator_field ( (complex*)loop[0][mu], gamma_fp, 1., Vhalf);
+  }
+
+  /* even part of tprop */
+  exitstatus = assign_fermion_propagaptor_from_spinor_field ( fp, tprop_list_e, Vhalf);
+  for ( int mu = 0; mu < 4; mu++ ) {
+    /* input field is even, output field is odd */
+    apply_cvc_vertex_propagator_eo ( gamma_fp, fp, mu, 0, gauge_field, 1);
+    co_field_pl_eq_tr_propagator_field_conj ( (complex*)loop[1][mu], gamma_fp, -1., Vhalf);
+  }
+
+  /* odd part of tprop */
+  exitstatus = assign_fermion_propagaptor_from_spinor_field ( fp, tprop_list_o, Vhalf);
+  for ( int mu = 0; mu < 4; mu++ ) {
+    /* input field is odd, output field is even */
+    apply_cvc_vertex_propagator_eo ( gamma_fp, fp, mu, 0, gauge_field, 0);
+    co_field_pl_eq_tr_propagator_field_conj ( (complex*)loop[0][mu], gamma_fp, -1., Vhalf);
+  }
+#if 0
+#endif  /* of if 0 */
+
+#if 0
+  const size_t sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof(double);
+  double **eo_spinor_work = NULL, **eo_spinor_field = NULL;
+
+  exitstatus = init_2level_buffer ( &eo_spinor_work, 1, _GSI( (VOLUME+RAND)/2 ) );
+  if ( exitstatus != 0 ) {
+    fprintf(stdout, "[contract_cvc_loop_eo] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(1);
+  }
+  exitstatus = init_2level_buffer ( &eo_spinor_field, 12, _GSI( Vhalf ) );
+  if ( exitstatus != 0 ) {
+    fprintf(stdout, "[contract_cvc_loop_eo] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(2);
+  }
+
+  /* even part of sprop */
+  for ( int mu = 0; mu < 4; mu++ ) {
+    for ( int i = 0; i < 12; i++) {
+      memcpy ( eo_spinor_work[0], sprop_list_e[i], sizeof_eo_spinor_field );
+      apply_cvc_vertex_eo( eo_spinor_field[i], eo_spinor_work[0], mu, 0, gauge_field, 1);
+    }
+    exitstatus = assign_fermion_propagaptor_from_spinor_field ( gamma_fp, eo_spinor_field, Vhalf);
+    co_field_pl_eq_tr_propagator_field ( (complex*)loop[1][mu], gamma_fp, 1., Vhalf);
+  }
+
+  /* odd part of sprop */
+  for ( int mu = 0; mu < 4; mu++ ) {
+    for ( int i = 0; i < 12; i++) {
+      memcpy ( eo_spinor_work[0], sprop_list_o[i], sizeof_eo_spinor_field );
+      apply_cvc_vertex_eo( eo_spinor_field[i], eo_spinor_work[0], mu, 0, gauge_field, 0);
+    }
+    exitstatus = assign_fermion_propagaptor_from_spinor_field ( gamma_fp, eo_spinor_field, Vhalf);
+    co_field_pl_eq_tr_propagator_field ( (complex*)loop[0][mu], gamma_fp, 1., Vhalf);
+  }
+
+  /* even part of tprop */
+  for ( int mu = 0; mu < 4; mu++ ) {
+    for ( int i = 0; i < 12; i++) {
+      memcpy ( eo_spinor_work[0], tprop_list_e[i], sizeof_eo_spinor_field );
+      apply_cvc_vertex_eo( eo_spinor_field[i], eo_spinor_work[0], mu, 0, gauge_field, 1);
+    }
+    exitstatus = assign_fermion_propagaptor_from_spinor_field ( gamma_fp, eo_spinor_field, Vhalf);
+    co_field_pl_eq_tr_propagator_field_conj ( (complex*)loop[1][mu], gamma_fp, -1., Vhalf);
+  }
+
+  /* odd part of tprop */
+  for ( int mu = 0; mu < 4; mu++ ) {
+    for ( int i = 0; i < 12; i++) {
+      memcpy ( eo_spinor_work[0], tprop_list_o[i], sizeof_eo_spinor_field );
+      apply_cvc_vertex_eo( eo_spinor_field[i], eo_spinor_work[0], mu, 0, gauge_field, 0);
+    }
+    exitstatus = assign_fermion_propagaptor_from_spinor_field ( gamma_fp, eo_spinor_field, Vhalf);
+    co_field_pl_eq_tr_propagator_field_conj ( (complex*)loop[0][mu], gamma_fp, -1., Vhalf);
+  }
+
+  fini_2level_buffer ( &eo_spinor_work );
+  fini_2level_buffer ( &eo_spinor_field );
+#endif  /* of if 0 */
+
+  free_fp_field(&fp);
+  free_fp_field(&gamma_fp);
+  return;
+
+}  /* end of contract_cvc_loop_eo */
+
+
+/***********************************************************
+ *
+ ***********************************************************/
+void contract_cvc_loop_eo_lma ( double ***loop, double**eo_evecs_field, double *eo_evecs_norm, int nev, double*gauge_field, double **mzz[2], double **mzzinv[2]) {
+
+  const unsigned int Vhalf = VOLUME / 2;
+  const size_t sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof(double);
+  int exitstatus;
+
+  double ratime, retime;
+  double **eo_spinor_work = NULL, **eo_spinor_field = NULL;
+  double *v = NULL, *w = NULL, *xv = NULL, *xw = NULL;
+
+  ratime= _GET_TIME;
+
+  exitstatus = init_2level_buffer ( &eo_spinor_work, 2, _GSI( (VOLUME+RAND)/2 ) );
+  if ( exitstatus != 0 ) {
+    fprintf(stdout, "[contract_cvc_loop_eo] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(1);
+  }
+  exitstatus = init_2level_buffer ( &eo_spinor_field, 4, _GSI( Vhalf ) );
+  if ( exitstatus != 0 ) {
+    fprintf(stdout, "[contract_cvc_loop_eo] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(2);
+  }
+  v  = eo_spinor_field[0];
+  xv = eo_spinor_field[1];
+  w  = eo_spinor_field[2];
+  xw = eo_spinor_field[3];
+
+  /* loop on eigenvectors */
+  for ( int i = 0; i < nev; i++) {
+    /* V */
+    memcpy ( v, eo_evecs_field[i], sizeof_eo_spinor_field );
+
+    /* double norm;
+    spinor_scalar_product_re( &norm, v, v, Vhalf);
+    fprintf(stdout, "# [contract_cvc_loop_eo_lma] V norm %3d %25.16e\n", i, norm); */
+
+    /* Xbar V */
+    memcpy ( eo_spinor_work[0], v, sizeof_eo_spinor_field );
+    X_clover_eo ( xv, eo_spinor_work[0], gauge_field, mzzinv[1][0]);
+
+    /* W from V and Xbar V */
+    memcpy ( w, v,  sizeof_eo_spinor_field );
+    memcpy ( eo_spinor_work[0],  xv, sizeof_eo_spinor_field );
+    C_clover_from_Xeo ( w, eo_spinor_work[0], eo_spinor_work[1], gauge_field, mzz[1][1]);
+    spinor_field_ti_eq_re ( w, eo_evecs_norm[i], Vhalf);
+
+    /* spinor_scalar_product_re( &norm, w, w, Vhalf);
+    norm /= sqrt(eo_evecs_norm[i]);
+    fprintf(stdout, "# [contract_cvc_loop_eo_lma] W norm %3d %25.16e\n", i, norm); */
+
+
+    /* X W from W */
+    memcpy ( eo_spinor_work[0], w, sizeof_eo_spinor_field );
+    X_clover_eo ( xw, eo_spinor_work[0], gauge_field, mzzinv[0][0]);
+
+    for ( int mu = 0; mu < 4; mu++ ) {
+
+      /* V^+ g5 Gamma_mu^f X W */
+      memcpy ( eo_spinor_work[0], xw, sizeof_eo_spinor_field );
+      apply_cvc_vertex_eo( eo_spinor_work[1], eo_spinor_work[0], mu, 0, gauge_field, 1);
+      g5_phi( eo_spinor_work[1], Vhalf);
+      co_field_pl_eq_fv_dag_ti_fv ( loop[1][mu], v, eo_spinor_work[1], Vhalf );
+
+      /* (Xbar V)^+ g5 Gamma_mu^f W */
+      memcpy ( eo_spinor_work[0], w, sizeof_eo_spinor_field );
+      apply_cvc_vertex_eo( eo_spinor_work[1], eo_spinor_work[0], mu, 0, gauge_field, 0);
+      g5_phi( eo_spinor_work[1], Vhalf);
+      co_field_pl_eq_fv_dag_ti_fv ( loop[0][mu], xv, eo_spinor_work[1], Vhalf );
+
+      /* W^+ g5 Gamma_mu^f ( Xbar V ) */
+      memcpy ( eo_spinor_work[0], xv, sizeof_eo_spinor_field );
+      apply_cvc_vertex_eo( eo_spinor_work[1], eo_spinor_work[0], mu, 0, gauge_field, 1);
+      g5_phi( eo_spinor_work[1], Vhalf);
+      co_field_mi_eq_fv_dag_ti_fv ( loop[1][mu], eo_spinor_work[1], w, Vhalf );
+
+      /* (X W)^+ g5 Gamma_mu^f V */
+      memcpy ( eo_spinor_work[0], v, sizeof_eo_spinor_field );
+      apply_cvc_vertex_eo( eo_spinor_work[1], eo_spinor_work[0], mu, 0, gauge_field, 0);
+      g5_phi( eo_spinor_work[1], Vhalf);
+      co_field_mi_eq_fv_dag_ti_fv ( loop[0][mu], eo_spinor_work[1], xw, Vhalf );
+
+    }  /* end of loop on mu */
+
+  }  /* end of loop on eigenvectors */
+
+  fini_2level_buffer ( &eo_spinor_work );
+  fini_2level_buffer ( &eo_spinor_field );
+
+  retime = _GET_TIME;
+  if (g_cart_id == 0 ) fprintf(stdout, "# [contract_cvc_loop_eo_lma] time for contract_cvc_loop_eo_lma_wi = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+
+  return;
+
+}  /* end of contract_cvc_loop_eo_lma */
+
+/***********************************************************
+ *
+ ***********************************************************/
+void contract_cvc_loop_eo_lma_wi ( double **wi, double**eo_evecs_field, double *eo_evecs_norm, int nev, double*gauge_field, double **mzz[2], double **mzzinv[2]) {
+
+  const unsigned int Vhalf = VOLUME / 2;
+  const size_t sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof(double);
+  int exitstatus;
+
+  double ratime, retime;
+  double **eo_spinor_work = NULL, **eo_spinor_field = NULL, *v = NULL, *w = NULL;
+
+  ratime = _GET_TIME;
+
+  exitstatus = init_2level_buffer ( &eo_spinor_work, 2, _GSI( (VOLUME+RAND)/2 ) );
+  if ( exitstatus != 0 ) {
+    fprintf(stdout, "[contract_cvc_loop_eo_lma_wi] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(1);
+  }
+  exitstatus = init_2level_buffer ( &eo_spinor_field, 2, _GSI( Vhalf ) );
+  if ( exitstatus != 0 ) {
+    fprintf(stdout, "[contract_cvc_loop_eo_lma_wi] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(2);
+  }
+
+  v = eo_spinor_field[0];
+  w = eo_spinor_field[1];
+
+  /* even part */
+  /* memset ( wi[0], 0, Vhalf*2*sizeof(double) ); */
+  /* memset ( wi[1], 0, Vhalf*2*sizeof(double) ); */
+ 
+  /* odd part */
+  for ( int i = 0; i < nev; i++) {
+    /* V */
+    memcpy ( v, eo_evecs_field[i], sizeof_eo_spinor_field );
+
+    /* W = Cbar V */
+    C_clover_oo ( w, v, gauge_field, eo_spinor_work[0], mzz[1][1], mzzinv[1][0]);
+    spinor_field_ti_eq_re ( w, sqrt( eo_evecs_norm[i] ), Vhalf);
+
+    /* double norm;
+    spinor_scalar_product_re( &norm, w, w, Vhalf);
+    fprintf(stdout, "# [contract_cvc_loop_eo_lma_wi] Wtilde norm %3d %25.16e\n", i, norm);*/
+
+    co_field_mi_eq_fv_dag_ti_fv ( wi[1] , w, w, Vhalf );
+    co_field_pl_eq_fv_dag_ti_fv ( wi[1] , v, v, Vhalf );
+
+  }
+
+  fini_2level_buffer ( &eo_spinor_work );
+  fini_2level_buffer ( &eo_spinor_field );
+
+  retime = _GET_TIME;
+  if (g_cart_id == 0 ) fprintf(stdout, "# [contract_cvc_loop_eo_lma_wi] time for contract_cvc_loop_eo_lma_wi = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+
+  return;
+}  /* contract_cvc_loop_eo_lma_wi */
+
+/***************************************************************************
+ * check position space WI for a loop
+ ***************************************************************************/
+int cvc_loop_eo_check_wi_position_space_lma ( double ***wwi, double ***loop_lma, double **eo_evecs_field, double *evecs_norm, int nev, double *gauge_field, double **mzz[2], double **mzzinv[2]  ) {
+
+  const unsigned int Vhalf = VOLUME / 2;
+
+  int exitstatus;
+  double **conn_buffer = NULL, norm_accum = 0.;
+  double **wi = NULL;
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+#endif
+
+  exitstatus = init_2level_buffer ( &conn_buffer, 4, 2*(VOLUME+RAND) );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[cvc_loop_eo_check_wi_position_space_lma] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+
+  if ( *wwi == NULL ) {
+    if ( g_cart_id == 0 ) fprintf(stdout, "# [cvc_loop_eo_check_wi_position_space_lma] allocating new wi contraction field\n");
+    exitstatus = init_2level_buffer ( &wi, 2, 2*Vhalf );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[cvc_loop_eo_check_wi_position_space_lma] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(1);
+    }
+    *wwi = wi;
+  } else {
+    if ( g_cart_id == 0 ) fprintf(stdout, "# [cvc_loop_eo_check_wi_position_space_lma] using existing wi contraction field\n");
+    wi = *wwi;
+  }
+
+  contract_cvc_loop_eo_lma_wi ( wi, eo_evecs_field, evecs_norm, nev, gauge_field, mzz, mzzinv );
+
+  for ( int mu = 0; mu < 4; mu++ ) {
+    complex_field_eo2lexic (conn_buffer[mu], loop_lma[0][mu], loop_lma[1][mu] );
+#ifdef HAVE_MPI
+    xchange_contraction( conn_buffer[mu], 2 );
+#endif
+  }
+
+#ifdef HAVE_OPENMP
+  omp_init_lock(&writelock);
+#pragma omp parallel shared( norm_accum, conn_buffer, wi )
+{
+#endif
+  double normt = 0.;
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
+    int ieo = g_iseven[ix] == 1 ? 0 : 1;
+    unsigned int ixeosub = g_lexic2eosub[ix];
+    double dnormr = conn_buffer[0][2*ix] 
+                  + conn_buffer[1][2*ix] 
+                  + conn_buffer[2][2*ix] 
+                  + conn_buffer[3][2*ix]
+                  - conn_buffer[0][2*g_idn[ix][0]]
+                  - conn_buffer[1][2*g_idn[ix][1]]
+                  - conn_buffer[2][2*g_idn[ix][2]]
+                  - conn_buffer[3][2*g_idn[ix][3]] - wi[ieo][2*ixeosub];
+
+    double dnormi = conn_buffer[0][2*ix+1]
+                  + conn_buffer[1][2*ix+1]   
+                  + conn_buffer[2][2*ix+1]  
+                  + conn_buffer[3][2*ix+1]
+                  - conn_buffer[0][2*g_idn[ix][0]+1]
+                  - conn_buffer[1][2*g_idn[ix][1]+1]
+                  - conn_buffer[2][2*g_idn[ix][2]+1]
+                  - conn_buffer[3][2*g_idn[ix][3]+1] - wi[ieo][2*ixeosub+1]; 
+
+
+    if ( g_verbose > 4 ) fprintf(stdout, "# [cvc_loop_eo_check_wi_position_space_lma] proc%.4d %3d %3d %3d %3d\t\t\t%25.16e %25.16e\n",
+        g_cart_id, ix/(LX*LY*LZ) + g_proc_coords[0]*T, (ix%(LX*LY*LZ))/(LY*LZ) + g_proc_coords[1]*LX,
+        (ix%(LY*LZ))/LZ + g_proc_coords[2]*LY, ix%LZ + g_proc_coords[3]*LZ, dnormr, dnormi );
+      normt += dnormr * dnormr + dnormi * dnormi;
+  }
+#ifdef HAVE_OPENMP
+  omp_set_lock(&writelock);
+#endif
+  norm_accum += normt;
+
+#ifdef HAVE_OPENMP
+  omp_unset_lock(&writelock);
+}  /* end of parallel region */
+  omp_destroy_lock(&writelock);
+#endif
+
+  norm_accum = sqrt ( norm_accum );
+#ifdef HAVE_MPI
+  double dtmp = norm_accum;
+  exitstatus = MPI_Allreduce(&dtmp, &norm_accum, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid);
+  if(exitstatus != MPI_SUCCESS) {
+    fprintf(stderr, "[cvc_loop_eo_check_wi_position_space_lma] Error from MPI_Allreduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(2);
+  }
+#endif
+  if (g_cart_id == 0) fprintf(stdout, "# [cvc_loop_eo_check_wi_position_space_lma] WI %25.16e\n", norm_accum );
+
+  /* fini_2level_buffer ( &wi ); */
+  fini_2level_buffer ( &conn_buffer );
+
+  return(0);
+}  /* end of cvc_loop_eo_check_wi_position_space_lma */
+
+
+/***************************************************************************
+ * momentum projections
+ ***************************************************************************/
+
+int cvc_loop_eo_momentum_projection (double****loop_tp, double***loop_eo, int (*momentum_list)[3], int momentum_number) {
+
+  int exitstatus;
+  double ***cvc_tp = NULL, *cvc_loop_lexic=NULL;
+  double ratime, retime;
+
+  ratime = _GET_TIME;
+
+  if ( *loop_tp == NULL ) {
+    exitstatus = init_3level_buffer( loop_tp, momentum_number, 4, 2*T);
+    if(exitstatus != 0) {
+      fprintf(stderr, "[cvc_loop_eo_momentum_projection] Error from init_3level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(1);
+    }
+  }
+  cvc_tp = *loop_tp;
+
+  cvc_loop_lexic = (double*)malloc( 8 * VOLUME * sizeof(double));
+  if( cvc_loop_lexic == NULL ) {
+    fprintf(stderr, "[cvc_loop_eo_momentum_projection] Error from malloc %s %d\n", __FILE__, __LINE__);
+    return(2);
+  }
+  for ( int mu = 0; mu < 4; mu++ ) {
+    complex_field_eo2lexic ( cvc_loop_lexic+2*mu*VOLUME, loop_eo[0][mu], loop_eo[1][mu] );
+  }
+
+  exitstatus = momentum_projection (cvc_loop_lexic, cvc_tp[0][0], T*4, momentum_number, momentum_list);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[cvc_loop_eo_momentum_projection] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(3);
+  }
+  free ( cvc_loop_lexic );
+
+  for ( int ip = 0; ip < momentum_number; ip++) {
+    double dtmp[2], phase[2];
+    double pvec[3] = { 
+      M_PI * momentum_list[ip][0] / (double)LX_global, 
+      M_PI * momentum_list[ip][1] / (double)LY_global,
+      M_PI * momentum_list[ip][2] / (double)LZ_global };
+
+    for ( int mu = 1; mu < 4; mu++ ) {
+      phase[0] = cos ( pvec[mu-1] );
+      phase[1] = sin ( pvec[mu-1] );
+
+      for ( int it = 0; it < T; it++ ) {
+        dtmp[0] = cvc_tp[ip][mu][2*it  ];
+        dtmp[1] = cvc_tp[ip][mu][2*it+1];
+
+        cvc_tp[ip][mu][2*it  ] = dtmp[0] * phase[0] - dtmp[1] * phase[1];
+        cvc_tp[ip][mu][2*it+1] = dtmp[0] * phase[1] + dtmp[1] * phase[0];
+      }
+    }
+  }
+
+  retime = _GET_TIME;
+  if( g_cart_id == 0 ) fprintf(stdout, "# [cvc_loop_eo_momentum_projection] time for momentum projection = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+
+  return(0);
+}  /* end of cvc_loop_eo_momentum_projection */
+
+
+/***************************************************************************
+ * write tp-loop results to file
+ ***************************************************************************/
+
+int cvc_loop_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, char*tag, int (*momentum_list)[3], int momentum_number, int io_proc ) {
+
+  int exitstatus, i;
+  double ratime, retime;
+  struct AffNode_s *affn = NULL, *affdir=NULL;
+  char aff_buffer_path[200];
+  double *buffer = NULL;
+  double _Complex *aff_buffer = NULL;
+  double _Complex *zbuffer = NULL;
+
+  if ( io_proc == 2 ) {
+    if( (affn = aff_writer_root(affw)) == NULL ) {
+      fprintf(stderr, "[cvc_loop_tp_write_to_aff_file] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
+      return(1);
+    }
+
+    zbuffer = (double _Complex*)malloc(  momentum_number * 4 * T_global * sizeof(double _Complex) );
+    if( zbuffer == NULL ) {
+      fprintf(stderr, "[cvc_loop_tp_write_to_aff_file] Error from malloc %s %d\n", __FILE__, __LINE__);
+      return(6);
+    }
+  }
+
+  ratime = _GET_TIME;
+
+  /* reorder cvc_tp into buffer with order time - munu - momentum */
+  buffer = (double*)malloc(  momentum_number * 8 * T * sizeof(double) );
+  if( buffer == NULL ) {
+    fprintf(stderr, "[cvc_loop_tp_write_to_aff_file] Error from malloc %s %d\n", __FILE__, __LINE__);
+    return(6);
+  }
+  i = 0;
+  for( int it = 0; it < T; it++ ) {
+    for( int mu=0; mu<4; mu++ ) {
+      for( int ip=0; ip < momentum_number; ip++) {
+        buffer[i++] = cvc_tp[ip][mu][2*it  ];
+        buffer[i++] = cvc_tp[ip][mu][2*it+1];
+      }
+    }
+  }
+
+#ifdef HAVE_MPI
+  i = momentum_number * 8 * T;
+#  if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) 
+  if(io_proc>0) {
+    exitstatus = MPI_Gather(buffer, i, MPI_DOUBLE, zbuffer, i, MPI_DOUBLE, 0, g_tr_comm);
+    if(exitstatus != MPI_SUCCESS) {
+      fprintf(stderr, "[cvc_loop_tp_write_to_aff_file] Error from MPI_Gather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(3);
+    }
+  }
+#  else
+  exitstatus = MPI_Gather(buffer, i, MPI_DOUBLE, zbuffer, i, MPI_DOUBLE, 0, g_cart_grid);
+  if(exitstatus != MPI_SUCCESS) {
+    fprintf(stderr, "[cvc_loop_tp_write_to_aff_file] Error from MPI_Gather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(4);
+  }
+#  endif
+
+#else
+  memcpy(zbuffer, buffer, momentum_number * 8 * T * sizeof(double) );
+#endif
+  free( buffer );
+
+  if(io_proc == 2) {
+
+    /* reverse the ordering back to momentum - munu - time */
+    aff_buffer = (double _Complex*)malloc( momentum_number * 8 * T_global * sizeof(double _Complex) );
+    if(aff_buffer == NULL) {
+      fprintf(stderr, "[cvc_loop_tp_write_to_aff_file] Error from malloc %s %d\n", __FILE__, __LINE__);
+      return(2);
+    }
+    i = 0;
+    for( int ip=0; ip<momentum_number; ip++) {
+      for( int mu=0; mu < 4; mu++ ) {
+        for( int it = 0; it < T_global; it++ ) {
+          int offset = (it * 4 + mu ) * momentum_number + ip;
+          aff_buffer[i++] = zbuffer[offset];
+        }
+      }
+    }
+    free( zbuffer );
+
+    for(i=0; i < momentum_number; i++) {
+      for ( int mu = 0; mu < 4; mu++ ) {
+        sprintf(aff_buffer_path, "%s/px%.2dpy%.2dpz%.2d/mu%d", tag, momentum_list[i][0], momentum_list[i][1], momentum_list[i][2], mu );
+        /* fprintf(stdout, "# [cvc_loop_tp_write_to_aff_file] current aff path = %s\n", aff_buffer_path); */
+        affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
+        exitstatus = aff_node_put_complex (affw, affdir, aff_buffer+T_global*(4 * i + mu), (uint32_t)T_global);
+        if(exitstatus != 0) {
+          fprintf(stderr, "[cvc_loop_tp_write_to_aff_file] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          return(5);
+        }
+      }  /* end of loop on mu */
+    }  /* end of loop on momenta  */
+    free( aff_buffer );
+  }  /* if io_proc == 2 */
+
+#ifdef HAVE_MPI
+  MPI_Barrier( g_cart_grid );
+#endif
+
+  retime = _GET_TIME;
+  if(io_proc == 2) fprintf(stdout, "# [cvc_loop_tp_write_to_aff_file] time for saving momentum space results = %e seconds\n", retime-ratime);
+
+  return(0);
+
+}  /* end of cvc_loop_tp_write_to_aff_file */
+
+/***************************************************************************
+ * check Ward identity in momentum space
+ ***************************************************************************/
+int cvc_loop_eo_check_wi_momentum_space_lma ( double **wi, double ***loop_lma, int (*momentum_list)[3], int momentum_number  ) {
+
+  int exitstatus;
+  double ratime, retime;
+  double *wi_lexic = NULL, **wi_tp = NULL;
+
+  ratime = _GET_TIME;
+
+  wi_lexic = (double*)malloc( 2*VOLUME*sizeof(double) );
+  if ( wi_lexic == NULL ) {
+    fprintf(stderr, "[cvc_loop_eo_check_wi_momentum_space_lma] Error from malloc %s %d\n", __FILE__, __LINE__);
+    return(1);
+  }
+  exitstatus = init_2level_buffer ( &wi_tp, momentum_number, 2*T );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[cvc_loop_eo_check_wi_momentum_space_lma] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+
+  complex_field_eo2lexic ( wi_lexic, wi[0], wi[1] );
+
+  exitstatus = momentum_projection ( wi_lexic, wi_tp[0], T, momentum_number, momentum_list);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[cvc_loop_eo_check_wi_momentum_space_lma] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(3);
+  }
+
+  free ( wi_lexic );
+
+  for ( int ip = 0; ip < momentum_number; ip++ ) {
+    double dtmp[2], phase[2];
+
+    for ( int ip0 = 0; ip0 < T_global; ip0 ++ ) {
+      
+      double p[4] = {
+          M_PI * ip0 / (double)T_global,
+          M_PI * momentum_list[ip][0] / (double)LX_global,
+          M_PI * momentum_list[ip][1] / (double)LY_global,
+          M_PI * momentum_list[ip][2] / (double)LZ_global };
+
+      double sinp[4] = { 2*sin( p[0] ), 2*sin( p[1] ), 2*sin( p[2] ), 2*sin( p[3] ) }; 
+
+      double jjp[8];
+      for ( int mu = 0; mu < 4; mu++ ) {
+        jjp[2*mu  ] = 0.;
+        jjp[2*mu+1] = 0.;
+        for ( int it = 0; it < T; it++ ) {
+          double phase = p[0] * ( 2 * ( it + g_proc_coords[0]*T) + (int)(mu == 0) );
+          double ephase[2] = { cos ( phase ), sin ( phase ) };
+          jjp[2*mu  ] += loop_lma[ip][mu][2*it  ] * ephase[0] - loop_lma[ip][mu][2*it+1] * ephase[1];
+          jjp[2*mu+1] += loop_lma[ip][mu][2*it+1] * ephase[0] + loop_lma[ip][mu][2*it  ] * ephase[1];
+        }
+      }
+#ifdef HAVE_MPI
+      double buffer[8];
+      exitstatus = MPI_Allreduce( jjp, buffer, 8, MPI_DOUBLE, MPI_SUM, g_tr_comm );
+      if ( exitstatus != MPI_SUCCESS ) {
+        fprintf(stderr, "[cvc_loop_eo_check_wi_momentum_space_lma] Error from MPI_Allreduce, status %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(3);
+      }
+      memcpy ( jjp, buffer, 8*sizeof(double) );
+#endif
+
+      double ww[2];
+      ww[0] = 0.;
+      ww[1] = 0.;
+      for ( int it = 0; it < T; it++ ) {
+        double phase = p[0] * 2 * ( it + g_proc_coords[0] * T);
+        double ephase[2] = { cos ( phase ), sin ( phase ) };
+        ww[0] += wi_tp[ip][2*it  ] * ephase[0] - wi_tp[ip][2*it+1] * ephase[1];
+        ww[1] += wi_tp[ip][2*it+1] * ephase[0] + wi_tp[ip][2*it  ] * ephase[1];
+      }
+#ifdef HAVE_MPI
+      exitstatus = MPI_Allreduce( ww, buffer, 2, MPI_DOUBLE, MPI_SUM, g_tr_comm );
+      if ( exitstatus != MPI_SUCCESS ) {
+        fprintf(stderr, "[cvc_loop_eo_check_wi_momentum_space_lma] Error from MPI_Allreduce, status %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(3);
+      }
+      ww[0] = buffer[0];
+      ww[1] = buffer[1];
+#endif
+
+      double pJi = -( sinp[0] * jjp[0] + sinp[1] * jjp[2] + sinp[2] * jjp[4] + sinp[3] * jjp[6] ); 
+      double pJr =    sinp[0] * jjp[1] + sinp[1] * jjp[3] + sinp[2] * jjp[5] + sinp[3] * jjp[7]; 
+
+      if ( g_cart_id == 0 ) {
+        fprintf(stdout, "# [cvc_loop_eo_check_wi_momentum_space_lma] p = %3d %3d %3d %3d pJ = %25.16e %25.16e    ww = %25.16e %25.16e\n", 
+            ip0, momentum_list[ip][0], momentum_list[ip][1], momentum_list[ip][2],
+            pJr, pJi, ww[0], ww[1] );
+      }
+
+    }  /* end of loop on ip0  */
+
+  }  /* end of loop on momenta */
+
+  fini_2level_buffer ( &wi_tp );
+
+  retime = _GET_TIME;
+  if( g_cart_id == 0 ) fprintf(stdout, "# [cvc_loop_eo_check_wi_momentum_space_lma] time for saving momentum space results = %e seconds\n", retime-ratime);
+
+  return(0);
+}  /* end of cvc_loop_eo_check_wi_momentum_space_lma */
 
 }  /* end of namespace cvc */
