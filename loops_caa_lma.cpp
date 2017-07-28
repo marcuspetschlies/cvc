@@ -120,6 +120,7 @@ int main(int argc, char **argv) {
   double *gauge_field_with_phase = NULL;
   double ***eo_source_buffer = NULL;
   double ***cvc_loop_eo_wi = NULL;
+  int nev_step_size = 10;
 
 #ifdef HAVE_MPI
   MPI_Status mstatus;
@@ -136,7 +137,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "cwh?f:")) != -1) {
+  while ((c = getopt(argc, argv, "cwh?f:n:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -147,6 +148,9 @@ int main(int argc, char **argv) {
       break;
     case 'c':
       check_propagator_residual = 1;
+      break;
+    case 'n':
+      nev_step_size = atoi (optarg);
       break;
     case 'h':
     case '?':
@@ -638,7 +642,6 @@ int main(int argc, char **argv) {
   }  /* end of if io_proc == 2 */
 #endif
 
-  int dnev = 10;
   double ***cvc_loop_lma = NULL, **cvc_wi = NULL;
   exitstatus = init_3level_buffer ( &cvc_loop_lma, 2, 4, 2*Vhalf );
   if ( exitstatus != 0 ) {
@@ -649,19 +652,19 @@ int main(int argc, char **argv) {
   /***********************************************/
   /***********************************************/
 
-  /* for ( int nev = dnev; nev <= evecs_num; nev += dnev ) { */
-    int nev = 40;
-    dnev = 40;
+  for ( int nev = nev_step_size; nev <= evecs_num; nev += nev_step_size ) {
 
-    double **eo_evecs_ptr = &(eo_evecs_field[nev-dnev]);
-    double *evecs_norm_ptr = &(evecs_4kappasqr_lambdainv[nev-dnev]);
+    double **eo_evecs_ptr = &(eo_evecs_field[nev-nev_step_size]);
+    double *evecs_norm_ptr = &(evecs_4kappasqr_lambdainv[nev-nev_step_size]);
 
-    contract_cvc_loop_eo_lma ( cvc_loop_lma, eo_evecs_ptr, evecs_norm_ptr, dnev, gauge_field_with_phase, mzz, mzzinv );
+    contract_cvc_loop_eo_lma ( cvc_loop_lma, eo_evecs_ptr, evecs_norm_ptr, nev_step_size, gauge_field_with_phase, mzz, mzzinv );
 
-    exitstatus = cvc_loop_eo_check_wi_position_space_lma ( &cvc_wi, cvc_loop_lma, eo_evecs_ptr, evecs_norm_ptr, dnev, gauge_field_with_phase, mzz, mzzinv  );
-    if(exitstatus != 0 ) {
-      fprintf(stderr, "[loops_caa_lma] Error from cvc_loop_eo_check_wi_position_space_lma, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(2);
+    if ( check_position_space_WI ) {
+      exitstatus = cvc_loop_eo_check_wi_position_space_lma ( &cvc_wi, cvc_loop_lma, eo_evecs_ptr, evecs_norm_ptr, nev_step_size, gauge_field_with_phase, mzz, mzzinv  );
+      if(exitstatus != 0 ) {
+        fprintf(stderr, "[loops_caa_lma] Error from cvc_loop_eo_check_wi_position_space_lma, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(2);
+      }
     }
 
     double ***cvc_loop_tp = NULL;
@@ -679,20 +682,24 @@ int main(int argc, char **argv) {
       EXIT(2);
     }
  
-    exitstatus = cvc_loop_eo_check_wi_momentum_space_lma ( cvc_wi, cvc_loop_tp, g_sink_momentum_list, g_sink_momentum_number );
-    if(exitstatus != 0 ) {
-      fprintf(stderr, "[loops_caa_lma] Error from cvc_loop_eo_check_wi_momentum_space_lma, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(2);
+    if ( check_position_space_WI ) {
+      exitstatus = cvc_loop_eo_check_wi_momentum_space_lma ( cvc_wi, cvc_loop_tp, g_sink_momentum_list, g_sink_momentum_number );
+      if(exitstatus != 0 ) {
+        fprintf(stderr, "[loops_caa_lma] Error from cvc_loop_eo_check_wi_momentum_space_lma, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(2);
+      }
     }
 
 
     fini_3level_buffer ( &cvc_loop_tp );
 #if 0
 #endif
-  /* } */  /* end of loop on nev */ 
+  }  /* end of loop on nev */ 
 
   fini_3level_buffer ( &cvc_loop_lma );
-  fini_2level_buffer ( &cvc_wi );
+  if ( check_position_space_WI ) {
+    fini_2level_buffer ( &cvc_wi );
+  }
 
 #ifdef HAVE_LHPC_AFF
   if(io_proc == 2) {
