@@ -5372,7 +5372,7 @@ void xchange_eo_propagator ( fermion_propagator_type *fp, int eo, int dir) {
 
   double *phi = &(fp[0][0][0]);
 
-  if ( g_cart_id == 0 && g_verbose > 1 ) {
+  if ( g_cart_id == 0 && g_verbose > 3 ) {
     fprintf(stdout, "# [xchange_eo_propagator] exchanging eo propagator field %d in direction %d\n", eo, dir);
   }
 
