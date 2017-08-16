@@ -965,5 +965,68 @@ int select_stochastic_timeslice_propagator ( double***eo_stochastic_source_allt,
   return(0);
 }  /* end of select_stochastic_timeslice_propagator */
 
+/**********************************************************
+ * make a poin-to-all propagator
+ * 4 (spin) x 3 (color) right-hand sides
+ **********************************************************/
+int point_to_all_fermion_propagator_clover_full2eo ( double **eo_spinor_field_e, double **eo_spinor_field_o,  int op_id,
+    int global_source_coords[4], double *gauge_field, double **mzz, double **mzzinv, int check_propagator_residual ) {
+
+  const size_t sizeof_spinor_field    = _GSI( VOLUME )     * sizeof(double);
+  const size_t sizeof_eo_spinor_field = _GSI( VOLUME / 2 ) * sizeof(double);
+
+  int exitstatus;
+  int local_source_coords[4];
+  int source_proc_id;
+  double **eo_spinor_work = NULL;
+  double *spinor_work[2];
+
+  /* source info for shifted source location */
+  if( (exitstatus = get_point_source_info ( global_source_coords, local_source_coords, &source_proc_id) ) != 0 ) {
+    fprintf(stderr, "[point_to_all_fermion_propagator_clover_full2eo] Error from get_point_source_info, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(15);
+  }
+
+  exitstatus = init_2level_buffer ( &eo_spinor_work, 5, _GSI( (VOLUME+RAND)/2 ) );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[point_to_all_fermion_propagator_clover_full2eo] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+  spinor_work[0] = eo_spinor_work[0];
+  spinor_work[1] = eo_spinor_work[2];
+
+  /* loop on spin and color indices */
+  for(int i=0; i<12; i++) {
+
+    memset ( spinor_work[0], 0, sizeof_spinor_field );
+    memset ( spinor_work[1], 0, sizeof_spinor_field );
+    if ( source_proc_id == g_cart_id ) {
+      spinor_work[0][ _GSI( g_ipt[local_source_coords[0]][local_source_coords[1]][local_source_coords[2]][local_source_coords[3]])+2*i ] = 1.;
+    }
+
+#ifdef HAVE_TMLQCD_LIBWRAPPER
+    exitstatus = tmLQCD_invert ( spinor_work[1], spinor_work[0], op_id, 0);
+#else
+    exitstatus = 1;
+#endif
+    if(exitstatus != 0) {
+      fprintf(stderr, "[point_to_all_fermion_propagator_clover_full2eo] Error from tmLQCD_invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(19);
+    }
+    spinor_field_lexic2eo ( spinor_work[1], eo_spinor_field_e[i], eo_spinor_field_o[i] );
+
+  }  /* end of loop on spin-color */
+
+  if( check_propagator_residual ) {
+    check_point_source_propagator_clover_eo( eo_spinor_field_e, eo_spinor_field_o, eo_spinor_work, gauge_field, mzz, mzzinv, global_source_coords, 12 );
+    if(exitstatus != 0 ) {
+      fprintf(stderr, "[point_to_all_fermion_propagator_clover_full2eo] Error from check_point_source_propagator_clover_eo; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(21);
+    }
+  }
+
+  fini_2level_buffer ( &eo_spinor_work );
+  return(0);
+}  /* end of point_to_all_fermion_propagator_clover_full2eo */
 
 }  /* end of namespace cvc */
