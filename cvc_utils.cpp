@@ -6546,7 +6546,7 @@ int gauge_field_eq_gauge_field_ti_phase (double**gauge_field_with_phase, double*
   for( ix=0; ix<VOLUME; ix++ ) {
     for ( mu=0; mu<4; mu++ ) {
       iix = _GGI(ix,mu);
-      _cm_eq_cm_ti_co ( (*gauge_field_with_phase) + iix, g_gauge_field + iix, &co_phase[mu] );
+      _cm_eq_cm_ti_co ( (*gauge_field_with_phase) + iix, gauge_field + iix, &co_phase[mu] );
     }
   }
 
