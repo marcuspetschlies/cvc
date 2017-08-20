@@ -851,10 +851,9 @@ void C_clover_oo (double*s, double*r, double *gauge_field, double *s_aux, double
 }  /* end of C_clover_oo */
 
 /********************************************************************
- * X_eo    = -M_ee^-1 M_eo,    mu > 0
- * Xbar_eo = -Mbar_ee^-1 M_eo, mu < 0
- * the input field is always odd, the output field is always even
+ * X_eo    = -M_ee^-1 M_eo
  *
+ * the input field is always odd, the output field is always even
  * even does not need halo sites
  * odd MUST HAVE halo sites
  * even MUST NOT be same memory region as odd
@@ -876,6 +875,31 @@ void X_clover_eo (double *even, double *odd, double *gauge_field, double*mzzinv)
   spinor_field_ti_eq_re(even, -1., N);
 }  /* end of X_clover_eo */
 
+/********************************************************************
+ * Y_oe    = -M_oe M_ee^-1
+ *
+ * the input field is always even, the output field is always odd
+ *
+ * odd does not need halo sites
+ * even MUST HAVE halo sites
+ * even MUST NOT be same memory region as odd
+ ********************************************************************/
+void Y_clover_oe (double *odd, double *even, double *gauge_field, double*mzzinv) {
+
+  const unsigned int N = VOLUME/2;
+
+  if(even == odd ) {
+    fprintf(stderr, "[Y_clover_oe] Error, in and out pointer coincide\n");
+    EXIT(1);
+  }
+
+  /* even <- M_ee^-1 even */
+  M_clover_zz_inv_matrix ( even, even, mzzinv );
+  /* odd <- M_oe even */
+  Hopping_eo( odd, even, gauge_field, 1);
+  /* odd <- odd * (-1) */
+  spinor_field_ti_eq_re( odd, -1., N);
+}  /* end of Y_clover_oe */
 
 /********************************************************************
  * C_from_Xeo
