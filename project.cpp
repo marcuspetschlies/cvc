@@ -978,8 +978,7 @@ int momentum_projection_eo_timeslice ( double*V, double *W, unsigned int nv, int
 
   double _Complex **zphase = NULL;
   double ratime, retime;
-  double shift[3] = momentum_shift != NULL ? { momentum_shift[0], momentum_shift[1], momentum_shift[2] } : {0.,0.,0.};
-
+  double shift[3] = {0.,0.,0.}; 
   char BLAS_TRANSA, BLAS_TRANSB;
   int BLAS_M, BLAS_K, BLAS_N, BLAS_LDA, BLAS_LDB, BLAS_LDC;
   double _Complex *BLAS_A = NULL, *BLAS_B = NULL, *BLAS_C = NULL;
@@ -991,6 +990,12 @@ int momentum_projection_eo_timeslice ( double*V, double *W, unsigned int nv, int
   if ( init_2level_zbuffer( &zphase, momentum_number, VOL3half ) != 0 ) {
     fprintf(stderr, "[momentum_projection_eo_timeslice] Error from init_2level_zbuffer %s %d\n", __FILE__, __LINE__);
     return(2);
+  }
+
+  if ( momentum_shift != NULL ) {
+    shift[0] = momentum_shift[0];
+    shift[1] = momentum_shift[1];
+    shift[2] = momentum_shift[2];
   }
 
   /* loop on sink momenta */
@@ -1012,7 +1017,7 @@ int momentum_projection_eo_timeslice ( double*V, double *W, unsigned int nv, int
 #endif
     for( unsigned int ix = 0; ix < VOL3half; ix++ ) {
       q_phase = q_offset \
-                  g_eosubt2coords[ieo][t][ix][0] * q[0] \
+                + g_eosubt2coords[ieo][t][ix][0] * q[0] \
                 + g_eosubt2coords[ieo][t][ix][1] * q[1] \
                 + g_eosubt2coords[ieo][t][ix][2] * q[2];
 
