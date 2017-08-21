@@ -617,7 +617,7 @@ int cvc_tensor_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, c
     zbuffer = (double _Complex*)malloc(  momentum_number * 16 * T_global * sizeof(double _Complex) );
     if( zbuffer == NULL ) {
       fprintf(stderr, "[cvc_tensor_tp_write_to_aff_file] Error from malloc %s %d\n", __FILE__, __LINE__);
-      Greturn(6);
+      return(6);
     }
   }
 
@@ -2100,9 +2100,10 @@ int contract_cvc_tensor_eo_lm_factors ( double**eo_evecs_field, int nev, double*
 
   int exitstatus;
 
-  double **v = NULL, **xv = NULL, ***eo_block_field = NULL;
-  double ***contr_x;
-  double _Complex ***contr_p;
+  double **v = NULL, **xv = NULL, ***eo_block_field = NULL, **w = NULL, **xw = NULL;
+  double ***contr_x = NULL, **eo_spinor_work = NULL;
+  double _Complex ***contr_p = NULL;
+  char aff_tag[200];
 
   int block_number = nev / block_length;
   if (io_proc == 2 && g_verbose > 3 ) {
@@ -2346,7 +2347,7 @@ int contract_cvc_tensor_eo_lm_factors ( double**eo_evecs_field, int nev, double*
   }  /* end of loop on evec blocks */
 
   fini_2level_buffer ( &eo_spinor_work );
-  fnit_2level_buffer ( &xv );
+  fini_2level_buffer ( &xv );
 
   fini_3level_buffer ( &eo_block_field );
   fini_2level_buffer ( &w  );
@@ -2375,12 +2376,12 @@ int vdag_w_spin_color_reduction ( double ***contr, double**V, double**W, int dim
 
   if ( (exitstatus = init_2level_buffer ( &v_ts, dimV, _GSI( VOL3half) ) ) != 0 ) {
     fprintf( stderr, "[vdag_w_spin_color_reduction] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    return(1)
+    return(1);
   }
 
   if ( (exitstatus = init_2level_buffer ( &w_ts, dimW, _GSI( VOL3half) ) ) != 0 ) {
     fprintf( stderr, "[vdag_w_spin_color_reduction] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    return(1)
+    return(1);
   }
 
   /***********************************************************
@@ -2470,7 +2471,7 @@ int vdag_w_momentum_projection ( double _Complex ***contr_p, double ***contr_x, 
     momentum_shift[mu-1] = -1.;
   }
 
-  if ( (exitstatus = momentum_projection_eo_timeslice ( contr_x[0][0], contr_p[0][0], dimV*dimW, momentum_number, momentum_list, t, ieo, momentum_shift, 1 )) != 0 ) {
+  if ( (exitstatus = momentum_projection_eo_timeslice ( contr_x[0][0], (double*)(contr_p[0][0]), dimV*dimW, momentum_number, momentum_list, t, ieo, momentum_shift, 1 )) != 0 ) {
     fprintf(stderr, "[vdag_w_momentum_projection] Error from momentum_projection_eo_timeslice, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     return(1);
   }
@@ -2481,7 +2482,7 @@ int vdag_w_momentum_projection ( double _Complex ***contr_p, double ***contr_x, 
 /***********************************************************
  *
  ***********************************************************/
-int vdag_w_write_to_aff_file ( double _Complex ***cvc_tp, int nv, int nw, struct AffWriter_s*affw, char*tag, int (*momentum_list)[3], int momentum_number, int io_proc ) {
+int vdag_w_write_to_aff_file ( double _Complex ***contr_tp, int nv, int nw, struct AffWriter_s*affw, char*tag, int (*momentum_list)[3], int momentum_number, int io_proc ) {
 
   const uint32_t items = nv * nw;
 
