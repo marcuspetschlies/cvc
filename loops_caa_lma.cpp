@@ -108,7 +108,7 @@ int main(int argc, char **argv) {
   int check_propagator_residual = 0;
   unsigned int Vhalf;
   size_t sizeof_eo_spinor_field;
-  double **eo_spinor_field=NULL, **eo_spinor_work=NULL, *eo_evecs_block=NULL, *eo_sample_block=NULL;
+  double **eo_spinor_field=NULL, **eo_spinor_work=NULL, *eo_evecs_block=NULL, *eo_sample_block=NULL, **eo_sample_field = NULL;
   double **eo_stochastic_source = NULL, ***eo_stochastic_propagator = NULL;
   double **eo_evecs_field=NULL;
   double ***cvc_loop_eo = NULL;
@@ -120,7 +120,7 @@ int main(int argc, char **argv) {
   double *gauge_field_with_phase = NULL;
   double ***eo_source_buffer = NULL;
   double ***cvc_loop_eo_wi = NULL;
-  int nev_step_size = 10;
+  int nev_step_size = 10, sample_step_size = 10;
 
 #ifdef HAVE_MPI
   MPI_Status mstatus;
@@ -137,7 +137,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "cwh?f:n:")) != -1) {
+  while ((c = getopt(argc, argv, "cwh?f:n:s:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -151,6 +151,9 @@ int main(int argc, char **argv) {
       break;
     case 'n':
       nev_step_size = atoi (optarg);
+      break;
+    case 's':
+      sample_step_size = atoi (optarg);
       break;
     case 'h':
     case '?':
@@ -639,7 +642,7 @@ int main(int argc, char **argv) {
 
 #ifdef HAVE_LHPC_AFF
   if(io_proc == 2) {
-    sprintf(filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", "loops_lma", Nconf, gsx[0], gsx[1], gsx[2], gsx[3]);
+    sprintf(filename, "%s.%.4d.aff", "loops_lma", Nconf );
     fprintf(stdout, "# [loops_caa_lma] writing data to file %s\n", filename);
     affw = aff_writer(filename);
     aff_status_str = (char*)aff_writer_errstr(affw);
@@ -717,7 +720,150 @@ int main(int argc, char **argv) {
       EXIT(32);
     }
   }  /* end of if io_proc == 2 */
+#endif  /* of ifdef HAVE_LHPC_AFF */
 
+  /***********************************************/
+  /***********************************************/
+
+  /***********************************************
+   * stochastic part
+   ***********************************************/
+
+#ifdef HAVE_LHPC_AFF
+  if(io_proc == 2) {
+    sprintf(filename, "%s.%.4d.b%d.aff", "loops_stoch", Nconf, sample_step_size );
+    fprintf(stdout, "# [loops_caa_lma] writing data to file %s\n", filename);
+    affw = aff_writer(filename);
+    aff_status_str = (char*)aff_writer_errstr(affw);
+    if( aff_status_str != NULL ) {
+      fprintf(stderr, "[loops_caa_lma] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+      EXIT(15);
+    }
+  }  /* end of if io_proc == 2 */
+#endif
+
+  /***********************************************
+   * initialize random number generator
+   ***********************************************/
+  exitstatus = init_rng_stat_file (g_seed, NULL);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[p2gg_mixed] Error from init_rng_stat_file status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(38);
+  }
+ 
+  double ***cvc_loop_stoch = NULL, ***cvc_loop_tp = NULL, *sample_norm_ptr = NULL;
+  size_t bytes = g_sink_momentum_number * 4 * 2*T * sizeof(double);
+
+  exitstatus = init_3level_buffer ( &cvc_loop_stoch, 2, 4, 2*Vhalf );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[loops_caa_lma] Error from init_3level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(1);
+  }
+
+  exitstatus = init_3level_buffer( &cvc_loop_tp, g_sink_momentum_number, 4, 2*T);
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[loops_caa_lma] Error from init_3level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(1);
+  }
+
+  exitstatus = init_2level_buffer ( &eo_sample_field, sample_step_size, _GSI( Vhalf ) );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[loops_caa_lma] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(1);
+  }
+  eo_sample_block = eo_sample_field[0];
+
+  if ( (sample_norm_ptr = (double*)malloc ( sample_step_size * sizeof(double) ) ) == NULL ) {
+    fprintf(stderr, "[loops_caa_lma] Error from malloc %s %d\n", __FILE__, __LINE__);
+    EXIT(1);
+  }
+  for ( int i = 0; i < sample_step_size; i++ ) { sample_norm_ptr[i] = 1.; }
+
+  /***********************************************
+   * loop on stochastic samples
+   ***********************************************/
+  for( int isample = sample_step_size; isample <= g_nsample; isample += sample_step_size ) {
+
+    /***********************************************
+     * make a source
+     ***********************************************/
+    exitstatus = prepare_volume_source ( eo_sample_field[0], sample_step_size*Vhalf);
+    if(exitstatus != 0) {
+      fprintf(stderr, "[loops_caa_lma] Error from prepare_volume_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(33);
+    }
+
+    for ( int i = 0; i < sample_step_size; i++ ) {
+      /* work1 <- C sample[i] */
+      C_clover_oo ( eo_spinor_work[1], eo_sample_field[i], gauge_field_with_phase, eo_spinor_work[2], g_mzz_up[1], g_mzzinv_up[0] );
+
+      /* weighted parallel projection */
+      /* work1 <- V  (2 kappa)^2/Lambda V^+ work1 */
+      exitstatus = project_propagator_field_weighted ( eo_spinor_work[1], eo_spinor_work[1], 1, eo_evecs_block, evecs_4kappasqr_lambdainv, 1, evecs_num, Vhalf);
+      if (exitstatus != 0) {
+        fprintf(stderr, "[loops_caa_lma] Error from project_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(35);
+      }
+
+      /* work0 <- Cbar work1 */
+      C_clover_oo ( eo_spinor_work[0], eo_spinor_work[1], gauge_field_with_phase, eo_spinor_work[2], g_mzz_dn[1], g_mzzinv_dn[0] );
+
+      /* work1 <- sample - work0 */
+      spinor_field_eq_spinor_field_mi_spinor_field( eo_spinor_work[1], eo_sample_field[i], eo_spinor_work[0], Vhalf);
+
+      /* invert */
+      memset(eo_spinor_work[0], 0, sizeof_eo_spinor_field);
+      exitstatus = tmLQCD_invert_eo(eo_spinor_work[0], eo_spinor_work[1], _OP_ID_DN);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[loops_caa_lma] Error from tmLQCD_invert_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(19);
+      }
+      memcpy( eo_sample_field[i], eo_spinor_work[0], sizeof_eo_spinor_field );
+
+      if( check_propagator_residual ) {
+        exitstatus = check_oo_propagator_clover_eo( &(eo_sample_field[i]), &(eo_spinor_work[1]), &(eo_spinor_work[2]), gauge_field_with_phase, g_mzz_dn, g_mzzinv_dn, 1 );
+        if(exitstatus != 0) {
+          fprintf(stderr, "[loops_caa_lma] Error from check_oo_propagator_clover_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(19);
+        }
+      }
+    }  /* end of loop on samples within block */
+
+    /* contract */
+    contract_cvc_loop_eo_lma ( cvc_loop_stoch, eo_sample_field, sample_norm_ptr, sample_step_size, gauge_field_with_phase, mzz, mzzinv );
+
+    /* momentum projection */
+    memset ( cvc_loop_tp[0][0], 0, bytes);
+    exitstatus = cvc_loop_eo_momentum_projection ( &cvc_loop_tp, cvc_loop_stoch, g_sink_momentum_list, g_sink_momentum_number);
+    if(exitstatus != 0 ) {
+      fprintf(stderr, "[loops_caa_lma] Error from cvc_loop_eo_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(2);
+    }
+
+    /* output */
+    sprintf(aff_tag, "/cvc-loop/block%.4d", isample);
+    exitstatus = cvc_loop_tp_write_to_aff_file ( cvc_loop_tp, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+    if(exitstatus != 0 ) {
+      fprintf(stderr, "[loops_caa_lma] Error from cvc_loop_tp_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(2);
+    }
+
+  }  /* end of loop on stochastic samples */
+
+  fini_3level_buffer ( &cvc_loop_stoch );
+  fini_3level_buffer ( &cvc_loop_tp );
+  fini_2level_buffer ( &eo_sample_field ); eo_sample_block = NULL;
+  free ( sample_norm_ptr );
+
+
+#ifdef HAVE_LHPC_AFF
+  if(io_proc == 2) {
+    aff_status_str = (char*)aff_writer_close (affw);
+    if( aff_status_str != NULL ) {
+      fprintf(stderr, "[loops_caa_lma] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+      EXIT(32);
+    }
+  }  /* end of if io_proc == 2 */
 #endif  /* of ifdef HAVE_LHPC_AFF */
 
 
