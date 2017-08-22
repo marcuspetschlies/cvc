@@ -254,24 +254,24 @@ int project_propagator_field(double *s, double * r, int parallel, double *V, int
  * zgemm calculates p = V^H x r, which is num2  x num1 (F) = num1 x num2  (C)
  *
  ******************************************************************************************************/
-int project_reduce_from_propagator_field (double *p, double * r, double *V, int num1, int num2, unsigned int N) {
+int project_reduce_from_propagator_field (double *p, double * r, double *V, int num1, int num2, unsigned int N, int xchange) {
 
   const int items_p = num1 * num2;  /* number of double _Complex items */
   const size_t bytes_p = (size_t)items_p * sizeof(double _Complex);
   unsigned int status;
-  int BLAS_M, BLAS_N, BLAS_K; 
+  int BLAS_M, BLAS_N, BLAS_K;
   int BLAS_LDA, BLAS_LDB ,BLAS_LDC;
   char BLAS_TRANSA, BLAS_TRANSB;
   double _Complex *p_buffer = NULL;
   double _Complex BLAS_ALPHA, BLAS_BETA;
   double _Complex *BLAS_A = NULL, *BLAS_B = NULL, *BLAS_C = NULL;
   double ratime, retime;
- 
+
   if (p == NULL || r == NULL || V == NULL || num1 <= 0 || num2 <= 0) {
     fprintf(stderr, "[project_reduce_from_propagator_field] Error, wrong parameter values\n");
     return(4);
   }
- 
+
   ratime = _GET_TIME;
 
   /* projection on V-basis */
@@ -292,19 +292,21 @@ int project_reduce_from_propagator_field (double *p, double * r, double *V, int 
   _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
 
 #ifdef HAVE_MPI
-  /* allreduce across all processes */
-  if( (p_buffer = (double _Complex*)malloc( bytes_p )) == NULL ) {
-    fprintf(stderr, "[project_reduce_from_propagator_field] Error from malloc\n");
-    return(2);
-  }
+  if ( xchange == 1 ) {
+    /* allreduce across all processes */
+    if( (p_buffer = (double _Complex*)malloc( bytes_p )) == NULL ) {
+      fprintf(stderr, "[project_reduce_from_propagator_field] Error from malloc\n");
+      return(2);
+    }
 
-  memcpy(p_buffer, p, bytes_p);
-  status = MPI_Allreduce(p_buffer, p, 2*items_p, MPI_DOUBLE, MPI_SUM, g_cart_grid);
-  if(status != MPI_SUCCESS) {
-    fprintf(stderr, "[project_reduce_from_propagator_field] Error from MPI_Allreduce, status was %d\n", status);
-    return(1);
-  }
-  free(p_buffer); p_buffer = NULL;
+    memcpy(p_buffer, p, bytes_p);
+    status = MPI_Allreduce(p_buffer, p, 2*items_p, MPI_DOUBLE, MPI_SUM, g_cart_grid);
+    if(status != MPI_SUCCESS) {
+      fprintf(stderr, "[project_reduce_from_propagator_field] Error from MPI_Allreduce, status was %d\n", status);
+      return(1);
+    }
+    free(p_buffer); p_buffer = NULL;
+  }  /* end of if xchange */
 #endif
 
   retime = _GET_TIME;
@@ -312,6 +314,8 @@ int project_reduce_from_propagator_field (double *p, double * r, double *V, int 
 
   return(0);
 }  /* end of project_reduce_from_propagator_field */
+
+
 
 
 /******************************************************************************************************
