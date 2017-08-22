@@ -21,7 +21,7 @@ int prepare_seqn_stochastic_vertex_propagator_sliced3d_oet (double**seq_prop, do
 int prepare_seq_stochastic_vertex_stochastic_oet (double**seq_prop, double**stoch_prop_0, double**stoch_prop_p,
         int gid, int source_coords[4], int nsample);
 
-int point_source_propagator (double **prop, int gsx[4], int op_id, int smear_source, int smear_sink, double *gauge_field_smeared );
+int point_source_propagator (double **prop, int gsx[4], int op_id, int smear_source, int smear_sink, double *gauge_field_smeared, int check_residual, double *gauge_field, double **mzz[2] );
 
 }  /* end of namespace cvc */
 #endif

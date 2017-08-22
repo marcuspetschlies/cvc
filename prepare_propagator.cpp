@@ -809,7 +809,7 @@ int prepare_seq_stochastic_vertex_stochastic_oet (double**seq_prop, double**stoc
 }  /* end of prepare_seq_stochastic_vertex_stochastic_oet */
 
 
-int point_source_propagator (double **prop, int gsx[4], int op_id, int smear_source, int smear_sink, double *gauge_field_smeared ) {
+int point_source_propagator (double **prop, int gsx[4], int op_id, int smear_source, int smear_sink, double *gauge_field_smeared, int check_residual, double *gauge_field, double **mzz[2] ) {
 
   const size_t sizeof_spinor_field = _GSI(VOLUME) * sizeof(double);
 
@@ -850,6 +850,11 @@ int point_source_propagator (double **prop, int gsx[4], int op_id, int smear_sou
       EXIT(12);
     }
 #endif
+
+    if ( check_residual ) {
+      if ( mzz != NULL ) check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field, mzz[op_id], 1 );
+    }
+
     if( g_fermion_type == _TM_FERMION ) {
       spinor_field_tm_rotation(spinor_work[1], spinor_work[1], rotation_direction, g_fermion_type, VOLUME);
     }
