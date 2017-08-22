@@ -24,5 +24,28 @@ void Q_clover_eo_SchurDecomp_Ainv (double *e_new, double *o_new, double *e_old, 
 void Q_clover_eo_SchurDecomp_B    (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double*mzz,    double*mzzinv, double *aux);
 void Q_clover_eo_SchurDecomp_Binv (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double*mzzinv, double *aux);
 
+int Q_clover_invert (double*prop, double*source, double*gauge_field, double *mzzinv, int op_id);
+
+int Q_clover_eo_invert (double*prop_e, double*prop_o, double*source_e, double*source_o, double*gauge_field, double *mzzinv, int op_id);
+
+int Q_clover_invert_subspace ( double**prop, double**source, int nsf, double*evecs, double*evecs_norm, int nev, double*gauge_field, double **mzz[2], double **mzzinv[2], int flavor_id);
+
+int Q_clover_eo_invert_subspace ( double**prop_e,   double**prop_o, double**source_e, double**source_o,
+                                  int nsf, double*evecs, double*evecs_norm, int nev, double*gauge_field, double **mzz[2], double **mzzinv[2], int flavor_id, double**eo_spinor_aux);
+
+
+int Q_clover_eo_invert_subspace_stochastic ( double**prop_e, double**prop_o, double**source_e, double**source_o,
+                                             int nsf, double*sample_prop, double*sample_source, int nsample,
+                                             double*gauge_field, double**mzz[2], double**mzzinv[2], int flavor_id, double**eo_spinor_aux );
+
+int Q_clover_eo_invert_subspace_stochastic_timeslice ( 
+  double**prop_e, double**prop_o,
+  double**source_e, double**source_o,
+  int nsf,
+  double***sample_prop, double***sample_source, int nsample,
+  double*gauge_field, double**mzz[2], double**mzzinv[2],
+  int timeslice, int flavor_id );
+
+
 }  /* end of namespace cvc */
 #endif

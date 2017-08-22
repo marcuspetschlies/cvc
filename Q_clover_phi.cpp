@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <complex.h>
+#include <time.h>
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
@@ -24,6 +25,9 @@
 #include "cvc_geometry.h"
 #include "cvc_utils.h"
 #include "Q_phi.h"
+#include "matrix_init.h"
+#include "project.h"
+#include "scalar_products.h"
 #include "Q_clover_phi.h"
 
 #ifdef F_
@@ -143,20 +147,28 @@ void clover_term_fini(double***s) {
 
 void clover_term_init (double***s, int nmat) {
 
-  const size_t N = (size_t)(VOLUME+RAND) / 2;
+  /* why VOLUME+RAND ? VOLUME should be enough 
+   * Yes, but the index layout in g_lexic2eosub, which is used below,
+   * is even interior - even halo - odd interior - odd halo.
+   * IF this indexing is NOT used later on in application
+   * of g_clover, it can be changed to g_lexic2eosub + g_iseven during
+   * construction
+   */
+  /* const size_t N = (size_t)(VOLUME+RAND) / 2; */
+  const size_t N = (size_t)VOLUME / 2;
   const size_t sizeof_su3 = 18;
 
   if ( (*s) == NULL) {
-    if(g_cart_id == 0) fprintf(stdout, "# [clover_term_eo] allocating clover term\n");
+    if(g_cart_id == 0) fprintf(stdout, "# [clover_term_init] allocating clover term\n");
 
     (*s) = (double**)malloc(2*sizeof(double*));
     if( (*s)==NULL) {
-      fprintf(stderr, "[clover_term_eo] Error from malloc\n");
+      fprintf(stderr, "[clover_term_init] Error from malloc\n");
       EXIT(1);
     }
     (*s)[0] = (double*)malloc(2*N*nmat*sizeof_su3*sizeof(double));
     if( (*s)[0]==NULL) {
-      fprintf(stderr, "[clover_term_eo] Error from malloc\n");
+      fprintf(stderr, "[clover_term_init] Error from malloc\n");
       EXIT(2);
     }
     (*s)[1] = (*s)[0] + N * sizeof_su3 * nmat;
@@ -165,24 +177,26 @@ void clover_term_init (double***s, int nmat) {
 
 void clover_term_eo (double**s, double*gauge_field) {
 
-  const int nthreads = g_num_threads;
   const double norm  = 0.25;
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel shared(s,gauge_field)
 {
-  const int threadid = omp_get_thread_num();
-#else
-  const int threadid = 0;
 #endif
   unsigned int ix;
   unsigned int ix_pl_mu, ix_mi_mu, ix_pl_nu, ix_mi_nu, ix_mi_mu_mi_nu, ix_mi_mu_pl_nu, ix_pl_mu_mi_nu;
   int imu, inu, imunu;
   double *s_ptr;
   double U1[18], U2[18], U3[18];
+  int ieo;
 
-  for(ix = threadid; ix < VOLUME; ix += nthreads)
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(ix = 0; ix < VOLUME; ix++ )
   {
+    /* ieo = 0 for ix even and 1 for ix odd */
+    ieo = 1 - g_iseven[ix];
     imunu = 0;
     for(imu = 0; imu<3; imu++) {
 
@@ -191,7 +205,9 @@ void clover_term_eo (double**s, double*gauge_field) {
 
       for(inu = imu+1; inu<4; inu++) {
 
-        s_ptr = s[0] + _GSWI( g_lexic2eo[ix],imunu);
+
+        /* s_ptr = s[0] + _GSWI( g_lexic2eo[ix],imunu); */
+        s_ptr = s[ieo] + _GSWI( g_lexic2eosub[ix],imunu);
 
         ix_pl_nu = g_iup[ix][inu];
         ix_mi_nu = g_idn[ix][inu];
@@ -202,7 +218,7 @@ void clover_term_eo (double**s, double*gauge_field) {
 
         _cm_eq_zero(s_ptr);
 
-        /* fprintf(stdout, "# [clover_term] xle=%8d xeo=%8d imu=%d inu=%d imunu=%d\n", ix, g_lexic2eo[ix], imu, inu, imunu); */
+        /* if (g_cart_id == 0 ) fprintf(stdout, "# [clover_term] xle=%8d xeo=%8d imu=%d inu=%d imunu=%d\n", ix, g_lexic2eosub[ix], imu, inu, imunu); */
 
         /********************************
          *    x + nu
@@ -217,6 +233,9 @@ void clover_term_eo (double**s, double*gauge_field) {
         _cm_eq_cm_ti_cm(U2, gauge_field+_GGI(ix,inu), gauge_field+_GGI(ix_pl_nu,imu) );
         _cm_eq_cm_ti_cm_dag( U3 , U1, U2 );
         _cm_pl_eq_cm( s_ptr , U3 );
+#if 0
+#endif
+
 
         /********************************
          *    x 
@@ -236,6 +255,24 @@ void clover_term_eo (double**s, double*gauge_field) {
         _cm_eq_cm_ti_cm_dag(U2, gauge_field+_GGI(ix_pl_mu_mi_nu, inu), gauge_field+_GGI(ix, imu) );
         _cm_eq_cm_ti_cm(U3, U1, U2 );
         _cm_pl_eq_cm( s_ptr , U3 );
+#if 0
+        char name[30];
+        sprintf(name, "%u_mi_%d__%d", ix, inu, inu);
+
+         _cm_fprintf(gauge_field+_GGI(ix_mi_nu,inu),        name, stdout);
+
+        sprintf(name, "%u_mi_%d__%d", ix, inu, imu);
+
+         _cm_fprintf(gauge_field+_GGI(ix_mi_nu, imu),       name, stdout);
+
+        sprintf(name, "%u_pl_%d_mi_%d__%d", ix, imu, inu, inu);
+
+         _cm_fprintf(gauge_field+_GGI(ix_pl_mu_mi_nu, inu), name, stdout);
+
+        sprintf(name, "%u__%d", ix, imu);
+
+         _cm_fprintf(gauge_field+_GGI(ix, imu),             name, stdout);
+#endif
 
 
         /********************************
@@ -252,6 +289,8 @@ void clover_term_eo (double**s, double*gauge_field) {
         _cm_eq_cm_dag_ti_cm(U2, gauge_field+_GGI(ix_mi_mu,inu), gauge_field+_GGI(ix_mi_mu, imu) );
         _cm_eq_cm_ti_cm(U3, U1, U2 );
         _cm_pl_eq_cm( s_ptr , U3 );
+
+
 
         /********************************
          *    x-mu
@@ -272,7 +311,8 @@ void clover_term_eo (double**s, double*gauge_field) {
         _cm_pl_eq_cm( s_ptr , U3 );
 
         _cm_eq_antiherm_cm(U3, s_ptr);
-
+#if 0
+#endif
         /* TEST */
         _cm_eq_cm_ti_re( s_ptr , U3, norm );
         /* _cm_eq_cm_ti_im( s_ptr , U3, norm ); */
@@ -293,16 +333,13 @@ void clover_mzz_matrix (double**mzz, double**cl, double mu, double csw) {
   const double mutilde = 2. * g_kappa * mu;
   const double cswtilde = g_kappa * csw;
   const int incrcl = _GSWI(0,1);
-  const int nthreads = g_num_threads;
   const unsigned int N = VOLUME/2;
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel shared(mzz,cl)
 {
-  const int threadid = omp_get_thread_num();
-#else
-  const int threadid = 0;
 #endif
+
   unsigned int ix, ieo;
   double U1[18];
   double *mzz11_, *mzz12_, *mzz22_, *mzz33_, *mzz34_, *mzz44_;
@@ -315,7 +352,10 @@ void clover_mzz_matrix (double**mzz, double**cl, double mu, double csw) {
   cone_mi_imutilde.im = -mutilde;
 
   for(ieo = 0; ieo<2; ieo++) {
-    for(ix = threadid; ix < N; ix += nthreads) {
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(ix = 0; ix < N; ix++ ) {
   
       cl01_ = cl[ieo] + _GSWI(ix,0);
       cl02_ = cl01_ + incrcl;
@@ -376,7 +416,7 @@ void clover_mzz_matrix (double**mzz, double**cl, double mu, double csw) {
 void clover_mzz_inv_matrix (double**mzzinv, double**mzz) {
   
   const int incrcl = _GSWI(0,1);
-  const int Vhalf = VOLUME / 2;
+  const unsigned int Vhalf = VOLUME / 2;
 
   unsigned int ix, ieo;
   /* int i; */
@@ -497,14 +537,10 @@ void M_clover_zz_matrix (double*s, double*r, double*mzz) {
   const int incrcl = _GSWI(0,1);
   const int vincr  = _GVI(1);
   const double one_over_two_kappa = 0.5/g_kappa;
-  const int nthreads = g_num_threads;
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel shared(s,r,mzz)
 {
-  const int threadid = omp_get_thread_num();
-#else
-  const int threadid = 0;
 #endif
 
   unsigned int ix;
@@ -513,7 +549,10 @@ void M_clover_zz_matrix (double*s, double*r, double*mzz) {
   double v1[6], v2[6];
   double *mzz11_, *mzz12_, *mzz22_, *mzz33_, *mzz34_, *mzz44_;
 
-  for(ix = threadid; ix < N; ix += nthreads) {
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(ix = 0; ix < N; ix++ ) {
     mzz11_ = mzz + _GSWI(ix,0);
     mzz12_ = mzz11_ + incrcl;
     mzz22_ = mzz12_ + incrcl;
@@ -563,14 +602,12 @@ void M_clover_zz_matrix (double*s, double*r, double*mzz) {
 /***********************************************************
  * Dirac operator with clover term
  * M_zz in block matrix form
+ *
+ * - e_old and o_old MUST have halo
  ***********************************************************/
 void Q_clover_phi_matrix_eo (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double *aux, double**mzz) {
 
-  unsigned int ix;
-  unsigned int N = VOLUME / 2;
-
-  xchange_eo_field(e_old, 0);
-  xchange_eo_field(o_old, 1);
+  const unsigned int N = VOLUME / 2;
 
   /* e_new = M_ee e_old + M_eo o_old */
   Hopping_eo(e_new, o_old, gauge_field, 0);
@@ -578,20 +615,16 @@ void Q_clover_phi_matrix_eo (double *e_new, double *o_new, double *e_old, double
   M_clover_zz_matrix (aux, e_old, mzz[0]);
 
   /* e_new = e_new + aux = M_ee e_old + M_eo o_old */
-  for(ix=0; ix < N; ix++) {
-    _fv_pl_eq_fv(e_new+_GSI(ix), aux+_GSI(ix));
-  }
+  spinor_field_pl_eq_spinor_field ( e_new, aux, N);
 
   /* o_new = M_oo o_old + M_oe e_old */
   Hopping_eo(o_new, e_old, gauge_field, 1);
   /* aux = M_oo o_old*/
   M_clover_zz_matrix (aux, o_old, mzz[1]);
   /* o_new  = o_new + aux = M_oe e_old + M_oo o_old */
-  for(ix=0; ix < N; ix++) {
-    _fv_pl_eq_fv(o_new+_GSI(ix), aux+_GSI(ix));
-  }
+  spinor_field_pl_eq_spinor_field ( o_new, aux, N );
 
-}  /* end of Q_clover_phi_eo */
+}  /* end of Q_clover_phi_matrix_eo */
 
 
 /***********************************************************
@@ -599,11 +632,7 @@ void Q_clover_phi_matrix_eo (double *e_new, double *o_new, double *e_old, double
  ***********************************************************/
 void Q_clover_phi_eo (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double mass, double *aux, double**cl) {
 
-  unsigned int ix;
-  unsigned int N = VOLUME / 2;
-
-  xchange_eo_field(e_old, 0);
-  xchange_eo_field(o_old, 1);
+  const unsigned int N = VOLUME / 2;
 
   /* e_new = M_ee e_old + M_eo o_old */
   Hopping_eo(e_new, o_old, gauge_field, 0);
@@ -611,18 +640,14 @@ void Q_clover_phi_eo (double *e_new, double *o_new, double *e_old, double *o_old
   M_clover_zz (aux, e_old, mass, cl[0]);
 
   /* e_new = e_new + aux = M_ee e_old + M_eo o_old */
-  for(ix=0; ix < N; ix++) {
-    _fv_pl_eq_fv(e_new+_GSI(ix), aux+_GSI(ix));
-  }
+  spinor_field_pl_eq_spinor_field ( e_new, aux, N);
 
   /* o_new = M_oo o_old + M_oe e_old */
   Hopping_eo(o_new, e_old, gauge_field, 1);
   /* aux = M_oo o_old*/
   M_clover_zz (aux, o_old, mass, cl[1]);
   /* o_new  = o_new + aux = M_oe e_old + M_oo o_old */
-  for(ix=0; ix < N; ix++) {
-    _fv_pl_eq_fv(o_new+_GSI(ix), aux+_GSI(ix));
-  }
+  spinor_field_pl_eq_spinor_field ( o_new, aux, N);
 
 }  /* end of Q_clover_phi_eo */
 
@@ -634,31 +659,25 @@ void M_clover_zz (double*s, double*r, double mass, double*cl) {
 
   const double mutilde            = 2. * g_kappa * mass;
   const double one_over_two_kappa = 0.5/g_kappa;
-  const int nthreads = g_num_threads;
   const double csw_coeff = -g_csw * g_kappa;
   const int clover_term_gamma_id[] = {10,11,12,13,14,15};
-  const int incrcl  = _GSWI(nthreads,0);
   const int incrcl2 = _GSWI(0,1);
   const unsigned int N = VOLUME/2;
 
-  int threadid=0;
-
-  /* TEST */
-  /* fprintf(stdout, "# [M_clover_zz] incrcl = %d, incrcl2 = %d\n", incrcl, incrcl2); */
-
 #ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(threadid) shared(s,r,cl)
+#pragma omp parallel default(shared) shared(s,r,cl)
 {
-  threadid = omp_get_thread_num();
 #endif
   unsigned int ix;
   double *cl_, sp1[24], sp2[24], sp3[24], *s_= NULL, *r_ = NULL;
-  unsigned int ixcl = _GSWI(threadid,0);
 
-  for(ix = threadid; ix < N; ix += nthreads) {
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(ix = 0; ix < N; ix++) {
     s_  = s  + _GSI(ix);
     r_  = r  + _GSI(ix);
-    cl_ = cl + ixcl;
+    cl_ = cl + _GSWI(ix,0);;
 
     /* sp1 = g5 r_ */
     _fv_eq_gamma_ti_fv(sp1, 5, r_);
@@ -708,8 +727,6 @@ void M_clover_zz (double*s, double*r, double mass, double*cl) {
     /* s_ *= 1/2kappa */
     _fv_ti_eq_re(s_, one_over_two_kappa);
 
-    ixcl += incrcl;
-
   }  /* end of loop in ix over VOLUME/2 */
 
 #ifdef HAVE_OPENMP
@@ -725,7 +742,6 @@ void M_clover_zz (double*s, double*r, double mass, double*cl) {
  ***********************************************************/
 void M_clover_zz_inv_matrix (double*s, double*r, double *mzzinv) {
 
-  const int nthreads   = g_num_threads;
   const unsigned int N = VOLUME/2;
   const int incrcl     = _GSWI(0,1);
   const int vincr      = _GVI(1);
@@ -734,16 +750,16 @@ void M_clover_zz_inv_matrix (double*s, double*r, double *mzzinv) {
 #ifdef HAVE_OPENMP
 #pragma omp parallel shared(r,s,mzzinv)
 {
-  const int threadid = omp_get_thread_num();
-#else
-  const int threadid = 0;
 #endif
   unsigned int ix;
   double *s1_, *s2_, *r1_, *r2_;
   double v1[6], v2[6];
   double *u11_, *u12_, *u21_, *u22_;
 
-  for(ix = threadid; ix < N; ix += nthreads) {
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(ix = 0; ix < N; ix++ ) {
     s1_ = s   + _GSI(ix);
     s2_ = s1_ + vincr;
     r1_ = r   + _GSI(ix);
@@ -798,8 +814,9 @@ void M_clover_zz_inv_matrix (double*s, double*r, double *mzzinv) {
  *   out   : s (changed)
  *   in/out: space: s_aux (changed)
  *   r, s do not need halo
- *   s_aux MUST HAVE halo
  *   s MUST NOT be ne same memory region as r
+ *
+ *   s_aux MUST HAVE halo
  ***********************************************************/
 void C_clover_oo (double*s, double*r, double *gauge_field, double *s_aux, double*mzz, double*mzzinv) {
 
@@ -813,8 +830,6 @@ void C_clover_oo (double*s, double*r, double *gauge_field, double *s_aux, double
 
   /* s_aux = r */
   memcpy(s_aux, r, sizeof_field);
-  /* exchange odd s_aux */
-  xchange_eo_field(s_aux, 1);
   /* s = M_eo s_aux */
   Hopping_eo(s, s_aux, gauge_field, 0);
   /* s = M_ee^-1 M_eo s_aux */
@@ -822,8 +837,6 @@ void C_clover_oo (double*s, double*r, double *gauge_field, double *s_aux, double
 
   /* s_aux = s */
   memcpy(s_aux, s, sizeof_field);
-  /* exchange EVEN s_aux */
-  xchange_eo_field(s_aux, 0);
   /* s = M_oe s_aux = M_oe M_ee^-1 M_eo r */
   Hopping_eo(s, s_aux, gauge_field, 1);
 
@@ -850,16 +863,11 @@ void X_clover_eo (double *even, double *odd, double *gauge_field, double*mzzinv)
 
   const unsigned int N = VOLUME/2;
 
-  unsigned int ix;
-  double *ptr, sp[24];
-
   if(even == odd ) {
     fprintf(stderr, "[X_clover_eo] Error, in and out pointer coincide\n");
     EXIT(1);
   }
 
-  /* exchange ODD field odd */
-  xchange_eo_field(odd, 1);
   /* even = M_eo odd */
   Hopping_eo(even, odd, gauge_field, 0);
   /* even = M_ee^-1 even = M_ee^-1 M_eo odd */
@@ -870,7 +878,7 @@ void X_clover_eo (double *even, double *odd, double *gauge_field, double*mzzinv)
 
 
 /********************************************************************
- * C_with_Xeo
+ * C_from_Xeo
  * - apply C = g5 ( M_oo + M_oe X_eo )
  *
  * out t
@@ -884,15 +892,12 @@ void X_clover_eo (double *even, double *odd, double *gauge_field, double*mzzinv)
 void C_clover_from_Xeo (double *t, double *s, double *r, double *gauge_field, double*mzz) {
 
   const unsigned int N = VOLUME / 2;
-  const size_t sizeof_field = _GSI(N) * sizeof(double);
 
-  /* exchange even field s */
-  xchange_eo_field(s, 0);
   /* r = M_oe s = M_oe X_eo t  */
   Hopping_eo(r, s, gauge_field, 1);
   /* t = M_zz t */
   M_clover_zz_matrix (t, t, mzz);
-  /* t = t + r = M_oo^-1 t + M_oe X_eo t*/
+  /* t = t + r = M_oo t + M_oe X_eo t*/
   spinor_field_pl_eq_spinor_field (t,r,N);
   /* t = g5 t */
   g5_phi(t,N);
@@ -914,16 +919,19 @@ void Q_clover_eo_SchurDecomp_A (double *e_new, double *o_new, double *e_old, dou
 
   /* aux <- e_old */
   memcpy(aux, e_old, sizeof_field);
-  /* exchange even field aux */
-  xchange_eo_field(aux, 0);
+
   /* o_new = M_oe aux = M_oe e_old */
   Hopping_eo(e_new, aux, gauge_field, 1);
+
   /* e_new = g5 e_new = g5 M_oe e_old */
   spinor_field_eq_gamma_ti_spinor_field(e_new, 5, e_new, N);
+
   /* o_new = o_old + e_new = o_old + g5 M_oe e_old */
   spinor_field_eq_spinor_field_pl_spinor_field(o_new, o_old, e_new, N);
+
   /* e_new = M_zz aux = M_zz e_old */
   M_clover_zz_matrix (e_new, aux, mzz);
+
   /* e_new = g5 aux */
   spinor_field_eq_gamma_ti_spinor_field(e_new, 5, e_new, N);
 
@@ -938,7 +946,7 @@ void Q_clover_eo_SchurDecomp_A (double *e_new, double *o_new, double *e_old, dou
  *
  * A^-1 =
  *   ( M_ee^-1 g5         & 0 )
- *   ( g5 M_oe M_ee^-1 g5 & 1 )
+ *   ( -g5 M_oe M_ee^-1 g5 & 1 )
  *
  * safe, if e_new = e_old or o_new = o_old
  *
@@ -955,9 +963,6 @@ void Q_clover_eo_SchurDecomp_Ainv (double *e_new, double *o_new, double *e_old, 
 
   /* aux <- M_ee^-1 aux = M_ee^-1 g5 e_old */
   M_clover_zz_inv_matrix (aux, aux, mzzinv);
-
-  /* exchange EVEN field aux */
-  xchange_eo_field(aux,0);
 
   /* e_new = M_oe aux; e_new is auxilliary field here */
   Hopping_eo(e_new, aux, gauge_field, 1);
@@ -995,6 +1000,10 @@ void Q_clover_eo_SchurDecomp_Ainv (double *e_new, double *o_new, double *e_old, 
  * B =
  *   ( 1 & M_ee^(-1) M_eo )
  *   ( 0 &        C       )
+ *
+ * - o_old, o_new do not need halo
+ *
+ * - aux MUST have halo
  ********************************************************************/
 void Q_clover_eo_SchurDecomp_B (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double*mzz, double*mzzinv, double *aux) {
 
@@ -1008,14 +1017,16 @@ void Q_clover_eo_SchurDecomp_B (double *e_new, double *o_new, double *e_old, dou
 
   /* aux = o_old */
   memcpy(aux, o_old, sizeof_field);
-  /* exchange ODD field aux = o_old */
-  xchange_eo_field(aux,1);
+ 
   /* o_new = M_eo o_old, o_new auxilliary field */
   Hopping_eo(o_new, aux, gauge_field, 0);
+
   /* o_new = M_ee^(-1) o_new */
   M_clover_zz_inv_matrix(o_new, o_new, mzzinv);
+
   /* e_new = e_old + o_new = e_old + M_ee^-1 M_eo o_old */
   spinor_field_eq_spinor_field_pl_spinor_field(e_new, e_old, o_new, N);
+
   /* o_new = C_oo o_old */
   C_clover_oo (o_new, o_old, gauge_field, aux, mzz, mzzinv);
 
@@ -1044,17 +1055,788 @@ void Q_clover_eo_SchurDecomp_Binv (double *e_new, double *o_new, double *e_old, 
 
   spinor_field_eq_spinor_field_ti_re (aux, o_old, twokappa, N);
 
-  xchange_eo_field(aux, 1);
+
   /* o_new = M_eo aux */
   Hopping_eo(o_new, aux, gauge_field, 0);
+
   /* o_new = M_ee^(-1) o_new */
   M_clover_zz_inv_matrix(o_new, o_new, mzzinv);
+
   /* e_new = e_old - o_new */
   spinor_field_eq_spinor_field_pl_spinor_field_ti_re(e_new, e_old, o_new, -1, N);
+
   /* o_new <- aux */
   memcpy(o_new, aux, sizeof_field);
 
 }  /* end of Q_clover_eo_SchurDecomp_Binv */
+
+/********************************************************************
+ * prop and source full spinor fields
+ ********************************************************************/
+int Q_clover_invert (double*prop, double*source, double*gauge_field, double *mzzinv, int op_id) {
+
+#ifdef HAVE_TMLQCD_LIBWRAPPER
+
+  const unsigned int Vhalf = VOLUME / 2;
+  const size_t sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof(double);
+  const size_t sizeof_eo_spinor_field_with_halo = _GSI(VOLUME+RAND)/2 * sizeof(double);
+
+  int exitstatus;
+  double *eo_spinor_work[3];
+
+  eo_spinor_work[0]  = (double*)malloc( sizeof_eo_spinor_field_with_halo );
+  eo_spinor_work[1]  = (double*)malloc( sizeof_eo_spinor_field_with_halo );
+  eo_spinor_work[2]  = (double*)malloc( sizeof_eo_spinor_field_with_halo );
+  
+  spinor_field_lexic2eo (source, eo_spinor_work[0], eo_spinor_work[1] );
+
+  g5_phi( eo_spinor_work[0], Vhalf );
+  g5_phi( eo_spinor_work[1], Vhalf );
+
+  Q_clover_eo_SchurDecomp_Ainv (eo_spinor_work[0], eo_spinor_work[1], eo_spinor_work[0], eo_spinor_work[1], gauge_field, mzzinv, eo_spinor_work[2]);
+  memset( eo_spinor_work[2], 0, sizeof_eo_spinor_field );
+  exitstatus = tmLQCD_invert_eo(eo_spinor_work[2], eo_spinor_work[1], op_id);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_invert] Error from tmLQCD_invert_eo, status was %d\n", exitstatus);
+    return(1);
+  }
+  Q_clover_eo_SchurDecomp_Binv (eo_spinor_work[0], eo_spinor_work[2], eo_spinor_work[0], eo_spinor_work[2], gauge_field, mzzinv, eo_spinor_work[1]);
+  spinor_field_eo2lexic (prop, eo_spinor_work[0], eo_spinor_work[2] );
+  free( eo_spinor_work[0] );
+  free( eo_spinor_work[1] );
+  free( eo_spinor_work[2] );
+  return(0);
+#else
+  if( g_cart_id == 0 ) fprintf(stderr, "[Q_clover_invert] Error, no inverter\n");
+  return(2);
+#endif
+}  /* Q_clover_invert */
+
+
+/********************************************************************
+ * apply inverse Dirac operator in eo-precon form
+ *
+ * D^-1 = B^-1 A^-1 g5 
+ *
+ * input spinor fields: source_e/o
+ * output spinor fields: prop_e/o
+ *
+ * source_e = prop_e and / or source_o = prop_o is allowed
+ ********************************************************************/
+int Q_clover_eo_invert (double*prop_e, double*prop_o, double*source_e, double*source_o, double*gauge_field, double *mzzinv, int op_id) {
+
+#ifdef HAVE_TMLQCD_LIBWRAPPER
+  if ( prop_e == NULL || prop_o == NULL || source_e == NULL || source_o == NULL || gauge_field == NULL || mzzinv == NULL ) {
+    fprintf(stderr, "[Q_clover_eo_invert] input/output fields are NULL %s %d\n", __FILE__, __LINE__);
+    return(3);
+  }
+
+  const unsigned int Vhalf = VOLUME / 2;
+  const size_t sizeof_eo_spinor_field = ( _GSI(Vhalf) * sizeof(double) );
+  const size_t sizeof_eo_spinor_field_with_halo = ( _GSI(VOLUME+RAND) * sizeof(double) ) / 2 ;
+
+  int exitstatus;
+
+  /* auxilliary spinor fields with halo */
+  double *eo_spinor_work[3];
+  eo_spinor_work[0]  = (double*)malloc( sizeof_eo_spinor_field_with_halo );
+  eo_spinor_work[1]  = (double*)malloc( sizeof_eo_spinor_field_with_halo );
+  eo_spinor_work[2]  = (double*)malloc( sizeof_eo_spinor_field_with_halo );
+
+  memset( eo_spinor_work[0], 0, sizeof_eo_spinor_field );
+  memset( eo_spinor_work[1], 0, sizeof_eo_spinor_field );
+  memset( eo_spinor_work[2], 0, sizeof_eo_spinor_field );
+
+  /* work <- g5 source */
+  spinor_field_eq_gamma_ti_spinor_field(eo_spinor_work[0], 5, source_e, Vhalf );
+  spinor_field_eq_gamma_ti_spinor_field(eo_spinor_work[1], 5, source_o, Vhalf );
+
+  /* work <- A^-1 work */
+  Q_clover_eo_SchurDecomp_Ainv (eo_spinor_work[0], eo_spinor_work[1], eo_spinor_work[0], eo_spinor_work[1], gauge_field, mzzinv, eo_spinor_work[2]);
+
+  /* work_o <- C^-1 work_o */
+  memset( eo_spinor_work[2], 0, sizeof_eo_spinor_field );
+  exitstatus = tmLQCD_invert_eo(eo_spinor_work[2], eo_spinor_work[1], op_id);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_eo_invert] Error from tmLQCD_invert_eo, status was %d\n", exitstatus);
+    return(1);
+  }
+
+  /* prop <- B^-1 work */
+  Q_clover_eo_SchurDecomp_Binv ( prop_e, prop_o, eo_spinor_work[0], eo_spinor_work[2], gauge_field, mzzinv, eo_spinor_work[1]);
+
+  free( eo_spinor_work[0] );
+  free( eo_spinor_work[1] );
+  free( eo_spinor_work[2] );
+  return(0);
+#else
+  if( g_cart_id == 0 ) fprintf(stderr, "[Q_clover_eo_invert] Error, no inverter\n");
+  return(2);
+#endif
+}  /* Q_clover_eo_invert */
+
+
+
+/********************************************************************
+ * invert on eo-precon eigenvector subspace
+ * prop and source are full spinor fields
+ ********************************************************************/
+int Q_clover_invert_subspace ( double**prop, double**source, int nsf, double*evecs, double*evecs_norm, int nev, double*gauge_field, double **mzz[2], double **mzzinv[2], int flavor_id) {
+
+  const unsigned int Vhalf = VOLUME / 2;
+  const unsigned int sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
+
+  int i;
+  int exitstatus;
+  double **pcoeff = NULL, **eo_spinor_field=NULL, **eo_spinor_work=NULL;
+  double ratime, retime;
+
+  ratime = _GET_TIME;
+  
+  for(i=0; i<nsf; i++) {
+    spinor_field_lexic2eo ( source[i], eo_spinor_field[i] , eo_spinor_field[nsf+i] );
+  }
+
+  exitstatus = init_2level_buffer(&eo_spinor_field, 2*nsf, _GSI(Vhalf) );
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_invert_subspace] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(41);
+  }
+
+  exitstatus = init_2level_buffer(&eo_spinor_work, 2, _GSI( (VOLUME+RAND)/2 ) );
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_invert_subspace] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(41);
+  }
+
+  exitstatus = init_2level_buffer(&pcoeff, nsf, 2*nev);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_invert_subspace] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(41);
+  }
+
+
+  if( flavor_id == 1 ) {
+    /************************
+     * multiply with C_oo 
+     ************************/
+    for(i=0; i<nsf; i++) {
+      /* copy work0 <- eo field */
+      memcpy( eo_spinor_work[0], eo_spinor_field[nsf+i], sizeof_eo_spinor_field );
+      /* apply eo*/
+      C_clover_oo (eo_spinor_field[nsf+i], eo_spinor_work[0], gauge_field, eo_spinor_work[1], mzz[1-flavor_id][1], mzzinv[1-flavor_id][0]);
+    }  /* end of loop on spin-color */
+
+  }  /* end of if flavor_id == 1 */
+
+  /* odd projection coefficients pcoeff = V^+ sp_o */
+  exitstatus = project_reduce_from_propagator_field (pcoeff[0], eo_spinor_field[nsf], evecs, nsf, nev, Vhalf, 1);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_invert_subspace] Error from project_reduce_from_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(42);
+  }
+
+  for(i=0; i<nsf; i++) {
+    int k;
+    for(k=0; k < nev; k++) {
+      pcoeff[i][2*k  ] *= evecs_norm[k];
+      pcoeff[i][2*k+1] *= evecs_norm[k];
+    }
+  }
+
+  exitstatus = project_expand_to_propagator_field(eo_spinor_field[nsf], pcoeff[0], evecs, nsf, nev, Vhalf);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_invert_subspace] Error from project_expand_to_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(42);
+  }
+
+  if(flavor_id == 0 ) {
+    for(i=0; i<nsf; i++) {
+      memcpy(eo_spinor_work[0], eo_spinor_field[nsf + i], sizeof_eo_spinor_field);
+      C_clover_oo (eo_spinor_field[nsf+i], eo_spinor_work[0], gauge_field, eo_spinor_work[1], mzz[1-flavor_id][1], mzzinv[1-flavor_id][0]);
+    }  /* end of loop on spin-color */
+  }  /* end of if flavor_id == 0 */
+
+  /* complete the propagator by call to B^{-1} */
+  for(i=0; i<nsf; i++) {
+    Q_clover_eo_SchurDecomp_Binv (eo_spinor_field[i], eo_spinor_field[nsf+i], eo_spinor_field[i], eo_spinor_field[nsf+i], gauge_field, mzzinv[flavor_id][0], eo_spinor_work[0]);
+  }
+
+  for(i=0; i<nsf; i++) {
+    spinor_field_lexic2eo ( prop[i], eo_spinor_field[i] , eo_spinor_field[nsf+i] );
+  }
+
+  fini_2level_buffer(&pcoeff);
+  fini_2level_buffer(&eo_spinor_field);
+  fini_2level_buffer(&eo_spinor_work);
+
+  retime = _GET_TIME;
+  if(g_cart_id==0) fprintf(stdout, "# [Q_clover_invert_subspace] time for preparing sequential propagator = %e seconds\n", retime-ratime);
+  return(0);
+}  /* end of Q_clover_invert_subspace */
+
+
+/********************************************************************
+ *
+ *  inversion for eo-precon spinor fields
+ *
+ *  NOTE: A^-1 g5 must have been applied beforehand;
+ *
+ *  here ONLY application of
+ *
+ *  ( 1  X ) x ( 1 0    ) x ( 1 0   ) for up / flavor_id = 0
+ *  ( 0  1 )   ( 0 C^-1 )   ( 0 P_V )
+ *
+ *  ( 1  Xbar ) x ( 1 0       ) x ( 1 0        ) for dn / flavor_id = 1
+ *  ( 0     1 )   ( 0 Cbar^-1 )   ( 0 P_Wtilde )
+ *
+ * safe, if prop_e = source_e and / or prop_o = source_o
+ ********************************************************************/
+
+int Q_clover_eo_invert_subspace ( double**prop_e,   double**prop_o, 
+                                  double**source_e, double**source_o, 
+                                  int nsf, double*evecs, double*evecs_norm, int nev, double*gauge_field, double **mzz[2], double **mzzinv[2], int flavor_id, double**eo_spinor_aux) {
+
+  const unsigned int Vhalf = VOLUME / 2;
+  const size_t sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
+
+  int i, exitstatus;
+  int fini_eo_spinor_work=0;
+  double **pcoeff = NULL, **eo_spinor_work=NULL;
+  double ratime, retime;
+
+  ratime = _GET_TIME;
+
+  if ( eo_spinor_aux == NULL ) {
+    exitstatus = init_2level_buffer(&eo_spinor_work, 2, _GSI( ( (VOLUME+RAND) / 2) ) );
+    if(exitstatus != 0) {
+      fprintf(stderr, "[Q_clover_eo_invert_subspace] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(1);
+    }
+    fini_eo_spinor_work = 1;
+  } else {
+    eo_spinor_work = eo_spinor_aux;
+    fini_eo_spinor_work = 0;
+  }
+
+
+  if( flavor_id == 1 ) {
+    /************************
+     * multiply with C_oo 
+     ************************/
+    for(i=0; i<nsf; i++) {
+      /* copy work0 <- eo field */
+      memcpy( eo_spinor_work[0], source_o[i], sizeof_eo_spinor_field );
+      /* prop_o <- C_oo work0 */
+      C_clover_oo ( prop_o[i], eo_spinor_work[0], gauge_field, eo_spinor_work[1], mzz[1-flavor_id][1], mzzinv[1-flavor_id][0]);
+    }  /* end of loop on spin-color */
+
+  } else {
+    /**********************************
+     * if prop_o and source_o 
+     * are the same fields in memory, 
+     * nothing needs to be copied;
+     *
+     * if they are different regions
+     * in memory, then copy source
+     * to prop
+     **********************************/
+    if ( prop_o != source_o ) {
+      for(i=0; i<nsf; i++) {
+        memcpy( prop_o[i], source_o[i], sizeof_eo_spinor_field );
+      }
+    }
+  }  /* end of if flavor_id == 1 */
+
+  exitstatus = init_2level_buffer(&pcoeff, nsf, 2*nev);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_eo_invert_subspace] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(2);
+  }
+
+  /* odd projection coefficients pcoeff = V^+ prop_o */
+  exitstatus = project_reduce_from_propagator_field (pcoeff[0], prop_o[0], evecs, nsf, nev, Vhalf, 1);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_eo_invert_subspace] Error from project_reduce_from_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(3);
+  }
+
+  /* pcoeff <- Lambda^{-1] x proceff */
+  for(i=0; i<nsf; i++) {
+    int k;
+    for(k=0; k < nev; k++) {
+      /* if(g_cart_id == 0 ) fprintf(stdout, "# [Q_clover_eo_invert_subspace] pcoeff[%d, %d] = %25.16e %25.16e\n", i, k, pcoeff[i][2*k], pcoeff[i][2*k+1]); */
+      pcoeff[i][2*k  ] *= evecs_norm[k];
+      pcoeff[i][2*k+1] *= evecs_norm[k];
+    }
+  }
+
+  /* prop_o <- V x pcoeff */
+  exitstatus = project_expand_to_propagator_field( prop_o[0], pcoeff[0], evecs, nsf, nev, Vhalf);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_eo_invert_subspace] Error from project_expand_to_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(4);
+  }
+
+  if(flavor_id == 0 ) {
+    for(i=0; i<nsf; i++) {
+      /* work0 <- prop_o */
+      memcpy( eo_spinor_work[0], prop_o[i], sizeof_eo_spinor_field);
+      /* prop_o <- C_oo work0 */
+      C_clover_oo ( prop_o[i], eo_spinor_work[0], gauge_field, eo_spinor_work[1], mzz[1-flavor_id][1], mzzinv[1-flavor_id][0]);
+    }  /* end of loop on spin-color */
+  }  /* end of if flavor_id == 0 */
+
+  /* complete the propagator by call to B^{-1} */
+  for(i=0; i<nsf; i++) {
+    Q_clover_eo_SchurDecomp_Binv ( prop_e[i], prop_o[i], source_e[i], prop_o[i], gauge_field, mzzinv[flavor_id][0], eo_spinor_work[0]);
+  }
+  fini_2level_buffer(&pcoeff);
+  if ( fini_eo_spinor_work == 1 ) fini_2level_buffer(&eo_spinor_work);
+  retime = _GET_TIME;
+  if(g_cart_id==0) fprintf(stdout, "# [Q_clover_eo_invert_subspace] time for subspace inversion = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+
+  return(0);
+
+}  /* end of Q_clover_eo_invert_subspace */
+
+/********************************************************************
+ * invert on odd stochastic subspace
+ * we apply
+ *
+ * ( 0 X ) x ( 0 0       ) 
+ * ( 0 1 )   ( 0 S_stoch )
+ *
+ * S_stoch = sum_r phi_r xi_r^+
+ *
+ * safe for prop_e = source_e and / or prop_o = source_o
+ ********************************************************************/
+int Q_clover_eo_invert_subspace_stochastic ( double**prop_e, double**prop_o, double**source_e, double**source_o,
+                                             int nsf, double*sample_prop, double*sample_source, int nsample,
+                                             double*gauge_field, double**mzz[2], double**mzzinv[2], int flavor_id, double**eo_spinor_aux ) {
+
+
+  const unsigned int Vhalf = VOLUME / 2;
+  const size_t sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
+
+  int i, exitstatus;
+  int fini_eo_spinor_work=0;
+  double **pcoeff = NULL, **eo_spinor_work=NULL;
+  double ratime, retime;
+
+  ratime = _GET_TIME;
+
+  if ( eo_spinor_aux == NULL ) {
+    exitstatus = init_2level_buffer(&eo_spinor_work, 1, _GSI( ( (VOLUME+RAND) / 2) ) );
+    if(exitstatus != 0) {
+      fprintf(stderr, "[Q_clover_eo_invert_subspace_stochastic] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(1);
+    }
+    fini_eo_spinor_work = 1;
+  } else {
+    eo_spinor_work = eo_spinor_aux;
+    fini_eo_spinor_work = 0;
+  }
+
+  exitstatus = init_2level_buffer(&pcoeff, nsf, 2*nsample);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_eo_invert_subspace_stochastic] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(2);
+  }
+
+  /* odd projection coefficients pcoeff = Xi^+ sp_o */
+  if( flavor_id == 0 ) {
+    exitstatus = project_reduce_from_propagator_field (pcoeff[0], source_o[0], sample_source, nsf, nsample, Vhalf, 1);
+  } else {
+    exitstatus = project_reduce_from_propagator_field (pcoeff[0], source_o[0], sample_prop, nsf, nsample, Vhalf, 1);
+  }
+ 
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_eo_invert_subspace_stochastic] Error from project_reduce_from_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(2);
+  }
+
+  if( flavor_id == 0 ) {
+    exitstatus = project_expand_to_propagator_field(prop_o[0], pcoeff[0], sample_prop, nsf, nsample, Vhalf);
+  } else {
+    exitstatus = project_expand_to_propagator_field(prop_o[0], pcoeff[0], sample_source, nsf, nsample, Vhalf);
+  }
+ 
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_eo_invert_subspace_stochastic] Error from project_expand_to_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(3);
+  }
+
+  /* complete the propagator by call to B^{-1} */
+  for(i=0; i<nsf; i++) {
+    Q_clover_eo_SchurDecomp_Binv ( prop_e[i], prop_o[i], source_e[i], prop_o[i], gauge_field, mzzinv[flavor_id][0], eo_spinor_work[0]);
+  }
+  fini_2level_buffer(&pcoeff);
+  if ( fini_eo_spinor_work == 1 ) fini_2level_buffer(&eo_spinor_work);
+  retime = _GET_TIME;
+  if(g_cart_id==0) fprintf(stdout, "# [Q_clover_eo_invert_subspace_stochastic] time for subspace inversion = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+
+  return(0);
+
+}  /* end of Q_clover_eo_invert_subspace_stochastic */
+
+#if 0
+/********************************************************************
+ *
+ *  inversion for eo-precon spinor fields
+ *
+ *  NOTE: A^-1 g5 must have been applied beforehand;
+ *
+ *  here ONLY application of
+ *
+ *  ( 1  X ) x ( 1 0    ) x ( 1 0   ) for up / flavor_id = 0
+ *  ( 0  1 )   ( 0 C^-1 )   ( 0 P_V )
+ *
+ *  ( 1  Xbar ) x ( 1 0       ) x ( 1 0        ) for dn / flavor_id = 1
+ *  ( 0     1 )   ( 0 Cbar^-1 )   ( 0 P_Wtilde )
+ *
+ * safe, if prop_e = source_e and / or prop_o = source_o
+ ********************************************************************/
+
+int Q_clover_eo_invert_subspace_orthogonal ( 
+    double**prop_e,   double**prop_o, 
+    double**source_e, double**source_o, 
+    int nsf, double*evecs, double*evecs_norm, int nev, double*gauge_field, double **mzz[2], double **mzzinv[2], int flavor_id, double**eo_spinor_aux) {
+
+  const unsigned int Vhalf = VOLUME / 2;
+  const size_t sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
+
+  int i, exitstatus;
+  int fini_eo_spinor_work=0;
+  double **pcoeff = NULL, **eo_spinor_work=NULL;
+  double ratime, retime;
+
+  ratime = _GET_TIME;
+
+  if ( eo_spinor_aux == NULL ) {
+    exitstatus = init_2level_buffer(&eo_spinor_work, 2, _GSI( ( (VOLUME+RAND) / 2) ) );
+    if(exitstatus != 0) {
+      fprintf(stderr, "[Q_clover_eo_invert_subspace] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(1);
+    }
+    fini_eo_spinor_work = 1;
+  } else {
+    eo_spinor_work = eo_spinor_aux;
+    fini_eo_spinor_work = 0;
+  }
+
+  if ( flavor_id == 1 ) {
+    /* apply C with oppositve flavor id */
+    for(i = 0; i < nsf; i++ ) {
+      C_clover_oo ( eo_spinor_work[0], source_o[i], gauge_field, eo_spinor_work[1], mzz[1-flavor_id][0], mzzinv[1-flavor_id][1]);
+      memcpy(prop_o[i], eo_spinor_work[0], sizeof_eo_spinor_field );
+    }
+  } else if ( source_o != prop_o ) {
+    memcpy(prop_o[0], source_o[0], nsf * sizeof_eo_spinor_field );
+  }
+
+  exitstatus = project_reduce_from_propagator_field(pcoeff, prop_o[0], evecs, nsf, nev, Vhalf);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_eo_invert_subspace_orthogonal] Error from project_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(35);
+  }
+
+  if ( flavor_id == -1 ) {
+    /* apply C with oppositve flavor id */
+    for(i = 0; i < nsf; i++ ) {
+      C_clover_oo ( eo_spinor_work[0], source_o[i], gauge_field, eo_spinor_work[1], mzz[1-flavor_id][0], mzzinv[1-flavor_id][1]);
+      memcpy(prop_o[i], eo_spinor_work[0], sizeof_eo_spinor_field );
+    }
+  }
+
+
+
+  if( flavor_id == 1 ) {
+    /************************
+     * multiply with C_oo 
+     ************************/
+    for(i=0; i<nsf; i++) {
+      /* copy work0 <- eo field */
+      memcpy( eo_spinor_work[0], source_o[i], sizeof_eo_spinor_field );
+      /* prop_o <- C_oo work0 */
+      C_clover_oo ( prop_o[i], eo_spinor_work[0], gauge_field, eo_spinor_work[1], mzz[1-flavor_id][1], mzzinv[1-flavor_id][0]);
+    }  /* end of loop on spin-color */
+
+  } else {
+    /**********************************
+     * if prop_o and source_o 
+     * are the same fields in memory, 
+     * nothing needs to be copied;
+     *
+     * if they are different regions
+     * in memory, then copy source
+     * to prop
+     **********************************/
+    if ( prop_o != source_o ) {
+      for(i=0; i<nsf; i++) {
+        memcpy( prop_o[i], source_o[i], sizeof_eo_spinor_field );
+      }
+    }
+  }  /* end of if flavor_id == 1 */
+
+  exitstatus = init_2level_buffer(&pcoeff, nsf, 2*nev);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_eo_invert_subspace] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(2);
+  }
+
+  /* odd projection coefficients pcoeff = V^+ prop_o */
+  exitstatus = project_reduce_from_propagator_field (pcoeff[0], prop_o[0], evecs, nsf, nev, Vhalf);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_eo_invert_subspace] Error from project_reduce_from_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(3);
+  }
+
+  /* pcoeff <- Lambda^{-1} x proceff */
+  for(i=0; i<nsf; i++) {
+    int k;
+    for(k=0; k < nev; k++) {
+      /* if(g_cart_id == 0 ) fprintf(stdout, "# [Q_clover_eo_invert_subspace] pcoeff[%d, %d] = %25.16e %25.16e\n", i, k, pcoeff[i][2*k], pcoeff[i][2*k+1]); */
+      pcoeff[i][2*k  ] *= evecs_norm[k];
+      pcoeff[i][2*k+1] *= evecs_norm[k];
+    }
+  }
+
+  /* prop_o <- V x pcoeff */
+  exitstatus = project_expand_to_propagator_field( prop_o[0], pcoeff[0], evecs, nsf, nev, Vhalf);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_eo_invert_subspace] Error from project_expand_to_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(4);
+  }
+
+  if(flavor_id == 0 ) {
+    for(i=0; i<nsf; i++) {
+      /* work0 <- prop_o */
+      memcpy( eo_spinor_work[0], prop_o[i], sizeof_eo_spinor_field);
+      /* prop_o <- C_oo work0 */
+      C_clover_oo ( prop_o[i], eo_spinor_work[0], gauge_field, eo_spinor_work[1], mzz[1-flavor_id][1], mzzinv[1-flavor_id][0]);
+    }  /* end of loop on spin-color */
+  }  /* end of if flavor_id == 0 */
+
+  /* complete the propagator by call to B^{-1} */
+  for(i=0; i<nsf; i++) {
+    Q_clover_eo_SchurDecomp_Binv ( prop_e[i], prop_o[i], source_e[i], prop_o[i], gauge_field, mzzinv[flavor_id][0], eo_spinor_work[0]);
+  }
+  fini_2level_buffer(&pcoeff);
+  if ( fini_eo_spinor_work == 1 ) fini_2level_buffer(&eo_spinor_work);
+  retime = _GET_TIME;
+  if(g_cart_id==0) fprintf(stdout, "# [Q_clover_eo_invert_subspace] time for subspace inversion = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+
+  return(0);
+
+}  /* end of Q_clover_eo_invert_subspace_orthogonal */
+#endif  /* of if 0 */
+
+
+#if 0
+
+This is still wrong; given timeslice, one needs to the sum the contributions
+from timeslice propagators and sources for timeslice - 1, timeslice and timeslice + 1.
+
+/********************************************************************
+ * invert on odd stochastic subspace 
+ * with stochastic timeslice propagators
+ * we apply
+ *
+ * ( 0 X ) x ( 0 0       ) 
+ * ( 0 1 )   ( 0 S_stoch )
+ *
+ * S_stoch = sum_r phi_r xi_r^+
+ *
+ * safe for prop_e = source_e and / or prop_o = source_o
+ ********************************************************************/
+int Q_clover_eo_invert_subspace_stochastic_timeslice ( 
+    double**prop_e, double**prop_o,
+    double**source_e, double**source_o,
+    int nsf,
+    double***sample_prop, double***sample_source, 
+    int nsample,
+    double*gauge_field, double**mzz[2], double**mzzinv[2],
+    int timeslice,
+    int flavor_id 
+) {
+
+
+  const unsigned int Vhalf = VOLUME / 2;
+  const size_t sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
+  const unsigned int VOL3half = LX * LY * LZ / 2;
+  const size_t sizeof_eo_spinor_field_timeslice = _GSI(VOL3half) * sizeof(double);
+
+  int exitstatus;
+  double **eo_spinor_work=NULL;
+  double ratime, retime;
+  double **sf_o_timeslice = NULL;
+
+
+  exitstatus = init_2level_buffer(&sf_o_timeslice, nsf, _GSI(VOL3half) );
+  if(exitstatus != 0) {
+    fprintf(stderr, "[Q_clover_eo_invert_subspace_stochastic_timeslice] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(2);
+  }
+
+  ratime = _GET_TIME;
+
+  if ( iflavor == 0 ) {
+
+    double **pcoeff = NULL,
+    exitstatus = init_2level_buffer(&pcoeff, nsf, 2*nsample);
+    if(exitstatus != 0) {
+      fprintf(stderr, "[Q_clover_eo_invert_subspace_stochastic_timeslice] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(2);
+    }
+
+    if ( timeslice / T == g_proc_coords[0] ) {
+
+      const unsigned int offset_timeslice = ( timeslice % T ) * _GSI( VOL3half );
+      memset ( sf_o_timeslice[0], 0, nsf * sizeof_eo_spinor_field_timeslice );
+      for ( int isf=0; isf < nsf; isf++ ) {
+        memcpy( sf_o_timeslice[isf], source_o[isf] + offset_timeslice, sizeof_eo_spinor_field_timeslice );
+      }
+
+      /********************************************************************
+       * NOTE: do NOT exchange / reduce in function call; do it afterwards
+       ********************************************************************/
+      exitstatus = project_reduce_from_propagator_field (pcoeff[0], sf_o_timeslice[0], sample_source[timeslice / T][0], nsf, nsample, VOL3half, 0);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[Q_clover_eo_invert_subspace_stochastic_timeslice] Error from project_reduce_from_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(2);
+      }
+
+#ifdef HAVE_MPI
+      /* reduction inside timeslice */
+      double *pcoeff_buffer = (double*)malloc ( nsf * nsample * 2 * sizeof(double));
+      if ( pcoeff_buffer == NULL ) {
+        fprintf(stderr, "[Q_clover_eo_invert_subspace_stochastic_timeslice] Error from malloc %s %d\n", __FILE__, __LINE__);
+        return(3);
+      }
+      memcpy( pcoeff_buffer, pcoeff[0], nsf * nsample * 2 * sizeof(double) );
+      exitstatus = MPI_Allreduce( pcoeff_buffer, pcoeff[0], nsf * nsample * 2, MPI_DOUBLE, MPI_SUM, g_ts_comm );
+      if ( exitstatus != MPI_SUCCESS ) {
+        fprintf(stderr, "[] Error from MPI_Allreduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(4);
+      }
+      free ( pcoeff_buffer ); pcoeff_buffer = NULL;
+#endif
+    }  /* end of if have timeslice */
+
+#ifdef HAVE_MPI
+    /* distribute to all nodes */
+    int coords = timeslice / T, root;
+    MPI_Cart_rank( g_tr_comm, &coords, &root);
+    exitstatus = MPI_Bcast( pcoeff[0], 2*nsample*nsf, MPI_DOUBLE, root, g_tr_comm );
+    if ( exitstatus != MPI_SUCCESS ) {
+      fprintf(stderr, "[] Error from MPI_Bcast, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(4);
+    }
+#endif
+
+    /* re-expand to propagator, per timeslice */
+
+    for ( int it = 0; it < T; it++ ) {
+      memset ( sf_o_timeslice[0], 0, nsf * sizeof_eo_spinor_field_timeslice );
+      exitstatus = project_expand_to_propagator_field( sf_o_timeslice[0], pcoeff[0], sample_prop[it][0], nsf, nsample, VOL3half);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[Q_clover_eo_invert_subspace_stochastic_timeslice] Error from project_expand_to_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(3);
+      }
+      unsigned int offset_timeslice = it * _GSI(VOL3half);
+      for ( int isf = 0; isf < nsf; isf++ ) {
+        memcpy( prop_o[isf] + offset_timeslice, sf_o_timeslice[isf], sizeof_eo_spinor_field_timeslice );
+      }
+    }
+
+    fini_2level_buffer( &pcoeff );
+
+    /********************************************************************/
+    /********************************************************************/
+
+  }  else {  /* of if iflavor == 0 */
+
+    /********************************************************************/
+    /********************************************************************/
+
+    double ***pcoeff = NULL;
+    exitstatus = init_3level_buffer(&pcoeff, T, nsf, 2*nsample);
+    if(exitstatus != 0) {
+      fprintf(stderr, "[Q_clover_eo_invert_subspace_stochastic_timeslice] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(2);
+    }
+
+    for( int it = 0; it < T; it++ ) {
+      const unsigned int offset_timeslice = it * _GSI( VOL3half );
+
+      memset ( sf_o_timeslice[0], 0, nsf * sizeof_eo_spinor_field_timeslice );
+      for ( int isf=0; isf < nsf; isf++ ) {
+        memcpy( sf_o_timeslice[isf], source_o[isf] + offset_timeslice, sizeof_eo_spinor_field_timeslice );
+      }
+
+      /********************************************************************
+       * NOTE: do NOT exchange / reduce in function call; do it afterwards
+       ********************************************************************/
+      exitstatus = project_reduce_from_propagator_field (pcoeff[it][0], sf_o_timeslice[0], sample_prop[it][0], nsf, nsample, VOL3half, 0);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[Q_clover_eo_invert_subspace_stochastic_timeslice] Error from project_reduce_from_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(2);
+      }
+
+#ifdef HAVE_MPI
+      /* reduction inside timeslice */
+      const unsigned int items = T * nsf * nsample * 2;
+      double *pcoeff_buffer = (double*)malloc ( items * sizeof(double));
+      if ( pcoeff_buffer == NULL ) {
+        fprintf(stderr, "[Q_clover_eo_invert_subspace_stochastic_timeslice] Error from malloc %s %d\n", __FILE__, __LINE__);
+        return(3);
+      }
+      memcpy( pcoeff_buffer, pcoeff[0][0], items * sizeof(double) );
+      exitstatus = MPI_Allreduce( pcoeff_buffer, pcoeff[0][0], items, MPI_DOUBLE, MPI_SUM, g_ts_comm );
+      if ( exitstatus != MPI_SUCCESS ) {
+        fprintf(stderr, "[] Error from MPI_Allreduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(4);
+      }
+      free ( pcoeff_buffer ); pcoeff_buffer = NULL;
+#endif
+    }  /* end of if have timeslice */
+
+    /* re-expand to propagator, per timeslice */
+
+    for ( int it = 0; it < T; it++ ) {
+      memset ( sf_o_timeslice[0], 0, nsf * sizeof_eo_spinor_field_timeslice );
+      exitstatus = project_expand_to_propagator_field(sf_o_timeslice[0], pcoeff[it][0], sample_source[it][0], nsf, nsample, VOL3half);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[Q_clover_eo_invert_subspace_stochastic_timeslice] Error from project_expand_to_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(3);
+      }
+      unsigned int offset_timeslice = it * _GSI(VOL3half);
+      for ( int isf = 0; isf < nsf; isf++ ) {
+        memcpy( prop_o[isf] + offset_timeslice, sf_o_timeslice[isf], sizeof_eo_spinor_field_timeslice );
+      }
+    }
+
+    fini_3level_buffer(&pcoeff);
+
+  }  /* end of if iflavor == 0 else branch */
+
+  fini_2level_buffer( &sf_o_timeslice );
+
+  /* complete the propagator by call to B^{-1} */
+  alloc_spinor_field( &eo_spinor_work, (VOLUME+RAND)/2 );
+  for(i=0; i<nsf; i++) {
+    Q_clover_eo_SchurDecomp_Binv ( prop_e[i], prop_o[i], source_e[i], prop_o[i], gauge_field, mzzinv[flavor_id][0], eo_spinor_work[0]);
+  }
+
+  free( eo_spinor_work );
+  retime = _GET_TIME;
+  if(g_cart_id==0) fprintf(stdout, "# [Q_clover_eo_invert_subspace_stochastic_timeslice] time for subspace inversion = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+
+  return(0);
+
+}  /* end of Q_clover_eo_invert_subspace_stochastic_timeslice */
+#endif  /* of if 0  */
 
 
 }  /* end of namespace cvc */
