@@ -136,14 +136,14 @@ void twopoint_function_print_diagram_key (char*key, twopoint_function_type *p, i
 
   if ( strcmp( p->type, "b-b") == 0 ) {
 
-    /* sprintf( key, "/%s/%spf1x%.2dpf1y%.2dpf1z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d", p->name, diag_str,
+    sprintf( key, "/%s/%spf1x%.2dpf1y%.2dpf1z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d", p->name, diag_str,
         p->pf1[0], p->pf1[1], p->pf1[2],
         p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3],
-        p->gf1[0], p->gi1[0]); */
+        p->gf1[0], p->gi1[0]);
 
-    sprintf( key, "/%s/t%.2dx%.2dy%.2dz%.2d/gi%.2d/gf%.2d/%spx%.2dpy%.2dpz%.2d", p->name,
+    /* sprintf( key, "/%s/t%.2dx%.2dy%.2dz%.2d/gi%.2d/gf%.2d/%spx%.2dpy%.2dpz%.2d", p->name,
         p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3],
-        gamma_to_C_gamma[p->gi1[0]][0], gamma_to_C_gamma[p->gf1[0]][0], diag_str, p->pf1[0], p->pf1[1], p->pf1[2] );
+        gamma_to_C_gamma[p->gi1[0]][0], gamma_to_C_gamma[p->gf1[0]][0], diag_str, p->pf1[0], p->pf1[1], p->pf1[2] ); */
 
 
   } else if ( strcmp( p->type, "mxb-mxb") == 0 ) {
@@ -155,19 +155,19 @@ void twopoint_function_print_diagram_key (char*key, twopoint_function_type *p, i
         p->gf1[0], p->gi1[0]);
   } else if ( strcmp( p->type, "mxb-b") == 0 ) {
 
-    /* sprintf( key, "/%s/%spi2x%.2dpi2y%.2dpi2z%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d", p->name, diag_str,
+    sprintf( key, "/%s/%spi2x%.2dpi2y%.2dpi2z%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d", p->name, diag_str,
         p->pi2[0], p->pi2[1], p->pi2[2],
         p->pf1[0], p->pf1[1], p->pf1[2],
         p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3],
-        p->gf1[0], p->gi1[0]); */
+        p->gf1[0], p->gi1[0]);
 
     /* /piN-D/t54x14y01z32/pi2x01pi2y01pi2z-01/gi02/gf15/t5/px01py01pz-01 */
-    sprintf( key, "/%s/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/gi%.2d/gf%.2d/%spx%.2dpy%.2dpz%.2d", p->name, 
+    /* sprintf( key, "/%s/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/gi%.2d/gf%.2d/%spx%.2dpy%.2dpz%.2d", p->name, 
         p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3],
         p->pi2[0], p->pi2[1], p->pi2[2],
         gamma_to_C_gamma[p->gi1[0]][0], gamma_to_C_gamma[p->gf1[0]][0],
         diag_str,
-        p->pf1[0], p->pf1[1], p->pf1[2]); 
+        p->pf1[0], p->pf1[1], p->pf1[2]); */
 
   } else {
     strcpy ( key, "NA" );
