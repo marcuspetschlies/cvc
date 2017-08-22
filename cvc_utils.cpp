@@ -28,6 +28,7 @@
 #include "Q_phi.h"
 #include "Q_clover_phi.h"
 #include "scalar_products.h"
+#include "matrix_init.h"
 
 namespace cvc {
 
@@ -4713,6 +4714,46 @@ int check_point_source_propagator_clover_eo(double**prop_e, double**prop_o, doub
   return(0);
 }  /* end of check_source */
 
+
+/***************************************************************************
+ * apply D to full-volume prop
+ *
+ ***************************************************************************/
+int check_residual_clover ( double**prop, double**source, double*gauge_field, double**mzz, int nf  ) {
+  
+  const unsigned int Vhalf = VOLUME / 2;
+  int exitstatus;
+  double **eo_spinor_work = NULL;
+  double diff_e, diff_o, norm_e, norm_o;
+
+  if ( ( exitstatus = init_2level_buffer ( &eo_spinor_work, 5, _GSI( (VOLUME+RAND)/2 ) ) ) != 0 ) {
+    fprintf(stderr, "[check_residual_clover] Error from init_2level_buffer, status was %d\n", exitstatus, __FILE__, __LINE__ );
+    return(1);
+  }
+
+  for( int k = 0; k < nf; k++ ) {
+
+    spinor_field_lexic2eo ( prop[k], eo_spinor_work[0], eo_spinor_work[1] );
+    
+    Q_clover_phi_matrix_eo ( eo_spinor_work[2], eo_spinor_work[3], eo_spinor_work[0], eo_spinor_work[1], gauge_field, eo_spinor_work[4], mzz );
+   
+    spinor_field_lexic2eo ( source[k], eo_spinor_work[0], eo_spinor_work[1] );
+    
+    spinor_scalar_product_re( &norm_e, eo_spinor_work[0], eo_spinor_work[0], Vhalf);
+    spinor_scalar_product_re( &norm_o, eo_spinor_work[1], eo_spinor_work[1], Vhalf);
+    
+    spinor_field_norm_diff ( &diff_e, eo_spinor_work[2], eo_spinor_work[0], Vhalf);
+    spinor_field_norm_diff ( &diff_o, eo_spinor_work[3], eo_spinor_work[1], Vhalf);
+    
+    if(g_cart_id==0) fprintf(stdout, "# [check_residual_clover] propagator %3d norm diff even part = %e / %e\n", k, diff_e, sqrt(norm_e) );
+    if(g_cart_id==0) fprintf(stdout, "# [check_residual_clover] propagator %3d norm diff odd  part = %e / %e\n", k, diff_o, sqrt(norm_o) );
+    
+  }  /* end of loop on nf */
+
+  fini_2level_buffer ( &eo_spinor_work );
+  return(0);
+}  /* end of check_residual_clover */
+
 /***************************************************************************
  * apply C_oo to oo propagator;
  *
@@ -6517,7 +6558,9 @@ void co_field_eq_fv_dag_ti_fv (double*c, double*r, double*s, unsigned int N ) {
   complex *c_ = NULL;
   unsigned int offset;
 
+#ifdef HAVE_OPENMP
 #pragma omp for
+#endif
   for(ix=0; ix<N; ix++ ) {
     offset = _GSI( ix );
     r_ = r + offset;
@@ -6567,7 +6610,9 @@ void co_field_eq_co_field_pl_co_field  ( double*r, double*s, double*t, unsigned 
 #endif
   unsigned int ix2;
   double *r_ = NULL, *s_ = NULL, *t_ = NULL;
+#ifdef HAVE_OPENMP
 #pragma omp for
+#endif
   for( unsigned int ix = 0; ix < N; ix++ ) {
     ix2 = 2*ix;
     r_ = r + ix2;

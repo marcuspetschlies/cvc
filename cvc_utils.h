@@ -158,6 +158,8 @@ int check_point_source_propagator_clover_eo(double**prop_e, double**prop_o, doub
 
 int check_oo_propagator_clover_eo(double**prop_o, double**source, double**work, double*gf, double**mzz, double**mzzinv, int nf );
 
+int check_residual_clover ( double**prop, double**source, double*gauge_field, double**mzz, int nf  );
+
 int plaquetteria  (double*gauge_field );
 
 int gauge_field_eq_gauge_field_ti_phase (double**gauge_field_with_phase, double*gauge_field, complex co_phase[4] );
