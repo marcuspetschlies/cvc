@@ -609,10 +609,11 @@ int init_sequential_source(double *s, double *p, int tseq, int pseq[3], int gseq
 
   /* (0) which processes have source? */
 #if ( (defined PARALLELTX) || (defined PARALLELTXY) ) && (defined HAVE_QUDA)
-  if(g_proc_coords[3] == tseq / T ) {
+  if(g_proc_coords[3] == tseq / T )
 #else
-  if(g_proc_coords[0] == tseq / T ) {
+  if(g_proc_coords[0] == tseq / T )
 #endif
+  {
     have_source = 1;
     lts = tseq % T;
   } else {
