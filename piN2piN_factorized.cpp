@@ -201,6 +201,7 @@ int main(int argc, char **argv) {
   int gsx[4], sx[4];
   int source_proc_id = 0;
   int read_stochastic_source      = 0;
+  int read_stochastic_source_oet  = 0;
   int read_stochastic_propagator  = 0;
   int write_stochastic_source     = 0;
   int write_stochastic_propagator = 0;
@@ -271,7 +272,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "crRwWh?f:")) != -1) {
+  while ((c = getopt(argc, argv, "scrRwWh?f:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -280,6 +281,10 @@ int main(int argc, char **argv) {
     case 'r':
       read_stochastic_source = 1;
       fprintf(stdout, "# [piN2piN_factorized] will read stochastic source\n");
+      break;
+    case 's':
+      read_stochastic_source_oet = 1;
+      fprintf(stdout, "# [piN2piN_factorized] will read stochastic oet source\n");
       break;
     case 'R':
       read_stochastic_propagator = 1;
@@ -2443,7 +2448,7 @@ int main(int argc, char **argv) {
       /* loop on oet samples */
       for( int isample=0; isample < g_nsample_oet; isample++) {
 
-        if ( read_stochastic_source ) {
+        if ( read_stochastic_source_oet ) {
           for ( int ispin = 0; ispin < 4; ispin++ ) {
             sprintf(filename, "%s-oet.%.4d.t%.2d.%.2d.%.5d", filename_prefix, Nconf, gsx[0], ispin, isample);
             if ( ( exitstatus = read_lime_spinor( stochastic_source_list[ispin], filename, 0) ) != 0 ) {
