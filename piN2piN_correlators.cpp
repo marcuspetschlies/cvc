@@ -143,11 +143,11 @@ int main(int argc, char **argv) {
    ***********************************************/
   if( g_proc_coords[0] == 0 && g_proc_coords[1] == 0 && g_proc_coords[2] == 0 && g_proc_coords[3] == 0) {
     io_proc = 2;
-    fprintf(stdout, "# [piN2piN_factorized] proc%.4d tr%.4d is io process\n", g_cart_id, g_tr_id);
+    fprintf(stdout, "# [piN2piN_correlators] proc%.4d tr%.4d is io process\n", g_cart_id, g_tr_id);
   } else {
     if( g_proc_coords[1] == 0 && g_proc_coords[2] == 0 && g_proc_coords[3] == 0) {
       io_proc = 1;
-      fprintf(stdout, "# [piN2piN_factorized] proc%.4d tr%.4d is send process\n", g_cart_id, g_tr_id);
+      fprintf(stdout, "# [piN2piN_correlators] proc%.4d tr%.4d is send process\n", g_cart_id, g_tr_id);
     } else {
       io_proc = 0;
     }
@@ -161,6 +161,28 @@ int main(int argc, char **argv) {
    * gamma basis matrices
    ******************************************************/
   init_gamma_matrix ();
+
+
+#if 0
+  /*******************************************
+   * loop on 2-point functions
+   *******************************************/
+  for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
+    twopoint_function_print ( &(g_twopoint_function_list[i2pt]), "A2PT", stdout );
+    for ( int idiag = 0; idiag < g_twopoint_function_list[i2pt].n; idiag++ ) {
+      // fprintf(stdout, "# [piN2piN_correlators] diagrams %d = %s\n", idiag, g_twopoint_function_list[i2pt].diagrams );
+      if ( io_proc == 2 ) {
+        char aff_tag[400];
+        double norm;
+        twopoint_function_print_diagram_key ( aff_tag, &(g_twopoint_function_list[i2pt]), idiag );
+        twopoint_function_get_diagram_norm ( &norm, &(g_twopoint_function_list[i2pt]), idiag );
+        fprintf(stdout, "# [piN2piN_correlators] key \"%s\" norm = %25.16e\n", aff_tag, norm);
+      }
+    }
+    fprintf(stdout, "# [piN2piN_correlators]\n# [piN2piN_correlators]\n" );
+  }
+#endif  /* of if 0 */
+
 
   /******************************************************
    * check source coords list
@@ -307,7 +329,10 @@ int main(int argc, char **argv) {
 
           if ( io_proc == 2 ) {
             char aff_tag[400];
+            double norm;
             twopoint_function_print_diagram_key ( aff_tag, &(g_twopoint_function_list[i2pt]), idiag );
+
+            twopoint_function_get_diagram_norm ( &norm, &(g_twopoint_function_list[i2pt]), idiag );
 
             affdir = aff_reader_chpath (affr, affn, aff_tag );
             exitstatus = aff_node_get_complex (affr, affdir, diagram_buffer[0][0], T_global*16);
@@ -320,6 +345,8 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
 #endif
             for ( int it = 0; it < T_global; it++ ) {
+              zm4x4_ti_eq_re ( diagram_buffer[it], norm );
+
               zm_pl_eq_zm_transposed_4x4_array ( diagram[it][0], diagram_buffer[it][0] );
             }
 
@@ -334,7 +361,6 @@ int main(int argc, char **argv) {
 
         /* reorder to absolute time */
         reorder_to_absolute_time (diagram, diagram, g_twopoint_function_list[i2pt].source_coords[0], g_twopoint_function_list[i2pt].reorder, T_global );
-
 
         /* source phase */
         exitstatus = correlator_add_source_phase ( diagram, pi1,  &(gsx[1]), T_global );
