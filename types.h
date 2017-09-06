@@ -24,6 +24,7 @@ typedef struct {
   int parity_project;
   int source_coords[4];
   int reorder;
+  char norm[500];
 } twopoint_function_type;
 
 typedef struct {
