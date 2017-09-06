@@ -13,6 +13,10 @@ void twopoint_function_print_correlator_data ( double _Complex *c, twopoint_func
 
 void twopoint_function_get_aff_filename_prefix (char*filename, twopoint_function_type*p);
 
+void twopoint_function_copy ( twopoint_function_type *p, twopoint_function_type *r );
+
+void twopoint_function_get_diagram_norm ( double*r, twopoint_function_type *p, int id );
+
 }  /* end of namespace cvc */
 
 
