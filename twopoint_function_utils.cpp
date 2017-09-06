@@ -69,6 +69,7 @@ void twopoint_function_init ( twopoint_function_type *p ) {
   strcpy( p->type, "NA" );
   strcpy( p->name, "NA" );
   strcpy( p->diagrams, "NA" );
+  strcpy( p->norm, "NA" );
   p->spin_project = -1;
   p->parity_project = 0;
   p->source_coords[0] = -1;
@@ -96,9 +97,35 @@ void twopoint_function_print ( twopoint_function_type *p, char *name, FILE*ofs )
   fprintf(ofs, "# [print_twopoint_function] %s.spin_project    =  %3d\n", name, p->spin_project );
   fprintf(ofs, "# [print_twopoint_function] %s.parity_project  =  %3d\n", name, p->parity_project );
   fprintf(ofs, "# [print_twopoint_function] %s.diagrams        =  %s\n", name, p->diagrams );
+  fprintf(ofs, "# [print_twopoint_function] %s.norm            =  %s\n", name, p->norm );
   fprintf(ofs, "# [print_twopoint_function] %s.source_coords   =  (%3d, %3d, %3d, %3d)\n", name, 
       p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3] );
   fprintf(ofs, "# [print_twopoint_function] %s.reorder         =  %3d\n", name, p->reorder );
+  return;
+}  /* end of twopoint_function_print */
+
+/********************************************************************************
+ *
+ ********************************************************************************/
+void twopoint_function_copy ( twopoint_function_type *p, twopoint_function_type *r ) {
+  strcpy( p->name, r->name );
+  strcpy( p->type, r->type );
+  strcpy( p->diagrams, r->diagrams );
+  strcpy( p->norm, r->norm );
+  memcpy( p->pi1, r->pi1, 3*sizeof(int) );
+  memcpy( p->pi2, r->pi2, 3*sizeof(int) );
+  memcpy( p->pf1, r->pf1, 3*sizeof(int) );
+  memcpy( p->pf2, r->pf2, 3*sizeof(int) );
+  memcpy( p->gi1, r->gi1, 2*sizeof(int) );
+  memcpy( p->gf1, r->gf1, 2*sizeof(int) );
+  p->gi2 = r->gi2;
+  p->gf2 = r->gf2;
+  p->n = r->n;
+  p->spin_project = r->spin_project;
+  p->parity_project = r->parity_project;
+  memcpy( p->source_coords, r->source_coords, 4*sizeof(int) );
+  p->reorder = r->reorder;
+
   return;
 }  /* end of twopoint_function_print */
 
@@ -283,5 +310,35 @@ void twopoint_function_get_aff_filename_prefix (char*filename, twopoint_function
     fprintf(stderr, "[twopoint_function_get_aff_filename] Error, unrecognized type %s\n", p->type);
   }
 }  /* end of twopoint_function_get_aff_filename */
+
+/********************************************************************************
+ *
+ ********************************************************************************/
+void twopoint_function_get_diagram_norm ( double*r, twopoint_function_type *p, int id ) {
+
+  char comma[] = ",";
+  char *ptr = NULL;
+  char norm[500];
+
+  strcpy( norm, p->norm );
+  if ( id >= p->n ) { *r = 1.; return; }
+
+  if ( id >= 0 ) {
+    ptr = strtok( norm, comma );
+    if ( ptr == NULL ) { *r = 1.; return; }
+    if ( strcmp ( ptr, "NA" ) == 0 ) { *r = 1.; return; }
+    // fprintf(stdout, "# [twopoint_function_get_diagram_norm] %d ptr = %s\n", 0, ptr);
+                                  
+    for( int i = 1; i <= id && ptr != NULL; i++ ) {
+      ptr = strtok(NULL, "," );
+      // fprintf(stdout, "# [twopoint_function_get_diagram_norm] %d ptr = %s\n", i, ptr);
+    }
+    if ( ptr == NULL ) { *r = 1.; return; }
+    *r = atof ( ptr );
+    
+  } else {
+    *r = 1.;
+  }
+}  /* end of twopoint_function_get_diagram_norm */
 
 }  /* end of namespace cvc */
