@@ -54,6 +54,10 @@ namespace cvc {
   int cvc_verbose = 1;
   int myverbose = 0;
   int myprocid = 0;
+
+  twopoint_function_type twopoint_function_generic, *twopoint_function_ptr=NULL;
+  int twopoint_function_generic_set = 0;
+  char twopoint_function_set_type[10];
 }
 %}
 
@@ -1126,112 +1130,133 @@ namespace cvc {
   if(cvc::myverbose!=0) printf("# [read_input_parser] source coords no. %d set to %s\n", cvc::g_source_location_number, yytext);
 }
 
+<INITTWOPOINTFUNCTION>Generic{SPC}* {
+  if(cvc::myverbose) printf("# [read_input_parser] Initialization generic twopoint_function line %d\n", cvc::line_of_file);
+  cvc::twopoint_function_ptr = &(cvc::twopoint_function_generic);
+  cvc::twopoint_function_init ( cvc::twopoint_function_ptr );
+  strcpy(cvc::twopoint_function_set_type, "generic");
+  BEGIN(TWOPOINTFUNCTION);
+}
+
 <INITTWOPOINTFUNCTION>Init{SPC}* {
   if(cvc::g_twopoint_function_number==MAX_MXB_MXB_2PT_NUM) {
     fprintf(stderr, "[read_input_parser] Error, too many twopoint_function\n");
     exit(1);
   }
   if(cvc::myverbose) printf("# [read_input_parser] Initialization twopoint_function line %d\n", cvc::line_of_file);
-  twopoint_function_init ( &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number]) );
+  cvc::twopoint_function_ptr = &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number]);
+  cvc::twopoint_function_init ( cvc::twopoint_function_ptr );
+  strcpy(cvc::twopoint_function_set_type, "list");
+  if(cvc::twopoint_function_generic_set==1) {
+    cvc::twopoint_function_copy ( cvc::twopoint_function_ptr, &(cvc::twopoint_function_generic) );
+  }
   BEGIN(TWOPOINTFUNCTION);
 }
 
 <TWOPOINTFUNCTION>{
   {SPC}*pi1{EQL}{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
     sscanf(yytext, " %[a-zA-Z0-9] =  %d,%d,%d", cvc::name,
-        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pi1,
-        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pi1+1,
-        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pi1+2 );
+        cvc::twopoint_function_ptr->pi1,
+        cvc::twopoint_function_ptr->pi1+1,
+        cvc::twopoint_function_ptr->pi1+2 );
   }
   {SPC}*pi2{EQL}{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
     sscanf(yytext, " %[a-zA-Z0-9] = %d,%d,%d", cvc::name,
-        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pi2,
-        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pi2+1,
-        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pi2+2 );
+        cvc::twopoint_function_ptr->pi2,
+        cvc::twopoint_function_ptr->pi2+1,
+        cvc::twopoint_function_ptr->pi2+2 );
   }
   {SPC}*pf1{EQL}{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
     sscanf(yytext, " %[a-zA-Z0-9] = %d,%d,%d", cvc::name,
-        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pf1,
-        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pf1+1,
-        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pf1+2 );
+        cvc::twopoint_function_ptr->pf1,
+        cvc::twopoint_function_ptr->pf1+1,
+        cvc::twopoint_function_ptr->pf1+2 );
   }
   {SPC}*pf2{EQL}{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
     sscanf(yytext, " %[a-zA-Z0-9] = %d,%d,%d", cvc::name,
-        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pf2,
-        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pf2+1,
-        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].pf2+2 );
+        cvc::twopoint_function_ptr->pf2,
+        cvc::twopoint_function_ptr->pf2+1,
+        cvc::twopoint_function_ptr->pf2+2 );
   }
 
   {SPC}*gi1{EQL}{SDIGIT}+,{SDIGIT}+ {
     sscanf(yytext, " %[a-zA-Z0-9] = %d,%d", cvc::name,
-        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].gi1,
-        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].gi1+1);
+        cvc::twopoint_function_ptr->gi1,
+        cvc::twopoint_function_ptr->gi1+1);
   }
 
   {SPC}*gf1{EQL}{SDIGIT}+,{SDIGIT}+ {
     sscanf(yytext, " %[a-zA-Z0-9] = %d,%d", cvc::name,
-        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].gf1,
-        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].gf1+1);
+        cvc::twopoint_function_ptr->gf1,
+        cvc::twopoint_function_ptr->gf1+1);
   }
 
   {SPC}*source_coords{EQL}{DIGIT}+,{DIGIT}+,{DIGIT}+,{DIGIT}+ {
-    sscanf(yytext, " %[a-zA-Z0-9] = %d,%d,%d,%d", cvc::name,
-        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].source_coords,
-        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].source_coords+1,
-        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].source_coords+2,
-        cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].source_coords+3);
+    sscanf(yytext, " %[a-zA-Z0-9_] = %d,%d,%d,%d", cvc::name,
+        &(cvc::twopoint_function_ptr->source_coords[0]),
+        &(cvc::twopoint_function_ptr->source_coords[1]),
+        &(cvc::twopoint_function_ptr->source_coords[2]),
+        &(cvc::twopoint_function_ptr->source_coords[3]) );
   }
 
   {SPC}*gi2{EQL}{SDIGIT}+ {
     sscanf(yytext, " %[a-zA-Z0-9] = %d", cvc::name,
-        &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].gi2) );
+        &(cvc::twopoint_function_ptr->gi2) );
   }
 
   {SPC}*gf2{EQL}{SDIGIT}+ {
     sscanf(yytext, " %[a-zA-Z0-9] = %d", cvc::name,
-        &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].gf2) );
+        &(cvc::twopoint_function_ptr->gf2) );
   }
 
   {SPC}*n{EQL}{DIGIT}+ {
     sscanf(yytext, " %[a-zA-Z0-9] = %d", cvc::name,
-        &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].n) );
+        &(cvc::twopoint_function_ptr->n) );
   }
 
   {SPC}*tag{EQL}{STRING} {
     sscanf(yytext, " %[a-zA-Z0-9] = %s", cvc::name, cvc::fname );
-    strcpy( cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].name , cvc::fname );
+    strcpy( cvc::twopoint_function_ptr->name , cvc::fname );
   }
 
   {SPC}*type{EQL}{STRING} {
     sscanf(yytext, " %[a-zA-Z0-9] = %s", cvc::name, cvc::fname );
-    strcpy(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].type, cvc::fname );
-  }
-
-  EndTwopointFunction{SPC}* {
-    if( cvc::myverbose ) printf("# [read_input_parser] 2-point function no. %d parsed in line %d\n\n", cvc::g_twopoint_function_number, cvc::line_of_file);
-    cvc::g_twopoint_function_number++;
-    BEGIN(0);
+    strcpy(cvc::twopoint_function_ptr->type, cvc::fname );
   }
 
   {SPC}*spin_project{EQL}{DIGIT}+ {
     sscanf(yytext, " %[a-zA-Z0-9_] = %d", cvc::name,
-        &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].spin_project) );
+        &(cvc::twopoint_function_ptr->spin_project) );
   }
 
   {SPC}*parity_project{EQL}{SDIGIT}+ {
     sscanf(yytext, " %[a-zA-Z0-9_] = %d", cvc::name,
-        &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].parity_project) );
+        &(cvc::twopoint_function_ptr->parity_project) );
   }
 
   {SPC}*diagrams{EQL}{STRING} {
-    sscanf(yytext, " %[a-zA-Z0-9] = %s", cvc::name, cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].diagrams );
+    sscanf(yytext, " %[a-zA-Z0-9] = %s", cvc::name, cvc::twopoint_function_ptr->diagrams );
   }
 
   {SPC}*reorder{EQL}{SDIGIT}+ {
     sscanf(yytext, " %[a-zA-Z0-9] = %d", cvc::name,
-        &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number].reorder) );
+        &(cvc::twopoint_function_ptr->reorder) );
   }
 
+  {SPC}*norm{EQL}{STRING} {
+    sscanf(yytext, " %[a-zA-Z0-9] = %s", cvc::name, cvc::twopoint_function_ptr->norm );
+  }
+
+  EndTwopointFunction{SPC}* {
+    if(strcmp(cvc::twopoint_function_set_type, "list")==0 ) {
+      if( cvc::myverbose ) printf("# [read_input_parser] 2-point function no. %d parsed in line %d\n\n", cvc::g_twopoint_function_number, cvc::line_of_file);
+      cvc::g_twopoint_function_number++;
+    } else if (strcmp(cvc::twopoint_function_set_type,"generic")==0) {
+      cvc::twopoint_function_generic_set = 1;
+      if( cvc::myverbose ) printf("# [read_input_parser] generic 2-point function parsed in line %d\n\n", cvc::line_of_file);
+    }
+    BEGIN(0);
+  }
 }
 
 <GAMMA_F1_NUCLEON>{STRING} {
