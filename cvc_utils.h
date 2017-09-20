@@ -90,6 +90,11 @@ void printf_sp(spinor_propagator_type f, char*name, FILE*ofs);
 void norm2_sp(spinor_propagator_type f, double*res);
 
 int init_rng_stat_file (unsigned int seed, char*filename);
+
+int write_rng_stat_file ( char*filename );
+
+int read_set_rng_stat_file ( char*filename );
+
 int init_rng_state (int seed, int **rng_state);
 int fini_rng_state (int **rng_state);
 int sync_rng_state(int id, int reset);
