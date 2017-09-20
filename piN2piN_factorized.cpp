@@ -194,7 +194,7 @@ int main(int argc, char **argv) {
   const int max_num_diagram = 6;
 
 
-  int c, k;
+  int c;
   int filename_set = 0;
   int exitstatus;
   int op_id_up= -1, op_id_dn = -1;
@@ -207,14 +207,15 @@ int main(int argc, char **argv) {
   int write_stochastic_source_oet = 0;
   int write_stochastic_propagator = 0;
   int check_propagator_residual   = 0;
+  int do_contraction              = 1;
   char filename[200];
   double ratime, retime;
-  double plaq_m = 0., plaq_r = 0.;
+#ifndef HAVE_TMLQCD_LIBWRAPPER
+  double plaq_r = 0.;
+#endif
   double *spinor_work[2];
   unsigned int VOL3;
   size_t sizeof_spinor_field = 0, sizeof_spinor_field_timeslice = 0;
-  spinor_propagator_type **conn_X=NULL;
-  double ****buffer=NULL;
   int io_proc = -1;
   double **propagator_list_up = NULL, **propagator_list_dn = NULL, **sequential_propagator_list = NULL, **stochastic_propagator_list = NULL, **stochastic_propagator_zero_list = NULL,
          **stochastic_source_list = NULL;
@@ -273,7 +274,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "SscrRwWh?f:")) != -1) {
+  while ((c = getopt(argc, argv, "SscrRwWh?f:m:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -306,6 +307,10 @@ int main(int argc, char **argv) {
     case 'c':
       check_propagator_residual = 1;
       fprintf(stdout, "# [piN2piN_factorized] will check_propagator_residual\n");
+      break;
+    case 'm':
+      do_contraction = atoi( optarg );
+      fprintf(stdout, "# [piN2piN_factorized] will do contraction 0 / 1 ?  %d\n", do_contraction);
       break;
     case 'h':
     case '?':
@@ -407,8 +412,9 @@ int main(int argc, char **argv) {
 #endif
 
 
-
-  /* read the gauge field */
+  /***********************************************
+   * read the gauge field or obtain from tmLQCD
+   ***********************************************/
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   switch(g_gauge_file_format) {
@@ -491,7 +497,7 @@ int main(int argc, char **argv) {
      ***********************************************/
     exitstatus = init_clover ( &mzz, &mzzinv, gauge_field_with_phase );
     if ( exitstatus != 0 ) {
-      fprintf(stderr, "[piN2piN_factorized] Error from init_clover, status was %d\n");
+      fprintf(stderr, "[piN2piN_factorized] Error from init_clover, status was %d\n", exitstatus );
       EXIT(1);
     }
   
@@ -534,16 +540,6 @@ int main(int argc, char **argv) {
    ******************************************************/
 
   /******************************************************
-   * initialize random number generator
-   ******************************************************/
-  sprintf(filename, "rng_stat.%.4d.stochastic.out", Nconf);
-  exitstatus = init_rng_stat_file ( g_seed, filename );
-  if(exitstatus != 0) {
-    fprintf(stderr, "[piN2piN_factorized] Error from init_rng_stat_file status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(38);
-  }
-
-  /******************************************************
    * check source coords list
    ******************************************************/
   for ( int i = 0; i < g_source_location_number; i++ ) {
@@ -553,6 +549,23 @@ int main(int argc, char **argv) {
     g_source_coords_list[i][3] = ( g_source_coords_list[i][3] + LZ_global ) % LZ_global;
   }
 
+  /******************************************************
+   * determine, which samples to run
+   ******************************************************/
+  if ( g_sourceid == 0 && g_sourceid2 == 0 ) {
+    g_sourceid  = 0;
+    g_sourceid2 = g_nsample -1;
+  } else if ( g_sourceid2 < g_sourceid ) {
+    if ( g_cart_id == 0 ) fprintf(stdout, "# [piN2piN_factorized] Warning, exchanging source ids\n");
+    int i = g_sourceid;
+    g_sourceid  = g_sourceid2;
+    g_sourceid2 = i;
+  }
+  g_nsample = g_sourceid2 - g_sourceid + 1;
+  if ( g_cart_id == 0 ) {
+    fprintf(stdout, "# [piN2piN_factorized] nample = %2d sourceid %2d - %2d\n", g_nsample, g_sourceid, g_sourceid2 );
+    fflush( stdout );
+  }
 
   /******************************************************
    * allocate memory for stochastic sources
@@ -570,17 +583,46 @@ int main(int argc, char **argv) {
     EXIT(44);
   }
 
+  /******************************************************
+   * initialize random number generator
+   ******************************************************/
+  sprintf(filename, "rng_stat.%.4d.stochastic.out", Nconf);
+  if( read_stochastic_source || ( ( ! read_stochastic_source ) && ( g_sourceid == 0 ) ) ) {
+    /******************************************************
+     * if we read stochastic sources or if we do not read
+     * stochastic sources but start from sample 0, then
+     * initialize random number generator
+     ******************************************************/
+    exitstatus = init_rng_stat_file ( g_seed, filename );
+    if(exitstatus != 0) {
+      fprintf(stderr, "[piN2piN_factorized] Error from init_rng_stat_file status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(38);
+    } 
+  } else if ( (! read_stochastic_source ) && ( g_sourceid > 0 ) ) {
+    /******************************************************
+     * if we do not read
+     * stochastic sources and start from sample larger than 0,
+     * then we read the last rng state
+     ******************************************************/
+    exitstatus = read_set_rng_stat_file ( filename );
+    if(exitstatus != 0) {
+      fprintf(stderr, "[piN2piN_factorized] Error from read_set_rng_stat_file status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(38);
+    } 
+  }
 
   /* loop on stochastic samples */
-  for(int isample = 0; isample < g_nsample; isample++) {
+  for(int isample = 0; isample < g_nsample; isample++)
+  {
 
     if ( read_stochastic_source ) {
-      sprintf(filename, "%s.%.4d.%.5d", filename_prefix, Nconf, isample);
+      sprintf(filename, "%s.%.4d.%.5d", filename_prefix, Nconf, isample + g_sourceid );
       if ( ( exitstatus = read_lime_spinor( stochastic_source_list[isample], filename, 0) ) != 0 ) {
         fprintf(stderr, "[piN2piN_factorized] Error from read_lime_spinor, status was %d\n", exitstatus);
         EXIT(2);
       }
     } else {
+
 
       /* set a stochstic volume source */
       exitstatus = prepare_volume_source(stochastic_source_list[isample], VOLUME);
@@ -604,7 +646,7 @@ int main(int argc, char **argv) {
     }
 
     if ( read_stochastic_propagator ) {
-      sprintf(filename, "%s.%.4d.%.5d", filename_prefix2, Nconf, isample);
+      sprintf(filename, "%s.%.4d.%.5d", filename_prefix2, Nconf, isample + g_sourceid );
       if ( ( exitstatus = read_lime_spinor( stochastic_propagator_list[isample], filename, 0) ) != 0 ) {
         fprintf(stderr, "[piN2piN_factorized] Error from read_lime_spinor, status was %d\n", exitstatus);
         EXIT(2);
@@ -672,24 +714,40 @@ int main(int argc, char **argv) {
   
       if ( write_stochastic_source ) {
         /* write to file */
-        sprintf( filename, "%s.%.4d.%.5d", filename_prefix, Nconf, isample); 
+        sprintf( filename, "%s.%.4d.%.5d", filename_prefix, Nconf, isample + g_sourceid ); 
         exitstatus = write_propagator( stochastic_source_list[isample], filename, 0, 64 );
         if ( exitstatus != 0 ) {
           fprintf(stderr, "[piN2piN_factorized] Error from write_propagator, status was %d\n", exitstatus);
         }
       }
       if ( write_stochastic_propagator ) {
-        sprintf( filename, "%s.%.4d.%.5d", filename_prefix2, Nconf, isample); 
+        sprintf( filename, "%s.%.4d.%.5d", filename_prefix2, Nconf, isample + g_sourceid ); 
         exitstatus = write_propagator( stochastic_propagator_list[isample], filename, 0, 64 );
         if ( exitstatus != 0 ) {
           fprintf(stderr, "[piN2piN_factorized] Error from write_propagator, status was %d\n", exitstatus);
         }
       }
 
+      /***********************************************************
+       * after the inversion is complete and written if necessary,
+       * write the current rng state to file
+       ***********************************************************/
+      sprintf(filename, "rng_stat.%.4d.stochastic.out", Nconf);
+      exitstatus = write_rng_stat_file ( filename );
+      if(exitstatus != 0) {
+        fprintf(stderr, "[piN2piN_factorized] Error from write_rng_stat_file status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(38);
+      } 
+
     }  /* end of if read stochastic propagator else */
 
   }  /* end of loop on samples */
 
+
+  /***********************************************************/
+  /***********************************************************/
+
+  if ( do_contraction ) {
 
   /***********************************************************/
   /***********************************************************/
@@ -2347,14 +2405,27 @@ int main(int argc, char **argv) {
   }  /* end of loop on base source locations */
 
   fini_2level_buffer ( &sequential_propagator_list );
-  fini_2level_buffer ( &stochastic_propagator_list );
-  fini_2level_buffer ( &stochastic_source_list );
   fini_2level_buffer ( &propagator_list_up );
   fini_2level_buffer ( &propagator_list_dn );
 
+  /***********************************************************/
+  /***********************************************************/
 
+  }  /* end of if do_contraction */
 
+  /***********************************************************/
+  /***********************************************************/
 
+  fini_2level_buffer ( &stochastic_propagator_list );
+  fini_2level_buffer ( &stochastic_source_list );
+
+  /***********************************************************/
+  /***********************************************************/
+
+  if ( do_contraction ) {
+
+  /***********************************************************/
+  /***********************************************************/
 
   /***********************************************
    ***********************************************
@@ -2873,6 +2944,13 @@ int main(int argc, char **argv) {
   fini_2level_buffer ( &propagator_list_up );
   fini_2level_buffer ( &propagator_list_dn );
 
+  /***********************************************************/
+  /***********************************************************/
+
+  }  /* end of if do_contraction */
+
+  /***********************************************************/
+  /***********************************************************/
 
 
   /***********************************************
