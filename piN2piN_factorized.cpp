@@ -204,6 +204,7 @@ int main(int argc, char **argv) {
   int read_stochastic_source_oet  = 0;
   int read_stochastic_propagator  = 0;
   int write_stochastic_source     = 0;
+  int write_stochastic_source_oet = 0;
   int write_stochastic_propagator = 0;
   int check_propagator_residual   = 0;
   char filename[200];
@@ -272,7 +273,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "scrRwWh?f:")) != -1) {
+  while ((c = getopt(argc, argv, "SscrRwWh?f:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -285,6 +286,10 @@ int main(int argc, char **argv) {
     case 's':
       read_stochastic_source_oet = 1;
       fprintf(stdout, "# [piN2piN_factorized] will read stochastic oet source\n");
+      break;
+    case 'S':
+      write_stochastic_source_oet = 1;
+      fprintf(stdout, "# [piN2piN_factorized] will write stochastic oet source\n");
       break;
     case 'R':
       read_stochastic_propagator = 1;
@@ -531,9 +536,10 @@ int main(int argc, char **argv) {
   /******************************************************
    * initialize random number generator
    ******************************************************/
-  exitstatus = init_rng_stat_file (g_seed, NULL);
+  sprintf(filename, "rng_stat.%.4d.stochastic.out", Nconf);
+  exitstatus = init_rng_stat_file ( g_seed, filename );
   if(exitstatus != 0) {
-    fprintf(stderr, "[piN2piN_factorized] Error from init_rng_stat_file status was %d\n", exitstatus);
+    fprintf(stderr, "[piN2piN_factorized] Error from init_rng_stat_file status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(38);
   }
 
@@ -2444,6 +2450,17 @@ int main(int argc, char **argv) {
       /* fp2 <- dn propagator as fermion_propagator_type */
       assign_fermion_propagator_from_spinor_field ( fp2, propagator_list_dn, VOLUME);
 
+      /******************************************************
+       * re-initialize random number generator
+       ******************************************************/
+      if ( ! read_stochastic_source_oet ) {
+        sprintf(filename, "rng_stat.%.4d.tsrc%.3d.stochastic-oet.out", Nconf, gsx[0]);
+        exitstatus = init_rng_stat_file ( ( ( gsx[0] + 1 ) * 10000 + g_seed ), filename );
+        if(exitstatus != 0) {
+          fprintf(stderr, "[piN2piN_factorized] Error from init_rng_stat_file status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(38);
+        }
+      }
 
       /* loop on oet samples */
       for( int isample=0; isample < g_nsample_oet; isample++) {
@@ -2467,7 +2484,7 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[piN2piN_factorized] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(64);
           }
-          if ( write_stochastic_source ) {
+          if ( write_stochastic_source_oet ) {
             for ( int ispin = 0; ispin < 4; ispin++ ) {
               sprintf(filename, "%s-oet.%.4d.t%.2d.%.2d.%.5d", filename_prefix, Nconf, gsx[0], ispin, isample);
               if ( ( exitstatus = write_propagator( stochastic_source_list[ispin], filename, 0, 64) ) != 0 ) {
