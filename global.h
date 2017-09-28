@@ -146,6 +146,16 @@ EXTERN int g_ts_nb_x_up, g_ts_nb_x_dn;
 EXTERN int g_ts_nb_y_up, g_ts_nb_y_dn;
 EXTERN int g_ts_nb_z_up, g_ts_nb_z_dn;
 
+
+#ifdef HAVE_MPI
+EXTERN MPI_Comm g_xr_comm;
+EXTERN MPI_Comm g_yr_comm;
+EXTERN MPI_Comm g_zr_comm;
+#endif
+EXTERN int g_xr_id, g_xr_nproc;
+EXTERN int g_yr_id, g_yr_nproc;
+EXTERN int g_zr_id, g_zr_nproc;
+
 EXTERN int g_nproc_t, g_nproc_x, g_nproc_y, g_nproc_z;
 
 EXTERN int g_sourceid, g_sourceid2, g_sourceid_step, Nsave;
