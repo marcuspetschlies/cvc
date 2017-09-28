@@ -296,26 +296,26 @@ void mpi_init(int argc,char *argv[]) {
   g_ts_nb_dn = 0;
 
   if(g_verbose > 0 ) {
-    fprintf(stdout, "# [%2d] MPI parameters:\n"\
-                  "# [%2d] g_nproc   = %3d\n"\
-		  "# [%2d] g_proc_id = %3d\n"\
-		  "# [%2d] g_cart_id = %3d\n"\
-		  "# [%2d] g_nb_t_up = %3d\n"\
-		  "# [%2d] g_nb_t_dn = %3d\n"\
-		  "# [%2d] g_nb_x_up = %3d\n"\
-		  "# [%2d] g_nb_x_dn = %3d\n"\
-		  "# [%2d] g_nb_y_up = %3d\n"\
-		  "# [%2d] g_nb_y_dn = %3d\n"\
-		  "# [%2d] g_nb_z_up = %3d\n"\
-		  "# [%2d] g_nb_z_dn = %3d\n"\
-                  "# [%2d] g_nb_list[0] = %3d\n"\
-                  "# [%2d] g_nb_list[1] = %3d\n"\
-                  "# [%2d] g_nb_list[2] = %3d\n"\
-                  "# [%2d] g_nb_list[3] = %3d\n"\
-                  "# [%2d] g_nb_list[4] = %3d\n"\
-                  "# [%2d] g_nb_list[5] = %3d\n"\
-                  "# [%2d] g_nb_list[6] = %3d\n"\
-		  "# [%2d] g_nb_list[7] = %3d\n",
+    fprintf(stdout, "# [mpi_init] (%4d) MPI parameters:\n"\
+                  "# [mpi_init] (%4d) g_nproc   = %3d\n"\
+		  "# [mpi_init] (%4d) g_proc_id = %3d\n"\
+		  "# [mpi_init] (%4d) g_cart_id = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_t_up = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_t_dn = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_x_up = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_x_dn = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_y_up = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_y_dn = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_z_up = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_z_dn = %3d\n"\
+                  "# [mpi_init] (%4d) g_nb_list[0] = %3d\n"\
+                  "# [mpi_init] (%4d) g_nb_list[1] = %3d\n"\
+                  "# [mpi_init] (%4d) g_nb_list[2] = %3d\n"\
+                  "# [mpi_init] (%4d) g_nb_list[3] = %3d\n"\
+                  "# [mpi_init] (%4d) g_nb_list[4] = %3d\n"\
+                  "# [mpi_init] (%4d) g_nb_list[5] = %3d\n"\
+                  "# [mpi_init] (%4d) g_nb_list[6] = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_list[7] = %3d\n",
 		  g_cart_id, g_cart_id, g_nproc,
 		  g_cart_id, g_proc_id,
 		  g_cart_id, g_cart_id,
@@ -634,6 +634,27 @@ void mpi_init(int argc,char *argv[]) {
   MPI_Comm_size(g_tr_comm, &g_tr_nproc);
   MPI_Comm_rank(g_tr_comm, &g_tr_id);
 
+#if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
+  dims[0]=0; dims[1]=1; dims[2]=0; dims[3]=0;
+  MPI_Cart_sub (g_cart_grid, dims, &g_xr_comm);
+  MPI_Comm_size(g_xr_comm, &g_xr_nproc);
+  MPI_Comm_rank(g_xr_comm, &g_xr_id);
+#endif
+
+#if ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
+  dims[0]=0; dims[1]=0; dims[2]=1; dims[3]=0;
+  MPI_Cart_sub (g_cart_grid, dims, &g_yr_comm);
+  MPI_Comm_size(g_yr_comm, &g_yr_nproc);
+  MPI_Comm_rank(g_yr_comm, &g_yr_id);
+#endif
+
+#ifdef PARALLELTXYZ
+  dims[0]=0; dims[1]=0; dims[2]=0; dims[3]=1;
+  MPI_Cart_sub (g_cart_grid, dims, &g_zr_comm);
+  MPI_Comm_size(g_zr_comm, &g_zr_nproc);
+  MPI_Comm_rank(g_zr_comm, &g_zr_id);
+#endif
+
   /* ------------------------------------------------------------------------ */
 
   dims[0]=1; dims[1]=0; dims[2]=1; dims[3]=1;
@@ -642,40 +663,40 @@ void mpi_init(int argc,char *argv[]) {
   MPI_Comm_rank(g_xs_comm, &g_xs_id);
 
   if( g_verbose > 0 ) {
-    fprintf(stdout, "# [%2d] MPI parameters:\n"\
-                  "# [%2d] g_nproc   = %3d\n"\
-                  "# [%2d] g_nproc_t = %3d\n"\
-                  "# [%2d] g_nproc_x = %3d\n"\
-                  "# [%2d] g_nproc_y = %3d\n"\
-                  "# [%2d] g_nproc_z = %3d\n"\
-		  "# [%2d] g_proc_id = %3d\n"\
-		  "# [%2d] g_cart_id = %3d\n"\
-		  "# [%2d] g_nb_t_up = %3d\n"\
-		  "# [%2d] g_nb_t_dn = %3d\n"\
-		  "# [%2d] g_nb_x_up = %3d\n"\
-		  "# [%2d] g_nb_x_dn = %3d\n"\
-		  "# [%2d] g_nb_y_up = %3d\n"\
-		  "# [%2d] g_nb_y_dn = %3d\n"\
-		  "# [%2d] g_nb_z_up = %3d\n"\
-		  "# [%2d] g_nb_z_dn = %3d\n"\
-                  "# [%2d] g_nb_list[0] = %3d\n"\
-		  "# [%2d] g_nb_list[1] = %3d\n"\
-                  "# [%2d] g_nb_list[2] = %3d\n"\
-		  "# [%2d] g_nb_list[3] = %3d\n"\
-                  "# [%2d] g_nb_list[4] = %3d\n"\
-		  "# [%2d] g_nb_list[5] = %3d\n"\
-                  "# [%2d] g_nb_list[6] = %3d\n"\
-		  "# [%2d] g_nb_list[7] = %3d\n"\
-                  "# [%2d] g_ts_nproc   = %3d\n"\
-		  "# [%2d] g_ts_id      = %3d\n"\
-                  "# [%2d] g_xs_nproc   = %3d\n"\
-		  "# [%2d] g_xs_id      = %3d\n"\
-		  "# [%2d] g_ts_nb_x_up = %3d\n"\
-		  "# [%2d] g_ts_nb_x_dn = %3d\n"\
-		  "# [%2d] g_ts_nb_y_up = %3d\n"\
-		  "# [%2d] g_ts_nb_y_dn = %3d\n"\
-		  "# [%2d] g_ts_nb_z_up = %3d\n"\
-		  "# [%2d] g_ts_nb_z_dn = %3d\n",\
+    fprintf(stdout, "# [mpi_init] (%4d) MPI parameters:\n"\
+                  "# [mpi_init] (%4d) g_nproc   = %3d\n"\
+                  "# [mpi_init] (%4d) g_nproc_t = %3d\n"\
+                  "# [mpi_init] (%4d) g_nproc_x = %3d\n"\
+                  "# [mpi_init] (%4d) g_nproc_y = %3d\n"\
+                  "# [mpi_init] (%4d) g_nproc_z = %3d\n"\
+		  "# [mpi_init] (%4d) g_proc_id = %3d\n"\
+		  "# [mpi_init] (%4d) g_cart_id = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_t_up = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_t_dn = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_x_up = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_x_dn = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_y_up = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_y_dn = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_z_up = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_z_dn = %3d\n"\
+                  "# [mpi_init] (%4d) g_nb_list[0] = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_list[1] = %3d\n"\
+                  "# [mpi_init] (%4d) g_nb_list[2] = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_list[3] = %3d\n"\
+                  "# [mpi_init] (%4d) g_nb_list[4] = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_list[5] = %3d\n"\
+                  "# [mpi_init] (%4d) g_nb_list[6] = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_list[7] = %3d\n"\
+                  "# [mpi_init] (%4d) g_ts_nproc   = %3d\n"\
+		  "# [mpi_init] (%4d) g_ts_id      = %3d\n"\
+                  "# [mpi_init] (%4d) g_xs_nproc   = %3d\n"\
+		  "# [mpi_init] (%4d) g_xs_id      = %3d\n"\
+		  "# [mpi_init] (%4d) g_ts_nb_x_up = %3d\n"\
+		  "# [mpi_init] (%4d) g_ts_nb_x_dn = %3d\n"\
+		  "# [mpi_init] (%4d) g_ts_nb_y_up = %3d\n"\
+		  "# [mpi_init] (%4d) g_ts_nb_y_dn = %3d\n"\
+		  "# [mpi_init] (%4d) g_ts_nb_z_up = %3d\n"\
+		  "# [mpi_init] (%4d) g_ts_nb_z_dn = %3d\n",\
 		  g_cart_id, g_cart_id, g_nproc,
                   g_cart_id, g_nproc_t,
                   g_cart_id, g_nproc_x,
@@ -867,38 +888,38 @@ void mpi_init(int argc,char *argv[]) {
   MPI_Comm_rank(g_xs_comm, &g_xs_id);
 
   if( g_verbose > 0  ) {
-    fprintf(stdout, "# [%2d] MPI parameters:\n"\
-                  "# [%2d] g_nproc   = %3d\n"\
-                  "# [%2d] g_nproc_t = %3d\n"\
-                  "# [%2d] g_nproc_x = %3d\n"\
-                  "# [%2d] g_nproc_y = %3d\n"\
-                  "# [%2d] g_nproc_z = %3d\n"\
-		  "# [%2d] g_proc_id = %3d\n"\
-		  "# [%2d] g_cart_id = %3d\n"\
-		  "# [%2d] g_nb_t_up = %3d\n"\
-		  "# [%2d] g_nb_t_dn = %3d\n"\
-		  "# [%2d] g_nb_x_up = %3d\n"\
-		  "# [%2d] g_nb_x_dn = %3d\n"\
-		  "# [%2d] g_nb_y_up = %3d\n"\
-		  "# [%2d] g_nb_y_dn = %3d\n"\
-		  "# [%2d] g_nb_z_up = %3d\n"\
-		  "# [%2d] g_nb_z_dn = %3d\n"\
-                  "# [%2d] g_nb_list[0] = %3d\n"\
-		  "# [%2d] g_nb_list[1] = %3d\n"\
-                  "# [%2d] g_nb_list[2] = %3d\n"\
-		  "# [%2d] g_nb_list[3] = %3d\n"\
-                  "# [%2d] g_nb_list[4] = %3d\n"\
-		  "# [%2d] g_nb_list[5] = %3d\n"\
-                  "# [%2d] g_nb_list[6] = %3d\n"\
-		  "# [%2d] g_nb_list[7] = %3d\n"\
-                  "# [%2d] g_ts_nproc   = %3d\n"\
-		  "# [%2d] g_ts_id      = %3d\n"\
-                  "# [%2d] g_xs_nproc   = %3d\n"\
-		  "# [%2d] g_xs_id      = %3d\n"\
-		  "# [%2d] g_ts_nb_x_up = %3d\n"\
-		  "# [%2d] g_ts_nb_x_dn = %3d\n"\
-		  "# [%2d] g_ts_nb_y_up = %3d\n"\
-		  "# [%2d] g_ts_nb_y_dn = %3d\n",\
+    fprintf(stdout, "# [mpi_init] (%4d) MPI parameters:\n"\
+                  "# [mpi_init] (%4d) g_nproc   = %3d\n"\
+                  "# [mpi_init] (%4d) g_nproc_t = %3d\n"\
+                  "# [mpi_init] (%4d) g_nproc_x = %3d\n"\
+                  "# [mpi_init] (%4d) g_nproc_y = %3d\n"\
+                  "# [mpi_init] (%4d) g_nproc_z = %3d\n"\
+		  "# [mpi_init] (%4d) g_proc_id = %3d\n"\
+		  "# [mpi_init] (%4d) g_cart_id = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_t_up = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_t_dn = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_x_up = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_x_dn = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_y_up = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_y_dn = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_z_up = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_z_dn = %3d\n"\
+                  "# [mpi_init] (%4d) g_nb_list[0] = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_list[1] = %3d\n"\
+                  "# [mpi_init] (%4d) g_nb_list[2] = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_list[3] = %3d\n"\
+                  "# [mpi_init] (%4d) g_nb_list[4] = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_list[5] = %3d\n"\
+                  "# [mpi_init] (%4d) g_nb_list[6] = %3d\n"\
+		  "# [mpi_init] (%4d) g_nb_list[7] = %3d\n"\
+                  "# [mpi_init] (%4d) g_ts_nproc   = %3d\n"\
+		  "# [mpi_init] (%4d) g_ts_id      = %3d\n"\
+                  "# [mpi_init] (%4d) g_xs_nproc   = %3d\n"\
+		  "# [mpi_init] (%4d) g_xs_id      = %3d\n"\
+		  "# [mpi_init] (%4d) g_ts_nb_x_up = %3d\n"\
+		  "# [mpi_init] (%4d) g_ts_nb_x_dn = %3d\n"\
+		  "# [mpi_init] (%4d) g_ts_nb_y_up = %3d\n"\
+		  "# [mpi_init] (%4d) g_ts_nb_y_dn = %3d\n",\
 		  g_cart_id, g_cart_id, g_nproc,
                   g_cart_id, g_nproc_t,
                   g_cart_id, g_nproc_x,
@@ -937,7 +958,7 @@ void mpi_init(int argc,char *argv[]) {
 #endif  /* of ifdef PARALLELTX || PARALLELTXY || PARALLELTXYZ */
 
   fprintf(stdout, "# [mpi_init] proc%.2d on host %s\n", g_cart_id, processor_name);
-#else
+#else  /* of ifdef HAVE_MPI */
 
 /****************************************************************
  * MPI NOT defined 
@@ -968,31 +989,46 @@ void mpi_init(int argc,char *argv[]) {
   g_nb_list[5] = 0;
   g_nb_list[6] = 0;
   g_nb_list[7] = 0;
+
+#ifdef HAVE_TMLQCD_LIBWRAPPER
+  LX = g_tmLQCD_lat.LX ;
+  LY = g_tmLQCD_lat.LY ;
+  LZ = g_tmLQCD_lat.LZ;
+  T  = g_tmLQCD_lat.T;
+  LX_global = LX * g_tmLQCD_mpi.nproc_x;
+  LY_global = LY * g_tmLQCD_mpi.nproc_y;
+  LZ_global = LZ * g_tmLQCD_mpi.nproc_z;
+  T_global  = T  * g_tmLQCD_mpi.nproc_t;
+#else
+
   T         = T_global;
-  Tstart    = 0;
   LX_global = LX;
-  LXstart   = 0;
   LY_global = LY;
-  LYstart   = 0;
   LZ_global = LZ;
+
+#endif
+
+  Tstart    = 0;
+  LXstart   = 0;
+  LYstart   = 0;
   LZstart   = 0;
 
   if( g_verbose > 0 ) {
-    fprintf(stdout, "# [%2d] MPI parameters:\n"\
-                  "# [%2d] g_nproc   = %3d\n"\
-		  "# [%2d] g_proc_id = %3d\n"\
-		  "# [%2d] g_cart_id = %3d\n"\
-		  "# [%2d] g_nb_t_up = %3d\n"\
-		  "# [%2d] g_nb_t_dn = %3d\n"\
-                  "# [%2d] g_nb_list[0] = %3d\n"\
-		  "# [%2d] g_nb_list[1] = %3d\n",
+    fprintf(stdout, "# [mpi_init] (%4d) MPI parameters:\n"\
+                  "# [mpi_init] (%4d) g_nproc   = %3d\n"\
+		  "# [mpi_init] (%4d) g_proc_id = %3d\n"\
+		  "# [mpi_init] (%4d) g_cart_id = %3d\n"\
+		  "# [mpi_init] (%4d) T  global / local = %3d / %3d\n"\
+		  "# [mpi_init] (%4d) LX global / local = %3d / %3d\n"\
+		  "# [mpi_init] (%4d) LY global / local = %3d / %3d\n"\
+		  "# [mpi_init] (%4d) LZ global / local = %3d / %3d\n",\
 		  g_cart_id, g_cart_id, g_nproc,
 		  g_cart_id, g_proc_id,
 		  g_cart_id, g_cart_id,
-		  g_cart_id, g_nb_t_up,
-		  g_cart_id, g_nb_t_dn,
-		  g_cart_id, g_nb_list[0],
-		  g_cart_id, g_nb_list[1]);
+		  g_cart_id, T_global, T,
+		  g_cart_id, LX_global, LX,
+		  g_cart_id, LY_global, LY,
+		  g_cart_id, LZ_global, LZ );
   }
 #endif  /* of ifdef HAVE_MPI */
 
