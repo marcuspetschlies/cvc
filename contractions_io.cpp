@@ -298,7 +298,7 @@ int write_binary_contraction_data(double * const s, LemonWriter * writer, const 
 /************************************************************
  * read_binary_contraction_data
  ************************************************************/
-
+#ifndef HAVE_LIBLEMON
 int read_binary_contraction_data(double * const s, LimeReader * limereader, const int prec, const int N, DML_Checksum *ans) {
 
   int status=0;
@@ -366,7 +366,16 @@ int read_binary_contraction_data(double * const s, LimeReader * limereader, cons
 
   free(tmp2); free(tmp);
   return(0);
+}  /* end of read_binary_contraction_data */
+#else
+int read_binary_contraction_data(double * const s, LimeReader * limereader, const int prec, const int N, DML_Checksum *ans) {
+  if ( g_cart_id == 0 ) fprintf( stderr, "[read_binary_contraction_data] not implemented for lemon usage\n");
+  return(1);
 }
+#endif
+
+/*************************************************************************************************/
+/*************************************************************************************************/
 
 /**************************************************************
  * write_contraction_format
@@ -416,7 +425,7 @@ int write_contraction_format(char * filename, const int prec, const int N, char 
     fclose(ofs);
   }
   return(0);
-}
+}  /* end of write_contraction_format */
 
 
 /***********************************************************
@@ -562,7 +571,7 @@ int write_lime_contraction(double * const s, char * filename, const int prec, co
 /***********************************************************
  * read_lime_contraction
  ***********************************************************/
-
+#ifndef HAVE_LIBLEMON
 int read_lime_contraction(double * const s, char * filename, const int N, const int position) {
   FILE *ifs=(FILE*)NULL;
   int status=0, getpos=-1;
@@ -637,5 +646,142 @@ int read_lime_contraction(double * const s, char * filename, const int N, const 
   fclose(ifs);
   return(0);
 }  /* end of read_lime_contraction */
+
+#else  /* HAVE_LIBLEMON defined */
+
+int read_lime_contraction(double * const s, char * filename, const int N, const int position) {
+
+  MPI_File *ifs=NULL;
+  int t, x, y, z, status;
+  int getpos = -1;
+  unsigned int ix;
+  n_uint64_t bytes, idx;
+  int latticeSize[] = {T_global, LX_global, LY_global, LZ_global};
+  int scidacMapping[] = {0, 1, 2, 3};
+  char * header_type;
+  int prec;
+  LemonReader * reader=NULL;
+  int words_bigendian = big_endian();
+  DML_SiteRank rank;
+  DML_Checksum checksum;
+  char * filebuffer = NULL, * current = NULL;
+
+  DML_checksum_init( &checksum );
+
+  ifs = (MPI_File*)malloc(sizeof(MPI_File));
+  status = MPI_File_open(g_cart_grid, (char*)filename, MPI_MODE_RDONLY, MPI_INFO_NULL, ifs);
+  status = (status == MPI_SUCCESS) ? 0 : 1;
+  if(status) {
+    fprintf(stderr, "[read_lime_contraction] Could not open file for reading. Aborting...\n");
+    MPI_Abort(MPI_COMM_WORLD, 1);
+    MPI_Finalize();
+    exit(505);
+  }
+
+  if( (reader = lemonCreateReader(ifs, g_cart_grid)) == NULL ) {
+    fprintf(stderr, "[read_lime_contraction] Could not create reader. Aborting...\n");
+    MPI_Abort(MPI_COMM_WORLD, 1);
+    MPI_Finalize();
+    exit(503);
+  }
+
+  while ((status = lemonReaderNextRecord(reader)) != LIME_EOF) {
+    if (status != LIME_SUCCESS) {
+      fprintf(stderr, "[read_lime_contraction] lemonReaderNextRecord returned status %d.\n", status);
+      status = LIME_EOF;
+      break;
+    }
+    header_type = (char*)lemonReaderType(reader);
+    // if (strcmp("ildg-binary-data", header_type) == 0) getpos++;
+    if (strcmp("scidac-binary-data", header_type) == 0) getpos++;
+    if ( getpos == position ) break;
+  }
+  if(status==LIME_EOF) {
+    fprintf(stderr, "[read_lime_contraction] no ildg-binary-data record found in file %s\n",filename);
+    lemonDestroyReader(reader);
+    MPI_Abort(MPI_COMM_WORLD, 1);
+    MPI_Finalize();
+    exit(502);
+  } 
+
+  bytes = lemonReaderBytes(reader);
+
+  if ( bytes == (n_uint64_t)g_nproc * (n_uint64_t)VOLUME * 2 *(n_uint64_t )N * (n_uint64_t)sizeof(double) ) {
+    prec = 64;
+  } else {
+    if ( bytes == (n_uint64_t)g_nproc * (n_uint64_t)VOLUME * 2 * (n_uint64_t)N * (n_uint64_t)sizeof(float) ) {
+      prec = 32;
+    } else {
+      fprintf(stderr, "[read_lime_contraction] Probably wrong lattice size or precision (bytes=%lu).\n", (unsigned long)bytes);
+      fprintf(stderr, "[read_lime_contraction] Panic! Aborting...\n");
+      fflush(stdout);
+      MPI_File_close(reader->fp);
+      MPI_Abort(MPI_COMM_WORLD, 1);
+      MPI_Finalize();
+      exit(501);
+    }
+  }
+  
+  if(g_cart_id==0) fprintf(stdout, "# [read_lime_contraction] %d Bit precision read.\n", prec);
+
+  if      (prec == 64)  { bytes = 2 * N * sizeof(double); }
+  else if (prec == 32)  { bytes = 2 * N * sizeof(float);  }
+
+  if((void*)(filebuffer = (char*)malloc(VOLUME * bytes)) == NULL) {
+    fprintf (stderr, "[read_lime_contraction] malloc errno in read_lime_contraction\n");
+    return 1;
+  }
+  status = lemonReadLatticeParallelMapped(reader, filebuffer, bytes, latticeSize, scidacMapping);
+
+  if (status < 0 && status != LEMON_EOR)  {
+    fprintf(stderr, "[read_lime_contraction] LEMON read error occured with status = %d while reading!\nPanic! Aborting...\n", status);
+    MPI_File_close(reader->fp);
+    MPI_Abort(MPI_COMM_WORLD, 1);
+    MPI_Finalize();
+    exit(500);
+  }
+
+  for (t = 0; t <  T; t++) {
+  for (x = 0; x < LX; x++) {
+  for (y = 0; y < LY; y++) {
+  for (z = 0; z < LZ; z++) {
+    rank = (DML_SiteRank) ((((Tstart + t)*LX_global + x+LXstart)*LY_global + LYstart + y)*((DML_SiteRank)LZ_global) + LZstart + z);
+
+    current = filebuffer + bytes * (z + (y + (t * LX + x) * LY) * LZ);
+    ix  = g_ipt[t][x][y][z];
+    idx = 2 * (n_uint64_t)N * ix;
+
+    DML_checksum_accum( &checksum, rank, current, bytes);
+    if(!words_bigendian) {
+      if (prec == 32) {
+        byte_swap_assign_single2double( s+idx, current, 2*N );
+      } else  {
+        byte_swap_assign( s+idx, current, 2*N );
+      }
+    } else {
+      if (prec == 32) {
+        single2double( s+idx, current, 2*N );
+        
+      } else {
+        memcpy( s+idx, current, 2*N*sizeof(double));
+
+      }
+    }
+  }}}}
+  DML_global_xor( &checksum.suma );
+  DML_global_xor( &checksum.sumb );
+  if(g_cart_id==0) {
+    fprintf(stdout, "# [read_lime_contraction] checksum for contraction field %s is %#x %#x.\n", filename, checksum.suma, checksum.sumb);
+    fflush(stdout); 
+  }
+
+  lemonDestroyReader(reader);
+  MPI_File_close(ifs);
+  free(ifs);
+
+  free(filebuffer);
+  return(0);
+}  /* end of read_lime_contraction */
+#endif  /* end of HAVE_LIBLEMON defined */
 
 }  /* end of namespace cvc */
