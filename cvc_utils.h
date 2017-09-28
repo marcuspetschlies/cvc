@@ -136,6 +136,8 @@ int spinor_field_tm_rotation(double*s, double*r, int sign, int fermion_type, uns
 
 int check_cvc_wi_position_space (double *conn);
 
+int check_cvc_wi_momentum_space (double *conn);
+
 int assign_fermion_propagaptor_from_spinor_field (fermion_propagator_type *s, double**prop_list, unsigned int N);
 int assign_spinor_field_from_fermion_propagaptor (double**prop_list, fermion_propagator_type *s, unsigned int N);
 int assign_spinor_field_from_fermion_propagaptor_component (double*spinor_field, fermion_propagator_type *s, int icomp, unsigned int N);
@@ -187,6 +189,8 @@ void spinor_field_eq_gauge_field_fbwd_ti_spinor_field (double*r, double *gf, dou
 void fermion_propagator_field_eq_gamma_ti_fermion_propagator_field ( fermion_propagator_type *r, int gid, fermion_propagator_type *s, unsigned int N);
 
 void fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fermion_propagator_type *r, int gid, fermion_propagator_type *s, unsigned int N);
+
+void complex_field_norm_diff (double*d, double *r, double *s, unsigned int N);
 
 }  /* end of namespace cvc */
 #endif
