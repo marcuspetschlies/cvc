@@ -51,6 +51,7 @@ extern "C"
 #include "Q_phi.h"
 #include "read_input_parser.h"
 #include "scalar_products.h"
+#include "gauge_io.h"
 
 
 using namespace cvc;
@@ -162,21 +163,31 @@ int main(int argc, char **argv) {
 
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
-  if(!(strcmp(gaugefilename_prefix,"identity")==0)) {
+  if( strcmp(gaugefilename_prefix,"identity") == 0 ) {
+    /* initialize unit matrices */
+    if(g_cart_id==0) fprintf(stdout, "\n# [apply_Dtm] initializing unit matrices\n");
+    for(ix=0;ix<VOLUME;ix++) {
+      _cm_eq_id( g_gauge_field + _GGI(ix, 0) );
+      _cm_eq_id( g_gauge_field + _GGI(ix, 1) );
+      _cm_eq_id( g_gauge_field + _GGI(ix, 2) );
+      _cm_eq_id( g_gauge_field + _GGI(ix, 3) );
+    }
+  } else if ( strcmp(gaugefilename_prefix,"random") == 0 ) {
+    random_gauge_field( g_gauge_field, 1.);
+    plaquette(&plaq);
+    sprintf(filename, "conf.%.4d", Nconf);
+    exitstatus = write_lime_gauge_field( filename, plaq, Nconf, 64);
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[apply_Dtm] Error from write_lime_gauge_field, status was %d\n", exitstatus);
+      EXIT(1);
+    }
+
+  } else {
     /* read the gauge field */
     sprintf(filename, "%s.%.4d", gaugefilename_prefix, Nconf);
     if(g_cart_id==0) fprintf(stdout, "# [apply_Dtm] reading gauge field from file %s\n", filename);
       read_lime_gauge_field_doubleprec(filename);
-    } else {
-      /* initialize unit matrices */
-      if(g_cart_id==0) fprintf(stdout, "\n# [apply_Dtm] initializing unit matrices\n");
-      for(ix=0;ix<VOLUME;ix++) {
-        _cm_eq_id( g_gauge_field + _GGI(ix, 0) );
-        _cm_eq_id( g_gauge_field + _GGI(ix, 1) );
-        _cm_eq_id( g_gauge_field + _GGI(ix, 2) );
-        _cm_eq_id( g_gauge_field + _GGI(ix, 3) );
-      }
-    }
+  }
 #else
    Nconf = g_tmLQCD_lat.nstore;
    if(g_cart_id== 0) fprintf(stdout, "[apply_Dtm] Nconf = %d\n", Nconf);
