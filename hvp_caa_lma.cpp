@@ -60,6 +60,7 @@ extern "C"
 #include "project.h"
 #include "matrix_init.h"
 #include "clover.h"
+#include "fft.h"
 
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
@@ -75,11 +76,48 @@ void usage() {
   EXIT(0);
 }
 
+/******************************************************************
+ * DUMMY even-odd solver for testing
+ ******************************************************************/
 int dummy_eo_solver (double * const propagator, double * const source, const int op_id) {
   memcpy(propagator, source, _GSI(VOLUME)/2*sizeof(double) );
   return(0);
 }
 
+
+/******************************************************************
+ * half-point Fourier phase shift of hvp tensor
+ ******************************************************************/
+int hvp_tensor_ti_eq_halfpoint_ft_phase ( double***hvp_tensor_lexic, int sx[4] ) {
+
+  /* half-point Fourier phase shift */
+  for ( int x0 = 0; x0 <  T; x0++ ) {
+  for ( int x1 = 0; x1 < LX; x1++ ) {
+  for ( int x2 = 0; x2 < LY; x2++ ) {
+  for ( int x3 = 0; x3 < LZ; x3++ ) {
+    unsigned int ix = g_ipt[x0][x1][x2][x3];
+    double p[4] = {
+        M_PI * ( x0 + g_proc_coords[0] *  T ) / (double)T_global,
+        M_PI * ( x1 + g_proc_coords[1] * LX ) / (double)LX_global,
+        M_PI * ( x2 + g_proc_coords[2] * LY ) / (double)LY_global,
+        M_PI * ( x3 + g_proc_coords[3] * LZ ) / (double)LZ_global };
+
+    for ( int mu = 0; mu < 4; mu++ ) {
+    for ( int nu = 0; nu < 4; nu++ ) {
+      double phase = p[mu] - p[nu] - 2 * ( sx[0] * p[0] + sx[1] * p[1] + sx[2] * p[2] + sx[3] * p[3] );
+
+      double ephase[2] = { cos( phase ), sin ( phase ) };
+
+      double dtmp[2] = {
+        hvp_tensor_lexic[mu][nu] [2 * ix     ],
+        hvp_tensor_lexic[mu][nu] [2 * ix + 1 ] };
+
+      hvp_tensor_lexic[mu][nu][2*ix  ] = dtmp[0] * ephase[0] - dtmp[1] * ephase[1];
+      hvp_tensor_lexic[mu][nu][2*ix+1] = dtmp[1] * ephase[0] + dtmp[0] * ephase[1];
+
+    }}
+  }}}}
+}  /* end of hvp_tensor_ti_eq_halfpoint_ft_phase */
 
 #ifdef DUMMY_SOLVER 
 #  define _TMLQCD_INVERT_EO dummy_eo_solver
@@ -92,8 +130,9 @@ int main(int argc, char **argv) {
   /*
    * sign for g5 Gamma^\dagger g5
    *                                                0,  1,  2,  3, id,  5, 0_5, 1_5, 2_5, 3_5, 0_1, 0_2, 0_3, 1_2, 1_3, 2_3
-   * */
+   * 
   const int sequential_source_gamma_id_sign[16] ={ -1, -1, -1, -1, +1, +1,  +1,  +1,  +1,  +1,  -1,  -1,  -1,  -1,  -1,  -1 };
+   */
 
   const char outfile_prefix[] = "hvp";
 
@@ -446,8 +485,6 @@ int main(int argc, char **argv) {
     }  /* end of if io_proc == 2 */
 #endif
 
-
-
     /**********************************************************
      **********************************************************
      **
@@ -541,10 +578,57 @@ int main(int argc, char **argv) {
       }
     }
 
+    double ***cvc_tensor_lexic = NULL;
+    if ( ( exitstatus = init_3level_buffer( &cvc_tensor_lexic, 4, 4, 2*VOLUME ) ) != 0 ) {
+      fprintf(stderr, "[hvp_caa_lma] Error from init_3level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(24);
+    }
+
+
+    /******************************************************************
+     *
+     *
+     * TEST 
+     */
+
+    /* even-odd to lexic and 4-dim. Fourier transform */
+    int imunu = 0;
+    for ( int mu = 0; mu < 4; mu++ ) {
+    for ( int nu = 0; nu < 4; nu++ ) {
+      complex_field_eo2lexic ( cvc_tensor_lexic[mu][nu], cvc_tensor_eo[0]+2*imunu*Vhalf, cvc_tensor_eo[1]+2*imunu*Vhalf );
+
+      if ( ( exitstatus = ft_4dim ( cvc_tensor_lexic[mu][nu], cvc_tensor_lexic[mu][nu], 1, 3 ) ) != 0 ) {
+        fprintf(stderr, "[hvp_caa_lma] Error from ft_4dim, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(24);
+      }
+      imunu++;
+    }}
+
+    /* add half-point Fourier phase */
+    hvp_tensor_ti_eq_halfpoint_ft_phase ( cvc_tensor_lexic , gsx);
+
+    /* test Ward identity in momentum space */
+    exitstatus = check_cvc_wi_momentum_space ( cvc_tensor_lexic[0][0] );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[hvp_caa_lma] Error from check_cvc_wi_momentum_space, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(24);
+    }
+
+    fini_3level_buffer( &cvc_tensor_lexic );
+
+    /*
+     *
+     * END OF TEST
+     *
+     ******************************************************************/
+
+
     fini_2level_buffer( &cvc_tensor_eo );
 
     /***************************************************************************/
     /***************************************************************************/
+
+#if 0
 
     /***************************************************************************
      * local - cvc 2-point
@@ -578,12 +662,10 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[hvp_caa_lma] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(1);
     }
-#if 0
-#endif  /* if 0 */
+
 
     /***************************************************************************/
     /***************************************************************************/
-
 
     /***************************************************************************
      ***************************************************************************
@@ -856,6 +938,8 @@ int main(int argc, char **argv) {
 #endif  /* end of ifndef HAVE_MPI */
 #endif  /* of if 0 */
 
+#endif  /* if 0 */
+    
 #ifdef HAVE_LHPC_AFF
     if(io_proc == 2) {
       aff_status_str = (char*)aff_writer_close (affw);
