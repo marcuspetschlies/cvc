@@ -199,5 +199,14 @@ namespace cvc {
 #define _default_source_location_number 0
 #define _default_coherent_source_number 1
 
+#define _default_tr_id 0
+#define _default_xr_id 0
+#define _default_yr_id 0
+#define _default_zr_id 0
+#define _default_tr_nproc 1
+#define _default_xr_nproc 1
+#define _default_yr_nproc 1
+#define _default_zr_nproc 1
+
 }
 #endif
