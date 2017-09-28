@@ -5828,6 +5828,78 @@ int check_cvc_wi_position_space (double *conn) {
   return(0);
 }  /* end of check_cvc_wi_position_space */
 
+
+/********************************************
+ * check Ward-identity in momentum space
+ * for conn
+ ********************************************/
+
+int check_cvc_wi_momentum_space (double *conn) {
+
+  int exitstatus;
+  double ratime, retime;
+  double norm[2];
+
+  /********************************************
+   * check the Ward identity in momentum space 
+   ********************************************/
+  ratime = _GET_TIME;
+
+  /* half-point Fourier phase shift */
+  for ( int nu = 0; nu < 4; nu++ ) {
+
+    norm[0] = 0.;
+    norm[1] = 0.;
+    for ( int x0 = 0; x0 <  T; x0++ ) {
+    for ( int x1 = 0; x1 < LX; x1++ ) {
+    for ( int x2 = 0; x2 < LY; x2++ ) {
+    for ( int x3 = 0; x3 < LZ; x3++ ) {
+      double dnorm;
+      unsigned int ix = g_ipt[x0][x1][x2][x3];    
+      double p[4] = {
+          M_PI * ( x0 + g_proc_coords[0] *  T ) / (double)T_global,
+          M_PI * ( x1 + g_proc_coords[1] * LX ) / (double)LX_global,
+          M_PI * ( x2 + g_proc_coords[2] * LY ) / (double)LY_global,
+          M_PI * ( x3 + g_proc_coords[3] * LZ ) / (double)LZ_global };
+
+      double sinp[4] = { 2. * sin ( p[0] ), 2. * sin ( p[1] ), 2. * sin ( p[2] ), 2. * sin ( p[3] ) };
+
+      dnorm = sinp[0] * conn[_GWI(4*0+nu,ix,VOLUME)  ] + 
+              sinp[1] * conn[_GWI(4*1+nu,ix,VOLUME)  ] + 
+              sinp[2] * conn[_GWI(4*2+nu,ix,VOLUME)  ] + 
+              sinp[3] * conn[_GWI(4*3+nu,ix,VOLUME)  ];
+
+      norm[0] += dnorm * dnorm;
+
+      dnorm = sinp[0] * conn[_GWI(4*0+nu,ix,VOLUME)+1] + 
+              sinp[1] * conn[_GWI(4*1+nu,ix,VOLUME)+1] + 
+              sinp[2] * conn[_GWI(4*2+nu,ix,VOLUME)+1] + 
+              sinp[3] * conn[_GWI(4*3+nu,ix,VOLUME)+1];
+
+      norm[1] += dnorm * dnorm;
+
+    }}}}
+#ifdef HAVE_MPI
+    double dtmp[2] = { norm[0], norm[1] };
+    if ( (exitstatus = MPI_Allreduce ( dtmp, norm, 2, MPI_DOUBLE, MPI_SUM, g_cart_grid ) ) != MPI_SUCCESS ) {
+      fprintf(stderr, "[check_cvc_wi_momentum_space] Error from MPI_Allreduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      return(1);
+    }
+#endif
+    norm[0] = sqrt ( norm[0] );
+    norm[1] = sqrt ( norm[1] );
+    if ( g_cart_id == 0 ) {
+      fprintf(stdout, "# [check_cvc_wi_momentum_space] nu %3d norm %25.16e %25.16e\n", nu, norm[0], norm[1] );
+    }
+  }
+
+  retime = _GET_TIME;
+  if(g_cart_id==0) fprintf(stdout, "# [check_cvc_wi_momentum_space] time for saving momentum space results = %e seconds\n", retime-ratime);
+
+  return(0);
+}  /* end of check_cvc_wi_momentum_space */
+
+
 /***************************************************
  * rotate fermion propagator field from
  * twisted to physical basis (depending on sign)
@@ -6906,5 +6978,63 @@ void fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fermion_pro
 }  /* end of parallel region */
 #endif
 }  /* fermion_propagator_field_eq_fermion_propagator_field_ti_gamma */
+
+
+/****************************************************************************
+ * d = || r - s ||
+ ****************************************************************************/
+void complex_field_norm_diff (double*d, double *r, double *s, unsigned int N) {
+
+  double daccum = 0.;
+  int exitstatus;
+
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+#endif
+
+#ifdef HAVE_OPENMP
+  omp_init_lock( &writelock );
+#pragma omp parallel default(shared) shared(d,r,s,N,daccum)
+{
+#endif
+  double daccumt = 0.;
+  double *r_ = NULL, *s_ = NULL;
+  double dre, dim;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for( unsigned int ix = 0; ix < N; ix++ ) {
+    r_ = r + 2*ix;
+    s_ = s + 2*ix;
+    dre = r_[0] - s_[0];
+    dim = r_[1] - s_[1];
+
+    daccumt += dre * dre + dim * dim;
+  }
+#ifdef HAVE_OPENMP
+  omp_set_lock( &writelock );
+  daccum += daccumt;
+  omp_unset_lock(&writelock);
+
+}  /* end of parallel region */
+
+  omp_destroy_lock( &writelock );
+#else
+  daccum = daccumt;
+#endif
+
+#ifdef HAVE_MPI
+  double daccumt = 0.;
+  if ( (exitstatus = MPI_Allreduce( &daccum, &daccumt, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid ) ) != 0 ) {
+    fprintf(stderr, "[complex_field_norm_diff] Error from MPI_Allreduce, status was %d\n", exitstatus );
+    EXIT(1);
+  }
+
+  *d = sqrt( daccumt );
+#else
+  *d = sqrt( daccum  );
+#endif
+}  /* end of complex_field_norm_diff */
 
 }  /* end of namespace cvc */
