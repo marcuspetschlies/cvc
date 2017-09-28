@@ -815,7 +815,11 @@ int prepare_clover_eo_stochastic_timeslice_propagator (
 
     /* invert */
     memset(eo_spinor_work[1], 0, sizeof_eo_spinor_field);
+#ifdef HAVE_TMLQCD_LIBWRAPPER
     exitstatus = tmLQCD_invert_eo(eo_spinor_work[1], eo_spinor_work[0], op_id);
+#else
+    exitstatus = 1;
+#endif
     if(exitstatus != 0) {
       fprintf(stderr, "[prepare_clover_eo_stochastic_timeslice_propagator] Error from tmlqcd_invert_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(19);
