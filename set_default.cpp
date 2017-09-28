@@ -40,6 +40,17 @@ void set_default_input_values(void) {
   g_nproc_z   = _default_nproc_z;
   g_ts_id     = _default_ts_id;
   g_xs_id     = _default_xs_id;
+
+  g_tr_id     = _default_tr_id;
+  g_xr_id     = _default_xr_id;
+  g_yr_id     = _default_yr_id;
+  g_zr_id     = _default_zr_id;
+
+  g_tr_nproc  = _default_tr_nproc;
+  g_xr_nproc  = _default_xr_nproc;
+  g_yr_nproc  = _default_yr_nproc;
+  g_zr_nproc  = _default_zr_nproc;
+
 /*  g_ys_id     = _default_ys_id; */
   g_proc_coords[0] = 0;
   g_proc_coords[1] = 0;
