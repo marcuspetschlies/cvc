@@ -63,11 +63,13 @@ void contract_cvc_loop_eo_lma_wi ( double **wi, double**eo_evecs_field, double *
 
 int cvc_loop_eo_check_wi_position_space_lma ( double ***wwi, double ***loop_lma, double **eo_evecs_field, double *evecs_norm, int nev, double *gauge_field, double **mzz[2], double **mzzinv[2]  );
 
-int cvc_loop_eo_momentum_projection (double****loop_tp, double***loop_eo, int (*momentum_list)[3], int momentum_number);
+int cvc_loop_eo_momentum_projection (double****loop_tp, double***loop_eo, int nf, int (*momentum_list)[3], int momentum_number);
 
-int cvc_loop_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, char*tag, int (*momentum_list)[3], int momentum_number, int io_proc );
+int cvc_loop_tp_write_to_aff_file (double***cvc_tp, int nf, struct AffWriter_s*affw, char*tag, int (*momentum_list)[3], int momentum_number, int io_proc );
 
 int cvc_loop_eo_check_wi_momentum_space_lma ( double **wi, double ***loop_lma, int (*momentum_list)[3], int momentum_number  );
+
+void contract_cvc_loop_eo_stoch ( double ***loop, double**eo_stochastic_propagator, double**eo_stochastic_source, double *eo_stochastic_norm, int nsample, double*gauge_field, double **mzz[2], double **mzzinv[2]);
 
 int vdag_w_spin_color_reduction ( double ***contr, double**V, double**W, int dimV, int dimW, int t );
 
@@ -78,6 +80,16 @@ int vdag_w_write_to_aff_file ( double _Complex ***cvc_tp, int nv, int nw, struct
 int contract_cvc_tensor_eo_lm_factors ( double**eo_evecs_field, int nev, double*gauge_field, double **mzz[2], double **mzzinv[2],
     struct AffWriter_s **affw, char*tag,
     int (*momentum_list)[3], int momentum_number, int io_proc, int block_length );
+
+
+int cvc_loop_eo_momentum_shift (double***cvc_tp, int (*momentum_list)[3], int momentum_number);
+
+void contract_local_loop_eo_lma ( double ***loop, double**eo_evecs_field, double *eo_evecs_norm, int nev, double*gauge_field, double **mzz[2], double **mzzinv[2]);
+
+void contract_local_loop_eo_stoch ( double ***loop, double**eo_stochastic_propagator, double**eo_stochastic_source, double *eo_stochastic_norm, int nsample, double*gauge_field, double **mzz[2], double **mzzinv[2]);
+
+int co_eq_complex_field_convolute_photon_scalar ( double *c, double *r, int init );
+
 
 }  /* end of namespace cvc */
 

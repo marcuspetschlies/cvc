@@ -1801,7 +1801,7 @@ int cvc_loop_eo_check_wi_position_space_lma ( double ***wwi, double ***loop_lma,
  * momentum projections
  ***************************************************************************/
 
-int cvc_loop_eo_momentum_projection (double****loop_tp, double***loop_eo, int (*momentum_list)[3], int momentum_number) {
+int cvc_loop_eo_momentum_projection (double****loop_tp, double***loop_eo, int nf, int (*momentum_list)[3], int momentum_number) {
 
   int exitstatus;
   double ***cvc_tp = NULL, *cvc_loop_lexic=NULL;
@@ -1810,7 +1810,7 @@ int cvc_loop_eo_momentum_projection (double****loop_tp, double***loop_eo, int (*
   ratime = _GET_TIME;
 
   if ( *loop_tp == NULL ) {
-    exitstatus = init_3level_buffer( loop_tp, momentum_number, 4, 2*T);
+    exitstatus = init_3level_buffer( loop_tp, momentum_number, nf, 2*T);
     if(exitstatus != 0) {
       fprintf(stderr, "[cvc_loop_eo_momentum_projection] Error from init_3level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       return(1);
@@ -1818,22 +1818,41 @@ int cvc_loop_eo_momentum_projection (double****loop_tp, double***loop_eo, int (*
   }
   cvc_tp = *loop_tp;
 
-  cvc_loop_lexic = (double*)malloc( 8 * VOLUME * sizeof(double));
+  cvc_loop_lexic = (double*)malloc( 2 * nf * VOLUME * sizeof(double));
   if( cvc_loop_lexic == NULL ) {
     fprintf(stderr, "[cvc_loop_eo_momentum_projection] Error from malloc %s %d\n", __FILE__, __LINE__);
     return(2);
   }
-  for ( int mu = 0; mu < 4; mu++ ) {
+  for ( int mu = 0; mu < nf; mu++ ) {
     complex_field_eo2lexic ( cvc_loop_lexic+2*mu*VOLUME, loop_eo[0][mu], loop_eo[1][mu] );
   }
 
-  exitstatus = momentum_projection (cvc_loop_lexic, cvc_tp[0][0], T*4, momentum_number, momentum_list);
+  exitstatus = momentum_projection (cvc_loop_lexic, cvc_tp[0][0], T*nf, momentum_number, momentum_list);
   if(exitstatus != 0) {
     fprintf(stderr, "[cvc_loop_eo_momentum_projection] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     return(3);
   }
   free ( cvc_loop_lexic );
 
+  retime = _GET_TIME;
+  if( g_cart_id == 0 ) fprintf(stdout, "# [cvc_loop_eo_momentum_projection] time for momentum projection = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+
+  return(0);
+}  /* end of cvc_loop_eo_momentum_projection */
+
+/***************************************************************************
+ * momentum shift
+ ***************************************************************************/
+
+int cvc_loop_eo_momentum_shift (double***cvc_tp, int (*momentum_list)[3], int momentum_number) {
+
+  double retime, ratime;
+
+  ratime = _GET_TIME;
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
   for ( int ip = 0; ip < momentum_number; ip++) {
     double dtmp[2], phase[2];
     double pvec[3] = { 
@@ -1856,17 +1875,17 @@ int cvc_loop_eo_momentum_projection (double****loop_tp, double***loop_eo, int (*
   }
 
   retime = _GET_TIME;
-  if( g_cart_id == 0 ) fprintf(stdout, "# [cvc_loop_eo_momentum_projection] time for momentum projection = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+  if( g_cart_id == 0 ) fprintf(stdout, "# [cvc_loop_eo_momentum_shift] time for momentum shift = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
 
   return(0);
-}  /* end of cvc_loop_eo_momentum_projection */
+}  /* end of cvc_loop_eo_momentum_shift */
 
 
 /***************************************************************************
  * write tp-loop results to file
  ***************************************************************************/
 
-int cvc_loop_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, char*tag, int (*momentum_list)[3], int momentum_number, int io_proc ) {
+int cvc_loop_tp_write_to_aff_file (double***cvc_tp, int nf, struct AffWriter_s*affw, char*tag, int (*momentum_list)[3], int momentum_number, int io_proc ) {
 
   int exitstatus, i;
   double ratime, retime;
@@ -1882,7 +1901,7 @@ int cvc_loop_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, cha
       return(1);
     }
 
-    zbuffer = (double _Complex*)malloc(  momentum_number * 4 * T_global * sizeof(double _Complex) );
+    zbuffer = (double _Complex*)malloc(  momentum_number * nf * T_global * sizeof(double _Complex) );
     if( zbuffer == NULL ) {
       fprintf(stderr, "[cvc_loop_tp_write_to_aff_file] Error from malloc %s %d\n", __FILE__, __LINE__);
       return(6);
@@ -1892,14 +1911,14 @@ int cvc_loop_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, cha
   ratime = _GET_TIME;
 
   /* reorder cvc_tp into buffer with order time - munu - momentum */
-  buffer = (double*)malloc(  momentum_number * 8 * T * sizeof(double) );
+  buffer = (double*)malloc(  momentum_number * 2 * nf * T * sizeof(double) );
   if( buffer == NULL ) {
     fprintf(stderr, "[cvc_loop_tp_write_to_aff_file] Error from malloc %s %d\n", __FILE__, __LINE__);
     return(6);
   }
   i = 0;
   for( int it = 0; it < T; it++ ) {
-    for( int mu=0; mu<4; mu++ ) {
+    for( int mu = 0; mu < nf; mu++ ) {
       for( int ip=0; ip < momentum_number; ip++) {
         buffer[i++] = cvc_tp[ip][mu][2*it  ];
         buffer[i++] = cvc_tp[ip][mu][2*it+1];
@@ -1908,7 +1927,7 @@ int cvc_loop_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, cha
   }
 
 #ifdef HAVE_MPI
-  i = momentum_number * 8 * T;
+  i = momentum_number * 2 * nf * T;
 #  if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) 
   if(io_proc>0) {
     exitstatus = MPI_Gather(buffer, i, MPI_DOUBLE, zbuffer, i, MPI_DOUBLE, 0, g_tr_comm);
@@ -1926,23 +1945,23 @@ int cvc_loop_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, cha
 #  endif
 
 #else
-  memcpy(zbuffer, buffer, momentum_number * 8 * T * sizeof(double) );
+  memcpy(zbuffer, buffer, momentum_number * 2 * nf * T * sizeof(double) );
 #endif
   free( buffer );
 
   if(io_proc == 2) {
 
     /* reverse the ordering back to momentum - munu - time */
-    aff_buffer = (double _Complex*)malloc( momentum_number * 8 * T_global * sizeof(double _Complex) );
+    aff_buffer = (double _Complex*)malloc( momentum_number * nf * T_global * sizeof(double _Complex) );
     if(aff_buffer == NULL) {
       fprintf(stderr, "[cvc_loop_tp_write_to_aff_file] Error from malloc %s %d\n", __FILE__, __LINE__);
       return(2);
     }
     i = 0;
     for( int ip=0; ip<momentum_number; ip++) {
-      for( int mu=0; mu < 4; mu++ ) {
+      for( int mu = 0; mu < nf; mu++ ) {
         for( int it = 0; it < T_global; it++ ) {
-          int offset = (it * 4 + mu ) * momentum_number + ip;
+          int offset = (it * nf + mu ) * momentum_number + ip;
           aff_buffer[i++] = zbuffer[offset];
         }
       }
@@ -1950,11 +1969,11 @@ int cvc_loop_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, cha
     free( zbuffer );
 
     for(i=0; i < momentum_number; i++) {
-      for ( int mu = 0; mu < 4; mu++ ) {
+      for ( int mu = 0; mu < nf; mu++ ) {
         sprintf(aff_buffer_path, "%s/px%.2dpy%.2dpz%.2d/mu%d", tag, momentum_list[i][0], momentum_list[i][1], momentum_list[i][2], mu );
         /* fprintf(stdout, "# [cvc_loop_tp_write_to_aff_file] current aff path = %s\n", aff_buffer_path); */
         affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
-        exitstatus = aff_node_put_complex (affw, affdir, aff_buffer+T_global*(4 * i + mu), (uint32_t)T_global);
+        exitstatus = aff_node_put_complex (affw, affdir, aff_buffer+T_global*( nf * i + mu), (uint32_t)T_global);
         if(exitstatus != 0) {
           fprintf(stderr, "[cvc_loop_tp_write_to_aff_file] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           return(5);
@@ -2081,6 +2100,95 @@ int cvc_loop_eo_check_wi_momentum_space_lma ( double **wi, double ***loop_lma, i
   return(0);
 }  /* end of cvc_loop_eo_check_wi_momentum_space_lma */
 
+
+/***********************************************************
+ *
+ ***********************************************************/
+void contract_cvc_loop_eo_stoch ( double ***loop, double**eo_stochastic_propagator, double**eo_stochastic_source, double *eo_stochastic_norm, int nsample, double*gauge_field, double **mzz[2], double **mzzinv[2]) {
+
+  const unsigned int Vhalf = VOLUME / 2;
+  const size_t sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof(double);
+  int exitstatus;
+
+  double ratime, retime;
+  double **eo_spinor_work = NULL, **eo_spinor_field = NULL;
+  double *xi = NULL, *phi = NULL, *xxi = NULL, *xphi = NULL;
+
+  ratime= _GET_TIME;
+
+  exitstatus = init_2level_buffer ( &eo_spinor_work, 2, _GSI( (VOLUME+RAND)/2 ) );
+  if ( exitstatus != 0 ) {
+    fprintf(stdout, "[contract_cvc_loop_eo_stoch] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(1);
+  }
+  exitstatus = init_2level_buffer ( &eo_spinor_field, 4, _GSI( Vhalf ) );
+  if ( exitstatus != 0 ) {
+    fprintf(stdout, "[contract_cvc_loop_eo_stoch] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(2);
+  }
+  xi   = eo_spinor_field[0];
+  xxi  = eo_spinor_field[1];
+  phi  = eo_spinor_field[2];
+  xphi = eo_spinor_field[3];
+
+  /* loop on eigenvectors */
+  for ( int i = 0; i < nsample; i++) {
+    /* xi */
+    memcpy ( xi, eo_stochastic_source[i], sizeof_eo_spinor_field );
+
+    /* phi */
+    memcpy ( phi, eo_stochastic_propagator[i], sizeof_eo_spinor_field );
+
+    /* xxi <- Xbar xi */
+    memcpy ( eo_spinor_work[0], xi, sizeof_eo_spinor_field );
+    X_clover_eo ( xxi, eo_spinor_work[0], gauge_field, mzzinv[1][0]);
+
+    /* xphi <- X phi */
+    memcpy ( eo_spinor_work[0], phi, sizeof_eo_spinor_field );
+    X_clover_eo ( xphi, eo_spinor_work[0], gauge_field, mzzinv[0][0]);
+
+    for ( int mu = 0; mu < 4; mu++ ) {
+
+      /* xi^+ g5 Gamma_mu^f X phi */
+      memcpy ( eo_spinor_work[0], xphi, sizeof_eo_spinor_field );
+      apply_cvc_vertex_eo( eo_spinor_work[1], eo_spinor_work[0], mu, 0, gauge_field, 1);
+      g5_phi( eo_spinor_work[1], Vhalf);
+      co_field_pl_eq_fv_dag_ti_fv ( loop[1][mu], xi, eo_spinor_work[1], Vhalf );
+
+      /* (Xbar xi)^+ g5 Gamma_mu^f phi */
+      memcpy ( eo_spinor_work[0], phi, sizeof_eo_spinor_field );
+      apply_cvc_vertex_eo( eo_spinor_work[1], eo_spinor_work[0], mu, 0, gauge_field, 0);
+      g5_phi( eo_spinor_work[1], Vhalf);
+      co_field_pl_eq_fv_dag_ti_fv ( loop[0][mu], xxi, eo_spinor_work[1], Vhalf );
+
+      /* -( g5 Gamma_mu^f Xbar xi )^+ phi */
+      memcpy ( eo_spinor_work[0], xxi, sizeof_eo_spinor_field );
+      apply_cvc_vertex_eo( eo_spinor_work[1], eo_spinor_work[0], mu, 0, gauge_field, 1);
+      g5_phi( eo_spinor_work[1], Vhalf);
+      co_field_mi_eq_fv_dag_ti_fv ( loop[1][mu], eo_spinor_work[1], phi, Vhalf );
+
+      /* -( g5 Gamma_mu^f xi )^+ (X phi ) */
+      memcpy ( eo_spinor_work[0], xi, sizeof_eo_spinor_field );
+      apply_cvc_vertex_eo( eo_spinor_work[1], eo_spinor_work[0], mu, 0, gauge_field, 0);
+      g5_phi( eo_spinor_work[1], Vhalf);
+      co_field_mi_eq_fv_dag_ti_fv ( loop[0][mu], eo_spinor_work[1], xphi, Vhalf );
+
+    }  /* end of loop on mu */
+
+  }  /* end of loop on eigenvectors */
+
+  fini_2level_buffer ( &eo_spinor_work );
+  fini_2level_buffer ( &eo_spinor_field );
+
+  retime = _GET_TIME;
+  if (g_cart_id == 0 ) fprintf(stdout, "# [contract_cvc_loop_eo_stoch] time for contract_cvc_loop_eo_stoch = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+
+  return;
+
+}  /* end of contract_cvc_loop_eo_stoch */
+
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  * contractions for eo-precon lm cvc - cvc tensor
@@ -2526,5 +2634,270 @@ int vdag_w_write_to_aff_file ( double _Complex ***contr_tp, int nv, int nw, stru
 
   return(0);
 }  /* end of vdag_w_write_to_aff_file */
+
+
+/***********************************************************
+ * contract eo-precon low-mode part of local loops
+ ***********************************************************/
+void contract_local_loop_eo_lma ( double ***loop, double**eo_evecs_field, double *eo_evecs_norm, int nev, double*gauge_field, double **mzz[2], double **mzzinv[2]) {
+
+  const unsigned int Vhalf = VOLUME / 2;
+  const size_t sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof(double);
+  int exitstatus;
+
+  double ratime, retime;
+  double **eo_spinor_work = NULL, **eo_spinor_field = NULL;
+  double *v = NULL, *w = NULL, *xv = NULL, *xw = NULL;
+
+  ratime= _GET_TIME;
+
+  exitstatus = init_2level_buffer ( &eo_spinor_work, 2, _GSI( (VOLUME+RAND)/2 ) );
+  if ( exitstatus != 0 ) {
+    fprintf(stdout, "[contract_cvc_loop_eo] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(1);
+  }
+  exitstatus = init_2level_buffer ( &eo_spinor_field, 4, _GSI( Vhalf ) );
+  if ( exitstatus != 0 ) {
+    fprintf(stdout, "[contract_cvc_loop_eo] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(2);
+  }
+  v  = eo_spinor_field[0];
+  xv = eo_spinor_field[1];
+  w  = eo_spinor_field[2];
+  xw = eo_spinor_field[3];
+
+  /* loop on eigenvectors */
+  for ( int i = 0; i < nev; i++) {
+    /* V */
+    memcpy ( v, eo_evecs_field[i], sizeof_eo_spinor_field );
+
+    /* double norm;
+    spinor_scalar_product_re( &norm, v, v, Vhalf);
+    fprintf(stdout, "# [contract_cvc_loop_eo_lma] V norm %3d %25.16e\n", i, norm); */
+
+    /* Xbar V */
+    memcpy ( eo_spinor_work[0], v, sizeof_eo_spinor_field );
+    X_clover_eo ( xv, eo_spinor_work[0], gauge_field, mzzinv[1][0]);
+
+    /* W from V and Xbar V */
+    memcpy ( w, v,  sizeof_eo_spinor_field );
+    memcpy ( eo_spinor_work[0],  xv, sizeof_eo_spinor_field );
+    C_clover_from_Xeo ( w, eo_spinor_work[0], eo_spinor_work[1], gauge_field, mzz[1][1]);
+    spinor_field_ti_eq_re ( w, eo_evecs_norm[i], Vhalf);
+
+    /* spinor_scalar_product_re( &norm, w, w, Vhalf);
+    norm /= sqrt(eo_evecs_norm[i]);
+    fprintf(stdout, "# [contract_cvc_loop_eo_lma] W norm %3d %25.16e\n", i, norm); */
+
+    /* X W from W */
+    memcpy ( eo_spinor_work[0], w, sizeof_eo_spinor_field );
+    X_clover_eo ( xw, eo_spinor_work[0], gauge_field, mzzinv[0][0]);
+
+    /* v <- g5 v */
+    g5_phi( v, Vhalf);
+    /* xv <- g5 xv */
+    g5_phi( xv, Vhalf);
+
+    for ( int mu = 0; mu < 16; mu++ ) {
+
+      /* (Xbar V)^+ g5 Gamma_mu X W */
+      spinor_field_eq_gamma_ti_spinor_field ( eo_spinor_work[0], mu, xw, Vhalf );
+      co_field_pl_eq_fv_dag_ti_fv ( loop[0][mu], xv, eo_spinor_work[0], Vhalf );
+
+      /* V^+ g5 Gamma_mu W */
+      spinor_field_eq_gamma_ti_spinor_field ( eo_spinor_work[0], mu, w, Vhalf );
+      co_field_pl_eq_fv_dag_ti_fv ( loop[1][mu], v, eo_spinor_work[0], Vhalf );
+
+    }  /* end of loop on mu */
+
+  }  /* end of loop on eigenvectors */
+
+  fini_2level_buffer ( &eo_spinor_work );
+  fini_2level_buffer ( &eo_spinor_field );
+
+  retime = _GET_TIME;
+  if (g_cart_id == 0 ) fprintf(stdout, "# [contract_cvc_loop_eo_lma] time for contract_cvc_loop_eo_lma_wi = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+
+  return;
+
+}  /* end of contract_local_loop_eo_lma */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * purely stochastic part for eo-precon loops
+ ***********************************************************/
+void contract_local_loop_eo_stoch ( double ***loop, double**eo_stochastic_propagator, double**eo_stochastic_source, double *eo_stochastic_norm, int nsample, double*gauge_field, double **mzz[2], double **mzzinv[2]) {
+
+  const unsigned int Vhalf = VOLUME / 2;
+  const size_t sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof(double);
+  int exitstatus;
+
+  double ratime, retime;
+  double **eo_spinor_work = NULL, **eo_spinor_field = NULL;
+  double *xi = NULL, *phi = NULL, *xxi = NULL, *xphi = NULL;
+
+  ratime= _GET_TIME;
+
+  exitstatus = init_2level_buffer ( &eo_spinor_work, 2, _GSI( (VOLUME+RAND)/2 ) );
+  if ( exitstatus != 0 ) {
+    fprintf(stdout, "[contract_local_loop_eo_stoch] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(1);
+  }
+  exitstatus = init_2level_buffer ( &eo_spinor_field, 4, _GSI( Vhalf ) );
+  if ( exitstatus != 0 ) {
+    fprintf(stdout, "[contract_local_loop_eo_stoch] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(2);
+  }
+  xi   = eo_spinor_field[0];
+  xxi  = eo_spinor_field[1];
+  phi  = eo_spinor_field[2];
+  xphi = eo_spinor_field[3];
+
+  /* loop on eigenvectors */
+  for ( int i = 0; i < nsample; i++) {
+    /* xi */
+    memcpy ( xi, eo_stochastic_source[i], sizeof_eo_spinor_field );
+
+    /* phi */
+    memcpy ( phi, eo_stochastic_propagator[i], sizeof_eo_spinor_field );
+
+    /* xxi <- Xbar xi */
+    memcpy ( eo_spinor_work[0], xi, sizeof_eo_spinor_field );
+    X_clover_eo ( xxi, eo_spinor_work[0], gauge_field, mzzinv[1][0]);
+
+    /* xphi <- X phi */
+    memcpy ( eo_spinor_work[0], phi, sizeof_eo_spinor_field );
+    X_clover_eo ( xphi, eo_spinor_work[0], gauge_field, mzzinv[0][0]);
+
+
+    g5_phi ( phi, Vhalf );
+    g5_phi ( xphi, Vhalf );
+
+    for ( int mu = 0; mu < 16; mu++ ) {
+
+      /* X xi^+ g5 Gamma_mu X phi */
+      spinor_field_eq_gamma_ti_spinor_field ( eo_spinor_work[0], mu, xxi, Vhalf );
+      co_field_pl_eq_fv_dag_ti_fv ( loop[0][mu], xphi, eo_spinor_work[0], Vhalf );
+
+      /* xi^+ g5 Gamma_mu phi */
+      spinor_field_eq_gamma_ti_spinor_field ( eo_spinor_work[0], mu, xi, Vhalf );
+      co_field_pl_eq_fv_dag_ti_fv ( loop[1][mu], phi, eo_spinor_work[0], Vhalf );
+
+    }  /* end of loop on mu */
+
+  }  /* end of loop on eigenvectors */
+
+  fini_2level_buffer ( &eo_spinor_work );
+  fini_2level_buffer ( &eo_spinor_field );
+
+  retime = _GET_TIME;
+  if (g_cart_id == 0 ) fprintf(stdout, "# [contract_local_loop_eo_stoch] time for contract_cvc_loop_eo_stoch = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+
+  return;
+
+}  /* end of contract_local_loop_eo_stoch */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * convolute a complex field with lattice photon 
+ * in momentum space in Feynman gauge
+ *
+ * G(p) = 1 / phat^2
+ ***********************************************************/
+int co_eq_complex_field_convolute_photon_scalar ( double *c, double *r, int init ) {
+
+  int exitstatus;
+  static double *photon_propagator = NULL;
+  double ratime, retime;
+  double c_accum[2] = {0., 0.};
+
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+#endif
+
+
+  ratime = _GET_TIME;
+
+  if ( init == 1 || init == 3 ) {
+    if ( photon_propagator != NULL ) free ( photon_propagator );
+    photon_propagator = ( double * ) malloc ( VOLUME * sizeof (double) );
+    if ( photon_propagator == NULL ) {
+      fprintf(stderr, "[co_eq_complex_field_convolute_photon_scalar] Error from malloc %s %d\n", __FILE__, __LINE__);
+      return(1);
+    }
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+    for ( int x0 = 0; x0 <  T; x0++ ) {
+      double p0 = sin ( M_PI * ( x0 + g_proc_coords[0] *  T ) / (double)T_global );
+    for ( int x1 = 0; x1 < LX; x1++ ) {
+      double p1 = sin ( M_PI * ( x1 + g_proc_coords[1] * LX ) / (double)LX_global );
+    for ( int x2 = 0; x2 < LY; x2++ ) {
+      double p2 = sin ( M_PI * ( x2 + g_proc_coords[2] * LY ) / (double)LY_global );
+    for ( int x3 = 0; x3 < LZ; x3++ ) {
+      double p3 = sin ( M_PI * ( x3 + g_proc_coords[3] * LZ ) / (double)LZ_global );
+
+      unsigned int ix = g_ipt[x0][x1][x2][x3];
+
+      photon_propagator[ix] = ( ix == 0 ) ? 0. : 0.25 / ( p0 * p0 + p1 * p1 + p2 * p2 + p3 * p3 );
+    }}}}
+  }
+
+#ifdef HAVE_OPENMP
+  omp_init_lock( &writelock );
+
+#pragma omp parallel shared( c_accum, r )
+{
+#endif
+  double dtmp[2] = {0. ,0.};
+  double *r_ = NULL;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for ( unsigned int ix = 0; ix < VOLUME; ix++  ) {
+    r_ = r + 2*ix;
+    dtmp[0] += photon_propagator[ix] * r_[0];
+    dtmp[1] += photon_propagator[ix] * r_[1];
+  }
+#ifdef HAVE_OPENMP
+  omp_set_lock( &writelock );
+  c_accum[0] += dtmp[0];
+  c_accum[1] += dtmp[1];
+  omp_unset_lock( &writelock );
+
+}  /* end of parallel region */
+
+  omp_destroy_lock( &writelock );
+#else
+  c_accum[0] = dtmp[0];
+  c_accum[1] = dtmp[1];
+#endif
+
+#ifdef HAVE_MPI
+  double c_tmp[2] = { c_accum[0], c_accum[1] };
+  if ( (exitstatus = MPI_Allreduce( c_tmp, c_accum, 2, MPI_DOUBLE, MPI_SUM, g_cart_grid ) ) != 0 ) {
+    fprintf(stderr, "[co_eq_complex_field_convolute_photon_scalar] Error from MPI_Allreduce, status was %d\n", exitstatus );
+    return(1);
+  }
+#endif
+
+  c[0] = c_accum[0];
+  c[1] = c_accum[1];
+
+  if ( init == 2 || init == 3 ) {
+    free ( photon_propagator );
+    photon_propagator = NULL;
+  }
+
+  retime = _GET_TIME;
+  if (g_cart_id == 0 ) fprintf(stdout, "# [co_eq_complex_field_convolute_photon_scalar] time for co_eq_complex_field_convolute_photon_scalar = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+  return(0);
+}  /* co_eq_complex_field_convolute_photon_scalar */
 
 }  /* end of namespace cvc */
