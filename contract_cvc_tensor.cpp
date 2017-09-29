@@ -2805,8 +2805,9 @@ void contract_local_loop_eo_stoch ( double ***loop, double**eo_stochastic_propag
 /***********************************************************
  * convolute a complex field with lattice photon 
  * in momentum space in Feynman gauge
+ * sum to scalar
  *
- * G(p) = 1 / phat^2
+ * G(p) = 1 / phat^2 if pvec != 0, 0 else
  ***********************************************************/
 int co_eq_complex_field_convolute_photon_scalar ( double *c, double *r, int init ) {
 
@@ -2904,6 +2905,84 @@ int co_eq_complex_field_convolute_photon_scalar ( double *c, double *r, int init
 /***********************************************************/
 
 /***********************************************************
+ * convolute a complex field with lattice photon 
+ * in momentum space in Feynman gauge
+ *
+ * G_{mu, nu} (p) = delta_{mu,nu}  / phat^2, 
+ * inplace is okay
+ ***********************************************************/
+int co_eq_complex_field_convolute_photon ( double **r, double **s, int init ) {
+
+  int exitstatus;
+  static double *photon_propagator = NULL;
+  double ratime, retime;
+
+  ratime = _GET_TIME;
+
+  if ( init == 1 || init == 3 ) {
+    if ( photon_propagator != NULL ) free ( photon_propagator );
+    photon_propagator = ( double * ) malloc ( VOLUME * sizeof (double) );
+    if ( photon_propagator == NULL ) {
+      fprintf(stderr, "[co_eq_complex_field_convolute_photon] Error from malloc %s %d\n", __FILE__, __LINE__);
+      return(1);
+    }
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+    for ( int x0 = 0; x0 <  T; x0++ ) {
+      double p0 = sin ( M_PI * ( x0 + g_proc_coords[0] *  T ) / (double)T_global );
+    for ( int x1 = 0; x1 < LX; x1++ ) {
+      double p1 = sin ( M_PI * ( x1 + g_proc_coords[1] * LX ) / (double)LX_global );
+    for ( int x2 = 0; x2 < LY; x2++ ) {
+      double p2 = sin ( M_PI * ( x2 + g_proc_coords[2] * LY ) / (double)LY_global );
+    for ( int x3 = 0; x3 < LZ; x3++ ) {
+      double p3 = sin ( M_PI * ( x3 + g_proc_coords[3] * LZ ) / (double)LZ_global );
+
+      unsigned int ix = g_ipt[x0][x1][x2][x3];
+
+      photon_propagator[ix] = ( x1 == 0 && x2 == 0 && x3 == 0 ) ? 0. : 0.25 / ( p0 * p0 + p1 * p1 + p2 * p2 + p3 * p3 );
+    }}}}
+  }
+
+  for ( int mu = 0; mu < 4; mu++ ) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel shared( r , s)
+{
+#endif
+    unsigned int iix;
+    double *s_ = NULL, *r_ = NULL;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for ( unsigned int ix = 0; ix < VOLUME; ix++  ) {
+      iix = 2 * ix;
+      r_ = r[mu] + iix;
+      s_ = s[mu] + iix;
+      r_[0] = photon_propagator[ix] * s_[0];
+      r_[1] = photon_propagator[ix] * s_[1];
+    }
+
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+  }  /* end of loop on mu */
+
+  if ( init == 2 || init == 3 ) {
+    free ( photon_propagator );
+    photon_propagator = NULL;
+  }
+
+  retime = _GET_TIME;
+  if (g_cart_id == 0 ) fprintf(stdout, "# [co_eq_complex_field_convolute_photon] time for co_eq_complex_field_convolute_photon = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+  return(0);
+}  /* co_eq_complex_field_convolute_photon */
+
+/***********************************************************/
+/***********************************************************/
+/***********************************************************
  *
  ***********************************************************/
 int co_field_eq_jj_disc_tensor_trace ( double *r, double**j1, double**j2, int project, unsigned int N ) {
@@ -2917,7 +2996,7 @@ int co_field_eq_jj_disc_tensor_trace ( double *r, double**j1, double**j2, int pr
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-  for ( unsigned int ix, ix < N; ix++ ) {
+  for ( unsigned int ix; ix < N; ix++ ) {
     r_  = r     + 2*ix;
     j1_ = j1[0] + 2*ix;
     j2_ = j2[0] + 2*ix;
@@ -2928,27 +3007,27 @@ int co_field_eq_jj_disc_tensor_trace ( double *r, double**j1, double**j2, int pr
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-  for ( unsigned int ix, ix < N; ix++ ) {
+  for ( unsigned int ix; ix < N; ix++ ) {
     r_  = r     + 2*ix;
     j1_ = j1[1] + 2*ix;
     j2_ = j2[1] + 2*ix;
     r_[0] += j1_[0] * j2_[0] - j1_[1] * j2_[1];
     r_[1] += j1_[0] * j2_[1] + j1_[1] * j2_[0];
-
+  }
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-  for ( unsigned int ix, ix < N; ix++ ) {
+  for ( unsigned int ix; ix < N; ix++ ) {
     r_  = r     + 2*ix;
     j1_ = j1[2] + 2*ix;
     j2_ = j2[2] + 2*ix;
     r_[0] += j1_[0] * j2_[0] - j1_[1] * j2_[1];
     r_[1] += j1_[0] * j2_[1] + j1_[1] * j2_[0];
-
+  }
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-  for ( unsigned int ix, ix < N; ix++ ) {
+  for ( unsigned int ix; ix < N; ix++ ) {
     r_  = r     + 2*ix;
     j1_ = j1[3] + 2*ix;
     j2_ = j2[3] + 2*ix;
