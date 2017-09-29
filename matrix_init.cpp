@@ -33,6 +33,38 @@
 namespace cvc {
 
 /************************************************************************************
+ * (de-)allocate 1-level buffer (n1 double matrix)
+ ************************************************************************************/
+int init_1level_buffer (double**buffer, unsigned int n1 ) {
+
+  unsigned int i;
+  size_t bytes = n1 * sizeof(double);
+
+  if(*buffer != NULL) {
+    fprintf(stderr, "[init_1level_buffer] Error, buffer not NULL\n"); 
+    return(1);
+  }
+
+  /* 1st, outer level */
+  (*buffer) = (double*)malloc( bytes );
+  if( *buffer == NULL ) {
+    fprintf(stderr, "[init_1level_buffer] Error from malloc\n"); 
+    return(2);
+  }
+
+  memset( *buffer, 0, bytes);
+  return(0);
+}  /* end of init_2level_buffer */
+
+int fini_1level_buffer (double**buffer) {
+  if(*buffer != NULL) {
+    free( *buffer );
+    *buffer = NULL;
+  }
+  return(0);
+}  /* end of fini_2level_buffer */
+
+/************************************************************************************
  * (de-)allocate 2-level buffer (n1 x n2 double matrix)
  ************************************************************************************/
 int init_2level_buffer (double***buffer, unsigned int n1, unsigned int n2) {
@@ -50,14 +82,14 @@ int init_2level_buffer (double***buffer, unsigned int n1, unsigned int n2) {
   (*buffer) = (double**)malloc(n1 * sizeof(double*));
   if( *buffer == NULL ) {
     fprintf(stderr, "[init_2level_buffer] Error from malloc\n"); 
-    EXIT(2);
+    return(2);
   }
 
   /* 2nd, inner level */
   (*buffer)[0] = (double*)malloc(bytes);
   if( (*buffer)[0] == NULL ) {
     fprintf(stderr, "[init_2level_buffer] Error from malloc\n"); 
-    EXIT(3);
+    return(3);
   }
   for(i=1; i<n1; i++) (*buffer)[i] = (*buffer)[i-1] + items;
   memset( (*buffer)[0], 0, bytes);
@@ -90,7 +122,7 @@ int init_3level_buffer (double****buffer, unsigned int n1, unsigned int n2, unsi
   (*buffer) = (double***)malloc(n1 * sizeof(double**));
   if( *buffer == NULL ) {
     fprintf(stderr, "[init_3level_buffer] Error from malloc\n"); 
-    EXIT(2);
+    return(2);
   }
 
   /* 2nd, middle level */
@@ -99,7 +131,7 @@ int init_3level_buffer (double****buffer, unsigned int n1, unsigned int n2, unsi
   (*buffer)[0] = (double**)malloc(bytes);
   if( (*buffer)[0] == NULL ) {
     fprintf(stderr, "[init_3level_buffer] Error from malloc\n"); 
-    EXIT(3);
+    return(3);
   }
   for(i=1; i<n1; i++) (*buffer)[i] = (*buffer)[i-1] + items;
 
@@ -109,7 +141,7 @@ int init_3level_buffer (double****buffer, unsigned int n1, unsigned int n2, unsi
   (*buffer)[0][0] = (double*)malloc(bytes);
   if( (*buffer)[0][0] == NULL ) {
     fprintf(stderr, "[init_3level_buffer] Error from malloc\n"); 
-    EXIT(4);
+    return(4);
   }
   l=0;
   for(i=0; i<n1; i++) {
@@ -151,7 +183,7 @@ int init_4level_buffer (double*****buffer, unsigned int n1, unsigned int n2, uns
   (*buffer) = (double****)malloc(n1 * sizeof(double***));
   if( *buffer == NULL ) {
     fprintf(stderr, "[init_4level_buffer] Error from malloc\n"); 
-    EXIT(2);
+    return(2);
   }
 
   /* 2nd level */
@@ -160,7 +192,7 @@ int init_4level_buffer (double*****buffer, unsigned int n1, unsigned int n2, uns
   (*buffer)[0] = (double***)malloc(bytes);
   if( (*buffer)[0] == NULL ) {
     fprintf(stderr, "[init_4level_buffer] Error from malloc\n"); 
-    EXIT(3);
+    return(3);
   }
   for(i=1; i<n1; i++) (*buffer)[i] = (*buffer)[i-1] + items;
 
@@ -170,7 +202,7 @@ int init_4level_buffer (double*****buffer, unsigned int n1, unsigned int n2, uns
   (*buffer)[0][0] = (double**)malloc(bytes);
   if( (*buffer)[0][0] == NULL ) {
     fprintf(stderr, "[init_4level_buffer] Error from malloc\n"); 
-    EXIT(4);
+    return(4);
   }
   l=0;
   for(i=0; i<n1; i++) {
@@ -185,7 +217,7 @@ int init_4level_buffer (double*****buffer, unsigned int n1, unsigned int n2, uns
   (*buffer)[0][0][0] = (double*)malloc(bytes);
   if( (*buffer)[0][0][0] == NULL ) {
     fprintf(stderr, "[init_4level_buffer] Error from malloc\n"); 
-    EXIT(5);
+    return(5);
   }
   m=0;
   for(i=0; i<n1; i++) {
@@ -232,14 +264,14 @@ int init_2level_zbuffer (double _Complex***zbuffer, unsigned int n1, unsigned in
   (*zbuffer) = (double _Complex**)malloc(n1 * sizeof(double _Complex*));
   if( *zbuffer == NULL ) {
     fprintf(stderr, "[init_2level_zbuffer] Error from malloc\n"); 
-    EXIT(2);
+    return(2);
   }
 
   /* 2nd, inner level */
   (*zbuffer)[0] = (double _Complex*)malloc(bytes);
   if( (*zbuffer)[0] == NULL ) {
     fprintf(stderr, "[init_2level_zbuffer] Error from malloc\n"); 
-    EXIT(3);
+    return(3);
   }
   for(i=1; i<n1; i++) (*zbuffer)[i] = (*zbuffer)[i-1] + items;
   memset( (*zbuffer)[0], 0, bytes);
@@ -272,7 +304,7 @@ int init_3level_zbuffer (double _Complex****zbuffer, unsigned int n1, unsigned i
   (*zbuffer) = (double _Complex***)malloc(n1 * sizeof(double _Complex**));
   if( *zbuffer == NULL ) {
     fprintf(stderr, "[init_3level_zbuffer] Error from malloc\n"); 
-    EXIT(2);
+    return(2);
   }
 
   /* 2nd, middle level */
@@ -281,7 +313,7 @@ int init_3level_zbuffer (double _Complex****zbuffer, unsigned int n1, unsigned i
   (*zbuffer)[0] = (double _Complex**)malloc(bytes);
   if( (*zbuffer)[0] == NULL ) {
     fprintf(stderr, "[init_3level_zbuffer] Error from malloc\n"); 
-    EXIT(3);
+    return(3);
   }
   for(i=1; i<n1; i++) (*zbuffer)[i] = (*zbuffer)[i-1] + items;
 
@@ -291,7 +323,7 @@ int init_3level_zbuffer (double _Complex****zbuffer, unsigned int n1, unsigned i
   (*zbuffer)[0][0] = (double _Complex*)malloc(bytes);
   if( (*zbuffer)[0][0] == NULL ) {
     fprintf(stderr, "[init_3level_zbuffer] Error from malloc\n"); 
-    EXIT(4);
+    return(4);
   }
   l=0;
   for(i=0; i<n1; i++) {
@@ -333,7 +365,7 @@ int init_4level_zbuffer (double _Complex*****zbuffer, unsigned int n1, unsigned 
   (*zbuffer) = (double _Complex****)malloc(n1 * sizeof(double _Complex***));
   if( *zbuffer == NULL ) {
     fprintf(stderr, "[init_4level_zbuffer] Error from malloc\n"); 
-    EXIT(2);
+    return(2);
   }
 
   /* 2nd level */
@@ -342,7 +374,7 @@ int init_4level_zbuffer (double _Complex*****zbuffer, unsigned int n1, unsigned 
   (*zbuffer)[0] = (double _Complex***)malloc(bytes);
   if( (*zbuffer)[0] == NULL ) {
     fprintf(stderr, "[init_4level_zbuffer] Error from malloc\n"); 
-    EXIT(3);
+    return(3);
   }
   for(i=1; i<n1; i++) (*zbuffer)[i] = (*zbuffer)[i-1] + items;
 
@@ -352,7 +384,7 @@ int init_4level_zbuffer (double _Complex*****zbuffer, unsigned int n1, unsigned 
   (*zbuffer)[0][0] = (double _Complex**)malloc(bytes);
   if( (*zbuffer)[0][0] == NULL ) {
     fprintf(stderr, "[init_4level_zbuffer] Error from malloc\n"); 
-    EXIT(4);
+    return(4);
   }
   l=0;
   for(i=0; i<n1; i++) {
@@ -367,7 +399,7 @@ int init_4level_zbuffer (double _Complex*****zbuffer, unsigned int n1, unsigned 
   (*zbuffer)[0][0][0] = (double _Complex*)malloc(bytes);
   if( (*zbuffer)[0][0][0] == NULL ) {
     fprintf(stderr, "[init_4level_zbuffer] Error from malloc\n"); 
-    EXIT(5);
+    return(5);
   }
   m=0;
   for(i=0; i<n1; i++) {
