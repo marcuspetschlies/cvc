@@ -57,7 +57,7 @@ void co_field_pl_eq_tr_propagator_field_conj (complex *w, fermion_propagator_typ
 
 void contract_cvc_loop_eo ( double ***loop, double**sprop_list_e, double**sprop_list_o, double**tprop_list_e, double**tprop_list_o , double*gauge_field );
 
-void contract_cvc_loop_eo_lma ( double ***loop, double**eo_evecs_field, double *eo_evecs_norm, int nev, double*gauge_field, double **mzz[2], double **mzzinv[2]);
+void contract_cvc_loop_eo_lma ( double ****loop, double**eo_evecs_field, double *eo_evecs_norm, int nev, double*gauge_field, double **mzz[2], double **mzzinv[2]);
 
 void contract_cvc_loop_eo_lma_wi ( double **wi, double**eo_evecs_field, double *eo_evecs_norm, int nev, double*gauge_field, double **mzz[2], double **mzzinv[2]);
 
@@ -69,7 +69,7 @@ int cvc_loop_tp_write_to_aff_file (double***cvc_tp, int nf, struct AffWriter_s*a
 
 int cvc_loop_eo_check_wi_momentum_space_lma ( double **wi, double ***loop_lma, int (*momentum_list)[3], int momentum_number  );
 
-void contract_cvc_loop_eo_stoch ( double ***loop, double**eo_stochastic_propagator, double**eo_stochastic_source, double *eo_stochastic_norm, int nsample, double*gauge_field, double **mzz[2], double **mzzinv[2]);
+void contract_cvc_loop_eo_stoch ( double ****loop, double**eo_stochastic_propagator, double**eo_stochastic_source, double *eo_stochastic_norm, int nsample, double*gauge_field, double **mzz[2], double **mzzinv[2]);
 
 int vdag_w_spin_color_reduction ( double ***contr, double**V, double**W, int dimV, int dimW, int t );
 
@@ -90,6 +90,7 @@ void contract_local_loop_eo_stoch ( double ***loop, double**eo_stochastic_propag
 
 int co_eq_complex_field_convolute_photon_scalar ( double *c, double *r, int init );
 
+int co_field_eq_jj_disc_tensor_trace ( double *r, double**j1, double**j2, int project, unsigned int N );
 
 }  /* end of namespace cvc */
 

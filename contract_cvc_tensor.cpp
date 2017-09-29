@@ -1536,7 +1536,7 @@ void contract_cvc_loop_eo ( double ***loop, double**sprop_list_e, double**sprop_
 /***********************************************************
  *
  ***********************************************************/
-void contract_cvc_loop_eo_lma ( double ***loop, double**eo_evecs_field, double *eo_evecs_norm, int nev, double*gauge_field, double **mzz[2], double **mzzinv[2]) {
+void contract_cvc_loop_eo_lma ( double ****loop, double**eo_evecs_field, double *eo_evecs_norm, int nev, double*gauge_field, double **mzz[2], double **mzzinv[2] ) {
 
   const unsigned int Vhalf = VOLUME / 2;
   const size_t sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof(double);
@@ -1597,25 +1597,25 @@ void contract_cvc_loop_eo_lma ( double ***loop, double**eo_evecs_field, double *
       memcpy ( eo_spinor_work[0], xw, sizeof_eo_spinor_field );
       apply_cvc_vertex_eo( eo_spinor_work[1], eo_spinor_work[0], mu, 0, gauge_field, 1);
       g5_phi( eo_spinor_work[1], Vhalf);
-      co_field_pl_eq_fv_dag_ti_fv ( loop[1][mu], v, eo_spinor_work[1], Vhalf );
+      co_field_pl_eq_fv_dag_ti_fv ( loop[1][mu][1], v, eo_spinor_work[1], Vhalf );
 
       /* (Xbar V)^+ g5 Gamma_mu^f W */
       memcpy ( eo_spinor_work[0], w, sizeof_eo_spinor_field );
       apply_cvc_vertex_eo( eo_spinor_work[1], eo_spinor_work[0], mu, 0, gauge_field, 0);
       g5_phi( eo_spinor_work[1], Vhalf);
-      co_field_pl_eq_fv_dag_ti_fv ( loop[0][mu], xv, eo_spinor_work[1], Vhalf );
+      co_field_pl_eq_fv_dag_ti_fv ( loop[1][mu][0], xv, eo_spinor_work[1], Vhalf );
 
       /* W^+ g5 Gamma_mu^f ( Xbar V ) */
       memcpy ( eo_spinor_work[0], xv, sizeof_eo_spinor_field );
       apply_cvc_vertex_eo( eo_spinor_work[1], eo_spinor_work[0], mu, 0, gauge_field, 1);
       g5_phi( eo_spinor_work[1], Vhalf);
-      co_field_mi_eq_fv_dag_ti_fv ( loop[1][mu], eo_spinor_work[1], w, Vhalf );
+      co_field_mi_eq_fv_dag_ti_fv ( loop[0][mu][1], eo_spinor_work[1], w, Vhalf );
 
       /* (X W)^+ g5 Gamma_mu^f V */
       memcpy ( eo_spinor_work[0], v, sizeof_eo_spinor_field );
       apply_cvc_vertex_eo( eo_spinor_work[1], eo_spinor_work[0], mu, 0, gauge_field, 0);
       g5_phi( eo_spinor_work[1], Vhalf);
-      co_field_mi_eq_fv_dag_ti_fv ( loop[0][mu], eo_spinor_work[1], xw, Vhalf );
+      co_field_mi_eq_fv_dag_ti_fv ( loop[0][mu][0], eo_spinor_work[1], xw, Vhalf );
 
     }  /* end of loop on mu */
 
@@ -2104,7 +2104,7 @@ int cvc_loop_eo_check_wi_momentum_space_lma ( double **wi, double ***loop_lma, i
 /***********************************************************
  *
  ***********************************************************/
-void contract_cvc_loop_eo_stoch ( double ***loop, double**eo_stochastic_propagator, double**eo_stochastic_source, double *eo_stochastic_norm, int nsample, double*gauge_field, double **mzz[2], double **mzzinv[2]) {
+void contract_cvc_loop_eo_stoch ( double ****loop, double**eo_stochastic_propagator, double**eo_stochastic_source, int nsample, double*gauge_field, double **mzz[2], double **mzzinv[2]) {
 
   const unsigned int Vhalf = VOLUME / 2;
   const size_t sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof(double);
@@ -2153,25 +2153,25 @@ void contract_cvc_loop_eo_stoch ( double ***loop, double**eo_stochastic_propagat
       memcpy ( eo_spinor_work[0], xphi, sizeof_eo_spinor_field );
       apply_cvc_vertex_eo( eo_spinor_work[1], eo_spinor_work[0], mu, 0, gauge_field, 1);
       g5_phi( eo_spinor_work[1], Vhalf);
-      co_field_pl_eq_fv_dag_ti_fv ( loop[1][mu], xi, eo_spinor_work[1], Vhalf );
+      co_field_pl_eq_fv_dag_ti_fv ( loop[1][mu][1], xi, eo_spinor_work[1], Vhalf );
 
       /* (Xbar xi)^+ g5 Gamma_mu^f phi */
       memcpy ( eo_spinor_work[0], phi, sizeof_eo_spinor_field );
       apply_cvc_vertex_eo( eo_spinor_work[1], eo_spinor_work[0], mu, 0, gauge_field, 0);
       g5_phi( eo_spinor_work[1], Vhalf);
-      co_field_pl_eq_fv_dag_ti_fv ( loop[0][mu], xxi, eo_spinor_work[1], Vhalf );
+      co_field_pl_eq_fv_dag_ti_fv ( loop[1][mu][0], xxi, eo_spinor_work[1], Vhalf );
 
       /* -( g5 Gamma_mu^f Xbar xi )^+ phi */
       memcpy ( eo_spinor_work[0], xxi, sizeof_eo_spinor_field );
       apply_cvc_vertex_eo( eo_spinor_work[1], eo_spinor_work[0], mu, 0, gauge_field, 1);
       g5_phi( eo_spinor_work[1], Vhalf);
-      co_field_mi_eq_fv_dag_ti_fv ( loop[1][mu], eo_spinor_work[1], phi, Vhalf );
+      co_field_mi_eq_fv_dag_ti_fv ( loop[0][mu][1], eo_spinor_work[1], phi, Vhalf );
 
       /* -( g5 Gamma_mu^f xi )^+ (X phi ) */
       memcpy ( eo_spinor_work[0], xi, sizeof_eo_spinor_field );
       apply_cvc_vertex_eo( eo_spinor_work[1], eo_spinor_work[0], mu, 0, gauge_field, 0);
       g5_phi( eo_spinor_work[1], Vhalf);
-      co_field_mi_eq_fv_dag_ti_fv ( loop[0][mu], eo_spinor_work[1], xphi, Vhalf );
+      co_field_mi_eq_fv_dag_ti_fv ( loop[0][mu][0], eo_spinor_work[1], xphi, Vhalf );
 
     }  /* end of loop on mu */
 
@@ -2728,7 +2728,7 @@ void contract_local_loop_eo_lma ( double ***loop, double**eo_evecs_field, double
 /***********************************************************
  * purely stochastic part for eo-precon loops
  ***********************************************************/
-void contract_local_loop_eo_stoch ( double ***loop, double**eo_stochastic_propagator, double**eo_stochastic_source, double *eo_stochastic_norm, int nsample, double*gauge_field, double **mzz[2], double **mzzinv[2]) {
+void contract_local_loop_eo_stoch ( double ***loop, double**eo_stochastic_propagator, double**eo_stochastic_source, int nsample, double*gauge_field, double **mzz[2], double **mzzinv[2]) {
 
   const unsigned int Vhalf = VOLUME / 2;
   const size_t sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof(double);
@@ -2844,7 +2844,7 @@ int co_eq_complex_field_convolute_photon_scalar ( double *c, double *r, int init
 
       unsigned int ix = g_ipt[x0][x1][x2][x3];
 
-      photon_propagator[ix] = ( ix == 0 ) ? 0. : 0.25 / ( p0 * p0 + p1 * p1 + p2 * p2 + p3 * p3 );
+      photon_propagator[ix] = ( x1 == 0 && x2 == 0 && x3 == 0 ) ? 0. : 0.25 / ( p0 * p0 + p1 * p1 + p2 * p2 + p3 * p3 );
     }}}}
   }
 
@@ -2899,5 +2899,67 @@ int co_eq_complex_field_convolute_photon_scalar ( double *c, double *r, int init
   if (g_cart_id == 0 ) fprintf(stdout, "# [co_eq_complex_field_convolute_photon_scalar] time for co_eq_complex_field_convolute_photon_scalar = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
   return(0);
 }  /* co_eq_complex_field_convolute_photon_scalar */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ *
+ ***********************************************************/
+int co_field_eq_jj_disc_tensor_trace ( double *r, double**j1, double**j2, int project, unsigned int N ) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  double *r_, *j1_, *j2_;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for ( unsigned int ix, ix < N; ix++ ) {
+    r_  = r     + 2*ix;
+    j1_ = j1[0] + 2*ix;
+    j2_ = j2[0] + 2*ix;
+    r_[0]  = j1_[0] * j2_[0] - j1_[1] * j2_[1];
+    r_[1]  = j1_[0] * j2_[1] + j1_[1] * j2_[0];
+  }
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for ( unsigned int ix, ix < N; ix++ ) {
+    r_  = r     + 2*ix;
+    j1_ = j1[1] + 2*ix;
+    j2_ = j2[1] + 2*ix;
+    r_[0] += j1_[0] * j2_[0] - j1_[1] * j2_[1];
+    r_[1] += j1_[0] * j2_[1] + j1_[1] * j2_[0];
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for ( unsigned int ix, ix < N; ix++ ) {
+    r_  = r     + 2*ix;
+    j1_ = j1[2] + 2*ix;
+    j2_ = j2[2] + 2*ix;
+    r_[0] += j1_[0] * j2_[0] - j1_[1] * j2_[1];
+    r_[1] += j1_[0] * j2_[1] + j1_[1] * j2_[0];
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for ( unsigned int ix, ix < N; ix++ ) {
+    r_  = r     + 2*ix;
+    j1_ = j1[3] + 2*ix;
+    j2_ = j2[3] + 2*ix;
+    r_[0] += j1_[0] * j2_[0] - j1_[1] * j2_[1];
+    r_[1] += j1_[0] * j2_[1] + j1_[1] * j2_[0];
+  }
+#ifdef HAVE_OPENMP
+}
+#endif
+  return (0);
+}  /* end of co_field_eq_jj_disc_tensor_trace */
+
 
 }  /* end of namespace cvc */
