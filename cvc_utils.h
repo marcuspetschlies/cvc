@@ -192,6 +192,12 @@ void fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fermion_pro
 
 void complex_field_norm_diff (double*d, double *r, double *s, unsigned int N);
 
+void complex_field_pl_eq_complex_field ( double*r, double*s, unsigned int N);
+
+void complex_field_eq_complex_field_conj ( double*r, double*s, unsigned int N);
+
+void complex_field_eq_mi_complex_field_conj ( double*r, double*s, unsigned int N);
+
 }  /* end of namespace cvc */
 #endif
 

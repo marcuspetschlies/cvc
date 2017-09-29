@@ -6422,7 +6422,70 @@ void complex_field_eq_complex_field_pl_complex_field_conj_ti_re (double*r, doubl
 #endif
 }  /* end of complex_field_eq_complex_field_pl_complex_field_ti_re */
 
+/* r += s
+ * N is the number of complex elements in r and t
+ * */
+void complex_field_pl_eq_complex_field ( double*r, double*s, unsigned int N) {
 
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for( unsigned int ix = 0; ix < 2*N; ix++ ) {
+    r[ix] += s[ix];
+  }  /* end of loop on ix */
+}  /* end of complex_field_pl_eq_complex_field  */
+
+/*
+ * r = s^+
+ */
+void complex_field_eq_complex_field_conj ( double*r, double*s, unsigned int N) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  unsigned int iix;
+  double *r_ = NULL, *s_ = NULL;
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for( unsigned int ix = 0; ix < N; ix++ ) {
+    iix   = 2*ix;
+    r_    = r + iix;
+    s_    = s + iix;
+    r_[0] =  s_[0];
+    r_[1] = -s_[1];
+  }  /* end of loop on ix */
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+}  /* end of complex_field_eq_complex_field_conj */
+
+/*
+ * r = -s^+
+ */
+void complex_field_eq_mi_complex_field_conj ( double*r, double*s, unsigned int N) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  unsigned int iix;
+  double *r_ = NULL, *s_ = NULL;
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for( unsigned int ix = 0; ix < N; ix++ ) {
+    iix   = 2*ix;
+    r_    = r + iix;
+    s_    = s + iix;
+    r_[0] = -s_[0];
+    r_[1] =  s_[1];
+  }  /* end of loop on ix */
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+}  /* end of complex_field_eq_mi_complex_field_conj */
 
 /***********************************************************
  * calculate plaquettes in four different ways
