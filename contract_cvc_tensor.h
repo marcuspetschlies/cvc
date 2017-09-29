@@ -69,7 +69,7 @@ int cvc_loop_tp_write_to_aff_file (double***cvc_tp, int nf, struct AffWriter_s*a
 
 int cvc_loop_eo_check_wi_momentum_space_lma ( double **wi, double ***loop_lma, int (*momentum_list)[3], int momentum_number  );
 
-void contract_cvc_loop_eo_stoch ( double ****loop, double**eo_stochastic_propagator, double**eo_stochastic_source, double *eo_stochastic_norm, int nsample, double*gauge_field, double **mzz[2], double **mzzinv[2]);
+void contract_cvc_loop_eo_stoch ( double ****loop, double**eo_stochastic_propagator, double**eo_stochastic_source, int nsample, double*gauge_field, double **mzz[2], double **mzzinv[2]);
 
 int vdag_w_spin_color_reduction ( double ***contr, double**V, double**W, int dimV, int dimW, int t );
 
@@ -86,9 +86,11 @@ int cvc_loop_eo_momentum_shift (double***cvc_tp, int (*momentum_list)[3], int mo
 
 void contract_local_loop_eo_lma ( double ***loop, double**eo_evecs_field, double *eo_evecs_norm, int nev, double*gauge_field, double **mzz[2], double **mzzinv[2]);
 
-void contract_local_loop_eo_stoch ( double ***loop, double**eo_stochastic_propagator, double**eo_stochastic_source, double *eo_stochastic_norm, int nsample, double*gauge_field, double **mzz[2], double **mzzinv[2]);
+void contract_local_loop_eo_stoch ( double ***loop, double**eo_stochastic_propagator, double**eo_stochastic_source, int nsample, double*gauge_field, double **mzz[2], double **mzzinv[2]);
 
 int co_eq_complex_field_convolute_photon_scalar ( double *c, double *r, int init );
+
+int co_eq_complex_field_convolute_photon ( double **r, double **s, int init );
 
 int co_field_eq_jj_disc_tensor_trace ( double *r, double**j1, double**j2, int project, unsigned int N );
 
