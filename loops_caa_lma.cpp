@@ -547,7 +547,7 @@ int main(int argc, char **argv) {
   }
 
   sprintf(aff_tag, "/cvc-loop/nev%.4d", nev);
-  exitstatus = cvc_loop_tp_write_to_aff_file ( cvc_loop_tp, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+  exitstatus = cvc_loop_tp_write_to_aff_file ( cvc_loop_tp, 4, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
   if(exitstatus != 0 ) {
     fprintf(stderr, "[loops_caa_lma] Error from cvc_loop_tp_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(2);
@@ -833,8 +833,14 @@ int main(int argc, char **argv) {
 #endif
 
   double ***cvc_loop_lma = NULL, **cvc_wi = NULL;
-  exitstatus = init_3level_buffer ( &cvc_loop_lma, 2, 4, 2*Vhalf );
-  if ( exitstatus != 0 ) {
+  double ****cvc_loop_lma_fbwd = NULL;
+  if ( ( exitstatus = init_3level_buffer ( &cvc_loop_lma, 2, 4, 2*Vhalf ) ) != 0 ) {
+    fprintf(stderr, "[loops_caa_lma] Error from init_3level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(1);
+  }
+ 
+  /*                                                        fbwd mu eo VOLUME * 2 ( complex ) */
+  if ( ( exitstatus = init_4level_buffer ( &cvc_loop_lma_fbwd, 2,   4, 2, 2*Vhalf ) ) != 0 ) {
     fprintf(stderr, "[loops_caa_lma] Error from init_3level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(1);
   }
@@ -851,7 +857,16 @@ int main(int argc, char **argv) {
     double **eo_evecs_ptr = &(eo_evecs_field[nev-nev_step_size]);
     double *evecs_norm_ptr = &(evecs_4kappasqr_lambdainv[nev-nev_step_size]);
 
-    contract_cvc_loop_eo_lma ( cvc_loop_lma, eo_evecs_ptr, evecs_norm_ptr, nev_step_size, gauge_field_with_phase, mzz, mzzinv );
+    contract_cvc_loop_eo_lma ( cvc_loop_lma_fbwd, eo_evecs_ptr, evecs_norm_ptr, nev_step_size, gauge_field_with_phase, mzz, mzzinv );
+
+    memset ( cvc_loop_lma[0][0], 0, 2*4*2*Vhalf * sizeof(double) );
+    for ( int mu = 0; mu < 4; mu++ ) {
+      complex_field_pl_eq_complex_field ( cvc_loop_lma[0][mu], cvc_loop_lma_fbwd[0][mu][0], Vhalf );
+      complex_field_pl_eq_complex_field ( cvc_loop_lma[0][mu], cvc_loop_lma_fbwd[1][mu][0], Vhalf );
+      complex_field_pl_eq_complex_field ( cvc_loop_lma[1][mu], cvc_loop_lma_fbwd[0][mu][1], Vhalf );
+      complex_field_pl_eq_complex_field ( cvc_loop_lma[1][mu], cvc_loop_lma_fbwd[1][mu][1], Vhalf );
+    }
+
 
     if ( check_position_space_WI ) {
       exitstatus = cvc_loop_eo_check_wi_position_space_lma ( &cvc_wi, cvc_loop_lma, eo_evecs_ptr, evecs_norm_ptr, nev_step_size, gauge_field_with_phase, mzz, mzzinv  );
@@ -863,22 +878,25 @@ int main(int argc, char **argv) {
 
     double ***cvc_loop_tp = NULL;
 
-    exitstatus = cvc_loop_eo_momentum_projection ( &cvc_loop_tp, cvc_loop_lma, g_sink_momentum_list, g_sink_momentum_number);
-    if(exitstatus != 0 ) {
+    if ( ( exitstatus = cvc_loop_eo_momentum_projection ( &cvc_loop_tp, cvc_loop_lma, 4, g_sink_momentum_list, g_sink_momentum_number) ) != 0 ) {
       fprintf(stderr, "[loops_caa_lma] Error from cvc_loop_eo_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(2);
     }
 
+    if ( ( exitstatus = cvc_loop_eo_momentum_shift ( cvc_loop_tp, g_sink_momentum_list, g_sink_momentum_number) ) != 0 ) {
+      fprintf(stderr, "[loops_caa_lma] Error from cvc_loop_eo_momentum_shift, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(2);
+    }
+
+
     sprintf(aff_tag, "/cvc-loop/nev%.4d", nev);
-    exitstatus = cvc_loop_tp_write_to_aff_file ( cvc_loop_tp, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
-    if(exitstatus != 0 ) {
+    if ( ( exitstatus = cvc_loop_tp_write_to_aff_file ( cvc_loop_tp, 4, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc ) ) != 0 ) {
       fprintf(stderr, "[loops_caa_lma] Error from cvc_loop_tp_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(2);
     }
  
     if ( check_position_space_WI ) {
-      exitstatus = cvc_loop_eo_check_wi_momentum_space_lma ( cvc_wi, cvc_loop_tp, g_sink_momentum_list, g_sink_momentum_number );
-      if(exitstatus != 0 ) {
+      if ( ( exitstatus = cvc_loop_eo_check_wi_momentum_space_lma ( cvc_wi, cvc_loop_tp, g_sink_momentum_list, g_sink_momentum_number ) ) != 0 ) {
         fprintf(stderr, "[loops_caa_lma] Error from cvc_loop_eo_check_wi_momentum_space_lma, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(2);
       }
@@ -891,6 +909,7 @@ int main(int argc, char **argv) {
   }  /* end of loop on nev */ 
 
   fini_3level_buffer ( &cvc_loop_lma );
+  fini_4level_buffer ( &cvc_loop_lma_fbwd );
   if ( check_position_space_WI ) {
     fini_2level_buffer ( &cvc_wi );
   }
@@ -908,13 +927,11 @@ int main(int argc, char **argv) {
   /***********************************************/
   /***********************************************/
 
-#if 0
-
   /***********************************************
    * stochastic part
    ***********************************************/
   /* TEST sample_steps_size set to 1 */
-  sample_step_size = 12;
+  /* sample_step_size = 12; */
 
   if ( sample_step_size == 0 ) {
     sample_step_size = g_nsample;
@@ -939,7 +956,8 @@ int main(int argc, char **argv) {
    * 
    ***********************************************/
   double **eo_stochastic_source = NULL, **eo_stochastic_propagator = NULL;
-  double ***cvc_loop_stoch = NULL, ***cvc_loop_tp = NULL, *sample_norm_ptr = NULL;
+  double ***cvc_loop_stoch = NULL, ***cvc_loop_tp = NULL;
+  double ****cvc_loop_stoch_fbwd = NULL;
   size_t bytes = g_sink_momentum_number * 4 * 2*T * sizeof(double);
 
   exitstatus = init_3level_buffer ( &cvc_loop_stoch, 2, 4, 2*Vhalf );
@@ -948,6 +966,10 @@ int main(int argc, char **argv) {
     EXIT(1);
   }
 
+  if ( ( exitstatus = init_4level_buffer ( &cvc_loop_stoch_fbwd, 2, 4, 2, 2*Vhalf ) ) != 0 ) {
+    fprintf(stderr, "[loops_caa_lma] Error from init_4level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(1);
+  }
   exitstatus = init_3level_buffer( &cvc_loop_tp, g_sink_momentum_number, 4, 2*T);
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[loops_caa_lma] Error from init_3level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -966,35 +988,30 @@ int main(int argc, char **argv) {
     EXIT(1);
   }
 
-
-  if ( (sample_norm_ptr = (double*)malloc ( sample_step_size * sizeof(double) ) ) == NULL ) {
-    fprintf(stderr, "[loops_caa_lma] Error from malloc %s %d\n", __FILE__, __LINE__);
-    EXIT(1);
-  }
-  for ( int i = 0; i < sample_step_size; i++ ) { sample_norm_ptr[i] = 1.; }
-
   /***********************************************
    * loop on stochastic samples
    ***********************************************/
-  // for( int isample = sample_step_size; isample <= g_nsample; isample += sample_step_size ) 
+  for( int isample = sample_step_size; isample <= g_nsample; isample += sample_step_size ) 
 
-  for( int isample = 0; isample < Vhalf; isample++ ) 
+  /* for( int isample = 0; isample < Vhalf; isample++ ) */
   {
 
     /***********************************************
      * make a source
      ***********************************************/
-#if 0
+
     exitstatus = prepare_volume_source ( eo_stochastic_source[0], sample_step_size*Vhalf);
     if(exitstatus != 0) {
       fprintf(stderr, "[loops_caa_lma] Error from prepare_volume_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(33);
     }
-#endif  /* of of 0 */
+
+#if 0
     for ( int i = 0; i < sample_step_size; i++ ) {
       memset ( eo_stochastic_source[i], 0, sizeof_eo_spinor_field );
       eo_stochastic_source[i][2*(sample_step_size*isample+i)] = 1.;
     }
+#endif  /* of of 0 */
 
 #if 0
     for ( int i = 0; i < sample_step_size; i++ ) {
@@ -1099,22 +1116,47 @@ int main(int argc, char **argv) {
     memset ( cvc_loop_stoch[0][0], 0, 16 * Vhalf * sizeof(double) );
 
     /* contract */
-    contract_cvc_loop_eo_stoch ( cvc_loop_stoch, eo_stochastic_propagator, eo_stochastic_source, sample_norm_ptr, sample_step_size, gauge_field_with_phase, mzz, mzzinv );
+    contract_cvc_loop_eo_stoch ( cvc_loop_stoch_fbwd, eo_stochastic_propagator, eo_stochastic_source, sample_step_size, gauge_field_with_phase, mzz, mzzinv );
+
+    memset ( cvc_loop_stoch[0][0], 0, 2*4*2*Vhalf * sizeof(double) );
+    for ( int mu = 0; mu < 4; mu++ ) {
+      complex_field_pl_eq_complex_field ( cvc_loop_stoch[0][mu], cvc_loop_stoch_fbwd[0][mu][0], Vhalf );
+      complex_field_pl_eq_complex_field ( cvc_loop_stoch[0][mu], cvc_loop_stoch_fbwd[1][mu][0], Vhalf );
+      complex_field_pl_eq_complex_field ( cvc_loop_stoch[1][mu], cvc_loop_stoch_fbwd[0][mu][1], Vhalf );
+      complex_field_pl_eq_complex_field ( cvc_loop_stoch[1][mu], cvc_loop_stoch_fbwd[1][mu][1], Vhalf );
+    }
+
+    if ( ( exitstatus = cvc_loop_eo_check_wi_position_space_stoch ( &cvc_wi, cvc_loop_stoch, eo_stochastic_propagator, eo_stochastic_source, sample_step_size, gauge_field_with_phase, mzz, mzzinv ) ) != 0 ) {
+      fprintf(stderr, "[loops_caa_lma] Error from cvc_loop_eo_check_wi_position_space_stoch; status was %d\n", exitstatus );
+      EXIT(1);
+    }
 
     /* momentum projection */
     memset ( cvc_loop_tp[0][0], 0, bytes);
-    exitstatus = cvc_loop_eo_momentum_projection ( &cvc_loop_tp, cvc_loop_stoch, g_sink_momentum_list, g_sink_momentum_number);
+    exitstatus = cvc_loop_eo_momentum_projection ( &cvc_loop_tp, cvc_loop_stoch, 4, g_sink_momentum_list, g_sink_momentum_number);
     if(exitstatus != 0 ) {
       fprintf(stderr, "[loops_caa_lma] Error from cvc_loop_eo_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(2);
     }
 
+    if ( ( exitstatus = cvc_loop_eo_momentum_shift ( cvc_loop_tp, g_sink_momentum_list, g_sink_momentum_number) ) != 0 ) {
+      fprintf(stderr, "[loops_caa_lma] Error from cvc_loop_eo_momentum_shift, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(2);
+    }
+
     /* output */
     sprintf(aff_tag, "/cvc-loop/block%.4d", isample);
-    exitstatus = cvc_loop_tp_write_to_aff_file ( cvc_loop_tp, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+    exitstatus = cvc_loop_tp_write_to_aff_file ( cvc_loop_tp, 4, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
     if(exitstatus != 0 ) {
       fprintf(stderr, "[loops_caa_lma] Error from cvc_loop_tp_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(2);
+    }
+
+    if ( check_position_space_WI ) {
+      if ( ( exitstatus = cvc_loop_eo_check_wi_momentum_space_lma ( cvc_wi, cvc_loop_tp, g_sink_momentum_list, g_sink_momentum_number ) ) != 0 ) {
+        fprintf(stderr, "[loops_caa_lma] Error from cvc_loop_eo_check_wi_momentum_space_lma, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(2);
+      }
     }
 
   }  /* end of loop on stochastic samples */
@@ -1123,7 +1165,8 @@ int main(int argc, char **argv) {
   fini_3level_buffer ( &cvc_loop_tp );
   fini_2level_buffer ( &eo_stochastic_source );
   fini_2level_buffer ( &eo_stochastic_propagator );
-  free ( sample_norm_ptr );
+  fini_2level_buffer ( &cvc_wi );
+  fini_4level_buffer ( &cvc_loop_stoch_fbwd );
 
 
 #ifdef HAVE_LHPC_AFF
@@ -1136,6 +1179,7 @@ int main(int argc, char **argv) {
   }  /* end of if io_proc == 2 */
 #endif  /* of ifdef HAVE_LHPC_AFF */
 
+#if 0
 #endif  /* of if 0 */
 
   /****************************************
