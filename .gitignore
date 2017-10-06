@@ -7,3 +7,9 @@ read_input_parser_cvc.cpp
 gitversion.cpp
 TODO
 DONE
+build
+build_2dim
+build_3dim
+build_4dim
+build_cvc_tmlqcd_2dim
+build_cvc_tmlqcd_serial
