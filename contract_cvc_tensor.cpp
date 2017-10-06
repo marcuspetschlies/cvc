@@ -1625,7 +1625,7 @@ void contract_cvc_loop_eo_lma ( double ****loop, double**eo_evecs_field, double 
   fini_2level_buffer ( &eo_spinor_field );
 
   retime = _GET_TIME;
-  if (g_cart_id == 0 ) fprintf(stdout, "# [contract_cvc_loop_eo_lma] time for contract_cvc_loop_eo_lma_wi = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+  if (g_cart_id == 0 ) fprintf(stdout, "# [contract_cvc_loop_eo_lma] time for contract_cvc_loop_eo_lma = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
 
   return;
 
@@ -1763,9 +1763,9 @@ int cvc_loop_eo_check_wi_position_space_lma ( double ***wwi, double ***loop_lma,
                   - conn_buffer[3][2*g_idn[ix][3]+1] - wi[ieo][2*ixeosub+1]; 
 
 
-    if ( g_verbose > 4 ) fprintf(stdout, "# [cvc_loop_eo_check_wi_position_space_lma] proc%.4d %3d %3d %3d %3d\t\t\t%25.16e %25.16e\n",
+    if ( g_verbose > 4 ) fprintf(stdout, "# [cvc_loop_eo_check_wi_position_space_lma] proc%.4d %3d %3d %3d %3d\t\t\t%25.16e%25.16e\t\t%25.16e %25.16e\n",
         g_cart_id, ix/(LX*LY*LZ) + g_proc_coords[0]*T, (ix%(LX*LY*LZ))/(LY*LZ) + g_proc_coords[1]*LX,
-        (ix%(LY*LZ))/LZ + g_proc_coords[2]*LY, ix%LZ + g_proc_coords[3]*LZ, dnormr, dnormi );
+        (ix%(LY*LZ))/LZ + g_proc_coords[2]*LY, ix%LZ + g_proc_coords[3]*LZ, wi[ieo][2*ixeosub], wi[ieo][2*ixeosub+1], dnormr, dnormi );
       normt += dnormr * dnormr + dnormi * dnormi;
   }
 #ifdef HAVE_OPENMP
@@ -2083,9 +2083,9 @@ int cvc_loop_eo_check_wi_momentum_space_lma ( double **wi, double ***loop_lma, i
       double pJr =    sinp[0] * jjp[1] + sinp[1] * jjp[3] + sinp[2] * jjp[5] + sinp[3] * jjp[7]; 
 
       if ( g_cart_id == 0 ) {
-        fprintf(stdout, "# [cvc_loop_eo_check_wi_momentum_space_lma] p = %3d %3d %3d %3d pJ = %25.16e %25.16e    ww = %25.16e %25.16e\n", 
+        fprintf(stdout, "# [cvc_loop_eo_check_wi_momentum_space_lma] p = %3d %3d %3d %3d pJ = %25.16e %25.16e  pJ - ww = %25.16e %25.16e\n", 
             ip0, momentum_list[ip][0], momentum_list[ip][1], momentum_list[ip][2],
-            pJr, pJi, ww[0], ww[1] );
+            pJr, pJi, pJr - ww[0], pJi - ww[1] );
       }
 
     }  /* end of loop on ip0  */
@@ -2996,7 +2996,7 @@ int co_field_eq_jj_disc_tensor_trace ( double *r, double**j1, double**j2, int pr
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-  for ( unsigned int ix; ix < N; ix++ ) {
+  for ( unsigned int ix = 0; ix < N; ix++ ) {
     r_  = r     + 2*ix;
     j1_ = j1[0] + 2*ix;
     j2_ = j2[0] + 2*ix;
@@ -3007,7 +3007,7 @@ int co_field_eq_jj_disc_tensor_trace ( double *r, double**j1, double**j2, int pr
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-  for ( unsigned int ix; ix < N; ix++ ) {
+  for ( unsigned int ix = 0; ix < N; ix++ ) {
     r_  = r     + 2*ix;
     j1_ = j1[1] + 2*ix;
     j2_ = j2[1] + 2*ix;
@@ -3017,7 +3017,7 @@ int co_field_eq_jj_disc_tensor_trace ( double *r, double**j1, double**j2, int pr
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-  for ( unsigned int ix; ix < N; ix++ ) {
+  for ( unsigned int ix = 0; ix < N; ix++ ) {
     r_  = r     + 2*ix;
     j1_ = j1[2] + 2*ix;
     j2_ = j2[2] + 2*ix;
@@ -3027,7 +3027,7 @@ int co_field_eq_jj_disc_tensor_trace ( double *r, double**j1, double**j2, int pr
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-  for ( unsigned int ix; ix < N; ix++ ) {
+  for ( unsigned int ix = 0; ix < N; ix++ ) {
     r_  = r     + 2*ix;
     j1_ = j1[3] + 2*ix;
     j2_ = j2[3] + 2*ix;
@@ -3040,5 +3040,170 @@ int co_field_eq_jj_disc_tensor_trace ( double *r, double**j1, double**j2, int pr
   return (0);
 }  /* end of co_field_eq_jj_disc_tensor_trace */
 
+
+/***********************************************************
+ *
+ ***********************************************************/
+void contract_cvc_loop_eo_stoch_wi ( double **wi, double**eo_stochastic_propagator, double **eo_stochastic_source, int nsample, double*gauge_field, double **mzz[2], double **mzzinv[2]) {
+
+  const unsigned int Vhalf = VOLUME / 2;
+  const size_t sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof(double);
+  int exitstatus;
+
+  double ratime, retime;
+  double **eo_spinor_work = NULL, **eo_spinor_field = NULL, *xi = NULL, *phi = NULL;
+
+  ratime = _GET_TIME;
+
+  exitstatus = init_2level_buffer ( &eo_spinor_work, 2, _GSI( (VOLUME+RAND)/2 ) );
+  if ( exitstatus != 0 ) {
+    fprintf(stdout, "[contract_cvc_loop_eo_stoch_wi] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(1);
+  }
+  exitstatus = init_2level_buffer ( &eo_spinor_field, 2, _GSI( Vhalf ) );
+  if ( exitstatus != 0 ) {
+    fprintf(stdout, "[contract_cvc_loop_eo_stoch_wi] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(2);
+  }
+
+  /* even part */
+  /* memset ( wi[0], 0, Vhalf*2*sizeof(double) ); */
+  /* memset ( wi[1], 0, Vhalf*2*sizeof(double) ); */
+ 
+  /* odd part */
+  for ( int i = 0; i < nsample; i++) {
+
+    /* set xi */
+    xi = eo_stochastic_source[i];
+
+    /* set phi */
+    phi = eo_stochastic_propagator[i];
+
+    /* calculate Cbar xi */
+    C_clover_oo ( eo_spinor_field[0], xi, gauge_field, eo_spinor_work[0], mzz[1][1], mzzinv[1][0] );
+
+    co_field_pl_eq_fv_dag_ti_fv ( wi[1] , xi, xi, Vhalf );
+    co_field_mi_eq_fv_dag_ti_fv ( wi[1] , eo_spinor_field[0], phi, Vhalf );
+
+  }
+
+  fini_2level_buffer ( &eo_spinor_work );
+  fini_2level_buffer ( &eo_spinor_field );
+
+  retime = _GET_TIME;
+  if (g_cart_id == 0 ) fprintf(stdout, "# [contract_cvc_loop_eo_stoch_wi] time for contract_cvc_loop_eo_stoch_wi = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+
+  return;
+}  /* contract_cvc_loop_eo_stoch_wi */
+
+/***************************************************************************
+ * check position space WI for a loop
+ ***************************************************************************/
+int cvc_loop_eo_check_wi_position_space_stoch ( double ***wwi, double ***loop_stoch, double **eo_stochastic_propagator, double **eo_stochastic_source, int nsample, double *gauge_field, double **mzz[2], double **mzzinv[2]  ) {
+
+  const unsigned int Vhalf = VOLUME / 2;
+
+  int exitstatus;
+  double **conn_buffer = NULL, norm_accum = 0.;
+  double **wi = NULL;
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+#endif
+
+  exitstatus = init_2level_buffer ( &conn_buffer, 4, 2*(VOLUME+RAND) );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[cvc_loop_eo_check_wi_position_space_stoch] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+
+  if ( *wwi == NULL ) {
+    if ( g_cart_id == 0 ) fprintf(stdout, "# [cvc_loop_eo_check_wi_position_space_stoch] allocating new wi contraction field\n");
+    exitstatus = init_2level_buffer ( &wi, 2, 2*Vhalf );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[cvc_loop_eo_check_wi_position_space_stoch] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(1);
+    }
+    *wwi = wi;
+  } else {
+    if ( g_cart_id == 0 ) fprintf(stdout, "# [cvc_loop_eo_check_wi_position_space_stoch] using existing wi contraction field\n");
+    wi = *wwi;
+  }
+
+  contract_cvc_loop_eo_stoch_wi ( wi, eo_stochastic_propagator, eo_stochastic_source, nsample, gauge_field, mzz, mzzinv);
+
+  for ( int mu = 0; mu < 4; mu++ ) {
+    complex_field_eo2lexic (conn_buffer[mu], loop_stoch[0][mu], loop_stoch[1][mu] );
+#ifdef HAVE_MPI
+    xchange_contraction( conn_buffer[mu], 2 );
+#endif
+  }
+
+#ifdef HAVE_OPENMP
+  omp_init_lock(&writelock);
+#pragma omp parallel shared( norm_accum, conn_buffer, wi )
+{
+#endif
+  double normt = 0.;
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
+    int ieo = g_iseven[ix] == 1 ? 0 : 1;
+    unsigned int ixeosub = g_lexic2eosub[ix];
+    double dvalr = conn_buffer[0][2*ix] 
+                 + conn_buffer[1][2*ix] 
+                 + conn_buffer[2][2*ix] 
+                 + conn_buffer[3][2*ix]
+                 - conn_buffer[0][2*g_idn[ix][0]]
+                 - conn_buffer[1][2*g_idn[ix][1]]
+                 - conn_buffer[2][2*g_idn[ix][2]]
+                 - conn_buffer[3][2*g_idn[ix][3]];
+
+    double dvali = conn_buffer[0][2*ix+1]
+                 + conn_buffer[1][2*ix+1]   
+                 + conn_buffer[2][2*ix+1]  
+                 + conn_buffer[3][2*ix+1]
+                 - conn_buffer[0][2*g_idn[ix][0]+1]
+                 - conn_buffer[1][2*g_idn[ix][1]+1]
+                 - conn_buffer[2][2*g_idn[ix][2]+1]
+                 - conn_buffer[3][2*g_idn[ix][3]+1];
+
+    double dnormr = dvalr - wi[ieo][2*ixeosub  ];
+    double dnormi = dvali - wi[ieo][2*ixeosub+1];
+
+
+    if ( g_verbose > 4 ) fprintf(stdout, "# [cvc_loop_eo_check_wi_position_space_stoch] proc%.4d %3d %3d %3d %3d\t\t\t%25.16e%25.16e\t\t%25.16e %25.16e\n",
+        g_cart_id, ix/(LX*LY*LZ) + g_proc_coords[0]*T, (ix%(LX*LY*LZ))/(LY*LZ) + g_proc_coords[1]*LX,
+        (ix%(LY*LZ))/LZ + g_proc_coords[2]*LY, ix%LZ + g_proc_coords[3]*LZ, 
+        wi[ieo][2*ixeosub], wi[ieo][2*ixeosub+1], dnormr, dnormi );
+      normt += dnormr * dnormr + dnormi * dnormi;
+  }
+#ifdef HAVE_OPENMP
+  omp_set_lock(&writelock);
+#endif
+  norm_accum += normt;
+
+#ifdef HAVE_OPENMP
+  omp_unset_lock(&writelock);
+}  /* end of parallel region */
+  omp_destroy_lock(&writelock);
+#endif
+
+  norm_accum = sqrt ( norm_accum );
+#ifdef HAVE_MPI
+  double dtmp = norm_accum;
+  exitstatus = MPI_Allreduce(&dtmp, &norm_accum, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid);
+  if(exitstatus != MPI_SUCCESS) {
+    fprintf(stderr, "[cvc_loop_eo_check_wi_position_space_stoch] Error from MPI_Allreduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(2);
+  }
+#endif
+  if (g_cart_id == 0) fprintf(stdout, "# [cvc_loop_eo_check_wi_position_space_stoch] WI %25.16e\n", norm_accum );
+
+  /* fini_2level_buffer ( &wi ); */
+  fini_2level_buffer ( &conn_buffer );
+
+  return(0);
+}  /* end of cvc_loop_eo_check_wi_position_space_stoch */
 
 }  /* end of namespace cvc */

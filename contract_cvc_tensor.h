@@ -94,6 +94,10 @@ int co_eq_complex_field_convolute_photon ( double **r, double **s, int init );
 
 int co_field_eq_jj_disc_tensor_trace ( double *r, double**j1, double**j2, int project, unsigned int N );
 
+void contract_cvc_loop_eo_stoch_wi ( double **wi, double**eo_stochastic_propagator, double **eo_stochastic_source, int nsample, double*gauge_field, double **mzz[2], double **mzzinv[2]);
+
+int cvc_loop_eo_check_wi_position_space_stoch ( double ***wwi, double ***loop_stoch, double **eo_stochastic_propagator, double **eo_stochastic_source, int nsample, double *gauge_field, double **mzz[2], double **mzzinv[2] );
+
 }  /* end of namespace cvc */
 
 #endif
