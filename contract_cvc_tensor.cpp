@@ -8,6 +8,7 @@
  * DONE:
  * TODO:
  ****************************************************/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -49,12 +50,15 @@ static int source_proc_id;
 static unsigned int source_location;
 static int source_location_iseven;
 
-/***********************************************************
+/***************************************************************************/
+/***************************************************************************/
+
+/***************************************************************************
  * initialize Usource
  *
  * NOTE: the gauge field at source is multiplied with the
  *       boundary phase
- ***********************************************************/
+ ***************************************************************************/
 void init_contract_cvc_tensor_usource(double *gauge_field, int source_coords[4], complex *phase ) {
 
   int gsx[4] = {source_coords[0], source_coords[1], source_coords[2], source_coords[3] };
@@ -144,14 +148,14 @@ void init_contract_cvc_tensor_usource(double *gauge_field, int source_coords[4],
   if(g_cart_id == 0) fprintf(stdout, "# [init_contract_cvc_tensor_usource] time for init_contract_cvc_tensor_usource = %e seconds\n", retime-ratime);
 }  /* end of init_contract_cvc_tensor_usource */
 
-  /***********************************************************************************************************/
-  /***********************************************************************************************************/
+/***************************************************************************/
+/***************************************************************************/
 
-/***********************************************************
+/***************************************************************************
  * reduction
  *
  * w += tr ( g5 r^+ g5 s )
- ***********************************************************/
+ ***************************************************************************/
 void co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field (complex *w, fermion_propagator_type *r, fermion_propagator_type *s, double sign, unsigned int N) {
 
 #ifdef HAVE_OPENMP
@@ -191,15 +195,15 @@ void co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field (
 
 }  /* end of co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field */
 
-  /***********************************************************************************************************/
-  /***********************************************************************************************************/
+/***************************************************************************/
+/***************************************************************************/
 
-/***********************************************************
+/***************************************************************************
  * eo-prec contractions for cvc - cvc tensor
  *
  * NOTE: neither conn_e nor conn_o nor contact_term 
  *       are initialized to zero here
- ***********************************************************/
+ ***************************************************************************/
 void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_term, double**sprop_list_e, double**sprop_list_o, double**tprop_list_e, double**tprop_list_o , double*gauge_field ) {
   
   const unsigned int Vhalf = VOLUME / 2;
@@ -521,6 +525,9 @@ void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_te
 
 }  /* end of contract_cvc_tensor_eo */
 
+/***************************************************************************/
+/***************************************************************************/
+
 /***************************************************************************
  * subtract contact term
  *
@@ -550,11 +557,12 @@ void cvc_tensor_eo_subtract_contact_term (double**tensor_eo, double*contact_term
   }  /* end of if have source */
 }  /* end of cvc_tensor_eo_subtract_contact_term */
 
+/***************************************************************************/
+/***************************************************************************/
 
 /***************************************************************************
  * momentum projections
  ***************************************************************************/
-
 int cvc_tensor_eo_momentum_projection (double****tensor_tp, double**tensor_eo, int (*momentum_list)[3], int momentum_number) {
 
   const unsigned int Vhalf = VOLUME / 2;
@@ -594,10 +602,12 @@ int cvc_tensor_eo_momentum_projection (double****tensor_tp, double**tensor_eo, i
   return(0);
 }  /* end of cvc_tensor_eo_momentum_projection */
 
+/***************************************************************************/
+/***************************************************************************/
+
 /***************************************************************************
  * write tp-tensor results to file
  ***************************************************************************/
-
 int cvc_tensor_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, char*tag, int (*momentum_list)[3], int momentum_number, int io_proc ) {
 
   int exitstatus, i;
@@ -705,13 +715,15 @@ int cvc_tensor_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, c
 
 }  /* end of cvc_tensor_tp_write_to_aff_file */
 
+/***************************************************************************/
+/***************************************************************************/
+
 /***************************************************************************
  * write time-momentum-dependent contraction  results to AFF file
  *
  * p runs slower than t, i.e. c_tp[momentum][time]
  *
  ***************************************************************************/
-
 int contract_write_to_aff_file (double **c_tp, struct AffWriter_s*affw, char*tag, int (*momentum_list)[3], int momentum_number, int io_proc ) {
 
   int exitstatus, i;
@@ -850,12 +862,14 @@ int cvc_tensor_eo_write_contact_term_to_aff_file ( double *contact_term, struct 
   return(0);
 }  /* end of cvc_tensor_eo_write_contact_term_to_aff_file */
             
+/***************************************************************************/
+/***************************************************************************/
 
-/********************************************
+/***************************************************************************
  * check Ward-identity in position space
  *
  *   starting from eo-precon tensor
- ********************************************/
+ ***************************************************************************/
 
 int cvc_tensor_eo_check_wi_position_space (double **tensor_eo) {
 
@@ -954,18 +968,19 @@ int apply_constant_cvc_vertex_at_source (double**s, int mu, int fbwd, const unsi
   return(0);
 }  /* end of apply_constant_cvc_vertex_at_source */
 
+/***************************************************************************/
+/***************************************************************************/
 
 #if 0
-
 This is not yet correct; for full time dilution on
 the odd subspace, one needs to sum over the time projector
 indices t-1, t, t+1 to get the even part of the local
 loop at time t; this is due to the appearance of
 Xbar^+ xi
 
-/************************************************
+/***************************************************************************
  *
- ************************************************/
+ ***************************************************************************/
 int contract_local_loop_stochastic_clover (double***eo_stochastic_propagator, double***eo_stochastic_source, int nsample,
     int *gid_list, int gid_number,
     int *momentum_list[3], int momentum_number,
@@ -1057,12 +1072,15 @@ int contract_local_loop_stochastic_clover (double***eo_stochastic_propagator, do
 #endif  /* of if 0 */
 
 
-/***********************************************************
+/***************************************************************************/
+/***************************************************************************/
+
+/***************************************************************************
  * eo-prec contractions for local - local 2-point function
  *
  * NOTE: neither conn_e nor conn_o nor contact_term 
  *       are initialized to zero here
- ***********************************************************/
+ ***************************************************************************/
 int contract_local_local_2pt_eo ( double**sprop_list_e, double**sprop_list_o, double**tprop_list_e, double**tprop_list_o, 
     int *gamma_sink_list, int gamma_sink_num, int*gamma_source_list, int gamma_source_num, int (*momentum_list)[3], int momentum_number,  struct AffWriter_s*affw, char*tag,
     int io_proc ) {
@@ -1194,12 +1212,15 @@ int contract_local_local_2pt_eo ( double**sprop_list_e, double**sprop_list_o, do
 
 }  /* end of contract_local_local_2pt_eo */
 
-/***********************************************************
+/***************************************************************************/
+/***************************************************************************/
+
+/***************************************************************************
  * eo-prec contractions for local - cvc 2-point function
  *
  * NOTE: neither conn_e nor conn_o nor contact_term 
  *       are initialized to zero here
- ***********************************************************/
+ ***************************************************************************/
 int contract_local_cvc_2pt_eo ( double**sprop_list_e, double**sprop_list_o, double**tprop_list_e, double**tprop_list_o,
     int *gamma_sink_list, int gamma_sink_num, int (*momentum_list)[3], int momentum_number,  struct AffWriter_s*affw, char*tag,
     int io_proc ) {
@@ -1360,11 +1381,14 @@ int contract_local_cvc_2pt_eo ( double**sprop_list_e, double**sprop_list_o, doub
 
 }  /* end of contract_local_cvc_2pt_eo */
 
-/***********************************************************
+/***************************************************************************/
+/***************************************************************************/
+
+/***************************************************************************
  * reduction
  *
  * w += tr ( r )
- ***********************************************************/
+ ***************************************************************************/
 void co_field_pl_eq_tr_propagator_field (complex *w, fermion_propagator_type *r, double sign, unsigned int N) {
 
 #ifdef HAVE_OPENMP
@@ -1390,11 +1414,14 @@ void co_field_pl_eq_tr_propagator_field (complex *w, fermion_propagator_type *r,
 
 }  /* end of co_field_pl_eq_tr_propagator_field */
 
-/***********************************************************
+/***************************************************************************/
+/***************************************************************************/
+
+/***************************************************************************
  * reduction
  *
  * w += tr ( r )^*
- ***********************************************************/
+ ***************************************************************************/
 void co_field_pl_eq_tr_propagator_field_conj (complex *w, fermion_propagator_type *r, double sign, unsigned int N) {
 
 #ifdef HAVE_OPENMP
@@ -1421,9 +1448,12 @@ void co_field_pl_eq_tr_propagator_field_conj (complex *w, fermion_propagator_typ
 }  /* end of co_field_pl_eq_tr_propagator_field */
 
 
-/***********************************************************
+/***************************************************************************/
+/***************************************************************************/
+
+/***************************************************************************
  *
- ***********************************************************/
+ ***************************************************************************/
 void contract_cvc_loop_eo ( double ***loop, double**sprop_list_e, double**sprop_list_o, double**tprop_list_e, double**tprop_list_o , double*gauge_field ) {
 
   const unsigned int Vhalf = VOLUME / 2;
@@ -1533,9 +1563,12 @@ void contract_cvc_loop_eo ( double ***loop, double**sprop_list_e, double**sprop_
 }  /* end of contract_cvc_loop_eo */
 
 
-/***********************************************************
+/***************************************************************************/
+/***************************************************************************/
+
+/***************************************************************************
  *
- ***********************************************************/
+ ***************************************************************************/
 void contract_cvc_loop_eo_lma ( double ****loop, double**eo_evecs_field, double *eo_evecs_norm, int nev, double*gauge_field, double **mzz[2], double **mzzinv[2] ) {
 
   const unsigned int Vhalf = VOLUME / 2;
@@ -1631,6 +1664,9 @@ void contract_cvc_loop_eo_lma ( double ****loop, double**eo_evecs_field, double 
 
 }  /* end of contract_cvc_loop_eo_lma */
 
+/***************************************************************************/
+/***************************************************************************/
+
 /***********************************************************
  *
  ***********************************************************/
@@ -1689,6 +1725,9 @@ void contract_cvc_loop_eo_lma_wi ( double **wi, double**eo_evecs_field, double *
 
   return;
 }  /* contract_cvc_loop_eo_lma_wi */
+
+/***************************************************************************/
+/***************************************************************************/
 
 /***************************************************************************
  * check position space WI for a loop
@@ -1763,10 +1802,11 @@ int cvc_loop_eo_check_wi_position_space_lma ( double ***wwi, double ***loop_lma,
                   - conn_buffer[3][2*g_idn[ix][3]+1] - wi[ieo][2*ixeosub+1]; 
 
 
-    if ( g_verbose > 4 ) fprintf(stdout, "# [cvc_loop_eo_check_wi_position_space_lma] proc%.4d %3d %3d %3d %3d\t\t\t%25.16e%25.16e\t\t%25.16e %25.16e\n",
+    /* if ( g_verbose > 4 ) fprintf(stdout, "# [cvc_loop_eo_check_wi_position_space_lma] proc%.4d %3d %3d %3d %3d\t\t\t%25.16e%25.16e\t\t%25.16e %25.16e\n",
         g_cart_id, ix/(LX*LY*LZ) + g_proc_coords[0]*T, (ix%(LX*LY*LZ))/(LY*LZ) + g_proc_coords[1]*LX,
         (ix%(LY*LZ))/LZ + g_proc_coords[2]*LY, ix%LZ + g_proc_coords[3]*LZ, wi[ieo][2*ixeosub], wi[ieo][2*ixeosub+1], dnormr, dnormi );
-      normt += dnormr * dnormr + dnormi * dnormi;
+     */
+    normt += dnormr * dnormr + dnormi * dnormi;
   }
 #ifdef HAVE_OPENMP
   omp_set_lock(&writelock);
@@ -1796,6 +1836,8 @@ int cvc_loop_eo_check_wi_position_space_lma ( double ***wwi, double ***loop_lma,
   return(0);
 }  /* end of cvc_loop_eo_check_wi_position_space_lma */
 
+/***************************************************************************/
+/***************************************************************************/
 
 /***************************************************************************
  * momentum projections
@@ -1840,10 +1882,12 @@ int cvc_loop_eo_momentum_projection (double****loop_tp, double***loop_eo, int nf
   return(0);
 }  /* end of cvc_loop_eo_momentum_projection */
 
+/***************************************************************************/
+/***************************************************************************/
+
 /***************************************************************************
  * momentum shift
  ***************************************************************************/
-
 int cvc_loop_eo_momentum_shift (double***cvc_tp, int (*momentum_list)[3], int momentum_number) {
 
   double retime, ratime;
@@ -1880,6 +1924,8 @@ int cvc_loop_eo_momentum_shift (double***cvc_tp, int (*momentum_list)[3], int mo
   return(0);
 }  /* end of cvc_loop_eo_momentum_shift */
 
+/***************************************************************************/
+/***************************************************************************/
 
 /***************************************************************************
  * write tp-loop results to file
@@ -1994,6 +2040,9 @@ int cvc_loop_tp_write_to_aff_file (double***cvc_tp, int nf, struct AffWriter_s*a
 
 }  /* end of cvc_loop_tp_write_to_aff_file */
 
+/***************************************************************************/
+/***************************************************************************/
+
 /***************************************************************************
  * check Ward identity in momentum space
  ***************************************************************************/
@@ -2100,10 +2149,12 @@ int cvc_loop_eo_check_wi_momentum_space_lma ( double **wi, double ***loop_lma, i
   return(0);
 }  /* end of cvc_loop_eo_check_wi_momentum_space_lma */
 
+/***************************************************************************/
+/***************************************************************************/
 
-/***********************************************************
+/***************************************************************************
  *
- ***********************************************************/
+ ***************************************************************************/
 void contract_cvc_loop_eo_stoch ( double ****loop, double**eo_stochastic_propagator, double**eo_stochastic_source, int nsample, double*gauge_field, double **mzz[2], double **mzzinv[2]) {
 
   const unsigned int Vhalf = VOLUME / 2;
@@ -2187,15 +2238,15 @@ void contract_cvc_loop_eo_stoch ( double ****loop, double**eo_stochastic_propaga
 
 }  /* end of contract_cvc_loop_eo_stoch */
 
-/***********************************************************/
-/***********************************************************/
+/***************************************************************************/
+/***************************************************************************/
 
-/***********************************************************
+/***************************************************************************
  * contractions for eo-precon lm cvc - cvc tensor
  *
  * NOTE:
  *
- ***********************************************************/
+ ***************************************************************************/
 int contract_cvc_tensor_eo_lm_factors ( double**eo_evecs_field, int nev, double*gauge_field, double **mzz[2], double **mzzinv[2],
     struct AffWriter_s **affw, char*tag, 
     int (*momentum_list)[3], int momentum_number, int io_proc, int block_length ) {
@@ -2467,10 +2518,13 @@ int contract_cvc_tensor_eo_lm_factors ( double**eo_evecs_field, int nev, double*
   return(0);
 }  /* end of contract_cvc_tensor_eo_lm_factors */
 
-/***********************************************************
+/***************************************************************************/
+/***************************************************************************/
+
+/***************************************************************************
  *
  * dimV must be integer multiple of dimW
- ***********************************************************/
+ ***************************************************************************/
 int vdag_w_spin_color_reduction ( double ***contr, double**V, double**W, int dimV, int dimW, int t ) {
 
   const unsigned int VOL3half = LX*LY*LZ/2;
@@ -2566,10 +2620,12 @@ int vdag_w_spin_color_reduction ( double ***contr, double**V, double**W, int dim
   return(0);
 }  /* end of vdag_w_spin_color_reduction */
 
+/***************************************************************************/
+/***************************************************************************/
 
-/***********************************************************
+/***************************************************************************
  * momentum projection
- ***********************************************************/
+ ***************************************************************************/
 int vdag_w_momentum_projection ( double _Complex ***contr_p, double ***contr_x, int dimV, int dimW, int (*momentum_list)[3], int momentum_number, int t, int ieo, int mu ) {
 
   int exitstatus;
@@ -2587,9 +2643,12 @@ int vdag_w_momentum_projection ( double _Complex ***contr_p, double ***contr_x, 
   return(0);
 }  /* end of vdag_w_momentum_projection */
 
-/***********************************************************
+/***************************************************************************/
+/***************************************************************************/
+
+/***************************************************************************
  *
- ***********************************************************/
+ ***************************************************************************/
 int vdag_w_write_to_aff_file ( double _Complex ***contr_tp, int nv, int nw, struct AffWriter_s*affw, char*tag, int (*momentum_list)[3], int momentum_number, int io_proc ) {
 
   const uint32_t items = nv * nw;
@@ -2635,10 +2694,12 @@ int vdag_w_write_to_aff_file ( double _Complex ***contr_tp, int nv, int nw, stru
   return(0);
 }  /* end of vdag_w_write_to_aff_file */
 
+/***************************************************************************/
+/***************************************************************************/
 
-/***********************************************************
+/***************************************************************************
  * contract eo-precon low-mode part of local loops
- ***********************************************************/
+ ***************************************************************************/
 void contract_local_loop_eo_lma ( double ***loop, double**eo_evecs_field, double *eo_evecs_norm, int nev, double*gauge_field, double **mzz[2], double **mzzinv[2]) {
 
   const unsigned int Vhalf = VOLUME / 2;
@@ -2722,12 +2783,12 @@ void contract_local_loop_eo_lma ( double ***loop, double**eo_evecs_field, double
 
 }  /* end of contract_local_loop_eo_lma */
 
-/***********************************************************/
-/***********************************************************/
+/***************************************************************************/
+/***************************************************************************/
 
-/***********************************************************
+/***************************************************************************
  * purely stochastic part for eo-precon loops
- ***********************************************************/
+ ***************************************************************************/
 void contract_local_loop_eo_stoch ( double ***loop, double**eo_stochastic_propagator, double**eo_stochastic_source, int nsample, double*gauge_field, double **mzz[2], double **mzzinv[2]) {
 
   const unsigned int Vhalf = VOLUME / 2;
@@ -2799,20 +2860,24 @@ void contract_local_loop_eo_stoch ( double ***loop, double**eo_stochastic_propag
 
 }  /* end of contract_local_loop_eo_stoch */
 
-/***********************************************************/
-/***********************************************************/
+/***************************************************************************/
+/***************************************************************************/
 
-/***********************************************************
+/***************************************************************************
  * convolute a complex field with lattice photon 
  * in momentum space in Feynman gauge
  * sum to scalar
  *
- * G(p) = 1 / phat^2 if pvec != 0, 0 else
- ***********************************************************/
-int co_eq_complex_field_convolute_photon_scalar ( double *c, double *r, int init ) {
+ * without projection
+ *   G(p) = 1 / phat^2 if pvec != 0, 0 else
+ *
+ * with projection
+ *   G(p) = ( phat_mu phat_nu / phat^2 - delta_{mu,nu} ) / phat^2
+ ***************************************************************************/
+int co_eq_complex_field_convolute_photon_scalar ( double *c, double **j1, double **j2, int init, int project) {
 
   int exitstatus;
-  static double *photon_propagator = NULL;
+  static double **photon_propagator = NULL;
   double ratime, retime;
   double c_accum[2] = {0., 0.};
 
@@ -2824,10 +2889,9 @@ int co_eq_complex_field_convolute_photon_scalar ( double *c, double *r, int init
   ratime = _GET_TIME;
 
   if ( init == 1 || init == 3 ) {
-    if ( photon_propagator != NULL ) free ( photon_propagator );
-    photon_propagator = ( double * ) malloc ( VOLUME * sizeof (double) );
-    if ( photon_propagator == NULL ) {
-      fprintf(stderr, "[co_eq_complex_field_convolute_photon_scalar] Error from malloc %s %d\n", __FILE__, __LINE__);
+    if ( photon_propagator != NULL ) fini_2level_buffer ( &photon_propagator );
+    if ( ( exitstatus = init_2level_buffer ( &photon_propagator, VOLUME, 5 ) ) != 0 ) {
+      fprintf(stderr, "[co_eq_complex_field_convolute_photon_scalar] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       return(1);
     }
 
@@ -2835,37 +2899,109 @@ int co_eq_complex_field_convolute_photon_scalar ( double *c, double *r, int init
 #pragma omp parallel for
 #endif
     for ( int x0 = 0; x0 <  T; x0++ ) {
-      double p0 = sin ( M_PI * ( x0 + g_proc_coords[0] *  T ) / (double)T_global );
+      int y0 = x0 + g_proc_coords[0] *  T;
+      double p0 = 2. * sin ( M_PI * y0 / (double)T_global );
     for ( int x1 = 0; x1 < LX; x1++ ) {
-      double p1 = sin ( M_PI * ( x1 + g_proc_coords[1] * LX ) / (double)LX_global );
+      int y1 = x1 + g_proc_coords[1] * LX;
+      double p1 = 2. * sin ( M_PI * y1 / (double)LX_global );
     for ( int x2 = 0; x2 < LY; x2++ ) {
-      double p2 = sin ( M_PI * ( x2 + g_proc_coords[2] * LY ) / (double)LY_global );
+      int y2 = x2 + g_proc_coords[2] * LY;
+      double p2 = 2. * sin ( M_PI * y2 / (double)LY_global );
     for ( int x3 = 0; x3 < LZ; x3++ ) {
-      double p3 = sin ( M_PI * ( x3 + g_proc_coords[3] * LZ ) / (double)LZ_global );
+      int y3 = x3 + g_proc_coords[3] * LZ;
+      double p3 = 2. * sin ( M_PI * y3 / (double)LZ_global );
 
       unsigned int ix = g_ipt[x0][x1][x2][x3];
 
-      photon_propagator[ix] = ( x1 == 0 && x2 == 0 && x3 == 0 ) ? 0. : 0.25 / ( p0 * p0 + p1 * p1 + p2 * p2 + p3 * p3 );
+      photon_propagator[ix][0] = p0;
+      photon_propagator[ix][1] = p1;
+      photon_propagator[ix][2] = p2;
+      photon_propagator[ix][3] = p3;
+      photon_propagator[ix][4] = ( y1 == 0 && y2 == 0 && y3 == 0 ) ? 0. : 1. / ( p0 * p0 + p1 * p1 + p2 * p2 + p3 * p3 );
     }}}}
   }
 
 #ifdef HAVE_OPENMP
   omp_init_lock( &writelock );
 
-#pragma omp parallel shared( c_accum, r )
+#pragma omp parallel shared( c_accum, j1, j2 )
 {
 #endif
   double dtmp[2] = {0. ,0.};
-  double *r_ = NULL;
+  double *j1_0_ = NULL, *j1_1_ = NULL, *j1_2_ = NULL, *j1_3_ = NULL, 
+         *j2_0_ = NULL, *j2_1_ = NULL, *j2_2_ = NULL, *j2_3_ = NULL;
 
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
   for ( unsigned int ix = 0; ix < VOLUME; ix++  ) {
-    r_ = r + 2*ix;
-    dtmp[0] += photon_propagator[ix] * r_[0];
-    dtmp[1] += photon_propagator[ix] * r_[1];
+    unsigned int ix2 = 2*ix;
+    j1_0_ = j1[0] + ix2;
+    j1_1_ = j1[1] + ix2;
+    j1_2_ = j1[2] + ix2;
+    j1_3_ = j1[3] + ix2;
+
+    j2_0_ = j2[0] + ix2;
+    j2_1_ = j2[1] + ix2;
+    j2_2_ = j2[2] + ix2;
+    j2_3_ = j2[3] + ix2;
+
+    dtmp[0] += photon_propagator[ix][4] * (
+        j1_0_[0] * j2_0_[0] - j1_0_[1] * j2_0_[1]
+      + j1_1_[0] * j2_1_[0] - j1_1_[1] * j2_1_[1]
+      + j1_2_[0] * j2_2_[0] - j1_2_[1] * j2_2_[1]
+      + j1_3_[0] * j2_3_[0] - j1_3_[1] * j2_3_[1]);
+
+    dtmp[1] += photon_propagator[ix][4] * (
+        j1_0_[0] * j2_0_[1] + j1_0_[1] * j2_0_[0] 
+      + j1_1_[0] * j2_1_[1] + j1_1_[1] * j2_1_[0] 
+      + j1_2_[0] * j2_2_[1] + j1_2_[1] * j2_2_[0] 
+      + j1_3_[0] * j2_3_[1] + j1_3_[1] * j2_3_[0] );
   }
+  if ( project == 1 ) {
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for ( unsigned int ix = 0; ix < VOLUME; ix++  ) {
+      unsigned int ix2 = 2*ix;
+      j1_0_ = j1[0] + ix2;
+      j1_1_ = j1[1] + ix2;
+      j1_2_ = j1[2] + ix2;
+      j1_3_ = j1[3] + ix2;
+
+      j2_0_ = j2[0] + ix2;
+      j2_1_ = j2[1] + ix2;
+      j2_2_ = j2[2] + ix2;
+      j2_3_ = j2[3] + ix2;
+
+      double phatsqr2inv = photon_propagator[ix][4] * photon_propagator[ix][4];
+
+      double j1pr = j1_0_[0] * photon_propagator[ix][0]
+                  + j1_1_[0] * photon_propagator[ix][1]
+                  + j1_2_[0] * photon_propagator[ix][2]
+                  + j1_3_[0] * photon_propagator[ix][3];
+
+      double j1pi = j1_0_[1] * photon_propagator[ix][0]
+                  + j1_1_[1] * photon_propagator[ix][1]
+                  + j1_2_[1] * photon_propagator[ix][2]
+                  + j1_3_[1] * photon_propagator[ix][3];
+
+      double j2pr = j2_0_[0] * photon_propagator[ix][0]
+                  + j2_1_[0] * photon_propagator[ix][1]
+                  + j2_2_[0] * photon_propagator[ix][2]
+                  + j2_3_[0] * photon_propagator[ix][3];
+
+      double j2pi = j2_0_[1] * photon_propagator[ix][0]
+                  + j2_1_[1] * photon_propagator[ix][1]
+                  + j2_2_[1] * photon_propagator[ix][2]
+                  + j2_3_[1] * photon_propagator[ix][3];
+
+      dtmp[0] -= ( j1pr * j2pr - j1pi * j2pi ) * phatsqr2inv;
+      dtmp[1] -= ( j1pr * j2pi + j1pi * j2pr ) * phatsqr2inv;
+
+   }  /* end of loop on 4-momenta */
+
+  }  /* end of if project == 1 */
 #ifdef HAVE_OPENMP
   omp_set_lock( &writelock );
   c_accum[0] += dtmp[0];
@@ -2892,7 +3028,7 @@ int co_eq_complex_field_convolute_photon_scalar ( double *c, double *r, int init
   c[1] = c_accum[1];
 
   if ( init == 2 || init == 3 ) {
-    free ( photon_propagator );
+    fini_2level_buffer ( &photon_propagator );
     photon_propagator = NULL;
   }
 
@@ -2901,29 +3037,31 @@ int co_eq_complex_field_convolute_photon_scalar ( double *c, double *r, int init
   return(0);
 }  /* co_eq_complex_field_convolute_photon_scalar */
 
-/***********************************************************/
-/***********************************************************/
+/***************************************************************************/
+/***************************************************************************/
 
-/***********************************************************
+/***************************************************************************
  * convolute a complex field with lattice photon 
  * in momentum space in Feynman gauge
  *
  * G_{mu, nu} (p) = delta_{mu,nu}  / phat^2, 
  * inplace is okay
- ***********************************************************/
-int co_eq_complex_field_convolute_photon ( double **r, double **s, int init ) {
+ ***************************************************************************/
+
+int current_field_eq_photon_propagator_ti_current_field ( double **j1, double **j2, int init, int project ) {
 
   int exitstatus;
-  static double *photon_propagator = NULL;
+  static double **photon_propagator = NULL;
+  double *jp = NULL;
   double ratime, retime;
 
   ratime = _GET_TIME;
 
   if ( init == 1 || init == 3 ) {
-    if ( photon_propagator != NULL ) free ( photon_propagator );
-    photon_propagator = ( double * ) malloc ( VOLUME * sizeof (double) );
-    if ( photon_propagator == NULL ) {
-      fprintf(stderr, "[co_eq_complex_field_convolute_photon] Error from malloc %s %d\n", __FILE__, __LINE__);
+    if ( photon_propagator != NULL ) fini_2level_buffer ( &photon_propagator );
+
+    if ( ( exitstatus = init_2level_buffer ( &photon_propagator, VOLUME, 5 ) ) != 0 ) {
+      fprintf(stderr, "[current_field_eq_photon_propagator_ti_current_field] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       return(1);
     }
 
@@ -2931,44 +3069,77 @@ int co_eq_complex_field_convolute_photon ( double **r, double **s, int init ) {
 #pragma omp parallel for
 #endif
     for ( int x0 = 0; x0 <  T; x0++ ) {
-      double p0 = sin ( M_PI * ( x0 + g_proc_coords[0] *  T ) / (double)T_global );
+      int y0 = x0 + g_proc_coords[0] *  T;
+      double p0 = 2. * sin ( M_PI * y0 / (double)T_global );
     for ( int x1 = 0; x1 < LX; x1++ ) {
-      double p1 = sin ( M_PI * ( x1 + g_proc_coords[1] * LX ) / (double)LX_global );
+      int y1 = x1 + g_proc_coords[1] * LX;
+      double p1 = 2. * sin ( M_PI * y1 / (double)LX_global );
     for ( int x2 = 0; x2 < LY; x2++ ) {
-      double p2 = sin ( M_PI * ( x2 + g_proc_coords[2] * LY ) / (double)LY_global );
+      int y2 = x2 + g_proc_coords[2] * LY;
+      double p2 = 2. * sin ( M_PI * y2 / (double)LY_global );
     for ( int x3 = 0; x3 < LZ; x3++ ) {
-      double p3 = sin ( M_PI * ( x3 + g_proc_coords[3] * LZ ) / (double)LZ_global );
+      int y3 = x3 + g_proc_coords[3] * LZ;
+      double p3 = 2. * sin ( M_PI * y3 / (double)LZ_global );
 
       unsigned int ix = g_ipt[x0][x1][x2][x3];
 
-      photon_propagator[ix] = ( x1 == 0 && x2 == 0 && x3 == 0 ) ? 0. : 0.25 / ( p0 * p0 + p1 * p1 + p2 * p2 + p3 * p3 );
+      photon_propagator[ix][0] = p0;
+      photon_propagator[ix][1] = p1;
+      photon_propagator[ix][2] = p2;
+      photon_propagator[ix][3] = p3;
+      photon_propagator[ix][4] = ( y1 == 0 && y2 == 0 && y3 == 0 ) ? 0. : 1. / ( p0 * p0 + p1 * p1 + p2 * p2 + p3 * p3 );
     }}}}
   }
 
+  if ( project == 1 ) {
+    if ( ( exitstatus = init_1level_buffer ( &jp, 2*VOLUME ) ) != 0 ) {
+      fprintf(stderr, "[current_field_eq_photon_propagator_ti_current_field] Error from init_1level_buffer, status was %d\n", exitstatus);
+      EXIT(1);
+    }
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+    for ( unsigned int ix = 0; ix <  VOLUME; ix++ ) {
+      unsigned int ix2 = 2 * ix;
+      jp[ix2  ] = (   photon_propagator[ix][0] * j2[0][ix2  ] 
+                    + photon_propagator[ix][1] * j2[1][ix2  ] 
+                    + photon_propagator[ix][2] * j2[2][ix2  ] 
+                    + photon_propagator[ix][3] * j2[3][ix2  ] ) * photon_propagator[ix][4] * photon_propagator[ix][4];
+
+      jp[ix2+1] = (   photon_propagator[ix][0] * j2[0][ix2+1] 
+                    + photon_propagator[ix][1] * j2[1][ix2+1] 
+                    + photon_propagator[ix][2] * j2[2][ix2+1] 
+                    + photon_propagator[ix][3] * j2[3][ix2+1] ) * photon_propagator[ix][4] * photon_propagator[ix][4];
+    }
+  }  /* end of if project == 1 */
+
+
   for ( int mu = 0; mu < 4; mu++ ) {
 #ifdef HAVE_OPENMP
-#pragma omp parallel shared( r , s)
-{
-#endif
-    unsigned int iix;
-    double *s_ = NULL, *r_ = NULL;
-
-#ifdef HAVE_OPENMP
-#pragma omp for
+#pragma omp parallel for
 #endif
     for ( unsigned int ix = 0; ix < VOLUME; ix++  ) {
-      iix = 2 * ix;
-      r_ = r[mu] + iix;
-      s_ = s[mu] + iix;
-      r_[0] = photon_propagator[ix] * s_[0];
-      r_[1] = photon_propagator[ix] * s_[1];
+      unsigned int ix2 = 2*ix;
+      j1[mu][ix2  ] = photon_propagator[ix][4] * j2[mu][ix2  ];
+      j1[mu][ix2+1] = photon_propagator[ix][4] * j2[mu][ix2+1];
     }
 
+    if ( project == 1 ) {
 #ifdef HAVE_OPENMP
-}  /* end of parallel region */
+#pragma omp parallel for
 #endif
+      for ( unsigned int ix = 0; ix < VOLUME; ix++  ) {
+        unsigned int ix2 = 2*ix;
+        j1[mu][ix2  ] -= jp[ix2  ] * photon_propagator[ix][mu];
+        j1[mu][ix2+1] -= jp[ix2+1] * photon_propagator[ix][mu];
+      }
+    }
 
   }  /* end of loop on mu */
+
+  if ( project == 1 ) {
+    fini_1level_buffer ( &jp );
+  }
 
   if ( init == 2 || init == 3 ) {
     free ( photon_propagator );
@@ -2976,15 +3147,16 @@ int co_eq_complex_field_convolute_photon ( double **r, double **s, int init ) {
   }
 
   retime = _GET_TIME;
-  if (g_cart_id == 0 ) fprintf(stdout, "# [co_eq_complex_field_convolute_photon] time for co_eq_complex_field_convolute_photon = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+  if (g_cart_id == 0 ) fprintf(stdout, "# [current_field_eq_photon_propagator_ti_current_field] time for co_eq_complex_field_convolute_photon = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
   return(0);
-}  /* co_eq_complex_field_convolute_photon */
+}  /* current_field_eq_photon_propagator_ti_current_field */
 
-/***********************************************************/
-/***********************************************************/
-/***********************************************************
+/***************************************************************************/
+/***************************************************************************/
+
+/***************************************************************************
  *
- ***********************************************************/
+ ***************************************************************************/
 int co_field_eq_jj_disc_tensor_trace ( double *r, double**j1, double**j2, int project, unsigned int N ) {
 
 #ifdef HAVE_OPENMP
@@ -3041,9 +3213,12 @@ int co_field_eq_jj_disc_tensor_trace ( double *r, double**j1, double**j2, int pr
 }  /* end of co_field_eq_jj_disc_tensor_trace */
 
 
-/***********************************************************
+/***************************************************************************/
+/***************************************************************************/
+
+/***************************************************************************
  *
- ***********************************************************/
+ ***************************************************************************/
 void contract_cvc_loop_eo_stoch_wi ( double **wi, double**eo_stochastic_propagator, double **eo_stochastic_source, int nsample, double*gauge_field, double **mzz[2], double **mzzinv[2]) {
 
   const unsigned int Vhalf = VOLUME / 2;
@@ -3095,6 +3270,9 @@ void contract_cvc_loop_eo_stoch_wi ( double **wi, double**eo_stochastic_propagat
 
   return;
 }  /* contract_cvc_loop_eo_stoch_wi */
+
+/***************************************************************************/
+/***************************************************************************/
 
 /***************************************************************************
  * check position space WI for a loop
