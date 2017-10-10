@@ -6318,8 +6318,8 @@ void spinor_field_eq_gauge_field_dag_ti_spinor_field (double*r, double *gf, doub
 #endif
 }  /* end of spinor_field_eq_gauge_field_dag_ti_spinor_field */
 
-
-
+/**************************************************************************/
+/**************************************************************************/
 
 /**************************************************************************
  * determine the source process id and local source coordinates from
@@ -6365,6 +6365,8 @@ int get_point_source_info (int gcoords[4], int lcoords[4], int*proc_id) {
   return(0);
 }  /* end of get_point_source_info */
 
+/**************************************************************************/
+/**************************************************************************/
 
 /* r *= c */
 void complex_field_ti_eq_re (double *r, double c, unsigned int N) {
@@ -6378,6 +6380,9 @@ void complex_field_ti_eq_re (double *r, double c, unsigned int N) {
     r[ix] *= c;
   }
 }  /* end of complex_field_ti_eq_re */
+
+/**************************************************************************/
+/**************************************************************************/
 
 /* r *= c */
 void complex_field_eq_complex_field_conj_ti_re (double *r, double c, unsigned int N) {
@@ -6393,6 +6398,9 @@ void complex_field_eq_complex_field_conj_ti_re (double *r, double c, unsigned in
     rr[1] *= -c;
   }
 }  /* end of complex_field_eq_complex_field_conj_ti_re */
+
+/**************************************************************************/
+/**************************************************************************/
 
 /* r = s + conj( t ) * c
  * N is the number of complex elements in r,s and t
@@ -6420,7 +6428,12 @@ void complex_field_eq_complex_field_pl_complex_field_conj_ti_re (double*r, doubl
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */
 #endif
+
+  return;
 }  /* end of complex_field_eq_complex_field_pl_complex_field_ti_re */
+
+/**************************************************************************/
+/**************************************************************************/
 
 /* r += s
  * N is the number of complex elements in r and t
@@ -6428,12 +6441,17 @@ void complex_field_eq_complex_field_pl_complex_field_conj_ti_re (double*r, doubl
 void complex_field_pl_eq_complex_field ( double*r, double*s, unsigned int N) {
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel for
+#pragma omp parallel for shared (r,s,N)
 #endif
   for( unsigned int ix = 0; ix < 2*N; ix++ ) {
     r[ix] += s[ix];
   }  /* end of loop on ix */
+
+  return;
 }  /* end of complex_field_pl_eq_complex_field  */
+
+/**************************************************************************/
+/**************************************************************************/
 
 /*
  * r = s^+
@@ -6459,7 +6477,12 @@ void complex_field_eq_complex_field_conj ( double*r, double*s, unsigned int N) {
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */
 #endif
+
+  return;
 }  /* end of complex_field_eq_complex_field_conj */
+
+/***********************************************************/
+/***********************************************************/
 
 /*
  * r = -s^+
@@ -6485,7 +6508,61 @@ void complex_field_eq_mi_complex_field_conj ( double*r, double*s, unsigned int N
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */
 #endif
+
+  return;
 }  /* end of complex_field_eq_mi_complex_field_conj */
+
+/***********************************************************/
+/***********************************************************/
+
+void co_eq_sum_complex_field_ti_complex_field (double *z, double *r, double *s, unsigned int N) {
+ 
+  int exitstatus;
+  double  zaccum[2] = {0., 0.};
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+#endif
+
+#ifdef HAVE_OPENMP
+  omp_init_lock( &writelock );
+#pragma omp parallel
+{
+#endif
+  double  zt[2] = {0., 0.};
+  unsigned int iix;
+  double *r_ = NULL, *s_ = NULL;
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for( unsigned int ix = 0; ix < N; ix++ ) {
+    iix   = 2*ix;
+    r_    = r + iix;
+    s_    = s + iix;
+    zt[0] += r_[0] * s_[0] - r_[1] * s_[1];
+    zt[1] += r_[0] * s_[1] + r_[1] * s_[0];
+  }  /* end of loop on ix */
+#ifdef HAVE_OPENMP
+  omp_set_lock( &writelock );
+#endif
+  zaccum[0] += zt[0];
+  zaccum[1] += zt[1];
+#ifdef HAVE_OPENMP
+  omp_unset_lock( &writelock );
+}  /* end of parallel region */
+  omp_destroy_lock( &writelock );
+#endif
+
+#ifdef HAVE_MPI
+  if ( ( exitstatus = MPI_Allreduce(zaccum, z, 2, MPI_DOUBLE, MPI_SUM, g_cart_grid) ) != MPI_SUCCESS ) {
+    fprintf(stderr, "[co_eq_sum_complex_field_ti_complex_field] Error from MPI_Reduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(1);
+  }
+#endif
+  return;
+}  /* end of co_eq_sum_complex_field_ti_complex_field */
+
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  * calculate plaquettes in four different ways
@@ -7088,13 +7165,13 @@ void complex_field_norm_diff (double*d, double *r, double *s, unsigned int N) {
 #endif
 
 #ifdef HAVE_MPI
-  double daccumt = 0.;
-  if ( (exitstatus = MPI_Allreduce( &daccum, &daccumt, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid ) ) != 0 ) {
+  double mdaccum = 0.;
+  if ( (exitstatus = MPI_Allreduce( &daccum, &mdaccum, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid ) ) != 0 ) {
     fprintf(stderr, "[complex_field_norm_diff] Error from MPI_Allreduce, status was %d\n", exitstatus );
     EXIT(1);
   }
 
-  *d = sqrt( daccumt );
+  *d = sqrt( mdaccum );
 #else
   *d = sqrt( daccum  );
 #endif

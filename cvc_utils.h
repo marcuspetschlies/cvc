@@ -198,6 +198,8 @@ void complex_field_eq_complex_field_conj ( double*r, double*s, unsigned int N);
 
 void complex_field_eq_mi_complex_field_conj ( double*r, double*s, unsigned int N);
 
+void co_eq_sum_complex_field_ti_complex_field (double *z, double *r, double *s, unsigned int N);
+
 }  /* end of namespace cvc */
 #endif
 
