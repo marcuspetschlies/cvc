@@ -6525,7 +6525,7 @@ void co_eq_sum_complex_field_ti_complex_field (double *z, double *r, double *s, 
 
 #ifdef HAVE_OPENMP
   omp_init_lock( &writelock );
-#pragma omp parallel
+#pragma omp parallel shared (r,s,N,zaccum)
 {
 #endif
   double  zt[2] = {0., 0.};
@@ -6557,6 +6557,9 @@ void co_eq_sum_complex_field_ti_complex_field (double *z, double *r, double *s, 
     fprintf(stderr, "[co_eq_sum_complex_field_ti_complex_field] Error from MPI_Reduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(1);
   }
+#else
+  z[0] = zaccum[0];
+  z[1] = zaccum[1];
 #endif
   return;
 }  /* end of co_eq_sum_complex_field_ti_complex_field */
