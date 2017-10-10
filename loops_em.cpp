@@ -96,8 +96,6 @@ int main(int argc, char **argv) {
   int filename_set = 0;
   int check_position_space_WI=0;
   int exitstatus;
-  int source_proc_id = 0;
-  int no_eo_fields = 0;
   int io_proc = -1;
   int evecs_num = 0;
   int check_propagator_residual = 0;
@@ -107,18 +105,11 @@ int main(int argc, char **argv) {
   double **eo_spinor_field=NULL, **eo_spinor_work=NULL, *eo_evecs_block=NULL;
   double **eo_evecs_field=NULL;
   double *evecs_eval = NULL, *evecs_lambdainv=NULL, *evecs_4kappasqr_lambdainv = NULL;
-  char filename[100], contype[500];
-  double ratime, retime;
+  char filename[100], contype[600];
+  /* double ratime, retime; */
   double **mzz[2], **mzzinv[2];
   double *gauge_field_with_phase = NULL;
-  double ****cvc_loop_lma_x = NULL, *cvc_loop_lexic = NULL;
-  double ***cvc_loop_lma_p = NULL, ***cvc_loop_tp = NULL;
-  double ****cvc_loop_stoch_x = NULL;
-  double ***cvc_loop_stoch_p = NULL, ***cvc_loop_stoch_p_accum = NULL;
-
-
-  double *jj_tensor_trace = NULL;
-  double _Complex ztmp[4];
+  double _Complex ztmp;
 
 #ifdef HAVE_MPI
   MPI_Status mstatus;
@@ -334,7 +325,6 @@ int main(int argc, char **argv) {
    * allocate memory for eo spinor fields 
    * WITH HALO
    *************************************************/
-  no_eo_fields = 6;
   exitstatus = init_2level_buffer ( &eo_spinor_work, 6, _GSI((VOLUME+RAND)/2) );
   if ( exitstatus != 0) {
     fprintf(stderr, "[loops_em] Error from init_2level_buffer, status was %d\n", exitstatus);
@@ -387,11 +377,55 @@ int main(int argc, char **argv) {
   }
 #endif
 
+  /***********************************************************
+   * check eigenvectors
+   ***********************************************************/
+  exitstatus = init_2level_buffer ( &eo_spinor_field, 2, _GSI(Vhalf));
+  if( exitstatus != 0 ) {
+    fprintf(stderr, "[loops_caa_lma] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(123);
+  }
+
+  for( int i = 0; i < evecs_num; i++)
+  {
+    double norm;
+    complex w;
+
+    /*
+    w.re =  eo_evecs_field[i][0] / ( eo_evecs_field[i][0] * eo_evecs_field[i][0] + eo_evecs_field[i][1] * eo_evecs_field[i][1]);
+    w.im = -eo_evecs_field[i][1] / ( eo_evecs_field[i][0] * eo_evecs_field[i][0] + eo_evecs_field[i][1] * eo_evecs_field[i][1]);
+#ifdef HAVE_MPI
+    MPI_Bcast(&w, 2, MPI_DOUBLE, 0, g_cart_grid);
+#endif
+    spinor_field_eq_spinor_field_ti_co ( eo_evecs_field[i], eo_evecs_field[i], w, Vhalf);
+    */
+
+    C_clover_oo (eo_spinor_field[0], eo_evecs_field[i],  gauge_field_with_phase, eo_spinor_work[2], g_mzz_dn[1], g_mzzinv_dn[0]);
+    C_clover_oo (eo_spinor_field[1], eo_spinor_field[0], gauge_field_with_phase, eo_spinor_work[2], g_mzz_up[1], g_mzzinv_up[0]);
+
+    spinor_scalar_product_re(&norm, eo_evecs_field[i], eo_evecs_field[i], Vhalf);
+    spinor_scalar_product_co(&w, eo_spinor_field[1], eo_evecs_field[i], Vhalf);
+
+    w.re *= 4.*g_kappa*g_kappa;
+    w.im *= 4.*g_kappa*g_kappa;
+
+    if(g_cart_id == 0) {
+      fprintf(stdout, "# [loops_em] evec %.4d norm = %25.16e w = %25.16e +I %25.16e diff = %25.16e\n", i, norm, w.re, w.im, fabs( w.re-evecs_eval[i]));
+    }
+
+  }
+
+  fini_2level_buffer ( &eo_spinor_field );
+#if 0
+#endif  /* if 0 */
+
+
+
+
   /***********************************************
    * initialize random number generator
    ***********************************************/
-  exitstatus = init_rng_stat_file (g_seed, NULL);
-  if(exitstatus != 0) {
+  if ( ( exitstatus = init_rng_stat_file (g_seed, NULL) ) != 0 ) {
     fprintf(stderr, "[loops_em] Error from init_rng_stat_file status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(38);
   }
@@ -416,11 +450,12 @@ int main(int argc, char **argv) {
   }  /* end of if io_proc == 2 */
 #endif
 
+
   /***********************************************
    * local lma loops
    ***********************************************/
-  double ***local_loop_x = NULL, ***local_loop_p = NULL;
 
+  double ***local_loop_x = NULL, ***local_loop_p = NULL;
   if( ( exitstatus = init_3level_buffer ( &local_loop_x, 2, 16, 2*Vhalf ) ) != 0 ) {
     fprintf(stderr, "[loops_em] Error from init_3level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(1);
@@ -440,16 +475,22 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[loops_em] Error from cvc_loop_tp_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(2);
   }
+#if 0
+#endif  /* of if 0 */
 
   fini_3level_buffer ( &local_loop_x );
   fini_3level_buffer ( &local_loop_p );
 
+
   /***********************************************/
   /***********************************************/
+
 
   /***********************************************
    * cvc lma loops
    ***********************************************/
+  double ****cvc_loop_lma_x = NULL;
+  double ***cvc_loop_lma_p = NULL, ***cvc_loop_tp = NULL;
 
   if( ( exitstatus = init_4level_buffer ( &cvc_loop_lma_x, 2, 4, 2, 2*Vhalf ) ) != 0 ) {
     fprintf(stderr, "[loops_em] Error from init_4level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -461,21 +502,11 @@ int main(int argc, char **argv) {
     EXIT(1);
   }
 
-  if( ( exitstatus = init_1level_buffer ( &cvc_loop_lexic, 2*VOLUME ) ) != 0 ) {
-    fprintf(stderr, "[loops_em] Error from init_1level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(1);
-  }
-
-  if( ( exitstatus = init_1level_buffer ( &jj_tensor_trace, 2*VOLUME ) ) != 0 ) {
-    fprintf(stderr, "[loops_em] Error from init_1level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(1);
-  }
-
-
   /***********************************************
    * cvc fwd and bwd contraction in position space
    ***********************************************/
   contract_cvc_loop_eo_lma ( cvc_loop_lma_x, eo_evecs_field, evecs_4kappasqr_lambdainv, evecs_num, gauge_field_with_phase, mzz, mzzinv );
+
 
   /***********************************************
    * cvc momentum projection fwd
@@ -505,55 +536,139 @@ int main(int argc, char **argv) {
     EXIT(2);
   }
 
-  /***********************************************
-   * add fwd and bwd
-   ***********************************************/
-  complex_field_pl_eq_complex_field ( cvc_loop_lma_x[0][0][0], cvc_loop_lma_x[1][0][0], 8*VOLUME );
+  fini_3level_buffer ( &cvc_loop_tp );
+
 
   /***********************************************
-   * 4-dim FT
+   * add bwd to fwd
    ***********************************************/
+  complex_field_pl_eq_complex_field ( cvc_loop_lma_x[0][0][0], cvc_loop_lma_x[1][0][0], 8*Vhalf );
+
+#if 0
+  /* TEST */
+  double **cvc_wi = NULL;
+  double ***cvc_loop_lma = NULL;
+  
+  if ( ( exitstatus = init_3level_buffer ( &cvc_loop_lma, 2, 4, 2*Vhalf ) ) != 0 ) {
+    fprintf(stderr, "[loops_caa_lma] Error from init_3level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(1);
+  }
+
+  memset ( cvc_loop_lma[0][0], 0, 16*Vhalf*sizeof(double) );
+  for ( int mu = 0; mu < 4; mu++ ) {
+    /* even part */
+    complex_field_pl_eq_complex_field ( cvc_loop_lma[0][mu], cvc_loop_lma_x[0][mu][0], Vhalf );
+    /* complex_field_pl_eq_complex_field ( cvc_loop_lma[0][mu], cvc_loop_lma_x[1][mu][0], Vhalf ); */
+
+    /* odd part */
+    complex_field_pl_eq_complex_field ( cvc_loop_lma[1][mu], cvc_loop_lma_x[0][mu][1], Vhalf );
+    /* complex_field_pl_eq_complex_field ( cvc_loop_lma[1][mu], cvc_loop_lma_x[1][mu][1], Vhalf ); */
+
+#if 0
+    /* even part */
+    for ( unsigned int ix = 0; ix < 2*Vhalf; ix++ ) {
+      cvc_loop_lma[0][mu][ix] = cvc_loop_lma_x[0][mu][0][ix] + cvc_loop_lma_x[1][mu][0][ix];
+    }
+    /* odd part */
+    for ( unsigned int ix = 0; ix < 2*Vhalf; ix++ ) {
+      cvc_loop_lma[1][mu][ix] = cvc_loop_lma_x[0][mu][1][ix] + cvc_loop_lma_x[1][mu][1][ix];
+    }
+#endif /* of if 0  */
+  }
+
+  if( ( exitstatus =  cvc_loop_eo_check_wi_position_space_lma ( &cvc_wi, cvc_loop_lma, eo_evecs_field,
+          evecs_4kappasqr_lambdainv, evecs_num, gauge_field_with_phase, mzz, mzzinv ) ) != 0 ) {
+    fprintf(stderr, "[loops_em] Error from cvc_loop_eo_check_wi_position_space_lma, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(2);
+  }
+
+  /* TEST */
+/*
+  for ( int x0 = 0; x0 <  T; x0++ ) {
+  for ( int x1 = 0; x1 < LX; x1++ ) {
+  for ( int x2 = 0; x2 < LY; x2++ ) {
+  for ( int x3 = 0; x3 < LZ; x3++ ) {
+    unsigned int ix = g_ipt[x0][x1][x2][x3];
+    int ieo = g_iseven[ix] == 1 ? 0 : 1;
+    unsigned int ixeosub = g_lexic2eosub[ix];
+    fprintf (stdout, "%3d%3d%3d%3d %25.16e %25.16e %25.16e %25.16e %25.16e %25.16e %25.16e %25.16e %25.16e %25.16e\n", x0, x1, x2, x3,
+        cvc_loop_lma[ieo][0][2*ixeosub], cvc_loop_lma[ieo][0][2*ixeosub+1],
+        cvc_loop_lma[ieo][1][2*ixeosub], cvc_loop_lma[ieo][1][2*ixeosub+1],
+        cvc_loop_lma[ieo][2][2*ixeosub], cvc_loop_lma[ieo][2][2*ixeosub+1],
+        cvc_loop_lma[ieo][3][2*ixeosub], cvc_loop_lma[ieo][3][2*ixeosub+1],
+        cvc_wi[ieo][2*ixeosub], cvc_wi[ieo][2*ixeosub+1] );
+  }}}}
+*/
+  /* END OF TEST */
+
+  fini_3level_buffer ( &cvc_loop_lma );
+  fini_2level_buffer ( &cvc_wi );
+
+  /* END OF TEST */
+
+#endif  /* of if 0 */
+
+  /***********************************************
+   * 4-dim FT,
+   * write to file
+   ***********************************************/
+  sprintf( filename, "loop_cvc_lma_p.%.4d.nev%.4d.lime", Nconf, evecs_num );
   for ( int mu = 0; mu < 4; mu++ ) {
 
-    complex_field_eo2lexic ( cvc_loop_lexic, cvc_loop_lma_x[0][mu][0], cvc_loop_lma_x[0][mu][1] );
+    complex_field_eo2lexic ( cvc_loop_lma_p[0][mu], cvc_loop_lma_x[0][mu][0], cvc_loop_lma_x[0][mu][1] );
 
-    if ( ( exitstatus = ft_4dim ( cvc_loop_lma_p[0][mu], cvc_loop_lexic, 1, (int)( mu==0 )  ) ) != 0 ) {
+    if ( ( exitstatus = ft_4dim ( cvc_loop_lma_p[1][mu], cvc_loop_lma_p[0][mu], 1, (int)( mu==0 ) ) ) != 0 ) {
       fprintf(stderr, "[loops_em] Error from ft_4dim, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(2);
     }
 
-    complex_field_eq_mi_complex_field_conj ( cvc_loop_lexic, cvc_loop_lexic, VOLUME );
+    sprintf(contype, "\n<description> cvc loop contraction</description>\n"\
+        "<component>%d</component>\n"\
+        "<flavor>%s</flavor\n"\
+        "<precision>%d</precision>\n"\
+        "<ft_sign>%s</ft_sign>\n"\
+        "<space>%s</space>\n",\
+        mu, "up", 64, "+1", "p" );
 
-    if ( ( exitstatus = ft_4dim ( cvc_loop_lma_p[1][mu], cvc_loop_lexic, 1, 0 ) ) != 0 ) {
-      fprintf(stderr, "[loops_em] Error from ft_4dim, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    if ( ( exitstatus = write_lime_contraction ( cvc_loop_lma_p[1][mu], filename, 64, 1, contype, Nconf, (int)(mu > 0) ) ) != 0 ) {
+      fprintf(stderr, "[loops_em] Error from write_lime_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(2);
     }
   }
 
   /***********************************************
+   * convolution
+   *
+   * init    = 1
+   * project = 0
+   ***********************************************/
+  if ( ( exitstatus = current_field_eq_photon_propagator_ti_current_field ( cvc_loop_lma_p[1], cvc_loop_lma_p[1], 1, 0 ) ) != 0 ) {
+    fprintf(stderr, "[loops_em] Error from current_field_eq_photon_propagator_ti_current_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(2);
+  }
+
+  /***********************************************
+   * 4-dim FT,
    * write to file
    ***********************************************/
-  sprintf( filename, "loop_cvc_lma_p.%.4d.nev%.4d", Nconf, evecs_num );
   for ( int mu = 0; mu < 4; mu++ ) {
 
-    sprintf(contype, "\n<description> cvc loop contraction\n"\
-        "<component>%d</component>\n"\
-        "<flavor>%s</flavor\n"\
-        "<precision>%d</precision>\n"\
-        "<ft_sign%s</ft_sign>\n",\
-        mu, "up", 64, "+1" );
+    complex_field_eq_mi_complex_field_conj (cvc_loop_lma_p[1][mu], cvc_loop_lma_p[1][mu], VOLUME );
 
-    if ( ( exitstatus = write_lime_contraction ( cvc_loop_lma_p[0][mu], filename, 64, 1, contype, Nconf, (int)(mu > 0) ) ) != 0 ) {
-      fprintf(stderr, "[loops_em] Error from write_lime_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    if ( ( exitstatus = ft_4dim ( cvc_loop_lma_p[1][mu], cvc_loop_lma_p[1][mu], 1,              0 ) ) != 0 ) {
+      fprintf(stderr, "[loops_em] Error from ft_4dim, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(2);
     }
 
-    sprintf(contype, "\n<description> cvc loop contraction\n"\
+    complex_field_eq_mi_complex_field_conj ( cvc_loop_lma_p[1][mu], cvc_loop_lma_p[1][mu], VOLUME );
+
+    sprintf(contype, "\n<description> cvc loop convoluted</description>\n"\
         "<component>%d</component>\n"\
         "<flavor>%s</flavor\n"\
         "<precision>%d</precision>\n"\
-        "<ft_sign%s</ft_sign>\n",\
-        mu, "dn", 64, "+1" );
+        "<ft_sign>%s</ft_sign>\n"\
+        "<space>%s</space>\n",\
+        mu, "up", 64, "+1", "x" );
 
     if ( ( exitstatus = write_lime_contraction ( cvc_loop_lma_p[1][mu], filename, 64, 1, contype, Nconf, 1 ) ) != 0 ) {
       fprintf(stderr, "[loops_em] Error from write_lime_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -561,41 +676,201 @@ int main(int argc, char **argv) {
     }
 
   }  /* end of loop on mu */
+ 
+#if 0
+  /***********************************************
+   * TEST
+   *
+   * Ward identity for up quark
+   * in 4-momentum space, + sign in Fourier phase
+   ***********************************************/
+  /* double **cvc_wi = NULL; */
+  double p[4], norm_wi = 0.;
+, double *cvc_loop_lexic = NULL;
+  if( ( exitstatus = init_2level_buffer ( &cvc_wi, 2, 2*Vhalf ) ) != 0 ) {
+    fprintf(stderr, "[loops_em] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(1);
+  }
+
+  if( ( exitstatus = init_1level_buffer ( &cvc_loop_lexic, 2*VOLUME ) ) != 0 ) {
+    fprintf(stderr, "[loops_em] Error from init_1level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(1);
+  }
+
+  contract_cvc_loop_eo_lma_wi ( cvc_wi, eo_evecs_field, evecs_4kappasqr_lambdainv, evecs_num, gauge_field_with_phase, mzz, mzzinv );
+
+  complex_field_eo2lexic ( cvc_loop_lexic, cvc_wi[0], cvc_wi[1] );
+  if ( ( exitstatus = ft_4dim ( cvc_wi[0], cvc_loop_lexic, 1, 3 ) ) != 0 ) {
+    fprintf(stderr, "[loops_em] Error from ft_4dim, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(2);
+  }
+
+  for ( int x0 = 0; x0 <  T; x0++ ) {
+    p[0] = M_PI * (x0 + g_proc_coords[0] *  T) / (double)T_global;
+  for ( int x1 = 0; x1 < LX; x1++ ) {
+    p[1] = M_PI * (x1 + g_proc_coords[1] * LX) / (double)LX_global;
+  for ( int x2 = 0; x2 < LY; x2++ ) {
+    p[2] = M_PI * (x2 + g_proc_coords[2] * LY) / (double)LY_global;
+  for ( int x3 = 0; x3 < LZ; x3++ ) {
+    p[3] = M_PI * (x3 + g_proc_coords[3] * LZ) / (double)LZ_global;
+    unsigned int ix = g_ipt[x0][x1][x2][x3];
+
+    double dtmp[2] = {0., 0.};
+    double rtmp[2];
+    for ( int mu = 0; mu < 4; mu++ ) {
+      double ephase[2] = { sin( p[mu] ), -cos( p[mu] ) };
+      double sinp = 2. * sin ( p[mu] );
+
+      rtmp[0] = cvc_loop_lma_p[0][mu][2*ix  ];
+      rtmp[1] = cvc_loop_lma_p[0][mu][2*ix+1];
+
+      dtmp[0] += sinp * ( rtmp[0] * ephase[0] - rtmp[1] * ephase[1] );
+      dtmp[1] += sinp * ( rtmp[0] * ephase[1] + rtmp[1] * ephase[0] );
+    }
+
+
+    fprintf ( stdout, "%3d %3d %3d %3d \t %25.16e %25.16e \t %25.16e %25.16e\n",
+        x0 + g_proc_coords[0] * T,
+        x1 + g_proc_coords[1] * LX,
+        x2 + g_proc_coords[2] * LY,
+        x3 + g_proc_coords[3] * LZ,
+        dtmp[0], dtmp[1], cvc_wi[0][2*ix], cvc_wi[0][2*ix+1] );
+
+    dtmp[0] -= cvc_wi[0][2*ix  ];
+    dtmp[1] -= cvc_wi[0][2*ix+1];
+    norm_wi += dtmp[0] * dtmp[0] + dtmp[1] * dtmp[1];
+  }}}}
+#ifdef HAVE_MPI
+  double norm_wi_tmp = norm_wi;
+  if ( ( exitstatus = MPI_Allreduce (&norm_wi_tmp, &norm_wi, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid) ) != 0 ) {
+    fprintf(stderr, "[loops_em] Error from MPI_Allreduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(2);
+  }
+#endif
+  if ( io_proc == 2 ) {
+    fprintf ( stdout, "# [loops_em] momentum space wi + norm %25.16e\n", sqrt( norm_wi ) );
+  }
+  
+  fini_2level_buffer ( &cvc_wi );
+  /* END OF TEST */
+#endif  /* if 0 */
+
+  /***********************************************/
+  /***********************************************/
+
+#if 0
+  /***********************************************
+   * TEST
+   *
+   * Ward identity for up quark
+   * in 4-momentum space; - sign in Fourier phase
+   ***********************************************/
+  /* double **cvc_wi = NULL; */
+  /* double p[4], norm_wi = 0.; */
+  if( ( exitstatus = init_2level_buffer ( &cvc_wi, 2, 2*Vhalf ) ) != 0 ) {
+    fprintf(stderr, "[loops_em] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(1);
+  }
+
+  contract_cvc_loop_eo_lma_wi ( cvc_wi, eo_evecs_field, evecs_4kappasqr_lambdainv, evecs_num, gauge_field_with_phase, mzz, mzzinv );
+
+  complex_field_eo2lexic ( cvc_loop_lexic, cvc_wi[0], cvc_wi[1] );
+  if ( ( exitstatus = ft_4dim ( cvc_wi[0], cvc_loop_lexic, -1, 3 ) ) != 0 ) {
+    fprintf(stderr, "[loops_em] Error from ft_4dim, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(2);
+  }
+
+  for ( int x0 = 0; x0 <  T; x0++ ) {
+    p[0] = -M_PI * (x0 + g_proc_coords[0] *  T) / (double)T_global;
+  for ( int x1 = 0; x1 < LX; x1++ ) {
+    p[1] = -M_PI * (x1 + g_proc_coords[1] * LX) / (double)LX_global;
+  for ( int x2 = 0; x2 < LY; x2++ ) {
+    p[2] = -M_PI * (x2 + g_proc_coords[2] * LY) / (double)LY_global;
+  for ( int x3 = 0; x3 < LZ; x3++ ) {
+    p[3] = -M_PI * (x3 + g_proc_coords[3] * LZ) / (double)LZ_global;
+    unsigned int ix = g_ipt[x0][x1][x2][x3];
+
+    double dtmp[2] = {0., 0.};
+    double rtmp[2];
+    for ( int mu = 0; mu < 4; mu++ ) {
+      double ephase[2] = { sin( p[mu] ), -cos( p[mu] ) };
+      double sinp = 2. * sin ( p[mu] );
+
+      rtmp[0] = cvc_loop_lma_p[1][mu][2*ix  ];
+      rtmp[1] = cvc_loop_lma_p[1][mu][2*ix+1];
+
+      dtmp[0] += sinp * ( rtmp[0] * ephase[0] - rtmp[1] * ephase[1] );
+      dtmp[1] += sinp * ( rtmp[0] * ephase[1] + rtmp[1] * ephase[0] );
+    }
+
+
+    fprintf ( stdout, "%3d %3d %3d %3d \t %25.16e %25.16e \t %25.16e %25.16e\n",
+        x0 + g_proc_coords[0] * T,
+        x1 + g_proc_coords[1] * LX,
+        x2 + g_proc_coords[2] * LY,
+        x3 + g_proc_coords[3] * LZ,
+        dtmp[0], dtmp[1], cvc_wi[0][2*ix], cvc_wi[0][2*ix+1] );
+
+    dtmp[0] -= cvc_wi[0][2*ix  ];
+    dtmp[1] -= cvc_wi[0][2*ix+1];
+    norm_wi += dtmp[0] * dtmp[0] + dtmp[1] * dtmp[1];
+  }}}}
+#ifdef HAVE_MPI
+  norm_wi_tmp = norm_wi;
+  if ( ( exitstatus = MPI_Allreduce (&norm_wi_tmp, &norm_wi, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid) ) != 0 ) {
+    fprintf(stderr, "[loops_em] Error from MPI_Allreduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(2);
+  }
+#endif
+  if ( io_proc == 2 ) {
+    fprintf ( stdout, "# [loops_em] momentum space wi - norm %25.16e\n", sqrt( norm_wi ) );
+  }
+  
+  fini_2level_buffer ( &cvc_wi );
+
+  fini_1level_buffer ( &cvc_loop_lexic );
+  /* END OF TEST */
+#endif  /* of if 0 */
+
 
   /***********************************************
    ***********************************************
    **                                           **
    ** QUESTION: half-link Fourier phase shift?  **
    **                                           **
+   ** No, not for now                           **
+   **                                           **
    ***********************************************
    ***********************************************/
 
   /***********************************************
-   * convolution
+   * write J J
+   *
+   * up - up - lma - lma
    ***********************************************/
+  co_eq_sum_complex_field_ti_complex_field ( (double*)&ztmp, cvc_loop_lma_p[0][0], cvc_loop_lma_p[1][0], 4*VOLUME );
 
-  /* up - up - lma - lma */
-  co_field_eq_jj_disc_tensor_trace ( jj_tensor_trace, cvc_loop_lma_p[0], cvc_loop_lma_p[0], 0, VOLUME );
-  exitstatus = co_eq_complex_field_convolute_photon_scalar ( (double*)&(ztmp[0]), jj_tensor_trace, 1 );
-
-  /* up - dn - lma - lma */
-  co_field_eq_jj_disc_tensor_trace ( jj_tensor_trace, cvc_loop_lma_p[0], cvc_loop_lma_p[1], 0, VOLUME );
-  exitstatus = co_eq_complex_field_convolute_photon_scalar ( (double*)&(ztmp[1]), jj_tensor_trace, 0 );
-
-  sprintf(aff_tag, "/loop/eu5/lma-lma/nev%.4d", evecs_num);
-  affdir = aff_writer_mkpath(affw, affn, aff_tag);
-  if ( ( exitstatus = aff_node_put_complex (affw, affdir, ztmp, (uint32_t)2 ) ) != 0 ) {
-    fprintf(stderr, "[loops_em] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(5);
+  if ( io_proc == 2 ) {
+    sprintf(aff_tag, "/loop/cvc-conv-cvc/lma-lma/nev%.4d", evecs_num);
+    affdir = aff_writer_mkpath(affw, affn, aff_tag);
+    if ( ( exitstatus = aff_node_put_complex (affw, affdir, &ztmp, (uint32_t)1 ) ) != 0 ) {
+      fprintf(stderr, "[loops_em] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(5);
+    }
   }
 
   fini_4level_buffer ( &cvc_loop_lma_x );
-  fini_3level_buffer ( &cvc_loop_tp );
-  fini_1level_buffer ( &cvc_loop_lexic );
-  fini_1level_buffer ( &jj_tensor_trace );
 
   /***********************************************/
   /***********************************************/
+
+
+
+  /***********************************************
+   * stochastic part
+   ***********************************************/
+
+  double ****cvc_loop_stoch_x = NULL, ***cvc_loop_stoch_p = NULL, ***cvc_loop_stoch_p_accum = NULL;
 
   if( ( exitstatus = init_3level_buffer ( &local_loop_x, 2, 16, 2*Vhalf ) ) != 0 ) {
     fprintf(stderr, "[loops_em] Error from init_3level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -617,11 +892,6 @@ int main(int argc, char **argv) {
     EXIT(1);
   }
 
-  if( ( exitstatus = init_1level_buffer ( &cvc_loop_lexic, 2*VOLUME ) ) != 0 ) {
-    fprintf(stderr, "[loops_em] Error from init_1level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(1);
-  }
-
   if( ( exitstatus = init_3level_buffer ( &cvc_loop_stoch_p, 2, 4, 2*VOLUME ) ) != 0 ) {
     fprintf(stderr, "[loops_em] Error from init_3level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(1);
@@ -631,12 +901,6 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[loops_em] Error from init_3level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(1);
   }
-
-  if( ( exitstatus = init_1level_buffer ( &jj_tensor_trace, 2*VOLUME ) ) != 0 ) {
-    fprintf(stderr, "[loops_em] Error from init_1level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(1);
-  }
-
 
   /***********************************************
    * loop on stochastic samples
@@ -685,6 +949,31 @@ int main(int argc, char **argv) {
     /* multiply with 2 kappa */
     spinor_field_ti_eq_re ( eo_stochastic_propagator[0], 2.*g_kappa, Vhalf );
 
+    if ( g_write_propagator ) {
+      
+      /* xxi <- Xbar xi */
+      memcpy ( eo_spinor_work[2], eo_stochastic_source[0], sizeof_eo_spinor_field );
+      X_clover_eo (eo_spinor_work[0] , eo_spinor_work[2], gauge_field_with_phase, mzzinv[1][0]);
+
+      /* xphi <- X phi */
+      memcpy ( eo_spinor_work[2], eo_stochastic_propagator[0], sizeof_eo_spinor_field );
+      X_clover_eo ( eo_spinor_work[1], eo_spinor_work[2], gauge_field_with_phase, mzzinv[0][0]);
+
+      spinor_field_eo2lexic ( eo_spinor_work[2], eo_spinor_work[0], eo_stochastic_source[0] );
+      spinor_field_eo2lexic ( eo_spinor_work[4], eo_spinor_work[1], eo_stochastic_propagator[0] );
+
+      sprintf ( filename, "%s.%.4d.%.5d", filename_prefix, Nconf, isample );
+      if ( ( exitstatus = write_propagator( eo_spinor_work[2], filename, 0, g_propagator_precision ) ) != 0 ) {
+        fprintf(stderr, "[loops_caa_lma] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(123);
+      }
+      if ( ( exitstatus = write_propagator( eo_spinor_work[4], filename, 1, g_propagator_precision ) ) != 0 ) {
+        fprintf(stderr, "[loops_caa_lma] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(123);
+      }
+
+    }  /* end of if write propagator */
+
     /***********************************************
      * local loops
      ***********************************************/
@@ -702,6 +991,9 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[loops_em] Error from cvc_loop_tp_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(2);
     }
+
+    /***********************************************/
+    /***********************************************/
 
     /***********************************************
      * cvc fwd and bwd loop
@@ -739,52 +1031,65 @@ int main(int argc, char **argv) {
     /***********************************************
      * add fwd and bwd
      ***********************************************/
-    complex_field_pl_eq_complex_field ( cvc_loop_stoch_x[0][0][0], cvc_loop_stoch_x[1][0][0], 8*VOLUME );
+    complex_field_pl_eq_complex_field ( cvc_loop_stoch_x[0][0][0], cvc_loop_stoch_x[1][0][0], 8*Vhalf );
 
+    /***********************************************
+     * fwd Fourier transform
+     ***********************************************/
     for ( int mu = 0; mu < 4; mu++ ) {
-      complex_field_eo2lexic ( cvc_loop_lexic, cvc_loop_stoch_x[0][mu][0], cvc_loop_stoch_x[0][mu][1] );
+      complex_field_eo2lexic ( cvc_loop_stoch_p[0][mu], cvc_loop_stoch_x[0][mu][0], cvc_loop_stoch_x[0][mu][1] );
 
-      if ( ( exitstatus = ft_4dim ( cvc_loop_stoch_p[0][mu], cvc_loop_lexic, 1, 0 ) ) != 0 ) {
+      if ( ( exitstatus = ft_4dim ( cvc_loop_stoch_p[1][mu], cvc_loop_stoch_p[0][mu], 1, 0 ) ) != 0 ) {
         fprintf(stderr, "[loops_em] Error from ft_4dim, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(2);
       }
 
-      complex_field_eq_mi_complex_field_conj ( cvc_loop_lexic, cvc_loop_lexic, VOLUME );
+    }  /* end of loop on mu */
 
-      if ( ( exitstatus = ft_4dim ( cvc_loop_stoch_p[1][mu], cvc_loop_lexic, 1, 0 ) ) != 0 ) {
-        fprintf(stderr, "[loops_em] Error from ft_4dim, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(2);
-      }
-
+    /***********************************************
+     * convolution
+     *
+     * init    = 0
+     * project = 0
+     ***********************************************/
+    if ( ( exitstatus = current_field_eq_photon_propagator_ti_current_field ( cvc_loop_stoch_p[1], cvc_loop_stoch_p[1], 0, 0 ) ) != 0 ) {
+      fprintf(stderr, "[loops_em] Error from current_field_eq_photon_propagator_ti_current_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(2);
     }
+
+    /***********************************************
+     * bwd Fourier transform
+     ***********************************************/
+    for ( int mu = 0; mu < 4; mu++ ) {
+      complex_field_eq_mi_complex_field_conj ( cvc_loop_stoch_p[1][mu], cvc_loop_stoch_p[1][mu], VOLUME );
+
+      if ( ( exitstatus = ft_4dim ( cvc_loop_stoch_p[1][mu], cvc_loop_stoch_p[1][mu], 1, 0 ) ) != 0 ) {
+        fprintf(stderr, "[loops_em] Error from ft_4dim, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(2);
+      }
+      complex_field_eq_mi_complex_field_conj ( cvc_loop_stoch_p[1][mu], cvc_loop_stoch_p[1][mu], VOLUME );
+    }  /* end of loop on mu */
 
     /***********************************************
      * accumulate sum of loops in momentum space
      ***********************************************/
-    for ( unsigned int ix = 0; ix < 16 * VOLUME; ix++ ) {
-      cvc_loop_stoch_p_accum[0][0][ix] += cvc_loop_stoch_p[0][0][ix];
-    }
+    complex_field_pl_eq_complex_field ( cvc_loop_stoch_p_accum[0][0], cvc_loop_stoch_p[0][0], 8*VOLUME );
 
     /***********************************************/
     /***********************************************/
 
     /***********************************************
-     * cvc loop convolutions for current sample
+     * convolutions scalar for current sample
      ***********************************************/
+    co_eq_sum_complex_field_ti_complex_field ( (double*)&ztmp, cvc_loop_stoch_p[0][0], cvc_loop_stoch_p[1][0], 4*VOLUME );
 
-    /* up - up - stoch - stoch */
-    co_field_eq_jj_disc_tensor_trace ( jj_tensor_trace, cvc_loop_stoch_p[0], cvc_loop_stoch_p[0], 0, VOLUME );
-    exitstatus = co_eq_complex_field_convolute_photon_scalar ( (double*)&(ztmp[0]), jj_tensor_trace, 0 );
-
-    /* up - dn - stoch - stoch */
-    co_field_eq_jj_disc_tensor_trace ( jj_tensor_trace, cvc_loop_stoch_p[0], cvc_loop_stoch_p[1], 0, VOLUME );
-    exitstatus = co_eq_complex_field_convolute_photon_scalar ( (double*)&(ztmp[1]), jj_tensor_trace, 0 );
-
-    sprintf(aff_tag, "/loop/cvc-conv-cvc/stoch-stoch/sample%.4d", isample);
-    affdir = aff_writer_mkpath(affw, affn, aff_tag);
-    if ( ( exitstatus = aff_node_put_complex (affw, affdir, ztmp, (uint32_t)2 ) ) != 0 ) {
-      fprintf(stderr, "[loops_em] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(5);
+    if ( io_proc == 2 ) {
+      sprintf(aff_tag, "/loop/cvc-conv-cvc/stoch-stoch/sample%.4d", isample);
+      affdir = aff_writer_mkpath(affw, affn, aff_tag);
+      if ( ( exitstatus = aff_node_put_complex (affw, affdir, &ztmp, (uint32_t)1 ) ) != 0 ) {
+        fprintf(stderr, "[loops_em] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(5);
+      }
     }
 
     /***********************************************/
@@ -793,125 +1098,76 @@ int main(int argc, char **argv) {
     if ( isample % Nsave == 0 ) {
 
       /* up - up - stoch - stoch */
-      co_field_eq_jj_disc_tensor_trace ( jj_tensor_trace, cvc_loop_stoch_p_accum[0], cvc_loop_stoch_p_accum[0], 0, VOLUME );
-      exitstatus = co_eq_complex_field_convolute_photon_scalar ( (double*)&(ztmp[0]), jj_tensor_trace, 0 );
+      co_eq_sum_complex_field_ti_complex_field ( (double*)&ztmp, cvc_loop_stoch_p_accum[0][0], cvc_loop_stoch_p_accum[1][0], 4*VOLUME );
 
-      /* up - dn - stoch - stoch */
-      co_field_eq_jj_disc_tensor_trace ( jj_tensor_trace, cvc_loop_stoch_p_accum[0], cvc_loop_stoch_p_accum[1], 0, VOLUME );
-      exitstatus = co_eq_complex_field_convolute_photon_scalar ( (double*)&(ztmp[1]), jj_tensor_trace, 0 );
-
-      sprintf(aff_tag, "/loop/cvc-conv-cvc/stoch-stoch/block%.4d", isample);
-      affdir = aff_writer_mkpath(affw, affn, aff_tag);
-      if ( ( exitstatus = aff_node_put_complex (affw, affdir, ztmp, (uint32_t)2 ) ) != 0 ) {
-        fprintf(stderr, "[loops_em] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(5);
-      }
-
-      /* up - up - lma - stoch */
-      co_field_eq_jj_disc_tensor_trace ( jj_tensor_trace, cvc_loop_lma_p[0], cvc_loop_stoch_p_accum[0], 0, VOLUME );
-      exitstatus = co_eq_complex_field_convolute_photon_scalar ( (double*)&(ztmp[0]), jj_tensor_trace, 0 );
-
-      /* up - dn - lma - stoch */
-      co_field_eq_jj_disc_tensor_trace ( jj_tensor_trace, cvc_loop_lma_p[0], cvc_loop_stoch_p_accum[1], 0, VOLUME );
-      exitstatus = co_eq_complex_field_convolute_photon_scalar ( (double*)&(ztmp[1]), jj_tensor_trace, 0 );
-
-      sprintf(aff_tag, "/loop/cvc-conv-cvc/lma-stoch/block%.4d", isample);
-      affdir = aff_writer_mkpath(affw, affn, aff_tag);
-      if ( ( exitstatus = aff_node_put_complex (affw, affdir, ztmp, (uint32_t)2 ) ) != 0 ) {
-        fprintf(stderr, "[loops_em] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(5);
+      if ( io_proc == 2 ) {
+        sprintf(aff_tag, "/loop/cvc-conv-cvc/stoch-stoch/block%.4d", isample);
+        affdir = aff_writer_mkpath(affw, affn, aff_tag);
+        if ( ( exitstatus = aff_node_put_complex (affw, affdir, &ztmp, (uint32_t)1 ) ) != 0 ) {
+          fprintf(stderr, "[loops_em] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(5);
+        }
       }
 
       /* up - up - stoch - lma */
-      co_field_eq_jj_disc_tensor_trace ( jj_tensor_trace, cvc_loop_stoch_p_accum[0], cvc_loop_lma_p[0], 0, VOLUME );
-      exitstatus = co_eq_complex_field_convolute_photon_scalar ( (double*)&(ztmp[0]), jj_tensor_trace, 0 );
+      co_eq_sum_complex_field_ti_complex_field ( (double*)&ztmp, cvc_loop_stoch_p_accum[0][0], cvc_loop_lma_p[1][0], 4*VOLUME );
 
-      /* up - dn - stoch - lma */
-      co_field_eq_jj_disc_tensor_trace ( jj_tensor_trace, cvc_loop_stoch_p_accum[0], cvc_loop_lma_p[1], 0, VOLUME );
-      exitstatus = co_eq_complex_field_convolute_photon_scalar ( (double*)&(ztmp[1]), jj_tensor_trace, 0 );
-
-      sprintf(aff_tag, "/loop/cvc-conv-cvc/stoch-lma/block%.4d", isample);
-      affdir = aff_writer_mkpath(affw, affn, aff_tag);
-      if ( ( exitstatus = aff_node_put_complex (affw, affdir, ztmp, (uint32_t)2 ) ) != 0 ) {
-        fprintf(stderr, "[loops_em] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(5);
+      if ( io_proc == 2 ) {
+        sprintf(aff_tag, "/loop/cvc-conv-cvc/stoch-lma/block%.4d", isample);
+        affdir = aff_writer_mkpath(affw, affn, aff_tag);
+        if ( ( exitstatus = aff_node_put_complex (affw, affdir, &ztmp, (uint32_t)1 ) ) != 0 ) {
+          fprintf(stderr, "[loops_em] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(5);
+        }
       }
 
+      /* up - up - lma - stoch */
+      co_eq_sum_complex_field_ti_complex_field ( (double*)&ztmp, cvc_loop_lma_p[0][0], cvc_loop_stoch_p_accum[1][0], 4*VOLUME );
 
-    /***********************************************
-     * cvc loop convolutions for accumulated loops
-     ***********************************************/
-
-      /* fwd - fwd - stoch - stoch */
-      co_field_eq_jj_disc_tensor_trace ( jj_tensor_trace, cvc_loop_stoch_p[0], cvc_loop_stoch_p[0], 0, VOLUME );
-      exitstatus = co_eq_complex_field_convolute_photon_scalar ( (double*)&(ztmp[0]), jj_tensor_trace, 0 );
-
-      /* fwd - bwd - stoch - stoch */
-      co_field_eq_jj_disc_tensor_trace ( jj_tensor_trace, cvc_loop_stoch_p[0], cvc_loop_stoch_p[1], 0, VOLUME );
-      exitstatus = co_eq_complex_field_convolute_photon_scalar ( (double*)&(ztmp[1]), jj_tensor_trace, 0 );
-
-      /* bwd - fwd - stoch - stoch */
-      co_field_eq_jj_disc_tensor_trace ( jj_tensor_trace, cvc_loop_stoch_p[1], cvc_loop_stoch_p[0], 0, VOLUME );
-      exitstatus = co_eq_complex_field_convolute_photon_scalar ( (double*)&(ztmp[2]), jj_tensor_trace, 0 );
-
-      /* bwd - bwd - stoch - stoch */
-      co_field_eq_jj_disc_tensor_trace ( jj_tensor_trace, cvc_loop_stoch_p[1], cvc_loop_stoch_p[1], 0, VOLUME );
-      exitstatus = co_eq_complex_field_convolute_photon_scalar ( (double*)&(ztmp[3]), jj_tensor_trace, 0 );
-
-      /* fwd - fwd - lma - stoch */
-      co_field_eq_jj_disc_tensor_trace ( jj_tensor_trace, cvc_loop_lma_p[0], cvc_loop_stoch_p[0], 0, VOLUME );
-      exitstatus = co_eq_complex_field_convolute_photon_scalar ( (double*)&(ztmp[4]), jj_tensor_trace, 0 );
-
-      /* fwd - fwd - lma - stoch */
-      co_field_eq_jj_disc_tensor_trace ( jj_tensor_trace, cvc_loop_lma_p[0], cvc_loop_stoch_p[1], 0, VOLUME );
-      exitstatus = co_eq_complex_field_convolute_photon_scalar ( (double*)&(ztmp[5]), jj_tensor_trace, 0 );
-
-      /* fwd - fwd - lma - stoch */
-      co_field_eq_jj_disc_tensor_trace ( jj_tensor_trace, cvc_loop_lma_p[1], cvc_loop_stoch_p[0], 0, VOLUME );
-      exitstatus = co_eq_complex_field_convolute_photon_scalar ( (double*)&(ztmp[6]), jj_tensor_trace, 0 );
-
-      /* fwd - fwd - lma - stoch */
-      co_field_eq_jj_disc_tensor_trace ( jj_tensor_trace, cvc_loop_lma_p[1], cvc_loop_stoch_p[1], 0, VOLUME );
-      exitstatus = co_eq_complex_field_convolute_photon_scalar ( (double*)&(ztmp[7]), jj_tensor_trace, 0 );
-
-      sprintf(aff_tag, "/loop/cvc-conv-cvc/Nsave%.4d/block%.4d", Nsave, isample/Nsave );
-      affdir = aff_writer_mkpath(affw, affn, aff_tag);
-      if ( ( exitstatus = aff_node_put_complex (affw, affdir, ztmp, (uint32_t)8 ) ) != 0 ) {
-        fprintf(stderr, "[loops_em] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(5);
+      if ( io_proc == 2 ) {
+        sprintf(aff_tag, "/loop/cvc-conv-cvc/lma-stoch/block%.4d", isample);
+        affdir = aff_writer_mkpath(affw, affn, aff_tag);
+        if ( ( exitstatus = aff_node_put_complex (affw, affdir, &ztmp, (uint32_t)1 ) ) != 0 ) {
+          fprintf(stderr, "[loops_em] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(5);
+        }
       }
 
-
-      sprintf( filename, "loop_cvc_lma_p.%.4d.block%.4d", Nconf, isample );
+      sprintf( filename, "loop_cvc_stoch_p.%.4d.block%.4d.lime", Nconf, isample );
       for ( int mu = 0; mu < 4; mu++ ) {
 
-        sprintf(contype, "\n<description> cvc loop contraction\n"\
+        sprintf(contype, "\n<description> cvc loop contraction</description>\n"\
             "<component>%d</component>\n"\
             "<flavor>%s</flavor\n"\
             "<precision>%d</precision>\n"\
-            "<ft_sign%s</ft_sign>\n"\
-            "<nsmaple%d</nsample>\n",\
-            mu, "up", 64, "+1", isample );
+            "<nev>%d</nev>\n"\
+            "<nsmaple>%d</nsample>\n"\
+            "<space>%s</space>\n",\
+            mu, "up", 64, evecs_num, isample, "x" );
 
-        if ( ( exitstatus = write_lime_contraction ( cvc_loop_lma_p[0][mu], filename, 64, 1, contype, Nconf, (int)(mu > 0) ) ) != 0 ) {
+        if ( ( exitstatus = write_lime_contraction ( cvc_loop_stoch_p_accum[0][mu], filename, 64, 1, contype, Nconf, (int)(mu > 0) ) ) != 0 ) {
           fprintf(stderr, "[loops_em] Error from write_lime_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(2);
         }
 
-        sprintf(contype, "\n<description> cvc loop contraction\n"\
+        sprintf(contype, "\n<description> cvc loop convoluted</description>\n"\
             "<component>%d</component>\n"\
             "<flavor>%s</flavor\n"\
             "<precision>%d</precision>\n"\
-            "<ft_sign%s</ft_sign>\n"\
-            "<nsmaple%d</nsample>\n",\
-            mu, "dn", 64, "+1", isample );
+            "<ft_sign>%s</ft_sign>\n"\
+            "<nev>%d</nev>\n"\
+            "<nsmaple>%d</nsample>\n"\
+            "<space>%s</space>\n",\
+            mu, "dn", 64, "+1", evecs_num, isample, "x" );
 
-        if ( ( exitstatus = write_lime_contraction ( cvc_loop_lma_p[1][mu], filename, 64, 1, contype, Nconf, 1 ) ) != 0 ) {
+        if ( ( exitstatus = write_lime_contraction ( cvc_loop_stoch_p_accum[1][mu], filename, 64, 1, contype, Nconf, 1 ) ) != 0 ) {
           fprintf(stderr, "[loops_em] Error from write_lime_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(2);
         }
-
+#if 0
+#endif  /* of if 0 */
       }  /* end of loop on mu */
+
 
     }  /* end of if isample mod Nsave == 0 */
 
@@ -925,15 +1181,14 @@ int main(int argc, char **argv) {
   fini_4level_buffer ( &cvc_loop_stoch_x );
   fini_3level_buffer ( &cvc_loop_tp );
 
-  fini_3level_buffer ( &cvc_loop_stoch_p );
-  fini_3level_buffer ( &cvc_loop_stoch_p_accum );
-  fini_3level_buffer ( &cvc_loop_lma_p );
-
   fini_2level_buffer ( &eo_stochastic_source );
   fini_2level_buffer ( &eo_stochastic_propagator );
 
-  fini_1level_buffer ( &cvc_loop_lexic );
-  fini_1level_buffer ( &jj_tensor_trace );
+  fini_3level_buffer ( &cvc_loop_stoch_p );
+  fini_3level_buffer ( &cvc_loop_stoch_p_accum );
+
+
+  fini_3level_buffer ( &cvc_loop_lma_p );
 
   /***********************************************/
   /***********************************************/
@@ -947,6 +1202,7 @@ int main(int argc, char **argv) {
     }
   }  /* end of if io_proc == 2 */
 #endif  /* of ifdef HAVE_LHPC_AFF */
+
 
   /***********************************************/
   /***********************************************/
