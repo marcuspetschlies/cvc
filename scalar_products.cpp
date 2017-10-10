@@ -29,15 +29,8 @@
 namespace cvc {
 void spinor_scalar_product_co(complex *w, double *xi, double *phi, int V) {
 
-  const int nthreads = g_num_threads;
-  const int sincr = _GSI(nthreads);
+  complex paccum;
 
-  int ix, iix;
-  complex p2, paccum;
-  int threadid = 0;
-#ifdef HAVE_MPI
-  complex pall;
-#endif
 #ifdef HAVE_OPENMP
   omp_lock_t writelock;
 #endif
@@ -46,100 +39,88 @@ void spinor_scalar_product_co(complex *w, double *xi, double *phi, int V) {
 
 #ifdef HAVE_OPENMP
   omp_init_lock(&writelock);
-#pragma omp parallel default(shared) private(ix,iix,p2) firstprivate(V) shared(xi,phi,paccum)
+#pragma omp parallel default(shared) firstprivate(V) shared(xi,phi,paccum)
 {
-  threadid = omp_get_thread_num();
 #endif
-  p2.re = 0.;
-  p2.im = 0.;
+  int iix;
+  complex p2 =  {0., 0.};
 
-  iix = _GSI(threadid);
-  for(ix = threadid; ix < V; ix += nthreads) {
+  for( unsigned int ix = 0; ix < V; ix++ ) {
+    iix = _GSI( ix );
     _co_pl_eq_fv_dag_ti_fv(&p2, xi+iix, phi+iix);
-    iix += sincr;
   }
 #ifdef HAVE_OPENMP
-
   omp_set_lock(&writelock);
+#endif
   paccum.re += p2.re;
   paccum.im += p2.im;
+
+#ifdef HAVE_OPENMP
   omp_unset_lock(&writelock);
-
 }  /* end of parallel region */
-
   omp_destroy_lock(&writelock);
-
-#else
-  paccum.re = p2.re;
-  paccum.im = p2.im;
 #endif
 
   /* fprintf(stdout, "# [spinor_scalar_product_co] %d local: %e %e\n", g_cart_id, paccum.re, paccum.im); */
 
 #ifdef HAVE_MPI
-  pall.re=0.; pall.im=0.;
-  MPI_Allreduce(&paccum, &pall, 2, MPI_DOUBLE, MPI_SUM, g_cart_grid);
-  w->re = pall.re;
-  w->im = pall.im;
+  if ( MPI_Allreduce(&paccum, w, 2, MPI_DOUBLE, MPI_SUM, g_cart_grid) != MPI_SUCCESS ) {
+    fprintf(stderr, "[spinor_scalar_product_co] Error from MPI_Allreduce\n");
+    EXIT(1);
+  }
 #else
   w->re = paccum.re;
   w->im = paccum.im;
 #endif
 }  /* end of spinor_scalar_product_co */
 
+/*************************************************/
+/*************************************************/
+
 void spinor_scalar_product_re(double *r, double *xi, double *phi, int V) {
 
-  const int nthreads = g_num_threads;
-  const int sincr = _GSI(nthreads);
+  double w = 0.;
 
-  int ix, iix;
-  int threadid = 0;
-  double w, w2;
-
-#ifdef HAVE_MPI
-  double wall;
-#endif
 #ifdef HAVE_OPENMP
   omp_lock_t writelock;
 #endif
   
-  w = 0.;
-
 #ifdef HAVE_OPENMP
   omp_init_lock(&writelock);
-#pragma omp parallel default(shared) private(ix,iix,threadid,w2) shared(w,xi,phi,V)
+#pragma omp parallel default(shared) shared(w,xi,phi,V)
 {
-  threadid = omp_get_thread_num();
 #endif
-  iix = _GSI(threadid);
-  w2 = 0.;
-  for(ix = threadid; ix < V; ix += nthreads) {
+  unsigned int iix;
+  double w2 = 0.;
+
+  for( unsigned int ix = 0; ix < V; ix++ ) {
+    iix = _GSI (ix);
     _re_pl_eq_fv_dag_ti_fv(w2, xi+iix, phi+iix);
-    iix += sincr;
   }
 #ifdef HAVE_OPENMP
-
   omp_set_lock(&writelock);
+#endif
   w += w2;
+#ifdef HAVE_OPENMP
   omp_unset_lock(&writelock);
-
 }  /* end of parallel region */
-
   omp_destroy_lock(&writelock);
-
-#else
-  w = w2;
 #endif
 
   /* fprintf(stdout, "# [spinor_scalar_product_re] %d local: %e\n", g_cart_id, w); */
 #ifdef HAVE_MPI
-  wall = 0.;
-  MPI_Allreduce(&w, &wall, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid);
-  *r = wall;
+  if ( MPI_Allreduce(&w, r, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid) !=  MPI_SUCCESS ) {
+    fprintf(stderr, "[spinor_scalar_product_re] Error from MPI_Allreduce\n");
+    EXIT(1);
+  }
 #else
   *r = w;
 #endif
+  return;
 }  /* end of spinor_scalar_product_re */
+
+/*************************************************/
+/*************************************************/
 
 /*************************************************
  * eo = 0 --- even subfield
