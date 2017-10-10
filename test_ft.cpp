@@ -37,6 +37,7 @@
 #include "fft.h"
 #include "ranlxd.h"
 #include "matrix_init.h"
+#include "contract_cvc_tensor.h"
 
 #define _SQR(_a) ((_a) * (_a))
 
@@ -167,7 +168,7 @@ int main(int argc, char **argv) {
   }
 #endif  /* of if 0 */
 
-
+#if 0
 #ifndef HAVE_MPI
   dims[0] = T; 
   dims[1] = LX;
@@ -340,7 +341,6 @@ int main(int argc, char **argv) {
     fprintf(stdout, "# [test_ft] p - q norm %25.16e\n", norm);
     /* fprintf(stdout, "# [test_ft] x - Finv F x norm %25.16e\n", norm); */
   }
-#if 0
 #endif  /* of if 0 */
 
 #if 0
@@ -375,8 +375,147 @@ int main(int argc, char **argv) {
   }
 #endif  /* of if 0 */
 
-#if 0
-#endif  /* of if 0 */
+  /* TEST */
+  /* test convolution */
+  if ( ( exitstatus = init_rng_stat_file (g_seed, NULL) ) != 0 ) {
+    fprintf(stderr, "[test_ft] Error from init_rng_stat_file status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(38);
+  }
+
+  double **cvc_loop_p = NULL, *jj_tensor_trace = NULL;
+  double **j1 = NULL, **j2 = NULL;
+
+  /*if( ( exitstatus = init_2level_buffer ( &cvc_loop_p, 4, 2*VOLUME ) ) != 0 ) {
+    fprintf(stderr, "[test_ft] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(1);
+  }*/
+
+  /*if( ( exitstatus = init_1level_buffer ( &jj_tensor_trace, 2*VOLUME ) ) != 0 ) {
+    fprintf(stderr, "[test_ft] Error from init_1level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(1);
+  }*/
+
+  if( ( exitstatus = init_2level_buffer ( &j1, 4, 2*VOLUME ) ) != 0 ) {
+    fprintf(stderr, "[test_ft] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(1);
+  }
+
+  if( ( exitstatus = init_2level_buffer ( &j2, 4, 2*VOLUME ) ) != 0 ) {
+    fprintf(stderr, "[test_ft] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(1);
+  }
+
+  if ( ( exitstatus = rangauss ( j2[0], 8*VOLUME ) ) != 0 ) {
+    fprintf(stderr, "[test_ft] Error from rangauss, status was %d\n", exitstatus );
+    EXIT(1);
+  }
+
+  if ( ( exitstatus = rangauss ( j1[0], 8*VOLUME ) ) != 0 ) {
+    fprintf(stderr, "[test_ft] Error from rangauss, status was %d\n", exitstatus );
+    EXIT(1);
+  }
+
+  /* for ( int x0 = 0; x0 < T; x0++ ) {
+  for ( int x1 = 0; x1 < LX; x1++ ) {
+  for ( int x2 = 0; x2 < LY; x2++ ) {
+  for ( int x3 = 0; x3 < LZ; x3++ ) {
+    unsigned int ix = g_ipt[x0][x1][x2][x3];
+    for ( int mu = 0; mu < 4; mu++ ) {
+      cvc_loop_p[mu][2*ix  ] = 2*( 4 * ( ( ( ( x0+g_proc_coords[0]*T ) * LX_global + x1+g_proc_coords[1]*LX ) * LY_global + x2+g_proc_coords[2]*LY ) * LZ_global + x3+g_proc_coords[3]*LZ ) + mu );
+      cvc_loop_p[mu][2*ix+1] = 2*( 4 * ( ( ( ( x0+g_proc_coords[0]*T ) * LX_global + x1+g_proc_coords[1]*LX ) * LY_global + x2+g_proc_coords[2]*LY ) * LZ_global + x3+g_proc_coords[3]*LZ ) + mu ) + 1;
+    }
+  }}}} */
+
+  /* co_field_eq_jj_disc_tensor_trace ( jj_tensor_trace, cvc_loop_p, cvc_loop_p, 0, VOLUME ); */
+
+  FILE *ofs = NULL;
+  sprintf( filename, "j2.%.2d", g_nproc );
+  for ( int iproc = 0; iproc < g_nproc; iproc++ ) {
+
+    if ( iproc == g_cart_id ) {
+      ofs = iproc == 0 ? fopen ( filename, "w" ) : fopen ( filename, "a" );
+
+      if ( g_cart_id == 0 ) fprintf(ofs, "j2p%.2d <- array(dim=c(%d,%d,%d,%d,%d))\n", g_nproc, T_global, LX_global, LY_global, LZ_global, 4);
+
+      for ( int x0 = 0; x0 < T; x0++ ) {
+      for ( int x1 = 0; x1 < LX; x1++ ) {
+      for ( int x2 = 0; x2 < LY; x2++ ) {
+      for ( int x3 = 0; x3 < LZ; x3++ ) {
+        unsigned int ix = g_ipt[x0][x1][x2][x3];
+        fprintf(ofs, "j2p%.2d[%d,%d,%d,%d,] <- c( %25.16e + %25.16e*1.i, %25.16e + %25.16e*1.i, %25.16e + %25.16e*1.i, %25.16e + %25.16e*1.i)\n",
+            g_nproc,
+            x0+g_proc_coords[0]*T+1,
+            x1+g_proc_coords[1]*LX+1,
+            x2+g_proc_coords[2]*LY+1,
+            x3+g_proc_coords[3]*LZ+1,
+            j2[0][2*ix], j2[0][2*ix+1],
+            j2[1][2*ix], j2[1][2*ix+1],
+            j2[2][2*ix], j2[2][2*ix+1],
+            j2[3][2*ix], j2[3][2*ix+1]);
+      }}}}
+      fclose ( ofs );
+    }
+#ifdef HAVE_MPI
+    if ( ( exitstatus = MPI_Barrier (g_cart_grid ) ) != 0 ) {
+      fprintf(stderr, "[test_ft] Error from MPI_Barrier, exitstatus was %d\n", exitstatus );
+      EXIT(1);
+    }
+#endif
+  }
+
+  /* if ( ( exitstatus = current_field_eq_photon_propagator_ti_current_field ( j1, j2, 1, 1 ) ) != 0 ) {
+    fprintf(stderr, "[test_ft] Error from current_field_eq_proton_propagator_ti_current_field, status was %d\n", exitstatus);
+    EXIT(1);
+  }*/
+
+  double dtmp[2];
+  if ( ( exitstatus = co_eq_complex_field_convolute_photon_scalar ( dtmp, j1, j2, 1, 0) ) != 0 ) {
+    fprintf(stderr, "[test_ft] Error from co_eq_complex_field_convolute_photon_scalar, status was %d\n", exitstatus);
+    EXIT(1);
+  }
+  if ( g_cart_id == 0 ) {
+    fprintf(stdout, "# [test_ft] convolution scalar = %25.16e %25.16e\n", dtmp[0], dtmp[1] );
+  }
+
+
+  sprintf( filename, "j1.%.2d", g_nproc );
+  for ( int iproc = 0; iproc < g_nproc; iproc++ ) {
+
+    if ( iproc == g_cart_id ) {
+      ofs = iproc == 0 ? fopen ( filename, "w" ) : fopen ( filename, "a" );
+
+      if ( g_cart_id == 0 ) fprintf(ofs, "j1p%.2d <- array(dim=c(%d,%d,%d,%d,%d))\n", g_nproc, T_global, LX_global, LY_global, LZ_global, 4);
+
+      for ( int x0 = 0; x0 < T; x0++ ) {
+      for ( int x1 = 0; x1 < LX; x1++ ) {
+      for ( int x2 = 0; x2 < LY; x2++ ) {
+      for ( int x3 = 0; x3 < LZ; x3++ ) {
+        unsigned int ix = g_ipt[x0][x1][x2][x3];
+        fprintf(ofs, "j1p%.2d[%d,%d,%d,%d,] <- c( %25.16e + %25.16e*1.i, %25.16e + %25.16e*1.i, %25.16e + %25.16e*1.i, %25.16e + %25.16e*1.i)\n",
+            g_nproc,
+            x0+g_proc_coords[0]*T+1,
+            x1+g_proc_coords[1]*LX+1,
+            x2+g_proc_coords[2]*LY+1,
+            x3+g_proc_coords[3]*LZ+1,
+            j1[0][2*ix], j1[0][2*ix+1],
+            j1[1][2*ix], j1[1][2*ix+1],
+            j1[2][2*ix], j1[2][2*ix+1],
+            j1[3][2*ix], j1[3][2*ix+1]);
+      }}}}
+      fclose ( ofs );
+    }
+#ifdef HAVE_MPI
+    if ( ( exitstatus = MPI_Barrier (g_cart_grid ) ) != 0 ) {
+      fprintf(stderr, "[test_ft] Error from MPI_Barrier, exitstatus was %d\n", exitstatus );
+      EXIT(1);
+    }
+#endif
+  }
+
+
+
+  fini_2level_buffer ( &cvc_loop_p );
+  fini_1level_buffer ( &jj_tensor_trace );
 
   /****************************************
    * free the allocated memory, finalize
