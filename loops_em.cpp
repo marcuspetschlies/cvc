@@ -962,7 +962,7 @@ int main(int argc, char **argv) {
       spinor_field_eo2lexic ( eo_spinor_work[2], eo_spinor_work[0], eo_stochastic_source[0] );
       spinor_field_eo2lexic ( eo_spinor_work[4], eo_spinor_work[1], eo_stochastic_propagator[0] );
 
-      sprintf ( filename, "%s.%.4d.%.5d", filename_prefix, Nconf, isample );
+      sprintf ( filename, "%s.%.4d.%.5d.inverted", filename_prefix, Nconf, isample );
       if ( ( exitstatus = write_propagator( eo_spinor_work[2], filename, 0, g_propagator_precision ) ) != 0 ) {
         fprintf(stderr, "[loops_caa_lma] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(123);
@@ -1095,7 +1095,7 @@ int main(int argc, char **argv) {
     /***********************************************/
     /***********************************************/
 
-    if ( isample % Nsave == 0 ) {
+    if ( (isample + 1 )% Nsave == 0 ) {
 
       /* up - up - stoch - stoch */
       co_eq_sum_complex_field_ti_complex_field ( (double*)&ztmp, cvc_loop_stoch_p_accum[0][0], cvc_loop_stoch_p_accum[1][0], 4*VOLUME );
@@ -1133,7 +1133,7 @@ int main(int argc, char **argv) {
         }
       }
 
-      sprintf( filename, "loop_cvc_stoch_p.%.4d.block%.4d.lime", Nconf, isample );
+      sprintf( filename, "loop_cvc_stoch_p.%.4d.block%.4d.lime", Nconf, isample+1 );
       for ( int mu = 0; mu < 4; mu++ ) {
 
         sprintf(contype, "\n<description> cvc loop contraction</description>\n"\
