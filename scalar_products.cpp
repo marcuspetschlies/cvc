@@ -45,6 +45,9 @@ void spinor_scalar_product_co(complex *w, double *xi, double *phi, int V) {
   int iix;
   complex p2 =  {0., 0.};
 
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
   for( unsigned int ix = 0; ix < V; ix++ ) {
     iix = _GSI( ix );
     _co_pl_eq_fv_dag_ti_fv(&p2, xi+iix, phi+iix);
@@ -93,6 +96,9 @@ void spinor_scalar_product_re(double *r, double *xi, double *phi, int V) {
   unsigned int iix;
   double w2 = 0.;
 
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
   for( unsigned int ix = 0; ix < V; ix++ ) {
     iix = _GSI (ix);
     _re_pl_eq_fv_dag_ti_fv(w2, xi+iix, phi+iix);
