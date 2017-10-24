@@ -207,7 +207,21 @@ int main(int argc, char **argv) {
   int write_stochastic_source_oet = 0;
   int write_stochastic_propagator = 0;
   int check_propagator_residual   = 0;
-  int do_contraction              = 1;
+/***********************************************************/
+  int mode_of_operation           = 0;
+
+/* mode of operation
+ * 000 = 0 nothing
+ * 100 = 1 stoch
+ * 010 = 2 contr std
+ * 001 = 4 contr oet
+ * or combinations thereof
+ * per default set to minimal value 0                      */
+  int do_stochastic      = 0;
+  int do_contraction_std = 0;
+  int do_contraction_oet = 0;
+/***********************************************************/
+
   char filename[200];
   double ratime, retime;
 #ifndef HAVE_TMLQCD_LIBWRAPPER
@@ -309,8 +323,8 @@ int main(int argc, char **argv) {
       fprintf(stdout, "# [piN2piN_factorized] will check_propagator_residual\n");
       break;
     case 'm':
-      do_contraction = atoi( optarg );
-      fprintf(stdout, "# [piN2piN_factorized] will do contraction 0 / 1 ?  %d\n", do_contraction);
+      mode_of_operation = atoi( optarg );
+      fprintf(stdout, "# [piN2piN_factorized] will use mdoe of operation %d\n", mode_of_operation );
       break;
     case 'h':
     case '?':
@@ -339,8 +353,8 @@ int main(int argc, char **argv) {
   /*********************************
    * initialize MPI parameters for cvc
    *********************************/
-  /* exitstatus = tmLQCD_invert_init(argc, argv, 1, 0); */
-  exitstatus = tmLQCD_invert_init(argc, argv, 1);
+  exitstatus = tmLQCD_invert_init(argc, argv, 1, 0);
+  /* exitstatus = tmLQCD_invert_init(argc, argv, 1); */
   if(exitstatus != 0) {
     EXIT(14);
   }
@@ -530,6 +544,19 @@ int main(int argc, char **argv) {
     op_id_dn = 0;
   }
 
+  /***********************************************************
+   * interprete mode of operation
+   ***********************************************************/
+  do_contraction_oet = mode_of_operation / 4;
+  do_contraction_std = ( mode_of_operation - do_contraction_oet * 4 ) / 2;
+  do_stochastic      = mode_of_operation % 2;
+  if ( g_cart_id == 0 ) {
+    fprintf(stdout, "# [piN2piN_factorized] mode of operation = %d / %d / %d\n", do_stochastic, do_contraction_std, do_contraction_oet );
+  }
+
+
+
+
   /******************************************************
    ******************************************************
    **
@@ -582,6 +609,14 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[piN2piN_factorized] Error from init_2level_buffer, status was %d\n", exitstatus);
     EXIT(44);
   }
+
+  /******************************************************/
+  /******************************************************/
+
+  if ( do_stochastic % 2 == 1 ) {
+
+  /******************************************************/
+  /******************************************************/
 
   /******************************************************
    * initialize random number generator
@@ -743,11 +778,15 @@ int main(int argc, char **argv) {
 
   }  /* end of loop on samples */
 
+  /***********************************************************/
+  /***********************************************************/
+
+  }  /* end of if do_stochastic */
 
   /***********************************************************/
   /***********************************************************/
 
-  if ( do_contraction ) {
+  if ( do_contraction_std ) {
 
   /***********************************************************/
   /***********************************************************/
@@ -2411,7 +2450,7 @@ int main(int argc, char **argv) {
   /***********************************************************/
   /***********************************************************/
 
-  }  /* end of if do_contraction */
+  }  /* end of if do_contraction_std */
 
   /***********************************************************/
   /***********************************************************/
@@ -2422,7 +2461,7 @@ int main(int argc, char **argv) {
   /***********************************************************/
   /***********************************************************/
 
-  if ( do_contraction ) {
+  if ( do_contraction_oet ) {
 
   /***********************************************************/
   /***********************************************************/
@@ -2947,7 +2986,7 @@ int main(int argc, char **argv) {
   /***********************************************************/
   /***********************************************************/
 
-  }  /* end of if do_contraction */
+  }  /* end of if do_contraction_oet */
 
   /***********************************************************/
   /***********************************************************/
