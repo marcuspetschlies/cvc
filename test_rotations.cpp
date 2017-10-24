@@ -150,7 +150,7 @@ int main(int argc, char **argv) {
   * set number of openmp threads
   *********************************/
 #ifdef HAVE_OPENMP
- if(g_cart_id == 0) fprintf(stdout, "# [p2gg] setting omp number of threads to %d\n", g_num_threads);
+ if(g_cart_id == 0) fprintf(stdout, "# [test_rotations] setting omp number of threads to %d\n", g_num_threads);
  omp_set_num_threads(g_num_threads);
 #pragma omp parallel
 {
@@ -190,7 +190,7 @@ int main(int argc, char **argv) {
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
   if( strcmp(gaugefilename_prefix,"identity") == 0 ) {
     /* initialize unit matrices */
-    if(g_cart_id==0) fprintf(stdout, "\n# [p2gg] initializing unit matrices\n");
+    if(g_cart_id==0) fprintf(stdout, "\n# [test_rotations] initializing unit matrices\n");
     for( unsigned int ix=0;ix<VOLUME;ix++) {
       _cm_eq_id( g_gauge_field + _GGI(ix, 0) );
       _cm_eq_id( g_gauge_field + _GGI(ix, 1) );
@@ -202,7 +202,7 @@ int main(int argc, char **argv) {
   } else {
     /* read the gauge field */
     sprintf(filename, "%s.%.4d", gaugefilename_prefix, Nconf);
-    if(g_cart_id==0) fprintf(stdout, "# [p2gg] reading gauge field from file %s\n", filename);
+    if(g_cart_id==0) fprintf(stdout, "# [test_rotations] reading gauge field from file %s\n", filename);
     read_lime_gauge_field_doubleprec(filename);
   }
 #ifdef HAVE_MPI
