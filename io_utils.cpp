@@ -1,7 +1,5 @@
 /* $Id: io_utils.c,v 1.2 2007/11/22 15:57:38 urbach Exp $ */
 
-namespace cvc {
-
 #include<stdlib.h>
 #include<stdio.h>
 #include<string.h>
@@ -25,7 +23,7 @@ extern "C"
 }
 #endif
 
-
+namespace cvc {
 
 #include"io_utils.h"
 
