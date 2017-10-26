@@ -207,6 +207,7 @@ namespace cvc {
 %x FERMION_TYPE
 %x SOURCECOORDS
 %x SRCSNKTIMESEP
+%x SRCSNKTIMESEPARATIONADD
 %x COHERENTSOURCENUMBER
 %x VERBOSITYLEVEL
 %x TOTALMOMENTUM
@@ -370,7 +371,9 @@ namespace cvc {
 ^check_inversion{SPC}*={SPC}*              BEGIN(CHKINVERSION);
 
 ^fermion_type{SPC}*={SPC}*                 BEGIN(FERMION_TYPE);
+
 ^src_snk_time_separation{SPC}*={SPC}*      BEGIN(SRCSNKTIMESEP);
+^dt_src_snk{SPC}*={SPC}*                   BEGIN(SRCSNKTIMESEPARATIONADD);
 
 ^coherent_source_number{SPC}*={SPC}*       BEGIN(COHERENTSOURCENUMBER);
 
@@ -1129,6 +1132,22 @@ namespace cvc {
   cvc::g_source_location_number++;
   if(cvc::myverbose!=0) printf("# [read_input_parser] source coords no. %d set to %s\n", cvc::g_source_location_number, yytext);
 }
+
+<SRCSNKTIMESEPARATIONADD>{CORRCONFIG} {
+
+  if ( cvc::g_src_snk_time_separation_number == MAX_SRC_SNK_TIME_SEPARATION_NUMBER ) {
+    fprintf(stderr, "[read_input_parser] Error, too many source-sink time separations\n");
+    exit(1);
+  } else {
+    if(cvc::myverbose) fprintf(stdout, "# [read_input_parser] extracting source sink time separation %d\n", cvc::g_src_snk_time_separation_number );
+  }
+
+  sscanf(yytext, "%d", &(cvc::g_src_snk_time_separation_list[cvc::g_src_snk_time_separation_number]) );
+  g_src_snk_time_separation_number++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] source-sink time separation no. %d set to %s\n", g_src_snk_time_separation_number, yytext);
+}
+
+
 
 <INITTWOPOINTFUNCTION>Generic{SPC}* {
   if(cvc::myverbose) printf("# [read_input_parser] Initialization generic twopoint_function line %d\n", cvc::line_of_file);
