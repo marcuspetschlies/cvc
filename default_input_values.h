@@ -183,6 +183,7 @@ namespace cvc {
 
 
 #define _default_src_snk_time_separation 0
+#define _default_src_snk_time_separation_number 0
 
 #define _default_seq_source_gamma_id -1
 #define _default_seq_source_gamma_id_number 0

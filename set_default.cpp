@@ -217,6 +217,8 @@ void set_default_input_values(void) {
   g_check_inversion = _default_check_inversion;
 
   g_src_snk_time_separation = _default_src_snk_time_separation;
+  g_src_snk_time_separation_number = _default_src_snk_time_separation_number;
+  memset ( g_src_snk_time_separation_list, 0, MAX_SRC_SNK_TIME_SEPARATION_NUMBER * sizeof(int) );
 
   g_sequential_source_gamma_id = _default_seq_source_gamma_id;
   g_sequential_source_gamma_id_list[ 0] = _default_seq_source_gamma_id;
