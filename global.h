@@ -84,7 +84,6 @@
 
 #define _ONE_OVER_SQRT2 (0.707106781186548)
 
-#define MAX_M_M_2PT_NUM 16
 #define MAX_MXB_MXB_2PT_NUM 320
 #define MAX_SOURCE_LOCATION_NUMBER 128
 
@@ -92,6 +91,8 @@
 #define MAX_SEQUENTIAL_SOURCE_TIMESLICE_NUMBER 128
 
 #define MAX_GAMMA_NUMBER 16
+
+#define MAX_SRC_SNK_TIME_SEPARATION_NUMBER 128
 
 namespace cvc {
 
@@ -231,6 +232,7 @@ EXTERN int g_check_inversion;
 
 EXTERN int g_src_snk_time_separation, g_sequential_source_gamma_id, g_sequential_source_gamma_id_list[16], g_sequential_source_gamma_id_number;
 EXTERN int g_source_gamma_id, g_source_gamma_id_list[16], g_source_gamma_id_number;
+EXTERN int g_src_snk_time_separation_list[MAX_SRC_SNK_TIME_SEPARATION_NUMBER], g_src_snk_time_separation_number;
 
 EXTERN double g_csw, *g_clover_term;
 
@@ -253,6 +255,7 @@ EXTERN int g_total_momentum_list[MAX_MOMENTUM_NUMBER][3], g_total_momentum_numbe
 
 EXTERN char g_gamma_f1_nucleon_list[MAX_GAMMA_NUMBER][100], g_gamma_f2_list[MAX_GAMMA_NUMBER][100], g_gamma_f1_delta_list[MAX_GAMMA_NUMBER][100], g_gamma_current_list[MAX_GAMMA_NUMBER][100];
 EXTERN int g_gamma_f1_nucleon_number, g_gamma_f2_number, g_gamma_f1_delta_number, g_gamma_current_number;
+
 
 
 }
