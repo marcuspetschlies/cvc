@@ -40,62 +40,6 @@
 
 namespace cvc {
 
-#if 0
-/****************************************************
- * we always sum in the following way
- * v2[alpha_p[0], alpha_p[1], alpha_p[2], m] g[alpha_2, beta]  v3[beta,m]
- ****************************************************/
-int contract_diagram_v2_gamma_v3 ( double _Complex **vdiag, double _Complex **v2, double _Complex **v3, gamma_matrix_type g, int perm[3], unsigned int N, int init ) {
-
-  if ( init ) {
-    if ( g_cart_id == 0 ) fprintf(stdout, "# [] initializing output field to zero\n");
-    memset( vdiag[0], 0, 16*T_global*sizeof(double _Complex ) );
-  }
-
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-  for ( unsigned int it = 0; it < N; it++ ) {
-
-    for ( int alpha = 0; alpha < 4; alpha++ ) {
-      for ( int beta = 0; beta < 4; beta++ ) {
-
-        int vdiag_index = 4 * alpha + beta;
-        /* vdiag[it][vdiag_index] = 0.; */
-
-        /****************************************************/
-        /****************************************************/
-
-        for ( int gamma = 0; gamma < 4; gamma++ ) {
-
-          int idx[3] = { alpha, beta, gamma };
-
-          int pidx[3] = { idx[perm[0]], idx[perm[1]], idx[perm[2]] };
-
-          for ( int delta = 0; delta < 4; delta++ ) {
-            for ( int m = 0; m < 3; m++ ) {
-
-              /* use the permutation */
-              int v2_pindex = 3 * ( 4 * ( 4 * pidx[0] + pidx[1] ) + pidx[2] ) + m;
- 
-              int v3_index  = 3 * delta + m;
-
-              vdiag[it][vdiag_index] -=  v2[it][v2_pindex] * v3[it][v3_index] * g.m[gamma][delta];
-            }  /* end of loop on color index m */
-          }  /* end of loop on spin index delta */
-        }  /* end of loop on spin index gamma */
-
-        /****************************************************/
-        /****************************************************/
-
-      }  /* end of loop on spin index beta */
-    }  /* end of loop on spin index alpha */
-
-  }  /* end of loop on N */
-
-}  /* end of function contract_diagram_v2_gamma_v3 */
-#endif  /* of if 0*/
-
 /****************************************************
  * we always sum in the following way
  * v2[alpha_p[0], alpha_p[1], alpha_p[2], m] g[alpha_2, alpha_3]  v3[ alpha_p[3], m]
@@ -213,49 +157,6 @@ int contract_diagram_oet_v2_gamma_v3 ( double _Complex **vdiag, double _Complex 
   }  /* end of loop on sigma oet */
   return(0);
 }  /* end of function contract_diagram_oet_v2_gamma_v3 */
-
-#if 0
-/****************************************************
- *
- ****************************************************/
-void contract_b1 (double _Complex ***b1, double _Complex **v3, **double v2, gamma_matrix_type g) {
-
-  for( int it = 0; it < T; it++ ) {
-    for(int alpha = 0; alpha < 4; alpha++) {
-    for(int beta = 0; beta < 4; beta++) {
-      double _Complex z;
-      for(int m = 0; m < 3; m++) {
-        for(int gamma = 0; gamma < 4; gamma++) {
-        for(int delta = 0; delta < 4; delta++) {
-          int i3 = 3*gamma + m;
-          int i2 = 4 * ( 4 * ( 4*m + beta ) + alpha ) + delta;
-          z += -v3[it][i3] * v2[it][i2] * g.m[gamma][delta];
-        }}
-      }
-      b1[it][alpha][beta] = z;
-    }}
-  }  /* loop on timeslices */
-}  /* end of contract_b1 */
-
-void contract_b2 (double _Complex ***b2, double _Complex **v3, **double v2, gamma_matrix_type g) {
-
-  for( int it = 0; it < T; it++ ) {
-    for(int alpha = 0; alpha < 4; alpha++) {
-    for(int beta = 0; beta < 4; beta++) {
-      double _Complex z;
-      for(int m = 0; m < 3; m++) {
-        for(int gamma = 0; gamma < 4; gamma++) {
-        for(int delta = 0; delta < 4; delta++) {
-          int i3 = 3*gamma + m;
-          int i2 = 4 * ( 4 * ( 4*m + delta ) + alpha ) + beta;
-          z += -v3[it][i3] * v2[it][i2] * g.m[gamma][delta];
-        }}
-      }
-      b2[it][alpha][beta] = z;
-    }}
-  }  /* loop on timeslices */
-}  /* end of contract_b2 */
-#endif  /* end of if 0 */
 
 /****************************************************
  * search for m1 in m2
