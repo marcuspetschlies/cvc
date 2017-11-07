@@ -612,7 +612,7 @@ int main(int argc, char **argv) {
    * 4-dim FT,
    * write to file
    ***********************************************/
-  sprintf( filename, "loop_cvc_lma_p.%.4d.nev%.4d.lime", Nconf, evecs_num );
+  sprintf( filename, "loop_cvc_lma_x.%.4d.nev%.4d.lime", Nconf, evecs_num );
   for ( int mu = 0; mu < 4; mu++ ) {
 
     complex_field_eo2lexic ( cvc_loop_lma_p[0][mu], cvc_loop_lma_x[0][mu][0], cvc_loop_lma_x[0][mu][1] );
@@ -623,7 +623,7 @@ int main(int argc, char **argv) {
     }
 
     sprintf(contype, "\n<description> cvc loop contraction</description>\n"\
-        "<component>%d</component>\n"\
+        "<current-index>%d</current-index>\n"\
         "<flavor>%s</flavor\n"\
         "<precision>%d</precision>\n"\
         "<ft_sign>%s</ft_sign>\n"\
@@ -663,7 +663,7 @@ int main(int argc, char **argv) {
     complex_field_eq_mi_complex_field_conj ( cvc_loop_lma_p[1][mu], cvc_loop_lma_p[1][mu], VOLUME );
 
     sprintf(contype, "\n<description> cvc loop convoluted</description>\n"\
-        "<component>%d</component>\n"\
+        "<current-index>%d</current-index>\n"\
         "<flavor>%s</flavor\n"\
         "<precision>%d</precision>\n"\
         "<ft_sign>%s</ft_sign>\n"\
@@ -959,15 +959,19 @@ int main(int argc, char **argv) {
       memcpy ( eo_spinor_work[2], eo_stochastic_propagator[0], sizeof_eo_spinor_field );
       X_clover_eo ( eo_spinor_work[1], eo_spinor_work[2], gauge_field_with_phase, mzzinv[0][0]);
 
+      /*                      lexic field        eo field, even     eo field, odd */
       spinor_field_eo2lexic ( eo_spinor_work[2], eo_spinor_work[0], eo_stochastic_source[0] );
+
+      /*                      lexic field        eo field, even     eo field, odd */
       spinor_field_eo2lexic ( eo_spinor_work[4], eo_spinor_work[1], eo_stochastic_propagator[0] );
 
-      sprintf ( filename, "%s.%.4d.%.5d.inverted", filename_prefix, Nconf, isample );
+      sprintf ( filename, "%s.%.4d.%.5d", filename_prefix, Nconf, isample );
       if ( ( exitstatus = write_propagator( eo_spinor_work[2], filename, 0, g_propagator_precision ) ) != 0 ) {
         fprintf(stderr, "[loops_caa_lma] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(123);
       }
-      if ( ( exitstatus = write_propagator( eo_spinor_work[4], filename, 1, g_propagator_precision ) ) != 0 ) {
+      sprintf ( filename, "%s.%.4d.%.5d.inverted", filename_prefix, Nconf, isample );
+      if ( ( exitstatus = write_propagator( eo_spinor_work[4], filename, 0, g_propagator_precision ) ) != 0 ) {
         fprintf(stderr, "[loops_caa_lma] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(123);
       }
@@ -1133,15 +1137,15 @@ int main(int argc, char **argv) {
         }
       }
 
-      sprintf( filename, "loop_cvc_stoch_p.%.4d.block%.4d.lime", Nconf, isample+1 );
+      sprintf( filename, "loop_cvc_stoch_x.%.4d.block%.4d.lime", Nconf, isample+1 );
       for ( int mu = 0; mu < 4; mu++ ) {
 
         sprintf(contype, "\n<description> cvc loop contraction</description>\n"\
-            "<component>%d</component>\n"\
+            "<current-index>%d</current-index>\n"\
             "<flavor>%s</flavor\n"\
             "<precision>%d</precision>\n"\
             "<nev>%d</nev>\n"\
-            "<nsmaple>%d</nsample>\n"\
+            "<nsample>%d</nsample>\n"\
             "<space>%s</space>\n",\
             mu, "up", 64, evecs_num, isample, "x" );
 
@@ -1151,14 +1155,14 @@ int main(int argc, char **argv) {
         }
 
         sprintf(contype, "\n<description> cvc loop convoluted</description>\n"\
-            "<component>%d</component>\n"\
+            "<current-index>%d</current-index>\n"\
             "<flavor>%s</flavor\n"\
             "<precision>%d</precision>\n"\
             "<ft_sign>%s</ft_sign>\n"\
             "<nev>%d</nev>\n"\
-            "<nsmaple>%d</nsample>\n"\
+            "<nsample>%d</nsample>\n"\
             "<space>%s</space>\n",\
-            mu, "dn", 64, "+1", evecs_num, isample, "x" );
+            mu, "up", 64, "+1", evecs_num, isample, "x" );
 
         if ( ( exitstatus = write_lime_contraction ( cvc_loop_stoch_p_accum[1][mu], filename, 64, 1, contype, Nconf, 1 ) ) != 0 ) {
           fprintf(stderr, "[loops_em] Error from write_lime_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
