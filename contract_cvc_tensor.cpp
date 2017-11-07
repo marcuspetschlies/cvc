@@ -2192,6 +2192,46 @@ int contract_cvc_tensor_eo_lm_factors ( double**eo_evecs_field, int nev, double*
   for ( int iblock = 0; iblock < block_number; iblock++ ) {
 
     /***********************************************************
+     * V^+ V block-wise
+     ***********************************************************/
+    /***********************************************************
+     * loop on timeslices
+     ***********************************************************/
+    for ( int it = 0; it < T; it++ ) {
+
+      /***********************************************************
+       * spin-color reduction
+       ***********************************************************/
+      exitstatus = vdag_w_spin_color_reduction ( contr_x, v, &(v[iblock*block_length]), nev, block_length, it );
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_spin_color_reduction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(4);
+      }
+
+      /***********************************************************
+       * momentum projection
+       ***********************************************************/
+      exitstatus = vdag_w_momentum_projection ( contr_p, contr_x, nev, block_length, momentum_list, momentum_number, it, 1, mu );
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(4);
+      }
+
+      /***********************************************************
+       * write to file
+       ***********************************************************/
+      sprintf ( aff_tag, "vv/t%.2d/mu%d/b%.2d", it+g_proc_coords[0]*T, mu, iblock );
+      exitstatus = vdag_w_write_to_aff_file ( contr_p, nev, block_length, affw[it], aff_tag, momentum_list, momentum_number, io_proc );
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(4);
+      }
+    }  /* end of loop on timeslices */
+
+    /***********************************************************/
+    /***********************************************************/
+
+    /***********************************************************
      * calculate w, xw for the current block,
      * w = Cbar ( v, xv )
      * xw = X w
@@ -2328,7 +2368,6 @@ int contract_cvc_tensor_eo_lm_factors ( double**eo_evecs_field, int nev, double*
           return(4);
         }
 
-
         /***********************************************************
          * write to file
          ***********************************************************/
@@ -2339,12 +2378,66 @@ int contract_cvc_tensor_eo_lm_factors ( double**eo_evecs_field, int nev, double*
           return(4);
         }
 
-
       }  /* end of loop on timeslices */
 
     }  /* end of loop on vector index mu */
 
   }  /* end of loop on evec blocks */
+
+  /***********************************************************
+   * calculate all Wtildes, save them in place of XV in field
+   * xv
+   ***********************************************************/
+
+  for ( int iev = 0; iev < nev; iev++ ) {
+    memcpy( eo_spinor_work[0],  xv[iev], sizeof_eo_spinor_field );
+    memcpy( xv[iev], v[iev], sizeof_eo_spinor_field );
+    C_clover_from_Xeo ( xv[iev], eo_spinor_work[0], eo_spinor_work[1], gauge_field, mzz[1][1] );
+  }
+
+  /***********************************************************
+   * loop on evec blocks
+   ***********************************************************/
+  for ( int iblock = 0; iblock < block_number; iblock++ ) {
+
+    /***********************************************************
+     * W^+ W block-wise
+     ***********************************************************/
+    /***********************************************************
+     * loop on timeslices
+     ***********************************************************/
+    for ( int it = 0; it < T; it++ ) {
+
+      /***********************************************************
+       * spin-color reduction
+       ***********************************************************/
+      exitstatus = vdag_w_spin_color_reduction ( contr_x, xv, &(xv[iblock*block_length]), nev, block_length, it );
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_spin_color_reduction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(4);
+      }
+
+      /***********************************************************
+       * momentum projection
+       ***********************************************************/
+      exitstatus = vdag_w_momentum_projection ( contr_p, contr_x, nev, block_length, momentum_list, momentum_number, it, 1, mu );
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(4);
+      }
+
+      /***********************************************************
+       * write to file
+       ***********************************************************/
+      sprintf ( aff_tag, "ww/t%.2d/mu%d/b%.2d", it+g_proc_coords[0]*T, mu, iblock );
+      exitstatus = vdag_w_write_to_aff_file ( contr_p, nev, block_length, affw[it], aff_tag, momentum_list, momentum_number, io_proc );
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(4);
+      }
+    }  /* end of loop on timeslices */
+  
+  }  /* end of loop on evecs blocks */
 
   fini_2level_buffer ( &eo_spinor_work );
   fini_2level_buffer ( &xv );
@@ -2358,6 +2451,107 @@ int contract_cvc_tensor_eo_lm_factors ( double**eo_evecs_field, int nev, double*
 
   return(0);
 }  /* end of contract_cvc_tensor_eo_lm_factors */
+
+/***********************************************************
+ * contractions for Mee part of eo-precon lm cvc - cvc tensor
+ ***********************************************************/
+int contract_cvc_tensor_eo_lm_mee ( double**eo_evecs_field, int nev, double*gauge_field, double **mzz[2], double **mzzinv[2],
+    struct AffWriter_s **affw, char*tag, 
+    int (*momentum_list)[3], int momentum_number, int io_proc, int block_length ) {
+
+  const unsigned int Vhalf                      = VOLUME / 2;
+  const unsigned int VOL3half                   = LX*LY*LZ/2;
+  const size_t sizeof_eo_spinor_field           = _GSI( VOLUME   ) * sizeof(double);
+  const size_t sizeof_eo_spinor_field_timeslice = _GSI( VOL3half ) * sizeof(double);
+
+  int exitstatus;
+  double **eo_spinor_field = NULL, **eo_spinor_work = NULL;
+  double *v = NULL, *w = NULL, *gmufv[4] = NULL, *gmufw[4] = NULL, *gmubv[4] = NULL, *gmubw[4] = NULL, 
+
+  if ( ( exitstatus = init_2level_buffer ( &eo_spinor_field, 18, _GSI(Vhalf) ) ) != 0 ) {
+    fprintf(stderr, "# [contract_cvc_tensor_eo_lm_mee] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+
+  if ( ( exitstatus = init_2level_buffer ( &eo_spinor_work, 4, _GSI( (VOLUME+RAND)/2 ) ) ) != 0 ) {
+    fprintf(stderr, "# [contract_cvc_tensor_eo_lm_mee] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+
+  v = eo_spinor_field[ 0];
+  w = eo_spinor_field[ 1];
+  /* */
+  gmufv[0] = eo_spinor_field[ 2];
+  gmufv[1] = eo_spinor_field[ 3];
+  gmufv[2] = eo_spinor_field[ 4];
+  gmufv[3] = eo_spinor_field[ 5];
+  /* */
+  gmubv[0] = eo_spinor_field[ 6];
+  gmubv[1] = eo_spinor_field[ 7];
+  gmubv[2] = eo_spinor_field[ 8];
+  gmubv[3] = eo_spinor_field[ 9];
+  /* */
+  gmufw[0] = eo_spinor_field[10];
+  gmufw[1] = eo_spinor_field[11];
+  gmufw[2] = eo_spinor_field[12];
+  gmufw[3] = eo_spinor_field[13];
+  /* */
+  gmubw[0] = eo_spinor_field[14];
+  gmubw[1] = eo_spinor_field[15];
+  gmubw[2] = eo_spinor_field[16];
+  gmubw[3] = eo_spinor_field[17];
+
+  for ( int inev = 0; inev < nev; inev++ ) {
+    /* set V */
+    memcpy ( v, eo_evecs_field[inev], sizeof_eo_spinor_field );
+    /* calculate W */
+    C_clover_oo ( w, v, gauge_field, eo_spinor_work[0], mzz[1][1], mzzinv[1][0] );
+
+    for ( int imu = 0; imu < 4; imu++ ) {
+
+      memcpy ( eo_spinor_work[0], v, sizeof_eo_spinor_field );
+      /* Gmufwdr V */
+      apply_cvc_vertex_eo( gmufv[imu], eo_spinor_work[0], imu, 0, gauge_field, 0 );
+      /* Gmubwdr V */
+      apply_cvc_vertex_eo( gmubv[imu], eo_spinor_work[0], imu, 1, gauge_field, 0 );
+
+      memcpy ( eo_spinor_work[0], w, sizeof_eo_spinor_field );
+      /* Gmufwdr W */
+      apply_cvc_vertex_eo( gmufw[imu], eo_spinor_work[0], imu, 0, gauge_field, 0 );
+      /* Gmubwdr W */
+      apply_cvc_vertex_eo( gmubw[imu], eo_spinor_work[0], imu, 1, gauge_field, 0 );
+    }
+
+    g5_phi ( eo_spinor_field[2], 8 * Vhalf );
+
+    for ( int imu = 0; imu < 4; imu++ ) {
+      M_clover_zz_inv_matrix ( gmufw[imu], gmufw[imu], mzzinv[0][0] );
+      M_clover_zz_inv_matrix ( gmubw[imu], gmubw[imu], mzzinv[0][0] );
+    }
+
+    if ( (exitstatus = init_4level_buffer ( &tensor_x, 4, 4, T, _GSI( VOL3half ) )) != 0 ) {
+      fprintf( stderr, "[contract_cvc_tensor_eo_lm_mee] Error from init_4level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(1);
+    }
+
+
+    /* scalar products */
+    for ( int imu = 0; imu < 4; imu++ ) {
+      for ( int inu = 0; inu < 4; inu++ ) {
+
+
+
+
+      }
+    }
+
+  }  /* end of loop on nev */
+
+  fini_2level_buffer ( &eo_spinor_field );
+  fini_2level_buffer ( &eo_spinor_work );
+  fini_4level_buffer ( &tensor_x );
+
+}  /* end of contract_cvc_tensor_eo_lm_mee */
 
 /***********************************************************
  *
