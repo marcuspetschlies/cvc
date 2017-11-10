@@ -10,14 +10,21 @@ typedef struct {
   double w;
 } rotation_type; 
 
+/********************************************************/
+/********************************************************/
+
 typedef struct {
   double _Complex **m;
   int d;
 } rotation_matrix_type;
 
+/********************************************************/
+/********************************************************/
+
 void rot_init_block_params (void);
 
 extern rotation_type cubic_group_double_cover_rotations[48];
+extern rotation_type cubic_group_rotations[24];
 
 void rot_init_rotation_table (void);
 

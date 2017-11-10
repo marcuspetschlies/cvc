@@ -35,10 +35,14 @@ namespace cvc {
 
 static int n_block[3], block_L, nn_block, block_LL[3], rot_block_params_set = 0;
 
-
 rotation_type cubic_group_double_cover_rotations[48];
+rotation_type cubic_group_rotations[24];
+
+little_group_type little_groups;
 
 void rot_init_rotation_table () {
+#include "set_cubic_group_double_cover_elements.h"
+#if 0
   cubic_group_double_cover_rotations[0].n[0] = 0;
   cubic_group_double_cover_rotations[0].n[1] = 0;
   cubic_group_double_cover_rotations[0].n[2] = 0;
@@ -231,8 +235,13 @@ void rot_init_rotation_table () {
   cubic_group_double_cover_rotations[47].n[1] = 0;
   cubic_group_double_cover_rotations[47].n[2] = 0;
   cubic_group_double_cover_rotations[47].w = 2*M_PI;
+#endif  /* of if 0 */
+#include "set_cubic_group_elements.h"
   return;
 }  /* end of rot_init_rotation_table */
+
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  *
@@ -245,7 +254,8 @@ void rot_init_rotation_table () {
  *
  * set block_LL[3], which gives the block length in each
  * of the 3 directions
- * */
+ *
+ ***********************************************************/
 void rot_init_block_params (void) {
   block_L = _MIN( _MIN(LX,LY) , LZ );
   if ( g_cart_id == 0 )
@@ -274,6 +284,9 @@ void rot_init_block_params (void) {
   rot_block_params_set = 1;
 }  /* rot_init_block_params */
 
+/***********************************************************/
+/***********************************************************/
+
 /***********************************************************
  *
  ***********************************************************/
@@ -288,6 +301,9 @@ void rot_printf_matrix (double _Complex **R, int N, char *A, FILE*ofs ) {
   }
 }  /* end of rot_printf_matrix */
  
+/***********************************************************/
+/***********************************************************/
+
 /***********************************************************
  *
  ***********************************************************/
@@ -306,6 +322,8 @@ void rot_printf_rint_matrix (double _Complex **R, int N, char *A, FILE*ofs ) {
   }
 }  /* end of rot_printf_matrix */
  
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  *
@@ -362,6 +380,9 @@ double _Complex determinant_dxd (double _Complex **R, int d) {
 
 } /* end of determinant_dxd */
 
+/***********************************************************/
+/***********************************************************/
+
 /***********************************************************
  * safe, if C = R
  ***********************************************************/
@@ -375,6 +396,9 @@ void rot_mat_adj (double _Complex **C, double _Complex **R, int N) {
   memcpy(C[0], S[0], N*N*sizeof(double _Complex));
   rot_fini_rotation_matrix ( &S );
 }  /* end of rot_mat_adj */
+
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  *
@@ -424,6 +448,9 @@ void rot_spherical2cartesian_3x3 (double _Complex **C, double _Complex **S) {
   return;
 }  /* end of rot_spherical2cartesian_3x3 */
 
+/***********************************************************/
+/***********************************************************/
+
 /***********************************************************
  *
  ***********************************************************/
@@ -440,6 +467,9 @@ void rot_mat_ti_mat (double _Complex **C, double _Complex **A, double _Complex *
 
   return;
 }  /* end of rot_mat_ti_mat */
+
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  *
@@ -458,6 +488,9 @@ void rot_mat_ti_mat_adj (double _Complex **C, double _Complex **A, double _Compl
   return;
 }  /* end of rot_mat_ti_mat_adj */
 
+/***********************************************************/
+/***********************************************************/
+
 /***********************************************************
  *
  ***********************************************************/
@@ -475,6 +508,8 @@ void rot_mat_adj_ti_mat (double _Complex **C, double _Complex **A, double _Compl
   return;
 }  /* end of rot_mat_adj_ti_mat */
 
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  *
@@ -487,6 +522,9 @@ double rot_mat_norm2 (double _Complex **R, int N) {
   }}
   return(res);
 }  /* end of rot_mat_norm2 */
+
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  *
@@ -510,6 +548,9 @@ int rot_mat_check_is_sun (double _Complex **R, int N) {
 
 }  /* end of rot_mat_check_is_sun */
 
+/***********************************************************/
+/***********************************************************/
+
 /***********************************************************
  *
  ***********************************************************/
@@ -532,6 +573,8 @@ int rot_mat_check_is_real_int (double _Complex **R, int N ) {
   return(res);
 }  /* rot_mat_check_is_int */
 
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  *
@@ -544,6 +587,8 @@ long unsigned int factorial (int n)
     return(1);
 }  /* end of factorial */
 
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  *
@@ -569,6 +614,8 @@ void axis2polar ( double*theta, double*phi, int n[3] ) {
 
 }  /* end of axis2polar */
 
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  * input
@@ -667,6 +714,8 @@ void rot_rotation_matrix_spherical_basis ( double _Complex**R, int J2, int n[3],
   return;
 }  /* end of rot_rotation_matrix_spherical_basis */
 
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  * bi-spinor rotation matrix as (1/2, 0) + (0, 1/2)
@@ -700,6 +749,9 @@ double _Complex **rot_bispinor_rotation_matrix_spherical_basis ( int n[3], doubl
   return( ASpin );
 }  /* end of rot_bispinor_rotation_matrix_spherical_basis */ 
 
+/***********************************************************/
+/***********************************************************/
+
 /***********************************************************
  * rotate a 3-dim integer vector
  ***********************************************************/
@@ -708,6 +760,9 @@ void rot_point ( int nrot[3], int n[3], double _Complex **R) {
   nrot[1] = (int)creal(R[1][0] * (double _Complex)n[0] + R[1][1] * (double _Complex)n[1] + R[1][2] * (double _Complex)n[2]);
   nrot[2] = (int)creal(R[2][0] * (double _Complex)n[0] + R[2][1] * (double _Complex)n[1] + R[2][2] * (double _Complex)n[2]);
 }  /* end of rot_point */
+
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  * inverse rotate a 3-dim integer vector
@@ -718,6 +773,8 @@ void rot_point_inv ( int nrot[3], int n[3], double _Complex **R) {
   nrot[2] = (int)creal( conj(R[0][2]) * (double _Complex)n[0] + conj(R[1][2]) * (double _Complex)n[1] + conj(R[2][2]) * (double _Complex)n[2]);
 }  /* end of rot_point_inv */
 
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  * rotate a global 3-dim integer vector module L
@@ -727,6 +784,9 @@ void rot_global_point_mod ( int nrot[3], int n[3], double _Complex **R) {
   nrot[1] = ( (int)creal(R[1][0] * (double _Complex)n[0] + R[1][1] * (double _Complex)n[1] + R[1][2] * (double _Complex)n[2]) + LY_global ) % LY_global;
   nrot[2] = ( (int)creal(R[2][0] * (double _Complex)n[0] + R[2][1] * (double _Complex)n[1] + R[2][2] * (double _Complex)n[2]) + LZ_global ) % LZ_global;
 }  /* end of rot_point */
+
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  * rotate a 3-dim integer vector
@@ -740,6 +800,9 @@ void rot_center_global_point ( int nrot[3], int n[3], double _Complex **R) {
   nrot[2] = (int)creal( R[2][0] * (double _Complex)nshift[0] + R[2][1] * (double _Complex)nshift[1] + R[2][2] * (double _Complex)nshift[2]) + LZ_global/2;
 }  /* end of rot_point */
 
+/***********************************************************/
+/***********************************************************/
+
 /***********************************************************
  * inverse rotate a 3-dim integer vector, center of
  * rotation is the center of the lattice cube
@@ -750,6 +813,9 @@ void rot_center_global_point_inv ( int nrot[3], int n[3], double _Complex **R) {
   nrot[1] = (int)creal( conj(R[0][1]) * (double _Complex)nshift[0] + conj(R[1][1]) * (double _Complex)nshift[1] + conj(R[2][1]) * (double _Complex)nshift[2]) + LY_global/2;
   nrot[2] = (int)creal( conj(R[0][2]) * (double _Complex)nshift[0] + conj(R[1][2]) * (double _Complex)nshift[1] + conj(R[2][2]) * (double _Complex)nshift[2]) + LZ_global/2;
 }  /* end of rot_point_inv */
+
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  * rotate a 3-dim local integer vector
@@ -772,6 +838,9 @@ void rot_center_local_point ( int nrot[3], int n[3], double _Complex **R, int l[
   }
 }  /* end of rot_point */
 
+/***********************************************************/
+/***********************************************************/
+
 /***********************************************************
  * rotate a 3-dim local integer vector
  * center of the rotation is the center of the local lattice
@@ -793,6 +862,8 @@ void rot_center_local_point_inv ( int nrot[3], int n[3], double _Complex **R, in
   }
 }  /* end of rot_point */
 
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  * rotate the gauge field
@@ -1258,6 +1329,9 @@ int rot_gauge_field ( double*gf_rot, double *gf, double _Complex **R) {
 
 }  /* end of rot_gauge_field */
 
+/***********************************************************/
+/***********************************************************/
+
 /***********************************************************
  *
  * rotate a spinor field
@@ -1664,6 +1738,9 @@ int rot_spinor_field ( double*sf_rot, double *sf, double _Complex **R) {
 
 }  /* end of rot_spinor_field */
 
+/***********************************************************/
+/***********************************************************/
+
 void rot_bispinor_mat_ti_spinor_field (double *sf_rot, double _Complex **R, double *sf, unsigned int N) {
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
@@ -1674,6 +1751,9 @@ void rot_bispinor_mat_ti_spinor_field (double *sf_rot, double _Complex **R, doub
   }
 }  /* end of rot_bispinor_mat_ti_spinor_field */
 
+/***********************************************************/
+/***********************************************************/
+
 void rot_bispinor_mat_ti_fp_field( fermion_propagator_type *fp_rot, double _Complex ** R, fermion_propagator_type *fp, unsigned int N ) {
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
@@ -1682,6 +1762,9 @@ void rot_bispinor_mat_ti_fp_field( fermion_propagator_type *fp_rot, double _Comp
     rot_bispinor_mat_ti_fp( fp_rot[ix], R, fp[ix] );
   }
 }  /* end of rot_bispinor_mat_ti_fp_field */
+
+/***********************************************************/
+/***********************************************************/
 
 void rot_fp_field_ti_bispinor_mat ( fermion_propagator_type *fp_rot, double _Complex ** R, fermion_propagator_type *fp, unsigned int N) {
 #ifdef HAVE_OPENMP
@@ -1692,6 +1775,9 @@ void rot_fp_field_ti_bispinor_mat ( fermion_propagator_type *fp_rot, double _Com
   }
 }  /* end of rot_fp_field_ti_bispinor_mat */
 
+/***********************************************************/
+/***********************************************************/
+
 void rot_spinor_field_ti_bispinor_mat ( double**sf_rot, double _Complex ** R, double**sf, unsigned int N ) {
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
@@ -1700,6 +1786,9 @@ void rot_spinor_field_ti_bispinor_mat ( double**sf_rot, double _Complex ** R, do
     rot_fv_ti_bispinor_mat ( sf_rot, R, sf, ix);
   }
 }  /* end of rot_spinor_field_ti_bispinor_mat */
+
+/***********************************************************/
+/***********************************************************/
 
 void rot_bispinor_mat_ti_sp_field ( spinor_propagator_type *sp_rot, double _Complex ** R, spinor_propagator_type *sp, unsigned int N ) {
 #ifdef HAVE_OPENMP
@@ -1710,6 +1799,9 @@ void rot_bispinor_mat_ti_sp_field ( spinor_propagator_type *sp_rot, double _Comp
   }
 }  /* end of rot_bispinor_mat_ti_sp_field */
 
+/***********************************************************/
+/***********************************************************/
+
 void rot_sp_field_ti_bispinor_mat ( spinor_propagator_type *sp_rot, double _Complex ** R, spinor_propagator_type *sp, unsigned int N ) {
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
@@ -1718,5 +1810,8 @@ void rot_sp_field_ti_bispinor_mat ( spinor_propagator_type *sp_rot, double _Comp
     rot_sp_ti_bispinor_mat ( sp_rot[ix], R, sp[ix] );
   }
 }  /* end of rot_sp_field_bispinor_mat */
+
+/***********************************************************/
+/***********************************************************/
 
 }  /* end of namespace cvc */
