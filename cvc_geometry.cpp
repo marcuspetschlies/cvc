@@ -669,7 +669,12 @@ int init_geometry(void) {
     return(22);
   }
 
-  /* g_eosub2sliced3d */
+  /***********************************************************/
+  /***********************************************************/
+
+  /***********************************************************
+   * g_eosub2sliced3d  2 x V/2
+   ***********************************************************/
   g_eosub2sliced3d = (int**)calloc(2, sizeof(int*));
   if(g_eosub2sliced3d == NULL) return(17);
 
@@ -677,9 +682,15 @@ int init_geometry(void) {
   if(g_eosub2sliced3d[0] == NULL) return(18);
   g_eosub2sliced3d[1] = g_eosub2sliced3d[0] + (T*LX*LY*LZ)/2;
 
-  /* g_sliced3d2eosub */
+  /***********************************************************/
+  /***********************************************************/
+
+  /***********************************************************
+   * g_sliced3d2eosub  2 x T x VOL3half
+   ***********************************************************/
   g_sliced3d2eosub = (int***)calloc(2, sizeof(int**));
   if(g_sliced3d2eosub == NULL) return(19);
+
   g_sliced3d2eosub[0] = (int**)calloc(2*T, sizeof(int*));
   if(g_sliced3d2eosub[0] == NULL) return(20);
   g_sliced3d2eosub[1] = g_sliced3d2eosub[0] + T;
@@ -694,6 +705,12 @@ int init_geometry(void) {
     g_sliced3d2eosub[1][ix] = g_sliced3d2eosub[0][0] + (T + ix) * LX*LY*LZ/2;
   }
 
+  /***********************************************************/
+  /***********************************************************/
+
+  /***********************************************************
+   * g_eosubt2coords 2 x T x VOL3half x 3
+   ***********************************************************/
   g_eosubt2coords = (int****)calloc(2, sizeof(int***));
   if( g_eosubt2coords == NULL ) return(21);
 
@@ -701,7 +718,7 @@ int init_geometry(void) {
   if( g_eosubt2coords[0] == NULL ) return(22);
   g_eosubt2coords[1] = g_eosubt2coords[0] + T;
 
-  g_eosubt2coords[0][0] = (int**)calloc(T*VOLUME, sizeof(int*));
+  g_eosubt2coords[0][0] = (int**)calloc(VOLUME, sizeof(int*));
   if( g_eosubt2coords[0][0] == NULL ) return(23);
   g_eosubt2coords[1][0] = g_eosubt2coords[0][0] + T*VOL3half;
 
@@ -710,7 +727,7 @@ int init_geometry(void) {
     g_eosubt2coords[1][ix] =  g_eosubt2coords[1][ix-1] + VOL3half;
   }
 
-  g_eosubt2coords[0][0][0] = (int*)calloc(3*T*VOLUME, sizeof(int));
+  g_eosubt2coords[0][0][0] = (int*)calloc(3*VOLUME, sizeof(int));
   if( g_eosubt2coords[0][0][0] == NULL ) return(24);
   g_eosubt2coords[1][0][0] = g_eosubt2coords[0][0][0] + 3*T*VOL3half;
 
@@ -720,6 +737,9 @@ int init_geometry(void) {
       g_eosubt2coords[1][j][ix] =  g_eosubt2coords[1][0][0] + 3*(j*VOL3half+ix);
     }
   }
+
+  /***********************************************************/
+  /***********************************************************/
 
 #if 0
   /***********************************************************
@@ -753,6 +773,8 @@ int init_geometry(void) {
   }
 #endif  /* of if 0 */
 
+  /***********************************************************/
+  /***********************************************************/
 
   /* initialize the boundary condition */
   co_phase_up[0].re = cos(BCangle[0]*M_PI / (double)T_global);
@@ -764,11 +786,19 @@ int init_geometry(void) {
   co_phase_up[3].re = cos(BCangle[3]*M_PI / (double)(LZ*g_nproc_z));
   co_phase_up[3].im = sin(BCangle[3]*M_PI / (double)(LZ*g_nproc_z));
 
-  /* initialize the gamma matrices */
+  /***********************************************************/
+  /***********************************************************/
+
+  /***********************************************************
+   * initialize the gamma matrices
+   ***********************************************************/
   init_gamma();
 
   return(0);
 }  /* end of init_geometry */
+
+/***********************************************************/
+/***********************************************************/
 
 void free_geometry() {
 
@@ -814,5 +844,7 @@ void free_geometry() {
 
 }  /* end of free_geometry */
 
+/***********************************************************/
+/***********************************************************/
 
 }  /* end of namespace cvc */
