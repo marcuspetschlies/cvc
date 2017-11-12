@@ -450,7 +450,6 @@ int main(int argc, char **argv) {
   }  /* end of if io_proc == 2 */
 #endif
 
-
   /***********************************************
    * local lma loops
    ***********************************************/
@@ -861,6 +860,7 @@ int main(int argc, char **argv) {
 
   fini_4level_buffer ( &cvc_loop_lma_x );
 
+
   /***********************************************/
   /***********************************************/
 
@@ -946,18 +946,23 @@ int main(int argc, char **argv) {
       }
     }
 
+
     /* multiply with 2 kappa */
     spinor_field_ti_eq_re ( eo_stochastic_propagator[0], 2.*g_kappa, Vhalf );
 
     if ( g_write_propagator ) {
       
       /* xxi <- Xbar xi */
-      memcpy ( eo_spinor_work[2], eo_stochastic_source[0], sizeof_eo_spinor_field );
-      X_clover_eo (eo_spinor_work[0] , eo_spinor_work[2], gauge_field_with_phase, mzzinv[1][0]);
+      memset ( eo_spinor_work[2], 0, 2*sizeof_eo_spinor_field );
+      memset ( eo_spinor_work[0], 0, sizeof_eo_spinor_field );
+      /* memcpy ( eo_spinor_work[2], eo_stochastic_source[0], sizeof_eo_spinor_field ); */
+      /* X_clover_eo (eo_spinor_work[0] , eo_spinor_work[2], gauge_field_with_phase, mzzinv[1][0]); */
 
       /* xphi <- X phi */
-      memcpy ( eo_spinor_work[2], eo_stochastic_propagator[0], sizeof_eo_spinor_field );
-      X_clover_eo ( eo_spinor_work[1], eo_spinor_work[2], gauge_field_with_phase, mzzinv[0][0]);
+      memset ( eo_spinor_work[4], 0, 2*sizeof_eo_spinor_field );
+      memset ( eo_spinor_work[1], 0, sizeof_eo_spinor_field );
+      /* memcpy ( eo_spinor_work[2], eo_stochastic_propagator[0], sizeof_eo_spinor_field ); */
+      /* X_clover_eo ( eo_spinor_work[1], eo_spinor_work[2], gauge_field_with_phase, mzzinv[0][0]); */
 
       /*                      lexic field        eo field, even     eo field, odd */
       spinor_field_eo2lexic ( eo_spinor_work[2], eo_spinor_work[0], eo_stochastic_source[0] );
@@ -1096,6 +1101,7 @@ int main(int argc, char **argv) {
       }
     }
 
+
     /***********************************************/
     /***********************************************/
 
@@ -1168,10 +1174,7 @@ int main(int argc, char **argv) {
           fprintf(stderr, "[loops_em] Error from write_lime_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(2);
         }
-#if 0
-#endif  /* of if 0 */
       }  /* end of loop on mu */
-
 
     }  /* end of if isample mod Nsave == 0 */
 
