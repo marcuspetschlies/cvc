@@ -62,6 +62,7 @@ extern "C"
 #include "clover.h"
 #include "scalar_products.h"
 #include "fft.h"
+#include "Q_phi.h"
 
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
@@ -109,6 +110,10 @@ int main(int argc, char **argv) {
   /* double ratime, retime; */
   double **mzz[2], **mzzinv[2];
   double *gauge_field_with_phase = NULL;
+  double ***local_loop_x = NULL, ***local_loop_p = NULL;
+  double ****cvc_loop_lma_x = NULL;
+  double ***cvc_loop_lma_p = NULL, ***cvc_loop_tp = NULL;
+
   double _Complex ztmp;
 
 #ifdef HAVE_MPI
@@ -450,12 +455,12 @@ int main(int argc, char **argv) {
   }  /* end of if io_proc == 2 */
 #endif
 
+#if 0
 
   /***********************************************
    * local lma loops
    ***********************************************/
 
-  double ***local_loop_x = NULL, ***local_loop_p = NULL;
   if( ( exitstatus = init_3level_buffer ( &local_loop_x, 2, 16, 2*Vhalf ) ) != 0 ) {
     fprintf(stderr, "[loops_em] Error from init_3level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(1);
@@ -475,8 +480,6 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[loops_em] Error from cvc_loop_tp_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(2);
   }
-#if 0
-#endif  /* of if 0 */
 
   fini_3level_buffer ( &local_loop_x );
   fini_3level_buffer ( &local_loop_p );
@@ -489,9 +492,6 @@ int main(int argc, char **argv) {
   /***********************************************
    * cvc lma loops
    ***********************************************/
-  double ****cvc_loop_lma_x = NULL;
-  double ***cvc_loop_lma_p = NULL, ***cvc_loop_tp = NULL;
-
   if( ( exitstatus = init_4level_buffer ( &cvc_loop_lma_x, 2, 4, 2, 2*Vhalf ) ) != 0 ) {
     fprintf(stderr, "[loops_em] Error from init_4level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(1);
@@ -861,10 +861,9 @@ int main(int argc, char **argv) {
 
   fini_4level_buffer ( &cvc_loop_lma_x );
 
+#endif  /* of if 0 */
   /***********************************************/
   /***********************************************/
-
-
 
   /***********************************************
    * stochastic part
@@ -906,6 +905,86 @@ int main(int argc, char **argv) {
    * loop on stochastic samples
    ***********************************************/
   for ( int isample = 0; isample < g_nsample; isample++ ) {
+
+    double **full_spinor_work = NULL;
+    if ( ( exitstatus = init_2level_buffer ( &full_spinor_work, 3, _GSI( VOLUME+RAND ) ) ) != 0 ) {
+      fprintf(stderr, "[loops_em] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(1);
+    }
+
+    if ( g_read_source ) {
+      sprintf ( filename, "%s.%.4d.%.5d", filename_prefix, Nconf, isample );
+      if ( ( exitstatus = read_lime_spinor( full_spinor_work[0], filename, 0) ) != 0 ) {
+        fprintf(stderr, "[loops_em] Error from read_lime_spinor, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(123);
+      }
+    } else {
+      exitstatus = prepare_volume_source ( full_spinor_work[0], VOLUME );
+      if(exitstatus != 0) {
+        fprintf(stderr, "[loops_em] Error from prepare_volume_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(33);
+      }
+    }
+
+    if ( g_write_source ) {
+      sprintf ( filename, "%s.%.4d.%.5d", filename_prefix, Nconf, isample );
+      if ( ( exitstatus = write_propagator( full_spinor_work[0], filename, 0, g_propagator_precision ) ) != 0 ) {
+        fprintf(stderr, "[loops_em] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(123);
+      }
+    }
+    
+    if ( g_read_propagator ) {
+      sprintf ( filename, "%s.%.4d.%.5d.inverted", filename_prefix, Nconf, isample );
+      if ( ( exitstatus = read_lime_spinor ( full_spinor_work[1], filename, 0) ) != 0 ) {
+        fprintf(stderr, "[loops_em] Error from read_lime_spinor, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(123);
+      }
+    } else {
+      spinor_field_lexic2eo ( full_spinor_work[0], eo_spinor_work[0], eo_spinor_work[1] );
+
+      /* source -> g5 x source  */
+      g5_phi ( eo_spinor_work[0], Vhalf );
+      g5_phi ( eo_spinor_work[1], Vhalf );
+
+      /* source -> A^-1 source = A^-1 g5 source , in-place*/
+      Q_clover_eo_SchurDecomp_Ainv ( eo_spinor_work[0], eo_spinor_work[1], eo_spinor_work[0], eo_spinor_work[1], gauge_field_with_phase, mzzinv[0][0], eo_spinor_work[2] );
+
+      /* invert */
+      memset ( eo_spinor_work[2], 0, sizeof_eo_spinor_field );
+      exitstatus = tmLQCD_invert_eo ( eo_spinor_work[2], eo_spinor_work[1], _OP_ID_UP );
+      if(exitstatus != 0) {
+        fprintf(stderr, "[loops_em] Error from tmLQCD_invert_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(19);
+      }
+
+      /* B^-1 , in-place */
+      Q_clover_eo_SchurDecomp_Binv ( eo_spinor_work[0], eo_spinor_work[1], eo_spinor_work[0], eo_spinor_work[2], gauge_field_with_phase, mzzinv[0][0], eo_spinor_work[3]);
+
+      spinor_field_eo2lexic ( full_spinor_work[1], eo_spinor_work[0], eo_spinor_work[1] );
+    }
+
+    /* check propagator with full Dirac operator */
+    Q_phi ( full_spinor_work[2], full_spinor_work[1], gauge_field_with_phase, g_mu );
+    double norm, norm2;
+    spinor_field_norm_diff ( &norm, full_spinor_work[2], full_spinor_work[0], VOLUME );
+    if (g_cart_id == 0 ) fprintf(stdout, "# [loops_em] norm diff %4d %25.16e\n", isample, norm);
+
+    spinor_scalar_product_re ( &norm2, full_spinor_work[0], full_spinor_work[0], VOLUME );
+    if (g_cart_id == 0 ) fprintf(stdout, "# [loops_em] norm      %4d %25.16e\n", isample, norm2);
+
+
+    if ( g_write_propagator ) {
+      sprintf ( filename, "%s.%.4d.%.5d.inverted", filename_prefix, Nconf, isample );
+      if ( ( exitstatus = write_propagator( full_spinor_work[1], filename, 0, g_propagator_precision ) ) != 0 ) {
+        fprintf(stderr, "[loops_em] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(123);
+      }
+    }
+
+    fini_2level_buffer ( &full_spinor_work );
+
+#if 0
 
     /***********************************************
      * volume source
@@ -1168,13 +1247,12 @@ int main(int argc, char **argv) {
           fprintf(stderr, "[loops_em] Error from write_lime_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(2);
         }
-#if 0
-#endif  /* of if 0 */
+
       }  /* end of loop on mu */
 
 
     }  /* end of if isample mod Nsave == 0 */
-
+#endif  /* of if 0 */
   }  /* end of loop on stochastic samples */
 
   /***********************************************/
