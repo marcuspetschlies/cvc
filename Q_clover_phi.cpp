@@ -966,7 +966,7 @@ void Q_clover_eo_SchurDecomp_A (double *e_new, double *o_new, double *e_old, dou
 /********************************************************************
  * apply A^-1
  *
- * from Schur-decomposition Q = g5 A B g5 times the Dirac operator
+ * from Schur-decomposition Q = g5 A B times the Dirac operator
  *
  * A^-1 =
  *   ( M_ee^-1 g5         & 0 )
@@ -1059,7 +1059,7 @@ void Q_clover_eo_SchurDecomp_B (double *e_new, double *o_new, double *e_old, dou
 /********************************************************************
  * apply B^-1
  *
- * from Schur-decomposition Q = g5 A B of g5 times the Dirac operator
+ * from Schur-decomposition Q = g5 A B of times the Dirac operator
  *
  * ( 1 & -M_ee^(-1) M_eo 2kappa )
  * ( 0 &        2kappa          )
