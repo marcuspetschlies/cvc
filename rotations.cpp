@@ -38,8 +38,6 @@ static int n_block[3], block_L, nn_block, block_LL[3], rot_block_params_set = 0;
 rotation_type cubic_group_double_cover_rotations[48];
 rotation_type cubic_group_rotations[24];
 
-little_group_type little_groups;
-
 void rot_init_rotation_table () {
 #include "set_cubic_group_double_cover_elements.h"
 #if 0
