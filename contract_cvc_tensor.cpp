@@ -2211,7 +2211,7 @@ int contract_cvc_tensor_eo_lm_factors ( double**eo_evecs_field, int nev, double*
       /***********************************************************
        * momentum projection
        ***********************************************************/
-      exitstatus = vdag_w_momentum_projection ( contr_p, contr_x, nev, block_length, momentum_list, momentum_number, it, 1, mu );
+      exitstatus = vdag_w_momentum_projection ( contr_p, contr_x, nev, block_length, momentum_list, momentum_number, it, 1, 0 );
       if ( exitstatus != 0 ) {
         fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(4);
@@ -2220,7 +2220,7 @@ int contract_cvc_tensor_eo_lm_factors ( double**eo_evecs_field, int nev, double*
       /***********************************************************
        * write to file
        ***********************************************************/
-      sprintf ( aff_tag, "vv/t%.2d/mu%d/b%.2d", it+g_proc_coords[0]*T, mu, iblock );
+      sprintf ( aff_tag, "vv/t%.2d/b%.2d", it+g_proc_coords[0]*T, iblock );
       exitstatus = vdag_w_write_to_aff_file ( contr_p, nev, block_length, affw[it], aff_tag, momentum_list, momentum_number, io_proc );
       if ( exitstatus != 0 ) {
         fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -2420,7 +2420,7 @@ int contract_cvc_tensor_eo_lm_factors ( double**eo_evecs_field, int nev, double*
       /***********************************************************
        * momentum projection
        ***********************************************************/
-      exitstatus = vdag_w_momentum_projection ( contr_p, contr_x, nev, block_length, momentum_list, momentum_number, it, 1, mu );
+      exitstatus = vdag_w_momentum_projection ( contr_p, contr_x, nev, block_length, momentum_list, momentum_number, it, 1, 0 );
       if ( exitstatus != 0 ) {
         fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(4);
@@ -2429,7 +2429,7 @@ int contract_cvc_tensor_eo_lm_factors ( double**eo_evecs_field, int nev, double*
       /***********************************************************
        * write to file
        ***********************************************************/
-      sprintf ( aff_tag, "ww/t%.2d/mu%d/b%.2d", it+g_proc_coords[0]*T, mu, iblock );
+      sprintf ( aff_tag, "ww/t%.2d/b%.2d", it+g_proc_coords[0]*T, iblock );
       exitstatus = vdag_w_write_to_aff_file ( contr_p, nev, block_length, affw[it], aff_tag, momentum_list, momentum_number, io_proc );
       if ( exitstatus != 0 ) {
         fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -2466,7 +2466,9 @@ int contract_cvc_tensor_eo_lm_mee ( double**eo_evecs_field, int nev, double*gaug
 
   int exitstatus;
   double **eo_spinor_field = NULL, **eo_spinor_work = NULL;
-  double *v = NULL, *w = NULL, *gmufv[4] = NULL, *gmufw[4] = NULL, *gmubv[4] = NULL, *gmubw[4] = NULL, 
+  double *v = NULL, *w = NULL, *gmufv[4] = {NULL, NULL, NULL, NULL}, *gmufw[4] = {NULL, NULL, NULL, NULL},
+         *gmubv[4] = {NULL, NULL, NULL, NULL}, *gmubw[4] = {NULL, NULL, NULL, NULL};
+  double ****tensor_x = NULL;
 
   if ( ( exitstatus = init_2level_buffer ( &eo_spinor_field, 18, _GSI(Vhalf) ) ) != 0 ) {
     fprintf(stderr, "# [contract_cvc_tensor_eo_lm_mee] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
