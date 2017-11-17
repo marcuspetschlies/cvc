@@ -455,7 +455,7 @@ int main(int argc, char **argv) {
   }  /* end of if io_proc == 2 */
 #endif
 
-#if 0
+
 
   /***********************************************
    * local lma loops
@@ -861,7 +861,7 @@ int main(int argc, char **argv) {
 
   fini_4level_buffer ( &cvc_loop_lma_x );
 
-#endif  /* of if 0 */
+
 
   /***********************************************/
   /***********************************************/
@@ -907,6 +907,7 @@ int main(int argc, char **argv) {
    ***********************************************/
   for ( int isample = 0; isample < g_nsample; isample++ ) {
 
+#if 0
     double **full_spinor_work = NULL;
     if ( ( exitstatus = init_2level_buffer ( &full_spinor_work, 3, _GSI( VOLUME+RAND ) ) ) != 0 ) {
       fprintf(stderr, "[loops_em] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -920,11 +921,16 @@ int main(int argc, char **argv) {
         EXIT(123);
       }
     } else {
-      exitstatus = prepare_volume_source ( full_spinor_work[0], VOLUME );
+      memset ( eo_spinor_work[0], 0, sizeof_eo_spinor_field );
+
+      /* exitstatus = prepare_volume_source ( full_spinor_work[0], VOLUME ); */
+      exitstatus = prepare_volume_source ( eo_spinor_work[1], Vhalf );
       if(exitstatus != 0) {
         fprintf(stderr, "[loops_em] Error from prepare_volume_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(33);
       }
+      spinor_field_eo2lexic ( full_spinor_work[0], eo_spinor_work[0], eo_spinor_work[1] );
+
     }
 
     if ( g_write_source ) {
@@ -945,11 +951,11 @@ int main(int argc, char **argv) {
       spinor_field_lexic2eo ( full_spinor_work[0], eo_spinor_work[0], eo_spinor_work[1] );
 
       /* source -> g5 x source  */
-      g5_phi ( eo_spinor_work[0], Vhalf );
-      g5_phi ( eo_spinor_work[1], Vhalf );
+      // g5_phi ( eo_spinor_work[0], Vhalf );
+      // g5_phi ( eo_spinor_work[1], Vhalf );
 
       /* source -> A^-1 source = A^-1 g5 source , in-place*/
-      Q_clover_eo_SchurDecomp_Ainv ( eo_spinor_work[0], eo_spinor_work[1], eo_spinor_work[0], eo_spinor_work[1], gauge_field_with_phase, mzzinv[0][0], eo_spinor_work[2] );
+      // Q_clover_eo_SchurDecomp_Ainv ( eo_spinor_work[0], eo_spinor_work[1], eo_spinor_work[0], eo_spinor_work[1], gauge_field_with_phase, mzzinv[0][0], eo_spinor_work[2] );
 
       /* invert */
       memset ( eo_spinor_work[2], 0, sizeof_eo_spinor_field );
@@ -960,20 +966,18 @@ int main(int argc, char **argv) {
       }
 
       /* B^-1 , in-place */
-      Q_clover_eo_SchurDecomp_Binv ( eo_spinor_work[0], eo_spinor_work[1], eo_spinor_work[0], eo_spinor_work[2], gauge_field_with_phase, mzzinv[0][0], eo_spinor_work[3]);
+      // Q_clover_eo_SchurDecomp_Binv ( eo_spinor_work[0], eo_spinor_work[1], eo_spinor_work[0], eo_spinor_work[2], gauge_field_with_phase, mzzinv[0][0], eo_spinor_work[3]);
+
+
+      memcpy( eo_spinor_work[1], eo_spinor_work[2], sizeof_eo_spinor_field );
+
+      spinor_field_ti_eq_re ( eo_spinor_work[1], 2.*g_kappa, Vhalf );
+
+      X_clover_eo ( eo_spinor_work[0], eo_spinor_work[1], gauge_field_with_phase, mzzinv[0][0]);
+
 
       spinor_field_eo2lexic ( full_spinor_work[1], eo_spinor_work[0], eo_spinor_work[1] );
     }
-
-    /* check propagator with full Dirac operator */
-    Q_phi ( full_spinor_work[2], full_spinor_work[1], gauge_field_with_phase, g_mu );
-    double norm, norm2;
-    spinor_field_norm_diff ( &norm, full_spinor_work[2], full_spinor_work[0], VOLUME );
-    if (g_cart_id == 0 ) fprintf(stdout, "# [loops_em] norm diff %4d %25.16e\n", isample, norm);
-
-    spinor_scalar_product_re ( &norm2, full_spinor_work[0], full_spinor_work[0], VOLUME );
-    if (g_cart_id == 0 ) fprintf(stdout, "# [loops_em] norm      %4d %25.16e\n", isample, norm2);
-
 
     if ( g_write_propagator ) {
       sprintf ( filename, "%s.%.4d.%.5d.inverted", filename_prefix, Nconf, isample );
@@ -983,9 +987,23 @@ int main(int argc, char **argv) {
       }
     }
 
+    /* check propagator with full Dirac operator */
+    Q_phi ( full_spinor_work[2], full_spinor_work[1], gauge_field_with_phase, g_mu );
+    g5_phi ( full_spinor_work[2], VOLUME );
+    double norm, norm2;
+    spinor_field_norm_diff ( &norm, full_spinor_work[2], full_spinor_work[0], VOLUME );
+    if (g_cart_id == 0 ) fprintf(stdout, "# [loops_em] norm diff %4d %25.16e\n", isample, norm);
+
+    spinor_scalar_product_re ( &norm2, full_spinor_work[0], full_spinor_work[0], VOLUME );
+    if (g_cart_id == 0 ) fprintf(stdout, "# [loops_em] norm      %4d %25.16e\n", isample, norm2);
+
+
+
     fini_2level_buffer ( &full_spinor_work );
 
-#if 0
+#endif  /* of if 0 */
+
+
 
     /***********************************************
      * volume source
@@ -996,6 +1014,7 @@ int main(int argc, char **argv) {
       EXIT(33);
     }
 
+#if 0
     /***********************************************
      * orthogonal projection
      ***********************************************/
@@ -1004,6 +1023,7 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[loops_em] Error from project_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(35);
     }
+#endif  /* of if 0 */
 
     /***********************************************
      * invert
@@ -1032,35 +1052,39 @@ int main(int argc, char **argv) {
 
     if ( g_write_propagator ) {
       
+      double **full_spinor_work = NULL;
+      if ( ( exitstatus = init_2level_buffer ( &full_spinor_work, 2, _GSI( VOLUME+RAND ) ) ) != 0 ) {
+        fprintf(stderr, "[loops_em] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(1);
+      }
+
       /* xxi <- Xbar xi */
-      memset ( eo_spinor_work[2], 0, 2*sizeof_eo_spinor_field );
-      memset ( eo_spinor_work[0], 0, sizeof_eo_spinor_field );
-      /* memcpy ( eo_spinor_work[2], eo_stochastic_source[0], sizeof_eo_spinor_field ); */
-      /* X_clover_eo (eo_spinor_work[0] , eo_spinor_work[2], gauge_field_with_phase, mzzinv[1][0]); */
+      memcpy ( eo_spinor_work[2], eo_stochastic_source[0], sizeof_eo_spinor_field );
+      X_clover_eo (eo_spinor_work[0] , eo_spinor_work[2], gauge_field_with_phase, mzzinv[1][0]);
+      g5_phi ( eo_spinor_work[0], Vhalf );
+      memcpy ( eo_spinor_work[1], eo_stochastic_source[0], sizeof_eo_spinor_field );
+      g5_phi ( eo_spinor_work[1], Vhalf );
+      /*                      lexic field        eo field, even     eo field, odd */
+      spinor_field_eo2lexic ( full_spinor_work[0], eo_spinor_work[0], eo_spinor_work[1] );
+      sprintf ( filename, "%s.%.4d.%.5d", filename_prefix, Nconf, isample );
+      if ( ( exitstatus = write_propagator( full_spinor_work[0], filename, 0, g_propagator_precision ) ) != 0 ) {
+        fprintf(stderr, "[loops_caa_lma] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(123);
+      }
 
       /* xphi <- X phi */
-      memset ( eo_spinor_work[4], 0, 2*sizeof_eo_spinor_field );
-      memset ( eo_spinor_work[1], 0, sizeof_eo_spinor_field );
-      /* memcpy ( eo_spinor_work[2], eo_stochastic_propagator[0], sizeof_eo_spinor_field ); */
-      /* X_clover_eo ( eo_spinor_work[1], eo_spinor_work[2], gauge_field_with_phase, mzzinv[0][0]); */
-
+      memcpy ( eo_spinor_work[2], eo_stochastic_propagator[0], sizeof_eo_spinor_field );
+      X_clover_eo ( eo_spinor_work[0], eo_spinor_work[2], gauge_field_with_phase, mzzinv[0][0]);
       /*                      lexic field        eo field, even     eo field, odd */
-      spinor_field_eo2lexic ( eo_spinor_work[2], eo_spinor_work[0], eo_stochastic_source[0] );
+      spinor_field_eo2lexic ( full_spinor_work[1], eo_spinor_work[0], eo_stochastic_propagator[0] );
 
-      /*                      lexic field        eo field, even     eo field, odd */
-      spinor_field_eo2lexic ( eo_spinor_work[4], eo_spinor_work[1], eo_stochastic_propagator[0] );
-
-      sprintf ( filename, "%s.%.4d.%.5d", filename_prefix, Nconf, isample );
-      if ( ( exitstatus = write_propagator( eo_spinor_work[2], filename, 0, g_propagator_precision ) ) != 0 ) {
-        fprintf(stderr, "[loops_caa_lma] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(123);
-      }
       sprintf ( filename, "%s.%.4d.%.5d.inverted", filename_prefix, Nconf, isample );
-      if ( ( exitstatus = write_propagator( eo_spinor_work[4], filename, 0, g_propagator_precision ) ) != 0 ) {
+      if ( ( exitstatus = write_propagator( full_spinor_work[1], filename, 0, g_propagator_precision ) ) != 0 ) {
         fprintf(stderr, "[loops_caa_lma] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(123);
       }
 
+      fini_2level_buffer ( &full_spinor_work );
     }  /* end of if write propagator */
 
     /***********************************************
@@ -1258,6 +1282,7 @@ int main(int argc, char **argv) {
       }  /* end of loop on mu */
 
     }  /* end of if isample mod Nsave == 0 */
+#if 0
 #endif  /* of if 0 */
   }  /* end of loop on stochastic samples */
 
