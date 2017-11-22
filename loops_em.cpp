@@ -1124,10 +1124,26 @@ int main(int argc, char **argv) {
       }}}}
       fclose( ofs );
     }
+
+    double dtmp[2] = {0., 0.};
+#if 0
+    for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
+      for ( int mu = 0; mu < 4; mu++ ) {
+        dtmp[0] += w_field[0][mu][2*ix  ] * w_field[1][mu][2*ix  ] - w_field[0][mu][2*ix+1] * w_field[1][mu][2*ix+1];
+        dtmp[1] += w_field[0][mu][2*ix  ] * w_field[1][mu][2*ix+1] + w_field[0][mu][2*ix+1] * w_field[1][mu][2*ix  ];
+      }
+    }
+    dtmp[0] *= VOLUME;
+    dtmp[1] *= VOLUME;
+    fprintf( stdout, "# [loops_em] JGJ %25.16e %25.16e\n", dtmp[0], dtmp[1] );
+#endif  /* of if 0 */
+    co_eq_sum_complex_field_ti_complex_field ( dtmp, w_field[0][0], w_field[1][0], 4*VOLUME );
+    dtmp[0] *= VOLUME;
+    dtmp[1] *= VOLUME;
+    fprintf( stdout, "# [loops_em] JGJ %25.16e %25.16e\n", dtmp[0], dtmp[1] );
+
     fini_2level_buffer ( &full_spinor_work );
     fini_3level_buffer ( &w_field );
-
-
 
 #if 0
 
