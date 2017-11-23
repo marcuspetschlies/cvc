@@ -6890,8 +6890,8 @@ void co_field_mi_eq_fv_dag_ti_fv (double*c, double*r, double*s, unsigned int N )
 
 }  /* co_field_mi_eq_fv_dag_ti_fv */
 
-
-
+/*****************************************************/
+/*****************************************************/
 
 /*****************************************************
  * r[x] = s[ x +/- dir ]
@@ -7179,5 +7179,42 @@ void complex_field_norm_diff (double*d, double *r, double *s, unsigned int N) {
   *d = sqrt( daccum  );
 #endif
 }  /* end of complex_field_norm_diff */
+
+/*****************************************************/
+/*****************************************************/
+
+/*****************************************************
+ * safe for c = r
+ *****************************************************/
+void  complex_field_eq_complex_field_ti_i ( double*c, double *r, unsigned int N) { 
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  unsigned int iix;
+  double *r_ = NULL, *c_ = NULL;
+  double a;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for ( unsigned int ix = 0; ix < N; ix++ ) {
+    iix = 2 * ix;
+    r_  = r + iix;
+    c_  = c + iix;
+    a = -r_[1];
+    c_[1] = r_[0];
+    c_[0] = a;
+  }
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+  return;
+}  /* complex_field_eq_complex_field_ti_i */
+
+/*****************************************************/
+/*****************************************************/
+
 
 }  /* end of namespace cvc */
