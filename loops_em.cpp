@@ -542,7 +542,7 @@ int main(int argc, char **argv) {
   /***********************************************
    * add bwd to fwd, multiply with imaginary unit
    ***********************************************/
-  complex_field_pl_eq_complex_field ( cvc_loop_lma_x[0][0][0], cvc_loop_lma_x[1][0][0], 8*Vhalf );
+  complex_field_pl_eq_complex_field   ( cvc_loop_lma_x[0][0][0], cvc_loop_lma_x[1][0][0], 8*Vhalf );
   complex_field_eq_complex_field_ti_i ( cvc_loop_lma_x[0][0][0], cvc_loop_lma_x[0][0][0], 8*Vhalf );
 
 
@@ -677,6 +677,8 @@ int main(int argc, char **argv) {
     }
 
     complex_field_eq_mi_complex_field_conj ( cvc_loop_lma_p[1][mu], cvc_loop_lma_p[1][mu], VOLUME );
+
+    complex_field_ti_eq_re ( cvc_loop_lma_p[1][mu], 1./(double)VOLUME, VOLUME);
 
     sprintf(contype, "\n<description> cvc loop convoluted</description>\n"\
         "<current-index>%d</current-index>\n"\
@@ -1322,7 +1324,8 @@ int main(int argc, char **argv) {
     /***********************************************
      * add fwd and bwd
      ***********************************************/
-    complex_field_pl_eq_complex_field ( cvc_loop_stoch_x[0][0][0], cvc_loop_stoch_x[1][0][0], 8*Vhalf );
+    complex_field_pl_eq_complex_field   ( cvc_loop_stoch_x[0][0][0], cvc_loop_stoch_x[1][0][0], 8*Vhalf );
+    complex_field_eq_complex_field_ti_i ( cvc_loop_stoch_x[0][0][0], cvc_loop_stoch_x[0][0][0], 8*Vhalf );
 
     /***********************************************
      * 4-dim FT, forward
@@ -1375,6 +1378,8 @@ int main(int argc, char **argv) {
         EXIT(2);
       }
       complex_field_eq_mi_complex_field_conj ( cvc_loop_stoch_p[1][mu], cvc_loop_stoch_p[1][mu], VOLUME );
+
+      complex_field_ti_eq_re ( cvc_loop_stoch_p[1][mu], 1./(double)VOLUME, VOLUME);
     }  /* end of loop on mu */
 
     /***********************************************/
