@@ -4174,6 +4174,8 @@ int init_rng_stat_file (unsigned int seed, char*filename) {
   char default_filename[] = "rng_stat.out";
   FILE*ofs=NULL;
 
+  if ( g_cart_id == 0 && g_verbose > 1 ) fprintf(stdout, "# [init_rng_stat_file] initializing new rng state\n");
+
   if(l_seed == 0) l_seed++; /* why zero not allowed? */
 
   fprintf(stdout, "# [init_rng_stat_file] proc%.4d l_seed = %u, max_seed = %u, step = %u\n", g_cart_id, l_seed, max_seed, step);
@@ -4204,7 +4206,7 @@ int init_rng_stat_file (unsigned int seed, char*filename) {
 
   c = rlxd_size();
   if( (rng_state = (int*)malloc(c*sizeof(int))) == (int*)NULL ) {
-    fprintf(stderr, "Error, could not save the random number generator state\n");
+    fprintf(stderr, "[init_rng_stat_file] Error, could not save the random number generator state\n");
     return(102);
   }
   rlxd_get(rng_state);
@@ -4227,10 +4229,134 @@ int init_rng_stat_file (unsigned int seed, char*filename) {
 #endif
   }
 
+  /* TEST */
+  if ( g_verbose > 3 ) {
+    for ( int i = 0; i < c; i++ ) {
+      fprintf( stdout, "# [init_rng_stat_file] proc%.4d %2d %8d\n", g_cart_id, i, rng_state[i] );
+    }
+  }
+  /* END OF TEST */
+
   free(rng_state);
   return(0);
 }  /* end of init_rng_stat_file */
 
+
+/******************************************************************
+ * write rng state to file
+ ******************************************************************/
+int write_rng_stat_file ( char*filename) {
+
+  int c;
+  int *rng_state=NULL;
+  char default_filename[] = "rng_stat.out";
+
+  if ( g_cart_id == 0 && g_verbose > 1 ) fprintf(stdout, "# [write_rng_stat_file] writing current rng state to file\n");
+
+  c = rlxd_size();
+  if( (rng_state = (int*)malloc(c*sizeof(int))) == (int*)NULL ) {
+    fprintf(stderr, "[write_rng_stat_file] Error, could not save the random number generator state\n");
+    return(102);
+  }
+  rlxd_get(rng_state);
+
+  /* TEST */
+  if ( g_verbose > 3 ) {
+    for ( int i = 0; i < c; i++ ) {
+      fprintf( stdout, "# [write_rng_stat_file] proc%.4d %2d %8d\n", g_cart_id, i, rng_state[i] );
+    }
+  }
+
+  /* END OF TEST */
+  for( int iproc = 0; iproc < g_nproc; iproc++ ) {
+    if(filename == NULL) { filename = default_filename; }
+    if( iproc == g_cart_id ) {
+      FILE *ofs = iproc == 0 ? fopen( filename, "w" ) : fopen( filename, "a" );
+      if( ofs == (FILE*)NULL ) {
+        fprintf(stderr, "[write_rng_stat_file] Error, could not save the random number generator state\n");
+        EXIT(103);
+      }
+      /* fprintf(stdout, "# [write_rng_stat_file] writing rng state to file %s\n", filename); */
+      fprintf( ofs, "# proc %3d %3d %3d %3d\n", g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3]);
+      for( int i = 0; i < c; i++ ) fprintf(ofs, "%d\n", rng_state[i]);
+      fclose(ofs);
+    }
+#ifdef HAVE_MPI
+    MPI_Barrier(g_cart_grid);
+#endif
+  }
+
+  free(rng_state);
+  return(0);
+}  /* end of write_rng_stat_file */
+
+/******************************************************************
+ * read rng state from file, set rng to state
+ ******************************************************************/
+int read_set_rng_stat_file ( char*filename ) {
+
+  int c;
+  int coords[4], found = 0;
+  int *rng_state=NULL;
+  char default_filename[] = "rng_stat.out";
+  char line[200];
+  FILE *ofs = NULL;
+
+  if ( g_cart_id == 0 && g_verbose > 1 ) fprintf(stdout, "# [read_set_rng_stat_file] reading and setting rng state to file\n");
+
+  c = rlxd_size();
+  if( (rng_state = (int*)malloc(c*sizeof(int))) == (int*)NULL ) {
+    fprintf(stderr, "[read_set_rng_stat_file] Error, could not save the random number generator state\n");
+    return(102);
+  }
+
+  if(filename == NULL) { filename = default_filename; }
+
+  ofs = fopen( filename, "r" );
+  if( ofs == (FILE*)NULL ) {
+    fprintf(stderr, "[read_set_rng_stat_file] Error, could not open file %s for reading\n", filename );
+    EXIT(103);
+  }
+
+  while( fgets ( line, 100, ofs ) != NULL) {
+    if( line[0] == '#' ) {
+      sscanf ( line, "# proc %3d %3d %3d %3d", coords, coords+1, coords+2, coords+3 );
+      if ( coords[0] == g_proc_coords[0] &&
+           coords[1] == g_proc_coords[1] &&
+           coords[2] == g_proc_coords[2] &&
+           coords[3] == g_proc_coords[3]   ) {
+        found = 1;
+        break;
+      }
+    }
+  }
+  if ( found == 0 ) {
+    fprintf(stderr, "[read_set_rng_stat_file] Error, proc%.4d cannot find rng entry\n", g_cart_id );
+    return(1);
+  }
+  for ( int i = 0; i < c; i++ ) {
+    fscanf( ofs, "%d", rng_state+i );
+  }
+  fclose(ofs);
+
+  /* TEST */
+  if ( g_verbose > 3 ) {
+    for ( int i = 0; i < c; i++ ) {
+      fprintf( stdout, "# [read_set_rng_stat_file] proc%.4d %2d %8d\n", g_cart_id, i, rng_state[i] );
+    }
+  }
+  /* END OF TEST */
+
+  /* each process, reset the rng with current state */
+  rlxd_reset( rng_state );
+
+  free( rng_state );
+  return(0);
+}  /* end of write_rng_stat_file */
+
+/******************************************************************
+ * synchronize rng state
+ ******************************************************************/
 int sync_rng_state(int id, int reset) {
 #ifdef HAVE_MPI
   int c;
@@ -4286,7 +4412,9 @@ int fini_rng_state (int **rng_state) {
 }
 
 
-// create, free spin propagator field
+/******************************************************************
+ * create, free spin propagator field
+ ******************************************************************/
 spinor_propagator_type *create_sp_field(size_t N) {
   size_t i, j;
   unsigned int count;
