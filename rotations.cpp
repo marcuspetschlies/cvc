@@ -577,6 +577,20 @@ int rot_mat_check_is_real_int (double _Complex **R, int N ) {
 /***********************************************************
  *
  ***********************************************************/
+void rot_mat_ti_eq_re (double _Complex **R, double c, int N) {
+  for(int i=0; i<N; i++) {
+  for(int k=0; k<N; k++) {
+    R[i][k] *= c;
+  }}
+  return;
+}  /* end of rot_mat_ti_eq_re */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ *
+ ***********************************************************/
 long unsigned int factorial (int n)
 {
   if (n >= 1)
@@ -718,18 +732,20 @@ void rot_rotation_matrix_spherical_basis ( double _Complex**R, int J2, int n[3],
 /***********************************************************
  * bi-spinor rotation matrix as (1/2, 0) + (0, 1/2)
  ***********************************************************/
-double _Complex **rot_bispinor_rotation_matrix_spherical_basis ( int n[3], double w ) {
+int rot_bispinor_rotation_matrix_spherical_basis ( double _Complex**ASpin, int n[3], double w ) {
 
-  double _Complex **SSpin = NULL, **ASpin = NULL;
+  double _Complex **SSpin = NULL;
   int exitstatus = init_2level_buffer( (double***)&SSpin, 2, 4 );
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[rot_bispinor_rotation_matrix_spherical_basis] Error from init_2level_buffer, status was %d\n", exitstatus);
     return(NULL);
   }
-  exitstatus = init_2level_buffer( (double***)&ASpin, 4, 8 );
-  if ( exitstatus != 0 ) {
-    fprintf(stderr, "[rot_bispinor_rotation_matrix_spherical_basis] Error from init_2level_buffer, status was %d\n", exitstatus);
-    return(NULL);
+  if ( Aspin == NULL ) {
+    /* exitstatus = init_2level_buffer( (double***)&ASpin, 4, 8 ); */
+    /* if ( exitstatus != 0 ) { */
+    /* fprintf(stderr, "[rot_bispinor_rotation_matrix_spherical_basis] Error from init_2level_buffer, status was %d\n", exitstatus); */
+    fprintf(stderr, "[rot_bispinor_rotation_matrix_spherical_basis] Error, ASpin is NULL\n");
+    return(1);
   }
 
   rot_rotation_matrix_spherical_basis ( SSpin, 1, n, w);
@@ -744,7 +760,7 @@ double _Complex **rot_bispinor_rotation_matrix_spherical_basis ( int n[3], doubl
   ASpin[3][3] = SSpin[1][1];
 
   fini_2level_buffer( (double***)&SSpin );
-  return( ASpin );
+  return( 0 );
 }  /* end of rot_bispinor_rotation_matrix_spherical_basis */ 
 
 /***********************************************************/
@@ -1812,4 +1828,30 @@ void rot_sp_field_ti_bispinor_mat ( spinor_propagator_type *sp_rot, double _Comp
 /***********************************************************/
 /***********************************************************/
 
+void rot_inversion_matrix_spherical_basis ( double _Complex**R, int J2, bispinor ) {
+  memset ( R[0], 0, (1+bispinor)(J2+1) * (1+bispinor)*(J2+1) * sizeof(double _Complex) );
+
+  if ( J2 == 0 ) { 
+    R[0][0] = -1.; 
+  
+  } else if ( J2 == 2 ) { 
+    R[0][0] = -1.; 
+    R[1][1] = -1.; 
+    R[2][2] = -1.; 
+  } else if ( J2 == 1 && bispinor ) {
+    gamma_matrix_type g;
+    gamma_matrix_set ( &g, 0, 1 );
+
+    memcpy ( R[0], g.v, 16*sizeof(double _Complex) );
+  } else {
+    fprintf( stderr, "[rot_inversion_matrix_spherical_basis] Error, unknown combination of J and bispinor\n");
+    return;
+  }
+
+  return;
+}  /* end of rot_inversion_matrix_spherical_basis */
+
+
+/***********************************************************/
+/***********************************************************/
 }  /* end of namespace cvc */

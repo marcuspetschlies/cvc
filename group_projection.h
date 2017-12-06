@@ -18,6 +18,19 @@ typedef struct {
   int *rm;
 } little_group_type; 
 
+typedef struct {
+
+  int n;
+  char group[20]
+  char irrep[20];
+  int *rid;
+  int *rmid;
+  double _Complex ***R;
+  double _Complex ***IR;
+
+} rot_mat_table_type;
+
+
 /********************************************************/
 /********************************************************/
 
@@ -30,6 +43,8 @@ void little_group_init ( little_group_type **lg, int n );
 void little_group_fini ( little_group_type **lg, int n );
 
 void little_group_show ( little_group_type *lg, FILE*ofs, int n);
+
+int set_rot_mat_table_spin ( rot_mat_table_type *t, int J2, int bispinor );
 
 }  /* end of namespace cvc */
 

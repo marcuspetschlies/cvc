@@ -56,6 +56,8 @@ void rot_point_inv ( int nrot[3], int n[3], double _Complex **R);
 
 int rot_mat_check_is_real_int (double _Complex **R, int N );
 
+void rot_mat_ti_eq_re (double _Complex **R, double c, int N);
+
 void rot_global_point_mod ( int nrot[3], int n[3], double _Complex **R);
 
 void rot_center_global_point ( int nrot[3], int n[3], double _Complex **R);
@@ -85,6 +87,8 @@ void rot_spinor_field_ti_bispinor_mat ( double**sf_rot, double _Complex ** R, do
 void rot_bispinor_mat_ti_sp_field ( spinor_propagator_type *sp_rot, double _Complex ** R, spinor_propagator_type *sp, unsigned int N );
 
 void rot_sp_field_ti_bispinor_mat ( spinor_propagator_type *sp_rot, double _Complex ** R, spinor_propagator_type *sp, unsigned int N );
+
+void rot_inversion_matrix_spherical_basis ( double _Complex**R, int J2, bispinor );
 
 /***********************************************************
  * check boundary status of a point
