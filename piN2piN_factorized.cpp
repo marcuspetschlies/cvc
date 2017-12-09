@@ -1,7 +1,7 @@
 /****************************************************
  * piN2piN_factorized.c
  * 
- * Tue May 30 10:40:59 CEST 2017
+ * Mi 15. Nov 08:11:58 CET 2017
  *
  * PURPOSE:
  * TODO:
@@ -39,6 +39,12 @@ extern "C"
 #ifdef __cplusplus
 }
 #endif
+
+#ifdef HAVE_QUDA
+/* quda library */
+#include "quda.h"
+#endif
+
 
 #define MAIN_PROGRAM
 
