@@ -74,7 +74,7 @@ void rot_printf_rint_matrix (double _Complex **R, int N, char *A, FILE*ofs );
 
 int rot_spinor_field ( double*sf_rot, double *sf, double _Complex **R);
 
-double _Complex **rot_bispinor_rotation_matrix_spherical_basis ( int n[3], double w );
+int rot_bispinor_rotation_matrix_spherical_basis ( double _Complex **ASpin, int n[3], double w );
 
 void rot_bispinor_mat_ti_spinor_field (double *sf_rot, double _Complex **R, double *sf, unsigned int N);
 
@@ -88,7 +88,7 @@ void rot_bispinor_mat_ti_sp_field ( spinor_propagator_type *sp_rot, double _Comp
 
 void rot_sp_field_ti_bispinor_mat ( spinor_propagator_type *sp_rot, double _Complex ** R, spinor_propagator_type *sp, unsigned int N );
 
-void rot_inversion_matrix_spherical_basis ( double _Complex**R, int J2, bispinor );
+void rot_inversion_matrix_spherical_basis ( double _Complex**R, int J2, int bispinor );
 
 /***********************************************************
  * check boundary status of a point

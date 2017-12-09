@@ -28,6 +28,7 @@
 #include "cvc_geometry.h"
 #include "mpi_init.h"
 #include "matrix_init.h"
+#include "gamma.h"
 #include "rotations.h"
 #include "cvc_utils.h"
 
@@ -738,9 +739,9 @@ int rot_bispinor_rotation_matrix_spherical_basis ( double _Complex**ASpin, int n
   int exitstatus = init_2level_buffer( (double***)&SSpin, 2, 4 );
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[rot_bispinor_rotation_matrix_spherical_basis] Error from init_2level_buffer, status was %d\n", exitstatus);
-    return(NULL);
+    return(1);
   }
-  if ( Aspin == NULL ) {
+  if ( ASpin == NULL ) {
     /* exitstatus = init_2level_buffer( (double***)&ASpin, 4, 8 ); */
     /* if ( exitstatus != 0 ) { */
     /* fprintf(stderr, "[rot_bispinor_rotation_matrix_spherical_basis] Error from init_2level_buffer, status was %d\n", exitstatus); */
@@ -1828,8 +1829,8 @@ void rot_sp_field_ti_bispinor_mat ( spinor_propagator_type *sp_rot, double _Comp
 /***********************************************************/
 /***********************************************************/
 
-void rot_inversion_matrix_spherical_basis ( double _Complex**R, int J2, bispinor ) {
-  memset ( R[0], 0, (1+bispinor)(J2+1) * (1+bispinor)*(J2+1) * sizeof(double _Complex) );
+void rot_inversion_matrix_spherical_basis ( double _Complex**R, int J2, int bispinor ) {
+  memset ( R[0], 0, (1+bispinor)*(J2+1) * (1+bispinor)*(J2+1) * sizeof(double _Complex) );
 
   if ( J2 == 0 ) { 
     R[0][0] = -1.; 

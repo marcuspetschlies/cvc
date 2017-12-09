@@ -186,7 +186,7 @@ int main(int argc, char **argv) {
 
   rlxd_init(2, g_seed);
 
-
+#if 0
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
   if( strcmp(gaugefilename_prefix,"identity") == 0 ) {
     /* initialize unit matrices */
@@ -220,6 +220,7 @@ int main(int argc, char **argv) {
     fflush(stdout);
   }
   plaquetteria  ( g_gauge_field );
+#endif  /* of if 0 */
 
 /*
   sprintf(filename, "gf_orig.%.2d", g_cart_id);
@@ -259,6 +260,7 @@ int main(int argc, char **argv) {
   // for(int irot = 46; irot < 47; irot++ )
   // for(int irot = 0; irot < 1; irot++ )
   {
+    char name[12];
 
     if (g_cart_id == 0 ) {
       fprintf(stdout, "# [test_rotations] rotation no. %2d n = (%2d, %2d, %2d) w = %16.7e pi\n", irot,
@@ -267,6 +269,11 @@ int main(int argc, char **argv) {
     }
 
     rot_rotation_matrix_spherical_basis ( R, Ndim-1, cubic_group_double_cover_rotations[irot].n, cubic_group_double_cover_rotations[irot].w );
+
+    sprintf(name, "Ashpe[%.2d]", irot);
+    rot_printf_matrix ( R, Ndim, name, stdout );
+
+
     rot_spherical2cartesian_3x3 (A, R);
     if ( rot_mat_check_is_real_int ( A, Ndim ) ) {
       if (g_cart_id == 0 )
@@ -275,15 +282,16 @@ int main(int argc, char **argv) {
       EXIT(6);
     }
 
-    char name[12];
-    sprintf(name, "A[%.2d]", irot);
+    sprintf(name, "Akart[%.2d]", irot);
     rot_printf_rint_matrix (A, Ndim, name, stdout );
 
+#if 0
     exitstatus = rot_gauge_field ( gauge_field_rot, g_gauge_field, A);
     if ( exitstatus != 0 ) {
       fprintf(stderr, "[test_rotations] Error from rot_gauge_field, status was %d\n", exitstatus);
       EXIT(23);
     }
+#endif  /* of if 0 */
 
 /*
     sprintf(filename, "gf_rot.%.2d", g_cart_id);
@@ -301,6 +309,9 @@ int main(int argc, char **argv) {
     }}}}
     fclose(ofs);
 */
+
+#if 0
+
 #ifdef HAVE_MPI
     xchange_gauge_field ( gauge_field_rot );
 #endif
@@ -309,6 +320,8 @@ int main(int argc, char **argv) {
       fflush(stdout);
     }
     plaquetteria  ( gauge_field_rot );
+
+#endif  /* of if 0 */
 
 #if 0
     /* B = A^-1 */
@@ -333,7 +346,6 @@ int main(int argc, char **argv) {
     sprintf(name, "AxB[%.2d]", irot);
     rot_printf_rint_matrix (R, Ndim, name, stdout );
 */
-#endif  /* of if 0 */
 
 
     prepare_volume_source(g_spinor_field[0], VOLUME);
@@ -342,6 +354,7 @@ int main(int argc, char **argv) {
     xchange_field ( g_spinor_field[0] );
 #endif
 
+#endif  /* of if 0 */
 
 
 #if 0
@@ -388,8 +401,9 @@ int main(int argc, char **argv) {
       fprintf(stdout, "# [test_rotations] norm rot %2d dir %2d = %25.16e\n", irot, dir, norm);
     }
 #endif  /* of if 0 */
-
-    double _Complex **ASpin = rot_bispinor_rotation_matrix_spherical_basis ( cubic_group_double_cover_rotations[irot].n, cubic_group_double_cover_rotations[irot].w );
+#if 0
+    initialize ASpin
+    rot_bispinor_rotation_matrix_spherical_basis ( ASpin, cubic_group_double_cover_rotations[irot].n, cubic_group_double_cover_rotations[irot].w );
 
     rot_mat_adj(ASpin, ASpin, 4);
     /*
@@ -448,7 +462,7 @@ int main(int argc, char **argv) {
 
     rot_fini_rotation_matrix (&ASpin);
 
-#if 0
+
 #endif  /* of if 0 */
   }  /* end of loop on rotations */
 
