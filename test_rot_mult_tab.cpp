@@ -67,6 +67,7 @@ int main(int argc, char **argv) {
   int c;
   int filename_set = 0;
   char filename[100];
+  char name[12];
   int exitstatus;
   /* FILE *ofs = NULL; */
   double _Complex **R = NULL;
@@ -148,12 +149,12 @@ int main(int argc, char **argv) {
   A = rot_init_rotation_matrix (Ndim);
   B = rot_init_rotation_matrix (Ndim);
 
+#if 0
   /***********************************************************
    * loop on rotations
    ***********************************************************/
   for(int irot=0; irot < 48; irot++ )
   {
-    char name[12];
 
     if (g_cart_id == 0 ) {
       fprintf(stdout, "# [test_rot_mult_tab] rotation no. %2d n = (%2d, %2d, %2d) w = %16.7e pi\n", irot,
@@ -180,6 +181,8 @@ int main(int argc, char **argv) {
 
   }  /* end of loop on rotations */
 
+#endif  /* of if 0 */
+
   rot_mat_table_type rtab;
 
   init_rot_mat_table ( &rtab );
@@ -189,21 +192,30 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
+  for ( int i = 0; i < 48; i++ ) {
+    rot_spherical2cartesian_3x3 (A, rtab.R[i] );
+
+    if ( rot_mat_check_is_real_int ( rtab.R[i], rtab.dim ) ) {
+      if (g_cart_id == 0 ) fprintf(stdout, "# [test_rot_mult_tab] rot_mat_check_is_real_int matrix A rot %2d ok\n", i);
+    } else {
+      fprintf(stderr, "[test_rot_mult_tab] rotation no. %2d not ok n = %d %d %d w %25.16e\n", i,
+          cubic_group_double_cover_rotations[i].n[0],
+          cubic_group_double_cover_rotations[i].n[1],
+          cubic_group_double_cover_rotations[i].n[2],
+          cubic_group_double_cover_rotations[i].w);
+      rot_printf_rint_matrix ( A, rtab.dim, "error", stderr );
+      EXIT(6);
+    }
+
+    sprintf(name, "Akart[%.2d]", i );
+    rot_printf_rint_matrix ( A, rtab.dim, name, stdout );
+
+  }
+
   fini_rot_mat_table ( &rtab );
 
-rot_spherical2cartesian_3x3 (A, R);
-    if ( rot_mat_check_is_real_int ( A, Ndim ) ) {
-            if (g_cart_id == 0 )
-                      fprintf(stdout, "# [test_rot_mult_tab] rot_mat_check_is_real_int matrix A rot %2d ok\n", irot);
-                } else {
-                        EXIT(6);
-                            }
 
-    sprintf(name, "Akart[%.2d]", irot);
-        rot_printf_rint_matrix (A, Ndim, name, stdout );
-
-
-
+  /* finalize */
   rot_fini_rotation_matrix( &R );
   rot_fini_rotation_matrix( &A );
   rot_fini_rotation_matrix( &B );
