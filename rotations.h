@@ -90,6 +90,9 @@ void rot_sp_field_ti_bispinor_mat ( spinor_propagator_type *sp_rot, double _Comp
 
 void rot_inversion_matrix_spherical_basis ( double _Complex**R, int J2, int bispinor );
 
+double rot_mat_diff_norm2 (double _Complex **R, double _Complex **S , int N );
+
+
 /***********************************************************
  * check boundary status of a point
  ***********************************************************/

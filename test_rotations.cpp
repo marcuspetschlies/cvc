@@ -183,7 +183,6 @@ int main(int argc, char **argv) {
 
   rot_init_rotation_table();
 
-
   rlxd_init(2, g_seed);
 
 #if 0

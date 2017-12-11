@@ -30,8 +30,9 @@
 #include "cvc_geometry.h"
 #include "mpi_init.h"
 #include "matrix_init.h"
-#include "group_projection.h"
 #include "cvc_utils.h"
+#include "rotations.h"
+#include "group_projection.h"
 
 namespace cvc {
 
@@ -219,11 +220,12 @@ void little_group_show ( little_group_type *lg, FILE*ofs, int n) {
 void init_rot_mat_table (rot_mat_table_type *t ) {
   strcpy( t->group, "NA" );
   strcpy( t->irrep, "NA" );
-  t->n   = 0;
-  t->rid = NULL;
+  t->n    = 0;
+  t->dim  = 0;
+  t->rid  = NULL;
   t->rmid = NULL;
-  t->R   = NULL;
-  t->IR  = NULL;
+  t->R    = NULL;
+  t->IR   = NULL;
   return;
 }  /* end of init_rot_mat_table */
 
@@ -234,10 +236,11 @@ void fini_rot_mat_table (rot_mat_table_type *t ) {
   strcpy( t->group, "NA" );
   strcpy( t->irrep, "NA" );
   t->n   = 0;
+  t->dim = 0;
   if ( t->rid  != NULL ) { free ( t->rid );  t->rid  = NULL; }
   if ( t->rmid != NULL ) { free ( t->rmid ); t->rmid = NULL; }
-  if ( t->R    != NULL ) { fini_3level_buffer( &(t->R) ); }
-  if ( t->IR   != NULL ) { fini_3level_buffer( &(t->IR) ); }
+  if ( t->R    != NULL ) { fini_3level_zbuffer( &(t->R) ); }
+  if ( t->IR   != NULL ) { fini_3level_zbuffer( &(t->IR) ); }
   return;
 }  /* end of fini_rot_mat_table */
 
@@ -252,8 +255,9 @@ int alloc_rot_mat_table ( rot_mat_table_type *t, char*group, char*irrep, int dim
     fini_rot_mat_table ( t );
   }
   strcpy ( t->group, group );
-  strcpy ( t->irrep, irrep )
-  t->n = n;
+  strcpy ( t->irrep, irrep );
+  t->n   = n;
+  t->dim = dim;
   if ( ( t->rid = (int*)malloc( n * sizeof(int) ) ) == NULL ) {
     fprintf(stderr, "[alloc_rot_mat_table] Error from malloc %s %d\n", __FILE__, __LINE__);
     return(1);
@@ -262,11 +266,11 @@ int alloc_rot_mat_table ( rot_mat_table_type *t, char*group, char*irrep, int dim
     fprintf(stderr, "[alloc_rot_mat_table] Error from malloc %s %d\n", __FILE__, __LINE__);
     return(1);
   }
-  if ( ( exitstatus = init_3level_buffer ( &(t->R), n, dim, dim ) ) != 0 ) {
+  if ( ( exitstatus = init_3level_zbuffer ( &(t->R), n, dim, dim ) ) != 0 ) {
     fprintf(stderr, "[alloc_rot_mat_table] Error from init_3level_buffer, exitstatus was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
     return(1);
   }
-  if ( ( exitstatus = init_3level_buffer ( &(t->IR), n, dim, dim ) ) != 0 ) {
+  if ( ( exitstatus = init_3level_zbuffer ( &(t->IR), n, dim, dim ) ) != 0 ) {
     fprintf(stderr, "[alloc_rot_mat_table] Error from init_3level_buffer, exitstatus was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
     return(1);
   }
@@ -292,7 +296,7 @@ int set_rot_mat_table_spin ( rot_mat_table_type *t, int J2, int bispinor ) {
     return(1);
   }
 
-  if ( bspinor ) {
+  if ( bispinor ) {
     sprintf(name, "spin1_2+1_2");
   } else {
     if ( J2 % 2 == 0 ) {
@@ -307,28 +311,34 @@ int set_rot_mat_table_spin ( rot_mat_table_type *t, int J2, int bispinor ) {
     fprintf(stderr, "[set_rot_mat_table_spin] Error from alloc_rot_mat_table, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     return(1);
   }
-  init_2level_buffer ( &P, (1+bispinor)*(J2+1), (1+bispinor)*(J2+1) );
+  P.d = (1 + bispinor) * (J2 + 1);
+  P.m = NULL;
+
+  if ( ( exitstatus = init_2level_zbuffer ( &(P.m), P.d, P.d )) != 0 ) {
+    fprintf(stderr, "[set_rot_mat_table_spin] Error from init_2level_zbuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
 
   /* set parity matrix if applicable */
-  rot_inversion_matrix_spherical_basis ( P, J2, bispinor );
+  rot_inversion_matrix_spherical_basis ( P.m, J2, bispinor );
 
 
   if  ( !bispinor ) {
     for ( int i = 0; i < 48; i++ ) {
       t->rid[i] = i;
       rot_rotation_matrix_spherical_basis ( t->R[i], J2, cubic_group_double_cover_rotations[i].n, cubic_group_double_cover_rotations[i].w );
-      rot_mat_ti_mat ( t->IR[i], P, t->R[i], J2+1);
+      rot_mat_ti_mat ( t->IR[i], P.m, t->R[i], J2+1);
     }
   } else {
 
     for ( int i = 0; i < 48; i++ ) {
       t->rid[i] = i;
-      rot_bispinor_rotation_matrix_spherical_basis ( t->r[i], cubic_group_double_cover_rotations[i].n, cubic_group_double_cover_rotations[i].w );
-      rot_mat_ti_mat ( t->IR[i], P, t->R[i], J2+1);
+      rot_bispinor_rotation_matrix_spherical_basis ( t->R[i], cubic_group_double_cover_rotations[i].n, cubic_group_double_cover_rotations[i].w );
+      rot_mat_ti_mat ( t->IR[i], P.m, t->R[i], 2*(J2+1) );
     }
   }
 
-  fini_2level_buffer ( &P );
+  fini_2level_zbuffer ( &(P.m) );
   return(0);
 }  /* end of set_rot_mat_table_spin */
 
@@ -340,13 +350,21 @@ int set_rot_mat_table_spin ( rot_mat_table_type *t, int J2, int bispinor ) {
  ***********************************************************/
 int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *group, char*irrep ) {
 
+  const double ONE_HALF   = 0.5;
+  const double SQRT3_HALF = 0.5 * sqrt(3.);
+
+  int exitstatus;
+
+  /***********************************************************
+   * LG 2Oh
+   ***********************************************************/
   if ( strcmp ( group, "2Oh" ) == 0 ) {
     int nrot = 48;
     
     /***********************************************************
      * LG 2Oh irrep A1
      ***********************************************************/
-    if        ( strcmp ( irrep, "A1" ) == 0 ) {
+    if ( strcmp ( irrep, "A1" ) == 0 ) {
       if ( ( exitstatus = alloc_rot_mat_table ( t, group, irrep, 1, nrot) ) != 0 ) {
         fprintf(stderr, "[set_rot_mat_table_cubic_group_double_cover] Error from alloc_rot_mat_table, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(1);
@@ -712,7 +730,7 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
       }
 
       memcpy ( t->rid,  rid,  nrot * sizeof(int) );
-      memcpy ( t->rmid, r,id, nrot * sizeof(int) );
+      memcpy ( t->rmid, rmid, nrot * sizeof(int) );
 
       for ( int i = 0; i < nrot; i++ ) {
         t->R[i][0][0]  = 1.;
@@ -848,7 +866,7 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
         return(1);
       }
       memcpy ( t->rid,  rid,  nrot * sizeof(int) );
-      memcpy ( t->rmid, r,id, nrot * sizeof(int) );
+      memcpy ( t->rmid, rmid, nrot * sizeof(int) );
 
       for ( int i = 0; i < nrot; i++ ) {
         t->R[i][0][0]  = 1.;
@@ -865,7 +883,7 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
         return(1);
       }
       memcpy ( t->rid,  rid,  nrot * sizeof(int) );
-      memcpy ( t->rmid, r,id, nrot * sizeof(int) );
+      memcpy ( t->rmid, rmid, nrot * sizeof(int) );
 
       for ( int i = 0; i < nrot; i++ ) {
         t->R[i][0][0]  =  1.;
@@ -882,7 +900,7 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
         return(1);
       }
       memcpy ( t->rid,  rid,  nrot * sizeof(int) );
-      memcpy ( t->rmid, r,id, nrot * sizeof(int) );
+      memcpy ( t->rmid, rmid, nrot * sizeof(int) );
 
         t->R[0][0][0]  =  1.;
         t->R[1][0][0]  = -1.;
@@ -904,7 +922,7 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
         return(1);
       }
       memcpy ( t->rid,  rid,  nrot * sizeof(int) );
-      memcpy ( t->rmid, r,id, nrot * sizeof(int) );
+      memcpy ( t->rmid, rmid, nrot * sizeof(int) );
 
         t->R[0][0][0]  =  1.;
         t->R[1][0][0]  = -1.;
@@ -926,7 +944,7 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
         return(1);
       }
       memcpy ( t->rid,  rid,  nrot * sizeof(int) );
-      memcpy ( t->rmid, r,id, nrot * sizeof(int) );
+      memcpy ( t->rmid, rmid, nrot * sizeof(int) );
 
       for ( int i = 0; i < nrot; i++ ) {
         int k = t->rid[i];
@@ -955,7 +973,7 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
         return(1);
       }
       memcpy ( t->rid,  rid,  nrot * sizeof(int) );
-      memcpy ( t->rmid, r,id, nrot * sizeof(int) );
+      memcpy ( t->rmid, rmid, nrot * sizeof(int) );
 
       for ( int i = 0; i < nrot; i++ ) {
         t->R[i][0][0]  = 1.;
@@ -970,7 +988,7 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
         return(1);
       }
       memcpy ( t->rid,  rid,  nrot * sizeof(int) );
-      memcpy ( t->rmid, r,id, nrot * sizeof(int) );
+      memcpy ( t->rmid, rmid, nrot * sizeof(int) );
 
       for ( int i = 0; i < nrot; i++ ) {
         t->R[i][0][0]  =  1.;
@@ -987,7 +1005,7 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
         return(1);
       }
       memcpy ( t->rid,  rid,  nrot * sizeof(int) );
-      memcpy ( t->rmid, r,id, nrot * sizeof(int) );
+      memcpy ( t->rmid, rmid, nrot * sizeof(int) );
 
       /* I */
       t->R[0][0][0]  =  1.;
@@ -1019,7 +1037,7 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
         return(1);
       }
       memcpy ( t->rid,  rid,  nrot * sizeof(int) );
-      memcpy ( t->rmid, r,id, nrot * sizeof(int) );
+      memcpy ( t->rmid, rmid, nrot * sizeof(int) );
 
       /* I */
       t->R[0][0][0]  =  1.;
@@ -1051,7 +1069,7 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
         return(1);
       }
       memcpy ( t->rid,  rid,  nrot * sizeof(int) );
-      memcpy ( t->rmid, r,id, nrot * sizeof(int) );
+      memcpy ( t->rmid, rmid, nrot * sizeof(int) );
 
       /* I R1, J R48 */
       t->R[0][0][0]  =  1.; t->R[0][1][1]  =  1.;
@@ -1060,24 +1078,24 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
       /* 2C6 R20,R24 */
       t->R[1][0][0]  = -0.5;
       t->R[1][1][1]  = -0.5;
-      t->R[1][0][1]  = -SQRT3_HALF
-      t->R[1][1][0]  =  SQRT3_HALF
+      t->R[1][0][1]  = -SQRT3_HALF;
+      t->R[1][1][0]  =  SQRT3_HALF;
 
       t->R[2][0][0]  = -0.5;
       t->R[2][1][1]  = -0.5;
-      t->R[2][0][1]  =  SQRT3_HALF
-      t->R[2][1][0]  = -SQRT3_HALF
+      t->R[2][0][1]  =  SQRT3_HALF;
+      t->R[2][1][0]  = -SQRT3_HALF;
 
       /* 2C3 R28,R32 */
       t->R[3][0][0]  = -0.5;
       t->R[3][1][1]  = -0.5;
-      t->R[3][0][1]  =  SQRT3_HALF
-      t->R[3][1][0]  = -SQRT3_HALF
+      t->R[3][0][1]  =  SQRT3_HALF;
+      t->R[3][1][0]  = -SQRT3_HALF;
 
       t->R[4][0][0]  = -0.5;
       t->R[4][1][1]  = -0.5;
-      t->R[4][0][1]  = -SQRT3_HALF
-      t->R[4][1][0]  =  SQRT3_HALF
+      t->R[4][0][1]  = -SQRT3_HALF;
+      t->R[4][1][0]  =  SQRT3_HALF;
 
       /* 3IC4 IR37,IR45,IR47 */
       t->IR[0][0][0]  =  0.5;
@@ -1116,7 +1134,7 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
         return(1);
       }
       memcpy ( t->rid,  rid,  nrot * sizeof(int) );
-      memcpy ( t->rmid, r,id, nrot * sizeof(int) );
+      memcpy ( t->rmid, rmid, nrot * sizeof(int) );
 
       for ( int i = 0; i < 4; i++ ) {
         int k = t->rid[i];
@@ -1134,6 +1152,17 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
  
   return(0);
 }  /* end of set_rot_mat_table_cubic_group_double_cover */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * rot_mat_table_printf
+ ***********************************************************/
+void rot_mat_table_printf ( rot_mat_table_type *t, char*name, FILE*ofs ) {
+
+}
+
 
 /***********************************************************/
 /***********************************************************/

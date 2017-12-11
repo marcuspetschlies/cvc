@@ -21,7 +21,8 @@ typedef struct {
 typedef struct {
 
   int n;
-  char group[20]
+  int dim;
+  char group[20];
   char irrep[20];
   int *rid;
   int *rmid;
@@ -43,6 +44,12 @@ void little_group_init ( little_group_type **lg, int n );
 void little_group_fini ( little_group_type **lg, int n );
 
 void little_group_show ( little_group_type *lg, FILE*ofs, int n);
+
+void init_rot_mat_table (rot_mat_table_type *t );
+
+void fini_rot_mat_table (rot_mat_table_type *t );
+
+int alloc_rot_mat_table ( rot_mat_table_type *t, char*group, char*irrep, int dim, int n );
 
 int set_rot_mat_table_spin ( rot_mat_table_type *t, int J2, int bispinor );
 

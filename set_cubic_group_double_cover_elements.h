@@ -1,3 +1,6 @@
+#ifndef _SET_CUBIC_GROUP_DOUBLE_COVER_ELEMENTS_H
+#define _SET_CUBIC_GROUP_DOUBLE_COVER_ELEMENTS_H
+
   cubic_group_double_cover_rotations[0].n[0] =  0;
   cubic_group_double_cover_rotations[0].n[1] =  0;
   cubic_group_double_cover_rotations[0].n[2] =  0;
@@ -238,3 +241,4 @@
   cubic_group_double_cover_rotations[47].n[2] =  0;
   cubic_group_double_cover_rotations[47].w    = 2*M_PI;
 
+#endif

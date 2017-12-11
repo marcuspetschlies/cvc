@@ -1,3 +1,6 @@
+#ifndef _SET_CUBIC_GROUP_ELEMENTS_H
+#define _SET_CUBIC_GROUP_ELEMENTS_H
+
   cubic_group_rotations[0].n[0] =  0;
   cubic_group_rotations[0].n[1] =  0;
   cubic_group_rotations[0].n[2] =  0;
@@ -118,3 +121,5 @@
   cubic_group_rotations[23].n[2] =  1;
   cubic_group_rotations[23].w    = -M_PI;
 
+
+#endif
