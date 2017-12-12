@@ -31,7 +31,6 @@ typedef struct {
 
 } rot_mat_table_type;
 
-
 /********************************************************/
 /********************************************************/
 
@@ -54,6 +53,8 @@ int alloc_rot_mat_table ( rot_mat_table_type *t, char*group, char*irrep, int dim
 int set_rot_mat_table_spin ( rot_mat_table_type *t, int J2, int bispinor );
 
 int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *group, char*irrep );
+
+void rot_mat_table_printf ( rot_mat_table_type *t, char*name, FILE*ofs );
 
 }  /* end of namespace cvc */
 

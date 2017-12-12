@@ -39,10 +39,14 @@ static int n_block[3], block_L, nn_block, block_LL[3], rot_block_params_set = 0;
 rotation_type cubic_group_double_cover_rotations[48];
 rotation_type cubic_group_rotations[24];
 
+int cubic_group_double_cover_identification_table[24][2];
+
 void rot_init_rotation_table () {
 #include "set_cubic_group_double_cover_elements.h"
 
 #include "set_cubic_group_elements.h"
+
+#include "set_cubic_group_double_cover_identification_table.h"
   return;
 }  /* end of rot_init_rotation_table */
 

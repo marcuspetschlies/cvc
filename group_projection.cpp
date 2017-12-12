@@ -325,14 +325,16 @@ int set_rot_mat_table_spin ( rot_mat_table_type *t, int J2, int bispinor ) {
 
   if  ( !bispinor ) {
     for ( int i = 0; i < 48; i++ ) {
-      t->rid[i] = i;
+      t->rid[i]  = i;
+      t->rmid[i] = i;
       rot_rotation_matrix_spherical_basis ( t->R[i], J2, cubic_group_double_cover_rotations[i].n, cubic_group_double_cover_rotations[i].w );
       rot_mat_ti_mat ( t->IR[i], P.m, t->R[i], J2+1);
     }
   } else {
 
     for ( int i = 0; i < 48; i++ ) {
-      t->rid[i] = i;
+      t->rid[i]  = i;
+      t->rmid[i] = i;
       rot_bispinor_rotation_matrix_spherical_basis ( t->R[i], cubic_group_double_cover_rotations[i].n, cubic_group_double_cover_rotations[i].w );
       rot_mat_ti_mat ( t->IR[i], P.m, t->R[i], 2*(J2+1) );
     }
@@ -1161,7 +1163,24 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
  ***********************************************************/
 void rot_mat_table_printf ( rot_mat_table_type *t, char*name, FILE*ofs ) {
 
-}
+  char name_full[100];
+  fprintf( ofs, "# [rot_mat_table_printf] %s.group = %s\n", name, t->group );
+  fprintf( ofs, "# [rot_mat_table_printf] %s.irrep = %s",   name, t->irrep );
+  fprintf( ofs, "# [rot_mat_table_printf] %s.n     = %d",   name, t->n );
+  fprintf( ofs, "# [rot_mat_table_printf] %s.dim   = %d",   name, t->dim );
+
+  for ( int i = 0; i < t->n; i++ ) {
+    sprintf( name_full, "%s ( R[%2d] )", name, t->rid[i] );
+    rot_printf_matrix ( t->R[i], t->dim, name_full, ofs );
+  }
+
+  for ( int i = 0; i < t->n; i++ ) {
+    sprintf( name_full, "%s ( IR[%2d] )", name, t->rmid[i] );
+    rot_printf_matrix ( t->IR[i], t->dim, name_full, ofs );
+  }
+  return;
+}  /* end of rot_mat_table_printf */
+
 
 
 /***********************************************************/

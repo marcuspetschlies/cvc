@@ -195,7 +195,14 @@ int main(int argc, char **argv) {
   for ( int i = 0; i < 48; i++ ) {
     rot_spherical2cartesian_3x3 (A, rtab.R[i] );
 
-    if ( rot_mat_check_is_real_int ( rtab.R[i], rtab.dim ) ) {
+    int notsun = 1 - rot_mat_check_is_sun ( rtab.R[i], rtab.dim);
+    fprintf ( stdout, "# [test_rot_mult_tab] %2d not SU3 %d\n", i, notsun );
+    rot_printf_matrix ( rtab.R[i], rtab.dim, "error", stderr );
+
+    rot_spherical2cartesian_3x3 ( A, rtab.R[i] );
+    int notrealint = 1 - rot_mat_check_is_real_int ( A, rtab.dim );
+
+    if ( !notrealint ) {
       if (g_cart_id == 0 ) fprintf(stdout, "# [test_rot_mult_tab] rot_mat_check_is_real_int matrix A rot %2d ok\n", i);
     } else {
       fprintf(stderr, "[test_rot_mult_tab] rotation no. %2d not ok n = %d %d %d w %25.16e\n", i,
@@ -204,6 +211,7 @@ int main(int argc, char **argv) {
           cubic_group_double_cover_rotations[i].n[2],
           cubic_group_double_cover_rotations[i].w);
       rot_printf_rint_matrix ( A, rtab.dim, "error", stderr );
+
       EXIT(6);
     }
 
@@ -212,8 +220,31 @@ int main(int argc, char **argv) {
 
   }
 
-  fini_rot_mat_table ( &rtab );
+  /* TEST */
+  for ( int i = 0; i < 48; i++ ) {
+    for ( int k = 0; k < 48; k++ ) {
+      if ( k != i ) {
+        double diff_norm2 = rot_mat_diff_norm2 ( rtab.R[i], rtab.R[k], rtab.dim );
+        if ( diff_norm2 < 5.e-15 ) {
+          fprintf(stdout, "# [test_rot_mult_tab]  match %2d is %2d %2d\n", i, i, k);
+        }
+      }
+    }
+  }
+  /* END OF TEST */
 
+  /* TEST */
+  for ( int i = 0; i < 24; i++ ) {
+    int k0 = cubic_group_double_cover_identification_table[i][0];
+    int k1 = cubic_group_double_cover_identification_table[i][1];
+    double diff_norm2 = rot_mat_diff_norm2 ( rtab.R[k0], rtab.R[k1], rtab.dim );
+    fprintf(stdout, "# [test_rot_mult_tab] %2d pair %2d %2d matches at %e\n", i, k0, k1, diff_norm2);
+  }
+  /* END OF TEST */
+
+  rot_mat_table_printf ( &rtab, "U", stdout );
+
+  fini_rot_mat_table ( &rtab );
 
   /* finalize */
   rot_fini_rotation_matrix( &R );
