@@ -40,6 +40,8 @@ void rot_spherical2cartesian_3x3 (double _Complex **C, double _Complex **S);
 
 void rot_mat_adj (double _Complex **C, double _Complex **R, int N);
 
+void rot_mat_assign (double _Complex **C, double _Complex **R, int N);
+
 void rot_mat_ti_mat (double _Complex **C, double _Complex **A, double _Complex **B, int N);
 
 void rot_mat_ti_mat_adj (double _Complex **C, double _Complex **A, double _Complex **B, int N);
@@ -94,6 +96,7 @@ void rot_inversion_matrix_spherical_basis ( double _Complex**R, int J2, int bisp
 
 double rot_mat_diff_norm2 (double _Complex **R, double _Complex **S , int N );
 
+double rot_mat_diff_norm (double _Complex **R, double _Complex **S , int N );
 
 /***********************************************************
  * check boundary status of a point

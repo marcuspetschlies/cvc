@@ -22,8 +22,8 @@ typedef struct {
 
   int n;
   int dim;
-  char group[20];
-  char irrep[20];
+  char group[100];
+  char irrep[100];
   int *rid;
   int *rmid;
   double _Complex ***R;
@@ -55,6 +55,15 @@ int set_rot_mat_table_spin ( rot_mat_table_type *t, int J2, int bispinor );
 int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *group, char*irrep );
 
 void rot_mat_table_printf ( rot_mat_table_type *t, char*name, FILE*ofs );
+
+int rot_mat_mult_table ( int***mtab, rot_mat_table_type *t );
+
+int rot_mat_table_is_lg ( rot_mat_table_type *t, int d[3] );
+
+int rot_mat_table_get_lg ( rot_mat_table_type *t, int d[3] );
+
+int rot_mat_table_get_d2d ( rot_mat_table_type *t, int d1[3], int d2[3] );
+
 
 }  /* end of namespace cvc */
 

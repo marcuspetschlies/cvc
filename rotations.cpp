@@ -213,6 +213,21 @@ void rot_mat_adj (double _Complex **C, double _Complex **R, int N) {
 /***********************************************************
  *
  ***********************************************************/
+void rot_mat_assign (double _Complex **C, double _Complex **R, int N) {
+  if( C != R ) {
+    memcpy (C[0], R[0], N*N*sizeof(double _Complex) );
+  }
+
+  return;
+}  /* end of rot_mat_assign */
+
+/***********************************************************/
+/***********************************************************/
+
+
+/***********************************************************
+ *
+ ***********************************************************/
 void rot_spherical2cartesian_3x3 (double _Complex **C, double _Complex **S) {
 
   const double _Complex r = 1. / sqrt(2.);
@@ -270,10 +285,42 @@ void rot_mat_ti_mat (double _Complex **C, double _Complex **A, double _Complex *
   int INT_N = N;
   double _Complex Z_1 = 1., Z_0 = 0.;
 
-  /* _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1); */
+#if 0
+  if ( g_verbose > 4 ) {
+    for ( int i = 0; i< N; i++ ) {
+    for ( int j = 0; j< N; j++ ) {
+      // fprintf(stdout, "# [rot_mat_ti_mat] A[%d, %d] = %e + I %e\n", i, j, creal(A[i][j]), cimag(A[i][j]) );
+      fprintf(stdout, "# [rot_mat_ti_mat] A[%d, %d] = %e + I %e\n", i, j, creal(A[0][i*N+j]), cimag(A[0][i*N+j]) );
+    }}
 
-  /* */
-  _F(zgemm) ( &CHAR_N, &CHAR_N, &INT_N, &INT_N, &INT_N, &Z_1, B[0], &INT_N, A[0], &INT_N, &Z_0, C[0], &INT_N, 1, 1);
+    for ( int i = 0; i< N; i++ ) {
+    for ( int j = 0; j< N; j++ ) {
+      // fprintf(stdout, "# [rot_mat_ti_mat] B[%d, %d] = %e + I %e\n", i, j, creal(B[i][j]), cimag(B[i][j]) );
+      fprintf(stdout, "# [rot_mat_ti_mat] B[%d, %d] = %e + I %e\n", i, j, creal(B[0][i*N+j]), cimag(B[0][i*N+j]) );
+    }}
+  }
+
+  if ( g_verbose > 3 ) {
+    fprintf(stdout, "# [rot_mat_ti_mat] BLAS_TRANSA/B = %c\n", CHAR_N );
+    fprintf(stdout, "# [rot_mat_ti_mat] BLAS_M/N/K    = %d\n", INT_N );
+    fprintf(stdout, "# [rot_mat_ti_mat] BLAS_ALPHA    = %e + I %e\n", creal(Z_1), cimag(Z_1));
+    fprintf(stdout, "# [rot_mat_ti_mat] BLAS_BETA     = %e + I %e\n", creal(Z_0), cimag(Z_0));
+    fprintf(stdout, "# [rot_mat_ti_mat] BLAS_LDA/B/C  = %d\n", INT_N );
+  }
+#endif  /* of if 0 */
+
+/* _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1); */
+   _F(zgemm) ( &CHAR_N,      &CHAR_N,      &INT_N,  &INT_N,  &INT_N,  &Z_1,        B[0],   &INT_N,    A[0],   &INT_N,    &Z_0,       C[0],   &INT_N,   1,1);
+
+#if 0
+  if ( g_verbose > 4 ) {
+    for ( int i = 0; i< N; i++ ) {
+    for ( int j = 0; j< N; j++ ) {
+      // fprintf(stdout, "# [rot_mat_ti_mat] C[%d, %d] = %e + I %e\n", i, j, creal(C[i][j]), cimag(C[i][j]) );
+      fprintf(stdout, "# [rot_mat_ti_mat] C[%d, %d] = %e + I %e\n", i, j, creal(C[0][i*N+j]), cimag(C[0][i*N+j]) );
+    }}
+  }
+#endif  /* of if 0 */
 
   return;
 }  /* end of rot_mat_ti_mat */
@@ -692,7 +739,7 @@ void rot_center_local_point_inv ( int nrot[3], int n[3], double _Complex **R, in
 /***********************************************************/
 
 /***********************************************************
- * check equality of two rotation matrices, i.e.
+ * squared diff norm of R and S
  *
  * tr [ (A-B)^+ (A-B) ]
  *
@@ -710,6 +757,30 @@ double rot_mat_diff_norm2 (double _Complex **R, double _Complex **S , int N ) {
   return(norm2);
 }  /* end of rot_mat_diff_norm2 */
 
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * diff norm of R and S
+ *
+ * tr [ (A-B)^+ (A-B) ]
+ *
+ ***********************************************************/
+double rot_mat_diff_norm (double _Complex **R, double _Complex **S , int N ) {
+
+  double _Complex z;
+  double norm2 = 0;
+
+  for ( int i = 0; i < N; i++ ) {
+  for ( int k = 0; k < N; k++ ) {
+    z = R[i][k] - S[i][k];
+    norm2 += creal( z * conj(z) );
+  }}
+  return( sqrt( norm2 ) );
+}  /* end of rot_mat_diff_norm */
+
+/***********************************************************/
+/***********************************************************/
 /***********************************************************/
 /***********************************************************/
 

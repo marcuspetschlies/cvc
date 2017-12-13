@@ -1181,9 +1181,314 @@ void rot_mat_table_printf ( rot_mat_table_type *t, char*name, FILE*ofs ) {
   return;
 }  /* end of rot_mat_table_printf */
 
+/***********************************************************/
+/***********************************************************/
 
+int rot_mat_mult_table ( int***mtab, rot_mat_table_type *t ) {
+
+  const double eps = 5.e-15;
+
+  int exitstatus;
+  double _Complex **A = NULL;
+
+  if ( *mtab == NULL ) {
+    if ( ( exitstatus = init_2level_ibuffer ( mtab, t->n, t->n ) ) != 0 ) {
+      fprintf(stderr, "[rot_mat_mult_table] Error from init_2level_ibuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(1);
+    }
+  }
+  if ( ( exitstatus = init_2level_zbuffer ( &A, t->dim, t->dim ) ) != 0 ) {
+    fprintf(stderr, "[rot_mat_mult_table] Error from init_2level_zbuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(2);
+  }
+
+  for ( int i = 0; i < t->n; i++ ) {
+  for ( int k = 0; k < t->n; k++ ) {
+    rot_mat_ti_mat ( A, t->R[i], t->R[k], t->dim );
+
+#if 0
+    char name[20];
+    sprintf(name, "A%.2d", t->rid[i] );
+    rot_printf_matrix ( t->R[i], t->dim, name, stdout );
+    sprintf(name, "B%.2d", t->rid[k] );
+    rot_printf_matrix ( t->R[k], t->dim, name, stdout );
+    sprintf(name, "A%.2dxB%.2d", t->rid[i], t->rid[k] );
+    rot_printf_matrix ( A, t->dim, name, stdout );
+#endif  /* if 0 */
+
+    int found_match = 0;
+    for ( int l = 0; l < t->n; l++ ) {
+      double diff_norm = rot_mat_diff_norm ( A, t->R[l], t->dim );
+      fprintf(stdout, "# [rot_mat_mult_table] | %2d x %2d - %2d | = %e\n", i, k, l, diff_norm );
+      if ( diff_norm < eps ) {
+        found_match = 1;
+        fprintf(stdout, "# [rot_mat_mult_table] %2d x %2d matches %2d at %e\n", i, k, l, diff_norm);
+        (*mtab)[i][k] = t->rid[l];
+        break;
+      }
+    }
+    if ( ! found_match ) {
+      fprintf(stderr, "[rot_mat_mult_table] Error, no match found for %2d x %2d %s %d\n", i, k, __FILE__, __LINE__);
+      return(3);
+    }
+  }}
+
+  fini_2level_zbuffer ( &A );
+
+  if ( g_verbose > 2 ) {
+    /* print the table */
+    fprintf(stdout, "   *|");
+    for ( int i = 0; i < t->n; i++ ) fprintf(stdout, " %2d", t->rid[i]);
+    fprintf(stdout,"\n");
+    fprintf(stdout, "-----");
+    for ( int i = 0; i < t->n; i++ ) fprintf(stdout, "---" );
+    fprintf(stdout,"\n");
+
+    for ( int i = 0; i < t->n; i++ ) {
+      fprintf(stdout, "  %2d|", t->rid[i]);
+    for ( int k = 0; k < t->n; k++ ) {
+      fprintf(stdout, " %2d", (*mtab)[i][k]);
+    }
+      fprintf(stdout, "\n");
+    }
+  }
+
+  return(0);
+}  /* end of rot_mat_mult_table */
 
 /***********************************************************/
 /***********************************************************/
 
+/***********************************************************
+ * d = P L / (2 pi) integer 3-vector
+ ***********************************************************/
+int rot_mat_table_is_lg ( rot_mat_table_type *t, int d[3] ) {
+
+  int exitstatus;
+  int Rd[3];
+  int is_lg = 1;
+  double _Complex **R = NULL, **A = NULL;
+
+  if ( ( exitstatus = init_2level_zbuffer ( &R, 3, 3) ) != 0 ) {
+    fprintf(stderr, "[rot_mat_table_is_lg] Error from init_2level_zbuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(-1);
+  }
+  if ( ( exitstatus = init_2level_zbuffer ( &A, 3, 3) ) != 0 ) {
+    fprintf(stderr, "[rot_mat_table_is_lg] Error from init_2level_zbuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(-1);
+  }
+
+  /***********************************************************
+   * check Rd = d
+   ***********************************************************/
+  for ( int i = 0; i < t->n; i++ ) {
+
+    rot_rotation_matrix_spherical_basis ( R, 2, cubic_group_double_cover_rotations[t->rid[i]].n, cubic_group_double_cover_rotations[t->rid[i]].w );
+
+    rot_spherical2cartesian_3x3 ( A, R );
+
+    if ( ! rot_mat_check_is_real_int ( A, 3 ) ) {
+      fprintf(stderr, "# [rot_mat_table_is_lg] R %2d was not real int\n", t->rid[i] );
+      return(-2);
+    }
+    rot_point ( Rd, d, A );
+
+    is_lg = is_lg &&  ( ( abs( d[0] - Rd[0] ) + abs( d[1] - Rd[1] ) + abs( d[2] - Rd[2] ) )  == 0 );
+  }
+
+  /***********************************************************
+   * check Rd = -d
+   ***********************************************************/
+  for ( int i = 0; i < t->n; i++ ) {
+
+    rot_rotation_matrix_spherical_basis ( R, 2, cubic_group_double_cover_rotations[t->rmid[i]].n, cubic_group_double_cover_rotations[t->rmid[i]].w );
+
+    rot_spherical2cartesian_3x3 ( A, R );
+
+    if ( ! rot_mat_check_is_real_int ( A, 3 ) ) {
+      fprintf(stderr, "# [rot_mat_table_is_lg] R %2d was not real int\n", t->rmid[i] );
+      return(-2);
+    }
+
+    rot_point ( Rd, d, A );
+
+    is_lg = is_lg &&  ( ( abs( d[0] + Rd[0] ) + abs( d[1] + Rd[1] ) + abs( d[2] + Rd[2] ) )  == 0 );
+  }
+
+  fini_2level_zbuffer ( &R );
+  fini_2level_zbuffer ( &A );
+
+  return(is_lg);
+}  /* end of rot_mat_table_is_lg */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ ***********************************************************/
+
+int rot_mat_table_get_lg ( rot_mat_table_type *t, int d[3] ) {
+
+  int exitstatus;
+  int Rd[3];
+  int rid_tmp[48];
+  double _Complex ***R_tmp = NULL, **A = NULL;
+  char group_name[40], irrep_name[40];
+
+  if ( *t == NULL ) {
+    fprintf(stderr, "[rot_mat_table_get_lg] need (empty) rot mat table as input\n");
+    return(1);
+  }
+
+  if ( ( exitstatus = init_3level_zbuffer ( &R_tmp, 48, 3, 3) ) != 0 ) {
+    fprintf(stderr, "[rot_mat_table_get_lg] Error from init_2level_zbuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(-1);
+  }
+  if ( ( exitstatus = init_2level_zbuffer ( &A, 3, 3) ) != 0 ) {
+    fprintf(stderr, "[rot_mat_table_get_lg] Error from init_2level_zbuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(-1);
+  }
+
+  /***********************************************************
+   * fill in R : Rd = d
+   ***********************************************************/
+  int countR = 0;
+  for ( int i = 0; i < 48; i++ ) {
+
+    rot_rotation_matrix_spherical_basis ( A, 2, cubic_group_double_cover_rotations[i].n, cubic_group_double_cover_rotations[i].w );
+
+    rot_spherical2cartesian_3x3 ( A, A );
+
+    if ( ! rot_mat_check_is_real_int ( A, 3 ) ) {
+      fprintf(stderr, "# [rot_mat_table_get_lg] R %2d was not real int\n", i );
+      return(-2);
+    }
+    rot_point ( Rd, d, A );
+
+    if ( ( abs( d[0] - Rd[0] ) + abs( d[1] - Rd[1] ) + abs( d[2] - Rd[2] ) )  == 0  ) {
+      rid_tmp[countR] = i;
+      rot_mat_assign ( R_tmp[countR], A, 3 );
+      countR++;
+    }
+  }
+
+  sprintf( group_name, "LG_dx%ddy%ddz%d", d[0], d[1], d[2] );
+  sprintf( irrep_name, "%s", "spin1_kartesian" );
+
+  if ( ( exitstatus = alloc_rot_mat_table ( t, group_name, irrep_name, 3, countR ) ) != 0 ) {
+    fprintf(stderr, "[rot_mat_table_get_lg] Error from alloc_rot_mat_table, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(2);
+  }
+  memcpy( t->rid, rid_tmp, countR * sizeof( int ) );
+  memcpy( t->R[0][0], R_tmp[0][0], countR * 3*3 * sizeof(double _Complex ) );
+
+  /***********************************************************
+   * fill in R : Rd = -d
+   ***********************************************************/
+  countR = 0;
+  memset ( R_tmp[0][0], 0, 48 * 3*3 * sizeof(double _Complex ) );
+  memset ( rid_tmp, 48 * sizeof( int ) );
+
+  for ( int i = 0; i < 48; i++ ) {
+
+    rot_rotation_matrix_spherical_basis ( A, 2, cubic_group_double_cover_rotations[i].n, cubic_group_double_cover_rotations[i].w );
+
+    rot_spherical2cartesian_3x3 ( A, A );
+
+    if ( ! rot_mat_check_is_real_int ( A, 3 ) ) {
+      fprintf(stderr, "# [rot_mat_table_get_lg] R %2d was not real int\n", i );
+      return(-2);
+    }
+
+    rot_point ( Rd, d, A );
+
+    if ( ( abs( d[0] + Rd[0] ) + abs( d[1] + Rd[1] ) + abs( d[2] + Rd[2] ) )  == 0 ) {
+      rid_tmp[countR] = i;
+      rot_mat_assign ( R_tmp[countR], A, 3 );
+      countR++;
+    }
+  }
+
+  if ( t->n != countR ) {
+    fprintf(stderr, "[rot_mat_table_get_lg] Error, number of R:Rd=d %d differs from number of R:Rd=-d %d\n", t->n, countR );
+    return(3);
+  }
+  memcpy( t->rmid, rid_tmp, countR * sizeof( int ) );
+  memcpy( t->IR[0][0], R_tmp[0][0], countR * 3*3 * sizeof(double _Complex ) );
+
+  fini_3level_zbuffer ( &R_tmp );
+  fini_2level_zbuffer ( &A );
+
+  return(0);
+}  /* end of rot_mat_table_get_lg */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * find rot d1 to d2
+ ***********************************************************/
+int rot_mat_table_get_d2d ( rot_mat_table_type *t, int d1[3], int d2[3] ) {
+
+  int exitstatus;
+  int Rd[3];
+  int rid_tmp[48];
+  double _Complex ***R_tmp = NULL, **A = NULL;
+  char group_name[40], irrep_name[40];
+
+  if ( *t == NULL ) {
+    fprintf(stderr, "[rot_mat_table_get_lg] need (empty) rot mat table as input\n");
+    return(1);
+  }
+
+  if ( ( exitstatus = init_3level_zbuffer ( &R_tmp, 48, 3, 3) ) != 0 ) {
+    fprintf(stderr, "[rot_mat_table_get_lg] Error from init_2level_zbuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(-1);
+  }
+  if ( ( exitstatus = init_2level_zbuffer ( &A, 3, 3) ) != 0 ) {
+    fprintf(stderr, "[rot_mat_table_get_lg] Error from init_2level_zbuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(-1);
+  }
+
+  /***********************************************************
+   * find R : Rd1 = d2
+   ***********************************************************/
+  int countR = 0;
+  for ( int i = 0; i < 48; i++ ) {
+
+    rot_rotation_matrix_spherical_basis ( A, 2, cubic_group_double_cover_rotations[i].n, cubic_group_double_cover_rotations[i].w );
+
+    rot_spherical2cartesian_3x3 ( A, A );
+
+    if ( ! rot_mat_check_is_real_int ( A, 3 ) ) {
+      fprintf(stderr, "# [rot_mat_table_get_lg] R %2d was not real int\n", i );
+      return(-2);
+    }
+    rot_point ( Rd, d1, A );
+
+    if ( ( abs( d2[0] - Rd[0] ) + abs( d2[1] - Rd[1] ) + abs( d2[2] - Rd[2] ) )  == 0  ) {
+      rid_tmp[countR] = i;
+      rot_mat_assign ( R_tmp[countR], A, 3 );
+      countR++;
+    }
+  }
+
+  sprintf( group_name, "dx%ddy%ddz%d_to_dx%ddy%ddz%d", d1[0], d1[1], d1[2], d2[0], d2[1], d2[2] );
+  sprintf( irrep_name, "%s", "spin1_kartesian" );
+
+  if ( ( exitstatus = alloc_rot_mat_table ( t, group_name, irrep_name, 3, countR ) ) != 0 ) {
+    fprintf(stderr, "[rot_mat_table_get_lg] Error from alloc_rot_mat_table, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(2);
+  }
+  memcpy( t->rid, rid_tmp, countR * sizeof( int ) );
+  memcpy( t->R[0][0], R_tmp[0][0], countR * 3*3 * sizeof(double _Complex ) );
+
+  fini_3level_zbuffer ( &R_tmp );
+  fini_2level_zbuffer ( &A );
+
+  return(0);
+}  /* end of rot_mat_table_get_d2d */
+
+/***********************************************************/
+/***********************************************************/
 }  /* end of namespace cvc */
