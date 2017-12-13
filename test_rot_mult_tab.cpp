@@ -62,7 +62,7 @@ void usage() {
 
 int main(int argc, char **argv) {
 
-  const int Ndim = 3;
+  int Ndim;
 
   int c;
   int filename_set = 0;
@@ -145,6 +145,12 @@ int main(int argc, char **argv) {
   rlxd_init(2, g_seed);
 
 
+  /*********************************
+   * 2 x spin + 1
+   *********************************/
+  Ndim = 2;
+
+
   R = rot_init_rotation_matrix (Ndim);
   A = rot_init_rotation_matrix (Ndim);
   B = rot_init_rotation_matrix (Ndim);
@@ -187,40 +193,42 @@ int main(int argc, char **argv) {
 
   init_rot_mat_table ( &rtab );
 
-  if ( ( exitstatus = set_rot_mat_table_spin ( &rtab, 2, 0 ) ) != 0 ) {
+  if ( ( exitstatus = set_rot_mat_table_spin ( &rtab, Ndim-1, 0 ) ) != 0 ) {
     fprintf(stderr, "[test_rot_mult_tab] Error from set_rot_mat_table_spin; status was %d\n", exitstatus );
     exit(1);
   }
 
   for ( int i = 0; i < 48; i++ ) {
-    rot_spherical2cartesian_3x3 (A, rtab.R[i] );
 
     int notsun = 1 - rot_mat_check_is_sun ( rtab.R[i], rtab.dim);
-    fprintf ( stdout, "# [test_rot_mult_tab] %2d not SU3 %d\n", i, notsun );
-    rot_printf_matrix ( rtab.R[i], rtab.dim, "error", stderr );
+    fprintf ( stdout, "# [test_rot_mult_tab] %2d not special unitary is %d\n", i, notsun );
+    if ( notsun ) rot_printf_matrix ( rtab.R[i], rtab.dim, "error", stderr );
 
-    rot_spherical2cartesian_3x3 ( A, rtab.R[i] );
-    int notrealint = 1 - rot_mat_check_is_real_int ( A, rtab.dim );
+    if ( Ndim == 3 ) {
+      rot_spherical2cartesian_3x3 ( A, rtab.R[i] );
+      int notrealint = 1 - rot_mat_check_is_real_int ( A, rtab.dim );
 
-    if ( !notrealint ) {
-      if (g_cart_id == 0 ) fprintf(stdout, "# [test_rot_mult_tab] rot_mat_check_is_real_int matrix A rot %2d ok\n", i);
-    } else {
-      fprintf(stderr, "[test_rot_mult_tab] rotation no. %2d not ok n = %d %d %d w %25.16e\n", i,
-          cubic_group_double_cover_rotations[i].n[0],
-          cubic_group_double_cover_rotations[i].n[1],
-          cubic_group_double_cover_rotations[i].n[2],
-          cubic_group_double_cover_rotations[i].w);
-      rot_printf_rint_matrix ( A, rtab.dim, "error", stderr );
+      if ( !notrealint ) {
+        if (g_cart_id == 0 ) fprintf(stdout, "# [test_rot_mult_tab] rot_mat_check_is_real_int matrix A rot %2d ok\n", i);
+      } else {
+        fprintf(stderr, "[test_rot_mult_tab] rotation no. %2d not ok n = %d %d %d w %25.16e\n", i,
+            cubic_group_double_cover_rotations[i].n[0],
+            cubic_group_double_cover_rotations[i].n[1],
+            cubic_group_double_cover_rotations[i].n[2],
+            cubic_group_double_cover_rotations[i].w);
+        rot_printf_rint_matrix ( A, rtab.dim, "error", stderr );
 
-      EXIT(6);
-    }
+        EXIT(6);
+      }
 
-    sprintf(name, "Akart[%.2d]", i );
-    rot_printf_rint_matrix ( A, rtab.dim, name, stdout );
+      sprintf(name, "Akart[%.2d]", i );
+      rot_printf_rint_matrix ( A, rtab.dim, name, stdout );
+    }  /* end of if Ndim == 3 */
 
   }
 
   /* TEST */
+/*
   for ( int i = 0; i < 48; i++ ) {
     for ( int k = 0; k < 48; k++ ) {
       if ( k != i ) {
@@ -231,22 +239,45 @@ int main(int argc, char **argv) {
       }
     }
   }
+*/
   /* END OF TEST */
 
   /* TEST */
+/*
   for ( int i = 0; i < 24; i++ ) {
     int k0 = cubic_group_double_cover_identification_table[i][0];
     int k1 = cubic_group_double_cover_identification_table[i][1];
     double diff_norm2 = rot_mat_diff_norm2 ( rtab.R[k0], rtab.R[k1], rtab.dim );
     fprintf(stdout, "# [test_rot_mult_tab] %2d pair %2d %2d matches at %e\n", i, k0, k1, diff_norm2);
   }
+*/
   /* END OF TEST */
 
   rot_mat_table_printf ( &rtab, "U", stdout );
 
+  int **rtab_mult_table = NULL;
+
+  exitstatus = rot_mat_mult_table ( &rtab_mult_table, &rtab );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[test_rot_mult_tab] Error from rot_mat_mult_table, status was %d\n", exitstatus);
+    EXIT(1);
+  }
+
+  int dvec[3] = {0,0,0};
+  if ( ! rot_mat_table_is_lg ( &rtab, dvec ) ) {
+    fprintf(stderr, "[test_rot_mult_tab] Error from rot_mat_table_is_lg\n");
+    EXIT(1)
+  } else {
+    fprintf(stdout, "# [test_rot_mult_tab] %s irrep %s is lg for d = %3d %3d %3d\n", rtab.irrep, rtab.group, dvec[0], dvec[1], dvec[2] );
+  }
+
+
+  fini_2level_ibuffer ( &rtab_mult_table );
   fini_rot_mat_table ( &rtab );
 
-  /* finalize */
+  /***********************************************************
+   * finalize
+   ***********************************************************/
   rot_fini_rotation_matrix( &R );
   rot_fini_rotation_matrix( &A );
   rot_fini_rotation_matrix( &B );
