@@ -9,3 +9,4 @@ gitversion.cpp
 build/
 build_*/
 test/
+build.14.04.1-Ubuntu_serial_openmp
