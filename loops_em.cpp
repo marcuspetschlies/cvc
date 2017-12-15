@@ -651,9 +651,9 @@ int main(int argc, char **argv) {
    * convolution
    *
    * init    = 1
-   * project = 0
+   * project = 1
    ***********************************************/
-  if ( ( exitstatus = current_field_eq_photon_propagator_ti_current_field ( cvc_loop_lma_p[1], cvc_loop_lma_p[1], 1, 0 ) ) != 0 ) {
+  if ( ( exitstatus = current_field_eq_photon_propagator_ti_current_field ( cvc_loop_lma_p[1], cvc_loop_lma_p[1], 1, 1 ) ) != 0 ) {
     fprintf(stderr, "[loops_em] Error from current_field_eq_photon_propagator_ti_current_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(2);
   }
@@ -678,7 +678,7 @@ int main(int argc, char **argv) {
 
     complex_field_eq_mi_complex_field_conj ( cvc_loop_lma_p[1][mu], cvc_loop_lma_p[1][mu], VOLUME );
 
-    complex_field_ti_eq_re ( cvc_loop_lma_p[1][mu], 1./(double)VOLUME, VOLUME);
+    complex_field_ti_eq_re ( cvc_loop_lma_p[1][mu], 1./(double)(VOLUME*g_nproc), VOLUME);
 
     sprintf(contype, "\n<description> cvc loop convoluted</description>\n"\
         "<current-index>%d</current-index>\n"\
@@ -1098,7 +1098,13 @@ int main(int argc, char **argv) {
       }
     }
 
-    if ( ( exitstatus = current_field_eq_photon_propagator_ti_current_field ( w_field[1], w_field[1], 1, 0 ) ) != 0 ) {
+    /***********************************************
+     * convolution
+     *
+     * init    = 0
+     * project = 1
+     ***********************************************/
+    if ( ( exitstatus = current_field_eq_photon_propagator_ti_current_field ( w_field[1], w_field[1], 0, 1 ) ) != 0 ) {
       fprintf(stderr, "[loops_em] Error from current_field_eq_photon_propagator_ti_current_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(2);
     }
@@ -1352,9 +1358,9 @@ int main(int argc, char **argv) {
      * convolution
      *
      * init    = 0
-     * project = 0
+     * project = 1
      ***********************************************/
-    if ( ( exitstatus = current_field_eq_photon_propagator_ti_current_field ( cvc_loop_stoch_p[1], cvc_loop_stoch_p[1], 0, 0 ) ) != 0 ) {
+    if ( ( exitstatus = current_field_eq_photon_propagator_ti_current_field ( cvc_loop_stoch_p[1], cvc_loop_stoch_p[1], 0, 1 ) ) != 0 ) {
       fprintf(stderr, "[loops_em] Error from current_field_eq_photon_propagator_ti_current_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(2);
     }
@@ -1379,7 +1385,7 @@ int main(int argc, char **argv) {
       }
       complex_field_eq_mi_complex_field_conj ( cvc_loop_stoch_p[1][mu], cvc_loop_stoch_p[1][mu], VOLUME );
 
-      complex_field_ti_eq_re ( cvc_loop_stoch_p[1][mu], 1./(double)VOLUME, VOLUME);
+      complex_field_ti_eq_re ( cvc_loop_stoch_p[1][mu], 1./(double)(VOLUME*g_nproc), VOLUME);
     }  /* end of loop on mu */
 
     /***********************************************/
