@@ -100,6 +100,7 @@ int main(int argc, char **argv) {
   int io_proc = -1;
   int evecs_num = 0;
   int check_propagator_residual = 0;
+  int transverse_projection = 0;
   unsigned int Vhalf;
   size_t sizeof_eo_spinor_field;
   double **eo_stochastic_source = NULL, **eo_stochastic_propagator = NULL;
@@ -132,7 +133,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "cwh?f:")) != -1) {
+  while ((c = getopt(argc, argv, "cwh?f:p:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -143,6 +144,9 @@ int main(int argc, char **argv) {
       break;
     case 'c':
       check_propagator_residual = 1;
+      break;
+    case 'p':
+      transverse_projection = atoi( optarg );
       break;
     case 'h':
     case '?':
@@ -651,9 +655,9 @@ int main(int argc, char **argv) {
    * convolution
    *
    * init    = 1
-   * project = 1
+   * project = transverse_projection
    ***********************************************/
-  if ( ( exitstatus = current_field_eq_photon_propagator_ti_current_field ( cvc_loop_lma_p[1], cvc_loop_lma_p[1], 1, 1 ) ) != 0 ) {
+  if ( ( exitstatus = current_field_eq_photon_propagator_ti_current_field ( cvc_loop_lma_p[1], cvc_loop_lma_p[1], 1, transverse_projection ) ) != 0 ) {
     fprintf(stderr, "[loops_em] Error from current_field_eq_photon_propagator_ti_current_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(2);
   }
@@ -1102,9 +1106,9 @@ int main(int argc, char **argv) {
      * convolution
      *
      * init    = 0
-     * project = 1
+     * project = transverse_projection
      ***********************************************/
-    if ( ( exitstatus = current_field_eq_photon_propagator_ti_current_field ( w_field[1], w_field[1], 0, 1 ) ) != 0 ) {
+    if ( ( exitstatus = current_field_eq_photon_propagator_ti_current_field ( w_field[1], w_field[1], 0, transverse_projection ) ) != 0 ) {
       fprintf(stderr, "[loops_em] Error from current_field_eq_photon_propagator_ti_current_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(2);
     }
@@ -1358,9 +1362,9 @@ int main(int argc, char **argv) {
      * convolution
      *
      * init    = 0
-     * project = 1
+     * project = transverse_projection
      ***********************************************/
-    if ( ( exitstatus = current_field_eq_photon_propagator_ti_current_field ( cvc_loop_stoch_p[1], cvc_loop_stoch_p[1], 0, 1 ) ) != 0 ) {
+    if ( ( exitstatus = current_field_eq_photon_propagator_ti_current_field ( cvc_loop_stoch_p[1], cvc_loop_stoch_p[1], 0, transverse_projection ) ) != 0 ) {
       fprintf(stderr, "[loops_em] Error from current_field_eq_photon_propagator_ti_current_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(2);
     }
