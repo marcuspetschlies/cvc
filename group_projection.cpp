@@ -1335,7 +1335,7 @@ int rot_mat_table_get_lg ( rot_mat_table_type *t, int d[3] ) {
   double _Complex ***R_tmp = NULL, **A = NULL;
   char group_name[40], irrep_name[40];
 
-  if ( *t == NULL ) {
+  if ( t == NULL ) {
     fprintf(stderr, "[rot_mat_table_get_lg] need (empty) rot mat table as input\n");
     return(1);
   }
@@ -1387,7 +1387,7 @@ int rot_mat_table_get_lg ( rot_mat_table_type *t, int d[3] ) {
    ***********************************************************/
   countR = 0;
   memset ( R_tmp[0][0], 0, 48 * 3*3 * sizeof(double _Complex ) );
-  memset ( rid_tmp, 48 * sizeof( int ) );
+  memset ( rid_tmp, 0, 48 * sizeof( int ) );
 
   for ( int i = 0; i < 48; i++ ) {
 
@@ -1436,7 +1436,7 @@ int rot_mat_table_get_d2d ( rot_mat_table_type *t, int d1[3], int d2[3] ) {
   double _Complex ***R_tmp = NULL, **A = NULL;
   char group_name[40], irrep_name[40];
 
-  if ( *t == NULL ) {
+  if ( t == NULL ) {
     fprintf(stderr, "[rot_mat_table_get_lg] need (empty) rot mat table as input\n");
     return(1);
   }
