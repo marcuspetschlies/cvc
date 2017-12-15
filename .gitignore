@@ -14,3 +14,4 @@ build_4dim
 build_cvc_tmlqcd_2dim
 build_cvc_tmlqcd_serial
 build_2dim_openmp
+build_serial

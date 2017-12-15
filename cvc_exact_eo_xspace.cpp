@@ -536,7 +536,7 @@ int main(int argc, char **argv) {
     /**********************************************************
      * initialize and distribute Usource
      **********************************************************/
-    init_contract_cvc_tensor_usource(g_gauge_field, gsx. co_phase_up);
+    init_contract_cvc_tensor_usource(g_gauge_field, gsx, co_phase_up);
   
     memset(conn_e, 0, 32*Vhalf*sizeof(double));
     memset(conn_o, 0, 32*Vhalf*sizeof(double));

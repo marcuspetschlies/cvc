@@ -3091,6 +3091,22 @@ int current_field_eq_photon_propagator_ti_current_field ( double **j1, double **
     }}}}
   }
 
+#if 0
+  /* TEST */
+  for ( int x0 = 0; x0 <  T; x0++ ) {
+  for ( int x1 = 0; x1 < LX; x1++ ) {
+  for ( int x2 = 0; x2 < LY; x2++ ) {
+  for ( int x3 = 0; x3 < LZ; x3++ ) {
+    unsigned int ix = g_ipt[x0][x1][x2][x3];
+
+    fprintf(stdout, "# [current_field_eq_photon_propagator_ti_current_field] %3d% 3d% 3d %3d  %16.7e %16.7e %16.7e %16.7e %16.7e\n", 
+        x0 + g_proc_coords[0] *  T, x1 + g_proc_coords[1] *  LX, x2 + g_proc_coords[2] *  LY, x3 + g_proc_coords[3] *  LZ, 
+        photon_propagator[ix][0], photon_propagator[ix][1], photon_propagator[ix][2], photon_propagator[ix][3], photon_propagator[ix][4]);
+  }}}}
+  /* END OF TEST */
+#endif  /* of if 0 */
+
+
   if ( project == 1 ) {
     if ( ( exitstatus = init_1level_buffer ( &jp, 2*VOLUME ) ) != 0 ) {
       fprintf(stderr, "[current_field_eq_photon_propagator_ti_current_field] Error from init_1level_buffer, status was %d\n", exitstatus);
@@ -3116,17 +3132,27 @@ int current_field_eq_photon_propagator_ti_current_field ( double **j1, double **
 
   for ( int mu = 0; mu < 4; mu++ ) {
 #ifdef HAVE_OPENMP
-#pragma omp parallel for
+#pragma omp parallel shared(project)
+{
+#endif
+    double dtmp[2];
+
+#ifdef HAVE_OPENMP
+#pragma omp for
 #endif
     for ( unsigned int ix = 0; ix < VOLUME; ix++  ) {
       unsigned int ix2 = 2*ix;
-      j1[mu][ix2  ] = photon_propagator[ix][4] * j2[mu][ix2  ];
-      j1[mu][ix2+1] = photon_propagator[ix][4] * j2[mu][ix2+1];
+      dtmp[0] = j2[mu][ix2  ];
+      dtmp[1] = j2[mu][ix2+1];
+      j1[mu][ix2  ] = photon_propagator[ix][4] * dtmp[0];
+      j1[mu][ix2+1] = photon_propagator[ix][4] * dtmp[1];
+      /* TEST */
+      /* fprintf(stdout, "# [current_field_eq_photon_propagator_ti_current_field]  %6d   %16.7e %16.7e  %16.7e\n", ix, dtmp[0], dtmp[1], photon_propagator[ix][4]); */
     }
 
     if ( project == 1 ) {
 #ifdef HAVE_OPENMP
-#pragma omp parallel for
+#pragma omp for
 #endif
       for ( unsigned int ix = 0; ix < VOLUME; ix++  ) {
         unsigned int ix2 = 2*ix;
@@ -3135,6 +3161,9 @@ int current_field_eq_photon_propagator_ti_current_field ( double **j1, double **
       }
     }
 
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
   }  /* end of loop on mu */
 
   if ( project == 1 ) {

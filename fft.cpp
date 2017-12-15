@@ -397,5 +397,72 @@ int ft_4dim ( double *r, double *s, int sign, int init ) {
   return(0);
 }  /* end of ft_4dim */
 
+/**************************************************************************************************************
+ * half-link phase shift; exp( -i p[mu] / 2 )
+ **************************************************************************************************************/
+
+int half_link_momentum_phase_4dim ( double *r, double *s, int sign, int mu, int init ) {
+  
+  int exitstatus;
+  static double **phase_field = NULL;
+
+  if ( init > 0 ) {
+    if ( phase_field != NULL ) fini_2level_buffer ( &phase_field );
+    if ( ( exitstatus = init_2level_buffer( &phase_field, VOLUME, 8 ) ) != 0 ) {
+      fprintf(stderr, "[half_link_momentum_phase_4dim] Error from init_2level_buffer %s %d\n", __FILE__, __LINE__);
+      return(1);
+    }
+    double p[4], cosp[4], cosinp[8];
+    for ( int x0 = 0; x0 <  T; x0++ ) {
+      p[0] = M_PI * ( x0 + g_proc_coords[0] *  T ) / (double)T_global;
+      cosinp[0] =        cos ( p[0] );
+      cosinp[1] = sign * sin ( p[0] );
+    for ( int x1 = 0; x1 < LX; x1++ ) {
+      p[1] = M_PI * ( x1 + g_proc_coords[1] * LX ) / (double)LX_global;
+      cosinp[2] =        cos ( p[1] );
+      cosinp[3] = sign * sin ( p[1] );
+    for ( int x2 = 0; x2 < LY; x2++ ) {
+      p[2] = M_PI * ( x2 + g_proc_coords[2] * LY ) / (double)LY_global;
+      cosinp[4] =        cos ( p[2] );
+      cosinp[5] = sign * sin ( p[2] );
+    for ( int x3 = 0; x3 < LZ; x3++ ) {
+      p[3] = M_PI * ( x3 + g_proc_coords[3] * LZ ) / (double)LZ_global;
+      cosinp[6] =        cos ( p[3] );
+      cosinp[7] = sign * sin ( p[3] );
+      unsigned int ix = g_ipt[x0][x1][x2][x3];
+      memcpy ( phase_field[ix], cosinp, 8*sizeof(double) );
+    }}}}
+  }
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  double atmp[2], btmp[2];
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
+    atmp[0] = s[2*ix  ];
+    atmp[1] = s[2*ix+1];
+    btmp[0] = phase_field[ix][2*mu  ];
+    btmp[1] = phase_field[ix][2*mu+1];
+
+    r[2*ix  ] = atmp[0] * btmp[0] - atmp[1] * btmp[1];
+    r[2*ix+1] = atmp[0] * btmp[1] + atmp[1] * btmp[0];
+  }
+
+  if ( init == 2 ) {
+    if ( phase_field != NULL ) {
+      free ( phase_field );
+      phase_field = NULL;
+    }
+  }
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+  return(0);
+}  /* end of half_link_momentum_phase_4dim */
 
 }  /* end of namespace cvc */
