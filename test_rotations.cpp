@@ -255,34 +255,36 @@ int main(int argc, char **argv) {
   /***********************************************************
    * loop on rotations
    ***********************************************************/
+  ofs = fopen("spin1_rotation_matrices", "w");
   for(int irot=0; irot < 48; irot++ )
   // for(int irot = 46; irot < 47; irot++ )
   // for(int irot = 0; irot < 1; irot++ )
   {
-    char name[12];
+    char name[20];
 
     if (g_cart_id == 0 ) {
-      fprintf(stdout, "# [test_rotations] rotation no. %2d n = (%2d, %2d, %2d) w = %16.7e pi\n", irot,
+      fprintf( ofs, "\n# [test_rotations] rotation no. %2d n = (%2d, %2d, %2d) w = %16.7e pi\n", irot,
           cubic_group_double_cover_rotations[irot].n[0], cubic_group_double_cover_rotations[irot].n[1], cubic_group_double_cover_rotations[irot].n[2],
-          cubic_group_double_cover_rotations[irot].w);
+          cubic_group_double_cover_rotations[irot].w / M_PI);
     }
 
     rot_rotation_matrix_spherical_basis ( R, Ndim-1, cubic_group_double_cover_rotations[irot].n, cubic_group_double_cover_rotations[irot].w );
 
-    sprintf(name, "Ashpe[%.2d]", irot);
-    rot_printf_matrix ( R, Ndim, name, stdout );
+    sprintf(name, "A_shperical[%.2d]", irot);
+    rot_printf_matrix ( R, Ndim, name, ofs );
 
 
     rot_spherical2cartesian_3x3 (A, R);
     if ( rot_mat_check_is_real_int ( A, Ndim ) ) {
       if (g_cart_id == 0 )
-        fprintf(stdout, "# [test_rotations] rot_mat_check_is_real_int matrix A rot %2d ok\n", irot);
+        fprintf(ofs, "# [test_rotations] rot_mat_check_is_real_int matrix A rot %2d ok\n", irot);
     } else {
       EXIT(6);
     }
 
-    sprintf(name, "Akart[%.2d]", irot);
-    rot_printf_rint_matrix (A, Ndim, name, stdout );
+    sprintf(name, "A_cartesian[%.2d]", irot);
+    rot_printf_rint_matrix (A, Ndim, name, ofs );
+
 
 #if 0
     exitstatus = rot_gauge_field ( gauge_field_rot, g_gauge_field, A);
@@ -464,6 +466,8 @@ int main(int argc, char **argv) {
 
 #endif  /* of if 0 */
   }  /* end of loop on rotations */
+
+  fclose ( ofs );
 
   rot_fini_rotation_matrix( &R );
   rot_fini_rotation_matrix( &A );
