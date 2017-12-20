@@ -62,6 +62,7 @@ extern "C"
 #include "contract_factorized.h"
 #include "clover.h"
 #include "dummy_solver.h"
+#include "scalar_products.h"
 
 using namespace cvc;
 
@@ -2576,6 +2577,9 @@ int main(int argc, char **argv) {
       /* loop on oet samples */
       for( int isample=0; isample < g_nsample_oet; isample++) {
 
+        /*****************************************************************
+         * read stochastic oet source from file
+         *****************************************************************/
         if ( read_stochastic_source_oet ) {
           for ( int ispin = 0; ispin < 4; ispin++ ) {
             sprintf(filename, "%s-oet.%.4d.t%.2d.%.2d.%.5d", filename_prefix, Nconf, gsx[0], ispin, isample);
@@ -2589,6 +2593,10 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[piN2piN_factorized] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(64);
           }
+
+        /*****************************************************************
+         * generate stochastic oet source
+         *****************************************************************/
         } else {
           /* dummy call to initialize the ran field, we do not use the resulting stochastic_source_list */
           if( (exitstatus = init_timeslice_source_oet(stochastic_source_list, gsx[0], NULL, 1 ) ) != 0 ) {
@@ -2613,8 +2621,7 @@ int main(int argc, char **argv) {
           memcpy(spinor_work[0], stochastic_source_list[i], sizeof_spinor_field);
 
           /* source-smearing stochastic momentum source */
-          exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
-          if ( exitstatus != 0 ) {
+          if ( ( exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi) ) != 0 ) {
             fprintf(stderr, "[piN2piN_factorized] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(5);
           }
@@ -2625,6 +2632,7 @@ int main(int argc, char **argv) {
           }
 
           memset(spinor_work[1], 0, sizeof_spinor_field);
+
           exitstatus = _TMLQCD_INVERT(spinor_work[1], spinor_work[0], op_id_up, 0);
           if(exitstatus != 0) {
             fprintf(stderr, "[piN2piN_factorized] Error from tmLQCD_invert, status was %d\n", exitstatus);
@@ -2641,8 +2649,7 @@ int main(int argc, char **argv) {
           }
 
           /* sink smearing stochastic propagator */
-          exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
-          if ( exitstatus != 0 ) {
+          if ( ( exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi) ) != 0 ) {
             fprintf(stderr, "[piN2piN_factorized] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(5);
           }
@@ -2768,7 +2775,10 @@ int main(int argc, char **argv) {
             memcpy(spinor_work[0], stochastic_source_list[i], sizeof_spinor_field);
 
             /* source-smearing stochastic momentum source */
-            exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
+            if ( ( exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi) ) != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(12);
+            }
 
             /* tm-rotate stochastic source */
             if( g_fermion_type == _TM_FERMION ) {
@@ -2776,6 +2786,7 @@ int main(int argc, char **argv) {
             }
 
             memset(spinor_work[1], 0, sizeof_spinor_field);
+
             exitstatus = _TMLQCD_INVERT(spinor_work[1], spinor_work[0], op_id_up, 0);
             if(exitstatus != 0) {
               fprintf(stderr, "[piN2piN_factorized] Error from tmLQCD_invert, status was %d\n", exitstatus);
