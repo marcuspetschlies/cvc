@@ -14,3 +14,4 @@ build.14.04.1-Ubuntu-tmLQCD-2dim/
 build-2dim-noomp/
 build-2dim/
 build-4dim/
+build-serial/
