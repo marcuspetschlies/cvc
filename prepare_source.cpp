@@ -840,7 +840,7 @@ int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init) {
         fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d phase offset = %e\n", g_cart_id, phase_offset );
       }
 #ifdef HAVE_OPENMP
-#pragma omp parallel shared(buffer, phase_offset, p, ran)
+#pragma omp parallel shared(buffer, p, ran)
 {
 #endif
       double phase, cphase, sphase, tmp[6];
@@ -873,7 +873,7 @@ int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init) {
 
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel shared (s, buffer, timeslice)
+#pragma omp parallel shared (s, buffer)
 {
 #pragma omp for
 #endif
