@@ -747,7 +747,6 @@ int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init) {
   const int          have_source = ( tsrc / T == g_proc_coords[0] ) ? 1 : 0;
   const unsigned int VOL3 = LX*LY*LZ;
 
-  unsigned int x1, x2, x3;
   static double *ran = NULL;
   double ratime, retime;
   
@@ -836,24 +835,27 @@ int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init) {
          TWO_MPI * (double)momentum[2]/(double)LZ_global };
       const double phase_offset = p[0] * g_proc_coords[1] * LX + p[1] * g_proc_coords[2] * LY + p[2] * g_proc_coords[3] * LZ;
       buffer = (double*)malloc(6*VOL3*sizeof(double));
+      if( g_verbose > 4 ) {
+        fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d p = %e %e %e\n", g_cart_id, p[0], p[1], p[2] );
+        fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d phase offset = %e\n", g_cart_id, phase_offset );
+      }
 #ifdef HAVE_OPENMP
-#pragma omp parallel
+#pragma omp parallel shared(buffer, phase_offset, p, ran)
 {
 #endif
-      unsigned int iix;
-      double phase, cphase, sphase, tmp[6], *ptr;
+      double phase, cphase, sphase, tmp[6];
 
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-      for(x1=0;x1<LX;x1++) {
-      for(x2=0;x2<LY;x2++) {
-      for(x3=0;x3<LZ;x3++) {
+      for( int x1 = 0; x1 < LX; x1++ ) {
+      for( int x2 = 0; x2 < LY; x2++ ) {
+      for( int x3 = 0; x3 < LZ; x3++ ) {
         phase = phase_offset + x1 * p[0] + x2 * p[1] + x3 * p[2];
         cphase = cos( phase );
         sphase = sin( phase );
-        iix = 6 * g_ipt[0][x1][x2][x3];
-        ptr = buffer + iix;
+        unsigned int iix = 6 * g_ipt[0][x1][x2][x3];
+        double *ptr = buffer + iix;
         memcpy(tmp, ran+iix, 6*sizeof(double));
         ptr[0] = tmp[0] * cphase - tmp[1] * sphase;
         ptr[1] = tmp[0] * sphase + tmp[1] * cphase;
@@ -863,7 +865,7 @@ int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init) {
         ptr[5] = tmp[4] * sphase + tmp[5] * cphase;
       }}}
 #ifdef HAVE_OPENMP
-}
+}  /* end of parallel region */
 #endif
     } else {
       buffer = ran;
@@ -871,16 +873,13 @@ int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init) {
 
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel
+#pragma omp parallel shared (s, buffer, timeslice)
 {
-#endif
-    unsigned int ix, iix;
-#ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-    for(ix=0; ix<VOL3; ix++) {
+    for( unsigned int ix = 0; ix < VOL3; ix++ ) {
 
-      iix = _GSI(timeslice * VOL3 + ix);
+      unsigned int iix = _GSI(timeslice * VOL3 + ix);
 
       /* set ith spin-component in ith spinor field */
       memcpy(s[0]+(iix + 6*0) , buffer+(6*ix), 6*sizeof(double) );
