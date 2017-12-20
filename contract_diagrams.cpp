@@ -499,7 +499,7 @@ int contract_diagram_zmx4x4_field_ti_co_field ( double _Complex ***sp_out, doubl
 #endif
   for( unsigned int ir = 0; ir < N; ir++) {
     zm4x4_eq_zm4x4_ti_co ( sp_out[ir], sp_in[ir], c_in[ir] );
-    if ( ir == 0 ) {
+    if ( ir == 0 && g_verbose > 3 ) {
       zm4x4_printf ( sp_in[ir], "sp_in", stdout );
       fprintf(stdout, "# [contract_diagram_zmx4x4_field_ti_co_field] c_in = %25.15e %25.16e\n", creal(c_in[ir]), cimag(c_in[ir]));
     }
@@ -510,6 +510,21 @@ int contract_diagram_zmx4x4_field_ti_co_field ( double _Complex ***sp_out, doubl
 
 /***********************************************/
 /***********************************************/
+
+int contract_diagram_zmx4x4_field_ti_eq_co ( double _Complex ***sp_out, double _Complex ***sp_in, double _Complex c_in, unsigned int N) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for( unsigned int ir = 0; ir < N; ir++) {
+    zm4x4_eq_zm4x4_ti_co ( sp_out[ir], sp_in[ir], c_in );
+  }
+  return(0);
+}  /* end of contract_diagram_zmx4x4_field_ti_eq_co */
+
+/***********************************************/
+/***********************************************/
+
 
 int contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( double _Complex ***sp_out, double _Complex ***sp_in, unsigned int N) {
 
@@ -522,4 +537,136 @@ int contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( double _Complex ***
   return(0);
 }  /* end of contract_diagram_zm4x4_field_eq_zm4x4_field_transposed */
 
+/***********************************************/
+/***********************************************/
+
+/***********************************************
+ *
+ ***********************************************/
+int contract_diagram_sample (double _Complex ***diagram, double _Complex ***xi, double _Complex ***phi, int nsample, int perm[4], gamma_matrix_type C, int nT ) {
+
+  int exitstatus;
+  double _Complex **diagram_buffer = NULL;
+  double _Complex znorm = 1. / (double)nsample;
+
+  if ( ( exitstatus= init_2level_zbuffer ( &diagram_buffer, nT, 16 ) ) != 0 ) {
+    fprintf(stderr, "[contract_diagram_sample] Error from init_2level_zbuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(2);
+  }
+
+
+  for ( int isample = 0; isample < nsample; isample++ ) {
+    if ( ( exitstatus = contract_diagram_v2_gamma_v3 ( diagram_buffer, phi[isample], xi[isample], C, perm, nT, (int)(isample==0) ) ) != 0 ) {
+      fprintf(stderr, "[contract_diagram_sample] Error from contract_diagram_v2_gamma_v3, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(1);
+    }
+  }
+ 
+  /* copy to diagram */  
+  memcpy( diagram[0][0], diagram_buffer[0], 16*nT*sizeof(double _Complex) );
+
+  /* transpose (to conform with full diagram code) */
+  if ( ( exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, nT ) ) != 0 ) {
+    fprintf(stderr, "[contract_diagram_sample] Error from contract_diagram_zm4x4_field_eq_zm4x4_field_transposed, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(3);
+  }
+
+  /* normalize with 1 / nsample */
+  if ( ( exitstatus = contract_diagram_zmx4x4_field_ti_eq_co ( diagram, diagram, znorm, nT ) ) != 0 ) {
+    fprintf(stderr, "[contract_diagram_sample] Error from contract_diagram_zm4x4_field_ti_eq_co, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(4);
+  }
+
+  /* clean up diagram_buffer */
+  fini_2level_zbuffer ( &diagram_buffer );
+  return(0);
+}  /* end of contract_diagram_sample */
+
+/***********************************************/
+/***********************************************/
+
+/***********************************************
+ *
+ ***********************************************/
+int contract_diagram_sample_oet (double _Complex ***diagram, double _Complex ***xi, double _Complex ***phi, gamma_matrix_type goet, int perm[4], gamma_matrix_type C, int nT ) {
+
+  int exitstatus;
+  double _Complex **diagram_buffer = NULL;
+
+  if ( ( exitstatus= init_2level_zbuffer ( &diagram_buffer, nT, 16 ) ) != 0 ) {
+    fprintf(stderr, "[contract_diagram_sample_oet] Error from init_2level_zbuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(2);
+  }
+
+  if ( ( exitstatus = contract_diagram_oet_v2_gamma_v3 ( diagram_buffer, phi, xi, goet, C, perm, nT, 1 ) ) != 0 ) {
+    fprintf(stderr, "[contract_diagram_sample_oet] Error from contract_diagram_oet_v2_gamma_v3, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(2);
+  }
+
+  /* copy to diagram */  
+  memcpy( diagram[0][0], diagram_buffer[0], 16*nT*sizeof(double _Complex) );
+
+  /* transpose (to conform with full diagram code) */
+  if ( ( exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, nT ) ) != 0 ) {
+    fprintf(stderr, "[contract_diagram_sample_oet] Error from contract_diagram_zm4x4_field_eq_zm4x4_field_transposed, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(3);
+  }
+
+  /* clean up diagram_buffer */
+  fini_2level_zbuffer ( &diagram_buffer );
+  return(0);
+}  /* end of contract_diagram_sample_oet */
+
+/***********************************************/
+/***********************************************/
+
+/***********************************************
+ * write contracted diagram to AFF
+ ***********************************************/
+int contract_diagram_write_aff (double _Complex***diagram, struct AffWriter_s*affw, char*aff_tag, int tstart, int dt, int fbwd, int io_proc ) {
+
+  const unsigned int offset = 16;
+  const size_t bytes = offset * sizeof(double _Complex);
+  const int nt = dt + 1; /* tstart + dt */
+
+  int exitstatus;
+  double rtime;
+  struct AffNode_s *affn = NULL, *affdir=NULL;
+  char aff_buffer_path[400];
+  double _Complex ***aff_buffer = NULL;
+
+  if ( io_proc == 2 ) {
+    rtime = _GET_TIME;
+
+    if( (affn = aff_writer_root(affw)) == NULL ) {
+      fprintf(stderr, "[contract_diagram_write_aff] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
+      return(2);
+    }
+
+    if( ( exitstatus = init_3level_zbuffer ( &aff_buffer, nt, 4, 4 ) ) != 0 ) {
+      fprintf(stderr, "[contract_diagram_write_aff] Error from init_3level_zbuffer %s %d\n", __FILE__, __LINE__);
+      return(6);
+    }
+
+    for ( int i = 0; i <= dt; i++ ) {
+      int t = ( tstart + i * fbwd  + T_global ) % T_global;
+      memcpy( aff_buffer[i][0], diagram[t][0], bytes );
+    }
+
+    affdir = aff_writer_mkpath (affw, affn, aff_tag );
+    if ( ( exitstatus = aff_node_put_complex (affw, affdir, aff_buffer[0][0], (uint32_t)(nt*offset) ) ) != 0 ) {
+      fprintf(stderr, "[contract_diagram_write_aff] Error from aff_node_put_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(1);
+    }
+
+    fini_3level_zbuffer ( &aff_buffer );
+
+    rtime = _GET_TIME - rtime;
+    if (g_cart_id == 0 ) fprintf(stdout, "# [contract_diagram_write_aff] time for contract_diagram_write_aff = %e seconds %s %d\n", rtime, __FILE__, __LINE__);
+  }  /* end of if io_proc == 2 */
+  return(0);
+}  /* end of contract_diagram_write_aff */
+
+/***********************************************/
+/***********************************************/
 }  /* end of namespace cvc */
