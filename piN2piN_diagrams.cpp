@@ -289,7 +289,7 @@ int main(int argc, char **argv) {
             affdir = aff_reader_chpath (affr, affn, aff_tag );
             exitstatus = aff_node_get_complex (affr, affdir, b1xi[ipi2][0][ipf2][isample][0], T_global*12);
             if( exitstatus != 0 ) {
-              fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_get_complex, status was %d\n", exitstatus);
+              fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_get_complex for key \"%s\", status was %d\n", aff_tag, exitstatus);
               EXIT(105);
             }
           }
@@ -338,7 +338,7 @@ int main(int argc, char **argv) {
               affdir = aff_reader_chpath (affr, affn, aff_tag );
               exitstatus = aff_node_get_complex (affr, affdir, b1phi[igf1][ipf1][isample][0], T_global*192);
               if( exitstatus != 0 ) {
-                fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_get_complex, status was %d\n", exitstatus);
+                fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_get_complex for key \"%s\", status was %d\n", aff_tag, exitstatus);
                 EXIT(105);
               }
             }
@@ -538,7 +538,7 @@ int main(int argc, char **argv) {
             affdir = aff_reader_chpath (affr, affn, aff_tag );
             exitstatus = aff_node_get_complex (affr, affdir, w1xi[0][ipf2][isample][0], T_global*12);
             if( exitstatus != 0 ) {
-              fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_get_complex, status was %d\n", exitstatus);
+              fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_get_complex for key \"%s\", status was %d\n", aff_tag, exitstatus);
               EXIT(105);
             }
           }
@@ -576,7 +576,7 @@ int main(int argc, char **argv) {
                 affdir = aff_reader_chpath (affr, affn, aff_tag );
                 exitstatus = aff_node_get_complex (affr, affdir, w1phi[ipi2][igf1][ipf1][isample][0], T_global*192);
                 if( exitstatus != 0 ) {
-                  fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_get_complex, status was %d\n", exitstatus);
+                  fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_get_complex for key \"%s\", status was %d\n", aff_tag, exitstatus);
                   EXIT(105);
                 }
               }
@@ -613,7 +613,7 @@ int main(int argc, char **argv) {
                 affdir = aff_reader_chpath (affr, affn, aff_tag );
                 exitstatus = aff_node_get_complex (affr, affdir, w3phi[ipi2][igf1][ipf1][isample][0], T_global*192);
                 if( exitstatus != 0 ) {
-                  fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_get_complex, status was %d\n", exitstatus);
+                  fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_get_complex for key \"%s\", status was %d\n", aff_tag, exitstatus);
                   EXIT(105);
                 }
               }
@@ -930,7 +930,7 @@ int main(int argc, char **argv) {
               affdir = aff_reader_chpath (affr_oet, affn_oet, aff_tag );
               exitstatus = aff_node_get_complex (affr_oet, affdir, z1xi[igf2][ipf2][ispin][0], T_global*12);
               if( exitstatus != 0 ) {
-                fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_get_complex, status was %d\n", exitstatus);
+                fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_get_complex for key \"%s\", status was %d\n", aff_tag, exitstatus);
                 EXIT(105);
               }
             }
@@ -980,7 +980,7 @@ int main(int argc, char **argv) {
                 affdir = aff_reader_chpath (affr_oet, affn_oet, aff_tag );
                 exitstatus = aff_node_get_complex (affr_oet, affdir, z3phi[ipi2][igf1][ipf1][ispin][0], T_global*192);
                 if( exitstatus != 0 ) {
-                  fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_get_complex, status was %d\n", exitstatus);
+                  fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_get_complex for key \"%s\", status was %d\n", aff_tag, exitstatus);
                   EXIT(105);
                 }
                 
@@ -1032,7 +1032,7 @@ int main(int argc, char **argv) {
                 affdir = aff_reader_chpath (affr_oet, affn_oet, aff_tag );
                 exitstatus = aff_node_get_complex (affr_oet, affdir, z1phi[ipi2][igf1][ipf1][ispin][0], T_global*192);
                 if( exitstatus != 0 ) {
-                  fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_get_complex, status was %d\n", exitstatus);
+                  fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_get_complex for key \"%s\", status was %d\n", aff_tag, exitstatus);
                   EXIT(105);
                 }
                 
@@ -1362,7 +1362,7 @@ int main(int argc, char **argv) {
                 affdir = aff_reader_chpath (affr, affn, aff_tag );
                 exitstatus = aff_node_get_complex (affr, affdir, bb[igi1][igf1][ipf1][idiag][0], T_global*16);
                 if( exitstatus != 0 ) {
-                  fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_get_complex, status was %d\n", exitstatus);
+                  fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_get_complex for key \"%s\", status was %d\n", aff_tag, exitstatus);
                   EXIT(105);
                 }
               }
@@ -1391,7 +1391,7 @@ int main(int argc, char **argv) {
       /**************************************************************************************
        * loop on pi2
        **************************************************************************************/
-      for ( int ipi2 = 0; ipi2 < g_sink_momentum_number; ipi2++ ) {
+      for ( int ipi2 = 0; ipi2 < g_seq_source_momentum_number; ipi2++ ) {
 
         /**************************************************************************************
          * loop on gi2
@@ -1421,12 +1421,14 @@ int main(int argc, char **argv) {
                 affdir = aff_reader_chpath (affr_oet, affn_oet, aff_tag );
                 exitstatus = aff_node_get_complex (affr_oet, affdir, mm[ipi2][igi2][igf2][ipf2], T_global);
                 if( exitstatus != 0 ) {
-                  fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_get_complex, status was %d\n", exitstatus);
+                  fprintf(stderr, "[piN2piN_diagrams] Error from aff_node_get_complex for key \"%s\", status was %d\n", aff_tag, exitstatus);
                   EXIT(105);
                 }
-                for ( int it = 0; it < T_global; it++ ) {
-                  fprintf(stdout, "# [piN2piN_diagrams] m-m %3d %25.16e %25.16e\n", it, 
-                      creal( mm[ipi2][igi2][igf2][ipf2][it] ), cimag( mm[ipi2][igi2][igf2][ipf2][it] ));
+                if ( g_verbose > 3 ) {
+                  for ( int it = 0; it < T_global; it++ ) {
+                    fprintf(stdout, "# [piN2piN_diagrams] m-m %3d %25.16e %25.16e\n", it, 
+                        creal( mm[ipi2][igi2][igf2][ipf2][it] ), cimag( mm[ipi2][igi2][igf2][ipf2][it] ));
+                  }
                 }
               }  
             }  /* end of loop on sink momentum */

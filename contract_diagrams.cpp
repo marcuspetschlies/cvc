@@ -261,25 +261,31 @@ void contract_b2 (double _Complex ***b2, double _Complex **v3, **double v2, gamm
  * search for m1 in m2
  ****************************************************/
 int match_momentum_id ( int **pid, int **m1, int **m2, int N1, int N2 ) {
-#if 0 
-  fprintf(stdout, "# [match_momentum_id] N1 = %d N2 = %d m2 == NULL ? %d\n", N1, N2 , m2 == NULL);
-  for ( int i = 0; i < N1; i++ ) {
-    fprintf(stdout, "# [match_momentum_id] m1 %d  %3d %3d %3d\n", i, m1[i][0], m1[i][1], m1[i][2]);
+
+  if ( g_verbose > 4 && g_cart_id == 0 ) {
+    fprintf(stdout, "# [match_momentum_id] N1 = %d N2 = %d m2 == NULL ? %d\n", N1, N2 , m2 == NULL);
+    for ( int i = 0; i < N1; i++ ) {
+      fprintf(stdout, "# [match_momentum_id] m1 %d  %3d %3d %3d\n", i, m1[i][0], m1[i][1], m1[i][2]);
+    }
+
+    for ( int i = 0; i < N2; i++ ) {
+      fprintf(stdout, "# [match_momentum_id] m2 %d  %3d %3d %3d\n", i, m2[i][0], m2[i][1], m2[i][2]);
+    }
   }
 
-  for ( int i = 0; i < N2; i++ ) {
-    fprintf(stdout, "# [match_momentum_id] m2 %d  %3d %3d %3d\n", i, m2[i][0], m2[i][1], m2[i][2]);
-  }
-  return(1);
-#endif
+  /****************************************************/
+  /****************************************************/
 
-  if ( N1 > N2 ) {
+  /* if ( N1 > N2 ) {
     fprintf(stderr, "[match_momentum_id] Error, N1 > N2\n");
     return(1);
-  }
+  } */
 
   if ( *pid == NULL ) {
-    *pid = (int*)malloc (N1 * sizeof(int) );
+    if ( ( *pid = (int*)malloc (N1 * sizeof(int) ) ) == NULL ) {
+      fprintf(stderr, "# [match_momentum_id] Error from malloc %s %d\n", __FILE__, __LINE__);
+      return(4);
+    }
   }
 
   for ( int i = 0; i < N1; i++ ) {
@@ -304,9 +310,13 @@ int match_momentum_id ( int **pid, int **m1, int **m2, int N1, int N2 ) {
   /* TEST */
   if ( g_verbose > 2 ) {
     for ( int i = 0; i < N1; i++ ) {
-      fprintf(stdout, "# [match_momentum_id] m1[%2d] = %3d %3d %3d matches m2[%2d] = %3d %3d %3d\n",
-          i, m1[i][0], m1[i][1], m1[i][2],
-          (*pid)[i], m2[(*pid)[i]][0], m2[(*pid)[i]][1], m2[(*pid)[i]][2]);
+      if ( (*pid)[i] == -1 ) {
+        fprintf(stdout, "# [match_momentum_id] m1[%2d] = %3d %3d %3d no match\n", i, m1[i][0], m1[i][1], m1[i][2] );
+      } else {
+        fprintf(stdout, "# [match_momentum_id] m1[%2d] = %3d %3d %3d matches m2[%2d] = %3d %3d %3d\n",
+            i, m1[i][0], m1[i][1], m1[i][2],
+            (*pid)[i], m2[(*pid)[i]][0], m2[(*pid)[i]][1], m2[(*pid)[i]][2]);
+      }
     }
   }
 
@@ -499,11 +509,12 @@ int contract_diagram_zmx4x4_field_ti_co_field ( double _Complex ***sp_out, doubl
 #endif
   for( unsigned int ir = 0; ir < N; ir++) {
     zm4x4_eq_zm4x4_ti_co ( sp_out[ir], sp_in[ir], c_in[ir] );
+#if 0
     if ( ir == 0 && g_verbose > 3 ) {
       zm4x4_printf ( sp_in[ir], "sp_in", stdout );
       fprintf(stdout, "# [contract_diagram_zmx4x4_field_ti_co_field] c_in = %25.15e %25.16e\n", creal(c_in[ir]), cimag(c_in[ir]));
     }
-
+#endif  /* of if 0 */
   }
   return(0);
 }  /* end of contract_diagram_zmx4x4_field_ti_co_field */
