@@ -61,6 +61,7 @@ extern "C"
 #include "prepare_propagator.h"
 #include "contract_factorized.h"
 #include "clover.h"
+#include "dummy_solver.h"
 
 using namespace cvc;
 
@@ -673,7 +674,7 @@ int main(int argc, char **argv) {
      ******************************************************/
     if ( isample == 0 ) {
       memset(spinor_work[1], 0, sizeof_spinor_field);
-      exitstatus = tmLQCD_invert(spinor_work[1], stochastic_source_list[0], op_id_up, 0);
+      exitstatus = _TMLQCD_INVERT(spinor_work[1], stochastic_source_list[0], op_id_up, 0);
       if(exitstatus != 0) {
         fprintf(stderr, "[piN2piN_factorized] Error from tmLQCD_invert, status was %d\n", exitstatus);
         EXIT(12);
@@ -717,7 +718,7 @@ int main(int argc, char **argv) {
         }
   
         memset(spinor_work[1], 0, sizeof_spinor_field);
-        exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_dn, 0);
+        exitstatus = _TMLQCD_INVERT(spinor_work[1], spinor_work[0], op_id_dn, 0);
         if(exitstatus != 0) {
           fprintf(stderr, "[piN2piN_factorized] Error from tmLQCD_invert, status was %d\n", exitstatus);
           EXIT(12);
@@ -1693,7 +1694,7 @@ int main(int argc, char **argv) {
 
         memset(spinor_work[1], 0, sizeof_spinor_field);
         /* invert */
-        exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_up, 0);
+        exitstatus = _TMLQCD_INVERT(spinor_work[1], spinor_work[0], op_id_up, 0);
         if(exitstatus != 0) {
           fprintf(stderr, "[piN2piN_factorized] Error from tmLQCD_invert, status was %d\n", exitstatus);
           EXIT(12);
@@ -2624,7 +2625,7 @@ int main(int argc, char **argv) {
           }
 
           memset(spinor_work[1], 0, sizeof_spinor_field);
-          exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_up, 0);
+          exitstatus = _TMLQCD_INVERT(spinor_work[1], spinor_work[0], op_id_up, 0);
           if(exitstatus != 0) {
             fprintf(stderr, "[piN2piN_factorized] Error from tmLQCD_invert, status was %d\n", exitstatus);
             EXIT(44);
@@ -2775,7 +2776,7 @@ int main(int argc, char **argv) {
             }
 
             memset(spinor_work[1], 0, sizeof_spinor_field);
-            exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_up, 0);
+            exitstatus = _TMLQCD_INVERT(spinor_work[1], spinor_work[0], op_id_up, 0);
             if(exitstatus != 0) {
               fprintf(stderr, "[piN2piN_factorized] Error from tmLQCD_invert, status was %d\n", exitstatus);
               EXIT(44);
