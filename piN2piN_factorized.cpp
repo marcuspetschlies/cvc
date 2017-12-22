@@ -744,10 +744,16 @@ int main(int argc, char **argv) {
       }  /* end of loop on stochastic source timeslices */
    
       /* source-smear the stochastic source */
-      exitstatus = Jacobi_Smearing(gauge_field_smeared, stochastic_source_list[isample], N_Jacobi, kappa_Jacobi);
+      if ( ( exitstatus = Jacobi_Smearing(gauge_field_smeared, stochastic_source_list[isample], N_Jacobi, kappa_Jacobi) ) != 0 ) {
+        fprintf(stderr, "[piN2piN_factorized] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(72);
+      }
   
       /* sink-smear the stochastic propagator */
-      exitstatus = Jacobi_Smearing(gauge_field_smeared, stochastic_propagator_list[isample], N_Jacobi, kappa_Jacobi);
+      if ( ( exitstatus = Jacobi_Smearing(gauge_field_smeared, stochastic_propagator_list[isample], N_Jacobi, kappa_Jacobi) ) != ) {
+        fprintf(stderr, "[piN2piN_factorized] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(72);
+      }
   
       if ( write_stochastic_source ) {
         /* write to file */
