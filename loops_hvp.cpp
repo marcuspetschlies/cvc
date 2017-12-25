@@ -101,11 +101,13 @@ int main(int argc, char **argv) {
   int evecs_num = 0;
   int check_propagator_residual = 0;
   int transverse_projection = 0;
+  int switch_evecs = 0;
   unsigned int Vhalf, VOL3half;
   size_t sizeof_eo_spinor_field, sizeof_eo_spinor_field_timeslice;
   double **eo_stochastic_source = NULL, **eo_stochastic_propagator = NULL;
   double **eo_spinor_field=NULL, **eo_spinor_work=NULL, *eo_evecs_block=NULL;
   double **eo_evecs_field=NULL;
+  double **eo_evecs_field2=NULL;
   double *evecs_eval = NULL, *evecs_lambdainv=NULL, *evecs_4kappasqr_lambdainv = NULL;
   char filename[100], contype[600];
   /* double ratime, retime; */
@@ -133,7 +135,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "cwh?f:p:")) != -1) {
+  while ((c = getopt(argc, argv, "cwh?f:p:s:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -147,6 +149,9 @@ int main(int argc, char **argv) {
       break;
     case 'p':
       transverse_projection = atoi( optarg );
+      break;
+    case 's':
+      switch_evecs = atoi( optarg );
       break;
     case 'h':
     case '?':
@@ -303,11 +308,13 @@ int main(int argc, char **argv) {
     EXIT(11);
   }
 
+#if 0
   exitstatus = tmLQCD_set_deflator_fields(_OP_ID_DN, _OP_ID_UP);
   if( exitstatus > 0) {
     fprintf(stderr, "[loops_hvp] Error from tmLQCD_init_deflator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(8);
   }
+#endif  /* of if 0 */
 
   evecs_eval                = (double*)malloc(evecs_num*sizeof(double));
   evecs_lambdainv           = (double*)malloc(evecs_num*sizeof(double));
@@ -346,6 +353,18 @@ int main(int argc, char **argv) {
   if ( exitstatus != 0) {
     fprintf(stderr, "[loops_hvp] Error from init_2level_buffer, status was %d\n", exitstatus);
     EXIT(1);
+  }
+
+  if ( switch_evecs == 1 ) {
+    /*************************************************
+     * allocate memory for dn-type eo evecs
+     * NO HALO
+     *************************************************/
+    if ( ( exitstatus = init_2level_buffer ( &eo_evecs_field2, evecs_num, _GSI(Vhalf) ) ) != 0 ) {
+      fprintf(stderr, "[loops_hvp] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(1);
+    }
+
   }
 
   /***********************************************************
@@ -420,20 +439,46 @@ int main(int argc, char **argv) {
     spinor_field_eq_spinor_field_ti_co ( eo_evecs_field[i], eo_evecs_field[i], w, Vhalf);
     */
 
-    C_clover_oo (eo_spinor_field[0], eo_evecs_field[i],  gauge_field_with_phase, eo_spinor_work[2], g_mzz_dn[1], g_mzzinv_dn[0]);
-    C_clover_oo (eo_spinor_field[1], eo_spinor_field[0], gauge_field_with_phase, eo_spinor_work[2], g_mzz_up[1], g_mzzinv_up[0]);
+    if ( switch_evecs == 0 ) {
+      /* apply C[ dn-mu = - ] = Cbar */
+      C_clover_oo (eo_spinor_field[0], eo_evecs_field[i],  gauge_field_with_phase, eo_spinor_work[2], g_mzz_dn[1], g_mzzinv_dn[0]);
+      /* apply C[ up-mu = + ] = C  */
+      C_clover_oo (eo_spinor_field[1], eo_spinor_field[0], gauge_field_with_phase, eo_spinor_work[2], g_mzz_up[1], g_mzzinv_up[0]);
 
-    spinor_scalar_product_re(&norm, eo_evecs_field[i], eo_evecs_field[i], Vhalf);
-    spinor_scalar_product_co(&w, eo_spinor_field[1], eo_evecs_field[i], Vhalf);
+      spinor_scalar_product_re(&norm, eo_evecs_field[i],  eo_evecs_field[i], Vhalf);
+      spinor_scalar_product_co(&w,    eo_spinor_field[1], eo_evecs_field[i], Vhalf);
 
-    w.re *= 4.*g_kappa*g_kappa;
-    w.im *= 4.*g_kappa*g_kappa;
+      w.re *= 4.*g_kappa*g_kappa;
+      w.im *= 4.*g_kappa*g_kappa;
 
-    if(g_cart_id == 0) {
-      fprintf(stdout, "# [loops_hvp] evec %.4d norm = %25.16e w = %25.16e +I %25.16e diff = %25.16e\n", i, norm, w.re, w.im, fabs( w.re-evecs_eval[i]));
-    }
+      if(g_cart_id == 0) {
+        fprintf(stdout, "# [loops_hvp] evec %.4d norm = %25.16e w = %25.16e +I %25.16e diff = %25.16e\n", i, norm, w.re, w.im, fabs( w.re-evecs_eval[i]));
+      }
 
-  }
+    } else if ( switch_evecs == 1 ) {
+    /***********************************************************
+     * keep Cbar v_i
+     ***********************************************************/
+      if ( io_proc == 2 && i == 0 ) fprintf( stdout, "# [loops_hvp] switching eigenvector flavor\n");
+      /* apply C[ dn-mu = - ] = Cbar */
+      C_clover_oo (eo_evecs_field2[i], eo_evecs_field[i],  gauge_field_with_phase, eo_spinor_work[2], g_mzz_up[1], g_mzzinv_up[0]);
+      spinor_scalar_product_re ( &norm, eo_evecs_field[i], eo_evecs_field[i], Vhalf);
+      spinor_scalar_product_co ( &w,    eo_evecs_field2[i], eo_evecs_field2[i], Vhalf);
+
+      w.re *= 4.*g_kappa*g_kappa;
+      w.im *= 4.*g_kappa*g_kappa;
+
+      if(g_cart_id == 0) {
+        fprintf(stdout, "# [loops_hvp] evec %.4d norm = %25.16e w = %25.16e +I %25.16e diff = %25.16e\n", i, norm, w.re, w.im, fabs( w.re-evecs_eval[i]));
+      }
+
+      spinor_scalar_product_re ( &norm, eo_evecs_field2[i], eo_evecs_field2[i], Vhalf);
+      norm = 1. / sqrt( norm );
+      spinor_field_ti_eq_re ( eo_evecs_field2[i], norm, Vhalf );
+
+    }  /* end of if swtich evecs equals 1 */
+
+  }  /* end of loops on eigenvectors */
 
   fini_2level_buffer ( &eo_spinor_field );
 
@@ -456,7 +501,11 @@ int main(int argc, char **argv) {
    ***********************************************/
 #ifdef HAVE_LHPC_AFF
   if(io_proc == 2) {
-    sprintf(filename, "%s.%.4d.aff", "loops_hvp", Nconf );
+    if ( switch_evecs == 0 ) {
+      sprintf(filename, "%s.%.4d.aff", "loops_hvp", Nconf );
+    } else if ( switch_evecs == 1 )  {
+      sprintf(filename, "%s.%.4d.aff", "loops_hvp_switched", Nconf );
+    }
     fprintf(stdout, "# [loops_hvp] writing data to file %s\n", filename);
     affw = aff_writer(filename);
     aff_status_str = (char*)aff_writer_errstr(affw);
@@ -483,7 +532,12 @@ int main(int argc, char **argv) {
     EXIT(1);
   }
   /* position space */
-  contract_local_loop_eo_lma ( local_loop_x, eo_evecs_field, evecs_4kappasqr_lambdainv, evecs_num, gauge_field_with_phase, mzz, mzzinv );
+
+  if ( switch_evecs == 0 ) {
+    contract_local_loop_eo_lma ( local_loop_x, eo_evecs_field, evecs_4kappasqr_lambdainv, evecs_num, gauge_field_with_phase, mzz, mzzinv );
+  } else if ( switch_evecs == 1 ) {
+    contract_local_loop_eo_lma ( local_loop_x, eo_evecs_field2, evecs_4kappasqr_lambdainv, evecs_num, gauge_field_with_phase, mzz, mzzinv );
+  }
 
   /* momentum space */
   if ( ( exitstatus = cvc_loop_eo_momentum_projection ( &local_loop_p, local_loop_x, 16, g_sink_momentum_list, g_sink_momentum_number) ) != 0 ) {
@@ -520,8 +574,11 @@ int main(int argc, char **argv) {
   /***********************************************
    * cvc fwd and bwd contraction in position space
    ***********************************************/
-  contract_cvc_loop_eo_lma ( cvc_loop_lma_x, eo_evecs_field, evecs_4kappasqr_lambdainv, evecs_num, gauge_field_with_phase, mzz, mzzinv );
-
+  if ( switch_evecs == 0 ) {
+    contract_cvc_loop_eo_lma ( cvc_loop_lma_x, eo_evecs_field, evecs_4kappasqr_lambdainv, evecs_num, gauge_field_with_phase, mzz, mzzinv );
+  } else if ( switch_evecs == 1 ) {
+    contract_cvc_loop_eo_lma ( cvc_loop_lma_x, eo_evecs_field2, evecs_4kappasqr_lambdainv, evecs_num, gauge_field_with_phase, mzz, mzzinv );
+  }
 
   /***********************************************
    * cvc momentum projection fwd
@@ -644,7 +701,11 @@ int main(int argc, char **argv) {
       /***********************************************
        * orthogonal projection
        ***********************************************/
-      exitstatus = project_propagator_field( eo_stochastic_source[0], eo_stochastic_source[0], 0, eo_evecs_field[0], 1, evecs_num, Vhalf);
+      if ( switch_evecs == 0 ) {
+        exitstatus = project_propagator_field( eo_stochastic_source[0], eo_stochastic_source[0], 0, eo_evecs_field[0], 1, evecs_num, Vhalf);
+      } else if ( switch_evecs == 1 ) {
+        exitstatus = project_propagator_field( eo_stochastic_source[0], eo_stochastic_source[0], 0, eo_evecs_field2[0], 1, evecs_num, Vhalf);
+      }
       if (exitstatus != 0) {
         fprintf(stderr, "[loops_hvp] Error from project_propagator_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(35);
@@ -658,7 +719,11 @@ int main(int argc, char **argv) {
        ***********************************************/
       memset( eo_spinor_work[0], 0, sizeof_eo_spinor_field );
       memcpy( eo_spinor_work[1], eo_stochastic_source[0], sizeof_eo_spinor_field );
-      exitstatus = tmLQCD_invert_eo ( eo_spinor_work[0], eo_spinor_work[1], _OP_ID_UP );
+      if ( switch_evecs == 0 ) {
+        exitstatus = tmLQCD_invert_eo ( eo_spinor_work[0], eo_spinor_work[1], _OP_ID_UP );
+      } else if ( switch_evecs == 1 ) {
+        exitstatus = tmLQCD_invert_eo ( eo_spinor_work[0], eo_spinor_work[1], _OP_ID_DN );
+      }
       if(exitstatus != 0) {
         fprintf(stderr, "[loops_hvp] Error from tmLQCD_invert_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(19);
@@ -816,6 +881,7 @@ int main(int argc, char **argv) {
   exitstatus = tmLQCD_fini_deflator(_OP_ID_UP);
 #endif
   free(eo_evecs_field);
+  fini_2level_buffer ( &eo_evecs_field2 );
 
   free ( evecs_eval );
   free ( evecs_lambdainv );
