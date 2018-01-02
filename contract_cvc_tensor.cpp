@@ -2077,6 +2077,7 @@ int cvc_loop_eo_check_wi_momentum_space_lma ( double **wi, double ***loop_lma, i
 
   for ( int ip = 0; ip < momentum_number; ip++ ) {
     double dtmp[2], phase[2];
+    double norm_accum = 0.;
 
     for ( int ip0 = 0; ip0 < T_global; ip0 ++ ) {
       
@@ -2131,7 +2132,7 @@ int cvc_loop_eo_check_wi_momentum_space_lma ( double **wi, double ***loop_lma, i
       double pJi = -( sinp[0] * jjp[0] + sinp[1] * jjp[2] + sinp[2] * jjp[4] + sinp[3] * jjp[6] ); 
       double pJr =    sinp[0] * jjp[1] + sinp[1] * jjp[3] + sinp[2] * jjp[5] + sinp[3] * jjp[7]; 
 
-      if ( g_cart_id == 0 ) {
+      if ( g_cart_id == 0 && g_verbose > 2) {
         fprintf(stdout, "# [cvc_loop_eo_check_wi_momentum_space_lma] p = %3d %3d %3d %3d "\
             "pJ = %25.16e %25.16e  "\
             "ww = %25.16e %25.16e  "\
@@ -2141,8 +2142,14 @@ int cvc_loop_eo_check_wi_momentum_space_lma ( double **wi, double ***loop_lma, i
             ww[0], ww[1],
             pJr - ww[0], pJi - ww[1]);
       }
+      norm_accum += (pJr - ww[0])*(pJr - ww[0]) + (pJi - ww[1])*(pJi - ww[1]);
 
     }  /* end of loop on ip0  */
+
+    if ( g_cart_id == 0 ) {
+      fprintf(stdout, "# [cvc_loop_eo_check_wi_momentum_space_lma] pvec = %3d %3d %3d norm-diff = %16.7e\n",
+          momentum_list[ip][0], momentum_list[ip][1], momentum_list[ip][2], sqrt( norm_accum ) );
+    }
 
   }  /* end of loop on momenta */
 
