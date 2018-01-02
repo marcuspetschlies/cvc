@@ -2132,9 +2132,14 @@ int cvc_loop_eo_check_wi_momentum_space_lma ( double **wi, double ***loop_lma, i
       double pJr =    sinp[0] * jjp[1] + sinp[1] * jjp[3] + sinp[2] * jjp[5] + sinp[3] * jjp[7]; 
 
       if ( g_cart_id == 0 ) {
-        fprintf(stdout, "# [cvc_loop_eo_check_wi_momentum_space_lma] p = %3d %3d %3d %3d pJ = %25.16e %25.16e  pJ - ww = %25.16e %25.16e\n", 
+        fprintf(stdout, "# [cvc_loop_eo_check_wi_momentum_space_lma] p = %3d %3d %3d %3d "\
+            "pJ = %25.16e %25.16e  "\
+            "ww = %25.16e %25.16e  "\
+            "pJ - ww = %16.7e %16.7e\n", 
             ip0, momentum_list[ip][0], momentum_list[ip][1], momentum_list[ip][2],
-            pJr, pJi, pJr - ww[0], pJi - ww[1] );
+            pJr, pJi,
+            ww[0], ww[1],
+            pJr - ww[0], pJi - ww[1]);
       }
 
     }  /* end of loop on ip0  */
@@ -3379,10 +3384,12 @@ int cvc_loop_eo_check_wi_position_space_stoch ( double ***wwi, double ***loop_st
     double dnormi = dvali - wi[ieo][2*ixeosub+1];
 
 
-    if ( g_verbose > 4 ) fprintf(stdout, "# [cvc_loop_eo_check_wi_position_space_stoch] proc%.4d %3d %3d %3d %3d\t\t\t%25.16e%25.16e\t\t%25.16e %25.16e\n",
+    if ( g_verbose > 4 ) fprintf(stdout, "# [cvc_loop_eo_check_wi_position_space_stoch] proc%.4d x = %3d %3d %3d %3d  dJ = %25.16e %25.16e wi = %25.16e %25.16e dJ - wi = %16.7e %16.7e\n",
         g_cart_id, ix/(LX*LY*LZ) + g_proc_coords[0]*T, (ix%(LX*LY*LZ))/(LY*LZ) + g_proc_coords[1]*LX,
         (ix%(LY*LZ))/LZ + g_proc_coords[2]*LY, ix%LZ + g_proc_coords[3]*LZ, 
-        wi[ieo][2*ixeosub], wi[ieo][2*ixeosub+1], dnormr, dnormi );
+        dvalr, dvali,
+        wi[ieo][2*ixeosub], wi[ieo][2*ixeosub+1], 
+        dnormr, dnormi );
       normt += dnormr * dnormr + dnormi * dnormi;
   }
 #ifdef HAVE_OPENMP
