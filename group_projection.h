@@ -16,6 +16,8 @@ typedef struct {
   char name[10];
   int *r;
   int *rm;
+  int nirrep;
+  char **lirrep;
 } little_group_type; 
 
 typedef struct {
