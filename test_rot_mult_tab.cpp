@@ -148,8 +148,7 @@ int main(int argc, char **argv) {
   /*********************************
    * 2 x spin + 1
    *********************************/
-  Ndim = 2;
-
+  Ndim = 4;
 
   R = rot_init_rotation_matrix (Ndim);
   A = rot_init_rotation_matrix (Ndim);
@@ -189,21 +188,35 @@ int main(int argc, char **argv) {
 
 #endif  /* of if 0 */
 
-  rot_mat_table_type rtab;
+  rot_mat_table_type rtab, rtab2;
 
   init_rot_mat_table ( &rtab );
-
-  if ( ( exitstatus = set_rot_mat_table_spin ( &rtab, Ndim-1, 0 ) ) != 0 ) {
+  if ( ( exitstatus = set_rot_mat_table_spin ( &rtab, 3, 0 ) ) != 0 ) {
     fprintf(stderr, "[test_rot_mult_tab] Error from set_rot_mat_table_spin; status was %d\n", exitstatus );
     exit(1);
   }
 
+  init_rot_mat_table ( &rtab2 );
+  if ( ( exitstatus = set_rot_mat_table_spin ( &rtab2, 1, 0 ) ) != 0 ) {
+    fprintf(stderr, "[test_rot_mult_tab] Error from set_rot_mat_table_spin; status was %d\n", exitstatus );
+    exit(1);
+  }
+
+#if 0
+  /***********************************************************
+   * check rotations for SU property
+   ***********************************************************/
   for ( int i = 0; i < 48; i++ ) {
-
     int notsun = 1 - rot_mat_check_is_sun ( rtab.R[i], rtab.dim);
-    fprintf ( stdout, "# [test_rot_mult_tab] %2d not special unitary is %d\n", i, notsun );
-    if ( notsun ) rot_printf_matrix ( rtab.R[i], rtab.dim, "error", stderr );
-
+    /* fprintf ( stdout, "# [test_rot_mult_tab] %2d not special unitary is %d\n", i, notsun ); */
+    if ( notsun ) {
+      rot_printf_matrix ( rtab.R[i], rtab.dim, "error", stderr );
+      EXIT(2);
+    }
+#if 0
+    /***********************************************************
+     * special case for Ndim = 3, i.e. spin 1
+     ***********************************************************/
     if ( Ndim == 3 ) {
       rot_spherical2cartesian_3x3 ( A, rtab.R[i] );
       int notrealint = 1 - rot_mat_check_is_real_int ( A, rtab.dim );
@@ -221,26 +234,28 @@ int main(int argc, char **argv) {
         EXIT(6);
       }
 
+      /***********************************************************
+       * print rotation matrix in Cartesian basis
+       ***********************************************************/
       sprintf(name, "Akart[%.2d]", i );
       rot_printf_rint_matrix ( A, rtab.dim, name, stdout );
     }  /* end of if Ndim == 3 */
+#endif
+  }  /* end of loop on rotations */
+#endif  /* of if 0 */
 
-  }
-
+#if 0
   /* TEST */
-/*
   for ( int i = 0; i < 48; i++ ) {
     for ( int k = 0; k < 48; k++ ) {
-      if ( k != i ) {
         double diff_norm2 = rot_mat_diff_norm2 ( rtab.R[i], rtab.R[k], rtab.dim );
         if ( diff_norm2 < 5.e-15 ) {
           fprintf(stdout, "# [test_rot_mult_tab]  match %2d is %2d %2d\n", i, i, k);
-        }
       }
     }
   }
-*/
   /* END OF TEST */
+#endif  /* of if 0  */
 
   /* TEST */
 /*
@@ -253,16 +268,21 @@ int main(int argc, char **argv) {
 */
   /* END OF TEST */
 
-  rot_mat_table_printf ( &rtab, "U", stdout );
+  /* rot_mat_table_printf ( &rtab, "U", stdout ); */
 
-  int **rtab_mult_table = NULL;
 
-  exitstatus = rot_mat_mult_table ( &rtab_mult_table, &rtab );
-  if ( exitstatus != 0 ) {
+  int **rtab_mult_table = NULL, **rtab2_mult_table = NULL;
+
+  if ( ( exitstatus = rot_mat_mult_table ( &rtab_mult_table, &rtab ) ) != 0 ) {
     fprintf(stderr, "[test_rot_mult_tab] Error from rot_mat_mult_table, status was %d\n", exitstatus);
     EXIT(1);
   }
 
+  if ( ( exitstatus = rot_mat_mult_table ( &rtab2_mult_table, &rtab2 ) ) != 0 ) {
+    fprintf(stderr, "[test_rot_mult_tab] Error from rot_mat_mult_table, status was %d\n", exitstatus);
+    EXIT(1);
+  }
+#if 0
   int dvec[3] = {0,0,0};
   if ( ! rot_mat_table_is_lg ( &rtab, dvec ) ) {
     fprintf(stderr, "[test_rot_mult_tab] Error from rot_mat_table_is_lg\n");
@@ -270,10 +290,24 @@ int main(int argc, char **argv) {
   } else {
     fprintf(stdout, "# [test_rot_mult_tab] %s irrep %s is lg for d = %3d %3d %3d\n", rtab.irrep, rtab.group, dvec[0], dvec[1], dvec[2] );
   }
+#endif
 
-
+#if 0
+  for ( int i = 0; i < rtab.n; i++ ) {
+    for ( int k = 0; k < rtab.n; k++ ) {
+      if ( rtab_mult_table[i][k] != rtab2_mult_table[i][k] ) {
+        fprintf(stdout, "# [test_rot_mult_tab] mult tab no match for %2d %2d   %2d %2d\n", i,k, rtab_mult_table[i][k], rtab2_mult_table[i][k] );
+      } else {
+        fprintf(stdout, "# [test_rot_mult_tab] mult tab match for %2d %2d   %2d %2d\n", i,k, rtab_mult_table[i][k], rtab2_mult_table[i][k] );
+      }
+    }
+  }
+#endif
   fini_2level_ibuffer ( &rtab_mult_table );
+  fini_2level_ibuffer ( &rtab2_mult_table );
+
   fini_rot_mat_table ( &rtab );
+  fini_rot_mat_table ( &rtab2 );
 
   /***********************************************************
    * finalize
