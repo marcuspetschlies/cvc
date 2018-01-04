@@ -42,12 +42,13 @@ little_group_type *little_groups = NULL;
 /***********************************************************/
 
 int little_group_read_list (little_group_type **lg, char *filename )  {
-  
+ 
+  int exitstatus; 
   char comma[] = ",";
 
-  char line[200];
+  char line[1000];
   int nline = 0;
-  char r_str[100], rm_str[100], r_aux[100];
+  char r_str[100], rm_str[1000], r_aux[1000], lirrep_str[1000];
 
   FILE *ofs = fopen(filename, "r");
   if ( ofs == NULL ) {
@@ -58,37 +59,41 @@ int little_group_read_list (little_group_type **lg, char *filename )  {
   /***********************************************************/
   /***********************************************************/
 
-  while ( fgets ( line, 100, ofs) != NULL) {
+  while ( fgets ( line, 1000, ofs) != NULL) {
     nline++;
   }
   fprintf(stdout, "# [little_group_read_list] number of entries = %d\n", nline);
 
+  /***********************************************************/
+  /***********************************************************/
               
   /***********************************************************
    * allocate lg list
    ***********************************************************/
-  if ( *lg != NULL ) free ( *lg );
-  *lg = (little_group_type* )malloc( nline * sizeof (little_group_type) );
+  little_group_init ( lg, nline );
   if ( *lg == NULL ) {
-    fprintf(stderr, "[little_group_read_table] Error from malloc\n");
+    fprintf(stderr, "[little_group_read_table] Error from little_group_init\n");
     return(-2);
   }
+
+  /***********************************************************/
+  /***********************************************************/
 
   /***********************************************************
    * read line-wise from file
    ***********************************************************/
   rewind( ofs );
   for ( int i = 0; i < nline; i++ ) {
-    fscanf(ofs, "%s %d %d %d %s %s %s",  
+    fscanf(ofs, "%s %d %d %d %s %s %s %s",  
         (*lg)[i].parent_name,
         (*lg)[i].d, (*lg)[i].d+1, (*lg)[i].d+2,
         (*lg)[i].name,
-        r_str, rm_str );
+        r_str, rm_str, lirrep_str );
 
     /* TEST */
     if ( g_verbose > 3 ) {
-      fprintf(stdout, "# [little_group_read_list] %s --- %d --- %d --- %d --- %s --- %s --- %s\n", (*lg)[i].parent_name, 
-          (*lg)[i].d[0], (*lg)[i].d[1], (*lg)[i].d[2], (*lg)[i].name, r_str, rm_str);
+      fprintf(stdout, "# [little_group_read_list] %s --- %d --- %d --- %d --- %s --- %s --- %s --- %s\n", (*lg)[i].parent_name, 
+          (*lg)[i].d[0], (*lg)[i].d[1], (*lg)[i].d[2], (*lg)[i].name, r_str, rm_str, lirrep_str);
     }
 
 
@@ -148,7 +153,50 @@ int little_group_read_list (little_group_type **lg, char *filename )  {
       }
       (*lg)[i].rm[k] = atoi(ptr) - 1;
     }
-  }
+
+
+
+    /***********************************************************
+     * extract the list of irreps for current little group
+     ***********************************************************/
+    strcpy ( r_aux, lirrep_str );
+    ptr = strtok( r_aux, comma );
+    (*lg)[i].nirrep = 1;
+    while ( (ptr = strtok( NULL, comma ) ) != NULL ) (*lg)[i].nirrep++;
+    fprintf(stdout, "# [little_group_read_list] %d nirrep %d\n", i, (*lg)[i].nirrep);
+
+    if ( ( exitstatus = init_2level_cbuffer ( &((*lg)[i].lirrep ), (*lg)[i].nirrep, 20 ) ) != 0 ) {
+      fprintf(stderr, "[little_group_read_list] Error from init_2level_cbuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(-3);
+    }
+
+    strcpy ( r_aux, lirrep_str );
+    ptr = strtok( r_aux, comma );
+    /* fprintf(stdout, "# [little_group_read_list] 0 ptr = %s\n", ptr);  */
+
+    strcpy ( (*lg)[i].lirrep[0] , ptr );
+    for ( int k = 1; k < (*lg)[i].nirrep; k++ ) {
+      ptr = strtok( NULL, comma );
+      /* fprintf(stdout, "# [little_group_read_list] %d ptr = %s\n", k, ptr); */
+      if ( ptr == NULL ) {
+        fprintf(stderr, "[little_group_read_list] Error from strtok\n");
+        return(-5);
+      }
+      strcpy( (*lg)[i].lirrep[k], ptr );
+    }
+    
+    fprintf(stdout, "# [little_group_read_list]\n");
+
+  }  /* end of loop on lines */
+
+  /***********************************************************/
+  /***********************************************************/
+
+  fclose( ofs );
+
+  /***********************************************************/
+  /***********************************************************/
+
   return(nline);
 
 }  /* end of little_group_read_list */
@@ -173,7 +221,11 @@ void little_group_init ( little_group_type **lg, int n ) {
   for ( int i = 0; i < n; i++ ) {
     (*lg)[i].r  = NULL;
     (*lg)[i].rm = NULL;
+
+    (*lg)[i].nirrep = 0;
+    (*lg)[i].lirrep = NULL;
   }
+
   return;
 }  /* end of little_group_init */
 
@@ -186,6 +238,8 @@ void little_group_fini ( little_group_type **lg, int n ) {
   for ( int i = 0; i < n; i++ ) {
     if ( (*lg)[i].r  != NULL ) free ( (*lg)[i].r  );
     if ( (*lg)[i].rm != NULL ) free ( (*lg)[i].rm );
+
+    fini_2level_cbuffer( &((*lg)[i].lirrep) );
   }
 
   free ( *lg ); *lg = NULL;
@@ -198,7 +252,9 @@ void little_group_fini ( little_group_type **lg, int n ) {
 void little_group_show ( little_group_type *lg, FILE*ofs, int n) {
 
   for ( int i = 0; i < n; i++ ) {
-    fprintf(stdout, "# [little_group_show]\n# [little_group_show]\n# [little_group_show]\n# [little_group_show] %4d %s\n", i, lg[i].name );
+    fprintf(stdout, "# [little_group_show]\n");
+    fprintf(stdout, "# [little_group_show] ----------------------------------------------------------------------------------\n");
+    fprintf(stdout, "# [little_group_show]\n# [little_group_show] %4d %s\n", i, lg[i].name );
     fprintf(stdout, "# [little_group_show] parent name %s\n", lg[i].parent_name );
     fprintf(stdout, "# [little_group_show] d-vector (%3d, %3d, %3d)\n", lg[i].d[0], lg[i].d[1], lg[i].d[2] );
     /* fprintf(stdout, "# [little_group_show] %4d %s\n", i, lg[i].name ); */
@@ -210,9 +266,12 @@ void little_group_show ( little_group_type *lg, FILE*ofs, int n) {
     for ( int k = 0; k < lg[i].nrm; k++ ) {
       fprintf(stdout, "# [little_group_show]   rm[%2d] = %3d\n", k, lg[i].rm[k] );
     }
+    for ( int k = 0; k < lg[i].nirrep; k++ ) {
+      fprintf(stdout, "# [little_group_show] irrep[%d] = %20s\n", k, lg[i].lirrep[k] );
+    }
   }
   return;
-}  /* end of little_group_fini */
+}  /* end of little_group_show */
 
 /***********************************************************/
 /***********************************************************/
@@ -591,7 +650,7 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
 
       for ( int i = 0; i < nrot; i++ ) {
         t->rid[i] = i;
-        rot_rotation_matrix_spherical_basis ( t->R[i], 2, cubic_group_double_cover_rotations[i].n, cubic_group_double_cover_rotations[i].w );
+        rot_rotation_matrix_spherical_basis ( t->R[i], 1, cubic_group_double_cover_rotations[i].n, cubic_group_double_cover_rotations[i].w );
       }
 
       memcpy ( t->rmid, t->rmid, nrot * sizeof(int) );
@@ -609,7 +668,7 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
 
       for ( int i = 0; i < nrot; i++ ) {
         t->rid[i] = i;
-        rot_rotation_matrix_spherical_basis ( t->R[i], 2, cubic_group_double_cover_rotations[i].n, cubic_group_double_cover_rotations[i].w );
+        rot_rotation_matrix_spherical_basis ( t->R[i], 1, cubic_group_double_cover_rotations[i].n, cubic_group_double_cover_rotations[i].w );
       }
 
       /* 6C8, 6C8' additional sign */
@@ -808,9 +867,9 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
 
       for ( int i = 0; i < nrot; i++ ) {
         int k = t->rid[i];
-        rot_rotation_matrix_spherical_basis ( t->R[i], 2, cubic_group_double_cover_rotations[k].n, cubic_group_double_cover_rotations[k].w );
+        rot_rotation_matrix_spherical_basis ( t->R[i], 1, cubic_group_double_cover_rotations[k].n, cubic_group_double_cover_rotations[k].w );
         k = t->rmid[i];
-        rot_rotation_matrix_spherical_basis ( t->IR[i], 2, cubic_group_double_cover_rotations[k].n, cubic_group_double_cover_rotations[k].w );
+        rot_rotation_matrix_spherical_basis ( t->IR[i], 1, cubic_group_double_cover_rotations[k].n, cubic_group_double_cover_rotations[k].w );
         rot_mat_ti_eq_re ( t->IR[i], -1., 2);
       }
 
@@ -829,9 +888,9 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
 
       for ( int i = 0; i < nrot; i++ ) {
         int k = t->rid[i];
-        rot_rotation_matrix_spherical_basis ( t->R[i], 2, cubic_group_double_cover_rotations[k].n, cubic_group_double_cover_rotations[k].w );
+        rot_rotation_matrix_spherical_basis ( t->R[i], 1, cubic_group_double_cover_rotations[k].n, cubic_group_double_cover_rotations[k].w );
         k = t->rmid[i];
-        rot_rotation_matrix_spherical_basis ( t->IR[i], 2, cubic_group_double_cover_rotations[k].n, cubic_group_double_cover_rotations[k].w );
+        rot_rotation_matrix_spherical_basis ( t->IR[i], 1, cubic_group_double_cover_rotations[k].n, cubic_group_double_cover_rotations[k].w );
       }
 
       /* 2C8' */
@@ -950,9 +1009,9 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
 
       for ( int i = 0; i < nrot; i++ ) {
         int k = t->rid[i];
-        rot_rotation_matrix_spherical_basis ( t->R[i], 2, cubic_group_double_cover_rotations[k].n, cubic_group_double_cover_rotations[k].w );
+        rot_rotation_matrix_spherical_basis ( t->R[i], 1, cubic_group_double_cover_rotations[k].n, cubic_group_double_cover_rotations[k].w );
         k = t->rmid[i];
-        rot_rotation_matrix_spherical_basis ( t->IR[i], 2, cubic_group_double_cover_rotations[k].n, cubic_group_double_cover_rotations[k].w );
+        rot_rotation_matrix_spherical_basis ( t->IR[i], 1, cubic_group_double_cover_rotations[k].n, cubic_group_double_cover_rotations[k].w );
         rot_mat_ti_eq_re ( t->IR[i], -1., 2);
       }
     }
@@ -982,7 +1041,9 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
         t->IR[i][0][0] = 1.;
       }
 
-    /* LG 2C3v irrep A2 */
+    /***********************************************************
+     * LG 2C3v irrep A2
+     ***********************************************************/
     } else if ( strcmp ( irrep, "A2" ) == 0 ) {
 
       if ( ( exitstatus = alloc_rot_mat_table ( t, group, irrep, 1, nrot) ) != 0 ) {
@@ -1140,9 +1201,9 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
 
       for ( int i = 0; i < 4; i++ ) {
         int k = t->rid[i];
-        rot_rotation_matrix_spherical_basis ( t->R[i], 2, cubic_group_double_cover_rotations[k].n, cubic_group_double_cover_rotations[k].w );
+        rot_rotation_matrix_spherical_basis ( t->R[i], 1, cubic_group_double_cover_rotations[k].n, cubic_group_double_cover_rotations[k].w );
         k = t->rmid[i];
-        rot_rotation_matrix_spherical_basis ( t->IR[i], 2, cubic_group_double_cover_rotations[k].n, cubic_group_double_cover_rotations[k].w );
+        rot_rotation_matrix_spherical_basis ( t->IR[i], 1, cubic_group_double_cover_rotations[k].n, cubic_group_double_cover_rotations[k].w );
         rot_mat_ti_eq_re ( t->IR[i], -1., 2);
       }
 
