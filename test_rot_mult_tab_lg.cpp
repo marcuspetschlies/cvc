@@ -204,9 +204,11 @@ int main(int argc, char **argv) {
 
 
   for ( int ilg = 0; ilg < nlg; ilg++ )
+  // for ( int ilg = 0; ilg <= 0; ilg++ )
   {
 
     for ( int iirrep = 0; iirrep < lg[ilg].nirrep; iirrep++ )
+    // for ( int iirrep = 0; iirrep <= 0; iirrep++ )
     {
 
       fprintf(stdout, "# [test_rot_mult_tab_lg] lg %s irrep %s\n", lg[ilg].name, lg[ilg].lirrep[iirrep] );
@@ -219,13 +221,37 @@ int main(int argc, char **argv) {
         exit(1);
       }
 
-      fini_rot_mat_table ( &rtab ); /* of if 0 */
+      sprintf( filename, "%s.%s.mat", rtab.group, rtab.irrep );
+      FILE *ofs = fopen ( filename, "w" );
+      rot_mat_table_printf ( &rtab, "U", ofs );
+      fclose ( ofs );
+     
+      double _Complex **rtab_characters = NULL;
+
+      if ( ( exitstatus = rot_mat_table_character ( &rtab_characters, &rtab ) ) != 0 ) {
+        fprintf(stderr, "[test_rot_mult_tab_lg] Error from rot_mat_table_character; status was %d\n", exitstatus );
+        exit(1);
+      }
+
+      sprintf( filename, "%s.%s.character", rtab.group, rtab.irrep );
+      ofs = fopen ( filename, "w" );
+      for ( int i = 0; i < rtab.n; i++ ) {
+        fprintf( ofs, "%s  %s   R%.2d  %f  %f\n", rtab.group, rtab.irrep, rtab.rid[i]+1, creal ( rtab_characters[0][i] ), cimag ( rtab_characters[0][i] ));
+      }
+      fprintf( ofs, "\n");
+      for ( int i = 0; i < rtab.n; i++ ) {
+        fprintf( ofs, "%s  %s  IR%.2d  %f  %f\n", rtab.group, rtab.irrep, rtab.rmid[i]+1, creal ( rtab_characters[1][i] ), cimag ( rtab_characters[1][i] ));
+      }
+      fclose ( ofs );
+
+      fini_rot_mat_table ( &rtab );
+      fini_2level_zbuffer ( &rtab_characters );
 
     }
 
   }  /* end of loop on irreps */
 #if 0
-#endif
+#endif  /* of if 0 */
 
 
   little_group_fini ( &lg, nlg );
@@ -305,7 +331,6 @@ int main(int argc, char **argv) {
 */
   /* END OF TEST */
 
-  /* rot_mat_table_printf ( &rtab, "U", stdout ); */
 
 #if 0
   int **rtab_mult_table = NULL, **rtab2_mult_table = NULL;
@@ -362,6 +387,8 @@ int main(int argc, char **argv) {
     fprintf(stdout, "# [test_rot_mult_tab_lg] %s# [test_rot_mult_tab_lg] end of run\n", ctime(&g_the_time));
     fprintf(stderr, "# [test_rot_mult_tab_lg] %s# [test_rot_mult_tab_lg] end of run\n", ctime(&g_the_time));
   }
+
+  free_geometry();
 
 #ifdef HAVE_MPI
   mpi_fini_datatypes();

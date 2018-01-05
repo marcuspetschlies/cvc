@@ -242,6 +242,7 @@ int main(int argc, char **argv) {
     }  /* end of if Ndim == 3 */
 #endif
   }  /* end of loop on rotations */
+
 #endif  /* of if 0 */
 
 #if 0
@@ -322,6 +323,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "# [test_rot_mult_tab] %s# [test_rot_mult_tab] end of run\n", ctime(&g_the_time));
   }
 
+  free_geometry();
 #ifdef HAVE_MPI
   mpi_fini_datatypes();
   MPI_Finalize();
