@@ -449,6 +449,7 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
 
       for ( int i = 0; i < nrot; i++ ) { 
         t->rid[i]      = i; 
+        t->rmid[i]     = i; 
         t->R[i][0][0]  = 1.;
         t->IR[i][0][0] = 1.;
       }
@@ -595,8 +596,8 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
       t->R[46][0][0] = -ONE_HALF;   t->R[46][1][1] =  ONE_HALF;
       t->R[46][0][1] =  SQRT3_HALF; t->R[46][1][0] =  SQRT3_HALF;
 
-      memcpy ( t->rmid, t->rmid, 48*sizeof(int) );
-      memcpy ( t->IR[0][0], t->R[0][0], 48*4*sizeof(double _Complex ) );
+      memcpy ( t->rmid, t->rid, nrot * sizeof(int) );
+      memcpy ( t->IR[0][0], t->R[0][0], nrot * 4 * sizeof(double _Complex ) );
 
     /***********************************************************
      * LG 2Oh irrp T1
@@ -613,7 +614,7 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
         rot_rotation_matrix_spherical_basis ( t->R[i], 2, cubic_group_double_cover_rotations[i].n, cubic_group_double_cover_rotations[i].w );
       }
       
-      memcpy ( t->rmid, t->rmid, nrot * sizeof(int) );
+      memcpy ( t->rmid, t->rid, nrot * sizeof(int) );
       memcpy ( t->IR[0][0], t->R[0][0], nrot*9*sizeof(double _Complex ) );
 
     /* LG 2Oh irrep T2 */
@@ -635,7 +636,7 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
       /* 12C4' additional minus sign, R36 to R47 */
       for ( int i = 35; i <= 46; i++ ) { rot_mat_ti_eq_re ( t->R[i], -1., 3 ); }
           
-      memcpy ( t->rmid, t->rmid, nrot * sizeof( int ) );
+      memcpy ( t->rmid, t->rid, nrot * sizeof( int ) );
       memcpy ( t->IR[0][0], t->R[0][0], nrot * 9 * sizeof(double _Complex ) );
 
     /***********************************************************
@@ -653,7 +654,7 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
         rot_rotation_matrix_spherical_basis ( t->R[i], 1, cubic_group_double_cover_rotations[i].n, cubic_group_double_cover_rotations[i].w );
       }
 
-      memcpy ( t->rmid, t->rmid, nrot * sizeof(int) );
+      memcpy ( t->rmid, t->rid, nrot * sizeof(int) );
       memcpy ( t->IR[0][0], t->R[0][0], nrot * 4 * sizeof(double _Complex ) );
 
     /***********************************************************
@@ -678,7 +679,7 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
       for ( int i = 35; i <= 46; i++ ) { rot_mat_ti_eq_re ( t->R[i], -1., 2 ); }
 
 
-      memcpy ( t->rmid, t->rmid, nrot * sizeof(int) );
+      memcpy ( t->rmid, t->rid, nrot * sizeof(int) );
       memcpy ( t->IR[0][0], t->R[0][0], nrot * 4 * sizeof(double _Complex ) );
 
     /***********************************************************
@@ -696,7 +697,7 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
         rot_rotation_matrix_spherical_basis ( t->R[i], 3, cubic_group_double_cover_rotations[i].n, cubic_group_double_cover_rotations[i].w );
       }
 
-      memcpy ( t->rmid, t->rmid, nrot * sizeof(int) );
+      memcpy ( t->rmid, t->rid, nrot * sizeof(int) );
       memcpy ( t->IR[0][0], t->R[0][0], nrot * 16 * sizeof(double _Complex ) );
 
     } else {
@@ -1199,7 +1200,7 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
       memcpy ( t->rid,  rid,  nrot * sizeof(int) );
       memcpy ( t->rmid, rmid, nrot * sizeof(int) );
 
-      for ( int i = 0; i < 4; i++ ) {
+      for ( int i = 0; i < nrot; i++ ) {
         int k = t->rid[i];
         rot_rotation_matrix_spherical_basis ( t->R[i], 1, cubic_group_double_cover_rotations[k].n, cubic_group_double_cover_rotations[k].w );
         k = t->rmid[i];
@@ -1226,19 +1227,23 @@ void rot_mat_table_printf ( rot_mat_table_type *t, char*name, FILE*ofs ) {
 
   char name_full[100];
   fprintf( ofs, "# [rot_mat_table_printf] %s.group = %s\n", name, t->group );
-  fprintf( ofs, "# [rot_mat_table_printf] %s.irrep = %s",   name, t->irrep );
-  fprintf( ofs, "# [rot_mat_table_printf] %s.n     = %d",   name, t->n );
-  fprintf( ofs, "# [rot_mat_table_printf] %s.dim   = %d",   name, t->dim );
+  fprintf( ofs, "# [rot_mat_table_printf] %s.irrep = %s\n", name, t->irrep );
+  fprintf( ofs, "# [rot_mat_table_printf] %s.n     = %d\n", name, t->n );
+  fprintf( ofs, "# [rot_mat_table_printf] %s.dim   = %d\n", name, t->dim );
 
   for ( int i = 0; i < t->n; i++ ) {
     sprintf( name_full, "%s ( R[%2d] )", name, t->rid[i] );
     rot_printf_matrix ( t->R[i], t->dim, name_full, ofs );
+    fprintf( ofs, "\n");
   }
+  fprintf( ofs, "\n\n");
 
   for ( int i = 0; i < t->n; i++ ) {
     sprintf( name_full, "%s ( IR[%2d] )", name, t->rmid[i] );
     rot_printf_matrix ( t->IR[i], t->dim, name_full, ofs );
+    fprintf( ofs, "\n");
   }
+  fprintf( ofs, "\n\n");
   return;
 }  /* end of rot_mat_table_printf */
 
@@ -1552,4 +1557,36 @@ int rot_mat_table_get_d2d ( rot_mat_table_type *t, int d1[3], int d2[3] ) {
 
 /***********************************************************/
 /***********************************************************/
+
+/***********************************************************
+ * function to make character table
+ ***********************************************************/
+int rot_mat_table_character ( double _Complex ***rc, rot_mat_table_type *t ) {
+  
+  int exitstatus;
+
+  if ( *rc == NULL ) {
+    if ( ( exitstatus = init_2level_zbuffer ( rc, 2, t->n ) ) != 0 ) {
+      fprintf(stdout, "[rot_mat_table_character] Error from init_2level_zbuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      return(1);
+    }
+  }
+
+  memset( (*rc)[0], 0, 2*t->n*sizeof(double _Complex ) );
+  for ( int i = 0; i < t->n; i++ ) {
+    for ( int k = 0; k < t->dim; k++ ) {
+      (*rc)[0][i] += t->R[i][k][k];
+    }
+    for ( int k = 0; k < t->dim; k++ ) {
+      (*rc)[1][i] += t->IR[i][k][k];
+    }
+  }  /* end of loop on rotations */
+
+  return(0);
+}  /* end of rot_mat_table_character */
+
+
+/***********************************************************/
+/***********************************************************/
+
 }  /* end of namespace cvc */
