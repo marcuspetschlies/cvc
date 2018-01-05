@@ -102,7 +102,7 @@ void rot_init_block_params (void) {
  ***********************************************************/
 void rot_printf_matrix (double _Complex **R, int N, char *A, FILE*ofs ) {
   if ( g_cart_id == 0 ) {
-    fprintf(ofs, "%s <- array(dim = c(%d , %d))\n", A, N, N);
+    /* fprintf(ofs, "%s <- array(dim = c(%d , %d))\n", A, N, N); */
     for( int ik = 0; ik < N; ik++ ) {
     for( int il = 0; il < N; il++ ) {
       fprintf(ofs, "%s[%d,%d] <- %25.16e + %25.16e*1.i\n", A, ik+1, il+1, creal( R[ik][il] ), cimag( R[ik][il] ));
@@ -224,7 +224,6 @@ void rot_mat_assign (double _Complex **C, double _Complex **R, int N) {
 
 /***********************************************************/
 /***********************************************************/
-
 
 /***********************************************************
  *
@@ -385,24 +384,43 @@ double rot_mat_norm2 (double _Complex **R, int N) {
 /***********************************************************/
 
 /***********************************************************
+ * 3 checks:
  *
+ * || R R^+ - unit matrix || < eps
+ * | Re(det(R)) -1 |         < eps
+ * | Im(det(R))    |         < eps
  ***********************************************************/
 int rot_mat_check_is_sun (double _Complex **R, int N) {
   const double eps = 5.e-15;
   double _Complex **A = NULL;
   double _Complex z = determinant_dxd (R, N);
 
+#if 0
   if( init_2level_buffer ( (double***)(&A), N, 2*N ) != 0 ) {
     EXIT (1);
   }
+  rot_mat_ti_mat_adj (A, R, R, N);
+  double d = rot_mat_norm2 (A, N);
+  fini_2level_buffer( (double***)(&A));
+  return(  (int)( ( fabs(d - N) < eps ) && ( fabs( creal(z) - 1 ) < eps ) && ( fabs( cimag(z) ) < eps ) ) );
+#endif  /* of if 0 */
 
+  if( init_2level_zbuffer ( &A, N, N ) != 0 ) { return (0); }
+  /* A <- R x R^+ */
   rot_mat_ti_mat_adj (A, R, R, N);
 
-  double d = rot_mat_norm2 (A, N);
+  /* A <- A - unit matrix */
+  for ( int i = 0; i < N; i++ )  { A[i][i] -= 1.; }
 
-  fini_2level_buffer( (double***)(&A));
+  /* d = tr[ A x A^+ ] */
+  double d = sqrt( rot_mat_norm2 (A, N) );
 
-  return(  (int)( ( fabs(d - N) < eps ) && ( fabs( creal(z) - 1 ) < eps ) && ( fabs( cimag(z) ) < eps ) ) );
+  fini_2level_zbuffer( &A);
+
+  /* fprintf( stdout, "# [rot_mat_check_is_sun] det (R) = %e  %e\n", creal(z), cimag(z) );
+  fprintf( stdout, "# [rot_mat_check_is_sun] d       = %e\n", d ); */
+
+  return(  (int)( ( d < eps ) && ( fabs( creal(z) - 1 ) < eps ) && ( fabs( cimag(z) ) < eps ) ) );
 
 }  /* end of rot_mat_check_is_sun */
 
