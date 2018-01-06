@@ -1589,4 +1589,40 @@ int rot_mat_table_character ( double _Complex ***rc, rot_mat_table_type *t ) {
 /***********************************************************/
 /***********************************************************/
 
+/***********************************************************
+ * test orthogonality relation for irrep matrices
+ ***********************************************************/
+int rot_mat_table_orthogonality ( rot_mat_table_type *t1, rot_mat_table_type *t2 ) {
+
+  if ( t1->n != t2->n ) {
+    fprintf( stderr, "[rot_mat_table_orthogonality] Error, number of elements must be the same\n");
+    return(1);
+  }
+
+  if ( strcmp( t1->group, t2->group ) != 0 ) { 
+    fprintf( stderr, "[rot_mat_table_orthogonality] Error, groups must be the same\n");
+    return(2);
+  }
+
+  /* loop on matrix elements of t1 */
+  for ( int i1 = 0; i1 < t1->dim; i1++ ) {
+  for ( int i2 = 0; i2 < t1->dim; i2++ ) {
+
+    /* loop on matrix elements of t2 */
+    for ( int k1 = 0; k1 < t2->dim; k1++ ) {
+    for ( int k2 = 0; k2 < t2->dim; k2++ ) {
+      
+      for ( int l = 0; l < t1->n; l++ ) {
+        
+      }
+
+
+    }}
+  }}
+
+  return(0);
+}  /* end of rot_mat_table_orthogonality */
+
+/***********************************************************/
+/***********************************************************/
 }  /* end of namespace cvc */

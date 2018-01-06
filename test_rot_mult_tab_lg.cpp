@@ -233,6 +233,7 @@ int main(int argc, char **argv) {
         exit(1);
       }
 
+      /* TEST character tables */
       sprintf( filename, "%s.%s.character", rtab.group, rtab.irrep );
       ofs = fopen ( filename, "w" );
       for ( int i = 0; i < rtab.n; i++ ) {
@@ -243,9 +244,9 @@ int main(int argc, char **argv) {
         fprintf( ofs, "%s  %s  IR%.2d  %f  %f\n", rtab.group, rtab.irrep, rtab.rmid[i]+1, creal ( rtab_characters[1][i] ), cimag ( rtab_characters[1][i] ));
       }
       fclose ( ofs );
+      fini_2level_zbuffer ( &rtab_characters );
 
       fini_rot_mat_table ( &rtab );
-      fini_2level_zbuffer ( &rtab_characters );
 
     }
 
