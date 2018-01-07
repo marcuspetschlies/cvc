@@ -20,6 +20,9 @@ typedef struct {
   char **lirrep;
 } little_group_type; 
 
+/********************************************************/
+/********************************************************/
+
 typedef struct {
 
   int n;
@@ -32,6 +35,21 @@ typedef struct {
   double _Complex ***IR;
 
 } rot_mat_table_type;
+
+/********************************************************/
+/********************************************************/
+
+typedef struct {
+  int n;
+  rot_mat_table_type *rspin;
+  rot_mat_table_type *rtarget;
+  rot_mat_table_type *rp;
+  int P[3];
+  int**p;
+  double _Complex *c;
+  char correlator_name[200];
+
+} little_group_projector_type
 
 /********************************************************/
 /********************************************************/
@@ -69,6 +87,10 @@ int rot_mat_table_get_d2d ( rot_mat_table_type *t, int d1[3], int d2[3] );
 int rot_mat_table_character ( double _Complex ***rc, rot_mat_table_type *t );
 
 int rot_mat_table_orthogonality ( rot_mat_table_type *t1, rot_mat_table_type *t2 );
+
+int init_little_group_projector (little_group_projector_type *p );
+int fini_little_group_projector (little_group_projector_type *p );
+
 
 }  /* end of namespace cvc */
 

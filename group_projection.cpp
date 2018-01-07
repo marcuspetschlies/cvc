@@ -1664,4 +1664,83 @@ int rot_mat_table_orthogonality ( rot_mat_table_type *t1, rot_mat_table_type *t2
 
 /***********************************************************/
 /***********************************************************/
+
+/***********************************************************
+ *
+ ***********************************************************/
+
+int init_little_group_projector (little_group_projector_type *p ) {
+
+  p->n = 0;
+  p->rspin = NULL;
+  p->rtarget = NULL;
+  p->rp = NULL;
+  p->P[0] = 0;
+  p->P[1] = 0;
+  p->P[2] = 0;
+  p->p = NULL;
+  p->c = NULL;
+  strcpy ( correlator_name, "NA" );
+  
+  return(0);
+}   /* end of init_little_group_projector */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ *
+ ***********************************************************/
+int fini_little_group_projector (little_group_projector_type *p ) {
+
+  for ( int i = 0; i < p->n; i++ ) {
+    fini_rot_mat_table ( &(p->rspin) );
+    fini_rot_mat_table ( &(p->rtarget) );
+    fini_rot_mat_table ( &(p->rp) );
+  }
+  p->P[0] = 0;
+  p->P[1] = 0;
+  p->P[2] = 0;
+  
+  fini_2level_ibuffer ( &(p->p) );
+
+  if ( p->c != NULL  ) {
+    free ( p->c );
+    p->c = NULL;
+  }
+  strcpy ( correlator_name, "NA" );
+  p->n = 0;
+  return(0);
+}   /* end of init_little_group_projector */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ *
+ ***********************************************************/
+
+int little_group_projector_show (little_group_projector_type *p, FILE*ofs ) {
+
+  fprintf( ofs, "# [little_group_projector_show] number of interpolators = %d\n" p->n);
+
+   rot_mat_table_type *rspin;
+     rot_mat_table_type *rtarget;
+       rot_mat_table_type *rp;
+  
+  fprintf( ofs, "# [little_group_projector_show] total momentum P = %2d %2d %2d\n", p->P[0], p->P[1], p->P[2] );
+ 
+
+             int**p;
+             double _Complex *c;
+               char correlator_name[200];
+
+
+}
+
+
+
+/***********************************************************/
+/***********************************************************/
+
 }  /* end of namespace cvc */
