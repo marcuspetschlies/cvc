@@ -145,7 +145,8 @@ int main(int argc, char **argv) {
   rlxd_init(2, g_seed);
 
   little_group_type *lg = NULL;
-  int nlg = 0;
+  int nlg = 0, nirrep = 0;
+  rot_mat_table_type **rtab = NULL;
 
   if ( ( nlg = little_group_read_list ( &lg, "little_groups_2Oh.tab") ) <= 0 )
   {
@@ -156,52 +157,23 @@ int main(int argc, char **argv) {
 
   little_group_show ( lg, stdout, nlg );
 
+  for ( int i = 0; i < nlg; i++ ) {
+    nirrep += lg[i].nirrep;
+  }
+  fprintf(stdout, "# [test_rot_mult_tab_lg] total number of irreps = %d\n", nirrep );
+  rtab = ( rot_mat_table_type **)malloc ( nlg * sizeof( rot_mat_table_type *) );
+  rtab[0] = ( rot_mat_table_type *)malloc ( nirrep * sizeof( rot_mat_table_type) );
+  for ( int i = 1; i < nlg; i++ ) {
+    rtab[i] = rtab[i-1] + lg[i-1].nirrep;
+  }
 
+  
+  /******************************************************************/
+  /******************************************************************/
 
-#if 0
-  /*********************************
-   * 2 x spin + 1
-   *********************************/
-  Ndim = 4;
-
-  R = rot_init_rotation_matrix (Ndim);
-  A = rot_init_rotation_matrix (Ndim);
-  B = rot_init_rotation_matrix (Ndim);
-
-
-  /***********************************************************
-   * loop on rotations
-   ***********************************************************/
-  for(int irot=0; irot < 48; irot++ )
-  {
-
-    if (g_cart_id == 0 ) {
-      fprintf(stdout, "# [test_rot_mult_tab_lg] rotation no. %2d n = (%2d, %2d, %2d) w = %16.7e pi\n", irot,
-          cubic_group_double_cover_rotations[irot].n[0], cubic_group_double_cover_rotations[irot].n[1], cubic_group_double_cover_rotations[irot].n[2],
-          cubic_group_double_cover_rotations[irot].w);
-    }
-
-    rot_rotation_matrix_spherical_basis ( R, Ndim-1, cubic_group_double_cover_rotations[irot].n, cubic_group_double_cover_rotations[irot].w );
-
-    sprintf(name, "Ashpe[%.2d]", irot);
-    rot_printf_matrix ( R, Ndim, name, stdout );
-
-
-    rot_spherical2cartesian_3x3 (A, R);
-    if ( rot_mat_check_is_real_int ( A, Ndim ) ) {
-      if (g_cart_id == 0 )
-        fprintf(stdout, "# [test_rot_mult_tab_lg] rot_mat_check_is_real_int matrix A rot %2d ok\n", irot);
-    } else {
-      EXIT(6);
-    }
-
-    sprintf(name, "Akart[%.2d]", irot);
-    rot_printf_rint_matrix (A, Ndim, name, stdout );
-
-  }  /* end of loop on rotations */
-
-#endif  /* of if 0 */
-
+  /******************************************************************
+   * loop on little groups
+   ******************************************************************/
 
   for ( int ilg = 0; ilg < nlg; ilg++ )
   // for ( int ilg = 0; ilg <= 0; ilg++ )
@@ -213,40 +185,40 @@ int main(int argc, char **argv) {
 
       fprintf(stdout, "# [test_rot_mult_tab_lg] lg %s irrep %s\n", lg[ilg].name, lg[ilg].lirrep[iirrep] );
 
-      rot_mat_table_type rtab;
-      init_rot_mat_table ( &rtab );
+      rot_mat_table_type *_rtab = &(rtab[ilg][iirrep]);
 
-      if ( ( exitstatus = set_rot_mat_table_cubic_group_double_cover ( &rtab, lg[ilg].name, lg[ilg].lirrep[iirrep] ) ) != 0 ) {
+      init_rot_mat_table ( _rtab );
+
+      if ( ( exitstatus = set_rot_mat_table_cubic_group_double_cover ( _rtab, lg[ilg].name, lg[ilg].lirrep[iirrep] ) ) != 0 ) {
         fprintf(stderr, "[test_rot_mult_tab_lg] Error from set_rot_mat_table_cubic_group_double_cover; status was %d\n", exitstatus );
         exit(1);
       }
 
-      sprintf( filename, "%s.%s.mat", rtab.group, rtab.irrep );
+      sprintf( filename, "%s.%s.mat", _rtab->group, _rtab->irrep );
       FILE *ofs = fopen ( filename, "w" );
-      rot_mat_table_printf ( &rtab, "U", ofs );
+      rot_mat_table_printf ( _rtab, "U", ofs );
       fclose ( ofs );
      
       double _Complex **rtab_characters = NULL;
 
-      if ( ( exitstatus = rot_mat_table_character ( &rtab_characters, &rtab ) ) != 0 ) {
+      if ( ( exitstatus = rot_mat_table_character ( &rtab_characters, _rtab ) ) != 0 ) {
         fprintf(stderr, "[test_rot_mult_tab_lg] Error from rot_mat_table_character; status was %d\n", exitstatus );
         exit(1);
       }
 
       /* TEST character tables */
-      sprintf( filename, "%s.%s.character", rtab.group, rtab.irrep );
+      sprintf( filename, "%s.%s.character", _rtab->group, _rtab->irrep );
       ofs = fopen ( filename, "w" );
-      for ( int i = 0; i < rtab.n; i++ ) {
-        fprintf( ofs, "%s  %s   R%.2d  %f  %f\n", rtab.group, rtab.irrep, rtab.rid[i]+1, creal ( rtab_characters[0][i] ), cimag ( rtab_characters[0][i] ));
+      for ( int i = 0; i < _rtab->n; i++ ) {
+        fprintf( ofs, "%s  %s   R%.2d  %f  %f\n", _rtab->group, _rtab->irrep, _rtab->rid[i]+1, creal ( rtab_characters[0][i] ), cimag ( rtab_characters[0][i] ));
       }
       fprintf( ofs, "\n");
-      for ( int i = 0; i < rtab.n; i++ ) {
-        fprintf( ofs, "%s  %s  IR%.2d  %f  %f\n", rtab.group, rtab.irrep, rtab.rmid[i]+1, creal ( rtab_characters[1][i] ), cimag ( rtab_characters[1][i] ));
+      for ( int i = 0; i < _rtab->n; i++ ) {
+        fprintf( ofs, "%s  %s  IR%.2d  %f  %f\n", _rtab->group, _rtab->irrep, _rtab->rmid[i]+1, creal ( rtab_characters[1][i] ), cimag ( rtab_characters[1][i] ));
       }
       fclose ( ofs );
       fini_2level_zbuffer ( &rtab_characters );
 
-      fini_rot_mat_table ( &rtab );
 
     }
 
@@ -254,8 +226,29 @@ int main(int argc, char **argv) {
 #if 0
 #endif  /* of if 0 */
 
+  for ( int ilg = 0; ilg < nlg; ilg++ )
+  {
+
+    for ( int ir1 = 0; ir1 < lg[ilg].nirrep; ir1++ )
+    {
+
+      for ( int ir2 = 0; ir2 < lg[ilg].nirrep; ir2++ )
+      {
+        exitstatus = rot_mat_table_orthogonality ( &(rtab[ilg][ir1]), &(rtab[ilg][ir2]) );
+        if ( exitstatus != 0 ) {
+          fprintf( stdout, "[test_rot_mult_tab_lg] Error from rot_mat_table_orthogonality, status was %d\n", exitstatus );
+          EXIT(3);
+        }
+      }
+    }
+  }
 
   little_group_fini ( &lg, nlg );
+  for ( int i = 0; i < nirrep; i++ ) {
+    fini_rot_mat_table ( &(rtab[0][i]) );
+  }
+  free ( rtab[0] );
+  free ( rtab );
 
 
 #if 0
