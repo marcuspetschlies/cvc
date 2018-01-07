@@ -67,6 +67,9 @@ int rot_mat_table_get_lg ( rot_mat_table_type *t, int d[3] );
 int rot_mat_table_get_d2d ( rot_mat_table_type *t, int d1[3], int d2[3] );
 
 int rot_mat_table_character ( double _Complex ***rc, rot_mat_table_type *t );
+
+int rot_mat_table_orthogonality ( rot_mat_table_type *t1, rot_mat_table_type *t2 );
+
 }  /* end of namespace cvc */
 
 #endif

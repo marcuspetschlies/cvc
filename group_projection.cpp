@@ -540,8 +540,8 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
       t->R[28][0][0] = -ONE_HALF;   t->R[28][1][1] = -ONE_HALF;
       t->R[28][0][1] = -SQRT3_HALF; t->R[28][1][0] =  SQRT3_HALF;
       /* R22, R34 */
-      t->R[22][0][0] = -ONE_HALF;   t->R[22][1][1] = -ONE_HALF;
-      t->R[22][0][1] = -SQRT3_HALF; t->R[22][1][0] =  SQRT3_HALF;
+      t->R[21][0][0] = -ONE_HALF;   t->R[21][1][1] = -ONE_HALF;
+      t->R[21][0][1] = -SQRT3_HALF; t->R[21][1][0] =  SQRT3_HALF;
       t->R[33][0][0] = -ONE_HALF;   t->R[33][1][1] = -ONE_HALF;
       t->R[33][0][1] = -SQRT3_HALF; t->R[33][1][0] =  SQRT3_HALF;
       /* R27, R31 */
@@ -1594,6 +1594,9 @@ int rot_mat_table_character ( double _Complex ***rc, rot_mat_table_type *t ) {
  ***********************************************************/
 int rot_mat_table_orthogonality ( rot_mat_table_type *t1, rot_mat_table_type *t2 ) {
 
+  const double eps = 5.e-14;
+
+  double _Complex zexp = 0;
   if ( t1->n != t2->n ) {
     fprintf( stderr, "[rot_mat_table_orthogonality] Error, number of elements must be the same\n");
     return(1);
@@ -1604,6 +1607,8 @@ int rot_mat_table_orthogonality ( rot_mat_table_type *t1, rot_mat_table_type *t2
     return(2);
   }
 
+  fprintf (stdout, "# [rot_mat_table_orthogonality] checking group %s irrep %s vs irrep %s\n", t1->group, t1->irrep, t2->irrep );
+
   /* loop on matrix elements of t1 */
   for ( int i1 = 0; i1 < t1->dim; i1++ ) {
   for ( int i2 = 0; i2 < t1->dim; i2++ ) {
@@ -1611,14 +1616,48 @@ int rot_mat_table_orthogonality ( rot_mat_table_type *t1, rot_mat_table_type *t2
     /* loop on matrix elements of t2 */
     for ( int k1 = 0; k1 < t2->dim; k1++ ) {
     for ( int k2 = 0; k2 < t2->dim; k2++ ) {
-      
-      for ( int l = 0; l < t1->n; l++ ) {
-        
+ 
+      if ( strcmp( t1->irrep, t2->irrep ) != 0 ) {
+        zexp = 0.;
+      } else {
+        if ( i1 == k1 && i2 == k2 ) {
+          /* 2 x times number of rotations / dimension */
+          /* times two because we consider R and IR */
+          zexp = 2. * (double)t1->n / (double)t1->dim;
+        } else {
+          zexp = 0.;
+        }
       }
 
+      double _Complex z = 0., zi = 0;
 
-    }}
-  }}
+      /* loop on rotations with group */     
+      for ( int l = 0; l < t1->n; l++ ) {
+        if ( t1->rid[l] != t2->rid[l] ) {
+          fprintf(stderr, "[rot_mat_table_orthogonality] Error, rids do not match %d %d\n", t1->rid[l], t2->rid[l] );
+          return(3);
+        }
+
+        z  += t1->R[l][i1][i2]  * conj ( t2->R[l][k1][k2] );
+
+        if ( t1->rmid[l] != t2->rmid[l] ) {
+          fprintf(stderr, "[rot_mat_table_orthogonality] Error, rmids do not match %d %d\n", t1->rmid[l], t2->rmid[l] );
+          return(4);
+        }
+
+        zi += t1->IR[l][i1][i2] * conj ( t2->IR[l][k1][k2] );
+
+      }  /* end of loop on rotations */
+      int orthogonal = (int)(cabs(z+zi-zexp) < eps);
+      if ( !orthogonal ) {
+        fprintf( stderr, "[] group %s irreps %s --- %s elements (%2d %2d) ---  (%2d %2d) not orthogonal\n", t1->group, t1->irrep, t2->irrep, i1, i2, k1, k2);
+        return(5);
+      }
+      fprintf ( stdout, "# [rot_mat_table_orthogonality] %d %d    %d %d z %16.7e %16.7e zi %16.7e %16.7e z+zi %16.7e %16.7e zexp %16.7e orthogonal %d\n", i1, i2, k1, k2, 
+          creal(z), cimag(z), creal(zi), cimag(zi), creal(z+zi), cimag(z+zi), creal(zexp), orthogonal);
+
+    }}  /* end of loop on t2 matrix elements */
+  }}  /* end of loop on t1 matrix elements */
 
   return(0);
 }  /* end of rot_mat_table_orthogonality */
