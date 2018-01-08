@@ -1705,13 +1705,14 @@ int fini_little_group_projector (little_group_projector_type *p ) {
   fini_2level_ibuffer ( &(p->p) );
 
   if ( p->c != NULL  ) {
+    if ( p->c[0] != NULL  ) free ( p->c[0] );
     free ( p->c );
     p->c = NULL;
   }
   strcpy ( correlator_name, "NA" );
   p->n = 0;
   return(0);
-}   /* end of init_little_group_projector */
+}   /* end of fini_little_group_projector */
 
 /***********************************************************/
 /***********************************************************/
@@ -1730,15 +1731,37 @@ int little_group_projector_show (little_group_projector_type *p, FILE*ofs ) {
   
   fprintf( ofs, "# [little_group_projector_show] total momentum P = %2d %2d %2d\n", p->P[0], p->P[1], p->P[2] );
  
+  for ( int i = 0; i < p->n; i++ ) {
+    fprintf( ofs, "# [little_group_projector_show] p[%i] = %2d %2d %2d\n", p->p[i][0], p->p[i][1], p->p[i][2] );
+  }
+  for ( int i = 0; i < p->n; i++ ) {
+    for ( int k = 0; k < p->rspin[i].dim; k++ ) {
+      fprintf( ofs, "# [little_group_projector_show] c[%d][%d] = %16.7e %16.7e\n", i, k, creal(p->c[i][k]), cimag(p->c[i][k] ));
+    }
+  }
+  fprintf( ofs, "# [little_group_projector_show] correlator name = %s\n", p->correlator_name );
+   
+  rot_mat_table_printf ( p->rtarget, "rtarget", ofs );
+  for ( int i = 0; i < p->n; i++ ) {
+    char name[200];
+    sprintf (name, "rspin%d", i);
+    rot_mat_table_printf ( &(p->rspin[i]), name, ofs );
+  }
+  rot_mat_table_printf ( p->rp, "rp", ofs );
+  
+  return(0);
+}  /* end of little_group_projector_show */
 
-             int**p;
-             double _Complex *c;
-               char correlator_name[200];
+/***********************************************************/
+/***********************************************************/
 
+
+/***********************************************************
+ *
+ ***********************************************************/
+int little_group_projector_set (little_group_projector_type *p, FILE*ofs ) {
 
 }
-
-
 
 /***********************************************************/
 /***********************************************************/

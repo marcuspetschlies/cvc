@@ -46,7 +46,7 @@ typedef struct {
   rot_mat_table_type *rp;
   int P[3];
   int**p;
-  double _Complex *c;
+  double _Complex **c;
   char correlator_name[200];
 
 } little_group_projector_type
@@ -91,6 +91,7 @@ int rot_mat_table_orthogonality ( rot_mat_table_type *t1, rot_mat_table_type *t2
 int init_little_group_projector (little_group_projector_type *p );
 int fini_little_group_projector (little_group_projector_type *p );
 
+int little_group_projector_show (little_group_projector_type *p, FILE*ofs );
 
 }  /* end of namespace cvc */
 
