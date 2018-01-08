@@ -49,6 +49,7 @@ typedef struct {
   double _Complex **c;
   char correlator_name[200];
   int ref_row;
+  int row;
 } little_group_projector_type
 
 /********************************************************/
@@ -76,6 +77,8 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
 
 void rot_mat_table_printf ( rot_mat_table_type *t, char*name, FILE*ofs );
 
+int rot_mat_table_copy (rot_mat_table_type *t, rot_mat_table_type *s );
+
 int rot_mat_mult_table ( int***mtab, rot_mat_table_type *t );
 
 int rot_mat_table_is_lg ( rot_mat_table_type *t, int d[3] );
@@ -92,6 +95,12 @@ int init_little_group_projector (little_group_projector_type *p );
 int fini_little_group_projector (little_group_projector_type *p );
 
 int little_group_projector_show (little_group_projector_type *p, FILE*ofs );
+
+int little_group_projector_copy (little_group_projector_type *p, little_group_projector_type *q );
+
+int little_group_projector_set (little_group_projector_type *p, little_group_type *lg, char*irrep , int interpolator_num,
+  int *interpolator_spin_list, int *(interpolator_momentum_list[3]), int *interpolator_bispinor_list,
+  double _Complex **c, int ref_row, char*correlator_name );
 
 }  /* end of namespace cvc */
 
