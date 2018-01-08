@@ -48,7 +48,7 @@ typedef struct {
   int**p;
   double _Complex **c;
   char correlator_name[200];
-
+  int ref_row;
 } little_group_projector_type
 
 /********************************************************/

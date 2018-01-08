@@ -291,6 +291,24 @@ void init_rot_mat_table (rot_mat_table_type *t ) {
 /***********************************************************/
 /***********************************************************/
 
+int rot_mat_table_copy (rot_mat_table_type *t, rot_mat_table_type *s ) {
+  strcpy( t->group, s->group );
+  strcpy( t->irrep, s->irrep );
+  t->n    = s->n;
+  t->dim  = 0;
+  memcpy ( t->rid, s->rid, t->n * sizeof(int) );
+  memcpy ( t->rmid, s->rmid, t->n * sizeof(int) );
+  t->rid  = NULL;
+              t->rmid = NULL;
+                t->R    = NULL;
+                  t->IR   = NULL;
+                    return;
+}  /* end of rot_mat_table_copy */
+
+
+/***********************************************************/
+/***********************************************************/
+
 void fini_rot_mat_table (rot_mat_table_type *t ) {
   strcpy( t->group, "NA" );
   strcpy( t->irrep, "NA" );
@@ -1680,6 +1698,7 @@ int init_little_group_projector (little_group_projector_type *p ) {
   p->P[2] = 0;
   p->p = NULL;
   p->c = NULL;
+  p->ref_row = -1;
   strcpy ( correlator_name, "NA" );
   
   return(0);
@@ -1694,7 +1713,7 @@ int init_little_group_projector (little_group_projector_type *p ) {
 int fini_little_group_projector (little_group_projector_type *p ) {
 
   for ( int i = 0; i < p->n; i++ ) {
-    fini_rot_mat_table ( &(p->rspin) );
+    fini_rot_mat_table ( &(p->rspin[i]) );
     fini_rot_mat_table ( &(p->rtarget) );
     fini_rot_mat_table ( &(p->rp) );
   }
@@ -1711,6 +1730,7 @@ int fini_little_group_projector (little_group_projector_type *p ) {
   }
   strcpy ( correlator_name, "NA" );
   p->n = 0;
+  p->ref_row = -1;
   return(0);
 }   /* end of fini_little_group_projector */
 
@@ -1734,12 +1754,15 @@ int little_group_projector_show (little_group_projector_type *p, FILE*ofs ) {
   for ( int i = 0; i < p->n; i++ ) {
     fprintf( ofs, "# [little_group_projector_show] p[%i] = %2d %2d %2d\n", p->p[i][0], p->p[i][1], p->p[i][2] );
   }
+
+  fprintf( ofs, "# [little_group_projector_show] linear combination for spin-matrix row\n" );
   for ( int i = 0; i < p->n; i++ ) {
     for ( int k = 0; k < p->rspin[i].dim; k++ ) {
       fprintf( ofs, "# [little_group_projector_show] c[%d][%d] = %16.7e %16.7e\n", i, k, creal(p->c[i][k]), cimag(p->c[i][k] ));
     }
   }
   fprintf( ofs, "# [little_group_projector_show] correlator name = %s\n", p->correlator_name );
+  fprintf( ofs, "# [little_group_projector_show] reference row   = %d\n", p->ref_row );
    
   rot_mat_table_printf ( p->rtarget, "rtarget", ofs );
   for ( int i = 0; i < p->n; i++ ) {
@@ -1755,11 +1778,68 @@ int little_group_projector_show (little_group_projector_type *p, FILE*ofs ) {
 /***********************************************************/
 /***********************************************************/
 
+/***********************************************************
+ * p <- q
+ ***********************************************************/
+int little_group_projector_copy (little_group_projector_type *p, little_group_projector_type *q ) {
+
+  p->n = q->n;
+  if ( ( p->rspin = (rot_mat_table_type *)malloc ( p->n * sizeof( rot_mat_table_type ) ) ) == NULL ) {
+    fprintf( stderr, "[little_group_projector_copy] Error from malloc %s %d\n", __FILE__, __LINE__);
+    return(1);
+  }
+  for ( int i = 0; i < q->n; i++ ) {
+    if ( rot_mat_table_copy ( &(p->rspin[i]), &(q->rspin[i]) ) != 0 ) {
+      fprintf( stderr, "[little_group_projector_copy] Error from rot_mat_table_copy %s %d\n", __FILE__, __LINE__);
+      return(2);
+    }
+  }
+  if ( rot_mat_table_copy ( &(p->rtarge), &(q->rtarget) ) != 0 ) {
+    fprintf( stderr, "[little_group_projector_copy] Error from rot_mat_table_copy %s %d\n", __FILE__, __LINE__);
+    return(3);
+  }
+  if ( rot_mat_table_copy ( &(p->rp), &(q->rp) ) != 0 ) {
+    fprintf( stderr, "[little_group_projector_copy] Error from rot_mat_table_copy %s %d\n", __FILE__, __LINE__);
+    return(4);
+  }
+
+  memcpy ( p->P, q->P, 3*sizeof(int));
+  if ( init_2level_ibuffer ( p->p, p->n, 3 ) != 0 ) {
+    fprintf( stderr, "[little_group_projector_copy] Error from init_2level_ibuffer %s %d\n", __FILE__, __LINE__);
+    return(5);
+  }
+  memcpy ( p->p[0], q->p[0], 3*p->n*sizeof(int) );
+
+  if ( ( p->c = (double _Complex**)malloc ( p->n * sizeof(double _Complex*) ) ) == NULL ) {
+    fprintf( stderr, "[little_group_projector_copy] Error from malloc %s %d\n", __FILE__, __LINE__);
+    return(6);
+  }
+  int items = 0;
+  for ( int i = 0; i < p->n ; i++) items += p->rspin[i].dim;
+  if ( ( p->c[0] = (double _Complex**)malloc ( items * sizeof(double _Complex) ) ) == NULL ) {
+    fprintf( stderr, "[little_group_projector_copy] Error from malloc %s %d\n", __FILE__, __LINE__);
+    return(7);
+  }
+  for ( int i = 1; i < p->n ; i++) p->c[i] = p->c[i-1] + p->rspin[i-1].dim;
+
+  memcpy ( p->c[0], q->c[0], items * sizeof(double _Complex) );
+
+  p->ref_row = q->ref_row;
+  strcpy ( p->correlator_name, q->correlator_name );
+  
+  return(0);
+}   /* end of little_group_projector_copy */
+
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  *
  ***********************************************************/
-int little_group_projector_set (little_group_projector_type *p, FILE*ofs ) {
+int little_group_projector_set (little_group_projector_type *p, little_group_type *lg, char *group, char*irrep ) {
+
+    
+
 
 }
 
