@@ -226,7 +226,7 @@ void rot_mat_assign (double _Complex **C, double _Complex **R, int N) {
 /***********************************************************/
 
 /***********************************************************
- *
+ * safe for C = S in memory
  ***********************************************************/
 void rot_spherical2cartesian_3x3 (double _Complex **C, double _Complex **S) {
 
