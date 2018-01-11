@@ -17,3 +17,4 @@ build_2dim_openmp
 build-2dim-openmp
 build_serial
 build_juqueen/
+build.14.04.1-Ubuntu_serial_openmp/
