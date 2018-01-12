@@ -339,6 +339,7 @@ void twopoint_function_get_diagram_norm ( double*r, twopoint_function_type *p, i
   } else {
     *r = 1.;
   }
+  if ( g_verbose > 2 ) fprintf(stdout, "# [twopoint_function_get_diagram_norm] diagram norm = %25.16e\n", *r);
 }  /* end of twopoint_function_get_diagram_norm */
 
 }  /* end of namespace cvc */

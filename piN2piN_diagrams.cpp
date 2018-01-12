@@ -92,9 +92,9 @@ int main(int argc, char **argv) {
   int gamma_f1_nucleon_list[gamma_f1_nucleon_number]    = {  5,  4,  6,  0 };
   double gamma_f1_nucleon_sign[gamma_f1_nucleon_number] = { +1, +1, +1, +1 };
 */
-  const int gamma_f1_nucleon_number = 3;
-  int gamma_f1_nucleon_list[gamma_f1_nucleon_number]    = {  5,  4,  6 };
-  double gamma_f1_nucleon_sign[gamma_f1_nucleon_number] = { +1, +1, +1 };
+  const int gamma_f1_nucleon_number = 4;
+  int gamma_f1_nucleon_list[gamma_f1_nucleon_number]    = {  5,  4,  6,  0 };
+  double gamma_f1_nucleon_sign[gamma_f1_nucleon_number] = { +1, +1, +1, +1 };
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
