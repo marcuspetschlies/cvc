@@ -158,7 +158,7 @@ int contract_diagram_v2_gamma_v3 ( double _Complex **vdiag, double _Complex **v2
 int contract_diagram_oet_v2_gamma_v3 ( double _Complex **vdiag, double _Complex ***v2, double _Complex ***v3, gamma_matrix_type goet, gamma_matrix_type g, int perm[4], unsigned int N, int init ) {
 
   if ( init ) {
-    if ( g_cart_id == 0 ) fprintf(stdout, "# [contract_diagram_oet_v2_amma_v3] initializing output field to zero\n");
+    if ( g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [contract_diagram_oet_v2_amma_v3] initializing output field to zero\n");
     memset( vdiag[0], 0, 16*T_global*sizeof(double _Complex ) );
   }
 
@@ -673,7 +673,7 @@ int contract_diagram_write_aff (double _Complex***diagram, struct AffWriter_s*af
     fini_3level_zbuffer ( &aff_buffer );
 
     rtime = _GET_TIME - rtime;
-    if (g_cart_id == 0 ) fprintf(stdout, "# [contract_diagram_write_aff] time for contract_diagram_write_aff = %e seconds %s %d\n", rtime, __FILE__, __LINE__);
+    if (g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [contract_diagram_write_aff] time for contract_diagram_write_aff = %e seconds %s %d\n", rtime, __FILE__, __LINE__);
   }  /* end of if io_proc == 2 */
   return(0);
 }  /* end of contract_diagram_write_aff */
