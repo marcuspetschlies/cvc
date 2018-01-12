@@ -15,3 +15,4 @@ build-2dim-noomp/
 build-2dim/
 build-4dim/
 build-serial/
+build-16.04.1-Ubuntu-serial-openmp/
