@@ -380,7 +380,7 @@ int main(int argc, char **argv) {
     /***********************************************************
      * set output filename prefix
      ***********************************************************/
-    strcpy ( g_outfile_prefix, "");
+    strcpy ( g_outfile_prefix, "ll");
 
     /***********************************************************/
     /***********************************************************/
@@ -388,32 +388,32 @@ int main(int argc, char **argv) {
     /***********************************************************
      * lma x lma
      ***********************************************************/
-    sprintf ( filename, "%s.%s.%.4d.px%.2dpy%.2dpz%.2d.%s", "hvp", "disc", Nconf, p[0], p[1], p[2], "lma-lma" );
+    sprintf ( filename, "%s.%s.%.4d.px%.2dpy%.2dpz%.2d.%s", g_outfile_prefix, "disc", Nconf, p[0], p[1], p[2], "lma-lma" );
     FILE *ofs = fopen( filename, "w" );
     if ( ofs == NULL ) {
       fprintf ( stderr, "[loops_local_analysis] Error, could not open file %s for writing\n", filename );
       EXIT(1);
     }
 
-    for ( int mu = 0; mu < 4; mu++ ) {
-    for ( int nu = 0; nu < 4; nu++ ) {
+    for ( int mu = 0; mu < 16; mu++ ) {
+      int nu = mu;
       for ( int dt = 0; dt < T_global; dt++ ) {
         double _Complex  zs = 0., zv = 0.;
   
         for ( int t = 0; t < T_global; t++ ) {
           zs += 
-            ( cvc_loop_lma[imom ][mu][(t+dt)%T_global] - conj( cvc_loop_lma[imom2][mu][(t+dt)%T_global]) )
-          * ( cvc_loop_lma[imom2][nu][t]               - conj( cvc_loop_lma[imom ][nu][t]              ) );
+            ( local_loop_lma[imom ][mu][(t+dt)%T_global] - conj( local_loop_lma[imom2][mu][(t+dt)%T_global]) )
+          * ( local_loop_lma[imom2][nu][t]               - conj( local_loop_lma[imom ][nu][t]              ) );
        
           zv += 
-            ( cvc_loop_lma[imom ][mu][(t+dt)%T_global] + conj( cvc_loop_lma[imom2][mu][(t+dt)%T_global]) )
-          * ( cvc_loop_lma[imom2][nu][t]               + conj( cvc_loop_lma[imom ][nu][t]              ) );
+            ( local_loop_lma[imom ][mu][(t+dt)%T_global] + conj( local_loop_lma[imom2][mu][(t+dt)%T_global]) )
+          * ( local_loop_lma[imom2][nu][t]               + conj( local_loop_lma[imom ][nu][t]              ) );
         } 
         zs /= (double)T_global;
         zv /= (double)T_global;
         fprintf ( ofs, "%3d%3d%4d%25.16e%25.16e%25.16e%25.16e\n", mu, nu, dt, creal(zs), cimag(zs),  creal(zv), cimag(zv));
       }
-    }}
+    }
     fclose ( ofs );
 
     /***********************************************************/
@@ -429,43 +429,43 @@ int main(int argc, char **argv) {
      ***********************************************************/
     for ( int isample = 0; isample < g_nsample; isample ++ ) {
 
-      sprintf ( filename, "%s.%s.%.4d.px%.2dpy%.2dpz%.2d.nsample%.4d.%s", "hvp", "disc", Nconf, p[0], p[1], p[2], isample+1, "lma-stoch" );
+      sprintf ( filename, "%s.%s.%.4d.px%.2dpy%.2dpz%.2d.nsample%.4d.%s", g_outfile_prefix, "disc", Nconf, p[0], p[1], p[2], isample+1, "lma-stoch" );
       FILE *ofs = fopen( filename, "w" );
       if ( ofs == NULL ) {
         fprintf ( stderr, "[loops_local_analysis] Error, could not open file %s for writing\n", filename );
         EXIT(1);
       }
 
-      for ( int mu = 0; mu < 4; mu++ ) {
-      for ( int nu = 0; nu < 4; nu++ ) {
+      for ( int mu = 0; mu < 16; mu++ ) {
+        int nu = mu;
         for ( int dt = 0; dt < T_global; dt++ ) {
           double _Complex  zs = 0., zv = 0.;
   
           for ( int t = 0; t < T_global; t++ ) {
 
             zs += 
-              ( cvc_loop_lma[imom ][mu][(t+dt)%T_global]                - conj( cvc_loop_lma[imom2][mu][(t+dt)%T_global]                ) )
-            * ( cvc_loop_stoch_cum[imom2][nu][isample][t]               - conj( cvc_loop_stoch_cum[imom ][nu][isample][t]               ) );
+              ( local_loop_lma[imom ][mu][(t+dt)%T_global]                - conj( local_loop_lma[imom2][mu][(t+dt)%T_global]                ) )
+            * ( local_loop_stoch_cum[imom2][nu][isample][t]               - conj( local_loop_stoch_cum[imom ][nu][isample][t]               ) );
 
             zs +=
-              ( cvc_loop_stoch_cum[imom ][mu][isample][(t+dt)%T_global] - conj( cvc_loop_stoch_cum[imom2][mu][isample][(t+dt)%T_global] ) )
-            * ( cvc_loop_lma[imom2][nu][t]                              - conj( cvc_loop_lma[imom ][nu][t]                              ) );
+              ( local_loop_stoch_cum[imom ][mu][isample][(t+dt)%T_global] - conj( local_loop_stoch_cum[imom2][mu][isample][(t+dt)%T_global] ) )
+            * ( local_loop_lma[imom2][nu][t]                              - conj( local_loop_lma[imom ][nu][t]                              ) );
 
 
             zv += 
-              ( cvc_loop_lma[imom ][mu][(t+dt)%T_global]                + conj( cvc_loop_lma[imom2][mu][(t+dt)%T_global]                ) )
-            * ( cvc_loop_stoch_cum[imom2][nu][isample][t]               + conj( cvc_loop_stoch_cum[imom ][nu][isample][t]               ) );
+              ( local_loop_lma[imom ][mu][(t+dt)%T_global]                + conj( local_loop_lma[imom2][mu][(t+dt)%T_global]                ) )
+            * ( local_loop_stoch_cum[imom2][nu][isample][t]               + conj( local_loop_stoch_cum[imom ][nu][isample][t]               ) );
 
             zv +=
-              ( cvc_loop_stoch_cum[imom ][mu][isample][(t+dt)%T_global] + conj( cvc_loop_stoch_cum[imom2][mu][isample][(t+dt)%T_global] ) )
-            * ( cvc_loop_lma[imom2][nu][t]                              + conj( cvc_loop_lma[imom ][nu][t]                              ) );
+              ( local_loop_stoch_cum[imom ][mu][isample][(t+dt)%T_global] + conj( local_loop_stoch_cum[imom2][mu][isample][(t+dt)%T_global] ) )
+            * ( local_loop_lma[imom2][nu][t]                              + conj( local_loop_lma[imom ][nu][t]                              ) );
 
           }
           zs /= (double)( T_global * (isample+1) );
           zv /= (double)( T_global * (isample+1) );
           fprintf ( ofs, "%3d%3d%4d%25.16e%25.16e%25.16e%25.16e\n", mu, nu, dt, creal(zs), cimag(zs),  creal(zv), cimag(zv));
         }
-      }}
+      }
       fclose ( ofs );
 
     }  /* end of loop on samples */
@@ -480,14 +480,14 @@ int main(int argc, char **argv) {
     /***********************************************************
      * bias
      ***********************************************************/
-    double _Complex ***cvc_isoscalar_stoch_bias = NULL, ***cvc_isovector_stoch_bias = NULL;
-    if( ( exitstatus = init_3level_zbuffer ( &cvc_isoscalar_stoch_bias, 4, 4, T_global  ) ) != 0 ) {
-      fprintf(stderr, "[loops_local_analysis] Error from init_3level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    double _Complex **local_isoscalar_stoch_bias = NULL, **local_isovector_stoch_bias = NULL;
+    if( ( exitstatus = init_2level_zbuffer ( &local_isoscalar_stoch_bias, 16, T_global  ) ) != 0 ) {
+      fprintf(stderr, "[loops_local_analysis] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(1);
     }
 
-    if( ( exitstatus = init_3level_zbuffer ( &cvc_isovector_stoch_bias, 4, 4, T_global  ) ) != 0 ) {
-      fprintf(stderr, "[loops_local_analysis] Error from init_3level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    if( ( exitstatus = init_2level_zbuffer ( &local_isovector_stoch_bias, 16, T_global  ) ) != 0 ) {
+      fprintf(stderr, "[loops_local_analysis] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(1);
     }
 
@@ -497,7 +497,7 @@ int main(int argc, char **argv) {
     for ( int isample = 0; isample < g_nsample; isample ++ ) {
    
 
-      sprintf ( filename, "%s.%s.%.4d.px%.2dpy%.2dpz%.2d.nsample%.4d.%s", "hvp", "disc", Nconf, p[0], p[1], p[2], isample+1, "stoch-stoch" );
+      sprintf ( filename, "%s.%s.%.4d.px%.2dpy%.2dpz%.2d.nsample%.4d.%s", g_outfile_prefix, "disc", Nconf, p[0], p[1], p[2], isample+1, "stoch-stoch" );
       FILE *ofs = fopen( filename, "w" );
       if ( ofs == NULL ) {
         fprintf ( stderr, "[loops_local_analysis] Error, could not open file %s for writing\n", filename );
@@ -505,26 +505,26 @@ int main(int argc, char **argv) {
       }
 
       for ( int mu = 0; mu < 4; mu++ ) {
-      for ( int nu = 0; nu < 4; nu++ ) {
+        int nu = mu;
         for ( int dt = 0; dt < T_global; dt++ ) {
           double _Complex  zs = 0., zv = 0.;
   
           for ( int t = 0; t < T_global; t++ ) {
             zs += 
-              ( cvc_loop_stoch_cum[imom ][mu][isample][(t+dt)%T_global] - conj( cvc_loop_stoch_cum[imom2][mu][isample][(t+dt)%T_global]) )
-            * ( cvc_loop_stoch_cum[imom2][nu][isample][t]               - conj( cvc_loop_stoch_cum[imom ][nu][isample][t]              ) );
+              ( local_loop_stoch_cum[imom ][mu][isample][(t+dt)%T_global] - conj( local_loop_stoch_cum[imom2][mu][isample][(t+dt)%T_global]) )
+            * ( local_loop_stoch_cum[imom2][nu][isample][t]               - conj( local_loop_stoch_cum[imom ][nu][isample][t]              ) );
          
             zv += 
-              ( cvc_loop_stoch_cum[imom ][mu][isample][(t+dt)%T_global] + conj( cvc_loop_stoch_cum[imom2][mu][isample][(t+dt)%T_global]) )
-            * ( cvc_loop_stoch_cum[imom2][nu][isample][t]               + conj( cvc_loop_stoch_cum[imom ][nu][isample][t]              ) );
+              ( local_loop_stoch_cum[imom ][mu][isample][(t+dt)%T_global] + conj( local_loop_stoch_cum[imom2][mu][isample][(t+dt)%T_global]) )
+            * ( local_loop_stoch_cum[imom2][nu][isample][t]               + conj( local_loop_stoch_cum[imom ][nu][isample][t]              ) );
          
-            cvc_isoscalar_stoch_bias[mu][nu][dt] += 
-              ( cvc_loop_stoch_aux[imom ][mu][isample][(t+dt)%T_global] - conj( cvc_loop_stoch_aux[imom2][mu][isample][(t+dt)%T_global]) )
-            * ( cvc_loop_stoch_aux[imom2][nu][isample][t]               - conj( cvc_loop_stoch_aux[imom ][nu][isample][t]              ) );
+            local_isoscalar_stoch_bias[mu][dt] += 
+              ( local_loop_stoch_aux[imom ][mu][isample][(t+dt)%T_global] - conj( local_loop_stoch_aux[imom2][mu][isample][(t+dt)%T_global]) )
+            * ( local_loop_stoch_aux[imom2][nu][isample][t]               - conj( local_loop_stoch_aux[imom ][nu][isample][t]              ) );
          
-            cvc_isovector_stoch_bias[mu][nu][dt] += 
-              ( cvc_loop_stoch_aux[imom ][mu][isample][(t+dt)%T_global] + conj( cvc_loop_stoch_aux[imom2][mu][isample][(t+dt)%T_global]) )
-            * ( cvc_loop_stoch_aux[imom2][nu][isample][t]               + conj( cvc_loop_stoch_aux[imom ][nu][isample][t]              ) );
+            local_isovector_stoch_bias[mu][dt] += 
+              ( local_loop_stoch_aux[imom ][mu][isample][(t+dt)%T_global] + conj( local_loop_stoch_aux[imom2][mu][isample][(t+dt)%T_global]) )
+            * ( local_loop_stoch_aux[imom2][nu][isample][t]               + conj( local_loop_stoch_aux[imom ][nu][isample][t]              ) );
          
           }  /* end of loop on timeslice */
 
@@ -534,8 +534,8 @@ int main(int argc, char **argv) {
           /***********************************************************
            * subtract the current bias including samples up to isample
            ***********************************************************/
-          zs -= cvc_isoscalar_stoch_bias[mu][nu][dt];
-          zv -= cvc_isovector_stoch_bias[mu][nu][dt];
+          zs -= local_isoscalar_stoch_bias[mu][dt];
+          zv -= local_isovector_stoch_bias[mu][dt];
 
           /***********************************************************/
           /***********************************************************/
@@ -556,10 +556,14 @@ int main(int argc, char **argv) {
            ***********************************************************/
           fprintf ( ofs, "%3d%3d%4d%25.16e%25.16e%25.16e%25.16e\n", mu, nu, dt, creal(zs), cimag(zs),  creal(zv), cimag(zv));
         }
-      }}
+      }
       fclose ( ofs );
 
     }  /* end of loop on samples */
+
+
+    fini_2level_zbuffer ( &local_isoscalar_stoch_bias );
+    fini_2level_zbuffer ( &local_isovector_stoch_bias );
 #if 0
 #endif
 
@@ -569,9 +573,9 @@ int main(int argc, char **argv) {
   /***********************************************************/
   /***********************************************************/
  
-  fini_3level_zbuffer ( &cvc_loop_lma );
-  fini_4level_zbuffer ( &cvc_loop_stoch_aux );
-  fini_4level_zbuffer ( &cvc_loop_stoch_cum );
+  fini_3level_zbuffer ( &local_loop_lma );
+  fini_4level_zbuffer ( &local_loop_stoch_aux );
+  fini_4level_zbuffer ( &local_loop_stoch_cum );
 
   /***********************************************************/
   /***********************************************************/
