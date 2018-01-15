@@ -50,7 +50,7 @@ typedef struct {
   char correlator_name[200];
   int ref_row;
   int row;
-} little_group_projector_type
+} little_group_projector_type;
 
 /********************************************************/
 /********************************************************/
@@ -98,10 +98,9 @@ int little_group_projector_show (little_group_projector_type *p, FILE*ofs );
 
 int little_group_projector_copy (little_group_projector_type *p, little_group_projector_type *q );
 
-int little_group_projector_set (little_group_projector_type *p, little_group_type *lg, char*irrep , int interpolator_num,
+int little_group_projector_set (little_group_projector_type *p, little_group_type *lg, char*irrep , int row, int interpolator_num,
   int *interpolator_spin_list, int *(interpolator_momentum_list[3]), int *interpolator_bispinor_list,
   double _Complex **c, int ref_row, char*correlator_name );
-
 }  /* end of namespace cvc */
 
 #endif
