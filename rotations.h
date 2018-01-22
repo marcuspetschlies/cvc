@@ -8,6 +8,7 @@ namespace cvc {
 typedef struct {
   int n[3];
   double w;
+  double a[3];
 } rotation_type; 
 
 /********************************************************/

@@ -1778,4 +1778,116 @@ void rot_inversion_matrix_spherical_basis ( double _Complex**R, int J2, int bisp
 
 /***********************************************************/
 /***********************************************************/
+
+/***********************************************************
+ * set Wigner d-function for all M, M'
+ ***********************************************************/
+void wigner_d (double _Complex *wd, double b, int J2 ) {
+
+
+
+
+}
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * input
+ * J2 = 2 x J (J = 0, 1/2, 1, 3/2, ... )
+ * a,b,c Euler angles
+ *
+ * output
+ * R  = rotation matrix in spherical basis
+ ***********************************************************/
+void rot_rotation_matrix_spherical_basis_euler_angles ( double _Complex**R, int J2, double a[3] ) {
+
+  double theta, phi;
+  double v, vsqr_mi_one;
+  double _Complex u;
+
+
+  v = sin ( w / 2. ) * sin ( theta );
+  vsqr_mi_one = v*v - 1;
+
+  u = cos ( w / 2. ) - I * sin( w / 2.) * cos( theta );
+
+  if ( g_cart_id == 0 ) {
+    fprintf(stdout, "# [rotation_matrix_spherical_basis] v = %25.16e\n"\
+                    "# [rotation_matrix_spherical_basis] u = %25.16e + %25.16e I\n",
+                    v, creal(u), cimag(u));
+  }
+  for( int ik = 0; ik <= J2; ik++ ) {
+    int k2 = J2 - 2*ik;
+
+    int J_mi_m1 = ( J2 - k2 ) / 2;
+    int J_pl_m1 = ( J2 + k2 ) / 2;
+
+    long unsigned int J_mi_m1_fac = factorial (J_mi_m1);
+    long unsigned int J_pl_m1_fac = factorial (J_pl_m1);
+
+    for( int il = 0; il <= J2; il++ ) {
+      int l2 = J2 - 2 * il;
+
+      int J_mi_m2 = ( J2 - l2 ) / 2;
+      int J_pl_m2 = ( J2 + l2 ) / 2;
+
+      long unsigned int J_mi_m2_fac = factorial (J_mi_m2);
+      long unsigned int J_pl_m2_fac = factorial (J_pl_m2);
+
+      double norm = sqrt( J_pl_m1_fac * J_mi_m1_fac * J_pl_m2_fac * J_mi_m2_fac );
+
+      int m1_pl_m2 = (k2 + l2 ) / 2;
+      int m1_mi_m2 = (k2 - l2 ) / 2;
+
+      if ( m1_pl_m2 >= 0 ) {
+
+        int smax = _MIN( J_mi_m1, J_mi_m2 );
+        if (g_cart_id == 0 ) {
+          fprintf(stdout, "# [rotation_matrix_spherical_basis] 2 J = %d, 2 m1 = %d, 2 m2 = %d, smax = %d\n", J2, k2, l2, smax);
+        }
+
+        double _Complex ssum = 0.;
+        for( int s = 0; s <= smax; s++ ) {
+          ssum += pow ( v, J2 - m1_pl_m2 - 2*s ) * pow( vsqr_mi_one, s ) / ( factorial(s) * factorial(s + m1_pl_m2) * factorial(J_mi_m1 - s) * factorial( J_mi_m2 - s) );
+        }
+
+        R[ik][il] = ( cos( m1_mi_m2 * phi) - sin( m1_mi_m2*phi) * I ) * ssum * cpow( u, m1_pl_m2)        * cpow( -I, J2 - m1_pl_m2) * norm;
+
+
+      } else {
+        int smax = _MIN( J_pl_m1, J_pl_m2 );
+        if (g_cart_id == 0 ) {
+          fprintf(stdout, "# [rotation_matrix_spherical_basis] 2 J = %d, 2 m1 = %d, 2 m2 = %d, smax = %d\n", J2, k2, l2, smax);
+        }
+
+        double _Complex ssum = 0.;
+        for( int s = 0; s <= smax; s++ ) {
+          ssum += pow ( v , J2 + m1_pl_m2 - 2*s ) * pow( vsqr_mi_one, s ) / ( factorial(s) * factorial(s - m1_pl_m2) * factorial(J_pl_m1 - s) * factorial( J_pl_m2 - s) );
+        }
+
+        R[ik][il] = ( cos( m1_mi_m2 * phi) - sin( m1_mi_m2*phi) * I ) * ssum * cpow( conj(u), -m1_pl_m2) * cpow( -I, J2 + m1_pl_m2) * norm;
+
+      }
+
+    }  /* end of loop on m2 */
+  }  /* end of loop on m1 */
+
+  /* TEST */
+  /*
+  if (g_cart_id == 0 ) {
+    fprintf(stdout, "R <- array(dim=(%d , %d))\n", J2+1, J2+1);
+    for( int ik = 0; ik <= J2; ik++ ) {
+    for( int il = 0; il <= J2; il++ ) {
+      fprintf(stdout, "R[%d,%d] <- %25.16e + %25.16e*1.i\n", ik+1, il+1, creal( R[ik][il] ), cimag( R[ik][il] ));
+    }}
+  }
+  */
+
+  return;
+}  /* end of rot_rotation_matrix_spherical_basis */
+
+/***********************************************************/
+/***********************************************************/
+
 }  /* end of namespace cvc */
