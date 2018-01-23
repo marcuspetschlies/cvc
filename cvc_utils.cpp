@@ -5836,9 +5836,8 @@ int check_cvc_wi_position_space (double *conn) {
  *   with given contact term
  ********************************************/
 
-int check_cvc_wi_position_space (double **conn, double *contact_term ) {
+int check_cvc_wi_position_space_ct (double **conn, double *contact_term ) {
 
-  int nu;
   int exitstatus;
   double ratime, retime;
 
@@ -5847,56 +5846,80 @@ int check_cvc_wi_position_space (double **conn, double *contact_term ) {
    ********************************************/
   ratime = _GET_TIME;
 #ifdef HAVE_MPI
-  const unsigned int VOLUMEplusRAND = VOLUME + RAND;
-  const unsigned int stride = VOLUMEplusRAND;
-  double *conn_buffer = (double*)malloc(32*VOLUMEplusRAND*sizeof(double));
-  if(conn_buffer == NULL)  {
-    fprintf(stderr, "# [check_cvc_wi_position_space] Error from malloc\n");
+  double **conn_buffer = NULL;
+  if ( ( exitstatus = init_2level_buffer ( &conn_buffer, 4, 2*(VOLUME+RAND) ) ) != 0 ) {
+    fprintf(stderr, "# [check_cvc_wi_position_space_ct] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     return(1);
   }
 
-  for(nu=0; nu<16; nu++) {
-    memcpy(conn_buffer+2*nu*VOLUMEplusRAND, conn+2*nu*VOLUME, 2*VOLUME*sizeof(double));
-    xchange_contraction(conn_buffer+2*nu*VOLUMEplusRAND, 2);
+  /********************************************/
+  /********************************************/
+
+  /********************************************
+   * exchange
+   ********************************************/
+  for ( int nu = 0; nu < 4; nu++ ) {
+    memcpy ( conn_buffer[nu], conn[nu], 2*VOLUME*sizeof(double) );
+    xchange_contraction(conn_buffer[nu], 2);
   }
 #else
-  const unsigned int stride = VOLUME;
-  double *conn_buffer = conn;
+  double **conn_buffer = conn;
 #endif
 
-  if(g_cart_id == 0) fprintf(stdout, "# [check_cvc_wi_position_space] checking Ward identity in position space\n");
-  for(nu=0; nu<4; nu++) {
-    double norm = 0.;
-    complex w;
-    unsigned int ix;
-    for(ix=0; ix<VOLUME; ix++ ) {
-      w.re = conn_buffer[_GWI(4*0+nu,ix          ,stride)  ] + conn_buffer[_GWI(4*1+nu,ix          ,stride)  ]
-           + conn_buffer[_GWI(4*2+nu,ix          ,stride)  ] + conn_buffer[_GWI(4*3+nu,ix          ,stride)  ]
-           - conn_buffer[_GWI(4*0+nu,g_idn[ix][0],stride)  ] - conn_buffer[_GWI(4*1+nu,g_idn[ix][1],stride)  ]
-           - conn_buffer[_GWI(4*2+nu,g_idn[ix][2],stride)  ] - conn_buffer[_GWI(4*3+nu,g_idn[ix][3],stride)  ];
+  if(g_cart_id == 0) fprintf(stdout, "# [check_cvc_wi_position_space_ct] checking Ward identity in position space\n");
 
-      w.im = conn_buffer[_GWI(4*0+nu,ix          ,stride)+1] + conn_buffer[_GWI(4*1+nu,ix          ,stride)+1]
-           + conn_buffer[_GWI(4*2+nu,ix          ,stride)+1] + conn_buffer[_GWI(4*3+nu,ix          ,stride)+1]
-           - conn_buffer[_GWI(4*0+nu,g_idn[ix][0],stride)+1] - conn_buffer[_GWI(4*1+nu,g_idn[ix][1],stride)+1]
-           - conn_buffer[_GWI(4*2+nu,g_idn[ix][2],stride)+1] - conn_buffer[_GWI(4*3+nu,g_idn[ix][3],stride)+1];
-      
-      norm += w.re*w.re + w.im*w.im;
+  double norm = 0.;
+
+  for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
+    double w_re = 
+           conn_buffer[0][2*ix  ] - conn_buffer[0][2*g_idn[ix][0]  ] 
+         + conn_buffer[1][2*ix  ] - conn_buffer[1][2*g_idn[ix][1]  ] 
+         + conn_buffer[2][2*ix  ] - conn_buffer[2][2*g_idn[ix][2]  ] 
+         + conn_buffer[3][2*ix  ] - conn_buffer[3][2*g_idn[ix][3]  ];
+         
+    double w_im = 
+           conn_buffer[0][2*ix+1] - conn_buffer[0][2*g_idn[ix][0]+1]
+         + conn_buffer[1][2*ix+1] - conn_buffer[1][2*g_idn[ix][1]+1] 
+         + conn_buffer[2][2*ix+1] - conn_buffer[2][2*g_idn[ix][2]+1] 
+         + conn_buffer[3][2*ix+1] - conn_buffer[3][2*g_idn[ix][3]+1];
+
+    /*
+    if ( g_verbose > 4 ) {
+      for ( int iproc = 0; iproc < g_nproc; iproc ++ ) {
+        if ( iproc == g_cart_id ) {
+          fprintf (stdout, "x %3d %3d %3d %3d  w  %25.16e %25.16e  c  %25.16e %25.16e\n", 
+              ix/(LX*LY*LZ)+g_proc_coords[0]*T,
+              (ix%(LX*LY*LZ))/(LY*LZ)+g_proc_coords[1]*LX,
+              (ix%(LY*LZ))/(LZ)+g_proc_coords[2]*LY,
+              (ix%LZ)+g_proc_coords[3]*LZ,
+              w_re, w_im, contact_term[2*ix], contact_term[2*ix+1] );
+
+        }
+        MPI_Barrier ( g_cart_grid );
+      }
     }
+    */
+
+    w_re -= contact_term[2*ix  ];
+    w_im -= contact_term[2*ix+1];
+
+    norm += w_re * w_re + w_im * w_im;
+  }
 #ifdef HAVE_MPI
     double dtmp = norm;
     exitstatus = MPI_Allreduce(&dtmp, &norm, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid);
     if(exitstatus != MPI_SUCCESS) {
-      fprintf(stderr, "[check_cvc_wi_position_space] Error from MPI_Allreduce, status was %d\n", exitstatus);
+      fprintf(stderr, "[check_cvc_wi_position_space_ct] Error from MPI_Allreduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       return(2);
     }
 #endif
-    if(g_cart_id == 0) fprintf(stdout, "# [check_cvc_wi_position_space] WI nu = %2d norm = %25.16e\n", nu, norm);
-  }  /* end of loop on nu */
+    if(g_cart_id == 0) fprintf(stdout, "# [check_cvc_wi_position_space_ct] WI norm = %25.16e\n", sqrt(norm) );
+
 #ifdef HAVE_MPI
   free(conn_buffer);
 #endif
   retime = _GET_TIME;
-  if(g_cart_id==0) fprintf(stdout, "# [check_cvc_wi_position_space] time for saving momentum space results = %e seconds\n", retime-ratime);
+  if(g_cart_id==0) fprintf(stdout, "# [check_cvc_wi_position_space_ct] time for saving momentum space results = %e seconds\n", retime-ratime);
 
   return(0);
 }  /* end of check_cvc_wi_position_space_ct */
