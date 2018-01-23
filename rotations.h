@@ -51,6 +51,8 @@ void rot_mat_adj_ti_mat (double _Complex **C, double _Complex **A, double _Compl
 
 void rot_printf_matrix (double _Complex **R, int N, char *A, FILE*ofs );
 
+void rot_printf_matrix_comp (double _Complex **R, double _Complex **S, int N, char *A, FILE*ofs );
+
 double rot_mat_norm2 (double _Complex **R, int N);
 
 int rot_mat_check_is_sun (double _Complex **R, int N);
@@ -98,6 +100,15 @@ void rot_inversion_matrix_spherical_basis ( double _Complex**R, int J2, int bisp
 double rot_mat_diff_norm2 (double _Complex **R, double _Complex **S , int N );
 
 double rot_mat_diff_norm (double _Complex **R, double _Complex **S , int N );
+
+void wigner_d (double **wd, double b, int J2 );
+
+int rot_rotation_matrix_spherical_basis_Wigner_D ( double _Complex**R, int J2, double a[3] );
+
+double rot_mat_norm_diff ( double _Complex **R, double _Complex **S, int N );
+
+void rot_mat_get_euler_angles ( double a[3], int n[3], double w );
+    
 
 /***********************************************************
  * check boundary status of a point
