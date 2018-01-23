@@ -101,16 +101,45 @@ void rot_init_block_params (void) {
  *
  ***********************************************************/
 void rot_printf_matrix (double _Complex **R, int N, char *A, FILE*ofs ) {
+  const double eps = 5.e-15;
   if ( g_cart_id == 0 ) {
     /* fprintf(ofs, "%s <- array(dim = c(%d , %d))\n", A, N, N); */
     for( int ik = 0; ik < N; ik++ ) {
     for( int il = 0; il < N; il++ ) {
-      fprintf(ofs, "%s[%d,%d] <- %25.16e + %25.16e*1.i\n", A, ik+1, il+1, creal( R[ik][il] ), cimag( R[ik][il] ));
+      double dre = creal( R[ik][il] );
+      double dim = cimag( R[ik][il] );
+      fprintf(ofs, "%s[%d,%d] <- %25.16e + %25.16e*1.i\n", A, ik+1, il+1, 
+          ( fabs(dre) > eps ? dre : 0. ), ( fabs(dim) > eps ? dim : 0. ) );
     }}
     fflush(ofs);
   }
 }  /* end of rot_printf_matrix */
  
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ *
+ ***********************************************************/
+void rot_printf_matrix_comp (double _Complex **R, double _Complex **S, int N, char *A, FILE*ofs ) {
+  const double eps = 5.e-15;
+  if ( g_cart_id == 0 ) {
+    /* fprintf(ofs, "%s <- array(dim = c(%d , %d))\n", A, N, N); */
+    for( int ik = 0; ik < N; ik++ ) {
+    for( int il = 0; il < N; il++ ) {
+      double dre = creal( R[ik][il] );
+      double dim = cimag( R[ik][il] );
+      double tre = creal( S[ik][il] );
+      double tim = cimag( S[ik][il] );
+      fprintf(ofs, "%s %d %d    %25.16e + %25.16e*1.i    %25.16e + %25.16e*1.i\n", A, ik+1, il+1, 
+          ( fabs(dre) > eps ? dre : 0. ), ( fabs(dim) > eps ? dim : 0. ),
+          ( fabs(tre) > eps ? dre : 0. ), ( fabs(tim) > eps ? dim : 0. ) );
+    }}
+    fflush(ofs);
+  }
+}  /* end of rot_printf_matrix_comp */
+
 /***********************************************************/
 /***********************************************************/
 
@@ -492,7 +521,9 @@ void axis2polar ( double*theta, double*phi, int n[3] ) {
     *phi   = 0.;
   } else {
     *theta = acos( n[2] / r );
+
     *phi   = atan2( n[1], n[0] );
+    if ( *phi < 0 ) *phi += 2. * M_PI;
   }
 
   if (g_cart_id == 0 ) {
@@ -529,11 +560,16 @@ void rot_rotation_matrix_spherical_basis ( double _Complex**R, int J2, int n[3],
 
   u = cos ( w / 2. ) - I * sin( w / 2.) * cos( theta );
 
+  /* TEST */
+  /*
   if ( g_cart_id == 0 ) {
     fprintf(stdout, "# [rotation_matrix_spherical_basis] v = %25.16e\n"\
                     "# [rotation_matrix_spherical_basis] u = %25.16e + %25.16e I\n",
                     v, creal(u), cimag(u));
   }
+  */
+  /* END OF TEST */
+
   for( int ik = 0; ik <= J2; ik++ ) {
     int k2 = J2 - 2*ik;
 
@@ -560,9 +596,14 @@ void rot_rotation_matrix_spherical_basis ( double _Complex**R, int J2, int n[3],
       if ( m1_pl_m2 >= 0 ) {
 
         int smax = _MIN( J_mi_m1, J_mi_m2 );
+
+        /* TEST */
+        /*
         if (g_cart_id == 0 ) {
           fprintf(stdout, "# [rotation_matrix_spherical_basis] 2 J = %d, 2 m1 = %d, 2 m2 = %d, smax = %d\n", J2, k2, l2, smax);
         }
+        */
+        /* END OF TEST */
 
         double _Complex ssum = 0.;
         for( int s = 0; s <= smax; s++ ) {
@@ -574,9 +615,15 @@ void rot_rotation_matrix_spherical_basis ( double _Complex**R, int J2, int n[3],
 
       } else {
         int smax = _MIN( J_pl_m1, J_pl_m2 );
+
+        /* TEST */
+        /*
         if (g_cart_id == 0 ) {
           fprintf(stdout, "# [rotation_matrix_spherical_basis] 2 J = %d, 2 m1 = %d, 2 m2 = %d, smax = %d\n", J2, k2, l2, smax);
         }
+        */
+        /* END OF TEST */
+        
 
         double _Complex ssum = 0.;
         for( int s = 0; s <= smax; s++ ) {
@@ -600,6 +647,7 @@ void rot_rotation_matrix_spherical_basis ( double _Complex**R, int J2, int n[3],
     }}
   }
   */
+  /* END OF TEST */
 
   return;
 }  /* end of rot_rotation_matrix_spherical_basis */
@@ -1782,12 +1830,69 @@ void rot_inversion_matrix_spherical_basis ( double _Complex**R, int J2, int bisp
 /***********************************************************
  * set Wigner d-function for all M, M'
  ***********************************************************/
-void wigner_d (double _Complex *wd, double b, int J2 ) {
+void wigner_d (double **wd, double b, int J2 ) {
 
+  double cbh = cos ( 0.5 * b );
+  double sbh = sin ( 0.5 * b );
 
+  for ( int im1 = 0; im1 <= J2; im1++ ) {
 
+    int J_mi_m1 = im1;
+    int J_pl_m1 = J2 - im1;
 
-}
+    long unsigned int  J_mi_m1_fac = factorial ( J_mi_m1 );
+    long unsigned int  J_pl_m1_fac = factorial ( J_pl_m1 );
+
+    for ( int im2 = 0; im2 <= J2; im2++ ) {
+
+      int J_mi_m2  = im2;
+      int J_pl_m2  = J2 - im2;
+      int m1_pl_m2 = J2 - im1 - im2;
+
+      int sign     = J_mi_m2 % 2 == 0 ? 1 : -1;
+
+      long unsigned int  J_mi_m2_fac = factorial ( J_mi_m2 );
+      long unsigned int  J_pl_m2_fac = factorial ( J_pl_m2 );
+
+      int k_min = _MAX( -m1_pl_m2, 0 );
+      int k_max = _MIN( J_mi_m1, J_mi_m2 );
+
+      // fprintf( stdout, "# [wigner_d] J2= %d M1 = %4.1f M2 = %4.1f k_min = %d k_max = %d\n", J2, (J2-2*im1)/2., (J2-2*im2)/2., k_min, k_max );
+
+      double f = sign * sqrt( J_mi_m1_fac * J_pl_m1_fac * J_mi_m2_fac * J_pl_m2_fac );
+
+      double dtmp = 0.;
+
+      for ( int k = k_min; k <= k_max; k++ ) {
+
+        int k_sign = k % 2 == 0 ? 1 : -1;
+
+        dtmp += k_sign * pow ( cbh, m1_pl_m2 + 2*k ) * pow ( sbh, J2 - m1_pl_m2 - 2*k ) / \
+                ( factorial ( k ) * factorial ( J_mi_m1 - k ) * factorial ( J_mi_m2 - k ) * factorial ( m1_pl_m2 + k ) );
+
+      }
+
+      wd[im1][im2] = f * dtmp;
+
+    }  /* end of loop on im2 */
+  }    /* end of loop on im1 */
+
+  /* TEST */
+  /*
+  if (g_cart_id == 0 && g_verbose > 4 ) {
+    const double eps = 5.e-15;
+      fprintf(stdout, "d <- array(dim=(%d , %d))\n", J2+1, J2+1);
+    for( int ik = 0; ik <= J2; ik++ ) {
+    for( int il = 0; il <= J2; il++ ) {
+      double dtmp = fabs( wd[ik][il] ) > eps ? wd[ik][il] : 0.;
+      fprintf(stdout, "d[%d,%d] <- %25.16e\n", ik+1, il+1, dtmp );
+    }}
+  }
+  */
+  /* END OF TEST */
+
+  return;
+}  /* end of wigner_d */
 
 /***********************************************************/
 /***********************************************************/
@@ -1800,92 +1905,104 @@ void wigner_d (double _Complex *wd, double b, int J2 ) {
  * output
  * R  = rotation matrix in spherical basis
  ***********************************************************/
-void rot_rotation_matrix_spherical_basis_euler_angles ( double _Complex**R, int J2, double a[3] ) {
+int rot_rotation_matrix_spherical_basis_Wigner_D ( double _Complex**R, int J2, double a[3] ) {
 
-  double theta, phi;
-  double v, vsqr_mi_one;
-  double _Complex u;
+  int exitstatus;
+  double **wd = NULL;
 
-
-  v = sin ( w / 2. ) * sin ( theta );
-  vsqr_mi_one = v*v - 1;
-
-  u = cos ( w / 2. ) - I * sin( w / 2.) * cos( theta );
-
-  if ( g_cart_id == 0 ) {
-    fprintf(stdout, "# [rotation_matrix_spherical_basis] v = %25.16e\n"\
-                    "# [rotation_matrix_spherical_basis] u = %25.16e + %25.16e I\n",
-                    v, creal(u), cimag(u));
+  if ( ( exitstatus = init_2level_buffer ( &wd, J2+1, J2+1 ) ) != 0 ) {
+    fprintf(stderr, "[rot_rotation_matrix_spherical_basis_Wigner_D] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    return(1);
   }
-  for( int ik = 0; ik <= J2; ik++ ) {
-    int k2 = J2 - 2*ik;
 
-    int J_mi_m1 = ( J2 - k2 ) / 2;
-    int J_pl_m1 = ( J2 + k2 ) / 2;
+  wigner_d ( wd, a[1], J2 );
 
-    long unsigned int J_mi_m1_fac = factorial (J_mi_m1);
-    long unsigned int J_pl_m1_fac = factorial (J_pl_m1);
+  for ( int im1 = 0; im1 <= J2; im1++ ) {
+    double m1 = ( J2 - 2*im1 ) / 2.;
 
-    for( int il = 0; il <= J2; il++ ) {
-      int l2 = J2 - 2 * il;
+    double _Complex z1 = cos ( m1 * a[0] ) - I * sin ( m1 * a[0] );
 
-      int J_mi_m2 = ( J2 - l2 ) / 2;
-      int J_pl_m2 = ( J2 + l2 ) / 2;
+    for ( int im2 = 0; im2 <= J2; im2++ ) {
+      double m2 = ( J2 - 2*im2 ) / 2.;
 
-      long unsigned int J_mi_m2_fac = factorial (J_mi_m2);
-      long unsigned int J_pl_m2_fac = factorial (J_pl_m2);
+      // fprintf (stdout, "# [rot_rotation_matrix_spherical_basis_Wigner_D] J2 = %d m1 = %3.1f m2 = %3.1f\n", J2, m1, m2);
 
-      double norm = sqrt( J_pl_m1_fac * J_mi_m1_fac * J_pl_m2_fac * J_mi_m2_fac );
+      double _Complex z2 = cos ( m2 * a[2] ) - I * sin ( m2 * a[2] );
 
-      int m1_pl_m2 = (k2 + l2 ) / 2;
-      int m1_mi_m2 = (k2 - l2 ) / 2;
+      // fprintf(stdout, "# [Wigner-D] m1 = %4.1f m2 = %4.1f alpha = %25.16e z1 = %25.16e %25.16e gamma = %25.16e z2 = %25.16e %25.16e\n", m1, m2, a[0], creal(z1), cimag(z1), a[2], creal(z2), cimag(z2));
 
-      if ( m1_pl_m2 >= 0 ) {
-
-        int smax = _MIN( J_mi_m1, J_mi_m2 );
-        if (g_cart_id == 0 ) {
-          fprintf(stdout, "# [rotation_matrix_spherical_basis] 2 J = %d, 2 m1 = %d, 2 m2 = %d, smax = %d\n", J2, k2, l2, smax);
-        }
-
-        double _Complex ssum = 0.;
-        for( int s = 0; s <= smax; s++ ) {
-          ssum += pow ( v, J2 - m1_pl_m2 - 2*s ) * pow( vsqr_mi_one, s ) / ( factorial(s) * factorial(s + m1_pl_m2) * factorial(J_mi_m1 - s) * factorial( J_mi_m2 - s) );
-        }
-
-        R[ik][il] = ( cos( m1_mi_m2 * phi) - sin( m1_mi_m2*phi) * I ) * ssum * cpow( u, m1_pl_m2)        * cpow( -I, J2 - m1_pl_m2) * norm;
+      R[im1][im2] = z1 * z2 * wd[im1][im2];
+    }
+  }
 
 
-      } else {
-        int smax = _MIN( J_pl_m1, J_pl_m2 );
-        if (g_cart_id == 0 ) {
-          fprintf(stdout, "# [rotation_matrix_spherical_basis] 2 J = %d, 2 m1 = %d, 2 m2 = %d, smax = %d\n", J2, k2, l2, smax);
-        }
+  fini_2level_buffer ( &wd );
 
-        double _Complex ssum = 0.;
-        for( int s = 0; s <= smax; s++ ) {
-          ssum += pow ( v , J2 + m1_pl_m2 - 2*s ) * pow( vsqr_mi_one, s ) / ( factorial(s) * factorial(s - m1_pl_m2) * factorial(J_pl_m1 - s) * factorial( J_pl_m2 - s) );
-        }
-
-        R[ik][il] = ( cos( m1_mi_m2 * phi) - sin( m1_mi_m2*phi) * I ) * ssum * cpow( conj(u), -m1_pl_m2) * cpow( -I, J2 + m1_pl_m2) * norm;
-
-      }
-
-    }  /* end of loop on m2 */
-  }  /* end of loop on m1 */
 
   /* TEST */
-  /*
-  if (g_cart_id == 0 ) {
-    fprintf(stdout, "R <- array(dim=(%d , %d))\n", J2+1, J2+1);
+/*
+  if (g_cart_id == 0 && g_verbose > 4 ) {
+      fprintf(stdout, "R <- array(dim=(%d , %d))\n", J2+1, J2+1);
     for( int ik = 0; ik <= J2; ik++ ) {
     for( int il = 0; il <= J2; il++ ) {
       fprintf(stdout, "R[%d,%d] <- %25.16e + %25.16e*1.i\n", ik+1, il+1, creal( R[ik][il] ), cimag( R[ik][il] ));
     }}
   }
-  */
+*/
+
+  return(0);
+}  /* end of rot_rotation_matrix_spherical_basis_Wigner_D */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * norm difference of matrices
+ ***********************************************************/
+double rot_mat_norm_diff ( double _Complex **R, double _Complex **S, int N ) {
+
+  double res = 0.;
+  for(int i = 0; i < N; i++ ) {
+  for(int k = 0; k < N; k++ ) {
+      double _Complex z = R[i][k] - S[i][k];
+      res += creal( z * conj( z ) );
+    }
+  }
+  return( sqrt( res ) );
+}  /* end of rot_mat_norm_diff */
+
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ *
+ ***********************************************************/
+void rot_mat_get_euler_angles ( double a[3], int n[3], double w ) {
+
+  const double eps = 5.e-15;
+  double theta, phi;
+  double dtmp;
+  double wpos = w >= 0. ? w : w + 2 * M_PI;
+
+  axis2polar ( &theta, &phi, n );
+
+  fprintf ( stdout, "# [rot_mat_get_euler_angles] w = %e pi, wpos = %e pi, theta = %e pi, phi = %e pi\n", w/M_PI, wpos/M_PI, theta/M_PI, phi/M_PI );
+
+  dtmp = 2. * asin( sin ( theta ) * sin ( wpos / 2. ) );
+  a[1] = fabs( dtmp ) < eps ? 0. : dtmp;
+
+  double a_pl_g_h = atan( cos ( theta ) * tan ( wpos / 2. ) );
+  double a_mi_g_h =  phi - M_PI / 2;
+
+  dtmp = a_pl_g_h + a_mi_g_h;
+  a[0] = fabs ( dtmp ) < eps ? 0. : dtmp;
+
+  dtmp = a_pl_g_h - a_mi_g_h;
+  a[3] = fabs ( dtmp ) < eps ? 0. : dtmp;
 
   return;
-}  /* end of rot_rotation_matrix_spherical_basis */
+}  /* end of rot_mat_get_euler_angles */
 
 /***********************************************************/
 /***********************************************************/
