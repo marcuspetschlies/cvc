@@ -136,6 +136,8 @@ int spinor_field_tm_rotation(double*s, double*r, int sign, int fermion_type, uns
 
 int check_cvc_wi_position_space (double *conn);
 
+int check_cvc_wi_position_space_ct (double **conn, double *contact_term );
+
 int check_cvc_wi_momentum_space (double *conn);
 
 int assign_fermion_propagaptor_from_spinor_field (fermion_propagator_type *s, double**prop_list, unsigned int N);
