@@ -45,7 +45,7 @@
 namespace cvc {
 
 static double *Usource[4], Usourcebuffer[72];
-static double _Complex UsourceMatrix[4][144];
+/* static double _Complex UsourceMatrix[4][144]; */
 static int source_proc_id;
 static unsigned int source_location;
 static int source_location_iseven;
@@ -264,7 +264,10 @@ void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_te
   {
 
     /* fp_Y_gamma^o = sprop^o , source + nu */
-    exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_Y_gamma, sprop_list_o+12*nu, Vhalf);
+    if ( ( exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_Y_gamma, sprop_list_o+12*nu, Vhalf) ) != 0 ) {
+      fprintf(stderr, "[] Error from assign_fermion_propagaptor_from_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return;
+    }
 
     /* fp_Y_gamma^o = fp_Y_gamma^o * Gamma_nu^b  */
     apply_propagator_constant_cvc_vertex ( fp_Y_gamma, fp_Y_gamma, nu, 1, Usource[nu], Vhalf );
@@ -1464,7 +1467,11 @@ void contract_cvc_loop_eo ( double ***loop, double**sprop_list_e, double**sprop_
   
 
   /* even part of sprop */
-  exitstatus = assign_fermion_propagaptor_from_spinor_field ( fp, sprop_list_e, Vhalf);
+  if ( ( exitstatus = assign_fermion_propagaptor_from_spinor_field ( fp, sprop_list_e, Vhalf) ) != 0 ) {
+    fprintf(stderr, "[] Error from assign_fermion_propagaptor_from_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return;
+  }
+
   for ( int mu = 0; mu < 4; mu++ ) {
     /* input field is even, output field is odd */
     apply_cvc_vertex_propagator_eo ( gamma_fp, fp, mu, 0, gauge_field, 1);
@@ -2076,7 +2083,6 @@ int cvc_loop_eo_check_wi_momentum_space_lma ( double **wi, double ***loop_lma, i
   free ( wi_lexic );
 
   for ( int ip = 0; ip < momentum_number; ip++ ) {
-    double dtmp[2], phase[2];
     double norm_accum = 0.;
 
     for ( int ip0 = 0; ip0 < T_global; ip0 ++ ) {
@@ -2132,8 +2138,8 @@ int cvc_loop_eo_check_wi_momentum_space_lma ( double **wi, double ***loop_lma, i
       double pJi = -( sinp[0] * jjp[0] + sinp[1] * jjp[2] + sinp[2] * jjp[4] + sinp[3] * jjp[6] ); 
       double pJr =    sinp[0] * jjp[1] + sinp[1] * jjp[3] + sinp[2] * jjp[5] + sinp[3] * jjp[7]; 
 
-      if ( g_cart_id == 0 && g_verbose > 2) {
-        fprintf(stdout, "# [cvc_loop_eo_check_wi_momentum_space_lma] p = %3d %3d %3d %3d "\
+      if ( g_cart_id == 0 && g_verbose > 3) {
+        fprintf(stdout, "# [cvc_loop_eo_check_wi_momentum_space] p = %3d %3d %3d %3d "\
             "pJ = %25.16e %25.16e  "\
             "ww = %25.16e %25.16e  "\
             "pJ - ww = %16.7e %16.7e\n", 
@@ -2147,7 +2153,7 @@ int cvc_loop_eo_check_wi_momentum_space_lma ( double **wi, double ***loop_lma, i
     }  /* end of loop on ip0  */
 
     if ( g_cart_id == 0 ) {
-      fprintf(stdout, "# [cvc_loop_eo_check_wi_momentum_space_lma] pvec = %3d %3d %3d norm-diff = %16.7e\n",
+      fprintf(stdout, "# [cvc_loop_eo_check_wi_momentum_space] pvec = %3d %3d %3d norm-diff = %16.7e\n",
           momentum_list[ip][0], momentum_list[ip][1], momentum_list[ip][2], sqrt( norm_accum ) );
     }
 
@@ -2266,7 +2272,6 @@ int contract_cvc_tensor_eo_lm_factors ( double**eo_evecs_field, int nev, double*
   const unsigned int Vhalf = VOLUME / 2;
   const unsigned int VOL3half = ( LX * LY * LZ ) / 2;
   const size_t sizeof_eo_spinor_field           = _GSI( Vhalf    ) * sizeof(double);
-  const size_t sizeof_eo_spinor_field_timeslice = _GSI( VOL3half ) * sizeof(double);
 
 
   int exitstatus;
@@ -3263,7 +3268,6 @@ int co_field_eq_jj_disc_tensor_trace ( double *r, double**j1, double**j2, int pr
 void contract_cvc_loop_eo_stoch_wi ( double **wi, double**eo_stochastic_propagator, double **eo_stochastic_source, int nsample, double*gauge_field, double **mzz[2], double **mzzinv[2]) {
 
   const unsigned int Vhalf = VOLUME / 2;
-  const size_t sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof(double);
   int exitstatus;
 
   double ratime, retime;
