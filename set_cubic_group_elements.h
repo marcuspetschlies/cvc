@@ -69,7 +69,7 @@
   cubic_group_rotations[8].n[1] = -1;
   cubic_group_rotations[8].n[2] =  1;
   cubic_group_rotations[8].w    = 2*M_PI/3;
-  cubic_group_rotations[8].a[0] =  M_PI/2..;
+  cubic_group_rotations[8].a[0] =  M_PI/2.;
   cubic_group_rotations[8].a[1] = -M_PI/2.;
   cubic_group_rotations[8].a[2] =  0.;
 
@@ -77,7 +77,7 @@
   cubic_group_rotations[9].n[1] =  0;
   cubic_group_rotations[9].n[2] =  0;
   cubic_group_rotations[9].w    = -M_PI/2;
-  cubic_group_rotations[9].a[0] = -M_PI/2..;
+  cubic_group_rotations[9].a[0] = -M_PI/2.;
   cubic_group_rotations[9].a[1] = -M_PI/2.;
   cubic_group_rotations[9].a[2] =  M_PI/2.;
 
@@ -85,7 +85,7 @@
   cubic_group_rotations[10].n[1] =  0;
   cubic_group_rotations[10].n[2] =  0;
   cubic_group_rotations[10].w    = M_PI/2;
-  cubic_group_rotations[10].a[0] =  M_PI/2..;
+  cubic_group_rotations[10].a[0] =  M_PI/2.;
   cubic_group_rotations[10].a[1] = -M_PI/2.;
   cubic_group_rotations[10].a[2] = -M_PI/2.;
 
@@ -117,7 +117,7 @@
   cubic_group_rotations[14].n[1] =  0;
   cubic_group_rotations[14].n[2] =  1;
   cubic_group_rotations[14].w    = M_PI/2;
-  cubic_group_rotations[14].a[0] =  M_PI/2..;
+  cubic_group_rotations[14].a[0] =  M_PI/2.;
   cubic_group_rotations[14].a[1] =  0.;
   cubic_group_rotations[14].a[2] =  0.;
 
@@ -125,7 +125,7 @@
   cubic_group_rotations[15].n[1] =  1;
   cubic_group_rotations[15].n[2] =  1;
   cubic_group_rotations[15].w    = -M_PI;
-  cubic_group_rotations[15].a[0] = -M_PI/2..;
+  cubic_group_rotations[15].a[0] = -M_PI/2.;
   cubic_group_rotations[15].a[1] = -M_PI/2.;
   cubic_group_rotations[15].a[2] = -M_PI/2.;
 
@@ -133,7 +133,7 @@
   cubic_group_rotations[16].n[1] = -1;
   cubic_group_rotations[16].n[2] =  1;
   cubic_group_rotations[16].w    = -M_PI;
-  cubic_group_rotations[16].a[0] = -M_PI/2..;
+  cubic_group_rotations[16].a[0] = -M_PI/2.;
   cubic_group_rotations[16].a[1] =  M_PI/2.;
   cubic_group_rotations[16].a[2] = -M_PI/2.;
 
@@ -141,7 +141,7 @@
   cubic_group_rotations[17].n[1] =  1;
   cubic_group_rotations[17].n[2] =  0;
   cubic_group_rotations[17].w    = -M_PI;
-  cubic_group_rotations[17].a[0] = -M_PI/2..;
+  cubic_group_rotations[17].a[0] = -M_PI/2.;
   cubic_group_rotations[17].a[1] = -M_PI;
   cubic_group_rotations[17].a[2] =  0.;
 
