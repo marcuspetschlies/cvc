@@ -111,6 +111,7 @@ void rot_mat_get_euler_angles ( double a[3], int n[3], double w );
  
 int rot_mat_spin1_cartesian ( double _Complex **R, int n[3], double omega );
 
+void rot_mat_pl_eq_mat_ti_co (double _Complex **R, double _Complex **S, double _Complex c, int N);
 
 /***********************************************************
  * check boundary status of a point
