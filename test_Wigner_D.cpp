@@ -53,8 +53,6 @@ using namespace cvc;
 
 int main(int argc, char **argv) {
 
-  const double ONE_OVER_SQRT2 = 1. / sqrt(2.);
-
   int c;
   int filename_set = 0;
   char filename[100];
@@ -149,6 +147,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[test_Wigner_D] Error from fopen\n");
     EXIT(2);
   }
+  fprintf( ofs, "W_spherical <- list()\n\n");
 
 
   for(int irot=0; irot < 24; irot++ )
@@ -165,10 +164,10 @@ int main(int argc, char **argv) {
 
     double euler_angles[3];
 
-    rot_mat_get_euler_angles ( euler_angles, cubic_group_rotations[irot].n, cubic_group_rotations[irot].w );
+    // rot_mat_get_euler_angles ( euler_angles, cubic_group_rotations[irot].n, cubic_group_rotations[irot].w );
 
 
-    fprintf( ofs, "\n# [test_Wigner_D] rot %2d paper angles  alpha = %16.7e pi, beta  = %16.7e pi, gamma = %16.7e pi\n", irot+1,
+    /* fprintf( ofs, "\n# [test_Wigner_D] rot %2d paper angles  alpha = %16.7e pi, beta  = %16.7e pi, gamma = %16.7e pi\n", irot+1,
         cubic_group_rotations[irot].a[0] / M_PI, cubic_group_rotations[irot].a[1] / M_PI, cubic_group_rotations[irot].a[2] / M_PI );
           
     fprintf( ofs, "\n# [test_Wigner_D] rot %2d Euler angles  alpha = %16.7e pi, beta  = %16.7e pi, gamma = %16.7e pi\n", irot+1,
@@ -184,7 +183,9 @@ int main(int argc, char **argv) {
       tan ( ( euler_angles[0] + euler_angles[2] ) / 2. ),
       ( euler_angles[0] - euler_angles[2] ) / 2. / M_PI );
 
-    rot_rotation_matrix_spherical_basis ( R, Ndim-1, cubic_group_rotations[irot].n, cubic_group_rotations[irot].w );
+    */
+
+    // rot_rotation_matrix_spherical_basis ( R, Ndim-1, cubic_group_rotations[irot].n, cubic_group_rotations[irot].w );
     rot_rotation_matrix_spherical_basis_Wigner_D ( W, Ndim-1, cubic_group_rotations[irot].a );
 
     if ( rot_mat_check_is_sun ( W, Ndim) ) {
@@ -195,17 +196,19 @@ int main(int argc, char **argv) {
 
 
     sprintf(name, "W_spherical[[%2d]]", irot+1);
+    fprintf( ofs, "%s <- array( dim=c(%d, %d) )\n", name, Ndim, Ndim );
     rot_printf_matrix ( W, Ndim, name, ofs );
 //    sprintf(name, "R_spherical[[%2d]]", irot+1);
 //    rot_printf_matrix ( R, Ndim, name, ofs );
 //    rot_printf_matrix_comp ( W, R, Ndim, name, ofs );
 
-    double norm = rot_mat_norm_diff ( W, R, Ndim );
-    fprintf( ofs, "# [test_Wigner_D] rot %2d norm diff = %16.7e\n", irot+1, norm );
+    // double norm = rot_mat_norm_diff ( W, R, Ndim );
+    // fprintf( ofs, "# [test_Wigner_D] rot %2d norm diff = %16.7e\n", irot+1, norm );
 
 
     if ( Ndim == 3 ) {
       rot_spherical2cartesian_3x3 (A, W );
+
       if ( rot_mat_check_is_real_int ( A, Ndim ) ) {
         if (g_cart_id == 0 )
           fprintf(ofs, "# [test_Wigner_D] rot_mat_check_is_real_int rot %2d ok\n", irot+1);
@@ -215,7 +218,26 @@ int main(int argc, char **argv) {
 
       sprintf(name, "A_cartesian[[%2d]]", irot+1);
       rot_printf_rint_matrix (A, Ndim, name, ofs );
-    }
+
+      if ( ( exitstatus = rot_mat_spin1_cartesian ( R, cubic_group_rotations[irot].n, cubic_group_rotations[irot].w ) ) != 0 ) {
+        fprintf( stderr, "[test_Wigner_D] Error from rot_mat_spin1_cartesian, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(1);
+      }
+
+      if ( rot_mat_check_is_real_int ( R, Ndim ) ) {
+        if (g_cart_id == 0 )
+          fprintf(ofs, "# [test_Wigner_D] rot_mat_check_is_real_int R rot %2d ok\n", irot+1);
+      } else {
+        fprintf(ofs, "[test_Wigner_D] Error, rot_mat_check_is_real_int R rot %2d failed\n", irot+1);
+      }
+
+      sprintf(name, "R_cartesian[[%2d]]", irot+1);
+      rot_printf_rint_matrix (R, Ndim, name, ofs );
+
+      double norm = rot_mat_norm_diff ( R, A, Ndim );
+      fprintf( ofs, "# [test_Wigner_D] cartesian rot %2d norm diff = %e\n", irot+1, norm );
+
+    }  /* end of if Ndim == 3 */
 
   }  /* end of loop on rotations */
 
