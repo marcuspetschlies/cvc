@@ -53,6 +53,8 @@ extern "C"
 #include "Q_phi.h"
 #include "scalar_products.h"
 
+#define _SQR(_a) ((_a)*(_a))
+
 using namespace cvc;
 
 void usage() {
@@ -256,6 +258,9 @@ int main(int argc, char **argv) {
    * loop on rotations
    ***********************************************************/
   ofs = fopen("spin1_rotation_matrices", "w");
+
+  fprintf( ofs, "A_spherical <- list()\n" );
+
   for(int irot=0; irot < 48; irot++ )
   // for(int irot = 46; irot < 47; irot++ )
   // for(int irot = 0; irot < 1; irot++ )
@@ -263,28 +268,45 @@ int main(int argc, char **argv) {
     char name[20];
 
     if (g_cart_id == 0 ) {
-      fprintf( ofs, "\n# [test_rotations] rotation no. %2d n = (%2d, %2d, %2d) w = %16.7e pi\n", irot,
+      // fprintf( ofs, "\n# [test_rotations] rotation no. %2d n = (%2d, %2d, %2d) w = %16.7e pi\n", 
+      fprintf( ofs, "\n\n# [test_rotations] rotation no.  %d n = ( %d,  %d,  %d) w = %16.6e pi\n", 
+          irot+1,
           cubic_group_double_cover_rotations[irot].n[0], cubic_group_double_cover_rotations[irot].n[1], cubic_group_double_cover_rotations[irot].n[2],
           cubic_group_double_cover_rotations[irot].w / M_PI);
     }
 
     rot_rotation_matrix_spherical_basis ( R, Ndim-1, cubic_group_double_cover_rotations[irot].n, cubic_group_double_cover_rotations[irot].w );
 
-    sprintf(name, "A_shperical[%.2d]", irot);
+    sprintf(name, "A_spherical[[%d]]", irot+1);
+    fprintf( ofs, "%s <- array( dim=c(3,3) )\n", name, irot+1 );
     rot_printf_matrix ( R, Ndim, name, ofs );
 
 
     rot_spherical2cartesian_3x3 (A, R);
     if ( rot_mat_check_is_real_int ( A, Ndim ) ) {
       if (g_cart_id == 0 )
-        fprintf(ofs, "# [test_rotations] rot_mat_check_is_real_int matrix A rot %2d ok\n", irot);
+        fprintf(stdout, "# [test_rotations] rot_mat_check_is_real_int matrix A rot %2d ok\n", irot);
     } else {
       EXIT(6);
     }
 
-    sprintf(name, "A_cartesian[%.2d]", irot);
-    rot_printf_rint_matrix (A, Ndim, name, ofs );
+    sprintf(name, "A_cartesian[[%d]]", irot+1);
+    rot_printf_rint_matrix (A, Ndim, name, stdout );
 
+    int nrot[3] = {0,0,0};
+    
+    rot_point ( nrot, cubic_group_double_cover_rotations[irot].n, A );
+    double norm = sqrt(
+      _SQR(nrot[0] - cubic_group_double_cover_rotations[irot].n[0]) + 
+      _SQR(nrot[1] - cubic_group_double_cover_rotations[irot].n[1]) + 
+      _SQR(nrot[2] - cubic_group_double_cover_rotations[irot].n[2]) );
+    double norm2 = sqrt( _SQR(nrot[0]) + _SQR(nrot[1]) + _SQR(nrot[2]) );
+
+    double norm3 = sqrt( 
+        _SQR( cubic_group_double_cover_rotations[irot].n[0] ) + 
+        _SQR( cubic_group_double_cover_rotations[irot].n[1] ) + 
+        _SQR( cubic_group_double_cover_rotations[irot].n[2] ) );
+    fprintf(stdout, "# [test_rotations] irot %2d || Rn - n || = %16.7e || n ||      = %16.7e || Rn ||     = %16.7e \n", irot+1, norm, norm2, norm3);
 
 #if 0
     exitstatus = rot_gauge_field ( gauge_field_rot, g_gauge_field, A);
