@@ -108,7 +108,9 @@ int rot_rotation_matrix_spherical_basis_Wigner_D ( double _Complex**R, int J2, d
 double rot_mat_norm_diff ( double _Complex **R, double _Complex **S, int N );
 
 void rot_mat_get_euler_angles ( double a[3], int n[3], double w );
-    
+ 
+int rot_mat_spin1_cartesian ( double _Complex **R, int n[3], double omega );
+
 
 /***********************************************************
  * check boundary status of a point

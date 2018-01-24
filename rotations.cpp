@@ -2007,4 +2007,45 @@ void rot_mat_get_euler_angles ( double a[3], int n[3], double w ) {
 /***********************************************************/
 /***********************************************************/
 
+/***********************************************************
+ * build spin-1 rotations in cartesian basis
+ * directly from n and omega
+ ***********************************************************/
+int rot_mat_spin1_cartesian ( double _Complex **R, int n[3], double omega ) {
+
+  if ( n[0] == 0 && n[1] == 0 && n[2] == 0 ) {
+    memset ( R[0], 0, 9 * sizeof( double _Complex ) );
+    R[0][0] = 1.;
+    R[1][1] = 1.;
+    R[2][2] = 1.;
+    return(0);
+  }
+
+  double cos_omega = cos( omega );
+  double sin_omega = sin( omega );
+  double sin_omega_h = sin ( 0.5 * omega );
+  double one_mi_cos_omega = 2. * sin_omega_h * sin_omega_h;
+
+  double nnorm = 1. / sqrt( n[0] * n[0] + n[1] * n[1] + n[2] * n[2] );
+  double d[3] = { n[0] * nnorm, n[1] * nnorm, n[2] * nnorm };
+
+  R[0][0] = cos_omega  + one_mi_cos_omega * d[0] * d[0];
+  R[0][1] = one_mi_cos_omega * d[0] * d[1] - sin_omega * d[2];
+  R[0][2] = one_mi_cos_omega * d[2] * d[0] + sin_omega * d[1];
+
+  R[1][0] = one_mi_cos_omega * d[0] * d[1] + sin_omega * d[2];
+  R[1][1] = cos_omega  + one_mi_cos_omega * d[1] * d[1];
+  R[1][2] = one_mi_cos_omega * d[1] * d[2] - sin_omega * d[0];
+
+  R[2][0] = one_mi_cos_omega * d[2] * d[0] - sin_omega * d[1];
+  R[2][1] = one_mi_cos_omega * d[1] * d[2] + sin_omega * d[0];
+  R[2][2] = cos_omega  + one_mi_cos_omega * d[2] * d[2];
+
+  return(0);
+}  /* end of rot_mat_spin1_cartesian */
+
+
+/***********************************************************/
+/***********************************************************/
+
 }  /* end of namespace cvc */
