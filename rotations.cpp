@@ -134,7 +134,7 @@ void rot_printf_matrix_comp (double _Complex **R, double _Complex **S, int N, ch
       double tim = cimag( S[ik][il] );
       fprintf(ofs, "%s %d %d    %25.16e + %25.16e*1.i    %25.16e + %25.16e*1.i\n", A, ik+1, il+1, 
           ( fabs(dre) > eps ? dre : 0. ), ( fabs(dim) > eps ? dim : 0. ),
-          ( fabs(tre) > eps ? dre : 0. ), ( fabs(tim) > eps ? dim : 0. ) );
+          ( fabs(tre) > eps ? tre : 0. ), ( fabs(tim) > eps ? tim : 0. ) );
     }}
     fflush(ofs);
   }
@@ -498,6 +498,23 @@ void rot_mat_ti_eq_re (double _Complex **R, double c, int N) {
 /***********************************************************
  *
  ***********************************************************/
+void rot_mat_pl_eq_mat_ti_co (double _Complex **R, double _Complex **S, double _Complex c, int N) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( int i = 0; i < N*N; i++ ) {
+    double _Complex z = S[0][i];
+    R[0][i] += c * z;
+  }
+  return;
+}  /* end of rot_mat_pl_eq_mat_ti_co */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ *
+ ***********************************************************/
 long unsigned int factorial (int n)
 {
   if (n >= 1)
@@ -526,7 +543,7 @@ void axis2polar ( double*theta, double*phi, int n[3] ) {
     if ( *phi < 0 ) *phi += 2. * M_PI;
   }
 
-  if (g_cart_id == 0 ) {
+  if (g_cart_id == 0 && g_verbose > 4 ) {
     fprintf(stdout, "# [axis2polar] n %2d %2d %2d   phi %25.16e pi   theta  %25.16e pi\n", n[0], n[1], n[2], *phi/M_PI, *theta/M_PI);
     fflush(stdout);
   }
@@ -2003,6 +2020,47 @@ void rot_mat_get_euler_angles ( double a[3], int n[3], double w ) {
 
   return;
 }  /* end of rot_mat_get_euler_angles */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * build spin-1 rotations in cartesian basis
+ * directly from n and omega
+ ***********************************************************/
+int rot_mat_spin1_cartesian ( double _Complex **R, int n[3], double omega ) {
+
+  if ( n[0] == 0 && n[1] == 0 && n[2] == 0 ) {
+    memset ( R[0], 0, 9 * sizeof( double _Complex ) );
+    R[0][0] = 1.;
+    R[1][1] = 1.;
+    R[2][2] = 1.;
+    return(0);
+  }
+
+  double cos_omega = cos( omega );
+  double sin_omega = sin( omega );
+  double sin_omega_h = sin ( 0.5 * omega );
+  double one_mi_cos_omega = 2. * sin_omega_h * sin_omega_h;
+
+  double nnorm = 1. / sqrt( n[0] * n[0] + n[1] * n[1] + n[2] * n[2] );
+  double d[3] = { n[0] * nnorm, n[1] * nnorm, n[2] * nnorm };
+
+  R[0][0] = cos_omega  + one_mi_cos_omega * d[0] * d[0];
+  R[0][1] = one_mi_cos_omega * d[0] * d[1] - sin_omega * d[2];
+  R[0][2] = one_mi_cos_omega * d[2] * d[0] + sin_omega * d[1];
+
+  R[1][0] = one_mi_cos_omega * d[0] * d[1] + sin_omega * d[2];
+  R[1][1] = cos_omega  + one_mi_cos_omega * d[1] * d[1];
+  R[1][2] = one_mi_cos_omega * d[1] * d[2] - sin_omega * d[0];
+
+  R[2][0] = one_mi_cos_omega * d[2] * d[0] - sin_omega * d[1];
+  R[2][1] = one_mi_cos_omega * d[1] * d[2] + sin_omega * d[0];
+  R[2][2] = cos_omega  + one_mi_cos_omega * d[2] * d[2];
+
+  return(0);
+}  /* end of rot_mat_spin1_cartesian */
+
 
 /***********************************************************/
 /***********************************************************/
