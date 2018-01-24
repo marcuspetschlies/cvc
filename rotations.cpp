@@ -134,7 +134,7 @@ void rot_printf_matrix_comp (double _Complex **R, double _Complex **S, int N, ch
       double tim = cimag( S[ik][il] );
       fprintf(ofs, "%s %d %d    %25.16e + %25.16e*1.i    %25.16e + %25.16e*1.i\n", A, ik+1, il+1, 
           ( fabs(dre) > eps ? dre : 0. ), ( fabs(dim) > eps ? dim : 0. ),
-          ( fabs(tre) > eps ? dre : 0. ), ( fabs(tim) > eps ? dim : 0. ) );
+          ( fabs(tre) > eps ? tre : 0. ), ( fabs(tim) > eps ? tim : 0. ) );
     }}
     fflush(ofs);
   }
@@ -498,6 +498,23 @@ void rot_mat_ti_eq_re (double _Complex **R, double c, int N) {
 /***********************************************************
  *
  ***********************************************************/
+void rot_mat_pl_eq_mat_ti_co (double _Complex **R, double _Complex **S, double _Complex c, int N) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( int i = 0; i < N*N; i++ ) {
+    double _Complex z = S[0][i];
+    R[0][i] += c * z;
+  }
+  return;
+}  /* end of rot_mat_pl_eq_mat_ti_co */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ *
+ ***********************************************************/
 long unsigned int factorial (int n)
 {
   if (n >= 1)
@@ -526,7 +543,7 @@ void axis2polar ( double*theta, double*phi, int n[3] ) {
     if ( *phi < 0 ) *phi += 2. * M_PI;
   }
 
-  if (g_cart_id == 0 ) {
+  if (g_cart_id == 0 && g_verbose > 4 ) {
     fprintf(stdout, "# [axis2polar] n %2d %2d %2d   phi %25.16e pi   theta  %25.16e pi\n", n[0], n[1], n[2], *phi/M_PI, *theta/M_PI);
     fflush(stdout);
   }
