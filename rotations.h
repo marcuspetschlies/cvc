@@ -113,6 +113,19 @@ int rot_mat_spin1_cartesian ( double _Complex **R, int n[3], double omega );
 
 void rot_mat_pl_eq_mat_ti_co (double _Complex **R, double _Complex **S, double _Complex c, int N);
 
+void rot_mat_ti_vec (double _Complex *w, double _Complex **A, double _Complex *v, int N);
+
+void rot_mat_transpose_ti_vec (double _Complex *w, double _Complex **A, double _Complex *v, int N);
+
+void rot_mat_adjoint_ti_vec (double _Complex *w, double _Complex **A, double _Complex *v, int N);
+
+void rot_vec_accum_vec_ti_co_pl_mat_ti_vec_ti_co (double _Complex *w, double _Complex **A, double _Complex *v, double _Complex cv, double _Complex cw, int N);
+
+void rot_vec_accum_vec_ti_co_pl_mat_transpose_ti_vec_ti_co (double _Complex *w, double _Complex **A, double _Complex *v, double _Complex cv, double _Complex cw, int N);
+
+
+
+
 /***********************************************************
  * check boundary status of a point
  ***********************************************************/
