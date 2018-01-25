@@ -103,7 +103,7 @@ void rot_init_block_params (void) {
 void rot_printf_matrix (double _Complex **R, int N, char *A, FILE*ofs ) {
   const double eps = 5.e-15;
   if ( g_cart_id == 0 ) {
-    /* fprintf(ofs, "%s <- array(dim = c(%d , %d))\n", A, N, N); */
+    fprintf(ofs, "%s <- array(dim = c(%d , %d))\n", A, N, N);
     for( int ik = 0; ik < N; ik++ ) {
     for( int il = 0; il < N; il++ ) {
       double dre = creal( R[ik][il] );
@@ -374,6 +374,91 @@ void rot_mat_ti_mat_adj (double _Complex **C, double _Complex **A, double _Compl
   return;
 }  /* end of rot_mat_ti_mat_adj */
 
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ *
+ ***********************************************************/
+void rot_mat_ti_vec (double _Complex *w, double _Complex **A, double _Complex *v, int N) {
+
+  char CHAR_T = 'T';
+  int INT_N = N, INT_1 = 1;
+  double _Complex Z_1 = 1., Z_0 = 0.;
+
+  _F(zgemv)( &CHAR_T, &INT_N, &INT_N, &Z_1, A[0], &INT_N, v, &INT_1, &Z_0, w, &INT_1, 1 );
+  return;
+}  /* end of rot_mat_ti_vec */
+
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * w <- cw * w +  cv * R v
+ *
+ ***********************************************************/
+void rot_vec_accum_vec_ti_co_pl_mat_ti_vec_ti_co (double _Complex *w, double _Complex **A, double _Complex *v, double _Complex cv, double _Complex cw, int N) {
+
+  char CHAR_T = 'T';
+  int INT_N = N, INT_1 = 1;
+
+  _F(zgemv)( &CHAR_T, &INT_N, &INT_N, &cv, A[0], &INT_N, v, &INT_1, &cw, w, &INT_1, 1 );
+  return;
+}  /* end of rot_vec_accum_vec_ti_co_pl_mat_ti_vec_ti_co */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * w <- cw * w +  cv * R^t v
+ *
+ ***********************************************************/
+void rot_vec_accum_vec_ti_co_pl_mat_transpose_ti_vec_ti_co (double _Complex *w, double _Complex **A, double _Complex *v, double _Complex cv, double _Complex cw, int N) {
+
+  char CHAR_T = 'N';
+  int INT_N = N, INT_1 = 1;
+
+  _F(zgemv)( &CHAR_T, &INT_N, &INT_N, &cv, A[0], &INT_N, v, &INT_1, &cw, w, &INT_1, 1 );
+  return;
+}  /* end of rot_vec_accum_vec_ti_co_pl_mat_transpose_ti_vec_ti_co */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ *
+ ***********************************************************/
+void rot_mat_transpose_ti_vec (double _Complex *w, double _Complex **A, double _Complex *v, int N) {
+
+  char CHAR_T = 'N';
+  int INT_N = N, INT_1 = 1;
+  double _Complex Z_1 = 1., Z_0 = 0.;
+
+  _F(zgemv)( &CHAR_T, &INT_N, &INT_N, &Z_1, A[0], &INT_N, v, &INT_1, &Z_0, w, &INT_1, 1 );
+  return;
+}  /* end of rot_mat_transpose_ti_vec */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ *
+ ***********************************************************/
+void rot_mat_adjoint_ti_vec (double _Complex *w, double _Complex **A, double _Complex *v, int N) {
+
+  char CHAR_T = 'N';
+  int INT_N = N, INT_1 = 1;
+  double _Complex Z_1 = 1., Z_0 = 0.;
+  double _Complex vv[N];
+
+  for ( int i = 0; i < N; i++ ) vv[i] = conj(v[i]);
+  _F(zgemv)( &CHAR_T, &INT_N, &INT_N, &Z_1, A[0], &INT_N, vv, &INT_1, &Z_0, w, &INT_1, 1 );
+  for ( int i = 0; i < N; i++ ) w[i] = conj(w[i]);
+  return;
+}  /* end of rot_mat_adjoint_ti_vec */
+
 /***********************************************************/
 /***********************************************************/
 
@@ -543,7 +628,7 @@ void axis2polar ( double*theta, double*phi, int n[3] ) {
     if ( *phi < 0 ) *phi += 2. * M_PI;
   }
 
-  if (g_cart_id == 0 && g_verbose > 4 ) {
+  if (g_cart_id == 0 && g_verbose > 5 ) {
     fprintf(stdout, "# [axis2polar] n %2d %2d %2d   phi %25.16e pi   theta  %25.16e pi\n", n[0], n[1], n[2], *phi/M_PI, *theta/M_PI);
     fflush(stdout);
   }
@@ -2000,11 +2085,12 @@ void rot_mat_get_euler_angles ( double a[3], int n[3], double w ) {
   const double eps = 5.e-15;
   double theta, phi;
   double dtmp;
-  double wpos = w >= 0. ? w : w + 2 * M_PI;
+  /* double wpos = w >= 0. ? w : w + 2 * M_PI; */
+  double wpos = w;
 
   axis2polar ( &theta, &phi, n );
 
-  fprintf ( stdout, "# [rot_mat_get_euler_angles] w = %e pi, wpos = %e pi, theta = %e pi, phi = %e pi\n", w/M_PI, wpos/M_PI, theta/M_PI, phi/M_PI );
+  /* fprintf ( stdout, "# [rot_mat_get_euler_angles] w = %e pi, wpos = %e pi, theta = %e pi, phi = %e pi\n", w/M_PI, wpos/M_PI, theta/M_PI, phi/M_PI ); */
 
   dtmp = 2. * asin( sin ( theta ) * sin ( wpos / 2. ) );
   a[1] = fabs( dtmp ) < eps ? 0. : dtmp;
@@ -2016,7 +2102,15 @@ void rot_mat_get_euler_angles ( double a[3], int n[3], double w ) {
   a[0] = fabs ( dtmp ) < eps ? 0. : dtmp;
 
   dtmp = a_pl_g_h - a_mi_g_h;
-  a[3] = fabs ( dtmp ) < eps ? 0. : dtmp;
+  a[2] = fabs ( dtmp ) < eps ? 0. : dtmp;
+
+
+  /* TEST */
+  /* check, whether Euler angles are within range */
+  if ( a[0] < 0 || a[0] > 2*M_PI ) fprintf(stderr, "[rot_mat_get_euler_angles] alpha out of range\n");
+  if ( a[1] < 0 || a[1] >   M_PI ) fprintf(stderr, "[rot_mat_get_euler_angles] beta  out of range\n");
+  if ( a[2] < 0 || a[2] > 2*M_PI ) fprintf(stderr, "[rot_mat_get_euler_angles] gamma out of range\n");
+  /* END OF TEST */
 
   return;
 }  /* end of rot_mat_get_euler_angles */
