@@ -164,8 +164,8 @@ int main(int argc, char **argv) {
   little_group_type *lg = NULL;
   int nlg = 0;
 
-  /* if ( ( nlg = little_group_read_list ( &lg, "little_groups_2Oh.tab") ) <= 0 ) */
-  if ( ( nlg = little_group_read_list ( &lg, "little_groups_Oh.tab") ) <= 0 )
+  if ( ( nlg = little_group_read_list ( &lg, "little_groups_2Oh.tab") ) <= 0 )
+  /* if ( ( nlg = little_group_read_list ( &lg, "little_groups_Oh.tab") ) <= 0 ) */
   {
     fprintf(stderr, "[test_lg] Error from little_group_read_list, status was %d\n", nlg);
     EXIT(2);
