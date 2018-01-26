@@ -54,58 +54,12 @@ extern "C"
 
 using namespace cvc;
 
-void usage() {
-#ifdef HAVE_MPI
-  MPI_Abort(MPI_COMM_WORLD, 1);
-  MPI_Finalize();
-#endif
-  exit(0);
-}
-
-void print_sf (double*sf, char*name) {
-
-  FILE *ofs = fopen(name, "w");
-  for( int x0 = 0; x0 < T; x0++ ) {
-  for( int x1 = 0; x1 < LX; x1++ ) {
-  for( int x2 = 0; x2 < LY; x2++ ) {
-  for( int x3 = 0; x3 < LZ; x3++ ) {
-    unsigned int ix = g_ipt[x0][x1][x2][x3];
-    fprintf(ofs, "# x %3d%3d%3d%3d\n", x0, x1, x2, x3);
-    for( int mu=0; mu<12; mu++ ) {
-      fprintf(ofs, "%3d %3d %25.16e %25.16e\n", mu/3, mu%3, sf[_GSI(ix)+2*mu], sf[_GSI(ix)+2*mu+1]);
-    }
-  }}}}
-  fclose(ofs);
-}  /* end of print_sf */
-
-
-void print_fp_point_from_sf (double**sf, unsigned int ix, char*name, FILE*ofs) {
-  fprintf(ofs, "%s <- array(dim=c(%d, %d))\n", name,12,12);
-  for( int mu=0; mu<12; mu++ ) {
-  for( int nu=0; nu<12; nu++ ) {
-    fprintf(ofs, "%s[%2d,%2d] <- %25.16e +  %25.16e*1.i;\n", name, mu+1, nu+1,
-        sf[nu][_GSI(ix)+2*mu], sf[nu][_GSI(ix)+2*mu+1]);
-  }}
-}  /* end of print_fp_point_from_sf */
-
-
 int main(int argc, char **argv) {
-
-  const double ONE_OVER_SQRT2 = 1. / sqrt(2.);
-  const int Ndim = 3;
 
   int c;
   int filename_set = 0;
   char filename[100];
   int exitstatus;
-  double norm;
-  FILE *ofs = NULL;
-  double _Complex **R = NULL;
-  double _Complex **A = NULL;
-  double _Complex **B = NULL;
-  double _Complex **ASpin = NULL;
-  char name[12];
-  fermion_propagator_type fp1, fp2;
 
 
 #ifdef HAVE_MPI
@@ -133,14 +87,20 @@ int main(int argc, char **argv) {
   fprintf(stdout, "# [test_lg] Reading input from file %s\n", filename);
   read_input_parser(filename);
 
-  /*********************************
+  /****************************************************/
+  /****************************************************/
+
+  /****************************************************
    * initialize MPI parameters for cvc
-   *********************************/
+   ****************************************************/
    mpi_init(argc, argv);
 
- /*********************************
-  * set number of openmp threads
-  *********************************/
+  /****************************************************/
+  /****************************************************/
+
+  /****************************************************
+   * set number of openmp threads
+   ****************************************************/
 #ifdef HAVE_OPENMP
  if(g_cart_id == 0) fprintf(stdout, "# [test_lg] setting omp number of threads to %d\n", g_num_threads);
  omp_set_num_threads(g_num_threads);
@@ -153,6 +113,12 @@ int main(int argc, char **argv) {
   g_num_threads = 1;
 #endif
 
+  /****************************************************/
+  /****************************************************/
+
+  /****************************************************
+   *
+   ****************************************************/
   if(init_geometry() != 0) {
     fprintf(stderr, "[test_lg] Error from init_geometry\n");
     EXIT(1);
@@ -160,12 +126,22 @@ int main(int argc, char **argv) {
 
   geometry();
 
-  /* rot_init_rotation_table(); */
+  /****************************************************/
+  /****************************************************/
+
+  rot_init_rotation_table();
+
+  /****************************************************/
+  /****************************************************/
+
   little_group_type *lg = NULL;
   int nlg = 0;
 
   if ( ( nlg = little_group_read_list ( &lg, "little_groups_2Oh.tab") ) <= 0 )
+<<<<<<< HEAD
   /* if ( ( nlg = little_group_read_list ( &lg, "little_groups_Oh.tab") ) <= 0 ) */
+=======
+>>>>>>> c1f8db8743e0312678d656a9dc795d239df5396c
   {
     fprintf(stderr, "[test_lg] Error from little_group_read_list, status was %d\n", nlg);
     EXIT(2);
@@ -174,6 +150,77 @@ int main(int argc, char **argv) {
 
   little_group_show ( lg, stdout, nlg );
 
+  /****************************************************/
+  /****************************************************/
+
+  little_group_projector_type p;
+
+  if ( ( exitstatus = init_little_group_projector ( &p ) ) != 0 ) {
+    fprintf ( stderr, "# [test_lg] Error from init_little_group_projector, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(2);
+  }
+
+  int **interpolator_momentum_list = NULL;
+  int interpolator_J2_list[1] = {7};                 /* J2 = 1, i.e. spin 1/2 interpolator */
+  int interpolator_bispinor_list[] = {0};              /* no need for bispinor now */
+  int row_target     = 1;                            /* we want row 0 of the irrep */
+  int ref_row_target = 0;                            /* start with row 0 */
+  int interpolator_number = 1;                       /* one (for now imaginary) interpolator */
+  int ref_row_spin[1] = {0};                         /* zero also here */
+  char correlator_name[] = "basis_vector" ;          /* we don't want a correlator here, just a basis vector*/
+  char irrep[] = "G1";
+
+  exitstatus = init_2level_ibuffer ( &interpolator_momentum_list, interpolator_number, 3 );
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "# [test_lg] Error from init_2level_ibuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(2);
+  }
+
+  interpolator_momentum_list[0][0] = 0;
+  interpolator_momentum_list[0][1] = 0;
+  interpolator_momentum_list[0][2] = 0;
+
+  exitstatus = little_group_projector_set ( &p, &(lg[0]), irrep, row_target, interpolator_number,
+                   interpolator_J2_list, interpolator_momentum_list, interpolator_bispinor_list,    
+                   ref_row_target , ref_row_spin, correlator_name );
+
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "# [test_lg] Error from little_group_projector_set, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(2);
+  }
+
+  /****************************************************/
+  /****************************************************/
+
+  exitstatus = little_group_projector_show ( &p, stdout );
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "# [test_lg] Error from little_group_projector_show, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(2);
+  }
+
+  /****************************************************/
+  /****************************************************/
+  exitstatus =  little_group_projector_apply ( &p );
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "# [test_lg] Error from little_group_projector_apply, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(2);
+  }
+
+  
+
+  /****************************************************/
+  /****************************************************/
+
+  fini_little_group_projector ( &p );
+  little_group_fini ( &lg, nlg );
+
+  /****************************************************/
+  /****************************************************/
+
+  /****************************************************
+   * finalize
+   ****************************************************/
+  free_geometry();
 
 #ifdef HAVE_MPI
   MPI_Barrier(g_cart_grid);
@@ -191,5 +238,4 @@ int main(int argc, char **argv) {
 #endif
 
   return(0);
-
 }

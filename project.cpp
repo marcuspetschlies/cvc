@@ -933,8 +933,8 @@ void make_eo_phase_field_timeslice (double _Complex**phase, int momentum_number,
     const double p[3] = { TWO_MPI * momentum_list[imom][0] / (double)LX_global, TWO_MPI * momentum_list[imom][1] / (double)LY_global, TWO_MPI * momentum_list[imom][2] / (double)LZ_global };
     const double phase_part = (g_proc_coords[1]*LX) * p[0] + (g_proc_coords[2]*LY) * p[1] + (g_proc_coords[3]*LZ) * p[2];
 
-    if(g_verbose > 1 && g_cart_id == 0) {
-      fprintf(stdout, "# [make_eo_phase_field_timeslice] using phase momentum = (%d, %d, %d)\n", p[0], p[1], p[2]);
+    if(g_verbose > 2 && g_cart_id == 0) {
+      fprintf(stdout, "# [make_eo_phase_field_timeslice] using phase momentum = (%d, %d, %d)\n", momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2] );
     }
 
 #ifdef HAVE_OPENMP
@@ -959,11 +959,13 @@ void make_eo_phase_field_timeslice (double _Complex**phase, int momentum_number,
 
   }  /* end of loop on momenta */
   retime = _GET_TIME;
-  if(g_verbose > 0 && g_cart_id == 0) fprintf(stdout, "# [make_eo_phase_field_timeslice] time for make_eo_phase_field_timeslice = %e seconds\n", retime-ratime);
+  if(g_verbose > 1 && g_cart_id == 0) fprintf(stdout, "# [make_eo_phase_field_timeslice] time for make_eo_phase_field_timeslice = %e seconds\n", retime-ratime);
 
 }  /* end of make_eo_phase_field_timeslice */
 
 
+/**************************************************************************************************************/
+/**************************************************************************************************************/
 
 /**************************************************************************************************************
  * V     is nv              x VOL3half (C) = VOL3half x nv (F)
