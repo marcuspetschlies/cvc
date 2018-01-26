@@ -13,6 +13,13 @@
 namespace cvc {
 
 /************************************************************************************
+ * (de-)allocate 1-level buffer (n1 vector )
+ ************************************************************************************/
+int init_1level_buffer (double**buffer, unsigned int n1 );
+
+int fini_1level_buffer (double**buffer );
+
+/************************************************************************************
  * (de-)allocate 2-level buffer (n1 x n2 matrix)
  ************************************************************************************/
 int init_2level_buffer (double***buffer, unsigned int n1, unsigned int n2);
