@@ -88,9 +88,6 @@ int fini_4level_zbuffer (double _Complex*****zbuffer);
 /************************************************************************************
  * integer matrices
  ************************************************************************************/
-int init_1level_ibuffer ( int**buffer, unsigned int n1 );
-
-int fini_1level_ibuffer ( int**buffer );
 
 int init_1level_ibuffer ( int**buffer, unsigned int n1 );
 int fini_1level_ibuffer ( int**buffer );

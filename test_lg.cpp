@@ -138,10 +138,6 @@ int main(int argc, char **argv) {
   int nlg = 0;
 
   if ( ( nlg = little_group_read_list ( &lg, "little_groups_2Oh.tab") ) <= 0 )
-<<<<<<< HEAD
-  /* if ( ( nlg = little_group_read_list ( &lg, "little_groups_Oh.tab") ) <= 0 ) */
-=======
->>>>>>> c1f8db8743e0312678d656a9dc795d239df5396c
   {
     fprintf(stderr, "[test_lg] Error from little_group_read_list, status was %d\n", nlg);
     EXIT(2);

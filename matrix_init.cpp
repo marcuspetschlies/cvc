@@ -528,38 +528,6 @@ int fini_1level_ibuffer ( int**buffer ) {
 /************************************************************************************/
 
 /************************************************************************************
- * (de-)allocate 1-level buffer (n1 integer vector )
- ************************************************************************************/
-int init_1level_ibuffer ( int**buffer, unsigned int n1 ) {
-
-  if(*buffer != NULL) {
-    fprintf(stderr, "[init_1level_ibuffer] Error, buffer not NULL\n");
-    return(1);
-  }
-
-  /* 1st level */
-  (*buffer) = (int*)malloc(n1 * sizeof( int ));
-  if( *buffer == NULL ) {
-    fprintf(stderr, "[init_1level_ibuffer] Error from malloc\n");
-    return(2);
-  }
-
-  memset ( *buffer, 0, n1*sizeof(int) );
-  return(0);
-}  /* end of init_1level_ibuffer */
-
-int fini_1level_ibuffer ( int**buffer ) {
-  if ( *buffer != NULL ) {
-    free ( *buffer );
-    *buffer = NULL;
-  }
-  return(0);
-}  /* end of fini_1level_ibuffer */
-
-/************************************************************************************/
-/************************************************************************************/
-
-/************************************************************************************
  * (de-)allocate 2-level buffer (n1 x n2 integer matrix)
  ************************************************************************************/
 int init_2level_ibuffer ( int***buffer, unsigned int n1, unsigned int n2) {

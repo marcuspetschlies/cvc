@@ -1871,7 +1871,6 @@ int little_group_projector_copy (little_group_projector_type *p, little_group_pr
     fprintf( stderr, "[little_group_projector_copy] Error from malloc %s %d\n", __FILE__, __LINE__);
     return(7);
   }
-
   for ( int i = 1; i < p->n ; i++) p->c[i] = p->c[i-1] + p->rspin[i-1].dim;
   memcpy ( p->c[0], q->c[0], items * sizeof(double _Complex) );
 #endif
@@ -1884,7 +1883,6 @@ int little_group_projector_copy (little_group_projector_type *p, little_group_pr
 
   p->row_target     = q->row_target;
   p->ref_row_target = q->ref_row_target;
->>>>>>> c1f8db8743e0312678d656a9dc795d239df5396c
   strcpy ( p->correlator_name, q->correlator_name );
   
   return(0);
@@ -1938,7 +1936,6 @@ int little_group_projector_set (
   }
 
   strcpy ( p->correlator_name , correlator_name );
-
   p->P[0] = lg->d[0];
   p->P[1] = lg->d[1];
   p->P[2] = lg->d[2];
@@ -1991,7 +1988,7 @@ int little_group_projector_set (
     return(7);
   }
   for ( int i = 1; i < p->n ; i++) p->c[i] = p->c[i-1] + p->rspin[i-1].dim;
-
+  
   /***********************************************************
    * for now: set coefficients c to some arbitrary values,
    * which will likely lead to non-zero projections
@@ -2005,8 +2002,6 @@ int little_group_projector_set (
 
   return(0);
 }  /* end of little_group_projector_set */
-#if 0
-#endif
 
 
 /***********************************************************/
