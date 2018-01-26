@@ -2155,6 +2155,40 @@ int rot_mat_spin1_cartesian ( double _Complex **R, int n[3], double omega ) {
   return(0);
 }  /* end of rot_mat_spin1_cartesian */
 
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * build spin-1/2 rotations in spherical basis
+ * directly from n and omega
+ ***********************************************************/
+int rot_mat_spin1_2_spherical ( double _Complex **R, int n[3], double omega ) {
+
+  if ( n[0] == 0 && n[1] == 0 && n[2] == 0 ) {
+    /***********************************************************
+     * For R = I and R = J set to any vector 
+     ***********************************************************/
+    n[0] = 1;
+    n[1] = 2;
+    n[2] = 3;
+  }
+
+  double cos_omega_half = cos( omega / 2. );
+  double sin_omega_half = sin( omega / 2. );
+
+  double nnorm = 1. / sqrt( n[0] * n[0] + n[1] * n[1] + n[2] * n[2] );
+  double d[3] = { n[0] * nnorm, n[1] * nnorm, n[2] * nnorm };
+
+  R[0][0] = cos_omega_half - I * d[2] * sin_omega_half;
+
+  R[0][1] = ( -I * d[0] - d[1] ) * sin_omega_half;
+
+  R[1][0] = ( -I * d[0] + d[1] ) * sin_omega_half;
+
+  R[1][1] = cos_omega_half + I * d[2] * sin_omega_half;
+
+  return(0);
+}  /* end of rot_mat_spin1_2_spherical */
 
 /***********************************************************/
 /***********************************************************/
