@@ -602,18 +602,21 @@ int cvc_tensor_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, c
 
   int exitstatus, i;
   double ratime, retime;
+#ifdef HAVE_LHPC_AFF
   struct AffNode_s *affn = NULL, *affdir=NULL;
+#endif
   char aff_buffer_path[200];
   double *buffer = NULL;
   double _Complex *aff_buffer = NULL;
   double _Complex *zbuffer = NULL;
 
   if ( io_proc == 2 ) {
+#ifdef HAVE_LHPC_AFF
     if( (affn = aff_writer_root(affw)) == NULL ) {
       fprintf(stderr, "[cvc_tensor_tp_write_to_aff_file] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
       return(1);
     }
-
+#endif
     zbuffer = (double _Complex*)malloc(  momentum_number * 16 * T_global * sizeof(double _Complex) );
     if( zbuffer == NULL ) {
       fprintf(stderr, "[cvc_tensor_tp_write_to_aff_file] Error from malloc %s %d\n", __FILE__, __LINE__);
@@ -684,8 +687,10 @@ int cvc_tensor_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, c
     for(i=0; i < momentum_number; i++) {
       sprintf(aff_buffer_path, "%s/px%.2dpy%.2dpz%.2d", tag, momentum_list[i][0], momentum_list[i][1], momentum_list[i][2] );
       /* fprintf(stdout, "# [cvc_tensor_tp_write_to_aff_file] current aff path = %s\n", aff_buffer_path); */
+#ifdef HAVE_LHPC_AFF
       affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
       exitstatus = aff_node_put_complex (affw, affdir, aff_buffer+16*T_global*i, (uint32_t)T_global*16);
+#endif
       if(exitstatus != 0) {
         fprintf(stderr, "[cvc_tensor_tp_write_to_aff_file] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(5);
@@ -716,17 +721,21 @@ int contract_write_to_aff_file (double **c_tp, struct AffWriter_s*affw, char*tag
 
   int exitstatus, i;
   double ratime, retime;
+#ifdef HAVE_LHPC_AFF
   struct AffNode_s *affn = NULL, *affdir=NULL;
+#endif
   char aff_buffer_path[200];
   double *buffer = NULL;
   double _Complex *aff_buffer = NULL;
   double _Complex *zbuffer = NULL;
 
   if ( io_proc == 2 ) {
+#ifdef HAVE_LHPC_AFF
     if( (affn = aff_writer_root(affw)) == NULL ) {
       fprintf(stderr, "[contract_write_to_aff_file] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
       return(1);
     }
+#endif
 
     zbuffer = (double _Complex*)malloc(  momentum_number * T_global * sizeof(double _Complex) );
     if( zbuffer == NULL ) {
@@ -794,8 +803,10 @@ int contract_write_to_aff_file (double **c_tp, struct AffWriter_s*affw, char*tag
     for(i=0; i < momentum_number; i++) {
       sprintf(aff_buffer_path, "%s/px%.2dpy%.2dpz%.2d", tag, momentum_list[i][0], momentum_list[i][1], momentum_list[i][2] );
       /* fprintf(stdout, "# [contract_write_to_aff_file] current aff path = %s\n", aff_buffer_path); */
+#ifdef HAVE_LHPC_AFF
       affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
       exitstatus = aff_node_put_complex (affw, affdir, aff_buffer+T_global*i, (uint32_t)T_global);
+#endif
       if(exitstatus != 0) {
         fprintf(stderr, "[contract_write_to_aff_file] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(5);
@@ -824,22 +835,27 @@ int contract_write_to_aff_file (double **c_tp, struct AffWriter_s*affw, char*tag
 int cvc_tensor_eo_write_contact_term_to_aff_file ( double *contact_term, struct AffWriter_s*affw, char *tag, int io_proc ) {
 
   int exitstatus;
+#ifdef HAVE_LHPC_AFF
   struct AffNode_s *affn = NULL, *affdir=NULL;
+#endif
   char aff_buffer_path[200];
   double _Complex aff_buffer[1];
 
   if ( io_proc == 2 ) {
+#ifdef HAVE_LHPC_AFF
     if( (affn = aff_writer_root(affw)) == NULL ) {
       fprintf(stderr, "[cvc_tensor_eo_write_contact_term_to_aff_file] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
       return(1);
     }
+#endif
 
     for ( int mu = 0; mu < 4; mu++ ) {
       sprintf( aff_buffer_path, "%s/contact_term/mu%d", tag, mu);
       aff_buffer[0] = contact_term[2*mu] + contact_term[2*mu+1] * I;
-
+#ifdef HAVE_LHPC_AFF
       affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
       exitstatus = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)1 );
+#endif
       if(exitstatus != 0) {
         fprintf(stderr, "[cvc_tensor_eo_write_contact_term_to_aff_file] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(5);
@@ -1870,17 +1886,21 @@ int cvc_loop_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, cha
 
   int exitstatus, i;
   double ratime, retime;
+#ifdef HAVE_LHPC_AFF
   struct AffNode_s *affn = NULL, *affdir=NULL;
+#endif
   char aff_buffer_path[200];
   double *buffer = NULL;
   double _Complex *aff_buffer = NULL;
   double _Complex *zbuffer = NULL;
 
   if ( io_proc == 2 ) {
+#ifdef HAVE_LHPC_AFF
     if( (affn = aff_writer_root(affw)) == NULL ) {
       fprintf(stderr, "[cvc_loop_tp_write_to_aff_file] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
       return(1);
     }
+#endif
 
     zbuffer = (double _Complex*)malloc(  momentum_number * 4 * T_global * sizeof(double _Complex) );
     if( zbuffer == NULL ) {
@@ -1953,8 +1973,10 @@ int cvc_loop_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, cha
       for ( int mu = 0; mu < 4; mu++ ) {
         sprintf(aff_buffer_path, "%s/px%.2dpy%.2dpz%.2d/mu%d", tag, momentum_list[i][0], momentum_list[i][1], momentum_list[i][2], mu );
         /* fprintf(stdout, "# [cvc_loop_tp_write_to_aff_file] current aff path = %s\n", aff_buffer_path); */
+#ifdef HAVE_LHPC_AFF
         affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
         exitstatus = aff_node_put_complex (affw, affdir, aff_buffer+T_global*(4 * i + mu), (uint32_t)T_global);
+#endif
         if(exitstatus != 0) {
           fprintf(stderr, "[cvc_loop_tp_write_to_aff_file] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           return(5);
@@ -2680,20 +2702,28 @@ int vdag_w_momentum_projection ( double _Complex ***contr_p, double ***contr_x, 
  ***********************************************************/
 int vdag_w_write_to_aff_file ( double _Complex ***contr_tp, int nv, int nw, struct AffWriter_s*affw, char*tag, int (*momentum_list)[3], int momentum_number, int io_proc ) {
 
+#ifdef HAVE_LHPC_AFF
   const uint32_t items = nv * nw;
+#else
+  const unsigned int items = nv * nw;
+#endif
 
   int exitstatus;
   double ratime, retime;
+#ifdef HAVE_LHPC_AFF
   struct AffNode_s *affn = NULL, *affdir=NULL;
+#endif
   char aff_buffer_path[200];
 
   ratime = _GET_TIME;
 
   if ( io_proc == 1 ) {
+#ifdef HAVE_LHPC_AFF
     if( (affn = aff_writer_root(affw)) == NULL ) {
       fprintf(stderr, "[vdag_w_write_to_aff_file] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
       return(1);
     }
+#endif
   }
 
   if(io_proc == 1) {
@@ -2703,9 +2733,11 @@ int vdag_w_write_to_aff_file ( double _Complex ***contr_tp, int nv, int nw, stru
       sprintf(aff_buffer_path, "%s/px%.2dpy%.2dpz%.2d", tag, momentum_list[i][0], momentum_list[i][1], momentum_list[i][2] );
       /* fprintf(stdout, "# [vdag_w_write_to_aff_file] current aff path = %s\n", aff_buffer_path); */
 
+#ifdef HAVE_LHPC_AFF
       affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
 
       exitstatus = aff_node_put_complex (affw, affdir, contr_tp[i][0], items );
+#endif
       if(exitstatus != 0) {
         fprintf(stderr, "[vdag_w_write_to_aff_file] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(5);
