@@ -6907,4 +6907,44 @@ void fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fermion_pro
 #endif
 }  /* fermion_propagator_field_eq_fermion_propagator_field_ti_gamma */
 
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * fix eigenvector phase
+ ***********************************************************/
+
+int fix_eigenvector_phase ( double **evecs_field, int num ) {
+
+  const unsigned int Vhalf = VOLUME / 2;
+
+  for ( int i = 0; i < num; i++ ) {
+    double dtmp[2] = {0., 0.};
+
+    if ( g_cart_id == 0 ) {
+      dtmp[0] = evecs_field[i][0];
+      dtmp[1] = evecs_field[i][1];
+      double norm = 1. / sqrt( dtmp[0] * dtmp[0] + dtmp[1] * dtmp[1] );
+      dtmp[0] *=  norm;
+      dtmp[1] *= -norm;
+      if ( g_verbose > 2 ) fprintf ( stdout, "# [fix_eigenvector_phase] phase %4d = %25.16e %25.16e\n", i, dtmp[0], dtmp[1] );
+    }
+#ifdef HAVE_MPI
+    int exitstatus = MPI_Bcast( dtmp, 2, MPI_DOUBLE, 0, g_cart_grid );
+    if ( exitstatus != MPI_SUCCESS ) {
+      fprintf ( stderr, "[fix_eigenvector_phase] Error from MPI_Bcast, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      return(1);
+    }
+#endif
+    complex w = {dtmp[0], dtmp[1]};
+    spinor_field_eq_spinor_field_ti_co ( evecs_field[i], evecs_field[i], w, Vhalf );
+
+  }  /* end of loop on i */
+
+}  /* end of fix_eigenvector_phase */
+
+/***********************************************************/
+/***********************************************************/
+
 }  /* end of namespace cvc */
