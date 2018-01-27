@@ -1310,13 +1310,6 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
     /***********************************************
      * phases for momentum projection
      ***********************************************/
-    double _Complex **phase = NULL;
-    exitstatus = init_2level_zbuffer ( &phase, momentum_number, VOL3half );
-    if( exitstatus != 0 ) {
-      fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      return(1);
-    }
-
     make_eo_phase_field_timeslice ( phase, momentum_number, momentum_list, it, 1 );
 
     ratime = _GET_TIME;
