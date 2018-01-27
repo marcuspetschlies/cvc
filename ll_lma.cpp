@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
   int exitstatus;
   int io_proc = -1;
   int evecs_num = 0;
-  unsigned int Vhalf, VOL3half;
+  unsigned int Vhalf;
   double *eo_evecs_block=NULL;
   double **eo_evecs_field=NULL;
   double *evecs_eval = NULL, *evecs_lambdainv=NULL, *evecs_4kappasqr_lambdainv = NULL;
@@ -99,7 +99,6 @@ int main(int argc, char **argv) {
   /* double ratime, retime; */
   double **mzz[2], **mzzinv[2];
   double *gauge_field_with_phase = NULL;
-  FILE*ofs = NULL;
 
 #ifdef HAVE_LHPC_AFF
   struct AffWriter_s *affw = NULL;
@@ -218,7 +217,6 @@ int main(int argc, char **argv) {
   /***********************************************************/
 
   Vhalf    = VOLUME / 2;
-  VOL3half = LX*LY*LZ/2;
 
   /***********************************************************/
   /***********************************************************/
@@ -387,7 +385,162 @@ int main(int argc, char **argv) {
 
   /***********************************************************/
   /***********************************************************/
+
+  /***********************************************************
+   * fix eigenvector phase
+   ***********************************************************/
+  exitstatus = fix_eigenvector_phase ( eo_evecs_field, evecs_num );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[ll_lma] Error from fix_eigenvector_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(1);
+  }
+
+  /***********************************************************/
+  /***********************************************************/
+
+#if 0
+  /***********************************************************
+   * TEST
+   ***********************************************************/
+  unsigned int VOL3half = LX*LY*LZ/2;
+  size_t sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
+  FILE*ofs = NULL;
+  if ( io_proc >= 1 ) {
+    sprintf( filename, "test.t%.2d", g_proc_coords[0] );
+    ofs = fopen( filename, "w");
+  }
   
+  double **eo_X_field = NULL, **eo_Y_field = NULL;
+  exitstatus = init_2level_buffer ( &eo_X_field, evecs_num, _GSI(Vhalf) );
+  exitstatus = init_2level_buffer ( &eo_Y_field, evecs_num, _GSI(Vhalf) );
+
+  for ( int i = 0; i < evecs_num; i++ ) {
+
+    /* X= V and Y = V */
+    memcpy ( eo_X_field[i], eo_evecs_field[i], sizeof_eo_spinor_field );
+    memcpy ( eo_Y_field[i], eo_evecs_field[i], sizeof_eo_spinor_field );
+#if 0
+#endif
+
+#if 0
+    /* X = W, Y = V */
+    double **eo_spinor_work = NULL;
+    init_2level_buffer ( &eo_spinor_work, 2, _GSI((VOLUME+RAND)/2) );
+    memcpy ( eo_spinor_work[0], eo_evecs_field[i], sizeof_eo_spinor_field );
+    C_clover_oo ( eo_X_field[i], eo_spinor_work[0], gauge_field_with_phase, eo_spinor_work[1], mzz[1][1], mzzinv[1][0] );
+    fini_2level_buffer ( &eo_spinor_work );
+    memcpy ( eo_Y_field[i], eo_evecs_field[i], sizeof_eo_spinor_field );
+#endif
+
+#if 0
+    /* X = W, Y = W */
+    double **eo_spinor_work = NULL;
+    init_2level_buffer ( &eo_spinor_work, 2, _GSI((VOLUME+RAND)/2) );
+    memcpy ( eo_spinor_work[0], eo_evecs_field[i], sizeof_eo_spinor_field );
+    C_clover_oo ( eo_X_field[i], eo_spinor_work[0], gauge_field_with_phase, eo_spinor_work[1], mzz[1][1], mzzinv[1][0] );
+    fini_2level_buffer ( &eo_spinor_work );
+    memcpy ( eo_Y_field[i], eo_X_field[i], sizeof_eo_spinor_field );
+#endif
+
+#if 0
+    /* X = XV, Y = XV */
+    double **eo_spinor_work = NULL;
+    init_2level_buffer ( &eo_spinor_work, 1, _GSI((VOLUME+RAND)/2) );
+    memcpy ( eo_spinor_work[0], eo_evecs_field[i], sizeof_eo_spinor_field );
+    X_clover_eo ( eo_X_field[i], eo_spinor_work[0], gauge_field_with_phase, mzzinv[1][0] );
+    fini_2level_buffer ( &eo_spinor_work );
+    memcpy ( eo_Y_field[i], eo_X_field[i], sizeof_eo_spinor_field );
+#endif
+
+#if 0
+    /* X = XW, Y = XV */
+    double **eo_spinor_work = NULL;
+    init_2level_buffer ( &eo_spinor_work, 3, _GSI((VOLUME+RAND)/2) );
+    memcpy ( eo_spinor_work[0], eo_evecs_field[i], sizeof_eo_spinor_field );
+    C_clover_oo ( eo_spinor_work[1], eo_spinor_work[0], gauge_field_with_phase, eo_spinor_work[2], mzz[1][1], mzzinv[1][0] );
+    X_clover_eo ( eo_X_field[i], eo_spinor_work[1], gauge_field_with_phase, mzzinv[0][0] );
+    memcpy ( eo_spinor_work[0], eo_evecs_field[i], sizeof_eo_spinor_field );
+    X_clover_eo ( eo_Y_field[i], eo_spinor_work[0], gauge_field_with_phase, mzzinv[1][0] );
+    fini_2level_buffer ( &eo_spinor_work );
+#endif
+
+#if 0
+    /* X = XW, Y = XW */
+    double **eo_spinor_work = NULL;
+    init_2level_buffer ( &eo_spinor_work, 3, _GSI((VOLUME+RAND)/2) );
+    memcpy ( eo_spinor_work[0], eo_evecs_field[i], sizeof_eo_spinor_field );
+    C_clover_oo ( eo_spinor_work[1], eo_spinor_work[0], gauge_field_with_phase, eo_spinor_work[2], mzz[1][1], mzzinv[1][0] );
+    X_clover_eo ( eo_X_field[i], eo_spinor_work[1], gauge_field_with_phase, mzzinv[0][0] );
+    memcpy ( eo_Y_field[i], eo_X_field[i], sizeof_eo_spinor_field );
+#endif
+  }
+
+  char aff_prefix[] = "v-v";
+
+  for ( int k = 0; k < evecs_num; k++ ) {
+    double **eo_spinor_field = NULL;
+    init_2level_buffer ( &eo_spinor_field, 4, _GSI(Vhalf) );
+
+    for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+      for ( int x0 = 0; x0 < T; x0++ ) {
+        for ( int x1 = 0; x1 < LX; x1++ ) { 
+          double px = 2*M_PI * ( g_proc_coords[1]*LX + x1 ) / (double)LX_global * g_sink_momentum_list[imom][0];
+        for ( int x2 = 0; x2 < LY; x2++ ) { 
+          double py = 2*M_PI * ( g_proc_coords[2]*LY + x2 ) / (double)LY_global * g_sink_momentum_list[imom][1];
+        for ( int x3 = 0; x3 < LZ; x3++ ) { 
+          double pz = 2*M_PI * ( g_proc_coords[3]*LZ + x3 ) / (double)LZ_global * g_sink_momentum_list[imom][2];
+          unsigned int ix = g_ipt[x0][x1][x2][x3];
+          if ( g_iseven[ix] ) continue;
+          unsigned int ixeo = g_lexic2eosub[ix];
+          double phase = px + py + pz;
+          complex w = {cos(phase), sin(phase)};
+          _fv_eq_fv_ti_co ( eo_spinor_field[0]+_GSI(ixeo), eo_Y_field[k]+_GSI(ixeo), &w );
+        }}}
+      }
+      for ( int ig = 0; ig < g_source_gamma_id_number; ig++ ) {
+        for ( unsigned int ix = 0; ix < Vhalf; ix++ ) {
+          _fv_eq_gamma_ti_fv ( eo_spinor_field[1]+_GSI(ix), g_source_gamma_id_list[ig], eo_spinor_field[0]+_GSI(ix) );
+        }
+        for ( int l = 0; l < evecs_num; l++ ) {
+          for ( int x0 = 0; x0 < T; x0++ )
+          {
+            complex w = {0.,0.};
+            for ( unsigned int ix = 0; ix < VOL3half; ix++ ) {
+              unsigned int iix = x0 * _GSI(VOL3half) + _GSI(ix);
+              _co_pl_eq_fv_dag_ti_fv( &w, eo_X_field[l]+iix , eo_spinor_field[1]+iix );
+            }
+#ifdef HAVE_MPI
+            double dtmp[2] = {w.re, w.im};
+            MPI_Allreduce( dtmp, &w, 2, MPI_DOUBLE, MPI_SUM, g_ts_comm );
+#endif
+            if ( io_proc >= 1 )  {
+              fprintf ( ofs, "# /ll/lma/N%d/%s/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d\n", evecs_num, aff_prefix, x0+g_proc_coords[0]*T, 
+                  g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], g_source_gamma_id_list[ig] );
+              fprintf( ofs, "%3d %3d  %25.16e %25.16e\n", l, k, w.re, w.im);
+            }
+          }
+        }
+      }
+    }
+    fini_2level_buffer ( &eo_spinor_field );
+  }
+  if ( io_proc >= 1 ) {
+    sprintf( filename, "test.t%.2d", g_proc_coords[0] );
+    fclose ( ofs );
+  }
+  fini_2level_buffer ( &eo_X_field );
+  fini_2level_buffer ( &eo_Y_field );
+
+  /***********************************************************
+   * END OF TEST
+   ***********************************************************/
+#endif  /* of if 0 on TEST */
+
+  /***********************************************************/
+  /***********************************************************/
+  
+
+
 #ifdef HAVE_LHPC_AFF
   /***********************************************
    * writer for aff output file
@@ -403,90 +556,6 @@ int main(int argc, char **argv) {
     }
   }  /* end of if io_proc == 1 */
 #endif
-
-  /***********************************************************/
-  /***********************************************************/
-
-  /* TEST */
-  if ( io_proc >= 1 ) {
-    sprintf( filename, "test.t%.2d", g_proc_coords[0] );
-    ofs = fopen( filename, "w");
-  }
-  
-
-  for ( int k = 0; k < evecs_num; k++ ) {
-    double **eo_spinor_work = NULL, **eo_spinor_field = NULL;
-
-    init_2level_buffer ( &eo_spinor_work, 4, _GSI((VOLUME+RAND)/2) );
-    init_2level_buffer ( &eo_spinor_field, 4, _GSI(Vhalf) );
-
-    for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
-
-      for ( int x0 = 0; x0 < T; x0++ ) {
-      
-        for ( int x1 = 0; x1 < LX; x1++ ) { 
-          double px = 2*M_PI * ( g_proc_coords[1]*LX + x1 ) / (double)LX_global * g_sink_momentum_list[imom][0];
-        for ( int x2 = 0; x2 < LY; x2++ ) { 
-          double py = 2*M_PI * ( g_proc_coords[2]*LY + x2 ) / (double)LY_global * g_sink_momentum_list[imom][1];
-        for ( int x3 = 0; x3 < LZ; x3++ ) { 
-          double pz = 2*M_PI * ( g_proc_coords[3]*LZ + x3 ) / (double)LZ_global * g_sink_momentum_list[imom][2];
-
-          unsigned int ix = g_ipt[x0][x1][x2][x3];
-          if ( g_iseven[ix] ) continue;
-          unsigned int ixeo = g_lexic2eosub[ix];
-
-          double phase = px + py + pz;
-          complex w = {cos(phase), sin(phase)};
-
-          _fv_eq_fv_ti_co ( eo_spinor_field[0]+_GSI(ixeo), eo_evecs_field[k]+_GSI(ixeo), &w );
-
-        }}}
-      }
-
-      for ( int ig = 0; ig < g_source_gamma_id_number; ig++ ) {
-
-        for ( unsigned int ix = 0; ix < Vhalf; ix++ ) {
-          _fv_eq_gamma_ti_fv ( eo_spinor_field[1]+_GSI(ix), g_source_gamma_id_list[ig], eo_spinor_field[0]+_GSI(ix) );
-        }
-
-        for ( int l = 0; l < evecs_num; l++ ) {
-
-          // for ( int x0 = 0; x0 < T; x0++ )
-          for ( int x0 = 0; x0 < 1; x0++ )
-          {
-
-            complex w = {0.,0.};
-            for ( unsigned int ix = 0; ix < VOL3half; ix++ ) {
-              unsigned int iix = x0 * _GSI(VOL3half) + _GSI(ix);
-              _co_pl_eq_fv_dag_ti_fv( &w, eo_evecs_field[l]+iix , eo_spinor_field[1]+iix );
-            }
-#ifdef HAVE_MPI
-            double dtmp[2] = {w.re, w.im};
-            MPI_Allreduce( dtmp, &w, 2, MPI_DOUBLE, MPI_SUM, g_ts_comm );
-#endif
-
-            if ( io_proc >= 1 )  {
-              fprintf ( ofs, "# /ll/lma/N%d/v-v/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d\n", evecs_num, x0+g_proc_coords[0]*T, 
-                  g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], g_source_gamma_id_list[ig] );
-              fprintf( ofs, "%3d %3d  %25.16e %25.16e\n", l, k, w.re, w.im);
-            }
-
-
-          }
-        }
-      }
-    }
-
-    fini_2level_buffer ( &eo_spinor_work );
-    fini_2level_buffer ( &eo_spinor_field );
-  }
-
-  if ( io_proc >= 1 ) {
-    sprintf( filename, "test.t%.2d", g_proc_coords[0] );
-    fclose ( ofs );
-  }
-  /* END OF TEST */
-  
   /***********************************************************/
   /***********************************************************/
 
@@ -503,7 +572,6 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[ll_lma] Error from gsp_calculate_v_dag_gamma_p_w_block, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(32);
   }
-
 
   /***********************************************************/
   /***********************************************************/
