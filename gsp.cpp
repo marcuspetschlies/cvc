@@ -887,7 +887,7 @@ int gsp_write_eval(double *eval, int num, char*tag) {
       fprintf(stderr, "[gsp_write_eval] Error, could not open file %s for writing\n", filename);
       return(5);
     }
-    for(ievecs=0; ievecs<num; ievecs++) {
+    for( int ievecs = 0; ievecs < num; ievecs++ ) {
       fprintf(ofs, "%25.16e\n", eval[ievecs] );
     }
     fclose(ofs);
@@ -970,7 +970,7 @@ int gsp_read_eval(double **eval, int num, char*tag) {
     fprintf(stderr, "[gsp_read_eval] Error, could not open file %s for reading\n", filename);
     return(5);
   }
-  for(ievecs=0; ievecs<num; ievecs++) {
+  for( int ievecs = 0; ievecs < num; ievecs++ ) {
     if( fscanf(ifs, "%lf", (*eval)+ievecs ) != 1 ) {
       return(6);
     }
@@ -1207,7 +1207,7 @@ void co_pl_eq_gsp_diag (complex *w, double**gsp1, int num) {
           )       
  *
  ***********************************************************************************************/
-int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number, int (*momentum_list)[3], int gamma_id_number, int*gamma_id_list, AffWriter_s *affw, char*tag, int io_proc,
+int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number, int (*momentum_list)[3], int gamma_id_number, int*gamma_id_list, char*prefix, char*tag, int io_proc,
    double *gauge_field, double **mzz[2], double **mzzinv[2] ) {
   
   const unsigned int Vhalf = VOLUME / 2;
@@ -1216,6 +1216,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
   const size_t sizeof_eo_spinor_field_timeslice = _GSI(VOL3half) * sizeof(double);
 
   int exitstatus;
+  char filename[200];
 
   double ratime, retime, zgemm_ratime, zgemm_retime, aff_retime, aff_ratime, total_ratime, total_retime;
 
@@ -1228,15 +1229,42 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
   char CHAR_N = 'N', CHAR_C = 'C';
   int INT_M = numV, INT_N = numV, INT_K = 12*VOL3half;
 
+#ifdef HAVE_LHPC_AFF
+  AffWriter_s *affw = NULL;
   struct AffNode_s *affn = NULL, *affdir=NULL;
   char aff_key[200];
 
-  if ( io_proc >= 1 ) {
+  /***********************************************
+   * writer for aff output file
+   ***********************************************/
+  if(io_proc >= 1) {
+    sprintf(filename, "%s.%.4d.t%.2d.aff", prefix, Nconf, g_proc_coords[0]  );
+    if ( io_proc == 2 ) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] writing data to file %s\n", filename);
+    affw = aff_writer(filename);
+    aff_status_str = (char*)aff_writer_errstr(affw);
+    if( aff_status_str != NULL ) {
+      fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+      return(15);
+    }
+  
     if( (affn = aff_writer_root(affw)) == NULL ) {
       fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
       return(1);
     }
   }
+#else
+  FILE *ofs = NULL;
+  if ( io_proc >= 1 ) {
+    sprintf( filename, "%s.t%.2d.dat", prefix, g_proc_coords[0] );
+    ofs = fopen ( filename, "w" );
+    if( ofs == NULL ) {
+      fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from open for filename %s %s %d\n", filename, __FILE__, __LINE__);
+      return(1);
+    }
+  }
+  size_t write_count = numV * numV;
+
+#endif
 
   total_ratime = _GET_TIME;
 
@@ -1389,6 +1417,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
          ***********************************************/
         if ( io_proc >= 1 ) {
           aff_ratime = _GET_TIME;
+#ifdef HAVE_LHPC_AFF
           sprintf ( aff_key, "%s/v-v/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, it+g_proc_coords[0]*T,  momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] );
           
           affdir = aff_writer_mkpath(affw, affn, aff_key );
@@ -1398,8 +1427,14 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
             fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             return(5);
           }
+#else
+          if ( fwrite ( vv[0], sizeof(double _Complex), write_count, ofs  ) != write_count ) {
+            fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from fwrite %s %d\n", __FILE__, __LINE__);
+            return(5);
+          }
+#endif
           aff_retime = _GET_TIME;
-          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for aff_node_put_complex = %e\n", aff_retime-aff_ratime);
+          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
 
         }
 
@@ -1441,7 +1476,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
          ***********************************************/
         if ( io_proc >= 1 ) {
           aff_ratime = _GET_TIME;
-
+#ifdef HAVE_LHPC_AFF
           sprintf ( aff_key, "%s/w-v/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, it+g_proc_coords[0]*T, momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] );
 
           affdir = aff_writer_mkpath(affw, affn, aff_key );
@@ -1451,9 +1486,14 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
             fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             return(5);
           }
-
+#else
+          if ( fwrite ( vv[0], sizeof(double _Complex), write_count, ofs  ) != write_count ) {
+            fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from fwrite %s %d\n", __FILE__, __LINE__);
+            return(5);
+          }
+#endif
           aff_retime = _GET_TIME;
-          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for aff_node_put_complex = %e\n", aff_retime-aff_ratime);
+          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
         }
 
 
@@ -1532,7 +1572,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
          ***********************************************/
         if ( io_proc >= 1 ) {
           aff_ratime = _GET_TIME;
-
+#ifdef HAVE_LHPC_AFF
           sprintf ( aff_key, "%s/w-w/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, it+g_proc_coords[0]*T, momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] );
           
           affdir = aff_writer_mkpath(affw, affn, aff_key );
@@ -1542,9 +1582,15 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
             fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             return(5);
           }
+#else
+          if ( fwrite ( vv[0], sizeof(double _Complex), write_count, ofs  ) != write_count ) {
+            fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from fwrite %s %d\n", __FILE__, __LINE__);
+            return(5);
+          }
+#endif
 
           aff_retime = _GET_TIME;
-          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for aff_node_put_complex = %e\n", aff_retime-aff_ratime);
+          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
         }
 
         fini_2level_zbuffer ( &vv );
@@ -1678,7 +1724,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
          ***********************************************/
         if ( io_proc >= 1 ) {
           aff_ratime = _GET_TIME;
-
+#ifdef HAVE_LHPC_AFF
           sprintf ( aff_key, "%s/xv-xv/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, it+g_proc_coords[0]*T, momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] );
           
           affdir = aff_writer_mkpath(affw, affn, aff_key );
@@ -1688,9 +1734,15 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
             fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             return(5);
           }
+#else
+          if ( fwrite ( vv[0], sizeof(double _Complex), write_count, ofs  ) != write_count ) {
+            fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from fwrite %s %d\n", __FILE__, __LINE__);
+            return(5);
+          }
+#endif
 
           aff_retime = _GET_TIME;
-          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for aff_node_put_complex = %e\n", aff_retime-aff_ratime);
+          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
         }
 
         zgemm_ratime = _GET_TIME;
@@ -1730,7 +1782,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
          ***********************************************/
         if ( io_proc >= 1 ) {
           aff_ratime = _GET_TIME;
-
+#ifdef HAVE_LHPC_AFF
           sprintf ( aff_key, "%s/xw-xv/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, it+g_proc_coords[0]*T, momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] );
 
           affdir = aff_writer_mkpath(affw, affn, aff_key );
@@ -1740,9 +1792,15 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
             fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             return(5);
           }
+#else
+          if ( fwrite ( vv[0], sizeof(double _Complex), write_count, ofs  ) != write_count ) {
+            fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from fwrite %s %d\n", __FILE__, __LINE__);
+            return(5);
+          }
+#endif
 
           aff_retime = _GET_TIME;
-          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for aff_node_put_complex = %e\n", aff_retime-aff_ratime);
+          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
         }
 
 
@@ -1824,7 +1882,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
          ***********************************************/
         if ( io_proc >= 1 ) {
           aff_ratime = _GET_TIME;
-
+#ifdef HAVE_LHPC_AFF
           sprintf ( aff_key, "%s/xw-xw/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, it+g_proc_coords[0]*T, momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] );
           
           affdir = aff_writer_mkpath(affw, affn, aff_key );
@@ -1834,9 +1892,15 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
             fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             return(5);
           }
+#else
+          if ( fwrite ( vv[0], sizeof(double _Complex), write_count, ofs  ) != write_count ) {
+            fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from fwrite %s %d\n", __FILE__, __LINE__);
+            return(5);
+          }
+#endif
 
           aff_retime = _GET_TIME;
-          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for aff_node_put_complex = %e\n", aff_retime-aff_ratime);
+          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
         }
 
         fini_2level_zbuffer ( &vv );
@@ -1846,6 +1910,27 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
     }  /* end of loop on momenta */
 
   }  /* end of loop on timeslices */
+
+  /***********************************************/
+  /***********************************************/
+
+#ifdef HAVE_LHPC_AFF
+  /***********************************************************
+  * close the AFF writer
+  ***********************************************************/
+  if( io_proc >= 1 ) {
+    aff_status_str = (char*)aff_writer_close ( affw );
+    if( aff_status_str != NULL ) {
+      fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+      return(32);
+    }
+  }  /* end of if io_proc >= 1 */
+#else
+  /***********************************************
+   * close output file
+   ***********************************************/
+  if ( io_proc >= 1 ) fclose ( ofs );
+#endif
 
   /***********************************************/
   /***********************************************/
