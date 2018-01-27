@@ -55,7 +55,7 @@ int gsp_calculate_w_from_xv_and_v (double **w, double **xv, double **v, double *
 /***************************************************/
 /***************************************************/
 
-int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number, int (*momentum_list)[3], int gamma_id_number, int*gamma_id_list, AffWriter_s *aff, char*tag, int io_proc, \
+int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number, int (*momentum_list)[3], int gamma_id_number, int*gamma_id_list, char*prefix, char*tag, int io_proc, \
        double *gauge_field, double **mzz[2], double **mzzinv[2] );
 
 
