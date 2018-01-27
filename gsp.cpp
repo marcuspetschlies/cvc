@@ -1217,8 +1217,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
 
   int exitstatus;
 
-  double ratime, retime;
-  /* double momentum_ratime, momentum_retime, gamma_ratime, gamma_retime; */
+  double ratime, retime, zgemm_ratime, zgemm_retime, aff_retime, aff_ratime, total_ratime, total_retime;
 
   /***********************************************
    *variables for blas interface
@@ -1239,7 +1238,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
     }
   }
 
-  ratime = _GET_TIME;
+  total_ratime = _GET_TIME;
 
   /***********************************************/
   /***********************************************/
@@ -1261,9 +1260,41 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
     return(1);
   }
 
+  ratime = _GET_TIME;
   for ( int i = 0; i < numV; i++ ) {
     memcpy ( eo_spinor_work[0], V[i], sizeof_eo_spinor_field );
     C_clover_oo ( W[i], eo_spinor_work[0], gauge_field, eo_spinor_work[1], mzz[1][1], mzzinv[1][0] );
+  }
+  retime = _GET_TIME;
+  if ( io_proc == 2 ) fprintf ( stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for W = %e seconds\n", retime-ratime );
+
+  /***********************************************/
+  /***********************************************/
+
+  /***********************************************
+   * auxilliary fields
+   ***********************************************/
+  double **Vts = NULL, **Xtsxp = NULL, **Xtsxpxg = NULL, **Wts = NULL;
+  exitstatus = init_2level_buffer ( &Vts,     numV, _GSI(VOL3half) ) || 
+               init_2level_buffer ( &Wts,     numV, _GSI(VOL3half) ) ||
+               init_2level_buffer ( &Xtsxp,   numV, _GSI(VOL3half) ) ||
+               init_2level_buffer ( &Xtsxpxg, numV, _GSI(VOL3half) );
+  if( exitstatus != 0 ) {
+    fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+
+  /***********************************************/
+  /***********************************************/
+
+  /***********************************************
+   * phases for momentum projection
+   ***********************************************/
+  double _Complex **phase = NULL;
+  exitstatus = init_2level_zbuffer ( &phase, momentum_number, VOL3half );
+  if( exitstatus != 0 ) {
+    fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
   }
 
   /***********************************************/
@@ -1272,22 +1303,9 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
   /***********************************************
    * loop on timeslices
    ***********************************************/
-  /* for ( int it = 0; it < T; it++ ) */
-  for ( int it = 0; it < 1; it++ )
+  for ( int it = 0; it < T; it++ )
+  /* for ( int it = 0; it < 1; it++ ) */
   {
-
-    /***********************************************
-     * auxilliary fields
-     ***********************************************/
-    double **Vts = NULL, **Xtsxp = NULL, **Xtsxpxg = NULL, **Wts = NULL;
-    exitstatus = init_2level_buffer ( &Vts,     numV, _GSI(VOL3half) ) || 
-                 init_2level_buffer ( &Wts,     numV, _GSI(VOL3half) ) ||
-                 init_2level_buffer ( &Xtsxp,   numV, _GSI(VOL3half) ) ||
-                 init_2level_buffer ( &Xtsxpxg, numV, _GSI(VOL3half) );
-    if( exitstatus != 0 ) {
-      fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      return(1);
-    }
 
     /***********************************************
      * phases for momentum projection
@@ -1301,6 +1319,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
 
     make_eo_phase_field_timeslice ( phase, momentum_number, momentum_list, it, 1 );
 
+    ratime = _GET_TIME;
     /***********************************************
      * copy timeslices of fields
      ***********************************************/
@@ -1311,6 +1330,8 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
     for ( int k = 0; k < numV; k++ ) {
       memcpy ( Wts[k], W[k] + offset, sizeof_eo_spinor_field_timeslice );
     }
+    retime = _GET_TIME;
+    if ( io_proc == 2 ) fprintf ( stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for timeslice fields = %e seconds\n", retime-ratime );
 
     /***********************************************
      * loop on momenta
@@ -1347,6 +1368,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
         _F(zgemm) ( &CHAR_C, &CHAR_N, &INT_M, &INT_N, &INT_K, &Z_1, (double _Complex*)(Vts[0]), &INT_K, (double _Complex*)(Xtsxpxg[0]), &INT_K, &Z_0, vv[0], &INT_M, 1, 1);
         
 #ifdef HAVE_MPI
+        ratime = _GET_TIME;
         /***********************************************
          * reduce within global timeslice
          ***********************************************/
@@ -1365,11 +1387,15 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
         }
 
         fini_1level_buffer ( &vvx );
+
+        retime = _GET_TIME;
+        if ( io_proc >= 1 ) fprintf ( stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for timeslice reduction = %e seconds\n", retime-ratime );
 #endif
         /***********************************************
          * write to AFF
          ***********************************************/
         if ( io_proc >= 1 ) {
+          aff_ratime = _GET_TIME;
           sprintf ( aff_key, "%s/v-v/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, it+g_proc_coords[0]*T,  momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] );
           
           affdir = aff_writer_mkpath(affw, affn, aff_key );
@@ -1379,15 +1405,24 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
             fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             return(5);
           }
+          aff_retime = _GET_TIME;
+          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for aff_node_put_complex = %e\n", aff_retime-aff_ratime);
+
         }
 
-#if 0
+
+        zgemm_ratime = _GET_TIME;
         /***********************************************
          * W^+ Gp V
          ***********************************************/
         _F(zgemm) ( &CHAR_C, &CHAR_N, &INT_M, &INT_N, &INT_K, &Z_1, (double _Complex*)(Wts[0]), &INT_K, (double _Complex*)(Xtsxpxg[0]), &INT_K, &Z_0, vv[0], &INT_M, 1, 1);
 
+        zgemm_retime = _GET_TIME;
+        if ( io_proc == 2 ) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for zgemm = %e seconds\n", zgemm_retime-zgemm_ratime);
+
 #ifdef HAVE_MPI
+        ratime = _GET_TIME;
+
         /***********************************************
          * reduce within global timeslice
          ***********************************************/
@@ -1404,11 +1439,16 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
         }
 
         fini_1level_buffer ( &vvx );
+
+        retime = _GET_TIME;
+        if ( io_proc >= 1 ) fprintf ( stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for timeslice reduction = %e seconds\n", retime-ratime );
 #endif
         /***********************************************
          * write to AFF
          ***********************************************/
         if ( io_proc >= 1 ) {
+          aff_ratime = _GET_TIME;
+
           sprintf ( aff_key, "%s/w-v/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, it+g_proc_coords[0]*T, momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] );
 
           affdir = aff_writer_mkpath(affw, affn, aff_key );
@@ -1418,8 +1458,11 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
             fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             return(5);
           }
+
+          aff_retime = _GET_TIME;
+          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for aff_node_put_complex = %e\n", aff_retime-aff_ratime);
         }
-#endif
+
 
         fini_2level_zbuffer ( &vv );
 
@@ -1427,7 +1470,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
 
     }  /* end of loop on momenta */
 
-#if 0
+
     /***********************************************
      * W^+ Gp W
      ***********************************************/
@@ -1461,12 +1504,18 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
           return(5);
         }
 
+        zgemm_ratime = _GET_TIME;
         /***********************************************
          * W^+ Gp W
          ***********************************************/
         _F(zgemm) ( &CHAR_C, &CHAR_N, &INT_M, &INT_N, &INT_K, &Z_1, (double _Complex*)(Wts[0]), &INT_K, (double _Complex*)(Xtsxpxg[0]), &INT_K, &Z_0, vv[0], &INT_M, 1, 1);
         
+        zgemm_retime = _GET_TIME;
+        if ( io_proc == 2 ) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for zgemm = %e seconds\n", zgemm_retime-zgemm_ratime);
+
 #ifdef HAVE_MPI
+        ratime = _GET_TIME;
+
         /***********************************************
          * reduce within global timeslice
          ***********************************************/
@@ -1481,11 +1530,16 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
         }
 
         fini_1level_buffer ( &vvx );
+
+        retime = _GET_TIME;
+        if ( io_proc >= 1 ) fprintf ( stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for timeslice reduction = %e seconds\n", retime-ratime );
 #endif
         /***********************************************
          * write to AFF
          ***********************************************/
         if ( io_proc >= 1 ) {
+          aff_ratime = _GET_TIME;
+
           sprintf ( aff_key, "%s/w-w/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, it+g_proc_coords[0]*T, momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] );
           
           affdir = aff_writer_mkpath(affw, affn, aff_key );
@@ -1495,6 +1549,9 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
             fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             return(5);
           }
+
+          aff_retime = _GET_TIME;
+          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for aff_node_put_complex = %e\n", aff_retime-aff_ratime);
         }
 
         fini_2level_zbuffer ( &vv );
@@ -1502,17 +1559,11 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
       }  /* end of loop on gamma ids */
 
     }  /* end of loop on momenta */
-#endif
-    fini_2level_zbuffer ( &phase );
 
-    fini_2level_buffer ( &Vts );
-    fini_2level_buffer ( &Wts );
-    fini_2level_buffer ( &Xtsxp );
-    fini_2level_buffer ( &Xtsxpxg );
   }  /* end of loop on timeslices */
 
 
-#if 0
+  ratime = _GET_TIME;
   /***********************************************
    * calculate XV
    ***********************************************/
@@ -1520,7 +1571,10 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
     memcpy ( eo_spinor_work[0], V[i], sizeof_eo_spinor_field );
     X_clover_eo ( V[i], eo_spinor_work[0], gauge_field,mzzinv[1][0] );
   }
+  retime = _GET_TIME;
+  if ( io_proc == 2 ) fprintf( stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for XV = %e seconds\n", retime-ratime );
 
+  ratime = _GET_TIME;
   /***********************************************
    * calculate XW
    ***********************************************/
@@ -1528,7 +1582,8 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
     memcpy ( eo_spinor_work[0], W[i], sizeof_eo_spinor_field );
     X_clover_eo ( W[i], eo_spinor_work[0], gauge_field,mzzinv[0][0] );
   }
-
+  retime = _GET_TIME;
+  if ( io_proc == 2 ) fprintf( stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for XW = %e seconds\n", retime-ratime );
 
   /***********************************************/
   /***********************************************/
@@ -1539,32 +1594,12 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
   for ( int it = 0; it < T; it++ ) {
 
     /***********************************************
-     * auxilliary fields
-     ***********************************************/
-    double **Vts = NULL, **Xtsxp = NULL, **Xtsxpxg = NULL, **Wts = NULL;
-    exitstatus = init_2level_buffer ( &Vts,     numV, _GSI(VOL3half) ) ||
-                 init_2level_buffer ( &Wts,     numV, _GSI(VOL3half) ) ||
-                 init_2level_buffer ( &Xtsxp,   numV, _GSI(VOL3half) ) ||
-                 init_2level_buffer ( &Xtsxpxg, numV, _GSI(VOL3half) );
-
-    if( exitstatus != 0 ) {
-      fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      return(1);
-    }
-
-    /***********************************************
      * phases for momentum projection
      * EVEN part of timeslice
      ***********************************************/
-    double _Complex **phase = NULL;
-    exitstatus = init_2level_zbuffer ( &phase, momentum_number, VOL3half );
-    if( exitstatus != 0 ) {
-      fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      return(1);
-    }
-
     make_eo_phase_field_timeslice ( phase, momentum_number, momentum_list, it, 0 );
 
+    ratime = _GET_TIME;
     /***********************************************
      * copy timeslices of fields
      ***********************************************/
@@ -1575,6 +1610,8 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
     for ( int k = 0; k < numV; k++ ) {
       memcpy ( Wts[k], W[k] + offset, sizeof_eo_spinor_field_timeslice );
     }
+    retime = _GET_TIME;
+    if ( io_proc == 2 ) fprintf ( stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for timeslice fields = %e seconds\n", retime-ratime );
 
     /***********************************************
      * loop on momenta
@@ -1609,12 +1646,18 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
           return(5);
         }
 
+        zgemm_ratime = _GET_TIME;
         /***********************************************
          * V^+ Gp V
          ***********************************************/
         _F(zgemm) ( &CHAR_C, &CHAR_N, &INT_M, &INT_N, &INT_K, &Z_1, (double _Complex*)(Vts[0]), &INT_K, (double _Complex*)(Xtsxpxg[0]), &INT_K, &Z_0, vv[0], &INT_M, 1, 1);
         
+        zgemm_retime = _GET_TIME;
+        if ( io_proc == 2 ) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for zgemm = %e seconds\n", zgemm_retime-zgemm_ratime);
+
 #ifdef HAVE_MPI
+        ratime = _GET_TIME;
+
         /***********************************************
          * reduce within global timeslice
          ***********************************************/
@@ -1633,11 +1676,16 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
         }
 
         fini_1level_buffer ( &vvx );
+
+        retime = _GET_TIME;
+        if ( io_proc >= 1 ) fprintf ( stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for timeslice reduction = %e seconds\n", retime-ratime );
 #endif
         /***********************************************
          * write to AFF
          ***********************************************/
         if ( io_proc >= 1 ) {
+          aff_ratime = _GET_TIME;
+
           sprintf ( aff_key, "%s/xv-xv/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, it+g_proc_coords[0]*T, momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] );
           
           affdir = aff_writer_mkpath(affw, affn, aff_key );
@@ -1647,15 +1695,23 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
             fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             return(5);
           }
+
+          aff_retime = _GET_TIME;
+          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for aff_node_put_complex = %e\n", aff_retime-aff_ratime);
         }
 
-
+        zgemm_ratime = _GET_TIME;
         /***********************************************
          * W^+ Gp V
          ***********************************************/
         _F(zgemm) ( &CHAR_C, &CHAR_N, &INT_M, &INT_N, &INT_K, &Z_1, (double _Complex*)(Wts[0]), &INT_K, (double _Complex*)(Xtsxpxg[0]), &INT_K, &Z_0, vv[0], &INT_M, 1, 1);
 
+        zgemm_retime = _GET_TIME;
+        if ( io_proc == 2 ) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for zgemm = %e seconds\n", zgemm_retime-zgemm_ratime);
+
 #ifdef HAVE_MPI
+        ratime = _GET_TIME;
+
         /***********************************************
          * reduce within global timeslice
          ***********************************************/
@@ -1672,11 +1728,16 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
         }
 
         fini_1level_buffer ( &vvx );
+
+        retime = _GET_TIME;
+        if ( io_proc >= 1 ) fprintf ( stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for timeslice reduction = %e seconds\n", retime-ratime );
 #endif
         /***********************************************
          * write to AFF
          ***********************************************/
         if ( io_proc >= 1 ) {
+          aff_ratime = _GET_TIME;
+
           sprintf ( aff_key, "%s/xw-xv/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, it+g_proc_coords[0]*T, momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] );
 
           affdir = aff_writer_mkpath(affw, affn, aff_key );
@@ -1686,6 +1747,9 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
             fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             return(5);
           }
+
+          aff_retime = _GET_TIME;
+          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for aff_node_put_complex = %e\n", aff_retime-aff_ratime);
         }
 
 
@@ -1728,12 +1792,18 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
           return(1);
         }
 
+        zgemm_ratime = _GET_TIME;
         /***********************************************
          * W^+ Gp W
          ***********************************************/
         _F(zgemm) ( &CHAR_C, &CHAR_N, &INT_M, &INT_N, &INT_K, &Z_1, (double _Complex*)(Wts[0]), &INT_K, (double _Complex*)(Xtsxpxg[0]), &INT_K, &Z_0, vv[0], &INT_M, 1, 1);
+
+        zgemm_retime = _GET_TIME;
+        if ( io_proc == 2 ) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for zgemm = %e seconds\n", zgemm_retime-zgemm_ratime);
         
 #ifdef HAVE_MPI
+        ratime = _GET_TIME;
+
         /***********************************************
          * reduce within global timeslice
          ***********************************************/
@@ -1751,13 +1821,17 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
           return(1);
         }
 
-
         fini_1level_buffer ( &vvx );
+
+        retime = _GET_TIME;
+        if ( io_proc >= 1 ) fprintf ( stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for timeslice reduction = %e seconds\n", retime-ratime );
 #endif
         /***********************************************
          * write to AFF
          ***********************************************/
         if ( io_proc >= 1 ) {
+          aff_ratime = _GET_TIME;
+
           sprintf ( aff_key, "%s/xw-xw/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, it+g_proc_coords[0]*T, momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] );
           
           affdir = aff_writer_mkpath(affw, affn, aff_key );
@@ -1767,6 +1841,9 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
             fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             return(5);
           }
+
+          aff_retime = _GET_TIME;
+          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for aff_node_put_complex = %e\n", aff_retime-aff_ratime);
         }
 
         fini_2level_zbuffer ( &vv );
@@ -1775,21 +1852,45 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
 
     }  /* end of loop on momenta */
 
-    fini_2level_zbuffer ( &phase );
-
-    fini_2level_buffer ( &Vts );
-    fini_2level_buffer ( &Wts );
-    fini_2level_buffer ( &Xtsxp );
-    fini_2level_buffer ( &Xtsxpxg );
-
   }  /* end of loop on timeslices */
-#endif
 
+  /***********************************************/
+  /***********************************************/
+
+  /***********************************************
+   * deallocate auxilliary fields
+   ***********************************************/
+  fini_2level_buffer ( &Vts );
+  fini_2level_buffer ( &Wts );
+  fini_2level_buffer ( &Xtsxp );
+  fini_2level_buffer ( &Xtsxpxg );
+
+  /***********************************************
+   * deallocate momentum phase field
+   ***********************************************/
+  fini_2level_zbuffer ( &phase );
+
+  /***********************************************
+   * deallocate W and eo_spinor_work
+   ***********************************************/
   fini_2level_buffer ( &W );
   fini_2level_buffer ( &eo_spinor_work );
   
-  retime = _GET_TIME;
-  if ( io_proc == 2 ) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for gsp_calculate_v_dag_gamma_p_w_block = %e seconds\n", retime-ratime);
+  /***********************************************/
+  /***********************************************/
+
+#ifdef HAVE_MPI
+  /***********************************************
+   * mpi barrier and total time
+   ***********************************************/
+  if ( ( exitstatus =  MPI_Barrier ( g_cart_grid ) ) != MPI_SUCCESS ) {
+    fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from MPI_Barrier, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(6);
+  }
+#endif
+  total_retime = _GET_TIME;
+  if ( io_proc == 2 ) fprintf(stdout, "\n# [gsp_calculate_v_dag_gamma_p_w_block] time for gsp_calculate_v_dag_gamma_p_w_block = %e seconds\n", total_retime-total_ratime);
+  fflush ( stdout );
 
   return(0);
 
