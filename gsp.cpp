@@ -1272,8 +1272,8 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
   /***********************************************
    * loop on timeslices
    ***********************************************/
-  /* for ( int it = 0; it < T; it++ ) */
-  for ( int it = 0; it < 1; it++ )
+  for ( int it = 0; it < T; it++ )
+  //for ( int it = 0; it < 1; it++ )
   {
 
     /***********************************************
@@ -1381,7 +1381,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
           }
         }
 
-#if 0
+
         /***********************************************
          * W^+ Gp V
          ***********************************************/
@@ -1419,7 +1419,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
             return(5);
           }
         }
-#endif
+
 
         fini_2level_zbuffer ( &vv );
 
@@ -1427,7 +1427,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
 
     }  /* end of loop on momenta */
 
-#if 0
+
     /***********************************************
      * W^+ Gp W
      ***********************************************/
@@ -1502,7 +1502,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
       }  /* end of loop on gamma ids */
 
     }  /* end of loop on momenta */
-#endif
+
     fini_2level_zbuffer ( &phase );
 
     fini_2level_buffer ( &Vts );

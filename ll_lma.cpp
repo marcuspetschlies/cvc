@@ -55,6 +55,7 @@ extern "C"
 #include "clover.h"
 #include "gsp.h"
 #include "matrix_init.h"
+#include "scalar_products.h"
 
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
@@ -100,6 +101,7 @@ int main(int argc, char **argv) {
   double **mzz[2], **mzzinv[2];
   double *gauge_field_with_phase = NULL;
   FILE*ofs = NULL;
+  size_t sizeof_eo_spinor_field =0;
 
 #ifdef HAVE_LHPC_AFF
   struct AffWriter_s *affw = NULL;
@@ -219,6 +221,7 @@ int main(int argc, char **argv) {
 
   Vhalf    = VOLUME / 2;
   VOL3half = LX*LY*LZ/2;
+  sizeof_eo_spinor_field = _GSI(Vhalf ) * sizeof( double );
 
   /***********************************************************/
   /***********************************************************/
@@ -412,18 +415,15 @@ int main(int argc, char **argv) {
     sprintf( filename, "test.t%.2d", g_proc_coords[0] );
     ofs = fopen( filename, "w");
   }
-  
 
   for ( int k = 0; k < evecs_num; k++ ) {
     double **eo_spinor_work = NULL, **eo_spinor_field = NULL;
-
     init_2level_buffer ( &eo_spinor_work, 4, _GSI((VOLUME+RAND)/2) );
     init_2level_buffer ( &eo_spinor_field, 4, _GSI(Vhalf) );
 
     for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
 
       for ( int x0 = 0; x0 < T; x0++ ) {
-      
         for ( int x1 = 0; x1 < LX; x1++ ) { 
           double px = 2*M_PI * ( g_proc_coords[1]*LX + x1 ) / (double)LX_global * g_sink_momentum_list[imom][0];
         for ( int x2 = 0; x2 < LY; x2++ ) { 
@@ -434,27 +434,19 @@ int main(int argc, char **argv) {
           unsigned int ix = g_ipt[x0][x1][x2][x3];
           if ( g_iseven[ix] ) continue;
           unsigned int ixeo = g_lexic2eosub[ix];
-
           double phase = px + py + pz;
           complex w = {cos(phase), sin(phase)};
-
           _fv_eq_fv_ti_co ( eo_spinor_field[0]+_GSI(ixeo), eo_evecs_field[k]+_GSI(ixeo), &w );
-
         }}}
       }
-
       for ( int ig = 0; ig < g_source_gamma_id_number; ig++ ) {
-
         for ( unsigned int ix = 0; ix < Vhalf; ix++ ) {
           _fv_eq_gamma_ti_fv ( eo_spinor_field[1]+_GSI(ix), g_source_gamma_id_list[ig], eo_spinor_field[0]+_GSI(ix) );
         }
-
         for ( int l = 0; l < evecs_num; l++ ) {
-
-          // for ( int x0 = 0; x0 < T; x0++ )
-          for ( int x0 = 0; x0 < 1; x0++ )
+          for ( int x0 = 0; x0 < T; x0++ )
+          // for ( int x0 = 0; x0 < 1; x0++ )
           {
-
             complex w = {0.,0.};
             for ( unsigned int ix = 0; ix < VOL3half; ix++ ) {
               unsigned int iix = x0 * _GSI(VOL3half) + _GSI(ix);
@@ -470,13 +462,78 @@ int main(int argc, char **argv) {
                   g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], g_source_gamma_id_list[ig] );
               fprintf( ofs, "%3d %3d  %25.16e %25.16e\n", l, k, w.re, w.im);
             }
-
-
           }
         }
       }
     }
+    fini_2level_buffer ( &eo_spinor_work );
+    fini_2level_buffer ( &eo_spinor_field );
+  }
 
+  /* END OF TEST */
+  
+  /***********************************************************/
+  /***********************************************************/
+
+  for ( int k = 0; k < evecs_num; k++ ) {
+    double **eo_spinor_work = NULL, **eo_spinor_field = NULL;
+    init_2level_buffer ( &eo_spinor_work, 4, _GSI((VOLUME+RAND)/2) );
+    init_2level_buffer ( &eo_spinor_field, 4, _GSI(Vhalf) );
+
+    for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+
+      for ( int x0 = 0; x0 < T; x0++ ) {
+        for ( int x1 = 0; x1 < LX; x1++ ) { 
+          double px = 2*M_PI * ( g_proc_coords[1]*LX + x1 ) / (double)LX_global * g_sink_momentum_list[imom][0];
+        for ( int x2 = 0; x2 < LY; x2++ ) { 
+          double py = 2*M_PI * ( g_proc_coords[2]*LY + x2 ) / (double)LY_global * g_sink_momentum_list[imom][1];
+        for ( int x3 = 0; x3 < LZ; x3++ ) { 
+          double pz = 2*M_PI * ( g_proc_coords[3]*LZ + x3 ) / (double)LZ_global * g_sink_momentum_list[imom][2];
+
+          unsigned int ix = g_ipt[x0][x1][x2][x3];
+          if ( g_iseven[ix] ) continue;
+          unsigned int ixeo = g_lexic2eosub[ix];
+          double phase = px + py + pz;
+          complex w = {cos(phase), sin(phase)};
+          _fv_eq_fv_ti_co ( eo_spinor_field[0]+_GSI(ixeo), eo_evecs_field[k]+_GSI(ixeo), &w );
+        }}}
+      }
+      for ( int ig = 0; ig < g_source_gamma_id_number; ig++ ) {
+        for ( unsigned int ix = 0; ix < Vhalf; ix++ ) {
+          _fv_eq_gamma_ti_fv ( eo_spinor_field[1]+_GSI(ix), g_source_gamma_id_list[ig], eo_spinor_field[0]+_GSI(ix) );
+        }
+        for ( int l = 0; l < evecs_num; l++ ) {
+
+          memcpy ( eo_spinor_work[0], eo_evecs_field[l], sizeof_eo_spinor_field );
+          C_clover_oo ( eo_spinor_field[2], eo_spinor_work[0], gauge_field_with_phase, eo_spinor_work[3], mzz[1][1], mzzinv[1][0]);
+          if ( k == 0 ) {
+            complex w;
+            spinor_scalar_product_co ( &w, eo_spinor_field[2], eo_spinor_field[2], Vhalf );
+            if ( io_proc == 2 ) fprintf ( stdout, "# [ll_lma] w = %25.16e %25.16e\n", w.re, w.im );
+          }
+
+          for ( int x0 = 0; x0 < T; x0++ )
+          // for ( int x0 = 0; x0 < 1; x0++ )
+          {
+            complex w = {0.,0.};
+            for ( unsigned int ix = 0; ix < VOL3half; ix++ ) {
+              unsigned int iix = x0 * _GSI(VOL3half) + _GSI(ix);
+              _co_pl_eq_fv_dag_ti_fv( &w, eo_spinor_field[2]+iix , eo_spinor_field[1]+iix );
+            }
+#ifdef HAVE_MPI
+            double dtmp[2] = {w.re, w.im};
+            MPI_Allreduce( dtmp, &w, 2, MPI_DOUBLE, MPI_SUM, g_ts_comm );
+#endif
+
+            if ( io_proc >= 1 )  {
+              fprintf ( ofs, "# /ll/lma/N%d/w-v/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d\n", evecs_num, x0+g_proc_coords[0]*T, 
+                  g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], g_source_gamma_id_list[ig] );
+              fprintf( ofs, "%3d %3d  %25.16e %25.16e\n", l, k, w.re, w.im);
+            }
+          }
+        }
+      }
+    }
     fini_2level_buffer ( &eo_spinor_work );
     fini_2level_buffer ( &eo_spinor_field );
   }
@@ -486,7 +543,6 @@ int main(int argc, char **argv) {
     fclose ( ofs );
   }
   /* END OF TEST */
-  
   /***********************************************************/
   /***********************************************************/
 
