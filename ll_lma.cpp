@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
   int exitstatus;
   int io_proc = -1;
   int evecs_num = 0;
-  int fix_eigenvector_phase = 0;
+  int do_fix_eigenvector_phase = 0;
   unsigned int Vhalf;
   double *eo_evecs_block=NULL;
   double **eo_evecs_field=NULL;
@@ -109,7 +109,7 @@ int main(int argc, char **argv) {
       filename_set=1;
       break;
     case 'p':
-      fix_eigenvector_phase = 1;
+      do_fix_eigenvector_phase = 1;
       break;
     case 'h':
     case '?':
@@ -382,7 +382,7 @@ int main(int argc, char **argv) {
   /***********************************************************
    * fix eigenvector phase
    ***********************************************************/
-  if ( fix_eigenvector_phase == 1 ) {
+  if ( do_fix_eigenvector_phase == 1 ) {
     if ( io_proc == 2 ) fprintf(stdout, "# [ll_lma] fixing eigenvector phase\n");
     exitstatus = fix_eigenvector_phase ( eo_evecs_field, evecs_num );
     if ( exitstatus != 0 ) {
