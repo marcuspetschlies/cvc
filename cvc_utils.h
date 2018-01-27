@@ -188,6 +188,8 @@ void fermion_propagator_field_eq_gamma_ti_fermion_propagator_field ( fermion_pro
 
 void fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fermion_propagator_type *r, int gid, fermion_propagator_type *s, unsigned int N);
 
+int fix_eigenvector_phase ( double **evecs_field, int num );
+
 }  /* end of namespace cvc */
 #endif
 
