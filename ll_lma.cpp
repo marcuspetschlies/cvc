@@ -70,17 +70,6 @@ void usage() {
   EXIT(0);
 }
 
-int dummy_eo_solver (double * const propagator, double * const source, const int op_id) {
-  memcpy(propagator, source, _GSI(VOLUME)/2*sizeof(double) );
-  return(0);
-}
-
-
-#ifdef DUMMY_SOLVER 
-#  define _TMLQCD_INVERT_EO dummy_eo_solver
-#else
-#  define _TMLQCD_INVERT_EO tmLQCD_invert_eo
-#endif
 
 int main(int argc, char **argv) {
   
@@ -91,6 +80,7 @@ int main(int argc, char **argv) {
   int exitstatus;
   int io_proc = -1;
   int evecs_num = 0;
+  int fix_eigenvector_phase = 0;
   unsigned int Vhalf;
   double *eo_evecs_block=NULL;
   double **eo_evecs_field=NULL;
@@ -104,17 +94,22 @@ int main(int argc, char **argv) {
   struct AffWriter_s *affw = NULL;
   char * aff_status_str;
   char aff_tag[400];
+#else
+  EXIT(100);
 #endif
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:p:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
       filename_set=1;
+      break;
+    case 'p':
+      fix_eigenvector_phase = 1;
       break;
     case 'h':
     case '?':
@@ -231,12 +226,7 @@ int main(int argc, char **argv) {
   } else {
     /* initialize unit matrices */
     if(g_cart_id==0) fprintf(stdout, "\n# [ll_lma] initializing unit matrices\n");
-    for(ix=0;ix<VOLUME;ix++) {
-      _cm_eq_id( g_gauge_field + _GGI(ix, 0) );
-      _cm_eq_id( g_gauge_field + _GGI(ix, 1) );
-      _cm_eq_id( g_gauge_field + _GGI(ix, 2) );
-      _cm_eq_id( g_gauge_field + _GGI(ix, 3) );
-    }
+    unit_gauge_field( g_gauge_field, VOLUME );
   }
 #else
   Nconf = g_tmLQCD_lat.nstore;
@@ -324,9 +314,9 @@ int main(int argc, char **argv) {
   /***********************************************************/
   /***********************************************************/
 
-  /*************************************************
+  /***********************************************************
    * allocate memory for the eigenvector fields
-   *************************************************/
+   ***********************************************************/
   eo_evecs_field = (double**)calloc(evecs_num, sizeof(double*));
   eo_evecs_field[0] = eo_evecs_block;
   for( int i = 1; i < evecs_num; i++) eo_evecs_field[i] = eo_evecs_field[i-1] + _GSI(Vhalf);
@@ -355,10 +345,13 @@ int main(int argc, char **argv) {
     EXIT(1);
   }
 
+  /***********************************************************/
+  /***********************************************************/
+
 #ifdef HAVE_MPI
-  /***********************************************
+  /***********************************************************
    * set io process
-   ***********************************************/
+   ***********************************************************/
   if( g_proc_coords[0] == 0 && g_proc_coords[1] == 0 && g_proc_coords[2] == 0 && g_proc_coords[3] == 0) {
     io_proc = 2;
     fprintf(stdout, "# [ll_lma] proc%.4d is io process\n", g_cart_id);
@@ -389,10 +382,13 @@ int main(int argc, char **argv) {
   /***********************************************************
    * fix eigenvector phase
    ***********************************************************/
-  exitstatus = fix_eigenvector_phase ( eo_evecs_field, evecs_num );
-  if ( exitstatus != 0 ) {
-    fprintf(stderr, "[ll_lma] Error from fix_eigenvector_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(1);
+  if ( fix_eigenvector_phase == 1 ) {
+    if ( io_proc == 2 ) fprintf(stdout, "# [ll_lma] fixing eigenvector phase\n");
+    exitstatus = fix_eigenvector_phase ( eo_evecs_field, evecs_num );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[ll_lma] Error from fix_eigenvector_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(1);
+    }
   }
 
   /***********************************************************/
