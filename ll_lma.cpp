@@ -93,10 +93,10 @@ int main(int argc, char **argv) {
 #ifdef HAVE_LHPC_AFF
   struct AffWriter_s *affw = NULL;
   char * aff_status_str;
-  char aff_tag[400];
-#else
-  EXIT(100);
+# else
+  void *affw = NULL;
 #endif
+  char aff_tag[400];
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
@@ -535,55 +535,22 @@ int main(int argc, char **argv) {
   /***********************************************************/
   /***********************************************************/
   
+  sprintf( aff_tag, "/ll/lma/N%d", evecs_num );
+  sprintf( filename_prefix, "%s_N%d", outfile_prefix, evecs_num );
 
-
-#ifdef HAVE_LHPC_AFF
-  /***********************************************
-   * writer for aff output file
-   ***********************************************/
-  if(io_proc >= 1) {
-    sprintf(filename, "%s.%.4d.t%.2d.aff", outfile_prefix, Nconf, g_proc_coords[0]  );
-    fprintf(stdout, "# [ll_lma] writing data to file %s\n", filename);
-    affw = aff_writer(filename);
-    aff_status_str = (char*)aff_writer_errstr(affw);
-    if( aff_status_str != NULL ) {
-      fprintf(stderr, "[ll_lma] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-      EXIT(15);
-    }
-  }  /* end of if io_proc == 1 */
-#endif
   /***********************************************************/
   /***********************************************************/
 
   /***********************************************************
-   * contract and write to AFF
+   * contract and write to disk
    ***********************************************************/
-  sprintf(aff_tag, "/ll/lma/N%d", evecs_num );
-
-
-  exitstatus = gsp_calculate_v_dag_gamma_p_w_block ( eo_evecs_field, evecs_num, g_sink_momentum_number, g_sink_momentum_list, g_source_gamma_id_number, g_source_gamma_id_list, affw, aff_tag, io_proc, \
+  exitstatus = gsp_calculate_v_dag_gamma_p_w_block ( eo_evecs_field, evecs_num, g_sink_momentum_number, g_sink_momentum_list, g_source_gamma_id_number, g_source_gamma_id_list, filename_prefix, aff_tag, io_proc, \
            gauge_field_with_phase, mzz, mzzinv );
 
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[ll_lma] Error from gsp_calculate_v_dag_gamma_p_w_block, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(32);
   }
-
-  /***********************************************************/
-  /***********************************************************/
-
-  /***********************************************************
-   * close AFF
-   ***********************************************************/
-#ifdef HAVE_LHPC_AFF
-  if( io_proc >= 1 ) {
-    aff_status_str = (char*)aff_writer_close ( affw );
-    if( aff_status_str != NULL ) {
-      fprintf(stderr, "[ll_lma] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-      EXIT(32);
-    }
-  }  /* end of if io_proc >= 1 */
-#endif  /* of ifdef HAVE_LHPC_AFF */
 
   /***********************************************************/
   /***********************************************************/
