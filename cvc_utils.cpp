@@ -6942,6 +6942,7 @@ int fix_eigenvector_phase ( double **evecs_field, int num ) {
 
   }  /* end of loop on i */
 
+  return(0);
 }  /* end of fix_eigenvector_phase */
 
 /***********************************************************/
