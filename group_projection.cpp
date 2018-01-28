@@ -21,6 +21,7 @@
 #ifdef HAVE_OPENMP
 #  include <omp.h>
 #endif
+#include "ranlxd.h"
 
 #include "cvc_complex.h"
 #include "iblas.h"
@@ -1673,6 +1674,7 @@ int rot_mat_table_orthogonality ( rot_mat_table_type *t1, rot_mat_table_type *t2
         }
 
         z  += t1->R[l][i1][i2]  * conj ( t2->R[l][k1][k2] );
+        // z  += t1->R[l][i1][i2]  * t2->R[l][k1][k2];
 
         if ( t1->rmid[l] != t2->rmid[l] ) {
           fprintf(stderr, "[rot_mat_table_orthogonality] Error, rmids do not match %d %d\n", t1->rmid[l], t2->rmid[l] );
@@ -1680,12 +1682,13 @@ int rot_mat_table_orthogonality ( rot_mat_table_type *t1, rot_mat_table_type *t2
         }
 
         zi += t1->IR[l][i1][i2] * conj ( t2->IR[l][k1][k2] );
+        // zi += t1->IR[l][i1][i2] * t2->IR[l][k1][k2];
 
       }  /* end of loop on rotations */
       int orthogonal = (int)(cabs(z+zi-zexp) < eps);
       if ( !orthogonal ) {
-        fprintf( stderr, "[] group %s irreps %s --- %s elements (%2d %2d) ---  (%2d %2d) not orthogonal\n", t1->group, t1->irrep, t2->irrep, i1, i2, k1, k2);
-        return(5);
+        fprintf( stderr, "[rot_mat_table_orthogonality] group %s irreps %s --- %s elements (%2d %2d) ---  (%2d %2d) not orthogonal\n", t1->group, t1->irrep, t2->irrep, i1, i2, k1, k2);
+        // return(5);
       }
       fprintf ( stdout, "# [rot_mat_table_orthogonality] %d %d    %d %d z %16.7e %16.7e zi %16.7e %16.7e z+zi %16.7e %16.7e zexp %16.7e orthogonal %d\n", i1, i2, k1, k2, 
           creal(z), cimag(z), creal(zi), cimag(zi), creal(z+zi), cimag(z+zi), creal(zexp), orthogonal);
@@ -1775,7 +1778,7 @@ int fini_little_group_projector (little_group_projector_type *p ) {
  *
  ***********************************************************/
 
-int little_group_projector_show (little_group_projector_type *p, FILE*ofs ) {
+int little_group_projector_show (little_group_projector_type *p, FILE*ofs, int with_mat ) {
 
   fprintf( ofs, "\n\n# [little_group_projector_show] begin of projector\n" );
   fprintf( ofs, "# [little_group_projector_show] number of interpolators = %d\n", p->n);
@@ -1793,23 +1796,32 @@ int little_group_projector_show (little_group_projector_type *p, FILE*ofs ) {
     }
   }
 #endif
-  fprintf( ofs, "# [little_group_projector_show] correlator name       = %s\n", p->correlator_name );
-  fprintf( ofs, "# [little_group_projector_show] row target            = %d\n", p->row_target );
-  fprintf( ofs, "# [little_group_projector_show] reference row target  = %d\n", p->ref_row_target );
+  fprintf( ofs, "# [little_group_projector_show] correlator name    = %s\n", p->correlator_name );
+  fprintf( ofs, "# [little_group_projector_show] row target         = %d\n", p->row_target );
+  fprintf( ofs, "# [little_group_projector_show] ref row target     = %d\n", p->ref_row_target );
   for ( int i = 0; i < p->n; i++ ) {
-    fprintf( ofs, "# [little_group_projector_show] reference row spin(%d)  = %d\n", i, p->ref_row_spin[i] );
+    fprintf( ofs, "# [little_group_projector_show] ref row spin(%d)   = %d\n", i, p->ref_row_spin[i] );
+  }
+  if ( !with_mat ) {
+    fprintf( ofs, "# [little_group_projector_show] target group     = %s\n", p->rtarget->group );
+    fprintf( ofs, "# [little_group_projector_show] target irrep     = %s\n", p->rtarget->irrep );
+    fprintf( ofs, "# [little_group_projector_show] target elements  = %d\n", p->rtarget->n );
+    fprintf( ofs, "# [little_group_projector_show] target dim       = %d\n", p->rtarget->dim );
+
   }
    
-  /***********************************************************
-   * show the rotation matrices
-   ***********************************************************/
-  rot_mat_table_printf ( p->rtarget, "rtarget", ofs );
-  for ( int i = 0; i < p->n; i++ ) {
-    char name[200];
-    sprintf (name, "rspin%d", i);
-    rot_mat_table_printf ( &(p->rspin[i]), name, ofs );
+  if ( with_mat ) {
+    /***********************************************************
+     * show the rotation matrices
+     ***********************************************************/
+    rot_mat_table_printf ( p->rtarget, "rtarget", ofs );
+    for ( int i = 0; i < p->n; i++ ) {
+      char name[200];
+      sprintf (name, "rspin%d", i);
+      rot_mat_table_printf ( &(p->rspin[i]), name, ofs );
+    }
+    rot_mat_table_printf ( p->rp, "rp", ofs );
   }
-  rot_mat_table_printf ( p->rp, "rp", ofs );
   
   fprintf( ofs, "# [little_group_projector_show] end of projector\n\n" );
   return(0);
@@ -1910,7 +1922,7 @@ int little_group_projector_set (
     fprintf( stderr, "[little_group_projector_set] Error, number of interpolators is zero\n");
     return(1);
   }
-  fprintf( stdout, "[little_group_projector_set] p-> = %d\n", p->n );
+  fprintf( stdout, "# [little_group_projector_set] p-> = %d\n", p->n );
 
   if ( ( p->rtarget= (rot_mat_table_type *)malloc (  sizeof( rot_mat_table_type ) ) ) == NULL ) {
     fprintf( stderr, "[little_group_projector_set] Error from malloc %s %d\n", __FILE__, __LINE__);
@@ -2007,6 +2019,38 @@ int little_group_projector_set (
 /***********************************************************/
 /***********************************************************/
 
+/***********************************************************
+ * abs max
+ ***********************************************************/
+inline double dgeps (double a, double eps ) {
+  double t = fabs ( a );
+  return( t > eps ? a : 0. );
+}  /* end of dgeps */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * print direct product of spin vectors
+ ***********************************************************/
+int spin_vector_asym_printf ( double _Complex **sv, int n, int*dim, char*name, FILE*ofs ) {
+
+  const double eps = 9.e-15;
+
+  fprintf( ofs, "# [spin_vector_asym_printf] %s\n", name );
+  for ( int i = 0; i < n; i++ ) { 
+    fprintf( ofs, "# [spin_vector_asym_printf]   %s(%d)\n", name, i );
+
+    for ( int k = 0; k < dim[i]; k++ ) {
+      fprintf( ofs, "   %16.7e    %16.7e\n", dgeps( creal (sv[i][k]), eps ) , dgeps ( cimag(sv[i][k]), eps ) );
+      /* fprintf( ofs, "   %16.7e    %16.7e\n", creal (sv[i][k]), cimag(sv[i][k]) ); */
+    }
+  }
+  return(0);
+}  /* end of spin_vector_asym_prinf */
+
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  * apply the projector to a basis vector
@@ -2014,7 +2058,7 @@ int little_group_projector_set (
 int little_group_projector_apply ( little_group_projector_type *p ) {
 
   int *spin_dimensions = NULL;
-  double _Complex **sv0 = NULL, **sv1 = NULL, **sv2 = NULL;
+  double _Complex **sv0 = NULL, **sv1 = NULL;
 
   /***********************************************************
    * allocate spin vectors, to which spin rotations are applied
@@ -2024,7 +2068,6 @@ int little_group_projector_apply ( little_group_projector_type *p ) {
 
   init_2level_zbuffer_asym( &sv0, p->n, spin_dimensions );
   init_2level_zbuffer_asym( &sv1, p->n, spin_dimensions );
-  init_2level_zbuffer_asym( &sv2, p->n, spin_dimensions );
 
   /***********************************************************/
   /***********************************************************/
@@ -2032,30 +2075,44 @@ int little_group_projector_apply ( little_group_projector_type *p ) {
   /***********************************************************
    * initialize spin vectors according to ref_row_spin
    ***********************************************************/
-  for ( int i = 0; i < p->n; i++ ) { sv0[i][p->ref_row_spin[i]] = 1.; }
+  for ( int i = 0; i < p->n; i++ ) { 
+    if ( p->ref_row_spin[i] >= 0 && p->ref_row_spin[i] < p->rspin[i].dim ) {
+      /***********************************************************
+       * basis vector no. ref_row_spin
+       ***********************************************************/
+      sv0[i][p->ref_row_spin[i]] = 1.; 
+
+    } else if ( p->ref_row_spin[i] == -1 ) {
+      /***********************************************************
+       * random vector
+       ***********************************************************/
+      ranlxd ( (double*)(sv0[i]), 2*p->rspin[i].dim );
+    }
+  }
+
+  spin_vector_asym_printf ( sv0, p->n, spin_dimensions, "sv0",  stdout );
+
+  /***********************************************************/
+  /***********************************************************/
 
   /* TEST */
-  /* print all spin vectors */
-  for ( int i = 0; i < p->n; i++ ) { 
-    fprintf(stdout, "# [little_group_projector_apply] spin vector %d (  ", i);
-    for ( int k = 0; k < spin_dimensions[i]; k++ ) {
-      fprintf(stdout, " %16.7e +I %16.7e,  ", creal (sv0[i][k]), cimag(sv0[i][k]) );
-    }
-    fprintf(stdout, ")\n");
-  }
-  /* END OF TEST */
-
-  /***********************************************************/
-  /***********************************************************/
+  double _Complex **R = rot_init_rotation_matrix (p->rspin[0].dim );
 
   /***********************************************************
    * loop on rotation group elements
    ***********************************************************/
   for ( int irot = 0; irot < p->rtarget->n; irot++ ) {
 
-    /* double _Complex z_irrep_matrix_coeff = conj ( p->rtarget->R[irot][p->row_target][p->ref_row_target] ); */
-    double _Complex z_irrep_matrix_coeff =  p->rtarget->R[irot][p->row_target][p->ref_row_target];
-    fprintf(stdout, "# [little_group_projector_apply] T Gamma coeff rot %2d = %25.16e %25.16e\n", irot, creal(z_irrep_matrix_coeff), cimag(z_irrep_matrix_coeff) );
+    double _Complex z_irrep_matrix_coeff = conj ( p->rtarget->R[irot][p->row_target][p->ref_row_target] );
+
+    /* double _Complex z_irrep_matrix_coeff = conj ( p->rtarget->R[irot][p->ref_row_target][p->row_target] ); */
+
+    /* This is the standard choice according to paper  */
+    /* double _Complex z_irrep_matrix_coeff =  p->rtarget->R[irot][p->row_target][p->ref_row_target]; */
+
+    /* double _Complex z_irrep_matrix_coeff =  p->rtarget->R[irot][p->ref_row_target][p->row_target]; */
+
+    /* fprintf(stdout, "# [little_group_projector_apply] T Gamma coeff rot %2d = %25.16e %25.16e\n", irot, creal(z_irrep_matrix_coeff), cimag(z_irrep_matrix_coeff) ); */
 
     /***********************************************************
      * loop on interpolators
@@ -2064,18 +2121,16 @@ int little_group_projector_apply ( little_group_projector_type *p ) {
       rot_vec_accum_vec_ti_co_pl_mat_ti_vec_ti_co ( sv1[k], p->rspin[k].R[irot], sv0[k], z_irrep_matrix_coeff, 1., spin_dimensions[k] );
       /* rot_vec_accum_vec_ti_co_pl_mat_transpose_ti_vec_ti_co ( sv1[k], p->rspin[k].R[irot], sv0[k], z_irrep_matrix_coeff, 1., spin_dimensions[k] ); */
     }
-  }
-  /* TEST */
-  /* print all spin vectors */
-  for ( int i = 0; i < p->n; i++ ) { 
-    fprintf(stdout, "# [little_group_projector_apply] spin vector %d (  ", i);
-    for ( int k = 0; k < spin_dimensions[i]; k++ ) {
-      fprintf(stdout, " %16.7e +I %16.7e,  ", creal (sv1[i][k]), cimag(sv1[i][k]) );
-    }
-    fprintf(stdout, ")\n");
-  }
-  /* END OF TEST */
 
+    rot_mat_pl_eq_mat_ti_co ( R, p->rspin[0].R[irot], z_irrep_matrix_coeff, p->rspin[0].dim );
+
+  }  /* end of loop on rotations */
+
+
+  rot_printf_matrix ( R, p->rspin[0].dim, "Rsub", stdout );
+  rot_fini_rotation_matrix ( &R );
+
+  spin_vector_asym_printf ( sv1, p->n, spin_dimensions, "sv1",  stdout );
 
   /***********************************************************/
   /***********************************************************/
@@ -2083,7 +2138,6 @@ int little_group_projector_apply ( little_group_projector_type *p ) {
   fini_1level_ibuffer ( &spin_dimensions );
   fini_2level_zbuffer_asym( &sv0 );
   fini_2level_zbuffer_asym( &sv1 );
-  fini_2level_zbuffer_asym( &sv2 );
   return(0);
 
 }  /* end of little_group_projector_apply */
