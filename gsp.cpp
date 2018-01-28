@@ -1233,6 +1233,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
   AffWriter_s *affw = NULL;
   struct AffNode_s *affn = NULL, *affdir=NULL;
   char aff_key[200];
+  char *aff_status_str;
 
   /***********************************************
    * writer for aff output file
