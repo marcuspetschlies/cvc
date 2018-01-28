@@ -95,7 +95,7 @@ int rot_mat_table_orthogonality ( rot_mat_table_type *t1, rot_mat_table_type *t2
 int init_little_group_projector (little_group_projector_type *p );
 int fini_little_group_projector (little_group_projector_type *p );
 
-int little_group_projector_show (little_group_projector_type *p, FILE*ofs );
+int little_group_projector_show (little_group_projector_type *p, FILE*ofs, int with_mat );
 
 int little_group_projector_copy (little_group_projector_type *p, little_group_projector_type *q );
 
@@ -107,6 +107,8 @@ int little_group_projector_set (
   int ref_row_target, int *ref_row_spin, char*correlator_name );
 
 int little_group_projector_apply ( little_group_projector_type *p );
+
+int spin_vector_asym_printf ( double _Complex **sv, int n, int*dim, char*name, FILE*ofs );
 
 }  /* end of namespace cvc */
 
