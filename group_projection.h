@@ -110,6 +110,15 @@ int little_group_projector_apply ( little_group_projector_type *p );
 
 int spin_vector_asym_printf ( double _Complex **sv, int n, int*dim, char*name, FILE*ofs );
 
+double spin_vector_asym_norm2 ( double _Complex **sv, int n, int *dim );
+
+double spin_vector_asym_list_norm2 ( double _Complex ***sv, int nc, int n, int *dim );
+
+int spin_vector_asym_list_normalize ( double _Complex ***sv, int nc, int n, int *dim );
+
+int spin_vector_asym_normalize ( double _Complex **sv, int n, int *dim );
+
+
 }  /* end of namespace cvc */
 
 #endif

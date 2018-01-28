@@ -2053,12 +2053,94 @@ int spin_vector_asym_printf ( double _Complex **sv, int n, int*dim, char*name, F
 /***********************************************************/
 
 /***********************************************************
+ * norm of direct spin-vector product
+ ***********************************************************/
+double spin_vector_asym_norm2 ( double _Complex **sv, int n, int *dim ) {
+
+  double norm2 = 1.;
+
+  for ( int i = 0; i < n; i++ ) {
+    double dtmp = 0.;
+
+    for ( int k = 0; k < dim[i]; k++ ) {
+      dtmp += creal ( sv[i][k] * conj ( sv[i][k] ) );
+    }
+    norm2 *= dtmp;
+  }
+  return(norm2);
+}  /* end of spin_vector_asym_norm2 */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * norm of direct spin-vector product
+ ***********************************************************/
+int spin_vector_asym_normalize ( double _Complex **sv, int n, int *dim ) {
+  const double eps = 5.e-15;
+
+  double normi = sqrt ( spin_vector_asym_norm2 ( sv, n, dim ) );
+  fprintf ( stdout, "# [spin_vector_asym_normalize] norm = %16.7e\n", normi );
+  normi = fabs ( normi ) < eps ? 0. : 1./normi;
+
+  for ( int k = 0; k < n; k++ ) {
+    for ( int l = 0; l < dim[k]; l++ ) {
+      sv[k][l] *= normi;
+    }
+  }
+  return( 0 );
+}  /* end of spin_vector_asym_normalize */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * norm of direct spin-vector product
+ ***********************************************************/
+double spin_vector_asym_list_norm2 ( double _Complex ***sv, int nc, int n, int *dim ) {
+
+  double norm2 = 0.;
+
+  for ( int i = 0; i < nc; i++ ) {
+    norm2 += spin_vector_asym_norm2 ( sv[i], n, dim );
+  }
+  return(norm2);
+}  /* end of spin_vector_asym_list_norm2 */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * norm of direct spin-vector product
+ ***********************************************************/
+int spin_vector_asym_list_normalize ( double _Complex ***sv, int nc, int n, int *dim ) {
+  const double eps = 5.e-15;
+
+  double normi = sqrt ( spin_vector_asym_list_norm2 ( sv, nc, n, dim ) );
+  fprintf ( stdout, "# [spin_vector_asym_list_normalize] norm = %16.7e\n", normi );
+  normi = fabs ( normi ) < eps ? 0. : 1./normi;
+
+  for ( int i = 0; i < nc; i++ ) {
+    for ( int k = 0; k < n; k++ ) {
+      for ( int l = 0; l < dim[k]; l++ ) {
+        sv[i][k][l] *= normi;
+      }
+    }
+  }
+  return( 0 );
+}  /* end of spin_vector_asym_list_normalize */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
  * apply the projector to a basis vector
  ***********************************************************/
 int little_group_projector_apply ( little_group_projector_type *p ) {
 
   int *spin_dimensions = NULL;
-  double _Complex **sv0 = NULL, **sv1 = NULL;
+  double _Complex **sv0 = NULL, ***sv1 = NULL;
+  char name[20];
 
   /***********************************************************
    * allocate spin vectors, to which spin rotations are applied
@@ -2067,7 +2149,6 @@ int little_group_projector_apply ( little_group_projector_type *p ) {
   for ( int i = 0; i < p->n; i++ ) spin_dimensions[i] = p->rspin[i].dim;
 
   init_2level_zbuffer_asym( &sv0, p->n, spin_dimensions );
-  init_2level_zbuffer_asym( &sv1, p->n, spin_dimensions );
 
   /***********************************************************/
   /***********************************************************/
@@ -2086,58 +2167,98 @@ int little_group_projector_apply ( little_group_projector_type *p ) {
       /***********************************************************
        * random vector
        ***********************************************************/
-      ranlxd ( (double*)(sv0[i]), 2*p->rspin[i].dim );
+      for ( int k = 0; k < p->rspin[i].dim; k++ ) {
+        double dtmp;
+        ranlxd ( &dtmp, 1);
+        sv0[i][k] = dtmp;
+      }
     }
   }
 
-  spin_vector_asym_printf ( sv0, p->n, spin_dimensions, "sv0",  stdout );
+  spin_vector_asym_printf ( sv0, p->n, spin_dimensions, "v0",  stdout );
 
   /***********************************************************/
   /***********************************************************/
-
-  /* TEST */
-  double _Complex **R = rot_init_rotation_matrix (p->rspin[0].dim );
 
   /***********************************************************
-   * loop on rotation group elements
+   * allocate sv1
    ***********************************************************/
-  for ( int irot = 0; irot < p->rtarget->n; irot++ ) {
+  if ( ( sv1 = (double _Complex***)malloc ( p->rtarget->dim * sizeof(double _Complex**) ) ) == NULL ) {
+    fprintf ( stderr, "[little_group_projector_apply] Error from malloc %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
 
-    double _Complex z_irrep_matrix_coeff = conj ( p->rtarget->R[irot][p->row_target][p->ref_row_target] );
+  /***********************************************************/
+  /***********************************************************/
+  for ( int row_target = 0; row_target < p->rtarget->dim; row_target++ ) {
 
-    /* double _Complex z_irrep_matrix_coeff = conj ( p->rtarget->R[irot][p->ref_row_target][p->row_target] ); */
+    sv1[row_target] = NULL;
+    init_2level_zbuffer_asym( &(sv1[row_target]), p->n, spin_dimensions );
 
-    /* This is the standard choice according to paper  */
-    /* double _Complex z_irrep_matrix_coeff =  p->rtarget->R[irot][p->row_target][p->ref_row_target]; */
-
-    /* double _Complex z_irrep_matrix_coeff =  p->rtarget->R[irot][p->ref_row_target][p->row_target]; */
-
-    /* fprintf(stdout, "# [little_group_projector_apply] T Gamma coeff rot %2d = %25.16e %25.16e\n", irot, creal(z_irrep_matrix_coeff), cimag(z_irrep_matrix_coeff) ); */
+    /* TEST */
+    double _Complex **R = rot_init_rotation_matrix (p->rspin[0].dim );
 
     /***********************************************************
-     * loop on interpolators
+     * loop on rotation group elements
      ***********************************************************/
-    for ( int k = 0; k < p->n; k++ ) {
-      rot_vec_accum_vec_ti_co_pl_mat_ti_vec_ti_co ( sv1[k], p->rspin[k].R[irot], sv0[k], z_irrep_matrix_coeff, 1., spin_dimensions[k] );
-      /* rot_vec_accum_vec_ti_co_pl_mat_transpose_ti_vec_ti_co ( sv1[k], p->rspin[k].R[irot], sv0[k], z_irrep_matrix_coeff, 1., spin_dimensions[k] ); */
-    }
+    for ( int irot = 0; irot < p->rtarget->n; irot++ ) {
 
-    rot_mat_pl_eq_mat_ti_co ( R, p->rspin[0].R[irot], z_irrep_matrix_coeff, p->rspin[0].dim );
+      double _Complex z_irrep_matrix_coeff = conj ( p->rtarget->R[irot][row_target][p->ref_row_target] );
 
-  }  /* end of loop on rotations */
+      /* double _Complex z_irrep_matrix_coeff = conj ( p->rtarget->R[irot][p->ref_row_target][row_target] ); */
+
+      /* This is the standard choice according to paper  */
+      /* double _Complex z_irrep_matrix_coeff =  p->rtarget->R[irot][row_target][p->ref_row_target]; */
+
+      /* double _Complex z_irrep_matrix_coeff =  p->rtarget->R[irot][p->ref_row_target][row_target]; */
+
+      /* fprintf(stdout, "# [little_group_projector_apply] T Gamma coeff rot %2d = %25.16e %25.16e\n", irot, creal(z_irrep_matrix_coeff), cimag(z_irrep_matrix_coeff) ); */
+
+      /***********************************************************
+       * loop on interpolators
+       ***********************************************************/
+      for ( int k = 0; k < p->n; k++ ) {
+        rot_vec_accum_vec_ti_co_pl_mat_ti_vec_ti_co ( sv1[row_target][k], p->rspin[k].R[irot], sv0[k], z_irrep_matrix_coeff, 1., spin_dimensions[k] );
+        /* rot_vec_accum_vec_ti_co_pl_mat_transpose_ti_vec_ti_co ( sv1[row_target][k], p->rspin[k].R[irot], sv0[k], z_irrep_matrix_coeff, 1., spin_dimensions[k] ); */
+      }
+
+      /* TEST */
+      rot_mat_pl_eq_mat_ti_co ( R, p->rspin[0].R[irot], z_irrep_matrix_coeff, p->rspin[0].dim );
+
+    }  /* end of loop on rotations */
 
 
-  rot_printf_matrix ( R, p->rspin[0].dim, "Rsub", stdout );
-  rot_fini_rotation_matrix ( &R );
+    /* TEST */
+    sprintf ( name, "vaux[[%d]]", row_target );
+    spin_vector_asym_printf ( sv1[row_target], p->n, spin_dimensions, name,  stdout );
 
-  spin_vector_asym_printf ( sv1, p->n, spin_dimensions, "sv1",  stdout );
+    /***********************************************************
+     * normalize sv1 and print sv1
+     ***********************************************************/
+    spin_vector_asym_normalize ( sv1[row_target], p->n, spin_dimensions );
+
+    sprintf ( name, "vsub[[%d]]", row_target );
+    spin_vector_asym_printf ( sv1[row_target], p->n, spin_dimensions, name,  stdout );
+
+
+    /* TEST */
+    sprintf ( name, "Rsub[[%d]]", row_target );
+    rot_printf_matrix ( R, p->rspin[0].dim, name, stdout );
+    rot_fini_rotation_matrix ( &R );
+
+  }  /* end of loop on row_target */
 
   /***********************************************************/
   /***********************************************************/
+
+  /***********************************************************
+   * deallocate sv1
+   ***********************************************************/
+  for ( int i = 0; i < p->rtarget->dim; i++ ) fini_2level_zbuffer_asym( &(sv1[i]) );
+  free ( sv1 );
 
   fini_1level_ibuffer ( &spin_dimensions );
   fini_2level_zbuffer_asym( &sv0 );
-  fini_2level_zbuffer_asym( &sv1 );
   return(0);
 
 }  /* end of little_group_projector_apply */

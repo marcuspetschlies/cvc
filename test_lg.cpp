@@ -169,7 +169,7 @@ int main(int argc, char **argv) {
 
   int **interpolator_momentum_list = NULL;
   int interpolator_number   = 1;               /* one (for now imaginary) interpolator */
-  int interpolator_J2       = 1;               /* 2 x J */
+  int interpolator_J2       = 3;               /* 2 x J */
   int interpolator_bispinor = 0;               /* no need for bispinor now */
   char correlator_name[]    = "basis_vector";  /* we don't want a correlator here, just a basis vector*/
 
@@ -194,7 +194,7 @@ int main(int argc, char **argv) {
 
     int n_irrep = lg[ilg].nirrep;
 
-    for ( int i_irrep = 5; i_irrep <= 5; i_irrep++ ) {
+    for ( int i_irrep = 7; i_irrep <= 7; i_irrep++ ) {
 
       /****************************************************
        * rotation matrix for current irrep
@@ -224,7 +224,8 @@ int main(int argc, char **argv) {
           /****************************************************
            * loop on irrep multiplet
            ****************************************************/
-          for ( int row_target = 0; row_target < dim_irrep; row_target++ ) {
+          /* for ( int row_target = 0; row_target < dim_irrep; row_target++ ) { */
+          int row_target = -1;
 
             exitstatus = little_group_projector_set ( &p, &(lg[0]), lg[ilg].lirrep[i_irrep], row_target, interpolator_number,
                 &interpolator_J2, interpolator_momentum_list, &interpolator_bispinor,
@@ -257,7 +258,7 @@ int main(int argc, char **argv) {
 
             fini_little_group_projector ( &p );
 
-          }  /* end of loop on row_target */
+          /* } */  /* end of loop on row_target */
 
         }  /* end of loop on ref_row_target */
 
