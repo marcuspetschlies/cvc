@@ -101,7 +101,7 @@ void rot_init_block_params (void) {
  *
  ***********************************************************/
 void rot_printf_matrix (double _Complex **R, int N, char *A, FILE*ofs ) {
-  const double eps = 5.e-15;
+  const double eps = 5.e-14;
   if ( g_cart_id == 0 ) {
     fprintf(ofs, "%s <- array(dim = c(%d , %d))\n", A, N, N);
     for( int ik = 0; ik < N; ik++ ) {
@@ -576,6 +576,24 @@ void rot_mat_ti_eq_re (double _Complex **R, double c, int N) {
   }}
   return;
 }  /* end of rot_mat_ti_eq_re */
+
+
+/***********************************************************/
+/***********************************************************/
+
+#if 0
+/***********************************************************
+ *
+ ***********************************************************/
+void rot_mat_pl_eq_mat_ti_co (double _Complex **R, double _Complex **S, double _Complex c, int N) {
+  for(int i=0; i<N; i++) {
+  for(int k=0; k<N; k++) {
+    R[i][k] += c * S[i][k];
+  }}
+  return;
+}  /* end of rot_mat_pl_eq_mat_ti_co */
+#endif
+
 
 /***********************************************************/
 /***********************************************************/
