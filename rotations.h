@@ -65,6 +65,8 @@ int rot_mat_check_is_real_int (double _Complex **R, int N );
 
 void rot_mat_ti_eq_re (double _Complex **R, double c, int N);
 
+void rot_mat_pl_eq_mat_ti_co (double _Complex **R, double _Complex **S, double _Complex c, int N);
+
 void rot_global_point_mod ( int nrot[3], int n[3], double _Complex **R);
 
 void rot_center_global_point ( int nrot[3], int n[3], double _Complex **R);
@@ -111,7 +113,6 @@ void rot_mat_get_euler_angles ( double a[3], int n[3], double w );
  
 int rot_mat_spin1_cartesian ( double _Complex **R, int n[3], double omega );
 
-void rot_mat_pl_eq_mat_ti_co (double _Complex **R, double _Complex **S, double _Complex c, int N);
 
 void rot_mat_ti_vec (double _Complex *w, double _Complex **A, double _Complex *v, int N);
 
