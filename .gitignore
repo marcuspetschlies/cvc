@@ -7,9 +7,4 @@ read_input_parser_cvc.cpp
 gitversion.cpp
 TODO
 DONE
-build.14.04.1-Ubuntu_serial_openmp/
-build-16.04.2-Ubuntu-serial-openmp/
-build-16.04.1-Ubuntu-serial/
-build-16.04.2-Ubuntu-2dim-openmp/
-build-16.04.1-Ubuntu-2dim-openmp/
-build_juqueen/
+build[._-]*
