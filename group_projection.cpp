@@ -2080,7 +2080,7 @@ double spin_vector_asym_norm2 ( double _Complex **sv, int n, int *dim ) {
  * norm of direct spin-vector product
  ***********************************************************/
 int spin_vector_asym_normalize ( double _Complex **sv, int n, int *dim ) {
-  const double eps = 5.e-15;
+  const double eps = 1.e-14;
 
   double normi = sqrt ( spin_vector_asym_norm2 ( sv, n, dim ) );
   fprintf ( stdout, "# [spin_vector_asym_normalize] norm = %16.7e\n", normi );
@@ -2139,7 +2139,7 @@ int spin_vector_asym_list_normalize ( double _Complex ***sv, int nc, int n, int 
 /***********************************************************
  * apply the projector to a basis vector
  ***********************************************************/
-int little_group_projector_apply ( little_group_projector_type *p ) {
+int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
 
   int *spin_dimensions = NULL;
   double _Complex **sv0 = NULL, ***sv1 = NULL;
@@ -2178,7 +2178,7 @@ int little_group_projector_apply ( little_group_projector_type *p ) {
     }
   }
 
-  spin_vector_asym_printf ( sv0, p->n, spin_dimensions, "v0",  stdout );
+  spin_vector_asym_printf ( sv0, p->n, spin_dimensions, "v0",  ofs );
 
   /***********************************************************/
   /***********************************************************/
@@ -2215,6 +2215,7 @@ int little_group_projector_apply ( little_group_projector_type *p ) {
 
       /* double _Complex z_irrep_matrix_coeff =  p->rtarget->R[irot][p->ref_row_target][row_target]; */
 
+      /* TEST */
       /* fprintf(stdout, "# [little_group_projector_apply] T Gamma coeff rot %2d = %25.16e %25.16e\n", irot, creal(z_irrep_matrix_coeff), cimag(z_irrep_matrix_coeff) ); */
 
       /***********************************************************
@@ -2233,7 +2234,7 @@ int little_group_projector_apply ( little_group_projector_type *p ) {
 
     /* TEST */
     sprintf ( name, "vaux[[%d]]", row_target );
-    spin_vector_asym_printf ( sv1[row_target], p->n, spin_dimensions, name,  stdout );
+    spin_vector_asym_printf ( sv1[row_target], p->n, spin_dimensions, name,  ofs  );
 
     /***********************************************************
      * normalize sv1 and print sv1
@@ -2241,12 +2242,12 @@ int little_group_projector_apply ( little_group_projector_type *p ) {
     spin_vector_asym_normalize ( sv1[row_target], p->n, spin_dimensions );
 
     sprintf ( name, "vsub[[%d]]", row_target );
-    spin_vector_asym_printf ( sv1[row_target], p->n, spin_dimensions, name,  stdout );
+    spin_vector_asym_printf ( sv1[row_target], p->n, spin_dimensions, name,  ofs );
 
 
     /* TEST */
-    sprintf ( name, "Rsub[[%d]]", row_target );
-    rot_printf_matrix ( R, p->rspin[0].dim, name, stdout );
+    sprintf ( name, "# Rsub[[%d]]", row_target );
+    rot_printf_matrix ( R, p->rspin[0].dim, name, ofs );
     rot_fini_rotation_matrix ( &R );
 
   }  /* end of loop on row_target */
