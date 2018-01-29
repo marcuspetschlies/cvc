@@ -1808,6 +1808,9 @@ int little_group_projector_show (little_group_projector_type *p, FILE*ofs, int w
     fprintf( ofs, "# [little_group_projector_show] target elements  = %d\n", p->rtarget->n );
     fprintf( ofs, "# [little_group_projector_show] target dim       = %d\n", p->rtarget->dim );
 
+    for ( int i = 0; i < p->n; i++ ) {
+      fprintf( ofs, "# [little_group_projector_show] spin(%d)          = %3.1f\n", i, (p->rspin[i].dim-1)/2. );
+    }
   }
    
   if ( with_mat ) {
