@@ -106,7 +106,7 @@ int little_group_projector_set (
   int *interpolator_J2_list, int **interpolator_momentum_list, int *interpolator_bispinor_list,    
   int ref_row_target, int *ref_row_spin, char*correlator_name );
 
-int little_group_projector_apply ( little_group_projector_type *p );
+int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs );
 
 int spin_vector_asym_printf ( double _Complex **sv, int n, int*dim, char*name, FILE*ofs );
 
