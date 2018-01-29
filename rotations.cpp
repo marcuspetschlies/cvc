@@ -1920,26 +1920,57 @@ void rot_sp_field_ti_bispinor_mat ( spinor_propagator_type *sp_rot, double _Comp
 /***********************************************************/
 /***********************************************************/
 
-void rot_inversion_matrix_spherical_basis ( double _Complex**R, int J2, int bispinor ) {
-  memset ( R[0], 0, (1+bispinor)*(J2+1) * (1+bispinor)*(J2+1) * sizeof(double _Complex) );
+/***********************************************************
+ * set unit matrix
+ ***********************************************************/
+void rot_mat_unity ( double _Complex **R, int N ) {
+  memset ( R[0], 0, N*N*sizeof( double _Complex ) );
+  for ( int i = 0; i < N; i++ ) {
+    R[i][i] = 1.;
+  }
+  return;
+}
 
-  if ( J2 == 0 ) { 
-    R[0][0] = -1.; 
-  
-  } else if ( J2 == 2 ) { 
-    R[0][0] = -1.; 
-    R[1][1] = -1.; 
-    R[2][2] = -1.; 
-  } else if ( J2 == 1 && bispinor ) {
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * effect of parity on spherical basis state 
+ ***********************************************************/
+void rot_inversion_matrix_spherical_basis ( double _Complex**R, int J2, int bispinor ) {
+
+  int dim = J2 + 1;
+
+
+  if ( J2 % 4 == 0 ) {
+    /***********************************************************
+     * spin 0, 2, 4, ...
+     ***********************************************************/
+    rot_mat_unity ( R, dim );
+    return;
+
+  } else if ( J2 % 4 == 2 ) {
+    /***********************************************************
+     * spin 1, 3, 5, ...
+     ***********************************************************/
+    rot_mat_unity ( R , dim );
+    rot_mat_ti_eq_re ( R, -1., dim );
+    return;
+
+  }
+
+
+  if ( ( J2 == 1 && bispinor ) || ( J2 == 3 ) ) {
     gamma_matrix_type g;
     gamma_matrix_set ( &g, 0, 1 );
 
     memcpy ( R[0], g.v, 16*sizeof(double _Complex) );
-  } else {
-    fprintf( stderr, "[rot_inversion_matrix_spherical_basis] Error, unknown combination of J and bispinor\n");
     return;
-  }
-
+  } 
+  
+  memset ( R[0], 0, (1+bispinor) * dim * (1+bispinor)* dim * sizeof(double _Complex) );
+  fprintf( stderr, "[rot_inversion_matrix_spherical_basis] Error, unknown combination of J2 and bispinor\n");
   return;
 }  /* end of rot_inversion_matrix_spherical_basis */
 
