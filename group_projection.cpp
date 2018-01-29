@@ -1265,16 +1265,18 @@ void rot_mat_table_printf ( rot_mat_table_type *t, char*name, FILE*ofs ) {
   fprintf( ofs, "# [rot_mat_table_printf] %s.irrep = %s\n", name, t->irrep );
   fprintf( ofs, "# [rot_mat_table_printf] %s.n     = %d\n", name, t->n );
   fprintf( ofs, "# [rot_mat_table_printf] %s.dim   = %d\n", name, t->dim );
+  fprintf( ofs, "%s_R <- list()\n", name );
+  fprintf( ofs, "%s_IR <- list()\n", name );
 
   for ( int i = 0; i < t->n; i++ ) {
-    sprintf( name_full, "%s ( R[%2d] )", name, t->rid[i] );
+    sprintf( name_full, "%s_R[[%2d]]", name, t->rid[i]+1 );
     rot_printf_matrix ( t->R[i], t->dim, name_full, ofs );
     fprintf( ofs, "\n");
   }
   fprintf( ofs, "\n\n");
 
   for ( int i = 0; i < t->n; i++ ) {
-    sprintf( name_full, "%s ( IR[%2d] )", name, t->rmid[i] );
+    sprintf( name_full, "%s_IR[[%2d]]", name, t->rmid[i]+1 );
     rot_printf_matrix ( t->IR[i], t->dim, name_full, ofs );
     fprintf( ofs, "\n");
   }
@@ -2170,11 +2172,14 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
       /***********************************************************
        * random vector
        ***********************************************************/
+      /* ranlxd ( (double*)(sv0[i]), 2*p->rspin[i].dim ); */
+
       for ( int k = 0; k < p->rspin[i].dim; k++ ) {
         double dtmp;
         ranlxd ( &dtmp, 1);
         sv0[i][k] = dtmp;
       }
+
     }
   }
 
@@ -2195,17 +2200,27 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
   /***********************************************************/
   for ( int row_target = 0; row_target < p->rtarget->dim; row_target++ ) {
 
+    double _Complex **Rsv = NULL, **IRsv = NULL;
     sv1[row_target] = NULL;
     init_2level_zbuffer_asym( &(sv1[row_target]), p->n, spin_dimensions );
+
+    init_2level_zbuffer_asym( &Rsv,  p->n, spin_dimensions );
+    init_2level_zbuffer_asym( &IRsv, p->n, spin_dimensions );
+
+
 
     /* TEST */
     double _Complex **R = rot_init_rotation_matrix (p->rspin[0].dim );
 
     /***********************************************************
-     * loop on rotation group elements
+     * loop on rotation group elements R
      ***********************************************************/
     for ( int irot = 0; irot < p->rtarget->n; irot++ ) {
 
+      int rid = p->rtarget->rid[irot];
+      fprintf ( stdout, "# [little_group_projector_apply] lg %s irrep %s irot %2d rid %2d\n", p->rtarget->group, p->rtarget->irrep, irot, rid );
+
+      /* This is choice according to my notes */
       double _Complex z_irrep_matrix_coeff = conj ( p->rtarget->R[irot][row_target][p->ref_row_target] );
 
       /* double _Complex z_irrep_matrix_coeff = conj ( p->rtarget->R[irot][p->ref_row_target][row_target] ); */
@@ -2216,39 +2231,103 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
       /* double _Complex z_irrep_matrix_coeff =  p->rtarget->R[irot][p->ref_row_target][row_target]; */
 
       /* TEST */
-      /* fprintf(stdout, "# [little_group_projector_apply] T Gamma coeff rot %2d = %25.16e %25.16e\n", irot, creal(z_irrep_matrix_coeff), cimag(z_irrep_matrix_coeff) ); */
+      fprintf(stdout, "# [little_group_projector_apply] T Gamma (R) coeff rot %2d = %25.16e %25.16e\n", rid, creal(z_irrep_matrix_coeff), cimag(z_irrep_matrix_coeff) );
 
       /***********************************************************
        * loop on interpolators
        ***********************************************************/
       for ( int k = 0; k < p->n; k++ ) {
-        rot_vec_accum_vec_ti_co_pl_mat_ti_vec_ti_co ( sv1[row_target][k], p->rspin[k].R[irot], sv0[k], z_irrep_matrix_coeff, 1., spin_dimensions[k] );
-        /* rot_vec_accum_vec_ti_co_pl_mat_transpose_ti_vec_ti_co ( sv1[row_target][k], p->rspin[k].R[irot], sv0[k], z_irrep_matrix_coeff, 1., spin_dimensions[k] ); */
+
+        rot_vec_accum_vec_ti_co_pl_mat_ti_vec_ti_co ( Rsv[k], p->rspin[k].R[rid], sv0[k], z_irrep_matrix_coeff, 1., spin_dimensions[k] );
+        /* rot_vec_accum_vec_ti_co_pl_mat_transpose_ti_vec_ti_co ( Rsv[k], p->rspin[k].R[rid], sv0[k], z_irrep_matrix_coeff, 1., spin_dimensions[k] ); */
       }
 
       /* TEST */
-      rot_mat_pl_eq_mat_ti_co ( R, p->rspin[0].R[irot], z_irrep_matrix_coeff, p->rspin[0].dim );
+      rot_mat_pl_eq_mat_ti_co ( R, p->rspin[0].R[rid], z_irrep_matrix_coeff, p->rspin[0].dim );
 
-    }  /* end of loop on rotations */
-
+    }  /* end of loop on rotations R */
 
     /* TEST */
     sprintf ( name, "vaux[[%d]]", row_target );
-    spin_vector_asym_printf ( sv1[row_target], p->n, spin_dimensions, name,  ofs  );
+    spin_vector_asym_printf ( Rsv, p->n, spin_dimensions, name,  ofs  );
 
     /***********************************************************
-     * normalize sv1 and print sv1
+     * normalize Rsv and print Rsv
      ***********************************************************/
-    spin_vector_asym_normalize ( sv1[row_target], p->n, spin_dimensions );
+    spin_vector_asym_normalize ( Rsv, p->n, spin_dimensions );
 
     sprintf ( name, "vsub[[%d]]", row_target );
-    spin_vector_asym_printf ( sv1[row_target], p->n, spin_dimensions, name,  ofs );
+    spin_vector_asym_printf ( Rsv, p->n, spin_dimensions, name,  ofs );
 
 
     /* TEST */
-    sprintf ( name, "# Rsub[[%d]]", row_target );
+    sprintf ( name, "Rsub[[%d]]", row_target+1 );
     rot_printf_matrix ( R, p->rspin[0].dim, name, ofs );
     rot_fini_rotation_matrix ( &R );
+
+
+    double _Complex **IR = rot_init_rotation_matrix (p->rspin[0].dim );
+
+    /***********************************************************
+     * not center of mass frame, include IR rotations
+     ***********************************************************/
+    if ( !( p->P[0] == 0 && p->P[1] == 0 && p->P[2] == 0 ) ) {
+      fprintf( stdout, "# [little_group_projector_apply] including IR rotations\n");
+
+      /***********************************************************
+       * loop on rotation group elements IR
+       ***********************************************************/
+      for ( int irot = 0; irot < p->rtarget->n; irot++ ) {
+
+        int rmid = p->rtarget->rmid[irot];
+        fprintf ( stdout, "# [little_group_projector_apply] lg %s irrep %s irot %2d rmid %2d\n", p->rtarget->group, p->rtarget->irrep, irot, rmid );
+
+        /* This is choice according to my notes */
+        double _Complex z_irrep_matrix_coeff = conj ( p->rtarget->IR[irot][row_target][p->ref_row_target] );
+
+        /* This is the standard choice according to paper  */
+        /* double _Complex z_irrep_matrix_coeff =  p->rtarget->IR[irot][row_target][p->ref_row_target]; */
+
+        /* TEST */
+        fprintf(stdout, "# [little_group_projector_apply] T Gamma (IR) coeff rot %2d = %25.16e %25.16e\n", rmid, creal(z_irrep_matrix_coeff), cimag(z_irrep_matrix_coeff) );
+
+        /***********************************************************
+         * loop on interpolators
+         ***********************************************************/
+        for ( int k = 0; k < p->n; k++ ) {
+          rot_vec_accum_vec_ti_co_pl_mat_ti_vec_ti_co ( IRsv[k], p->rspin[k].IR[rmid], sv0[k], z_irrep_matrix_coeff, 1., spin_dimensions[k] );
+        }
+
+        /* TEST */
+        rot_mat_pl_eq_mat_ti_co ( IR, p->rspin[0].IR[rmid], z_irrep_matrix_coeff, p->rspin[0].dim );
+
+      }  /* end of loop on rotations IR */
+
+    }  /* end of if not center of mass frame */
+#if 0
+#endif
+    /* TEST */
+    sprintf ( name, "Ivaux[[%d]]", row_target );
+    spin_vector_asym_printf ( IRsv, p->n, spin_dimensions, name,  ofs  );
+
+    /***********************************************************
+     * normalize IRsv and print IRsv
+     ***********************************************************/
+    spin_vector_asym_normalize ( IRsv, p->n, spin_dimensions );
+
+    sprintf ( name, "Ivsub[[%d]]", row_target );
+    spin_vector_asym_printf ( IRsv, p->n, spin_dimensions, name,  ofs );
+
+
+    /* TEST */
+    sprintf ( name, "IRsub[[%d]]", row_target+1 );
+    rot_printf_matrix ( IR, p->rspin[0].dim, name, ofs );
+
+    rot_fini_rotation_matrix ( &IR );
+
+
+    fini_2level_zbuffer_asym( &Rsv );
+    fini_2level_zbuffer_asym( &IRsv );
 
   }  /* end of loop on row_target */
 
