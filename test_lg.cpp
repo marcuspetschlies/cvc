@@ -189,14 +189,18 @@ int main(int argc, char **argv) {
   /****************************************************
    * loop on little groups
    ****************************************************/
-  for ( int ilg = 0; ilg <= 0; ilg++ ) {
+  /* for ( int ilg = 0; ilg < nlg; ilg++ ) */
+  for ( int ilg = 2; ilg <= 2; ilg++ )
+  {
 
     int n_irrep = lg[ilg].nirrep;
 
     /****************************************************
      * loop on irreps
      ****************************************************/
-    for ( int i_irrep = 0; i_irrep < n_irrep; i_irrep++ ) {
+    for ( int i_irrep = 0; i_irrep < n_irrep; i_irrep++ )
+    // for ( int i_irrep = 4; i_irrep <= 4; i_irrep++ )
+    {
 
       /****************************************************
        * loop on spin quantum numbers
@@ -241,7 +245,7 @@ int main(int argc, char **argv) {
             /* for ( int row_target = 0; row_target < dim_irrep; row_target++ ) { */
             int row_target = -1;
   
-              exitstatus = little_group_projector_set ( &p, &(lg[0]), lg[ilg].lirrep[i_irrep], row_target, interpolator_number,
+              exitstatus = little_group_projector_set ( &p, &(lg[ilg]), lg[ilg].lirrep[i_irrep], row_target, interpolator_number,
                   &interpolator_J2, interpolator_momentum_list, &interpolator_bispinor,
                   ref_row_target , &ref_row_spin, correlator_name );
   
@@ -253,7 +257,7 @@ int main(int argc, char **argv) {
               /****************************************************/
               /****************************************************/
    
-              exitstatus = little_group_projector_show ( &p, ofs , 0);
+              exitstatus = little_group_projector_show ( &p, ofs , 1);
               if ( exitstatus != 0 ) {
                 fprintf ( stderr, "# [test_lg] Error from little_group_projector_show, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(2);
