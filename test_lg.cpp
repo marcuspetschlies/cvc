@@ -202,6 +202,15 @@ int main(int argc, char **argv) {
        * loop on spin quantum numbers
        ****************************************************/
       for ( int interpolator_J2 = 0; interpolator_J2 <= 8; interpolator_J2++ ) {
+
+        sprintf ( filename, "lg_%s_irrep_%s_J2_%d.sbd", lg[ilg].name, lg[ilg].lirrep[i_irrep], interpolator_J2 );
+
+        FILE*ofs = fopen ( filename, "w" );
+        if ( ofs == NULL ) {
+          fprintf ( stderr, "# [test_lg] Error from fopen %d %s %d\n", __FILE__, __LINE__);
+          EXIT(2);
+        }
+
         /****************************************************
          * rotation matrix for current irrep
          ****************************************************/
@@ -244,7 +253,7 @@ int main(int argc, char **argv) {
               /****************************************************/
               /****************************************************/
    
-              exitstatus = little_group_projector_show ( &p, stdout , 0);
+              exitstatus = little_group_projector_show ( &p, ofs , 0);
               if ( exitstatus != 0 ) {
                 fprintf ( stderr, "# [test_lg] Error from little_group_projector_show, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(2);
@@ -252,7 +261,7 @@ int main(int argc, char **argv) {
   
               /****************************************************/
               /****************************************************/
-              exitstatus =  little_group_projector_apply ( &p );
+              exitstatus =  little_group_projector_apply ( &p, ofs );
               if ( exitstatus != 0 ) {
                 fprintf ( stderr, "# [test_lg] Error from little_group_projector_apply, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(2);
@@ -271,6 +280,7 @@ int main(int argc, char **argv) {
   
         fini_rot_mat_table ( &r_irrep );
 
+        fclose ( ofs );
       }  /* end of loop on interpolator J2 */
 
     }  /* end of loop on irreps */
