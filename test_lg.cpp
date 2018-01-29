@@ -169,7 +169,6 @@ int main(int argc, char **argv) {
 
   int **interpolator_momentum_list = NULL;
   int interpolator_number   = 1;               /* one (for now imaginary) interpolator */
-  int interpolator_J2       = 3;               /* 2 x J */
   int interpolator_bispinor = 0;               /* no need for bispinor now */
   char correlator_name[]    = "basis_vector";  /* we don't want a correlator here, just a basis vector*/
 
@@ -194,78 +193,85 @@ int main(int argc, char **argv) {
 
     int n_irrep = lg[ilg].nirrep;
 
-    for ( int i_irrep = 7; i_irrep <= 7; i_irrep++ ) {
+    /****************************************************
+     * loop on irreps
+     ****************************************************/
+    for ( int i_irrep = 0; i_irrep < n_irrep; i_irrep++ ) {
 
       /****************************************************
-       * rotation matrix for current irrep
+       * loop on spin quantum numbers
        ****************************************************/
-      rot_mat_table_type r_irrep;
-      init_rot_mat_table ( &r_irrep );
-      exitstatus = set_rot_mat_table_cubic_group_double_cover ( &r_irrep, lg[ilg].name, lg[ilg].lirrep[i_irrep] );
-      if ( exitstatus != 0 ) {
-        fprintf ( stderr, "# [test_lg] Error from set_rot_mat_table_cubic_group_double_cover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(2);
-      }
-
-
-      /****************************************************
-       * loop on reference rows of spin matrix
-       ****************************************************/
-      /* for ( int ref_row_spin = 0; ref_row_spin <= interpolator_J2; ref_row_spin++ ) { */
-      int ref_row_spin = -1;
-
-        int dim_irrep = r_irrep.dim;
-  
+      for ( int interpolator_J2 = 0; interpolator_J2 <= 8; interpolator_J2++ ) {
         /****************************************************
-         * loop on reference rows of irrep matrix
+         * rotation matrix for current irrep
          ****************************************************/
-        for ( int ref_row_target = 0; ref_row_target < dim_irrep; ref_row_target++ ) {
+        rot_mat_table_type r_irrep;
+        init_rot_mat_table ( &r_irrep );
+        exitstatus = set_rot_mat_table_cubic_group_double_cover ( &r_irrep, lg[ilg].name, lg[ilg].lirrep[i_irrep] );
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "# [test_lg] Error from set_rot_mat_table_cubic_group_double_cover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(2);
+        }
 
+        /****************************************************
+         * loop on reference rows of spin matrix
+         ****************************************************/
+        /* for ( int ref_row_spin = 0; ref_row_spin <= interpolator_J2; ref_row_spin++ ) { */
+        int ref_row_spin = -1;
+  
+          int dim_irrep = r_irrep.dim;
+    
           /****************************************************
-           * loop on irrep multiplet
+           * loop on reference rows of irrep matrix
            ****************************************************/
-          /* for ( int row_target = 0; row_target < dim_irrep; row_target++ ) { */
-          int row_target = -1;
+          for ( int ref_row_target = 0; ref_row_target < dim_irrep; ref_row_target++ ) {
+  
+            /****************************************************
+             * loop on irrep multiplet
+             ****************************************************/
+            /* for ( int row_target = 0; row_target < dim_irrep; row_target++ ) { */
+            int row_target = -1;
+  
+              exitstatus = little_group_projector_set ( &p, &(lg[0]), lg[ilg].lirrep[i_irrep], row_target, interpolator_number,
+                  &interpolator_J2, interpolator_momentum_list, &interpolator_bispinor,
+                  ref_row_target , &ref_row_spin, correlator_name );
+  
+              if ( exitstatus != 0 ) {
+                fprintf ( stderr, "# [test_lg] Error from little_group_projector_set, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(2);
+              }
+  
+              /****************************************************/
+              /****************************************************/
+   
+              exitstatus = little_group_projector_show ( &p, stdout , 0);
+              if ( exitstatus != 0 ) {
+                fprintf ( stderr, "# [test_lg] Error from little_group_projector_show, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(2);
+              }
+  
+              /****************************************************/
+              /****************************************************/
+              exitstatus =  little_group_projector_apply ( &p );
+              if ( exitstatus != 0 ) {
+                fprintf ( stderr, "# [test_lg] Error from little_group_projector_apply, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(2);
+              }
+  
+              /****************************************************/
+              /****************************************************/
+  
+              fini_little_group_projector ( &p );
+  
+            /* } */  /* end of loop on row_target */
+  
+          }  /* end of loop on ref_row_target */
+  
+        /* }  */ /* end of loop on ref_row_spin */
+  
+        fini_rot_mat_table ( &r_irrep );
 
-            exitstatus = little_group_projector_set ( &p, &(lg[0]), lg[ilg].lirrep[i_irrep], row_target, interpolator_number,
-                &interpolator_J2, interpolator_momentum_list, &interpolator_bispinor,
-                ref_row_target , &ref_row_spin, correlator_name );
-
-            if ( exitstatus != 0 ) {
-              fprintf ( stderr, "# [test_lg] Error from little_group_projector_set, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              EXIT(2);
-            }
-
-            /****************************************************/
-            /****************************************************/
- 
-            exitstatus = little_group_projector_show ( &p, stdout , 0);
-            if ( exitstatus != 0 ) {
-              fprintf ( stderr, "# [test_lg] Error from little_group_projector_show, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              EXIT(2);
-            }
-
-            /****************************************************/
-            /****************************************************/
-            exitstatus =  little_group_projector_apply ( &p );
-            if ( exitstatus != 0 ) {
-              fprintf ( stderr, "# [test_lg] Error from little_group_projector_apply, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              EXIT(2);
-            }
-
-            /****************************************************/
-            /****************************************************/
-
-            fini_little_group_projector ( &p );
-
-          /* } */  /* end of loop on row_target */
-
-        }  /* end of loop on ref_row_target */
-
-      /* }  */ /* end of loop on ref_row_spin */
-
-
-      fini_rot_mat_table ( &r_irrep );
+      }  /* end of loop on interpolator J2 */
 
     }  /* end of loop on irreps */
 
