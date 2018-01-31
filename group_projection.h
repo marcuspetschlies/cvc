@@ -51,6 +51,7 @@ typedef struct {
   int *ref_row_spin;
   int ref_row_target;
   int row_target;
+  int *parity;
 } little_group_projector_type;
 
 /********************************************************/
@@ -117,6 +118,8 @@ double spin_vector_asym_list_norm2 ( double _Complex ***sv, int nc, int n, int *
 int spin_vector_asym_list_normalize ( double _Complex ***sv, int nc, int n, int *dim );
 
 int spin_vector_asym_normalize ( double _Complex **sv, int n, int *dim );
+
+int rot_mat_table_rotate_multiplett ( rot_mat_table_type *rtab, rot_mat_table_type *rapply, rot_mat_table_type *rtarget, int with_IR, FILE*ofs );
 
 
 }  /* end of namespace cvc */
