@@ -1004,10 +1004,10 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
         t->R[2][0][0]  = -1.;
         t->R[3][0][0]  =  1.;
 
-        t->IR[0][0][0] =  1.;
-        t->IR[1][0][0] =  1.;
-        t->IR[2][0][0] = -1.;
-        t->IR[3][0][0] = -1.;
+        t->IR[0][0][0] = -1.;
+        t->IR[1][0][0] = -1.;
+        t->IR[2][0][0] = +1.;
+        t->IR[3][0][0] = +1.;
 
     /***********************************************************
      * LG 2C2v irrep B2
@@ -1026,10 +1026,10 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
         t->R[2][0][0]  = -1.;
         t->R[3][0][0]  =  1.;
 
-        t->IR[0][0][0] = -1.;
-        t->IR[1][0][0] = -1.;
-        t->IR[2][0][0] =  1.;
-        t->IR[3][0][0] =  1.;
+        t->IR[0][0][0] = +1.;
+        t->IR[1][0][0] = +1.;
+        t->IR[2][0][0] = -1.;
+        t->IR[3][0][0] = -1.;
     
     /***********************************************************
      * LG 2C2v irrep G1
@@ -2047,7 +2047,7 @@ int spin_vector_asym_printf ( double _Complex **sv, int n, int*dim, char*name, F
     fprintf( ofs, "# [spin_vector_asym_printf]   %s(%d)\n", name, i );
 
     for ( int k = 0; k < dim[i]; k++ ) {
-      fprintf( ofs, "   %16.7e    %16.7e\n", dgeps( creal (sv[i][k]), eps ) , dgeps ( cimag(sv[i][k]), eps ) );
+      fprintf( ofs, "   (%16.7e  +  %16.7e*1.i)\n", dgeps( creal (sv[i][k]), eps ) , dgeps ( cimag(sv[i][k]), eps ) );
       /* fprintf( ofs, "   %16.7e    %16.7e\n", creal (sv[i][k]), cimag(sv[i][k]) ); */
     }
   }
@@ -2074,6 +2074,25 @@ double spin_vector_asym_norm2 ( double _Complex **sv, int n, int *dim ) {
   }
   return(norm2);
 }  /* end of spin_vector_asym_norm2 */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * norm of direct spin-vector product
+ ***********************************************************/
+void spin_vector_pl_eq_spin_vector_ti_co_asym ( double _Complex **sv1, double _Complex **sv2, double _Complex c, int n, int *dim ) {
+
+  for ( int i = 0; i < n; i++ ) {
+    double dtmp = 0.;
+
+    for ( int k = 0; k < dim[i]; k++ ) {
+      sv1[i][k] += sv2[i][k] * c;
+    }
+  }
+  return;
+}  /* end of spin_vector_pl_eq_spin_vector_ti_co_asym */
+
 
 /***********************************************************/
 /***********************************************************/
@@ -2174,14 +2193,14 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
       /***********************************************************
        * random vector
        ***********************************************************/
-      /* ranlxd ( (double*)(sv0[i]), 2*p->rspin[i].dim ); */
-
+      ranlxd ( (double*)(sv0[i]), 2*p->rspin[i].dim );
+/*
       for ( int k = 0; k < p->rspin[i].dim; k++ ) {
         double dtmp;
         ranlxd ( &dtmp, 1);
         sv0[i][k] = dtmp;
       }
-
+*/
     }
   }
 
@@ -2346,6 +2365,14 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
     sprintf ( name, "Ivsub[[%d]]", row_target );
     spin_vector_asym_printf ( IRsv, p->n, spin_dimensions, name,  ofs );
 
+
+    spin_vector_pl_eq_spin_vector_ti_co_asym ( Rsv, IRsv, 1.0, p->n, spin_dimensions );
+
+    spin_vector_asym_normalize ( Rsv, p->n, spin_dimensions );
+    sprintf ( name, "Cvsub[[%d]]", row_target );
+    spin_vector_asym_printf ( Rsv, p->n, spin_dimensions, name,  ofs );
+
+
     /***********************************************************/
     /***********************************************************/
 
@@ -2358,6 +2385,8 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
     // rot_mat_assign ( RR.IR[row_target], IR, p->rspin[0].dim);
     rot_mat_pl_eq_mat_ti_co ( RR.R[row_target], IR, 1.0,  p->rspin[0].dim );
 
+    sprintf ( name, "RRsub[[%d]]", row_target+1 );
+    rot_printf_matrix ( RR.R[row_target], p->rspin[0].dim, name, ofs );
 
     rot_fini_rotation_matrix ( &IR );
 
@@ -2449,6 +2478,9 @@ int rot_mat_table_rotate_multiplett ( rot_mat_table_type *rtab, rot_mat_table_ty
   
   /***********************************************************/
   /***********************************************************/
+  fprintf ( ofs, "# [rot_mat_table_rotate_multiplett] using rapply %s / %s for rtarget %s / %s\n", rapply->group, rapply->irrep, rtarget->group, rtarget->irrep );
+  /***********************************************************/
+  /***********************************************************/
 
   /***********************************************************
    * loop on elements in rtab
@@ -2502,7 +2534,7 @@ int rot_mat_table_rotate_multiplett ( rot_mat_table_type *rtab, rot_mat_table_ty
         rot_mat_ti_mat (R2, rapply->IR[rmid], rtab->R[ia], rtab->dim );
 
         for ( int k = 0; k < rtarget->dim; k++ ) {
-          rot_mat_pl_eq_mat_ti_co ( R3, rtab->R[k], rtarget->R[irot][k][ia], rtab->dim );
+          rot_mat_pl_eq_mat_ti_co ( R3, rtab->R[k], rtarget->IR[irot][k][ia], rtab->dim );
         }
 
         char name[100];
