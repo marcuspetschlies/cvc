@@ -2258,4 +2258,17 @@ int rot_mat_spin1_2_spherical ( double _Complex **R, int n[3], double omega ) {
 /***********************************************************/
 /***********************************************************/
 
+/***********************************************************
+ *
+ ***********************************************************/
+void spin_vector_pl_eq_spinor_vector_ti_co ( double _Complex*v, double _Complex*w, double _Complex c , int N ) {
+#pragma omp parallel for
+  for ( int i = 0; i < N; i++ ) {
+    v[i] += w[i] * c;
+  }
+}  /* end of spin_vector_pl_eq_spinor_vector_ti_co */
+
+/***********************************************************/
+/***********************************************************/
+
 }  /* end of namespace cvc */
