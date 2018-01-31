@@ -130,6 +130,8 @@ int rot_mat_spin1_2_spherical ( double _Complex **R, int n[3], double omega );
 
 void rot_mat_eq_mat_pl_mat (double _Complex **R, double _Complex **S1, double _Complex **S2, int N);
 
+void spin_vector_pl_eq_spinor_vector_ti_co ( double _Complex*v, double _Complex*w, double _Complex c , int N );
+
 
 /***********************************************************
  * check boundary status of a point
