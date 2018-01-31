@@ -190,7 +190,7 @@ int main(int argc, char **argv) {
    * loop on little groups
    ****************************************************/
   /* for ( int ilg = 0; ilg < nlg; ilg++ ) */
-  for ( int ilg = 0; ilg <= 0; ilg++ )
+  for ( int ilg = 3; ilg <= 3; ilg++ )
   {
 
     int n_irrep = lg[ilg].nirrep;
@@ -199,7 +199,7 @@ int main(int argc, char **argv) {
      * loop on irreps
      ****************************************************/
     // for ( int i_irrep = 0; i_irrep < n_irrep; i_irrep++ )
-    for ( int i_irrep = 7; i_irrep <= 7; i_irrep++ )
+    for ( int i_irrep = 4; i_irrep <= 4; i_irrep++ )
     {
 
       /****************************************************
