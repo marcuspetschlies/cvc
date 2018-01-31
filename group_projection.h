@@ -119,6 +119,8 @@ int spin_vector_asym_list_normalize ( double _Complex ***sv, int nc, int n, int 
 
 int spin_vector_asym_normalize ( double _Complex **sv, int n, int *dim );
 
+void spin_vector_pl_eq_spin_vector_ti_co_asym ( double _Complex **sv1, double _Complex **sv2, double _Complex c, int n, int *dim );
+
 int rot_mat_table_rotate_multiplett ( rot_mat_table_type *rtab, rot_mat_table_type *rapply, rot_mat_table_type *rtarget, int with_IR, FILE*ofs );
 
 
