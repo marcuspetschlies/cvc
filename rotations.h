@@ -128,6 +128,8 @@ void rot_vec_accum_vec_ti_co_pl_mat_transpose_ti_vec_ti_co (double _Complex *w, 
 
 int rot_mat_spin1_2_spherical ( double _Complex **R, int n[3], double omega );
 
+void rot_mat_eq_mat_pl_mat (double _Complex **R, double _Complex **S1, double _Complex **S2, int N);
+
 
 /***********************************************************
  * check boundary status of a point
