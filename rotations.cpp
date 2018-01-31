@@ -618,6 +618,22 @@ void rot_mat_pl_eq_mat_ti_co (double _Complex **R, double _Complex **S, double _
 /***********************************************************
  *
  ***********************************************************/
+void rot_mat_eq_mat_pl_mat (double _Complex **R, double _Complex **S1, double _Complex **S2, int N) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( int i = 0; i < N*N; i++ ) {
+    R[0][i] = S1[0][i] + S2[0][i];
+  }
+  return;
+}  /* end of rot_mat_pl_eq_mat_ti_co */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ *
+ ***********************************************************/
 long unsigned int factorial (int n)
 {
   if (n >= 1)
