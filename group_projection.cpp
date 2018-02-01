@@ -1810,7 +1810,7 @@ int little_group_projector_show (little_group_projector_type *p, FILE*ofs, int w
     fprintf( ofs, "# [little_group_projector_show]   spin(%d) ref row = %d\n", i, p->ref_row_spin[i] );
   }
 
-  fprintf( ofs, "# [little_group_projector_show] interpolator-intrinsic parity\n" )
+  fprintf( ofs, "# [little_group_projector_show] interpolator-intrinsic parity\n" );
   for ( int i = 0; i < p->n; i++ ) {
     fprintf( ofs, "# [little_group_projector_show]   parity(%d) = %d\n", i, p->parity[i] );
   }
