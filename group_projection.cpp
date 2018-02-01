@@ -1722,6 +1722,7 @@ int init_little_group_projector (little_group_projector_type *p ) {
   p->ref_row_target = -1;
   p->row_target     = -1;
   p->ref_row_spin   = NULL;
+  p->parity         = NULL;
   strcpy ( p->correlator_name, "NA" );
   
   return(0);
@@ -1770,6 +1771,8 @@ int fini_little_group_projector (little_group_projector_type *p ) {
   p->ref_row_target = -1;
   p->row_target     = -1;
   fini_1level_ibuffer ( &(p->ref_row_spin) );
+  fini_1level_ibuffer ( &(p->parity) );
+
   return(0);
 }   /* end of fini_little_group_projector */
 
@@ -1801,9 +1804,17 @@ int little_group_projector_show (little_group_projector_type *p, FILE*ofs, int w
   fprintf( ofs, "# [little_group_projector_show] correlator name    = %s\n", p->correlator_name );
   fprintf( ofs, "# [little_group_projector_show] row target         = %d\n", p->row_target );
   fprintf( ofs, "# [little_group_projector_show] ref row target     = %d\n", p->ref_row_target );
+
+  fprintf( ofs, "# [little_group_projector_show] ref row for spins\n" );
   for ( int i = 0; i < p->n; i++ ) {
-    fprintf( ofs, "# [little_group_projector_show] ref row spin(%d)   = %d\n", i, p->ref_row_spin[i] );
+    fprintf( ofs, "# [little_group_projector_show]   spin(%d) ref row = %d\n", i, p->ref_row_spin[i] );
   }
+
+  fprintf( ofs, "# [little_group_projector_show] interpolator-intrinsic parity\n" )
+  for ( int i = 0; i < p->n; i++ ) {
+    fprintf( ofs, "# [little_group_projector_show]   parity(%d) = %d\n", i, p->parity[i] );
+  }
+
   if ( !with_mat ) {
     fprintf( ofs, "# [little_group_projector_show] target group     = %s\n", p->rtarget->group );
     fprintf( ofs, "# [little_group_projector_show] target irrep     = %s\n", p->rtarget->irrep );
@@ -1898,6 +1909,12 @@ int little_group_projector_copy (little_group_projector_type *p, little_group_pr
   }
   memcpy ( p->ref_row_spin, q->ref_row_spin, p->n * sizeof(int) );
 
+  if ( init_1level_ibuffer ( &(p->parity), p->n ) != 0 ) {
+    fprintf(stderr, "[] Error from init_1level_ibuffer %s %d\n", __FILE__, __LINE__);
+    return(1);
+  }
+  memcpy ( p->parity, q->parity, p->n * sizeof(int) );
+
   p->row_target     = q->row_target;
   p->ref_row_target = q->ref_row_target;
   strcpy ( p->correlator_name, q->correlator_name );
@@ -1916,7 +1933,7 @@ int little_group_projector_set (
     little_group_projector_type *p,
     little_group_type *lg, 
     char*irrep , int row_target, int interpolator_num,
-    int *interpolator_J2_list, int **interpolator_momentum_list, int *interpolator_bispinor_list, 
+    int *interpolator_J2_list, int **interpolator_momentum_list, int *interpolator_bispinor_list, int *interpolator_parity,
     int ref_row_target, int *ref_row_spin, char*correlator_name ) {
 
   if ( interpolator_num > 0 ) {
@@ -1944,12 +1961,21 @@ int little_group_projector_set (
   if ( ref_row_target >= 0 ) {
     p->ref_row_target = ref_row_target;
   }
+
   if ( ref_row_spin != NULL ) {
     if ( init_1level_ibuffer ( &(p->ref_row_spin), p->n ) != NULL ) {
       fprintf(stderr, "[little_group_projector_set] Error from init_1level_ibuffer %s %d\n", __FILE__, __LINE__);
       return(1);
     }
     memcpy ( p->ref_row_spin, ref_row_spin, p->n*sizeof(int) );
+  }
+
+  if ( interpolator_parity != NULL ) {
+    if ( init_1level_ibuffer ( &(p->parity), p->n ) != NULL ) {
+      fprintf(stderr, "[little_group_projector_set] Error from init_1level_ibuffer %s %d\n", __FILE__, __LINE__);
+      return(1);
+    }
+    memcpy ( p->parity, interpolator_parity, p->n*sizeof(int) );
   }
 
   strcpy ( p->correlator_name , correlator_name );
@@ -2167,6 +2193,8 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
   double _Complex **sv0 = NULL, ***sv1 = NULL;
   char name[20];
   rot_mat_table_type RR;
+  int frame_is_cmf = ( p->P[0] == 0 && p->P[1] == 0 && p->P[2] == 0 );
+
 
   /***********************************************************
    * allocate spin vectors, to which spin rotations are applied
@@ -2206,9 +2234,14 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
 
   spin_vector_asym_printf ( sv0, p->n, spin_dimensions, "v0",  ofs );
 
-  /* TEST */
+  /***********************************************************
+   * TEST
+   ***********************************************************/
   init_rot_mat_table ( &RR );
   exitstatus = alloc_rot_mat_table ( &RR, "NA", "NA", p->rspin[0].dim, p->rtarget->dim );
+  /***********************************************************
+   * END OF TEST
+   ***********************************************************/
 
   
   /***********************************************************/
@@ -2235,8 +2268,13 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
 
 
 
-    /* TEST */
+    /***********************************************************
+     * TEST
+     ***********************************************************/
     double _Complex **R = rot_init_rotation_matrix (p->rspin[0].dim );
+    /***********************************************************
+     * END OF TEST
+     ***********************************************************/
 
     /***********************************************************
      * loop on rotation group elements R
@@ -2308,7 +2346,7 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
     /***********************************************************
      * not center of mass frame, include IR rotations
      ***********************************************************/
-    if ( !( p->P[0] == 0 && p->P[1] == 0 && p->P[2] == 0 ) ) {
+    if ( !frame_is_cmf )  { 
       fprintf( stdout, "# [little_group_projector_apply] including IR rotations\n");
 
       /***********************************************************
@@ -2407,13 +2445,22 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
    * deallocate RR
    ***********************************************************/
 
-  exitstatus = rot_mat_table_rotate_multiplett ( &RR, &(p->rspin[0]), p->rtarget ,  !( p->P[0] == 0 && p->P[1] == 0 && p->P[2] == 0 ) , ofs);
+  exitstatus = rot_mat_table_rotate_multiplett ( &RR, &(p->rspin[0]), p->rtarget ,  !frame_is_cmf, ofs);
   if ( exitstatus != 0 ) {
     fprintf( stderr, "[little_group_projector_apply] Error from rot_mat_table_rotate_multiplett, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     return(1);
   }
   fini_rot_mat_table ( &RR );
 
+
+  /***********************************************************/
+  /***********************************************************/
+
+  /***********************************************************
+   * TEST multiplicity
+   ***********************************************************/
+
+  fprintf ( stdout, "# [little_group_projector_apply] multiplicity of %s in %s is %d\n", p->rtarget->irrep, p->rspin[0].irrep, irrep_multiplicity ( p->rtarget, &p->rspin[0], !frame_is_cmf  ) );
 
   /***********************************************************/
   /***********************************************************/
@@ -2556,6 +2603,35 @@ int rot_mat_table_rotate_multiplett ( rot_mat_table_type *rtab, rot_mat_table_ty
 
 }  /* end of loop on rot_mat_table_rotate_multiplett */
 
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ *
+ ***********************************************************/
+int irrep_multiplicity (rot_mat_table_type *rirrep, rot_mat_table_type *rspin, int with_IR ) {
+
+  double _Complex s = 0.;
+  int nelem = rirrep->n;
+  for ( int irot = 0; irot < rirrep->n; irot++ ) {
+    int rid = rirrep->rid[irot];
+    s += rot_mat_trace ( rirrep->R[irot],  rirrep->dim ) * rot_mat_trace ( rspin->R[rid],  rspin->dim );
+  }
+  if ( with_IR ) {
+    for ( int irot = 0; irot < rirrep->n; irot++ ) {
+      int rmid = rirrep->rmid[irot];
+      s += rot_mat_trace ( rirrep->IR[irot],  rirrep->dim ) * rot_mat_trace ( rspin->IR[rmid],  rspin->dim );
+    }
+    nelem *= 2;
+  }
+
+  /* TEST */
+  fprintf(stdout, "# [irrep_multiplicity] s = %25.16e %25.16e g = %2d\n", creal(s), cimag(s), rirrep->n );
+  /* END OF TEST */
+
+  return( (int)( round( creal(s) ) / nelem ) );
+}  /* end of irrep multiplicty */
 
 /***********************************************************/
 /***********************************************************/
