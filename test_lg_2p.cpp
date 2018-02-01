@@ -172,6 +172,7 @@ int main(int argc, char **argv) {
   int *interpolator_bispinor = NULL;
   int *interpolator_parity   = NULL;
   int *interpolator_J2       = NULL;
+  int *ref_row_spin          = NULL;
   char correlator_name[]     = "basis_vector";
 
   exitstatus = init_2level_ibuffer ( &interpolator_momentum_list, interpolator_number, 3 );
@@ -254,24 +255,24 @@ int main(int argc, char **argv) {
         /****************************************************
          * loop on reference rows of spin matrix
          ****************************************************/
-        for ( int ref_row_spin[0] = 0; ref_row_spin[0] <= interpolator_J2[0]; ref_row_spin[0]++ ) {
-        for ( int ref_row_spin[1] = 0; ref_row_spin[1] <= interpolator_J2[1]; ref_row_spin[1]++ ) {
+        for ( ref_row_spin[0] = 0; ref_row_spin[0] <= interpolator_J2[0]; ref_row_spin[0]++ ) {
+        for ( ref_row_spin[1] = 0; ref_row_spin[1] <= interpolator_J2[1]; ref_row_spin[1]++ ) {
 
         /****************************************************
          * loop on spin quantum numbers
          ****************************************************/
           sprintf ( filename, "lg_%s_irrep_%s_J2_%d_%d_sref_%d_%d_tref_%d.sbd", lg[ilg].name, lg[ilg].lirrep[i_irrep],
-              interpolator_J2[0]m, interpolator_J2[1], ref_row_spin[0], ref_row_spin[1], ref_row_target );
+              interpolator_J2[0], interpolator_J2[1], ref_row_spin[0], ref_row_spin[1], ref_row_target );
 
           FILE*ofs = fopen ( filename, "w" );
           if ( ofs == NULL ) {
-            fprintf ( stderr, "# [test_lg_2p] Error from fopen %d %s %d\n", __FILE__, __LINE__);
+            fprintf ( stderr, "# [test_lg_2p] Error from fopen %s %d\n", __FILE__, __LINE__);
             EXIT(2);
           }
 
   
-          exitstatus = little_group_projector_set ( &p, &(lg[ilg]), lg[ilg].lirrep[i_irrep], row_target, interpolator_number,
-              interpolator_J2, interpolator_momentum_list, interpolator_bispinor, interpolator_parity, -1, ref_row_spin, correlator_name );
+          exitstatus = little_group_projector_set ( &p, &(lg[ilg]), lg[ilg].lirrep[i_irrep], -1, interpolator_number,
+              interpolator_J2, interpolator_momentum_list, interpolator_bispinor, interpolator_parity, ref_row_target, ref_row_spin, correlator_name );
   
           if ( exitstatus != 0 ) {
             fprintf ( stderr, "# [test_lg_2p] Error from little_group_projector_set, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -299,11 +300,12 @@ int main(int argc, char **argv) {
           /****************************************************/
   
           fini_little_group_projector ( &p );
+
+          fclose ( ofs );
   
         }  /* end of loop on ref_row_spin 1 */
         }  /* end of loop on ref_row_spin 0 */
   
-        fclose ( ofs );
 
       }  /* end of loop on ref_row_target */
 
