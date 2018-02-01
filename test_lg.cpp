@@ -203,37 +203,37 @@ int main(int argc, char **argv) {
     {
 
       /****************************************************
-       * loop on spin quantum numbers
+        loop on spin quantum numbers
        ****************************************************/
       /* for ( int interpolator_J2 = 0; interpolator_J2 <= 8; interpolator_J2++ ) */
-      for ( int interpolator_J2 = 0; interpolator_J2 <= 8; interpolator_J2++ )
+      for ( int interpolator_J2 = 4; interpolator_J2 <= 4; interpolator_J2++ )
       {
-
-        sprintf ( filename, "lg_%s_irrep_%s_J2_%d.sbd", lg[ilg].name, lg[ilg].lirrep[i_irrep], interpolator_J2 );
-
-        FILE*ofs = fopen ( filename, "w" );
-        if ( ofs == NULL ) {
-          fprintf ( stderr, "# [test_lg] Error from fopen %d %s %d\n", __FILE__, __LINE__);
-          EXIT(2);
-        }
-
-        /****************************************************
-         * rotation matrix for current irrep
-         ****************************************************/
-        rot_mat_table_type r_irrep;
-        init_rot_mat_table ( &r_irrep );
-        exitstatus = set_rot_mat_table_cubic_group_double_cover ( &r_irrep, lg[ilg].name, lg[ilg].lirrep[i_irrep] );
-        if ( exitstatus != 0 ) {
-          fprintf ( stderr, "# [test_lg] Error from set_rot_mat_table_cubic_group_double_cover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-          EXIT(2);
-        }
 
         /****************************************************
          * loop on reference rows of spin matrix
          ****************************************************/
-        /* for ( int ref_row_spin = 0; ref_row_spin <= interpolator_J2; ref_row_spin++ ) { */
-        int ref_row_spin = -1;
+        for ( int ref_row_spin = 0; ref_row_spin <= interpolator_J2; ref_row_spin++ ) {
+        /* int ref_row_spin = -1; */
   
+          sprintf ( filename, "lg_%s_irrep_%s_J2_%d_spinref%d.sbd", lg[ilg].name, lg[ilg].lirrep[i_irrep], interpolator_J2, ref_row_spin );
+
+          FILE*ofs = fopen ( filename, "w" );
+          if ( ofs == NULL ) {
+            fprintf ( stderr, "# [test_lg] Error from fopen %s %d\n", __FILE__, __LINE__);
+            EXIT(2);
+          }
+
+          /****************************************************
+           * rotation matrix for current irrep
+           ****************************************************/
+          rot_mat_table_type r_irrep;
+          init_rot_mat_table ( &r_irrep );
+          exitstatus = set_rot_mat_table_cubic_group_double_cover ( &r_irrep, lg[ilg].name, lg[ilg].lirrep[i_irrep] );
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "# [test_lg] Error from set_rot_mat_table_cubic_group_double_cover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(2);
+          }
+
           int dim_irrep = r_irrep.dim;
     
           /****************************************************
@@ -259,7 +259,7 @@ int main(int argc, char **argv) {
               /****************************************************/
               /****************************************************/
    
-              exitstatus = little_group_projector_show ( &p, ofs , 0 );
+              exitstatus = little_group_projector_show ( &p, ofs , 1 );
               if ( exitstatus != 0 ) {
                 fprintf ( stderr, "# [test_lg] Error from little_group_projector_show, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(2);
@@ -282,11 +282,12 @@ int main(int argc, char **argv) {
   
           }  /* end of loop on ref_row_target */
   
-        /* }  */ /* end of loop on ref_row_spin */
   
-        fini_rot_mat_table ( &r_irrep );
+          fini_rot_mat_table ( &r_irrep );
 
-        fclose ( ofs );
+          fclose ( ofs );
+
+        }  /* end of loop on ref_row_spin */
       }  /* end of loop on interpolator J2 */
 
     }  /* end of loop on irreps */
