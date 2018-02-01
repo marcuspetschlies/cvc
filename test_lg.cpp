@@ -190,7 +190,7 @@ int main(int argc, char **argv) {
    * loop on little groups
    ****************************************************/
   /* for ( int ilg = 0; ilg < nlg; ilg++ ) */
-  for ( int ilg = 3; ilg <= 3; ilg++ )
+  for ( int ilg = 1; ilg <= 1; ilg++ )
   {
 
     int n_irrep = lg[ilg].nirrep;
@@ -199,14 +199,14 @@ int main(int argc, char **argv) {
      * loop on irreps
      ****************************************************/
     // for ( int i_irrep = 0; i_irrep < n_irrep; i_irrep++ )
-    for ( int i_irrep = 4; i_irrep <= 4; i_irrep++ )
+    for ( int i_irrep = 0; i_irrep <= 0; i_irrep++ )
     {
 
       /****************************************************
        * loop on spin quantum numbers
        ****************************************************/
       /* for ( int interpolator_J2 = 0; interpolator_J2 <= 8; interpolator_J2++ ) */
-      for ( int interpolator_J2 = 0; interpolator_J2 <= 8; interpolator_J2++ )
+      for ( int interpolator_J2 = 2; interpolator_J2 <= 2; interpolator_J2++ )
       {
 
         sprintf ( filename, "lg_%s_irrep_%s_J2_%d.sbd", lg[ilg].name, lg[ilg].lirrep[i_irrep], interpolator_J2 );
