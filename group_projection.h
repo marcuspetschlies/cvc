@@ -104,7 +104,8 @@ int little_group_projector_set (
   little_group_projector_type *p,
   little_group_type *lg,
   char*irrep , int row_target, int interpolator_num,
-  int *interpolator_J2_list, int **interpolator_momentum_list, int *interpolator_bispinor_list,    
+  int *interpolator_J2_list, int **interpolator_momentum_list, int *interpolator_bispinor_list,
+  int *interpolator_parity,
   int ref_row_target, int *ref_row_spin, char*correlator_name );
 
 int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs );
@@ -122,6 +123,8 @@ int spin_vector_asym_normalize ( double _Complex **sv, int n, int *dim );
 void spin_vector_pl_eq_spin_vector_ti_co_asym ( double _Complex **sv1, double _Complex **sv2, double _Complex c, int n, int *dim );
 
 int rot_mat_table_rotate_multiplett ( rot_mat_table_type *rtab, rot_mat_table_type *rapply, rot_mat_table_type *rtarget, int with_IR, FILE*ofs );
+
+int irrep_multiplicity (rot_mat_table_type *rirrep, rot_mat_table_type *rspin, int with_IR );
 
 
 }  /* end of namespace cvc */

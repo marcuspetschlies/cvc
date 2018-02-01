@@ -2259,6 +2259,21 @@ int rot_mat_spin1_2_spherical ( double _Complex **R, int n[3], double omega ) {
 /***********************************************************/
 
 /***********************************************************
+ * trace
+ ***********************************************************/
+double _Complex rot_mat_trace ( double _Complex** R, int N ) {
+  double _Complex res = 0.;
+  for ( int i = 0; i < N; i++ ) {
+    res += R[i][i];
+  }
+  return(res);
+
+}  /* end of rot_matr_trace */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
  *
  ***********************************************************/
 void spin_vector_pl_eq_spinor_vector_ti_co ( double _Complex*v, double _Complex*w, double _Complex c , int N ) {
