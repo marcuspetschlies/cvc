@@ -2276,14 +2276,33 @@ double _Complex rot_mat_trace ( double _Complex** R, int N ) {
 /***********************************************************
  *
  ***********************************************************/
-void spin_vector_pl_eq_spinor_vector_ti_co ( double _Complex*v, double _Complex*w, double _Complex c , int N ) {
+void rot_vec_pl_eq_vec_ti_co ( double _Complex*v, double _Complex*w, double _Complex c , int N ) {
 #pragma omp parallel for
   for ( int i = 0; i < N; i++ ) {
     v[i] += w[i] * c;
   }
-}  /* end of spin_vector_pl_eq_spinor_vector_ti_co */
+}  /* end of rot_vec_pl_eq_vec_ti_co */
 
 /***********************************************************/
 /***********************************************************/
 
+void rot_vec_normalize ( double _Complex *v, int N ) {
+  double eps = 1.e-15;
+  double _Complex norm=0.;
+#pragma omp parallel for
+  for ( int i = 0; i < N; i++ ) {
+    norm += v[i] * conj ( v[i] );
+  }
+  norm = sqrt ( norm );
+  norm = norm < eps ?`0. : 1./norm;
+
+#pragma omp parallel for
+  for ( int i = 0; i < N; i++ ) {
+    v[i] *= norm;
+  }
+  return;
+}  /* end of rot_vec_normalize */
+
+/***********************************************************/
+/***********************************************************/
 }  /* end of namespace cvc */
