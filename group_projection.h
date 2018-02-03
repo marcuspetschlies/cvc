@@ -126,6 +126,13 @@ int rot_mat_table_rotate_multiplett ( rot_mat_table_type *rtab, rot_mat_table_ty
 
 int irrep_multiplicity (rot_mat_table_type *rirrep, rot_mat_table_type *rspin, int with_IR );
 
+int little_group_projector_apply_product ( little_group_projector_type *p , FILE*ofs);
+
+
+void product_vector_project_accum ( double _Complex *v, rot_mat_table_type*r, int id, double _Complex *v0, double _Complex c1, double _Complex c2, int *dim , int n );
+
+void product_mat_pl_eq_mat_ti_co ( double _Complex **R, rot_mat_table_type *r, int id, double _Complex c, dim, int n );
+
 
 }  /* end of namespace cvc */
 
