@@ -6948,4 +6948,68 @@ int fix_eigenvector_phase ( double **evecs_field, int num ) {
 /***********************************************************/
 /***********************************************************/
 
+
+/*****************************************************
+ * exchange a vector of size N double per point 
+ *   ONLY EXCHANGE BOUNDARY FACES
+ *****************************************************/
+void xchange_nvector_3d ( double *phi, int N, int dir) {
+  const unsigned int VOL3 = LX*LY*LZ;
+#ifdef HAVE_MPI
+  int cntr=0;
+
+  MPI_Request request[120];
+  MPI_Status status[120];
+
+#if (defined PARALLELTX) || (defined PARALLELTXY)  || (defined PARALLELTXYZ) 
+  if ( dir == -1 || dir == 1 ) {
+    /* x - boundary faces */
+    MPI_Isend(&phi[0],              1, nvector_x_slice_vector, g_nb_x_dn, 85, g_cart_grid, &request[cntr]);
+    cntr++;
+    MPI_Irecv(&phi[N*VOL3],         1, nvector_x_slice_cont,   g_nb_x_up, 85, g_cart_grid, &request[cntr]);
+    cntr++;
+  
+    MPI_Isend(&phi[N*(LX-1)*LY*LZ],    1, nvector_x_slice_vector, g_nb_x_up, 86, g_cart_grid, &request[cntr]);
+    cntr++;
+    MPI_Irecv(&phi[N*(VOL3+LY*LZ)], 1, nvector_x_slice_cont,   g_nb_x_dn, 86, g_cart_grid, &request[cntr]);
+    cntr++;
+  }
+#endif
+
+#if defined PARALLELTXY || (defined PARALLELTXYZ) 
+  if ( dir == -1 || dir == 2 ) {
+    /* y - boundary faces */
+    MPI_Isend(&phi[0],                          1, nvector_y_slice_vector, g_nb_y_dn, 87, g_cart_grid, &request[cntr]);
+    cntr++;
+    MPI_Irecv(&phi[N*(VOL3+2*(LY*LZ))],         1, nvector_y_slice_cont,   g_nb_y_up, 87, g_cart_grid, &request[cntr]);
+    cntr++;
+  
+    MPI_Isend(&phi[N*(LY-1)*LZ],                1, nvector_y_slice_vector, g_nb_y_up, 88, g_cart_grid, &request[cntr]);
+    cntr++;
+    MPI_Irecv(&phi[N*(VOL3 + 2*LY*LZ + LX*LZ)], 1, nvector_y_slice_cont,   g_nb_y_dn, 88, g_cart_grid, &request[cntr]);
+    cntr++;
+  }
+#endif
+
+#if (defined PARALLELTXYZ) 
+  if ( dir == -1 || dir == 3 ) {
+    /* z - boundary faces */
+    MPI_Isend(&phi[0],                               1, nvector_z_slice_vector, g_nb_z_dn, 89, g_cart_grid, &request[cntr]);
+    cntr++;
+    MPI_Irecv(&phi[N*(VOL3+2*(LY*LZ+LX*LZ))],        1, nvector_z_slice_cont,   g_nb_z_up, 89, g_cart_grid, &request[cntr]);
+    cntr++;
+
+    MPI_Isend(&phi[N*(LZ-1)],                        1, nvector_z_slice_vector, g_nb_z_up, 90, g_cart_grid, &request[cntr]);
+    cntr++;
+    MPI_Irecv(&phi[N*(VOL3+2*( LY*LZ+LX*LZ)+LX*LY)], 1, nvector_z_slice_cont,   g_nb_z_dn, 90, g_cart_grid, &request[cntr]);
+    cntr++;
+  }
+#endif
+
+  MPI_Waitall(cntr, request, status);
+#endif  /* of ifdef HAVE_MPI */
+}  /* xchange_vector */
+
+/***********************************************************/
+/***********************************************************/
 }  /* end of namespace cvc */

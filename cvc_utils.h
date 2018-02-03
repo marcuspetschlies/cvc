@@ -190,6 +190,8 @@ void fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fermion_pro
 
 int fix_eigenvector_phase ( double **evecs_field, int num );
 
+void xchange_nvector_3d ( double *phi, int N, int dir);
+
 }  /* end of namespace cvc */
 #endif
 
