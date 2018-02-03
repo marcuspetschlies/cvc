@@ -247,6 +247,8 @@ EXTERN int g_fermion_type;
 
 EXTERN int g_coherent_source_number;
 
+EXTERN int ***g_ipt_3d, **g_iseven_3d, **g_idn_3d, **g_iup_3d, **g_eo2lexic_2d, **g_lexic2eo_3d;
+
 extern const char *g_gitversion;
 
 }
