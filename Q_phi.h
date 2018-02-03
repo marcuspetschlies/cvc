@@ -43,5 +43,8 @@ void apply_propagator_constant_cvc_vertex ( fermion_propagator_type *s, fermion_
 
 int Q_invert (double*prop, double*source, double*gauge_field, double mass, int op_id);
 
+void apply_displacement_colorvector (double *s, double *r, int mu, int fbwd, double *gauge_field, int timeslice );
+
+
 }  /* end of namespace cvc */
 #endif
