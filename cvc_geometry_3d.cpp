@@ -127,6 +127,7 @@ void geometry_3d() {
   int y1, y2, y3, ix;
   int isboundary;
   int i_even, i_odd;
+  unsigned int VOL3 = LX*LY*LZ;
 
 #ifdef HAVE_MPI
 
@@ -189,8 +190,8 @@ void geometry_3d() {
 
     /* is even / odd */
 
-    for ( int x0 = 0; it < T; x0++ ) {
-      g_iseven[x0][ix] = ( x0 + T *g_proc_coords[0] + x1 + LX*g_proc_coords[1] \
+    for ( int x0 = 0; x0 < T; x0++ ) {
+      g_iseven_3d[x0][ix] = ( x0 + T *g_proc_coords[0] + x1 + LX*g_proc_coords[1] \
                      + x2 + LY*g_proc_coords[2] + x3 + LZ*g_proc_coords[3] ) % 2 == 0;
     }
 
@@ -229,7 +230,7 @@ int init_geometry_3d(void) {
   int ix = 0, V;
   int j;
   int dx = 0, dy = 0, dz = 0;
-  unsigned int VOL3half;
+  unsigned int VOL3;
 
   VOL3          = LX*LY*LZ;
   VOL3PLUSRAND3 = VOL3;
@@ -245,16 +246,16 @@ int init_geometry_3d(void) {
 #endif
 
 #if defined PARALLELTXY || defined PARALLELTXYZ
-  RAND           += 2*LX*LZ;
-  EDGES          +=           4*LZ;
-  VOLUMEPLUSRAND += 2*LX*LZ + 4*LZ;
+  RAND3         += 2*LX*LZ;
+  EDGES3        +=           4*LZ;
+  VOL3PLUSRAND3 += 2*LX*LZ + 4*LZ;
   dy = 2;
 #endif
 
 #if defined PARALLELTXYZ
-  RAND           += 2*LX*LY;
-  EDGES          +=           4*LY + 4*LX;
-  VOLUMEPLUSRAND += 2*LX*LY + 4*LY + 4*LX;
+  RAND3         += 2*LX*LY;
+  EDGES3        +=           4*LY + 4*LX;
+  VOL3PLUSRAND3 += 2*LX*LY + 4*LY + 4*LX;
   dz = 2;
 #endif
 
@@ -270,7 +271,6 @@ int init_geometry_3d(void) {
 
   V = VOL3PLUSRAND3;
 
-  VOL3half = VOL3 / 2;
 
   g_idn_3d = (int**)calloc(V, sizeof(int*));
   if((void*)g_idn_3d == NULL) return(1);
