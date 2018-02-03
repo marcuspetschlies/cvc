@@ -150,6 +150,9 @@ int get_point_source_info (int gcoords[4], int lcoords[4], int*proc_id);
 
 void complex_field_ti_eq_re (double *r, double c, unsigned int N);
 
+void complex_field_ti_eq_co (double *r, double *z, unsigned int N);
+
+
 void complex_field_eq_complex_field_conj_ti_re (double *r, double c, unsigned int N);
 
 void complex_field_eq_complex_field_pl_complex_field_conj_ti_re (double*r, double*s, double*t, double c, unsigned int N);
@@ -191,6 +194,9 @@ void fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fermion_pro
 int fix_eigenvector_phase ( double **evecs_field, int num );
 
 void xchange_nvector_3d ( double *phi, int N, int dir);
+
+void colorvector_field_eq_colorvector_field_ti_complex_field ( double*r, double*s, double *c, unsigned int N);
+
 
 }  /* end of namespace cvc */
 #endif
