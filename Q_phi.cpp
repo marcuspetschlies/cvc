@@ -16,6 +16,7 @@
 #include "cvc_complex.h"
 #include "global.h"
 #include "ilinalg.h"
+#include "laplace_linalg.h"
 #include "cvc_linalg.h"
 #include "cvc_geometry.h"
 #include "cvc_utils.h"
@@ -1236,7 +1237,7 @@ void apply_cvc_vertex(double *s, double *r, int mu, int fbwd, double *gauge_fiel
 #endif
  }  /* end of if fbwd = 0 or 1 */
 
-}  /* end of apply_cvc_vertex_eo */
+}  /* end of apply_cvc_vertex */
 
 
 /***********************************************************
@@ -1493,6 +1494,104 @@ int Q_invert (double*prop, double*source, double*gauge_field, double mass, int o
   return(2);
 #endif
 }  /* Q_invert */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ *
+ ***********************************************************/
+void apply_displacement_colorvector (double *s, double *r, int mu, int fbwd, double *gauge_field, int timeslice ) {
+
+  const unsigned int N = LX*LY*LZ;
+
+#ifdef HAVE_MPI
+  xchange_nvector_3d( r, _GVI(1), mu );
+#endif
+
+  if ( fbwd == 0 ) {
+    /**************************************************************
+     * FORWARD
+     **************************************************************/
+#ifdef HAVE_OPENMP
+#pragma omp parallel shared(s,r,gauge_field)
+{
+#endif
+    unsigned int ix, ix_gauge;
+    unsigned int ix_fwd;
+    double *U_fwd = NULL;
+    double *s_ = NULL, *r_fwd_ = NULL;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(ix = 0; ix < N; ix++ ) {
+    
+      s_ = s + _GVI(ix);
+      
+      _cv_eq_zero(s_);
+
+      ix_gauge = timeslice * N + ix; 
+
+      /* ============================================ */
+      /* =============== direction mu =============== */
+      U_fwd = gauge_field+_GGI(ix_gauge,mu);
+
+      /* ix_fwd */
+      ix_fwd = g_iup_3d[ix][mu];
+
+      r_fwd_ = r + _GVI(ix_fwd);
+
+      /* s = U_fwd r_fwd */
+      _cv_eq_cm_ti_cv(s_, U_fwd, r_fwd_);
+
+  }  /* end of loop on ix over N */
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+ } else if ( fbwd == 1 ) {
+    /**************************************************************
+     * BACKWARD
+     **************************************************************/
+#ifdef HAVE_OPENMP
+#pragma omp parallel shared(s,r,gauge_field)
+{
+#endif
+    unsigned int ix, ix_gauge;
+    unsigned int ix_bwd;
+    double *U_bwd = NULL;
+    double *s_ = NULL, *r_bwd_ = NULL;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for(ix = 0; ix < N; ix++ ) {
+    
+      s_ = s + _GVI(ix);
+      
+      _cv_eq_zero(s_);
+
+      ix_gauge = timeslice * N + ix;
+
+      /* ============================================ */
+      /* =============== direction mu =============== */
+      U_bwd = gauge_field+_GGI( g_idn[ix_gauge][mu], mu);
+
+      /* ix_bwd */
+      ix_bwd = g_idn_3d[ix][mu];
+
+      r_bwd_ = r + _GVI(ix_bwd);
+
+      /* s = U_bwd^+ r_bwd */
+      _cv_eq_cm_dag_ti_cv(s_, U_bwd, r_bwd_);
+
+  }  /* end of loop on ix over N */
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+ }  /* end of if fbwd = 0 or 1 */
+
+}  /* end of apply_displacement_colorvector */
 
 
 }  /* end of namespace cvc */
