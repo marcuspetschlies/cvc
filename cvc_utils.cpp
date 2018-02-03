@@ -18,6 +18,7 @@
 #include "cvc_complex.h"
 #include "global.h"
 #include "ilinalg.h"
+#include "laplace_linalg.h"
 #include "cvc_geometry.h"
 #include "mpi_init.h"
 #include "propagator_io.h"
@@ -6307,6 +6308,25 @@ void complex_field_ti_eq_re (double *r, double c, unsigned int N) {
   }
 }  /* end of complex_field_ti_eq_re */
 
+
+/* r *= z */
+void complex_field_ti_eq_co (double *r, double *z, unsigned int N) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for shared(r,z,N)
+#endif
+  for( unsigned int ix = 0; ix < N; ix++ ) {
+    unsigned int iix = 2*ix;
+    double *r_ = r + iix;
+    double  s  = r_[0] * z[0] - r_[1] * z[1];
+
+    r_[1] = r_[1] * z[0] + r_[0] * z[1];
+    r_[0] = s;
+  }
+  return;
+}  /* end of complex_field_ti_eq_co */
+
+
 /* r *= c */
 void complex_field_eq_complex_field_conj_ti_re (double *r, double c, unsigned int N) {
 
@@ -6321,6 +6341,8 @@ void complex_field_eq_complex_field_conj_ti_re (double *r, double c, unsigned in
     rr[1] *= -c;
   }
 }  /* end of complex_field_eq_complex_field_conj_ti_re */
+
+
 
 /* r = s + conj( t ) * c
  * N is the number of complex elements in r,s and t
@@ -7009,6 +7031,41 @@ void xchange_nvector_3d ( double *phi, int N, int dir) {
   MPI_Waitall(cntr, request, status);
 #endif  /* of ifdef HAVE_MPI */
 }  /* xchange_vector */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * r = s * c
+ * safe, if r = s
+ ***********************************************************/
+void colorvector_field_eq_colorvector_field_ti_complex_field ( double*r, double*s, double *c, unsigned int N) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel shared(r,s,c,N)
+  {
+#endif
+    double *rr, *ss;
+    complex w;
+    double v1[_GVI(1)];
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for( unsigned int ix = 0; ix < N; ix++) {
+      unsigned int offset = _GSI(ix);
+      rr = r + offset;
+      ss = s + offset;
+      w.re = c[2*ix  ];
+      w.im = c[2*ix+1];
+      _cv_eq_cv_ti_co( v1, ss, w);
+      _cv_eq_cv(rr, v1);
+    }
+#ifdef HAVE_OPENMP
+  }
+#endif
+}  /* end of colorvector_field_eq_colorvector_field_ti_complex_field */
+
 
 /***********************************************************/
 /***********************************************************/
