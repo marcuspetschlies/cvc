@@ -152,6 +152,9 @@ void mpi_fini_xchange_eo_spinor (void);
 void mpi_init_xchange_eo_propagator(void);
 void mpi_fini_xchange_eo_propagator(void);
 
+void mpi_init_xchange_nvector_3d(int N);
+void mpi_fini_xchange_nvector_3d(void);
+
 
 }  /* end of namespace cvc */
 #endif
