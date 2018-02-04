@@ -2288,13 +2288,13 @@ void rot_vec_pl_eq_vec_ti_co ( double _Complex*v, double _Complex*w, double _Com
 
 void rot_vec_normalize ( double _Complex *v, int N ) {
   double eps = 1.e-15;
-  double _Complex norm=0.;
+  double norm=0.;
 #pragma omp parallel for
   for ( int i = 0; i < N; i++ ) {
-    norm += v[i] * conj ( v[i] );
+    norm += creal ( v[i] * conj ( v[i] ) );
   }
   norm = sqrt ( norm );
-  norm = norm < eps ?`0. : 1./norm;
+  norm = norm < eps ? 0. : 1./norm;
 
 #pragma omp parallel for
   for ( int i = 0; i < N; i++ ) {
