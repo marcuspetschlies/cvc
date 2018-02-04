@@ -6986,14 +6986,14 @@ void xchange_nvector_3d ( double *phi, int N, int dir) {
 #if (defined PARALLELTX) || (defined PARALLELTXY)  || (defined PARALLELTXYZ) 
   if ( dir == -1 || dir == 1 ) {
     /* x - boundary faces */
-    MPI_Isend(&phi[0],              1, nvector_x_slice_vector, g_nb_x_dn, 85, g_cart_grid, &request[cntr]);
+    MPI_Isend(&phi[0],              1, nvector_3d_x_slice_cont, g_nb_x_dn, 85, g_cart_grid, &request[cntr]);
     cntr++;
-    MPI_Irecv(&phi[N*VOL3],         1, nvector_x_slice_cont,   g_nb_x_up, 85, g_cart_grid, &request[cntr]);
+    MPI_Irecv(&phi[N*VOL3],         1, nvector_3d_x_slice_cont, g_nb_x_up, 85, g_cart_grid, &request[cntr]);
     cntr++;
   
-    MPI_Isend(&phi[N*(LX-1)*LY*LZ],    1, nvector_x_slice_vector, g_nb_x_up, 86, g_cart_grid, &request[cntr]);
+    MPI_Isend(&phi[N*(LX-1)*LY*LZ], 1, nvector_3d_x_slice_cont, g_nb_x_up, 86, g_cart_grid, &request[cntr]);
     cntr++;
-    MPI_Irecv(&phi[N*(VOL3+LY*LZ)], 1, nvector_x_slice_cont,   g_nb_x_dn, 86, g_cart_grid, &request[cntr]);
+    MPI_Irecv(&phi[N*(VOL3+LY*LZ)], 1, nvector_3d_x_slice_cont, g_nb_x_dn, 86, g_cart_grid, &request[cntr]);
     cntr++;
   }
 #endif
@@ -7001,14 +7001,14 @@ void xchange_nvector_3d ( double *phi, int N, int dir) {
 #if defined PARALLELTXY || (defined PARALLELTXYZ) 
   if ( dir == -1 || dir == 2 ) {
     /* y - boundary faces */
-    MPI_Isend(&phi[0],                          1, nvector_y_slice_vector, g_nb_y_dn, 87, g_cart_grid, &request[cntr]);
+    MPI_Isend(&phi[0],                          1, nvector_3d_y_slice_vector, g_nb_y_dn, 87, g_cart_grid, &request[cntr]);
     cntr++;
-    MPI_Irecv(&phi[N*(VOL3+2*(LY*LZ))],         1, nvector_y_slice_cont,   g_nb_y_up, 87, g_cart_grid, &request[cntr]);
+    MPI_Irecv(&phi[N*(VOL3+2*(LY*LZ))],         1, nvector_3d_y_slice_cont,   g_nb_y_up, 87, g_cart_grid, &request[cntr]);
     cntr++;
   
-    MPI_Isend(&phi[N*(LY-1)*LZ],                1, nvector_y_slice_vector, g_nb_y_up, 88, g_cart_grid, &request[cntr]);
+    MPI_Isend(&phi[N*(LY-1)*LZ],                1, nvector_3d_y_slice_vector, g_nb_y_up, 88, g_cart_grid, &request[cntr]);
     cntr++;
-    MPI_Irecv(&phi[N*(VOL3 + 2*LY*LZ + LX*LZ)], 1, nvector_y_slice_cont,   g_nb_y_dn, 88, g_cart_grid, &request[cntr]);
+    MPI_Irecv(&phi[N*(VOL3 + 2*LY*LZ + LX*LZ)], 1, nvector_3d_y_slice_cont,   g_nb_y_dn, 88, g_cart_grid, &request[cntr]);
     cntr++;
   }
 #endif
@@ -7016,14 +7016,14 @@ void xchange_nvector_3d ( double *phi, int N, int dir) {
 #if (defined PARALLELTXYZ) 
   if ( dir == -1 || dir == 3 ) {
     /* z - boundary faces */
-    MPI_Isend(&phi[0],                               1, nvector_z_slice_vector, g_nb_z_dn, 89, g_cart_grid, &request[cntr]);
+    MPI_Isend(&phi[0],                               1, nvector_3d_z_slice_vector, g_nb_z_dn, 89, g_cart_grid, &request[cntr]);
     cntr++;
-    MPI_Irecv(&phi[N*(VOL3+2*(LY*LZ+LX*LZ))],        1, nvector_z_slice_cont,   g_nb_z_up, 89, g_cart_grid, &request[cntr]);
+    MPI_Irecv(&phi[N*(VOL3+2*(LY*LZ+LX*LZ))],        1, nvector_3d_z_slice_cont,   g_nb_z_up, 89, g_cart_grid, &request[cntr]);
     cntr++;
 
-    MPI_Isend(&phi[N*(LZ-1)],                        1, nvector_z_slice_vector, g_nb_z_up, 90, g_cart_grid, &request[cntr]);
+    MPI_Isend(&phi[N*(LZ-1)],                        1, nvector_3d_z_slice_vector, g_nb_z_up, 90, g_cart_grid, &request[cntr]);
     cntr++;
-    MPI_Irecv(&phi[N*(VOL3+2*( LY*LZ+LX*LZ)+LX*LY)], 1, nvector_z_slice_cont,   g_nb_z_dn, 90, g_cart_grid, &request[cntr]);
+    MPI_Irecv(&phi[N*(VOL3+2*( LY*LZ+LX*LZ)+LX*LY)], 1, nvector_3d_z_slice_cont,   g_nb_z_dn, 90, g_cart_grid, &request[cntr]);
     cntr++;
   }
 #endif
@@ -7067,6 +7067,54 @@ void colorvector_field_eq_colorvector_field_ti_complex_field ( double*r, double*
 }  /* end of colorvector_field_eq_colorvector_field_ti_complex_field */
 
 
-/***********************************************************/
-/***********************************************************/
+/****************************************************************************/
+/****************************************************************************/
+
+/****************************************************************************
+ * 
+ ****************************************************************************/
+void spinor_field_norm_timeslice (double *norm, double *r, int t, unsigned int N) {
+ 
+  double daccum = 0.;
+  unsigned int offset = t*N;
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+#endif
+
+#ifdef HAVE_OPENMP
+  omp_init_lock(&writelock);
+#pragma omp parallel default(shared) shared(norm,r,N,daccum,offset)
+{
+#endif
+  double daccumt = 0.;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for( unsigned int ix = 0; ix < N; ix++ ) {
+    unsigned iix = _GSI( offset + ix);
+    double *r_ = r + iix;
+    _re_pl_eq_fv_dag_ti_fv( daccumt, r_ , r_ );
+  }
+#ifdef HAVE_OPENMP
+  omp_set_lock(&writelock);
+  daccum += daccumt;
+  omp_unset_lock(&writelock);
+}  /* end of parallel region */
+  omp_destroy_lock(&writelock);
+#else
+  daccum = daccumt;
+#endif
+
+#ifdef HAVE_MPI
+  double daccumx = 0.;
+  MPI_Allreduce(&daccum, &daccumx, 1, MPI_DOUBLE, MPI_SUM, g_ts_comm );
+  *norm = sqrt(daccumx);
+#else
+  *norm = sqrt( daccum );
+#endif
+}  /* end of spinor_field_eq_spinor_field_ti_re */
+
+/****************************************************************************/
+/****************************************************************************/
 }  /* end of namespace cvc */
