@@ -50,12 +50,12 @@ namespace cvc {
 int distillation_vertex_displacement ( double**V, int numV, int momentum_number, int (*momentum_list)[3], char*prefix, char*tag, int io_proc, double *gauge_field, int timeslice ) {
   
   const unsigned int VOL3 = LX*LY*LZ;
-  const size_t sizeof_colorvector_timeslice = _GVI(VOL3) * sizeof(double);
+  const size_t sizeof_colorvector_field_timeslice = _GVI(VOL3) * sizeof(double);
 
   int exitstatus;
   char filename[200];
 
-  double ratime, retime, zgemm_ratime, zgemm_retime, aff_retime, aff_ratime, total_ratime, total_retime;
+  double ratime, retime, aff_retime, aff_ratime, total_ratime, total_retime;
 
   /***********************************************
    *variables for blas interface
@@ -71,6 +71,8 @@ int distillation_vertex_displacement ( double**V, int numV, int momentum_number,
   struct AffNode_s *affn = NULL, *affdir=NULL;
   char aff_key[200];
   char *aff_status_str;
+
+  total_ratime = _GET_TIME;
 
   /***********************************************
    * writer for aff output file
@@ -104,15 +106,14 @@ int distillation_vertex_displacement ( double**V, int numV, int momentum_number,
 
 #endif
 
-  total_ratime = _GET_TIME;
-
   /***********************************************/
   /***********************************************/
 
   /***********************************************
    * calculate W
    ***********************************************/
-  double **W = NULL, **work = NULL, **vv = NULL;
+  double **W = NULL, **work = NULL;
+  double _Complex **vv = NULL;
 
   exitstatus = init_2level_buffer ( &W, numV, _GVI(VOL3) );
   if( exitstatus != 0 ) {
@@ -148,7 +149,7 @@ int distillation_vertex_displacement ( double**V, int numV, int momentum_number,
 
       ratime = _GET_TIME;
       for ( int i = 0; i < numV; i++ ) {
-        memcpy ( work[0], V[i], sizeof_colorvector_field );
+        memcpy ( work[0], V[i], sizeof_colorvector_field_timeslice );
         apply_displacement_colorvector ( W[i], work[0], mu, fbwd, gauge_field, timeslice );
       }
       retime = _GET_TIME;
@@ -157,7 +158,7 @@ int distillation_vertex_displacement ( double**V, int numV, int momentum_number,
       /***********************************************
        * phases for momentum projection
        ***********************************************/
-      double _Complex *phase = NULL;
+      double *phase = NULL;
       exitstatus = init_1level_buffer ( &phase, VOL3 );
       if( exitstatus != 0 ) {
         fprintf(stderr, "[distillation_vertex_displacement] Error from init_1level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -222,7 +223,7 @@ int distillation_vertex_displacement ( double**V, int numV, int momentum_number,
         if ( io_proc >= 1 ) {
           aff_ratime = _GET_TIME;
 #ifdef HAVE_LHPC_AFF
-          sprintf ( aff_key, "%s/v-Dp-v/t%.2d/fbwd%d/mu%d/px%.2dpy%.2dpz%.2d/g%.2d", tag, timeslice+g_proc_coords[0]*T, fbwd, mu, momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2] );
+          sprintf ( aff_key, "%s/v-Dp-v/t%.2d/fbwd%d/mu%d/px%.2dpy%.2dpz%.2d", tag, timeslice+g_proc_coords[0]*T, fbwd, mu, momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2] );
           
           affdir = aff_writer_mkpath(affw, affn, aff_key );
 
