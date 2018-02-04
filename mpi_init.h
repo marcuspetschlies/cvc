@@ -135,6 +135,18 @@ extern MPI_Datatype contraction_z_slice_vector;
 extern MPI_Datatype contraction_z_subslice_cont;
 extern MPI_Datatype contraction_z_slice_cont;
 
+extern MPI_Datatype nvector_3d_point;
+extern MPI_Datatype nvector_3d_x_slice_vector;
+extern MPI_Datatype nvector_3d_x_subslice_cont;
+extern MPI_Datatype nvector_3d_x_slice_cont;
+
+extern MPI_Datatype nvector_3d_y_slice_vector;
+extern MPI_Datatype nvector_3d_y_subslice_cont;
+extern MPI_Datatype nvector_3d_y_slice_cont;
+
+extern MPI_Datatype nvector_3d_z_slice_vector;
+extern MPI_Datatype nvector_3d_z_slice_cont;
+
 
 
 #  endif
