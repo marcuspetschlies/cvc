@@ -157,8 +157,7 @@ MPI_Datatype contraction_z_slice_cont;
 
 /* nvector_3d slices */
 
-MPI_Datatype nvector_3d_x_slice_vector;
-MPI_Datatype nvector_3d_x_subslice_cont;
+MPI_Datatype nvector_3d_point;
 MPI_Datatype nvector_3d_x_slice_cont;
 
 MPI_Datatype nvector_3d_y_slice_vector;
@@ -1670,15 +1669,15 @@ void mpi_init_xchange_nvector_3d( int N ) {
 
   /* ------------------------------------------------------------------------ */
 #if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) 
-  MPI_Type_contiguous(LY*LZ, nvector_3d_point, &nvector_3d_x_subslice_cont);
-  MPI_Type_commit(&nvector_3d_x_subslice_cont);
+  MPI_Type_contiguous(LY*LZ, nvector_3d_point, &nvector_3d_x_slice_cont);
+  MPI_Type_commit(&nvector_3d_x_slice_cont);
 
   /* ------------------------------------------------------------------------ */
 
   MPI_Type_contiguous(LZ, nvector_3d_point, &nvector_3d_y_subslice_cont);
   MPI_Type_commit(&nvector_3d_y_subslice_cont);
 
-  MPI_Type_vector(LX, 1, LY, &nvector_3d_y_subslice_cont, &nvector_3d_y_slice_vector);
+  MPI_Type_vector(LX, 1, LY, nvector_3d_y_subslice_cont, &nvector_3d_y_slice_vector);
   MPI_Type_commit(&nvector_3d_y_slice_vector);
 
   MPI_Type_contiguous(LX*LZ, nvector_3d_point, &nvector_3d_y_slice_cont);
@@ -1704,8 +1703,6 @@ void mpi_fini_xchange_nvector_3d (void) {
   MPI_Type_free(&nvector_3d_y_slice_vector);
   MPI_Type_free(&nvector_3d_y_subslice_cont);
   MPI_Type_free(&nvector_3d_x_slice_cont);
-  MPI_Type_free(&nvector_3d_x_slice_vector);
-  MPI_Type_free(&nvector_3d_x_subslice_cont);
 #endif
 #endif
 }
