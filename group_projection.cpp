@@ -2636,10 +2636,8 @@ int irrep_multiplicity (rot_mat_table_type *rirrep, rot_mat_table_type *rspin, i
 /***********************************************************/
 /***********************************************************/
 
-STOPPED HERE; need to differentiate rid and rmid in product functions using rotation table
-
-
-static inline int product_vector_coords2index ( int *coords, int *dim, int n ) {
+#if 0
+inline int product_vector_coords2index ( int *coords, int *dim, int n ) {
   int idx = coords[0];
   for ( int i = 1; i < n; i++ ) {
     idx = dim[i] * idx + coords[i];
@@ -2649,38 +2647,46 @@ static inline int product_vector_coords2index ( int *coords, int *dim, int n ) {
 /***********************************************************/
 /***********************************************************/
 
-static inline void product_vector_index2coords ( int idx, int *coords, int *dim, int n ) {
+inline void product_vector_index2coords ( int idx, int *coords, int *dim, int n ) {
   int ll = 1;
   for ( int i = n-1; i >= 0; i-- ) {
     coords[i] = (idx % (ll*dim[i])) / ll;
     idx      -= coords[i] * ll;
-    ll       *= dims[i];
+    ll       *= dim[i];
   }
 }  /* end of product intex */
 
+
 /***********************************************************/
 /***********************************************************/
-static inline void product_vector_set_element ( double _Complex*v, double _Complex c, int *coords, int *dim, int n ) {
+inline void product_vector_set_element ( double _Complex*v, double _Complex c, int *coords, int *dim, int n ) {
   v[ product_vector_coords2index ( coords, dim, n ) ] = c;
 }  /* end of product_vector_set_element */
+#endif
 
 /***********************************************************/
 /***********************************************************/
 
-static inline void product_vector_printf ( double _Complex *v, int*dim, int n, char*name, FILE*ofs ) {
+void product_vector_printf ( double _Complex *v, int*dim, int n, char*name, FILE*ofs ) {
 
   int pdim = 1;
   for ( int i = 0; i < n; i++ ) pdim*=dim[i];
   int*coords = NULL;
   init_1level_ibuffer ( &coords, n );
 
+  fprintf( ofs, "# [product_vector_printf] %s\n", name);
+  fprintf( ofs, "   %s <- array( dim=c( %d", name, dim[0]);
+  for ( int i = 1; i < n; i++ ) fprintf( ofs, ", %d ", dim[i] );
+  fprintf( ofs, ") )\n");
+
   for ( int idx = 0; idx < pdim; idx++ ) {
     product_vector_index2coords ( idx, coords, dim, n );
-    fprintf( ofs, "# [product_vector_printf] ");
-    for ( int i = 0; i < n; i++ ) fprintf( ofs, " %2d ", coords[i] );
-    fprintf( ofs, "%25.16e %25.16e\n", creal(v[idx]), cimag(v[idx]) );
+    fprintf( ofs, "   %s[ %d", name, coords[0]+1);
+    for ( int i = 1; i < n; i++ ) fprintf( ofs, ", %2d ", coords[i]+1 );
+    fprintf( ofs, "] <- %25.16e + %25.16e*1.i\n", creal(v[idx]), cimag(v[idx]) );
   }
 
+  fini_1level_ibuffer ( &coords );
   return;
 }  /* end of function product_vector_printf */
 
@@ -2688,7 +2694,7 @@ static inline void product_vector_printf ( double _Complex *v, int*dim, int n, c
 /***********************************************************/
 /***********************************************************/
 
-void product_vector_project_accum ( double _Complex *v, rot_mat_table_type*r, int id, double _Complex *v0, double _Complex c1, double _Complex c2, int *dim , int n ) {
+void product_vector_project_accum ( double _Complex *v, rot_mat_table_type*r, int rid, int rmid, double _Complex *v0, double _Complex c1, double _Complex c2, int *dim , int n ) {
 
   int **coords=NULL;
   int pdim =1;
@@ -2696,16 +2702,23 @@ void product_vector_project_accum ( double _Complex *v, rot_mat_table_type*r, in
   for ( int i = 0; i < n; i++ ) pdim *= dim[i];
 
   init_2level_ibuffer ( &coords, pdim, n );
-  for ( int i=0; i < pdim, i++ ) product_vector_index2coords ( i, coords[i], dim, n );
+  for ( int i=0; i < pdim; i++ ) product_vector_index2coords ( i, coords[i], dim, n );
 
   for ( int idx = 0; idx < pdim; idx++ ) {
-    double _Complex r = 0.;
+
+    double _Complex res = 0.;
+
     for ( int kdx = 0; kdx < pdim; kdx++ ) {
       double _Complex a = 1.;
-      for ( int l = 0; l < n; l++ ) a *= r[l].R[id][coords[idx][l]][coords[kdx][l]];
-      r += a * v0[kdx];
+      if ( rid > -1 ) {
+        for ( int l = 0; l < n; l++ ) a *= r[l].R[rid][coords[idx][l]][coords[kdx][l]];
+      } else if ( rmid > -1 ) {
+        for ( int l = 0; l < n; l++ ) a *= r[l].IR[rmid][coords[idx][l]][coords[kdx][l]];
+      } else { a = 0.; }
+
+      res += a * v0[kdx];
     }
-    v[idx] = c2 * v[idx] + c1 * r;
+    v[idx] = c2 * v[idx] + c1 * res;
   }
 
   fini_2level_ibuffer ( &coords );
@@ -2715,7 +2728,7 @@ void product_vector_project_accum ( double _Complex *v, rot_mat_table_type*r, in
 
 /***********************************************************/
 /***********************************************************/
-void product_mat_pl_eq_mat_ti_co ( double _Complex **R, rot_mat_table_type *r, int id, double _Complex c, dim, int n ) {
+void product_mat_pl_eq_mat_ti_co ( double _Complex **R, rot_mat_table_type *r, int rid, int rmid, double _Complex c, int*dim, int n ) {
   
   int **coords=NULL;
   int pdim =1;
@@ -2723,12 +2736,17 @@ void product_mat_pl_eq_mat_ti_co ( double _Complex **R, rot_mat_table_type *r, i
   for ( int i = 0; i < n; i++ ) pdim *= dim[i];
 
   init_2level_ibuffer ( &coords, pdim, n );
-  for ( int i=0; i < pdim, i++ ) product_vector_index2coords ( i, coords[i], dim, n );
+  for ( int i=0; i < pdim; i++ ) product_vector_index2coords ( i, coords[i], dim, n );
 
   for ( int idx  = 0; idx < pdim; idx++ ) {
     for ( int kdx  = 0; kdx < pdim; kdx++ ) {
       double _Complex a = 1.;
-      for ( int l = 0; l < n; l++ ) a *= r[l].R[id][coords[idx][l]][coords[kdx][l]];
+      if ( rid > -1 ) {
+        for ( int l = 0; l < n; l++ ) a *= r[l].R[rid][coords[idx][l]][coords[kdx][l]];
+        /* fprintf ( stdout, "# [product_mat_pl_eq_mat_ti_co] idx %3d kdx %3d a %25.16e %25.16e\n", idx, kdx, creal(a), cimag(a) ); */
+      } else if ( rmid > -1 ) {
+        for ( int l = 0; l < n; l++ ) a *= r[l].IR[rmid][coords[idx][l]][coords[kdx][l]];
+      } else { a = 0.;}
       R[idx][kdx] += c * a;
     }
   }
@@ -2736,6 +2754,48 @@ void product_mat_pl_eq_mat_ti_co ( double _Complex **R, rot_mat_table_type *r, i
   fini_2level_ibuffer ( &coords );
   return;
 }  /* end of product_mat_pl_eq_mat_ti_co */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * print a direct product matrix
+ ***********************************************************/
+int product_mat_printf ( double _Complex **R, int *dim, int n, char *name, FILE*ofs ) {
+
+  int **coords=NULL;
+  int pdim =1;
+  for ( int i = 0; i < n; i++ ) pdim *= dim[i];
+
+  if ( init_2level_ibuffer ( &coords, pdim, n ) != 0 ) {
+    fprintf (stderr, "[product_mat_printf] Error from init_2level_ibuffer\n");
+    return(1);
+  }
+  for ( int i=0; i < pdim; i++ ) product_vector_index2coords ( i, coords[i], dim, n );
+
+  fprintf ( ofs, "# [product_mat_printf] %s\n", name);
+  fprintf ( ofs, "%s <- array( dim=c( %d", name, dim[0] );
+  for ( int i = 1; i < n; i++ ) fprintf( ofs, ", %d ", dim[i] );
+  for ( int i = 0; i < n; i++ ) fprintf( ofs, ", %d ", dim[i] );
+  fprintf ( ofs, "))\n" );
+
+  for ( int idx  = 0; idx < pdim; idx++ ) {
+
+    for ( int kdx  = 0; kdx < pdim; kdx++ ) {
+
+      fprintf ( ofs, "%s[%2d", name, coords[idx][0]+1 );
+      for ( int i = 1; i < n; i++ ) fprintf( ofs, ", %2d ", coords[idx][i]+1 );
+      for ( int i = 0; i < n; i++ ) fprintf( ofs, ", %2d ", coords[kdx][i]+1 );
+      fprintf ( ofs, "] <- %25.16e + %25.16e*1.i\n", creal( R[idx][kdx] ), cimag( R[idx][kdx] ) );
+    }
+  }
+  
+  fini_2level_ibuffer ( &coords );
+  return(0);
+}  /* end of product_mat_printf */
 
 /***********************************************************/
 /***********************************************************/
@@ -2780,7 +2840,7 @@ int little_group_projector_apply_product ( little_group_projector_type *p , FILE
   /***********************************************************
    * initialize spin vectors according to ref_row_spin
    ***********************************************************/
-  product_vector_set_element ( sv0, 1.0, ref_row_spin, spin_dimensions, p->n );
+  product_vector_set_element ( sv0, 1.0, p->ref_row_spin, spin_dimensions, p->n );
 
   product_vector_printf ( sv0, spin_dimensions, p->n,  "v0", ofs );
 
@@ -2800,7 +2860,7 @@ int little_group_projector_apply_product ( little_group_projector_type *p , FILE
   /***********************************************************
    * allocate sv1
    ***********************************************************/
-  exitstatus = init_2level_zbuffer ( &sv1, p->target->dim, pdim );
+  exitstatus = init_2level_zbuffer ( &sv1, p->rtarget->dim, pdim );
   if ( exitstatus != 0 ) {
     fprintf ( stderr, "[little_group_projector_apply_product] Error from init_2level_zbuffer, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
     return(1);
@@ -2814,7 +2874,7 @@ int little_group_projector_apply_product ( little_group_projector_type *p , FILE
    ***********************************************************/
   for ( int row_target = 0; row_target < p->rtarget->dim; row_target++ ) {
 
-    double _Complex **Rsv = NULL, **IRsv = NULL;
+    double _Complex *Rsv = NULL, *IRsv = NULL;
 
     exitstatus = init_1level_zbuffer( &Rsv,  pdim );
     exitstatus = init_1level_zbuffer( &IRsv, pdim );
@@ -2844,13 +2904,13 @@ int little_group_projector_apply_product ( little_group_projector_type *p , FILE
        * loop on interpolators
        ***********************************************************/
       for ( int k = 0; k < p->n; k++ ) {
-        product_vector_project_accum ( Rsv, p->rspin, rid, sv0, z_irrep_matrix_coeff, 1., spin_dimensions, n );
+        product_vector_project_accum ( Rsv, p->rspin, rid, -1, sv0, z_irrep_matrix_coeff, 1., spin_dimensions, p->n );
       }
 
       /***********************************************************
        * TEST
        ***********************************************************/
-      product_mat_pl_eq_mat_ti_co ( R, p->rspin, rid, z_irrep_matrix_coeff, spin_dimensions, n );
+      product_mat_pl_eq_mat_ti_co ( R, p->rspin, rid, -1, z_irrep_matrix_coeff, spin_dimensions, p->n );
       /***********************************************************
        * END OF TEST
        ***********************************************************/
@@ -2905,13 +2965,13 @@ int little_group_projector_apply_product ( little_group_projector_type *p , FILE
          * loop on interpolators
          ***********************************************************/
         for ( int k = 0; k < p->n; k++ ) {
-          product_vector_project_accum ( IRsv, p->rspin, rmid, sv0, z_irrep_matrix_coeff, 1., spin_dimensions, n );
+          product_vector_project_accum ( IRsv, p->rspin, -1, rmid, sv0, z_irrep_matrix_coeff, 1., spin_dimensions, p->n );
         }
 
         /***********************************************************
          * TEST
          ***********************************************************/
-        product_mat_pl_eq_mat_ti_co ( IR, p->rspin, rmid, z_irrep_matrix_coeff, spin_dimensions, n );
+        product_mat_pl_eq_mat_ti_co ( IR, p->rspin, -1, rmid, z_irrep_matrix_coeff, spin_dimensions, p->n );
         /***********************************************************
          * END OF TEST
          ***********************************************************/
@@ -2969,15 +3029,16 @@ int little_group_projector_apply_product ( little_group_projector_type *p , FILE
   /***********************************************************/
   /***********************************************************/
 
+#if 0
   /***********************************************************
    * check rotation properties of RR, deallocate RR
    ***********************************************************/
-
   exitstatus = product_mat_table_rotate_multiplett ( &RR, p->rspin, p->rtarget, p->n, !frame_is_cmf, ofs);
   if ( exitstatus != 0 ) {
     fprintf( stderr, "[little_group_projector_apply_product] Error from rot_mat_table_rotate_multiplett, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     return(1);
   }
+#endif
   fini_rot_mat_table ( &RR );
 
 
@@ -2998,10 +3059,11 @@ int little_group_projector_apply_product ( little_group_projector_type *p , FILE
 /***********************************************************/
 /***********************************************************/
 
+#if 0
 /***********************************************************
  * rotate a projection matrix multiplett for product matrix
  ***********************************************************/
-int rot_mat_table_rotate_multiplett ( rot_mat_table_type *rtab, rot_mat_table_type *rapply, rot_mat_table_type *rtarget, int n, int with_IR, FILE*ofs ) {
+int rot_mat_table_rotate_multiplett_product ( rot_mat_table_type *rtab, rot_mat_table_type *rapply, rot_mat_table_type *rtarget, int n, int with_IR, FILE*ofs ) {
 
   int pdim = 1;
   for ( int = 0; i < n; i++ ) pdim *= rapply[i].dim;
@@ -3098,7 +3160,7 @@ int rot_mat_table_rotate_multiplett ( rot_mat_table_type *rtab, rot_mat_table_ty
   }  /* end of loop on elements of rtab */
 
 }  /* end of rot_mat_table_rotate_multiplett_product */
-
+#endif
 /***********************************************************/
 /***********************************************************/
 }  /* end of namespace cvc */
