@@ -2636,9 +2636,6 @@ int irrep_multiplicity (rot_mat_table_type *rirrep, rot_mat_table_type *rspin, i
 /***********************************************************/
 /***********************************************************/
 
-STOPPED HERE; need to differentiate rid and rmid in product functions using rotation table
-
-
 static inline int product_vector_coords2index ( int *coords, int *dim, int n ) {
   int idx = coords[0];
   for ( int i = 1; i < n; i++ ) {
@@ -2688,7 +2685,7 @@ static inline void product_vector_printf ( double _Complex *v, int*dim, int n, c
 /***********************************************************/
 /***********************************************************/
 
-void product_vector_project_accum ( double _Complex *v, rot_mat_table_type*r, int id, double _Complex *v0, double _Complex c1, double _Complex c2, int *dim , int n ) {
+void product_vector_project_accum ( double _Complex *v, rot_mat_table_type*r, int rid, int rmid, double _Complex *v0, double _Complex c1, double _Complex c2, int *dim , int n ) {
 
   int **coords=NULL;
   int pdim =1;
@@ -2702,7 +2699,11 @@ void product_vector_project_accum ( double _Complex *v, rot_mat_table_type*r, in
     double _Complex r = 0.;
     for ( int kdx = 0; kdx < pdim; kdx++ ) {
       double _Complex a = 1.;
-      for ( int l = 0; l < n; l++ ) a *= r[l].R[id][coords[idx][l]][coords[kdx][l]];
+      if ( rid > -1 ) {
+        for ( int l = 0; l < n; l++ ) a *= r[l].R[rid][coords[idx][l]][coords[kdx][l]];
+      } else if ( rmid > -1 ) {
+        for ( int l = 0; l < n; l++ ) a *= r[l].IR[rmid][coords[idx][l]][coords[kdx][l]];
+      } else {a = 0.;}
       r += a * v0[kdx];
     }
     v[idx] = c2 * v[idx] + c1 * r;
@@ -2715,7 +2716,7 @@ void product_vector_project_accum ( double _Complex *v, rot_mat_table_type*r, in
 
 /***********************************************************/
 /***********************************************************/
-void product_mat_pl_eq_mat_ti_co ( double _Complex **R, rot_mat_table_type *r, int id, double _Complex c, dim, int n ) {
+void product_mat_pl_eq_mat_ti_co ( double _Complex **R, rot_mat_table_type *r, int rid, int rmid, double _Complex c, int *dim, int n ) {
   
   int **coords=NULL;
   int pdim =1;
@@ -2728,7 +2729,11 @@ void product_mat_pl_eq_mat_ti_co ( double _Complex **R, rot_mat_table_type *r, i
   for ( int idx  = 0; idx < pdim; idx++ ) {
     for ( int kdx  = 0; kdx < pdim; kdx++ ) {
       double _Complex a = 1.;
-      for ( int l = 0; l < n; l++ ) a *= r[l].R[id][coords[idx][l]][coords[kdx][l]];
+      if ( rid > -1 ) {
+        for ( int l = 0; l < n; l++ ) a *= r[l].R[rid][coords[idx][l]][coords[kdx][l]];
+      } else if ( rid > -1 ) {
+        for ( int l = 0; l < n; l++ ) a *= r[l].IR[rmid][coords[idx][l]][coords[kdx][l]];
+      } else { a = 0.; }
       R[idx][kdx] += c * a;
     }
   }
@@ -2844,13 +2849,13 @@ int little_group_projector_apply_product ( little_group_projector_type *p , FILE
        * loop on interpolators
        ***********************************************************/
       for ( int k = 0; k < p->n; k++ ) {
-        product_vector_project_accum ( Rsv, p->rspin, rid, sv0, z_irrep_matrix_coeff, 1., spin_dimensions, n );
+        product_vector_project_accum ( Rsv, p->rspin, rid, -1, sv0, z_irrep_matrix_coeff, 1., spin_dimensions, n );
       }
 
       /***********************************************************
        * TEST
        ***********************************************************/
-      product_mat_pl_eq_mat_ti_co ( R, p->rspin, rid, z_irrep_matrix_coeff, spin_dimensions, n );
+      product_mat_pl_eq_mat_ti_co ( R, p->rspin, rid, -1, z_irrep_matrix_coeff, spin_dimensions, n );
       /***********************************************************
        * END OF TEST
        ***********************************************************/
@@ -2905,13 +2910,13 @@ int little_group_projector_apply_product ( little_group_projector_type *p , FILE
          * loop on interpolators
          ***********************************************************/
         for ( int k = 0; k < p->n; k++ ) {
-          product_vector_project_accum ( IRsv, p->rspin, rmid, sv0, z_irrep_matrix_coeff, 1., spin_dimensions, n );
+          product_vector_project_accum ( IRsv, p->rspin, -1, rmid, sv0, z_irrep_matrix_coeff, 1., spin_dimensions, n );
         }
 
         /***********************************************************
          * TEST
          ***********************************************************/
-        product_mat_pl_eq_mat_ti_co ( IR, p->rspin, rmid, z_irrep_matrix_coeff, spin_dimensions, n );
+        product_mat_pl_eq_mat_ti_co ( IR, p->rspin, -1, rmid, z_irrep_matrix_coeff, spin_dimensions, n );
         /***********************************************************
          * END OF TEST
          ***********************************************************/
