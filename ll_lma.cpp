@@ -315,6 +315,21 @@ int main(int argc, char **argv) {
   /***********************************************************/
 
   /***********************************************************
+   *
+   ***********************************************************/
+  sprintf ( aff_tag, "%s.%.4d", outfile_prefix, Nconf );
+  exitstatus = gsp_write_eval( evecs_eval, evecs_num, aff_tag);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[ll_lma] Error from gsp_write_eval, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(38);
+  }
+
+
+
+  /***********************************************************/
+  /***********************************************************/
+
+  /***********************************************************
    * allocate memory for the eigenvector fields
    ***********************************************************/
   eo_evecs_field = (double**)calloc(evecs_num, sizeof(double*));
