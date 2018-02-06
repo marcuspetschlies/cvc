@@ -287,6 +287,7 @@ void gsp_make_o_phase_field_sliced3d (double _Complex**phase, int *momentum) {
   if(g_cart_id == 0) fprintf(stdout, "# [gsp_make_o_phase_field_sliced3d] time for making eo phase field = %e seconds\n", retime-ratime);
 }  /* end of gsp_make_o_phase_field_sliced3d */
 
+#if 0
 /***********************************************
  * phase field on even/odd sublattice in sliced 3d
  * ordering (which I think is the same as odd
@@ -344,6 +345,13 @@ void gsp_make_eo_phase_field_sliced3d (double _Complex**phase, int *momentum, in
   retime = _GET_TIME;
   if(g_cart_id == 0) fprintf(stdout, "# [gsp_make_o_phase_field_sliced3d] time for making eo phase field = %e seconds\n", retime-ratime);
 }  /* end of gsp_make_o_phase_field_sliced3d */
+
+#endif
+
+/***********************************************************************************************/
+/***********************************************************************************************/
+
+#if 0
 
 /***********************************************************************************************
  ***********************************************************************************************
@@ -714,6 +722,8 @@ int gsp_calculate_v_dag_gamma_p_w(double**V, double**W, int num, int momentum_nu
 
 }  /* end of gsp_calculate_v_dag_gamma_p_w */
 
+#endif
+
 /***********************************************************************************************/
 /***********************************************************************************************/
 
@@ -845,9 +855,6 @@ int gsp_write_eval(double *eval, int num, char*tag) {
    * output file
    ***********************************************/
 #ifdef HAVE_LHPC_AFF
-    aff_status_str = (char*)aff_version();
-    fprintf(stdout, "# [gsp_write_eval] using aff version %s\n", aff_status_str);
-
     sprintf(filename, "%s.aff", tag);
     fprintf(stdout, "# [gsp_write_eval] writing eigenvalue data from file %s\n", filename);
     affw = aff_writer(filename);
@@ -877,7 +884,7 @@ int gsp_write_eval(double *eval, int num, char*tag) {
       return(4);
     }
 #else
-    sprintf(filename, "%s", tag );
+    sprintf(filename, "%s.eval", tag );
     ofs = fopen(filename, "w");
     if(ofs == NULL) {
       fprintf(stderr, "[gsp_write_eval] Error, could not open file %s for writing\n", filename);
