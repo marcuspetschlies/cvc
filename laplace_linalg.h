@@ -4,6 +4,9 @@
 #include "cvc_complex.h"
 #include "cvc_linalg.h"
 /* color dimension: 3 */
+
+namespace cvc {
+
 #define _cv_eq_zero(_r) {\
 (_r)[ 0] = 0.;\
 (_r)[ 1] = 0.;\
@@ -227,7 +230,11 @@ fprintf( (_ofs), "\n\n");\
   (_c) +=  (_r)[ 4] * (_s)[ 4] + (_r)[ 5] * (_s)[ 5];\
 }
 
-
+#define _re_eq_cv_dag_ti_cv(_c, _r, _s) {\
+  (_c)  =  (_r)[ 0] * (_s)[ 0] + (_r)[ 1] * (_s)[ 1];\
+  (_c) +=  (_r)[ 2] * (_s)[ 2] + (_r)[ 3] * (_s)[ 3];\
+  (_c) +=  (_r)[ 4] * (_s)[ 4] + (_r)[ 5] * (_s)[ 5];\
+}
 
 /* triple product of three color vectors */
 #if 0
@@ -290,9 +297,7 @@ inline void _co_eq_cv_dot_cv_cross_cv(double *_c, double *_u, double *_v, double
   (_c)[0] += (_u)[4] * _a_re - (_u)[5] * _a_im;
   (_c)[1] += (_u)[5] * _a_re + (_u)[4] * _a_im;
 
-
-
 }
 
-
+}
 #endif

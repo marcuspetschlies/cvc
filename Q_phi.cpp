@@ -1505,6 +1505,11 @@ void apply_displacement_colorvector (double *s, double *r, int mu, int fbwd, dou
 
   const unsigned int N = LX*LY*LZ;
 
+  if ( mu < 1 || mu > 3 ) {
+    fprintf( stderr, "[apply_displacement_colorvector] Error, direction must be 1, 2 or 3\n");
+    return;
+  }
+
 #ifdef HAVE_MPI
   xchange_nvector_3d( r, _GVI(1), mu );
 #endif
@@ -1538,7 +1543,7 @@ void apply_displacement_colorvector (double *s, double *r, int mu, int fbwd, dou
       U_fwd = gauge_field+_GGI(ix_gauge,mu);
 
       /* ix_fwd */
-      ix_fwd = g_iup_3d[ix][mu];
+      ix_fwd = g_iup_3d[ix][mu-1];
 
       r_fwd_ = r + _GVI(ix_fwd);
 
@@ -1578,7 +1583,7 @@ void apply_displacement_colorvector (double *s, double *r, int mu, int fbwd, dou
       U_bwd = gauge_field+_GGI( g_idn[ix_gauge][mu], mu);
 
       /* ix_bwd */
-      ix_bwd = g_idn_3d[ix][mu];
+      ix_bwd = g_idn_3d[ix][mu-1];
 
       r_bwd_ = r + _GVI(ix_bwd);
 
