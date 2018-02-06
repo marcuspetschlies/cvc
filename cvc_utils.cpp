@@ -1979,7 +1979,7 @@ void init_gauge_trafo(double **g, double heat) {
 
   if(g_cart_id==0) fprintf(stdout, "# [init_gauge_trafo] initialising random gauge transformation\n");
 
-  *g = (double*)calloc(18*VOLUMEPLUSRAND, sizeof(double));
+  *g = (double*)calloc(18*(VOLUME+RAND), sizeof(double));
   if(*g==(double*)NULL) {
     fprintf(stderr, "[init_gauge_trafo] not enough memory\n");
     EXIT(1);
@@ -2043,164 +2043,14 @@ void init_gauge_trafo(double **g, double heat) {
 
   /* exchange the field */
 
-/*
-  fprintf(stdout, "\n# [init_gauge_trafo] The gauge trafo field:\n");
-  fprintf(stdout, "\n\tg <- array(0., dim=c(%d,%d,%d))\n", VOLUME, 3,3);
-  for(ix=0; ix<VOLUME; ix++) {
-    for(i=0;i<9;i++) {
-      fprintf(stdout, "\tg[%6d,%d,%d] <- %25.16e + %25.16e*1.i\n", ix+1, i/3+1, i%3+1, (*g)[2*(9*ix+i)], (*g)[2*(9*ix+i)+1]);
-    }
-  }
-*/
 #ifdef HAVE_MPI
+  xchanger_type xc;
+  mpi_init_xchanger ( &xc, 18 );
 
-  cntr = 0;
+  mpi_xchanger ( *g, &xc );
 
-  MPI_Isend(&(*g)[0], 18*LX*LY*LZ, MPI_DOUBLE, g_nb_t_dn, 83, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&(*g)[18*VOLUME], 18*LX*LY*LZ, MPI_DOUBLE, g_nb_t_up, 83, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Isend(&(*g)[18*(T-1)*LX*LY*LZ], 18*LX*LY*LZ, MPI_DOUBLE, g_nb_t_up, 84, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&(*g)[18*(T+1)*LX*LY*LZ], 18*LX*LY*LZ, MPI_DOUBLE, g_nb_t_dn, 84, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Waitall(cntr, request, status);
+  mpi_fini_xchanger ( &xc );
 #endif
-
-
-#ifdef HAVE_MPI
-  int cntr=0;
-  MPI_Request request[120];
-  MPI_Status status[120];
-
-  MPI_Isend(&gfield[0],         1, gauge_time_slice_cont, g_nb_t_dn, 83, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*VOLUME], 1, gauge_time_slice_cont, g_nb_t_up, 83, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Isend(&gfield[72*(T-1)*LX*LY*LZ], 1, gauge_time_slice_cont, g_nb_t_up, 84, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(T+1)*LX*LY*LZ], 1, gauge_time_slice_cont, g_nb_t_dn, 84, g_cart_grid, &request[cntr]);
-  cntr++;
-
-#if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ)
-  MPI_Isend(&gfield[0],                              1, gauge_x_slice_vector, g_nb_x_dn, 85, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+2*LX*LY*LZ)],         1, gauge_x_slice_cont,   g_nb_x_up, 85, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Isend(&gfield[72*(LX-1)*LY*LZ],                1, gauge_x_slice_vector, g_nb_x_up, 86, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+2*LX*LY*LZ+T*LY*LZ)], 1, gauge_x_slice_cont,   g_nb_x_dn, 86, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Waitall(cntr, request, status);
-
-  cntr = 0;
-
-  MPI_Isend(&gfield[72*(VOLUME+2*LX*LY*LZ)], 1, gauge_xt_edge_vector, g_nb_t_dn, 87, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+RAND)], 1, gauge_xt_edge_cont, g_nb_t_up, 87, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Isend(&gfield[72*(VOLUME+2*LX*LY*LZ+(T-1)*LY*LZ)], 1, gauge_xt_edge_vector, g_nb_t_up, 88, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+RAND+2*LY*LZ)], 1, gauge_xt_edge_cont, g_nb_t_dn, 88, g_cart_grid, &request[cntr]);
-  cntr++;
-#endif
-
-#if defined PARALLELTXY || (defined PARALLELTXYZ)
-  MPI_Isend(&gfield[0], 1, gauge_y_slice_vector, g_nb_y_dn, 89, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ)], 1, gauge_y_slice_cont, g_nb_y_up, 89, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Isend(&gfield[72*(LY-1)*LZ], 1, gauge_y_slice_vector, g_nb_y_up, 90, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ+T*LX*LZ)], 1, gauge_y_slice_cont, g_nb_y_dn, 90, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Waitall(cntr, request, status);
-
-  cntr = 0;
-
-  MPI_Isend(&gfield[72*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ)], 1, gauge_yt_edge_vector, g_nb_t_dn, 91, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+RAND+4*LY*LZ)], 1, gauge_yt_edge_cont, g_nb_t_up, 91, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Isend(&gfield[72*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ+(T-1)*LX*LZ)], 1, gauge_yt_edge_vector, g_nb_t_up, 92, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+RAND+4*LY*LZ+2*LX*LZ)], 1, gauge_yt_edge_cont, g_nb_t_dn, 92, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Isend(&gfield[72*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ)], 1, gauge_yx_edge_vector, g_nb_x_dn, 93, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+RAND+4*LY*LZ+4*LX*LZ)], 1, gauge_yx_edge_cont, g_nb_x_up, 93, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Isend(&gfield[72*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ+(LX-1)*LZ)], 1, gauge_yx_edge_vector, g_nb_x_up, 94, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+RAND+4*LY*LZ+4*LX*LZ+2*T*LZ)], 1, gauge_yx_edge_cont, g_nb_x_dn, 94, g_cart_grid, &request[cntr]);
-  cntr++;
-#endif
-
-#if defined PARALLELTXYZ
-  /* boundary faces */
-  MPI_Isend(&gfield[0], 1, gauge_z_slice_vector, g_nb_z_dn, 95, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+2*( LX*LY*LZ + T*LY*LZ + T*LX*LZ ) )], 1, gauge_z_slice_cont, g_nb_z_up, 95, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Isend(&gfield[72*(LZ-1)], 1, gauge_z_slice_vector, g_nb_z_up, 96, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+2*(LX*LY*LZ + T*LY*LZ + T*LX*LZ) + T*LX*LY)], 1, gauge_z_slice_cont, g_nb_z_dn, 96, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Waitall(cntr, request, status);
-
-
-  /* boundary edges */
-
-  cntr = 0;
-
-  /* z-t edges */
-  MPI_Isend(&gfield[72*(VOLUME+2*( LX*LY*LZ + T*LY*LZ + T*LX*LZ )          )], 1, gauge_zt_edge_vector, g_nb_t_dn,  97, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+RAND+4*(LY*LZ + LX*LZ + T*LZ)               )], 1, gauge_zt_edge_cont,   g_nb_t_up,  97, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Isend(&gfield[72*(VOLUME+2*(LX*LY*LZ + T*LY*LZ + T*LX*LZ)+(T-1)*LX*LY)], 1, gauge_zt_edge_vector, g_nb_t_up,  98, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+RAND+4*(LY*LZ + LX*LZ + T*LZ) + 2*LX*LY     )], 1, gauge_zt_edge_cont,   g_nb_t_dn,  98, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  /* z-x edges */
-  MPI_Isend(&gfield[72*(VOLUME+2*( LX*LY*LZ + T*LY*LZ + T*LX*LZ )             )], 1, gauge_zx_edge_vector, g_nb_x_dn, 99, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+RAND+4*(LY*LZ + LX*LZ + T*LZ + LX*LY)          )], 1, gauge_zx_edge_cont,   g_nb_x_up, 99, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Isend(&gfield[72*(VOLUME+2*( LX*LY*LZ + T*LY*LZ + T*LX*LZ ) + (LX-1)*LY )], 1, gauge_zx_edge_vector, g_nb_x_up, 100, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+RAND+4*(LY*LZ + LX*LZ + T*LZ + LX*LY) + 2*T*LY )], 1, gauge_zx_edge_cont,   g_nb_x_dn, 100, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  /* z-y edges */
-  MPI_Isend(&gfield[72*(VOLUME+2*( LX*LY*LZ + T*LY*LZ + T*LX*LZ )                    )], 1, gauge_zy_edge_vector, g_nb_y_dn, 101, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+RAND+4*(LY*LZ + LX*LZ + T*LZ + LX*LY + T*LY)          )], 1, gauge_zy_edge_cont,   g_nb_y_up, 101, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Isend(&gfield[72*(VOLUME+2*( LX*LY*LZ + T*LY*LZ + T*LX*LZ ) + (LY-1)           )], 1, gauge_zy_edge_vector, g_nb_y_up, 102, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&gfield[72*(VOLUME+RAND+4*(LY*LZ + LX*LZ + T*LZ + LX*LY + T*LY) + 2*T*LX )], 1, gauge_zy_edge_cont,   g_nb_y_dn, 102, g_cart_grid, &request[cntr]);
-  cntr++;
-
-#endif
-
 
 /*
   fprintf(stdout, "Writing gauge transformation to std out\n");

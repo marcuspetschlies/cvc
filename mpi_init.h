@@ -167,6 +167,33 @@ void mpi_fini_xchange_eo_propagator(void);
 void mpi_init_xchange_nvector_3d(int N);
 void mpi_fini_xchange_nvector_3d(void);
 
+typedef struct {
+  int N;
+#ifdef HAVE_MPI
+  MPI_Datatype point;
+
+  MPI_Datatype time_slice_cont;
+
+#  if defined PARALLELTX || defined PARALLELTXY || defined PARALLELTXYZ
+
+  MPI_Datatype x_slice_vector;
+  MPI_Datatype x_subslice_cont;
+  MPI_Datatype x_slice_cont;
+
+  MPI_Datatype y_slice_vector;
+  MPI_Datatype y_subslice_cont;
+  MPI_Datatype y_slice_cont;
+
+  MPI_Datatype z_slice_vector;
+  MPI_Datatype z_subslice_cont;
+  MPI_Datatype z_slice_cont;
+#endif
+#endif
+} xchanger_type;
+
+void mpi_init_xchanger ( xchanger_type *x, int N);
+void mpi_fini_xchanger ( xchanger_type *x);
+void mpi_xchanger ( double *phi, xchanger_type *p );
 
 }  /* end of namespace cvc */
 #endif

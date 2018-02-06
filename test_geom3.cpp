@@ -273,7 +273,7 @@ int main(int argc, char **argv) {
     EXIT(38);
   }
 
-
+#if 0
   laph_evecs_num = 3;
 
   exitstatus = init_3level_buffer ( &laph_evecs_field, T, laph_evecs_num,_GVI(VOL3) );
@@ -318,11 +318,11 @@ int main(int argc, char **argv) {
       }
     }
   }
-#if 0
 #endif
 
 
 
+#if 0
   /***********************************************
    * 
    ***********************************************/
@@ -338,7 +338,6 @@ int main(int argc, char **argv) {
     }
 
   }
-#if 0
 #endif
 
 
@@ -380,7 +379,7 @@ int main(int argc, char **argv) {
   fini_2level_buffer ( &work );
 #endif
 
-#if 0
+
 
   /****************************************
    * test gauge covariance
@@ -389,9 +388,9 @@ int main(int argc, char **argv) {
   exitstatus = init_2level_buffer ( &work, 4, _GVI(VOL3+RAND3) );
 
   double *gt = NULL;
-  init_1level_buffer ( &gt, 18*VOLUME );
-  for ( unsigned int ix = 0; ix < VOLUME; ix++ ) random_cm( gt+18*ix, 1. );
-
+  // init_1level_buffer ( &gt, 18*VOLUME );
+  // for ( unsigned int ix = 0; ix < VOLUME; ix++ ) random_cm( gt+18*ix, 1. );
+  init_gauge_trafo( &gt, 1.0 );
 
   memcpy ( g_gauge_field, gauge_field_with_phase, 72*VOLUME*sizeof(double) );
 #ifdef HAVE_MPI
@@ -443,7 +442,7 @@ int main(int argc, char **argv) {
     
   fini_1level_buffer ( &gt );
   fini_2level_buffer ( &work );
-
+#if 0
 #endif
 
 

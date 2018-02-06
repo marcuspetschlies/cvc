@@ -1707,4 +1707,160 @@ void mpi_fini_xchange_nvector_3d (void) {
 #endif
 }
 
+/******************************************************************************/
+/******************************************************************************/
+
+/******************************************************************************
+ *
+ ******************************************************************************/
+void mpi_init_xchanger (xchanger_type *x, int N ) {
+#ifdef HAVE_MPI
+  x->N = N;
+
+  MPI_Type_contiguous(N, MPI_DOUBLE, &x->point);
+  MPI_Type_commit(&x->point);
+
+  /* ======================================================================== */
+
+  MPI_Type_contiguous(LX*LY*LZ, x->point, &x->time_slice_cont);
+  MPI_Type_commit(&x->time_slice_cont);
+
+  /* ------------------------------------------------------------------------ */
+#if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) 
+  MPI_Type_contiguous(LY*LZ, x->point, &x->x_subslice_cont);
+  MPI_Type_commit(&x->x_subslice_cont);
+
+  MPI_Type_vector(T, 1, LX, x->x_subslice_cont, &x->x_slice_vector);
+  MPI_Type_commit(&x->x_slice_vector);
+
+  MPI_Type_contiguous(T*LY*LZ, x->point, &x->x_slice_cont);
+  MPI_Type_commit(&x->x_slice_cont);
+
+  /* ------------------------------------------------------------------------ */
+
+  MPI_Type_contiguous(LX*LZ, x->point, &x->y_subslice_cont);
+  MPI_Type_commit(&x->y_subslice_cont);
+
+  MPI_Type_vector(T*LX, LZ, LY*LZ, x->point, &x->y_slice_vector);
+  MPI_Type_commit(&x->y_slice_vector);
+
+  MPI_Type_contiguous(T*LX*LZ, x->point, &x->y_slice_cont);
+  MPI_Type_commit(&x->y_slice_cont);
+
+  /* ------------------------------------------------------------------------ */
+
+  MPI_Type_contiguous(LX*LY, x->point, &x->z_subslice_cont);
+  MPI_Type_commit(&x->z_subslice_cont);
+
+  MPI_Type_vector(T*LX*LY, 1, LZ, x->point, &x->z_slice_vector);
+  MPI_Type_commit(&x->z_slice_vector);
+
+  MPI_Type_contiguous(T*LX*LY, x->point, &x->z_slice_cont);
+  MPI_Type_commit(&x->z_slice_cont);
+#endif  /* of if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) */
+#endif
+}  /* end of mpi_init_xchanger */
+
+/******************************************************************************/
+/******************************************************************************/
+
+/******************************************************************************
+ *
+ ******************************************************************************/
+void mpi_fini_xchanger ( xchanger_type *x) {
+#ifdef HAVE_MPI
+  x->N = 0;
+
+  MPI_Type_free( &x->point );
+  MPI_Type_free( &x->time_slice_cont);
+#if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) 
+  MPI_Type_free( &x->z_slice_cont);
+  MPI_Type_free( &x->z_slice_vector);
+  MPI_Type_free( &x->z_subslice_cont);
+  MPI_Type_free( &x->y_slice_cont);
+  MPI_Type_free( &x->y_slice_vector);
+  MPI_Type_free( &x->y_subslice_cont);
+  MPI_Type_free( &x->x_slice_cont);
+  MPI_Type_free( &x->x_slice_vector);
+  MPI_Type_free( &x->x_subslice_cont);
+#endif
+#endif
+}  /* mpi_fini_xchanger */
+
+/******************************************************************************/
+/******************************************************************************/
+
+/******************************************************************************
+ ******************************************************************************/
+
+/*****************************************************
+ * exchange a 4d VOLUME x N field
+ *   phi point to field
+ *   N number of real elements per site
+ *   ONLY EXCHANGE BOUNDARY FACES
+ *****************************************************/
+void mpi_xchanger ( double *phi, xchanger_type *p ) {
+#ifdef HAVE_MPI
+  int cntr=0;
+  int N = p->N;
+
+  MPI_Request request[120];
+  MPI_Status status[120];
+
+  MPI_Isend(&phi[0],                1, p->time_slice_cont, g_nb_t_dn, 83, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*VOLUME],         1, p->time_slice_cont, g_nb_t_up, 83, g_cart_grid, &request[cntr]);
+  cntr++;
+  
+  MPI_Isend(&phi[N*(T-1)*LX*LY*LZ], 1, p->time_slice_cont, g_nb_t_up, 84, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(T+1)*LX*LY*LZ], 1, p->time_slice_cont, g_nb_t_dn, 84, g_cart_grid, &request[cntr]);
+  cntr++;
+
+#if (defined PARALLELTX) || (defined PARALLELTXY)  || (defined PARALLELTXYZ) 
+  /* x - boundary faces */
+  MPI_Isend(&phi[0],                             1, p->x_slice_vector, g_nb_x_dn, 85, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+2*LX*LY*LZ)],         1, p->x_slice_cont,   g_nb_x_up, 85, g_cart_grid, &request[cntr]);
+  cntr++;
+  
+  MPI_Isend(&phi[N*(LX-1)*LY*LZ],                1, p->x_slice_vector, g_nb_x_up, 86, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+2*LX*LY*LZ+T*LY*LZ)], 1, p->x_slice_cont,   g_nb_x_dn, 86, g_cart_grid, &request[cntr]);
+  cntr++;
+#endif
+
+#if defined PARALLELTXY || (defined PARALLELTXYZ) 
+  /* y - boundary faces */
+  MPI_Isend(&phi[0],                                       1, p->y_slice_vector, g_nb_y_dn, 87, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+2*(LX*LY*LZ+T*LY*LZ))],         1, p->y_slice_cont,   g_nb_y_up, 87, g_cart_grid, &request[cntr]);
+  cntr++;
+  
+  MPI_Isend(&phi[N*(LY-1)*LZ],                             1, p->y_slice_vector, g_nb_y_up, 88, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+2*(LX*LY*LZ+T*LY*LZ)+T*LX*LZ)], 1, p->y_slice_cont,   g_nb_y_dn, 88, g_cart_grid, &request[cntr]);
+  cntr++;
+#endif
+
+#if (defined PARALLELTXYZ) 
+  /* z - boundary faces */
+  MPI_Isend(&phi[0],                                               1, p->z_slice_vector, g_nb_z_dn, 89, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+2*(LX*LY*LZ+T*LY*LZ+T*LX*LZ))],         1, p->z_slice_cont,   g_nb_z_up, 89, g_cart_grid, &request[cntr]);
+  cntr++;
+
+  MPI_Isend(&phi[N*(LZ-1)],                                        1, p->z_slice_vector, g_nb_z_up, 90, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+2*(LX*LY*LZ+T*LY*LZ+T*LX*LZ)+T*LX*LY)], 1, p->z_slice_cont,   g_nb_z_dn, 90, g_cart_grid, &request[cntr]);
+  cntr++;
+#endif
+
+  MPI_Waitall(cntr, request, status);
+#endif  /* of ifdef HAVE_MPI */
+}  /* end of mpi_xchanger */
+
+/******************************************************************************/
+/******************************************************************************/
+
 }  /* end of namespace cvc */
