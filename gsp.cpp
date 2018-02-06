@@ -721,33 +721,32 @@ int gsp_calculate_v_dag_gamma_p_w(double**V, double**W, int num, int momentum_nu
  ***********************************************************************************************
  **
  ** gsp_read_node
- ** - read aff node from file or read binary file
+ ** - read actually 6 x T aff nodes from file ( or read binary file )
  **
  ***********************************************************************************************
  ***********************************************************************************************/
-int gsp_read_node (double ***gsp, int num, int momentum[3], int gamma_id, char*tag) {
+int gsp_read_node (double _Complex ****gsp, int numV, int momentum[3], int gamma_id, char *prefix, char*tag) {
 
-  size_t items;
   char filename[200];
+  int exitstatus;
+
+  const int gsp_name_num = 6;
+  const char *gsp_name_list[gsp_name_num] = { "v-v", "w-v", "w-w", "xv-xv", "xw-xv", "xw-xw" };
 
 #ifdef HAVE_LHPC_AFF
-  int x0, status;
   struct AffReader_s *affr = NULL;
   struct AffNode_s *affn = NULL, *affdir=NULL;
   char * aff_status_str;
   double _Complex *aff_buffer = NULL;
   char aff_buffer_path[200];
   /*  uint32_t aff_buffer_size; */
-#else
-  FILE *ifs = NULL;
-  long int offset;
 #endif
 
 #ifdef HAVE_LHPC_AFF
   aff_status_str = (char*)aff_version();
   fprintf(stdout, "# [gsp_read_node] using aff version %s\n", aff_status_str);
 
-  sprintf(filename, "%s.aff", tag);
+  sprintf(filename, "%s.aff", prefix );
   fprintf(stdout, "# [gsp_read_node] reading gsp data from file %s\n", filename);
   affr = aff_reader(filename);
 
@@ -762,54 +761,51 @@ int gsp_read_node (double ***gsp, int num, int momentum[3], int gamma_id, char*t
     return(2);
   }
 
-  aff_buffer = (double _Complex*)malloc(2*num*num*sizeof(double _Complex));
-  if(aff_buffer == NULL) {
-    fprintf(stderr, "[gsp_read_node] Error from malloc\n");
+  exitstatus = init_1level_zbuffer ( &aff_buffer, numV * numV );
+  if( exitstatus != 0 ) {
+    fprintf(stderr, "[gsp_read_node] Error from init_1level_zbuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     return(3);
   }
 #endif
 
 #ifdef HAVE_LHPC_AFF
-  for(x0=0; x0<T; x0++) {
-    sprintf(aff_buffer_path, "/%s/px%.2dpy%.2dpz%.2d/g%.2d/t%.2d", tag, momentum[0], momentum[1], momentum[2], gamma_id, 
-        x0+g_proc_coords[0]*T);
-    /* if(g_cart_id == 0) fprintf(stdout, "# [gsp_read_node] current aff path = %s\n", aff_buffer_path); */
+  uint32_t items = (uint32_t)numV * numV;
 
-    affdir = aff_reader_chpath(affr, affn, aff_buffer_path);
-    items = num*num;
-    status = aff_node_get_complex (affr, affdir, aff_buffer, (uint32_t)items);
-    /* straightforward memcpy ?*/
-    memcpy( gsp[x0][0], aff_buffer, 2*items*sizeof(double));
+  for( int x0 = 0; x0 < T; x0++) {
+    for ( int igsp = 0; igsp < gsp_name_num; igsp++ ) {
 
-    if(status != 0) {
-      fprintf(stderr, "[gsp_read_node] Error from aff_node_get_complex, status was %d\n", status);
-      return(4);
-    }
+      sprintf ( aff_buffer_path, "%s/%s/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, gsp_name_list[igsp], x0+g_proc_coords[0]*T, momentum[0], momentum[1], momentum[2], gamma_id );
+      if(g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [gsp_read_node] current aff path = %s\n", aff_buffer_path);
+      affdir = aff_reader_chpath(affr, affn, aff_buffer_path);
+      if ( ( exitstatus = aff_node_get_complex (affr, affdir, gsp[x0][igsp][0], (uint32_t)items) ) != 0 ) {
+        fprintf(stderr, "[gsp_read_node] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(4);
+      }
+    }  /* end of loop on gsp names */
   }  /* end of loop on x0 */
 #else
 
-  sprintf(filename, "%s.px%.2dpy%.2dpz%.2d.g%.2d", tag, momentum[0], momentum[1], momentum[2], gamma_id);
-  ifs = fopen(filename, "r");
-  if(ifs == NULL) {
-    fprintf(stderr, "[gsp_read_node] Error, could not open file %s for writing\n", filename);
-    return(5);
-  }
-#ifdef HAVE_MPI
-  offset = (long int)(g_proc_coords[0]*T) * (2*num*num) * sizeof(double);
-  if( fseek ( ifs, offset, SEEK_SET ) != 0 ) {
-    fprintf(stderr, "[] Error, could not seek to file position\n");
-    return(6);
-  }
-#endif
-  items = 2 * (size_t)T * num*num;
-  if( fread(gsp[0][0], sizeof(double), items, ifs) != items ) {
-    fprintf(stderr, "[gsp_read_node] Error, could not read proper amount of data to file %s\n", filename);
-    return(7);
-  }
-  fclose(ifs);
+  for ( int x0 = 0; x0 < T; x0++ ) {
+    sprintf(filename, "%s.t%.2d.px%.2dpy%.2dpz%.2d.g%.2d.dat", prefix, x0+g_proc_coords[0]*T, momentum[0], momentum[1], momentum[2], gamma_id);
+    FILE *ifs = fopen(filename, "r");
+    if(ifs == NULL) {
+      fprintf(stderr, "[gsp_read_node] Error, could not open file %s for writing\n", filename);
+      return(5);
+    }
 
+    size_t items = 6 * numV * numV;
+
+
+    if( fread( gsp[x0][0][0], sizeof(double _Complex), items, ifs) != items ) {
+      fprintf(stderr, "[gsp_read_node] Error, could not read proper amount of data to file %s\n", filename);
+      return(7);
+    }
+
+    fclose(ifs);
+
+  }  /* end of loop on timeslices */
 /*
-  byte_swap64_v2(gsp[0][0], 2*T*num*num);
+  byte_swap64_v2( (double*)(gsp[0][0][0]), 12*T*numV*numV);
 */
 
 #endif
