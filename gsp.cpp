@@ -1210,6 +1210,9 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
   const unsigned int VOL3half = (LX*LY*LZ)/2;
   const size_t sizeof_eo_spinor_field           = _GSI(Vhalf)    * sizeof(double);
   const size_t sizeof_eo_spinor_field_timeslice = _GSI(VOL3half) * sizeof(double);
+  const size_t write_count = numV * numV;
+  const size_t write_bytes = 2*numV*numV*sizeof(double);
+
 
   int exitstatus;
   char filename[200];
@@ -1248,8 +1251,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
       return(1);
     }
   }
-#else
-  size_t write_count = numV * numV;
+
 #endif
 
   total_ratime = _GET_TIME;
@@ -1317,9 +1319,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
   /***********************************************
    * loop on timeslices
    ***********************************************/
-  for ( int it = 0; it < T; it++ )
-  /* for ( int it = 0; it < 1; it++ ) */
-  {
+  for ( int it = 0; it < T; it++ ) {
 
     /***********************************************
      * phases for momentum projection
@@ -1339,6 +1339,8 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
     }
     retime = _GET_TIME;
     if ( io_proc == 2 ) fprintf ( stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for timeslice fields = %e seconds\n", retime-ratime );
+
+
 
     /***********************************************
      * loop on momenta
@@ -1361,14 +1363,13 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
         FILE *ofs = NULL;
         if ( io_proc >= 1 ) {
           sprintf( filename, "%s.t%.2d.px%.2dpy%.2dpz%.2d.g%.2d.dat", prefix, it+g_proc_coords[0]*T,  momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] ); 
-          ofs = fopen ( filename, "w" );
+          ofs = fopen ( filename, "wb" );
           if( ofs == NULL ) {
             fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from open for filename %s %s %d\n", filename, __FILE__, __LINE__);
             return(1);
           }
         }
 #endif
-
         /***********************************************
          * multiply with gamma matrix
          ***********************************************/
@@ -1497,12 +1498,17 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
 
         fini_2level_zbuffer ( &vv );
 
-#ifdef HAVE_LHPC_AFF
-        if ( io_proc >= 1 ) fclose ( ofs );
+#ifndef HAVE_LHPC_AFF
+        if ( io_proc >= 1 ) {
+          fflush ( ofs );
+          fclose ( ofs );
+          ofs = NULL;
+        }
 #endif
       }  /* end of loop on gamma ids */
 
     }  /* end of loop on momenta */
+
 
 
     /***********************************************
@@ -1526,7 +1532,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
         FILE *ofs = NULL;
         if ( io_proc >= 1 ) {
           sprintf( filename, "%s.t%.2d.px%.2dpy%.2dpz%.2d.g%.2d.dat", prefix, it+g_proc_coords[0]*T,  momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] ); 
-          ofs = fopen ( filename, "a" );
+          ofs = fopen ( filename, "a+b" );
           if( ofs == NULL ) {
             fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from open for filename %s %s %d\n", filename, __FILE__, __LINE__);
             return(1);
@@ -1608,13 +1614,18 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
         fini_2level_zbuffer ( &vv );
 
 #ifndef HAVE_LHPC_AFF
-        if ( io_proc >= 1 ) fclose( ofs );
+        if ( io_proc >= 1 ) {
+          fflush ( ofs );
+          fclose( ofs );
+          ofs = NULL;
+        }
 #endif
       }  /* end of loop on gamma ids */
 
     }  /* end of loop on momenta */
 
   }  /* end of loop on timeslices */
+
 
 
   ratime = _GET_TIME;
@@ -1684,17 +1695,19 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
        ***********************************************/
       for ( int igam = 0; igam < gamma_id_number; igam++ ) {
 
+
 #ifndef HAVE_LHPC_AFF
         FILE *ofs = NULL;
         if ( io_proc >= 1 ) {
           sprintf( filename, "%s.t%.2d.px%.2dpy%.2dpz%.2d.g%.2d.dat", prefix, it+g_proc_coords[0]*T,  momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] ); 
-          ofs = fopen ( filename, "a" );
+          ofs = fopen ( filename, "a+b" );
           if( ofs == NULL ) {
             fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from open for filename %s %s %d\n", filename, __FILE__, __LINE__);
             return(1);
           }
         }
 #endif
+
         /***********************************************
          * multiply with gamma matrix
          ***********************************************/
@@ -1833,7 +1846,10 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
         fini_2level_zbuffer ( &vv );
 
 #ifndef HAVE_LHPC_AFF
-        if ( io_proc >= 1 ) fclose ( ofs );
+        if ( io_proc >= 1 ) {
+          fflush ( ofs );
+          fclose ( ofs );
+        }
 #endif
 
       }  /* end of loop on gamma ids */
@@ -1856,7 +1872,6 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
        * loop on gamma matrices
        ***********************************************/
       for ( int igam = 0; igam < gamma_id_number; igam++ ) {
-
 #ifndef HAVE_LHPC_AFF
         FILE *ofs = NULL;
         if ( io_proc >= 1 ) {
@@ -1949,12 +1964,12 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
 #ifndef HAVE_LHPC_AFF
         if ( io_proc >= 1 ) fclose ( ofs );
 #endif
-
       }  /* end of loop on gamma ids */
 
     }  /* end of loop on momenta */
 
   }  /* end of loop on timeslices */
+
 
   /***********************************************/
   /***********************************************/
@@ -2013,6 +2028,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
   return(0);
 
 }  /* end of gsp_calculate_v_dag_gamma_p_w_block */
+
 
 /***********************************************************************************************/
 /***********************************************************************************************/
