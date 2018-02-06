@@ -2295,7 +2295,6 @@ void rot_vec_normalize ( double _Complex *v, int N ) {
   }
   norm = sqrt ( norm );
   norm = norm < eps ? 0. : 1./norm;
-
 #pragma omp parallel for
   for ( int i = 0; i < N; i++ ) {
     v[i] *= norm;
