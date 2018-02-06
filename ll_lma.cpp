@@ -536,7 +536,7 @@ int main(int argc, char **argv) {
   /***********************************************************/
   
   sprintf( aff_tag, "/ll/lma/N%d", evecs_num );
-  sprintf( filename_prefix, "%s_N%d", outfile_prefix, evecs_num );
+  sprintf( filename_prefix, "%s.%.4d.N%d", outfile_prefix, Nconf, evecs_num );
 
   /***********************************************************/
   /***********************************************************/
