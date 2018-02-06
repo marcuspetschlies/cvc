@@ -1232,7 +1232,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
 #ifdef HAVE_LHPC_AFF
   AffWriter_s *affw = NULL;
   struct AffNode_s *affn = NULL, *affdir=NULL;
-  char aff_key[200];
+  char aff_key[200], *aff_status_str;
 
   /***********************************************
    * writer for aff output file
@@ -1253,17 +1253,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
     }
   }
 #else
-  FILE *ofs = NULL;
-  if ( io_proc >= 1 ) {
-    sprintf( filename, "%s.t%.2d.dat", prefix, g_proc_coords[0] );
-    ofs = fopen ( filename, "w" );
-    if( ofs == NULL ) {
-      fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from open for filename %s %s %d\n", filename, __FILE__, __LINE__);
-      return(1);
-    }
-  }
   size_t write_count = numV * numV;
-
 #endif
 
   total_ratime = _GET_TIME;
@@ -1371,6 +1361,18 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
        ***********************************************/
       for ( int igam = 0; igam < gamma_id_number; igam++ ) {
 
+#ifndef HAVE_LHPC_AFF
+        FILE *ofs = NULL;
+        if ( io_proc >= 1 ) {
+          sprintf( filename, "%s.t%.2d.px%.2dpy%.2dpz%.2d.g%.2d.dat", prefix, it+g_proc_coords[0]*T,  momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] ); 
+          ofs = fopen ( filename, "w" );
+          if( ofs == NULL ) {
+            fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from open for filename %s %s %d\n", filename, __FILE__, __LINE__);
+            return(1);
+          }
+        }
+#endif
+
         /***********************************************
          * multiply with gamma matrix
          ***********************************************/
@@ -1416,7 +1418,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
          * write to AFF
          ***********************************************/
         if ( io_proc >= 1 ) {
-          aff_ratime = _GET_TIME;
+          // aff_ratime = _GET_TIME;
 #ifdef HAVE_LHPC_AFF
           sprintf ( aff_key, "%s/v-v/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, it+g_proc_coords[0]*T,  momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] );
           
@@ -1433,8 +1435,8 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
             return(5);
           }
 #endif
-          aff_retime = _GET_TIME;
-          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
+          // aff_retime = _GET_TIME;
+          // fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
 
         }
 
@@ -1475,7 +1477,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
          * write to AFF
          ***********************************************/
         if ( io_proc >= 1 ) {
-          aff_ratime = _GET_TIME;
+          // aff_ratime = _GET_TIME;
 #ifdef HAVE_LHPC_AFF
           sprintf ( aff_key, "%s/w-v/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, it+g_proc_coords[0]*T, momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] );
 
@@ -1492,13 +1494,16 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
             return(5);
           }
 #endif
-          aff_retime = _GET_TIME;
-          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
+          // aff_retime = _GET_TIME;
+          // fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
         }
 
 
         fini_2level_zbuffer ( &vv );
 
+#ifdef HAVE_LHPC_AFF
+        if ( io_proc >= 1 ) fclose ( ofs );
+#endif
       }  /* end of loop on gamma ids */
 
     }  /* end of loop on momenta */
@@ -1521,6 +1526,17 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
        ***********************************************/
       for ( int igam = 0; igam < gamma_id_number; igam++ ) {
 
+#ifndef HAVE_LHPC_AFF
+        FILE *ofs = NULL;
+        if ( io_proc >= 1 ) {
+          sprintf( filename, "%s.t%.2d.px%.2dpy%.2dpz%.2d.g%.2d.dat", prefix, it+g_proc_coords[0]*T,  momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] ); 
+          ofs = fopen ( filename, "a" );
+          if( ofs == NULL ) {
+            fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from open for filename %s %s %d\n", filename, __FILE__, __LINE__);
+            return(1);
+          }
+        }
+#endif
         /***********************************************
          * multiply with gamma matrix
          ***********************************************/
@@ -1571,7 +1587,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
          * write to AFF
          ***********************************************/
         if ( io_proc >= 1 ) {
-          aff_ratime = _GET_TIME;
+          // aff_ratime = _GET_TIME;
 #ifdef HAVE_LHPC_AFF
           sprintf ( aff_key, "%s/w-w/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, it+g_proc_coords[0]*T, momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] );
           
@@ -1589,12 +1605,15 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
           }
 #endif
 
-          aff_retime = _GET_TIME;
-          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
+          // aff_retime = _GET_TIME;
+          // fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
         }
 
         fini_2level_zbuffer ( &vv );
 
+#ifndef HAVE_LHPC_AFF
+        if ( io_proc >= 1 ) fclose( ofs );
+#endif
       }  /* end of loop on gamma ids */
 
     }  /* end of loop on momenta */
@@ -1669,6 +1688,17 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
        ***********************************************/
       for ( int igam = 0; igam < gamma_id_number; igam++ ) {
 
+#ifndef HAVE_LHPC_AFF
+        FILE *ofs = NULL;
+        if ( io_proc >= 1 ) {
+          sprintf( filename, "%s.t%.2d.px%.2dpy%.2dpz%.2d.g%.2d.dat", prefix, it+g_proc_coords[0]*T,  momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] ); 
+          ofs = fopen ( filename, "a" );
+          if( ofs == NULL ) {
+            fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from open for filename %s %s %d\n", filename, __FILE__, __LINE__);
+            return(1);
+          }
+        }
+#endif
         /***********************************************
          * multiply with gamma matrix
          ***********************************************/
@@ -1723,7 +1753,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
          * write to AFF
          ***********************************************/
         if ( io_proc >= 1 ) {
-          aff_ratime = _GET_TIME;
+          // aff_ratime = _GET_TIME;
 #ifdef HAVE_LHPC_AFF
           sprintf ( aff_key, "%s/xv-xv/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, it+g_proc_coords[0]*T, momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] );
           
@@ -1741,8 +1771,8 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
           }
 #endif
 
-          aff_retime = _GET_TIME;
-          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
+          // aff_retime = _GET_TIME;
+          // fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
         }
 
         zgemm_ratime = _GET_TIME;
@@ -1781,7 +1811,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
          * write to AFF
          ***********************************************/
         if ( io_proc >= 1 ) {
-          aff_ratime = _GET_TIME;
+          // aff_ratime = _GET_TIME;
 #ifdef HAVE_LHPC_AFF
           sprintf ( aff_key, "%s/xw-xv/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, it+g_proc_coords[0]*T, momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] );
 
@@ -1799,12 +1829,16 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
           }
 #endif
 
-          aff_retime = _GET_TIME;
-          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
+          // aff_retime = _GET_TIME;
+          // fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
         }
 
 
         fini_2level_zbuffer ( &vv );
+
+#ifndef HAVE_LHPC_AFF
+        if ( io_proc >= 1 ) fclose ( ofs );
+#endif
 
       }  /* end of loop on gamma ids */
 
@@ -1827,6 +1861,17 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
        ***********************************************/
       for ( int igam = 0; igam < gamma_id_number; igam++ ) {
 
+#ifndef HAVE_LHPC_AFF
+        FILE *ofs = NULL;
+        if ( io_proc >= 1 ) {
+          sprintf( filename, "%s.t%.2d.px%.2dpy%.2dpz%.2d.g%.2d.dat", prefix, it+g_proc_coords[0]*T,  momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] ); 
+          ofs = fopen ( filename, "a" );
+          if( ofs == NULL ) {
+            fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from open for filename %s %s %d\n", filename, __FILE__, __LINE__);
+            return(1);
+          }
+        }
+#endif
         /***********************************************
          * multiply with gamma matrix
          ***********************************************/
@@ -1881,7 +1926,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
          * write to AFF
          ***********************************************/
         if ( io_proc >= 1 ) {
-          aff_ratime = _GET_TIME;
+          // aff_ratime = _GET_TIME;
 #ifdef HAVE_LHPC_AFF
           sprintf ( aff_key, "%s/xw-xw/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, it+g_proc_coords[0]*T, momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] );
           
@@ -1899,11 +1944,15 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
           }
 #endif
 
-          aff_retime = _GET_TIME;
-          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
+          // aff_retime = _GET_TIME;
+          // fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
         }
 
         fini_2level_zbuffer ( &vv );
+
+#ifndef HAVE_LHPC_AFF
+        if ( io_proc >= 1 ) fclose ( ofs );
+#endif
 
       }  /* end of loop on gamma ids */
 
@@ -1925,11 +1974,6 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
       return(32);
     }
   }  /* end of if io_proc >= 1 */
-#else
-  /***********************************************
-   * close output file
-   ***********************************************/
-  if ( io_proc >= 1 ) fclose ( ofs );
 #endif
 
   /***********************************************/
