@@ -138,6 +138,12 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[test_rot_mat_direct] Error, Ndim non-positive\n");
     EXIT(2);
   }
+  
+  FILE *ofs = NULL;
+  sprintf ( filename, "J2_%d_rotation_matrices", Ndim-1 );
+  ofs = fopen( filename, "w");
+
+  fprintf( ofs, "R <- list()\n" );
 
   /***********************************************************
    * loop on rotations
@@ -191,20 +197,22 @@ int main(int argc, char **argv) {
       fprintf( stdout, "# [test_rot_mat_direct] spin 1_2 rot %2d s - direct norm diff = %16.7e norm = %16.7e\n", irot+1, norm , norm2 );
 
 
-      rot_printf_matrix_comp ( Us, Ud, Ndim, "spin12", stdout );
-
+      /* rot_printf_matrix_comp ( Us, Ud, Ndim, "spin12", stdout ); */
+      char name[100];
+      sprintf ( name, "R[[%2d]]", irot+1);
+      // fprintf( ofs, "%s <- array ( dim=c( %d, %d ) )\n", name, Ndim, Ndim );
+      rot_printf_matrix ( Us, Ndim, name, ofs );
 
       rot_fini_rotation_matrix ( &Ud );
 
 
     }  /* end of if Ndim == 3 */
 
-
-
     rot_fini_rotation_matrix ( &Us );
   
-
   }  /* end of loop on rotations */
+
+    fclose ( ofs );
 
   if(g_cart_id==0) {
     g_the_time = time(NULL);

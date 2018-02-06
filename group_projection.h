@@ -51,6 +51,7 @@ typedef struct {
   int *ref_row_spin;
   int ref_row_target;
   int row_target;
+  int *parity;
 } little_group_projector_type;
 
 /********************************************************/
@@ -95,7 +96,7 @@ int rot_mat_table_orthogonality ( rot_mat_table_type *t1, rot_mat_table_type *t2
 int init_little_group_projector (little_group_projector_type *p );
 int fini_little_group_projector (little_group_projector_type *p );
 
-int little_group_projector_show (little_group_projector_type *p, FILE*ofs );
+int little_group_projector_show (little_group_projector_type *p, FILE*ofs, int with_mat );
 
 int little_group_projector_copy (little_group_projector_type *p, little_group_projector_type *q );
 
@@ -103,10 +104,71 @@ int little_group_projector_set (
   little_group_projector_type *p,
   little_group_type *lg,
   char*irrep , int row_target, int interpolator_num,
-  int *interpolator_J2_list, int **interpolator_momentum_list, int *interpolator_bispinor_list,    
+  int *interpolator_J2_list, int **interpolator_momentum_list, int *interpolator_bispinor_list,
+  int *interpolator_parity,
   int ref_row_target, int *ref_row_spin, char*correlator_name );
 
-int little_group_projector_apply ( little_group_projector_type *p );
+int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs );
+
+int spin_vector_asym_printf ( double _Complex **sv, int n, int*dim, char*name, FILE*ofs );
+
+double spin_vector_asym_norm2 ( double _Complex **sv, int n, int *dim );
+
+double spin_vector_asym_list_norm2 ( double _Complex ***sv, int nc, int n, int *dim );
+
+int spin_vector_asym_list_normalize ( double _Complex ***sv, int nc, int n, int *dim );
+
+int spin_vector_asym_normalize ( double _Complex **sv, int n, int *dim );
+
+void spin_vector_pl_eq_spin_vector_ti_co_asym ( double _Complex **sv1, double _Complex **sv2, double _Complex c, int n, int *dim );
+
+int rot_mat_table_rotate_multiplett ( rot_mat_table_type *rtab, rot_mat_table_type *rapply, rot_mat_table_type *rtarget, int with_IR, FILE*ofs );
+
+int irrep_multiplicity (rot_mat_table_type *rirrep, rot_mat_table_type *rspin, int with_IR );
+
+int little_group_projector_apply_product ( little_group_projector_type *p , FILE*ofs);
+
+
+void product_vector_project_accum ( double _Complex *v, rot_mat_table_type*r, int rid, int rmid, double _Complex *v0, double _Complex c1, double _Complex c2, int *dim , int n );
+
+void product_mat_pl_eq_mat_ti_co ( double _Complex **R, rot_mat_table_type *r, int rid, int rmid, double _Complex c, int*dim, int n );
+
+int product_mat_printf ( double _Complex **R, int *dim, int n, char *name, FILE*ofs );
+
+void product_vector_printf ( double _Complex *v, int*dim, int n, char*name, FILE*ofs );
+
+
+/***********************************************************/
+/***********************************************************/
+
+static inline void product_vector_index2coords ( int idx, int *coords, int *dim, int n ) {
+  int ll = 1;
+  for ( int i = n-1; i >= 0; i-- ) {
+    coords[i] = (idx % (ll*dim[i])) / ll;
+    idx      -= coords[i] * ll;
+    ll       *= dim[i];
+  }
+}  /* end of product_vector_index2coords */
+
+/***********************************************************/
+/***********************************************************/
+
+static inline int product_vector_coords2index ( int *coords, int *dim, int n ) {
+  int idx = coords[0];
+  for ( int i = 1; i < n; i++ ) {
+    idx = dim[i] * idx + coords[i];
+  }
+  return(idx);
+}  /* end of product_vector_coords2index */
+
+
+/***********************************************************/
+/***********************************************************/
+
+static inline void product_vector_set_element ( double _Complex*v, double _Complex c, int *coords, int *dim, int n ) {
+  v[ product_vector_coords2index ( coords, dim, n ) ] = c;
+}  /* end of product_vector_set_element */
+
 
 }  /* end of namespace cvc */
 

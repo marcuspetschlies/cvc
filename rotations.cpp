@@ -101,7 +101,7 @@ void rot_init_block_params (void) {
  *
  ***********************************************************/
 void rot_printf_matrix (double _Complex **R, int N, char *A, FILE*ofs ) {
-  const double eps = 5.e-15;
+  const double eps = 5.e-14;
   if ( g_cart_id == 0 ) {
     fprintf(ofs, "%s <- array(dim = c(%d , %d))\n", A, N, N);
     for( int ik = 0; ik < N; ik++ ) {
@@ -577,6 +577,24 @@ void rot_mat_ti_eq_re (double _Complex **R, double c, int N) {
   return;
 }  /* end of rot_mat_ti_eq_re */
 
+
+/***********************************************************/
+/***********************************************************/
+
+#if 0
+/***********************************************************
+ *
+ ***********************************************************/
+void rot_mat_pl_eq_mat_ti_co (double _Complex **R, double _Complex **S, double _Complex c, int N) {
+  for(int i=0; i<N; i++) {
+  for(int k=0; k<N; k++) {
+    R[i][k] += c * S[i][k];
+  }}
+  return;
+}  /* end of rot_mat_pl_eq_mat_ti_co */
+#endif
+
+
 /***********************************************************/
 /***********************************************************/
 
@@ -590,6 +608,22 @@ void rot_mat_pl_eq_mat_ti_co (double _Complex **R, double _Complex **S, double _
   for ( int i = 0; i < N*N; i++ ) {
     double _Complex z = S[0][i];
     R[0][i] += c * z;
+  }
+  return;
+}  /* end of rot_mat_pl_eq_mat_ti_co */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ *
+ ***********************************************************/
+void rot_mat_eq_mat_pl_mat (double _Complex **R, double _Complex **S1, double _Complex **S2, int N) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( int i = 0; i < N*N; i++ ) {
+    R[0][i] = S1[0][i] + S2[0][i];
   }
   return;
 }  /* end of rot_mat_pl_eq_mat_ti_co */
@@ -1902,26 +1936,57 @@ void rot_sp_field_ti_bispinor_mat ( spinor_propagator_type *sp_rot, double _Comp
 /***********************************************************/
 /***********************************************************/
 
-void rot_inversion_matrix_spherical_basis ( double _Complex**R, int J2, int bispinor ) {
-  memset ( R[0], 0, (1+bispinor)*(J2+1) * (1+bispinor)*(J2+1) * sizeof(double _Complex) );
+/***********************************************************
+ * set unit matrix
+ ***********************************************************/
+void rot_mat_unity ( double _Complex **R, int N ) {
+  memset ( R[0], 0, N*N*sizeof( double _Complex ) );
+  for ( int i = 0; i < N; i++ ) {
+    R[i][i] = 1.;
+  }
+  return;
+}
 
-  if ( J2 == 0 ) { 
-    R[0][0] = -1.; 
-  
-  } else if ( J2 == 2 ) { 
-    R[0][0] = -1.; 
-    R[1][1] = -1.; 
-    R[2][2] = -1.; 
-  } else if ( J2 == 1 && bispinor ) {
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * effect of parity on spherical basis state 
+ ***********************************************************/
+void rot_inversion_matrix_spherical_basis ( double _Complex**R, int J2, int bispinor ) {
+
+  int dim = J2 + 1;
+
+
+  if ( J2 % 4 == 0 ) {
+    /***********************************************************
+     * spin 0, 2, 4, ...
+     ***********************************************************/
+    rot_mat_unity ( R, dim );
+    return;
+
+  } else if ( J2 % 4 == 2 ) {
+    /***********************************************************
+     * spin 1, 3, 5, ...
+     ***********************************************************/
+    rot_mat_unity ( R , dim );
+    rot_mat_ti_eq_re ( R, -1., dim );
+    return;
+
+  }
+
+
+  if ( ( J2 == 1 && bispinor ) || ( J2 == 3 ) ) {
     gamma_matrix_type g;
     gamma_matrix_set ( &g, 0, 1 );
 
     memcpy ( R[0], g.v, 16*sizeof(double _Complex) );
-  } else {
-    fprintf( stderr, "[rot_inversion_matrix_spherical_basis] Error, unknown combination of J and bispinor\n");
     return;
-  }
-
+  } 
+  
+  memset ( R[0], 0, (1+bispinor) * dim * (1+bispinor)* dim * sizeof(double _Complex) );
+  fprintf( stderr, "[rot_inversion_matrix_spherical_basis] Error, unknown combination of J2 and bispinor\n");
   return;
 }  /* end of rot_inversion_matrix_spherical_basis */
 
@@ -2193,4 +2258,51 @@ int rot_mat_spin1_2_spherical ( double _Complex **R, int n[3], double omega ) {
 /***********************************************************/
 /***********************************************************/
 
+/***********************************************************
+ * trace
+ ***********************************************************/
+double _Complex rot_mat_trace ( double _Complex** R, int N ) {
+  double _Complex res = 0.;
+  for ( int i = 0; i < N; i++ ) {
+    res += R[i][i];
+  }
+  return(res);
+
+}  /* end of rot_matr_trace */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ *
+ ***********************************************************/
+void rot_vec_pl_eq_vec_ti_co ( double _Complex*v, double _Complex*w, double _Complex c , int N ) {
+#pragma omp parallel for
+  for ( int i = 0; i < N; i++ ) {
+    v[i] += w[i] * c;
+  }
+}  /* end of rot_vec_pl_eq_vec_ti_co */
+
+/***********************************************************/
+/***********************************************************/
+
+void rot_vec_normalize ( double _Complex *v, int N ) {
+  double eps = 1.e-15;
+  double norm=0.;
+#pragma omp parallel for
+  for ( int i = 0; i < N; i++ ) {
+    norm += creal ( v[i] * conj ( v[i] ) );
+  }
+  norm = sqrt ( norm );
+  norm = norm < eps ? 0. : 1./norm;
+
+#pragma omp parallel for
+  for ( int i = 0; i < N; i++ ) {
+    v[i] *= norm;
+  }
+  return;
+}  /* end of rot_vec_normalize */
+
+/***********************************************************/
+/***********************************************************/
 }  /* end of namespace cvc */

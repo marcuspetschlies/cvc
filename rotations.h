@@ -33,6 +33,8 @@ void rot_init_rotation_table (void);
 
 long unsigned int factorial (int n);
 
+void rot_mat_unity ( double _Complex **R, int N );
+
 void rot_axis2polar ( double*theta, double*phi, int n[3] );
 
 void rot_rotation_matrix_spherical_basis ( double _Complex**R, int J2, int n[3], double w);
@@ -64,6 +66,8 @@ void rot_point_inv ( int nrot[3], int n[3], double _Complex **R);
 int rot_mat_check_is_real_int (double _Complex **R, int N );
 
 void rot_mat_ti_eq_re (double _Complex **R, double c, int N);
+
+void rot_mat_pl_eq_mat_ti_co (double _Complex **R, double _Complex **S, double _Complex c, int N);
 
 void rot_global_point_mod ( int nrot[3], int n[3], double _Complex **R);
 
@@ -111,7 +115,6 @@ void rot_mat_get_euler_angles ( double a[3], int n[3], double w );
  
 int rot_mat_spin1_cartesian ( double _Complex **R, int n[3], double omega );
 
-void rot_mat_pl_eq_mat_ti_co (double _Complex **R, double _Complex **S, double _Complex c, int N);
 
 void rot_mat_ti_vec (double _Complex *w, double _Complex **A, double _Complex *v, int N);
 
@@ -124,6 +127,14 @@ void rot_vec_accum_vec_ti_co_pl_mat_ti_vec_ti_co (double _Complex *w, double _Co
 void rot_vec_accum_vec_ti_co_pl_mat_transpose_ti_vec_ti_co (double _Complex *w, double _Complex **A, double _Complex *v, double _Complex cv, double _Complex cw, int N);
 
 int rot_mat_spin1_2_spherical ( double _Complex **R, int n[3], double omega );
+
+void rot_mat_eq_mat_pl_mat (double _Complex **R, double _Complex **S1, double _Complex **S2, int N);
+
+double _Complex rot_mat_trace ( double _Complex** R, int N );
+
+void rot_vec_pl_eq_vec_ti_co ( double _Complex*v, double _Complex*w, double _Complex c , int N );
+
+void rot_vec_normalize ( double _Complex *v, int N );
 
 
 /***********************************************************

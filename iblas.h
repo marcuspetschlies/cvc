@@ -62,4 +62,8 @@ extern "C" void _F(zgemv) ( char*TRANS, int *M, int *N, double _Complex *ALPHA, 
  ***********************************************************************/
 extern void _F(zdotc)(int* n, _Complex double x[], int* incx, _Complex double y[], int* incy);
 
+
+extern "C" void _F( zgeev ) ( char *JOBVL, char *JOBVR, int *N, double _Complex *A, int *LDA, double _Complex *W, double _Complex *VL, int *LDVL, double _Complex *VR, int *LDVR, double _Complex *WORK,
+                          int*LWORK, double *RWORK, int *INFO, int len_JOBVL, int len_JOBVR );
+
 #endif
