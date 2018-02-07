@@ -42,44 +42,41 @@ void EV_Hermitian_3x3_Matrix(double *M, double *lambda);
 int read_input (char *filename) {
 
     
-  FILE *fs;
+  FILE *fs = fopen(filename, "r");
 
-  if((void*)(fs = fopen(filename, "r"))==NULL) {
-#ifdef HAVE_MPI
-     MPI_Abort(MPI_COMM_WORLD, 10);
-     MPI_Finalize();
-#endif
-     exit(101);
+  if( fs = NULL ) {
+    fprintf ( stderr, "[read_input] Error from fopen\n");
+    return(2);
   }
 
-  fscanf(fs, "%d", &T_global);
-  fscanf(fs, "%d", &LX);
-  fscanf(fs, "%d", &LY);
-  fscanf(fs, "%d", &LZ);
+  if ( fscanf(fs, "%d", &T_global) != 1 ) return(1);
+  if ( fscanf(fs, "%d", &LX) != 1 ) return(1);
+  if ( fscanf(fs, "%d", &LY) != 1 ) return(1);
+  if ( fscanf(fs, "%d", &LZ) != 1 ) return(1);
    
-  fscanf(fs, "%d", &Nconf);
-  fscanf(fs, "%lf", &g_kappa);
-  fscanf(fs, "%lf", &g_mu);
+  if ( fscanf(fs, "%d", &Nconf) != 1 ) return(1);
+  if ( fscanf(fs, "%lf", &g_kappa) != 1 ) return(1);
+  if ( fscanf(fs, "%lf", &g_mu) != 1 ) return(1);
 
-  fscanf(fs, "%d", &g_sourceid);
-  fscanf(fs, "%d", &g_sourceid2);
-  fscanf(fs, "%d", &Nsave);
+  if ( fscanf(fs, "%d", &g_sourceid) != 1 ) return(1);
+  if ( fscanf(fs, "%d", &g_sourceid2) != 1 ) return(1);
+  if ( fscanf(fs, "%d", &Nsave) != 1 ) return(1);
   
-  fscanf(fs, "%d", &format);
+  if ( fscanf(fs, "%d", &format) != 1 ) return(1);
 
-  fscanf(fs, "%lf", &BCangle[0]);
-  fscanf(fs, "%lf", &BCangle[1]);
-  fscanf(fs, "%lf", &BCangle[2]);
-  fscanf(fs, "%lf", &BCangle[3]);
+  if ( fscanf(fs, "%lf", &BCangle[0]) != 1 ) return(1);
+  if ( fscanf(fs, "%lf", &BCangle[1]) != 1 ) return(1);
+  if ( fscanf(fs, "%lf", &BCangle[2]) != 1 ) return(1);
+  if ( fscanf(fs, "%lf", &BCangle[3]) != 1 ) return(1);
 
-  fscanf(fs, "%s", filename_prefix);
-  fscanf(fs, "%s", filename_prefix2);
-  fscanf(fs, "%s", gaugefilename_prefix);
+  if ( fscanf(fs, "%s", filename_prefix) != 1 ) return(1);
+  if ( fscanf(fs, "%s", filename_prefix2) != 1 ) return(1);
+  if ( fscanf(fs, "%s", gaugefilename_prefix) != 1 ) return(1);
 
-  fscanf(fs, "%d", &g_resume);
-  fscanf(fs, "%d", &g_subtract);
+  if ( fscanf(fs, "%d", &g_resume) != 1 ) return(1);
+  if ( fscanf(fs, "%d", &g_subtract) != 1 ) return(1);
 
-  fscanf(fs, "%d", &g_source_location);
+  if ( fscanf(fs, "%d", &g_source_location) != 1 ) return(1);
 
   fclose(fs);
 
@@ -539,16 +536,15 @@ void xchange_field(double *phi) {
  *****************************************************/
 void plaquette(double *pl) {
 
-  int ix, mu, nu; 
   double s[18], t[18], u[18], pl_loc;
   complex w;
   double linksum[2], ls[2];
 
   pl_loc=0;
 
-  for(ix=0; ix<VOLUME; ix++) {
-    for(mu=0; mu<3; mu++) {
-    for(nu=mu+1; nu<4; nu++) {
+  for( unsigned int ix=0; ix<VOLUME; ix++) {
+    for( int mu=0; mu<3; mu++) {
+    for( int nu=mu+1; nu<4; nu++) {
       _cm_eq_cm_ti_cm(s, &g_gauge_field[72*ix+mu*18], &g_gauge_field[72*g_iup[ix][mu]+18*nu]);
       _cm_eq_cm_ti_cm(t, &g_gauge_field[72*ix+nu*18], &g_gauge_field[72*g_iup[ix][nu]+18*mu]);
       _cm_eq_cm_ti_cm_dag(u, s, t);
@@ -568,9 +564,9 @@ void plaquette(double *pl) {
 
   linksum[0] = 0.;
   linksum[1] = 0.;
-  for(ix=0; ix<VOLUME; ix++) {
-    for(mu=0; mu<4; mu++) {
-      for(nu=0; nu<9; nu++) {
+  for( unsigned int ix=0; ix<VOLUME; ix++) {
+    for( int mu=0; mu<4; mu++) {
+      for( int nu=0; nu<9; nu++) {
         linksum[0] += g_gauge_field[_GGI(ix,mu)+2*nu  ];
         linksum[1] += g_gauge_field[_GGI(ix,mu)+2*nu+1];
       }
@@ -593,15 +589,14 @@ void plaquette(double *pl) {
  *****************************************************/
 void plaquette2(double *pl, double*gfield) {
 
-  int ix, mu, nu; 
   double s[18], t[18], u[18], pl_loc;
   complex w;
 
   pl_loc=0;
 
-  for(ix=0; ix<VOLUME; ix++) {
-    for(mu=0; mu<3; mu++) {
-    for(nu=mu+1; nu<4; nu++) {
+  for( unsigned int ix=0; ix<VOLUME; ix++) {
+    for( int mu=0; mu<3; mu++) {
+    for( int nu=mu+1; nu<4; nu++) {
       _cm_eq_cm_ti_cm(s, &gfield[72*ix+mu*18], &gfield[72*g_iup[ix][mu]+18*nu]);
       _cm_eq_cm_ti_cm(t, &gfield[72*ix+nu*18], &gfield[72*g_iup[ix][nu]+18*mu]);
       _cm_eq_cm_ti_cm_dag(u, s, t);
@@ -630,8 +625,11 @@ int write_contraction (double *s, int *nsource, char *filename, int Nmu,
   int ti[2], lvol;
   FILE *ofs;
 #ifdef HAVE_MPI
+#  if !(defined PARALLELTX || defined PARALLELTXY || defined PARALLELTXYZ)
   double *buffer;
   MPI_Status status;
+#endif
+
 #endif
 
   if(g_cart_id==0) {
@@ -797,8 +795,10 @@ int read_contraction(double *s, int *nsource, char *filename, int Nmu) {
   return(1);
 #endif
 
-  unsigned long int shift=0, count=0;
-  int ix, mu, iy;
+  unsigned long int count=0;
+#  if ! ( defined PARALLELTX || defined PARALLELTXY || defined PARALLELTXYZ )
+  unsigned long int shift=0;
+#endif
   double buffer[128];
   FILE *ofs = (FILE*)NULL;
 
@@ -816,10 +816,10 @@ int read_contraction(double *s, int *nsource, char *filename, int Nmu) {
 #  endif
 #endif
     count= Nmu * 2;
-    for(ix=0; ix<VOLUME; ix++) { 
+    for( unsigned int ix=0; ix<VOLUME; ix++) { 
       if( fread(buffer, sizeof(double), count, ofs) != count) return(107);
-      for(mu=0; mu<Nmu; mu++) {
-        iy = index_conv(16*ix+mu, 2);
+      for( int mu=0; mu<Nmu; mu++) {
+        unsigned int iy = index_conv(16*ix+mu, 2);
         s[iy  ] = buffer[2*mu  ];
         s[iy+1] = buffer[2*mu+1];
       } 
@@ -834,9 +834,9 @@ int read_contraction(double *s, int *nsource, char *filename, int Nmu) {
 #  endif
 #endif
     count= Nmu * 2;
-    for(ix=0; ix<VOLUME; ix++) { 
+    for( unsigned int ix=0; ix<VOLUME; ix++) { 
       if( fread(buffer, sizeof(double), count, ofs) != count) return(107);
-      for(mu=0; mu<Nmu; mu++) {
+      for( int mu=0; mu<Nmu; mu++) {
         s[_GWI(mu,ix,VOLUME)  ] = buffer[2*mu  ];
         s[_GWI(mu,ix,VOLUME)+1] = buffer[2*mu+1];
       } 
@@ -2069,7 +2069,6 @@ void init_gauge_trafo(double **g, double heat) {
 
 void apply_gt_gauge(double *g, double*gauge_field) {
 
-  int ix, mu;
   double u[18];
   FILE* ofs;
 
@@ -2079,8 +2078,8 @@ void apply_gt_gauge(double *g, double*gauge_field) {
   printf_gauge_field(gauge_field, ofs);
   fclose(ofs);
 */
-  for(ix=0; ix<VOLUME; ix++) {
-    for(mu=0; mu<4; mu++) {
+  for( unsigned int ix=0; ix<VOLUME; ix++) {
+    for( int mu=0; mu<4; mu++) {
       _cm_eq_cm_ti_cm(u, &g[18*ix], &gauge_field[_GGI(ix,mu)]);
       _cm_eq_cm_ti_cm_dag(&gauge_field[_GGI(ix, mu)], u, &g[18*g_iup[ix][mu]]);
     }
@@ -2096,7 +2095,7 @@ void apply_gt_gauge(double *g, double*gauge_field) {
 /* apply gt to propagator; (is,ic) = (spin, colour)-index */
 void apply_gt_prop(double *g, double *phi, int is, int ic, int mu, char *basename, int source_location) {
 #ifndef HAVE_MPI
-  int ix, ix1[5], k;
+  int ix1[5];
   double psi1[24], psi2[24], psi3[24], *work[3];
   complex co[3];
   char filename[200];
@@ -2124,15 +2123,15 @@ void apply_gt_prop(double *g, double *phi, int is, int ic, int mu, char *basenam
   }
 
   /* apply g to propagators from the left */
-  for(k=0; k<3; k++) {
-    for(ix=0; ix<VOLUME; ix++) {
+  for(int k=0; k<3; k++) {
+    for( unsigned int ix=0; ix<VOLUME; ix++) {
       _fv_eq_cm_ti_fv(psi1, &g[18*ix], &work[k][_GSI(ix)]);
       _fv_eq_fv(&work[k][_GSI(ix)], psi1);
     }
   }
 
   /* apply g to propagators from the right */
-  for(ix=0; ix<VOLUME; ix++) {
+  for( unsigned int ix=0; ix<VOLUME; ix++) {
     _fv_eq_zero(psi1);
     _fv_eq_zero(psi2);
     _fv_eq_zero(psi3);
@@ -2302,7 +2301,7 @@ int ranz2(double * y, unsigned int NRAND) {
  ********************************************************/
 void random_gauge_field(double *gfield, double h) {
 
-  int mu, ix;
+  int mu;
   double buffer[72], *gauge_point[4];
 #ifdef HAVE_MPI
   int iproc, tgeom[2], tag, t;
@@ -2316,7 +2315,7 @@ void random_gauge_field(double *gfield, double h) {
   gauge_point[3] = buffer + 54;
 
 /*  if(g_cart_id==0) { */
-    for(ix=0; ix<VOLUME; ix++) {
+    for( unsigned int ix=0; ix<VOLUME; ix++) {
       random_gauge_point(gauge_point, h);
       memcpy((void*)(gfield + _GGI(ix,0)), (void*)buffer, 72*sizeof(double));
     }
@@ -2399,7 +2398,7 @@ void random_spinor_field (double *s, unsigned int V)  {
 int read_pimn(double *pimn, const int read_flag) {
 
   char filename[800];
-  int iostat, ix, mu, nu, iix, np;
+  int iostat, np;
   double ratime, retime, buff[32], *buff2=(double*)NULL;
 
   FILE *ofs;
@@ -2426,14 +2425,14 @@ int read_pimn(double *pimn, const int read_flag) {
   if(read_flag==0) {
     if(format==1) {
       fprintf(stdout, "reading of binary data from file %s\n", filename);
-      for(ix=0; ix<VOLUME; ix++) {
+      for(unsigned int ix=0; ix<VOLUME; ix++) {
         iostat = fread(buff, sizeof(double), 32, ofs);
         if(iostat != 32) {
           fprintf(stderr, "could not read proper amount of data\n");
           return(-3);
         }
         /* fprintf(stdout, "ix = %d\n", ix); */
-        for(mu=0; mu<16; mu++) {
+        for(int mu=0; mu<16; mu++) {
           pimn[_GWI(mu,ix,VOLUME)  ] = buff[2*mu  ];
           pimn[_GWI(mu,ix,VOLUME)+1] = buff[2*mu+1];
         }
@@ -2443,10 +2442,10 @@ int read_pimn(double *pimn, const int read_flag) {
       np = format - 100; /* number of processes */
       fprintf(stdout, "reconstructing old version of io-output with np=%d\n", np);
       buff2 = (double*)malloc(VOLUME/np*32*sizeof(double));
-      for(nu=0; nu<np; nu++) {
+      for(int nu=0; nu<np; nu++) {
         fread(buff2, sizeof(double), (VOLUME/np)*32, ofs);
-        for(mu=0; mu<16; mu++) {
-          for(ix=0; ix<VOLUME/np; ix++) {
+        for(int mu=0; mu<16; mu++) {
+          for(unsigned int ix=0; ix<VOLUME/np; ix++) {
             pimn[_GWI(mu,ix+nu*(VOLUME/np),VOLUME)  ] = buff2[_GWI(mu,ix,VOLUME/np)  ];
             pimn[_GWI(mu,ix+nu*(VOLUME/np),VOLUME)+1] = buff2[_GWI(mu,ix,VOLUME/np)+1];
           }
@@ -2456,14 +2455,14 @@ int read_pimn(double *pimn, const int read_flag) {
     }
     else if(format==0 || format==2) {
       fprintf(stdout, "buffered reading of binary data from file %s in format %2d\n", filename, format);
-      for(ix=0; ix<VOLUME; ix++) {
+      for(unsigned int ix=0; ix<VOLUME; ix++) {
         iostat = fread(buff, sizeof(double), 32, ofs);
         if(iostat != 32) {
           fprintf(stderr, "could not read proper amount of data\n");
           return(-3);
         }
-        for(mu=0; mu<16; mu++) {
-          iix = index_conv(16*ix+mu,format);
+        for(int mu=0; mu<16; mu++) {
+          unsigned int iix = index_conv(16*ix+mu,format);
           /* fprintf(stdout, "Dru's index: %8d\t my index: %8d\n", 16*ix+mu, iix); */
           pimn[iix  ] = buff[2*mu  ];
           pimn[iix+1] = buff[2*mu+1];
@@ -2474,8 +2473,8 @@ int read_pimn(double *pimn, const int read_flag) {
   else if(read_flag==1 && format==1) {
     /* reading from ascii file only in my format for testing purposes */
     fprintf(stdout, "reading in format 1 from ascii file %s\n", filename);
-    for(ix=0; ix<VOLUME; ix++) {
-      for(mu=0; mu<16; mu++) {
+    for(unsigned int ix=0; ix<VOLUME; ix++) {
+      for( int mu=0; mu<16; mu++) {
         fscanf(ofs, "%lf%lf", pimn+_GWI(mu,ix,VOLUME), pimn+_GWI(mu,ix,VOLUME)+1);
       }
     }
@@ -2636,7 +2635,9 @@ void random_gauge_point(double **gauge_point, double heat) {
  ********************************************************/
 void random_gauge_field2(double *gfield) {
 
-  int mu, ix, i;
+  const unsigned int VOL3 = LX*LY*LZ;
+
+  int i;
   double norm;
   complex u[3], v[3], w[3], z[3], pr;
 #ifdef HAVE_MPI
@@ -2647,8 +2648,8 @@ void random_gauge_field2(double *gfield) {
 
 
   if(g_cart_id==0) {
-    for(ix=0; ix<VOLUME; ix++) {
-      for(mu=0; mu<4; mu++) {
+    for( unsigned int ix=0; ix<VOLUME; ix++) {
+      for( int mu=0; mu<4; mu++) {
         u[0].re = (double)rand() / ((double)RAND_MAX + 1.);
         u[0].im = (double)rand() / ((double)RAND_MAX + 1.);
         u[1].re = (double)rand() / ((double)RAND_MAX + 1.);
@@ -2726,8 +2727,8 @@ void random_gauge_field2(double *gfield) {
       tag = 2*iproc;
       MPI_Recv((void*)tgeom, 2, MPI_INT, iproc, tag, g_cart_grid, &mstatus);
       for(t=0; t<tgeom[1]; t++) {
-        for(ix=0; ix<LX*LY*LZ; ix++) {
-          for(mu=0; mu<4; mu++) {
+        for( unsigned int ix=0; ix<VOL3; ix++) {
+          for( int mu=0; mu<4; mu++) {
             u[0].re = (double)rand() / ((double)RAND_MAX + 1.);
             u[0].im = (double)rand() / ((double)RAND_MAX + 1.);
             u[1].re = (double)rand() / ((double)RAND_MAX + 1.);
@@ -3429,12 +3430,13 @@ void contract_twopoint_snk_momentum(double *contr, const int idsource, const int
 }
 #endif
 
+/*****************************************************************************************************************/
+/*****************************************************************************************************************/
 
 /*****************************************************************************************************************
  * contraction of meson 2-point functions with sink momentum and for a time interval
  * - 0 <= tmin, tmax <= T-1
  *****************************************************************************************************************/
-#ifndef HAVE_OPENMP
 void contract_twopoint_snk_momentum_trange(double *contr, const int idsource, const int idsink, double **chi, double **phi, int n_c, int* snk_mom, int tmin, int tmax) {
 
   int x0, x1, x2, x3, ix, iix, psource[4], tt=0, isimag, mu, c, j;
@@ -3530,139 +3532,7 @@ void contract_twopoint_snk_momentum_trange(double *contr, const int idsource, co
     }}}  // of x3, x2, x1
     tt++;
   }      // of x0
-}
-#else
-void contract_twopoint_snk_momentum_trange(double *contr, const int idsource, const int idsink, double **chi, double **phi, int n_c, int* snk_mom, int tmin, int tmax) {
-
-  int x0, iix, tt, psource[4], isimag;
-  int sx0=0, sx1=0, sx2=0, sx3=0;
-  double ssource[4];
-  double px, py, pz;
-  double *contr_threads=NULL;
-  int num_threads;
-
-  psource[0] = gamma_permutation[idsource][ 0] / 6;
-  psource[1] = gamma_permutation[idsource][ 6] / 6;
-  psource[2] = gamma_permutation[idsource][12] / 6;
-  psource[3] = gamma_permutation[idsource][18] / 6;
-  isimag = gamma_permutation[idsource][ 0] % 2;
-  /* sign from the source gamma matrix; the minus sign
-   * in the lower two lines is the action of gamma_5 */
-  ssource[0] =  gamma_sign[idsource][ 0] * gamma_sign[5][gamma_permutation[idsource][ 0]];
-  ssource[1] =  gamma_sign[idsource][ 6] * gamma_sign[5][gamma_permutation[idsource][ 6]];
-  ssource[2] =  gamma_sign[idsource][12] * gamma_sign[5][gamma_permutation[idsource][12]];
-  ssource[3] =  gamma_sign[idsource][18] * gamma_sign[5][gamma_permutation[idsource][18]];
-/*
-  fprintf(stdout, "__________________________________\n");
-  fprintf(stdout, "isource=%d, idsink=%d, p[0] = %d\n", idsource, idsink, psource[0]);
-  fprintf(stdout, "isource=%d, idsink=%d, p[1] = %d\n", idsource, idsink, psource[1]);
-  fprintf(stdout, "isource=%d, idsink=%d, p[2] = %d\n", idsource, idsink, psource[2]);
-  fprintf(stdout, "isource=%d, idsink=%d, p[3] = %d\n", idsource, idsink, psource[3]);
-*/
-
-/*  if(g_cart_id==0) fprintf(stdout, "# %3d %3d ssource = %e\t%e\t%e\t%e\n", idsource, idsink,
-    ssource[0], ssource[1], ssource[2], ssource[3]); */
-
-  if(g_source_type==0) { // point souce
-    iix = g_source_location;
-    sx0 = iix / (LX_global * LY_global * LZ_global);
-    iix -= sx0 * LX_global * LY_global * LZ_global;
-    sx1 = iix / (LY_global * LZ_global);
-    iix -= sx1 * LY_global * LZ_global;
-    sx2 = iix / (LZ_global);
-    sx3 = iix - sx2 * LZ_global;
-    //fprintf(stdout, "# [contract_twopoint_snk_momentum] source coordinates = (%d, %d, %d, %d)\n", sx0, sx1, sx2, sx3);
-  }
-
-  px = 2.*M_PI*(double)snk_mom[0]/(double)LX_global;
-  py = 2.*M_PI*(double)snk_mom[1]/(double)LY_global;
-  pz = 2.*M_PI*(double)snk_mom[2]/(double)LZ_global;
-  // fprintf(stdout, "# [contract_twopoint_snk_momentum] p = (%e, %e, %e)\n", px, py, pz);
-
-#pragma omp parallel shared(num_threads)
-{
-  if(omp_get_thread_num() == 0) {
-    num_threads = omp_get_num_threads();
-  }
-}
-
-  contr_threads = (double*)malloc(2 * num_threads * sizeof(double));
-
-  tt = 0;
-  for(x0=tmin; x0<=tmax; x0++) {
-
-    memset(contr_threads, 0, 2*num_threads * sizeof(double));
-
-#pragma omp parallel private(iix) shared(T,LX,LY,LZ, x0, sx0,sx1,sx2,sx3, px, py, pz, isimag, ssource, psource, contr, chi, phi, n_c, snk_mom, num_threads, tmin, tmax, contr_threads)
-{
-    int x1, x2, x3, ix, mu, c, j;
-    double phase, cphase, sphase;
-    double tmp[2], re, im;
-    complex w;
-    double spinor1[24], spinor2[24];
-    unsigned int VOL3 = LX*LY*LZ;
-    unsigned int LLYZ = LY * LZ;
-    int nts = tmax - tmin + 1;
-
-    int threadid = omp_get_thread_num();
-
-    // TEST
-    // fprintf(stdout, "# [contract_twopoint_snk_momentum] thread%.4d number of threads %d\n", threadid, num_threads);
-
-    for(ix=threadid; ix<VOL3; ix+=num_threads) {
-
-
-      x1 = ix / LLYZ;
-      iix = ix - LLYZ * x1;
-      x2 = iix / LZ;
-      x3 = iix - LZ * x2;
-
-      //phase = (double)(x1-sx1)*px + (double)(x2-sx2)*py + (double)(x3-sx3)*pz;
-      phase = (double)(x1+g_proc_coords[1]*LX - sx1)*px + (double)(x2+g_proc_coords[2]*LY - sx2)*py + (double)(x3+g_proc_coords[3]*LZ - sx3)*pz;
-
-      cphase = cos( phase );
-      sphase = sin( phase );
-
-      iix = x0 * VOL3 + ix;
-
-      tmp[0] = 0.; tmp[1] = 0.;
-      for(mu=0; mu<4; mu++) {
-        for(c=0; c<n_c; c++) {
-
-          _fv_eq_gamma_ti_fv(spinor1, idsink, phi[mu*n_c+c]+_GSI(iix));
-          _fv_eq_gamma_ti_fv(spinor2, 5, spinor1);
-          _co_eq_fv_dag_ti_fv(&w, chi[psource[mu]*n_c+c]+_GSI(iix), spinor2);
-
-          tmp[0] += ssource[mu]*w.re;
-          tmp[1] += ssource[mu]*w.im;
-
-        }  // of color  index
-      }    // of spinor index
-
-      // multiply by momentum phase factor and add to correlator
-      re = tmp[0]*cphase - tmp[1]*sphase;
-      im = tmp[0]*sphase + tmp[1]*cphase;
-
-      if( !isimag ) {
-        contr_threads[2*threadid  ] += re;
-        contr_threads[2*threadid+1] += im;
-      } else {
-        contr_threads[2*threadid  ] +=  im;
-        contr_threads[2*threadid+1] += -re;
-      }
-    }  // of ix
-}      // end of parallel region
-
-    for(iix=0; iix<num_threads; iix++) {
-      contr[2*tt  ] += contr_threads[2*iix  ];
-      contr[2*tt+1] += contr_threads[2*iix+1];
-    }
-    tt++;
-  }      // of x0
-
-  free(contr_threads);
-}  /* contract_twopoint_snk_momentum_trange */
-#endif
+}  /* end of contract_twopoint_snk_momentum_trange */
 
 /******************************************************************************
  * contract_twopoint_xdep
@@ -3859,8 +3729,9 @@ void contract_twopoint_xdep_timeslice(void*contr, const int idsource, const int 
  *******************************************/
 int decompress_gauge(double*gauge_aux, float*gauge_field_flt) {
 
-  int it, ix, itmp, itmp2, mu, iix;
-  int VOL3 = LX*LY*LZ;
+  const unsigned int VOL3 = LX*LY*LZ;
+
+  int it, itmp, itmp2, mu, iix;
   const unsigned int bytes = 4*sizeof(float);
   double a1[2], a2[2], a3[2], b1[2], c1[2], theta_a1, theta_c1;
   double U_[18], V_[18], dtmp, dtmp2;
@@ -3870,7 +3741,7 @@ int decompress_gauge(double*gauge_aux, float*gauge_field_flt) {
    * convert compressed float gauge field back to double
    * - first the spatial links in the whole volume
    *********************************************************/ 
-  for(ix=0; ix<VOLUME; ix++) {
+  for(unsigned int ix=0; ix<VOLUME; ix++) {
     /* collect the parts of the 3 spatial links */
     memcpy((void*)gtmp   , gauge_field_flt+4*ix, bytes);
     memcpy((void*)(gtmp+ 4), gauge_field_flt+4*ix+ 4*VOLUME, bytes);
@@ -3929,7 +3800,7 @@ int decompress_gauge(double*gauge_aux, float*gauge_field_flt) {
     }
   }
 
-  for(ix=0; ix<VOL3; ix++) {
+  for(unsigned int ix=0; ix<VOL3; ix++) {
     itmp = 24*VOLUME;
     memcpy((void*)gtmp, gauge_field_flt+itmp+4*ix, bytes);
     memcpy((void*)(gtmp+4), gauge_field_flt+itmp+4*ix+ 4*VOL3, bytes);
@@ -4058,24 +3929,25 @@ int compress_gauge(float*gauge_field_flt, double *gauge_aux) {
  * set temporal gauge transform field
  ***********************************************************************/
 int set_temporal_gauge(double*gauge_transform, double*gauge_field) {
-  int ix, iix, count;
-  int VOL3 = LX*LY*LZ;
+  const unsigned int VOL3 = LX*LY*LZ;
 
-  for(ix=0; ix<18*VOLUME; ix++) gauge_transform[ix] = 0.;
-  for(ix=0; ix<18*VOL3; ix+=18) {
+  int iix, count;
+
+  for(unsigned int ix=0; ix<18*VOLUME; ix++) gauge_transform[ix] = 0.;
+  for(unsigned int ix=0; ix<18*VOL3; ix+=18) {
     gauge_transform[ix   ] = 1.;
     gauge_transform[ix+ 8] = 1.;
     gauge_transform[ix+16] = 1.;
   }
   count=0;
-  for(ix=18*VOL3; ix<36*VOL3; ix+=18) {
+  for(unsigned int ix=18*VOL3; ix<36*VOL3; ix+=18) {
     memcpy((void*)(gauge_transform+ix), (void*)(gauge_field+count), 18*sizeof(double));
     count += 72;
   }
 
   count = 72*VOL3;
   iix   = 18*VOL3;
-  for(ix=36*VOL3; ix<18*VOLUME; ix+=18) {
+  for(unsigned int ix=36*VOL3; ix<18*VOLUME; ix+=18) {
     _cm_eq_cm_ti_cm(gauge_transform+ix, gauge_transform+iix, gauge_field+count);
     iix+=18;
     count+=72;
@@ -4092,10 +3964,10 @@ int set_temporal_gauge(double*gauge_transform, double*gauge_field) {
  ****************************************************************************************/
 int apply_gauge_transform(double*gauge_new, double*gauge_transform, double*gauge_old){
 
-  int ix, itmp;
+  int itmp;
   double U_[18], ratime, retime;
   ratime = (double)clock() / CLOCKS_PER_SEC;
-  for(ix=0; ix<VOLUME; ix++) {
+  for(unsigned int ix=0; ix<VOLUME; ix++) {
     itmp=72*ix;
     _cm_eq_cm_ti_cm(U_, gauge_transform+18*ix, gauge_old+itmp);
     _cm_eq_cm_ti_cm_dag(gauge_new+itmp,    U_, gauge_transform+g_iup[ix][0]*18);
@@ -4250,7 +4122,7 @@ int fini_rng_state (int **rng_state) {
 
 // create, free spin propagator field
 spinor_propagator_type *create_sp_field(size_t N) {
-  size_t i, j;
+
   unsigned int count;
   spinor_propagator_type *fp;
   fp = (spinor_propagator_type *) calloc(N, sizeof(spinor_propagator_type));
@@ -4261,7 +4133,7 @@ spinor_propagator_type *create_sp_field(size_t N) {
     free( fp );
     return(NULL);
   }
-  for(i=1;i<N;i++) fp[i] = fp[i-1] + g_sv_dim;
+  for(size_t i=1;i<N;i++) fp[i] = fp[i-1] + g_sv_dim;
  
   fp[0][0] = (double*)calloc(N * g_sv_dim * g_sv_dim * 2, sizeof(double));
   if ( fp[0][0] == NULL) {
@@ -4270,8 +4142,8 @@ spinor_propagator_type *create_sp_field(size_t N) {
     return(NULL);
   }
   count=0;
-  for(j=0;j<N;j++) {
-    for(i=0;i<g_sv_dim; i++) {
+  for(size_t j=0;j<N;j++) {
+    for(int i=0;i<g_sv_dim; i++) {
       if(count>0) {
         fp[j][i] = fp[0][0] + count * g_sv_dim * 2;
       }
@@ -4301,7 +4173,7 @@ void free_sp_field(spinor_propagator_type **fp) {
 
 // create, free fermion propagator field
 fermion_propagator_type *create_fp_field(size_t N) {
-  size_t i, j;
+
   unsigned int count;
   fermion_propagator_type *fp;
   fp = (fermion_propagator_type *) calloc(N, sizeof(fermion_propagator_type));
@@ -4312,7 +4184,7 @@ fermion_propagator_type *create_fp_field(size_t N) {
     free( fp );
     return(NULL);
   }
-  for(i=1;i<N;i++) fp[i] = fp[i-1] + g_fv_dim;
+  for(size_t i=1;i<N;i++) fp[i] = fp[i-1] + g_fv_dim;
  
   fp[0][0] = (double*)calloc(N * g_fv_dim * g_fv_dim * 2, sizeof(double));
   if ( fp[0][0] == NULL) {
@@ -4321,8 +4193,8 @@ fermion_propagator_type *create_fp_field(size_t N) {
     return(NULL);
   }
   count=0;
-  for(j=0;j<N;j++) {
-    for(i=0;i<g_fv_dim; i++) {
+  for(size_t j=0;j<N;j++) {
+    for(int i=0;i<g_fv_dim; i++) {
       if(count>0) {
         fp[j][i] = fp[0][0] + count * g_fv_dim * 2;
       }
@@ -5697,14 +5569,13 @@ void g5_phi(double *phi, unsigned int N) {
 #pragma omp parallel shared(phi, N)
 {
 #endif
-  int ix;
   double spinor1[24];
   double *phi_;
 
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-  for(ix = 0; ix < N; ix++) {
+  for(unsigned int ix = 0; ix < N; ix++) {
     phi_ = phi + _GSI(ix);
     /*
     _fv_eq_gamma_ti_fv(spinor1, 5, phi_);
@@ -7013,7 +6884,7 @@ void colorvector_field_eq_colorvector_field_ti_complex_field ( double*r, double*
 #pragma omp for
 #endif
     for( unsigned int ix = 0; ix < N; ix++) {
-      unsigned int offset = _GSI(ix);
+      unsigned int offset = _GVI(ix);
       rr = r + offset;
       ss = s + offset;
       w.re = c[2*ix  ];
