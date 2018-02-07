@@ -49,7 +49,6 @@ void Q_phi_tbc(double *xi, double *phi) {
 #pragma omp parallel shared(xi,phi)
 {
 #endif
-  int index_s; 
   double SU3_1[18];
   double spinor1[24], spinor2[24];
   double *xi_, *phi_, *U_;
@@ -57,7 +56,7 @@ void Q_phi_tbc(double *xi, double *phi) {
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-  for(index_s = 0; index_s < VOLUME; index_s++) {
+  for( unsigned int index_s = 0; index_s < VOLUME; index_s++) {
 
       xi_ = xi + _GSI(index_s);
 
@@ -208,13 +207,12 @@ void Hopping(double *xi, double *phi, double*gauge_field) {
 #endif
 
   double spinor1[24], spinor2[24];
-  int index_s; 
   double *xi_, *phi_, *U_;
 
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-  for(index_s = 0; index_s < VOLUME; index_s++) {
+  for( unsigned int index_s = 0; index_s < VOLUME; index_s++) {
 
       xi_ = xi + _GSI(index_s);
 
@@ -353,14 +351,13 @@ void Q_phi(double *xi, double *phi, double*gauge_field, const double mutm) {
 {
 #endif
 
-  int index_s; 
   double spinor1[24], spinor2[24];
   double *xi_, *phi_, *U_;
 
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-  for(index_s = 0; index_s < VOLUME; index_s++) {
+  for( unsigned int index_s = 0; index_s < VOLUME; index_s++) {
 
       xi_ = xi + _GSI(index_s);
 
