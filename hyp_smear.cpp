@@ -96,7 +96,7 @@ int hyp_smear_step( double *u_out, double *u_in, double A[3], double accu, unsig
   const int dim = 4;
   const unsigned int VOL3 = LX*LY*LZ;
   const double OneOverSix = 0.1666666666666667;
-  int mu, nu, rho, eta, i, iperm, ix;
+  int mu, nu, rho, eta, i, iperm;
   double *vbar[3], *vtilde[3];
   size_t shift;
   double U[18], U2[18], U3[18];
@@ -123,7 +123,10 @@ int hyp_smear_step( double *u_out, double *u_in, double A[3], double accu, unsig
 
       /* fprintf(stdout, "# [hyp_smear_step] mu = %d, nu = %d, rho = %d, eta = %d\n", mu, nu, rho, eta); */
 
-      for(ix=0; ix<VOLUME; ix++) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for default(shared)
+#endif
+      for( unsigned int ix=0; ix<VOLUME; ix++) {
 
         // set initial v to (1 - alpha_3) u for each triple (mu, nu, rho)
         /* U = (1 - A[3]) * u_in[mu] */
@@ -167,8 +170,10 @@ int hyp_smear_step( double *u_out, double *u_in, double A[3], double accu, unsig
     for(iperm=0; iperm<3; iperm++) {
       nu = index_tab[mu][iperm][1];
 
-   
-      for(ix=0; ix<VOLUME; ix++) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for default(shared)
+#endif
+      for( unsigned int ix=0; ix<VOLUME; ix++) {
         _cm_eq_cm_ti_re(U, u_in+_GGI(ix,mu), (1.-A[1]));
 
         /* first rho */
@@ -227,7 +232,10 @@ int hyp_smear_step( double *u_out, double *u_in, double A[3], double accu, unsig
   /* construct V from Vtilde */
   for(mu=0; mu<4; mu++) {
 
-    for(ix=0; ix<VOLUME; ix++) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for default(shared)
+#endif
+    for(unsigned int ix=0; ix<VOLUME; ix++) {
 
       _cm_eq_cm_ti_re(U, u_in+_GGI(ix,mu), (1.-A[0]));
 
