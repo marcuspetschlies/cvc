@@ -78,7 +78,7 @@ int distillation_vertex_displacement ( double**V, int numV, int momentum_number,
    * writer for aff output file
    ***********************************************/
   if(io_proc >= 1) {
-    sprintf(filename, "%s.%.4d.t%.2d.aff", prefix, Nconf, g_proc_coords[0]  );
+    sprintf(filename, "%s.%.4d.t%.2d.aff", prefix, Nconf, timeslice+g_proc_coords[0]*T  );
     if ( io_proc == 2 ) fprintf(stdout, "# [distillation_vertex_displacement] writing data to file %s\n", filename);
     affw = aff_writer(filename);
     aff_status_str = (char*)aff_writer_errstr(affw);
@@ -95,7 +95,7 @@ int distillation_vertex_displacement ( double**V, int numV, int momentum_number,
 #else
   FILE *ofs = NULL;
   if ( io_proc >= 1 ) {
-    sprintf( filename, "%s.t%.2d.dat", prefix, g_proc_coords[0] );
+    sprintf( filename, "%s.t%.2d.dat", prefix, timeslice+g_proc_coords[0]*T );
     ofs = fopen ( filename, "w" );
     if( ofs == NULL ) {
       fprintf(stderr, "[distillation_vertex_displacement] Error from open for filename %s %s %d\n", filename, __FILE__, __LINE__);
@@ -112,7 +112,7 @@ int distillation_vertex_displacement ( double**V, int numV, int momentum_number,
   /***********************************************
    * calculate W
    ***********************************************/
-  double **W = NULL, **work = NULL;
+  double **W = NULL, **work = NULL, **Wp = NULL;
   double _Complex **vv = NULL;
 
   exitstatus = init_2level_buffer ( &W, numV, _GVI(VOL3) );
@@ -130,6 +130,12 @@ int distillation_vertex_displacement ( double**V, int numV, int momentum_number,
   exitstatus = init_2level_zbuffer ( &vv, numV, numV );
   if( exitstatus != 0 ) {
     fprintf(stderr, "[distillation_vertex_displacement] Error from init_2level_zbuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+
+  exitstatus = init_2level_buffer ( &Wp, numV, _GVI(VOL3) );
+  if( exitstatus != 0 ) {
+    fprintf(stderr, "[distillation_vertex_displacement] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     return(1);
   }
 
@@ -159,7 +165,7 @@ int distillation_vertex_displacement ( double**V, int numV, int momentum_number,
        * phases for momentum projection
        ***********************************************/
       double *phase = NULL;
-      exitstatus = init_1level_buffer ( &phase, VOL3 );
+      exitstatus = init_1level_buffer ( &phase, 2*VOL3 );
       if( exitstatus != 0 ) {
         fprintf(stderr, "[distillation_vertex_displacement] Error from init_1level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(1);
@@ -176,22 +182,23 @@ int distillation_vertex_displacement ( double**V, int numV, int momentum_number,
          * multiply with momentum phase 
          ***********************************************/
         for ( int k = 0; k < numV; k++ ) {
-          colorvector_field_eq_colorvector_field_ti_complex_field ( W[k], W[k], phase, VOL3 );
+          colorvector_field_eq_colorvector_field_ti_complex_field ( Wp[k], W[k], phase, VOL3 );
         }
 
         /***********************************************
          * V^+ D(p) V
          ***********************************************/
-        _F(zgemm) ( &CHAR_C, &CHAR_N, &INT_M, &INT_N, &INT_K, &Z_1, (double _Complex*)(V[0]), &INT_K, (double _Complex*)(W[0]), &INT_K, &Z_0, vv[0], &INT_M, 1, 1);
+        _F(zgemm) ( &CHAR_C, &CHAR_N, &INT_M, &INT_N, &INT_K, &Z_1, (double _Complex*)(V[0]), &INT_K, (double _Complex*)(Wp[0]), &INT_K, &Z_0, vv[0], &INT_M, 1, 1);
 
         /***********************************************
          * add half-link phase shift
          ***********************************************/
-        int LL[3] = {LX, LY, LZ};
+        int LL[3] = {LX_global, LY_global, LZ_global};
         double dtmp = ( 1 - 2*fbwd )* momentum_list[imom][mu-1] * M_PI / (double)LL[mu-1];
         double ztmp[2] = { cos(dtmp), sin(dtmp) };
+        if ( g_cart_id == 0 ) fprintf(stdout, "# [distillation_vertex_displacement] fbwd %d p %3d %3d %3d z = %25.16e %25.16e\n", fbwd, 
+            momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], ztmp[0], ztmp[1] );
         complex_field_ti_eq_co ( (double*)(vv[0]), ztmp, numV*numV);
-
 
 #ifdef HAVE_MPI
         ratime = _GET_TIME;
@@ -280,6 +287,7 @@ int distillation_vertex_displacement ( double**V, int numV, int momentum_number,
    * deallocate auxilliary fields
    ***********************************************/
   fini_2level_buffer ( &W );
+  fini_2level_buffer ( &Wp );
   fini_2level_buffer ( &work );
   fini_2level_zbuffer ( &vv );
 
