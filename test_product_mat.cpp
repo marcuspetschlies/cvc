@@ -141,7 +141,7 @@ int main(int argc, char **argv) {
 
 
   const int nspin = 4;
-  int spin_list[nspin] = { 2, 1 ,3, 4};
+  int spin_list[nspin] = { 2, 4 ,6, 8};
 
   int *spin_dim = NULL;
   init_1level_ibuffer ( &spin_dim, nspin );
@@ -245,11 +245,9 @@ int main(int argc, char **argv) {
 
   fini_1level_ibuffer ( &spin_dim );
 
-  for ( int i = 0; i < nspin; i++ ) fini_rot_mat_table ( rspin+i );
-  free ( rspin );
-
 #endif
 
+#if 0
   /******************************************************************
    * TEST
    *   product_mat_pl_eq_mat_ti_co
@@ -279,7 +277,7 @@ int main(int argc, char **argv) {
   }
 
   rot_fini_rotation_matrix ( &R );
-
+#endif
 #if 0
   const int nspin = 4;
   int *coords = NULL, *spin_dim = NULL;
@@ -304,6 +302,51 @@ int main(int argc, char **argv) {
   fini_1level_ibuffer ( &coords );
   fini_1level_ibuffer ( &spin_dim );
 #endif
+
+  /******************************************************************
+   * TEST
+   *   rot_mat_eq_product_mat_ti_rot_mat
+   ******************************************************************/
+
+  rot_mat_table_type rspin2;
+  rot_mat_table_eq_product_mat_table ( &rspin2, rspin, nspin );
+
+
+  double _Complex **R  = rot_init_rotation_matrix ( pdim );
+  double _Complex **R2 = rot_init_rotation_matrix ( pdim );
+  double _Complex **S  = rot_init_rotation_matrix ( pdim );
+
+
+  ranlxd ( (double*)(S[0]), 2*pdim*pdim );
+
+  rot_printf_matrix ( S, pdim, "S", stdout );
+
+
+  for ( int irot = 0; irot < 48 ; irot++ )
+  {
+    char name[100];
+
+    rot_mat_eq_product_mat_ti_rot_mat ( R, rspin, -1, irot, S, nspin );
+    sprintf ( name, "R[[%d]]", irot+1 );
+    rot_printf_matrix ( R, pdim, name, stdout );
+
+    rot_mat_ti_mat ( R2, rspin2.IR[irot] , S, pdim );
+    sprintf ( name, "R2[[%d]]", irot+1 );
+    rot_printf_matrix ( R2, pdim, name, stdout );
+
+    double norm = rot_mat_norm_diff ( R, R2, pdim );
+    fprintf ( stdout, "# [test_product_mat] irot %d norm diff %16.7e\n", irot, norm );
+
+  }
+
+  rot_fini_rotation_matrix ( &R );
+  rot_fini_rotation_matrix ( &R2 );
+  rot_fini_rotation_matrix ( &S );
+
+  fini_rot_mat_table ( &rspin2 );
+
+  for ( int i = 0; i < nspin; i++ ) fini_rot_mat_table ( rspin+i );
+  free ( rspin );
 
   if(g_cart_id==0) {
     g_the_time = time(NULL);
