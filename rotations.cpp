@@ -1974,7 +1974,15 @@ void rot_inversion_matrix_spherical_basis ( double _Complex**R, int J2, int bisp
     rot_mat_ti_eq_re ( R, -1., dim );
     return;
 
+  } else if ( J2 % 2 == 1 ) {
+
+    /***********************************************************
+     * spin 1/2, 3/2, 5/2, ...
+     ***********************************************************/
+    rot_mat_unity ( R , dim );
+    return;
   }
+
 
 
   if ( ( J2 == 1 && bispinor ) || ( J2 == 3 ) ) {
@@ -2287,7 +2295,7 @@ void rot_vec_pl_eq_vec_ti_co ( double _Complex*v, double _Complex*w, double _Com
 /***********************************************************/
 
 void rot_vec_normalize ( double _Complex *v, int N ) {
-  double eps = 1.e-15;
+  double eps = 9.e-15;
   double norm=0.;
 #pragma omp parallel for
   for ( int i = 0; i < N; i++ ) {
