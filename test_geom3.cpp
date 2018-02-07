@@ -273,7 +273,7 @@ int main(int argc, char **argv) {
     EXIT(38);
   }
 
-#if 0
+
   laph_evecs_num = 3;
 
   exitstatus = init_3level_buffer ( &laph_evecs_field, T, laph_evecs_num,_GVI(VOL3) );
@@ -318,19 +318,17 @@ int main(int argc, char **argv) {
       }
     }
   }
+#if 0
 #endif
 
-
-
-#if 0
   /***********************************************
    * 
    ***********************************************/
-  // for ( int x0 = 0; x0 < T; x0++ )
-  for ( int x0 = 0; x0 < 1; x0++ )
+  for ( int x0 = 0; x0 < T; x0++ )
+  // for ( int x0 = 0; x0 < 1; x0++ )
   {
 
-    sprintf ( tag, "t%.2d", x0 );
+    sprintf ( tag, "distvert");
     exitstatus = distillation_vertex_displacement ( laph_evecs_field[x0], laph_evecs_num, g_sink_momentum_number, g_sink_momentum_list, (char*)outfile_prefix, tag, io_proc, gauge_field_with_phase, x0 );
     if ( exitstatus != 0 ) {
       fprintf ( stderr, "[test_geom3] Error from distillation_vertex_displacement, status was %d\n", exitstatus );
@@ -338,6 +336,7 @@ int main(int argc, char **argv) {
     }
 
   }
+#if 0
 #endif
 
 
@@ -380,7 +379,7 @@ int main(int argc, char **argv) {
 #endif
 
 
-
+#if 0
   /****************************************
    * test gauge covariance
    ****************************************/
@@ -392,6 +391,7 @@ int main(int argc, char **argv) {
   // for ( unsigned int ix = 0; ix < VOLUME; ix++ ) random_cm( gt+18*ix, 1. );
   init_gauge_trafo( &gt, 1.0 );
 
+
   memcpy ( g_gauge_field, gauge_field_with_phase, 72*VOLUME*sizeof(double) );
 #ifdef HAVE_MPI
   xchange_gauge_field( g_gauge_field );
@@ -399,9 +399,12 @@ int main(int argc, char **argv) {
 
   apply_gt_gauge( gt, g_gauge_field );
 
-  double plaq;
-  plaquette2( &plaq, g_gauge_field );
-  if ( g_cart_id == 0 ) fprintf( stdout, "# [test_geom3] plaquette of gt gauge field = %25.16e\n", plaq );
+
+  exitstatus = plaquetteria ( g_gauge_field );
+  if ( exitstatus != 0 ) {
+    fprintf( stderr, "[test_geom3] Error from plaquetteria, status was %d\n", exitstatus );
+    EXIT(1);
+  }
 
 
   for ( int x0 = 0; x0 < T; x0++ ) {
@@ -420,13 +423,19 @@ int main(int argc, char **argv) {
 
         apply_displacement_colorvector ( work[1], work[0], k, fbwd, gauge_field_with_phase, x0 );
 
+#if 0
         for ( unsigned int ix = 0; ix < VOL3; ix++ ) {
           double v1[_GVI(1)];
           _cv_eq_cm_ti_cv ( v1, gt+18*(x0*VOL3+ix) , work[1]+_GVI(ix));
           _cv_eq_cv ( work[1]+_GVI(ix), v1);
         }
-
+#endif
         apply_displacement_colorvector ( work[3], work[2], k, fbwd, g_gauge_field, x0 );
+        for ( unsigned int ix = 0; ix < VOL3; ix++ ) {
+          double v1[_GVI(1)];
+          _cv_eq_cm_dag_ti_cv ( v1, gt+18*(x0*VOL3+ix) , work[3]+_GVI(ix));
+          _cv_eq_cv ( work[3]+_GVI(ix), v1);
+        }
 
         double norm = 0.;
         colorvector_field_norm_diff_timeslice ( &norm, work[3], work[1], 0, VOL3);
@@ -439,9 +448,10 @@ int main(int argc, char **argv) {
     }
 
   }
-    
-  fini_1level_buffer ( &gt );
+  free ( gt );
   fini_2level_buffer ( &work );
+#endif
+
 #if 0
 #endif
 
@@ -456,7 +466,7 @@ int main(int argc, char **argv) {
 
   free( gauge_field_with_phase );
 
-  // fini_3level_buffer ( &laph_evecs_field );
+  fini_3level_buffer ( &laph_evecs_field );
 
   free_geometry();
 
