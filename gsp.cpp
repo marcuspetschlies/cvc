@@ -43,307 +43,11 @@ const int gamma_adjoint_sign[16] = {
        1, 1, 1, 1,  1, 1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1
 };
 
-/***********************************************
- * Np - number of momenta
- * Ng - number of gamma matrices
- * Nt - number of timeslices
- * Nv - number of eigenvectors
- ***********************************************/
 
-int gsp_init (double ******gsp_out, int Np, int Ng, int Nt, int Nv) {
+/***********************************************************************************************/
+/***********************************************************************************************/
 
-  double *****gsp;
-  int i, k, l, c, x0;
-  size_t bytes;
-
-  /***********************************************
-   * allocate gsp space
-   ***********************************************/
-  gsp = (double*****)malloc(Np * sizeof(double****));
-  if(gsp == NULL) {
-    fprintf(stderr, "[gsp_init] Error from malloc\n");
-    return(1);
-  }
-
-  gsp[0] = (double****)malloc(Np * Ng * sizeof(double***));
-  if(gsp[0] == NULL) {
-    fprintf(stderr, "[gsp_init] Error from malloc\n");
-    return(2);
-  }
-  for(i=1; i<Np; i++) gsp[i] = gsp[i-1] + Ng;
-
-  gsp[0][0] = (double***)malloc(Nt * Np * Ng * sizeof(double**));
-  if(gsp[0][0] == NULL) {
-    fprintf(stderr, "[gsp_init] Error from malloc\n");
-    return(3);
-  }
-
-  c = 0;
-  for(i=0; i<Np; i++) {
-    for(k=0; k<Ng; k++) {
-      if (c == 0) {
-        c++;
-        continue;
-      }
-      gsp[i][k] = gsp[0][0] + c * Nt;
-      c++;
-    }
-  }
-
-  gsp[0][0][0] = (double**)malloc(Nv * Nt * Np * Ng * sizeof(double*));
-  if(gsp[0][0][0] == NULL) {
-    fprintf(stderr, "[gsp_init] Error from malloc\n");
-    return(4);
-  }
-
-  c = 0;
-  for(i=0; i<Np; i++) {
-    for(k=0; k<Ng; k++) {
-      for(x0=0; x0<Nt; x0++) {
-        if (c == 0) {
-          c++;
-          continue;
-        }
-        gsp[i][k][x0] = gsp[0][0][0] + c * Nv;
-        c++;
-      }
-    }
-  }
-
-  bytes = 2 * (size_t)(Nv * Nv * Nt * Np * Ng) * sizeof(double);
-  /* fprintf(stdout, "# [gsp_init] bytes = %lu\n", bytes); */
-  gsp[0][0][0][0] = (double*)malloc( bytes );
-
-  if(gsp[0][0][0][0] == NULL) {
-    fprintf(stderr, "[gsp_init] Error from malloc\n");
-    return(5);
-  }
-  c = 0;
-  for(i=0; i<Np; i++) {
-    for(k=0; k<Ng; k++) {
-      for(x0=0; x0<Nt; x0++) {
-        for(l=0; l<Nv; l++) {
-          if (c == 0) {
-            c++;
-            continue;
-          }
-          gsp[i][k][x0][l] = gsp[0][0][0][0] + c * 2*Nv;
-          c++;
-        }
-      }
-    }
-  }
-  memset(gsp[0][0][0][0], 0, bytes);
-
-  *gsp_out = gsp;
-  return(0);
-} /* end of gsp_init */
-
-/***********************************************
- * free gsp field
- ***********************************************/
-int gsp_fini(double******gsp) {
-
-  if( (*gsp) != NULL ) {
-    if((*gsp)[0] != NULL ) {
-      if((*gsp)[0][0] != NULL ) {
-        if((*gsp)[0][0][0] != NULL ) {
-          if((*gsp)[0][0][0][0] != NULL ) {
-            free((*gsp)[0][0][0][0]);
-            (*gsp)[0][0][0][0] = NULL;
-          }
-          free((*gsp)[0][0][0]);
-          (*gsp)[0][0][0] = NULL;
-        }
-        free((*gsp)[0][0]);
-        (*gsp)[0][0] = NULL;
-      }
-      free((*gsp)[0]);
-      (*gsp)[0] = NULL;
-    }
-    free((*gsp));
-    (*gsp) = NULL;
-  }
-
-  return(0);
-}  /* end of gsp_fini */
-
-
-/***********************************************
- * reset gsp field to zero
- ***********************************************/
-int gsp_reset (double ******gsp, int Np, int Ng, int Nt, int Nv) {
-  size_t bytes = 2 * (size_t)(Nv * Nv) * Nt * Np * Ng * sizeof(double);
-  memset((*gsp)[0][0][0][0], 0, bytes);
-  return(0);
-}  /* end of gsp_reset */
-
-
-void gsp_make_eo_phase_field (double*phase_e, double*phase_o, int *momentum) {
-
-  const int nthreads = g_num_threads;
-
-  int ix, iix;
-  int x0, x1, x2, x3;
-  int threadid = 0;
-  double ratime, retime;
-  double dtmp;
-
-
-  if(g_cart_id == 0) {
-    fprintf(stdout, "# [gsp_make_eo_phase_field] using phase momentum = (%d, %d, %d)\n", momentum[0], momentum[1], momentum[2]);
-  }
-
-  ratime = _GET_TIME;
-#ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) private(ix,iix,x0,x1,x2,x3,dtmp,threadid) firstprivate(T,LX,LY,LZ) shared(phase_e, phase_o, momentum)
-{
-  threadid = omp_get_thread_num();
-#endif
-  /* make phase field in eo ordering */
-  for(x0 = threadid; x0<T; x0 += nthreads) {
-    for(x1=0; x1<LX; x1++) {
-    for(x2=0; x2<LY; x2++) {
-    for(x3=0; x3<LZ; x3++) {
-      ix  = g_ipt[x0][x1][x2][x3];
-      iix = g_lexic2eosub[ix];
-      dtmp = 2. * M_PI * (
-          (x1 + g_proc_coords[1]*LX) * momentum[0] / (double)LX_global +
-          (x2 + g_proc_coords[2]*LY) * momentum[1] / (double)LY_global +
-          (x3 + g_proc_coords[3]*LZ) * momentum[2] / (double)LZ_global );
-      if(g_iseven[ix]) {
-        phase_e[2*iix  ] = cos(dtmp);
-        phase_e[2*iix+1] = sin(dtmp);
-      } else {
-        phase_o[2*iix  ] = cos(dtmp);
-        phase_o[2*iix+1] = sin(dtmp);
-      }
-    }}}
-  }
-
-#ifdef HAVE_OPENMP
-}  /* end of parallel region */
-#endif
-
-
-  retime = _GET_TIME;
-  if(g_cart_id == 0) fprintf(stdout, "# [gsp_make_eo_phase_field] time for making eo phase field = %e seconds\n", retime-ratime);
-}  /* end of gsp_make_eo_phase_field */
-
-
-/***********************************************
- * phase field on odd sublattice in sliced 3d
- * ordering (which I think is the same as odd
- * ordering)
- ***********************************************/
-void gsp_make_o_phase_field_sliced3d (double _Complex**phase, int *momentum) {
-
-  double ratime, retime;
-
-  if(g_cart_id == 0) {
-    fprintf(stdout, "# [gsp_make_o_phase_field_sliced3d] using phase momentum = (%d, %d, %d)\n", momentum[0], momentum[1], momentum[2]);
-  }
-
-  ratime = _GET_TIME;
-#ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) shared(phase, momentum)
-{
-#endif
-  const double TWO_MPI = 2. * M_PI;
-  double phase_part;
-  double p[3];
-
-  unsigned int ix, iix;
-  int x0, x1, x2, x3;
-  double _Complex dtmp;
-
-  p[0] = TWO_MPI * momentum[0] / (double)LX_global;
-  p[1] = TWO_MPI * momentum[1] / (double)LY_global;
-  p[2] = TWO_MPI * momentum[2] / (double)LZ_global;
-  
-  phase_part = (g_proc_coords[1]*LX) * p[0] + (g_proc_coords[2]*LY) * p[1] + (g_proc_coords[3]*LZ) * p[2];
-#ifdef HAVE_OPENMP
-#pragma omp for
-#endif
-  /* make phase field in o ordering */
-  for(x0 = 0; x0<T; x0 ++) {
-    for(x1=0; x1<LX; x1++) {
-    for(x2=0; x2<LY; x2++) {
-    for(x3=0; x3<LZ; x3++) {
-      ix  = g_ipt[x0][x1][x2][x3];
-      iix = g_eosub2sliced3d[1][g_lexic2eosub[ix] ];
-      dtmp = ( phase_part + x1*p[0] + x2*p[1] + x3*p[2] ) * I; 
-      if(!g_iseven[ix]) {
-        phase[x0][iix] = cexp(dtmp);
-      }
-    }}}
-  }
-
-#ifdef HAVE_OPENMP
-}  /* end of parallel region */
-#endif
-
-  retime = _GET_TIME;
-  if(g_cart_id == 0) fprintf(stdout, "# [gsp_make_o_phase_field_sliced3d] time for making eo phase field = %e seconds\n", retime-ratime);
-}  /* end of gsp_make_o_phase_field_sliced3d */
-
-/***********************************************
- * phase field on even/odd sublattice in sliced 3d
- * ordering (which I think is the same as odd
- * ordering)
- * eo - even 0 / odd 1
- ***********************************************/
-void gsp_make_eo_phase_field_sliced3d (double _Complex**phase, int *momentum, int eo) {
-
-  double ratime, retime;
-  int eo_iseven = (int)(eo == 0);
-
-  if(g_cart_id == 0) {
-    fprintf(stdout, "# [gsp_make_o_phase_field_sliced3d] using phase momentum = (%d, %d, %d)\n", momentum[0], momentum[1], momentum[2]);
-  }
-
-  ratime = _GET_TIME;
-#ifdef HAVE_OPENMP
-#pragma omp parallel default(shared) shared(phase, momentum)
-{
-#endif
-  const double TWO_MPI = 2. * M_PI;
-  double phase_part;
-  double p[3];
-
-  unsigned int ix, iix;
-  int x0, x1, x2, x3;
-  double _Complex dtmp;
-
-  p[0] = TWO_MPI * momentum[0] / (double)LX_global;
-  p[1] = TWO_MPI * momentum[1] / (double)LY_global;
-  p[2] = TWO_MPI * momentum[2] / (double)LZ_global;
-  
-  phase_part = (g_proc_coords[1]*LX) * p[0] + (g_proc_coords[2]*LY) * p[1] + (g_proc_coords[3]*LZ) * p[2];
-#ifdef HAVE_OPENMP
-#pragma omp for
-#endif
-  /* make phase field in o ordering */
-  for(x0 = 0; x0<T; x0 ++) {
-    for(x1=0; x1<LX; x1++) {
-    for(x2=0; x2<LY; x2++) {
-    for(x3=0; x3<LZ; x3++) {
-      ix  = g_ipt[x0][x1][x2][x3];
-      iix = g_eosub2sliced3d[1][g_lexic2eosub[ix] ];
-      dtmp = ( phase_part + x1*p[0] + x2*p[1] + x3*p[2] ) * I; 
-      if(g_iseven[ix] == eo_iseven) {
-        phase[x0][iix] = cexp(dtmp);
-      }
-    }}}
-  }
-
-#ifdef HAVE_OPENMP
-}  /* end of parallel region */
-#endif
-
-  retime = _GET_TIME;
-  if(g_cart_id == 0) fprintf(stdout, "# [gsp_make_o_phase_field_sliced3d] time for making eo phase field = %e seconds\n", retime-ratime);
-}  /* end of gsp_make_o_phase_field_sliced3d */
+#if 0
 
 /***********************************************************************************************
  ***********************************************************************************************
@@ -714,476 +418,7 @@ int gsp_calculate_v_dag_gamma_p_w(double**V, double**W, int num, int momentum_nu
 
 }  /* end of gsp_calculate_v_dag_gamma_p_w */
 
-/***********************************************************************************************/
-/***********************************************************************************************/
-
-/***********************************************************************************************
- ***********************************************************************************************
- **
- ** gsp_read_node
- ** - read aff node from file or read binary file
- **
- ***********************************************************************************************
- ***********************************************************************************************/
-int gsp_read_node (double ***gsp, int num, int momentum[3], int gamma_id, char*tag) {
-
-  size_t items;
-  char filename[200];
-
-#ifdef HAVE_LHPC_AFF
-  int x0, status;
-  struct AffReader_s *affr = NULL;
-  struct AffNode_s *affn = NULL, *affdir=NULL;
-  char * aff_status_str;
-  double _Complex *aff_buffer = NULL;
-  char aff_buffer_path[200];
-  /*  uint32_t aff_buffer_size; */
-#else
-  FILE *ifs = NULL;
-  long int offset;
 #endif
-
-#ifdef HAVE_LHPC_AFF
-  aff_status_str = (char*)aff_version();
-  fprintf(stdout, "# [gsp_read_node] using aff version %s\n", aff_status_str);
-
-  sprintf(filename, "%s.aff", tag);
-  fprintf(stdout, "# [gsp_read_node] reading gsp data from file %s\n", filename);
-  affr = aff_reader(filename);
-
-  aff_status_str = (char*)aff_reader_errstr(affr);
-  if( aff_status_str != NULL ) {
-    fprintf(stderr, "[gsp_read_node] Error from aff_reader, status was %s\n", aff_status_str);
-    return(1);
-  }
-
-  if( (affn = aff_reader_root(affr)) == NULL ) {
-    fprintf(stderr, "[gsp_read_node] Error, aff reader is not initialized\n");
-    return(2);
-  }
-
-  aff_buffer = (double _Complex*)malloc(2*num*num*sizeof(double _Complex));
-  if(aff_buffer == NULL) {
-    fprintf(stderr, "[gsp_read_node] Error from malloc\n");
-    return(3);
-  }
-#endif
-
-#ifdef HAVE_LHPC_AFF
-  for(x0=0; x0<T; x0++) {
-    sprintf(aff_buffer_path, "/%s/px%.2dpy%.2dpz%.2d/g%.2d/t%.2d", tag, momentum[0], momentum[1], momentum[2], gamma_id, 
-        x0+g_proc_coords[0]*T);
-    /* if(g_cart_id == 0) fprintf(stdout, "# [gsp_read_node] current aff path = %s\n", aff_buffer_path); */
-
-    affdir = aff_reader_chpath(affr, affn, aff_buffer_path);
-    items = num*num;
-    status = aff_node_get_complex (affr, affdir, aff_buffer, (uint32_t)items);
-    /* straightforward memcpy ?*/
-    memcpy( gsp[x0][0], aff_buffer, 2*items*sizeof(double));
-
-    if(status != 0) {
-      fprintf(stderr, "[gsp_read_node] Error from aff_node_get_complex, status was %d\n", status);
-      return(4);
-    }
-  }  /* end of loop on x0 */
-#else
-
-  sprintf(filename, "%s.px%.2dpy%.2dpz%.2d.g%.2d", tag, momentum[0], momentum[1], momentum[2], gamma_id);
-  ifs = fopen(filename, "r");
-  if(ifs == NULL) {
-    fprintf(stderr, "[gsp_read_node] Error, could not open file %s for writing\n", filename);
-    return(5);
-  }
-#ifdef HAVE_MPI
-  offset = (long int)(g_proc_coords[0]*T) * (2*num*num) * sizeof(double);
-  if( fseek ( ifs, offset, SEEK_SET ) != 0 ) {
-    fprintf(stderr, "[] Error, could not seek to file position\n");
-    return(6);
-  }
-#endif
-  items = 2 * (size_t)T * num*num;
-  if( fread(gsp[0][0], sizeof(double), items, ifs) != items ) {
-    fprintf(stderr, "[gsp_read_node] Error, could not read proper amount of data to file %s\n", filename);
-    return(7);
-  }
-  fclose(ifs);
-
-/*
-  byte_swap64_v2(gsp[0][0], 2*T*num*num);
-*/
-
-#endif
-
-#ifdef HAVE_LHPC_AFF
-  aff_reader_close (affr);
-#endif
-
-  return(0);
-
-}  /* end of gsp_read_node */
-
-
-/***********************************************************************************************/
-/***********************************************************************************************/
-
-int gsp_write_eval(double *eval, int num, char*tag) {
-  
-  double ratime, retime;
-  char filename[200];
-
-#ifdef HAVE_LHPC_AFF
-  int status;
-  struct AffWriter_s *affw = NULL;
-  struct AffNode_s *affn = NULL, *affdir=NULL;
-  char * aff_status_str;
-  char aff_buffer_path[200];
-/*  uint32_t aff_buffer_size; */
-#else
-  FILE *ofs = NULL;
-#endif
- 
-  ratime = _GET_TIME;
-
-  if(g_cart_id == 0) {
-  /***********************************************
-   * output file
-   ***********************************************/
-#ifdef HAVE_LHPC_AFF
-    aff_status_str = (char*)aff_version();
-    fprintf(stdout, "# [gsp_write_eval] using aff version %s\n", aff_status_str);
-
-    sprintf(filename, "%s.aff", tag);
-    fprintf(stdout, "# [gsp_write_eval] writing eigenvalue data from file %s\n", filename);
-    affw = aff_writer(filename);
-    aff_status_str = (char*)aff_writer_errstr(affw);
-    if( aff_status_str != NULL ) {
-      fprintf(stderr, "[gsp_write_eval] Error from aff_writer, status was %s\n", aff_status_str);
-      return(1);
-    }
-
-    if( (affn = aff_writer_root(affw)) == NULL ) {
-      fprintf(stderr, "[gsp_write_eval] Error, aff writer is not initialized\n");
-      return(2);
-    }
-
-    sprintf(aff_buffer_path, "/%s/eigenvalues", tag);
-    fprintf(stdout, "# [gsp_write_eval] current aff path = %s\n", aff_buffer_path);
-
-    affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
-    status = aff_node_put_double (affw, affdir, eval, (uint32_t)num); 
-    if(status != 0) {
-      fprintf(stderr, "[gsp_write_eval] Error from aff_node_put_double, status was %d\n", status);
-      return(3);
-    }
-    aff_status_str = (char*)aff_writer_close (affw);
-    if( aff_status_str != NULL ) {
-      fprintf(stderr, "[gsp_write_eval] Error from aff_writer_close, status was %s\n", aff_status_str);
-      return(4);
-    }
-#else
-    sprintf(filename, "%s", tag );
-    ofs = fopen(filename, "w");
-    if(ofs == NULL) {
-      fprintf(stderr, "[gsp_write_eval] Error, could not open file %s for writing\n", filename);
-      return(5);
-    }
-    for( int ievecs = 0; ievecs < num; ievecs++ ) {
-      fprintf(ofs, "%25.16e\n", eval[ievecs] );
-    }
-    fclose(ofs);
-#endif
-  }  /* end of if g_cart_id == 0 */
-
-  retime = _GET_TIME;
-  if(g_cart_id == 0) fprintf(stdout, "# [gsp_write_eval] time for gsp_write_eval = %e seconds\n", retime-ratime);
-
-  return(0);
-}  /* end of gsp_write_eval */
-
-/***********************************************************************************************/
-/***********************************************************************************************/
-
-int gsp_read_eval(double **eval, int num, char*tag) {
-  
-
-  double ratime, retime;
-  char filename[200];
-
-#ifdef HAVE_LHPC_AFF
-  int status;
-  struct AffReader_s *affr = NULL;
-  struct AffNode_s *affn = NULL, *affdir=NULL;
-  char * aff_status_str;
-  char aff_buffer_path[200];
-/*  uint32_t aff_buffer_size; */
-#else
-  FILE *ifs = NULL;
-#endif
-
-
-  ratime = _GET_TIME;
-
-  /* allocate */
-  if(*eval == NULL) {
-    *eval = (double*)malloc(num*sizeof(double));
-    if(*eval == NULL) {
-      fprintf(stderr, "[gsp_read_eval] Error from malloc\n");
-      return(10);
-    }
-  }
-
-  /***********************************************
-   * input file
-   ***********************************************/
-#ifdef HAVE_LHPC_AFF
-  aff_status_str = (char*)aff_version();
-  fprintf(stdout, "# [gsp_read_eval] using aff version %s\n", aff_status_str);
-
-  sprintf(filename, "%s.aff", tag);
-  fprintf(stdout, "# [gsp_read_eval] reading eigenvalue data from file %s\n", filename);
-  affr = aff_reader(filename);
-  aff_status_str = (char*)aff_reader_errstr(affr);
-  if( aff_status_str != NULL ) {
-    fprintf(stderr, "[gsp_read_eval] Error from aff_reader, status was %s\n", aff_status_str);
-    return(1);
-  }
-
-  if( (affn = aff_reader_root(affr)) == NULL ) {
-    fprintf(stderr, "[gsp_read_eval] Error, aff reader is not initialized\n");
-    return(2);
-  }
-
-  sprintf(aff_buffer_path, "/%s/eigenvalues", tag);
-  fprintf(stdout, "# [gsp_read_eval] current aff path = %s\n", aff_buffer_path);
-
-  affdir = aff_reader_chpath(affr, affn, aff_buffer_path);
-  status = aff_node_get_double (affr, affdir, *eval, (uint32_t)num); 
-  if(status != 0) {
-    fprintf(stderr, "[gsp_read_eval] Error from aff_node_put_double, status was %d\n", status);
-    return(3);
-  }
-  aff_reader_close (affr);
-#else
-  sprintf(filename, "%s", tag );
-  ifs = fopen(filename, "r");
-  if(ifs == NULL) {
-    fprintf(stderr, "[gsp_read_eval] Error, could not open file %s for reading\n", filename);
-    return(5);
-  }
-  for( int ievecs = 0; ievecs < num; ievecs++ ) {
-    if( fscanf(ifs, "%lf", (*eval)+ievecs ) != 1 ) {
-      return(6);
-    }
-  }
-  fclose(ifs);
-#endif
-  retime = _GET_TIME;
-  if(g_cart_id == 0) fprintf(stdout, "# [gsp_read_eval] time for gsp_read_eval = %e seconds\n", retime-ratime);
-
-  return(0);
-}  /* end of gsp_read_eval */
-
-/***********************************************************************************************/
-/***********************************************************************************************/
-
-void co_eq_tr_gsp_ti_gsp (complex *w, double**gsp1, double**gsp2, double*lambda, int num) {
-
-#ifdef HAVE_OPENMP
-  omp_lock_t writelock;
-#endif
-
-  _co_eq_zero(w);
-#ifdef HAVE_OPENMP
-  omp_init_lock(&writelock);
-#pragma omp parallel shared(w,gsp1,gsp2,lambda,num)
-{
-#endif
-  int i, k;
-  complex waccum, w2;
-  complex z1, z2;
-  double r;
-
-  _co_eq_zero(&waccum);
-#ifdef HAVE_OPENMP
-#pragma omp for
-#endif
-  for(i = 0; i < num; i++) {
-  for(k = 0; k < num; k++) {
-
-      r = lambda[i] * lambda[k];
-
-      _co_eq_co(&z1, (complex*)(gsp1[i]+2*k));
-      _co_eq_co(&z2, (complex*)(gsp2[k]+2*i));
-      _co_eq_co_ti_co(&w2, &z1,&z2);
-
-      /* multiply with real, diagonal Lambda matrix */
-      _co_pl_eq_co_ti_re(&waccum, &w2, r);
-  }}
-#ifdef HAVE_OPENMP
-  omp_set_lock(&writelock);
-  _co_pl_eq_co(w, &waccum);
-  omp_unset_lock(&writelock);
-}  /* end of parallel region */
-  omp_destroy_lock(&writelock);
-#else
-  _co_eq_co(w, &waccum);
-#endif
-
-}  /* co_eq_tr_gsp_ti_gsp */
-
-int gsp_printf (double ***gsp, int num, char *name, FILE*ofs) {
-
-  int it, k, l;
-  if(ofs == NULL) {
-    fprintf(stderr, "[gsp_printf] Error, ofs is NULL\n");
-    return(1);
-  }
- 
-  fprintf(ofs, "%s <- array(dim=c(%d,%d,%d))\n", name, T_global,num,num);
-  for(it=0; it<T; it++) {
-    fprintf(ofs, "# [gsp_printf] %s t = %d\n", name, it + g_proc_coords[0]*T);
-    for(k=0; k<num; k++) {
-      for(l=0; l<num; l++) {
-        fprintf(ofs, "%s[%2d,%4d,%4d] = \t%25.16e + %25.16e * 1.i\n", name, it + g_proc_coords[0]*T+1, k+1, l+1, gsp[it][k][2*l], gsp[it][k][2*l+1]);
-      }
-    }
-  }  /* end of loop on time */
-
-  return(0);
-}  /* end of gsp_printf */
-
-void co_eq_tr_gsp (complex *w, double**gsp1, double*lambda, int num) {
-
-#ifdef HAVE_OPENMP
-  omp_lock_t writelock;
-#endif
-
-  _co_eq_zero(w);
-#ifdef HAVE_OPENMP
-  omp_init_lock(&writelock);
-#pragma omp parallel shared(w,gsp1,lambda,num)
-{
-#endif
-  int i;
-  complex waccum;
-  double r;
-
-  _co_eq_zero(&waccum);
-#ifdef HAVE_OPENMP
-#pragma omp for
-#endif
-  for(i = 0; i < num; i++) {
-      r = lambda[i];
-      /* multiply with real, diagonal Lambda matrix */
-      waccum.re += gsp1[i][2*i  ] *r;
-      waccum.im += gsp1[i][2*i+1] *r;
-  }
-#ifdef HAVE_OPENMP
-  omp_set_lock(&writelock);
-  _co_pl_eq_co(w, &waccum);
-  omp_unset_lock(&writelock);
-}  /* end of parallel region */
-  omp_destroy_lock(&writelock);
-#else
-  _co_eq_co(w, &waccum);
-#endif
-
-}  /* co_eq_tr_gsp */
-
-/***********************************************************************************************/
-/***********************************************************************************************/
-
-/********************************************************************************
- * multiply diagonals element-wise and sum
- ********************************************************************************/
-void co_eq_gsp_diag_ti_gsp_diag (complex *w, double**gsp1, double**gsp2, double*lambda, int num) {
-
-#ifdef HAVE_OPENMP
-  omp_lock_t writelock;
-#endif
- 
-  _co_eq_zero(w);
-#ifdef HAVE_OPENMP
-  omp_init_lock(&writelock);
-#pragma omp parallel shared(w,gsp1,lambda,num)
-{
-#endif
-  int i;
-  complex waccum;
-  complex z1;
-  double r;
- 
-  _co_eq_zero(&waccum);
-#ifdef HAVE_OPENMP
-#pragma omp for
-#endif
-  for(i = 0; i < num; i++) {
-    r = lambda[i];
-    _co_eq_co_ti_co(&z1, (complex*)(gsp1[i]+2*i),  (complex*)(gsp2[i]+2*i) );
-    _co_pl_eq_co_ti_re(&waccum, &z1, r);
-  }
-#ifdef HAVE_OPENMP
-  omp_set_lock(&writelock);
-  _co_pl_eq_co(w, &waccum);
-  omp_unset_lock(&writelock);
-}  /* end of parallel region */
-  omp_destroy_lock(&writelock);
-#else
-  _co_eq_co(w, &waccum);
-#endif
-
-}  /* end of co_eq_gsp_diag_ti_gsp_diag */
-
-/***********************************************************************************************/
-/***********************************************************************************************/
-
-/********************************************************************************
- * extract diagonal of gsp, no weight or sum
- ********************************************************************************/
-void co_eq_gsp_diag (complex *w, double**gsp1, int num) {
-
-#ifdef HAVE_OPENMP
-#pragma omp parallel shared(w,gsp1,num)
-{
-#endif
-  int i;
- 
-#ifdef HAVE_OPENMP
-#pragma omp for
-#endif
-  for(i = 0; i < num; i++) {
-    _co_eq_co(w+i, (complex*)(gsp1[i]+2*i) );
-  }
-#ifdef HAVE_OPENMP
-}  /* end of parallel region */
-#endif
-}  /* end of co_eq_gsp_diag */
-
-/***********************************************************************************************/
-/***********************************************************************************************/
-
-/********************************************************************************
- * extract diagonal of gsp, no weight or sum
- ********************************************************************************/
-void co_pl_eq_gsp_diag (complex *w, double**gsp1, int num) {
-
-#ifdef HAVE_OPENMP
-#pragma omp parallel shared(w,gsp1,num)
-{
-#endif
-  int i;
- 
-#ifdef HAVE_OPENMP
-#pragma omp for
-#endif
-  for(i = 0; i < num; i++) {
-    _co_pl_eq_co(w+i, (complex*)(gsp1[i]+2*i) );
-  }
-#ifdef HAVE_OPENMP
-}  /* end of parallel region */
-#endif
-}  /* end of co_pl_eq_gsp_diag */
-
 
 /***********************************************************************************************/
 /***********************************************************************************************/
@@ -1214,6 +449,9 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
   const unsigned int VOL3half = (LX*LY*LZ)/2;
   const size_t sizeof_eo_spinor_field           = _GSI(Vhalf)    * sizeof(double);
   const size_t sizeof_eo_spinor_field_timeslice = _GSI(VOL3half) * sizeof(double);
+  const size_t write_count = numV * numV;
+  const size_t write_bytes = 2*numV*numV*sizeof(double);
+
 
   int exitstatus;
   char filename[200];
@@ -1232,8 +470,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
 #ifdef HAVE_LHPC_AFF
   AffWriter_s *affw = NULL;
   struct AffNode_s *affn = NULL, *affdir=NULL;
-  char aff_key[200];
-  char *aff_status_str;
+  char aff_key[200], *aff_status_str;
 
   /***********************************************
    * writer for aff output file
@@ -1253,17 +490,6 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
       return(1);
     }
   }
-#else
-  FILE *ofs = NULL;
-  if ( io_proc >= 1 ) {
-    sprintf( filename, "%s.t%.2d.dat", prefix, g_proc_coords[0] );
-    ofs = fopen ( filename, "w" );
-    if( ofs == NULL ) {
-      fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from open for filename %s %s %d\n", filename, __FILE__, __LINE__);
-      return(1);
-    }
-  }
-  size_t write_count = numV * numV;
 
 #endif
 
@@ -1332,9 +558,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
   /***********************************************
    * loop on timeslices
    ***********************************************/
-  for ( int it = 0; it < T; it++ )
-  /* for ( int it = 0; it < 1; it++ ) */
-  {
+  for ( int it = 0; it < T; it++ ) {
 
     /***********************************************
      * phases for momentum projection
@@ -1355,6 +579,8 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
     retime = _GET_TIME;
     if ( io_proc == 2 ) fprintf ( stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for timeslice fields = %e seconds\n", retime-ratime );
 
+
+
     /***********************************************
      * loop on momenta
      ***********************************************/
@@ -1372,6 +598,17 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
        ***********************************************/
       for ( int igam = 0; igam < gamma_id_number; igam++ ) {
 
+#ifndef HAVE_LHPC_AFF
+        FILE *ofs = NULL;
+        if ( io_proc >= 1 ) {
+          sprintf( filename, "%s.t%.2d.px%.2dpy%.2dpz%.2d.g%.2d.dat", prefix, it+g_proc_coords[0]*T,  momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] ); 
+          ofs = fopen ( filename, "wb" );
+          if( ofs == NULL ) {
+            fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from open for filename %s %s %d\n", filename, __FILE__, __LINE__);
+            return(1);
+          }
+        }
+#endif
         /***********************************************
          * multiply with gamma matrix
          ***********************************************/
@@ -1417,7 +654,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
          * write to AFF
          ***********************************************/
         if ( io_proc >= 1 ) {
-          aff_ratime = _GET_TIME;
+          // aff_ratime = _GET_TIME;
 #ifdef HAVE_LHPC_AFF
           sprintf ( aff_key, "%s/v-v/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, it+g_proc_coords[0]*T,  momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] );
           
@@ -1434,8 +671,8 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
             return(5);
           }
 #endif
-          aff_retime = _GET_TIME;
-          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
+          // aff_retime = _GET_TIME;
+          // fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
 
         }
 
@@ -1476,7 +713,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
          * write to AFF
          ***********************************************/
         if ( io_proc >= 1 ) {
-          aff_ratime = _GET_TIME;
+          // aff_ratime = _GET_TIME;
 #ifdef HAVE_LHPC_AFF
           sprintf ( aff_key, "%s/w-v/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, it+g_proc_coords[0]*T, momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] );
 
@@ -1493,16 +730,24 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
             return(5);
           }
 #endif
-          aff_retime = _GET_TIME;
-          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
+          // aff_retime = _GET_TIME;
+          // fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
         }
 
 
         fini_2level_zbuffer ( &vv );
 
+#ifndef HAVE_LHPC_AFF
+        if ( io_proc >= 1 ) {
+          fflush ( ofs );
+          fclose ( ofs );
+          ofs = NULL;
+        }
+#endif
       }  /* end of loop on gamma ids */
 
     }  /* end of loop on momenta */
+
 
 
     /***********************************************
@@ -1522,6 +767,17 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
        ***********************************************/
       for ( int igam = 0; igam < gamma_id_number; igam++ ) {
 
+#ifndef HAVE_LHPC_AFF
+        FILE *ofs = NULL;
+        if ( io_proc >= 1 ) {
+          sprintf( filename, "%s.t%.2d.px%.2dpy%.2dpz%.2d.g%.2d.dat", prefix, it+g_proc_coords[0]*T,  momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] ); 
+          ofs = fopen ( filename, "a+b" );
+          if( ofs == NULL ) {
+            fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from open for filename %s %s %d\n", filename, __FILE__, __LINE__);
+            return(1);
+          }
+        }
+#endif
         /***********************************************
          * multiply with gamma matrix
          ***********************************************/
@@ -1572,7 +828,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
          * write to AFF
          ***********************************************/
         if ( io_proc >= 1 ) {
-          aff_ratime = _GET_TIME;
+          // aff_ratime = _GET_TIME;
 #ifdef HAVE_LHPC_AFF
           sprintf ( aff_key, "%s/w-w/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, it+g_proc_coords[0]*T, momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] );
           
@@ -1590,17 +846,25 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
           }
 #endif
 
-          aff_retime = _GET_TIME;
-          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
+          // aff_retime = _GET_TIME;
+          // fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
         }
 
         fini_2level_zbuffer ( &vv );
 
+#ifndef HAVE_LHPC_AFF
+        if ( io_proc >= 1 ) {
+          fflush ( ofs );
+          fclose( ofs );
+          ofs = NULL;
+        }
+#endif
       }  /* end of loop on gamma ids */
 
     }  /* end of loop on momenta */
 
   }  /* end of loop on timeslices */
+
 
 
   ratime = _GET_TIME;
@@ -1670,6 +934,19 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
        ***********************************************/
       for ( int igam = 0; igam < gamma_id_number; igam++ ) {
 
+
+#ifndef HAVE_LHPC_AFF
+        FILE *ofs = NULL;
+        if ( io_proc >= 1 ) {
+          sprintf( filename, "%s.t%.2d.px%.2dpy%.2dpz%.2d.g%.2d.dat", prefix, it+g_proc_coords[0]*T,  momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] ); 
+          ofs = fopen ( filename, "a+b" );
+          if( ofs == NULL ) {
+            fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from open for filename %s %s %d\n", filename, __FILE__, __LINE__);
+            return(1);
+          }
+        }
+#endif
+
         /***********************************************
          * multiply with gamma matrix
          ***********************************************/
@@ -1724,7 +1001,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
          * write to AFF
          ***********************************************/
         if ( io_proc >= 1 ) {
-          aff_ratime = _GET_TIME;
+          // aff_ratime = _GET_TIME;
 #ifdef HAVE_LHPC_AFF
           sprintf ( aff_key, "%s/xv-xv/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, it+g_proc_coords[0]*T, momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] );
           
@@ -1742,8 +1019,8 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
           }
 #endif
 
-          aff_retime = _GET_TIME;
-          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
+          // aff_retime = _GET_TIME;
+          // fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
         }
 
         zgemm_ratime = _GET_TIME;
@@ -1782,7 +1059,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
          * write to AFF
          ***********************************************/
         if ( io_proc >= 1 ) {
-          aff_ratime = _GET_TIME;
+          // aff_ratime = _GET_TIME;
 #ifdef HAVE_LHPC_AFF
           sprintf ( aff_key, "%s/xw-xv/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, it+g_proc_coords[0]*T, momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] );
 
@@ -1800,12 +1077,19 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
           }
 #endif
 
-          aff_retime = _GET_TIME;
-          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
+          // aff_retime = _GET_TIME;
+          // fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
         }
 
 
         fini_2level_zbuffer ( &vv );
+
+#ifndef HAVE_LHPC_AFF
+        if ( io_proc >= 1 ) {
+          fflush ( ofs );
+          fclose ( ofs );
+        }
+#endif
 
       }  /* end of loop on gamma ids */
 
@@ -1827,7 +1111,17 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
        * loop on gamma matrices
        ***********************************************/
       for ( int igam = 0; igam < gamma_id_number; igam++ ) {
-
+#ifndef HAVE_LHPC_AFF
+        FILE *ofs = NULL;
+        if ( io_proc >= 1 ) {
+          sprintf( filename, "%s.t%.2d.px%.2dpy%.2dpz%.2d.g%.2d.dat", prefix, it+g_proc_coords[0]*T,  momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] ); 
+          ofs = fopen ( filename, "a" );
+          if( ofs == NULL ) {
+            fprintf(stderr, "[gsp_calculate_v_dag_gamma_p_w_block] Error from open for filename %s %s %d\n", filename, __FILE__, __LINE__);
+            return(1);
+          }
+        }
+#endif
         /***********************************************
          * multiply with gamma matrix
          ***********************************************/
@@ -1882,7 +1176,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
          * write to AFF
          ***********************************************/
         if ( io_proc >= 1 ) {
-          aff_ratime = _GET_TIME;
+          // aff_ratime = _GET_TIME;
 #ifdef HAVE_LHPC_AFF
           sprintf ( aff_key, "%s/xw-xw/t%.2d/px%.2dpy%.2dpz%.2d/g%.2d", tag, it+g_proc_coords[0]*T, momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igam] );
           
@@ -1900,17 +1194,21 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
           }
 #endif
 
-          aff_retime = _GET_TIME;
-          fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
+          // aff_retime = _GET_TIME;
+          // fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for writing = %e\n", aff_retime-aff_ratime);
         }
 
         fini_2level_zbuffer ( &vv );
 
+#ifndef HAVE_LHPC_AFF
+        if ( io_proc >= 1 ) fclose ( ofs );
+#endif
       }  /* end of loop on gamma ids */
 
     }  /* end of loop on momenta */
 
   }  /* end of loop on timeslices */
+
 
   /***********************************************/
   /***********************************************/
@@ -1926,11 +1224,6 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
       return(32);
     }
   }  /* end of if io_proc >= 1 */
-#else
-  /***********************************************
-   * close output file
-   ***********************************************/
-  if ( io_proc >= 1 ) fclose ( ofs );
 #endif
 
   /***********************************************/
@@ -1975,24 +1268,11 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
 
 }  /* end of gsp_calculate_v_dag_gamma_p_w_block */
 
-/***********************************************************************************************/
-/***********************************************************************************************/
-
-void gsp_pl_eq_gsp (double _Complex **gsp1, double _Complex **gsp2, int num) {
-
-  int i;
-
-#ifdef HAVE_OPENMP
-#pragma omp parallel for private(i) shared(gsp1,gsp2)
-#endif
-  for(i = 0; i < num*num; i++) {
-      gsp1[0][i] += gsp2[0][i];
-  }
-}  /* gsp_pl_eq_gsp */
-
 
 /***********************************************************************************************/
 /***********************************************************************************************/
+
+#if 0
 
 /******************************************************************************************************************
  * calculate gsp matrix times vector using t-blocks
@@ -2330,6 +1610,8 @@ int gsp_calculate_v_dag_gamma_p_xi_block(double**V, double*W, int num, int momen
   return(0);
 
 }  /* end of gsp_calculate_v_dag_gamma_p_xi_block */
+
+#endif
 
 /***********************************************************************************************/
 /***********************************************************************************************/
@@ -2678,6 +1960,8 @@ int gsp_calculate_v_dag_gamma_p_w_block_asym(double**V, double**W, int numV, int
     fini_3level_zbuffer ( &phase );
   }   /* end of loop on source momenta */
 
+  }  /* end of loop on timeslices */
+
   return(0);
 
 }  /* end of gsp_calculate_v_dag_gamma_p_w_block_asym */
@@ -2686,6 +1970,8 @@ int gsp_calculate_v_dag_gamma_p_w_block_asym(double**V, double**W, int numV, int
 
 /***********************************************************************************************/
 /***********************************************************************************************/
+
+#if 0
 
 /************************************************************
  * 
@@ -2738,71 +2024,7 @@ int gsp_calculate_v_w_block_asym(double*gsp_out, double**V, double**W, unsigned 
 
 }  /* end of gsp_calculate_v_w_block_asym */
 
-/***********************************************************************************************/
-/***********************************************************************************************/
-
-/**********************************************************************************
- * calculate XV from V
- **********************************************************************************/
-int gsp_calculate_xv_from_v (double **xv, double **v, double **work, int num, double mass, unsigned int N) {
-
-  const size_t sizeof_field = 24 * N * sizeof(double);
-
-  int i;
-  double ratime, retime;
-
-  if(xv == NULL || v == NULL || work == NULL || num<=0) {
-    fprintf(stderr, "[gsp_calculate_xbarv_from_v] Error, insufficient input\n");
-    return(1);
-  }
-
-  ratime = _GET_TIME;
-  for(i= 0; i<num; i++) {
-    /* work0 <- v */
-    memcpy(work[0], v[i], sizeof_field);
-    /* work1 <- X_eo work0 */
-    X_eo (work[1], work[0], mass, g_gauge_field);
-    /* xv <- work1 */
-    memcpy(xv[i], work[1], sizeof_field);
-    retime = _GET_TIME;
-  }
-  if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_xbarv_from_v] time for XV = %e seconds\n", retime-ratime);
-
-  return(0);
-}  /* end of gsp_calculate_xv_from_v */
-
-/******************************************************************************************************************
- * w <- Cbar v = Cbar_from_Xeo(v, xv)
- * w and xv can be same memory region
- ******************************************************************************************************************/
-int gsp_calculate_w_from_xv_and_v (double **w, double **xv, double **v, double **work, int num, double mass, unsigned int N) {
-
-  const size_t sizeof_field = 24 * N * sizeof(double);
-
-  int i;
-  double ratime, retime;
-  double norm;
-
-  ratime = _GET_TIME;
-  for(i = 0; i<num; i++) {
-    /* work0 <- v */
-    memcpy(work[0], v[i], sizeof_field);
-    /* work1 <- xv */
-    memcpy(work[1], xv[i], sizeof_field);
-    /* work0 <- Cbar_from_Xeo (work0, work1; aux = work2 */
-    C_from_Xeo (work[0], work[1], work[2], g_gauge_field, mass);
-    /*square norm  < work0 | work0 > */
-    spinor_scalar_product_re(&norm, work[0], work[0], N);
-    if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_w_from_xv_and_v] eval %4d %25.16e\n", i, norm*4.*g_kappa*g_kappa);
-    norm = 1./sqrt( norm );
-    /* w <- work0 x norm */
-    spinor_field_eq_spinor_field_ti_re (w[i],  work[0], norm, N);
-  }
-  retime = _GET_TIME;
-  if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_w_from_xv_and_v] time for W = %e seconds\n", retime-ratime);
-
-  return(0);
-}  /* end of gsp_calculate_w_from_xv_and_v */
+#endif
 
 /***********************************************************************************************/
 /***********************************************************************************************/

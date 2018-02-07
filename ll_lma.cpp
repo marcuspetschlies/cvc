@@ -53,6 +53,7 @@ extern "C"
 #include "read_input_parser.h"
 #include "Q_clover_phi.h"
 #include "clover.h"
+#include "gsp_utils.h"
 #include "gsp.h"
 #include "matrix_init.h"
 
@@ -315,6 +316,21 @@ int main(int argc, char **argv) {
   /***********************************************************/
 
   /***********************************************************
+   *
+   ***********************************************************/
+  sprintf ( aff_tag, "%s.%.4d", outfile_prefix, Nconf );
+  exitstatus = gsp_write_eval( evecs_eval, evecs_num, aff_tag);
+  if(exitstatus != 0) {
+    fprintf(stderr, "[ll_lma] Error from gsp_write_eval, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(38);
+  }
+
+
+
+  /***********************************************************/
+  /***********************************************************/
+
+  /***********************************************************
    * allocate memory for the eigenvector fields
    ***********************************************************/
   eo_evecs_field = (double**)calloc(evecs_num, sizeof(double*));
@@ -536,7 +552,7 @@ int main(int argc, char **argv) {
   /***********************************************************/
   
   sprintf( aff_tag, "/ll/lma/N%d", evecs_num );
-  sprintf( filename_prefix, "%s_N%d", outfile_prefix, evecs_num );
+  sprintf( filename_prefix, "%s.%.4d.N%d", outfile_prefix, Nconf, evecs_num );
 
   /***********************************************************/
   /***********************************************************/

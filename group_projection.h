@@ -137,6 +137,12 @@ int product_mat_printf ( double _Complex **R, int *dim, int n, char *name, FILE*
 
 void product_vector_printf ( double _Complex *v, int*dim, int n, char*name, FILE*ofs );
 
+void rot_mat_eq_product_mat_ti_rot_mat ( double _Complex **R, rot_mat_table_type *r, int rid, int rmid, double _Complex **S, int n );
+
+int rot_mat_table_rotate_multiplett_product ( rot_mat_table_type *rtab, rot_mat_table_type *rapply, rot_mat_table_type *rtarget, int n, int with_IR, FILE*ofs );
+
+void rot_mat_table_eq_product_mat_table ( rot_mat_table_type *r, rot_mat_table_type *s, int n );
+
 
 /***********************************************************/
 /***********************************************************/

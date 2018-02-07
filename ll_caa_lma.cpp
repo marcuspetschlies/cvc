@@ -92,30 +92,21 @@ int main(int argc, char **argv) {
   const char outfile_prefix[] = "ll_caa_lma";
 
   int c;
-  int iflavor;
   int filename_set = 0;
   int isource_location;
-  unsigned int ix;
   int gsx[4], sx[4];
   int exitstatus;
   int source_proc_id = 0;
-  int iseq_source_momentum;
-  int no_eo_fields = 0;
   int io_proc = -1;
   int evecs_num = 0;
   int check_propagator_residual = 0;
   unsigned int Vhalf;
   size_t sizeof_eo_spinor_field;
-  double **eo_spinor_field=NULL, **eo_spinor_work=NULL, *eo_evecs_block=NULL, *eo_sample_block=NULL;
-  double **eo_stochastic_source = NULL, ***eo_stochastic_propagator = NULL;
+  double **eo_spinor_field=NULL, **eo_spinor_work=NULL, *eo_evecs_block=NULL;
   double **eo_evecs_field=NULL;
-  double **cvc_tensor_eo = NULL, contact_term[2][8], *cvc_tensor_lexic=NULL;
-  double ***cvc_tp = NULL;
   double *evecs_eval = NULL, *evecs_lambdainv=NULL, *evecs_4kappasqr_lambdainv = NULL;
-  double *uprop_list_e[60], *uprop_list_o[60], *tprop_list_e[60], *tprop_list_o[60], *dprop_list_e[60], *dprop_list_o[60];
   char filename[100];
-  double ratime, retime;
-  double plaq;
+  // double ratime, retime;
   double **mzz[2], **mzzinv[2];
   double *gauge_field_with_phase = NULL;
   double ***eo_source_buffer = NULL;
@@ -332,7 +323,6 @@ int main(int argc, char **argv) {
    * allocate memory for eo spinor fields 
    * WITH HALO
    *************************************************/
-  no_eo_fields = 6;
   exitstatus = init_2level_buffer ( &eo_spinor_work, 6, _GSI((VOLUME+RAND)/2) );
   if ( exitstatus != 0) {
     fprintf(stderr, "[ll_caa_lma] Error from init_2level_buffer, status was %d\n", exitstatus);
@@ -353,7 +343,7 @@ int main(int argc, char **argv) {
    ***********************************************/
   exitstatus = init_clover ( &mzz, &mzzinv, gauge_field_with_phase );
   if ( exitstatus != 0 ) {
-    fprintf(stderr, "[] Error from init_clover, status was %d\n");
+    fprintf(stderr, "[ll_caa_lma] Error from init_clover, status was %d\n", exitstatus);
     EXIT(1);
   }
 

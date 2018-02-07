@@ -255,6 +255,7 @@ int init_1level_zbuffer (double _Complex**zbuffer, unsigned int n1 ) {
   }
   memset ( *zbuffer, 0, n1 * sizeof(double _Complex) );
 
+  return(0);
 }  /* end of init_1level_zbuffer */
 
 
