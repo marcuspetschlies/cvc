@@ -53,6 +53,7 @@ extern "C"
 #include "read_input_parser.h"
 #include "Q_clover_phi.h"
 #include "clover.h"
+#include "gsp_utils.h"
 #include "gsp.h"
 #include "matrix_init.h"
 
