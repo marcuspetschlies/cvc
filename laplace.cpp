@@ -17,6 +17,12 @@
 namespace cvc {
 
 void cv_eq_laplace_cv(double *v_out, double *g, double*v_in, int ts) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+
   unsigned int ix, iix;
   /* unsigned int ix_pl_mu1, ix_pl_mu2, ix_pl_mu3; */
   unsigned int ix_mi_mu1, ix_mi_mu2, ix_mi_mu3;
@@ -24,6 +30,9 @@ void cv_eq_laplace_cv(double *v_out, double *g, double*v_in, int ts) {
   double v1[6], v2[6], v3[6];
   unsigned int VOL3 = LX*LY*LZ;
 
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
   for(iix = 0; iix < VOL3; iix++) {
     /* global index */
     ix = ts * VOL3 + iix;
@@ -68,8 +77,15 @@ void cv_eq_laplace_cv(double *v_out, double *g, double*v_in, int ts) {
 
   }  /* end of loop on spatial site */
 
+
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
   return;
 
 }  /* end of cv_eq_laplace_cv */
 
-}
+/**************************************************************************************************************/
+/**************************************************************************************************************/
+}  /* end of namespace cvc */
