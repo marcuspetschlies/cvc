@@ -132,9 +132,24 @@ void rot_mat_eq_mat_pl_mat (double _Complex **R, double _Complex **S1, double _C
 
 double _Complex rot_mat_trace ( double _Complex** R, int N );
 
+double _Complex rot_mat_trace_weight_re ( double _Complex** R, double *weight, int N );
+
+double _Complex co_eq_trac_mat_ti_mat_weight_re ( double _Complex ** const A, double _Complex ** const B, double * const weight, int const num );
+
 void rot_vec_pl_eq_vec_ti_co ( double _Complex*v, double _Complex*w, double _Complex c , int N );
 
 void rot_vec_normalize ( double _Complex *v, int N );
+
+void rot_mat_eq_diag_re_ti_mat ( double _Complex **A, double*lambda, double _Complex **B, int num );
+
+void rot_mat_eq_mat_ti_diag_re ( double _Complex **A, double*lambda, double _Complex **B, int num );
+
+void rot_mat_eq_diag_re_ti_mat_ti_diag_re ( double _Complex **A, double*lambda, double _Complex **B, int num );
+
+void rot_vec_eq_mat_diag ( double _Complex *w, double _Complex **A, int num );
+
+void co_pl_eq_mat_diag ( double _Complex * const w, double _Complex ** const A, int num );
+
 
 
 /***********************************************************

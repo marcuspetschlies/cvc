@@ -52,7 +52,7 @@ int APE_Smearing(double *smeared_gauge_field, double APE_smearing_alpha, int APE
 #pragma omp parallel
 {
 #endif
-    int idx;
+
     double M1[18], M2[18];
     int index;
     int index_mx_1, index_mx_2, index_mx_3;
@@ -66,7 +66,7 @@ int APE_Smearing(double *smeared_gauge_field, double APE_smearing_alpha, int APE
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-    for(idx = 0; idx < VOLUME; idx++) {
+    for(unsigned int idx = 0; idx < VOLUME; idx++) {
   
       /************************
        * Links in x-direction.
