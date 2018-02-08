@@ -44,41 +44,37 @@ int read_input (char *filename) {
   FILE *fs;
 
   if((void*)(fs = fopen(filename, "r"))==NULL) {
-#ifdef HAVE_MPI
-     MPI_Abort(MPI_COMM_WORLD, 10);
-     MPI_Finalize();
-#endif
-     exit(101);
+     EXIT(101);
   }
 
-  fscanf(fs, "%d", &T_global);
-  fscanf(fs, "%d", &LX);
-  fscanf(fs, "%d", &LY);
-  fscanf(fs, "%d", &LZ);
+  if ( fscanf(fs, "%d", &T_global) != 1 ) return(1);
+  if ( fscanf(fs, "%d", &LX) != 1 ) return(1);
+  if ( fscanf(fs, "%d", &LY) != 1 ) return(1);
+  if ( fscanf(fs, "%d", &LZ) != 1 ) return(1);
    
-  fscanf(fs, "%d", &Nconf);
-  fscanf(fs, "%lf", &g_kappa);
-  fscanf(fs, "%lf", &g_mu);
+  if ( fscanf(fs, "%d", &Nconf) != 1 ) return(1);
+  if ( fscanf(fs, "%lf", &g_kappa) != 1 ) return(1);
+  if ( fscanf(fs, "%lf", &g_mu) != 1 ) return(1);
 
-  fscanf(fs, "%d", &g_sourceid);
-  fscanf(fs, "%d", &g_sourceid2);
-  fscanf(fs, "%d", &Nsave);
+  if ( fscanf(fs, "%d", &g_sourceid) != 1 ) return(1);
+  if ( fscanf(fs, "%d", &g_sourceid2) != 1 ) return(1);
+  if ( fscanf(fs, "%d", &Nsave) != 1 ) return(1);
   
-  fscanf(fs, "%d", &format);
+  if ( fscanf(fs, "%d", &format) != 1 ) return(1);
 
-  fscanf(fs, "%lf", &BCangle[0]);
-  fscanf(fs, "%lf", &BCangle[1]);
-  fscanf(fs, "%lf", &BCangle[2]);
-  fscanf(fs, "%lf", &BCangle[3]);
+  if ( fscanf(fs, "%lf", &BCangle[0]) != 1 ) return(1);
+  if ( fscanf(fs, "%lf", &BCangle[1]) != 1 ) return(1);
+  if ( fscanf(fs, "%lf", &BCangle[2]) != 1 ) return(1);
+  if ( fscanf(fs, "%lf", &BCangle[3]) != 1 ) return(1);
 
-  fscanf(fs, "%s", filename_prefix);
-  fscanf(fs, "%s", filename_prefix2);
-  fscanf(fs, "%s", gaugefilename_prefix);
+  if ( fscanf(fs, "%s", filename_prefix) != 1 ) return(1);
+  if ( fscanf(fs, "%s", filename_prefix2) != 1 ) return(1);
+  if ( fscanf(fs, "%s", gaugefilename_prefix) != 1 ) return(1);
 
-  fscanf(fs, "%d", &g_resume);
-  fscanf(fs, "%d", &g_subtract);
+  if ( fscanf(fs, "%d", &g_resume) != 1 ) return(1);
+  if ( fscanf(fs, "%d", &g_subtract) != 1 ) return(1);
 
-  fscanf(fs, "%d", &g_source_location);
+  if ( fscanf(fs, "%d", &g_source_location) != 1 ) return(1);
 
   fclose(fs);
 
