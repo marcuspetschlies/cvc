@@ -2271,12 +2271,48 @@ int rot_mat_spin1_2_spherical ( double _Complex **R, int n[3], double omega ) {
  ***********************************************************/
 double _Complex rot_mat_trace ( double _Complex** R, int N ) {
   double _Complex res = 0.;
+  double _Complex * const R_ = R[0];
+  int const Np1 = N+1;
+
+  //for ( int i = 0; i < N; i++ ) {
+  //  res += R[i][i];
+  //}
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
   for ( int i = 0; i < N; i++ ) {
-    res += R[i][i];
+    res += R_[i*Np1];
   }
   return(res);
+}  /* end of rot_mat_trace */
 
-}  /* end of rot_matr_trace */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * trace
+ ***********************************************************/
+double _Complex rot_mat_trace_weight_re ( double _Complex** R, double *weight, int N ) {
+  double _Complex res = 0.;
+  double _Complex * const R_ = R[0];
+  int const Np1 = N+1;
+
+  //for ( int i = 0; i < N; i++ ) {
+  //  res += R[i][i];
+  //}
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( int i = 0; i < N; i++ ) {
+    res += R_[i*Np1] * weight[i];
+  }
+  return(res);
+}  /* end of rot_mat_trace */
+
+
 
 /***********************************************************/
 /***********************************************************/
@@ -2285,7 +2321,10 @@ double _Complex rot_mat_trace ( double _Complex** R, int N ) {
  *
  ***********************************************************/
 void rot_vec_pl_eq_vec_ti_co ( double _Complex*v, double _Complex*w, double _Complex c , int N ) {
+
+#ifdef HAVE_OPENMP
 #pragma omp parallel for
+#endif
   for ( int i = 0; i < N; i++ ) {
     v[i] += w[i] * c;
   }
@@ -2297,14 +2336,18 @@ void rot_vec_pl_eq_vec_ti_co ( double _Complex*v, double _Complex*w, double _Com
 void rot_vec_normalize ( double _Complex *v, int N ) {
   double eps = 9.e-15;
   double norm=0.;
+#ifdef HAVE_OPENMP
 #pragma omp parallel for
+#endif
   for ( int i = 0; i < N; i++ ) {
     norm += creal ( v[i] * conj ( v[i] ) );
   }
   norm = sqrt ( norm );
   norm = norm < eps ? 0. : 1./norm;
 
+#ifdef HAVE_OPENMP
 #pragma omp parallel for
+#endif
   for ( int i = 0; i < N; i++ ) {
     v[i] *= norm;
   }
@@ -2313,4 +2356,111 @@ void rot_vec_normalize ( double _Complex *v, int N ) {
 
 /***********************************************************/
 /***********************************************************/
+
+/***********************************************************************************************/
+/***********************************************************************************************/
+
+/***********************************************************************************************
+ *
+ ***********************************************************************************************/
+void rot_mat_eq_diag_re_ti_mat ( double _Complex **A, double*lambda, double _Complex **B, int num ) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( int i = 0; i < num; i++ ) { 
+    double _Complex *A_ = A[i];
+    double _Complex *B_ = B[i];
+    double lambda_ = lambda[i];
+    for ( int k = 0; k < num; k++ ) {
+      A_[k] = lambda_ * B_[k];
+    }
+  }
+}  /* end of rot_mat_eq_diag_re_ti_mat */
+
+/***********************************************************************************************/
+/***********************************************************************************************/
+
+/***********************************************************************************************
+ *
+ ***********************************************************************************************/
+void rot_mat_eq_mat_ti_diag_re ( double _Complex **A, double*lambda, double _Complex **B, int num ) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( int i = 0; i < num; i++ ) {
+    double _Complex *A_ = A[i];
+    double _Complex *B_ = B[i];
+    for ( int k = 0; k < num; k++ ) {
+      A_[k] = lambda[k] * B_[k];
+    }
+  }
+}  /* end of rot_mat_eq_mat_ti_diag_re */
+
+/***********************************************************************************************/
+/***********************************************************************************************/
+
+/***********************************************************************************************
+ *
+ ***********************************************************************************************/
+void rot_mat_eq_diag_re_ti_mat_ti_diag_re ( double _Complex **A, double*lambda, double _Complex **B, int num ) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( int i = 0; i < num; i++ ) {
+    double _Complex *A_ = A[i];
+    double _Complex *B_ = B[i];
+    double lambda_ = lambda[i];
+    for ( int k = 0; k < num; k++ ) {
+      A_[k] = lambda_ * B_[k] * lambda[k];
+    }
+  }
+}  /* end of rot_mat_eq_diag_re_ti_mat_ti_diag_re */
+
+/***********************************************************************************************/
+/***********************************************************************************************/
+
+/***********************************************************************************************
+ *
+ ***********************************************************************************************/
+void rot_vec_eq_mat_diag ( double _Complex *w, double _Complex **A, int num ) {
+
+  double _Complex * const A_ = A[0];
+  int const nump1 = num+1;
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( int i = 0; i < num; i++ ) {
+    w[i] = A_[i*nump1];
+  }
+}  /* end of rot_vec_eq_mat_diag */
+
+/***********************************************************************************************/
+/***********************************************************************************************/
+
+/***********************************************************************************************
+ *
+ ***********************************************************************************************/
+double _Complex co_eq_trac_mat_ti_mat_weight_re ( double _Complex ** const A, double _Complex ** const B, double * const weight, int const num ) {
+
+  double _Complex c = 0.;
+  double _Complex * const B_ = B[0];
+  double _Complex Brow[num];
+
+  for ( int i = 0; i < num; i++ ) {
+
+    for ( int k = 0; k < num; k++ ) Brow[k] = B_[k*num+i] * weight[k];
+    double _Complex * const A_ = A[i];
+    double _Complex weight_ = weight[i];
+
+    for ( int k = 0; k < num; k++ ) {
+      Brow[k] = A_[k] * weight_ * Brow [k];
+    }
+
+  }
+  return ( c );
+}  /* end of co_eq_trac_mat_ti_mat_weight_re */
+
 }  /* end of namespace cvc */
