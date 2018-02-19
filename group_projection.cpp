@@ -34,6 +34,7 @@
 #include "cvc_utils.h"
 #include "rotations.h"
 #include "group_projection.h"
+#include "clebsch_gordan.h"
 
 namespace cvc {
 
@@ -2934,11 +2935,30 @@ int little_group_projector_apply_product ( little_group_projector_type *p , FILE
   /***********************************************************
    * initialize spin vectors according to ref_row_spin
    ***********************************************************/
-  product_vector_set_element ( sv0, 1.0, p->ref_row_spin, spin_dimensions, p->n );
+  if ( ( p->n == 2  ) && ( p->ref_row_spin[0] < 0 ) && ( p->ref_row_spin[1] <= 0 ) ) {
+    int J2_1 = p->rspin[0].dim - 1;
+    int J2_2 = p->rspin[1].dim - 1;
+
+    int J2_3 = -p->ref_row_spin[0];
+    int M2_3 = J2_3 + 2*p->ref_row_spin[1];
+
+
+    /***********************************************************
+     * use Clebsch-Gordan coefficients
+     ***********************************************************/
+    for ( int i1 = 0; i1 <= J2_1; i1++ ) {
+      int M2_1 = J2_1 - 2*i1;
+    for ( int i2 = 0; i2 <= J2_2; i2++ ) {
+      int M2_2 = J2_2 - 2*i2;
+      int coords[2] = {i1, i2};
+      fprintf ( ofs, "# [little_group_projector_apply_product] J2_1 = %2d M2_1 = %2d   J2_2 = %2d M2_2 = %2d   J2_3 = %2d M2_3 = %2d\n", J2_1, M2_1, J2_2, M2_2, J2_3, M2_3 );
+      sv0[ product_vector_coords2index ( coords, spin_dimensions, 2 ) ] = clebsch_gordan_coeff ( J2_3, M2_3, J2_1, M2_1, J2_2, M2_2 );
+    }}
+  } else {
+    product_vector_set_element ( sv0, 1.0, p->ref_row_spin, spin_dimensions, p->n );
+  }
 
   product_vector_printf ( sv0, spin_dimensions, p->n,  "v0", ofs );
-
-
 
   /***********************************************************
    * TEST
