@@ -209,7 +209,7 @@ int main(int argc, char **argv) {
   /****************************************************/
   /****************************************************/
 
-  interpolator_J2[0] = 0;
+  interpolator_J2[0] = 4;
   interpolator_J2[1] = 1;
 
   for ( int i = 0; i < interpolator_number; i++ ) {
@@ -230,7 +230,7 @@ int main(int argc, char **argv) {
    * loop on little groups
    ****************************************************/
   /* for ( int ilg = 0; ilg < nlg; ilg++ ) */
-  for ( int ilg = 2; ilg <= 2; ilg++ )
+  for ( int ilg = 3; ilg <= 3; ilg++ )
   {
 
     int n_irrep = lg[ilg].nirrep;
@@ -256,21 +256,26 @@ int main(int argc, char **argv) {
       /****************************************************
        * loop on reference rows of irrep matrix
        ****************************************************/
-      for ( int ref_row_target = 0; ref_row_target < r_irrep.dim; ref_row_target++ )
-      // for ( int ref_row_target = 0; ref_row_target < 1; ref_row_target++ )
+      // for ( int ref_row_target = 0; ref_row_target < r_irrep.dim; ref_row_target++ )
+      for ( int ref_row_target = 0; ref_row_target <= 0; ref_row_target++ )
       {
   
         /****************************************************
          * loop on reference rows of spin matrix
          ****************************************************/
-        for ( ref_row_spin[0] = 0; ref_row_spin[0] <= interpolator_J2[0]; ref_row_spin[0]++ ) {
-        for ( ref_row_spin[1] = 0; ref_row_spin[1] <= interpolator_J2[1]; ref_row_spin[1]++ ) {
+        // for ( ref_row_spin[0] = 0; ref_row_spin[0] <= interpolator_J2[0]; ref_row_spin[0]++ )
+        // {
+        // for ( ref_row_spin[1] = 0; ref_row_spin[1] <= interpolator_J2[1]; ref_row_spin[1]++ )
+
+        ref_row_spin[0] = -3;
+        for ( ref_row_spin[1] = 0; ref_row_spin[1] >= ref_row_spin[0]; ref_row_spin[1]-- )
+        {
 
           /****************************************************
            * loop on spin quantum numbers
            ****************************************************/
           sprintf ( filename, "lg_%s_irrep_%s_J2_%d_%d_sref_%d_%d_tref_%d.sbd", lg[ilg].name, lg[ilg].lirrep[i_irrep],
-              interpolator_J2[0], interpolator_J2[1], ref_row_spin[0], ref_row_spin[1], ref_row_target );
+              interpolator_J2[0], interpolator_J2[1], -ref_row_spin[0], -ref_row_spin[0] + 2*ref_row_spin[1], ref_row_target );
 
           FILE*ofs = fopen ( filename, "w" );
           if ( ofs == NULL ) {
@@ -290,7 +295,7 @@ int main(int argc, char **argv) {
           /****************************************************/
           /****************************************************/
    
-          exitstatus = little_group_projector_show ( &p, ofs , 1 );
+          exitstatus = little_group_projector_show ( &p, ofs , 0 );
           if ( exitstatus != 0 ) {
             fprintf ( stderr, "# [test_lg_2p] Error from little_group_projector_show, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(2);
@@ -312,7 +317,7 @@ int main(int argc, char **argv) {
           fclose ( ofs );
   
         }  /* end of loop on ref_row_spin 1 */
-        }  /* end of loop on ref_row_spin 0 */
+        // }  /* end of loop on ref_row_spin 0 */
   
 
       }  /* end of loop on ref_row_target */
