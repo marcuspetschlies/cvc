@@ -209,18 +209,18 @@ int main(int argc, char **argv) {
   /****************************************************/
   /****************************************************/
 
-  interpolator_J2[0] = 4;
+  interpolator_J2[0] = 2;
   interpolator_J2[1] = 1;
+
+  interpolator_bispinor[0] = 0;
+  interpolator_bispinor[1] = 1;
 
   for ( int i = 0; i < interpolator_number; i++ ) {
     interpolator_momentum_list[i][0] = 0;
     interpolator_momentum_list[i][1] = 0;
     interpolator_momentum_list[i][2] = 0;
 
-    interpolator_parity[i] = 0;
-
-    interpolator_bispinor[i] = 0;
-
+    interpolator_parity[i]   = 0;
   }
 
   /****************************************************/
@@ -229,8 +229,8 @@ int main(int argc, char **argv) {
   /****************************************************
    * loop on little groups
    ****************************************************/
-  /* for ( int ilg = 0; ilg < nlg; ilg++ ) */
-  for ( int ilg = 3; ilg <= 3; ilg++ )
+  for ( int ilg = 0; ilg < nlg; ilg++ )
+  // for ( int ilg = 3; ilg <= 3; ilg++ )
   {
 
     int n_irrep = lg[ilg].nirrep;
@@ -256,8 +256,8 @@ int main(int argc, char **argv) {
       /****************************************************
        * loop on reference rows of irrep matrix
        ****************************************************/
-      // for ( int ref_row_target = 0; ref_row_target < r_irrep.dim; ref_row_target++ )
-      for ( int ref_row_target = 0; ref_row_target <= 0; ref_row_target++ )
+      for ( int ref_row_target = 0; ref_row_target < r_irrep.dim; ref_row_target++ )
+      // for ( int ref_row_target = 0; ref_row_target <= 0; ref_row_target++ )
       {
   
         /****************************************************
@@ -295,7 +295,7 @@ int main(int argc, char **argv) {
           /****************************************************/
           /****************************************************/
    
-          exitstatus = little_group_projector_show ( &p, ofs , 0 );
+          exitstatus = little_group_projector_show ( &p, ofs , 1 );
           if ( exitstatus != 0 ) {
             fprintf ( stderr, "# [test_lg_2p] Error from little_group_projector_show, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(2);
