@@ -154,12 +154,15 @@ int gsp_read_node (double _Complex ***gsp, int numV, int momentum[3], int gamma_
 /***********************************************************************************************
  *
  ***********************************************************************************************/
-STOPPED HERE
 int gsp_prepare_from_file ( double _Complex ***gsp, int numV, int momentum[3], int gamma_id, int ns, char *prefix, char*tag ) {
 
   int pvec[3];
-  int gid;
+  int g5_gamma_id;
   int sign = 0;
+  double _Complex Z_1 = 1.;
+
+  memset ( gsp[0][0], 0, numV*numV*T*sizeof(double _Complex) );
+
   if ( ns == 0 ) {
     int momid = -1;
     for ( int i = 0, i < g_sink_momentum_number; i++ ) {
@@ -177,10 +180,13 @@ int gsp_prepare_from_file ( double _Complex ***gsp, int numV, int momentum[3], i
     }
     memcpy ( pvec, g_sink_momentum_list[imom], 3*sizeof(int) );
 
+    g5_gamma_id  = gamma_mult_table[5][gamma_id];
+    sign         = gamma_mult_sign[5][gamma_id] * gamma_adjoint_sign[g5_gamma_id];
+
   } else if ( ns == 1 ) {
     memcpy ( pvec, momentum, 3*sizeof(int) );
-    gid  = gamma_id;
-    sign = 1;
+    g5_gamma_id  = gamma_mult_table[5][gamma_id];
+    sign         = gamma_mult_sign[5][gamma_id];
   }
 
   double _Complex ***gsp_buffer = NULL;
@@ -190,12 +196,44 @@ int gsp_prepare_from_file ( double _Complex ***gsp, int numV, int momentum[3], i
     return(1);
   }
 
+  if ( g_cart_id == 0 && g_verbose > 1 ) {
+    fprintf ( stdout, "# [] ns %d mom %3d %3d %3d pvec %3d %3d %3d gamma_id %2d g5 gamma_id %2d sign %d", ns, 
+        momentum[0], momentum[1], momentum[2], pvec[0], pvec[1], pvec[2], gamma_id, g5_gamma_id, sign );
+  }
+
+  /***********************************************
+   * loop on timeslices
+   ***********************************************/
   for ( int x0 = 0; x0 < T; x0++ ) {
 
-    exitstatus = gsp_read_node ( gsp_buffer, numV, pvec, gid, prefix, tag, x0 );
+    exitstatus = gsp_read_node ( gsp_buffer, numV, pvec, g5_gamma_id, prefix, tag, x0 );
     if ( exitstatus != 0 ) {
       fprintf ( stderr, "[gsp_prepare_from_file] Error from gsp_read_node, status was %d\n", exitstatus );
       return(1);
+    }
+
+    /***********************************************
+     * add parts depending on ns
+     *
+     * ordering { "v-v", "w-v", "w-w", "xv-xv", "xw-xv", "xw-xw" };
+     ***********************************************/
+    if ( ns )  {
+      /***********************************************
+       * add v-v, w-w, xv-xv, xw-xw
+       ***********************************************/
+      
+      rot_mat_pl_eq_mat_ti_co ( gsp[x0], gsp_buffer[0], Z_1, numV );
+      rot_mat_pl_eq_mat_ti_co ( gsp[x0], gsp_buffer[2], Z_1, numV );
+      rot_mat_pl_eq_mat_ti_co ( gsp[x0], gsp_buffer[3], Z_1, numV );
+      rot_mat_pl_eq_mat_ti_co ( gsp[x0], gsp_buffer[5], Z_1, numV );
+
+    } else {
+      /***********************************************
+       * add v-w, xv-xw
+       ***********************************************/
+
+      rot_mat_pl_eq_mat_ti_co ( gsp[x0], gsp_buffer[1], Z_1, numV );
+      rot_mat_pl_eq_mat_ti_co ( gsp[x0], gsp_buffer[4], Z_1, numV );
     }
 
   }  /* end of loop on timeslices */
