@@ -378,6 +378,52 @@ int alloc_rot_mat_table ( rot_mat_table_type *t, char*group, char*irrep, int dim
 /***********************************************************/
 
 /***********************************************************
+ * 
+ ***********************************************************/
+int rot_mat_table_get_spin2 ( rot_mat_table_type *t ) {
+
+  char irrep[20];
+
+  if ( strcmp( t->group , "SU2" ) != 0 ) {
+    fprintf(stderr, "[rot_mat_table_get_spin] Error, only for SU2 irreps\n");
+    return(-1);
+  }
+
+  sscanf ( t->irrep, "spin%s", irrep );
+
+  if ( strcmp( irrep, "1_2+1_2" ) == 0 ) {
+    return(1);
+  } else {
+    if ( strchr ( irrep, '_' ) ==  NULL ) {
+      return( 2*atoi(irrep) );
+    } else {
+      char a[10], b[10];
+      sscanf( irrep, "%s_%s", a, b);
+      return( atoi(a) );
+    }
+  }
+  return(-1);
+}  /* end of rot_mat_table_get_spin2 */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * 
+ ***********************************************************/
+int rot_mat_table_get_bispinor ( rot_mat_table_type *t ) {
+
+  if ( strchr ( t->irrep, '+' ) ==  NULL ) {
+    return(0);
+  } else {
+    return(1);
+  }
+}  /* end of rot_mat_table_get_bispinor */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
  * J2 = 2 x spin
  ***********************************************************/
 int set_rot_mat_table_spin ( rot_mat_table_type *t, int J2, int bispinor ) {
@@ -426,6 +472,8 @@ int set_rot_mat_table_spin ( rot_mat_table_type *t, int J2, int bispinor ) {
       rot_mat_ti_mat ( t->IR[i], P.m, t->R[i], J2+1);
     }
   } else {
+
+    // fprintf(stdout, "# [set_rot_mat_table_spin] setting spin rotations with bispinor %d\n", bispinor );
 
     for ( int i = 0; i < 48; i++ ) {
       t->rid[i]  = i;
@@ -1823,7 +1871,8 @@ int little_group_projector_show (little_group_projector_type *p, FILE*ofs, int w
     fprintf( ofs, "# [little_group_projector_show] target dim       = %d\n", p->rtarget->dim );
 
     for ( int i = 0; i < p->n; i++ ) {
-      fprintf( ofs, "# [little_group_projector_show] spin(%d)          = %3.1f\n", i, (p->rspin[i].dim-1)/2. );
+      fprintf( ofs, "# [little_group_projector_show] spin(%d) group   = %s\n", i, p->rspin[i].group );
+      fprintf( ofs, "# [little_group_projector_show] spin(%d) irrep   = %s\n", i, p->rspin[i].irrep );
     }
   }
    
@@ -2936,12 +2985,15 @@ int little_group_projector_apply_product ( little_group_projector_type *p , FILE
    * initialize spin vectors according to ref_row_spin
    ***********************************************************/
   if ( ( p->n == 2  ) && ( p->ref_row_spin[0] < 0 ) && ( p->ref_row_spin[1] <= 0 ) ) {
-    int J2_1 = p->rspin[0].dim - 1;
-    int J2_2 = p->rspin[1].dim - 1;
+    int J2_1 = rot_mat_table_get_spin2 ( &(p->rspin[0]) );
+    int J2_2 = rot_mat_table_get_spin2 ( &(p->rspin[1]) );
 
     int J2_3 = -p->ref_row_spin[0];
     int M2_3 = J2_3 + 2*p->ref_row_spin[1];
 
+    int bispinor[2] = {
+      rot_mat_table_get_bispinor ( &(p->rspin[0]) ),
+      rot_mat_table_get_bispinor ( &(p->rspin[1]) ) };
 
     /***********************************************************
      * use Clebsch-Gordan coefficients
@@ -2950,9 +3002,14 @@ int little_group_projector_apply_product ( little_group_projector_type *p , FILE
       int M2_1 = J2_1 - 2*i1;
     for ( int i2 = 0; i2 <= J2_2; i2++ ) {
       int M2_2 = J2_2 - 2*i2;
-      int coords[2] = {i1, i2};
-      fprintf ( ofs, "# [little_group_projector_apply_product] J2_1 = %2d M2_1 = %2d   J2_2 = %2d M2_2 = %2d   J2_3 = %2d M2_3 = %2d\n", J2_1, M2_1, J2_2, M2_2, J2_3, M2_3 );
-      sv0[ product_vector_coords2index ( coords, spin_dimensions, 2 ) ] = clebsch_gordan_coeff ( J2_3, M2_3, J2_1, M2_1, J2_2, M2_2 );
+      fprintf ( ofs, "# [little_group_projector_apply_product] J2_1 = %2d M2_1 = %2d   J2_2 = %2d M2_2 = %2d   J2_3 = %2d M2_3 = %2d  bispinor %d %d\n", J2_1, M2_1, J2_2, M2_2, J2_3, M2_3,
+         bispinor[0], bispinor[1] );
+      for ( int j1 = 0; j1 <= bispinor[0]; j1++ ) {
+        for ( int j2 = 0; j2 <= bispinor[1]; j2++ ) {
+          int coords[2] = {i1+j1*(J2_1+1), i2+j2*(J2_2+1)};
+          sv0[ product_vector_coords2index ( coords, spin_dimensions, 2 ) ] = clebsch_gordan_coeff ( J2_3, M2_3, J2_1, M2_1, J2_2, M2_2 );
+        }
+      }
     }}
   } else {
     product_vector_set_element ( sv0, 1.0, p->ref_row_spin, spin_dimensions, p->n );
@@ -3150,6 +3207,7 @@ int little_group_projector_apply_product ( little_group_projector_type *p , FILE
      * TEST
      ***********************************************************/
 
+    rot_mat_ti_eq_re ( RR.R[row_target], p->rtarget->dim /( 2. * p->rtarget->n ), pdim);
     sprintf ( name, "RRsub[[%d]]", row_target+1 );
     product_mat_printf ( RR.R[row_target], spin_dimensions, p->n, name, ofs );
 
