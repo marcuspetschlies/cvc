@@ -1974,7 +1974,7 @@ void rot_inversion_matrix_spherical_basis ( double _Complex**R, int J2, int bisp
     rot_mat_ti_eq_re ( R, -1., dim );
     return;
 
-  } else if ( J2 % 2 == 1 ) {
+  } else if ( ( J2 % 2 == 1 ) && !bispinor ) {
 
     /***********************************************************
      * spin 1/2, 3/2, 5/2, ...
