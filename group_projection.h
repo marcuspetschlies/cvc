@@ -143,6 +143,10 @@ int rot_mat_table_rotate_multiplett_product ( rot_mat_table_type *rtab, rot_mat_
 
 void rot_mat_table_eq_product_mat_table ( rot_mat_table_type *r, rot_mat_table_type *s, int n );
 
+int rot_mat_table_get_spin2 ( rot_mat_table_type *t );
+
+int rot_mat_table_get_bispinor ( rot_mat_table_type *t );
+
 
 /***********************************************************/
 /***********************************************************/
