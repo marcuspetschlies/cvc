@@ -206,14 +206,16 @@ int main(int argc, char **argv) {
 
     }
 
-    rot_mat_adj ( R, Spin_1.R[irot], 3);
-    rot_spherical2cartesian_3x3 ( R, R );
+    // rot_mat_adj ( R, Spin_1.R[irot], 3);
+    // rot_spherical2cartesian_3x3 ( R, R );
+
+    rot_mat_spin1_cartesian ( R, cubic_group_double_cover_rotations[irot].n, cubic_group_double_cover_rotations[irot].w );
+    rot_mat_adj ( R, R, 3);
     /* rot_printf_matrix ( R, 3, "R", stdout ); */
+
     rot_mat_check_is_real_int ( R, 3 );
     rot_printf_rint_matrix ( R, 3, "R", stdout );
     
-
-
     for ( int i = 0; i < 3; i++ ) {
 
       C[i] = rot_init_rotation_matrix ( 4 );
@@ -244,7 +246,7 @@ int main(int argc, char **argv) {
        ***********************************************************/
       double norm =  rot_mat_norm_diff ( C[i], B[i], 4 );
  
-      fprintf ( stdout, "# [test_rot_gamma] rot %2d comp %d norm diff %16.7e\n", irot, i, norm );
+      fprintf ( stdout, "# [test_rot_gamma] rot %2d comp %d norm diff %16.7e    ok %d\n", irot, i, norm , norm<9.e-15);
 
     }  /* end of loop on 3-vector components */
 
