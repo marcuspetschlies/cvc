@@ -306,6 +306,46 @@ void rot_spherical2cartesian_3x3 (double _Complex **C, double _Complex **S) {
 /***********************************************************/
 
 /***********************************************************
+ * 
+ ***********************************************************/
+void rot_cartesian_to_spherical_contravariant_mat (double _Complex ***S, double _Complex ***C, int M, int N ) {
+
+  const double _Complex r = 1. / sqrt(2.);
+  int exitstatus;
+  double _Complex **U = NULL;
+  exitstatus = init_2level_zbuffer ( &U, 3, 3);
+
+  U[0][0] = -r;
+  U[0][1] =  I*r;
+  U[0][2] =  0.;
+  U[1][0] =  0.;
+  U[1][1] =  0.;
+  U[1][2] =  1.;
+  U[2][0] =  r;
+  U[2][1] =  I*r;
+  U[2][2] =  0.;
+
+  for ( int k = 0; k < 3; k++ ) {
+    /* set spherical-contravariant element k */
+    memset ( S[k][0], 0, N*M*sizeof(double _Complex) );
+
+    /* S[k} += U_kl C[l] */
+    for ( int l = 0; l < 3; l++ ) {
+      for ( int r = 0; r < N*M; r++ ) {
+        S[k][0][r] += U[k][l] * C[l][0][r];
+      }
+    }
+  }
+
+  fini_2level_zbuffer ( &U );
+  return;
+
+}  /* end of rot_cartesian_to_spherical_contravariant_mat */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
  *
  ***********************************************************/
 void rot_mat_ti_mat (double _Complex **C, double _Complex **A, double _Complex **B, int N) {
