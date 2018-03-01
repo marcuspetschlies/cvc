@@ -3355,8 +3355,23 @@ int rot_mat_table_rotate_multiplett_product ( rot_mat_table_type *rtab, rot_mat_
 
   return(0);
 }  /* end of rot_mat_table_rotate_multiplett_product */
-#if 0
-#endif
+
 /***********************************************************/
 /***********************************************************/
+
+/***********************************************************
+ ***********************************************************/
+int little_group_projector_data_key ( char *key,  little_group_projector_type const * const p, int const ielem ) {
+
+  int pvec[p->n][3];
+
+  for ( int i = 0; i < p->n; i++ ) { memcpy ( pvec[i], p->p[i], 3*sizeof(int) ); }
+  
+
+
+  return(0);
+
+}  /* end of little_group_projector_data_key */
+
+
 }  /* end of namespace cvc */
