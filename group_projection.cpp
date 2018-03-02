@@ -2396,7 +2396,8 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
     /***********************************************************
      * not center of mass frame, include IR rotations
      ***********************************************************/
-    if ( !frame_is_cmf )  { 
+    // if ( !frame_is_cmf )  
+    // { 
       fprintf( stdout, "# [little_group_projector_apply] including IR rotations\n");
 
       /***********************************************************
@@ -2420,20 +2421,20 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
          * loop on interpolators
          ***********************************************************/
         for ( int k = 0; k < p->n; k++ ) {
-          rot_vec_accum_vec_ti_co_pl_mat_ti_vec_ti_co ( IRsv[k], p->rspin[k].IR[rmid], sv0[k], z_irrep_matrix_coeff, 1., spin_dimensions[k] );
+          rot_vec_accum_vec_ti_co_pl_mat_ti_vec_ti_co ( IRsv[k], p->rspin[k].IR[rmid], sv0[k], p->parity[k] * z_irrep_matrix_coeff, 1., spin_dimensions[k] );
         }
 
         /***********************************************************
          * TEST
          ***********************************************************/
-        rot_mat_pl_eq_mat_ti_co ( IR, p->rspin[0].IR[rmid], z_irrep_matrix_coeff, p->rspin[0].dim );
+        rot_mat_pl_eq_mat_ti_co ( IR, p->rspin[0].IR[rmid], p->parity[0] * z_irrep_matrix_coeff, p->rspin[0].dim );
         /***********************************************************
          * END OF TEST
          ***********************************************************/
 
       }  /* end of loop on rotations IR */
 
-    }  /* end of if not center of mass frame */
+    // }  /* end of if not center of mass frame */
 
 
     /***********************************************************
@@ -2473,6 +2474,7 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
     // rot_mat_assign ( RR.IR[row_target], IR, p->rspin[0].dim);
     rot_mat_pl_eq_mat_ti_co ( RR.R[row_target], IR, 1.0,  p->rspin[0].dim );
 
+    rot_mat_ti_eq_re ( RR.R[row_target], p->rtarget->dim /( 2. * p->rtarget->n ), RR.dim );
     sprintf ( name, "RRsub[[%d]]", row_target+1 );
     rot_printf_matrix ( RR.R[row_target], p->rspin[0].dim, name, ofs );
 
