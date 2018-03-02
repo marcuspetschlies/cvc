@@ -9,6 +9,7 @@ typedef struct {
   int n[3];
   double w;
   double a[3];
+  char name[40];
 } rotation_type; 
 
 /********************************************************/
