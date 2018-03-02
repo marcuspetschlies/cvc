@@ -256,6 +256,10 @@ void rot_mat_assign (double _Complex **C, double _Complex **R, int N) {
 
 /***********************************************************
  * safe for C = S in memory
+ *
+ * matrix U below is for cartesian -> spherical contravariant
+ *
+ * v_sph_con = U v_cart
  ***********************************************************/
 void rot_spherical2cartesian_3x3 (double _Complex **C, double _Complex **S) {
 
