@@ -2433,14 +2433,14 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
        ***********************************************************/
       for ( int k = 0; k < p->n; k++ ) {
 
-        rot_vec_accum_vec_ti_co_pl_mat_ti_vec_ti_co ( Rsv[k], p->rspin[k].R[rid], sv0[k], z_irrep_matrix_coeff, 1., spin_dimensions[k] );
-        /* rot_vec_accum_vec_ti_co_pl_mat_transpose_ti_vec_ti_co ( Rsv[k], p->rspin[k].R[rid], sv0[k], z_irrep_matrix_coeff, 1., spin_dimensions[k] ); */
+        rot_vec_accum_vec_ti_co_pl_mat_ti_vec_ti_co ( Rsv[k], p->rspin[k].R[irot], sv0[k], z_irrep_matrix_coeff, 1., spin_dimensions[k] );
+        /* rot_vec_accum_vec_ti_co_pl_mat_transpose_ti_vec_ti_co ( Rsv[k], p->rspin[k].R[irot], sv0[k], z_irrep_matrix_coeff, 1., spin_dimensions[k] ); */
       }
 
       /***********************************************************
        * TEST
        ***********************************************************/
-      rot_mat_pl_eq_mat_ti_co ( R, p->rspin[0].R[rid], z_irrep_matrix_coeff, p->rspin[0].dim );
+      rot_mat_pl_eq_mat_ti_co ( R, p->rspin[0].R[irot], z_irrep_matrix_coeff, p->rspin[0].dim );
       /***********************************************************
        * END OF TEST
        ***********************************************************/
@@ -2502,13 +2502,13 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
          * loop on interpolators
          ***********************************************************/
         for ( int k = 0; k < p->n; k++ ) {
-          rot_vec_accum_vec_ti_co_pl_mat_ti_vec_ti_co ( IRsv[k], p->rspin[k].IR[rmid], sv0[k], p->parity[k] * z_irrep_matrix_coeff, 1., spin_dimensions[k] );
+          rot_vec_accum_vec_ti_co_pl_mat_ti_vec_ti_co ( IRsv[k], p->rspin[k].IR[irot], sv0[k], p->parity[k] * z_irrep_matrix_coeff, 1., spin_dimensions[k] );
         }
 
         /***********************************************************
          * TEST
          ***********************************************************/
-        rot_mat_pl_eq_mat_ti_co ( IR, p->rspin[0].IR[rmid], p->parity[0] * z_irrep_matrix_coeff, p->rspin[0].dim );
+        rot_mat_pl_eq_mat_ti_co ( IR, p->rspin[0].IR[irot], p->parity[0] * z_irrep_matrix_coeff, p->rspin[0].dim );
         /***********************************************************
          * END OF TEST
          ***********************************************************/
@@ -2677,24 +2677,23 @@ int rot_mat_table_rotate_multiplett ( rot_mat_table_type *rtab, rot_mat_table_ty
       double _Complex **R2 = rot_init_rotation_matrix ( rtab->dim );
       double _Complex **R3 = rot_init_rotation_matrix ( rtab->dim );
 
-      int rid = rtarget->rid[irot];
-
-      rot_mat_ti_mat (R2, rapply->R[rid], rtab->R[ia], rtab->dim );
+      rot_mat_ti_mat (R2, rapply->R[irot], rtab->R[ia], rtab->dim );
 
       for ( int k = 0; k < rtarget->dim; k++ ) {
         rot_mat_pl_eq_mat_ti_co ( R3, rtab->R[k], rtarget->R[irot][k][ia], rtab->dim );
       }
 
       char name[100];
-      sprintf( name, "R2[[%2d]]", rid );
+      sprintf( name, "R2[[%2d]]", rtarget->rid[irot] );
       rot_printf_matrix ( R2, rtab->dim, name, ofs );
       fprintf(ofs, "\n");
-      sprintf( name, "R3[[%2d]]", rid );
+      sprintf( name, "R3[[%2d]]", rtarget->rid[irot] );
       rot_printf_matrix ( R3, rtab->dim, name, ofs );
       double norm = rot_mat_norm_diff ( R2, R3, rtab->dim );
       double norm2 = sqrt( rot_mat_norm2 ( R2, rtab->dim ) );
 
-      fprintf(ofs, "# [rot_mat_table_rotate_multiplett] irot %2d rid %2d norm diff = %16.7e / %16.7e\n\n", irot, rid, norm, norm2 );
+      fprintf(ofs, "# [rot_mat_table_rotate_multiplett] irot %2d rid %2d norm diff = %16.7e / %16.7e\n\n", irot,
+          rtarget->rid[irot], norm, norm2 );
 
       rot_fini_rotation_matrix ( &R2 );
       rot_fini_rotation_matrix ( &R3 );
@@ -2709,23 +2708,22 @@ int rot_mat_table_rotate_multiplett ( rot_mat_table_type *rtab, rot_mat_table_ty
         double _Complex **R2 = rot_init_rotation_matrix ( rtab->dim );
         double _Complex **R3 = rot_init_rotation_matrix ( rtab->dim );
 
-        int rmid = rtarget->rmid[irot];
-
-        rot_mat_ti_mat (R2, rapply->IR[rmid], rtab->R[ia], rtab->dim );
+        rot_mat_ti_mat (R2, rapply->IR[irot], rtab->R[ia], rtab->dim );
 
         for ( int k = 0; k < rtarget->dim; k++ ) {
           rot_mat_pl_eq_mat_ti_co ( R3, rtab->R[k], rtarget->IR[irot][k][ia], rtab->dim );
         }
 
         char name[100];
-        sprintf( name, "IR2[[%2d]]", rmid );
+        sprintf( name, "IR2[[%2d]]", rtarget->rmid[irot] );
         rot_printf_matrix ( R2, rtab->dim, name, ofs );
         fprintf(ofs, "\n");
-        sprintf( name, "IR3[[%2d]]", rmid );
+        sprintf( name, "IR3[[%2d]]", rtarget->rmid[irot] );
         rot_printf_matrix ( R3, rtab->dim, name, ofs );
         double norm = rot_mat_norm_diff ( R2, R3, rtab->dim );
         double norm2 = sqrt( rot_mat_norm2 ( R2, rtab->dim ) );
-        fprintf(ofs, "# [rot_mat_table_rotate_multiplett] irot %2d rmid %2d norm diff = %16.7e / %16.7e\n\n", irot, rmid, norm, norm2 );
+        fprintf(ofs, "# [rot_mat_table_rotate_multiplett] irot %2d rmid %2d norm diff = %16.7e / %16.7e\n\n", irot,
+            rtarget->rmid[irot], norm, norm2 );
 
         rot_fini_rotation_matrix ( &R2 );
         rot_fini_rotation_matrix ( &R3 );
@@ -2749,13 +2747,11 @@ int irrep_multiplicity (rot_mat_table_type *rirrep, rot_mat_table_type *rspin, i
   double _Complex s = 0.;
   int nelem = rirrep->n;
   for ( int irot = 0; irot < rirrep->n; irot++ ) {
-    int rid = rirrep->rid[irot];
-    s += rot_mat_trace ( rirrep->R[irot],  rirrep->dim ) * rot_mat_trace ( rspin->R[rid],  rspin->dim );
+    s += rot_mat_trace ( rirrep->R[irot],  rirrep->dim ) * rot_mat_trace ( rspin->R[irot],  rspin->dim );
   }
   if ( with_IR ) {
     for ( int irot = 0; irot < rirrep->n; irot++ ) {
-      int rmid = rirrep->rmid[irot];
-      s += rot_mat_trace ( rirrep->IR[irot],  rirrep->dim ) * rot_mat_trace ( rspin->IR[rmid],  rspin->dim );
+      s += rot_mat_trace ( rirrep->IR[irot],  rirrep->dim ) * rot_mat_trace ( rspin->IR[irot],  rspin->dim );
     }
     nelem *= 2;
   }
@@ -2766,37 +2762,6 @@ int irrep_multiplicity (rot_mat_table_type *rirrep, rot_mat_table_type *rspin, i
 
   return( (int)( round( creal(s) ) / nelem ) );
 }  /* end of irrep multiplicty */
-
-/***********************************************************/
-/***********************************************************/
-
-#if 0
-inline int product_vector_coords2index ( int *coords, int *dim, int n ) {
-  int idx = coords[0];
-  for ( int i = 1; i < n; i++ ) {
-    idx = dim[i] * idx + coords[i];
-  }
-}  /* end of product intex */
-
-/***********************************************************/
-/***********************************************************/
-
-inline void product_vector_index2coords ( int idx, int *coords, int *dim, int n ) {
-  int ll = 1;
-  for ( int i = n-1; i >= 0; i-- ) {
-    coords[i] = (idx % (ll*dim[i])) / ll;
-    idx      -= coords[i] * ll;
-    ll       *= dim[i];
-  }
-}  /* end of product intex */
-
-
-/***********************************************************/
-/***********************************************************/
-inline void product_vector_set_element ( double _Complex*v, double _Complex c, int *coords, int *dim, int n ) {
-  v[ product_vector_coords2index ( coords, dim, n ) ] = c;
-}  /* end of product_vector_set_element */
-#endif
 
 /***********************************************************/
 /***********************************************************/
@@ -3105,6 +3070,10 @@ int little_group_projector_apply_product ( little_group_projector_type *p , FILE
    ***********************************************************/
   init_rot_mat_table ( &RR );
   exitstatus = alloc_rot_mat_table ( &RR, "NA", "NA", pdim, p->rtarget->dim );
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "[little_group_projector_apply_product] Error from alloc_rot_mat_table, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
+    return(1);
+  }
   /***********************************************************
    * END OF TEST
    ***********************************************************/
@@ -3148,24 +3117,22 @@ int little_group_projector_apply_product ( little_group_projector_type *p , FILE
      ***********************************************************/
     for ( int irot = 0; irot < p->rtarget->n; irot++ ) {
 
-      int rid = p->rtarget->rid[irot];
-      fprintf ( stdout, "# [little_group_projector_apply_product] lg %s irrep %s irot %2d rid %2d\n", p->rtarget->group, p->rtarget->irrep, irot, rid );
+      fprintf ( stdout, "# [little_group_projector_apply_product] lg %s irrep %s irot %2d rid %2d\n", p->rtarget->group, p->rtarget->irrep, irot,
+          p->rtarget->rid[irot] );
 
       /* This is choice according to my notes */
       double _Complex z_irrep_matrix_coeff = conj ( p->rtarget->R[irot][row_target][p->ref_row_target] );
 
 
       /***********************************************************
-       * loop on interpolators
+       * add spin rotation x sv0 as product
        ***********************************************************/
-      for ( int k = 0; k < p->n; k++ ) {
-        product_vector_project_accum ( Rsv, p->rspin, rid, -1, sv0, z_irrep_matrix_coeff, 1., spin_dimensions, p->n );
-      }
+      product_vector_project_accum ( Rsv, p->rspin, irot, -1, sv0, z_irrep_matrix_coeff, 1., spin_dimensions, p->n );
 
       /***********************************************************
        * TEST
        ***********************************************************/
-      product_mat_pl_eq_mat_ti_co ( R, p->rspin, rid, -1, z_irrep_matrix_coeff, spin_dimensions, p->n );
+      product_mat_pl_eq_mat_ti_co ( R, p->rspin, irot, -1, z_irrep_matrix_coeff, spin_dimensions, p->n );
       /***********************************************************
        * END OF TEST
        ***********************************************************/
@@ -3198,8 +3165,8 @@ int little_group_projector_apply_product ( little_group_projector_type *p , FILE
     /***********************************************************
      * not center of mass frame, include IR rotations
      ***********************************************************/
-    if ( !frame_is_cmf )  { 
-      fprintf( stdout, "# [little_group_projector_apply_product] including IR rotations\n");
+    // if ( !frame_is_cmf )  { 
+      if ( g_verbose > 2 ) fprintf( stdout, "# [little_group_projector_apply_product] including IR rotations\n");
 
       double _Complex *IRsv = NULL;
       exitstatus = init_1level_zbuffer( &IRsv, pdim );
@@ -3218,8 +3185,8 @@ int little_group_projector_apply_product ( little_group_projector_type *p , FILE
        ***********************************************************/
       for ( int irot = 0; irot < p->rtarget->n; irot++ ) {
 
-        int rmid = p->rtarget->rmid[irot];
-        fprintf ( stdout, "# [little_group_projector_apply_product] lg %s irrep %s irot %2d rmid %2d\n", p->rtarget->group, p->rtarget->irrep, irot, rmid );
+        fprintf ( stdout, "# [little_group_projector_apply_product] lg %s irrep %s irot %2d rmid %2d\n",
+            p->rtarget->group, p->rtarget->irrep, irot, p->rtarget->rmid[irot] );
 
         /* This is choice according to my notes */
         double _Complex z_irrep_matrix_coeff = conj ( p->rtarget->IR[irot][row_target][p->ref_row_target] );
@@ -3228,16 +3195,16 @@ int little_group_projector_apply_product ( little_group_projector_type *p , FILE
         /* fprintf(stdout, "# [little_group_projector_apply_product] T Gamma (IR) coeff rot %2d = %25.16e %25.16e\n", rmid, creal(z_irrep_matrix_coeff), cimag(z_irrep_matrix_coeff) ); */
 
         /***********************************************************
-         * loop on interpolators
+         * add rotation-reflection applied to sv0 as product
          ***********************************************************/
-        for ( int k = 0; k < p->n; k++ ) {
-          product_vector_project_accum ( IRsv, p->rspin, -1, rmid, sv0, z_irrep_matrix_coeff, 1., spin_dimensions, p->n );
-        }
+        STOPPED HERE
+          include intrinsic parity
+        product_vector_project_accum ( IRsv, p->rspin, -1, irot, sv0, z_irrep_matrix_coeff, 1., spin_dimensions, p->n );
 
         /***********************************************************
          * TEST
          ***********************************************************/
-        product_mat_pl_eq_mat_ti_co ( IR, p->rspin, -1, rmid, z_irrep_matrix_coeff, spin_dimensions, p->n );
+        product_mat_pl_eq_mat_ti_co ( IR, p->rspin, -1, irot, z_irrep_matrix_coeff, spin_dimensions, p->n );
         /***********************************************************
          * END OF TEST
          ***********************************************************/
@@ -3340,7 +3307,12 @@ int little_group_projector_apply_product ( little_group_projector_type *p , FILE
 /***********************************************************
  * rotate a projection matrix multiplett for product matrix
  ***********************************************************/
-int rot_mat_table_rotate_multiplett_product ( rot_mat_table_type *rtab, rot_mat_table_type *rapply, rot_mat_table_type *rtarget, int n, int with_IR, FILE*ofs ) {
+int rot_mat_table_rotate_multiplett_product ( 
+    rot_mat_table_type *rtab,
+    rot_mat_table_type *rapply,
+    rot_mat_table_type *rtarget,
+    int n, int with_IR, FILE*ofs
+) {
 
   const double eps = 2.e-14;
   int pdim = 1;
@@ -3379,24 +3351,23 @@ int rot_mat_table_rotate_multiplett_product ( rot_mat_table_type *rtab, rot_mat_
       double _Complex **R2 = rot_init_rotation_matrix ( pdim );
       double _Complex **R3 = rot_init_rotation_matrix ( pdim );
 
-      int rid = rtarget->rid[irot];
-
-      rot_mat_eq_product_mat_ti_rot_mat ( R2, rapply, rid, -1, rtab->R[ia], n );
+      rot_mat_eq_product_mat_ti_rot_mat ( R2, rapply, irot, -1, rtab->R[ia], n );
 
       for ( int k = 0; k < rtarget->dim; k++ ) {
         rot_mat_pl_eq_mat_ti_co ( R3, rtab->R[k], rtarget->R[irot][k][ia], rtab->dim );
       }
 
       char name[100];
-      sprintf( name, "R2[[%2d]]", rid );
+      sprintf( name, "R2[[%2d]]", rtarget->rid[irot] );
       rot_printf_matrix ( R2, rtab->dim, name, ofs );
       fprintf(ofs, "\n");
-      sprintf( name, "R3[[%2d]]", rid );
+      sprintf( name, "R3[[%2d]]", rtarget->rid[irot] );
       rot_printf_matrix ( R3, rtab->dim, name, ofs );
       double norm = rot_mat_norm_diff ( R2, R3, rtab->dim );
       double norm2 = sqrt( rot_mat_norm2 ( R2, rtab->dim ) );
 
-      fprintf(ofs, "# [rot_mat_table_rotate_multiplett_product] irot %2d rid  %2d norm diff = %16.7e / %16.7e   %d\n\n", irot, rid, norm, norm2, fabs(norm)<eps );
+      fprintf(ofs, "# [rot_mat_table_rotate_multiplett_product] irot %2d rid  %2d norm diff = %16.7e / %16.7e   %d\n\n",
+          irot, rtarget->rid[irot], norm, norm2, fabs(norm)<eps );
 
       rot_fini_rotation_matrix ( &R2 );
       rot_fini_rotation_matrix ( &R3 );
@@ -3411,23 +3382,22 @@ int rot_mat_table_rotate_multiplett_product ( rot_mat_table_type *rtab, rot_mat_
         double _Complex **R2 = rot_init_rotation_matrix ( rtab->dim );
         double _Complex **R3 = rot_init_rotation_matrix ( rtab->dim );
 
-        int rmid = rtarget->rmid[irot];
-
-        rot_mat_eq_product_mat_ti_rot_mat ( R2, rapply, -1, rmid, rtab->R[ia], n );
+        rot_mat_eq_product_mat_ti_rot_mat ( R2, rapply, -1, irot, rtab->R[ia], n );
 
         for ( int k = 0; k < rtarget->dim; k++ ) {
           rot_mat_pl_eq_mat_ti_co ( R3, rtab->R[k], rtarget->IR[irot][k][ia], rtab->dim );
         }
 
         char name[100];
-        sprintf( name, "IR2[[%2d]]", rmid );
+        sprintf( name, "IR2[[%2d]]", rtarget->rmid[irot] );
         rot_printf_matrix ( R2, rtab->dim, name, ofs );
         fprintf(ofs, "\n");
-        sprintf( name, "IR3[[%2d]]", rmid );
+        sprintf( name, "IR3[[%2d]]", rtarget->rmid[irot] );
         rot_printf_matrix ( R3, rtab->dim, name, ofs );
         double norm = rot_mat_norm_diff ( R2, R3, rtab->dim );
         double norm2 = sqrt( rot_mat_norm2 ( R2, rtab->dim ) );
-        fprintf(ofs, "# [rot_mat_table_rotate_multiplett_product] irot %2d rmid %2d norm diff = %16.7e / %16.7e   %d\n\n", irot, rmid, norm, norm2, fabs(norm)<eps );
+        fprintf(ofs, "# [rot_mat_table_rotate_multiplett_product] irot %2d rmid %2d norm diff = %16.7e / %16.7e   %d\n\n",
+            irot, rtarget->rmid[irot], norm, norm2, fabs(norm)<eps );
 
         rot_fini_rotation_matrix ( &R2 );
         rot_fini_rotation_matrix ( &R3 );
