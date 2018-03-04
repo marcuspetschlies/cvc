@@ -1,7 +1,7 @@
 /****************************************************
- * test_rot_gamma.cpp
+ * test_rot_gamma_spherical.cpp
  *
- * Mi 24. Jan 12:41:04 CET 2018
+ * Do 1. Mär 17:29:46 CET 2018
  *
  * PURPOSE:
  * DONE:
@@ -74,7 +74,7 @@ int main(int argc, char **argv) {
       case 'h':
       case '?':
       default:
-        fprintf(stdout, "# [test_rot_gamma] exit\n");
+        fprintf(stdout, "# [test_rot_gamma_spherical] exit\n");
         exit(1);
       break;
     }
@@ -85,7 +85,7 @@ int main(int argc, char **argv) {
    * set the default values
    ***********************************************************/
   if(filename_set==0) strcpy(filename, "cvc.input");
-  fprintf(stdout, "# [test_rot_gamma] Reading input from file %s\n", filename);
+  fprintf(stdout, "# [test_rot_gamma_spherical] Reading input from file %s\n", filename);
   read_input_parser(filename);
 
 
@@ -113,7 +113,7 @@ int main(int argc, char **argv) {
   /***********************************************************/
 
   if(init_geometry() != 0) {
-    fprintf(stderr, "[test_rot_gamma] Error from init_geometry\n");
+    fprintf(stderr, "[test_rot_gamma_spherical] Error from init_geometry\n");
     EXIT(1);
   }
 
@@ -134,12 +134,12 @@ int main(int argc, char **argv) {
 
 
   if ( ( exitstatus = set_rot_mat_table_spin ( &Spin_1, 2, 0 ) ) != 0 ) {
-    fprintf (stderr, "[test_rot_gamma] Error from set_rot_mat_table_spin, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    fprintf (stderr, "[test_rot_gamma_spherical] Error from set_rot_mat_table_spin, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(1);
   }
 
   if ( ( exitstatus = set_rot_mat_table_spin ( &Spin_12b, 1, 1 ) ) != 0 ) {
-    fprintf (stderr, "[test_rot_gamma] Error from set_rot_mat_table_spin, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    fprintf (stderr, "[test_rot_gamma_spherical] Error from set_rot_mat_table_spin, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(1);
   }
 
@@ -172,6 +172,17 @@ int main(int argc, char **argv) {
   gamma_matrix_printf ( g+2, "gamma3", stdout );
 
 
+  double _Complex **GammaCart[3], **GammaSpher[3];
+   
+  for ( int i = 0; i < 3; i++ ) {
+    GammaCart[i] = rot_init_rotation_matrix ( 4 );
+    memcpy ( GammaCart[i][0], g[i].v, 16*sizeof(double _Complex ) );
+
+    GammaSpher[i]    = rot_init_rotation_matrix ( 4 );
+  }
+
+  rot_cartesian_to_spherical_contravariant_mat ( GammaSpher, GammaCart, 4, 4 );
+
   /***********************************************************
    * loop on rotations
    ***********************************************************/
@@ -179,89 +190,82 @@ int main(int argc, char **argv) {
   /* for(int irot=0; irot < 1; irot++ ) */
   {
 
-    fprintf(stdout, "\n\n# [test_rot_gamma] rot no %2d\n", irot );
+    fprintf(stdout, "\n\n# [test_rot_gamma_spherical] rot no %2d\n", irot );
 
 
     /***********************************************************
      * init 2 helper matrices
      ***********************************************************/
-    double _Complex **A = rot_init_rotation_matrix ( 4 );
     double _Complex **R = rot_init_rotation_matrix ( 3 );
 
-    double _Complex **B[3], **C[3]; 
-   
-    B[0] = rot_init_rotation_matrix ( 4 );
-    B[1] = rot_init_rotation_matrix ( 4 );
-    B[2] = rot_init_rotation_matrix ( 4 );
+    rot_mat_assign ( R, Spin_1.R[irot], 3);
+    rot_mat_adj ( R, R, 3);
 
 
     for ( int i = 0; i < 3; i++ ) {
+
       /***********************************************************
        * A <- Spin_12b g.m
        * B <- A Spin_12b^+
        ***********************************************************/
-      rot_mat_ti_mat ( A, Spin_12b.R[irot], g[i].m, 4);
 
-      rot_mat_ti_mat_adj ( B[i], A, Spin_12b.R[irot], 4 );
+      double _Complex **A = rot_init_rotation_matrix ( 4 );
+      double _Complex **B = rot_init_rotation_matrix ( 4 );
 
-    }
+      rot_mat_ti_mat ( A, Spin_12b.R[irot], GammaSpher[i], 4);
 
-    // rot_mat_adj ( R, Spin_1.R[irot], 3);
-    // rot_spherical2cartesian_3x3 ( R, R );
+      rot_mat_ti_mat_adj ( B, A, Spin_12b.R[irot], 4 );
 
-    rot_mat_spin1_cartesian ( R, cubic_group_double_cover_rotations[irot].n, cubic_group_double_cover_rotations[irot].w );
-    rot_mat_adj ( R, R, 3);
-    /* rot_printf_matrix ( R, 3, "R", stdout ); */
+      rot_fini_rotation_matrix( &A );
 
-    rot_mat_check_is_real_int ( R, 3 );
-    rot_printf_rint_matrix ( R, 3, "R", stdout );
-    
-    for ( int i = 0; i < 3; i++ ) {
 
-      C[i] = rot_init_rotation_matrix ( 4 );
+      /***********************************************************
+       * A <- Spin_12b g.m
+       * B <- A Spin_12b^+ = Spin_12b g.m Spin_12b^+
+       ***********************************************************/
+      double _Complex **C = rot_init_rotation_matrix ( 4 );
 
       for ( int k = 0; k < 3; k++ ) {
-
-        rot_mat_pl_eq_mat_ti_co ( C[i], g[k].m, R[i][k], 4);
-        // rot_mat_pl_eq_mat_ti_co ( C[i], g[k].m, R[k][i], 4);
+        rot_mat_pl_eq_mat_ti_co ( C, GammaSpher[k], R[i][k], 4);
       }
 
 
-      fprintf(stdout, "\n# [test_rot_gamma] rot no %2d comp %d\n", irot, i );
+      fprintf(stdout, "\n# [test_rot_gamma_spherical] rot no %2d comp %d\n", irot, i );
       char name[20];
-      /*
-      sprintf ( name, "B[[%2d]]", i );
-      rot_printf_matrix ( B[i], 4, name, stdout );
-      
-      fprintf(stdout, "\n");
 
-      sprintf ( name, "C[[%2d]]", i );
-      rot_printf_matrix ( C[i], 4, name, stdout );
-*/
-      sprintf ( name, "Gamma[[%d]]", i );
-      rot_printf_matrix_comp ( C[i], B[i], 4, name, stdout );
+      //sprintf ( name, "B[[%2d]]", i );
+      //rot_printf_matrix ( B[i], 4, name, stdout );
+      
+      //fprintf(stdout, "\n");
+
+      //sprintf ( name, "C[[%2d]]", i );
+      //rot_printf_matrix ( C[i], 4, name, stdout );
+
+      //sprintf ( name, "Gamma[[%d]]", i );
+      //rot_printf_matrix_comp ( C[i], B[i], 4, name, stdout );
 
       /***********************************************************
        * || g.m - Spin_12b g.m Spin_12b^+ ||
        ***********************************************************/
-      double norm =  rot_mat_norm_diff ( C[i], B[i], 4 );
- 
-      fprintf ( stdout, "# [test_rot_gamma] rot %2d comp %d norm diff %16.7e    ok %d\n", irot, i, norm , norm<9.e-15);
+      double norm =  rot_mat_norm_diff ( C, B, 4 );
+      double norm2 = sqrt ( rot_mat_norm2 ( B, 3) );
 
+ 
+      fprintf ( stdout, "# [test_rot_gamma_spherical] rot %2d comp %d norm diff %16.7e / %16.7e   ok %d\n", irot, i, norm , norm2, norm<9.e-15);
+
+      rot_fini_rotation_matrix( &B );
+      rot_fini_rotation_matrix( &C );
     }  /* end of loop on 3-vector components */
 
 
-    rot_fini_rotation_matrix( &A );
     rot_fini_rotation_matrix( &R );
-    rot_fini_rotation_matrix( B );
-    rot_fini_rotation_matrix( B+1 );
-    rot_fini_rotation_matrix( B+2 );
-    rot_fini_rotation_matrix( C );
-    rot_fini_rotation_matrix( C+1 );
-    rot_fini_rotation_matrix( C+2 );
 
   }  /* end of loop on rotations */
 
+  for ( int i = 0; i < 3; i++ ) {
+    rot_fini_rotation_matrix ( GammaCart+i );
+    rot_fini_rotation_matrix ( GammaSpher+i );
+  }
 
   fini_rot_mat_table ( &Spin_1 );
   fini_rot_mat_table ( &Spin_12b );
@@ -269,9 +273,12 @@ int main(int argc, char **argv) {
 
   if(g_cart_id==0) {
     g_the_time = time(NULL);
-    fprintf(stdout, "# [test_rot_gamma] %s# [test_rot_gamma] end of run\n", ctime(&g_the_time));
-    fprintf(stderr, "# [test_rot_gamma] %s# [test_rot_gamma] end of run\n", ctime(&g_the_time));
+    fprintf(stdout, "# [test_rot_gamma_spherical] %s# [test_rot_gamma_spherical] end of run\n", ctime(&g_the_time));
+    fprintf(stderr, "# [test_rot_gamma_spherical] %s# [test_rot_gamma_spherical] end of run\n", ctime(&g_the_time));
   }
+
+
+  free_geometry();
 
 #ifdef HAVE_MPI
   mpi_fini_datatypes();

@@ -9,6 +9,7 @@ typedef struct {
   int n[3];
   double w;
   double a[3];
+  char name[40];
 } rotation_type; 
 
 /********************************************************/
@@ -40,6 +41,9 @@ void rot_axis2polar ( double*theta, double*phi, int n[3] );
 void rot_rotation_matrix_spherical_basis ( double _Complex**R, int J2, int n[3], double w);
 
 void rot_spherical2cartesian_3x3 (double _Complex **C, double _Complex **S);
+
+void rot_cartesian_to_spherical_contravariant_mat (double _Complex ***S, double _Complex ***C, int M, int N );
+
 
 void rot_mat_adj (double _Complex **C, double _Complex **R, int N);
 
