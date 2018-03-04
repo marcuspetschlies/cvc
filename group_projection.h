@@ -101,12 +101,22 @@ int little_group_projector_show (little_group_projector_type *p, FILE*ofs, int w
 int little_group_projector_copy (little_group_projector_type *p, little_group_projector_type *q );
 
 int little_group_projector_set (
+  /***********************************************************/
   little_group_projector_type *p,
   little_group_type *lg,
   char*irrep , int row_target, int interpolator_num,
-  int *interpolator_J2_list, int **interpolator_momentum_list, int *interpolator_bispinor_list,
-  int *interpolator_parity,
-  int ref_row_target, int *ref_row_spin, char*correlator_name );
+  int *interpolator_J2_list,
+  int **interpolator_momentum_list,
+  int *interpolator_bispinor_list,
+  int *interpolator_parity_list,
+  int *interpolator_cartesian_list,
+  int ref_row_target,
+  int *ref_row_spin,
+  char*correlator_name
+  /***********************************************************/
+);
+
+
 
 int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs );
 
