@@ -680,4 +680,70 @@ int contract_diagram_write_aff (double _Complex***diagram, struct AffWriter_s*af
 
 /***********************************************/
 /***********************************************/
+
+/***********************************************
+ * 
+ ***********************************************/
+int contract_diagram_read_key_qlua ( 
+    double _Complex **fac, // output
+    char const *prefix,    // key prefix
+    int const pi2[3],      // sequential momenta
+    int const gsx[4],      // source coords
+    int const isample,     // number of sample
+    int const vtype,       // contraction type
+    int const gamma_id,    // vertex gamma
+    int const pf[3],       // vertex momentum
+    struct AffReader_s const *affr,  // AFF reader 
+    int const N            // length of data key ( will be mostly T_global )
+  ) {
+
+  char key_prefix[400];
+  char key[500];
+  char pf_str[20];
+  char pi2_str[30] = "";
+  int const ncomp = vtype == 3 ? 12 : 192;
+  int exitstatus;
+  struct AffNode_s *affn = NULL, *affdir = NULL;
+  double _Complex buffer[N];
+
+  if( (affn = aff_reader_root( affr )) == NULL ) {
+    fprintf(stderr, "[contract_diagram_read_key_qlua] Error, aff reader is not initialized\n");
+    return(103);
+  }
+
+
+  /* pf as momentum string */
+  sprintf ( pf_str, "PX%d_PY%d_PZ%d", pf[0], pf[1], pf[2] );
+
+  if ( pi2 != NULL ) {
+    sprintf ( pi2_str, "pi2x%.2dpi2y%.2dpi2z%.2d/", pi2[0], pi2[1], pi2[2] );
+  }
+
+  sprintf ( key_prefix, "/%s/%st%.2dx%.2dy%.2dz%.2d/sample%.2d/v%d/gf%.2d",
+      prefix, pi2_str, gsx[0], gsx[1], gsx[2], gsx[3], isample, vtype, gamma_id );
+
+  if ( g_verbose > 2 ) fprintf ( stdout, "# [contract_diagram_read_key_qlua] current key prefix %s\n", key_prefix );
+
+  for ( int icomp = 0; icomp < ncomp; icomp++ ) {
+
+    sprintf ( key, "%s/c%d/%s", key_prefix, icomp, pf_str );
+
+    affdir = aff_reader_chpath (affr, affn, key );
+    exitstatus = aff_node_get_complex (affr, affdir, buffer, N );
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[contract_diagram_read_key_qlua] Error from aff_node_get_complex for key \"%s\", status was %d\n", aff_tag, exitstatus);
+      return(105);
+    }
+
+    for ( int it = 0; it < N; it++ ) {
+      fac[it][icomp] = buffer[it];
+    }
+
+  }
+
+  return(0);
+}  // end of contract_diagram_read_key_qlua
+
+/***********************************************/
+/***********************************************/
 }  /* end of namespace cvc */
