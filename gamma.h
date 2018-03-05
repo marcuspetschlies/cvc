@@ -35,5 +35,7 @@ void init_gamma_matrix (void);
 
 void gamma_matrix_set ( gamma_matrix_type *g, int id, double s );
 
+void gamma_matrix_qlua_binary ( gamma_matrix_type *g, int n  );
+
 }
 #endif
