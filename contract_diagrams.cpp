@@ -680,4 +680,154 @@ int contract_diagram_write_aff (double _Complex***diagram, struct AffWriter_s*af
 
 /***********************************************/
 /***********************************************/
+
+/***********************************************
+ * 
+ ***********************************************/
+int contract_diagram_read_key_qlua ( 
+    double _Complex **fac, // output
+    char const *prefix,    // key prefix
+    int const gi[3],       // sequential gamma id
+    int const pi[3],       // sequential momenta
+    int const gsx[4],      // source coords
+    int const isample,     // number of sample
+    int const vtype,       // contraction type
+    int const gf,          // vertex gamma
+    int const pf[3],       // vertex momentum
+    struct AffReader_s const *affr,  // AFF reader 
+    int const N            // length of data key ( will be mostly T_global )
+  ) {
+
+  char key_prefix[400];
+  char key[500];
+  char pf_str[20];
+  char gi_str[20] = "";
+  char pi_str[30] = "";
+  int const ncomp = vtype == 3 ? 12 : 192;
+  int exitstatus;
+  struct AffNode_s *affn = NULL, *affdir = NULL;
+  double _Complex buffer[N];
+
+  if( (affn = aff_reader_root( affr )) == NULL ) {
+    fprintf(stderr, "[contract_diagram_read_key_qlua] Error, aff reader is not initialized\n");
+    return(103);
+  }
+
+
+  /* pf as momentum string */
+  sprintf ( pf_str, "PX%d_PY%d_PZ%d", pf[0], pf[1], pf[2] );
+
+  if ( pi != NULL ) {
+    sprintf ( pi_str, "pi2x%.2dpi2y%.2dpi2z%.2d/", pi[0], pi[1], pi[2] );
+  }
+  if ( gi > -1 ) {
+    sprintf ( gi_str, "gi2%.2d/", gi );
+  }
+
+  sprintf ( key_prefix, "/%s/%s%st%.2dx%.2dy%.2dz%.2d/sample%.2d/v%d/gf%.2d",
+      prefix, pi_str, gi_str, gsx[0], gsx[1], gsx[2], gsx[3], isample, vtype, gf );
+
+  if ( g_verbose > 2 ) fprintf ( stdout, "# [contract_diagram_read_key_qlua] current key prefix %s\n", key_prefix );
+
+  for ( int icomp = 0; icomp < ncomp; icomp++ ) {
+
+    sprintf ( key, "%s/c%d/%s", key_prefix, icomp, pf_str );
+
+    affdir = aff_reader_chpath (affr, affn, key );
+    exitstatus = aff_node_get_complex (affr, affdir, buffer, N );
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[contract_diagram_read_key_qlua] Error from aff_node_get_complex for key \"%s\", status was %d\n", aff_tag, exitstatus);
+      return(105);
+    }
+
+    for ( int it = 0; it < N; it++ ) {
+      fac[it][icomp] = buffer[it];
+    }
+
+  }
+
+  return(0);
+}  // end of contract_diagram_read_key_qlua
+
+/***********************************************/
+/***********************************************/
+
+/***********************************************
+ * 
+ ***********************************************/
+int contract_diagram_read_oet_key_qlua ( 
+    double _Complex ***fac, // output
+    char const *prefix,    // key prefix
+    int const pi[3],       // sequential momenta
+    int const gsx[4],      // source coords
+    int const vtype,       // contraction type
+    int const gf,          // vertex gamma
+    int const pf[3],       // vertex momentum
+    struct AffReader_s const *affr,  // AFF reader 
+    int const N            // length of data key ( will be mostly T_global )
+  ) {
+
+  char key_prefix[400];
+  char key[500];
+  char pf_str[20];
+  char pi_str[30] = "";
+  int const ncomp = vtype == 3 ? 12 : 192;
+  int exitstatus;
+  struct AffNode_s *affn = NULL, *affdir = NULL;
+  double _Complex buffer[N];
+
+  if( (affn = aff_reader_root( affr )) == NULL ) {
+    fprintf(stderr, "[contract_diagram_read_oet_key_qlua] Error, aff reader is not initialized\n");
+    return(103);
+  }
+
+
+  /* pf as momentum string */
+  sprintf ( pf_str, "PX%d_PY%d_PZ%d", pf[0], pf[1], pf[2] );
+
+  if ( pi != NULL ) {
+    sprintf ( pi_str, "pi2x%.2dpi2y%.2dpi2z%.2d/", pi[0], pi[1], pi[2] );
+  }
+
+  for ( int k = 0; k < 4; k++ ) {
+
+    sprintf ( key_prefix, "/%s/%st%.2dx%.2dy%.2dz%.2d/dphi%d/v%d/gf%.2d",
+        prefix, pi_str,  gsx[0], gsx[1], gsx[2], gsx[3], k, vtype, gf );
+
+    if ( g_verbose > 2 ) fprintf ( stdout, "# [contract_diagram_read_oet_key_qlua] current key prefix %s\n", key_prefix );
+
+    for ( int icomp = 0; icomp < ncomp; icomp++ ) {
+
+      sprintf ( key, "%s/c%d/%s", key_prefix, icomp, pf_str );
+
+      affdir = aff_reader_chpath (affr, affn, key );
+      exitstatus = aff_node_get_complex (affr, affdir, buffer, N );
+      if( exitstatus != 0 ) {
+        fprintf(stderr, "[contract_diagram_read_oet_key_qlua] Error from aff_node_get_complex for key \"%s\", status was %d\n", aff_tag, exitstatus);
+        return(105);
+      }
+
+      for ( int it = 0; it < N; it++ ) {
+        fac[k][it][icomp] = buffer[it];
+      }
+
+    }
+
+  }  // end of loop on spinor component k
+
+  return(0);
+}  // end of contract_diagram_read_oet_key_qlua
+
+/***********************************************/
+/***********************************************/
+
+int contract_diagram_key_suffix ( char suffix, int const gf2, int const pf2[3], int const gf1, int const pf1[3], int const gi2, int const pi2[3], int const gi1 ) {
+
+  sprintf( suffix, "gf2%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/gf1%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/gi2%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/gi1%.2d", 
+      gf2, pf2[0], pf2[1], pf2[2], gf1, pf1[0], pf1[1], pf1[2], gi2, pi2[0], pi2[1], pi2[2], gi1 );
+ 
+  return(0);
+
+}  // end of contract_diagram_key_suffix  
+
 }  /* end of namespace cvc */

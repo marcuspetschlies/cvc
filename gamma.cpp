@@ -33,12 +33,18 @@ double gamma_mult_sign[16][16];
 double gamma_adjoint_sign[16];
 double gamma_transposed_sign[16];
 
+/************************************************/
+/************************************************/
+
 void init_gamma_matrix (void) {
   if( gamma_mult_table_is_initialized == 0 ) {
     init_gamma_mult_table ();
     gamma_mult_table_is_initialized = 1;
   } 
 }
+
+/************************************************/
+/************************************************/
 
 void gamma_matrix_init ( gamma_matrix_type *g) {
   gamma_matrix_zero ( g );
@@ -50,10 +56,16 @@ void gamma_matrix_init ( gamma_matrix_type *g) {
   g->s  = 1.;
 }  /* end of gamma_matrix_init */
   
+/************************************************/
+/************************************************/
+ 
 void gamma_matrix_zero ( gamma_matrix_type *g) {
   memset(g->v , 0, 16*sizeof(double _Complex));
 }  /* end of gamma_matrix_zero */
 
+/************************************************/
+/************************************************/
+ 
 void gamma_matrix_fill ( gamma_matrix_type *g) {
 
   int id = g->id;
@@ -83,12 +95,18 @@ void gamma_matrix_fill ( gamma_matrix_type *g) {
 
 }  /* end of gamma_matrix_fill */
 
+/************************************************/
+/************************************************/
+
 void gamma_matrix_set ( gamma_matrix_type *g, int id, double s ) {
   gamma_matrix_init ( g );
   g->id = id;
   g->s  = s;
   gamma_matrix_fill ( g );
 }  /* end of gamma_matrix_set */
+
+/************************************************/
+/************************************************/
 
 void gamma_matrix_printf (gamma_matrix_type *g, char*name, FILE*ofs) {
 
@@ -100,6 +118,9 @@ void gamma_matrix_printf (gamma_matrix_type *g, char*name, FILE*ofs) {
   }}
 }  /* end of gamma_matrix_printf */
 
+/************************************************/
+/************************************************/
+
 void gamma_matrix_mult ( gamma_matrix_type *g1, gamma_matrix_type *g2, gamma_matrix_type *g3 ) {
   g1->id = gamma_mult_table[g2->id][g3->id];
   g1->s  = g2->s * g3->s * gamma_mult_sign[g2->id][g3->id];
@@ -107,17 +128,26 @@ void gamma_matrix_mult ( gamma_matrix_type *g1, gamma_matrix_type *g2, gamma_mat
   gamma_matrix_fill (g1);
 }  /* gamma_matrix_mult */
 
+/************************************************/
+/************************************************/
+
 void gamma_matrix_assign ( gamma_matrix_type *g , gamma_matrix_type *p) {
   memcpy( g->v, p->v, 16*sizeof(double _Complex) );
   g->id = p->id;
   g->s = p->s;
 }  /* end of gamma_matrix_assign */
 
+/************************************************/
+/************************************************/
+
 void gamma_matrix_transposed (gamma_matrix_type *g, gamma_matrix_type *p) {
   g->id = p->id;
   g->s  = p->s * gamma_transposed_sign[p->id];
   gamma_matrix_fill ( g );
 }  /* end of gamma_matrix_transposed */
+
+/************************************************/
+/************************************************/
 
 void gamma_matrix_eq_gamma_matrix_transposed (gamma_matrix_type *g, gamma_matrix_type *p) {
   double _Complex _v[16];
@@ -142,11 +172,17 @@ void gamma_matrix_eq_gamma_matrix_transposed (gamma_matrix_type *g, gamma_matrix
   g->s  = 0;
 }  /* end of gamma_matrix_eq_gamma_matrix_transposed */
 
+/************************************************/
+/************************************************/
+
 void gamma_matrix_adjoint ( gamma_matrix_type *g, gamma_matrix_type *p) {
   g->id = p->id;
   g->s  = p->s * gamma_adjoint_sign[p->id];
   gamma_matrix_fill ( g );
 }  /* end of gamma_matrix_adjoint */
+
+/************************************************/
+/************************************************/
 
 void gamma_matrix_eq_gamma_matrix_adjoint ( gamma_matrix_type *g, gamma_matrix_type *p) {
   double _Complex _v[16];
@@ -171,6 +207,9 @@ void gamma_matrix_eq_gamma_matrix_adjoint ( gamma_matrix_type *g, gamma_matrix_t
   g->s  = 0;
 }  /* end of gamma_matrix_eq_gamma_matrix_adjoint */
 
+/************************************************/
+/************************************************/
+
 void gamma_matrix_norm (double *norm, gamma_matrix_type *g) {
   double _norm = 0., _re, _im;
   for ( int i=0; i<16; i++) { 
@@ -180,6 +219,9 @@ void gamma_matrix_norm (double *norm, gamma_matrix_type *g) {
   }
   *norm = sqrt( _norm );
 }  /* end of gamma_matrix_norm */
+
+/************************************************/
+/************************************************/
 
 void gamma_matrix_eq_gamma_matrix_mi_gamma_matrix (gamma_matrix_type *g1, gamma_matrix_type *g2, gamma_matrix_type *g3) {
   g1->v[ 0] = g2->v[ 0] - g3->v[ 0];
@@ -202,6 +244,9 @@ void gamma_matrix_eq_gamma_matrix_mi_gamma_matrix (gamma_matrix_type *g1, gamma_
   g1->s  = 0;
 }  /* end of gamma_matrix_eq_gamma_matrix_mi_gamma_matrix */
 
+/************************************************/
+/************************************************/
+
 void gamma_matrix_eq_gamma_matrix_pl_gamma_matrix_ti_re (gamma_matrix_type *g1, gamma_matrix_type *g2, gamma_matrix_type *g3, double r) {
   g1->v[ 0] = g2->v[ 0] + g3->v[ 0] * r;
   g1->v[ 1] = g2->v[ 1] + g3->v[ 1] * r;
@@ -223,14 +268,64 @@ void gamma_matrix_eq_gamma_matrix_pl_gamma_matrix_ti_re (gamma_matrix_type *g1, 
   g1->s  = 0;
 }  /* end of gamma_matrix_eq_gamma_matrix_pl_gamma_matrix_ti_re */
 
+/************************************************/
+/************************************************/
+
+/************************************************
+ * g1 = g2 x g3
+ * save for g1 = g2 or g2 = g3 or g1 = g3 in memory
+ ************************************************/
 void gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( gamma_matrix_type *g1, gamma_matrix_type *g2, gamma_matrix_type *g3 ) {
   char CHAR_N = 'N';
   int INT_N = 4;
   double _Complex Z_1 = 1., Z_0 = 0.;
+  double _Complex v2[16], v3[16];
+  memcpy ( v2, g2->v , 16*sizeof(double _Complex ) );
+  memcpy ( v3, g3->v , 16*sizeof(double _Complex ) );
+
   /* _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1); */
-  _F(zgemm) ( &CHAR_N, &CHAR_N, &INT_N, &INT_N, &INT_N, &Z_1, g3->v, &INT_N, g2->v, &INT_N, &Z_0, g1->v, &INT_N, 1, 1);
+  _F(zgemm) ( &CHAR_N, &CHAR_N, &INT_N, &INT_N, &INT_N, &Z_1, v3, &INT_N, v2, &INT_N, &Z_0, g1->v, &INT_N, 1, 1);
   g1->id = -1;
   g1->s  = 0;
 }  /* end of gamma_matrix_eq_gamma_matrix_ti_gamma_matrix */
+
+
+/************************************************/
+/************************************************/
+
+/************************************************
+ * gamma matrix in qlua gamma basis
+ * and in qlua binary counting
+ ************************************************/
+void gamma_matrix_qlua_binary ( gamma_matrix_type *g, int n  ) {
+
+  gamma_matrix_type gx, gy, gz, gt;
+  gamma_matrix_set ( &gt, 0, -1. );
+  gamma_matrix_set ( &gx, 1, -1. );
+  gamma_matrix_set ( &gy, 2,  1. );
+  gamma_matrix_set ( &gz, 3, -1. );
+
+  int gamma_bin[4] = {0,0,0,0};
+  int n0 = n;
+  gamma_bin[0] = n0 % 2;
+  n0 = n0 >> 1;
+  gamma_bin[1] = n0 % 2;
+  n0 = n0 >> 1;
+  gamma_bin[2] = n0 % 2;
+  n0 = n0 >> 1;
+  gamma_bin[3] = n0 % 2;
+
+  gamma_matrix_set ( g, 4, 1. );
+
+  if ( gamma_bin[0] ) { gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( g, g, &gx ); }
+  if ( gamma_bin[1] ) { gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( g, g, &gy ); }
+  if ( gamma_bin[2] ) { gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( g, g, &gz ); }
+  if ( gamma_bin[3] ) { gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( g, g, &gt ); }
+
+  g->id = n;
+  g->s  = 1;
+
+  return;
+}  /* end of gamma_matrix_qlua_binary */
 
 }  /* end of namespace cvc */

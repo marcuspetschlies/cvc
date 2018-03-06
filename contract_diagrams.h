@@ -41,5 +41,34 @@ int contract_diagram_sample_oet (double _Complex ***diagram, double _Complex ***
 
 int contract_diagram_write_aff (double _Complex***diagram, struct AffWriter_s*affw, char*aff_tag, int tstart, int dt, int fbwd, int io_proc );
 
+
+int contract_diagram_read_key_qlua (
+  double _Complex **fac, // output
+  char const *prefix,    // key prefix
+  int const gi[3],       // sequential gamma id
+  int const pi[3],       // sequential momenta
+  int const gsx[4],      // source coords
+  int const isample,     // number of sample
+  int const vtype,       // contraction type
+  int const gf,          // vertex gamma
+  int const pf[3],       // vertex momentum
+  struct AffReader_s const *affr,  // AFF reader 
+  int const N            // length of data key ( will be mostly T_global )
+);
+
+int contract_diagram_read_oet_key_qlua (
+  double _Complex ***fac, // output
+  char const *prefix,    // key prefix
+  int const pi[3],       // sequential momenta
+  int const gsx[4],      // source coords
+  int const vtype,       // contraction type
+  int const gf,          // vertex gamma
+  int const pf[3],       // vertex momentum
+  struct AffReader_s const *affr,  // AFF reader 
+  int const N            // length of data key ( will be mostly T_global )
+);
+
+   
+
 }  /* end of namespace cvc */
 #endif

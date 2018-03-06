@@ -824,7 +824,9 @@ int main(int argc, char **argv) {
   /***********************************************************/
   /***********************************************************/
 
-  /* loop on source locations */
+  /***********************************************************
+   * loop on base source locations
+   ***********************************************************/
   for( int i_src = 0; i_src<g_source_location_number; i_src++) {
     int t_base = g_source_coords_list[i_src][0];
  
@@ -839,6 +841,9 @@ int main(int argc, char **argv) {
       }
     }  /* end of if io_proc == 2 */
 
+    /***********************************************************
+     * loop on coherent source locations
+     ***********************************************************/
     for( int i_coherent=0; i_coherent<g_coherent_source_number; i_coherent++) {
 
       /* coherent source timeslice */
@@ -1241,7 +1246,9 @@ int main(int argc, char **argv) {
       /* loop on gamma structures at vertex f2 */
       for ( int i = 0; i < gamma_f2_number; i++ ) {
 
-        /* loop on samples */
+        /*****************************************************************
+         * loop on samples
+         *****************************************************************/
         for ( int i_sample = 0; i_sample < g_nsample; i_sample++ ) {
 
           /* multiply with Dirac structure at vertex f2 */
