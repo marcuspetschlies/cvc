@@ -25,14 +25,14 @@ EOF
 
 cat << EOF >> $FILE
 
-static inline $TYPE * init_1level_${TAG}table ( int const N0 ) {
+inline $TYPE * init_1level_${TAG}table ( int const N0 ) {
   return( ( $TYPE *) calloc ( N0 , sizeof( $TYPE ) ) );
 }  // end of init_1level_${TAG}table
 
 /************************************************************************************/
 /************************************************************************************/
 
-static inline void fini_1level_${TAG}table ( ${TYPE} **s  ) {
+inline void fini_1level_${TAG}table ( ${TYPE} **s  ) {
   if ( *s != NULL ) free ( *s );
   // fprintf ( stdout, "# [fini_1level_${TAG}table] active\n");
   *s = NULL;
@@ -54,7 +54,7 @@ for LEVEL in $(seq 2 8 ); do
   PTR="${PTR2}*"
   PTR3="${PTR}*"
 
-  printf "static inline %s %s init_%dlevel_%stable (" "$TYPE" "$PTR"  $LEVEL "$TAG"
+  printf "inline %s %s init_%dlevel_%stable (" "$TYPE" "$PTR"  $LEVEL "$TAG"
 for ((k=1; k < $LEVEL; k++ )) do
   printf "int const N%d, " $(($k - 1 ))
 done
@@ -82,7 +82,7 @@ cat << EOF
 /************************************************************************************/
 
 
-static inline void fini_${LEVEL}level_${TAG}table ( ${TYPE} ${PTR3} s  ) {
+inline void fini_${LEVEL}level_${TAG}table ( ${TYPE} ${PTR3} s  ) {
   if ( *s != NULL ) {
     // fprintf ( stdout, "# [fini_${LEVEL}level_${TAG}table] active\n");
     fini_$(( $LEVEL - 1))level_${TAG}table ( *s );
