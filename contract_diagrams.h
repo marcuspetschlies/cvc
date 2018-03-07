@@ -19,7 +19,7 @@ void contract_b2 (double _Complex ***b2, double _Complex **v3, **double v2, gamm
 
 int match_momentum_id ( int **pid, int **m1, int **m2, int N1, int N2 );
 
-int * get_conserved_momentum_id ( int const ** p1, int n1, int const p2[3], int const ** p3, int const n3 );
+int * get_conserved_momentum_id ( int (*p1)[3], int const n1, int const p2[3], int (*p3)[3], int const n3 );
 
 int correlator_add_baryon_boundary_phase ( double _Complex ***sp, int tsrc);
 
@@ -43,6 +43,7 @@ int contract_diagram_sample_oet (double _Complex ***diagram, double _Complex ***
 
 int contract_diagram_write_aff (double _Complex***diagram, struct AffWriter_s*affw, char*aff_tag, int tstart, int dt, int fbwd, int io_proc );
 
+int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const pf2[3], int const gf1, int const pf1[3], int const gi2, int const pi2[3], int const gi1 );
 
 int contract_diagram_read_key_qlua (
   double _Complex **fac, // output
@@ -54,7 +55,7 @@ int contract_diagram_read_key_qlua (
   char const * vtype,    // contraction type
   int const gf,          // vertex gamma
   int const pf[3],       // vertex momentum
-  struct AffReader_s const *affr,  // AFF reader 
+  struct AffReader_s *affr,  // AFF reader 
   int const N,           // length of data key ( will be mostly T_global )
   int const ncomp        // length of data key ( will be mostly T_global )
 );
@@ -67,7 +68,7 @@ int contract_diagram_read_oet_key_qlua (
   char const * vtype,     // contraction type
   int const gf,           // vertex gamma
   int const pf[3],        // vertex momentum
-  struct AffReader_s const *affr,  // AFF reader 
+  struct AffReader_s *affr,  // AFF reader 
   int const N,            // length of data key ( will be mostly T_global )
   int const ncomp         // components
 );

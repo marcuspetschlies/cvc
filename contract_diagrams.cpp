@@ -333,8 +333,9 @@ int match_momentum_id ( int **pid, int **m1, int **m2, int N1, int N2 ) {
  *
  ***********************************************/
 
-int * get_conserved_momentum_id ( int const ** p1, int n1, int const p2[3], int const ** p3, int const n3 ) {
+int * get_conserved_momentum_id ( int (*p1)[3], int const n1, int const p2[3], int (*p3)[3], int const n3 ) {
 
+  int exitstatus;
   int **momentum_list = NULL, **momentum_list_all = NULL;
 
   exitstatus = init_2level_ibuffer ( &momentum_list, n1, 3 );
@@ -365,7 +366,7 @@ int * get_conserved_momentum_id ( int const ** p1, int n1, int const p2[3], int 
   exitstatus = match_momentum_id ( &momentum_id, momentum_list, momentum_list_all, n1, n3 );
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[get_minus_momentum_id] Error from match_momentum_id, status was %d\n", exitstatus );
-    return(1);
+    return( NULL );
   }
   
   fini_2level_ibuffer ( &momentum_list );
@@ -615,6 +616,12 @@ int contract_diagram_sample (double _Complex ***diagram, double _Complex ***xi, 
   double _Complex **diagram_buffer = NULL;
   double _Complex znorm = 1. / (double)nsample;
 
+
+  /***********************************************
+   * allocate diagram_buffer to accumulate
+   *
+   * initialized to 0
+   ***********************************************/
   if ( ( exitstatus= init_2level_zbuffer ( &diagram_buffer, nT, 16 ) ) != 0 ) {
     fprintf(stderr, "[contract_diagram_sample] Error from init_2level_zbuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     return(2);
@@ -749,7 +756,7 @@ int contract_diagram_read_key_qlua (
     char const * vtype,    // contraction type
     int const gf,          // vertex gamma
     int const pf[3],       // vertex momentum
-    struct AffReader_s const *affr,  // AFF reader 
+    struct AffReader_s * affr,  // AFF reader 
     int const N,           // length of data key ( will be mostly T_global )
     int const ncomp        // number of components
   ) {
@@ -807,7 +814,7 @@ int contract_diagram_read_key_qlua (
     affdir = aff_reader_chpath (affr, affn, key );
     exitstatus = aff_node_get_complex (affr, affdir, buffer, N );
     if( exitstatus != 0 ) {
-      fprintf(stderr, "[contract_diagram_read_key_qlua] Error from aff_node_get_complex for key \"%s\", status was %d\n", aff_tag, exitstatus);
+      fprintf(stderr, "[contract_diagram_read_key_qlua] Error from aff_node_get_complex for key \"%s\", status was %d\n", key, exitstatus);
       return(105);
     }
 
@@ -834,7 +841,7 @@ int contract_diagram_read_oet_key_qlua (
     char const * vtype,     // contraction type
     int const gf,           // vertex gamma
     int const pf[3],        // vertex momentum
-    struct AffReader_s const *affr,  // AFF reader 
+    struct AffReader_s *affr,  // AFF reader 
     int const N,            // length of data key ( will be mostly T_global )
     int const ncomp         // components
   ) {
@@ -864,7 +871,7 @@ int contract_diagram_read_oet_key_qlua (
 
   for ( int k = 0; k < 4; k++ ) {
 
-    sprintf ( key_prefix, "/%s/%st%.2dx%.2dy%.2dz%.2d/dphi%d/v%d/gf%.2d",
+    sprintf ( key_prefix, "/%s/%st%.2dx%.2dy%.2dz%.2d/dphi%d/%s/gf%.2d",
         prefix, pi_str,  gsx[0], gsx[1], gsx[2], gsx[3], k, vtype, gf );
 
     if ( g_verbose > 2 ) fprintf ( stdout, "# [contract_diagram_read_oet_key_qlua] current key prefix %s\n", key_prefix );
@@ -876,7 +883,7 @@ int contract_diagram_read_oet_key_qlua (
       affdir = aff_reader_chpath (affr, affn, key );
       exitstatus = aff_node_get_complex (affr, affdir, buffer, N );
       if( exitstatus != 0 ) {
-        fprintf(stderr, "[contract_diagram_read_oet_key_qlua] Error from aff_node_get_complex for key \"%s\", status was %d\n", aff_tag, exitstatus);
+        fprintf(stderr, "[contract_diagram_read_oet_key_qlua] Error from aff_node_get_complex for key \"%s\", status was %d\n", key, exitstatus);
         return(105);
       }
 
@@ -894,7 +901,7 @@ int contract_diagram_read_oet_key_qlua (
 /***********************************************/
 /***********************************************/
 
-int contract_diagram_key_suffix ( char suffix, int const gf2, int const pf2[3], int const gf1, int const pf1[3], int const gi2, int const pi2[3], int const gi1 ) {
+int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const pf2[3], int const gf1, int const pf1[3], int const gi2, int const pi2[3], int const gi1 ) {
 
   sprintf( suffix, "gf2%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/gf1%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/gi2%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/gi1%.2d", 
       gf2, pf2[0], pf2[1], pf2[2], gf1, pf1[0], pf1[1], pf1[2], gi2, pi2[0], pi2[1], pi2[2], gi1 );
