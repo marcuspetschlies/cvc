@@ -19,6 +19,8 @@ void contract_b2 (double _Complex ***b2, double _Complex **v3, **double v2, gamm
 
 int match_momentum_id ( int **pid, int **m1, int **m2, int N1, int N2 );
 
+int * get_conserved_momentum_id ( int const ** p1, int n1, int const p2[3], int const ** p3, int const n3 );
+
 int correlator_add_baryon_boundary_phase ( double _Complex ***sp, int tsrc);
 
 int correlator_add_source_phase ( double _Complex ***sp, int p[3], int source_coords[3], unsigned int N );
@@ -45,27 +47,29 @@ int contract_diagram_write_aff (double _Complex***diagram, struct AffWriter_s*af
 int contract_diagram_read_key_qlua (
   double _Complex **fac, // output
   char const *prefix,    // key prefix
-  int const gi[3],       // sequential gamma id
+  int const gi,          // sequential gamma id
   int const pi[3],       // sequential momenta
   int const gsx[4],      // source coords
   int const isample,     // number of sample
-  int const vtype,       // contraction type
+  char const * vtype,    // contraction type
   int const gf,          // vertex gamma
   int const pf[3],       // vertex momentum
   struct AffReader_s const *affr,  // AFF reader 
-  int const N            // length of data key ( will be mostly T_global )
+  int const N,           // length of data key ( will be mostly T_global )
+  int const ncomp        // length of data key ( will be mostly T_global )
 );
 
 int contract_diagram_read_oet_key_qlua (
   double _Complex ***fac, // output
-  char const *prefix,    // key prefix
-  int const pi[3],       // sequential momenta
-  int const gsx[4],      // source coords
-  int const vtype,       // contraction type
-  int const gf,          // vertex gamma
-  int const pf[3],       // vertex momentum
+  char const *prefix,     // key prefix
+  int const pi[3],        // sequential momenta
+  int const gsx[4],       // source coords
+  char const * vtype,     // contraction type
+  int const gf,           // vertex gamma
+  int const pf[3],        // vertex momentum
   struct AffReader_s const *affr,  // AFF reader 
-  int const N            // length of data key ( will be mostly T_global )
+  int const N,            // length of data key ( will be mostly T_global )
+  int const ncomp         // components
 );
 
    

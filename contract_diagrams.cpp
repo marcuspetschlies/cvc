@@ -323,6 +323,61 @@ int match_momentum_id ( int **pid, int **m1, int **m2, int N1, int N2 ) {
   return(0);
 }  /* end of match_momentum_id */
 
+/***********************************************/
+/***********************************************/
+
+/***********************************************
+ * p1 == g_seq2_source_momentum_list
+ * p2 == g_total_momentum vector
+ * p3 == g_sink_momentum_list
+ *
+ ***********************************************/
+
+int * get_conserved_momentum_id ( int const ** p1, int n1, int const p2[3], int const ** p3, int const n3 ) {
+
+  int **momentum_list = NULL, **momentum_list_all = NULL;
+
+  exitstatus = init_2level_ibuffer ( &momentum_list, n1, 3 );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[get_minus_momentum_id] Error from init_2level_ibuffer, status was %d\n", exitstatus );
+    return( NULL );
+  }
+   
+  exitstatus = init_2level_ibuffer ( &momentum_list_all, n3 , 3 );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[get_minus_momentum_id] Error from init_2level_ibuffer, status was %d\n", exitstatus );
+    return ( NULL );
+  }
+
+  for ( int i = 0; i < n3; i++ ) {
+    momentum_list_all[i][0] = p3[i][0];
+    momentum_list_all[i][1] = p3[i][1];
+    momentum_list_all[i][2] = p3[i][2];
+  }
+   
+  for ( int i = 0; i < n1; i++ ) {
+    momentum_list[i][0] = p2[0] - p1[i][0];
+    momentum_list[i][1] = p2[1] - p1[i][1];
+    momentum_list[i][2] = p2[2] - p1[i][2];
+  }
+ 
+  int *momentum_id = NULL;
+  exitstatus = match_momentum_id ( &momentum_id, momentum_list, momentum_list_all, n1, n3 );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[get_minus_momentum_id] Error from match_momentum_id, status was %d\n", exitstatus );
+    return(1);
+  }
+  
+  fini_2level_ibuffer ( &momentum_list );
+  fini_2level_ibuffer ( &momentum_list_all );
+
+  return( momentum_id );
+
+}  // end of get_momentum_id
+
+/***********************************************/
+/***********************************************/
+
 /***********************************************
  * multiply x-space spinor propagator field
  *   with boundary phase
@@ -687,23 +742,25 @@ int contract_diagram_write_aff (double _Complex***diagram, struct AffWriter_s*af
 int contract_diagram_read_key_qlua ( 
     double _Complex **fac, // output
     char const *prefix,    // key prefix
-    int const gi[3],       // sequential gamma id
+    int const gi,          // sequential gamma id
     int const pi[3],       // sequential momenta
     int const gsx[4],      // source coords
     int const isample,     // number of sample
-    int const vtype,       // contraction type
+    char const * vtype,    // contraction type
     int const gf,          // vertex gamma
     int const pf[3],       // vertex momentum
     struct AffReader_s const *affr,  // AFF reader 
-    int const N            // length of data key ( will be mostly T_global )
+    int const N,           // length of data key ( will be mostly T_global )
+    int const ncomp        // number of components
   ) {
 
   char key_prefix[400];
   char key[500];
   char pf_str[20];
   char gi_str[20] = "";
+  char gf_str[20] = "";
   char pi_str[30] = "";
-  int const ncomp = vtype == 3 ? 12 : 192;
+  char isample_str[20] = "";
   int exitstatus;
   struct AffNode_s *affn = NULL, *affdir = NULL;
   double _Complex buffer[N];
@@ -720,12 +777,26 @@ int contract_diagram_read_key_qlua (
   if ( pi != NULL ) {
     sprintf ( pi_str, "pi2x%.2dpi2y%.2dpi2z%.2d/", pi[0], pi[1], pi[2] );
   }
-  if ( gi > -1 ) {
-    sprintf ( gi_str, "gi2%.2d/", gi );
+  if ( ( strcmp( vtype , "t1") == 0 ) ||
+       ( strcmp( vtype , "t2") == 0 ) ||
+       ( strcmp( vtype , "m1") == 0 ) ) {
+
+      sprintf ( gf_str, "gf%.2d_gi%.2d/", gf, gi );
+  } else {
+    if ( gi > -1 ) {
+      sprintf ( gi_str, "gi2%.2d/", gi );
+    }
+    if ( gf > -1 ) {
+      sprintf ( gf_str, "gf%.2d/", gf );
+    }
   }
 
-  sprintf ( key_prefix, "/%s/%s%st%.2dx%.2dy%.2dz%.2d/sample%.2d/v%d/gf%.2d",
-      prefix, pi_str, gi_str, gsx[0], gsx[1], gsx[2], gsx[3], isample, vtype, gf );
+  if ( isample  > -1 ) {
+    sprintf ( isample_str, "sample%.2d/", isample );
+  }
+
+  sprintf ( key_prefix, "/%s/%s%st%.2dx%.2dy%.2dz%.2d/%s%s/%s",
+      prefix, pi_str, gi_str, gsx[0], gsx[1], gsx[2], gsx[3], isample_str, vtype, gf_str );
 
   if ( g_verbose > 2 ) fprintf ( stdout, "# [contract_diagram_read_key_qlua] current key prefix %s\n", key_prefix );
 
@@ -757,21 +828,21 @@ int contract_diagram_read_key_qlua (
  ***********************************************/
 int contract_diagram_read_oet_key_qlua ( 
     double _Complex ***fac, // output
-    char const *prefix,    // key prefix
-    int const pi[3],       // sequential momenta
-    int const gsx[4],      // source coords
-    int const vtype,       // contraction type
-    int const gf,          // vertex gamma
-    int const pf[3],       // vertex momentum
+    char const *prefix,     // key prefix
+    int const pi[3],        // sequential momenta
+    int const gsx[4],       // source coords
+    char const * vtype,     // contraction type
+    int const gf,           // vertex gamma
+    int const pf[3],        // vertex momentum
     struct AffReader_s const *affr,  // AFF reader 
-    int const N            // length of data key ( will be mostly T_global )
+    int const N,            // length of data key ( will be mostly T_global )
+    int const ncomp         // components
   ) {
 
   char key_prefix[400];
   char key[500];
   char pf_str[20];
   char pi_str[30] = "";
-  int const ncomp = vtype == 3 ? 12 : 192;
   int exitstatus;
   struct AffNode_s *affn = NULL, *affdir = NULL;
   double _Complex buffer[N];
@@ -787,6 +858,8 @@ int contract_diagram_read_oet_key_qlua (
 
   if ( pi != NULL ) {
     sprintf ( pi_str, "pi2x%.2dpi2y%.2dpi2z%.2d/", pi[0], pi[1], pi[2] );
+  } else {
+    sprintf ( pi_str, "pi2x%.2dpi2y%.2dpi2z%.2d/", 0, 0, 0 );
   }
 
   for ( int k = 0; k < 4; k++ ) {
