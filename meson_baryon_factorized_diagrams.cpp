@@ -956,6 +956,8 @@ int main(int argc, char **argv) {
     /**************************************************************************************/
     /**************************************************************************************/
 
+#if 0
+
     /**************************************************************************************
      * oet part
      **************************************************************************************/
@@ -1397,23 +1399,23 @@ int main(int argc, char **argv) {
 
                       fini_4level_ztable ( &diagram );
   
-                    }  /* end of loop on Gamma_i1 */
+                    }  // end of loop on Gamma_i1
 
-                  }  /* end of loop on p_i2 */
+                  }  // end of loop on p_i2
  
-                }  /* end of loop on Gamma_i2 */
+                }  // end of loop on Gamma_i2
 
-              }  /* end of loop on Gamma_f1 */
+              }  // end of loop on Gamma_f1
   
-            }  /* end of loop on p_f2 */
+            }  // end of loop on p_f2
 
-          }  /* end of loop on Gamma_f2 */
+          }  // end of loop on Gamma_f2
 
           free ( sink_momentum_id );
 
-        }  /* end of loop on p_tot */
-#if 0
-#endif  // of if 0
+        }  // end of loop on p_tot
+
+
 
         /**************************************************************************************/
         /**************************************************************************************/
@@ -1426,12 +1428,12 @@ int main(int argc, char **argv) {
 
     }  /* end of loop on coherent source locations */
     
-
+#endif  // of if 0
 
     /**************************************************************************************/
     /**************************************************************************************/
 
-#if 0
+
     /**************************************************************************************
      * direct diagrams
      **************************************************************************************/
@@ -1452,8 +1454,6 @@ int main(int argc, char **argv) {
 
       get_point_source_info (gsx, sx, &source_proc_id);
 
-      double _Complex ******bb = NULL, *****mm = NULL, ***bb_aux = NULL;
-
       /**************************************************************************************/
       /**************************************************************************************/
 
@@ -1467,7 +1467,7 @@ int main(int argc, char **argv) {
         EXIT(52);
       }
 
-      double _Complex ****** bb_t2_factor = init_5level_ztable ( gamma_f1_nucleon_number, gamma_f1_nucleon_number, g_sink_momentum_number, T_global, 16 );
+      double _Complex ***** bb_t2_factor = init_5level_ztable ( gamma_f1_nucleon_number, gamma_f1_nucleon_number, g_sink_momentum_number, T_global, 16 );
       if ( bb_t2_factor == NULL ) {
         fprintf(stderr, "[piN2piN_diagrams] Error from init_5level_ztable %s %d\n", __FILE__, __LINE__ );
         EXIT(53);
@@ -1691,13 +1691,15 @@ int main(int argc, char **argv) {
                         EXIT(147);
                       }
 
+                      char aff_tag[500];
+
                       /**************************************************************************************
                        * S1
                        **************************************************************************************/
-                      memcpy( bb_aux[0][0], bb_t1_factor[igi][igf][ipf][0], 16*T_global*sizeof(double _Complex) );
+                      memcpy( bb_aux[0][0], bb_t1_factor[igi1][igf1][ipf1][0], 16*T_global*sizeof(double _Complex) );
 
                       // multiply baryon 2-point function with meson 2-point function
-                      exitstatus = contract_diagram_zmx4x4_field_ti_co_field ( diagram, bb_aux, mm[ipi2][igi2][igf2][ipf2][0], T_global );
+                      exitstatus = contract_diagram_zmx4x4_field_ti_co_field ( diagram, bb_aux, mm_m1_factor[igi2][ipi2][igf2][ipf2][0], T_global );
 
                       // transpose
                       exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global );
@@ -1720,10 +1722,10 @@ int main(int argc, char **argv) {
                       /**************************************************************************************
                        * S2
                        **************************************************************************************/
-                      memcpy( bb_aux[0][0], bb_t2_factor[igi][igf][ipf][0], 16*T_global*sizeof(double _Complex) );
+                      memcpy( bb_aux[0][0], bb_t2_factor[igi1][igf1][ipf1][0], 16*T_global*sizeof(double _Complex) );
 
                       // multiply baryon 2-point function with meson 2-point function
-                      exitstatus = contract_diagram_zmx4x4_field_ti_co_field ( diagram, bb_aux, mm[ipi2][igi2][igf2][ipf2][0], T_global );
+                      exitstatus = contract_diagram_zmx4x4_field_ti_co_field ( diagram, bb_aux, mm_m1_factor[igi2][ipi2][igf2][ipf2][0], T_global );
 
                       // transpose
                       exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global );
@@ -1760,18 +1762,19 @@ int main(int argc, char **argv) {
           free ( sink_momentum_id );
 
         }  /* end of loop on p_tot */
-
+#if 0
+#endif  // of if 0
         /**************************************************************************************/
         /**************************************************************************************/
 
-        fini_6level_ztable ( &bb );
-        fini_5level_ztable ( &mm );
+        fini_5level_ztable ( &bb_t1_factor );
+        fini_5level_ztable ( &bb_t2_factor );
+        fini_6level_ztable ( &mm_m1_factor );
 
       }  // end of loop on stochastic oet samples
 
     }  // end of loop coherent source timeslices
 
-#endif  // of if 0
 
     /**************************************************************************************/
     /**************************************************************************************/
