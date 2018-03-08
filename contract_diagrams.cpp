@@ -705,7 +705,6 @@ int contract_diagram_write_aff (double _Complex***diagram, struct AffWriter_s*af
   int exitstatus;
   double rtime;
   struct AffNode_s *affn = NULL, *affdir=NULL;
-  char aff_buffer_path[400];
   double _Complex ***aff_buffer = NULL;
 
   if ( io_proc == 2 ) {
@@ -744,6 +743,27 @@ int contract_diagram_write_aff (double _Complex***diagram, struct AffWriter_s*af
 /***********************************************/
 
 /***********************************************
+ * printf block of data
+ ***********************************************/
+void printf_data_from_key ( char *key_name, double _Complex **key_data, int const N1, int const N2, FILE*ofs ) {
+  if ( key_name == NULL || key_data == NULL || N1 <= 0 || N2 <= 0 ) return;
+  if ( ofs == NULL ) ofs = stdout;
+
+  fprintf ( ofs, "# [printf_data_from_key] show key %s\n", key_name );
+  for ( int i = 0; i < N1; i++ ) {
+    for ( int k = 0; k < N2; k++ ) {
+      fprintf ( ofs, "  %3d %4d   %25.15e %25.16e\n", i, k, creal( key_data[i][k]), cimag( key_data[i][k]) );
+    }
+  }
+  return;
+}  // end of printf_data_from_key
+
+
+
+/***********************************************/
+/***********************************************/
+
+/***********************************************
  * 
  ***********************************************/
 int contract_diagram_read_key_qlua ( 
@@ -762,15 +782,14 @@ int contract_diagram_read_key_qlua (
   ) {
 
   char key_prefix[400];
-  char key[500];
   char pf_str[20];
   char gi_str[20] = "";
   char gf_str[20] = "";
   char pi_str[30] = "";
   char isample_str[20] = "";
   int exitstatus;
-  struct AffNode_s *affn = NULL, *affdir = NULL;
-  double _Complex buffer[N];
+  struct AffNode_s *affn = NULL, *affdir = NULL, *affpath = NULL;
+  char *aff_errstr = NULL;
 
   if( (affn = aff_reader_root( affr )) == NULL ) {
     fprintf(stderr, "[contract_diagram_read_key_qlua] Error, aff reader is not initialized\n");
@@ -807,21 +826,49 @@ int contract_diagram_read_key_qlua (
 
   if ( g_verbose > 2 ) fprintf ( stdout, "# [contract_diagram_read_key_qlua] current key prefix %s\n", key_prefix );
 
-  for ( int icomp = 0; icomp < ncomp; icomp++ ) {
+  affdir = aff_reader_chpath (affr, affn, key_prefix );
+  if ( ( aff_errstr = (char*)aff_reader_errstr ( affr ) ) != NULL ) {
+    fprintf(stderr, "[contract_diagram_read_key_qlua] Error from aff_reader_chpath for key prefix \"%s\", status was %s\n", key_prefix, aff_errstr );
+    return(115);
+  } 
 
-    sprintf ( key, "%s/c%d/%s", key_prefix, icomp, pf_str );
+  if ( ncomp == 1 ) {
 
-    affdir = aff_reader_chpath (affr, affn, key );
-    exitstatus = aff_node_get_complex (affr, affdir, buffer, N );
+    affpath = aff_reader_chpath (affr, affdir, pf_str );
+    exitstatus = aff_node_get_complex (affr, affpath, fac[0], N );
     if( exitstatus != 0 ) {
-      fprintf(stderr, "[contract_diagram_read_key_qlua] Error from aff_node_get_complex for key \"%s\", status was %d\n", key, exitstatus);
+      fprintf(stderr, "[contract_diagram_read_key_qlua] Error from aff_node_get_complex for key \"%s\" + \"%s\", status was %d\n", key_prefix, pf_str, exitstatus);
       return(105);
     }
 
-    for ( int it = 0; it < N; it++ ) {
-      fac[it][icomp] = buffer[it];
-    }
+  } else {
 
+    double _Complex buffer[N];
+    char key[30];
+
+    for ( int icomp = 0; icomp < ncomp; icomp++ ) {
+
+      sprintf ( key, "c%d/%s", icomp, pf_str );
+
+      affpath = aff_reader_chpath (affr, affdir, key );
+      exitstatus = aff_node_get_complex (affr, affpath, buffer, N );
+      if( exitstatus != 0 ) {
+        fprintf(stderr, "[contract_diagram_read_key_qlua] Error from aff_node_get_complex for key \"%s\" + \"%s\", status was %d\n", key_prefix, key, exitstatus);
+        return(105);
+      }
+
+      for ( int it = 0; it < N; it++ ) fac[it][icomp] = buffer[it];
+
+    }  // end of loop on components
+
+  }
+
+  /***********************************************
+   * show data
+   ***********************************************/
+  if ( g_verbose > 4 ) {
+    sprintf ( key_prefix, "%s/%s", key_prefix, pf_str );
+    printf_data_from_key ( key_prefix, fac, N, ncomp, stdout );
   }
 
   return(0);
@@ -851,8 +898,9 @@ int contract_diagram_read_oet_key_qlua (
   char pf_str[20];
   char pi_str[30] = "";
   int exitstatus;
-  struct AffNode_s *affn = NULL, *affdir = NULL;
+  struct AffNode_s *affn = NULL, *affdir = NULL, *affpath = NULL;
   double _Complex buffer[N];
+  char * aff_errstr = NULL;
 
   if( (affn = aff_reader_root( affr )) == NULL ) {
     fprintf(stderr, "[contract_diagram_read_oet_key_qlua] Error, aff reader is not initialized\n");
@@ -871,26 +919,48 @@ int contract_diagram_read_oet_key_qlua (
 
   for ( int k = 0; k < 4; k++ ) {
 
-    sprintf ( key_prefix, "/%s/%st%.2dx%.2dy%.2dz%.2d/dphi%d/%s/gf%.2d",
-        prefix, pi_str,  gsx[0], gsx[1], gsx[2], gsx[3], k, vtype, gf );
+    sprintf ( key_prefix, "/%s/%st%.2dx%.2dy%.2dz%.2d/dphi%d/%s/gf%.2d", prefix, pi_str,  gsx[0], gsx[1], gsx[2], gsx[3], k, vtype, gf );
+
+    affdir = aff_reader_chpath (affr, affn, key_prefix );
+    if ( ( aff_errstr = (char*)aff_reader_errstr ( affr ) ) != NULL ) {
+      fprintf(stderr, "[contract_diagram_read_oet_key_qlua] Error from aff_reader_chpath for key prefix \"%s\", status was %s %s %d\n", key_prefix, aff_errstr, __FILE__, __LINE__ );
+      return(125);
+    } 
 
     if ( g_verbose > 2 ) fprintf ( stdout, "# [contract_diagram_read_oet_key_qlua] current key prefix %s\n", key_prefix );
 
-    for ( int icomp = 0; icomp < ncomp; icomp++ ) {
+    if ( ncomp == 1 ) {
 
-      sprintf ( key, "%s/c%d/%s", key_prefix, icomp, pf_str );
-
-      affdir = aff_reader_chpath (affr, affn, key );
-      exitstatus = aff_node_get_complex (affr, affdir, buffer, N );
+      affpath = aff_reader_chpath (affr, affdir, pf_str );
+      exitstatus = aff_node_get_complex (affr, affpath, fac[k][0], N );
       if( exitstatus != 0 ) {
-        fprintf(stderr, "[contract_diagram_read_oet_key_qlua] Error from aff_node_get_complex for key \"%s\", status was %d\n", key, exitstatus);
-        return(105);
+        fprintf(stderr, "[contract_diagram_read_oet_key_qlua] Error from aff_node_get_complex for key \"%s\", status was %d %s %d\n", key, exitstatus, __FILE__, __LINE__);
+        return(126);
       }
 
-      for ( int it = 0; it < N; it++ ) {
-        fac[k][it][icomp] = buffer[it];
+    } else {
+      for ( int icomp = 0; icomp < ncomp; icomp++ ) {
+
+        sprintf ( key, "c%d/%s", icomp, pf_str );
+
+        affpath = aff_reader_chpath (affr, affdir, key );
+        exitstatus = aff_node_get_complex (affr, affpath, buffer, N );
+        if( exitstatus != 0 ) {
+          fprintf(stderr, "[contract_diagram_read_oet_key_qlua] Error from aff_node_get_complex for key \"%s\", status was %d %s %d\n", key, exitstatus, __FILE__, __LINE__ );
+          return(127);
+        }
+
+        for ( int it = 0; it < N; it++ ) fac[k][it][icomp] = buffer[it];
       }
 
+    }  // end of if ncomp == 1 else
+
+    /***********************************************
+     * show data
+     ***********************************************/
+    if ( g_verbose > 4 ) {
+      sprintf ( key_prefix, "%s/%s", key_prefix, pf_str );
+      printf_data_from_key ( key_prefix, fac[k], N, ncomp, stdout );
     }
 
   }  // end of loop on spinor component k
