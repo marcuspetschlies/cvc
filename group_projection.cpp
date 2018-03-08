@@ -487,6 +487,72 @@ int set_rot_mat_table_spin ( rot_mat_table_type *t, int J2, int bispinor ) {
   return(0);
 }  /* end of set_rot_mat_table_spin */
 
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * J2 = 2 x spin
+ ***********************************************************/
+int set_rot_mat_table_spin_single_cover ( rot_mat_table_type *t, int J2, int const version , int const setby ) {
+
+  int exitstatus;
+  char name[20];
+  rotation_matrix_type P;
+  rotation_type *rotlist;
+
+  if ( J2 % 2 != 0 ) {
+    fprintf ( stderr, "[set_rot_mat_table_spin_single_cover] Error, only for integer spin\n" );
+    return(1);
+  }
+ 
+  sprintf(name, "spin%d", J2/2);
+  fprintf(stdout, "# [set_rot_mat_table_spin_single_cover] name = %s\n", name);
+
+  if ( ( exitstatus = alloc_rot_mat_table ( t, "SU2", name, (J2+1), 24 ) ) != 0 ) {
+    fprintf(stderr, "[set_rot_mat_table_spin_single_cover] Error from alloc_rot_mat_table, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+  P.d = (J2 + 1);
+  P.m = NULL;
+
+  if ( ( exitstatus = init_2level_zbuffer ( &(P.m), P.d, P.d )) != 0 ) {
+    fprintf(stderr, "[set_rot_mat_table_spin_single_cover] Error from init_2level_zbuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+
+  /* set parity matrix if applicable */
+  rot_inversion_matrix_spherical_basis ( P.m, J2, 0 );
+
+  switch  (version)  {
+    case 0:
+    default:
+      rotlist = cubic_group_rotations;
+      break;
+    case 1:
+      rotlist = cubic_group_rotations_v2;
+      break;
+  }
+
+  // loop on rotation group elements
+  for ( int i = 0; i < 24; i++ ) {
+    t->rid[i]  = i;
+    t->rmid[i] = i;
+
+    if ( setby == 0 ) {
+      rot_rotation_matrix_spherical_basis ( t->R[i], J2, rotlist[i].n, rotlist[i].w );
+    } else if ( setby == 1 ) {
+      rot_rotation_matrix_spherical_basis_Wigner_D ( t->R[i], J2, rotlist[i].a );
+    }
+
+    rot_mat_ti_mat ( t->IR[i], P.m, t->R[i], J2+1);
+  }
+
+  fini_2level_zbuffer ( &(P.m) );
+  return(0);
+}  /* end of set_rot_mat_table_spin_single_cover */
+
+
 /***********************************************************/
 /***********************************************************/
 
@@ -2147,15 +2213,15 @@ int little_group_projector_set (
        * basis instead of spherical
        ***********************************************************/
       if ( ( interpolator_cartesian_list == NULL ) || ( interpolator_J2_list[i] != 2 )  ) {
-        rot_mat_assign ( p->rspin[i].R[irot],  rspin.R[rid],   rpsin.dim );
-        rot_mat_assign ( p->rspin[i].IR[irot], rspin.IR[rmid], rpsin.dim );
+        rot_mat_assign ( p->rspin[i].R[irot],  rspin.R[rid],   rspin.dim );
+        rot_mat_assign ( p->rspin[i].IR[irot], rspin.IR[rmid], rspin.dim );
       } else {
         if ( interpolator_cartesian_list[i] && ( interpolator_J2_list[i] == 2 ) ) {
           rot_spherical2cartesian_3x3 ( (p->rspin[i]).R[irot],  rspin.R[rid]  );
           rot_spherical2cartesian_3x3 ( (p->rspin[i]).IR[irot], rspin.IR[rmid] );
         } else {
-          rot_mat_assign ( p->rspin[i].R[irot],  rspin.R[rid],   rpsin.dim );
-          rot_mat_assign ( p->rspin[i].IR[irot], rspin.IR[rmid], rpsin.dim );
+          rot_mat_assign ( p->rspin[i].R[irot],  rspin.R[rid],   rspin.dim );
+          rot_mat_assign ( p->rspin[i].IR[irot], rspin.IR[rmid], rspin.dim );
         }
       }
     }  /* end of loop on p->rtarget->n rotations */
@@ -3197,8 +3263,8 @@ int little_group_projector_apply_product ( little_group_projector_type *p , FILE
         /***********************************************************
          * add rotation-reflection applied to sv0 as product
          ***********************************************************/
-        STOPPED HERE
-          include intrinsic parity
+        //STOPPED HERE
+        //  include intrinsic parity
         product_vector_project_accum ( IRsv, p->rspin, -1, irot, sv0, z_irrep_matrix_coeff, 1., spin_dimensions, p->n );
 
         /***********************************************************
@@ -3241,7 +3307,7 @@ int little_group_projector_apply_product ( little_group_projector_type *p , FILE
        ***********************************************************/
 
       fini_1level_zbuffer( &IRsv );
-    }  /* end of if not center of mass frame */
+    // }  /* end of if not center of mass frame */
 
     /***********************************************************
      * normalize Rsv+IRsv, show Cvsub
