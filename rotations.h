@@ -27,6 +27,7 @@ void rot_init_block_params (void);
 
 extern rotation_type cubic_group_double_cover_rotations[48];
 extern rotation_type cubic_group_rotations[24];
+extern rotation_type cubic_group_rotations_v2[24];
 extern int cubic_group_double_cover_identification_table[24][2];
 
 

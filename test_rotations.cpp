@@ -257,13 +257,11 @@ int main(int argc, char **argv) {
   /***********************************************************
    * loop on rotations
    ***********************************************************/
-  ofs = fopen("spin1_rotation_matrices", "w");
+  // ofs = fopen("spin1_rotation_matrices", "w");
 
-  fprintf( ofs, "A_spherical <- list()\n" );
+  // fprintf( ofs, "A_spherical <- list()\n" );
 
-  for(int irot=0; irot < 48; irot++ )
-  // for(int irot = 46; irot < 47; irot++ )
-  // for(int irot = 0; irot < 1; irot++ )
+  for(int irot=0; irot < 24; irot++ )
   {
     char name[20];
 

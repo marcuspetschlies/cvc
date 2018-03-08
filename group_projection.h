@@ -73,7 +73,11 @@ void fini_rot_mat_table (rot_mat_table_type *t );
 
 int alloc_rot_mat_table ( rot_mat_table_type *t, char*group, char*irrep, int dim, int n );
 
+
 int set_rot_mat_table_spin ( rot_mat_table_type *t, int J2, int bispinor );
+
+int set_rot_mat_table_spin_single_cover ( rot_mat_table_type *t, int J2, int const version , int const setby );
+
 
 int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *group, char*irrep );
 
