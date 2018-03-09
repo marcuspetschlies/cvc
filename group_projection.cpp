@@ -561,6 +561,8 @@ int set_rot_mat_table_spin_single_cover ( rot_mat_table_type *t, int J2, int con
  ***********************************************************/
 #include "set_rot_mat_table_cubic_group_double_cover.cpp"
 
+#include "set_rot_mat_table_cubic_group_single_cover_v2.cpp"
+
 /***********************************************************/
 /***********************************************************/
 
@@ -1255,6 +1257,8 @@ int little_group_projector_set (
   /***********************************************************/
     ) {
 
+  int exitstatus;
+
   /***********************************************************
    * set number of interpolators
    ***********************************************************/
@@ -1277,8 +1281,10 @@ int little_group_projector_set (
     return(1);
   }
   init_rot_mat_table ( p->rtarget );
-  if ( set_rot_mat_table_cubic_group_double_cover ( p->rtarget, lg->name, irrep ) != 0 ) {
-    fprintf(stderr, "[little_group_projector_set] Error from set_rot_mat_table_cubic_group_double_cover %s %d\n", __FILE__, __LINE__);
+  // exitstatus = set_rot_mat_table_cubic_group_double_cover ( p->rtarget, lg->name, irrep );
+  exitstatus = set_rot_mat_table_cubic_group_single_cover ( p->rtarget, lg->name, irrep );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[little_group_projector_set] Error from set_rot_mat_table_cubic_group %s %d\n", __FILE__, __LINE__);
     return(1);
   }
 
@@ -1302,7 +1308,7 @@ int little_group_projector_set (
    * reference row for each spin vector, if provided
    ***********************************************************/
   if ( ref_row_spin != NULL ) {
-    if ( init_1level_ibuffer ( &(p->ref_row_spin), p->n ) != NULL ) {
+    if ( init_1level_ibuffer ( &(p->ref_row_spin), p->n ) != 0 ) {
       fprintf(stderr, "[little_group_projector_set] Error from init_1level_ibuffer %s %d\n", __FILE__, __LINE__);
       return(1);
     }
@@ -1623,7 +1629,7 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
     }
   }
 
-  spin_vector_asym_printf ( sv0, p->n, spin_dimensions, "v0",  ofs );
+  if ( ofs != NULL ) spin_vector_asym_printf ( sv0, p->n, spin_dimensions, "v0",  ofs );
 
   /***********************************************************
    * TEST
@@ -1709,7 +1715,7 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
 
     /* TEST */
     sprintf ( name, "vaux[[%d]]", row_target );
-    spin_vector_asym_printf ( Rsv, p->n, spin_dimensions, name,  ofs  );
+    if ( ofs != NULL ) spin_vector_asym_printf ( Rsv, p->n, spin_dimensions, name,  ofs  );
 
     /***********************************************************
      * normalize Rsv and print Rsv
@@ -1717,14 +1723,14 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
     spin_vector_asym_normalize ( Rsv, p->n, spin_dimensions );
 
     sprintf ( name, "vsub[[%d]]", row_target );
-    spin_vector_asym_printf ( Rsv, p->n, spin_dimensions, name,  ofs );
+    if ( ofs != NULL ) spin_vector_asym_printf ( Rsv, p->n, spin_dimensions, name,  ofs );
 
 
     /***********************************************************
      * TEST
      ***********************************************************/
     sprintf ( name, "Rsub[[%d]]", row_target+1 );
-    rot_printf_matrix ( R, p->rspin[0].dim, name, ofs );
+    if ( ofs != NULL ) rot_printf_matrix ( R, p->rspin[0].dim, name, ofs );
 
     rot_mat_assign ( RR.R[row_target], R, p->rspin[0].dim);
     rot_fini_rotation_matrix ( &R );
@@ -1782,7 +1788,7 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
      * TEST
      ***********************************************************/
     sprintf ( name, "Ivaux[[%d]]", row_target );
-    spin_vector_asym_printf ( IRsv, p->n, spin_dimensions, name,  ofs  );
+    if ( ofs != NULL ) spin_vector_asym_printf ( IRsv, p->n, spin_dimensions, name,  ofs  );
     /***********************************************************
      * END OF TEST
      ***********************************************************/
@@ -1793,14 +1799,14 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
     spin_vector_asym_normalize ( IRsv, p->n, spin_dimensions );
 
     sprintf ( name, "Ivsub[[%d]]", row_target );
-    spin_vector_asym_printf ( IRsv, p->n, spin_dimensions, name,  ofs );
+    if ( ofs != NULL ) spin_vector_asym_printf ( IRsv, p->n, spin_dimensions, name,  ofs );
 
 
     spin_vector_pl_eq_spin_vector_ti_co_asym ( Rsv, IRsv, 1.0, p->n, spin_dimensions );
 
     spin_vector_asym_normalize ( Rsv, p->n, spin_dimensions );
     sprintf ( name, "Cvsub[[%d]]", row_target );
-    spin_vector_asym_printf ( Rsv, p->n, spin_dimensions, name,  ofs );
+    if ( ofs != NULL ) spin_vector_asym_printf ( Rsv, p->n, spin_dimensions, name,  ofs );
 
 
     /***********************************************************/
@@ -1810,14 +1816,14 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
      * TEST
      ***********************************************************/
     sprintf ( name, "IRsub[[%d]]", row_target+1 );
-    rot_printf_matrix ( IR, p->rspin[0].dim, name, ofs );
+    if ( ofs != NULL ) rot_printf_matrix ( IR, p->rspin[0].dim, name, ofs );
 
     // rot_mat_assign ( RR.IR[row_target], IR, p->rspin[0].dim);
     rot_mat_pl_eq_mat_ti_co ( RR.R[row_target], IR, 1.0,  p->rspin[0].dim );
 
     rot_mat_ti_eq_re ( RR.R[row_target], p->rtarget->dim /( 2. * p->rtarget->n ), RR.dim );
     sprintf ( name, "RRsub[[%d]]", row_target+1 );
-    rot_printf_matrix ( RR.R[row_target], p->rspin[0].dim, name, ofs );
+    if ( ofs != NULL ) rot_printf_matrix ( RR.R[row_target], p->rspin[0].dim, name, ofs );
 
     rot_fini_rotation_matrix ( &IR );
 
@@ -1905,6 +1911,8 @@ int little_group_projector_key (char*key,  little_group_projector_type *p_snk, l
  * rotate a projection matrix multiplett
  ***********************************************************/
 int rot_mat_table_rotate_multiplett ( rot_mat_table_type *rtab, rot_mat_table_type *rapply, rot_mat_table_type *rtarget, int with_IR, FILE*ofs ) {
+
+  if ( ofs == NULL ) ofs = stdout;
 
   if ( rtab->dim != rapply->dim ) {
     fprintf(stderr, "[rot_mat_table_rotate_multiplett] Error, incompatible dimensions\n");
