@@ -1281,8 +1281,11 @@ int little_group_projector_set (
     return(1);
   }
   init_rot_mat_table ( p->rtarget );
-  // exitstatus = set_rot_mat_table_cubic_group_double_cover ( p->rtarget, lg->name, irrep );
+#if defined CUBIC_GROUP_DOUBLE_COVER
+  exitstatus = set_rot_mat_table_cubic_group_double_cover ( p->rtarget, lg->name, irrep );
+#elif defined CUBIC_GROUP_SINGLE_COVER
   exitstatus = set_rot_mat_table_cubic_group_single_cover ( p->rtarget, lg->name, irrep );
+#endif
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[little_group_projector_set] Error from set_rot_mat_table_cubic_group %s %d\n", __FILE__, __LINE__);
     return(1);
@@ -1353,7 +1356,14 @@ int little_group_projector_set (
    ***********************************************************/
   rot_mat_table_type rp;
   init_rot_mat_table ( &rp );
-  if ( set_rot_mat_table_spin ( &rp, 2, 0 ) != 0 ) {
+
+#if defined CUBIC_GROUP_DOUBLE_COVER
+  exitstatus = set_rot_mat_table_spin ( &rp, 2, 0 );
+#elif defined CUBIC_GROUP_SINGLE_COVER
+  exitstatus = set_rot_mat_table_spin_single_cover ( &rp, 2, 1, 1 );
+#endif
+
+  if ( exitstatus != 0 ) {
     fprintf(stderr, "[little_group_projector_set] Error from set_rot_mat_table_spin %s %d\n", __FILE__, __LINE__);
     return(3);
   }
@@ -1392,7 +1402,12 @@ int little_group_projector_set (
   for ( int i = 0; i < p->n; i++ ) {
     rot_mat_table_type rspin;
     init_rot_mat_table ( &rspin );
-    if ( set_rot_mat_table_spin ( &rspin, interpolator_J2_list[i], interpolator_bispinor_list[i] ) != 0 ) {
+#if defined CUBIC_GROUP_DOUBLE_COVER
+    exitstatus = set_rot_mat_table_spin ( &rspin, interpolator_J2_list[i], interpolator_bispinor_list[i] );
+#elif defined CUBIC_GROUP_SINGLE_COVER
+    exitstatus = set_rot_mat_table_spin_single_cover (&rspin, interpolator_J2_list[i], 1, 1 );
+#endif
+    if ( exitstatus != 0 ) {
       fprintf(stderr, "[little_group_projector_set] Error from set_rot_mat_table_spin %s %d\n", __FILE__, __LINE__);
       return(5);
     }
