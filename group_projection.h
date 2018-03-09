@@ -81,6 +81,10 @@ int set_rot_mat_table_spin_single_cover ( rot_mat_table_type *t, int J2, int con
 
 int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *group, char*irrep );
 
+int set_rot_mat_table_cubic_group_single_cover ( rot_mat_table_type *t, char *group, char*irrep );
+
+
+
 void rot_mat_table_printf ( rot_mat_table_type *t, char*name, FILE*ofs );
 
 int rot_mat_table_copy (rot_mat_table_type *t, rot_mat_table_type *s );
