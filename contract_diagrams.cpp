@@ -100,7 +100,7 @@ int contract_diagram_v2_gamma_v3 ( double _Complex **vdiag, double _Complex **v2
  * we always sum in the following way
  * v2[alpha_p[0], alpha_p[1], alpha_p[2], m] g[alpha_2, alpha_3]  v3[ alpha_p[3], m]
  ****************************************************/
-int contract_diagram_v2_gamma_v3 ( double _Complex **vdiag, double _Complex **v2, double _Complex **v3, gamma_matrix_type g, int perm[4], unsigned int N, int init ) {
+int contract_diagram_v2_gamma_v3 ( double _Complex **vdiag, double _Complex **v2, double _Complex **v3, gamma_matrix_type g, int const perm[4], unsigned int const N, int const init ) {
 
   if ( init ) {
     if ( g_cart_id == 0 ) fprintf(stdout, "# [contract_diagram_v2_gamma_v3] initializing output field to zero\n");
@@ -155,7 +155,7 @@ int contract_diagram_v2_gamma_v3 ( double _Complex **vdiag, double _Complex **v2
  * we always sum in the following way
  * goet[b_oet][a_oet]  v2[a_oet][alpha_p[0], alpha_p[1], alpha_p[2], m] g[alpha_2, alpha_3]  v3[b_oet][ alpha_p[3], m]
  ****************************************************/
-int contract_diagram_oet_v2_gamma_v3 ( double _Complex **vdiag, double _Complex ***v2, double _Complex ***v3, gamma_matrix_type goet, gamma_matrix_type g, int perm[4], unsigned int N, int init ) {
+int contract_diagram_oet_v2_gamma_v3 ( double _Complex **vdiag, double _Complex ***v2, double _Complex ***v3, gamma_matrix_type goet, gamma_matrix_type g, int const perm[4], unsigned int const N, int const init ) {
 
   if ( init ) {
     if ( g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [contract_diagram_oet_v2_amma_v3] initializing output field to zero\n");
@@ -610,7 +610,7 @@ int contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( double _Complex ***
 /***********************************************
  *
  ***********************************************/
-int contract_diagram_sample (double _Complex ***diagram, double _Complex ***xi, double _Complex ***phi, int nsample, int perm[4], gamma_matrix_type C, int nT ) {
+int contract_diagram_sample (double _Complex ***diagram, double _Complex ***xi, double _Complex ***phi, int const nsample, int const perm[4], gamma_matrix_type C, int const nT ) {
 
   int exitstatus;
   double _Complex **diagram_buffer = NULL;
@@ -661,7 +661,7 @@ int contract_diagram_sample (double _Complex ***diagram, double _Complex ***xi, 
 /***********************************************
  *
  ***********************************************/
-int contract_diagram_sample_oet (double _Complex ***diagram, double _Complex ***xi, double _Complex ***phi, gamma_matrix_type goet, int perm[4], gamma_matrix_type C, int nT ) {
+int contract_diagram_sample_oet (double _Complex ***diagram, double _Complex ***xi, double _Complex ***phi, gamma_matrix_type goet, int const perm[4], gamma_matrix_type C, int const nT ) {
 
   int exitstatus;
   double _Complex **diagram_buffer = NULL;

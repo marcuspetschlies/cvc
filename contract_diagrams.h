@@ -7,9 +7,9 @@ namespace cvc {
 #if 0
 int contract_diagram_v2_gamma_v3 ( double _Complex **vdiag, double _Complex **v2, double _Complex **v3, gamma_matrix_type g, int perm[3], unsigned int N, int init );
 #endif  /* of if 0 */
-int contract_diagram_v2_gamma_v3 ( double _Complex **vdiag, double _Complex **v2, double _Complex **v3, gamma_matrix_type g, int perm[4], unsigned int N, int init );
+int contract_diagram_v2_gamma_v3 ( double _Complex **vdiag, double _Complex **v2, double _Complex **v3, gamma_matrix_type g, int const perm[4], unsigned int const N, int const init );
 
-int contract_diagram_oet_v2_gamma_v3 ( double _Complex **vdiag, double _Complex ***v2, double _Complex ***v3, gamma_matrix_type goet, gamma_matrix_type g, int perm[4], unsigned int N, int init );
+int contract_diagram_oet_v2_gamma_v3 ( double _Complex **vdiag, double _Complex ***v2, double _Complex ***v3, gamma_matrix_type goet, gamma_matrix_type g, int const perm[4], unsigned int const N, int const init );
 
 #if 0
 void contract_b1 (double _Complex ***b1, double _Complex **v3, **double v2, gamma_matrix_type g);
@@ -37,9 +37,9 @@ int contract_diagram_zmx4x4_field_ti_eq_co ( double _Complex ***sp_out, double _
 
 int contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( double _Complex ***sp_out, double _Complex ***sp_in, unsigned int N);
 
-int contract_diagram_sample (double _Complex ***diagram, double _Complex ***xi, double _Complex ***phi, int nsample, int perm[4], gamma_matrix_type C, int nT );
+int contract_diagram_sample (double _Complex ***diagram, double _Complex ***xi, double _Complex ***phi, int const nsample, int const perm[4], gamma_matrix_type C, int const nT );
 
-int contract_diagram_sample_oet (double _Complex ***diagram, double _Complex ***xi, double _Complex ***phi, gamma_matrix_type goet, int perm[4], gamma_matrix_type C, int nT );
+int contract_diagram_sample_oet (double _Complex ***diagram, double _Complex ***xi, double _Complex ***phi, gamma_matrix_type goet, int const perm[4], gamma_matrix_type C, int const nT );
 
 int contract_diagram_write_aff (double _Complex***diagram, struct AffWriter_s*affw, char*aff_tag, int tstart, int dt, int fbwd, int io_proc );
 
