@@ -727,7 +727,7 @@ int contract_diagram_write_aff (double _Complex***diagram, struct AffWriter_s*af
 
     affdir = aff_writer_mkpath (affw, affn, aff_tag );
     if ( ( exitstatus = aff_node_put_complex (affw, affdir, aff_buffer[0][0], (uint32_t)(nt*offset) ) ) != 0 ) {
-      fprintf(stderr, "[contract_diagram_write_aff] Error from aff_node_put_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      fprintf(stderr, "[contract_diagram_write_aff] Error from aff_node_put_complex for tag %s, status was %d %s %d\n", aff_tag, exitstatus, __FILE__, __LINE__);
       return(1);
     }
 
