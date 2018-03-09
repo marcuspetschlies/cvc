@@ -145,7 +145,9 @@ int main(int argc, char **argv) {
   little_group_type *lg = NULL;
   int nlg = 0;
 
-  if ( ( nlg = little_group_read_list ( &lg, "little_groups_2Oh.tab") ) <= 0 )
+  // nlg = little_group_read_list ( &lg, "little_groups_2Oh.tab");
+  nlg = little_group_read_list ( &lg, "little_groups_Oh.tab");
+  if ( nlg <= 0 )
   {
     fprintf(stderr, "[test_lg] Error from little_group_read_list, status was %d\n", nlg);
     EXIT(2);
@@ -170,7 +172,8 @@ int main(int argc, char **argv) {
   int **interpolator_momentum_list = NULL;
   int interpolator_number   = 1;               /* one (for now imaginary) interpolator */
   int interpolator_bispinor = 0;               /* no need for bispinor now */
-  int interpolator_parity   = 1;               /* no need for bispinor now */
+  int interpolator_parity   = 1;               /* intrinsic operator parity */
+  int interpolator_cartesian= 0;               /* Cartesian basis ? */
   char correlator_name[]    = "basis_vector";  /* we don't want a correlator here, just a basis vector*/
 
   exitstatus = init_2level_ibuffer ( &interpolator_momentum_list, interpolator_number, 3 );
@@ -198,13 +201,8 @@ int main(int argc, char **argv) {
     /****************************************************
      * loop on irreps
      ****************************************************/
-<<<<<<< HEAD
-    // for ( int i_irrep = 0; i_irrep < n_irrep; i_irrep++ )
-    for ( int i_irrep = 0; i_irrep <= 0; i_irrep++ )
-=======
     for ( int i_irrep = 0; i_irrep < n_irrep; i_irrep++ )
     // for ( int i_irrep = 4; i_irrep <= 4; i_irrep++ )
->>>>>>> ca0dbbf1535860e921294bc99707b50c02d7e044
     {
 
       /****************************************************
@@ -233,7 +231,8 @@ int main(int argc, char **argv) {
            ****************************************************/
           rot_mat_table_type r_irrep;
           init_rot_mat_table ( &r_irrep );
-          exitstatus = set_rot_mat_table_cubic_group_double_cover ( &r_irrep, lg[ilg].name, lg[ilg].lirrep[i_irrep] );
+          // exitstatus = set_rot_mat_table_cubic_group_double_cover ( &r_irrep, lg[ilg].name, lg[ilg].lirrep[i_irrep] );
+          exitstatus = set_rot_mat_table_cubic_group_single_cover ( &r_irrep, lg[ilg].name, lg[ilg].lirrep[i_irrep] );
           if ( exitstatus != 0 ) {
             fprintf ( stderr, "# [test_lg] Error from set_rot_mat_table_cubic_group_double_cover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(2);
@@ -253,7 +252,7 @@ int main(int argc, char **argv) {
             int row_target = -1;
   
               exitstatus = little_group_projector_set ( &p, &(lg[ilg]), lg[ilg].lirrep[i_irrep], row_target, interpolator_number,
-                  &interpolator_J2, interpolator_momentum_list, &interpolator_bispinor, &interpolator_parity,
+                  &interpolator_J2, interpolator_momentum_list, &interpolator_bispinor, &interpolator_parity, &interpolator_cartesian,
                   ref_row_target , &ref_row_spin, correlator_name );
   
               if ( exitstatus != 0 ) {
@@ -264,7 +263,7 @@ int main(int argc, char **argv) {
               /****************************************************/
               /****************************************************/
    
-              exitstatus = little_group_projector_show ( &p, ofs , 0 );
+              exitstatus = little_group_projector_show ( &p, ofs , 1 );
               if ( exitstatus != 0 ) {
                 fprintf ( stderr, "# [test_lg] Error from little_group_projector_show, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(2);
