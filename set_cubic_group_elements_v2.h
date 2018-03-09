@@ -101,13 +101,13 @@
   cubic_group_rotations_v2[ 4].a[2] = (  0.0 ) * M_PI;
   strcpy ( cubic_group_rotations_v2[ 4].name, "C33-" );
 
-  cubic_group_rotations_v2[8].n[0] = 0;
-  cubic_group_rotations_v2[8].n[1] = 0;
-  cubic_group_rotations_v2[8].n[2] = 0;
-  cubic_group_rotations_v2[8].w    = 0.;
-  cubic_group_rotations_v2[8].a[0] = ( -0.5 ) * M_PI;
-  cubic_group_rotations_v2[8].a[1] = (  0.5 ) * M_PI;
-  cubic_group_rotations_v2[8].a[2] = (  1.0 ) * M_PI;
+  cubic_group_rotations_v2[ 8].n[0] = 0;
+  cubic_group_rotations_v2[ 8].n[1] = 0;
+  cubic_group_rotations_v2[ 8].n[2] = 0;
+  cubic_group_rotations_v2[ 8].w    = 0.;
+  cubic_group_rotations_v2[ 8].a[0] = ( -0.5 ) * M_PI;
+  cubic_group_rotations_v2[ 8].a[1] = (  0.5 ) * M_PI;
+  cubic_group_rotations_v2[ 8].a[2] = (  1.0 ) * M_PI;
   strcpy ( cubic_group_rotations_v2[8].name, "C34-" );
 
   cubic_group_rotations_v2[10].n[0] = 0;
@@ -137,13 +137,13 @@
   cubic_group_rotations_v2[14].a[2] = (  0.5 ) * M_PI;
   strcpy ( cubic_group_rotations_v2[14].name, "C4z+" );
 
-  cubic_group_rotations_v2[9].n[0] = 0;
-  cubic_group_rotations_v2[9].n[1] = 0;
-  cubic_group_rotations_v2[9].n[2] = 0;
-  cubic_group_rotations_v2[9].w    = 0.;
-  cubic_group_rotations_v2[9].a[0] = (  0.5 ) * M_PI;
-  cubic_group_rotations_v2[9].a[1] = (  0.5 ) * M_PI;
-  cubic_group_rotations_v2[9].a[2] = ( -0.5 ) * M_PI;
+  cubic_group_rotations_v2[ 9].n[0] = 0;
+  cubic_group_rotations_v2[ 9].n[1] = 0;
+  cubic_group_rotations_v2[ 9].n[2] = 0;
+  cubic_group_rotations_v2[ 9].w    = 0.;
+  cubic_group_rotations_v2[ 9].a[0] = (  0.5 ) * M_PI;
+  cubic_group_rotations_v2[ 9].a[1] = (  0.5 ) * M_PI;
+  cubic_group_rotations_v2[ 9].a[2] = ( -0.5 ) * M_PI;
   strcpy ( cubic_group_rotations_v2[9].name, "C4x-" );
 
   cubic_group_rotations_v2[11].n[0] = 0;
