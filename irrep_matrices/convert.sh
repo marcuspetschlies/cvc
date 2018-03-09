@@ -19,9 +19,9 @@ for irrep in ${irrep_list[*]}; do
         printf("  // element %2d %s\n", r+1, $2)
       }
       if ( r < 24 ) {
-        printf ("  R[%2d][%d][%d] = %s\n", map[r+1], $(NF-2)-1, $(NF-1)-1, $NF )
+        printf ("  R[%2d][%d][%d] = %s;\n", map[r+1], $(NF-2)-1, $(NF-1)-1, $NF )
       } else {
-        printf ("  IR[%2d][%d][%d] = %s\n", map[r%24+1], $(NF-2)-1, $(NF-1)-1, $NF )
+        printf ("  IR[%2d][%d][%d] = %s;\n", map[r%24+1], $(NF-2)-1, $(NF-1)-1, $NF )
       }
     }' Oh.txt >> $f
 done
