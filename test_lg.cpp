@@ -145,8 +145,11 @@ int main(int argc, char **argv) {
   little_group_type *lg = NULL;
   int nlg = 0;
 
-  // nlg = little_group_read_list ( &lg, "little_groups_2Oh.tab");
+#if defined CUBIC_GROUP_DOUBLE_COVER
+  nlg = little_group_read_list ( &lg, "little_groups_2Oh.tab");
+#elif defined CUBIC_GROUP_SINGLE_COVER
   nlg = little_group_read_list ( &lg, "little_groups_Oh.tab");
+#endif
   if ( nlg <= 0 )
   {
     fprintf(stderr, "[test_lg] Error from little_group_read_list, status was %d\n", nlg);
@@ -198,6 +201,13 @@ int main(int argc, char **argv) {
 
     int n_irrep = lg[ilg].nirrep;
 
+    if ( ( strcmp( lg[ilg].name == "Oh" ) == 0 ) || ( strcmp( lg[ilg].name == "2Oh" ) == 0 ) )  {
+      interpolator_parity = 0;
+    } else {
+      interpolator_parity = 1;
+    }
+
+
     /****************************************************
      * loop on irreps
      ****************************************************/
@@ -208,8 +218,8 @@ int main(int argc, char **argv) {
       /****************************************************
         loop on spin quantum numbers
        ****************************************************/
-      for ( int interpolator_J2 = 0; interpolator_J2 <= 8; interpolator_J2++ )
-      // for ( int interpolator_J2 = 4; interpolator_J2 <= 4; interpolator_J2++ )
+      // for ( int interpolator_J2 = 0; interpolator_J2 <= 8; interpolator_J2++ )
+      for ( int interpolator_J2 = 2; interpolator_J2 <= 2; interpolator_J2++ )
       {
 
         /****************************************************
@@ -231,8 +241,11 @@ int main(int argc, char **argv) {
            ****************************************************/
           rot_mat_table_type r_irrep;
           init_rot_mat_table ( &r_irrep );
-          // exitstatus = set_rot_mat_table_cubic_group_double_cover ( &r_irrep, lg[ilg].name, lg[ilg].lirrep[i_irrep] );
+#if defined CUBIC_GROUP_DOUBLE_COVER
+          exitstatus = set_rot_mat_table_cubic_group_double_cover ( &r_irrep, lg[ilg].name, lg[ilg].lirrep[i_irrep] );
+#elif defined CUBIC_GROUP_SINGLE_COVER
           exitstatus = set_rot_mat_table_cubic_group_single_cover ( &r_irrep, lg[ilg].name, lg[ilg].lirrep[i_irrep] );
+#endif
           if ( exitstatus != 0 ) {
             fprintf ( stderr, "# [test_lg] Error from set_rot_mat_table_cubic_group_double_cover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(2);
