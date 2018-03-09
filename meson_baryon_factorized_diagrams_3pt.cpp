@@ -89,11 +89,9 @@ int main(int argc, char **argv) {
   // pion-type gamma list at vertex f2
   // const int gamma_f2_number = 4;
   // int gamma_f2_list[gamma_f2_number]    = { 15,  0,  8,  7 };
-  int const gamma_f2_number = 2;
-  int const gamma_f2_list[gamma_f2_number]    = { 15,  7 };
   // current vertex
-  //int const gamma_f2_number = 6;
-  //int const gamma_f2_list[gamma_f2_number] = { 1, 2, 4, 14, 13, 11 } ;
+  int const gamma_f2_number = 6;
+  int const gamma_f2_list[gamma_f2_number] = { 1, 2, 4, 14, 13, 11 } ;
 
 
   // Nucleon-type gamma list at vertex f1
@@ -111,8 +109,8 @@ int main(int argc, char **argv) {
 
 
    int const b_v3_factor_number = 1;
-   char const b_v3_factor_list[b_v3_factor_number][20] = { "xil-gf-sll" };
-   // char const b_v3_factor_list[b_v3_factor_number][20] = { "xil-gc-sll" };
+   // char const b_v3_factor_list[b_v3_factor_number][20] = { "xil-gf-sll" };
+   char const b_v3_factor_list[b_v3_factor_number][20] = { "xil-gc-sll" };
 
    int const b_v2_factor_number = 1;
    char const b_v2_factor_list[b_v2_factor_number][20] = { "phil-gf-fl-fl" };
@@ -121,8 +119,8 @@ int main(int argc, char **argv) {
    char const b_v4_factor_list[b_v4_factor_number][20] = { "phil-gf-fl-fl" };
 
    int const w_v3_factor_number = 1;
-   char const w_v3_factor_list[w_v3_factor_number][20] = { "g5.phil-gf-fl" };
-   // char const w_v3_factor_list[w_v3_factor_number][20] = { "g5.phil-gc-fl" };
+   // char const w_v3_factor_list[w_v3_factor_number][20] = { "g5.phil-gf-fl" };
+   char const w_v3_factor_list[w_v3_factor_number][20] = { "g5.phil-gc-fl" };
 
    int const w_v2_factor_number = 2;
    char const w_v2_factor_list[w_v2_factor_number][20] = { "g5.xil-gf-fl-sll", "g5.xil-gf-sll-fl" };
@@ -131,8 +129,8 @@ int main(int argc, char **argv) {
    char const w_v4_factor_list[w_v4_factor_number][20] = { "g5.xil-gf-fl-sll", "g5.xil-gf-sll-fl" };
 
    int const z_v3_factor_number = 1;
-   char const z_v3_factor_list[z_v3_factor_number][20] = { "phil-gf-fl" };
-   // char const z_v3_factor_list[z_v3_factor_number][20] = { "phil-gc-fl" };
+   // char const z_v3_factor_list[z_v3_factor_number][20] = { "phil-gf-fl" };
+   char const z_v3_factor_list[z_v3_factor_number][20] = { "phil-gc-fl" };
 
    int const z_v2_factor_number = 1;
    char const z_v2_factor_list[z_v2_factor_number][20] = { "phil-gf-fl-fl" };
@@ -143,12 +141,12 @@ int main(int argc, char **argv) {
    int const bb_t1_factor_number = 1;
    char const bb_t1_factor_list[bb_t1_factor_number][20] = { "fl-fl" };
 
-   int const bb_t2_factor_number = 2;
+   int const bb_t2_factor_number = 1;
    char const bb_t2_factor_list[bb_t2_factor_number][20] = { "fl-fl" };
 
    int const mm_m1_factor_number = 1;
-   char const mm_m1_factor_list[mm_m1_factor_number][20] = { "fl-fl" };
-   // char const mm_m1_factor_list[mm_m1_factor_number][20] = { "fl-gc-fl-gi" };
+   // char const mm_m1_factor_list[mm_m1_factor_number][20] = { "fl-fl" };
+   char const mm_m1_factor_list[mm_m1_factor_number][20] = { "fl-gc-fl-gi" };
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
@@ -695,6 +693,7 @@ int main(int argc, char **argv) {
     /**************************************************************************************/
     /**************************************************************************************/
 
+
     /**************************************************************************************
      * W diagrams
      **************************************************************************************/
@@ -1083,7 +1082,8 @@ int main(int argc, char **argv) {
     fini_8level_ztable ( &w_v2_factor );
     fini_8level_ztable ( &w_v4_factor );
     fini_6level_ztable ( &w_v3_factor );
-
+#if 0
+#endif  // of if 0
 
     /**************************************************************************************/
     /**************************************************************************************/
@@ -1411,7 +1411,6 @@ int main(int argc, char **argv) {
                             sprintf(aff_tag, "/v3/%s/v2/%s/p%d%d%d%d/%s/%s", z_v3_factor_list[iv3], z_v2_factor_list[iv2],  
                                 permutation_list[ip][0], permutation_list[ip][1], permutation_list[ip][2], permutation_list[ip][3], "fwd", aff_tag_suffix );
 
-                            sprintf(aff_tag, "/%s/%s", "pixN-pixN/z1/fwd", aff_tag_suffix );
                             if ( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
                               fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                               EXIT(106);
@@ -1420,6 +1419,7 @@ int main(int argc, char **argv) {
                             /* AFF tag */
                             sprintf(aff_tag, "/v3/%s/v2/%s/p%d%d%d%d/%s/%s", z_v3_factor_list[iv3], z_v2_factor_list[iv2],  
                                 permutation_list[ip][0], permutation_list[ip][1], permutation_list[ip][2], permutation_list[ip][3], "bwd", aff_tag_suffix );
+
                             if ( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
                               fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                               EXIT(106);
@@ -1467,7 +1467,6 @@ int main(int argc, char **argv) {
                             sprintf(aff_tag, "/v3/%s/v4/%s/p%d%d%d%d/%s/%s", z_v3_factor_list[iv3], z_v4_factor_list[iv4],  
                                 permutation_list[ip][0], permutation_list[ip][1], permutation_list[ip][2], permutation_list[ip][3], "fwd", aff_tag_suffix );
 
-                            sprintf(aff_tag, "/%s/%s", "pixN-pixN/z1/fwd", aff_tag_suffix );
                             if ( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
                               fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                               EXIT(106);
@@ -1476,6 +1475,7 @@ int main(int argc, char **argv) {
                             /* AFF tag */
                             sprintf(aff_tag, "/v3/%s/v4/%s/p%d%d%d%d/%s/%s", z_v3_factor_list[iv3], z_v4_factor_list[iv4],  
                                 permutation_list[ip][0], permutation_list[ip][1], permutation_list[ip][2], permutation_list[ip][3], "bwd", aff_tag_suffix );
+
                             if ( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
                               fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                               EXIT(106);
@@ -1510,10 +1510,13 @@ int main(int argc, char **argv) {
       }  // end of loop on oet sampels
 
     }  /* end of loop on coherent source locations */
-    
+
+#if 0
+#endif  // of if 0
 
     /**************************************************************************************/
     /**************************************************************************************/
+
 
     /**************************************************************************************
      * direct diagrams
@@ -1898,6 +1901,8 @@ int main(int argc, char **argv) {
 
     }  // end of loop coherent source timeslices
 
+#if 0
+#endif  // of if 0
 
     /**************************************************************************************/
     /**************************************************************************************/
