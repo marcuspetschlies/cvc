@@ -1,5 +1,5 @@
 /****************************************************
- * meson_baryon_factorized_diagrams.cpp
+ * meson_baryon_factorized_diagrams_2pt.cpp
  * 
  * Di 6. Mär 09:04:43 CET 2018
  *
@@ -124,7 +124,7 @@ int main(int argc, char **argv) {
 #ifdef HAVE_OPENMP
   omp_set_num_threads(g_num_threads);
 #else
-  fprintf(stdout, "[meson_baryon_factorized_diagrams] Warning, resetting global thread number to 1\n");
+  fprintf(stdout, "[meson_baryon_factorized_diagrams_2pt] Warning, resetting global thread number to 1\n");
   g_num_threads = 1;
 #endif
 
@@ -135,7 +135,7 @@ int main(int argc, char **argv) {
   * report git version
   ******************************************************/
   if ( g_cart_id == 0 ) {
-    fprintf(stdout, "# [meson_baryon_factorized_diagrams] git version = %s\n", g_gitversion);
+    fprintf(stdout, "# [meson_baryon_factorized_diagrams_2pt] git version = %s\n", g_gitversion);
   }
 
   /******************************************************
@@ -144,7 +144,7 @@ int main(int argc, char **argv) {
    ******************************************************/
   if(g_cart_id == 0) {
     g_the_time = time(NULL);
-    fprintf(stdout, "# [meson_baryon_factorized_diagrams] %s# [meson_baryon_factorized_diagrams] start of run\n", ctime(&g_the_time));
+    fprintf(stdout, "# [meson_baryon_factorized_diagrams_2pt] %s# [meson_baryon_factorized_diagrams_2pt] start of run\n", ctime(&g_the_time));
     fflush(stdout);
   }
 
@@ -152,7 +152,7 @@ int main(int argc, char **argv) {
    *
    ******************************************************/
   if(init_geometry() != 0) {
-    fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from init_geometry\n");
+    fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from init_geometry\n");
     EXIT(1);
   }
   geometry();
@@ -214,14 +214,14 @@ int main(int argc, char **argv) {
      ******************************************************/
     if(io_proc == 2) {
       /* AFF output file */
-      sprintf(filename, "%s.%.4d.tsrc%.2d.aff", "meson_baryon_factorized_diagrams", Nconf, t_base );
+      sprintf(filename, "%s.%.4d.tsrc%.2d.aff", "meson_baryon_factorized_diagrams_2pt", Nconf, t_base );
       affw = aff_writer (filename);
       aff_status_str = (char*)aff_writer_errstr(affw);
       if( aff_status_str != NULL ) {
-        fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from aff_writer, status was %s\n", aff_status_str);
+        fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from aff_writer, status was %s\n", aff_status_str);
         EXIT(4);
       } else {
-        fprintf(stdout, "# [meson_baryon_factorized_diagrams] writing data to file %s\n", filename);
+        fprintf(stdout, "# [meson_baryon_factorized_diagrams_2pt] writing data to file %s\n", filename);
       }
     }  /* end of if io_proc == 2 */
 
@@ -243,7 +243,7 @@ int main(int argc, char **argv) {
      *******************************************/
     double _Complex ***** b_v2_factor = init_5level_ztable ( gamma_f1_nucleon_number, g_sink_momentum_number, g_nsample, T_global, 192 );
     if ( b_v2_factor == NULL ) {
-      fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from init_5level_ztable %s %d\n", __FILE__, __LINE__ );
+      fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from init_5level_ztable %s %d\n", __FILE__, __LINE__ );
       EXIT(48);
     }
 
@@ -254,13 +254,13 @@ int main(int argc, char **argv) {
         affr = aff_reader (filename);
         aff_status_str = (char*)aff_reader_errstr(affr);
         if( aff_status_str != NULL ) {
-          fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from aff_reader, status was %s\n", aff_status_str);
+          fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from aff_reader, status was %s\n", aff_status_str);
           EXIT(4);
         } else {
-          fprintf(stdout, "# [meson_baryon_factorized_diagrams] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
+          fprintf(stdout, "# [meson_baryon_factorized_diagrams_2pt] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
         }
         if( (affn = aff_reader_root( affr )) == NULL ) {
-          fprintf(stderr, "[meson_baryon_factorized_diagrams] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+          fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
           EXIT(103);
         }
       }
@@ -274,7 +274,7 @@ int main(int argc, char **argv) {
             exitstatus = contract_diagram_read_key_qlua ( b_v2_factor[igf][ipf][isample], "phil-gf-fl-fl", -1, NULL, g_source_coords_list[i_src], isample, "v2", gamma_f1_nucleon_list[igf], g_sink_momentum_list[ipf], affr, T_global, 192);
 
             if ( exitstatus != 0 ) {
-              fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_read_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_read_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(104);
             }
 
@@ -298,7 +298,7 @@ int main(int argc, char **argv) {
      *******************************************/
     double _Complex ******* b_v3_factor = init_7level_ztable ( gamma_i2_number, g_seq_source_momentum_number, gamma_f2_number, g_sink_momentum_number, g_nsample, T_global, 12 );
     if ( b_v3_factor == NULL ) {
-      fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from init_7level_ztable %s %d\n", __FILE__, __LINE__ );
+      fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from init_7level_ztable %s %d\n", __FILE__, __LINE__ );
       EXIT(48);
     }
 
@@ -308,13 +308,13 @@ int main(int argc, char **argv) {
       affr = aff_reader (filename);
       aff_status_str = (char*)aff_reader_errstr(affr);
       if( aff_status_str != NULL ) {
-        fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from aff_reader, status was %s\n", aff_status_str);
+        fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from aff_reader, status was %s\n", aff_status_str);
         EXIT(4);
       } else {
-        fprintf(stdout, "# [meson_baryon_factorized_diagrams] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
+        fprintf(stdout, "# [meson_baryon_factorized_diagrams_2pt] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
       }
       if( (affn = aff_reader_root( affr )) == NULL ) {
-        fprintf(stderr, "[meson_baryon_factorized_diagrams] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+        fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
         EXIT(103);
       }
     }
@@ -335,7 +335,7 @@ int main(int argc, char **argv) {
                     g_source_coords_list[i_src], isample, "v3", gamma_f2_list[igf], g_seq2_source_momentum_list[ipf], affr, T_global, 12);
 
                 if ( exitstatus != 0 ) {
-                  fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_read_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                  fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_read_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                   EXIT(104);
                 }
 
@@ -371,7 +371,7 @@ int main(int argc, char **argv) {
 
       int * sink_momentum_id =  get_conserved_momentum_id ( g_seq2_source_momentum_list, g_seq2_source_momentum_number, g_total_momentum_list[iptot], g_sink_momentum_list, g_sink_momentum_number );
       if ( sink_momentum_id == NULL ) {
-        fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
+        fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
         EXIT(1);
       }
 
@@ -436,7 +436,7 @@ int main(int argc, char **argv) {
 
                   double _Complex ****diagram = init_4level_ztable ( 2, T_global, 4, 4 );
                   if ( diagram == NULL ) {
-                    fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from init_4level_ztable %s %d\n", __FILE__, __LINE__ );
+                    fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from init_4level_ztable %s %d\n", __FILE__, __LINE__ );
                     EXIT(47);
                   }
 
@@ -450,7 +450,7 @@ int main(int argc, char **argv) {
 
                   /* reduce to diagram, average over stochastic samples */
                   if ( ( exitstatus = contract_diagram_sample ( diagram[0], b_v3_factor[igi2][ipi2][igf2][ipf2], b_v2_factor[igf1][ipf1], g_nsample, perm, gamma[gamma_f1_nucleon_list[igi1]] , T_global ) ) != 0 ) {
-                    fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_sample, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                    fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_sample, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                     EXIT(105);
                   }
 
@@ -464,7 +464,7 @@ int main(int argc, char **argv) {
 
                   /* reduce to diagram, average over stochastic samples */
                   if ( ( exitstatus = contract_diagram_sample ( diagram[1], b_v3_factor[igi2][ipi2][igf2][ipf2], b_v2_factor[igf1][ipf1], g_nsample, perm, gamma[gamma_f1_nucleon_list[igi1]], T_global ) ) != 0 ) {
-                    fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_sample, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                    fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_sample, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                     EXIT(105);
                   }
 
@@ -489,28 +489,28 @@ int main(int argc, char **argv) {
                     /* AFF */
                     sprintf(aff_tag, "/%s/%s", "pixN-pixN/b1/fwd", aff_tag_suffix );
                     if ( ( exitstatus = contract_diagram_write_aff ( diagram[0], affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
-                      fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                      fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                       EXIT(106);
                     }
 
                     /* AFF */
                     sprintf(aff_tag, "/%s/%s", "pixN-pixN/b1/bwd", aff_tag_suffix );
                     if ( ( exitstatus = contract_diagram_write_aff ( diagram[0], affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
-                      fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                      fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                       EXIT(106);
                     }
 
                     /* AFF key */
                     sprintf(aff_tag, "/%s/%s", "pixN-pixN/b2/fwd", aff_tag_suffix );
                     if ( ( exitstatus = contract_diagram_write_aff ( diagram[1], affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
-                      fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                      fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                       EXIT(106);
                     }
 
                     /* AFF key */
                     sprintf(aff_tag, "/%s/%s", "pixN-pixN/b2/bwd", aff_tag_suffix );
                     if ( ( exitstatus = contract_diagram_write_aff ( diagram[1], affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
-                      fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                      fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                       EXIT(106);
                     }
 
@@ -548,7 +548,7 @@ int main(int argc, char **argv) {
      **************************************************************************************/
     double _Complex *****w_v3_factor = init_5level_ztable ( gamma_f2_number, g_seq2_source_momentum_number, g_nsample, T_global, 12 );
     if ( w_v3_factor == NULL ) {
-      fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from init_5level_ztable %s %d\n", __FILE__, __LINE__ );
+      fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from init_5level_ztable %s %d\n", __FILE__, __LINE__ );
       EXIT(47);
     }
 
@@ -560,13 +560,13 @@ int main(int argc, char **argv) {
         affr = aff_reader (filename);
         aff_status_str = (char*)aff_reader_errstr(affr);
         if( aff_status_str != NULL ) {
-          fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from aff_reader, status was %s\n", aff_status_str);
+          fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from aff_reader, status was %s\n", aff_status_str);
           EXIT(4);
         } else {
-          fprintf(stdout, "# [meson_baryon_factorized_diagrams] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
+          fprintf(stdout, "# [meson_baryon_factorized_diagrams_2pt] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
         }
         if( (affn = aff_reader_root( affr )) == NULL ) {
-          fprintf(stderr, "[meson_baryon_factorized_diagrams] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+          fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
           EXIT(103);
         }
       } // end of if io_proc 
@@ -581,7 +581,7 @@ int main(int argc, char **argv) {
             exitstatus = contract_diagram_read_key_qlua ( w_v3_factor[igf][ipf][isample], "g5.phil-gf-fl", -1, NULL, g_source_coords_list[i_src], isample, "v3", gamma_f2_list[igf], g_seq2_source_momentum_list[ipf], affr, T_global, 12);
 
             if ( exitstatus != 0 ) {
-              fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_read_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_read_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(104);
             }
 
@@ -605,7 +605,7 @@ int main(int argc, char **argv) {
      **************************************************************************************/
     double _Complex ******* w_v2_factor = init_7level_ztable ( gamma_i2_number, g_seq_source_momentum_number, gamma_f1_nucleon_number, g_sink_momentum_number,  g_nsample, T_global, 192 ) ;
     if ( w_v2_factor == NULL ) {
-      fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from init_7level_ztable %s %d\n", __FILE__, __LINE__ );
+      fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from init_7level_ztable %s %d\n", __FILE__, __LINE__ );
        EXIT(47);
     }
 
@@ -615,13 +615,13 @@ int main(int argc, char **argv) {
       affr = aff_reader (filename);
       aff_status_str = (char*)aff_reader_errstr(affr);
       if( aff_status_str != NULL ) {
-        fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from aff_reader, status was %s\n", aff_status_str);
+        fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from aff_reader, status was %s\n", aff_status_str);
         EXIT(4);
       } else {
-        fprintf(stdout, "# [meson_baryon_factorized_diagrams] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
+        fprintf(stdout, "# [meson_baryon_factorized_diagrams_2pt] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
       }
       if( (affn = aff_reader_root( affr )) == NULL ) {
-        fprintf(stderr, "[meson_baryon_factorized_diagrams] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+        fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
         EXIT(103);
       }
     } // end of if io_proc 
@@ -643,7 +643,7 @@ int main(int argc, char **argv) {
                     g_source_coords_list[i_src], isample, "v2", gamma_f1_nucleon_list[igf], g_sink_momentum_list[ipf], affr, T_global, 192);
 
                 if ( exitstatus != 0 ) {
-                  fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_read_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                  fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_read_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                   EXIT(104);
                 }
 
@@ -667,7 +667,7 @@ int main(int argc, char **argv) {
      **************************************************************************************/
     double _Complex ******* w_v2_factor2 = init_7level_ztable ( gamma_i2_number, g_seq_source_momentum_number, gamma_f1_nucleon_number, g_sink_momentum_number,  g_nsample, T_global, 192 ) ;
     if ( w_v2_factor2 == NULL ) {
-      fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from init_7level_ztable %s %d\n", __FILE__, __LINE__ );
+      fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from init_7level_ztable %s %d\n", __FILE__, __LINE__ );
        EXIT(47);
     }
 
@@ -687,7 +687,7 @@ int main(int argc, char **argv) {
                     g_source_coords_list[i_src], isample, "v2", gamma_f1_nucleon_list[igf], g_sink_momentum_list[ipf], affr, T_global, 192);
 
                 if ( exitstatus != 0 ) {
-                  fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_read_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                  fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_read_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                   EXIT(104);
                 }
 
@@ -721,7 +721,7 @@ int main(int argc, char **argv) {
 
       int * sink_momentum_id =  get_conserved_momentum_id ( g_seq2_source_momentum_list, g_seq2_source_momentum_number, g_total_momentum_list[iptot], g_sink_momentum_list, g_sink_momentum_number );
       if ( sink_momentum_id == NULL ) {
-        fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
+        fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
         EXIT(1);
       }
 
@@ -786,7 +786,7 @@ int main(int argc, char **argv) {
 
                   double _Complex ****diagram = init_4level_ztable ( 4, T_global, 4, 4 );
                   if ( diagram == NULL ) {
-                    fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from init_4level_ztable %s %d\n", __FILE__, __LINE__ );
+                    fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from init_4level_ztable %s %d\n", __FILE__, __LINE__ );
                     EXIT(47);
                   }
 
@@ -800,7 +800,7 @@ int main(int argc, char **argv) {
 
                   /* reduce to diagram, average over stochastic samples */
                   if ( ( exitstatus = contract_diagram_sample ( diagram[0], w_v3_factor[igf2][ipf2], w_v2_factor[igi2][ipi2][igf1][ipf1], g_nsample, perm, gamma[gamma_f1_nucleon_list[igf1]], T_global ) ) != 0 ) {
-                    fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_sample, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                    fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_sample, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                     EXIT(105);
                   }
 
@@ -814,7 +814,7 @@ int main(int argc, char **argv) {
 
                   /* reduce to diagram, average over stochastic samples */
                   if ( ( exitstatus = contract_diagram_sample ( diagram[1], w_v3_factor[igf2][ipf2], w_v2_factor[igi2][ipi2][igf1][ipf1], g_nsample, perm, gamma[gamma_f1_nucleon_list[igf1]], T_global ) ) != 0 ) {
-                    fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_sample, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                    fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_sample, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                     EXIT(105);
                   }
 
@@ -828,7 +828,7 @@ int main(int argc, char **argv) {
 
                   /* reduce to diagram, average over stochastic samples */
                   if ( ( exitstatus = contract_diagram_sample ( diagram[2], w_v3_factor[igf2][ipf2], w_v2_factor2[igi2][ipi2][igf1][ipf1], g_nsample, perm, gamma[gamma_f1_nucleon_list[igf1]], T_global ) ) != 0 ) {
-                    fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_sample, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                    fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_sample, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                     EXIT(105);
                   }
 
@@ -842,7 +842,7 @@ int main(int argc, char **argv) {
 
                   /* reduce to diagram, average over stochastic samples */
                   if ( ( exitstatus = contract_diagram_sample ( diagram[3], w_v3_factor[igf2][ipf2], w_v2_factor2[igi2][ipi2][igf1][ipf1], g_nsample, perm, gamma[gamma_f1_nucleon_list[igf1]], T_global ) ) != 0 ) {
-                    fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_sample, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                    fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_sample, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                     EXIT(105);
                   }
 
@@ -865,14 +865,14 @@ int main(int argc, char **argv) {
                     /* AFF key */
                     sprintf(aff_tag, "/%s/%s", "pixN-pixN/w1/fwd", aff_tag_suffix );
                     if ( ( exitstatus = contract_diagram_write_aff ( diagram[0], affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
-                      fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                      fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                       EXIT(106);
                     }
 
                     /* AFF key */
                     sprintf(aff_tag, "/%s/%s", "pixN-pixN/w1/bwd", aff_tag_suffix );
                     if ( ( exitstatus = contract_diagram_write_aff ( diagram[0], affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
-                      fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                      fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                       EXIT(106);
                     }
 
@@ -882,14 +882,14 @@ int main(int argc, char **argv) {
                     /* AFF key */
                     sprintf(aff_tag, "/%s/%s", "pixN-pixN/w2/fwd", aff_tag_suffix );
                     if ( ( exitstatus = contract_diagram_write_aff ( diagram[1], affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
-                      fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                      fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                       EXIT(106);
                     }
 
                     /* AFF key */
                     sprintf(aff_tag, "/%s/%s", "pixN-pixN/w2/bwd", aff_tag_suffix );
                     if ( ( exitstatus = contract_diagram_write_aff ( diagram[1], affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
-                      fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                      fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                       EXIT(106);
                     }
 
@@ -899,14 +899,14 @@ int main(int argc, char **argv) {
                     /* AFF key */
                     sprintf(aff_tag, "/%s/%s", "pixN-pixN/w3/fwd", aff_tag_suffix );
                     if ( ( exitstatus = contract_diagram_write_aff ( diagram[2], affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
-                      fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                      fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                       EXIT(106);
                     }
 
                     /* AFF key */
                     sprintf(aff_tag, "/%s/%s", "pixN-pixN/w3/bwd", aff_tag_suffix );
                     if ( ( exitstatus = contract_diagram_write_aff ( diagram[2], affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
-                      fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                      fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                       EXIT(106);
                     }
 
@@ -916,14 +916,14 @@ int main(int argc, char **argv) {
                     /* AFF key */
                     sprintf(aff_tag, "/%s/%s", "pixN-pixN/w4/fwd", aff_tag_suffix );
                     if ( ( exitstatus = contract_diagram_write_aff ( diagram[3], affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
-                      fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                      fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                       EXIT(106);
                     }
 
                     /* AFF key */
                     sprintf(aff_tag, "/%s/%s", "pixN-pixN/w4/bwd", aff_tag_suffix );
                     if ( ( exitstatus = contract_diagram_write_aff ( diagram[3], affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
-                      fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                      fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                       EXIT(106);
                     }
 
@@ -1002,7 +1002,7 @@ int main(int argc, char **argv) {
          **************************************************************************************/
         double _Complex  ******z_v3_factor = init_6level_ztable ( g_seq_source_momentum_number, gamma_f2_number, g_seq2_source_momentum_number, 4, T_global, 12 );
         if ( z_v3_factor == NULL ) {
-          fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from init_6level_ztable, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from init_6level_ztable, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(47);
         }
 
@@ -1012,13 +1012,13 @@ int main(int argc, char **argv) {
           affr = aff_reader (filename);
           aff_status_str = (char*)aff_reader_errstr(affr);
           if( aff_status_str != NULL ) {
-            fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from aff_reader, status was %s\n", aff_status_str);
+            fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from aff_reader, status was %s\n", aff_status_str);
             EXIT(4);
           } else {
-            fprintf(stdout, "# [meson_baryon_factorized_diagrams] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
+            fprintf(stdout, "# [meson_baryon_factorized_diagrams_2pt] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
           }
           if( (affn = aff_reader_root( affr )) == NULL ) {
-            fprintf(stderr, "[meson_baryon_factorized_diagrams] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+            fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
             EXIT(103);
           }
         } // end of if io_proc == 2
@@ -1047,7 +1047,7 @@ int main(int argc, char **argv) {
                 exitstatus = contract_diagram_read_oet_key_qlua ( z_v3_factor[ipi][igf][ipf], "phil-gf-fl", g_seq_source_momentum_list[ipi], gsx, "v3", gamma_f2_list[igf], g_seq2_source_momentum_list[ipf], affr, T_global, 12 );
 
                 if ( exitstatus != 0 ) {
-                  fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_read_oet_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                  fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_read_oet_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                   EXIT(50);
                 }
 
@@ -1071,7 +1071,7 @@ int main(int argc, char **argv) {
          **************************************************************************************/
         double _Complex ***** z_v2_factor = init_5level_ztable ( gamma_f1_nucleon_number, g_sink_momentum_number, 4, T_global, 192 );
         if ( z_v2_factor == NULL ) {
-          fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from init_5level_ztable, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from init_5level_ztable, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(47);
         }
  
@@ -1081,13 +1081,13 @@ int main(int argc, char **argv) {
           affr = aff_reader (filename);
           aff_status_str = (char*)aff_reader_errstr(affr);
           if( aff_status_str != NULL ) {
-            fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from aff_reader, status was %s\n", aff_status_str);
+            fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from aff_reader, status was %s\n", aff_status_str);
             EXIT(4);
           } else {
-            fprintf(stdout, "# [meson_baryon_factorized_diagrams] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
+            fprintf(stdout, "# [meson_baryon_factorized_diagrams_2pt] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
           }
           if( (affn = aff_reader_root( affr )) == NULL ) {
-            fprintf(stderr, "[meson_baryon_factorized_diagrams] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+            fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
             EXIT(103);
           }
         } // end of if io_proc == 2
@@ -1107,7 +1107,7 @@ int main(int argc, char **argv) {
               exitstatus = contract_diagram_read_oet_key_qlua ( z_v2_factor[igf][ipf], "phil-gf-fl-fl", NULL, gsx, "v2", gamma_f1_nucleon_list[igf], g_sink_momentum_list[ipf], affr, T_global, 192 );
 
               if ( exitstatus != 0 ) {
-                fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_read_oet_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_read_oet_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(51);
               }
               
@@ -1129,7 +1129,7 @@ int main(int argc, char **argv) {
          **************************************************************************************/
         double _Complex ***** z_v4_factor = init_5level_ztable ( gamma_f1_nucleon_number, g_sink_momentum_number, 4, T_global, 192 );
         if ( z_v4_factor == NULL ) {
-          fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from init_5level_ztable, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from init_5level_ztable, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(47);
         }
 
@@ -1139,13 +1139,13 @@ int main(int argc, char **argv) {
           affr = aff_reader (filename);
           aff_status_str = (char*)aff_reader_errstr(affr);
           if( aff_status_str != NULL ) {
-            fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from aff_reader, status was %s\n", aff_status_str);
+            fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from aff_reader, status was %s\n", aff_status_str);
             EXIT(4);
           } else {
-            fprintf(stdout, "# [meson_baryon_factorized_diagrams] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
+            fprintf(stdout, "# [meson_baryon_factorized_diagrams_2pt] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
           }
           if( (affn = aff_reader_root( affr )) == NULL ) {
-            fprintf(stderr, "[meson_baryon_factorized_diagrams] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+            fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
             EXIT(103);
           }
         } // end of if io_proc == 2
@@ -1165,7 +1165,7 @@ int main(int argc, char **argv) {
               exitstatus = contract_diagram_read_oet_key_qlua ( z_v4_factor[igf][ipf], "phil-gf-fl-fl", NULL, gsx, "v4", gamma_f1_nucleon_list[igf], g_sink_momentum_list[ipf], affr, T_global, 192 );
 
               if ( exitstatus != 0 ) {
-                fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_read_oet_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_read_oet_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(51);
               }
               
@@ -1197,7 +1197,7 @@ int main(int argc, char **argv) {
 
           int * sink_momentum_id =  get_conserved_momentum_id ( g_seq2_source_momentum_list, g_seq2_source_momentum_number, g_total_momentum_list[iptot], g_sink_momentum_list, g_sink_momentum_number );
           if ( sink_momentum_id == NULL ) {
-            fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
+            fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
             EXIT(1);
           }
 
@@ -1265,7 +1265,7 @@ int main(int argc, char **argv) {
   
                       double _Complex ****diagram = init_4level_ztable ( 4, T_global, 4, 4 );
                       if ( diagram == NULL ) {
-                        fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from init_4level_ztable %s %d\n", __FILE__, __LINE__ );
+                        fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from init_4level_ztable %s %d\n", __FILE__, __LINE__ );
                         EXIT(47);
                       }
   
@@ -1281,7 +1281,7 @@ int main(int argc, char **argv) {
                       perm[3] = 3;
   
                       if ( ( exitstatus = contract_diagram_sample_oet (diagram[0], z_v3_factor[ipi2][igf2][ipf2],  z_v4_factor[igf1][ipf1], gamma[gamma_i2_list[igi2]], perm, gamma[gamma_f1_nucleon_list[igi1]], T_global ) ) != 0 ) {
-                        fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_sample_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                        fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_sample_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                         EXIT(105);
                       }
   
@@ -1294,7 +1294,7 @@ int main(int argc, char **argv) {
                       perm[3] = 1;
   
                       if ( ( exitstatus = contract_diagram_sample_oet (diagram[1], z_v3_factor[ipi2][igf2][ipf2],  z_v4_factor[igf1][ipf1], gamma[gamma_i2_list[igi2]], perm, gamma[gamma_f1_nucleon_list[igi1]], T_global ) ) != 0 ) {
-                        fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_sample_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                        fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_sample_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                         EXIT(105);
                       }
   
@@ -1332,14 +1332,14 @@ int main(int argc, char **argv) {
                       /* AFF tag */
                       sprintf(aff_tag, "/%s/%s", "pixN-pixN/z1/fwd", aff_tag_suffix );
                       if ( ( exitstatus = contract_diagram_write_aff ( diagram[0], affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
-                        fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                        fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                         EXIT(106);
                       }
   
                       /* AFF tag */
                       sprintf(aff_tag, "/%s/%s", "pixN-pixN/z1/bwd", aff_tag_suffix );
                       if ( ( exitstatus = contract_diagram_write_aff ( diagram[0], affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
-                        fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                        fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                         EXIT(106);
                       }
   
@@ -1349,7 +1349,7 @@ int main(int argc, char **argv) {
                       /* AFF tag */
                       sprintf(aff_tag, "/%s/%s", "pixN-pixN/z2/fwd", aff_tag_suffix );
                       if ( ( exitstatus = contract_diagram_write_aff ( diagram[1], affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
-                        fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                        fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                         EXIT(106);
                       }
   
@@ -1479,13 +1479,13 @@ int main(int argc, char **argv) {
         affr = aff_reader (filename);
         aff_status_str = (char*)aff_reader_errstr(affr);
         if( aff_status_str != NULL ) {
-          fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from aff_reader, status was %s\n", aff_status_str);
+          fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from aff_reader, status was %s\n", aff_status_str);
           EXIT(4);
         } else {
-          fprintf(stdout, "# [meson_baryon_factorized_diagrams] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
+          fprintf(stdout, "# [meson_baryon_factorized_diagrams_2pt] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
         }
         if( (affn = aff_reader_root( affr )) == NULL ) {
-          fprintf(stderr, "[meson_baryon_factorized_diagrams] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+          fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
           EXIT(103);
         }
       } // end of if io_proc == 2
@@ -1509,13 +1509,13 @@ int main(int argc, char **argv) {
 
               exitstatus = contract_diagram_read_key_qlua ( bb_t1_factor[igi][igf][ipf], "fl-fl", gamma_f1_nucleon_list[igi], NULL, gsx, -1, "t1", gamma_f1_nucleon_list[igf], g_sink_momentum_list[ipf], affr, T_global, 16);
               if ( exitstatus != 0 ) {
-                fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_read_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_read_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(114);
               }
 
               exitstatus = contract_diagram_read_key_qlua ( bb_t2_factor[igi][igf][ipf], "fl-fl", gamma_f1_nucleon_list[igi], NULL, gsx, -1, "t2", gamma_f1_nucleon_list[igf], g_sink_momentum_list[ipf], affr, T_global, 16);
               if ( exitstatus != 0 ) {
-                fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_read_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_read_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(115);
               }
 
@@ -1555,13 +1555,13 @@ int main(int argc, char **argv) {
           affr = aff_reader (filename);
           aff_status_str = (char*)aff_reader_errstr(affr);
           if( aff_status_str != NULL ) {
-            fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from aff_reader, status was %s\n", aff_status_str);
+            fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from aff_reader, status was %s\n", aff_status_str);
             EXIT(4);
           } else {
-            fprintf(stdout, "# [meson_baryon_factorized_diagrams] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
+            fprintf(stdout, "# [meson_baryon_factorized_diagrams_2pt] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
           }
           if( (affn = aff_reader_root( affr )) == NULL ) {
-            fprintf(stderr, "[meson_baryon_factorized_diagrams] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+            fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
             EXIT(103);
           }
         } // end of if io_proc == 2
@@ -1595,7 +1595,7 @@ int main(int argc, char **argv) {
                   exitstatus = contract_diagram_read_key_qlua ( mm_m1_factor[igi][ipi][igf][ipf], "fl-fl", gamma_i2_list[igi], g_seq_source_momentum_list[ipi], gsx, 
                       -1, "m1", gamma_f2_list[igf], g_seq2_source_momentum_list[ipf], affr, T_global, 1);
                   if ( exitstatus != 0 ) {
-                    fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_read_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                    fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_read_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                     EXIT(114);
                   }
 
@@ -1633,7 +1633,7 @@ int main(int argc, char **argv) {
            **************************************************************************************/
           int *sink_momentum_id = get_conserved_momentum_id ( g_seq2_source_momentum_list, g_seq2_source_momentum_number, g_total_momentum_list[iptot], g_sink_momentum_list, g_sink_momentum_number );
           if ( sink_momentum_id == NULL ) {
-            fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from get_minus_momentum_id %s %d\n", __FILE__, __LINE__ );
+            fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from get_minus_momentum_id %s %d\n", __FILE__, __LINE__ );
             EXIT(146);
           }
 
@@ -1681,13 +1681,13 @@ int main(int argc, char **argv) {
 
                       double _Complex ***diagram = init_3level_ztable ( T_global, 4, 4 );
                       if ( diagram == NULL ) {
-                        fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
+                        fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
                         EXIT(142);
                       }
 
                       double _Complex ***bb_aux = init_3level_ztable ( T_global, 4, 4 );
                       if ( bb_aux == NULL ) {
-                        fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
+                        fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
                         EXIT(147);
                       }
 
@@ -1707,14 +1707,14 @@ int main(int argc, char **argv) {
                       /* AFF */
                       sprintf(aff_tag, "/%s/s1/fwd/%s", "pixN-pixN", aff_tag_suffix );
                       if( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
-                        fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_write_aff, status was %d\n", exitstatus);
+                        fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_write_aff, status was %d\n", exitstatus);
                         EXIT(154);
                       }
    
                       /* AFF */
                       sprintf(aff_tag, "/%s/s1/bwd/%s", "pixN-pixN", aff_tag_suffix );
                       if( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
-                        fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_write_aff, status was %d\n", exitstatus);
+                        fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_write_aff, status was %d\n", exitstatus);
                         EXIT(155);
                       }
 
@@ -1733,14 +1733,14 @@ int main(int argc, char **argv) {
                       /* AFF */
                       sprintf(aff_tag, "/%s/s2/fwd/%s", "pixN-pixN", aff_tag_suffix );
                       if( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
-                        fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_write_aff, status was %d\n", exitstatus);
+                        fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_write_aff, status was %d\n", exitstatus);
                         EXIT(154);
                       }
    
                       /* AFF */
                       sprintf(aff_tag, "/%s/s2/bwd/%s", "pixN-pixN", aff_tag_suffix );
                       if( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
-                        fprintf(stderr, "[meson_baryon_factorized_diagrams] Error from contract_diagram_write_aff, status was %d\n", exitstatus);
+                        fprintf(stderr, "[meson_baryon_factorized_diagrams_2pt] Error from contract_diagram_write_aff, status was %d\n", exitstatus);
                         EXIT(155);
                       }
 
