@@ -108,56 +108,65 @@ int main(int argc, char **argv) {
     {2, 0, 1, 3} };
 
 
-   int const b_v3_factor_number = 1;
-   // char const b_v3_factor_list[b_v3_factor_number][20] = { "xil-gf-sll" };
-   char const b_v3_factor_list[b_v3_factor_number][20] = { "xil-gc-sll" };
+  // ***********************************************************
+  // * set 2-point or 3-point mode
+  // ***********************************************************
+  int npoint_mode = 3;
 
-   int const b_v2_factor_number = 1;
-   char const b_v2_factor_list[b_v2_factor_number][20] = { "phil-gf-fl-fl" };
 
-   int const b_v4_factor_number = 1;
-   char const b_v4_factor_list[b_v4_factor_number][20] = { "phil-gf-fl-fl" };
+  int const b_v3_factor_number = 1;
+  // char const b_v3_factor_list[b_v3_factor_number][20] = { "xil-gf-sll" };
+  char const b_v3_factor_list[b_v3_factor_number][20] = { "xil-gc-sll" };
 
-   int const w_v3_factor_number = 1;
-   // char const w_v3_factor_list[w_v3_factor_number][20] = { "g5.phil-gf-fl" };
-   char const w_v3_factor_list[w_v3_factor_number][20] = { "g5.phil-gc-fl" };
+  int const b_v2_factor_number = 1;
+  char const b_v2_factor_list[b_v2_factor_number][20] = { "phil-gf-fl-fl" };
 
-   int const w_v2_factor_number = 2;
-   char const w_v2_factor_list[w_v2_factor_number][20] = { "g5.xil-gf-fl-sll", "g5.xil-gf-sll-fl" };
+  int const b_v4_factor_number = 1;
+  char const b_v4_factor_list[b_v4_factor_number][20] = { "phil-gf-fl-fl" };
 
-   int const w_v4_factor_number = 2;
-   char const w_v4_factor_list[w_v4_factor_number][20] = { "g5.xil-gf-fl-sll", "g5.xil-gf-sll-fl" };
+  int const w_v3_factor_number = 1;
+  // char const w_v3_factor_list[w_v3_factor_number][20] = { "g5.phil-gf-fl" };
+  char const w_v3_factor_list[w_v3_factor_number][20] = { "g5.phil-gc-fl" };
 
-   int const z_v3_factor_number = 1;
-   // char const z_v3_factor_list[z_v3_factor_number][20] = { "phil-gf-fl" };
-   char const z_v3_factor_list[z_v3_factor_number][20] = { "phil-gc-fl" };
+  int const w_v2_factor_number = 2;
+  char const w_v2_factor_list[w_v2_factor_number][20] = { "g5.xil-gf-fl-sll", "g5.xil-gf-sll-fl" };
 
-   int const z_v2_factor_number = 1;
-   char const z_v2_factor_list[z_v2_factor_number][20] = { "phil-gf-fl-fl" };
+  int const w_v4_factor_number = 2;
+  char const w_v4_factor_list[w_v4_factor_number][20] = { "g5.xil-gf-fl-sll", "g5.xil-gf-sll-fl" };
 
-   int const z_v4_factor_number = 1;
-   char const z_v4_factor_list[z_v4_factor_number][20] = { "phil-gf-fl-fl" };
+  int const z_v3_factor_number = 1;
+  // char const z_v3_factor_list[z_v3_factor_number][20] = { "phil-gf-fl" };
+  char const z_v3_factor_list[z_v3_factor_number][20] = { "phil-gc-fl" };
 
-   int const bb_t1_factor_number = 1;
-   char const bb_t1_factor_list[bb_t1_factor_number][20] = { "fl-fl" };
+  int const z_v2_factor_number = 1;
+  char const z_v2_factor_list[z_v2_factor_number][20] = { "phil-gf-fl-fl" };
 
-   int const bb_t2_factor_number = 1;
-   char const bb_t2_factor_list[bb_t2_factor_number][20] = { "fl-fl" };
+  int const z_v4_factor_number = 1;
+  char const z_v4_factor_list[z_v4_factor_number][20] = { "phil-gf-fl-fl" };
 
-   int const mm_m1_factor_number = 1;
-   // char const mm_m1_factor_list[mm_m1_factor_number][20] = { "fl-fl" };
-   char const mm_m1_factor_list[mm_m1_factor_number][20] = { "fl-gc-fl-gi" };
+  int const bb_t1_factor_number = 1;
+  char const bb_t1_factor_list[bb_t1_factor_number][20] = { "fl-fl" };
+
+  int const bb_t2_factor_number = 1;
+  char const bb_t2_factor_list[bb_t2_factor_number][20] = { "fl-fl" };
+
+  int const mm_m1_factor_number = 1;
+  // char const mm_m1_factor_list[mm_m1_factor_number][20] = { "fl-fl" };
+  char const mm_m1_factor_list[mm_m1_factor_number][20] = { "fl-gc-fl-gi" };
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:n:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
       filename_set=1;
       break;
+    //case 'n':
+    //  npoint_mode = atoi ( optarg );
+    //  break;
     case 'h':
     case '?':
     default:
@@ -299,8 +308,11 @@ int main(int argc, char **argv) {
     for ( int isample = 0; isample < g_nsample; isample++ ) {
       if(io_proc == 2) {
         /* AFF input files */
-        // sprintf(filename, "%s.%.4d.tbase%.2d.%.5d.aff", "contract_v2_phi_light", Nconf, t_base, isample );
-        sprintf(filename, "%s.%.4d.%.5d.aff", "contract_v2_phi_light", Nconf, isample );
+        if ( npoint_mode == 2 ) {
+          sprintf(filename, "%s.%.4d.tbase%.2d.%.5d.aff", "contract_v2_phi_light", Nconf, t_base, isample );
+        } else if ( npoint_mode == 3 ) {
+          sprintf(filename, "%s.%.4d.tbase%.2d.dt%.2d.%.5d.aff", "contract_v2_phi_light", Nconf, t_base, g_src_snk_time_separation, isample );
+        }
         affr = aff_reader (filename);
         aff_status_str = (char*)aff_reader_errstr(affr);
         if( aff_status_str != NULL ) {
@@ -360,8 +372,11 @@ int main(int argc, char **argv) {
     for ( int isample = 0; isample < g_nsample; isample++ ) {
       if(io_proc == 2) {
         /* AFF input files */
-        // sprintf(filename, "%s.%.4d.tbase%.2d.%.5d.aff", "contract_v4_phi_light", Nconf, t_base, isample );
-        sprintf(filename, "%s.%.4d.%.5d.aff", "contract_v4_phi_light", Nconf, isample );
+        if ( npoint_mode == 2 ) {
+          sprintf(filename, "%s.%.4d.tbase%.2d.%.5d.aff", "contract_v4_phi_light", Nconf, t_base, isample );
+        } else if ( npoint_mode == 3 ) {
+          sprintf(filename, "%s.%.4d.tbase%.2d.dt%.2d.%.5d.aff", "contract_v4_phi_light", Nconf, t_base, g_src_snk_time_separation, isample );
+        }
         affr = aff_reader (filename);
         aff_status_str = (char*)aff_reader_errstr(affr);
         if( aff_status_str != NULL ) {
@@ -713,8 +728,11 @@ int main(int argc, char **argv) {
 
       if(io_proc == 2) {
         /* AFF input files */
-        // sprintf(filename, "%s.%.4d.tbase%.2d.%.5d.aff", "contract_v3_phi_light", Nconf, t_base , isample );
-        sprintf(filename, "%s.%.4d.%.5d.aff", "contract_v3_phi_light", Nconf, isample );
+        if ( npoint_mode == 2 ) {
+          sprintf(filename, "%s.%.4d.tbase%.2d.%.5d.aff", "contract_v3_phi_light", Nconf, t_base , isample );
+        } else if ( npoint_mode == 3 ) {
+          sprintf(filename, "%s.%.4d.tbase%.2d.dt%.2d.%.5d.aff", "contract_v3_phi_light", Nconf, t_base, g_src_snk_time_separation, isample );
+        }
         affr = aff_reader (filename);
         aff_status_str = (char*)aff_reader_errstr(affr);
         if( aff_status_str != NULL ) {
