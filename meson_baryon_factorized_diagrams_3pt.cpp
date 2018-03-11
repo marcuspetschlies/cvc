@@ -299,7 +299,8 @@ int main(int argc, char **argv) {
     for ( int isample = 0; isample < g_nsample; isample++ ) {
       if(io_proc == 2) {
         /* AFF input files */
-        sprintf(filename, "%s.%.4d.tbase%.2d.%.5d.aff", "contract_v2_phi_light", Nconf, t_base, isample );
+        // sprintf(filename, "%s.%.4d.tbase%.2d.%.5d.aff", "contract_v2_phi_light", Nconf, t_base, isample );
+        sprintf(filename, "%s.%.4d.%.5d.aff", "contract_v2_phi_light", Nconf, isample );
         affr = aff_reader (filename);
         aff_status_str = (char*)aff_reader_errstr(affr);
         if( aff_status_str != NULL ) {
@@ -359,7 +360,8 @@ int main(int argc, char **argv) {
     for ( int isample = 0; isample < g_nsample; isample++ ) {
       if(io_proc == 2) {
         /* AFF input files */
-        sprintf(filename, "%s.%.4d.tbase%.2d.%.5d.aff", "contract_v4_phi_light", Nconf, t_base, isample );
+        // sprintf(filename, "%s.%.4d.tbase%.2d.%.5d.aff", "contract_v4_phi_light", Nconf, t_base, isample );
+        sprintf(filename, "%s.%.4d.%.5d.aff", "contract_v4_phi_light", Nconf, isample );
         affr = aff_reader (filename);
         aff_status_str = (char*)aff_reader_errstr(affr);
         if( aff_status_str != NULL ) {
@@ -711,7 +713,8 @@ int main(int argc, char **argv) {
 
       if(io_proc == 2) {
         /* AFF input files */
-        sprintf(filename, "%s.%.4d.tbase%.2d.%.5d.aff", "contract_v3_phi_light", Nconf, t_base , isample );
+        // sprintf(filename, "%s.%.4d.tbase%.2d.%.5d.aff", "contract_v3_phi_light", Nconf, t_base , isample );
+        sprintf(filename, "%s.%.4d.%.5d.aff", "contract_v3_phi_light", Nconf, isample );
         affr = aff_reader (filename);
         aff_status_str = (char*)aff_reader_errstr(affr);
         if( aff_status_str != NULL ) {
