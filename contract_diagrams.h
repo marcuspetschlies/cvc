@@ -7,9 +7,9 @@ namespace cvc {
 #if 0
 int contract_diagram_v2_gamma_v3 ( double _Complex **vdiag, double _Complex **v2, double _Complex **v3, gamma_matrix_type g, int perm[3], unsigned int N, int init );
 #endif  /* of if 0 */
-int contract_diagram_v2_gamma_v3 ( double _Complex **vdiag, double _Complex **v2, double _Complex **v3, gamma_matrix_type g, int perm[4], unsigned int N, int init );
+int contract_diagram_v2_gamma_v3 ( double _Complex **vdiag, double _Complex **v2, double _Complex **v3, gamma_matrix_type g, int const perm[4], unsigned int const N, int const init );
 
-int contract_diagram_oet_v2_gamma_v3 ( double _Complex **vdiag, double _Complex ***v2, double _Complex ***v3, gamma_matrix_type goet, gamma_matrix_type g, int perm[4], unsigned int N, int init );
+int contract_diagram_oet_v2_gamma_v3 ( double _Complex **vdiag, double _Complex ***v2, double _Complex ***v3, gamma_matrix_type goet, gamma_matrix_type g, int const perm[4], unsigned int const N, int const init );
 
 #if 0
 void contract_b1 (double _Complex ***b1, double _Complex **v3, **double v2, gamma_matrix_type g);
@@ -18,6 +18,8 @@ void contract_b2 (double _Complex ***b2, double _Complex **v3, **double v2, gamm
 #endif  /* end of if 0 */
 
 int match_momentum_id ( int **pid, int **m1, int **m2, int N1, int N2 );
+
+int * get_conserved_momentum_id ( int (*p1)[3], int const n1, int const p2[3], int (*p3)[3], int const n3 );
 
 int correlator_add_baryon_boundary_phase ( double _Complex ***sp, int tsrc);
 
@@ -31,7 +33,47 @@ int reorder_to_absolute_time (double _Complex ***sp_out, double _Complex ***sp_i
 
 int contract_diagram_zmx4x4_field_ti_co_field ( double _Complex ***sp_out, double _Complex ***sp_in, double _Complex *c_in, unsigned int N);
 
+int contract_diagram_zmx4x4_field_ti_eq_co ( double _Complex ***sp_out, double _Complex ***sp_in, double _Complex c_in, unsigned int N);
+
 int contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( double _Complex ***sp_out, double _Complex ***sp_in, unsigned int N);
+
+int contract_diagram_sample (double _Complex ***diagram, double _Complex ***xi, double _Complex ***phi, int const nsample, int const perm[4], gamma_matrix_type C, int const nT );
+
+int contract_diagram_sample_oet (double _Complex ***diagram, double _Complex ***xi, double _Complex ***phi, gamma_matrix_type goet, int const perm[4], gamma_matrix_type C, int const nT );
+
+int contract_diagram_write_aff (double _Complex***diagram, struct AffWriter_s*affw, char*aff_tag, int tstart, int dt, int fbwd, int io_proc );
+
+int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const pf2[3], int const gf1, int const pf1[3], int const gi2, int const pi2[3], int const gi1 );
+
+int contract_diagram_read_key_qlua (
+  double _Complex **fac, // output
+  char const *prefix,    // key prefix
+  int const gi,          // sequential gamma id
+  int const pi[3],       // sequential momenta
+  int const gsx[4],      // source coords
+  int const isample,     // number of sample
+  char const * vtype,    // contraction type
+  int const gf,          // vertex gamma
+  int const pf[3],       // vertex momentum
+  struct AffReader_s *affr,  // AFF reader 
+  int const N,           // length of data key ( will be mostly T_global )
+  int const ncomp        // length of data key ( will be mostly T_global )
+);
+
+int contract_diagram_read_oet_key_qlua (
+  double _Complex ***fac, // output
+  char const *prefix,     // key prefix
+  int const pi[3],        // sequential momenta
+  int const gsx[4],       // source coords
+  char const * vtype,     // contraction type
+  int const gf,           // vertex gamma
+  int const pf[3],        // vertex momentum
+  struct AffReader_s *affr,  // AFF reader 
+  int const N,            // length of data key ( will be mostly T_global )
+  int const ncomp         // components
+);
+
+   
 
 }  /* end of namespace cvc */
 #endif

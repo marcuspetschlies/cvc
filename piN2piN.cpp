@@ -220,20 +220,44 @@ int main(int argc, char **argv) {
  *                                                                 */
 // gamma_6 = 0_5
 // gamma_4 = id
-
+/*
   const int num_component_piN_piN = 9;
   int gamma_component_piN_piN[num_component_piN_piN][2]      = { {5, 5}, {4,4}, {6,6}, {5,4}, {5,6}, {4,5}, {4,6}, {6,5}, {6,4} };
   double gamma_component_sign_piN_piN[num_component_piN_piN] = {     +1,    +1,    +1,    +1,    +1,    +1,    +1,    +1,    +1 };
+*/
+
+  const int num_component_piN_piN = 16;
+  int gamma_component_piN_piN[num_component_piN_piN][2]      = {
+    { 0,  0}, { 0,  4}, { 0,  5}, { 0,  6}, 
+    { 4,  0}, { 4,  4}, { 4,  5}, { 4,  6}, 
+    { 5,  0}, { 5,  4}, { 5,  5}, { 5,  6}, 
+    { 6,  0}, { 6,  4}, { 6,  5}, { 6,  6} };
+
+  double gamma_component_sign_piN_piN[num_component_piN_piN] = {
+     +1,    +1,    +1,    +1,  
+     +1,    +1,    +1,    +1,  
+     +1,    +1,    +1,    +1,  
+     +1,    +1,    +1,    +1 };
+
 
 /*
   const int num_component_piN_piN        = 1;
   int gamma_component_piN_piN[num_component_piN_piN][2]      = { {5, 5} };
   double gamma_component_sign_piN_piN[num_component_piN_piN] = {+1 };
 */
-
+/*
   const int num_component_N_N        = 9;
   int gamma_component_N_N[9][2]      = { {5, 5}, {4,4}, {6,6}, {5,4}, {5,6}, {4,5}, {4,6}, {6,5}, {6,4} };
   double gamma_component_sign_N_N[9] = {+1, +1, +1, +1, +1, +1, +1, +1, +1};
+*/
+  const int num_component_N_N         = 16;
+  int gamma_component_N_N[16][2]      = {
+    { 0,  0}, { 0,  4}, { 0,  5}, { 0,  6}, 
+    { 4,  0}, { 4,  4}, { 4,  5}, { 4,  6}, 
+    { 5,  0}, { 5,  4}, { 5,  5}, { 5,  6}, 
+    { 6,  0}, { 6,  4}, { 6,  5}, { 6,  6} };
+
+  double gamma_component_sign_N_N[16] = {+1, +1, +1, +1, +1, +1, +1, +1, +1, +1, +1, +1, +1, +1, +1, +1};
 
   const int num_component_D_D        = 9;
   int gamma_component_D_D[9][2]      = {{1,1}, {1,2}, {1,3}, {2,1}, {2,2}, {2,3}, {3,1}, {3,2}, {3,3}};
@@ -243,7 +267,7 @@ int main(int argc, char **argv) {
   int gamma_component_piN_D[9][2]      = { {1, 5}, {2, 5}, {3, 5}, {1,4}, {2,4}, {3,4}, {1,6}, {2,6}, {3,6}};
   double gamma_component_sign_piN_D[9] = {+1., +1., +1., +1., +1., +1., +1., +1. ,+1.};
 
-  int num_component_max = 9;
+  int num_component_max = 16;
 /*
  *******************************************************************/
 
@@ -704,7 +728,7 @@ int main(int argc, char **argv) {
     free(prop_list);
   }  /* end of loop on sequential momentum list */
 
-#if 0
+
   for(i_src=0; i_src < g_source_location_number; i_src++ ) {
     int t_base = g_source_coords_list[i_src][0];
 
@@ -1147,6 +1171,7 @@ int main(int argc, char **argv) {
 
 
   }  /* end of loop on base source locations */
+#if 0
 #endif  /* of if 0 */
 
   /******************************************************
@@ -1258,15 +1283,21 @@ int main(int argc, char **argv) {
           memcpy( stochastic_propagator_list[isample]+shift, spinor_work[1]+shift, sizeof_spinor_field_timeslice);
         }
 
+      }  /* end of loop on stochastic timeslices */
+
+      /* source-smear the stochastic source */
+      if ( ( exitstatus = Jacobi_Smearing(gauge_field_smeared, stochastic_source_list[isample], N_Jacobi, kappa_Jacobi) ) != 0 ) {
+        fprintf(stderr, "[piN2piN] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(72);
+      }
+
+      /* sink-smear the stochastic propagator */
+      if ( ( exitstatus = Jacobi_Smearing(gauge_field_smeared, stochastic_propagator_list[isample], N_Jacobi, kappa_Jacobi) ) != 0 ) {
+        fprintf(stderr, "[piN2piN] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(73);
       }
 
     }  /* end of if read stochastic propagator else */
-
-    /* source-smear the stochastic source */
-    exitstatus = Jacobi_Smearing(gauge_field_smeared, stochastic_source_list[isample], N_Jacobi, kappa_Jacobi);
-
-    /* sink-smear the stochastic propagator */
-    exitstatus = Jacobi_Smearing(gauge_field_smeared, stochastic_propagator_list[isample], N_Jacobi, kappa_Jacobi);
 
   }  /* end of loop on samples */
 
@@ -1439,8 +1470,8 @@ int main(int argc, char **argv) {
 
                   affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
                   for(it=0; it<T_global; it++) {
-                    // ir = ( it - gsx[0] + T_global ) % T_global;
-                    ir = it;
+                    ir = ( it - gsx[0] + T_global ) % T_global;
+                    // ir = it;
                     memcpy(aff_buffer + ir*g_sv_dim*g_sv_dim,  buffer[it][k][icomp*g_sv_dim] , g_sv_dim*g_sv_dim*sizeof(double _Complex) );
                   }
                   int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
@@ -1721,8 +1752,8 @@ int main(int argc, char **argv) {
     
               affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
               for(it=0; it<T_global; it++) {
-                // ir = ( it - gsx[0] + T_global ) % T_global;
-                ir = it;
+                ir = ( it - gsx[0] + T_global ) % T_global;
+                // ir = it;
                 aff_buffer[ir] = buffer2[it][2*k]  + I * buffer2[it][2*k+1];
               }
               int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global);
@@ -1834,8 +1865,8 @@ int main(int argc, char **argv) {
   
                     affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
                     for(it=0; it<T_global; it++) {
-                      // ir = ( it - gsx[0] + T_global ) % T_global;
-                      ir = it;
+                      ir = ( it - gsx[0] + T_global ) % T_global;
+                      // ir = it;
                       memcpy(aff_buffer + ir*g_sv_dim*g_sv_dim,  buffer[it][k][icomp*g_sv_dim] , g_sv_dim*g_sv_dim*sizeof(double _Complex) );
                     }
                     int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);

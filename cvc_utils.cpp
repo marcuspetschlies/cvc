@@ -4855,7 +4855,7 @@ int check_residual_clover ( double**prop, double**source, double*gauge_field, do
   double diff_e, diff_o, norm_e, norm_o;
 
   if ( ( exitstatus = init_2level_buffer ( &eo_spinor_work, 5, _GSI( (VOLUME+RAND)/2 ) ) ) != 0 ) {
-    fprintf(stderr, "[check_residual_clover] Error from init_2level_buffer, status was %d\n", exitstatus, __FILE__, __LINE__ );
+    fprintf(stderr, "[check_residual_clover] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
     return(1);
   }
 

@@ -67,6 +67,8 @@ extern "C"
 #include "prepare_propagator.h"
 #include "contract_factorized.h"
 #include "clover.h"
+#include "dummy_solver.h"
+#include "scalar_products.h"
 
 using namespace cvc;
 
@@ -368,8 +370,8 @@ int main(int argc, char **argv) {
   /*********************************
    * initialize MPI parameters for cvc
    *********************************/
-  exitstatus = tmLQCD_invert_init(argc, argv, 1, 0);
-  /* exitstatus = tmLQCD_invert_init(argc, argv, 1); */
+  /* exitstatus = tmLQCD_invert_init(argc, argv, 1, 0); */
+  exitstatus = tmLQCD_invert_init(argc, argv, 1);
   if(exitstatus != 0) {
     EXIT(14);
   }
@@ -689,14 +691,9 @@ int main(int argc, char **argv) {
     /******************************************************
      * initialize random number generator
      ******************************************************/
-    sprintf(filename, "rng_stat.%.4d.stochastic.out", Nconf);
-    if( read_stochastic_source || ( ( ! read_stochastic_source ) && ( g_sourceid == 0 ) ) ) {
-      /******************************************************
-       * if we read stochastic sources or if we do not read
-       * stochastic sources but start from sample 0, then
-       * initialize random number generator
-       ******************************************************/
-      exitstatus = init_rng_stat_file ( g_seed, filename );
+    if ( isample == 0 ) {
+      memset(spinor_work[1], 0, sizeof_spinor_field);
+      exitstatus = _TMLQCD_INVERT(spinor_work[1], stochastic_source_list[0], op_id_up, 0);
       if(exitstatus != 0) {
         fprintf(stderr, "[piN2piN_factorized] Error from init_rng_stat_file status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(38);
@@ -736,10 +733,8 @@ int main(int argc, char **argv) {
           EXIT(2);
         }
   
-      } else {
-  
-        /* set a stochstic volume source */
-        exitstatus = prepare_volume_source(stochastic_source_list[isample], VOLUME);
+        memset(spinor_work[1], 0, sizeof_spinor_field);
+        exitstatus = _TMLQCD_INVERT(spinor_work[1], spinor_work[0], op_id_dn, 0);
         if(exitstatus != 0) {
           fprintf(stderr, "[piN2piN_factorized] Error from prepare_volume_source, status was %d\n", exitstatus);
           EXIT(39);
@@ -750,17 +745,19 @@ int main(int argc, char **argv) {
       /******************************************************/
       /******************************************************/
   
-      /***********************************************************
-       * copy and source-smear the stochastic source
-       ***********************************************************/
-      memcpy ( stochastic_source_list_smeared[isample], stochastic_source_list[isample], sizeof_spinor_field );
-      if ( ( exitstatus = Jacobi_Smearing(gauge_field_smeared, stochastic_source_list_smeared[isample], N_Jacobi, kappa_Jacobi) ) != 0 ) {
-        fprintf( stderr, "[piN2piN_factorized] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-        EXIT(17);
+      }  /* end of loop on stochastic source timeslices */
+   
+      /* source-smear the stochastic source */
+      if ( ( exitstatus = Jacobi_Smearing(gauge_field_smeared, stochastic_source_list[isample], N_Jacobi, kappa_Jacobi) ) != 0 ) {
+        fprintf(stderr, "[piN2piN_factorized] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(72);
       }
   
-      /******************************************************/
-      /******************************************************/
+      /* sink-smear the stochastic propagator */
+      if ( ( exitstatus = Jacobi_Smearing(gauge_field_smeared, stochastic_propagator_list[isample], N_Jacobi, kappa_Jacobi) ) != ) {
+        fprintf(stderr, "[piN2piN_factorized] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(72);
+      }
   
       /******************************************************
        * write stochastic source to file, if needed
@@ -1043,15 +1040,26 @@ int main(int argc, char **argv) {
 
     if ( g_fermion_type == _TM_FERMION ) {
 
-      if ( ( exitstatus = init_2level_buffer ( &propagator_list_dn, no_fields, _GSI(VOLUME) ) ) != 0 ) {
-        fprintf(stderr, "[piN2piN_factorized] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(45);
+  /***********************************************************
+   * loop on base source locations
+   ***********************************************************/
+  for( int i_src = 0; i_src<g_source_location_number; i_src++) {
+    int t_base = g_source_coords_list[i_src][0];
+ 
+    if(io_proc == 2) {
+      sprintf(filename, "%s.%.4d.tsrc%.2d.aff", "piN_piN", Nconf, t_base );
+      fprintf(stdout, "# [piN2piN_factorized] writing data to file %s\n", filename);
+      affw = aff_writer(filename);
+      aff_status_str = (char*)aff_writer_errstr(affw);
+      if( aff_status_str != NULL ) {
+        fprintf(stderr, "[piN2piN_factorized] Error from aff_writer, status was %s\n", aff_status_str);
+        EXIT(4);
       }
 
-      if ( ( exitstatus = init_2level_buffer ( &propagator_list_dn_smeared, no_fields, _GSI(VOLUME) ) ) != 0 ) {
-        fprintf(stderr, "[piN2piN_factorized] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(45);
-      }
+    /***********************************************************
+     * loop on coherent source locations
+     ***********************************************************/
+    for( int i_coherent=0; i_coherent<g_coherent_source_number; i_coherent++) {
 
     } else if ( g_fermion_type == _WILSON_FERMION ) {
       propagator_list_dn         = propagator_list_up;
@@ -1239,11 +1247,55 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_write_aff, status was %d\n", exitstatus);
             EXIT(49);
           }
-  
-          /***********************************************************/
-          /***********************************************************/
-  
-          sprintf(aff_tag, "/N-N/t%.2dx%.2dy%.2dz%.2d/gi%.2d/gf%.2d/n2",
+        }  /* end of loop on gamma rho at sink */
+      }  /* end of loop on gamma rho at source */
+
+      fini_2level_buffer ( &v3 );
+      fini_3level_buffer ( &vp );
+
+
+      /***********************************************************/
+      /***********************************************************/
+
+
+      /***********************************************************
+       * contractions with up and dn propagator and stochastic source
+       ***********************************************************/
+ 
+      exitstatus= init_2level_buffer ( &v3, VOLUME, 24 );
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[piN2piN_factorized] Error from init_2level_buffer, status was %d\n", exitstatus);
+        EXIT(47);
+      }
+
+      exitstatus= init_3level_buffer ( &vp, T, g_sink_momentum_number, 24 );
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[piN2piN_factorized] Error from init_3level_buffer, status was %d\n", exitstatus);
+        EXIT(47);
+      }
+
+      /* up propagator as propagator type field */
+      assign_fermion_propagator_from_spinor_field ( fp,  &(propagator_list_up[i_coherent * n_s*n_c]), VOLUME);
+
+      /* dn propagator as propagator type field */
+      assign_fermion_propagator_from_spinor_field ( fp2, &(propagator_list_dn[i_coherent * n_s*n_c]), VOLUME);
+
+      /* loop on gamma structures at vertex f2 */
+      for ( int i = 0; i < gamma_f2_number; i++ ) {
+
+        /*****************************************************************
+         * loop on samples
+         *****************************************************************/
+        for ( int i_sample = 0; i_sample < g_nsample; i_sample++ ) {
+
+          /* multiply with Dirac structure at vertex f2 */
+          spinor_field_eq_gamma_ti_spinor_field (spinor_work[0], gamma_f2_list[i], stochastic_source_list[i_sample], VOLUME );
+          spinor_field_ti_eq_re ( spinor_work[0], gamma_f2_adjoint_sign[i], VOLUME);
+
+          /*****************************************************************
+           * xi - gf2 - u
+           *****************************************************************/
+          sprintf(aff_tag, "/v3/t%.2dx%.2dy%.2dz%.2d/xi-g%.2d-u/sample%.2d", 
               gsx[0], gsx[1], gsx[2], gsx[3],
               gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2]);
   
@@ -1464,11 +1516,13 @@ int main(int argc, char **argv) {
           fprintf(stderr, "[piN2piN_factorized] Error from init_2level_buffer, status was %d\n", exitstatus);
           EXIT(47);
         }
-  
-        exitstatus= init_3level_buffer ( &vp, T, g_sink_momentum_number, 2 );
-        if ( exitstatus != 0 ) {
-          fprintf(stderr, "[piN2piN_factorized] Error from init_3level_buffer, status was %d\n", exitstatus);
-          EXIT(47);
+
+        memset(spinor_work[1], 0, sizeof_spinor_field);
+        /* invert */
+        exitstatus = _TMLQCD_INVERT(spinor_work[1], spinor_work[0], op_id_up, 0);
+        if(exitstatus != 0) {
+          fprintf(stderr, "[piN2piN_factorized] Error from tmLQCD_invert, status was %d\n", exitstatus);
+          EXIT(12);
         }
   
         /*****************************************************************/
@@ -3021,18 +3075,86 @@ int main(int argc, char **argv) {
           fprintf(stderr, "[piN2piN_factorized] Error from point_source_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(12);
         }
-  
-        /***********************************************************/
-        /***********************************************************/
+      }
 
-        /***********************************************************
-         * copy up-type propagator and sink-smear, save as new field
-         ***********************************************************/
-        memcpy ( propagator_list_up_smeared[12*i_coherent], propagator_list_up[12*i_coherent], 12 * sizeof_spinor_field );
-        for ( int is = 0; is < 12; is++ ) {
-          if ( ( exitstatus = Jacobi_Smearing ( gauge_field_smeared, propagator_list_up_smeared[12*i_coherent+is], N_Jacobi, kappa_Jacobi) ) != 0 ) {
-            fprintf( stderr, "[piN2piN_factorized] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-            EXIT(17);
+      /* loop on oet samples */
+      for( int isample=0; isample < g_nsample_oet; isample++) {
+
+        /*****************************************************************
+         * read stochastic oet source from file
+         *****************************************************************/
+        if ( read_stochastic_source_oet ) {
+          for ( int ispin = 0; ispin < 4; ispin++ ) {
+            sprintf(filename, "%s-oet.%.4d.t%.2d.%.2d.%.5d", filename_prefix, Nconf, gsx[0], ispin, isample);
+            if ( ( exitstatus = read_lime_spinor( stochastic_source_list[ispin], filename, 0) ) != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from read_lime_spinor, status was %d\n", exitstatus);
+              EXIT(2);
+            }
+          }
+          /* recover the random field */
+          if( (exitstatus = init_timeslice_source_oet(stochastic_source_list, gsx[0], NULL, -1 ) ) != 0 ) {
+            fprintf(stderr, "[piN2piN_factorized] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(64);
+          }
+
+        /*****************************************************************
+         * generate stochastic oet source
+         *****************************************************************/
+        } else {
+          /* dummy call to initialize the ran field, we do not use the resulting stochastic_source_list */
+          if( (exitstatus = init_timeslice_source_oet(stochastic_source_list, gsx[0], NULL, 1 ) ) != 0 ) {
+            fprintf(stderr, "[piN2piN_factorized] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(64);
+          }
+          if ( write_stochastic_source_oet ) {
+            for ( int ispin = 0; ispin < 4; ispin++ ) {
+              sprintf(filename, "%s-oet.%.4d.t%.2d.%.2d.%.5d", filename_prefix, Nconf, gsx[0], ispin, isample);
+              if ( ( exitstatus = write_propagator( stochastic_source_list[ispin], filename, 0, 64) ) != 0 ) {
+                fprintf(stderr, "[piN2piN_factorized] Error from write_propagator, status was %d\n", exitstatus);
+                EXIT(2);
+              }
+            }
+          }
+        }  /* end of if read stochastic source - else */
+
+        /*****************************************************************
+         * invert for stochastic timeslice propagator at zero momentum
+         *****************************************************************/
+        for( int i = 0; i < 4; i++) {
+          memcpy(spinor_work[0], stochastic_source_list[i], sizeof_spinor_field);
+
+          /* source-smearing stochastic momentum source */
+          if ( ( exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi) ) != 0 ) {
+            fprintf(stderr, "[piN2piN_factorized] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(5);
+          }
+
+          /* tm-rotate stochastic source */
+          if( g_fermion_type == _TM_FERMION ) {
+            spinor_field_tm_rotation ( spinor_work[0], spinor_work[0], +1, g_fermion_type, VOLUME);
+          }
+
+          memset(spinor_work[1], 0, sizeof_spinor_field);
+
+          exitstatus = _TMLQCD_INVERT(spinor_work[1], spinor_work[0], op_id_up, 0);
+          if(exitstatus != 0) {
+            fprintf(stderr, "[piN2piN_factorized] Error from tmLQCD_invert, status was %d\n", exitstatus);
+            EXIT(44);
+          }
+
+          if ( check_propagator_residual ) {
+            check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_up], 1 );
+          }
+
+          /* tm-rotate stochastic propagator at sink */
+          if( g_fermion_type == _TM_FERMION ) {
+            spinor_field_tm_rotation(spinor_work[1], spinor_work[1], +1, g_fermion_type, VOLUME);
+          }
+
+          /* sink smearing stochastic propagator */
+          if ( ( exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi) ) != 0 ) {
+            fprintf(stderr, "[piN2piN_factorized] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(5);
           }
         }
 
@@ -3153,20 +3275,14 @@ int main(int argc, char **argv) {
            *****************************************************************/
           for( int i = 0; i < 4; i++) {
             memcpy(spinor_work[0], stochastic_source_list[i], sizeof_spinor_field);
-  
-            /*****************************************************************
-             * source-smear stochastic momentum source
-             * this is always required, since the source sides of
-             * both types of stochastic proapagators are joined at vertex i2
-             *****************************************************************/
+
+            /* source-smearing stochastic momentum source */
             if ( ( exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi) ) != 0 ) {
               fprintf(stderr, "[piN2piN_factorized] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              EXIT(5);
+              EXIT(12);
             }
-  
-            /*****************************************************************
-             * tm-rotate stochastic source
-             *****************************************************************/
+
+            /* tm-rotate stochastic source */
             if( g_fermion_type == _TM_FERMION ) {
               spinor_field_tm_rotation ( spinor_work[0], spinor_work[0], +1, g_fermion_type, VOLUME);
             }
@@ -3176,8 +3292,10 @@ int main(int argc, char **argv) {
              * and optionally check propagator residual
              *****************************************************************/
             memset(spinor_work[1], 0, sizeof_spinor_field);
-            if ( ( exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_up, 0) ) != 0 ) {
-              fprintf(stderr, "[piN2piN_factorized] Error from tmLQCD_invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+
+            exitstatus = _TMLQCD_INVERT(spinor_work[1], spinor_work[0], op_id_up, 0);
+            if(exitstatus != 0) {
+              fprintf(stderr, "[piN2piN_factorized] Error from tmLQCD_invert, status was %d\n", exitstatus);
               EXIT(44);
             }
   
