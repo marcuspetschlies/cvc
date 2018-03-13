@@ -294,7 +294,7 @@ int main(int argc, char **argv) {
      ******************************************************/
     if(io_proc == 2) {
       /* AFF output file */
-      sprintf(filename, "%s_%dpt.%.4d.tsrc%.2d.aff", "meson_baryon_factorized_diagrams", Nconf, t_base, npoint_mode );
+      sprintf(filename, "%s_%dpt.%.4d.tsrc%.2d.aff", "meson_baryon_factorized_diagrams", Nconf, npoint_mode, t_base );
       affw = aff_writer (filename);
       aff_status_str = (char*)aff_writer_errstr(affw);
       if( aff_status_str != NULL ) {
