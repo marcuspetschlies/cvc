@@ -6,14 +6,3 @@ read_input_parser_cvc.cpp
 **/*.rej
 **/*.orig
 gitversion.cpp
-build/
-build_*/
-test/
-build.14.04.1-Ubuntu-serial-openmp
-build.14.04.1-Ubuntu-tmLQCD-2dim/
-build-2dim-noomp/
-build-2dim/
-build-4dim/
-build-serial/
-build-16.04.1-Ubuntu-serial-openmp
-build-16.04.2-Ubuntu-serial-openmp
