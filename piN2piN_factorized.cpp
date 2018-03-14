@@ -750,7 +750,7 @@ int main(int argc, char **argv) {
       }
   
       /* sink-smear the stochastic propagator */
-      if ( ( exitstatus = Jacobi_Smearing(gauge_field_smeared, stochastic_propagator_list[isample], N_Jacobi, kappa_Jacobi) ) != ) {
+      if ( ( exitstatus = Jacobi_Smearing(gauge_field_smeared, stochastic_propagator_list[isample], N_Jacobi, kappa_Jacobi) ) != 0 ) {
         fprintf(stderr, "[piN2piN_factorized] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(72);
       }
