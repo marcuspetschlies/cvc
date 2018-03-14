@@ -696,7 +696,7 @@ int contract_diagram_sample_oet (double _Complex ***diagram, double _Complex ***
 /***********************************************
  * write contracted diagram to AFF
  ***********************************************/
-int contract_diagram_write_aff (double _Complex***diagram, struct AffWriter_s*affw, char*aff_tag, int tstart, int dt, int fbwd, int io_proc ) {
+int contract_diagram_write_aff (double _Complex***diagram, struct AffWriter_s*affw, char*aff_tag, int const tstart, int const dt, int const fbwd, int const io_proc ) {
 
   const unsigned int offset = 16;
   const size_t bytes = offset * sizeof(double _Complex);
@@ -971,10 +971,17 @@ int contract_diagram_read_oet_key_qlua (
 /***********************************************/
 /***********************************************/
 
-int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const pf2[3], int const gf1, int const pf1[3], int const gi2, int const pi2[3], int const gi1 ) {
+int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const pf2[3], int const gf1, int const pf1[3], int const gi2, int const pi2[3], int const gi1, int const sx[4] ) {
 
-  sprintf( suffix, "gf2%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/gf1%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/gi2%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/gi1%.2d", 
-      gf2, pf2[0], pf2[1], pf2[2], gf1, pf1[0], pf1[1], pf1[2], gi2, pi2[0], pi2[1], pi2[2], gi1 );
+  char sx_str[40] = "";
+
+  if ( sx != NULL ) {
+    sprintf ( sx_str, "/t%.2dx%.2dy%.2dz%.2d", sx[0], sx[1], sx[2], sx[3] );
+  }
+
+
+  sprintf( suffix, "gf2%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/gf1%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/gi2%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/gi1%.2d%s", 
+      gf2, pf2[0], pf2[1], pf2[2], gf1, pf1[0], pf1[1], pf1[2], gi2, pi2[0], pi2[1], pi2[2], gi1, sx_str );
  
   return(0);
 
