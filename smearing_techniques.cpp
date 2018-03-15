@@ -284,15 +284,14 @@ int Jacobi_Smearing(double *smeared_gauge_field, double *psi, int N, double kapp
 {
 #endif
 
-  int idx, idy;
-  int index_s, index_s_mx, index_s_px, index_s_my, index_s_py, index_s_mz, index_s_pz, index_g_mx;
-  int index_g_px, index_g_my, index_g_py, index_g_mz, index_g_pz; 
+  unsigned int index_s, index_s_mx, index_s_px, index_s_my, index_s_py, index_s_mz, index_s_pz, index_g_mx;
+  unsigned int index_g_px, index_g_my, index_g_py, index_g_mz, index_g_pz; 
   double *s=NULL, spinor[24];
 
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-    for(idx = 0; idx < VOLUME; idx++) {
+    for(unsigned int idx = 0; idx < VOLUME; idx++) {
       index_s = _GSI(idx);
 
       index_s_mx = _GSI(g_idn[idx][1]);
@@ -302,7 +301,7 @@ int Jacobi_Smearing(double *smeared_gauge_field, double *psi, int N, double kapp
       index_s_mz = _GSI(g_idn[idx][3]);
       index_s_pz = _GSI(g_iup[idx][3]);
 
-      idy = idx;
+      unsigned int idy = idx;
       index_g_mx = _GGI(g_idn[idy][1], 1);
       index_g_px = _GGI(idy, 1);
       index_g_my = _GGI(g_idn[idy][2], 2);

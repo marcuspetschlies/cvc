@@ -314,4 +314,84 @@ int distillation_vertex_displacement ( double**V, int numV, int momentum_number,
 /***********************************************************************************************/
 /***********************************************************************************************/
 
+/***********************************************************************************************
+ * calculate simpel V^+ W
+ ***********************************************************************************************/
+int distillation_vertex_vdagw ( double ** const vv, double ** const V, double ** const W, int const numV, int const numW ) {
+  
+  unsigned int const VOL3 = LX*LY*LZ;
+  size_t const sizeof_colorvector_field_timeslice = _GVI(VOL3) * sizeof(double);
+
+  int exitstatus;
+
+  double ratime, retime;
+
+  ratime = _GET_TIME;
+
+  /***********************************************
+   *variables for blas interface
+   ***********************************************/
+  double _Complex Z_1 = 1.;
+  double _Complex Z_0 = 0.;
+
+  char CHAR_N = 'N', CHAR_C = 'C';
+  int INT_M = numV, INT_N = numW, INT_K = _GVI(VOL3)/2;
+
+  /***********************************************/
+  /***********************************************/
+
+  /***********************************************
+   * V^+ W
+   ***********************************************/
+  _F(zgemm) ( &CHAR_C, &CHAR_N, &INT_M, &INT_N, &INT_K, &Z_1, (double _Complex*)(V[0]), &INT_K, (double _Complex*)(W[0]), &INT_K, &Z_0, (double _Complex*)(vv[0]), &INT_M, 1, 1);
+
+#ifdef HAVE_MPI
+#if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) 
+  /***********************************************
+   * reduce within global timeslice
+   ***********************************************/
+  double *vvx = NULL;
+  exitstatus = init_1level_buffer ( &vvx, 2*numV*numW );
+  if(exitstatus != 0) {
+    fprintf(stderr, "[distillation_vertex_vdagw] Error from init_1level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(5);
+  }
+
+  memcpy( vvx, vv[0], numV*numV*sizeof(double _Complex));
+  exitstatus = MPI_Allreduce( vvx, vv[0], 2*numV*numV, MPI_DOUBLE, MPI_SUM, g_ts_comm );
+  if( exitstatus != MPI_SUCCESS ) {
+    fprintf(stderr, "[distillation_vertex_vdagw] Error from MPI_Allreduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+
+  fini_1level_buffer ( &vvx );
+#endif
+#endif
+
+  /***********************************************/
+  /***********************************************/
+
+#ifdef HAVE_MPI
+  /***********************************************
+   * mpi barrier and total time
+   ***********************************************/
+  if ( ( exitstatus =  MPI_Barrier ( g_cart_grid ) ) != MPI_SUCCESS ) {
+    fprintf(stderr, "[distillation_vertex_displacement] Error from MPI_Barrier, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(6);
+  }
+#endif
+  retime = _GET_TIME;
+  if ( g_cart_id == 0 ) fprintf(stdout, "# [distillation_vertex_vdagw] time for distillation_vertex_vdagw = %e seconds\n", retime - ratime);
+
+  return(0);
+
+}  /* end of distillation_vertex_vdagw */
+
+/***********************************************************************************************/
+/***********************************************************************************************/
+
+
+/***********************************************************************************************/
+/***********************************************************************************************/
+
 }  /* end of namespace cvc */

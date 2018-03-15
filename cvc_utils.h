@@ -201,6 +201,7 @@ void xchange_nvector_3d ( double *phi, int N, int dir);
 
 void colorvector_field_eq_colorvector_field_ti_complex_field ( double*r, double*s, double *c, unsigned int N);
 
+int const get_io_proc (void);
 
 }  /* end of namespace cvc */
 #endif

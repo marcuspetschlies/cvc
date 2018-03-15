@@ -1,6 +1,20 @@
 #ifndef _GAUGE_IO_H
 #define _GAUGE_IO_H
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+#  include"lime.h"
+#ifdef HAVE_LIBLEMON
+#  include"lemon.h"
+#endif
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #include"dml.h"
 

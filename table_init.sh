@@ -1,7 +1,7 @@
 #!/bin/bash
 
-TYPE="double _Complex"
-TAG="z"
+TYPE="double"
+TAG="d"
 
 TTAG=$( echo $TAG | tr '[:lower:]' '[:upper:]')
 

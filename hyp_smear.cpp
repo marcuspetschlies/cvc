@@ -1,9 +1,15 @@
-#include "stdlib.h"
-#include "string.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <sys/time.h>
+#include <time.h>
+#include <string.h>
+
+
 #include "global.h"
 #include "cvc_geometry.h"
 #include "cvc_linalg.h"
 #include "cvc_utils.h"
+#include "mpi_init.h"
 #include "hyp_smear.h"
 
 #define _CM_PROJ(_U_OUT, _U_IN) { cm_proj(_U_IN); _cm_eq_cm(_U_OUT, _U_IN); }
@@ -92,7 +98,7 @@ int index_tab3[3][2][3] = {
 
 
 // modified APE smearing step 3
-int hyp_smear_step( double *u_out, double *u_in, double A[3], double accu, unsigned int imax) {
+int hyp_smear_step( double * const u_out, double * const u_in, double const A[3], double const accu, unsigned int const imax) {
   const int dim = 4;
   const unsigned int VOL3 = LX*LY*LZ;
   const double OneOverSix = 0.1666666666666667;
@@ -123,9 +129,9 @@ int hyp_smear_step( double *u_out, double *u_in, double A[3], double accu, unsig
 
       /* fprintf(stdout, "# [hyp_smear_step] mu = %d, nu = %d, rho = %d, eta = %d\n", mu, nu, rho, eta); */
 
-#ifdef HAVE_OPENMP
-#pragma omp parallel for default(shared)
-#endif
+//#ifdef HAVE_OPENMP
+//#pragma omp parallel for default(shared)
+//#endif
       for( unsigned int ix=0; ix<VOLUME; ix++) {
 
         // set initial v to (1 - alpha_3) u for each triple (mu, nu, rho)
@@ -170,9 +176,9 @@ int hyp_smear_step( double *u_out, double *u_in, double A[3], double accu, unsig
     for(iperm=0; iperm<3; iperm++) {
       nu = index_tab[mu][iperm][1];
 
-#ifdef HAVE_OPENMP
-#pragma omp parallel for default(shared)
-#endif
+//#ifdef HAVE_OPENMP
+//#pragma omp parallel for default(shared)
+//#endif
       for( unsigned int ix=0; ix<VOLUME; ix++) {
         _cm_eq_cm_ti_re(U, u_in+_GGI(ix,mu), (1.-A[1]));
 
@@ -232,9 +238,9 @@ int hyp_smear_step( double *u_out, double *u_in, double A[3], double accu, unsig
   /* construct V from Vtilde */
   for(mu=0; mu<4; mu++) {
 
-#ifdef HAVE_OPENMP
-#pragma omp parallel for default(shared)
-#endif
+//#ifdef HAVE_OPENMP
+//#pragma omp parallel for default(shared)
+//#endif
     for(unsigned int ix=0; ix<VOLUME; ix++) {
 
       _cm_eq_cm_ti_re(U, u_in+_GGI(ix,mu), (1.-A[0]));
@@ -286,18 +292,15 @@ int hyp_smear_step( double *u_out, double *u_in, double A[3], double accu, unsig
 /*****************************************************************************
  * 3-dimensional HYP smearing step
  *****************************************************************************/
-int hyp_smear_step_3d( double *u_out, double *u_in, double A[2], double accu, unsigned int imax) {
-  const int dim = 4;
-  const unsigned int VOL3 = LX*LY*LZ;
-  int mu, nu, rho, i, iperm, ix;
-  int imu, inu, irho;
+int hyp_smear_step_3d( double * const u_out, double * const u_in, double const A[2], double const accu, unsigned int const imax) {
+  int const dim = 4;
+  unsigned int const VOL3 = LX*LY*LZ;
+  int mu, iperm;
   double *vtilde[2];
-  size_t shift;
-  double U[18], U2[18], U3[18];
-  const double one_mi_a0    = 1. - A[0];
-  const double one_mi_a1    = 1. - A[1];
-  const double a0_over_four = 0.25 * A[0];
-  const double a1_over_two  = 0.5  * A[1];
+  double const one_mi_a0    = 1. - A[0];
+  double const one_mi_a1    = 1. - A[1];
+  double const a0_over_four = 0.25 * A[0];
+  double const a1_over_two  = 0.5  * A[1];
 
   /* TEST */
   /* fprintf(stdout, "# [hyp_smear_step_3d] A = %e, %e\n", A[0], A[1]); */
@@ -309,14 +312,21 @@ int hyp_smear_step_3d( double *u_out, double *u_in, double A[2], double accu, un
 
   /* construct Vtilde from U */
   for(mu=1; mu<4; mu++) {
+
     for(iperm=0; iperm<2; iperm++) {
-      nu  = index_tab3[mu-1][iperm][1]+1;
-      rho = index_tab3[mu-1][iperm][2]+1;
+
+      int const nu  = index_tab3[mu-1][iperm][1]+1;
+      int const rho = index_tab3[mu-1][iperm][2]+1;
 
       /* TEST */
       /* fprintf(stdout, "# [hyp_smear_step_3d] vtilde mu=%d, nu=%d, rho=%d\n", mu, nu, rho); */
 
-      for(ix=0; ix<VOLUME; ix++) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+      for( unsigned int ix = 0; ix < VOLUME; ix++ ) {
+
+        double U[18], U2[18], U3[18];
 
         /* TEST */
         /* fprintf(stdout, "# [hyp_smear_step_3d] ix = %d\n", ix); */
@@ -349,20 +359,28 @@ int hyp_smear_step_3d( double *u_out, double *u_in, double A[2], double accu, un
     }    /* end of loop on perm */
   }      /* end of loop on mu */
   
+#ifdef HAVE_MPI
   xchange_gauge_field(vtilde[0]);
   xchange_gauge_field(vtilde[1]);
+#endif
   
   /* construct V from Vtilde */
   for(mu=1; mu<4; mu++) {
-    imu = mu-1;
+    int const imu = mu-1;
 
-    for(ix=0; ix<VOLUME; ix++) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+    for ( unsigned int ix = 0; ix<VOLUME; ix++ ) {
+
+      double U[18], U2[18], U3[18];
 
       _cm_eq_cm_ti_re(U, u_in+_GGI(ix,mu), one_mi_a0 );
 
       for(iperm=0; iperm<2; iperm++) {
-        inu = index_tab3[mu-1][iperm][1];
-        nu  = inu + 1;
+        int const inu = index_tab3[mu-1][iperm][1];
+        int const nu  = inu + 1;
 
         /* TEST */
         /* fprintf(stdout, "# [hyp_smear_step_3d] ix = %d, mu = %d / %d, nu = %d / %d\n", ix, imu, mu, inu, nu); */
@@ -391,7 +409,9 @@ int hyp_smear_step_3d( double *u_out, double *u_in, double A[2], double accu, un
 
     }  /* of loop on ix */
   }    /* of loop on mu*/
+#ifdef HAVE_MPI
   xchange_gauge_field(u_out);
+#endif
   
   /* free auxilliary gauge fields */
   free(vtilde[0]); vtilde[0] = NULL;
@@ -403,9 +423,9 @@ int hyp_smear_step_3d( double *u_out, double *u_in, double A[2], double accu, un
 /*****************************************************************************
  * HYP smearing function
  *****************************************************************************/
-int hyp_smear (double *u, unsigned int N, double accu, unsigned int imax) {
-  int i, status;
-  double A[] =  { 0.75, 0.6, 0.3 };
+int hyp_smear (double * const u, unsigned int N, double accu, unsigned int imax) {
+  int status;
+  double const A[3] =  { 0.75, 0.6, 0.3 };
   double *u_aux = NULL;
 
   init_tab_inv();
@@ -416,9 +436,9 @@ int hyp_smear (double *u, unsigned int N, double accu, unsigned int imax) {
     EXIT(1);
   }
 
-  for(i = 1; i<=N; i++) {
+  for( unsigned int i = 1; i<=N; i++) {
     memcpy(u_aux, u, 72*VOLUMEPLUSRAND*sizeof(double));
-    status = hyp_smear_step(u, u_aux, A, accu, imax);
+    status = hyp_smear_step( u, u_aux, A, accu, imax);
 
     if(status != 0) {
       fprintf(stderr, "[hyp_smear] Error from hyp_smear_step, status was %d\n", status);
@@ -431,9 +451,15 @@ int hyp_smear (double *u, unsigned int N, double accu, unsigned int imax) {
 /*****************************************************************************
  * HYP smearing function
  *****************************************************************************/
-int hyp_smear_3d (double *u, unsigned int N, double *A, double accu, unsigned int imax) {
-  int i, status;
+int hyp_smear_3d (double * const u, unsigned int const N, double * const A, double const accu, unsigned int const imax) {
+
+  size_t const sizeof_gauge_field = 72*VOLUMEPLUSRAND*sizeof(double);
+
+  int status;
   double *u_aux = NULL;
+  double ratime, retime;
+
+  ratime = _GET_TIME;
 
   init_tab_inv();
 
@@ -443,9 +469,13 @@ int hyp_smear_3d (double *u, unsigned int N, double *A, double accu, unsigned in
     EXIT(1);
   }
 
-  for(i = 1; i<=N; i++) {
-    fprintf(stdout, "# [hyp_smear_3d] hyp smear step %d\n", i);
-    memcpy(u_aux, u, 72*VOLUMEPLUSRAND*sizeof(double));
+#ifdef HAVE_MPI
+  xchange_gauge_field ( u );
+#endif
+
+  for( unsigned int i = 1; i<=N; i++) {
+    if ( g_cart_id == 0 ) fprintf(stdout, "# [hyp_smear_3d] hyp smear step %d\n", i);
+    memcpy(u_aux, u, sizeof_gauge_field );
     status = hyp_smear_step_3d(u, u_aux, A, accu, imax);
 
     if(status != 0) {
@@ -454,6 +484,10 @@ int hyp_smear_3d (double *u, unsigned int N, double *A, double accu, unsigned in
     }
   }
   if(u_aux != NULL) free(u_aux);
+
+  retime = _GET_TIME;
+  if ( g_cart_id == 0 ) fprintf ( stdout, "# [hyp_smear_3d] time for hyp_smear_3d = %e seconds\n", retime-ratime );
+
   return(0);
 }  /* of hyp_smear_3d */
 

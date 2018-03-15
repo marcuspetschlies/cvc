@@ -294,6 +294,9 @@ int read_eigensystem_timeslice ( double **v, int numV, char*filename) {
   const size_t bytes = _GVI(1) * sizeof( double );
   const unsigned int VOL3 = LX*LY*LZ;
   int exitstatus;
+  double ratime, retime;
+ 
+  ratime = _GET_TIME;
 
   FILE *ifs = fopen ( filename, "r" );
   if ( ifs == NULL ) {
@@ -326,7 +329,8 @@ int read_eigensystem_timeslice ( double **v, int numV, char*filename) {
 
   fclose ( ifs );
 
-  /* TEST */
+#if 0
+  // TEST
   for ( int l = 0; l < numV; l++ ) {
 
     for ( int x1 = 0; x1 < LX; x1++ ) {
@@ -339,7 +343,18 @@ int read_eigensystem_timeslice ( double **v, int numV, char*filename) {
       }
     }}}
   }
-  /* END OF TEST */
+  // END OF TEST
+#endif  // of if 0
+
+#ifdef HAVE_MPI
+  if ( MPI_Barrier ( g_cart_grid ) != MPI_SUCCESS ) {
+    fprintf ( stderr, "[read_eigensystem_timeslice] Error from MPI_Barrier\n" );
+    return(3);
+  }
+#endif
+
+  retime = _GET_TIME;
+  if ( g_cart_id == 0 ) fprintf ( stdout, "# [] time for read_eigensystem_timeslice = %e seconds\n", retime-ratime );
 
   return(0);
 }  /* end of read_eigensystem_timeslice */
