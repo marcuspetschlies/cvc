@@ -191,6 +191,8 @@ void fermion_propagator_field_eq_fermion_propagator_field_ti_gamma (fermion_prop
 
 void fermion_propagator_field_eq_fermion_propagator_field_ti_re (fermion_propagator_type*r, fermion_propagator_type*s, double c, unsigned int N);
 
+int const get_io_proc (void);
+
 }  /* end of namespace cvc */
 #endif
 
