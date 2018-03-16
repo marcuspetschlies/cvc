@@ -34,6 +34,7 @@
 #include "cvc_utils.h"
 #include "mpi_init.h"
 #include "matrix_init.h"
+#include "table_init_z.h"
 #include "gamma.h"
 #include "zm4x4.h"
 #include "contract_diagrams.h"
@@ -592,8 +593,23 @@ int contract_diagram_zmx4x4_field_ti_eq_co ( double _Complex ***sp_out, double _
 /***********************************************/
 /***********************************************/
 
+int contract_diagram_zmx4x4_field_ti_eq_re ( double _Complex *** const sp, double const r_in, unsigned int const N) {
 
-int contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( double _Complex ***sp_out, double _Complex ***sp_in, unsigned int N) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for( unsigned int ir = 0; ir < N; ir++) {
+    zm4x4_ti_eq_re ( sp[ir], r_in );
+  }
+  return(0);
+}  /* end of contract_diagram_zmx4x4_field_ti_eq_re */
+
+/***********************************************/
+/***********************************************/
+
+
+
+int contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( double _Complex *** const sp_out, double _Complex *** const sp_in, unsigned int const N) {
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
@@ -738,6 +754,49 @@ int contract_diagram_write_aff (double _Complex***diagram, struct AffWriter_s*af
   }  /* end of if io_proc == 2 */
   return(0);
 }  /* end of contract_diagram_write_aff */
+
+/***********************************************/
+/***********************************************/
+
+STOPPED HERE
+/***********************************************
+ * write contracted diagram to FILE*
+ ***********************************************/
+int contract_diagram_write_fp ( double _Complex*** const diagram, FILE *fp, char*tag, int const tstart, int const dt, int const fbwd ) {
+
+  unsigned int const offset = 16;
+  size_t const bytes = offset * sizeof(double _Complex);
+  int const nt = dt + 1; /* tstart + dt */
+
+  int exitstatus;
+  double rtime;
+  double _Complex ***aff_buffer = NULL;
+
+  rtime = _GET_TIME;
+
+  if( ( exitstatus = init_3level_zbuffer ( &aff_buffer, nt, 4, 4 ) ) != 0 ) {
+    fprintf(stderr, "[contract_diagram_write_fp] Error from init_3level_zbuffer %s %d\n", __FILE__, __LINE__);
+    return(6);
+  }
+
+  for ( int i = 0; i <= dt; i++ ) {
+    int t = ( tstart + i * fbwd  + T_global ) % T_global;
+    memcpy( aff_buffer[i][0], diagram[t][0], bytes );
+  }
+
+  affdir = aff_writer_mkpath (affw, affn, aff_tag );
+  if ( ( exitstatus = aff_node_put_complex (affw, affdir, aff_buffer[0][0], (uint32_t)(nt*offset) ) ) != 0 ) {
+    fprintf(stderr, "[contract_diagram_write_fp] Error from aff_node_put_complex for tag %s, status was %d %s %d\n", aff_tag, exitstatus, __FILE__, __LINE__);
+      return(1);
+    }
+
+    fini_3level_zbuffer ( &aff_buffer );
+
+    rtime = _GET_TIME - rtime;
+    if (g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [contract_diagram_write_fp] time for contract_diagram_write_fp = %e seconds %s %d\n", rtime, __FILE__, __LINE__);
+
+  return(0);
+}  /* end of contract_diagram_write_fp */
 
 /***********************************************/
 /***********************************************/
@@ -971,6 +1030,9 @@ int contract_diagram_read_oet_key_qlua (
 /***********************************************/
 /***********************************************/
 
+/***********************************************
+ *
+ ***********************************************/
 int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const pf2[3], int const gf1, int const pf1[3], int const gi2, int const pi2[3], int const gi1, int const sx[4] ) {
 
   char sx_str[40] = "";
@@ -987,4 +1049,34 @@ int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const 
 
 }  // end of contract_diagram_key_suffix  
 
+
+/***********************************************/
+/***********************************************/
+
+/***********************************************
+ * multiply zm4x4 list with gamma matrix
+ ***********************************************/
+int contract_diagram_zm4x4_field_mul_gamma_lr ( double _Complex *** const sp_out, double _Complex *** const sp_in, gamma_matrix_type const gl, gamma_matrix_type const gr, unsigned int const N ) {
+
+  double _Complex ** sp_aux = init_2level_ztable ( 4, 4 );
+  if ( sp_aux == NULL ) { return(1) };
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( unsigned int it = 0; it < N; it++ ) {
+
+    // sp_aux <- sp_in x Gamma_r
+    zm4x4_eq_zm4x4_ti_zm4x4 ( sp_aux, sp_in[it],  gr.m );
+
+    // diagram <- Gamma_f1_1 x diagram_buffer
+    zm4x4_eq_zm4x4_ti_zm4x4 ( sp_out[it], gl.m, sp_aux );
+  }
+
+  fini_2level_ztable ( &sp_aux );
+
+}  // end of contract_diagram_zm4x4_field_mul_gamma_lr
+
+/***********************************************/
+/***********************************************/
 }  /* end of namespace cvc */
