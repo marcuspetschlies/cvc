@@ -347,15 +347,18 @@ int main(int argc, char **argv) {
   g_num_threads = 1;
 #endif
 
-  /* initialize MPI parameters */
+  /*******************************************************************
+   * initialize MPI parameters
+   *******************************************************************/
   mpi_init(argc, argv);
 
-  /******************************************************
-   *
-   ******************************************************/
+  /*******************************************************************
+   * set geometry parameters and fields
+   *******************************************************************/
 
-  if(init_geometry() != 0) {
-    fprintf(stderr, "[piN2piN] Error from init_geometry\n");
+  exitstatus = init_geometry();
+  if( exitstatus !=  0 ) {
+    fprintf(stderr, "[piN2piN] Error from init_geometry, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(1);
   }
   geometry();
@@ -365,30 +368,23 @@ int main(int argc, char **argv) {
   sizeof_spinor_field_timeslice = _GSI(VOL3)   * sizeof(double);
 
 
-#ifdef HAVE_MPI
-  /***********************************************
+  /*******************************************************************
    * set io process
-   ***********************************************/
-  if( g_proc_coords[0] == 0 && g_proc_coords[1] == 0 && g_proc_coords[2] == 0 && g_proc_coords[3] == 0) {
-    io_proc = 2;
-    fprintf(stdout, "# [piN2piN] proc%.4d tr%.4d is io process\n", g_cart_id, g_tr_id);
-  } else {
-    if( g_proc_coords[1] == 0 && g_proc_coords[2] == 0 && g_proc_coords[3] == 0) {
-      io_proc = 1;
-      fprintf(stdout, "# [piN2piN] proc%.4d tr%.4d is send process\n", g_cart_id, g_tr_id);
-    } else {
-      io_proc = 0;
-    }
+   *******************************************************************/
+  io_proc = get_io_proc ();
+  if( io_proc < 0 )  {
+    fprintf(stderr, "[piN2piN] Error from get_io_proc, status was %d %s %d\n", io_proc, __FILE__, __LINE__);
+    EXIT(29);
   }
-#else
-  io_proc = 2;
-#endif
 
-
-
-  /* read the gauge field */
+  /*******************************************************************
+   * read the gauge field or take it over from tmLQCD
+   *******************************************************************/
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
 #ifndef HAVE_TMLQCD_LIBWRAPPER
+  /*******************************************************************
+   * read the gauge field
+   *******************************************************************/
   switch(g_gauge_file_format) {
     case 0:
       sprintf(filename, "%s.%.4d", gaugefilename_prefix, Nconf);
@@ -402,10 +398,13 @@ int main(int argc, char **argv) {
       break;
   }
   if(exitstatus != 0) {
-    fprintf(stderr, "[piN2piN] Error, could not read gauge field\n");
+    fprintf(stderr, "[piN2piN] Error, could not read gauge field %s %d\n", __FILE__, __LINE__);
     EXIT(21);
   }
 #else
+  /*******************************************************************
+   * take gauge field over from tmLQCD
+   *******************************************************************/
   Nconf = g_tmLQCD_lat.nstore;
   if(g_cart_id== 0) fprintf(stdout, "[piN2piN] Nconf = %d\n", Nconf);
 
@@ -419,7 +418,7 @@ int main(int argc, char **argv) {
     EXIT(4);
   }
   if( tmLQCD_gauge_field == NULL) {
-    fprintf(stderr, "[piN2piN] Error, tmLQCD_gauge_field is NULL\n");
+    fprintf(stderr, "[piN2piN] Error, tmLQCD_gauge_field is NULL %s %d\n", __FILE__, __LINE__);
     EXIT(5);
   }
   memcpy( g_gauge_field, tmLQCD_gauge_field, 72*VOLUME*sizeof(double));
@@ -428,10 +427,12 @@ int main(int argc, char **argv) {
 #ifdef HAVE_MPI
   xchange_gauge_field ( g_gauge_field );
 #endif
-  /* measure the plaquette */
-  
+
+  /*******************************************************************
+   * measure the plaquette
+   *******************************************************************/
   if ( ( exitstatus = plaquetteria  ( g_gauge_field ) ) != 0 ) {
-    fprintf(stderr, "[piN2piN] Error from plaquetteria, status was %d\n", exitstatus);
+    fprintf(stderr, "[piN2piN] Error from plaquetteria, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(2);
   }
   free ( g_gauge_field ); g_gauge_field = NULL;
@@ -448,7 +449,7 @@ int main(int argc, char **argv) {
     if ( N_ape > 0 ) {
       exitstatus = APE_Smearing(gauge_field_smeared, alpha_ape, N_ape);
       if(exitstatus != 0) {
-        fprintf(stderr, "[piN2piN] Error from APE_Smearing, status was %d\n", exitstatus);
+        fprintf(stderr, "[piN2piN] Error from APE_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(47);
       }
     }  /* end of if N_aoe > 0 */
@@ -459,7 +460,7 @@ int main(int argc, char **argv) {
    ***********************************************************/
   exitstatus = get_stochastic_source_timeslices();
   if(exitstatus != 0) {
-    fprintf(stderr, "[piN2piN] Error from get_stochastic_source_timeslices, status was %d\n", exitstatus);
+    fprintf(stderr, "[piN2piN] Error from get_stochastic_source_timeslices, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(19);
   }
 
@@ -476,7 +477,7 @@ int main(int argc, char **argv) {
   for(i=0; i<max_num_diagram; i++) {
     conn_X[i] = create_sp_field( (size_t)VOLUME * num_component_max );
     if(conn_X[i] == NULL) {
-      fprintf(stderr, "[piN2piN] Error, could not alloc conn_X\n");
+      fprintf(stderr, "[piN2piN] Error from create_sp_field %s %d\n", __FILE__, __LINE__);
       EXIT(2);
     }
   }
@@ -500,7 +501,7 @@ int main(int argc, char **argv) {
   propagator_list_up = (double**)malloc(no_fields * sizeof(double*));
   propagator_list_up[0] = (double*)malloc(no_fields * sizeof_spinor_field);
   if(propagator_list_up[0] == NULL) {
-    fprintf(stderr, "[piN2piN] Error from malloc\n");
+    fprintf(stderr, "[piN2piN] Error from malloc %s %d\n", __FILE__, __LINE__);
     EXIT(44);
   }
   for(i=1; i<no_fields; i++) propagator_list_up[i] = propagator_list_up[i-1] + _GSI(VOLUME);
@@ -527,6 +528,10 @@ int main(int argc, char **argv) {
         }
         /* source-smear the point source */
         exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[piN2piN] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(30);
+        }
 
         if( g_fermion_type == _TM_FERMION ) {
           spinor_field_tm_rotation(spinor_work[0], spinor_work[0], +1, g_fermion_type, VOLUME);
@@ -534,7 +539,7 @@ int main(int argc, char **argv) {
 
         exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_up, 0);
         if(exitstatus != 0) {
-          fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
+          fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(12);
         }
 
@@ -544,11 +549,15 @@ int main(int argc, char **argv) {
 
         /* sink-smear the point-source propagator */
         exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[piN2piN] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(30);
+        }
 
         memcpy( propagator_list_up[i_prop*n_s*n_c + is], spinor_work[1], sizeof_spinor_field);
       }  /* end of loop on spin color */
       retime = _GET_TIME;
-      if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] time for up propagator = %e seconds\n", retime-ratime);
+      if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] time for up propagator = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
 
     }  /* end of loop on coherent source timeslices */
   }    /* end of loop on base source timeslices */
@@ -561,7 +570,7 @@ int main(int argc, char **argv) {
     propagator_list_dn = (double**)malloc(no_fields * sizeof( double*));
     propagator_list_dn[0] = (double*)malloc(no_fields * sizeof_spinor_field);
     if(propagator_list_dn[0] == NULL) {
-      fprintf(stderr, "[piN2piN] Error from malloc\n");
+      fprintf(stderr, "[piN2piN] Error from malloc %s %d\n", __FILE__, __LINE__);
       EXIT(45);
     }
     for(i=1; i<no_fields; i++) propagator_list_dn[i] = propagator_list_dn[i-1] + _GSI(VOLUME);
@@ -590,6 +599,10 @@ int main(int argc, char **argv) {
 
           /* source-smear the point source */
           exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "[piN2piN] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(30);
+          }
 
           if( g_fermion_type == _TM_FERMION ) {
             spinor_field_tm_rotation(spinor_work[0], spinor_work[0], -1, g_fermion_type, VOLUME);
@@ -597,7 +610,7 @@ int main(int argc, char **argv) {
 
           exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_dn, 0);
           if(exitstatus != 0) {
-            fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
+            fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(12);
           }
 
@@ -607,12 +620,16 @@ int main(int argc, char **argv) {
 
           /* sink-smear the point-source propagator */
           exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "[piN2piN] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(30);
+          }
 
 
           memcpy( propagator_list_dn[i_prop*n_s*n_c + is], spinor_work[1], sizeof_spinor_field);
         }
         retime = _GET_TIME;
-        if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] time for dn propagator = %e seconds\n", retime-ratime);
+        if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] time for dn propagator = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
       } /* end of loop on coherent source timeslices */
     }  /* end of loop on base source timeslices */
   } else {
@@ -636,7 +653,7 @@ int main(int argc, char **argv) {
   sequential_propagator_list = (double**)malloc(no_fields * sizeof(double*));
   sequential_propagator_list[0] = (double*)malloc(no_fields * sizeof_spinor_field);
   if( sequential_propagator_list[0] == NULL) {
-    fprintf(stderr, "[piN2piN] Error from malloc\n");
+    fprintf(stderr, "[piN2piN] Error from malloc %s %d\n", __FILE__, __LINE__);
     EXIT(46);
   }
   for(i=1; i<no_fields; i++) sequential_propagator_list[i] = sequential_propagator_list[i-1] + _GSI(VOLUME);
@@ -652,7 +669,7 @@ int main(int argc, char **argv) {
 
     double **prop_list = (double**)malloc(g_coherent_source_number * sizeof(double*));
     if(prop_list == NULL) {
-      fprintf(stderr, "[piN2piN] Error from malloc\n");
+      fprintf(stderr, "[piN2piN] Error from malloc %s %d\n", __FILE__, __LINE__);
       EXIT(43);
     }
 
@@ -678,12 +695,16 @@ int main(int argc, char **argv) {
         /* build sequential source */
         exitstatus = init_coherent_sequential_source(spinor_work[0], prop_list, gsx[0], g_coherent_source_number, g_seq_source_momentum_list[iseq_mom], 5);
         if(exitstatus != 0) {
-          fprintf(stderr, "[piN2piN] Error from init_coherent_sequential_source, status was %d\n", exitstatus);
+          fprintf(stderr, "[piN2piN] Error from init_coherent_sequential_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(14);
         }
 
         /* source-smear the coherent source */
         exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[piN2piN] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(30);
+        }
 
         /* tm-rotate sequential source */
         if( g_fermion_type == _TM_FERMION ) {
@@ -694,7 +715,7 @@ int main(int argc, char **argv) {
         /* invert */
         exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_up, 0);
         if(exitstatus != 0) {
-          fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
+          fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(12);
         }
 
@@ -705,6 +726,10 @@ int main(int argc, char **argv) {
 
         /* sink-smear the coherent-source propagator */
         exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[piN2piN] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(30);
+        }
 
         memcpy( sequential_propagator_list[i_prop*n_s*n_c + is], spinor_work[1], sizeof_spinor_field);
 
@@ -715,13 +740,13 @@ int main(int argc, char **argv) {
           if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] writing propagator to file %s\n", filename);
           exitstatus = write_propagator(spinor_work[1], filename, 0, 64);
           if(exitstatus != 0) {
-            fprintf(stderr, "[piN2piN] Error from write_propagator, status was %d\n", exitstatus);
+            fprintf(stderr, "[piN2piN] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(15);
           }
         }  /* end of if write sequential propagator */
       }  /* end of loop on spin-color component */
       retime = _GET_TIME;
-      if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] time for seq propagator = %e seconds\n", retime-ratime);
+      if(g_cart_id == 0) fprintf(stdout, "# [piN2piN] time for seq propagator = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
 
 
     }  /* end of loop on base source locations */
@@ -742,18 +767,18 @@ int main(int argc, char **argv) {
       affw = aff_writer(filename);
       aff_status_str = (char*)aff_writer_errstr(affw);
       if( aff_status_str != NULL ) {
-        fprintf(stderr, "[piN2piN] Error from aff_writer, status was %s\n", aff_status_str);
+        fprintf(stderr, "[piN2piN] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
         EXIT(4);
       }
     
       if( (affn = aff_writer_root(affw)) == NULL ) {
-        fprintf(stderr, "[piN2piN] Error, aff writer is not initialized\n");
+        fprintf(stderr, "[piN2piN] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
         EXIT(5);
       }
   
       aff_buffer = (double _Complex*)malloc(T_global*g_sv_dim*g_sv_dim*sizeof(double _Complex));
         if(aff_buffer == NULL) {
-        fprintf(stderr, "[piN2piN] Error from malloc\n");
+        fprintf(stderr, "[piN2piN] Error from malloc %s %d\n", __FILE__, __LINE__);
         EXIT(6);
       }
     }  /* end of if io_proc == 2 */
@@ -804,7 +829,7 @@ int main(int argc, char **argv) {
         /* momentum projection */
         double ****connt = NULL;
         if( (exitstatus = init_4level_buffer(&connt, T, g_sink_momentum_number, num_component_N_N * g_sv_dim, 2*g_sv_dim) ) != 0 ) {
-          fprintf(stderr, "[piN2piN] Error from init_4level_buffer, status was %d\n", exitstatus);
+          fprintf(stderr, "[piN2piN] Error from init_4level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(57);
         }
         for(it=0; it<T; it++) {
@@ -828,7 +853,7 @@ int main(int argc, char **argv) {
           k = T * g_sink_momentum_number * num_component_N_N * g_sv_dim * g_sv_dim * 2;
           exitstatus = MPI_Allgather(connt[0][0][0], k, MPI_DOUBLE, buffer[0][0][0], k, MPI_DOUBLE, g_tr_comm);
           if(exitstatus != MPI_SUCCESS) {
-            fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d\n", exitstatus);
+            fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(124);
           }
         }
@@ -857,7 +882,7 @@ int main(int argc, char **argv) {
               }
               int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
               if(status != 0) {
-                fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d\n", status);
+                fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d %s %d\n", status, __FILE__, __LINE__);
                 EXIT(81);
               }
             }  /* end of loop on components */
@@ -872,7 +897,7 @@ int main(int argc, char **argv) {
 
         fini_4level_buffer(&connt);
         retime = _GET_TIME;
-        if( io_proc == 2 ) fprintf(stdout, "# [piN2piN] time for writing N-N = %e seconds\n", retime-ratime);
+        if( io_proc == 2 ) fprintf(stdout, "# [piN2piN] time for writing N-N = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
       }  /* end of loop on diagrams */
 
       /***********************
@@ -897,7 +922,7 @@ int main(int argc, char **argv) {
         /* momentum projection */
         double ****connt = NULL;
         if( (exitstatus = init_4level_buffer(&connt, T, g_sink_momentum_number, num_component_D_D * g_sv_dim, 2*g_sv_dim) ) != 0 ) {
-          fprintf(stderr, "[piN2piN] Error from init_4level_buffer, status was %d\n", exitstatus);
+          fprintf(stderr, "[piN2piN] Error from init_4level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(59);
         }
         for(it=0; it<T; it++) {
@@ -915,13 +940,13 @@ int main(int argc, char **argv) {
 #ifdef HAVE_MPI
         if(io_proc>0) {
           if( (exitstatus = init_4level_buffer(&buffer, T_global, g_sink_momentum_number, num_component_D_D*g_sv_dim, 2*g_sv_dim) ) != 0 ) {
-            fprintf(stderr, "[piN2piN] Error from init_4level_buffer, status was %d\n", exitstatus);
+            fprintf(stderr, "[piN2piN] Error from init_4level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(60);
           }
           k = T * g_sink_momentum_number * num_component_D_D * g_sv_dim * g_sv_dim * 2;
           exitstatus = MPI_Allgather(connt[0][0][0], k, MPI_DOUBLE, buffer[0][0][0], k, MPI_DOUBLE, g_tr_comm);
           if(exitstatus != MPI_SUCCESS) {
-            fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d\n", exitstatus);
+            fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(124);
           }
         }
@@ -951,7 +976,7 @@ int main(int argc, char **argv) {
               }
               int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
               if(status != 0) {
-                fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d\n", status);
+                fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d %s %d\n", status, __FILE__, __LINE__);
                 EXIT(81);
               }
             }  /* end of loop on components */
@@ -965,7 +990,7 @@ int main(int argc, char **argv) {
 
         fini_4level_buffer(&connt);
         retime = _GET_TIME;
-        if( io_proc == 2 ) fprintf(stdout, "# [piN2piN] time for writing D-D = %e seconds\n", retime-ratime);
+        if( io_proc == 2 ) fprintf(stdout, "# [piN2piN] time for writing D-D = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
       }  /* end of loop on diagrams */
 
       /***********************
@@ -996,7 +1021,7 @@ int main(int argc, char **argv) {
           /* momentum projection */
           double ****connt = NULL;
           if( (exitstatus = init_4level_buffer(&connt, T, g_sink_momentum_number, num_component_piN_D*g_sv_dim, 2*g_sv_dim) ) != 0 ) {
-            fprintf(stderr, "[piN2piN] Error from init_4level_buffer, status was %d\n", exitstatus);
+            fprintf(stderr, "[piN2piN] Error from init_4level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(61);
           }
           for(it=0; it<T; it++) {
@@ -1014,13 +1039,13 @@ int main(int argc, char **argv) {
 #ifdef HAVE_MPI
           if(io_proc>0) {
             if( (exitstatus = init_4level_buffer(&buffer, T_global, g_sink_momentum_number, num_component_piN_D*g_sv_dim, 2*g_sv_dim) ) != 0 ) {
-              fprintf(stderr, "[piN2piN] Error from init_4level_buffer, status was %d\n", exitstatus);
+              fprintf(stderr, "[piN2piN] Error from init_4level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(62);
             }
             k = T * g_sink_momentum_number * num_component_piN_D * g_sv_dim * g_sv_dim * 2;
             exitstatus = MPI_Allgather(connt[0][0][0], k, MPI_DOUBLE, buffer[0][0][0], k, MPI_DOUBLE, g_tr_comm);
             if(exitstatus != MPI_SUCCESS) {
-              fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d\n", exitstatus);
+              fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(124);
             }
           }
@@ -1051,7 +1076,7 @@ int main(int argc, char **argv) {
                 }
                 int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
                 if(status != 0) {
-                  fprintf(stderr, "[piN2piN] Error from aff_node_put_complex, status was %d\n", status);
+                  fprintf(stderr, "[piN2piN] Error from aff_node_put_complex, status was %d %s %d\n", status, __FILE__, __LINE__);
                   EXIT(82);
                 }
               }  /* end of loop on components */
@@ -1065,7 +1090,7 @@ int main(int argc, char **argv) {
 
           fini_4level_buffer(&connt);
           retime = _GET_TIME;
-          if( io_proc == 2 ) fprintf(stdout, "# [piN2piN] time for writing piN-D = %e seconds\n", retime-ratime);
+          if( io_proc == 2 ) fprintf(stdout, "# [piN2piN] time for writing piN-D = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
         }  /* end of loop on diagrams */
 
       }  /* end of loop on sequential source momenta */       
@@ -1091,14 +1116,14 @@ int main(int argc, char **argv) {
 
       double **connt = NULL;
       if( (exitstatus = init_2level_buffer(&connt, g_sink_momentum_number, 2*T) ) != 0 ) {
-        fprintf(stderr, "[piN2piN] Error from init_2level_buffer, status was %d\n", exitstatus);
+        fprintf(stderr, "[piN2piN] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(61);
       }
 
       /* momentum projection */
       exitstatus = momentum_projection ( conn_M, connt[0], T, g_sink_momentum_number, g_sink_momentum_list);
       if(exitstatus != 0) {
-        fprintf(stderr, "[piN2piN] Error from momentum_projection, status was %d\n", exitstatus);
+        fprintf(stderr, "[piN2piN] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(8);
       }
 
@@ -1115,7 +1140,7 @@ int main(int argc, char **argv) {
         k = T * g_sink_momentum_number * 2;
         exitstatus = MPI_Allgather(connt[0], k, MPI_DOUBLE, buffer2[0], k, MPI_DOUBLE, g_tr_comm);
         if(exitstatus != MPI_SUCCESS) {
-          fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d\n", exitstatus);
+          fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(124);
         }
       }
@@ -1142,7 +1167,7 @@ int main(int argc, char **argv) {
           }
           int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global);
           if(status != 0) {
-            fprintf(stderr, "[piN2piN] Error from aff_node_put_complex, status was %d\n", status);
+            fprintf(stderr, "[piN2piN] Error from aff_node_put_complex, status was %d %s %d\n", status, __FILE__, __LINE__);
             EXIT(83);
           }
 
@@ -1162,7 +1187,7 @@ int main(int argc, char **argv) {
     if(io_proc == 2) {
       aff_status_str = (char*)aff_writer_close (affw);
       if( aff_status_str != NULL ) {
-        fprintf(stderr, "[piN2piN] Error from aff_writer_close, status was %s\n", aff_status_str);
+        fprintf(stderr, "[piN2piN] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
         EXIT(11);
       }
       if(aff_buffer != NULL) free(aff_buffer);
@@ -1188,7 +1213,7 @@ int main(int argc, char **argv) {
    ******************************************************/
   exitstatus = init_rng_stat_file (g_seed, NULL);
   if(exitstatus != 0) {
-    fprintf(stderr, "[piN2piN] Error from init_rng_stat_file status was %d\n", exitstatus);
+    fprintf(stderr, "[piN2piN] Error from init_rng_stat_file status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(38);
   }
 
@@ -1213,7 +1238,7 @@ int main(int argc, char **argv) {
 
       sprintf(filename, "%s.%.4d.%.5d", filename_prefix, Nconf, isample);
       if ( ( exitstatus = read_lime_spinor( stochastic_source_list[isample], filename, 0) ) != 0 ) {
-        fprintf(stderr, "[piN2piN] Error from read_lime_spinor, status was %d\n", exitstatus);
+        fprintf(stderr, "[piN2piN] Error from read_lime_spinor, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(2);
       }
 
@@ -1221,7 +1246,7 @@ int main(int argc, char **argv) {
       /* set a stochstic volume source */
       exitstatus = prepare_volume_source(stochastic_source_list[isample], VOLUME);
       if(exitstatus != 0) {
-        fprintf(stderr, "[piN2piN] Error from prepare_volume_source, status was %d\n", exitstatus);
+        fprintf(stderr, "[piN2piN] Error from prepare_volume_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(39);
       }
 
@@ -1231,7 +1256,7 @@ int main(int argc, char **argv) {
 
       sprintf(filename, "%s.%.4d.%.5d", filename_prefix2, Nconf, isample);
       if ( ( exitstatus = read_lime_spinor( stochastic_propagator_list[isample], filename, 0) ) != 0 ) {
-        fprintf(stderr, "[piN2piN] Error from read_lime_spinor, status was %d\n", exitstatus);
+        fprintf(stderr, "[piN2piN] Error from read_lime_spinor, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(2);
       }
     } else {
@@ -1268,7 +1293,7 @@ int main(int argc, char **argv) {
         memset(spinor_work[1], 0, sizeof_spinor_field);
         exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_dn, 0);
         if(exitstatus != 0) {
-          fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
+          fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(12);
         }
 
@@ -1328,12 +1353,12 @@ int main(int argc, char **argv) {
       affw = aff_writer(filename);
       aff_status_str = (char*)aff_writer_errstr(affw);
       if( aff_status_str != NULL ) {
-        fprintf(stderr, "[piN2piN] Error from aff_writer, status was %s\n", aff_status_str);
+        fprintf(stderr, "[piN2piN] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
         EXIT(4);
       }
     
       if( (affn = aff_writer_root(affw)) == NULL ) {
-        fprintf(stderr, "[piN2piN] Error, aff writer is not initialized\n");
+        fprintf(stderr, "[piN2piN] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
         EXIT(5);
       }
   
@@ -1347,11 +1372,11 @@ int main(int argc, char **argv) {
 
     double **tffi_list=NULL, **pffii_list=NULL;
     if( (exitstatus = init_2level_buffer(&tffi_list, n_s*n_c, _GSI(VOLUME)) ) != 0 ) {
-      fprintf(stderr, "[piN2piN] Error from init_2level_buffer, status was %d\n", exitstatus);
+      fprintf(stderr, "[piN2piN] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(50);
     }
     if( (exitstatus = init_2level_buffer(&pffii_list, n_s*n_c, _GSI(VOLUME)) ) != 0 ) {
-      fprintf(stderr, "[piN2piN] Error from init_2level_buffer, status was %d\n", exitstatus);
+      fprintf(stderr, "[piN2piN] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(51);
     }
 
@@ -1405,12 +1430,12 @@ int main(int argc, char **argv) {
               num_component_piN_piN, gamma_component_piN_piN, gamma_component_sign_piN_piN);
 
           if(exitstatus != 0) {
-            fprintf(stderr, "[piN2piN] Error from contract_piN_piN, status was %d\n", exitstatus);
+            fprintf(stderr, "[piN2piN] Error from contract_piN_piN, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(41);
           }
 
           retime = _GET_TIME;
-          if(g_cart_id == 0)  fprintf(stdout, "# [piN2piN] time for contractions = %e seconds\n", retime-ratime);
+          if(g_cart_id == 0)  fprintf(stdout, "# [piN2piN] time for contractions = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
   
           for(i=0; i<6; i++)
           {
@@ -1438,13 +1463,13 @@ int main(int argc, char **argv) {
 #ifdef HAVE_MPI
             if(io_proc>0) {
               if( (exitstatus = init_4level_buffer(&buffer, T_global, g_sink_momentum_number, num_component_piN_piN*g_sv_dim, 2*g_sv_dim) ) != 0 ) {
-                fprintf(stderr, "[piN2piN] Error from init_4level_buffer, status was %d\n", exitstatus);
+                fprintf(stderr, "[piN2piN] Error from init_4level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(53);
               }
               k = T * g_sink_momentum_number * num_component_piN_piN * g_sv_dim * g_sv_dim * 2;
               exitstatus = MPI_Allgather(connt[0][0][0], k, MPI_DOUBLE, buffer[0][0][0], k, MPI_DOUBLE, g_tr_comm);
               if(exitstatus != MPI_SUCCESS) {
-                fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d\n", exitstatus);
+                fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(124);
               }
             }
@@ -1476,7 +1501,7 @@ int main(int argc, char **argv) {
                   }
                   int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
                   if(status != 0) {
-                    fprintf(stderr, "[piN2piN] Error from aff_node_put_complex, status was %d\n", status);
+                    fprintf(stderr, "[piN2piN] Error from aff_node_put_complex, status was %d %s %d\n", status, __FILE__, __LINE__);
                     EXIT(84);
                   }
                 }  /* end of loop on components */
@@ -1491,7 +1516,7 @@ int main(int argc, char **argv) {
             fini_4level_buffer(&connt);
 
             retime = _GET_TIME;
-            if( io_proc == 2 ) fprintf(stdout, "# [piN2piN] time for writing piN-piN BW = %e seconds\n", retime-ratime);
+            if( io_proc == 2 ) fprintf(stdout, "# [piN2piN] time for writing piN-piN BW = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
           }
 
         }  /* end of loop on pf2 */
@@ -1506,7 +1531,7 @@ int main(int argc, char **argv) {
     if(io_proc == 2) {
       aff_status_str = (char*)aff_writer_close (affw);
       if( aff_status_str != NULL ) {
-        fprintf(stderr, "[piN2piN] Error from aff_writer_close, status was %s\n", aff_status_str);
+        fprintf(stderr, "[piN2piN] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
         EXIT(11);
       }
       if(aff_buffer != NULL) free(aff_buffer);
@@ -1550,7 +1575,7 @@ int main(int argc, char **argv) {
 
     double **pfifi_list = NULL;
     if( (exitstatus = init_2level_buffer(&pfifi_list, n_s*n_c, _GSI(VOLUME)) ) != 0 ) {
-      fprintf(stderr, "[piN2piN] Error from init_2level_buffer, status was %d\n", exitstatus);
+      fprintf(stderr, "[piN2piN] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(54);
     }
 
@@ -1571,7 +1596,7 @@ int main(int argc, char **argv) {
         affw = aff_writer(filename);
         aff_status_str = (char*)aff_writer_errstr(affw);
         if( aff_status_str != NULL ) {
-          fprintf(stderr, "[piN2piN] Error from aff_writer, status was %s\n", aff_status_str);
+          fprintf(stderr, "[piN2piN] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
           EXIT(4);
         }
     
@@ -1601,7 +1626,7 @@ int main(int argc, char **argv) {
           for ( int ispin = 0; ispin < 4; ispin++ ) {
             sprintf(filename, "%s-oet.%.4d.t%.2d.%.2d.%.5d", filename_prefix, Nconf, gsx[0], ispin, isample);
             if ( ( exitstatus = read_lime_spinor( stochastic_source_list[ispin], filename, 0) ) != 0 ) {
-              fprintf(stderr, "[piN2piN] Error from read_lime_spinor, status was %d\n", exitstatus);
+              fprintf(stderr, "[piN2piN] Error from read_lime_spinor, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(2);
             }
           }
@@ -1613,7 +1638,7 @@ int main(int argc, char **argv) {
 
         } else {
           if( (exitstatus = init_timeslice_source_oet(stochastic_source_list, gsx[0], NULL, 1)) != 0 ) {
-            fprintf(stderr, "[piN2piN] Error from init_timeslice_source_oet, status was %d\n", exitstatus);
+            fprintf(stderr, "[piN2piN] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(63);
           }
         }
@@ -1633,7 +1658,7 @@ int main(int argc, char **argv) {
           memset(spinor_work[1], 0, sizeof_spinor_field);
           exitstatus = tmLQCD_invert(spinor_work[1], spinor_work[0], op_id_up, 0);
           if(exitstatus != 0) {
-            fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d\n", exitstatus);
+            fprintf(stderr, "[piN2piN] Error from tmLQCD_invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(44);
           }
 
@@ -1652,7 +1677,7 @@ int main(int argc, char **argv) {
         for(iseq_mom=0; iseq_mom < g_seq_source_momentum_number; iseq_mom++) {
 
           if( (exitstatus = init_timeslice_source_oet(stochastic_source_list, gsx[0], g_seq_source_momentum_list[iseq_mom], 0) ) != 0 ) {
-            fprintf(stderr, "[piN2piN] Error from init_timeslice_source_oet, status was %d\n", exitstatus);
+            fprintf(stderr, "[piN2piN] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(64);
           }
 
@@ -1706,14 +1731,14 @@ int main(int argc, char **argv) {
     
           double **connt = NULL;
           if( (exitstatus = init_2level_buffer(&connt, T, 2*g_sink_momentum_number ) ) != 0 ) {
-            fprintf(stderr, "[piN2piN] Error from init_2level_buffer, status was %d\n", exitstatus);
+            fprintf(stderr, "[piN2piN] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(61);
           }
     
           /* momentum projection */
           exitstatus = momentum_projection3 ( conn_M, connt[0], T, g_sink_momentum_number, g_sink_momentum_list);
           if(exitstatus != 0) {
-            fprintf(stderr, "[piN2piN] Error from momentum_projection, status was %d\n", exitstatus);
+            fprintf(stderr, "[piN2piN] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(8);
           }
     
@@ -1724,13 +1749,13 @@ int main(int argc, char **argv) {
 #ifdef HAVE_MPI
           if(io_proc>0) {
             if( (exitstatus = init_2level_buffer(&buffer2, T_global, 2*g_sink_momentum_number ) ) != 0 ) {
-              fprintf(stderr, "[piN2piN] Error from init_2level_buffer, status was %d\n", exitstatus);
+              fprintf(stderr, "[piN2piN] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(62);
             }
             k = T * g_sink_momentum_number * 2;
             exitstatus = MPI_Allgather(connt[0], k, MPI_DOUBLE, buffer2[0], k, MPI_DOUBLE, g_tr_comm);
             if(exitstatus != MPI_SUCCESS) {
-              fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d\n", exitstatus);
+              fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(124);
             }
           }
@@ -1758,7 +1783,7 @@ int main(int argc, char **argv) {
               }
               int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global);
               if(status != 0) {
-                fprintf(stderr, "[piN2piN] Error from aff_node_put_complex, status was %d\n", status);
+                fprintf(stderr, "[piN2piN] Error from aff_node_put_complex, status was %d %s %d\n", status, __FILE__, __LINE__);
                 EXIT(85);
               }
     
@@ -1771,7 +1796,7 @@ int main(int argc, char **argv) {
 #endif
           fini_2level_buffer(&connt);
           retime = _GET_TIME;
-          if( io_proc == 2 ) fprintf(stdout, "# [piN2piN] time for writing pi-pi = %e seconds\n", retime-ratime);
+          if( io_proc == 2 ) fprintf(stdout, "# [piN2piN] time for writing pi-pi = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
 
           /***********************************************
            ***********************************************
@@ -1788,7 +1813,7 @@ int main(int argc, char **argv) {
             exitstatus = prepare_seqn_stochastic_vertex_propagator_sliced3d_oet (pfifi_list, stochastic_propagator_list, &(stochastic_propagator_list[4]),
                     &(propagator_list_up[i_prop*n_s*n_c]), g_seq2_source_momentum_list[iseq2_mom], 5, 5);
             if( exitstatus != 0 ) {
-              fprintf(stderr, "[piN2piN] Error from prepare_seqn_stochastic_vertex_propagator_sliced3d_oet, status was %d\n", exitstatus);
+              fprintf(stderr, "[piN2piN] Error from prepare_seqn_stochastic_vertex_propagator_sliced3d_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(45);
             }
 
@@ -1802,7 +1827,7 @@ int main(int argc, char **argv) {
             exitstatus = contract_piN_piN_oet ( conn_X, &(propagator_list_up[i_prop*n_s*n_c]), &(propagator_list_dn[i_prop*n_s*n_c]), 
                 pfifi_list, num_component_piN_piN, gamma_component_piN_piN, gamma_component_sign_piN_piN);
             if( exitstatus != 0 ) {
-              fprintf(stderr, "[piN2piN] Error from contract_piN_piN_oet, status was %d\n", exitstatus);
+              fprintf(stderr, "[piN2piN] Error from contract_piN_piN_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(46);
             }
   
@@ -1833,13 +1858,13 @@ int main(int argc, char **argv) {
 #ifdef HAVE_MPI
               if(io_proc>0) {
                 if( (exitstatus = init_4level_buffer(&buffer, T_global, g_sink_momentum_number, num_component_piN_piN*g_sv_dim, 2*g_sv_dim) ) != 0 ) {
-                  fprintf(stderr, "[piN2piN] Error from init_4level_buffer, status was %d\n", exitstatus);
+                  fprintf(stderr, "[piN2piN] Error from init_4level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                   EXIT(56);
                 }
                 k = T * g_sink_momentum_number * num_component_piN_piN * g_sv_dim * g_sv_dim * 2;
                 exitstatus = MPI_Allgather(connt[0][0][0], k, MPI_DOUBLE, buffer[0][0][0], k, MPI_DOUBLE, g_tr_comm);
                 if(exitstatus != MPI_SUCCESS) {
-                  fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d\n", exitstatus);
+                  fprintf(stderr, "[piN2piN] Error from MPI_Allgather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                   EXIT(124);
                 }
               }
@@ -1871,7 +1896,7 @@ int main(int argc, char **argv) {
                     }
                     int status = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)T_global*g_sv_dim*g_sv_dim);
                     if(status != 0) {
-                      fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d\n", status);
+                      fprintf(stderr, "[piN2piN] Error from aff_node_put_double, status was %d %s %d\n", status, __FILE__, __LINE__);
                       EXIT(86);
                     }
                   }  /* end of loop on components */
@@ -1886,7 +1911,7 @@ int main(int argc, char **argv) {
               fini_4level_buffer(&connt);
 
               retime = _GET_TIME;
-              if( io_proc == 2 ) fprintf(stdout, "# [piN2piN] time for writing piN-piN Z = %e seconds\n", retime-ratime);
+              if( io_proc == 2 ) fprintf(stdout, "# [piN2piN] time for writing piN-piN Z = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
             }  /* end of loop on diagrams */
 
           }  /* end of loop on seq2 source momentum pf2 */
@@ -1898,7 +1923,7 @@ int main(int argc, char **argv) {
       if(io_proc == 2) {
         aff_status_str = (char*)aff_writer_close (affw);
         if( aff_status_str != NULL ) {
-          fprintf(stderr, "[piN2piN] Error from aff_writer_close, status was %s\n", aff_status_str);
+          fprintf(stderr, "[piN2piN] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
           EXIT(111);
         }
         if(aff_buffer != NULL) free(aff_buffer);
