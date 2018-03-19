@@ -2513,7 +2513,20 @@ int const contract_cvc_tensor_eo_lm_mee (
   const size_t sizeof_eo_spinor_field_timeslice = _GSI( VOL3half ) * sizeof(double);
 
   int exitstatus;
+#ifdef HAVE_LHPC_AFF
+  struct AffNode_s *affn = NULL, *affdir=NULL;
+#endif
 
+  if ( g_ts_id == 0 && g_tr_id == 0 ) {
+#ifdef HAVE_LHPC_AFF
+    if( (affn = aff_writer_root(affw)) == NULL ) {
+      fprintf(stderr, "[contract_cvc_tensor_eo_lm_mee] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
+      return(1);
+    }
+#endif
+  }
+
+  // allocate auxilliary spinor fields and spinor work (with halo)
   double ** eo_spinor_field = init_2level_dtable ( 18, _GSI(Vhalf) );
   if ( eo_spinor_field == NULL ) {
     fprintf(stderr, "# [contract_cvc_tensor_eo_lm_mee] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
@@ -2639,6 +2652,7 @@ int const contract_cvc_tensor_eo_lm_mee (
         return(6);
       }
     }
+
     for ( unsigned int imu = 0; imu < 4; imu++ ) {
     for ( unsigned int inu = 0; inu < 4; inu++ ) {
 
@@ -2651,24 +2665,69 @@ int const contract_cvc_tensor_eo_lm_mee (
       // process with time ray id 0 and time slice id 0
       if ( g_tr_id == 0 ) {
 
-        double _Complex *** meesp_out = init_3level_ztable ( T_global, 3, nev );
-        if ( meesp_out == NULL ) {
-          fprintf ( stderr, "[contract_cvc_tensor_eo_lm_mee] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
-          return(8);
-        }
+        int const dt[4] = { (imu == 0), 0, -(inu == 0), (imu == 0) - (inu == 0 ) };
+ 
+        for ( unsigned int imom = 0; imom < momentum_number; imom++ ) {
 
-        STOPPED HERE
-        for ( unsigned int it = 0; it < T_global; it++ ) {
-        }
+          double const mom[4] = {
+            0, 
+            2. * M_PI * momentum_list[imom][0] / LX_global,
+            2. * M_PI * momentum_list[imom][1] / LY_global,
+            2. * M_PI * momentum_list[imom][2] / LZ_global };
+          double _Complex const phase[4] = {
+            cos ( mom[imu] ) + I * sin( mom[imu] ),
+            1.,
+            cos ( mom[inu] ) - I * sin( mom[inu] ),
+            cos ( mom[imu] - mom[inu] ) + I * sin( mom[imu] - mom[inu] ) };
+
+          double _Complex *** meesp_out = init_3level_ztable ( T_global, 3, nev );
+          if ( meesp_out == NULL ) {
+            fprintf ( stderr, "[contract_cvc_tensor_eo_lm_mee] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
+            return(8);
+          }
+
+          // loop on timeslices
+          for ( unsigned int it = 0; it < T_global; it++ ) {
+ 
+            // loop on eigenvectors
+            for ( unsigned int iev = 0; iev < nev; iev++ ) {
+
+              // combine the 4 scalar products with corresponding phase; sort according to dt
+              for ( unsigned isp = 0; isp < 4; isp++ ) {
+                meesp_out[it][dt[isp]+1][iev] += meesp_buffer[it][iev][isp] * phase[isp];
+              }
+
+            }  // end of loop on eigenvectors
+             
+            // loop on dt
+            for ( int idt = 0; idt < 3; idt++ ) {
+              char aff_tag[200];
+              sprintf ( aff_tag, "/%s/mu%d/nu%d/px%.2dpy%.2dpz%.2d/t%.2d/dt%d", tag, imu, inu, momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], it, idt-1);
+
+              affdir = aff_writer_mkpath( affw, affn, aff_tag );
+
+              exitstatus = aff_node_put_complex ( affw, affdir, meesp_out[it][idt], nev );
+              if ( exitstatus != 0 ) {
+                fprintf ( stderr, "[contract_cvc_tensor_eo_lm_mee] Error from aff_node_put_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                return(15);
+              }
+          
+            }  // end of loop on dt
+
+          }  // end of loop on global timeslices
+
+        
+          fini_3level_ztable ( &meesp_out );
+        }  // end of loop on 3-momenta
 
 
-        fini_3level_ztable ( &meesp_out );
-      }
+      }  // end of if g_tr_id == 0
 
   
-    }}
+    }}  // end of loop on nu, mu
 
     if ( g_tr_id == 0 ) fini_3level_ztable ( meesp_buffer );
+
   }  // end of if g_ts_id == 0
 
   fini_5level_ztable ( &meesp );
