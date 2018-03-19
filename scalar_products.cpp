@@ -27,6 +27,15 @@
 #include "scalar_products.h"
 
 namespace cvc {
+
+
+/*********************************************/
+/*********************************************/
+
+/*********************************************
+ * complex-valued 4-dim scalar product of two
+ * spinor fields
+ *********************************************/
 void spinor_scalar_product_co(complex *w, double *xi, double *phi, int V) {
 
   const int nthreads = g_num_threads;
@@ -87,6 +96,13 @@ void spinor_scalar_product_co(complex *w, double *xi, double *phi, int V) {
 #endif
 }  /* end of spinor_scalar_product_co */
 
+/*********************************************/
+/*********************************************/
+
+/*********************************************
+ * real-valued 4-dim scalar product of two
+ * spinor fields
+ *********************************************/
 void spinor_scalar_product_re(double *r, double *xi, double *phi, int V) {
 
   const int nthreads = g_num_threads;
@@ -145,60 +161,66 @@ void spinor_scalar_product_re(double *r, double *xi, double *phi, int V) {
  * eo = 0 --- even subfield
  * eo = 1 --- odd subfield
  *************************************************/
-void eo_spinor_spatial_scalar_product_co(complex *w, double *xi, double *phi, int eo) {
+void eo_spinor_spatial_scalar_product_co( double _Complex * w, double * const xi, double * const phi, int const eo) {
  
-  const int nthreads = g_num_threads;
-  const int sincr = _GSI(nthreads);
-  const unsigned int N = VOLUME / 2;
+  unsigned int const N = VOLUME / 2;
 
-  int ix, iix, it;
-  int threadid = 0;
-  complex p[T];
+  memset( w, 0, T*sizeof(double _Complex) );
+
 #ifdef HAVE_OPENMP
   omp_lock_t writelock;
-#else
-  complex *p2 = p;
-#endif
 
-  memset(p, 0, T*sizeof(complex));
-
-#ifdef HAVE_OPENMP
   omp_init_lock(&writelock);
-#pragma omp parallel default(shared) private(ix,iix,it,threadid) shared(xi,phi,eo)
+#pragma omp parallel default(shared)
 {
-  complex p2[T];
-  threadid = omp_get_thread_num();
 #endif
+  complex p2[T];
   memset(p2, 0, T*sizeof(complex));
-  iix = _GSI(threadid);
-  for(ix = threadid; ix < N; ix += nthreads) {
-    it  = g_eosub2t[eo][ix];
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for( unsigned int ix = 0; ix < N; ix++ ) {
+    unsigned int const iix = _GSI(ix);
+    unsigned int const it  = g_eosub2t[eo][ix];
     _co_pl_eq_fv_dag_ti_fv( (p2+it), xi+iix, phi+iix);
-    iix += sincr;
   }
 #ifdef HAVE_OPENMP
-
   omp_set_lock(&writelock);
-  for(it=0; it<T; it++) {
-    _co_pl_eq_co(p+it, p2+it);
-    /* TEST */
-    /* fprintf(stdout, "# [eo_spinor_spatial_scalar_product_co] proc%.4d thread%.4d %3d %25.16e %25.16e\n", g_cart_id, threadid, it, p2[it].re, p2[it].im); */
+#endif
+  for( unsigned int it = 0; it < T; it++) {
+    w[it] = p2[it].re + p2[it].im * I;
+    // TEST
+    // fprintf(stdout, "# [eo_spinor_spatial_scalar_product_co] proc%.4d thread%.4d %3d %25.16e %25.16e\n", g_cart_id, threadid, it, p2[it].re, p2[it].im );
   }
-  omp_unset_lock(&writelock);
 
-}  /* end of parallel region */
+#ifdef HAVE_OPENMP
+  omp_unset_lock(&writelock);
+}  // end of parallel region
   omp_destroy_lock(&writelock);
 #endif
-  /* fprintf(stdout, "# [spinor_scalar_product_co] %d local: %e %e\n", g_cart_id, p2.re, p2.im); */
+  // fprintf(stdout, "# [spinor_scalar_product_co] %d local: %e %e\n", g_cart_id, creal(p2), cimag(p2));
 
 #ifdef HAVE_MPI
-  memset(w, 0, T*sizeof(complex));
-  MPI_Allreduce(p, w, 2*T, MPI_DOUBLE, MPI_SUM, g_ts_comm);
-#else
-  memcpy(w, p, T*sizeof(complex));
+#  if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ)
+  double px[2*T];
+  memcpy( px, w, 2*T*sizeof(double) );
+  if ( MPI_Allreduce(px, w, 2*T, MPI_DOUBLE, MPI_SUM, g_ts_comm) != MPI_SUCCESS ) {
+    fprintf ( stderr, "[eo_spinor_spatial_scalar_product_co] Error from MPI_Allreduce %s %d\n", __FILE__, __LINE__ );
+    EXIT(1);
+  }
+#  endif
 #endif
-}  /* eo_spinor_spatial_scalar_product_co */
+}  // eo_spinor_spatial_scalar_product_co
 
+/*********************************************/
+/*********************************************/
+
+/*********************************************
+ * complex-valued 4-dim generalized scalar product
+ * of two spinor fields, including Dirac gamma
+ * matrix
+ *********************************************/
 void eo_spinor_dag_gamma_spinor(complex*gsp, double*xi, int gid, double*phi) {
 
   const int nthreads = g_num_threads;
