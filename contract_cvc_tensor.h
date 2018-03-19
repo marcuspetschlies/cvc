@@ -55,9 +55,12 @@ int cvc_loop_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, cha
 
 int cvc_loop_eo_check_wi_momentum_space_lma ( double **wi, double ***loop_lma, int (*momentum_list)[3], int momentum_number  );
 
-int vdag_w_spin_color_reduction ( double ***contr, double**V, double**W, int dimV, int dimW, int t );
+int vdag_w_spin_color_reduction ( double ***contr, double ** const V, double ** const W, unsigned int const dimV, unsigned int const dimW, int const t );
 
-int vdag_w_momentum_projection ( double _Complex ***contr_p, double ***contr_x, int dimV, int dimW, int (*momentum_list)[3], int momentum_number, int t, int ieo, int mu );
+int vdag_w_momentum_projection ( double _Complex ***contr_p, double *** const contr_x, int const dimV, int const dimW, 
+        int (* const momentum_list)[3], int const momentum_number, int const t, int const ieo, int const mu );
+
+
 
 int vdag_w_write_to_aff_file ( double _Complex ***cvc_tp, int nv, int nw, struct AffWriter_s*affw, char*tag, int (*momentum_list)[3], int momentum_number, int io_proc );
 
