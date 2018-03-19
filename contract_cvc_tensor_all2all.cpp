@@ -1,5 +1,5 @@
 /****************************************************
- * contract_cvc_tensor.cpp
+ * contract_cvc_tensor_all2all.cpp
  *
  * Sun Feb  5 13:23:50 CET 2017
  *
@@ -38,7 +38,7 @@
 #include "project.h"
 #include "Q_phi.h"
 #include "Q_clover_phi.h"
-#include "contract_cvc_tensor.h"
+#include "contract_cvc_tensor_all2all.h"
 
 namespace cvc {
 
