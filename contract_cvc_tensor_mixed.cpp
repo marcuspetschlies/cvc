@@ -38,7 +38,7 @@
 #include "project.h"
 #include "Q_phi.h"
 #include "Q_clover_phi.h"
-#include "contract_cvc_tensor.h"
+#include "contract_cvc_tensor_mixed.h"
 
 namespace cvc {
 

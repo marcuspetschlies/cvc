@@ -442,8 +442,13 @@ int gsp_calculate_v_dag_gamma_p_w(double**V, double**W, int num, int momentum_nu
           )       
  *
  ***********************************************************************************************/
-int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number, int (*momentum_list)[3], int gamma_id_number, int*gamma_id_list, char*prefix, char*tag, int io_proc,
-   double *gauge_field, double **mzz[2], double **mzzinv[2] ) {
+int gsp_calculate_v_dag_gamma_p_w_block(
+    double**V, int numV,
+    int momentum_number, int (*momentum_list)[3],
+    int gamma_id_number, int*gamma_id_list,
+    char*prefix, char*tag, int io_proc,
+    double *gauge_field, double **mzz[2], double **mzzinv[2] 
+    ) {
   
   const unsigned int Vhalf = VOLUME / 2;
   const unsigned int VOL3half = (LX*LY*LZ)/2;
@@ -613,6 +618,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
          * multiply with gamma matrix
          ***********************************************/
         spinor_field_eq_gamma_ti_spinor_field( Xtsxpxg[0], gamma_id_list[igam], Xtsxp[0], numV*VOL3half );
+        g5_phi ( Xtsxpxg[0], numV*VOL3half );
 
         /***********************************************
          * reduce in position space
@@ -782,6 +788,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
          * multiply with gamma matrix
          ***********************************************/
         spinor_field_eq_gamma_ti_spinor_field( Xtsxpxg[0], gamma_id_list[igam], Xtsxp[0], numV*VOL3half );
+        g5_phi( Xtsxpxg[0], numV*VOL3half );
 
         /***********************************************
          * reduce in position space
@@ -951,6 +958,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
          * multiply with gamma matrix
          ***********************************************/
         spinor_field_eq_gamma_ti_spinor_field( Xtsxpxg[0], gamma_id_list[igam], Xtsxp[0], numV*VOL3half );
+        g5_phi ( Xtsxpxg[0], numV*VOL3half );
 
         /***********************************************
          * reduce in position space
@@ -1126,6 +1134,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(double**V, int numV, int momentum_number
          * multiply with gamma matrix
          ***********************************************/
         spinor_field_eq_gamma_ti_spinor_field( Xtsxpxg[0], gamma_id_list[igam], Xtsxp[0], numV*VOL3half );
+        g5_phi ( Xtsxpxg[0], numV*VOL3half );
 
         /***********************************************
          * reduce in position space
