@@ -2700,53 +2700,82 @@ int vdag_w_momentum_projection ( double _Complex ***contr_p, double ***contr_x, 
 /***********************************************************
  *
  ***********************************************************/
-int vdag_w_write_to_aff_file ( double _Complex ***contr_tp, int nv, int nw, struct AffWriter_s*affw, char*tag, int (*momentum_list)[3], int momentum_number, int io_proc ) {
+int vdag_w_write_to_aff_file ( 
+    double _Complex *** const contr_tp, unsigned int const nv, unsigned int const nw, 
+    struct AffWriter_s*affw, 
+    char * const tag, 
+    int (* const momentum_list)[3], unsigned int const momentum_number, 
+    int const io_proc 
+) {
 
 #ifdef HAVE_LHPC_AFF
-  const uint32_t items = nv * nw;
+  uint32_t const items = nv * nw;
 #else
-  const unsigned int items = nv * nw;
+  unsigned int const items = nv * nw;
 #endif
 
   int exitstatus;
   double ratime, retime;
-#ifdef HAVE_LHPC_AFF
-  struct AffNode_s *affn = NULL, *affdir=NULL;
-#endif
-  char aff_buffer_path[200];
+  char buffer_path[200];
 
   ratime = _GET_TIME;
 
-  if ( io_proc == 1 ) {
+  if ( io_proc >= 1 ) {
+
 #ifdef HAVE_LHPC_AFF
-    if( (affn = aff_writer_root(affw)) == NULL ) {
+
+    struct AffNode_s *affn = aff_writer_root( affw );
+    if( affn == NULL ) {
       fprintf(stderr, "[vdag_w_write_to_aff_file] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
       return(1);
     }
-#endif
-  }
 
-  if(io_proc == 1) {
+    struct AffNode s * affdir = aff_writer_mkdir ( affw, affn, tag );
+    char * const aff_errstr = aff_writer_errstr ( affw );
+    if ( aff_errstr != NULL ) {
+      fprintf(stderr, "[vdag_w_write_to_aff_file] Error from aff_reader_chpath for key prefix \"%s\", status was %s\n", key_prefix, aff_errstr );
+      return(2);
+    }
 
-    for( int i = 0; i < momentum_number; i++ ) {
+    for( unsigned int i = 0; i < momentum_number; i++ ) {
 
-      sprintf(aff_buffer_path, "%s/px%.2dpy%.2dpz%.2d", tag, momentum_list[i][0], momentum_list[i][1], momentum_list[i][2] );
-      /* fprintf(stdout, "# [vdag_w_write_to_aff_file] current aff path = %s\n", aff_buffer_path); */
+      sprintf(buffer_path, "px%.2dpy%.2dpz%.2d", momentum_list[i][0], momentum_list[i][1], momentum_list[i][2] );
+      // fprintf(stdout, "# [vdag_w_write_to_aff_file] current aff path = %s\n", buffer_path);
 
-#ifdef HAVE_LHPC_AFF
-      affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
+      struct AffNode_s * affpath = aff_writer_mkpath ( affw, affdir, buffer_path);
 
-      exitstatus = aff_node_put_complex (affw, affdir, contr_tp[i][0], items );
-#endif
+      exitstatus = aff_node_put_complex ( affw, affpath, contr_tp[i][0], items );
       if(exitstatus != 0) {
-        fprintf(stderr, "[vdag_w_write_to_aff_file] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        fprintf(stderr, "[vdag_w_write_to_aff_file] Error from aff_node_put_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(5);
       }
-    }
-  }  /* if io_proc == 2 */
+    }  // end of loop on momenta
+#else
+
+    for( unsigned int i = 0; i < momentum_number; i++ ) {
+
+      sprintf( buffer_path, "%s_px%.2dpy%.2dpz%.2d", tag, momentum_list[i][0], momentum_list[i][1], momentum_list[i][2] );
+      FILE *ofs = fopen ( buffer_path, "wb" );
+      if ( ofs == NULL ) {
+        fprintf(stderr, "[vdag_w_write_to_aff_file] Error from fopen %s %d\n", __FILE__, __LINE__);
+        return(4);
+      }
+
+      if ( fwrite ( contr_tp[i][0], sizeof(double _Complex), items, ofs ) != items ) {
+        fprintf ( stdout, "[vdag_w_write_to_aff_file] Error from fwrite %s %d\n", __FILE__, __LINE__ );
+        return(5);
+      }
+
+      fclose ( ofs );
+#endif
+  }  /* if io_proc >= 1 */
 
 #ifdef HAVE_MPI
-  MPI_Barrier( g_cart_grid );
+  if ( MPI_Barrier( g_cart_grid ) != MPI_SUCCESS ) {
+    fprintf ( stderr, "# [vdag_w_write_to_aff_file] Error from MPI_Barrier %s %d\n", __FILE__, __LINE__);
+    return(1);
+  }
+
 #endif
 
   retime = _GET_TIME;
