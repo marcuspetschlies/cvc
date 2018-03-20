@@ -6944,4 +6944,37 @@ int fix_eigenvector_phase ( double **evecs_field, int num ) {
 /***********************************************************/
 /***********************************************************/
 
+int const get_io_proc (void) {
+
+#ifdef HAVE_MPI
+  /****************************************************************************
+   * set io process
+   ****************************************************************************/
+  if( g_proc_coords[0] == 0 && g_proc_coords[1] == 0 && g_proc_coords[2] == 0 && g_proc_coords[3] == 0) {
+    fprintf(stdout, "# [get_io_proc] proc%.4d is io process\n", g_cart_id);
+#if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) 
+    if(g_tr_id != 0) {
+      fprintf(stderr, "[get_io_proc] Error, io proc must be id 0 in g_tr_comm %s %d\n", __FILE__, __LINE__);
+      return(-1);
+    }
+    return ( 2 );
+#endif
+  } else {
+    if( g_proc_coords[1] == 0 && g_proc_coords[2] == 0 && g_proc_coords[3] == 0) {
+      fprintf(stdout, "# [get_io_proc] proc%.4d is send process\n", g_cart_id);
+      return ( 1 );
+    } else {
+      return ( 0 );
+    }
+  }
+#else
+  return(2);
+#endif
+  return ( -1 );
+}  // end of get_io_proc
+
+/****************************************************************************/
+/****************************************************************************/
+
+
 }  /* end of namespace cvc */
