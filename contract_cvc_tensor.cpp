@@ -35,6 +35,8 @@
 #include "cvc_utils.h"
 #include "mpi_init.h"
 #include "matrix_init.h"
+#include "table_init_d.h"
+#include "table_init_z.h"
 #include "project.h"
 #include "Q_phi.h"
 #include "Q_clover_phi.h"
@@ -2110,7 +2112,7 @@ int cvc_loop_eo_check_wi_momentum_space_lma ( double **wi, double ***loop_lma, i
  * NOTE:
  *
  ***********************************************************/
-int contract_cvc_tensor_eo_lm_factors ( 
+int contract_cvc_tensor_eo_lm_factors (
     double ** const eo_evecs_field, unsigned int const nev, 
     double * const gauge_field, double ** const mzz[2], double ** const mzzinv[2],
     struct AffWriter_s ** const affw, char * const tag, 
@@ -2126,10 +2128,9 @@ int contract_cvc_tensor_eo_lm_factors (
 
   int exitstatus;
 
-  double ***eo_block_field = NULL, **w = NULL, **xw = NULL;
   char aff_tag[200];
 
-  int block_number = nev / block_length;
+  unsigned int const block_number = nev / block_length;
   if (io_proc == 2 && g_verbose > 3 ) {
     fprintf(stdout, "# [contract_cvc_tensor_eo_lm_factors] number of blocks = %u\n", block_length);
   }
@@ -2141,7 +2142,7 @@ int contract_cvc_tensor_eo_lm_factors (
   /***********************************************************
    * auxilliary eo spinor fields with halo
    ***********************************************************/
-  double ** eo_spinor_work init_2level_dtable ( 4, _GSI( (VOLUME+RAND)/2 )  );
+  double ** eo_spinor_work = init_2level_dtable ( 4, _GSI( (VOLUME+RAND)/2 )  );
   if ( eo_spinor_work != NULL ) {
     fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
     return(2);
@@ -2168,7 +2169,7 @@ int contract_cvc_tensor_eo_lm_factors (
   }
 
   double _Complex *** contr_p = init_3level_ztable ( momentum_number, nev, block_length );
-  if ( contr_p = NULL )  {
+  if ( contr_p == NULL )  {
     fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__);
     return(2);
   }
@@ -2190,7 +2191,7 @@ int contract_cvc_tensor_eo_lm_factors (
    *
    * Xbar using Mbar_{ee}^{-1}, i.e. mzzinv[1][0] and 
    ***********************************************************/
-  for ( int iev = 0; iev < nev; iev++ ) {
+  for ( unsigned int iev = 0; iev < nev; iev++ ) {
     memcpy( eo_spinor_work[0], v[iev], sizeof_eo_spinor_field );
     X_clover_eo ( xv[iev], eo_spinor_work[0], gauge_field, mzzinv[1][0] );
   }  // end of loop on eigenvectors
@@ -2198,7 +2199,7 @@ int contract_cvc_tensor_eo_lm_factors (
   /***********************************************************
    * auxilliary block field
    ***********************************************************/
-  eo_block_field = init_3level_dtable ( 4, block_length, _GSI(Vhalf) );
+  double *** eo_block_field = init_3level_dtable ( 4, block_length, _GSI(Vhalf) );
   if ( eo_block_field == NULL ) {
     fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__);
     return(2);
@@ -2290,7 +2291,7 @@ int contract_cvc_tensor_eo_lm_factors (
       /***********************************************************
        * apply  g5 Gmu W
        ***********************************************************/
-      for ( int iev = 0; iev < block_length; iev++ ) {
+      for ( unsigned int iev = 0; iev < block_length; iev++ ) {
         memcpy ( eo_spinor_work[0], w[iev], sizeof_eo_spinor_field );
         /* Gmufwdr */
         apply_cvc_vertex_eo( eo_block_field[0][iev], eo_spinor_work[0], mu, 0, gauge_field, 0 );
@@ -2303,7 +2304,7 @@ int contract_cvc_tensor_eo_lm_factors (
       /***********************************************************
        * apply  g5 Gmu XW
        ***********************************************************/
-      for ( int iev = 0; iev < block_length; iev++ ) {
+      for ( unsigned int iev = 0; iev < block_length; iev++ ) {
         memcpy ( eo_spinor_work[0], xw[iev], sizeof_eo_spinor_field );
         /* Gmufwdr */
         apply_cvc_vertex_eo( eo_block_field[2][iev], eo_spinor_work[0], mu, 0, gauge_field, 1 );
@@ -2426,7 +2427,7 @@ int contract_cvc_tensor_eo_lm_factors (
    * xv
    ***********************************************************/
 
-  for ( int iev = 0; iev < nev; iev++ ) {
+  for ( unsigned int iev = 0; iev < nev; iev++ ) {
     // eo_spinor_work <- xv
     memcpy( eo_spinor_work[0],  xv[iev], sizeof_eo_spinor_field );
     // xv <- v
@@ -2491,7 +2492,7 @@ int contract_cvc_tensor_eo_lm_factors (
   fini_3level_ztable ( &contr_p );
 
   return(0);
-}  /* end of contract_cvc_tensor_eo_lm_factors */
+}  // end of contract_cvc_tensor_eo_lm_factors
 
 /***********************************************************/
 /***********************************************************/
@@ -2504,13 +2505,13 @@ int const contract_cvc_tensor_eo_lm_mee (
     double * const gauge_field, double ** const mzz[2], double ** const mzzinv[2],
     struct AffWriter_s * affw, char * const tag, 
     int (* const momentum_list)[3], unsigned int const momentum_number,
-    unsigned int const io_proc,
+    unsigned int const io_proc
 ) {
 
   const unsigned int Vhalf                      = VOLUME / 2;
   const unsigned int VOL3half                   = LX*LY*LZ/2;
-  const size_t sizeof_eo_spinor_field           = _GSI( VOLUME   ) * sizeof(double);
-  const size_t sizeof_eo_spinor_field_timeslice = _GSI( VOL3half ) * sizeof(double);
+  const size_t sizeof_eo_spinor_field           = _GSI( Vhalf    ) * sizeof(double);
+  // const size_t sizeof_eo_spinor_field_timeslice = _GSI( VOL3half ) * sizeof(double);
 
   int exitstatus;
 #ifdef HAVE_LHPC_AFF
@@ -2558,8 +2559,10 @@ int const contract_cvc_tensor_eo_lm_mee (
   if (g_ts_id == 0 ) {
     //                           mu x nu x timeslice x eigenvector x 4 scalar products
     meesp = init_5level_ztable ( 4,   4,   T,          nev,          4 );
-    fprintf(stderr, "# [contract_cvc_tensor_eo_lm_mee] Error from init_5level_ztable %s %d\n", __FILE__, __LINE__);
-    return(2);
+    if ( meesp == NULL )  {
+      fprintf(stderr, "# [contract_cvc_tensor_eo_lm_mee] Error from init_5level_ztable %s %d\n", __FILE__, __LINE__);
+      return(2);
+    }
   }
 
   /***********************************************************
@@ -2614,26 +2617,26 @@ int const contract_cvc_tensor_eo_lm_mee (
         memset ( p[0], 0, 2*T*sizeof( double _Complex ) );
 
         // the 8 scalar products
-        eo_spinor_spatial_scalar_product_co( p[0], gmubv[imu], gnufw[inu], 0 );
-        eo_spinor_spatial_scalar_product_co( p[1], gnufv[inu], gmubw[imu], 0 );
-        if ( g_ts_id == 0 ) for ( unsigned int it = 0; it < T; it++ ) meesp[imu][inu][it][0] = p[0] + p[1];
+        eo_spinor_spatial_scalar_product_co( p[0], gmubv[imu], gmufw[inu], 0 );
+        eo_spinor_spatial_scalar_product_co( p[1], gmufv[inu], gmubw[imu], 0 );
+        if ( g_ts_id == 0 ) for ( int it = 0; it < T; it++ ) meesp[imu][inu][it][inev][0] = p[0][it] + p[1][it];
 
-        eo_spinor_spatial_scalar_product_co( p[0], gmufv[imu], gnufw[inu], 0 );
-        eo_spinor_spatial_scalar_product_co( p[1], gnufv[inu], gmufw[imu], 0 );
-        if ( g_ts_id == 0 ) for ( unsigned int it = 0; it < T; it++ ) meesp[imu][inu][it][1] = p[0] + p[1];
+        eo_spinor_spatial_scalar_product_co( p[0], gmufv[imu], gmufw[inu], 0 );
+        eo_spinor_spatial_scalar_product_co( p[1], gmufv[inu], gmufw[imu], 0 );
+        if ( g_ts_id == 0 ) for ( int it = 0; it < T; it++ ) meesp[imu][inu][it][inev][1] = p[0][it] + p[1][it];
 
-        eo_spinor_spatial_scalar_product_co( p[0], gnubv[inu], gmufw[imu], 0 );
-        eo_spinor_spatial_scalar_product_co( p[1], gmufv[imu], gnubw[inu], 0 );
-        if ( g_ts_id == 0 ) for ( unsigned int it = 0; it < T; it++ ) meesp[imu][inu][it][2] = p[0] + p[1];
+        eo_spinor_spatial_scalar_product_co( p[0], gmubv[inu], gmufw[imu], 0 );
+        eo_spinor_spatial_scalar_product_co( p[1], gmufv[imu], gmubw[inu], 0 );
+        if ( g_ts_id == 0 ) for ( int it = 0; it < T; it++ ) meesp[imu][inu][it][inev][2] = p[0][it] + p[1][it];
 
-        eo_spinor_spatial_scalar_product_co( p[0], gnubv[inu], gmubw[imu], 0 );
-        eo_spinor_spatial_scalar_product_co( p[1], gmubv[imu], gnubw[inu], 0 );
-        if ( g_ts_id == 0 ) for ( unsigned int it = 0; it < T; it++ ) meesp[imu][inu][it][3] = p[0] + p[1];
+        eo_spinor_spatial_scalar_product_co( p[0], gmubv[inu], gmubw[imu], 0 );
+        eo_spinor_spatial_scalar_product_co( p[1], gmubv[imu], gmubw[inu], 0 );
+        if ( g_ts_id == 0 ) for ( int it = 0; it < T; it++ ) meesp[imu][inu][it][inev][3] = p[0][it] + p[1][it];
 
       }
     }
 
-    fini_2evel_ztable ( &p );
+    fini_2level_ztable ( &p );
 
   }  // end of loop on nev
 
@@ -2656,12 +2659,18 @@ int const contract_cvc_tensor_eo_lm_mee (
     for ( unsigned int imu = 0; imu < 4; imu++ ) {
     for ( unsigned int inu = 0; inu < 4; inu++ ) {
 
+#ifdef HAVE_MPI
+#  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ ) 
       // gather at g_tr_id = 0 and g_ts_id == 0
-      if ( MPI_Gather( meesp[imu][inu][0][0], 2*T*nev*4, MPI_DOUBLE, meesp_buffer[0][0], 2*T*nev*4, MPI_DOUBLE, 0, g_tr_comm ) != MPI_SUCCESS ) {
+      exitstatus = MPI_Gather( meesp[imu][inu][0][0], 2*T*nev*4, MPI_DOUBLE, meesp_buffer[0][0], 2*T*nev*4, MPI_DOUBLE, 0, g_tr_comm );
+#  else
+      exitstatus = MPI_Gather( meesp[imu][inu][0][0], 2*T*nev*4, MPI_DOUBLE, meesp_buffer[0][0], 2*T*nev*4, MPI_DOUBLE, 0, g_cart_grid );
+#  endif
+      if ( exitstatus != MPI_SUCCESS ) {
         fprintf ( stderr, "[contract_cvc_tensor_eo_lm_mee] Error from MPI_Gather %s %d\n", __FILE__, __LINE__ );
         return(7);
       }
-
+#endif
       // process with time ray id 0 and time slice id 0
       if ( g_tr_id == 0 ) {
 
@@ -2687,7 +2696,7 @@ int const contract_cvc_tensor_eo_lm_mee (
           }
 
           // loop on timeslices
-          for ( unsigned int it = 0; it < T_global; it++ ) {
+          for ( int it = 0; it < T_global; it++ ) {
  
             // loop on eigenvectors
             for ( unsigned int iev = 0; iev < nev; iev++ ) {
@@ -2726,7 +2735,7 @@ int const contract_cvc_tensor_eo_lm_mee (
   
     }}  // end of loop on nu, mu
 
-    if ( g_tr_id == 0 ) fini_3level_ztable ( meesp_buffer );
+    if ( g_tr_id == 0 ) fini_3level_ztable ( &meesp_buffer );
 
   }  // end of if g_ts_id == 0
 
@@ -2742,10 +2751,9 @@ int const contract_cvc_tensor_eo_lm_mee (
  ***********************************************************/
 int vdag_w_spin_color_reduction ( double ***contr, double ** const V, double ** const W, unsigned int const dimV, unsigned int const dimW, int const t ) {
 
-  const unsigned int VOL3half = LX*LY*LZ/2;
-  const size_t sizeof_eo_spinor_field_timeslice = _GSI( VOL3half ) * sizeof(double);
+  unsigned int const VOL3half = LX*LY*LZ/2;
+  size_t const sizeof_eo_spinor_field_timeslice = _GSI( VOL3half ) * sizeof(double);
 
-  int exitstatus;
   double **v_ts = NULL, **w_ts = NULL;
   double ratime, retime;
 
@@ -2853,8 +2861,14 @@ int vdag_w_spin_color_reduction ( double ***contr, double ** const V, double ** 
 /***********************************************************
  * momentum projection
  ***********************************************************/
-int vdag_w_momentum_projection ( double _Complex ***contr_p, double *** const contr_x, int const dimV, int const dimW, 
-    int (* const momentum_list)[3], int const momentum_number, int const t, int const ieo, int const mu ) {
+int vdag_w_momentum_projection ( 
+    double _Complex ***contr_p, 
+    double *** const contr_x, int const dimV, int const dimW, 
+    int (* const momentum_list)[3], int const momentum_number, 
+    int const t, 
+    int const ieo, 
+    int const mu 
+) {
 
   int exitstatus;
   double momentum_shift[3] = {0.,0.,0.};
@@ -2869,7 +2883,7 @@ int vdag_w_momentum_projection ( double _Complex ***contr_p, double *** const co
   }
 
   return(0);
-}  /* end of vdag_w_momentum_projection */
+}  // end of vdag_w_momentum_projection
 
 /***********************************************************
  *
@@ -2904,10 +2918,10 @@ int vdag_w_write_to_aff_file (
       return(1);
     }
 
-    struct AffNode s * affdir = aff_writer_mkdir ( affw, affn, tag );
-    char * const aff_errstr = aff_writer_errstr ( affw );
+    struct AffNode_s * affdir = aff_writer_mkdir ( affw, affn, tag );
+    const char * aff_errstr = aff_writer_errstr ( affw );
     if ( aff_errstr != NULL ) {
-      fprintf(stderr, "[vdag_w_write_to_aff_file] Error from aff_reader_chpath for key prefix \"%s\", status was %s\n", key_prefix, aff_errstr );
+      fprintf(stderr, "[vdag_w_write_to_aff_file] Error from aff_reader_chpath for key prefix \"%s\", status was %s\n", tag, aff_errstr );
       return(2);
     }
 
