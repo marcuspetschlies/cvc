@@ -73,7 +73,14 @@ int vdag_w_spin_color_reduction ( double ***contr, double**V, double**W, int dim
 
 int vdag_w_momentum_projection ( double _Complex ***contr_p, double ***contr_x, int dimV, int dimW, int (*momentum_list)[3], int momentum_number, int t, int ieo, int mu );
 
-int vdag_w_write_to_aff_file ( double _Complex ***cvc_tp, int nv, int nw, struct AffWriter_s*affw, char*tag, int (*momentum_list)[3], int momentum_number, int io_proc );
+int vdag_w_write_to_aff_file (
+  double _Complex *** const contr_tp, unsigned int const nv, unsigned int const nw,
+  struct AffWriter_s*affw,
+  char * const tag,
+  int (* const momentum_list)[3], unsigned int const momentum_number,
+  int const io_proc
+);
+
 
 int contract_cvc_tensor_eo_lm_factors ( double**eo_evecs_field, int nev, double*gauge_field, double **mzz[2], double **mzzinv[2],
     struct AffWriter_s **affw, char*tag,
