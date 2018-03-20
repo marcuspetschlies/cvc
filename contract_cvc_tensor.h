@@ -71,9 +71,24 @@ int vdag_w_write_to_aff_file (
 );
 
 
-int contract_cvc_tensor_eo_lm_factors ( double**eo_evecs_field, int nev, double*gauge_field, double **mzz[2], double **mzzinv[2],
-    struct AffWriter_s **affw, char*tag,
-    int (*momentum_list)[3], int momentum_number, int io_proc, int block_length );
+int contract_cvc_tensor_eo_lm_factors (
+  double ** const eo_evecs_field, unsigned int const nev,
+  double * const gauge_field, double ** const mzz[2], double ** const mzzinv[2],
+  struct AffWriter_s ** const affw, char * const tag,
+  int (* const momentum_list)[3], unsigned int const momentum_number,
+  int const io_proc,
+  unsigned int const block_length
+);
+
+
+int const contract_cvc_tensor_eo_lm_mee (
+  double ** const eo_evecs_field, unsigned int const nev,
+  double * const gauge_field, double ** const mzz[2], double ** const mzzinv[2],
+  struct AffWriter_s * affw, char * const tag,
+  int (* const momentum_list)[3], unsigned int const momentum_number,
+  unsigned int const io_proc
+);
+
 
 }  /* end of namespace cvc */
 
