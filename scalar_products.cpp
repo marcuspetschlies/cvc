@@ -12,6 +12,7 @@
 #include <time.h>
 #include <string.h>
 #include <math.h>
+#include <complex.h>
 #ifdef HAVE_MPI
 #include <mpi.h>
 #endif
