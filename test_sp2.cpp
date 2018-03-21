@@ -14,6 +14,7 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <complex.h>
 #include <getopt.h>
 #ifdef HAVE_MPI
 #  include <mpi.h>
@@ -42,6 +43,8 @@
 #include "Q_phi.h"
 #include "scalar_products.h"
 #include "ranlxd.h"
+#include "table_init_d.h"
+#include "table_init_z.h"
 
 using namespace cvc;
 
@@ -54,27 +57,10 @@ void usage(void) {
 int main(int argc, char **argv) {
   
   int c, status; 
-  int i;
-  int x0, x1, x2, x3;
   int filename_set = 0;
-  int ix, iix, it;
-  /* int threadid, nthreads; */
-  int no_eo_fields;
-  double norm;
-  double plaq=0.;
-  double evecs_lambda;
-  int verbose = 0;
   char filename[200];
 
-  FILE *ofs=NULL;
-/*
-  size_t items, bytes;
-*/
-  complex *sp_eo_e=NULL, *sp_eo_o=NULL, *sp_le_e=NULL, *sp_le_o=NULL, w;
-  double **eo_spinor_field=NULL;
   double ratime, retime;
-  double *buffer;
-  unsigned int Vhalf, VOL3;
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
@@ -83,7 +69,7 @@ int main(int argc, char **argv) {
   while ((c = getopt(argc, argv, "h?vf:")) != -1) {
     switch (c) {
     case 'v':
-      verbose = 1;
+      g_verbose = 1;
       break;
     case 'f':
       strcpy(filename, optarg);
@@ -150,18 +136,19 @@ int main(int argc, char **argv) {
 
   mpi_init_xchange_eo_spinor();
 
-  Vhalf = VOLUME / 2;
-  VOL3  = LX*LY*LZ;
+  unsigned int const Vhalf = VOLUME / 2;
+  unsigned int const VOL3  = LX*LY*LZ;
 
   /* init and allocate spinor fields */
-  no_fields = 2;
-  g_spinor_field = (double**)calloc(no_fields, sizeof(double*));
-  for(i=0; i<no_fields; i++) alloc_spinor_field(&g_spinor_field[i], VOLUME+RAND);
+  double ** g_spinor_field = init_2level_dtable ( 2, _GSI( (VOLUME+RAND) ) );
+  if ( g_spinor_field == NULL ) {
+    EXIT(11);
+  }
 
-
-  no_eo_fields = 4;
-  eo_spinor_field = (double**)calloc(no_eo_fields, sizeof(double*));
-  for(i=0; i<no_eo_fields; i++) alloc_spinor_field(&eo_spinor_field[i], (VOLUME+RAND)/2);
+  double ** eo_spinor_field = init_2level_dtable ( 4, _GSI( (VOLUME+RAND)/2 ) );
+  if ( eo_spinor_field == NULL ) {
+    EXIT(12);
+  }
 
   g_seed = 10000 + g_cart_id;
   rlxd_init(2, g_seed);
@@ -173,48 +160,48 @@ int main(int argc, char **argv) {
   spinor_field_lexic2eo (g_spinor_field[0], eo_spinor_field[0], eo_spinor_field[1]);
   spinor_field_lexic2eo (g_spinor_field[1], eo_spinor_field[2], eo_spinor_field[3]);
 
-  sp_eo_e = (complex*)malloc(T*sizeof(complex));
-  sp_eo_o = (complex*)malloc(T*sizeof(complex));
-  sp_le_e = (complex*)malloc(T*sizeof(complex));
-  sp_le_o = (complex*)malloc(T*sizeof(complex));
+  double _Complex * sp_eo_e = init_1level_ztable ( T );
+  double _Complex * sp_eo_o = init_1level_ztable ( T );
+  double _Complex * sp_le_e = init_1level_ztable ( T );
+  double _Complex * sp_le_o = init_1level_ztable ( T );
   if (  sp_eo_e == NULL || sp_eo_o == NULL ||  sp_le_e == NULL || sp_le_o == NULL ) {
-    fprintf(stderr, "[test_sp2] Error from malloc\n");
+    fprintf(stderr, "[test_sp2] Error from init_1level_ztable %s %d\n", __FILE__, __LINE__);
     EXIT(1);
   }
 
   /* t-dependent scalar product in eo ordering */
   ratime = _GET_TIME;
-  eo_spinor_spatial_scalar_product_co(sp_eo_e, eo_spinor_field[0], eo_spinor_field[2], 0);
+  eo_spinor_spatial_scalar_product_co( sp_eo_e, eo_spinor_field[0], eo_spinor_field[2], 0);
   retime = _GET_TIME;
-  if(g_cart_id == 0) fprintf(stdout, "# [] eo_sp time = %e\n", retime-ratime);
+  if(g_cart_id == 0) fprintf(stdout, "# [test_sp2] eo_sp time = %e\n", retime-ratime);
 
   ratime = _GET_TIME;
   eo_spinor_spatial_scalar_product_co(sp_eo_o, eo_spinor_field[1], eo_spinor_field[3], 1);
   retime = _GET_TIME;
-  if(g_cart_id == 0) fprintf(stdout, "# [] eo_sp time = %e\n", retime-ratime);
+  if(g_cart_id == 0) fprintf(stdout, "# [test_sp2] eo_sp time = %e\n", retime-ratime);
 
   /* t-dependent scalar product in lexic ordering */
-  memset(sp_le_e, 0, T*sizeof(complex));
-  memset(sp_le_o, 0, T*sizeof(complex));
+  memset(sp_le_e, 0, T*sizeof( double _Complex));
+  memset(sp_le_o, 0, T*sizeof( double _Complex));
 
-  for(x0=0; x0<T; x0++) {
-    for(x1=0; x1<LX; x1++) {
-    for(x2=0; x2<LY; x2++) {
-    for(x3=0; x3<LZ; x3++) {
-      ix = g_ipt [x0][x1][x2][x3];
+  for( int x0=0; x0<T; x0++) {
+    for( int x1=0; x1<LX; x1++) {
+    for( int x2=0; x2<LY; x2++) {
+    for( int x3=0; x3<LZ; x3++) {
+      unsigned int const ix = g_ipt[x0][x1][x2][x3];
+      complex w;
       _co_eq_fv_dag_ti_fv(&w, g_spinor_field[0]+_GSI(ix), g_spinor_field[1]+_GSI(ix));
       if(g_iseven[ix]) {
-        sp_le_e[x0].re += w.re;
-        sp_le_e[x0].im += w.im;
+        sp_le_e[x0] += w.re + w.im * I;
       } else {
-        sp_le_o[x0].re += w.re;
-        sp_le_o[x0].im += w.im;
+        sp_le_o[x0] += w.re + w.im * I;
       }
     }}}
   }
 
 #ifdef HAVE_MPI
-  buffer = (double*)malloc(2*T*sizeof(double));
+#  if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) 
+  double * const buffer = (double*)malloc(2*T*sizeof(double));
   if ( buffer == NULL ) {
     fprintf(stderr, "[test_sp2] Error from malloc\n");
     EXIT(2);
@@ -226,36 +213,38 @@ int main(int argc, char **argv) {
   MPI_Allreduce(buffer, sp_le_o, 2*T, MPI_DOUBLE, MPI_SUM, g_ts_comm);
 
   free(buffer);
+#  endif
 #endif
 
-  /* compare */
-  for(x0 = 0; x0 < T; x0++) {
-    x1 = x0 + g_proc_coords[0] * T;
-    fprintf(stdout, "e %2d\t%3d\t%25.16e%25.16e\t%25.16e%25.16e\n", g_cart_id, x1,
-       sp_le_e[x0].re, sp_le_e[x0].im, sp_eo_e[x0].re, sp_eo_e[x0].im);
-  }
+  // compare
+  if ( g_ts_id == 0 ) {
+    for( int x0 = 0; x0 < T; x0++) {
+      int x1 = x0 + g_proc_coords[0] * T;
+      fprintf(stdout, "e %2d\t%3d\t%25.16e%25.16e\t%25.16e%25.16e   %25.16e\n", g_cart_id, x1,
+         creal( sp_le_e[x0] ), cimag ( sp_le_e[x0] ), creal( sp_eo_e[x0] ), cimag ( sp_eo_e[x0] ),
+         cabs( sp_le_o[x0] - sp_eo_o[x0]) );
+    }
 
-  for(x0 = 0; x0 < T; x0++) {
-    x1 = x0 + g_proc_coords[0] * T;
-    fprintf(stdout, "o %2d\t%3d\t%25.16e%25.16e\t%25.16e%25.16e\n", g_cart_id, x1,
-       sp_le_o[x0].re, sp_le_o[x0].im, sp_eo_o[x0].re, sp_eo_o[x0].im);
+    for( int x0 = 0; x0 < T; x0++) {
+      int x1 = x0 + g_proc_coords[0] * T;
+      fprintf(stdout, "o %2d\t%3d\t%25.16e%25.16e\t%25.16e%25.16e   %25.16e\n", g_cart_id, x1,
+         creal(sp_le_o[x0]), cimag(sp_le_o[x0]), creal(sp_eo_o[x0]), cimag(sp_eo_o[x0]),
+         cabs(sp_le_o[x0] - sp_eo_o[x0]) );
+    }
   }
-
 
   /***********************************************
    * free the allocated memory, finalize 
    ***********************************************/
 
-  for(i=0; i<no_fields; i++) free(g_spinor_field[i]);
-  free(g_spinor_field);
 
-  for(i=0; i<no_eo_fields; i++) free(eo_spinor_field[i]);
-  free(eo_spinor_field);
+  fini_2level_dtable ( &g_spinor_field );
+  fini_2level_dtable ( &eo_spinor_field );
 
-  free(sp_eo_e);
-  free(sp_eo_o);
-  free(sp_le_e);
-  free(sp_le_o);
+  fini_1level_ztable ( &sp_eo_e );
+  fini_1level_ztable ( &sp_eo_o );
+  fini_1level_ztable ( &sp_le_e );
+  fini_1level_ztable ( &sp_le_o );
 
   free_geometry();
 

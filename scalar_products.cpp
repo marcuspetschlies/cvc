@@ -190,7 +190,7 @@ void eo_spinor_spatial_scalar_product_co( double _Complex * w, double * const xi
   omp_set_lock(&writelock);
 #endif
   for( unsigned int it = 0; it < T; it++) {
-    w[it] = p2[it].re + p2[it].im * I;
+    w[it] += p2[it].re + p2[it].im * I;
     // TEST
     // fprintf(stdout, "# [eo_spinor_spatial_scalar_product_co] proc%.4d thread%.4d %3d %25.16e %25.16e\n", g_cart_id, threadid, it, p2[it].re, p2[it].im );
   }
@@ -222,22 +222,30 @@ void eo_spinor_spatial_scalar_product_co( double _Complex * w, double * const xi
  * of two spinor fields, including Dirac gamma
  * matrix
  *********************************************/
-void eo_spinor_dag_gamma_spinor(complex*gsp, double*xi, int gid, double*phi) {
+void eo_spinor_dag_gamma_spinor(complex * const gsp, double * const xi, int const gid, double * const phi) {
 
-  const int nthreads = g_num_threads;
   const unsigned int N = VOLUME / 2;
 
-  unsigned int ix, iix;
-  double spinor1[24];
-
 #ifdef HAVE_OPENMP
-#pragma omp parallel for default(shared) private(spinor1,ix,iix) shared(xi,gid,phi)
+#pragma omp parallel default(shared)
+{
 #endif
-  for(ix=0; ix<N; ix++) {
-    iix = _GSI(ix);
-    _fv_eq_gamma_ti_fv(spinor1, gid, phi+iix);
-    _co_eq_fv_dag_ti_fv(gsp+ix, xi+iix, spinor1);
+  double spinor1[24];
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(unsigned int ix=0; ix<N; ix++) {
+    unsigned int const iix = _GSI(ix);
+    double * const phi_  = phi + iix;
+    double * const xi_   = xi  + iix;
+    complex * const gsp_ = gsp + ix;
+
+    _fv_eq_gamma_ti_fv( spinor1, gid, phi_ );
+    _co_eq_fv_dag_ti_fv( gsp_, xi_, spinor1 );
   }
+#ifdef HAVE_OPENMP
+}
+#endif
 
 }  /* end of eo_spinor_dag_gamma_spinor */
 
@@ -245,13 +253,11 @@ void eo_spinor_dag_gamma_spinor(complex*gsp, double*xi, int gid, double*phi) {
  * Note, that the phase field must be the even phase field for eo = 0
  * and the odd phase field for eo = 1
  *************************************************************/
-void eo_gsp_momentum_projection (complex *gsp_p, complex *gsp_x, complex *phase, int eo) {
+void eo_gsp_momentum_projection (complex * const gsp_p, complex * const gsp_x, complex * const phase, int const eo) {
   
-  const int nthreads = g_num_threads;
   const unsigned int N = VOLUME / 2;
   const int *index_ptr = g_eosub2t[eo];
 
-  unsigned int ix, it;
   complex p[T];
 #ifdef HAVE_OPENMP
   omp_lock_t writelock;
@@ -262,20 +268,23 @@ void eo_gsp_momentum_projection (complex *gsp_p, complex *gsp_x, complex *phase,
   memset(p, 0, T*sizeof(complex));
 #ifdef HAVE_OPENMP
   omp_init_lock(&writelock);
-#pragma omp parallel default(shared) private(ix,it) shared(phase,gsp_x)
+#pragma omp parallel default(shared)
 {
   complex p2[T];
 
   memset(p2, 0, T*sizeof(complex));
 #pragma omp for
 #endif
-  for(ix=0; ix<N; ix++) {
-    it = index_ptr[ix];
-    _co_pl_eq_co_ti_co(p2+it, gsp_x+ix, phase+ix );
+  for( unsigned int ix=0; ix<N; ix++) {
+    int const it = index_ptr[ix];
+    complex * const phase_ = phase + ix;
+    complex * const gsp_x_ = gsp_x + ix;
+    complex * const p2_ = p2 + it;
+    _co_pl_eq_co_ti_co(p2_, gsp_x_ , phase_  );
   }
 #ifdef HAVE_OPENMP
   omp_set_lock(&writelock);
-  for(it=0; it<T; it++) {
+  for(int it=0; it<T; it++) {
     _co_pl_eq_co(p+it, p2+it);
   }
   omp_unset_lock(&writelock);
