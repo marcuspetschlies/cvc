@@ -39,6 +39,7 @@ void set_default_input_values(void) {
   g_nproc_y   = _default_nproc_y;
   g_nproc_z   = _default_nproc_z;
   g_ts_id     = _default_ts_id;
+  g_tr_id     = _default_tr_id;
   g_xs_id     = _default_xs_id;
 /*  g_ys_id     = _default_ys_id; */
   g_proc_coords[0] = 0;

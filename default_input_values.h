@@ -109,6 +109,8 @@ namespace cvc {
 #define _default_xs_id 0
 #define _default_ys_id 0
 
+#define _default_tr_id 0
+
 #define _default_Tstart 0
 #define _default_LXstart 0
 #define _default_LYstart 0
