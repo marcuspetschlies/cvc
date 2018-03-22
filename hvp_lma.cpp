@@ -276,18 +276,28 @@ int main(int argc, char **argv) {
     EXIT(8);
   }
 
-  double * const evecs_eval                = (double*)malloc(evecs_num*sizeof(double));
+  double * const evecs_eval = (double*)malloc(evecs_num*sizeof(double));
+  if(    evecs_eval == NULL  ) {
+    fprintf(stderr, "[hvp_lma] Error from malloc %s %d\n", __FILE__, __LINE__);
+    EXIT(39);
+  }
+
+  for( unsigned int i = 0; i < evecs_num; i++) {
+    evecs_eval[i] = ((double*)(g_tmLQCD_defl.evals))[2*i];
+  }
+
+  if ( sort_eigenvalues ) {
+    exitstatus = sort_fields_by_value ( , double * const value, int const nv , unsigned int const N ) {
+
+  } 
+
   double * const evecs_lambdainv           = (double*)malloc(evecs_num*sizeof(double));
   double * const evecs_4kappasqr_lambdainv = (double*)malloc(evecs_num*sizeof(double));
-  if(    evecs_eval                == NULL 
-      || evecs_lambdainv           == NULL 
-      || evecs_4kappasqr_lambdainv == NULL 
-    ) {
+  if(    evecs_lambdainv           == NULL || evecs_4kappasqr_lambdainv == NULL ) {
     fprintf(stderr, "[hvp_lma] Error from malloc %s %d\n", __FILE__, __LINE__);
     EXIT(39);
   }
   for( unsigned int i = 0; i < evecs_num; i++) {
-    evecs_eval[i]                = ((double*)(g_tmLQCD_defl.evals))[2*i];
     evecs_lambdainv[i]           = 2.* g_kappa / evecs_eval[i];
     evecs_4kappasqr_lambdainv[i] = 4.* g_kappa * g_kappa / evecs_eval[i];
     if( g_cart_id == 0 ) fprintf(stdout, "# [hvp_lma] eval %4d %16.7e\n", i, evecs_eval[i] );
@@ -397,7 +407,7 @@ int main(int argc, char **argv) {
 #endif  // of ifdef HAVE_LHPC_AFF
 #endif  // of if 0
 
-#if 0
+
 
 #ifdef HAVE_LHPC_AFF
   /***********************************************
@@ -415,7 +425,6 @@ int main(int argc, char **argv) {
   }  // end of if io_proc == 2
 #endif 
 
-
   /***********************************************
    * set aff tag
    ***********************************************/
@@ -423,6 +432,9 @@ int main(int argc, char **argv) {
 
   ratime = _GET_TIME;
 
+  /***********************************************
+   * contractions for Mee part
+   ***********************************************/
   exitstatus = contract_cvc_tensor_eo_lm_mee ( eo_evecs_field, evecs_num, gauge_field_with_phase, mzz, mzzinv, affw2, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[hvp_lma] Error from contract_cvc_tensor_eo_lm_mee, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -442,13 +454,15 @@ int main(int argc, char **argv) {
   }  // end of if io_proc == 2
 #endif  // of ifdef HAVE_LHPC_AFF
 
-#endif  // of if 0
 
-
+#if 0
+#ifndef HAVE_MPI
   /****************************************
    * check by hand
    ****************************************/
 
+  double _Complex ***** sp = init_5level_ztable ( evecs_num, 4, 4, T, 4 );
+  
   for ( unsigned int iev = 0; iev < evecs_num; iev++ ) {
 
     size_t const sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof( double );
@@ -484,13 +498,10 @@ int main(int argc, char **argv) {
 
     }
 
-
-
     for ( int mu = 0; mu < 4; mu++ ) {
 
       for ( int nu = 0; nu < 4; nu++ ) {
 
-        double _Complex ** sp = init_2level_ztable ( T, 4 );
 
         for ( int x0 = 0; x0 < T; x0++ ) {
 
@@ -499,96 +510,114 @@ int main(int argc, char **argv) {
           for ( int x3 = 0; x3 < LZ; x3++ ) {
 
             unsigned int const ix = g_ipt[x0][x1][x2][x3];
+     
+            if ( ! g_iseven[ix] ) continue;
+
             unsigned int const ixeo = g_lexic2eosub[ix];
 
             unsigned int const ixplnueo = g_lexic2eosub[g_iup[ix][nu]];
-            unsigned int const ixplmueo = g_lexic2eosub[g_iup[ix][mu]];
-
-            if ( ! g_iseven[ix] ) continue;
 
             complex w1, w2;
+
 
             _co_eq_fv_dag_ti_fv ( &w1, gbv[mu]+_GSI(ixeo), gfw[nu]+_GSI(ixeo) );
             _co_eq_fv_dag_ti_fv ( &w2, gfv[nu]+_GSI(ixeo), gbw[mu]+_GSI(ixeo) );
 
-            sp[x0][0] += ( w1.re + w2.re ) + ( w1.im + w2.im ) * I;
+            sp[iev][mu][nu][x0][0] += ( w1.re + w2.re ) + ( w1.im + w2.im ) * I;
 
             _co_eq_fv_dag_ti_fv ( &w1, gfv[mu]+_GSI(ixeo), gfw[nu]+_GSI(ixeo) );
             _co_eq_fv_dag_ti_fv ( &w2, gfv[nu]+_GSI(ixeo), gfw[mu]+_GSI(ixeo) );
 
-            sp[x0][1] += ( w1.re + w2.re ) + ( w1.im + w2.im ) * I;
+            sp[iev][mu][nu][x0][1] += ( w1.re + w2.re ) + ( w1.im + w2.im ) * I;
+
 
             _co_eq_fv_dag_ti_fv ( &w1, gbv[nu]+_GSI(ixplnueo), gfw[mu]+_GSI(ixplnueo) );
             _co_eq_fv_dag_ti_fv ( &w2, gfv[mu]+_GSI(ixplnueo), gbw[nu]+_GSI(ixplnueo) );
 
-            sp[x0][2] += ( w1.re + w2.re ) + ( w1.im + w2.im ) * I;
+            sp[iev][mu][nu][x0][2] += ( w1.re + w2.re ) + ( w1.im + w2.im ) * I;
 
-            _co_eq_fv_dag_ti_fv ( &w1, gbv[mu]+_GSI(ixplnueo), gfw[nu]+_GSI(ixplnueo) );
-            _co_eq_fv_dag_ti_fv ( &w2, gfv[nu]+_GSI(ixplnueo), gbw[mu]+_GSI(ixplnueo) );
+            _co_eq_fv_dag_ti_fv ( &w1, gbv[nu]+_GSI(ixplnueo), gbw[mu]+_GSI(ixplnueo) );
+            _co_eq_fv_dag_ti_fv ( &w2, gbv[mu]+_GSI(ixplnueo), gbw[nu]+_GSI(ixplnueo) );
 
-            sp[x0][3] += ( w1.re + w2.re ) + ( w1.im + w2.im ) * I;
+            sp[iev][mu][nu][x0][3] += ( w1.re + w2.re ) + ( w1.im + w2.im ) * I;
+
+
           }}}
-        }
-
-
-        for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
-
-          double _Complex ** sp2 = init_2level_ztable ( T, 3 );
-
-          double const pvec[4] = {
-            0., 
-            2. * M_PI * g_sink_momentum_list[imom][0] / (double)LX_global,
-            2. * M_PI * g_sink_momentum_list[imom][1] / (double)LY_global,
-            2. * M_PI * g_sink_momentum_list[imom][2] / (double)LZ_global
-          };
-
-          double _Complex const phase[4] = {
-            cos ( pvec[mu] ) + I * sin ( pvec[mu] ) ,
-            0.,
-            cos ( pvec[nu] ) - I * sin ( pvec[nu] ) ,
-            cos ( pvec[mu] - pvec[nu] ) + I * sin ( pvec[mu] - pvec[nu] ) };
-
-          for ( int it = 0; it < T; it++ ) {
-
-            sp2[it][(mu==0)+1]         += phase[0] * sp[it][0];
-
-            sp2[it][1]                 += phase[1] * sp[it][1];
-
-            sp2[it][-(nu==0)+1]        += phase[2] * sp[it][2];
-
-            sp2[it][(mu==0)-(nu==0)+1] += phase[3] * sp[it][3];
-
-          }
-
-          // print
-          fprintf ( stdout, "# [test mee part] n %4u  mu %3d  nu %3d  p %3d %3d %3d\n", iev, mu, nu,
-             g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2] );
-          for ( int it = 0; it < T; it++ ) {
-            for ( int dt = 0; dt < 3; dt++ ) {
-              fprintf ( stdout, "  %3d %3d  %25.16e %25.16e\n", it, dt-1, creal(sp2[it][dt]), cimag(sp2[it][dt]) );
-            }
-          }
-
-          fini_2level_ztable ( &sp2 );
-        }
-#if 0
-#endif  // of if 0
-
-        fini_2level_ztable ( &sp );
+        }  // end of loop on t
 
       }  // end of loop on nu
     }  // end of loop on mu
-
 
     fini_2level_dtable ( &work_field );
     fini_2level_dtable ( &gfv );
     fini_2level_dtable ( &gbv );
     fini_2level_dtable ( &gfw );
     fini_2level_dtable ( &gbw );
+  }  // end of loop on eigenvectors
 
-  }
+
+  for ( int mu = 0; mu < 4; mu++ ) {
+
+    for ( int nu = 0; nu < 4; nu++ ) {
+
+      for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+
+        double _Complex *** sp2 = init_3level_ztable ( T, 3, evecs_num );
+
+        double const pvec[4] = {
+          0., 
+          2. * M_PI * g_sink_momentum_list[imom][0] / (double)LX_global,
+          2. * M_PI * g_sink_momentum_list[imom][1] / (double)LY_global,
+          2. * M_PI * g_sink_momentum_list[imom][2] / (double)LZ_global
+        };
+
+        double _Complex const phase[4] = {
+          cos ( pvec[mu] ) + I * sin ( pvec[mu] ) ,
+          1.,
+          cos ( pvec[nu] ) - I * sin ( pvec[nu] ) ,
+          cos ( pvec[mu] - pvec[nu] ) + I * sin ( pvec[mu] - pvec[nu] ) };
+
+        for ( int it = 0; it < T; it++ ) {
+
+          for ( int iev = 0; iev < evecs_num; iev++ ) {
+
+            sp2[it][(mu==0)+1][iev]         += phase[0] * sp[iev][mu][nu][it][0];
+
+            sp2[it][1][iev]                 += phase[1] * sp[iev][mu][nu][it][1];
+
+            sp2[it][-(nu==0)+1][iev]        += phase[2] * sp[iev][mu][nu][it][2];
 
 
+            sp2[it][(mu==0)-(nu==0)+1][iev] += phase[3] * sp[iev][mu][nu][it][3];
+
+          }
+        }
+
+        // print
+        for ( int it = 0; it < T; it++ ) {
+          for ( int dt = 0; dt < 3; dt++ ) {
+            fprintf ( stdout, "# [test mee part] /hvp/lma/N%d/mee/mu%d/nu%d/px%.2dpy%.2dpz%.2d/t%.2d/dt%d\n", evecs_num,  mu, nu,
+                g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], it, dt-1 );
+            for ( int iev = 0; iev < evecs_num; iev++ ) {
+              fprintf ( stdout, "  %25.16e %25.16e\n", creal(sp2[it][dt][iev]), cimag(sp2[it][dt][iev]) );
+            }
+          }
+        }
+
+        fini_3level_ztable ( &sp2 );
+
+      }  // end of loop on momenta
+
+    }  // end of loop on nu
+    
+  }  // end of loop on mu
+
+
+  fini_5level_ztable ( &sp );
+ 
+#endif
+
+#endif  // of if 0
   /****************************************
    * free the allocated memory, finalize
    ****************************************/
