@@ -168,7 +168,7 @@ int plaquetteria  (double*gauge_field );
 
 int gauge_field_eq_gauge_field_ti_phase (double**gauge_field_with_phase, double*gauge_field, complex co_phase[4] );
 
-void co_field_eq_fv_dag_ti_fv (double*c, double*r, double*s, unsigned int N );
+void co_field_eq_fv_dag_ti_fv (double * const c, double * const r, double * const s, unsigned int const N );
 
 void co_field_pl_eq_fv_dag_ti_fv (double*c, double*r, double*s, unsigned int N );
 
@@ -192,7 +192,12 @@ int fix_eigenvector_phase ( double **evecs_field, int num );
 
 int const get_io_proc (void);
 
-int sort_fields_by_value ( double ** const v, double * const value, int const nv , unsigned int const N );
+unsigned int * const sort_by_dvalue_mapping ( double * const value, unsigned int const nv );
+
+int sort_dfield_by_map ( double * const v, unsigned int const nv, unsigned int * const map, unsigned int const N );
+
+
+
 
 }  /* end of namespace cvc */
 #endif

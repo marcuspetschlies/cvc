@@ -29,7 +29,6 @@
 #include "Q_clover_phi.h"
 #include "scalar_products.h"
 #include "matrix_init.h"
-#include "table_init_d.h"
 #include "project.h"
 
 namespace cvc {
@@ -6562,34 +6561,33 @@ int gauge_field_eq_gauge_field_ti_phase (double**gauge_field_with_phase, double*
   return(0);
 }  /* end of gauge_field_eq_gauge_field_ti_phase */
 
-/* c = r^+ s point-wise */
-void co_field_eq_fv_dag_ti_fv (double*c, double*r, double*s, unsigned int N ) {
-#ifdef HAVE_OPENMP
-#pragma omp parallel
-{
-#endif
-  unsigned int ix;
-  double *r_ = NULL, *s_ = NULL;
-  complex *c_ = NULL;
-  unsigned int offset;
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * c = r^+ s point-wise
+ ***********************************************************/
+void co_field_eq_fv_dag_ti_fv (double * const c, double * const r, double * const s, unsigned int const N ) {
 
 #ifdef HAVE_OPENMP
-#pragma omp for
+#pragma omp parallel for
 #endif
-  for(ix=0; ix<N; ix++ ) {
-    offset = _GSI( ix );
-    r_ = r + offset;
-    s_ = s + offset;
-    c_ = (complex*)c + ix;
+  for( unsigned int ix = 0; ix < N; ix++ ) {
+    unsigned int const offset = _GSI( ix );
+    double * const r_ = r + offset;
+    double * const s_ = s + offset;
+    complex * const c_ = (complex*)c + ix;
     _co_eq_fv_dag_ti_fv( c_, r_, s_);
   }
-#ifdef HAVE_OPENMP
-}
-#endif
 
-}  /* co_field_eq_fv_dag_ti_fv */
+}  // end of co_field_eq_fv_dag_ti_fv
 
-/* c += r^+ s point-wise */
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * c += r^+ s point-wise
+ ***********************************************************/
 void co_field_pl_eq_fv_dag_ti_fv (double*c, double*r, double*s, unsigned int N ) {
 #ifdef HAVE_OPENMP
 #pragma omp parallel
@@ -6978,20 +6976,22 @@ int const get_io_proc (void) {
 /****************************************************************************/
 
 /****************************************************************************
- * sort fields of length N by value
+ * get mapping for sort
  ****************************************************************************/
-int sort_fields_by_value ( double ** const v, double * const value, int const nv , unsigned int const N ) {
+unsigned int * const sort_by_dvalue_mapping ( double * const value, unsigned int const nv ) {
 
-  size_t const bytes = N * sizeof( double );
+  unsigned int * const imap = (unsigned int *)malloc ( nv * sizeof( unsigned int ) );
+  if ( imap == NULL ) {
+    fprintf ( stderr, "[sort_by_dvalue_mapping] Error from malloc %s %d\n", __FILE__, __LINE__ );
+    return ( NULL );
+  }
 
-  int imap[nv];
+  for ( unsigned int i = 0; i < nv; i++ ) imap[i] = i;
 
-  for ( int i = 0; i < nv; i++ ) imap[i] = i;
-
-  for ( int i = 0; i < nv; i++ ) {
-    for ( int k = i+1; k < nv; k++ ) {
+  for ( unsigned int i = 0; i < nv; i++ ) {
+    for ( unsigned int k = i+1; k < nv; k++ ) {
       if ( value[imap[k]] < value[imap[i]] ) {
-        int j = imap[i];
+        unsigned int j = imap[i];
         imap[i] = imap[k];
         imap[k] = j;
       }
@@ -6999,37 +6999,38 @@ int sort_fields_by_value ( double ** const v, double * const value, int const nv
   }
 
   if ( g_cart_id == 0 && g_verbose > 4 ) {
-    fprintf ( stdout, "# [sort_fields_by_value] mapping and sorted field:\n");
-    for ( int i = 0; i < nv; i++ )  {
-      fprintf ( stdout, " %4d %4d  %25.16e\n", i,  imap[i], value[imap[i]] );
+    fprintf ( stdout, "# [sort_by_dvalue_mapping] mapping and sorted field:\n");
+    for ( unsigned int i = 0; i < nv; i++ )  {
+      fprintf ( stdout, " %4u %4u  %25.16e\n", i,  imap[i], value[imap[i]] );
     }
   }
 
+  return( imap );
+}  // end of sort_by_dvalue_mapping
+
+
+/****************************************************************************/
+/****************************************************************************/
+
+/****************************************************************************
+ * sort fields according to mapping
+ ****************************************************************************/
+int sort_dfield_by_map ( double * const v, unsigned int const nv, unsigned int * const map, unsigned int const N ) {
+
+  size_t const bytes = N * sizeof( double );
+
   // reorder fields
-  double ** buffer = init_2level_dtable ( nv, N );
+  double * const buffer = (double *) malloc ( nv * bytes  );
   if ( buffer == NULL ) {
-    fprintf ( stderr, "[] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+    fprintf ( stderr, "[sort_dfield_by_map] Error from malloc %s %d\n", __FILE__, __LINE__ );
     return(1);
   }
 
-  memcpy ( buffer[0], v[0], nv * bytes );
-  for ( int i = 0; i < nv; i++ ) {
-    memcpy ( v[i], buffer[imap[i]], bytes );
+  memcpy ( buffer, v, nv * bytes );
+  for ( unsigned int i = 0; i < nv; i++ ) {
+    memcpy ( v + i * N, buffer + map[i] * N, bytes );
   }
-  fini_2level_dtable ( &buffer );
-
-  // reorder value
-  double * vbuffer = init_1level_dtable ( nv);
-  if ( buffer == NULL ) {
-    fprintf ( stderr, "[sort_fields_by_value] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__ );
-    return(1);
-  }
-
-  memcpy ( vbuffer, value, nv * sizeof(double) );
-  for ( int i = 0; i < nv; i++ ) {
-    value[i] = vbuffer[imap[i]];;
-  }
-  fini_1level_dtable ( &vbuffer );
+  free ( buffer );
 
   return(0);
 
