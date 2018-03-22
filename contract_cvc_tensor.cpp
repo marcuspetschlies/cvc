@@ -46,7 +46,7 @@
 namespace cvc {
 
 static double *Usource[4], Usourcebuffer[72];
-static double _Complex UsourceMatrix[4][144];
+// static double _Complex UsourceMatrix[4][144];
 static int source_proc_id;
 static unsigned int source_location;
 static int source_location_iseven;
@@ -248,7 +248,10 @@ void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_te
    **********************************************************/  
 
   /* fp_X = tprop^e */
-  exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_X, tprop_list_e+48, Vhalf);
+  if ( ( exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_X, tprop_list_e+48, Vhalf) ) != 0 ) {
+    fprintf ( stderr, "[contract_cvc_tensor_eo] Error from assign_fermion_propagaptor_from_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    return;
+  }
   /* fp_aux = fp_X */
   memcpy(fp_aux[0][0], fp_X[0][0], sizeof_eo_propagator_field );
 
@@ -306,7 +309,10 @@ void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_te
    **********************************************************/  
 
   /* fp_X = sprop^e */
-  exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_X, sprop_list_e+48, Vhalf);
+  if ( ( exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_X, sprop_list_e+48, Vhalf) ) != 0 ) {
+    fprintf ( stderr, "[contract_cvc_tensor_eo] Error from assign_fermion_propagaptor_from_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    return;
+  }
   /* fp_aux = fp_X */
   memcpy(fp_aux[0][0], fp_X[0][0], sizeof_eo_propagator_field );
 
@@ -321,7 +327,10 @@ void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_te
   
 
     /* fp_Y_gamma^o = tprop^o , source + nu */
-    exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_Y_gamma, tprop_list_o+12*nu, Vhalf);
+    if ( ( exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_Y_gamma, tprop_list_o+12*nu, Vhalf) ) != 0 ) {
+      fprintf ( stderr, "[contract_cvc_tensor_eo] Error from assign_fermion_propagaptor_from_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      return;
+    }
 
     /* fp_Y_gamma^o = fp_Y_gamma^o * Gamma_nu^b  */
     apply_propagator_constant_cvc_vertex ( fp_Y_gamma, fp_Y_gamma, nu, 1, Usource[nu], Vhalf );
@@ -365,7 +374,11 @@ void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_te
    **********************************************************/  
 
   /* fp_X = tprop^o */
-  exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_X, tprop_list_o+48, Vhalf);
+  if ( ( exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_X, tprop_list_o+48, Vhalf) ) !=  0 ) {
+    fprintf ( stderr, "[contract_cvc_tensor_eo] Error from assign_fermion_propagaptor_from_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    return;
+  }
+
   /* fp_aux^o = fp_X^o */
   memcpy(fp_aux[0][0], fp_X[0][0], sizeof_eo_propagator_field );
 
@@ -380,7 +393,10 @@ void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_te
   
 
     /* fp_Y_gamma^e = sprop^e , source + nu */
-    exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_Y_gamma, sprop_list_e+12*nu, Vhalf);
+    if ( ( exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_Y_gamma, sprop_list_e+12*nu, Vhalf) ) != 0 ) {
+      fprintf ( stderr, "[contract_cvc_tensor_eo] Error from assign_fermion_propagaptor_from_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      return;
+    }
 
     /* fp_Y_gamma^e = fp_Y_gamma^e * Gamma_nu^b  */
     apply_propagator_constant_cvc_vertex ( fp_Y_gamma, fp_Y_gamma, nu, 1, Usource[nu], Vhalf );
@@ -423,7 +439,10 @@ void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_te
    **********************************************************/  
 
   /* fp_X = sprop^o */
-  exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_X, sprop_list_o+48, Vhalf);
+  if ( ( exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_X, sprop_list_o+48, Vhalf) ) != 0 ) {
+    fprintf ( stderr, "[contract_cvc_tensor_eo] Error from assign_fermion_propagaptor_from_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    return;
+  }
   /* fp_aux^o = fp_X^o */
   memcpy(fp_aux[0][0], fp_X[0][0], sizeof_eo_propagator_field );
 
@@ -437,7 +456,10 @@ void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_te
   {
 
     /* fp_Y_gamma^e = tprop^e , source + nu */
-    exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_Y_gamma, tprop_list_e+12*nu, Vhalf);
+    if ( ( exitstatus = assign_fermion_propagaptor_from_spinor_field (fp_Y_gamma, tprop_list_e+12*nu, Vhalf) ) != 0 ) {
+      fprintf ( stderr, "[contract_cvc_tensor_eo] Error from assign_fermion_propagaptor_from_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      return;
+    }
 
     /* fp_Y_gamma^e = fp_Y_gamma^e * Gamma_nu^b  */
     apply_propagator_constant_cvc_vertex ( fp_Y_gamma, fp_Y_gamma, nu, 1, Usource[nu], Vhalf );
@@ -880,7 +902,6 @@ int cvc_tensor_eo_check_wi_position_space (double **tensor_eo) {
   const unsigned int Vhalf = VOLUME / 2;
 
   int nu;
-  int exitstatus;
   double ratime, retime;
 
   /********************************************
@@ -923,7 +944,7 @@ int cvc_tensor_eo_check_wi_position_space (double **tensor_eo) {
     }
 #ifdef HAVE_MPI
     double dtmp = norm;
-    exitstatus = MPI_Allreduce(&dtmp, &norm, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid);
+    int exitstatus = MPI_Allreduce(&dtmp, &norm, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid);
     if(exitstatus != MPI_SUCCESS) {
       fprintf(stderr, "[cvc_tensor_eo_check_wi_position_space] Error from MPI_Allreduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       return(2);
@@ -1452,7 +1473,11 @@ void contract_cvc_loop_eo ( double ***loop, double**sprop_list_e, double**sprop_
   
 
   /* even part of sprop */
-  exitstatus = assign_fermion_propagaptor_from_spinor_field ( fp, sprop_list_e, Vhalf);
+  if ( ( exitstatus = assign_fermion_propagaptor_from_spinor_field ( fp, sprop_list_e, Vhalf) ) != 0 ) {
+    fprintf ( stderr, "[contract_cvc_loop_eo] Error from assign_fermion_propagaptor_from_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    return;
+  }
+  
   for ( int mu = 0; mu < 4; mu++ ) {
     /* input field is even, output field is odd */
     apply_cvc_vertex_propagator_eo ( gamma_fp, fp, mu, 0, gauge_field, 1);
@@ -1460,7 +1485,10 @@ void contract_cvc_loop_eo ( double ***loop, double**sprop_list_e, double**sprop_
   }
 
   /* odd part of sprop */
-  exitstatus = assign_fermion_propagaptor_from_spinor_field ( fp, sprop_list_o, Vhalf);
+  if ( ( exitstatus = assign_fermion_propagaptor_from_spinor_field ( fp, sprop_list_o, Vhalf) ) != 0 ) {
+    fprintf ( stderr, "[contract_cvc_loop_eo] Error from assign_fermion_propagaptor_from_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    return;
+  }
   for ( int mu = 0; mu < 4; mu++ ) {
     /* input field is odd, output field is even */
     apply_cvc_vertex_propagator_eo ( gamma_fp, fp, mu, 0, gauge_field, 0);
@@ -1468,7 +1496,11 @@ void contract_cvc_loop_eo ( double ***loop, double**sprop_list_e, double**sprop_
   }
 
   /* even part of tprop */
-  exitstatus = assign_fermion_propagaptor_from_spinor_field ( fp, tprop_list_e, Vhalf);
+  if ( ( exitstatus = assign_fermion_propagaptor_from_spinor_field ( fp, tprop_list_e, Vhalf) ) != 0 ) {
+    fprintf ( stderr, "[contract_cvc_loop_eo] Error from assign_fermion_propagaptor_from_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    return;
+  }
+
   for ( int mu = 0; mu < 4; mu++ ) {
     /* input field is even, output field is odd */
     apply_cvc_vertex_propagator_eo ( gamma_fp, fp, mu, 0, gauge_field, 1);
@@ -1476,7 +1508,10 @@ void contract_cvc_loop_eo ( double ***loop, double**sprop_list_e, double**sprop_
   }
 
   /* odd part of tprop */
-  exitstatus = assign_fermion_propagaptor_from_spinor_field ( fp, tprop_list_o, Vhalf);
+  if ( ( exitstatus = assign_fermion_propagaptor_from_spinor_field ( fp, tprop_list_o, Vhalf) ) != 0 ) {
+    fprintf ( stderr, "[contract_cvc_loop_eo] Error from assign_fermion_propagaptor_from_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    return;
+  }
   for ( int mu = 0; mu < 4; mu++ ) {
     /* input field is odd, output field is even */
     apply_cvc_vertex_propagator_eo ( gamma_fp, fp, mu, 0, gauge_field, 0);
@@ -2032,7 +2067,6 @@ int cvc_loop_eo_check_wi_momentum_space_lma ( double **wi, double ***loop_lma, i
   free ( wi_lexic );
 
   for ( int ip = 0; ip < momentum_number; ip++ ) {
-    double dtmp[2], phase[2];
 
     for ( int ip0 = 0; ip0 < T_global; ip0 ++ ) {
       
