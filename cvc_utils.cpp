@@ -29,6 +29,7 @@
 #include "Q_clover_phi.h"
 #include "scalar_products.h"
 #include "matrix_init.h"
+#include "table_init_d.h"
 #include "project.h"
 
 namespace cvc {
@@ -6976,5 +6977,65 @@ int const get_io_proc (void) {
 /****************************************************************************/
 /****************************************************************************/
 
+/****************************************************************************
+ * sort fields of length N by value
+ ****************************************************************************/
+int sort_fields_by_value ( double ** const v, double * const value, int const nv , unsigned int const N ) {
+
+  size_t const bytes = N * sizeof( double );
+
+  int imap[nv];
+
+  for ( int i = 0; i < nv; i++ ) imap[i] = i;
+
+  for ( int i = 0; i < nv; i++ ) {
+    for ( int k = i+1; k < nv; k++ ) {
+      if ( value[imap[k]] < value[imap[i]] ) {
+        int j = imap[i];
+        imap[i] = imap[k];
+        imap[k] = j;
+      }
+    }
+  }
+
+  if ( g_cart_id == 0 && g_verbose > 4 ) {
+    fprintf ( stdout, "# [sort_fields_by_value] mapping and sorted field:\n");
+    for ( int i = 0; i < nv; i++ )  {
+      fprintf ( stdout, " %4d %4d  %25.16e\n", i,  imap[i], value[imap[i]] );
+    }
+  }
+
+  // reorder fields
+  double ** buffer = init_2level_dtable ( nv, N );
+  if ( buffer == NULL ) {
+    fprintf ( stderr, "[] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
+
+  memcpy ( buffer[0], v[0], nv * bytes );
+  for ( int i = 0; i < nv; i++ ) {
+    memcpy ( v[i], buffer[imap[i]], bytes );
+  }
+  fini_2level_dtable ( &buffer );
+
+  // reorder value
+  double * vbuffer = init_1level_dtable ( nv);
+  if ( buffer == NULL ) {
+    fprintf ( stderr, "[sort_fields_by_value] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
+
+  memcpy ( vbuffer, value, nv * sizeof(double) );
+  for ( int i = 0; i < nv; i++ ) {
+    value[i] = vbuffer[imap[i]];;
+  }
+  fini_1level_dtable ( &vbuffer );
+
+  return(0);
+
+}  // end of sort_fields_by_value
+
+/****************************************************************************/
+/****************************************************************************/
 
 }  /* end of namespace cvc */

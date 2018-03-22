@@ -192,6 +192,8 @@ int fix_eigenvector_phase ( double **evecs_field, int num );
 
 int const get_io_proc (void);
 
+int sort_fields_by_value ( double ** const v, double * const value, int const nv , unsigned int const N );
+
 }  /* end of namespace cvc */
 #endif
 
