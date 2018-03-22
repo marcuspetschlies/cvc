@@ -13,17 +13,18 @@ int vdag_w_spin_color_reduction ( double ***contr, double ** const V, double ** 
   unsigned int const VOL3half = LX*LY*LZ/2;
   size_t const sizeof_eo_spinor_field_timeslice = _GSI( VOL3half ) * sizeof(double);
 
-  double **v_ts = NULL, **w_ts = NULL;
   double ratime, retime;
 
   ratime = _GET_TIME;
 
-  if ( ( v_ts = init_2level_dtable ( dimV, _GSI( VOL3half) ) ) == NULL ) {
+  double ** v_ts = init_2level_dtable ( dimV, _GSI( VOL3half) );
+  if ( v_ts == NULL ) {
     fprintf( stderr, "[vdag_w_spin_color_reduction] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
     return(1);
   }
 
-  if ( ( w_ts = init_2level_dtable ( dimW, _GSI( VOL3half) ) ) == NULL ) {
+  double ** w_ts = init_2level_dtable ( dimW, _GSI( VOL3half) );
+  if ( w_ts == NULL ) {
     fprintf( stderr, "[vdag_w_spin_color_reduction] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
     return(2);
   }
@@ -55,7 +56,7 @@ int vdag_w_spin_color_reduction ( double ***contr, double ** const V, double ** 
     int cntr = 0;
     MPI_Status mstatus[2];
     MPI_Request request[2];
-    unsigned int const items = dimV * _GSI( VOL3half );
+    unsigned int items = dimV * _GSI( VOL3half );
 
     /***********************************************************
      * exchange v_ts
@@ -79,6 +80,7 @@ int vdag_w_spin_color_reduction ( double ***contr, double ** const V, double ** 
     /***********************************************************
      * exchange w_ts
      ***********************************************************/
+    items = dimW * _GSI( VOL3half );
     buffer = init_1level_dtable ( dimW * _GSI(VOL3half) ); 
     if ( buffer == NULL ) { 
       fprintf(stderr, "[vdag_w_spin_color_reduction] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
@@ -100,10 +102,10 @@ int vdag_w_spin_color_reduction ( double ***contr, double ** const V, double ** 
   }  /* end of if t == T */
 #endif  // of ifdef HAVE_MPI
 
-  int nb = dimV / dimW;
-  for ( int ib = 0; ib < nb; ib++ ) {
-    co_field_eq_fv_dag_ti_fv ( contr[ib*dimW][0], v_ts[ib*dimW], w_ts[0], dimW*VOL3half );
-  }
+  for ( unsigned int iv = 0; iv < dimV; iv++ ) {
+  for ( unsigned int iw = 0; iw < dimW; iw++ ) {
+    co_field_eq_fv_dag_ti_fv ( contr[iv][iw], v_ts[iv], w_ts[iw], VOL3half );
+  }}
 
   fini_2level_dtable ( &v_ts );
   fini_2level_dtable ( &w_ts );
@@ -115,6 +117,8 @@ int vdag_w_spin_color_reduction ( double ***contr, double ** const V, double ** 
   return(0);
 }  // end of vdag_w_spin_color_reduction
 
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  * momentum projection
@@ -142,6 +146,9 @@ int vdag_w_momentum_projection (
 
   return(0);
 }  // end of vdag_w_momentum_projection
+
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  *
@@ -176,10 +183,16 @@ int vdag_w_write_to_aff_file (
       return(1);
     }
 
-    struct AffNode_s * affdir = aff_writer_mkdir ( affw, affn, tag );
+    exitstatus = aff_name_check3 ( tag );
+
+    if ( g_verbose > 4 ) fprintf(stdout, "# [vdag_w_write_to_aff_file] aff_name_check status %d on tag %s %s %d\n", exitstatus , tag, __FILE__, __LINE__);
+    // if ( g_verbose > 4 ) fprintf(stdout, "# [vdag_w_write_to_aff_file] current mkdir tag = %s %s %d\n", tag, __FILE__, __LINE__);
+
+    // struct AffNode_s * affdir = aff_writer_mkdir ( affw, affn, tag );
+    struct AffNode_s * affdir = aff_writer_mkpath ( affw, affn, tag );
     const char * aff_errstr = aff_writer_errstr ( affw );
     if ( aff_errstr != NULL ) {
-      fprintf(stderr, "[vdag_w_write_to_aff_file] Error from aff_reader_chpath for key prefix \"%s\", status was %s\n", tag, aff_errstr );
+      fprintf(stderr, "[vdag_w_write_to_aff_file] Error from aff_reader_chpath for key prefix \"%s\", status was %s %s %d\n", tag, aff_errstr, __FILE__, __LINE__ );
       return(2);
     }
 
