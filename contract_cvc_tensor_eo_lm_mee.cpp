@@ -16,9 +16,7 @@ int const contract_cvc_tensor_eo_lm_mee (
 ) {
 
   const unsigned int Vhalf                      = VOLUME / 2;
-  const unsigned int VOL3half                   = LX*LY*LZ/2;
   const size_t sizeof_eo_spinor_field           = _GSI( Vhalf    ) * sizeof(double);
-  // const size_t sizeof_eo_spinor_field_timeslice = _GSI( VOL3half ) * sizeof(double);
 
   int exitstatus;
 #ifdef HAVE_LHPC_AFF
@@ -72,6 +70,7 @@ int const contract_cvc_tensor_eo_lm_mee (
     }
   }
 
+
   /***********************************************************
    * loop on eigenvectors
    ***********************************************************/
@@ -124,23 +123,42 @@ int const contract_cvc_tensor_eo_lm_mee (
         memset ( p[0], 0, 2*T*sizeof( double _Complex ) );
 
         // the 8 scalar products
+
         eo_spinor_spatial_scalar_product_co( p[0], gmubv[imu], gmufw[inu], 0 );
         eo_spinor_spatial_scalar_product_co( p[1], gmufv[inu], gmubw[imu], 0 );
-        if ( g_ts_id == 0 ) for ( int it = 0; it < T; it++ ) meesp[imu][inu][it][inev][0] = p[0][it] + p[1][it];
+        if ( g_ts_id == 0 ) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+          for ( int it = 0; it < T; it++ ) meesp[imu][inu][it][inev][0] = p[0][it] + p[1][it];
+        }
 
-#if 0
         eo_spinor_spatial_scalar_product_co( p[0], gmufv[imu], gmufw[inu], 0 );
         eo_spinor_spatial_scalar_product_co( p[1], gmufv[inu], gmufw[imu], 0 );
-        if ( g_ts_id == 0 ) for ( int it = 0; it < T; it++ ) meesp[imu][inu][it][inev][1] = p[0][it] + p[1][it];
+        if ( g_ts_id == 0 ) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+          for ( int it = 0; it < T; it++ ) meesp[imu][inu][it][inev][1] = p[0][it] + p[1][it];
+        }
 
         eo_spinor_spatial_scalar_product_co( p[0], gmubv[inu], gmufw[imu], 0 );
         eo_spinor_spatial_scalar_product_co( p[1], gmufv[imu], gmubw[inu], 0 );
-        if ( g_ts_id == 0 ) for ( int it = 0; it < T; it++ ) meesp[imu][inu][it][inev][2] = p[0][it] + p[1][it];
+        if ( g_ts_id == 0 ) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+          for ( int it = 0; it < T; it++ ) meesp[imu][inu][it][inev][2] = p[0][it] + p[1][it];
+        }
 
         eo_spinor_spatial_scalar_product_co( p[0], gmubv[inu], gmubw[imu], 0 );
         eo_spinor_spatial_scalar_product_co( p[1], gmubv[imu], gmubw[inu], 0 );
-        if ( g_ts_id == 0 ) for ( int it = 0; it < T; it++ ) meesp[imu][inu][it][inev][3] = p[0][it] + p[1][it];
-#endif  // of if 0
+        if ( g_ts_id == 0 ) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+          for ( int it = 0; it < T; it++ ) meesp[imu][inu][it][inev][3] = p[0][it] + p[1][it];
+        }
       }
     }
 
@@ -151,18 +169,19 @@ int const contract_cvc_tensor_eo_lm_mee (
   fini_2level_dtable ( &eo_spinor_field );
   fini_2level_dtable ( &eo_spinor_work );
 
+
   /***********************************************************
    * collect, multiply with momentum, write
    ***********************************************************/
   if ( g_ts_id == 0 ) {
     double _Complex *** meesp_buffer = NULL;
-    if ( g_tr_id == 0 ) {
+    //if ( g_tr_id == 0 ) {
       meesp_buffer = init_3level_ztable ( T_global, nev, 4 );
       if ( meesp_buffer == NULL ) {
         fprintf ( stderr, "[contract_cvc_tensor_eo_lm_mee] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
         return(6);
       }
-    }
+    //}
 
     for ( unsigned int imu = 0; imu < 4; imu++ ) {
     for ( unsigned int inu = 0; inu < 4; inu++ ) {
@@ -170,23 +189,30 @@ int const contract_cvc_tensor_eo_lm_mee (
 #ifdef HAVE_MPI
 #  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ ) 
       // gather at g_tr_id = 0 and g_ts_id == 0
+      // fprintf ( stdout, "# [contract_cvc_tensor_eo_lm_mee] proc %d does send/recv %s %d\n", g_cart_id, __FILE__, __LINE__ );
       exitstatus = MPI_Gather( meesp[imu][inu][0][0], 2*T*nev*4, MPI_DOUBLE, meesp_buffer[0][0], 2*T*nev*4, MPI_DOUBLE, 0, g_tr_comm );
+      // exitstatus = MPI_Allgather( meesp[imu][inu][0][0], 2*T*nev*4, MPI_DOUBLE, meesp_buffer[0][0], 2*T*nev*4, MPI_DOUBLE, g_tr_comm );
+
 #  else
       exitstatus = MPI_Gather( meesp[imu][inu][0][0], 2*T*nev*4, MPI_DOUBLE, meesp_buffer[0][0], 2*T*nev*4, MPI_DOUBLE, 0, g_cart_grid );
 #  endif
       if ( exitstatus != MPI_SUCCESS ) {
         fprintf ( stderr, "[contract_cvc_tensor_eo_lm_mee] Error from MPI_Gather %s %d\n", __FILE__, __LINE__ );
         return(7);
+      } else {
+        fprintf ( stdout, "# [contract_cvc_tensor_eo_lm_mee] MPI_Gather was successful %s %d\n", __FILE__, __LINE__ );
       }
 #else
       memcpy ( meesp_buffer[0][0], meesp[imu][inu][0][0], 4 * T_global * nev * sizeof(double _Complex) );
 #endif
+
       // process with time ray id 0 and time slice id 0
       if ( g_tr_id == 0 ) {
 
         int const dt[4] = { (imu == 0), 0, -(inu == 0), (imu == 0) - (inu == 0 ) };
         if ( g_verbose > 3 ) fprintf ( stdout, "# [] dt values %3d %3d %3d %3d\n", dt[0], dt[1], dt[2], dt[3] );
 
+        // loop on momenta
         for ( unsigned int imom = 0; imom < momentum_number; imom++ ) {
 
           double const mom[4] = {
@@ -209,14 +235,20 @@ int const contract_cvc_tensor_eo_lm_mee (
           // loop on timeslices
           for ( int it = 0; it < T_global; it++ ) {
  
+            int const iit = (it + ( inu==0) ) % T_global;
+            int const tval[4] = { it, it, iit, iit };
+            if ( g_verbose > 4 ) fprintf ( stdout, "# [] dt values %3d %3d %3d %3d\n", dt[0], dt[1], dt[2], dt[3] );
+        
             // loop on eigenvectors
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
             for ( unsigned int iev = 0; iev < nev; iev++ ) {
 
               // combine the 4 scalar products with corresponding phase; sort according to dt
-              // for ( unsigned isp = 0; isp < 4; isp++ )
-              for ( unsigned isp = 0; isp <= 0; isp++ ) 
+              for ( unsigned int isp = 0; isp < 4; isp++ )
               {
-                meesp_out[it][dt[isp]+1][iev] += meesp_buffer[it][iev][isp] * phase[isp];
+                meesp_out[it][dt[isp]+1][iev] += meesp_buffer[tval[isp]][iev][isp] * phase[isp];
               }
 
             }  // end of loop on eigenvectors
@@ -245,15 +277,18 @@ int const contract_cvc_tensor_eo_lm_mee (
 
 
       }  // end of if g_tr_id == 0
-
+#if 0
+#endif  // of if 0
   
     }}  // end of loop on nu, mu
 
-    if ( g_tr_id == 0 ) fini_3level_ztable ( &meesp_buffer );
+    // if ( g_tr_id == 0 ) {
+      fini_3level_ztable ( &meesp_buffer );
+    // }
 
   }  // end of if g_ts_id == 0
 
-  fini_5level_ztable ( &meesp );
+  if (g_ts_id == 0 ) fini_5level_ztable ( &meesp );
 
   return(0);
  
