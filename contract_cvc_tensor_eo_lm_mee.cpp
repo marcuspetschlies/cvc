@@ -210,7 +210,7 @@ int const contract_cvc_tensor_eo_lm_mee (
       if ( g_tr_id == 0 ) {
 
         int const dt[4] = { (imu == 0), 0, -(inu == 0), (imu == 0) - (inu == 0 ) };
-        if ( g_verbose > 3 ) fprintf ( stdout, "# [] dt values %3d %3d %3d %3d\n", dt[0], dt[1], dt[2], dt[3] );
+        if ( g_verbose > 3 ) fprintf ( stdout, "# [contract_cvc_tensor_eo_lm_mee] dt values %3d %3d %3d %3d\n", dt[0], dt[1], dt[2], dt[3] );
 
         // loop on momenta
         for ( unsigned int imom = 0; imom < momentum_number; imom++ ) {
@@ -237,7 +237,7 @@ int const contract_cvc_tensor_eo_lm_mee (
  
             int const iit = (it + ( inu==0) ) % T_global;
             int const tval[4] = { it, it, iit, iit };
-            if ( g_verbose > 4 ) fprintf ( stdout, "# [] dt values %3d %3d %3d %3d\n", dt[0], dt[1], dt[2], dt[3] );
+            if ( g_verbose > 4 ) fprintf ( stdout, "# [contract_cvc_tensor_eo_lm_mee] t values %3d %3d %3d %3d\n", tval[0], tval[1], tval[2], tval[3] );
         
             // loop on eigenvectors
 #ifdef HAVE_OPENMP
