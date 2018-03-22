@@ -64,6 +64,7 @@ extern "C"
 #include "table_init_d.h"
 #include "table_init_z.h"
 #include "clover.h"
+#include "scalar_products.h"
 
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
@@ -99,6 +100,8 @@ int main(int argc, char **argv) {
   int filename_set = 0;
   // int check_position_space_WI=0;
   int exitstatus;
+  int sort_eigenvalues = 0;
+  int check_eigenpairs = 0;
   char filename[100];
   double ratime, retime;
   double **mzz[2], **mzzinv[2];
@@ -108,7 +111,6 @@ int main(int argc, char **argv) {
 
 
 #ifdef HAVE_LHPC_AFF
-  struct AffWriter_s **affw = NULL, *affw2 = NULL;
   char aff_tag[400];
 #endif
 
@@ -116,7 +118,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "cwh?f:b:")) != -1) {
+  while ((c = getopt(argc, argv, "scwh?f:b:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -124,6 +126,12 @@ int main(int argc, char **argv) {
       break;
     case 'b':
       evecs_block_length = atoi ( optarg );
+      break;
+    case 's':
+      sort_eigenvalues = 1;
+      break;
+    case 'c':
+      check_eigenpairs = 1;
       break;
     //case 'w':
     //  check_position_space_WI = 1;
@@ -276,28 +284,15 @@ int main(int argc, char **argv) {
     EXIT(8);
   }
 
-  double * const evecs_eval = (double*)malloc(evecs_num*sizeof(double));
-  if(    evecs_eval == NULL  ) {
-    fprintf(stderr, "[hvp_lma] Error from malloc %s %d\n", __FILE__, __LINE__);
-    EXIT(39);
-  }
-
-  for( unsigned int i = 0; i < evecs_num; i++) {
-    evecs_eval[i] = ((double*)(g_tmLQCD_defl.evals))[2*i];
-  }
-
-  if ( sort_eigenvalues ) {
-    exitstatus = sort_fields_by_value ( , double * const value, int const nv , unsigned int const N ) {
-
-  } 
-
+  double * const evecs_eval                = (double*)malloc(evecs_num*sizeof(double));
   double * const evecs_lambdainv           = (double*)malloc(evecs_num*sizeof(double));
   double * const evecs_4kappasqr_lambdainv = (double*)malloc(evecs_num*sizeof(double));
-  if(    evecs_lambdainv           == NULL || evecs_4kappasqr_lambdainv == NULL ) {
+  if( evecs_eval == NULL || evecs_lambdainv == NULL || evecs_4kappasqr_lambdainv == NULL ) {
     fprintf(stderr, "[hvp_lma] Error from malloc %s %d\n", __FILE__, __LINE__);
     EXIT(39);
   }
   for( unsigned int i = 0; i < evecs_num; i++) {
+    evecs_eval[i]                = ((double*)(g_tmLQCD_defl.evals))[2*i];
     evecs_lambdainv[i]           = 2.* g_kappa / evecs_eval[i];
     evecs_4kappasqr_lambdainv[i] = 4.* g_kappa * g_kappa / evecs_eval[i];
     if( g_cart_id == 0 ) fprintf(stdout, "# [hvp_lma] eval %4d %16.7e\n", i, evecs_eval[i] );
@@ -314,11 +309,61 @@ int main(int argc, char **argv) {
   }
 
   /*************************************************
-   * allocate memory for the eigenvector fields
+   * set eigenvector field
    *************************************************/
-  double ** const eo_evecs_field = (double**)calloc(evecs_num, sizeof(double*));
+  double ** const eo_evecs_field = (double**) malloc ( evecs_num * sizeof(double*) );
+  if ( eo_evecs_field == NULL ) {
+    fprintf ( stderr, "[hvp_lma] Error from malloc %s %d\n", __FILE__, __LINE__ );
+    EXIT(42);
+  }
   eo_evecs_field[0] = eo_evecs_block;
   for( unsigned int i = 1; i < evecs_num; i++) eo_evecs_field[i] = eo_evecs_field[i-1] + _GSI(Vhalf);
+
+  /*************************************************
+   * set eigenvalue and eigenvector fields by
+   * eigenvalue if needed
+   *************************************************/
+  if ( sort_eigenvalues ) {
+    unsigned int * const sort_map = sort_by_dvalue_mapping ( evecs_eval, evecs_num );
+    if( sort_map == NULL  ) {
+      fprintf(stderr, "[hvp_lma] Error from sort_by_dvalue_mapping %s %d\n", __FILE__, __LINE__);
+      EXIT(43);
+    }
+
+    exitstatus = sort_dfield_by_map ( eo_evecs_block, evecs_num, sort_map, _GSI(Vhalf) );
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[hvp_lma] Error from sort_dfield_by_map, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(44);
+    }
+
+#ifdef HAVE_TMLQCD_LIBWRAPPER
+    exitstatus = sort_dfield_by_map ( (double*)g_tmLQCD_defl.evals, evecs_num, sort_map, 2 );
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[hvp_lma] Error from sort_dfield_by_map, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(44);
+    }
+#endif  // of ifdef HAVE_TMLQCD_LIBWRAPPER
+
+    exitstatus = sort_dfield_by_map ( evecs_eval, evecs_num, sort_map, 1 );
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[hvp_lma] Error from sort_dfield_by_map, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(45);
+    }
+    exitstatus = sort_dfield_by_map ( evecs_lambdainv, evecs_num, sort_map, 1 );
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[hvp_lma] Error from sort_dfield_by_map, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(46);
+    }
+    exitstatus = sort_dfield_by_map ( evecs_4kappasqr_lambdainv, evecs_num, sort_map, 1 );
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[hvp_lma] Error from sort_dfield_by_map, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(47);
+    }
+
+    free ( sort_map );
+  }   // end of if sort eigenvalues
+
+
 
   /***********************************************************
    * multiply the phase to the gauge field
@@ -347,11 +392,54 @@ int main(int argc, char **argv) {
     EXIT(14);
   }
 
-#if 0 
+  /***********************************************/
+  /***********************************************/
+
+  /***********************************************
+   * check eigenpairs
+   ***********************************************/
+  if ( check_eigenpairs ) {
+    double ** eo_field = init_2level_dtable ( 2, _GSI(Vhalf));
+    double ** eo_work  = init_2level_dtable ( 3, _GSI( (VOLUME+RAND) / 2 ));
+    if( eo_field == NULL  || eo_work == NULL ) {
+      fprintf(stderr, "[loops_em] Error from init_2level_dtable was %s %d\n", __FILE__, __LINE__);
+      EXIT(123);
+    }
+
+    for( unsigned int i = 0; i < evecs_num; i++)
+    {
+      double norm;
+      complex w;
+
+      C_clover_oo ( eo_field[0], eo_evecs_field[i],  gauge_field_with_phase, eo_work[2], g_mzz_dn[1], g_mzzinv_dn[0]);
+      C_clover_oo ( eo_field[1], eo_field[0], gauge_field_with_phase, eo_work[2], g_mzz_up[1], g_mzzinv_up[0]);
+
+      spinor_scalar_product_re(&norm, eo_evecs_field[i], eo_evecs_field[i], Vhalf);
+      spinor_scalar_product_co(&w, eo_field[1], eo_evecs_field[i], Vhalf);
+
+      w.re *= 4.*g_kappa*g_kappa;
+      w.im *= 4.*g_kappa*g_kappa;
+
+      if(g_cart_id == 0) {
+        fprintf(stdout, "# [hvp_lma] evec %.4d norm = %25.16e w = %25.16e +I %25.16e lambda %25.16e diff = %25.16e\n", i, norm, w.re, w.im, evecs_eval[i], fabs( w.re-evecs_eval[i]));
+      }
+
+    }
+
+    fini_2level_dtable ( &eo_field );
+    fini_2level_dtable ( &eo_work );
+
+  }  // end of if check eigenpairs
+
+  /***********************************************/
+  /***********************************************/
+
+
 #ifdef HAVE_LHPC_AFF
   /***********************************************
    * writer for aff output file
    ***********************************************/
+  struct AffWriter_s **affw = NULL;
   if(io_proc >= 1) {
     affw = (struct AffWriter_s **) malloc ( T * sizeof(struct AffWriter_s*) );
     if ( affw == NULL ) {
@@ -360,7 +448,7 @@ int main(int argc, char **argv) {
     }
     for ( int i = 0; i < T; i++ ) {
       sprintf(filename, "%s.%.4d.t%.2d.aff", outfile_prefix, Nconf, i + g_proc_coords[0]*T );
-      fprintf(stdout, "# [hvp_lma] writing data to file %s\n", filename);
+      fprintf(stdout, "# [hvp_lma] proc%.4d writing data to file %s\n", g_cart_id, filename);
       affw[i] = aff_writer(filename);
       const char * aff_status_str = aff_writer_errstr(affw[i]);
       if( aff_status_str != NULL ) {
@@ -405,14 +493,16 @@ int main(int argc, char **argv) {
     }
   }  // end of if io_proc >= 1
 #endif  // of ifdef HAVE_LHPC_AFF
+#if 0 
 #endif  // of if 0
 
 
-
+#if 0
 #ifdef HAVE_LHPC_AFF
   /***********************************************
    * writer for aff output file
    ***********************************************/
+  struct AffWriter_s *affw2 = NULL;
   if( io_proc == 2 ) {
     sprintf(filename, "%s.mee.%.4d.aff", outfile_prefix, Nconf );
     fprintf(stdout, "# [hvp_lma] writing data to file %s\n", filename);
@@ -453,6 +543,8 @@ int main(int argc, char **argv) {
     }
   }  // end of if io_proc == 2
 #endif  // of ifdef HAVE_LHPC_AFF
+#endif  // of if 0
+
 
 
 #if 0
@@ -616,8 +708,8 @@ int main(int argc, char **argv) {
   fini_5level_ztable ( &sp );
  
 #endif
-
 #endif  // of if 0
+
   /****************************************
    * free the allocated memory, finalize
    ****************************************/
