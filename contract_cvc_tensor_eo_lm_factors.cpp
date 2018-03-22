@@ -15,12 +15,11 @@ int contract_cvc_tensor_eo_lm_factors (
 
   unsigned int const Vhalf = VOLUME / 2;
   unsigned int const VOL3half = ( LX * LY * LZ ) / 2;
-  size_t const sizeof_eo_spinor_field           = _GSI( Vhalf    ) * sizeof(double);
-  size_t const sizeof_eo_spinor_field_timeslice = _GSI( VOL3half ) * sizeof(double);
+  size_t const sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof(double);
 
   int exitstatus;
 
-  char aff_tag[200];
+  char aff_tag[500];
 
   unsigned int const block_number = nev / block_length;
   if (io_proc == 2 && g_verbose > 3 ) {
@@ -35,7 +34,7 @@ int contract_cvc_tensor_eo_lm_factors (
    * auxilliary eo spinor fields with halo
    ***********************************************************/
   double ** eo_spinor_work = init_2level_dtable ( 4, _GSI( (VOLUME+RAND)/2 )  );
-  if ( eo_spinor_work != NULL ) {
+  if ( eo_spinor_work == NULL ) {
     fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
     return(2);
   }
@@ -118,7 +117,7 @@ int contract_cvc_tensor_eo_lm_factors (
   /***********************************************************
    * loop on evec blocks
    ***********************************************************/
-  for ( int iblock = 0; iblock < block_number; iblock++ ) {
+  for ( unsigned int iblock = 0; iblock < block_number; iblock++ ) {
 
     /***********************************************************
      * V^+ V block-wise
@@ -150,13 +149,14 @@ int contract_cvc_tensor_eo_lm_factors (
       /***********************************************************
        * write to file
        ***********************************************************/
-      sprintf ( aff_tag, "vv/t%.2d/b%.2d", it+g_proc_coords[0]*T, iblock );
+      sprintf ( aff_tag, "%s/vv/t%.2d/b%.2d", tag, it+g_proc_coords[0]*T, iblock );
+
       exitstatus = vdag_w_write_to_aff_file ( contr_p, nev, block_length, affw[it], aff_tag, momentum_list, momentum_number, io_proc );
       if ( exitstatus != 0 ) {
         fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(4);
       }
-    }  /* end of loop on timeslices */
+    }  // end of loop on timeslices
 
     /***********************************************************/
     /***********************************************************/
@@ -363,15 +363,15 @@ int contract_cvc_tensor_eo_lm_factors (
       /***********************************************************
        * write to file
        ***********************************************************/
-      sprintf ( aff_tag, "ww/t%.2d/b%.2d", it+g_proc_coords[0]*T, iblock );
+      sprintf ( aff_tag, "%s/ww/t%.2d/b%.2d", tag, it+g_proc_coords[0]*T, iblock );
       exitstatus = vdag_w_write_to_aff_file ( contr_p, nev, block_length, affw[it], aff_tag, momentum_list, momentum_number, io_proc );
       if ( exitstatus != 0 ) {
         fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(4);
       }
-    }  /* end of loop on timeslices */
+    }  // end of loop on timeslices
   
-  }  /* end of loop on evecs blocks */
+  }  // end of loop on evecs blocks
 
   fini_2level_dtable ( &eo_spinor_work );
   fini_2level_dtable ( &xv );
