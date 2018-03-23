@@ -1,4 +1,4 @@
-/*
+/**************************************************************************************
  * TODO:
  * - change all writing routines to enable use of MPI
  * - _ATTENTION_ prec=32 will not work properly -> MPI-message is still 64 even
@@ -6,7 +6,7 @@
  * CHANGES:
  * - I do not write the propagator type -> changed file-opening mode 
  *   write_propagator_format to "w"
- */
+ **************************************************************************************/
 
 
 #define _FILE_OFFSET_BITS 64
@@ -177,10 +177,10 @@ int write_binary_spinor_data(double * const s, LimeWriter * limewriter,
   int x, y, z, t, i=0, status=0;
   double tmp[24];
   float  tmp2[24];
-  int iproc;
   n_uint64_t bytes;
   DML_SiteRank rank;
 #ifdef HAVE_MPI
+  int iproc;
   int tgeom[2];
   double *buffer;
   MPI_Status mstatus;
@@ -383,7 +383,7 @@ int read_binary_spinor_data(double * const s, LimeReader * limereader,
   DML_SiteRank rank;
   float tmp2[24];
   int words_bigendian;
-  unsigned int t, x, y, z;
+  int t, x, y, z;
   words_bigendian = big_endian();
 
   DML_checksum_init(ans);
@@ -972,7 +972,7 @@ int read_cmi(double *v, const char * filename) {
 #endif
     for(t = 0; t < T; t++) {
       ix = (t*LX*LY*LZ + x*LY*LZ + y*LZ + z)*12;
-      fread(tmp, 24*sizeof(float), 1, ifs);
+      if ( fread(tmp, 24*sizeof(float), 1, ifs) != 1 ) return(-2);
 
 #ifdef BYTE_SWAP
 /* 
@@ -1010,7 +1010,7 @@ int read_cmi(double *v, const char * filename) {
 int write_binary_spinor_data_timeslice(double * const s, LimeWriter * limewriter,
   const int prec, int timeslice, DML_Checksum * ans) {
 #ifndef HAVE_MPI
-  int x, y, z, t, i=0, status=0;
+  int x, y, z, i=0, status=0;
   double tmp[24];
   float  tmp2[24];
   n_uint64_t bytes;
@@ -1347,7 +1347,7 @@ int read_binary_spinor_data_single(float* const s, LimeReader * limereader,
   DML_SiteRank rank;
   float tmp2[24];
   int words_bigendian;
-  unsigned int t, x, y, z;
+  int t, x, y, z;
   words_bigendian = big_endian();
 
   DML_checksum_init(ans);
@@ -1554,7 +1554,7 @@ int read_binary_spinor_data_timeslice(double * const s, int timeslice, LimeReade
   DML_SiteRank rank;
   float tmp2[24];
   int words_bigendian;
-  unsigned int t, x, y, z;
+  int t;
   words_bigendian = big_endian();
 
   if(timeslice == 0) {
@@ -1570,9 +1570,9 @@ int read_binary_spinor_data_timeslice(double * const s, int timeslice, LimeReade
     limeReaderSeek(limereader,(n_uint64_t) (t*LX*LY*LZ)*bytes, SEEK_SET);
   }
 
-  for(z = 0; z < LZ; z++){
-  for(y = 0; y < LY; y++){
-  for(x = 0; x < LX; x++){
+  for( int z = 0; z < LZ; z++){
+  for( int y = 0; y < LY; y++){
+  for( int x = 0; x < LX; x++){
     ix = g_ipt[0][x][y][z]*(n_uint64_t)12;
     rank = (DML_SiteRank) ((((Tstart+t)*(LZ*g_nproc_z)+LZstart + z)*(LY*g_nproc_y) + LYstart + y)*(DML_SiteRank)(LX*g_nproc_x) + LXstart + x);
     if(prec == 32) {
@@ -1600,6 +1600,115 @@ int read_binary_spinor_data_timeslice(double * const s, int timeslice, LimeReade
   // if(timeslice == T_global - 1) printf("# [] The final checksum is %#lx %#lx\n", (*ans).suma, (*ans).sumb);
   return(0);
 #endif  // of ifdef HAVE_MPI
-}
+}  // end of read_binary_spinor_data_timeslice
 
-}
+/**************************************************************************************/
+/**************************************************************************************/
+
+/**************************************************************************************
+ * read eigenvectors in partfile
+ **************************************************************************************/
+int deflator_read_evecs ( double *const evecs, unsigned int const nev, char * const fileformat, char * const filename , int const prec) {
+
+  unsigned int const N = VOLUME / 2;
+  size_t const items = nev * _GSI( N );
+  char evecs_filename[500];
+
+  if(g_proc_id == 0) fprintf(stdout,"# [deflator_read_evecs] reading evecs\n");
+
+  if ( evecs == NULL ) {
+    fprintf(stderr,"[deflator_read_evecs] insufficient memory for evecs and evals inside deflator_cg.\n");
+    return( -1 );
+  }
+
+  if (strcmp( fileformat, "partfile") == 0) {
+    double et1;
+
+    /* set evec filenmae */
+    sprintf( evecs_filename, "%s.%.5d.pt%.2dpx%.2dpy%.2dpz%.2d", filename, nev, g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3]);
+    FILE *fs = fopen( evecs_filename, "rb");
+    if ( fs == NULL ) {
+      fprintf(stderr, "[deflator_read_evecs] (%.4d) Error, could not open file %s for reading %s %d\n", g_cart_id, evecs_filename, __FILE__, __LINE__);
+      return( -2 );
+    } 
+    if( g_proc_id == 0 ) fprintf(stdout, "# [deflator_read_evecs reading eigenvectors from file %s\n", evecs_filename);
+
+    if( prec == 64) {
+
+      void * const evecs_io_buffer = (void*)evecs;
+  
+      et1 = _GET_TIME;
+      size_t const count = fread( evecs_io_buffer, sizeof(double), items, fs );
+      if ( count != items ) {
+        fprintf(stderr, "[deflator_read_evecs] (%.4d) Error from fread, count %lu != %lu items %s %d\n",
+            g_cart_id, count, items, __FILE__, __LINE__);
+        return( -3 );
+      } 
+      et1 = _GET_TIME - et1;
+
+    } else if ( prec == 32 ) {
+      void * const evecs_io_buffer = malloc( sizeof( float ) * items );
+      if( evecs_io_buffer == NULL) {
+        fprintf(stderr, "[deflator_read_evecs] (%.4d) Error from malloc %s %d\n", g_cart_id, __FILE__, __LINE__ );
+        return(-4);
+      }
+  
+      et1 = _GET_TIME;
+      size_t const count = fread( evecs_io_buffer, sizeof( float ), items, fs);
+      if ( count != items ) {
+        fprintf(stderr, "[deflator_read_evecs] (%.4d) Error from fread, count %lu != %lu items %s %d\n",
+            g_cart_id, count, items, __FILE__, __LINE__);
+        return( -5 );
+      } 
+      et1 = _GET_TIME - et1;
+
+      single2double ( evecs, evecs_io_buffer, (int)items);
+
+      free( evecs_io_buffer );
+    }
+       
+    fclose( fs );
+
+    if( g_proc_id == 0 ) {
+      fprintf(stdout,"# [deflator_read_evecs] time for reading %u eigenvectors: %+e seconds\n", nev, et1);
+    }
+  } else if(strcmp( fileformat, "single") == 0) {
+
+    if(N==VOLUME) {
+      for( unsigned int i=0; i<nev; i++) {
+        sprintf( evecs_filename, "%s.ev%.5u", filename, i);
+        if(g_proc_id == 0) fprintf(stdout, "# [deflator_read_evecs] reading eigenvector from file %s\n", evecs_filename);
+        double * const evecs_ptr0 = evecs + i*_GSI(N);
+        if ( int exitstatus = read_lime_spinor( evecs_ptr0, evecs_filename, 0) != 0 ) {
+          fprintf ( stderr, "[deflator_read_evecs] Error from read_lime_spinor, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          return(-6);
+        }
+      } // end of loop on eigenvector number
+    } else if( N == VOLUME/2) {
+  
+      double * const evecs_ptr0 = (double*)malloc ( _GSI(VOLUME) * sizeof(double) );
+      if (evecs_ptr0 == NULL ) {
+        return(-7);
+      }
+
+      for( unsigned int i=0; i<nev/2; i++) {
+        sprintf(evecs_filename, "%s.ev%.5d", filename, 2*i);
+        if ( g_proc_id == 0 ) fprintf(stdout, "# [deflator_read_evecs] reading eigenvector pair from file %s\n", evecs_filename);
+        if ( int exitstatus = read_lime_spinor( evecs_ptr0, evecs_filename, 0) != 0 ) {
+          fprintf ( stderr, "[deflator_read_evecs] Error from read_lime_spinor, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          return(-8);
+        }
+
+        spinor_field_lexic2eo ( evecs_ptr0, evecs + (2*i) * _GSI(N), evecs + (2*i+1) * _GSI(N));
+       
+      } // end of loop on eigenvectors
+    }
+  }   // end of if fileformat
+
+  return ( 0 );
+}  // end of deflator_read_evecs
+
+/**************************************************************************************/
+/**************************************************************************************/
+
+}  // end of namespace cvc
