@@ -57,5 +57,8 @@ int read_binary_spinor_data_timeslice(double * const s, int timeslice, LimeReade
 int read_lime_spinor_timeslice(double * const s, int timeslice, char * filename, const int position, DML_Checksum*checksum);
 
 int write_source_type(const int type, char * filename);
-}
+
+int deflator_read_evecs ( double *const evecs, unsigned int const nev, char * const fileformat, char * const filename , int const prec);
+
+}  // end of namespace cvc
 #endif
