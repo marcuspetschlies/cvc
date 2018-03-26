@@ -973,7 +973,7 @@ void make_eo_phase_field_timeslice (double _Complex**phase, int momentum_number,
  *
  * zgemm calculates t(V) x phase, which is  nv x momentum_number (F) = momentum_number x nv (C)
  **************************************************************************************************************/
-int momentum_projection_eo_timeslice ( double*V, double *W, unsigned int nv, int momentum_number, int (*momentum_list)[3], int t, int ieo, double momentum_shift[3], int add ) {
+int momentum_projection_eo_timeslice ( double*V, double *W, unsigned int nv, int momentum_number, const int (*momentum_list)[3], int t, int ieo, double momentum_shift[3], int add ) {
 
   const double MPI2 = M_PI * 2.;
   const unsigned int VOL3half = LX*LY*LZ/2;
