@@ -45,7 +45,7 @@
 #include "ranlxd.h"
 #include "table_init_d.h"
 #include "table_init_z.h"
-#include "contract_cvc_tensor.h"
+#include "vdag_w_utils.h"
 
 using namespace cvc;
 
