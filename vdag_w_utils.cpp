@@ -151,7 +151,7 @@ int vdag_w_momentum_projection (
 /***********************************************************/
 
 /***********************************************************
- *
+ * write to AFF file
  ***********************************************************/
 int vdag_w_write_to_aff_file ( 
     double _Complex *** const contr_tp, unsigned int const nv, unsigned int const nw, 
@@ -169,10 +169,10 @@ int vdag_w_write_to_aff_file (
 
   int exitstatus;
   double ratime, retime;
-  char buffer_path[200];
+  char buffer_path[600];
 
   ratime = _GET_TIME;
-
+#if 0
   if ( io_proc >= 1 ) {
 
 #ifdef HAVE_LHPC_AFF
@@ -183,9 +183,8 @@ int vdag_w_write_to_aff_file (
       return(1);
     }
 
-    exitstatus = aff_name_check3 ( tag );
-
-    if ( g_verbose > 4 ) fprintf(stdout, "# [vdag_w_write_to_aff_file] aff_name_check status %d on tag %s %s %d\n", exitstatus , tag, __FILE__, __LINE__);
+    //exitstatus = aff_name_check3 ( tag );
+    //if ( g_verbose > 4 ) fprintf(stdout, "# [vdag_w_write_to_aff_file] aff_name_check status %d on tag %s %s %d\n", exitstatus , tag, __FILE__, __LINE__);
     // if ( g_verbose > 4 ) fprintf(stdout, "# [vdag_w_write_to_aff_file] current mkdir tag = %s %s %d\n", tag, __FILE__, __LINE__);
 
     // struct AffNode_s * affdir = aff_writer_mkdir ( affw, affn, tag );
@@ -209,6 +208,7 @@ int vdag_w_write_to_aff_file (
         return(5);
       }
     }  // end of loop on momenta
+
 #else
 
     for( unsigned int i = 0; i < momentum_number; i++ ) {
@@ -226,19 +226,27 @@ int vdag_w_write_to_aff_file (
       }
 
       fclose ( ofs );
+
+    }  // end of loop on momenta
 #endif
   }  /* if io_proc >= 1 */
+
 
 #ifdef HAVE_MPI
   if ( MPI_Barrier( g_cart_grid ) != MPI_SUCCESS ) {
     fprintf ( stderr, "# [vdag_w_write_to_aff_file] Error from MPI_Barrier %s %d\n", __FILE__, __LINE__);
     return(1);
   }
-
 #endif
-
+#endif  // of if 0
   retime = _GET_TIME;
-  if(io_proc == 2 && g_verbose > 0) fprintf(stdout, "# [vdag_w_write_to_aff_file] time for saving momentum space results = %e seconds\n", retime-ratime);
+
+  if( io_proc == 2 && g_verbose > 0) {
+    // fprintf(stdout, "# [vdag_w_write_to_aff_file] time for saving momentum space results = %e seconds\n", retime-ratime);
+    fprintf(stdout, "# [vdag_w_write_to_aff_file] time for saving momentum space results = %e seconds\n", retime );
+    fprintf(stdout, "# [vdag_w_write_to_aff_file] time for saving momentum space results = %e seconds\n", ratime );
+    fflush ( stdout );
+  }
 
   return(0);
-}  /* end of vdag_w_write_to_aff_file */
+}  // end of vdag_w_write_to_aff_file
