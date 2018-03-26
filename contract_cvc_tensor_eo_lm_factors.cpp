@@ -114,6 +114,7 @@ int contract_cvc_tensor_eo_lm_factors (
     return(2);
   }
 
+
   /***********************************************************
    * loop on evec blocks
    ***********************************************************/
@@ -128,6 +129,15 @@ int contract_cvc_tensor_eo_lm_factors (
      ***********************************************************/
     for ( int it = 0; it < T; it++ ) {
 
+#if 0
+      /***********************************************************
+       * initialize contraction fields to zero
+       ***********************************************************/
+      memset ( contr_p[0][0], 0, momentum_number * nev * block_length * sizeof(double _Complex ) );
+      memset ( contr_x[0][0], 0, nev * block_length * 2*VOL3half * sizeof(double) );
+#endif  // of if 0
+
+#if 0
       /***********************************************************
        * spin-color reduction
        ***********************************************************/
@@ -136,7 +146,9 @@ int contract_cvc_tensor_eo_lm_factors (
         fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_spin_color_reduction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(4);
       }
+#endif  // of if 0
 
+#if 0
       /***********************************************************
        * momentum projection
        ***********************************************************/
@@ -145,6 +157,7 @@ int contract_cvc_tensor_eo_lm_factors (
         fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(4);
       }
+#endif  // of if 0
 
       /***********************************************************
        * write to file
@@ -156,11 +169,14 @@ int contract_cvc_tensor_eo_lm_factors (
         fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(4);
       }
+#if 0
+#endif  // of if 0
+    
     }  // end of loop on timeslices
 
     /***********************************************************/
     /***********************************************************/
-
+#if 0
     /***********************************************************
      * calculate w, xw for the current block,
      * w = Cbar ( v, xv )
@@ -312,8 +328,11 @@ int contract_cvc_tensor_eo_lm_factors (
 
     }  // end of loop on vector index mu
 
+#endif  // of if 0
   }  // end of loop on evec blocks
 
+
+#if 0
   /***********************************************************
    * calculate all Wtildes, save them in place of XV in field
    * xv
@@ -341,6 +360,12 @@ int contract_cvc_tensor_eo_lm_factors (
      * loop on timeslices
      ***********************************************************/
     for ( int it = 0; it < T; it++ ) {
+
+      /***********************************************************
+       * initialize contraction fields to zero
+       ***********************************************************/
+      memset ( contr_p[0][0], 0, momentum_number * nev * block_length * sizeof(double _Complex ) );
+      memset ( contr_x[0][0], 0, nev * block_length * 2*VOL3half * sizeof(double) );
 
       /***********************************************************
        * spin-color reduction
@@ -372,7 +397,9 @@ int contract_cvc_tensor_eo_lm_factors (
     }  // end of loop on timeslices
   
   }  // end of loop on evecs blocks
+#endif  // of if 0
 
+#if 0
   fini_2level_dtable ( &eo_spinor_work );
   fini_2level_dtable ( &xv );
 
@@ -383,5 +410,6 @@ int contract_cvc_tensor_eo_lm_factors (
   fini_3level_dtable ( &contr_x );
   fini_3level_ztable ( &contr_p );
 
+#endif  // of if 0
   return(0);
 }  // end of contract_cvc_tensor_eo_lm_factors
