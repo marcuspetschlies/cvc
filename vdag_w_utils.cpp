@@ -3,6 +3,39 @@
  *
  * Mi 21. Mär 07:27:42 CET 2018
  ***********************************************************/
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <complex.h>
+#include <math.h>
+#include <time.h>
+#ifdef HAVE_MPI
+#  include <mpi.h>
+#endif
+#ifdef HAVE_OPENMP
+#  include <omp.h>
+#endif
+
+#ifdef HAVE_LHPC_AFF
+#include "lhpc-aff.h"
+#endif
+
+#include "cvc_complex.h"
+#include "iblas.h"
+#include "ilinalg.h"
+#include "cvc_linalg.h"
+#include "global.h"
+#include "cvc_geometry.h"
+#include "cvc_utils.h"
+#include "mpi_init.h"
+#include "matrix_init.h"
+#include "table_init_d.h"
+#include "project.h"
+#include "scalar_products.h"
+#include "vdag_w_utils.h"
+
+
+namespace cvc {
 
 /***********************************************************
  *
@@ -126,7 +159,7 @@ int vdag_w_spin_color_reduction ( double ***contr, double ** const V, double ** 
 int vdag_w_momentum_projection ( 
     double _Complex ***contr_p, 
     double *** const contr_x, int const dimV, int const dimW, 
-    int (* const momentum_list)[3], int const momentum_number, 
+    const int (*momentum_list)[3], int const momentum_number, 
     int const t, 
     int const ieo, 
     int const mu 
@@ -153,13 +186,15 @@ int vdag_w_momentum_projection (
 /***********************************************************
  * write to AFF file
  ***********************************************************/
-int vdag_w_write_to_aff_file ( 
-    double _Complex *** const contr_tp, unsigned int const nv, unsigned int const nw, 
-    struct AffWriter_s*affw, 
-    char * const tag, 
-    int (* const momentum_list)[3], unsigned int const momentum_number, 
-    int const io_proc 
+int vdag_w_write_to_aff_file (
+    double _Complex *** const contr_tp, unsigned int const nv, unsigned int const nw,
+    struct AffWriter_s*affw,
+    char * const tag,
+    const int (*momentum_list)[3], unsigned int const momentum_number,
+    unsigned int const io_proc
 ) {
+
+  double ratime = _GET_TIME;
 
 #ifdef HAVE_LHPC_AFF
   uint32_t const items = nv * nw;
@@ -168,11 +203,8 @@ int vdag_w_write_to_aff_file (
 #endif
 
   int exitstatus;
-  double ratime, retime;
   char buffer_path[600];
 
-  ratime = _GET_TIME;
-#if 0
   if ( io_proc >= 1 ) {
 
 #ifdef HAVE_LHPC_AFF
@@ -238,15 +270,18 @@ int vdag_w_write_to_aff_file (
     return(1);
   }
 #endif
-#endif  // of if 0
-  retime = _GET_TIME;
+
+  double retime = _GET_TIME;
 
   if( io_proc == 2 && g_verbose > 0) {
-    // fprintf(stdout, "# [vdag_w_write_to_aff_file] time for saving momentum space results = %e seconds\n", retime-ratime);
-    fprintf(stdout, "# [vdag_w_write_to_aff_file] time for saving momentum space results = %e seconds\n", retime );
-    fprintf(stdout, "# [vdag_w_write_to_aff_file] time for saving momentum space results = %e seconds\n", ratime );
+    fprintf(stdout, "# [vdag_w_write_to_aff_file] time for saving momentum space results = %e seconds\n", retime-ratime);
     fflush ( stdout );
   }
 
   return(0);
 }  // end of vdag_w_write_to_aff_file
+
+/***********************************************************/
+/***********************************************************/
+
+}  // end of namespace cvc

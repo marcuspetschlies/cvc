@@ -1,3 +1,38 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <complex.h>
+#include <math.h>
+#include <time.h>
+#ifdef HAVE_MPI
+#  include <mpi.h>
+#endif
+#ifdef HAVE_OPENMP
+#  include <omp.h>
+#endif
+
+#ifdef HAVE_LHPC_AFF
+#include "lhpc-aff.h"
+#endif
+
+#include "cvc_complex.h"
+#include "iblas.h"
+#include "ilinalg.h"
+#include "cvc_linalg.h"
+#include "global.h"
+#include "cvc_geometry.h"
+#include "cvc_utils.h"
+#include "mpi_init.h"
+#include "table_init_d.h"
+#include "table_init_z.h"
+#include "Q_phi.h"
+#include "Q_clover_phi.h"
+#include "vdag_w_utils.h"
+// #include "contract_cvc_tensor_eo_lm_factors.h"
+
+
+namespace cvc {
+
 /***********************************************************
  * contract_cvc_tensor_eo_lm_factors.cpp
  *
@@ -7,9 +42,9 @@
 int contract_cvc_tensor_eo_lm_factors (
     double ** const eo_evecs_field, unsigned int const nev, 
     double * const gauge_field, double ** const mzz[2], double ** const mzzinv[2],
-    struct AffWriter_s ** const affw, char * const tag, 
-    int (* const momentum_list)[3], unsigned int const momentum_number,
-    int const io_proc, 
+    struct AffWriter_s * affw, char * const tag, 
+    const int (*momentum_list)[3], unsigned int const momentum_number,
+    unsigned int const io_proc, 
     unsigned int const block_length 
 ) {
 
@@ -23,7 +58,7 @@ int contract_cvc_tensor_eo_lm_factors (
 
   unsigned int const block_number = nev / block_length;
   if (io_proc == 2 && g_verbose > 3 ) {
-    fprintf(stdout, "# [contract_cvc_tensor_eo_lm_factors] number of blocks = %u\n", block_length);
+    fprintf(stdout, "# [contract_cvc_tensor_eo_lm_factors] number of blocks = %u\n", block_number );
   }
   if ( nev - block_number * block_length != 0 ) {
     if ( io_proc == 2 ) fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error, nev not divisible by block_length\n");
@@ -129,15 +164,13 @@ int contract_cvc_tensor_eo_lm_factors (
      ***********************************************************/
     for ( int it = 0; it < T; it++ ) {
 
-#if 0
       /***********************************************************
        * initialize contraction fields to zero
        ***********************************************************/
       memset ( contr_p[0][0], 0, momentum_number * nev * block_length * sizeof(double _Complex ) );
       memset ( contr_x[0][0], 0, nev * block_length * 2*VOL3half * sizeof(double) );
-#endif  // of if 0
 
-#if 0
+
       /***********************************************************
        * spin-color reduction
        ***********************************************************/
@@ -146,9 +179,7 @@ int contract_cvc_tensor_eo_lm_factors (
         fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_spin_color_reduction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(4);
       }
-#endif  // of if 0
 
-#if 0
       /***********************************************************
        * momentum projection
        ***********************************************************/
@@ -157,25 +188,24 @@ int contract_cvc_tensor_eo_lm_factors (
         fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(4);
       }
-#endif  // of if 0
 
       /***********************************************************
        * write to file
        ***********************************************************/
       sprintf ( aff_tag, "%s/vv/t%.2d/b%.2d", tag, it+g_proc_coords[0]*T, iblock );
+      if ( io_proc == 2 ) fprintf ( stdout, "# [contract_cvc_tensor_eo_lm_factors] current aff tag = %s\n", aff_tag );
 
-      exitstatus = vdag_w_write_to_aff_file ( contr_p, nev, block_length, affw[it], aff_tag, momentum_list, momentum_number, io_proc );
+      exitstatus = vdag_w_write_to_aff_file ( contr_p, nev, block_length, affw, aff_tag, momentum_list, momentum_number, io_proc );
       if ( exitstatus != 0 ) {
         fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(4);
       }
-#if 0
-#endif  // of if 0
-    
+
     }  // end of loop on timeslices
 
     /***********************************************************/
     /***********************************************************/
+
 #if 0
     /***********************************************************
      * calculate w, xw for the current block,
@@ -318,7 +348,7 @@ int contract_cvc_tensor_eo_lm_factors (
          * write to file
          ***********************************************************/
         sprintf ( aff_tag, "%s/t%.2d/mu%d/b%.2d", tag, it+g_proc_coords[0]*T, mu, iblock );
-        exitstatus = vdag_w_write_to_aff_file ( contr_p, nev, block_length, affw[it], aff_tag, momentum_list, momentum_number, io_proc );
+        exitstatus = vdag_w_write_to_aff_file ( contr_p, nev, block_length, affw, aff_tag, momentum_list, momentum_number, io_proc );
         if ( exitstatus != 0 ) {
           fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           return(4);
@@ -329,8 +359,8 @@ int contract_cvc_tensor_eo_lm_factors (
     }  // end of loop on vector index mu
 
 #endif  // of if 0
-  }  // end of loop on evec blocks
 
+  }  // end of loop on evec blocks
 
 #if 0
   /***********************************************************
@@ -389,7 +419,7 @@ int contract_cvc_tensor_eo_lm_factors (
        * write to file
        ***********************************************************/
       sprintf ( aff_tag, "%s/ww/t%.2d/b%.2d", tag, it+g_proc_coords[0]*T, iblock );
-      exitstatus = vdag_w_write_to_aff_file ( contr_p, nev, block_length, affw[it], aff_tag, momentum_list, momentum_number, io_proc );
+      exitstatus = vdag_w_write_to_aff_file ( contr_p, nev, block_length, affw, aff_tag, momentum_list, momentum_number, io_proc );
       if ( exitstatus != 0 ) {
         fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(4);
@@ -397,9 +427,9 @@ int contract_cvc_tensor_eo_lm_factors (
     }  // end of loop on timeslices
   
   }  // end of loop on evecs blocks
+
 #endif  // of if 0
 
-#if 0
   fini_2level_dtable ( &eo_spinor_work );
   fini_2level_dtable ( &xv );
 
@@ -410,6 +440,9 @@ int contract_cvc_tensor_eo_lm_factors (
   fini_3level_dtable ( &contr_x );
   fini_3level_ztable ( &contr_p );
 
+#if 0
 #endif  // of if 0
   return(0);
 }  // end of contract_cvc_tensor_eo_lm_factors
+
+}
