@@ -7039,4 +7039,56 @@ int sort_dfield_by_map ( double * const v, unsigned int const nv, unsigned int *
 /****************************************************************************/
 /****************************************************************************/
 
-}  /* end of namespace cvc */
+/****************************************************************************
+ * check eigenpairs; calculate them, if they were read in this
+ * program
+ ****************************************************************************/
+int check_eigenpairs ( double ** const eo_evecs_field, double * const evecs_eval, unsigned int const evecs_num, double * const gauge_field, double ** const mzz[2], double ** const mzzinv[2] ) {
+
+  unsigned int const Vhalf = VOLUME / 2;
+
+  double ** eo_field = init_2level_dtable ( 2, _GSI(Vhalf));
+  double ** eo_work  = init_2level_dtable ( 3, _GSI( (VOLUME+RAND) / 2 ));
+  if( eo_field == NULL  || eo_work == NULL ) {
+    fprintf(stderr, "[check_eigenpairs] Error from init_2level_dtable was %s %d\n", __FILE__, __LINE__);
+    EXIT(123);
+  }
+
+  for( unsigned int i = 0; i < evecs_num; i++)
+  {
+    double norm;
+    complex w;
+
+    C_clover_oo ( eo_field[0], eo_evecs_field[i],  gauge_field, eo_work[2], mzz[1][1], mzzinv[1][0]);
+    C_clover_oo ( eo_field[1], eo_field[0],        gauge_field, eo_work[2], mzz[0][1], mzzinv[0][0]);
+
+    spinor_scalar_product_re(&norm, eo_evecs_field[i], eo_evecs_field[i], Vhalf);
+    spinor_scalar_product_co(&w     eo_field[1],       eo_evecs_field[i], Vhalf);
+
+    w.re *= 4.*g_kappa*g_kappa;
+    w.im *= 4.*g_kappa*g_kappa;
+
+    evecs_eval[i] = w.re;
+    if(g_cart_id == 0) {
+      fprintf(stdout, "# [check_eigenpairs] evec %.4u norm = %25.16e w = %25.16e +I %25.16e\n", i, norm, w.re, w.im );
+    }
+
+    norm = -evecs_eval[i] / ( 4.*g_kappa*g_kappa );
+    spinor_field_eq_spinor_field_pl_spinor_field_ti_re( eo_field[0], eo_field[1], eo_evecs_field[i], norm, Vhalf );
+    spinor_scalar_product_re(&norm, eo_field[0], eo_field[0], Vhalf);
+    if(g_cart_id == 0) {
+      fprintf(stdout, "# [check_eigenpairs] evec %.4u | Ax - lambda x | / | lambda |= %25.16e\n", i, sqrt( norm ) / fabs(evecs_eval[i]) );
+    }
+
+  }  // end of loop on evals
+
+  fini_2level_dtable ( &eo_field );
+  fini_2level_dtable ( &eo_work );
+
+  return(0);
+}  // end of check eigenpairs
+
+/****************************************************************************/
+/****************************************************************************/
+
+    }  /* end of namespace cvc */
