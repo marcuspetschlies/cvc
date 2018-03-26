@@ -207,6 +207,7 @@ int main(int argc, char **argv) {
   mpi_init_xchange_eo_propagator();
 
   unsigned int const Vhalf = VOLUME / 2;
+  unsigned int const VOL3half =  LX * LY * LZ / 2;
 
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
@@ -486,10 +487,10 @@ int main(int argc, char **argv) {
     EXIT(14);
   }
 
-#if 0
-  /***********************************************/
-  /***********************************************/
 
+  /***********************************************/
+  /***********************************************/
+#if 0
 #ifdef HAVE_LHPC_AFF
   /***********************************************
    * writer for aff output file
@@ -546,6 +547,7 @@ int main(int argc, char **argv) {
         EXIT(32);
       }
     }
+    free ( affw );
   }  // end of if io_proc >= 1
 #endif  // of ifdef HAVE_LHPC_AFF
 
@@ -765,6 +767,84 @@ int main(int argc, char **argv) {
 #endif
 #endif  // of if 0
 
+#if 0
+  /***********************************************************
+   * check V^+ V and W^+ W with momentum (for contact term)
+   ***********************************************************/
+
+  double _Complex **** contr_p = init_4level_ztable (T, g_sink_momentum_number, evecs_num, evecs_num );
+  
+  for ( int t = 0; t < T; t++ ) {
+    unsigned int const offset = t * VOL3half;
+  
+    for ( unsigned int i = 0; i < evecs_num; i++ ) {
+      for ( unsigned int k = 0; k < evecs_num; k++ ) {
+
+        // contract in position space
+        unsigned int ixeo = 0;
+        for ( int x1 = 0; x1 < LX; x1++ ) {
+        for ( int x2 = 0; x2 < LY; x2++ ) {
+        for ( int x3 = 0; x3 < LZ; x3++ ) {
+
+          unsigned int const ix = g_ipt[t][x1][x2][x3];
+          if ( g_iseven[ix] ) continue;  // only odd points
+
+          int const r[3] =  { x1, x2, x3 };
+
+          complex w;
+          _co_eq_fv_dag_ti_fv ( &w, eo_evecs_field[i]+_GSI(offset+ixeo), eo_evecs_field[k]+_GSI(offset+ixeo) );
+         
+          for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+
+            double const p[3] = {
+              2.*M_PI * g_sink_momentum_list[imom][0] / (double)LX_global,
+              2.*M_PI * g_sink_momentum_list[imom][1] / (double)LY_global,
+              2.*M_PI * g_sink_momentum_list[imom][2] / (double)LZ_global
+                                                                  };
+            double const phase = ( r[0] + g_proc_coords[1]*LX ) * p[0] + ( r[1] + g_proc_coords[2]*LY ) * p[1] + ( r[2] + g_proc_coords[3]*LZ ) * p[2];
+            double _Complex const ephase = cexp ( I*phase );
+
+            contr_p[t][imom][i][k] += (w.re + I * w.im) * ephase;
+          }
+          ixeo++;
+        }}}
+ 
+      }  // end of loop on timeslices
+    }
+  }  // end of loop on evecs
+
+#ifdef HAVE_MPI
+#  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
+  void *buffer = malloc ( T*evecs_num*evecs_num * g_sink_momentum_number * 2 *sizeof (double) );
+  memcpy ( buffer,  contr_p[0][0][0], T*evecs_num*evecs_num*g_sink_momentum_number * 2 * sizeof(double) );
+  MPI_Allreduce( buffer, contr_p[0][0][0], T*evecs_num*evecs_num*2*g_sink_momentum_number, MPI_DOUBLE, MPI_SUM, g_ts_comm );
+  free ( buffer );
+#  endif
+#endif
+
+  for ( int t = 0; t < T; t++ ) {
+    for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+    
+      for ( unsigned int ib = 0; ib < ( evecs_num / evecs_block_length ); ib++ ) {
+        
+        fprintf ( stdout, "/hvp/lma/N%d/B%d/vv/t%.2d/b%.2d/px%.2dpy%.2dpz%.2d\n", evecs_num, evecs_block_length, t+g_proc_coords[0]*T, ib,
+            g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2] );
+
+        for ( unsigned int i = 0; i < evecs_num; i++ ) {
+        for ( unsigned int k = 0; k < evecs_block_length; k++ ) {
+  
+          fprintf ( stdout, "    %25.16e %25.16e\n", creal ( contr_p[t][imom][i][ib*evecs_block_length + k] ), cimag ( contr_p[t][imom][i][ib*evecs_block_length + k] ) );
+        }}
+      }  // end of loop on blocks
+
+    }  // end of loop on momenta
+
+  }  // end of loop on timeslices
+
+  fini_4level_ztable ( &contr_p );
+
+#endif  // of if 0
+
   /****************************************
    * free the allocated memory, finalize
    ****************************************/
@@ -795,7 +875,8 @@ int main(int argc, char **argv) {
 #ifdef HAVE_TMLQCD_LIBWRAPPER
   tmLQCD_finalise();
 #endif
-
+#if 0
+#endif  // of if 0
 
 #ifdef HAVE_MPI
   mpi_fini_xchange_contraction();
@@ -803,6 +884,7 @@ int main(int argc, char **argv) {
   mpi_fini_datatypes();
   MPI_Finalize();
 #endif
+
 
   if(g_cart_id==0) {
     g_the_time = time(NULL);
