@@ -55,32 +55,6 @@ int cvc_loop_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, cha
 
 int cvc_loop_eo_check_wi_momentum_space_lma ( double **wi, double ***loop_lma, int (*momentum_list)[3], int momentum_number  );
 
-int vdag_w_spin_color_reduction ( double ***contr, double ** const V, double ** const W, unsigned int const dimV, unsigned int const dimW, int const t );
-
-int vdag_w_momentum_projection ( double _Complex ***contr_p, double *** const contr_x, int const dimV, int const dimW, 
-        int (* const momentum_list)[3], int const momentum_number, int const t, int const ieo, int const mu );
-
-
-
-int vdag_w_write_to_aff_file (
-  double _Complex *** const contr_tp, unsigned int const nv, unsigned int const nw,
-  struct AffWriter_s*affw,
-  char * const tag,
-  int (* const momentum_list)[3], unsigned int const momentum_number,
-  int const io_proc
-);
-
-
-int contract_cvc_tensor_eo_lm_factors (
-  double ** const eo_evecs_field, unsigned int const nev,
-  double * const gauge_field, double ** const mzz[2], double ** const mzzinv[2],
-  struct AffWriter_s ** const affw, char * const tag,
-  int (* const momentum_list)[3], unsigned int const momentum_number,
-  int const io_proc,
-  unsigned int const block_length
-);
-
-
 int const contract_cvc_tensor_eo_lm_mee (
   double ** const eo_evecs_field, unsigned int const nev,
   double * const gauge_field, double ** const mzz[2], double ** const mzzinv[2],
