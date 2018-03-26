@@ -28,19 +28,6 @@
 #include "lhpc-aff.h"
 #endif
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
-#  ifdef HAVE_TMLQCD_LIBWRAPPER
-#    include "tmLQCD.h"
-#  endif
-
-#ifdef __cplusplus
-}
-#endif
-
 #define MAIN_PROGRAM
 
 #include "cvc_complex.h"
@@ -65,6 +52,7 @@ extern "C"
 #include "table_init_z.h"
 #include "clover.h"
 #include "scalar_products.h"
+#include "contract_cvc_tensor_eo_lm_factors.h"
 
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
@@ -80,25 +68,12 @@ void usage() {
   EXIT(0);
 }
 
-int dummy_eo_solver (double * const propagator, double * const source, const int op_id) {
-  memcpy(propagator, source, _GSI(VOLUME)/2*sizeof(double) );
-  return(0);
-}
-
-
-#ifdef DUMMY_SOLVER 
-#  define _TMLQCD_INVERT_EO dummy_eo_solver
-#else
-#  define _TMLQCD_INVERT_EO tmLQCD_invert_eo
-#endif
-
 int main(int argc, char **argv) {
   
   const char outfile_prefix[] = "hvp_lma";
 
   int c;
   int filename_set = 0;
-  // int check_position_space_WI=0;
   int exitstatus;
   int sort_eigenvalues = 0;
   int check_eigenpairs = 0;
@@ -118,7 +93,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "scwh?f:b:n:")) != -1) {
+  while ((c = getopt(argc, argv, "sch?f:b:n:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -136,9 +111,6 @@ int main(int argc, char **argv) {
     case 'n':
       evecs_num = atoi( optarg );
       break;
-    //case 'w':
-    //  check_position_space_WI = 1;
-    //  break;
     case 'h':
     case '?':
     default:
@@ -154,32 +126,11 @@ int main(int argc, char **argv) {
   /* fprintf(stdout, "# [hvp_lma] Reading input from file %s\n", filename); */
   read_input_parser(filename);
 
-#ifdef HAVE_TMLQCD_LIBWRAPPER
-
-  fprintf(stdout, "# [hvp_lma] calling tmLQCD wrapper init functions\n");
-
-  /*********************************
-   * initialize MPI parameters for cvc
-   *********************************/
-  exitstatus = tmLQCD_invert_init(argc, argv, 1);
-  if(exitstatus != 0) {
-    EXIT(1);
-  }
-  exitstatus = tmLQCD_get_mpi_params(&g_tmLQCD_mpi);
-  if(exitstatus != 0) {
-    EXIT(2);
-  }
-  exitstatus = tmLQCD_get_lat_params(&g_tmLQCD_lat);
-  if(exitstatus != 0) {
-    EXIT(3);
-  }
-#endif
 
   /*********************************
    * initialize MPI parameters for cvc
    *********************************/
   mpi_init(argc, argv);
-  mpi_init_xchange_contraction(2);
 
   /*********************************
    * set number of openmp threads
@@ -203,13 +154,13 @@ int main(int argc, char **argv) {
 
   geometry();
 
+  mpi_init_xchange_contraction(2);
   mpi_init_xchange_eo_spinor();
   mpi_init_xchange_eo_propagator();
 
   unsigned int const Vhalf = VOLUME / 2;
   unsigned int const VOL3half =  LX * LY * LZ / 2;
 
-#ifndef HAVE_TMLQCD_LIBWRAPPER
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
   if(!(strcmp(gaugefilename_prefix,"identity")==0)) {
     // read the gauge field
@@ -221,24 +172,10 @@ int main(int argc, char **argv) {
     if(g_cart_id==0) fprintf(stdout, "\n# [hvp_lma] initializing unit matrices\n");
     exitstatus = unit_gauge_field( g_gauge_field, VOLUME );
   }
-#else
-  Nconf = g_tmLQCD_lat.nstore;
-  if(g_cart_id== 0) fprintf(stdout, "[hvp_lma] Nconf = %d\n", Nconf);
-
-  exitstatus = tmLQCD_read_gauge(Nconf);
-  if(exitstatus != 0) {
-    EXIT(5);
-  }
-
-  exitstatus = tmLQCD_get_gauge_field_pointer( &g_gauge_field );
-  if(exitstatus != 0) {
-    EXIT(6);
-  }
-  if( g_gauge_field == NULL) {
-    fprintf(stderr, "[hvp_lma] Error, g_gauge_field is NULL %s %d\n", __FILE__, __LINE__);
-    EXIT(7);
-  }
+#ifdef HAVE_MPI
+  xchange_gauge_field ( g_gauge_field );
 #endif
+  plaquetteria ( g_gauge_field );
 
   /***********************************************************
    * multiply the phase to the gauge field
@@ -258,47 +195,6 @@ int main(int argc, char **argv) {
     EXIT(1);
   }
 
-#ifdef HAVE_TMLQCD_LIBWRAPPER
-  /***********************************************************
-   * retrieve deflator paramters from tmLQCD
-   ***********************************************************/
-  exitstatus = tmLQCD_init_deflator(_OP_ID_UP);
-  if( exitstatus > 0) {
-    fprintf(stderr, "[hvp_lma] Error from tmLQCD_init_deflator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(8);
-  }
-
-  exitstatus = tmLQCD_get_deflator_params(&g_tmLQCD_defl, _OP_ID_UP);
-  if(exitstatus != 0) {
-    fprintf(stderr, "[hvp_lma] Error from tmLQCD_get_deflator_params, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(9);
-  }
-
-  if(g_cart_id == 1) {
-    fprintf(stdout, "# [hvp_lma] deflator type name = %s\n", g_tmLQCD_defl.type_name);
-    fprintf(stdout, "# [hvp_lma] deflator eo prec   = %d\n", g_tmLQCD_defl.eoprec);
-    fprintf(stdout, "# [hvp_lma] deflator precision = %d\n", g_tmLQCD_defl.prec);
-    fprintf(stdout, "# [hvp_lma] deflator nev       = %d\n", g_tmLQCD_defl.nev);
-  }
-
-  double * const eo_evecs_block = (double*)(g_tmLQCD_defl.evecs);
-  if(eo_evecs_block == NULL) {
-    fprintf(stderr, "[hvp_lma] Error, eo_evecs_block is NULL %s %d\n", __FILE__, __LINE__);
-    EXIT(10);
-  }
-
-  evecs_num = g_tmLQCD_defl.nev;
-  if(evecs_num == 0) {
-    fprintf(stderr, "[hvp_lma] Error, dimension of eigenspace is zero %s %d\n", __FILE__, __LINE__);
-    EXIT(11);
-  }
-
-  exitstatus = tmLQCD_set_deflator_fields(_OP_ID_DN, _OP_ID_UP);
-  if( exitstatus > 0) {
-    fprintf(stderr, "[hvp_lma] Error from tmLQCD_init_deflator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(8);
-  }
-#else
   /***********************************************************
    * allocate eigenvectors
    ***********************************************************/
@@ -317,8 +213,6 @@ int main(int argc, char **argv) {
     EXIT(8);
   }
 
-#endif  // of ifdef HAVE_TMLQCD_LIBWRAPPER
-
   /***********************************************************/
   /***********************************************************/
 
@@ -330,13 +224,6 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[hvp_lma] Error from malloc %s %d\n", __FILE__, __LINE__);
     EXIT(39);
   }
-
-#ifdef HAVE_TMLQCD_LIBWRAPPER
-  for( unsigned int i = 0; i < evecs_num; i++) {
-    evecs_eval[i] = ((double*)(g_tmLQCD_defl.evals))[2*i];
-    if( g_cart_id == 0 ) fprintf(stdout, "# [hvp_lma] eval %4d %16.7e\n", i, evecs_eval[i] );
-  }
-#endif
 
   /***********************************************************/
   /***********************************************************/
@@ -359,55 +246,43 @@ int main(int argc, char **argv) {
    * check eigenpairs; calculate them, if they were read in this
    * program
    ***********************************************************/
-#ifdef HAVE_TMLQCD_LIBWRAPPER
-  if ( check_eigenpairs ) {
-#endif
-    double ** eo_field = init_2level_dtable ( 2, _GSI(Vhalf));
-    double ** eo_work  = init_2level_dtable ( 3, _GSI( (VOLUME+RAND) / 2 ));
-    if( eo_field == NULL  || eo_work == NULL ) {
-      fprintf(stderr, "[loops_em] Error from init_2level_dtable was %s %d\n", __FILE__, __LINE__);
-      EXIT(123);
+  double ** eo_field = init_2level_dtable ( 2, _GSI(Vhalf));
+  double ** eo_work  = init_2level_dtable ( 3, _GSI( (VOLUME+RAND) / 2 ));
+  if( eo_field == NULL  || eo_work == NULL ) {
+    fprintf(stderr, "[loops_em] Error from init_2level_dtable was %s %d\n", __FILE__, __LINE__);
+    EXIT(123);
+  }
+
+  for( unsigned int i = 0; i < evecs_num; i++)
+  {
+    double norm;
+    complex w;
+
+    C_clover_oo ( eo_field[0], eo_evecs_field[i],  gauge_field_with_phase, eo_work[2], g_mzz_dn[1], g_mzzinv_dn[0]);
+    C_clover_oo ( eo_field[1], eo_field[0], gauge_field_with_phase, eo_work[2], g_mzz_up[1], g_mzzinv_up[0]);
+
+    spinor_scalar_product_re(&norm, eo_evecs_field[i], eo_evecs_field[i], Vhalf);
+    spinor_scalar_product_co(&w, eo_field[1], eo_evecs_field[i], Vhalf);
+
+    w.re *= 4.*g_kappa*g_kappa;
+    w.im *= 4.*g_kappa*g_kappa;
+
+    evecs_eval[i] = w.re;
+    if(g_cart_id == 0) {
+      fprintf(stdout, "# [hvp_lma] evec %.4d norm = %25.16e w = %25.16e +I %25.16e\n", i, norm, w.re, w.im );
     }
 
-    for( unsigned int i = 0; i < evecs_num; i++)
-    {
-      double norm;
-      complex w;
+    norm = -evecs_eval[i] / ( 4.*g_kappa*g_kappa );
+    spinor_field_eq_spinor_field_pl_spinor_field_ti_re( eo_field[0], eo_field[1], eo_evecs_field[i], norm, Vhalf );
+    spinor_scalar_product_re(&norm, eo_field[0], eo_field[0], Vhalf);
+    if(g_cart_id == 0) {
+      fprintf(stdout, "# [hvp_lma] evec %.4d | Ax - lambda x | / | lambda |= %25.16e\n", i, sqrt( norm ) / fabs(evecs_eval[i]) );
+    }
 
-      C_clover_oo ( eo_field[0], eo_evecs_field[i],  gauge_field_with_phase, eo_work[2], g_mzz_dn[1], g_mzzinv_dn[0]);
-      C_clover_oo ( eo_field[1], eo_field[0], gauge_field_with_phase, eo_work[2], g_mzz_up[1], g_mzzinv_up[0]);
+  }  // end of loop on evals
 
-      spinor_scalar_product_re(&norm, eo_evecs_field[i], eo_evecs_field[i], Vhalf);
-      spinor_scalar_product_co(&w, eo_field[1], eo_evecs_field[i], Vhalf);
-
-      w.re *= 4.*g_kappa*g_kappa;
-      w.im *= 4.*g_kappa*g_kappa;
-
-#ifdef HAVE_TMLQCD_LIBWRAPPER
-      if(g_cart_id == 0) {
-        fprintf(stdout, "# [hvp_lma] evec %.4d norm = %25.16e w = %25.16e +I %25.16e lambda %25.16e diff = %25.16e\n", i, norm, w.re, w.im, evecs_eval[i], fabs( w.re-evecs_eval[i]));
-      }
-#else
-      evecs_eval[i] = w.re;
-      if(g_cart_id == 0) {
-        fprintf(stdout, "# [hvp_lma] evec %.4d norm = %25.16e w = %25.16e +I %25.16e\n", i, norm, w.re, w.im );
-      }
-#endif
-      norm = -evecs_eval[i] / ( 4.*g_kappa*g_kappa );
-      spinor_field_eq_spinor_field_pl_spinor_field_ti_re( eo_field[0], eo_field[1], eo_evecs_field[i], norm, Vhalf );
-      spinor_scalar_product_re(&norm, eo_field[0], eo_field[0], Vhalf);
-      if(g_cart_id == 0) {
-        fprintf(stdout, "# [hvp_lma] evec %.4d | Ax - lambda x | / | lambda |= %25.16e\n", i, sqrt( norm ) / fabs(evecs_eval[i]) );
-      }
-
-    }  // end of loop on evals
-
-    fini_2level_dtable ( &eo_field );
-    fini_2level_dtable ( &eo_work );
-
-#ifdef HAVE_TMLQCD_LIBWRAPPER
-  }  // end of if check eigenpairs
-#endif
+  fini_2level_dtable ( &eo_field );
+  fini_2level_dtable ( &eo_work );
 
   /***********************************************************/
   /***********************************************************/
@@ -451,14 +326,6 @@ int main(int argc, char **argv) {
       EXIT(44);
     }
 
-#ifdef HAVE_TMLQCD_LIBWRAPPER
-    exitstatus = sort_dfield_by_map ( (double*)g_tmLQCD_defl.evals, evecs_num, sort_map, 2 );
-    if( exitstatus != 0 ) {
-      fprintf(stderr, "[hvp_lma] Error from sort_dfield_by_map, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(44);
-    }
-#endif  // of ifdef HAVE_TMLQCD_LIBWRAPPER
-
     exitstatus = sort_dfield_by_map ( evecs_eval, evecs_num, sort_map, 1 );
     if( exitstatus != 0 ) {
       fprintf(stderr, "[hvp_lma] Error from sort_dfield_by_map, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -478,6 +345,26 @@ int main(int argc, char **argv) {
     free ( sort_map );
   }   // end of if sort eigenvalues
 
+
+  /***********************************************
+   * fix eigenvector phase
+   ***********************************************/
+  exitstatus = fix_eigenvector_phase ( eo_evecs_field, evecs_num );
+  if( exitstatus != 0 ) {
+    fprintf(stderr, "[hvp_lma] Error from fix_eigenvector_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(17);
+  }
+
+  /***********************************************
+   * check eigenvector equation
+   ***********************************************/
+  exitstatus = check_eigenpairs ( eo_evecs_field, evecs_eval, evecs_num, gauge_field_with_phase, mzz, mzzinv );
+  if( exitstatus != 0 ) {
+    fprintf(stderr, "[hvp_lma] Error from check_eigenpairs, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(17);
+  }
+
+
   /***********************************************
    * set io process
    ***********************************************/
@@ -486,288 +373,51 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[hvp_lma] Error, io proc must be ge 0 %s %d\n", __FILE__, __LINE__);
     EXIT(14);
   }
+  fprintf(stdout, "# [hvp_lma] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
 
 
-  /***********************************************/
-  /***********************************************/
 #if 0
 #ifdef HAVE_LHPC_AFF
   /***********************************************
    * writer for aff output file
    ***********************************************/
-  struct AffWriter_s **affw = NULL;
+  struct AffWriter_s *affw = NULL;
   if(io_proc >= 1) {
-    affw = (struct AffWriter_s **) malloc ( T * sizeof(struct AffWriter_s*) );
-    if ( affw == NULL ) {
-      fprintf(stderr, "[hvp_lma] Error from malloc %s %d\n", __FILE__, __LINE__);
-      EXIT(1);
-    }
-    for ( int i = 0; i < T; i++ ) {
-      sprintf(filename, "%s.%.4d.t%.2d.aff", outfile_prefix, Nconf, i + g_proc_coords[0]*T );
-      fprintf(stdout, "# [hvp_lma] proc%.4d writing data to file %s\n", g_cart_id, filename);
-      affw[i] = aff_writer(filename);
-      const char * aff_status_str = aff_writer_errstr(affw[i]);
-      if( aff_status_str != NULL ) {
-        fprintf(stderr, "[hvp_lma] Error from aff_writer proc%.4d (%d), status was %s %s %d\n", g_cart_id, i, aff_status_str, __FILE__, __LINE__);
-        EXIT(15);
-      }
+    sprintf(filename, "%s.%.4d.t%.2d.aff", outfile_prefix, Nconf, g_proc_coords[0]*T );
+    fprintf(stdout, "# [hvp_lma] proc%.4d writing data to file %s\n", g_cart_id, filename);
+    affw = aff_writer(filename);
+    const char * aff_status_str = aff_writer_errstr( affw );
+    if( aff_status_str != NULL ) {
+      fprintf(stderr, "[hvp_lma] Error from aff_writer proc%.4d status was %s %s %d\n", g_cart_id, aff_status_str, __FILE__, __LINE__);
+      EXIT(15);
     }
   }  // end of if io_proc >= 1
 #endif
 
-  /***********************************************
-   * set aff tag
-   ***********************************************/
   sprintf(aff_tag, "/hvp/lma/N%d/B%d", evecs_num, evecs_block_length );
+  if ( g_cart_id == 0 ) fprintf ( stdout, "# [hvp_lma] current aff tag = %s\n", aff_tag );
 
-  /***********************************************
-   * contractions
-   ***********************************************/
-
-  ratime = _GET_TIME;
-
-  exitstatus = contract_cvc_tensor_eo_lm_factors ( eo_evecs_field, evecs_num, gauge_field_with_phase, mzz, mzzinv, affw, aff_tag,
-      g_sink_momentum_list, g_sink_momentum_number, io_proc, evecs_block_length );
-
-
+  exitstatus = contract_cvc_tensor_eo_lm_factors ( eo_evecs_field, evecs_num, gauge_field_with_phase, mzz, mzzinv, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc, evecs_block_length );
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[hvp_lma] Error from contract_cvc_tensor_eo_lm_factors, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(32);
   }
 
-  retime = _GET_TIME;
-  if ( g_cart_id == 0 ) fprintf ( stdout, "# [hvp_lma] time for contract_cvc_tensor_eo_lm_factors = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__ );
-
 #ifdef HAVE_LHPC_AFF
   if( io_proc >= 1 ) {
-    for ( int i = 0; i < T; i++ ) {
-      const char * aff_status_str = aff_writer_close ( affw[i] );
-      if( aff_status_str != NULL ) {
-        fprintf(stderr, "[hvp_lma] Error from aff_writer_close proc%.4d (%d), status was %s %s %d\n", g_cart_id, i, aff_status_str, __FILE__, __LINE__);
-        EXIT(32);
-      }
+    const char * aff_status_str = aff_writer_close ( affw );
+    if( aff_status_str != NULL ) {
+      fprintf(stderr, "[hvp_lma] Error from aff_writer_close proc%.4d status was %s %s %d\n", g_cart_id, aff_status_str, __FILE__, __LINE__);
+      EXIT(32);
     }
-    free ( affw );
   }  // end of if io_proc >= 1
 #endif  // of ifdef HAVE_LHPC_AFF
 
 #endif  // of if 0
 
+  /***********************************************************/
+  /***********************************************************/
 
-#if 0
-#ifdef HAVE_LHPC_AFF
-  /***********************************************
-   * writer for aff output file
-   ***********************************************/
-  struct AffWriter_s *affw2 = NULL;
-  if( io_proc == 2 ) {
-    sprintf(filename, "%s.mee.%.4d.aff", outfile_prefix, Nconf );
-    fprintf(stdout, "# [hvp_lma] writing data to file %s\n", filename);
-    affw2 = aff_writer( filename );
-    const char * aff_status_str = aff_writer_errstr( affw2 );
-    if( aff_status_str != NULL ) {
-      fprintf(stderr, "[hvp_lma] Error from aff_writer proc%.4d, status was %s %s %d\n", g_cart_id, aff_status_str, __FILE__, __LINE__);
-      EXIT(15);
-    }
-  }  // end of if io_proc == 2
-#endif 
-
-  /***********************************************
-   * set aff tag
-   ***********************************************/
-  sprintf(aff_tag, "/hvp/lma/N%d/mee", evecs_num );
-
-  ratime = _GET_TIME;
-
-  /***********************************************
-   * contractions for Mee part
-   ***********************************************/
-  exitstatus = contract_cvc_tensor_eo_lm_mee ( eo_evecs_field, evecs_num, gauge_field_with_phase, mzz, mzzinv, affw2, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
-  if ( exitstatus != 0 ) {
-    fprintf(stderr, "[hvp_lma] Error from contract_cvc_tensor_eo_lm_mee, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(33);
-  }
-
-  retime = _GET_TIME;
-  if ( g_cart_id == 0 ) fprintf ( stdout, "# [hvp_lma] time for contract_cvc_tensor_eo_lm_mee = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__ );
-
-#ifdef HAVE_LHPC_AFF
-  if( io_proc == 2 ) {
-    const char * aff_status_str = aff_writer_close ( affw2 );
-    if( aff_status_str != NULL ) {
-      fprintf(stderr, "[hvp_lma] Error from aff_writer_close proc%.4d, status was %s %s %d\n", g_cart_id, aff_status_str, __FILE__, __LINE__);
-      EXIT(32);
-    }
-  }  // end of if io_proc == 2
-#endif  // of ifdef HAVE_LHPC_AFF
-#endif  // of if 0
-
-
-
-#if 0
-#ifndef HAVE_MPI
-  /****************************************
-   * check by hand
-   ****************************************/
-
-  double _Complex ***** sp = init_5level_ztable ( evecs_num, 4, 4, T, 4 );
-  
-  for ( unsigned int iev = 0; iev < evecs_num; iev++ ) {
-
-    size_t const sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof( double );
-    
-    double ** work_field = init_2level_dtable ( 4, _GSI( (VOLUME+RAND)/2 ) );
-
-    double ** gfv = init_2level_dtable ( 4, _GSI( Vhalf) );
-    double ** gbv = init_2level_dtable ( 4, _GSI( Vhalf) );
-    double ** gfw = init_2level_dtable ( 4, _GSI( Vhalf) );
-    double ** gbw = init_2level_dtable ( 4, _GSI( Vhalf) );
-
-    memcpy ( work_field[0], eo_evecs_field[iev], sizeof_eo_spinor_field );
-
-    // calculate W = Cbar V
-    C_clover_oo ( work_field[1], work_field[0], gauge_field_with_phase, work_field[2], mzz[1][1], mzzinv[1][0] );
-
-    for ( int mu = 0; mu < 4; mu++ ) {
-      // g5 Gamma^F_mu V
-      apply_cvc_vertex_eo ( gfv[mu], work_field[0], mu, 0, gauge_field_with_phase, 0 );
-      g5_phi ( gfv[mu], Vhalf );
-
-      // g5 Gamma^B_mu V
-      apply_cvc_vertex_eo ( gbv[mu], work_field[0], mu, 1, gauge_field_with_phase, 0 );
-      g5_phi ( gbv[mu], Vhalf );
-
-      // Mee^-1 Gamma^F_mu W
-      apply_cvc_vertex_eo ( gfw[mu], work_field[1], mu, 0, gauge_field_with_phase, 0 );
-      M_clover_zz_inv_matrix ( gfw[mu], gfw[mu], mzzinv[0][0] );
-
-      // Mee^-1 Gamma^B_mu W
-      apply_cvc_vertex_eo ( gbw[mu], work_field[1], mu, 1, gauge_field_with_phase, 0 );
-      M_clover_zz_inv_matrix ( gbw[mu], gbw[mu], mzzinv[0][0] );
-
-    }
-
-    for ( int mu = 0; mu < 4; mu++ ) {
-
-      for ( int nu = 0; nu < 4; nu++ ) {
-
-
-        for ( int x0 = 0; x0 < T; x0++ ) {
-
-          for ( int x1 = 0; x1 < LX; x1++ ) {
-          for ( int x2 = 0; x2 < LY; x2++ ) {
-          for ( int x3 = 0; x3 < LZ; x3++ ) {
-
-            unsigned int const ix = g_ipt[x0][x1][x2][x3];
-     
-            if ( ! g_iseven[ix] ) continue;
-
-            unsigned int const ixeo = g_lexic2eosub[ix];
-
-            unsigned int const ixplnueo = g_lexic2eosub[g_iup[ix][nu]];
-
-            complex w1, w2;
-
-
-            _co_eq_fv_dag_ti_fv ( &w1, gbv[mu]+_GSI(ixeo), gfw[nu]+_GSI(ixeo) );
-            _co_eq_fv_dag_ti_fv ( &w2, gfv[nu]+_GSI(ixeo), gbw[mu]+_GSI(ixeo) );
-
-            sp[iev][mu][nu][x0][0] += ( w1.re + w2.re ) + ( w1.im + w2.im ) * I;
-
-            _co_eq_fv_dag_ti_fv ( &w1, gfv[mu]+_GSI(ixeo), gfw[nu]+_GSI(ixeo) );
-            _co_eq_fv_dag_ti_fv ( &w2, gfv[nu]+_GSI(ixeo), gfw[mu]+_GSI(ixeo) );
-
-            sp[iev][mu][nu][x0][1] += ( w1.re + w2.re ) + ( w1.im + w2.im ) * I;
-
-
-            _co_eq_fv_dag_ti_fv ( &w1, gbv[nu]+_GSI(ixplnueo), gfw[mu]+_GSI(ixplnueo) );
-            _co_eq_fv_dag_ti_fv ( &w2, gfv[mu]+_GSI(ixplnueo), gbw[nu]+_GSI(ixplnueo) );
-
-            sp[iev][mu][nu][x0][2] += ( w1.re + w2.re ) + ( w1.im + w2.im ) * I;
-
-            _co_eq_fv_dag_ti_fv ( &w1, gbv[nu]+_GSI(ixplnueo), gbw[mu]+_GSI(ixplnueo) );
-            _co_eq_fv_dag_ti_fv ( &w2, gbv[mu]+_GSI(ixplnueo), gbw[nu]+_GSI(ixplnueo) );
-
-            sp[iev][mu][nu][x0][3] += ( w1.re + w2.re ) + ( w1.im + w2.im ) * I;
-
-
-          }}}
-        }  // end of loop on t
-
-      }  // end of loop on nu
-    }  // end of loop on mu
-
-    fini_2level_dtable ( &work_field );
-    fini_2level_dtable ( &gfv );
-    fini_2level_dtable ( &gbv );
-    fini_2level_dtable ( &gfw );
-    fini_2level_dtable ( &gbw );
-  }  // end of loop on eigenvectors
-
-
-  for ( int mu = 0; mu < 4; mu++ ) {
-
-    for ( int nu = 0; nu < 4; nu++ ) {
-
-      for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
-
-        double _Complex *** sp2 = init_3level_ztable ( T, 3, evecs_num );
-
-        double const pvec[4] = {
-          0., 
-          2. * M_PI * g_sink_momentum_list[imom][0] / (double)LX_global,
-          2. * M_PI * g_sink_momentum_list[imom][1] / (double)LY_global,
-          2. * M_PI * g_sink_momentum_list[imom][2] / (double)LZ_global
-        };
-
-        double _Complex const phase[4] = {
-          cos ( pvec[mu] ) + I * sin ( pvec[mu] ) ,
-          1.,
-          cos ( pvec[nu] ) - I * sin ( pvec[nu] ) ,
-          cos ( pvec[mu] - pvec[nu] ) + I * sin ( pvec[mu] - pvec[nu] ) };
-
-        for ( int it = 0; it < T; it++ ) {
-
-          for ( int iev = 0; iev < evecs_num; iev++ ) {
-
-            sp2[it][(mu==0)+1][iev]         += phase[0] * sp[iev][mu][nu][it][0];
-
-            sp2[it][1][iev]                 += phase[1] * sp[iev][mu][nu][it][1];
-
-            sp2[it][-(nu==0)+1][iev]        += phase[2] * sp[iev][mu][nu][it][2];
-
-
-            sp2[it][(mu==0)-(nu==0)+1][iev] += phase[3] * sp[iev][mu][nu][it][3];
-
-          }
-        }
-
-        // print
-        for ( int it = 0; it < T; it++ ) {
-          for ( int dt = 0; dt < 3; dt++ ) {
-            fprintf ( stdout, "# [test mee part] /hvp/lma/N%d/mee/mu%d/nu%d/px%.2dpy%.2dpz%.2d/t%.2d/dt%d\n", evecs_num,  mu, nu,
-                g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], it, dt-1 );
-            for ( int iev = 0; iev < evecs_num; iev++ ) {
-              fprintf ( stdout, "  %25.16e %25.16e\n", creal(sp2[it][dt][iev]), cimag(sp2[it][dt][iev]) );
-            }
-          }
-        }
-
-        fini_3level_ztable ( &sp2 );
-
-      }  // end of loop on momenta
-
-    }  // end of loop on nu
-    
-  }  // end of loop on mu
-
-
-  fini_5level_ztable ( &sp );
- 
-#endif
-#endif  // of if 0
-
-#if 0
   /***********************************************************
    * check V^+ V and W^+ W with momentum (for contact term)
    ***********************************************************/
@@ -822,65 +472,81 @@ int main(int argc, char **argv) {
 #  endif
 #endif
 
-  for ( int t = 0; t < T; t++ ) {
-    for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
-    
-      for ( unsigned int ib = 0; ib < ( evecs_num / evecs_block_length ); ib++ ) {
+  if ( io_proc >= 1 ) {
+
+#ifdef HAVE_MPI
+#  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
+    for ( int iproc = 0; iproc < g_tr_nproc; iproc++  ) 
+#  else
+    for ( int iproc = 0; iproc < g_nproc; iproc++  ) 
+#  endif
+#endif
+    {
+#ifdef HAVE_MPI
+#  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
+      if ( g_tr_id == iproc )
+#  else
+      if ( g_cart_id == iproc )
+#  endif
+#endif
+      {
+        for ( int t = 0; t < T; t++ ) {
+          for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+     
+            for ( unsigned int ib = 0; ib < ( evecs_num / evecs_block_length ); ib++ ) {
         
-        fprintf ( stdout, "/hvp/lma/N%d/B%d/vv/t%.2d/b%.2d/px%.2dpy%.2dpz%.2d\n", evecs_num, evecs_block_length, t+g_proc_coords[0]*T, ib,
-            g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2] );
+              fprintf ( stdout, "/hvp/lma/N%d/B%d/vv/t%.2d/b%.2d/px%.2dpy%.2dpz%.2d\n", evecs_num, evecs_block_length, t+g_proc_coords[0]*T, ib,
+                  g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2] );
 
-        for ( unsigned int i = 0; i < evecs_num; i++ ) {
-        for ( unsigned int k = 0; k < evecs_block_length; k++ ) {
-  
-          fprintf ( stdout, "    %25.16e %25.16e\n", creal ( contr_p[t][imom][i][ib*evecs_block_length + k] ), cimag ( contr_p[t][imom][i][ib*evecs_block_length + k] ) );
-        }}
-      }  // end of loop on blocks
+              for ( unsigned int i = 0; i < evecs_num; i++ ) {
+              for ( unsigned int k = 0; k < evecs_block_length; k++ ) {
+                fprintf ( stdout, "    %25.16e %25.16e\n", creal ( contr_p[t][imom][i][ib*evecs_block_length + k] ), cimag ( contr_p[t][imom][i][ib*evecs_block_length + k] ) );
+              }}
+            }  // end of loop on blocks
 
-    }  // end of loop on momenta
-
-  }  // end of loop on timeslices
+          }  // end of loop on momenta
+        }  // end of loop on timeslices
+      }  // end of if g_tr_id == iproc
+#ifdef HAVE_MPI
+#  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
+      MPI_Barrier ( g_tr_comm );
+#  else
+      MPI_Barrier ( g_cart_id );
+#  endif
+#endif
+    }
+  }
 
   fini_4level_ztable ( &contr_p );
 
-#endif  // of if 0
+  /***********************************************/
+  /***********************************************/
 
-  /****************************************
+  /***********************************************
    * free the allocated memory, finalize
-   ****************************************/
+   ***********************************************/
 
-#ifndef HAVE_TMLQCD_LIBWRAPPER
   free(g_gauge_field);
-#endif
   free( gauge_field_with_phase );
 
-#ifndef HAVE_TMLQCD_LIBWRAPPER
   fini_1level_dtable ( &eo_evecs_block );
-#else
-  exitstatus = tmLQCD_fini_deflator(_OP_ID_UP);
-#endif
-  free(eo_evecs_field);
 
+  if ( eo_evecs_field            != NULL ) free ( eo_evecs_field );
   if ( evecs_eval                != NULL ) free ( evecs_eval );
   if ( evecs_lambdainv           != NULL ) free ( evecs_lambdainv );
   if ( evecs_4kappasqr_lambdainv != NULL ) free ( evecs_4kappasqr_lambdainv ); 
 
-  /****************************************
+  /***********************************************
    * free clover matrix terms
-   ****************************************/
+   ***********************************************/
   fini_clover ();
 
   free_geometry();
 
-#ifdef HAVE_TMLQCD_LIBWRAPPER
-  tmLQCD_finalise();
-#endif
-#if 0
-#endif  // of if 0
-
 #ifdef HAVE_MPI
   mpi_fini_xchange_contraction();
   mpi_fini_xchange_eo_spinor();
+  mpi_fini_xchange_eo_propagator();
   mpi_fini_datatypes();
   MPI_Finalize();
 #endif
