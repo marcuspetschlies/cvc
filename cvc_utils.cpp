@@ -29,6 +29,8 @@
 #include "Q_clover_phi.h"
 #include "scalar_products.h"
 #include "matrix_init.h"
+#include "table_init_d.h"
+#include "table_init_z.h"
 #include "project.h"
 
 namespace cvc {
@@ -7043,9 +7045,19 @@ int sort_dfield_by_map ( double * const v, unsigned int const nv, unsigned int *
  * check eigenpairs; calculate them, if they were read in this
  * program
  ****************************************************************************/
-int check_eigenpairs ( double ** const eo_evecs_field, double * const evecs_eval, unsigned int const evecs_num, double * const gauge_field, double ** const mzz[2], double ** const mzzinv[2] ) {
+int check_eigenpairs ( double ** const eo_evecs_field, double ** evecs_eval, unsigned int const evecs_num, double * const gauge_field, double ** const mzz[2], double ** const mzzinv[2] ) {
 
   unsigned int const Vhalf = VOLUME / 2;
+
+  int set_evecs_eval = 0;
+  if ( *evecs_eval == NULL ) {
+    if ( g_cart_id == 0 ) fprintf ( stdout, "# [check_eigenpairs] will set eigenvalues\n" );
+    set_evecs_eval = 1;
+    *evecs_eval = (double*)malloc ( evecs_num * sizeof( double ) );
+    if( *evecs_eval == NULL ) return ( -1 );
+  } else {
+    if ( g_cart_id == 0 ) fprintf ( stdout, "# [check_eigenpairs] will use existing eigenvalues\n" );
+  }
 
   double ** eo_field = init_2level_dtable ( 2, _GSI(Vhalf));
   double ** eo_work  = init_2level_dtable ( 3, _GSI( (VOLUME+RAND) / 2 ));
@@ -7063,21 +7075,24 @@ int check_eigenpairs ( double ** const eo_evecs_field, double * const evecs_eval
     C_clover_oo ( eo_field[1], eo_field[0],        gauge_field, eo_work[2], mzz[0][1], mzzinv[0][0]);
 
     spinor_scalar_product_re(&norm, eo_evecs_field[i], eo_evecs_field[i], Vhalf);
-    spinor_scalar_product_co(&w     eo_field[1],       eo_evecs_field[i], Vhalf);
+    spinor_scalar_product_co(&w,   eo_field[1],       eo_evecs_field[i], Vhalf);
 
     w.re *= 4.*g_kappa*g_kappa;
     w.im *= 4.*g_kappa*g_kappa;
 
-    evecs_eval[i] = w.re;
+    if ( set_evecs_eval ) {
+      (*evecs_eval)[i] = w.re;
+    }
     if(g_cart_id == 0) {
-      fprintf(stdout, "# [check_eigenpairs] evec %.4u norm = %25.16e w = %25.16e +I %25.16e\n", i, norm, w.re, w.im );
+      fprintf(stdout, "# [check_eigenpairs] evec %.4u norm = %25.16e w = %25.16e +I %25.16e diff %16.7e\n",
+          i, norm, w.re, w.im, fabs ( w.re - (*evecs_eval)[i]) );
     }
 
-    norm = -evecs_eval[i] / ( 4.*g_kappa*g_kappa );
+    norm = -(*evecs_eval)[i] / ( 4.*g_kappa*g_kappa );
     spinor_field_eq_spinor_field_pl_spinor_field_ti_re( eo_field[0], eo_field[1], eo_evecs_field[i], norm, Vhalf );
     spinor_scalar_product_re(&norm, eo_field[0], eo_field[0], Vhalf);
     if(g_cart_id == 0) {
-      fprintf(stdout, "# [check_eigenpairs] evec %.4u | Ax - lambda x | / | lambda |= %25.16e\n", i, sqrt( norm ) / fabs(evecs_eval[i]) );
+      fprintf(stdout, "# [check_eigenpairs] evec %.4u | Ax - lambda x | / | lambda |= %25.16e\n", i, sqrt( norm ) / fabs((*evecs_eval)[i]) );
     }
 
   }  // end of loop on evals
@@ -7091,4 +7106,4 @@ int check_eigenpairs ( double ** const eo_evecs_field, double * const evecs_eval
 /****************************************************************************/
 /****************************************************************************/
 
-    }  /* end of namespace cvc */
+}  /* end of namespace cvc */
