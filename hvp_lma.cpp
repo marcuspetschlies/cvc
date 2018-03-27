@@ -76,7 +76,7 @@ int main(int argc, char **argv) {
   int filename_set = 0;
   int exitstatus;
   int sort_eigenvalues = 0;
-  int check_eigenpairs = 0;
+  int check_evecs = 0;
   char filename[100];
   double ratime, retime;
   double **mzz[2], **mzzinv[2];
@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
       sort_eigenvalues = 1;
       break;
     case 'c':
-      check_eigenpairs = 1;
+      check_evecs = 1;
       break;
     case 'n':
       evecs_num = atoi( optarg );
@@ -219,11 +219,11 @@ int main(int argc, char **argv) {
   /***********************************************************
    * allocate eigenvalues
    ***********************************************************/
-  double * const evecs_eval = (double*)malloc(evecs_num*sizeof(double));
-  if( evecs_eval == NULL ) {
-    fprintf(stderr, "[hvp_lma] Error from malloc %s %d\n", __FILE__, __LINE__);
-    EXIT(39);
-  }
+  //double * const evecs_eval = (double*)malloc(evecs_num*sizeof(double));
+  //if( evecs_eval == NULL ) {
+  //  fprintf(stderr, "[hvp_lma] Error from malloc %s %d\n", __FILE__, __LINE__);
+  //  EXIT(39);
+  //}
 
   /***********************************************************/
   /***********************************************************/
@@ -242,6 +242,7 @@ int main(int argc, char **argv) {
   /***********************************************************/
   /***********************************************************/
 
+#if 0
   /***********************************************************
    * check eigenpairs; calculate them, if they were read in this
    * program
@@ -283,6 +284,17 @@ int main(int argc, char **argv) {
 
   fini_2level_dtable ( &eo_field );
   fini_2level_dtable ( &eo_work );
+#endif  // of if 0
+
+  /***********************************************
+   * set eigenvalues
+   ***********************************************/
+  double * evecs_eval = NULL;
+  exitstatus = check_eigenpairs ( eo_evecs_field, &evecs_eval, evecs_num, gauge_field_with_phase, mzz, mzzinv );
+  if( exitstatus != 0 ) {
+    fprintf(stderr, "[hvp_lma] Error from check_eigenpairs, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(17);
+  }
 
   /***********************************************************/
   /***********************************************************/
@@ -358,7 +370,7 @@ int main(int argc, char **argv) {
   /***********************************************
    * check eigenvector equation
    ***********************************************/
-  exitstatus = check_eigenpairs ( eo_evecs_field, evecs_eval, evecs_num, gauge_field_with_phase, mzz, mzzinv );
+  exitstatus = check_eigenpairs ( eo_evecs_field, &evecs_eval, evecs_num, gauge_field_with_phase, mzz, mzzinv );
   if( exitstatus != 0 ) {
     fprintf(stderr, "[hvp_lma] Error from check_eigenpairs, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(17);
@@ -376,7 +388,7 @@ int main(int argc, char **argv) {
   fprintf(stdout, "# [hvp_lma] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
 
 
-#if 0
+
 #ifdef HAVE_LHPC_AFF
   /***********************************************
    * writer for aff output file
@@ -412,14 +424,14 @@ int main(int argc, char **argv) {
     }
   }  // end of if io_proc >= 1
 #endif  // of ifdef HAVE_LHPC_AFF
-
+#if 0
 #endif  // of if 0
 
   /***********************************************************/
   /***********************************************************/
-
+#if 0
   /***********************************************************
-   * check V^+ V and W^+ W with momentum (for contact term)
+   * check V^+ V with momentum (for contact term)
    ***********************************************************/
 
   double _Complex **** contr_p = init_4level_ztable (T, g_sink_momentum_number, evecs_num, evecs_num );
@@ -518,7 +530,117 @@ int main(int argc, char **argv) {
   }
 
   fini_4level_ztable ( &contr_p );
+#endif  // of if 0
 
+  /***********************************************************/
+  /***********************************************************/
+
+  /***********************************************************
+   * check W^+ W with momentum (for contact term)
+   ***********************************************************/
+
+  double _Complex **** contr_p = init_4level_ztable (T, g_sink_momentum_number, evecs_num, evecs_num );
+  double ** eo_work = init_2level_dtable ( 3, _GSI( (VOLUME+RAND)/2 ) );
+  size_t const sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
+  for ( unsigned int i = 0; i < evecs_num; i++ ) {
+    memcpy( eo_work[0], eo_evecs_field[i], sizeof_eo_spinor_field );
+    C_clover_oo (  eo_evecs_field[i], eo_work[0], gauge_field_with_phase, eo_work[1], mzz[1][1], mzzinv[1][0] );
+  }
+
+  for ( int t = 0; t < T; t++ ) {
+    unsigned int const offset = t * VOL3half;
+  
+    for ( unsigned int i = 0; i < evecs_num; i++ ) {
+      for ( unsigned int k = 0; k < evecs_num; k++ ) {
+
+        // contract in position space
+        unsigned int ixeo = 0;
+        for ( int x1 = 0; x1 < LX; x1++ ) {
+        for ( int x2 = 0; x2 < LY; x2++ ) {
+        for ( int x3 = 0; x3 < LZ; x3++ ) {
+
+          unsigned int const ix = g_ipt[t][x1][x2][x3];
+          if ( g_iseven[ix] ) continue;  // only odd points
+
+          int const r[3] =  { x1, x2, x3 };
+
+          complex w;
+          _co_eq_fv_dag_ti_fv ( &w, eo_evecs_field[i]+_GSI(offset+ixeo), eo_evecs_field[k]+_GSI(offset+ixeo) );
+         
+          for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+
+            double const p[3] = {
+              2.*M_PI * g_sink_momentum_list[imom][0] / (double)LX_global,
+              2.*M_PI * g_sink_momentum_list[imom][1] / (double)LY_global,
+              2.*M_PI * g_sink_momentum_list[imom][2] / (double)LZ_global
+                                                                  };
+            double const phase = ( r[0] + g_proc_coords[1]*LX ) * p[0] + ( r[1] + g_proc_coords[2]*LY ) * p[1] + ( r[2] + g_proc_coords[3]*LZ ) * p[2];
+            double _Complex const ephase = cexp ( I*phase );
+
+            contr_p[t][imom][i][k] += (w.re + I * w.im) * ephase;
+          }
+          ixeo++;
+        }}}
+ 
+      }  // end of loop on timeslices
+    }
+  }  // end of loop on evecs
+
+#ifdef HAVE_MPI
+#  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
+  void *buffer = malloc ( T*evecs_num*evecs_num * g_sink_momentum_number * 2 *sizeof (double) );
+  memcpy ( buffer,  contr_p[0][0][0], T*evecs_num*evecs_num*g_sink_momentum_number * 2 * sizeof(double) );
+  MPI_Allreduce( buffer, contr_p[0][0][0], T*evecs_num*evecs_num*2*g_sink_momentum_number, MPI_DOUBLE, MPI_SUM, g_ts_comm );
+  free ( buffer );
+#  endif
+#endif
+
+  if ( io_proc >= 1 ) {
+
+#ifdef HAVE_MPI
+#  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
+    for ( int iproc = 0; iproc < g_tr_nproc; iproc++  ) 
+#  else
+    for ( int iproc = 0; iproc < g_nproc; iproc++  ) 
+#  endif
+#endif
+    {
+#ifdef HAVE_MPI
+#  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
+      if ( g_tr_id == iproc )
+#  else
+      if ( g_cart_id == iproc )
+#  endif
+#endif
+      {
+        for ( int t = 0; t < T; t++ ) {
+          for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+     
+            for ( unsigned int ib = 0; ib < ( evecs_num / evecs_block_length ); ib++ ) {
+        
+              fprintf ( stdout, "/hvp/lma/N%d/B%d/ww/t%.2d/b%.2d/px%.2dpy%.2dpz%.2d\n", evecs_num, evecs_block_length, t+g_proc_coords[0]*T, ib,
+                  g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2] );
+
+              for ( unsigned int i = 0; i < evecs_num; i++ ) {
+              for ( unsigned int k = 0; k < evecs_block_length; k++ ) {
+                fprintf ( stdout, "    %25.16e %25.16e\n", creal ( contr_p[t][imom][i][ib*evecs_block_length + k] ), cimag ( contr_p[t][imom][i][ib*evecs_block_length + k] ) );
+              }}
+            }  // end of loop on blocks
+
+          }  // end of loop on momenta
+        }  // end of loop on timeslices
+      }  // end of if g_tr_id == iproc
+#ifdef HAVE_MPI
+#  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
+      MPI_Barrier ( g_tr_comm );
+#  else
+      MPI_Barrier ( g_cart_id );
+#  endif
+#endif
+    }
+  }
+
+  fini_4level_ztable ( &contr_p );
   /***********************************************/
   /***********************************************/
 

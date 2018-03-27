@@ -362,7 +362,7 @@ int contract_cvc_tensor_eo_lm_factors (
 
   }  // end of loop on evec blocks
 
-#if 0
+
   /***********************************************************
    * calculate all Wtildes, save them in place of XV in field
    * xv
@@ -427,7 +427,7 @@ int contract_cvc_tensor_eo_lm_factors (
     }  // end of loop on timeslices
   
   }  // end of loop on evecs blocks
-
+#if 0
 #endif  // of if 0
 
   fini_2level_dtable ( &eo_spinor_work );
