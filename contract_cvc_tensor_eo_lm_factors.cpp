@@ -256,6 +256,13 @@ int contract_cvc_tensor_eo_lm_factors (
       for ( int it = 0; it < T; it++ ) {
 
         /***********************************************************
+         * initialize contraction fields to zero
+         ***********************************************************/
+        memset ( contr_p[0][0], 0, momentum_number * nev * block_length *              sizeof(double _Complex ) );
+#if 0
+        memset ( contr_x[0][0], 0,                   nev * block_length * 2*VOL3half * sizeof(double) );
+
+        /***********************************************************
          * (1e) XV^+ x Gmufwd W
          ***********************************************************/
 
@@ -270,14 +277,18 @@ int contract_cvc_tensor_eo_lm_factors (
 
         /***********************************************************
          * momentum projection
+         *   ieo = 0
+         *   mu = 0 for shift, i.e. no shift
          ***********************************************************/
-        exitstatus = vdag_w_momentum_projection ( contr_p, contr_x, nev, block_length, momentum_list, momentum_number, it, 0, mu );
+        exitstatus = vdag_w_momentum_projection ( contr_p, contr_x, nev, block_length, momentum_list, momentum_number, it, 0, 0 );
         if ( exitstatus != 0 ) {
           fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           return(4);
         }
+#endif  // of if 0
 
-#if 0
+        memset ( contr_x[0][0], 0,                   nev * block_length * 2*VOL3half * sizeof(double) );
+
         /***********************************************************
          * (2o) V^+ x Gmubwd XW
          ***********************************************************/
@@ -300,6 +311,16 @@ int contract_cvc_tensor_eo_lm_factors (
           return(4);
         }
 
+        sprintf ( aff_tag, "%s/t%.2d/mu%d/b%.2d/odd", tag, it+g_proc_coords[0]*T, mu, iblock );
+        exitstatus = vdag_w_write_to_aff_file ( contr_p, nev, block_length, affw, aff_tag, momentum_list, momentum_number, io_proc );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          return(4);
+        }
+
+
+        memset ( contr_x[0][0], 0,                   nev * block_length * 2*VOL3half * sizeof(double) );
+
         /***********************************************************
          * (3e) XV^+ x Gmubwd W
          ***********************************************************/
@@ -307,7 +328,7 @@ int contract_cvc_tensor_eo_lm_factors (
         /***********************************************************
          * spin-color reduction
          ***********************************************************/
-        exitstatus = vdag_w_spin_color_reduction ( contr_x, xv, eo_block_field[2], nev, block_length, it + (mu==0) );
+        exitstatus = vdag_w_spin_color_reduction ( contr_x, xv, eo_block_field[1], nev, block_length, it + (mu==0) );
         if ( exitstatus != 0 ) {
           fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_spin_color_reduction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           return(4);
@@ -322,6 +343,17 @@ int contract_cvc_tensor_eo_lm_factors (
           return(4);
         }
 
+        sprintf ( aff_tag, "%s/t%.2d/mu%d/b%.2d/even", tag, it+g_proc_coords[0]*T, mu, iblock );
+        exitstatus = vdag_w_write_to_aff_file ( contr_p, nev, block_length, affw, aff_tag, momentum_list, momentum_number, io_proc );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          return(4);
+        }
+
+#if 0
+#endif  // of if 0
+
+#if 0
         /***********************************************************
          * (4o) V^+ x Gmufwd XW
          ***********************************************************/
@@ -329,7 +361,8 @@ int contract_cvc_tensor_eo_lm_factors (
         /***********************************************************
          * spin-color reduction
          ***********************************************************/
-        exitstatus = vdag_w_spin_color_reduction ( contr_x, xv, eo_block_field[1], nev, block_length, it );
+        // exitstatus = vdag_w_spin_color_reduction ( contr_x, xv, eo_block_field[1], nev, block_length, it );
+        exitstatus = vdag_w_spin_color_reduction ( contr_x, v, eo_block_field[2], nev, block_length, it );
         if ( exitstatus != 0 ) {
           fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_spin_color_reduction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           return(4);
@@ -337,8 +370,10 @@ int contract_cvc_tensor_eo_lm_factors (
 
         /***********************************************************
          * momentum projection
+         *   ieo = 1, odd points are contracted
+         *   mu = 0 for shift, i.e. no shift
          ***********************************************************/
-        exitstatus = vdag_w_momentum_projection ( contr_p, contr_x, nev, block_length, momentum_list, momentum_number, it, 1, mu );
+        exitstatus = vdag_w_momentum_projection ( contr_p, contr_x, nev, block_length, momentum_list, momentum_number, it, 1, 0 );
         if ( exitstatus != 0 ) {
           fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           return(4);
@@ -396,8 +431,8 @@ int contract_cvc_tensor_eo_lm_factors (
       /***********************************************************
        * initialize contraction fields to zero
        ***********************************************************/
-      memset ( contr_p[0][0], 0, momentum_number * nev * block_length * sizeof(double _Complex ) );
-      memset ( contr_x[0][0], 0, nev * block_length * 2*VOL3half * sizeof(double) );
+      memset ( contr_p[0][0], 0, momentum_number * nev * block_length *              sizeof(double _Complex ) );
+      memset ( contr_x[0][0], 0,                   nev * block_length * 2*VOL3half * sizeof(double)           );
 
       /***********************************************************
        * spin-color reduction
