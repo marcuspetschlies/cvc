@@ -76,9 +76,8 @@ int main(int argc, char **argv) {
   int filename_set = 0;
   int exitstatus;
   int sort_eigenvalues = 0;
-  int check_evecs = 0;
   char filename[100];
-  double ratime, retime;
+  // double ratime, retime;
   double **mzz[2], **mzzinv[2];
   double *gauge_field_with_phase = NULL;
   unsigned int evecs_block_length = 0;
@@ -93,7 +92,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "sch?f:b:n:")) != -1) {
+  while ((c = getopt(argc, argv, "sh?f:b:n:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -104,9 +103,6 @@ int main(int argc, char **argv) {
       break;
     case 's':
       sort_eigenvalues = 1;
-      break;
-    case 'c':
-      check_evecs = 1;
       break;
     case 'n':
       evecs_num = atoi( optarg );
@@ -601,61 +597,90 @@ int main(int argc, char **argv) {
   /***********************************************************/
   /***********************************************************/
 
+#if 0
   /***********************************************************
-   * check phi_1 with momentum (for contact term)
+   * check phi_1,4 with momentum (for contact term)
    ***********************************************************/
 
   double _Complex ***** contr_p = init_5level_ztable (T, 4, g_sink_momentum_number, evecs_num, evecs_num );
   size_t const sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
   double ** eo_work  = init_2level_dtable ( 2, _GSI( (VOLUME+RAND)/2 ) );
-  double ** eo_field = init_2level_dtable ( 3, _GSI( (VOLUME)/2 ) );
+  double ** w_field = init_2level_dtable ( 4, _GSI( (VOLUME)/2 ) );
+  double ** v_field = init_2level_dtable ( 4, _GSI( (VOLUME)/2 ) );
   
   for ( unsigned int k = 0; k < evecs_num; k++ ) {
     memcpy( eo_work[0], eo_evecs_field[k], sizeof_eo_spinor_field );
-    C_clover_oo (  eo_field[1], eo_work[0], gauge_field_with_phase, eo_work[1], mzz[1][1], mzzinv[1][0] );
+    C_clover_oo ( w_field[0], eo_work[0], gauge_field_with_phase, eo_work[1], mzz[1][1], mzzinv[1][0] );
+    memcpy( eo_work[0], w_field[0], sizeof_eo_spinor_field );
+    X_clover_eo ( w_field[1], eo_work[0], gauge_field_with_phase, mzzinv[0][0] );
  
-    for ( unsigned int i = 0; i < evecs_num; i++ ) {
-      memcpy( eo_work[0], eo_evecs_field[k], sizeof_eo_spinor_field );
+    // double dtmp;
+    // spinor_scalar_product_re ( &dtmp, eo_field[1], eo_field[1], Vhalf );
+    // if ( g_cart_id == 0 ) fprintf ( stdout, "# [hvp_lma] evec eval %4d lambda %25.16e\n", k, dtmp*4*g_kappa*g_kappa  );
 
-      X_clover_eo ( eo_field[0], eo_work[0], gauge_field_with_phase, mzzinv[1][0] );
+
+    for ( unsigned int i = 0; i < evecs_num; i++ ) {
+      memcpy( v_field[0], eo_evecs_field[i], sizeof_eo_spinor_field );
+      memcpy( eo_work[0], eo_evecs_field[i], sizeof_eo_spinor_field );
+
+      X_clover_eo ( v_field[1], eo_work[0], gauge_field_with_phase, mzzinv[1][0] );
 
       for ( int mu = 0; mu < 4; mu++ ) {
 
-        memcpy ( eo_work[0], eo_field[1], sizeof_eo_spinor_field );
+        memcpy ( eo_work[0], w_field[0], sizeof_eo_spinor_field );
+        memcpy ( eo_work[1], w_field[1], sizeof_eo_spinor_field );
 #ifdef HAVE_MPI
         xchange_eo_field( eo_work[0], 1);
+        xchange_eo_field( eo_work[1], 0);
 #endif
         for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
-          if ( !g_iseven[ix] ) continue;
 
+          // point on even sublattice
           unsigned int const ixeo = g_lexic2eosub[ix];
 
+          // thus point on odd sublattice
           unsigned int const ixeopm = g_lexic2eosub[ g_iup[ix][mu] ];
 
           double spinor1[24], spinor2[24];
 
-          _fv_eq_gamma_ti_fv ( spinor1, mu, eo_work[0]+_GSI(ixeopm) );
-          _fv_mi_eq_fv ( spinor1, eo_work[0]+_GSI(ixeopm) );
-          _fv_eq_gamma_ti_fv ( spinor2, 5, spinor1 );
-          _fv_eq_cm_ti_fv ( eo_field[2]+_GSI(ixeo), gauge_field_with_phase+_GGI(ix,mu), spinor2 );
+          if ( g_iseven[ix] ) {
+            // contract even points
+            _fv_eq_gamma_ti_fv ( spinor1, mu, eo_work[0]+_GSI(ixeopm) );
+            _fv_mi_eq_fv ( spinor1, eo_work[0]+_GSI(ixeopm) );
+            _fv_eq_gamma_ti_fv ( spinor2, 5, spinor1 );
+            _fv_ti_eq_re ( spinor2, 0.5 );
+            _fv_eq_cm_ti_fv ( w_field[2]+_GSI(ixeo), gauge_field_with_phase+_GGI(ix,mu), spinor2 );
+          } else {
+            // contract odd points
+            _fv_eq_gamma_ti_fv ( spinor1, mu, eo_work[1]+_GSI(ixeopm) );
+            _fv_mi_eq_fv ( spinor1, eo_work[1]+_GSI(ixeopm) );
+            _fv_eq_gamma_ti_fv ( spinor2, 5, spinor1 );
+            _fv_ti_eq_re ( spinor2, 0.5 );
+            _fv_eq_cm_ti_fv ( w_field[3]+_GSI(ixeo), gauge_field_with_phase+_GGI(ix,mu), spinor2 );
+          }
         }
 
+        // loop on timeslices
         for ( int t = 0; t < T; t++ ) {
           unsigned int const offset = t * VOL3half;
     
           // contract in position space
-          unsigned int ixeo = 0;
+          unsigned int ixe = 0, ixo = 0;
           for ( int x1 = 0; x1 < LX; x1++ ) {
           for ( int x2 = 0; x2 < LY; x2++ ) {
           for ( int x3 = 0; x3 < LZ; x3++ ) {
 
             unsigned int const ix = g_ipt[t][x1][x2][x3];
-            if ( !g_iseven[ix] ) continue;  // only even points
-
             int const r[3] =  { x1, x2, x3 };
+            complex w = {0., 0.};
 
-            complex w;
-            _co_eq_fv_dag_ti_fv ( &w, eo_field[0]+_GSI(offset+ixeo), eo_field[2]+_GSI(offset+ixeo) );
+            if ( g_iseven[ix] ) {
+              _co_eq_fv_dag_ti_fv ( &w, v_field[1]+_GSI(offset+ixe), w_field[2]+_GSI(offset+ixe) );
+              ixe++;
+            } else {
+              _co_eq_fv_dag_ti_fv ( &w, v_field[0]+_GSI(offset+ixo), w_field[3]+_GSI(offset+ixo) );
+              ixo++;
+            }
          
             for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
 
@@ -669,7 +694,7 @@ int main(int argc, char **argv) {
 
               contr_p[t][mu][imom][i][k] += (w.re + I * w.im) * ephase;
             }
-            ixeo++;
+
           }}}
  
         }  // end of loop on timeslices
@@ -737,7 +762,183 @@ int main(int argc, char **argv) {
 
   fini_5level_ztable ( &contr_p );
   fini_2level_dtable ( &eo_work );
-  fini_2level_dtable ( &eo_field );
+  fini_2level_dtable ( &w_field );
+  fini_2level_dtable ( &v_field );
+#endif  // of if 0
+
+  /***********************************************************/
+  /***********************************************************/
+
+  /***********************************************************
+   * check phi_2 with momentum (for contact term)
+   ***********************************************************/
+
+  double _Complex ***** contr_p = init_5level_ztable (T, 4, g_sink_momentum_number, evecs_num, evecs_num );
+  size_t const sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
+  double ** eo_work  = init_2level_dtable ( 2, _GSI( (VOLUME+RAND)/2 ) );
+  double ** w_field = init_2level_dtable ( 4, _GSI( (VOLUME+RAND)/2 ) );
+  double ** v_field = init_2level_dtable ( 2, _GSI( (VOLUME+RAND)/2 ) );
+  
+  for ( unsigned int k = 0; k < evecs_num; k++ ) {
+
+    memcpy( eo_work[0], eo_evecs_field[k], sizeof_eo_spinor_field );
+    C_clover_oo ( w_field[0], eo_work[0], gauge_field_with_phase, eo_work[1], mzz[1][1], mzzinv[1][0] );
+    X_clover_eo ( w_field[1], w_field[0], gauge_field_with_phase, mzzinv[0][0] );
+ 
+#ifdef HAVE_MPI
+    xchange_eo_field( w_field[0], 1);
+    xchange_eo_field( w_field[1], 0);
+#endif
+    // double dtmp;
+    // spinor_scalar_product_re ( &dtmp, w_field[0], w_field[0], Vhalf );
+    // if ( g_cart_id == 0 ) fprintf ( stdout, "# [hvp_lma] evec eval %4d lambda %25.16e\n", k, dtmp*4*g_kappa*g_kappa  );
+
+
+    for ( unsigned int i = 0; i < evecs_num; i++ ) {
+      memcpy( v_field[0], eo_evecs_field[i], sizeof_eo_spinor_field );
+
+      X_clover_eo ( v_field[1], v_field[0], gauge_field_with_phase, mzzinv[1][0] );
+#ifdef HAVE_MPI
+      xchange_eo_field( v_field[0], 1);
+      xchange_eo_field( v_field[1], 0);
+#endif
+
+      for ( int mu = 0; mu < 4; mu++ ) {
+        int shift[3] = {0,0,0};
+        if ( mu > 0 ) shift[mu-1] = -1;
+
+        for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
+
+          // point on even sublattice
+          unsigned int const ixeo = g_lexic2eosub[ix];
+
+          // thus point on odd sublattice
+          unsigned int const ixeomm = g_lexic2eosub[ g_idn[ix][mu] ];
+
+          double spinor1[24], spinor2[24];
+
+          if ( g_iseven[ix] ) {
+            // contract even points
+            _fv_eq_gamma_ti_fv ( spinor1, mu, w_field[0]+_GSI(ixeomm) );
+            _fv_pl_eq_fv ( spinor1, w_field[0]+_GSI(ixeomm) );
+            _fv_eq_gamma_ti_fv ( spinor2, 5, spinor1 );
+            _fv_ti_eq_re ( spinor2, 0.5 );
+            _fv_eq_cm_dag_ti_fv ( w_field[2]+_GSI(ixeo), gauge_field_with_phase+_GGI(g_idn[ix][mu],mu), spinor2 );
+          } else {
+            // contract odd points
+            _fv_eq_gamma_ti_fv ( spinor1, mu, w_field[1]+_GSI(ixeomm) );
+            _fv_pl_eq_fv ( spinor1, w_field[1]+_GSI(ixeomm) );
+            _fv_eq_gamma_ti_fv ( spinor2, 5, spinor1 );
+            _fv_ti_eq_re ( spinor2, 0.5 );
+            _fv_eq_cm_dag_ti_fv ( w_field[3]+_GSI(ixeo), gauge_field_with_phase+_GGI(g_idn[ix][mu],mu), spinor2 );
+          }
+        }
+
+#ifdef HAVE_MPI
+        xchange_eo_field( w_field[2], 0);
+        xchange_eo_field( w_field[3], 1);
+#endif
+        // loop on timeslices
+        for ( int t = 0; t < T; t++ ) {
+
+          // contract in position space
+          for ( int x1 = 0; x1 < LX; x1++ ) {
+          for ( int x2 = 0; x2 < LY; x2++ ) {
+          for ( int x3 = 0; x3 < LZ; x3++ ) {
+
+            // unsigned int const ix = mu==0 ? g_iup[g_ipt[t][x1][x2][x3]][0] : g_ipt[t][x1][x2][x3];
+            unsigned int const ix = mu==0 ? g_iup[g_ipt[t][x1][x2][x3]][0] : g_ipt[t][x1][x2][x3];
+            int const r[3] = { x1, x2, x3 };
+            complex w = {0., 0.};
+
+            if ( g_iseven[ix] ) {
+              _co_eq_fv_dag_ti_fv ( &w, v_field[1]+_GSI(g_lexic2eosub[ix]), w_field[2]+_GSI(g_lexic2eosub[ix]) );
+            } else {
+              _co_eq_fv_dag_ti_fv ( &w, v_field[0]+_GSI(g_lexic2eosub[ix]), w_field[3]+_GSI(g_lexic2eosub[ix]) );
+            }
+         
+            for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+
+              double const p[3] = {
+                2.*M_PI * g_sink_momentum_list[imom][0] / (double)LX_global,
+                2.*M_PI * g_sink_momentum_list[imom][1] / (double)LY_global,
+                2.*M_PI * g_sink_momentum_list[imom][2] / (double)LZ_global
+                                                                  };
+              double const phase = ( r[0] + g_proc_coords[1]*LX + shift[0] ) * p[0] + ( r[1] + g_proc_coords[2]*LY + shift[1] ) * p[1] + ( r[2] + g_proc_coords[3]*LZ + shift[2] ) * p[2];
+              double _Complex const ephase = cexp ( I*phase );
+
+              contr_p[t][mu][imom][i][k] += (w.re + I * w.im) * ephase;
+            }
+
+          }}}
+ 
+        }  // end of loop on timeslices
+      }  // end of loop on mu
+    }  // end of loop on evecs
+  }  // end of loop on evecs
+
+#ifdef HAVE_MPI
+#  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
+  void *buffer = malloc ( T*4*evecs_num*evecs_num * g_sink_momentum_number * 2 *sizeof (double) );
+  memcpy ( buffer,  contr_p[0][0][0][0], T*4*evecs_num*evecs_num*g_sink_momentum_number * 2 * sizeof(double) );
+  MPI_Allreduce( buffer, contr_p[0][0][0][0], T*4*evecs_num*evecs_num*2*g_sink_momentum_number, MPI_DOUBLE, MPI_SUM, g_ts_comm );
+  free ( buffer );
+#  endif
+#endif
+
+  if ( io_proc >= 1 ) {
+
+#ifdef HAVE_MPI
+#  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
+    for ( int iproc = 0; iproc < g_tr_nproc; iproc++  ) 
+#  else
+    for ( int iproc = 0; iproc < g_nproc; iproc++  ) 
+#  endif
+#endif
+    {
+#ifdef HAVE_MPI
+#  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
+      if ( g_tr_id == iproc )
+#  else
+      if ( g_cart_id == iproc )
+#  endif
+#endif
+      {
+        for ( int t = 0; t < T; t++ ) {
+
+          for ( int mu = 0; mu < 4; mu++ ) {
+
+            for ( unsigned int ib = 0; ib < ( evecs_num / evecs_block_length ); ib++ ) {
+          
+              for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+     
+                fprintf ( stdout, "/hvp/lma/N%d/B%d/t%.2d/mu%d/b%.2d/px%.2dpy%.2dpz%.2d\n", evecs_num, evecs_block_length, t+g_proc_coords[0]*T,
+                    mu, ib, g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2] );
+
+                for ( unsigned int i = 0; i < evecs_num; i++ ) {
+                for ( unsigned int k = 0; k < evecs_block_length; k++ ) {
+                  fprintf ( stdout, "    %25.16e %25.16e\n",
+                      creal ( contr_p[t][mu][imom][i][ib*evecs_block_length + k] ), cimag ( contr_p[t][mu][imom][i][ib*evecs_block_length + k] ) );
+                }}
+              }  // end of loop on momenta
+            }  // end of loop on blocks
+          }  // end of loop on mu
+        }  // end of loop on timeslices
+      }  // end of if g_tr_id == iproc
+#ifdef HAVE_MPI
+#  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
+      MPI_Barrier ( g_tr_comm );
+#  else
+      MPI_Barrier ( g_cart_id );
+#  endif
+#endif
+    }
+  }
+
+  fini_5level_ztable ( &contr_p );
+  fini_2level_dtable ( &eo_work );
+  fini_2level_dtable ( &w_field );
+  fini_2level_dtable ( &v_field );
 #if 0
 #endif  // of if 0
 
