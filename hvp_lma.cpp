@@ -380,12 +380,17 @@ int main(int argc, char **argv) {
 
   /***********************************************************/
   /***********************************************************/
-#if 0
+ 
+  double ** eo_work = init_2level_dtable ( 3, _GSI( (VOLUME+RAND)/2 ) );
+  size_t const sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
+  void *buffer = NULL;
+
+
   /***********************************************************
    * check V^+ V with momentum (for contact term)
    ***********************************************************/
 
-  double _Complex **** contr_p = init_4level_ztable (T, g_sink_momentum_number, evecs_num, evecs_num );
+  double _Complex **** contr_vv = init_4level_ztable (T, g_sink_momentum_number, evecs_num, evecs_num );
   
   for ( int t = 0; t < T; t++ ) {
     unsigned int const offset = t * VOL3half;
@@ -417,7 +422,7 @@ int main(int argc, char **argv) {
             double const phase = ( r[0] + g_proc_coords[1]*LX ) * p[0] + ( r[1] + g_proc_coords[2]*LY ) * p[1] + ( r[2] + g_proc_coords[3]*LZ ) * p[2];
             double _Complex const ephase = cexp ( I*phase );
 
-            contr_p[t][imom][i][k] += (w.re + I * w.im) * ephase;
+            contr_vv[t][imom][i][k] += (w.re + I * w.im) * ephase;
           }
           ixeo++;
         }}}
@@ -428,9 +433,9 @@ int main(int argc, char **argv) {
 
 #ifdef HAVE_MPI
 #  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
-  void *buffer = malloc ( T*evecs_num*evecs_num * g_sink_momentum_number * 2 *sizeof (double) );
-  memcpy ( buffer,  contr_p[0][0][0], T*evecs_num*evecs_num*g_sink_momentum_number * 2 * sizeof(double) );
-  MPI_Allreduce( buffer, contr_p[0][0][0], T*evecs_num*evecs_num*2*g_sink_momentum_number, MPI_DOUBLE, MPI_SUM, g_ts_comm );
+  buffer = malloc ( T*evecs_num*evecs_num * g_sink_momentum_number * 2 *sizeof (double) );
+  memcpy ( buffer,  contr_vv[0][0][0], T*evecs_num*evecs_num*g_sink_momentum_number * 2 * sizeof(double) );
+  MPI_Allreduce( buffer, contr_vv[0][0][0], T*evecs_num*evecs_num*2*g_sink_momentum_number, MPI_DOUBLE, MPI_SUM, g_ts_comm );
   free ( buffer );
 #  endif
 #endif
@@ -463,7 +468,7 @@ int main(int argc, char **argv) {
 
               for ( unsigned int i = 0; i < evecs_num; i++ ) {
               for ( unsigned int k = 0; k < evecs_block_length; k++ ) {
-                fprintf ( stdout, "    %25.16e %25.16e\n", creal ( contr_p[t][imom][i][ib*evecs_block_length + k] ), cimag ( contr_p[t][imom][i][ib*evecs_block_length + k] ) );
+                fprintf ( stdout, "    %25.16e %25.16e\n", creal ( contr_vv[t][imom][i][ib*evecs_block_length + k] ), cimag ( contr_vv[t][imom][i][ib*evecs_block_length + k] ) );
               }}
             }  // end of loop on blocks
 
@@ -480,133 +485,20 @@ int main(int argc, char **argv) {
     }
   }
 
-  fini_4level_ztable ( &contr_p );
-#endif  // of if 0
-
-  /***********************************************************/
-  /***********************************************************/
-#if 0
-  /***********************************************************
-   * check W^+ W with momentum (for contact term)
-   ***********************************************************/
-
-  double _Complex **** contr_p = init_4level_ztable (T, g_sink_momentum_number, evecs_num, evecs_num );
-  double ** eo_work = init_2level_dtable ( 3, _GSI( (VOLUME+RAND)/2 ) );
-  size_t const sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
-  for ( unsigned int i = 0; i < evecs_num; i++ ) {
-    memcpy( eo_work[0], eo_evecs_field[i], sizeof_eo_spinor_field );
-    C_clover_oo (  eo_evecs_field[i], eo_work[0], gauge_field_with_phase, eo_work[1], mzz[1][1], mzzinv[1][0] );
-  }
-
-  for ( int t = 0; t < T; t++ ) {
-    unsigned int const offset = t * VOL3half;
-  
-    for ( unsigned int i = 0; i < evecs_num; i++ ) {
-      for ( unsigned int k = 0; k < evecs_num; k++ ) {
-
-        // contract in position space
-        unsigned int ixeo = 0;
-        for ( int x1 = 0; x1 < LX; x1++ ) {
-        for ( int x2 = 0; x2 < LY; x2++ ) {
-        for ( int x3 = 0; x3 < LZ; x3++ ) {
-
-          unsigned int const ix = g_ipt[t][x1][x2][x3];
-          if ( g_iseven[ix] ) continue;  // only odd points
-
-          int const r[3] =  { x1, x2, x3 };
-
-          complex w;
-          _co_eq_fv_dag_ti_fv ( &w, eo_evecs_field[i]+_GSI(offset+ixeo), eo_evecs_field[k]+_GSI(offset+ixeo) );
-         
-          for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
-
-            double const p[3] = {
-              2.*M_PI * g_sink_momentum_list[imom][0] / (double)LX_global,
-              2.*M_PI * g_sink_momentum_list[imom][1] / (double)LY_global,
-              2.*M_PI * g_sink_momentum_list[imom][2] / (double)LZ_global
-                                                                  };
-            double const phase = ( r[0] + g_proc_coords[1]*LX ) * p[0] + ( r[1] + g_proc_coords[2]*LY ) * p[1] + ( r[2] + g_proc_coords[3]*LZ ) * p[2];
-            double _Complex const ephase = cexp ( I*phase );
-
-            contr_p[t][imom][i][k] += (w.re + I * w.im) * ephase;
-          }
-          ixeo++;
-        }}}
- 
-      }  // end of loop on timeslices
-    }
-  }  // end of loop on evecs
-
-#ifdef HAVE_MPI
-#  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
-  void *buffer = malloc ( T*evecs_num*evecs_num * g_sink_momentum_number * 2 *sizeof (double) );
-  memcpy ( buffer,  contr_p[0][0][0], T*evecs_num*evecs_num*g_sink_momentum_number * 2 * sizeof(double) );
-  MPI_Allreduce( buffer, contr_p[0][0][0], T*evecs_num*evecs_num*2*g_sink_momentum_number, MPI_DOUBLE, MPI_SUM, g_ts_comm );
-  free ( buffer );
-#  endif
-#endif
-
-  if ( io_proc >= 1 ) {
-
-#ifdef HAVE_MPI
-#  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
-    for ( int iproc = 0; iproc < g_tr_nproc; iproc++  ) 
-#  else
-    for ( int iproc = 0; iproc < g_nproc; iproc++  ) 
-#  endif
-#endif
-    {
-#ifdef HAVE_MPI
-#  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
-      if ( g_tr_id == iproc )
-#  else
-      if ( g_cart_id == iproc )
-#  endif
-#endif
-      {
-        for ( int t = 0; t < T; t++ ) {
-          for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
-     
-            for ( unsigned int ib = 0; ib < ( evecs_num / evecs_block_length ); ib++ ) {
-        
-              fprintf ( stdout, "/hvp/lma/N%d/B%d/ww/t%.2d/b%.2d/px%.2dpy%.2dpz%.2d\n", evecs_num, evecs_block_length, t+g_proc_coords[0]*T, ib,
-                  g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2] );
-
-              for ( unsigned int i = 0; i < evecs_num; i++ ) {
-              for ( unsigned int k = 0; k < evecs_block_length; k++ ) {
-                fprintf ( stdout, "    %25.16e %25.16e\n", creal ( contr_p[t][imom][i][ib*evecs_block_length + k] ), cimag ( contr_p[t][imom][i][ib*evecs_block_length + k] ) );
-              }}
-            }  // end of loop on blocks
-
-          }  // end of loop on momenta
-        }  // end of loop on timeslices
-      }  // end of if g_tr_id == iproc
-#ifdef HAVE_MPI
-#  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
-      MPI_Barrier ( g_tr_comm );
-#  else
-      MPI_Barrier ( g_cart_id );
-#  endif
-#endif
-    }
-  }
-
-  fini_4level_ztable ( &contr_p );
-#endif  // of if 0
+  fini_4level_ztable ( &contr_vv );
 
   /***********************************************************/
   /***********************************************************/
 
-#if 0
   /***********************************************************
    * check phi_1,4 with momentum (for contact term)
    ***********************************************************/
 
   double _Complex ***** contr_p = init_5level_ztable (T, 4, g_sink_momentum_number, evecs_num, evecs_num );
-  size_t const sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
-  double ** eo_work  = init_2level_dtable ( 2, _GSI( (VOLUME+RAND)/2 ) );
-  double ** w_field = init_2level_dtable ( 4, _GSI( (VOLUME)/2 ) );
-  double ** v_field = init_2level_dtable ( 4, _GSI( (VOLUME)/2 ) );
+  // size_t const sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
+
+  double ** w_field = init_2level_dtable ( 4, _GSI( (VOLUME+RAND)/2 ) );
+  double ** v_field = init_2level_dtable ( 2, _GSI( (VOLUME+RAND)/2 ) );
   
   for ( unsigned int k = 0; k < evecs_num; k++ ) {
     memcpy( eo_work[0], eo_evecs_field[k], sizeof_eo_spinor_field );
@@ -702,6 +594,8 @@ int main(int argc, char **argv) {
     }  // end of loop on evecs
   }  // end of loop on evecs
 
+#if 0
+
 #ifdef HAVE_MPI
 #  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
   void *buffer = malloc ( T*4*evecs_num*evecs_num * g_sink_momentum_number * 2 *sizeof (double) );
@@ -759,7 +653,9 @@ int main(int argc, char **argv) {
 #endif
     }
   }
+#endif  // of if 0
 
+#if 0
   fini_5level_ztable ( &contr_p );
   fini_2level_dtable ( &eo_work );
   fini_2level_dtable ( &w_field );
@@ -770,15 +666,16 @@ int main(int argc, char **argv) {
   /***********************************************************/
 
   /***********************************************************
-   * check phi_2 with momentum (for contact term)
+   * check phi_2,3 with momentum (for contact term)
    ***********************************************************/
-
+#if 0
   double _Complex ***** contr_p = init_5level_ztable (T, 4, g_sink_momentum_number, evecs_num, evecs_num );
   size_t const sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
   double ** eo_work  = init_2level_dtable ( 2, _GSI( (VOLUME+RAND)/2 ) );
   double ** w_field = init_2level_dtable ( 4, _GSI( (VOLUME+RAND)/2 ) );
   double ** v_field = init_2level_dtable ( 2, _GSI( (VOLUME+RAND)/2 ) );
-  
+#endif  // of if 0
+
   for ( unsigned int k = 0; k < evecs_num; k++ ) {
 
     memcpy( eo_work[0], eo_evecs_field[k], sizeof_eo_spinor_field );
@@ -879,7 +776,7 @@ int main(int argc, char **argv) {
 
 #ifdef HAVE_MPI
 #  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
-  void *buffer = malloc ( T*4*evecs_num*evecs_num * g_sink_momentum_number * 2 *sizeof (double) );
+  buffer = malloc ( T*4*evecs_num*evecs_num * g_sink_momentum_number * 2 *sizeof (double) );
   memcpy ( buffer,  contr_p[0][0][0][0], T*4*evecs_num*evecs_num*g_sink_momentum_number * 2 * sizeof(double) );
   MPI_Allreduce( buffer, contr_p[0][0][0][0], T*4*evecs_num*evecs_num*2*g_sink_momentum_number, MPI_DOUBLE, MPI_SUM, g_ts_comm );
   free ( buffer );
@@ -935,12 +832,120 @@ int main(int argc, char **argv) {
     }
   }
 
+  /***********************************************************/
+  /***********************************************************/
+
+  /***********************************************************
+   * check W^+ W with momentum (for contact term)
+   ***********************************************************/
+
+  double _Complex **** contr_ww = init_4level_ztable (T, g_sink_momentum_number, evecs_num, evecs_num );
+
+  for ( unsigned int i = 0; i < evecs_num; i++ ) {
+    memcpy( eo_work[0], eo_evecs_field[i], sizeof_eo_spinor_field );
+    C_clover_oo (  eo_evecs_field[i], eo_work[0], gauge_field_with_phase, eo_work[1], mzz[1][1], mzzinv[1][0] );
+  }
+
+  for ( int t = 0; t < T; t++ ) {
+    unsigned int const offset = t * VOL3half;
+  
+    for ( unsigned int i = 0; i < evecs_num; i++ ) {
+      for ( unsigned int k = 0; k < evecs_num; k++ ) {
+
+        // contract in position space
+        unsigned int ixeo = 0;
+        for ( int x1 = 0; x1 < LX; x1++ ) {
+        for ( int x2 = 0; x2 < LY; x2++ ) {
+        for ( int x3 = 0; x3 < LZ; x3++ ) {
+
+          unsigned int const ix = g_ipt[t][x1][x2][x3];
+          if ( g_iseven[ix] ) continue;  // only odd points
+
+          int const r[3] =  { x1, x2, x3 };
+
+          complex w;
+          _co_eq_fv_dag_ti_fv ( &w, eo_evecs_field[i]+_GSI(offset+ixeo), eo_evecs_field[k]+_GSI(offset+ixeo) );
+         
+          for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+
+            double const p[3] = {
+              2.*M_PI * g_sink_momentum_list[imom][0] / (double)LX_global,
+              2.*M_PI * g_sink_momentum_list[imom][1] / (double)LY_global,
+              2.*M_PI * g_sink_momentum_list[imom][2] / (double)LZ_global
+                                                                  };
+            double const phase = ( r[0] + g_proc_coords[1]*LX ) * p[0] + ( r[1] + g_proc_coords[2]*LY ) * p[1] + ( r[2] + g_proc_coords[3]*LZ ) * p[2];
+            double _Complex const ephase = cexp ( I*phase );
+
+            contr_ww[t][imom][i][k] += (w.re + I * w.im) * ephase;
+          }
+          ixeo++;
+        }}}
+ 
+      }  // end of loop on timeslices
+    }
+  }  // end of loop on evecs
+
+#ifdef HAVE_MPI
+#  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
+  buffer = malloc ( T*evecs_num*evecs_num * g_sink_momentum_number * 2 *sizeof (double) );
+  memcpy ( buffer,  contr_ww[0][0][0], T*evecs_num*evecs_num*g_sink_momentum_number * 2 * sizeof(double) );
+  MPI_Allreduce( buffer, contr_ww[0][0][0], T*evecs_num*evecs_num*2*g_sink_momentum_number, MPI_DOUBLE, MPI_SUM, g_ts_comm );
+  free ( buffer );
+#  endif
+#endif
+
+  if ( io_proc >= 1 ) {
+
+#ifdef HAVE_MPI
+#  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
+    for ( int iproc = 0; iproc < g_tr_nproc; iproc++  ) 
+#  else
+    for ( int iproc = 0; iproc < g_nproc; iproc++  ) 
+#  endif
+#endif
+    {
+#ifdef HAVE_MPI
+#  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
+      if ( g_tr_id == iproc )
+#  else
+      if ( g_cart_id == iproc )
+#  endif
+#endif
+      {
+        for ( int t = 0; t < T; t++ ) {
+          for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+     
+            for ( unsigned int ib = 0; ib < ( evecs_num / evecs_block_length ); ib++ ) {
+        
+              fprintf ( stdout, "/hvp/lma/N%d/B%d/ww/t%.2d/b%.2d/px%.2dpy%.2dpz%.2d\n", evecs_num, evecs_block_length, t+g_proc_coords[0]*T, ib,
+                  g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2] );
+
+              for ( unsigned int i = 0; i < evecs_num; i++ ) {
+              for ( unsigned int k = 0; k < evecs_block_length; k++ ) {
+                fprintf ( stdout, "    %25.16e %25.16e\n", creal ( contr_ww[t][imom][i][ib*evecs_block_length + k] ), cimag ( contr_ww[t][imom][i][ib*evecs_block_length + k] ) );
+              }}
+            }  // end of loop on blocks
+
+          }  // end of loop on momenta
+        }  // end of loop on timeslices
+      }  // end of if g_tr_id == iproc
+#ifdef HAVE_MPI
+#  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
+      MPI_Barrier ( g_tr_comm );
+#  else
+      MPI_Barrier ( g_cart_id );
+#  endif
+#endif
+    }
+  }
+
+  fini_4level_ztable ( &contr_ww );
+
   fini_5level_ztable ( &contr_p );
   fini_2level_dtable ( &eo_work );
   fini_2level_dtable ( &w_field );
   fini_2level_dtable ( &v_field );
-#if 0
-#endif  // of if 0
+
 
   /***********************************************************/
   /***********************************************************/
