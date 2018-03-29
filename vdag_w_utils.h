@@ -19,7 +19,7 @@ int vdag_w_spin_color_reduction ( double ***contr, double ** const V, double ** 
 /***********************************************************
  * momentum projection
  ***********************************************************/
-int vdag_w_momentum_projection ( double _Complex ***contr_p, double *** const contr_x, int const dimV, int const dimW, const int (*momentum_list)[3], int const momentum_number, int const t, int const ieo, int const mu ); 
+int vdag_w_momentum_projection ( double _Complex ***contr_p, double *** const contr_x, int const dimV, int const dimW, const int (*momentum_list)[3], int const momentum_number, int const t, int const ieo, int const mu , int const ts_reduce ); 
 
 /***********************************************************/
 /***********************************************************/

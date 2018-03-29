@@ -162,7 +162,8 @@ int vdag_w_momentum_projection (
     const int (*momentum_list)[3], int const momentum_number, 
     int const t, 
     int const ieo, 
-    int const mu 
+    int const mu,
+    int const ts_reduce
 ) {
 
   int exitstatus;
@@ -172,7 +173,7 @@ int vdag_w_momentum_projection (
     momentum_shift[mu-1] = -1.;
   }
 
-  if ( (exitstatus = momentum_projection_eo_timeslice ( contr_x[0][0], (double*)(contr_p[0][0]), dimV*dimW, momentum_number, momentum_list, t, ieo, momentum_shift, 1 )) != 0 ) {
+  if ( (exitstatus = momentum_projection_eo_timeslice ( contr_x[0][0], (double*)(contr_p[0][0]), dimV*dimW, momentum_number, momentum_list, t, ieo, momentum_shift, 1, ts_reduce )) != 0 ) {
     fprintf(stderr, "[vdag_w_momentum_projection] Error from momentum_projection_eo_timeslice, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     return(1);
   }
