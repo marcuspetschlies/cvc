@@ -133,7 +133,6 @@ int gsp_read_node (double _Complex ***gsp, int numV, int momentum[3], int gamma_
 
   fclose(ifs);
 
-  }  /* end of loop on timeslices */
 /*
   byte_swap64_v2( (double*)(gsp[0][0][0]), 12*T*numV*numV);
 */
@@ -397,6 +396,221 @@ int gsp_read_eval(double **eval, int num, char*tag) {
 
   return(0);
 }  /* end of gsp_read_eval */
+
+/***********************************************************************************************/
+/***********************************************************************************************/
+
+/***********************************************************************************************
+ * read V^+ Gamma_cvc W from file
+ ***********************************************************************************************/
+
+/***********************************************************************************************
+ * gsp_read_cvc_node
+ ***********************************************************************************************/
+int gsp_read_cvc_node (
+    double _Complex *** const fac,
+    unsigned int const numV,
+    unsigned int const block_length,
+    int const momentum[3],
+    char * const type,
+    int const mu,
+    char * const prefix,
+    char * const tag,
+    int const timeslice,
+    unsigned int const nt
+) {
+
+  char filename[200];
+  char key_prefix[200];
+  char key[500];
+  int exitstatus;
+  int const numB = numV / block_length;
+  int const file_t = ( timeslice / (T_global/nt) )  * (T_global/nt);
+
+#ifdef HAVE_LHPC_AFF
+  double _Complex *aff_buffer = NULL;
+  //  uint32_t aff_buffer_size
+#endif
+
+#ifdef HAVE_LHPC_AFF
+
+  sprintf(filename, "%s.t%.2d.aff", prefix, file_t );
+  fprintf(stdout, "# [gsp_read_cvc_node] reading gsp data from file %s\n", filename);
+  struct AffReader_s * affr = aff_reader(filename);
+
+  char * const aff_status_str = aff_reader_errstr(affr);
+  if( aff_status_str != NULL ) {
+    fprintf(stderr, "[gsp_read_cvc_node] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+    return(1);
+  }
+
+  struct AffNode_s *affn = aff_reader_root(affr);
+  if( affn == NULL ) {
+    fprintf(stderr, "[gsp_read_cvc_node] Error, aff reader is not initialized\n");
+    return(2);
+  }
+#endif
+ 
+  double _Complex ** buffer = init_2level_ztable ( numV, block_length );
+  if( exitstatus != 0 ) {
+    fprintf(stderr, "[gsp_read_cvc_node] Error from init_2level_ztable, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(3);
+  }
+
+  // set the key prefix
+  if ( strcmp( type, "mu" ) == 0 ) {
+    sprintf ( key_prefix, "%s/t%.2d/%s%d", tag, timeslice, type, mu );
+  } else {
+    sprintf ( key_prefix, "%s/t%.2d/%s", tag, timeslice, type  );
+  }
+
+#ifdef HAVE_LHPC_AFF
+  uint32_t uitems = (uint32_t)numV * block_length;
+
+  // loop on blocks
+  for ( int ib = 0; ib < numB; ib++ ) {
+
+    sprintf ( key, "%s/b%.2d/px%.2dpy%.2dpz%.2d", key_prefix, ib, momentum[0], momentum[1], momentum[2] );
+    if(g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [gsp_read_cvc_node] key = %s\n", key );
+    struct AffNode_s * affdir = aff_reader_chpath ( affr, affn, key );
+    if ( ( exitstatus = aff_node_get_complex ( affr, affdir, buffer[0], (uint32_t)uitems) ) != 0 ) {
+      fprintf(stderr, "[gsp_read_cvc_node] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(4);
+    }
+#else
+
+    size_t items = numV * block_length;
+   
+    if ( strcmp( type, "mu" ) == 0 ) {
+      sprintf(filename, "%s.t%.2d.%s%d.b%.2d.px%.2dpy%.2dpz%.2d.dat", prefix, file_t, type, mu, ib, momentum[0], momentum[1], momentum[2] );
+    } else {
+      sprintf(filename, "%s.t%.2d.%s.b%.2d.px%.2dpy%.2dpz%.2d.dat", prefix, file_t, type, ib, momentum[0], momentum[1], momentum[2] );
+    }
+
+    FILE *ifs = fopen(filename, "r");
+    if(ifs == NULL) {
+      fprintf(stderr, "[gsp_read_cvc_node] Error, could not open file %s for writing\n", filename);
+      return(5);
+    }
+
+    if( fread( buffer[0], sizeof(double _Complex), items, ifs) != items ) {
+      fprintf(stderr, "[gsp_read_cvc_node] Error, could not read proper amount of data to file %s\n", filename);
+      return(7);
+    }
+    fclose(ifs);
+    // byte_swap64_v2( (double*)(gsp[0][0][0]), 12*T*numV*numV);
+#endif
+
+    size_t const bytes = block_length * sizeof( double _Complex );
+
+    for ( unsigned int iv = 0; iv < numV; iv++ ) {
+      memcpy ( fac[iv][ib*block_length], buffer[iv], bytes );
+    }
+
+  }  // end of loop on blocks
+
+#ifdef HAVE_LHPC_AFF
+  aff_reader_close (affr);
+#endif
+
+  return(0);
+
+}  // end of gsp_read_cvc_node
+
+/***********************************************************************************************/
+/***********************************************************************************************/
+#if 0
+/***********************************************************************************************
+ *
+ ***********************************************************************************************/
+int gsp_prepare_cvc_from_file ( double _Complex ***gsp, int numV, int momentum[3], int gamma_id, int ns, char *prefix, char*tag ) {
+
+  int pvec[3];
+  int g5_gamma_id;
+  int sign = 0;
+  double _Complex Z_1 = 1.;
+
+  memset ( gsp[0][0], 0, numV*numV*T*sizeof(double _Complex) );
+
+  if ( ns == 0 ) {
+    int momid = -1;
+    for ( int i = 0, i < g_sink_momentum_number; i++ ) {
+      if ( 
+          ( g_sink_momentum_list[i][0] = -momentum[0] ) && 
+          ( g_sink_momentum_list[i][1] = -momentum[1] ) && 
+          ( g_sink_momentum_list[i][2] = -momentum[2] )  ) {
+        momid = i;
+        break;
+      }
+    }
+    if ( momid == -1 ) {
+      fprintf ( stderr, "[gsp_prepare_cvc_from_file] Error from gsp_read_node, status was %d\n", exitstatus );
+      return(1);
+    }
+    memcpy ( pvec, g_sink_momentum_list[imom], 3*sizeof(int) );
+
+    g5_gamma_id  = gamma_mult_table[5][gamma_id];
+    sign         = gamma_mult_sign[5][gamma_id] * gamma_adjoint_sign[g5_gamma_id];
+
+  } else if ( ns == 1 ) {
+    memcpy ( pvec, momentum, 3*sizeof(int) );
+    g5_gamma_id  = gamma_mult_table[5][gamma_id];
+    sign         = gamma_mult_sign[5][gamma_id];
+  }
+
+  double _Complex ***gsp_buffer = NULL;
+  exitstatus = init_3level_zbuffer ( &gsp_buffer, 6, numV, numV );
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "[gsp_prepare_cvc_from_file] Error from init_3level_zbuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    return(1);
+  }
+
+  if ( g_cart_id == 0 && g_verbose > 1 ) {
+    fprintf ( stdout, "# [] ns %d mom %3d %3d %3d pvec %3d %3d %3d gamma_id %2d g5 gamma_id %2d sign %d", ns, 
+        momentum[0], momentum[1], momentum[2], pvec[0], pvec[1], pvec[2], gamma_id, g5_gamma_id, sign );
+  }
+
+  /***********************************************
+   * loop on timeslices
+   ***********************************************/
+  for ( int x0 = 0; x0 < T; x0++ ) {
+
+    exitstatus = gsp_read_node ( gsp_buffer, numV, pvec, g5_gamma_id, prefix, tag, x0 );
+    if ( exitstatus != 0 ) {
+      fprintf ( stderr, "[gsp_prepare_cvc_from_file] Error from gsp_read_node, status was %d\n", exitstatus );
+      return(1);
+    }
+
+    /***********************************************
+     * add parts depending on ns
+     *
+     * ordering { "v-v", "w-v", "w-w", "xv-xv", "xw-xv", "xw-xw" };
+     ***********************************************/
+    if ( ns )  {
+      /***********************************************
+       * add v-v, w-w, xv-xv, xw-xw
+       ***********************************************/
+      
+      rot_mat_pl_eq_mat_ti_co ( gsp[x0], gsp_buffer[0], Z_1, numV );
+      rot_mat_pl_eq_mat_ti_co ( gsp[x0], gsp_buffer[2], Z_1, numV );
+      rot_mat_pl_eq_mat_ti_co ( gsp[x0], gsp_buffer[3], Z_1, numV );
+      rot_mat_pl_eq_mat_ti_co ( gsp[x0], gsp_buffer[5], Z_1, numV );
+
+    } else {
+      /***********************************************
+       * add v-w, xv-xw
+       ***********************************************/
+
+      rot_mat_pl_eq_mat_ti_co ( gsp[x0], gsp_buffer[1], Z_1, numV );
+      rot_mat_pl_eq_mat_ti_co ( gsp[x0], gsp_buffer[4], Z_1, numV );
+    }
+
+  }  /* end of loop on timeslices */
+
+  fini_3level_zbuffer ( &gsp_buffer );
+  return(0);
+}  // gsp_prepare_cvc_from_file */
+#endif  // if 0
 
 /***********************************************************************************************/
 /***********************************************************************************************/
