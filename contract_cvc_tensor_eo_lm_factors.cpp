@@ -182,8 +182,11 @@ int contract_cvc_tensor_eo_lm_factors (
 
       /***********************************************************
        * momentum projection
+       *   ieo = 1      (odd sites)
+       *   mu = 0       (no shift)
+       *   ts_accum = 1 (timeslice reduction)
        ***********************************************************/
-      exitstatus = vdag_w_momentum_projection ( contr_p, contr_x, nev, block_length, momentum_list, momentum_number, it, 1, 0 );
+      exitstatus = vdag_w_momentum_projection ( contr_p, contr_x, nev, block_length, momentum_list, momentum_number, it, 1, 0, 1 );
       if ( exitstatus != 0 ) {
         fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(4);
@@ -253,13 +256,15 @@ int contract_cvc_tensor_eo_lm_factors (
       /***********************************************************
        * loop on timeslices
        ***********************************************************/
-      for ( int it = 0; it < T; it++ ) {
+      for ( int it = 0; it < T; it++ )
+      // for ( int it = 1; it <= 1; it++ )
+      {
 
         /***********************************************************
          * initialize contraction fields to zero
          ***********************************************************/
         memset ( contr_p[0][0], 0, momentum_number * nev * block_length *              sizeof(double _Complex ) );
-#if 0
+
         memset ( contr_x[0][0], 0,                   nev * block_length * 2*VOL3half * sizeof(double) );
 
         /***********************************************************
@@ -277,21 +282,21 @@ int contract_cvc_tensor_eo_lm_factors (
 
         /***********************************************************
          * momentum projection
-         *   ieo = 0
-         *   mu = 0 for shift, i.e. no shift
+         *   ieo = 0      ( even sites )
+         *   mu = 0       ( no shift )
+         *   ts_accum = 0 (no timeslice reduction)
          ***********************************************************/
-        exitstatus = vdag_w_momentum_projection ( contr_p, contr_x, nev, block_length, momentum_list, momentum_number, it, 0, 0 );
+        exitstatus = vdag_w_momentum_projection ( contr_p, contr_x, nev, block_length, momentum_list, momentum_number, it, 0, 0, 0 );
         if ( exitstatus != 0 ) {
           fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           return(4);
         }
-#endif  // of if 0
-
-        memset ( contr_x[0][0], 0,                   nev * block_length * 2*VOL3half * sizeof(double) );
 
         /***********************************************************
          * (2o) V^+ x Gmubwd XW
          ***********************************************************/
+
+        memset ( contr_x[0][0], 0, nev * block_length * 2*VOL3half * sizeof(double) );
 
         /***********************************************************
          * spin-color reduction
@@ -304,26 +309,21 @@ int contract_cvc_tensor_eo_lm_factors (
 
         /***********************************************************
          * momentum projection
+         *   ieo = 0 if mu == 0, 1 if mu = 1,2,3
+         *   mu = current mu
+         *   ts_reduce = 0    (no timeslice reduction)
          ***********************************************************/
-        exitstatus = vdag_w_momentum_projection ( contr_p, contr_x, nev, block_length, momentum_list, momentum_number, it, (int)(mu!=0), mu );
+        exitstatus = vdag_w_momentum_projection ( contr_p, contr_x, nev, block_length, momentum_list, momentum_number, it, (int)(mu!=0), mu, 0 );
         if ( exitstatus != 0 ) {
           fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           return(4);
         }
 
-        sprintf ( aff_tag, "%s/t%.2d/mu%d/b%.2d/odd", tag, it+g_proc_coords[0]*T, mu, iblock );
-        exitstatus = vdag_w_write_to_aff_file ( contr_p, nev, block_length, affw, aff_tag, momentum_list, momentum_number, io_proc );
-        if ( exitstatus != 0 ) {
-          fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-          return(4);
-        }
-
-
-        memset ( contr_x[0][0], 0,                   nev * block_length * 2*VOL3half * sizeof(double) );
-
         /***********************************************************
          * (3e) XV^+ x Gmubwd W
          ***********************************************************/
+
+        memset ( contr_x[0][0], 0, nev * block_length * 2*VOL3half * sizeof(double) );
 
         /***********************************************************
          * spin-color reduction
@@ -336,24 +336,16 @@ int contract_cvc_tensor_eo_lm_factors (
 
         /***********************************************************
          * momentum projection
+         *   ieo = 1 if mu = 0, 0 if mu = 1,2,3
+         *   mu = current mu
+         *   ts_reduce = 1 ( with timeslice reduction )
          ***********************************************************/
-        exitstatus = vdag_w_momentum_projection ( contr_p, contr_x, nev, block_length, momentum_list, momentum_number, it, (int)(mu==0), mu );
+        exitstatus = vdag_w_momentum_projection ( contr_p, contr_x, nev, block_length, momentum_list, momentum_number, it, (int)(mu==0), mu, 0 );
         if ( exitstatus != 0 ) {
           fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           return(4);
         }
 
-        sprintf ( aff_tag, "%s/t%.2d/mu%d/b%.2d/even", tag, it+g_proc_coords[0]*T, mu, iblock );
-        exitstatus = vdag_w_write_to_aff_file ( contr_p, nev, block_length, affw, aff_tag, momentum_list, momentum_number, io_proc );
-        if ( exitstatus != 0 ) {
-          fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-          return(4);
-        }
-
-#if 0
-#endif  // of if 0
-
-#if 0
         /***********************************************************
          * (4o) V^+ x Gmufwd XW
          ***********************************************************/
@@ -370,15 +362,15 @@ int contract_cvc_tensor_eo_lm_factors (
 
         /***********************************************************
          * momentum projection
-         *   ieo = 1, odd points are contracted
-         *   mu = 0 for shift, i.e. no shift
+         *   ieo = 1 ( odd sites )
+         *   mu = 0 ( no shift )
+         *   ts_reduce = 1 ( with timeslice reduction )
          ***********************************************************/
-        exitstatus = vdag_w_momentum_projection ( contr_p, contr_x, nev, block_length, momentum_list, momentum_number, it, 1, 0 );
+        exitstatus = vdag_w_momentum_projection ( contr_p, contr_x, nev, block_length, momentum_list, momentum_number, it, 1, 0, 1 );
         if ( exitstatus != 0 ) {
           fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           return(4);
         }
-#endif  // of if 0
 
         /***********************************************************
          * write to file
@@ -394,8 +386,6 @@ int contract_cvc_tensor_eo_lm_factors (
 
     }  // end of loop on vector index mu
 
-#if 0
-#endif  // of if 0
 
   }  // end of loop on evec blocks
 
@@ -446,7 +436,7 @@ int contract_cvc_tensor_eo_lm_factors (
       /***********************************************************
        * momentum projection
        ***********************************************************/
-      exitstatus = vdag_w_momentum_projection ( contr_p, contr_x, nev, block_length, momentum_list, momentum_number, it, 1, 0 );
+      exitstatus = vdag_w_momentum_projection ( contr_p, contr_x, nev, block_length, momentum_list, momentum_number, it, 1, 0, 1 );
       if ( exitstatus != 0 ) {
         fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from vdag_w_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(4);
@@ -464,8 +454,7 @@ int contract_cvc_tensor_eo_lm_factors (
     }  // end of loop on timeslices
   
   }  // end of loop on evecs blocks
-#if 0
-#endif  // of if 0
+
 
   fini_2level_dtable ( &eo_spinor_work );
   fini_2level_dtable ( &xv );
@@ -477,8 +466,6 @@ int contract_cvc_tensor_eo_lm_factors (
   fini_3level_dtable ( &contr_x );
   fini_3level_ztable ( &contr_p );
 
-#if 0
-#endif  // of if 0
   return(0);
 }  // end of contract_cvc_tensor_eo_lm_factors
 
