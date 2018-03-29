@@ -17,6 +17,14 @@
 #include <time.h>
 #include <getopt.h>
 
+#ifdef HAVE_MPI
+#  include <mpi.h>
+#endif
+#ifdef HAVE_OPENMP
+#  include <omp.h>
+#endif
+
+
 #include "cvc_linalg.h"
 #include "iblas.h"
 #include "global.h"
@@ -973,7 +981,18 @@ void make_eo_phase_field_timeslice (double _Complex**phase, int momentum_number,
  *
  * zgemm calculates t(V) x phase, which is  nv x momentum_number (F) = momentum_number x nv (C)
  **************************************************************************************************************/
-int momentum_projection_eo_timeslice ( double*V, double *W, unsigned int nv, int momentum_number, const int (*momentum_list)[3], int t, int ieo, double momentum_shift[3], int add ) {
+int momentum_projection_eo_timeslice (
+    double * const V, 
+    double * const W, 
+    unsigned int const nv, 
+    int const momentum_number, 
+    const int (*momentum_list)[3], 
+    int const t, 
+    int const ieo, 
+    double const momentum_shift[3], 
+    int const add, 
+    int const ts_reduce
+) {
 
   const double MPI2 = M_PI * 2.;
   const unsigned int VOL3half = LX*LY*LZ/2;
@@ -986,6 +1005,9 @@ int momentum_projection_eo_timeslice ( double*V, double *W, unsigned int nv, int
   double _Complex *BLAS_A = NULL, *BLAS_B = NULL, *BLAS_C = NULL;
   double _Complex BLAS_ALPHA = 1.;
   double _Complex BLAS_BETA  = add == 0 ? 0. : 1.;
+
+  // if ( g_cart_id == 0 ) fprintf ( stdout, "# [momentum_projection_eo_timeslice] alpha = %25.16e %25.16e beta %25.16e %25.16e add %d\n",
+  //     creal( BLAS_ALPHA ), cimag( BLAS_ALPHA ), creal( BLAS_BETA ), cimag( BLAS_BETA ), add );
 
   ratime = _GET_TIME;
 
@@ -1023,7 +1045,8 @@ int momentum_projection_eo_timeslice ( double*V, double *W, unsigned int nv, int
                 + g_eosubt2coords[ieo][t][ix][1] * q[1] \
                 + g_eosubt2coords[ieo][t][ix][2] * q[2];
 
-      zphase[i][ix] = cos(q_phase) + I*sin(q_phase);
+      // zphase[i][ix] = cos(q_phase) + I*sin(q_phase);
+      zphase[i][ix] = cexp ( I * q_phase);
     }  /* end of loop on VOL3half */
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */
@@ -1047,19 +1070,23 @@ int momentum_projection_eo_timeslice ( double*V, double *W, unsigned int nv, int
   fini_2level_zbuffer( &zphase );
 
 #ifdef HAVE_MPI
-  unsigned int items = 2 * nv * momentum_number;
-  void *buffer = malloc( items * sizeof(double));
-  if( buffer == NULL) {
-    fprintf(stderr, "[momentum_projection_eo_timeslice] Error from malloc %s %d\n", __FILE__, __LINE__);
-    return(1);
-  }
-  memcpy( buffer, W, items * sizeof(double));
-  int status = MPI_Allreduce ( buffer, (void*)W, items, MPI_DOUBLE, MPI_SUM, g_ts_comm );
-  if(status != MPI_SUCCESS) {
-    fprintf(stderr, "[momentum_projection_eo_timeslice] Error from MPI_Allreduce, status was %d %s %d\n", status, __FILE__, __LINE__);
-    return(2);
-  }
-  free ( buffer );
+#  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
+  if ( ts_reduce ) {
+    unsigned int items = 2 * nv * momentum_number;
+    void *buffer = malloc( items * sizeof(double));
+    if( buffer == NULL) {
+      fprintf(stderr, "[momentum_projection_eo_timeslice] Error from malloc %s %d\n", __FILE__, __LINE__);
+      return(1);
+    }
+    int status = MPI_Allreduce ( W, buffer, items, MPI_DOUBLE, MPI_SUM, g_ts_comm );
+    if(status != MPI_SUCCESS) {
+      fprintf(stderr, "[momentum_projection_eo_timeslice] Error from MPI_Allreduce, status was %d %s %d\n", status, __FILE__, __LINE__);
+      return(2);
+    }
+    memcpy( W, buffer, items * sizeof(double));
+    free ( buffer );
+  }  // of if ts_reduce
+#  endif
 #endif
 
   retime = _GET_TIME;
@@ -1067,9 +1094,7 @@ int momentum_projection_eo_timeslice ( double*V, double *W, unsigned int nv, int
     fprintf(stdout, "# [momentum_projection_eo_timeslice] time for momentum_projection_eo_timeslice = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
   }
   return(0);
-}  /* end of momentum_projection_eo_timeslice */
-#if 0
-#endif  /* of if 0 */
+}  // end of momentum_projection_eo_timeslice
 
 
 /******************************************************************************************************

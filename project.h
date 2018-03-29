@@ -24,7 +24,18 @@ int project_propagator_field_weighted(double *s, double * r, int parallel, doubl
 
 int project_reduce_from_propagator_field_per_timeslice (double *p, double * r, double *V, int num1, int num2, int nt, unsigned int N);
 
-int momentum_projection_eo_timeslice ( double*V, double *W, unsigned int nv, int momentum_number, const int (*momentum_list)[3], int t, int ieo, double momentum_shift[3], int add );
+int momentum_projection_eo_timeslice (
+  double * const V,
+  double * const W,
+  unsigned int const nv,
+  int const momentum_number,
+  const int (*momentum_list)[3],
+  int const t,
+  int const ieo,
+  double const momentum_shift[3],
+  int const add,
+  int const ts_reduce);
+
 
 }  /* end of namespace cvc */
 
