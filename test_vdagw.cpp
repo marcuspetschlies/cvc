@@ -131,7 +131,8 @@ int main(int argc, char **argv) {
   unsigned int const nv = 11;
   unsigned int const nw =  7;
 
-  double *** contr = init_3level_dtable ( nv, nw, 2*VOL3half );
+  double *** contr  = init_3level_dtable ( nv, nw, 2*VOL3half );
+  double *** contr2 = init_3level_dtable ( nv, nw, 2*VOL3half );
 
   g_seed = 10000 + g_cart_id;
   rlxd_init(2, g_seed);
@@ -204,6 +205,8 @@ int main(int argc, char **argv) {
 #endif  // of if 0
 
   rangauss ( contr[0][0], nv*nw* 2 * VOL3half );
+  rangauss ( contr2[0][0], nv*nw* 2 * VOL3half );
+
   for ( int mu = 0; mu < 4; mu++ ) {
     int s[3] = {0,0,0};
     if ( mu > 0 ) s[mu-1] = -1;
@@ -219,7 +222,8 @@ int main(int argc, char **argv) {
         double _Complex *** contr_p = init_3level_ztable ( g_sink_momentum_number, nv, nw );
         double _Complex *** contr_p2 = init_3level_ztable ( g_sink_momentum_number, nv, nw );
 
-        exitstatus = vdag_w_momentum_projection ( contr_p, contr, nv, nw, g_sink_momentum_list, g_sink_momentum_number, t, ieo, mu );
+        exitstatus = vdag_w_momentum_projection ( contr_p, contr, nv, nw, g_sink_momentum_list, g_sink_momentum_number, t, ieo, mu, 0);
+        exitstatus = vdag_w_momentum_projection ( contr_p, contr2, nv, nw, g_sink_momentum_list, g_sink_momentum_number, t, ieo, mu, 1 );
 
         for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
 
@@ -246,11 +250,14 @@ int main(int argc, char **argv) {
             for ( unsigned int iv = 0; iv < nv; iv++ ) {
             for ( unsigned int iw = 0; iw < nw; iw++ ) {
               contr_p2[imom][iv][iw] += ( contr[iv][iw][2*ixeo] + I * contr[iv][iw][2*ixeo+1] ) * ephase;
+              contr_p2[imom][iv][iw] += ( contr2[iv][iw][2*ixeo] + I * contr2[iv][iw][2*ixeo+1] ) * ephase;
             }}
 
             ixeo++;
           }}}
         }  // end of loop on momenta
+
+
 #ifdef HAVE_MPI
 #  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
         void *buffer = malloc ( nv*nw*g_sink_momentum_number * 2 *sizeof (double) );
@@ -259,6 +266,8 @@ int main(int argc, char **argv) {
         free ( buffer );
 #  endif
 #endif
+#if 0
+#endif  // of if 0
 
         for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
           double const eps = 1.e-14;
