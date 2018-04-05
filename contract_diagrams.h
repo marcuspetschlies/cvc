@@ -33,7 +33,9 @@ int reorder_to_absolute_time (double _Complex ***sp_out, double _Complex ***sp_i
 
 int contract_diagram_zmx4x4_field_ti_co_field ( double _Complex ***sp_out, double _Complex ***sp_in, double _Complex *c_in, unsigned int N);
 
-int contract_diagram_zmx4x4_field_ti_eq_co ( double _Complex ***sp_out, double _Complex ***sp_in, double _Complex c_in, unsigned int N);
+int contract_diagram_zmx4x4_field_eq_zm4x4_field_ti_co ( double _Complex *** const sp_out, double _Complex *** const sp_in, double _Complex const c_in, unsigned int const N);
+
+int contract_diagram_zmx4x4_field_ti_eq_co ( double _Complex *** const sp_out, double _Complex const c_in, unsigned int const N);
 
 int contract_diagram_zmx4x4_field_ti_eq_re ( double _Complex *** const sp, double const r_in, unsigned int const N);
 
@@ -44,6 +46,8 @@ int contract_diagram_sample (double _Complex ***diagram, double _Complex ***xi, 
 int contract_diagram_sample_oet (double _Complex ***diagram, double _Complex ***xi, double _Complex ***phi, gamma_matrix_type goet, int const perm[4], gamma_matrix_type C, int const nT );
 
 int contract_diagram_write_aff (double _Complex***diagram, struct AffWriter_s*affw, char*aff_tag, int const tstart, int const dt, int const fbwd, int const io_proc );
+
+int contract_diagram_write_fp ( double _Complex*** const diagram, FILE *fp, char*tag, int const tstart, int const dt, int const fbwd );
 
 int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const pf2[3], int const gf1, int const pf1[3], int const gi2, int const pi2[3], int const gi1, int const sx[4] );
 
