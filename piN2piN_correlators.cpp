@@ -257,11 +257,11 @@ int main(int argc, char **argv) {
         /******************************************************
          * allocate correlator and diagrams
          ******************************************************/
-        double _Complex * correlator = init_1level_ztable ( T_global );
-        if ( correlator == NULL ) {
-          fprintf(stderr, "[piN2piN_correlators] Error from init_1level_ztable %s %d\n", __FILE__, __LINE__ );
-          EXIT(47);
-        }
+        //double _Complex * correlator = init_1level_ztable ( T_global );
+        //if ( correlator == NULL ) {
+        //  fprintf(stderr, "[piN2piN_correlators] Error from init_1level_ztable %s %d\n", __FILE__, __LINE__ );
+        //  EXIT(47);
+        //}
 
         double _Complex *** diagram = init_3level_ztable ( T_global, 4, 4 );
         if ( diagram == NULL ) {
@@ -422,24 +422,32 @@ int main(int argc, char **argv) {
         /******************************************************
          * multiply with phase factor per convention
          ******************************************************/
-        twopoint_function_correlator_phase ( correlator, &(g_twopoint_function_list[i2pt]), T_global );
+        // twopoint_function_correlator_phase ( correlator, &(g_twopoint_function_list[i2pt]), T_global );
+
+        exitstatus = contract_diagram_zmx4x4_field_ti_eq_co ( diagram, twopoint_function_get_correlator_phase ( &(g_twopoint_function_list[i2pt]) ), T_global );
 
 
         /******************************************************
          * write to file
          ******************************************************/
-        twopoint_function_print_correlator_data ( correlator,  &(g_twopoint_function_list[i2pt]), ofs );
+        // twopoint_function_print_correlator_data ( correlator,  &(g_twopoint_function_list[i2pt]), ofs );
 
+        char key[500];
+        twopoint_function_print_correlator_key ( key, &(g_twopoint_function_list[i2pt]) );
+        exitstatus = contract_diagram_write_fp ( diagram, ofs, tag, 0, g_src_snk_time_separation, fbwd );
+
+#if 0
         /* twopoint_function_print_correlator_key ( aff_tag, &(g_twopoint_function_list[i2pt]));
         fprintf(ofs, "# %s\n", aff_tag );
         for ( int it = 0; it < T_global; it++ ) {
           int ir = ( it + gsx[0] ) % T_global;
           fprintf(ofs, "  %25.16e %25.16e\n", creal(correlator[ir]), cimag(correlator[ir]));
         }*/
+#endif  // of if 0
 
         fini_3level_ztable ( &diagram_buffer );
         fini_3level_ztable ( &diagram );
-        fini_1level_ztable ( &correlator );
+        // fini_1level_ztable ( &correlator );
 
       }  // end of loop on 2-point functions
 
@@ -460,9 +468,6 @@ int main(int argc, char **argv) {
 
   /******************************************************/
   /******************************************************/
-
-#if 0
-#endif  /* of if 0 */
 
   /******************************************************
    * finalize
