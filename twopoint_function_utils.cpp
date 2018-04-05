@@ -242,10 +242,13 @@ void twopoint_function_print_correlator_key (char*key, twopoint_function_type *p
   return;
 }  /* end of twopoint_function_print_correlator_key */
 
+/********************************************************************************/
+/********************************************************************************/
+
 /********************************************************************************
  *
  ********************************************************************************/
-void twopoint_function_correlator_phase (double _Complex *c, twopoint_function_type *p, unsigned int N) {
+double _Complex twopoint_function_get_correlator_phase ( twopoint_function_type *p ) {
 
   double _Complex zsign = 0.;
 
@@ -263,17 +266,32 @@ void twopoint_function_correlator_phase (double _Complex *c, twopoint_function_t
     zsign *= sigma_gamma_imag[p->gi2] ? I : 1.;
     zsign *= sigma_gamma_imag[p->gf2] ? I : 1.;
   }
+
   if (g_verbose > 2) fprintf(stdout, "# [twopoint_function_correlator_phase] gf1 = %2d - %2d gf2 = %2d gi1 = %2d - %2d gi2 = %2d sign = %3.0f  %3.0f\n",
       p->gf1[0], p->gf1[1], p->gf2, p->gi1[0], p->gi1[1], p->gi2, creal(zsign), cimag(zsign) );
 
+  return( zsign );
+
+}  // end of twopoint_function_get_correlator_phase
+
+/********************************************************************************/
+/********************************************************************************/
+
+/********************************************************************************
+ *
+ ********************************************************************************/
+void twopoint_function_correlator_phase (double _Complex * const c, twopoint_function_type *p, unsigned int const N) {
+
+  double _Complex const zsign =  twopoint_function_get_correlator_phase ( p );
+
 #ifdef HAVE_OPENMP
-#pragma omp parallel for shared (zsign)
+#pragma omp parallel for
 #endif
   for ( unsigned int i = 0; i < N; i++ ) {
     c[i] *= zsign;
   }
   return;
-}  /* twopoint_function_correlator_phase */
+}  // end of twopoint_function_correlator_phase
 
 /********************************************************************************
  *
