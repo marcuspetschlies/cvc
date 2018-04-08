@@ -53,6 +53,7 @@
 #include "clover.h"
 #include "scalar_products.h"
 #include "contract_cvc_tensor_eo_lm_factors.h"
+#include "gsp_utils.h"
 
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
@@ -337,6 +338,18 @@ int main(int argc, char **argv) {
     EXIT(14);
   }
   fprintf(stdout, "# [hvp_lma] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
+
+
+  if ( io_proc == 2 ) {
+
+    sprintf(aff_tag, "/hvp/eval/N%d", evecs_num );
+    exitstatus = gsp_write_eval( evecs_eval, evecs_num, aff_tag );
+
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[hvp_lma] Error from gsp_write_eval, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(141);
+    }
+  }
 
 
 
