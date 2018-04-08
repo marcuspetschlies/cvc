@@ -320,7 +320,7 @@ int gsp_write_eval(double * const eval, unsigned int const num, char * const fil
 /***********************************************************************************************/
 /***********************************************************************************************/
 
-int gsp_read_eval(double **eval, int num, char*tag) {
+int gsp_read_eval(double ** eval, unsigned int num, char * const filename_prefix, char * const tag) {
   
   double ratime, retime;
   char filename[200];
@@ -345,7 +345,7 @@ int gsp_read_eval(double **eval, int num, char*tag) {
   if(*eval == NULL) {
     *eval = (double*)malloc(num*sizeof(double));
     if(*eval == NULL) {
-      fprintf(stderr, "[gsp_read_eval] Error from malloc\n");
+      fprintf(stderr, "[gsp_read_eval] Error from malloc %s %d\n", __FILE__, __LINE__ );
       return(10);
     }
   }
@@ -354,39 +354,39 @@ int gsp_read_eval(double **eval, int num, char*tag) {
    * input file
    ***********************************************/
 #ifdef HAVE_LHPC_AFF
-  sprintf(filename, "%s.aff", tag);
+  sprintf(filename, "%s.aff", filename_prefix );
   fprintf(stdout, "# [gsp_read_eval] reading eigenvalue data from file %s\n", filename);
   affr = aff_reader(filename);
   aff_status_str = (char*)aff_reader_errstr(affr);
   if( aff_status_str != NULL ) {
-    fprintf(stderr, "[gsp_read_eval] Error from aff_reader, status was %s\n", aff_status_str);
+    fprintf(stderr, "[gsp_read_eval] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__ );
     return(1);
   }
 
   if( (affn = aff_reader_root(affr)) == NULL ) {
-    fprintf(stderr, "[gsp_read_eval] Error, aff reader is not initialized\n");
+    fprintf(stderr, "[gsp_read_eval] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
     return(2);
   }
 
   sprintf(aff_buffer_path, "/%s/eigenvalues", tag);
   fprintf(stdout, "# [gsp_read_eval] current aff path = %s\n", aff_buffer_path);
 
-  uint32_t items = num;
+  uint32_t items = (uint32_t)num;
   affdir = aff_reader_chpath(affr, affn, aff_buffer_path);
   status = aff_node_get_double (affr, affdir, *eval, items ); 
   if(status != 0) {
-    fprintf(stderr, "[gsp_read_eval] Error from aff_node_put_double, status was %d\n", status);
+    fprintf(stderr, "[gsp_read_eval] Error from aff_node_put_double, status was %d %s %d\n", status, __FILE__, __LINE__ );
     return(3);
   }
   aff_reader_close (affr);
 #else
-  sprintf(filename, "%s.eval", tag );
+  sprintf(filename, "%s.eval", filename_prefix );
   ifs = fopen(filename, "r");
   if(ifs == NULL) {
-    fprintf(stderr, "[gsp_read_eval] Error, could not open file %s for reading\n", filename);
+    fprintf(stderr, "[gsp_read_eval] Error, could not open file %s for reading %s %d\n", filename, __FILE__, __LINE__ );
     return(5);
   }
-  for( int ievecs = 0; ievecs < num; ievecs++ ) {
+  for( unsigned int ievecs = 0; ievecs < num; ievecs++ ) {
     if( fscanf(ifs, "%lf", (*eval)+ievecs ) != 1 ) {
       return(6);
     }
@@ -397,7 +397,7 @@ int gsp_read_eval(double **eval, int num, char*tag) {
   if(g_cart_id == 0) fprintf(stdout, "# [gsp_read_eval] time for gsp_read_eval = %e seconds\n", retime-ratime);
 
   return(0);
-}  /* end of gsp_read_eval */
+}  // end of gsp_read_eval
 
 /***********************************************************************************************/
 /***********************************************************************************************/
