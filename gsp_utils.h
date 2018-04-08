@@ -9,10 +9,10 @@ int gsp_read_node (double ***gsp, int num, int momentum[3], int gamma_id, char*t
 
 int gsp_write_eval(double * const eval, unsigned int const num, char * const filename_prefix, char * const tag);
 
-int gsp_read_eval(double **eval, int num, char*tag);
+int gsp_read_eval(double ** eval, unsigned int num, char * const filename_prefix, char * const tag);
 
 /***************************************************/
 /***************************************************/
 
-}  /* end of namespace cvc */
+}  // end of namespace cvc
 #endif
