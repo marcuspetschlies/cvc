@@ -164,7 +164,7 @@ int gsp_prepare_from_file ( double _Complex ***gsp, int numV, int momentum[3], i
 
   if ( ns == 0 ) {
     int momid = -1;
-    for ( int i = 0, i < g_sink_momentum_number; i++ ) {
+    for ( int i = 0; i < g_sink_momentum_number; i++ ) {
       if ( 
           ( g_sink_momentum_list[i][0] = -momentum[0] ) && 
           ( g_sink_momentum_list[i][1] = -momentum[1] ) && 
@@ -174,10 +174,11 @@ int gsp_prepare_from_file ( double _Complex ***gsp, int numV, int momentum[3], i
       }
     }
     if ( momid == -1 ) {
-      fprintf ( stderr, "[gsp_prepare_from_file] Error from gsp_read_node, status was %d\n", exitstatus );
+      fprintf ( stderr, "[gsp_prepare_from_file] Error, no inverse momentum found for (%3d, %3d, %3d) %s %d\n",
+          momentum[0], momentum[1], momentum[2], __FILE__, __LINE__ );
       return(1);
     }
-    memcpy ( pvec, g_sink_momentum_list[imom], 3*sizeof(int) );
+    memcpy ( pvec, g_sink_momentum_list[momid], 3*sizeof(int) );
 
     g5_gamma_id  = gamma_mult_table[5][gamma_id];
     sign         = gamma_mult_sign[5][gamma_id] * gamma_adjoint_sign[g5_gamma_id];
