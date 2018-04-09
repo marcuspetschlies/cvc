@@ -153,7 +153,7 @@ void spinor_field_pl_eq_spinor_field_ti_co (double*r, double*s, complex w, unsig
 
 void xchange_eo_propagator ( fermion_propagator_type *fp, int eo, int dir);
 
-int get_point_source_info (int gcoords[4], int lcoords[4], int*proc_id);
+int get_point_source_info (int const gcoords[4], int lcoords[4], int*proc_id);
 
 void complex_field_ti_eq_re (double *r, double c, unsigned int N);
 
