@@ -677,7 +677,7 @@ int contract_diagram_sample (double _Complex ***diagram, double _Complex ***xi, 
   }
 
   /* normalize with 1 / nsample */
-  if ( ( exitstatus = contract_diagram_zmx4x4_field_ti_eq_co ( diagram, diagram, znorm, nT ) ) != 0 ) {
+  if ( ( exitstatus = contract_diagram_zmx4x4_field_ti_eq_co ( diagram, znorm, nT ) ) != 0 ) {
     fprintf(stderr, "[contract_diagram_sample] Error from contract_diagram_zm4x4_field_ti_eq_co, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     return(4);
   }
@@ -775,16 +775,58 @@ int contract_diagram_write_aff (double _Complex***diagram, struct AffWriter_s*af
 /***********************************************/
 
 /***********************************************
+ * write contracted scalar diagram to AFF
+ ***********************************************/
+int contract_diagram_write_scalar_aff (double _Complex*diagram, struct AffWriter_s*affw, char*aff_tag, int const tstart, int const dt, int const fbwd, int const io_proc ) {
+
+  const int nt = dt + 1; /* tstart + dt */
+
+  int exitstatus;
+  double rtime;
+  struct AffNode_s *affn = NULL, *affdir=NULL;
+
+  if ( io_proc == 2 ) {
+    rtime = _GET_TIME;
+
+    if( (affn = aff_writer_root(affw)) == NULL ) {
+      fprintf(stderr, "[contract_diagram_write_scalar_aff] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
+      return(2);
+    }
+
+    double _Complex *aff_buffer = init_1level_ztable ( nt );
+    if ( aff_buffer == NULL ) {
+      fprintf(stderr, "[contract_diagram_write_scalar_aff] Error from init_1level_ztable %s %d\n", __FILE__, __LINE__);
+      return(6);
+    }
+
+    for ( int i = 0; i <= dt; i++ ) {
+      int t = ( tstart + i * fbwd  + T_global ) % T_global;
+      aff_buffer[i] = diagram[t];
+    }
+
+    affdir = aff_writer_mkpath (affw, affn, aff_tag );
+    uint32_t uitems = (uint32_t)nt;
+    if ( ( exitstatus = aff_node_put_complex (affw, affdir, aff_buffer, uitems ) ) != 0 ) {
+      fprintf(stderr, "[contract_diagram_write_scalar_aff] Error from aff_node_put_complex for tag %s, status was %d %s %d\n", aff_tag, exitstatus, __FILE__, __LINE__);
+      return(1);
+    }
+
+    fini_1level_ztable ( &aff_buffer );
+
+    rtime = _GET_TIME - rtime;
+    if (g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [contract_diagram_write_scalar_aff] time for contract_diagram_write_scalar_aff = %e seconds %s %d\n", rtime, __FILE__, __LINE__);
+  }  /* end of if io_proc == 2 */
+  return(0);
+}  // end of contract_diagram_write_scalar_aff
+
+/***********************************************/
+/***********************************************/
+/***********************************************
  * write contracted diagram to FILE*
  ***********************************************/
 int contract_diagram_write_fp ( double _Complex*** const diagram, FILE *fp, char*tag, int const tstart, int const dt, int const fbwd ) {
 
-  unsigned int const offset = 16;
-  int const nt = dt + 1; // tstart, tstart+1, ..., tstart + dt 
-
-  int exitstatus;
   double rtime;
-  double _Complex ***aff_buffer = NULL;
 
   rtime = _GET_TIME;
 
@@ -1039,18 +1081,43 @@ int contract_diagram_read_oet_key_qlua (
 /***********************************************
  *
  ***********************************************/
-int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const pf2[3], int const gf1, int const pf1[3], int const gi2, int const pi2[3], int const gi1, int const sx[4] ) {
+int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const pf2[3], int const gf1, int const pf1[3], int const gi2, int const pi2[3], int const gi1, int const pi1[3], int const sx[4] ) {
 
   char sx_str[40] = "";
+  char gf2_str[40] = "";
+  char gf1_str[40] = "";
+  char gi2_str[40] = "";
+  char gi1_str[40] = "";
+  char pf2_str[40] = "";
+  char pf1_str[40] = "";
+  char pi2_str[40] = "";
+  char pi1_str[40] = "";
 
-  if ( sx != NULL ) {
-    sprintf ( sx_str, "/t%.2dx%.2dy%.2dz%.2d", sx[0], sx[1], sx[2], sx[3] );
-  }
+  if ( sx != NULL ) { sprintf ( sx_str, "/t%.2dx%.2dy%.2dz%.2d", sx[0], sx[1], sx[2], sx[3] ); }
 
+  if ( gf2 > -1 ) { sprintf( gf2_str, "gf2%.2d", gf2 ); }
 
-  sprintf( suffix, "gf2%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/gf1%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/gi2%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/gi1%.2d%s", 
-      gf2, pf2[0], pf2[1], pf2[2], gf1, pf1[0], pf1[1], pf1[2], gi2, pi2[0], pi2[1], pi2[2], gi1, sx_str );
+  if ( gf1 > -1 ) { sprintf( gf1_str, "/gf1%.2d", gf1 ); }
+
+  if ( gi2 > -1 ) { sprintf( gi2_str, "/gi2%.2d", gi2 ); }
+
+  if ( gi1 > -1 ) { sprintf( gi1_str, "/gi1%.2d", gi1 ); }
+
+  if ( pf2 != NULL ) { sprintf ( pf2_str, "/pf2x%.2dpf2y%.2dpf2z%.2d", pf2[0], pf2[1], pf2[2] ); }
+
+  if ( pf1 != NULL ) { sprintf ( pf1_str, "/pf1x%.2dpf1y%.2dpf1z%.2d", pf1[0], pf1[1], pf1[2] ); }
+
+  if ( pi2 != NULL ) { sprintf ( pi2_str, "/pi2x%.2dpi2y%.2dpi2z%.2d", pi2[0], pi2[1], pi2[2] ); }
+
+  if ( pi1 != NULL ) { sprintf ( pi1_str, "/pi1x%.2dpi1y%.2dpi1z%.2d", pi1[0], pi1[1], pi1[2] ); }
+
+  // sprintf( suffix, "gf2%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/gf1%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/gi2%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/gi1%.2d%s", 
+  //    gf2, pf2[0], pf2[1], pf2[2], gf1, pf1[0], pf1[1], pf1[2], gi2, pi2[0], pi2[1], pi2[2], gi1, sx_str );
+
+  sprintf( suffix, "%s%s%s%s%s%s%s%s%s", gf2_str, pf2_str, gf1_str, pf1_str, gi2_str, pi2_str, gi1_str, pi1_str, sx_str );
  
+  if ( g_cart_id == 0 && g_verbose > 2 ) fprintf ( stdout, "# [contract_diagram_key_suffix] key suffix = %s\n", suffix );
+
   return(0);
 
 }  // end of contract_diagram_key_suffix  
@@ -1081,6 +1148,7 @@ int contract_diagram_zm4x4_field_mul_gamma_lr ( double _Complex *** const sp_out
 
   fini_2level_ztable ( &sp_aux );
 
+  return (0);
 }  // end of contract_diagram_zm4x4_field_mul_gamma_lr
 
 /***********************************************/
