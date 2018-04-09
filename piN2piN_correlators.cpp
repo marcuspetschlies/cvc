@@ -144,6 +144,16 @@ int main(int argc, char **argv) {
    ***********************************************************/
   int const io_proc = get_io_proc ();
 
+  /***********************************************************/
+  /***********************************************************/
+
+  /***********************************************************
+   * set number of timeslices
+   ***********************************************************/
+  int const nT = g_src_snk_time_separation + 1;
+  if ( io_proc == 2 ) fprintf( stdout, "# [piN2piN_correlators] number of timeslices (incl. src and snk) is %d\n", nT);
+
+
   /***********************************************************
    * initialize gamma matrix algebra and several
    * gamma basis matrices
@@ -257,19 +267,19 @@ int main(int argc, char **argv) {
         /******************************************************
          * allocate correlator and diagrams
          ******************************************************/
-        //double _Complex * correlator = init_1level_ztable ( T_global );
+        //double _Complex * correlator = init_1level_ztable ( nT );
         //if ( correlator == NULL ) {
         //  fprintf(stderr, "[piN2piN_correlators] Error from init_1level_ztable %s %d\n", __FILE__, __LINE__ );
         //  EXIT(47);
         //}
 
-        double _Complex *** diagram = init_3level_ztable ( T_global, 4, 4 );
+        double _Complex *** diagram = init_3level_ztable ( nT, 4, 4 );
         if ( diagram == NULL ) {
           fprintf(stderr, "[piN2piN_correlators] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
           EXIT(47);
         }
 
-        double _Complex *** diagram_buffer = init_3level_ztable ( T_global, 4, 4 );
+        double _Complex *** diagram_buffer = init_3level_ztable ( nT, 4, 4 );
         if ( diagram_buffer == NULL ) {
           fprintf(stderr, "[piN2piN_correlators] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
           EXIT(47);
@@ -310,7 +320,7 @@ int main(int argc, char **argv) {
         int const gf2    = g_twopoint_function_list[i2pt].gf2;
 
         /******************************************************
-         * open file
+         * open AFF file
          ******************************************************/
         char filename_prefix[100];
         twopoint_function_get_aff_filename_prefix ( filename_prefix, &(g_twopoint_function_list[i2pt]) );
@@ -348,18 +358,24 @@ int main(int argc, char **argv) {
             twopoint_function_get_diagram_norm ( &norm, &(g_twopoint_function_list[i2pt]), idiag );
 
             affdir = aff_reader_chpath (affr, affn, aff_tag );
-            exitstatus = aff_node_get_complex (affr, affdir, diagram_buffer[0][0], T_global*16);
+            exitstatus = aff_node_get_complex (affr, affdir, diagram_buffer[0][0], nT*16);
             if( exitstatus != 0 ) {
               fprintf(stderr, "[piN2piN_correlators] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(105);
             }
 
-            exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram_buffer, T_global );
+            /******************************************************
+             * transpose the propagator 
+             * (due to the way it was stored)
+             ******************************************************/
+            //STOPPED HERE
+            //  DO WE NEED TRANSPOSITION IN GENERAL? SHOULD BE NECESSARY ONLY FOR b-b TYPE
+            //exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram_buffer, nT );
 
-            exitstatus = contract_diagram_zmx4x4_field_ti_eq_re ( diagram, norm, T_global );
+            exitstatus = contract_diagram_zmx4x4_field_ti_eq_re ( diagram, norm, nT );
 
-          }  /* end of if io_proc == 2 */
-        }   /* end of loop on diagrams */
+          }  // end of if io_proc == 2
+        }   // end of loop on diagrams
 
         // TEST
         if ( g_verbose > 5 ) {
@@ -372,48 +388,33 @@ int main(int argc, char **argv) {
         /******************************************************
          * reorder to absolute time
          ******************************************************/
-        reorder_to_absolute_time (diagram, diagram, g_twopoint_function_list[i2pt].source_coords[0], g_twopoint_function_list[i2pt].reorder, T_global );
+        reorder_to_absolute_time (diagram, diagram, g_twopoint_function_list[i2pt].source_coords[0], g_twopoint_function_list[i2pt].reorder, nT );
 
         /******************************************************
          * source phase
          ******************************************************/
-        exitstatus = correlator_add_source_phase ( diagram, pi1,  &(gsx[1]), T_global );
+        exitstatus = correlator_add_source_phase ( diagram, pi1,  &(gsx[1]), nT );
 
-        // TEST
-        if ( g_verbose > 5 ) {
-          for ( int it = 0; it < T; it++ ) {
-            fprintf( stdout, "# [piN2piN_correlator] with source phase t = %2d\n", it );
-            zm4x4_printf ( diagram[it], "c_sp", stdout );
-          }
-        }
   
         /******************************************************
          * boundary phase
          ******************************************************/
         exitstatus = correlator_add_baryon_boundary_phase ( diagram, gsx[0] );
 
-        // TEST
-        if ( g_verbose > 5 ) {
-          for ( int it = 0; it < T; it++ ) {
-            fprintf( stdout, "# with boundary phase t = %2d\n", it );
-            zm4x4_printf ( diagram[it], "c_sp", stdout );
-          }
-        }
-
         /******************************************************
          * aplly gi1[1] and gf1[1]
          ******************************************************/
-        exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( diagram, diagram, gamma[gf1[1]], gamma[gi1[1]], T_global );
+        exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( diagram, diagram, gamma[gf1[1]], gamma[gi1[1]], nT );
 
 
 #if 0
         // spin / spin-parity projection
-        correlator_spin_parity_projection ( diagram, diagram, (double)g_twopoint_function_list[i2pt].parity_project, T_global);
+        correlator_spin_parity_projection ( diagram, diagram, (double)g_twopoint_function_list[i2pt].parity_project, nT );
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-        for ( int it = 0; it < T_global; it++ ) {
+        for ( int it = 0; it < nT; it++ ) {
           // spin-trace */
           co_eq_tr_zm4x4 ( correlator+it, diagram[it] );
         }
@@ -422,9 +423,20 @@ int main(int argc, char **argv) {
         /******************************************************
          * multiply with phase factor per convention
          ******************************************************/
-        // twopoint_function_correlator_phase ( correlator, &(g_twopoint_function_list[i2pt]), T_global );
+        // twopoint_function_correlator_phase ( correlator, &(g_twopoint_function_list[i2pt]), nT );
 
-        exitstatus = contract_diagram_zmx4x4_field_ti_eq_co ( diagram, twopoint_function_get_correlator_phase ( &(g_twopoint_function_list[i2pt]) ), T_global );
+        exitstatus = contract_diagram_zmx4x4_field_ti_eq_co ( diagram, twopoint_function_get_correlator_phase ( &(g_twopoint_function_list[i2pt]) ), nT );
+
+        /******************************************************
+         * TEST
+         *   print the correlator
+         ******************************************************/
+        if ( g_verbose > 5 ) {
+          for ( int it = 0; it < nT; it++ ) {
+            fprintf( stdout, "# with boundary phase t = %2d\n", it );
+            zm4x4_printf ( diagram[it], "c_sp", stdout );
+          }
+        }
 
 
         /******************************************************
@@ -437,12 +449,11 @@ int main(int argc, char **argv) {
         exitstatus = contract_diagram_write_fp ( diagram, ofs, tag, 0, g_src_snk_time_separation, fbwd );
 
 #if 0
-        /* twopoint_function_print_correlator_key ( aff_tag, &(g_twopoint_function_list[i2pt]));
-        fprintf(ofs, "# %s\n", aff_tag );
-        for ( int it = 0; it < T_global; it++ ) {
-          int ir = ( it + gsx[0] ) % T_global;
-          fprintf(ofs, "  %25.16e %25.16e\n", creal(correlator[ir]), cimag(correlator[ir]));
-        }*/
+        // twopoint_function_print_correlator_key ( aff_tag, &(g_twopoint_function_list[i2pt]));
+        // fprintf(ofs, "# %s\n", aff_tag );
+        // for ( int it = 0; it < nT; it++ ) {
+        //   fprintf(ofs, "  %25.16e %25.16e\n", creal(correlator[it]), cimag(correlator[it]));
+        // }
 #endif  // of if 0
 
         fini_3level_ztable ( &diagram_buffer );
