@@ -384,38 +384,39 @@ int * get_conserved_momentum_id ( int (*p1)[3], int const n1, int const p2[3], i
  * multiply x-space spinor propagator field
  *   with boundary phase
  ***********************************************/
-int correlator_add_baryon_boundary_phase ( double _Complex ***sp, int tsrc) {
+int correlator_add_baryon_boundary_phase ( double _Complex *** const sp, int const tsrc, int const N ) {
 
   if( g_propagator_bc_type == 0 ) {
     /* multiply with phase factor */
-    fprintf(stdout, "# [correlator_add_baryon_boundary_phase] multiplying with boundary phase factor\n");
+    if ( g_verbose > 3 ) fprintf(stdout, "# [correlator_add_baryon_boundary_phase] multiplying with boundary phase factor\n");
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-    for( int it = 0; it < T; it++ ) {
-      int ir = (it + g_proc_coords[0] * T - tsrc + T_global) % T_global;
-      const double _Complex w = cexp ( I * 3. * M_PI*(double)ir / (double)T_global  );
+    for( int it = 0; it < N; it++ ) {
+      // int ir = (it + g_proc_coords[0] * T - tsrc + T_global) % T_global;
+      // const double _Complex w = cexp ( I * 3. * M_PI*(double)ir / (double)T_global  );
+      const double _Complex w = cexp ( I * 3. * M_PI*(double)it / (double)T_global  );
       zm4x4_ti_eq_co ( sp[it], w );
     }
 
   } else if ( g_propagator_bc_type == 1 ) {
     /* multiply with step function */
-    fprintf(stdout, "# [add_baryon_boundary_phase] multiplying with boundary step function\n");
+    if ( g_verbose > 3 ) fprintf(stdout, "# [add_baryon_boundary_phase] multiplying with boundary step function\n");
+
+    int const tmin = _MIN( T_global - tsrc, N );
+    int const tmax = _MIN( T_global - 1,    N );
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-    for( int ir = 0; ir < T; ir++) {
-      int it = ir + g_proc_coords[0] * T;  /* global t-value, 0 <= t < T_global */
-      if(it < tsrc) {
-        zm4x4_ti_eq_re ( sp[it], -1. );
-      }  /* end of if it < tsrc */
-    }  /* end of loop on ir */
+    for( int it = tmin; it <= tmax; it++ ) {
+      zm4x4_ti_eq_re ( sp[it], -1. );
+    }  // end of loop on ir
   }
 
   return(0);
-}  /* end of correlator_add_baryon_boundary_phase */
+}  // end of correlator_add_baryon_boundary_phase
 
 
 /***********************************************
@@ -423,7 +424,7 @@ int correlator_add_baryon_boundary_phase ( double _Complex ***sp, int tsrc) {
  * - using pi1 + pi2 = - ( pf1 + pf2 ), so
  *   pi1 = - ( pi2 + pf1 + pf2 )
  ***********************************************/
-int correlator_add_source_phase ( double _Complex ***sp, int p[3], int source_coords[3], unsigned int N ) {
+int correlator_add_source_phase ( double _Complex ***sp, int const p[3], int const source_coords[3], unsigned int const N ) {
 
   const double _Complex TWO_MPI_I = 2. * M_PI * I;
 
