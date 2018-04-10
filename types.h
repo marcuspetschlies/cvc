@@ -25,6 +25,7 @@ typedef struct {
   int source_coords[4];
   int reorder;
   char norm[500];
+  char fbwd[20];
 } twopoint_function_type;
 
 typedef struct {
