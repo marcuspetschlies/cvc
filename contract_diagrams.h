@@ -21,9 +21,9 @@ int match_momentum_id ( int **pid, int **m1, int **m2, int N1, int N2 );
 
 int * get_conserved_momentum_id ( int (*p1)[3], int const n1, int const p2[3], int (*p3)[3], int const n3 );
 
-int correlator_add_baryon_boundary_phase ( double _Complex ***sp, int tsrc);
+int correlator_add_baryon_boundary_phase ( double _Complex *** const sp, int const tsrc, int const N );
 
-int correlator_add_source_phase ( double _Complex ***sp, int p[3], int source_coords[3], unsigned int N );
+int correlator_add_source_phase ( double _Complex ***sp, int const p[3], int const source_coords[3], unsigned int const N );
 
 int correlator_spin_parity_projection (double _Complex ***sp_out, double _Complex ***sp_in, double c, unsigned N);
 
