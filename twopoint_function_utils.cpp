@@ -11,9 +11,15 @@
 #include <omp.h>
 #endif
 
+#ifdef HAVE_LHPC_AFF
+#include "lhpc-aff.h"
+#endif
+
 #include "types.h"
 #include "global.h"
 #include "default_input_values.h"
+#include "zm4x4.h"
+#include "table_init_z.h"
 #include "twopoint_function_utils.h"
 
 namespace cvc {
@@ -77,6 +83,7 @@ void twopoint_function_init ( twopoint_function_type *p ) {
   p->source_coords[2] = -1;
   p->source_coords[3] = -1;
   p->reorder = 0;
+  strcpy( p->fbwd, "NA" );
 }  /* end of twopoint_function_init */
 
 /********************************************************************************
@@ -101,6 +108,7 @@ void twopoint_function_print ( twopoint_function_type *p, char *name, FILE*ofs )
   fprintf(ofs, "# [print_twopoint_function] %s.source_coords   =  (%3d, %3d, %3d, %3d)\n", name, 
       p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3] );
   fprintf(ofs, "# [print_twopoint_function] %s.reorder         =  %3d\n", name, p->reorder );
+  fprintf(ofs, "# [print_twopoint_function] %s.fbwd            =  %3d\n", name, p->fbwd );
   return;
 }  /* end of twopoint_function_print */
 
@@ -112,6 +120,7 @@ void twopoint_function_copy ( twopoint_function_type *p, twopoint_function_type 
   strcpy( p->type, r->type );
   strcpy( p->diagrams, r->diagrams );
   strcpy( p->norm, r->norm );
+  strcpy( p->fbwd, r->fbwd );
   memcpy( p->pi1, r->pi1, 3*sizeof(int) );
   memcpy( p->pi2, r->pi2, 3*sizeof(int) );
   memcpy( p->pf1, r->pf1, 3*sizeof(int) );
@@ -134,12 +143,19 @@ void twopoint_function_copy ( twopoint_function_type *p, twopoint_function_type 
 /********************************************************************************
  *
  ********************************************************************************/
+
 void twopoint_function_print_diagram_key (char*key, twopoint_function_type *p, int id ) { 
 
   char comma[] = ",";
   char *ptr = NULL;
   char diag_str[20];
   char diagrams[400];
+  char fbwd_str[10] = "";
+
+  if ( ! ( strcmp( p->fbwd, "NA" ) == 0 ) ) {
+    sprintf ( fbwd_str, "%s/", p->fbwd );
+  }
+  
 
   strcpy( diagrams, p->diagrams );
   if ( id >= p->n ) { strcpy ( key, "NA" ); return; }
@@ -163,10 +179,10 @@ void twopoint_function_print_diagram_key (char*key, twopoint_function_type *p, i
 
   if ( strcmp( p->type, "b-b") == 0 ) {
 
-    sprintf( key, "/%s/%spf1x%.2dpf1y%.2dpf1z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d", p->name, diag_str,
-        p->pf1[0], p->pf1[1], p->pf1[2],
-        p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3],
-        p->gf1[0], p->gi1[0]);
+    sprintf( key, "/%s/%s%sgf1%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/gi1%.2d/t%.2dx%.2dy%.2dz%.2d", p->name, diag_str, fbwd_str,
+        p->gf1[0], p->pf1[0], p->pf1[1], p->pf1[2], p->gi1[0],
+        p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3] );
+
 
     /* sprintf( key, "/%s/t%.2dx%.2dy%.2dz%.2d/gi%.2d/gf%.2d/%spx%.2dpy%.2dpz%.2d", p->name,
         p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3],
@@ -174,7 +190,7 @@ void twopoint_function_print_diagram_key (char*key, twopoint_function_type *p, i
 
 
   } else if ( strcmp( p->type, "mxb-mxb") == 0 ) {
-    sprintf( key, "/%s/%spi2x%.2dpi2y%.2dpi2z%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d", p->name, diag_str,
+    sprintf( key, "/%s/%s%spi2x%.2dpi2y%.2dpi2z%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d", p->name, diag_str, fbwd_str,
         p->pi2[0], p->pi2[1], p->pi2[2],
         p->pf1[0], p->pf1[1], p->pf1[2],
         p->pf2[0], p->pf2[1], p->pf2[2],
@@ -182,7 +198,7 @@ void twopoint_function_print_diagram_key (char*key, twopoint_function_type *p, i
         p->gf1[0], p->gi1[0]);
   } else if ( strcmp( p->type, "mxb-b") == 0 ) {
 
-    sprintf( key, "/%s/%spi2x%.2dpi2y%.2dpi2z%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d", p->name, diag_str,
+    sprintf( key, "/%s/%s%spi2x%.2dpi2y%.2dpi2z%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d", p->name, diag_str, fbwd_str,
         p->pi2[0], p->pi2[1], p->pi2[2],
         p->pf1[0], p->pf1[1], p->pf1[2],
         p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3],
@@ -296,9 +312,8 @@ void twopoint_function_correlator_phase (double _Complex * const c, twopoint_fun
 /********************************************************************************
  *
  ********************************************************************************/
-void twopoint_function_print_correlator_data ( double _Complex *c, twopoint_function_type *p, FILE*ofs ) { 
+void twopoint_function_print_correlator_data ( double _Complex * const c, twopoint_function_type *p, FILE*ofs, int const N ) { 
    
-  const int tsrc = p->source_coords[0];
   char key[400];
 
   if ( c == NULL || p == NULL || ofs == NULL ) {
@@ -308,12 +323,11 @@ void twopoint_function_print_correlator_data ( double _Complex *c, twopoint_func
 
   twopoint_function_print_correlator_key ( key, p );
   fprintf(ofs, "# %s\n", key );
-  for ( int it = 0; it < T_global; it++ ) {
-    int ir = ( it + tsrc ) % T_global;
-    fprintf(ofs, "  %25.16e %25.16e\n", creal(c[ir]), cimag(c[ir]));
+  for ( int it = 0; it < N; it++ ) {
+    fprintf(ofs, "  %25.16e %25.16e\n", creal(c[it]), cimag(c[it]));
   }
   return;
-}  /* end of twopoint_function_print_correlator_data */
+}  // end of twopoint_function_print_correlator_data
 
 /********************************************************************************
  *
@@ -327,37 +341,114 @@ void twopoint_function_get_aff_filename_prefix (char*filename, twopoint_function
   } else {
     fprintf(stderr, "[twopoint_function_get_aff_filename] Error, unrecognized type %s\n", p->type);
   }
+  if ( g_verbose > 2 ) fprintf ( stdout, "# [twopoint_function_get_aff_filename_prefix] prefix set to %s\n", filename );
 }  /* end of twopoint_function_get_aff_filename */
 
 /********************************************************************************
  *
  ********************************************************************************/
-void twopoint_function_get_diagram_norm ( double*r, twopoint_function_type *p, int id ) {
+double twopoint_function_get_diagram_norm ( twopoint_function_type *p, int const id ) {
 
   char comma[] = ",";
   char *ptr = NULL;
   char norm[500];
+  double r = 0;
 
   strcpy( norm, p->norm );
-  if ( id >= p->n ) { *r = 1.; return; }
+  if ( id >= p->n ) { return(0.); }
 
   if ( id >= 0 ) {
     ptr = strtok( norm, comma );
-    if ( ptr == NULL ) { *r = 1.; return; }
-    if ( strcmp ( ptr, "NA" ) == 0 ) { *r = 1.; return; }
+    if ( ptr == NULL ) { return(0.); }
+    if ( strcmp ( ptr, "NA" ) == 0 ) { return(0.); }
     // fprintf(stdout, "# [twopoint_function_get_diagram_norm] %d ptr = %s\n", 0, ptr);
                                   
     for( int i = 1; i <= id && ptr != NULL; i++ ) {
       ptr = strtok(NULL, "," );
       // fprintf(stdout, "# [twopoint_function_get_diagram_norm] %d ptr = %s\n", i, ptr);
     }
-    if ( ptr == NULL ) { *r = 1.; return; }
-    *r = atof ( ptr );
+    if ( ptr == NULL ) { return(0.); }
+    r = atof ( ptr );
     
   } else {
-    *r = 1.;
+    r = 0.;
   }
-  if ( g_verbose > 2 ) fprintf(stdout, "# [twopoint_function_get_diagram_norm] diagram norm = %25.16e\n", *r);
-}  /* end of twopoint_function_get_diagram_norm */
+  if ( g_verbose > 2 ) fprintf(stdout, "# [twopoint_function_get_diagram_norm] diagram norm = %25.16e\n", r);
+  
+  return( r );
 
-}  /* end of namespace cvc */
+}  // end of twopoint_function_get_diagram_norm
+
+/********************************************************************************/
+/********************************************************************************/
+
+/********************************************************************************
+ * read diagrams for a twopoint
+ ********************************************************************************/
+int twopoint_function_accumulate_diagrams ( double _Complex *** const diagram, twopoint_function_type *p, int const N, struct AffReader_s *affr ) {
+
+  char key[500];
+  int exitstatus;
+
+  double _Complex *** buffer = init_3level_ztable ( N, 4, 4 );
+  if ( buffer == NULL ) {
+    fprintf(stderr, "[twopoint_function_accumulate_diagrams] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
+
+#ifdef HAVE_LHPC_AFF
+  struct AffNode_s *affn = NULL, *affdir = NULL;
+
+  if( (affn = aff_reader_root( affr )) == NULL ) {
+    fprintf(stderr, "[twopoint_function_accumulate_diagrams] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
+    return(103);
+  }
+
+#endif
+
+  /******************************************************
+   * loop on diagrams within 2-point function
+   ******************************************************/
+  for ( int idiag = 0; idiag < p->n; idiag++ )
+  {
+
+    // fprintf(stdout, "# [twopoint_function_accumulate_diagrams] diagrams %d = %s\n", idiag, g_twopoint_function_list[i2pt].diagrams );
+
+    twopoint_function_print_diagram_key ( key, p, idiag );
+
+#ifdef HAVE_LHPC_AFF
+    affdir = aff_reader_chpath (affr, affn, key );
+    uint32_t uitems = 16 * N;
+    exitstatus = aff_node_get_complex (affr, affdir, buffer[0][0], uitems );
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[twopoint_function_accumulate_diagrams] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(105);
+    }
+#endif
+
+    double const norm = twopoint_function_get_diagram_norm ( p, idiag );
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+    for ( int i = 0; i < N; i++ ) {
+      zm4x4_eq_zm4x4_pl_zm4x4_ti_re ( diagram[i], diagram[i], buffer[i], norm );
+    }
+
+  }  // end of loop on diagrams
+
+  fini_3level_ztable ( &buffer );
+
+  // TEST
+  if ( g_verbose > 5 ) {
+    for ( int it = 0; it < N; it++ ) {
+      fprintf(stdout, "# [twopoint_function_accumulate_diagrams] initial correlator t = %2d\n", it );
+      zm4x4_printf ( diagram[it], "c_in", stdout );
+    }
+  }
+
+  return(0);
+
+}  // end of twopoint_function_accumulate_diagrams
+
+}  // end of namespace cvc
