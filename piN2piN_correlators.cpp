@@ -182,17 +182,6 @@ int main(int argc, char **argv) {
   for( int i_src = 0; i_src<g_source_location_number; i_src++) {
     int t_base = g_source_coords_list[i_src][0];
 
-    if(io_proc == 2) {
-
-      sprintf(filename, "%s.%.4d.tsrc%.2d", "piN_piN_correlator", Nconf, t_base );
-      ofs = fopen( filename, "w");
-      if( ofs == NULL ) {
-        fprintf(stderr, "[piN2piN_correlators] Error from fopen %s %d\n", __FILE__, __LINE__ );
-        EXIT(4);
-      }
-
-    }  /* end of if io_proc == 2 */
-
     /******************************************************
      * loop on coherent source locations
      ******************************************************/
@@ -206,6 +195,21 @@ int main(int argc, char **argv) {
 
 
       get_point_source_info (gsx, sx, &source_proc_id);
+
+      /******************************************************/
+      /******************************************************/
+
+      /******************************************************
+       * open ASCII format output file
+       ******************************************************/
+      if(io_proc == 2) {
+        sprintf(filename, "%s.%.4d.tsrc%.2d", "piN_piN_correlator", Nconf, t_coherent );
+        ofs = fopen( filename, "w");
+        if( ofs == NULL ) {
+          fprintf(stderr, "[piN2piN_correlators] Error from fopen %s %d\n", __FILE__, __LINE__ );
+          EXIT(4);
+        }
+      }  // end of if io_proc == 2
 
       /******************************************************/
       /******************************************************/
@@ -334,18 +338,28 @@ int main(int argc, char **argv) {
         fini_3level_ztable ( &diagram );
         // fini_1level_ztable ( &correlator );
 
+        /******************************************************/
+        /******************************************************/
+
+        /******************************************************
+         * close AFF reader
+         ******************************************************/
+        if(io_proc == 2) { aff_reader_close (affr); }
 
         retime = _GET_TIME;
         if ( io_proc == 2 ) fprintf ( stdout, "# [piN2piN_correlators] time for twopoint_function entry = %e seconds\n", retime-ratime );
 
       }  // end of loop on 2-point functions
 
-    }  // end of loop on coherent source locations
+      /******************************************************/
+      /******************************************************/
 
-    if(io_proc == 2) {
-      aff_reader_close (affr);
-      fclose ( ofs );
-    }  // end of if io_proc == 2
+      /******************************************************
+       * close ofs file pointer
+       ******************************************************/
+      if(io_proc == 2) { fclose ( ofs ); }
+
+    }  // end of loop on coherent source locations
 
   }  // end of loop on base source locations
 
