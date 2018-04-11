@@ -49,7 +49,7 @@ int contract_diagram_write_aff (double _Complex***diagram, struct AffWriter_s*af
 
 int contract_diagram_write_scalar_aff (double _Complex*diagram, struct AffWriter_s*affw, char*aff_tag, int const tstart, int const dt, int const fbwd, int const io_proc );
 
-int contract_diagram_write_fp ( double _Complex*** const diagram, FILE *fp, char*tag, int const tstart, unsigned int const dt, int const fbwd ):
+int contract_diagram_write_fp ( double _Complex*** const diagram, FILE *fp, char*tag, int const tstart, unsigned int const dt, int const fbwd );
 
 int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const pf2[3], int const gf1, int const pf1[3], int const gi2, int const pi2[3], int const gi1, int const pi1[3], int const sx[4] );
   
