@@ -836,13 +836,13 @@ int contract_diagram_write_fp ( double _Complex*** const diagram, FILE *fp, char
     return(1);
   }
 
-  fprintf ( fp, "# %s", tag );
+  fprintf ( fp, "# %s\n", tag );
 
   if ( fbwd == 0 ) {
     for ( unsigned int t = 0; t <= dt; t++ ) {
       for ( int mu = 0; mu < 4; mu++ ) {
       for ( int nu = 0; nu < 4; nu++ ) {
-        fprintf ( fp, "%25.16e  %25.16e\n", creal ( diagram[t][mu][nu] ), cimag ( diagram[t][mu][nu] ) );
+        fprintf ( fp, "  %25.16e  %25.16e\n", creal ( diagram[t][mu][nu] ), cimag ( diagram[t][mu][nu] ) );
       }}
     }
   } else {
