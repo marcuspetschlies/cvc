@@ -825,20 +825,34 @@ int contract_diagram_write_scalar_aff (double _Complex*diagram, struct AffWriter
 /***********************************************
  * write contracted diagram to FILE*
  ***********************************************/
-int contract_diagram_write_fp ( double _Complex*** const diagram, FILE *fp, char*tag, int const tstart, int const dt, int const fbwd ) {
+int contract_diagram_write_fp ( double _Complex*** const diagram, FILE *fp, char*tag, int const tstart, unsigned int const dt, int const fbwd  ) {
 
   double rtime;
 
   rtime = _GET_TIME;
 
+  if ( ( fbwd != 0 ) && ( dt != T_global - 1 ) ) {
+    fprintf ( stderr, "[contract_diagram_write_fp] Error, incompatible dt and fbwd arguments\n", __FILE__, __LINE__ );
+    return(1);
+  }
+
   fprintf ( fp, "# %s", tag );
 
-  for ( int i = 0; i <= dt; i++ ) {
-    int t = ( tstart + i * fbwd  + T_global ) % T_global;
-    for ( int mu = 0; mu < 4; mu++ ) {
-    for ( int nu = 0; nu < 4; nu++ ) {
-      fprintf ( fp, "%25.16e  %25.16e\n", creal ( diagram[t][mu][nu] ), cimag ( diagram[t][mu][nu] ) );
-    }}
+  if ( fbwd == 0 ) {
+    for ( unsigned int t = 0; t <= dt; t++ ) {
+      for ( int mu = 0; mu < 4; mu++ ) {
+      for ( int nu = 0; nu < 4; nu++ ) {
+        fprintf ( fp, "%25.16e  %25.16e\n", creal ( diagram[t][mu][nu] ), cimag ( diagram[t][mu][nu] ) );
+      }}
+    }
+  } else {
+    for ( unsigned int i = 0; i <= dt; i++ ) {
+      int t = ( tstart + i * fbwd  + T_global ) % T_global;
+      for ( int mu = 0; mu < 4; mu++ ) {
+      for ( int nu = 0; nu < 4; nu++ ) {
+        fprintf ( fp, "%25.16e  %25.16e\n", creal ( diagram[t][mu][nu] ), cimag ( diagram[t][mu][nu] ) );
+      }}
+    }
   }
 
   rtime = _GET_TIME - rtime;
