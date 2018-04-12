@@ -22,6 +22,7 @@
 #include <getopt.h>
 #include "ranlxd.h"
 
+#if 0
 #ifdef __cplusplus
 extern "C"
 {
@@ -50,7 +51,7 @@ extern "C"
 #include "prepare_source.h"
 #include "prepare_propagator.h"
 #include "matrix_init.h"
-
+#endif
 using namespace cvc;
 
 void usage() {
@@ -64,11 +65,16 @@ void usage() {
 
 int main(int argc, char **argv) {
  
+#if 0
   const int n_s = 4;
   const int n_c = 3;
+#endif
 
-  int c, i, k, no_fields=0;
+  int c;
   int filename_set = 0;
+  char filename[100];
+#if 0
+  int i, k, no_fields=0;
   /* int have_source_flag = 0; */
   // int gsx[4];
   int x0, x1, x2, x3;
@@ -76,13 +82,13 @@ int main(int argc, char **argv) {
   int exitstatus;
   /* int source_proc_coords[4], source_proc_id = -1; */
   unsigned int ix;
-  char filename[100];
   /* double ratime, retime; */
   // double plaq;
   FILE *ofs;
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
+#endif
 #endif
 
   while ((c = getopt(argc, argv, "h?f:")) != -1) {
@@ -99,7 +105,18 @@ int main(int argc, char **argv) {
     }
   }
 
-  g_the_time = time(NULL);
+  // g_the_time = time(NULL);
+
+ 
+  void * a = malloc(89);
+  if ( a ) {
+    fprintf(stdout, "# [] a is not NULL\n");
+  } else {
+    fprintf(stdout, "# [] a is NULL\n");
+  }
+
+
+#if 0
 
   /* set the default values */
   if(filename_set==0) strcpy(filename, "cvc.input");
@@ -498,12 +515,14 @@ int main(int argc, char **argv) {
   MPI_Finalize();
 #endif
 
+
+
   if(g_cart_id==0) {
     g_the_time = time(NULL);
     fprintf(stdout, "# [test] %s# [test] end of run\n", ctime(&g_the_time));
     fprintf(stderr, "# [test] %s# [test] end of run\n", ctime(&g_the_time));
   }
-
+#endif  // of if 0
   return(0);
 
 }
