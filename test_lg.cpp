@@ -201,7 +201,7 @@ int main(int argc, char **argv) {
 
     int n_irrep = lg[ilg].nirrep;
 
-    if ( ( strcmp( lg[ilg].name == "Oh" ) == 0 ) || ( strcmp( lg[ilg].name == "2Oh" ) == 0 ) )  {
+    if ( ( strcmp( lg[ilg].name, "Oh" ) == 0 ) || ( strcmp( lg[ilg].name, "2Oh" ) == 0 ) )  {
       interpolator_parity = 0;
     } else {
       interpolator_parity = 1;
@@ -247,7 +247,7 @@ int main(int argc, char **argv) {
           exitstatus = set_rot_mat_table_cubic_group_single_cover ( &r_irrep, lg[ilg].name, lg[ilg].lirrep[i_irrep] );
 #endif
           if ( exitstatus != 0 ) {
-            fprintf ( stderr, "# [test_lg] Error from set_rot_mat_table_cubic_group_double_cover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            fprintf ( stderr, "# [test_lg] Error from set_rot_mat_table_cubic_group, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(2);
           }
 
