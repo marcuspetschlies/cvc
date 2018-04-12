@@ -1611,7 +1611,10 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
   /***********************************************************
    * allocate spin vectors, to which spin rotations are applied
    ***********************************************************/
-  init_1level_ibuffer ( &spin_dimensions, p->n );
+  int * spin_dimensions = init_1level_itable ( p->n );
+  if ( spin_dimensions == NULL ) {
+    fprintf ( stderr, "[little_group_projector_apply] Error from init_1level_itable %s %d\n", __FILE__, __LINE__ );
+  }
   for ( int i = 0; i < p->n; i++ ) spin_dimensions[i] = p->rspin[i].dim;
 
   init_2level_zbuffer_asym( &sv0, p->n, spin_dimensions );
@@ -1885,7 +1888,7 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
   for ( int i = 0; i < p->rtarget->dim; i++ ) fini_2level_zbuffer_asym( &(sv1[i]) );
   free ( sv1 );
 
-  fini_1level_ibuffer ( &spin_dimensions );
+  fini_1level_itable ( &spin_dimensions );
   fini_2level_zbuffer_asym( &sv0 );
   return(0);
 
