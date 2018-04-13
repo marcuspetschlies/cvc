@@ -32,20 +32,21 @@
 #include "Q_clover_phi.h"
 #include "scalar_products.h"
 #include "iblas.h"
-#include "project.h"
-#include "matrix_init.h"
-#include "gsp.h"
+#include "table_init_z.h"
+#include "rotations.h"
+#include "gsp_utils.h"
 
 
 namespace cvc {
 
+#if 0
 const int gamma_adjoint_sign[16] = {
   /* the sequence is:
        0, 1, 2, 3, id, 5, 0_5, 1_5, 2_5, 3_5, 0_1, 0_2, 0_3, 1_2, 1_3, 2_3
        0  1  2  3   4  5    6    7    8    9   10   11   12   13   14   15 */
        1, 1, 1, 1,  1, 1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1
 };
-
+#endif  // of if 0
 
 /***********************************************************************************************/
 /***********************************************************************************************/
@@ -70,7 +71,6 @@ int gsp_read_node (double _Complex ***gsp, int numV, int momentum[3], int gamma_
   struct AffReader_s *affr = NULL;
   struct AffNode_s *affn = NULL, *affdir=NULL;
   char * aff_status_str;
-  double _Complex *aff_buffer = NULL;
   char aff_buffer_path[200];
   /*  uint32_t aff_buffer_size; */
 #endif
@@ -94,9 +94,9 @@ int gsp_read_node (double _Complex ***gsp, int numV, int momentum[3], int gamma_
     return(2);
   }
 
-  exitstatus = init_1level_zbuffer ( &aff_buffer, numV * numV );
-  if( exitstatus != 0 ) {
-    fprintf(stderr, "[gsp_read_node] Error from init_1level_zbuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+  double _Complex * aff_buffer = init_1level_ztable ( numV * numV );
+  if( aff_buffer == NULL ) {
+    fprintf(stderr, "[gsp_read_node] Error from init_1level_ztable %s %d\n",  __FILE__, __LINE__);
     return(3);
   }
 #endif
@@ -140,6 +140,7 @@ int gsp_read_node (double _Complex ***gsp, int numV, int momentum[3], int gamma_
 #endif
 
 #ifdef HAVE_LHPC_AFF
+  fini_1level_ztable (&aff_buffer );
   aff_reader_close (affr);
 #endif
 
@@ -180,19 +181,18 @@ int gsp_prepare_from_file ( double _Complex ***gsp, int numV, int momentum[3], i
     }
     memcpy ( pvec, g_sink_momentum_list[momid], 3*sizeof(int) );
 
-    g5_gamma_id  = gamma_mult_table[5][gamma_id];
-    sign         = gamma_mult_sign[5][gamma_id] * gamma_adjoint_sign[g5_gamma_id];
+    g5_gamma_id  = g_gamma_mult_table[5][gamma_id];
+    sign         = g_gamma_mult_sign[5][gamma_id] * g_gamma_adjoint_sign[g5_gamma_id];
 
   } else if ( ns == 1 ) {
     memcpy ( pvec, momentum, 3*sizeof(int) );
-    g5_gamma_id  = gamma_mult_table[5][gamma_id];
-    sign         = gamma_mult_sign[5][gamma_id];
+    g5_gamma_id  = g_gamma_mult_table[5][gamma_id];
+    sign         = g_gamma_mult_sign[5][gamma_id];
   }
 
-  double _Complex ***gsp_buffer = NULL;
-  exitstatus = init_3level_zbuffer ( &gsp_buffer, 6, numV, numV );
-  if ( exitstatus != 0 ) {
-    fprintf ( stderr, "[gsp_prepare_from_file] Error from init_3level_zbuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+  double _Complex ***gsp_buffer = init_3level_ztable ( 6, numV, numV );
+  if ( gsp_buffer == NULL ) {
+    fprintf ( stderr, "[gsp_prepare_from_file] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
     return(1);
   }
 
@@ -206,9 +206,9 @@ int gsp_prepare_from_file ( double _Complex ***gsp, int numV, int momentum[3], i
    ***********************************************/
   for ( int x0 = 0; x0 < T; x0++ ) {
 
-    exitstatus = gsp_read_node ( gsp_buffer, numV, pvec, g5_gamma_id, prefix, tag, x0 );
+    int exitstatus = gsp_read_node ( gsp_buffer, numV, pvec, g5_gamma_id, prefix, tag, x0 );
     if ( exitstatus != 0 ) {
-      fprintf ( stderr, "[gsp_prepare_from_file] Error from gsp_read_node, status was %d\n", exitstatus );
+      fprintf ( stderr, "[gsp_prepare_from_file] Error from gsp_read_node, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       return(1);
     }
 
@@ -238,14 +238,14 @@ int gsp_prepare_from_file ( double _Complex ***gsp, int numV, int momentum[3], i
 
   }  /* end of loop on timeslices */
 
-  fini_3level_zbuffer ( &gsp_buffer );
+  fini_3level_ztable ( &gsp_buffer );
   return(0);
 }  /* gsp_prepare_from_file */
 
 /***********************************************************************************************/
 /***********************************************************************************************/
 
-int gsp_write_eval(double *eval, int num, char*tag) {
+int gsp_write_eval(double * const eval, unsigned int const num, char * const filename_prefix, char * const tag) {
   
   double ratime, retime;
   char filename[200];
@@ -268,7 +268,7 @@ int gsp_write_eval(double *eval, int num, char*tag) {
    * output file
    ***********************************************/
 #ifdef HAVE_LHPC_AFF
-    sprintf(filename, "%s.aff", tag);
+    sprintf(filename, "%s.aff", filename_prefix );
     fprintf(stdout, "# [gsp_write_eval] writing eigenvalue data from file %s\n", filename);
     affw = aff_writer(filename);
     aff_status_str = (char*)aff_writer_errstr(affw);
@@ -286,7 +286,8 @@ int gsp_write_eval(double *eval, int num, char*tag) {
     fprintf(stdout, "# [gsp_write_eval] current aff path = %s\n", aff_buffer_path);
 
     affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
-    status = aff_node_put_double (affw, affdir, eval, (uint32_t)num); 
+    uint32_t unum = num;
+    status = aff_node_put_double (affw, affdir, eval, unum); 
     if(status != 0) {
       fprintf(stderr, "[gsp_write_eval] Error from aff_node_put_double, status was %d\n", status);
       return(3);
@@ -297,13 +298,13 @@ int gsp_write_eval(double *eval, int num, char*tag) {
       return(4);
     }
 #else
-    sprintf(filename, "%s.eval", tag );
+    sprintf(filename, "%s.eval", filename_prefix );
     ofs = fopen(filename, "w");
     if(ofs == NULL) {
       fprintf(stderr, "[gsp_write_eval] Error, could not open file %s for writing\n", filename);
       return(5);
     }
-    for( int ievecs = 0; ievecs < num; ievecs++ ) {
+    for( unsigned int ievecs = 0; ievecs < num; ievecs++ ) {
       fprintf(ofs, "%25.16e\n", eval[ievecs] );
     }
     fclose(ofs);
@@ -314,7 +315,7 @@ int gsp_write_eval(double *eval, int num, char*tag) {
   if(g_cart_id == 0) fprintf(stdout, "# [gsp_write_eval] time for gsp_write_eval = %e seconds\n", retime-ratime);
 
   return(0);
-}  /* end of gsp_write_eval */
+}  // end of gsp_write_eval
 
 /***********************************************************************************************/
 /***********************************************************************************************/
@@ -429,17 +430,12 @@ int gsp_read_cvc_node (
   int const file_t = ( timeslice / (T_global/nt) )  * (T_global/nt);
 
 #ifdef HAVE_LHPC_AFF
-  double _Complex *aff_buffer = NULL;
-  //  uint32_t aff_buffer_size
-#endif
-
-#ifdef HAVE_LHPC_AFF
 
   sprintf(filename, "%s.t%.2d.aff", prefix, file_t );
   fprintf(stdout, "# [gsp_read_cvc_node] reading gsp data from file %s\n", filename);
   struct AffReader_s * affr = aff_reader(filename);
 
-  char * const aff_status_str = aff_reader_errstr(affr);
+  const char * aff_status_str = aff_reader_errstr(affr);
   if( aff_status_str != NULL ) {
     fprintf(stderr, "[gsp_read_cvc_node] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
     return(1);
@@ -453,8 +449,8 @@ int gsp_read_cvc_node (
 #endif
  
   double _Complex ** buffer = init_2level_ztable ( numV, block_length );
-  if( exitstatus != 0 ) {
-    fprintf(stderr, "[gsp_read_cvc_node] Error from init_2level_ztable, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+  if( buffer == NULL ) {
+    fprintf(stderr, "[gsp_read_cvc_node] Error from init_2level_ztable %s %d\n",  __FILE__, __LINE__);
     return(3);
   }
 
@@ -514,6 +510,7 @@ int gsp_read_cvc_node (
   aff_reader_close (affr);
 #endif
 
+  fini_2level_ztable ( &buffer );
   return(0);
 
 }  // end of gsp_read_cvc_node
@@ -550,19 +547,18 @@ int gsp_prepare_cvc_from_file ( double _Complex ***gsp, int numV, int momentum[3
     }
     memcpy ( pvec, g_sink_momentum_list[imom], 3*sizeof(int) );
 
-    g5_gamma_id  = gamma_mult_table[5][gamma_id];
-    sign         = gamma_mult_sign[5][gamma_id] * gamma_adjoint_sign[g5_gamma_id];
+    g5_gamma_id  = g_gamma_mult_table[5][gamma_id];
+    sign         = g_gamma_mult_sign[5][gamma_id] * g_gamma_adjoint_sign[g5_gamma_id];
 
   } else if ( ns == 1 ) {
     memcpy ( pvec, momentum, 3*sizeof(int) );
-    g5_gamma_id  = gamma_mult_table[5][gamma_id];
-    sign         = gamma_mult_sign[5][gamma_id];
+    g5_gamma_id  = g_gamma_mult_table[5][gamma_id];
+    sign         = g_gamma_mult_sign[5][gamma_id];
   }
 
-  double _Complex ***gsp_buffer = NULL;
-  exitstatus = init_3level_zbuffer ( &gsp_buffer, 6, numV, numV );
-  if ( exitstatus != 0 ) {
-    fprintf ( stderr, "[gsp_prepare_cvc_from_file] Error from init_3level_zbuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+  double _Complex ***gsp_buffer = init_3level_ztable ( 6, numV, numV );
+  if ( gsp_buffer == NULL ) {
+    fprintf ( stderr, "[gsp_prepare_cvc_from_file] Error from init_3level_ztable %s %d\n",  __FILE__, __LINE__ );
     return(1);
   }
 
@@ -608,7 +604,7 @@ int gsp_prepare_cvc_from_file ( double _Complex ***gsp, int numV, int momentum[3
 
   }  /* end of loop on timeslices */
 
-  fini_3level_zbuffer ( &gsp_buffer );
+  fini_3level_ztable ( &gsp_buffer );
   return(0);
 }  // gsp_prepare_cvc_from_file */
 #endif  // if 0

@@ -340,18 +340,14 @@ int main(int argc, char **argv) {
   fprintf(stdout, "# [hvp_lma] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
 
 
-  if ( io_proc == 2 ) {
+  sprintf( aff_tag, "/hvp/eval/N%d", evecs_num );
+  sprintf( filename, "hvp_lma.%.4d.eval", Nconf );
+  exitstatus = gsp_write_eval( evecs_eval, evecs_num, filename, aff_tag);
 
-    sprintf(aff_tag, "/hvp/eval/N%d", evecs_num );
-    exitstatus = gsp_write_eval( evecs_eval, evecs_num, aff_tag );
-
-    if ( exitstatus != 0 ) {
-      fprintf(stderr, "[hvp_lma] Error from gsp_write_eval, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(141);
-    }
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[hvp_lma] Error from gsp_write_eval, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(141);
   }
-
-
 
 #ifdef HAVE_LHPC_AFF
   /***********************************************************

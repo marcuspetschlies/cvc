@@ -209,9 +209,9 @@ inline void rot_reduce_point_bnd ( int nred[3], int n[3] ) {
  ***********************************************************/
 inline double _Complex **rot_init_rotation_matrix (int N ) {
 
-  double _Complex **SSpin = init_2level_ztable ( N, N );
+  double _Complex ** SSpin = init_2level_ztable ( N, N );
   if ( SSpin == NULL ) {
-    fprintf(stderr, "[rot_bispinor_rotation_matrix_spherical_basis] Error from init_2level_ztable %s %d\n", __FILE__, __LINE__ );
+    fprintf(stderr, "[rot_init_rotation_matrix] Error from init_2level_ztable %s %d\n", __FILE__, __LINE__);
     return(NULL);
   }
   return(SSpin);
