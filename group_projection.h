@@ -60,9 +60,9 @@ typedef struct {
 typedef struct {
   int n;
   int P[3];
-  int *** p
+  int *** p;
   double _Complex ***v;
-  double _Complex **c;
+  double _Complex *c;
   char name[200];
 } little_group_projector_applicator_type;
 
