@@ -2,6 +2,7 @@
 #define _ROTATIONS_H
 
 #include "ilinalg.h"
+#include "table_init_z.h"
 
 namespace cvc {
 
@@ -120,12 +121,13 @@ void rot_mat_get_euler_angles ( double a[3], int n[3], double w );
  
 int rot_mat_spin1_cartesian ( double _Complex **R, int n[3], double omega );
 
-
-void rot_mat_ti_vec (double _Complex *w, double _Complex **A, double _Complex *v, int N);
+void rot_mat_ti_vec (double _Complex * const w, double _Complex ** const A, double _Complex * const v, int const N);
 
 void rot_mat_transpose_ti_vec (double _Complex *w, double _Complex **A, double _Complex *v, int N);
 
 void rot_mat_adjoint_ti_vec (double _Complex *w, double _Complex **A, double _Complex *v, int N);
+
+void rot_vec_pl_eq_rot_vec_ti_co ( double _Complex * const w, double _Complex * const v, double _Complex const c, int const N);
 
 void rot_vec_accum_vec_ti_co_pl_mat_ti_vec_ti_co (double _Complex *w, double _Complex **A, double _Complex *v, double _Complex cv, double _Complex cw, int N);
 
@@ -207,17 +209,16 @@ inline void rot_reduce_point_bnd ( int nred[3], int n[3] ) {
  ***********************************************************/
 inline double _Complex **rot_init_rotation_matrix (int N ) {
 
-  double _Complex **SSpin = NULL;
-  int exitstatus = init_2level_buffer( (double***)&SSpin, N, 2*N );
-  if ( exitstatus != 0 ) {
-    fprintf(stderr, "[rot_bispinor_rotation_matrix_spherical_basis] Error from init_2level_buffer, status was %d\n", exitstatus);
+  double _Complex **SSpin = init_2level_ztable ( N, N );
+  if ( SSpin == NULL ) {
+    fprintf(stderr, "[rot_bispinor_rotation_matrix_spherical_basis] Error from init_2level_ztable %s %d\n", __FILE__, __LINE__ );
     return(NULL);
   }
   return(SSpin);
 }  /* end of rot_init_rotation_matrix */
 
 inline double _Complex **rot_fini_rotation_matrix ( double _Complex ***R ) {
-  fini_2level_buffer( (double***)R );
+  fini_2level_ztable ( R );
   return(NULL);
 }  /* end of rot_fini_rotation_matrix */
 
