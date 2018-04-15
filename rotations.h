@@ -121,12 +121,13 @@ void rot_mat_get_euler_angles ( double a[3], int n[3], double w );
  
 int rot_mat_spin1_cartesian ( double _Complex **R, int n[3], double omega );
 
-
-void rot_mat_ti_vec (double _Complex *w, double _Complex **A, double _Complex *v, int N);
+void rot_mat_ti_vec (double _Complex * const w, double _Complex ** const A, double _Complex * const v, int const N);
 
 void rot_mat_transpose_ti_vec (double _Complex *w, double _Complex **A, double _Complex *v, int N);
 
 void rot_mat_adjoint_ti_vec (double _Complex *w, double _Complex **A, double _Complex *v, int N);
+
+void rot_vec_pl_eq_rot_vec_ti_co ( double _Complex * const w, double _Complex * const v, double _Complex const c, int const N);
 
 void rot_vec_accum_vec_ti_co_pl_mat_ti_vec_ti_co (double _Complex *w, double _Complex **A, double _Complex *v, double _Complex cv, double _Complex cw, int N);
 
@@ -156,7 +157,7 @@ void rot_vec_eq_mat_diag ( double _Complex *w, double _Complex **A, int num );
 
 void co_pl_eq_mat_diag ( double _Complex * const w, double _Complex ** const A, int num );
 
-
+void rot_vec_printf (double _Complex * const v, int const N, char *A, FILE*ofs );
 
 /***********************************************************
  * check boundary status of a point

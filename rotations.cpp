@@ -426,9 +426,9 @@ void rot_mat_ti_mat_adj (double _Complex **C, double _Complex **A, double _Compl
 /***********************************************************/
 
 /***********************************************************
- *
+ * w = A v for N-component vectors vrs v, w
  ***********************************************************/
-void rot_mat_ti_vec (double _Complex *w, double _Complex **A, double _Complex *v, int N) {
+void rot_mat_ti_vec (double _Complex * const w, double _Complex ** const A, double _Complex * const v, int const N) {
 
   char CHAR_T = 'T';
   int INT_N = N, INT_1 = 1;
@@ -457,6 +457,23 @@ void rot_vec_accum_vec_ti_co_pl_mat_ti_vec_ti_co (double _Complex *w, double _Co
 
 /***********************************************************/
 /***********************************************************/
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * w = w + v * c
+ ***********************************************************/
+void rot_vec_pl_eq_rot_vec_ti_co ( double _Complex * const w, double _Complex * const v, double _Complex const c, int const N) {
+  
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+  for ( int i = 0; i < N; i++ ) {
+    w[i] += v[i] * c;
+  }
+#endif
+}  // end of rot_vec_pl_eq_rot_vec_ti_co
+
 
 /***********************************************************
  * w <- cw * w +  cv * R^t v
@@ -2510,4 +2527,25 @@ double _Complex co_eq_trac_mat_ti_mat_weight_re ( double _Complex ** const A, do
   return ( c );
 }  /* end of co_eq_trac_mat_ti_mat_weight_re */
 
-}  /* end of namespace cvc */
+/***********************************************************************************************/
+/***********************************************************************************************/
+
+/***********************************************************************************************
+ * print vector
+ ***********************************************************************************************/
+void rot_vec_printf (double _Complex * const v, int const N, char *A, FILE*ofs ) {
+
+  double const eps = 5.e-14;
+  fprintf(ofs, "%s <- numeric(%d)\n", A, N);
+  for( int ik = 0; ik < N; ik++ ) {
+    double dre = creal( v[ik] );
+    double dim = cimag( v[ik] );
+    fprintf(ofs, "%s[%d] <- %25.16e + %25.16e*1.i\n", A, ik+1, ( fabs(dre) > eps ? dre : 0. ), ( fabs(dim) > eps ? dim : 0. ) );
+  }
+  fflush(ofs);
+}  // end of rot_printf_matrix
+
+/***********************************************************************************************/
+/***********************************************************************************************/
+
+}  // end of namespace cvc

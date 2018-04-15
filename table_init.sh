@@ -3,8 +3,14 @@
 #TYPE="double _Complex"
 #TAG="z"
 
-TYPE="double"
-TAG="d"
+#TYPE="double"
+#TAG="d"
+
+#TYPE="int"
+#TAG="i"
+
+TYPE="char"
+TAG="c"
 
 TTAG=$( echo $TAG | tr '[:lower:]' '[:upper:]')
 
