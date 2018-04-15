@@ -157,7 +157,7 @@ void rot_vec_eq_mat_diag ( double _Complex *w, double _Complex **A, int num );
 
 void co_pl_eq_mat_diag ( double _Complex * const w, double _Complex ** const A, int num );
 
-
+void rot_vec_printf (double _Complex * const v, int const N, char *A, FILE*ofs );
 
 /***********************************************************
  * check boundary status of a point
