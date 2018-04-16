@@ -36,12 +36,14 @@
 * Date: 06.05.2001
 *
 *******************************************************************************/
-namespace cvc {
+
 #include <limits.h>
 #include <float.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+
+namespace cvc {
 
 #if ((defined SSE)||(defined SSE2))
 
