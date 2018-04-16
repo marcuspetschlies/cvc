@@ -13,6 +13,7 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include "complex.h"
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
@@ -35,10 +36,10 @@ extern "C"
 #ifdef __cplusplus
 }
 #endif
+#endif
 
 #define MAIN_PROGRAM
 
-#include "cvc_complex.h"
 #include "cvc_linalg.h"
 #include "global.h"
 #include "cvc_geometry.h"
@@ -50,8 +51,8 @@ extern "C"
 #include "contractions_io.h"
 #include "prepare_source.h"
 #include "prepare_propagator.h"
-#include "matrix_init.h"
-#endif
+#include "table_init_asym_z.h"
+
 using namespace cvc;
 
 void usage() {
@@ -107,14 +108,31 @@ int main(int argc, char **argv) {
 
   // g_the_time = time(NULL);
 
- 
-  void * a = malloc(89);
-  if ( a ) {
-    fprintf(stdout, "# [] a is not NULL\n");
-  } else {
-    fprintf(stdout, "# [] a is NULL\n");
+  /******************************************************************
+   * TEST init_4level_ztable_asym and fini_4level_ztable_asym
+   ******************************************************************/
+  int const N0 =  7;
+  int const N1 =  5;
+  int const N2 =  3;
+  int const dim[3] = {1, 2, 4};
+  double _Complex **** a = init_4level_ztable_asym ( N0, N1, N2, (int *const )dim );
+  for ( int i = 0; i < N0*N1* ( dim[0] + dim[1] + dim[2]); i++ )  {
+    a[0][0][0][i] = 1./(i+1) + 1./(i+2.)*I;
   }
 
+  int count = 0;
+  for ( int i0 = 0; i0 < N0; i0++ ) {
+  for ( int i1 = 0; i1 < N1; i1++ ) {
+  for ( int i2 = 0; i2 < N2; i2++ ) {
+    for ( int i3 = 0; i3 < dim[i2]; i3++ ) {
+      fprintf ( stdout, " %2d %2d %2d %2d %6d   %25.16e %25.16e   %25.16e %25.16e\n", i0, i1, i2, i3, count,
+          creal( a[i0][i1][i2][i3] ), cimag( a[i0][i1][i2][i3]),
+          creal( a[0][0][0][count] ), cimag( a[0][0][0][count] ) );
+
+      count++;
+  }}}}
+  fini_4level_ztable_asym ( &a );
+ 
 
 #if 0
 
