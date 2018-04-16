@@ -1635,7 +1635,7 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
   }
   for ( int i = 0; i < p->n; i++ ) spin_dimensions[i] = p->rspin[i].dim;
 
-  double _Complex ** sv0 = init_2level_ztable_asym( p->n, spin_dimensions );
+  double _Complex ** sv0 = init_2level_ztable_asym( 1, spin_dimensions, p->n );
   if ( sv0 == NULL ) {
     fprintf ( stderr, "[little_group_projector_apply] Error from init_2level_ztable_asym %s %d\n", __FILE__, __LINE__);
     return(2);
@@ -1698,16 +1698,18 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
    ***********************************************************/
   for ( int row_target = 0; row_target < p->rtarget->dim; row_target++ ) {
 
+    if ( ofs != NULL ) fprintf ( ofs, "# [little_group_projector_apply] lg %s irrep %s row %d\n", p->rtarget->group, p->rtarget->irrep, row_target );
+
     /***********************************************************
      * allocate fields
      ***********************************************************/
     double _Complex **** sv1 = init_4level_ztable_asym ( 2, p->rtarget->n, p->n, spin_dimensions );
     if ( sv1 == NULL ) {
-      fprintf ( stderr, "[little_group_projector_apply] Error from init_4level_ztable_asym %s %d\n", __FILE__, __LINE__ );
+      fprintf ( stderr, "[little_group_projector_apply] Error from init_4level_ztable_asym for %s %d\n", __FILE__, __LINE__ );
       return ( 1 );
     }
 
-    double _Complex **** prot = init_4level_itable ( 2, p->rtarget->n, p->n, 3 );
+    int **** prot = init_4level_itable ( 2, p->rtarget->n, p->n, 3 );
     if ( prot == NULL ) {
       fprintf ( stderr, "[little_group_projector_apply] Error from init_4level_itable %s %d\n", __FILE__, __LINE__ );
       return ( 1 );
@@ -1942,9 +1944,55 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
 
     /***********************************************************
      * now print the complete projector information
+     * for this row of the target representation
      ***********************************************************/
+    if ( ofs != NULL ) {
 
-    STOPPED HERE
+      // show the information for rotations
+      fprintf ( ofs, "# [little_group_projector_apply] group %s irrep %s row %d\n", p->rtarget->group, p->rtarget->irrep, row_target );
+      fprintf ( ofs, "# [little_group_projector_apply] rotations (%2d)\n", p->rtarget->n );
+      for ( int irot = 0; irot < p->rtarget->n; irot++ ) {
+        fprintf ( ofs, "# [little_group_projector_apply] rotation %2d", irot+1 );
+
+        // show the overall coefficient
+        fprintf ( ofs, "  coeff[%2d] %25.16e %25.16e\n", irot+1, creal(z_irrep_matrix_coeff[0][irot]), cimag(z_irrep_matrix_coeff[0][irot]) );
+
+        for ( int iop = 0; iop < p->n; iop++ ) {
+          fprintf ( ofs, "# [little_group_projector_apply] operator %d\n", iop+1 );
+          // show the rotated momentum vector
+          fprintf ( ofs, "    pvec[[%2d]][[%d]] = %3d %3d %3d\n", irot+1, iop+1, prot[0][irot][iop][0], prot[0][irot][iop][1], prot[0][irot][iop][2] );
+          // show the rotated basis vectors
+          char name[100];
+          sprintf ( name, "    v[[%2d]][[%d]]",irot+1, iop+1 );
+          rot_vec_printf ( sv1[0][irot][iop], spin_dimensions[iop], name, ofs );
+
+        }  // end of loop on operators
+
+      }  // end of loop on rotations
+
+      // show the information for rotation-reflections
+      fprintf ( ofs, "# [little_group_projector_apply] rotation-reflections (%2d)\n", p->rtarget->n );
+      for ( int irot = 0; irot < p->rtarget->n; irot++ ) {
+        fprintf ( ofs, "# [little_group_projector_apply] Irotation %2d", irot+1 );
+
+        // show the overall coefficient
+        fprintf ( ofs, "  coeff[%2d] %25.16e %25.16e\n", irot+1, creal(z_irrep_matrix_coeff[1][irot]), cimag(z_irrep_matrix_coeff[1][irot]) );
+
+        for ( int iop = 0; iop < p->n; iop++ ) {
+          fprintf ( ofs, "# [little_group_projector_apply] operator %d\n", iop+1 );
+          // show the rotated momentum vector
+          fprintf ( ofs, "    pvec[[%2d]][[%d]] = %3d %3d %3d\n", irot+1, iop+1, prot[1][irot][iop][0], prot[1][irot][iop][1], prot[1][irot][iop][2] );
+          // show the rotated basis vectors
+          char name[100];
+          sprintf ( name, "    v[[%2d]][[%d]]",irot+1, iop+1 );
+          rot_vec_printf ( sv1[1][irot][iop], spin_dimensions[iop], name, ofs );
+
+        }  // end of loop on operators
+
+      }  // end of loop on rotations
+
+    }  // end of if ofs != NULL
+
 
     /***********************************************************/
     /***********************************************************/
@@ -1965,7 +2013,7 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
     /***********************************************************
      * check rotation property of RR
      ***********************************************************/
-    exitstatus = rot_mat_table_rotate_multiplett ( &RR, &(p->rspin[0]), p->rtarget, !frame_is_cmf, ofs);
+    exitstatus = rot_mat_table_rotate_multiplett ( &RR, &(p->rspin[0]), p->rtarget, p->parity[0], ofs);
     if ( exitstatus != 0 ) {
       fprintf( stderr, "[little_group_projector_apply] Error from rot_mat_table_rotate_multiplett, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       return(1);
@@ -1985,7 +2033,7 @@ int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
      * in target representation
      ***********************************************************/
     fprintf ( stdout, "# [little_group_projector_apply] multiplicity of %s in %s is %d\n",
-        p->rtarget->irrep, p->rspin[0].irrep, irrep_multiplicity ( p->rtarget, &p->rspin[0], !frame_is_cmf  ) );
+        p->rtarget->irrep, p->rspin[0].irrep, irrep_multiplicity ( p->rtarget, &p->rspin[0], p->parity[0] ) );
   }
 
   /***********************************************************/
@@ -2034,7 +2082,8 @@ int little_group_projector_key (char*key,  little_group_projector_type *p_snk, l
 /***********************************************************
  * rotate a projection matrix multiplett
  ***********************************************************/
-int rot_mat_table_rotate_multiplett ( rot_mat_table_type *rtab, rot_mat_table_type *rapply, rot_mat_table_type *rtarget, int with_IR, FILE*ofs ) {
+
+int rot_mat_table_rotate_multiplett ( rot_mat_table_type * const rtab, rot_mat_table_type * const rapply, rot_mat_table_type * const rtarget, int const parity, FILE*ofs ) {
 
   if ( ofs == NULL ) ofs = stdout;
 
@@ -2084,45 +2133,47 @@ int rot_mat_table_rotate_multiplett ( rot_mat_table_type *rtab, rot_mat_table_ty
       double norm = rot_mat_norm_diff ( R2, R3, rtab->dim );
       double norm2 = sqrt( rot_mat_norm2 ( R2, rtab->dim ) );
 
-      fprintf(ofs, "# [rot_mat_table_rotate_multiplett] irot %2d rid %2d norm diff = %16.7e / %16.7e\n\n", irot,
+      fprintf(ofs, "# [rot_mat_table_rotate_multiplett]  R[[%2d] rid %2d norm diff = %16.7e / %16.7e\n\n", irot+1,
           rtarget->rid[irot], norm, norm2 );
 
       rot_fini_rotation_matrix ( &R2 );
       rot_fini_rotation_matrix ( &R3 );
-    }
+
+    }  // end of loop on rotations
 
     /***********************************************************
      * IR rotations
      ***********************************************************/
-    if ( with_IR ) {
-      for ( int irot = 0; irot < rtarget->n; irot++ ) {
+    for ( int irot = 0; irot < rtarget->n; irot++ ) {
 
-        double _Complex **R2 = rot_init_rotation_matrix ( rtab->dim );
-        double _Complex **R3 = rot_init_rotation_matrix ( rtab->dim );
+      double _Complex **R2 = rot_init_rotation_matrix ( rtab->dim );
+      double _Complex **R3 = rot_init_rotation_matrix ( rtab->dim );
 
-        rot_mat_ti_mat (R2, rapply->IR[irot], rtab->R[ia], rtab->dim );
+      rot_mat_ti_mat (R2, rapply->IR[irot], rtab->R[ia], rtab->dim );
+      // multiply with pairty
+      rot_mat_ti_eq_re ( R2, parity, rtab->dim );
 
-        for ( int k = 0; k < rtarget->dim; k++ ) {
-          rot_mat_pl_eq_mat_ti_co ( R3, rtab->R[k], rtarget->IR[irot][k][ia], rtab->dim );
-        }
 
-        char name[100];
-        sprintf( name, "IR2[[%2d]]", rtarget->rmid[irot] );
-        rot_printf_matrix ( R2, rtab->dim, name, ofs );
-        fprintf(ofs, "\n");
-        sprintf( name, "IR3[[%2d]]", rtarget->rmid[irot] );
-        rot_printf_matrix ( R3, rtab->dim, name, ofs );
-        double norm = rot_mat_norm_diff ( R2, R3, rtab->dim );
-        double norm2 = sqrt( rot_mat_norm2 ( R2, rtab->dim ) );
-        fprintf(ofs, "# [rot_mat_table_rotate_multiplett] irot %2d rmid %2d norm diff = %16.7e / %16.7e\n\n", irot,
-            rtarget->rmid[irot], norm, norm2 );
-
-        rot_fini_rotation_matrix ( &R2 );
-        rot_fini_rotation_matrix ( &R3 );
+      for ( int k = 0; k < rtarget->dim; k++ ) {
+        rot_mat_pl_eq_mat_ti_co ( R3, rtab->R[k], rtarget->IR[irot][k][ia], rtab->dim );
       }
-    }
 
-  }  /* end of loop on elements of rtab */
+      char name[100];
+      sprintf( name, "IR2[[%2d]]", rtarget->rmid[irot] );
+      rot_printf_matrix ( R2, rtab->dim, name, ofs );
+      fprintf(ofs, "\n");
+      sprintf( name, "IR3[[%2d]]", rtarget->rmid[irot] );
+      rot_printf_matrix ( R3, rtab->dim, name, ofs );
+      double norm = rot_mat_norm_diff ( R2, R3, rtab->dim );
+      double norm2 = sqrt( rot_mat_norm2 ( R2, rtab->dim ) );
+      fprintf(ofs, "# [rot_mat_table_rotate_multiplett] IR[[%2d]] rmid %2d norm diff = %16.7e / %16.7e\n\n", irot+1,
+          rtarget->rmid[irot], norm, norm2 );
+
+      rot_fini_rotation_matrix ( &R2 );
+      rot_fini_rotation_matrix ( &R3 );
+    }  // end of loop on rotation-reflections
+
+  }  // end of loop on elements of rtab
 
   return(0);
 }  /* end of loop on rot_mat_table_rotate_multiplett */
@@ -2132,28 +2183,29 @@ int rot_mat_table_rotate_multiplett ( rot_mat_table_type *rtab, rot_mat_table_ty
 /***********************************************************/
 
 /***********************************************************
- *
+ * calculate multiplicity of occurence of irrep given by
+ * rirrep in spin irrep given by rspin
  ***********************************************************/
-int irrep_multiplicity (rot_mat_table_type *rirrep, rot_mat_table_type *rspin, int with_IR ) {
+int irrep_multiplicity (rot_mat_table_type * const rirrep, rot_mat_table_type * const rspin, int const parity ) {
 
   double _Complex s = 0.;
   int nelem = rirrep->n;
+  // loop on rotations
   for ( int irot = 0; irot < rirrep->n; irot++ ) {
-    s += rot_mat_trace ( rirrep->R[irot],  rirrep->dim ) * rot_mat_trace ( rspin->R[irot],  rspin->dim );
-  }
-  if ( with_IR ) {
-    for ( int irot = 0; irot < rirrep->n; irot++ ) {
-      s += rot_mat_trace ( rirrep->IR[irot],  rirrep->dim ) * rot_mat_trace ( rspin->IR[irot],  rspin->dim );
-    }
-    nelem *= 2;
+    s +=          rot_mat_trace ( rirrep->R[irot],  rirrep->dim ) * rot_mat_trace ( rspin->R[irot],  rspin->dim );
   }
 
-  /* TEST */
-  fprintf(stdout, "# [irrep_multiplicity] s = %25.16e %25.16e g = %2d\n", creal(s), cimag(s), rirrep->n );
-  /* END OF TEST */
+  // loop on rotations-reflections
+  for ( int irot = 0; irot < rirrep->n; irot++ ) {
+    s += parity * rot_mat_trace ( rirrep->IR[irot],  rirrep->dim ) * rot_mat_trace ( rspin->IR[irot],  rspin->dim );
+  }
+  nelem *= 2;
+
+  // TEST
+  if ( g_verbose > 2 ) fprintf(stdout, "# [irrep_multiplicity] s = %25.16e %25.16e g = %2d\n", creal(s), cimag(s), rirrep->n );
 
   return( (int)( round( creal(s) ) / nelem ) );
-}  /* end of irrep multiplicty */
+}  // end of irrep multiplicty
 
 /***********************************************************/
 /***********************************************************/
