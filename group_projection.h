@@ -152,12 +152,11 @@ int spin_vector_asym_normalize ( double _Complex **sv, int n, int *dim );
 
 void spin_vector_pl_eq_spin_vector_ti_co_asym ( double _Complex **sv1, double _Complex **sv2, double _Complex c, int n, int *dim );
 
-int rot_mat_table_rotate_multiplett ( rot_mat_table_type *rtab, rot_mat_table_type *rapply, rot_mat_table_type *rtarget, int with_IR, FILE*ofs );
+int rot_mat_table_rotate_multiplett ( rot_mat_table_type * const rtab, rot_mat_table_type * const rapply, rot_mat_table_type * const rtarget, int const parity, FILE*ofs );
 
-int irrep_multiplicity (rot_mat_table_type *rirrep, rot_mat_table_type *rspin, int with_IR );
+int irrep_multiplicity (rot_mat_table_type * const rirrep, rot_mat_table_type * const rspin, int const parity );
 
 int little_group_projector_apply_product ( little_group_projector_type *p , FILE*ofs);
-
 
 void product_vector_project_accum ( double _Complex *v, rot_mat_table_type*r, int rid, int rmid, double _Complex *v0, double _Complex c1, double _Complex c2, int *dim , int n );
 
