@@ -30,8 +30,6 @@ extern "C"
 
 namespace cvc {
 
-namespace cvc {
-
 int isnan_f  (float       x) { return x != x; }
 int isnan_d  (double      x) { return x != x; }
 int isnan_ld (long double x) { return x != x; }
