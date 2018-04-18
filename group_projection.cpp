@@ -32,12 +32,12 @@
 #include "mpi_init.h"
 #include "cvc_utils.h"
 #include "rotations.h"
-#include "group_projection.h"
 #include "clebsch_gordan.h"
 #include "table_init_i.h"
 #include "table_init_c.h"
 #include "table_init_z.h"
 #include "table_init_asym_z.h"
+#include "group_projection.h"
 
 namespace cvc {
 
@@ -48,7 +48,6 @@ little_group_type *little_groups = NULL;
 
 int little_group_read_list (little_group_type **lg, char *filename )  {
  
-  int exitstatus; 
   char comma[] = ",";
 
   char line[1000];
@@ -349,7 +348,6 @@ void fini_rot_mat_table (rot_mat_table_type *t ) {
 /***********************************************************/
 
 int alloc_rot_mat_table ( rot_mat_table_type *t, char*group, char*irrep, int dim, int n ) {
-  int exitstatus;
   
   if ( t->n != 0 ) {
     fprintf(stdout, "# [alloc_rot_mat_table] deleting existing rotation matrix table\n");
@@ -612,8 +610,6 @@ int rot_mat_mult_table ( int***mtab, rot_mat_table_type *t ) {
 
   const double eps = 5.e-15;
 
-  int exitstatus;
-
   if ( *mtab == NULL ) {
     *mtab = init_2level_itable ( t->n, t->n );
     if ( *mtab == NULL ) {
@@ -689,7 +685,6 @@ int rot_mat_mult_table ( int***mtab, rot_mat_table_type *t ) {
  ***********************************************************/
 int rot_mat_table_is_lg ( rot_mat_table_type *t, int d[3] ) {
 
-  int exitstatus;
   int Rd[3];
   int is_lg = 1;
 
@@ -925,8 +920,6 @@ int rot_mat_table_get_d2d ( rot_mat_table_type *t, int d1[3], int d2[3] ) {
  ***********************************************************/
 int rot_mat_table_character ( double _Complex ***rc, rot_mat_table_type *t ) {
   
-  int exitstatus;
-
   if ( *rc == NULL ) {
     *rc = init_2level_ztable ( 2, t->n );
     if ( *rc == NULL ) {
@@ -1049,7 +1042,7 @@ int init_little_group_projector (little_group_projector_type *p ) {
   p->row_target     = -1;
   p->ref_row_spin   = NULL;
   p->parity         = NULL;
-  strcpy ( p->correlator_name, "NA" );
+  strcpy ( p->name, "NA" );
   
   return(0);
 }   /* end of init_little_group_projector */
@@ -1089,7 +1082,7 @@ int fini_little_group_projector (little_group_projector_type *p ) {
     p->c = NULL;
   }
 #endif
-  strcpy ( p->correlator_name, "NA" );
+  strcpy ( p->name, "NA" );
   p->n              = 0;
   p->P[0]           = 0;
   p->P[1]           = 0;
@@ -1127,7 +1120,7 @@ int little_group_projector_show (little_group_projector_type *p, FILE*ofs, int w
     }
   }
 #endif
-  fprintf( ofs, "# [little_group_projector_show] correlator name    = %s\n", p->correlator_name );
+  fprintf( ofs, "# [little_group_projector_show] correlator name    = %s\n", p->name );
   fprintf( ofs, "# [little_group_projector_show] row target         = %d\n", p->row_target );
   fprintf( ofs, "# [little_group_projector_show] ref row target     = %d\n", p->ref_row_target );
 
@@ -1247,7 +1240,7 @@ int little_group_projector_copy (little_group_projector_type *p, little_group_pr
 
   p->row_target     = q->row_target;
   p->ref_row_target = q->ref_row_target;
-  strcpy ( p->correlator_name, q->correlator_name );
+  strcpy ( p->name, q->name );
   
   return(0);
 }   /* end of little_group_projector_copy */
@@ -1271,7 +1264,7 @@ int little_group_projector_set (
     int *interpolator_cartesian_list,
     int ref_row_target,
     int *ref_row_spin,
-    char*correlator_name 
+    char*name 
   /***********************************************************/
     ) {
 
@@ -1357,8 +1350,8 @@ int little_group_projector_set (
    * set the correlator name, if provided;
    * default "NA" should already be set
    ***********************************************************/
-  if ( correlator_name != NULL ) {
-    strcpy ( p->correlator_name , correlator_name );
+  if ( name != NULL ) {
+    strcpy ( p->name , name );
   }
 
   /***********************************************************
@@ -1484,17 +1477,6 @@ int little_group_projector_set (
 /***********************************************************/
 
 /***********************************************************
- * abs max
- ***********************************************************/
-inline double dgeps (double a, double eps ) {
-  double t = fabs ( a );
-  return( t > eps ? a : 0. );
-}  /* end of dgeps */
-
-/***********************************************************/
-/***********************************************************/
-
-/***********************************************************
  * print direct product of spin vectors
  ***********************************************************/
 int spin_vector_asym_printf ( double _Complex **sv, int n, int*dim, char*name, FILE*ofs ) {
@@ -1543,7 +1525,6 @@ double spin_vector_asym_norm2 ( double _Complex **sv, int n, int *dim ) {
 void spin_vector_pl_eq_spin_vector_ti_co_asym ( double _Complex **sv1, double _Complex **sv2, double _Complex c, int n, int *dim ) {
 
   for ( int i = 0; i < n; i++ ) {
-    double dtmp = 0.;
 
     for ( int k = 0; k < dim[i]; k++ ) {
       sv1[i][k] += sv2[i][k] * c;
@@ -1618,12 +1599,20 @@ int spin_vector_asym_list_normalize ( double _Complex ***sv, int nc, int n, int 
 
 /***********************************************************
  * apply the projector to a basis vector
+ *
+ * app should be an arry of p->rtarget->dim = number of target
+ * irrep rows applicators
  ***********************************************************/
-int little_group_projector_apply ( little_group_projector_applicator_type * a, little_group_projector_type *p , FILE*ofs) {
+little_group_projector_applicator_type ** little_group_projector_apply ( little_group_projector_type *p , FILE*ofs ) {
 
   int exitstatus;
   char name[20];
-  int const frame_is_cmf = ( p->P[0] == 0 && p->P[1] == 0 && p->P[2] == 0 );
+
+  little_group_projector_applicator_type ** app = (little_group_projector_applicator_type **) malloc ( p->rtarget->dim * sizeof( little_group_projector_applicator_type * ) );
+  if ( app == NULL ) {
+    fprintf ( stderr, "[little_group_projector_apply] Error from malloc %s %d\n", __FILE__, __LINE__ );
+    return( NULL );
+  }
 
 
   /***********************************************************
@@ -1638,7 +1627,7 @@ int little_group_projector_apply ( little_group_projector_applicator_type * a, l
   double _Complex ** sv0 = init_2level_ztable_asym( 1, spin_dimensions, p->n );
   if ( sv0 == NULL ) {
     fprintf ( stderr, "[little_group_projector_apply] Error from init_2level_ztable_asym %s %d\n", __FILE__, __LINE__);
-    return(2);
+    return( NULL );
   }
 
   /***********************************************************/
@@ -1706,27 +1695,44 @@ int little_group_projector_apply ( little_group_projector_applicator_type * a, l
     double _Complex **** sv1 = init_4level_ztable_asym ( 2, p->rtarget->n, p->n, spin_dimensions );
     if ( sv1 == NULL ) {
       fprintf ( stderr, "[little_group_projector_apply] Error from init_4level_ztable_asym for %s %d\n", __FILE__, __LINE__ );
-      return ( 1 );
+      return ( NULL );
     }
 
     int **** prot = init_4level_itable ( 2, p->rtarget->n, p->n, 3 );
     if ( prot == NULL ) {
       fprintf ( stderr, "[little_group_projector_apply] Error from init_4level_itable %s %d\n", __FILE__, __LINE__ );
-      return ( 1 );
+      return ( NULL );
     }
 
     double _Complex ** z_irrep_matrix_coeff = init_2level_ztable ( 2, p->rtarget->n );
     if ( z_irrep_matrix_coeff == NULL ) {
       fprintf ( stderr, "[little_group_projector_apply] Error from init_1level_ztable %s %d\n", __FILE__, __LINE__ );
-      return ( 1 );
+      return ( NULL );
     }
 
-    double _Complex * Rsv = NULL, * IRsv = NULL, **R = NULL, **IR = NULL;
+    /***********************************************************
+     * intialize the applicator
+     * using sv1, prot and z_irrep_matrix_coeff above
+     ***********************************************************/
+    app[row_target] = init_little_group_projector_applicator ();
+    app[row_target]->rotation_n = p->rtarget->n;
+    app[row_target]->interpolator_n   = p->n;
+    app[row_target]->interpolator_dim = init_1level_itable ( p->n );
+    memcpy ( app[row_target]->interpolator_dim, spin_dimensions, p->n * sizeof(int) );
+    app[row_target]->P[0] = p->P[0];
+    app[row_target]->P[1] = p->P[1];
+    app[row_target]->P[2] = p->P[2];
+    app[row_target]->prot = prot;
+    app[row_target]->v = sv1;
+    app[row_target]->c = z_irrep_matrix_coeff;
+    strcpy ( app[row_target]->name, p->name );
+
  
     /***********************************************************
      * if only 1 interpolator field, sum up to projected
      * vector and calculate projection matrices
      ***********************************************************/
+    double _Complex * Rsv = NULL, * IRsv = NULL, **R = NULL, **IR = NULL;
     if ( p-> n == 1 ) {
       Rsv  = init_1level_ztable ( spin_dimensions[0] );
       IRsv = init_1level_ztable ( spin_dimensions[0] );
@@ -1734,7 +1740,7 @@ int little_group_projector_apply ( little_group_projector_applicator_type * a, l
       IR   = rot_init_rotation_matrix ( p->rspin[0].dim );
       if ( Rsv == NULL || IRsv == NULL || R == NULL || IR == NULL ) {
         fprintf ( stderr, "[little_group_projector_apply] Error from init_level_ztable_asym %s %d\n", __FILE__, __LINE__ );
-        return ( 2 );
+        return ( NULL );
       }
     }  // end of if 1 interpolator
 
@@ -1946,62 +1952,21 @@ int little_group_projector_apply ( little_group_projector_applicator_type * a, l
      * now print the complete projector information
      * for this row of the target representation
      ***********************************************************/
-    if ( ofs != NULL ) {
 
-      // show the information for rotations
-      fprintf ( ofs, "# [little_group_projector_apply] group %s irrep %s row %d\n", p->rtarget->group, p->rtarget->irrep, row_target );
-      fprintf ( ofs, "# [little_group_projector_apply] rotations (%2d)\n", p->rtarget->n );
-      for ( int irot = 0; irot < p->rtarget->n; irot++ ) {
-        fprintf ( ofs, "# [little_group_projector_apply] rotation %2d", irot+1 );
-
-        // show the overall coefficient
-        fprintf ( ofs, "  coeff[%2d] %25.16e %25.16e\n", irot+1, creal(z_irrep_matrix_coeff[0][irot]), cimag(z_irrep_matrix_coeff[0][irot]) );
-
-        for ( int iop = 0; iop < p->n; iop++ ) {
-          fprintf ( ofs, "# [little_group_projector_apply] operator %d\n", iop+1 );
-          // show the rotated momentum vector
-          fprintf ( ofs, "    pvec[[%2d]][[%d]] = %3d %3d %3d\n", irot+1, iop+1, prot[0][irot][iop][0], prot[0][irot][iop][1], prot[0][irot][iop][2] );
-          // show the rotated basis vectors
-          char name[100];
-          sprintf ( name, "    v[[%2d]][[%d]]",irot+1, iop+1 );
-          rot_vec_printf ( sv1[0][irot][iop], spin_dimensions[iop], name, ofs );
-
-        }  // end of loop on operators
-
-      }  // end of loop on rotations
-
-      // show the information for rotation-reflections
-      fprintf ( ofs, "# [little_group_projector_apply] rotation-reflections (%2d)\n", p->rtarget->n );
-      for ( int irot = 0; irot < p->rtarget->n; irot++ ) {
-        fprintf ( ofs, "# [little_group_projector_apply] Irotation %2d", irot+1 );
-
-        // show the overall coefficient
-        fprintf ( ofs, "  coeff[%2d] %25.16e %25.16e\n", irot+1, creal(z_irrep_matrix_coeff[1][irot]), cimag(z_irrep_matrix_coeff[1][irot]) );
-
-        for ( int iop = 0; iop < p->n; iop++ ) {
-          fprintf ( ofs, "# [little_group_projector_apply] operator %d\n", iop+1 );
-          // show the rotated momentum vector
-          fprintf ( ofs, "    pvec[[%2d]][[%d]] = %3d %3d %3d\n", irot+1, iop+1, prot[1][irot][iop][0], prot[1][irot][iop][1], prot[1][irot][iop][2] );
-          // show the rotated basis vectors
-          char name[100];
-          sprintf ( name, "    v[[%2d]][[%d]]",irot+1, iop+1 );
-          rot_vec_printf ( sv1[1][irot][iop], spin_dimensions[iop], name, ofs );
-
-        }  // end of loop on operators
-
-      }  // end of loop on rotations
-
-    }  // end of if ofs != NULL
-
+    show_little_group_projector_applicator ( app[row_target], ofs );
 
     /***********************************************************/
     /***********************************************************/
 
-    fini_4level_ztable_asym( &sv1 );
-    fini_4level_itable ( &prot );
+    /***********************************************************
+     * don't deallocate those, they're used in app[row_target]
+     ***********************************************************/
+    // fini_2level_ztable ( &z_irrep_matrix_coeff );
+    // fini_4level_ztable_asym( &sv1 );
+    // fini_4level_itable ( &prot );
+
     fini_1level_ztable ( &Rsv );
     fini_1level_ztable ( &IRsv );
-    fini_2level_ztable ( &z_irrep_matrix_coeff );
 
   }  // end of loop on row_target
 
@@ -2016,7 +1981,7 @@ int little_group_projector_apply ( little_group_projector_applicator_type * a, l
     exitstatus = rot_mat_table_rotate_multiplett ( &RR, &(p->rspin[0]), p->rtarget, p->parity[0], ofs);
     if ( exitstatus != 0 ) {
       fprintf( stderr, "[little_group_projector_apply] Error from rot_mat_table_rotate_multiplett, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      return(1);
+      return( NULL );
     }
 
     // deallocate RR
@@ -2044,7 +2009,7 @@ int little_group_projector_apply ( little_group_projector_applicator_type * a, l
    ***********************************************************/
   fini_1level_itable ( &spin_dimensions );
   fini_2level_ztable_asym( &sv0 );
-  return(0);
+  return( app );
 
 }  // end of little_group_projector_apply
 
