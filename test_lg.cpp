@@ -51,7 +51,6 @@ extern "C"
 #include "ranlxd.h"
 #include "group_projection.h"
 
-
 using namespace cvc;
 
 int main(int argc, char **argv) {
@@ -208,13 +207,11 @@ int main(int argc, char **argv) {
     //  interpolator_parity = 1;
     //}
 
-
     if ( interpolator_number == 1 ) {
       interpolator_momentum_list[0][0] = lg[ilg].d[0];
       interpolator_momentum_list[0][1] = lg[ilg].d[1];
       interpolator_momentum_list[0][2] = lg[ilg].d[2];
     }
-
 
     /****************************************************
      * loop on irreps
@@ -236,14 +233,6 @@ int main(int argc, char **argv) {
         for ( int ref_row_spin = 0; ref_row_spin <= interpolator_J2; ref_row_spin++ ) {
         // int ref_row_spin = -1;
   
-          sprintf ( filename, "lg_%s_irrep_%s_J2_%d_spinref%d.sbd", lg[ilg].name, lg[ilg].lirrep[i_irrep], interpolator_J2, ref_row_spin );
-
-          FILE*ofs = fopen ( filename, "w" );
-          if ( ofs == NULL ) {
-            fprintf ( stderr, "# [test_lg] Error from fopen %s %d\n", __FILE__, __LINE__);
-            EXIT(2);
-          }
-
           /****************************************************
            * rotation matrix for current irrep
            ****************************************************/
@@ -266,6 +255,17 @@ int main(int argc, char **argv) {
            ****************************************************/
           for ( int ref_row_target = 0; ref_row_target < dim_irrep; ref_row_target++ ) {
   
+            /****************************************************
+             * output file
+             ****************************************************/
+            sprintf ( filename, "lg_%s_irrep_%s_J2_%d_spinref%d_irrepref%d.sbd", lg[ilg].name, lg[ilg].lirrep[i_irrep], interpolator_J2, ref_row_spin, ref_row_target );
+
+            FILE*ofs = fopen ( filename, "w" );
+            if ( ofs == NULL ) {
+              fprintf ( stderr, "# [test_lg] Error from fopen %s %d\n", __FILE__, __LINE__);
+              EXIT(2);
+            }
+
             /****************************************************
              * loop on irrep multiplet
              ****************************************************/
@@ -292,12 +292,24 @@ int main(int argc, char **argv) {
   
               /****************************************************/
               /****************************************************/
-              exitstatus =  little_group_projector_apply ( &p, ofs );
-              if ( exitstatus != 0 ) {
-                fprintf ( stderr, "# [test_lg] Error from little_group_projector_apply, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              little_group_projector_applicator_type **app = little_group_projector_apply ( &p, ofs );
+              if ( app == NULL ) {
+                fprintf ( stderr, "# [test_lg] Error from little_group_projector_apply %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(2);
               }
   
+              /****************************************************/
+              /****************************************************/
+
+              /****************************************************
+               * finalize applicators
+               ****************************************************/
+
+              for ( int irow = 0; irow < dim_irrep; irow++ ) {
+                free ( fini_little_group_projector_applicator ( app[irow] ) );
+              }
+              free ( app );
+
               /****************************************************/
               /****************************************************/
   
@@ -305,12 +317,19 @@ int main(int argc, char **argv) {
   
             /* } */  // end of loop on row_target
   
+            /****************************************************/
+            /****************************************************/
+ 
+            /****************************************************
+             * close output file
+             ****************************************************/
+            fclose ( ofs );
+
           }  // end of loop on ref_row_target
   
   
           fini_rot_mat_table ( &r_irrep );
 
-          fclose ( ofs );
 
         }  // end of loop on ref_row_spin
 
