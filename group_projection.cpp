@@ -1619,7 +1619,7 @@ int spin_vector_asym_list_normalize ( double _Complex ***sv, int nc, int n, int 
 /***********************************************************
  * apply the projector to a basis vector
  ***********************************************************/
-int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs) {
+int little_group_projector_apply ( little_group_projector_applicator_type * a, little_group_projector_type *p , FILE*ofs) {
 
   int exitstatus;
   char name[20];
