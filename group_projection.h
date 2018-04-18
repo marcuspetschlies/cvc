@@ -2,6 +2,8 @@
 #define _GROUP_PROJECTION_H
 
 #include "ilinalg.h"
+#include "group_projection_applicator.h"
+
 
 namespace cvc {
 
@@ -47,7 +49,7 @@ typedef struct {
   int P[3];
   int**p;
   /* double _Complex **c; */
-  char correlator_name[200];
+  char name[200];
   int *ref_row_spin;
   int ref_row_target;
   int row_target;
@@ -57,18 +59,6 @@ typedef struct {
 /********************************************************/
 /********************************************************/
  
-typedef struct {
-  int n;
-  int P[3];
-  int **** prot;
-  double _Complex ****v;
-  double _Complex **c;
-  char name[200];
-} little_group_projector_applicator_type;
-
-/********************************************************/
-/********************************************************/
-
 extern little_group_type *little_groups;
 
 int little_group_read_list (little_group_type **lg, char *filename );
@@ -132,13 +122,13 @@ int little_group_projector_set (
   int *interpolator_cartesian_list,
   int ref_row_target,
   int *ref_row_spin,
-  char*correlator_name
+  char*name
   /***********************************************************/
 );
 
 
 
-int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs );
+little_group_projector_applicator_type ** little_group_projector_apply ( little_group_projector_type *p , FILE*ofs);
 
 int spin_vector_asym_printf ( double _Complex **sv, int n, int*dim, char*name, FILE*ofs );
 
