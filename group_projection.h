@@ -61,7 +61,7 @@ typedef struct {
  
 extern little_group_type *little_groups;
 
-int little_group_read_list (little_group_type **lg, char *filename );
+int little_group_read_list (little_group_type **lg, const char * filename );
  
 void little_group_init ( little_group_type **lg, int n );
 
@@ -73,7 +73,7 @@ void init_rot_mat_table (rot_mat_table_type *t );
 
 void fini_rot_mat_table (rot_mat_table_type *t );
 
-int alloc_rot_mat_table ( rot_mat_table_type *t, char*group, char*irrep, int dim, int n );
+int alloc_rot_mat_table ( rot_mat_table_type *t, const char*group, const char*irrep, const int dim, const int n );
 
 
 int set_rot_mat_table_spin ( rot_mat_table_type *t, int J2, int bispinor );
@@ -81,9 +81,9 @@ int set_rot_mat_table_spin ( rot_mat_table_type *t, int J2, int bispinor );
 int set_rot_mat_table_spin_single_cover ( rot_mat_table_type *t, int J2, int const version , int const setby );
 
 
-int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *group, char*irrep );
+int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, const char * group, const char * irrep );
 
-int set_rot_mat_table_cubic_group_single_cover ( rot_mat_table_type *t, char *group, char*irrep );
+int set_rot_mat_table_cubic_group_single_cover ( rot_mat_table_type *t, const char * group, const char * irrep );
 
 
 
@@ -110,19 +110,20 @@ int little_group_projector_show (little_group_projector_type *p, FILE*ofs, int w
 
 int little_group_projector_copy (little_group_projector_type *p, little_group_projector_type *q );
 
+
 int little_group_projector_set (
   /***********************************************************/
-  little_group_projector_type *p,
-  little_group_type *lg,
-  char*irrep , int row_target, int interpolator_num,
-  int *interpolator_J2_list,
-  int **interpolator_momentum_list,
-  int *interpolator_bispinor_list,
-  int *interpolator_parity_list,
-  int *interpolator_cartesian_list,
-  int ref_row_target,
-  int *ref_row_spin,
-  char*name
+  little_group_projector_type * const p,
+  little_group_type * const lg,
+  const char * irrep , const int row_target, const int interpolator_num,
+  const int * interpolator_J2_list,
+  const int ** interpolator_momentum_list,
+  const int * interpolator_bispinor_list,
+  const int * interpolator_parity_list,
+  const int * interpolator_cartesian_list,
+  const int ref_row_target,
+  const int * ref_row_spin,
+  const char * name
   /***********************************************************/
 );
 
