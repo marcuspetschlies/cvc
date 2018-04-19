@@ -46,7 +46,7 @@ extern "C"
 #include "mpi_init.h"
 #include "io.h"
 #include "read_input_parser.h"
-#include "matrix_init.h"
+#include "table_init.h"
 #include "rotations.h"
 #include "ranlxd.h"
 #include "group_projection.h"
@@ -55,6 +55,15 @@ extern "C"
 using namespace cvc;
 
 int main(int argc, char **argv) {
+
+#if defined CUBIC_GROUP_DOUBLE_COVER
+  char const little_group_list_filename[] = "little_groups_2Oh.tab";
+  int (* const set_rot_mat_table ) ( rot_mat_table_type*, const char*, const char*) = set_rot_mat_table_cubic_group_double_cover;
+#elif defined CUBIC_GROUP_SINGLE_COVER
+  const char little_group_list_filename[] = "little_groups_Oh.tab";
+  int (* const set_rot_mat_table ) ( rot_mat_table_type*, const char*, const char*) = set_rot_mat_table_cubic_group_single_cover;
+#endif
+
 
   int c;
   int filename_set = 0;
@@ -119,8 +128,9 @@ int main(int argc, char **argv) {
   /****************************************************
    *
    ****************************************************/
-  if(init_geometry() != 0) {
-    fprintf(stderr, "[test_lg_2p] Error from init_geometry\n");
+  exitstatus = init_geometry();
+  if( exitstatus != 0 ) {
+    fprintf(stderr, "[test_lg_2p] Error from init_geometry, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(1);
   }
 
@@ -143,11 +153,10 @@ int main(int argc, char **argv) {
   /****************************************************/
 
   little_group_type *lg = NULL;
-  int nlg = 0;
+  const int nlg = little_group_read_list ( &lg, little_groups_list_filename );
 
-  if ( ( nlg = little_group_read_list ( &lg, "little_groups_2Oh.tab") ) <= 0 )
-  {
-    fprintf(stderr, "[test_lg_2p] Error from little_group_read_list, status was %d\n", nlg);
+  if ( nlg <= 0 ) {
+    fprintf(stderr, "[test_lg_2p] Error from little_group_read_list, status was %d %s %d\n", nlg, __FILE__, __LINE__);
     EXIT(2);
   }
   fprintf(stdout, "# [test_lg_2p] number of little groups = %d\n", nlg);
@@ -167,48 +176,45 @@ int main(int argc, char **argv) {
     EXIT(2);
   }
 
-  int **interpolator_momentum_list = NULL;
-  int interpolator_number   = 2;
-  int *interpolator_bispinor = NULL;
-  int *interpolator_parity   = NULL;
-  int *interpolator_J2       = NULL;
-  int *ref_row_spin          = NULL;
-  char correlator_name[]     = "basis_vector";
+  int interpolator_number = 2;
+  char correlator_name[]  = "basis_vector";
 
-  exitstatus = init_2level_ibuffer ( &interpolator_momentum_list, interpolator_number, 3 );
-  if ( exitstatus != 0 ) {
-    fprintf ( stderr, "# [test_lg_2p] Error from init_2level_ibuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+  int **interpolator_momentum_list = init_2level_itable ( interpolator_number, 3 );
+  if ( interpolator_momentum_list == NULL ) {
+    fprintf ( stderr, "# [test_lg_2p] Error from init_2level_itable %s %d\n", __FILE__, __LINE__);
     EXIT(2);
   }
 
-
-  exitstatus = init_1level_ibuffer ( &interpolator_bispinor, interpolator_number  );
-  if ( exitstatus != 0 ) {
-    fprintf ( stderr, "# [test_lg_2p] Error from init_1level_ibuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+  int *interpolator_bispinor = init_1level_itable ( interpolator_number  );
+  if ( interpolator_bispinor == NULL ) {
+    fprintf ( stderr, "# [test_lg_2p] Error from init_1level_itable %s %d\n", __FILE__, __LINE__);
     EXIT(2);
   }
 
-  exitstatus = init_1level_ibuffer ( &interpolator_parity, interpolator_number  );
-  if ( exitstatus != 0 ) {
-    fprintf ( stderr, "# [test_lg_2p] Error from init_1level_ibuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+  int * interpolator_parity = init_1level_itable ( interpolator_number  );
+  if ( interpolator_parity == NULL ) {
+    fprintf ( stderr, "# [test_lg_2p] Error from init_1level_itable %s %d\n", __FILE__, __LINE__);
     EXIT(2);
   }
 
-  exitstatus = init_1level_ibuffer ( &interpolator_J2, interpolator_number  );
-  if ( exitstatus != 0 ) {
-    fprintf ( stderr, "# [test_lg_2p] Error from init_1level_ibuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+  int * interpolator_J2 = init_1level_itable ( interpolator_number  );
+  if ( interpolator_J2 == NULL ) {
+    fprintf ( stderr, "# [test_lg_2p] Error from init_1level_itable %s %d\n", __FILE__, __LINE__);
     EXIT(2);
   }
 
-  exitstatus = init_1level_ibuffer ( &ref_row_spin, interpolator_number  );
-  if ( exitstatus != 0 ) {
-    fprintf ( stderr, "# [test_lg_2p] Error from init_1level_ibuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+  int * ref_row_spin = init_1level_itable ( interpolator_number  );
+  if ( ref_row_spin == NULL ) {
+    fprintf ( stderr, "# [test_lg_2p] Error from init_1level_itable %s %d\n", __FILE__, __LINE__);
     EXIT(2);
   }
 
   /****************************************************/
   /****************************************************/
 
+  /****************************************************
+   * set some values for testing
+   ****************************************************/
   interpolator_J2[0] = 2;
   interpolator_J2[1] = 1;
 
@@ -247,7 +253,7 @@ int main(int argc, char **argv) {
        ****************************************************/
       rot_mat_table_type r_irrep;
       init_rot_mat_table ( &r_irrep );
-      exitstatus = set_rot_mat_table_cubic_group_double_cover ( &r_irrep, lg[ilg].name, lg[ilg].lirrep[i_irrep] );
+      exitstatus = set_rot_mat_table ( &r_irrep, lg[ilg].name, lg[ilg].lirrep[i_irrep] );
       if ( exitstatus != 0 ) {
         fprintf ( stderr, "# [test_lg_2p] Error from set_rot_mat_table_cubic_group_double_cover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(2);
@@ -303,15 +309,34 @@ int main(int argc, char **argv) {
   
           /****************************************************/
           /****************************************************/
-          exitstatus =  little_group_projector_apply_product ( &p, ofs );
+          exitstatus =  
           if ( exitstatus != 0 ) {
             fprintf ( stderr, "# [test_lg_2p] Error from little_group_projector_apply, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(2);
           }
   
+          little_group_projector_applicator_type **app = little_group_projector_apply_product ( &p, ofs );
+          if ( app == NULL ) {
+            fprintf ( stderr, "# [test_lg_2p] Error from little_group_projector_apply_product %s %d\n", __FILE__, __LINE__);
+            EXIT(2);
+          }
+
           /****************************************************/
           /****************************************************/
   
+          /****************************************************
+           * finalize applicators
+           ****************************************************/
+
+          for ( int irow = 0; irow < dim_irrep; irow++ ) {
+            free ( fini_little_group_projector_applicator ( app[irow] ) );
+          }
+          free ( app );
+
+          /****************************************************/
+          /****************************************************/
+
+
           fini_little_group_projector ( &p );
 
           fclose ( ofs );
@@ -320,28 +345,28 @@ int main(int argc, char **argv) {
         // }  /* end of loop on ref_row_spin 0 */
   
 
-      }  /* end of loop on ref_row_target */
+      }  // end of loop on ref_row_target
 
       fini_rot_mat_table ( &r_irrep );
 
-    }  /* end of loop on irreps */
+    }  // end of loop on irreps
 
-  }  /* end of loop on little groups */
+  }  // end of loop on little groups
 
 
   /****************************************************/
   /****************************************************/
 
 
-  fini_2level_ibuffer ( &interpolator_momentum_list );
+  fini_2level_itable ( &interpolator_momentum_list );
 
-  fini_1level_ibuffer ( &interpolator_bispinor );
+  fini_1level_itable ( &interpolator_bispinor );
 
-  fini_1level_ibuffer ( &interpolator_parity );
+  fini_1level_itable ( &interpolator_parity );
 
-  fini_1level_ibuffer ( &interpolator_J2 );
+  fini_1level_itable ( &interpolator_J2 );
 
-  fini_1level_ibuffer ( &ref_row_spin );
+  fini_1level_itable ( &ref_row_spin );
 
   little_group_fini ( &lg, nlg );
 
