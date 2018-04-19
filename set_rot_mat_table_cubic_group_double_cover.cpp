@@ -4,7 +4,7 @@
 /***********************************************************
  * irrep matrices for double cover
  ***********************************************************/
-int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *group, char*irrep ) {
+int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, const char *group, const char*irrep ) {
 
   const double ONE_HALF   = 0.5;
   const double SQRT3_HALF = 0.5 * sqrt(3.);
