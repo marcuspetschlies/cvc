@@ -146,6 +146,9 @@ inline little_group_projector_applicator_type * show_little_group_projector_appl
 
   FILE * myofs = ofs != NULL ? ofs : stdout;
 
+  fprintf ( myofs, "\n\n# [show_little_group_projector_applicator] =================================\n");
+  fprintf ( myofs, "# [show_little_group_projector_applicator] = BEGIN lg projector applicator = \n");
+  fprintf ( myofs, "# [show_little_group_projector_applicator] =================================\n");
   fprintf ( myofs, "# [show_little_group_projector_applicator] lg projector applicator %s\n", a->name );
   fprintf ( myofs, "# [show_little_group_projector_applicator] P             %3d %3d %3d\n", a->P[0], a->P[1], a->P[2] );
   fprintf ( myofs, "# [show_little_group_projector_applicator] rotations     %3d\n", a->rotation_n );
@@ -162,27 +165,42 @@ inline little_group_projector_applicator_type * show_little_group_projector_appl
   for ( int iparity = 0; iparity < 2; iparity++ ) {
 
     for ( int irot = 0; irot < a->rotation_n; irot++ ) {
-      fprintf ( myofs, "# [little_group_projector_apply] rotation %2d parity %2d\n", irot+1 , 1 - 2*iparity);
 
       // show the overall coefficient
-      fprintf ( myofs, "  c  %25.16e %25.16e\n", creal( a->c[iparity][irot]), cimag( a->c[iparity][irot]) );
+      if ( cabs ( a->c[iparity][irot] ) < eps ) continue;
+      fprintf ( myofs, "# [show_little_group_projector_applicator] rot %2d par %2d", irot+1 , 1 - 2*iparity);
+      // fprintf ( myofs, "  c  %25.16e %25.16e\n", dgeps( creal( a->c[iparity][irot]), eps ), dgeps( cimag( a->c[iparity][irot]), eps ) );
 
       for ( int iop = 0; iop < a->interpolator_n; iop++ ) {
-        fprintf ( myofs, "    operator %d p  %3d %3d %3d v ", iop+1, a->prot[0][irot][iop][0], a->prot[0][irot][iop][1], a->prot[0][irot][iop][2] );
+        fprintf ( myofs, "  p%d (%2d %2d %2d)", iop+1, a->prot[0][irot][iop][0], a->prot[0][irot][iop][1], a->prot[0][irot][iop][2] );
+      }
+
+      for ( int iop = 0; iop < a->interpolator_n; iop++ ) {
+        // fprintf ( myofs, "    operator %d p  %3d %3d %3d v ", iop+1, a->prot[0][irot][iop][0], a->prot[0][irot][iop][1], a->prot[0][irot][iop][2] );
+        // fprintf ( myofs, "  p%d  (%3d %3d %3d) v ", iop+1, a->prot[0][irot][iop][0], a->prot[0][irot][iop][1], a->prot[0][irot][iop][2] );
         // show the rotated basis vectors
+        fprintf ( myofs, "  v%d (", iop+1);
         for ( int k = 0; k < a->interpolator_dim[iop]; k++ ) {
-          fprintf ( myofs, " %16.7e +I %16.7e ", 
-              dgeps ( creal( a->v[iparity][irot][iop][k]), eps ), dgeps ( cimag( a->v[iparity][irot][iop][k]), eps ) 
-              // creal( a->v[0][irot][iop][k]), cimag( a->v[0][irot][iop][k] ) 
-              );
+          double const dre = dgeps ( creal( a->v[iparity][irot][iop][k]), eps );
+          double const dim = dgeps ( cimag( a->v[iparity][irot][iop][k]), eps );
+          fprintf ( myofs, " %16.7e +I %16.7e,", dre, dim );
+              // creal( a->v[0][irot][iop][k]), cimag( a->v[0][irot][iop][k] ) );
         }
-        fprintf ( myofs, "\n" );
+        fprintf ( myofs, ")" );
+
 
       }  // end of loop on operators
 
+      fprintf ( myofs, "  c  %25.16e %25.16e\n", dgeps( creal( a->c[iparity][irot]), eps ), dgeps( cimag( a->c[iparity][irot]), eps ) );
+
     }  // end of loop on rotations
 
+    fprintf ( myofs, "# [show_little_group_projector_applicator] \n\n");
+
   }  // end of loop on rotations
+  fprintf ( myofs, "# [show_little_group_projector_applicator] ===============================\n");
+  fprintf ( myofs, "# [show_little_group_projector_applicator] = END lg projector applicator =\n");
+  fprintf ( myofs, "# [show_little_group_projector_applicator] ===============================\n\n\n");
 
   return( a );
 }
