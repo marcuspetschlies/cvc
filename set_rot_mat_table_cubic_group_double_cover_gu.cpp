@@ -19,7 +19,7 @@
 /***********************************************************
  * irrep matrices for double cover
  ***********************************************************/
-int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *group, char*irrep ) {
+int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, const char *group, const char*irrep ) {
 
   const double ONE_HALF   = 0.5;
   const double SQRT3_HALF = 0.5 * sqrt(3.);
@@ -51,7 +51,7 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
     /***********************************************************
      * LG 2Oh irrep A1u
      ***********************************************************/
-    if ( strcmp ( irrep, "A1u" ) == 0 ) {
+    } else if ( strcmp ( irrep, "A1u" ) == 0 ) {
       if ( ( exitstatus = alloc_rot_mat_table ( t, group, irrep, 1, nrot) ) != 0 ) {
         fprintf(stderr, "[set_rot_mat_table_cubic_group_double_cover] Error from alloc_rot_mat_table, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(1);
@@ -914,4 +914,4 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *gr
   }
  
   return(0);
-}  /* end of set_rot_mat_table_cubic_group_double_cover */
+}  // end of set_rot_mat_table_cubic_group_double_cover
