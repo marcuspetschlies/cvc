@@ -46,15 +46,23 @@ extern "C"
 #include "mpi_init.h"
 #include "io.h"
 #include "read_input_parser.h"
-#include "matrix_init.h"
+#include "table_init_i.h"
 #include "rotations.h"
 #include "ranlxd.h"
 #include "group_projection.h"
 
-
 using namespace cvc;
 
 int main(int argc, char **argv) {
+
+#if defined CUBIC_GROUP_DOUBLE_COVER
+  char const little_group_list_filename[] = "little_groups_2Oh.tab";
+  int (* const set_rot_mat_table ) ( rot_mat_table_type*, const char*, const char*) = set_rot_mat_table_cubic_group_double_cover;
+#elif defined CUBIC_GROUP_SINGLE_COVER
+  const char little_group_list_filename[] = "little_groups_Oh.tab";
+  int (* const set_rot_mat_table ) ( rot_mat_table_type*, const char*, const char*) = set_rot_mat_table_cubic_group_single_cover;
+#endif
+
 
   int c;
   int filename_set = 0;
@@ -117,10 +125,11 @@ int main(int argc, char **argv) {
   /****************************************************/
 
   /****************************************************
-   *
+   * initialize and set geometry fields
    ****************************************************/
-  if(init_geometry() != 0) {
-    fprintf(stderr, "[test_lg] Error from init_geometry\n");
+  exitstatus = init_geometry();
+  if( exitstatus != 0) {
+    fprintf(stderr, "[test_lg] Error from init_geometry, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
     EXIT(1);
   }
 
@@ -137,22 +146,23 @@ int main(int argc, char **argv) {
   /****************************************************/
   /****************************************************/
 
+  /****************************************************
+   * set cubic group single/double cover
+   * rotation tables
+   ****************************************************/
   rot_init_rotation_table();
 
   /****************************************************/
   /****************************************************/
 
+  /****************************************************
+   * read relevant little group lists with their
+   * rotation lists and irreps from file
+   ****************************************************/
   little_group_type *lg = NULL;
-  int nlg = 0;
-
-#if defined CUBIC_GROUP_DOUBLE_COVER
-  nlg = little_group_read_list ( &lg, "little_groups_2Oh.tab");
-#elif defined CUBIC_GROUP_SINGLE_COVER
-  nlg = little_group_read_list ( &lg, "little_groups_Oh.tab");
-#endif
-  if ( nlg <= 0 )
-  {
-    fprintf(stderr, "[test_lg] Error from little_group_read_list, status was %d\n", nlg);
+  int const nlg = little_group_read_list ( &lg, little_group_list_filename );
+  if ( nlg <= 0 ) {
+    fprintf(stderr, "[test_lg] Error from little_group_read_list, status was %d %s %d\n", nlg, __FILE__, __LINE__ );
     EXIT(2);
   }
   fprintf(stdout, "# [test_lg] number of little groups = %d\n", nlg);
@@ -171,87 +181,101 @@ int main(int argc, char **argv) {
     fprintf ( stderr, "# [test_lg] Error from init_little_group_projector, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(2);
   }
+#if 0
+  const int interpolator_number       = 1;               // one (for now imaginary) interpolator
+  const int interpolator_bispinor[1]  = {0};               // no need for bispinor now
+  const int interpolator_parity[1]    = {1};               // intrinsic operator parity
+  const int interpolator_cartesian[1] = {1};               // spherical basis (0) or cartesian basis (1) ? cartesian basis only meaningful for J = 1, J2 = 2, i.e. 3-dim. representation
+  const int interpolator_J2[1]        = {2};
+  const char correlator_name[]    = "basis_vector";  // just some arbitrary name for now
+#endif
 
-  int **interpolator_momentum_list = NULL;
-  int interpolator_number   = 1;               /* one (for now imaginary) interpolator */
-  int interpolator_bispinor = 0;               /* no need for bispinor now */
-  int interpolator_parity   = 1;               /* intrinsic operator parity */
-  int interpolator_cartesian= 0;               /* Cartesian basis ? */
-  char correlator_name[]    = "basis_vector";  /* we don't want a correlator here, just a basis vector*/
+  const int interpolator_number       = 2;               // one (for now imaginary) interpolator
+  const int interpolator_bispinor[2]  = {0,0};           // no need for bispinor now
+  const int interpolator_parity[2]    = {-1,-1};         // intrinsic operator parity
+  const int interpolator_cartesian[2] = {0,0};           // spherical basis (0) or cartesian basis (1) ? cartesian basis only meaningful for J = 1, J2 = 2, i.e. 3-dim. representation
+  const char correlator_name[]        = "basis_vector";  // just some arbitrary name for now
+  const int interpolator_J2[2]        = {0,0};
 
-  exitstatus = init_2level_ibuffer ( &interpolator_momentum_list, interpolator_number, 3 );
-  if ( exitstatus != 0 ) {
-    fprintf ( stderr, "# [test_lg] Error from init_2level_ibuffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+  int ** interpolator_momentum_list = init_2level_itable ( interpolator_number, 3 );
+  if ( interpolator_momentum_list == NULL ) {
+    fprintf ( stderr, "# [test_lg] Error from init_2level_itable %s %d\n", __FILE__, __LINE__);
     EXIT(2);
   }
 
   interpolator_momentum_list[0][0] = 0;
   interpolator_momentum_list[0][1] = 0;
-  interpolator_momentum_list[0][2] = 0;
-
-
+  interpolator_momentum_list[0][2] = 1;
+ 
   /****************************************************/
   /****************************************************/
 
   /****************************************************
    * loop on little groups
    ****************************************************/
-  for ( int ilg = 0; ilg < nlg; ilg++ )
+  // for ( int ilg = 0; ilg < nlg; ilg++ )
+  for ( int ilg = 0; ilg <= 0; ilg++ )
   {
 
-    int n_irrep = lg[ilg].nirrep;
+    const int n_irrep = lg[ilg].nirrep;
 
-    if ( ( strcmp( lg[ilg].name, "Oh" ) == 0 ) || ( strcmp( lg[ilg].name, "2Oh" ) == 0 ) )  {
-      interpolator_parity = 0;
-    } else {
-      interpolator_parity = 1;
+    //if ( ( strcmp( lg[ilg].name, "Oh" ) == 0 ) || ( strcmp( lg[ilg].name, "2Oh" ) == 0 ) )  {
+    //  interpolator_parity = 0;
+    //} else {
+    //  interpolator_parity = 1;
+    //}
+
+    if ( interpolator_number == 1 ) {
+      interpolator_momentum_list[0][0] = lg[ilg].d[0];
+      interpolator_momentum_list[0][1] = lg[ilg].d[1];
+      interpolator_momentum_list[0][2] = lg[ilg].d[2];
+    } else if ( interpolator_number == 2 ) {
+      interpolator_momentum_list[1][0] = lg[ilg].d[0] - interpolator_momentum_list[0][0]; 
+      interpolator_momentum_list[1][1] = lg[ilg].d[1] - interpolator_momentum_list[0][1];
+      interpolator_momentum_list[1][2] = lg[ilg].d[2] - interpolator_momentum_list[0][2];
     }
-
 
     /****************************************************
      * loop on irreps
      ****************************************************/
-    for ( int i_irrep = 0; i_irrep < n_irrep; i_irrep++ )
-    // for ( int i_irrep = 4; i_irrep <= 4; i_irrep++ )
+    // for ( int i_irrep = 0; i_irrep < n_irrep; i_irrep++ )
+    // for ( int i_irrep = 8; i_irrep <= 8; i_irrep++ )
+    for ( int i_irrep = 11; i_irrep <= 11; i_irrep++ )
     {
 
       /****************************************************
         loop on spin quantum numbers
        ****************************************************/
-      // for ( int interpolator_J2 = 0; interpolator_J2 <= 8; interpolator_J2++ )
-      for ( int interpolator_J2 = 2; interpolator_J2 <= 2; interpolator_J2++ )
-      {
+      // for ( int interpolator_J2 = 0; interpolator_J2 <= 8; interpolator_J2 +=2 )
+      //for ( int interpolator_J2 = 2; interpolator_J2 <= 2; interpolator_J2++ )
+      //{
 
         /****************************************************
          * loop on reference rows of spin matrix
          ****************************************************/
-        // for ( int ref_row_spin = 0; ref_row_spin <= interpolator_J2; ref_row_spin++ ) {
-        int ref_row_spin = -1;
-  
-          sprintf ( filename, "lg_%s_irrep_%s_J2_%d_spinref%d.sbd", lg[ilg].name, lg[ilg].lirrep[i_irrep], interpolator_J2, ref_row_spin );
+        int ref_row_spin[2];
+        for ( int r1 = 0; r1 <= interpolator_J2[0]; r1++ ) {
+          ref_row_spin[0] = r1;
+        for ( int r2 = 0; r2 <= interpolator_J2[1]; r2++ ) {
+          ref_row_spin[1] = r2;
 
-          FILE*ofs = fopen ( filename, "w" );
-          if ( ofs == NULL ) {
-            fprintf ( stderr, "# [test_lg] Error from fopen %s %d\n", __FILE__, __LINE__);
-            EXIT(2);
-          }
+        // int ref_row_spin = -1;
+  
 
           /****************************************************
            * rotation matrix for current irrep
            ****************************************************/
           rot_mat_table_type r_irrep;
           init_rot_mat_table ( &r_irrep );
-#if defined CUBIC_GROUP_DOUBLE_COVER
-          exitstatus = set_rot_mat_table_cubic_group_double_cover ( &r_irrep, lg[ilg].name, lg[ilg].lirrep[i_irrep] );
-#elif defined CUBIC_GROUP_SINGLE_COVER
-          exitstatus = set_rot_mat_table_cubic_group_single_cover ( &r_irrep, lg[ilg].name, lg[ilg].lirrep[i_irrep] );
-#endif
+
+          exitstatus = set_rot_mat_table ( &r_irrep, lg[ilg].name, lg[ilg].lirrep[i_irrep] );
+
           if ( exitstatus != 0 ) {
             fprintf ( stderr, "# [test_lg] Error from set_rot_mat_table_cubic_group, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(2);
           }
 
-          int dim_irrep = r_irrep.dim;
+          const int dim_irrep = r_irrep.dim;
     
           /****************************************************
            * loop on reference rows of irrep matrix
@@ -259,15 +283,34 @@ int main(int argc, char **argv) {
           for ( int ref_row_target = 0; ref_row_target < dim_irrep; ref_row_target++ ) {
   
             /****************************************************
+             * output file
+             ****************************************************/
+            if ( interpolator_number == 2 ) {
+              sprintf ( filename, "lg_%s_irrep_%s_J2_%d_%d_spinref%d_%d_irrepref%d.sbd", lg[ilg].name, lg[ilg].lirrep[i_irrep], interpolator_J2[0], interpolator_J2[1], ref_row_spin[0], ref_row_spin[1], ref_row_target );
+            } else if ( interpolator_number == 1 ) {
+              sprintf ( filename, "lg_%s_irrep_%s_J2_%d_spinref%d_irrepref%d.sbd", lg[ilg].name, lg[ilg].lirrep[i_irrep], interpolator_J2[0], ref_row_spin[0], ref_row_target );
+            }
+
+            FILE*ofs = fopen ( filename, "w" );
+            if ( ofs == NULL ) {
+              fprintf ( stderr, "# [test_lg] Error from fopen %s %d\n", __FILE__, __LINE__);
+              EXIT(2);
+            }
+
+            /****************************************************
              * loop on irrep multiplet
              ****************************************************/
-            /* for ( int row_target = 0; row_target < dim_irrep; row_target++ ) { */
-            int row_target = -1;
+            // for ( int row_target = 0; row_target < dim_irrep; row_target++ ) {
+            const int row_target = -1;
+  
+              //exitstatus = little_group_projector_set ( &p, &(lg[ilg]), lg[ilg].lirrep[i_irrep], row_target, interpolator_number,
+              //    &interpolator_J2, (const int**)interpolator_momentum_list, &interpolator_bispinor, &interpolator_parity, &interpolator_cartesian,
+              //    ref_row_target , &ref_row_spin, correlator_name );
   
               exitstatus = little_group_projector_set ( &p, &(lg[ilg]), lg[ilg].lirrep[i_irrep], row_target, interpolator_number,
-                  &interpolator_J2, interpolator_momentum_list, &interpolator_bispinor, &interpolator_parity, &interpolator_cartesian,
-                  ref_row_target , &ref_row_spin, correlator_name );
-  
+                  interpolator_J2, (const int**)interpolator_momentum_list, interpolator_bispinor, interpolator_parity, interpolator_cartesian,
+                  ref_row_target , ref_row_spin, correlator_name );
+
               if ( exitstatus != 0 ) {
                 fprintf ( stderr, "# [test_lg] Error from little_group_projector_set, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(2);
@@ -284,32 +327,53 @@ int main(int argc, char **argv) {
   
               /****************************************************/
               /****************************************************/
-              exitstatus =  little_group_projector_apply ( &p, ofs );
-              if ( exitstatus != 0 ) {
-                fprintf ( stderr, "# [test_lg] Error from little_group_projector_apply, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              little_group_projector_applicator_type **app = little_group_projector_apply ( &p, ofs );
+              if ( app == NULL ) {
+                fprintf ( stderr, "# [test_lg] Error from little_group_projector_apply %s %d\n", __FILE__, __LINE__);
                 EXIT(2);
               }
   
               /****************************************************/
               /****************************************************/
+
+              /****************************************************
+               * finalize applicators
+               ****************************************************/
+
+              for ( int irow = 0; irow < dim_irrep; irow++ ) {
+                free ( fini_little_group_projector_applicator ( app[irow] ) );
+              }
+              free ( app );
+
+              /****************************************************/
+              /****************************************************/
   
               fini_little_group_projector ( &p );
   
-            /* } */  /* end of loop on row_target */
+            // }  // end of loop on row_target
   
-          }  /* end of loop on ref_row_target */
+            /****************************************************/
+            /****************************************************/
+ 
+            /****************************************************
+             * close output file
+             ****************************************************/
+            fclose ( ofs );
+
+          }  // end of loop on ref_row_target
   
   
           fini_rot_mat_table ( &r_irrep );
 
-          fclose ( ofs );
 
-        // }  /* end of loop on ref_row_spin */
-      }  /* end of loop on interpolator J2 */
+        }  // end of loop on ref_row_spin2
+        }  // end of loop on ref_row_spin1
 
-    }  /* end of loop on irreps */
+      // }  // end of loop on interpolator J2
 
-  }  /* end of loop on little groups */
+    }  // end of loop on irreps
+
+  }  // end of loop on little groups
 
 
   /****************************************************/
@@ -323,6 +387,7 @@ int main(int argc, char **argv) {
   /****************************************************
    * finalize
    ****************************************************/
+  fini_2level_itable ( &interpolator_momentum_list );
   free_geometry();
 
 #ifdef HAVE_MPI

@@ -4,9 +4,8 @@
 /***********************************************************
  * irrep matrices for single cover
  ***********************************************************/
-int set_rot_mat_table_cubic_group_single_cover ( rot_mat_table_type *t, char *group, char*irrep ) {
+int set_rot_mat_table_cubic_group_single_cover ( rot_mat_table_type *t, const char *group, const char*irrep ) {
 
-  const double ONE_HALF   = 0.5;
   const double SQRT3_HALF = 0.5 * sqrt(3.);
 
   int exitstatus;
@@ -496,4 +495,4 @@ int set_rot_mat_table_cubic_group_single_cover ( rot_mat_table_type *t, char *gr
   }
  
   return(0);
-}  /* end of set_rot_mat_table_cubic_group_single_cover */
+}  // end of set_rot_mat_table_cubic_group_single_cover

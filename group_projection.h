@@ -2,6 +2,8 @@
 #define _GROUP_PROJECTION_H
 
 #include "ilinalg.h"
+#include "group_projection_applicator.h"
+
 
 namespace cvc {
 
@@ -47,7 +49,7 @@ typedef struct {
   int P[3];
   int**p;
   /* double _Complex **c; */
-  char correlator_name[200];
+  char name[200];
   int *ref_row_spin;
   int ref_row_target;
   int row_target;
@@ -57,21 +59,9 @@ typedef struct {
 /********************************************************/
 /********************************************************/
  
-typedef struct {
-  int n;
-  int P[3];
-  int *** p;
-  double _Complex ***v;
-  double _Complex *c;
-  char name[200];
-} little_group_projector_applicator_type;
-
-/********************************************************/
-/********************************************************/
-
 extern little_group_type *little_groups;
 
-int little_group_read_list (little_group_type **lg, char *filename );
+int little_group_read_list (little_group_type **lg, const char * filename );
  
 void little_group_init ( little_group_type **lg, int n );
 
@@ -83,7 +73,7 @@ void init_rot_mat_table (rot_mat_table_type *t );
 
 void fini_rot_mat_table (rot_mat_table_type *t );
 
-int alloc_rot_mat_table ( rot_mat_table_type *t, char*group, char*irrep, int dim, int n );
+int alloc_rot_mat_table ( rot_mat_table_type *t, const char*group, const char*irrep, const int dim, const int n );
 
 
 int set_rot_mat_table_spin ( rot_mat_table_type *t, int J2, int bispinor );
@@ -91,9 +81,9 @@ int set_rot_mat_table_spin ( rot_mat_table_type *t, int J2, int bispinor );
 int set_rot_mat_table_spin_single_cover ( rot_mat_table_type *t, int J2, int const version , int const setby );
 
 
-int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, char *group, char*irrep );
+int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, const char * group, const char * irrep );
 
-int set_rot_mat_table_cubic_group_single_cover ( rot_mat_table_type *t, char *group, char*irrep );
+int set_rot_mat_table_cubic_group_single_cover ( rot_mat_table_type *t, const char * group, const char * irrep );
 
 
 
@@ -120,25 +110,26 @@ int little_group_projector_show (little_group_projector_type *p, FILE*ofs, int w
 
 int little_group_projector_copy (little_group_projector_type *p, little_group_projector_type *q );
 
+
 int little_group_projector_set (
   /***********************************************************/
-  little_group_projector_type *p,
-  little_group_type *lg,
-  char*irrep , int row_target, int interpolator_num,
-  int *interpolator_J2_list,
-  int **interpolator_momentum_list,
-  int *interpolator_bispinor_list,
-  int *interpolator_parity_list,
-  int *interpolator_cartesian_list,
-  int ref_row_target,
-  int *ref_row_spin,
-  char*correlator_name
+  little_group_projector_type * const p,
+  little_group_type * const lg,
+  const char * irrep , const int row_target, const int interpolator_num,
+  const int * interpolator_J2_list,
+  const int ** interpolator_momentum_list,
+  const int * interpolator_bispinor_list,
+  const int * interpolator_parity_list,
+  const int * interpolator_cartesian_list,
+  const int ref_row_target,
+  const int * ref_row_spin,
+  const char * name
   /***********************************************************/
 );
 
 
 
-int little_group_projector_apply ( little_group_projector_type *p , FILE*ofs );
+little_group_projector_applicator_type ** little_group_projector_apply ( little_group_projector_type *p , FILE*ofs);
 
 int spin_vector_asym_printf ( double _Complex **sv, int n, int*dim, char*name, FILE*ofs );
 
@@ -152,12 +143,11 @@ int spin_vector_asym_normalize ( double _Complex **sv, int n, int *dim );
 
 void spin_vector_pl_eq_spin_vector_ti_co_asym ( double _Complex **sv1, double _Complex **sv2, double _Complex c, int n, int *dim );
 
-int rot_mat_table_rotate_multiplett ( rot_mat_table_type *rtab, rot_mat_table_type *rapply, rot_mat_table_type *rtarget, int with_IR, FILE*ofs );
+int rot_mat_table_rotate_multiplett ( rot_mat_table_type * const rtab, rot_mat_table_type * const rapply, rot_mat_table_type * const rtarget, int const parity, FILE*ofs );
 
-int irrep_multiplicity (rot_mat_table_type *rirrep, rot_mat_table_type *rspin, int with_IR );
+int irrep_multiplicity (rot_mat_table_type * const rirrep, rot_mat_table_type * const rspin, int const parity );
 
 int little_group_projector_apply_product ( little_group_projector_type *p , FILE*ofs);
-
 
 void product_vector_project_accum ( double _Complex *v, rot_mat_table_type*r, int rid, int rmid, double _Complex *v0, double _Complex c1, double _Complex c2, int *dim , int n );
 

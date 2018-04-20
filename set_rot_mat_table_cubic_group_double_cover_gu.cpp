@@ -1,5 +1,20 @@
-/***********************************************************/
-/***********************************************************/
+/***********************************************************
+ * set_rot_mat_table_cubic_group_double_cover_gu.cpp
+ *
+ * Do 19. Apr 08:44:50 CEST 2018
+ *
+ * Our standard reference JHEP08(2008)024 gives representation
+ * matrices for A1, A2, E, T1, T2, G1, G2, H of 2O
+ * i.e. no g/u parity projection
+ *
+ * Here we complete to A1g, A1u, ... for 2Oh by using
+ *
+ * T^{Xg]( R ) = +T^{Xg}( IR )
+ * T^{Xu]( R ) = -T^{Xu}( IR )
+ *
+ * for all irreps X
+ *
+ ***********************************************************/
 
 /***********************************************************
  * irrep matrices for double cover
@@ -20,7 +35,7 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, const ch
     /***********************************************************
      * LG 2Oh irrep A1
      ***********************************************************/
-    if ( strcmp ( irrep, "A1" ) == 0 ) {
+    if ( strcmp ( irrep, "A1g" ) == 0 ) {
       if ( ( exitstatus = alloc_rot_mat_table ( t, group, irrep, 1, nrot) ) != 0 ) {
         fprintf(stderr, "[set_rot_mat_table_cubic_group_double_cover] Error from alloc_rot_mat_table, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(1);
@@ -34,9 +49,25 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, const ch
       }
 
     /***********************************************************
-     * LG 2Oh irrep A2
+     * LG 2Oh irrep A1u
      ***********************************************************/
-    } else if ( strcmp ( irrep, "A2" ) == 0 ) {
+    } else if ( strcmp ( irrep, "A1u" ) == 0 ) {
+      if ( ( exitstatus = alloc_rot_mat_table ( t, group, irrep, 1, nrot) ) != 0 ) {
+        fprintf(stderr, "[set_rot_mat_table_cubic_group_double_cover] Error from alloc_rot_mat_table, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(1);
+      }
+
+      for ( int i = 0; i < nrot; i++ ) {
+        t->rid[i] = i;
+        t->rmid[i] = i;
+        t->R[i][0][0]  =  1.;
+        t->IR[i][0][0] = -1.;
+      }
+
+    /***********************************************************
+     * LG 2Oh irrep A2g
+     ***********************************************************/
+    } else if ( strcmp ( irrep, "A2g" ) == 0 ) {
       if ( ( exitstatus = alloc_rot_mat_table ( t, group, irrep, 1, nrot) ) != 0 ) {
         fprintf(stderr, "[set_rot_mat_table_cubic_group_double_cover] Error from alloc_rot_mat_table, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(1);
@@ -62,9 +93,38 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, const ch
       }
 
     /***********************************************************
+     * LG 2Oh irrep A2u
+     ***********************************************************/
+    } else if ( strcmp ( irrep, "A2u" ) == 0 ) {
+      if ( ( exitstatus = alloc_rot_mat_table ( t, group, irrep, 1, nrot) ) != 0 ) {
+        fprintf(stderr, "[set_rot_mat_table_cubic_group_double_cover] Error from alloc_rot_mat_table, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(1);
+      }
+
+      for ( int i = 0; i < nrot; i++ ) { 
+        t->rid[i]      = i; 
+        t->rmid[i]     = i; 
+        t->R[i][0][0]  =  1.;
+        t->IR[i][0][0] = -1.;
+      }
+
+      /* 6C8', 6C8 */
+      for ( int i = 7; i <= 18; i++ ) {
+        t->R[i][0][0]  = -1.;
+        t->IR[i][0][0] =  1.;
+      }
+     
+      /* 12C4' */
+      for ( int i = 35; i <= 46; i++ ) {
+        t->R[i][0][0]  = -1.;
+        t->IR[i][0][0] =  1.;
+      }
+
+
+    /***********************************************************
      * LG 2Oh irrep E
      ***********************************************************/
-    } else if ( strcmp ( irrep, "E" ) == 0 ) {
+    } else if ( ( strcmp ( irrep, "Eg" ) == 0 ) || ( strcmp ( irrep, "Eu" ) == 0 ) ) {
 
       if ( ( exitstatus = alloc_rot_mat_table ( t, group, irrep, 2, nrot ) ) != 0 ) {
         fprintf(stderr, "[set_rot_mat_table_cubic_group_double_cover] Error from alloc_rot_mat_table, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -194,10 +254,17 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, const ch
       memcpy ( t->rmid, t->rid, nrot * sizeof(int) );
       memcpy ( t->IR[0][0], t->R[0][0], nrot * 4 * sizeof(double _Complex ) );
 
+      /***********************************************************
+       * multiply minus sign to IR irrep matrices
+       ***********************************************************/
+      if ( strcmp ( irrep, "Eu" ) == 0 ) {
+        for ( int irot = 0; irot < nrot; irot++ ) rot_mat_ti_eq_re ( t->IR[irot], -1., 2 );
+      }
+
     /***********************************************************
-     * LG 2Oh irrep T1
+     * LG 2Oh irrep T1g , T1u
      ***********************************************************/
-    } else if ( strcmp ( irrep, "T1" ) == 0 ) {
+    } else if ( ( strcmp ( irrep, "T1g" ) == 0  ) || ( strcmp ( irrep, "T1u" ) == 0 ) ) {
 
       if ( ( exitstatus = alloc_rot_mat_table ( t, group, irrep, 3, nrot ) ) != 0 ) {
         fprintf(stderr, "[set_rot_mat_table_cubic_group_double_cover] Error from alloc_rot_mat_table, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -212,10 +279,17 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, const ch
       memcpy ( t->rmid, t->rid, nrot * sizeof(int) );
       memcpy ( t->IR[0][0], t->R[0][0], nrot*9*sizeof(double _Complex ) );
 
+      /***********************************************************
+       * multiply minus sign to IR irrep matrices
+       ***********************************************************/
+      if ( strcmp ( irrep, "T1u" ) == 0 ) {
+        for ( int irot = 0; irot < nrot; irot++ ) rot_mat_ti_eq_re ( t->IR[irot], -1., 3 );
+      }
+
     /***********************************************************
-     * LG 2Oh irrep T2
+     * LG 2Oh irrep T2g, T2u
      ***********************************************************/
-    } else if ( strcmp ( irrep, "T2" ) == 0 ) {
+    } else if ( ( strcmp ( irrep, "T2g" ) == 0 ) || ( strcmp ( irrep, "T2u" ) == 0 ) ) { 
 
       if ( ( exitstatus = alloc_rot_mat_table ( t, group, irrep, 3, nrot ) ) != 0 ) {
         fprintf(stderr, "[set_rot_mat_table_cubic_group_double_cover] Error from alloc_rot_mat_table, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -236,10 +310,17 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, const ch
       memcpy ( t->rmid, t->rid, nrot * sizeof( int ) );
       memcpy ( t->IR[0][0], t->R[0][0], nrot * 9 * sizeof(double _Complex ) );
 
+      /***********************************************************
+       * multiply minus sign to IR irrep matrices
+       ***********************************************************/
+      if ( strcmp ( irrep, "T2u" ) == 0 ) {
+        for ( int irot = 0; irot < nrot; irot++ ) rot_mat_ti_eq_re ( t->IR[irot], -1., 3 );
+      }
+
     /***********************************************************
-     * LG 2Oh irrep G1
+     * LG 2Oh irrep G1g, G1u
      ***********************************************************/
-    } else if ( strcmp ( irrep, "G1" ) == 0 ) {
+    } else if ( ( strcmp ( irrep, "G1g" ) == 0 ) || ( strcmp ( irrep, "G1u" ) == 0 ) ) {
 
       if ( ( exitstatus = alloc_rot_mat_table ( t, group, irrep, 2, nrot ) ) != 0 ) {
         fprintf(stderr, "[set_rot_mat_table_cubic_group_double_cover] Error from alloc_rot_mat_table, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -254,10 +335,17 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, const ch
       memcpy ( t->rmid, t->rid, nrot * sizeof(int) );
       memcpy ( t->IR[0][0], t->R[0][0], nrot * 4 * sizeof(double _Complex ) );
 
+      /***********************************************************
+       * multiply minus sign to IR irrep matrices
+       ***********************************************************/
+      if ( strcmp ( irrep, "G1u" ) == 0 ) {
+        for ( int irot = 0; irot < nrot; irot++ ) rot_mat_ti_eq_re ( t->IR[irot], -1., 2 );
+      }
+
     /***********************************************************
-     * LG 2Oh irrep G2
+     * LG 2Oh irrep G2g, G2u
      ***********************************************************/
-    } else if ( strcmp ( irrep, "G2" ) == 0 ) {
+    } else if ( ( strcmp ( irrep, "G2g" ) == 0 ) || ( strcmp ( irrep, "G2u" ) == 0 ) ) {
 
       if ( ( exitstatus = alloc_rot_mat_table ( t, group, irrep, 2, nrot ) ) != 0 ) {
         fprintf(stderr, "[set_rot_mat_table_cubic_group_double_cover] Error from alloc_rot_mat_table, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -279,10 +367,17 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, const ch
       memcpy ( t->rmid, t->rid, nrot * sizeof(int) );
       memcpy ( t->IR[0][0], t->R[0][0], nrot * 4 * sizeof(double _Complex ) );
 
+      /***********************************************************
+       * multiply minus sign to IR irrep matrices
+       ***********************************************************/
+      if ( strcmp ( irrep, "G2u" ) == 0 ) {
+        for ( int irot = 0; irot < nrot; irot++ ) rot_mat_ti_eq_re ( t->IR[irot], -1., 2 );
+      }
+
     /***********************************************************
      * LG 2Oh irrep H
      ***********************************************************/
-    } else if ( strcmp ( irrep, "H" ) == 0 ) {
+    } else if ( ( strcmp ( irrep, "Hg" ) == 0 ) || ( strcmp ( irrep, "Hu" ) == 0 ) ) {
 
       if ( ( exitstatus = alloc_rot_mat_table ( t, group, irrep, 4, nrot ) ) != 0 ) {
         fprintf(stderr, "[set_rot_mat_table_cubic_group_double_cover] Error from alloc_rot_mat_table, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -296,6 +391,13 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, const ch
 
       memcpy ( t->rmid, t->rid, nrot * sizeof(int) );
       memcpy ( t->IR[0][0], t->R[0][0], nrot * 16 * sizeof(double _Complex ) );
+
+      /***********************************************************
+       * multiply minus sign to IR irrep matrices
+       ***********************************************************/
+      if ( strcmp ( irrep, "Hu" ) == 0 ) {
+        for ( int irot = 0; irot < nrot; irot++ ) rot_mat_ti_eq_re ( t->IR[irot], -1., 4 );
+      }
 
     } else {
       fprintf(stderr, "[set_rot_mat_table_cubic_double_cover] unknown irrep name %s\n", irrep );
@@ -812,4 +914,4 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, const ch
   }
  
   return(0);
-}  /* end of set_rot_mat_table_cubic_group_double_cover */
+}  // end of set_rot_mat_table_cubic_group_double_cover
