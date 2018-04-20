@@ -1530,6 +1530,14 @@ little_group_projector_applicator_type ** little_group_projector_apply ( little_
     /***********************************************************/
 
     /***********************************************************
+     * set projector norm
+     ***********************************************************/
+    double const projector_norm = (double)p->rtarget->dim / (double)p->rtarget->n * 0.5;
+
+    /***********************************************************/
+    /***********************************************************/
+
+    /***********************************************************
      * loop on rotation group elements R
      ***********************************************************/
     for ( int irot = 0; irot < p->rtarget->n; irot++ ) {
@@ -1538,7 +1546,7 @@ little_group_projector_applicator_type ** little_group_projector_apply ( little_
       if ( g_verbose > 2 ) fprintf ( stdout, "# [little_group_projector_apply] lg %s irrep %s irot %2d rid %2d\n", p->rtarget->group, p->rtarget->irrep, irot, rid );
 
       // This is choice according to my notes
-      double _Complex ztmp = conj ( p->rtarget->R[irot][row_target][p->ref_row_target] );
+      double _Complex ztmp = conj ( p->rtarget->R[irot][row_target][p->ref_row_target] ) * projector_norm;
 
       // double _Complex ztmp = conj ( p->rtarget->R[irot][p->ref_row_target][row_target] );
 
@@ -1552,6 +1560,15 @@ little_group_projector_applicator_type ** little_group_projector_apply ( little_
       if ( g_verbose > 4 ) {
         fprintf(stdout, "# [little_group_projector_apply] T Gamma (R) coeff rot %2d = %25.16e %25.16e\n", rid, creal(z_irrep_matrix_coeff[0][irot]), cimag(z_irrep_matrix_coeff[0][irot]) );
       }
+
+      /***********************************************************
+       * include the name of the rotation
+       ***********************************************************/
+#if defined CUBIC_GROUP_DOUBLE_COVER
+      strcpy ( app[row_target]->rotation_name[0][irot], cubic_group_double_cover_rotations[rid].name );
+#elif defined CUBIC_GROUP_SINGLE_COVER
+      strcpy ( app[row_target]->rotation_name[0][irot], cubic_group_rotations_v2[rid].name );
+#endif
 
       /***********************************************************
        * loop on interpolators
@@ -1632,7 +1649,7 @@ little_group_projector_applicator_type ** little_group_projector_apply ( little_
       if ( g_verbose > 2 ) fprintf ( stdout, "# [little_group_projector_apply] lg %s irrep %s irot %2d rmid %2d\n", p->rtarget->group, p->rtarget->irrep, irot, rmid );
 
       // This is choice according to my notes
-      double _Complex ztmp = conj ( p->rtarget->IR[irot][row_target][p->ref_row_target] );
+      double _Complex ztmp = conj ( p->rtarget->IR[irot][row_target][p->ref_row_target] ) * projector_norm;
 
       // This is the standard choice according to paper
       // double _Complex ztmp =  p->rtarget->IR[irot][row_target][p->ref_row_target];
@@ -1642,6 +1659,15 @@ little_group_projector_applicator_type ** little_group_projector_apply ( little_
       if ( g_verbose > 4 ) {
         fprintf(stdout, "# [little_group_projector_apply] T Gamma (IR) coeff rot %2d = %25.16e %25.16e\n", rmid, creal(z_irrep_matrix_coeff[1][irot]), cimag(z_irrep_matrix_coeff[1][irot]) );
       }
+
+      /***********************************************************
+       * include the name of the rotation
+       ***********************************************************/
+#if defined CUBIC_GROUP_DOUBLE_COVER
+      sprintf ( app[row_target]->rotation_name[1][irot], "I %s", cubic_group_double_cover_rotations[rmid].name );
+#elif defined CUBIC_GROUP_SINGLE_COVER
+      sprintf ( app[row_target]->rotation_name[1][irot], "I %s", cubic_group_rotations_v2[rmid].name );
+#endif
 
       /***********************************************************
        * loop on interpolators
