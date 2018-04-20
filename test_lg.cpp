@@ -181,12 +181,14 @@ int main(int argc, char **argv) {
     fprintf ( stderr, "# [test_lg] Error from init_little_group_projector, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(2);
   }
-
-  //const int interpolator_number   = 1;               // one (for now imaginary) interpolator
-  //const int interpolator_bispinor = 0;               // no need for bispinor now
-  //const int interpolator_parity   = 1;               // intrinsic operator parity
-  //const int interpolator_cartesian= 1;               // spherical basis (0) or cartesian basis (1) ? cartesian basis only meaningful for J = 1, J2 = 2, i.e. 3-dim. representation
-  //const char correlator_name[]    = "basis_vector";  // just some arbitrary name for now
+#if 0
+  const int interpolator_number       = 1;               // one (for now imaginary) interpolator
+  const int interpolator_bispinor[1]  = {0};               // no need for bispinor now
+  const int interpolator_parity[1]    = {1};               // intrinsic operator parity
+  const int interpolator_cartesian[1] = {1};               // spherical basis (0) or cartesian basis (1) ? cartesian basis only meaningful for J = 1, J2 = 2, i.e. 3-dim. representation
+  const int interpolator_J2[1]        = {2};
+  const char correlator_name[]    = "basis_vector";  // just some arbitrary name for now
+#endif
 
   const int interpolator_number       = 2;               // one (for now imaginary) interpolator
   const int interpolator_bispinor[2]  = {0,0};           // no need for bispinor now
@@ -223,7 +225,11 @@ int main(int argc, char **argv) {
     //  interpolator_parity = 1;
     //}
 
-    if ( interpolator_number == 2 ) {
+    if ( interpolator_number == 1 ) {
+      interpolator_momentum_list[0][0] = lg[ilg].d[0];
+      interpolator_momentum_list[0][1] = lg[ilg].d[1];
+      interpolator_momentum_list[0][2] = lg[ilg].d[2];
+    } else if ( interpolator_number == 2 ) {
       interpolator_momentum_list[1][0] = lg[ilg].d[0] - interpolator_momentum_list[0][0]; 
       interpolator_momentum_list[1][1] = lg[ilg].d[1] - interpolator_momentum_list[0][1];
       interpolator_momentum_list[1][2] = lg[ilg].d[2] - interpolator_momentum_list[0][2];
@@ -247,11 +253,14 @@ int main(int argc, char **argv) {
         /****************************************************
          * loop on reference rows of spin matrix
          ****************************************************/
+        int ref_row_spin[2];
         for ( int r1 = 0; r1 <= interpolator_J2[0]; r1++ ) {
+          ref_row_spin[0] = r1;
         for ( int r2 = 0; r2 <= interpolator_J2[1]; r2++ ) {
+          ref_row_spin[1] = r2;
+
         // int ref_row_spin = -1;
   
-          const int ref_row_spin[2] = {r1, r2};
 
           /****************************************************
            * rotation matrix for current irrep
@@ -276,7 +285,11 @@ int main(int argc, char **argv) {
             /****************************************************
              * output file
              ****************************************************/
-            sprintf ( filename, "lg_%s_irrep_%s_J2_%d_%d_spinref%d_%d_irrepref%d.sbd", lg[ilg].name, lg[ilg].lirrep[i_irrep], interpolator_J2[0], interpolator_J2[1], ref_row_spin[0], ref_row_spin[1], ref_row_target );
+            if ( interpolator_number == 2 ) {
+              sprintf ( filename, "lg_%s_irrep_%s_J2_%d_%d_spinref%d_%d_irrepref%d.sbd", lg[ilg].name, lg[ilg].lirrep[i_irrep], interpolator_J2[0], interpolator_J2[1], ref_row_spin[0], ref_row_spin[1], ref_row_target );
+            } else if ( interpolator_number == 1 ) {
+              sprintf ( filename, "lg_%s_irrep_%s_J2_%d_spinref%d_irrepref%d.sbd", lg[ilg].name, lg[ilg].lirrep[i_irrep], interpolator_J2[0], ref_row_spin[0], ref_row_target );
+            }
 
             FILE*ofs = fopen ( filename, "w" );
             if ( ofs == NULL ) {

@@ -27,6 +27,8 @@
 
 namespace cvc {
 
+double const eps = 9.e-15;
+
 typedef struct {
   int rotation_n;
   int interpolator_n;
@@ -142,7 +144,6 @@ inline little_group_projector_applicator_type * copy_little_group_projector_appl
  ***********************************************************/
 inline little_group_projector_applicator_type * show_little_group_projector_applicator ( little_group_projector_applicator_type * a, FILE*ofs ) {
 
-  double const eps = 9.e-15;
 
   FILE * myofs = ofs != NULL ? ofs : stdout;
 
@@ -172,7 +173,7 @@ inline little_group_projector_applicator_type * show_little_group_projector_appl
       // fprintf ( myofs, "  c  %25.16e %25.16e\n", dgeps( creal( a->c[iparity][irot]), eps ), dgeps( cimag( a->c[iparity][irot]), eps ) );
 
       for ( int iop = 0; iop < a->interpolator_n; iop++ ) {
-        fprintf ( myofs, "  p%d (%2d %2d %2d)", iop+1, a->prot[0][irot][iop][0], a->prot[0][irot][iop][1], a->prot[0][irot][iop][2] );
+        fprintf ( myofs, "  p%d (%2d %2d %2d)", iop+1, a->prot[iparity][irot][iop][0], a->prot[iparity][irot][iop][1], a->prot[iparity][irot][iop][2] );
       }
 
       for ( int iop = 0; iop < a->interpolator_n; iop++ ) {
@@ -207,5 +208,70 @@ inline little_group_projector_applicator_type * show_little_group_projector_appl
 
 /***********************************************************/
 /***********************************************************/
+
+/***********************************************************
+ *
+ ***********************************************************/
+inline little_group_projector_applicator_type * reduce_little_group_projector_applicator ( little_group_projector_applicator_type * const a ) {
+
+  /***********************************************************
+   * set coefficients to zero if they are below eps in absolute
+   * value
+   ***********************************************************/
+  for ( int i = 0; i < 2*a->rotation_n; i++ ) {
+    if ( cabs ( a->c[0][i] ) < eps ) a->c[0][i] = 0.;
+  }
+
+
+typedef struct {
+    int rotation_n;
+      int interpolator_n;
+        int *interpolator_dim;
+          int P[3];
+            int **** prot;
+              double _Complex ****v;
+                double _Complex **c;
+                  char name[200];
+} little_group_projector_applicator_type;
+
+  for ( int iparity = 0; iparity < 2; iparity++ ) {
+    for ( int i = 0; i < a->rotation_n-1; i++ ) {
+      if ( a->c[iparity][i] == 0 ) continue;
+      for ( int k = i+1; k < a->rotation_n; k++ ) {
+        if ( ( compare_momentum_configuration ( a->prot[iparity][i], a->prot[iparity][k], a->interpolator_n ) == 1 ) && a->c[iparity][k] != 0. ) {
+          a->c[iparity][i] += a->c[iparity][k];
+          a->c[iparity][k] = 0.;
+        }
+      }
+    }
+  }
+  
+
+}  // end of reduce_little_group_projector_applicator
+
+/***********************************************************/
+/***********************************************************/
+
+inline int compare_momentum_configuration ( int ** const p, int ** const q, int const n ) {
+  int isequal = 1;
+
+  for ( int i = 0; i < n; i++ ) {
+    isequal &= ( p[i][0] == q[i][0] ) && ( p[i][1] == q[i][1] ) && ( p[i][2] == q[i][2] );
+  }
+  return( isequal );
+}
+
+inline int compare_zvector_configuration ( double _Complex ** const v, double _Complex ** const w, int const n, int * const dim ) {
+  int isequalp = 1;
+  int isequaln = 1;
+
+  for ( int i = 0; i < n; i++ ) {
+    for ( int k = 0; k < dim[i]; k++ ) {
+      isequalp &= cabs ( v[i][k] - w[i][k] ) < 
+    }
+  }
+
+  return( isequal );
+}  // end of compare_zvector_configuration
 
 }  // end of namespace cvc
