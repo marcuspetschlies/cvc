@@ -203,7 +203,7 @@ int main(int argc, char **argv) {
        * open ASCII format output file
        ******************************************************/
       if(io_proc == 2) {
-        sprintf(filename, "%s.%.4d.tsrc%.2d", "piN_piN_correlator", Nconf, t_coherent );
+        sprintf(filename, "%s.%.4d.tsrc%.2d", filename_prefix3, Nconf, t_coherent );
         ofs = fopen( filename, "w");
         if( ofs == NULL ) {
           fprintf(stderr, "[piN2piN_correlators] Error from fopen %s %d\n", __FILE__, __LINE__ );
@@ -254,10 +254,10 @@ int main(int argc, char **argv) {
         /******************************************************
          * open AFF file
          ******************************************************/
-        char filename_prefix[100];
-        twopoint_function_get_aff_filename_prefix ( filename_prefix, &(g_twopoint_function_list[i2pt]) );
+        char diagram_filename_prefix[100];
+        twopoint_function_get_aff_filename_prefix ( diagram_filename_prefix, &(g_twopoint_function_list[i2pt]) );
 
-        sprintf(filename, "%s.%.4d.tsrc%.2d.aff", filename_prefix, Nconf, t_base );
+        sprintf(filename, "%s.%.4d.tsrc%.2d.aff", diagram_filename_prefix, Nconf, t_base );
 
         if ( io_proc == 2 ) {
           affr = aff_reader (filename);
