@@ -226,25 +226,28 @@ void twopoint_function_print_diagram_key (char*key, twopoint_function_type *p, i
 void twopoint_function_print_correlator_key (char*key, twopoint_function_type *p ) { 
 
   if ( strcmp( p->type, "b-b") == 0 ) {
-    sprintf( key, "/%s/pf1x%.2dpf1y%.2dpf1z%.2d/pi1x%.2dpi1y%.2dpi1z%.2d/gf1%.2dgf2%.2d/gi1%.2dgi2%.2d/t%.2dx%.2dy%.2dz%.2d", p->name,
+    sprintf( key, "/%s/pf1x%.2dpf1y%.2dpf1z%.2d/pi1x%.2dpi1y%.2dpi1z%.2d/gf1%.2dgf2%.2d/gi1%.2dgi2%.2d/%s/t%.2dx%.2dy%.2dz%.2d", p->name,
         p->pf1[0], p->pf1[1], p->pf1[2],
         p->pi1[0], p->pi1[1], p->pi1[2],
         p->gf1[0], p->gf1[1], p->gi1[0], p->gi1[1],
+        p->fbwd,
         p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3]);
   } else if ( strcmp( p->type, "mxb-mxb") == 0 ) {
-    sprintf( key, "/%s/pf1x%.2dpf1y%.2dpf1z%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/pi1x%.2dpi1y%.2dpi1z%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/gf1%.2dgf2%.2d/gi1%.2dgi2%.2d/t%.2dx%.2dy%.2dz%.2d", p->name,
+    sprintf( key, "/%s/pf1x%.2dpf1y%.2dpf1z%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/pi1x%.2dpi1y%.2dpi1z%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/gf1%.2dgf2%.2d/gi1%.2dgi2%.2d/%s/t%.2dx%.2dy%.2dz%.2d", p->name,
         p->pf1[0], p->pf1[1], p->pf1[2],
         p->pf2[0], p->pf2[1], p->pf2[2],
         p->pi1[0], p->pi1[1], p->pi1[2],
         p->pi2[0], p->pi2[1], p->pi2[2],
         p->gf1[0], p->gf1[1], p->gi1[0], p->gi1[1],
+        p->fbwd,
         p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3]);
   } else if ( strcmp( p->type, "mxb-b") == 0 ) {
-    sprintf( key, "/%s/pf1x%.2dpf1y%.2dpf1z%.2d/pi1x%.2dpi1y%.2dpi1z%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/gf1%.2dgf2%.2d/gi1%.2dgi2%.2d/t%.2dx%.2dy%.2dz%.2d", p->name,
+    sprintf( key, "/%s/pf1x%.2dpf1y%.2dpf1z%.2d/pi1x%.2dpi1y%.2dpi1z%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/gf1%.2dgf2%.2d/gi1%.2dgi2%.2d/%s/t%.2dx%.2dy%.2dz%.2d", p->name,
         p->pf1[0], p->pf1[1], p->pf1[2],
         p->pi1[0], p->pi1[1], p->pi1[2],
         p->pi2[0], p->pi2[1], p->pi2[2],
         p->gf1[0], p->gf1[1], p->gi1[0], p->gi1[1],
+        p->fbwd,
         p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3]);
   } else {
     strcpy ( key, "NA" );
