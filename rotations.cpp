@@ -318,9 +318,9 @@ void rot_spherical2cartesian_3x3 (double _Complex **C, double _Complex **S) {
 void rot_cartesian_to_spherical_contravariant_mat (double _Complex ***S, double _Complex ***C, int M, int N ) {
 
   const double _Complex r = 1. / sqrt(2.);
-  int exitstatus;
+
   double _Complex **U = NULL;
-  exitstatus = init_2level_zbuffer ( &U, 3, 3);
+  int exitstatus = init_2level_zbuffer ( &U, 3, 3);
 
   U[0][0] = -r;
   U[0][1] =  I*r;
