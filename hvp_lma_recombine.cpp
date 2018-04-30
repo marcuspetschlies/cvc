@@ -41,7 +41,7 @@
 #include "table_init_d.h"
 #include "table_init_z.h"
 #include "clover.h"
-#include "gsp.h"
+#include "gsp_utils.h"
 
 
 using namespace cvc;
@@ -65,17 +65,18 @@ int main(int argc, char **argv) {
   // double ratime, retime;
   unsigned int evecs_block_length = 0;
   unsigned int evecs_num = 0;
+  unsigned int nproc_t = 1;
 
 
 #ifdef HAVE_LHPC_AFF
-  char aff_tag[400];
+  char tag[400];
 #endif
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "sh?f:b:n:")) != -1) {
+  while ((c = getopt(argc, argv, "sh?f:b:n:t:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -86,6 +87,9 @@ int main(int argc, char **argv) {
       break;
     case 'n':
       evecs_num = atoi( optarg );
+      break;
+    case 't':
+      nproc_t = atoi( optarg );
       break;
     case 'h':
     case '?':
@@ -149,7 +153,8 @@ int main(int argc, char **argv) {
    * read eigenvalues
    ***********************************************************/
   double * evecs_eval = NULL;
-  exitstatus = gsp_read_eval( &evecs_eval, evecs_num, filename,  aff_tag);
+  sprintf( tag, "/hvp/eval/N%d", evecs_num );
+  exitstatus = gsp_read_eval( &evecs_eval, evecs_num, filename, tag);
   if( exitstatus != 0 ) {
     fprintf(stderr, "[hvp_lma_recombine] Error from gsp_read_eval, status was %d %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(39);
@@ -189,7 +194,42 @@ int main(int argc, char **argv) {
 
   /***********************************************************/
   /***********************************************************/
- 
+
+  sprintf(aff_tag, "/hvp/lma/N%d/B%d", evecs_num, evecs_block_length );
+
+  for ( int imu = 0; imu < 4; imu++ ) {
+
+    for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+
+      double _Complex ** phi = init_3level_ztable ( T, evecs_num, evecs_num );
+      if ( phi == NULL ) {
+        fprintf (stderr, "[] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
+        EXIT(3);
+      }
+
+
+      for ( int it = 0; it < T; it++ ) {
+      
+        exitstatus = gsp_read_cvc_node (
+             double _Complex *** const fac,
+                evecs_num, evecs_block_length, g_sink_momentum_list[imom], "mu", imu, filename_prefix, tag, timeslice, nproc_t );
+
+        if( exitstatus != 0 ) {
+          fprintf(stderr, "[hvp_lma_recombine] Error from gsp_read_cvc_node, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(14);
+        }
+
+      }  // end of loop on timeslices
+
+      fini_3level_ztable ( &phi );
+
+    }  // end of loop on momenta
+
+  }  // end of loop on mu
+
+  /***********************************************************/
+  /***********************************************************/
+
   /***********************************************************
    * free the allocated memory, finalize
    ***********************************************************/
