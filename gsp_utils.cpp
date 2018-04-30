@@ -410,7 +410,7 @@ int gsp_read_eval(double ** eval, unsigned int num, char * const filename_prefix
  * gsp_read_cvc_node
  ***********************************************************************************************/
 int gsp_read_cvc_node (
-    double _Complex *** const fac,
+    double _Complex ** const fac,
     unsigned int const numV,
     unsigned int const block_length,
     int const momentum[3],
@@ -428,6 +428,8 @@ int gsp_read_cvc_node (
   int exitstatus;
   int const numB = numV / block_length;
   int const file_t = ( timeslice / (T_global/nt) )  * (T_global/nt);
+
+  if ( g_verbose > 2 ) fprintf ( stdout, "# [gsp_read_cvc_node] timeslice for filename = %d\n", file_t );
 
 #ifdef HAVE_LHPC_AFF
 
@@ -501,7 +503,7 @@ int gsp_read_cvc_node (
     size_t const bytes = block_length * sizeof( double _Complex );
 
     for ( unsigned int iv = 0; iv < numV; iv++ ) {
-      memcpy ( fac[iv][ib*block_length], buffer[iv], bytes );
+      memcpy ( &(fac[iv][ib*block_length]), buffer[iv], bytes );
     }
 
   }  // end of loop on blocks
