@@ -157,7 +157,7 @@ int gsp_read_node (double _Complex ***gsp, int numV, int momentum[3], int gamma_
 int gsp_prepare_from_file ( double _Complex ***gsp, int numV, int momentum[3], int gamma_id, int ns, char *prefix, char*tag ) {
 
   int pvec[3];
-  int g5_gamma_id;
+  int g5_gamma_id = -1;
   int sign = 0;
   double _Complex Z_1 = 1.;
 
@@ -393,6 +393,12 @@ int gsp_read_eval(double ** eval, unsigned int num, char * const filename_prefix
   }
   fclose(ifs);
 #endif
+
+  if ( g_verbose > 3 ) {
+    for ( int i = 0; i < num; i++ ) fprintf ( stdout, "# [gsp_read_eval] eval %4d  %25.16e\n", i,  (*eval)[i] );
+  }
+
+
   retime = _GET_TIME;
   if(g_cart_id == 0) fprintf(stdout, "# [gsp_read_eval] time for gsp_read_eval = %e seconds\n", retime-ratime);
 
