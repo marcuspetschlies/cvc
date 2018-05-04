@@ -56,8 +56,6 @@ void usage() {
 
 int main(int argc, char **argv) {
   
-  const char outfile_prefix[] = "hvp_lma_recombine";
-
   int c;
   int filename_set = 0;
   int exitstatus;
@@ -135,8 +133,9 @@ int main(int argc, char **argv) {
   /***********************************************************
    * initialize geometry fields
    ***********************************************************/
-  if(init_geometry() != 0) {
-    fprintf(stderr, "[hvp_lma_recombine] Error from init_geometry %s %d\n", __FILE__, __LINE__);
+  exitstatus = init_geometry();
+  if( exitstatus != 0) {
+    fprintf(stderr, "[hvp_lma_recombine] Error from init_geometry, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(4);
   }
 
@@ -154,11 +153,13 @@ int main(int argc, char **argv) {
    ***********************************************************/
   double * evecs_eval = NULL;
   sprintf( tag, "/hvp/eval/N%d", evecs_num );
+  sprintf( filename, "%s.%.4d.eval", filename_prefix, Nconf );
   exitstatus = gsp_read_eval( &evecs_eval, evecs_num, filename, tag);
   if( exitstatus != 0 ) {
-    fprintf(stderr, "[hvp_lma_recombine] Error from gsp_read_eval, status was %d %d\n", exitstatus, __FILE__, __LINE__);
+    fprintf(stderr, "[hvp_lma_recombine] Error from gsp_read_eval, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(39);
   }
+
 
   /***********************************************************
    * set auxilliary eigenvalue fields
@@ -195,37 +196,49 @@ int main(int argc, char **argv) {
   /***********************************************************/
   /***********************************************************/
 
-  sprintf(aff_tag, "/hvp/lma/N%d/B%d", evecs_num, evecs_block_length );
+  sprintf( tag, "/hvp/lma/N%d/B%d", evecs_num, evecs_block_length );
+  sprintf( filename, "%s.%.4d", filename_prefix, Nconf );
 
   for ( int imu = 0; imu < 4; imu++ ) {
 
     for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
 
-      double _Complex ** phi = init_3level_ztable ( T, evecs_num, evecs_num );
+      double _Complex *** phi = init_3level_ztable ( T, evecs_num, evecs_num );
       if ( phi == NULL ) {
         fprintf (stderr, "[] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
         EXIT(3);
       }
 
-
+      // loop on timeslices
       for ( int it = 0; it < T; it++ ) {
       
-        exitstatus = gsp_read_cvc_node (
-             double _Complex *** const fac,
-                evecs_num, evecs_block_length, g_sink_momentum_list[imom], "mu", imu, filename_prefix, tag, timeslice, nproc_t );
+        exitstatus = gsp_read_cvc_node ( phi[it], evecs_num, evecs_block_length, g_sink_momentum_list[imom], "mu", imu, filename, tag, it, nproc_t );
 
         if( exitstatus != 0 ) {
           fprintf(stderr, "[hvp_lma_recombine] Error from gsp_read_cvc_node, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(14);
         }
 
-      }  // end of loop on timeslices
+        if ( g_verbose > 4 )  {
+          // show the data read by gsp_read_cvc_node
+          fprintf ( stdout, "# [hvp_lma_recombine] data for %s t %2d\n", tag, it);
+          for ( int i1 = 0; i1 < evecs_num; i1++ ) {
+          for ( int i2 = 0; i2 < evecs_num; i2++ ) {
+            fprintf ( stdout, "  %4d  %4d    %25.16e   %25.16e\n", i1, i2, 
+                creal( phi[it][i1][i2] ), cimag( phi[it][i1][i2] ) );
+          }}
+        }  // end of if verbose > 4
 
+      }  // end of loop on timeslices
+#if 0
+#endif  // of if 0
       fini_3level_ztable ( &phi );
 
     }  // end of loop on momenta
 
   }  // end of loop on mu
+
+
 
   /***********************************************************/
   /***********************************************************/
@@ -234,9 +247,9 @@ int main(int argc, char **argv) {
    * free the allocated memory, finalize
    ***********************************************************/
 
-  if ( evecs_eval                != NULL ) free ( evecs_eval );
   if ( evecs_lambdainv           != NULL ) free ( evecs_lambdainv );
   if ( evecs_4kappasqr_lambdainv != NULL ) free ( evecs_4kappasqr_lambdainv ); 
+  if ( evecs_eval                != NULL ) free ( evecs_eval );
 
   /***********************************************************
    * free clover matrix terms
