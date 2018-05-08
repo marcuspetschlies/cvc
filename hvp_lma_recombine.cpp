@@ -234,6 +234,14 @@ int main(int argc, char **argv) {
       }  // end of loop on timeslices
 #if 0
 #endif  // of if 0
+
+      double _Complex *phi_tr = init_1level_ztable ( T );
+
+
+      gsp_tr_mat_weight ( phi_tr , phi , evecs_, int const numV, int const N ) {
+
+
+      fini_1level_ztable ( &phi_tr );
       fini_3level_ztable ( &phi );
 
     }  // end of loop on momenta
