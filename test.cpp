@@ -51,7 +51,10 @@ extern "C"
 #include "contractions_io.h"
 #include "prepare_source.h"
 #include "prepare_propagator.h"
+#include "table_init_d.h"
+#include "table_init_z.h"
 #include "table_init_asym_z.h"
+#include "rotations.h"
 
 using namespace cvc;
 
@@ -108,6 +111,59 @@ int main(int argc, char **argv) {
 
   // g_the_time = time(NULL);
 
+
+  /* set the default values */
+  if(filename_set==0) strcpy(filename, "cvc.input");
+  fprintf(stdout, "# [test] Reading input from file %s\n", filename);
+  read_input_parser(filename);
+
+  /***********************************************************
+   * set number of openmp threads
+   ***********************************************************/
+#ifdef HAVE_OPENMP
+  if(g_cart_id == 0) fprintf(stdout, "# [test] setting omp number of threads to %d\n", g_num_threads);
+    omp_set_num_threads(g_num_threads);
+#pragma omp parallel
+  {
+    fprintf(stdout, "# [test] thread%.4d using %d threads\n", omp_get_thread_num(), omp_get_num_threads());
+  }
+#else
+  if(g_cart_id == 0) fprintf(stdout, "[hvp_lma_recombine] Warning, resetting global thread number to 1\n");
+  g_num_threads = 1;
+#endif
+
+
+  /******************************************************************
+   * TEST co_eq_trace_mat_ti_mat_weight_re 
+   ******************************************************************/
+  int const N = 97;
+  rlxd_init( 2, 12345678);
+  double _Complex **A = init_2level_ztable (N, N);
+  double _Complex **B = init_2level_ztable (N, N);
+  double * w  = init_1level_dtable ( N );
+
+  ranlxd( (double*)(A[0]), 2*N*N );
+  ranlxd( (double*)(B[0]), 2*N*N );
+  ranlxd( w, N );
+
+  double _Complex ztmp = co_eq_trace_mat_ti_mat_weight_re ( A, B, w, N );
+
+  double _Complex ztmp2 = 0.;
+
+  for ( int i = 0; i < N; i++ ) {
+  for ( int k = 0; k < N; k++ ) {
+    ztmp2 += A[i][k] * B[k][i] * w[i] * w[k];
+  }}
+
+  double dtmp = cabs ( ztmp - ztmp2 );
+
+  fprintf ( stdout, "# [test] z %25.16e %25.16e   z2 %25.16e  %25.16e  diff %25.16e\n", creal( ztmp ), cimag( ztmp ), creal( ztmp2 ), cimag( ztmp2 ), dtmp ); 
+
+  fini_2level_ztable ( &A );
+  fini_2level_ztable ( &B );
+  fini_1level_dtable ( &w );
+
+#if 0
   /******************************************************************
    * TEST init_4level_ztable_asym and fini_4level_ztable_asym
    ******************************************************************/
@@ -132,6 +188,7 @@ int main(int argc, char **argv) {
       count++;
   }}}}
   fini_4level_ztable_asym ( &a );
+#endif  // of if 0
  
 
 #if 0
