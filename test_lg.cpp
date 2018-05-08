@@ -204,8 +204,8 @@ int main(int argc, char **argv) {
   }
 
   interpolator_momentum_list[0][0] = 0;
-  interpolator_momentum_list[0][1] = 0;
-  interpolator_momentum_list[0][2] = 1;
+  interpolator_momentum_list[0][1] = 1;
+  interpolator_momentum_list[0][2] = 0;
  
   /****************************************************/
   /****************************************************/
@@ -214,7 +214,7 @@ int main(int argc, char **argv) {
    * loop on little groups
    ****************************************************/
   // for ( int ilg = 0; ilg < nlg; ilg++ )
-  for ( int ilg = 0; ilg <= 0; ilg++ )
+  for ( int ilg = 3; ilg <= 3; ilg++ )
   {
 
     const int n_irrep = lg[ilg].nirrep;
@@ -238,9 +238,9 @@ int main(int argc, char **argv) {
     /****************************************************
      * loop on irreps
      ****************************************************/
-    // for ( int i_irrep = 0; i_irrep < n_irrep; i_irrep++ )
+    for ( int i_irrep = 0; i_irrep < n_irrep; i_irrep++ )
     // for ( int i_irrep = 8; i_irrep <= 8; i_irrep++ )
-    for ( int i_irrep = 11; i_irrep <= 11; i_irrep++ )
+    // for ( int i_irrep = 11; i_irrep <= 11; i_irrep++ )
     {
 
       /****************************************************
@@ -271,7 +271,7 @@ int main(int argc, char **argv) {
           exitstatus = set_rot_mat_table ( &r_irrep, lg[ilg].name, lg[ilg].lirrep[i_irrep] );
 
           if ( exitstatus != 0 ) {
-            fprintf ( stderr, "# [test_lg] Error from set_rot_mat_table_cubic_group, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            fprintf ( stderr, "[test_lg] Error from set_rot_mat_table_cubic_group, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(2);
           }
 
@@ -282,83 +282,116 @@ int main(int argc, char **argv) {
            ****************************************************/
           for ( int ref_row_target = 0; ref_row_target < dim_irrep; ref_row_target++ ) {
   
-            /****************************************************
-             * output file
-             ****************************************************/
-            if ( interpolator_number == 2 ) {
-              sprintf ( filename, "lg_%s_irrep_%s_J2_%d_%d_spinref%d_%d_irrepref%d.sbd", lg[ilg].name, lg[ilg].lirrep[i_irrep], interpolator_J2[0], interpolator_J2[1], ref_row_spin[0], ref_row_spin[1], ref_row_target );
-            } else if ( interpolator_number == 1 ) {
-              sprintf ( filename, "lg_%s_irrep_%s_J2_%d_spinref%d_irrepref%d.sbd", lg[ilg].name, lg[ilg].lirrep[i_irrep], interpolator_J2[0], ref_row_spin[0], ref_row_target );
-            }
+            for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+              
+              interpolator_momentum_list[0][0] = g_sink_momentum_list[imom][0];
+              interpolator_momentum_list[0][1] = g_sink_momentum_list[imom][1];
+              interpolator_momentum_list[0][2] = g_sink_momentum_list[imom][2];
 
-            FILE*ofs = fopen ( filename, "w" );
-            if ( ofs == NULL ) {
-              fprintf ( stderr, "# [test_lg] Error from fopen %s %d\n", __FILE__, __LINE__);
-              EXIT(2);
-            }
+              if ( interpolator_number == 2 ) {
+                interpolator_momentum_list[1][0] = lg[ilg].d[0] - interpolator_momentum_list[0][0]; 
+                interpolator_momentum_list[1][1] = lg[ilg].d[1] - interpolator_momentum_list[0][1];
+                interpolator_momentum_list[1][2] = lg[ilg].d[2] - interpolator_momentum_list[0][2];
+              }
 
-            /****************************************************
-             * loop on irrep multiplet
-             ****************************************************/
-            // for ( int row_target = 0; row_target < dim_irrep; row_target++ ) {
-            const int row_target = -1;
+
+              if ( ( interpolator_momentum_list[0][0] * interpolator_momentum_list[0][0] + 
+                     interpolator_momentum_list[0][1] * interpolator_momentum_list[0][1] + 
+                     interpolator_momentum_list[0][2] * interpolator_momentum_list[0][2] > 3 ) ||
+                   ( interpolator_momentum_list[1][0] * interpolator_momentum_list[1][0] + 
+                     interpolator_momentum_list[1][1] * interpolator_momentum_list[1][1] + 
+                     interpolator_momentum_list[1][2] * interpolator_momentum_list[1][2] > 3 ) ) {
+                fprintf ( stdout, "# [test_lg] skipping p1 = (%d, %d, %d) p2 = (%d, %d, %d)\n", 
+                    interpolator_momentum_list[0][0], interpolator_momentum_list[0][1], interpolator_momentum_list[0][2],
+                    interpolator_momentum_list[1][0], interpolator_momentum_list[1][1], interpolator_momentum_list[1][2] );
+                continue;
+              }
+
+              char momentum_str[100];
+              sprintf( momentum_str, ".p1x%dp1y%dp1z%d", interpolator_momentum_list[0][0], interpolator_momentum_list[0][1], interpolator_momentum_list[0][2] );
+              if ( interpolator_number == 2 ) {
+                sprintf( momentum_str, "%s.p2x%dp2y%dp2z%d", momentum_str, interpolator_momentum_list[1][0], interpolator_momentum_list[1][1], interpolator_momentum_list[1][2] );
+              }
   
-              //exitstatus = little_group_projector_set ( &p, &(lg[ilg]), lg[ilg].lirrep[i_irrep], row_target, interpolator_number,
-              //    &interpolator_J2, (const int**)interpolator_momentum_list, &interpolator_bispinor, &interpolator_parity, &interpolator_cartesian,
-              //    ref_row_target , &ref_row_spin, correlator_name );
+              /****************************************************
+               * output file
+               ****************************************************/
+              if ( interpolator_number == 2 ) {
+                sprintf ( filename, "lg_%s_irrep_%s_J2_%d_%d_spinref%d_%d_irrepref%d%s.sbd", lg[ilg].name, lg[ilg].lirrep[i_irrep], interpolator_J2[0], interpolator_J2[1], ref_row_spin[0], ref_row_spin[1], ref_row_target, momentum_str );
+              } else if ( interpolator_number == 1 ) {
+                sprintf ( filename, "lg_%s_irrep_%s_J2_%d_spinref%d_irrepref%d%s.sbd", lg[ilg].name, lg[ilg].lirrep[i_irrep], interpolator_J2[0], ref_row_spin[0], ref_row_target , momentum_str );
+              }
   
-              exitstatus = little_group_projector_set ( &p, &(lg[ilg]), lg[ilg].lirrep[i_irrep], row_target, interpolator_number,
-                  interpolator_J2, (const int**)interpolator_momentum_list, interpolator_bispinor, interpolator_parity, interpolator_cartesian,
-                  ref_row_target , ref_row_spin, correlator_name );
-
-              if ( exitstatus != 0 ) {
-                fprintf ( stderr, "# [test_lg] Error from little_group_projector_set, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              FILE*ofs = fopen ( filename, "w" );
+              if ( ofs == NULL ) {
+                fprintf ( stderr, "# [test_lg] Error from fopen %s %d\n", __FILE__, __LINE__);
                 EXIT(2);
               }
   
+              /****************************************************
+               * loop on irrep multiplet
+               ****************************************************/
+              // for ( int row_target = 0; row_target < dim_irrep; row_target++ ) {
+              const int row_target = -1;
+    
+                //exitstatus = little_group_projector_set ( &p, &(lg[ilg]), lg[ilg].lirrep[i_irrep], row_target, interpolator_number,
+                //    &interpolator_J2, (const int**)interpolator_momentum_list, &interpolator_bispinor, &interpolator_parity, &interpolator_cartesian,
+                //    ref_row_target , &ref_row_spin, correlator_name );
+    
+                exitstatus = little_group_projector_set ( &p, &(lg[ilg]), lg[ilg].lirrep[i_irrep], row_target, interpolator_number,
+                    interpolator_J2, (const int**)interpolator_momentum_list, interpolator_bispinor, interpolator_parity, interpolator_cartesian,
+                    ref_row_target , ref_row_spin, correlator_name );
+  
+                if ( exitstatus != 0 ) {
+                  fprintf ( stderr, "# [test_lg] Error from little_group_projector_set, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                  EXIT(2);
+                }
+    
+                /****************************************************/
+                /****************************************************/
+     
+                exitstatus = little_group_projector_show ( &p, ofs , 1 );
+                if ( exitstatus != 0 ) {
+                  fprintf ( stderr, "# [test_lg] Error from little_group_projector_show, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                  EXIT(2);
+                }
+    
+                /****************************************************/
+                /****************************************************/
+                little_group_projector_applicator_type **app = little_group_projector_apply ( &p, ofs );
+                if ( app == NULL ) {
+                  fprintf ( stderr, "# [test_lg] Error from little_group_projector_apply %s %d\n", __FILE__, __LINE__);
+                  EXIT(2);
+                }
+    
+                /****************************************************/
+                /****************************************************/
+  
+                /****************************************************
+                 * finalize applicators
+                 ****************************************************/
+  
+                for ( int irow = 0; irow < dim_irrep; irow++ ) {
+                  free ( fini_little_group_projector_applicator ( app[irow] ) );
+                }
+                free ( app );
+  
+                /****************************************************/
+                /****************************************************/
+    
+                fini_little_group_projector ( &p );
+    
+              // }  // end of loop on row_target
+    
               /****************************************************/
               /****************************************************/
    
-              exitstatus = little_group_projector_show ( &p, ofs , 1 );
-              if ( exitstatus != 0 ) {
-                fprintf ( stderr, "# [test_lg] Error from little_group_projector_show, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                EXIT(2);
-              }
-  
-              /****************************************************/
-              /****************************************************/
-              little_group_projector_applicator_type **app = little_group_projector_apply ( &p, ofs );
-              if ( app == NULL ) {
-                fprintf ( stderr, "# [test_lg] Error from little_group_projector_apply %s %d\n", __FILE__, __LINE__);
-                EXIT(2);
-              }
-  
-              /****************************************************/
-              /****************************************************/
-
               /****************************************************
-               * finalize applicators
+               * close output file
                ****************************************************/
-
-              for ( int irow = 0; irow < dim_irrep; irow++ ) {
-                free ( fini_little_group_projector_applicator ( app[irow] ) );
-              }
-              free ( app );
-
-              /****************************************************/
-              /****************************************************/
+              fclose ( ofs );
   
-              fini_little_group_projector ( &p );
-  
-            // }  // end of loop on row_target
-  
-            /****************************************************/
-            /****************************************************/
- 
-            /****************************************************
-             * close output file
-             ****************************************************/
-            fclose ( ofs );
+            }  // end of loop on sink momenta
 
           }  // end of loop on ref_row_target
   
@@ -404,6 +437,5 @@ int main(int argc, char **argv) {
   mpi_fini_datatypes();
   MPI_Finalize();
 #endif
-
   return(0);
 }
