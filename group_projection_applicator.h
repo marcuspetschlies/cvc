@@ -292,7 +292,7 @@ inline little_group_projector_applicator_type * show_little_group_projector_appl
   /***********************************************************
    * reduce the applicator
    ***********************************************************/
-  reduce_little_group_projector_applicator ( a, 1 );
+  // reduce_little_group_projector_applicator ( a, 1 );
 
   /***********************************************************/
   /***********************************************************/
@@ -345,7 +345,7 @@ inline little_group_projector_applicator_type * show_little_group_projector_appl
   fprintf ( myofs, "# [show_little_group_projector_applicator] ===============================\n\n\n");
 
   return( a );
-}
+}  // end of show_little_group_projector_applicator
 
 /***********************************************************/
 /***********************************************************/
