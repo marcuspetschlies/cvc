@@ -2507,12 +2507,24 @@ void rot_vec_eq_mat_diag ( double _Complex *w, double _Complex **A, int num ) {
 /***********************************************************************************************
  *
  ***********************************************************************************************/
-double _Complex co_eq_trac_mat_ti_mat_weight_re ( double _Complex ** const A, double _Complex ** const B, double * const weight, int const num ) {
+double _Complex co_eq_trace_mat_ti_mat_weight_re ( double _Complex ** const A, double _Complex ** const B, double * const weight, int const num ) {
+
+  double _Complex res = 0.;
+
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+  omp_init_lock(&writelock);
+#pragma omp parallel
+{
+#endif
 
   double _Complex c = 0.;
   double _Complex * const B_ = B[0];
   double _Complex Brow[num];
 
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
   for ( int i = 0; i < num; i++ ) {
 
     for ( int k = 0; k < num; k++ ) Brow[k] = B_[k*num+i] * weight[k];
@@ -2520,12 +2532,20 @@ double _Complex co_eq_trac_mat_ti_mat_weight_re ( double _Complex ** const A, do
     double _Complex weight_ = weight[i];
 
     for ( int k = 0; k < num; k++ ) {
-      Brow[k] = A_[k] * weight_ * Brow [k];
+      c += A_[k] * weight_ * Brow [k];
     }
-
   }
-  return ( c );
-}  /* end of co_eq_trac_mat_ti_mat_weight_re */
+#ifdef HAVE_OPENMP
+  omp_set_lock(&writelock);
+  res += c;
+  omp_unset_lock(&writelock);
+}  // end of parallel region
+  omp_destroy_lock(&writelock);
+#else
+  res = c;
+#endif
+  return ( res );
+}  // end of co_eq_trace_mat_ti_mat_weight_re
 
 /***********************************************************************************************/
 /***********************************************************************************************/
