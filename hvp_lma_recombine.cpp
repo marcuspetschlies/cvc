@@ -219,6 +219,8 @@ int main(int argc, char **argv) {
           EXIT(14);
         }
 
+        // TEST
+        // write the complete Nev x Nev complex field to stdout
         if ( g_verbose > 4 )  {
           // show the data read by gsp_read_cvc_node
           fprintf ( stdout, "# [hvp_lma_recombine] data for %s t %2d\n", tag, it);
