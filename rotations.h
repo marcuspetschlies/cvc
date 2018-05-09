@@ -137,9 +137,9 @@ int rot_mat_spin1_2_spherical ( double _Complex **R, int n[3], double omega );
 
 void rot_mat_eq_mat_pl_mat (double _Complex **R, double _Complex **S1, double _Complex **S2, int N);
 
-double _Complex rot_mat_trace ( double _Complex** R, int N );
+double _Complex rot_mat_trace ( double _Complex ** const R, int const N );
 
-double _Complex rot_mat_trace_weight_re ( double _Complex** R, double *weight, int N );
+double _Complex rot_mat_trace_weight_re ( double _Complex ** const R, double * const weight, int const N );
 
 double _Complex co_eq_trace_mat_ti_mat_weight_re ( double _Complex ** const A, double _Complex ** const B, double * const weight, int const num );
 

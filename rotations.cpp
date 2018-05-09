@@ -2333,23 +2333,37 @@ int rot_mat_spin1_2_spherical ( double _Complex **R, int n[3], double omega ) {
 /***********************************************************
  * trace
  ***********************************************************/
-double _Complex rot_mat_trace ( double _Complex** R, int N ) {
+double _Complex rot_mat_trace ( double _Complex ** const R, int const N ) {
   double _Complex res = 0.;
+
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+  omp_init_lock(&writelock);
+#pragma omp parallel shared(res)
+{
+#endif
+  double _Complex c = 0.;
   double _Complex * const R_ = R[0];
   int const Np1 = N+1;
 
-  //for ( int i = 0; i < N; i++ ) {
-  //  res += R[i][i];
-  //}
-
 #ifdef HAVE_OPENMP
-#pragma omp parallel for
+#pragma omp for
 #endif
   for ( int i = 0; i < N; i++ ) {
-    res += R_[i*Np1];
+    c += R_[i*Np1];
   }
+#ifdef HAVE_OPENMP
+  omp_set_lock(&writelock);
+  res += c;
+  omp_unset_lock(&writelock);
+}  // end of parallel region
+  omp_destroy_lock(&writelock);
+#else
+  res = c;
+#endif
+
   return(res);
-}  /* end of rot_mat_trace */
+}  // end of rot_mat_trace
 
 
 /***********************************************************/
@@ -2358,23 +2372,38 @@ double _Complex rot_mat_trace ( double _Complex** R, int N ) {
 /***********************************************************
  * trace
  ***********************************************************/
-double _Complex rot_mat_trace_weight_re ( double _Complex** R, double *weight, int N ) {
+double _Complex rot_mat_trace_weight_re ( double _Complex ** const R, double * const weight, int const N ) {
   double _Complex res = 0.;
-  double _Complex * const R_ = R[0];
-  int const Np1 = N+1;
-
-  //for ( int i = 0; i < N; i++ ) {
-  //  res += R[i][i];
-  //}
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel for
+  omp_lock_t writelock;
+  omp_init_lock(&writelock);
+#pragma omp parallel shared(res)
+{
+#endif
+
+  double _Complex * const R_ = R[0];
+  int const Np1 = N+1;
+  double _Complex c = 0.;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
 #endif
   for ( int i = 0; i < N; i++ ) {
-    res += R_[i*Np1] * weight[i];
+    c += R_[i*Np1] * weight[i];
   }
+#ifdef HAVE_OPENMP
+  omp_set_lock(&writelock);
+  res += c;
+  omp_unset_lock(&writelock);
+}  // end of parallel region
+  omp_destroy_lock(&writelock);
+#else
+
+  res = c;
+#endif
   return(res);
-}  /* end of rot_mat_trace */
+}  // end of rot_mat_trace
 
 
 
