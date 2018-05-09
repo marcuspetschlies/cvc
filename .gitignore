@@ -21,3 +21,4 @@ build.14.04.1-Ubuntu_serial_openmp/
 build_jureca_serial/
 build-16.04.1-Ubuntu-serial/
 build-16.04.1-Ubuntu-2dim-openmp/
+build-6.04.2-Ubuntu-2dim-openmp/
