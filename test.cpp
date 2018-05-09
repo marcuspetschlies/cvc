@@ -145,19 +145,31 @@ int main(int argc, char **argv) {
   ranlxd( (double*)(A[0]), 2*N*N );
   ranlxd( (double*)(B[0]), 2*N*N );
   ranlxd( w, N );
-
+#if 0
   double _Complex ztmp = co_eq_trace_mat_ti_mat_weight_re ( A, B, w, N );
 
   double _Complex ztmp2 = 0.;
-
   for ( int i = 0; i < N; i++ ) {
   for ( int k = 0; k < N; k++ ) {
     ztmp2 += A[i][k] * B[k][i] * w[i] * w[k];
   }}
-
   double dtmp = cabs ( ztmp - ztmp2 );
-
   fprintf ( stdout, "# [test] z %25.16e %25.16e   z2 %25.16e  %25.16e  diff %25.16e\n", creal( ztmp ), cimag( ztmp ), creal( ztmp2 ), cimag( ztmp2 ), dtmp ); 
+#endif
+
+  // double _Complex ztmp = rot_mat_trace ( A, N );
+  double _Complex ztmp = rot_mat_trace_weight_re ( A, w, N );
+
+
+  double _Complex ztmp2 = 0.;
+  for ( int i = 0; i < N; i++ ) {
+    // ztmp2 += A[i][i];
+    ztmp2 += A[i][i] * w[i];
+  }
+  double dtmp = cabs ( ztmp - ztmp2 );
+  fprintf ( stdout, "# [test] z %25.16e %25.16e   z2 %25.16e  %25.16e  diff %25.16e\n", creal( ztmp ), cimag( ztmp ), creal( ztmp2 ), cimag( ztmp2 ), dtmp ); 
+
+
 
   fini_2level_ztable ( &A );
   fini_2level_ztable ( &B );
