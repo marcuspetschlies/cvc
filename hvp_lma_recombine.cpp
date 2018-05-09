@@ -42,6 +42,7 @@
 #include "table_init_z.h"
 #include "clover.h"
 #include "gsp_utils.h"
+#include "gsp_recombine.h"
 
 
 using namespace cvc;
@@ -224,24 +225,62 @@ int main(int argc, char **argv) {
         if ( g_verbose > 4 )  {
           // show the data read by gsp_read_cvc_node
           fprintf ( stdout, "# [hvp_lma_recombine] data for %s t %2d\n", tag, it);
-          for ( int i1 = 0; i1 < evecs_num; i1++ ) {
-          for ( int i2 = 0; i2 < evecs_num; i2++ ) {
+          for ( unsigned int i1 = 0; i1 < evecs_num; i1++ ) {
+          for ( unsigned int i2 = 0; i2 < evecs_num; i2++ ) {
             fprintf ( stdout, "  %4d  %4d    %25.16e   %25.16e\n", i1, i2, 
                 creal( phi[it][i1][i2] ), cimag( phi[it][i1][i2] ) );
           }}
         }  // end of if verbose > 4
 
       }  // end of loop on timeslices
-#if 0
-#endif  // of if 0
 
+      /***********************************************************/
+      /***********************************************************/
+
+#if 0
+    /***********************************************************
+     * test loops
+     ***********************************************************/
       double _Complex *phi_tr = init_1level_ztable ( T );
 
+      gsp_tr_mat_weight ( phi_tr , phi , evecs_4kappasqr_lambdainv , evecs_num, T );
 
-      gsp_tr_mat_weight ( phi_tr , phi , evecs_, int const numV, int const N ) {
+      if ( g_verbose > 4 )  {
+        // show the trace
+        fprintf ( stdout, "# [hvp_lma_recombine] /loop/cvc/nev%.4d/px%.2dpy%.2dpz%.2d/mu%d\n", evecs_num, g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], imu );
+        for ( int it = 0; it < T; it++ ) {
+          fprintf ( stdout, "%26.16e  %25.16e\n", creal( phi_tr[it] ), cimag( phi_tr[it] ) );
+        }
+      }  // end of if verbose > 4
+
+      fini_1level_ztable ( &phi_tr );
+#endif  // of if 0
+
+      STOPPED HERE
+      /***********************************************************/
+      /***********************************************************/
+
+      /***********************************************************
+       * test Ward identity
+       ***********************************************************/
+      double _Complex *phi_tr = init_1level_ztable ( T );
+
+      gsp_tr_mat_weight_mat_weight ( phi_tr, phi, phi, evecs_4kappasqr_lambdainv, evecs_num, T );
+
+      if ( g_verbose > 4 )  {
+        // show the trace
+        fprintf ( stdout, "# [hvp_lma_recombine] /hvp/cvc/nev%.4d/px%.2dpy%.2dpz%.2d/mu%d\n", evecs_num, g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], imu );
+        for ( int it = 0; it < T; it++ ) {
+          fprintf ( stdout, "%26.16e  %25.16e\n", creal( phi_tr[it] ), cimag( phi_tr[it] ) );
+        }
+      }  // end of if verbose > 4
 
 
       fini_1level_ztable ( &phi_tr );
+
+      /***********************************************************/
+      /***********************************************************/
+
       fini_3level_ztable ( &phi );
 
     }  // end of loop on momenta
