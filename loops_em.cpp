@@ -1096,7 +1096,7 @@ int main(int argc, char **argv) {
          *   we only need the odd part in eo_stochastic_source[0]
          ***********************************************/
         memset ( eo_stochastic_source[1], 0, _GSI(Vhalf)*sizeof(double) );
-        spinor_field_lexic2eo ( sf_aux, eo_stochastic_source[1] , eo_stochastic_source[0] );
+        spinor_field_eo2lexic ( sf_aux, eo_stochastic_source[1] , eo_stochastic_source[0] );
 
         /***********************************************
          * read full-volume spinor field from lime file
