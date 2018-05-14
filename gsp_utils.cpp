@@ -466,7 +466,7 @@ int gsp_read_cvc_node (
   if ( strcmp( type, "mu" ) == 0 ) {
     sprintf ( key_prefix, "%s/t%.2d/%s%d", tag, timeslice, type, mu );
   } else {
-    sprintf ( key_prefix, "%s/t%.2d/%s", tag, timeslice, type  );
+    sprintf ( key_prefix, "%s/%s/t%.2d", tag, type, timeslice );
   }
 
 #ifdef HAVE_LHPC_AFF

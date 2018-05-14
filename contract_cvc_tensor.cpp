@@ -1603,12 +1603,12 @@ void contract_cvc_loop_eo_lma ( double ***loop, double**eo_evecs_field, double *
 
   exitstatus = init_2level_buffer ( &eo_spinor_work, 2, _GSI( (VOLUME+RAND)/2 ) );
   if ( exitstatus != 0 ) {
-    fprintf(stdout, "[contract_cvc_loop_eo] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    fprintf(stdout, "[contract_cvc_loop_eo_lma] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(1);
   }
   exitstatus = init_2level_buffer ( &eo_spinor_field, 4, _GSI( Vhalf ) );
   if ( exitstatus != 0 ) {
-    fprintf(stdout, "[contract_cvc_loop_eo] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    fprintf(stdout, "[contract_cvc_loop_eo_lma] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(2);
   }
   v  = eo_spinor_field[0];
@@ -1678,7 +1678,7 @@ void contract_cvc_loop_eo_lma ( double ***loop, double**eo_evecs_field, double *
   fini_2level_buffer ( &eo_spinor_field );
 
   retime = _GET_TIME;
-  if (g_cart_id == 0 ) fprintf(stdout, "# [contract_cvc_loop_eo_lma] time for contract_cvc_loop_eo_lma_wi = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+  if (g_cart_id == 0 ) fprintf(stdout, "# [contract_cvc_loop_eo_lma] time for contract_cvc_loop_eo_lma = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
 
   return;
 

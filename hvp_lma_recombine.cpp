@@ -55,6 +55,27 @@ void usage() {
   EXIT(0);
 }
 
+/****************************************************/
+/****************************************************/
+
+/****************************************************
+ ****************************************************/
+int get_momentum_id ( int const p[3], int (* const p_list)[3], int const n ) {
+
+  for ( int i = 0; i < n; i++ ) {
+    if ( ( p[0] == p_list[i][0] ) &&
+         ( p[1] == p_list[i][1] ) &&
+         ( p[2] == p_list[i][2] ) ) {
+      return(i);
+    }
+  }
+
+  return(-1);
+}  // end of get_momentum_id
+
+/****************************************************/
+/****************************************************/
+
 int main(int argc, char **argv) {
   
   int c;
@@ -200,20 +221,20 @@ int main(int argc, char **argv) {
   sprintf( tag, "/hvp/lma/N%d/B%d", evecs_num, evecs_block_length );
   sprintf( filename, "%s.%.4d", filename_prefix, Nconf );
 
+  double _Complex ***** phi = init_5level_ztable ( 4, g_sink_momentum_number, T, evecs_num, evecs_num );
+  if ( phi == NULL ) {
+    fprintf (stderr, "[hvp_lma_recombine] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
+    EXIT(3);
+  }
+
   for ( int imu = 0; imu < 4; imu++ ) {
 
     for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
 
-      double _Complex *** phi = init_3level_ztable ( T, evecs_num, evecs_num );
-      if ( phi == NULL ) {
-        fprintf (stderr, "[] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
-        EXIT(3);
-      }
-
       // loop on timeslices
       for ( int it = 0; it < T; it++ ) {
       
-        exitstatus = gsp_read_cvc_node ( phi[it], evecs_num, evecs_block_length, g_sink_momentum_list[imom], "mu", imu, filename, tag, it, nproc_t );
+        exitstatus = gsp_read_cvc_node ( phi[imu][imom][it], evecs_num, evecs_block_length, g_sink_momentum_list[imom], "mu", imu, filename, tag, it, nproc_t );
 
         if( exitstatus != 0 ) {
           fprintf(stderr, "[hvp_lma_recombine] Error from gsp_read_cvc_node, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -224,11 +245,12 @@ int main(int argc, char **argv) {
         // write the complete Nev x Nev complex field to stdout
         if ( g_verbose > 4 )  {
           // show the data read by gsp_read_cvc_node
-          fprintf ( stdout, "# [hvp_lma_recombine] data for %s t %2d\n", tag, it);
+          fprintf ( stdout, "# [hvp_lma_recombine] /hvp/lma/N%d/t%.2d/mu%d/px%.2dpy%.2dpz%.2d\n", evecs_num, it, imu,
+              g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2] );
           for ( unsigned int i1 = 0; i1 < evecs_num; i1++ ) {
           for ( unsigned int i2 = 0; i2 < evecs_num; i2++ ) {
             fprintf ( stdout, "  %4d  %4d    %25.16e   %25.16e\n", i1, i2, 
-                creal( phi[it][i1][i2] ), cimag( phi[it][i1][i2] ) );
+                creal( phi[imu][imom][it][i1][i2] ), cimag( phi[imu][imom][it][i1][i2] ) );
           }}
         }  // end of if verbose > 4
 
@@ -243,7 +265,7 @@ int main(int argc, char **argv) {
      ***********************************************************/
       double _Complex *phi_tr = init_1level_ztable ( T );
 
-      gsp_tr_mat_weight ( phi_tr , phi , evecs_4kappasqr_lambdainv , evecs_num, T );
+      gsp_tr_mat_weight ( phi_tr , phi[imu][imom] , evecs_4kappasqr_lambdainv , evecs_num, T );
 
       if ( g_verbose > 4 )  {
         // show the trace
@@ -256,38 +278,71 @@ int main(int argc, char **argv) {
       fini_1level_ztable ( &phi_tr );
 #endif  // of if 0
 
-
       /***********************************************************/
       /***********************************************************/
-
-      /***********************************************************
-       * test Ward identity
-       ***********************************************************/
-      double _Complex *phi_tr = init_1level_ztable ( T );
-
-      gsp_tr_mat_weight_mat_weight ( phi_tr, phi, phi, evecs_4kappasqr_lambdainv, evecs_num, T );
-
-      if ( g_verbose > 4 )  {
-        // show the trace
-        fprintf ( stdout, "# [hvp_lma_recombine] /hvp/cvc/nev%.4d/px%.2dpy%.2dpz%.2d/mu%d\n", evecs_num, g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], imu );
-        for ( int it = 0; it < T; it++ ) {
-          fprintf ( stdout, "%26.16e  %25.16e\n", creal( phi_tr[it] ), cimag( phi_tr[it] ) );
-        }
-      }  // end of if verbose > 4
-
-
-      fini_1level_ztable ( &phi_tr );
-
-      /***********************************************************/
-      /***********************************************************/
-
-      fini_3level_ztable ( &phi );
 
     }  // end of loop on momenta
 
+
   }  // end of loop on mu
 
+  /***********************************************************/
+  /***********************************************************/
 
+
+  /***********************************************************
+   * test Ward identity
+   ***********************************************************/
+
+  if ( g_verbose > 4 )  {
+    // show the trace
+
+    for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+
+      int psource[3] = {
+        -g_sink_momentum_list[imom][0],
+        -g_sink_momentum_list[imom][1],
+        -g_sink_momentum_list[imom][2] };
+      int imom2 = get_momentum_id ( psource, g_sink_momentum_list, g_sink_momentum_number );
+      if ( imom2 == -1 ) {
+        fprintf( stderr, "[hvp_lma_recombine] Error, could not find matching id for psource = %3d %3d %3d\n", 
+            psource[0], psource[1], psource[2] );
+        
+        EXIT(4);
+      }
+      if ( g_verbose > 4 ) {
+        fprintf ( stdout, "# [hvp_lma_recombine] sink momentum %3d %3d %3d  source momentum %3d %3d %3d\n",
+            g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2] ,
+            g_sink_momentum_list[imom2][0], g_sink_momentum_list[imom2][1], g_sink_momentum_list[imom2][2] );
+      }
+
+      for ( int imu = 0; imu < 4; imu++ ) {
+      for ( int inu = 0; inu < 4; inu++ ) {
+
+        double _Complex **phi_tr = init_2level_ztable ( T, T );
+
+        gsp_tr_mat_weight_mat_weight ( phi_tr, phi[imu][imom], phi[inu][imom2], evecs_4kappasqr_lambdainv, evecs_num, T );
+
+        for ( int tsrc = 0; tsrc < T; tsrc++ ) {
+          fprintf ( stdout, "# [hvp_lma_recombine] /hvp/cvc/nev%.4d/px%.2dpy%.2dpz%.2d/mu%d/nu%d/t%.2d\n", evecs_num, g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], imu , inu , tsrc);
+          for ( int tsnk = 0; tsnk < T; tsnk++ ) {
+            fprintf ( stdout, "%26.16e  %25.16e\n", creal( phi_tr[tsnk][tsrc] ), cimag( phi_tr[tsnk][tsrc] ) );
+          }
+        }
+
+        fini_2level_ztable ( &phi_tr );
+
+      }}
+    }  // end of loop on momenta
+  }  // end of if verbose > 4
+#if 0
+#endif  // of if 0
+
+
+  /***********************************************************/
+  /***********************************************************/
+
+  fini_5level_ztable ( &phi );
 
   /***********************************************************/
   /***********************************************************/
