@@ -292,6 +292,11 @@ int main(int argc, char **argv) {
   /***********************************************************/
   /***********************************************************/
 
+#if 0
+  /***********************************************************
+   * read vv and ww, which are needed for the Ward identity
+   ***********************************************************/
+
   double _Complex **** ww = init_4level_ztable ( g_sink_momentum_number, T, evecs_num, evecs_num );
   double _Complex **** vv = init_4level_ztable ( g_sink_momentum_number, T, evecs_num, evecs_num );
   if ( ww == NULL || vv == NULL ) {
@@ -340,58 +345,20 @@ int main(int argc, char **argv) {
     }  // end of loop on timeslices
 
   }  // end of loop on momenta
-
-  /***********************************************************/
-  /***********************************************************/
-
-  /***********************************************************
-   * test Ward identity
-   ***********************************************************/
-#if 0
-  if ( g_verbose > 4 )  {
-    // show the trace
-
-    for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
-
-      int psource[3] = {
-        -g_sink_momentum_list[imom][0],
-        -g_sink_momentum_list[imom][1],
-        -g_sink_momentum_list[imom][2] };
-      int imom2 = get_momentum_id ( psource, g_sink_momentum_list, g_sink_momentum_number );
-      if ( imom2 == -1 ) {
-        fprintf( stderr, "[hvp_lma_recombine] Error, could not find matching id for psource = %3d %3d %3d\n", 
-            psource[0], psource[1], psource[2] );
-        
-        EXIT(4);
-      }
-      if ( g_verbose > 4 ) {
-        fprintf ( stdout, "# [hvp_lma_recombine] sink momentum %3d %3d %3d  source momentum %3d %3d %3d\n",
-            g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2] ,
-            g_sink_momentum_list[imom2][0], g_sink_momentum_list[imom2][1], g_sink_momentum_list[imom2][2] );
-      }
-
-      for ( int imu = 0; imu < 4; imu++ ) {
-      for ( int inu = 0; inu < 4; inu++ ) {
-
-        double _Complex **phi_tr = init_2level_ztable ( T, T );
-
-        gsp_tr_mat_weight_mat_weight ( phi_tr, phi[imu][imom], phi[inu][imom2], evecs_4kappasqr_lambdainv, evecs_num, T );
-
-        for ( int tsrc = 0; tsrc < T; tsrc++ ) {
-          fprintf ( stdout, "# [hvp_lma_recombine] /hvp/cvc/nev%.4d/px%.2dpy%.2dpz%.2d/mu%d/nu%d/t%.2d\n", evecs_num, g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], imu , inu , tsrc);
-          for ( int tsnk = 0; tsnk < T; tsnk++ ) {
-            fprintf ( stdout, "%26.16e  %25.16e\n", creal( phi_tr[tsnk][tsrc] ), cimag( phi_tr[tsnk][tsrc] ) );
-          }
-        }
-
-        fini_2level_ztable ( &phi_tr );
-
-      }}
-    }  // end of loop on momenta
-  }  // end of if verbose > 4
 #endif  // of if 0
 
+  /***********************************************************/
+  /***********************************************************/
 
+#if 0
+
+  /***********************************************************
+   * check the Ward identity for Phi per
+   *   3-momentum vector
+   *   eigenvector pair k1, k2 = 0, ..., Nev - 1
+   *   p0
+   *
+   ***********************************************************/
 
   for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
     for ( int k1 = 0; k1 < evecs_num; k1++ ) {
@@ -491,6 +458,75 @@ int main(int argc, char **argv) {
     }}  // end of loops on k2, k1
 
   }  // end of loop on 3-momenta
+#endif
+
+  /***********************************************************/
+  /***********************************************************/
+
+  /***********************************************************
+   * recombine to hvp tensor
+   ***********************************************************/
+
+  if ( g_verbose > 4 )  {
+    // show the trace
+
+    for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+
+      int psource[3] = {
+        -g_sink_momentum_list[imom][0],
+        -g_sink_momentum_list[imom][1],
+        -g_sink_momentum_list[imom][2] };
+      int imom2 = get_momentum_id ( psource, g_sink_momentum_list, g_sink_momentum_number );
+      if ( imom2 == -1 ) {
+        fprintf( stderr, "[hvp_lma_recombine] Error, could not find matching id for psource = %3d %3d %3d\n", 
+            psource[0], psource[1], psource[2] );
+        
+        EXIT(4);
+      }
+      if ( g_verbose > 4 ) {
+        fprintf ( stdout, "# [hvp_lma_recombine] sink momentum %3d %3d %3d  source momentum %3d %3d %3d\n",
+            g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2] ,
+            g_sink_momentum_list[imom2][0], g_sink_momentum_list[imom2][1], g_sink_momentum_list[imom2][2] );
+      }
+
+      double _Complex **** phi_tr = init_4level_ztable ( 4, 4, T, T );
+
+      for ( int imu = 0; imu < 4; imu++ ) {
+      for ( int inu = 0; inu < 4; inu++ ) {
+
+
+        gsp_tr_mat_weight_mat_weight ( phi_tr[mu][nu], phi[imu][imom], phi[inu][imom2], evecs_4kappasqr_lambdainv, evecs_num, T );
+
+        // print the trace
+        if ( g_verbose > 4 ) {
+          for ( int tsrc = 0; tsrc < T; tsrc++ ) {
+            fprintf ( stdout, "# [hvp_lma_recombine] /hvp/cvc/nev%.4d/px%.2dpy%.2dpz%.2d/mu%d/nu%d/t%.2d\n", evecs_num, g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], imu , inu , tsrc);
+            for ( int tsnk = 0; tsnk < T; tsnk++ ) {
+              fprintf ( stdout, "%26.16e  %25.16e\n", creal( phi_tr[mu][nu][tsnk][tsrc] ), cimag( phi_tr[mu][nu][tsnk][tsrc] ) );
+            }
+          }
+        }
+
+        fini_4level_ztable ( &phi_tr );
+
+      }}  // end of loop on nu, mu
+
+      /***********************************************************/
+      /***********************************************************/
+
+      /***********************************************************
+       * check the WI
+       ***********************************************************/
+      double _Complex **** phip = init_3level_ztable ( 4, 4, T );
+
+
+
+      fini_3level_ztable ( &phip );
+
+    }  // end of loop on momenta
+  }  // end of if verbose > 4
+#if 0
+#endif  // of if 0
 
 
   /***********************************************************/
