@@ -221,6 +221,10 @@ int main(int argc, char **argv) {
   /***********************************************************/
   /***********************************************************/
 
+#if 0
+  /***********************************************************
+   * read Phi
+   ***********************************************************/
   sprintf( tag, "/hvp/lma/N%d/B%d", evecs_num, evecs_block_length );
   sprintf( filename, "%s.%.4d", filename_prefix, Nconf );
 
@@ -288,7 +292,7 @@ int main(int argc, char **argv) {
 
 
   }  // end of loop on mu
-
+#endif
   /***********************************************************/
   /***********************************************************/
 
@@ -345,11 +349,129 @@ int main(int argc, char **argv) {
     }  // end of loop on timeslices
 
   }  // end of loop on momenta
-#endif  // of if 0
+#endif
 
   /***********************************************************/
   /***********************************************************/
 
+  /***********************************************************
+   * read mee part of hvp
+   ***********************************************************/
+  sprintf( tag, "/hvp/lma/N%d/B%d/mee", evecs_num, evecs_block_length );
+  sprintf( filename, "%s.%.4d", filename_prefix, Nconf );
+
+  double _Complex ****** hvp_mee_ts = init_6level_ztable ( g_sink_momentum_number, T, 4, 4, 3, evecs_num );
+  if ( hvp_mee_ts == NULL ) {
+    fprintf (stderr, "[hvp_lma_recombine] Error from init_6level_ztable %s %d\n", __FILE__, __LINE__ );
+    EXIT(3);
+  }
+
+  for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+
+    for ( int it = 0; it < T; it++ ) {
+
+      exitstatus = gsp_read_cvc_mee_node ( hvp_mee_ts[imom][it], evecs_num, g_sink_momentum_list[imom], filename, tag, it);
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[hvp_lma_recombine] Error from gsp_read_cvc_mee_node, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(14);
+      }
+
+      for ( int imu = 0; imu < 4; imu++ ) {
+      for ( int inu = 0; inu < 4; inu++ ) {
+        for ( int idt = 0; idt < 3; idt++ ) {
+          fprintf ( stdout, "# [hvp_lma_recombine] /hvp/lma/N%d/mee/mu%d/nu%d/px%.2dpy%.2dpz%.2d/t%.2d/dt%d\n", evecs_num, imu, inu,
+              g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], it, idt-1 );
+          for ( int i = 0; i < evecs_num; i++ ) {
+            fprintf ( stdout, "  %25.16e  %25.16e\n", creal( hvp_mee_ts[imom][it][imu][inu][idt][i] ), cimag( hvp_mee_ts[imom][it][imu][inu][idt][i] ) );
+          }
+        }
+      }}
+    }  // end of loop on timeslices
+  }  // end of loop on momenta
+
+  /***********************************************************/
+  /***********************************************************/
+
+#if 0
+  /***********************************************************
+   * check WI for mee part
+   ***********************************************************/
+  double _Complex **** hvp_mee = init_4level_ztable ( g_sink_momentum_number, 4, 4, T );
+  if ( hvp_mee == NULL ) {
+    fprintf (stderr, "[hvp_lma_recombine] Error from init_4level_ztable %s %d\n", __FILE__, __LINE__ );
+    EXIT(3);
+  }
+
+  for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+    for ( int imu = 0; imu < 4; imu++ ) {
+    for ( int inu = 0; inu < 4; inu++ ) {
+
+      for ( int ts = 0; ts < T; ts++ ) {
+
+        for ( int idt = 0; idt < 3; idt++ ) {
+          int const it = ( idt - 1 + T ) % T;
+
+          double _Complex ztmp = 0; 
+          for ( int i = 0; i < evecs_num; i++ ) {
+            ztmp += hvp_mee_ts[imom][ts][imu][inu][idt][i]  * evecs_4kappasqr_lambdainv[i];
+          }
+        
+
+          hvp_mee[imom][imu][inu][it] += ztmp;
+
+        }  // end of loop on dt
+
+      }  // end of loop on timeslices
+
+      // FT
+      gsp_ft_p0_shift ( hvp_mee[imom][imu][inu], hvp_mee[imom][imu][inu], g_sink_momentum_list[imom], imu, inu, +1 );
+
+    }}  // end of loop on nu, mu
+
+
+
+    for ( int ip0 = 0; ip0 < T; ip0 ++ ) {
+
+      double const sinp[4] = {
+        2. * sin( M_PI * ip0 / (double)T_global ),
+        2. * sin( M_PI * g_sink_momentum_list[imom][0] / (double)LX_global ),
+        2. * sin( M_PI * g_sink_momentum_list[imom][1] / (double)LY_global ),
+        2. * sin( M_PI * g_sink_momentum_list[imom][2] / (double)LZ_global ) 
+      };
+
+      for ( int inu = 0; inu < 4; inu++ ) {
+
+        double _Complex const dhvp_mee = 
+          sinp[0] * hvp_mee[imom][0][inu][ip0] +
+          sinp[1] * hvp_mee[imom][1][inu][ip0] +
+          sinp[2] * hvp_mee[imom][2][inu][ip0] +
+          sinp[3] * hvp_mee[imom][3][inu][ip0];
+
+        double _Complex const hvp_meed = 
+          sinp[0] * hvp_mee[imom][inu][0][ip0] +
+          sinp[1] * hvp_mee[imom][inu][1][ip0] +
+          sinp[2] * hvp_mee[imom][inu][2][ip0] +
+          sinp[3] * hvp_mee[imom][inu][3][ip0];
+
+        fprintf ( stdout, " WI p %3d %3d %3d %3d nu %d dhvp_mee %25.16e %25.16e hvp_meed %25.16e %25.16e\n", 
+            ip0, g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
+            inu, creal ( dhvp_mee ), cimag ( dhvp_mee ), creal ( hvp_meed ), cimag ( hvp_meed ) );
+      }  // end of loop on nu
+
+    }  // end of loop on p0
+
+
+
+  }  // end of loop on momenta
+  
+  
+
+  fini_4level_ztable ( &hvp_mee );
+
+#endif
+
+  /***********************************************************/
+  /***********************************************************/
 #if 0
 
   /***********************************************************
@@ -463,14 +585,12 @@ int main(int argc, char **argv) {
   /***********************************************************/
   /***********************************************************/
 
+#if 0
   /***********************************************************
    * recombine to hvp tensor
    ***********************************************************/
 
-  if ( g_verbose > 4 )  {
-    // show the trace
-
-    for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+  for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
 
       int psource[3] = {
         -g_sink_momentum_list[imom][0],
@@ -489,27 +609,44 @@ int main(int argc, char **argv) {
             g_sink_momentum_list[imom2][0], g_sink_momentum_list[imom2][1], g_sink_momentum_list[imom2][2] );
       }
 
-      double _Complex **** phi_tr = init_4level_ztable ( 4, 4, T, T );
+      double _Complex *** hvp = init_3level_ztable ( 4, 4, T );
+      double _Complex ** vv_phi = init_2level_ztable ( 4, T );
+      double _Complex ** ww_phi = init_2level_ztable ( 4, T );
+      double _Complex ** phi_vv = init_2level_ztable ( 4, T );
+      double _Complex ** phi_ww = init_2level_ztable ( 4, T );
+
+      double * unit_weight = init_1level_dtable ( evecs_num );
+      for ( int i = 0; i < evecs_num; i++ ) unit_weight[i] = 1.;
 
       for ( int imu = 0; imu < 4; imu++ ) {
+
+        gsp_tr_mat_weight_mat_weight ( vv_phi[imu], vv[imom],       unit_weight,               phi[imu][imom2], evecs_4kappasqr_lambdainv, evecs_num, T );
+        gsp_tr_mat_weight_mat_weight ( phi_vv[imu], phi[imu][imom], evecs_4kappasqr_lambdainv, vv[imom2],       unit_weight,               evecs_num, T );
+
+        gsp_tr_mat_weight_mat_weight ( ww_phi[imu], ww[imom],       evecs_4kappasqr_lambdainv, phi[imu][imom2], evecs_4kappasqr_lambdainv, evecs_num, T );
+        gsp_tr_mat_weight_mat_weight ( phi_ww[imu], phi[imu][imom], evecs_4kappasqr_lambdainv, ww[imom2],       evecs_4kappasqr_lambdainv, evecs_num, T );
+
       for ( int inu = 0; inu < 4; inu++ ) {
 
-
-        gsp_tr_mat_weight_mat_weight ( phi_tr[mu][nu], phi[imu][imom], phi[inu][imom2], evecs_4kappasqr_lambdainv, evecs_num, T );
-
-        // print the trace
-        if ( g_verbose > 4 ) {
-          for ( int tsrc = 0; tsrc < T; tsrc++ ) {
-            fprintf ( stdout, "# [hvp_lma_recombine] /hvp/cvc/nev%.4d/px%.2dpy%.2dpz%.2d/mu%d/nu%d/t%.2d\n", evecs_num, g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], imu , inu , tsrc);
-            for ( int tsnk = 0; tsnk < T; tsnk++ ) {
-              fprintf ( stdout, "%26.16e  %25.16e\n", creal( phi_tr[mu][nu][tsnk][tsrc] ), cimag( phi_tr[mu][nu][tsnk][tsrc] ) );
-            }
-          }
-        }
-
-        fini_4level_ztable ( &phi_tr );
+        gsp_tr_mat_weight_mat_weight ( hvp[imu][inu], phi[imu][imom], evecs_4kappasqr_lambdainv, phi[inu][imom2], evecs_4kappasqr_lambdainv, evecs_num, T );
 
       }}  // end of loop on nu, mu
+
+      /***********************************************************/
+      /***********************************************************/
+
+      // FT
+
+      for ( int imu = 0; imu < 4; imu++ ) {
+        gsp_ft_p0_shift ( phi_vv[imu], phi_vv[imu], g_sink_momentum_list[imom], imu, -1, +1 );
+        gsp_ft_p0_shift ( phi_ww[imu], phi_ww[imu], g_sink_momentum_list[imom], imu, -1, +1 );
+
+        gsp_ft_p0_shift ( vv_phi[imu], vv_phi[imu], g_sink_momentum_list[imom], -1, imu, +1 );
+        gsp_ft_p0_shift ( ww_phi[imu], ww_phi[imu], g_sink_momentum_list[imom], -1, imu, +1 );
+
+      for ( int inu = 0; inu < 4; inu++ ) {
+        gsp_ft_p0_shift ( hvp[imu][inu], hvp[imu][inu], g_sink_momentum_list[imom], imu, inu, +1 );
+      }}
 
       /***********************************************************/
       /***********************************************************/
@@ -517,24 +654,67 @@ int main(int argc, char **argv) {
       /***********************************************************
        * check the WI
        ***********************************************************/
-      double _Complex **** phip = init_3level_ztable ( 4, 4, T );
+      for ( int ip0 = 0; ip0 < T; ip0 ++ ) {
+
+        double const sinp[4] = {
+          2. * sin( M_PI * ip0 / (double)T_global ),
+          2. * sin( M_PI * g_sink_momentum_list[imom][0] / (double)LX_global ),
+          2. * sin( M_PI * g_sink_momentum_list[imom][1] / (double)LY_global ),
+          2. * sin( M_PI * g_sink_momentum_list[imom][2] / (double)LZ_global ) 
+        };
 
 
+        for ( int inu = 0; inu < 4; inu++ ) {
 
-      fini_3level_ztable ( &phip );
+          double _Complex const dhvp = sinp[0] * hvp[0][inu][ip0]
+                                     + sinp[1] * hvp[1][inu][ip0]
+                                     + sinp[2] * hvp[2][inu][ip0]
+                                     + sinp[3] * hvp[3][inu][ip0];
 
-    }  // end of loop on momenta
-  }  // end of if verbose > 4
-#if 0
+          double _Complex const dct = ww_phi[inu][ip0] - vv_phi[inu][ip0];
+
+          double const ddiff = cabs ( I * dhvp - dct );
+
+          double _Complex const hvpd = sinp[0] * hvp[inu][0][ip0]
+                                     + sinp[1] * hvp[inu][1][ip0]
+                                     + sinp[2] * hvp[inu][2][ip0]
+                                     + sinp[3] * hvp[inu][3][ip0];
+
+          double _Complex const ctd = phi_ww[inu][ip0] - phi_vv[inu][ip0];
+
+          double const diffd = cabs( -I * hvpd - ctd );
+
+          fprintf ( stdout, " WI p %3d %3d %3d %3d nu %d dhvp %25.16e %25.16e dct %25.16e %25.16e d %9.2e hvpd %25.16e %25.16e ctd %25.16e %25.16e d %9.2e\n", 
+              ip0, g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
+              inu, creal ( dhvp ), cimag ( dhvp ), creal ( dct ), cimag ( dct ), ddiff, creal ( hvpd ), cimag ( hvpd ), creal ( ctd ), cimag ( ctd ), diffd );
+              
+
+        }  // end of loop on nu
+      }  // end of loop on p0
+
+      /***********************************************************/
+      /***********************************************************/
+
+      fini_1level_dtable ( &unit_weight );
+      fini_3level_ztable ( &hvp );
+      fini_2level_ztable ( &vv_phi );
+      fini_2level_ztable ( &ww_phi );
+      fini_2level_ztable ( &phi_vv );
+      fini_2level_ztable ( &phi_ww );
+
+  }  // end of loop on momenta
+
 #endif  // of if 0
 
 
   /***********************************************************/
   /***********************************************************/
-
+#if 0
   fini_5level_ztable ( &phi );
   fini_4level_ztable ( &vv );
   fini_4level_ztable ( &ww );
+#endif
+  fini_6level_ztable ( &hvp_mee_ts );
 
   /***********************************************************/
   /***********************************************************/
