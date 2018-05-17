@@ -143,6 +143,8 @@ double _Complex rot_mat_trace_weight_re ( double _Complex ** const R, double * c
 
 double _Complex co_eq_trace_mat_ti_mat_weight_re ( double _Complex ** const A, double _Complex ** const B, double * const weight, int const num );
 
+double _Complex co_eq_trace_mat_ti_weight_ti_mat_ti_weight_re ( double _Complex ** const A, double * const w1, double _Complex ** const B, double * const w2, int const num );
+
 void rot_vec_pl_eq_vec_ti_co ( double _Complex*v, double _Complex*w, double _Complex c , int N );
 
 void rot_vec_normalize ( double _Complex *v, int N );

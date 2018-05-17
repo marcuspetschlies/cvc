@@ -2576,6 +2576,53 @@ double _Complex co_eq_trace_mat_ti_mat_weight_re ( double _Complex ** const A, d
   return ( res );
 }  // end of co_eq_trace_mat_ti_mat_weight_re
 
+
+/***********************************************************************************************/
+/***********************************************************************************************/
+
+/***********************************************************************************************
+ *
+ ***********************************************************************************************/
+double _Complex co_eq_trace_mat_ti_weight_ti_mat_ti_weight_re ( double _Complex ** const A, double * const w1, double _Complex ** const B, double * const w2, int const num ) {
+
+  double _Complex res = 0.;
+
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+  omp_init_lock(&writelock);
+#pragma omp parallel
+{
+#endif
+
+  double _Complex c = 0.;
+  double _Complex * const B_ = B[0];
+  double _Complex Brow[num];
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for ( int i = 0; i < num; i++ ) {
+
+    for ( int k = 0; k < num; k++ ) Brow[k] = B_[k*num+i] * w1[k];
+    double _Complex * const A_ = A[i];
+    double _Complex weight_ = w2[i];
+
+    for ( int k = 0; k < num; k++ ) {
+      c += A_[k] * weight_ * Brow [k];
+    }
+  }
+#ifdef HAVE_OPENMP
+  omp_set_lock(&writelock);
+  res += c;
+  omp_unset_lock(&writelock);
+}  // end of parallel region
+  omp_destroy_lock(&writelock);
+#else
+  res = c;
+#endif
+  return ( res );
+}  // end of co_eq_trace_mat_ti_weight_ti_mat_ti_weight_re
+
 /***********************************************************************************************/
 /***********************************************************************************************/
 
