@@ -525,6 +525,81 @@ int gsp_read_cvc_node (
 
 /***********************************************************************************************/
 /***********************************************************************************************/
+
+/***********************************************************************************************
+ * gsp_read_cvc_node
+ ***********************************************************************************************/
+int gsp_read_cvc_mee_node (
+    double _Complex **** const fac,
+    unsigned int const numV,
+    int const momentum[3],
+    char * const prefix,
+    char * const tag,
+    int const timeslice
+) {
+
+  char filename[200];
+  char key[500];
+  int exitstatus;
+  int const file_t = 0;
+
+  if ( g_verbose > 2 ) fprintf ( stdout, "# [gsp_read_cvc_mee_node] timeslice for filename = %d\n", file_t );
+
+#ifdef HAVE_LHPC_AFF
+
+  sprintf(filename, "%s.t%.2d.aff", prefix, file_t );
+  fprintf(stdout, "# [gsp_read_cvc_mee_node] reading gsp data from file %s\n", filename);
+  struct AffReader_s * affr = aff_reader(filename);
+
+  const char * aff_status_str = aff_reader_errstr(affr);
+  if( aff_status_str != NULL ) {
+    fprintf(stderr, "[gsp_read_cvc_mee_node] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+    return(1);
+  }
+
+  struct AffNode_s *affn = aff_reader_root(affr);
+  if( affn == NULL ) {
+    fprintf(stderr, "[gsp_read_cvc_mee_node] Error, aff reader is not initialized\n");
+    return(2);
+  }
+ 
+
+  for ( int imu = 0; imu < 4; imu++ ) {
+    for ( int inu = 0; inu < 4; inu++ ) {
+
+      for ( int idt = 0; idt < 3; idt++ ) {
+
+        // set the key prefix
+        sprintf ( key, "%s/mu%d/nu%d/px%.2dpy%.2dpz%.2d/t%.2d/dt%d", tag, imu, inu, momentum[0], momentum[1], momentum[2], timeslice, idt-1 );
+
+
+        uint32_t uitems = (uint32_t)numV;
+
+        if(g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [gsp_read_cvc_mee_node] key = %s\n", key );
+        struct AffNode_s * affdir = aff_reader_chpath ( affr, affn, key );
+        if ( ( exitstatus = aff_node_get_complex ( affr, affdir, fac[imu][inu][idt], (uint32_t)uitems) ) != 0 ) {
+          fprintf(stderr, "[gsp_read_cvc_mee_node] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          return(4);
+        }
+      }  // end of loop on dt
+    }  // end of loop on nu
+  }  // end of loop on mu
+
+  aff_reader_close (affr);
+#else
+
+  fprintf(stderr, "[gsp_read_cvc_mee_node] Error, FILE stream read-in not yet implemented\n");
+  return(5);
+
+#endif
+
+  return(0);
+
+}  // end of gsp_read_cvc_mee_node
+
+/***********************************************************************************************/
+/***********************************************************************************************/
+
 #if 0
 /***********************************************************************************************
  *
@@ -616,6 +691,58 @@ int gsp_prepare_cvc_from_file ( double _Complex ***gsp, int numV, int momentum[3
   return(0);
 }  // gsp_prepare_cvc_from_file */
 #endif  // if 0
+
+/***********************************************************************************************/
+/***********************************************************************************************/
+
+/***********************************************************************************************
+ *
+ ***********************************************************************************************/
+int gsp_ft_p0_shift ( double _Complex * const s_out, double _Complex * const s_in, int const pvec[3], int const mu , int const nu, int const sign ) {
+
+  double _Complex * r = init_1level_ztable ( T );
+  if ( r == NULL ) return( 1 );
+
+  double const p3[3] = {
+    sign * M_PI * pvec[0] / (double)LX_global,
+    sign * M_PI * pvec[1] / (double)LY_global,
+    sign * M_PI * pvec[2] / (double)LZ_global 
+  };
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( int ip0 = 0; ip0 < T; ip0 ++ ) {
+
+    double const p[4] = { sign * M_PI * ip0 / (double)T_global, p3[0], p3[1], p3[2] };
+
+    // loop on x0
+    for ( int it = 0; it < T; it++ ) {
+      double const phase = p[0] * 2 * ( it + g_proc_coords[0] * T);
+      double _Complex const ephase = cexp ( phase * I );
+      r[ip0] += s_in[it] * ephase;
+    }
+
+    // shift if mu = 
+    double const dp = ( ( mu >= 0 && mu < 4 ) ? p[mu] : 0 ) - ( ( nu >= 0 && nu < 4 ) ? p[nu] : 0 );
+    r[ip0] *= cexp( dp * I );
+
+  }  // end of loop on p0
+
+#ifdef HAVE_MPI 
+#  if ( defined PARALLELTX ) || ( defined PARALLELTXY )|| ( defined PARALLELTXYZ )
+  if ( MPI_Allreduce( r, s_out, 2*T, MPI_DOUBLE, MPI_SUM, g_tr_comm   ) != MPI_SUCCESS ) return(2);
+#  else
+  if ( MPI_Allreduce( r, s_out, 2*T, MPI_DOUBLE, MPI_SUM, g_cart_grid ) != MPI_SUCCESS ) return(2);
+#  endif
+#else
+  memcpy ( s_out, r, T*sizeof( double _Complex ) );
+#endif
+
+  fini_1level_ztable ( &r );
+  return( 0 );
+
+}  // end of gsp_ft_p0_shift
 
 /***********************************************************************************************/
 /***********************************************************************************************/

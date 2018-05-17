@@ -24,6 +24,18 @@ int gsp_read_cvc_node (
   unsigned int const nt
 );
 
+int gsp_ft_p0_shift ( double _Complex * const s_out, double _Complex * const s_in, int const pvec[3], int const mu , int const nu, int const sign );
+
+int gsp_read_cvc_mee_node (
+  double _Complex **** const fac,
+  unsigned int const numV,
+  int const momentum[3],
+  char * const prefix,
+  char * const tag,
+  int const timeslice
+);
+
+
 /***************************************************/
 /***************************************************/
 
