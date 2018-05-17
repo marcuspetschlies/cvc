@@ -375,6 +375,15 @@ int main(int argc, char **argv) {
     EXIT(32);
   }
 
+  sprintf(aff_tag, "/hvp/lma/N%d/B%d/mee", evecs_num, evecs_block_length );
+  if ( g_cart_id == 0 ) fprintf ( stdout, "# [hvp_lma] current aff tag = %s\n", aff_tag );
+
+  exitstatus = contract_cvc_tensor_eo_lm_mee ( eo_evecs_field, evecs_num, gauge_field_with_phase,  mzz, mzzinv, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[hvp_lma] Error from contract_cvc_tensor_eo_lm_mee, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(33);
+  }
+
 #ifdef HAVE_LHPC_AFF
   if( io_proc >= 1 ) {
     const char * aff_status_str = aff_writer_close ( affw );
@@ -390,6 +399,8 @@ int main(int argc, char **argv) {
   /***********************************************************/
   /***********************************************************/
  
+#if 0
+
   double ** eo_work = init_2level_dtable ( 3, _GSI( (VOLUME+RAND)/2 ) );
   size_t const sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
   void *buffer = NULL;
@@ -955,6 +966,7 @@ int main(int argc, char **argv) {
   fini_2level_dtable ( &w_field );
   fini_2level_dtable ( &v_field );
 
+#endif  // of if 0
 
   /***********************************************************/
   /***********************************************************/
