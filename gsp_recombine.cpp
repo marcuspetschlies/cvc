@@ -72,20 +72,25 @@ void gsp_tr_mat_weight (double _Complex * const r , double _Complex *** const s 
  * output
  *  r = T double complex
  ***********************************************************************************************/
-void gsp_tr_mat_weight_mat_weight ( double _Complex ** const r , 
+void gsp_tr_mat_weight_mat_weight ( double _Complex * const r , 
     double _Complex *** const s1 ,
+    double * const w1, 
     double _Complex *** const s2 ,
-    double * const w, 
+    double * const w2, 
     int const numV, int const N 
   ) {
 
-  memset ( r[0], 0, N*N*sizeof(double _Complex) );
+  memset ( r, 0, N*sizeof(double _Complex) );
+  if ( ( w1 == NULL ) || ( w2 == NULL ) ) {
+    fprintf ( stderr, "[gsp_tr_mat_weight_mat_weight] Error, a weight is NULL\n" );
+    return;
+  }
 
   for ( int i = 0; i < N; i++ ) {
-    for ( int k = 0; k < N; k++ ) {
-      r[i][k] += co_eq_trace_mat_ti_mat_weight_re ( s1[i], s2[k], w, numV );
-    }
-  }
+  for ( int k = 0; k < N; k++ ) {
+    int const ik = ( i - k + N ) % N;
+    r[ik] += co_eq_trace_mat_ti_weight_ti_mat_ti_weight_re ( s1[i], w1, s2[k], w2, numV );
+  }}
   return;
 }  // end of gsp_tr_mat_weight_mat_weight
 
