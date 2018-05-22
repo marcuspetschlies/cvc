@@ -39,7 +39,7 @@ int const contract_cvc_tensor_eo_lm_ct (
     return(1);
   }
 
-  double ** eo_spinor_work = init_2level_dtable ( 1, _GSI( (VOLUME+RAND)/2 ) );
+  double ** eo_spinor_work = init_2level_dtable ( 2, _GSI( (VOLUME+RAND)/2 ) );
   if ( eo_spinor_work == NULL ) {
     fprintf(stderr, "# [contract_cvc_tensor_eo_lm_ct] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
     return(1);
@@ -93,33 +93,37 @@ int const contract_cvc_tensor_eo_lm_ct (
       double _Complex * p = init_1level_ztable ( T );
 
       // ( g5 Gmufwdr V )^+ XW
+      // fwd , even target field 0, 0
       memcpy ( eo_spinor_work[0], v, sizeof_eo_spinor_field );
       apply_cvc_vertex_eo( gmuf, eo_spinor_work[0], imu, 0, gauge_field, 0 );
       g5_phi ( gmuf, Vhalf );
       eo_spinor_spatial_scalar_product_co( p, gmuf, xw, 0 );
-      for ( int it = 0; it < T; it++ ) ct[i][imu][inev] = -p[it];
+      for ( int it = 0; it < T; it++ ) ct[it][imu][inev] -= p[it];
 
       // ( g5 Gmufwd XV )^+ W
+      // fwd, odd target field 0, 1
       memcpy ( eo_spinor_work[0], xv, sizeof_eo_spinor_field );
       apply_cvc_vertex_eo( gmuf, eo_spinor_work[0], imu, 0, gauge_field, 1 );
       g5_phi ( gmuf, Vhalf );
       eo_spinor_spatial_scalar_product_co( p, gmuf, w, 1 );
-      for ( int it = 0; it < T; it++ ) ct[i][imu][inev] -= p[it];
+      for ( int it = 0; it < T; it++ ) ct[it][imu][inev] -= p[it];
 
 
       // ( XV )^+ ( g5 Gmufwd W ) on even sublattice
+      // fwd, even target field 0, 0
       memcpy ( eo_spinor_work[0], w, sizeof_eo_spinor_field );
       apply_cvc_vertex_eo( gmuf, eo_spinor_work[0], imu, 0, gauge_field, 0 );
       g5_phi ( gmuf, Vhalf );
       eo_spinor_spatial_scalar_product_co( p, xv, gmuf, 0 );
-      for ( int it = 0; it < T; it++ ) ct[i][imu][inev] = -p[it];
+      for ( int it = 0; it < T; it++ ) ct[it][imu][inev] -= p[it];
 
       // ( V )^+ ( g5 Gmufwd XW )
+      // fwd, odd target field 0, 1
       memcpy ( eo_spinor_work[0], xw, sizeof_eo_spinor_field );
       apply_cvc_vertex_eo( gmuf, eo_spinor_work[0], imu, 0, gauge_field, 1 );
       g5_phi ( gmuf, Vhalf );
       eo_spinor_spatial_scalar_product_co( p, v, gmuf, 1 );
-      for ( int it = 0; it < T; it++ ) ct[i][imu][inev] -= p[it];
+      for ( int it = 0; it < T; it++ ) ct[it][imu][inev] -= p[it];
 
       fini_1level_ztable ( &p );
 
