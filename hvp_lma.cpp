@@ -375,12 +375,35 @@ int main(int argc, char **argv) {
     EXIT(32);
   }
 
+  /***********************************************************/
+  /***********************************************************/
+ 
+  /***********************************************************
+   * low-mode contribution to mee part
+   ***********************************************************/
   sprintf(aff_tag, "/hvp/lma/N%d/B%d/mee", evecs_num, evecs_block_length );
   if ( g_cart_id == 0 ) fprintf ( stdout, "# [hvp_lma] current aff tag = %s\n", aff_tag );
 
   exitstatus = contract_cvc_tensor_eo_lm_mee ( eo_evecs_field, evecs_num, gauge_field_with_phase,  mzz, mzzinv, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[hvp_lma] Error from contract_cvc_tensor_eo_lm_mee, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(33);
+  }
+
+  /***********************************************************/
+  /***********************************************************/
+ 
+  /***********************************************************
+   * low-mode contribution to contact term
+   ***********************************************************/
+  sprintf(aff_tag, "/hvp/lma/N%d/B%d/ct", evecs_num, evecs_block_length );
+  if ( g_cart_id == 0 ) fprintf ( stdout, "# [hvp_lma] current aff tag = %s\n", aff_tag );
+
+  exitstatus = contract_cvc_tensor_eo_lm_ct ( eo_evecs_field, evecs_num, gauge_field_with_phase, mzz, mzzinv, 
+      affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc);
+
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[hvp_lma] Error from contract_cvc_tensor_eo_lm_ct, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(33);
   }
 
