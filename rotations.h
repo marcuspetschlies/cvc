@@ -65,7 +65,7 @@ double rot_mat_norm2 (double _Complex **R, int N);
 
 int rot_mat_check_is_sun (double _Complex **R, int N);
 
-void rot_point ( int nrot[3], int n[3], double _Complex **R);
+void rot_point ( int nrot[3], int const nn[3], double _Complex ** const R);
 
 void rot_point_inv ( int nrot[3], int n[3], double _Complex **R);
 
