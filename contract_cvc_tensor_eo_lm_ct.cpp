@@ -11,7 +11,6 @@ int const contract_cvc_tensor_eo_lm_ct (
     double ** const eo_evecs_field, unsigned int const nev,
     double * const gauge_field, double ** const mzz[2], double ** const mzzinv[2],
     struct AffWriter_s * affw, char * const tag, 
-    int (* const momentum_list)[3], unsigned int const momentum_number,
     unsigned int const io_proc
 ) {
 
