@@ -54,9 +54,9 @@ int const contract_cvc_tensor_eo_lm_mee_ct (
   /***********************************************************
    * gather scalar products for all eigenvectors
    ***********************************************************/
-  double _Complex *** ct = init_4level_ztable (T, momentum_number, 4, nev )
+  double _Complex *** ct = init_5level_ztable (T, 3, momentum_number, 4, nev )
   if ( ct == NULL )  {
-    fprintf(stderr, "# [contract_cvc_tensor_eo_lm_mee_ct] Error from init_4level_ztable %s %d\n", __FILE__, __LINE__);
+    fprintf(stderr, "# [contract_cvc_tensor_eo_lm_mee_ct] Error from init_5level_ztable %s %d\n", __FILE__, __LINE__);
     return(2);
   }
 
@@ -92,25 +92,100 @@ int const contract_cvc_tensor_eo_lm_mee_ct (
 
       double _Complex * p = init_1level_ztable ( T );
 
-      // ( XV )^+ ( g5 Gmufwd W ) on even sublattice
+
+      /***********************************************************
+       * (2) ( XV )^+ ( g5 Gmufwd W ) delta_x,y
+       * on even sublattice
+       ***********************************************************/
       memcpy ( eo_spinor_work[0], w, sizeof_eo_spinor_field );
       apply_cvc_vertex_eo( gmuf, eo_spinor_work[0], imu, 0, gauge_field, 0 );
       g5_phi ( gmuf, Vhalf );
       eo_spinor_spatial_scalar_product_co( p, xv, gmuf, 0 );
       for ( int it = 0; it < T; it++ ) {
         for ( int imom = 0; imom < momentum_number; imom++ ) {
-          ct[it][imom][imu][inev] += p[it];
+          ct[it][1][imom][imu][inev] += p[it];
+        }
+      }
+
+      /***********************************************************
+       * (4) ( XV )_x^+ ( g5 Gmubwd W )_x delta_x-mu,y 
+       * on even sublattice
+       * x - y = + mu
+       ***********************************************************/
+      memcpy ( eo_spinor_work[0], w, sizeof_eo_spinor_field );
+      apply_cvc_vertex_eo( gmuf, eo_spinor_work[0], imu, 1, gauge_field, 0 );
+      g5_phi ( gmuf, Vhalf );
+      eo_spinor_spatial_scalar_product_co( p, xv, gmuf, 0 );
+      for ( int imom = 0; imom < momentum_number; imom++ ) {
+        double const q[4] = { 0, 
+          2.*M_PI*momentum_list[imom][0] / (double)LX_global,
+          2.*M_PI*momentum_list[imom][1] / (double)LY_global,
+          2.*M_PI*momentum_list[imom][2] / (double)LZ_global };
+
+        double _Complex const ephase = cexp ( +q[mu] * I );
+        int const dt  = ( imu == 0 );
+        int const idt = dt + 1;
+        
+        for ( int it = 0; it < T; it++ ) {
+          ct[it][idt][imom][imu][inev] += p[it] * ephase;
+        }
+      }
+
+      /***********************************************************
+       * (5) -V_y^+ ( g5 Gmufwd XW )_y delta_y+mu,x 
+       * on odd sublattice
+       * x - y = +mu
+       ***********************************************************/
+      memcpy ( eo_spinor_work[0], xw, sizeof_eo_spinor_field );
+      apply_cvc_vertex_eo( gmuf, eo_spinor_work[0], imu, 0, gauge_field, 1 );
+      g5_phi ( gmuf, Vhalf );
+      eo_spinor_spatial_scalar_product_co( p, xv, gmuf, 1 );
+      for ( int imom = 0; imom < momentum_number; imom++ ) {
+        double const q[4] = { 0, 
+          2.*M_PI*momentum_list[imom][0] / (double)LX_global,
+          2.*M_PI*momentum_list[imom][1] / (double)LY_global,
+          2.*M_PI*momentum_list[imom][2] / (double)LZ_global };
+
+        double _Complex const ephase = cexp ( +q[mu] * I );
+        int const dt  = ( imu == 0 );
+        int const idt = dt + 1;
+        
+        for ( int it = 0; it < T; it++ ) {
+          ct[it][idt][imom][imu][inev] += -p[it] * ephase;
         }
       }
 
 
-
-      // ( g5 Gmufwdr V )^+ XW
+      /***********************************************************
+       * (7) -(V^+ g5 Gmubwd )_y XW_x delta_yx 
+       *   = + ( g5 Gmufwd V )_y^+ XW_x delta_yx
+       * on even sublattice
+       * x - y = 0
+       ***********************************************************/
       memcpy ( eo_spinor_work[0], v, sizeof_eo_spinor_field );
       apply_cvc_vertex_eo( gmuf, eo_spinor_work[0], imu, 0, gauge_field, 0 );
       g5_phi ( gmuf, Vhalf );
       eo_spinor_spatial_scalar_product_co( p, gmuf, xw, 0 );
-      for ( int it = 0; it < T; it++ ) ct[it][imu][inev] = -p[it];
+      for ( int it = 0; it < T; it++ ) {
+        for ( int imom = 0; imom < momentum_number; imom++ ) {
+          ct[it][1][imom][imu][inev] += p[it];
+        }
+      }
+
+      /***********************************************************
+       * (8) + (V^+ g5 Gmubwd )_y X_yx  W_x 
+       *   = - ( g5 Gmufwd V )^+_y X_yx W_x
+       ***********************************************************/
+      // Mbar_ee^-1 g5 Gmufwd V
+      M_clover_zz_inv_matrix ( gmuf, gmuf, mzzinv[1][0] );
+
+
+      for ( int imom = 0; imom < momentum_number; imom++ ) {
+
+          ct[it][imom][imu][inev] += p[it];
+      }
+
+
 
       // ( g5 Gmufwd XV )^+ W
       memcpy ( eo_spinor_work[0], xv, sizeof_eo_spinor_field );
