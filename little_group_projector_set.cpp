@@ -17,7 +17,8 @@ int little_group_projector_set (
     const int * interpolator_cartesian_list,
     const int ref_row_target,
     const int * ref_row_spin,
-    const char * name 
+    const char * name,
+    int const refframerot
   /***********************************************************/
 ) {
 
@@ -105,6 +106,67 @@ int little_group_projector_set (
     strcpy ( p->name , name );
   }
 
+  /***********************************************************/
+  /***********************************************************/
+
+  /***********************************************************
+   * prepare reference frame rotation
+   ***********************************************************/
+
+  double _Complex **refframerot_p = NULL;
+  double _Complex ***refframerot_spin = NULL;
+#if defined CUBIC_GROUP_DOUBLE_COVER
+  int const use_refframerot = ( p->refframerot > -1 ) && ( p->refframerot < 48 );
+#elif defined CUBIC_GROUP_SINGLE_COVER
+  int const use_refframerot = ( p->refframerot > -1 ) && ( p->refframerot < 24 );
+#endif
+
+  if ( use_refframerot ) {
+    // set the reference frame rotation matrix
+    // for the 3-momentum vector p;
+    // spin 1 in cartesian basis
+    refframerot_p = rot_init_rotation_matrix ( 3 );
+    if ( refframerot_p == NULL ) return(NULL);
+
+#if defined CUBIC_GROUP_DOUBLE_COVER
+    rot_mat_spin1_cartesian ( refframerot_p, cubic_group_double_cover_rotations[p->refframerot].n, cubic_group_double_cover_rotations[p->refframerot].w );
+#elif defined CUBIC_GROUP_SINGLE_COVER
+    rot_rotation_matrix_spherical_basis_Wigner_D ( refframerot_p, 2, cubic_group_rotations_v2[p->refframerot].a );
+    rot_spherical2cartesian_3x3 ( refframerot_p, refframerot_p );
+#endif
+    if ( ! ( rot_mat_check_is_real_int ( refframerot_p) ) ) {
+      fprintf(stderr, "[little_group_projector_set] Error rot_mat_check_is_real_int refframerot_p %s %d\n", __FILE__, __LINE__);
+      return(72);
+    }
+
+    // set the reference frame rotation matrix
+    // for the spin-J vectors
+    refframerot_spin = (double _Complex ***) malloc ( p->n * sizeof(double _Complex **) );
+    if ( refframerot_spin == NULL ) return( NULL);
+
+    for ( int i = 0; i < p->n; i++ ) {
+      refframerot_spin[i] = rot_init_rotation_matrix ( spin_dimensions[i] );
+      if ( refframerot_spin[i] == NULL ) return(NULL);
+
+#if defined CUBIC_GROUP_DOUBLE_COVER
+      rot_rotation_matrix_spherical_basis ( refframerot_spin[i], spin_dimensions[i]-1, cubic_group_double_cover_rotations[p->refframerot].n, cubic_group_double_cover_rotations[p->refframerot].w );
+#elif defined CUBIC_GROUP_SINGLE_COVER
+      rot_rotation_matrix_spherical_basis_Wigner_D ( refframerot_spin[i], spin_dimensions[i]-1, cubic_group_rotations_v2[p->refframerot].a );
+#endif
+      if ( interpolator_cartesian_list[i] && ( interpolator_J2_list[i] == 2 ) ) {
+        rot_spherical2cartesian_3x3 ( refframerot_spin[i], refframerot_spin[i] );
+        if ( ! ( rot_mat_check_is_real_int ( refframerot_spin[i] ) ) ) {
+          fprintf(stderr, "[little_group_projector_set] Error rot_mat_check_is_real_int refframerot_spin %2d %s %d\n", i,  __FILE__, __LINE__);
+          return(71);
+        }
+      }
+    }  // end of loop on interpolators
+
+  }  // end of if refframerot
+
+  /***********************************************************/
+  /***********************************************************/
+
   /***********************************************************
    * set total momentum vector
    *
@@ -113,6 +175,11 @@ int little_group_projector_set (
   p->P[0] = lg->d[0];
   p->P[1] = lg->d[1];
   p->P[2] = lg->d[2];
+  if ( use_refframerot ) rot_point ( p->P, p->P, refframerot_p );
+
+
+  /***********************************************************/
+  /***********************************************************/
 
   /***********************************************************
    * set rotation matrix table for 3-momentum vector p
@@ -156,6 +223,13 @@ int little_group_projector_set (
     if ( ! ( rot_mat_check_is_real_int ( (p->rp)->R[irot], 3 ) && rot_mat_check_is_real_int ( (p->rp)->IR[irot], 3 ) ) ) {
       fprintf(stderr, "[little_group_projector_set] Error rot_mat_check_is_real_int rot %d / %d %s %d\n", rid, rmid, __FILE__, __LINE__);
       return(7);
+    }
+  STOPPED HERE
+    if ( use_refframerot ) {
+      rot_mat_ti_mat (double _Complex **C, double _Complex **A, double _Complex **B, int N);
+
+      rot_mat_ti_mat_adj (double _Complex **C, double _Complex **A, double _Complex **B, int N);
+
     }
 
   }  /* end of loop on rotation group elements in target irrep */
@@ -230,6 +304,23 @@ int little_group_projector_set (
   if ( interpolator_momentum_list != NULL ) {
     memcpy ( p->p[0], interpolator_momentum_list[0], 3*p->n * sizeof(int) );
   }
+  if ( use_refframerot ) {
+    for ( int i = 0; i < p->n; i++ ) rot_point ( p->p[i], p->p[i], refframerot_p );
+  }
+
+  /***********************************************************/
+  /***********************************************************/
+
+  /***********************************************************
+   * free refframerot rotation matrices
+   ***********************************************************/
+  if ( refframerot_p != NULL ) rot_fini_rotation_matrix ( &refframerot_p );
+  if ( refframerot_spin != NULL ) {
+    for ( int i = 0; i < p->n; i++ ) rot_fini_rotation_matrix ( &(refframerot_spin[i]) );
+    free ( refframerot_spin );
+  }
+
+
 
   return(0);
 }  // end of little_group_projector_set
