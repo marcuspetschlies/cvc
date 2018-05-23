@@ -1043,6 +1043,7 @@ int init_little_group_projector (little_group_projector_type *p ) {
   p->row_target     = -1;
   p->ref_row_spin   = NULL;
   p->parity         = NULL;
+  p->refframerot    = -1;
   strcpy ( p->name, "NA" );
   
   return(0);
@@ -1073,6 +1074,8 @@ int fini_little_group_projector (little_group_projector_type *p ) {
     free ( p->rp );
     p->rp = NULL;
   }
+
+  p->refframerot = -1;
   
   fini_2level_itable ( &(p->p) );
 
@@ -1146,6 +1149,7 @@ int little_group_projector_show (little_group_projector_type *p, FILE*ofs, int w
       fprintf( ofs, "# [little_group_projector_show] spin(%d) irrep   = %s\n", i, p->rspin[i].irrep );
     }
   }
+  fprintf( ofs, "# [little_group_projector_show] reference frame rotation = %d\n", p->refframerot );
    
   if ( with_mat ) {
     /***********************************************************
@@ -1243,6 +1247,8 @@ int little_group_projector_copy (little_group_projector_type *p, little_group_pr
   p->ref_row_target = q->ref_row_target;
   strcpy ( p->name, q->name );
   
+  p->refframerot = q->refframerot;
+
   return(0);
 }   /* end of little_group_projector_copy */
 
@@ -1396,7 +1402,6 @@ little_group_projector_applicator_type ** little_group_projector_apply ( little_
     return( NULL );
   }
 
-
   /***********************************************************
    * allocate spin vectors, to which spin rotations are applied
    ***********************************************************/
@@ -1411,6 +1416,63 @@ little_group_projector_applicator_type ** little_group_projector_apply ( little_
     fprintf ( stderr, "[little_group_projector_apply] Error from init_2level_ztable_asym %s %d\n", __FILE__, __LINE__);
     return( NULL );
   }
+
+  /***********************************************************/
+  /***********************************************************/
+
+  /***********************************************************
+   * prepare reference frame rotation
+   ***********************************************************/
+
+  double _Complex **refframerot_p = NULL;
+  double _Complex ***refframerot_spin = NULL;
+
+#if defined CUBIC_GROUP_DOUBLE_COVER
+  if ( p->refframerot > -1 && p->refframerot < 48 )
+#elif defined CUBIC_GROUP_SINGLE_COVER
+  if ( p->refframerot > -1 && p->refframerot < 24 )
+#endif
+  {
+    // set the reference frame rotation matrix
+    // for the 3-momentum vector p;
+    // spin 1 in cartesian basis
+    refframerot_p = rot_init_rotation_matrix ( 3 );
+    if ( refframerot_p == NULL ) return(NULL);
+
+#if defined CUBIC_GROUP_DOUBLE_COVER
+    rot_mat_spin1_cartesian ( refframerot_p, cubic_group_double_cover_rotations[p->refframerot].n, cubic_group_double_cover_rotations[p->refframerot].w );
+#elif defined CUBIC_GROUP_SINGLE_COVER
+    rot_rotation_matrix_spherical_basis_Wigner_D ( refframerot_p, 2, cubic_group_rotations_v2[p->refframerot].a );
+    rot_spherical2cartesian_3x3 ( refframerot_p, refframerot_p );
+#endif
+
+    // set the reference frame rotation matrix
+    // for the spin-J vectors
+    refframerot_spin = (double _Complex ***) malloc ( p->n * sizeof(double _Complex **) );
+    if ( refframerot_spin == NULL ) return( NULL);
+
+    for ( int i = 0; i < p->n; i++ ) {
+      refframerot_spin[i] = rot_init_rotation_matrix ( spin_dimensions[i] );
+      if ( refframerot_spin[i] == NULL ) return(NULL);
+
+#if defined CUBIC_GROUP_DOUBLE_COVER
+      rot_rotation_matrix_spherical_basis ( refframerot_spin[i], spin_dimensions[i]-1, cubic_group_double_cover_rotations[p->refframerot].n, cubic_group_double_cover_rotations[p->refframerot].w );
+#elif defined CUBIC_GROUP_SINGLE_COVER
+      rot_rotation_matrix_spherical_basis_Wigner_D ( refframerot_spin[i], spin_dimensions[i]-1, cubic_group_rotations_v2[p->refframerot].a );
+#endif
+      rot_spherical2cartesian_3x3 ( refframerot_spin[i], refframerot_spin[i] );
+
+
+
+    }  // end of loop on interpolators
+
+
+
+    
+
+  }
+
+
 
   /***********************************************************/
   /***********************************************************/

@@ -54,6 +54,7 @@ typedef struct {
   int ref_row_target;
   int row_target;
   int *parity;
+  int refframerot;
 } little_group_projector_type;
 
 /********************************************************/
@@ -123,7 +124,8 @@ int little_group_projector_set (
   const int * interpolator_cartesian_list,
   const int ref_row_target,
   const int * ref_row_spin,
-  const char * name
+  const char * name,
+  int const refframerot
   /***********************************************************/
 );
 
