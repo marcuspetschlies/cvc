@@ -132,7 +132,40 @@ int main(int argc, char **argv) {
   g_num_threads = 1;
 #endif
 
+  int const N = 97;
 
+  double _Complex **A = init_2level_ztable (N, N);
+  double _Complex **B = init_2level_ztable (N, N);
+  double _Complex **C = init_2level_ztable (N, N);
+  double _Complex **D = init_2level_ztable (N, N);
+
+  ranlxd( (double*)(A[0]), 2*N*N );
+  ranlxd( (double*)(B[0]), 2*N*N );
+
+#define MAT_OP rot_mat_ti_mat_adj
+
+  MAT_OP ( D, A, B, N );
+
+  memcpy ( C[0], A[0], N*N*sizeof(double _Complex ) );
+  MAT_OP ( C, C, B, N );
+  fprintf ( stdout, "# [test] (1) |C-D| = %25.16e %25.16e\n", rot_mat_diff_norm ( C, D, N ), sqrt( rot_mat_norm2 (C, N ) ) );
+
+  memcpy ( C[0], B[0], N*N*sizeof(double _Complex ) );
+  MAT_OP  ( C, A, C, N );
+  fprintf ( stdout, "# [test] (2) |C-D| = %25.16e %25.16e\n", rot_mat_diff_norm ( C, D, N ), sqrt( rot_mat_norm2 (C, N ) ) );
+
+  MAT_OP( D, A, A, N );
+  memcpy ( C[0], A[0], N*N*sizeof(double _Complex ) );
+  MAT_OP  ( C, C, C, N );
+  fprintf ( stdout, "# [test] (3) |C-D| = %25.16e %25.16e\n", rot_mat_diff_norm ( C, D, N ), sqrt( rot_mat_norm2 (C, N ) ) );
+
+  fini_2level_ztable ( &A );
+  fini_2level_ztable ( &B );
+  fini_2level_ztable ( &C );
+  fini_2level_ztable ( &D );
+
+
+#if 0
   /******************************************************************
    * TEST co_eq_trace_mat_ti_mat_weight_re 
    ******************************************************************/
@@ -177,11 +210,11 @@ int main(int argc, char **argv) {
   fprintf ( stdout, "# [test] z %25.16e %25.16e   z2 %25.16e  %25.16e  diff %25.16e\n", creal( ztmp ), cimag( ztmp ), creal( ztmp2 ), cimag( ztmp2 ), dtmp ); 
 #endif
 
-
   fini_2level_ztable ( &A );
   fini_2level_ztable ( &B );
   fini_1level_dtable ( &w );
   fini_1level_dtable ( &w2 );
+#endif
 
 #if 0
   /******************************************************************
