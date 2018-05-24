@@ -353,13 +353,15 @@ void rot_cartesian_to_spherical_contravariant_mat (double _Complex ***S, double 
 /***********************************************************/
 
 /***********************************************************
- *
+ * safe, if C = A or C = B in memory
  ***********************************************************/
-void rot_mat_ti_mat (double _Complex **C, double _Complex **A, double _Complex **B, int N) {
+void rot_mat_ti_mat (double _Complex ** const C, double _Complex ** const A, double _Complex ** const B, int const N) {
 
   char CHAR_N = 'N';
   int INT_N = N;
   double _Complex Z_1 = 1., Z_0 = 0.;
+
+  double _Complex Ctmp[N*N];
 
 #if 0
   if ( g_verbose > 4 ) {
@@ -386,7 +388,7 @@ void rot_mat_ti_mat (double _Complex **C, double _Complex **A, double _Complex *
 #endif  /* of if 0 */
 
 /* _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1); */
-   _F(zgemm) ( &CHAR_N,      &CHAR_N,      &INT_N,  &INT_N,  &INT_N,  &Z_1,        B[0],   &INT_N,    A[0],   &INT_N,    &Z_0,       C[0],   &INT_N,   1,1);
+   _F(zgemm) ( &CHAR_N,      &CHAR_N,      &INT_N,  &INT_N,  &INT_N,  &Z_1,        B[0],   &INT_N,    A[0],   &INT_N,    &Z_0,       Ctmp,   &INT_N,   1,1);
 
 #if 0
   if ( g_verbose > 4 ) {
@@ -398,28 +400,32 @@ void rot_mat_ti_mat (double _Complex **C, double _Complex **A, double _Complex *
   }
 #endif  /* of if 0 */
 
+  memcpy ( C[0], Ctmp, N*N*sizeof(double _Complex) );
+
   return;
-}  /* end of rot_mat_ti_mat */
+}  // end of rot_mat_ti_mat
 
 /***********************************************************/
 /***********************************************************/
 
 /***********************************************************
- *
+ * safe, if C = A or C = B in memory
  ***********************************************************/
-void rot_mat_ti_mat_adj (double _Complex **C, double _Complex **A, double _Complex **B, int N) {
+void rot_mat_ti_mat_adj (double _Complex ** const C, double _Complex ** const A, double _Complex ** const B, int const N) {
 
   char CHAR_N = 'N', CHAR_C = 'C';
   int INT_N = N;
   double _Complex Z_1 = 1., Z_0 = 0.;
 
+  double _Complex Ctmp[N*N]; 
+
   /* _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1); */
 
-  /* */
-  _F(zgemm) ( &CHAR_C, &CHAR_N, &INT_N, &INT_N, &INT_N, &Z_1, B[0], &INT_N, A[0], &INT_N, &Z_0, C[0], &INT_N, 1, 1);
+  _F(zgemm) ( &CHAR_C, &CHAR_N, &INT_N, &INT_N, &INT_N, &Z_1, B[0], &INT_N, A[0], &INT_N, &Z_0, Ctmp, &INT_N, 1, 1);
 
+  memcpy ( C[0], Ctmp, N*N*sizeof(double _Complex ) );
   return;
-}  /* end of rot_mat_ti_mat_adj */
+}  // end of rot_mat_ti_mat_adj
 
 
 /***********************************************************/

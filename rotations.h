@@ -51,9 +51,9 @@ void rot_mat_adj (double _Complex **C, double _Complex **R, int N);
 
 void rot_mat_assign (double _Complex **C, double _Complex **R, int N);
 
-void rot_mat_ti_mat (double _Complex **C, double _Complex **A, double _Complex **B, int N);
+void rot_mat_ti_mat (double _Complex ** const C, double _Complex ** const A, double _Complex ** const B, int const N);
 
-void rot_mat_ti_mat_adj (double _Complex **C, double _Complex **A, double _Complex **B, int N);
+void rot_mat_ti_mat_adj (double _Complex ** const C, double _Complex ** const A, double _Complex ** const B, int const N);
 
 void rot_mat_adj_ti_mat (double _Complex **C, double _Complex **A, double _Complex **B, int N);
 
