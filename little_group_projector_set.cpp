@@ -4,6 +4,35 @@
  * Do 19. Apr 10:12:19 CEST 2018
  *
  ***********************************************************/
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <complex.h>
+#include <math.h>
+#include <time.h>
+#ifdef HAVE_MPI
+#  include <mpi.h>
+#endif
+#ifdef HAVE_OPENMP
+#  include <omp.h>
+#endif
+#include "ranlxd.h"
+
+#include "iblas.h"
+#include "ilinalg.h"
+#include "cvc_linalg.h"
+#include "global.h"
+#include "cvc_geometry.h"
+#include "mpi_init.h"
+#include "cvc_utils.h"
+#include "rotations.h"
+#include "table_init_i.h"
+#include "table_init_c.h"
+#include "table_init_z.h"
+#include "group_projection.h"
+#include "little_group_projector_set.h"
+
+namespace cvc {
 
 int little_group_projector_set (
   /***********************************************************/
@@ -116,12 +145,14 @@ int little_group_projector_set (
   double _Complex **refframerot_p = NULL;
   double _Complex ***refframerot_spin = NULL;
 #if defined CUBIC_GROUP_DOUBLE_COVER
-  int const use_refframerot = ( p->refframerot > -1 ) && ( p->refframerot < 48 );
+  int const use_refframerot = ( refframerot > -1 ) && ( refframerot < 48 );
 #elif defined CUBIC_GROUP_SINGLE_COVER
-  int const use_refframerot = ( p->refframerot > -1 ) && ( p->refframerot < 24 );
+  int const use_refframerot = ( refframerot > -1 ) && ( refframerot < 24 );
 #endif
 
   if ( use_refframerot ) {
+    p->refframerot = refframerot;
+
     // set the reference frame rotation matrix
     // for the 3-momentum vector p;
     // spin 1 in cartesian basis
@@ -134,7 +165,7 @@ int little_group_projector_set (
     rot_rotation_matrix_spherical_basis_Wigner_D ( refframerot_p, 2, cubic_group_rotations_v2[p->refframerot].a );
     rot_spherical2cartesian_3x3 ( refframerot_p, refframerot_p );
 #endif
-    if ( ! ( rot_mat_check_is_real_int ( refframerot_p) ) ) {
+    if ( ! ( rot_mat_check_is_real_int ( refframerot_p, 3) ) ) {
       fprintf(stderr, "[little_group_projector_set] Error rot_mat_check_is_real_int refframerot_p %s %d\n", __FILE__, __LINE__);
       return(72);
     }
@@ -145,17 +176,22 @@ int little_group_projector_set (
     if ( refframerot_spin == NULL ) return( NULL);
 
     for ( int i = 0; i < p->n; i++ ) {
-      refframerot_spin[i] = rot_init_rotation_matrix ( spin_dimensions[i] );
+      refframerot_spin[i] = rot_init_rotation_matrix ( interpolator_J2_list[i]+1 );
       if ( refframerot_spin[i] == NULL ) return(NULL);
 
 #if defined CUBIC_GROUP_DOUBLE_COVER
-      rot_rotation_matrix_spherical_basis ( refframerot_spin[i], spin_dimensions[i]-1, cubic_group_double_cover_rotations[p->refframerot].n, cubic_group_double_cover_rotations[p->refframerot].w );
+
+      if ( interpolator_bispinor_list[i] ) {
+        rot_bispinor_rotation_matrix_spherical_basis ( refframerot_spin[i], cubic_group_double_cover_rotations[p->refframerot].n, cubic_group_double_cover_rotations[p->refframerot].w );
+      } else {
+        rot_rotation_matrix_spherical_basis ( refframerot_spin[i], interpolator_J2_list[i], cubic_group_double_cover_rotations[p->refframerot].n, cubic_group_double_cover_rotations[p->refframerot].w );
+      }
 #elif defined CUBIC_GROUP_SINGLE_COVER
-      rot_rotation_matrix_spherical_basis_Wigner_D ( refframerot_spin[i], spin_dimensions[i]-1, cubic_group_rotations_v2[p->refframerot].a );
+      rot_rotation_matrix_spherical_basis_Wigner_D ( refframerot_spin[i], interpolator_J2_list[i], cubic_group_rotations_v2[p->refframerot].a );
 #endif
       if ( interpolator_cartesian_list[i] && ( interpolator_J2_list[i] == 2 ) ) {
         rot_spherical2cartesian_3x3 ( refframerot_spin[i], refframerot_spin[i] );
-        if ( ! ( rot_mat_check_is_real_int ( refframerot_spin[i] ) ) ) {
+        if ( ! ( rot_mat_check_is_real_int ( refframerot_spin[i], interpolator_J2_list[i]+1 ) ) ) {
           fprintf(stderr, "[little_group_projector_set] Error rot_mat_check_is_real_int refframerot_spin %2d %s %d\n", i,  __FILE__, __LINE__);
           return(71);
         }
@@ -224,15 +260,21 @@ int little_group_projector_set (
       fprintf(stderr, "[little_group_projector_set] Error rot_mat_check_is_real_int rot %d / %d %s %d\n", rid, rmid, __FILE__, __LINE__);
       return(7);
     }
-  STOPPED HERE
+
     if ( use_refframerot ) {
-      rot_mat_ti_mat (double _Complex **C, double _Complex **A, double _Complex **B, int N);
+      // R <- Rref x R
+      rot_mat_ti_mat ( (p->rp)->R[irot], refframerot_p, (p->rp)->R[irot], 3 );
+      // R <- R x Rref^+
+      rot_mat_ti_mat_adj ( (p->rp)->R[irot], (p->rp)->R[irot], refframerot_p, 3 );
 
-      rot_mat_ti_mat_adj (double _Complex **C, double _Complex **A, double _Complex **B, int N);
+      // IR <- Rref x IR
+      rot_mat_ti_mat ( (p->rp)->IR[irot], refframerot_p, (p->rp)->IR[irot], 3 );
+      // IR <- IR x Rref^+
+      rot_mat_ti_mat_adj ( (p->rp)->IR[irot], (p->rp)->IR[irot], refframerot_p, 3 );
 
-    }
+    }  // end of use_refframerot
 
-  }  /* end of loop on rotation group elements in target irrep */
+  }  // end of loop on rotation group elements in target irrep
   fini_rot_mat_table ( &rp );
 
   /***********************************************************
@@ -287,7 +329,29 @@ int little_group_projector_set (
           rot_mat_assign ( p->rspin[i].R[irot],  rspin.R[rid],   rspin.dim );
           rot_mat_assign ( p->rspin[i].IR[irot], rspin.IR[rmid], rspin.dim );
         }
+      }  // end of check on Cartesian basis
+
+      /***********************************************************/
+      /***********************************************************/
+
+      /***********************************************************
+       * reference frame rotation
+       ***********************************************************/
+      if ( use_refframerot ) {
+        // R <- Rref x R
+        rot_mat_ti_mat ( p->rspin[i].R[irot], refframerot_spin[i], p->rspin[i].R[irot] , rspin.dim );
+        // R <- R x Rref^+
+        // WARNING: by commenting this we rotate phi as well
+        // rot_mat_ti_mat_adj ( p->rspin[i].R[irot], p->rspin[i].R[irot], refframerot_spin[i] , rspin.dim );
+      
+        // IR <- Rref x IR
+        rot_mat_ti_mat ( p->rspin[i].IR[irot], refframerot_spin[i], p->rspin[i].IR[irot] , rspin.dim );
+        // IR <- IR x Rref^+
+        // WARNING: by commenting this we rotate phi as well
+        // rot_mat_ti_mat_adj ( p->rspin[i].IR[irot], p->rspin[i].IR[irot], refframerot_spin[i] , rspin.dim );
+      
       }
+
     }  /* end of loop on p->rtarget->n rotations */
 
     fini_rot_mat_table ( &rspin );
@@ -320,11 +384,11 @@ int little_group_projector_set (
     free ( refframerot_spin );
   }
 
-
-
   return(0);
 }  // end of little_group_projector_set
 
 
 /***********************************************************/
 /***********************************************************/
+
+}  // end of namespace cvc
