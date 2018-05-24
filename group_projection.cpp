@@ -1421,63 +1421,6 @@ little_group_projector_applicator_type ** little_group_projector_apply ( little_
   /***********************************************************/
 
   /***********************************************************
-   * prepare reference frame rotation
-   ***********************************************************/
-
-  double _Complex **refframerot_p = NULL;
-  double _Complex ***refframerot_spin = NULL;
-
-#if defined CUBIC_GROUP_DOUBLE_COVER
-  if ( p->refframerot > -1 && p->refframerot < 48 )
-#elif defined CUBIC_GROUP_SINGLE_COVER
-  if ( p->refframerot > -1 && p->refframerot < 24 )
-#endif
-  {
-    // set the reference frame rotation matrix
-    // for the 3-momentum vector p;
-    // spin 1 in cartesian basis
-    refframerot_p = rot_init_rotation_matrix ( 3 );
-    if ( refframerot_p == NULL ) return(NULL);
-
-#if defined CUBIC_GROUP_DOUBLE_COVER
-    rot_mat_spin1_cartesian ( refframerot_p, cubic_group_double_cover_rotations[p->refframerot].n, cubic_group_double_cover_rotations[p->refframerot].w );
-#elif defined CUBIC_GROUP_SINGLE_COVER
-    rot_rotation_matrix_spherical_basis_Wigner_D ( refframerot_p, 2, cubic_group_rotations_v2[p->refframerot].a );
-    rot_spherical2cartesian_3x3 ( refframerot_p, refframerot_p );
-#endif
-
-    // set the reference frame rotation matrix
-    // for the spin-J vectors
-    refframerot_spin = (double _Complex ***) malloc ( p->n * sizeof(double _Complex **) );
-    if ( refframerot_spin == NULL ) return( NULL);
-
-    for ( int i = 0; i < p->n; i++ ) {
-      refframerot_spin[i] = rot_init_rotation_matrix ( spin_dimensions[i] );
-      if ( refframerot_spin[i] == NULL ) return(NULL);
-
-#if defined CUBIC_GROUP_DOUBLE_COVER
-      rot_rotation_matrix_spherical_basis ( refframerot_spin[i], spin_dimensions[i]-1, cubic_group_double_cover_rotations[p->refframerot].n, cubic_group_double_cover_rotations[p->refframerot].w );
-#elif defined CUBIC_GROUP_SINGLE_COVER
-      rot_rotation_matrix_spherical_basis_Wigner_D ( refframerot_spin[i], spin_dimensions[i]-1, cubic_group_rotations_v2[p->refframerot].a );
-#endif
-      rot_spherical2cartesian_3x3 ( refframerot_spin[i], refframerot_spin[i] );
-
-
-
-    }  // end of loop on interpolators
-
-
-
-    
-
-  }
-
-
-
-  /***********************************************************/
-  /***********************************************************/
-
-  /***********************************************************
    * initialize spin vectors according to ref_row_spin
    ***********************************************************/
   for ( int i = 0; i < p->n; i++ ) { 
