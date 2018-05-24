@@ -293,6 +293,7 @@ inline little_group_projector_applicator_type * show_little_group_projector_appl
    * reduce the applicator
    ***********************************************************/
   // reduce_little_group_projector_applicator ( a, 1 );
+  reduce_little_group_projector_applicator ( a, 0 );
 
   /***********************************************************/
   /***********************************************************/
@@ -310,7 +311,8 @@ inline little_group_projector_applicator_type * show_little_group_projector_appl
 
       // show the overall coefficient
       if ( cabs ( a->c[iparity][irot] ) < eps ) continue;
-      fprintf ( myofs, "# [show_little_group_projector_applicator] rot %2d par %2d elem %-8s", irot+1 , 1 - 2*iparity, a->rotation_name[iparity][irot] );
+      // fprintf ( myofs, "# [show_little_group_projector_applicator] rot %2d par %2d elem %-8s", irot+1 , 1 - 2*iparity, a->rotation_name[iparity][irot] );
+      fprintf ( myofs, "     rot %2d par %2d elem %-8s", irot+1 , 1 - 2*iparity, a->rotation_name[iparity][irot] );
       // fprintf ( myofs, "  c  %25.16e %25.16e\n", dgeps( creal( a->c[iparity][irot]), eps ), dgeps( cimag( a->c[iparity][irot]), eps ) );
 
       for ( int iop = 0; iop < a->interpolator_n; iop++ ) {
