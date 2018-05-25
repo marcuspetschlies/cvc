@@ -2167,6 +2167,16 @@ int cvc_loop_eo_check_wi_momentum_space_lma ( double **wi, double ***loop_lma, i
 /***********************************************************/
 
 /***********************************************************
+ * contractions for Mee part of eo-precon lm mee contribution
+ * to cvc - cvc tensor
+ ***********************************************************/
+#include "contract_cvc_tensor_eo_lm_mee_ct.cpp"
+
+/***********************************************************/
+/***********************************************************/
+
+
+/***********************************************************
  * helper functions to handle <v, w> scalar products
  ***********************************************************/
 // #include "vdag_w_utils.cpp"
