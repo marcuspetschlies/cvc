@@ -597,6 +597,76 @@ int gsp_read_cvc_mee_node (
 
 }  // end of gsp_read_cvc_mee_node
 
+
+/***********************************************************************************************/
+/***********************************************************************************************/
+
+/***********************************************************************************************
+ * gsp_read_cvc_node
+ ***********************************************************************************************/
+int gsp_read_cvc_mee_ct_node (
+    double _Complex *** const fac,
+    unsigned int const numV,
+    int const momentum[3],
+    char * const prefix,
+    char * const tag,
+    int const timeslice
+) {
+
+  char filename[200];
+  char key[500];
+  int exitstatus;
+  int const file_t = 0;
+
+  if ( g_verbose > 2 ) fprintf ( stdout, "# [gsp_read_cvc_mee_ct_node] timeslice for filename = %d\n", file_t );
+
+#ifdef HAVE_LHPC_AFF
+
+  sprintf(filename, "%s.t%.2d.aff", prefix, file_t );
+  fprintf(stdout, "# [gsp_read_cvc_mee_ct_node] reading gsp data from file %s\n", filename);
+  struct AffReader_s * affr = aff_reader(filename);
+
+  const char * aff_status_str = aff_reader_errstr(affr);
+  if( aff_status_str != NULL ) {
+    fprintf(stderr, "[gsp_read_cvc_mee_ct_node] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+    return(1);
+  }
+
+  struct AffNode_s *affn = aff_reader_root(affr);
+  if( affn == NULL ) {
+    fprintf(stderr, "[gsp_read_cvc_mee_ct_node] Error, aff reader is not initialized\n");
+    return(2);
+  }
+ 
+
+  for ( int imu = 0; imu < 4; imu++ ) {
+
+    for ( int idt = 0; idt < 5; idt++ ) {
+
+      // set the key prefix
+      sprintf ( key, "%s/mu%d/px%.2dpy%.2dpz%.2d/t%.2d/dt%.2d", tag, imu, momentum[0], momentum[1], momentum[2], timeslice, idt-2 );
+
+      uint32_t uitems = (uint32_t)numV;
+
+      if(g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [gsp_read_cvc_mee_ct_node] key = %s\n", key );
+      struct AffNode_s * affdir = aff_reader_chpath ( affr, affn, key );
+      if ( ( exitstatus = aff_node_get_complex ( affr, affdir, fac[imu][idt], (uint32_t)uitems) ) != 0 ) {
+        fprintf(stderr, "[gsp_read_cvc_mee_ct_node] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        return(4);
+      }
+    }  // end of loop on dt
+  }  // end of loop on mu
+
+  aff_reader_close (affr);
+
+  return ( 0 );
+#else
+  return ( 1 );
+#endif
+
+}  // end of gsp_read_cvc_mee_ct_node
+
+
 /***********************************************************************************************/
 /***********************************************************************************************/
 
