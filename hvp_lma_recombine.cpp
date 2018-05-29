@@ -392,6 +392,42 @@ int main(int argc, char **argv) {
   /***********************************************************/
   /***********************************************************/
 
+  /***********************************************************
+   * read mee ct part
+   ***********************************************************/
+  sprintf( tag, "/hvp/lma/N%d/B%d/mee/ct", evecs_num, evecs_block_length );
+  sprintf( filename, "%s.%.4d", filename_prefix, Nconf );
+
+  double _Complex ***** hvp_mee_ct_ts = init_5level_ztable ( g_sink_momentum_number, T, 4, 5, evecs_num );
+  if ( hvp_mee_ct_ts == NULL ) {
+    fprintf (stderr, "[hvp_lma_recombine] Error from init_5level_ztable %s %d\n", __FILE__, __LINE__ );
+    EXIT(3);
+  }
+
+  for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+
+    for ( int it = 0; it < T; it++ ) {
+
+      exitstatus = gsp_read_cvc_mee_ct_node ( hvp_mee_ct_ts[imom][it], evecs_num, g_sink_momentum_list[imom], filename, tag, it);
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[hvp_lma_recombine] Error from gsp_read_cvc_mee_ct_node, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(14);
+      }
+
+      for ( int imu = 0; imu < 4; imu++ ) {
+        for ( int idt = 0; idt < 5; idt++ ) {
+          fprintf ( stdout, "# [hvp_lma_recombine] /hvp/lma/N%d/mee/ct/mu%d/px%.2dpy%.2dpz%.2d/t%.2d/dt%d\n", evecs_num, imu,
+              g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], it, idt-2 );
+          for ( int i = 0; i < evecs_num; i++ ) {
+            fprintf ( stdout, "  %25.16e  %25.16e\n", creal( hvp_mee_ct_ts[imom][it][imu][idt][i] ), cimag( hvp_mee_ct_ts[imom][it][imu][idt][i] ) );
+          }
+        }  // end of loop on dt
+      }  // end of loop on mu
+    }  // end of loop on timeslices
+  }  // end of loop on momenta
+
+  /***********************************************************/
+  /***********************************************************/
 
   /***********************************************************
    * check WI for mee part
@@ -402,7 +438,20 @@ int main(int argc, char **argv) {
     EXIT(3);
   }
 
+  double _Complex *** hvp_mee_ct = init_3level_ztable ( g_sink_momentum_number, 4, T );
+  if ( hvp_mee == NULL ) {
+    fprintf (stderr, "[hvp_lma_recombine] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
+    EXIT(3);
+  }
+
+  /***********************************************************
+   * loop on momenta
+   ***********************************************************/
   for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+
+    /***********************************************************
+     * FT hvp_mee
+     ***********************************************************/
     for ( int imu = 0; imu < 4; imu++ ) {
     for ( int inu = 0; inu < 4; inu++ ) {
 
@@ -415,7 +464,6 @@ int main(int argc, char **argv) {
           for ( int i = 0; i < evecs_num; i++ ) {
             ztmp += hvp_mee_ts[imom][ts][imu][inu][idt][i]  * evecs_4kappasqr_lambdainv[i];
           }
-        
 
           hvp_mee[imom][imu][inu][it] += ztmp;
 
@@ -428,8 +476,36 @@ int main(int argc, char **argv) {
 
     }}  // end of loop on nu, mu
 
+    /***********************************************************
+     * FT hvp_mee_ct
+     ***********************************************************/
+    for ( int inu = 0; inu < 4; inu++ ) {
+
+      for ( int ts = 0; ts < T; ts++ ) {
+
+        for ( int idt = 0; idt < 5; idt++ ) {
+          int const it = ( idt - 2 + T ) % T;
+
+          double _Complex ztmp = 0; 
+          for ( int i = 0; i < evecs_num; i++ ) {
+            ztmp += hvp_mee_ct_ts[imom][ts][inu][idt][i]  * evecs_4kappasqr_lambdainv[i];
+          }
+
+          hvp_mee_ct[imom][inu][it] += ztmp;
+
+        }  // end of loop on dt
+
+      }  // end of loop on timeslices
+
+      // FT
+      gsp_ft_p0_shift ( hvp_mee_ct[imom][inu], hvp_mee_ct[imom][inu], g_sink_momentum_list[imom], -1, inu, +1 );
+
+    }  // end of loop on mu
 
 
+    /***********************************************************
+     * check the Ward identity in momentum space
+     ***********************************************************/
     for ( int ip0 = 0; ip0 < T; ip0 ++ ) {
 
       double const sinp[4] = {
@@ -447,15 +523,20 @@ int main(int argc, char **argv) {
           sinp[2] * hvp_mee[imom][2][inu][ip0] +
           sinp[3] * hvp_mee[imom][3][inu][ip0];
 
-        double _Complex const hvp_meed = 
-          sinp[0] * hvp_mee[imom][inu][0][ip0] +
-          sinp[1] * hvp_mee[imom][inu][1][ip0] +
-          sinp[2] * hvp_mee[imom][inu][2][ip0] +
-          sinp[3] * hvp_mee[imom][inu][3][ip0];
+        //double _Complex const hvp_meed = 
+        //  sinp[0] * hvp_mee[imom][inu][0][ip0] +
+        //  sinp[1] * hvp_mee[imom][inu][1][ip0] +
+        //  sinp[2] * hvp_mee[imom][inu][2][ip0] +
+        //  sinp[3] * hvp_mee[imom][inu][3][ip0];
 
-        fprintf ( stdout, " WI p %3d %3d %3d %3d nu %d dhvp_mee %25.16e %25.16e hvp_meed %25.16e %25.16e\n", 
+        //fprintf ( stdout, " WI p %3d %3d %3d %3d nu %d dhvp_mee %25.16e %25.16e hvp_meed %25.16e %25.16e\n", 
+        //    ip0, g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
+        //    inu, creal ( dhvp_mee ), cimag ( dhvp_mee ), creal ( hvp_meed ), cimag ( hvp_meed ) );
+
+        fprintf ( stdout, " WI p %3d %3d %3d %3d nu %d dhvp_mee %25.16e %25.16e hvp_mee_ct %25.16e %25.16e\n", 
             ip0, g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
-            inu, creal ( dhvp_mee ), cimag ( dhvp_mee ), creal ( hvp_meed ), cimag ( hvp_meed ) );
+            inu, creal ( dhvp_mee ), cimag ( dhvp_mee ), creal ( hvp_mee_ct[imom][inu][ip0] ), cimag ( hvp_mee_ct[imom][inu][ip0] ) );
+
       }  // end of loop on nu
 
     }  // end of loop on p0
@@ -465,6 +546,7 @@ int main(int argc, char **argv) {
   }  // end of loop on momenta
   
   fini_4level_ztable ( &hvp_mee );
+  fini_3level_ztable ( &hvp_mee_ct );
 #if 0
 #endif
 
@@ -713,6 +795,7 @@ int main(int argc, char **argv) {
   fini_4level_ztable ( &ww );
 #endif
   fini_6level_ztable ( &hvp_mee_ts );
+  fini_5level_ztable ( &hvp_mee_ct_ts );
 
   /***********************************************************/
   /***********************************************************/
