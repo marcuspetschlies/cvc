@@ -127,11 +127,11 @@ int const contract_cvc_tensor_eo_lm_mee (
     for ( unsigned int imu = 0; imu < 4; imu++ ) {
       for ( unsigned int inu = 0; inu < 4; inu++ ) {
 
-        // initialize all p's to zero
-        memset ( p[0], 0, 2*T*sizeof( double _Complex ) );
 
         // the 8 scalar products
 
+#if 0
+        memset ( p[0], 0, 2*T*sizeof( double _Complex ) );
         // (1)
         eo_spinor_spatial_scalar_product_co( p[0], gbv[imu], gfw[inu], 0 );
         // (2)
@@ -146,6 +146,8 @@ int const contract_cvc_tensor_eo_lm_mee (
           }
         }
 
+
+        memset ( p[0], 0, 2*T*sizeof( double _Complex ) );
         // (3)
         eo_spinor_spatial_scalar_product_co( p[0], gbv[inu], gfw[imu], 0 );
         // (4)
@@ -159,11 +161,17 @@ int const contract_cvc_tensor_eo_lm_mee (
             meesp[imu][inu][x0][inev][1] = p[0][it] + p[1][it];
           }
         }
+#endif  // of if 0
 
+        memset ( p[0], 0, 2*T*sizeof( double _Complex ) );
         // (5)
         eo_spinor_spatial_scalar_product_co( p[0], gfv[imu], gfw[inu], 0 );
+
+#if 0
         // (6)
         eo_spinor_spatial_scalar_product_co( p[1], gfv[inu], gfw[imu], 0 );
+#endif  // of if 0
+
         if ( g_ts_id == 0 ) {
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
@@ -174,6 +182,8 @@ int const contract_cvc_tensor_eo_lm_mee (
           }
         }
 
+#if 0
+        memset ( p[0], 0, 2*T*sizeof( double _Complex ) );
         // (7)
         eo_spinor_spatial_scalar_product_co( p[0], gbv[inu], gbw[imu], 0 );
         // (8)
@@ -187,6 +197,8 @@ int const contract_cvc_tensor_eo_lm_mee (
             meesp[imu][inu][x0][inev][3] = p[0][it] + p[1][it];
           }
         }
+#endif  // of if 0
+
       }
     }
 
