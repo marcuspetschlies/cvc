@@ -40,7 +40,7 @@ int contract_cvc_tensor_eo_lm_mee_ct (
     return(1);
   }
 
-  double ** eo_spinor_work = init_2level_dtable ( 1, _GSI( (VOLUME+RAND)/2 ) );
+  double ** eo_spinor_work = init_2level_dtable ( 2, _GSI( (VOLUME+RAND)/2 ) );
   if ( eo_spinor_work == NULL ) {
     fprintf(stderr, "# [contract_cvc_tensor_eo_lm_mee_ct] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
     return(1);
@@ -133,7 +133,7 @@ int contract_cvc_tensor_eo_lm_mee_ct (
         int const dtb = -( ilambda == 0 );
         int const idtb = dtb + 2;
 
-        for ( int imom; imom < momentum_number; imom++ ) {
+        for ( int imom = 0; imom < momentum_number; imom++ ) {
           double const q[4] = { 0,
             TWO_MPI_OVER_L[0] * momentum_list[imom][0],
             TWO_MPI_OVER_L[1] * momentum_list[imom][1],
@@ -185,7 +185,7 @@ int contract_cvc_tensor_eo_lm_mee_ct (
         int const dtb = -( ilambda == 0 ) + ( imu == 0 );
         int const idtb = dtb + 2;
 
-        for ( int imom; imom < momentum_number; imom++ ) {
+        for ( int imom = 0; imom < momentum_number; imom++ ) {
           double const q[4] = { 0,
             TWO_MPI_OVER_L[0] * momentum_list[imom][0],
             TWO_MPI_OVER_L[1] * momentum_list[imom][1],
@@ -266,7 +266,7 @@ int contract_cvc_tensor_eo_lm_mee_ct (
         int const dtb = -( ilambda == 0 ) + ( imu == 0 );
         int const idtb = dtb + 2;
 
-        for ( int imom; imom < momentum_number; imom++ ) {
+        for ( int imom = 0; imom < momentum_number; imom++ ) {
           double const q[4] = { 0,
             TWO_MPI_OVER_L[0] * momentum_list[imom][0],
             TWO_MPI_OVER_L[1] * momentum_list[imom][1],
@@ -315,9 +315,9 @@ int contract_cvc_tensor_eo_lm_mee_ct (
         eo_spinor_spatial_scalar_product_co( p2, aux, gmubw[ilambda], 0 );
 
         int const dtf  = +( ilambda ==  0 );
-        int const idtf = dt + 2;
+        int const idtf = dtf + 2;
         int const dtb  = -( ilambda ==  0 );
-        int const idtb = dt + 2;
+        int const idtb = dtb + 2;
 
         for ( int imom = 0; imom < momentum_number; imom++ ) {
           double const q[4] = { 0,
