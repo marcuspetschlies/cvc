@@ -400,15 +400,23 @@ int main(int argc, char **argv) {
    **
    ***********************************************************
    ***********************************************************/
-  for(isource_location=0; isource_location < g_source_location_number; isource_location++) {
+  // for(isource_location=0; isource_location < g_source_location_number; isource_location++)
+  for( isource_location=0; isource_location < g_nproc*VOLUME; isource_location++)
+  {
 
     /***********************************************************
      * determine source coordinates, find out, if source_location is in this process
      ***********************************************************/
-    gsx[0] = g_source_coords_list[isource_location][0];
-    gsx[1] = g_source_coords_list[isource_location][1];
-    gsx[2] = g_source_coords_list[isource_location][2];
-    gsx[3] = g_source_coords_list[isource_location][3];
+    //gsx[0] = g_source_coords_list[isource_location][0];
+    //gsx[1] = g_source_coords_list[isource_location][1];
+    //gsx[2] = g_source_coords_list[isource_location][2];
+    //gsx[3] = g_source_coords_list[isource_location][3];
+
+    gsx[0] = isource_location / (LX_global*LY_global*LZ_global);
+    gsx[1] = (isource_location % (LX_global*LY_global*LZ_global) ) / (LY_global*LZ_global);
+    gsx[2] = (isource_location % (LY_global*LZ_global) ) / LZ_global;
+    gsx[3] = (isource_location % (LZ_global) );
+
 
     exitstatus = get_point_source_info (gsx, sx, &source_proc_id);
     if( exitstatus != 0 ) {

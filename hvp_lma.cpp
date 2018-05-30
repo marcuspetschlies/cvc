@@ -365,7 +365,7 @@ int main(int argc, char **argv) {
   }  // end of if io_proc >= 1
 #endif
 
-#if 0
+
   /***********************************************************
    * eo lm factors
    ***********************************************************/
@@ -377,7 +377,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[hvp_lma] Error from contract_cvc_tensor_eo_lm_factors, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(32);
   }
-
+#if 0
 #endif  // of if 0
 
   /***********************************************************/
@@ -413,7 +413,7 @@ int main(int argc, char **argv) {
 
   /***********************************************************/
   /***********************************************************/
-#if 0
+
   /***********************************************************
    * low-mode contribution to contact term
    ***********************************************************/
@@ -426,6 +426,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[hvp_lma] Error from contract_cvc_tensor_eo_lm_ct, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(33);
   }
+#if 0
 #endif  // of if 0
 
 #ifdef HAVE_LHPC_AFF
@@ -437,6 +438,7 @@ int main(int argc, char **argv) {
     }
   }  // end of if io_proc >= 1
 #endif  // of ifdef HAVE_LHPC_AFF
+
 #if 0
 #endif  // of if 0
 
