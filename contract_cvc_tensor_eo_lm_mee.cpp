@@ -133,19 +133,15 @@ int const contract_cvc_tensor_eo_lm_mee (
       // for ( unsigned int inu = 0; inu <= 0; inu++ )
       {
 
-
-        // the 8 scalar products
-
-
+        /***********************************************************
+         * the 8 scalar products
+         ***********************************************************/
         memset ( p[0], 0, 2*T*sizeof( double _Complex ) );
         // (1)
         eo_spinor_spatial_scalar_product_co( p[0], gbv[imu], gfw[inu], 0 );
 
         // (2)
         eo_spinor_spatial_scalar_product_co( p[1], gfv[inu], gbw[imu], 0 );
-
-#if 0
-#endif  // of if 0
 
         if ( g_ts_id == 0 ) {
 #ifdef HAVE_OPENMP
@@ -157,16 +153,12 @@ int const contract_cvc_tensor_eo_lm_mee (
           }
         }
 
-
         memset ( p[0], 0, 2*T*sizeof( double _Complex ) );
         // (3)
         eo_spinor_spatial_scalar_product_co( p[0], gbv[inu], gfw[imu], 0 );
 
-
         // (4)  
         eo_spinor_spatial_scalar_product_co( p[1], gfv[imu], gbw[inu], 0 );
-#if 0
-#endif  // of if 0
 
         if ( g_ts_id == 0 ) {
 #ifdef HAVE_OPENMP
@@ -177,8 +169,6 @@ int const contract_cvc_tensor_eo_lm_mee (
             meesp[imu][inu][x0][inev][1] = p[0][it] + p[1][it];
           }
         }
-
-
 
         memset ( p[0], 0, 2*T*sizeof( double _Complex ) );
         // (5)
@@ -204,19 +194,13 @@ int const contract_cvc_tensor_eo_lm_mee (
             meesp[imu][inu][x0][inev][2] = p[0][it] + p[1][it];
           }
         }
-#if 0
-#endif  // of if 0
-
-
 
         memset ( p[0], 0, 2*T*sizeof( double _Complex ) );
         // (7)
         eo_spinor_spatial_scalar_product_co( p[0], gbv[inu], gbw[imu], 0 );
 
-
         // (8)
         eo_spinor_spatial_scalar_product_co( p[1], gbv[imu], gbw[inu], 0 );
-
 
         if ( g_ts_id == 0 ) {
 #ifdef HAVE_OPENMP
@@ -227,10 +211,8 @@ int const contract_cvc_tensor_eo_lm_mee (
             meesp[imu][inu][x0][inev][3] = p[0][it] + p[1][it];
           }
         }
-
-
-      }
-    }
+      }  // end of loop on nu
+    }  // end of loop on mu
 
     fini_2level_ztable ( &p );
 
