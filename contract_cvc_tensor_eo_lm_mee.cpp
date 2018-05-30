@@ -80,7 +80,9 @@ int const contract_cvc_tensor_eo_lm_mee (
   /***********************************************************
    * loop on eigenvectors
    ***********************************************************/
-  for ( unsigned int inev = 0; inev < nev; inev++ ) {
+  for ( unsigned int inev = 0; inev < nev; inev++ )
+  // for ( unsigned int inev = 0; inev <= 0; inev++ )
+  {
     // set V
     memcpy ( v, eo_evecs_field[inev], sizeof_eo_spinor_field );
 
@@ -124,18 +126,27 @@ int const contract_cvc_tensor_eo_lm_mee (
     /***********************************************************
      * scalar products
      ***********************************************************/
-    for ( unsigned int imu = 0; imu < 4; imu++ ) {
-      for ( unsigned int inu = 0; inu < 4; inu++ ) {
+    for ( unsigned int imu = 0; imu < 4; imu++ ) 
+    // for ( unsigned int imu = 0; imu <= 0; imu++ ) 
+    {
+      for ( unsigned int inu = 0; inu < 4; inu++ )
+      // for ( unsigned int inu = 0; inu <= 0; inu++ )
+      {
 
 
         // the 8 scalar products
 
-#if 0
+
         memset ( p[0], 0, 2*T*sizeof( double _Complex ) );
         // (1)
         eo_spinor_spatial_scalar_product_co( p[0], gbv[imu], gfw[inu], 0 );
+
         // (2)
         eo_spinor_spatial_scalar_product_co( p[1], gfv[inu], gbw[imu], 0 );
+
+#if 0
+#endif  // of if 0
+
         if ( g_ts_id == 0 ) {
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
@@ -150,8 +161,13 @@ int const contract_cvc_tensor_eo_lm_mee (
         memset ( p[0], 0, 2*T*sizeof( double _Complex ) );
         // (3)
         eo_spinor_spatial_scalar_product_co( p[0], gbv[inu], gfw[imu], 0 );
-        // (4)
+
+
+        // (4)  
         eo_spinor_spatial_scalar_product_co( p[1], gfv[imu], gbw[inu], 0 );
+#if 0
+#endif  // of if 0
+
         if ( g_ts_id == 0 ) {
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
@@ -161,16 +177,23 @@ int const contract_cvc_tensor_eo_lm_mee (
             meesp[imu][inu][x0][inev][1] = p[0][it] + p[1][it];
           }
         }
-#endif  // of if 0
+
+
 
         memset ( p[0], 0, 2*T*sizeof( double _Complex ) );
         // (5)
         eo_spinor_spatial_scalar_product_co( p[0], gfv[imu], gfw[inu], 0 );
 
-#if 0
+        //for ( int ix = 0; ix < Vhalf; ix++) {
+        //  for ( int isc = 0; isc < 12; isc++ ) {
+        //    fprintf ( stdout, "# [contract_cvc_tensor_eo_lm_mee] nev %3d mu %d nu %d x %4d sc %2d  gfv %25.16e %25.16e  gfw %25.16e %25.16e\n",
+        //        inev, imu, inu, ix, isc, gfv[imu][_GSI(ix)+2*isc], gfv[imu][_GSI(ix)+2*isc+1], gfw[inu][_GSI(ix)+2*isc], gfw[inu][_GSI(ix)+2*isc+1] );
+        //  }
+        //}
+
+
         // (6)
         eo_spinor_spatial_scalar_product_co( p[1], gfv[inu], gfw[imu], 0 );
-#endif  // of if 0
 
         if ( g_ts_id == 0 ) {
 #ifdef HAVE_OPENMP
@@ -181,13 +204,20 @@ int const contract_cvc_tensor_eo_lm_mee (
             meesp[imu][inu][x0][inev][2] = p[0][it] + p[1][it];
           }
         }
-
 #if 0
+#endif  // of if 0
+
+
+
         memset ( p[0], 0, 2*T*sizeof( double _Complex ) );
         // (7)
         eo_spinor_spatial_scalar_product_co( p[0], gbv[inu], gbw[imu], 0 );
+
+
         // (8)
         eo_spinor_spatial_scalar_product_co( p[1], gbv[imu], gbw[inu], 0 );
+
+
         if ( g_ts_id == 0 ) {
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
@@ -197,7 +227,7 @@ int const contract_cvc_tensor_eo_lm_mee (
             meesp[imu][inu][x0][inev][3] = p[0][it] + p[1][it];
           }
         }
-#endif  // of if 0
+
 
       }
     }
@@ -290,8 +320,12 @@ int const contract_cvc_tensor_eo_lm_mee (
 #endif
             for ( unsigned int iev = 0; iev < nev; iev++ ) {
 
-              // combine the 4 scalar products with corresponding phase; sort according to dt
+              /***********************************************************
+               * combine the 4 scalar products with corresponding phase;
+               * sort according to dt
+               ***********************************************************/
               for ( unsigned int isp = 0; isp < 4; isp++ )
+              // for ( unsigned int isp = 2; isp <= 2; isp++ )
               {
                 meesp_out[it][dt[isp]+1][iev] += meesp_buffer[it][iev][isp] * phase[isp];
               }

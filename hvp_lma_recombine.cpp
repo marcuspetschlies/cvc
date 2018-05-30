@@ -429,6 +429,35 @@ int main(int argc, char **argv) {
   /***********************************************************/
   /***********************************************************/
 
+#if 0
+  for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+    for ( int it = 0; it < T; it++ ) {
+      for ( int inu = 0; inu < 4; inu++ ) {
+        for ( int dt = 0; dt <= 0; dt++ ) {
+          for ( int i = 0; i < evecs_num; i++ ) {
+
+            double _Complex const ztmp = hvp_mee_ts[imom][it][0][inu][dt+1][i]
+                                      +  hvp_mee_ts[imom][it][1][inu][dt+1][i]
+                                      +  hvp_mee_ts[imom][it][2][inu][dt+1][i]
+                                      +  hvp_mee_ts[imom][it][3][inu][dt+1][i];
+
+            //double _Complex const ztmp = hvp_mee_ts[imom][it][inu][0][dt+1][i]
+            //                          +  hvp_mee_ts[imom][it][inu][1][dt+1][i]
+            //                          +  hvp_mee_ts[imom][it][inu][2][dt+1][i]
+            //                          +  hvp_mee_ts[imom][it][inu][3][dt+1][i];
+
+            fprintf ( stdout, "# [hvp_lma_recombine] p %3d %3d %3d t %2d nu %d dt %2d nev %3d  hvp_mee %25.16e %25.16e hvp_mee_ct %25.16e %25.16e\n", 
+                            g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], it, inu, dt, i,
+                            creal ( ztmp ), cimag ( ztmp ), creal ( hvp_mee_ct_ts[imom][it][inu][dt+2][i] ), cimag ( hvp_mee_ct_ts[imom][it][inu][dt+2][i] ) ); 
+          }
+        }
+      }
+    }
+  }
+  
+#endif  // of if 0
+
+
   /***********************************************************
    * check WI for mee part
    ***********************************************************/
@@ -517,11 +546,11 @@ int main(int argc, char **argv) {
 
       for ( int inu = 0; inu < 4; inu++ ) {
 
-        double _Complex const dhvp_mee = 
+        double _Complex const dhvp_mee = -I * ( 
           sinp[0] * hvp_mee[imom][0][inu][ip0] +
           sinp[1] * hvp_mee[imom][1][inu][ip0] +
           sinp[2] * hvp_mee[imom][2][inu][ip0] +
-          sinp[3] * hvp_mee[imom][3][inu][ip0];
+          sinp[3] * hvp_mee[imom][3][inu][ip0] );
 
         //double _Complex const hvp_meed = 
         //  sinp[0] * hvp_mee[imom][inu][0][ip0] +
@@ -547,8 +576,9 @@ int main(int argc, char **argv) {
   
   fini_4level_ztable ( &hvp_mee );
   fini_3level_ztable ( &hvp_mee_ct );
+
 #if 0
-#endif
+#endif  // of if 0
 
   /***********************************************************/
   /***********************************************************/
