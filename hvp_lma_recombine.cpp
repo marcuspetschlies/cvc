@@ -221,7 +221,7 @@ int main(int argc, char **argv) {
   /***********************************************************/
   /***********************************************************/
 
-#if 0
+
   /***********************************************************
    * read Phi
    ***********************************************************/
@@ -292,11 +292,13 @@ int main(int argc, char **argv) {
 
 
   }  // end of loop on mu
-#endif
+#if 0
+#endif  // end of if 0
+
   /***********************************************************/
   /***********************************************************/
 
-#if 0
+
   /***********************************************************
    * read vv and ww, which are needed for the Ward identity
    ***********************************************************/
@@ -349,7 +351,8 @@ int main(int argc, char **argv) {
     }  // end of loop on timeslices
 
   }  // end of loop on momenta
-#endif
+#if 0
+#endif  // of if 0
 
   /***********************************************************/
   /***********************************************************/
@@ -430,6 +433,9 @@ int main(int argc, char **argv) {
   /***********************************************************/
 
 #if 0
+  /***********************************************************
+   * TEST
+   ***********************************************************/
   for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
     for ( int it = 0; it < T; it++ ) {
       for ( int inu = 0; inu < 4; inu++ ) {
@@ -562,9 +568,10 @@ int main(int argc, char **argv) {
         //    ip0, g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
         //    inu, creal ( dhvp_mee ), cimag ( dhvp_mee ), creal ( hvp_meed ), cimag ( hvp_meed ) );
 
-        fprintf ( stdout, " WI p %3d %3d %3d %3d nu %d dhvp_mee %25.16e %25.16e hvp_mee_ct %25.16e %25.16e\n", 
+        fprintf ( stdout, " WI mee p %3d %3d %3d %3d nu %d dhvp_mee %25.16e %25.16e hvp_mee_ct %25.16e %25.16e  d %9.2e\n", 
             ip0, g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
-            inu, creal ( dhvp_mee ), cimag ( dhvp_mee ), creal ( hvp_mee_ct[imom][inu][ip0] ), cimag ( hvp_mee_ct[imom][inu][ip0] ) );
+            inu, creal ( dhvp_mee ), cimag ( dhvp_mee ), creal ( hvp_mee_ct[imom][inu][ip0] ), cimag ( hvp_mee_ct[imom][inu][ip0] ),
+            cabs( dhvp_mee - hvp_mee_ct[imom][inu][ip0] ));
 
       }  // end of loop on nu
 
@@ -582,7 +589,7 @@ int main(int argc, char **argv) {
 
   /***********************************************************/
   /***********************************************************/
-#if 0
+
 
   /***********************************************************
    * check the Ward identity for Phi per
@@ -665,7 +672,7 @@ int main(int argc, char **argv) {
         }
 
 
-        fprintf ( stdout, "WI p %3d %3d %3d   k %2d %2d  p0 %3d dphip %25.16e %25.16e ct %25.16e %25.16e  diff %25.16e %25.16e\n",
+        fprintf ( stdout, "WI Phi p %3d %3d %3d   k %2d %2d  p0 %3d dphip %25.16e %25.16e ct %25.16e %25.16e  diff %25.16e %25.16e\n",
             g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
             k1, k2, ip0, creal( dphip ), cimag( dphip ), creal( ct ), cimag( ct ) , adiff  , rdiff );
 
@@ -690,12 +697,13 @@ int main(int argc, char **argv) {
     }}  // end of loops on k2, k1
 
   }  // end of loop on 3-momenta
+#if 0
 #endif
 
   /***********************************************************/
   /***********************************************************/
 
-#if 0
+
   /***********************************************************
    * recombine to hvp tensor
    ***********************************************************/
@@ -794,7 +802,7 @@ int main(int argc, char **argv) {
 
           double const diffd = cabs( -I * hvpd - ctd );
 
-          fprintf ( stdout, " WI p %3d %3d %3d %3d nu %d dhvp %25.16e %25.16e dct %25.16e %25.16e d %9.2e hvpd %25.16e %25.16e ctd %25.16e %25.16e d %9.2e\n", 
+          fprintf ( stdout, " WI tr[ Phi-Phi ] p %3d %3d %3d %3d nu %d dhvp %25.16e %25.16e dct %25.16e %25.16e d %9.2e hvpd %25.16e %25.16e ctd %25.16e %25.16e d %9.2e\n", 
               ip0, g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
               inu, creal ( dhvp ), cimag ( dhvp ), creal ( dct ), cimag ( dct ), ddiff, creal ( hvpd ), cimag ( hvpd ), creal ( ctd ), cimag ( ctd ), diffd );
               
@@ -813,19 +821,21 @@ int main(int argc, char **argv) {
       fini_2level_ztable ( &phi_ww );
 
   }  // end of loop on momenta
-
+#if 0
 #endif  // of if 0
 
 
   /***********************************************************/
   /***********************************************************/
-#if 0
+
   fini_5level_ztable ( &phi );
   fini_4level_ztable ( &vv );
   fini_4level_ztable ( &ww );
-#endif
   fini_6level_ztable ( &hvp_mee_ts );
   fini_5level_ztable ( &hvp_mee_ct_ts );
+
+#if 0
+#endif  // of if 0
 
   /***********************************************************/
   /***********************************************************/
