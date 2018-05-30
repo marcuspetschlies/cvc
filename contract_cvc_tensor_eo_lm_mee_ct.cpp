@@ -118,6 +118,11 @@ int contract_cvc_tensor_eo_lm_mee_ct (
       double _Complex * p = init_1level_ztable ( T );
       double _Complex * p2 = init_1level_ztable ( T );
 
+      M_clover_zz_inv_matrix ( aux, gmufw[imu], mzzinv[0][0] );
+      g5_phi ( aux, Vhalf );
+
+#if 0
+
       /***********************************************************
        * (1) 
        ***********************************************************/
@@ -338,9 +343,10 @@ int contract_cvc_tensor_eo_lm_mee_ct (
         }
       }
 
+#endif  // of if 0
+
       fini_1level_ztable ( &p );
       fini_1level_ztable ( &p2 );
-
     }  // end of loop on mu
 
   }  // end of loop on nev
