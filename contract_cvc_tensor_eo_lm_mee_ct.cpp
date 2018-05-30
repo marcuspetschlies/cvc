@@ -34,7 +34,7 @@ int contract_cvc_tensor_eo_lm_mee_ct (
   }
 
   // allocate auxilliary spinor fields and spinor work (with halo)
-  double ** eo_spinor_field = init_2level_dtable ( 21, _GSI(Vhalf) );
+  double ** eo_spinor_field = init_2level_dtable ( 20, _GSI(Vhalf) );
   if ( eo_spinor_field == NULL ) {
     fprintf(stderr, "# [contract_cvc_tensor_eo_lm_mee_ct] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
     return(1);
@@ -54,7 +54,6 @@ int contract_cvc_tensor_eo_lm_mee_ct (
   double * const gbv[4] = { eo_spinor_field[ 8], eo_spinor_field[ 9], eo_spinor_field[10], eo_spinor_field[11] };
   double * const gfw[4] = { eo_spinor_field[12], eo_spinor_field[13], eo_spinor_field[14], eo_spinor_field[15] };
   double * const gbw[4] = { eo_spinor_field[16], eo_spinor_field[17], eo_spinor_field[18], eo_spinor_field[19] };
-  double * const aux  = eo_spinor_field[20];
   
   /***********************************************************
    * gather scalar products for all eigenvectors
@@ -113,6 +112,18 @@ int contract_cvc_tensor_eo_lm_mee_ct (
     }  // end of loop on directions
 
     /***********************************************************
+     * multiply gf/b W with g5 Mee^-1
+     ***********************************************************/
+    for ( int imu = 0; imu < 4; imu++ ) {
+
+      M_clover_zz_inv_matrix ( gfw[imu], gfw[imu], mzzinv[0][0] );
+      g5_phi ( gfw[imu], Vhalf );
+
+      M_clover_zz_inv_matrix ( gbw[imu], gbw[imu], mzzinv[0][0] );
+      g5_phi ( gbw[imu], Vhalf );
+    }
+
+    /***********************************************************
      * loop on directions
      ***********************************************************/
     for ( int imu = 0; imu < 4; imu++ ) 
@@ -124,22 +135,9 @@ int contract_cvc_tensor_eo_lm_mee_ct (
 
 
       // 5th term
-
-      M_clover_zz_inv_matrix ( aux, gfw[imu], mzzinv[0][0] );
-      g5_phi ( aux, Vhalf );
-
       for ( int ilambda = 0; ilambda < 4; ilambda++ )
-      // for ( int ilambda = 0; ilambda <= 0; ilambda++ )
       {
-        eo_spinor_spatial_scalar_product_co( p,  gfv[ilambda], aux, 0 );
-
-        //for ( int ix = 0; ix < Vhalf; ix++) {
-        //  for ( int isc = 0; isc < 12; isc++ ) {
-        //    fprintf ( stdout, "# [contract_cvc_tensor_eo_lm_mee_ct] nev %3d mu %d nu %d x %4d sc %2d  gfv %25.16e %25.16e  gfw %25.16e %25.16e\n",
-        //        inev, ilambda, imu, ix, isc, gfv[ilambda][_GSI(ix)+2*isc], gfv[ilambda][_GSI(ix)+2*isc+1], aux[_GSI(ix)+2*isc], aux[_GSI(ix)+2*isc+1] );
-        //  }
-        //}
-
+        eo_spinor_spatial_scalar_product_co( p,  gfv[ilambda],  gfw[imu], 0 );
 
         int const dt1  = 0;
         int const idt1 = dt1 + 2;
@@ -163,19 +161,12 @@ int contract_cvc_tensor_eo_lm_mee_ct (
             ct[x0][idt2][imom][imu][inev] -= p[it] * ephase ;
           }
         }
-
       }
-
 
       // 6th term
       for ( int ilambda = 0; ilambda < 4; ilambda++ )
-      // for ( int ilambda = 0; ilambda <= 0; ilambda++ )
       {
-
-        M_clover_zz_inv_matrix ( aux, gfw[ilambda], mzzinv[0][0] );
-        g5_phi ( aux, Vhalf );
-
-        eo_spinor_spatial_scalar_product_co( p,  gfv[imu], aux, 0 );
+        eo_spinor_spatial_scalar_product_co( p,  gfv[imu], gfw[ilambda], 0 );
 
         int const dt1  = 0;
         int const idt1 = dt1 + 2;
@@ -199,17 +190,12 @@ int contract_cvc_tensor_eo_lm_mee_ct (
             ct[x0][idt2][imom][imu][inev] -= p[it] * ephase;
           }
         }
-
       }
 
-
       // 1st term
-      M_clover_zz_inv_matrix ( aux, gfw[imu], mzzinv[0][0] );
-      g5_phi ( aux, Vhalf );
       for ( int ilambda = 0; ilambda < 4; ilambda++ )
-      // for ( int ilambda = 0; ilambda <= 0; ilambda++ )
       {
-        eo_spinor_spatial_scalar_product_co( p,  gbv[ilambda], aux, 0 );
+        eo_spinor_spatial_scalar_product_co( p,  gbv[ilambda], gfw[imu], 0 );
 
         int const dt1  = -( ilambda == 0 );
         int const idt1 = dt1 + 2;
@@ -237,12 +223,8 @@ int contract_cvc_tensor_eo_lm_mee_ct (
 
       // 3rd term
       for ( int ilambda = 0; ilambda < 4; ilambda++ )
-      // for ( int ilambda = 0; ilambda <= 0; ilambda++ )
       {
-        M_clover_zz_inv_matrix ( aux, gbw[ilambda], mzzinv[0][0] );
-        g5_phi ( aux, Vhalf );
-
-        eo_spinor_spatial_scalar_product_co( p,  gfv[imu], aux, 0 );
+        eo_spinor_spatial_scalar_product_co( p,  gfv[imu], gbw[ilambda], 0 );
 
         int const dt1  = -( ilambda == 0 );
         int const idt1 = dt1 + 2;
@@ -271,12 +253,8 @@ int contract_cvc_tensor_eo_lm_mee_ct (
 
       // 2nd term
       for ( int ilambda = 0; ilambda < 4; ilambda++ )
-      // for ( int ilambda = 0; ilambda <= 0; ilambda++ )
       {
-        M_clover_zz_inv_matrix ( aux, gfw[ilambda], mzzinv[0][0] );
-        g5_phi ( aux, Vhalf );
-
-        eo_spinor_spatial_scalar_product_co( p,  gbv[imu], aux, 0 );
+        eo_spinor_spatial_scalar_product_co( p,  gbv[imu], gfw[ilambda], 0 );
 
         int const dt1  = ( imu == 0 );
         int const idt1 = dt1 + 2;
@@ -304,13 +282,9 @@ int contract_cvc_tensor_eo_lm_mee_ct (
       }
 
       // 4th term
-      M_clover_zz_inv_matrix ( aux, gbw[imu], mzzinv[0][0] );
-      g5_phi ( aux, Vhalf );
       for ( int ilambda = 0; ilambda < 4; ilambda++ )
-      // for ( int ilambda = 0; ilambda <= 0; ilambda++ )
       {
-
-        eo_spinor_spatial_scalar_product_co( p,  gfv[ilambda], aux, 0 );
+        eo_spinor_spatial_scalar_product_co( p,  gfv[ilambda], gbw[imu], 0 );
 
         int const dt1  = ( imu == 0 );
         int const idt1 = dt1 + 2;
@@ -339,12 +313,8 @@ int contract_cvc_tensor_eo_lm_mee_ct (
 
       // 7th term
       for ( int ilambda = 0; ilambda < 4; ilambda++ )
-      // for ( int ilambda = 0; ilambda <= 0; ilambda++ )
       {
-        M_clover_zz_inv_matrix ( aux, gbw[ilambda], mzzinv[0][0] );
-        g5_phi ( aux, Vhalf );
-
-        eo_spinor_spatial_scalar_product_co( p,  gbv[imu], aux, 0 );
+        eo_spinor_spatial_scalar_product_co( p,  gbv[imu], gbw[ilambda], 0 );
 
         int const dt1  = ( imu == 0 ) - ( ilambda == 0 );
         int const idt1 = dt1 + 2;
@@ -372,13 +342,9 @@ int contract_cvc_tensor_eo_lm_mee_ct (
       }
 
       // 8th term
-      M_clover_zz_inv_matrix ( aux, gbw[imu], mzzinv[0][0] );
-      g5_phi ( aux, Vhalf );
       for ( int ilambda = 0; ilambda < 4; ilambda++ )
-      // for ( int ilambda = 0; ilambda <= 0; ilambda++ )
       {
-
-        eo_spinor_spatial_scalar_product_co( p,  gbv[ilambda], aux, 0 );
+        eo_spinor_spatial_scalar_product_co( p,  gbv[ilambda], gbw[imu], 0 );
 
         int const dt1  = ( imu == 0 ) - ( ilambda == 0 );
         int const idt1 = dt1 + 2;
@@ -404,8 +370,6 @@ int contract_cvc_tensor_eo_lm_mee_ct (
           }
         }
       }
-#if 0
-#endif  // if 0
 
 #if 0
 
