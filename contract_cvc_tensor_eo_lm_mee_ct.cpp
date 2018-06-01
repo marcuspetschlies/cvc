@@ -133,6 +133,7 @@ int contract_cvc_tensor_eo_lm_mee_ct (
       double _Complex * p = init_1level_ztable ( T );
       double _Complex * p2 = init_1level_ztable ( T );
 
+
       // 5th term
       for ( int ilambda = 0; ilambda < 4; ilambda++ )
       {
@@ -369,7 +370,6 @@ int contract_cvc_tensor_eo_lm_mee_ct (
           }
         }
       }
->>>>>>> f825cdc950abbb664d387134744e0c44b134d867
 
 #if 0
 
@@ -593,10 +593,12 @@ int contract_cvc_tensor_eo_lm_mee_ct (
         }
       }
 
+
 #endif  // of if 0
 
       fini_1level_ztable ( &p );
       fini_1level_ztable ( &p2 );
+
     }  // end of loop on mu
 
   }  // end of loop on nev

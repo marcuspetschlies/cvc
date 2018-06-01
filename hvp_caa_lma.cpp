@@ -401,7 +401,8 @@ int main(int argc, char **argv) {
    ***********************************************************
    ***********************************************************/
   // for(isource_location=0; isource_location < g_source_location_number; isource_location++)
-  for( isource_location=0; isource_location < g_nproc*VOLUME; isource_location++)
+  //for( isource_location=0; isource_location < g_nproc*VOLUME; isource_location++)
+  for( isource_location=0; isource_location <= 0; isource_location++)
   {
 
     /***********************************************************
