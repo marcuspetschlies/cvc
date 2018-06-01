@@ -44,6 +44,14 @@ int gsp_read_cvc_mee_ct_node (
   int const timeslice
 );
 
+int gsp_read_cvc_ct_node (
+  double _Complex ** const fac,
+  unsigned int const numV,
+  char * const prefix,
+  char * const tag,
+  int const timeslice
+);
+
 /***************************************************/
 /***************************************************/
 
