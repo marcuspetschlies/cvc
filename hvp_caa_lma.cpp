@@ -401,8 +401,8 @@ int main(int argc, char **argv) {
    ***********************************************************
    ***********************************************************/
   // for(isource_location=0; isource_location < g_source_location_number; isource_location++)
-  //for( isource_location=0; isource_location < g_nproc*VOLUME; isource_location++)
-  for( isource_location=0; isource_location <= 0; isource_location++)
+  // for( isource_location=0; isource_location < g_nproc*VOLUME; isource_location++)
+  for( isource_location=0; isource_location < 1; isource_location++)
   {
 
     /***********************************************************
@@ -519,20 +519,40 @@ int main(int argc, char **argv) {
      ***************************************************************************/
     memset(cvc_tensor_eo[0], 0, 32*VOLUME*sizeof(double) );
     memset(contact_term[0], 0, 8*sizeof(double));
-    /* contraction */
+
+    /***************************************************************************
+     * contraction
+     ***************************************************************************/
     contract_cvc_tensor_eo ( cvc_tensor_eo[0], cvc_tensor_eo[1], contact_term[0], &(eo_spinor_field[120]), &(eo_spinor_field[180]),
        &(eo_spinor_field[0]), &(eo_spinor_field[60]), gauge_field_with_phase );
 
-    /* subtract contact term */
-    cvc_tensor_eo_subtract_contact_term (cvc_tensor_eo, contact_term[0], gsx, (int)( source_proc_id == g_cart_id ) );
+    /***************************************************************************
+     * subtract contact term
+     ***************************************************************************/
+    // cvc_tensor_eo_subtract_contact_term (cvc_tensor_eo, contact_term[0], gsx, (int)( source_proc_id == g_cart_id ) );
+    if ( io_proc == 2 ) {
+      sprintf(aff_tag, "# /hvp/full/ct/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
 
-    /* momentum projections */
+      sprintf ( filename, "%s.full.%.4d.t%.2dx%.2dy%.2dz%.2d.ct", outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3]);
+      FILE *ofs = fopen ( filename, "w");
+      fprintf ( ofs, "%s\n", aff_tag );
+      fprintf (ofs, "%25.16e %25.16e\n%25.16e %25.16e\n%25.16e %25.16e\n%25.16e %25.16e\n",
+          contact_term[0][0], contact_term[0][1], contact_term[0][2], contact_term[0][3], contact_term[0][4], contact_term[0][5], contact_term[0][6], contact_term[0][7] );
+      fclose ( ofs );
+    }  // end of if io_proc == 2
+
+    /***************************************************************************
+     * momentum projections
+     ***************************************************************************/
     exitstatus = cvc_tensor_eo_momentum_projection ( &cvc_tp, cvc_tensor_eo, g_sink_momentum_list, g_sink_momentum_number);
     if(exitstatus != 0) {
       fprintf(stderr, "[hvp_caa_lma] Error from cvc_tensor_eo_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(26);
     }
-    /* write results to file */
+
+    /***************************************************************************
+     * write results to file
+     ***************************************************************************/
     sprintf(aff_tag, "/hvp/full/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
     exitstatus = cvc_tensor_tp_write_to_aff_file ( cvc_tp, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
     if(exitstatus != 0 ) {
@@ -541,7 +561,9 @@ int main(int argc, char **argv) {
     }
     fini_3level_buffer(&cvc_tp);
 
-    /* check position space WI */
+    /***************************************************************************
+     * check position space WI
+     ***************************************************************************/
     if(check_position_space_WI) {
       exitstatus = cvc_tensor_eo_check_wi_position_space ( cvc_tensor_eo );
       if(exitstatus != 0) {
@@ -555,6 +577,7 @@ int main(int argc, char **argv) {
     /***************************************************************************/
     /***************************************************************************/
 
+#if 0
     /***************************************************************************
      * local - cvc 2-point
      ***************************************************************************/
@@ -587,8 +610,7 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[hvp_caa_lma] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(1);
     }
-#if 0
-#endif  /* if 0 */
+#endif  // of if 0
 
     /***************************************************************************/
     /***************************************************************************/
@@ -739,20 +761,40 @@ int main(int argc, char **argv) {
       EXIT(24);
     }
     memset(contact_term[0], 0, 8*sizeof(double));
-    /* contraction */
+
+    /***************************************************************************
+     * contraction
+     ***************************************************************************/
     contract_cvc_tensor_eo ( cvc_tensor_eo[0], cvc_tensor_eo[1], contact_term[0], &(eo_spinor_field[120]), &(eo_spinor_field[180]),
         &(eo_spinor_field[0]), &(eo_spinor_field[60]), gauge_field_with_phase );
 
-    /* subtract contact term */
-    cvc_tensor_eo_subtract_contact_term (cvc_tensor_eo, contact_term[0], gsx, (int)( source_proc_id == g_cart_id ) );
+    /***************************************************************************
+     * subtract contact term
+     ***************************************************************************/
+    // cvc_tensor_eo_subtract_contact_term (cvc_tensor_eo, contact_term[0], gsx, (int)( source_proc_id == g_cart_id ) );
+    if ( io_proc == 2 ) {
+      sprintf(aff_tag, "# /hvp/lm/ct/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
 
-    /* momentum projections */
+      sprintf ( filename, "%s.lm.%.4d.t%.2dx%.2dy%.2dz%.2d.ct", outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3]);
+      FILE *ofs = fopen ( filename, "w");
+      fprintf ( ofs, "%s\n", aff_tag );
+      fprintf (ofs, "%25.16e %25.16e\n%25.16e %25.16e\n%25.16e %25.16e\n%25.16e %25.16e\n",
+          contact_term[0][0], contact_term[0][1], contact_term[0][2], contact_term[0][3], contact_term[0][4], contact_term[0][5], contact_term[0][6], contact_term[0][7] );
+      fclose ( ofs );
+    }  // end of if io_proc == 2
+
+    /***************************************************************************
+     * momentum projections
+     ***************************************************************************/
     exitstatus = cvc_tensor_eo_momentum_projection ( &cvc_tp, cvc_tensor_eo, g_sink_momentum_list, g_sink_momentum_number);
     if(exitstatus != 0) {
       fprintf(stderr, "[hvp_caa_lma] Error from cvc_tensor_eo_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(26);
     }
-    /* write results to file */
+
+    /***************************************************************************
+     * write results to file
+     ***************************************************************************/
     sprintf(aff_tag, "/hvp/lm/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
     exitstatus = cvc_tensor_tp_write_to_aff_file ( cvc_tp, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
     if(exitstatus != 0 ) {
@@ -761,14 +803,16 @@ int main(int argc, char **argv) {
     }
     fini_3level_buffer(&cvc_tp);
 
-    /* check position space WI */
-    /* if(check_position_space_WI) {
-      exitstatus = cvc_tensor_eo_check_wi_position_space ( cvc_tensor_eo );
-      if(exitstatus != 0) {
-        fprintf(stderr, "[hvp_caa_lma] Error from cvc_tensor_eo_check_wi_position_space for full, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(38);
-      }
-    } */
+    /***************************************************************************
+     * check position space WI
+     ***************************************************************************/
+    // if(check_position_space_WI) {
+    //  exitstatus = cvc_tensor_eo_check_wi_position_space ( cvc_tensor_eo );
+    //  if(exitstatus != 0) {
+    //    fprintf(stderr, "[hvp_caa_lma] Error from cvc_tensor_eo_check_wi_position_space for full, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    //    EXIT(38);
+    //  }
+    //} */
 
     /* free tensor array */
     fini_2level_buffer ( &cvc_tensor_eo );
@@ -776,6 +820,7 @@ int main(int argc, char **argv) {
     /***************************************************************************/
     /***************************************************************************/
 
+#if 0
     /***************************************************************************
      * local - cvc 2-point
      ***************************************************************************/
@@ -808,6 +853,7 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[hvp_caa_lma] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(1);
     }
+#endif  // of if 0
 
 #if 0
 #ifndef HAVE_MPI

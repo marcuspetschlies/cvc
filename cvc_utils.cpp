@@ -7092,7 +7092,7 @@ int check_eigenpairs ( double ** const eo_evecs_field, double ** evecs_eval, uns
     spinor_field_eq_spinor_field_pl_spinor_field_ti_re( eo_field[0], eo_field[1], eo_evecs_field[i], norm, Vhalf );
     spinor_scalar_product_re(&norm, eo_field[0], eo_field[0], Vhalf);
     if(g_cart_id == 0) {
-      fprintf(stdout, "# [check_eigenpairs] evec %.4u | Ax - lambda x | / | lambda |= %25.16e\n", i, sqrt( norm ) / fabs((*evecs_eval)[i]) );
+      fprintf(stdout, "# [check_eigenpairs] evec %.4u | Ax - lambda x | / | lambda |= %25.16e\n\n", i, sqrt( norm ) / fabs((*evecs_eval)[i]) );
     }
 
   }  // end of loop on evals

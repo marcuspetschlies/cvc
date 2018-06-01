@@ -530,13 +530,13 @@ void contract_cvc_tensor_eo ( double *conn_e, double *conn_o, double *contact_te
       "(%e + I %e, %e + I %e, %e + I %e, %e +I %e)\n",
       g_cart_id, contact_term[0], contact_term[1], contact_term[2], contact_term[3],
       contact_term[4], contact_term[5], contact_term[6], contact_term[7]); */
+#endif
   if( source_proc_id == g_cart_id ) {
     fprintf(stdout, "# [contract_cvc_tensor_eo] contact term[0] = %25.16e + I %25.16e\n", contact_term[0], contact_term[1]);
     fprintf(stdout, "# [contract_cvc_tensor_eo] contact term[1] = %25.16e + I %25.16e\n", contact_term[2], contact_term[3]);
     fprintf(stdout, "# [contract_cvc_tensor_eo] contact term[2] = %25.16e + I %25.16e\n", contact_term[4], contact_term[5]);
     fprintf(stdout, "# [contract_cvc_tensor_eo] contact term[3] = %25.16e + I %25.16e\n", contact_term[6], contact_term[7]);
   }
-#endif
 
 #ifdef HAVE_MPI
   MPI_Barrier( g_cart_grid );

@@ -156,6 +156,7 @@ int main(int argc, char **argv) {
 
   unsigned int const Vhalf = VOLUME / 2;
   unsigned int const VOL3half =  LX * LY * LZ / 2;
+  size_t const sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
 
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
   if(!(strcmp(gaugefilename_prefix,"identity")==0)) {
@@ -227,7 +228,7 @@ int main(int argc, char **argv) {
   /***********************************************************
    * set eigenvector field
    ***********************************************************/
-  double ** const eo_evecs_field = (double**) malloc ( evecs_num * sizeof(double*) );
+  double ** eo_evecs_field = (double**) malloc ( evecs_num * sizeof(double*) );
   if ( eo_evecs_field == NULL ) {
     fprintf ( stderr, "[hvp_lma] Error from malloc %s %d\n", __FILE__, __LINE__ );
     EXIT(42);
@@ -251,6 +252,138 @@ int main(int argc, char **argv) {
   /***********************************************************/
   /***********************************************************/
 
+#if 0
+  /***********************************************************
+   * sort eigenvalues
+   ***********************************************************/
+
+  if ( sort_eigenvalues ) {
+    unsigned int * const sort_map = sort_by_dvalue_mapping ( evecs_eval, evecs_num );
+    if( sort_map == NULL  ) {
+      fprintf(stderr, "[hvp_lma] Error from sort_by_dvalue_mapping %s %d\n", __FILE__, __LINE__);
+      EXIT(43);
+    }
+
+    exitstatus = sort_dfield_by_map ( eo_evecs_block, evecs_num, sort_map, _GSI(Vhalf) );
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[hvp_lma] Error from sort_dfield_by_map, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(44);
+    }
+
+    exitstatus = sort_dfield_by_map ( evecs_eval, evecs_num, sort_map, 1 );
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[hvp_lma] Error from sort_dfield_by_map, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(45);
+    }
+
+    //exitstatus = check_eigenpairs ( eo_evecs_field, &evecs_eval, evecs_num, gauge_field_with_phase, mzz, mzzinv );
+    //if( exitstatus != 0 ) {
+    //  fprintf(stderr, "[hvp_lma] Error from check_eigenpairs, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    //  EXIT(17);
+    //}
+    free ( sort_map );
+  }
+#endif  // of if 0
+
+  /***********************************************************/
+  /***********************************************************/
+
+  /***********************************************************
+   * reconstruct additional eigenvector
+   ***********************************************************/
+
+  exitstatus = init_rng_stat_file ( g_seed, NULL );
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "[hvp_lma] Error from init_rng_stat_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    EXIT(2);
+  }
+
+  double ** eo_spinor_work  = init_2level_dtable ( 2, _GSI((VOLUME+RAND)/2) );
+  double ** eo_spinor_field = init_2level_dtable ( 2, _GSI(Vhalf) );
+
+  random_spinor_field ( eo_spinor_work[0], Vhalf );
+
+  exitstatus = project_spinor_field( eo_spinor_field[0], eo_spinor_work[0], 0, eo_evecs_field[0], evecs_num, Vhalf );
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "[hvp_lma] Error from project_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    EXIT(2);
+  }
+
+#if 0
+  exitstatus = project_spinor_field( eo_spinor_field[1], eo_spinor_field[0], 1, eo_evecs_field[0], evecs_num, Vhalf );
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "[hvp_lma] Error from project_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    EXIT(2);
+  }
+  double norm = 0.;
+  spinor_scalar_product_re( &norm, eo_spinor_field[1], eo_spinor_field[1], Vhalf );
+  fprintf ( stdout, "# [hvp_lma] norm after double projection %25.16e\n", sqrt(norm) );
+#endif  // of if 0
+
+  double norm = 0.;
+  spinor_scalar_product_re( &norm, eo_spinor_field[0], eo_spinor_field[0], Vhalf );
+  norm = 1. / sqrt ( norm );
+  spinor_field_ti_eq_re ( eo_spinor_field[0], norm, Vhalf );
+
+  // apply C Cbar
+  C_clover_oo ( eo_spinor_work[0],  eo_spinor_field[0], gauge_field_with_phase, eo_spinor_work[1], mzz[1][1], mzzinv[1][0]);
+  C_clover_oo ( eo_spinor_field[1], eo_spinor_work[0],  gauge_field_with_phase, eo_spinor_work[1], mzz[0][1], mzzinv[0][0]);
+
+  complex w;
+  spinor_scalar_product_co( &w, eo_spinor_field[0], eo_spinor_field[1], Vhalf );
+
+  memcpy ( eo_spinor_work[0], eo_spinor_field[0], sizeof_eo_spinor_field );
+  spinor_field_ti_eq_re ( eo_spinor_work[0], w.re, Vhalf );
+
+  // n = | A x - lambda x|^2
+  spinor_field_norm_diff ( &norm, eo_spinor_work[0], eo_spinor_field[1], Vhalf );
+
+  // n <- n^1/2 / lambda
+  norm  = sqrt ( norm ) / w.re;
+
+  w.re *= 4.*g_kappa*g_kappa;
+  w.im *= 4.*g_kappa*g_kappa;
+
+  fprintf ( stdout, "# [hvp_lma] w  %25.16e %25.16e norm diff  %25.16e\n", w.re, w.im, norm );
+
+  // reallocate eo_evecs_block
+  double * aux = init_1level_dtable ( (evecs_num+1) * _GSI(Vhalf) );
+  if( aux == NULL ) {
+    fprintf(stderr, "[hvp_lma] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
+    EXIT(8);
+  }
+
+  memcpy ( aux, eo_evecs_block, evecs_num*sizeof_eo_spinor_field );
+  memcpy ( aux+evecs_num*_GSI(Vhalf), eo_spinor_field[0], sizeof_eo_spinor_field );
+
+  fini_1level_dtable ( &eo_evecs_block );
+  eo_evecs_block  = aux;
+
+  // reallocate eo_evecs_field
+  free ( eo_evecs_field );
+  eo_evecs_field = (double**) malloc ( (evecs_num+1) * sizeof(double*) );
+  if ( eo_evecs_field == NULL ) {
+    fprintf ( stderr, "[hvp_lma] Error from malloc %s %d\n", __FILE__, __LINE__ );
+    EXIT(42);
+  }
+  eo_evecs_field[0] = eo_evecs_block;
+  for( unsigned int i = 1; i <= evecs_num; i++) eo_evecs_field[i] = eo_evecs_field[i-1] + _GSI(Vhalf);
+
+  // reallocate evecs_eval
+  aux = init_1level_dtable ( evecs_num+1 );
+  memcpy ( aux, evecs_eval, evecs_num*sizeof(double) );
+  aux[evecs_num] = w.re;
+  fini_1level_dtable ( &evecs_eval );
+  evecs_eval = aux;
+
+  evecs_num++;
+
+  fini_2level_dtable ( &eo_spinor_work );
+  fini_2level_dtable ( &eo_spinor_field );
+
+  /***********************************************************/
+  /***********************************************************/
+
   /***********************************************************
    * set auxilliary eigenvalue fields
    ***********************************************************/
@@ -263,14 +396,6 @@ int main(int argc, char **argv) {
   for( unsigned int i = 0; i < evecs_num; i++) {
     evecs_lambdainv[i]           = 2.* g_kappa / evecs_eval[i];
     evecs_4kappasqr_lambdainv[i] = 4.* g_kappa * g_kappa / evecs_eval[i];
-  }
-
-  /***********************************************************
-   * check evecs_block_length
-   ***********************************************************/
-  if ( evecs_block_length == 0 ) {
-    evecs_block_length = evecs_num;
-    if ( g_cart_id == 0 ) fprintf ( stdout, "# [hvp_lma] WARNING, reset evecs_block_length to %u\n", evecs_num );
   }
 
   /***********************************************************
@@ -295,6 +420,7 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[hvp_lma] Error from sort_dfield_by_map, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(45);
     }
+
     exitstatus = sort_dfield_by_map ( evecs_lambdainv, evecs_num, sort_map, 1 );
     if( exitstatus != 0 ) {
       fprintf(stderr, "[hvp_lma] Error from sort_dfield_by_map, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -327,6 +453,20 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[hvp_lma] Error from check_eigenpairs, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(17);
   }
+
+  /***********************************************************/
+  /***********************************************************/
+
+  /***********************************************************
+   * check evecs_block_length
+   ***********************************************************/
+  if ( evecs_block_length == 0 ) {
+    evecs_block_length = evecs_num;
+    if ( g_cart_id == 0 ) fprintf ( stdout, "# [hvp_lma] WARNING, reset evecs_block_length to %u\n", evecs_num );
+  }
+
+  /***********************************************************/
+  /***********************************************************/
 
   /***********************************************************
    * set io process
@@ -377,8 +517,6 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[hvp_lma] Error from contract_cvc_tensor_eo_lm_factors, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(32);
   }
-#if 0
-#endif  // of if 0
 
   /***********************************************************/
   /***********************************************************/
@@ -426,8 +564,6 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[hvp_lma] Error from contract_cvc_tensor_eo_lm_ct, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(33);
   }
-#if 0
-#endif  // of if 0
 
 #ifdef HAVE_LHPC_AFF
   if( io_proc >= 1 ) {
@@ -438,9 +574,6 @@ int main(int argc, char **argv) {
     }
   }  // end of if io_proc >= 1
 #endif  // of ifdef HAVE_LHPC_AFF
-
-#if 0
-#endif  // of if 0
 
   /***********************************************************/
   /***********************************************************/
@@ -1012,7 +1145,7 @@ int main(int argc, char **argv) {
   fini_2level_dtable ( &w_field );
   fini_2level_dtable ( &v_field );
 
-#endif  // of if 0
+#endif  // of if 0 around checks by hand
 
   /***********************************************************/
   /***********************************************************/

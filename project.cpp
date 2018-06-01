@@ -62,6 +62,11 @@ int project_spinor_field(double *s, double * r, int parallel, double *V, int num
     return(4);
   }
 
+  if ( (s == r ) && !parallel ) {
+    fprintf ( stderr, "[project_spinor_field] Error, s and r must not coincide in memory for orthogonal projection\n");
+    return(41);
+  }
+
   if( (p = (double _Complex*)malloc(num * sizeof(double _Complex))) == NULL ) {
     fprintf(stderr, "[project_spinor_field] Error from malloc\n");
     return(1);
