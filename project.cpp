@@ -585,6 +585,7 @@ int momentum_projection (double*V, double *W, unsigned int nv, int momentum_numb
   fini_2level_buffer((double***)(&zphase));
 
 #ifdef HAVE_MPI
+#  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
   i = 2 * nv * momentum_number;
   void *buffer = malloc(i * sizeof(double));
   if(buffer == NULL) {
@@ -597,6 +598,7 @@ int momentum_projection (double*V, double *W, unsigned int nv, int momentum_numb
     return(2);
   }
   free(buffer);
+#  endif
 #endif
 
   return(0);
