@@ -15,6 +15,7 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <complex.h>
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
@@ -59,6 +60,7 @@ extern "C"
 #include "prepare_propagator.h"
 #include "project.h"
 #include "matrix_init.h"
+#include "table_init_z.h"
 #include "clover.h"
 
 #define _OP_ID_UP 0
@@ -375,6 +377,12 @@ int main(int argc, char **argv) {
   io_proc = 2;
 #endif
 
+#ifdef HAVE_MPI
+  if( ( io_proc >= 1 ) && ( g_ts_id != 0 ) ) {
+    fprintf(stderr, "[hvp_caa_lma] Error, io proc must be id 0 in g_ts_comm %s %d\n", __FILE__, __LINE__);
+    EXIT(15);
+  }
+
 #if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) 
   if(io_proc == 2) {
     if(g_tr_id != 0) {
@@ -383,6 +391,10 @@ int main(int argc, char **argv) {
     }
   }
 #endif
+#endif
+
+  /***********************************************************/
+  /***********************************************************/
 
   /***********************************************************
    * allocate eo_spinor_field
@@ -393,6 +405,23 @@ int main(int argc, char **argv) {
     EXIT(123);
   }
   
+  /***********************************************************/
+  /***********************************************************/
+
+  /***********************************************************
+   * TEST
+   *   accumulate full tensor for several source locations
+   ***********************************************************/
+  double _Complex *** cvc_tp_accum = NULL;
+  if ( g_ts_id == 0 ) {
+    cvc_tp_accum = init_3level_ztable ( g_sink_momentum_number, 16,  T_global );
+    if ( cvc_tp_accum == 0 ) {
+      fprintf( stderr, "[hvp_caa_lma] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
+      EXIT(16);
+    }
+  }
+
+
   /***********************************************************
    ***********************************************************
    **
@@ -401,8 +430,8 @@ int main(int argc, char **argv) {
    ***********************************************************
    ***********************************************************/
   // for(isource_location=0; isource_location < g_source_location_number; isource_location++)
-  // for( isource_location=0; isource_location < g_nproc*VOLUME; isource_location++)
-  for( isource_location=0; isource_location < 1; isource_location++)
+  for( isource_location=0; isource_location < g_nproc*VOLUME; isource_location++)
+  // for( isource_location=137; isource_location <= 137; isource_location++)
   {
 
     /***********************************************************
@@ -549,6 +578,33 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[hvp_caa_lma] Error from cvc_tensor_eo_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(26);
     }
+
+    /***************************************************************************
+     * TEST
+     *   accumulate full tensor
+     ***************************************************************************/
+    if ( g_ts_id == 0 ) {
+      for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+        double const p[4] = { 0., 
+            2.*M_PI*g_sink_momentum_list[imom][0] / (double)LX_global,
+            2.*M_PI*g_sink_momentum_list[imom][1] / (double)LY_global,
+            2.*M_PI*g_sink_momentum_list[imom][2] / (double)LZ_global };
+        
+        // phase source location x,y,z times -p_x,y,z
+        double _Complex const ephase = cexp ( -I * ( gsx[1] * p[1] + gsx[2] * p[2] + gsx[3] * p[3] ) );
+
+        for ( int mu = 0; mu < 4; mu++ ) {
+        for ( int nu = 0; nu < 4; nu++ ) {
+          int const imunu = 4 * mu + nu;
+
+          for ( int it = 0; it < T; it++ ) {
+            int const x0 = ( it + g_proc_coords[0] * T - gsx[0] + T_global ) % T_global;
+            cvc_tp_accum[imom][imunu][x0] += ( cvc_tp[imom][imunu][2*it] + cvc_tp[imom][imunu][2*it+1]*I ) * ephase;
+          }
+        }}
+      }
+    }  // end of if ts id = 0
+
 
     /***************************************************************************
      * write results to file
@@ -857,7 +913,9 @@ int main(int argc, char **argv) {
 
 #if 0
 #ifndef HAVE_MPI
-    /* TEST */
+    /***************************************************************************
+     * TEST
+     ***************************************************************************/
     double **chi = NULL, **phi = NULL;
     FILE*ofs=NULL;
     sprintf( filename, "local-local.t%.2dx%.2dy%.2dz%.2d",  gsx[0], gsx[1], gsx[2], gsx[3] );
@@ -918,15 +976,72 @@ int main(int argc, char **argv) {
         fprintf(stderr, "[hvp_caa_lma] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
         EXIT(32);
       }
-    }  /* end of if io_proc == 2 */
-#endif  /* of ifdef HAVE_LHPC_AFF */
+    }  // end of if io_proc == 2
+#endif  // of ifdef HAVE_LHPC_AFF
 
 
-  }  /* end of loop on source locations */
+  }  // end of loop on source locations
 
-  /****************************************
+  /***************************************************************************/
+  /***************************************************************************/
+
+  /***************************************************************************
+   * TEST
+   *   write and fini accumulated tensor
+   ***************************************************************************/
+
+  if ( g_ts_id == 0 ) {
+#ifdef HAVE_MPI
+    int const items = g_sink_momentum_number * 16 * T_global;
+    double _Complex *buffer = init_1level_ztable ( items );
+
+    memcpy ( buffer, cvc_tp_accum, items * sizeof(double _Complex ) );
+#if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) 
+    exitstatus = MPI_Allreduce ( buffer, cvc_tp_accum[0][0], 2*items, MPI_DOUBLE, MPI_SUM, g_tr_comm );
+#else
+    exitstatus = MPI_Allreduce ( buffer, cvc_tp_accum[0][0], 2*items, MPI_DOUBLE, MPI_SUM, g_cart_grid );
+#endif
+    if ( exitstatus != MPI_SUCCESS ) {
+      fprintf( stderr, "[] Error from MPI_Allreduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(17);
+    }
+    fini_1level_ztable ( &buffer );
+#endif
+
+
+    if ( g_tr_id == 0 ) {
+      FILE*ofs = NULL;
+      sprintf ( filename, "hvp.full.%.4d.accum", Nconf );
+      ofs = fopen ( filename, "w" );
+
+      for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+        
+        for ( int mu = 0; mu < 4; mu++ ) {
+        for ( int nu = 0; nu < 4; nu++ ) {
+          int const imunu = 4 * mu + nu;
+
+          fprintf ( ofs, "# /hvp/full/px%.2dpy%.2dpz%.2d/mu%d/nu%d\n", 
+             g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
+             mu, nu );
+
+          for ( int it = 0; it < T_global; it++ ) {
+            fprintf ( ofs, "%25.16e  %25.16e\n", creal ( cvc_tp_accum[imom][imunu][it] ), cimag ( cvc_tp_accum[imom][imunu][it] ) );
+          }
+        }}
+      }
+      
+      fclose ( ofs );
+    }  // end of if tr id is null
+
+  }  // end of if ts id is null
+  fini_3level_ztable ( &cvc_tp_accum );
+
+  /***************************************************************************/
+  /***************************************************************************/
+
+  /***************************************************************************
    * free the allocated memory, finalize
-   ****************************************/
+   ***************************************************************************/
 
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   free(g_gauge_field);
