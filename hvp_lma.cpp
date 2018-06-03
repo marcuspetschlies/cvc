@@ -83,6 +83,7 @@ int main(int argc, char **argv) {
   double *gauge_field_with_phase = NULL;
   unsigned int evecs_block_length = 0;
   unsigned int evecs_num = 0;
+  int reconstruct_eigenpair = 0;
 
 #ifdef HAVE_LHPC_AFF
   char aff_tag[400];
@@ -92,7 +93,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "sh?f:b:n:")) != -1) {
+  while ((c = getopt(argc, argv, "rsh?f:b:n:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -106,6 +107,9 @@ int main(int argc, char **argv) {
       break;
     case 'n':
       evecs_num = atoi( optarg );
+      break;
+    case 'r':
+      reconstruct_eigenpair = 1;
       break;
     case 'h':
     case '?':
@@ -291,95 +295,97 @@ int main(int argc, char **argv) {
   /***********************************************************
    * reconstruct additional eigenvector
    ***********************************************************/
+  if ( reconstruct_eigenpair ) {
+    exitstatus = init_rng_stat_file ( g_seed, NULL );
+    if ( exitstatus != 0 ) {
+      fprintf ( stderr, "[hvp_lma] Error from init_rng_stat_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(2);
+    }
+  
+    double ** eo_spinor_work  = init_2level_dtable ( 2, _GSI((VOLUME+RAND)/2) );
+    double ** eo_spinor_field = init_2level_dtable ( 2, _GSI(Vhalf) );
+  
+    random_spinor_field ( eo_spinor_work[0], Vhalf );
+  
+    exitstatus = project_spinor_field( eo_spinor_field[0], eo_spinor_work[0], 0, eo_evecs_field[0], evecs_num, Vhalf );
+    if ( exitstatus != 0 ) {
+      fprintf ( stderr, "[hvp_lma] Error from project_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(2);
+    }
+  
+  #if 0
+    exitstatus = project_spinor_field( eo_spinor_field[1], eo_spinor_field[0], 1, eo_evecs_field[0], evecs_num, Vhalf );
+    if ( exitstatus != 0 ) {
+      fprintf ( stderr, "[hvp_lma] Error from project_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(2);
+    }
+    double norm = 0.;
+    spinor_scalar_product_re( &norm, eo_spinor_field[1], eo_spinor_field[1], Vhalf );
+    fprintf ( stdout, "# [hvp_lma] norm after double projection %25.16e\n", sqrt(norm) );
+  #endif  // of if 0
+  
+    double norm = 0.;
+    spinor_scalar_product_re( &norm, eo_spinor_field[0], eo_spinor_field[0], Vhalf );
+    norm = 1. / sqrt ( norm );
+    spinor_field_ti_eq_re ( eo_spinor_field[0], norm, Vhalf );
+  
+    // apply C Cbar
+    C_clover_oo ( eo_spinor_work[0],  eo_spinor_field[0], gauge_field_with_phase, eo_spinor_work[1], mzz[1][1], mzzinv[1][0]);
+    C_clover_oo ( eo_spinor_field[1], eo_spinor_work[0],  gauge_field_with_phase, eo_spinor_work[1], mzz[0][1], mzzinv[0][0]);
+  
+    complex w;
+    spinor_scalar_product_co( &w, eo_spinor_field[0], eo_spinor_field[1], Vhalf );
+  
+    memcpy ( eo_spinor_work[0], eo_spinor_field[0], sizeof_eo_spinor_field );
+    spinor_field_ti_eq_re ( eo_spinor_work[0], w.re, Vhalf );
+  
+    // n = | A x - lambda x|^2
+    spinor_field_norm_diff ( &norm, eo_spinor_work[0], eo_spinor_field[1], Vhalf );
+  
+    // n <- n^1/2 / lambda
+    norm  = sqrt ( norm ) / w.re;
+  
+    w.re *= 4.*g_kappa*g_kappa;
+    w.im *= 4.*g_kappa*g_kappa;
+  
+    fprintf ( stdout, "# [hvp_lma] w  %25.16e %25.16e norm diff  %25.16e\n", w.re, w.im, norm );
+  
+    // reallocate eo_evecs_block
+    double * aux = init_1level_dtable ( (evecs_num+1) * _GSI(Vhalf) );
+    if( aux == NULL ) {
+      fprintf(stderr, "[hvp_lma] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
+      EXIT(8);
+    }
+  
+    memcpy ( aux, eo_evecs_block, evecs_num*sizeof_eo_spinor_field );
+    memcpy ( aux+evecs_num*_GSI(Vhalf), eo_spinor_field[0], sizeof_eo_spinor_field );
+  
+    fini_1level_dtable ( &eo_evecs_block );
+    eo_evecs_block  = aux;
+  
+    // reallocate eo_evecs_field
+    free ( eo_evecs_field );
+    eo_evecs_field = (double**) malloc ( (evecs_num+1) * sizeof(double*) );
+    if ( eo_evecs_field == NULL ) {
+      fprintf ( stderr, "[hvp_lma] Error from malloc %s %d\n", __FILE__, __LINE__ );
+      EXIT(42);
+    }
+    eo_evecs_field[0] = eo_evecs_block;
+    for( unsigned int i = 1; i <= evecs_num; i++) eo_evecs_field[i] = eo_evecs_field[i-1] + _GSI(Vhalf);
+  
+    // reallocate evecs_eval
+    aux = init_1level_dtable ( evecs_num+1 );
+    memcpy ( aux, evecs_eval, evecs_num*sizeof(double) );
+    aux[evecs_num] = w.re;
+    fini_1level_dtable ( &evecs_eval );
+    evecs_eval = aux;
+  
+    evecs_num++;
+  
+    fini_2level_dtable ( &eo_spinor_work );
+    fini_2level_dtable ( &eo_spinor_field );
 
-  exitstatus = init_rng_stat_file ( g_seed, NULL );
-  if ( exitstatus != 0 ) {
-    fprintf ( stderr, "[hvp_lma] Error from init_rng_stat_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-    EXIT(2);
-  }
-
-  double ** eo_spinor_work  = init_2level_dtable ( 2, _GSI((VOLUME+RAND)/2) );
-  double ** eo_spinor_field = init_2level_dtable ( 2, _GSI(Vhalf) );
-
-  random_spinor_field ( eo_spinor_work[0], Vhalf );
-
-  exitstatus = project_spinor_field( eo_spinor_field[0], eo_spinor_work[0], 0, eo_evecs_field[0], evecs_num, Vhalf );
-  if ( exitstatus != 0 ) {
-    fprintf ( stderr, "[hvp_lma] Error from project_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-    EXIT(2);
-  }
-
-#if 0
-  exitstatus = project_spinor_field( eo_spinor_field[1], eo_spinor_field[0], 1, eo_evecs_field[0], evecs_num, Vhalf );
-  if ( exitstatus != 0 ) {
-    fprintf ( stderr, "[hvp_lma] Error from project_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-    EXIT(2);
-  }
-  double norm = 0.;
-  spinor_scalar_product_re( &norm, eo_spinor_field[1], eo_spinor_field[1], Vhalf );
-  fprintf ( stdout, "# [hvp_lma] norm after double projection %25.16e\n", sqrt(norm) );
-#endif  // of if 0
-
-  double norm = 0.;
-  spinor_scalar_product_re( &norm, eo_spinor_field[0], eo_spinor_field[0], Vhalf );
-  norm = 1. / sqrt ( norm );
-  spinor_field_ti_eq_re ( eo_spinor_field[0], norm, Vhalf );
-
-  // apply C Cbar
-  C_clover_oo ( eo_spinor_work[0],  eo_spinor_field[0], gauge_field_with_phase, eo_spinor_work[1], mzz[1][1], mzzinv[1][0]);
-  C_clover_oo ( eo_spinor_field[1], eo_spinor_work[0],  gauge_field_with_phase, eo_spinor_work[1], mzz[0][1], mzzinv[0][0]);
-
-  complex w;
-  spinor_scalar_product_co( &w, eo_spinor_field[0], eo_spinor_field[1], Vhalf );
-
-  memcpy ( eo_spinor_work[0], eo_spinor_field[0], sizeof_eo_spinor_field );
-  spinor_field_ti_eq_re ( eo_spinor_work[0], w.re, Vhalf );
-
-  // n = | A x - lambda x|^2
-  spinor_field_norm_diff ( &norm, eo_spinor_work[0], eo_spinor_field[1], Vhalf );
-
-  // n <- n^1/2 / lambda
-  norm  = sqrt ( norm ) / w.re;
-
-  w.re *= 4.*g_kappa*g_kappa;
-  w.im *= 4.*g_kappa*g_kappa;
-
-  fprintf ( stdout, "# [hvp_lma] w  %25.16e %25.16e norm diff  %25.16e\n", w.re, w.im, norm );
-
-  // reallocate eo_evecs_block
-  double * aux = init_1level_dtable ( (evecs_num+1) * _GSI(Vhalf) );
-  if( aux == NULL ) {
-    fprintf(stderr, "[hvp_lma] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
-    EXIT(8);
-  }
-
-  memcpy ( aux, eo_evecs_block, evecs_num*sizeof_eo_spinor_field );
-  memcpy ( aux+evecs_num*_GSI(Vhalf), eo_spinor_field[0], sizeof_eo_spinor_field );
-
-  fini_1level_dtable ( &eo_evecs_block );
-  eo_evecs_block  = aux;
-
-  // reallocate eo_evecs_field
-  free ( eo_evecs_field );
-  eo_evecs_field = (double**) malloc ( (evecs_num+1) * sizeof(double*) );
-  if ( eo_evecs_field == NULL ) {
-    fprintf ( stderr, "[hvp_lma] Error from malloc %s %d\n", __FILE__, __LINE__ );
-    EXIT(42);
-  }
-  eo_evecs_field[0] = eo_evecs_block;
-  for( unsigned int i = 1; i <= evecs_num; i++) eo_evecs_field[i] = eo_evecs_field[i-1] + _GSI(Vhalf);
-
-  // reallocate evecs_eval
-  aux = init_1level_dtable ( evecs_num+1 );
-  memcpy ( aux, evecs_eval, evecs_num*sizeof(double) );
-  aux[evecs_num] = w.re;
-  fini_1level_dtable ( &evecs_eval );
-  evecs_eval = aux;
-
-  evecs_num++;
-
-  fini_2level_dtable ( &eo_spinor_work );
-  fini_2level_dtable ( &eo_spinor_field );
+  }  // end of if reconstruct eigenpair
 
   /***********************************************************/
   /***********************************************************/
