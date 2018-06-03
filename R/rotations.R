@@ -40,13 +40,13 @@ rot_spherical2cartesian_3x3 <- function( S ) {
   U <- array ( dim=c(3,3) )
 
   U[1,1] <- -r
-  U[1,2] <-  I*r
+  U[1,2] <-  1.i*r
   U[1,3] <-  0.
   U[2,1] <-  0.
   U[2,2] <-  0.
   U[2,3] <-  1.
   U[3,1] <-  r
-  U[3,2] <-  I*r
+  U[3,2] <-  1.i*r
   U[3,3] <-  0.
 
   return ( Conj(t(U)) %*% S %*% U )
@@ -146,7 +146,7 @@ rot_bispinor_rotation_matrix_spherical_basis <- function( n, w ) {
 
   SSpin <- rot_rotation_matrix_spherical_basis ( 1, n, w)
 
-  ASpin <- array ( dim=c(4,4) )
+  ASpin <- array ( 0, dim=c(4,4) )
 
   ASpin[1,1] <- SSpin[1,1]
   ASpin[1,2] <- SSpin[1,2]
@@ -157,7 +157,7 @@ rot_bispinor_rotation_matrix_spherical_basis <- function( n, w ) {
   ASpin[4,3] <- SSpin[2,1]
   ASpin[4,4] <- SSpin[2,2]
 
-  return( Aspin )
+  return( ASpin )
 }  # end of rot_bispinor_rotation_matrix_spherical_basis
 
 # ***********************************************************
@@ -167,6 +167,12 @@ rot_bispinor_rotation_matrix_spherical_basis <- function( n, w ) {
 # * effect of parity on spherical basis state 
 # ***********************************************************
 rot_inversion_matrix_spherical_basis <- function ( J2, bispinor ) {
+
+  if ( bispinor && ( J2 != 1 ) ) stop( "[rot_inversion_matrix_spherical_basis] unrecognized combination of J2 and bispinor")
+
+  if ( ( J2 == 1 && bispinor ) || ( J2 == 3 ) ) {
+    return ( gamma_basis[["tmlqcd"]][["t"]] )
+  }
 
   if ( J2 %% 4 == 0 ) {
     # ***********************************************************
@@ -186,10 +192,6 @@ rot_inversion_matrix_spherical_basis <- function ( J2, bispinor ) {
     # * spin 1/2, 3/2, 5/2, ...
     # ***********************************************************
     return ( diag ( rep ( 1, times=(J2+1 ) ) ) )
-  }
-
-  if ( ( J2 == 1 && bispinor ) || ( J2 == 3 ) ) {
-    return ( gamma_basis[["tmlqcd"]][["t"]] )
   }
 
   return ( NaN )
@@ -225,7 +227,7 @@ wigner_d <- function ( b, J2 ) {
       J_pl_m2  <- J2 - im2
       m1_pl_m2 <- J2 - im1 - im2
 
-      sign     <- J_mi_m2 %% 2 == 0 ? 1 : -1
+      sign     <- (-1)^J_mi_m2
 
       J_mi_m2_fac <- factorial ( J_mi_m2 )
       J_pl_m2_fac <- factorial ( J_pl_m2 )
@@ -362,3 +364,17 @@ rot_mat_spin1_2_spherical <- function( n, omega ) {
 
   return( R )
 }  # end of rot_mat_spin1_2_spherical
+
+# ***********************************************************
+# ***********************************************************
+
+# ***********************************************************
+# *
+# ***********************************************************
+rot_mat_check_is_real_int <- function ( R , eps=1.e-12 ) {
+  if ( missing(R) ) stop("Need input matrix")
+  S <- round( Re(R) )
+  if ( any( abs( R - S ) > eps ) ) stop("matrix is not real int")
+
+  return( S );
+}  # end of rot_mat_check_is_int
