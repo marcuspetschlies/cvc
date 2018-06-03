@@ -658,8 +658,8 @@ set_rot_mat_table_cubic_group_double_cover <- function( group, irrep ) {
     } else if ( irrep == "E"  ) {
 
       for ( i in 1 : nrot ) {
-        t$R[[i]]  <- array ( dim = c(2, 2) )
-        t$IR[[i]] <- array ( dim = c(2, 2) )
+        t$R[[i]]  <- array ( 0, dim = c(2, 2) )
+        t$IR[[i]] <- array ( 0, dim = c(2, 2) )
       }
 
       # * I R1, J R48
@@ -691,7 +691,7 @@ set_rot_mat_table_cubic_group_double_cover <- function( group, irrep ) {
       t$R[[5]][2,1]  <-  SQRT3_HALF
 
       # * 3IC4 IR37,IR45,IR47
-      t$IR[[1]][2,1]  <-  0.5
+      t$IR[[1]][1,1]  <-  0.5
       t$IR[[1]][2,2]  <- -0.5
       t$IR[[1]][1,2]  <-  SQRT3_HALF
       t$IR[[1]][2,1]  <-  SQRT3_HALF
