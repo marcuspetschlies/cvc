@@ -4,17 +4,25 @@
 # ***********************************************************
 
 projector_set <- function(
-    lg, refframerot = NULL,
-    irrep, row_target,
+    # ***********************************************************
+    # * these are mandatory
+    # ***********************************************************
+    lg, 
+    irrep,
     interpolator_num,
     interpolator_J2_list,
+    # ***********************************************************
+    # * these need not be set now, may control behavior later
+    # ***********************************************************
+    refframerot                 = NULL,
+    row_target                  = NULL,
     interpolator_momentum_list  = NULL,
     interpolator_bispinor_list  = NULL,
     interpolator_parity_list    = NULL,
     interpolator_cartesian_list = NULL,
     ref_row_target              = NULL,
     ref_row_spin                = NULL,
-    name                        = "NA"
+    name                        = NULL
 ) {
 
   p <- list()
@@ -22,7 +30,7 @@ projector_set <- function(
   if ( missing (interpolator_num) ) stop("need number of interpolating fields")
   p$n <- interpolator_num
 
-  if ( missing ( lg ) || missing (irrep) || missing (row_target) ) stop("need little group, irrep and row")
+  if ( missing ( lg ) || missing (irrep) ) stop("need little group, irrep and row")
 
   # ***********************************************************
   # * init fill target cubic group irrep rotation table
@@ -32,23 +40,19 @@ projector_set <- function(
   # ***********************************************************
   # * set row of target irrep
   # ***********************************************************
-  p$row_target <- row_target
+  if ( !is.null ( row_target ) ) p$row_target <- row_target
 
   # ***********************************************************
   # * set reference row of target irrep, if provided
   # * (select irrep matrix column in projector,
   # *  we call it row as well)
   # ***********************************************************
-  if ( !is.null ( ref_row_target ) ) {
-    p$ref_row_target <- ref_row_target
-  }
+  if ( !is.null ( ref_row_target ) ) p$ref_row_target <- ref_row_target
 
   # ***********************************************************
   # * reference row for each spin vector, if provided
   # ***********************************************************
-  if ( !is.null ( ref_row_spin )  ) {
-    p$ref_row_spin <- ref_row_spin
-  }
+  if ( !is.null ( ref_row_spin )  ) p$ref_row_spin <- ref_row_spin
 
   # ***********************************************************
   # * set intrinsic parity of operator, if provided
@@ -59,10 +63,22 @@ projector_set <- function(
   else p$parity <- rep ( 1, times = p$n )
 
   # ***********************************************************
+  # * set bispinor list
+  # ***********************************************************
+  if ( !is.null ( interpolator_bispinor_list ) ) p$interpolator_bispinor_list <- interpolator_bispinor_list
+  else p$interpolator_bispinor_list <- rep( FALSE, times=p$n )
+
+  # ***********************************************************
+  # * set cartesian list
+  # ***********************************************************
+  if ( !is.null ( interpolator_cartesian_list ) ) p$interpolator_cartesian_list <- interpolator_cartesian_list
+  else p$interpolator_cartesian_list <- rep( FALSE, times=p$n )
+
+  # ***********************************************************
   # * set the correlator name, if provided;
   # * default "NA" should already be set
   # ***********************************************************
-  p$name <- name
+  if ( !is.null ( p$name ) ) p$name <- name
 
   # ***********************************************************
   # * prepare reference frame rotation
@@ -86,13 +102,13 @@ projector_set <- function(
 
     for ( i in 1:p$n ) {
 
-      if ( interpolator_bispinor_list[i] ) {
+      if ( p$interpolator_bispinor_list[i] ) {
         p$refframerot$srot[[i]] <- rot_bispinor_rotation_matrix_spherical_basis ( cubic_group_double_cover_rotations[[rid]]$n, cubic_group_double_cover_rotations[[rid]]$w )
       } else {
         p$refframerot$srot[[i]] <- rot_rotation_matrix_spherical_basis ( interpolator_J2_list[i], cubic_group_double_cover_rotations[[rid]]$n, cubic_group_double_cover_rotations[[rid]]$w )
       }
 
-      if ( interpolator_cartesian_list[i] && ( interpolator_J2_list[i] == 2 ) ) {
+      if ( p$interpolator_cartesian_list[i] && ( interpolator_J2_list[i] == 2 ) ) {
         p$refframerot$srot[[i]] <- rot_spherical2cartesian_3x3 ( p$refframerot$srot[[i]] );
 
         if ( ! rot_mat_check_is_real_int ( p$refframerot$srot[[i]] ) ) stop ( "rot_mat_check_is_real_int failed" )
@@ -127,23 +143,21 @@ projector_set <- function(
   # * transform p-3-vector rotations to cartesian basis
   # ***********************************************************
   p$rp <- list()
-  p$rp$rid  <- p$target$rid
-  p$rp$rmid <- p$target$rmid
+  p$rp$rid  <- p$rtarget$rid
+  p$rp$rmid <- p$rtarget$rmid
   p$rp$R    <- vector(mode="list")
   p$rp$IR   <- vector(mode="list")
 
   for ( i in 1:length(p$rp$rid) ) {
-    rid  <- p$rp$rid[i];
-    rmid <- p$rpt$rmid[i];
-
-    p$rp$R[[i]]  <- rot_rotation_matrix_spherical_basis ( 2, cubic_group_double_cover_rotations[[rid]]$n, cubic_group_double_cover_rotations[[rid]]$omega )
-
-    p$rp$IR[[i]] <- rot_inversion_matrix_spherical_basis ( 2, FALSE  ) %*% rot_rotation_matrix_spherical_basis ( 2, cubic_group_double_cover_rotations[[rmid]]$n, cubic_group_double_cover_rotations[[rmid]]$omega )
-
+    rid          <- p$rp$rid[i];
+    p$rp$R[[i]]  <- rot_rotation_matrix_spherical_basis ( 2, cubic_group_double_cover_rotations[[rid]]$n, cubic_group_double_cover_rotations[[rid]]$w )
     p$rp$R[[i]]  <- rot_spherical2cartesian_3x3 ( p$rp$R[[i]]  );
-    p$rp$IR[[i]] <- rot_spherical2cartesian_3x3 ( p$rp$IR[[i]] );
+    p$rp$R[[i]]  <- rot_mat_check_is_real_int ( p$rp$R[[i]] ) 
 
-    if ( ! rot_mat_check_is_real_int ( p$rp$R[[i]] ) || ! rot_mat_check_is_real_int ( p$rp$R[[i]] ) ) stop (" rot_mat_check_is_real_int failed" )
+    rmid <- p$rp$rmid[i];
+    p$rp$IR[[i]] <- rot_inversion_matrix_spherical_basis ( 2, FALSE  ) %*% rot_rotation_matrix_spherical_basis ( 2, cubic_group_double_cover_rotations[[rmid]]$n, cubic_group_double_cover_rotations[[rmid]]$w )
+    p$rp$IR[[i]] <- rot_spherical2cartesian_3x3 ( p$rp$IR[[i]] );
+    p$rp$IR[[i]] <- rot_mat_check_is_real_int ( p$rp$IR[[i]] )
 
     if ( !is.null ( p$refframerot ) ) {
 
@@ -158,25 +172,25 @@ projector_set <- function(
   # * set rotation matrix table for each interpolator
   # ***********************************************************
 
-  p$rspin <- vector ( moded ="list" )
+  p$rspin <- vector ( mode ="list" )
 
   for (  i in 1:p$n ) {
 
     p$rspin[[i]] <- list()
-    p$rspin[[i]]$rid  <- p$target$rid
-    p$rspin[[i]]$rmid <- p$target$rmid
+    p$rspin[[i]]$rid  <- p$rtarget$rid
+    p$rspin[[i]]$rmid <- p$rtarget$rmid
     p$rspin[[i]]$R    <- vector(mode="list")
     p$rspin[[i]]$IR   <- vector(mode="list")
-    nrot <- length( p$target$rid )
+    nrot <- length( p$rtarget$rid )
 
 
-    for ( k in 1:nrot ) {
+    for ( k in 1:length( p$rspin[[i]]$rid) ) {
       rid  <- p$rspin[[i]]$rid[k]
       rmid <- p$rspin[[i]]$rmid[k]
       
-      p$rspin[[i]]$R[[k]] <- rot_rotation_matrix_spherical_basis ( interpolator_J2_list[i], cubic_group_double_cover_rotations[[rid]]$n, cubic_group_double_cover_rotations[[rid]]$omega )
+      p$rspin[[i]]$R[[k]] <- rot_rotation_matrix_spherical_basis ( interpolator_J2_list[i], cubic_group_double_cover_rotations[[rid]]$n, cubic_group_double_cover_rotations[[rid]]$w )
 
-      p$rspin[[i]]$IR[[k]] <- rot_inversion_matrix_spherical_basis ( interpolator_J2_list[i], interpolator_bispinor_list[i] ) %*% rot_rotation_matrix_spherical_basis ( interpolator_J2_list[i], cubic_group_double_cover_rotations[[rmid]]$n, cubic_group_double_cover_rotations[[rmid]]$omega )
+      p$rspin[[i]]$IR[[k]] <- rot_inversion_matrix_spherical_basis ( interpolator_J2_list[i], p$interpolator_bispinor_list[i] ) %*% rot_rotation_matrix_spherical_basis ( interpolator_J2_list[i], cubic_group_double_cover_rotations[[rmid]]$n, cubic_group_double_cover_rotations[[rmid]]$w )
 
       # ***********************************************************
       # * check, whether we have spin 1 and want to use cartesian

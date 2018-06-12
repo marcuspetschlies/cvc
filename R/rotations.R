@@ -170,7 +170,7 @@ rot_inversion_matrix_spherical_basis <- function ( J2, bispinor ) {
 
   if ( bispinor && ( J2 != 1 ) ) stop( "[rot_inversion_matrix_spherical_basis] unrecognized combination of J2 and bispinor")
 
-  if ( ( J2 == 1 && bispinor ) || ( J2 == 3 ) ) {
+  if ( ( ( J2 == 1 ) && bispinor ) || ( J2 == 3 ) ) {
     return ( gamma_basis[["tmlqcd"]][["t"]] )
   }
 
