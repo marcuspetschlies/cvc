@@ -1,3 +1,5 @@
+init_cubic_group_rotations_v2  <- function() {
+
 cubic_group_rotations_v2 <- vector ( mode = "list" )
 
 cubic_group_rotations_v2[[ 1]] <- list(n=c(NA, NA, NA) , w = NA , a=c( (  0.0 ) * pi ,  (  0.0 ) * pi ,  (  0.0 ) * pi), name =  "E")
@@ -47,3 +49,7 @@ cubic_group_rotations_v2[[22]] <- list(n=c(NA, NA, NA) , w = NA , a=c( (  0.0 ) 
 cubic_group_rotations_v2[[23]] <- list(n=c(NA, NA, NA) , w = NA , a=c( (  0.0 ) * pi ,  (  1.0 ) * pi ,  (  0.0 ) * pi), name =  "C2y")
 
 cubic_group_rotations_v2[[24]] <- list(n=c(NA, NA, NA) , w = NA , a=c( (  0.0 ) * pi ,  (  0.0 ) * pi ,  (  1.0 ) * pi), name =  "C2z")
+
+return( cubic_group_rotations_v2 )
+
+}

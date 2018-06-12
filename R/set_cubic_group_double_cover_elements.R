@@ -1,3 +1,5 @@
+init_cubic_group_double_cover_rotations <- function() {
+
 cubic_group_double_cover_rotations <- vector ( mode = "list" )
 
 cubic_group_double_cover_rotations[[ 1]] <- list(n=c(0, 0, 0) , w = 0 , name ="NA")
@@ -96,3 +98,6 @@ cubic_group_double_cover_rotations[[47]] <- list(n=c(-1, 0, 1) , w = -pi , name 
 
 cubic_group_double_cover_rotations[[48]] <- list(n=c(0, 0, 0) , w = 2*pi , name ="NA")
 
+return ( cubic_group_double_cover_rotations )
+
+}  # end of init_cubic_group_double_cover_rotations
