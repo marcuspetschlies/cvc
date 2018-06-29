@@ -282,35 +282,47 @@ int main(int argc, char **argv) {
         /******************************************************
          * reorder according to reorder entry in twopoint_function
          ******************************************************/
+        if ( g_verbose > 4 && io_proc == 2 ) fprintf ( stdout, "# [piN2piN_correlators] calling reorder_to_absolute_time %s %d\n", __FILE__, __LINE__ );
         reorder_to_absolute_time (diagram, diagram, g_twopoint_function_list[i2pt].source_coords[0], g_twopoint_function_list[i2pt].reorder, nT );
+
 
         /******************************************************
          * source phase
          ******************************************************/
+        if ( g_verbose > 4 && io_proc == 2 ) fprintf ( stdout, "# [piN2piN_correlators] calling correlator_add_source_phase  %s %d\n", __FILE__, __LINE__ );
         exitstatus = correlator_add_source_phase ( diagram, g_twopoint_function_list[i2pt].pi1,  &(gsx[1]), nT );
 
-  
+
         /******************************************************
          * boundary phase
          ******************************************************/
+        if ( g_verbose > 4 && io_proc == 2 ) fprintf ( stdout, "# [piN2piN_correlators] calling correlator_add_baryon_boundary_phase  %s %d\n", __FILE__, __LINE__ );
         exitstatus = correlator_add_baryon_boundary_phase ( diagram, gsx[0], nT ); 
+
 
         /******************************************************
          * aplly gi1[1] and gf1[1]
          ******************************************************/
+        if ( g_verbose > 4 && io_proc == 2 ) fprintf ( stdout, "# [piN2piN_correlators] calling contract_diagram_zm4x4_field_mul_gamma_lr   %s %d\n", __FILE__, __LINE__ );
         exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( diagram, diagram, gamma[g_twopoint_function_list[i2pt].gf1[1]], gamma[g_twopoint_function_list[i2pt].gi1[1]], nT );
+
 
         /******************************************************
          * spin / spin-parity projection
          ******************************************************/
-        // correlator_spin_parity_projection ( diagram, diagram, (double)g_twopoint_function_list[i2pt].parity_project, nT );
+        if ( g_verbose > 4 && io_proc == 2 ) fprintf ( stdout, "# [piN2piN_correlators] calling correlator_spin_parity_projection %s %d\n", __FILE__, __LINE__ );
+        correlator_spin_parity_projection ( diagram, diagram, (double)g_twopoint_function_list[i2pt].parity_project, nT );
+        //
 
         /******************************************************
          * multiply with phase factor per convention
          ******************************************************/
         // twopoint_function_correlator_phase ( correlator, &(g_twopoint_function_list[i2pt]), nT );
 
+        if ( g_verbose > 4 && io_proc == 2 ) fprintf ( stdout, "# [piN2piN_correlators] calling contract_diagram_zm4x4_field_ti_eq_co %s %d\n", __FILE__, __LINE__ );
         exitstatus = contract_diagram_zmx4x4_field_ti_eq_co ( diagram, twopoint_function_get_correlator_phase ( &(g_twopoint_function_list[i2pt]) ), nT );
+#if 0 
+#endif  // of if 0
 
         /******************************************************
          * TEST
