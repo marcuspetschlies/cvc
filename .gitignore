@@ -17,3 +17,4 @@ build-4dim/
 build-serial/
 build-16.04.2-Ubuntu-serial-openmp
 build-16.04.2-Ubuntu-2dim-openmp
+build-16.04.2-Ubuntu-serial/
