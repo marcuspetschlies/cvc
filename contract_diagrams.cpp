@@ -441,7 +441,7 @@ int correlator_add_source_phase ( double _Complex ***sp, int const p[3], int con
   return(0);
 }  /* end of correlator_add_source_phase */
 
-int correlator_spin_projection (double _Complex ***sp_out, double _Complex ***sp_in, int i, int k, double a, double b, unsigned N) {
+int correlator_spin_projection (double _Complex ***sp_out, double _Complex ***sp_in, int const i, int const k, double const a, double const b, unsigned int const N) {
 
   int ik = 4*i+k;
   
@@ -515,7 +515,7 @@ int correlator_spin_projection (double _Complex ***sp_out, double _Complex ***sp
 /***********************************************
  *
  ***********************************************/
-int correlator_spin_parity_projection (double _Complex ***sp_out, double _Complex ***sp_in, double c, unsigned N) {
+int correlator_spin_parity_projection (double _Complex ***sp_out, double _Complex ***sp_in, double const c, unsigned int const N) {
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
@@ -529,13 +529,16 @@ int correlator_spin_parity_projection (double _Complex ***sp_out, double _Comple
 /***********************************************
  *
  ***********************************************/
-int reorder_to_absolute_time (double _Complex ***sp_out, double _Complex ***sp_in, int tsrc, int dir, unsigned N) {
+int reorder_to_absolute_time (double _Complex ***sp_out, double _Complex ***sp_in, int const tsrc, int const dir, unsigned int const N) {
 
   int exitstatus;
   double _Complex ***buffer = NULL;
 
-  if ( dir == 0 && sp_out != sp_in ) {
-    memcpy( sp_out[0][0], sp_in[0][0],  N*16*sizeof(double _Complex) );
+  if ( dir == 0 ) {
+    // nothing to be done except if sp_out and sp_in are not the same fields in memory
+    if ( sp_out != sp_in ) {
+      memcpy( sp_out[0][0], sp_in[0][0],  N*16*sizeof(double _Complex) );
+    }
     return(0);
   }
 
@@ -1146,7 +1149,7 @@ int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const 
  ***********************************************/
 int contract_diagram_zm4x4_field_mul_gamma_lr ( double _Complex *** const sp_out, double _Complex *** const sp_in, gamma_matrix_type const gl, gamma_matrix_type const gr, unsigned int const N ) {
 
-  double _Complex ** sp_aux = init_2level_ztable ( 4, 4 );
+  double _Complex *** sp_aux = init_3level_ztable ( N, 4, 4 );
   if ( sp_aux == NULL ) { return(1); }
 
 #ifdef HAVE_OPENMP
@@ -1155,13 +1158,13 @@ int contract_diagram_zm4x4_field_mul_gamma_lr ( double _Complex *** const sp_out
   for ( unsigned int it = 0; it < N; it++ ) {
 
     // sp_aux <- sp_in x Gamma_r
-    zm4x4_eq_zm4x4_ti_zm4x4 ( sp_aux, sp_in[it],  (double _Complex**)gr.m );
+    zm4x4_eq_zm4x4_ti_zm4x4 ( sp_aux[it], sp_in[it],  (double _Complex**)gr.m );
 
     // diagram <- Gamma_f1_1 x diagram_buffer
-    zm4x4_eq_zm4x4_ti_zm4x4 ( sp_out[it], (double _Complex**)gl.m, sp_aux );
+    zm4x4_eq_zm4x4_ti_zm4x4 ( sp_out[it], (double _Complex**)gl.m, sp_aux[it] );
   }
-
-  fini_2level_ztable ( &sp_aux );
+  
+  fini_3level_ztable ( &sp_aux );
 
   return (0);
 }  // end of contract_diagram_zm4x4_field_mul_gamma_lr
