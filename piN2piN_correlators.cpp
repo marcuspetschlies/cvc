@@ -321,8 +321,6 @@ int main(int argc, char **argv) {
 
         if ( g_verbose > 4 && io_proc == 2 ) fprintf ( stdout, "# [piN2piN_correlators] calling contract_diagram_zm4x4_field_ti_eq_co %s %d\n", __FILE__, __LINE__ );
         exitstatus = contract_diagram_zmx4x4_field_ti_eq_co ( diagram, twopoint_function_get_correlator_phase ( &(g_twopoint_function_list[i2pt]) ), nT );
-#if 0 
-#endif  // of if 0
 
         /******************************************************
          * TEST
