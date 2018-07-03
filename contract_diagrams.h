@@ -25,11 +25,11 @@ int correlator_add_baryon_boundary_phase ( double _Complex *** const sp, int con
 
 int correlator_add_source_phase ( double _Complex ***sp, int const p[3], int const source_coords[3], unsigned int const N );
 
-int correlator_spin_parity_projection (double _Complex ***sp_out, double _Complex ***sp_in, double c, unsigned N);
+int correlator_spin_parity_projection (double _Complex ***sp_out, double _Complex ***sp_in, double const c, unsigned const N);
 
-int correlator_spin_projection (double _Complex ***sp_out, double _Complex ***sp_in, double c, unsigned N);
+int correlator_spin_projection (double _Complex ***sp_out, double _Complex ***sp_in, int const i, int const k, double const a, double const b, unsigned int const N);
 
-int reorder_to_absolute_time (double _Complex ***sp_out, double _Complex ***sp_in, int tsrc, int dir, unsigned N);
+int reorder_to_absolute_time (double _Complex ***sp_out, double _Complex ***sp_in, int const tsrc, int const dir, unsigned int const N);
 
 int contract_diagram_zmx4x4_field_ti_co_field ( double _Complex ***sp_out, double _Complex ***sp_in, double _Complex *c_in, unsigned int N);
 
