@@ -19,3 +19,4 @@ build-16.04.2-Ubuntu-serial-openmp
 build-16.04.2-Ubuntu-2dim-openmp
 build-debian-serial
 build-16.04.2-Ubuntu-serial/
+build-debian-2dim-openmp/
