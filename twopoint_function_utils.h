@@ -23,9 +23,13 @@ double _Complex twopoint_function_get_correlator_phase ( twopoint_function_type 
 
 int twopoint_function_accumulate_diagrams ( double _Complex *** const diagram, twopoint_function_type *p, int const N, struct AffReader_s *affr );
 
+void twopoint_function_fini ( twopoint_function_type *p );
 
+void twopoint_function_allocate ( twopoint_function_type *p );
 
-}  /* end of namespace cvc */
+void twopoint_function_show_data ( twopoint_function_type *p, FILE*ofs );
+
+}  // end of namespace cvc
 
 
 #endif

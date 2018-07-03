@@ -84,7 +84,10 @@ void twopoint_function_init ( twopoint_function_type *p ) {
   p->source_coords[3] = -1;
   p->reorder = 0;
   strcpy( p->fbwd, "NA" );
-}  /* end of twopoint_function_init */
+  p->c = NULL;
+  p->T = -1;
+  p->d = 0;
+}  // end of twopoint_function_init
 
 /********************************************************************************
  *
@@ -109,8 +112,15 @@ void twopoint_function_print ( twopoint_function_type *p, char *name, FILE*ofs )
       p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3] );
   fprintf(ofs, "# [print_twopoint_function] %s.reorder         =  %3d\n", name, p->reorder );
   fprintf(ofs, "# [print_twopoint_function] %s.fbwd            =  %s\n", name, p->fbwd );
+  fprintf(ofs, "# [print_twopoint_function] %s.T               =  %d\n", name, p->T );
+  fprintf(ofs, "# [print_twopoint_function] %s.d               =  %d\n", name, p->d );
+  if ( p->c != NULL ) {
+    fprintf ( ofs, "# [print_twopoint_function] data array is set\n");
+  } else {
+    fprintf ( ofs, "# [print_twopoint_function] data is empty\n");
+  }
   return;
-}  /* end of twopoint_function_print */
+}  // end of twopoint_function_print
 
 /********************************************************************************
  *
@@ -134,11 +144,59 @@ void twopoint_function_copy ( twopoint_function_type *p, twopoint_function_type 
   p->parity_project = r->parity_project;
   memcpy( p->source_coords, r->source_coords, 4*sizeof(int) );
   p->reorder = r->reorder;
-
+  p->T       = r->T;
+  p->d       = r->d;
+  if ( r->c != NULL ) {
+    FILL ME IN
+      allocate p->c like r->c 
+      copy r->c to p->c
+  }
   return;
-}  /* end of twopoint_function_print */
+}  // end of twopoint_function_print
 
+/********************************************************************************
+ *
+ ********************************************************************************/
+void twopoint_function_show_data ( twopoint_function_type *p, FILE*ofs ) {
+  if ( ofs == NULL ) ofs = stdout;
+  if ( p->c == NULL ) {
+    fprintf ( stderr, "[twopoint_function_show_data] Error, data not set\n");
+    return;
+  }
+  for ( int i = 0; i < p->n; i++ ) {
+    fprintf ( ofs, "# [twopoint_function_show_data] %s diagram %2d"
+    for ( int it = 0; it < p->T; it++ ) {
+      for ( int k1 = 0; k1 < p->d; k1++ ) {
+      for ( int k2 = 0; k2 < p->d; k2++ ) {
+        double _Complex z = ((double _Complex****)p->c)[i][it][k1][k2];
+        fprintf ( ofs, "    %3d %2d %2d %25.16e %25.16e\n", it, k1, k2, creal(z), cimag(z) );
+      }}  // end of loop on components k1, k2
+    }  // end of loop on timeslices
+  }  // end of loop on diagrams
+}  // end of twopoint_function_show_data
 
+/********************************************************************************
+ *
+ ********************************************************************************/
+void twopoint_function_allocate ( twopoint_function_type *p ) {
+  if ( p->c != NULL ) {
+    fprintf ( stderr, "[twopoint_function_allocate] Error, data pointer not NULL\n");
+    return;
+  }
+  p->c = (void*)init_4level_ztable ( p->n, p->T, p->d, p->d );
+  if ( p->c == NULL ) {
+    fprintf ( stderr, "[twopoint_function_allocate] Error, data pointer is NULL %s %d\n", __FILE__, __LINE__ );
+    return;
+  }
+  return ( p->c );
+}  // end of twopoint_function_allocate
+
+/********************************************************************************
+ *
+ ********************************************************************************/
+void twopoint_function_fini ( twopoint_function_type *p ) {
+  fini_4level_ztable ( p->c );
+}  // end of twopoint_function_fini
 
 /********************************************************************************
  *
@@ -217,7 +275,7 @@ void twopoint_function_print_diagram_key (char*key, twopoint_function_type *p, i
   }
   fprintf(stdout, "# [twopoint_function_print_diagram_key] key = \"%s\"\n", key);
   return;
-}  /* end of twopoint_function_print_key */
+}  // end of twopoint_function_print_key
 
 
 /********************************************************************************
