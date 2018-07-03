@@ -1229,6 +1229,16 @@ namespace cvc {
         &(cvc::twopoint_function_ptr->spin_project) );
   }
 
+  {SPC}*T{EQL}{DIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9_] = %d", cvc::name,
+        &(cvc::twopoint_function_ptr->T) );
+  }
+
+  {SPC}*d{EQL}{DIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9_] = %d", cvc::name,
+        &(cvc::twopoint_function_ptr->d) );
+  }
+
   {SPC}*parity_project{EQL}{SDIGIT}+ {
     sscanf(yytext, " %[a-zA-Z0-9_] = %d", cvc::name,
         &(cvc::twopoint_function_ptr->parity_project) );
