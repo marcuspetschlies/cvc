@@ -40,7 +40,7 @@ typedef struct {
   char fbwd[20];
   // number of timeslices, default -1, will be set to T_global
   int T;
-  // spin dimension, default ???
+  // spin dimension, default 0
   int d;
   // data for this 2-pt function
   void *c;
