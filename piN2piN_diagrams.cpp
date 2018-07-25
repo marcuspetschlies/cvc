@@ -300,7 +300,7 @@ int main(int argc, char **argv) {
         for ( int isample = 0; isample < g_nsample; isample++ ) {
 
           if ( io_proc == 2 ) {
-            aff_key_conversion ( aff_tag, tag, isample, g_seq_source_momentum_list[ipi2], NULL, g_seq2_source_momentum_list[ipf2], g_source_coords_list[i_src], -1, -1 );
+            aff_key_conversion ( aff_tag, tag, isample, g_seq_source_momentum_list[ipi2], NULL, g_seq2_source_momentum_list[ipf2], g_source_coords_list[i_src], -1, -1, -1 );
             if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams] key = \"%s\"\n", aff_tag);
  
             affdir = aff_reader_chpath (affr, affn, aff_tag );
@@ -352,7 +352,7 @@ int main(int argc, char **argv) {
           for ( int isample = 0; isample < g_nsample; isample++ ) {
 
             if ( io_proc == 2 ) {
-              aff_key_conversion ( aff_tag, tag, isample, NULL, g_sink_momentum_list[ipf1], NULL, gsx, gamma_f1_nucleon_list[igf1], -1 );
+              aff_key_conversion ( aff_tag, tag, isample, NULL, g_sink_momentum_list[ipf1], NULL, gsx, gamma_f1_nucleon_list[igf1], -1, -1 );
               if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams] key = \"%s\"\n", aff_tag);
  
               affdir = aff_reader_chpath (affr, affn, aff_tag );
@@ -508,7 +508,7 @@ int main(int argc, char **argv) {
         for ( int isample = 0; isample < g_nsample; isample++ ) {
 
           if ( io_proc == 2 ) {
-            aff_key_conversion ( aff_tag, tag, isample, NULL, NULL, g_seq2_source_momentum_list[ipf2], gsx, -1, -1 );
+            aff_key_conversion ( aff_tag, tag, isample, NULL, NULL, g_seq2_source_momentum_list[ipf2], gsx, -1, -1, -1 );
             if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams] key = \"%s\"\n", aff_tag);
  
             affdir = aff_reader_chpath (affr, affn, aff_tag );
@@ -548,7 +548,7 @@ int main(int argc, char **argv) {
             for ( int isample = 0; isample < g_nsample; isample++ ) {
 
               if ( io_proc == 2 ) {
-                aff_key_conversion ( aff_tag, tag, isample, g_seq_source_momentum_list[ipi2], g_sink_momentum_list[ipf1], NULL, gsx, gamma_f1_nucleon_list[igf1], -1 );
+                aff_key_conversion ( aff_tag, tag, isample, g_seq_source_momentum_list[ipi2], g_sink_momentum_list[ipf1], NULL, gsx, gamma_f1_nucleon_list[igf1], -1, -1 );
                 if (g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams] key = \"%s\"\n", aff_tag);
  
                 affdir = aff_reader_chpath (affr, affn, aff_tag );
@@ -592,7 +592,7 @@ int main(int argc, char **argv) {
             for ( int isample = 0; isample < g_nsample; isample++ ) {
 
               if ( io_proc == 2 ) {
-                aff_key_conversion ( aff_tag, tag, isample, g_seq_source_momentum_list[ipi2], g_sink_momentum_list[ipf1], NULL, gsx, gamma_f1_nucleon_list[igf1], -1 );
+                aff_key_conversion ( aff_tag, tag, isample, g_seq_source_momentum_list[ipi2], g_sink_momentum_list[ipf1], NULL, gsx, gamma_f1_nucleon_list[igf1], -1, -1 );
                 if (g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams] key = \"%s\"\n", aff_tag);
  
                 affdir = aff_reader_chpath (affr, affn, aff_tag );
@@ -844,7 +844,7 @@ int main(int argc, char **argv) {
 
             if ( io_proc == 2 ) {
 
-              aff_key_conversion ( aff_tag, tag, 0, zero_momentum, NULL, g_seq2_source_momentum_list[ipf2], gsx, gamma_f2_list[igf2], ispin );
+              aff_key_conversion ( aff_tag, tag, 0, zero_momentum, NULL, g_seq2_source_momentum_list[ipf2], gsx, gamma_f2_list[igf2], -1, ispin );
               if (g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams] key = \"%s\"\n", aff_tag);
  
               affdir = aff_reader_chpath (affr_oet, affn_oet, aff_tag );
@@ -898,7 +898,7 @@ int main(int argc, char **argv) {
 
               if ( io_proc == 2 ) {
 
-                aff_key_conversion ( aff_tag, tag, 0, g_seq_source_momentum_list[ipi2], g_sink_momentum_list[ipf1], NULL, gsx, gamma_f1_nucleon_list[igf1], ispin );
+                aff_key_conversion ( aff_tag, tag, 0, g_seq_source_momentum_list[ipi2], g_sink_momentum_list[ipf1], NULL, gsx, gamma_f1_nucleon_list[igf1], -1, ispin );
                 if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams] key = \"%s\"\n", aff_tag);
  
                 affdir = aff_reader_chpath (affr_oet, affn_oet, aff_tag );
@@ -954,7 +954,7 @@ int main(int argc, char **argv) {
 
               if ( io_proc == 2 ) {
 
-                aff_key_conversion ( aff_tag, tag, 0, g_seq_source_momentum_list[ipi2], g_sink_momentum_list[ipf1], NULL, gsx, gamma_f1_nucleon_list[igf1], ispin );
+                aff_key_conversion ( aff_tag, tag, 0, g_seq_source_momentum_list[ipi2], g_sink_momentum_list[ipf1], NULL, gsx, gamma_f1_nucleon_list[igf1], -1, ispin );
                 if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams] key = \"%s\"\n", aff_tag);
  
                 affdir = aff_reader_chpath (affr_oet, affn_oet, aff_tag );
