@@ -328,4 +328,334 @@ void gamma_matrix_qlua_binary ( gamma_matrix_type *g, int n  ) {
   return;
 }  /* end of gamma_matrix_qlua_binary */
 
+/************************************************/
+/************************************************/
+
+/************************************************
+ * initialize gamma signs
+ ************************************************/
+int get_gamma_signs ( char * const mode , int const gid ) {
+
+  static int signs_initialized = 0;
+
+  int *res_ptr = NULL;
+
+  static int res_Ct[16];
+  static int res_g0[16];
+  static int res_g05[16];
+  static int res_g2t[16];
+  static int res_g25t[16];
+  static int res_g5[16];
+  static int res_g13t[16];
+  static int res_g5d[16];
+  static int res_g13c[16];
+  static int res_g05d[16];
+  static int res_g0d[16];
+  static int res_g25c[16];
+  static int res_g2c[16];
+  static int res_gd[16];
+  static int res_Cc[16];
+
+
+  if ( ( ! signs_initialized ) || ( strcmp ( mode, "init" ) == 0 ) ) {
+    // initialize sign arrays
+
+//  Tue Jul 24 16:06:16 2018 
+res_Ct[ 0] =  -1;
+res_Ct[ 1] =  -1;
+res_Ct[ 2] =  -1;
+res_Ct[ 3] =  -1;
+res_Ct[ 4] =   1;
+res_Ct[ 5] =   1;
+res_Ct[ 6] =   1;
+res_Ct[ 7] =   1;
+res_Ct[ 8] =   1;
+res_Ct[ 9] =   1;
+res_Ct[10] =  -1;
+res_Ct[11] =  -1;
+res_Ct[12] =  -1;
+res_Ct[13] =  -1;
+res_Ct[14] =  -1;
+res_Ct[15] =  -1;
+
+
+res_g0[ 0] =   1;
+res_g0[ 1] =  -1;
+res_g0[ 2] =  -1;
+res_g0[ 3] =  -1;
+res_g0[ 4] =   1;
+res_g0[ 5] =  -1;
+res_g0[ 6] =  -1;
+res_g0[ 7] =   1;
+res_g0[ 8] =   1;
+res_g0[ 9] =   1;
+res_g0[10] =  -1;
+res_g0[11] =  -1;
+res_g0[12] =  -1;
+res_g0[13] =   1;
+res_g0[14] =   1;
+res_g0[15] =   1;
+
+
+res_g05[ 0] =  -1;
+res_g05[ 1] =   1;
+res_g05[ 2] =   1;
+res_g05[ 3] =   1;
+res_g05[ 4] =   1;
+res_g05[ 5] =  -1;
+res_g05[ 6] =   1;
+res_g05[ 7] =  -1;
+res_g05[ 8] =  -1;
+res_g05[ 9] =  -1;
+res_g05[10] =  -1;
+res_g05[11] =  -1;
+res_g05[12] =  -1;
+res_g05[13] =   1;
+res_g05[14] =   1;
+res_g05[15] =   1;
+
+
+res_g2t[ 0] =  -1;
+res_g2t[ 1] =   1;
+res_g2t[ 2] =   1;
+res_g2t[ 3] =   1;
+res_g2t[ 4] =   1;
+res_g2t[ 5] =  -1;
+res_g2t[ 6] =  -1;
+res_g2t[ 7] =   1;
+res_g2t[ 8] =   1;
+res_g2t[ 9] =   1;
+res_g2t[10] =   1;
+res_g2t[11] =   1;
+res_g2t[12] =   1;
+res_g2t[13] =  -1;
+res_g2t[14] =  -1;
+res_g2t[15] =  -1;
+
+
+res_g25t[ 0] =   1;
+res_g25t[ 1] =  -1;
+res_g25t[ 2] =  -1;
+res_g25t[ 3] =  -1;
+res_g25t[ 4] =   1;
+res_g25t[ 5] =  -1;
+res_g25t[ 6] =   1;
+res_g25t[ 7] =  -1;
+res_g25t[ 8] =  -1;
+res_g25t[ 9] =  -1;
+res_g25t[10] =   1;
+res_g25t[11] =   1;
+res_g25t[12] =   1;
+res_g25t[13] =  -1;
+res_g25t[14] =  -1;
+res_g25t[15] =  -1;
+
+
+res_g5[ 0] =  -1;
+res_g5[ 1] =  -1;
+res_g5[ 2] =  -1;
+res_g5[ 3] =  -1;
+res_g5[ 4] =   1;
+res_g5[ 5] =   1;
+res_g5[ 6] =  -1;
+res_g5[ 7] =  -1;
+res_g5[ 8] =  -1;
+res_g5[ 9] =  -1;
+res_g5[10] =   1;
+res_g5[11] =   1;
+res_g5[12] =   1;
+res_g5[13] =   1;
+res_g5[14] =   1;
+res_g5[15] =   1;
+
+
+res_g13t[ 0] =   1;
+res_g13t[ 1] =   1;
+res_g13t[ 2] =   1;
+res_g13t[ 3] =   1;
+res_g13t[ 4] =   1;
+res_g13t[ 5] =   1;
+res_g13t[ 6] =  -1;
+res_g13t[ 7] =  -1;
+res_g13t[ 8] =  -1;
+res_g13t[ 9] =  -1;
+res_g13t[10] =  -1;
+res_g13t[11] =  -1;
+res_g13t[12] =  -1;
+res_g13t[13] =  -1;
+res_g13t[14] =  -1;
+res_g13t[15] =  -1;
+
+
+res_g5d[ 0] =  -1;
+res_g5d[ 1] =  -1;
+res_g5d[ 2] =  -1;
+res_g5d[ 3] =  -1;
+res_g5d[ 4] =   1;
+res_g5d[ 5] =   1;
+res_g5d[ 6] =   1;
+res_g5d[ 7] =   1;
+res_g5d[ 8] =   1;
+res_g5d[ 9] =   1;
+res_g5d[10] =  -1;
+res_g5d[11] =  -1;
+res_g5d[12] =  -1;
+res_g5d[13] =  -1;
+res_g5d[14] =  -1;
+res_g5d[15] =  -1;
+
+
+res_g13c[ 0] =   1;
+res_g13c[ 1] =   1;
+res_g13c[ 2] =   1;
+res_g13c[ 3] =   1;
+res_g13c[ 4] =   1;
+res_g13c[ 5] =   1;
+res_g13c[ 6] =   1;
+res_g13c[ 7] =   1;
+res_g13c[ 8] =   1;
+res_g13c[ 9] =   1;
+res_g13c[10] =   1;
+res_g13c[11] =   1;
+res_g13c[12] =   1;
+res_g13c[13] =   1;
+res_g13c[14] =   1;
+res_g13c[15] =   1;
+
+
+res_g05d[ 0] =  -1;
+res_g05d[ 1] =   1;
+res_g05d[ 2] =   1;
+res_g05d[ 3] =   1;
+res_g05d[ 4] =   1;
+res_g05d[ 5] =  -1;
+res_g05d[ 6] =  -1;
+res_g05d[ 7] =   1;
+res_g05d[ 8] =   1;
+res_g05d[ 9] =   1;
+res_g05d[10] =   1;
+res_g05d[11] =   1;
+res_g05d[12] =   1;
+res_g05d[13] =  -1;
+res_g05d[14] =  -1;
+res_g05d[15] =  -1;
+
+
+res_g0d[ 0] =   1;
+res_g0d[ 1] =  -1;
+res_g0d[ 2] =  -1;
+res_g0d[ 3] =  -1;
+res_g0d[ 4] =   1;
+res_g0d[ 5] =  -1;
+res_g0d[ 6] =   1;
+res_g0d[ 7] =  -1;
+res_g0d[ 8] =  -1;
+res_g0d[ 9] =  -1;
+res_g0d[10] =   1;
+res_g0d[11] =   1;
+res_g0d[12] =   1;
+res_g0d[13] =  -1;
+res_g0d[14] =  -1;
+res_g0d[15] =  -1;
+
+
+res_g25c[ 0] =   1;
+res_g25c[ 1] =  -1;
+res_g25c[ 2] =  -1;
+res_g25c[ 3] =  -1;
+res_g25c[ 4] =   1;
+res_g25c[ 5] =  -1;
+res_g25c[ 6] =  -1;
+res_g25c[ 7] =   1;
+res_g25c[ 8] =   1;
+res_g25c[ 9] =   1;
+res_g25c[10] =  -1;
+res_g25c[11] =  -1;
+res_g25c[12] =  -1;
+res_g25c[13] =   1;
+res_g25c[14] =   1;
+res_g25c[15] =   1;
+
+
+res_g2c[ 0] =  -1;
+res_g2c[ 1] =   1;
+res_g2c[ 2] =   1;
+res_g2c[ 3] =   1;
+res_g2c[ 4] =   1;
+res_g2c[ 5] =  -1;
+res_g2c[ 6] =   1;
+res_g2c[ 7] =  -1;
+res_g2c[ 8] =  -1;
+res_g2c[ 9] =  -1;
+res_g2c[10] =  -1;
+res_g2c[11] =  -1;
+res_g2c[12] =  -1;
+res_g2c[13] =   1;
+res_g2c[14] =   1;
+res_g2c[15] =   1;
+
+
+res_gd[ 0] =   1;
+res_gd[ 1] =   1;
+res_gd[ 2] =   1;
+res_gd[ 3] =   1;
+res_gd[ 4] =   1;
+res_gd[ 5] =   1;
+res_gd[ 6] =  -1;
+res_gd[ 7] =  -1;
+res_gd[ 8] =  -1;
+res_gd[ 9] =  -1;
+res_gd[10] =  -1;
+res_gd[11] =  -1;
+res_gd[12] =  -1;
+res_gd[13] =  -1;
+res_gd[14] =  -1;
+res_gd[15] =  -1;
+
+
+res_Cc[ 0] =  -1;
+res_Cc[ 1] =  -1;
+res_Cc[ 2] =  -1;
+res_Cc[ 3] =  -1;
+res_Cc[ 4] =   1;
+res_Cc[ 5] =   1;
+res_Cc[ 6] =  -1;
+res_Cc[ 7] =  -1;
+res_Cc[ 8] =  -1;
+res_Cc[ 9] =  -1;
+res_Cc[10] =   1;
+res_Cc[11] =   1;
+res_Cc[12] =   1;
+res_Cc[13] =   1;
+res_Cc[14] =   1;
+res_Cc[15] =   1;
+
+    signs_initialized = 1;
+
+
+  // } else if ( signs_initialized || ( strcmp ( mode, "fini" ) == 0 ) ) {
+  //   // deallocate
+  }
+
+  if      ( strcmp( mode, "Ct"   ) == 0 ) res_ptr = res_Ct;
+  else if ( strcmp( mode, "g0"   ) == 0 ) res_ptr = res_g0;
+  else if ( strcmp( mode, "g05"  ) == 0 ) res_ptr = res_g05;
+  else if ( strcmp( mode, "g2t"  ) == 0 ) res_ptr = res_g2t;
+  else if ( strcmp( mode, "g25t" ) == 0 ) res_ptr = res_g25t;
+  else if ( strcmp( mode, "g5"   ) == 0 ) res_ptr = res_g5;
+  else if ( strcmp( mode, "g13t" ) == 0 ) res_ptr = res_g13t;
+  else if ( strcmp( mode, "g5d"  ) == 0 ) res_ptr = res_g5d;
+  else if ( strcmp( mode, "g13c" ) == 0 ) res_ptr = res_g13c;
+  else if ( strcmp( mode, "g05d" ) == 0 ) res_ptr = res_g05d;
+  else if ( strcmp( mode, "g0d"  ) == 0 ) res_ptr = res_g0d;
+  else if ( strcmp( mode, "g25c" ) == 0 ) res_ptr = res_g25c;
+  else if ( strcmp( mode, "g2c"  ) == 0 ) res_ptr = res_g2c;
+  else if ( strcmp( mode, "gd"   ) == 0 ) res_ptr = res_gd;
+  else if ( strcmp( mode, "Cc"   ) == 0 ) res_ptr = res_Cc;
+
+
+  return ( res_ptr[gid] );
+
+}  // end of get_gamma_signs
+
 }  /* end of namespace cvc */
