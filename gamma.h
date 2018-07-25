@@ -37,5 +37,7 @@ void gamma_matrix_set ( gamma_matrix_type *g, int id, double s );
 
 void gamma_matrix_qlua_binary ( gamma_matrix_type *g, int n  );
 
+int get_gamma_signs ( char * const mode , int const gid );
+
 }
 #endif
