@@ -296,6 +296,9 @@ int main(int argc, char **argv) {
         /******************************************************
          * boundary phase
          ******************************************************/
+        STOPPED HERE:
+          if diagram is alredy ordered from source, gsx[0] -> le 0
+
         if ( g_verbose > 4 && io_proc == 2 ) fprintf ( stdout, "# [piN2piN_correlators] calling correlator_add_baryon_boundary_phase  %s %d\n", __FILE__, __LINE__ );
         exitstatus = correlator_add_baryon_boundary_phase ( diagram, gsx[0], nT ); 
 
