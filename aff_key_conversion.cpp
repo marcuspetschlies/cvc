@@ -31,7 +31,17 @@ const int C_gamma_to_gamma[16][2] = {
     {5,-1},
     {12,1} };
 
-void aff_key_conversion (char*key, char*tag, int i_sample, int pi2[3], int pf1[3], int pf2[3], int source_coords[4], int gamma_id, int i_spin ) {
+/*************************************************************************************
+ *
+ *************************************************************************************/
+void aff_key_conversion (char*key, char * const tag, int const i_sample, int const pi2[3], int const pf1[3], int const pf2[3], int const source_coords[4], int const gamma_id, int const C_gamma_id,  int const i_spin ) {
+
+  int C_gid = ( C_gamma_id >= 0 ) ? C_gamma_id : ( gamma_id >= 0 ? C_gamma_to_gamma[gamma_id][0] : -1 );
+  if ( C_gid == -1 ) {
+    fprintf ( stderr, "[aff_key_conversion] Error, could not make sense out of input gamma_id = %d and C_gamma_id = %d\n", gamma_id, C_gamma_id );
+    sprintf ( key, "NA");
+    return;
+  }
 
   if ( strcmp( tag, "w_1_xi") == 0 ) {
     /* /w_1_xi/sample03/pf2x00pf2y00pf2z-01/t09x06y07z00 */
@@ -46,7 +56,7 @@ void aff_key_conversion (char*key, char*tag, int i_sample, int pi2[3], int pf1[3
 
     sprintf(key, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-u-ud/sample%.2d/px%.2dpy%.2dpz%.2d",
         source_coords[0], source_coords[1], source_coords[2], source_coords[3],
-        pi2[0], pi2[1], pi2[2], C_gamma_to_gamma[gamma_id][0], i_sample,
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample,
         pf1[0], pf1[1], pf1[2]);
 
   } else if ( strcmp( tag, "w_3_phi") == 0 ) {
@@ -54,7 +64,7 @@ void aff_key_conversion (char*key, char*tag, int i_sample, int pi2[3], int pf1[3
 
     sprintf(key, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-ud-u/sample%.2d/px%.2dpy%.2dpz%.2d",
         source_coords[0], source_coords[1], source_coords[2], source_coords[3],
-        pi2[0], pi2[1], pi2[2], C_gamma_to_gamma[gamma_id][0], i_sample,
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample,
         pf1[0], pf1[1], pf1[2]);
 
   } else if ( strcmp( tag, "b_1_xi") == 0 ) {
@@ -70,7 +80,7 @@ void aff_key_conversion (char*key, char*tag, int i_sample, int pi2[3], int pf1[3
 
     sprintf(key, "/v2/t%.2dx%.2dy%.2dz%.2d/phi-g%.2d-u-u/sample%.2d/px%.2dpy%.2dpz%.2d",
         source_coords[0], source_coords[1], source_coords[2], source_coords[3],
-        C_gamma_to_gamma[gamma_id][0], i_sample,
+        C_gid, i_sample,
         pf1[0], pf1[1], pf1[2]);
 
   } else if ( strcmp( tag, "z_3_phi") == 0 ) {
@@ -78,7 +88,7 @@ void aff_key_conversion (char*key, char*tag, int i_sample, int pi2[3], int pf1[3
 
     sprintf(key, "/v2-oet/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-d-u/sample%.2d/d%d/px%.2dpy%.2dpz%.2d",
         source_coords[0], source_coords[1], source_coords[2], source_coords[3],
-        pi2[0], pi2[1], pi2[2], C_gamma_to_gamma[gamma_id][0], i_sample, i_spin,
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample, i_spin,
         pf1[0], pf1[1], pf1[2]);
 
   } else if ( strcmp( tag, "z_1_phi") == 0 ) {
@@ -86,7 +96,7 @@ void aff_key_conversion (char*key, char*tag, int i_sample, int pi2[3], int pf1[3
 
     sprintf(key, "/v4-oet/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-d-u/sample%.2d/d%d/px%.2dpy%.2dpz%.2d", 
         source_coords[0], source_coords[1], source_coords[2], source_coords[3],
-        pi2[0], pi2[1], pi2[2], C_gamma_to_gamma[gamma_id][0], i_sample, i_spin, pf1[0], pf1[1], pf1[2]);
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample, i_spin, pf1[0], pf1[1], pf1[2]);
 
   } else if ( strcmp( tag, "z_1_xi") == 0 ) {
     /* /z_1_xi/sample00/pf2x00pf2y00pf2z-01/t09x06y07z00 */
@@ -97,8 +107,14 @@ void aff_key_conversion (char*key, char*tag, int i_sample, int pi2[3], int pf1[3
         pf2[0], pf2[1], pf2[2] );
   }
 
-}  /* end of key_conversion */
+}  // end of key_conversion
 
+/*************************************************************************************/
+/*************************************************************************************/
+
+/*************************************************************************************
+ *
+ *************************************************************************************/
 int v2_key_index_conversion ( double _Complex *buffer, int perm[4], int N, int LL[4] ) {
 
   const unsigned int LLvol = LL[0] * LL[1] * LL[2] * LL[3];
@@ -136,8 +152,14 @@ int v2_key_index_conversion ( double _Complex *buffer, int perm[4], int N, int L
   }
   free( buffer_aux);
   return(0);
-}  /* end of v2_index_conversion */
+}  // end of v2_index_conversion
 
+/*************************************************************************************/
+/*************************************************************************************/
+
+/*************************************************************************************
+ *
+ *************************************************************************************/
 int vn_oet_read_key ( double _Complex *key_buffer, char*tag, int i_sample, int pi2[3], int pf1[3], int pf2[3], int source_coords[4], int gamma_id, struct AffReader_s *affr ) {
 
 

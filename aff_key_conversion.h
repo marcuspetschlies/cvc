@@ -3,7 +3,7 @@
 
 namespace cvc {
 
-void aff_key_conversion (char*key, char*tag, int i_sample, int pi2[3], int pf1[3], int pf2[3], int source_coords[4], int gamma_id, int i_spin );
+void aff_key_conversion (char*key, char * const tag, int const i_sample, int const pi2[3], int const pf1[3], int const pf2[3], int const source_coords[4], int const gamma_id, int const C_gamma_id,  int const i_spin ) {
 
 int v2_key_index_conversion ( double _Complex *buffer, int perm[4], int N, int LL[4] );
 
