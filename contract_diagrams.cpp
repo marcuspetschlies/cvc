@@ -387,17 +387,26 @@ int * get_conserved_momentum_id ( int (*p1)[3], int const n1, int const p2[3], i
 int correlator_add_baryon_boundary_phase ( double _Complex *** const sp, int const tsrc, int const N ) {
 
   if( g_propagator_bc_type == 0 ) {
-    /* multiply with phase factor */
+    // multiply with phase factor
     if ( g_verbose > 3 ) fprintf(stdout, "# [correlator_add_baryon_boundary_phase] multiplying with boundary phase factor\n");
 
+    if ( tsrc > 0 ) {
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-    for( int it = 0; it < N; it++ ) {
-      // int ir = (it + g_proc_coords[0] * T - tsrc + T_global) % T_global;
-      // const double _Complex w = cexp ( I * 3. * M_PI*(double)ir / (double)T_global  );
-      const double _Complex w = cexp ( I * 3. * M_PI*(double)it / (double)T_global  );
-      zm4x4_ti_eq_co ( sp[it], w );
+      for( int it = 0; it < N; it++ ) {
+        int ir = (it + g_proc_coords[0] * T - tsrc + T_global) % T_global;
+        const double _Complex w = cexp ( I * 3. * M_PI*(double)ir / (double)T_global  );
+        zm4x4_ti_eq_co ( sp[it], w );
+      }
+    } else {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+      for( int it = 0; it < N; it++ ) {
+        const double _Complex w = cexp ( I * 3. * M_PI*(double)it / (double)T_global  );
+        zm4x4_ti_eq_co ( sp[it], w );
+      }
     }
 
   } else if ( g_propagator_bc_type == 1 ) {
@@ -1099,7 +1108,7 @@ int contract_diagram_read_oet_key_qlua (
 /***********************************************
  *
  ***********************************************/
-int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const pf2[3], int const gf1, int const pf1[3], int const gi2, int const pi2[3], int const gi1, int const pi1[3], int const sx[4] ) {
+int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const pf2[3], int const gf11, int const gf12, int const pf1[3], int const gi2, int const pi2[3], int const gi11, int const gi12, int const pi1[3], int const sx[4] ) {
 
   char sx_str[40] = "";
   char gf2_str[40] = "";
@@ -1115,11 +1124,21 @@ int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const 
 
   if ( gf2 > -1 ) { sprintf( gf2_str, "gf2%.2d", gf2 ); }
 
-  if ( gf1 > -1 ) { sprintf( gf1_str, "/gf1%.2d", gf1 ); }
+  if ( gf11 > -1 ) { 
+    sprintf( gf1_str, "/gf1%.2d", gf11 ); 
+    if ( gf12 > -1 ) { 
+      sprintf( gf1_str, "%s_%.2d", gf1_str, gf12 ); 
+    }
+  }
 
   if ( gi2 > -1 ) { sprintf( gi2_str, "/gi2%.2d", gi2 ); }
 
-  if ( gi1 > -1 ) { sprintf( gi1_str, "/gi1%.2d", gi1 ); }
+  if ( gi11 > -1 ) { 
+    sprintf( gi1_str, "/gi1%.2d", gi11 ); 
+    if ( gi12 > -1 ) { 
+      sprintf( gi1_str, "%s_%.2d", gi1_str, gi12 ); 
+    }
+  }
 
   if ( pf2 != NULL ) { sprintf ( pf2_str, "/pf2x%.2dpf2y%.2dpf2z%.2d", pf2[0], pf2[1], pf2[2] ); }
 
@@ -1171,4 +1190,57 @@ int contract_diagram_zm4x4_field_mul_gamma_lr ( double _Complex *** const sp_out
 
 /***********************************************/
 /***********************************************/
-}  /* end of namespace cvc */
+
+/********************************************************************************
+ *
+ ********************************************************************************/
+double _Complex contract_diagram_get_correlator_phase ( char * type, int const gi11, int const gi12, int const gi2, int const gf11, int const gf12, int const gf2 ) {
+
+  double _Complex zsign = 0.;
+
+  if ( strcmp( type , "b-b" ) == 0 ) {
+
+    zsign = (double _Complex) ( 
+        // sigma_Cgamma_adj_g0_dagger[p->gi1[0]] * sigma_gamma_adj_g0_dagger[p->gi1[1]] 
+        get_gamma_signs ( "g0d" , gi11 ) * get_gamma_signs ( "g0d" , gi12 ) );
+
+  } else if ( strcmp( p->type , "mxb-b" ) == 0 ) {
+
+    int const sigma_gi2 = get_gamma_signs ( "g0d", gi2 );
+
+    zsign = (double _Complex) ( 
+        // sigma_Cgamma_adj_g0_dagger[p->gi1[0]] * sigma_gamma_adj_g0_dagger[p->gi1[1]] * sigma_gamma_adj_g0_dagger[p->gi2] 
+        get_gamma_signs ( "g0d" , gi11 ) * get_gamma_signs ( "g0d" , gi12 ) * sigma_gi2 );
+
+    zsign *= sigma_gi2 == -1 ? -I : 1.;
+
+  } else if ( strcmp( p->type , "mxb-mxb" ) == 0 ) {
+
+    int const sigma_gi2 = get_gamma_signs ( "g0d", gi2 );
+    int const sigma_gf2 = get_gamma_signs ( "g0d", gf2 );
+
+    zsign = (double _Complex) ( 
+        // sigma_Cgamma_adj_g0_dagger[p->gi1[0]] * sigma_gamma_adj_g0_dagger[p->gi1[1]] * sigma_gamma_adj_g0_dagger[p->gi2] 
+        get_gamma_signs ( "g0d" , gi11 ) * get_gamma_signs ( "g0d" , gi12 ) * sigma_gi2 );
+
+    zsign *= sigma_gi2 == -1 ? -I : 1.;
+    zsign *= sigma_gf2 == -1 ?  I : 1.;
+
+  } else if ( strcmp( p->type , "m-m" ) == 0 ) {
+
+    int const sigma_gi2 = get_gamma_signs ( "g0d", gi2 );
+    int const sigma_gf2 = get_gamma_signs ( "g0d", gf2 );
+
+    zsign = ( sigma_gi2 == -1 ? I : 1 ) * ( sigma_gf2 == -1 ? I : 1 );
+  }
+
+  STOPPED HERE
+  if (g_verbose > 2) 
+    fprintf(stdout, "# [contract_diagram_get_correlator_phase] gf1 = %2d - %2d gf2 = %2d gi1 = %2d - %2d gi2 = %2d sign = %3.0f  %3.0f\n",
+        p->gf1[0], p->gf1[1], p->gf2, p->gi1[0], p->gi1[1], p->gi2, creal(zsign), cimag(zsign) );
+
+  return( zsign );
+
+}  // end of contract_diagram_get_correlator_phase
+
+}  // end of namespace cvc
