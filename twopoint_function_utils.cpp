@@ -146,11 +146,11 @@ void twopoint_function_copy ( twopoint_function_type *p, twopoint_function_type 
   p->reorder = r->reorder;
   p->T       = r->T;
   p->d       = r->d;
-  if ( r->c != NULL ) {
-    FILL ME IN
-      allocate p->c like r->c 
-      copy r->c to p->c
-  }
+//  if ( r->c != NULL ) {
+//    FILL ME IN
+//      allocate p->c like r->c 
+//      copy r->c to p->c
+//  }
   return;
 }  // end of twopoint_function_print
 
@@ -164,7 +164,7 @@ void twopoint_function_show_data ( twopoint_function_type *p, FILE*ofs ) {
     return;
   }
   for ( int i = 0; i < p->n; i++ ) {
-    fprintf ( ofs, "# [twopoint_function_show_data] %s diagram %2d"
+    fprintf ( ofs, "# [twopoint_function_show_data] %s diagram %2d\n", p->name, i ); 
     for ( int it = 0; it < p->T; it++ ) {
       for ( int k1 = 0; k1 < p->d; k1++ ) {
       for ( int k2 = 0; k2 < p->d; k2++ ) {
@@ -178,15 +178,15 @@ void twopoint_function_show_data ( twopoint_function_type *p, FILE*ofs ) {
 /********************************************************************************
  *
  ********************************************************************************/
-void twopoint_function_allocate ( twopoint_function_type *p ) {
+void * twopoint_function_allocate ( twopoint_function_type *p ) {
   if ( p->c != NULL ) {
     fprintf ( stderr, "[twopoint_function_allocate] Error, data pointer not NULL\n");
-    return;
+    return ( NULL );
   }
   p->c = (void*)init_4level_ztable ( p->n, p->T, p->d, p->d );
   if ( p->c == NULL ) {
     fprintf ( stderr, "[twopoint_function_allocate] Error, data pointer is NULL %s %d\n", __FILE__, __LINE__ );
-    return;
+    return ( NULL );
   }
   return ( p->c );
 }  // end of twopoint_function_allocate
@@ -195,7 +195,7 @@ void twopoint_function_allocate ( twopoint_function_type *p ) {
  *
  ********************************************************************************/
 void twopoint_function_fini ( twopoint_function_type *p ) {
-  fini_4level_ztable ( p->c );
+  fini_4level_ztable ( (double _Complex *****)&(p->c) );
 }  // end of twopoint_function_fini
 
 /********************************************************************************
@@ -262,6 +262,15 @@ void twopoint_function_print_diagram_key (char*key, twopoint_function_type *p, i
         p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3],
         p->gf1[0], p->gi1[0]);
 
+    sprintf( key, "/%s/%s%sgf1%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/gi2%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/gi1%.2d/t%.2dx%.2dy%.2dz%.2d", p->name, diag_str, fbwd_str,
+        p->gf1[0],
+        p->pf1[0], p->pf1[1], p->pf1[2],
+        p->gi2,
+        p->pi2[0], p->pi2[1], p->pi2[2],
+        p->gi1[0],
+        p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3] );
+
+
     /* /piN-D/t54x14y01z32/pi2x01pi2y01pi2z-01/gi02/gf15/t5/px01py01pz-01 */
     /* sprintf( key, "/%s/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/gi%.2d/gf%.2d/%spx%.2dpy%.2dpz%.2d", p->name, 
         p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3],
@@ -270,6 +279,12 @@ void twopoint_function_print_diagram_key (char*key, twopoint_function_type *p, i
         diag_str,
         p->pf1[0], p->pf1[1], p->pf1[2]); */
 
+  } else if ( strcmp( p->type, "m-m") == 0 ) {
+
+    sprintf( key, "/%s/%s%sgf2%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/gi2%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/t%.2dx%.2dy%.2dz%.2d", p->name, diag_str, fbwd_str,
+        p->gf2, p->pf2[0], p->pf2[1], p->pf2[2],
+        p->gi2, p->pi2[0], p->pi2[1], p->pi2[2],
+        p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3] );
   } else {
     strcpy ( key, "NA" );
   }
@@ -399,13 +414,23 @@ void twopoint_function_print_correlator_data ( double _Complex * const c, twopoi
  ********************************************************************************/
 void twopoint_function_get_aff_filename_prefix (char*filename, twopoint_function_type*p) {
 
-  if ( strcmp( p->type , "b-b" ) == 0 || strcmp( p->type , "mxb-b" ) == 0 ) {
+//  if ( strcmp( p->type , "b-b" ) == 0 || strcmp( p->type , "mxb-b" ) == 0 ) {
+//    strcpy(filename, filename_prefix);
+//  } else if ( strcmp( p->type , "mxb-mxb" ) == 0 ) {
+//    strcpy(filename, filename_prefix2);
+//  } else {
+//    fprintf(stderr, "[twopoint_function_get_aff_filename] Error, unrecognized type %s\n", p->type);
+//  }
+
+  if (     strcmp( p->type , "b-b"     ) == 0 
+        || strcmp( p->type , "mxb-b"   ) == 0 
+        || strcmp( p->type , "mxb-mxb" ) == 0 
+        || strcmp( p->type , "m-m"     ) == 0 ) {
     strcpy(filename, filename_prefix);
-  } else if ( strcmp( p->type , "mxb-mxb" ) == 0 ) {
-    strcpy(filename, filename_prefix2);
   } else {
     fprintf(stderr, "[twopoint_function_get_aff_filename] Error, unrecognized type %s\n", p->type);
   }
+
   if ( g_verbose > 2 ) fprintf ( stdout, "# [twopoint_function_get_aff_filename_prefix] prefix set to %s\n", filename );
 }  /* end of twopoint_function_get_aff_filename */
 
