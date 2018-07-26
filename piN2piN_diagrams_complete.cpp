@@ -197,10 +197,8 @@ int main(int argc, char **argv) {
    ******************************************************/
   init_gamma_matrix ();
 
-  gamma_matrix_type gamma_C, gamma_C_gi1, gamma_g5g0, gamma_g0g5;
+  gamma_matrix_type gamma_C, gamma_g5g0, gamma_g0g5;
   gamma_matrix_type gamma[16];
-
-  gamma_matrix_init ( &gamma_C_gi1 );
 
   for ( int i = 0; i < 16; i++ ) {
     gamma_matrix_set ( &gamma[i], i, 1 );
@@ -299,6 +297,8 @@ int main(int argc, char **argv) {
     strcpy ( tag, "b_1_xi" );
     if ( g_verbose > 2 ) fprintf(stdout, "\n\n# [piN2piN_diagrams_complete] tag = %s\n", tag);
 
+    int igf2 = 0;
+
     for ( int ipi2 = 0; ipi2 < g_seq_source_momentum_number; ipi2++ ) {
 
       for ( int ipf2 = 0; ipf2 < g_seq2_source_momentum_number; ipf2++ ) {
@@ -306,7 +306,8 @@ int main(int argc, char **argv) {
         for ( int isample = 0; isample < g_nsample; isample++ ) {
 
           if ( io_proc == 2 ) {
-            aff_key_conversion ( aff_tag, tag, isample, g_seq_source_momentum_list[ipi2], NULL, g_seq2_source_momentum_list[ipf2], g_source_coords_list[i_src], -1, -1 );
+            aff_key_conversion ( aff_tag, tag, isample, g_seq_source_momentum_list[ipi2], NULL, g_seq2_source_momentum_list[ipf2], g_source_coords_list[i_src], -1, gamma_f2_list[igf2], -1 );
+
             if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams_complete] key = \"%s\"\n", aff_tag);
  
             affdir = aff_reader_chpath (affr, affn, aff_tag );
@@ -319,9 +320,9 @@ int main(int argc, char **argv) {
 
         }  /* end of loop on samples */
 
-      }  /* end of loop on sink momentum pf2 */
+      }  // end of loop on sink momentum pf2
 
-    }  /* end of loop on sequential source momentum pi2 */
+    }  // end of loop on sequential source momentum pi2
 
     /**************************************************************************************/
     /**************************************************************************************/
@@ -391,13 +392,15 @@ int main(int argc, char **argv) {
         int * sink_momentum_id   =  get_conserved_momentum_id ( g_seq2_source_momentum_list, g_seq2_source_momentum_number, ptot,  g_sink_momentum_list, g_sink_momentum_number );
         if ( sink_momentum_id == NULL ) {
           fprintf(stderr, "[piN2piN_diagrams_complete] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
-          EXIT(1);
+          // EXIT(1);
+          continue;
         }
 
         int * source_momentum_id =  get_conserved_momentum_id ( g_seq_source_momentum_list,  g_seq_source_momentum_number,  mptot, g_sink_momentum_list, g_sink_momentum_number );
         if ( source_momentum_id == NULL ) {
           fprintf(stderr, "[piN2piN_diagrams_complete] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
-          EXIT(1);
+          // EXIT(1);
+          continue;
         }
 
         /**************************************************************************************
@@ -429,7 +432,11 @@ int main(int argc, char **argv) {
           for ( int ipf2 = 0; ipf2 < g_seq2_source_momentum_number; ipf2++ ) {
 
             int ipf1 = sink_momentum_id[ipf2];
-            if ( ipf1 == -1 ) continue;
+            if ( ipf1 == -1 ) {
+              if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagrams_complete] Warning, skipping seq2 momentum no %d  (  %3d, %3d, %3d )\n", ipf2,
+                  g_seq2_source_momentum_list[ipf2][0], g_seq2_source_momentum_list[ipf2][1], g_seq2_source_momentum_list[ipf2][2] );
+              continue;
+            }
            
             /**************************************************************************************
              * loop on gf1
@@ -438,7 +445,7 @@ int main(int argc, char **argv) {
               int igf2 = 0;
 
               gamma_matrix_type gf12;
-              gamma_matrix_set ( &gf12, gamma_f1_nucleon_list[igf1][1], gamma_f1_nucleon_sign[igi1][1] );
+              gamma_matrix_set ( &gf12, gamma_f1_nucleon_list[igf1][1], gamma_f1_nucleon_sign[igf1][1] );
 
               /**************************************************************************************
                * loop on pi2
@@ -446,7 +453,12 @@ int main(int argc, char **argv) {
               for ( int ipi2 = 0; ipi2 < g_seq_source_momentum_number; ipi2++ ) {
 
                 int ipi1 = source_momentum_id[ipi2];
-                if ( ipi1 == -1 ) continue;
+                if ( ipi1 == -1 ) {
+                  if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagrams_complete] Warning, skipping seq momentum no %d  (  %3d, %3d, %3d ) for ptot ( %3d, %3d, %3d )\n", ipi2, 
+                      g_seq_source_momentum_list[ipi2][0], g_seq_source_momentum_list[ipi2][1], g_seq_source_momentum_list[ipi2][2],               
+                      ptot[0], ptot[1], ptot[2] );
+                  continue;
+                }
 
                 /**************************************************************************************
                  * loop on gi1
@@ -472,12 +484,11 @@ int main(int argc, char **argv) {
                   gamma_matrix_set ( &gi11, gamma_f1_nucleon_list[igi1][0], gamma_f1_nucleon_sign[igi1][0] );
                   gamma_matrix_set ( &gi12, gamma_f1_nucleon_list[igi1][1], gamma_f1_nucleon_sign[igi1][1] );
 
-                  gamma_matrix_mult ( &gamma_C_gi1, &gamma_C, &gi11 );
-                  gamma_matrix_transposed ( &gamma_C_gi1, &gamma_C_gi1);
+                  gamma_matrix_transposed ( &gi11, &gi11 );
                   if ( g_verbose > 2 ) {
                     char name[20];
-                    sprintf(name, "C_g%.2d_transposed", gi11.id);
-                    gamma_matrix_printf (&gamma_C_gi1, name, stdout);
+                    sprintf(name, "G%.2d_transposed", gi11.id);
+                    gamma_matrix_printf (&gi11, name, stdout);
                   }
 
                   /**************************************************************************************/
@@ -486,50 +497,63 @@ int main(int argc, char **argv) {
                   double _Complex ***diagram = init_3level_ztable ( T_global, 4, 4 );
                   if ( diagram == NULL ) {
                     fprintf(stderr, "[piN2piN_diagrams_complete] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__);
-                    EXIT(47);
+                    EXIT(104);
                   }
 
                   // reduce to diagram, average over stochastic samples
-                  if ( ( exitstatus = contract_diagram_sample ( diagram, b1xi[ipi2][0][ipf2], b1phi[igf1][ipf1], g_nsample, perm[iperm], gamma_C_gi1, T_global ) ) != 0 ) {
+                  if ( ( exitstatus = contract_diagram_sample ( diagram, b1xi[ipi2][0][ipf2], b1phi[igf1][ipf1], g_nsample, perm[iperm], gi11, T_global ) ) != 0 ) {
                     fprintf(stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_sample, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                     EXIT(105);
                   }
 
-                  // add boundary phase fwd
-                  if ( ( exitstatus = correlator_add_baryon_boundary_phase ( diagram, gsx[0], T_global ) ) != 0 ) {
+                  // add boundary phase
+                  if ( ( exitstatus = correlator_add_baryon_boundary_phase ( diagram, gsx[0], +1, T_global ) ) != 0 ) {
                     fprintf( stderr, "[piN2piN_diagrams_complete] Error from correlator_add_baryon_boundary_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                    EXIT(107);
+                    EXIT(106);
                   }
 
 
-                  // add source phase fwd
+                  // add source phase
                   if ( ( exitstatus = correlator_add_source_phase ( diagram, g_sink_momentum_list[ipi1], &(gsx[1]), T_global ) ) != 0 ) {
                     fprintf( stderr, "[piN2piN_diagrams_complete] Error from correlator_add_source_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                    EXIT(108);
+                    EXIT(107);
                   }
 
                   // add outer gamma matrices
                   if ( ( exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( diagram, diagram, gf12, gi12, T_global ) ) != 0 ) {
                     fprintf( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zm4x4_field_mul_gamma_lr, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                    EXIT(109);
+                    EXIT(108);
+                  }
+
+                  // add phase from phase convention
+                  double _Complex const zsign = contract_diagram_get_correlator_phase ( "mxb-mxb", 
+                      gamma_f1_nucleon_list[igi1][0], 
+                      gamma_f1_nucleon_list[igi1][1], 
+                      gamma_i2_list[igi2], 
+                      gamma_f1_nucleon_list[igf1][0], 
+                      gamma_f1_nucleon_list[igf1][1], 
+                      gamma_f2_list[igf2] );
+
+                  if ( ( exitstatus = contract_diagram_zmx4x4_field_ti_eq_co ( diagram, zsign, T_global ) ) != 0 ) {
+                    fprintf ( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zmx4x4_field_ti_eq_co, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                    EXIT(109)
                   }
 
 
-
-                  // write fwd AFF
+                  // write AFF fwd
                   sprintf(aff_tag, "/%s/b%d/fwd/%s", "pixN-pixN", iperm+1, aff_tag_suffix );
                   if ( g_verbose > 4 ) fprintf ( stdout, "# [piN2piN_diagrams_complete] AFF tag = \"%s\" %s %d\n", aff_tag, __FILE__, __LINE__ );
                   if ( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
                     fprintf(stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                    EXIT(106);
+                    EXIT(110);
                   }
 
-                  // write bwd AFF
+                  // write AFF bwd
                   sprintf(aff_tag, "/%s/b%d/bwd/%s", "pixN-pixN", iperm+1, aff_tag_suffix );
                   if ( g_verbose > 4 ) fprintf ( stdout, "# [piN2piN_diagrams_complete] AFF tag = \"%s\" %s %d\n", aff_tag, __FILE__, __LINE__ );
                   if ( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
                     fprintf(stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                    EXIT(106);
+                    EXIT(111);
                   }
 
                   fini_3level_ztable ( &diagram );
@@ -553,6 +577,7 @@ int main(int argc, char **argv) {
         }  // end of loop on permutations for B diagrams
 
         free ( sink_momentum_id );
+        free ( source_momentum_id );
 
       }  // end of loop on p_tot
 
@@ -573,12 +598,14 @@ int main(int argc, char **argv) {
       strcpy ( tag, "w_1_xi" );
       if ( g_verbose > 2 ) fprintf(stdout, "\n\n# [piN2piN_diagrams_complete] tag = %s\n", tag);
 
+      int igf2 = 0;
+
       for ( int ipf2 = 0; ipf2 < g_seq2_source_momentum_number; ipf2++ ) {
 
         for ( int isample = 0; isample < g_nsample; isample++ ) {
 
           if ( io_proc == 2 ) {
-            aff_key_conversion ( aff_tag, tag, isample, NULL, NULL, g_seq2_source_momentum_list[ipf2], gsx, -1, -1 );
+            aff_key_conversion ( aff_tag, tag, isample, NULL, NULL, g_seq2_source_momentum_list[ipf2], gsx, -1, gamma_f2_list[igf2], -1 );
             if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams_complete] key = \"%s\"\n", aff_tag);
  
             affdir = aff_reader_chpath (affr, affn, aff_tag );
@@ -618,7 +645,8 @@ int main(int argc, char **argv) {
             for ( int isample = 0; isample < g_nsample; isample++ ) {
 
               if ( io_proc == 2 ) {
-                aff_key_conversion ( aff_tag, tag, isample, g_seq_source_momentum_list[ipi2], g_sink_momentum_list[ipf1], NULL, gsx, gamma_f1_nucleon_list[igf1], -1 );
+                aff_key_conversion ( aff_tag, tag, isample, g_seq_source_momentum_list[ipi2], g_sink_momentum_list[ipf1], NULL, gsx, -1, gamma_f1_nucleon_list[igf1][0], -1 );
+
                 if (g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams_complete] key = \"%s\"\n", aff_tag);
  
                 affdir = aff_reader_chpath (affr, affn, aff_tag );
@@ -662,7 +690,8 @@ int main(int argc, char **argv) {
             for ( int isample = 0; isample < g_nsample; isample++ ) {
 
               if ( io_proc == 2 ) {
-                aff_key_conversion ( aff_tag, tag, isample, g_seq_source_momentum_list[ipi2], g_sink_momentum_list[ipf1], NULL, gsx, gamma_f1_nucleon_list[igf1], -1 );
+                aff_key_conversion ( aff_tag, tag, isample, g_seq_source_momentum_list[ipi2], g_sink_momentum_list[ipf1], NULL, gsx, -1, gamma_f1_nucleon_list[igf1][0], -1 );
+
                 if (g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams_complete] key = \"%s\"\n", aff_tag);
  
                 affdir = aff_reader_chpath (affr, affn, aff_tag );
@@ -690,10 +719,22 @@ int main(int argc, char **argv) {
        **************************************************************************************/
       for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ ) {
 
-        int * sink_momentum_id =  get_conserved_momentum_id ( g_seq2_source_momentum_list, g_seq2_source_momentum_number, g_total_momentum_list[iptot], g_sink_momentum_list, g_sink_momentum_number );
+        int ptot[3]  = { g_total_momentum_list[iptot][0], g_total_momentum_list[iptot][1], g_total_momentum_list[iptot][2] };
+
+        int mptot[3] = { -ptot[0], -ptot[1], -ptot[2] };
+
+        int * sink_momentum_id   =  get_conserved_momentum_id ( g_seq2_source_momentum_list, g_seq2_source_momentum_number, ptot,  g_sink_momentum_list, g_sink_momentum_number );
         if ( sink_momentum_id == NULL ) {
           fprintf(stderr, "[piN2piN_diagrams_complete] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
-          EXIT(1);
+          // EXIT(1);
+          continue;
+        }
+
+        int * source_momentum_id =  get_conserved_momentum_id ( g_seq_source_momentum_list,  g_seq_source_momentum_number,  mptot, g_sink_momentum_list, g_sink_momentum_number );
+        if ( source_momentum_id == NULL ) {
+          fprintf(stderr, "[piN2piN_diagrams_complete] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
+          // EXIT(1);
+          continue;
         }
 
         /**************************************************************************************
@@ -738,7 +779,11 @@ int main(int argc, char **argv) {
           for ( int ipf2 = 0; ipf2 < g_seq2_source_momentum_number; ipf2++ ) {
 
             int ipf1 = sink_momentum_id[ipf2];
-            if ( ipf1 == -1 ) continue;
+            if ( ipf1 == -1 ) {
+              if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagrams_complete] Warning, skipping seq2 momentum no %d  (  %3d, %3d, %3d )\n", ipf2,
+                  g_seq2_source_momentum_list[ipf2][0], g_seq2_source_momentum_list[ipf2][1], g_seq2_source_momentum_list[ipf2][2] );
+              continue;
+            }
 
             /**************************************************************************************/
             /**************************************************************************************/
@@ -749,8 +794,12 @@ int main(int argc, char **argv) {
             for ( int igf1 = 0; igf1 < gamma_f1_nucleon_number; igf1++ ) {
               int igf2 = 0;
 
-              /**************************************************************************************/
-              /**************************************************************************************/
+              /**************************************************************************************
+               * make gamma matrix gf12 for later left-multiplication
+               **************************************************************************************/
+              gamma_matrix_type gf12;
+              gamma_matrix_set ( &gf12, gamma_f1_nucleon_list[igf1][1], gamma_f1_nucleon_sign[igf1][1] );
+
 
               /**************************************************************************************
                * loop on pi2
@@ -759,6 +808,13 @@ int main(int argc, char **argv) {
 
                 /**************************************************************************************/
                 /**************************************************************************************/
+                int ipi1 = source_momentum_id[ipi2];
+                if ( ipi1 == -1 ) {
+                  if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagrams_complete] Warning, skipping seq momentum no %d  (  %3d, %3d, %3d ) for ptot ( %3d, %3d, %3d )\n", ipi2, 
+                      g_seq_source_momentum_list[ipi2][0], g_seq_source_momentum_list[ipi2][1], g_seq_source_momentum_list[ipi2][2],
+                      ptot[0], ptot[1], ptot[2] );
+                  continue;
+                }
 
                 /**************************************************************************************
                  * loop on gi1
@@ -766,26 +822,31 @@ int main(int argc, char **argv) {
                 for ( int igi1 = 0; igi1 < gamma_f1_nucleon_number; igi1++ ) {
                   int igi2 = 0;
 
+
                   char aff_tag_suffix[400];
 
-                  contract_diagram_key_suffix ( aff_tag_suffix, 
-                      gamma_f2_list[igf2], g_seq2_source_momentum_list[ipf2],
-                      gamma_f1_nucleon_list[igf1], g_sink_momentum_list[ipf1],
-                      gamma_i2_list[igi2], g_seq_source_momentum_list[ipi2],
-                      gamma_f1_nucleon_list[igi1], NULL, gsx );
+                  contract_diagram_key_suffix ( aff_tag_suffix,
+                      gamma_f2_list[igf2],                                            g_seq2_source_momentum_list[ipf2],
+                      gamma_f1_nucleon_list[igf1][0], gamma_f1_nucleon_list[igf1][1], g_sink_momentum_list[ipf1],
+                      gamma_i2_list[igi2],                                            g_seq_source_momentum_list[ipi2],
+                      gamma_f1_nucleon_list[igi1][0], gamma_f1_nucleon_list[igi1][1], g_sink_momentum_list[ipi1],
+                      gsx );
+
 
                   /**************************************************************************************/
                   /**************************************************************************************/
 
-                  gamma_matrix_type gi1;
-                  gamma_matrix_set  ( &gi1, gamma_f1_nucleon_list[igi1], gamma_f1_nucleon_sign[igi1] );
-                  gamma_matrix_mult ( &gamma_C_gi1, &gamma_C, &gi1 );
+                  gamma_matrix_type gi11, gi12;
+                  gamma_matrix_set ( &gi11, gamma_f1_nucleon_list[igi1][0], gamma_f1_nucleon_sign[igi1][0] );
+                  gamma_matrix_set ( &gi12, gamma_f1_nucleon_list[igi1][1], gamma_f1_nucleon_sign[igi1][1] );
+
+
                   // no transpostion here with choice of perm above; cf. pdf
-                  // gamma_matrix_transposed ( &gamma_C_gi1, &gamma_C_gi1);
+                  // gamma_matrix_transposed ( &gi11, &gi11 );
                   if ( g_verbose > 2 ) {
                     char name[20];
-                    sprintf(name, "C_g%.2d", gi1.id);
-                    gamma_matrix_printf (&gamma_C_gi1, name, stdout);
+                    sprintf(name, "G%.2d", gi11.id);
+                    gamma_matrix_printf (&gi11, name, stdout);
                   }
 
                   /**************************************************************************************/
@@ -798,19 +859,51 @@ int main(int argc, char **argv) {
                   }
 
                   // reduce to diagram, average over stochastic samples
-                  if ( ( exitstatus = contract_diagram_sample ( diagram, wxi[0][ipf2], wphi[ipi2][igf1][ipf1], g_nsample, perm[iperm], gamma_C_gi1, T_global ) ) != 0 ) {
+                  if ( ( exitstatus = contract_diagram_sample ( diagram, wxi[0][ipf2], wphi[ipi2][igf1][ipf1], g_nsample, perm[iperm], gi11, T_global ) ) != 0 ) {
                     fprintf(stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_sample, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                     EXIT(105);
                   }
 
-                  // AFF key
+                  // add boundary phase
+                  if ( ( exitstatus = correlator_add_baryon_boundary_phase ( diagram, gsx[0], +1, T_global ) ) != 0 ) {
+                    fprintf( stderr, "[piN2piN_diagrams_complete] Error from correlator_add_baryon_boundary_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                    EXIT(106);
+                  }
+  
+                  // add source phase
+                  if ( ( exitstatus = correlator_add_source_phase ( diagram, g_sink_momentum_list[ipi1], &(gsx[1]), T_global ) ) != 0 ) {
+                    fprintf( stderr, "[piN2piN_diagrams_complete] Error from correlator_add_source_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                    EXIT(107);
+                  }
+  
+                  // add outer gamma matrices
+                  if ( ( exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( diagram, diagram, gf12, gi12, T_global ) ) != 0 ) {
+                    fprintf( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zm4x4_field_mul_gamma_lr, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                    EXIT(108);
+                  }
+  
+                  // add phase from phase convention
+                  double _Complex const zsign = contract_diagram_get_correlator_phase ( "mxb-mxb",
+                      gamma_f1_nucleon_list[igi1][0],
+                      gamma_f1_nucleon_list[igi1][1],
+                      gamma_i2_list[igi2],
+                      gamma_f1_nucleon_list[igf1][0],
+                      gamma_f1_nucleon_list[igf1][1],
+                      gamma_f2_list[igf2] );
+  
+                  if ( ( exitstatus = contract_diagram_zmx4x4_field_ti_eq_co ( diagram, zsign, T_global ) ) != 0 ) {
+                    fprintf ( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zmx4x4_field_ti_eq_co, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                    EXIT(109)
+                  }
+  
+                  // AFF write fwd
                   sprintf(aff_tag, "/%s/w%d/fwd/%s", "pixN-pixN", iperm+1, aff_tag_suffix );
                   if ( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
                     fprintf(stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                     EXIT(106);
                   }
 
-                  // AFF key
+                  // AFF write bwd
                   sprintf(aff_tag, "/%s/w%d/bwd/%s", "pixN-pixN", iperm+1, aff_tag_suffix );
                   if ( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
                     fprintf(stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -837,6 +930,8 @@ int main(int argc, char **argv) {
         }  // end of loop on permutations for W diagrams
 
         free ( sink_momentum_id );
+
+        free ( source_momentum_id );
 
       }  // end of loop on p_tot
 
@@ -908,7 +1003,8 @@ int main(int argc, char **argv) {
 
             if ( io_proc == 2 ) {
 
-              aff_key_conversion ( aff_tag, tag, 0, zero_momentum, NULL, g_seq2_source_momentum_list[ipf2], gsx, gamma_f2_list[igf2], ispin );
+              aff_key_conversion ( aff_tag, tag, 0, zero_momentum, NULL, g_seq2_source_momentum_list[ipf2], gsx, -1, gamma_f2_list[igf2], ispin );
+
               if (g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams_complete] key = \"%s\"\n", aff_tag);
  
               affdir = aff_reader_chpath (affr_oet, affn_oet, aff_tag );
@@ -962,7 +1058,7 @@ int main(int argc, char **argv) {
 
               if ( io_proc == 2 ) {
 
-                aff_key_conversion ( aff_tag, tag, 0, g_seq_source_momentum_list[ipi2], g_sink_momentum_list[ipf1], NULL, gsx, gamma_f1_nucleon_list[igf1], ispin );
+                aff_key_conversion ( aff_tag, tag, 0, g_seq_source_momentum_list[ipi2], g_sink_momentum_list[ipf1], NULL, gsx, -1, gamma_f1_nucleon_list[igf1][0], ispin );
                 if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams_complete] key = \"%s\"\n", aff_tag);
  
                 affdir = aff_reader_chpath (affr_oet, affn_oet, aff_tag );
@@ -1018,7 +1114,7 @@ int main(int argc, char **argv) {
 
               if ( io_proc == 2 ) {
 
-                aff_key_conversion ( aff_tag, tag, 0, g_seq_source_momentum_list[ipi2], g_sink_momentum_list[ipf1], NULL, gsx, gamma_f1_nucleon_list[igf1], ispin );
+                aff_key_conversion ( aff_tag, tag, 0, g_seq_source_momentum_list[ipi2], g_sink_momentum_list[ipf1], NULL, gsx, -1, gamma_f1_nucleon_list[igf1][0], ispin );
                 if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams_complete] key = \"%s\"\n", aff_tag);
  
                 affdir = aff_reader_chpath (affr_oet, affn_oet, aff_tag );
@@ -1059,10 +1155,22 @@ int main(int argc, char **argv) {
        **************************************************************************************/
       for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ ) {
 
-        int * sink_momentum_id =  get_conserved_momentum_id ( g_seq2_source_momentum_list, g_seq2_source_momentum_number, g_total_momentum_list[iptot], g_sink_momentum_list, g_sink_momentum_number );
+        int ptot[3]  = { g_total_momentum_list[iptot][0], g_total_momentum_list[iptot][1], g_total_momentum_list[iptot][2] };
+
+        int mptot[3] = { -ptot[0], -ptot[1], -ptot[2] };
+
+        int * sink_momentum_id =   get_conserved_momentum_id ( g_seq2_source_momentum_list, g_seq2_source_momentum_number, ptot,  g_sink_momentum_list, g_sink_momentum_number );
         if ( sink_momentum_id == NULL ) {
           fprintf(stderr, "[piN2piN_diagrams_complete] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
-          EXIT(1);
+          // EXIT(1);
+          continue;
+        }
+
+        int * source_momentum_id = get_conserved_momentum_id ( g_seq_source_momentum_list,  g_seq_source_momentum_number,  mptot, g_sink_momentum_list, g_sink_momentum_number );
+        if ( source_momentum_id == NULL ) {
+          fprintf(stderr, "[piN2piN_diagrams_complete] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
+          // EXIT(1);
+          continue;
         }
 
         /**************************************************************************************
@@ -1073,7 +1181,7 @@ int main(int argc, char **argv) {
         for ( int iperm = 0; iperm < 4; iperm++ ) {
 
 
-          double _Complex ***** zxi = NULL, ****** z3phi = NULL; 
+          double _Complex ***** zxi = NULL, ****** zphi = NULL; 
 
           if ( ( iperm == 0 ) || ( iperm == 1 ) ) {
             zxi  = z1xi;
@@ -1107,7 +1215,11 @@ int main(int argc, char **argv) {
           for ( int ipf2 = 0; ipf2 < g_seq2_source_momentum_number; ipf2++ ) {
 
             int ipf1 = sink_momentum_id[ipf2];
-            if ( ipf1 == -1 ) continue;
+            if ( ipf1 == -1 ) {
+              if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagrams_complete] Warning, skipping seq2 momentum no %d  (  %3d, %3d, %3d )\n", ipf2, 
+                  g_seq2_source_momentum_list[ipf2][0], g_seq2_source_momentum_list[ipf2][1], g_seq2_source_momentum_list[ipf2][2] );
+              continue;
+            }
 
 
             /**************************************************************************************
@@ -1116,11 +1228,21 @@ int main(int argc, char **argv) {
             for ( int igf1 = 0; igf1 < gamma_f1_nucleon_number; igf1++ ) {
               int igf2 = 0;
 
+              gamma_matrix_type gf12;
+              gamma_matrix_set  ( &gf12, gamma_f1_nucleon_list[igf1][1], gamma_f1_nucleon_sign[igf1][1] );
 
               /**************************************************************************************
                * loop on pi2
                **************************************************************************************/
               for ( int ipi2 = 0; ipi2 < g_seq_source_momentum_number; ipi2++ ) {
+
+                int ipi1 = source_momentum_id[ipi2];
+                if ( ipi1 == -1 ) {
+                  if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagrams_complete] Warning, skipping seq momentum no %d  (  %3d, %3d, %3d ) for ptot ( %3d, %3d, %3d )\n", ipi2, 
+                      g_seq_source_momentum_list[ipi2][0], g_seq_source_momentum_list[ipi2][1], g_seq_source_momentum_list[ipi2][2],
+                      ptot[0], ptot[1], ptot[2] );
+                  continue;
+                }
 
 
                 /**************************************************************************************
@@ -1131,23 +1253,25 @@ int main(int argc, char **argv) {
 
                   char aff_tag_suffix[400];
 
-                  contract_diagram_key_suffix ( aff_tag_suffix, 
-                      gamma_f2_list[igf2], g_seq2_source_momentum_list[ipf2],
-                      gamma_f1_nucleon_list[igf1], g_sink_momentum_list[ipf1],
-                      gamma_i2_list[igi2], g_seq_source_momentum_list[ipi2],
-                      gamma_f1_nucleon_list[igi1], NULL, gsx );
+                  contract_diagram_key_suffix ( aff_tag_suffix,
+                      gamma_f2_list[igf2],                                            g_seq2_source_momentum_list[ipf2],
+                      gamma_f1_nucleon_list[igf1][0], gamma_f1_nucleon_list[igf1][1], g_sink_momentum_list[ipf1],
+                      gamma_i2_list[igi2],                                            g_seq_source_momentum_list[ipi2],
+                      gamma_f1_nucleon_list[igi1][0], gamma_f1_nucleon_list[igi1][1], g_sink_momentum_list[ipi1],
+                      gsx );
 
                   /**************************************************************************************/
                   /**************************************************************************************/
 
-                  gamma_matrix_type gi1;
-                  gamma_matrix_set  ( &gi1, gamma_f1_nucleon_list[igi1], gamma_f1_nucleon_sign[igi1] );
-                  gamma_matrix_mult ( &gamma_C_gi1, &gamma_C, &gi1 );
+                  gamma_matrix_type gi11, gi12;
+                  gamma_matrix_set  ( &gi11, gamma_f1_nucleon_list[igi1][0], gamma_f1_nucleon_sign[igi1][0] );
+                  gamma_matrix_set  ( &gi12, gamma_f1_nucleon_list[igi1][1], gamma_f1_nucleon_sign[igi1][1] );
+
                   // no transposition with above choice of permutation, cf. pdf
-                  // gamma_matrix_transposed ( &gamma_C_gi1, &gamma_C_gi1);
+                  // gamma_matrix_transposed ( &gi11, &gi11 );
                   if ( g_verbose > 2 ) {
-                    sprintf(name, "C_g%.2d", gi1.id);
-                    gamma_matrix_printf (&gamma_C_gi1, name, stdout);
+                    sprintf(name, "G%.2d", gi11.id);
+                    gamma_matrix_printf (&gi11, name, stdout);
                   }
 
                   /**************************************************************************************/
@@ -1159,19 +1283,52 @@ int main(int argc, char **argv) {
                     EXIT(47);
                   }
 
-                  if ( ( exitstatus = contract_diagram_sample_oet (diagram, zxi[0][ipf2],  zphi[ipi2][igf1][ipf1], goet, perm[iperm], gamma_C_gi1, T_global ) ) != 0 ) {
+                  if ( ( exitstatus = contract_diagram_sample_oet (diagram, zxi[0][ipf2],  zphi[ipi2][igf1][ipf1], goet, perm[iperm], gi11, T_global ) ) != 0 ) {
                     fprintf(stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_sample_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                     EXIT(108);
                   }
 
-                  // AFF tag
+                  // add boundary phase
+                  if ( ( exitstatus = correlator_add_baryon_boundary_phase ( diagram, gsx[0], +1, T_global ) ) != 0 ) {
+                    fprintf( stderr, "[piN2piN_diagrams_complete] Error from correlator_add_baryon_boundary_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                    EXIT(106);
+                  }
+  
+                  // add source phase
+                  if ( ( exitstatus = correlator_add_source_phase ( diagram, g_sink_momentum_list[ipi1], &(gsx[1]), T_global ) ) != 0 ) {
+                    fprintf( stderr, "[piN2piN_diagrams_complete] Error from correlator_add_source_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                    EXIT(107);
+                  }
+  
+                  // add outer gamma matrices
+                  if ( ( exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( diagram, diagram, gf12, gi12, T_global ) ) != 0 ) {
+                    fprintf( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zm4x4_field_mul_gamma_lr, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                    EXIT(108);
+                  }
+  
+                  // add phase from phase convention
+                  double _Complex const zsign = contract_diagram_get_correlator_phase ( "mxb-mxb",
+                      gamma_f1_nucleon_list[igi1][0],
+                      gamma_f1_nucleon_list[igi1][1],
+                      gamma_i2_list[igi2],
+                      gamma_f1_nucleon_list[igf1][0],
+                      gamma_f1_nucleon_list[igf1][1],
+                      gamma_f2_list[igf2] );
+  
+                  if ( ( exitstatus = contract_diagram_zmx4x4_field_ti_eq_co ( diagram, zsign, T_global ) ) != 0 ) {
+                    fprintf ( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zmx4x4_field_ti_eq_co, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                    EXIT(109)
+                  }
+
+
+                  // AFF write fwd
                   sprintf(aff_tag, "/%s/z%d/fwd/%s", "pixN-pixN", iperm+1, aff_tag_suffix );
                   if ( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
                     fprintf(stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                     EXIT(109);
                   }
 
-                  // AFF tag
+                  // AFF write bwd
                   sprintf(aff_tag, "/%s/z%d/bwd/%s", "pixN-pixN", iperm+1, aff_tag_suffix );
                   if ( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
                     fprintf(stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -1198,6 +1355,8 @@ int main(int argc, char **argv) {
         }  // end of loop on permutations
 
         free ( sink_momentum_id );
+
+        free ( source_momentum_id );
 
       }  // end of loop on p_tot
 
@@ -1270,7 +1429,7 @@ int main(int argc, char **argv) {
 
               if ( io_proc == 2 ) {
 
-                aff_key_conversion_diagram ( aff_tag, tag, NULL, NULL, g_sink_momentum_list[ipf1], NULL, gamma_f1_nucleon_list[igi1], -1, gamma_f1_nucleon_list[igf1], -1, gsx, "n", idiag+1 );
+                aff_key_conversion_diagram ( aff_tag, tag, NULL, NULL, g_sink_momentum_list[ipf1], NULL, gamma_f1_nucleon_list[igi1][0], -1, gamma_f1_nucleon_list[igf1][0], -1, gsx, "n", idiag+1 , 0 );
 
                 if (g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams_complete] key = \"%s\"\n", aff_tag);
  
@@ -1334,7 +1493,7 @@ int main(int argc, char **argv) {
                     gamma_f2_list[igi2], gamma_f2_list[igf2],
                     g_sink_momentum_list[ipf2][0], g_sink_momentum_list[ipf2][1], g_sink_momentum_list[ipf2][2] ); */
 
-                aff_key_conversion_diagram (  aff_tag, tag, NULL, g_seq_source_momentum_list[ipi2], NULL, g_sink_momentum_list[ipf2], -1, gamma_i2_list[igi2], -1, gamma_f2_list[igf2], gsx, NULL, 0  );
+                aff_key_conversion_diagram (  aff_tag, tag, NULL, g_seq_source_momentum_list[ipi2], NULL, g_sink_momentum_list[ipf2], -1, gamma_i2_list[igi2], -1, gamma_f2_list[igf2], gsx, NULL, 0 , 0 );
 
                 if (g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams_complete] key = \"%s\"\n", aff_tag);
  
@@ -1369,10 +1528,22 @@ int main(int argc, char **argv) {
        **************************************************************************************/
       for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ ) {
 
-        int * sink_momentum_id =  get_conserved_momentum_id ( g_seq2_source_momentum_list, g_seq2_source_momentum_number, g_total_momentum_list[iptot], g_sink_momentum_list, g_sink_momentum_number );
+        int ptot[3]  = { g_total_momentum_list[iptot][0], g_total_momentum_list[iptot][1], g_total_momentum_list[iptot][2] };
+
+        int mptot[3] = { -ptot[0], -ptot[1], -ptot[2] };
+
+        int * sink_momentum_id =   get_conserved_momentum_id ( g_seq2_source_momentum_list, g_seq2_source_momentum_number, ptot,  g_sink_momentum_list, g_sink_momentum_number );
         if ( sink_momentum_id == NULL ) {
           fprintf(stderr, "[piN2piN_diagrams_complete] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
-          EXIT(1);
+          // EXIT(1);
+          continue;
+        }
+
+        int * source_momentum_id = get_conserved_momentum_id ( g_seq_source_momentum_list,  g_seq_source_momentum_number,  mptot, g_sink_momentum_list, g_sink_momentum_number );
+        if ( source_momentum_id == NULL ) {
+          fprintf(stderr, "[piN2piN_diagrams_complete] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
+          // EXIT(1);
+          continue;
         }
 
         /**************************************************************************************
@@ -1404,7 +1575,11 @@ int main(int argc, char **argv) {
           for ( int ipf2 = 0; ipf2 < g_seq2_source_momentum_number; ipf2++ ) {
 
             int ipf1 = sink_momentum_id[ipf2];
-            if ( ipf1 == -1 ) continue;
+            if ( ipf1 == -1 ) {
+              if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagrams_complete] Warning, skipping seq2 momentum no %d  (  %3d, %3d, %3d )\n", ipf2,
+                  g_seq2_source_momentum_list[ipf2][0], g_seq2_source_momentum_list[ipf2][1], g_seq2_source_momentum_list[ipf2][2] );
+              continue;
+            }
 
             /**************************************************************************************
              * loop on gf1
@@ -1412,10 +1587,22 @@ int main(int argc, char **argv) {
             for ( int igf1 = 0; igf1 < gamma_f1_nucleon_number; igf1++ ) {
               int igf2 = 0;
 
+              gamma_matrix_type gf12;
+              gamma_matrix_set  ( &gf12, gamma_f1_nucleon_list[igf1][1], gamma_f1_nucleon_sign[igf1][1] );
+
+
               /**************************************************************************************
                * loop on pi2
                **************************************************************************************/
               for ( int ipi2 = 0; ipi2 < g_seq_source_momentum_number; ipi2++ ) {
+
+                int ipi1 = source_momentum_id[ipi2];
+                if ( ipi1 == -1 ) {
+                  if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagrams_complete] Warning, skipping seq momentum no %d  (  %3d, %3d, %3d ) for ptot ( %3d, %3d, %3d )\n", ipi2,
+                      g_seq_source_momentum_list[ipi2][0], g_seq_source_momentum_list[ipi2][1], g_seq_source_momentum_list[ipi2][2],
+                      ptot[0], ptot[1], ptot[2] );
+                  continue;
+                }
 
                 /**************************************************************************************
                  * loop on gi1
@@ -1423,13 +1610,17 @@ int main(int argc, char **argv) {
                 for ( int igi1 = 0; igi1 < gamma_f1_nucleon_number; igi1++ ) { 
                   int igi2 = 0;
 
+                  gamma_matrix_type gi12;
+                  gamma_matrix_set  ( &gi12, gamma_f1_nucleon_list[igi1][1], gamma_f1_nucleon_sign[igi1][1] );
+
                   char aff_tag_suffix[400];
 
-                  contract_diagram_key_suffix ( aff_tag_suffix, 
-                      gamma_f2_list[igf2], g_seq2_source_momentum_list[ipf2],
-                      gamma_f1_nucleon_list[igf1], g_sink_momentum_list[ipf1],
-                      gamma_i2_list[igi2], g_seq_source_momentum_list[ipi2],
-                      gamma_f1_nucleon_list[igi1], NULL, gsx );
+                  contract_diagram_key_suffix ( aff_tag_suffix,
+                      gamma_f2_list[igf2],                                            g_seq2_source_momentum_list[ipf2],
+                      gamma_f1_nucleon_list[igf1][0], gamma_f1_nucleon_list[igf1][1], g_sink_momentum_list[ipf1],
+                      gamma_i2_list[igi2],                                            g_seq_source_momentum_list[ipi2],
+                      gamma_f1_nucleon_list[igi1][0], gamma_f1_nucleon_list[igi1][1], g_sink_momentum_list[ipi1],
+                      gsx );
 
 
                   /**************************************************************************************/
@@ -1438,7 +1629,7 @@ int main(int argc, char **argv) {
                   double _Complex *** diagram = init_3level_ztable ( T_global, 4, 4 );
                   if ( diagram == NULL ) {
                     fprintf(stderr, "[piN2piN_diagrams_complete] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__);
-                    EXIT(47);
+                    EXIT(104);
                   }
 
                   memcpy( bb_aux[0][0], bb[igi1][igf1][ipf1][idiag][0], 16*T_global*sizeof(double _Complex) );
@@ -1448,9 +1639,55 @@ int main(int argc, char **argv) {
                   // memcpy(diagram[0][0],  bb_aux[0][0], 16*T_global*sizeof(double _Complex) );
 
                   // transpose
-                  exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global );
+                  if ( ( exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global ) ) != 0 ) {
+                    fprintf( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zm4x4_field_eq_zm4x4_field_transposed, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                    EXIT(105);
+                  }
 
-                  // AFF
+                  // add boundary phase
+                  if ( ( exitstatus = correlator_add_baryon_boundary_phase ( diagram, gsx[0], +1, T_global ) ) != 0 ) {
+                    fprintf( stderr, "[piN2piN_diagrams_complete] Error from correlator_add_baryon_boundary_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                    EXIT(106);
+                  }
+  
+                  // add source phase
+                  if ( ( exitstatus = correlator_add_source_phase ( diagram, g_sink_momentum_list[ipi1], &(gsx[1]), T_global ) ) != 0 ) {
+                    fprintf( stderr, "[piN2piN_diagrams_complete] Error from correlator_add_source_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                    EXIT(107);
+                  }
+  
+                  // add outer gamma matrices
+                  if ( ( exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( diagram, diagram, gf12, gi12, T_global ) ) != 0 ) {
+                    fprintf( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zm4x4_field_mul_gamma_lr, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                    EXIT(108);
+                  }
+  
+                  // add phase from phase convention
+                  
+                  /**************************************************************************************
+                   **************************************************************************************
+                   **
+                   ** NOTE: extra minus sign, since meson loop is - trace ( ... )
+                   ** 
+                   ** that -1 is NOT given in -contract_diagram_get_correlator_phase
+                   ** and has not been included in piN2piN_factorized's contract_vn_momentum_projection
+                   **
+                   **************************************************************************************
+                   **************************************************************************************/
+                  double _Complex const zsign = -contract_diagram_get_correlator_phase ( "mxb-mxb",
+                      gamma_f1_nucleon_list[igi1][0],
+                      gamma_f1_nucleon_list[igi1][1],
+                      gamma_i2_list[igi2],
+                      gamma_f1_nucleon_list[igf1][0],
+                      gamma_f1_nucleon_list[igf1][1],
+                      gamma_f2_list[igf2] );
+  
+                  if ( ( exitstatus = contract_diagram_zmx4x4_field_ti_eq_co ( diagram, zsign, T_global ) ) != 0 ) {
+                    fprintf ( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zmx4x4_field_ti_eq_co, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                    EXIT(109)
+                  }
+
+                  // AFF write fwd
                   sprintf(aff_tag, "/%s/s%d/fwd/%s", "pixN-pixN", idiag+1, aff_tag_suffix );
                   if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams_complete] aff tag = %s\n", aff_tag);
                   if( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
@@ -1458,7 +1695,7 @@ int main(int argc, char **argv) {
                     EXIT(105);
                   }
    
-                  // AFF
+                  // AFF write bwd
                   sprintf(aff_tag, "/%s/s%d/bwd/%s", "pixN-pixN", idiag+1, aff_tag_suffix );
                   if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams_complete] aff tag = %s\n", aff_tag);
                   if( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
@@ -1488,6 +1725,8 @@ int main(int argc, char **argv) {
         }  // end of loop on diagrams
 
         free ( sink_momentum_id );
+
+        free ( source_momentum_id );
 
       }  // end of loop on p_tot
 
@@ -1566,7 +1805,7 @@ int main(int argc, char **argv) {
 
               if ( io_proc == 2 ) {
 
-                aff_key_conversion_diagram ( aff_tag, tag, NULL, NULL, g_sink_momentum_list[ipf1], NULL, gamma_f1_nucleon_list[igi1], -1, gamma_f1_nucleon_list[igf1], -1, gsx, "n", idiag+1 );
+                aff_key_conversion_diagram ( aff_tag, tag, NULL, NULL, g_sink_momentum_list[ipf1], NULL, gamma_f1_nucleon_list[igi1][0], -1, gamma_f1_nucleon_list[igf1][0], -1, gsx, "n", idiag+1 , 0);
 
                 if (g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams_complete] key = \"%s\"\n", aff_tag);
  
@@ -1595,6 +1834,10 @@ int main(int argc, char **argv) {
        **************************************************************************************/
       for ( int iptot = 0; iptot < g_sink_momentum_number; iptot++ ) {
 
+        int ptot[3]  = { g_sink_momentum_list[iptot][0], g_sink_momentum_list[iptot][1], g_sink_momentum_list[iptot][2] };
+
+        int mptot[3] = { -ptot[0], -ptot[1], -ptot[2] };
+
         /**************************************************************************************
          * loop on diagrams
          **************************************************************************************/
@@ -1606,8 +1849,7 @@ int main(int argc, char **argv) {
           if ( io_proc == 2 ) {
 
             sprintf( filename, "%s.N%d.%.4d.PX%dPY%dPZ%d.t%dx%dy%dz%d.aff", "piN_piN_diagrams", idiag+1, Nconf, 
-                g_total_momentum_list[iptot][0], g_total_momentum_list[iptot][1], g_total_momentum_list[iptot][2],
-                gsx[0], gsx[1], gsx[2], gsx[3] );
+                ptot[0], ptot[1], ptot[2], gsx[0], gsx[1], gsx[2], gsx[3] );
 
             affw = aff_writer (filename);
             if ( const char * aff_status_str =  aff_writer_errstr(affw) ) {
@@ -1624,14 +1866,25 @@ int main(int argc, char **argv) {
            **************************************************************************************/
           for ( int igf1 = 0; igf1 < gamma_f1_nucleon_number; igf1++ ) {
 
+            gamma_matrix_type gf12;
+            gamma_matrix_set  ( &gf12, gamma_f1_nucleon_list[igf1][1], gamma_f1_nucleon_sign[igf1][1] );
+
             /**************************************************************************************
              * loop on gi1
              **************************************************************************************/
             for ( int igi1 = 0; igi1 < gamma_f1_nucleon_number; igi1++ ) { 
 
+              gamma_matrix_type gi12;
+              gamma_matrix_set  ( &gi12, gamma_f1_nucleon_list[igi1][1], gamma_f1_nucleon_sign[igi1][1] );
+
               char aff_tag_suffix[400];
 
-              contract_diagram_key_suffix ( aff_tag_suffix, -1, NULL, gamma_f1_nucleon_list[igf1], g_sink_momentum_list[iptot], -1, NULL, gamma_f1_nucleon_list[igi1], NULL, gsx );
+              contract_diagram_key_suffix ( aff_tag_suffix,
+                  -1, NULL,
+                  gamma_f1_nucleon_list[igf1][0], gamma_f1_nucleon_list[igf1][1], ptot,
+                  -1, NULL,
+                  gamma_f1_nucleon_list[igi1][0], gamma_f1_nucleon_list[igi1][1], mptot,
+                  gsx );
 
               /**************************************************************************************/
               /**************************************************************************************/
@@ -1639,29 +1892,60 @@ int main(int argc, char **argv) {
               double _Complex *** diagram = init_3level_ztable ( T_global, 4, 4 );
               if ( diagram == NULL ) {
                 fprintf(stderr, "[piN2piN_diagrams_complete] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__);
-                EXIT(47);
+                EXIT(101);
               }
 
               // copy current bb configuration to T x 4x4 diagram
               memcpy( diagram[0][0], bb[igi1][igf1][iptot][idiag][0], 16*T_global*sizeof(double _Complex) );
 
               // transpose
-              exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global );
+              if ( ( exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global ) ) != 0 ) {
+                fprintf( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zm4x4_field_eq_zm4x4_field_transposed, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(102);
+              }
 
-              // AFF
+              // add boundary phase
+              if ( ( exitstatus = correlator_add_baryon_boundary_phase ( diagram, gsx[0], +1, T_global ) ) != 0 ) {
+                fprintf( stderr, "[piN2piN_diagrams_complete] Error from correlator_add_baryon_boundary_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(103);
+              }
+  
+              // add source phase
+              if ( ( exitstatus = correlator_add_source_phase ( diagram, mptot, &(gsx[1]), T_global ) ) != 0 ) {
+                fprintf( stderr, "[piN2piN_diagrams_complete] Error from correlator_add_source_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(104);
+              }
+  
+              // add outer gamma matrices
+              if ( ( exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( diagram, diagram, gf12, gi12, T_global ) ) != 0 ) {
+                fprintf( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zm4x4_field_mul_gamma_lr, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(105);
+              }
+  
+              // add phase from phase convention
+              double _Complex const zsign = contract_diagram_get_correlator_phase ( "b-b",
+                  gamma_f1_nucleon_list[igi1][0], gamma_f1_nucleon_list[igi1][1], -1,
+                  gamma_f1_nucleon_list[igf1][0], gamma_f1_nucleon_list[igf1][1], -1 );
+  
+              if ( ( exitstatus = contract_diagram_zmx4x4_field_ti_eq_co ( diagram, zsign, T_global ) ) != 0 ) {
+                fprintf ( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zmx4x4_field_ti_eq_co, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                EXIT(106)
+              }
+
+              // AFF write fwd
               sprintf(aff_tag, "/%s/n%d/fwd/%s", "N-N", idiag+1, aff_tag_suffix );
               if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams_complete] aff tag = %s\n", aff_tag);
               if( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
                 fprintf(stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-                EXIT(105);
+                EXIT(107);
               }
    
-              // AFF
+              // AFF write bwd
               sprintf(aff_tag, "/%s/n%d/bwd/%s", "N-N", idiag+1, aff_tag_suffix );
               if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams_complete] aff tag = %s\n", aff_tag);
               if( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
                 fprintf(stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-                EXIT(105);
+                EXIT(108);
               }
 
               fini_3level_ztable ( &diagram );
@@ -1683,20 +1967,20 @@ int main(int argc, char **argv) {
 
       }  // end of loop on p_tot
 
+      fini_6level_ztable ( &bb );
+
       /**************************************************************************************/
       /**************************************************************************************/
 
-      fini_6level_ztable ( &bb );
+      /**************************************************************************************
+       * D - D
+       **************************************************************************************/
 
       bb = init_6level_ztable ( gamma_f1_delta_number, gamma_f1_delta_number, g_sink_momentum_number, 6, T_global, 16 );
       if ( bb == NULL ) {
         fprintf(stderr, "[piN2piN_diagrams_complete] Error from init_6level_ztable %s %d\n", __FILE__, __LINE__ );
         EXIT(47);
       }
-
-      /**************************************************************************************
-       * D - D
-       **************************************************************************************/
 
       strcpy ( tag, "D-D" );
       if ( g_verbose > 2 ) fprintf(stdout, "\n\n# [piN2piN_diagrams_complete] tag = %s\n", tag);
@@ -1723,7 +2007,7 @@ int main(int argc, char **argv) {
 
               if ( io_proc == 2 ) {
 
-                aff_key_conversion_diagram ( aff_tag, tag, NULL, NULL, g_sink_momentum_list[ipf1], NULL, gamma_f1_delta_list[igi1], -1, gamma_f1_delta_list[igf1], -1, gsx, "d", idiag+1 );
+                aff_key_conversion_diagram ( aff_tag, tag, NULL, NULL, g_sink_momentum_list[ipf1], NULL, gamma_f1_delta_list[igi1][0], -1, gamma_f1_delta_list[igf1][0], -1, gsx, "d", idiag+1 , 0);
 
                 if (g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams_complete] key = \"%s\"\n", aff_tag);
  
@@ -1752,6 +2036,13 @@ int main(int argc, char **argv) {
        **************************************************************************************/
       for ( int iptot = 0; iptot < g_sink_momentum_number; iptot++ ) {
 
+        int ptot[3] = {
+          g_sink_momentum_list[iptot][0],
+          g_sink_momentum_list[iptot][1],
+          g_sink_momentum_list[iptot][2] };
+
+        int mptot[3] = { -ptot[0], -ptot[1], -ptot[2] };
+
         /**************************************************************************************
          * loop on diagrams
          **************************************************************************************/
@@ -1763,7 +2054,7 @@ int main(int argc, char **argv) {
           if ( io_proc == 2 ) {
 
             sprintf( filename, "%s.D%d.%.4d.PX%dPY%dPZ%d.t%dx%dy%dz%d.aff", "piN_piN_diagrams", idiag+1, Nconf, 
-                g_total_momentum_list[iptot][0], g_total_momentum_list[iptot][1], g_total_momentum_list[iptot][2],
+                ptot[0], ptot[1], ptot[2],
                 gsx[0], gsx[1], gsx[2], gsx[3] );
 
             affw = aff_writer (filename);
@@ -1780,14 +2071,25 @@ int main(int argc, char **argv) {
            **************************************************************************************/
           for ( int igf1 = 0; igf1 < gamma_f1_delta_number; igf1++ ) {
 
+            gamma_matrix_type gf12;
+            gamma_matrix_set  ( &gf12, gamma_f1_delta_list[igf1][1], gamma_f1_delta_sign[igf1][1] );
+
             /**************************************************************************************
              * loop on gi1
              **************************************************************************************/
             for ( int igi1 = 0; igi1 < gamma_f1_delta_number; igi1++ ) { 
 
+              gamma_matrix_type gi12;
+              gamma_matrix_set  ( &gi12, gamma_f1_delta_list[igi1][1], gamma_f1_delta_sign[igi1][1] );
+
               char aff_tag_suffix[400];
 
-              contract_diagram_key_suffix ( aff_tag_suffix, -1, NULL, gamma_f1_delta_list[igf1], g_sink_momentum_list[iptot], -1, NULL, gamma_f1_delta_list[igi1], NULL, gsx );
+              contract_diagram_key_suffix ( aff_tag_suffix,
+                  -1, NULL,
+                  gamma_f1_delta_list[igf1][0], gamma_f1_delta_list[igf1][1], ptot,
+                  -1, NULL,
+                  gamma_f1_delta_list[igi1][0], gamma_f1_delta_list[igi1][1], mptot,
+                  gsx );
 
               /**************************************************************************************/
               /**************************************************************************************/
@@ -1795,29 +2097,60 @@ int main(int argc, char **argv) {
               double _Complex *** diagram = init_3level_ztable ( T_global, 4, 4 );
               if ( diagram == NULL ) {
                 fprintf(stderr, "[piN2piN_diagrams_complete] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__);
-                EXIT(47);
+                EXIT(101);
               }
 
               // copy current bb configuration to T x 4x4 diagram
               memcpy( diagram[0][0], bb[igi1][igf1][iptot][idiag][0], 16*T_global*sizeof(double _Complex) );
 
               // transpose
-              exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global );
+              if ( ( exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global ) ) != 0 ) {
+                fprintf( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zm4x4_field_eq_zm4x4_field_transposed, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(102);
+              }
 
-              // AFF
+              // add boundary phase
+              if ( ( exitstatus = correlator_add_baryon_boundary_phase ( diagram, gsx[0], +1, T_global ) ) != 0 ) {
+                fprintf( stderr, "[piN2piN_diagrams_complete] Error from correlator_add_baryon_boundary_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(103);
+              }
+  
+              // add source phase
+              if ( ( exitstatus = correlator_add_source_phase ( diagram, mptot, &(gsx[1]), T_global ) ) != 0 ) {
+                fprintf( stderr, "[piN2piN_diagrams_complete] Error from correlator_add_source_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(104);
+              }
+  
+              // add outer gamma matrices
+              if ( ( exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( diagram, diagram, gf12, gi12, T_global ) ) != 0 ) {
+                fprintf( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zm4x4_field_mul_gamma_lr, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(105);
+              }
+  
+              // add phase from phase convention
+              double _Complex const zsign = contract_diagram_get_correlator_phase ( "b-b",
+                  gamma_f1_delta_list[igi1][0], gamma_f1_delta_list[igi1][1], -1,
+                  gamma_f1_delta_list[igf1][0], gamma_f1_delta_list[igf1][1], -1 );
+  
+              if ( ( exitstatus = contract_diagram_zmx4x4_field_ti_eq_co ( diagram, zsign, T_global ) ) != 0 ) {
+                fprintf ( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zmx4x4_field_ti_eq_co, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                EXIT(106)
+              }
+
+              // AFF write fwd
               sprintf(aff_tag, "/%s/d%d/fwd/%s", "D-D", idiag+1, aff_tag_suffix );
               if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams_complete] aff tag = %s\n", aff_tag);
               if( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
                 fprintf(stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-                EXIT(105);
+                EXIT(107);
               }
    
-              // AFF
+              // AFF write bwd
               sprintf(aff_tag, "/%s/d%d/bwd/%s", "D-D", idiag+1, aff_tag_suffix );
               if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams_complete] aff tag = %s\n", aff_tag);
               if( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
                 fprintf(stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-                EXIT(105);
+                EXIT(108);
               }
 
               fini_3level_ztable ( &diagram );
@@ -1885,7 +2218,7 @@ int main(int argc, char **argv) {
 
                 if ( io_proc == 2 ) {
 
-                  aff_key_conversion_diagram ( aff_tag, tag, NULL, g_seq_source_momentum_list[ipi2], g_sink_momentum_list[ipf1], NULL, gamma_f1_nucleon_list[igi1], -1, gamma_f1_delta_list[igf1], -1, gsx, "t", idiag+1 );
+                  aff_key_conversion_diagram ( aff_tag, tag, NULL, g_seq_source_momentum_list[ipi2], g_sink_momentum_list[ipf1], NULL, gamma_f1_nucleon_list[igi1][0], -1, gamma_f1_delta_list[igf1][0], -1, gsx, "t", idiag+1 , 0 );
 
                   if (g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams_complete] key = \"%s\"\n", aff_tag);
 
@@ -1916,6 +2249,23 @@ int main(int argc, char **argv) {
        **************************************************************************************/
       for ( int iptot = 0; iptot < g_sink_momentum_number; iptot++ ) {
 
+        int ptot[3]  = { g_sink_momentum_list[iptot][0], g_sink_momentum_list[iptot][1], g_sink_momentum_list[iptot][2] };
+
+        int mptot[3] = { -ptot[0], -ptot[1], -ptot[2] };
+
+        int * source_momentum_id =  get_conserved_momentum_id ( g_seq_source_momentum_list,  g_seq_source_momentum_number,  mptot, g_sink_momentum_list, g_sink_momentum_number );
+        if ( source_momentum_id == NULL ) {
+          fprintf(stderr, "[piN2piN_diagrams_complete] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
+          // EXIT(1);
+          continue;
+        }
+        // TEST
+        //for ( int i = 0; i < g_seq_source_momentum_number; i++ ) {
+        //  fprintf ( stdout, "# [check_source_momentum_id] P %3d %3d% 3d   source_momentum_id %d  %d\n",
+        //      ptot[0], ptot[1], ptot[2], i, source_momentum_id[i] );
+        //}
+
+
         /**************************************************************************************
          * loop on diagrams
          **************************************************************************************/
@@ -1927,7 +2277,7 @@ int main(int argc, char **argv) {
           if ( io_proc == 2 ) {
 
             sprintf( filename, "%s.T%d.%.4d.PX%dPY%dPZ%d.t%dx%dy%dz%d.aff", "piN_piN_diagrams", idiag+1, Nconf, 
-                g_total_momentum_list[iptot][0], g_total_momentum_list[iptot][1], g_total_momentum_list[iptot][2],
+                ptot[0], ptot[1], ptot[2],
                 gsx[0], gsx[1], gsx[2], gsx[3] );
 
             affw = aff_writer (filename);
@@ -1940,25 +2290,52 @@ int main(int argc, char **argv) {
           }  // end of if io_proc == 2
 
           /**************************************************************************************
-           * loop on gf1
+           * loop on total momenta
            **************************************************************************************/
-          for ( int igf1 = 0; igf1 < gamma_f1_delta_number; igf1++ ) {
+          for ( int ipi2 = 0; ipi2 < g_seq_source_momentum_number; ipi2++ ) {
+
+            int ipi1 = source_momentum_id[ipi2];
+            if ( ipi1 == -1 ) {
+              if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagrams_complete] Warning, skipping seq momentum no %d  (  %3d, %3d, %3d ) for ptot (%3d, %3d, %3d)\n", ipi2, 
+                  g_seq_source_momentum_list[ipi2][0], g_seq_source_momentum_list[ipi2][1], g_seq_source_momentum_list[ipi2][2],
+                  ptot[0], ptot[1], ptot[2] );
+              continue;
+            //} else {
+            //  if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagrams_complete] using pi1 ( %3d %3d %3d )   for seq momentum no %d  (  %3d, %3d, %3d ) for ptot (%3d, %3d, %3d)\n", 
+            //      g_sink_momentum_list[ipi1][0], g_sink_momentum_list[ipi1][1], g_sink_momentum_list[ipi1][2],
+            //      ipi2, 
+            //      g_seq_source_momentum_list[ipi2][0], g_seq_source_momentum_list[ipi2][1], g_seq_source_momentum_list[ipi2][2],
+            //      ptot[0], ptot[1], ptot[2] );
+            }
 
             /**************************************************************************************
-             * loop on gi1
+             * loop on gf1
              **************************************************************************************/
-            for ( int igi1 = 0; igi1 < gamma_f1_nucleon_number; igi1++ ) {
-              // sequential source vertex always gamma_5
-              int const gi2 = 5;
+            for ( int igf1 = 0; igf1 < gamma_f1_delta_number; igf1++ ) {
+
+              gamma_matrix_type gf12;
+              gamma_matrix_set  ( &gf12, gamma_f1_delta_list[igf1][1], gamma_f1_delta_sign[igf1][1] );
 
               /**************************************************************************************
-               * loop on total momenta
+               * loop on gi1
                **************************************************************************************/
-              for ( int ipi2 = 0; ipi2 < g_seq_source_momentum_number; ipi2++ ) {
+              for ( int igi1 = 0; igi1 < gamma_f1_nucleon_number; igi1++ ) {
+                // sequential source vertex always gamma_5
+                int const igi2 = 0;
+
+                gamma_matrix_type gi12;
+                gamma_matrix_set  ( &gi12, gamma_f1_nucleon_list[igi1][1], gamma_f1_nucleon_sign[igi1][1] );
+
 
                 char aff_tag_suffix[400];
 
-                contract_diagram_key_suffix ( aff_tag_suffix, -1, NULL, gamma_f1_delta_list[igf1], g_sink_momentum_list[iptot], gi2, g_seq_source_momentum_list[ipi2], gamma_f1_nucleon_list[igi1], NULL, gsx );
+                contract_diagram_key_suffix ( aff_tag_suffix,
+                    -1, NULL,
+                    gamma_f1_delta_list[igf1][0],   gamma_f1_delta_list[igf1][1],   ptot,
+                    gamma_i2_list[igi2],                                            g_seq_source_momentum_list[ipi2],
+                    gamma_f1_nucleon_list[igi1][0], gamma_f1_nucleon_list[igi1][1], g_sink_momentum_list[ipi1],
+                    gsx );
+
   
                 /**************************************************************************************/
                 /**************************************************************************************/
@@ -1966,38 +2343,73 @@ int main(int argc, char **argv) {
                 double _Complex *** diagram = init_3level_ztable ( T_global, 4, 4 );
                 if ( diagram == NULL ) {
                   fprintf(stderr, "[piN2piN_diagrams_complete] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__);
-                  EXIT(47);
+                  EXIT(101);
                 }
 
                 // copy current bb configuration to T x 4x4 diagram
                 memcpy( diagram[0][0], mbb[ipi2][igi1][igf1][iptot][idiag][0], 16*T_global*sizeof(double _Complex) );
 
                 // transpose
-                exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global );
+                if ( ( exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global ) ) != 0 ) {
+                  fprintf( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zm4x4_field_eq_zm4x4_field_transposed, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                  EXIT(102);
+                }
 
-                // AFF
+                // add boundary phase
+                if ( ( exitstatus = correlator_add_baryon_boundary_phase ( diagram, gsx[0], +1, T_global ) ) != 0 ) {
+                  fprintf( stderr, "[piN2piN_diagrams_complete] Error from correlator_add_baryon_boundary_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                  EXIT(103);
+                }
+  
+                // add source phase
+                if ( ( exitstatus = correlator_add_source_phase ( diagram, g_sink_momentum_list[ipi1], &(gsx[1]), T_global ) ) != 0 ) {
+                  fprintf( stderr, "[piN2piN_diagrams_complete] Error from correlator_add_source_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                  EXIT(104);
+                }
+  
+                // add outer gamma matrices
+                if ( ( exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( diagram, diagram, gf12, gi12, T_global ) ) != 0 ) {
+                  fprintf( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zm4x4_field_mul_gamma_lr, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                  EXIT(105);
+                }
+  
+                // add phase from phase convention
+                double _Complex const zsign = contract_diagram_get_correlator_phase ( "mxb-b",
+                    gamma_f1_nucleon_list[igi1][0],
+                    gamma_f1_nucleon_list[igi1][1],
+                    gamma_i2_list[igi2],
+                    gamma_f1_delta_list[igf1][0],
+                    gamma_f1_delta_list[igf1][1],
+                    -1 );
+  
+                if ( ( exitstatus = contract_diagram_zmx4x4_field_ti_eq_co ( diagram, zsign, T_global ) ) != 0 ) {
+                  fprintf ( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zmx4x4_field_ti_eq_co, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                  EXIT(106)
+                }
+
+                // AFF write fwd
                 sprintf(aff_tag, "/%s/t%d/fwd/%s", "pixN-D", idiag+1, aff_tag_suffix );
                 if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams_complete] aff tag = %s\n", aff_tag);
                 if( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
                   fprintf(stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                  EXIT(105);
+                  EXIT(107);
                 }
    
-                // AFF
+                // AFF write bwd
                 sprintf(aff_tag, "/%s/t%d/bwd/%s", "pixN-D", idiag+1, aff_tag_suffix );
                 if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams_complete] aff tag = %s\n", aff_tag);
                 if( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
                   fprintf(stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                  EXIT(105);
+                  EXIT(108);
                 }
 
                 fini_3level_ztable ( &diagram );
 
-              }  // end of loop on pi2
+              }  // end of loop on Gamma_i1
 
-            }  // end of loop on Gamma_i1
- 
-          }  // end of loop on Gamma_f1
+            }  // end of loop on Gamma_f1
+
+          }  // end of loop on pi2
 
           if ( io_proc == 2 ) {
             if ( const char * aff_status_str = aff_writer_close (affw) ) {
@@ -2007,6 +2419,8 @@ int main(int argc, char **argv) {
           }  // end of if io_proc == 2
 
         }  // end of loop on diagrams
+
+        free ( source_momentum_id );
 
       }  // end of loop on p_tot
 
@@ -2052,7 +2466,7 @@ int main(int argc, char **argv) {
         if ( io_proc == 2 ) {
 
           sprintf( filename, "%s.M%d.%.4d.PX%dPY%dPZ%d.t%dx%dy%dz%d.aff", "piN_piN_diagrams", 1, Nconf, 
-              g_seq_source_momentum_list[iptot][0], g_seq_source_momentum_list[iptot][1], g_seq_source_momentum_list[iptot][2],
+              pf2[0], pf2[1], pf2[2],
               gsx[0], gsx[1], gsx[2], gsx[3] );
 
           affw = aff_writer (filename);
@@ -2076,7 +2490,7 @@ int main(int argc, char **argv) {
 
             if ( io_proc == 2 ) {
 
-              aff_key_conversion_diagram (  aff_tag, tag, NULL, pi2, NULL, pf2, -1, gamma_i2_list[igi2], -1, gamma_f2_list[igf2], gsx, NULL, 0  );
+              aff_key_conversion_diagram (  aff_tag, tag, NULL, pi2, NULL, pf2, -1, gamma_i2_list[igi2], -1, gamma_f2_list[igf2], gsx, NULL, 0 , 0 );
 
               if (g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams_complete] key = \"%s\"\n", aff_tag);
  
@@ -2089,23 +2503,23 @@ int main(int argc, char **argv) {
 
               char aff_tag_suffix[400];
 
-              contract_diagram_key_suffix ( aff_tag_suffix, gamma_f2_list[igf2], pf2, -1, NULL, gamma_i2_list[igi2], pi2, -1, NULL, gsx );
+              contract_diagram_key_suffix ( aff_tag_suffix, gamma_f2_list[igf2], pf2, -1, -1, NULL, gamma_i2_list[igi2], pi2, -1, -1, NULL, gsx );
 
-              // AFF
+              // AFF write fwd
               sprintf(aff_tag, "/%s/m1/fwd/%s", "pixN-pixN", aff_tag_suffix );
               if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams_complete] aff tag = %s\n", aff_tag);
-              if( ( exitstatus = contract_diagram_write_scalar_aff ( mm, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
+              if( ( exitstatus = contract_diagram_write_scalar_aff ( mm, affw, aff_tag, gsx[0], T_global, +1, io_proc ) ) != 0 ) {
                 fprintf(stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_write_aff, status was %d\n", exitstatus);
                 EXIT(105);
               }
  
-              // AFF
-              sprintf(aff_tag, "/%s/m1/bwd/%s", "pixN-pixN", aff_tag_suffix );
-              if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams_complete] aff tag = %s\n", aff_tag);
-              if( ( exitstatus = contract_diagram_write_scalar_aff ( mm, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
-                fprintf(stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_write_aff, status was %d\n", exitstatus);
-                EXIT(105);
-              }
+              // AFF write bwd
+              //sprintf(aff_tag, "/%s/m1/bwd/%s", "pixN-pixN", aff_tag_suffix );
+              //if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagrams_complete] aff tag = %s\n", aff_tag);
+              //if( ( exitstatus = contract_diagram_write_scalar_aff ( mm, affw, aff_tag, gsx[0], T_global, -1, io_proc ) ) != 0 ) {
+              //  fprintf(stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_write_aff, status was %d\n", exitstatus);
+              //  EXIT(105);
+              //}
 
             }   // end of if io proc > 2 
 
