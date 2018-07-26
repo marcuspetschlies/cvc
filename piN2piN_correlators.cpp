@@ -254,10 +254,10 @@ int main(int argc, char **argv) {
         /******************************************************
          * open AFF file
          ******************************************************/
-        char filename_prefix[100];
-        twopoint_function_get_aff_filename_prefix ( filename_prefix, &(g_twopoint_function_list[i2pt]) );
+        char aff_filename_prefix[100];
+        twopoint_function_get_aff_filename_prefix ( aff_filename_prefix, &(g_twopoint_function_list[i2pt]) );
 
-        sprintf(filename, "%s.%.4d.tsrc%.2d.aff", filename_prefix, Nconf, t_base );
+        sprintf(filename, "%s.%.4d.tsrc%.2d.aff", aff_filename_prefix, Nconf, t_base );
 
         if ( io_proc == 2 ) {
           affr = aff_reader (filename);
@@ -296,18 +296,25 @@ int main(int argc, char **argv) {
         /******************************************************
          * boundary phase
          ******************************************************/
-        STOPPED HERE:
-          if diagram is alredy ordered from source, gsx[0] -> le 0
+        //STOPPED HERE:
+        //  if diagram is alredy ordered from source, gsx[0] -> le 0
 
         if ( g_verbose > 4 && io_proc == 2 ) fprintf ( stdout, "# [piN2piN_correlators] calling correlator_add_baryon_boundary_phase  %s %d\n", __FILE__, __LINE__ );
-        exitstatus = correlator_add_baryon_boundary_phase ( diagram, gsx[0], nT ); 
+        // exitstatus = correlator_add_baryon_boundary_phase ( diagram, gsx[0], nT ); 
+        if ( strcmp ( g_twopoint_function_list[i2pt].fbwd, "fwd" ) == 0 ) {
+          exitstatus = correlator_add_baryon_boundary_phase ( diagram, 0, +1, nT ); 
+        } else if ( strcmp ( g_twopoint_function_list[i2pt].fbwd, "bwd" ) == 0 ) {
+          exitstatus = correlator_add_baryon_boundary_phase ( diagram, 0, -1, nT ); 
+        }
 
 
         /******************************************************
          * aplly gi1[1] and gf1[1]
          ******************************************************/
-        if ( g_verbose > 4 && io_proc == 2 ) fprintf ( stdout, "# [piN2piN_correlators] calling contract_diagram_zm4x4_field_mul_gamma_lr   %s %d\n", __FILE__, __LINE__ );
-        exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( diagram, diagram, gamma[g_twopoint_function_list[i2pt].gf1[1]], gamma[g_twopoint_function_list[i2pt].gi1[1]], nT );
+        if ( ( g_twopoint_function_list[i2pt].gi1[1] != -1 ) && ( g_twopoint_function_list[i2pt].gf1[1] != -1 ) ) {
+          if ( g_verbose > 4 && io_proc == 2 ) fprintf ( stdout, "# [piN2piN_correlators] calling contract_diagram_zm4x4_field_mul_gamma_lr   %s %d\n", __FILE__, __LINE__ );
+          exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( diagram, diagram, gamma[g_twopoint_function_list[i2pt].gf1[1]], gamma[g_twopoint_function_list[i2pt].gi1[1]], nT );
+        }
 
 
         /******************************************************
