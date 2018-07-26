@@ -248,12 +248,28 @@ void twopoint_function_print_diagram_key (char*key, twopoint_function_type *p, i
 
 
   } else if ( strcmp( p->type, "mxb-mxb") == 0 ) {
-    sprintf( key, "/%s/%s%spi2x%.2dpi2y%.2dpi2z%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d", p->name, diag_str, fbwd_str,
-        p->pi2[0], p->pi2[1], p->pi2[2],
-        p->pf1[0], p->pf1[1], p->pf1[2],
+    
+    //sprintf( key, "/%s/%s%spi2x%.2dpi2y%.2dpi2z%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d", p->name, diag_str, fbwd_str,
+    //    p->pi2[0], p->pi2[1], p->pi2[2],
+    //    p->pf1[0], p->pf1[1], p->pf1[2],
+    //    p->pf2[0], p->pf2[1], p->pf2[2],
+    //    p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3],
+    //    p->gf1[0], p->gi1[0]);
+
+    // /pixN-pixN/z1/fwd/gf205/pf2x-01pf2y00pf2z00/gf105/pf1x01pf1y00pf1z00/gi205/pi2x00pi2y00pi2z-01/gi105/t13x02y03z04
+
+    sprintf( key, "/%s/%s%sgf2%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/gf1%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/gi2%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/gi1%.2d/t%.2dx%.2dy%.2dz%.2d", 
+        p->name, diag_str, fbwd_str,
+        p->gf2,
         p->pf2[0], p->pf2[1], p->pf2[2],
-        p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3],
-        p->gf1[0], p->gi1[0]);
+        p->gf1[0],
+        p->pf1[0], p->pf1[1], p->pf1[2],
+        p->gi2,
+        p->pi2[0], p->pi2[1], p->pi2[2],
+        p->gi1[0],
+        p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3] );
+
+
   } else if ( strcmp( p->type, "mxb-b") == 0 ) {
 
     sprintf( key, "/%s/%s%spi2x%.2dpi2y%.2dpi2z%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d", p->name, diag_str, fbwd_str,
