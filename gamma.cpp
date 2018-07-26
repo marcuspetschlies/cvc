@@ -360,6 +360,8 @@ int get_gamma_signs ( char * const mode , int const gid ) {
   if ( ( ! signs_initialized ) || ( strcmp ( mode, "init" ) == 0 ) ) {
     // initialize sign arrays
 
+    if ( g_cart_id == 0 ) fprintf ( stdout, "# [get_gamma_signs] initializing gamma signs\n" );
+
 //  Tue Jul 24 16:06:16 2018 
 res_Ct[ 0] =  -1;
 res_Ct[ 1] =  -1;
@@ -658,4 +660,4 @@ res_Cc[15] =   1;
 
 }  // end of get_gamma_signs
 
-}  /* end of namespace cvc */
+}  // end of namespace cvc
