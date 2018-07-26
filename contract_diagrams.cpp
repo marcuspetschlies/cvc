@@ -289,6 +289,8 @@ int match_momentum_id ( int **pid, int **m1, int **m2, int N1, int N2 ) {
     }
   }
 
+  int found_no_match = 1;
+
   for ( int i = 0; i < N1; i++ ) {
     int found = 0;
     int p[3] = { m1[i][0], m1[i][1], m1[i][2] };
@@ -306,9 +308,12 @@ int match_momentum_id ( int **pid, int **m1, int **m2, int N1, int N2 ) {
       (*pid)[i] = -1;
       /* return(2); */
     }
-  }
 
-  /* TEST */
+    found_no_match = found_no_match && !found;
+
+  }  // end of loop on momenta to be matched
+
+  // TEST
   if ( g_verbose > 2 ) {
     for ( int i = 0; i < N1; i++ ) {
       if ( (*pid)[i] == -1 ) {
@@ -321,8 +326,8 @@ int match_momentum_id ( int **pid, int **m1, int **m2, int N1, int N2 ) {
     }
   }
 
-  return(0);
-}  /* end of match_momentum_id */
+  return( found_no_match );
+}  // end of match_momentum_id
 
 /***********************************************/
 /***********************************************/
@@ -365,9 +370,13 @@ int * get_conserved_momentum_id ( int (*p1)[3], int const n1, int const p2[3], i
  
   int *momentum_id = NULL;
   exitstatus = match_momentum_id ( &momentum_id, momentum_list, momentum_list_all, n1, n3 );
-  if ( exitstatus != 0 ) {
+  if ( exitstatus == 1 ) {
+    fprintf(stderr, "[get_minus_momentum_id] Error, not a single match\n");
+    free ( momentum_id );
+    return ( NULL );
+  } else if ( exitstatus != 0 ) {
     fprintf(stderr, "[get_minus_momentum_id] Error from match_momentum_id, status was %d\n", exitstatus );
-    return( NULL );
+    return ( NULL );
   }
   
   fini_2level_ibuffer ( &momentum_list );
@@ -384,13 +393,14 @@ int * get_conserved_momentum_id ( int (*p1)[3], int const n1, int const p2[3], i
  * multiply x-space spinor propagator field
  *   with boundary phase
  ***********************************************/
-int correlator_add_baryon_boundary_phase ( double _Complex *** const sp, int const tsrc, int const N ) {
+int correlator_add_baryon_boundary_phase ( double _Complex *** const sp, int const tsrc, int const dir, int const N ) {
 
   if( g_propagator_bc_type == 0 ) {
     // multiply with phase factor
     if ( g_verbose > 3 ) fprintf(stdout, "# [correlator_add_baryon_boundary_phase] multiplying with boundary phase factor\n");
 
     if ( tsrc > 0 ) {
+      // assume lattice ordering
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
@@ -399,30 +409,53 @@ int correlator_add_baryon_boundary_phase ( double _Complex *** const sp, int con
         const double _Complex w = cexp ( I * 3. * M_PI*(double)ir / (double)T_global  );
         zm4x4_ti_eq_co ( sp[it], w );
       }
-    } else {
+    } else if ( tsrc == 0 ) {
+      // assume ordering from source
+
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
       for( int it = 0; it < N; it++ ) {
-        const double _Complex w = cexp ( I * 3. * M_PI*(double)it / (double)T_global  );
+        const double _Complex w = cexp ( I * 3. * M_PI*(double)( (dir*it + T_global ) % T_global )  / (double)T_global  );
         zm4x4_ti_eq_co ( sp[it], w );
       }
     }
 
   } else if ( g_propagator_bc_type == 1 ) {
-    /* multiply with step function */
+
+    // multiply with step function
     if ( g_verbose > 3 ) fprintf(stdout, "# [add_baryon_boundary_phase] multiplying with boundary step function\n");
 
-    int const tmin = _MIN( T_global - tsrc, N );
-    int const tmax = _MIN( T_global - 1,    N );
+
+    if ( tsrc > 0 ) {
+      // assume lattice ordering timeslices 0, 1, ..., T-1
+
+#pragma omp parallel for
+      for( int ir = 0; ir < T; ir++ ) {
+        int const it = ir + g_proc_coords[0] * T;  // global t-value, 0 <= t < T_global
+        if( it < tsrc ) {
+
+          zm4x4_ti_eq_re ( sp[it], -1 );
+
+        }  // end of if it < tsrc
+
+      }  // end of loop on ir
+
+    } else {
+      // assume ordering from source, timeslices tsrc, tsrc+1, ..., ( tsrc+t+T_global ) % T_global
+
+      int const tmin = ( dir == +1 ) ? _MIN( T_global - tsrc, N ) : _MIN(1,    N);
+      int const tmax = ( dir == +1 ) ? _MIN( T_global - 1,    N ) : _MIN(tsrc, N);
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-    for( int it = tmin; it <= tmax; it++ ) {
-      zm4x4_ti_eq_re ( sp[it], -1. );
-    }  // end of loop on ir
-  }
+      for( int it = tmin; it <= tmax; it++ ) {
+        zm4x4_ti_eq_re ( sp[it], -1. );
+      }  // end of loop on ir
+    }  // end of else of if tsrc > 0
+  
+  }  // end of if propagator bc type is 1
 
   return(0);
 }  // end of correlator_add_baryon_boundary_phase
@@ -1192,52 +1225,72 @@ int contract_diagram_zm4x4_field_mul_gamma_lr ( double _Complex *** const sp_out
 /***********************************************/
 
 /********************************************************************************
- *
+ * baryon at source gets (1) from adjoint current construction and -I from 
+ * factor I in C, which comes adjoint
  ********************************************************************************/
 double _Complex contract_diagram_get_correlator_phase ( char * type, int const gi11, int const gi12, int const gi2, int const gf11, int const gf12, int const gf2 ) {
 
   double _Complex zsign = 0.;
 
   if ( strcmp( type , "b-b" ) == 0 ) {
+    /********************************************************************************
+     * baryon - baryon 2-point function
+     *
+     ********************************************************************************/
 
-    zsign = (double _Complex) ( 
+    zsign = (double _Complex) ( get_gamma_signs ( "g0d" , gi11 ) * get_gamma_signs ( "g0d" , gi12 ) ) * (-1) * (I) * (-I);
         // sigma_Cgamma_adj_g0_dagger[p->gi1[0]] * sigma_gamma_adj_g0_dagger[p->gi1[1]] 
-        get_gamma_signs ( "g0d" , gi11 ) * get_gamma_signs ( "g0d" , gi12 ) );
 
-  } else if ( strcmp( p->type , "mxb-b" ) == 0 ) {
+  } else if ( strcmp( type , "mxb-b" ) == 0 ) {
+    /********************************************************************************
+     * meson-baryon - baryon 2-point function
+     *
+     * meson-baryon at source
+     *
+     ********************************************************************************/
 
     int const sigma_gi2 = get_gamma_signs ( "g0d", gi2 );
 
-    zsign = (double _Complex) ( 
+    zsign = (double _Complex) ( get_gamma_signs ( "g0d" , gi11 ) * get_gamma_signs ( "g0d" , gi12 ) ) * (-1) * (I) * (-I);
         // sigma_Cgamma_adj_g0_dagger[p->gi1[0]] * sigma_gamma_adj_g0_dagger[p->gi1[1]] * sigma_gamma_adj_g0_dagger[p->gi2] 
-        get_gamma_signs ( "g0d" , gi11 ) * get_gamma_signs ( "g0d" , gi12 ) * sigma_gi2 );
+        
+    zsign *= ( sigma_gi2 == -1 ) ? I : 1.;
 
-    zsign *= sigma_gi2 == -1 ? -I : 1.;
-
-  } else if ( strcmp( p->type , "mxb-mxb" ) == 0 ) {
+  } else if ( strcmp( type , "mxb-mxb" ) == 0 ) {
+    /********************************************************************************
+     * meson-baryon - meson-baryon
+     *
+     * at source and sink
+     ********************************************************************************/
 
     int const sigma_gi2 = get_gamma_signs ( "g0d", gi2 );
     int const sigma_gf2 = get_gamma_signs ( "g0d", gf2 );
 
-    zsign = (double _Complex) ( 
+    zsign = (double _Complex) ( get_gamma_signs ( "g0d" , gi11 ) * get_gamma_signs ( "g0d" , gi12 ) ) * (-1) * (I) * (-I);
         // sigma_Cgamma_adj_g0_dagger[p->gi1[0]] * sigma_gamma_adj_g0_dagger[p->gi1[1]] * sigma_gamma_adj_g0_dagger[p->gi2] 
-        get_gamma_signs ( "g0d" , gi11 ) * get_gamma_signs ( "g0d" , gi12 ) * sigma_gi2 );
+        
+    zsign *= ( sigma_gi2 == -1 ) ? I : 1.;
+    zsign *= ( sigma_gf2 == -1 ) ? I : 1.;
 
-    zsign *= sigma_gi2 == -1 ? -I : 1.;
-    zsign *= sigma_gf2 == -1 ?  I : 1.;
-
-  } else if ( strcmp( p->type , "m-m" ) == 0 ) {
+  } else if ( strcmp( type , "m-m" ) == 0 ) {
+    /********************************************************************************
+     * meson - meson
+     ********************************************************************************/
 
     int const sigma_gi2 = get_gamma_signs ( "g0d", gi2 );
     int const sigma_gf2 = get_gamma_signs ( "g0d", gf2 );
 
-    zsign = ( sigma_gi2 == -1 ? I : 1 ) * ( sigma_gf2 == -1 ? I : 1 );
+    zsign = ( ( sigma_gi2 == -1 ) ? I : 1 ) * ( ( sigma_gf2 == -1 ) ? I : 1 );
   }
 
-  STOPPED HERE
-  if (g_verbose > 2) 
-    fprintf(stdout, "# [contract_diagram_get_correlator_phase] gf1 = %2d - %2d gf2 = %2d gi1 = %2d - %2d gi2 = %2d sign = %3.0f  %3.0f\n",
-        p->gf1[0], p->gf1[1], p->gf2, p->gi1[0], p->gi1[1], p->gi2, creal(zsign), cimag(zsign) );
+  if (g_verbose > 2) {
+    fprintf(stdout, "# [contract_diagram_get_correlator_phase] gf1 %2d - %2d\n"\
+                    "                                          gf2 %2d\n"\
+                    "                                          gi1 %2d - %2d\n"\
+                    "                                          gi2 %2d\n"\
+                    "                                          phase %3.0f  %3.0f\n",
+        gf11, gf12, gf2, gi11, gi12, gi2, creal(zsign), cimag(zsign) );
+  }
 
   return( zsign );
 

@@ -21,7 +21,7 @@ int match_momentum_id ( int **pid, int **m1, int **m2, int N1, int N2 );
 
 int * get_conserved_momentum_id ( int (*p1)[3], int const n1, int const p2[3], int (*p3)[3], int const n3 );
 
-int correlator_add_baryon_boundary_phase ( double _Complex *** const sp, int const tsrc, int const N );
+int correlator_add_baryon_boundary_phase ( double _Complex *** const sp, int const tsrc, int const dir, int const N );
 
 int correlator_add_source_phase ( double _Complex ***sp, int const p[3], int const source_coords[3], unsigned int const N );
 
@@ -51,7 +51,7 @@ int contract_diagram_write_scalar_aff (double _Complex*diagram, struct AffWriter
 
 int contract_diagram_write_fp ( double _Complex*** const diagram, FILE *fp, char*tag, int const tstart, unsigned int const dt, int const fbwd );
 
-int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const pf2[3], int const gf11, int const gf12, int const pf1[3], int const gi2, int const pi2[3], int const gi11, int const gi12, int const pi1[3], int const sx[4] ) {
+int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const pf2[3], int const gf11, int const gf12, int const pf1[3], int const gi2, int const pi2[3], int const gi11, int const gi12, int const pi1[3], int const sx[4] );
 
 int contract_diagram_zm4x4_field_mul_gamma_lr ( double _Complex *** const sp_out, double _Complex *** const sp_in, gamma_matrix_type const gl, gamma_matrix_type const gr, unsigned int const N );
 
@@ -83,7 +83,7 @@ int contract_diagram_read_oet_key_qlua (
   int const ncomp         // components
 );
 
+double _Complex contract_diagram_get_correlator_phase ( char * type, int const gi11, int const gi12, int const gi2, int const gf11, int const gf12, int const gf2 );
    
-
-}  /* end of namespace cvc */
+}  // end of namespace cvc
 #endif
