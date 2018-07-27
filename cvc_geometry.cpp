@@ -701,7 +701,7 @@ int init_geometry(void) {
   if( g_eosubt2coords[0] == NULL ) return(22);
   g_eosubt2coords[1] = g_eosubt2coords[0] + T;
 
-  g_eosubt2coords[0][0] = (int**)calloc(T*VOLUME, sizeof(int*));
+  g_eosubt2coords[0][0] = (int**)calloc(VOLUME, sizeof(int*));
   if( g_eosubt2coords[0][0] == NULL ) return(23);
   g_eosubt2coords[1][0] = g_eosubt2coords[0][0] + T*VOL3half;
 
@@ -710,7 +710,7 @@ int init_geometry(void) {
     g_eosubt2coords[1][ix] =  g_eosubt2coords[1][ix-1] + VOL3half;
   }
 
-  g_eosubt2coords[0][0][0] = (int*)calloc(3*T*VOLUME, sizeof(int));
+  g_eosubt2coords[0][0][0] = (int*)calloc(3*VOLUME, sizeof(int));
   if( g_eosubt2coords[0][0][0] == NULL ) return(24);
   g_eosubt2coords[1][0][0] = g_eosubt2coords[0][0][0] + 3*T*VOL3half;
 
