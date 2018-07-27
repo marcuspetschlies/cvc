@@ -28,10 +28,12 @@ namespace cvc {
 
 static int gamma_mult_table_is_initialized = 0;
 
+#if 0
 int gamma_mult_table[16][16];
 double gamma_mult_sign[16][16];
 double gamma_adjoint_sign[16];
 double gamma_transposed_sign[16];
+#endif  // of if 0
 
 /************************************************/
 /************************************************/
@@ -122,8 +124,8 @@ void gamma_matrix_printf (gamma_matrix_type *g, char*name, FILE*ofs) {
 /************************************************/
 
 void gamma_matrix_mult ( gamma_matrix_type *g1, gamma_matrix_type *g2, gamma_matrix_type *g3 ) {
-  g1->id = gamma_mult_table[g2->id][g3->id];
-  g1->s  = g2->s * g3->s * gamma_mult_sign[g2->id][g3->id];
+  g1->id = g_gamma_mult_table[g2->id][g3->id];
+  g1->s  = g2->s * g3->s * g_gamma_mult_sign[g2->id][g3->id];
   // fprintf(stdout, "# [gamma_matrix_mult] id1 %2d id2 %2d id3 %2d\n", g1->id, g2->id, g3->id);
   gamma_matrix_fill (g1);
 }  /* gamma_matrix_mult */
@@ -142,7 +144,7 @@ void gamma_matrix_assign ( gamma_matrix_type *g , gamma_matrix_type *p) {
 
 void gamma_matrix_transposed (gamma_matrix_type *g, gamma_matrix_type *p) {
   g->id = p->id;
-  g->s  = p->s * gamma_transposed_sign[p->id];
+  g->s  = p->s * g_gamma_transposed_sign[p->id];
   gamma_matrix_fill ( g );
 }  /* end of gamma_matrix_transposed */
 
@@ -177,7 +179,7 @@ void gamma_matrix_eq_gamma_matrix_transposed (gamma_matrix_type *g, gamma_matrix
 
 void gamma_matrix_adjoint ( gamma_matrix_type *g, gamma_matrix_type *p) {
   g->id = p->id;
-  g->s  = p->s * gamma_adjoint_sign[p->id];
+  g->s  = p->s * g_gamma_adjoint_sign[p->id];
   gamma_matrix_fill ( g );
 }  /* end of gamma_matrix_adjoint */
 
@@ -268,8 +270,34 @@ void gamma_matrix_eq_gamma_matrix_pl_gamma_matrix_ti_re (gamma_matrix_type *g1, 
   g1->s  = 0;
 }  /* end of gamma_matrix_eq_gamma_matrix_pl_gamma_matrix_ti_re */
 
-/************************************************/
-/************************************************/
+
+/********************************************************************************/
+/********************************************************************************/
+
+void gamma_matrix_eq_gamma_matrix_pl_gamma_matrix_ti_co (gamma_matrix_type *g1, gamma_matrix_type *g2, gamma_matrix_type *g3, double _Complex c ) {
+
+  g1->v[ 0] = g2->v[ 0] + g3->v[ 0] * c;
+  g1->v[ 1] = g2->v[ 1] + g3->v[ 1] * c;
+  g1->v[ 2] = g2->v[ 2] + g3->v[ 2] * c;
+  g1->v[ 3] = g2->v[ 3] + g3->v[ 3] * c;
+  g1->v[ 4] = g2->v[ 4] + g3->v[ 4] * c;
+  g1->v[ 5] = g2->v[ 5] + g3->v[ 5] * c;
+  g1->v[ 6] = g2->v[ 6] + g3->v[ 6] * c;
+  g1->v[ 7] = g2->v[ 7] + g3->v[ 7] * c;
+  g1->v[ 8] = g2->v[ 8] + g3->v[ 8] * c;
+  g1->v[ 9] = g2->v[ 9] + g3->v[ 9] * c;
+  g1->v[10] = g2->v[10] + g3->v[10] * c;
+  g1->v[11] = g2->v[11] + g3->v[11] * c;
+  g1->v[12] = g2->v[12] + g3->v[12] * c;
+  g1->v[13] = g2->v[13] + g3->v[13] * c;
+  g1->v[14] = g2->v[14] + g3->v[14] * c;
+  g1->v[15] = g2->v[15] + g3->v[15] * c;
+  g1->id = -1;
+  g1->s  = 0;
+}  /* end of gamma_matrix_eq_gamma_matrix_pl_gamma_matrix_ti_co */
+
+/********************************************************************************/
+/********************************************************************************/
 
 /************************************************
  * g1 = g2 x g3
@@ -285,6 +313,7 @@ void gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( gamma_matrix_type *g1, gamma
 
   /* _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1); */
   _F(zgemm) ( &CHAR_N, &CHAR_N, &INT_N, &INT_N, &INT_N, &Z_1, v3, &INT_N, v2, &INT_N, &Z_0, g1->v, &INT_N, 1, 1);
+
   g1->id = -1;
   g1->s  = 0;
 }  /* end of gamma_matrix_eq_gamma_matrix_ti_gamma_matrix */
