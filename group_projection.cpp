@@ -46,6 +46,149 @@ little_group_type *little_groups = NULL;
 /***********************************************************/
 /***********************************************************/
 
+int little_group_read (little_group_type *lg, const char *lg_name, const char * filename )  {
+ 
+  char comma[] = ",";
+
+  char line[1000];
+
+  FILE *ofs = fopen(filename, "r");
+  if ( ofs == NULL ) {
+    fprintf(stderr, "[little_group_read] Error from fopen trying to open file %s\n", filename);
+    return(-1);
+  }
+   
+  /***********************************************************
+   * read line-wise from file
+   ***********************************************************/
+
+  while ( fgets ( line, 1000, ofs) != NULL) {
+    
+    char parent_name[100];
+    int d[3];
+    char name[100];
+    char r_str[100], rm_str[1000], r_aux[1000], lirrep_str[1000];
+
+    sscanf( line, "%s %d %d %d %s %s %s %s",  parent_name, d, d+1, d+2, name, r_str, rm_str, lirrep_str );
+
+    if ( strcmp ( lg_name, name ) == 0 ) {
+
+      strcpy ( lg->parent_name, parent_name );
+
+      lg->d[0] = d[0];
+      lg->d[1] = d[1];
+      lg->d[2] = d[2];
+
+      strcpy ( lg->name, name );
+
+      // TEST
+      if ( g_verbose > 3 ) {
+        fprintf(stdout, "# [little_group_read] %s --- %d --- %d --- %d --- %s --- %s --- %s --- %s\n", lg->parent_name, 
+            lg->d[0], lg->d[1], lg->d[2], lg->name, r_str, rm_str, lirrep_str);
+      }
+
+      /***********************************************************
+       * extract the list of rotations Rd = d
+       *
+       * subtract 1 from list entry
+       ***********************************************************/
+      strcpy ( r_aux, r_str );
+      char *ptr = strtok( r_aux, comma );
+      lg->nr = 1;
+      while ( (ptr = strtok( NULL, comma ) ) != NULL ) lg->nr++;
+      if ( g_verbose > 3 ) fprintf(stdout, "# [little_group_read] %d nr %d\n", i, lg->nr);
+
+      if ( ( lg->r = (int*)malloc( lg->nr * sizeof(int) ) ) == NULL ) {
+        fprintf(stderr, "[little_group_read] Error from malloc\n");
+        return(-3);
+      }
+
+      ptr = strtok( r_str, comma );
+      // fprintf(stdout, "# [little_group_read] 0 ptr = %s\n", ptr);
+
+      lg->r[0] = atoi(ptr) - 1;
+
+      for ( int k = 1; k < lg->nr; k++ ) {
+        ptr = strtok( NULL, comma );
+        if ( g_verbose > 3 ) fprintf(stdout, "# [little_group_read] %d ptr = %s\n", k, ptr);
+        if ( ptr == NULL ) {
+          fprintf(stderr, "[little_group_read] Error from strtok\n");
+          return(-5);
+        }
+        lg->r[k] = atoi(ptr) - 1;
+      }
+
+      /***********************************************************
+       * extract the list of rotations Rd = -d
+       *
+       * subtract 1 from list entry
+       ***********************************************************/
+      strcpy ( r_aux, rm_str );
+      ptr = strtok( r_aux, comma );
+      lg->nrm = 1;
+      while ( ( ptr = strtok( NULL, comma ) ) != NULL ) lg->nrm++;
+      fprintf(stdout, "# [little_group_read] %d nrm %d\n", i, lg->nrm);
+
+      if ( ( lg->rm = (int*)malloc( lg->nrm * sizeof(int) ) ) == NULL ) {
+        fprintf(stderr, "[little_group_read] Error from malloc\n");
+        return(-4);
+      }
+      ptr = strtok( rm_str, comma );
+      lg->rm[0] = atoi(ptr) - 1;
+      for ( int k = 1; k < lg->nrm; k++ ) {
+        ptr = strtok( NULL, comma );
+        if ( ptr == NULL ) {
+          fprintf(stderr, "[little_group_read] Error from strtok\n");
+          return(-6);
+        }
+        lg->rm[k] = atoi(ptr) - 1;
+      }
+
+      /***********************************************************
+       * extract the list of irreps for current little group
+       ***********************************************************/
+      strcpy ( r_aux, lirrep_str );
+      ptr = strtok( r_aux, comma );
+      lg->nirrep = 1;
+      while ( (ptr = strtok( NULL, comma ) ) != NULL ) lg->nirrep++;
+      fprintf(stdout, "# [little_group_read] %d nirrep %d\n", i, lg->nirrep);
+
+      lg->lirrep = init_2level_ctable ( lg->nirrep, 20 );
+      if ( lg->lirrep == NULL ) {
+        fprintf(stderr, "[little_group_read] Error from init_2level_ctable %s %d\n", __FILE__, __LINE__);
+        return(-3);
+      }
+
+      strcpy ( r_aux, lirrep_str );
+      ptr = strtok( r_aux, comma );
+      // fprintf(stdout, "# [little_group_read] 0 ptr = %s\n", ptr);
+
+      strcpy ( lg->lirrep[0] , ptr );
+      for ( int k = 1; k < lg->nirrep; k++ ) {
+        ptr = strtok( NULL, comma );
+        // fprintf(stdout, "# [little_group_read] %d ptr = %s\n", k, ptr);
+        if ( ptr == NULL ) {
+          fprintf(stderr, "[little_group_read] Error from strtok\n");
+          return(-5);
+        }
+        strcpy( lg->lirrep[k], ptr );
+      }
+    
+      fprintf(stdout, "# [little_group_read]\n");
+
+    }  // end of if lg_name == name
+
+  }  // end of while fgets line
+
+  fclose( ofs );
+
+  return(0);
+}  // end of little_group_list
+
+
+/***********************************************************/
+/***********************************************************/
+
 int little_group_read_list (little_group_type **lg, const char * filename )  {
  
   char comma[] = ",";
@@ -74,10 +217,16 @@ int little_group_read_list (little_group_type **lg, const char * filename )  {
   /***********************************************************
    * allocate lg list
    ***********************************************************/
-  little_group_init ( lg, nline );
+  (*lg) = ( little_group_type *)malloc ( nline * sizeof ( little_group_type ) );
   if ( *lg == NULL ) {
-    fprintf(stderr, "[little_group_read_table] Error from little_group_init\n");
+    fprintf(stderr, "[little_group_read_table] Error from malloc %s %d\n", __FILE__, __LINE__ );
     return(-2);
+  }
+  for ( int i = 0; i < nline; i++ ) {
+    if ( little_group_init ( &( (*lg)[i]) ) != 0 ) {
+      fprintf(stderr, "[little_group_read_table] Error from little_group_init %s %d\n", __FILE__, __LINE__ );
+      return(-2);
+    }
   }
 
   /***********************************************************/
@@ -158,8 +307,6 @@ int little_group_read_list (little_group_type **lg, const char * filename )  {
       (*lg)[i].rm[k] = atoi(ptr) - 1;
     }
 
-
-
     /***********************************************************
      * extract the list of irreps for current little group
      ***********************************************************/
@@ -209,47 +356,34 @@ int little_group_read_list (little_group_type **lg, const char * filename )  {
 /***********************************************************/
 /***********************************************************/
 
-void little_group_init ( little_group_type **lg, int n ) {
-  if( n == 0 ) return;
-  if ( *lg != NULL ) {
-    fprintf(stderr, "[little_group_init] Error, lg is not NULL\n");
-    *lg = NULL;
-    return;
+int little_group_init ( little_group_type *lg ) {
+
+  if ( lg != NULL ) {
+    fprintf(stderr, "[little_group_init] Error, lg is NULL\n");
+    return (1);
   }
 
-  *lg = (little_group_type* )malloc( n * sizeof (little_group_type) );
-  if ( *lg == NULL ) {
-    fprintf(stderr, "[little_group_init] Error from malloc\n");
-    return;
-  }
+  lg->r      = NULL;
+  lg->rm     = NULL;
+  lg->nirrep = 0;
+  lg->lirrep = NULL;
 
-  for ( int i = 0; i < n; i++ ) {
-    (*lg)[i].r  = NULL;
-    (*lg)[i].rm = NULL;
-
-    (*lg)[i].nirrep = 0;
-    (*lg)[i].lirrep = NULL;
-  }
-
-  return;
-}  /* end of little_group_init */
+  return(1);
+}  // end of little_group_init
 
 /***********************************************************/
 /***********************************************************/
 
-void little_group_fini ( little_group_type **lg, int n ) {
-  if ( *lg == NULL || n == 0 ) return;
+void little_group_fini ( little_group_type *lg ) {
+  if ( lg == NULL ) return;
 
-  for ( int i = 0; i < n; i++ ) {
-    if ( (*lg)[i].r  != NULL ) free ( (*lg)[i].r  );
-    if ( (*lg)[i].rm != NULL ) free ( (*lg)[i].rm );
+  if ( lg->r  != NULL ) free ( lg->r  );
+  if ( lg->rm != NULL ) free ( lg->rm );
 
-    fini_2level_ctable ( &((*lg)[i].lirrep) );
-  }
+  fini_2level_ctable ( &(lg->lirrep) );
 
-  free ( *lg ); *lg = NULL;
   return;
-}  /*  little_group_fini */
+}  //  little_group_fini
 
 /***********************************************************/
 /***********************************************************/

@@ -62,11 +62,13 @@ typedef struct {
  
 extern little_group_type *little_groups;
 
+int little_group_read (little_group_type *lg, const char *lg_name, const char * filename );
+
 int little_group_read_list (little_group_type **lg, const char * filename );
  
-void little_group_init ( little_group_type **lg, int n );
+int little_group_init ( little_group_type *lg );
 
-void little_group_fini ( little_group_type **lg, int n );
+void little_group_fini ( little_group_type *lg );
 
 void little_group_show ( little_group_type *lg, FILE*ofs, int n);
 
