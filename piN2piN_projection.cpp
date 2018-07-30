@@ -55,6 +55,10 @@ extern "C"
 #include "zm4x4.h"
 #include "gamma.h"
 #include "twopoint_function_utils.h"
+#include "rotations.h"
+#include "group_projection.h"
+#include "little_group_projector_set.h"
+
 
 using namespace cvc;
 
@@ -62,7 +66,16 @@ using namespace cvc;
  * main program
  ***********************************************************/
 int main(int argc, char **argv) {
-  
+ 
+#if defined CUBIC_GROUP_DOUBLE_COVER
+  char const little_group_list_filename[] = "little_groups_2Oh.tab";
+  int (* const set_rot_mat_table ) ( rot_mat_table_type*, const char*, const char*) = set_rot_mat_table_cubic_group_double_cover;
+#elif defined CUBIC_GROUP_SINGLE_COVER
+  const char little_group_list_filename[] = "little_groups_Oh.tab";
+  int (* const set_rot_mat_table ) ( rot_mat_table_type*, const char*, const char*) = set_rot_mat_table_cubic_group_single_cover;
+#endif
+
+
   int c;
   int filename_set = 0;
   int exitstatus;
@@ -130,15 +143,11 @@ int main(int argc, char **argv) {
    ***********************************************************/
   int const io_proc = get_io_proc ();
 
-  /***********************************************************/
-  /***********************************************************/
-
-  /***********************************************************
-   * set number of timeslices
-   ***********************************************************/
-  int const nT = g_src_snk_time_separation + 1;
-  if ( io_proc == 2 ) fprintf( stdout, "# [piN2piN_projection] number of timeslices (incl. src and snk) is %d\n", nT);
-
+  /****************************************************
+   * set cubic group single/double cover
+   * rotation tables
+   ****************************************************/
+  rot_init_rotation_table();
 
   /***********************************************************
    * initialize gamma matrix algebra and several
@@ -155,6 +164,7 @@ int main(int argc, char **argv) {
     gamma_matrix_set ( &(gamma[i]), i, 1. );
   }
 
+
   /******************************************************
    * check source coords list
    ******************************************************/
@@ -165,68 +175,179 @@ int main(int argc, char **argv) {
     g_source_coords_list[i][3] = ( g_source_coords_list[i][3] + LZ_global ) % LZ_global;
   }
 
-  /******************************************************/
-  /******************************************************/
+  /****************************************************
+   * read relevant little group lists with their
+   * rotation lists and irreps from file
+   ****************************************************/
+  little_group_type *lg = NULL;
+  int const nlg = little_group_read_list ( &lg, little_group_list_filename );
+  if ( nlg <= 0 ) {
+    fprintf(stderr, "[test_lg] Error from little_group_read_list, status was %d %s %d\n", nlg, __FILE__, __LINE__ );
+    EXIT(2);
+  }
+  fprintf(stdout, "# [test_lg] number of little groups = %d\n", nlg);
 
+  little_group_show ( lg, stdout, nlg );
+   
   /******************************************************
-   * loop on source locations
+   * loop on 2-point functions
    ******************************************************/
-  for( int i_src = 0; i_src<g_source_location_number; i_src++) {
-    int t_base = g_source_coords_list[i_src][0];
+  for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
 
     /******************************************************
-     * loop on coherent source locations
+     * print the 2-point function parameters
      ******************************************************/
-    for( int i_coherent=0; i_coherent<g_coherent_source_number; i_coherent++) {
-      int t_coherent = ( t_base + ( T_global / g_coherent_source_number ) * i_coherent ) % T_global;
+    char twopoint_function_filename[100];
+    sprintf ( filename, "twopoint_function_%d.show", i2pt );
+    if ( ( ofs = fopen ( filename, "w" ) ) == NULL ) {
+      fprintf ( stderr, "[piN2piN_projection] Error from fopen %s %d\n", __FILE__, __LINE__ );
+      EXIT(12);
+    }
+    twopoint_function_print ( &(g_twopoint_function_list[i2pt]), "TWPT", ofs );
+    fclose ( ofs );
 
-      int source_proc_id, sx[4], gsx[4] = { t_coherent,
-                    ( g_source_coords_list[i_src][1] + (LX_global/2) * i_coherent ) % LX_global,
-                    ( g_source_coords_list[i_src][2] + (LY_global/2) * i_coherent ) % LY_global,
-                    ( g_source_coords_list[i_src][3] + (LZ_global/2) * i_coherent ) % LZ_global };
+    /***********************************************************
+     * set number of timeslices
+     ***********************************************************/
+    int const nT = g_twopoint_function_list[i2pt].T;
+    if ( io_proc == 2 ) fprintf( stdout, "# [piN2piN_projection] number of timeslices (incl. src and snk) is %d\n", nT);
 
+    /****************************************************
+     * read little group parameters
+     ****************************************************/
+    little_group_type little_group;
+    if ( ( exitstatus = little_group_read ( &little_group, g_twopoint_function_list[i2pt].group, little_group_list_filename ) ) != 0 ) {
+      fprintf ( stderr, "[] Error from little_group_read, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(2);
+    }
+    
+    /****************************************************
+     * set projector for current little group and irrep
+     ****************************************************/
+    little_group_projector_type projector;
+    int ref_row_target    = -1;     // no reference row for target irrep
+    int * ref_row_spin    = NULL;   // no reference row for spin matrices
+    int refframerot       = -1;     // reference frame rotation
+    int row_target        = -1;     // no target row
+    int cartesian_list[1] = { 0 }   // not cartesian
+    int parity_list[1]    = { 1 };  // intrinsic parity is +1
+    int ** momentum_list  = NULL;   // no momentum list given
+    int bispinor_list[1]  = { 1 };  // bispinor yes
+    int J2_list[1]        = { 1 };  // spin 1/2
 
-      get_point_source_info (gsx, sx, &source_proc_id);
+    exitstatus = little_group_projector_set ( &projector, &little_group, g_twopoint_function_list[i2pt].irrep , row_target, 1,
+        J2_list, momentum_list, bispinor_list, parity_list, cartesian_list, ref_row_target, ref_row_spin, g_twopoint_function_list[i2pt].type, refframerot );
 
-      /******************************************************/
-      /******************************************************/
+    if ( exitstatus != 0 ) {
+      fprintf ( stderr, "[piN2piN_projection] Error from little_group_projector_set, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(3);
+    }
+
+    /******************************************************
+     * loop on source locations
+     ******************************************************/
+    for( int i_src = 0; i_src<g_source_location_number; i_src++) {
+      int t_base = g_source_coords_list[i_src][0];
 
       /******************************************************
-       * open ASCII format output file
+       * loop on coherent source locations
        ******************************************************/
-      if(io_proc == 2) {
-        sprintf(filename, "%s.%.4d.tsrc%.2d", "piN_piN_correlator", Nconf, t_coherent );
-        ofs = fopen( filename, "w");
-        if( ofs == NULL ) {
-          fprintf(stderr, "[piN2piN_projection] Error from fopen %s %d\n", __FILE__, __LINE__ );
-          EXIT(4);
-        }
-      }  // end of if io_proc == 2
+      for( int i_coherent=0; i_coherent<g_coherent_source_number; i_coherent++) {
+        int t_coherent = ( t_base + ( T_global / g_coherent_source_number ) * i_coherent ) % T_global;
+
+        int source_proc_id, sx[4], gsx[4] = { t_coherent,
+                      ( g_source_coords_list[i_src][1] + (LX_global/2) * i_coherent ) % LX_global,
+                      ( g_source_coords_list[i_src][2] + (LY_global/2) * i_coherent ) % LY_global,
+                      ( g_source_coords_list[i_src][3] + (LZ_global/2) * i_coherent ) % LZ_global };
+
+
+        get_point_source_info (gsx, sx, &source_proc_id);
+
+        /******************************************************
+         * set current source coords in 2pt function
+         ******************************************************/
+        g_twopoint_function_list[i2pt].source_coords[0] = gsx[0];
+        g_twopoint_function_list[i2pt].source_coords[1] = gsx[1];
+        g_twopoint_function_list[i2pt].source_coords[2] = gsx[2];
+        g_twopoint_function_list[i2pt].source_coords[3] = gsx[3];
+
+
+        int const nrot = projector.rtarget->n;
+
+        twopoint_function_type tp;
+
+        twopoint_function_copy ( &tp, &( g_twopoint_function_list[i2pt] ) );
+
+        gamma_matrix_type gl, gr, gi11, gi12, gi2, gf11, gf12, gf2;
+        gamma_matrix_init ( &gl );
+        gamma_matrix_init ( &gr );
+
+        
+        /******************************************************
+         * loop on little group elements --- rotations
+         ******************************************************/
+
+        for ( int irotl = 0; irotl < projector.rtarget->n; irotl ++ ) {
+
+          rot_point ( tp.pf1, g_twopoint_function_list[i2pt].pf1, projector.rp->R[irotl] );
+          rot_point ( tp.pf2, g_twopoint_function_list[i2pt].pf2, projector.rp->R[irotl] );
+
+          memcpy ( gl.v, projector.rspin[0]->R[irotl], 16*sizeof(double _Complex) )
+
+          gamma_matrix_set ( &gf11, g_twopoint_function_list[i2pt].gf1[0], 1. );
+          gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gf11, &gl, 'C', &gf11, &gl, 'H' );
+
+          gamma_matrix_set ( &gf12, g_twopoint_function_list[i2pt].gf1[1], 1. );
+          gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gf12, &gl, 'N', &gf12, &gl, 'H' );
+
+          gamma_matrix_set ( &gf2, g_twopoint_function_list[i2pt].gf2, 1. );
+          gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gf2, &gl, 'N', &gf2, &gl, 'H' );
+
+          tp.gf1[0] = gf11.id;
+          tp.gf1[1] = gf12.id;
+          tp.gf2    = gf2.id;
+
+        for ( int irotr = 0; irotr < projector.rtarget->n; irotr ++ ) {
+
+          rot_point ( tp.pi1, g_twopoint_function_list[i2pt].pi1, projector.rp->R[irotr] );
+          rot_point ( tp.pi2, g_twopoint_function_list[i2pt].pi2, projector.rp->R[irotr] );
+
+          memcpy ( gr.v, projector.rspin[0]->R[irotl], 16*sizeof(double _Complex) )
+
+          gamma_matrix_set ( &gi11, g_twopoint_function_list[i2pt].gi1[0], 1. );
+          gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gi11, &gr, 'N', &gi11, &gr, 'T' );
+
+          gamma_matrix_set ( &gi12, g_twopoint_function_list[i2pt].gi1[1], 1. );
+          gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gi12, &gr, 'N', &gi12, &gr, 'H' );
+
+          gamma_matrix_set ( &gi2, g_twopoint_function_list[i2pt].gi2, 1. );
+          gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gi2, &gr, 'N', &gi2, &gr, 'H' );
+
+          tp.gi1[0] = gi11.id;
+          tp.gi1[1] = gi12.id;
+          tp.gi2    = gi2.id;
+
+          STOPPED HERE
+          /******************************************************
+           * AFF reader
+           ******************************************************/
+          sprintf(filename, "%s.B%d.%.4d.PX%dPY%dPZ%d.t%dx%dy%dz%d.aff", "piN_piN_diagrams", iperm+1, Nconf,
+              g_total_momentum_list[iptot][0], g_total_momentum_list[iptot][1], g_total_momentum_list[iptot][2],
+              gsx[0], gsx[1], gsx[2], gsx[3] );
+          affw = aff_writer (filename);
+          if ( const char * aff_status_str =  aff_writer_errstr(affw) ) {
+            fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+            EXIT(4);
+          } else {
+            fprintf(stdout, "# [piN2piN_diagrams_complete] writing data to file %s %s %d\n", filename, __FILE__, __LINE__);
+          }
+
+
 
       /******************************************************/
       /******************************************************/
 
-      /******************************************************
-       * loop on 2-point functions
-       ******************************************************/
-      for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
 
-        ratime = _GET_TIME;
-
-        /******************************************************
-         * set the source coordinates if necessary
-         ******************************************************/
-        // if ( g_twopoint_function_list[i2pt].source_coords[0] == -1 ) {
-          g_twopoint_function_list[i2pt].source_coords[0] = gsx[0];
-          g_twopoint_function_list[i2pt].source_coords[1] = gsx[1];
-          g_twopoint_function_list[i2pt].source_coords[2] = gsx[2];
-          g_twopoint_function_list[i2pt].source_coords[3] = gsx[3];
-        // } 
-
-        /******************************************************
-         * print the 2-point function parameters
-         ******************************************************/
-        twopoint_function_print ( &(g_twopoint_function_list[i2pt]), "A2PT", stdout );
 
         /******************************************************
          * allocate correlator and diagrams
@@ -271,69 +392,6 @@ int main(int argc, char **argv) {
           EXIT(4);
         }
 
-        /******************************************************
-         * reorder according to reorder entry in twopoint_function
-         ******************************************************/
-        if ( g_verbose > 4 && io_proc == 2 ) fprintf ( stdout, "# [piN2piN_projection] calling reorder_to_absolute_time %s %d\n", __FILE__, __LINE__ );
-        reorder_to_absolute_time (diagram, diagram, g_twopoint_function_list[i2pt].source_coords[0], g_twopoint_function_list[i2pt].reorder, nT );
-
-
-        /******************************************************
-         * source phase
-         ******************************************************/
-        if ( g_verbose > 4 && io_proc == 2 ) fprintf ( stdout, "# [piN2piN_projection] calling correlator_add_source_phase  %s %d\n", __FILE__, __LINE__ );
-        exitstatus = correlator_add_source_phase ( diagram, g_twopoint_function_list[i2pt].pi1,  &(gsx[1]), nT );
-
-
-        /******************************************************
-         * boundary phase
-         ******************************************************/
-        //STOPPED HERE:
-        //  if diagram is alredy ordered from source, gsx[0] -> le 0
-
-        if ( g_verbose > 4 && io_proc == 2 ) fprintf ( stdout, "# [piN2piN_projection] calling correlator_add_baryon_boundary_phase  %s %d\n", __FILE__, __LINE__ );
-        // exitstatus = correlator_add_baryon_boundary_phase ( diagram, gsx[0], nT ); 
-        if ( strcmp ( g_twopoint_function_list[i2pt].fbwd, "fwd" ) == 0 ) {
-          exitstatus = correlator_add_baryon_boundary_phase ( diagram, 0, +1, nT ); 
-        } else if ( strcmp ( g_twopoint_function_list[i2pt].fbwd, "bwd" ) == 0 ) {
-          exitstatus = correlator_add_baryon_boundary_phase ( diagram, 0, -1, nT ); 
-        }
-
-
-        /******************************************************
-         * aplly gi1[1] and gf1[1]
-         ******************************************************/
-        if ( ( g_twopoint_function_list[i2pt].gi1[1] != -1 ) && ( g_twopoint_function_list[i2pt].gf1[1] != -1 ) ) {
-          if ( g_verbose > 4 && io_proc == 2 ) fprintf ( stdout, "# [piN2piN_projection] calling contract_diagram_zm4x4_field_mul_gamma_lr   %s %d\n", __FILE__, __LINE__ );
-          exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( diagram, diagram, gamma[g_twopoint_function_list[i2pt].gf1[1]], gamma[g_twopoint_function_list[i2pt].gi1[1]], nT );
-        }
-
-
-        /******************************************************
-         * spin / spin-parity projection
-         ******************************************************/
-        if ( g_verbose > 4 && io_proc == 2 ) fprintf ( stdout, "# [piN2piN_projection] calling correlator_spin_parity_projection %s %d\n", __FILE__, __LINE__ );
-        correlator_spin_parity_projection ( diagram, diagram, (double)g_twopoint_function_list[i2pt].parity_project, nT );
-        //
-
-        /******************************************************
-         * multiply with phase factor per convention
-         ******************************************************/
-        // twopoint_function_correlator_phase ( correlator, &(g_twopoint_function_list[i2pt]), nT );
-
-        if ( g_verbose > 4 && io_proc == 2 ) fprintf ( stdout, "# [piN2piN_projection] calling contract_diagram_zm4x4_field_ti_eq_co %s %d\n", __FILE__, __LINE__ );
-        exitstatus = contract_diagram_zmx4x4_field_ti_eq_co ( diagram, twopoint_function_get_correlator_phase ( &(g_twopoint_function_list[i2pt]) ), nT );
-
-        /******************************************************
-         * TEST
-         *   print the correlator
-         ******************************************************/
-        if ( g_verbose > 5 ) {
-          for ( int it = 0; it < nT; it++ ) {
-            fprintf( stdout, "# with boundary phase t = %2d\n", it );
-            zm4x4_printf ( diagram[it], "c_sp", stdout );
-          }
-        }
 
 
         /******************************************************
