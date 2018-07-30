@@ -1261,6 +1261,14 @@ namespace cvc {
     sscanf(yytext, " %[a-zA-Z0-9] = %s", cvc::name, cvc::twopoint_function_ptr->fbwd );
   }
 
+  {SPC}*group{EQL}{STRING} {
+    sscanf(yytext, " %[a-zA-Z0-9] = %s", cvc::name, cvc::twopoint_function_ptr->group );
+  }
+
+  {SPC}*irrep{EQL}{STRING} {
+    sscanf(yytext, " %[a-zA-Z0-9] = %s", cvc::name, cvc::twopoint_function_ptr->irrep );
+  }
+
   EndTwopointFunction{SPC}* {
     if(strcmp(cvc::twopoint_function_set_type, "list")==0 ) {
       if( cvc::myverbose ) printf("# [read_input_parser] 2-point function no. %d parsed in line %d\n\n", cvc::g_twopoint_function_number, cvc::line_of_file);
