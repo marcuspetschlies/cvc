@@ -4,6 +4,7 @@
 #include <math.h>
 #include <time.h>
 #include <complex.h>
+#include <ctype.h>
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
@@ -20,6 +21,7 @@
 #include "default_input_values.h"
 #include "zm4x4.h"
 #include "table_init_z.h"
+#include "contract_diagrams.h"
 #include "twopoint_function_utils.h"
 
 namespace cvc {
@@ -153,8 +155,11 @@ void twopoint_function_copy ( twopoint_function_type *p, twopoint_function_type 
   p->T       = r->T;
   p->d       = r->d;
   if ( r->c != NULL ) {
-    p->c = twopoint_function_allocate ( p );
-    memcpy ( ((double _Complex****)p->c)[0][0][0], ((double _Complex****)r->c)[0][0][0], p->n * p->T * p->d * p->d * sizeof( double _Complex ) );
+    if ( twopoint_function_allocate ( p ) != NULL ) {
+      fprintf ( stderr, "[twopoint_function_copy] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
+    } else {
+      memcpy ( p->c[0][0][0], r->c[0][0][0], p->n * p->T * p->d * p->d * sizeof( double _Complex ) );
+    }
   }
   return;
 }  // end of twopoint_function_copy
@@ -173,7 +178,7 @@ void twopoint_function_show_data ( twopoint_function_type *p, FILE*ofs ) {
     for ( int it = 0; it < p->T; it++ ) {
       for ( int k1 = 0; k1 < p->d; k1++ ) {
       for ( int k2 = 0; k2 < p->d; k2++ ) {
-        double _Complex z = ((double _Complex****)p->c)[i][it][k1][k2];
+        double _Complex const z = p->c[i][it][k1][k2];
         fprintf ( ofs, "    %3d %2d %2d %25.16e %25.16e\n", it, k1, k2, creal(z), cimag(z) );
       }}  // end of loop on components k1, k2
     }  // end of loop on timeslices
@@ -188,19 +193,19 @@ void * twopoint_function_allocate ( twopoint_function_type *p ) {
     fprintf ( stderr, "[twopoint_function_allocate] Error, data pointer not NULL\n");
     return ( NULL );
   }
-  p->c = (void*)init_4level_ztable ( p->n, p->T, p->d, p->d );
+  p->c = init_4level_ztable ( p->n, p->T, p->d, p->d );
   if ( p->c == NULL ) {
     fprintf ( stderr, "[twopoint_function_allocate] Error, data pointer is NULL %s %d\n", __FILE__, __LINE__ );
     return ( NULL );
   }
-  return ( p->c );
+  return ( (void*)(p->c) );
 }  // end of twopoint_function_allocate
 
 /********************************************************************************
  *
  ********************************************************************************/
 void twopoint_function_fini ( twopoint_function_type *p ) {
-  fini_4level_ztable ( (double _Complex *****)&(p->c) );
+  fini_4level_ztable ( &(p->c) );
 }  // end of twopoint_function_fini
 
 /********************************************************************************
@@ -471,7 +476,7 @@ double twopoint_function_get_diagram_norm ( twopoint_function_type *p, int const
   if ( id >= 0 ) {
     ptr = strtok( norm, comma );
     if ( ptr == NULL ) { return(0.); }
-    if ( strcmp ( ptr, "NA" ) == 0 ) { return(0.); }
+    if ( strcmp ( ptr, "NA" ) == 0 ) { return(1.); }
     // fprintf(stdout, "# [twopoint_function_get_diagram_norm] %d ptr = %s\n", 0, ptr);
                                   
     for( int i = 1; i <= id && ptr != NULL; i++ ) {
@@ -492,6 +497,42 @@ double twopoint_function_get_diagram_norm ( twopoint_function_type *p, int const
 
 /********************************************************************************/
 /********************************************************************************/
+
+/********************************************************************************
+ *
+ ********************************************************************************/
+void twopoint_function_get_diagram_name (char *diagram_name,  twopoint_function_type *p, int const id ) {
+
+  char comma[] = ",";
+  char *ptr = NULL;
+  char diagrams[500];
+  strcpy ( diagram_name, "NA" );
+
+  strcpy( diagrams, p->diagrams );
+  if ( id >= p->n ) { return; }
+
+  if ( id >= 0 ) {
+    ptr = strtok( diagrams, comma );
+    if ( ptr == NULL ) { return; }
+    if ( strcmp ( ptr, "NA" ) == 0 ) { return; }
+    // fprintf(stdout, "# [twopoint_function_get_diagram_name] %d ptr = %s\n", 0, ptr);
+                                  
+    for( int i = 1; i <= id && ptr != NULL; i++ ) {
+      ptr = strtok(NULL, "," );
+      // fprintf(stdout, "# [twopoint_function_get_diagram_name] %d ptr = %s\n", i, ptr);
+    }
+    if ( ptr == NULL ) { return; }
+    strcpy ( diagram_name, ptr );
+  }
+  if ( g_verbose > 2 ) fprintf(stdout, "# [twopoint_function_get_diagram_norm] diagram name = %s\n", diagram_name);
+  
+  return;
+
+}  // end of twopoint_function_get_diagram_name
+
+/********************************************************************************/
+/********************************************************************************/
+
 
 /********************************************************************************
  * read diagrams for a twopoint
@@ -562,97 +603,124 @@ int twopoint_function_accumulate_diagrams ( double _Complex *** const diagram, t
 
 }  // end of twopoint_function_accumulate_diagrams
 
-#if 0
+
 /********************************************************************************
  * read diagrams for a twopoint
  ********************************************************************************/
-int twopoint_function_fill_diagrams ( twopoint_function_type *p ) {
+int twopoint_function_fill_data ( twopoint_function_type *p ) {
 
-  int const N = p->T;  // timeslices
-  int const d = p->d;  // spin dimension
+  int const nT = p->T;  // timeslices
+  int const d  = p->d;  // spin dimension
+  int const nD = p->n;  // number of diagrams / data sets
+  char const filename_prefix[] = "piN_piN_diagrams";
+
+  if ( p->c == NULL ) {
+    fprintf ( stdout, "# [twopoint_function_fill_data] Warning, data array not intialized; allocing p->c %s %d\n", __FILE__, __LINE__ );
+ 
+    if ( twopoint_function_allocate ( p ) == NULL ) {
+      fprintf ( stderr, "[twopoint_function_fill_data] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
+      EXIT(123);
+    }
+  }
+
+  if ( d != 4 ) {
+    fprintf ( stderr, "[twopoint_function_fill_data] Error, spinor dimension must be 4 %s %d\n", __FILE__, __LINE__ );
+    return(3);
+  }
+
+#ifdef HAVE_LHPC_AFF
+  struct AffReader_s *affr = NULL;
+  struct AffNode_s *affn = NULL, *affdir = NULL;
+#else
+  fprintf ( stderr, "[twopoint_function_fill_data] Error, HAVE_LHPC_AFF not defined %s %d\n", __FILE__, __LINE__ );
+  return(1);
+#endif
 
   char key[500];
+  char key_suffix[400];
   int exitstatus;
 
-  double _Complex *** buffer = init_3level_ztable ( N, d, d );
-  if ( buffer == NULL ) {
-    fprintf(stderr, "[twopoint_function_accumulate_diagrams] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
-    return(1);
-  }
+  int const Ptot[3] = { p->pf1[0] + p->pf2[0], p->pf1[1] + p->pf2[1], p->pf1[2] + p->pf2[2] } ;
 
-#ifdef HAVE_LHPC_AFF
-
-
-        sprintf(filename, "%s.%.4d.tsrc%.2d.aff", aff_filename_prefix, Nconf, t_base );
-
-                if ( io_proc == 2 ) {
-                            affr = aff_reader (filename);
-                                      if ( const char * aff_status_str = aff_reader_errstr(affr) ) {
-                                                    fprintf(stderr, "[piN2piN_projection] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__ );
-                                                                EXIT(4);
-                                                                          } else {
-                                                                                        fprintf(stdout, "# [piN2piN_projection] reading data from aff file %s\n", filename);
-                                                                                                  }
-                                              }
-
-
-
-
-
-
-
-  struct AffNode_s *affn = NULL, *affdir = NULL;
-
-  if( (affn = aff_reader_root( affr )) == NULL ) {
-    fprintf(stderr, "[twopoint_function_accumulate_diagrams] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
-    return(103);
-  }
-
-#endif
+  char filename[200];
 
   /******************************************************
-   * loop on diagrams within 2-point function
+   * loop on diagrams / data sets within 2-point function
    ******************************************************/
-  for ( int idiag = 0; idiag < p->n; idiag++ )
-  {
+  for ( int i = 0; i < nD; i++ ) {
 
-    // fprintf(stdout, "# [twopoint_function_accumulate_diagrams] diagrams %d = %s\n", idiag, g_twopoint_function_list[i2pt].diagrams );
+    double _Complex *** const diagram = p->c[i];
 
-    twopoint_function_print_diagram_key ( key, p, idiag );
+    char filename_tag[10], diagram_tag[10];
+    twopoint_function_get_diagram_name ( diagram_tag, p, i );
 
-#ifdef HAVE_LHPC_AFF
+    strcpy ( filename_tag, diagram_tag );
+    filename_tag[0] = toupper ( diagram_tag[0] );
+
+
+    /******************************************************
+     * AFF reader
+     ******************************************************/
+    sprintf(filename, "%s.%s.%.4d.PX%dPY%dPZ%d.t%dx%dy%dz%d.aff", filename_prefix, filename_tag, Nconf,
+        Ptot[0], Ptot[1], Ptot[2],
+        p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3] );
+ 
+    affr = aff_reader  (filename);
+    if ( const char * aff_status_str =  aff_reader_errstr(affr) ) {
+      fprintf(stderr, "[twopoint_function_fill_data] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+      EXIT(4);
+    } else {
+      fprintf(stdout, "# [twopoint_function_fill_data] reading data from file %s %s %d\n", filename, __FILE__, __LINE__);
+    }
+
+    if( (affn = aff_reader_root( affr )) == NULL ) {
+      fprintf(stderr, "[twopoint_function_fill_data] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
+      return(103);
+    }
+
+    if ( strcmp( p->type, "mxb-mxb" ) == 0 ) {
+      exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
+    } else if ( strcmp( p->type, "mxb-b" ) == 0 ) {
+      exitstatus = contract_diagram_key_suffix ( key_suffix, -1, NULL, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
+    } else if ( strcmp( p->type, "b-b" ) == 0 ) {
+      exitstatus = contract_diagram_key_suffix ( key_suffix, -1, NULL, p->gf1[0], p->gf1[1], p->pf1, -1, NULL, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
+    } else if ( strcmp( p->type, "m-m" ) == 0 ) {
+      exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2, -1, -1, NULL, p->gi2, p->pi2, -1, -1, NULL, p->source_coords );
+    }
+
+    sprintf( key, "/%s/%s/%s/%s", p->name, diagram_tag, p->fbwd, key_suffix );
+    fprintf ( stdout, "# [twopoint_function_fill_data] key = %s\n", key );
+
+#if 0
     affdir = aff_reader_chpath (affr, affn, key );
-    uint32_t uitems = 16 * N;
-    exitstatus = aff_node_get_complex (affr, affdir, buffer[0][0], uitems );
+    uint32_t uitems = d *d * nT;
+    exitstatus = aff_node_get_complex (affr, affdir, diagram[0][0], uitems );
     if( exitstatus != 0 ) {
-      fprintf(stderr, "[twopoint_function_accumulate_diagrams] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      fprintf(stderr, "[twopoint_function_fill_data] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       return(105);
     }
-#endif
 
-    double const norm = twopoint_function_get_diagram_norm ( p, idiag );
+    double const norm = twopoint_function_get_diagram_norm ( p, i );
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-    for ( int i = 0; i < N; i++ ) {
-      zm4x4_eq_zm4x4_pl_zm4x4_ti_re ( diagram[i], diagram[i], buffer[i], norm );
+    for ( int t = 0; t < nT; t++ ) {
+      zm4x4_ti_eq_re ( diagram[t], norm );
     }
+#endif
+    // close the AFF reader
+    aff_reader_close (affr);
 
-  }  // end of loop on diagrams
-
-  fini_3level_ztable ( &buffer );
+  }  // end of loop on diagrams / data sets
 
   // TEST
   if ( g_verbose > 5 ) {
-    for ( int it = 0; it < N; it++ ) {
-      fprintf(stdout, "# [twopoint_function_accumulate_diagrams] initial correlator t = %2d\n", it );
-      zm4x4_printf ( diagram[it], "c_in", stdout );
-    }
+    twopoint_function_show_data ( p, stdout );
   }
 
   return(0);
 
 }  // end of twopoint_function_accumulate_diagrams
-#endif  // of if 0
+
 }  // end of namespace cvc
