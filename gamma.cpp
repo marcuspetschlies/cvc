@@ -212,6 +212,29 @@ void gamma_matrix_eq_gamma_matrix_adjoint ( gamma_matrix_type *g, gamma_matrix_t
 /************************************************/
 /************************************************/
 
+void gamma_matrix_eq_gamma_matrix_conj ( gamma_matrix_type *g, gamma_matrix_type *p) {
+  g->v[ 0] = conj(p->v[ 0]);
+  g->v[ 1] = conj(p->v[ 1]);
+  g->v[ 2] = conj(p->v[ 2]);
+  g->v[ 3] = conj(p->v[ 3]);
+  g->v[ 4] = conj(p->v[ 4]);
+  g->v[ 5] = conj(p->v[ 5]);
+  g->v[ 6] = conj(p->v[ 6]);
+  g->v[ 7] = conj(p->v[ 7]);
+  g->v[ 8] = conj(p->v[ 8]);
+  g->v[ 9] = conj(p->v[ 9]);
+  g->v[10] = conj(p->v[10]);
+  g->v[11] = conj(p->v[11]);
+  g->v[12] = conj(p->v[12]);
+  g->v[13] = conj(p->v[13]);
+  g->v[14] = conj(p->v[14]);
+  g->v[15] = conj(p->v[15]);
+  g->id = -1;
+  g->s  = 0;
+}  /* end of gamma_matrix_eq_gamma_matrix_adjoint */
+/************************************************/
+/************************************************/
+
 void gamma_matrix_norm (double *norm, gamma_matrix_type *g) {
   double _norm = 0., _re, _im;
   for ( int i=0; i<16; i++) { 
@@ -688,5 +711,102 @@ res_Cc[15] =   1;
   return ( res_ptr[gid] );
 
 }  // end of get_gamma_signs
+
+/************************************************
+ * gout = gop1^OP1 x gin x gop2^OP2
+ * save for gout = gin in memory
+ ************************************************/
+void gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( gamma_matrix_type *gout, gamma_matrix_type *gop1, char op1, gamma_matrix_type *gin, gamma_matrix_type *gop2, char op2 ) {
+  char CHAR_N = 'N';
+  int INT_N = 4;
+  double _Complex Z_1 = 1., Z_0 = 0.;
+  double _Complex v[16];
+
+  if ( gin->id == -1 ) {
+    gout->id = -1;
+    gout->s  = 0.;
+    return;
+  }
+
+  gamma_matrix_type gl, gr;
+  
+  gamma_matrix_init ( &gl );
+  gamma_matrix_init ( &gr );
+
+  if ( op1 == 'N' ) {
+    gamma_matrix_assign ( &gl, gop1 );
+  } else if ( op1 == 'T' ) {
+    gamma_matrix_eq_gamma_matrix_transposed ( &gl, gop1 );
+  } else if ( op1 == 'H' ) {
+    gamma_matrix_eq_gamma_matrix_adjoint ( &gl, gop1 );
+  } else if ( op1 == 'C' ) {
+    gamma_matrix_eq_gamma_matrix_conj ( &gl, gop1 );
+  }
+
+  if ( op2 == 'N' ) {
+    gamma_matrix_assign ( &gr, gop2 );
+  } else if ( op2 == 'T' ) {
+    gamma_matrix_eq_gamma_matrix_transposed ( &gr, gop2 );
+  } else if ( op2 == 'H' ) {
+    gamma_matrix_eq_gamma_matrix_adjoint ( &gr, gop2 );
+  } else if ( op2 == 'C' ) {
+    gamma_matrix_eq_gamma_matrix_conj ( &gr, gop2 );
+  }
+
+  /* _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1); */
+  _F(zgemm) ( &CHAR_N, &CHAR_N, &INT_N, &INT_N, &INT_N, &Z_1, gr.v, &INT_N, gin->v, &INT_N, &Z_0, v,       &INT_N, 1, 1);
+  _F(zgemm) ( &CHAR_N, &CHAR_N, &INT_N, &INT_N, &INT_N, &Z_1, v,    &INT_N, gl.v,   &INT_N, &Z_0, gout->v, &INT_N, 1, 1);
+
+  gamma_matrix_get_id_sign ( &(gout->id), &(gout->s), gout );
+
+  return;
+
+}  // end of gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op
+
+/************************************************/
+/************************************************/
+
+/************************************************
+ *
+ ************************************************/
+void gamma_matrix_get_id_sign ( int * id, double * s, gamma_matrix_type * g ) {
+
+  double const eps = 1.e-14;
+  int matches = 0;
+
+  for( int i = 0; i < 16; i++ ) {
+
+    gamma_matrix_type h;
+
+    gamma_matrix_set ( &h, i, 1 );
+
+    gamma_matrix_adjoint ( &h, &h );
+
+    gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( &h, &h, g );
+
+    double _Complex const z = ( h.m[0][0] + h.m[1][1] + h.m[2][2] + h.m[3][3] ) / 4.;
+ 
+    // fprintf ( stdout, "# [gamma_matrix_get_id_sign] z = %f + I %f\n", creal(z), cimag(z) );
+    if ( cabs (z) > eps ) {
+      *id = i;
+      if ( cabs( cimag(z) ) > eps ) {
+        fprintf ( stderr, "[gamma_matrix_get_id_sign] Error, coefficient has imaginary part\n" );
+        *id = -1;
+        *s = 0;
+        return;
+      }
+      *s  = creal( z );
+      matches++;
+    }
+
+  }  // end of loop on gamma matrix base
+
+  if ( matches == 0 ||  matches > 1 ) {
+    fprintf ( stderr, "[gamma_matrix_get_id_sign] number of matches not 1 \n" );
+    *id = -1;
+    *s = 0;
+  }
+  return;
+}  // end of gamma_matrix_get_id_sign
 
 }  // end of namespace cvc
