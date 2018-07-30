@@ -157,7 +157,7 @@ int little_group_projector_set (
     // for the 3-momentum vector p;
     // spin 1 in cartesian basis
     refframerot_p = rot_init_rotation_matrix ( 3 );
-    if ( refframerot_p == NULL ) return(NULL);
+    if ( refframerot_p == NULL ) return(10);
 
 #if defined CUBIC_GROUP_DOUBLE_COVER
     rot_mat_spin1_cartesian ( refframerot_p, cubic_group_double_cover_rotations[p->refframerot].n, cubic_group_double_cover_rotations[p->refframerot].w );
@@ -173,11 +173,11 @@ int little_group_projector_set (
     // set the reference frame rotation matrix
     // for the spin-J vectors
     refframerot_spin = (double _Complex ***) malloc ( p->n * sizeof(double _Complex **) );
-    if ( refframerot_spin == NULL ) return( NULL);
+    if ( refframerot_spin == NULL ) return( 11);
 
     for ( int i = 0; i < p->n; i++ ) {
       refframerot_spin[i] = rot_init_rotation_matrix ( interpolator_J2_list[i]+1 );
-      if ( refframerot_spin[i] == NULL ) return(NULL);
+      if ( refframerot_spin[i] == NULL ) return(12);
 
 #if defined CUBIC_GROUP_DOUBLE_COVER
 
