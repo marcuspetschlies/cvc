@@ -19,6 +19,8 @@ void twopoint_function_copy ( twopoint_function_type *p, twopoint_function_type 
 
 double twopoint_function_get_diagram_norm ( twopoint_function_type *p, int const id );
 
+void twopoint_function_get_diagram_name (char *diagram_name,  twopoint_function_type *p, int const id );
+
 double _Complex twopoint_function_get_correlator_phase ( twopoint_function_type *p );
 
 int twopoint_function_accumulate_diagrams ( double _Complex *** const diagram, twopoint_function_type *p, int const N, struct AffReader_s *affr );
@@ -28,6 +30,9 @@ void twopoint_function_fini ( twopoint_function_type *p );
 void * twopoint_function_allocate ( twopoint_function_type *p );
 
 void twopoint_function_show_data ( twopoint_function_type *p, FILE*ofs );
+
+int twopoint_function_fill_data ( twopoint_function_type *p );
+
 
 }  // end of namespace cvc
 
