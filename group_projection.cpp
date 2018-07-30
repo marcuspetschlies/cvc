@@ -96,7 +96,7 @@ int little_group_read (little_group_type *lg, const char *lg_name, const char * 
       char *ptr = strtok( r_aux, comma );
       lg->nr = 1;
       while ( (ptr = strtok( NULL, comma ) ) != NULL ) lg->nr++;
-      if ( g_verbose > 3 ) fprintf(stdout, "# [little_group_read] %d nr %d\n", i, lg->nr);
+      if ( g_verbose > 3 ) fprintf(stdout, "# [little_group_read] nr %d\n", lg->nr);
 
       if ( ( lg->r = (int*)malloc( lg->nr * sizeof(int) ) ) == NULL ) {
         fprintf(stderr, "[little_group_read] Error from malloc\n");
@@ -127,7 +127,7 @@ int little_group_read (little_group_type *lg, const char *lg_name, const char * 
       ptr = strtok( r_aux, comma );
       lg->nrm = 1;
       while ( ( ptr = strtok( NULL, comma ) ) != NULL ) lg->nrm++;
-      fprintf(stdout, "# [little_group_read] %d nrm %d\n", i, lg->nrm);
+      fprintf(stdout, "# [little_group_read] nrm %d\n", lg->nrm);
 
       if ( ( lg->rm = (int*)malloc( lg->nrm * sizeof(int) ) ) == NULL ) {
         fprintf(stderr, "[little_group_read] Error from malloc\n");
@@ -151,7 +151,7 @@ int little_group_read (little_group_type *lg, const char *lg_name, const char * 
       ptr = strtok( r_aux, comma );
       lg->nirrep = 1;
       while ( (ptr = strtok( NULL, comma ) ) != NULL ) lg->nirrep++;
-      fprintf(stdout, "# [little_group_read] %d nirrep %d\n", i, lg->nirrep);
+      fprintf(stdout, "# [little_group_read] nirrep %d\n", lg->nirrep);
 
       lg->lirrep = init_2level_ctable ( lg->nirrep, 20 );
       if ( lg->lirrep == NULL ) {
@@ -237,13 +237,16 @@ int little_group_read_list (little_group_type **lg, const char * filename )  {
    ***********************************************************/
   rewind( ofs );
   for ( int i = 0; i < nline; i++ ) {
-    fscanf(ofs, "%s %d %d %d %s %s %s %s",  
-        (*lg)[i].parent_name,
-        (*lg)[i].d, (*lg)[i].d+1, (*lg)[i].d+2,
-        (*lg)[i].name,
-        r_str, rm_str, lirrep_str );
+    if ( fscanf(ofs, "%s %d %d %d %s %s %s %s",  
+          (*lg)[i].parent_name,
+          (*lg)[i].d, (*lg)[i].d+1, (*lg)[i].d+2,
+          (*lg)[i].name,
+          r_str, rm_str, lirrep_str ) != 8 ) {
+      fprintf(stderr, "[little_group_read_list] Error from fscanf, too few entries %s %d\n", __FILE__, __LINE__);
+      return(-5);
+    }
 
-    /* TEST */
+    // TEST
     if ( g_verbose > 3 ) {
       fprintf(stdout, "# [little_group_read_list] %s --- %d --- %d --- %d --- %s --- %s --- %s --- %s\n", (*lg)[i].parent_name, 
           (*lg)[i].d[0], (*lg)[i].d[1], (*lg)[i].d[2], (*lg)[i].name, r_str, rm_str, lirrep_str);
@@ -1262,9 +1265,13 @@ int little_group_projector_show (little_group_projector_type *p, FILE*ofs, int w
   fprintf( ofs, "# [little_group_projector_show] row target         = %d\n", p->row_target );
   fprintf( ofs, "# [little_group_projector_show] ref row target     = %d\n", p->ref_row_target );
 
-  fprintf( ofs, "# [little_group_projector_show] ref row for spins\n" );
-  for ( int i = 0; i < p->n; i++ ) {
-    fprintf( ofs, "# [little_group_projector_show]   spin(%d) ref row = %d\n", i, p->ref_row_spin[i] );
+  if ( p->ref_row_spin != NULL ) {
+    fprintf( ofs, "# [little_group_projector_show] ref row for spins\n" );
+    for ( int i = 0; i < p->n; i++ ) {
+      fprintf( ofs, "# [little_group_projector_show]   spin(%d) ref row = %d\n", i, p->ref_row_spin[i] );
+    }
+  } else {
+    fprintf( ofs, "# [little_group_projector_show] ref row for spins not set\n" );
   }
 
   fprintf( ofs, "# [little_group_projector_show] interpolator-intrinsic parity\n" );
