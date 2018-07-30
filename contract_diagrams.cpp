@@ -877,7 +877,7 @@ int contract_diagram_write_fp ( double _Complex*** const diagram, FILE *fp, char
   rtime = _GET_TIME;
 
   if ( ( fbwd != 0 ) && ( dt != T_global - 1 ) ) {
-    fprintf ( stderr, "[contract_diagram_write_fp] Error, incompatible dt and fbwd arguments\n", __FILE__, __LINE__ );
+    fprintf ( stderr, "[contract_diagram_write_fp] Error, incompatible dt and fbwd arguments %s %d\n", __FILE__, __LINE__ );
     return(1);
   }
 
