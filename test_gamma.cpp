@@ -14,6 +14,7 @@
 #include <math.h>
 #include <complex.h>
 #include <time.h>
+#include <ctype.h>
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
@@ -67,11 +68,7 @@ int main(int argc, char **argv) {
   int filename_set = 0;
   char filename[100];
   int exitstatus;
-  double norm, norm2;
   FILE *ofs = NULL;
-  double _Complex **R = NULL;
-  double _Complex **A = NULL;
-  double _Complex **B = NULL;
 
 
 #ifdef HAVE_MPI
@@ -126,6 +123,15 @@ int main(int argc, char **argv) {
 
   geometry();
 
+  char B[] = "b1";
+
+  char C[12];
+  strcpy ( C, B );
+  C[0] = toupper ( B[0] );
+  fprintf ( stdout, "B = %s  C = %s\n", B, C );
+
+
+#if 0
   init_gamma_matrix ();
 
 #if 0
@@ -200,7 +206,7 @@ int main(int argc, char **argv) {
     fprintf( stdout, "%2d %c   %2d   %2d %c    %6.3f %2d    %6.3f %2d\n", i, op1, l, k, op2, g.s , g.id, s, id);
   }}}
 
-
+#endif
 
   if(g_cart_id==0) {
     g_the_time = time(NULL);
