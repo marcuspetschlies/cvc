@@ -44,6 +44,10 @@ typedef struct {
   int d;
   // data for this 2-pt function
   void *c;
+  // group
+  char group[100];
+  // irrep
+  char irrep[100];
 } twopoint_function_type;
 
 typedef struct {
