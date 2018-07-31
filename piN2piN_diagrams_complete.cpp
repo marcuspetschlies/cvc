@@ -534,8 +534,8 @@ int main(int argc, char **argv) {
                       gamma_f1_nucleon_list[igf1][1], 
                       gamma_f2_list[igf2] );
 
-                  if ( ( exitstatus = contract_diagram_zmx4x4_field_ti_eq_co ( diagram, zsign, T_global ) ) != 0 ) {
-                    fprintf ( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zmx4x4_field_ti_eq_co, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                  if ( ( exitstatus = contract_diagram_zm4x4_field_ti_eq_co ( diagram, zsign, T_global ) ) != 0 ) {
+                    fprintf ( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zm4x4_field_ti_eq_co, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                     EXIT(109)
                   }
 
@@ -891,8 +891,8 @@ int main(int argc, char **argv) {
                       gamma_f1_nucleon_list[igf1][1],
                       gamma_f2_list[igf2] );
   
-                  if ( ( exitstatus = contract_diagram_zmx4x4_field_ti_eq_co ( diagram, zsign, T_global ) ) != 0 ) {
-                    fprintf ( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zmx4x4_field_ti_eq_co, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                  if ( ( exitstatus = contract_diagram_zm4x4_field_ti_eq_co ( diagram, zsign, T_global ) ) != 0 ) {
+                    fprintf ( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zm4x4_field_ti_eq_co, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                     EXIT(109)
                   }
   
@@ -1315,8 +1315,8 @@ int main(int argc, char **argv) {
                       gamma_f1_nucleon_list[igf1][1],
                       gamma_f2_list[igf2] );
   
-                  if ( ( exitstatus = contract_diagram_zmx4x4_field_ti_eq_co ( diagram, zsign, T_global ) ) != 0 ) {
-                    fprintf ( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zmx4x4_field_ti_eq_co, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                  if ( ( exitstatus = contract_diagram_zm4x4_field_ti_eq_co ( diagram, zsign, T_global ) ) != 0 ) {
+                    fprintf ( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zm4x4_field_ti_eq_co, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                     EXIT(109)
                   }
 
@@ -1635,7 +1635,7 @@ int main(int argc, char **argv) {
                   memcpy( bb_aux[0][0], bb[igi1][igf1][ipf1][idiag][0], 16*T_global*sizeof(double _Complex) );
 
                   // multiply baryon 2-point function with meson 2-point function */
-                  exitstatus = contract_diagram_zmx4x4_field_ti_co_field ( diagram, bb_aux,  mm[ipi2][igi2][igf2][ipf2], T_global );
+                  exitstatus = contract_diagram_zm4x4_field_ti_co_field ( diagram, bb_aux,  mm[ipi2][igi2][igf2][ipf2], T_global );
                   // memcpy(diagram[0][0],  bb_aux[0][0], 16*T_global*sizeof(double _Complex) );
 
                   // transpose
@@ -1682,8 +1682,8 @@ int main(int argc, char **argv) {
                       gamma_f1_nucleon_list[igf1][1],
                       gamma_f2_list[igf2] );
   
-                  if ( ( exitstatus = contract_diagram_zmx4x4_field_ti_eq_co ( diagram, zsign, T_global ) ) != 0 ) {
-                    fprintf ( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zmx4x4_field_ti_eq_co, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                  if ( ( exitstatus = contract_diagram_zm4x4_field_ti_eq_co ( diagram, zsign, T_global ) ) != 0 ) {
+                    fprintf ( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zm4x4_field_ti_eq_co, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                     EXIT(109)
                   }
 
@@ -1927,8 +1927,8 @@ int main(int argc, char **argv) {
                   gamma_f1_nucleon_list[igi1][0], gamma_f1_nucleon_list[igi1][1], -1,
                   gamma_f1_nucleon_list[igf1][0], gamma_f1_nucleon_list[igf1][1], -1 );
   
-              if ( ( exitstatus = contract_diagram_zmx4x4_field_ti_eq_co ( diagram, zsign, T_global ) ) != 0 ) {
-                fprintf ( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zmx4x4_field_ti_eq_co, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+              if ( ( exitstatus = contract_diagram_zm4x4_field_ti_eq_co ( diagram, zsign, T_global ) ) != 0 ) {
+                fprintf ( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zm4x4_field_ti_eq_co, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                 EXIT(106)
               }
 
@@ -2132,8 +2132,8 @@ int main(int argc, char **argv) {
                   gamma_f1_delta_list[igi1][0], gamma_f1_delta_list[igi1][1], -1,
                   gamma_f1_delta_list[igf1][0], gamma_f1_delta_list[igf1][1], -1 );
   
-              if ( ( exitstatus = contract_diagram_zmx4x4_field_ti_eq_co ( diagram, zsign, T_global ) ) != 0 ) {
-                fprintf ( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zmx4x4_field_ti_eq_co, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+              if ( ( exitstatus = contract_diagram_zm4x4_field_ti_eq_co ( diagram, zsign, T_global ) ) != 0 ) {
+                fprintf ( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zm4x4_field_ti_eq_co, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                 EXIT(106)
               }
 
@@ -2382,8 +2382,8 @@ int main(int argc, char **argv) {
                     gamma_f1_delta_list[igf1][1],
                     -1 );
   
-                if ( ( exitstatus = contract_diagram_zmx4x4_field_ti_eq_co ( diagram, zsign, T_global ) ) != 0 ) {
-                  fprintf ( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zmx4x4_field_ti_eq_co, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                if ( ( exitstatus = contract_diagram_zm4x4_field_ti_eq_co ( diagram, zsign, T_global ) ) != 0 ) {
+                  fprintf ( stderr, "[piN2piN_diagrams_complete] Error from contract_diagram_zm4x4_field_ti_eq_co, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                   EXIT(106)
                 }
 
