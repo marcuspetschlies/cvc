@@ -1367,7 +1367,7 @@ int main(int argc, char **argv) {
                   memcpy( bb_aux[0][0], bb[igi1][igf1][ipf1][idiag][0], 16*T_global*sizeof(double _Complex) );
 
                   // multiply baryon 2-point function with meson 2-point function */
-                  exitstatus = contract_diagram_zmx4x4_field_ti_co_field ( diagram, bb_aux,  mm[ipi2][igi2][igf2][ipf2], T_global );
+                  exitstatus = contract_diagram_zm4x4_field_ti_co_field ( diagram, bb_aux,  mm[ipi2][igi2][igf2][ipf2], T_global );
                   // memcpy(diagram[0][0],  bb_aux[0][0], 16*T_global*sizeof(double _Complex) );
 
                   // transpose
