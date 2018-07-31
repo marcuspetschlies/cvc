@@ -619,7 +619,7 @@ int twopoint_function_fill_data ( twopoint_function_type *p ) {
  
     if ( twopoint_function_allocate ( p ) == NULL ) {
       fprintf ( stderr, "[twopoint_function_fill_data] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
-      EXIT(123);
+      return(1);
     }
   }
 
@@ -667,7 +667,7 @@ int twopoint_function_fill_data ( twopoint_function_type *p ) {
  
     affr = aff_reader  (filename);
     if ( const char * aff_status_str =  aff_reader_errstr(affr) ) {
-      fprintf(stderr, "[twopoint_function_fill_data] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+      fprintf(stderr, "[twopoint_function_fill_data] Error from aff_reader for filename %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__);
       EXIT(4);
     } else {
       fprintf(stdout, "# [twopoint_function_fill_data] reading data from file %s %s %d\n", filename, __FILE__, __LINE__);
@@ -691,7 +691,7 @@ int twopoint_function_fill_data ( twopoint_function_type *p ) {
     sprintf( key, "/%s/%s/%s/%s", p->name, diagram_tag, p->fbwd, key_suffix );
     fprintf ( stdout, "# [twopoint_function_fill_data] key = %s\n", key );
 
-#if 0
+
     affdir = aff_reader_chpath (affr, affn, key );
     uint32_t uitems = d *d * nT;
     exitstatus = aff_node_get_complex (affr, affdir, diagram[0][0], uitems );
@@ -700,15 +700,18 @@ int twopoint_function_fill_data ( twopoint_function_type *p ) {
       return(105);
     }
 
-    double const norm = twopoint_function_get_diagram_norm ( p, i );
+    if ( strcmp ( p->norm , "NA" ) != 0 ) {
+      double const norm = twopoint_function_get_diagram_norm ( p, i );
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-    for ( int t = 0; t < nT; t++ ) {
-      zm4x4_ti_eq_re ( diagram[t], norm );
-    }
-#endif
+      for ( int t = 0; t < nT; t++ ) {
+        zm4x4_ti_eq_re ( diagram[t], norm );
+      }
+
+    }  // end of if norm not NA
+
     // close the AFF reader
     aff_reader_close (affr);
 
@@ -723,4 +726,112 @@ int twopoint_function_fill_data ( twopoint_function_type *p ) {
 
 }  // end of twopoint_function_accumulate_diagrams
 
+/********************************************************************************
+ * write diagrams in a twopoint
+ ********************************************************************************/
+int twopoint_function_write_data ( twopoint_function_type *p ) {
+
+  int const nT = p->T;  // timeslices
+  int const d  = p->d;  // spin dimension
+  int const nD = p->n;  // number of diagrams / data sets
+
+  if ( p->c == NULL ) {
+    fprintf ( stderr, "[twopoint_function_write_data] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
+
+#ifdef HAVE_LHPC_AFF
+  struct AffWriter_s *affw = NULL;
+  struct AffNode_s *affn = NULL, *affdir = NULL;
+#else
+  fprintf ( stderr, "[twopoint_function_write_data] Error, HAVE_LHPC_AFF not defined %s %d\n", __FILE__, __LINE__ );
+  return(1);
+#endif
+
+  char key[500];
+  char key_suffix[400];
+  int exitstatus;
+
+  int const Ptot[3] = { p->pf1[0] + p->pf2[0], p->pf1[1] + p->pf2[1], p->pf1[2] + p->pf2[2] } ;
+
+  char filename[200];
+
+  /******************************************************
+   * loop on diagrams / data sets within 2-point function
+   ******************************************************/
+  for ( int i = 0; i < nD; i++ ) {
+
+    double _Complex *** const diagram = p->c[i];
+
+    char diagram_tag[10];
+    twopoint_function_get_diagram_name ( diagram_tag, p, i );
+
+    /******************************************************
+     * AFF reader
+     ******************************************************/
+    sprintf(filename, "%s.%s.PX%dPY%dPZ%d.%s.%s.%.4d.t%dx%dy%dz%d.aff", p->name, p->group, Ptot[0], Ptot[1], Ptot[2], p->irrep, diagram_tag, Nconf,
+        p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3] );
+ 
+    affw = aff_writer (filename);
+    if ( const char * aff_status_str =  aff_writer_errstr ( affw ) ) {
+      fprintf(stderr, "[twopoint_function_write_data] Error from aff_reader for filename %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__);
+      return(4);
+    } else {
+      fprintf(stdout, "# [twopoint_function_write_data] writing data to file %s %s %d\n", filename, __FILE__, __LINE__);
+    }
+
+    if( (affn = aff_writer_root( affw )) == NULL ) {
+      fprintf(stderr, "[twopoint_function_write_data] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
+      return(103);
+    }
+STOPPED HERE: How should the file be called? All specifications in the filename?
+    if ( strcmp( p->type, "mxb-mxb" ) == 0 ) {
+      exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
+    } else if ( strcmp( p->type, "mxb-b" ) == 0 ) {
+      exitstatus = contract_diagram_key_suffix ( key_suffix, -1, NULL, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
+    } else if ( strcmp( p->type, "b-b" ) == 0 ) {
+      exitstatus = contract_diagram_key_suffix ( key_suffix, -1, NULL, p->gf1[0], p->gf1[1], p->pf1, -1, NULL, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
+    } else if ( strcmp( p->type, "m-m" ) == 0 ) {
+      exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2, -1, -1, NULL, p->gi2, p->pi2, -1, -1, NULL, p->source_coords );
+    }
+
+    sprintf( key, "/%s/%s/%s/%s", p->name, diagram_tag, p->fbwd, key_suffix );
+    fprintf ( stdout, "# [twopoint_function_fill_data] key = %s\n", key );
+
+
+    affdir = aff_reader_chpath (affr, affn, key );
+    uint32_t uitems = d *d * nT;
+    exitstatus = aff_node_get_complex (affr, affdir, diagram[0][0], uitems );
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[twopoint_function_fill_data] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(105);
+    }
+
+    if ( strcmp ( p->norm , "NA" ) != 0 ) {
+      double const norm = twopoint_function_get_diagram_norm ( p, i );
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+      for ( int t = 0; t < nT; t++ ) {
+        zm4x4_ti_eq_re ( diagram[t], norm );
+      }
+
+    }  // end of if norm not NA
+
+    // close the AFF reader
+    aff_reader_close (affr);
+
+  }  // end of loop on diagrams / data sets
+
+  // TEST
+  if ( g_verbose > 5 ) {
+    twopoint_function_show_data ( p, stdout );
+  }
+
+  return(0);
+
+}  // end of twopoint_function_accumulate_diagrams
+
+}  // end of namespace cvc
 }  // end of namespace cvc
