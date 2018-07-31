@@ -1803,7 +1803,7 @@ int main(int argc, char **argv) {
                           memcpy( bb_aux[0][0], bb_t1_factor[it1][igi1][igf1][ipf1][0], 16*T_global*sizeof(double _Complex) );
 
                           // multiply baryon 2-point function with meson 2-point function
-                          exitstatus = contract_diagram_zmx4x4_field_ti_co_field ( diagram, bb_aux, mm_m1_factor[im1][igi2][ipi2][igf2][ipf2][0], T_global );
+                          exitstatus = contract_diagram_zm4x4_field_ti_co_field ( diagram, bb_aux, mm_m1_factor[im1][igi2][ipi2][igf2][ipf2][0], T_global );
 
                           // transpose
                           exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global );
@@ -1854,7 +1854,7 @@ int main(int argc, char **argv) {
                           memcpy( bb_aux[0][0], bb_t2_factor[it2][igi1][igf1][ipf1][0], 16*T_global*sizeof(double _Complex) );
 
                           // multiply baryon 2-point function with meson 2-point function
-                          exitstatus = contract_diagram_zmx4x4_field_ti_co_field ( diagram, bb_aux, mm_m1_factor[im1][igi2][ipi2][igf2][ipf2][0], T_global );
+                          exitstatus = contract_diagram_zm4x4_field_ti_co_field ( diagram, bb_aux, mm_m1_factor[im1][igi2][ipi2][igf2][ipf2][0], T_global );
 
                           // transpose
                           exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global );
