@@ -235,8 +235,8 @@ int main(int argc, char **argv) {
 
     exitstatus = little_group_projector_show ( &projector, stdout, 1 );
 
-#if 0
-#endif  // of if 0
+    int const nrot      = projector.rtarget->n;
+    int const irrep_dim = projector.rtarget->dim;
 
 
     /******************************************************
@@ -267,10 +267,7 @@ int main(int argc, char **argv) {
         g_twopoint_function_list[i2pt].source_coords[2] = gsx[2];
         g_twopoint_function_list[i2pt].source_coords[3] = gsx[3];
 
-
-        int const nrot = projector.rtarget->n;
-
-        twopoint_function_type tp;
+        twopoint_function_type tp, * tp_project = NULL;
 
         twopoint_function_init ( &tp );
 
@@ -280,6 +277,29 @@ int main(int argc, char **argv) {
           fprintf ( stderr, "[piN2piN_projection] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
           EXIT(123);
 
+        }
+
+        //                       ref row     row sink    row source
+        int const n_tp_project = irrep_dim * irrep_dim * irrep_dim;
+        tp_project = (twopoint_function_type *) malloc ( n_tp_project * sizeof (twopoint_function_type ) );
+        if (  tp_project == NULL ) {
+          fprintf ( stderr, "[piN2piN_projection] Error from malloc %s %d\n", __FILE__, __LINE__ );
+          EXIT(124);
+        }
+ 
+        for ( int i = 0; i < irrep_dim*irrep_dim; i++ ) {
+          twopoint_function_init ( &(tp_project[i]) );
+          twopoint_function_copy ( &(tp_project[i]), &( g_twopoint_function_list[i2pt] ) );
+
+          tp_project[i].n = 1;
+          sprintf ( tp_project[i].norm, "NA" );
+          sprintf ( tp_project[i].diagrams, "rref_%d_rsnk%d_rsrc%d", i/(irrep_dim*irrep_dim), (i%(irrep_dim*irrep_dim))/irrep_dim, i%irrep_dim );
+
+
+          if ( twopoint_function_allocate ( &(tp_project[i]) ) == NULL ) {
+            fprintf ( stderr, "[piN2piN_projection] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
+            EXIT(125);
+          }
         }
 
         gamma_matrix_type gl, gr, gi11, gi12, gi2, gf11, gf12, gf2;
@@ -358,20 +378,55 @@ int main(int argc, char **argv) {
             EXIT(212);
           }
 
+          /******************************************************
+           * sum up data sets in tp
+           ******************************************************/
+          for ( int i = 1; i < tp.n; i++ ) {
+            contract_diagram_zm4x4_field_pl_eq_zm4x4_field ( tp.c[0], tp.c[i], tp.T );
+          }
+
+          /******************************************************
+           * proection variants
+           ******************************************************/
+
+          double _Complex ** Tirrepl = ( irotl < nrot ) ? projector.rtarget->R[irotl] : projector.rtarget->IR[irotl-nrot];
+          double _Complex ** Tirrepr = ( irotr < nrot ) ? projector.rtarget->R[irotr] : projector.rtarget->IR[irotr-nrot];
+
+          for ( int rref = 0; rref < irrep_dim; rref++ ) {
+
+            for ( int rsnk = 0; rsnk < irrep_dim; rsnk++ ) {
+            for ( int rsrc = 0; rsrc < irrep_dim; rsrc++ ) {
+
+              int const irrr = ( rref * irrep_dim + rsnk ) * irrep_dim + rsrc;
+
+              double _Complex const zcoeff = 
+                gf11.s * gf12.s * gf2.s *        Tirrepr[rsnk][rref] * 
+                gi11.s * gi12.s * gi2.s * conj ( Tirrepl[rsrc][rref] );
+                
+              contract_diagram_zm4x4_field_eq_zm4x4_field_pl_zm4x4_field_ti_co ( tp_project[irrr].c[0], tp_project[irrr].c[0], tp.c[0], zcoeff, tp.T );
+
+            }  // end of loop on rsrc
+            }  // end of loop on rsnk
+          }  // end of loop on rref
 
         }  // end of loop on source rotations
-
-
         }  // end of loop on sink rotations
 
+        /******************************************************
+         * output of tp_project
+         ******************************************************/
+
+
         twopoint_function_fini ( &tp );
+        for ( int i = 0; i < n_tp_project; i++ ) {
+          twopoint_function_fini ( &(tp_project[i]) );
+        }
+        free ( tp_project );
 
       }  // end of loop on coherent source locations
 
     }  // end of loop on base source locations
  
-
-
     /******************************************************
      * deallocate space inside little_group
      ******************************************************/
