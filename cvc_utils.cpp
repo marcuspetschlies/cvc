@@ -7059,5 +7059,78 @@ int const get_io_proc (void) {
 /****************************************************************************/
 /****************************************************************************/
 
+int init_momentum_classes ( int **** p_class, int **p_nmem, int *p_num ) {
+
+  *p_num = 4;
+  *p_nmem = (int *)malloc(4 * sizeof (int) );
+
+  *p_class = (int***) malloc ( 4 * sizeof(int**) );
+
+  *p_nmem[0] = 1;
+  (*p_class)[0] = init_2level_itable ( 1, 3 );
+
+  *p_nmem[1] = 6;
+  (*p_class)[1] = init_2level_itable ( 6, 3 );
+  (*p_class)[1][0][2] =  1;
+  (*p_class)[1][1][2] = -1;
+  (*p_class)[1][2][1] =  1;
+  (*p_class)[1][3][1] = -1;
+  (*p_class)[1][4][0] =  1;
+  (*p_class)[1][5][0] = -1;
+
+  *p_nmem[2] = 12;
+  (*p_class)[2] = init_2level_itable ( 12, 3 );
+  (*p_class)[2][ 0][0] =  1; (*p_class)[2][ 0][1] =  1;
+  (*p_class)[2][ 1][0] =  1; (*p_class)[2][ 1][1] = -1;
+  (*p_class)[2][ 2][0] = -1; (*p_class)[2][ 2][1] =  1;
+  (*p_class)[2][ 3][0] = -1; (*p_class)[2][ 3][1] = -1;
+
+  (*p_class)[2][ 4][0] =  1; (*p_class)[2][ 4][2] =  1;
+  (*p_class)[2][ 5][0] =  1; (*p_class)[2][ 5][2] = -1;
+  (*p_class)[2][ 6][0] = -1; (*p_class)[2][ 6][2] =  1;
+  (*p_class)[2][ 7][0] = -1; (*p_class)[2][ 7][2] = -1;
+
+  (*p_class)[2][ 8][1] =  1; (*p_class)[2][ 8][2] =  1;
+  (*p_class)[2][ 9][1] =  1; (*p_class)[2][ 9][2] = -1;
+  (*p_class)[2][10][1] = -1; (*p_class)[2][10][2] =  1;
+  (*p_class)[2][11][1] = -1; (*p_class)[2][11][2] = -1;
+
+  *p_nmem[3] = 8;
+  (*p_class)[3] = init_2level_itable ( 8, 3 );
+  (*p_class)[3][0][0] =  1; (*p_class)[3][0][1] =  1; (*p_class)[3][0][2] =  1;
+  (*p_class)[3][1][0] =  1; (*p_class)[3][1][1] =  1; (*p_class)[3][1][2] = -1;
+  (*p_class)[3][2][0] =  1; (*p_class)[3][2][1] = -1; (*p_class)[3][2][2] =  1;
+  (*p_class)[3][3][0] =  1; (*p_class)[3][3][1] = -1; (*p_class)[3][3][2] = -1;
+  (*p_class)[3][4][0] = -1; (*p_class)[3][4][1] =  1; (*p_class)[3][4][2] =  1;
+  (*p_class)[3][5][0] = -1; (*p_class)[3][5][1] =  1; (*p_class)[3][5][2] = -1;
+  (*p_class)[3][6][0] = -1; (*p_class)[3][6][1] = -1; (*p_class)[3][6][2] =  1;
+  (*p_class)[3][7][0] = -1; (*p_class)[3][7][1] = -1; (*p_class)[3][7][2] = -1;
+
+  return(0);
+}  // end of init_momentum_classes
+
+/****************************************************************************/
+/****************************************************************************/
+
+void fini_momentum_classes ( int **** p_class, int **p_nmem, int *p_num ) {
+
+  if ( *p_nmem != NULL ) {
+    free ( *p_nmem );
+    *p_nmem = NULL;
+  }
+
+  if ( *p_class != NULL ) {
+    for ( int i = 0; i < *p_num; i++ ) {
+      fini_2level_itable ( &((*p_class)[i]);
+    }
+    free ( *p_class );
+    *p_class = NULL;
+  }
+
+}  // end of fini_momentum_classes
+
+/****************************************************************************/
+/****************************************************************************/
+
 
 }  /* end of namespace cvc */
