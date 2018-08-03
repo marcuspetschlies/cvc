@@ -50,6 +50,7 @@ extern "C"
 #include "read_input_parser.h"
 // #include "matrix_init.h"
 #include "table_init_z.h"
+#include "table_init_i.h"
 #include "contract_diagrams.h"
 #include "aff_key_conversion.h"
 #include "gamma.h"
@@ -112,7 +113,6 @@ int main(int argc, char **argv) {
   //                                                        C gx,      C gy       C gz       C gx gt    C gy gt    C gz gt
   int gamma_f1_delta_list[gamma_f1_delta_number][2]    = { {  9,  4}, {  0,  4}, {  7,  4}, { 13,  4}, {  4,  4}, { 15,  4} };
   double gamma_f1_delta_sign[gamma_f1_delta_number][2] = { { +1, +1}, { +1, +1}, { -1, +1}, { -1, +1}, { +1, +1}, { +1, +1} };
-
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
@@ -230,6 +230,18 @@ int main(int argc, char **argv) {
     g_source_coords_list[i][2] = ( g_source_coords_list[i][2] + LY_global ) % LY_global;
     g_source_coords_list[i][3] = ( g_source_coords_list[i][3] + LZ_global ) % LZ_global;
   }
+
+  /******************************************************/
+  /******************************************************/
+
+ /******************************************************
+  * total momentum classes
+  ******************************************************/
+  int ptot_nclass = 0;
+  int *ptot_nmem = NULL;
+  int *** ptot_class = NULL;
+
+  exitstatus = init_momentum_classes ( &ptot_class, &ptot_nmem, &ptot_nclass );
 
   /******************************************************/
   /******************************************************/
@@ -382,9 +394,29 @@ int main(int argc, char **argv) {
       /**************************************************************************************
        * loop on total momenta
        **************************************************************************************/
-      for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ ) {
+      for ( int iclass = 0; iclass  < ptot_nclass; iclass++ ) {
 
-        int ptot[3]  = { g_total_momentum_list[iptot][0], g_total_momentum_list[iptot][1], g_total_momentum_list[iptot][2] };
+        int pref[3] = { ptot_class[iclass][0][0], ptot_class[iclass][0][1], ptot_class[iclass][0][2] };
+
+
+        /******************************************************
+         * AFF output file
+         ******************************************************/
+        if ( io_proc == 2 ) {
+          sprintf(filename, "%s.b.PX%dPY%dPZ%d.%.4d.t%dx%dy%dz%d.aff", "piN_piN_diagrams",
+              pref[0], pref[1], pref[2], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+          affw = aff_writer (filename);
+          if ( const char * aff_status_str =  aff_writer_errstr(affw) ) {
+            fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+            EXIT(4);
+          } else {
+            fprintf(stdout, "# [piN2piN_diagrams_complete] writing data to file %s %s %d\n", filename, __FILE__, __LINE__);
+          }
+        }  // end of if io_proc == 2
+
+      for ( int imem = 0; imem < ptot_nmem[iclass]; imem++ ) {
+
+        int ptot[3]  = { ptot_class[iclass][imem][0], ptot_class[iclass][imem][1], ptot_class[iclass][imem][2] };
 
         int mptot[3] = { -ptot[0], -ptot[1], -ptot[2] };
 
@@ -410,6 +442,7 @@ int main(int argc, char **argv) {
 
         for ( int iperm = 0; iperm < 2; iperm++ ) {
 
+#if 0
           /******************************************************
            * AFF output file
            ******************************************************/
@@ -425,6 +458,7 @@ int main(int argc, char **argv) {
               fprintf(stdout, "# [piN2piN_diagrams_complete] writing data to file %s %s %d\n", filename, __FILE__, __LINE__);
             }
           }  // end of if io_proc == 2
+#endif  // of if 0
 
           /**************************************************************************************
            * loop on pf2
@@ -717,9 +751,29 @@ int main(int argc, char **argv) {
       /**************************************************************************************
        * loop on total momentum
        **************************************************************************************/
-      for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ ) {
+      for ( int iclass = 0; iclass  < ptot_nclass; iclass++ ) {
 
-        int ptot[3]  = { g_total_momentum_list[iptot][0], g_total_momentum_list[iptot][1], g_total_momentum_list[iptot][2] };
+        int pref[3] = { ptot_class[iclass][0][0], ptot_class[iclass][0][1], ptot_class[iclass][0][2] };
+
+        /******************************************************
+         * AFF output file
+         ******************************************************/
+        if ( io_proc == 2 ) {
+          sprintf(filename, "%s.w.PX%dPY%dPZ%d.%.4d.t%dx%dy%dz%d.aff", "piN_piN_diagrams", 
+              pref[0], pref[1], pref[2], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+          affw = aff_writer (filename);
+          if ( const char * aff_status_str =  aff_writer_errstr(affw) ) {
+            fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+            EXIT(4);
+          } else {
+            fprintf(stdout, "# [piN2piN_diagrams_complete] writing data to file %s %s %d\n", filename, __FILE__, __LINE__);
+          }
+        }  // end of if io_proc == 2
+
+
+      for ( int imem = 0; imem < ptot_nmem[iclass]; imem++ ) {
+
+        int ptot[3]  = { ptot_class[iclass][imem][0], ptot_class[iclass][imem][1], ptot_class[iclass][imem][2] };
 
         int mptot[3] = { -ptot[0], -ptot[1], -ptot[2] };
 
@@ -754,6 +808,7 @@ int main(int argc, char **argv) {
             wphi = w3phi;
           }
 
+#if 0
           /******************************************************
            * AFF output file
            ******************************************************/
@@ -769,6 +824,7 @@ int main(int argc, char **argv) {
               fprintf(stdout, "# [piN2piN_diagrams_complete] writing data to file %s %s %d\n", filename, __FILE__, __LINE__);
             }
           }  // end of if io_proc == 2
+#endif  // of if 0
 
           /**************************************************************************************/
           /**************************************************************************************/
@@ -1153,9 +1209,31 @@ int main(int argc, char **argv) {
       /**************************************************************************************
        * loop on total momenta
        **************************************************************************************/
+      for ( int iclass = 0; iclass  < ptot_nclass; iclass++ ) {
+
+        int pref[3] = { ptot_class[iclass][0][0], ptot_class[iclass][0][1], ptot_class[iclass][0][2] };
+
+        /**************************************************************************************
+         * AFF output file
+         **************************************************************************************/
+        if ( io_proc == 2 ) {
+
+          sprintf( filename, "%s.z.PX%dPY%dPZ%d.%.4d.t%dx%dy%dz%d.aff", "piN_piN_diagrams",
+              pref[0], pref[1], pref[2], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+
+          affw = aff_writer (filename);
+          if ( const char * aff_status_str =  aff_writer_errstr(affw) ) {
+            fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+            EXIT(4);
+          } else {
+            fprintf(stdout, "# [piN2piN_diagrams_complete] writing data to file %s %s %d\n", filename, __FILE__, __LINE__);
+          }
+        }
+
+
       for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ ) {
 
-        int ptot[3]  = { g_total_momentum_list[iptot][0], g_total_momentum_list[iptot][1], g_total_momentum_list[iptot][2] };
+        int ptot[3]  = { ptot_class[iclass][imem][0], ptot_class[iclass][imem][1], ptot_class[iclass][imem][2] };
 
         int mptot[3] = { -ptot[0], -ptot[1], -ptot[2] };
 
@@ -1191,15 +1269,14 @@ int main(int argc, char **argv) {
             zphi = z3phi;
           }
 
+#if 0
           /**************************************************************************************
            * AFF output file
            **************************************************************************************/
           if ( io_proc == 2 ) {
-
             sprintf( filename, "%s.Z%d.%.4d.PX%dPY%dPZ%d.t%dx%dy%dz%d.aff", "piN_piN_diagrams", iperm+1, Nconf, 
                 g_total_momentum_list[iptot][0], g_total_momentum_list[iptot][1], g_total_momentum_list[iptot][2],
                 gsx[0], gsx[1], gsx[2], gsx[3] );
-
             affw = aff_writer (filename);
             if ( const char * aff_status_str =  aff_writer_errstr(affw) ) {
               fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
@@ -1208,6 +1285,7 @@ int main(int argc, char **argv) {
               fprintf(stdout, "# [piN2piN_diagrams_complete] writing data to file %s %s %d\n", filename, __FILE__, __LINE__);
             }
           }  // end of if io_proc == 2
+#endif  // of if 0
 
           /**************************************************************************************
            * loop on pf2
@@ -1526,9 +1604,28 @@ int main(int argc, char **argv) {
       /**************************************************************************************
        * loop on total momenta
        **************************************************************************************/
-      for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ ) {
+      for ( int iclass = 0; iclass  < ptot_nclass; iclass++ ) {
 
-        int ptot[3]  = { g_total_momentum_list[iptot][0], g_total_momentum_list[iptot][1], g_total_momentum_list[iptot][2] };
+        int pref[3] = { ptot_class[iclass][0][0], ptot_class[iclass][0][1], ptot_class[iclass][0][2] };
+
+        /**************************************************************************************
+         * AFF output file
+         **************************************************************************************/
+        if ( io_proc == 2 ) {
+          sprintf( filename, "%s.s.PX%dPY%dPZ%d.%.4d.t%dx%dy%dz%d.aff", "piN_piN_diagrams",
+              pref[0], pref[1], pref[2], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+          affw = aff_writer (filename);
+          if ( const char * aff_status_str =  aff_writer_errstr(affw) ) {
+            fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+            EXIT(4);
+          } else {
+            fprintf(stdout, "# [piN2piN_diagrams_complete] writing data to file %s %s %d\n", filename, __FILE__, __LINE__);
+          }
+        }  // end of if io_proc == 2
+
+      for ( int imem = 0; imem < ptot_nmem[iclass]; imem++ ) {
+
+        int ptot[3]  = { ptot_class[iclass][imem][0], ptot_class[iclass][imem][1], ptot_class[iclass][imem][2] };
 
         int mptot[3] = { -ptot[0], -ptot[1], -ptot[2] };
 
@@ -1551,15 +1648,14 @@ int main(int argc, char **argv) {
          **************************************************************************************/
         for ( int idiag = 0; idiag < 2; idiag++ ) {
 
+#if 0
           /**************************************************************************************
            * AFF output file
            **************************************************************************************/
           if ( io_proc == 2 ) {
-
             sprintf( filename, "%s.S%d.%.4d.PX%dPY%dPZ%d.t%dx%dy%dz%d.aff", "piN_piN_diagrams", idiag+1, Nconf, 
                 g_total_momentum_list[iptot][0], g_total_momentum_list[iptot][1], g_total_momentum_list[iptot][2],
                 gsx[0], gsx[1], gsx[2], gsx[3] );
-
             affw = aff_writer (filename);
             if ( const char * aff_status_str =  aff_writer_errstr(affw) ) {
               fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
@@ -1568,6 +1664,7 @@ int main(int argc, char **argv) {
               fprintf(stdout, "# [piN2piN_diagrams_complete] writing data to file %s %s %d\n", filename, __FILE__, __LINE__);
             }
           }  // end of if io_proc == 2
+#endif  // of if 0
 
           /**************************************************************************************
            * loop on pf2
@@ -1832,25 +1929,50 @@ int main(int argc, char **argv) {
       /**************************************************************************************
        * loop on total momenta
        **************************************************************************************/
-      for ( int iptot = 0; iptot < g_sink_momentum_number; iptot++ ) {
+      for ( int iclass = 0; iclass  < ptot_nclass; iclass++ ) {
 
-        int ptot[3]  = { g_sink_momentum_list[iptot][0], g_sink_momentum_list[iptot][1], g_sink_momentum_list[iptot][2] };
+        int pref[3] = { ptot_class[iclass][0][0], ptot_class[iclass][0][1], ptot_class[iclass][0][2] };
+
+        /**************************************************************************************
+         * AFF output file
+         **************************************************************************************/
+        if ( io_proc == 2 ) {
+          sprintf( filename, "%s.n.PX%dPY%dPZ%d.%.4d.t%dx%dy%dz%d.aff", "piN_piN_diagrams",
+              pref[0], pref[1], pref[2], 
+              Nconf,
+              gsx[0], gsx[1], gsx[2], gsx[3] );
+          affw = aff_writer (filename);
+          if ( const char * aff_status_str =  aff_writer_errstr(affw) ) {
+            fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+            EXIT(4);
+          } else {
+            fprintf(stdout, "# [piN2piN_diagrams_complete] writing data to file %s %s %d\n", filename, __FILE__, __LINE__);
+          }
+        }  // end of if io_proc == 2
+
+
+      for ( int imem = 0; imem < ptot_nmem[iclass]; imem++ ) {
+
+        int ptot[3]  = { ptot_class[iclass][imem][0], ptot_class[iclass][imem][1], ptot_class[iclass][imem][2] };
 
         int mptot[3] = { -ptot[0], -ptot[1], -ptot[2] };
+
+        int iptot =  get_momentum_id ( ptot, g_sink_momentum_list, g_sink_momentum_number );
+        if ( iptot == -1 ) continue;
+
 
         /**************************************************************************************
          * loop on diagrams
          **************************************************************************************/
         for ( int idiag = 0; idiag < 2; idiag++ ) {
 
+#if 0
           /**************************************************************************************
            * AFF output file
            **************************************************************************************/
           if ( io_proc == 2 ) {
-
             sprintf( filename, "%s.N%d.%.4d.PX%dPY%dPZ%d.t%dx%dy%dz%d.aff", "piN_piN_diagrams", idiag+1, Nconf, 
                 ptot[0], ptot[1], ptot[2], gsx[0], gsx[1], gsx[2], gsx[3] );
-
             affw = aff_writer (filename);
             if ( const char * aff_status_str =  aff_writer_errstr(affw) ) {
               fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
@@ -1859,7 +1981,7 @@ int main(int argc, char **argv) {
               fprintf(stdout, "# [piN2piN_diagrams_complete] writing data to file %s %s %d\n", filename, __FILE__, __LINE__);
             }
           }  // end of if io_proc == 2
-
+#endif  // of if 0
 
           /**************************************************************************************
            * loop on gf1
@@ -2034,29 +2156,48 @@ int main(int argc, char **argv) {
       /**************************************************************************************
        * loop on total momenta
        **************************************************************************************/
-      for ( int iptot = 0; iptot < g_sink_momentum_number; iptot++ ) {
+      for ( int iclass = 0; iclass  < ptot_nclass; iclass++ ) {
 
-        int ptot[3] = {
-          g_sink_momentum_list[iptot][0],
-          g_sink_momentum_list[iptot][1],
-          g_sink_momentum_list[iptot][2] };
+        int pref[3] = { ptot_class[iclass][0][0], ptot_class[iclass][0][1], ptot_class[iclass][0][2] };
+
+        /**************************************************************************************
+         * AFF output file
+         **************************************************************************************/
+        if ( io_proc == 2 ) {
+          sprintf( filename, "%s.d.PX%dPY%dPZ%d.%.4d.t%dx%dy%dz%d.aff", "piN_piN_diagrams",
+              pref[0], pref[1], pref[2], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+          affw = aff_writer (filename);
+          if ( const char * aff_status_str =  aff_writer_errstr(affw) ) {
+            fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+            EXIT(4);
+          } else {
+            fprintf(stdout, "# [piN2piN_diagrams_complete] writing data to file %s %s %d\n", filename, __FILE__, __LINE__);
+          }
+        }  // end of if io_proc == 2
+
+
+      for ( int imem = 0; imem < ptot_nmem[iclass]; imem++ ) {
+
+        int ptot[3] = { ptot_class[iclass][imem][0], ptot_class[iclass][imem][1], ptot_class[iclass][imem][2] };
 
         int mptot[3] = { -ptot[0], -ptot[1], -ptot[2] };
+
+        int iptot =  get_momentum_id ( ptot, g_sink_momentum_list, g_sink_momentum_number );
+        if ( iptot == -1 ) continue;
+
 
         /**************************************************************************************
          * loop on diagrams
          **************************************************************************************/
         for ( int idiag = 0; idiag < 6; idiag++ ) {
-
+#if 0
           /**************************************************************************************
            * AFF output file
            **************************************************************************************/
           if ( io_proc == 2 ) {
-
             sprintf( filename, "%s.D%d.%.4d.PX%dPY%dPZ%d.t%dx%dy%dz%d.aff", "piN_piN_diagrams", idiag+1, Nconf, 
                 ptot[0], ptot[1], ptot[2],
                 gsx[0], gsx[1], gsx[2], gsx[3] );
-
             affw = aff_writer (filename);
             if ( const char * aff_status_str =  aff_writer_errstr(affw) ) {
               fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
@@ -2065,6 +2206,7 @@ int main(int argc, char **argv) {
               fprintf(stdout, "# [piN2piN_diagrams_complete] writing data to file %s %s %d\n", filename, __FILE__, __LINE__);
             }
           }  // end of if io_proc == 2
+#endif  // of if 0
 
           /**************************************************************************************
            * loop on gf1
@@ -2247,11 +2389,34 @@ int main(int argc, char **argv) {
       /**************************************************************************************
        * loop on total momenta
        **************************************************************************************/
-      for ( int iptot = 0; iptot < g_sink_momentum_number; iptot++ ) {
+      for ( int iclass = 0; iclass  < ptot_nclass; iclass++ ) {
 
-        int ptot[3]  = { g_sink_momentum_list[iptot][0], g_sink_momentum_list[iptot][1], g_sink_momentum_list[iptot][2] };
+        int pref[3] = { ptot_class[iclass][0][0], ptot_class[iclass][0][1], ptot_class[iclass][0][2] };
+
+        /**************************************************************************************
+         * AFF output file
+         **************************************************************************************/
+        if ( io_proc == 2 ) {
+          sprintf( filename, "%s.t.PX%dPY%dPZ%d.%.4d.t%dx%dy%dz%d.aff", "piN_piN_diagrams",
+              pref[0], pref[1], pref[2], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+          affw = aff_writer (filename);
+          if ( const char * aff_status_str =  aff_writer_errstr(affw) ) {
+            fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+            EXIT(4);
+          } else {
+            fprintf(stdout, "# [piN2piN_diagrams_complete] writing data to file %s %s %d\n", filename, __FILE__, __LINE__);
+          }
+        }  // end of if io_proc == 2
+
+
+      for ( int imem = 0; imem < ptot_nmem[iclass]; imem++ ) {
+
+        int ptot[3]  = { ptot_class[iclass][imem][0], ptot_class[iclass][imem][1], ptot_class[iclass][imem][2] };
 
         int mptot[3] = { -ptot[0], -ptot[1], -ptot[2] };
+
+        int iptot = get_momentum_id ( ptot, g_sink_momentum_list, g_sink_momentum_number );
+        if ( iptot == -1 ) continue;
 
         int * source_momentum_id =  get_conserved_momentum_id ( g_seq_source_momentum_list,  g_seq_source_momentum_number,  mptot, g_sink_momentum_list, g_sink_momentum_number );
         if ( source_momentum_id == NULL ) {
@@ -2271,15 +2436,14 @@ int main(int argc, char **argv) {
          **************************************************************************************/
         for ( int idiag = 0; idiag < 6; idiag++ ) {
 
+#if 0
           /**************************************************************************************
            * AFF output file
            **************************************************************************************/
           if ( io_proc == 2 ) {
-
             sprintf( filename, "%s.T%d.%.4d.PX%dPY%dPZ%d.t%dx%dy%dz%d.aff", "piN_piN_diagrams", idiag+1, Nconf, 
                 ptot[0], ptot[1], ptot[2],
                 gsx[0], gsx[1], gsx[2], gsx[3] );
-
             affw = aff_writer (filename);
             if ( const char * aff_status_str =  aff_writer_errstr(affw) ) {
               fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
@@ -2288,6 +2452,7 @@ int main(int argc, char **argv) {
               fprintf(stdout, "# [piN2piN_diagrams_complete] writing data to file %s %s %d\n", filename, __FILE__, __LINE__);
             }
           }  // end of if io_proc == 2
+#endif  // of if 0
 
           /**************************************************************************************
            * loop on total momenta
@@ -2451,24 +2616,16 @@ int main(int argc, char **argv) {
       /**************************************************************************************
        * loop on pf2
        **************************************************************************************/
-      for ( int iptot = 0; iptot < g_seq_source_momentum_number; iptot++ ) {
+      for ( int iclass = 0; iclass  < ptot_nclass; iclass++ ) {
 
-        int const pi2[3] = {
-          g_seq_source_momentum_list[iptot][0],
-          g_seq_source_momentum_list[iptot][1],
-          g_seq_source_momentum_list[iptot][2] };
-
-        int const pf2[3] = { -pi2[0], -pi2[1], -pi2[2] };
+        int pref[3] = { ptot_class[iclass][0][0], ptot_class[iclass][0][1], ptot_class[iclass][0][2] };
 
         /**************************************************************************************
          * AFF output file
          **************************************************************************************/
         if ( io_proc == 2 ) {
-
-          sprintf( filename, "%s.M%d.%.4d.PX%dPY%dPZ%d.t%dx%dy%dz%d.aff", "piN_piN_diagrams", 1, Nconf, 
-              pf2[0], pf2[1], pf2[2],
-              gsx[0], gsx[1], gsx[2], gsx[3] );
-
+          sprintf( filename, "%s.m.PX%dPY%dPZ%d.%.4d.t%dx%dy%dz%d.aff", "piN_piN_diagrams",
+              pref[0], pref[1], pref[2], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
           affw = aff_writer (filename);
           if ( const char * aff_status_str =  aff_writer_errstr(affw) ) {
             fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
@@ -2477,6 +2634,33 @@ int main(int argc, char **argv) {
             fprintf(stdout, "# [piN2piN_diagrams_complete] writing data to file %s %s %d\n", filename, __FILE__, __LINE__);
           }
         }  // end of if io_proc == 2
+
+      for ( int imem = 0; imem < ptot_nmem[iclass]; imem++ ) {
+
+        int const pi2[3] = { -ptot_class[iclass][imem][0], -ptot_class[iclass][imem][1], ptot_class[iclass][imem][2]
+
+        int ipi2 = get_momentum_id ( pi2, g_seq_source_momentum_list, g_seq_source_momentum_number );
+        if ( ipi2 == -1 ) continue;
+
+        int const pf2[3] = { -pi2[0], -pi2[1], -pi2[2] };
+
+#if 0
+        /**************************************************************************************
+         * AFF output file
+         **************************************************************************************/
+        if ( io_proc == 2 ) {
+          sprintf( filename, "%s.M%d.%.4d.PX%dPY%dPZ%d.t%dx%dy%dz%d.aff", "piN_piN_diagrams", 1, Nconf, 
+              pf2[0], pf2[1], pf2[2],
+              gsx[0], gsx[1], gsx[2], gsx[3] );
+          affw = aff_writer (filename);
+          if ( const char * aff_status_str =  aff_writer_errstr(affw) ) {
+            fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+            EXIT(4);
+          } else {
+            fprintf(stdout, "# [piN2piN_diagrams_complete] writing data to file %s %s %d\n", filename, __FILE__, __LINE__);
+          }
+        }  // end of if io_proc == 2
+#endif  // of if 0
 
         /**************************************************************************************
          * loop on gi2
@@ -2560,6 +2744,9 @@ int main(int argc, char **argv) {
   /**************************************************************************************
    * free the allocated memory, finalize
    **************************************************************************************/
+
+  fini_momentum_classes ( &ptot_class, &ptot_nmem, &ptot_nclass );
+
   free_geometry();
 
 #ifdef HAVE_MPI
