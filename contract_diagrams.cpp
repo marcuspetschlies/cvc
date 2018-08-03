@@ -384,6 +384,19 @@ int * get_conserved_momentum_id ( int (*p1)[3], int const n1, int const p2[3], i
 
   return( momentum_id );
 
+}  // end of get_conserved_momentum_id
+
+/***********************************************
+ *
+ ***********************************************/
+int get_momentum_id ( int const p1[3], int (* const p2)[3], unsigned int const N ) {
+  for ( unsigned int i = 0; i < N; i++ ) {
+    if ( ( p1[0] == p2[i][0] ) && ( p1[1] == p2[i][1] ) && ( p1[2] == p2[i][2] ) ) {
+       return ( i );   
+    }
+
+  }
+  return ( -1 );
 }  // end of get_momentum_id
 
 /***********************************************/
