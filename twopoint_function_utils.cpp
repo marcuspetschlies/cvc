@@ -15,6 +15,7 @@
 #ifdef HAVE_LHPC_AFF
 #include "lhpc-aff.h"
 #endif
+#include <hdf5.h>
 
 #include "types.h"
 #include "global.h"
@@ -724,8 +725,9 @@ int twopoint_function_fill_data ( twopoint_function_type *p ) {
 
   return(0);
 
-}  // end of twopoint_function_accumulate_diagrams
+}  // end of twopoint_function_fill_data
 
+#if 0
 /********************************************************************************
  * write diagrams in a twopoint
  ********************************************************************************/
@@ -757,6 +759,29 @@ int twopoint_function_write_data ( twopoint_function_type *p ) {
   char filename[200];
 
   /******************************************************
+   * HDF5 reader
+   ******************************************************/
+
+  hid_t   file_id;
+  herr_t  status;
+
+
+  sprintf(filename, "%s.%s.PX%dPY%dPZ%d.%s.%.4d.t%dx%dy%dz%d.h5", p->name, p->group, Ptot[0], Ptot[1], Ptot[2], p->irrep, Nconf,
+      p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3] );
+
+  struct stat fileStat;
+  if(stat( FILE, &fileStat) < 0 ) {
+    /* Open an existing file. */
+    fprintf ( stdout, "# [twopoint_function_write_data] create new file\n" );
+    file_id = H5Fcreate(FILE, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  } else {
+    /* Open an existing file. */
+    fprintf ( stdout, "# [twopoint_function_write_data] open existing file\n" );
+    file_id = H5Fopen(FILE, H5F_ACC_RDWR, H5P_DEFAULT);
+  }
+
+
+  /******************************************************
    * loop on diagrams / data sets within 2-point function
    ******************************************************/
   for ( int i = 0; i < nD; i++ ) {
@@ -766,25 +791,6 @@ int twopoint_function_write_data ( twopoint_function_type *p ) {
     char diagram_tag[10];
     twopoint_function_get_diagram_name ( diagram_tag, p, i );
 
-    /******************************************************
-     * AFF reader
-     ******************************************************/
-    sprintf(filename, "%s.%s.PX%dPY%dPZ%d.%s.%s.%.4d.t%dx%dy%dz%d.aff", p->name, p->group, Ptot[0], Ptot[1], Ptot[2], p->irrep, diagram_tag, Nconf,
-        p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3] );
- 
-    affw = aff_writer (filename);
-    if ( const char * aff_status_str =  aff_writer_errstr ( affw ) ) {
-      fprintf(stderr, "[twopoint_function_write_data] Error from aff_reader for filename %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__);
-      return(4);
-    } else {
-      fprintf(stdout, "# [twopoint_function_write_data] writing data to file %s %s %d\n", filename, __FILE__, __LINE__);
-    }
-
-    if( (affn = aff_writer_root( affw )) == NULL ) {
-      fprintf(stderr, "[twopoint_function_write_data] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
-      return(103);
-    }
-STOPPED HERE: How should the file be called? All specifications in the filename?
     if ( strcmp( p->type, "mxb-mxb" ) == 0 ) {
       exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
     } else if ( strcmp( p->type, "mxb-b" ) == 0 ) {
@@ -798,6 +804,16 @@ STOPPED HERE: How should the file be called? All specifications in the filename?
     sprintf( key, "/%s/%s/%s/%s", p->name, diagram_tag, p->fbwd, key_suffix );
     fprintf ( stdout, "# [twopoint_function_fill_data] key = %s\n", key );
 
+    // create group
+    // hid_t group_id = H5Gcreate2( file_id, "/???", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+    hsize_t dims[1];
+    dim[0] = p->T * p->d * p->d * 2;  // number of double elements
+    hid_t dataspace_id = H5Screate_simple( 1, dims, NULL);
+
+    dataset_id = H5Dcreate2(file_id, "/MyGroup/dset1", H5T_STD_I32BE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+
 
     affdir = aff_reader_chpath (affr, affn, key );
     uint32_t uitems = d *d * nT;
@@ -807,31 +823,17 @@ STOPPED HERE: How should the file be called? All specifications in the filename?
       return(105);
     }
 
-    if ( strcmp ( p->norm , "NA" ) != 0 ) {
-      double const norm = twopoint_function_get_diagram_norm ( p, i );
-
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-      for ( int t = 0; t < nT; t++ ) {
-        zm4x4_ti_eq_re ( diagram[t], norm );
-      }
-
-    }  // end of if norm not NA
-
-    // close the AFF reader
-    aff_reader_close (affr);
+    status = H5Gclose(group_id);
 
   }  // end of loop on diagrams / data sets
 
-  // TEST
-  if ( g_verbose > 5 ) {
-    twopoint_function_show_data ( p, stdout );
-  }
+  status = H5Fclose(file_id);
+
 
   return(0);
 
-}  // end of twopoint_function_accumulate_diagrams
+}  // end of twopoint_function_write_data
 
-}  // end of namespace cvc
+#endif
+
 }  // end of namespace cvc
