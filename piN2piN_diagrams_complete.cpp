@@ -242,6 +242,10 @@ int main(int argc, char **argv) {
   int *** ptot_class = NULL;
 
   exitstatus = init_momentum_classes ( &ptot_class, &ptot_nmem, &ptot_nclass );
+  if ( exitstatus  != 0 ) {
+    fprintf(stderr, "[piN2piN_diagrams_complete] Error from init_momentum_classes, status was %s %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(4);
+  }
 
   /******************************************************/
   /******************************************************/
@@ -613,7 +617,9 @@ int main(int argc, char **argv) {
         free ( sink_momentum_id );
         free ( source_momentum_id );
 
-      }  // end of loop on p_tot
+      }  // end of loop on ptot_nmem
+
+      }  // end of loop on ptot_nclass
 
       fini_5level_ztable ( &b1phi );
 
@@ -989,7 +995,9 @@ int main(int argc, char **argv) {
 
         free ( source_momentum_id );
 
-      }  // end of loop on p_tot
+      }  // end of loop on ptot_nmem
+
+      }  // end of loop on ptot_nclass
 
       fini_6level_ztable ( &w1phi );
       fini_6level_ztable ( &w3phi );
@@ -1230,8 +1238,7 @@ int main(int argc, char **argv) {
           }
         }
 
-
-      for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ ) {
+      for ( int imem = 0; imem < ptot_nmem[iclass]; imem++ ) {
 
         int ptot[3]  = { ptot_class[iclass][imem][0], ptot_class[iclass][imem][1], ptot_class[iclass][imem][2] };
 
@@ -1436,7 +1443,9 @@ int main(int argc, char **argv) {
 
         free ( source_momentum_id );
 
-      }  // end of loop on p_tot
+      }  // end of loop on ptot_nmem
+
+      }  // end of loop on ptot_nclass
 
       /**************************************************************************************/
       /**************************************************************************************/
@@ -1825,7 +1834,9 @@ int main(int argc, char **argv) {
 
         free ( source_momentum_id );
 
-      }  // end of loop on p_tot
+      }  // end of loop on ptot_nmem
+
+      }  // end of loop on ptot_nclass
 
       /**************************************************************************************/
       /**************************************************************************************/
@@ -1834,9 +1845,7 @@ int main(int argc, char **argv) {
       fini_5level_ztable ( &mm );
       fini_3level_ztable ( &bb_aux );
 
-
     }  // end of loop on coherent source locations
-
 
     /**************************************************************************************/
     /**************************************************************************************/
@@ -2087,7 +2096,9 @@ int main(int argc, char **argv) {
 
         }  // end of loop on diagrams
 
-      }  // end of loop on p_tot
+      }  // end of loop on ptot_nmem
+
+      }  // end of loop on ptot_nclass
 
       fini_6level_ztable ( &bb );
 
@@ -2310,7 +2321,9 @@ int main(int argc, char **argv) {
 
         }  // end of loop on diagrams
 
-      }  // end of loop on p_tot
+      }  // end of loop on ptot_nmem
+
+      }  // end of loop on ptot_nclass
 
       /**************************************************************************************/
       /**************************************************************************************/
@@ -2587,7 +2600,9 @@ int main(int argc, char **argv) {
 
         free ( source_momentum_id );
 
-      }  // end of loop on p_tot
+      }  // end of loop on ptot_nmem
+
+      }  // end of loop on ptot_nclass
 
       /**************************************************************************************/
       /**************************************************************************************/
@@ -2637,7 +2652,7 @@ int main(int argc, char **argv) {
 
       for ( int imem = 0; imem < ptot_nmem[iclass]; imem++ ) {
 
-        int const pi2[3] = { -ptot_class[iclass][imem][0], -ptot_class[iclass][imem][1], ptot_class[iclass][imem][2]
+        int const pi2[3] = { -ptot_class[iclass][imem][0], -ptot_class[iclass][imem][1], ptot_class[iclass][imem][2] };
 
         int ipi2 = get_momentum_id ( pi2, g_seq_source_momentum_list, g_seq_source_momentum_number );
         if ( ipi2 == -1 ) continue;
@@ -2718,7 +2733,9 @@ int main(int argc, char **argv) {
           }
         }  // end of if io_proc == 2
 
-      }  // end of loop on total momentum
+      }  // end of loop on ptot_nmem
+
+      }  // end of loop on ptot_nclass
 
       /**************************************************************************************/
       /**************************************************************************************/

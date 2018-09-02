@@ -7063,14 +7063,14 @@ int const get_io_proc (void) {
 int init_momentum_classes ( int **** p_class, int **p_nmem, int *p_num ) {
 
   *p_num = 4;
-  *p_nmem = (int *)malloc(4 * sizeof (int) );
+  *p_nmem = (int *)malloc( *p_num * sizeof (int) );
 
-  *p_class = (int***) malloc ( 4 * sizeof(int**) );
+  *p_class = (int***) malloc ( *p_num * sizeof(int**) );
 
-  *p_nmem[0] = 1;
+  (*p_nmem)[0] = 1;
   (*p_class)[0] = init_2level_itable ( 1, 3 );
 
-  *p_nmem[1] = 6;
+  (*p_nmem)[1] = 6;
   (*p_class)[1] = init_2level_itable ( 6, 3 );
   (*p_class)[1][0][2] =  1;
   (*p_class)[1][1][2] = -1;
@@ -7079,7 +7079,7 @@ int init_momentum_classes ( int **** p_class, int **p_nmem, int *p_num ) {
   (*p_class)[1][4][0] =  1;
   (*p_class)[1][5][0] = -1;
 
-  *p_nmem[2] = 12;
+  (*p_nmem)[2] = 12;
   (*p_class)[2] = init_2level_itable ( 12, 3 );
   (*p_class)[2][ 0][0] =  1; (*p_class)[2][ 0][1] =  1;
   (*p_class)[2][ 1][0] =  1; (*p_class)[2][ 1][1] = -1;
@@ -7096,7 +7096,7 @@ int init_momentum_classes ( int **** p_class, int **p_nmem, int *p_num ) {
   (*p_class)[2][10][1] = -1; (*p_class)[2][10][2] =  1;
   (*p_class)[2][11][1] = -1; (*p_class)[2][11][2] = -1;
 
-  *p_nmem[3] = 8;
+  (*p_nmem)[3] = 8;
   (*p_class)[3] = init_2level_itable ( 8, 3 );
   (*p_class)[3][0][0] =  1; (*p_class)[3][0][1] =  1; (*p_class)[3][0][2] =  1;
   (*p_class)[3][1][0] =  1; (*p_class)[3][1][1] =  1; (*p_class)[3][1][2] = -1;
@@ -7106,6 +7106,15 @@ int init_momentum_classes ( int **** p_class, int **p_nmem, int *p_num ) {
   (*p_class)[3][5][0] = -1; (*p_class)[3][5][1] =  1; (*p_class)[3][5][2] = -1;
   (*p_class)[3][6][0] = -1; (*p_class)[3][6][1] = -1; (*p_class)[3][6][2] =  1;
   (*p_class)[3][7][0] = -1; (*p_class)[3][7][1] = -1; (*p_class)[3][7][2] = -1;
+ 
+  // TEST
+  for ( int i = 0; i < *p_num; i++ ) {
+    for ( int k = 0; k < (*p_nmem)[i]; k++ ) {
+      fprintf ( stdout, "[init_momentum_classes] %2d %2d   %3d %3d %3d\n",
+          i, k, (*p_class)[i][k][0], (*p_class)[i][k][1], (*p_class)[i][k][2] );
+    }
+    fprintf ( stdout, "\n\n" );
+  }
 
   return(0);
 }  // end of init_momentum_classes
@@ -7122,7 +7131,7 @@ void fini_momentum_classes ( int **** p_class, int **p_nmem, int *p_num ) {
 
   if ( *p_class != NULL ) {
     for ( int i = 0; i < *p_num; i++ ) {
-      fini_2level_itable ( &((*p_class)[i]);
+      fini_2level_itable ( &((*p_class)[i]) );
     }
     free ( *p_class );
     *p_class = NULL;
