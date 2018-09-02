@@ -29,6 +29,7 @@
 #include "Q_clover_phi.h"
 #include "scalar_products.h"
 #include "matrix_init.h"
+#include "table_init_i.h"
 
 namespace cvc {
 
