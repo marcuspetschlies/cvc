@@ -15,7 +15,7 @@
 #ifdef HAVE_LHPC_AFF
 #include "lhpc-aff.h"
 #endif
-#include <hdf5.h>
+// #include <hdf5.h>
 
 #include "types.h"
 #include "global.h"
