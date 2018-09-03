@@ -427,15 +427,17 @@ int main(int argc, char **argv) {
 
         int * sink_momentum_id   =  get_conserved_momentum_id ( g_seq2_source_momentum_list, g_seq2_source_momentum_number, ptot,  g_sink_momentum_list, g_sink_momentum_number );
         if ( sink_momentum_id == NULL ) {
-          fprintf(stderr, "[piN2piN_diagrams_complete] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
+          // fprintf(stderr, "[piN2piN_diagrams_complete] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
           // EXIT(1);
+          fprintf(stdout, "# [piN2piN_diagrams_complete] sink_momentum_id empty; continue %s %d\n", __FILE__, __LINE__ );
           continue;
         }
 
         int * source_momentum_id =  get_conserved_momentum_id ( g_seq_source_momentum_list,  g_seq_source_momentum_number,  mptot, g_sink_momentum_list, g_sink_momentum_number );
         if ( source_momentum_id == NULL ) {
-          fprintf(stderr, "[piN2piN_diagrams_complete] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
+          // fprintf(stderr, "[piN2piN_diagrams_complete] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
           // EXIT(1);
+          fprintf(stdout, "# [piN2piN_diagrams_complete] source_momentum_id empty; continue %s %d\n", __FILE__, __LINE__ );
           continue;
         }
 
@@ -605,19 +607,19 @@ int main(int argc, char **argv) {
           }  // end of loop on p_f2
 
 
-          if ( io_proc == 2 ) {
-            if ( const char * aff_status_str = aff_writer_close (affw) ) {
-              fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__ );
-              EXIT(111);
-            }
-          }
-
         }  // end of loop on permutations for B diagrams
 
         free ( sink_momentum_id );
         free ( source_momentum_id );
 
       }  // end of loop on ptot_nmem
+
+        if ( io_proc == 2 ) {
+          if ( const char * aff_status_str = aff_writer_close (affw) ) {
+            fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__ );
+            EXIT(111);
+          }
+        }
 
       }  // end of loop on ptot_nclass
 
@@ -785,15 +787,17 @@ int main(int argc, char **argv) {
 
         int * sink_momentum_id   =  get_conserved_momentum_id ( g_seq2_source_momentum_list, g_seq2_source_momentum_number, ptot,  g_sink_momentum_list, g_sink_momentum_number );
         if ( sink_momentum_id == NULL ) {
-          fprintf(stderr, "[piN2piN_diagrams_complete] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
+          // fprintf(stderr, "[piN2piN_diagrams_complete] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
           // EXIT(1);
+          fprintf(stdout, "# [piN2piN_diagrams_complete] sink_momentum_id empty; continue %s %d\n", __FILE__, __LINE__ );
           continue;
         }
 
         int * source_momentum_id =  get_conserved_momentum_id ( g_seq_source_momentum_list,  g_seq_source_momentum_number,  mptot, g_sink_momentum_list, g_sink_momentum_number );
         if ( source_momentum_id == NULL ) {
-          fprintf(stderr, "[piN2piN_diagrams_complete] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
+          // fprintf(stderr, "[piN2piN_diagrams_complete] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
           // EXIT(1);
+          fprintf(stdout, "# [piN2piN_diagrams_complete] source_momentum_id empty; continue %s %d\n", __FILE__, __LINE__ );
           continue;
         }
 
@@ -982,13 +986,6 @@ int main(int argc, char **argv) {
 
           }  // end of loop on p_f2
 
-          if ( io_proc == 2 ) {
-            if ( const char * aff_status_str = aff_writer_close (affw) ) {
-              fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__ );
-              EXIT(111);
-            }
-          }
-
         }  // end of loop on permutations for W diagrams
 
         free ( sink_momentum_id );
@@ -996,6 +993,13 @@ int main(int argc, char **argv) {
         free ( source_momentum_id );
 
       }  // end of loop on ptot_nmem
+
+        if ( io_proc == 2 ) {
+          if ( const char * aff_status_str = aff_writer_close (affw) ) {
+            fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__ );
+            EXIT(111);
+          }
+        }
 
       }  // end of loop on ptot_nclass
 
@@ -1225,7 +1229,6 @@ int main(int argc, char **argv) {
          * AFF output file
          **************************************************************************************/
         if ( io_proc == 2 ) {
-
           sprintf( filename, "%s.z.PX%dPY%dPZ%d.%.4d.t%dx%dy%dz%d.aff", "piN_piN_diagrams",
               pref[0], pref[1], pref[2], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
 
@@ -1246,15 +1249,17 @@ int main(int argc, char **argv) {
 
         int * sink_momentum_id =   get_conserved_momentum_id ( g_seq2_source_momentum_list, g_seq2_source_momentum_number, ptot,  g_sink_momentum_list, g_sink_momentum_number );
         if ( sink_momentum_id == NULL ) {
-          fprintf(stderr, "[piN2piN_diagrams_complete] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
+          // fprintf(stderr, "[piN2piN_diagrams_complete] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
           // EXIT(1);
+          fprintf(stdout, "# [piN2piN_diagrams_complete] sink_momentum_id empty; continue %s %d\n", __FILE__, __LINE__ );
           continue;
         }
 
         int * source_momentum_id = get_conserved_momentum_id ( g_seq_source_momentum_list,  g_seq_source_momentum_number,  mptot, g_sink_momentum_list, g_sink_momentum_number );
         if ( source_momentum_id == NULL ) {
-          fprintf(stderr, "[piN2piN_diagrams_complete] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
+          // fprintf(stderr, "[piN2piN_diagrams_complete] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
           // EXIT(1);
+          fprintf(stdout, "# [piN2piN_diagrams_complete] source_momentum_id empty; continue %s %d\n", __FILE__, __LINE__ );
           continue;
         }
 
@@ -1430,13 +1435,6 @@ int main(int argc, char **argv) {
 
           }  // end of loop on p_f2
 
-          if ( io_proc == 2 ) {
-            if ( const char * aff_status_str = aff_writer_close (affw) ) {
-              fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__ );
-              EXIT(111);
-            }
-          }  // end of if io_proc == 2
-
         }  // end of loop on permutations
 
         free ( sink_momentum_id );
@@ -1444,6 +1442,13 @@ int main(int argc, char **argv) {
         free ( source_momentum_id );
 
       }  // end of loop on ptot_nmem
+
+        if ( io_proc == 2 ) {
+          if ( const char * aff_status_str = aff_writer_close (affw) ) {
+            fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__ );
+            EXIT(111);
+          }
+        }  // end of if io_proc == 2
 
       }  // end of loop on ptot_nclass
 
@@ -1611,7 +1616,7 @@ int main(int argc, char **argv) {
       /**************************************************************************************/
 
       /**************************************************************************************
-       * loop on total momenta
+       * loop on total momentum classes and members
        **************************************************************************************/
       for ( int iclass = 0; iclass  < ptot_nclass; iclass++ ) {
 
@@ -1640,15 +1645,17 @@ int main(int argc, char **argv) {
 
         int * sink_momentum_id =   get_conserved_momentum_id ( g_seq2_source_momentum_list, g_seq2_source_momentum_number, ptot,  g_sink_momentum_list, g_sink_momentum_number );
         if ( sink_momentum_id == NULL ) {
-          fprintf(stderr, "[piN2piN_diagrams_complete] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
+          // fprintf(stderr, "[piN2piN_diagrams_complete] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
           // EXIT(1);
+          fprintf(stdout, "# [piN2piN_diagrams_complete] sink_momentum_id empty; continue %s %d\n", __FILE__, __LINE__ );
           continue;
         }
 
         int * source_momentum_id = get_conserved_momentum_id ( g_seq_source_momentum_list,  g_seq_source_momentum_number,  mptot, g_sink_momentum_list, g_sink_momentum_number );
         if ( source_momentum_id == NULL ) {
-          fprintf(stderr, "[piN2piN_diagrams_complete] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
+          // fprintf(stderr, "[piN2piN_diagrams_complete] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
           // EXIT(1);
+          fprintf(stdout, "# [piN2piN_diagrams_complete] source_momentum_id empty; continue %s %d\n", __FILE__, __LINE__ );
           continue;
         }
 
@@ -1819,15 +1826,6 @@ int main(int argc, char **argv) {
 
           }  // end of loop on p_f2
 
-
-          if ( io_proc == 2 ) {
-            if ( const char * aff_status_str = aff_writer_close (affw) ) {
-              fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__ );
-              EXIT(111);
-            }
-          }  // end of if io_proc == 2
-
-
         }  // end of loop on diagrams
 
         free ( sink_momentum_id );
@@ -1835,6 +1833,13 @@ int main(int argc, char **argv) {
         free ( source_momentum_id );
 
       }  // end of loop on ptot_nmem
+
+        if ( io_proc == 2 ) {
+          if ( const char * aff_status_str = aff_writer_close (affw) ) {
+            fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__ );
+            EXIT(111);
+          }
+        }  // end of if io_proc == 2
 
       }  // end of loop on ptot_nclass
 
@@ -1947,9 +1952,7 @@ int main(int argc, char **argv) {
          **************************************************************************************/
         if ( io_proc == 2 ) {
           sprintf( filename, "%s.n.PX%dPY%dPZ%d.%.4d.t%dx%dy%dz%d.aff", "piN_piN_diagrams",
-              pref[0], pref[1], pref[2], 
-              Nconf,
-              gsx[0], gsx[1], gsx[2], gsx[3] );
+              pref[0], pref[1], pref[2], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
           affw = aff_writer (filename);
           if ( const char * aff_status_str =  aff_writer_errstr(affw) ) {
             fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
@@ -2086,17 +2089,16 @@ int main(int argc, char **argv) {
 
           }  // end of loop on Gamma_f1
 
-
-          if ( io_proc == 2 ) {
-            if ( const char * aff_status_str = aff_writer_close (affw) ) {
-              fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__ );
-              EXIT(111);
-            }
-          }  // end of if io_proc == 2
-
         }  // end of loop on diagrams
 
       }  // end of loop on ptot_nmem
+
+        if ( io_proc == 2 ) {
+          if ( const char * aff_status_str = aff_writer_close (affw) ) {
+            fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__ );
+            EXIT(111);
+          }
+        }  // end of if io_proc == 2
 
       }  // end of loop on ptot_nclass
 
@@ -2312,16 +2314,16 @@ int main(int argc, char **argv) {
 
           }  // end of loop on Gamma_f1
 
-          if ( io_proc == 2 ) {
-            if ( const char * aff_status_str = aff_writer_close (affw) ) {
-              fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__ );
-              EXIT(111);
-            }
-          }  // end of if io_proc == 2
-
         }  // end of loop on diagrams
 
       }  // end of loop on ptot_nmem
+
+        if ( io_proc == 2 ) {
+          if ( const char * aff_status_str = aff_writer_close (affw) ) {
+            fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__ );
+            EXIT(111);
+          }
+        }  // end of if io_proc == 2
 
       }  // end of loop on ptot_nclass
 
@@ -2433,8 +2435,9 @@ int main(int argc, char **argv) {
 
         int * source_momentum_id =  get_conserved_momentum_id ( g_seq_source_momentum_list,  g_seq_source_momentum_number,  mptot, g_sink_momentum_list, g_sink_momentum_number );
         if ( source_momentum_id == NULL ) {
-          fprintf(stderr, "[piN2piN_diagrams_complete] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
+          // fprintf(stderr, "[piN2piN_diagrams_complete] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__ );
           // EXIT(1);
+          fprintf(stdout, "# [piN2piN_diagrams_complete] source_momentum_id empty; continue %s %d\n", __FILE__, __LINE__ );
           continue;
         }
         // TEST
@@ -2589,18 +2592,18 @@ int main(int argc, char **argv) {
 
           }  // end of loop on pi2
 
-          if ( io_proc == 2 ) {
-            if ( const char * aff_status_str = aff_writer_close (affw) ) {
-              fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__ );
-              EXIT(111);
-            }
-          }  // end of if io_proc == 2
-
         }  // end of loop on diagrams
 
         free ( source_momentum_id );
 
       }  // end of loop on ptot_nmem
+
+        if ( io_proc == 2 ) {
+          if ( const char * aff_status_str = aff_writer_close (affw) ) {
+            fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__ );
+            EXIT(111);
+          }
+        }  // end of if io_proc == 2
 
       }  // end of loop on ptot_nclass
 
@@ -2726,14 +2729,14 @@ int main(int argc, char **argv) {
 
         }  // end of loop on Gamma_i2
 
+      }  // end of loop on ptot_nmem
+
         if ( io_proc == 2 ) {
           if ( const char * aff_status_str = aff_writer_close (affw) ) {
             fprintf(stderr, "[piN2piN_diagrams_complete] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__ );
             EXIT(111);
           }
         }  // end of if io_proc == 2
-
-      }  // end of loop on ptot_nmem
 
       }  // end of loop on ptot_nclass
 
