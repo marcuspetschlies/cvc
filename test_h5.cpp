@@ -11,22 +11,58 @@
  ************************************************************/
 
 #include "hdf5.h"
-#include <stdio.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 #include <complex.h>
+#include <math.h>
+#include <time.h>
+#ifdef HAVE_MPI
+#  include <mpi.h>
+#endif
+#ifdef HAVE_OPENMP
+#include <omp.h>
+#endif
+#include <getopt.h>
+
+#ifdef HAVE_LHPC_AFF
+#include "lhpc-aff.h"
+#endif
+
+
+#define MAIN_PROGRAM
+
+#include "cvc_complex.h"
+#include "ilinalg.h"
+#include "icontract.h"
+#include "global.h"
+#include "cvc_geometry.h"
+#include "cvc_utils.h"
+#include "mpi_init.h"
+#include "io.h"
+#include "propagator_io.h"
+#include "gauge_io.h"
+#include "read_input_parser.h"
+#include "smearing_techniques.h"
+#include "contractions_io.h"
+#include "matrix_init.h"
+#include "project.h"
+#include "prepare_source.h"
+#include "prepare_propagator.h"
+#include "contract_factorized.h"
+#include "clover.h"
+#include "dummy_solver.h"
+#include "scalar_products.h"
 
 #define FILE            "h5ex_t_cmpd.h5"
+#define FFILE            "h5ex3_t_cmpd.h5"
 #define DATASET         "DS1"
 #define DIM0            4
 
-typedef struct {
-    double  re;
-    double  im;
-} complex;                                 /* Compound type */
+using namespace cvc;
 
-int
-main (void)
-{
+int main (void) {
+
     hid_t       file, filetype, memtype, strtype, space, dset;
                                             /* Handles */
     herr_t      status;
@@ -111,7 +147,14 @@ main (void)
     /*
      * Open file and dataset.
      */
-    file = H5Fopen (FILE, H5F_ACC_RDONLY, H5P_DEFAULT);
+    file = H5Fopen ( FFILE, H5F_ACC_RDONLY, H5P_DEFAULT);
+    if ( file < 0 ) {
+      fprintf ( stderr, "# [test_h5] Error, file < 0, status is  %d\n", file );
+      exit(1);
+    } else {
+      fprintf ( stdout, "# [test_h5] file open okay, status is %d\n", file );
+    }
+
     dset = H5Dopen (file, DATASET, H5P_DEFAULT);
 
     /*
