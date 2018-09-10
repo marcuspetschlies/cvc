@@ -810,6 +810,7 @@ int contract_diagram_sample_oet (double _Complex ***diagram, double _Complex ***
 /***********************************************/
 /***********************************************/
 
+#ifdef HAVE_LHPC_AFF
 /***********************************************
  * write contracted diagram to AFF
  ***********************************************/
@@ -855,56 +856,74 @@ int contract_diagram_write_aff (double _Complex***diagram, struct AffWriter_s*af
   }  /* end of if io_proc == 2 */
   return(0);
 }  /* end of contract_diagram_write_aff */
+#endif  // of if def HAVE_LHPC_AFF
 
 /***********************************************/
 /***********************************************/
-#if 0
+
+#ifdef HAVE_HDF5
 /***********************************************
  * write contracted diagram to HDF5
  ***********************************************/
-int contract_diagram_write_h5 (double _Complex***diagram, char * filename, char * tag, int const tstart, int const dt, int const fbwd, int const io_proc ) {
+int contract_diagram_write_h5 (double _Complex***diagram, hid_t file, hid_t memtype, hid_t filetype, char * tag, int const tstart, int const dt, int const fbwd, int const io_proc ) {
 
   const unsigned int offset = 16;
   const size_t bytes = offset * sizeof(double _Complex);
-  const int nt = dt + 1; /* tstart + dt */
+  const int nt = dt + 1; // tstart + dt
 
   int exitstatus;
   double rtime;
-
-  double _Complex ***aff_buffer = NULL;
+  herr_t status;
 
   if ( io_proc == 2 ) {
     rtime = _GET_TIME;
 
-    if( (affn = aff_writer_root(affw)) == NULL ) {
-      fprintf(stderr, "[contract_diagram_write_aff] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
-      return(2);
+    complex *wbuffer = (complex*)malloc ( nt*16*sizeof(complex) );
+    if ( wbuffer == NULL ) {
+      fprintf(stderr, "[contract_diagram_write_h5] Error from wbuffer %s %d\n", __FILE__, __LINE__);
+     return(1);
     }
 
-    if( ( exitstatus = init_3level_zbuffer ( &aff_buffer, nt, 4, 4 ) ) != 0 ) {
-      fprintf(stderr, "[contract_diagram_write_aff] Error from init_3level_zbuffer %s %d\n", __FILE__, __LINE__);
-      return(6);
-    }
-
+    // extract data for tstart <= t <= tstart + dt
     for ( int i = 0; i <= dt; i++ ) {
       int t = ( tstart + i * fbwd  + T_global ) % T_global;
-      memcpy( aff_buffer[i][0], diagram[t][0], bytes );
+      memcpy( wbuffer + i*offset, diagram[t][0], bytes );
     }
 
-    affdir = aff_writer_mkpath (affw, affn, aff_tag );
-    if ( ( exitstatus = aff_node_put_complex (affw, affdir, aff_buffer[0][0], (uint32_t)(nt*offset) ) ) != 0 ) {
-      fprintf(stderr, "[contract_diagram_write_aff] Error from aff_node_put_complex for tag %s, status was %d %s %d\n", aff_tag, exitstatus, __FILE__, __LINE__);
-      return(1);
+    //     hid_t       file, filetype, memtype, strtype, space, dset;
+    // create dataspace
+    int dims[1] = { offset*nt };
+    hid_t space = H5Screate_simple (1, dims, NULL);
+    if ( space < 0 ) {
+      fprintf ( stderr, "# [contract_diagram_write_h5] Error from H5Screate_simple, status was %d %s %d\n", status, __FILE__, __LINE__ );
+      return (2);
     }
 
-    fini_3level_zbuffer ( &aff_buffer );
+    // create dataset
+    hid_t dset = H5Dcreate ( file, dataset, filetype, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT );
+    if ( dset < 0 ) {
+      fprintf ( stderr, "# [contract_diagram_write_h5] Error from H5Dcreat, status was %d %s %d\n", status, __FILE__, __LINE__ );
+      return (3);
+    }
+
+    // write data to file
+    status = H5Dwrite ( dset, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, wbuffer );
+    if ( status < 0 ) {
+      fprintf ( stderr, "# [contract_diagram_write_h5] Error from H5Dwrite, status was %d %s %d\n", status, __FILE__, __LINE__ );
+      return (4);
+    }
+
+
+    free( wbuffer );
+    status = H5Sclose (space);
+    status = H5Dclose (dset);
 
     rtime = _GET_TIME - rtime;
-    if (g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [contract_diagram_write_aff] time for contract_diagram_write_aff = %e seconds %s %d\n", rtime, __FILE__, __LINE__);
-  }  /* end of if io_proc == 2 */
+    if (g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [contract_diagram_write_h5] time for contract_diagram_write_h5 = %e seconds %s %d\n", rtime, __FILE__, __LINE__);
+  }  // end of if io_proc == 2
   return(0);
-}  /* end of contract_diagram_write_aff */
-#endif  // of if 0
+}  // end of contract_diagram_write_h5
+#endif  // of if def HAVE_HDF5
 
 /***********************************************/
 /***********************************************/
