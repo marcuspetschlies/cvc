@@ -501,7 +501,7 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[p2gg_contract] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(1);
     }
-STOPPED HERE
+
     /***************************************************************************/
     /***************************************************************************/
 
@@ -518,16 +518,16 @@ STOPPED HERE
       g_seq_source_momentum[1] = g_seq_source_momentum_list[iseq_source_momentum][1];
       g_seq_source_momentum[2] = g_seq_source_momentum_list[iseq_source_momentum][2];
 
-      if(g_cart_id == 0) fprintf(stdout, "# [p2gg_contract] using sequential source momentum no. %2d = (%d, %d, %d)\n", iseq_source_momentum,
+      if( g_verbose > 2 && g_cart_id == 0) fprintf(stdout, "# [p2gg_contract] using sequential source momentum no. %2d = (%d, %d, %d)\n", iseq_source_momentum,
           g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2]);
 
       /***************************************************************************
        * loop on sequential source gamma matrices
        ***************************************************************************/
-      for(isequential_source_gamma_id=0; isequential_source_gamma_id < g_sequential_source_gamma_id_number; isequential_source_gamma_id++) {
+      for( int isequential_source_gamma_id = 0; isequential_source_gamma_id < g_sequential_source_gamma_id_number; isequential_source_gamma_id++) {
 
         int sequential_source_gamma_id = g_sequential_source_gamma_id_list[ isequential_source_gamma_id ];
-        if(g_cart_id == 0) fprintf(stdout, "# [p2gg_contract] using sequential source gamma id no. %2d = %d\n", isequential_source_gamma_id, sequential_source_gamma_id);
+        if( g_verbose > 2 && g_cart_id == 0) fprintf(stdout, "# [p2gg_contract] using sequential source gamma id no. %2d = %d\n", isequential_source_gamma_id, sequential_source_gamma_id);
 
         /***************************************************************************
          * loop on sequential source time slices
@@ -538,12 +538,13 @@ STOPPED HERE
           /* shift sequential source timeslice by source timeslice gsx[0] */
           int g_shifted_sequential_source_timeslice = ( gsx[0] + g_sequential_source_timeslice + T_global ) % T_global;
 
-          if(g_cart_id == 0) fprintf(stdout, "# [p2gg_contract] using sequential source timeslice %d / %d\n", g_sequential_source_timeslice, g_shifted_sequential_source_timeslice);
+          if( g_verbose > 2 && g_cart_id == 0) 
+            fprintf(stdout, "# [p2gg_contract] using sequential source timeslice %d / %d\n", g_sequential_source_timeslice, g_shifted_sequential_source_timeslice);
 
           /* allocate memory for contractions, initialize */
-          exitstatus = init_2level_buffer( &cvc_tensor_eo, 2, 32*Vhalf);
-          if( exitstatus != 0) {
-            fprintf(stderr, "[p2gg_contract] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          cvc_tensor_eo = init_2level_dtable ( 2, 32*Vhalf);
+          if( cvc_tensor_eo == NULL ) {
+            fprintf(stderr, "[p2gg_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
             EXIT(24);
           }
           memset(contact_term[0], 0, 8*sizeof(double));
@@ -558,8 +559,8 @@ STOPPED HERE
                                            (1 - 2*iflavor) * g_seq_source_momentum[1],
                                            (1 - 2*iflavor) * g_seq_source_momentum[2] };
 
-            if(g_cart_id == 0) fprintf(stdout, "# [p2gg_contract] using flavor-dependent sequential source momentum (%d, %d, %d)\n",
-                seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2]);
+            if( g_verbose > 2 && g_cart_id == 0)
+              fprintf(stdout, "# [p2gg_contract] using flavor-dependent sequential source momentum (%d, %d, %d)\n", seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2]);
 
 
             /***************************************************************************
@@ -581,8 +582,9 @@ STOPPED HERE
                 EXIT(25);
               }
 
-
-              /* invert */
+              /***************************************************************************
+               * invert
+               ***************************************************************************/
               memset(eo_spinor_work[1], 0, sizeof_eo_spinor_field);
               memcpy(eo_spinor_work[0], eo_spinor_field[eo_seq_spinor_field_id_o], sizeof_eo_spinor_field);
 
@@ -701,7 +703,7 @@ STOPPED HERE
           fclose(ofs);
 #endif  /* of if 0 */
 
-          fini_2level_buffer( &cvc_tensor_eo );
+          fini_2level_dtable ( &cvc_tensor_eo );
 
           /***************************************************************************/
           /***************************************************************************/
@@ -713,7 +715,7 @@ STOPPED HERE
 
 #ifdef HAVE_LHPC_AFF
     if(io_proc == 2) {
-      aff_status_str = (char*)aff_writer_close (affw);
+      const char * aff_status_str = (char*)aff_writer_close (affw);
       if( aff_status_str != NULL ) {
         fprintf(stderr, "[p2gg_contract] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
         EXIT(32);
@@ -733,18 +735,8 @@ STOPPED HERE
 #endif
   free( gauge_field_with_phase );
 
-  fini_2level_buffer ( &eo_spinor_field );
-  fini_2level_buffer ( &eo_spinor_work );
-
-#ifndef HAVE_TMLQCD_LIBWRAPPER
-  free(eo_evecs_block);
-#else
-  exitstatus = tmLQCD_fini_deflator(_OP_ID_UP);
-#endif
-  free(eo_evecs_field);
-
-  free ( evecs_eval );
-  free ( evecs_lambdainv );
+  fini_2level_dtable ( &eo_spinor_field );
+  fini_2level_dtable ( &eo_spinor_work );
 
   /* free clover matrix terms */
   fini_clover ();
