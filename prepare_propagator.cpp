@@ -48,6 +48,7 @@ extern "C"
 #include "matrix_init.h"
 #include "project.h"
 #include "prepare_source.h"
+#include "dummy_solver.h"
 
 
 #ifndef _NON_ZERO
@@ -1011,7 +1012,7 @@ int point_to_all_fermion_propagator_clover_full2eo ( double **eo_spinor_field_e,
     }
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
-    exitstatus = tmLQCD_invert ( spinor_work[1], spinor_work[0], op_id, 0);
+    exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id, 0);
 #else
     exitstatus = 1;
 #endif
