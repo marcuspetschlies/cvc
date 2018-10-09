@@ -50,24 +50,9 @@ extern "C"
 #include "matrix_init.h"
 #include "project.h"
 #include "scalar_products.h"
+#include "dummy_solver.h"
 
 using namespace cvc;
-
-
-int dummy_solver (double * const propagator, double * const source, const int op_id, int write_propagator) {
-  memcpy(propagator, source, _GSI(VOLUME)*sizeof(double) );
-  return(0);
-}
-
-
-#ifdef USE_DUMMY_SOLVER 
-#  define _TMLQCD_INVERT dummy_solver
-#else
-#  define _TMLQCD_INVERT tmLQCD_invert
-#endif
-
-
-
 
 int get_point_source_info (int gcoords[4], int lcoords[4], int*proc_id) {
 
