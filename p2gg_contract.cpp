@@ -60,7 +60,7 @@ extern "C"
 #include "project.h"
 #include "table_init_z.h"
 #include "table_init_d.h"
-
+#include "dummy_solver.h"
 
 #include "clover.h"
 
@@ -80,18 +80,6 @@ void usage() {
   EXIT(0);
 }
 
-int dummy_eo_solver (double * const propagator, double * const source, const int op_id) {
-  memcpy(propagator, source, _GSI(VOLUME)/2*sizeof(double) );
-  return(0);
-}
-
-
-#ifdef DUMMY_SOLVER 
-#  define _TMLQCD_INVERT_EO dummy_eo_solver
-#else
-#  define _TMLQCD_INVERT_EO tmLQCD_invert_eo
-#endif
-
 int main(int argc, char **argv) {
   
   /*
@@ -104,28 +92,21 @@ int main(int argc, char **argv) {
 
   int c;
   int filename_set = 0;
-  int isource_location;
   int gsx[4], sx[4];
   int check_position_space_WI=0;
   int exitstatus;
-  int no_eo_fields = 0;
   int io_proc = -1;
   int check_propagator_residual = 0;
   unsigned int Vhalf;
   size_t sizeof_eo_spinor_field;
   size_t sizeof_spinor_field;
-  double **eo_spinor_field=NULL, **eo_spinor_work=NULL, *eo_evecs_block=NULL, *eo_sample_block=NULL;
-  double **eo_stochastic_source = NULL, ***eo_stochastic_propagator = NULL;
-  double **eo_evecs_field=NULL;
-  double **cvc_tensor_eo = NULL, contact_term[2][8], *cvc_tensor_lexic=NULL;
+  double **eo_spinor_field=NULL, **eo_spinor_work=NULL;
+  double **cvc_tensor_eo = NULL, contact_term[2][8];
   double ***cvc_tp = NULL;
-  double *evecs_eval = NULL, *evecs_lambdainv=NULL, *evecs_4kappasqr_lambdainv = NULL;
-  double *uprop_list_e[60], *uprop_list_o[60], *tprop_list_e[60], *tprop_list_o[60], *dprop_list_e[60], *dprop_list_o[60];
   char filename[100];
-  double ratime, retime;
+  // double ratime, retime;
   double **mzz[2], **mzzinv[2];
   double *gauge_field_with_phase = NULL;
-  double ***eo_source_buffer = NULL;
 
 
 
@@ -264,10 +245,10 @@ int main(int argc, char **argv) {
    * allocate memory for eo spinor fields 
    * WITH HALO
    *************************************************/
-  no_eo_fields = 6;
-  exitstatus = init_2level_buffer ( &eo_spinor_work, 6, _GSI((VOLUME+RAND)/2) );
-  if ( exitstatus != 0) {
-    fprintf(stderr, "[p2gg_contract] Error from init_2level_buffer, status was %d\n", exitstatus);
+  int const no_eo_fields = 6;
+  eo_spinor_work  = init_2level_dtable ( no_eo_fields, _GSI((VOLUME+RAND)/2) );
+  if ( eo_spinor_work == NULL ) {
+    fprintf(stderr, "[p2gg_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT(1);
   }
 
@@ -308,9 +289,9 @@ int main(int argc, char **argv) {
   /***********************************************************
    * allocate eo_spinor_field
    ***********************************************************/
-  exitstatus = init_2level_buffer ( &eo_spinor_field, 360, _GSI(Vhalf));
-  if( exitstatus != 0 ) {
-    fprintf(stderr, "[p2gg_contract] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+  eo_spinor_field = init_2level_dtable ( 360, _GSI(Vhalf));
+  if( eo_spinor_field == NULL ) {
+    fprintf(stderr, "[p2gg_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
     EXIT(123);
   }
   
@@ -331,6 +312,7 @@ int main(int argc, char **argv) {
     gsx[2] = ( g_source_coords_list[isource_location][2] + LY_global ) % LY_global;
     gsx[3] = ( g_source_coords_list[isource_location][3] + LZ_global ) % LZ_global;
 
+    int source_proc_id = -1;
     exitstatus = get_point_source_info (gsx, sx, &source_proc_id);
     if( exitstatus != 0 ) {
       fprintf(stderr, "[p2gg_contract] Error from get_point_source_info status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -402,20 +384,22 @@ int main(int argc, char **argv) {
       /**********************************************************
        * up-type propagators
        **********************************************************/
-      exitstatus = point_to_all_fermion_propagator_clover_eo ( &(eo_spinor_field[mu*12]), &(eo_spinor_field[60+12*mu]),  _OP_ID_UP,
-          g_shifted_source_coords, gauge_field_with_phase, g_mzz_up, g_mzzinv_up, check_propagator_residual, eo_spinor_work );
+      exitstatus = point_to_all_fermion_propagator_clover_full2eo ( &(eo_spinor_field[mu*12]), &(eo_spinor_field[60+12*mu]), _OP_ID_UP,
+          g_shifted_source_coords, gauge_field_with_phase, g_mzz_up, g_mzzinv_up, check_propagator_residual );
+
       if ( exitstatus != 0 ) {
-        fprintf(stderr, "[p2gg_mixed] Error from point_to_all_fermion_propagator_clover_eo; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        fprintf(stderr, "[p2gg_mixed] Error from point_to_all_fermion_propagator_clover_full2eo status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(21);
       }
 
       /**********************************************************
        * dn-type propagators
        **********************************************************/
-      exitstatus = point_to_all_fermion_propagator_clover_eo ( &(eo_spinor_field[120+mu*12]), &(eo_spinor_field[180+12*mu]),  _OP_ID_DN,
-          g_shifted_source_coords, gauge_field_with_phase, g_mzz_dn, g_mzzinv_dn, check_propagator_residual, eo_spinor_work );
+      exitstatus = point_to_all_fermion_propagator_clover_full2eo ( &(eo_spinor_field[mu*12]), &(eo_spinor_field[60+12*mu]), _OP_ID_DN,
+          g_shifted_source_coords, gauge_field_with_phase, g_mzz_dn, g_mzzinv_dn, check_propagator_residual );
+
       if ( exitstatus != 0 ) {
-        fprintf(stderr, "[p2gg_mixed] Error from point_to_all_fermion_propagator_clover_eo; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        fprintf(stderr, "[p2gg_mixed] Error from point_to_all_fermion_propagator_clover_full2eo; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(21);
       }
 
@@ -506,7 +490,11 @@ int main(int argc, char **argv) {
     /***************************************************************************/
 
     /***************************************************************************
-     * P -> gamma gamma contractions
+     ***************************************************************************
+     **
+     ** P -> gamma gamma contractions
+     **
+     ***************************************************************************
      ***************************************************************************/
 
     /***************************************************************************
@@ -532,7 +520,7 @@ int main(int argc, char **argv) {
         /***************************************************************************
          * loop on sequential source time slices
          ***************************************************************************/
-        for(isequential_source_timeslice=0; isequential_source_timeslice < g_sequential_source_timeslice_number; isequential_source_timeslice++) {
+        for ( int isequential_source_timeslice = 0; isequential_source_timeslice < g_sequential_source_timeslice_number; isequential_source_timeslice++) {
 
           g_sequential_source_timeslice = g_sequential_source_timeslice_list[ isequential_source_timeslice ];
           /* shift sequential source timeslice by source timeslice gsx[0] */
@@ -551,6 +539,9 @@ int main(int argc, char **argv) {
           memset(contact_term[1], 0, 8*sizeof(double));
 
 
+          /***************************************************************************
+           * loop on quark flavors
+           ***************************************************************************/
           for( int iflavor = 1; iflavor >= 0; iflavor-- )
           {
 
@@ -585,25 +576,22 @@ int main(int argc, char **argv) {
               /***************************************************************************
                * invert
                ***************************************************************************/
-              memset(eo_spinor_work[1], 0, sizeof_eo_spinor_field);
-              memcpy(eo_spinor_work[0], eo_spinor_field[eo_seq_spinor_field_id_o], sizeof_eo_spinor_field);
 
-              exitstatus = tmLQCD_invert_eo ( eo_spinor_work[1], eo_spinor_work[0], iflavor);
+              double *full_spinor_work[2] = { eo_spinor_work[0], eo_spinor_work[2] };
+
+              memset ( full_spinor_work[1], 0, sizeof_spinor_field);
+              /* eo-precon -> full */
+              spinor_field_eo2lexic ( full_spinor_work[0], eo_spinor_field[eo_seq_spinor_field_id_e], eo_spinor_field[eo_seq_spinor_field_id_o] );
+
+              exitstatus = _TMLQCD_INVERT ( full_spinor_work[1], full_spinor_work[0], iflavor, 0);
               if(exitstatus != 0) {
-                fprintf(stderr, "[p2gg_contract] Error from _TMLQCD_INVERT_EO, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                fprintf(stderr, "[p2gg_contract] Error from _TMLQCD_INVERT, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(19);
               }
               memcpy( eo_spinor_field[eo_seq_spinor_field_id_o], eo_spinor_work[1], sizeof_eo_spinor_field);
 
-              /* B^-1 excl. C^-1 */
-              exitstatus = fini_clover_eo_propagator ( 
-                  eo_spinor_field[eo_seq_spinor_field_id_e], eo_spinor_field[eo_seq_spinor_field_id_o],
-                  eo_spinor_field[eo_seq_spinor_field_id_e], eo_spinor_field[eo_seq_spinor_field_id_o],
-                  gauge_field_with_phase, mzzinv[iflavor][0], eo_spinor_work[0]);
-              if(exitstatus != 0) {
-                fprintf(stderr, "[p2gg_contract] Error from fini_eo_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                EXIT(20);
-              }
+              /* full -> eo-precon */
+              spinor_field_lexic2eo ( full_spinor_work[1], eo_spinor_field[eo_seq_spinor_field_id_e], eo_spinor_field[eo_seq_spinor_field_id_o] );
 
             }  /* end of loop on spin-color and shift direction */
 
@@ -668,7 +656,7 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[p2gg_contract] Error from cvc_tensor_tp_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(45);
           }
-          fini_3level_buffer(&cvc_tp);
+          fini_3level_dtable ( &cvc_tp );
 
           /* check position space WI */
           if(check_position_space_WI) {
