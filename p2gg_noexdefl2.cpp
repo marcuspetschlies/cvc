@@ -59,6 +59,7 @@ extern "C"
 #include "prepare_propagator.h"
 #include "project.h"
 #include "matrix_init.h"
+#include "dummy_solver.h"
 
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
@@ -73,18 +74,6 @@ fprintf(stdout, "Options:  -f input <filename> : input filename for cvc  [defaul
 fprintf(stdout, "          -w                  : check position space WI [default false]\n");
 EXIT(0);
 }
-
-int dummy_solver (double * const propagator, double * const source, const int op_id, const int write_prop) {
-    memcpy(propagator, source, _GSI(VOLUME)*sizeof(double) );
-      return(0);
-}
-
-
-#ifdef USE_DUMMY_EO_SOLVER 
-#  define _TMLQCD_INVERT dummy_solver
-#else
-#  define _TMLQCD_INVERT tmLQCD_invert
-#endif
 
 int main(int argc, char **argv) {
 
