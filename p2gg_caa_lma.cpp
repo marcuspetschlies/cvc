@@ -80,13 +80,6 @@ int dummy_eo_solver (double * const propagator, double * const source, const int
   return(0);
 }
 
-
-#ifdef DUMMY_SOLVER 
-#  define _TMLQCD_INVERT_EO dummy_eo_solver
-#else
-#  define _TMLQCD_INVERT_EO tmLQCD_invert_eo
-#endif
-
 int main(int argc, char **argv) {
   
   /*
@@ -675,7 +668,7 @@ int main(int argc, char **argv) {
 
               exitstatus = tmLQCD_invert_eo ( eo_spinor_work[1], eo_spinor_work[0], iflavor);
               if(exitstatus != 0) {
-                fprintf(stderr, "[p2gg_caa_lma] Error from _TMLQCD_INVERT_EO, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                fprintf(stderr, "[p2gg_caa_lma] Error from _tmMLQCD_invert_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(19);
               }
               memcpy( eo_spinor_field[eo_seq_spinor_field_id_o], eo_spinor_work[1], sizeof_eo_spinor_field);

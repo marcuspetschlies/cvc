@@ -81,12 +81,6 @@ int dummy_eo_solver (double * const propagator, double * const source, const int
 }
 
 
-#ifdef DUMMY_SOLVER 
-#  define _TMLQCD_INVERT_EO dummy_eo_solver
-#else
-#  define _TMLQCD_INVERT_EO tmLQCD_invert_eo
-#endif
-
 int main(int argc, char **argv) {
   
   const char outfile_prefix[] = "hvp_caa";
