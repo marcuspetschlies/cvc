@@ -23,6 +23,9 @@ MPI_Datatype spinor_time_slice_cont;
 MPI_Datatype eo_spinor_time_slice_cont;
 
 MPI_Datatype contraction_time_slice_cont;
+
+MPI_Datatype eo_propagator_time_slice_cont;
+
 #  if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ)
 
 /* gauge slices */
@@ -123,7 +126,6 @@ MPI_Datatype eo_spinor_z_odd_bwd_slice_struct;
 MPI_Datatype eo_spinor_z_even_bwd_slice_struct;
 
 /* slices of even-odd propagators */
-MPI_Datatype eo_propagator_time_slice_cont;
 
 MPI_Datatype eo_propagator_x_slice_vector;
 MPI_Datatype eo_propagator_x_subslice_cont;
