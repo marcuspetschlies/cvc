@@ -216,7 +216,7 @@ int main(int argc, char **argv) {
     /* read the gauge field */
     sprintf ( filename, "%s.%.4d", gaugefilename_prefix, Nconf );
     if(g_cart_id==0) fprintf(stdout, "# [p2gg_contract] reading gauge field from file %s\n", filename);
-    read_lime_gauge_field_doubleprec(filename);
+    exitstatus = read_lime_gauge_field_doubleprec(filename);
   } else {
     /* initialize unit matrices */
     if(g_cart_id==0) fprintf(stdout, "\n# [p2gg_contract] initializing unit matrices\n");
@@ -395,7 +395,7 @@ int main(int argc, char **argv) {
       /**********************************************************
        * dn-type propagators
        **********************************************************/
-      exitstatus = point_to_all_fermion_propagator_clover_full2eo ( &(eo_spinor_field[mu*12]), &(eo_spinor_field[60+12*mu]), _OP_ID_DN,
+      exitstatus = point_to_all_fermion_propagator_clover_full2eo ( &(eo_spinor_field[120+mu*12]), &(eo_spinor_field[180+12*mu]), _OP_ID_DN,
           g_shifted_source_coords, gauge_field_with_phase, g_mzz_dn, g_mzzinv_dn, check_propagator_residual );
 
       if ( exitstatus != 0 ) {
@@ -477,8 +477,8 @@ int main(int argc, char **argv) {
     exitstatus = contract_local_local_2pt_eo (
        &(eo_spinor_field[168]), &(eo_spinor_field[228]),
        &(eo_spinor_field[ 48]), &(eo_spinor_field[108]),
-       g_sequential_source_gamma_id_list, g_sequential_source_gamma_id_number,
-       g_sequential_source_gamma_id_list, g_sequential_source_gamma_id_number,
+       g_source_gamma_id_list, g_source_gamma_id_number,
+       g_source_gamma_id_list, g_source_gamma_id_number,
        g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
 
     if( exitstatus != 0 ) {
@@ -583,15 +583,27 @@ int main(int argc, char **argv) {
               /* eo-precon -> full */
               spinor_field_eo2lexic ( full_spinor_work[0], eo_spinor_field[eo_seq_spinor_field_id_e], eo_spinor_field[eo_seq_spinor_field_id_o] );
 
-              exitstatus = _TMLQCD_INVERT ( full_spinor_work[1], full_spinor_work[0], iflavor, 0);
+              /* full_spinor_work[1] = D^-1 full_spinor_work[0] */
+              exitstatus = _TMLQCD_INVERT ( full_spinor_work[1], full_spinor_work[0], iflavor );
               if(exitstatus != 0) {
                 fprintf(stderr, "[p2gg_contract] Error from _TMLQCD_INVERT, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(19);
               }
-              memcpy( eo_spinor_field[eo_seq_spinor_field_id_o], eo_spinor_work[1], sizeof_eo_spinor_field);
 
-              /* full -> eo-precon */
-              spinor_field_lexic2eo ( full_spinor_work[1], eo_spinor_field[eo_seq_spinor_field_id_e], eo_spinor_field[eo_seq_spinor_field_id_o] );
+              /* full -> eo-precon 
+               * full_spinor_work[0] = eo_spinor_work[0,1] <- full_spinor_work[1]
+               * */
+              spinor_field_lexic2eo ( full_spinor_work[1], eo_spinor_work[0], eo_spinor_work[1] );
+              
+              /* check residuum */  
+              exitstatus = check_residuum_eo ( 
+                  &( eo_spinor_field[eo_seq_spinor_field_id_e]), &(eo_spinor_field[eo_seq_spinor_field_id_o]),
+                  &( eo_spinor_work[0] ),                        &( eo_spinor_work[1] ),
+                  gauge_field_with_phase, (1-2*iflavor)*g_mu, mzz[iflavor], 1 );
+ 
+              /* copy solution into place */
+              memcpy ( eo_spinor_field[eo_seq_spinor_field_id_e], eo_spinor_work[0], sizeof_eo_spinor_field );
+              memcpy ( eo_spinor_field[eo_seq_spinor_field_id_o], eo_spinor_work[1], sizeof_eo_spinor_field );
 
             }  /* end of loop on spin-color and shift direction */
 
@@ -610,12 +622,14 @@ int main(int argc, char **argv) {
             }
 
             /* flavor-dependent aff tag  */
-            sprintf(aff_tag, "/pgg/full/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d",
+            sprintf(aff_tag, "/p-cvc-cvc/full/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d",
                                   gsx[0], gsx[1], gsx[2], gsx[3], 
                                   g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2],
                                   sequential_source_gamma_id, g_sequential_source_timeslice, iflavor);
 
-            /* contraction */
+            /***************************************************************************
+             * contraction for P - CVC - CVC tensor
+             ***************************************************************************/
             contract_cvc_tensor_eo ( 
                 cvc_tensor_eo[0], cvc_tensor_eo[1], contact_term[0], 
                 &(eo_spinor_field[ ( 1 - iflavor ) * 120]), &(eo_spinor_field[ ( 1 - iflavor ) * 120 + 60]),
@@ -627,6 +641,26 @@ int main(int argc, char **argv) {
             if(exitstatus != 0) {
               fprintf(stderr, "[p2gg_contract] Error from cvc_tensor_eo_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(26);
+            }
+
+
+            /***************************************************************************
+             * contraction for P - local - local tensor
+             ***************************************************************************/
+            sprintf(aff_tag, "/p-loc-loc/full/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d", gsx[0], gsx[1], gsx[2], gsx[3],
+                g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2],
+                sequential_source_gamma_id, g_sequential_source_timeslice, iflavor );
+
+            exitstatus = contract_local_local_2pt_eo (
+                &(eo_spinor_field[ ( 1 - iflavor ) * 120 + 48]), &(eo_spinor_field[ ( 1 - iflavor ) * 120 + 108]),
+                &(eo_spinor_field[288]), &(eo_spinor_field[348]),
+                g_source_gamma_id_list, g_source_gamma_id_number,
+                g_source_gamma_id_list, g_source_gamma_id_number,
+                g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
+
+            if( exitstatus != 0 ) {
+              fprintf(stderr, "[p2gg_contract] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(1);
             }
 
           }  /* end of loop on flavor */
@@ -668,27 +702,6 @@ int main(int argc, char **argv) {
           }
 
 #if 0
-          /* TEST */
-          sprintf(filename, "p2gg_x.t%.2dx%.2dy%.2dz%.2d.tseq%.2d.g%.2d.px%.2dpy%.2dpz%.2d.%.4d.ascii", 
-              gsx[0], gsx[1], gsx[2], gsx[3],
-              g_sequential_source_timeslice, sequential_source_gamma_id,
-              g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2],
-              Nconf );
-          FILE *ofs = fopen( filename, "w" );
-          for ( int x0 = 0; x0 < T; x0++ ) {
-          for ( int x1 = 0; x1 < LX; x1++ ) {
-          for ( int x2 = 0; x2 < LY; x2++ ) {
-          for ( int x3 = 0; x3 < LZ; x3++ ) {
-            unsigned int ix = g_ipt[x0][x1][x2][x3];
-            unsigned int ixeosub = g_lexic2eosub[ix];
-            int ieo = 1 - g_iseven[ix];
-            fprintf(ofs, "# t = %2d, x = %2d, y = %2d, z = %2d, ieo = %d\n", x0, x1, x2, x3, ieo);
-            for ( int mu = 0; mu < 16; mu++ ) {
-              /* fprintf(ofs, "%3d %25.16e %25.16e\n", mu,  cvc_tensor_eo[ieo][ 2 * ( 16*ixeosub + mu ) ], cvc_tensor_eo[ieo][ 2 * ( 16*ixeosub + mu ) + 1 ] ); */
-              fprintf(ofs, "%3d %25.16e %25.16e\n", mu,  cvc_tensor_eo[ieo][ _GWI(mu,ixeosub,Vhalf)], cvc_tensor_eo[ieo][ _GWI(mu,ixeosub,Vhalf) + 1 ] );
-            }
-          }}}}
-          fclose(ofs);
 #endif  /* of if 0 */
 
           fini_2level_dtable ( &cvc_tensor_eo );
