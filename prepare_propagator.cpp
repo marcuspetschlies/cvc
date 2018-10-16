@@ -49,6 +49,7 @@ extern "C"
 #include "project.h"
 #include "prepare_source.h"
 #include "dummy_solver.h"
+#include "table_init_d.h"
 
 
 #ifndef _NON_ZERO
@@ -972,6 +973,9 @@ int select_stochastic_timeslice_propagator ( double***eo_stochastic_source_allt,
   return(0);
 }  /* end of select_stochastic_timeslice_propagator */
 
+/**********************************************************/
+/**********************************************************/
+
 /**********************************************************
  * make a poin-to-all propagator
  * 4 (spin) x 3 (color) right-hand sides
@@ -1011,11 +1015,7 @@ int point_to_all_fermion_propagator_clover_full2eo ( double **eo_spinor_field_e,
       spinor_work[0][ _GSI( g_ipt[local_source_coords[0]][local_source_coords[1]][local_source_coords[2]][local_source_coords[3]])+2*i ] = 1.;
     }
 
-#ifdef HAVE_TMLQCD_LIBWRAPPER
-    exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id, 0);
-#else
-    exitstatus = 1;
-#endif
+    exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id );
     if(exitstatus != 0) {
       fprintf(stderr, "[point_to_all_fermion_propagator_clover_full2eo] Error from tmLQCD_invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(19);
@@ -1035,5 +1035,105 @@ int point_to_all_fermion_propagator_clover_full2eo ( double **eo_spinor_field_e,
   fini_2level_buffer ( &eo_spinor_work );
   return(0);
 }  /* end of point_to_all_fermion_propagator_clover_full2eo */
+
+
+/**********************************************************/
+/**********************************************************/
+
+/**********************************************************
+ * check residual for a source, propagator pair
+ *
+ * source, prop: full spinor fields
+ **********************************************************/
+int check_residuum_full ( double **source, double **prop, double *gauge_field, double const mutm, double **mzz, int const nfields ) {
+
+  const unsigned int Vhalf = VOLUME / 2;
+  const size_t sizeof_spinor_field    = _GSI( VOLUME )     * sizeof(double);
+  const size_t sizeof_eo_spinor_field = _GSI( VOLUME / 2 ) * sizeof(double);
+
+  int exitstatus;
+
+  double **eo_spinor_field = init_2level_dtable ( 6, _GSI( Vhalf ) );
+  if ( eo_spinor_field == NULL ) {
+    fprintf(stderr, "[check_residuum_full] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+    return(1);
+  }
+
+  double **eo_spinor_work = init_2level_dtable ( 2, _GSI( ( VOLUME+RAND)/2 ) );
+  if ( eo_spinor_work == NULL ) {
+    fprintf(stderr, "[check_residuum_full] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+    return(1);
+  }
+
+  for ( int i = 0; i < nfields; i++ ) {
+
+    // prop no. i to eo
+    spinor_field_lexic2eo ( source[i], eo_spinor_field[0], eo_spinor_field[1] );
+    spinor_field_lexic2eo ( prop[i],   eo_spinor_field[2], eo_spinor_field[3] );
+
+    // apply Dirac operator
+    Q_clover_phi_eo ( eo_spinor_field[4], eo_spinor_field[5], eo_spinor_field[2], eo_spinor_field[3], gauge_field, mutm, eo_spinor_work[0], mzz);
+
+
+    // norm diff to source
+    double norm_e = 0., norm_o = 0.;
+    spinor_field_norm_diff ( &norm_e, eo_spinor_field[4], eo_spinor_field[0], Vhalf );
+    spinor_field_norm_diff ( &norm_o, eo_spinor_field[5], eo_spinor_field[1], Vhalf );
+    if ( g_cart_id == 0 ) fprintf ( stdout, "# [check_residuum_full] norm diff %2d e %16.7e o %16.76e\n", i, norm_e, norm_o );
+
+  }  // end of loop on field components
+
+  fini_2level_dtable ( &eo_spinor_field );
+  fini_2level_dtable ( &eo_spinor_work );
+
+  return(0);
+}  // end of check_residuum_full
+
+
+/**********************************************************/
+/**********************************************************/
+
+/**********************************************************
+ * check residual for a source, propagator pair
+ *
+ * source, prop: eo spinor fields
+ **********************************************************/
+int check_residuum_eo ( double **source_e, double **source_o, double **prop_e, double **prop_o, double *gauge_field, double const mutm, double **mzz, int const nfields ) {
+
+  const unsigned int Vhalf = VOLUME / 2;
+  const size_t sizeof_eo_spinor_field = _GSI( VOLUME / 2 ) * sizeof(double);
+
+  int exitstatus;
+
+  double **eo_spinor_field = init_2level_dtable ( 2, _GSI( Vhalf ) );
+  if ( eo_spinor_field == NULL ) {
+    fprintf(stderr, "[check_residuum_eo] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+    return(1);
+  }
+
+  double **eo_spinor_work = init_2level_dtable ( 2, _GSI( ( VOLUME+RAND)/2 ) );
+  if ( eo_spinor_work == NULL ) {
+    fprintf(stderr, "[check_residuum_eo] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+    return(1);
+  }
+
+  for ( int i = 0; i < nfields; i++ ) {
+
+    // apply Dirac operator
+    Q_clover_phi_eo ( eo_spinor_field[0], eo_spinor_field[1], prop_e[i], prop_o[i], gauge_field, mutm, eo_spinor_work[0], mzz);
+
+    // norm diff to source
+    double norm_e = 0., norm_o = 0.;
+    spinor_field_norm_diff ( &norm_e, eo_spinor_field[0], source_e[i], Vhalf );
+    spinor_field_norm_diff ( &norm_o, eo_spinor_field[1], source_o[i], Vhalf );
+    if ( g_cart_id == 0 ) fprintf ( stdout, "# [check_residuum_eo] norm diff %2d e %16.7e o %16.7e\n", i, norm_e, norm_o );
+
+  }  // end of loop on field components
+
+  fini_2level_dtable ( &eo_spinor_field );
+  fini_2level_dtable ( &eo_spinor_work );
+
+  return(0);
+}  // end of check_residuum_eo
 
 }  /* end of namespace cvc */

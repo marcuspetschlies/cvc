@@ -39,5 +39,9 @@ int prepare_clover_eo_sequential_propagator_timeslice (
 int point_to_all_fermion_propagator_clover_full2eo ( double **eo_spinor_field_e, double **eo_spinor_field_o,  int op_id,
     int global_source_coords[4], double *gauge_field, double **mzz, double **mzzinv, int check_propagator_residual );
 
+int check_residuum_full ( double **source, double **prop, double *gauge_field, double const mutm, double **mzz, int const nfields );
+
+int check_residuum_eo ( double **source_e, double **source_o, double **prop_e, double **prop_o, double *gauge_field, double const mutm, double **mzz, int const nfields );
+
 }  /* end of namespace cvc */
 #endif
