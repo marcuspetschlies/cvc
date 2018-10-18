@@ -688,7 +688,7 @@ int main(int argc, char **argv) {
           }
              
           /* flavor-dependent aff tag  */
-          sprintf(aff_tag, "/pgg/full/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d",
+          sprintf(aff_tag, "/p-cvc-cvc/full/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d",
                                 gsx[0], gsx[1], gsx[2], gsx[3], 
                                 g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2],
                                 sequential_source_gamma_id, g_sequential_source_timeslice);
