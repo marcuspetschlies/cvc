@@ -1411,7 +1411,7 @@ little_group_projector_applicator_type ** little_group_projector_apply ( little_
   }
   for ( int i = 0; i < p->n; i++ ) spin_dimensions[i] = p->rspin[i].dim;
 
-  double _Complex ** sv0 = init_2level_ztable_asym( 1, (size_t)spin_dimensions, (size_t)(p->n) );
+  double _Complex ** sv0 = init_2level_ztable_asym( 1, spin_dimensions, p->n );
   if ( sv0 == NULL ) {
     fprintf ( stderr, "[little_group_projector_apply] Error from init_2level_ztable_asym %s %d\n", __FILE__, __LINE__);
     return( NULL );
@@ -1479,7 +1479,7 @@ little_group_projector_applicator_type ** little_group_projector_apply ( little_
     /***********************************************************
      * allocate fields
      ***********************************************************/
-    double _Complex **** sv1 = init_4level_ztable_asym ( 2, (size_t)(p->rtarget->n), (size_t)(p->n), (size_t)spin_dimensions );
+    double _Complex **** sv1 = init_4level_ztable_asym ( 2, p->rtarget->n, p->n, spin_dimensions );
     if ( sv1 == NULL ) {
       fprintf ( stderr, "[little_group_projector_apply] Error from init_4level_ztable_asym for %s %d\n", __FILE__, __LINE__ );
       return ( NULL );
