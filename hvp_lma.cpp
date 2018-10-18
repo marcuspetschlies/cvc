@@ -199,7 +199,7 @@ int main(int argc, char **argv) {
   /***********************************************************
    * allocate eigenvectors
    ***********************************************************/
-  double * eo_evecs_block = init_1level_dtable ( evecs_num * _GSI(Vhalf) );
+  double * eo_evecs_block = init_1level_dtable ( evecs_num * _GSI( (size_t)Vhalf) );
   if( eo_evecs_block == NULL ) {
     fprintf(stderr, "[hvp_lma] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
     EXIT(8);
@@ -302,8 +302,8 @@ int main(int argc, char **argv) {
       EXIT(2);
     }
   
-    double ** eo_spinor_work  = init_2level_dtable ( 2, _GSI((VOLUME+RAND)/2) );
-    double ** eo_spinor_field = init_2level_dtable ( 2, _GSI(Vhalf) );
+    double ** eo_spinor_work  = init_2level_dtable ( 2, _GSI( (size_t)(VOLUME+RAND)/2) );
+    double ** eo_spinor_field = init_2level_dtable ( 2, _GSI( (size_t)Vhalf) );
   
     random_spinor_field ( eo_spinor_work[0], Vhalf );
   
@@ -351,7 +351,7 @@ int main(int argc, char **argv) {
     fprintf ( stdout, "# [hvp_lma] w  %25.16e %25.16e norm diff  %25.16e\n", w.re, w.im, norm );
   
     // reallocate eo_evecs_block
-    double * aux = init_1level_dtable ( (evecs_num+1) * _GSI(Vhalf) );
+    double * aux = init_1level_dtable ( (evecs_num+1) * _GSI((size_t)Vhalf) );
     if( aux == NULL ) {
       fprintf(stderr, "[hvp_lma] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
       EXIT(8);
@@ -374,7 +374,7 @@ int main(int argc, char **argv) {
     for( unsigned int i = 1; i <= evecs_num; i++) eo_evecs_field[i] = eo_evecs_field[i-1] + _GSI(Vhalf);
   
     // reallocate evecs_eval
-    aux = init_1level_dtable ( evecs_num+1 );
+    aux = init_1level_dtable ( (size_t)evecs_num+1 );
     memcpy ( aux, evecs_eval, evecs_num*sizeof(double) );
     aux[evecs_num] = w.re;
     fini_1level_dtable ( &evecs_eval );
@@ -586,7 +586,7 @@ int main(int argc, char **argv) {
  
 #if 0
 
-  double ** eo_work = init_2level_dtable ( 3, _GSI( (VOLUME+RAND)/2 ) );
+  double ** eo_work = init_2level_dtable ( 3, _GSI( (size_t)(VOLUME+RAND)/2 ) );
   size_t const sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
   void *buffer = NULL;
 
@@ -595,7 +595,7 @@ int main(int argc, char **argv) {
    * check V^+ V with momentum (for contact term)
    ***********************************************************/
 
-  double _Complex **** contr_vv = init_4level_ztable (T, g_sink_momentum_number, evecs_num, evecs_num );
+  double _Complex **** contr_vv = init_4level_ztable ( (size_t)T, (size_t)g_sink_momentum_number, (size_t)evecs_num, (size_t)evecs_num );
   
   for ( int t = 0; t < T; t++ ) {
     unsigned int const offset = t * VOL3half;
@@ -699,11 +699,11 @@ int main(int argc, char **argv) {
    * check phi_1,4 with momentum (for contact term)
    ***********************************************************/
 
-  double _Complex ***** contr_p = init_5level_ztable (T, 4, g_sink_momentum_number, evecs_num, evecs_num );
+  double _Complex ***** contr_p = init_5level_ztable ( (size_t)T, 4, (size_t)g_sink_momentum_number, (size_t)evecs_num, (size_t)evecs_num );
   // size_t const sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
 
-  double ** w_field = init_2level_dtable ( 4, _GSI( (VOLUME+RAND)/2 ) );
-  double ** v_field = init_2level_dtable ( 2, _GSI( (VOLUME+RAND)/2 ) );
+  double ** w_field = init_2level_dtable ( 4, _GSI( (size_t)(VOLUME+RAND)/2 ) );
+  double ** v_field = init_2level_dtable ( 2, _GSI( (size_t)(VOLUME+RAND)/2 ) );
   
   for ( unsigned int k = 0; k < evecs_num; k++ ) {
     memcpy( eo_work[0], eo_evecs_field[k], sizeof_eo_spinor_field );
@@ -874,11 +874,11 @@ int main(int argc, char **argv) {
    * check phi_2,3 with momentum (for contact term)
    ***********************************************************/
 #if 0
-  double _Complex ***** contr_p = init_5level_ztable (T, 4, g_sink_momentum_number, evecs_num, evecs_num );
+  double _Complex ***** contr_p = init_5level_ztable ( (size_t)T, 4, (size_t)g_sink_momentum_number, (size_t)evecs_num, (size_t)evecs_num );
   size_t const sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
-  double ** eo_work  = init_2level_dtable ( 2, _GSI( (VOLUME+RAND)/2 ) );
-  double ** w_field = init_2level_dtable ( 4, _GSI( (VOLUME+RAND)/2 ) );
-  double ** v_field = init_2level_dtable ( 2, _GSI( (VOLUME+RAND)/2 ) );
+  double ** eo_work  = init_2level_dtable ( 2, _GSI( (size_t)(VOLUME+RAND)/2 ) );
+  double ** w_field  = init_2level_dtable ( 4, _GSI( (size_t)(VOLUME+RAND)/2 ) );
+  double ** v_field  = init_2level_dtable ( 2, _GSI( (size_t)(VOLUME+RAND)/2 ) );
 #endif  // of if 0
 
   for ( unsigned int k = 0; k < evecs_num; k++ ) {
@@ -1044,7 +1044,7 @@ int main(int argc, char **argv) {
    * check W^+ W with momentum (for contact term)
    ***********************************************************/
 
-  double _Complex **** contr_ww = init_4level_ztable (T, g_sink_momentum_number, evecs_num, evecs_num );
+  double _Complex **** contr_ww = init_4level_ztable ( (size_t)T, (size_t)g_sink_momentum_number, (size_t)evecs_num, (size_t)evecs_num );
 
   for ( unsigned int i = 0; i < evecs_num; i++ ) {
     memcpy( eo_work[0], eo_evecs_field[i], sizeof_eo_spinor_field );

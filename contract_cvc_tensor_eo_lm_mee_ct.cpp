@@ -34,13 +34,13 @@ int contract_cvc_tensor_eo_lm_mee_ct (
   }
 
   // allocate auxilliary spinor fields and spinor work (with halo)
-  double ** eo_spinor_field = init_2level_dtable ( 20, _GSI(Vhalf) );
+  double ** eo_spinor_field = init_2level_dtable ( 20, _GSI((size_t)Vhalf) );
   if ( eo_spinor_field == NULL ) {
     fprintf(stderr, "# [contract_cvc_tensor_eo_lm_mee_ct] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
     return(1);
   }
 
-  double ** eo_spinor_work = init_2level_dtable ( 2, _GSI( (VOLUME+RAND)/2 ) );
+  double ** eo_spinor_work = init_2level_dtable ( 2, _GSI( (size_t)(VOLUME+RAND)/2 ) );
   if ( eo_spinor_work == NULL ) {
     fprintf(stderr, "# [contract_cvc_tensor_eo_lm_mee_ct] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
     return(1);
@@ -58,7 +58,7 @@ int contract_cvc_tensor_eo_lm_mee_ct (
   /***********************************************************
    * gather scalar products for all eigenvectors
    ***********************************************************/
-  double _Complex ***** ct = init_5level_ztable (T_global, 5, momentum_number, 4, nev );
+  double _Complex ***** ct = init_5level_ztable ( (size_t)T_global, 5, (size_t)momentum_number, 4, (size_t)nev );
   if ( ct == NULL )  {
     fprintf(stderr, "# [contract_cvc_tensor_eo_lm_mee_ct] Error from init_5level_ztable %s %d\n", __FILE__, __LINE__);
     return(2);
@@ -130,8 +130,8 @@ int contract_cvc_tensor_eo_lm_mee_ct (
     // for ( int imu = 0; imu <= 0; imu++ ) 
     {
 
-      double _Complex * p = init_1level_ztable ( T );
-      double _Complex * p2 = init_1level_ztable ( T );
+      double _Complex * p = init_1level_ztable ( (size_t)T );
+      double _Complex * p2 = init_1level_ztable ( (size_t)T );
 
 
       // 5th term
@@ -619,7 +619,7 @@ int contract_cvc_tensor_eo_lm_mee_ct (
     int const items = T_global * 5 * momentum_number * 4 * nev;
     size_t const bytes = items * sizeof ( double _Complex );
     
-    double _Complex * buffer = init_1level_ztable ( items );
+    double _Complex * buffer = init_1level_ztable ( (size_t)items );
     if ( buffer  == NULL )  {
       fprintf(stderr, "# [contract_cvc_tensor_eo_lm_mee_ct] Error from init_1level_ztable %s %d\n", __FILE__, __LINE__);
       return(2);

@@ -94,7 +94,7 @@ int gsp_read_node (double _Complex ***gsp, int numV, int momentum[3], int gamma_
     return(2);
   }
 
-  double _Complex * aff_buffer = init_1level_ztable ( numV * numV );
+  double _Complex * aff_buffer = init_1level_ztable ( (size_t)numV * (size_t)numV );
   if( aff_buffer == NULL ) {
     fprintf(stderr, "[gsp_read_node] Error from init_1level_ztable %s %d\n",  __FILE__, __LINE__);
     return(3);
@@ -190,7 +190,7 @@ int gsp_prepare_from_file ( double _Complex ***gsp, int numV, int momentum[3], i
     sign         = g_gamma_mult_sign[5][gamma_id];
   }
 
-  double _Complex ***gsp_buffer = init_3level_ztable ( 6, numV, numV );
+  double _Complex ***gsp_buffer = init_3level_ztable ( 6, (size_t)numV, (size_t)numV );
   if ( gsp_buffer == NULL ) {
     fprintf ( stderr, "[gsp_prepare_from_file] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
     return(1);
@@ -456,7 +456,7 @@ int gsp_read_cvc_node (
   }
 #endif
  
-  double _Complex ** buffer = init_2level_ztable ( numV, block_length );
+  double _Complex ** buffer = init_2level_ztable ( (size_t)numV, (size_t)block_length );
   if( buffer == NULL ) {
     fprintf(stderr, "[gsp_read_cvc_node] Error from init_2level_ztable %s %d\n",  __FILE__, __LINE__);
     return(3);
@@ -773,7 +773,7 @@ int gsp_prepare_cvc_from_file ( double _Complex ***gsp, int numV, int momentum[3
     sign         = g_gamma_mult_sign[5][gamma_id];
   }
 
-  double _Complex ***gsp_buffer = init_3level_ztable ( 6, numV, numV );
+  double _Complex ***gsp_buffer = init_3level_ztable ( 6, (size_t)numV, (size_t)numV );
   if ( gsp_buffer == NULL ) {
     fprintf ( stderr, "[gsp_prepare_cvc_from_file] Error from init_3level_ztable %s %d\n",  __FILE__, __LINE__ );
     return(1);
@@ -834,7 +834,7 @@ int gsp_prepare_cvc_from_file ( double _Complex ***gsp, int numV, int momentum[3
  ***********************************************************************************************/
 int gsp_ft_p0_shift ( double _Complex * const s_out, double _Complex * const s_in, int const pvec[3], int const mu , int const nu, int const sign ) {
 
-  double _Complex * r = init_1level_ztable ( T );
+  double _Complex * r = init_1level_ztable ( (size_t)T );
   if ( r == NULL ) return( 1 );
 
   double const p3[3] = {

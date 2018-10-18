@@ -7059,8 +7059,8 @@ int check_eigenpairs ( double ** const eo_evecs_field, double ** evecs_eval, uns
     if ( g_cart_id == 0 ) fprintf ( stdout, "# [check_eigenpairs] will use existing eigenvalues\n" );
   }
 
-  double ** eo_field = init_2level_dtable ( 2, _GSI(Vhalf));
-  double ** eo_work  = init_2level_dtable ( 3, _GSI( (VOLUME+RAND) / 2 ));
+  double ** eo_field = init_2level_dtable ( 2, _GSI((size_t)Vhalf));
+  double ** eo_work  = init_2level_dtable ( 3, _GSI( (size_t)(VOLUME+RAND) / 2 ));
   if( eo_field == NULL  || eo_work == NULL ) {
     fprintf(stderr, "[check_eigenpairs] Error from init_2level_dtable was %s %d\n", __FILE__, __LINE__);
     EXIT(123);

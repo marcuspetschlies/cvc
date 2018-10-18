@@ -243,7 +243,7 @@ int main(int argc, char **argv) {
   sprintf( tag, "/hvp/lma/N%d/B%d/mee", evecs_num, evecs_block_length );
   sprintf( filename, "%s.%.4d", filename_prefix, Nconf );
 
-  double _Complex ****** hvp_mee_ts = init_6level_ztable ( g_sink_momentum_number, T, 4, 4, 3, evecs_num );
+  double _Complex ****** hvp_mee_ts = init_6level_ztable ( (size_t)g_sink_momentum_number, (size_t)T, 4, 4, 3, (size_t)evecs_num );
   if ( hvp_mee_ts == NULL ) {
     fprintf (stderr, "[hvp_lma_recombine] Error from init_6level_ztable %s %d\n", __FILE__, __LINE__ );
     EXIT(3);
@@ -283,7 +283,7 @@ int main(int argc, char **argv) {
   sprintf( tag, "/hvp/lma/N%d/B%d/mee/ct", evecs_num, evecs_block_length );
   sprintf( filename, "%s.%.4d", filename_prefix, Nconf );
 
-  double _Complex ***** hvp_mee_ct_ts = init_5level_ztable ( g_sink_momentum_number, T, 4, 5, evecs_num );
+  double _Complex ***** hvp_mee_ct_ts = init_5level_ztable ( (size_t)g_sink_momentum_number, (size_t)T, 4, 5, (size_t)evecs_num );
   if ( hvp_mee_ct_ts == NULL ) {
     fprintf (stderr, "[hvp_lma_recombine] Error from init_5level_ztable %s %d\n", __FILE__, __LINE__ );
     EXIT(3);
@@ -353,13 +353,13 @@ int main(int argc, char **argv) {
   /***********************************************************
    * recombine mee and mee ct parts of hvp
    ***********************************************************/
-  double _Complex **** hvp_mee = init_4level_ztable ( g_sink_momentum_number, 4, 4, T );
+  double _Complex **** hvp_mee = init_4level_ztable ( (size_t)g_sink_momentum_number, 4, 4, (size_t)T );
   if ( hvp_mee == NULL ) {
     fprintf (stderr, "[hvp_lma_recombine] Error from init_4level_ztable %s %d\n", __FILE__, __LINE__ );
     EXIT(3);
   }
 
-  double _Complex *** hvp_mee_ct = init_3level_ztable ( g_sink_momentum_number, 4, T );
+  double _Complex *** hvp_mee_ct = init_3level_ztable ( (size_t)g_sink_momentum_number, 4, (size_t)T );
   if ( hvp_mee == NULL ) {
     fprintf (stderr, "[hvp_lma_recombine] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
     EXIT(3);
@@ -420,13 +420,13 @@ int main(int argc, char **argv) {
 
     for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
 
-      double _Complex *** hvp_mee_ft = init_3level_ztable ( 4, 4, T );
+      double _Complex *** hvp_mee_ft = init_3level_ztable ( 4, 4, (size_t)T );
       if ( hvp_mee == NULL ) {
         fprintf (stderr, "[hvp_lma_recombine] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
         EXIT(3);
       }
 
-      double _Complex ** hvp_mee_ct_ft = init_2level_ztable ( 4, T );
+      double _Complex ** hvp_mee_ct_ft = init_2level_ztable ( 4, (size_t)T );
       if ( hvp_mee == NULL ) {
         fprintf (stderr, "[hvp_lma_recombine] Error from init_2level_ztable %s %d\n", __FILE__, __LINE__ );
         EXIT(3);
@@ -497,7 +497,7 @@ int main(int argc, char **argv) {
   sprintf( tag, "/hvp/lma/N%d/ct", evecs_num );
   sprintf( filename, "%s.%.4d", filename_prefix, Nconf );
 
-  double _Complex *** hvp_ct_ts = init_3level_ztable ( T, 4, evecs_num );
+  double _Complex *** hvp_ct_ts = init_3level_ztable ( (size_t)T, 4, (size_t)evecs_num );
   if ( hvp_ct_ts == NULL ) {
     fprintf (stderr, "[hvp_lma_recombine] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
     EXIT(3);
@@ -550,7 +550,7 @@ int main(int argc, char **argv) {
   sprintf( tag, "/hvp/lma/N%d/B%d", evecs_num, evecs_block_length );
   sprintf( filename, "%s.%.4d", filename_prefix, Nconf );
 
-  double _Complex ***** phi = init_5level_ztable ( 4, g_sink_momentum_number, T, evecs_num, evecs_num );
+  double _Complex ***** phi = init_5level_ztable ( 4, (size_t)g_sink_momentum_number, (size_t)T, (size_t)evecs_num, (size_t)evecs_num );
   if ( phi == NULL ) {
     fprintf (stderr, "[hvp_lma_recombine] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
     EXIT(3);
@@ -591,7 +591,7 @@ int main(int argc, char **argv) {
     /***********************************************************
      * TEST loops
      ***********************************************************/
-      double _Complex *phi_tr = init_1level_ztable ( T );
+      double _Complex *phi_tr = init_1level_ztable ( (size_t)T );
 
       gsp_tr_mat_weight ( phi_tr , phi[imu][imom] , evecs_4kappasqr_lambdainv , evecs_num, T );
 
@@ -614,7 +614,7 @@ int main(int argc, char **argv) {
    * recombine hvp tensor
    ***********************************************************/
 
-  double _Complex **** hvp = init_4level_ztable ( g_sink_momentum_number, 4, 4, T );
+  double _Complex **** hvp = init_4level_ztable ( (size_t)g_sink_momentum_number, 4, 4, (size_t)T );
   if ( hvp == NULL ) {
     fprintf ( stderr, "# [] Error from init_4level_ztable %s %d\n", __FILE__, __LINE__ );
     EXIT(3);
@@ -654,8 +654,8 @@ int main(int argc, char **argv) {
    ***********************************************************/
   if ( check_momentum_space_wi ) {
 
-    double _Complex **** ww = init_4level_ztable ( g_sink_momentum_number, T, evecs_num, evecs_num );
-    double _Complex **** vv = init_4level_ztable ( g_sink_momentum_number, T, evecs_num, evecs_num );
+    double _Complex **** ww = init_4level_ztable ( (size_t)g_sink_momentum_number, (size_t)T, (size_t)evecs_num, (size_t)evecs_num );
+    double _Complex **** vv = init_4level_ztable ( (size_t)g_sink_momentum_number, (size_t)T, (size_t)evecs_num, (size_t)evecs_num );
     if ( ww == NULL || vv == NULL ) {
       fprintf (stderr, "[hvp_lma_recombine] Error from init_4level_ztable %s %d\n", __FILE__, __LINE__ );
       EXIT(3);
@@ -716,14 +716,14 @@ int main(int argc, char **argv) {
       for ( int k2 = 0; k2 < evecs_num; k2++ ) {
 
         // t-dep fields
-        double _Complex * vvt   = init_1level_ztable ( T );
-        double _Complex * wwt   = init_1level_ztable ( T );
-        double _Complex ** phit = init_2level_ztable ( 4, T );
+        double _Complex * vvt   = init_1level_ztable ( (size_t)T );
+        double _Complex * wwt   = init_1level_ztable ( (size_t)T );
+        double _Complex ** phit = init_2level_ztable ( 4, (size_t)T );
 
         // p0-dep fields
-        double _Complex * vvp   = init_1level_ztable ( T );
-        double _Complex * wwp   = init_1level_ztable ( T );
-        double _Complex ** phip = init_2level_ztable ( 4, T );
+        double _Complex * vvp   = init_1level_ztable ( (size_t)T );
+        double _Complex * wwp   = init_1level_ztable ( (size_t)T );
+        double _Complex ** phip = init_2level_ztable ( 4, (size_t)T );
 
         // copy the timeslice
         for ( int it = 0; it < T; it++ ) {
@@ -832,13 +832,13 @@ int main(int argc, char **argv) {
             g_sink_momentum_list[imom2][0], g_sink_momentum_list[imom2][1], g_sink_momentum_list[imom2][2] );
       }
 
-      double _Complex *** hvp_ft = init_3level_ztable ( 4, 4, T );
-      double _Complex ** vv_phi = init_2level_ztable ( 4, T );
-      double _Complex ** ww_phi = init_2level_ztable ( 4, T );
-      double _Complex ** phi_vv = init_2level_ztable ( 4, T );
-      double _Complex ** phi_ww = init_2level_ztable ( 4, T );
+      double _Complex *** hvp_ft = init_3level_ztable ( 4, 4, (size_t)T );
+      double _Complex ** vv_phi = init_2level_ztable ( 4, (size_t)T );
+      double _Complex ** ww_phi = init_2level_ztable ( 4, (size_t)T );
+      double _Complex ** phi_vv = init_2level_ztable ( 4, (size_t)T );
+      double _Complex ** phi_ww = init_2level_ztable ( 4, (size_t)T );
 
-      double * unit_weight = init_1level_dtable ( evecs_num );
+      double * unit_weight = init_1level_dtable ( (size_t)evecs_num );
       for ( int i = 0; i < evecs_num; i++ ) unit_weight[i] = 1.;
 
       for ( int imu = 0; imu < 4; imu++ ) {

@@ -153,7 +153,7 @@ int main(int argc, char **argv) {
   /*********************************
    * initialize MPI parameters for cvc
    *********************************/
-  exitstatus = tmLQCD_invert_init(argc, argv, 1);
+  exitstatus = tmLQCD_invert_init(argc, argv, 1, 0);
   if(exitstatus != 0) {
     EXIT(1);
   }
@@ -246,7 +246,7 @@ int main(int argc, char **argv) {
    * WITH HALO
    *************************************************/
   int const no_eo_fields = 6;
-  eo_spinor_work  = init_2level_dtable ( no_eo_fields, _GSI((VOLUME+RAND)/2) );
+  eo_spinor_work  = init_2level_dtable ( (size_t)no_eo_fields, _GSI( (size_t)(VOLUME+RAND)/2) );
   if ( eo_spinor_work == NULL ) {
     fprintf(stderr, "[p2gg_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT(1);
@@ -286,10 +286,12 @@ int main(int argc, char **argv) {
   }
   fprintf(stdout, "# [p2gg_contract] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
 
+
+
   /***********************************************************
    * allocate eo_spinor_field
    ***********************************************************/
-  eo_spinor_field = init_2level_dtable ( 360, _GSI(Vhalf));
+  eo_spinor_field = init_2level_dtable ( 360, _GSI( (size_t)Vhalf));
   if( eo_spinor_field == NULL ) {
     fprintf(stderr, "[p2gg_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
     EXIT(123);
@@ -360,7 +362,8 @@ int main(int argc, char **argv) {
     /**********************************************************
      * loop on shifts in direction mu
      **********************************************************/
-    for( int mu = 0; mu < 5; mu++)
+    // for( int mu = 0; mu < 5; mu++)
+    for( int mu = 0; mu < 1; mu++)
     {
 
       /**********************************************************
@@ -392,6 +395,7 @@ int main(int argc, char **argv) {
         EXIT(21);
       }
 
+
       /**********************************************************
        * dn-type propagators
        **********************************************************/
@@ -403,10 +407,13 @@ int main(int argc, char **argv) {
         EXIT(21);
       }
 
+
     }  /* end of loop on shift direction mu */
 
+#if 0
+
     /* allocate memory for contractions, initialize */
-    cvc_tensor_eo = init_2level_dtable ( 2, 32 * Vhalf );
+    cvc_tensor_eo = init_2level_dtable ( 2, 32 * (size_t)Vhalf );
     if( cvc_tensor_eo == NULL ) {
       fprintf(stderr, "[p2gg_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
       EXIT(24);
@@ -486,6 +493,10 @@ int main(int argc, char **argv) {
       EXIT(1);
     }
 
+#endif  // of if 0
+
+
+
     /***************************************************************************/
     /***************************************************************************/
 
@@ -530,7 +541,7 @@ int main(int argc, char **argv) {
             fprintf(stdout, "# [p2gg_contract] using sequential source timeslice %d / %d\n", g_sequential_source_timeslice, g_shifted_sequential_source_timeslice);
 
           /* allocate memory for contractions, initialize */
-          cvc_tensor_eo = init_2level_dtable ( 2, 32*Vhalf);
+          cvc_tensor_eo = init_2level_dtable ( 2, 32 * (size_t)Vhalf);
           if( cvc_tensor_eo == NULL ) {
             fprintf(stderr, "[p2gg_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
             EXIT(24);
@@ -557,7 +568,9 @@ int main(int argc, char **argv) {
             /***************************************************************************
              * prepare sequential sources
              ***************************************************************************/
-            for( int is = 0; is < 60; is++ ) {
+            // for( int is = 0; is < 60; is++ ) 
+            for( int is = 0; is < 12; is++ ) 
+            {
               int eo_spinor_field_id_e     = iflavor * 120 + is;
               int eo_spinor_field_id_o     = eo_spinor_field_id_e + 60;
               int eo_seq_spinor_field_id_e = 240 + is;
@@ -585,7 +598,7 @@ int main(int argc, char **argv) {
 
               /* full_spinor_work[1] = D^-1 full_spinor_work[0] */
               exitstatus = _TMLQCD_INVERT ( full_spinor_work[1], full_spinor_work[0], iflavor );
-              if(exitstatus != 0) {
+              if(exitstatus < 0) {
                 fprintf(stderr, "[p2gg_contract] Error from _TMLQCD_INVERT, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(19);
               }
@@ -599,7 +612,7 @@ int main(int argc, char **argv) {
               exitstatus = check_residuum_eo ( 
                   &( eo_spinor_field[eo_seq_spinor_field_id_e]), &(eo_spinor_field[eo_seq_spinor_field_id_o]),
                   &( eo_spinor_work[0] ),                        &( eo_spinor_work[1] ),
-                  gauge_field_with_phase, (1-2*iflavor)*g_mu, mzz[iflavor], 1 );
+                  gauge_field_with_phase, mzz[iflavor], mzzinv[iflavor], 1 );
  
               /* copy solution into place */
               memcpy ( eo_spinor_field[eo_seq_spinor_field_id_e], eo_spinor_work[0], sizeof_eo_spinor_field );
@@ -607,6 +620,7 @@ int main(int argc, char **argv) {
 
             }  /* end of loop on spin-color and shift direction */
 
+#if 0
 
             /***************************************************************************
              * P - cvc - cvc tensor
@@ -663,11 +677,14 @@ int main(int argc, char **argv) {
               EXIT(1);
             }
 
+#endif  // of if 0
+
           }  /* end of loop on flavor */
 
           /***************************************************************************/
           /***************************************************************************/
 
+#if 0
           /* subtract contact term */
           cvc_tensor_eo_subtract_contact_term (cvc_tensor_eo, contact_term[0], gsx, (int)( source_proc_id == g_cart_id ) );
 
@@ -701,18 +718,16 @@ int main(int argc, char **argv) {
             }
           }
 
-#if 0
-#endif  /* of if 0 */
 
           fini_2level_dtable ( &cvc_tensor_eo );
 
+#endif  /* of if 0 */
           /***************************************************************************/
           /***************************************************************************/
 
         }  /* end of loop on sequential source timeslices */
       }  /* end of loop on sequential source gamma id */
     }  /* end of loop on sequential source momentum */
-
 
 #ifdef HAVE_LHPC_AFF
     if(io_proc == 2) {
@@ -726,6 +741,8 @@ int main(int argc, char **argv) {
 
 
   }  /* end of loop on source locations */
+
+
 
   /****************************************
    * free the allocated memory, finalize

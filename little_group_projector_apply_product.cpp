@@ -249,7 +249,7 @@ little_group_projector_applicator_type * little_group_projector_apply_product ( 
   }
   fprintf ( stdout, "# [little_group_projector_apply_product] spinor product dimension = %d\n", pdim );
 
-  double _Complex * sv0 = init_1level_ztable( pdim );
+  double _Complex * sv0 = init_1level_ztable( (size_t)pdim );
   if ( sv0 == NULL ) {
     fprintf ( stderr, "# [little_group_projector_apply_product] Error from init_2level_ztable %s %d\n", __FILE__, __LINE__);
     return(2);
@@ -318,7 +318,7 @@ little_group_projector_applicator_type * little_group_projector_apply_product ( 
     /***********************************************************
      * allocate sv1
      ***********************************************************/
-    double _Complex ** sv1 = init_2level_ztable ( p->rtarget->dim, pdim );
+    double _Complex ** sv1 = init_2level_ztable ( (size_t)(p->rtarget->dim), (size_t)pdim );
     if ( sv1 == NULL ) {
       fprintf ( stderr, "[little_group_projector_apply_product] Error from init_2level_ztable %s %d\n", __FILE__, __LINE__ );
       return(1);
@@ -328,12 +328,12 @@ little_group_projector_applicator_type * little_group_projector_apply_product ( 
     /***********************************************************/
     /***********************************************************/
 
-    double _Complex *Rsv = init_1level_ztable ( pdim );
+    double _Complex *Rsv = init_1level_ztable ( (size_t)pdim );
 
     /***********************************************************
      * TEST
      ***********************************************************/
-    double _Complex **R = rot_init_rotation_matrix ( pdim );
+    double _Complex **R = rot_init_rotation_matrix ( (size_t)pdim );
     /***********************************************************
      * END OF TEST
      ***********************************************************/
@@ -394,7 +394,7 @@ little_group_projector_applicator_type * little_group_projector_apply_product ( 
     // if ( !frame_is_cmf )  { 
       if ( g_verbose > 2 ) fprintf( stdout, "# [little_group_projector_apply_product] including IR rotations\n");
 
-      double _Complex *IRsv = init_1level_ztable( pdim );
+      double _Complex *IRsv = init_1level_ztable( (size_t)pdim );
 
       /***********************************************************
        * TEST

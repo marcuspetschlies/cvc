@@ -50,13 +50,13 @@ int vdag_w_spin_color_reduction ( double ***contr, double ** const V, double ** 
 
   ratime = _GET_TIME;
 
-  double ** v_ts = init_2level_dtable ( dimV, _GSI( VOL3half) );
+  double ** v_ts = init_2level_dtable ( (size_t)dimV, _GSI( (size_t)VOL3half) );
   if ( v_ts == NULL ) {
     fprintf( stderr, "[vdag_w_spin_color_reduction] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
     return(1);
   }
 
-  double ** w_ts = init_2level_dtable ( dimW, _GSI( VOL3half) );
+  double ** w_ts = init_2level_dtable ( (size_t)dimW, _GSI( (size_t)VOL3half) );
   if ( w_ts == NULL ) {
     fprintf( stderr, "[vdag_w_spin_color_reduction] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
     return(2);
@@ -94,7 +94,7 @@ int vdag_w_spin_color_reduction ( double ***contr, double ** const V, double ** 
     /***********************************************************
      * exchange v_ts
      ***********************************************************/
-    double * buffer = init_1level_dtable ( items ); 
+    double * buffer = init_1level_dtable ( (size_t)items ); 
     if ( buffer == NULL ) { 
       fprintf(stderr, "[vdag_w_spin_color_reduction] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
       return(2);
@@ -114,7 +114,7 @@ int vdag_w_spin_color_reduction ( double ***contr, double ** const V, double ** 
      * exchange w_ts
      ***********************************************************/
     items = dimW * _GSI( VOL3half );
-    buffer = init_1level_dtable ( dimW * _GSI(VOL3half) ); 
+    buffer = init_1level_dtable ( dimW * _GSI((size_t)VOL3half) ); 
     if ( buffer == NULL ) { 
       fprintf(stderr, "[vdag_w_spin_color_reduction] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
       return(3);

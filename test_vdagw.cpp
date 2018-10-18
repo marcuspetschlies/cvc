@@ -131,16 +131,16 @@ int main(int argc, char **argv) {
   unsigned int const nv = 11;
   unsigned int const nw =  7;
 
-  double *** contr  = init_3level_dtable ( nv, nw, 2*VOL3half );
-  double *** contr2 = init_3level_dtable ( nv, nw, 2*VOL3half );
+  double *** contr  = init_3level_dtable ( nv, nw, 2*(size_t)VOL3half );
+  double *** contr2 = init_3level_dtable ( nv, nw, 2*(size_t)VOL3half );
 
   g_seed = 10000 + g_cart_id;
   rlxd_init(2, g_seed);
 
 #if 0
 
-  double ** v = init_2level_dtable ( nv, _GSI( (VOLUME+RAND)/2 ) );
-  double ** w = init_2level_dtable ( nw, _GSI( (VOLUME+RAND)/2 ) );
+  double ** v = init_2level_dtable ( nv, _GSI( (size_t)(VOLUME+RAND)/2 ) );
+  double ** w = init_2level_dtable ( nw, _GSI( (size_t)(VOLUME+RAND)/2 ) );
 
   /* set the spinor field */
   for ( unsigned int i = 0; i < nv; i++ ) {
@@ -219,8 +219,8 @@ int main(int argc, char **argv) {
       
       for ( int t = 0; t < T; t++ ) {
   
-        double _Complex *** contr_p = init_3level_ztable ( g_sink_momentum_number, nv, nw );
-        double _Complex *** contr_p2 = init_3level_ztable ( g_sink_momentum_number, nv, nw );
+        double _Complex *** contr_p = init_3level_ztable ( (size_t)g_sink_momentum_number, (size_t)nv, (size_t)nw );
+        double _Complex *** contr_p2 = init_3level_ztable ( (size_t)g_sink_momentum_number, (size_t)nv, (size_t)nw );
 
         exitstatus = vdag_w_momentum_projection ( contr_p, contr, nv, nw, g_sink_momentum_list, g_sink_momentum_number, t, ieo, mu, 0);
         exitstatus = vdag_w_momentum_projection ( contr_p, contr2, nv, nw, g_sink_momentum_list, g_sink_momentum_number, t, ieo, mu, 1 );

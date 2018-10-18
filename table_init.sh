@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#TYPE="double _Complex"
-#TAG="z"
+TYPE="double _Complex"
+TAG="z"
 
 #TYPE="double"
 #TAG="d"
@@ -9,8 +9,8 @@
 #TYPE="int"
 #TAG="i"
 
-TYPE="char"
-TAG="c"
+#TYPE="char"
+#TAG="c"
 
 TTAG=$( echo $TAG | tr '[:lower:]' '[:upper:]')
 
@@ -34,7 +34,7 @@ EOF
 
 cat << EOF >> $FILE
 
-inline $TYPE * init_1level_${TAG}table ( int const N0 ) {
+inline $TYPE * init_1level_${TAG}table ( size_t const N0 ) {
   return( ( $TYPE *) calloc ( N0 , sizeof( $TYPE ) ) );
 }  // end of init_1level_${TAG}table
 
@@ -65,9 +65,9 @@ for LEVEL in $(seq 2 8 ); do
 
   printf "inline %s %s init_%dlevel_%stable (" "$TYPE" "$PTR"  $LEVEL "$TAG"
 for ((k=1; k < $LEVEL; k++ )) do
-  printf "int const N%d, " $(($k - 1 ))
+  printf "size_t const N%d, " $(($k - 1 ))
 done
-printf "int const N%d ) {\n" $(($LEVEL - 1 ))
+printf "size_t const N%d ) {\n" $(($LEVEL - 1 ))
 
 printf "  %s %s s__ = NULL;\n" "${TYPE}" "$PTR2"
 printf "  s__ = init_%dlevel_%stable ( N0*N1" $(( $LEVEL - 1 )) "$TAG"
@@ -83,7 +83,7 @@ cat << EOF
   ${TYPE} $PTR s_ = ( ${TYPE} $PTR) malloc( N0 * sizeof( ${TYPE} $PTR2) );
   if ( s_ == NULL ) return ( NULL );
 
-  for ( int i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
+  for ( size_t i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
   return( s_ );
 }  // end of init_${LEVEL}level_${TAG}table
 
