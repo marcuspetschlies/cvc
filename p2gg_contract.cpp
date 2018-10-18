@@ -362,8 +362,7 @@ int main(int argc, char **argv) {
     /**********************************************************
      * loop on shifts in direction mu
      **********************************************************/
-    // for( int mu = 0; mu < 5; mu++)
-    for( int mu = 0; mu < 1; mu++)
+    for( int mu = 0; mu < 5; mu++)
     {
 
       /**********************************************************
@@ -564,8 +563,7 @@ int main(int argc, char **argv) {
             /***************************************************************************
              * prepare sequential sources
              ***************************************************************************/
-            // for( int is = 0; is < 60; is++ ) 
-            for( int is = 0; is < 12; is++ ) 
+            for( int is = 0; is < 60; is++ ) 
             {
               int eo_spinor_field_id_e     = iflavor * 120 + is;
               int eo_spinor_field_id_o     = eo_spinor_field_id_e + 60;
