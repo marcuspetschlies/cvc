@@ -410,7 +410,7 @@ int main(int argc, char **argv) {
 
     }  /* end of loop on shift direction mu */
 
-#if 0
+
 
     /* allocate memory for contractions, initialize */
     cvc_tensor_eo = init_2level_dtable ( 2, 32 * (size_t)Vhalf );
@@ -492,7 +492,7 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[p2gg_contract] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(1);
     }
-
+#if 0
 #endif  // of if 0
 
 
@@ -620,7 +620,7 @@ int main(int argc, char **argv) {
 
             }  /* end of loop on spin-color and shift direction */
 
-#if 0
+
 
             /***************************************************************************
              * P - cvc - cvc tensor
@@ -676,7 +676,7 @@ int main(int argc, char **argv) {
               fprintf(stderr, "[p2gg_contract] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(1);
             }
-
+#if 0
 #endif  // of if 0
 
           }  /* end of loop on flavor */
@@ -684,7 +684,6 @@ int main(int argc, char **argv) {
           /***************************************************************************/
           /***************************************************************************/
 
-#if 0
           /* subtract contact term */
           cvc_tensor_eo_subtract_contact_term (cvc_tensor_eo, contact_term[0], gsx, (int)( source_proc_id == g_cart_id ) );
 
@@ -719,9 +718,10 @@ int main(int argc, char **argv) {
           }
 
 
+#if 0
+#endif  /* of if 0 */
           fini_2level_dtable ( &cvc_tensor_eo );
 
-#endif  /* of if 0 */
           /***************************************************************************/
           /***************************************************************************/
 
