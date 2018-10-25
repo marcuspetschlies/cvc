@@ -31,8 +31,9 @@ void * twopoint_function_allocate ( twopoint_function_type *p );
 
 void twopoint_function_show_data ( twopoint_function_type *p, FILE*ofs );
 
-int twopoint_function_fill_data ( twopoint_function_type *p );
+int twopoint_function_fill_data ( twopoint_function_type *p, char *datafile_prefix );
 
+int twopoint_function_write_data ( twopoint_function_type *p );
 
 }  // end of namespace cvc
 
