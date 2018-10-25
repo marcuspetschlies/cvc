@@ -165,7 +165,7 @@ int main(int argc, char **argv) {
    * check source coords list
    ******************************************************/
   for ( int i = 0; i < g_source_location_number; i++ ) {
-    g_source_coords_list[i][0] = ( g_source_coords_list[i][0] + T_global ) % T_global;
+    g_source_coords_list[i][0] = ( g_source_coords_list[i][0] +  T_global ) %  T_global;
     g_source_coords_list[i][1] = ( g_source_coords_list[i][1] + LX_global ) % LX_global;
     g_source_coords_list[i][2] = ( g_source_coords_list[i][2] + LY_global ) % LY_global;
     g_source_coords_list[i][3] = ( g_source_coords_list[i][3] + LZ_global ) % LZ_global;
@@ -203,7 +203,13 @@ int main(int argc, char **argv) {
       EXIT(2);
     }
     
-    little_group_show ( &little_group, stdout, 1 );
+    sprintf ( filename, "little_group_%d.show", i2pt );
+    if ( ( ofs = fopen ( filename, "w" ) ) == NULL ) {
+      fprintf ( stderr, "[piN2piN_projection] Error from fopen %s %d\n", __FILE__, __LINE__ );
+      EXIT(12);
+    }
+    little_group_show ( &little_group, ofs, 1 );
+    fclose ( ofs );
 
     /****************************************************
      * initialize and set projector 
@@ -233,7 +239,13 @@ int main(int argc, char **argv) {
       EXIT(3);
     }
 
-    exitstatus = little_group_projector_show ( &projector, stdout, 1 );
+    sprintf ( filename, "little_group_projector_%d.show", i2pt );
+    if ( ( ofs = fopen ( filename, "w" ) ) == NULL ) {
+      fprintf ( stderr, "[piN2piN_projection] Error from fopen %s %d\n", __FILE__, __LINE__ );
+      EXIT(12);
+    }
+    exitstatus = little_group_projector_show ( &projector, ofs, 1 );
+    fclose ( ofs );
 
     int const nrot      = projector.rtarget->n;
     int const irrep_dim = projector.rtarget->dim;
@@ -279,7 +291,15 @@ int main(int argc, char **argv) {
 
         }
 
-        //                       ref row     row sink    row source
+        /******************************************************
+         * tp_project = list of projected 2-pt functions
+         *   how many ? well,...
+         *   n_tp_project =      ref row     row sink    row source
+         *
+         *   i.e. for each reference row used in the projector
+         *   we have nrow x nrow ( source, sink ) operators
+         *   
+         ******************************************************/
         int const n_tp_project = irrep_dim * irrep_dim * irrep_dim;
         tp_project = (twopoint_function_type *) malloc ( n_tp_project * sizeof (twopoint_function_type ) );
         if (  tp_project == NULL ) {
@@ -287,15 +307,25 @@ int main(int argc, char **argv) {
           EXIT(124);
         }
  
-        for ( int i = 0; i < irrep_dim*irrep_dim; i++ ) {
+        /******************************************************
+         * loop on elements of tp_project
+         * - initialize
+         * - copy content of current reference element of
+         *   g_twopoint_function_list
+         ******************************************************/
+        for ( int i = 0; i < n_tp_project; i++ ) {
           twopoint_function_init ( &(tp_project[i]) );
           twopoint_function_copy ( &(tp_project[i]), &( g_twopoint_function_list[i2pt] ) );
 
+          /* number of data sets in tp_project is always 1
+           *   we save the sum of all diagrams in here */
           tp_project[i].n = 1;
           sprintf ( tp_project[i].norm, "NA" );
+          /* abuse the diagrams name string to label the row-coordinates */
           sprintf ( tp_project[i].diagrams, "rref_%d_rsnk%d_rsrc%d", i/(irrep_dim*irrep_dim), (i%(irrep_dim*irrep_dim))/irrep_dim, i%irrep_dim );
 
 
+          /* allocate memory */
           if ( twopoint_function_allocate ( &(tp_project[i]) ) == NULL ) {
             fprintf ( stderr, "[piN2piN_projection] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
             EXIT(125);
@@ -307,9 +337,10 @@ int main(int argc, char **argv) {
         gamma_matrix_init ( &gr );
 
         /******************************************************
-         * loop on little group elements --- rotations
+         * loop on little group elements
+         *  - rotations and rotation-reflections
+         *  - at sink, left-applied element
          ******************************************************/
-
         for ( int irotl = 0; irotl < 2*nrot; irotl ++ ) {
 
 
@@ -321,8 +352,7 @@ int main(int argc, char **argv) {
           double _Complex ** Rsl = ( irotl < nrot ) ? projector.rspin[0].R[irotl] : projector.rspin[0].IR[irotl-nrot];
           memcpy ( gl.v, Rsl[0], 16*sizeof(double _Complex) );
 
-          // if ( g_verbose > 3 ) gamma_matrix_printf ( &gl, "gl", stdout );
-
+          /* if ( g_verbose > 4 ) gamma_matrix_printf ( &gl, "gl", stdout ); */
 
           gamma_matrix_set ( &gf11, g_twopoint_function_list[i2pt].gf1[0], 1. );
           gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gf11, &gl, 'C', &gf11, &gl, 'H' );
@@ -337,6 +367,11 @@ int main(int argc, char **argv) {
           tp.gf1[1] = gf12.id;
           tp.gf2    = gf2.id;
 
+        /******************************************************
+         * loop on little group elements
+         *  - rotations and rotation-reflections
+         *  - at source, right-applied element
+         ******************************************************/
         for ( int irotr = 0; irotr < 2*nrot; irotr ++ ) {
 
           double _Complex ** Rpr = ( irotr < nrot ) ? projector.rp->R[irotr] : projector.rp->IR[irotr-nrot];
@@ -373,20 +408,22 @@ int main(int argc, char **argv) {
            * fill the diagram with data
            ******************************************************/
  
-          if ( ( exitstatus = twopoint_function_fill_data ( &tp ) ) != 0 ) {
+          if ( ( exitstatus = twopoint_function_fill_data ( &tp, filename_prefix ) ) != 0 ) {
             fprintf ( stderr, "[piN2piN_projection] Error from twopoint_function_fill_data, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(212);
           }
 
+#if 0
           /******************************************************
            * sum up data sets in tp
+           * - add data sets 1,...,tp.n-1 to data set 0
            ******************************************************/
           for ( int i = 1; i < tp.n; i++ ) {
             contract_diagram_zm4x4_field_pl_eq_zm4x4_field ( tp.c[0], tp.c[i], tp.T );
           }
 
           /******************************************************
-           * proection variants
+           * projection variants
            ******************************************************/
 
           double _Complex ** Tirrepl = ( irotl < nrot ) ? projector.rtarget->R[irotl] : projector.rtarget->IR[irotl-nrot];
@@ -409,19 +446,34 @@ int main(int argc, char **argv) {
             }  // end of loop on rsnk
           }  // end of loop on rref
 
+#endif  /* end of if 0 */
+
         }  // end of loop on source rotations
         }  // end of loop on sink rotations
 
         /******************************************************
          * output of tp_project
          ******************************************************/
+        for ( int itp = 0; itp < n_tp_project; itp++ ) {
+ 
+          exitstatus = twopoint_function_write_data ( &( tp_project[itp] ) );
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "[piN2piN_projection] Error from twopoint_function_write_data, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(12);
+          }
+
+        }  /* end of loop on 2-point functions */
 
 
+        /******************************************************
+         * deallocate twopoint_function vars tp and tp_project
+         ******************************************************/
         twopoint_function_fini ( &tp );
         for ( int i = 0; i < n_tp_project; i++ ) {
           twopoint_function_fini ( &(tp_project[i]) );
         }
         free ( tp_project );
+        tp_project = NULL;
 
       }  // end of loop on coherent source locations
 
@@ -444,9 +496,7 @@ int main(int argc, char **argv) {
 
   /******************************************************
    * finalize
-   ******************************************************/
-
-  /******************************************************
+   *
    * free the allocated memory, finalize
    ******************************************************/
   free_geometry();
