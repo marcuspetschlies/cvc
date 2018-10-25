@@ -5,6 +5,9 @@
 #include <time.h>
 #include <complex.h>
 #include <ctype.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
@@ -15,11 +18,15 @@
 #ifdef HAVE_LHPC_AFF
 #include "lhpc-aff.h"
 #endif
-// #include <hdf5.h>
+
+#ifdef HAVE_HDF5
+#include <hdf5.h>
+#endif
 
 #include "types.h"
 #include "global.h"
 #include "default_input_values.h"
+#include "io_utils.h"
 #include "zm4x4.h"
 #include "table_init_z.h"
 #include "contract_diagrams.h"
@@ -178,10 +185,10 @@ void twopoint_function_show_data ( twopoint_function_type *p, FILE*ofs ) {
     fprintf ( ofs, "# [twopoint_function_show_data] %s data set %2d\n", p->name, i ); 
     for ( int it = 0; it < p->T; it++ ) {
       for ( int k1 = 0; k1 < p->d; k1++ ) {
-      for ( int k2 = 0; k2 < p->d; k2++ ) {
-        double _Complex const z = p->c[i][it][k1][k2];
-        fprintf ( ofs, "    %3d %2d %2d %25.16e %25.16e\n", it, k1, k2, creal(z), cimag(z) );
-      }}  // end of loop on components k1, k2
+        for ( int k2 = 0; k2 < p->d; k2++ ) {
+          double _Complex const z = p->c[i][it][k1][k2];
+          fprintf ( ofs, "    %3d %2d %2d %25.16e %25.16e\n", it, k1, k2, creal(z), cimag(z) );
+        }}  // end of loop on components k1, k2
     }  // end of loop on timeslices
   }  // end of loop on diagrams
 }  // end of twopoint_function_show_data
@@ -219,12 +226,12 @@ void twopoint_function_print_diagram_key (char*key, twopoint_function_type *p, i
   char *ptr = NULL;
   char diag_str[20];
   char diagrams[400];
-  char fbwd_str[10] = "";
+  char fbwd_str[20] = "";
 
   if ( ! ( strcmp( p->fbwd, "NA" ) == 0 ) ) {
     sprintf ( fbwd_str, "%s/", p->fbwd );
   }
-  
+
 
   strcpy( diagrams, p->diagrams );
   if ( id >= p->n ) { strcpy ( key, "NA" ); return; }
@@ -234,7 +241,7 @@ void twopoint_function_print_diagram_key (char*key, twopoint_function_type *p, i
     if ( ptr == NULL ) { strcpy ( key, "NA" ); return; }
     if ( strcmp ( ptr, "NA" ) == 0 ) { strcpy ( key, "NA" ); return; }
     // fprintf(stdout, "# [twopoint_function_print_diagram_key] %d ptr = %s\n", 0, ptr);
-  
+
     for( int i = 1; i <= id && ptr != NULL; i++ ) { 
       ptr = strtok(NULL, "," );
       // fprintf(stdout, "# [twopoint_function_print_diagram_key] %d ptr = %s\n", i, ptr);
@@ -254,12 +261,12 @@ void twopoint_function_print_diagram_key (char*key, twopoint_function_type *p, i
 
 
     /* sprintf( key, "/%s/t%.2dx%.2dy%.2dz%.2d/gi%.2d/gf%.2d/%spx%.2dpy%.2dpz%.2d", p->name,
-        p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3],
-        gamma_to_C_gamma[p->gi1[0]][0], gamma_to_C_gamma[p->gf1[0]][0], diag_str, p->pf1[0], p->pf1[1], p->pf1[2] ); */
+       p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3],
+       gamma_to_C_gamma[p->gi1[0]][0], gamma_to_C_gamma[p->gf1[0]][0], diag_str, p->pf1[0], p->pf1[1], p->pf1[2] ); */
 
 
   } else if ( strcmp( p->type, "mxb-mxb") == 0 ) {
-    
+
     //sprintf( key, "/%s/%s%spi2x%.2dpi2y%.2dpi2z%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/t%.2dx%.2dy%.2dz%.2d/g%.2dg%.2d", p->name, diag_str, fbwd_str,
     //    p->pi2[0], p->pi2[1], p->pi2[2],
     //    p->pf1[0], p->pf1[1], p->pf1[2],
@@ -300,11 +307,11 @@ void twopoint_function_print_diagram_key (char*key, twopoint_function_type *p, i
 
     /* /piN-D/t54x14y01z32/pi2x01pi2y01pi2z-01/gi02/gf15/t5/px01py01pz-01 */
     /* sprintf( key, "/%s/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/gi%.2d/gf%.2d/%spx%.2dpy%.2dpz%.2d", p->name, 
-        p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3],
-        p->pi2[0], p->pi2[1], p->pi2[2],
-        gamma_to_C_gamma[p->gi1[0]][0], gamma_to_C_gamma[p->gf1[0]][0],
-        diag_str,
-        p->pf1[0], p->pf1[1], p->pf1[2]); */
+       p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3],
+       p->pi2[0], p->pi2[1], p->pi2[2],
+       gamma_to_C_gamma[p->gi1[0]][0], gamma_to_C_gamma[p->gf1[0]][0],
+       diag_str,
+       p->pf1[0], p->pf1[1], p->pf1[2]); */
 
   } else if ( strcmp( p->type, "m-m") == 0 ) {
 
@@ -420,7 +427,7 @@ void twopoint_function_correlator_phase (double _Complex * const c, twopoint_fun
  *
  ********************************************************************************/
 void twopoint_function_print_correlator_data ( double _Complex * const c, twopoint_function_type *p, FILE*ofs, int const N ) { 
-   
+
   char key[400];
 
   if ( c == NULL || p == NULL || ofs == NULL ) {
@@ -441,18 +448,18 @@ void twopoint_function_print_correlator_data ( double _Complex * const c, twopoi
  ********************************************************************************/
 void twopoint_function_get_aff_filename_prefix (char*filename, twopoint_function_type*p) {
 
-//  if ( strcmp( p->type , "b-b" ) == 0 || strcmp( p->type , "mxb-b" ) == 0 ) {
-//    strcpy(filename, filename_prefix);
-//  } else if ( strcmp( p->type , "mxb-mxb" ) == 0 ) {
-//    strcpy(filename, filename_prefix2);
-//  } else {
-//    fprintf(stderr, "[twopoint_function_get_aff_filename] Error, unrecognized type %s\n", p->type);
-//  }
+  //  if ( strcmp( p->type , "b-b" ) == 0 || strcmp( p->type , "mxb-b" ) == 0 ) {
+  //    strcpy(filename, filename_prefix);
+  //  } else if ( strcmp( p->type , "mxb-mxb" ) == 0 ) {
+  //    strcpy(filename, filename_prefix2);
+  //  } else {
+  //    fprintf(stderr, "[twopoint_function_get_aff_filename] Error, unrecognized type %s\n", p->type);
+  //  }
 
   if (     strcmp( p->type , "b-b"     ) == 0 
-        || strcmp( p->type , "mxb-b"   ) == 0 
-        || strcmp( p->type , "mxb-mxb" ) == 0 
-        || strcmp( p->type , "m-m"     ) == 0 ) {
+      || strcmp( p->type , "mxb-b"   ) == 0 
+      || strcmp( p->type , "mxb-mxb" ) == 0 
+      || strcmp( p->type , "m-m"     ) == 0 ) {
     strcpy(filename, filename_prefix);
   } else {
     fprintf(stderr, "[twopoint_function_get_aff_filename] Error, unrecognized type %s\n", p->type);
@@ -479,19 +486,19 @@ double twopoint_function_get_diagram_norm ( twopoint_function_type *p, int const
     if ( ptr == NULL ) { return(0.); }
     if ( strcmp ( ptr, "NA" ) == 0 ) { return(1.); }
     // fprintf(stdout, "# [twopoint_function_get_diagram_norm] %d ptr = %s\n", 0, ptr);
-                                  
+
     for( int i = 1; i <= id && ptr != NULL; i++ ) {
       ptr = strtok(NULL, "," );
       // fprintf(stdout, "# [twopoint_function_get_diagram_norm] %d ptr = %s\n", i, ptr);
     }
     if ( ptr == NULL ) { return(0.); }
     r = atof ( ptr );
-    
+
   } else {
     r = 0.;
   }
   if ( g_verbose > 2 ) fprintf(stdout, "# [twopoint_function_get_diagram_norm] diagram norm = %25.16e\n", r);
-  
+
   return( r );
 
 }  // end of twopoint_function_get_diagram_norm
@@ -517,7 +524,7 @@ void twopoint_function_get_diagram_name (char *diagram_name,  twopoint_function_
     if ( ptr == NULL ) { return; }
     if ( strcmp ( ptr, "NA" ) == 0 ) { return; }
     // fprintf(stdout, "# [twopoint_function_get_diagram_name] %d ptr = %s\n", 0, ptr);
-                                  
+
     for( int i = 1; i <= id && ptr != NULL; i++ ) {
       ptr = strtok(NULL, "," );
       // fprintf(stdout, "# [twopoint_function_get_diagram_name] %d ptr = %s\n", i, ptr);
@@ -525,8 +532,8 @@ void twopoint_function_get_diagram_name (char *diagram_name,  twopoint_function_
     if ( ptr == NULL ) { return; }
     strcpy ( diagram_name, ptr );
   }
-  if ( g_verbose > 2 ) fprintf(stdout, "# [twopoint_function_get_diagram_norm] diagram name = %s\n", diagram_name);
-  
+  if ( g_verbose > 2 ) fprintf(stdout, "# [twopoint_function_get_diagram_name] diagram name = %s\n", diagram_name);
+
   return;
 
 }  // end of twopoint_function_get_diagram_name
@@ -594,9 +601,10 @@ int twopoint_function_accumulate_diagrams ( double _Complex *** const diagram, t
 
   // TEST
   if ( g_verbose > 5 ) {
+    char name[10] = "c_in";
     for ( int it = 0; it < N; it++ ) {
       fprintf(stdout, "# [twopoint_function_accumulate_diagrams] initial correlator t = %2d\n", it );
-      zm4x4_printf ( diagram[it], "c_in", stdout );
+      zm4x4_printf ( diagram[it], name, stdout );
     }
   }
 
@@ -604,16 +612,19 @@ int twopoint_function_accumulate_diagrams ( double _Complex *** const diagram, t
 
 }  // end of twopoint_function_accumulate_diagrams
 
+/********************************************************************************/
+/********************************************************************************/
 
 /********************************************************************************
  * read diagrams for a twopoint
  ********************************************************************************/
-int twopoint_function_fill_data ( twopoint_function_type *p ) {
+int twopoint_function_fill_data ( twopoint_function_type *p, char * datafile_prefix ) {
 
   int const nT = p->T;  // timeslices
   int const d  = p->d;  // spin dimension
   int const nD = p->n;  // number of diagrams / data sets
-  char const filename_prefix[] = "piN_piN_diagrams";
+  /* fix: does this need to be generalized ? */
+  /* char const filename_prefix[] = "piN_piN_diagrams"; */
 
   if ( p->c == NULL ) {
     fprintf ( stdout, "# [twopoint_function_fill_data] Warning, data array not intialized; allocing p->c %s %d\n", __FILE__, __LINE__ );
@@ -624,6 +635,7 @@ int twopoint_function_fill_data ( twopoint_function_type *p ) {
     }
   }
 
+  /* baryon correlators, so d = 4 hard-coded here  */
   if ( d != 4 ) {
     fprintf ( stderr, "[twopoint_function_fill_data] Error, spinor dimension must be 4 %s %d\n", __FILE__, __LINE__ );
     return(3);
@@ -631,7 +643,8 @@ int twopoint_function_fill_data ( twopoint_function_type *p ) {
 
 #ifdef HAVE_LHPC_AFF
   struct AffReader_s *affr = NULL;
-  struct AffNode_s *affn = NULL, *affdir = NULL;
+  struct AffNode_s *affn = NULL;
+  struct AffNode_s *affdir = NULL;
 #else
   fprintf ( stderr, "[twopoint_function_fill_data] Error, HAVE_LHPC_AFF not defined %s %d\n", __FILE__, __LINE__ );
   return(1);
@@ -639,11 +652,11 @@ int twopoint_function_fill_data ( twopoint_function_type *p ) {
 
   char key[500];
   char key_suffix[400];
+  char diagram_tag[20] = "NA";
+  char filename[200];
   int exitstatus;
 
   int const Ptot[3] = { p->pf1[0] + p->pf2[0], p->pf1[1] + p->pf2[1], p->pf1[2] + p->pf2[2] } ;
-
-  char filename[200];
 
   /******************************************************
    * loop on diagrams / data sets within 2-point function
@@ -652,45 +665,64 @@ int twopoint_function_fill_data ( twopoint_function_type *p ) {
 
     double _Complex *** const diagram = p->c[i];
 
-    char filename_tag[10], diagram_tag[10];
-    twopoint_function_get_diagram_name ( diagram_tag, p, i );
+    char diagram_tag_tmp[20];
+    twopoint_function_get_diagram_name ( diagram_tag_tmp, p, i );
 
-    strcpy ( filename_tag, diagram_tag );
-    filename_tag[0] = toupper ( diagram_tag[0] );
+    if ( /* here we need a new reader */
+         ( affr == NULL ) || /* reader not set */
+         ( strcmp ( diagram_tag, "NA" ) == 0 ) || /* diagram tag has not been set */
+         ( diagram_tag[0] != diagram_tag_tmp[0] ) /* diagram tag has changed */
+       ) {
 
+       if ( affr != NULL ) {
+        aff_reader_close (affr);
+        affr = NULL;
+       }
+       if ( strcmp ( diagram_tag, diagram_tag_tmp ) != 0 ) strcpy ( diagram_tag, diagram_tag_tmp );
 
-    /******************************************************
-     * AFF reader
-     ******************************************************/
-    sprintf(filename, "%s.%s.%.4d.PX%dPY%dPZ%d.t%dx%dy%dz%d.aff", filename_prefix, filename_tag, Nconf,
-        Ptot[0], Ptot[1], Ptot[2],
-        p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3] );
+      /******************************************************
+       * AFF reader
+       ******************************************************/
+      sprintf(filename, "%s.%c.PX%dPY%dPZ%d.%.4d.t%dx%dy%dz%d.aff", datafile_prefix, diagram_tag[0],
+          Ptot[0], Ptot[1], Ptot[2], Nconf,
+          p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3] );
  
-    affr = aff_reader  (filename);
-    if ( const char * aff_status_str =  aff_reader_errstr(affr) ) {
-      fprintf(stderr, "[twopoint_function_fill_data] Error from aff_reader for filename %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__);
-      EXIT(4);
+      affr = aff_reader  (filename);
+      if ( const char * aff_status_str =  aff_reader_errstr(affr) ) {
+        fprintf(stderr, "[twopoint_function_fill_data] Error from aff_reader for filename %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__);
+        EXIT(4);
+      } else {
+        if ( g_verbose > 1 ) fprintf(stdout, "# [twopoint_function_fill_data] reading data from file %s %s %d\n", filename, __FILE__, __LINE__);
+      }
+
+      if( (affn = aff_reader_root( affr )) == NULL ) {
+        fprintf(stderr, "[twopoint_function_fill_data] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
+        return(103);
+      }
     } else {
-      fprintf(stdout, "# [twopoint_function_fill_data] reading data from file %s %s %d\n", filename, __FILE__, __LINE__);
-    }
+      if ( g_verbose > 3 ) fprintf ( stdout, "# [twopoint_function_fill_data] using existing reader\n");
+    }  /* end of need new reader */
 
-    if( (affn = aff_reader_root( affr )) == NULL ) {
-      fprintf(stderr, "[twopoint_function_fill_data] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
-      return(103);
-    }
+    /* current filename pattern uses lower-case tag, so this 
+     * toupper is not needed now */
+    /* strcpy ( filename_tag, diagram_tag ); */
+    /* filename_tag[0] = toupper ( diagram_tag[0] ); */
 
+
+    /* write "last part" of key name into key_suffix;
+     * including all momenta and vertex gamma ids */
     if ( strcmp( p->type, "mxb-mxb" ) == 0 ) {
       exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
     } else if ( strcmp( p->type, "mxb-b" ) == 0 ) {
-      exitstatus = contract_diagram_key_suffix ( key_suffix, -1, NULL, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
+      exitstatus = contract_diagram_key_suffix ( key_suffix,     -1,   NULL, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
     } else if ( strcmp( p->type, "b-b" ) == 0 ) {
-      exitstatus = contract_diagram_key_suffix ( key_suffix, -1, NULL, p->gf1[0], p->gf1[1], p->pf1, -1, NULL, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
+      exitstatus = contract_diagram_key_suffix ( key_suffix,     -1,   NULL, p->gf1[0], p->gf1[1], p->pf1,      -1,  NULL, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
     } else if ( strcmp( p->type, "m-m" ) == 0 ) {
-      exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2, -1, -1, NULL, p->gi2, p->pi2, -1, -1, NULL, p->source_coords );
+      exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2,        -1,         -1,  NULL, p->gi2, p->pi2,        -1,        -1,   NULL, p->source_coords );
     }
 
     sprintf( key, "/%s/%s/%s/%s", p->name, diagram_tag, p->fbwd, key_suffix );
-    fprintf ( stdout, "# [twopoint_function_fill_data] key = %s\n", key );
+    if ( g_verbose > 3 ) fprintf ( stdout, "# [twopoint_function_fill_data] key = %s\n", key );
 
 
     affdir = aff_reader_chpath (affr, affn, key );
@@ -703,6 +735,7 @@ int twopoint_function_fill_data ( twopoint_function_type *p ) {
 
     if ( strcmp ( p->norm , "NA" ) != 0 ) {
       double const norm = twopoint_function_get_diagram_norm ( p, i );
+      if ( g_verbose > 3 ) fprintf ( stdout, "# [twopoint_function_fill_data] using diagram norm %2d %16.7e\n", i, norm );
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
@@ -712,11 +745,13 @@ int twopoint_function_fill_data ( twopoint_function_type *p ) {
       }
 
     }  // end of if norm not NA
-
-    // close the AFF reader
-    aff_reader_close (affr);
+#if 0
+#endif  /* of if 0 */
 
   }  // end of loop on diagrams / data sets
+
+  // close the AFF reader
+  if ( affr != NULL ) aff_reader_close ( affr );
 
   // TEST
   if ( g_verbose > 5 ) {
@@ -727,28 +762,207 @@ int twopoint_function_fill_data ( twopoint_function_type *p ) {
 
 }  // end of twopoint_function_fill_data
 
-#if 0
+/********************************************************************************/
+/********************************************************************************/
+#if ! ( ( defined HAVE_LHPC_AFF ) || ( defined HAVE_HDF5 ) )
 /********************************************************************************
  * write diagrams in a twopoint
  ********************************************************************************/
 int twopoint_function_write_data ( twopoint_function_type *p ) {
 
-  int const nT = p->T;  // timeslices
-  int const d  = p->d;  // spin dimension
-  int const nD = p->n;  // number of diagrams / data sets
+  int const nT     = p->T;         // timeslices
+  int const ncomp  = p->d * p->d;  // number of components per timeslice of the data set; usually ( spin dimension )^2
+  int const nD     = p->n;         // number of data sets, usually number of diagrams
+
+#ifndef HAVE_LHPC_AFF
+  fprintf ( stderr, "[twopoint_function_write_data] Error, only AFF writing implemented %s %d\n", __FILE__, __LINE__ );
+  return(3);
+#endif
+
+  if ( nT <= 0 || ncomp <= 0 || nD <= 0 ) {
+    fprintf ( stderr, "[twopoint_function_write_data] Error, wrong number of timeslices, components or data sets %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
+
+  if ( p->c == NULL ) {
+    fprintf ( stderr, "[twopoint_function_write_data] Error, no data found %s %d\n", __FILE__, __LINE__ );
+    return(2);
+  }
+
+  char key[500];
+  char key_suffix[400];
+  int exitstatus;
+
+  int const Ptot[3] = { p->pf1[0] + p->pf2[0], p->pf1[1] + p->pf2[1], p->pf1[2] + p->pf2[2] };
+
+  char filename[200];
+
+  /******************************************************
+   * open AFF writer
+   ******************************************************/
+  sprintf ( filename, "%s.%s.PX%dPY%dPZ%d.%s.%.4d.t%dx%dy%dz%d", p->name, p->group, Ptot[0], Ptot[1], Ptot[2], p->irrep, Nconf,
+      p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3] );
+  if ( g_verbose > 3 ) fprintf ( stdout, "# [twopoint_function_write_data] filename = %s %s %d\n", filename, __FILE__, __LINE__ );
+
+  FILE * ofs = fopen ( filename, "a" );
+  if ( ofs == NULL ) {
+    fprintf(stderr, "[twopoint_function_write_data] Error from fopen %s %d\n", __FILE__, __LINE__);
+    return(4);
+  }
+
+  /******************************************************
+   * loop on diagrams / data sets within 2-point function
+   ******************************************************/
+  for ( int i = 0; i < nD; i++ ) {
+
+    double _Complex *** const dataset = p->c[i];
+
+    char dataset_tag[10];
+    twopoint_function_get_diagram_name ( dataset_tag, p, i );
+
+    if ( strcmp( p->type, "mxb-mxb" ) == 0 ) {
+      exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
+    } else if ( strcmp( p->type, "mxb-b" ) == 0 ) {
+      exitstatus = contract_diagram_key_suffix ( key_suffix, -1, NULL, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
+    } else if ( strcmp( p->type, "b-b" ) == 0 ) {
+      exitstatus = contract_diagram_key_suffix ( key_suffix, -1, NULL, p->gf1[0], p->gf1[1], p->pf1, -1, NULL, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
+    } else if ( strcmp( p->type, "m-m" ) == 0 ) {
+      exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2, -1, -1, NULL, p->gi2, p->pi2, -1, -1, NULL, p->source_coords );
+    }
+
+    sprintf( key, "/%s/%s/%s/%s", p->name, dataset_tag, p->fbwd, key_suffix );
+    fprintf ( ofs, "# %s\n", key );
+
+    size_t uitems = ncomp * nT;
+    for ( int it = 0; it < ncomp * nT; it++ ) {
+      fprintf ( ofs, "  %25.16e %25.16e\n", creal ( dataset[0][0][it] ), cimag ( dataset[0][0][it] ) );
+    }
+  }  // end of loop on diagrams / data sets
+
+  fclose ( ofs );
+
+  return(0);
+
+}  // end of twopoint_function_write_data
+
+/********************************************************************************/
+/********************************************************************************/
+
+#elif ( ( defined HAVE_LHPC_AFF )  && ! ( defined HAVE_HDF5 ) )
+
+/********************************************************************************
+ * write diagrams in a twopoint
+ * AFF version
+ ********************************************************************************/
+int twopoint_function_write_data ( twopoint_function_type *p ) {
+
+  int const nT     = p->T;         // timeslices
+  int const ncomp  = p->d * p->d;  // number of components per timeslice of the data set; usually ( spin dimension )^2
+  int const nD     = p->n;         // number of data sets, usually number of diagrams
+
+  if ( nT <= 0 || ncomp <= 0 || nD <= 0 ) {
+    fprintf ( stderr, "[twopoint_function_write_data] Error, wrong number of timeslices, components or data sets %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
+
+  if ( p->c == NULL ) {
+    fprintf ( stderr, "[twopoint_function_write_data] Error, no data found %s %d\n", __FILE__, __LINE__ );
+    return(2);
+  }
+
+  char key[500];
+  char key_suffix[400];
+  int exitstatus;
+
+  int const Ptot[3] = { p->pf1[0] + p->pf2[0], p->pf1[1] + p->pf2[1], p->pf1[2] + p->pf2[2] } ;
+
+  char filename[200];
+
+  /******************************************************
+   * open AFF writer
+   ******************************************************/
+  sprintf ( filename, "%s.%s.PX%dPY%dPZ%d.%s.%.4d.t%dx%dy%dz%d", p->name, p->group, Ptot[0], Ptot[1], Ptot[2], p->irrep, Nconf,
+      p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3] );
+  if ( g_verbose > 3 ) fprintf ( stdout, "# [twopoint_function_write_data] filename = %s %s %d\n", filename, __FILE__, __LINE__ );
+
+  struct AffWriter_s * affw = aff_writer(filename);
+  if ( const char * aff_status_str = aff_writer_errstr ( affw ) ) {
+    fprintf(stderr, "[twopoint_function_write_data] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+    return(4);
+  }
+
+  struct AffNode_s * affn = aff_writer_root ( affw );
+  if( affn == NULL ) {
+    fprintf(stderr, "[twopoint_function_write_data] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
+    return(4);
+  }
+
+  /******************************************************
+   * loop on diagrams / data sets within 2-point function
+   ******************************************************/
+  for ( int i = 0; i < nD; i++ ) {
+
+    double _Complex *** const dataset = p->c[i];
+
+    char dataset_tag[10];
+    twopoint_function_get_diagram_name ( dataset_tag, p, i );
+
+    if ( strcmp( p->type, "mxb-mxb" ) == 0 ) {
+      exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
+    } else if ( strcmp( p->type, "mxb-b" ) == 0 ) {
+      exitstatus = contract_diagram_key_suffix ( key_suffix, -1, NULL, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
+    } else if ( strcmp( p->type, "b-b" ) == 0 ) {
+      exitstatus = contract_diagram_key_suffix ( key_suffix, -1, NULL, p->gf1[0], p->gf1[1], p->pf1, -1, NULL, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
+    } else if ( strcmp( p->type, "m-m" ) == 0 ) {
+      exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2, -1, -1, NULL, p->gi2, p->pi2, -1, -1, NULL, p->source_coords );
+    }
+
+    sprintf( key, "/%s/%s/%s/%s", p->name, dataset_tag, p->fbwd, key_suffix );
+    fprintf ( stdout, "# [twopoint_function_fill_data] key = %s\n", key );
+
+    struct AffNode_s * affdir = aff_writer_mkpath ( affw, affn, key );
+    if ( affdir == NULL ) {
+      fprintf ( stderr, "[twopoint_function_write_data] Error from aff_writer_mkpath %s %d\n", __FILE__, __LINE__ );
+      return(2);
+    }
+
+    uint32_t uitems = ncomp * nT;
+    exitstatus = aff_node_put_complex ( affw, affdir, dataset[i][0], uitems );
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[twopoint_function_fill_data] Error from aff_node_put_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(105);
+    }
+
+  }  // end of loop on diagrams / data sets
+
+  if ( const char * aff_status_str = aff_writer_close ( affw ) ) {
+    fprintf(stderr, "[twopoint_function_write_data] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+    return(4);
+  }
+
+  return(0);
+
+}  // end of twopoint_function_write_data
+
+#elif ( defined HAVE_HDF5 ) 
+
+/********************************************************************************/
+/********************************************************************************/
+
+/********************************************************************************
+ * write diagrams in a twopoint
+ * HDF5 version
+ ********************************************************************************/
+int twopoint_function_write_data ( twopoint_function_type *p ) {
+
+  int const nT     = p->T;         // timeslices
+  int const ncomp  = p->d * p->d;  // spin dimension
+  int const nD     = p->n;         // number of diagrams / data sets
 
   if ( p->c == NULL ) {
     fprintf ( stderr, "[twopoint_function_write_data] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
     return(1);
   }
-
-#ifdef HAVE_LHPC_AFF
-  struct AffWriter_s *affw = NULL;
-  struct AffNode_s *affn = NULL, *affdir = NULL;
-#else
-  fprintf ( stderr, "[twopoint_function_write_data] Error, HAVE_LHPC_AFF not defined %s %d\n", __FILE__, __LINE__ );
-  return(1);
-#endif
 
   char key[500];
   char key_suffix[400];
@@ -765,31 +979,94 @@ int twopoint_function_write_data ( twopoint_function_type *p ) {
   hid_t   file_id;
   herr_t  status;
 
-
-  sprintf(filename, "%s.%s.PX%dPY%dPZ%d.%s.%.4d.t%dx%dy%dz%d.h5", p->name, p->group, Ptot[0], Ptot[1], Ptot[2], p->irrep, Nconf,
+  sprintf ( filename, "%s.%s.PX%dPY%dPZ%d.%s.%.4d.t%dx%dy%dz%d.h5", p->name, p->group, Ptot[0], Ptot[1], Ptot[2], p->irrep, Nconf,
       p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3] );
 
+  /******************************************************
+   * create or open file
+   ******************************************************/
   struct stat fileStat;
-  if(stat( FILE, &fileStat) < 0 ) {
-    /* Open an existing file. */
-    fprintf ( stdout, "# [twopoint_function_write_data] create new file\n" );
-    file_id = H5Fcreate(FILE, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-  } else {
-    /* Open an existing file. */
-    fprintf ( stdout, "# [twopoint_function_write_data] open existing file\n" );
-    file_id = H5Fopen(FILE, H5F_ACC_RDWR, H5P_DEFAULT);
-  }
+  if ( stat( filename, &fileStat) < 0 ) {
+    /* creat a new file */
 
+    fprintf ( stdout, "# [twopoint_function_write_data] create new file\n" );
+ 
+    unsigned flags = H5F_ACC_TRUNC; /* IN: File access flags. Allowable values are:
+                                       H5F_ACC_TRUNC --- Truncate file, if it already exists, erasing all data previously stored in the file. 
+                                       H5F_ACC_EXCL  --- Fail if file already exists. 
+
+                                       H5F_ACC_TRUNC and H5F_ACC_EXCL are mutually exclusive; use exactly one.
+                                       An additional flag, H5F_ACC_DEBUG, prints debug information. 
+                                       This flag can be combined with one of the above values using the bit-wise OR operator (`|'), 
+                                       but it is used only by HDF5 Library developers; it is neither tested nor supported for use in applications.  */
+    hid_t fcpl_id = H5P_DEFAULT; /* IN: File creation property list identifier, used when modifying default file meta-data. 
+                                    Use H5P_DEFAULT to specify default file creation properties. */
+    hid_t fapl_id = H5P_DEFAULT; /* IN: File access property list identifier. If parallel file access is desired, 
+                                    this is a collective call according to the communicator stored in the fapl_id. 
+                                    Use H5P_DEFAULT for default file access properties. */
+
+    //  hid_t H5Fcreate ( const char *name, unsigned flags, hid_t fcpl_id, hid_t fapl_id )     
+    file_id = H5Fcreate (         filename,          flags,       fcpl_id,       fapl_id );
+
+  } else {
+    /* open an existing file. */
+    fprintf ( stdout, "# [twopoint_function_write_data] open existing file\n" );
+
+    unsigned flags = H5F_ACC_RDWR;  /* IN: File access flags. Allowable values are:
+                                       H5F_ACC_RDWR   --- Allow read and write access to file. 
+                                       H5F_ACC_RDONLY --- Allow read-only access to file. 
+
+                                       H5F_ACC_RDWR and H5F_ACC_RDONLY are mutually exclusive; use exactly one.
+                                       An additional flag, H5F_ACC_DEBUG, prints debug information.
+                                       This flag can be combined with one of the above values using the bit-wise OR operator (`|'),
+                                       but it is used only by HDF5 Library developers; it is neither tested nor supported for use in applications. */
+    hid_t fapl_id = H5P_DEFAULT;
+    //  hid_t H5Fopen ( const char *name, unsigned flags, hid_t fapl_id ) 
+    file_id = H5Fopen (         filename,         flags,        fapl_id );
+  }
+  if ( g_verbose > 0 ) fprintf ( stdout, "# [twopoint_function_write_data] file_id = %d\n", file_id );
+
+
+  /******************************************************
+   * H5 data space and data type
+   ******************************************************/
+
+  hid_t dtype_id = H5Tcopy( H5T_NATIVE_DOUBLE );
+  status = H5Tset_order ( dtype_id, H5T_ORDER_LE );
+  // big_endian() ?  H5T_IEEE_F64BE : H5T_IEEE_F64LE;
+
+  hsize_t dims[1];
+  dims[0] = nT * ncomp * 2;  // number of double elements
+
+  //             int rank                             IN: Number of dimensions of dataspace.
+  //             const hsize_t * current_dims         IN: Array specifying the size of each dimension.
+  //             const hsize_t * maximum_dims         IN: Array specifying the maximum size of each dimension.
+  //             hid_t H5Screate_simple( int rank, const hsize_t * current_dims, const hsize_t * maximum_dims ) 
+  hid_t space_id = H5Screate_simple(        1,                         dims,                          NULL);
+
+  /******************************************************
+   * some default settings for H5Dwrite
+   ******************************************************/
+  hid_t mem_type_id   = H5T_NATIVE_DOUBLE;
+  hid_t mem_space_id  = H5S_ALL;
+  hid_t file_space_id = H5S_ALL;
+  hid_t xfer_plit_id  = H5P_DEFAULT;
+  hid_t lcpl_id       = H5P_DEFAULT;
+  hid_t dcpl_id       = H5P_DEFAULT;
+  hid_t dapl_id       = H5P_DEFAULT;
 
   /******************************************************
    * loop on diagrams / data sets within 2-point function
    ******************************************************/
   for ( int i = 0; i < nD; i++ ) {
 
-    double _Complex *** const diagram = p->c[i];
+    double _Complex *** const dataset = p->c[i];
 
-    char diagram_tag[10];
-    twopoint_function_get_diagram_name ( diagram_tag, p, i );
+    /******************************************************
+     * construct the full key
+     ******************************************************/
+    char dataset_tag[10];
+    twopoint_function_get_diagram_name ( dataset_tag, p, i );
 
     if ( strcmp( p->type, "mxb-mxb" ) == 0 ) {
       exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
@@ -801,33 +1078,87 @@ int twopoint_function_write_data ( twopoint_function_type *p ) {
       exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2, -1, -1, NULL, p->gi2, p->pi2, -1, -1, NULL, p->source_coords );
     }
 
-    sprintf( key, "/%s/%s/%s/%s", p->name, diagram_tag, p->fbwd, key_suffix );
-    fprintf ( stdout, "# [twopoint_function_fill_data] key = %s\n", key );
+   // sprintf( key, "/%s/%s/%s/%s", p->name, dataset_tag, p->fbwd, key_suffix );
+    sprintf( key, "%s_%s_%s", p->name, dataset_tag, p->fbwd );
+    fprintf ( stdout, "# [twopoint_function_write_data] key = %s\n", key );
 
-    // create group
-    // hid_t group_id = H5Gcreate2( file_id, "/???", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    /******************************************************
+     * create a data set
+     ******************************************************/
 
-    hsize_t dims[1];
-    dim[0] = p->T * p->d * p->d * 2;  // number of double elements
-    hid_t dataspace_id = H5Screate_simple( 1, dims, NULL);
+    //             hid_t loc_id 	IN: Location identifier
+    //             const char *name     	IN: Dataset name
+    //             hid_t dtype_id 	IN: Datatype identifier
+    //             hid_t space_id 	IN: Dataspace identifier
+    //             hid_t lcpl_id 	IN: Link creation property list
+    //             hid_t dcpl_id 	IN: Dataset creation property list
+    //             hid_t dapl_id 	IN: Dataset access property list
+    //             hid_t H5Dcreate2 ( hid_t loc_id, const char *name, hid_t dtype_id, hid_t space_id, hid_t lcpl_id, hid_t dcpl_id, hid_t dapl_id )
+    // hid_t dataset_id   = H5Dcreate2 ( file_id,      key,                    dtype_id,       space_id,   H5P_DEFAULT,   H5P_DEFAULT,   H5P_DEFAULT   );
 
-    dataset_id = H5Dcreate2(file_id, "/MyGroup/dset1", H5T_STD_I32BE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    //           hid_t H5Dcreate ( hid_t loc_id, const char *name, hid_t dtype_id, hid_t space_id, hid_t lcpl_id, hid_t dcpl_id, hid_t dapl_id ) 
+    hid_t dataset_id = H5Dcreate (      file_id,              key,       dtype_id,       space_id,       lcpl_id,       dcpl_id,       dapl_id );
 
 
+    /******************************************************
+     * write the current data set
+     ******************************************************/
 
-    affdir = aff_reader_chpath (affr, affn, key );
-    uint32_t uitems = d *d * nT;
-    exitstatus = aff_node_get_complex (affr, affdir, diagram[0][0], uitems );
-    if( exitstatus != 0 ) {
-      fprintf(stderr, "[twopoint_function_fill_data] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    //       hid_t dataset_id           IN: Identifier of the dataset to write to.
+    //       hid_t mem_type_id          IN: Identifier of the memory datatype.
+    //       hid_t mem_space_id         IN: Identifier of the memory dataspace.
+    //       hid_t file_space_id        IN: Identifier of the dataset's dataspace in the file.
+    //       hid_t xfer_plist_id        IN: Identifier of a transfer property list for this I/O operation.
+    //       const void * buf           IN: Buffer with data to be written to the file.
+    //herr_t H5Dwrite ( hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id, hid_t file_space_id, hid_t xfer_plist_id, const void * buf )
+    status = H5Dwrite (       dataset_id,       mem_type_id,       mem_space_id,       file_space_id,        xfer_plit_id,    dataset[0][0] );
+
+    if( status < 0 ) {
+      fprintf(stderr, "[twopoint_function_fill_data] Error from H5Dwrite, status was %d %s %d\n", status, __FILE__, __LINE__);
+      return(105);
+    }
+#if 0   
+#endif  // of if 0
+    /******************************************************
+     * close the current data set
+     ******************************************************/
+    status = H5Dclose ( dataset_id );
+    if( status < 0 ) {
+      fprintf(stderr, "[twopoint_function_fill_data] Error from H5Dclose, status was %d %s %d\n", status, __FILE__, __LINE__);
       return(105);
     }
 
-    status = H5Gclose(group_id);
-
   }  // end of loop on diagrams / data sets
 
-  status = H5Fclose(file_id);
+  /******************************************************
+   * close the data space
+   ******************************************************/
+  status = H5Sclose ( space_id );
+  if( status < 0 ) {
+    fprintf(stderr, "[twopoint_function_write_data] Error from H5Sclose, status was %d %s %d\n", status, __FILE__, __LINE__);
+    return(105);
+  }
+
+  /******************************************************
+   * close the data type
+   ******************************************************/
+  status = H5Tclose ( dtype_id );
+  if( status < 0 ) {
+    fprintf(stderr, "[twopoint_function_write_data] Error from H5Tclose, status was %d %s %d\n", status, __FILE__, __LINE__);
+    return(105);
+  }
+
+
+
+  /******************************************************
+   * close the file
+   ******************************************************/
+  status = H5Fclose ( file_id );
+
+  if( status < 0 ) {
+    fprintf(stderr, "[twopoint_function_write_data] Error from H5Fclose, status was %d %s %d\n", status, __FILE__, __LINE__);
+    return(105);
+  }
 
 
   return(0);
