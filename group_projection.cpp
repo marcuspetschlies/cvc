@@ -394,22 +394,22 @@ void little_group_fini ( little_group_type *lg ) {
 void little_group_show ( little_group_type *lg, FILE*ofs, int n) {
 
   for ( int i = 0; i < n; i++ ) {
-    fprintf(stdout, "# [little_group_show]\n");
-    fprintf(stdout, "# [little_group_show] ----------------------------------------------------------------------------------\n");
-    fprintf(stdout, "# [little_group_show]\n# [little_group_show] %4d %s\n", i, lg[i].name );
-    fprintf(stdout, "# [little_group_show] parent name %s\n", lg[i].parent_name );
-    fprintf(stdout, "# [little_group_show] d-vector (%3d, %3d, %3d)\n", lg[i].d[0], lg[i].d[1], lg[i].d[2] );
-    /* fprintf(stdout, "# [little_group_show] %4d %s\n", i, lg[i].name ); */
-    fprintf(stdout, "# [little_group_show] number of elements Rd = +d %2d\n", lg[i].nr );
+    fprintf ( ofs, "# [little_group_show]\n");
+    fprintf ( ofs, "# [little_group_show] ----------------------------------------------------------------------------------\n");
+    fprintf ( ofs, "# [little_group_show]\n# [little_group_show] %4d %s\n", i, lg[i].name );
+    fprintf ( ofs, "# [little_group_show] parent name %s\n", lg[i].parent_name );
+    fprintf ( ofs, "# [little_group_show] d-vector (%3d, %3d, %3d)\n", lg[i].d[0], lg[i].d[1], lg[i].d[2] );
+    /* fprintf ( ofs, "# [little_group_show] %4d %s\n", i, lg[i].name ); */
+    fprintf ( ofs, "# [little_group_show] number of elements Rd = +d %2d\n", lg[i].nr );
     for ( int k = 0; k < lg[i].nr; k++ ) {
-      fprintf(stdout, "# [little_group_show]   r[%2d]  = %3d\n", k, lg[i].r[k] );
+      fprintf ( ofs, "# [little_group_show]   r[%2d]  = %3d\n", k, lg[i].r[k] );
     }
-    fprintf(stdout, "# [little_group_show] number of elements Rd = -d %2d\n", lg[i].nrm );
+    fprintf ( ofs, "# [little_group_show] number of elements Rd = -d %2d\n", lg[i].nrm );
     for ( int k = 0; k < lg[i].nrm; k++ ) {
-      fprintf(stdout, "# [little_group_show]   rm[%2d] = %3d\n", k, lg[i].rm[k] );
+      fprintf ( ofs, "# [little_group_show]   rm[%2d] = %3d\n", k, lg[i].rm[k] );
     }
     for ( int k = 0; k < lg[i].nirrep; k++ ) {
-      fprintf(stdout, "# [little_group_show] irrep[%d] = %20s\n", k, lg[i].lirrep[k] );
+      fprintf ( ofs, "# [little_group_show] irrep[%d] = %20s\n", k, lg[i].lirrep[k] );
     }
   }
   return;
