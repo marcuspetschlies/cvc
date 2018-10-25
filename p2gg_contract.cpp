@@ -437,7 +437,7 @@ int main(int argc, char **argv) {
       EXIT(26);
     }
     /* write results to file */
-    sprintf(aff_tag, "/hvp/full/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
+    sprintf(aff_tag, "/hvp/u-cvc-u-cvc/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
     exitstatus = cvc_tensor_tp_write_to_aff_file ( cvc_tp, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
     if(exitstatus != 0 ) {
       fprintf(stderr, "[p2gg_contract] Error from cvc_tensor_tp_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -462,7 +462,7 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * local - cvc 2-point
      ***************************************************************************/
-    sprintf(aff_tag, "/local-cvc/full/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
+    sprintf(aff_tag, "/local-cvc/u-gf-u-cvc/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
     exitstatus = contract_local_cvc_2pt_eo (
         &(eo_spinor_field[120]), &(eo_spinor_field[180]),
         &(eo_spinor_field[0]), &(eo_spinor_field[60]),
@@ -477,9 +477,9 @@ int main(int argc, char **argv) {
     /***************************************************************************/
 
     /***************************************************************************
-     * local - local 2-point
+     * local - local 2-point  u - u
      ***************************************************************************/
-    sprintf(aff_tag, "/local-local/full/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
+    sprintf(aff_tag, "/local-local/u-gf-u-gi/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
     exitstatus = contract_local_local_2pt_eo (
        &(eo_spinor_field[168]), &(eo_spinor_field[228]),
        &(eo_spinor_field[ 48]), &(eo_spinor_field[108]),
@@ -492,6 +492,19 @@ int main(int argc, char **argv) {
       EXIT(1);
     }
 
+
+    sprintf(aff_tag, "/local-local/d-gf-u-gi/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
+    exitstatus = contract_local_local_2pt_eo (
+       &(eo_spinor_field[48]), &(eo_spinor_field[108]),
+       &(eo_spinor_field[48]), &(eo_spinor_field[108]),
+       g_source_gamma_id_list, g_source_gamma_id_number,
+       g_source_gamma_id_list, g_source_gamma_id_number,
+       g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
+
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[p2gg_contract] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(1);
+    }
     /***************************************************************************/
     /***************************************************************************/
 
@@ -630,7 +643,7 @@ int main(int argc, char **argv) {
             }
 
             /* flavor-dependent aff tag  */
-            sprintf(aff_tag, "/p-cvc-cvc/full/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d",
+            sprintf(aff_tag, "/p-cvc-cvc/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d",
                                   gsx[0], gsx[1], gsx[2], gsx[3], 
                                   g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2],
                                   sequential_source_gamma_id, g_sequential_source_timeslice, iflavor);
@@ -655,7 +668,7 @@ int main(int argc, char **argv) {
             /***************************************************************************
              * contraction for P - local - local tensor
              ***************************************************************************/
-            sprintf(aff_tag, "/p-loc-loc/full/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d", gsx[0], gsx[1], gsx[2], gsx[3],
+            sprintf(aff_tag, "/p-loc-loc/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d", gsx[0], gsx[1], gsx[2], gsx[3],
                 g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2],
                 sequential_source_gamma_id, g_sequential_source_timeslice, iflavor );
 
@@ -688,7 +701,7 @@ int main(int argc, char **argv) {
           }
              
           /* flavor-dependent aff tag  */
-          sprintf(aff_tag, "/p-cvc-cvc/full/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d",
+          sprintf(aff_tag, "/p-cvc-cvc/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d",
                                 gsx[0], gsx[1], gsx[2], gsx[3], 
                                 g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2],
                                 sequential_source_gamma_id, g_sequential_source_timeslice);
