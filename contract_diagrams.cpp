@@ -25,6 +25,9 @@
 #ifdef HAVE_LHPC_AFF
 #include "lhpc-aff.h"
 #endif
+#ifdef HAVE_HDF5
+#include "hdf5.h"
+#endif
 
 #include "cvc_complex.h"
 #include "ilinalg.h"
@@ -860,7 +863,7 @@ int contract_diagram_write_aff (double _Complex***diagram, struct AffWriter_s*af
 
 /***********************************************/
 /***********************************************/
-
+#if 0
 #ifdef HAVE_HDF5
 /***********************************************
  * write contracted diagram to HDF5
@@ -924,6 +927,7 @@ int contract_diagram_write_h5 (double _Complex***diagram, hid_t file, hid_t memt
   return(0);
 }  // end of contract_diagram_write_h5
 #endif  // of if def HAVE_HDF5
+#endif
 
 /***********************************************/
 /***********************************************/
@@ -1249,7 +1253,7 @@ int contract_diagram_read_oet_key_qlua (
 /***********************************************
  *
  ***********************************************/
-int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const pf2[3], int const gf11, int const gf12, int const pf1[3], int const gi2, int const pi2[3], int const gi11, int const gi12, int const pi1[3], int const sx[4] ) {
+int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const pf2[3], int const gf11, int const gf12, int const pf1[3], int const gi2, int const pi2[3], int const gi11, int const gi12, int const pi1[3], int const sx[4]  ) {
 
   char sx_str[40] = "";
   char gf2_str[40] = "";
@@ -1263,7 +1267,7 @@ int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const 
 
   if ( sx != NULL ) { sprintf ( sx_str, "/t%.2dx%.2dy%.2dz%.2d", sx[0], sx[1], sx[2], sx[3] ); }
 
-  if ( gf2 > -1 ) { sprintf( gf2_str, "gf2%.2d", gf2 ); }
+  if ( gf2 > -1 ) { sprintf( gf2_str, "/gf2%.2d", gf2 ); }
 
   if ( gf11 > -1 ) { 
     sprintf( gf1_str, "/gf1%.2d", gf11 ); 
