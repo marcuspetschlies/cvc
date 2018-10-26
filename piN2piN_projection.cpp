@@ -413,7 +413,7 @@ int main(int argc, char **argv) {
             EXIT(212);
           }
 
-#if 0
+
           /******************************************************
            * sum up data sets in tp
            * - add data sets 1,...,tp.n-1 to data set 0
@@ -445,15 +445,18 @@ int main(int argc, char **argv) {
             }  // end of loop on rsrc
             }  // end of loop on rsnk
           }  // end of loop on rref
-
+#if 0
 #endif  /* end of if 0 */
 
         }  // end of loop on source rotations
         }  // end of loop on sink rotations
 
+
+
         /******************************************************
          * output of tp_project
          ******************************************************/
+
         for ( int itp = 0; itp < n_tp_project; itp++ ) {
  
           exitstatus = twopoint_function_write_data ( &( tp_project[itp] ) );
@@ -463,7 +466,8 @@ int main(int argc, char **argv) {
           }
 
         }  /* end of loop on 2-point functions */
-
+#if 0
+#endif  /* end of if 0 */
 
         /******************************************************
          * deallocate twopoint_function vars tp and tp_project
