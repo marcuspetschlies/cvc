@@ -1304,6 +1304,38 @@ int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const 
 
 }  // end of contract_diagram_key_suffix  
 
+/***********************************************/
+/***********************************************/
+
+/***********************************************
+ * 
+ ***********************************************/
+int contract_diagram_key_suffix_from_type ( char * key_suffix, twopoint_function_type * p ) {
+
+  int exitstatus;
+
+  if ( strcmp( p->type, "mxb-mxb" ) == 0 ) {
+
+    exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
+
+  } else if ( strcmp( p->type, "mxb-b" ) == 0 ) {
+
+    exitstatus = contract_diagram_key_suffix ( key_suffix,     -1,   NULL, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
+
+  } else if ( strcmp( p->type, "b-b" ) == 0 ) {
+
+    exitstatus = contract_diagram_key_suffix ( key_suffix,     -1,   NULL, p->gf1[0], p->gf1[1], p->pf1,      -1,  NULL, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
+
+  } else if ( strcmp( p->type, "m-m" ) == 0 ) {
+
+    exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2,        -1,         -1,  NULL, p->gi2, p->pi2,        -1,        -1,   NULL, p->source_coords );
+
+  } else {
+    fprintf ( stderr, "[contract_diagram_key_suffix_from_type] unknown twopoint_function type %s %s %d\n", p->type, __FILE__, __LINE__ );
+    return( 1 );
+  }
+  return ( 0 );
+}  // end of contract_diagram_key_suffix_from_type
 
 /***********************************************/
 /***********************************************/

@@ -55,6 +55,8 @@ int contract_diagram_write_fp ( double _Complex*** const diagram, FILE *fp, char
 
 int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const pf2[3], int const gf11, int const gf12, int const pf1[3], int const gi2, int const pi2[3], int const gi11, int const gi12, int const pi1[3], int const sx[4] );
 
+int contract_diagram_key_suffix_from_type ( char * key_suffix, twopoint_function_type * p );
+
 int contract_diagram_zm4x4_field_mul_gamma_lr ( double _Complex *** const sp_out, double _Complex *** const sp_in, gamma_matrix_type const gl, gamma_matrix_type const gr, unsigned int const N );
 
 int contract_diagram_read_key_qlua (
