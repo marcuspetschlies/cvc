@@ -658,6 +658,14 @@ int twopoint_function_fill_data ( twopoint_function_type *p, char * datafile_pre
 
   int const Ptot[3] = { p->pf1[0] + p->pf2[0], p->pf1[1] + p->pf2[1], p->pf1[2] + p->pf2[2] } ;
 
+  /* write "last part" of key name into key_suffix;
+   * including all momenta and vertex gamma ids */
+  exitstatus = contract_diagram_key_suffix_from_type ( key_suffix, p );
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "[twopoint_function_fill_data] Error from contract_diagram_key_suffix_from_type, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    return(1);
+  }
+
   /******************************************************
    * loop on diagrams / data sets within 2-point function
    ******************************************************/
@@ -707,19 +715,6 @@ int twopoint_function_fill_data ( twopoint_function_type *p, char * datafile_pre
      * toupper is not needed now */
     /* strcpy ( filename_tag, diagram_tag ); */
     /* filename_tag[0] = toupper ( diagram_tag[0] ); */
-
-
-    /* write "last part" of key name into key_suffix;
-     * including all momenta and vertex gamma ids */
-    if ( strcmp( p->type, "mxb-mxb" ) == 0 ) {
-      exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
-    } else if ( strcmp( p->type, "mxb-b" ) == 0 ) {
-      exitstatus = contract_diagram_key_suffix ( key_suffix,     -1,   NULL, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
-    } else if ( strcmp( p->type, "b-b" ) == 0 ) {
-      exitstatus = contract_diagram_key_suffix ( key_suffix,     -1,   NULL, p->gf1[0], p->gf1[1], p->pf1,      -1,  NULL, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
-    } else if ( strcmp( p->type, "m-m" ) == 0 ) {
-      exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2,        -1,         -1,  NULL, p->gi2, p->pi2,        -1,        -1,   NULL, p->source_coords );
-    }
 
     sprintf( key, "/%s/%s/%s/%s", p->name, diagram_tag, p->fbwd, key_suffix );
     if ( g_verbose > 3 ) fprintf ( stdout, "# [twopoint_function_fill_data] key = %s\n", key );
@@ -811,6 +806,16 @@ int twopoint_function_write_data ( twopoint_function_type *p ) {
   }
 
   /******************************************************
+   * write "last part" of key name into key_suffix;
+   * including all momenta and vertex gamma ids
+   ******************************************************/
+  exitstatus = contract_diagram_key_suffix_from_type ( key_suffix, p );
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "[twopoint_function_write_data] Error from contract_diagram_key_suffix_from_type, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    return(1);
+  }
+
+  /******************************************************
    * loop on diagrams / data sets within 2-point function
    ******************************************************/
   for ( int i = 0; i < nD; i++ ) {
@@ -819,16 +824,6 @@ int twopoint_function_write_data ( twopoint_function_type *p ) {
 
     char dataset_tag[10];
     twopoint_function_get_diagram_name ( dataset_tag, p, i );
-
-    if ( strcmp( p->type, "mxb-mxb" ) == 0 ) {
-      exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
-    } else if ( strcmp( p->type, "mxb-b" ) == 0 ) {
-      exitstatus = contract_diagram_key_suffix ( key_suffix, -1, NULL, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
-    } else if ( strcmp( p->type, "b-b" ) == 0 ) {
-      exitstatus = contract_diagram_key_suffix ( key_suffix, -1, NULL, p->gf1[0], p->gf1[1], p->pf1, -1, NULL, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
-    } else if ( strcmp( p->type, "m-m" ) == 0 ) {
-      exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2, -1, -1, NULL, p->gi2, p->pi2, -1, -1, NULL, p->source_coords );
-    }
 
     sprintf( key, "/%s/%s/%s/%s", p->name, dataset_tag, p->fbwd, key_suffix );
     fprintf ( ofs, "# %s\n", key );
@@ -898,6 +893,16 @@ int twopoint_function_write_data ( twopoint_function_type *p ) {
   }
 
   /******************************************************
+   * write "last part" of key name into key_suffix;
+   * including all momenta and vertex gamma ids
+   ******************************************************/
+  exitstatus = contract_diagram_key_suffix_from_type ( key_suffix, p );
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "[twopoint_function_write_data] Error from contract_diagram_key_suffix_from_type, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    return(1);
+  }
+
+  /******************************************************
    * loop on diagrams / data sets within 2-point function
    ******************************************************/
   for ( int i = 0; i < nD; i++ ) {
@@ -907,18 +912,8 @@ int twopoint_function_write_data ( twopoint_function_type *p ) {
     char dataset_tag[10];
     twopoint_function_get_diagram_name ( dataset_tag, p, i );
 
-    if ( strcmp( p->type, "mxb-mxb" ) == 0 ) {
-      exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
-    } else if ( strcmp( p->type, "mxb-b" ) == 0 ) {
-      exitstatus = contract_diagram_key_suffix ( key_suffix, -1, NULL, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
-    } else if ( strcmp( p->type, "b-b" ) == 0 ) {
-      exitstatus = contract_diagram_key_suffix ( key_suffix, -1, NULL, p->gf1[0], p->gf1[1], p->pf1, -1, NULL, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
-    } else if ( strcmp( p->type, "m-m" ) == 0 ) {
-      exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2, -1, -1, NULL, p->gi2, p->pi2, -1, -1, NULL, p->source_coords );
-    }
-
     sprintf( key, "/%s/%s/%s/%s", p->name, dataset_tag, p->fbwd, key_suffix );
-    fprintf ( stdout, "# [twopoint_function_fill_data] key = %s\n", key );
+    fprintf ( stdout, "# [twopoint_function_write_data] key = %s\n", key );
 
     struct AffNode_s * affdir = aff_writer_mkpath ( affw, affn, key );
     if ( affdir == NULL ) {
@@ -929,7 +924,7 @@ int twopoint_function_write_data ( twopoint_function_type *p ) {
     uint32_t uitems = ncomp * nT;
     exitstatus = aff_node_put_complex ( affw, affdir, dataset[i][0], uitems );
     if( exitstatus != 0 ) {
-      fprintf(stderr, "[twopoint_function_fill_data] Error from aff_node_put_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      fprintf(stderr, "[twopoint_function_write_data] Error from aff_node_put_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       return(105);
     }
 
@@ -1064,26 +1059,10 @@ int twopoint_function_write_data ( twopoint_function_type *p ) {
    * get the suffix for the full group name
    *   made of vertex gamma ids and momenta
    ******************************************************/
-  if ( strcmp( p->type, "mxb-mxb" ) == 0 ) {
-
-    exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
-
-  } else if ( strcmp( p->type, "mxb-b" ) == 0 ) {
-
-    exitstatus = contract_diagram_key_suffix ( key_suffix, -1, NULL, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
-
-  } else if ( strcmp( p->type, "b-b" ) == 0 ) {
-
-    exitstatus = contract_diagram_key_suffix ( key_suffix, -1, NULL, p->gf1[0], p->gf1[1], p->pf1, -1, NULL, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
-
-  } else if ( strcmp( p->type, "m-m" ) == 0 ) {
-
-    exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2, -1, -1, NULL, p->gi2, p->pi2, -1, -1, NULL, p->source_coords );
-
-  }
+  exitstatus = contract_diagram_key_suffix_from_type ( key_suffix, p );
   if ( exitstatus != 0 ) {
-    fprintf ( stderr, "[twopoint_function_write_data] Error from contract_diagram_key_suffix, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-    return(2);
+    fprintf ( stderr, "[twopoint_function_write_data] Error from contract_diagram_key_suffix_from_type, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    return(1);
   }
 
   /******************************************************
@@ -1193,7 +1172,7 @@ int twopoint_function_write_data ( twopoint_function_type *p ) {
     status = H5Dwrite (       dataset_id,       mem_type_id,       mem_space_id,       file_space_id,        xfer_plit_id,    dataset[0][0] );
 
     if( status < 0 ) {
-      fprintf(stderr, "[twopoint_function_fill_data] Error from H5Dwrite, status was %d %s %d\n", status, __FILE__, __LINE__);
+      fprintf(stderr, "[twopoint_function_write_data] Error from H5Dwrite, status was %d %s %d\n", status, __FILE__, __LINE__);
       return(105);
     }
 
@@ -1202,7 +1181,7 @@ int twopoint_function_write_data ( twopoint_function_type *p ) {
      ******************************************************/
     status = H5Dclose ( dataset_id );
     if( status < 0 ) {
-      fprintf(stderr, "[twopoint_function_fill_data] Error from H5Dclose, status was %d %s %d\n", status, __FILE__, __LINE__);
+      fprintf(stderr, "[twopoint_function_write_data] Error from H5Dclose, status was %d %s %d\n", status, __FILE__, __LINE__);
       return(105);
     }
 
