@@ -82,13 +82,6 @@ int dummy_eo_solver (double * const propagator, double * const source, const int
   return(0);
 }
 
-
-#ifdef DUMMY_SOLVER 
-#  define _TMLQCD_INVERT_EO dummy_eo_solver
-#else
-#  define _TMLQCD_INVERT_EO tmLQCD_invert_eo
-#endif
-
 int main(int argc, char **argv) {
   
   /*
@@ -414,7 +407,7 @@ int main(int argc, char **argv) {
    ***********************************************************/
   double _Complex *** cvc_tp_accum = NULL;
   if ( g_ts_id == 0 ) {
-    cvc_tp_accum = init_3level_ztable ( g_sink_momentum_number, 16,  T_global );
+    cvc_tp_accum = init_3level_ztable ( (size_t)g_sink_momentum_number, 16,  (size_t)T_global );
     if ( cvc_tp_accum == 0 ) {
       fprintf( stderr, "[hvp_caa_lma] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
       EXIT(16);
@@ -993,7 +986,7 @@ int main(int argc, char **argv) {
   if ( g_ts_id == 0 ) {
 #ifdef HAVE_MPI
     int const items = g_sink_momentum_number * 16 * T_global;
-    double _Complex *buffer = init_1level_ztable ( items );
+    double _Complex *buffer = init_1level_ztable ( (size_t)items );
 
     memcpy ( buffer, cvc_tp_accum, items * sizeof(double _Complex ) );
 #if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) 

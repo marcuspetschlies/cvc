@@ -58,6 +58,7 @@ extern "C"
 #include "prepare_source.h"
 #include "project.h"
 #include "matrix_init.h"
+#include "dummy_solver.h"
 
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
@@ -78,12 +79,6 @@ int dummy_eo_solver (double * const propagator, double * const source, const int
   return(0);
 }
 
-
-#ifdef DUMMY_SOLVER 
-#  define _TMLQCD_INVERT_EO dummy_eo_solver
-#else
-#  define _TMLQCD_INVERT_EO tmLQCD_invert_eo
-#endif
 
 int main(int argc, char **argv) {
   

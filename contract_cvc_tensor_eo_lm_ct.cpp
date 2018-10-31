@@ -32,13 +32,13 @@ int const contract_cvc_tensor_eo_lm_ct (
   }
 
   // allocate auxilliary spinor fields and spinor work (with halo)
-  double ** eo_spinor_field = init_2level_dtable ( 5, _GSI(Vhalf) );
+  double ** eo_spinor_field = init_2level_dtable ( 5, _GSI((size_t)Vhalf) );
   if ( eo_spinor_field == NULL ) {
     fprintf(stderr, "# [contract_cvc_tensor_eo_lm_ct] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
     return(1);
   }
 
-  double ** eo_spinor_work = init_2level_dtable ( 2, _GSI( (VOLUME+RAND)/2 ) );
+  double ** eo_spinor_work = init_2level_dtable ( 2, _GSI( (size_t)(VOLUME+RAND)/2 ) );
   if ( eo_spinor_work == NULL ) {
     fprintf(stderr, "# [contract_cvc_tensor_eo_lm_ct] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
     return(1);
@@ -53,7 +53,7 @@ int const contract_cvc_tensor_eo_lm_ct (
   /***********************************************************
    * gather scalar products for all eigenvectors
    ***********************************************************/
-  double _Complex *** ct = init_3level_ztable (T, 4, nev );
+  double _Complex *** ct = init_3level_ztable ( (size_t)T, 4, (size_t)nev );
   if ( ct == NULL )  {
     fprintf(stderr, "# [contract_cvc_tensor_eo_lm_ct] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__);
     return(2);
@@ -89,7 +89,7 @@ int const contract_cvc_tensor_eo_lm_ct (
      ***********************************************************/
     for ( int imu = 0; imu < 4; imu++ ) {
 
-      double _Complex * p = init_1level_ztable ( T );
+      double _Complex * p = init_1level_ztable ( (size_t)T );
 
       // ( g5 Gmufwdr V )^+ XW
       // fwd , even target field 0, 0

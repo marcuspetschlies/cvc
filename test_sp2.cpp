@@ -140,12 +140,12 @@ int main(int argc, char **argv) {
   unsigned int const VOL3  = LX*LY*LZ;
 
   /* init and allocate spinor fields */
-  double ** g_spinor_field = init_2level_dtable ( 2, _GSI( (VOLUME+RAND) ) );
+  double ** g_spinor_field = init_2level_dtable ( 2, _GSI( (size_t)(VOLUME+RAND) ) );
   if ( g_spinor_field == NULL ) {
     EXIT(11);
   }
 
-  double ** eo_spinor_field = init_2level_dtable ( 4, _GSI( (VOLUME+RAND)/2 ) );
+  double ** eo_spinor_field = init_2level_dtable ( 4, _GSI( (size_t)(VOLUME+RAND)/2 ) );
   if ( eo_spinor_field == NULL ) {
     EXIT(12);
   }
@@ -160,10 +160,10 @@ int main(int argc, char **argv) {
   spinor_field_lexic2eo (g_spinor_field[0], eo_spinor_field[0], eo_spinor_field[1]);
   spinor_field_lexic2eo (g_spinor_field[1], eo_spinor_field[2], eo_spinor_field[3]);
 
-  double _Complex * sp_eo_e = init_1level_ztable ( T );
-  double _Complex * sp_eo_o = init_1level_ztable ( T );
-  double _Complex * sp_le_e = init_1level_ztable ( T );
-  double _Complex * sp_le_o = init_1level_ztable ( T );
+  double _Complex * sp_eo_e = init_1level_ztable ( (size_t)T );
+  double _Complex * sp_eo_o = init_1level_ztable ( (size_t)T );
+  double _Complex * sp_le_e = init_1level_ztable ( (size_t)T );
+  double _Complex * sp_le_o = init_1level_ztable ( (size_t)T );
   if (  sp_eo_e == NULL || sp_eo_o == NULL ||  sp_le_e == NULL || sp_le_o == NULL ) {
     fprintf(stderr, "[test_sp2] Error from init_1level_ztable %s %d\n", __FILE__, __LINE__);
     EXIT(1);

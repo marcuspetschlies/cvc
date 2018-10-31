@@ -145,11 +145,11 @@ int main(int argc, char **argv) {
 
   unsigned int const N = 20;
   
-  double *value = init_1level_dtable ( N );
+  double *value = init_1level_dtable ( (size_t)N );
 
   rangauss ( value, N );
 
-  double ** v = init_2level_dtable ( N , _GSI(VOLUME));
+  double ** v = init_2level_dtable ( (size_t)N , _GSI((size_t)VOLUME));
 
   rangauss ( v[0], N*_GSI(VOLUME) );
 

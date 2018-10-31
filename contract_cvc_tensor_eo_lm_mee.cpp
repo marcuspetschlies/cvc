@@ -33,13 +33,13 @@ int const contract_cvc_tensor_eo_lm_mee (
   }
 
   // allocate auxilliary spinor fields and spinor work (with halo)
-  double ** eo_spinor_field = init_2level_dtable ( 18, _GSI(Vhalf) );
+  double ** eo_spinor_field = init_2level_dtable ( 18, _GSI((size_t)Vhalf) );
   if ( eo_spinor_field == NULL ) {
     fprintf(stderr, "# [contract_cvc_tensor_eo_lm_mee] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
     return(1);
   }
 
-  double ** eo_spinor_work = init_2level_dtable ( 4, _GSI( (VOLUME+RAND)/2 ) );
+  double ** eo_spinor_work = init_2level_dtable ( 4, _GSI( (size_t)(VOLUME+RAND)/2 ) );
   if ( eo_spinor_work == NULL ) {
     fprintf(stderr, "# [contract_cvc_tensor_eo_lm_mee] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
     return(1);
@@ -69,7 +69,7 @@ int const contract_cvc_tensor_eo_lm_mee (
    ***********************************************************/
   if (g_ts_id == 0 ) {
     //                           mu x nu x timeslice x eigenvector x 4 scalar products
-    meesp = init_5level_ztable ( 4,   4,   T_global,   nev,          4 );
+    meesp = init_5level_ztable ( 4,   4,   (size_t)T_global,   (size_t)nev,          4 );
     if ( meesp == NULL )  {
       fprintf(stderr, "# [contract_cvc_tensor_eo_lm_mee] Error from init_5level_ztable %s %d\n", __FILE__, __LINE__);
       return(2);
@@ -117,7 +117,7 @@ int const contract_cvc_tensor_eo_lm_mee (
       M_clover_zz_inv_matrix ( gbw[imu], gbw[imu], mzzinv[0][0] );
     }
 
-    double _Complex ** p = init_2level_ztable ( 2, T );
+    double _Complex ** p = init_2level_ztable ( 2, (size_t)T );
     if ( p == NULL ) {
       fprintf( stderr, "[contract_cvc_tensor_eo_lm_mee] Error from init_2level_ztable %s %d\n", __FILE__, __LINE__);
       return(1);
@@ -228,7 +228,7 @@ int const contract_cvc_tensor_eo_lm_mee (
   if ( g_ts_id == 0 ) {
     double _Complex *** meesp_buffer = NULL;
     //if ( g_tr_id == 0 ) {
-      meesp_buffer = init_3level_ztable ( T_global, nev, 4 );
+      meesp_buffer = init_3level_ztable ( (size_t)T_global, (size_t)nev, 4 );
       if ( meesp_buffer == NULL ) {
         fprintf ( stderr, "[contract_cvc_tensor_eo_lm_mee] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
         return(6);
@@ -283,7 +283,7 @@ int const contract_cvc_tensor_eo_lm_mee (
             1.,
             cexp ( ( -mom[imu] + mom[inu] ) * I ) };
 
-          double _Complex *** meesp_out = init_3level_ztable ( T_global, 3, nev );
+          double _Complex *** meesp_out = init_3level_ztable ( (size_t)T_global, 3, (size_t)nev );
           if ( meesp_out == NULL ) {
             fprintf ( stderr, "[contract_cvc_tensor_eo_lm_mee] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
             return(8);

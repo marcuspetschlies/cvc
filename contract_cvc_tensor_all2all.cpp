@@ -58,8 +58,8 @@ int vdag_w_reduce_write (
   static const size_t sizeof_eo_spinor_field = _GSI( Vhalf ) * sizeof(double);
   static const size_t sizeof_eo_spinor_field_timeslice = _GSI( VOL3half ) * sizeof(double);
 
-  double _Complex ** V_ts = init_2level_ztable ( dimV, 12*VOL3half );
-  double _Complex ** W_ts = init_2level_ztable ( dimV, 12*VOL3half );
+  double _Complex ** V_ts = init_2level_ztable ( dimV, 12 * (size_t)VOL3half );
+  double _Complex ** W_ts = init_2level_ztable ( dimV, 12 * (size_t)VOL3half );
   if ( V_ts == NULL || W_ts == NULL ) {
     fprintf(stderr, "[vdag_w_reduce_write] Error frominit_2level_ztable %s %d\n", __FILE__, __LINE__);
     return(1);

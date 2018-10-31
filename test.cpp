@@ -134,10 +134,10 @@ int main(int argc, char **argv) {
 
   int const N = 97;
 
-  double _Complex **A = init_2level_ztable (N, N);
-  double _Complex **B = init_2level_ztable (N, N);
-  double _Complex **C = init_2level_ztable (N, N);
-  double _Complex **D = init_2level_ztable (N, N);
+  double _Complex **A = init_2level_ztable ( (size_t)N, (size_t)N);
+  double _Complex **B = init_2level_ztable ( (size_t)N, (size_t)N);
+  double _Complex **C = init_2level_ztable ( (size_t)N, (size_t)N);
+  double _Complex **D = init_2level_ztable ( (size_t)N, (size_t)N);
 
   ranlxd( (double*)(A[0]), 2*N*N );
   ranlxd( (double*)(B[0]), 2*N*N );
@@ -171,10 +171,10 @@ int main(int argc, char **argv) {
    ******************************************************************/
   int const N = 97;
   rlxd_init( 2, 12342343 );
-  double _Complex **A = init_2level_ztable (N, N);
-  double _Complex **B = init_2level_ztable (N, N);
-  double * w  = init_1level_dtable ( N );
-  double * w2  = init_1level_dtable ( N );
+  double _Complex **A = init_2level_ztable ( (size_t)N, (size_t)N);
+  double _Complex **B = init_2level_ztable ( (size_t)N, (size_t)N);
+  double * w  = init_1level_dtable ( (size_t)N );
+  double * w2  = init_1level_dtable ( (size_t)N );
 
   ranlxd( (double*)(A[0]), 2*N*N );
   ranlxd( (double*)(B[0]), 2*N*N );

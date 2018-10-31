@@ -68,7 +68,7 @@ int contract_cvc_tensor_eo_lm_factors (
   /***********************************************************
    * auxilliary eo spinor fields with halo
    ***********************************************************/
-  double ** eo_spinor_work = init_2level_dtable ( 4, _GSI( (VOLUME+RAND)/2 )  );
+  double ** eo_spinor_work = init_2level_dtable ( 4, _GSI( (size_t)(VOLUME+RAND)/2 )  );
   if ( eo_spinor_work == NULL ) {
     fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
     return(2);
@@ -82,19 +82,19 @@ int contract_cvc_tensor_eo_lm_factors (
   /***********************************************************
    * XV
    ***********************************************************/
-  double ** xv = init_2level_dtable ( nev, _GSI( Vhalf )  );
+  double ** xv = init_2level_dtable ( (size_t)nev, _GSI( (size_t)Vhalf )  );
   if ( xv == NULL) {
     fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
     return(2);
   }
 
-  double *** contr_x = init_3level_dtable (  nev, block_length, 2*VOL3half );
+  double *** contr_x = init_3level_dtable ( (size_t) nev, (size_t)block_length, (size_t)(2*VOL3half) );
   if ( contr_x == NULL ) {
     fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__);
     return(2);
   }
 
-  double _Complex *** contr_p = init_3level_ztable ( momentum_number, nev, block_length );
+  double _Complex *** contr_p = init_3level_ztable ( (size_t)momentum_number, (size_t)nev, (size_t)block_length );
   if ( contr_p == NULL )  {
     fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__);
     return(2);
@@ -125,7 +125,7 @@ int contract_cvc_tensor_eo_lm_factors (
   /***********************************************************
    * auxilliary block field
    ***********************************************************/
-  double *** eo_block_field = init_3level_dtable ( 4, block_length, _GSI(Vhalf) );
+  double *** eo_block_field = init_3level_dtable ( 4, (size_t)block_length, _GSI((size_t)Vhalf) );
   if ( eo_block_field == NULL ) {
     fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__);
     return(2);
@@ -134,7 +134,7 @@ int contract_cvc_tensor_eo_lm_factors (
   /***********************************************************
    * W block field
    ***********************************************************/
-  double ** w = init_2level_dtable ( block_length, _GSI(Vhalf) );
+  double ** w = init_2level_dtable ( (size_t)block_length, _GSI((size_t)Vhalf) );
   if ( w == NULL ) {
     fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
     return(2);
@@ -143,7 +143,7 @@ int contract_cvc_tensor_eo_lm_factors (
   /***********************************************************
    * XW block field
    ***********************************************************/
-  double ** xw = init_2level_dtable ( block_length, _GSI(Vhalf) );
+  double ** xw = init_2level_dtable ( (size_t)block_length, _GSI((size_t)Vhalf) );
   if ( xw == NULL ) {
     fprintf(stderr, "[contract_cvc_tensor_eo_lm_factors] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
     return(2);

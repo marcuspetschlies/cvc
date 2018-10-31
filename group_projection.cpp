@@ -312,14 +312,14 @@ int rot_mat_table_copy (rot_mat_table_type *t, rot_mat_table_type *s ) {
   }
   memcpy ( t->rmid, s->rmid, t->n * sizeof(int) );
                 
-  t->R = init_3level_ztable ( t->n, t->dim, t->dim );
+  t->R = init_3level_ztable ( (size_t)(t->n), (size_t)(t->dim), (size_t)(t->dim) );
   if ( t->R == NULL ) {
     fprintf (stderr, "[rot_mat_table_copy] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__);
     return(2);
   }
   memcpy ( t->R[0][0], s->R[0][0], t->n * t->dim*t->dim * sizeof(double _Complex) );
   
-  t->IR = init_3level_ztable ( t->n, t->dim, t->dim );
+  t->IR = init_3level_ztable ( (size_t)(t->n), (size_t)(t->dim), (size_t)(t->dim) );
   if ( t->IR == NULL ) {
     fprintf (stderr, "[rot_mat_table_copy] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__);
     return(3);
@@ -365,12 +365,12 @@ int alloc_rot_mat_table ( rot_mat_table_type *t, const char*group, const char*ir
     fprintf(stderr, "[alloc_rot_mat_table] Error from malloc %s %d\n", __FILE__, __LINE__);
     return(1);
   }
-  t->R = init_3level_ztable ( n, dim, dim );
+  t->R = init_3level_ztable ( (size_t)n, (size_t)dim, (size_t)dim );
   if ( t->R == NULL ) {
     fprintf(stderr, "[alloc_rot_mat_table] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
     return(1);
   }
-  t->IR = init_3level_ztable ( n, dim, dim );
+  t->IR = init_3level_ztable ( (size_t)n, (size_t)dim, (size_t)dim );
   if ( t->IR == NULL ) {
     fprintf(stderr, "[alloc_rot_mat_table] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
     return(1);
@@ -461,7 +461,7 @@ int set_rot_mat_table_spin ( rot_mat_table_type *t, int J2, int bispinor ) {
   P.d = (1 + bispinor) * (J2 + 1);
   P.m = NULL;
 
-  P.m = init_2level_ztable ( P.d, P.d );
+  P.m = init_2level_ztable ( (size_t)(P.d), (size_t)(P.d) );
   if ( P.m == NULL ) {
     fprintf(stderr, "[set_rot_mat_table_spin] Error from init_2level_ztable %s %d\n", __FILE__, __LINE__);
     return(1);
@@ -523,7 +523,7 @@ int set_rot_mat_table_spin_single_cover ( rot_mat_table_type *t, int J2, int con
   P.d = (J2 + 1);
   P.m = NULL;
 
-  P.m = init_2level_ztable ( P.d, P.d );
+  P.m = init_2level_ztable ( (size_t)(P.d), (size_t)(P.d) );
   if ( P.m == NULL ) {
     fprintf(stderr, "[set_rot_mat_table_spin_single_cover] Error from init_2level_ztable %s %d\n", __FILE__, __LINE__);
     return(1);
@@ -618,7 +618,7 @@ int rot_mat_mult_table ( int***mtab, rot_mat_table_type *t ) {
       return(1);
     }
   }
-  double _Complex ** A = init_2level_ztable ( t->dim, t->dim );
+  double _Complex ** A = init_2level_ztable ( (size_t)(t->dim), (size_t)(t->dim) );
   if ( A == NULL ) {
     fprintf(stderr, "[rot_mat_mult_table] Error from init_2level_ztable %s %d\n", __FILE__, __LINE__);
     return(2);
@@ -922,7 +922,7 @@ int rot_mat_table_get_d2d ( rot_mat_table_type *t, int d1[3], int d2[3] ) {
 int rot_mat_table_character ( double _Complex ***rc, rot_mat_table_type *t ) {
   
   if ( *rc == NULL ) {
-    *rc = init_2level_ztable ( 2, t->n );
+    *rc = init_2level_ztable ( 2, (size_t)(t->n) );
     if ( *rc == NULL ) {
       fprintf(stdout, "[rot_mat_table_character] Error from init_2level_ztable %s %d\n", __FILE__, __LINE__ );
       return(1);
@@ -1491,7 +1491,7 @@ little_group_projector_applicator_type ** little_group_projector_apply ( little_
       return ( NULL );
     }
 
-    double _Complex ** z_irrep_matrix_coeff = init_2level_ztable ( 2, p->rtarget->n );
+    double _Complex ** z_irrep_matrix_coeff = init_2level_ztable ( 2, (size_t)(p->rtarget->n) );
     if ( z_irrep_matrix_coeff == NULL ) {
       fprintf ( stderr, "[little_group_projector_apply] Error from init_1level_ztable %s %d\n", __FILE__, __LINE__ );
       return ( NULL );
@@ -1521,8 +1521,8 @@ little_group_projector_applicator_type ** little_group_projector_apply ( little_
      ***********************************************************/
     double _Complex * Rsv = NULL, * IRsv = NULL, **R = NULL, **IR = NULL;
     if ( p-> n == 1 ) {
-      Rsv  = init_1level_ztable ( spin_dimensions[0] );
-      IRsv = init_1level_ztable ( spin_dimensions[0] );
+      Rsv  = init_1level_ztable ( (size_t)(spin_dimensions[0]) );
+      IRsv = init_1level_ztable ( (size_t)(spin_dimensions[0]) );
       R    = rot_init_rotation_matrix ( p->rspin[0].dim );
       IR   = rot_init_rotation_matrix ( p->rspin[0].dim );
       if ( Rsv == NULL || IRsv == NULL || R == NULL || IR == NULL ) {
@@ -2236,7 +2236,7 @@ int little_group_projector_apply_product ( little_group_projector_type *p , FILE
   }
   fprintf ( stdout, "# [little_group_projector_apply_product] spinor product dimension = %d\n", pdim );
 
-  double _Complex * sv0 = init_1level_ztable( pdim );
+  double _Complex * sv0 = init_1level_ztable( (size_t)pdim );
   if ( sv0 == NULL ) {
     fprintf ( stderr, "# [little_group_projector_apply_product] Error from init_2level_ztable %s %d\n", __FILE__, __LINE__);
     return(2);
@@ -2301,7 +2301,7 @@ int little_group_projector_apply_product ( little_group_projector_type *p , FILE
   /***********************************************************
    * allocate sv1
    ***********************************************************/
-  double _Complex ** sv1 = init_2level_ztable ( p->rtarget->dim, pdim );
+  double _Complex ** sv1 = init_2level_ztable ( (size_t)( p->rtarget->dim), (size_t)pdim );
   if ( sv1 == NULL ) {
     fprintf ( stderr, "[little_group_projector_apply_product] Error from init_2level_ztable %s %d\n", __FILE__, __LINE__ );
     return(1);
@@ -2315,7 +2315,7 @@ int little_group_projector_apply_product ( little_group_projector_type *p , FILE
    ***********************************************************/
   for ( int row_target = 0; row_target < p->rtarget->dim; row_target++ ) {
 
-    double _Complex *Rsv = init_1level_ztable ( pdim );
+    double _Complex *Rsv = init_1level_ztable ( (size_t)pdim );
 
     /***********************************************************
      * TEST
@@ -2381,7 +2381,7 @@ int little_group_projector_apply_product ( little_group_projector_type *p , FILE
     // if ( !frame_is_cmf )  { 
       if ( g_verbose > 2 ) fprintf( stdout, "# [little_group_projector_apply_product] including IR rotations\n");
 
-      double _Complex *IRsv = init_1level_ztable( pdim );
+      double _Complex *IRsv = init_1level_ztable( (size_t)pdim );
 
       /***********************************************************
        * TEST

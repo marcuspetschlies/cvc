@@ -11,7 +11,7 @@
 
 namespace cvc {
 
-inline double * init_1level_dtable ( int const N0 ) {
+inline double * init_1level_dtable ( size_t const N0 ) {
   return( ( double *) calloc ( N0 , sizeof( double ) ) );
 }  // end of init_1level_dtable
 
@@ -27,7 +27,7 @@ inline void fini_1level_dtable ( double **s  ) {
 /************************************************************************************/
 /************************************************************************************/
 
-inline double ** init_2level_dtable (int const N0, int const N1 ) {
+inline double ** init_2level_dtable (size_t const N0, size_t const N1 ) {
   double * s__ = NULL;
   s__ = init_1level_dtable ( N0*N1);
   if ( s__ == NULL ) return( NULL );
@@ -35,7 +35,7 @@ inline double ** init_2level_dtable (int const N0, int const N1 ) {
   double ** s_ = ( double **) malloc( N0 * sizeof( double *) );
   if ( s_ == NULL ) return ( NULL );
 
-  for ( int i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
+  for ( size_t i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
   return( s_ );
 }  // end of init_2level_dtable
 
@@ -56,7 +56,7 @@ inline void fini_2level_dtable ( double *** s  ) {
 /************************************************************************************/
 
 
-inline double *** init_3level_dtable (int const N0, int const N1, int const N2 ) {
+inline double *** init_3level_dtable (size_t const N0, size_t const N1, size_t const N2 ) {
   double ** s__ = NULL;
   s__ = init_2level_dtable ( N0*N1, N2);
   if ( s__ == NULL ) return( NULL );
@@ -64,7 +64,7 @@ inline double *** init_3level_dtable (int const N0, int const N1, int const N2 )
   double *** s_ = ( double ***) malloc( N0 * sizeof( double **) );
   if ( s_ == NULL ) return ( NULL );
 
-  for ( int i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
+  for ( size_t i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
   return( s_ );
 }  // end of init_3level_dtable
 
@@ -85,7 +85,7 @@ inline void fini_3level_dtable ( double **** s  ) {
 /************************************************************************************/
 
 
-inline double **** init_4level_dtable (int const N0, int const N1, int const N2, int const N3 ) {
+inline double **** init_4level_dtable (size_t const N0, size_t const N1, size_t const N2, size_t const N3 ) {
   double *** s__ = NULL;
   s__ = init_3level_dtable ( N0*N1, N2, N3);
   if ( s__ == NULL ) return( NULL );
@@ -93,7 +93,7 @@ inline double **** init_4level_dtable (int const N0, int const N1, int const N2,
   double **** s_ = ( double ****) malloc( N0 * sizeof( double ***) );
   if ( s_ == NULL ) return ( NULL );
 
-  for ( int i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
+  for ( size_t i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
   return( s_ );
 }  // end of init_4level_dtable
 
@@ -114,7 +114,7 @@ inline void fini_4level_dtable ( double ***** s  ) {
 /************************************************************************************/
 
 
-inline double ***** init_5level_dtable (int const N0, int const N1, int const N2, int const N3, int const N4 ) {
+inline double ***** init_5level_dtable (size_t const N0, size_t const N1, size_t const N2, size_t const N3, size_t const N4 ) {
   double **** s__ = NULL;
   s__ = init_4level_dtable ( N0*N1, N2, N3, N4);
   if ( s__ == NULL ) return( NULL );
@@ -122,7 +122,7 @@ inline double ***** init_5level_dtable (int const N0, int const N1, int const N2
   double ***** s_ = ( double *****) malloc( N0 * sizeof( double ****) );
   if ( s_ == NULL ) return ( NULL );
 
-  for ( int i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
+  for ( size_t i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
   return( s_ );
 }  // end of init_5level_dtable
 
@@ -143,7 +143,7 @@ inline void fini_5level_dtable ( double ****** s  ) {
 /************************************************************************************/
 
 
-inline double ****** init_6level_dtable (int const N0, int const N1, int const N2, int const N3, int const N4, int const N5 ) {
+inline double ****** init_6level_dtable (size_t const N0, size_t const N1, size_t const N2, size_t const N3, size_t const N4, size_t const N5 ) {
   double ***** s__ = NULL;
   s__ = init_5level_dtable ( N0*N1, N2, N3, N4, N5);
   if ( s__ == NULL ) return( NULL );
@@ -151,7 +151,7 @@ inline double ****** init_6level_dtable (int const N0, int const N1, int const N
   double ****** s_ = ( double ******) malloc( N0 * sizeof( double *****) );
   if ( s_ == NULL ) return ( NULL );
 
-  for ( int i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
+  for ( size_t i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
   return( s_ );
 }  // end of init_6level_dtable
 
@@ -172,7 +172,7 @@ inline void fini_6level_dtable ( double ******* s  ) {
 /************************************************************************************/
 
 
-inline double ******* init_7level_dtable (int const N0, int const N1, int const N2, int const N3, int const N4, int const N5, int const N6 ) {
+inline double ******* init_7level_dtable (size_t const N0, size_t const N1, size_t const N2, size_t const N3, size_t const N4, size_t const N5, size_t const N6 ) {
   double ****** s__ = NULL;
   s__ = init_6level_dtable ( N0*N1, N2, N3, N4, N5, N6);
   if ( s__ == NULL ) return( NULL );
@@ -180,7 +180,7 @@ inline double ******* init_7level_dtable (int const N0, int const N1, int const 
   double ******* s_ = ( double *******) malloc( N0 * sizeof( double ******) );
   if ( s_ == NULL ) return ( NULL );
 
-  for ( int i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
+  for ( size_t i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
   return( s_ );
 }  // end of init_7level_dtable
 
@@ -201,7 +201,7 @@ inline void fini_7level_dtable ( double ******** s  ) {
 /************************************************************************************/
 
 
-inline double ******** init_8level_dtable (int const N0, int const N1, int const N2, int const N3, int const N4, int const N5, int const N6, int const N7 ) {
+inline double ******** init_8level_dtable (size_t const N0, size_t const N1, size_t const N2, size_t const N3, size_t const N4, size_t const N5, size_t const N6, size_t const N7 ) {
   double ******* s__ = NULL;
   s__ = init_7level_dtable ( N0*N1, N2, N3, N4, N5, N6, N7);
   if ( s__ == NULL ) return( NULL );
@@ -209,7 +209,7 @@ inline double ******** init_8level_dtable (int const N0, int const N1, int const
   double ******** s_ = ( double ********) malloc( N0 * sizeof( double *******) );
   if ( s_ == NULL ) return ( NULL );
 
-  for ( int i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
+  for ( size_t i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
   return( s_ );
 }  // end of init_8level_dtable
 

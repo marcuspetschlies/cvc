@@ -776,8 +776,9 @@ int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init) {
     }
   
     if(have_source) {
-      fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d = (%d, %d, %d, %d) allocates random field\n", g_cart_id,
+      if ( g_verbose > 0 ) fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d = (%d, %d, %d, %d) allocates random field\n", g_cart_id,
           g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3]);
+
       ran = (double*)malloc(6*VOL3*sizeof(double));
       if(ran == NULL) {
         fprintf(stderr, "[init_timeslice_source_oet] Error from malloc\n");
@@ -803,7 +804,7 @@ int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init) {
 
   if(have_source) {
     if(init > 0) {
-      fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d drawing random vector\n", g_cart_id);
+      if ( g_verbose > 0 ) fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d drawing random vector\n", g_cart_id);
 
       switch(g_noise_type) {
         case 1:

@@ -5579,58 +5579,53 @@ void spinor_field_eq_spinor_field_ti_re (double *r, double *s, double c, unsigne
 /****************************************************************************
  * d = || r - s ||
  ****************************************************************************/
-void spinor_field_norm_diff (double*d, double *r, double *s, unsigned int N) {
+void spinor_field_norm_diff (double * const d, double * const r, double * const s, unsigned int const N) {
 
-  const int nthreads = g_num_threads;
-  const int sincr    = _GSI(nthreads);
-
-  unsigned int ix, iix;
-  int threadid = 0;
-  double daccum=0., daccumt, sp1[24];
+  double daccum=0.;
 #ifdef HAVE_OPENMP
   omp_lock_t writelock;
 #endif
 
 #ifdef HAVE_OPENMP
   omp_init_lock(&writelock);
-#pragma omp parallel default(shared) private(threadid,ix,iix,daccumt,sp1) shared(d,r,s,N,daccum)
+#pragma omp parallel default(shared)
 {
-  threadid = omp_get_thread_num();
 #endif
-  daccumt = 0.;
-  iix = _GSI(threadid);
-  for(ix = threadid; ix < N; ix += nthreads ) {
+  double sp1[24];
+  double daccumt = 0.;;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for( unsigned int ix = 0; ix < N; ix++ ) {
+    unsigned int const iix = _GSI(ix);
     _fv_eq_fv_mi_fv(sp1, r+iix, s+iix);
     _re_pl_eq_fv_dag_ti_fv(daccumt,sp1,sp1);
-    iix += sincr;
   }
 #ifdef HAVE_OPENMP
   omp_set_lock(&writelock);
+#endif
+
   daccum += daccumt;
 
-  /* TEST */
-  /* fprintf(stdout, "# [spinor_field_norm_diff] proc%.4d thread%.2d daccumt = %25.16e\n", g_cart_id, threadid, daccumt); */
-
+#ifdef HAVE_OPENMP
   omp_unset_lock(&writelock);
 }  /* end of parallel region */
   omp_destroy_lock(&writelock);
-#else
-  daccum = daccumt;
 #endif
 
-  /* TEST */
-  /* fprintf(stdout, "# [spinor_field_norm_diff] proc%.4d daccum = %25.16e\n", g_cart_id, daccum); */
-
 #ifdef HAVE_MPI
-  daccumt = 0.;
-  MPI_Allreduce(&daccum, &daccumt, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid);
-  /* TEST */
-  /* fprintf(stdout, "# [spinor_field_norm_diff] proc%.4d full d = %25.16e\n", g_cart_id, daccumt); */
-  *d = sqrt(daccumt);
+  double dtmp = 0.;
+  if ( MPI_Allreduce(&daccum, &dtmp, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid) != MPI_SUCCESS ) {
+    if ( g_cart_id == 0 ) fprintf ( stderr, "[spinor_field_norm_diff] Error from MPI_Allreduce %s %d\n", __FILE__, __LINE__ );
+    *d = sqrt( -1. );
+  } else {
+    *d = sqrt(dtmp);
+  }
 #else
   *d = sqrt( daccum );
 #endif
-}  /* end of spinor_field_eq_spinor_field_ti_re */
+}  /* end of spinor_field_norm_diff */
 
 /***********************************************************
  * r += s
@@ -7059,8 +7054,8 @@ int check_eigenpairs ( double ** const eo_evecs_field, double ** evecs_eval, uns
     if ( g_cart_id == 0 ) fprintf ( stdout, "# [check_eigenpairs] will use existing eigenvalues\n" );
   }
 
-  double ** eo_field = init_2level_dtable ( 2, _GSI(Vhalf));
-  double ** eo_work  = init_2level_dtable ( 3, _GSI( (VOLUME+RAND) / 2 ));
+  double ** eo_field = init_2level_dtable ( 2, _GSI((size_t)Vhalf));
+  double ** eo_work  = init_2level_dtable ( 3, _GSI( (size_t)(VOLUME+RAND) / 2 ));
   if( eo_field == NULL  || eo_work == NULL ) {
     fprintf(stderr, "[check_eigenpairs] Error from init_2level_dtable was %s %d\n", __FILE__, __LINE__);
     EXIT(123);
