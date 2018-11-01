@@ -66,7 +66,8 @@ int rangauss (double * y1, unsigned int NRAND);
 
 void cm_proj(double *A);
 void contract_twopoint(double *contr, const int idsource, const int idsink, double **chi, double **phi, int n_c);
-void contract_twopoint_snk_momentum(double *contr, const int idsource, const int idsink, double **chi, double **phi, int n_c, int*snk_mom);
+void contract_twopoint_snk_momentum ( double * const contr, int const idsource, int const idsink, double ** const chi, double ** const phi, int const n_c, int const snk_mom[3], int const reduce );
+
 void contract_twopoint_snk_momentum_trange(double *contr, const int idsource, const int idsink, double **chi, double **phi, int n_c, int* snk_mom, int tmin, int tmax);
 
 void contract_twopoint_xdep(void*contr, const int idsource, const int idsink, void*chi, void*phi, int n_c, int stride, double factor, size_t prec);
@@ -149,6 +150,8 @@ void xchange_eo_propagator ( fermion_propagator_type *fp, int eo, int dir);
 
 int get_point_source_info (int gcoords[4], int lcoords[4], int*proc_id);
 
+int get_timeslice_source_info (int gts, int *lts, int*proc_id );
+
 void complex_field_ti_eq_re (double *r, double c, unsigned int N);
 
 void complex_field_eq_complex_field_conj_ti_re (double *r, double c, unsigned int N);
@@ -200,6 +203,22 @@ unsigned int * const sort_by_dvalue_mapping ( double * const value, unsigned int
 int sort_dfield_by_map ( double * const v, unsigned int const nv, unsigned int * const map, unsigned int const N );
 
 
+/***************************************************************************
+ * set number of openmp threads
+ ***************************************************************************/
+inline void set_omp_number_threads (void) {
+#ifdef HAVE_OPENMP
+  if(g_cart_id == 0) fprintf(stdout, "# [set_omp_number_threads] setting omp number of threads to %d\n", g_num_threads);
+  omp_set_num_threads(g_num_threads);
+#pragma omp parallel
+{
+  fprintf(stdout, "# [set_omp_number_threads] proc%.4d thread%.4d using %d threads\n", g_cart_id, omp_get_thread_num(), omp_get_num_threads());
+}
+#else
+  if(g_cart_id == 0) fprintf(stdout, "[set_omp_number_threads] Warning, resetting global thread number to 1\n");
+  g_num_threads = 1;
+#endif
+}  /* end of set_omp_number_threads */
 
 
 }  /* end of namespace cvc */
