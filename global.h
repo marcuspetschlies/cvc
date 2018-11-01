@@ -111,6 +111,7 @@ EXTERN int ** g_idn, **g_idn_5d;
 EXTERN int *g_lexic2eo, *g_eo2lexic, *g_iseven, *g_isevent, *g_lexic2eot, *g_eot2lexic, *g_lexic2eosub;
 EXTERN int **g_eosub2t;
 /* EXTERN int ****g_eot2xyz; */
+EXTERN int **g_lexic2coords;
 EXTERN int ****g_eosubt2coords;
 EXTERN int *g_lexic2eo_5d, *g_eo2lexic_5d, *g_iseven_5d, *g_isevent_5d, *g_lexic2eot_5d, *g_eot2lexic_5d;
 EXTERN int **g_eosub2sliced3d, ***g_sliced3d2eosub;

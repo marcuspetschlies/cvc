@@ -308,6 +308,14 @@ void geometry() {
     g_idn[ix][2] = get_index(x0, x1, x2-1, x3);
     g_idn[ix][3] = get_index(x0, x1, x2, x3-1);
 
+    /* we set lexic 2 coords, 
+     * the inverse g_ipt, BUT we use x0,1,2,3, NOT y0,1,2,3
+     */
+    g_lexic2coords[ix][0] = x0;
+    g_lexic2coords[ix][1] = x1;
+    g_lexic2coords[ix][2] = x2;
+    g_lexic2coords[ix][3] = x3;
+
     // is even / odd
     /* if(isboundary == 0) { */
       g_iseven[ix] = ( x0 + T *g_proc_coords[0] + x1 + LX*g_proc_coords[1] \
@@ -541,10 +549,9 @@ void geometry() {
 
 int init_geometry(void) {
 
-  int ix = 0, V;
-  int j;
   int dx = 0, dy = 0, dz = 0;
   unsigned int VOL3half;
+  unsigned int V;
 
   VOLUME         = T*LX*LY*LZ;
   VOLUMEPLUSRAND = VOLUME;
@@ -580,10 +587,10 @@ int init_geometry(void) {
 
   if(g_cart_id==0) {
     fprintf(stdout, "# [init_geometry] (T, LX, LY, LZ) = (%d, %d, %d, %d)\n", T, LX, LY, LZ);
-    fprintf(stdout, "# [init_geometry] VOLUME = %d\n", VOLUME);
-    fprintf(stdout, "# [init_geometry] RAND   = %d\n", RAND);
-    fprintf(stdout, "# [init_geometry] EDGES  = %d\n", EDGES);
-    fprintf(stdout, "# [init_geometry] VOLUMEPLUSRAND = %d\n", VOLUMEPLUSRAND);
+    fprintf(stdout, "# [init_geometry] VOLUME         = %u\n", VOLUME);
+    fprintf(stdout, "# [init_geometry] RAND           = %u\n", RAND);
+    fprintf(stdout, "# [init_geometry] EDGES          = %u\n", EDGES);
+    fprintf(stdout, "# [init_geometry] VOLUMEPLUSRAND = %u\n", VOLUMEPLUSRAND);
   }
 
   V = VOLUMEPLUSRAND;
@@ -617,7 +624,7 @@ int init_geometry(void) {
  
   g_iup[0] = iup;
   g_idn[0] = idn;
-  for(ix=1; ix<V; ix++) {
+  for ( unsigned int ix = 1; ix < V; ix++ ) {
     g_iup[ix] = g_iup[ix-1] + 4;
     g_idn[ix] = g_idn[ix-1] + 4;
   }
@@ -625,12 +632,11 @@ int init_geometry(void) {
   ipt_[0]  = ipt;
   ipt__[0] = ipt_;
   g_ipt[0] = ipt__;
-  for(ix=1; ix<(T+2)*(LX+dx)*(LY+dy); ix++) ipt_[ix]  = ipt_[ix-1]  + (LZ+dz);
+  for ( unsigned int ix=1; ix<(T+2)*(LX+dx)*(LY+dy); ix++) ipt_[ix]  = ipt_[ix-1]  + (LZ+dz);
 
-  for(ix=1; ix<(T+2)*(LX+dx);         ix++) ipt__[ix] = ipt__[ix-1] + (LY+dy);
+  for ( unsigned int ix=1; ix<(T+2)*(LX+dx);         ix++) ipt__[ix] = ipt__[ix-1] + (LY+dy);
 
-  for(ix=1; ix<(T+2);                 ix++) g_ipt[ix] = g_ipt[ix-1] + (LX+dx);
-
+  for ( unsigned int ix=1; ix<(T+2);                 ix++) g_ipt[ix] = g_ipt[ix-1] + (LX+dx);
 
   g_lexic2eo = (int*)calloc(V, sizeof(int));
   if(g_lexic2eo == NULL) return(9);
@@ -722,7 +728,7 @@ int init_geometry(void) {
   if( g_eosubt2coords[0][0] == NULL ) return(23);
   g_eosubt2coords[1][0] = g_eosubt2coords[0][0] + T*VOL3half;
 
-  for( ix=1; ix<T; ix++ ) {
+  for( int ix=1; ix<T; ix++ ) {
     g_eosubt2coords[0][ix] =  g_eosubt2coords[0][ix-1] + VOL3half;
     g_eosubt2coords[1][ix] =  g_eosubt2coords[1][ix-1] + VOL3half;
   }
@@ -731,12 +737,27 @@ int init_geometry(void) {
   if( g_eosubt2coords[0][0][0] == NULL ) return(24);
   g_eosubt2coords[1][0][0] = g_eosubt2coords[0][0][0] + 3*T*VOL3half;
 
-  for( j=0; j<T; j++ ) {
-    for( ix=0; ix<VOL3half; ix++ ) {
+  for( unsigned int j=0; j<T; j++ ) {
+    for( unsigned int ix=0; ix<VOL3half; ix++ ) {
       g_eosubt2coords[0][j][ix] =  g_eosubt2coords[0][0][0] + 3*(j*VOL3half+ix);
       g_eosubt2coords[1][j][ix] =  g_eosubt2coords[1][0][0] + 3*(j*VOL3half+ix);
     }
   }
+
+  /***********************************************************/
+  /***********************************************************/
+
+  /***********************************************************
+   * g_lexic2coords
+   ***********************************************************/
+  g_lexic2coords = ( int ** ) calloc ( V, sizeof(int*) );
+  if ( g_lexic2coords == NULL ) return ( 25 );
+  g_lexic2coords[0] =  ( int * ) calloc ( 4 * V, sizeof ( int ) );
+  if ( g_lexic2coords[0] == NULL ) return ( 24 );
+  for ( unsigned int ix = 1; ix < V; ix++ ) {
+    g_lexic2coords[ix] = g_lexic2coords[ix-1] + 4;
+  }
+
 
   /***********************************************************/
   /***********************************************************/
@@ -834,6 +855,10 @@ void free_geometry() {
   free( g_eosubt2coords[0][0] );
   free( g_eosubt2coords[0] );
   free( g_eosubt2coords );
+
+  /* free g_lexic2coords buffer */
+  free( g_lexic2coords );
+  free( g_lexic2coords[0] );
 
 #if 0
   free( g_eot2xyz[0][0][0] );
