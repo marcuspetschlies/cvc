@@ -5616,13 +5616,13 @@ void spinor_field_eq_spinor_field_pl_spinor_field(double*r, double*s, double*t, 
  * r = gamma[ gid ] x s
  * r and s can be same memory region
  ***********************************************************/
-void spinor_field_eq_gamma_ti_spinor_field(double*r, int gid, double*s, unsigned int N) {
+void spinor_field_eq_gamma_ti_spinor_field ( double * const r, int const gid, double * const s, unsigned int const N) {
 
   unsigned int ix, offset;
   double *rr, *ss;
   if(r != s) {
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(ix,offset,rr,ss) shared(r,gid,s,N)
+#pragma omp parallel for private(ix,offset,rr,ss) /* shared(r,gid,s,N) */
 #endif
     for(ix = 0; ix < N; ix++ ) {
       offset = _GSI(ix);

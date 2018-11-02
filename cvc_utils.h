@@ -118,7 +118,9 @@ void spinor_field_eq_spinor_field_pl_spinor_field_ti_re(double*r, double*s, doub
 void spinor_field_eq_spinor_field_ti_re (double *r, double *s, double c, unsigned int N);
 void spinor_field_eq_spinor_field_mi_spinor_field(double*r, double*s, double*t, unsigned int N);
 void spinor_field_eq_spinor_field_pl_spinor_field(double*r, double*s, double*t, unsigned int N);
-void spinor_field_eq_gamma_ti_spinor_field(double*r, int gid, double*s, unsigned int N);
+
+void spinor_field_eq_gamma_ti_spinor_field ( double * const r, int const gid, double * const s, unsigned int const N);
+
 
 void spinor_field_mi_eq_spinor_field_ti_re(double*r, double*s, double c, unsigned int N);
 void spinor_field_ti_eq_re (double *r, double c, unsigned int N);
