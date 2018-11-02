@@ -43,5 +43,7 @@ void apply_propagator_constant_cvc_vertex ( fermion_propagator_type *s, fermion_
 
 int Q_invert (double*prop, double*source, double*gauge_field, double mass, int op_id);
 
+int spinor_field_eq_cov_deriv_spinor_field ( double * const s, double * const r_in, int const mu, int const fbwd, double * const gauge_field );
+
 }  /* end of namespace cvc */
 #endif

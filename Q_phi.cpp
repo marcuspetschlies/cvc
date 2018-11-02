@@ -1233,7 +1233,7 @@ void apply_cvc_vertex(double *s, double *r, int mu, int fbwd, double *gauge_fiel
 #endif
  }  /* end of if fbwd = 0 or 1 */
 
-}  /* end of apply_cvc_vertex_eo */
+}  /* end of apply_cvc_vertex */
 
 
 /***********************************************************
@@ -1491,5 +1491,96 @@ int Q_invert (double*prop, double*source, double*gauge_field, double mass, int o
 #endif
 }  /* Q_invert */
 
+
+/***********************************************************
+ * apply cov. derivative to a spinor field
+ *
+ *   IN: r_in --- source spinor
+ *   IN: mu   --- direction \in {0,1,2,3}
+ *   IN: fbwd --- forward 0 / backward 1,
+ *   IN: gauge field
+ *   OUT: s   --- target spinor
+ *
+ *   safe, if s == r_in
+ ***********************************************************/
+
+int spinor_field_eq_cov_deriv_spinor_field ( double * const s, double * const r_in, int const mu, int const fbwd, double * const gauge_field ) {
+
+  const unsigned int N = VOLUME;
+
+  double * r = (double*) malloc ( _GSI( (VOLUME+RAND) ) * sizeof(double) );
+  if ( r == NULL ) {
+    fprintf ( stderr, "[spinor_field_eq_cov_deriv_spinor_field] Error from malloc %s %d\n", __FILE__, __LINE__ );
+    return ( 1 );
+  }
+  memcpy ( r, r_in, _GSI(VOLUME)*sizeof(double) );
+
+#ifdef HAVE_MPI
+  xchange_field( r );
+#endif
+
+  if ( fbwd == 0 ) {
+    /**************************************************************
+     * FORWARD
+     **************************************************************/
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+    for ( unsigned int ix = 0; ix < N; ix++ ) {
+    
+      double * const r_ = r + _GSI(ix);
+
+      double * const s_ = s + _GSI(ix);
+      
+      /* ============================================ */
+      /* =============== direction mu =============== */
+      double * const U_fwd = gauge_field+_GGI(ix,mu);
+
+      /* ix_fwd */
+      unsigned int const ix_fwd = g_iup[ix][mu];
+
+      double * const r_fwd_ = r + _GSI(ix_fwd);
+
+      /* s_ = U_fwd r_fwd_ */
+      _fv_eq_cm_ti_fv( s_, U_fwd, r_fwd_ );
+      /* s_ = s_ - r_ */
+      _fv_mi_eq_fv( s_, r_ );
+
+  }  /* end of loop on ix over VOLUME */
+
+ } else if ( fbwd == 1 ) {
+    /**************************************************************
+     * BACKWARD
+     **************************************************************/
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+    for ( unsigned int ix = 0; ix < N; ix++ ) {
+    
+      double * const r_ = r + _GSI(ix);
+
+      double * const s_ = s + _GSI(ix);
+      
+      /* ============================================ */
+      /* =============== direction mu =============== */
+      double * const U_bwd = gauge_field+_GGI( g_idn[ix][mu], mu);
+
+      /* ix_bwd */
+      unsigned int const ix_bwd = g_idn[ix_lexic][mu];
+
+      double * const r_bwd_ = r + _GSI(ix_bwd);
+
+      /* s_ = U_bwd^+ r_bwd_ */
+      _fv_eq_cm_dag_ti_fv( s_, U_bwd, r_bwd_ );
+      /* s_ = r_ - s_ */
+      _fv_eq_fv_mi_fv ( s_, r_, s_ )
+
+  }  /* end of loop on ix over VOLUME */
+
+ }  /* end of if fbwd = 0 or 1 */
+
+  free ( r );
+  return ( 0 );
+}  /* end of cov_deriv */
 
 }  /* end of namespace cvc */
