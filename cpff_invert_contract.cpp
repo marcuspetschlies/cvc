@@ -61,6 +61,7 @@ extern "C"
 #include "table_init_z.h"
 #include "table_init_d.h"
 #include "dummy_solver.h"
+#include "Q_phi.h"
 
 #include "clover.h"
 
@@ -101,6 +102,8 @@ int main(int argc, char **argv) {
   int op_id_up = -1, op_id_dn = -1;
 
 
+  int const gamma_current_number = 10;
+  int gamma_current_list[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 
 #ifdef HAVE_LHPC_AFF
   struct AffWriter_s *affw = NULL;
@@ -148,7 +151,7 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * initialize MPI parameters for cvc
    ***************************************************************************/
-  exitstatus = tmLQCD_invert_init(argc, argv, 1, 0);
+  exitstatus = tmLQCD_invert_init(argc, argv, 1);
   if(exitstatus != 0) {
     EXIT(1);
   }
@@ -294,9 +297,9 @@ int main(int argc, char **argv) {
    * allocate memory for spinor fields
    * WITHOUT halo
    ***************************************************************************/
-  size_t nelem = _GSI( VOLUME );
+  nelem = _GSI( VOLUME );
   double *** stochastic_propagator_mom_list = init_3level_dtable ( g_source_momentum_number, 4, nelem );
-  if ( stochastic_propagator_list == NULL ) {
+  if ( stochastic_propagator_mom_list == NULL ) {
     fprintf(stderr, "[cpff_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT(48);
   }
@@ -422,7 +425,7 @@ int main(int argc, char **argv) {
 
         memset ( spinor_work[1], 0, sizeof_spinor_field );
 
-        exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_dn, 0 );
+        exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_dn );
         if(exitstatus != 0) {
           fprintf(stderr, "[cpff_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(44);
@@ -453,7 +456,7 @@ int main(int argc, char **argv) {
          * prepare stochastic timeslice source at source momentum
          ***************************************************************************/
         exitstatus = init_timeslice_source_oet ( stochastic_source_list, gts, source_momentum, 0 );
-        if( (exitstatus != 0 ) {
+        if( exitstatus != 0 ) {
           fprintf(stderr, "[cpff_invert_contract] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(64);
         }
@@ -466,7 +469,7 @@ int main(int argc, char **argv) {
 
           memset ( spinor_work[1], 0, sizeof_spinor_field );
 
-          exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_dn, 0 );
+          exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_dn );
           if(exitstatus != 0) {
             fprintf(stderr, "[cpff_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(44);
@@ -519,7 +522,7 @@ int main(int argc, char **argv) {
             EXIT(3);
           }
 
-          sprintf ( aff_tag, "/d+-gf-d-gi/t%d/s%d/gf%.d/gi%.d/pix%dpiy%dpiz%d", gts, isample,
+          sprintf ( aff_tag, "/d+-g-d-g/t%d/s%d/gf%.d/gi%.d/pix%dpiy%dpiz%d", gts, isample,
               g_source_gamma_id_list[isnk_gamma], g_source_gamma_id_list[isrc_gamma],
               source_momentum[0], source_momentum[1], source_momentum[2] );
 
@@ -580,7 +583,7 @@ int main(int argc, char **argv) {
               }
               memset ( spinor_work[1], 0, sizeof_spinor_field );
 
-              exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_up, 0 );
+              exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_up );
               if(exitstatus != 0) {
                 fprintf(stderr, "[cpff_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                 EXIT(44);
@@ -638,7 +641,7 @@ int main(int argc, char **argv) {
 
                 }  /* end of loop on source momenta */
 
-                sprintf ( aff_tag, "/d+-gc-sud/t%d/s%d/dt%d/gf%d/gc%d/gi%d/pfx%dpfy%dpfz%d/", 
+                sprintf ( aff_tag, "/d+-g-sud/t%d/s%d/dt%d/gf%d/gc%d/gi%d/pfx%dpfy%dpfz%d/", 
                     gts, isample, g_sequential_source_timeslice_list[iseq_timeslice],
                     seq_source_gamma, gamma_current, gamma_source,
                     seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
@@ -719,7 +722,7 @@ int main(int argc, char **argv) {
 
                   }  /* end of loop on source momenta */
 
-                  sprintf ( aff_tag, "/d+-gD-sud/t%d/s%d/dt%d/gf%d/gc%d/D%d/fbwd%d/gi%d/pfx%dpfy%dpfz%d/", 
+                  sprintf ( aff_tag, "/d+-gd-sud/t%d/s%d/dt%d/gf%d/gc%d/d%d/fbwd%d/gi%d/pfx%dpfy%dpfz%d/", 
                       gts, isample, g_sequential_source_timeslice_list[iseq_timeslice],
                       seq_source_gamma, mu, mu, ifbwd, gamma_source,
                       seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
@@ -774,9 +777,9 @@ int main(int argc, char **argv) {
 
                     }  /* end of loop on source momenta */
 
-                    sprintf ( aff_tag, "/d+-DD-sud/t%d/s%d/dt%d/gf%d/gc%d/D%d/D%d/fbwd%d/gi%d/pfx%dpfy%dpfz%d/", 
+                    sprintf ( aff_tag, "/d+-dd-sud/t%d/s%d/dt%d/gf%d/d%d/fbwd%d/d%d/fbwd%d/gi%d/pfx%dpfy%dpfz%d/", 
                         gts, isample, g_sequential_source_timeslice_list[iseq_timeslice],
-                        seq_source_gamma, mu, mu, kfbwd, ifbwd, gamma_source,
+                        seq_source_gamma, mu, kfbwd, mu, ifbwd, gamma_source,
                         seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
 
                     exitstatus = contract_write_to_aff_file ( contr_p, affw, aff_tag, g_source_momentum_list, g_source_momentum_number, io_proc );
@@ -793,8 +796,8 @@ int main(int argc, char **argv) {
 
               }  /* end of loop on directions for cov deriv */
 
-              fini_2level_dtable ( &sequential_propagator_deriv );
-              fini_2level_dtable ( &sequential_propagator_dderiv );
+              fini_2level_dtable ( &sequential_propagator_deriv_list );
+              fini_2level_dtable ( &sequential_propagator_dderiv_list );
 
             }  /* end of loop on fbwd */
 
