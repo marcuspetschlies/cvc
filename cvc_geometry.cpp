@@ -704,10 +704,10 @@ int init_geometry(void) {
   g_sliced3d2eosub[0][0] = (int*)calloc(T*LX*LY*LZ, sizeof(int));
   if(g_sliced3d2eosub[0] == NULL) return(21);
 
-  for(ix=1; ix<T; ix++) {
+  for ( int ix=1; ix<T; ix++) {
     g_sliced3d2eosub[0][ix] = g_sliced3d2eosub[0][0] + ix * LX*LY*LZ/2;
   }
-  for(ix=0; ix<T; ix++) {
+  for( int ix=0; ix<T; ix++) {
     g_sliced3d2eosub[1][ix] = g_sliced3d2eosub[0][0] + (T + ix) * LX*LY*LZ/2;
   }
 
