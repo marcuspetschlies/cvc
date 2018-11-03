@@ -4,6 +4,10 @@
 #ifndef _CVC_UTIL_H
 #define _CVC_UTIL_H
 
+#ifdef HAVE_OPENMP
+#include <omp.h>
+#endif
+
 namespace cvc {
 
 int read_input (char *filename);
@@ -131,7 +135,7 @@ void spinor_field_eq_spinor_field_ti_complex_field (double*r, double*s, double *
 
 void spinor_field_norm_diff (double * const d, double * const r, double * const s, unsigned int const N);
 
-void g5_phi(double *phi, unsigned int N);
+void g5_phi(double * const phi, unsigned int const N);
 
 spinor_propagator_type *create_sp_field(size_t N);
 fermion_propagator_type *create_fp_field(size_t N);
@@ -169,6 +173,7 @@ int check_subspace_propagator_clover_eo(
   double**source_e, double**source_o,
   int nf, double *eo_evecs_block, double *evecs_norm, int nev, double*gauge_field, double**mzz[2], double**mzzinv[2], int flavor_id );
 
+int check_residual_clover ( double ** const prop, double ** const source, double * const gauge_field, double ** const mzz, int const nf  );
 
 int plaquetteria  (double*gauge_field );
 
