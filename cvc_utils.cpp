@@ -1734,10 +1734,11 @@ int printf_SU3_link (double *u, FILE*ofs) {
 int printf_spinor_field(double *s, int print_halo, FILE *ofs) {
 
   int i, start_valuet=0, start_valuex=0, start_valuey=0, start_valuez=0;
-  int x0, x1, x2, x3, ix;
+  int x0, x1, x2, x3;
   int y0, y1, y2, y3;
   int z0, z1, z2, z3;
   int boundary;
+  unsigned int ix;
 
   if( (ofs == (FILE*)NULL) || (s==(double*)NULL) ) return(108);
 
