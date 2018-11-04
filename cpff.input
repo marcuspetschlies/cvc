@@ -1,0 +1,99 @@
+# *******************************************************
+# * input parameters for cvc-code
+# *******************************************************
+
+T =  16
+LX = 8
+LY = 8
+LZ = 8
+mu = 0.0040
+kappa = 0.163270
+Nconf = 0
+csw = 0.
+format = 0
+BCangleT = 1.
+BCangleX = 0
+BCangleY = 0
+BCangleZ = 0
+
+# prefix of source and propagator fiels,
+# in case  of source / propagator io
+filename_prefix = stochastic_source_oet
+gaugefilename_prefix = conf
+
+
+outfile_prefix =./
+
+# taken from tmLQCD if wrapper is used
+#NrTProcs = 2
+#NrXProcs = 2
+#NrYProcs = 1
+#NrZProcs = 1
+
+# taken from tmLQCD if wrapper is used
+num_threads = 2
+
+###########################
+# source and prop io
+###########################
+read_source                 = no
+#  read_propagator             = no;  not used at the moment
+write_source                = yes
+write_propagator            = yes
+
+write_sequential_source     = yes
+write_sequential_propagator = no
+
+###########################
+# momentum lists
+###########################
+
+source_momentum = 0,0,0
+source_momentum = 4,5,7
+source_momentum = -5,-7,-4
+
+sink_momentum = 1,2,3
+sink_momentum = -3,-2,-1
+
+seq_source_momentum = 0,0,0
+seq_source_momentum = 1,0,0
+seq_source_momentum = 0,-1,0
+
+###########################
+# gamma matrix lists
+###########################
+
+source_gamma_id = 0
+source_gamma_id = 1
+
+sequential_source_gamma_id = 4
+sequential_source_gamma_id = 5
+
+###########################
+# timeslice lists
+###########################
+
+# timeslice for sequential source
+# this is dt,
+# counted from current source timeslice
+sequential_source_timeslice = 4
+sequential_source_timeslice = 7
+
+###########################
+# misc
+###########################
+propagator_precision = 64
+
+fermion_type = TwistedMass
+
+verbosity_level = 5
+
+seed = 728
+noise_type = Z2
+
+###########################
+# source coordinate list
+# only t-coord is used
+###########################
+source_coords = 6,0,0,0
+source_coords = 11,0,0,0
