@@ -62,13 +62,11 @@ extern "C"
 #include "table_init_d.h"
 #include "dummy_solver.h"
 #include "Q_phi.h"
-
 #include "clover.h"
 
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
-#define _OP_ID_ST 1
-
+#define _OP_ID_ST 2
 
 using namespace cvc;
 
@@ -101,8 +99,10 @@ int main(int argc, char **argv) {
   int op_id_up = -1, op_id_dn = -1;
 
 
-  int const gamma_current_number = 10;
-  int gamma_current_list[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+  /* int const gamma_current_number = 10;
+  int gamma_current_list[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }; */
+  int const gamma_current_number = 2;
+  int gamma_current_list[10] = {0, 1 };
 
 #ifdef HAVE_LHPC_AFF
   struct AffWriter_s *affw = NULL;
@@ -162,7 +162,6 @@ int main(int argc, char **argv) {
    * initialize MPI parameters for cvc
    ***************************************************************************/
   mpi_init(argc, argv);
-  mpi_init_xchange_contraction(2);
 
   /***************************************************************************
    * report git version
@@ -188,6 +187,12 @@ int main(int argc, char **argv) {
   geometry();
 
   sizeof_spinor_field    = _GSI(VOLUME) * sizeof(double);
+
+  /***************************************************************************
+   * some additional xchange operations
+   ***************************************************************************/
+  mpi_init_xchange_contraction(2);
+  mpi_init_xchange_eo_spinor ();
 
   /***************************************************************************
    * initialize own gauge field or get from tmLQCD wrapper
@@ -400,12 +405,13 @@ int main(int argc, char **argv) {
           for ( int ispin = 0; ispin < 4; ispin++ ) {
             sprintf(filename, "%s.%.4d.t%.2d.%d.%.5d", filename_prefix, Nconf, gts, ispin, isample);
             if ( ( exitstatus = write_propagator( stochastic_source_list[ispin], filename, 0, g_propagator_precision) ) != 0 ) {
-              fprintf(stderr, "[cpff_invert_contract] Error from write_propagator, status was %d\n", exitstatus);
+              fprintf(stderr, "[cpff_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(2);
             }
           }
         }
       }  /* end of if read stochastic source - else */
+
 
       /***************************************************************************
        * invert for stochastic timeslice propagator at zero momentum
@@ -429,6 +435,15 @@ int main(int argc, char **argv) {
         }
 
         memcpy( stochastic_propagator_zero_list[i], spinor_work[1], sizeof_spinor_field);
+      }
+      if ( g_write_source ) {
+        for ( int ispin = 0; ispin < 4; ispin++ ) {
+          sprintf(filename, "%s.%.4d.t%.2d.%d.%.5d.inverted", filename_prefix, Nconf, gts, ispin, isample);
+          if ( ( exitstatus = write_propagator( stochastic_propagator_zero_list[ispin], filename, 0, g_propagator_precision) ) != 0 ) {
+            fprintf(stderr, "[cpff_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(2);
+          }
+        }
       }
 
       /***************************************************************************
@@ -842,6 +857,10 @@ int main(int argc, char **argv) {
         }  /* end of loop on sequential source gamma ids */
 
       }  /* end of loop on sequential source momenta */
+#if 0
+#endif  /* of if 0 */
+
+      exitstatus = init_timeslice_source_oet ( NULL, -1, NULL, -2 );
 
     }  /* end of loop on oet samples */
 
@@ -887,6 +906,7 @@ int main(int argc, char **argv) {
 
 #ifdef HAVE_MPI
   mpi_fini_xchange_contraction();
+  mpi_fini_xchange_eo_spinor ();
   mpi_fini_datatypes();
   MPI_Finalize();
 #endif
