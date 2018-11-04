@@ -757,13 +757,12 @@ int init_coherent_sequential_source(double *s, double **p, int tseq, int ncoh, i
 /**********************************************************
  * timeslice sources for one-end trick with spin dilution 
  **********************************************************/
-int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init) {
+int init_timeslice_source_oet(double ** const s, int const tsrc, int * const momentum, int const init) {
   const unsigned int sf_items = _GSI(VOLUME);
   const size_t       sf_bytes = sf_items * sizeof(double);
   const int          have_source = ( tsrc / T == g_proc_coords[0] ) ? 1 : 0;
   const unsigned int VOL3 = LX*LY*LZ;
 
-  unsigned int x1, x2, x3;
   static double *ran = NULL;
   double ratime, retime;
   
@@ -839,9 +838,9 @@ int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init) {
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-      for(x1=0;x1<LX;x1++) {
-      for(x2=0;x2<LY;x2++) {
-      for(x3=0;x3<LZ;x3++) {
+      for ( unsigned int x1=0; x1<LX; x1++) {
+      for ( unsigned int x2=0; x2<LY; x2++) {
+      for ( unsigned int x3=0; x3<LZ; x3++) {
         phase = phase_offset + x1 * p[0] + x2 * p[1] + x3 * p[2];
         cphase = cos( phase );
         sphase = sin( phase );
