@@ -86,9 +86,10 @@ int main(int argc, char **argv) {
   
   const char outfile_prefix[] = "cpff";
 
+  const char fbwd_str[2][4] =  { "fwd", "bwd" };
+
   int c;
   int filename_set = 0;
-  int gsx[4], sx[4];
   int exitstatus;
   int io_proc = -1;
   int check_propagator_residual = 0;
@@ -97,8 +98,6 @@ int main(int argc, char **argv) {
   // double ratime, retime;
   double **mzz[2], **mzzinv[2];
   double *gauge_field_with_phase = NULL;
-  int read_stochastic_source_oet = 0;
-  int write_stochastic_source_oet = 0;
   int op_id_up = -1, op_id_dn = -1;
 
 
@@ -114,7 +113,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "rwch?f:")) != -1) {
+  while ((c = getopt(argc, argv, "ch?f:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -122,12 +121,6 @@ int main(int argc, char **argv) {
       break;
     case 'c':
       check_propagator_residual = 1;
-      break;
-    case 'r':
-      read_stochastic_source_oet = 1;
-      break;
-    case 'w':
-      write_stochastic_source_oet = 1;
       break;
     case 'h':
     case '?':
@@ -360,7 +353,7 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * re-initialize random number generator
      ***************************************************************************/
-    if ( ! read_stochastic_source_oet ) {
+    if ( ! g_read_source ) {
       sprintf(filename, "rng_stat.%.4d.tsrc%.3d.stochastic-oet.out", Nconf, gts );
       exitstatus = init_rng_stat_file ( ( ( gts + 1 ) * 10000 + g_seed ), filename );
       if(exitstatus != 0) {
@@ -377,16 +370,16 @@ int main(int argc, char **argv) {
       /***************************************************************************
        * read stochastic oet source from file
        ***************************************************************************/
-      if ( read_stochastic_source_oet ) {
+      if ( g_read_source ) {
         for ( int ispin = 0; ispin < 4; ispin++ ) {
-          sprintf(filename, "%s.%.4d.t%.2d.%.2d.%.5d", filename_prefix, Nconf, gts, ispin, isample);
-          if ( ( exitstatus = read_lime_spinor( stochastic_source_list[ispin], filename, 0) ) != 0 ) {
+          sprintf(filename, "%s.%.4d.t%.2d.%d.%.5d", filename_prefix, Nconf, gts, ispin, isample);
+          if ( ( exitstatus = read_lime_spinor( stochastic_source_list[ispin], filename, ispin) ) != 0 ) {
             fprintf(stderr, "[cpff_invert_contract] Error from read_lime_spinor, status was %d\n", exitstatus);
             EXIT(2);
           }
         }
         /* recover the ran field */
-        if( (exitstatus = init_timeslice_source_oet(stochastic_source_list, gsx[0], NULL, -1 ) ) != 0 ) {
+        if( (exitstatus = init_timeslice_source_oet(stochastic_source_list, gts, NULL, -1 ) ) != 0 ) {
           fprintf(stderr, "[cpff_invert_contract] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(64);
         }
@@ -403,10 +396,10 @@ int main(int argc, char **argv) {
           fprintf(stderr, "[cpff_invert_contract] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(64);
         }
-        if ( write_stochastic_source_oet ) {
+        if ( g_write_source ) {
           for ( int ispin = 0; ispin < 4; ispin++ ) {
-            sprintf(filename, "%s.%.4d.t%.2d.%.2d.%.5d", filename_prefix, Nconf, gts, ispin, isample);
-            if ( ( exitstatus = write_propagator( stochastic_source_list[ispin], filename, 0, 64) ) != 0 ) {
+            sprintf(filename, "%s.%.4d.t%.2d.%d.%.5d", filename_prefix, Nconf, gts, ispin, isample);
+            if ( ( exitstatus = write_propagator( stochastic_source_list[ispin], filename, 0, g_propagator_precision) ) != 0 ) {
               fprintf(stderr, "[cpff_invert_contract] Error from write_propagator, status was %d\n", exitstatus);
               EXIT(2);
             }
@@ -460,6 +453,16 @@ int main(int argc, char **argv) {
           fprintf(stderr, "[cpff_invert_contract] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(64);
         }
+        if ( g_write_source ) {
+          for ( int ispin = 0; ispin < 4; ispin++ ) {
+            sprintf(filename, "%s.%.4d.t%.2d.px%dpy%dpz%d.%d.%.5d", filename_prefix, Nconf, gts, 
+                source_momentum[0], source_momentum[1], source_momentum[2], ispin, isample);
+            if ( ( exitstatus = write_propagator( stochastic_source_list[ispin], filename, 0, g_propagator_precision) ) != 0 ) {
+              fprintf(stderr, "[cpff_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+              EXIT(2);
+            }
+          }
+        }
 
         /***************************************************************************
          * invert
@@ -482,6 +485,17 @@ int main(int argc, char **argv) {
           memcpy( stochastic_propagator_mom_list[isrc_mom][i], spinor_work[1], sizeof_spinor_field);
 
         }  /* end of loop on spinor components */
+
+        if ( g_write_propagator ) {
+          for ( int ispin = 0; ispin < 4; ispin++ ) {
+            sprintf(filename, "%s.%.4d.t%.2d.px%dpy%dpz%d.%d.%.5d.inverted", filename_prefix, Nconf, gts,
+                source_momentum[0], source_momentum[1], source_momentum[2], ispin, isample);
+            if ( ( exitstatus = write_propagator( stochastic_propagator_mom_list[isrc_mom][ispin], filename, 0, g_propagator_precision) ) != 0 ) {
+              fprintf(stderr, "[cpff_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+              EXIT(2);
+            }
+          }
+        }
 
       }  /* end of loop on source momenta */
 
@@ -566,7 +580,7 @@ int main(int argc, char **argv) {
              * global sequential source timeslice
              * NOTE: counted from current source timeslice
              *****************************************************************/
-            int gtseq = ( gts + g_sequential_source_timeslice_list[iseq_timeslice] ) % T_global;
+            int gtseq = ( gts + g_sequential_source_timeslice_list[iseq_timeslice] + T_global ) % T_global;
 
             /*****************************************************************
              * invert for sequential timeslice propagator
@@ -581,6 +595,15 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "[cpff_invert_contract] Error from init_sequential_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(64);
               }
+              if ( g_write_sequential_source ) {
+                sprintf(filename, "%s.%.4d.t%.2d.qx%dqy%dqz%d.g%d.dt%d.%d.%.5d", filename_prefix, Nconf, gts,
+                    seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], seq_source_gamma, gtseq, i, isample);
+                if ( ( exitstatus = write_propagator( spinor_work[0], filename, 0, g_propagator_precision) ) != 0 ) {
+                  fprintf(stderr, "[cpff_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                  EXIT(2);
+                }
+              }  /* end of if g_write_sequential_source */
+
               memset ( spinor_work[1], 0, sizeof_spinor_field );
 
               exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_up );
@@ -595,6 +618,17 @@ int main(int argc, char **argv) {
 
               memcpy( sequential_propagator_list[i], spinor_work[1], sizeof_spinor_field );
             }  /* end of loop on oet spin components */
+
+            if ( g_write_sequential_propagator ) {
+              for ( int ispin = 0; ispin < 4; ispin++ ) {
+                sprintf ( filename, "%s.%.4d.t%.2d.qx%dqy%dqz%d.g%d.dt%d.%d.%.5d.inverted", filename_prefix, Nconf, gts,
+                    seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], seq_source_gamma, gtseq, ispin, isample);
+                if ( ( exitstatus = write_propagator( sequential_propagator_list[ispin], filename, 0, g_propagator_precision) ) != 0 ) {
+                  fprintf(stderr, "[cpff_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                  EXIT(2);
+                }
+              }
+            }  /* end of if g_write_sequential_propagator */
 
             /*****************************************************************/
             /*****************************************************************/
@@ -722,9 +756,9 @@ int main(int argc, char **argv) {
 
                   }  /* end of loop on source momenta */
 
-                  sprintf ( aff_tag, "/d+-gd-sud/t%d/s%d/dt%d/gf%d/gc%d/d%d/fbwd%d/gi%d/pfx%dpfy%dpfz%d/", 
+                  sprintf ( aff_tag, "/d+-gd-sud/t%d/s%d/dt%d/gf%d/gc%d/d%d/%s/gi%d/pfx%dpfy%dpfz%d/", 
                       gts, isample, g_sequential_source_timeslice_list[iseq_timeslice],
-                      seq_source_gamma, mu, mu, ifbwd, gamma_source,
+                      seq_source_gamma, mu, mu, fbwd_str[ifbwd], gamma_source,
                       seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
 
                   exitstatus = contract_write_to_aff_file ( contr_p, affw, aff_tag, g_source_momentum_list, g_source_momentum_number, io_proc );
@@ -777,9 +811,9 @@ int main(int argc, char **argv) {
 
                     }  /* end of loop on source momenta */
 
-                    sprintf ( aff_tag, "/d+-dd-sud/t%d/s%d/dt%d/gf%d/d%d/fbwd%d/d%d/fbwd%d/gi%d/pfx%dpfy%dpfz%d/", 
+                    sprintf ( aff_tag, "/d+-dd-sud/t%d/s%d/dt%d/gf%d/d%d/%s/d%d/%s/gi%d/pfx%dpfy%dpfz%d/", 
                         gts, isample, g_sequential_source_timeslice_list[iseq_timeslice],
-                        seq_source_gamma, mu, kfbwd, mu, ifbwd, gamma_source,
+                        seq_source_gamma, mu, fbwd_str[kfbwd], mu, fbwd_str[ifbwd], gamma_source,
                         seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
 
                     exitstatus = contract_write_to_aff_file ( contr_p, affw, aff_tag, g_source_momentum_list, g_source_momentum_number, io_proc );
