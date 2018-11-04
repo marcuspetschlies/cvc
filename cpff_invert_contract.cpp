@@ -344,7 +344,7 @@ int main(int argc, char **argv) {
      * writer for aff output file
      ***************************************************************************/
     if(io_proc == 2) {
-      sprintf(filename, "%s.%.4d.t%.2d.aff", outfile_prefix, Nconf, gts );
+      sprintf(filename, "%s.%.4d.t%.d.aff", outfile_prefix, Nconf, gts );
       fprintf(stdout, "# [cpff_invert_contract] writing data to AFF file %s\n", filename);
       affw = aff_writer(filename);
       const char * aff_status_str = aff_writer_errstr ( affw );
@@ -377,7 +377,7 @@ int main(int argc, char **argv) {
        ***************************************************************************/
       if ( g_read_source ) {
         for ( int ispin = 0; ispin < 4; ispin++ ) {
-          sprintf(filename, "%s.%.4d.t%.2d.%d.%.5d", filename_prefix, Nconf, gts, ispin, isample);
+          sprintf(filename, "%s.%.4d.t%.d.%d.%.5d", filename_prefix, Nconf, gts, ispin, isample);
           if ( ( exitstatus = read_lime_spinor( stochastic_source_list[ispin], filename, ispin) ) != 0 ) {
             fprintf(stderr, "[cpff_invert_contract] Error from read_lime_spinor, status was %d\n", exitstatus);
             EXIT(2);
@@ -403,7 +403,7 @@ int main(int argc, char **argv) {
         }
         if ( g_write_source ) {
           for ( int ispin = 0; ispin < 4; ispin++ ) {
-            sprintf(filename, "%s.%.4d.t%.2d.%d.%.5d", filename_prefix, Nconf, gts, ispin, isample);
+            sprintf(filename, "%s.%.4d.t%.d.%d.%.5d", filename_prefix, Nconf, gts, ispin, isample);
             if ( ( exitstatus = write_propagator( stochastic_source_list[ispin], filename, 0, g_propagator_precision) ) != 0 ) {
               fprintf(stderr, "[cpff_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(2);
@@ -438,7 +438,7 @@ int main(int argc, char **argv) {
       }
       if ( g_write_source ) {
         for ( int ispin = 0; ispin < 4; ispin++ ) {
-          sprintf(filename, "%s.%.4d.t%.2d.%d.%.5d.inverted", filename_prefix, Nconf, gts, ispin, isample);
+          sprintf(filename, "%s.%.4d.t%.d.%d.%.5d.inverted", filename_prefix, Nconf, gts, ispin, isample);
           if ( ( exitstatus = write_propagator( stochastic_propagator_zero_list[ispin], filename, 0, g_propagator_precision) ) != 0 ) {
             fprintf(stderr, "[cpff_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(2);
@@ -470,7 +470,7 @@ int main(int argc, char **argv) {
         }
         if ( g_write_source ) {
           for ( int ispin = 0; ispin < 4; ispin++ ) {
-            sprintf(filename, "%s.%.4d.t%.2d.px%dpy%dpz%d.%d.%.5d", filename_prefix, Nconf, gts, 
+            sprintf(filename, "%s.%.4d.t%.d.px%dpy%dpz%d.%d.%.5d", filename_prefix, Nconf, gts, 
                 source_momentum[0], source_momentum[1], source_momentum[2], ispin, isample);
             if ( ( exitstatus = write_propagator( stochastic_source_list[ispin], filename, 0, g_propagator_precision) ) != 0 ) {
               fprintf(stderr, "[cpff_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
@@ -503,7 +503,7 @@ int main(int argc, char **argv) {
 
         if ( g_write_propagator ) {
           for ( int ispin = 0; ispin < 4; ispin++ ) {
-            sprintf(filename, "%s.%.4d.t%.2d.px%dpy%dpz%d.%d.%.5d.inverted", filename_prefix, Nconf, gts,
+            sprintf(filename, "%s.%.4d.t%.d.px%dpy%dpz%d.%d.%.5d.inverted", filename_prefix, Nconf, gts,
                 source_momentum[0], source_momentum[1], source_momentum[2], ispin, isample);
             if ( ( exitstatus = write_propagator( stochastic_propagator_mom_list[isrc_mom][ispin], filename, 0, g_propagator_precision) ) != 0 ) {
               fprintf(stderr, "[cpff_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
@@ -611,8 +611,9 @@ int main(int argc, char **argv) {
                 EXIT(64);
               }
               if ( g_write_sequential_source ) {
-                sprintf(filename, "%s.%.4d.t%.2d.qx%dqy%dqz%d.g%d.dt%d.%d.%.5d", filename_prefix, Nconf, gts,
-                    seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], seq_source_gamma, gtseq, i, isample);
+                sprintf(filename, "%s.%.4d.t%.d.qx%dqy%dqz%d.g%d.dt%d.%d.%.5d", filename_prefix, Nconf, gts,
+                    seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], seq_source_gamma,
+                    g_sequential_source_timeslice_list[iseq_timeslice], i, isample);
                 if ( ( exitstatus = write_propagator( spinor_work[0], filename, 0, g_propagator_precision) ) != 0 ) {
                   fprintf(stderr, "[cpff_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                   EXIT(2);
@@ -636,8 +637,9 @@ int main(int argc, char **argv) {
 
             if ( g_write_sequential_propagator ) {
               for ( int ispin = 0; ispin < 4; ispin++ ) {
-                sprintf ( filename, "%s.%.4d.t%.2d.qx%dqy%dqz%d.g%d.dt%d.%d.%.5d.inverted", filename_prefix, Nconf, gts,
-                    seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], seq_source_gamma, gtseq, ispin, isample);
+                sprintf ( filename, "%s.%.4d.t%.d.qx%dqy%dqz%d.g%d.dt%d.%d.%.5d.inverted", filename_prefix, Nconf, gts,
+                    seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], seq_source_gamma, 
+                    g_sequential_source_timeslice_list[iseq_timeslice], ispin, isample);
                 if ( ( exitstatus = write_propagator( sequential_propagator_list[ispin], filename, 0, g_propagator_precision) ) != 0 ) {
                   fprintf(stderr, "[cpff_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                   EXIT(2);
