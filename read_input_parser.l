@@ -47,10 +47,13 @@ namespace cvc {
 
   int cvc_verbose = 1;
   int myverbose = 0;
+
 }
+using namespace cvc;
 %}
 
 %option never-interactive
+%option debug
 
 %x TT
 %x LLX

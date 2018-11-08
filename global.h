@@ -9,7 +9,7 @@
 #endif
 #include <math.h>
 #include "types.h"
-#include "ifftw.h"
+//#include "ifftw.h"
 #ifdef HAVE_TMLQCD_LIBWRAPPER
 #include "tmLQCD.h"
 #endif

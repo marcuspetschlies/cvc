@@ -91,6 +91,72 @@ if( QUDA_HOME )
 
 endif()
 
+set( GPU_DIRECT_SOLVER FALSE CACHE BOOL "whether to use the invert_quda_direct pathway for inversions" )
+if( GPU_DIRECT_SOLVER )
+  add_definitions(-DGPU_DIRECT_SOLVER)
+endif()
+
+# attempt to find lhpc-aff-config
+set( LHPC_AFF_HOME CACHE PATH "path to LHPC AFF library installation (optional, required only if 'lhpc-aff-config' is not in \$PATH" )
+find_program(LHPC_AFF_CONFIG
+  lhpc-aff-config
+  ${LHPC_AFF_HOME} )
+if( LHPC_AFF_CONFIG-NOTFOUND )
+  message( FATAL_ERROR "lhpc-aff-config could not be found. Did you try specifying -DLHPC_AFF_HOME ?" )
+else()
+  add_definitions(-DHAVE_LHPC_AFF)
+  # parse the AFF version
+  execute_process(
+    COMMAND ${LHPC_AFF_CONFIG} --version 
+    COMMAND sed s/[^0-9.]//g 
+    COMMAND sed s/^.//g
+    OUTPUT_VARIABLE LHPC_AFF_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+  if( "${LHPC_AFF_VERSION}" VERSION_LESS "2.1.0" )
+    message( FATAL_ERROR "LHPC AFF version: ${LHPC_AFF_VERSION}, but 2.1.0 required!" )
+  endif()
+  # the stripping of -I and -L is a bit of a hack and might break...
+  execute_process(
+    COMMAND ${LHPC_AFF_CONFIG} --cflags
+    COMMAND sed s/-I//g
+    OUTPUT_VARIABLE LHPC_AFF_INCLUDEDIRS
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+  execute_process(
+    COMMAND ${LHPC_AFF_CONFIG} --ldflags
+    COMMAND sed s/-L//g
+    OUTPUT_VARIABLE LHPC_AFF_LINKDIRS
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+  execute_process(
+    COMMAND ${LHPC_AFF_CONFIG} --libs
+    OUTPUT_VARIABLE LHPC_AFF_LIBS
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+  include_directories( ${LHPC_AFF_INCLUDEDIRS} )
+  link_libraries( ${LHPC_AFF_LIBS} )
+  link_directories( ${LHPC_AFF_LINKDIRS} )
+endif()
+
+find_package(FLEX REQUIRED)
+if( FLEX_FOUND )
+  FLEX_TARGET(read_input_parser read_input_parser_cvc.l ${CMAKE_SOURCE_DIR}/read_input_parser_cvc.cpp COMPILE_FLAGS "-i" )
+  if( FLEX_read_input_parser_DEFINED )
+    message( STATUS "input parser built: ${FLEX_read_input_parser_OUTPUTS}" )
+  else()
+    message( FATAL_ERROR "input parser failed to build!" )
+  endif()
+else()
+  message( FATAL_ERROR "Unable to find flex!" )
+endif()
+
+# currently CVC does not seem to use FFTW3 but some other version
+# for now let's remove support
+#set( FFTW_HOME CACHE PATH "path to the fftw3 library installation" )
+#if( FFTW_HOME )
+#  link_directories(${FFTW_HOME}/lib)
+#  include_directories(${FFTW_HOME}/include)
+#  link_libraries(-lfftw3)
+#else()
+#  message(FATAL_ERROR "FFTW_HOME must be defined!" )
+#endif()
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -140,9 +206,31 @@ endif()
 #  message( FATAL_ERROR "Unable to find Boost (or one of the requested components, see CMakeLists.txt!")
 #endif()
 
-
-# base package includes and libraries
-include_directories(include)
-
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+include_directories(${CMAKE_SOURCE_DIR})
 add_executable(cpff_invert_contract
-  cpff_invert_contract.cpp)
+  ${FLEX_read_input_parser_OUTPUTS}
+  cpff_invert_contract.cpp
+  mpi_init.cpp
+  cvc_geometry.cpp
+  set_default.cpp
+  cvc_utils.cpp
+  clover.cpp
+  propagator_io.cpp
+  prepare_source.cpp
+  project.cpp
+  contract_cvc_tensor.cpp
+  io.cpp
+  get_index.cpp
+  ranlxd.cpp
+  ranlxs.cpp
+  Q_phi.cpp
+  Q_clover_phi.cpp
+  scalar_products.cpp
+  matrix_init.cpp
+  dml.cpp
+  io_utils.cpp
+  DML_crc32.cpp
+  gauge_io.cpp
+)
+
