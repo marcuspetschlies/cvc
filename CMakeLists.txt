@@ -20,6 +20,18 @@ else()
   endif()
 endif()
 
+if( MPI_C_FOUND OR MPI_HOME )
+  set(PARALLEL_LEVEL "TXYZ" CACHE STRING "parallelisation level, possible values: T, TX, TXY, TXYZ")
+  if( ("D_${PARALLEL_LEVEL}" STREQUAL "D_T") OR 
+      ("D_${PARALLEL_LEVEL}" STREQUAL "D_TX") OR 
+      ("D_${PARALLEL_LEVEL}" STREQUAL "D_TXY") OR 
+      ("D_${PARALLEL_LEVEL}" STREQUAL "D_TXYZ") )
+    add_definitions(-DPARALLEL${PARALLEL_LEVEL})
+  else()
+    message( FATAL_ERROR "Parallelisation level '${PARALLEL_LEVEL}' is invalid, allowed values T, TX, TXY, TXYZ" )
+  endif()
+endif()
+
 set( TMLQCD_SRC CACHE PATH "path to tmLQCD source directory" )
 if( TMLQCD_SRC )
   include_directories( ${TMLQCD_SRC}/include )
@@ -49,6 +61,9 @@ if( LEMON_HOME )
   link_directories(${LEMON_HOME}/lib)
   include_directories(${LEMON_HOME}/include)
   link_libraries(-llemon)
+  # some of the conversions done in LEMON are rather dubious at best
+  # let's use -fpermissive to allow them to compile anyway
+  string(APPEND CMAKE_CXX_FLAGS " -fpermissive")
 endif()
 
 set( QMP_HOME CACHE PATH "path to the QMP library required by QPhiX (optional, depends on how tmLQCD was configured)" )
@@ -213,6 +228,7 @@ configure_file("${CMAKE_SOURCE_DIR}/gitversion.cpp.in"
   @ONLY)
 list(APPEND SOURCES "${CMAKE_CURRENT_BINARY_DIR}/gitversion.cpp")
 
+
 # maybe we might need Boost at some point
 #find_package(Boost 
 #             REQUIRED
@@ -225,6 +241,7 @@ list(APPEND SOURCES "${CMAKE_CURRENT_BINARY_DIR}/gitversion.cpp")
 #else()
 #  message( FATAL_ERROR "Unable to find Boost (or one of the requested components, see CMakeLists.txt!")
 #endif()
+
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_SOURCE_DIR})
