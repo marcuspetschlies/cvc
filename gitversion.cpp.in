@@ -1,5 +1,7 @@
 namespace cvc {
 
+// in C++, global const variables have internal linkage by default
+// need to make these explicitly extern
 extern char const *const g_gitversion = "@git_sha1@";
 extern char const *const g_git_refspec = "@git_refspec@";
 extern char const *const g_git_changes = "@git_changes@";
