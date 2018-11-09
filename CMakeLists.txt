@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.8)
+cmake_minimum_required (VERSION 3.8)
 project (cvc)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -97,10 +97,10 @@ endif()
 
 # attempt to find lhpc-aff-config
 set( LHPC_AFF_HOME CACHE PATH "path to LHPC AFF library installation (optional, required only if 'lhpc-aff-config' is not in \$PATH" )
+list(APPEND CMAKE_PREFIX_PATH "${LHPC_AFF_HOME}")
 find_program(LHPC_AFF_CONFIG
-  lhpc-aff-config
-  ${LHPC_AFF_HOME} )
-if( LHPC_AFF_CONFIG-NOTFOUND )
+  lhpc-aff-config)
+if( "X_${LHPC_AFF_CONFIG}" STREQUAL "X_LHPC_AFF_CONFIG-NOTFOUND" )
   message( FATAL_ERROR "lhpc-aff-config could not be found. Did you try specifying -DLHPC_AFF_HOME ?" )
 else()
   add_definitions(-DHAVE_LHPC_AFF)
