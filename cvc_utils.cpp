@@ -32,7 +32,7 @@
 #include "table_init_d.h"
 #include "table_init_z.h"
 #include "project.h"
-#include "iblas.h"
+#include "fortran_name_mangling.h"
 
 namespace cvc {
 
