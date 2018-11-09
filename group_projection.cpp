@@ -24,7 +24,7 @@
 #include "ranlxd.h"
 
 #include "cvc_complex.h"
-#include "iblas.h"
+#include "fotran_name_mangling.h"
 #include "ilinalg.h"
 #include "cvc_linalg.h"
 #include "global.h"

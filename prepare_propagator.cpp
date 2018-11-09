@@ -287,7 +287,7 @@ int prepare_seqn_stochastic_vertex_propagator_sliced3d (double**seq_prop, double
     BLAS_LDB    = BLAS_K;
     BLAS_LDC    = BLAS_M;
 
-    _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+    F_GLOBAL(zgemm, ZGEMM) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
 
 #ifdef HAVE_MPI
     /* allreduce across all processes */
@@ -337,7 +337,7 @@ int prepare_seqn_stochastic_vertex_propagator_sliced3d (double**seq_prop, double
     BLAS_LDB    = BLAS_K;
     BLAS_LDC    = BLAS_M;
 
-    _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+    F_ZGEMM(zgemm, ZGEMM) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
 
     for(i=0; i<nprop; i++) {
       memcpy( seq_prop[i] + offset, prop_aux  + i*spinor_field_timeslice_items, sizeof_spinor_field_timeslice );
@@ -471,7 +471,7 @@ int prepare_seqn_stochastic_vertex_propagator_sliced3d_oet (double**seq_prop, do
     BLAS_LDB    = BLAS_K;
     BLAS_LDC    = BLAS_M;
 
-    _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+    F_GLOBAL(zgemm, ZGEMM) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
 
 #ifdef HAVE_MPI
     /* allreduce across all processes */
@@ -548,7 +548,7 @@ int prepare_seqn_stochastic_vertex_propagator_sliced3d_oet (double**seq_prop, do
     BLAS_LDB    = BLAS_K;
     BLAS_LDC    = BLAS_M;
 
-    _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+    F_GLOBAL(zgemm, ZGEMM) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
 
     for(i=0; i<nprop; i++) {
       memcpy( seq_prop[i] + offset, prop_aux  + i*spinor_field_timeslice_items, sizeof_spinor_field_timeslice );

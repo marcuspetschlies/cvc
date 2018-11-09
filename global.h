@@ -240,7 +240,7 @@ EXTERN double g_csw, *g_clover_term;
 #ifdef HAVE_TMLQCD_LIBWRAPPER
 EXTERN tmLQCD_mpi_params g_tmLQCD_mpi;
 EXTERN tmLQCD_lat_params g_tmLQCD_lat;
-EXTERN tmLQCD_deflator_params g_tmLQCD_defl;
+//EXTERN tmLQCD_deflator_params g_tmLQCD_defl;
 #endif
 
 EXTERN m_m_2pt_type g_m_m_2pt_list[MAX_M_M_2PT_NUM];
@@ -254,7 +254,7 @@ EXTERN int g_fermion_type;
 
 EXTERN int g_coherent_source_number;
 
-extern const char *g_gitversion;
+extern char const * const g_gitversion;
 
 }
 

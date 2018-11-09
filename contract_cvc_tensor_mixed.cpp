@@ -203,7 +203,7 @@ int contract_vdag_gloc_spinor_field (
         BLAS_B = prop_ts[0];
         BLAS_C = contr[it][0];
 
-         _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+         F_GLOBAL(zgemm, ZGEMM) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
 
 #ifdef HAVE_MPI
          memcpy( mcontr_buffer,  contr[it][0], numV*nsf*sizeof(double _Complex) );
@@ -342,7 +342,7 @@ int contract_vdag_gloc_spinor_field (
         BLAS_B = prop_ts[0];
         BLAS_C = contr[it][0];
 
-         _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+         F_GLOBAL(zgemm, ZGEMM) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
 
 #ifdef HAVE_MPI
          memcpy( mcontr_buffer,  contr[it][0], numV*nsf*sizeof(double _Complex) );
@@ -482,7 +482,7 @@ int contract_vdag_gloc_spinor_field (
         BLAS_B = prop_ts[0];
         BLAS_C = contr[it][0];
 
-         _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+         F_GLOBAL(zgemm, ZGEMM) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
 
 #ifdef HAVE_MPI
          memcpy( mcontr_buffer,  contr[it][0], numV*nsf*sizeof(double _Complex) );
@@ -611,7 +611,7 @@ int contract_vdag_gloc_spinor_field (
         BLAS_B = prop_ts[0];
         BLAS_C = contr[it][0];
 
-         _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+         F_GLOBAL(zgemm, ZGEMM) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
 
 #ifdef HAVE_MPI
          memcpy( mcontr_buffer,  contr[it][0], numV*nsf*sizeof(double _Complex) );
@@ -864,7 +864,7 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
             BLAS_B = prop_ts[0];
             BLAS_C = contr[it][0];
 
-            _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+            F_GLOBAL(zgemm, ZGEMM) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
 
 #ifdef HAVE_MPI
             memcpy( mcontr_buffer,  contr[it][0], numV*block_size*sizeof(double _Complex) );
@@ -998,7 +998,7 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
             BLAS_B = prop_ts[0];
             BLAS_C = contr[it][0];
     
-            _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+            F_GLOBAL(zgemm, ZGEMM) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
     
 #ifdef HAVE_MPI
             memcpy( mcontr_buffer,  contr[it][0], numV*block_size*sizeof(double _Complex) );
@@ -1132,7 +1132,7 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
             BLAS_B = prop_ts[0];
             BLAS_C = contr[it][0];
     
-             _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+             F_GLOBAL(zgemm, ZGEMM) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
     
 #ifdef HAVE_MPI
              memcpy( mcontr_buffer,  contr[it][0], numV*block_size*sizeof(double _Complex) );
@@ -1259,7 +1259,7 @@ int contract_vdag_cvc_spinor_field (double**prop_list_e, double**prop_list_o, in
             BLAS_B = prop_ts[0];
             BLAS_C = contr[it][0];
     
-             _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+             F_GLOBAL(zgemm, ZGEMM) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
     
 #ifdef HAVE_MPI
              memcpy( mcontr_buffer,  contr[it][0], numV*block_size*sizeof(double _Complex) );

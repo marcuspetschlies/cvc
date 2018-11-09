@@ -1,0 +1,7 @@
+namespace cvc {
+
+extern char const *const g_gitversion = "@git_sha1@";
+extern char const *const g_git_refspec = "@git_refspec@";
+extern char const *const g_git_changes = "@git_changes@";
+
+}

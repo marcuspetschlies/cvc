@@ -630,7 +630,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(
         /***********************************************
          * V^+ Gp V
          ***********************************************/
-        _F(zgemm) ( &CHAR_C, &CHAR_N, &INT_M, &INT_N, &INT_K, &Z_1, (double _Complex*)(Vts[0]), &INT_K, (double _Complex*)(Xtsxpxg[0]), &INT_K, &Z_0, vv[0], &INT_M, 1, 1);
+        F_GLOBAL(zgemm, ZGEMM) ( &CHAR_C, &CHAR_N, &INT_M, &INT_N, &INT_K, &Z_1, (double _Complex*)(Vts[0]), &INT_K, (double _Complex*)(Xtsxpxg[0]), &INT_K, &Z_0, vv[0], &INT_M, 1, 1);
         
 #ifdef HAVE_MPI
         ratime = _GET_TIME;
@@ -687,7 +687,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(
         /***********************************************
          * W^+ Gp V
          ***********************************************/
-        _F(zgemm) ( &CHAR_C, &CHAR_N, &INT_M, &INT_N, &INT_K, &Z_1, (double _Complex*)(Wts[0]), &INT_K, (double _Complex*)(Xtsxpxg[0]), &INT_K, &Z_0, vv[0], &INT_M, 1, 1);
+        F_GLOBAL(zgemm, ZGEMM) ( &CHAR_C, &CHAR_N, &INT_M, &INT_N, &INT_K, &Z_1, (double _Complex*)(Wts[0]), &INT_K, (double _Complex*)(Xtsxpxg[0]), &INT_K, &Z_0, vv[0], &INT_M, 1, 1);
 
         zgemm_retime = _GET_TIME;
         if ( io_proc == 2 ) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for zgemm = %e seconds\n", zgemm_retime-zgemm_ratime);
@@ -805,7 +805,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(
         /***********************************************
          * W^+ Gp W
          ***********************************************/
-        _F(zgemm) ( &CHAR_C, &CHAR_N, &INT_M, &INT_N, &INT_K, &Z_1, (double _Complex*)(Wts[0]), &INT_K, (double _Complex*)(Xtsxpxg[0]), &INT_K, &Z_0, vv[0], &INT_M, 1, 1);
+        F_GLOBAL(zgemm, ZGEMM) ( &CHAR_C, &CHAR_N, &INT_M, &INT_N, &INT_K, &Z_1, (double _Complex*)(Wts[0]), &INT_K, (double _Complex*)(Xtsxpxg[0]), &INT_K, &Z_0, vv[0], &INT_M, 1, 1);
         
         zgemm_retime = _GET_TIME;
         if ( io_proc == 2 ) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for zgemm = %e seconds\n", zgemm_retime-zgemm_ratime);
@@ -975,7 +975,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(
         /***********************************************
          * V^+ Gp V
          ***********************************************/
-        _F(zgemm) ( &CHAR_C, &CHAR_N, &INT_M, &INT_N, &INT_K, &Z_1, (double _Complex*)(Vts[0]), &INT_K, (double _Complex*)(Xtsxpxg[0]), &INT_K, &Z_0, vv[0], &INT_M, 1, 1);
+        F_GLOBAL(zgemm, ZGEMM) ( &CHAR_C, &CHAR_N, &INT_M, &INT_N, &INT_K, &Z_1, (double _Complex*)(Vts[0]), &INT_K, (double _Complex*)(Xtsxpxg[0]), &INT_K, &Z_0, vv[0], &INT_M, 1, 1);
         
         zgemm_retime = _GET_TIME;
         if ( io_proc == 2 ) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for zgemm = %e seconds\n", zgemm_retime-zgemm_ratime);
@@ -1035,7 +1035,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(
         /***********************************************
          * W^+ Gp V
          ***********************************************/
-        _F(zgemm) ( &CHAR_C, &CHAR_N, &INT_M, &INT_N, &INT_K, &Z_1, (double _Complex*)(Wts[0]), &INT_K, (double _Complex*)(Xtsxpxg[0]), &INT_K, &Z_0, vv[0], &INT_M, 1, 1);
+        F_GLOBAL(zgemm, ZGEMM) ( &CHAR_C, &CHAR_N, &INT_M, &INT_N, &INT_K, &Z_1, (double _Complex*)(Wts[0]), &INT_K, (double _Complex*)(Xtsxpxg[0]), &INT_K, &Z_0, vv[0], &INT_M, 1, 1);
 
         zgemm_retime = _GET_TIME;
         if ( io_proc == 2 ) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for zgemm = %e seconds\n", zgemm_retime-zgemm_ratime);
@@ -1151,7 +1151,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(
         /***********************************************
          * W^+ Gp W
          ***********************************************/
-        _F(zgemm) ( &CHAR_C, &CHAR_N, &INT_M, &INT_N, &INT_K, &Z_1, (double _Complex*)(Wts[0]), &INT_K, (double _Complex*)(Xtsxpxg[0]), &INT_K, &Z_0, vv[0], &INT_M, 1, 1);
+        F_GLOBAL(zgemm, ZGEMM) ( &CHAR_C, &CHAR_N, &INT_M, &INT_N, &INT_K, &Z_1, (double _Complex*)(Wts[0]), &INT_K, (double _Complex*)(Xtsxpxg[0]), &INT_K, &Z_0, vv[0], &INT_M, 1, 1);
 
         zgemm_retime = _GET_TIME;
         if ( io_proc == 2 ) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block] time for zgemm = %e seconds\n", zgemm_retime-zgemm_ratime);
@@ -1286,7 +1286,7 @@ int gsp_calculate_v_dag_gamma_p_w_block(
 /******************************************************************************************************************
  * calculate gsp matrix times vector using t-blocks
  *
- * _F(zgemv) ( char*TRANS, int *M, int *N, double _Complex *ALPHA, double _Complex *A, int *LDA, double _Complex *X,
+ * F_GLOBAL(zgemv, ZGEMV) ( char*TRANS, int *M, int *N, double _Complex *ALPHA, double _Complex *A, int *LDA, double _Complex *X,
  *     int *INCX, double _Complex *BETA, double _Complex * Y, int *INCY, int len_TRANS);
  *
  ******************************************************************************************************************/
@@ -1501,7 +1501,7 @@ int gsp_calculate_v_dag_gamma_p_xi_block(double**V, double*W, int num, int momen
          * scalar products as matrix multiplication
          ***********************************************/
         ratime = _GET_TIME;
-        _F(zgemv) ( &BLAS_TRANS, &BLAS_M, &BLAS_N, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_X, &BLAS_INCX, &BLAS_BETA, BLAS_Y, &BLAS_INCY, 1);
+        F_GLOBAL(zgemv, ZGEMV) ( &BLAS_TRANS, &BLAS_M, &BLAS_N, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_X, &BLAS_INCX, &BLAS_BETA, BLAS_Y, &BLAS_INCY, 1);
         retime = _GET_TIME;
         if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w] time for zgemm = %e seconds\n", retime - ratime);
 
@@ -1846,7 +1846,7 @@ int gsp_calculate_v_dag_gamma_p_w_block_asym(double**V, double**W, int numV, int
         /* output buffer */
         BLAS_C = Z_buffer + x0 * numV*numW;
 
-        _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC, 1, 1);
+        F_ZGEMM(zgemm, ZGEMM) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC, 1, 1);
 
         retime = _GET_TIME;
         if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_dag_gamma_p_w_block_asym] time for zgemm = %e seconds\n", retime - ratime);
@@ -2025,7 +2025,7 @@ int gsp_calculate_v_w_block_asym(double*gsp_out, double**V, double**W, unsigned 
    * matrix multiplication
    ***********************************************/
   ratime = _GET_TIME;
-  _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+  F_GLOBAL(zgemm, ZGEMM) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
   retime = _GET_TIME;
   if(g_cart_id == 0) fprintf(stdout, "# [gsp_calculate_v_w_block_asym] time for zgemm = %e seconds\n", retime - ratime);
 

@@ -295,13 +295,13 @@ void rot_spherical2cartesian_3x3 (double _Complex **C, double _Complex **S) {
   U[2][1] =  I*r;
   U[2][2] =  0.;
 
-  /* _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1); */
+  /* F_GLOBAL(zgemm, ZGEMM) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1); */
 
   /* A (C) = U^+ (C) x S (C) = S (F) x U^+ (F) */
-  _F(zgemm) ( &CHAR_N, &CHAR_C, &INT_3, &INT_3, &INT_3, &Z_1, S[0], &INT_3, U[0], &INT_3, &Z_0, A[0], &INT_3, 1, 1);
+  F_GLOBAL(zgemm, ZGEMM) ( &CHAR_N, &CHAR_C, &INT_3, &INT_3, &INT_3, &Z_1, S[0], &INT_3, U[0], &INT_3, &Z_0, A[0], &INT_3, 1, 1);
 
   /* R (C) = A (C) x U (C) = U (F) x A (F) */
-  _F(zgemm) ( &CHAR_N, &CHAR_N, &INT_3, &INT_3, &INT_3, &Z_1, U[0], &INT_3, A[0], &INT_3, &Z_0, C[0], &INT_3, 1, 1);
+  F_GLOBAL(zgemm, ZGEMM) ( &CHAR_N, &CHAR_N, &INT_3, &INT_3, &INT_3, &Z_1, U[0], &INT_3, A[0], &INT_3, &Z_0, C[0], &INT_3, 1, 1);
 
   fini_2level_buffer ( (double***)(&U));
   fini_2level_buffer ( (double***)(&A));
@@ -387,8 +387,8 @@ void rot_mat_ti_mat (double _Complex ** const C, double _Complex ** const A, dou
   }
 #endif  /* of if 0 */
 
-/* _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1); */
-   _F(zgemm) ( &CHAR_N,      &CHAR_N,      &INT_N,  &INT_N,  &INT_N,  &Z_1,        B[0],   &INT_N,    A[0],   &INT_N,    &Z_0,       Ctmp,   &INT_N,   1,1);
+/* F_GLOBAL(zgemm, ZGEMM) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1); */
+   F_GLOBAL(zgemm, ZGEMM) ( &CHAR_N,      &CHAR_N,      &INT_N,  &INT_N,  &INT_N,  &Z_1,        B[0],   &INT_N,    A[0],   &INT_N,    &Z_0,       Ctmp,   &INT_N,   1,1);
 
 #if 0
   if ( g_verbose > 4 ) {
@@ -419,9 +419,9 @@ void rot_mat_ti_mat_adj (double _Complex ** const C, double _Complex ** const A,
 
   double _Complex Ctmp[N*N]; 
 
-  /* _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1); */
+  /* F_GLOBAL(zgemm, ZGEMM) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1); */
 
-  _F(zgemm) ( &CHAR_C, &CHAR_N, &INT_N, &INT_N, &INT_N, &Z_1, B[0], &INT_N, A[0], &INT_N, &Z_0, Ctmp, &INT_N, 1, 1);
+  F_GLOBAL(zgemm, ZGEMM) ( &CHAR_C, &CHAR_N, &INT_N, &INT_N, &INT_N, &Z_1, B[0], &INT_N, A[0], &INT_N, &Z_0, Ctmp, &INT_N, 1, 1);
 
   memcpy ( C[0], Ctmp, N*N*sizeof(double _Complex ) );
   return;
@@ -440,7 +440,7 @@ void rot_mat_ti_vec (double _Complex * const w, double _Complex ** const A, doub
   int INT_N = N, INT_1 = 1;
   double _Complex Z_1 = 1., Z_0 = 0.;
 
-  _F(zgemv)( &CHAR_T, &INT_N, &INT_N, &Z_1, A[0], &INT_N, v, &INT_1, &Z_0, w, &INT_1, 1 );
+  F_GLOBAL(zgemv, ZGEMV)( &CHAR_T, &INT_N, &INT_N, &Z_1, A[0], &INT_N, v, &INT_1, &Z_0, w, &INT_1, 1 );
   return;
 }  /* end of rot_mat_ti_vec */
 
@@ -457,7 +457,7 @@ void rot_vec_accum_vec_ti_co_pl_mat_ti_vec_ti_co (double _Complex *w, double _Co
   char CHAR_T = 'T';
   int INT_N = N, INT_1 = 1;
 
-  _F(zgemv)( &CHAR_T, &INT_N, &INT_N, &cv, A[0], &INT_N, v, &INT_1, &cw, w, &INT_1, 1 );
+  F_GLOBAL(zgemv, ZGEMV)( &CHAR_T, &INT_N, &INT_N, &cv, A[0], &INT_N, v, &INT_1, &cw, w, &INT_1, 1 );
   return;
 }  /* end of rot_vec_accum_vec_ti_co_pl_mat_ti_vec_ti_co */
 
@@ -490,7 +490,7 @@ void rot_vec_accum_vec_ti_co_pl_mat_transpose_ti_vec_ti_co (double _Complex *w, 
   char CHAR_T = 'N';
   int INT_N = N, INT_1 = 1;
 
-  _F(zgemv)( &CHAR_T, &INT_N, &INT_N, &cv, A[0], &INT_N, v, &INT_1, &cw, w, &INT_1, 1 );
+  F_GLOBAL(zgemv, ZGEMV)( &CHAR_T, &INT_N, &INT_N, &cv, A[0], &INT_N, v, &INT_1, &cw, w, &INT_1, 1 );
   return;
 }  /* end of rot_vec_accum_vec_ti_co_pl_mat_transpose_ti_vec_ti_co */
 
@@ -506,7 +506,7 @@ void rot_mat_transpose_ti_vec (double _Complex *w, double _Complex **A, double _
   int INT_N = N, INT_1 = 1;
   double _Complex Z_1 = 1., Z_0 = 0.;
 
-  _F(zgemv)( &CHAR_T, &INT_N, &INT_N, &Z_1, A[0], &INT_N, v, &INT_1, &Z_0, w, &INT_1, 1 );
+  F_GLOBAL(zgemv, ZGEMV)( &CHAR_T, &INT_N, &INT_N, &Z_1, A[0], &INT_N, v, &INT_1, &Z_0, w, &INT_1, 1 );
   return;
 }  /* end of rot_mat_transpose_ti_vec */
 
@@ -524,7 +524,7 @@ void rot_mat_adjoint_ti_vec (double _Complex *w, double _Complex **A, double _Co
   double _Complex vv[N];
 
   for ( int i = 0; i < N; i++ ) vv[i] = conj(v[i]);
-  _F(zgemv)( &CHAR_T, &INT_N, &INT_N, &Z_1, A[0], &INT_N, vv, &INT_1, &Z_0, w, &INT_1, 1 );
+  F_GLOBAL(zgemv, ZGEMV)( &CHAR_T, &INT_N, &INT_N, &Z_1, A[0], &INT_N, vv, &INT_1, &Z_0, w, &INT_1, 1 );
   for ( int i = 0; i < N; i++ ) w[i] = conj(w[i]);
   return;
 }  /* end of rot_mat_adjoint_ti_vec */
@@ -541,10 +541,10 @@ void rot_mat_adj_ti_mat (double _Complex **C, double _Complex **A, double _Compl
   int INT_N = N;
   double _Complex Z_1 = 1., Z_0 = 0.;
 
-  /* _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1); */
+  /* F_GLOBAL(zgemm, ZGEMM) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1); */
 
   /* */
-  _F(zgemm) ( &CHAR_N, &CHAR_C, &INT_N, &INT_N, &INT_N, &Z_1, B[0], &INT_N, A[0], &INT_N, &Z_0, C[0], &INT_N, 1, 1);
+  F_GLOBAL(zgemm, ZGEMM) ( &CHAR_N, &CHAR_C, &INT_N, &INT_N, &INT_N, &Z_1, B[0], &INT_N, A[0], &INT_N, &Z_0, C[0], &INT_N, 1, 1);
 
   return;
 }  /* end of rot_mat_adj_ti_mat */

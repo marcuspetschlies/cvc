@@ -1472,8 +1472,9 @@ int Q_invert (double*prop, double*source, double*gauge_field, double mass, int o
   spinor_field_lexic2eo (source, eo_spinor_work[0], eo_spinor_work[1] );
 
   Q_eo_SchurDecomp_Ainv (eo_spinor_work[0], eo_spinor_work[1], eo_spinor_work[0], eo_spinor_work[1], gauge_field, mass, eo_spinor_work[2]);
-
-  exitstatus = tmLQCD_invert_eo(eo_spinor_work[2], eo_spinor_work[1], op_id);
+  
+  // FIXME: this function does not exist in tmLQCD 
+  exitstatus = 0;//tmLQCD_invert_eo(eo_spinor_work[2], eo_spinor_work[1], op_id);
   if(exitstatus != 0) {
     fprintf(stderr, "[Q_clover_invert] Error from tmLQCD_invert_eo, status was %d\n", exitstatus);
     return(1);

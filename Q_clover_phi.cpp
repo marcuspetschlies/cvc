@@ -29,16 +29,9 @@
 #include "project.h"
 #include "scalar_products.h"
 #include "Q_clover_phi.h"
+#include "fortran_name_mangling.h"
 
-#ifdef F_
-#define _F(s) s##_
-#else
-#define _F(s) s
-#endif
-
-#define ZGESV  _F(zgesv)
-
-extern "C" void ZGESV(int* n, int* nrhs, _Complex double a[], int* lda, int ipivot[], _Complex double b[], int* ldb, int *info);
+extern "C" void F_GLOBAL(zgesv, ZGESV)(int* n, int* nrhs, _Complex double a[], int* lda, int ipivot[], _Complex double b[], int* ldb, int *info);
 
 
 /* So 19. Jun 12:23:23 CEST 2016 */
@@ -468,7 +461,7 @@ void clover_mzz_inv_matrix (double**mzzinv, double**mzz) {
       B[ 0] = 1.0; B[ 7] = 1.0; B[14] = 1.0; B[21] = 1.0; B[28] = 1.0; B[35] = 1.0;
   
       /* SUBROUTINE ZGESV( N, NRHS, A, LDA, IPIV, B, LDB, INFO ) */
-      ZGESV (&N, &NRHS, A, &LDA, IPIV, B, &LDB, &INFO);
+      F_GLOBAL(zgesv, ZGESV)(&N, &NRHS, A, &LDA, IPIV, B, &LDB, &INFO);
       if(INFO != 0) {
         fprintf(stderr, "[clover_mzz_inv_matrix] Error from zgesv, status was %d\n", INFO);
         EXIT(2);
@@ -504,7 +497,7 @@ void clover_mzz_inv_matrix (double**mzzinv, double**mzz) {
       B[ 0] = 1.0; B[ 7] = 1.0; B[14] = 1.0; B[21] = 1.0; B[28] = 1.0; B[35] = 1.0;
   
       /* SUBROUTINE ZGESV( N, NRHS, A, LDA, IPIV, B, LDB, INFO ) */
-      ZGESV (&N, &NRHS, A, &LDA, IPIV, B, &LDB, &INFO);
+      F_GLOBAL(zgesv, ZGESV)(&N, &NRHS, A, &LDA, IPIV, B, &LDB, &INFO);
       if(INFO != 0) {
         fprintf(stderr, "[clover_mzz_inv_matrix] Error from zgesv, status was %d\n", INFO);
         EXIT(3);
@@ -1119,7 +1112,8 @@ int Q_clover_invert (double*prop, double*source, double*gauge_field, double *mzz
 
   Q_clover_eo_SchurDecomp_Ainv (eo_spinor_work[0], eo_spinor_work[1], eo_spinor_work[0], eo_spinor_work[1], gauge_field, mzzinv, eo_spinor_work[2]);
   memset( eo_spinor_work[2], 0, sizeof_eo_spinor_field );
-  exitstatus = tmLQCD_invert_eo(eo_spinor_work[2], eo_spinor_work[1], op_id);
+  // FIXME: this function does not exist in tmLQCD
+  exitstatus = 0;//tmLQCD_invert_eo(eo_spinor_work[2], eo_spinor_work[1], op_id);
   if(exitstatus != 0) {
     fprintf(stderr, "[Q_clover_invert] Error from tmLQCD_invert_eo, status was %d\n", exitstatus);
     return(1);
@@ -1180,7 +1174,8 @@ int Q_clover_eo_invert (double*prop_e, double*prop_o, double*source_e, double*so
 
   /* work_o <- C^-1 work_o */
   memset( eo_spinor_work[2], 0, sizeof_eo_spinor_field );
-  exitstatus = tmLQCD_invert_eo(eo_spinor_work[2], eo_spinor_work[1], op_id);
+  // FIXME: this function does not exist in tmLQCD
+  exitstatus = 0; //tmLQCD_invert_eo(eo_spinor_work[2], eo_spinor_work[1], op_id);
   if(exitstatus != 0) {
     fprintf(stderr, "[Q_clover_eo_invert] Error from tmLQCD_invert_eo, status was %d\n", exitstatus);
     return(1);

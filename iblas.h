@@ -5,11 +5,7 @@
  ***************************************************/
 #include <complex.h>
 
-#ifdef F_
-#define _F(s) s##_
-#else
-#define _F(s) s
-#endif
+#include "fortran_name_mangling.h"
 
 /***********************************************************************
           subroutine zgemm  (   character   TRANSA,
@@ -28,7 +24,7 @@
           )
           
  ***********************************************************************/
-extern "C" void _F(zgemm) ( char*TRANSA, char*TRANSB, int *M, int *N, int *K, double _Complex *ALPHA, double _Complex *A, int *LDA, double _Complex *B,
+extern "C" void F_GLOBAL(zgemm,ZGEMM) ( char*TRANSA, char*TRANSB, int *M, int *N, int *K, double _Complex *ALPHA, double _Complex *A, int *LDA, double _Complex *B,
     int *LDB, double _Complex *BETA, double _Complex * C, int *LDC, int len_TRANSA, int len_TRANSB);
 
 
@@ -47,7 +43,7 @@ extern "C" void _F(zgemm) ( char*TRANSA, char*TRANSB, int *M, int *N, int *K, do
                           integer   INCY 
                       )   
  ***********************************************************************/
-extern "C" void _F(zgemv) ( char*TRANS, int *M, int *N, double _Complex *ALPHA, double _Complex *A, int *LDA, double _Complex *X,
+extern "C" void F_GLOBAL(zgemv,ZGEMV) ( char*TRANS, int *M, int *N, double _Complex *ALPHA, double _Complex *A, int *LDA, double _Complex *X,
       int *INCX, double _Complex *BETA, double _Complex * Y, int *INCY, int len_TRANS);
 
 
@@ -60,10 +56,10 @@ extern "C" void _F(zgemv) ( char*TRANS, int *M, int *N, double _Complex *ALPHA, 
                                   integer   INCY 
                               )     
  ***********************************************************************/
-extern void _F(zdotc)(int* n, _Complex double x[], int* incx, _Complex double y[], int* incy);
+extern void F_GLOBAL(zdotc,ZDOTC)(int* n, _Complex double x[], int* incx, _Complex double y[], int* incy);
 
 
-extern "C" void _F( zgeev ) ( char *JOBVL, char *JOBVR, int *N, double _Complex *A, int *LDA, double _Complex *W, double _Complex *VL, int *LDVL, double _Complex *VR, int *LDVR, double _Complex *WORK,
+extern "C" void F_GLOBAL( zgeev, ZGEEV ) ( char *JOBVL, char *JOBVR, int *N, double _Complex *A, int *LDA, double _Complex *W, double _Complex *VL, int *LDVL, double _Complex *VR, int *LDVR, double _Complex *WORK,
                           int*LWORK, double *RWORK, int *INFO, int len_JOBVL, int len_JOBVR );
 
 #endif

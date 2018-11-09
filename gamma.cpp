@@ -298,8 +298,8 @@ void gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( gamma_matrix_type *g1, gamma
   char CHAR_N = 'N';
   int INT_N = 4;
   double _Complex Z_1 = 1., Z_0 = 0.;
-  /* _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1); */
-  _F(zgemm) ( &CHAR_N, &CHAR_N, &INT_N, &INT_N, &INT_N, &Z_1, g3->v, &INT_N, g2->v, &INT_N, &Z_0, g1->v, &INT_N, 1, 1);
+  /* F_GLOBAL(zgemm, ZGEMM) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1); */
+  F_GLOBAL(zgemm, ZGEMM) ( &CHAR_N, &CHAR_N, &INT_N, &INT_N, &INT_N, &Z_1, g3->v, &INT_N, g2->v, &INT_N, &Z_0, g1->v, &INT_N, 1, 1);
   g1->id = -1;
   g1->s  = 0;
 }  /* end of gamma_matrix_eq_gamma_matrix_ti_gamma_matrix */

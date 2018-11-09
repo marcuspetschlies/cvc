@@ -32,6 +32,7 @@
 #include "table_init_d.h"
 #include "table_init_z.h"
 #include "project.h"
+#include "iblas.h"
 
 namespace cvc {
 
@@ -2887,15 +2888,9 @@ int rangauss (double * y1, unsigned int NRAND) {
  * 
  *************************************************************************/
 
-#ifdef F_
-#define _F(s) s##_
-#else
-#define _F(s) s
-#endif
+extern "C" int F_GLOBAL(ilaenv, ILAENV)(int *ispec, char name[], char opts[], int *n1, int *n2, int *n3, int *n4);
 
-extern "C" int _F(ilaenv)(int *ispec, char name[], char opts[], int *n1, int *n2, int *n3, int *n4);
-
-extern "C" void _F(zheev)(char *jobz, char *uplo, int *n, double a[], int *lda, double w[], double work[], int *lwork, double *rwork, int *info);
+extern "C" void F_GLOBAL(zheev, ZHEEV)(char *jobz, char *uplo, int *n, double a[], int *lda, double w[], double work[], int *lwork, double *rwork, int *info);
 
 /*****************************************************************************
  * Computes the eigenvalues and the eigenvectors of a hermitian 3x3 matrix.
@@ -2926,13 +2921,13 @@ void EV_Hermitian_3x3_Matrix(double *M, double *lambda) {
 */
   lwork = 102;
 /* 
-  lwork = (2 + _F(ilaenv)(&one, "zhetrd", "VU", &n, &m_one, &m_one, &m_one)) * 3;
+  lwork = (2 + F_GLOBAL(ilaenv, ILAENV)(&one, "zhetrd", "VU", &n, &m_one, &m_one, &m_one)) * 3;
   fprintf(stdout, "# finished ilaenv with lwork = %d\n", lwork); 
 */
 
   work = (double *)malloc(lwork * 2 * sizeof(double));
 
-  _F(zheev)("V", "U", &n, M, &n, lambda, work, &lwork, rwork, &info);
+  F_GLOBAL(zheev, ZHEEV)("V", "U", &n, M, &n, lambda, work, &lwork, rwork, &info);
 
   free(work);
 }

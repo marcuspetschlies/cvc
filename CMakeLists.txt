@@ -1,5 +1,7 @@
 cmake_minimum_required (VERSION 2.8)
 project (cvc)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
 
 set( MPI_HOME CACHE PATH "path to MPI library installation directory" )
 if( MPI_HOME )
@@ -29,6 +31,7 @@ if( TMLQCD_BUILD )
   link_directories(${TMLQCD_BUILD}/lib)
   include_directories(${TMLQCD_BUILD})
   link_libraries( -lwrapper -lhmc -lmonomial -loperator -lmeas -linit -lhmc -lxchange -lrational -lsolver -lio -llinalg -lm )
+  add_definitions(-DHAVE_TMLQCD_LIBWRAPPER)
 else()
   message(FATAL_ERROR "TMLQCD_BUILD must be defined!" )
 endif()
@@ -183,6 +186,10 @@ else()
   message( FATAL_ERROR "Unable to find BLAS!" )
 endif()
 
+enable_language(Fortran)
+include(FortranCInterface)
+FortranCInterface_HEADER(fortran_name_mangling.h MACRO_NAMESPACE "F_")
+
 find_package(OpenMP REQUIRED)
 if ( OPENMP_FOUND )
   set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
@@ -192,6 +199,19 @@ if ( OPENMP_FOUND )
 else()
   message( FATAL_ERROR "Unable to find OpenMP!" )
 endif()
+
+# generate git version information in the file gitversion.cpp in the build directory
+# it will be linked into libcvc below
+include(GetGitRevisionDescription)
+get_git_head_revision(git_refspec git_sha1)
+git_local_changes(git_changes)
+message(STATUS "git sha1: ${git_}")
+message(STATUS "git refspec: ${git_refspec}")
+message(STATUS "git state: ${git_changes}")
+configure_file("${CMAKE_SOURCE_DIR}/gitversion.cpp.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/gitversion.cpp"
+  @ONLY)
+list(APPEND SOURCES "${CMAKE_CURRENT_BINARY_DIR}/gitversion.cpp")
 
 # maybe we might need Boost at some point
 #find_package(Boost 
@@ -208,9 +228,10 @@ endif()
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_SOURCE_DIR})
-add_executable(cpff_invert_contract
+
+add_library(cvc
+  ${CMAKE_CURRENT_BINARY_DIR}/gitversion.cpp
   ${FLEX_read_input_parser_OUTPUTS}
-  cpff_invert_contract.cpp
   mpi_init.cpp
   cvc_geometry.cpp
   set_default.cpp
@@ -232,5 +253,12 @@ add_executable(cpff_invert_contract
   io_utils.cpp
   DML_crc32.cpp
   gauge_io.cpp
+  make_x_orbits.cpp
 )
 
+add_executable(cpff_invert_contract
+  cpff_invert_contract.cpp
+)
+target_link_libraries(cpff_invert_contract
+  cvc
+)

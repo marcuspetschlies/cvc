@@ -91,7 +91,7 @@ int vdag_w_reduce_write (
 
     BLAS_C = contr[it][0];
 
-    _F(zgemm) ( &CHAR_C, &CHAR_N, &BLAS_M, &BLAS_N, &BLAS_K, &Z_ONE, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &Z_ZERO, BLAS_C, &BLAS_LDC,1,1);
+    F_GLOBAL(zgemm, ZGEMM) ( &CHAR_C, &CHAR_N, &BLAS_M, &BLAS_N, &BLAS_K, &Z_ONE, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &Z_ZERO, BLAS_C, &BLAS_LDC,1,1);
 
 #ifdef HAVE_MPI
     memcpy( mcontr_buffer,  contr[it][0], dimV * dimW * sizeof(double _Complex) );
