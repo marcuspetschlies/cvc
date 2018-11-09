@@ -149,7 +149,7 @@ int main(int argc, char **argv) {
   /*********************************
    * initialize MPI parameters for cvc
    *********************************/
-  status = tmLQCD_invert_init(argc, argv, 1);
+  status = tmLQCD_invert_init(argc, argv, 1, 0);
   if(status != 0) {
     EXIT(14);
   }
