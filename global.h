@@ -9,6 +9,7 @@
 #endif
 #include <math.h>
 #include "types.h"
+// FIXME: build system must be extended to differentiate between FFTW and FFTW3
 //#include "ifftw.h"
 #ifdef HAVE_TMLQCD_LIBWRAPPER
 #include "tmLQCD.h"
@@ -240,6 +241,7 @@ EXTERN double g_csw, *g_clover_term;
 #ifdef HAVE_TMLQCD_LIBWRAPPER
 EXTERN tmLQCD_mpi_params g_tmLQCD_mpi;
 EXTERN tmLQCD_lat_params g_tmLQCD_lat;
+// FIXME: this does not exist in tmLQCD interface
 //EXTERN tmLQCD_deflator_params g_tmLQCD_defl;
 #endif
 
