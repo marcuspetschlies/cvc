@@ -76,8 +76,15 @@ int main(int argc, char **argv) {
   fftwnd_plan plan_p;
 #endif
 
+  // in order to be able to initialise QMP if QPhiX is used, we need
+  // to allow tmLQCD to intialise MPI via QMP
+  // the input file has to be read 
+#ifdef HAVE_TMLQCD_LIBWRAPPER
+  tmLQCD_init_parallel_and_read_input(argc, argv, 1, "invert.input");
+#else
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
+#endif
 #endif
 
   while ((c = getopt(argc, argv, "wWah?vf:")) != -1) {
