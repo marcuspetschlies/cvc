@@ -220,7 +220,7 @@ endif()
 include(GetGitRevisionDescription)
 get_git_head_revision(git_refspec git_sha1)
 git_local_changes(git_changes)
-message(STATUS "git sha1: ${git_}")
+message(STATUS "git sha1: ${git_sha1}")
 message(STATUS "git refspec: ${git_refspec}")
 message(STATUS "git state: ${git_changes}")
 configure_file("${CMAKE_SOURCE_DIR}/gitversion.cpp.in"
