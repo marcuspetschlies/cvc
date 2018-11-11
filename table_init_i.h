@@ -11,7 +11,7 @@
 
 namespace cvc {
 
-inline int * init_1level_itable ( int const N0 ) {
+inline int * init_1level_itable ( unsigned int const N0 ) {
   return( ( int *) calloc ( N0 , sizeof( int ) ) );
 }  // end of init_1level_itable
 
@@ -27,7 +27,7 @@ inline void fini_1level_itable ( int **s  ) {
 /************************************************************************************/
 /************************************************************************************/
 
-inline int ** init_2level_itable (int const N0, int const N1 ) {
+inline int ** init_2level_itable (unsigned int const N0, unsigned int const N1 ) {
   int * s__ = NULL;
   s__ = init_1level_itable ( N0*N1);
   if ( s__ == NULL ) return( NULL );
@@ -35,7 +35,7 @@ inline int ** init_2level_itable (int const N0, int const N1 ) {
   int ** s_ = ( int **) malloc( N0 * sizeof( int *) );
   if ( s_ == NULL ) return ( NULL );
 
-  for ( int i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
+  for ( unsigned int i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
   return( s_ );
 }  // end of init_2level_itable
 
@@ -56,7 +56,7 @@ inline void fini_2level_itable ( int *** s  ) {
 /************************************************************************************/
 
 
-inline int *** init_3level_itable (int const N0, int const N1, int const N2 ) {
+inline int *** init_3level_itable (unsigned int const N0, unsigned int const N1, unsigned int const N2 ) {
   int ** s__ = NULL;
   s__ = init_2level_itable ( N0*N1, N2);
   if ( s__ == NULL ) return( NULL );
@@ -64,7 +64,7 @@ inline int *** init_3level_itable (int const N0, int const N1, int const N2 ) {
   int *** s_ = ( int ***) malloc( N0 * sizeof( int **) );
   if ( s_ == NULL ) return ( NULL );
 
-  for ( int i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
+  for ( unsigned int i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
   return( s_ );
 }  // end of init_3level_itable
 
@@ -85,7 +85,7 @@ inline void fini_3level_itable ( int **** s  ) {
 /************************************************************************************/
 
 
-inline int **** init_4level_itable (int const N0, int const N1, int const N2, int const N3 ) {
+inline int **** init_4level_itable (unsigned int const N0, unsigned int const N1, unsigned int const N2, unsigned int const N3 ) {
   int *** s__ = NULL;
   s__ = init_3level_itable ( N0*N1, N2, N3);
   if ( s__ == NULL ) return( NULL );
@@ -93,7 +93,7 @@ inline int **** init_4level_itable (int const N0, int const N1, int const N2, in
   int **** s_ = ( int ****) malloc( N0 * sizeof( int ***) );
   if ( s_ == NULL ) return ( NULL );
 
-  for ( int i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
+  for ( unsigned int i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
   return( s_ );
 }  // end of init_4level_itable
 
@@ -114,7 +114,7 @@ inline void fini_4level_itable ( int ***** s  ) {
 /************************************************************************************/
 
 
-inline int ***** init_5level_itable (int const N0, int const N1, int const N2, int const N3, int const N4 ) {
+inline int ***** init_5level_itable (unsigned int const N0, unsigned int const N1, unsigned int const N2, unsigned int const N3, unsigned int const N4 ) {
   int **** s__ = NULL;
   s__ = init_4level_itable ( N0*N1, N2, N3, N4);
   if ( s__ == NULL ) return( NULL );
@@ -122,7 +122,7 @@ inline int ***** init_5level_itable (int const N0, int const N1, int const N2, i
   int ***** s_ = ( int *****) malloc( N0 * sizeof( int ****) );
   if ( s_ == NULL ) return ( NULL );
 
-  for ( int i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
+  for ( unsigned int i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
   return( s_ );
 }  // end of init_5level_itable
 
@@ -143,7 +143,7 @@ inline void fini_5level_itable ( int ****** s  ) {
 /************************************************************************************/
 
 
-inline int ****** init_6level_itable (int const N0, int const N1, int const N2, int const N3, int const N4, int const N5 ) {
+inline int ****** init_6level_itable (unsigned int const N0, unsigned int const N1, unsigned int const N2, unsigned int const N3, unsigned int const N4, unsigned int const N5 ) {
   int ***** s__ = NULL;
   s__ = init_5level_itable ( N0*N1, N2, N3, N4, N5);
   if ( s__ == NULL ) return( NULL );
@@ -151,7 +151,7 @@ inline int ****** init_6level_itable (int const N0, int const N1, int const N2, 
   int ****** s_ = ( int ******) malloc( N0 * sizeof( int *****) );
   if ( s_ == NULL ) return ( NULL );
 
-  for ( int i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
+  for ( unsigned int i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
   return( s_ );
 }  // end of init_6level_itable
 
@@ -172,7 +172,7 @@ inline void fini_6level_itable ( int ******* s  ) {
 /************************************************************************************/
 
 
-inline int ******* init_7level_itable (int const N0, int const N1, int const N2, int const N3, int const N4, int const N5, int const N6 ) {
+inline int ******* init_7level_itable (unsigned int const N0, unsigned int const N1, unsigned int const N2, unsigned int const N3, unsigned int const N4, unsigned int const N5, unsigned int const N6 ) {
   int ****** s__ = NULL;
   s__ = init_6level_itable ( N0*N1, N2, N3, N4, N5, N6);
   if ( s__ == NULL ) return( NULL );
@@ -180,7 +180,7 @@ inline int ******* init_7level_itable (int const N0, int const N1, int const N2,
   int ******* s_ = ( int *******) malloc( N0 * sizeof( int ******) );
   if ( s_ == NULL ) return ( NULL );
 
-  for ( int i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
+  for ( unsigned int i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
   return( s_ );
 }  // end of init_7level_itable
 
@@ -201,7 +201,7 @@ inline void fini_7level_itable ( int ******** s  ) {
 /************************************************************************************/
 
 
-inline int ******** init_8level_itable (int const N0, int const N1, int const N2, int const N3, int const N4, int const N5, int const N6, int const N7 ) {
+inline int ******** init_8level_itable (unsigned int const N0, unsigned int const N1, unsigned int const N2, unsigned int const N3, unsigned int const N4, unsigned int const N5, unsigned int const N6, unsigned int const N7 ) {
   int ******* s__ = NULL;
   s__ = init_7level_itable ( N0*N1, N2, N3, N4, N5, N6, N7);
   if ( s__ == NULL ) return( NULL );
@@ -209,7 +209,7 @@ inline int ******** init_8level_itable (int const N0, int const N1, int const N2
   int ******** s_ = ( int ********) malloc( N0 * sizeof( int *******) );
   if ( s_ == NULL ) return ( NULL );
 
-  for ( int i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
+  for ( unsigned int i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
   return( s_ );
 }  // end of init_8level_itable
 
