@@ -25,7 +25,7 @@ int write_propagator_type(const int type, char * filename);
 
 int get_propagator_type(char * filename);
 
-#if HAVE_LIBLEMON
+#ifdef HAVE_LIBLEMON
 int write_lemon_spinor(double * const s, char * filename, const int append, const int prec);
 #else
 int write_lime_spinor(double * const s, char * filename, const int append, const int prec);
