@@ -62,7 +62,7 @@ int little_group_projector_set (
     fprintf( stderr, "[little_group_projector_set] Error, number of interpolators is zero\n");
     return(1);
   }
-  fprintf( stdout, "# [little_group_projector_set] p-> = %d\n", p->n );
+  if ( g_verbose > 1 ) fprintf( stdout, "# [little_group_projector_set] p->n = %d\n", p->n );
 
   /***********************************************************
    * init, allocate and fill
@@ -170,13 +170,15 @@ int little_group_projector_set (
       return(72);
     }
 
-    // set the reference frame rotation matrix
-    // for the spin-J vectors
+    /***********************************************************
+     * set the reference frame rotation matrix
+     * for the spin-J vectors
+     ***********************************************************/
     refframerot_spin = (double _Complex ***) malloc ( p->n * sizeof(double _Complex **) );
     if ( refframerot_spin == NULL ) return( 11);
 
     for ( int i = 0; i < p->n; i++ ) {
-      refframerot_spin[i] = rot_init_rotation_matrix ( interpolator_J2_list[i]+1 );
+      refframerot_spin[i] = rot_init_rotation_matrix ( ( 1 + interpolator_bispinor_list[i] ) * ( interpolator_J2_list[i]+1 ) );
       if ( refframerot_spin[i] == NULL ) return(12);
 
 #if defined CUBIC_GROUP_DOUBLE_COVER
