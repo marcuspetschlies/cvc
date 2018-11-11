@@ -9,11 +9,11 @@
 #include "cvc_utils.h"
 
 namespace cvc {
-#ifdef DUMMY_SOLVER
+#if ( defined DUMMY_SOLVER ) || ( ! defined HAVE_TMLQCD_LIBWRAPPER )
 /************************************************************************************
  * dummy solver
  ************************************************************************************/
-int dummy_solver ( double * const propagator, double * const source, const int op_id ) {
+int dummy_solver ( double * const propagator, double * const source, int const op_id ) {
  return( rangauss(propagator, _GSI(VOLUME) ) );
 }  /* end of dummy_solver */
 #endif
