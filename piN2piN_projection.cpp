@@ -188,9 +188,9 @@ int main(int argc, char **argv) {
     twopoint_function_print ( &(g_twopoint_function_list[i2pt]), "TWPT", ofs );
     fclose ( ofs );
 
-    /***********************************************************
+    /****************************************************
      * set number of timeslices
-     ***********************************************************/
+     ****************************************************/
     int const nT = g_twopoint_function_list[i2pt].T;
     if ( io_proc == 2 ) fprintf( stdout, "# [piN2piN_projection] number of timeslices (incl. src and snk) is %d\n", nT);
 
@@ -223,14 +223,41 @@ int main(int argc, char **argv) {
 
     int ref_row_target    = -1;     // no reference row for target irrep
     int * ref_row_spin    = NULL;   // no reference row for spin matrices
-    int refframerot       = -1;     // reference frame rotation
+    int refframerot       = -1;     // reference frame rotation FIXME none for now
     int row_target        = -1;     // no target row
     int cartesian_list[1] = { 0 };  // not cartesian
     int parity_list[1]    = { 1 };  // intrinsic parity is +1
     const int ** momentum_list  = NULL;   // no momentum list given
     int bispinor_list[1]  = { 1 };  // bispinor yes
     int J2_list[1]        = { 1 };  // spin 1/2
+    int Pref[3];
 
+    int const Ptot[3] = {
+      g_twopoint_function_list[i2pt].pf1[0] + g_twopoint_function_list[i2pt].pf2[0],
+      g_twopoint_function_list[i2pt].pf1[1] + g_twopoint_function_list[i2pt].pf2[1],
+      g_twopoint_function_list[i2pt].pf1[2] + g_twopoint_function_list[i2pt].pf2[2] };
+
+    /* if ( g_verbose > 1 ) fprintf ( stdout, "# [piN2piN_projection] twopoint_function %3d Ptot = %3d %3d %3d\n", i2pt, 
+        Ptot[0], Ptot[1], Ptot[2] ); */
+
+    /****************************************************
+     * do we need a reference frame rotation ?
+     ****************************************************/
+    exitstatus = get_reference_rotation ( Pref, &refframerot, Ptot );
+    if ( exitstatus != 0 ) {
+      fprintf ( stderr, "[piN2piN_projection] Error from get_reference_rotation, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(4);
+    } else if ( g_verbose > 1 ) {
+      fprintf ( stdout, "# [piN2piN_projection] twopoint_function %3d Ptot = %3d %3d %3d refframerot %2d\n", i2pt, 
+          Ptot[0], Ptot[1], Ptot[2], refframerot );
+    }
+
+    fflush ( stdout );
+
+
+    /****************************************************
+     * set the projector with the info we have
+     ****************************************************/
     exitstatus = little_group_projector_set ( &projector, &little_group, g_twopoint_function_list[i2pt].irrep , row_target, 1,
         J2_list, momentum_list, bispinor_list, parity_list, cartesian_list, ref_row_target, ref_row_spin, g_twopoint_function_list[i2pt].type, refframerot );
 
@@ -247,9 +274,19 @@ int main(int argc, char **argv) {
     exitstatus = little_group_projector_show ( &projector, ofs, 1 );
     fclose ( ofs );
 
+    /****************************************************
+     * check, that projector has correct d-vector
+     ****************************************************/
+    if ( ( projector.P[0] != Ptot[0] ) || ( projector.P[1] != Ptot[1] ) || ( projector.P[2] != Ptot[2] ) ) {
+      fprintf ( stderr, "[piN2piN_projection] Error, projector P != Ptot\n" );
+      EXIT(12);
+    } else {
+      if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_projection] projector P == Ptot\n" );
+    }
+
+
     int const nrot      = projector.rtarget->n;
     int const irrep_dim = projector.rtarget->dim;
-
 
     /******************************************************
      * loop on source locations
@@ -482,7 +519,9 @@ int main(int argc, char **argv) {
       }  // end of loop on coherent source locations
 
     }  // end of loop on base source locations
- 
+#if 0
+#endif  /* of if 0 */
+
     /******************************************************
      * deallocate space inside little_group
      ******************************************************/
@@ -492,6 +531,7 @@ int main(int argc, char **argv) {
      * deallocate space inside projector
      ******************************************************/
     fini_little_group_projector ( &projector );
+
 
   }  // end of loop on 2-point functions
 
