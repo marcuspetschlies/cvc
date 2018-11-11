@@ -724,6 +724,8 @@ int cvc_tensor_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, c
 #ifdef HAVE_LHPC_AFF
       affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
       exitstatus = aff_node_put_complex (affw, affdir, aff_buffer+16*T_global*i, (uint32_t)T_global*16);
+#else
+      exitstatus = 1;
 #endif
       if(exitstatus != 0) {
         fprintf(stderr, "[cvc_tensor_tp_write_to_aff_file] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -1538,7 +1540,11 @@ int contract_local_local_2pt_eo ( double**sprop_list_e, double**sprop_list_o, do
       }
 
       sprintf(aff_tag, "%s/gf%.2d/gi%.2d", tag, gamma_sink_list[idsink], gamma_source_list[idsource] );
+#ifdef HAVE_LHPC_AFF
       exitstatus = contract_write_to_aff_file ( conn_p, affw, aff_tag, momentum_list, momentum_number, io_proc );
+#else 
+      exitstatus = 1;
+#endif
       if(exitstatus != 0) {
         fprintf(stderr, "[contract_local_local_2pt_eo] Error from contract_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(3);
@@ -1700,7 +1706,11 @@ int contract_local_cvc_2pt_eo ( double**sprop_list_e, double**sprop_list_o, doub
       }
 
       sprintf(aff_tag, "%s/gf%.2d/mu%.2d", tag, gamma_sink_list[idsink], mu );
+#ifdef HAVE_LHPC_AFF
       exitstatus = contract_write_to_aff_file ( conn_p, affw, aff_tag, momentum_list, momentum_number, io_proc );
+#else
+      exitstatus = 1;
+#endif
       if(exitstatus != 0) {
         fprintf(stderr, "[contract_local_cvc_2pt_eo] Error from contract_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(3);
@@ -2346,6 +2356,8 @@ int cvc_loop_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, cha
 #ifdef HAVE_LHPC_AFF
         affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
         exitstatus = aff_node_put_complex (affw, affdir, aff_buffer+T_global*(4 * i + mu), (uint32_t)T_global);
+#else
+        exitstatus = 1;
 #endif
         if(exitstatus != 0) {
           fprintf(stderr, "[cvc_loop_tp_write_to_aff_file] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);

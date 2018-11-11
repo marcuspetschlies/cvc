@@ -471,10 +471,12 @@ int gsp_read_cvc_node (
 
 #ifdef HAVE_LHPC_AFF
   uint32_t uitems = (uint32_t)numV * block_length;
+#endif
 
   // loop on blocks
   for ( int ib = 0; ib < numB; ib++ ) {
 
+#ifdef HAVE_LHPC_AFF
     sprintf ( key, "%s/b%.2d/px%.2dpy%.2dpz%.2d", key_prefix, ib, momentum[0], momentum[1], momentum[2] );
     if(g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [gsp_read_cvc_node] key = %s\n", key );
     struct AffNode_s * affdir = aff_reader_chpath ( affr, affn, key );
