@@ -152,6 +152,7 @@ int rot_mat_table_get_spin2 ( rot_mat_table_type *t );
 
 int rot_mat_table_get_bispinor ( rot_mat_table_type *t );
 
+int get_reference_rotation ( int pref[3], int *Rref, int const p[3] );
 
 /***********************************************************/
 /***********************************************************/
