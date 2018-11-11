@@ -825,7 +825,7 @@ int contract_write_to_aff_file (double **c_tp, struct AffWriter_s*affw, char*tag
     free( zbuffer );
 
     for(i=0; i < momentum_number; i++) {
-      sprintf(aff_buffer_path, "%s/px%.2dpy%.2dpz%.2d", tag, momentum_list[i][0], momentum_list[i][1], momentum_list[i][2] );
+      sprintf(aff_buffer_path, "%s/px%dpy%dpz%d", tag, momentum_list[i][0], momentum_list[i][1], momentum_list[i][2] );
       /* fprintf(stdout, "# [contract_write_to_aff_file] current aff path = %s\n", aff_buffer_path); */
 #ifdef HAVE_LHPC_AFF
       affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
