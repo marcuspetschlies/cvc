@@ -14,6 +14,10 @@
 #include <complex.h>
 #include <math.h>
 #include <time.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
@@ -24,6 +28,10 @@
 
 #ifdef HAVE_LHPC_AFF
 #include "lhpc-aff.h"
+#endif
+
+#ifdef HAVE_HDF5
+#include <hdf5.h>
 #endif
 
 #include "cvc_complex.h"
@@ -42,6 +50,8 @@
 #include "Q_clover_phi.h"
 #include "contract_cvc_tensor.h"
 #include "scalar_products.h"
+
+#define MAX_SUBGROUP_NUMBER 20
 
 namespace cvc {
 
@@ -734,6 +744,11 @@ int cvc_tensor_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, c
 
 }  /* end of cvc_tensor_tp_write_to_aff_file */
 
+/***************************************************************************/
+/***************************************************************************/
+
+#ifdef HAVE_LHPC_AFF
+
 /***************************************************************************
  * write time-momentum-dependent contraction  results to AFF file
  *
@@ -745,21 +760,21 @@ int contract_write_to_aff_file (double **c_tp, struct AffWriter_s*affw, char*tag
 
   int exitstatus, i;
   double ratime, retime;
-#ifdef HAVE_LHPC_AFF
+
   struct AffNode_s *affn = NULL, *affdir=NULL;
-#endif
+
   char aff_buffer_path[200];
   double *buffer = NULL;
   double _Complex *aff_buffer = NULL;
   double _Complex *zbuffer = NULL;
 
   if ( io_proc == 2 ) {
-#ifdef HAVE_LHPC_AFF
+
     if( (affn = aff_writer_root(affw)) == NULL ) {
       fprintf(stderr, "[contract_write_to_aff_file] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
       return(1);
     }
-#endif
+
 
     zbuffer = (double _Complex*)malloc(  momentum_number * T_global * sizeof(double _Complex) );
     if( zbuffer == NULL ) {
@@ -827,10 +842,10 @@ int contract_write_to_aff_file (double **c_tp, struct AffWriter_s*affw, char*tag
     for(i=0; i < momentum_number; i++) {
       sprintf(aff_buffer_path, "%s/px%dpy%dpz%d", tag, momentum_list[i][0], momentum_list[i][1], momentum_list[i][2] );
       /* fprintf(stdout, "# [contract_write_to_aff_file] current aff path = %s\n", aff_buffer_path); */
-#ifdef HAVE_LHPC_AFF
+
       affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
       exitstatus = aff_node_put_complex (affw, affdir, aff_buffer+T_global*i, (uint32_t)T_global);
-#endif
+
       if(exitstatus != 0) {
         fprintf(stderr, "[contract_write_to_aff_file] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(5);
@@ -853,33 +868,351 @@ int contract_write_to_aff_file (double **c_tp, struct AffWriter_s*affw, char*tag
 
 }  /* end of contract_write_to_aff_file */
 
+#endif  /* of if def HAVE_LHPC_AFF */
+
+/***************************************************************************/
+/***************************************************************************/
+
+#ifdef HAVE_HDF5
+
+/***************************************************************************
+ * write time-momentum-dependent contraction  results to AFF file
+ *
+ * p runs slower than t, i.e. c_tp[momentum][time]
+ *
+ ***************************************************************************/
+
+int contract_write_to_h5_file (double **c_tp, void * file, char*tag, int (*momentum_list)[3], int momentum_number, int io_proc ) {
+
+  double ratime, retime;
+
+  double ** zbuffer = NULL;
+
+  char * filename = (char *)file;
+
+  hid_t   file_id;
+  herr_t  status;
+
+  if ( io_proc == 2 ) {
+
+    zbuffer = init_2level_dtable ( momentum_number, 2 * T_global );
+    if( zbuffer == NULL ) {
+      fprintf(stderr, "[contract_write_to_h5_file] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+      return(6);
+    }
+
+  }  /* end of if io_proc == 2 */
+
+  ratime = _GET_TIME;
+
+  /***************************************************************************
+   * reorder into buffer with order time - momentum
+   ***************************************************************************/
+  double ** buffer = init_2level_dtable ( T, 2 * momentum_number );
+  if( buffer == NULL ) {
+    fprintf(stderr, "[contract_write_to_h5_file] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+    return(6);
+  }
+
+  for( int it = 0; it < T; it++ ) {
+    for( int ip=0; ip<momentum_number; ip++) {
+      buffer[it][2*ip  ] = c_tp[ip][2*it  ];
+      buffer[it][2*ip+1] = c_tp[ip][2*it+1];
+    }
+  }
+
+#ifdef HAVE_MPI
+  int mitems = momentum_number * 2 * T;
+#  if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) 
+  if(io_proc>0) {
+    int exitstatus = MPI_Gather ( buffer[0], mitems, MPI_DOUBLE, zbuffer[0], mitems, MPI_DOUBLE, 0, g_tr_comm);
+    if(exitstatus != MPI_SUCCESS) {
+      fprintf(stderr, "[contract_write_to_h5_file] Error from MPI_Gather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(3);
+    }
+  }
+#  else
+  int exitstatus = MPI_Gather ( buffer[0], mitems, MPI_DOUBLE, zbuffer[0], mitems, MPI_DOUBLE, 0, g_cart_grid);
+  if(exitstatus != MPI_SUCCESS) {
+    fprintf(stderr, "[contract_write_to_h5_file] Error from MPI_Gather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(4);
+  }
+#  endif
+
+#else
+  /* T = T_global */
+  memcpy ( zbuffer[0], buffer[0], momentum_number * 2 * T * sizeof(double) );
+#endif
+  fini_2level_dtable ( &buffer );
+
+  if(io_proc == 2) {
+
+    /***************************************************************************
+     * create or open file
+     ***************************************************************************/
+    struct stat fileStat;
+    if ( stat( filename, &fileStat) < 0 ) {
+      /* creat a new file */
+
+      if ( g_verbose > 1 ) fprintf ( stdout, "# [contract_write_to_h5_file] create new file\n" );
+
+      unsigned flags = H5F_ACC_TRUNC; /* IN: File access flags. Allowable values are:
+                                         H5F_ACC_TRUNC --- Truncate file, if it already exists, erasing all data previously stored in the file.
+                                         H5F_ACC_EXCL  --- Fail if file already exists.
+
+                                         H5F_ACC_TRUNC and H5F_ACC_EXCL are mutually exclusive; use exactly one.
+                                         An additional flag, H5F_ACC_DEBUG, prints debug information.
+                                         This flag can be combined with one of the above values using the bit-wise OR operator (`|'),
+                                         but it is used only by HDF5 Library developers; it is neither tested nor supported for use in applications.  */
+      hid_t fcpl_id = H5P_DEFAULT; /* IN: File creation property list identifier, used when modifying default file meta-data.
+                                      Use H5P_DEFAULT to specify default file creation properties. */
+      hid_t fapl_id = H5P_DEFAULT; /* IN: File access property list identifier. If parallel file access is desired,
+                                      this is a collective call according to the communicator stored in the fapl_id.
+                                      Use H5P_DEFAULT for default file access properties. */
+
+      /*  hid_t H5Fcreate ( const char *name, unsigned flags, hid_t fcpl_id, hid_t fapl_id ) */
+      file_id = H5Fcreate (         filename,          flags,       fcpl_id,       fapl_id );
+
+    } else {
+      /* open an existing file. */
+      if ( g_verbose > 1 ) fprintf ( stdout, "# [contract_write_to_h5_file] open existing file\n" );
+
+      unsigned flags = H5F_ACC_RDWR;  /* IN: File access flags. Allowable values are:
+                                         H5F_ACC_RDWR   --- Allow read and write access to file.
+                                         H5F_ACC_RDONLY --- Allow read-only access to file.
+
+                                         H5F_ACC_RDWR and H5F_ACC_RDONLY are mutually exclusive; use exactly one.
+                                         An additional flag, H5F_ACC_DEBUG, prints debug information.
+                                         This flag can be combined with one of the above values using the bit-wise OR operator (`|'),
+                                         but it is used only by HDF5 Library developers; it is neither tested nor supported for use in applications. */
+      hid_t fapl_id = H5P_DEFAULT;
+      /*  hid_t H5Fopen ( const char *name, unsigned flags, hid_t fapl_id ) */
+      file_id = H5Fopen (         filename,         flags,        fapl_id );
+    }
+
+    if ( g_verbose > 0 ) fprintf ( stdout, "# [contract_write_to_h5_file] file_id = %ld\n", file_id );
+
+    /***************************************************************************
+     * H5 data space and data type
+     ***************************************************************************/
+    hid_t dtype_id = H5Tcopy( H5T_NATIVE_DOUBLE );
+    status = H5Tset_order ( dtype_id, H5T_ORDER_LE );
+    /* big_endian() ?  H5T_IEEE_F64BE : H5T_IEEE_F64LE; */
+
+    hsize_t dims[1];
+    dims[0] = T_global * 2;  // number of double elements
+
+    /*
+               int rank                             IN: Number of dimensions of dataspace.
+               const hsize_t * current_dims         IN: Array specifying the size of each dimension.
+               const hsize_t * maximum_dims         IN: Array specifying the maximum size of each dimension.
+               hid_t H5Screate_simple( int rank, const hsize_t * current_dims, const hsize_t * maximum_dims )
+     */
+    hid_t space_id = H5Screate_simple(        1,                         dims,                          NULL);
+
+    /***************************************************************************
+     * some default settings for H5Dwrite
+     ***************************************************************************/
+    hid_t mem_type_id   = H5T_NATIVE_DOUBLE;
+    hid_t mem_space_id  = H5S_ALL;
+    hid_t file_space_id = H5S_ALL;
+    hid_t xfer_plit_id  = H5P_DEFAULT;
+    hid_t lcpl_id       = H5P_DEFAULT;
+    hid_t dcpl_id       = H5P_DEFAULT;
+    hid_t dapl_id       = H5P_DEFAULT;
+    hid_t gcpl_id       = H5P_DEFAULT;
+    hid_t gapl_id       = H5P_DEFAULT;
+    /* size_t size_hint    = 0; */
+
+    /***************************************************************************
+     * create the target (sub-)group and all
+     * groups in hierarchy above if they don't exist
+     ***************************************************************************/
+    hid_t grp_list[MAX_SUBGROUP_NUMBER];
+    int grp_list_nmem = 0;
+    char grp_name[400], grp_name_tmp[400];
+    char * grp_ptr = NULL;
+    char grp_sep[] = "/";
+    strcpy ( grp_name, tag );
+    strcpy ( grp_name_tmp, grp_name );
+    if ( g_verbose > 1 ) fprintf ( stdout, "# [contract_write_to_h5_file] full grp_name = %s\n", grp_name );
+    grp_ptr = strtok ( grp_name_tmp, grp_sep );
+
+    while ( grp_ptr != NULL ) {
+      hid_t grp;
+      hid_t loc_id = ( grp_list_nmem == 0 ) ? file_id : grp_list[grp_list_nmem-1];
+      if ( g_verbose > 1 ) fprintf ( stdout, "# [contract_write_to_h5_file] grp_ptr = %s\n", grp_ptr );
+
+      grp = H5Gopen2( loc_id, grp_ptr, gapl_id );
+      if ( grp < 0 ) {
+        fprintf ( stderr, "[contract_write_to_h5_file] Error from H5Gopen2 for group %s, status was %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
+        grp = H5Gcreate2 (       loc_id,         grp_ptr,       lcpl_id,       gcpl_id,       gapl_id );
+        if ( grp < 0 ) {
+          fprintf ( stderr, "[contract_write_to_h5_file] Error from H5Gcreate2 for group %s, status was %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
+          return ( 110 );
+        } else {
+          if ( g_verbose > 1 ) fprintf ( stdout, "# [contract_write_to_h5_file] created group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
+        }
+      } else {
+        if ( g_verbose > 1 ) fprintf ( stdout, "# [contract_write_to_h5_file] opened group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
+      }
+      grp_ptr = strtok(NULL, grp_sep );
+
+      grp_list[grp_list_nmem] = grp;
+      grp_list_nmem++;
+    }  /* end of loop on sub-groups */
+
+    /***************************************************************************
+     * reverse the ordering back to momentum - time
+     ***************************************************************************/
+    double ** h5_buffer = init_2level_dtable ( momentum_number, 2 * T_global );
+    if ( h5_buffer == NULL) {
+      fprintf(stderr, "[contract_write_to_h5_file] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+      return(2);
+    }
+
+    for( int ip=0; ip<momentum_number; ip++) {
+      for( int it = 0; it < T_global; it++ ) {
+        h5_buffer[ip][2*it  ] = zbuffer[it][2*ip  ];
+        h5_buffer[ip][2*it+1] = zbuffer[it][2*ip+1];
+      }
+    }
+    fini_2level_dtable ( &zbuffer );
+
+    /***************************************************************************
+     * write data sets
+     ***************************************************************************/
+    for ( int i = 0; i < momentum_number; i++) {
+
+      hid_t loc_id = ( grp_list_nmem == 0 ) ? file_id : grp_list[grp_list_nmem - 1 ];
+
+      char name[100];
+
+      sprintf ( name, "px%dpy%dpz%d", momentum_list[i][0], momentum_list[i][1], momentum_list[i][2] );
+      fprintf ( stdout, "# [contract_write_to_h5_file] data set %2d loc_id = %ld %s %d\n", i, loc_id , __FILE__, __LINE__ );
+
+      /***************************************************************************
+       * create a data set
+       ***************************************************************************/
+      /*
+                   hid_t loc_id         IN: Location identifier
+                   const char *name     IN: Dataset name
+                   hid_t dtype_id       IN: Datatype identifier
+                   hid_t space_id       IN: Dataspace identifier
+                   hid_t lcpl_id        IN: Link creation property list
+                   hid_t dcpl_id        IN: Dataset creation property list
+                   hid_t dapl_id        IN: Dataset access property list
+                   hid_t H5Dcreate2 ( hid_t loc_id, const char *name, hid_t dtype_id, hid_t space_id, hid_t lcpl_id, hid_t dcpl_id, hid_t dapl_id )
+
+                   hid_t H5Dcreate ( hid_t loc_id, const char *name, hid_t dtype_id, hid_t space_id, hid_t lcpl_id, hid_t dcpl_id, hid_t dapl_id ) 
+       */
+      hid_t dataset_id = H5Dcreate (       loc_id,             name,       dtype_id,       space_id,       lcpl_id,       dcpl_id,       dapl_id );
+
+      /***************************************************************************
+       * write the current data set
+       ***************************************************************************/
+      /*
+               hid_t dataset_id           IN: Identifier of the dataset to write to.
+               hid_t mem_type_id          IN: Identifier of the memory datatype.
+               hid_t mem_space_id         IN: Identifier of the memory dataspace.
+               hid_t file_space_id        IN: Identifier of the dataset's dataspace in the file.
+               hid_t xfer_plist_id        IN: Identifier of a transfer property list for this I/O operation.
+               const void * buf           IN: Buffer with data to be written to the file.
+        herr_t H5Dwrite ( hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id, hid_t file_space_id, hid_t xfer_plist_id, const void * buf )
+       */
+      status = H5Dwrite (       dataset_id,       mem_type_id,       mem_space_id,       file_space_id,        xfer_plit_id,    h5_buffer[i] );
+
+      if( status < 0 ) {
+        fprintf(stderr, "[contract_write_to_h5_file] Error from H5Dwrite, status was %d %s %d\n", status, __FILE__, __LINE__);
+        return(105);
+      }
+
+      /***************************************************************************
+       * close the current data set
+       ***************************************************************************/
+      status = H5Dclose ( dataset_id );
+      if( status < 0 ) {
+        fprintf(stderr, "[contract_write_to_h5_file] Error from H5Dclose, status was %d %s %d\n", status, __FILE__, __LINE__);
+        return(105);
+      }
+
+    }  /* end of loop on data sets */
+
+    fini_2level_dtable ( &h5_buffer );
+
+    /***************************************************************************
+     * close the data space
+     ***************************************************************************/
+    status = H5Sclose ( space_id );
+    if( status < 0 ) {
+      fprintf(stderr, "[contract_write_to_h5_file] Error from H5Sclose, status was %d %s %d\n", status, __FILE__, __LINE__);
+      return(105);
+    }
+
+    /***************************************************************************
+     * close all (sub-)groups in reverse order
+     ***************************************************************************/
+    for ( int i = grp_list_nmem - 1; i>= 0; i-- ) {
+      status = H5Gclose ( grp_list[i] );
+      if( status < 0 ) {
+        fprintf(stderr, "[contract_write_to_h5_file] Error from H5Gclose, status was %d %s %d\n", status, __FILE__, __LINE__);
+        return(105);
+      } else {
+        if ( g_verbose > 1 ) fprintf(stdout, "# [contract_write_to_h5_file] closed group %ld %s %d\n", grp_list[i], __FILE__, __LINE__);
+      }
+    }
+
+    /***************************************************************************
+     * close the data type
+     ***************************************************************************/
+    status = H5Tclose ( dtype_id );
+    if( status < 0 ) {
+      fprintf(stderr, "[contract_write_to_h5_file] Error from H5Tclose, status was %d %s %d\n", status, __FILE__, __LINE__);
+      return(105);
+    }
+
+    /***************************************************************************
+     * close the file
+     ***************************************************************************/
+    status = H5Fclose ( file_id );
+    if( status < 0 ) {
+      fprintf(stderr, "[contract_write_to_h5_file] Error from H5Fclose, status was %d %s %d\n", status, __FILE__, __LINE__);
+      return(105);
+   } 
+
+  }  /* if io_proc == 2 */
+
+  retime = _GET_TIME;
+  if ( io_proc == 2 ) fprintf(stdout, "# [contract_write_to_h5_file] time for saving momentum space results = %e seconds\n", retime-ratime);
+
+  return(0);
+
+}  /* end of contract_write_to_h5_file */
+
+#endif  /* if def HAVE_HDF5 */
+
+#ifdef HAVE_LHPC_AFF
 /********************************************
  * write a contact term to AFF file
  ********************************************/
 int cvc_tensor_eo_write_contact_term_to_aff_file ( double *contact_term, struct AffWriter_s*affw, char *tag, int io_proc ) {
 
   int exitstatus;
-#ifdef HAVE_LHPC_AFF
   struct AffNode_s *affn = NULL, *affdir=NULL;
-#endif
   char aff_buffer_path[200];
   double _Complex aff_buffer[1];
 
   if ( io_proc == 2 ) {
-#ifdef HAVE_LHPC_AFF
     if( (affn = aff_writer_root(affw)) == NULL ) {
       fprintf(stderr, "[cvc_tensor_eo_write_contact_term_to_aff_file] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
       return(1);
     }
-#endif
 
     for ( int mu = 0; mu < 4; mu++ ) {
       sprintf( aff_buffer_path, "%s/contact_term/mu%d", tag, mu);
       aff_buffer[0] = contact_term[2*mu] + contact_term[2*mu+1] * I;
-#ifdef HAVE_LHPC_AFF
       affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
       exitstatus = aff_node_put_complex (affw, affdir, aff_buffer, (uint32_t)1 );
-#endif
       if(exitstatus != 0) {
         fprintf(stderr, "[cvc_tensor_eo_write_contact_term_to_aff_file] Error from aff_node_put_double, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(5);
@@ -889,7 +1222,7 @@ int cvc_tensor_eo_write_contact_term_to_aff_file ( double *contact_term, struct 
 
   return(0);
 }  /* end of cvc_tensor_eo_write_contact_term_to_aff_file */
-            
+#endif  /* end of if def HAVE_LHPC_AFF */
 
 /********************************************
  * check Ward-identity in position space
