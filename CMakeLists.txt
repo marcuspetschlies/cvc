@@ -2,6 +2,18 @@ cmake_minimum_required (VERSION 3.8)
 project (cvc)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
+enable_language(CXX)
+enable_language(C)
+
+enable_language(Fortran)
+include(FortranCInterface)
+FortranCInterface_HEADER(fortran_name_mangling.h MACRO_NAMESPACE "F_")
+
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED ON)
 
 set( MPI_HOME CACHE PATH "path to MPI library installation directory" )
 if( MPI_HOME )
@@ -73,23 +85,6 @@ else()
   message( STATUS "LEMON support disabled" )
 endif()
 
-set( QMP_HOME CACHE PATH "path to the QMP library required by QPhiX (optional, depends on how tmLQCD was configured)" )
-if( QMP_HOME )
-  link_directories(${QMP_HOME}/lib)
-  include_directories(${QMP_HOME}/include)
-  link_libraries(-lqmp)
-endif()
-
-set( QPHIX_HOME CACHE PATH "path to the QPhiX library installation (optional, depends on how tmLQCD was configured)" )
-if( QPHIX_HOME )
-  ## this is a really ugly hack to make sure that all symbols are found, bit it works!
-  set( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${TMLQCD_BUILD}/qphix_interface.o" )
-  
-  link_directories(${QPHIX_HOME}/lib)
-  include_directories(${QPHIX_HOME}/include)
-  link_libraries(-lqphix_codegen -lqphix_solver)
-  message( STATUS "compiling against tmLQCD with QPhiX" )
-endif()
 
 set( DD_ALPHA_AMG_HOME CACHE PATH "path to the DDalphaAMG library installation (optional, depends on how tmLQCD was configured)" )
 if( DD_ALPHA_AMG_HOME )
@@ -185,9 +180,6 @@ endif()
 #  message(FATAL_ERROR "FFTW_HOME must be defined!" )
 #endif()
 
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 # maybe we might want to use yaml in CVC at some point
 #find_package(yaml-cpp REQUIRED)
 #message("Found yaml-cpp: ${YAML_CPP_LIBRARIES}")
@@ -210,9 +202,6 @@ else()
   message( FATAL_ERROR "Unable to find BLAS!" )
 endif()
 
-enable_language(Fortran)
-include(FortranCInterface)
-FortranCInterface_HEADER(fortran_name_mangling.h MACRO_NAMESPACE "F_")
 
 find_package(OpenMP REQUIRED)
 if ( OPENMP_FOUND )
@@ -238,7 +227,6 @@ configure_file("${CMAKE_SOURCE_DIR}/gitversion.cpp.in"
   @ONLY)
 list(APPEND SOURCES "${CMAKE_CURRENT_BINARY_DIR}/gitversion.cpp")
 
-
 # maybe we might need Boost at some point
 #find_package(Boost 
 #             REQUIRED
@@ -252,6 +240,26 @@ list(APPEND SOURCES "${CMAKE_CURRENT_BINARY_DIR}/gitversion.cpp")
 #  message( FATAL_ERROR "Unable to find Boost (or one of the requested components, see CMakeLists.txt!")
 #endif()
 
+set( QMP_HOME CACHE PATH "path to the QMP library required by QPhiX (optional, depends on how tmLQCD was configured)" )
+if( QMP_HOME )
+  link_directories(${QMP_HOME}/lib)
+  include_directories(${QMP_HOME}/include)
+  link_libraries(-lqmp)
+endif()
+
+set( QPHIX_HOME CACHE PATH "path to the QPhiX library installation (optional, depends on how tmLQCD was configured)" )
+if( QPHIX_HOME )
+  ## this is a really ugly hack to make sure that all symbols are found, bit it works!
+  ## it can only be done as the very last step because it changes the linker flags
+  ## and makes many tests break
+  ## the way the QPhiX interface is linked into tmLQCD should be adjusted for this
+  ## to become unnecessary
+  set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${TMLQCD_BUILD}/qphix_interface.o" )
+  link_directories(${QPHIX_HOME}/lib)
+  include_directories(${QPHIX_HOME}/include)
+  link_libraries(-lqphix_codegen -lqphix_solver)
+  message( STATUS "compiling against tmLQCD with QPhiX" )
+endif()
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_SOURCE_DIR})
