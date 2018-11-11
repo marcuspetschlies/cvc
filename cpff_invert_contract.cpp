@@ -97,6 +97,7 @@ int main(int argc, char **argv) {
   double **mzz[2], **mzzinv[2];
   double *gauge_field_with_phase = NULL;
   int op_id_up = -1, op_id_dn = -1;
+  char output_filename[400];
 
 
   /* int const gamma_current_number = 10;
@@ -104,9 +105,9 @@ int main(int argc, char **argv) {
   int const gamma_current_number = 2;
   int gamma_current_list[10] = {0, 1 };
 
+  char data_tag[400];
 #ifdef HAVE_LHPC_AFF
   struct AffWriter_s *affw = NULL;
-  char aff_tag[400];
 #endif
 
 #ifdef HAVE_MPI
@@ -339,21 +340,28 @@ int main(int argc, char **argv) {
       EXIT(123);
     }
 
-#ifdef HAVE_LHPC_AFF
+#if ( defined HAVE_LHPC_AFF ) && !(defined HAVE_HDF5 )
+    /***************************************************************************
+     * output filename
+     ***************************************************************************/
+    sprintf ( output_filename, "%s.%.4d.t%d.aff", outfile_prefix, Nconf, gts );
     /***************************************************************************
      * writer for aff output file
      ***************************************************************************/
     if(io_proc == 2) {
-      sprintf(filename, "%s.%.4d.t%d.aff", outfile_prefix, Nconf, gts );
-      fprintf(stdout, "# [cpff_invert_contract] writing data to AFF file %s\n", filename);
-      affw = aff_writer(filename);
+      affw = aff_writer ( output_filename);
       const char * aff_status_str = aff_writer_errstr ( affw );
       if( aff_status_str != NULL ) {
         fprintf(stderr, "[cpff_invert_contract] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
         EXIT(15);
       }
     }  /* end of if io_proc == 2 */
+#elif ( defined HAVE_HDF5 )
+    sprintf ( output_filename, "%s.%.4d.t%d.h5", outfile_prefix, Nconf, gts );
 #endif
+    if(io_proc == 2 && g_verbose > 1 ) { 
+      fprintf(stdout, "# [cpff_invert_contract] writing data to file %s\n", output_filename);
+    }
 
     /***************************************************************************
      * re-initialize random number generator
@@ -551,13 +559,17 @@ int main(int argc, char **argv) {
             EXIT(3);
           }
 
-        sprintf ( aff_tag, "/d+-g-d-g/t%d/s%d/gf%d/gi%d/pix%dpiy%dpiz%d", gts, isample,
+          sprintf ( data_tag, "/d+-g-d-g/t%d/s%d/gf%d/gi%d/pix%dpiy%dpiz%d", gts, isample,
               g_source_gamma_id_list[isnk_gamma], g_source_gamma_id_list[isrc_gamma],
               source_momentum[0], source_momentum[1], source_momentum[2] );
 
-          exitstatus = contract_write_to_aff_file ( contr_p, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
+          exitstatus = contract_write_to_aff_file ( contr_p, affw, data_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+#elif ( defined HAVE_HDF5 )          
+          exitstatus = contract_write_to_h5_file ( contr_p, output_filename, data_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+#endif
           if(exitstatus != 0) {
-            fprintf(stderr, "[cpff_invert_contract] Error from contract_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            fprintf(stderr, "[cpff_invert_contract] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             return(3);
           }
 
@@ -692,14 +704,18 @@ int main(int argc, char **argv) {
 
                 }  /* end of loop on source momenta */
 
-                sprintf ( aff_tag, "/d+-g-sud/t%d/s%d/dt%d/gf%d/gc%d/gi%d/pfx%dpfy%dpfz%d/", 
+                sprintf ( data_tag, "/d+-g-sud/t%d/s%d/dt%d/gf%d/gc%d/gi%d/pfx%dpfy%dpfz%d/", 
                     gts, isample, g_sequential_source_timeslice_list[iseq_timeslice],
                     seq_source_gamma, gamma_current, gamma_source,
                     seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
 
-                exitstatus = contract_write_to_aff_file ( contr_p, affw, aff_tag, g_source_momentum_list, g_source_momentum_number, io_proc );
+#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
+                exitstatus = contract_write_to_aff_file ( contr_p, affw, data_tag, g_source_momentum_list, g_source_momentum_number, io_proc );
+#elif ( defined HAVE_HDF5 )
+                exitstatus = contract_write_to_h5_file ( contr_p, output_filename, data_tag, g_source_momentum_list, g_source_momentum_number, io_proc );
+#endif
                 if(exitstatus != 0) {
-                  fprintf(stderr, "[cpff_invert_contract] Error from contract_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                  fprintf(stderr, "[cpff_invert_contract] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                   EXIT(3);
                 }
               
@@ -773,14 +789,18 @@ int main(int argc, char **argv) {
 
                   }  /* end of loop on source momenta */
 
-                  sprintf ( aff_tag, "/d+-gd-sud/t%d/s%d/dt%d/gf%d/gc%d/d%d/%s/gi%d/pfx%dpfy%dpfz%d/", 
+                  sprintf ( data_tag, "/d+-gd-sud/t%d/s%d/dt%d/gf%d/gc%d/d%d/%s/gi%d/pfx%dpfy%dpfz%d/", 
                       gts, isample, g_sequential_source_timeslice_list[iseq_timeslice],
                       seq_source_gamma, mu, mu, fbwd_str[ifbwd], gamma_source,
                       seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
 
-                  exitstatus = contract_write_to_aff_file ( contr_p, affw, aff_tag, g_source_momentum_list, g_source_momentum_number, io_proc );
+#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
+                  exitstatus = contract_write_to_aff_file ( contr_p, affw, data_tag, g_source_momentum_list, g_source_momentum_number, io_proc );
+#elif ( defined HAVE_HDF5 )
+                  exitstatus = contract_write_to_h5_file ( contr_p, output_filename, data_tag, g_source_momentum_list, g_source_momentum_number, io_proc );
+#endif
                   if(exitstatus != 0) {
-                    fprintf(stderr, "[cpff_invert_contract] Error from contract_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                    fprintf(stderr, "[cpff_invert_contract] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                     EXIT(3);
                   }
               
@@ -828,14 +848,18 @@ int main(int argc, char **argv) {
 
                     }  /* end of loop on source momenta */
 
-                    sprintf ( aff_tag, "/d+-dd-sud/t%d/s%d/dt%d/gf%d/d%d/%s/d%d/%s/gi%d/pfx%dpfy%dpfz%d/", 
+                    sprintf ( data_tag, "/d+-dd-sud/t%d/s%d/dt%d/gf%d/d%d/%s/d%d/%s/gi%d/pfx%dpfy%dpfz%d/", 
                         gts, isample, g_sequential_source_timeslice_list[iseq_timeslice],
                         seq_source_gamma, mu, fbwd_str[kfbwd], mu, fbwd_str[ifbwd], gamma_source,
                         seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
 
-                    exitstatus = contract_write_to_aff_file ( contr_p, affw, aff_tag, g_source_momentum_list, g_source_momentum_number, io_proc );
+#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
+                    exitstatus = contract_write_to_aff_file ( contr_p, affw, data_tag, g_source_momentum_list, g_source_momentum_number, io_proc );
+#elif ( defined HAVE_HDF5 )
+                    exitstatus = contract_write_to_h5_file ( contr_p, output_filename, data_tag, g_source_momentum_list, g_source_momentum_number, io_proc );
+#endif
                     if(exitstatus != 0) {
-                      fprintf(stderr, "[cpff_invert_contract] Error from contract_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                      fprintf(stderr, "[cpff_invert_contract] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                       EXIT(3);
                     }
               
