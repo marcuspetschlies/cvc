@@ -656,7 +656,14 @@ int twopoint_function_fill_data ( twopoint_function_type *p, char * datafile_pre
   char filename[200];
   int exitstatus;
 
+  /******************************************************
+   * total momentum
+   ******************************************************/
   int const Ptot[3] = { p->pf1[0] + p->pf2[0], p->pf1[1] + p->pf2[1], p->pf1[2] + p->pf2[2] } ;
+
+  /******************************************************
+   * for the filename we need the reference momentum
+   ******************************************************/
 
   /* write "last part" of key name into key_suffix;
    * including all momenta and vertex gamma ids */
