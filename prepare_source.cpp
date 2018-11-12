@@ -835,34 +835,59 @@ int init_timeslice_source_oet ( double ** const s, int const tsrc, int * const m
   memset(s[2], 0, sf_bytes);
   memset(s[3], 0, sf_bytes);
 
-  if(have_source) {
-    if(init > 0) {
-      if ( g_verbose > 0 ) fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d drawing random vector\n", g_cart_id);
+  if(init > 0) {
+    if ( g_verbose > 0 && have_source ) fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d drawing random vector\n", g_cart_id);
 
-      double **ran_buffer = init_2level_dtable ( T_global, 6*VOL3 );
-      if ( ran_buffer == NULL ) {
-        fprintf ( stderr, "[init_timeslice_source_oet] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
-        return ( 1 );
-      }
-
-      unsigned int items = T_global * 6 * VOL3;
-
-      switch(g_noise_type) {
-        case 1:
-          rangauss( ran_buffer[0], items );
-          break;
-        case 2:
-          ranz2 ( ran_buffer[0], items );
-          break;
-      }
-      memcpy ( ran, ran_buffer[tsrc], 6*VOL3 );
-
-      fini_2level_dtable ( &ran_buffer );
-
-    } else {
-      fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d using existing random vector\n", g_cart_id);
+    unsigned int const gVOL3 = LX_global * LY_global * LZ_global;
+    unsigned int const items = 6 * gVOL3;
+    double *ran_buffer = init_1level_dtable ( items );
+    if ( ran_buffer == NULL ) {
+      fprintf ( stderr, "[init_timeslice_source_oet] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__ );
+      return ( 1 );
     }
 
+    switch(g_noise_type) {
+      case 1:
+        rangauss( ran_buffer, items );
+        break;
+      case 2:
+        ranz2 ( ran_buffer, items );
+        break;
+    }
+
+    if ( have_source ) {
+
+      /**********************************************************
+       * source process copy your part from the global timeslice
+       * field
+       **********************************************************/
+      // memcpy ( ran, ran_buffer[tsrc], 6*VOL3 );
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+      for ( int x1 = 0; x1 < LX; x1++ ) {
+        int const y1 = x1 + g_proc_coords[1] * LX;
+      for ( int x2 = 0; x2 < LY; x2++ ) {
+        int const y2 = x2 + g_proc_coords[2] * LY;
+      for ( int x3 = 0; x3 < LZ; x3++ ) {
+        int const y3 = x3 + g_proc_coords[3] * LZ;
+
+        unsigned int const iy = ( y1 * LY_global + y2 ) * LZ_global + y3;
+        unsigned int const ix = ( x1 * LY        + x2 ) * LZ        + x3;
+
+        double * const b_ = ran_buffer + 6*iy;
+        double * const r_ = ran        + 6*ix;
+        memcpy ( r_, b_, 6*sizeof(int) );
+      }}}
+    }  /* end of if have_source */
+
+    fini_1level_dtable ( &ran_buffer );
+
+  } else {
+    fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d using existing random vector\n", g_cart_id);
+  }
+
+  if(have_source) {
     const int timeslice = tsrc % T;  /*local timeslice */
     double *buffer = NULL;
 
@@ -923,6 +948,7 @@ int init_timeslice_source_oet ( double ** const s, int const tsrc, int * const m
     }  /* of ix */
 
     if (momentum != NULL) free(buffer);
+
   }  /* end of if have source */
 
   if(init == 2) free(ran);
