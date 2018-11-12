@@ -322,6 +322,15 @@ int main(int argc, char **argv) {
   }
 
   /***************************************************************************
+   * initialize rng state
+   ***************************************************************************/
+  exitstatus = init_rng_state ( g_seed, &g_rng_state);
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[cpff_invert_contract] Error from init_rng_state %s %d\n", __FILE__, __LINE__ );;
+    EXIT( 50 );
+  }
+
+  /***************************************************************************
    * loop on source timeslices
    ***************************************************************************/
   for( int isource_location = 0; isource_location < g_source_location_number; isource_location++ ) {
@@ -366,6 +375,7 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * re-initialize random number generator
      ***************************************************************************/
+    /*
     if ( ! g_read_source ) {
       sprintf(filename, "rng_stat.%.4d.tsrc%.3d.stochastic-oet.out", Nconf, gts );
       exitstatus = init_rng_stat_file ( ( ( gts + 1 ) * 10000 + g_seed ), filename );
@@ -374,6 +384,7 @@ int main(int argc, char **argv) {
         EXIT(38);
       }
     }
+    */
 
     /***************************************************************************
      * loop on stochastic oet samples
@@ -888,6 +899,17 @@ int main(int argc, char **argv) {
 
       exitstatus = init_timeslice_source_oet ( NULL, -1, NULL, -2 );
 
+
+      /***************************************************************************
+       * initialize rng state
+       ***************************************************************************/
+      exitstatus = save_rng_state ( 0, NULL );
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[cpff_invert_contract] Error from save_rng_state %s %d\n", __FILE__, __LINE__ );;
+        EXIT( 50 );
+      }
+
+
     }  /* end of loop on oet samples */
 
 #ifdef HAVE_LHPC_AFF
@@ -911,9 +933,14 @@ int main(int argc, char **argv) {
   fini_2level_dtable ( &sequential_propagator_list );
   fini_2level_dtable ( &spinor_work );
 
-  /****************************************
+  /***************************************************************************
+   * fini rng state
+   ***************************************************************************/
+  fini_rng_state ( &g_rng_state);
+
+  /***************************************************************************
    * free the allocated memory, finalize
-   ****************************************/
+   ***************************************************************************/
 
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   free(g_gauge_field);
