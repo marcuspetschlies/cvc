@@ -4159,62 +4159,157 @@ int init_rng_stat_file (unsigned int seed, char*filename) {
   return(0);
 }  /* end of init_rng_stat_file */
 
-int sync_rng_state(int id, int reset) {
+/******************************************************************
+ * synchronize rng state to state at cart processor id id
+ ******************************************************************/
+int sync_rng_state ( int const id, int const reset) {
 #ifdef HAVE_MPI
   int c;
   int *rng_state=NULL;
-  if(g_cart_id==0) fprintf(stdout, "# [sync_rng_state] synchronize rng states with current state at process %d\n", id);
+
+  if ( g_cart_id == 0 && g_verbose > 1 ) fprintf(stdout, "# [sync_rng_state] synchronize rng states with current state at process %d\n", id);
+
   c = rlxd_size();
-  rng_state = (int*)malloc(c*sizeof(int));
+  rng_state = ( int *)malloc( c * sizeof(int) );
+  if ( rng_state == NULL ) {
+    fprintf ( stderr, "[sync_rng_state] Error from malloc %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
   if(g_cart_id == id) { rlxd_get(rng_state); }
-  MPI_Barrier(g_cart_grid);
-  MPI_Bcast(rng_state, c, MPI_INT, id, g_cart_grid);
-  rlxd_reset(rng_state);
+  
+  if ( MPI_Bcast ( rng_state, c, MPI_INT, id, g_cart_grid ) != MPI_SUCCESS ) {
+    fprintf ( stderr, "[sync_rng_state] Error from MPI_Bcast %s %d\n", __FILE__, __LINE__ );
+    return(3);
+  }
+  rlxd_reset ( rng_state );
   free(rng_state);
 #endif
   if(reset) { 
-    if(g_cart_id==0) fprintf(stdout, "# [sync_rng_state] set global rng state to current state at process %d\n", id);
-    rlxd_get(g_rng_state);
+    if ( g_cart_id == 0 ) fprintf ( stdout, "# [sync_rng_state] WARNING: set global rng state to current state at process %d\n", id);
+    rlxd_get ( g_rng_state );
   }
   return(0);
-}
+}  /* end of sync_rng_state */
 
 /******************************************************************
  * initialize rng; write first state to array
  ******************************************************************/
-int init_rng_state (int seed, int **rng_state) {
+int init_rng_state ( int const seed, int **rng_state) {
 
   int c;
-  if(g_cart_id==0) fprintf(stdout, "# [init_rng_state] ranldxd: using seed %d and level 2\n", seed);
+  if(g_cart_id==0 && g_verbose > 0 ) fprintf(stdout, "# [init_rng_state] ranldxd: using seed %d and level 2\n", seed);
   rlxd_init(2, seed);
 
   if(*rng_state != NULL) {
-    fprintf(stderr, "[] Error, rng_state not NULL\n");
+    fprintf ( stderr, "[init_rng_state] Error, rng_state not NULL\n");
     return(103);
   }
   c = rlxd_size();
   if( (*rng_state = (int*)malloc(c*sizeof(int))) == (int*)NULL ) {
-    fprintf(stderr, "[init_rng_state] Error, could not save the random number generator state\n");
+    fprintf(stderr, "[init_rng_state] Error from malloc %s %d\n", __FILE__, __LINE__ );
     return(102);
   }
   rlxd_get(*rng_state);
 #ifdef HAVE_MPI
-  MPI_Bcast(*rng_state, c, MPI_INT, 0, g_cart_grid);
+  if ( MPI_Bcast(*rng_state, c, MPI_INT, 0, g_cart_grid) != MPI_SUCCESS ) { 
+    fprintf ( stderr, "[init_rng_state] Error from MPI_Bcast %s %d\n", __FILE__, __LINE__ );
+    return(104);
+  }
   rlxd_reset(*rng_state);
 #endif
   return(0);
-}
+}  /* end of init_rng_state */
 
+/******************************************************************
+ * free rng state array
+ ******************************************************************/
 int fini_rng_state (int **rng_state) {
   if(*rng_state != NULL) {
     free(*rng_state);
     *rng_state = NULL;
   }
   return(0);
-}
+}  /* end of fini_rng_state */
 
+/******************************************************************
+ * save rng state to file
+ ******************************************************************/
+int save_rng_state ( int const id, char * filename ) {
+  if ( g_cart_id == id ) {
+    char myfilename[400];
+    if ( filename == NULL ) {
+      sprintf ( myfilename, ".rng.state" );
+    } else {
+      sprintf ( myfilename, filename );
+    }
 
-// create, free spin propagator field
+    if ( g_verbose > 1 ) fprintf ( stdout, "# [save_rng_state] proc %d save rng state to file\n" );
+    FILE *ofs = fopen ( myfilename, "w" );
+    if ( ofs == NULL ) {
+      fprintf ( stderr, "[save_rng_state] Error from fopen %s %d\n", __FILE__, __LINE__ );
+      return ( 1 );
+    }
+    int const c = rlxd_size();
+    int * rng_state = (int*)malloc(c*sizeof(int) );
+    if( rng_state == NULL ) {
+      fprintf(stderr, "[save_rng_state] Error from malloc %s %d\n", __FILE__, __LINE__ );
+      return(2);
+    }
+    rlxd_get ( rng_state );
+
+    for ( int i = 0; i < c; i++ ) fprintf( ofs, "%d\n", rng_state[i] );
+
+    fclose ( ofs );
+    free ( rng_state );
+  }
+  return ( 0 );
+}  /* end of save_rng_state */
+
+/******************************************************************
+ * read rng state from file
+ ******************************************************************/
+int read_rng_state ( int **rng_state, int const id, char * filename ) {
+  if ( *rng_state != NULL ) {
+  free ( *rng_state );
+    *rng_state = NULL;
+  }
+  int const c = rlxd_size();
+  if( (*rng_state = (int*)malloc(c*sizeof(int))) == (int*)NULL ) {
+    fprintf(stderr, "[read_rng_state] Error from malloc %s %d\n", __FILE__, __LINE__ );
+    return(2);
+  }
+
+  if ( g_cart_id == id ) {
+    char myfilename[400];
+    if ( filename == NULL ) {
+      sprintf ( myfilename, ".rng.state" );
+    } else {
+      strcpy ( myfilename, filename );
+    }
+    if ( g_verbose > 1 ) fprintf ( stdout, "# [read_rng_state] proc %d reads rng state from file\n" );
+    FILE *ofs = fopen ( myfilename, "r" );
+    if ( ofs == NULL ) {
+      fprintf ( stderr, "[read_rng_state] Error from fopen %s %d\n", __FILE__, __LINE__ );
+      return ( 1 );
+    }
+    for ( int i = 0; i < c; i++ ) fscanf( ofs, "%d\n", (*rng_state)+i );
+
+    fclose ( ofs );
+  }
+#ifdef HAVE_MPI
+  if ( MPI_Bcast ( *rng_state, c, MPI_INT, 0, g_cart_grid) != MPI_SUCCESS ) { 
+    fprintf ( stderr, "[read_rng_state] Error from MPI_Bcast %s %d\n", __FILE__, __LINE__ );
+    return( 3 );
+  }
+  rlxd_reset ( *rng_state );
+#endif
+  
+  return ( 0 );
+}  /* end of read_rng_state */
+
+/******************************************************************
+ * create, free spin propagator field
+ ******************************************************************/
 spinor_propagator_type *create_sp_field(size_t N) {
   size_t i, j;
   unsigned int count;
