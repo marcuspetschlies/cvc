@@ -32,6 +32,7 @@
 #include "ranlxd.h"
 #include "matrix_init.h"
 #include "make_x_orbits.h"
+#include "table_init_d.h"
 
 namespace cvc {
 
@@ -838,14 +839,26 @@ int init_timeslice_source_oet ( double ** const s, int const tsrc, int * const m
     if(init > 0) {
       if ( g_verbose > 0 ) fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d drawing random vector\n", g_cart_id);
 
+      double **ran_buffer = init_2level_dtable ( T_global, 6*VOL3 );
+      if ( ran_buffer == NULL ) {
+        fprintf ( stderr, "[init_timeslice_source_oet] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+        return ( 1 );
+      }
+
+      unsigned int items = T_global * 6 * VOL3;
+
       switch(g_noise_type) {
         case 1:
-          rangauss(ran, 6*VOL3);
+          rangauss( ran_buffer[0], items );
           break;
         case 2:
-          ranz2(ran, 6*VOL3);
+          ranz2 ( ran_buffer[0], items );
           break;
       }
+      memcpy ( ran, ran_buffer[tsrc], 6*VOL3 );
+
+      fini_2level_dtable ( &ran_buffer );
+
     } else {
       fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d using existing random vector\n", g_cart_id);
     }
