@@ -203,6 +203,7 @@ namespace cvc {
 %x SRCSNKTIMESEP
 %x COHERENTSOURCENUMBER
 %x VERBOSITYLEVEL
+%x TWISTEDMASSES
 
 %%
 ^T{SPC}*={SPC}*                            BEGIN(TT);
@@ -362,6 +363,8 @@ namespace cvc {
 ^coherent_source_number{SPC}*={SPC}*       BEGIN(COHERENTSOURCENUMBER);
 
 ^verbosity_level{SPC}*={SPC}*              BEGIN(VERBOSITYLEVEL);
+
+^twisted_mass{SPC}*={SPC}*                 BEGIN(TWISTEDMASSES);
 
   /* start namespace inclusion here */
 
@@ -1183,6 +1186,11 @@ namespace cvc {
   if(cvc::myverbose!=0) printf("# [read_input_parser] global verbosity level set to =%d\n", cvc::g_verbose);
 }
 
+<TWISTEDMASSES>{FLT} {
+  cvc::g_twisted_masses_list[cvc::g_twisted_masses_number] = atof ( yytext );
+  cvc::g_twisted_masses_number++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] added twisted mass number %d to list %s\n", cvc::g_twisted_masses_number, yytext );
+}
 
 <*>^#   {
    cvc::comment_caller = YY_START;   
