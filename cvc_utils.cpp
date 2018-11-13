@@ -6985,6 +6985,33 @@ void fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fermion_pro
 #endif
 }  /* fermion_propagator_field_eq_fermion_propagator_field_ti_gamma */
 
+/*****************************************************
+ * r = gamma[mu] s
+ *
+ * safe, if r == s
+ *****************************************************/
+void fermion_propagator_field_eq_fermion_propagator_field_ti_re (fermion_propagator_type*r, fermion_propagator_type*s, double c, unsigned int N) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel 
+{
+#endif
+  fermion_propagator_type _r, _s;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for( unsigned int ix = 0; ix < N; ix++ ) {
+    _r = r[ix];
+    _s = s[ix];
+    _fp_eq_fp_ti_re(_r, _s, c);
+  }
+
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+}  /* end of fermion_propagator_field_eq_fermion_propagator_field_ti_re  */
 
 /***********************************************************/
 /***********************************************************/
