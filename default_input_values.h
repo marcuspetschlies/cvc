@@ -201,5 +201,6 @@ namespace cvc {
 #define _default_source_location_number 0
 #define _default_coherent_source_number 1
 
+#define _default_twisted_masses_number 0
 }
 #endif

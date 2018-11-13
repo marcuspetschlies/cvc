@@ -271,6 +271,7 @@ void set_default_input_values(void) {
 
   g_coherent_source_number = _default_coherent_source_number;
 
+  g_twisted_masses_number = _default_twisted_masses_number;
 }  /* end of set_default_input_values */
 
 }  /* end of namespace cvc */
