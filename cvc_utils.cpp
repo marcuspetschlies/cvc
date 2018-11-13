@@ -5976,10 +5976,10 @@ int spinor_field_tm_rotation(double*s, double*r, int sign, int fermion_type, uns
 /***************************************************
  * spinor fields to fermion propagator points
  ***************************************************/
-int assign_fermion_propagaptor_from_spinor_field (fermion_propagator_type *s, double**prop_list, unsigned int N) {
+int assign_fermion_propagator_from_spinor_field (fermion_propagator_type *s, double**prop_list, unsigned int N) {
 
   if(s[0][0] == prop_list[0] ) {
-    fprintf(stderr, "[assign_fermion_propagaptor_from_spinor_field] Error, input fields have same address\n");
+    fprintf(stderr, "[assign_fermion_propagator_from_spinor_field] Error, input fields have same address\n");
     return(1);
   }
 
@@ -6001,15 +6001,15 @@ int assign_fermion_propagaptor_from_spinor_field (fermion_propagator_type *s, do
 }
 #endif
   return(0);
-}  /* end of assign_fermion_propagaptor_from_spinor_field */
+}  /* end of assign_fermion_propagator_from_spinor_field */
 
 /***************************************************
  * fermion propagator points to spinor fields
  ***************************************************/
-int assign_spinor_field_from_fermion_propagaptor (double**prop_list, fermion_propagator_type *s, unsigned int N) {
+int assign_spinor_field_from_fermion_propagator (double**prop_list, fermion_propagator_type *s, unsigned int N) {
 
   if(s[0][0] == prop_list[0]) {
-    fprintf(stderr, "[assign_spinor_field_from_fermion_propagaptor] Error, input fields have same address\n");
+    fprintf(stderr, "[assign_spinor_field_from_fermion_propagator] Error, input fields have same address\n");
     return(1);
   }
 #ifdef HAVE_OPENMP
@@ -6030,16 +6030,16 @@ int assign_spinor_field_from_fermion_propagaptor (double**prop_list, fermion_pro
 }
 #endif
   return(0);
-}  /* end of assign_spinor_field_from_fermion_propagaptor */
+}  /* end of assign_spinor_field_from_fermion_propagator */
 
 /***************************************************
  * component of fermion propagator points
  * to spinor fields
  ***************************************************/
-int assign_spinor_field_from_fermion_propagaptor_component (double*spinor_field, fermion_propagator_type *s, int icomp, unsigned int N) {
+int assign_spinor_field_from_fermion_propagator_component (double*spinor_field, fermion_propagator_type *s, int icomp, unsigned int N) {
 
   if(s[0][0] == spinor_field) {
-    fprintf(stderr, "[assign_spinor_field_from_fermion_propagaptor] Error, input fields have same address\n");
+    fprintf(stderr, "[assign_spinor_field_from_fermion_propagator] Error, input fields have same address\n");
     return(1);
   }
 #ifdef HAVE_OPENMP
@@ -6060,7 +6060,7 @@ int assign_spinor_field_from_fermion_propagaptor_component (double*spinor_field,
 }
 #endif
   return(0);
-}  /* end of assign_spinor_field_from_fermion_propagaptor_component */
+}  /* end of assign_spinor_field_from_fermion_propagator_component */
 
 /***********************************************************
  * r = s * c
