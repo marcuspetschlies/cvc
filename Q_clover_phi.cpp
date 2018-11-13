@@ -143,6 +143,7 @@ void clover_term_fini(double***s) {
     }
     free(*s);
   }
+  s = NULL;
 }  /* end of clover_term_fini */
 
 void clover_term_init (double***s, int nmat) {
