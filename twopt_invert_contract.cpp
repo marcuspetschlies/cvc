@@ -379,14 +379,14 @@ int main(int argc, char **argv) {
      *      application of Dirac operator
      ***************************************************************************/
 
-    for ( int imass = 0; imass < g_twisted_mass_number; imass++ ) {
+    for ( int imass = 0; imass < g_twisted_masses_number; imass++ ) {
 
-      if ( g_cart_id == 0 && g_verbose > 1 ) fprintf ( stdout, "# [twopt_invert_contract] using mass no. %d = %16.7f\n", imass, g_twisted_mass_list[imass] );
+      if ( g_cart_id == 0 && g_verbose > 1 ) fprintf ( stdout, "# [twopt_invert_contract] using mass no. %d = %16.7f\n", imass, g_twisted_masses_list[imass] );
 
       /***************************************************************************
        * initialize clover, lmzz and lmzzinv
        ***************************************************************************/
-      exitstatus = init_clover ( &g_clover, &smzz, &smzzinv, gauge_field_with_phase, g_twisted_mass_list[imass], g_csw );
+      exitstatus = init_clover ( &g_clover, &smzz, &smzzinv, gauge_field_with_phase, g_twisted_masses_list[imass], g_csw );
       if ( exitstatus != 0 ) {
         fprintf(stderr, "[twopt_invert_contract] Error from init_clover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(1);
@@ -423,7 +423,7 @@ int main(int argc, char **argv) {
       /***************************************************************************
        * local - local 2-point s+ - u
        ***************************************************************************/
-      sprintf(aff_tag, "/twopt/s+u+/t%dx%dy%dz%d/m%6.4f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_mass_list[imass] );
+      sprintf(aff_tag, "/twopt/s+u+/t%dx%dy%dz%d/m%6.4f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass] );
       exitstatus = contract_local_local_2pt_eo (
          &(eo_spinor_field[72]), &(eo_spinor_field[84]),
          &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
@@ -439,7 +439,7 @@ int main(int argc, char **argv) {
       /***************************************************************************
        * local - local 2-point s- - u
        ***************************************************************************/
-      sprintf(aff_tag, "/twopt/s-l+/t%dx%dy%dz%d/m%6.4f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_mass_list[imass] );
+      sprintf(aff_tag, "/twopt/s-l+/t%dx%dy%dz%d/m%6.4f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass] );
       exitstatus = contract_local_local_2pt_eo (
          &(eo_spinor_field[60]), &(eo_spinor_field[72]),
          &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
@@ -455,7 +455,7 @@ int main(int argc, char **argv) {
       /***************************************************************************
        * local - local 2-point s- - s+
        ***************************************************************************/
-      sprintf(aff_tag, "/twopt/s-s+/t%dx%dy%dz%d/m%6.4f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_mass_list[imass] );
+      sprintf(aff_tag, "/twopt/s-s+/t%dx%dy%dz%d/m%6.4f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass] );
       exitstatus = contract_local_local_2pt_eo (
          &(eo_spinor_field[48]), &(eo_spinor_field[60]),
          &(eo_spinor_field[48]), &(eo_spinor_field[60]),
@@ -471,7 +471,7 @@ int main(int argc, char **argv) {
       /***************************************************************************
        * local - local 2-point s+ - s+
        ***************************************************************************/
-      sprintf(aff_tag, "/twopt/s-s+/t%dx%dy%dz%d/m%6.4f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_mass_list[imass] );
+      sprintf(aff_tag, "/twopt/s-s+/t%dx%dy%dz%d/m%6.4f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass] );
       exitstatus = contract_local_local_2pt_eo (
          &(eo_spinor_field[72]), &(eo_spinor_field[84]),
          &(eo_spinor_field[48]), &(eo_spinor_field[60]),
