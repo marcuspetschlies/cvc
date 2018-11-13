@@ -97,10 +97,10 @@ int init_clover ( double *** clover_term, double **(*mzz)[2], double **(*mzzinv)
 
 
 void fini_clover ( double **(*mzz)[2], double **(*mzzinv)[2] ) {
-  clover_term_fini( &((*mzz)[0])   );
-  clover_term_fini( &((*mzz)[1])   );
-  clover_term_fini( &((*mzzinv[0]) );
-  clover_term_fini( &((*mzzinv[1]) );
+  clover_term_fini( &((*mzz)[0])    );
+  clover_term_fini( &((*mzz)[1])    );
+  clover_term_fini( &((*mzzinv)[0]) );
+  clover_term_fini( &((*mzzinv)[1]) );
 }  /* end of fini_clover */
 
 }
