@@ -843,7 +843,7 @@ int contract_write_to_aff_file (double **c_tp, struct AffWriter_s*affw, char*tag
 
     for(i=0; i < momentum_number; i++) {
       sprintf(aff_buffer_path, "%s/px%dpy%dpz%d", tag, momentum_list[i][0], momentum_list[i][1], momentum_list[i][2] );
-      /* fprintf(stdout, "# [contract_write_to_aff_file] current aff path = %s\n", aff_buffer_path); */
+      if ( g_verbose > 4 ) fprintf(stdout, "# [contract_write_to_aff_file] current aff path = %s\n", aff_buffer_path);
 
       affdir = aff_writer_mkpath(affw, affn, aff_buffer_path);
       exitstatus = aff_node_put_complex (affw, affdir, aff_buffer+T_global*i, (uint32_t)T_global);
