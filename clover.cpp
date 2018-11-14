@@ -53,7 +53,7 @@ int init_clover ( double *** clover_term, double **(*mzz)[2], double **(*mzzinv)
    * are not yet initialized
    ***********************************************/
   if ( (*mzz)[0] != NULL || (*mzz)[1] != NULL || (*mzzinv)[0] != NULL || (*mzzinv)[1] != NULL  || *clover_term != NULL ) {
-    fprintf ( stderr, "[init_clover] Error input fields not NULL \n %s %d\n", __FILE__, __LINE__ );
+    fprintf ( stderr, "[init_clover] Error input fields not NULL %s %d\n", __FILE__, __LINE__ );
     return ( 1 );
   }
 
