@@ -855,12 +855,18 @@ int init_timeslice_source_oet ( double ** const s, int const tsrc, int * const m
         break;
     }
 
+    /* for ( unsigned int ix = 0; ix < 6*gVOL3; ix++ ) {
+      fprintf ( stdout, " proc %4d x %6d ran_buffer %25.16e\n", g_cart_id, ix, ran_buffer[ix] );
+    } */
+
     if ( have_source ) {
 
       /**********************************************************
        * source process copy your part from the global timeslice
        * field
        **********************************************************/
+      if ( g_verbose > 1 ) fprintf ( stdout, "# [init_timeslice_source_oet] proc %d = %3d %3d %3d %3d copy timeslice data\n", g_cart_id, 
+          g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3] );
       // memcpy ( ran, ran_buffer[tsrc], 6*VOL3 );
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
@@ -872,12 +878,14 @@ int init_timeslice_source_oet ( double ** const s, int const tsrc, int * const m
       for ( int x3 = 0; x3 < LZ; x3++ ) {
         int const y3 = x3 + g_proc_coords[3] * LZ;
 
+        /* global 3-dim index */
         unsigned int const iy = ( y1 * LY_global + y2 ) * LZ_global + y3;
+        /* local 3-dim index */
         unsigned int const ix = ( x1 * LY        + x2 ) * LZ        + x3;
 
         double * const b_ = ran_buffer + 6*iy;
         double * const r_ = ran        + 6*ix;
-        memcpy ( r_, b_, 6*sizeof(int) );
+        memcpy ( r_, b_, 6*sizeof ( double ) );
       }}}
     }  /* end of if have_source */
 
