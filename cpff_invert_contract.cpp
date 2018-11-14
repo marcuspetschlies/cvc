@@ -63,6 +63,7 @@ extern "C"
 #include "dummy_solver.h"
 #include "Q_phi.h"
 #include "clover.h"
+#include "ranlxd.h"
 
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
@@ -94,10 +95,11 @@ int main(int argc, char **argv) {
   size_t sizeof_spinor_field;
   char filename[100];
   // double ratime, retime;
-  double **mzz[2], **mzzinv[2];
+  double **mzz[2] = { NULL, NULL }, **mzzinv[2] = { NULL, NULL };
   double *gauge_field_with_phase = NULL;
   int op_id_up = -1, op_id_dn = -1;
   char output_filename[400];
+  int * rng_state = NULL;
 
 
   /* int const gamma_current_number = 10;
@@ -106,7 +108,7 @@ int main(int argc, char **argv) {
   int gamma_current_list[10] = {0, 1 };
 
   char data_tag[400];
-#ifdef HAVE_LHPC_AFF
+#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
   struct AffWriter_s *affw = NULL;
 #endif
 
@@ -254,7 +256,7 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * initialize clover, mzz and mzz_inv
    ***************************************************************************/
-  exitstatus = init_clover ( &mzz, &mzzinv, gauge_field_with_phase );
+  exitstatus = init_clover ( &g_clover, &mzz, &mzzinv, gauge_field_with_phase, g_mu, g_csw );
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[cpff_invert_contract] Error from init_clover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
     EXIT(1);
@@ -324,11 +326,15 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * initialize rng state
    ***************************************************************************/
-  exitstatus = init_rng_state ( g_seed, &g_rng_state);
+  exitstatus = init_rng_state ( g_seed, &rng_state);
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[cpff_invert_contract] Error from init_rng_state %s %d\n", __FILE__, __LINE__ );;
     EXIT( 50 );
   }
+  /* for ( int i = 0; i < rlxd_size(); i++ ) {
+    fprintf ( stdout, "rng %2d %10d\n", g_cart_id, rng_state[i] );
+  } */
+
 
   /***************************************************************************
    * loop on source timeslices
@@ -392,6 +398,15 @@ int main(int argc, char **argv) {
     for ( int isample = 0; isample < g_nsample_oet; isample++ ) {
 
       /***************************************************************************
+       * synchronize rng states to state at zero
+       ***************************************************************************/
+      exitstatus = sync_rng_state ( rng_state, 0, 0 );
+      if(exitstatus != 0) {
+        fprintf(stderr, "[cpff_invert_contract] Error from sync_rng_state, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(38);
+      }
+
+      /***************************************************************************
        * read stochastic oet source from file
        ***************************************************************************/
       if ( g_read_source ) {
@@ -430,6 +445,21 @@ int main(int argc, char **argv) {
           }
         }
       }  /* end of if read stochastic source - else */
+
+      /***************************************************************************
+       * retrieve current rng state and 0 writes his state
+       ***************************************************************************/
+      exitstatus = get_rng_state ( rng_state );
+      if(exitstatus != 0) {
+        fprintf(stderr, "[cpff_invert_contract] Error from get_rng_state, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(38);
+      }
+
+      exitstatus = save_rng_state ( 0, NULL );
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[cpff_invert_contract] Error from save_rng_state, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );;
+        EXIT(38);
+      }
 
 
       /***************************************************************************
@@ -899,20 +929,9 @@ int main(int argc, char **argv) {
 
       exitstatus = init_timeslice_source_oet ( NULL, -1, NULL, -2 );
 
-
-      /***************************************************************************
-       * initialize rng state
-       ***************************************************************************/
-      exitstatus = save_rng_state ( 0, NULL );
-      if ( exitstatus != 0 ) {
-        fprintf(stderr, "[cpff_invert_contract] Error from save_rng_state %s %d\n", __FILE__, __LINE__ );;
-        EXIT( 50 );
-      }
-
-
     }  /* end of loop on oet samples */
 
-#ifdef HAVE_LHPC_AFF
+#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
     if(io_proc == 2) {
       const char * aff_status_str = (char*)aff_writer_close (affw);
       if( aff_status_str != NULL ) {
@@ -936,7 +955,7 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * fini rng state
    ***************************************************************************/
-  fini_rng_state ( &g_rng_state);
+  fini_rng_state ( &rng_state);
 
   /***************************************************************************
    * free the allocated memory, finalize
@@ -948,7 +967,7 @@ int main(int argc, char **argv) {
   free( gauge_field_with_phase );
 
   /* free clover matrix terms */
-  fini_clover ();
+  fini_clover ( &mzz, &mzzinv );
 
   free_geometry();
 
