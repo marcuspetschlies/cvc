@@ -4,6 +4,7 @@
  * Mi 21. Mär 07:21:36 CET 2018
  ***********************************************************/
 
+#ifdef HAVE_LHPC_AFF
 /***********************************************************
  * contractions for Mee part of eo-precon lm cvc - cvc tensor
  ***********************************************************/
@@ -163,3 +164,4 @@ int const contract_cvc_tensor_eo_lm_ct (
   return(0);
  
 }  // end of contract_cvc_tensor_eo_lm_ct
+#endif  /* of if def HAVE_LHPC_AFF */

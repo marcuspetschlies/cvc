@@ -61,6 +61,8 @@ void usage() {
   fprintf(stdout, "Usage:    [options]\n");
   fprintf(stdout, "Options:  -f <input filename> : input filename for cvc      [default cvc.input]\n");
   fprintf(stdout, "          -l                  : lime filename [default \"NA\"]\n");
+  fprintf(stdout, "          -t                  : type of field [default \"DiracFermion\"]\n");
+  fprintf(stdout, "          -p                  : pos in lime file [default 0]\n");
   EXIT(0);
 }
 
@@ -71,7 +73,7 @@ int main(int argc, char **argv) {
   int exitstatus;
   char filename[100];
   char limefile_name[100] = "NA";
-  char limefile_type[100] = "NA";
+  char limefile_type[100] = "DiracFermion";
   int limefile_pos = 0;
   // double ratime, retime;
 

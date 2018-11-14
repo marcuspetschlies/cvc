@@ -93,9 +93,13 @@ void printf_sp(spinor_propagator_type f, char*name, FILE*ofs);
 void norm2_sp(spinor_propagator_type f, double*res);
 
 int init_rng_stat_file (unsigned int seed, char*filename);
-int init_rng_state (int seed, int **rng_state);
+
+int init_rng_state (int const seed, int **rng_state);
 int fini_rng_state (int **rng_state);
-int sync_rng_state(int id, int reset);
+int sync_rng_state ( int *rng_state_in, int const id, int const reset);
+int save_rng_state ( int const id, char * filename );
+int read_rng_state ( int **rng_state, int const id, char * filename );
+int get_rng_state ( int *rng_state );
 
 
 int shift_spinor_field (double *s, double *r, int *d);
@@ -144,9 +148,9 @@ int spinor_field_tm_rotation(double*s, double*r, int sign, int fermion_type, uns
 
 int check_cvc_wi_position_space (double *conn);
 
-int assign_fermion_propagaptor_from_spinor_field (fermion_propagator_type *s, double**prop_list, unsigned int N);
-int assign_spinor_field_from_fermion_propagaptor (double**prop_list, fermion_propagator_type *s, unsigned int N);
-int assign_spinor_field_from_fermion_propagaptor_component (double*spinor_field, fermion_propagator_type *s, int icomp, unsigned int N);
+int assign_fermion_propagator_from_spinor_field (fermion_propagator_type *s, double**prop_list, unsigned int N);
+int assign_spinor_field_from_fermion_propagator (double**prop_list, fermion_propagator_type *s, unsigned int N);
+int assign_spinor_field_from_fermion_propagator_component (double*spinor_field, fermion_propagator_type *s, int icomp, unsigned int N);
 
 void spinor_field_eq_spinor_field_ti_co (double*r, double*s, complex w, unsigned int N);
 void spinor_field_pl_eq_spinor_field_ti_co (double*r, double*s, complex w, unsigned int N);
@@ -198,6 +202,8 @@ void spinor_field_eq_gauge_field_fbwd_ti_spinor_field (double*r, double *gf, dou
 void fermion_propagator_field_eq_gamma_ti_fermion_propagator_field ( fermion_propagator_type *r, int gid, fermion_propagator_type *s, unsigned int N);
 
 void fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fermion_propagator_type *r, int gid, fermion_propagator_type *s, unsigned int N);
+
+void fermion_propagator_field_eq_fermion_propagator_field_ti_re (fermion_propagator_type*r, fermion_propagator_type*s, double c, unsigned int N);
 
 int fix_eigenvector_phase ( double **evecs_field, int num );
 

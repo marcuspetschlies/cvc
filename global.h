@@ -92,6 +92,8 @@
 #define MAX_MOMENTUM_NUMBER 300
 #define MAX_SEQUENTIAL_SOURCE_TIMESLICE_NUMBER 128
 
+#define MAX_PARAM_NUMBER 100
+
 namespace cvc {
 
 typedef struct momentum_info_struct {
@@ -257,6 +259,8 @@ EXTERN int g_fermion_type;
 EXTERN int g_coherent_source_number;
 
 extern char const * const g_gitversion;
+EXTERN double g_twisted_masses_list[MAX_PARAM_NUMBER];
+EXTERN int g_twisted_masses_number;
 
 }
 

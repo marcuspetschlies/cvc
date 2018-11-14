@@ -7,11 +7,11 @@
 #error exclusive XXX_SOLVER definitions
 #endif
 
-#if ( defined DUMMY_SOLVER )
+#if ( defined DUMMY_SOLVER ) || ( ! defined HAVE_TMLQCD_LIBWRAPPER ) 
 #  define _TMLQCD_INVERT dummy_solver
 namespace cvc {
 // int dummy_solver ( double * const propagator, double * const source, const int op_id, int write_prop);
-int dummy_solver ( double * const propagator, double * const source, const int op_id );
+int dummy_solver ( double * const propagator, double * const source, int const op_id );
 }  /* end of namespace cvc */
 #elif ( defined GPU_DIRECT_SOLVER )
 #  define _TMLQCD_INVERT(PROP, SOURCE, OP_ID) \
@@ -22,3 +22,4 @@ int dummy_solver ( double * const propagator, double * const source, const int o
 #endif
 
 #endif
+

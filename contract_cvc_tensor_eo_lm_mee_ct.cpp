@@ -4,6 +4,7 @@
  * Mi 21. Mär 07:21:36 CET 2018
  ***********************************************************/
 
+#ifdef HAVE_LHPC_AFF
 /***********************************************************
  * contractions for Mee part of eo-precon lm cvc - cvc tensor
  ***********************************************************/
@@ -144,7 +145,7 @@ int contract_cvc_tensor_eo_lm_mee_ct (
         int const dt2  = ( ilambda == 0 );
         int const idt2 = dt2 + 2;
 
-        for ( int imom = 0; imom < momentum_number; imom++ ) {
+        for ( unsigned int imom = 0; imom < momentum_number; imom++ ) {
           double const q[4] = { 0,
             TWO_MPI_OVER_L[0] * momentum_list[imom][0],
             TWO_MPI_OVER_L[1] * momentum_list[imom][1],
@@ -173,7 +174,7 @@ int contract_cvc_tensor_eo_lm_mee_ct (
         int const dt2  = ( ilambda == 0 );
         int const idt2 = dt2 + 2;
 
-        for ( int imom = 0; imom < momentum_number; imom++ ) {
+        for ( unsigned int imom = 0; imom < momentum_number; imom++ ) {
           double const q[4] = { 0,
             TWO_MPI_OVER_L[0] * momentum_list[imom][0],
             TWO_MPI_OVER_L[1] * momentum_list[imom][1],
@@ -202,7 +203,7 @@ int contract_cvc_tensor_eo_lm_mee_ct (
         int const dt2  = 0;
         int const idt2 = dt2 + 2;
 
-        for ( int imom = 0; imom < momentum_number; imom++ ) {
+        for ( unsigned int imom = 0; imom < momentum_number; imom++ ) {
           double const q[4] = { 0,
             TWO_MPI_OVER_L[0] * momentum_list[imom][0],
             TWO_MPI_OVER_L[1] * momentum_list[imom][1],
@@ -231,7 +232,7 @@ int contract_cvc_tensor_eo_lm_mee_ct (
         int const dt2  = 0;
         int const idt2 = dt2 + 2;
 
-        for ( int imom = 0; imom < momentum_number; imom++ ) {
+        for ( unsigned int imom = 0; imom < momentum_number; imom++ ) {
           double const q[4] = { 0,
             TWO_MPI_OVER_L[0] * momentum_list[imom][0],
             TWO_MPI_OVER_L[1] * momentum_list[imom][1],
@@ -261,7 +262,7 @@ int contract_cvc_tensor_eo_lm_mee_ct (
         int const dt2  = ( imu == 0 ) + ( ilambda == 0 );
         int const idt2 = dt2 + 2;
 
-        for ( int imom = 0; imom < momentum_number; imom++ ) {
+        for ( unsigned int imom = 0; imom < momentum_number; imom++ ) {
           double const q[4] = { 0,
             TWO_MPI_OVER_L[0] * momentum_list[imom][0],
             TWO_MPI_OVER_L[1] * momentum_list[imom][1],
@@ -291,7 +292,7 @@ int contract_cvc_tensor_eo_lm_mee_ct (
         int const dt2  = ( imu == 0 ) + ( ilambda == 0 );
         int const idt2 = dt2 + 2;
 
-        for ( int imom = 0; imom < momentum_number; imom++ ) {
+        for ( unsigned int imom = 0; imom < momentum_number; imom++ ) {
           double const q[4] = { 0,
             TWO_MPI_OVER_L[0] * momentum_list[imom][0],
             TWO_MPI_OVER_L[1] * momentum_list[imom][1],
@@ -321,7 +322,7 @@ int contract_cvc_tensor_eo_lm_mee_ct (
         int const dt2  = ( imu == 0 );
         int const idt2 = dt2 + 2;
 
-        for ( int imom = 0; imom < momentum_number; imom++ ) {
+        for ( unsigned int imom = 0; imom < momentum_number; imom++ ) {
           double const q[4] = { 0,
             TWO_MPI_OVER_L[0] * momentum_list[imom][0],
             TWO_MPI_OVER_L[1] * momentum_list[imom][1],
@@ -351,7 +352,7 @@ int contract_cvc_tensor_eo_lm_mee_ct (
         int const dt2  = ( imu == 0 );
         int const idt2 = dt2 + 2;
 
-        for ( int imom = 0; imom < momentum_number; imom++ ) {
+        for ( unsigned int imom = 0; imom < momentum_number; imom++ ) {
           double const q[4] = { 0,
             TWO_MPI_OVER_L[0] * momentum_list[imom][0],
             TWO_MPI_OVER_L[1] * momentum_list[imom][1],
@@ -652,7 +653,7 @@ int contract_cvc_tensor_eo_lm_mee_ct (
       for ( int idt = 0; idt < 5; idt++ ) {
         int const dt = idt - 2;
 
-        for ( int imom = 0; imom < momentum_number; imom++ ) {
+        for ( unsigned int imom = 0; imom < momentum_number; imom++ ) {
 
           for ( int imu = 0; imu < 4; imu++ ) {
 
@@ -683,3 +684,4 @@ int contract_cvc_tensor_eo_lm_mee_ct (
   return(0);
  
 }  // end of contract_cvc_tensor_eo_lm_mee_ct
+#endif  /* of if def HAVE_LHPC_AFF */

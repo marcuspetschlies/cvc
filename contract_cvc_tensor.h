@@ -27,6 +27,8 @@ int apply_constant_cvc_vertex_at_source (double**s, int mu, int fbwd, const unsi
 
 int contract_write_to_aff_file (double **c_tp, struct AffWriter_s*affw, char*tag, int (*momentum_list)[3], int momentum_number, int io_proc );
 
+int contract_write_to_h5_file (double **c_tp, void * file, char*tag, int (*momentum_list)[3], int momentum_number, int io_proc );
+
 int contract_local_local_2pt_eo ( double**sprop_list_e, double**sprop_list_o, double**tprop_list_e, double**tprop_list_o,
     int *gamma_sink_list, int gamma_sink_num, int*gamma_source_list, int gamma_source_num, int (*momentum_list)[3], int momentum_number,  struct AffWriter_s*affw, char*tag,
     int io_proc );
