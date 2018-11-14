@@ -897,7 +897,7 @@ int contract_write_to_h5_file (double **c_tp, void * file, char*tag, int (*momen
 
   if ( io_proc == 2 ) {
 
-    zbuffer = init_2level_dtable ( momentum_number, 2 * T_global );
+    zbuffer = init_2level_dtable ( T_global, 2 * momentum_number );
     if( zbuffer == NULL ) {
       fprintf(stderr, "[contract_write_to_h5_file] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
       return(6);
