@@ -90,13 +90,11 @@ int main(int argc, char **argv) {
   int io_proc = -1;
   int check_propagator_residual = 0;
   unsigned int Vhalf;
-  size_t sizeof_eo_spinor_field;
-  size_t sizeof_spinor_field;
   double **eo_spinor_field=NULL;
   char filename[100];
   // double ratime, retime;
-  double **lmzz[2], **lmzzinv[2];
-  double **smzz[2], **smzzinv[2];
+  double **lmzz[2] = { NULL, NULL }, **lmzzinv[2] = { NULL, NULL };
+  double **smzz[2] = { NULL, NULL }, **smzzinv[2] = { NULL, NULL };
   double *gauge_field_with_phase = NULL;
 
 
@@ -130,7 +128,7 @@ int main(int argc, char **argv) {
   g_the_time = time(NULL);
 
   /* set the default values */
-  if(filename_set==0) strcpy(filename, "cpff.input");
+  if(filename_set==0) strcpy(filename, "twopt.input");
   /* fprintf(stdout, "# [twopt_invert_contract] Reading input from file %s\n", filename); */
   read_input_parser(filename);
 
@@ -194,8 +192,6 @@ int main(int argc, char **argv) {
   mpi_init_xchange_eo_propagator();
 
   Vhalf                  = VOLUME / 2;
-  sizeof_spinor_field    = _GSI(VOLUME) * sizeof(double);
-  sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
 
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
@@ -311,7 +307,7 @@ int main(int argc, char **argv) {
      **********************************************************/
 
     /**********************************************************
-     * l+ - type propagators
+     * l+ - type propagator
      **********************************************************/
     exitstatus = point_to_all_fermion_propagator_clover_full2eo ( &(eo_spinor_field[0]), &(eo_spinor_field[12]), _OP_ID_UP,
         gsx, gauge_field_with_phase, lmzz[0], lmzzinv[0], check_propagator_residual );
@@ -321,8 +317,30 @@ int main(int argc, char **argv) {
       EXIT(21);
     }
 
+    if ( g_write_propagator ) {
+      /**********************************************************
+       * write l+ - type propagator to disk
+       **********************************************************/
+      double * spinor_field = init_1level_dtable ( _GSI(VOLUME ) );
+      if ( spinor_field == NULL ) {
+        fprintf(stderr, "[twopt_invert_contract] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
+        EXIT(21);
+      }
+
+      for ( int isc = 0; isc < 12; isc++ ) {
+        spinor_field_eo2lexic ( spinor_field, eo_spinor_field[isc], eo_spinor_field[isc+12] );
+        sprintf(filename, "source.%.4d.t%dx%dy%dz%d.f%d.c%d.inverted", Nconf, gsx[0], gsx[1], gsx[2], gsx[3], _OP_ID_UP, isc );
+
+        if ( ( exitstatus = write_propagator( spinor_field, filename, 0, g_propagator_precision) ) != 0 ) {
+          fprintf(stderr, "[twopt_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(2);
+        }
+      }
+      fini_1level_dtable ( &spinor_field );
+    }  /* end of if write propagator */
+
     /**********************************************************
-     * l- - type propagators
+     * l- - type propagator
      **********************************************************/
     exitstatus = point_to_all_fermion_propagator_clover_full2eo ( &(eo_spinor_field[24]), &(eo_spinor_field[36]), _OP_ID_DN,
         gsx, gauge_field_with_phase, lmzz[1], lmzzinv[1], check_propagator_residual );
@@ -331,6 +349,28 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[twopt_invert_contract] Error from point_to_all_fermion_propagator_clover_full2eo; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(21);
     }
+
+    if ( g_write_propagator ) {
+      /**********************************************************
+       * write l- - type propagator to disk
+       **********************************************************/
+      double * spinor_field = init_1level_dtable ( _GSI(VOLUME ) );
+      if ( spinor_field == NULL ) {
+        fprintf(stderr, "[twopt_invert_contract] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
+        EXIT(21);
+      }
+
+      for ( int isc = 0; isc < 12; isc++ ) {
+        spinor_field_eo2lexic ( spinor_field, eo_spinor_field[24+isc], eo_spinor_field[36+isc] );
+        sprintf(filename, "source.%.4d.t%dx%dy%dz%d.f%d.c%d.inverted", Nconf, gsx[0], gsx[1], gsx[2], gsx[3], _OP_ID_DN, isc );
+
+        if ( ( exitstatus = write_propagator( spinor_field, filename, 0, g_propagator_precision) ) != 0 ) {
+          fprintf(stderr, "[twopt_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(2);
+        }
+      }
+      fini_1level_dtable ( &spinor_field );
+    }  /* end of if write propagator */
 
     /***************************************************************************/
     /***************************************************************************/
@@ -383,6 +423,9 @@ int main(int argc, char **argv) {
 
       if ( g_cart_id == 0 && g_verbose > 1 ) fprintf ( stdout, "# [twopt_invert_contract] using mass no. %d = %16.7f\n", imass, g_twisted_masses_list[imass] );
 
+      int const op_id_p = 2 + imass;
+      int const op_id_m = op_id_p + 1;
+
       /***************************************************************************
        * initialize clover, lmzz and lmzzinv
        ***************************************************************************/
@@ -396,9 +439,9 @@ int main(int argc, char **argv) {
       /***************************************************************************/
 
       /***************************************************************************
-       * s+ - type propagators
-      /***************************************************************************/
-      exitstatus = point_to_all_fermion_propagator_clover_full2eo ( &(eo_spinor_field[48]), &(eo_spinor_field[60]), _OP_ID_SP,
+       * s+ - type propagator
+       ***************************************************************************/
+      exitstatus = point_to_all_fermion_propagator_clover_full2eo ( &(eo_spinor_field[48]), &(eo_spinor_field[60]), op_id_p,
           gsx, gauge_field_with_phase, smzz[0], smzzinv[0], check_propagator_residual );
 
       if ( exitstatus != 0 ) {
@@ -406,10 +449,32 @@ int main(int argc, char **argv) {
         EXIT(21);
       }
 
+      if ( g_write_propagator ) {
+        /**********************************************************
+         * write s+ - type propagator to disk
+         **********************************************************/
+        double * spinor_field = init_1level_dtable ( _GSI(VOLUME ) );
+        if ( spinor_field == NULL ) {
+          fprintf(stderr, "[twopt_invert_contract] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
+          EXIT(21);
+        }
+
+        for ( int isc = 0; isc < 12; isc++ ) {
+          spinor_field_eo2lexic ( spinor_field, eo_spinor_field[48+isc], eo_spinor_field[60+isc] );
+          sprintf(filename, "source.%.4d.t%dx%dy%dz%d.op%d.c%d.inverted", Nconf, gsx[0], gsx[1], gsx[2], gsx[3], op_id_p, isc );
+
+          if ( ( exitstatus = write_propagator( spinor_field, filename, 0, g_propagator_precision) ) != 0 ) {
+            fprintf(stderr, "[twopt_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(2);
+          }
+        }
+        fini_1level_dtable ( &spinor_field );
+      }  /* end of if write propagator */
+
       /***************************************************************************
-       * s- - type propagators
+       * s- - type propagator
        ***************************************************************************/
-      exitstatus = point_to_all_fermion_propagator_clover_full2eo ( &(eo_spinor_field[72]), &(eo_spinor_field[84]), _OP_ID_SM,
+      exitstatus = point_to_all_fermion_propagator_clover_full2eo ( &(eo_spinor_field[72]), &(eo_spinor_field[84]), op_id_m,
           gsx, gauge_field_with_phase, smzz[1], smzzinv[1], check_propagator_residual );
 
       if ( exitstatus != 0 ) {
@@ -417,13 +482,35 @@ int main(int argc, char **argv) {
         EXIT(21);
       }
 
+      if ( g_write_propagator ) {
+        /**********************************************************
+         * write s- - type propagator to disk
+         **********************************************************/
+        double * spinor_field = init_1level_dtable ( _GSI(VOLUME ) );
+        if ( spinor_field == NULL ) {
+          fprintf(stderr, "[twopt_invert_contract] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
+          EXIT(21);
+        }
+
+        for ( int isc = 0; isc < 12; isc++ ) {
+          spinor_field_eo2lexic ( spinor_field, eo_spinor_field[72+isc], eo_spinor_field[84+isc] );
+          sprintf(filename, "source.%.4d.t%dx%dy%dz%d.op%d.c%d.inverted", Nconf, gsx[0], gsx[1], gsx[2], gsx[3], op_id_m, isc );
+
+          if ( ( exitstatus = write_propagator( spinor_field, filename, 0, g_propagator_precision) ) != 0 ) {
+            fprintf(stderr, "[twopt_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(2);
+          }
+        }
+        fini_1level_dtable ( &spinor_field );
+      }  /* end of if write propagator */
+
       /***************************************************************************/
       /***************************************************************************/
 
       /***************************************************************************
        * local - local 2-point s+ - u
        ***************************************************************************/
-      sprintf(aff_tag, "/twopt/s+u+/t%dx%dy%dz%d/m%6.4f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass] );
+      sprintf(aff_tag, "/twopt/s+u+/t%dx%dy%dz%d/m%10.8f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass] );
       exitstatus = contract_local_local_2pt_eo (
          &(eo_spinor_field[72]), &(eo_spinor_field[84]),
          &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
@@ -439,7 +526,7 @@ int main(int argc, char **argv) {
       /***************************************************************************
        * local - local 2-point s- - u
        ***************************************************************************/
-      sprintf(aff_tag, "/twopt/s-l+/t%dx%dy%dz%d/m%6.4f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass] );
+      sprintf(aff_tag, "/twopt/s-l+/t%dx%dy%dz%d/m%10.8f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass] );
       exitstatus = contract_local_local_2pt_eo (
          &(eo_spinor_field[60]), &(eo_spinor_field[72]),
          &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
@@ -455,7 +542,7 @@ int main(int argc, char **argv) {
       /***************************************************************************
        * local - local 2-point s- - s+
        ***************************************************************************/
-      sprintf(aff_tag, "/twopt/s-s+/t%dx%dy%dz%d/m%6.4f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass] );
+      sprintf(aff_tag, "/twopt/s-s+/t%dx%dy%dz%d/m%10.8f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass] );
       exitstatus = contract_local_local_2pt_eo (
          &(eo_spinor_field[48]), &(eo_spinor_field[60]),
          &(eo_spinor_field[48]), &(eo_spinor_field[60]),
@@ -471,7 +558,7 @@ int main(int argc, char **argv) {
       /***************************************************************************
        * local - local 2-point s+ - s+
        ***************************************************************************/
-      sprintf(aff_tag, "/twopt/s-s+/t%dx%dy%dz%d/m%6.4f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass] );
+      sprintf(aff_tag, "/twopt/s+s+/t%dx%dy%dz%d/m%10.8f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass] );
       exitstatus = contract_local_local_2pt_eo (
          &(eo_spinor_field[72]), &(eo_spinor_field[84]),
          &(eo_spinor_field[48]), &(eo_spinor_field[60]),
@@ -570,8 +657,9 @@ int main(int argc, char **argv) {
         /***********************************************************/
         /***********************************************************/
   
-        sprintf(aff_tag, "/omega-omega/t%.2dx%.2dy%.2dz%.2d/gi%.2d/gf%.2d/d1",
-            gsx[0], gsx[1], gsx[2], gsx[3], gamma_f1_list[if1], gamma_f1_list[if2]);
+        sprintf(aff_tag, "/omega-omega/t%.2dx%.2dy%.2dz%.2d/m%10.8f/gi%.2d/gf%.2d/d1",
+            gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass],
+            gamma_f1_list[if1], gamma_f1_list[if2]);
 
         exitstatus = contract_v5 ( v2, fp2, fp3, fp, VOLUME );
         if ( exitstatus != 0 ) {
@@ -594,8 +682,9 @@ int main(int argc, char **argv) {
         /***********************************************************/
         /***********************************************************/
 
-        sprintf(aff_tag, "/omega-omega/t%.2dx%.2dy%.2dz%.2d/gi%.2d/gf%.2d/d6",
-            gsx[0], gsx[1], gsx[2], gsx[3], gamma_f1_list[if1], gamma_f1_list[if2]);
+        sprintf(aff_tag, "/omega-omega/t%.2dx%.2dy%.2dz%.2d/m%10.8f/gi%.2d/gf%.2d/d6",
+            gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass],
+            gamma_f1_list[if1], gamma_f1_list[if2]);
 
         exitstatus = contract_v6 ( v2, fp, fp2, fp3, VOLUME );
         if ( exitstatus != 0 ) {
@@ -617,6 +706,12 @@ int main(int argc, char **argv) {
 
       }}  /* end of loop on i1, f1 vertex */
 
+      /***********************************************************/
+      /***********************************************************/
+
+      /***********************************************************
+       * clean up
+       ***********************************************************/
       free_fp_field ( &fp  );
       free_fp_field ( &fp2 );
       free_fp_field ( &fp3 );
@@ -624,6 +719,8 @@ int main(int argc, char **argv) {
       fini_3level_dtable ( &vp );
  
       fini_2level_dtable ( &spinor_field );
+
+      fini_clover ( &smzz, &smzzinv );
 
     }  /* end of loop on extra masses */
 
