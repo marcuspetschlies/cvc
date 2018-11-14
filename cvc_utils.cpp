@@ -4162,7 +4162,7 @@ int init_rng_stat_file (unsigned int seed, char*filename) {
 /******************************************************************
  * synchronize rng state to state at cart processor id id
  ******************************************************************/
-int sync_rng_state ( int const id, int const reset) {
+int sync_rng_state ( int *rng_state_in, int const id, int const reset) {
 #ifdef HAVE_MPI
   int c;
   int *rng_state=NULL;
@@ -4175,7 +4175,14 @@ int sync_rng_state ( int const id, int const reset) {
     fprintf ( stderr, "[sync_rng_state] Error from malloc %s %d\n", __FILE__, __LINE__ );
     return(1);
   }
-  if(g_cart_id == id) { rlxd_get(rng_state); }
+
+  if(g_cart_id == id) { 
+    if ( rng_state_in != NULL ) {
+      memcpy ( rng_state, rng_state_in, c * sizeof ( int ) );
+    } else {
+      rlxd_get(rng_state); 
+    }
+  }
   
   if ( MPI_Bcast ( rng_state, c, MPI_INT, id, g_cart_grid ) != MPI_SUCCESS ) {
     fprintf ( stderr, "[sync_rng_state] Error from MPI_Bcast %s %d\n", __FILE__, __LINE__ );
@@ -4184,10 +4191,12 @@ int sync_rng_state ( int const id, int const reset) {
   rlxd_reset ( rng_state );
   free(rng_state);
 #endif
+  /* 
   if(reset) { 
     if ( g_cart_id == 0 ) fprintf ( stdout, "# [sync_rng_state] WARNING: set global rng state to current state at process %d\n", id);
-    rlxd_get ( g_rng_state );
+    if ( g_rng_state != NULL ) rlxd_get ( g_rng_state );
   }
+  */
   return(0);
 }  /* end of sync_rng_state */
 
@@ -4230,6 +4239,18 @@ int fini_rng_state (int **rng_state) {
   }
   return(0);
 }  /* end of fini_rng_state */
+
+/******************************************************************
+ * get the current rng state
+ ******************************************************************/
+int get_rng_state ( int *rng_state ) {
+  if ( rng_state == NULL ) {
+    fprintf ( stderr, "[get_rng_state] Error rng state not allocated %s %d\n", __FILE__, __LINE__ );
+    return ( 1 );
+  }
+  rlxd_get ( rng_state );
+  return ( 0 );
+}  /* end of get_rng_state */
 
 /******************************************************************
  * save rng state to file
