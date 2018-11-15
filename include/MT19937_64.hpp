@@ -56,6 +56,8 @@
    email: m-mat @ math.sci.hiroshima-u.ac.jp (remove spaces)
 */
 
+/* Class implementation by Bartosz Kostrzewa, 2018 */
+
 namespace cvc {
 
 constexpr unsigned long long MT19937_64_NN = 312;
@@ -64,6 +66,9 @@ constexpr unsigned long long MT19937_64_MATRIX_A = 0xB5026F5AA96619E9ULL;
 constexpr unsigned long long MT19937_64_UM = 0xFFFFFFFF80000000ULL;
 constexpr unsigned long long MT19937_64_LM = 0x7FFFFFFFULL;
 
+/**
+ * @brief class wrapper for 64-bit Mersenne Twister
+ */
 class MT19937_64 {
 public:
   MT19937_64(const unsigned long long seed) :
@@ -82,9 +87,15 @@ public:
     initialised = other.get_init();
   }
   
-  // the default test program provided with MT19937_64 initializes the RNG
-  // with an array of length 4. In order to test that our version works
-  // correctly, we need to support the same mode!
+  /**
+   * @brief Constructor which initialises with an array of seeds.
+   * The default test program for MT19937_64 initialises the RNG with
+   * a seed array of length 4. In order to check for correctness, we
+   * need to support this mode as well.
+   *
+   * @param init_key[]
+   * @param key_length
+   */
   MT19937_64(const unsigned long long init_key[],
              const unsigned long long key_length) :
     mag01{0ULL, MT19937_64_MATRIX_A}
@@ -181,11 +192,10 @@ private:
   }
 
   bool initialised;
-  unsigned long long mt[MT19937_64_NN];
-  int mti;
+  unsigned long long mt[MT19937_64_NN]; /* the 312 64-bit uints which give the state of the RNG */  
+  int mti; /* position in the RNG sequence, part of internal state */
 
-  const unsigned long long mag01[2];
-
+  const unsigned long long mag01[2]; /* magic numbers */
 };
 
 }
