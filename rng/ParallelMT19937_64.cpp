@@ -29,7 +29,7 @@ namespace cvc {
   {
 #pragma omp parallel for
     for(unsigned int li = 0; li < VOLUME; ++li){
-      for(int i_per_site = 0; i_per_site < n_per_site; ++i_per_site){
+      for(unsigned int i_per_site = 0; i_per_site < n_per_site; ++i_per_site){
         buffer[n_per_site*li + i_per_site] = local_rngs[li].gen_real();
       }
     }
