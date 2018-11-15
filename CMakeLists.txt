@@ -261,6 +261,7 @@ if( QPHIX_HOME )
   message( STATUS "compiling against tmLQCD with QPhiX" )
 endif()
 
+include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_SOURCE_DIR})
 
@@ -297,3 +298,5 @@ add_executable(cpff_invert_contract
 target_link_libraries(cpff_invert_contract
   cvc
 )
+
+add_subdirectory(tests)

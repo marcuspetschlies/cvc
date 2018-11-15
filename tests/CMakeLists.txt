@@ -1,0 +1,1 @@
+add_executable(test_MT19937_64 test_MT19937_64.cpp)
