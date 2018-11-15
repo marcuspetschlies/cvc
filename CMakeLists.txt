@@ -293,6 +293,8 @@ add_library(cvc
   gauge_io.cpp
   make_x_orbits.cpp
 )
+add_library(ParallelMT19937_64
+  rng/ParallelMT19937_64.cpp)
 
 add_executable(cpff_invert_contract
   cpff_invert_contract.cpp

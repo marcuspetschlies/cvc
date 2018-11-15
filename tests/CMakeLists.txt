@@ -1,1 +1,4 @@
 add_executable(test_MT19937_64 test_MT19937_64.cpp)
+add_executable(test_ParallelMT19937_64 test_ParallelMT19937_64.cpp)
+
+target_link_libraries(test_ParallelMT19937_64 ParallelMT19937_64)
