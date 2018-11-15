@@ -62,9 +62,9 @@ int main(int argc, char** argv)
   sw.elapsed_print_and_reset("ParallelMT19937_64 initialisation");
 
   std::vector<double> testvec(8*VOLUME);
-  // generate 8*VOLUME random numbers 50 times
+  // generate 24*VOLUME random numbers 50 times
   for(int irun = 0; irun < 50; irun++){
-    rangen.gen_real(testvec.data(), 8);
+    rangen.gen_real(testvec.data(), 24);
     std::cout << testvec[989] << std::endl;
   }
   sw.elapsed_print("ParallelMT19937_64 test generation");
