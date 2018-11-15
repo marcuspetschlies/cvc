@@ -139,7 +139,7 @@ int main(int argc, char **argv) {
   /*********************************
    * initialize MPI parameters for cvc
    *********************************/
-  exitstatus = tmLQCD_invert_init(argc, argv, 1);
+  exitstatus = tmLQCD_invert_init(argc, argv, 1, 0);
   if(exitstatus != 0) {
     EXIT(1);
   }
@@ -423,7 +423,7 @@ int main(int argc, char **argv) {
 
       if ( g_cart_id == 0 && g_verbose > 1 ) fprintf ( stdout, "# [twopt_invert_contract] using mass no. %d = %16.7f\n", imass, g_twisted_masses_list[imass] );
 
-      int const op_id_p = 2 + imass;
+      int const op_id_p = 2 * ( 1 + imass );
       int const op_id_m = op_id_p + 1;
 
       /***************************************************************************
