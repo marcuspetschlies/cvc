@@ -3,6 +3,9 @@
 #include "global.h"
 
 #include <iostream>
+#ifdef HAVE_OPENMP
+#include <omp.h>
+#endif
 
 namespace cvc {
   ParallelMT19937_64::ParallelMT19937_64(const unsigned long long seed) :

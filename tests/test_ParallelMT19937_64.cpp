@@ -59,9 +59,11 @@ int main(int argc, char** argv)
 
   sw.reset();
   ParallelMT19937_64 rangen(982932ULL);
-  sw.elapsed_print_and_reset("ParallelMT19937_64 initialisation");
+  sw.elapsed_print("ParallelMT19937_64 initialisation");
 
   std::vector<double> testvec(8*VOLUME);
+
+  sw.reset();
   // generate 24*VOLUME random numbers 50 times
   for(int irun = 0; irun < 50; irun++){
     rangen.gen_real(testvec.data(), 24);
