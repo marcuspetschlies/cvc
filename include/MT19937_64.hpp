@@ -1,3 +1,6 @@
+#ifndef MT19937_64_HPP
+#define MT19937_64_HPP
+
 /* 
    A C-program for MT19937-64 (2004/9/29 version).
    Coded by Takuji Nishimura and Makoto Matsumoto.
@@ -68,6 +71,16 @@ public:
   {
     init(seed);
   }
+
+  MT19937_64(const MT19937_64 & other) : 
+    mag01{0ULL, MT19937_64_MATRIX_A}
+  {
+    for(int i = 0; i<MT19937_64_NN; ++i){
+      mt[i] = other.get_mt(i);
+    }
+    mti = other.get_mti();
+    initialised = other.get_init();
+  }
   
   // the default test program provided with MT19937_64 initializes the RNG
   // with an array of length 4. In order to test that our version works
@@ -117,7 +130,23 @@ public:
   {
     return( gen_int64() >> 11) * (1.0/9007199254740991.0);
   }
-  
+
+  unsigned long long get_mt(const int i) const
+  {
+    return( mt[i] );
+  }
+
+  int get_mti(void) const
+  {
+    return(mti);
+  }
+
+  bool get_init(void) const
+  {
+    return(initialised);
+  }
+
+
 private:
   void init(const unsigned long long seed)
   {
@@ -160,3 +189,5 @@ private:
 };
 
 }
+
+#endif
