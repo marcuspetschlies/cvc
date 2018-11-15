@@ -48,7 +48,6 @@ endif()
 set( TMLQCD_SRC CACHE PATH "path to tmLQCD source directory" )
 if( TMLQCD_SRC )
   include_directories( ${TMLQCD_SRC}/include )
-  include_directories( ${TMLQCD_SRC} )
 endif()
 
 set( TMLQCD_BUILD CACHE PATH "path to tmLQCD build directory (must be build directory for source in TMLQCD_SRC!)" )
