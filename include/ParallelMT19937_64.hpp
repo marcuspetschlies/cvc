@@ -2,6 +2,7 @@
 #define PARALLELMT19937_64_HPP
 
 #include "MT19937_64.hpp"
+#include "SequenceOfUnique.hpp"
 #include <vector>
 
 namespace cvc {
@@ -23,8 +24,8 @@ namespace cvc {
    */
 class ParallelMT19937_64 {
   public:
-    ParallelMT19937_64();
-    ParallelMT19937_64(const unsigned long long seed);
+    ParallelMT19937_64() = delete;
+    ParallelMT19937_64(const unsigned long long seed, const bool quick_init = false);
 
     /**
      * @brief Generate real numbers in the interval [0-1]
@@ -35,12 +36,23 @@ class ParallelMT19937_64 {
      */
     void gen_real(double * buffer, const unsigned int n_per_site);
 
+
+    /**
+     * @brief Make sure every lattice point is assigned a unique seed.
+     * Resolve duplicate seeds by first ensuring that the local_seeds
+     * are all unique and then via iterative pairwise comparisons amongst
+     * all MPI tasks until complete uniqueness has been reached.
+     *
+     */
+    void resolve_duplicate_seeds(void);
+
   private:
-    MT19937_64 seed_gen;
+    SequenceOfUnique seed_gen;
     std::vector<MT19937_64> local_rngs;
     std::vector<unsigned long long> local_seeds;
-};
 
-}
+}; // class(ParallelMT19937_64)
+
+} // namespace(cvc)
 
 #endif

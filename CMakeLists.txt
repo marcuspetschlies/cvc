@@ -229,18 +229,7 @@ configure_file("${CMAKE_SOURCE_DIR}/gitversion.cpp.in"
   @ONLY)
 list(APPEND SOURCES "${CMAKE_CURRENT_BINARY_DIR}/gitversion.cpp")
 
-# maybe we might need Boost at some point
-#find_package(Boost 
-#             REQUIRED
-#             program_options
-#             filesystem)
-#if( Boost_FOUND )
-#  link_directories( ${Boost_LIBRARY_DIRS} )
-#  include_directories( ${Boost_INCLUDE_DIRS} )
-#  link_libraries( ${Boost_LIBRARIES} )
-#else()
-#  message( FATAL_ERROR "Unable to find Boost (or one of the requested components, see CMakeLists.txt!")
-#endif()
+find_package(Boost)
 
 set( QMP_HOME CACHE PATH "path to the QMP library required by QPhiX (optional, depends on how tmLQCD was configured)" )
 if( QMP_HOME )
