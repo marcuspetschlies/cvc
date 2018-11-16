@@ -49,8 +49,5 @@ int main(int argc, char** argv)
   }
   sw.elapsed_print("ParallelMT19937_64 test generation");
 
-#ifdef HAVE_MPI
-//  MPI_Finalize();
-#endif
   return 0;
 }
