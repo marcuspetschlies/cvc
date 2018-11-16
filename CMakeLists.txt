@@ -230,6 +230,12 @@ configure_file("${CMAKE_SOURCE_DIR}/gitversion.cpp.in"
 list(APPEND SOURCES "${CMAKE_CURRENT_BINARY_DIR}/gitversion.cpp")
 
 find_package(Boost)
+if( NOT Boost_FOUND )
+  message( FATAL_ERROR "Unable to find Boost (or one of the requested components)")
+else()
+  include_directories(${Boost_INCLUDE_DIRS})
+  link_libraries(${Boost_LIBRARIES})
+endif()
 
 set( QMP_HOME CACHE PATH "path to the QMP library required by QPhiX (optional, depends on how tmLQCD was configured)" )
 if( QMP_HOME )
@@ -281,15 +287,12 @@ add_library(cvc
   DML_crc32.cpp
   gauge_io.cpp
   make_x_orbits.cpp
+  rng/ParallelMT19937_64.cpp
 )
-add_library(ParallelMT19937_64
-  rng/ParallelMT19937_64.cpp)
-
 add_executable(cpff_invert_contract
   cpff_invert_contract.cpp
 )
 target_link_libraries(cpff_invert_contract
   cvc
 )
-
 add_subdirectory(tests)

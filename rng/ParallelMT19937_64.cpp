@@ -12,7 +12,7 @@
 #include <stdio.h>
 
 namespace cvc {
-
+  // 311ULL is just an offset, we could use any other
   ParallelMT19937_64::ParallelMT19937_64(const unsigned long long seed,
                                          const bool quick_init) :
     seed_gen(seed, 311ULL)
