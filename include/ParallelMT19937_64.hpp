@@ -9,10 +9,11 @@ namespace cvc {
 
   /**
    * @brief A parallelized version of MT19937_64
-   * The parallel MT19937_64 is initialised in two steps. First, an RNG
-   * is seeded with the same seed on all MPI tasks and this produces
-   * a sequence of 64-bit unsigned integers as long as the global
-   * lattice is large.
+   * The parallel MT19937_64 is initialised in two steps. First,
+   * a sequence of seeds is generated, as long as the lattice 
+   * is large. These sequences are guaranteed to be sequences
+   * of unique 64-bit integers which repeat only with a very long
+   * period. 
    *
    * This sequence is then used to initialise one RNG per lattice
    * site. Because the used seed is linked to the global lattice 
@@ -35,16 +36,6 @@ class ParallelMT19937_64 {
      * @param n_per_site Number of elements per site.
      */
     void gen_real(double * buffer, const unsigned int n_per_site);
-
-
-    /**
-     * @brief Make sure every lattice point is assigned a unique seed.
-     * Resolve duplicate seeds by first ensuring that the local_seeds
-     * are all unique and then via iterative pairwise comparisons amongst
-     * all MPI tasks until complete uniqueness has been reached.
-     *
-     */
-    void resolve_duplicate_seeds(void);
 
   private:
     SequenceOfUnique seed_gen;
