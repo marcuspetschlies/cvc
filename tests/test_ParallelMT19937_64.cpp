@@ -32,15 +32,10 @@ int main(int argc, char** argv)
   debug_printf(0, 0, "\n\n############ TESTING ParallelMT19937_64 ###############\n\n");
 
   sw.reset();
-  ParallelMT19937_64 rangen(982932ULL, true);
-  sw.elapsed_print("Quick ParallelMT19937_64 initialisation");
+  ParallelMT19937_64 rangen(982932ULL);
+  sw.elapsed_print("ParallelMT19937_64 initialisation");
   
-  sw.reset();
-  ParallelMT19937_64 rangen2(982932ULL, false);
-  sw.elapsed_print("Slow ParallelMT19937_64 initialisation");
-
   std::vector<double> testvec(24*VOLUME);
-
   sw.reset();
   // generate 24*VOLUME random numbers 50 times
   for(int irun = 0; irun < 50; irun++){

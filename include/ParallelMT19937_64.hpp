@@ -26,7 +26,7 @@ namespace cvc {
 class ParallelMT19937_64 {
   public:
     ParallelMT19937_64() = delete;
-    ParallelMT19937_64(const unsigned long long seed, const bool quick_init = false);
+    ParallelMT19937_64(const unsigned long long seed);
 
     /**
      * @brief Generate real numbers in the interval [0-1]
