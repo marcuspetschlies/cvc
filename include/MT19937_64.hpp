@@ -101,7 +101,15 @@ public:
     init_by_array(init_key, key_length);
   }
 
-  MT19937_64() : MT19937_64(5489ULL) {};
+
+  /**
+   * @brief Default constructor.
+   * WARNING: the default constructor is empty on purpose. If default-constructed,
+   * one of the initialisation functions has to be called externally! 
+   */
+  MT19937_64()
+  {
+  };
 
 	unsigned long long gen_int64(void)
   {
@@ -155,8 +163,6 @@ public:
     return(initialised);
   }
 
-
-private:
   void init(const unsigned long long seed)
   {
     mt[0] = seed;
@@ -188,6 +194,8 @@ private:
   
       mt[0] = 1ULL << 63; /* MSB is 1; assuring non-zero initial array */ 
   }
+
+private:
 
   bool initialised;
   unsigned long long mt[MT19937_64_NN]; /* the 312 64-bit uints which give the state of the RNG */  
