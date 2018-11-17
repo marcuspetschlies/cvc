@@ -174,25 +174,25 @@ public:
   void init_by_array(const unsigned long long init_key[],
   		               const unsigned long long key_length)
   {
-      unsigned long long i, j, k;
-      init(19650218ULL);
-      i=1; j=0;
-      k = (MT19937_64_NN>key_length ? MT19937_64_NN : key_length);
-      for (; k; k--) {
-          mt[i] = (mt[i] ^ ((mt[i-1] ^ (mt[i-1] >> 62)) * 3935559000370003845ULL))
-            + init_key[j] + j; /* non linear */
-          i++; j++;
-          if (i>=MT19937_64_NN) { mt[0] = mt[MT19937_64_NN-1]; i=1; }
-          if (j>=key_length) j=0;
-      }
-      for (k=MT19937_64_NN-1; k; k--) {
-          mt[i] = (mt[i] ^ ((mt[i-1] ^ (mt[i-1] >> 62)) * 2862933555777941757ULL))
-            - i; /* non linear */
-          i++;
-          if (i>=MT19937_64_NN) { mt[0] = mt[MT19937_64_NN-1]; i=1; }
-      }
+    unsigned long long i, j, k;
+    init(19650218ULL);
+    i=1; j=0;
+    k = (MT19937_64_NN>key_length ? MT19937_64_NN : key_length);
+    for (; k; k--) {
+        mt[i] = (mt[i] ^ ((mt[i-1] ^ (mt[i-1] >> 62)) * 3935559000370003845ULL))
+          + init_key[j] + j; /* non linear */
+        i++; j++;
+        if (i>=MT19937_64_NN) { mt[0] = mt[MT19937_64_NN-1]; i=1; }
+        if (j>=key_length) j=0;
+    }
+    for (k=MT19937_64_NN-1; k; k--) {
+        mt[i] = (mt[i] ^ ((mt[i-1] ^ (mt[i-1] >> 62)) * 2862933555777941757ULL))
+          - i; /* non linear */
+        i++;
+        if (i>=MT19937_64_NN) { mt[0] = mt[MT19937_64_NN-1]; i=1; }
+    }
   
-      mt[0] = 1ULL << 63; /* MSB is 1; assuring non-zero initial array */ 
+    mt[0] = 1ULL << 63; /* MSB is 1; assuring non-zero initial array */ 
   }
 
 private:
