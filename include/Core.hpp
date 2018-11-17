@@ -59,6 +59,7 @@ class Core {
 #endif
       free_geometry();
 #ifdef HAVE_MPI
+      mpi_fini_datatypes();
       MPI_Finalize();
 #endif
     }
