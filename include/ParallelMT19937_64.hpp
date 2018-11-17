@@ -35,7 +35,20 @@ class ParallelMT19937_64 {
      * is allocated and has n_per_site*VOLUME elements.
      * @param n_per_site Number of elements per site.
      */
-    void gen_real(double * buffer, const unsigned int n_per_site);
+    void
+    gen_real(double * buffer, const unsigned int n_per_site);
+  
+    /**
+     * @brief Generate a single random number using specific RNG.
+     * The RNG belonging to local_site_idx is used to generate
+     * a single random number in the range [0,1]
+     *
+     * @param local_site_idx
+     *
+     * @return random number in range [0,1]
+     */
+    double
+    gen_real_at_site(size_t local_site_idx);
 
   private:
     SequenceOfUnique seed_gen;

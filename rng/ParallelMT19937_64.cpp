@@ -47,4 +47,9 @@ namespace cvc {
     }
   }
 
+  double
+  ParallelMT19937_64::gen_real_at_site(size_t local_site_idx){
+    return(local_rngs[local_site_idx].gen_real());
+  }
+
 } // namespace(cvc)
