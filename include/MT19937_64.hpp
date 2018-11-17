@@ -65,20 +65,19 @@ constexpr unsigned long long MT19937_64_MM = 156;
 constexpr unsigned long long MT19937_64_MATRIX_A = 0xB5026F5AA96619E9ULL;
 constexpr unsigned long long MT19937_64_UM = 0xFFFFFFFF80000000ULL;
 constexpr unsigned long long MT19937_64_LM = 0x7FFFFFFFULL;
+constexpr unsigned long long MT19937_64_mag01[2] = {0ULL, MT19937_64_MATRIX_A};
 
 /**
  * @brief class wrapper for 64-bit Mersenne Twister
  */
 class MT19937_64 {
 public:
-  MT19937_64(const unsigned long long seed) :
-		mag01{0ULL, MT19937_64_MATRIX_A} 
+  MT19937_64(const unsigned long long seed)
   {
     init(seed);
   }
 
-  MT19937_64(const MT19937_64 & other) : 
-    mag01{0ULL, MT19937_64_MATRIX_A}
+  MT19937_64(const MT19937_64 & other) 
   {
     for(int i = 0; i<MT19937_64_NN; ++i){
       mt[i] = other.get_mt(i);
@@ -97,8 +96,7 @@ public:
    * @param key_length
    */
   MT19937_64(const unsigned long long init_key[],
-             const unsigned long long key_length) :
-    mag01{0ULL, MT19937_64_MATRIX_A}
+             const unsigned long long key_length)
   {
     init_by_array(init_key, key_length);
   }
@@ -114,14 +112,14 @@ public:
 
         for (i=0;i<MT19937_64_NN-MT19937_64_MM;i++) {
             x = (mt[i]&MT19937_64_UM)|(mt[i+1]&MT19937_64_LM);
-            mt[i] = mt[i+MT19937_64_MM] ^ (x>>1) ^ mag01[(int)(x&1ULL)];
+            mt[i] = mt[i+MT19937_64_MM] ^ (x>>1) ^ MT19937_64_mag01[(int)(x&1ULL)];
         }
         for (;i<MT19937_64_NN-1;i++) {
             x = (mt[i]&MT19937_64_UM)|(mt[i+1]&MT19937_64_LM);
-            mt[i] = mt[i+(MT19937_64_MM-MT19937_64_NN)] ^ (x>>1) ^ mag01[(int)(x&1ULL)];
+            mt[i] = mt[i+(MT19937_64_MM-MT19937_64_NN)] ^ (x>>1) ^ MT19937_64_mag01[(int)(x&1ULL)];
         }
         x = (mt[MT19937_64_NN-1]&MT19937_64_UM)|(mt[0]&MT19937_64_LM);
-        mt[MT19937_64_NN-1] = mt[MT19937_64_MM-1] ^ (x>>1) ^ mag01[(int)(x&1ULL)];
+        mt[MT19937_64_NN-1] = mt[MT19937_64_MM-1] ^ (x>>1) ^ MT19937_64_mag01[(int)(x&1ULL)];
 
         mti = 0;
     }
@@ -194,8 +192,6 @@ private:
   bool initialised;
   unsigned long long mt[MT19937_64_NN]; /* the 312 64-bit uints which give the state of the RNG */  
   int mti; /* position in the RNG sequence, part of internal state */
-
-  const unsigned long long mag01[2]; /* magic numbers */
 };
 
 }
