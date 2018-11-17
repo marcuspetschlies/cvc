@@ -16,6 +16,12 @@
 
 #include <iostream>
 #include <vector>
+#include <array>
+#include <fstream>
+
+constexpr unsigned int startsite = 0;
+constexpr unsigned int no_testsites = 1000;
+constexpr unsigned int no_testvals = 50000;
 
 using namespace cvc;
 
@@ -34,6 +40,58 @@ int main(int argc, char** argv)
   sw.reset();
   ParallelMT19937_64 rangen(982932ULL);
   sw.elapsed_print("ParallelMT19937_64 initialisation");
+
+  ParallelMT19937_64 rangen2(982932ULL);
+
+  MT19937_64 sitegen(877123ULL);
+
+  // output for statistical tests
+  std::vector< std::vector<double> > ordered(no_testsites);
+  std::vector< std::vector<double> > random(no_testsites);
+
+  for(unsigned int li = 0; li < no_testsites; ++li){
+    ordered[li].resize(no_testvals);
+    random[li].resize(no_testvals);
+  }
+
+  // generate a random sequence of test sites 
+  std::array<size_t, no_testsites> testsites;
+  for(unsigned int li = 0; li < no_testsites; ++li){
+    testsites[li] = static_cast<size_t>(sitegen.gen_int64() % VOLUME);
+  }
+
+  // generate sequences of random numbers using generators sitting at
+  // consecutive lattice sites
+  #pragma omp parallel for
+  for(unsigned int li = startsite; li < no_testsites+startsite; ++li){
+    for(unsigned int ri = 0; ri < no_testvals; ++ri){
+      ordered[li][ri] = rangen.gen_real_at_site(li);
+    }
+  }
+
+  // generate sequences of random numbers using generators randomly
+  // chosen on the lattice
+  #pragma omp parallel for
+  for(unsigned int li = 0; li < no_testsites; ++li){
+    for(unsigned int ri = 0; ri < no_testvals; ++ri){
+      random[li][ri] = rangen2.gen_real_at_site( testsites[li] );
+    }
+  }
+
+  std::fstream random_outfile("random.dat",
+                              std::ios_base::out | std::ios_base::binary);
+  std::fstream ordered_outfile("ordered.dat",
+                               std::ios_base::out | std::ios_base::binary);
+
+  for(unsigned int li = 0; li < no_testsites; ++li){
+    for(unsigned int ri = 0; ri < no_testvals; ++ri){
+      random_outfile << random[li][ri];
+      ordered_outfile << ordered[li][ri];
+    }
+  }
+  random_outfile.close();
+  ordered_outfile.close();
+
   
   std::vector<double> testvec(24*VOLUME);
   sw.reset();
