@@ -10,4 +10,7 @@ target_link_libraries(test_SequenceOfUnique cvc)
 add_executable(benchmark_index_tools benchmark_index_tools.cpp)
 target_link_libraries(benchmark_index_tools cvc)
 
+add_executable(test_index_tools test_index_tools.cpp)
+target_link_libraries(test_index_tools cvc)
+
 add_subdirectory(gtest)
