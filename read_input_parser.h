@@ -20,8 +20,8 @@ namespace cvc {
   extern int myverbose;
   extern double ft_rmax[4];
 
-  int read_input_parser(char *);
-  int reread_input_parser(char *);
+  int read_input_parser(const char *);
+  int reread_input_parser(const char *);
 
 }  /* end of namespace cvc */
 

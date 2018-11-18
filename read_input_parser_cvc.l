@@ -1244,7 +1244,7 @@ namespace cvc {
  * read_input returns 2 if the input file did not exist 
  */
 
-int read_input_parser(char * conf_file){
+int read_input_parser(const char * conf_file){
 
 #ifdef HAVE_MPI
   MPI_Comm_rank( MPI_COMM_WORLD, &myprocid);
@@ -1284,7 +1284,7 @@ int read_input_parser(char * conf_file){
  * reread_input returns 2 if the input file did not exist 
  */
 
-int reread_input_parser(char * conf_file){
+int reread_input_parser(const char * conf_file){
 
 #ifdef HAVE_MPI
   MPI_Comm_rank( MPI_COMM_WORLD, &myprocid);
