@@ -154,6 +154,8 @@ int rot_mat_table_get_bispinor ( rot_mat_table_type *t );
 
 int get_reference_rotation ( int pref[3], int *Rref, int const p[3] );
 
+inline int comp_int3_abs ( int const a[3] , int const b[3] );
+
 /***********************************************************/
 /***********************************************************/
 
