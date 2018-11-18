@@ -10,6 +10,11 @@ typedef enum latDims_t {
   DIM_Z
 } latDims_t;
 
+typedef enum ExitCode_t {
+  CVC_EXIT_SUCCESS = 0,
+  CVC_EXIT_CORE_INIT_FAILURE
+} ExitCode_t;
+
 }
 
 #endif

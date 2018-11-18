@@ -27,7 +27,11 @@ using namespace cvc;
 
 int main(int argc, char** argv)
 {
-  Core core(argc,argv);
+  cvc::Core core(argc,argv);
+  if( !(core.is_initialised()) ){
+    std::cout << "Core initialisation failed!\n";
+    return(CVC_EXIT_CORE_INIT_FAILURE);
+  } 
 
 #ifdef HAVE_MPI
   Stopwatch sw(g_cart_grid);
@@ -102,6 +106,6 @@ int main(int argc, char** argv)
     std::cout << testvec[989] << std::endl;
   }
   sw.elapsed_print("ParallelMT19937_64 test generation");
-
+  
   return 0;
 }

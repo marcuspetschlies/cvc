@@ -5,6 +5,7 @@
 #include "SequenceOfUnique.hpp"
 #include "Stopwatch.hpp"
 #include "Core.hpp"
+#include "enums.hpp"
 
 #include <unordered_set>
 #include <iostream>
@@ -14,6 +15,10 @@ using namespace cvc;
 
 int main(int argc, char ** argv){
   Core core(argc, argv);
+  if( !(core.is_initialised()) ){
+    std::cout << "Core initialisation failed!\n";
+    return(CVC_EXIT_CORE_INIT_FAILURE);
+  } 
 
   std::cout << "Testing SequenceOfUnique" << std::endl;
 
@@ -38,6 +43,6 @@ int main(int argc, char ** argv){
 
   }
   std::cout << "Number of collisions: " << no_collisions << std::endl;
-
+  return 0;
 }
 

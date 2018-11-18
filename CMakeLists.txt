@@ -229,7 +229,9 @@ configure_file("${CMAKE_SOURCE_DIR}/gitversion.cpp.in"
   @ONLY)
 list(APPEND SOURCES "${CMAKE_CURRENT_BINARY_DIR}/gitversion.cpp")
 
-find_package(Boost)
+find_package(Boost
+             REQUIRED
+             program_options)
 if( NOT Boost_FOUND )
   message( FATAL_ERROR "Unable to find Boost (or one of the requested components)")
 else()
