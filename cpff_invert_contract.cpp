@@ -126,7 +126,12 @@ int main(int argc, char **argv) {
   while ((c = getopt(argc, argv, "ch?f:")) != -1) {
     switch (c) {
     case 'f':
-      strcpy(filename, optarg);
+      if( strlen(optarg) == 0 || strlen(optarg) > 100){
+        printf("Passed -f option with empty string or string exceeding 100 characters!");
+        fflush(stdout); 
+        EXIT(222);
+      }
+      snprintf(filename, 100, "%s", optarg);
       filename_set=1;
       break;
     case 'c':
