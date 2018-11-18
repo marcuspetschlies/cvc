@@ -45,6 +45,7 @@ int main(int argc, char** argv)
 
   MT19937_64 sitegen(877123ULL);
 
+  debug_printf(0, 0, "Generatign RNs for statistical tests\n");
   // output for statistical tests
   std::vector< std::vector<double> > ordered(no_testsites);
   std::vector< std::vector<double> > random(no_testsites);
@@ -78,21 +79,21 @@ int main(int argc, char** argv)
     }
   }
 
-  std::fstream random_outfile("random.dat",
-                              std::ios_base::out | std::ios_base::binary);
-  std::fstream ordered_outfile("ordered.dat",
-                               std::ios_base::out | std::ios_base::binary);
+  debug_printf(0,0, "Writing data for statistical tests\n");
+  std::ofstream random_outfile("random.dat",
+                               std::ios::out | std::ios::binary);
+  std::ofstream ordered_outfile("ordered.dat",
+                                std::ios::out | std::ios::binary);
 
   for(unsigned int li = 0; li < no_testsites; ++li){
-    for(unsigned int ri = 0; ri < no_testvals; ++ri){
-      random_outfile << random[li][ri];
-      ordered_outfile << ordered[li][ri];
-    }
+    random_outfile.write((char*)random[li].data(), no_testvals*sizeof(double));
+    ordered_outfile.write((char*)ordered[li].data(), no_testvals*sizeof(double));
   }
   random_outfile.close();
   ordered_outfile.close();
 
   
+  debug_printf(0, 0, "Timing generation of 50*24*VOLUME RNs\n");
   std::vector<double> testvec(24*VOLUME);
   sw.reset();
   // generate 24*VOLUME random numbers 50 times
