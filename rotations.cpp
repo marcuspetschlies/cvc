@@ -244,6 +244,39 @@ void rot_mat_adj (double _Complex **C, double _Complex **R, int N) {
 /***********************************************************/
 
 /***********************************************************
+ * safe, if C = R
+ ***********************************************************/
+void rot_mat_conj (double _Complex ** const C, double _Complex ** const R, unsigned int const N) {
+
+#pragma unroll
+  for ( unsigned int i=0; i<N; i++) {
+  for ( unsigned int k=0; k<N; k++) {
+    S[i][k] = conj( R[i][k] );
+  }}
+}  /* end of rot_mat_conj */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * safe, if C = R
+ ***********************************************************/
+void rot_mat_trans (double _Complex ** const C, double _Complex ** const R, unsigned int const N) {
+
+  double _Complex **S = rot_init_rotation_matrix ( N );
+#pragma unroll
+  for ( unsigned int i=0; i<N; i++) {
+  for ( unsigned int k=0; k<N; k++) {
+    S[i][k] = R[k][i];
+  }}
+  memcpy(C[0], S[0], N*N*sizeof(double _Complex));
+  rot_fini_rotation_matrix ( &S );
+}  /* end of rot_mat_trans */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
  *
  ***********************************************************/
 void rot_mat_assign (double _Complex **C, double _Complex **R, int N) {

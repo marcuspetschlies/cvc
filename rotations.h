@@ -49,6 +49,10 @@ void rot_cartesian_to_spherical_contravariant_mat (double _Complex ***S, double 
 
 void rot_mat_adj (double _Complex **C, double _Complex **R, int N);
 
+void rot_mat_conj (double _Complex ** const C, double _Complex ** const R, unsigned int const N);
+
+void rot_mat_trans (double _Complex ** const C, double _Complex ** const R, unsigned int const N);
+
 void rot_mat_assign (double _Complex **C, double _Complex **R, int N);
 
 void rot_mat_ti_mat (double _Complex ** const C, double _Complex ** const A, double _Complex ** const B, int const N);
