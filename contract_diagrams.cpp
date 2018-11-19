@@ -1440,4 +1440,55 @@ double _Complex contract_diagram_get_correlator_phase ( char * type, int const g
 
 }  // end of contract_diagram_get_correlator_phase
 
+/********************************************************************************/
+/********************************************************************************/
+
+/********************************************************************************
+ *  
+ *  safe, if sp_out = sp_in in memory
+ ********************************************************************************/
+void contract_diagram_mat_op_ti_zm4x4_field_ti_mat_op ( double _Complex *** const sp_out, double _Complex ** const R1, char const op1 , double _Complex *** const sp_in, double _Complex ** const R2, char const op2, unsigned int const N ) {
+
+  /* apply op1 to R1 */
+  if      ( op1 == 'C' ) rot_mat_conj  ( R1, R1, 4 );
+  else if ( op1 == 'H' ) rot_mat_adj   ( R1, R1, 4 );
+  else if ( op1 == 'T' ) rot_mat_trans ( R1, R1, 4 );
+  /* apply op2 to R2 */
+  if      ( op2 == 'C' ) rot_mat_conj  ( R2, R2, 4 );
+  else if ( op2 == 'H' ) rot_mat_adj   ( R2, R2, 4 );
+  else if ( op2 == 'T' ) rot_mat_trans ( R2, R2, 4 );
+
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+  {
+#endif
+  double _Complex ** sp_aux = init_2level_ztable ( 4, 4 );
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for ( unsigned int it = 0; it < N; it++ ) {
+    /* sp_aux = R1^op1 sp_in */
+    rot_mat_ti_mat ( sp_aux,     R1,     sp_in[it], 4 );
+    /* sp_out = sp_aux R2 = R1^op1 sp_in R2^op2 */
+    rot_mat_ti_mat ( sp_out[it], sp_aux, R2,        4 );
+  }
+
+  fini_2level_ztable ( &sp_aux );
+#ifdef HAVE_OPENMP
+  }  /* end of parallel region */
+#endif
+
+  /* undo op1 */
+  if      ( op1 == 'C' ) rot_mat_conj  ( R1, R1, 4 );
+  else if ( op1 == 'H' ) rot_mat_adj   ( R1, R1, 4 );
+  else if ( op1 == 'T' ) rot_mat_trans ( R1, R1, 4 );
+  /* undo op2 */
+  if      ( op2 == 'C' ) rot_mat_conj  ( R2, R2, 4 );
+  else if ( op2 == 'H' ) rot_mat_adj   ( R2, R2, 4 );
+  else if ( op2 == 'T' ) rot_mat_trans ( R2, R2, 4 );
+
+}  /* end of contract_diagram_mat_op_ti_zm4x4_field_ti_mat_op */
+
 }  // end of namespace cvc

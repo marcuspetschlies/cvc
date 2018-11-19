@@ -94,6 +94,7 @@ int contract_diagram_zm4x4_field_pl_eq_zm4x4_field ( double _Complex *** const s
 
 int contract_diagram_zm4x4_field_eq_zm4x4_field_pl_zm4x4_field_ti_co ( double _Complex *** const s, double _Complex *** const r, double _Complex *** const p, double _Complex const z, unsigned int const N);
 
+void contract_diagram_mat_op_ti_zm4x4_field_ti_mat_op ( double _Complex *** const sp_out, double _Complex ** const R1, char const op1 , double _Complex *** const sp_in, double _Complex ** const R2, char const op2, unsigned int const N );
 
 }  // end of namespace cvc
 #endif
