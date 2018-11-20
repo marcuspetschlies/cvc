@@ -69,6 +69,10 @@ extern "C"
 #define _OP_ID_DN 1
 #define _OP_ID_ST 2
 
+/* this should be unified */
+#define _TMLQCD_INVERT_TBC(_p,_s,_o) invert_quda_direct_theta( (_p), (_s), (_o),theta_x,theta_y,theta_z,theta_t)
+
+
 using namespace cvc;
 
 void usage() {
@@ -236,33 +240,6 @@ int main(int argc, char **argv) {
 #endif
 
   /***************************************************************************
-   * multiply the phase to the gauge field
-   ***************************************************************************/
-  exitstatus = gauge_field_eq_gauge_field_ti_phase ( &gauge_field_with_phase, g_gauge_field, co_phase_up );
-  if(exitstatus != 0) {
-    fprintf(stderr, "[cpff_tbc_invert_contract] Error from gauge_field_eq_gauge_field_ti_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(38);
-  }
-
-  /***************************************************************************
-   * check plaquettes
-   ***************************************************************************/
-  exitstatus = plaquetteria ( gauge_field_with_phase );
-  if(exitstatus != 0) {
-    fprintf(stderr, "[cpff_tbc_invert_contract] Error from plaquetteria, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(38);
-  }
-
-  /***************************************************************************
-   * initialize clover, mzz and mzz_inv
-   ***************************************************************************/
-  exitstatus = init_clover ( &g_clover, &mzz, &mzzinv, gauge_field_with_phase, g_mu, g_csw );
-  if ( exitstatus != 0 ) {
-    fprintf(stderr, "[cpff_tbc_invert_contract] Error from init_clover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-    EXIT(1);
-  }
-
-  /***************************************************************************
    * set io process
    ***************************************************************************/
   io_proc = get_io_proc ();
@@ -299,19 +276,19 @@ int main(int argc, char **argv) {
    * WITHOUT halo
    ***************************************************************************/
   nelem = _GSI( VOLUME );
-  double *** stochastic_propagator_mom_list = init_3level_dtable ( g_source_momentum_number, 4, nelem );
+  double **** stochastic_propagator_mom_list = init_4level_dtable ( g_source_coords_number, g_nsample, g_seq_source_momentum_number, nelem );
   if ( stochastic_propagator_mom_list == NULL ) {
+    fprintf(stderr, "[cpff_tbc_invert_contract] Error from init_4level_dtable %s %d\n", __FILE__, __LINE__ );
+    EXIT(48);
+  }
+
+  double *** stochastic_propagator_zero_list = init_3level_dtable ( g_source_coords_number, g_nsample, nelem );
+  if ( stochastic_propagator_zero_list == NULL ) {
     fprintf(stderr, "[cpff_tbc_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT(48);
   }
 
-  double ** stochastic_propagator_zero_list = init_2level_dtable ( 4, nelem );
-  if ( stochastic_propagator_zero_list == NULL ) {
-    fprintf(stderr, "[cpff_tbc_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
-    EXIT(48);
-  }
-
-  double ** stochastic_source_list = init_2level_dtable ( 4, nelem );
+  double ** stochastic_source_list = init_2level_dtable ( g_nsample, nelem );
   if ( stochastic_source_list == NULL ) {
     fprintf(stderr, "[cpff_tbc_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );;
     EXIT(48);
@@ -331,10 +308,95 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[cpff_tbc_invert_contract] Error from init_rng_state %s %d\n", __FILE__, __LINE__ );;
     EXIT( 50 );
   }
-  /* for ( int i = 0; i < rlxd_size(); i++ ) {
-    fprintf ( stdout, "rng %2d %10d\n", g_cart_id, rng_state[i] );
-  } */
 
+  /***************************************************************************
+   *
+   * (I) prepare and keep the stochastic sources
+   *
+   ***************************************************************************/
+
+  /***************************************************************************
+   * loop on stochastic samples
+   ***************************************************************************/
+  for ( int isample = 0; isample < g_nsample; isample++ ) {
+
+    if ( g_read_source ) {
+      /***************************************************************************
+       * read stochastic source from file
+       ***************************************************************************/
+      sprintf(filename, "%s.%.4d.%.5d", filename_prefix, Nconf, isample);
+      if ( ( exitstatus = read_lime_spinor( stochastic_source_list[isample], filename, 0) ) != 0 ) {
+        fprintf(stderr, "[cpff_tbc_invert_contract] Error from read_lime_spinor, status was %d\n", exitstatus);
+        EXIT(2);
+      }
+    } else {
+      /***************************************************************************
+       * generate stochastic volume source
+       ***************************************************************************/
+    
+      exitstatus = prepare_volume_source( stochastic_source_list[isample], VOLUME );
+      if( != 0 ) {
+        fprintf(stderr, "[cpff_tbc_invert_contract] Error from prepare_volume_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(64);
+      }
+      if ( g_write_source ) {
+        sprintf(filename, "%s.%.4d.%.5d", filename_prefix, Nconf, isample);
+        if ( ( exitstatus = write_propagator( stochastic_source_list[ispin], filename, 0, g_propagator_precision) ) != 0 ) {
+          fprintf(stderr, "[cpff_tbc_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(2);
+        }
+      }
+
+      /***************************************************************************
+       * retrieve current rng state and 0 writes his state
+       ***************************************************************************/
+      exitstatus = get_rng_state ( rng_state );
+      if(exitstatus != 0) {
+        fprintf(stderr, "[cpff_tbc_invert_contract] Error from get_rng_state, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(38);
+      }
+
+      exitstatus = save_rng_state ( 0, NULL );
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[cpff_tbc_invert_contract] Error from save_rng_state, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );;
+        EXIT(38);
+      }
+
+    }  /* end of if read stochastic source - else */
+  }  /* end of loop on samples */
+
+  /***************************************************************************
+   *
+   * (II) inversions for momentum source, theta = 0
+   *
+   ***************************************************************************/
+
+  /***************************************************************************
+   * multiply the phase to the gauge field
+   ***************************************************************************/
+  exitstatus = gauge_field_eq_gauge_field_ti_phase ( &gauge_field_with_phase, g_gauge_field, co_phase_up );
+  if(exitstatus != 0) {
+    fprintf(stderr, "[cpff_tbc_invert_contract] Error from gauge_field_eq_gauge_field_ti_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(38);
+  }
+
+  /***************************************************************************
+   * check plaquettes
+   ***************************************************************************/
+  exitstatus = plaquetteria ( gauge_field_with_phase );
+  if(exitstatus != 0) {
+    fprintf(stderr, "[cpff_tbc_invert_contract] Error from plaquetteria, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(38);
+  }
+
+  /***************************************************************************
+   * initialize clover, mzz and mzz_inv
+   ***************************************************************************/
+  exitstatus = init_clover ( &g_clover, &mzz, &mzzinv, gauge_field_with_phase, g_mu, g_csw );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[cpff_tbc_invert_contract] Error from init_clover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    EXIT(1);
+  }
 
   /***************************************************************************
    * loop on source timeslices
@@ -355,121 +417,31 @@ int main(int argc, char **argv) {
       EXIT(123);
     }
 
-#if ( defined HAVE_LHPC_AFF ) && !(defined HAVE_HDF5 )
-    /***************************************************************************
-     * output filename
-     ***************************************************************************/
-    sprintf ( output_filename, "%s.%.4d.t%d.aff", outfile_prefix, Nconf, gts );
-    /***************************************************************************
-     * writer for aff output file
-     ***************************************************************************/
-    if(io_proc == 2) {
-      affw = aff_writer ( output_filename);
-      const char * aff_status_str = aff_writer_errstr ( affw );
-      if( aff_status_str != NULL ) {
-        fprintf(stderr, "[cpff_tbc_invert_contract] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-        EXIT(15);
-      }
-    }  /* end of if io_proc == 2 */
-#elif ( defined HAVE_HDF5 )
-    sprintf ( output_filename, "%s.%.4d.t%d.h5", outfile_prefix, Nconf, gts );
-#endif
-    if(io_proc == 2 && g_verbose > 1 ) { 
-      fprintf(stdout, "# [cpff_tbc_invert_contract] writing data to file %s\n", output_filename);
-    }
-
-    /***************************************************************************
-     * re-initialize random number generator
-     ***************************************************************************/
-    /*
-    if ( ! g_read_source ) {
-      sprintf(filename, "rng_stat.%.4d.tsrc%.3d.stochastic-oet.out", Nconf, gts );
-      exitstatus = init_rng_stat_file ( ( ( gts + 1 ) * 10000 + g_seed ), filename );
-      if(exitstatus != 0) {
-        fprintf(stderr, "[cpff_tbc_invert_contract] Error from init_rng_stat_file status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(38);
-      }
-    }
-    */
-
     /***************************************************************************
      * loop on stochastic oet samples
      ***************************************************************************/
-    for ( int isample = 0; isample < g_nsample_oet; isample++ ) {
+    for ( int isample = 0; isample < g_nsample; isample++ ) {
 
       /***************************************************************************
-       * synchronize rng states to state at zero
+       * loop on sequential = sink = -source momenta
        ***************************************************************************/
-      exitstatus = sync_rng_state ( rng_state, 0, 0 );
-      if(exitstatus != 0) {
-        fprintf(stderr, "[cpff_tbc_invert_contract] Error from sync_rng_state, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(38);
-      }
+      for ( int imom = 0; imom < g_seq_source_momentum_number; imom++ ) {
 
-      /***************************************************************************
-       * read stochastic oet source from file
-       ***************************************************************************/
-      if ( g_read_source ) {
-        for ( int ispin = 0; ispin < 4; ispin++ ) {
-          sprintf(filename, "%s.%.4d.t%d.%d.%.5d", filename_prefix, Nconf, gts, ispin, isample);
-          if ( ( exitstatus = read_lime_spinor( stochastic_source_list[ispin], filename, ispin) ) != 0 ) {
-            fprintf(stderr, "[cpff_tbc_invert_contract] Error from read_lime_spinor, status was %d\n", exitstatus);
-            EXIT(2);
-          }
-        }
-        /* recover the ran field */
-        if( (exitstatus = init_timeslice_source_oet(stochastic_source_list, gts, NULL, -1 ) ) != 0 ) {
-          fprintf(stderr, "[cpff_tbc_invert_contract] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-          EXIT(64);
-        }
-
-      /***************************************************************************
-       * generate stochastic oet source
-       ***************************************************************************/
-      } else {
-        /* call to initialize the ran field 
-         *   penultimate argument is momentum vector for the source, NULL here
-         *   final argument in arg list is 1
-         */
-        if( (exitstatus = init_timeslice_source_oet(stochastic_source_list, gts, NULL, 1 ) ) != 0 ) {
-          fprintf(stderr, "[cpff_tbc_invert_contract] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-          EXIT(64);
-        }
-        if ( g_write_source ) {
-          for ( int ispin = 0; ispin < 4; ispin++ ) {
-            sprintf(filename, "%s.%.4d.t%d.%d.%.5d", filename_prefix, Nconf, gts, ispin, isample);
-            if ( ( exitstatus = write_propagator( stochastic_source_list[ispin], filename, 0, g_propagator_precision) ) != 0 ) {
-              fprintf(stderr, "[cpff_tbc_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              EXIT(2);
-            }
-          }
-        }
-      }  /* end of if read stochastic source - else */
-
-      /***************************************************************************
-       * retrieve current rng state and 0 writes his state
-       ***************************************************************************/
-      exitstatus = get_rng_state ( rng_state );
-      if(exitstatus != 0) {
-        fprintf(stderr, "[cpff_tbc_invert_contract] Error from get_rng_state, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(38);
-      }
-
-      exitstatus = save_rng_state ( 0, NULL );
-      if ( exitstatus != 0 ) {
-        fprintf(stderr, "[cpff_tbc_invert_contract] Error from save_rng_state, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );;
-        EXIT(38);
-      }
+        int const source_momentum[3] = {
+          g_seq_source_momentum_list[imom][0],
+          g_seq_source_momentum_list[imom][1],
+          g_seq_source_momentum_list[imom][2] };
 
 
-      /***************************************************************************
-       * invert for stochastic timeslice propagator at zero momentum
-       *   dn flavor
-       *   this one will run from source to sink as part of the sequential
-       *   propagator
-       ***************************************************************************/
-      for( int i = 0; i < 4; i++) {
-        memcpy ( spinor_work[0], stochastic_source_list[i], sizeof_spinor_field );
+        /***************************************************************************
+         * extract timeslice from source, add source momentum
+         ***************************************************************************/
+        ...
+
+        /***************************************************************************
+         * invert
+         ***************************************************************************/
+        memcpy ( spinor_work[0], ??? stochastic_source_list[i], sizeof_spinor_field );
 
         memset ( spinor_work[1], 0, sizeof_spinor_field );
 
@@ -483,190 +455,360 @@ int main(int argc, char **argv) {
           check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_dn], 1 );
         }
 
-        memcpy( stochastic_propagator_zero_list[i], spinor_work[1], sizeof_spinor_field);
-      }
-      if ( g_write_source ) {
-        for ( int ispin = 0; ispin < 4; ispin++ ) {
-          sprintf(filename, "%s.%.4d.t%d.%d.%.5d.inverted", filename_prefix, Nconf, gts, ispin, isample);
-          if ( ( exitstatus = write_propagator( stochastic_propagator_zero_list[ispin], filename, 0, g_propagator_precision) ) != 0 ) {
-            fprintf(stderr, "[cpff_tbc_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(2);
-          }
-        }
-      }
+        memcpy( stochastic_propagator_mom_list[isource_location][isample][imom], spinor_work[1], sizeof_spinor_field);
 
-      /***************************************************************************
-       * invert for stochastic timeslice propagator at source momenta
-       ***************************************************************************/
-      for ( int isrc_mom = 0; isrc_mom < g_source_momentum_number; isrc_mom++ ) {
-
-        /***************************************************************************
-         * NOTE: we take the negative of the momentum in the list
-         * since we use it in the daggered timeslice propagator
-         ***************************************************************************/
-        int source_momentum[3] = {
-          - g_source_momentum_list[isrc_mom][0],
-          - g_source_momentum_list[isrc_mom][1],
-          - g_source_momentum_list[isrc_mom][2] };
-
-        /***************************************************************************
-         * prepare stochastic timeslice source at source momentum
-         ***************************************************************************/
-        exitstatus = init_timeslice_source_oet ( stochastic_source_list, gts, source_momentum, 0 );
-        if( exitstatus != 0 ) {
-          fprintf(stderr, "[cpff_tbc_invert_contract] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-          EXIT(64);
-        }
-        if ( g_write_source ) {
+        if ( g_write_propagator ) {
           for ( int ispin = 0; ispin < 4; ispin++ ) {
-            sprintf(filename, "%s.%.4d.t%d.px%dpy%dpz%d.%d.%.5d", filename_prefix, Nconf, gts, 
-                source_momentum[0], source_momentum[1], source_momentum[2], ispin, isample);
-            if ( ( exitstatus = write_propagator( stochastic_source_list[ispin], filename, 0, g_propagator_precision) ) != 0 ) {
-              fprintf(stderr, "[cpff_tbc_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            sprintf(filename, "%s.%.4d.t%d.px%dpy%dpz%d.%.5d.inverted", filename_prefix, Nconf, gts, 
+                source_momentum[0], source_momentum[1], source_momentum[2], isample);
+            if ( ( exitstatus = write_propagator( stochastic_propagator_mom_list[isource_location][isample][imom], filename, 0, g_propagator_precision) ) != 0 ) {
+              fprintf(stderr, "[cpff_tbc_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(2);
             }
           }
         }
+
+      }  /* end of loop on momenta */
+
+    }  /* end of loop on stochastic samples */
+
+  }  /* end of loop on source timeslices */
+
+  /***************************************************************************
+   * free clover term matrices
+   ***************************************************************************/
+  fini_clover ( &mzz, &mzzinv );
+
+  /***************************************************************************/
+  /***************************************************************************/
+
+  /***************************************************************************
+   *
+   * (III) loop on tbc phases
+   *
+   ***************************************************************************/
+  for ( int itheta = 0; itheta < g_tbc_phase_number; itheta++ ) {
+
+    /***************************************************************************
+     * inversions for theta = - tbc
+     *
+     * NOTE: we keep tbc phase in time direction, no change of sign there
+     ***************************************************************************/
+
+    double theta_t =  g_tbc_phase_list[itheta][0];
+    double theta_x = -g_tbc_phase_list[itheta][1];
+    double theta_y = -g_tbc_phase_list[itheta][2];
+    double theta_z = -g_tbc_phase_list[itheta][3];
+
+    complex co_tbc_phase[4] = {
+      { cos ( theta_t * M_PI / (double)T_global ),
+        sin ( theta_t * M_PI / (double)T_global ) },
+      { cos ( theta_x * M_PI / (double)LX_global ),
+        sin ( theta_x * M_PI / (double)LX_global ) },
+      { cos ( theta_y * M_PI / (double)LY_global ),
+        sin ( theta_y * M_PI / (double)LY_global ) },
+      { cos ( theta_z * M_PI / (double)LZ_global ),
+        sin ( theta_z * M_PI / (double)LZ_global ) } };
+
+    /***************************************************************************
+     * multiply the phase to the gauge field
+     ***************************************************************************/
+    exitstatus = gauge_field_eq_gauge_field_ti_phase ( &gauge_field_with_phase, g_gauge_field, co_tbc_phase );
+    if(exitstatus != 0) {
+      fprintf(stderr, "[cpff_tbc_invert_contract] Error from gauge_field_eq_gauge_field_ti_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(38);
+    }
+
+    /***************************************************************************
+     * check plaquettes
+     ***************************************************************************/
+    exitstatus = plaquetteria ( gauge_field_with_phase );
+    if(exitstatus != 0) {
+      fprintf(stderr, "[cpff_tbc_invert_contract] Error from plaquetteria, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(38);
+    }
+
+    /***************************************************************************
+     * initialize clover, mzz and mzz_inv
+     ***************************************************************************/
+    exitstatus = init_clover ( &g_clover, &mzz, &mzzinv, gauge_field_with_phase, g_mu, g_csw );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[cpff_tbc_invert_contract] Error from init_clover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(1);
+    }
+
+    /***************************************************************************
+     * loop on source timeslices
+     ***************************************************************************/
+    for( int isource_location = 0; isource_location < g_source_location_number; isource_location++ ) {
+
+      /***************************************************************************
+       * local source timeslice and source process ids
+       ***************************************************************************/
+
+      int source_timeslice = -1;
+      int source_proc_id   = -1;
+      int gts              = ( g_source_coords_list[isource_location][0] +  T_global ) %  T_global;
+
+      exitstatus = get_timeslice_source_info ( gts, &source_timeslice, &source_proc_id );
+      if( exitstatus != 0 ) {
+        fprintf(stderr, "[cpff_tbc_invert_contract] Error from get_timeslice_source_info status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(123);
+      }
+
+      /***************************************************************************
+       * loop on stochastic oet samples
+       ***************************************************************************/
+      for ( int isample = 0; isample < g_nsample; isample++ ) {
 
         /***************************************************************************
          * invert
          ***************************************************************************/
-        for( int i = 0; i < 4; i++) {
-          memcpy ( spinor_work[0], stochastic_source_list[i], sizeof_spinor_field );
+        size_t const offset = source_timeslice * _GSI(LX*LY*LZ);
+        size_t const sizeof_spinor_field_timeslice = offset * sizeof(double);
 
-          memset ( spinor_work[1], 0, sizeof_spinor_field );
+        memset ( spinor_work[0], 0, sizeof_spinor_field );
+        memcpy ( spinor_work[0] + offset, stochastic_source_list[isample]+offset, sizeof_spinor_field_timeslice );
 
-          exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_dn );
-          if(exitstatus != 0) {
-            fprintf(stderr, "[cpff_tbc_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-            EXIT(44);
-          }
+        memset ( spinor_work[1], 0, sizeof_spinor_field );
 
-          if ( check_propagator_residual ) {
-            check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_dn], 1 );
-          }
+        exitstatus = _TMLQCD_INVERT_TBC ( spinor_work[1], spinor_work[0], op_id_dn );
+        if(exitstatus != 0) {
+          fprintf(stderr, "[cpff_tbc_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(44);
+        }
 
-          memcpy( stochastic_propagator_mom_list[isrc_mom][i], spinor_work[1], sizeof_spinor_field);
+        if ( check_propagator_residual ) {
+          check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_dn], 1 );
+        }
 
-        }  /* end of loop on spinor components */
+        memcpy( stochastic_propagator_zero_list[isource_location][isample], spinor_work[1], sizeof_spinor_field);
 
         if ( g_write_propagator ) {
-          for ( int ispin = 0; ispin < 4; ispin++ ) {
-            sprintf(filename, "%s.%.4d.t%d.px%dpy%dpz%d.%d.%.5d.inverted", filename_prefix, Nconf, gts,
-                source_momentum[0], source_momentum[1], source_momentum[2], ispin, isample);
-            if ( ( exitstatus = write_propagator( stochastic_propagator_mom_list[isrc_mom][ispin], filename, 0, g_propagator_precision) ) != 0 ) {
-              fprintf(stderr, "[cpff_tbc_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-              EXIT(2);
-            }
+          sprintf(filename, "%s.%.4d.t%d.px%dpy%dpz%d.%.5d.inverted", filename_prefix, Nconf, gts, 0,0,0, isample);
+          if ( ( exitstatus = write_propagator( stochastic_propagator_zero_list[isource_location][isample], filename, 0, g_propagator_precision) ) != 0 ) {
+            fprintf(stderr, "[cpff_tbc_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(2);
           }
         }
 
-      }  /* end of loop on source momenta */
+      }  /* end of loop on stochastic samples */
 
-      /*****************************************************************
+      /***************************************************************************/
+      /***************************************************************************/
+
+      /***************************************************************************
        * contractions for 2-point functons
-       *****************************************************************/
-      for ( int isrc_mom = 0; isrc_mom < g_source_momentum_number; isrc_mom++ ) {
+       ***************************************************************************/
 
-        double * contr_x = init_1level_dtable ( 2 * VOLUME );
-        if ( contr_x == NULL ) {
-          fprintf(stderr, "[cpff_tbc_invert_contract] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
-          EXIT(3);
-        }
-
-        double ** contr_p = init_2level_dtable ( g_sink_momentum_number , 2 * T );
-        if ( contr_p == NULL ) {
-          fprintf(stderr, "[cpff_tbc_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
-          EXIT(3);
-        }
-
-        int source_momentum[3] = {
-          g_source_momentum_list[isrc_mom][0],
-          g_source_momentum_list[isrc_mom][1],
-          g_source_momentum_list[isrc_mom][2] };
-
-        for ( int isrc_gamma = 0; isrc_gamma < g_source_gamma_id_number; isrc_gamma++ ) {
-        for ( int isnk_gamma = 0; isnk_gamma < g_source_gamma_id_number; isnk_gamma++ ) {
-
-          /* contractions in x-space */
-          contract_twopoint_xdep ( contr_x, g_source_gamma_id_list[isrc_gamma], g_source_gamma_id_list[isnk_gamma], 
-              stochastic_propagator_mom_list[isrc_mom],
-              stochastic_propagator_zero_list, 1, 1, 1., 64 );
-
-          /* momentum projection at sink */
-          exitstatus = momentum_projection ( contr_x, contr_p[0], T, g_sink_momentum_number, g_sink_momentum_list );
-          if(exitstatus != 0) {
-            fprintf(stderr, "[cpff_tbc_invert_contract] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(3);
-          }
-
-          sprintf ( data_tag, "/d+-g-d-g/t%d/s%d/gf%d/gi%d/pix%dpiy%dpiz%d", gts, isample,
-              g_source_gamma_id_list[isnk_gamma], g_source_gamma_id_list[isrc_gamma],
-              source_momentum[0], source_momentum[1], source_momentum[2] );
-
-#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-          exitstatus = contract_write_to_aff_file ( contr_p, affw, data_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
-#elif ( defined HAVE_HDF5 )          
-          exitstatus = contract_write_to_h5_file ( contr_p, output_filename, data_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+      /***************************************************************************
+       * output filename
+       ***************************************************************************/
+#if ( defined HAVE_HDF5 )
+      sprintf ( output_filename, "%s.%.4d.t%d.h5", outfile_prefix, Nconf, gts );
 #endif
-          if(exitstatus != 0) {
-            fprintf(stderr, "[cpff_tbc_invert_contract] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            return(3);
-          }
+      if(io_proc == 2 && g_verbose > 1 ) { 
+        fprintf(stdout, "# [cpff_tbc_invert_contract] writing data to file %s\n", output_filename);
+      }
 
-        }  /* end of loop on gamma at sink */
-        }  /* end of loop on gammas at source */
+      /***************************************************************************
+       * loop on stochastic oet samples
+       ***************************************************************************/
+      for ( int isample = 0; isample < g_nsample; isample++ ) {
 
-        fini_1level_dtable ( &contr_x );
+         double ** contr_p = init_2level_dtable ( g_seq_source_momentum_number, 2*T );
+         if ( contr_p == NULL ) {
+           fprintf(stderr, "[cpff_tbc_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+           EXIT(47);
+         }
+
+        /***************************************************************************
+         * loop on momenta
+         ***************************************************************************/
+        for ( int imom = 0; imom < g_seq_source_momentum_number; imom++ ) {
+
+          int const source_momentum[3] = {
+            g_seq_source_momentum_list[imom][0],
+            g_seq_source_momentum_list[imom][1],
+            g_seq_source_momentum_list[imom][2] };
+
+          int const sink_momentum[3] = { -source_momentum[0], -source_momentum[1], -source_momentum[2] };
+
+          /***************************************************************************
+           * loop on gamma matrix
+           ***************************************************************************/
+          // for ( int isrc_gamma = 0; isrc_gamma < g_source_gamma_id_number; isrc_gamma++ ) {
+            int const source_gamma = 5;
+
+          for ( int isnk_gamma = 0; isnk_gamma < g_source_gamma_id_number; isnk_gamma++ ) {
+            int const sink_gamma = g_source_gamma_id_list[isnk_gamma];
+
+            /***************************************************************************
+             * contract
+             ***************************************************************************/
+            contract_twopoint_snk_momentum ( contr_p[isrc_mom], source_gamma,  sink_gamma,
+                sequential_propagator_list, stochastic_propagator_mom_list[isrc_mom], 1, sink_momentum, 1);
+
+            /***************************************************************************
+             * data key
+             ***************************************************************************/
+            sprintf ( data_tag, "/d+-g-d-g/theta%d/t%d/s%d/gf%d/gi%d", itheta, gts, isample,
+              g_source_gamma_id_list[isnk_gamma], g_source_gamma_id_list[isrc_gamma] );
+
+#if ( defined HAVE_HDF5 )          
+            exitstatus = contract_write_to_h5_file ( contr_p, output_filename, data_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+#endif
+            if(exitstatus != 0) {
+              fprintf(stderr, "[cpff_tbc_invert_contract] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              return(3);
+            }
+
+          }  /* end of loop on gamma at sink */
+          // }  /* end of loop on gammas at source */
+
+        }  /* end of loop on source momenta */
+
         fini_2level_dtable ( &contr_p );
 
-      }  /* end of loop on source momenta */
+      }  /* end of loop on samples */
 
-      /*****************************************************************/
-      /*****************************************************************/
+    }  /* end of loop on source timeslices */
 
-      /*****************************************************************
-       * loop on sequential source momenta p_f
-       *****************************************************************/
-      for( int iseq_mom=0; iseq_mom < g_seq_source_momentum_number; iseq_mom++) {
+    /***************************************************************************
+     * free clover term matrices
+     ***************************************************************************/
+    fini_clover ( &mzz, &mzzinv );
 
-        int seq_source_momentum[3] = { g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2] };
+    /***************************************************************************/
+    /***************************************************************************/
+
+    /***************************************************************************
+     *
+     * inversions for theta = tbc phase
+     *
+     ***************************************************************************/
+    theta_x = g_tbc_phase_list[itheta][1];
+    theta_y = g_tbc_phase_list[itheta][2];
+    theta_z = g_tbc_phase_list[itheta][3];
+    theta_t = g_tbc_phase_list[itheta][0];
+
+    co_tbc_phase[0].re = cos ( theta_t * M_PI / (double)T_global );
+    co_tbc_phase[0].im = sin ( theta_t * M_PI / (double)T_global );
+
+    co_tbc_phase[1].re = cos ( theta_x * M_PI / (double)LX_global );
+    co_tbc_phase[1].im = sin ( theta_x * M_PI / (double)LX_global );
+
+    co_tbc_phase[2].re = cos ( theta_y * M_PI / (double)LY_global );
+    co_tbc_phase[2].im = sin ( theta_y * M_PI / (double)LY_global ),
+
+    co_tbc_phase[3].re = cos ( theta_z * M_PI / (double)LZ_global );
+    co_tbc_phase[3].im = sin ( theta_z * M_PI / (double)LZ_global );
+
+    /***************************************************************************
+     * multiply the phase to the gauge field
+     ***************************************************************************/
+    exitstatus = gauge_field_eq_gauge_field_ti_phase ( &gauge_field_with_phase, g_gauge_field, co_tbc_phase );
+    if(exitstatus != 0) {
+      fprintf(stderr, "[cpff_tbc_invert_contract] Error from gauge_field_eq_gauge_field_ti_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(38);
+    }
+
+    /***************************************************************************
+     * check plaquettes
+     ***************************************************************************/
+    exitstatus = plaquetteria ( gauge_field_with_phase );
+    if(exitstatus != 0) {
+      fprintf(stderr, "[cpff_tbc_invert_contract] Error from plaquetteria, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(38);
+    }
+
+    /***************************************************************************
+     * initialize clover, mzz and mzz_inv
+     ***************************************************************************/
+    exitstatus = init_clover ( &g_clover, &mzz, &mzzinv, gauge_field_with_phase, g_mu, g_csw );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[cpff_tbc_invert_contract] Error from init_clover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(1);
+    }
+
+    /***************************************************************************
+     * loop on source timeslices
+     ***************************************************************************/
+    for( int isource_location = 0; isource_location < g_source_location_number; isource_location++ ) {
+
+      /***************************************************************************
+       * local source timeslice and source process ids
+       ***************************************************************************/
+
+      int source_timeslice = -1;
+      int source_proc_id   = -1;
+      int gts              = ( g_source_coords_list[isource_location][0] +  T_global ) %  T_global;
+
+      exitstatus = get_timeslice_source_info ( gts, &source_timeslice, &source_proc_id );
+      if( exitstatus != 0 ) {
+        fprintf(stderr, "[cpff_tbc_invert_contract] Error from get_timeslice_source_info status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(123);
+      }
+
+      /***************************************************************************
+       * output filename
+       ***************************************************************************/
+#if ( defined HAVE_HDF5 )
+      sprintf ( output_filename, "%s.%.4d.t%d.h5", outfile_prefix, Nconf, gts );
+#endif
+      if(io_proc == 2 && g_verbose > 1 ) { 
+        fprintf(stdout, "# [cpff_tbc_invert_contract] writing data to file %s\n", output_filename);
+      }
+
+      /***************************************************************************
+       * loop on stochastic samples
+       ***************************************************************************/
+      for ( int isample = 0; isample < g_nsample; isample++ ) {
 
         /*****************************************************************
-         * loop on sequential source gamma ids
+         * loop on sequential source momenta p_f
          *****************************************************************/
-        for ( int iseq_gamma = 0; iseq_gamma < g_sequential_source_gamma_id_number; iseq_gamma++ ) {
+        for( int iseq_mom=0; iseq_mom < g_seq_source_momentum_number; iseq_mom++) {
 
-          int seq_source_gamma = g_sequential_source_gamma_id_list[iseq_gamma];
+          int seq_source_momentum[3] = { g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2] };
 
           /*****************************************************************
-           * loop on sequential source timeslices
+           * loop on sequential source gamma ids
            *****************************************************************/
-          for ( int iseq_timeslice = 0; iseq_timeslice < g_sequential_source_timeslice_number; iseq_timeslice++ ) {
+          for ( int iseq_gamma = 0; iseq_gamma < g_sequential_source_gamma_id_number; iseq_gamma++ ) {
+
+            int seq_source_gamma = g_sequential_source_gamma_id_list[iseq_gamma];
 
             /*****************************************************************
-             * global sequential source timeslice
-             * NOTE: counted from current source timeslice
+             * loop on sequential source timeslices
              *****************************************************************/
-            int gtseq = ( gts + g_sequential_source_timeslice_list[iseq_timeslice] + T_global ) % T_global;
+            for ( int iseq_timeslice = 0; iseq_timeslice < g_sequential_source_timeslice_number; iseq_timeslice++ ) {
 
-            /*****************************************************************
-             * invert for sequential timeslice propagator
-             *****************************************************************/
-            for ( int i = 0; i < 4; i++ ) {
+              /*****************************************************************
+               * global sequential source timeslice
+               * NOTE: counted from current source timeslice
+               *****************************************************************/
+              int gtseq = ( gts + g_sequential_source_timeslice_list[iseq_timeslice] + T_global ) % T_global;
+
+              /*****************************************************************
+               *
+               * invert for sequential timeslice propagator
+               *
+               *****************************************************************/
 
               /*****************************************************************
                * prepare sequential timeslice source 
                *****************************************************************/
-              exitstatus = init_sequential_source ( spinor_work[0], stochastic_propagator_zero_list[i], gtseq, seq_source_momentum, seq_source_gamma );
+              exitstatus = init_sequential_source ( spinor_work[0], stochastic_propagator_mom_list[isource_location][isample][iseq_mom], gtseq, seq_source_momentum, seq_source_gamma );
               if( exitstatus != 0 ) {
                 fprintf(stderr, "[cpff_tbc_invert_contract] Error from init_sequential_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(64);
               }
+
               if ( g_write_sequential_source ) {
-                sprintf(filename, "%s.%.4d.t%d.qx%dqy%dqz%d.g%d.dt%d.%d.%.5d", filename_prefix, Nconf, gts,
+                sprintf(filename, "%s.%.4d.t%d.qx%dqy%dqz%d.g%d.dt%d.%.5d", filename_prefix, Nconf, gts,
                     seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], seq_source_gamma,
-                    g_sequential_source_timeslice_list[iseq_timeslice], i, isample);
+                    g_sequential_source_timeslice_list[iseq_timeslice], isample);
                 if ( ( exitstatus = write_propagator( spinor_work[0], filename, 0, g_propagator_precision) ) != 0 ) {
                   fprintf(stderr, "[cpff_tbc_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                   EXIT(2);
@@ -675,7 +817,7 @@ int main(int argc, char **argv) {
 
               memset ( spinor_work[1], 0, sizeof_spinor_field );
 
-              exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_up );
+              exitstatus = _TMLQCD_INVERT_TBC ( spinor_work[1], spinor_work[0], op_id_up );
               if(exitstatus != 0) {
                 fprintf(stderr, "[cpff_tbc_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                 EXIT(44);
@@ -686,37 +828,34 @@ int main(int argc, char **argv) {
               }
 
               memcpy( sequential_propagator_list[i], spinor_work[1], sizeof_spinor_field );
-            }  /* end of loop on oet spin components */
 
-            if ( g_write_sequential_propagator ) {
-              for ( int ispin = 0; ispin < 4; ispin++ ) {
-                sprintf ( filename, "%s.%.4d.t%d.qx%dqy%dqz%d.g%d.dt%d.%d.%.5d.inverted", filename_prefix, Nconf, gts,
+              if ( g_write_sequential_propagator ) {
+                sprintf ( filename, "%s.%.4d.t%d.qx%dqy%dqz%d.g%d.dt%d.%.5d.inverted", filename_prefix, Nconf, gts,
                     seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], seq_source_gamma, 
-                    g_sequential_source_timeslice_list[iseq_timeslice], ispin, isample);
+                    g_sequential_source_timeslice_list[iseq_timeslice], isample);
                 if ( ( exitstatus = write_propagator( sequential_propagator_list[ispin], filename, 0, g_propagator_precision) ) != 0 ) {
                   fprintf(stderr, "[cpff_tbc_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                   EXIT(2);
                 }
-              }
-            }  /* end of if g_write_sequential_propagator */
+              }  /* end of if g_write_sequential_propagator */
 
-            /*****************************************************************/
-            /*****************************************************************/
+              /*****************************************************************/
+              /*****************************************************************/
 
-            /*****************************************************************
-             * contractions for local current insertion
-             *****************************************************************/
+              /*****************************************************************
+               *
+               * contractions for local current insertion
+               *
+               *****************************************************************/
 
-            /*****************************************************************
-             * loop on local gamma matrices
-             *****************************************************************/
-            for ( int icur_gamma = 0; icur_gamma < gamma_current_number; icur_gamma++ ) {
+              /*****************************************************************
+               * loop on local gamma matrices
+               *****************************************************************/
+              for ( int icur_gamma = 0; icur_gamma < gamma_current_number; icur_gamma++ ) {
 
-              int gamma_current = gamma_current_list[icur_gamma];
+                int gamma_current = gamma_current_list[icur_gamma];
 
-              for ( int isrc_gamma = 0; isrc_gamma < g_source_gamma_id_number; isrc_gamma++ ) {
-
-                int gamma_source = g_source_gamma_id_list[isrc_gamma];
+                int gamma_source = 5;
 
                 double ** contr_p = init_2level_dtable ( g_source_momentum_number, 2*T );
                 if ( contr_p == NULL ) {
@@ -745,14 +884,12 @@ int main(int argc, char **argv) {
 
                 }  /* end of loop on source momenta */
 
-                sprintf ( data_tag, "/d+-g-sud/t%d/s%d/dt%d/gf%d/gc%d/gi%d/pfx%dpfy%dpfz%d/", 
-                    gts, isample, g_sequential_source_timeslice_list[iseq_timeslice],
+                sprintf ( data_tag, "/d+-g-sud/theta%d/t%d/s%d/dt%d/gf%d/gc%d/gi%d/pfx%dpfy%dpfz%d/", 
+                    itheta, gts, isample, g_sequential_source_timeslice_list[iseq_timeslice],
                     seq_source_gamma, gamma_current, gamma_source,
                     seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
 
-#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-                exitstatus = contract_write_to_aff_file ( contr_p, affw, data_tag, g_source_momentum_list, g_source_momentum_number, io_proc );
-#elif ( defined HAVE_HDF5 )
+#if ( defined HAVE_HDF5 )
                 exitstatus = contract_write_to_h5_file ( contr_p, output_filename, data_tag, g_source_momentum_list, g_source_momentum_number, io_proc );
 #endif
                 if(exitstatus != 0) {
@@ -762,194 +899,34 @@ int main(int argc, char **argv) {
               
                 fini_2level_dtable ( &contr_p );
 
-              }  /* end of loop on source gamma id */
+              }  /* end of loop on current gamma id */
 
-            }  /* end of loop on current gamma id */
+            }  /* loop on sequential source timeslices */
 
-            /*****************************************************************/
-            /*****************************************************************/
+          }  /* end of loop on sequential source gamma ids */
 
-            /*****************************************************************
-             * contractions for cov deriv insertion
-             *****************************************************************/
+        }  /* end of loop on sequential source momenta */
 
-            /*****************************************************************
-             * loop on fbwd for cov deriv
-             *****************************************************************/
-            for ( int ifbwd = 0; ifbwd <= 1; ifbwd++ ) {
+      }  /* end of loop on stochastic samples */
 
-              double ** sequential_propagator_deriv_list     = init_2level_dtable ( 4, _GSI(VOLUME) );
-              if ( sequential_propagator_deriv_list == NULL ) {
-                fprintf(stderr, "[cpff_tbc_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
-                EXIT(33);
-              }
+    }  /* end of loop on source timeslices */
 
-              double ** sequential_propagator_dderiv_list     = init_2level_dtable ( 4, _GSI(VOLUME) );
-              if ( sequential_propagator_dderiv_list == NULL ) {
-                fprintf(stderr, "[cpff_tbc_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
-                EXIT(33);
-              }
+    /***************************************************************************
+     * free clover term matrices
+     ***************************************************************************/
+    fini_clover ( &mzz, &mzzinv );
 
-              /*****************************************************************
-               * loop on directions for cov deriv
-               *****************************************************************/
-              for ( int mu = 0; mu < 4; mu++ ) {
+  }  /* end of loop on tbc phases */
 
-                for ( int i = 0; i < 4; i++ ) {
-                  spinor_field_eq_cov_deriv_spinor_field ( sequential_propagator_deriv_list[i], sequential_propagator_list[i], mu, ifbwd, gauge_field_with_phase );
-                }
-
-                for ( int isrc_gamma = 0; isrc_gamma < g_source_gamma_id_number; isrc_gamma++ ) {
-
-                  int gamma_source = g_source_gamma_id_list[isrc_gamma];
-
-                  double ** contr_p = init_2level_dtable ( g_source_momentum_number, 2*T );
-                  if ( contr_p == NULL ) {
-                    fprintf(stderr, "[cpff_tbc_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
-                    EXIT(47);
-                  }
-
-                  /*****************************************************************
-                   * loop on source momenta
-                   *****************************************************************/
-                  for ( int isrc_mom = 0; isrc_mom < g_source_momentum_number; isrc_mom++ ) {
-
-                    int source_momentum[3] = {
-                      g_source_momentum_list[isrc_mom][0],
-                      g_source_momentum_list[isrc_mom][1],
-                      g_source_momentum_list[isrc_mom][2] };
-
-                    int current_momentum[3] = {
-                      -( source_momentum[0] + seq_source_momentum[0] ),
-                      -( source_momentum[1] + seq_source_momentum[1] ),
-                      -( source_momentum[2] + seq_source_momentum[2] ) };
-
-                    contract_twopoint_snk_momentum ( contr_p[isrc_mom], gamma_source,  mu, 
-                        stochastic_propagator_mom_list[isrc_mom], 
-                        sequential_propagator_deriv_list, 1, current_momentum, 1);
-
-                  }  /* end of loop on source momenta */
-
-                  sprintf ( data_tag, "/d+-gd-sud/t%d/s%d/dt%d/gf%d/gc%d/d%d/%s/gi%d/pfx%dpfy%dpfz%d/", 
-                      gts, isample, g_sequential_source_timeslice_list[iseq_timeslice],
-                      seq_source_gamma, mu, mu, fbwd_str[ifbwd], gamma_source,
-                      seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
-
-#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-                  exitstatus = contract_write_to_aff_file ( contr_p, affw, data_tag, g_source_momentum_list, g_source_momentum_number, io_proc );
-#elif ( defined HAVE_HDF5 )
-                  exitstatus = contract_write_to_h5_file ( contr_p, output_filename, data_tag, g_source_momentum_list, g_source_momentum_number, io_proc );
-#endif
-                  if(exitstatus != 0) {
-                    fprintf(stderr, "[cpff_tbc_invert_contract] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                    EXIT(3);
-                  }
-              
-                  fini_2level_dtable ( &contr_p );
-
-                }  /* end of loop on source gamma id */
-
-                /*****************************************************************/
-                /*****************************************************************/
-
-                for ( int kfbwd = 0; kfbwd <= 1; kfbwd++ ) {
-  
-                  for ( int i = 0; i < 4; i++ ) {
-                    spinor_field_eq_cov_deriv_spinor_field ( sequential_propagator_dderiv_list[i], sequential_propagator_deriv_list[i], mu, kfbwd, gauge_field_with_phase );
-                  }
-
-                  for ( int isrc_gamma = 0; isrc_gamma < g_source_gamma_id_number; isrc_gamma++ ) {
-
-                    int gamma_source = g_source_gamma_id_list[isrc_gamma];
-
-                    double ** contr_p = init_2level_dtable ( g_source_momentum_number, 2*T );
-                    if ( contr_p == NULL ) {
-                      fprintf(stderr, "[cpff_tbc_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
-                      EXIT(47);
-                    }
-
-                    /*****************************************************************
-                     * loop on source momenta
-                     *****************************************************************/
-                    for ( int isrc_mom = 0; isrc_mom < g_source_momentum_number; isrc_mom++ ) {
-
-                      int source_momentum[3] = {
-                        g_source_momentum_list[isrc_mom][0],
-                        g_source_momentum_list[isrc_mom][1],
-                        g_source_momentum_list[isrc_mom][2] };
-
-                      int current_momentum[3] = {
-                        -( source_momentum[0] + seq_source_momentum[0] ),
-                        -( source_momentum[1] + seq_source_momentum[1] ),
-                        -( source_momentum[2] + seq_source_momentum[2] ) };
-
-                      contract_twopoint_snk_momentum ( contr_p[isrc_mom], gamma_source,  4, 
-                          stochastic_propagator_mom_list[isrc_mom], 
-                          sequential_propagator_deriv_list, 1, current_momentum, 1);
-
-                    }  /* end of loop on source momenta */
-
-                    sprintf ( data_tag, "/d+-dd-sud/t%d/s%d/dt%d/gf%d/d%d/%s/d%d/%s/gi%d/pfx%dpfy%dpfz%d/", 
-                        gts, isample, g_sequential_source_timeslice_list[iseq_timeslice],
-                        seq_source_gamma, mu, fbwd_str[kfbwd], mu, fbwd_str[ifbwd], gamma_source,
-                        seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
-
-#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-                    exitstatus = contract_write_to_aff_file ( contr_p, affw, data_tag, g_source_momentum_list, g_source_momentum_number, io_proc );
-#elif ( defined HAVE_HDF5 )
-                    exitstatus = contract_write_to_h5_file ( contr_p, output_filename, data_tag, g_source_momentum_list, g_source_momentum_number, io_proc );
-#endif
-                    if(exitstatus != 0) {
-                      fprintf(stderr, "[cpff_tbc_invert_contract] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                      EXIT(3);
-                    }
-              
-                    fini_2level_dtable ( &contr_p );
-
-                  }  /* end of loop on source gamma id */
-
-                }  /* end of loop on fbwd directions k */
-
-              }  /* end of loop on directions for cov deriv */
-
-              fini_2level_dtable ( &sequential_propagator_deriv_list );
-              fini_2level_dtable ( &sequential_propagator_dderiv_list );
-
-            }  /* end of loop on fbwd */
-
-            /*****************************************************************/
-            /*****************************************************************/
-          }  /* loop on sequential source timeslices */
-
-        }  /* end of loop on sequential source gamma ids */
-
-      }  /* end of loop on sequential source momenta */
-#if 0
-#endif  /* of if 0 */
-
-      exitstatus = init_timeslice_source_oet ( NULL, -1, NULL, -2 );
-
-    }  /* end of loop on oet samples */
-
-#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-    if(io_proc == 2) {
-      const char * aff_status_str = (char*)aff_writer_close (affw);
-      if( aff_status_str != NULL ) {
-        fprintf(stderr, "[cpff_tbc_invert_contract] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-        EXIT(32);
-      }
-    }  /* end of if io_proc == 2 */
-#endif  /* of ifdef HAVE_LHPC_AFF */
-
-  }  /* end of loop on source timeslices */
-
+    
   /***************************************************************************
    * decallocate spinor fields
    ***************************************************************************/
-  fini_3level_dtable ( &stochastic_propagator_mom_list );
-  fini_2level_dtable ( &stochastic_propagator_zero_list );
+  fini_4level_dtable ( &stochastic_propagator_mom_list );
+  fini_3level_dtable ( &stochastic_propagator_zero_list );
   fini_2level_dtable ( &stochastic_source_list );
   fini_2level_dtable ( &sequential_propagator_list );
+
   fini_2level_dtable ( &spinor_work );
 
   /***************************************************************************
