@@ -412,7 +412,7 @@ int main(int argc, char **argv) {
       if ( g_read_source ) {
         for ( int ispin = 0; ispin < 4; ispin++ ) {
           sprintf(filename, "%s.%.4d.t%d.%d.%.5d", filename_prefix, Nconf, gts, ispin, isample);
-          if ( ( exitstatus = read_lime_spinor( stochastic_source_list[ispin], filename, ispin) ) != 0 ) {
+          if ( ( exitstatus = read_lime_spinor( stochastic_source_list[ispin], filename, 0) ) != 0 ) {
             fprintf(stderr, "[cpff_invert_contract] Error from read_lime_spinor, status was %d\n", exitstatus);
             EXIT(2);
           }
