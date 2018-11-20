@@ -1,11 +1,7 @@
 cmake_minimum_required (VERSION 3.8)
-project (cvc)
+project (cvc LANGUAGES C CXX Fortran)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-enable_language(CXX)
-enable_language(C)
-
-enable_language(Fortran)
 include(FortranCInterface)
 FortranCInterface_HEADER(fortran_name_mangling.h MACRO_NAMESPACE "F_")
 
@@ -32,6 +28,9 @@ else()
     add_definitions(-DOMPI_SKIP_MPICXX)
     include_directories(${MPI_C_INCLUDE_PATH})
     list(APPEND cvc_libraries "${MPI_C_LIBRARIES}")
+    message(STATUS "MPI found")
+    message(STATUS "  MPI_C_INCLUDE_PATH=${MPI_C_INCLUDE_PATH}")
+    message(STATUS "  MPI_C_LIBRARIES=${MPI_C_LIBRARIES}")
   else()
     message( FATAL_ERROR "MPI could not be found automatically and MPI_HOME has not been specified!" )
   endif()
@@ -102,28 +101,7 @@ if( DD_ALPHA_AMG_HOME )
   message( STATUS "DDalphaAMG support enabled" )
 endif()
 
-set( QUDA_HOME CACHE PATH "path to QUDA installation (optional, depends on whether tmLQCD uses QUDA sovers)" ) 
-if( QUDA_HOME )
-  link_directories(${QUDA_HOME}/lib)
-  include_directories(${QUDA_HOME}/include)
-  list(APPEND cvc_libraries "-lquda")
 
-  find_package(CUDA)
-  if( CUDA_FOUND )
-    link_directories( ${CUDA_LIBRARY_DIRS} )
-    include_directories( ${CUDA_INCLUDE_DIRS} )
-    # QUDA required -lcuda for cuMemAlloc in addition to -lcudart
-    list(APPEND cvc_libraries "${CUDA_LIBRARIES}" "${CUDA_CUBLAS_LIBRARIES}" "-lcuda")
-  else()
-    message( FATAL_ERROR "Unable to find CUDA!")
-  endif()
-  message( STATUS "compiling against tmLQCD with QUDA" )
-endif()
-
-set( GPU_DIRECT_SOLVER FALSE CACHE BOOL "whether to use the invert_quda_direct pathway for inversions" )
-if( GPU_DIRECT_SOLVER )
-  add_definitions(-DGPU_DIRECT_SOLVER)
-endif()
 
 # attempt to find lhpc-aff-config
 set( LHPC_AFF_HOME CACHE PATH "path to LHPC AFF library installation (optional, required only if 'lhpc-aff-config' is not in \$PATH" )
@@ -274,6 +252,40 @@ else()
   list(APPEND cvc_libraries "${Boost_LIBRARIES}")
   message(STATUS "  Boost_INCLUDE_DIRS: ${Boost_INCLUDE_DIRS}")
   message(STATUS "  Boost_LIBRARIES: ${Boost_LIBRARIES}")
+endif()
+
+# the CUDA libraries must be the last to be set
+set( QUDA_HOME CACHE PATH "path to QUDA installation (optional, depends on whether tmLQCD uses QUDA sovers)" ) 
+if( QUDA_HOME )
+  link_directories(${QUDA_HOME}/lib)
+  include_directories(${QUDA_HOME}/include)
+  list(APPEND cvc_libraries "-lquda")
+
+  # enable CUDA language support
+  enable_language(CUDA)
+  # we still use find_package because we want the directories
+  find_package(CUDA REQUIRED)
+  if( CUDA_TOOLKIT_ROOT_DIR )
+    link_directories( "${CUDA_TOOLKIT_ROOT_DIR}/lib" "${CUDA_TOOLKIT_ROOT_DIR}/lib64" )
+    include_directories( ${CUDA_INCLUDE_DIRS} )
+    # QUDA required -lcuda for cuMemAlloc in addition to -lcudart
+    list(APPEND cvc_libraries "-lcuda -lcudart -lcublas")
+    message(STATUS "CUDA found")
+    message(STATUS "  CUDA_SDK_ROOT_DIR=${CUDA_SDK_ROOT_DIR}")
+    message(STATUS "  CUDA_TOOLKIT_ROOT_DIR=${CUDA_TOOLKIT_ROOT_DIR}")
+    message(STATUS "  CUDA_INCLUDE_DIRS=${CUDA_INCLUDE_DIRS}")
+  else()
+    message( FATAL_ERROR "Unable to find CUDA!")
+  endif()
+  message( STATUS "compiling against tmLQCD with QUDA" )
+endif()
+
+set( GPU_DIRECT_SOLVER FALSE CACHE BOOL "whether to use the invert_quda_direct pathway for inversions" )
+if( GPU_DIRECT_SOLVER )
+  if( NOT QUDA_HOME )
+    message(FATAL_ERROR "The direct GPU solver is only available when tmLQCD has been compiled with QUDA support. See QUDA_HOME.")
+  endif()
+  add_definitions(-DGPU_DIRECT_SOLVER)
 endif()
 
 set( QMP_HOME CACHE PATH "path to the QMP library required by QPhiX (optional, depends on how tmLQCD was configured)" )
