@@ -163,6 +163,9 @@ EXTERN int no_fields;
 
 EXTERN complex co_phase_up[4];
 
+EXTERN double g_tbc_phase_list[MAX_PARAM_NUMBER][4];
+EXTERN int g_tbc_phase_number;
+
 EXTERN int gamma_permutation[16][24], gamma_sign[16][24];
 EXTERN int perm_tab_3[6][3], perm_tab_4[24][4], perm_tab_3e[3][3], perm_tab_3o[3][3], perm_tab_4e[12][4], perm_tab_4o[12][4];
 EXTERN double perm_tab_3_sign[6];
@@ -260,6 +263,7 @@ EXTERN double g_twisted_masses_list[MAX_PARAM_NUMBER];
 EXTERN int g_twisted_masses_number;
 
 extern const char *g_gitversion;
+
 
 }
 

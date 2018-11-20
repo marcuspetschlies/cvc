@@ -204,6 +204,7 @@ namespace cvc {
 %x COHERENTSOURCENUMBER
 %x VERBOSITYLEVEL
 %x TWISTEDMASSES
+%x TBC_PHASE
 
 %%
 ^T{SPC}*={SPC}*                            BEGIN(TT);
@@ -365,6 +366,7 @@ namespace cvc {
 ^verbosity_level{SPC}*={SPC}*              BEGIN(VERBOSITYLEVEL);
 
 ^twisted_mass{SPC}*={SPC}*                 BEGIN(TWISTEDMASSES);
+^tbc_phase{SPC}*={SPC}*                    BEGIN(TBC_PHASE);
 
   /* start namespace inclusion here */
 
@@ -1190,6 +1192,12 @@ namespace cvc {
   cvc::g_twisted_masses_list[cvc::g_twisted_masses_number] = atof ( yytext );
   cvc::g_twisted_masses_number++;
   if(cvc::myverbose!=0) printf("# [read_input_parser] added twisted mass number %d to list %s\n", cvc::g_twisted_masses_number, yytext );
+}
+
+<TBC_PHASE>{FLT} {
+  cvc::g_tbc_phase_list[cvc::g_tbc_phase_number] = atof ( yytext );
+  cvc::g_tbc_phase_number++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] added tbc phase number %d to list %s\n", cvc::g_tbc_phase_number, yytext );
 }
 
 <*>^#   {
