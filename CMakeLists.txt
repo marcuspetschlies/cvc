@@ -117,45 +117,48 @@ endif()
 
 # attempt to find lhpc-aff-config
 set( LHPC_AFF_HOME CACHE PATH "path to LHPC AFF library installation (optional, required only if 'lhpc-aff-config' is not in \$PATH" )
-list(APPEND CMAKE_PREFIX_PATH "${LHPC_AFF_HOME}")
-find_program(LHPC_AFF_CONFIG
-  lhpc-aff-config)
-if( "X_${LHPC_AFF_CONFIG}" STREQUAL "X_LHPC_AFF_CONFIG-NOTFOUND" )
-  message( FATAL_ERROR "lhpc-aff-config could not be found. Did you try specifying -DLHPC_AFF_HOME ?" )
-else()
-  add_definitions(-DHAVE_LHPC_AFF)
-  # parse the AFF version
-  execute_process(
-    COMMAND ${LHPC_AFF_CONFIG} --version 
-    COMMAND sed s/[^0-9.]//g 
-    COMMAND sed s/^.//g
-    OUTPUT_VARIABLE LHPC_AFF_VERSION
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
-  if( "${LHPC_AFF_VERSION}" VERSION_LESS "2.1.0" )
-    message( FATAL_ERROR "LHPC AFF version: ${LHPC_AFF_VERSION}, but 2.1.0 required!" )
+set( USE_AFF CACHE BOOL "whether AFF support should be compiled even though HDF5 is available")
+if( (NOT HDF5_FOUND) OR USE_AFF )
+  list(APPEND CMAKE_PREFIX_PATH "${LHPC_AFF_HOME}")
+  find_program(LHPC_AFF_CONFIG
+    lhpc-aff-config)
+  if( "X_${LHPC_AFF_CONFIG}" STREQUAL "X_LHPC_AFF_CONFIG-NOTFOUND" )
+    message( FATAL_ERROR "lhpc-aff-config could not be found. Did you try specifying -DLHPC_AFF_HOME ?" )
+  else()
+    add_definitions(-DHAVE_LHPC_AFF)
+    # parse the AFF version
+    execute_process(
+      COMMAND ${LHPC_AFF_CONFIG} --version 
+      COMMAND sed s/[^0-9.]//g 
+      COMMAND sed s/^.//g
+      OUTPUT_VARIABLE LHPC_AFF_VERSION
+      OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if( "${LHPC_AFF_VERSION}" VERSION_LESS "2.1.0" )
+      message( FATAL_ERROR "LHPC AFF version: ${LHPC_AFF_VERSION}, but 2.1.0 required!" )
+    endif()
+    # the stripping of -I and -L is a bit of a hack and might break...
+    execute_process(
+      COMMAND ${LHPC_AFF_CONFIG} --cflags
+      COMMAND sed s/-I//g
+      OUTPUT_VARIABLE LHPC_AFF_INCLUDEDIRS
+      OUTPUT_STRIP_TRAILING_WHITESPACE)
+    execute_process(
+      COMMAND ${LHPC_AFF_CONFIG} --ldflags
+      COMMAND sed s/-L//g
+      OUTPUT_VARIABLE LHPC_AFF_LINKDIRS
+      OUTPUT_STRIP_TRAILING_WHITESPACE)
+    execute_process(
+      COMMAND ${LHPC_AFF_CONFIG} --libs
+      OUTPUT_VARIABLE LHPC_AFF_LIBS
+      OUTPUT_STRIP_TRAILING_WHITESPACE)
+    include_directories( ${LHPC_AFF_INCLUDEDIRS} )
+    list(APPEND cvc_libraries "${LHPC_AFF_LIBS}" )
+    link_directories( ${LHPC_AFF_LINKDIRS} )
+    message( STATUS "AFF support enabled" )
+    message( STATUS "  LHPC_AFF_LINKDIRS: ${LHPC_AFF_LINKDIRS}")
+    message( STATUS "  LHPC_AFF_LIBS: ${LHPC_AFF_LIBS}")
+    message( STATUS "  LHPC_AFF_INCLUDEDIRS: ${LHPC_AFF_INCLUDEDIRS}")
   endif()
-  # the stripping of -I and -L is a bit of a hack and might break...
-  execute_process(
-    COMMAND ${LHPC_AFF_CONFIG} --cflags
-    COMMAND sed s/-I//g
-    OUTPUT_VARIABLE LHPC_AFF_INCLUDEDIRS
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
-  execute_process(
-    COMMAND ${LHPC_AFF_CONFIG} --ldflags
-    COMMAND sed s/-L//g
-    OUTPUT_VARIABLE LHPC_AFF_LINKDIRS
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
-  execute_process(
-    COMMAND ${LHPC_AFF_CONFIG} --libs
-    OUTPUT_VARIABLE LHPC_AFF_LIBS
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
-  include_directories( ${LHPC_AFF_INCLUDEDIRS} )
-  list(APPEND cvc_libraries "${LHPC_AFF_LIBS}" )
-  link_directories( ${LHPC_AFF_LINKDIRS} )
-  message( STATUS "AFF support enabled" )
-  message( STATUS "  LHPC_AFF_LINKDIRS: ${LHPC_AFF_LINKDIRS}")
-  message( STATUS "  LHPC_AFF_LIBS: ${LHPC_AFF_LIBS}")
-  message( STATUS "  LHPC_AFF_INCLUDEDIRS: ${LHPC_AFF_INCLUDEDIRS}")
 endif()
 
 find_package(FLEX REQUIRED)
