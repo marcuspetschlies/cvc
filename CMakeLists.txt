@@ -11,6 +11,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
+# we will collect any libraries that we want to link against to compile
+# CVC main programs in this list which we grow below with list(APPEND cvc_libraries [...])
 set(cvc_libraries)
 
 set( MPI_HOME CACHE PATH "path to MPI library installation directory" )
@@ -283,8 +285,8 @@ if( QUDA_HOME )
   if( CUDA_TOOLKIT_ROOT_DIR )
     link_directories( "${CUDA_TOOLKIT_ROOT_DIR}/lib" "${CUDA_TOOLKIT_ROOT_DIR}/lib64" )
     include_directories( ${CUDA_INCLUDE_DIRS} )
-    # QUDA required -lcuda for cuMemAlloc in addition to -lcudart
-    list(APPEND cvc_libraries "-lcuda -lcudart -lcublas")
+    # QUDA requires -lcuda for cuMemAlloc in addition to -lcudart
+    list(APPEND cvc_libraries "-lcuda" "-lcudart" "-lcublas")
     message(STATUS "CUDA found")
     message(STATUS "  CUDA_SDK_ROOT_DIR=${CUDA_SDK_ROOT_DIR}")
     message(STATUS "  CUDA_TOOLKIT_ROOT_DIR=${CUDA_TOOLKIT_ROOT_DIR}")
