@@ -741,7 +741,7 @@ int main(int argc, char **argv) {
 
                   contract_twopoint_snk_momentum ( contr_p[isrc_mom], gamma_source,  gamma_current, 
                       stochastic_propagator_mom_list[isrc_mom], 
-                      sequential_propagator_list, 1, current_momentum, 1);
+                      sequential_propagator_list, 4, 1, current_momentum, 1);
 
                 }  /* end of loop on source momenta */
 
@@ -826,7 +826,7 @@ int main(int argc, char **argv) {
 
                     contract_twopoint_snk_momentum ( contr_p[isrc_mom], gamma_source,  mu, 
                         stochastic_propagator_mom_list[isrc_mom], 
-                        sequential_propagator_deriv_list, 1, current_momentum, 1);
+                        sequential_propagator_deriv_list, 4, 1, current_momentum, 1);
 
                   }  /* end of loop on source momenta */
 
@@ -885,7 +885,7 @@ int main(int argc, char **argv) {
 
                       contract_twopoint_snk_momentum ( contr_p[isrc_mom], gamma_source,  4, 
                           stochastic_propagator_mom_list[isrc_mom], 
-                          sequential_propagator_deriv_list, 1, current_momentum, 1);
+                          sequential_propagator_deriv_list, 4, 1, current_momentum, 1);
 
                     }  /* end of loop on source momenta */
 
