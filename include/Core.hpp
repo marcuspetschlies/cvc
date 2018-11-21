@@ -172,7 +172,6 @@ class Core {
 #ifdef HAVE_MPI
       MPI_Initialized(&check_core_mpi_initialised);
 #endif
-      std::cout << "check_core_mpi_initialised=" << check_core_mpi_initialised << std::endl;
       if( !check_core_mpi_initialised ){
         int status;
         // Currently, tmLQCD_init_parallel_and_read_input must be called because

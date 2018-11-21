@@ -101,7 +101,19 @@ if( DD_ALPHA_AMG_HOME )
   message( STATUS "DDalphaAMG support enabled" )
 endif()
 
-
+# we prefer static libraries
+set(HDF5_USE_STATIC_LIBRARIES)
+find_package(HDF5)
+if(HDF5_FOUND)
+  add_definitions(-DHAVE_HDF5)
+  include_directories(${HDF5_INCLUDE_DIRS})
+  list(APPEND cvc_libraries ${HDF5_LIBRARIES})
+  message(STATUS "HDF5 found")
+  message(STATUS "  HDF5_INCLUDE_DIRS=${HDF5_INCLUDE_DIRS}")
+  message(STATUS "  HDF5_LIBRARIES=${HDF5_LIBRARIES}")
+else()
+  message(STATUS "HDF5 could not be found!")
+endif()
 
 # attempt to find lhpc-aff-config
 set( LHPC_AFF_HOME CACHE PATH "path to LHPC AFF library installation (optional, required only if 'lhpc-aff-config' is not in \$PATH" )
@@ -305,7 +317,7 @@ if( QPHIX_HOME )
   set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${TMLQCD_BUILD}/qphix_interface.o" )
   link_directories(${QPHIX_HOME}/lib)
   include_directories(${QPHIX_HOME}/include)
-  list(APPEND cvc_librareis "-lqphix_codegen" "-lqphix_solver")
+  list(APPEND cvc_libraries "-lqphix_codegen" "-lqphix_solver")
   message( STATUS "compiling against tmLQCD with QPhiX" )
 endif()
 
@@ -346,6 +358,10 @@ add_executable(cpff_invert_contract
 target_link_libraries(cpff_invert_contract
   cvc
   ${cvc_libraries}
+)
+
+add_executable(cpff_tbc_invert_contract
+  cpff_tbc_invert_contract.cpp
 )
 
 add_subdirectory(external/googletest)
