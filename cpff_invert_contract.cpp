@@ -424,7 +424,7 @@ int main(int argc, char **argv) {
       if ( g_read_source ) {
         for ( int ispin = 0; ispin < 4; ispin++ ) {
           sprintf(filename, "%s.%.4d.t%d.%d.%.5d", filename_prefix, Nconf, gts, ispin, isample);
-          if ( ( exitstatus = read_lime_spinor( stochastic_source_list[ispin], filename, ispin) ) != 0 ) {
+          if ( ( exitstatus = read_lime_spinor( stochastic_source_list[ispin], filename, 0) ) != 0 ) {
             fprintf(stderr, "[cpff_invert_contract] Error from read_lime_spinor, status was %d\n", exitstatus);
             EXIT(2);
           }
@@ -753,7 +753,7 @@ int main(int argc, char **argv) {
 
                   contract_twopoint_snk_momentum ( contr_p[isrc_mom], gamma_source,  gamma_current, 
                       stochastic_propagator_mom_list[isrc_mom], 
-                      sequential_propagator_list, 1, current_momentum, 1);
+                      sequential_propagator_list, 4, 1, current_momentum, 1);
 
                 }  /* end of loop on source momenta */
 
@@ -838,7 +838,7 @@ int main(int argc, char **argv) {
 
                     contract_twopoint_snk_momentum ( contr_p[isrc_mom], gamma_source,  mu, 
                         stochastic_propagator_mom_list[isrc_mom], 
-                        sequential_propagator_deriv_list, 1, current_momentum, 1);
+                        sequential_propagator_deriv_list, 4, 1, current_momentum, 1);
 
                   }  /* end of loop on source momenta */
 
@@ -897,7 +897,7 @@ int main(int argc, char **argv) {
 
                       contract_twopoint_snk_momentum ( contr_p[isrc_mom], gamma_source,  4, 
                           stochastic_propagator_mom_list[isrc_mom], 
-                          sequential_propagator_deriv_list, 1, current_momentum, 1);
+                          sequential_propagator_deriv_list, 4, 1, current_momentum, 1);
 
                     }  /* end of loop on source momenta */
 

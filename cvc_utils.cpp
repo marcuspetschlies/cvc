@@ -3259,7 +3259,7 @@ void contract_twopoint(double *contr, const int idsource, const int idsink, doub
  * contraction of meson 2-point functions with sink momentum vector
  *   includes MPI-reduction inside timslice of g_cart_grid
  *****************************************************************************************************************/
-void contract_twopoint_snk_momentum ( double * const contr, int const idsource, int const idsink, double ** const chi, double ** const phi, int const n_c, int const snk_mom[3], int const reduce ) {
+void contract_twopoint_snk_momentum ( double * const contr, int const idsource, int const idsink, double ** const chi, double ** const phi, unsigned int const n_s, unsigned int const n_c, int const snk_mom[3], int const reduce ) {
 
 #ifdef HAVE_OPENMP
   omp_lock_t writelock;
@@ -3267,31 +3267,26 @@ void contract_twopoint_snk_momentum ( double * const contr, int const idsource, 
 
   double const TWO_MPI =  2. * M_PI;
 
-  int const psource[4] = { 
-    gamma_permutation[idsource][ 0] / 6,
-    gamma_permutation[idsource][ 6] / 6,
-    gamma_permutation[idsource][12] / 6,
-    gamma_permutation[idsource][18] / 6 };
+  int isimag = 0;
+  int    * psource = (int   *)calloc ( n_s , sizeof(int)    );
+  double * ssource = (double*)calloc ( n_s , sizeof(double) );
 
-  int const isimag = gamma_permutation[idsource][ 0] % 2;
+  if ( idsource >= 0 && n_s > 1 ) {
+    /* permutation and sign from the source gamma matrix; the minus sign
+     * in the lower two lines is the action of gamma_5 */
+    for ( unsigned int mu = 0; mu < n_s; mu++ ) {
+      psource[mu] = gamma_permutation[idsource][6*mu] / 6;
+      ssource[mu] = gamma_sign[idsource][6*mu] * gamma_sign[5][gamma_permutation[idsource][6*mu]];
+    }
 
-  /* sign from the source gamma matrix; the minus sign
-   * in the lower two lines is the action of gamma_5 */
-  double const ssource[4] = {
-    gamma_sign[idsource][ 0] * gamma_sign[5][gamma_permutation[idsource][ 0]],
-    gamma_sign[idsource][ 6] * gamma_sign[5][gamma_permutation[idsource][ 6]],
-    gamma_sign[idsource][12] * gamma_sign[5][gamma_permutation[idsource][12]],
-    gamma_sign[idsource][18] * gamma_sign[5][gamma_permutation[idsource][18]] };
+    isimag = gamma_permutation[idsource][ 0] % 2;
+  }
 
   if ( g_cart_id == 0 && g_verbose > 3 ) {
     fprintf(stdout, "# [contract_twopoint_snk_momentum] __________________________________\n");
-    fprintf(stdout, "# [contract_twopoint_snk_momentum] isource=%d, idsink=%d, p[0] = %d\n", idsource, idsink, psource[0]);
-    fprintf(stdout, "# [contract_twopoint_snk_momentum] isource=%d, idsink=%d, p[1] = %d\n", idsource, idsink, psource[1]);
-    fprintf(stdout, "# [contract_twopoint_snk_momentum] isource=%d, idsink=%d, p[2] = %d\n", idsource, idsink, psource[2]);
-    fprintf(stdout, "# [contract_twopoint_snk_momentum] isource=%d, idsink=%d, p[3] = %d\n", idsource, idsink, psource[3]);
-
-    if(g_cart_id==0) fprintf(stdout, "# [contract_twopoint_snk_momentum] %3d %3d ssource = %e\t%e\t%e\t%e\n",
-        idsource, idsink, ssource[0], ssource[1], ssource[2], ssource[3]);
+    for ( unsigned int mu = 0; mu < n_s; mu++ ) {
+      fprintf(stdout, "# [contract_twopoint_snk_momentum] isource=%d, idsink=%d, p[%d] = %d, s[%d] = %e\n", mu, idsource, idsink, psource[mu], mu, ssource[mu] );
+    }
   }
 
   double const px = TWO_MPI * (double)snk_mom[0] / (double)LX_global;
@@ -3307,7 +3302,7 @@ void contract_twopoint_snk_momentum ( double * const contr, int const idsource, 
 #endif
 
   complex w;
-  double spinor1[24], spinor2[24];
+  double spinor1[_GSI(1)], spinor2[_GSI(1)];
   double * contr_tmp = ( double * )calloc ( 2 * T, sizeof ( double ) );
 
 #ifdef HAVE_OPENMP
@@ -3328,9 +3323,9 @@ void contract_twopoint_snk_momentum ( double * const contr, int const idsource, 
 
     double tmp[2] = { 0., 0. };
 
-    for ( int mu=0; mu<4; mu++ ) {
+    for ( unsigned int mu=0; mu < n_s; mu++ ) {
 
-      for ( int c=0; c<n_c; c++) {
+      for ( unsigned int c=0; c < n_c; c++) {
 
         _fv_eq_gamma_ti_fv ( spinor1, idsink, phi[mu*n_c+c] + iix );
         _fv_eq_gamma_ti_fv ( spinor2, 5, spinor1 );
@@ -3383,6 +3378,9 @@ void contract_twopoint_snk_momentum ( double * const contr, int const idsource, 
   }
 #  endif
 #endif
+
+  free ( psource );
+  free ( ssource );
 
 }  // end of contract_twopoint_snk_momentum
 
