@@ -638,7 +638,7 @@ int main(int argc, char **argv) {
            * loop on gamma matrix
            ***************************************************************************/
           // for ( int isrc_gamma = 0; isrc_gamma < g_source_gamma_id_number; isrc_gamma++ ) {
-            int const source_gamma = 5;
+            int const source_gamma = -1;
 
           for ( int isnk_gamma = 0; isnk_gamma < g_source_gamma_id_number; isnk_gamma++ ) {
             int const sink_gamma = g_source_gamma_id_list[isnk_gamma];
@@ -647,7 +647,7 @@ int main(int argc, char **argv) {
              * contract
              ***************************************************************************/
             contract_twopoint_snk_momentum ( contr_p[isrc_mom], source_gamma,  sink_gamma,
-                sequential_propagator_list, stochastic_propagator_mom_list[isrc_mom], 1, sink_momentum, 1);
+                sequential_propagator_list, stochastic_propagator_mom_list[isrc_mom], 1, 1, sink_momentum, 1);
 
             /***************************************************************************
              * data key
@@ -863,26 +863,14 @@ int main(int argc, char **argv) {
                   EXIT(47);
                 }
 
-                /*****************************************************************
-                 * loop on source momenta
-                 *****************************************************************/
-                for ( int isrc_mom = 0; isrc_mom < g_source_momentum_number; isrc_mom++ ) {
+                int current_momentum[3] = {
+                  -2 * seq_source_momentum[0],
+                  -2 * seq_source_momentum[1],
+                  -2 * seq_source_momentum[2] };
 
-                  int source_momentum[3] = {
-                    g_source_momentum_list[isrc_mom][0],
-                    g_source_momentum_list[isrc_mom][1],
-                    g_source_momentum_list[isrc_mom][2] };
-
-                  int current_momentum[3] = {
-                    -( source_momentum[0] + seq_source_momentum[0] ),
-                    -( source_momentum[1] + seq_source_momentum[1] ),
-                    -( source_momentum[2] + seq_source_momentum[2] ) };
-
-                  contract_twopoint_snk_momentum ( contr_p[isrc_mom], gamma_source,  gamma_current, 
-                      stochastic_propagator_mom_list[isrc_mom], 
-                      sequential_propagator_list, 1, current_momentum, 1);
-
-                }  /* end of loop on source momenta */
+                  contract_twopoint_snk_momentum ( contr_p[isrc_mom], -1,  gamma_current, 
+                      stochastic_propagator_zero_list[isource_location][isample], 
+                      sequential_propagator_list, 1, 1, current_momentum, 1);
 
                 sprintf ( data_tag, "/d+-g-sud/theta%d/t%d/s%d/dt%d/gf%d/gc%d/gi%d/pfx%dpfy%dpfz%d/", 
                     itheta, gts, isample, g_sequential_source_timeslice_list[iseq_timeslice],
