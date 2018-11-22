@@ -3276,9 +3276,16 @@ void contract_twopoint_snk_momentum ( double * const contr, int const idsource, 
   int    * psource = (int   *)calloc ( n_s , sizeof(int)    );
   double * ssource = (double*)calloc ( n_s , sizeof(double) );
 
+  /* default value for sign is 1. */
+#pragma unroll
+  for ( unsigned int mu = 0; mu < n_s; mu++ ) {
+    ssource[mu] = 1.;
+  }
+
   if ( idsource >= 0 && n_s > 1 ) {
     /* permutation and sign from the source gamma matrix; the minus sign
      * in the lower two lines is the action of gamma_5 */
+#pragma unroll
     for ( unsigned int mu = 0; mu < n_s; mu++ ) {
       psource[mu] = gamma_permutation[idsource][6*mu] / 6;
       ssource[mu] = gamma_sign[idsource][6*mu] * gamma_sign[5][gamma_permutation[idsource][6*mu]];
@@ -7072,7 +7079,7 @@ int fix_eigenvector_phase ( double **evecs_field, int num ) {
 /***********************************************************/
 /***********************************************************/
 
-int const get_io_proc (void) {
+int get_io_proc (void) {
 
 #ifdef HAVE_MPI
   /****************************************************************************
@@ -7085,8 +7092,8 @@ int const get_io_proc (void) {
       fprintf(stderr, "[get_io_proc] Error, io proc must be id 0 in g_tr_comm %s %d\n", __FILE__, __LINE__);
       return(-1);
     }
-    return ( 2 );
 #endif
+    return ( 2 );
   } else {
     if( g_proc_coords[1] == 0 && g_proc_coords[2] == 0 && g_proc_coords[3] == 0) {
       fprintf(stdout, "# [get_io_proc] proc%.4d is send process\n", g_cart_id);
