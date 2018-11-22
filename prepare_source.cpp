@@ -36,23 +36,69 @@
 
 namespace cvc {
 
-int prepare_volume_source(double *s, unsigned int V) {
+int prepare_volume_source ( double * const s, unsigned int const V) {
 
+  unsigned int const  VOL3 = LX        * LY        * LZ;
+  unsigned int const gVOL3 = LX_global * LY_global * LZ_global;
   int status = 0;
   double ratime, retime;
 
+  double * spinor_field = init_1level_dtable ( _GSI(gVOL3 ) );
+  if ( spinor_field == NULL ) {
+    fprintf ( stderr, "[prepare_volume_source] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__ );
+    return ( 1 );
+  }
+
   ratime = _GET_TIME;
 
-  switch(g_noise_type) {
-    case 1:
-      /* status = rangauss(s, 24*V); */
-      status = rangauss(s, _GSI(V) );
-      break;
-    case 2:
-      /* status = ranz2(s, 24*V); */
-      status = ranz2(s, _GSI(V) );
-      break;
-  }
+  /*********************************************************
+   * mpi-globally synchronized drawing of random numbers
+   *********************************************************/
+  for ( int it = 0; it < T_global; it++ ) {
+
+    switch(g_noise_type) {
+      case 1:
+        status = rangauss( spinor_field, _GSI( gVOL3 ) );
+        break;
+      case 2:
+        status = ranz2( spinor_field, _GSI( gVOL3 ) );
+        break;
+    }
+
+    if ( it / T == g_proc_coords[0] ) {
+      int const ts = it % T;
+      if ( g_verbose > 3 ) fprintf ( stdout, "# [prepare_volume_source] proc %4d = %3d %3d %3d %3d has global / local source timeslice %2d / %2d\n", g_cart_id, 
+          g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3], it, ts );
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+      for ( unsigned int ix = 0; ix < VOL3; ix++ ) {
+
+        /* local 4-dim index */
+        unsigned int iix = ts * VOL3 + ix; 
+
+        /* local 3-coordinates */
+        int const x1 = g_lexic2coords[iix][1];
+        int const x2 = g_lexic2coords[iix][2];
+        int const x3 = g_lexic2coords[iix][3];
+        /* global 3-coordinates */
+        int const y1 = x1 + g_proc_coords[1] * LX;
+        int const y2 = x2 + g_proc_coords[2] * LY;
+        int const y3 = x3 + g_proc_coords[3] * LZ;
+
+        /* global 3-dim index */
+        unsigned int const iy = ( y1 * LY_global + y2 ) * LZ_global + y3;
+
+        _fv_eq_fv ( s+_GSI(iix), spinor_field+_GSI(iy) );
+
+      }  /* end of loop on local 3-dim volume */
+
+    }  /* end of if have global timeslice */
+
+  }  /* end of loop on global timeslices */
+
+  fini_1level_dtable ( &spinor_field );
 
   retime = _GET_TIME;
   if ( g_cart_id == 0 ) {
@@ -61,6 +107,9 @@ int prepare_volume_source(double *s, unsigned int V) {
 
   return(status);
 }  /* end of prepare_volume_source */
+
+/*********************************************************/
+/*********************************************************/
 
 /*********************************************************
  * out: s_even, s_odd, even and odd part of source field
@@ -608,7 +657,7 @@ int init_clover_eo_sequential_source(double *s_even, double *s_odd, double *p_ev
 /*************************************************************************
  * prepare a sequential source
  *************************************************************************/
-int init_sequential_source(double *s, double *p, int tseq, int pseq[3], int gseq) {
+int init_sequential_source ( double * const s, double * const p, int const tseq, int const pseq[3], int const gseq) {
 
   const double px = 2. * M_PI * pseq[0] / (double)LX_global;
   const double py = 2. * M_PI * pseq[1] / (double)LY_global;
