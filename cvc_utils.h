@@ -211,7 +211,7 @@ int fix_eigenvector_phase ( double **evecs_field, int num );
 
 int check_eigenpairs ( double ** const eo_evecs_field, double ** evecs_eval, unsigned int const evecs_num, double * const gauge_field, double ** const mzz[2], double ** const mzzinv[2] );
 
-int const get_io_proc (void);
+int get_io_proc (void);
 
 unsigned int * const sort_by_dvalue_mapping ( double * const value, unsigned int const nv );
 
