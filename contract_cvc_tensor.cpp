@@ -887,7 +887,7 @@ int contract_write_to_aff_file (double ** const c_tp, struct AffWriter_s*affw, c
  *       here we only MPI_Gather in time ray g_tr_comm
  ***************************************************************************/
 
-int contract_write_to_h5_file (double ** const c_tp, void * file, char*tag, int (* const momentum_list)[3], int const momentum_number, int const io_proc ) {
+int contract_write_to_h5_file (double ** const c_tp, void * file, char*tag, const int (* momentum_list)[3], int const momentum_number, int const io_proc ) {
 
   if ( io_proc > 0 ) {
 
