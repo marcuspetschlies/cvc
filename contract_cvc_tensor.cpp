@@ -905,7 +905,7 @@ int contract_write_to_h5_file (double ** const c_tp, void * file, char*tag, int 
       zbuffer = init_2level_dtable ( T_global, 2 * momentum_number );
       if( zbuffer == NULL ) {
         fprintf(stderr, "[contract_write_to_h5_file] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
-        return(6);
+        return(1);
       }
 
     } else {
@@ -917,7 +917,7 @@ int contract_write_to_h5_file (double ** const c_tp, void * file, char*tag, int 
       zbuffer = init_2level_dtable ( 1, 1 );
       if( zbuffer == NULL ) {
         fprintf(stderr, "[contract_write_to_h5_file] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
-        return(6);
+        return(2);
       }
     }  /* end of if io_proc == 2 else */
 
@@ -929,7 +929,7 @@ int contract_write_to_h5_file (double ** const c_tp, void * file, char*tag, int 
     double ** buffer = init_2level_dtable ( T, 2 * momentum_number );
     if( buffer == NULL ) {
       fprintf(stderr, "[contract_write_to_h5_file] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
-      return(6);
+      return(3);
     }
 
     for( int it = 0; it < T; it++ ) {
@@ -948,13 +948,13 @@ int contract_write_to_h5_file (double ** const c_tp, void * file, char*tag, int 
     int exitstatus = MPI_Gather ( buffer[0], mitems, MPI_DOUBLE, zbuffer[0], mitems, MPI_DOUBLE, 0, g_tr_comm);
     if(exitstatus != MPI_SUCCESS) {
       fprintf(stderr, "[contract_write_to_h5_file] Error from MPI_Gather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      return(3);
+      return(4);
     }
 #  else
     int exitstatus = MPI_Gather ( buffer[0], mitems, MPI_DOUBLE, zbuffer[0], mitems, MPI_DOUBLE, 0, g_cart_grid);
     if(exitstatus != MPI_SUCCESS) {
       fprintf(stderr, "[contract_write_to_h5_file] Error from MPI_Gather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      return(4);
+      return(5);
     }
 #  endif
 
@@ -1079,7 +1079,7 @@ int contract_write_to_h5_file (double ** const c_tp, void * file, char*tag, int 
           grp = H5Gcreate2 (       loc_id,         grp_ptr,       lcpl_id,       gcpl_id,       gapl_id );
           if ( grp < 0 ) {
             fprintf ( stderr, "[contract_write_to_h5_file] Error from H5Gcreate2 for group %s, status was %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
-            return ( 110 );
+            return ( 6 );
           } else {
             if ( g_verbose > 1 ) fprintf ( stdout, "# [contract_write_to_h5_file] created group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
           }
@@ -1098,7 +1098,7 @@ int contract_write_to_h5_file (double ** const c_tp, void * file, char*tag, int 
       double ** h5_buffer = init_2level_dtable ( momentum_number, 2 * T_global );
       if ( h5_buffer == NULL) {
         fprintf(stderr, "[contract_write_to_h5_file] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
-        return(2);
+        return(7);
       }
   
       for( int ip=0; ip<momentum_number; ip++) {
@@ -1153,7 +1153,7 @@ int contract_write_to_h5_file (double ** const c_tp, void * file, char*tag, int 
   
         if( status < 0 ) {
           fprintf(stderr, "[contract_write_to_h5_file] Error from H5Dwrite, status was %d %s %d\n", status, __FILE__, __LINE__);
-          return(105);
+          return(8);
         }
   
         /***************************************************************************
@@ -1162,7 +1162,7 @@ int contract_write_to_h5_file (double ** const c_tp, void * file, char*tag, int 
         status = H5Dclose ( dataset_id );
         if( status < 0 ) {
           fprintf(stderr, "[contract_write_to_h5_file] Error from H5Dclose, status was %d %s %d\n", status, __FILE__, __LINE__);
-          return(105);
+          return(9);
         }
   
       }  /* end of loop on data sets */
@@ -1175,7 +1175,7 @@ int contract_write_to_h5_file (double ** const c_tp, void * file, char*tag, int 
       status = H5Sclose ( space_id );
       if( status < 0 ) {
         fprintf(stderr, "[contract_write_to_h5_file] Error from H5Sclose, status was %d %s %d\n", status, __FILE__, __LINE__);
-        return(105);
+        return(10);
       }
   
       /***************************************************************************
@@ -1185,7 +1185,7 @@ int contract_write_to_h5_file (double ** const c_tp, void * file, char*tag, int 
         status = H5Gclose ( grp_list[i] );
         if( status < 0 ) {
           fprintf(stderr, "[contract_write_to_h5_file] Error from H5Gclose, status was %d %s %d\n", status, __FILE__, __LINE__);
-          return(105);
+          return(11);
         } else {
           if ( g_verbose > 1 ) fprintf(stdout, "# [contract_write_to_h5_file] closed group %ld %s %d\n", grp_list[i], __FILE__, __LINE__);
         }
@@ -1197,7 +1197,7 @@ int contract_write_to_h5_file (double ** const c_tp, void * file, char*tag, int 
       status = H5Tclose ( dtype_id );
       if( status < 0 ) {
         fprintf(stderr, "[contract_write_to_h5_file] Error from H5Tclose, status was %d %s %d\n", status, __FILE__, __LINE__);
-        return(105);
+        return(12);
       }
   
       /***************************************************************************
@@ -1206,7 +1206,7 @@ int contract_write_to_h5_file (double ** const c_tp, void * file, char*tag, int 
       status = H5Fclose ( file_id );
       if( status < 0 ) {
         fprintf(stderr, "[contract_write_to_h5_file] Error from H5Fclose, status was %d %s %d\n", status, __FILE__, __LINE__);
-        return(105);
+        return(13);
      } 
   
     }  /* if io_proc == 2 */
