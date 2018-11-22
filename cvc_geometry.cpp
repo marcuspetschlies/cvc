@@ -857,8 +857,8 @@ void free_geometry() {
   free( g_eosubt2coords );
 
   /* free g_lexic2coords buffer */
-  free( g_lexic2coords );
   free( g_lexic2coords[0] );
+  free( g_lexic2coords );
 
 #if 0
   free( g_eot2xyz[0][0][0] );
