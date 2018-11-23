@@ -34,6 +34,7 @@
 #include "Q_phi.h"
 #include "Q_clover_phi.h"
 #include "matrix_init.h"
+#include "table_init_z.h"
 #include "project.h"
 
 namespace cvc {
@@ -610,69 +611,82 @@ int momentum_projection (double*V, double *W, unsigned int nv, int momentum_numb
  *
  * zgemm calculates V x phase, which is  nv x momentum_number (F) = momentum_number x nv (C)
  **************************************************************************************************************/
-int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_number, int (*momentum_list)[3], int gshift[3]) {
+int momentum_projection2 ( double * const V, double * const W, unsigned int const nv, int const momentum_number, int (* const momentum_list)[3], int const gshift[3] ) {
 
+  /*
   typedef struct {
     int x[3];
-  } point;
+  } point; */
 
-  const double MPI2 = M_PI * 2.;
-  const unsigned int VOL3 = LX*LY*LZ;
-
-  int x1, x2, x3;
-  unsigned int i, ix;
-  double _Complex **zphase = NULL;
+  double const MPI2 = M_PI * 2.;
+  unsigned int const VOL3 = LX*LY*LZ;
 
   char BLAS_TRANSA, BLAS_TRANSB;
   int BLAS_M, BLAS_K, BLAS_N, BLAS_LDA, BLAS_LDB, BLAS_LDC;
-  int shift[3];
   double _Complex *BLAS_A = NULL, *BLAS_B = NULL, *BLAS_C = NULL;
   double _Complex BLAS_ALPHA = 1.;
   double _Complex BLAS_BETA  = 0.;
 
+  /**************************************************************************************************************
+   * prepare the Fourier phase matrix
+   **************************************************************************************************************/
+  /*
   point *lexic_coords = (point*)malloc(VOL3*sizeof(point));
   if(lexic_coords == NULL) {
-    fprintf(stderr, "[momentum_projection] Error from malloc\n");
+    fprintf(stderr, "[momentum_projection] Error from malloc %s %d\n", __FILE__, __LINE__);
     EXIT(1);
   }
-  for(x1=0; x1<LX; x1++) {
-  for(x2=0; x2<LY; x2++) {
-  for(x3=0; x3<LZ; x3++) {
+
+  for ( int x1=0; x1<LX; x1++) {
+  for ( int x2=0; x2<LY; x2++) {
+  for ( int x3=0; x3<LZ; x3++) {
     ix = g_ipt[0][x1][x2][x3];
     lexic_coords[ix].x[0] = x1;
     lexic_coords[ix].x[1] = x2;
     lexic_coords[ix].x[2] = x3;
-  }}}
+  }}} */
 
+  /*
   if(gshift == NULL) {
     memset( shift, 0, 3*sizeof(int) );
   } else {
     memcpy( shift, gshift, 3*sizeof(int) );
-  }
+  } */
+
+  int const shift[3] = ( gshift == NULL ) ? {0,0,0} : { gshift[0], gshift[1], gshift[2] };
   if ( g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [momentum_projection2] using shift vector (%d, %d, %d)\n", shift[0], shift[1], shift[2]);
 
-  init_2level_buffer( (double***)(&zphase), momentum_number, 2*VOL3 );
+  double _Complex ** zphase = init_2level_ztable ( momentum_number, 2*VOL3 );
+  if ( zphase == NULL ) {
+    fprintf ( stderr, "# [] Error from init_2level_ztable %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
 
-  for(i=0; i < momentum_number; i++) {
+  for ( int i = 0; i < momentum_number; i++ ) {
     /* phase field */
 #ifdef HAVE_OPENMP
 #pragma omp parallel
 {
 #endif
-    const double  q[3] = { MPI2 * momentum_list[i][0] / LX_global,
-                           MPI2 * momentum_list[i][1] / LY_global,
-                           MPI2 * momentum_list[i][2] / LZ_global };
-    const double q_offset = ( g_proc_coords[1]*LX - shift[0] ) * q[0] + ( g_proc_coords[2]*LY - shift[1] ) * q[1] + ( g_proc_coords[3]*LZ - shift[2] ) * q[2];
+    double const q[3] = { MPI2 * momentum_list[i][0] / LX_global,
+                          MPI2 * momentum_list[i][1] / LY_global,
+                          MPI2 * momentum_list[i][2] / LZ_global };
+    double const q_offset = ( g_proc_coords[1]*LX - shift[0] ) * q[0] + ( g_proc_coords[2]*LY - shift[1] ) * q[1] + ( g_proc_coords[3]*LZ - shift[2] ) * q[2];
     double q_phase;
 
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-    for(ix=0; ix < VOL3; ix++) {
+    for ( unsigned int ix=0; ix < VOL3; ix++) {
       q_phase = q_offset \
+         + g_lexic2coords[ix][1] * q[0] \
+         + g_lexic2coords[ix][2] * q[1] \
+         + g_lexic2coords[ix][3] * q[2];
+
+         /* 
          + lexic_coords[ix].x[0]*q[0] \
          + lexic_coords[ix].x[1]*q[1] \
-         + lexic_coords[ix].x[2]*q[2];
+         + lexic_coords[ix].x[2]*q[2]; */
 
       zphase[i][ix] = cos(q_phase) + I*sin(q_phase);
     }
@@ -682,8 +696,11 @@ int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_num
 #endif
   }  /* end of loop on sink momenta */
 
-  free( lexic_coords );
+  /* free( lexic_coords ); */
 
+  /**************************************************************************************************************
+   * now the blas call
+   **************************************************************************************************************/
   BLAS_TRANSA = 'N';
   BLAS_TRANSB = 'N';
   BLAS_M     = nv;
@@ -698,22 +715,28 @@ int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_num
 
   _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
 
-  fini_2level_buffer((double***)(&zphase));
+  fini_2level_ztable( &zphase );
 
 #ifdef HAVE_MPI
-  i = 2 * nv * momentum_number;
-  void *buffer = malloc(i * sizeof(double));
+#if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ ) 
+  /**************************************************************************************************************
+   * MPI_Allreduce on g_cart_grid timeslice level
+   **************************************************************************************************************/
+  int nelem = 2 * nv * momentum_number;
+  void *buffer = malloc ( nelem * sizeof(double) );
   if(buffer == NULL) {
+    fprintf(stderr, "[momentum_projection2] Error from malloc %s %d\n", __FILE__, __LINE__);
     return(1);
   }
-  memcpy(buffer, W, i*sizeof(double));
-  int status = MPI_Allreduce(buffer, (void*)W, i, MPI_DOUBLE, MPI_SUM, g_ts_comm);
+  memcpy ( buffer, W, nelem * sizeof(double) );
+  int status = MPI_Allreduce(buffer, (void*)W, nelem, MPI_DOUBLE, MPI_SUM, g_ts_comm);
   if(status != MPI_SUCCESS) {
-    fprintf(stderr, "[momentum_projection] Error from MPI_Allreduce, status was %d\n", status);
+    fprintf(stderr, "[momentum_projection2] Error from MPI_Allreduce, status was %d\n", status);
     return(2);
   }
   free(buffer);
 #endif
+#endif  /* of if def HAVE_MPI */
 
   return(0);
 }  /* end of momentum_projection2 */
