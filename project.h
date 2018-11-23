@@ -10,14 +10,21 @@ int project_propagator_field(double *s, double * r, int parallel, double *V, int
 int project_propagator_field_weighted(double *s, double * r, int parallel, double *V, double *weights, int num1, int num2, unsigned int N);
 
 int project_reduce_from_propagator_field(double *p, double * r, double *V, int num1, int num2, unsigned int N, int xchange);
+
 int project_expand_to_propagator_field(double *s, double *p, double *V, int num1, int num2, unsigned int N);
+
 int momentum_projection (double*V, double *W, unsigned int nv, int momentum_number, int (*momentum_list)[3]);
-int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_number, int (*momentum_list)[3], int gshift[3]);
+
+int momentum_projection2 ( double * const V, double * const W, unsigned int const nv, int const momentum_number, int (* const momentum_list)[3], int const gshift[3] );
 
 void make_lexic_phase_field_3d (double*phase, int *momentum);
+
 void make_eo_phase_field (double*phase_e, double*phase_o, int *momentum);
+
 void make_o_phase_field_sliced3d (double _Complex**phase, int *momentum);
+
 void make_eo_phase_field_sliced3d (double _Complex**phase, int *momentum, int eo);
+
 void make_eo_phase_field_timeslice (double _Complex**phase, int momentum_number, int (*momentum_list)[3], int timeslice, int eo);
 
 int project_propagator_field_weighted(double *s, double * r, int parallel, double *V, double *weights, int num1, int num2, unsigned int N);
