@@ -76,8 +76,6 @@ void usage() {
   fprintf(stdout, "Usage:    [options]\n");
   fprintf(stdout, "Options:  -f <input filename> : input filename for cvc      [default cpff.input]\n");
   fprintf(stdout, "          -c                  : check propagator residual   [default false]\n");
-  fprintf(stdout, "          -r                  : read stochastic oet source  [default false]\n");
-  fprintf(stdout, "          -w                  : write stochastic oet source [default false]\n");
   EXIT(0);
 }
 
