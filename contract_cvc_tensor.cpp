@@ -878,7 +878,7 @@ int contract_write_to_aff_file (double ** const c_tp, struct AffWriter_s*affw, c
 #ifdef HAVE_HDF5
 
 /***************************************************************************
- * write time-momentum-dependent contraction  results to AFF file
+ * write time-momentum-dependent contraction  results to HDF5 file
  *
  * p runs slower than t, i.e. c_tp[momentum][time]
  *
