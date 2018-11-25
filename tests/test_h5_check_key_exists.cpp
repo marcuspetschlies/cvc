@@ -30,7 +30,7 @@ int main(int argc, char ** argv)
                                      key.c_str(),
                                      fail_path);
     std::cout << "Search key: " << key << std::endl
-      << "Found: " << key << std::endl;
+      << "Found: " << key_exists << std::endl;
     if( !key_exists ){
       std::cout << "Failed at: " << fail_path << std::endl;
     }
