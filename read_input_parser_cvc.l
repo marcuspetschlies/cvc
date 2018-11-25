@@ -1194,12 +1194,12 @@ namespace cvc {
   if(cvc::myverbose!=0) printf("# [read_input_parser] added twisted mass number %d to list %s\n", cvc::g_twisted_masses_number, yytext );
 }
 
-<TBC_PHASE>{FLT} {
+<TBC_PHASE>{FLT},{FLT},{FLT},{FLT} {
   sscanf ( yytext, "%lf,%lf,%lf,%lf",
-      cvc::g_tbc_phase_list[cvc::g_tbc_phase_number][0],
-      cvc::g_tbc_phase_list[cvc::g_tbc_phase_number][1],
-      cvc::g_tbc_phase_list[cvc::g_tbc_phase_number][2],
-      cvc::g_tbc_phase_list[cvc::g_tbc_phase_number][3] );
+      cvc::g_tbc_phase_list[cvc::g_tbc_phase_number]+0,
+      cvc::g_tbc_phase_list[cvc::g_tbc_phase_number]+1,
+      cvc::g_tbc_phase_list[cvc::g_tbc_phase_number]+2,
+      cvc::g_tbc_phase_list[cvc::g_tbc_phase_number]+3 );
   cvc::g_tbc_phase_number++;
   if(cvc::myverbose!=0) printf("# [read_input_parser] added tbc phase number %d to list %s\n", cvc::g_tbc_phase_number, yytext );
 }
