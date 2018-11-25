@@ -296,7 +296,7 @@ int main(int argc, char **argv) {
    * WITH HALO
    * no additional memory, just split up the spinor_work fields
    ***************************************************************************/
-  double ** eo_spinor_work[6] = {
+  double * eo_spinor_work[6] = {
     spinor_work[0], 
     spinor_work[0] + nelem / 2, 
     spinor_work[1], 
@@ -359,7 +359,7 @@ int main(int argc, char **argv) {
   }
 
 #if ( defined HAVE_HDF5 )
-  sprintf ( output_filename, "%s.%.4d.t%d.h5", outfile_prefix, Nconf, gts );
+  sprintf ( output_filename, "%s.%.4d.h5", outfile_prefix, Nconf );
 #endif
   if(io_proc == 2 && g_verbose > 1 ) { 
     fprintf(stdout, "# [loop_invert_contract] writing data to file %s\n", output_filename);
@@ -388,9 +388,8 @@ int main(int argc, char **argv) {
     if ( g_read_source ) {
       sprintf(filename, "%s.%.4d.%.5d", filename_prefix, Nconf, isample);
       if ( ( exitstatus = read_lime_spinor( stochastic_source, filename, 0) ) != 0 ) {
-          fprintf(stderr, "[loop_invert_contract] Error from read_lime_spinor, status was %d\n", exitstatus);
-          EXIT(2);
-        }
+        fprintf(stderr, "[loop_invert_contract] Error from read_lime_spinor, status was %d\n", exitstatus);
+        EXIT(2);
       }
 
     /***************************************************************************
