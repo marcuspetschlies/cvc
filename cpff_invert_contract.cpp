@@ -65,6 +65,8 @@ extern "C"
 #include "clover.h"
 #include "ranlxd.h"
 
+#include "Stopwatch.hpp"
+
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
 #define _OP_ID_ST 2
@@ -347,6 +349,8 @@ int main(int argc, char **argv) {
     fprintf ( stdout, "rng %2d %10d\n", g_cart_id, rng_state[i] );
   } */
 
+  // handy stopwatch which we may use throughout for timings
+  Stopwatch sw(g_cart_grid);
 
   /***************************************************************************
    * loop on source timeslices
@@ -578,6 +582,7 @@ int main(int argc, char **argv) {
       /*****************************************************************
        * contractions for 2-point functons
        *****************************************************************/
+      
       for ( int isrc_mom = 0; isrc_mom < g_source_momentum_number; isrc_mom++ ) {
 
         double * contr_x = init_1level_dtable ( 2 * VOLUME );
@@ -599,18 +604,22 @@ int main(int argc, char **argv) {
 
         for ( int isrc_gamma = 0; isrc_gamma < g_source_gamma_id_number; isrc_gamma++ ) {
         for ( int isnk_gamma = 0; isnk_gamma < g_source_gamma_id_number; isnk_gamma++ ) {
-
+          
+          sw.reset();
           /* contractions in x-space */
           contract_twopoint_xdep ( contr_x, g_source_gamma_id_list[isrc_gamma], g_source_gamma_id_list[isnk_gamma], 
               stochastic_propagator_mom_list[isrc_mom],
               stochastic_propagator_zero_list, 1, 1, 1., 64 );
+          sw.elapsed_print("contract_twopoint_xdep");
 
           /* momentum projection at sink */
+          sw.reset();
           exitstatus = momentum_projection ( contr_x, contr_p[0], T, g_sink_momentum_number, g_sink_momentum_list );
           if(exitstatus != 0) {
             fprintf(stderr, "[cpff_invert_contract] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(3);
           }
+          sw.elapsed_print("sink momentum_projection");
 
           sprintf ( data_tag, "/d+-g-d-g/t%d/s%d/gf%d/gi%d/pix%dpiy%dpiz%d", gts, isample,
               g_source_gamma_id_list[isnk_gamma], g_source_gamma_id_list[isrc_gamma],
@@ -751,9 +760,11 @@ int main(int argc, char **argv) {
                     -( source_momentum[1] + seq_source_momentum[1] ),
                     -( source_momentum[2] + seq_source_momentum[2] ) };
 
+                  sw.reset();
                   contract_twopoint_snk_momentum ( contr_p[isrc_mom], gamma_source,  gamma_current, 
                       stochastic_propagator_mom_list[isrc_mom], 
                       sequential_propagator_list, 4, 1, current_momentum, 1);
+                  sw.elapsed_print("contract_twopoint_snk_momentum local current");
 
                 }  /* end of loop on source momenta */
 
@@ -808,7 +819,9 @@ int main(int argc, char **argv) {
               for ( int mu = 0; mu < 4; mu++ ) {
 
                 for ( int i = 0; i < 4; i++ ) {
+                  sw.reset();
                   spinor_field_eq_cov_deriv_spinor_field ( sequential_propagator_deriv_list[i], sequential_propagator_list[i], mu, ifbwd, gauge_field_with_phase );
+                  sw.elapsed_print("spinor_field_eq_cov_deriv_spinor_field first derivative");
                 }
 
                 for ( int isrc_gamma = 0; isrc_gamma < g_source_gamma_id_number; isrc_gamma++ ) {
@@ -836,9 +849,11 @@ int main(int argc, char **argv) {
                       -( source_momentum[1] + seq_source_momentum[1] ),
                       -( source_momentum[2] + seq_source_momentum[2] ) };
 
+                    sw.reset();
                     contract_twopoint_snk_momentum ( contr_p[isrc_mom], gamma_source,  mu, 
                         stochastic_propagator_mom_list[isrc_mom], 
                         sequential_propagator_deriv_list, 4, 1, current_momentum, 1);
+                    sw.elapsed_print("contract_twopoint_snk_momentum covariant derivative");
 
                   }  /* end of loop on source momenta */
 
@@ -867,7 +882,9 @@ int main(int argc, char **argv) {
                 for ( int kfbwd = 0; kfbwd <= 1; kfbwd++ ) {
   
                   for ( int i = 0; i < 4; i++ ) {
+                    sw.reset();
                     spinor_field_eq_cov_deriv_spinor_field ( sequential_propagator_dderiv_list[i], sequential_propagator_deriv_list[i], mu, kfbwd, gauge_field_with_phase );
+                    sw.elapsed_print("spinor_field_eq_cov_deriv_spinor_field second derivative");
                   }
 
                   for ( int isrc_gamma = 0; isrc_gamma < g_source_gamma_id_number; isrc_gamma++ ) {
@@ -894,10 +911,12 @@ int main(int argc, char **argv) {
                         -( source_momentum[0] + seq_source_momentum[0] ),
                         -( source_momentum[1] + seq_source_momentum[1] ),
                         -( source_momentum[2] + seq_source_momentum[2] ) };
-
+                      
+                      sw.reset();
                       contract_twopoint_snk_momentum ( contr_p[isrc_mom], gamma_source,  4, 
                           stochastic_propagator_mom_list[isrc_mom], 
                           sequential_propagator_deriv_list, 4, 1, current_momentum, 1);
+                      sw.elapsed_print("contract_twopoint_snk_momentum second derivative");
 
                     }  /* end of loop on source momenta */
 
