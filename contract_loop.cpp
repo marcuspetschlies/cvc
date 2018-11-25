@@ -155,7 +155,7 @@ int contract_loop_write_to_h5_file (double *** const loop, void * file, char*tag
        * recvbuf for MPI_Gather; io_proc 2 is receive process,
        * zbuffer is significant
        ***************************************************************************/
-      zbuffer = init_1level_dtable ( 32 * T_global * momentum_number );
+      zbuffer = init_1level_dtable ( 2 * nc * T_global * momentum_number );
       if( zbuffer == NULL ) {
         fprintf(stderr, "[contract_loop_write_to_h5_file] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
         return(1);
@@ -168,7 +168,7 @@ int contract_loop_write_to_h5_file (double *** const loop, void * file, char*tag
      *
      * ERGO: we do not need to reorder
      ***************************************************************************/
-    int mitems = momentum_number * 32 * T;
+    int mitems = momentum_number * 2 * nc * T;
 #ifdef HAVE_MPI
     /***************************************************************************
      * io_proc's 1 and 2 gather the data to g_tr_id = 0 into zbuffer
@@ -257,7 +257,7 @@ int contract_loop_write_to_h5_file (double *** const loop, void * file, char*tag
       /* big_endian() ?  H5T_IEEE_F64BE : H5T_IEEE_F64LE; */
  
       /* shape of the output arary */ 
-      hsize_t dims[3] = { T_global, momentum_number, 32 };
+      hsize_t dims[3] = { T_global, momentum_number, 2 * nc };
   
       /*
                  int rank                             IN: Number of dimensions of dataspace.
