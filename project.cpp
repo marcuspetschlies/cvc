@@ -646,14 +646,13 @@ int momentum_projection2 ( double * const V, double * const W, unsigned int cons
     lexic_coords[ix].x[2] = x3;
   }}} */
 
-  /*
+  int shift[3];
   if(gshift == NULL) {
     memset( shift, 0, 3*sizeof(int) );
   } else {
     memcpy( shift, gshift, 3*sizeof(int) );
-  } */
+  }
 
-  int const shift[3] = ( gshift == NULL ) ? {0,0,0} : { gshift[0], gshift[1], gshift[2] };
   if ( g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [momentum_projection2] using shift vector (%d, %d, %d)\n", shift[0], shift[1], shift[2]);
 
   double _Complex ** zphase = init_2level_ztable ( momentum_number, 2*VOL3 );
