@@ -70,13 +70,14 @@ namespace cvc {
  ***********************************************************/
 int contract_local_loop_stochastic ( double *** const loop, double * const source, double * const prop, int const momentum_number, int ( * const momentum_list)[3] ) {
 
+  unsigned int const VOL3 = LX * LY * LZ;
+
   double * loop_x = init_1level_dtable ( 32 * VOLUME );
   if ( loop_x == NULL ) {
     fprintf ( stderr, "[contract_local_loop_stochastic] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__ );
     return ( 1 );
   }
 
-  if ( 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
@@ -85,8 +86,7 @@ int contract_local_loop_stochastic ( double *** const loop, double * const sourc
       double * const source_ = source + offset;
       double * const prop_   = prop   + offset;
       _contract_loop_x_spin_diluted ( loop_x+16*ix, source_ , prop_ );
-    }  /* end of loop on volume */
-  }  /* end of loop on timeslices */
+  }  /* end of loop on volume */
 
   if ( momentum_number > 0 && momentum_list != NULL ) {
     /***********************************************************
@@ -359,7 +359,7 @@ int contract_loop_write_to_h5_file (double *** const loop, void * file, char*tag
                const void * buf           IN: Buffer with data to be written to the file.
         herr_t H5Dwrite ( hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id, hid_t file_space_id, hid_t xfer_plist_id, const void * buf )
        */
-      status = H5Dwrite (       dataset_id,       mem_type_id,       mem_space_id,       file_space_id,        xfer_plit_id,    zbuffer[0][0] );
+      status = H5Dwrite (       dataset_id,       mem_type_id,       mem_space_id,       file_space_id,        xfer_plit_id,    zbuffer );
   
       if( status < 0 ) {
         fprintf(stderr, "[contract_loop_write_to_h5_file] Error from H5Dwrite, status was %d %s %d\n", status, __FILE__, __LINE__);
@@ -417,7 +417,7 @@ int contract_loop_write_to_h5_file (double *** const loop, void * file, char*tag
   
     }  /* if io_proc == 2 */
 
-    fini_2level_dtable ( &zbuffer );
+    fini_1level_dtable ( &zbuffer );
 
     retime = _GET_TIME;
     if ( io_proc == 2 ) fprintf(stdout, "# [contract_loop_write_to_h5_file] time for saving momentum space results = %e seconds\n", retime-ratime);
