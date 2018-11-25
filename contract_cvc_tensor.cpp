@@ -50,6 +50,7 @@
 #include "Q_clover_phi.h"
 #include "contract_cvc_tensor.h"
 #include "scalar_products.h"
+#include "h5utils.h"
 
 #define MAX_SUBGROUP_NUMBER 20
 
@@ -1120,6 +1121,11 @@ int contract_write_to_h5_file (double ** const c_tp, void * file, char*tag, cons
         sprintf ( name, "px%dpy%dpz%d", momentum_list[i][0], momentum_list[i][1], momentum_list[i][2] );
         fprintf ( stdout, "# [contract_write_to_h5_file] data set %2d loc_id = %ld %s %d\n", i, loc_id , __FILE__, __LINE__ );
   
+        hid_t dataset_id;
+        std::string fail_path;
+        if( h5_check_key_exists(loc_id, name, fail_path, false) ){
+          dataset_id = H5Dopen(loc_id, name, dapl_id);
+        } else {
         /***************************************************************************
          * create a data set
          ***************************************************************************/
@@ -1135,7 +1141,8 @@ int contract_write_to_h5_file (double ** const c_tp, void * file, char*tag, cons
   
                      hid_t H5Dcreate ( hid_t loc_id, const char *name, hid_t dtype_id, hid_t space_id, hid_t lcpl_id, hid_t dcpl_id, hid_t dapl_id ) 
          */
-        hid_t dataset_id = H5Dcreate (       loc_id,             name,       dtype_id,       space_id,       lcpl_id,       dcpl_id,       dapl_id );
+          dataset_id = H5Dcreate (       loc_id,             name,       dtype_id,       space_id,       lcpl_id,       dcpl_id,       dapl_id );
+        }
   
         /***************************************************************************
          * write the current data set
