@@ -59,7 +59,6 @@ static inline bool h5_check_key_exists(hid_t loc_id,
   while( curr_grp_substr != NULL ){
     curr_path += std::string(curr_grp_substr);
     status = H5Lexists(loc_id, curr_path.c_str(), H5P_DEFAULT);
-    std::cout << "Path: " << curr_path << " Status: " << status << std::endl;
     if( status <= 0 ){
       fail_path = curr_path;
       return false;
