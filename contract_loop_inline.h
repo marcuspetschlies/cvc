@@ -428,4 +428,4 @@ static inline void _contract_loop_x_spin_color_diluted ( double * const _r, doub
   (_r)[287] += -(_p)[22] * (_s)[23] + (_p)[23] * (_s)[22];
 }  /* end of _contract_loop_x_spin_color_diluted */ 
 
-
+#endif

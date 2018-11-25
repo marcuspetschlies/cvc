@@ -96,4 +96,5 @@ for((s2=0; s2<$N_SPINOR_DIM; s2++)); do
 done  # end of loop on s2
 echo -e "}  /* end of _contract_loop_x_spin_color_diluted */ \n\n"
 
+echo "#endif"
 exit 0
