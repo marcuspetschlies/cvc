@@ -11,10 +11,15 @@ void Q_clover_phi_eo (double *e_new, double *o_new, double *e_old, double *o_old
 void M_clover_zz (double*s, double*r, double mass, double*cl);
 
 void clover_mzz_matrix (double**mzz, double**cl, double mu, double csw);
+
 void clover_mzz_inv_matrix (double**mzzinv, double**mzz);
+
 void M_clover_zz_matrix (double*s, double*r, double*mzz);
+
 void M_clover_zz_inv_matrix (double*s, double*r, double *mzzinv);
-void Q_clover_phi_matrix_eo (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double *aux, double**mzz);
+
+void Q_clover_phi_matrix_eo (double * const e_new, double * const o_new, double * const e_old, double * const o_old, double * const gauge_field, double * const aux, double ** const mzz);
+
 void C_clover_oo (double*s, double*r, double *gauge_field, double *s_aux, double*mzz, double*mzzinv);
 
 void X_clover_eo (double *even, double *odd, double *gauge_field, double*mzzinv);

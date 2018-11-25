@@ -606,7 +606,7 @@ void M_clover_zz_matrix (double*s, double*r, double*mzz) {
  *
  * - e_old and o_old MUST have halo
  ***********************************************************/
-void Q_clover_phi_matrix_eo (double *e_new, double *o_new, double *e_old, double *o_old, double *gauge_field, double *aux, double**mzz) {
+void Q_clover_phi_matrix_eo (double * const e_new, double * const o_new, double * const e_old, double * const o_old, double * const gauge_field, double * const aux, double ** const mzz) {
 
   const unsigned int N = VOLUME / 2;
 
