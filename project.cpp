@@ -646,10 +646,8 @@ int momentum_projection2 ( double * const V, double * const W, unsigned int cons
     lexic_coords[ix].x[2] = x3;
   }}} */
 
-  int shift[3];
-  if(gshift == NULL) {
-    memset( shift, 0, 3*sizeof(int) );
-  } else {
+  int shift[3] = {0,0,0};
+  if(gshift != NULL) {
     memcpy( shift, gshift, 3*sizeof(int) );
   }
 
