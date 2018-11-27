@@ -551,7 +551,7 @@ int main(int argc, char **argv) {
           memset ( spinor_work[1], 0, sizeof_spinor_field );
 
           exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_dn );
-          if(exitstatus != 0) {
+          if(exitstatus < 0) {
             fprintf(stderr, "[cpff_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(44);
           }
@@ -695,7 +695,7 @@ int main(int argc, char **argv) {
               memset ( spinor_work[1], 0, sizeof_spinor_field );
 
               exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_up );
-              if(exitstatus != 0) {
+              if(exitstatus < 0) {
                 fprintf(stderr, "[cpff_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                 EXIT(44);
               }
