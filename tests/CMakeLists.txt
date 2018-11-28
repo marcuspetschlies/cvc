@@ -16,6 +16,9 @@ target_link_libraries(test_index_tools cvc ${cvc_libraries})
 add_executable(test_h5_check_key_exists test_h5_check_key_exists.cpp)
 target_link_libraries(test_h5_check_key_exists ${cvc_libraries})
 
+add_executable(test_CHECK_EXITSTATUS test_CHECK_EXITSTATUS.cpp)
+target_link_libraries(test_CHECK_EXITSTATUS ${cvc_libraries})
+
 # copy over test file for test of h5utils
 configure_file(${CMAKE_SOURCE_DIR}/tests/test.h5
   ${CMAKE_BINARY_DIR}/tests/test.h5

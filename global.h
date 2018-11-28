@@ -38,6 +38,15 @@
 }
 #endif
 
+#define CHECK_EXITSTATUS(_call, _errmsg, _terminate, _signal) \
+  exitstatus = (_call); \
+  if( exitstatus != 0 ){ \
+    fprintf(stderr, _errmsg " Status was %d, \n %s line %d\n", exitstatus, __FILE__, __LINE__); \
+  } \
+  if( (_terminate) ){ \
+    EXIT((_signal)); \
+  };
+
 #ifdef HAVE_MPI
 #define _GET_TIME  MPI_Wtime()
 #else
