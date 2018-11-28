@@ -145,7 +145,7 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * initialize MPI parameters for cvc
    ***************************************************************************/
-  exitstatus = tmLQCD_invert_init(argc, argv, 1);
+  exitstatus = tmLQCD_invert_init(argc, argv, 1, 0);
   if(exitstatus != 0) {
     EXIT(1);
   }
@@ -472,7 +472,7 @@ int main(int argc, char **argv) {
         memset ( spinor_work[1], 0, sizeof_spinor_field );
 
         exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_dn );
-        if(exitstatus != 0) {
+        if(exitstatus < 0) {
           fprintf(stderr, "[cpff_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(44);
         }
@@ -492,6 +492,7 @@ int main(int argc, char **argv) {
           }
         }
       }
+
 
       /***************************************************************************
        * invert for stochastic timeslice propagator at source momenta
@@ -535,7 +536,7 @@ int main(int argc, char **argv) {
           memset ( spinor_work[1], 0, sizeof_spinor_field );
 
           exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_dn );
-          if(exitstatus != 0) {
+          if(exitstatus < 0) {
             fprintf(stderr, "[cpff_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(44);
           }
@@ -674,7 +675,7 @@ int main(int argc, char **argv) {
               memset ( spinor_work[1], 0, sizeof_spinor_field );
 
               exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_up );
-              if(exitstatus != 0) {
+              if(exitstatus < 0) {
                 fprintf(stderr, "[cpff_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                 EXIT(44);
               }
@@ -972,7 +973,6 @@ int main(int argc, char **argv) {
 #ifdef HAVE_TMLQCD_LIBWRAPPER
   tmLQCD_finalise();
 #endif
-
 
 #ifdef HAVE_MPI
   mpi_fini_xchange_contraction();
