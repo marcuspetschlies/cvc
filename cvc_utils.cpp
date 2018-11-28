@@ -4765,9 +4765,55 @@ int check_residual_clover ( double ** const prop, double ** const source, double
 
     spinor_field_lexic2eo ( prop[k], eo_spinor_work[0], eo_spinor_work[1] );
 
+    for ( unsigned int ix = 0; ix < Vhalf; ix++ ) {
+      fprintf ( stdout, "# [check_residual_clover] prop even x = %8d\n", ix );
+      for ( int mu = 0; mu < 12; mu++ ) {
+        fprintf ( stdout, "%25.16e %25.16e\n",
+            eo_spinor_work[0][_GSI(ix)+2*mu  ],
+            eo_spinor_work[0][_GSI(ix)+2*mu+1] );
+
+      }
+    }
+
+    for ( unsigned int ix = 0; ix < Vhalf; ix++ ) {
+      fprintf ( stdout, "# [check_residual_clover] prop odd  x = %8d\n", ix );
+      for ( int mu = 0; mu < 12; mu++ ) {
+        fprintf ( stdout, "%25.16e %25.16e\n",
+            eo_spinor_work[1][_GSI(ix)+2*mu  ],
+            eo_spinor_work[1][_GSI(ix)+2*mu+1] );
+
+      }
+    }
+
+
     Q_clover_phi_matrix_eo ( eo_spinor_work[2], eo_spinor_work[3], eo_spinor_work[0], eo_spinor_work[1], gauge_field, eo_spinor_work[4], mzz );
 
     spinor_field_lexic2eo ( source[k], eo_spinor_work[0], eo_spinor_work[1] );
+
+    for ( unsigned int ix = 0; ix < Vhalf; ix++ ) {
+      fprintf ( stdout, "# [check_residual_clover] source even x = %8d\n", ix );
+      for ( int mu = 0; mu < 12; mu++ ) {
+        fprintf ( stdout, "%25.16e %25.16e  %25.16e %25.16e\n",
+            eo_spinor_work[0][_GSI(ix)+2*mu  ],
+            eo_spinor_work[0][_GSI(ix)+2*mu+1],
+            eo_spinor_work[2][_GSI(ix)+2*mu  ],
+            eo_spinor_work[2][_GSI(ix)+2*mu+1] );
+
+      }
+    }
+
+    for ( unsigned int ix = 0; ix < Vhalf; ix++ ) {
+      fprintf ( stdout, "# [check_residual_clover] source odd  x = %8d\n", ix );
+      for ( int mu = 0; mu < 12; mu++ ) {
+        fprintf ( stdout, "%25.16e %25.16e  %25.16e %25.16e\n",
+            eo_spinor_work[1][_GSI(ix)+2*mu  ],
+            eo_spinor_work[1][_GSI(ix)+2*mu+1],
+            eo_spinor_work[3][_GSI(ix)+2*mu  ],
+            eo_spinor_work[3][_GSI(ix)+2*mu+1] );
+
+      }
+    }
+
 
     spinor_scalar_product_re( &norm_e, eo_spinor_work[0], eo_spinor_work[0], Vhalf);
     spinor_scalar_product_re( &norm_o, eo_spinor_work[1], eo_spinor_work[1], Vhalf);
