@@ -4744,7 +4744,7 @@ int check_point_source_propagator_clover_eo(double**prop_e, double**prop_o, doub
  * apply D to full-volume prop
  *
  ***************************************************************************/
-int check_residual_clover ( double ** const prop, double ** const source, double * const gauge_field, double ** const mzz, int const nf  ) {
+int check_residual_clover ( double ** const prop, double ** const source, double * const gauge_field, double ** const mzz, double ** const mzzinv, int const nf  ) {
 
   const unsigned int Vhalf = VOLUME / 2;
   int exitstatus;
@@ -4760,12 +4760,23 @@ int check_residual_clover ( double ** const prop, double ** const source, double
 
     spinor_field_lexic2eo ( prop[k], eo_spinor_work[0], eo_spinor_work[1] );
 
-    Q_clover_phi_matrix_eo ( eo_spinor_work[2], eo_spinor_work[3], eo_spinor_work[0], eo_spinor_work[1], gauge_field, eo_spinor_work[4], mzz );
+    /* Q_clover_phi_matrix_eo ( eo_spinor_work[2], eo_spinor_work[3], eo_spinor_work[0], eo_spinor_work[1], gauge_field, eo_spinor_work[4], mzz ); */
 
-    spinor_field_lexic2eo ( source[k], eo_spinor_work[0], eo_spinor_work[1] );
+    Q_clover_eo_SchurDecomp_B ( eo_spinor_work[2], eo_spinor_work[3], eo_spinor_work[0], eo_spinor_work[1], gauge_field, mzz[1], mzzinv[0], eo_spinor_work[4]);
+    Q_clover_eo_SchurDecomp_A ( eo_spinor_work[0], eo_spinor_work[1], eo_spinor_work[2], eo_spinor_work[3], gauge_field, mzz[0], eo_spinor_work[4] );
+    g5_phi( eo_spinor_work[0], Vhalf);
+    g5_phi( eo_spinor_work[1], Vhalf);
 
+
+    /* spinor_field_lexic2eo ( source[k], eo_spinor_work[0], eo_spinor_work[1] );
     spinor_scalar_product_re( &norm_e, eo_spinor_work[0], eo_spinor_work[0], Vhalf);
     spinor_scalar_product_re( &norm_o, eo_spinor_work[1], eo_spinor_work[1], Vhalf);
+    */
+
+    spinor_field_lexic2eo ( source[k], eo_spinor_work[2], eo_spinor_work[3] );
+
+    spinor_scalar_product_re( &norm_e, eo_spinor_work[2], eo_spinor_work[2], Vhalf);
+    spinor_scalar_product_re( &norm_o, eo_spinor_work[3], eo_spinor_work[3], Vhalf);
 
     spinor_field_norm_diff ( &diff_e, eo_spinor_work[2], eo_spinor_work[0], Vhalf);
     spinor_field_norm_diff ( &diff_o, eo_spinor_work[3], eo_spinor_work[1], Vhalf);

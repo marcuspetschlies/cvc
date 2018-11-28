@@ -509,6 +509,7 @@ int main(int argc, char **argv) {
         }
       }
 
+
       /***************************************************************************
        * invert for stochastic timeslice propagator at source momenta
        ***************************************************************************/
@@ -1003,7 +1004,6 @@ int main(int argc, char **argv) {
 #ifdef HAVE_TMLQCD_LIBWRAPPER
   tmLQCD_finalise();
 #endif
-
 
 #ifdef HAVE_MPI
   mpi_fini_xchange_contraction();

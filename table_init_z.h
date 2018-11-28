@@ -12,7 +12,7 @@
 namespace cvc {
 
 inline double _Complex * init_1level_ztable ( size_t const N0 ) {
-  return( ( double _Complex *) calloc ( N0 , sizeof( double _Complex ) ) );
+  return( N0 == 0 ? NULL : ( double _Complex *) calloc ( N0 , sizeof( double _Complex ) ) );
 }  // end of init_1level_ztable
 
 /************************************************************************************/
@@ -32,7 +32,7 @@ inline double _Complex ** init_2level_ztable (size_t const N0, size_t const N1 )
   s__ = init_1level_ztable ( N0*N1);
   if ( s__ == NULL ) return( NULL );
 
-  double _Complex ** s_ = ( double _Complex **) malloc( N0 * sizeof( double _Complex *) );
+  double _Complex ** s_ = ( N0 == 0 ) ? NULL : ( double _Complex **) malloc( N0 * sizeof( double _Complex *) );
   if ( s_ == NULL ) return ( NULL );
 
   for ( size_t i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
@@ -61,7 +61,7 @@ inline double _Complex *** init_3level_ztable (size_t const N0, size_t const N1,
   s__ = init_2level_ztable ( N0*N1, N2);
   if ( s__ == NULL ) return( NULL );
 
-  double _Complex *** s_ = ( double _Complex ***) malloc( N0 * sizeof( double _Complex **) );
+  double _Complex *** s_ = ( N0 == 0 ) ? NULL : ( double _Complex ***) malloc( N0 * sizeof( double _Complex **) );
   if ( s_ == NULL ) return ( NULL );
 
   for ( size_t i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
@@ -90,7 +90,7 @@ inline double _Complex **** init_4level_ztable (size_t const N0, size_t const N1
   s__ = init_3level_ztable ( N0*N1, N2, N3);
   if ( s__ == NULL ) return( NULL );
 
-  double _Complex **** s_ = ( double _Complex ****) malloc( N0 * sizeof( double _Complex ***) );
+  double _Complex **** s_ = ( N0 == 0 ) ? NULL : ( double _Complex ****) malloc( N0 * sizeof( double _Complex ***) );
   if ( s_ == NULL ) return ( NULL );
 
   for ( size_t i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
@@ -119,7 +119,7 @@ inline double _Complex ***** init_5level_ztable (size_t const N0, size_t const N
   s__ = init_4level_ztable ( N0*N1, N2, N3, N4);
   if ( s__ == NULL ) return( NULL );
 
-  double _Complex ***** s_ = ( double _Complex *****) malloc( N0 * sizeof( double _Complex ****) );
+  double _Complex ***** s_ = ( N0 == 0 ) ? NULL : ( double _Complex *****) malloc( N0 * sizeof( double _Complex ****) );
   if ( s_ == NULL ) return ( NULL );
 
   for ( size_t i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
@@ -148,7 +148,7 @@ inline double _Complex ****** init_6level_ztable (size_t const N0, size_t const 
   s__ = init_5level_ztable ( N0*N1, N2, N3, N4, N5);
   if ( s__ == NULL ) return( NULL );
 
-  double _Complex ****** s_ = ( double _Complex ******) malloc( N0 * sizeof( double _Complex *****) );
+  double _Complex ****** s_ = ( N0 == 0 ) ? NULL : ( double _Complex ******) malloc( N0 * sizeof( double _Complex *****) );
   if ( s_ == NULL ) return ( NULL );
 
   for ( size_t i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
@@ -177,7 +177,7 @@ inline double _Complex ******* init_7level_ztable (size_t const N0, size_t const
   s__ = init_6level_ztable ( N0*N1, N2, N3, N4, N5, N6);
   if ( s__ == NULL ) return( NULL );
 
-  double _Complex ******* s_ = ( double _Complex *******) malloc( N0 * sizeof( double _Complex ******) );
+  double _Complex ******* s_ = ( N0 == 0 ) ? NULL : ( double _Complex *******) malloc( N0 * sizeof( double _Complex ******) );
   if ( s_ == NULL ) return ( NULL );
 
   for ( size_t i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
@@ -206,7 +206,7 @@ inline double _Complex ******** init_8level_ztable (size_t const N0, size_t cons
   s__ = init_7level_ztable ( N0*N1, N2, N3, N4, N5, N6, N7);
   if ( s__ == NULL ) return( NULL );
 
-  double _Complex ******** s_ = ( double _Complex ********) malloc( N0 * sizeof( double _Complex *******) );
+  double _Complex ******** s_ = ( N0 == 0 ) ? NULL : ( double _Complex ********) malloc( N0 * sizeof( double _Complex *******) );
   if ( s_ == NULL ) return ( NULL );
 
   for ( size_t i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
