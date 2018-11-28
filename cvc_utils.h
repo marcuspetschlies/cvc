@@ -179,7 +179,7 @@ int check_subspace_propagator_clover_eo(
   double**source_e, double**source_o,
   int nf, double *eo_evecs_block, double *evecs_norm, int nev, double*gauge_field, double**mzz[2], double**mzzinv[2], int flavor_id );
 
-int check_residual_clover ( double ** const prop, double ** const source, double * const gauge_field, double ** const mzz, int const nf  );
+int check_residual_clover ( double ** const prop, double ** const source, double * const gauge_field, double ** const mzz, double ** const mzzinv, int const nf  );
 
 int plaquetteria  (double*gauge_field );
 
