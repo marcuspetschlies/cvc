@@ -12,7 +12,7 @@
 namespace cvc {
 
 inline double * init_1level_dtable ( size_t const N0 ) {
-  return( ( double *) calloc ( N0 , sizeof( double ) ) );
+  return( N0 == 0 ? NULL : ( double *) calloc ( N0 , sizeof( double ) ) );
 }  // end of init_1level_dtable
 
 /************************************************************************************/
