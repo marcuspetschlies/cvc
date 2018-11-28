@@ -16,7 +16,7 @@ int dummy_solver ( double * const propagator, double * const source, int const o
 #if ( defined GPU_DIRECT_SOLVER )
 #  define _TMLQCD_INVERT invert_quda_direct
 #  define _TMLQCD_INVERT_TBC(_p,_s,_o) invert_quda_direct_theta( (_p), (_s), (_o),theta_x,theta_y,theta_z,theta_t)
-#elif 
+#else 
 #  define _TMLQCD_INVERT tmLQCD_invert
 #endif
 
