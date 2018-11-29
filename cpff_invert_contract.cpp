@@ -1,9 +1,5 @@
 /****************************************************
- * cpff_invert_contract.c
- *
- * Mi 31. Okt 07:32:01 CET 2018
- *
- * - originally copied from p2gg_contract
+ * cpff_invert_contract
  *
  * PURPOSE:
  * DONE:
@@ -478,12 +474,12 @@ int main(int argc, char **argv) {
         }
 
         if ( check_propagator_residual ) {
-          check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_dn], 1 );
+          check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_dn], mzzinv[op_id_dn], 1 );
         }
 
         memcpy( stochastic_propagator_zero_list[i], spinor_work[1], sizeof_spinor_field);
       }
-      if ( g_write_source ) {
+      if ( g_write_propagator ) {
         for ( int ispin = 0; ispin < 4; ispin++ ) {
           sprintf(filename, "%s.%.4d.t%d.%d.%.5d.inverted", filename_prefix, Nconf, gts, ispin, isample);
           if ( ( exitstatus = write_propagator( stochastic_propagator_zero_list[ispin], filename, 0, g_propagator_precision) ) != 0 ) {
@@ -492,7 +488,6 @@ int main(int argc, char **argv) {
           }
         }
       }
-
 
       /***************************************************************************
        * invert for stochastic timeslice propagator at source momenta
@@ -542,7 +537,7 @@ int main(int argc, char **argv) {
           }
 
           if ( check_propagator_residual ) {
-            check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_dn], 1 );
+            check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_dn], mzzinv[op_id_dn], 1 );
           }
 
           memcpy( stochastic_propagator_mom_list[isrc_mom][i], spinor_work[1], sizeof_spinor_field);
@@ -681,7 +676,7 @@ int main(int argc, char **argv) {
               }
 
               if ( check_propagator_residual ) {
-                check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_up], 1 );
+                check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_up], mzzinv[op_id_up], 1 );
               }
 
               memcpy( sequential_propagator_list[i], spinor_work[1], sizeof_spinor_field );
@@ -923,8 +918,6 @@ int main(int argc, char **argv) {
         }  /* end of loop on sequential source gamma ids */
 
       }  /* end of loop on sequential source momenta */
-#if 0
-#endif  /* of if 0 */
 
       exitstatus = init_timeslice_source_oet ( NULL, -1, NULL, -2 );
 
