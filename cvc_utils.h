@@ -213,7 +213,7 @@ int check_eigenpairs ( double ** const eo_evecs_field, double ** evecs_eval, uns
 
 int get_io_proc (void);
 
-unsigned int * const sort_by_dvalue_mapping ( double * const value, unsigned int const nv );
+unsigned int * sort_by_dvalue_mapping ( double * const value, unsigned int const nv );
 
 int sort_dfield_by_map ( double * const v, unsigned int const nv, unsigned int * const map, unsigned int const N );
 

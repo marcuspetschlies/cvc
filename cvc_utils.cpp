@@ -7139,7 +7139,7 @@ int get_io_proc (void) {
 /****************************************************************************
  * get mapping for sort
  ****************************************************************************/
-unsigned int * const sort_by_dvalue_mapping ( double * const value, unsigned int const nv ) {
+unsigned int * sort_by_dvalue_mapping ( double * const value, unsigned int const nv ) {
 
   unsigned int * const imap = (unsigned int *)malloc ( nv * sizeof( unsigned int ) );
   if ( imap == NULL ) {
