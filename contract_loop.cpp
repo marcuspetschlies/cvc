@@ -71,6 +71,8 @@ namespace cvc {
 int contract_local_loop_stochastic ( double *** const loop, double * const source, double * const prop, int const momentum_number, int ( * const momentum_list)[3] ) {
 
   unsigned int const VOL3 = LX * LY * LZ;
+ 
+  double ratime = _GET_TIME;
 
   double * loop_x = init_1level_dtable ( 32 * VOLUME );
   if ( loop_x == NULL ) {
@@ -119,6 +121,9 @@ int contract_local_loop_stochastic ( double *** const loop, double * const sourc
   }  /* end of if momentum projection else */
 
   fini_1level_dtable ( &loop_x );
+
+  double retime = _GET_TIME;
+  if ( g_cart_id == 0 ) fprintf ( stdout, "# [contract_local_loop_stochastic] time for contract_local_loop_stochastic = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__ );
 
  return ( 0 );
 }  /* end of contract_local_loop_stochastic */
