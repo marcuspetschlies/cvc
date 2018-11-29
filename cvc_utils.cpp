@@ -4780,7 +4780,7 @@ int check_residual_clover ( double ** const prop, double ** const source, double
     if(g_cart_id==0) fprintf(stdout, "# [check_residual_clover] (Q_clover_phi_matrix_eo) propagator %3d norm diff even part = %e / %e\n", k, diff_e, sqrt(norm_e) );
     if(g_cart_id==0) fprintf(stdout, "# [check_residual_clover] (Q_clover_phi_matrix_eo) propagator %3d norm diff odd  part = %e / %e\n", k, diff_o, sqrt(norm_o) );
 
-
+#if 0
     /* SchurDecomp */
     spinor_field_lexic2eo ( prop[k], eo_spinor_work[0], eo_spinor_work[1] );
     Q_clover_eo_SchurDecomp_B ( eo_spinor_work[2], eo_spinor_work[3], eo_spinor_work[0], eo_spinor_work[1], gauge_field, mzz[1], mzzinv[0], eo_spinor_work[4]);
@@ -4798,8 +4798,8 @@ int check_residual_clover ( double ** const prop, double ** const source, double
 
     if(g_cart_id==0) fprintf(stdout, "# [check_residual_clover] (SchurDecomp) propagator %3d norm diff even part = %e / %e\n", k, diff_e, sqrt(norm_e) );
     if(g_cart_id==0) fprintf(stdout, "# [check_residual_clover] (SchurDecomp) propagator %3d norm diff odd  part = %e / %e\n", k, diff_o, sqrt(norm_o) );
-#if 0
 #endif
+
   }  /* end of loop on nf */
 
   fini_2level_buffer ( &eo_spinor_work );
