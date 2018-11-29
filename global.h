@@ -38,10 +38,22 @@
 }
 #endif
 
-#define CHECK_EXITSTATUS(_call, _errmsg, _terminate, _signal) \
-  exitstatus = (_call); \
-  if( exitstatus != 0 ){ \
-    fprintf(stderr, _errmsg " Status was %d, \n %s line %d\n", exitstatus, __FILE__, __LINE__); \
+#define PRINT_STATUS(_status, _errmsg) \
+  fprintf(stderr,"%s Status was %d, \n %s line %d\n", (_errmsg), (_status), __FILE__, __LINE__);
+
+#define CHECK_EXITSTATUS_NONZERO(_status, _call, _errmsg, _terminate, _signal) \
+  (_status) = (_call); \
+  if( (_status) != 0 ){ \
+    fprintf(stderr, "%s Status was %d, \n %s line %d\n", (_errmsg), (_status), __FILE__, __LINE__); \
+  } \
+  if( (_terminate) ){ \
+    EXIT((_signal)); \
+  };
+
+#define CHECK_EXITSTATUS_NEGATIVE(_status, _call, _errmsg, _terminate, _signal) \
+  (_status) = (_call); \
+  if( (_status) < 0 ){ \
+    fprintf(stderr, "%s Status was %d, \n %s line %d\n", (_errmsg), (_status), __FILE__, __LINE__); \
   } \
   if( (_terminate) ){ \
     EXIT((_signal)); \

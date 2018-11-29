@@ -17,25 +17,32 @@ int main(int argc, char ** argv){
 #endif
   int exitstatus = 0;
 
-  std::cout << "Testing CHECK_EXITSTATUS macro with a function which succeeds" << std::endl;
+  std::cout << "Testing CHECK_EXITSTATUS_NONZERO macro with a function which succeeds" << std::endl;
 
-  CHECK_EXITSTATUS(test_check_exitstatus(false),
-                   "[test_CHECK_EXITSTATUS]: failure of test_check_exit!",
-                   false, 127);
+  CHECK_EXITSTATUS_NONZERO(exitstatus, test_check_exitstatus(false),
+                           "[test_CHECK_EXITSTATUS]: failure of test_check_exit!",
+                           false, 127);
 
   std::cout << std::endl;
-  std::cout << "Testing CHECK_EXITSTATUS macro with a function which fails without exiting" << std::endl;
+  std::cout << "Testing CHECK_EXITSTATUS_NONZERO macro with a function which fails without exiting" << std::endl;
 
-  CHECK_EXITSTATUS(test_check_exitstatus(true),
-                   "[test_CHECK_EXITSTATUS]: failure of test_check_exit!",
-                   false, 127);
+  CHECK_EXITSTATUS_NONZERO(exitstatus, test_check_exitstatus(true),
+                           "[test_CHECK_EXITSTATUS]: failure of test_check_exit!",
+                           false, 127);
   
   std::cout << std::endl;
-  std::cout << "Testing CHECK_EXITSTATUS macro with a function which fails and exits with signal 127" << std::endl;
+  std::cout << "Testing CHECK_EXITSTATUS_NEGATIVE macro with a function which fails without exiting" << std::endl;
 
-  CHECK_EXITSTATUS(test_check_exitstatus(true),
-                   "[test_CHECK_EXITSTATUS]: failure of test_check_exit!",
-                   true, 127);
+  CHECK_EXITSTATUS_NEGATIVE(exitstatus, test_check_exitstatus(true),
+                           "[test_CHECK_EXITSTATUS]: failure of test_check_exit!",
+                           false, 127);
+
+  std::cout << std::endl;
+  std::cout << "Testing CHECK_EXITSTATUS_NEGATIVE macro with a function which fails and exit with signal 127" << std::endl;
+
+  CHECK_EXITSTATUS_NEGATIVE(exitstatus, test_check_exitstatus(true),
+                            "[test_CHECK_EXITSTATUS]: failure of test_check_exit!",
+                            true, 127);
 
   return 0;
 }
