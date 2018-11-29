@@ -22,6 +22,7 @@ extern "C"
 #include "mpi_init.h"
 #include "global.h"
 #include "cvc_geometry.h"
+#include "cvc_utils.h"
 
 #include <stdexcept>
 #include <string>
@@ -231,6 +232,8 @@ class Core {
 #endif
       mpi_init(argc, argv);
       mpi_initialised = true;
+
+      set_omp_number_threads();
 
       status = init_geometry();
       if( status == 0 ){
