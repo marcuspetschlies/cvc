@@ -25,6 +25,25 @@ int init_sequential_source ( double * const s, double * const p, int const tseq,
 int init_coherent_sequential_source(double *s, double **p, int tseq, int ncoh, int pseq[3], int gseq);
 
 int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init);
+  
+  /**
+   * @brief Generate oet timeslice source
+   * Takes a random spinor, restricts it to a single time slice, multiplies
+   * with a gamma structure of choice and the momentum phase, if any. 
+   * @param s spinor, assumed to have 24*VOLUME elements
+   * @param ran spinor, assumed to contain random elements of some time
+   *            in all 24*VOLUME elements
+   * @param gamma_id gamma structure to be used at the source
+   * @param t_src source time slice
+   * @param momentum
+   *
+   * @return 0 on success, -1 on memory failure 
+   */
+int prepare_gamma_timeslice_oet(double * const s,
+      double const * const ran,
+      int const gamma_id,
+      int const t_src,
+      int const * const momentum);
 
 }  /* end of namespace cvc */
 
