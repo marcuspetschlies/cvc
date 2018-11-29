@@ -36,8 +36,30 @@ class ParallelMT19937_64 {
      * @param n_per_site Number of elements per site.
      */
     void
-    gen_real(double * buffer, const unsigned int n_per_site);
+    gen_real(double * const buffer, const unsigned int n_per_site);
   
+    /**
+     * @brief Generate z2 noise
+     *
+     * @param buffer Pointer to target memory. Assumption that this is
+     * allocated and has n_per_site*VOLUME elements.
+     * @param n_per_site Number of elements per site.
+     */
+    void
+    gen_z2(double * const buffer, const unsigned int n_per_site);
+
+    /**
+     * @brief Fill buffer elements with local index
+     * All elements of the target buffer are filled with the local
+     * lattice site index.
+     *
+     * @param buffer Pointer to target memory. Assumption that this
+     * is allocated and has n_per_site*VOLUME elements.
+     * @param n_per_site Number of elements per site.
+     */
+    void
+    gen_test(double * const buffer, const unsigned int n_per_site);
+
     /**
      * @brief Generate a single random number using specific RNG.
      * The RNG belonging to local_site_idx is used to generate

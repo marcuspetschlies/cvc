@@ -9,6 +9,7 @@
 #include "Stopwatch.hpp"
 #include "Core.hpp"
 #include "debug_printf.hpp"
+#include "loop_tools.h"
 
 #ifdef HAVE_MPI
 #include <mpi.h>
@@ -18,6 +19,7 @@
 #include <vector>
 #include <array>
 #include <fstream>
+
 
 constexpr unsigned int startsite = 0;
 constexpr unsigned int no_testsites = 1000;
@@ -47,12 +49,15 @@ int main(int argc, char** argv)
 
   ParallelMT19937_64 rangen2(982932ULL);
 
+  ParallelMT19937_64 rangen3(982932ULL);
+
   MT19937_64 sitegen(877123ULL);
 
   debug_printf(0, 0, "Generatign RNs for statistical tests\n");
   // output for statistical tests
   std::vector< std::vector<double> > ordered(no_testsites);
   std::vector< std::vector<double> > random(no_testsites);
+  std::vector< double > z2(24*VOLUME);
 
   for(unsigned int li = 0; li < no_testsites; ++li){
     ordered[li].resize(no_testvals);
@@ -83,19 +88,27 @@ int main(int argc, char** argv)
     }
   }
 
+  // generate some z2 cross z2 random numbers
+  rangen3.gen_z2(z2.data(),
+                 24);
+
   debug_printf(0,0, "Writing data for statistical tests\n");
   std::ofstream random_outfile("random.dat",
                                std::ios::out | std::ios::binary);
   std::ofstream ordered_outfile("ordered.dat",
                                 std::ios::out | std::ios::binary);
+  std::ofstream z2_outfile("z2.dat",
+                           std::ios::out | std::ios::binary);
 
   for(unsigned int li = 0; li < no_testsites; ++li){
     random_outfile.write((char*)random[li].data(), no_testvals*sizeof(double));
     ordered_outfile.write((char*)ordered[li].data(), no_testvals*sizeof(double));
   }
+  z2_outfile.write((char*)z2.data(), 24*VOLUME*sizeof(double));
+
   random_outfile.close();
   ordered_outfile.close();
-
+  z2_outfile.close();
   
   debug_printf(0, 0, "Timing generation of 50*24*VOLUME RNs\n");
   std::vector<double> testvec(24*VOLUME);

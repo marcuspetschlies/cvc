@@ -7,12 +7,16 @@
 #ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
-#include <algorithm>
+#include "loop_tools.h"
+
 #include <unistd.h>
-#include <stdio.h>
+#include <algorithm>
+#include <cstdio>
+#include <cmath>
 
 namespace cvc {
   // 311ULL is just an offset, we could use any other
+  // It's the seed which decides where in the sequence we start
   ParallelMT19937_64::ParallelMT19937_64(const unsigned long long seed) :
     seed_gen(seed, 311ULL)
   { 
@@ -22,9 +26,7 @@ namespace cvc {
     local_rngs.resize( VOLUME );
 
     for(unsigned long long gi = 0; gi < global_volume; ++gi){
-      // if we have more time, we use the sequence generator to produce a more reliable
-      // sequence, the sequence generators need to run over the whole
-      // global volume 
+      // use the sequence generator to produce our seeds for the global lattice
       unsigned long long ran64 = seed_gen.next();
       if( is_local(gi) ){
         local_seeds[ gi % VOLUME ] = ran64;
@@ -37,7 +39,31 @@ namespace cvc {
   }
 
   void
-  ParallelMT19937_64::gen_real(double * buffer, const unsigned int n_per_site)
+  ParallelMT19937_64::gen_z2(double * const buffer, const unsigned int n_per_site)
+  {
+    const double one_ov_sqrt_2 = 1.0/sqrt(2.0);
+    PARALLEL_AND_FOR(li, 0, VOLUME)
+    {
+      for(unsigned int i_per_site = 0; i_per_site < n_per_site; ++i_per_site){
+        buffer[n_per_site*li + i_per_site] = local_rngs[li].gen_real() >= 0.5 ?
+          one_ov_sqrt_2 : -one_ov_sqrt_2;
+      }
+    }
+  }
+
+  void
+  ParallelMT19937_64::gen_test(double * const buffer, const unsigned int n_per_site)
+  {
+    PARALLEL_AND_FOR(li, 0, VOLUME)
+    {
+      for(unsigned int i_per_site = 0; i_per_site < n_per_site; ++i_per_site){
+        buffer[n_per_site*li + i_per_site] = (double)li;
+      }
+    }
+  }
+
+  void
+  ParallelMT19937_64::gen_real(double * const buffer, const unsigned int n_per_site) 
   {
 #pragma omp parallel for
     for(unsigned int li = 0; li < VOLUME; ++li){
