@@ -87,7 +87,8 @@ int contract_local_loop_stochastic ( double *** const loop, double * const sourc
       unsigned int const offset = _GSI ( ix );
       double * const source_ = source + offset;
       double * const prop_   = prop   + offset;
-      _contract_loop_x_spin_diluted ( loop_x+16*ix, source_ , prop_ );
+      double * const loop_   = loop_x + 16*ix;
+      _contract_loop_x_spin_diluted ( loop_, source_ , prop_ );
   }  /* end of loop on volume */
 
   if ( momentum_number > 0 && momentum_list != NULL ) {
