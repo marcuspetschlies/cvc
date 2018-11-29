@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
   int check_propagator_residual = 0;
   size_t sizeof_spinor_field;
   char filename[100];
-  // double ratime, retime;
+  double ratime, retime;
   double **mzz[2]    = { NULL, NULL }, **mzzinv[2]    = { NULL, NULL };
   double **DW_mzz[2] = { NULL, NULL }, **DW_mzzinv[2] = { NULL, NULL };
   double *gauge_field_with_phase = NULL;
@@ -458,11 +458,17 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * apply Wilson Dirac operator
      ***************************************************************************/
+    ratime = _GET_TIME;
 
     /* decompose lexic stochastic_propagator into even/odd eo_spinor_work */
     spinor_field_lexic2eo ( stochastic_propagator, eo_spinor_work[0], eo_spinor_work[1] );
+    /* apply D_W */
     Q_clover_phi_matrix_eo ( eo_spinor_work[2],  eo_spinor_work[3],  eo_spinor_work[0],  eo_spinor_work[1], gauge_field_with_phase,  eo_spinor_work[4], DW_mzz[op_id_up]);
+    /* compose full spinor field */
     spinor_field_eo2lexic ( DW_stochastic_propagator, eo_spinor_work[2], eo_spinor_work[3] );
+
+    retime = _GET_TIME;
+    if ( io_proc == 2 ) fprintf ( stdout, "# [loop_invert_contract] time for D_W = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__ );
 
     /***************************************************************************
      *
