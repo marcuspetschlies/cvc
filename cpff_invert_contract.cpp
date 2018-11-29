@@ -1,9 +1,5 @@
 /****************************************************
- * cpff_invert_contract.c
- *
- * Mi 31. Okt 07:32:01 CET 2018
- *
- * - originally copied from p2gg_contract
+ * cpff_invert_contract
  *
  * PURPOSE:
  * DONE:
@@ -145,7 +141,7 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * initialize MPI parameters for cvc
    ***************************************************************************/
-  exitstatus = tmLQCD_invert_init(argc, argv, 1);
+  exitstatus = tmLQCD_invert_init(argc, argv, 1, 0);
   if(exitstatus != 0) {
     EXIT(1);
   }
@@ -472,18 +468,18 @@ int main(int argc, char **argv) {
         memset ( spinor_work[1], 0, sizeof_spinor_field );
 
         exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_dn );
-        if(exitstatus != 0) {
+        if(exitstatus < 0) {
           fprintf(stderr, "[cpff_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(44);
         }
 
         if ( check_propagator_residual ) {
-          check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_dn], 1 );
+          check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_dn], mzzinv[op_id_dn], 1 );
         }
 
         memcpy( stochastic_propagator_zero_list[i], spinor_work[1], sizeof_spinor_field);
       }
-      if ( g_write_source ) {
+      if ( g_write_propagator ) {
         for ( int ispin = 0; ispin < 4; ispin++ ) {
           sprintf(filename, "%s.%.4d.t%d.%d.%.5d.inverted", filename_prefix, Nconf, gts, ispin, isample);
           if ( ( exitstatus = write_propagator( stochastic_propagator_zero_list[ispin], filename, 0, g_propagator_precision) ) != 0 ) {
@@ -535,13 +531,13 @@ int main(int argc, char **argv) {
           memset ( spinor_work[1], 0, sizeof_spinor_field );
 
           exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_dn );
-          if(exitstatus != 0) {
+          if(exitstatus < 0) {
             fprintf(stderr, "[cpff_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(44);
           }
 
           if ( check_propagator_residual ) {
-            check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_dn], 1 );
+            check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_dn], mzzinv[op_id_dn], 1 );
           }
 
           memcpy( stochastic_propagator_mom_list[isrc_mom][i], spinor_work[1], sizeof_spinor_field);
@@ -674,13 +670,13 @@ int main(int argc, char **argv) {
               memset ( spinor_work[1], 0, sizeof_spinor_field );
 
               exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_up );
-              if(exitstatus != 0) {
+              if(exitstatus < 0) {
                 fprintf(stderr, "[cpff_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                 EXIT(44);
               }
 
               if ( check_propagator_residual ) {
-                check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_up], 1 );
+                check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_up], mzzinv[op_id_up], 1 );
               }
 
               memcpy( sequential_propagator_list[i], spinor_work[1], sizeof_spinor_field );
@@ -922,8 +918,6 @@ int main(int argc, char **argv) {
         }  /* end of loop on sequential source gamma ids */
 
       }  /* end of loop on sequential source momenta */
-#if 0
-#endif  /* of if 0 */
 
       exitstatus = init_timeslice_source_oet ( NULL, -1, NULL, -2 );
 
@@ -972,7 +966,6 @@ int main(int argc, char **argv) {
 #ifdef HAVE_TMLQCD_LIBWRAPPER
   tmLQCD_finalise();
 #endif
-
 
 #ifdef HAVE_MPI
   mpi_fini_xchange_contraction();
