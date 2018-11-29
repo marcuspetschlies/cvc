@@ -1,5 +1,5 @@
 /****************************************************
- * loop_invert_contract.cpp
+ * loop_invert_contract
  *
  * PURPOSE:
  * DONE:
@@ -93,7 +93,8 @@ int main(int argc, char **argv) {
   double **mzz[2]    = { NULL, NULL }, **mzzinv[2]    = { NULL, NULL };
   double **DW_mzz[2] = { NULL, NULL }, **DW_mzzinv[2] = { NULL, NULL };
   double *gauge_field_with_phase = NULL;
-  int op_id_up = -1, op_id_dn = -1;
+  int op_id_up = -1;
+  /* int op_id_dn = -1; */
   char output_filename[400];
   int * rng_state = NULL;
 
@@ -134,7 +135,7 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * initialize MPI parameters for cvc
    ***************************************************************************/
-  exitstatus = tmLQCD_invert_init(argc, argv, 1);
+  exitstatus = tmLQCD_invert_init(argc, argv, 1, 0);
   if(exitstatus != 0) {
     EXIT(1);
   }
@@ -274,10 +275,10 @@ int main(int argc, char **argv) {
    ***********************************************************/
   if ( g_fermion_type == _TM_FERMION ) {
     op_id_up = 0;
-    op_id_dn = 1;
+    /* op_id_dn = 1; */
   } else if ( g_fermion_type == _WILSON_FERMION ) {
     op_id_up = 0;
-    op_id_dn = 0;
+    /* op_id_dn = 0; */
   }
 
   /***************************************************************************
@@ -434,13 +435,14 @@ int main(int argc, char **argv) {
     memset ( spinor_work[1], 0, sizeof_spinor_field );
 
     exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_up );
-    if(exitstatus != 0) {
+    if(exitstatus < 0) {
       fprintf(stderr, "[loop_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(44);
     }
 
     if ( check_propagator_residual ) {
-      check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_up], 1 );
+      memcpy ( spinor_work[0], stochastic_source, sizeof_spinor_field );
+      check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_up], mzzinv[op_id_up], 1 );
     }
 
     memcpy( stochastic_propagator, spinor_work[1], sizeof_spinor_field);
@@ -583,7 +585,7 @@ int main(int argc, char **argv) {
          * group name for contraction
          * gen one-end-trick, single displ
          ***************************************************************************/
-        sprintf ( data_tag, "/conf_%.4d/nstoch_%.4d/%s/fbwd%d/dir%d", Nconf, isample, "DW_LoopsD", ifbwd, mu );
+        sprintf ( data_tag, "/conf_%.4d/nstoch_%.4d/%s/%s/dir%d", Nconf, isample, "DW_LoopsD", fbwd_str[ifbwd], mu );
 
         /***************************************************************************
          * loop contractions
@@ -619,7 +621,7 @@ int main(int argc, char **argv) {
            * group name for contraction
            * std one-end-trick, double displ
            ***************************************************************************/
-          sprintf ( data_tag, "/conf_%.4d/nstoch_%.4d/%s/fbwd%d/fbwd%d/dir%d", Nconf, isample, "LoopsDD", kfbwd, ifbwd, mu );
+          sprintf ( data_tag, "/conf_%.4d/nstoch_%.4d/%s/%s/%s/dir%d", Nconf, isample, "LoopsDD", fbwd_str[kfbwd], fbwd_str[ifbwd], mu );
 
           /***************************************************************************
            * loop contractions
