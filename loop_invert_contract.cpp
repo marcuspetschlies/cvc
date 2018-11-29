@@ -78,7 +78,7 @@ void usage() {
 
 int main(int argc, char **argv) {
   
-  const char outfile_prefix[] = "cpff";
+  const char outfile_prefix[] = "loop";
 
   const char fbwd_str[2][4] =  { "fwd", "bwd" };
 
@@ -556,7 +556,12 @@ int main(int argc, char **argv) {
         /*****************************************************************
          * apply cov deriv direction = mu and fbwd = ifbwd
          *****************************************************************/
+        ratime = _GET_TIME;
+
         spinor_field_eq_cov_deriv_spinor_field ( stochastic_propagator_deriv, stochastic_propagator, mu, ifbwd, gauge_field_with_phase );
+
+        retime = _GET_TIME;
+        if ( io_proc == 2 ) fprintf ( stdout, "# [loop_invert_contract] time for spinor_field_eq_cov_deriv_spinor_field = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__ );
 
         /***************************************************************************
          * group name for contraction
@@ -620,7 +625,7 @@ int main(int argc, char **argv) {
          * 2nd loop on fwd / bwd
          ***************************************************************************/
         for ( int kfbwd = 0; kfbwd <= 1; kfbwd++ ) {
-  
+
           spinor_field_eq_cov_deriv_spinor_field ( stochastic_propagator_dderiv, stochastic_propagator_deriv, mu, kfbwd, gauge_field_with_phase );
 
           /***************************************************************************
@@ -691,7 +696,6 @@ int main(int argc, char **argv) {
     /*****************************************************************/
 
   }  /* end of loop on oet samples */
-
 
   /***************************************************************************
    * decallocate fields
