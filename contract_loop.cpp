@@ -81,7 +81,7 @@ int contract_local_loop_stochastic ( double *** const loop, double * const sourc
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-  for ( int ix = 0; ix < VOLUME; ix++ ) {
+  for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
       unsigned int const offset = _GSI ( ix );
       double * const source_ = source + offset;
       double * const prop_   = prop   + offset;
@@ -105,7 +105,7 @@ int contract_local_loop_stochastic ( double *** const loop, double * const sourc
        * spatial dimensions
        ***********************************************************/
       int exitstatus = momentum_projection2 ( loop_x + offset, loop[it][0], 16, momentum_number, momentum_list, NULL );
-      if ( exitstatus == 0 ) {
+      if ( exitstatus != 0 ) {
         fprintf ( stderr, "[contract_local_loop_stochastic] Error from momentum_projection2, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         return ( 2 );
       }
