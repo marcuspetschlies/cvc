@@ -57,7 +57,7 @@ int cvc_loop_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, cha
 
 int cvc_loop_eo_check_wi_momentum_space_lma ( double **wi, double ***loop_lma, int (*momentum_list)[3], int momentum_number  );
 
-int const contract_cvc_tensor_eo_lm_mee (
+int contract_cvc_tensor_eo_lm_mee (
   double ** const eo_evecs_field, unsigned int const nev,
   double * const gauge_field, double ** const mzz[2], double ** const mzzinv[2],
   struct AffWriter_s * affw, char * const tag,
@@ -65,7 +65,7 @@ int const contract_cvc_tensor_eo_lm_mee (
   unsigned int const io_proc
 );
 
-int const contract_cvc_tensor_eo_lm_ct (
+int contract_cvc_tensor_eo_lm_ct (
   double ** const eo_evecs_field, unsigned int const nev,
   double * const gauge_field, double ** const mzz[2], double ** const mzzinv[2],
   struct AffWriter_s * affw, char * const tag,
