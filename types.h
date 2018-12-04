@@ -86,7 +86,7 @@ typedef struct stoch_prop_meta_t
   {
     char temp[100];
     snprintf(temp, 100, 
-             "f%s_g%02dd_px%d_py%d_pz%d",
+             "f%s_g%02dd_px%+d_py%+d_pz%+d",
              flav_in.c_str(), gamma_in, p_in[0], p_in[1], p_in[2]);
     return std::string(temp);
   }
