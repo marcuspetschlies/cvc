@@ -16,6 +16,7 @@
 #include <complex.h>
 #include <time.h>
 #include <getopt.h>
+#include <sys/time.h>
 
 #include "cvc_linalg.h"
 #include "cvc_complex.h"
@@ -45,15 +46,17 @@ int prepare_volume_source ( double * const s, unsigned int const V) {
   unsigned int const  VOL3 = LX        * LY        * LZ;
   unsigned int const gVOL3 = LX_global * LY_global * LZ_global;
   int status = 0;
-  double ratime, retime;
+
+  struct timeval ta, tb;
+  long unsigned int seconds, useconds;
+
+  gettimeofday ( &ta, (struct timezone *)NULL );
 
   double * spinor_field = init_1level_dtable ( _GSI(gVOL3 ) );
   if ( spinor_field == NULL ) {
     fprintf ( stderr, "[prepare_volume_source] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__ );
     return ( 1 );
   }
-
-  ratime = _GET_TIME;
 
   /*********************************************************
    * mpi-globally synchronized drawing of random numbers
@@ -80,7 +83,7 @@ int prepare_volume_source ( double * const s, unsigned int const V) {
       for ( unsigned int ix = 0; ix < VOL3; ix++ ) {
 
         /* local 4-dim index */
-        unsigned int iix = ts * VOL3 + ix; 
+        unsigned int const iix = ts * VOL3 + ix; 
 
         /* local 3-coordinates */
         int const x1 = g_lexic2coords[iix][1];
@@ -104,10 +107,9 @@ int prepare_volume_source ( double * const s, unsigned int const V) {
 
   fini_1level_dtable ( &spinor_field );
 
-  retime = _GET_TIME;
-  if ( g_cart_id == 0 ) {
-    fprintf(stdout, "# [prepare_volume_source] time for prepare_volume_source = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__ );
-  }
+  gettimeofday ( &tb, (struct timezone *)NULL );
+
+  show_time ( &ta, &tb, "prepare_volume_source", "prepare volume source", g_cart_id == 0 );
 
   return(status);
 }  /* end of prepare_volume_source */

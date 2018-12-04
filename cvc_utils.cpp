@@ -4752,6 +4752,9 @@ int check_residual_clover ( double ** const prop, double ** const source, double
   int exitstatus;
   double **eo_spinor_work = NULL;
   double diff_e, diff_o, norm_e, norm_o;
+  double ratime, retime;
+
+  ratime = _GET_TIME;
 
   if ( ( exitstatus = init_2level_buffer ( &eo_spinor_work, 5, _GSI( (VOLUME+RAND)/2 ) ) ) != 0 ) {
     fprintf(stderr, "[check_residual_clover] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
@@ -4760,20 +4763,27 @@ int check_residual_clover ( double ** const prop, double ** const source, double
 
   for( int k = 0; k < nf; k++ ) {
 
+    /* Q_clover_phi_matrix_eo */
     spinor_field_lexic2eo ( prop[k], eo_spinor_work[0], eo_spinor_work[1] );
+    Q_clover_phi_matrix_eo ( eo_spinor_work[2], eo_spinor_work[3], eo_spinor_work[0], eo_spinor_work[1], gauge_field, eo_spinor_work[4], mzz );
+    spinor_field_lexic2eo ( source[k], eo_spinor_work[0], eo_spinor_work[1] );
 
-    /* Q_clover_phi_matrix_eo ( eo_spinor_work[2], eo_spinor_work[3], eo_spinor_work[0], eo_spinor_work[1], gauge_field, eo_spinor_work[4], mzz ); */
+    spinor_scalar_product_re( &norm_e, eo_spinor_work[0], eo_spinor_work[0], Vhalf);
+    spinor_scalar_product_re( &norm_o, eo_spinor_work[1], eo_spinor_work[1], Vhalf);
 
+    spinor_field_norm_diff ( &diff_e, eo_spinor_work[0], eo_spinor_work[2], Vhalf);
+    spinor_field_norm_diff ( &diff_o, eo_spinor_work[1], eo_spinor_work[3], Vhalf);
+
+    if(g_cart_id==0) fprintf(stdout, "# [check_residual_clover] (Q_clover_phi_matrix_eo) propagator %3d norm diff even part = %e / %e\n", k, diff_e, sqrt(norm_e) );
+    if(g_cart_id==0) fprintf(stdout, "# [check_residual_clover] (Q_clover_phi_matrix_eo) propagator %3d norm diff odd  part = %e / %e\n", k, diff_o, sqrt(norm_o) );
+
+#if 0
+    /* SchurDecomp */
+    spinor_field_lexic2eo ( prop[k], eo_spinor_work[0], eo_spinor_work[1] );
     Q_clover_eo_SchurDecomp_B ( eo_spinor_work[2], eo_spinor_work[3], eo_spinor_work[0], eo_spinor_work[1], gauge_field, mzz[1], mzzinv[0], eo_spinor_work[4]);
     Q_clover_eo_SchurDecomp_A ( eo_spinor_work[0], eo_spinor_work[1], eo_spinor_work[2], eo_spinor_work[3], gauge_field, mzz[0], eo_spinor_work[4] );
     g5_phi( eo_spinor_work[0], Vhalf);
     g5_phi( eo_spinor_work[1], Vhalf);
-
-
-    /* spinor_field_lexic2eo ( source[k], eo_spinor_work[0], eo_spinor_work[1] );
-    spinor_scalar_product_re( &norm_e, eo_spinor_work[0], eo_spinor_work[0], Vhalf);
-    spinor_scalar_product_re( &norm_o, eo_spinor_work[1], eo_spinor_work[1], Vhalf);
-    */
 
     spinor_field_lexic2eo ( source[k], eo_spinor_work[2], eo_spinor_work[3] );
 
@@ -4783,12 +4793,16 @@ int check_residual_clover ( double ** const prop, double ** const source, double
     spinor_field_norm_diff ( &diff_e, eo_spinor_work[2], eo_spinor_work[0], Vhalf);
     spinor_field_norm_diff ( &diff_o, eo_spinor_work[3], eo_spinor_work[1], Vhalf);
 
-    if(g_cart_id==0) fprintf(stdout, "# [check_residual_clover] propagator %3d norm diff even part = %e / %e\n", k, diff_e, sqrt(norm_e) );
-    if(g_cart_id==0) fprintf(stdout, "# [check_residual_clover] propagator %3d norm diff odd  part = %e / %e\n", k, diff_o, sqrt(norm_o) );
+    if(g_cart_id==0) fprintf(stdout, "# [check_residual_clover] (SchurDecomp) propagator %3d norm diff even part = %e / %e\n", k, diff_e, sqrt(norm_e) );
+    if(g_cart_id==0) fprintf(stdout, "# [check_residual_clover] (SchurDecomp) propagator %3d norm diff odd  part = %e / %e\n", k, diff_o, sqrt(norm_o) );
+#endif
 
   }  /* end of loop on nf */
 
   fini_2level_buffer ( &eo_spinor_work );
+
+  retime = _GET_TIME;
+  if ( g_cart_id == 0 ) fprintf ( stdout, "# [check_residual_clover] time for check_residual_clover = %e seconds %s %d\n", retime-ratime , __FILE__, __LINE__ );
   return(0);
 }  /* end of check_residual_clover */
 
@@ -7122,7 +7136,7 @@ int get_io_proc (void) {
 /****************************************************************************
  * get mapping for sort
  ****************************************************************************/
-unsigned int * const sort_by_dvalue_mapping ( double * const value, unsigned int const nv ) {
+unsigned int * sort_by_dvalue_mapping ( double * const value, unsigned int const nv ) {
 
   unsigned int * const imap = (unsigned int *)malloc ( nv * sizeof( unsigned int ) );
   if ( imap == NULL ) {

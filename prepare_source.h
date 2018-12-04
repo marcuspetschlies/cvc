@@ -3,7 +3,7 @@
 
 namespace cvc {
 
-int prepare_volume_source(double *s, unsigned int V);
+int prepare_volume_source ( double * const s, unsigned int const V);
 
 int init_eo_spincolor_pointsource_propagator(double *s_even, double *s_odd, int global_source_coords[4], int isc, double*gauge_field, int sign, int have_source, double *work0);
 
