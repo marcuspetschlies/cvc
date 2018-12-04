@@ -89,7 +89,10 @@ int main(int argc, char **argv) {
   int check_propagator_residual = 0;
   size_t sizeof_spinor_field;
   char filename[100];
-  double ratime, retime;
+
+  struct timeval ta, tb;
+  long unsigned int seconds, useconds;
+
   double **mzz[2]    = { NULL, NULL }, **mzzinv[2]    = { NULL, NULL };
   double **DW_mzz[2] = { NULL, NULL }, **DW_mzzinv[2] = { NULL, NULL };
   double *gauge_field_with_phase = NULL;
@@ -135,7 +138,8 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * initialize MPI parameters for cvc
    ***************************************************************************/
-  exitstatus = tmLQCD_invert_init(argc, argv, 1, 0);
+  /* exitstatus = tmLQCD_invert_init(argc, argv, 1, 0); */
+  exitstatus = tmLQCD_invert_init(argc, argv, 1);
   if(exitstatus != 0) {
     EXIT(1);
   }
@@ -455,10 +459,11 @@ int main(int argc, char **argv) {
       }
     }
 
+    gettimeofday ( &ta, (struct timezone *) NULL );
+
     /***************************************************************************
      * apply Wilson Dirac operator
      ***************************************************************************/
-    ratime = _GET_TIME;
 
     /* decompose lexic stochastic_propagator into even/odd eo_spinor_work */
     spinor_field_lexic2eo ( stochastic_propagator, eo_spinor_work[0], eo_spinor_work[1] );
@@ -467,9 +472,10 @@ int main(int argc, char **argv) {
     /* compose full spinor field */
     spinor_field_eo2lexic ( DW_stochastic_propagator, eo_spinor_work[2], eo_spinor_work[3] );
 
-    retime = _GET_TIME;
-    if ( io_proc == 2 ) fprintf ( stdout, "# [loop_invert_contract] time for D_W = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__ );
+    gettimeofday ( &tb, (struct timezone *)NULL );
 
+    show_time ( &ta, &tb, "loop_invert_contract", "DW", io_proc == 2 );
+ 
     /***************************************************************************
      *
      * contraction for local loops using std one-end-trick
@@ -553,15 +559,17 @@ int main(int argc, char **argv) {
        *****************************************************************/
       for ( int mu = 0; mu < 4; mu++ ) {
 
+        gettimeofday ( &ta, (struct timezone *)NULL );
+        
         /*****************************************************************
          * apply cov deriv direction = mu and fbwd = ifbwd
          *****************************************************************/
-        ratime = _GET_TIME;
 
         spinor_field_eq_cov_deriv_spinor_field ( stochastic_propagator_deriv, stochastic_propagator, mu, ifbwd, gauge_field_with_phase );
 
-        retime = _GET_TIME;
-        if ( io_proc == 2 ) fprintf ( stdout, "# [loop_invert_contract] time for spinor_field_eq_cov_deriv_spinor_field = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__ );
+        gettimeofday ( &tb, (struct timezone *)NULL );
+
+        show_time ( &ta, &tb, "loop_invert_contract", "spinor_field_eq_cov_deriv_spinor_field", io_proc == 2 );
 
         /***************************************************************************
          * group name for contraction

@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/time.h>
 
 #ifdef HAVE_MPI
 #  include <mpi.h>
@@ -72,7 +73,10 @@ int contract_local_loop_stochastic ( double *** const loop, double * const sourc
 
   unsigned int const VOL3 = LX * LY * LZ;
  
-  double ratime = _GET_TIME;
+  struct timeval ta, tb;
+  long unsigned int seconds, useconds;
+
+  gettimeofday ( &ta, (struct timezone *)NULL );
 
   double * loop_x = init_1level_dtable ( 32 * VOLUME );
   if ( loop_x == NULL ) {
@@ -90,6 +94,11 @@ int contract_local_loop_stochastic ( double *** const loop, double * const sourc
       double * const loop_   = loop_x + 16*ix;
       _contract_loop_x_spin_diluted ( loop_, source_ , prop_ );
   }  /* end of loop on volume */
+
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  
+  show_time ( &ta, &tb, "contract_local_loop_stochastic", "local contract", g_cart_id == 0 );
+
 
   if ( momentum_number > 0 && momentum_list != NULL ) {
     /***********************************************************
@@ -123,8 +132,12 @@ int contract_local_loop_stochastic ( double *** const loop, double * const sourc
 
   fini_1level_dtable ( &loop_x );
 
-  double retime = _GET_TIME;
-  if ( g_cart_id == 0 ) fprintf ( stdout, "# [contract_local_loop_stochastic] time for contract_local_loop_stochastic = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__ );
+  /***********************************************************
+   * time measurement
+   ***********************************************************/
+  gettimeofday ( &ta, (struct timezone *)NULL );
+  
+  show_time ( &tb, &ta, "contract_local_loop_stochastic", "momentum projection", g_cart_id == 0 );
 
  return ( 0 );
 }  /* end of contract_local_loop_stochastic */
@@ -148,13 +161,16 @@ int contract_loop_write_to_h5_file (double *** const loop, void * file, char*tag
 
   if ( io_proc > 0 ) {
 
-    double ratime, retime;
-
     double * zbuffer = NULL;
 
     char * filename = (char *)file;
 
-    ratime = _GET_TIME;
+    /***************************************************************************
+     * time measurement
+     ***************************************************************************/
+    struct timeval ta, tb;
+    long unsigned int seconds, useconds;
+    gettimeofday ( &ta, (struct timezone *)NULL );
 
     if ( io_proc == 2 ) {
       /***************************************************************************
@@ -428,8 +444,22 @@ int contract_loop_write_to_h5_file (double *** const loop, void * file, char*tag
     retime = _GET_TIME;
     if ( io_proc == 2 ) fprintf(stdout, "# [contract_loop_write_to_h5_file] time for saving momentum space results = %e seconds\n", retime-ratime);
 
+    /***************************************************************************
+     * time measurement
+     ***************************************************************************/
+    gettimeofday ( &tb, (struct timezone *)NULL );
+  
+    seconds  = tb.tv_sec  - ta.tv_sec;
+    useconds = tb.tv_usec - ta.tv_usec;
+    if ( useconds < 0 ) {
+      useconds += 1000000;
+      seconds--;
+    }
+    fprintf ( stdout, "# [contract_loop_write_to_h5_file] time for momentum projection %lu sec %lu usec %s %d\n", 
+        seconds, useconds, __FILE__, __LINE__ );
+  
   }  /* end of of if io_proc > 0 */
-
+  
   return(0);
 
 }  /* end of contract_loop_write_to_h5_file */
