@@ -92,8 +92,9 @@ void contract_twopoint_snk_momentum ( double * const contr, int const idsource, 
 template <typename T>
 void contract_twopoint_xdep_snk_gamma_only(
     T * const contr, const int idsink, 
-    T const * const chi, T const * const psi, 
+    T const * chi, T const * psi, 
     int const stride, double const factor);
+#include "impl/impl_contract_twopoint_xdep_snk_gamma_only.hpp"
 
 void contract_twopoint_snk_momentum_trange(double *contr, const int idsource, const int idsink, double **chi, double **phi, int n_c, int* snk_mom, int tmin, int tmax);
 
