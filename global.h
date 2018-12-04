@@ -39,25 +39,28 @@
 #endif
 
 #define PRINT_STATUS(_status, _errmsg) \
-  fprintf(stderr,"%s Status was %d, \n %s line %d\n", (_errmsg), (_status), __FILE__, __LINE__);
+  fprintf(stderr,"%s Status was %d, \n %s line %d\n", (_errmsg), (_status), __FILE__, __LINE__); \
+  fflush(stderr);
 
 #define CHECK_EXITSTATUS_NONZERO(_status, _call, _errmsg, _terminate, _signal) \
   (_status) = (_call); \
   if( (_status) != 0 ){ \
     fprintf(stderr, "%s Status was %d, \n %s line %d\n", (_errmsg), (_status), __FILE__, __LINE__); \
-  } \
-  if( (_terminate) ){ \
-    EXIT((_signal)); \
-  };
+    fflush(stderr); \
+    if( (_terminate) ){ \
+      EXIT((_signal)); \
+    } \
+  }
 
 #define CHECK_EXITSTATUS_NEGATIVE(_status, _call, _errmsg, _terminate, _signal) \
   (_status) = (_call); \
   if( (_status) < 0 ){ \
     fprintf(stderr, "%s Status was %d, \n %s line %d\n", (_errmsg), (_status), __FILE__, __LINE__); \
-  } \
-  if( (_terminate) ){ \
-    EXIT((_signal)); \
-  };
+    fflush(stderr); \
+    if( (_terminate) ){ \
+      EXIT((_signal)); \
+    } \
+  }
 
 #ifdef HAVE_MPI
 #define _GET_TIME  MPI_Wtime()

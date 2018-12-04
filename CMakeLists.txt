@@ -333,6 +333,7 @@ include_directories(${CMAKE_SOURCE_DIR})
 add_library(cvc
   ${CMAKE_CURRENT_BINARY_DIR}/gitversion.cpp
   ${FLEX_read_input_parser_OUTPUTS}
+  init/init_g_gauge_field.cpp
   mpi_init.cpp
   cvc_geometry.cpp
   set_default.cpp
@@ -358,16 +359,19 @@ add_library(cvc
   rng/ParallelMT19937_64.cpp
 )
 add_executable(cpff_invert_contract
-  cpff_invert_contract.cpp
-)
+  cpff_invert_contract.cpp)
 target_link_libraries(cpff_invert_contract
   cvc
-  ${cvc_libraries}
-)
+  ${cvc_libraries})
 
 add_executable(cpff_tbc_invert_contract
-  cpff_tbc_invert_contract.cpp
-)
+  cpff_tbc_invert_contract.cpp)
+
+add_executable(cpff_invert_contract_no_spin_dilution
+  cpff_invert_contract_no_spin_dilution.cpp)
+target_link_libraries(cpff_invert_contract_no_spin_dilution
+  cvc
+  ${cvc_libraries})
 
 add_subdirectory(external/googletest)
 add_subdirectory(tests)

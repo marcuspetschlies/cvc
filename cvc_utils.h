@@ -73,6 +73,27 @@ void contract_twopoint(double *contr, const int idsource, const int idsink, doub
 
 void contract_twopoint_snk_momentum ( double * const contr, int const idsource, int const idsink, double ** const chi, double ** const phi, unsigned int const n_s, unsigned int const n_c, int const snk_mom[3], int const reduce );
 
+/**                                                                                                                                               
+ * @brief contract two propagators with fixed gamma structures
+ * Computes \chi^/dagger \gamma_5 \gamma_sink \psi(p_src), where
+ * we assume that \chi and \psi are of the form D^{-1} \gamma \eta,
+ * where \eta is an appropriate stochastic source and the gamma
+ * structures of chi and psi can be different (although this is
+ * implicit and no regard is made for possible sign changes or the fact
+ * that the resulting correlator could be real or imaginary)
+ *
+ * @param contr contraction field (2*VOLUME)
+ * @param idsink gamma id at sink
+ * @param chi backward propagator 
+ * @param psi forward propagator
+ * @param stride stride for contr
+ * @param factor normalisation of contraction
+ */
+template <typename T>
+void contract_twopoint_xdep_snk_gamma_only(
+    T * const contr, const int idsink, 
+    T const * const chi, T const * const psi, 
+    int const stride, double const factor);
 
 void contract_twopoint_snk_momentum_trange(double *contr, const int idsource, const int idsink, double **chi, double **phi, int n_c, int* snk_mom, int tmin, int tmax);
 
