@@ -218,20 +218,27 @@ int main(int argc, char **argv) {
     }
   } // end of loop over two pt functions to generate map of fwd/bwd propagator metadata
 
-  debug_printf(0, 0, "\n\n%d zero momentum props\n", zero_mom_props_meta.size());
-  debug_printf(0, 0, "%d non-zero momentum props\n\n", mom_props_meta.size());
 
-  debug_printf(0, 0, "\n\nZero momentum propagators\n");
+  sizeof_spinor_field    = _GSI(VOLUME) * sizeof(double);
+
+  debug_printf(0, 0, "\n\n%d zero momentum props\n will use %f GB of memory\n", 
+      zero_mom_props_meta.size(),
+      1.0e-9 * zero_mom_props_meta.size()*(double)sizeof_spinor_field*g_nproc );
+  debug_printf(0, 0, "%d non-zero momentum props\n will use %f GB of memory\n\n", 
+      mom_props_meta.size(),
+      1.0e-9*mom_props_meta.size()*(double)sizeof_spinor_field*g_nproc );
+
+
+  debug_printf(0, 0, "\n\nlist of zero momentum propagators to be generated\n");
   for( auto const & prop : zero_mom_props_meta ) {
     debug_printf(0, 0, "Propagator: %s to be generated\n", prop.first.c_str());
   }
 
-  debug_printf(0, 0, "\n\nNon-zero momentum propagators\n");
+  debug_printf(0, 0, "\n\nlist of non-zero momentum propagators\n");
   for( auto const & prop : mom_props_meta ) {
     debug_printf(0, 0, "Propagator: %s to be generated\n", prop.first.c_str());
   }
-
-  sizeof_spinor_field    = _GSI(VOLUME) * sizeof(double);
+  debug_printf(0, 0, "\n\n");
 
   /***************************************************************************
    * some additional xchange operations
@@ -403,16 +410,20 @@ int main(int argc, char **argv) {
 
         memcpy ( spinor_work[0], stochastic_source.data(), sizeof_spinor_field );
         memset ( spinor_work[1], 0, sizeof_spinor_field );
-          
+        
+        sw.reset(); 
         exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], flav_op_ids[ prop_meta.flav ] );
         if(exitstatus < 0) {
           fprintf(stderr, "[cpff_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(44);
         }
+        sw.elapsed_print("TMLQCD_INVERT");
 
         if ( g_check_inversion ) {
+          sw.reset();
           check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, 
                                   mzz[flav_op_ids[ prop_meta.flav ]], mzzinv[ flav_op_ids[ prop_meta.flav ] ], 1 );
+          sw.elapsed_print("check_residual_clover");
         }
 
         // if this propagator is not yet in the map, allocate some memory
@@ -457,15 +468,19 @@ int main(int argc, char **argv) {
 
         debug_printf(0, 0, "Inverting to generate propagator %s\n", prop_meta.make_key().c_str() );
 
+        sw.reset();
         exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], flav_op_ids[ prop_meta.flav ] );
         if(exitstatus < 0) {
           fprintf(stderr, "[cpff_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(44);
         }
+        sw.elapsed_print("TMQLCD_INVERT");
 
         if ( g_check_inversion ) {
+          sw.reset();
           check_residual_clover (&(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, 
                                  mzz[ flav_op_ids[ prop_meta.flav] ], mzzinv[ flav_op_ids[ prop_meta.flav] ], 1 );
+          sw.elapsed_print("check_residual_clover");
         }
 
         if( mom_props.count( prop_key ) == 0 ){
@@ -486,6 +501,8 @@ int main(int argc, char **argv) {
           }
         }
       }  // end of loop over non-zero momentum propagators
+
+      // TODO continue here
 
 //      /*****************************************************************
 //       * contractions for 2-point functons
