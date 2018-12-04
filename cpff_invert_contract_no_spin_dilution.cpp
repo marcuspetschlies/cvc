@@ -105,11 +105,9 @@ int main(int argc, char **argv) {
 
   std::vector<twopt_oet_meta_t> twopt_correls;
   std::vector<threept_oet_meta_t> threept_correls;
-  std::map<std::string, stoch_prop_meta_t> mom_props_meta;
-  std::map<std::string, stoch_prop_meta_t> zero_mom_props_meta;
-
-  std::map<std::string, std::vector<double>> mom_props;
-  std::map<std::string, std::vector<double>> zero_mom_props;
+  
+  std::map<std::string, stoch_prop_meta_t> props_meta;
+  std::map<std::string, std::vector<double>> props;
 
   std::map<std::string, int> flav_op_ids;
   flav_op_ids["u"] = 0;
@@ -137,15 +135,19 @@ int main(int argc, char **argv) {
   if( do_singlet ){
     // \bar{chi}_u chi_u \bar{chi}_u chi_u
     twopt_correls.push_back( twopt_oet_meta_t("u", "d", "fwd", 4, 4, 5) );
+    twopt_correls.push_back( twopt_oet_meta_t("d", "u", "fwd", 4, 4, 5) );
     if( use_g0_g5_singlet ){
       // \bar{chi}_u g0 g5 chi_u  \bar{chi}_u chi_u
       twopt_correls.push_back( twopt_oet_meta_t("u", "d", "fwd", 4, 6, 5) );
+      twopt_correls.push_back( twopt_oet_meta_t("d", "u", "fwd", 4, 6, 5) );
       // \bar{chi}_u chi_u  \bar{chi}_u g5 g0 chi_u =
       // - \bar{chi}_u chi_u  \bar{chi}_u g0 g5 chi_u
       twopt_correls.push_back( twopt_oet_meta_t("u", "d", "fwd", 0, 5, 4) );
+      twopt_correls.push_back( twopt_oet_meta_t("d", "u", "fwd", 0, 5, 4) );
       // \bar{chi}_u g0 g5 chi_u  \bar{chi}_u g5 g0 chi_u =
       // - \bar{chi}_u g0 g5 chi_u  \bar{chi}_u g0 g5 chi_u
       twopt_correls.push_back( twopt_oet_meta_t("u", "d", "fwd", 0, 6, 4) );
+      twopt_correls.push_back( twopt_oet_meta_t("d", "u", "fwd", 0, 6, 4) );
     }
   }
 
@@ -175,13 +177,7 @@ int main(int argc, char **argv) {
                                     twopt_correls[icor].gb,
                                     twopt_correls[icor].bprop_flav );
         std::string prop_key = bwd_prop.make_key();
-        // in the zero momentum case, we add this to the map of zero momentum
-        // propagators
-        if( source_momentum[0] == 0 && source_momentum[1] == 0 && source_momentum[2] == 0 ){
-          zero_mom_props_meta[ prop_key ] = bwd_prop; 
-        } else {
-          mom_props_meta[ prop_key ] = bwd_prop;
-        }
+        props_meta[ prop_key ] = bwd_prop;
       } else {
         source_momentum[0] = g_source_momentum_list[isrc_mom][0];
         source_momentum[1] = g_source_momentum_list[isrc_mom][1];
@@ -190,13 +186,7 @@ int main(int argc, char **argv) {
                                     twopt_correls[icor].gi,
                                     twopt_correls[icor].fprop_flav );
         std::string prop_key = fwd_prop.make_key();
-        // in the zero momentum case, we add this to the map of zero momentum
-        // propagators
-        if( source_momentum[0] == 0 && source_momentum[1] == 0 && source_momentum[2] == 0 ){
-          zero_mom_props_meta[ prop_key ] = fwd_prop;
-        } else {
-          mom_props_meta[ prop_key ] = fwd_prop;
-        }
+        props_meta[ prop_key ] = fwd_prop;
       }
     } // loop over source momenta
     // if the source momentum is carried by the backward propagator,
@@ -206,7 +196,7 @@ int main(int argc, char **argv) {
       stoch_prop_meta_t fwd_prop( source_momentum,
                                   twopt_correls[icor].gi,
                                   twopt_correls[icor].fprop_flav );
-      zero_mom_props_meta[ fwd_prop.make_key() ] = fwd_prop;
+      props_meta[ fwd_prop.make_key() ] = fwd_prop;
     // if it is carried by the forward propagator, instead,
     // we need a corresponding 
     } else {
@@ -214,28 +204,18 @@ int main(int argc, char **argv) {
       stoch_prop_meta_t bwd_prop( bprop_momentum,
                                   twopt_correls[icor].gb,
                                   twopt_correls[icor].bprop_flav );
-      zero_mom_props_meta[ bwd_prop.make_key() ] = bwd_prop;
+      props_meta[ bwd_prop.make_key() ] = bwd_prop;
     }
   } // end of loop over two pt functions to generate map of fwd/bwd propagator metadata
 
-
   sizeof_spinor_field    = _GSI(VOLUME) * sizeof(double);
 
-  debug_printf(0, 0, "\n\n%d zero momentum props\n will use %f GB of memory\n", 
-      zero_mom_props_meta.size(),
-      1.0e-9 * zero_mom_props_meta.size()*(double)sizeof_spinor_field*g_nproc );
-  debug_printf(0, 0, "%d non-zero momentum props\n will use %f GB of memory\n\n", 
-      mom_props_meta.size(),
-      1.0e-9*mom_props_meta.size()*(double)sizeof_spinor_field*g_nproc );
+  debug_printf(0, 0, "%d propagators\n will use %f GB of memory\n\n", 
+      props_meta.size(),
+      1.0e-9*props_meta.size()*(double)sizeof_spinor_field*g_nproc );
 
-
-  debug_printf(0, 0, "\n\nlist of zero momentum propagators to be generated\n");
-  for( auto const & prop : zero_mom_props_meta ) {
-    debug_printf(0, 0, "Propagator: %s to be generated\n", prop.first.c_str());
-  }
-
-  debug_printf(0, 0, "\n\nlist of non-zero momentum propagators\n");
-  for( auto const & prop : mom_props_meta ) {
+  debug_printf(0, 0, "\n\nList of non-zero momentum propagators to be generated\n");
+  for( auto const & prop : props_meta ) {
     debug_printf(0, 0, "Propagator: %s to be generated\n", prop.first.c_str());
   }
   debug_printf(0, 0, "\n\n");
@@ -392,62 +372,8 @@ int main(int argc, char **argv) {
       }
       
 
-      // loop over the zero momentum propagators required for our chosen correlators
-      for( auto const & prop : zero_mom_props_meta ){
-        stoch_prop_meta_t prop_meta = prop.second;
-        std::string prop_key = prop_meta.make_key();
-        
-        // now create the time slice sources with source gamma structures
-        // if these are more than three, spin dilution should be used instead
-        CHECK_EXITSTATUS_NONZERO(exitstatus,
-          prepare_gamma_timeslice_oet(stochastic_source.data(),
-                                      ranspinor.data(),
-                                      prop_meta.gamma,
-                                      gts,
-                                      NULL),
-          "[cpff_invert_contract] Error from prepare_gamma_timeslice_oet!",
-          true, CVC_EXIT_MALLOC_FAILURE); 
-
-        memcpy ( spinor_work[0], stochastic_source.data(), sizeof_spinor_field );
-        memset ( spinor_work[1], 0, sizeof_spinor_field );
-        
-        sw.reset(); 
-        exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], flav_op_ids[ prop_meta.flav ] );
-        if(exitstatus < 0) {
-          fprintf(stderr, "[cpff_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-          EXIT(44);
-        }
-        sw.elapsed_print("TMLQCD_INVERT");
-
-        if ( g_check_inversion ) {
-          sw.reset();
-          check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, 
-                                  mzz[flav_op_ids[ prop_meta.flav ]], mzzinv[ flav_op_ids[ prop_meta.flav ] ], 1 );
-          sw.elapsed_print("check_residual_clover");
-        }
-
-        // if this propagator is not yet in the map, allocate some memory
-        if( !zero_mom_props.count( prop_key ) ){
-          zero_mom_props.emplace( std::make_pair( prop_key,
-                                                  std::vector<double>(nelem) ) );
-        }
-        memcpy( zero_mom_props[ prop_key ].data(), spinor_work[1], sizeof_spinor_field);
-        
-        if ( g_write_propagator ) {
-          sprintf(filename, "%s.conf%.4d.t%d.sample%.5d.gamma%02d.f%s.inverted", 
-              filename_prefix, Nconf, gts, isample, 
-              prop_meta.gamma, prop_meta.flav.c_str());
-          exitstatus = write_propagator( zero_mom_props[ prop_key ].data(), 
-                                         filename, 0, g_propagator_precision);
-          if ( exitstatus != 0 ) {
-            fprintf(stderr, "[cpff_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(2);
-          }
-        }
-      } // end of loop over zero momentum propagators required for chosen correlators
-
-      // loop over the propagators carrying non-zero momentum
-      for( auto const & prop : mom_props_meta ){
+      // loop over all required propagators
+      for( auto const & prop : props_meta ){
         stoch_prop_meta_t prop_meta = prop.second;
         std::string prop_key = prop_meta.make_key();
 
@@ -459,7 +385,9 @@ int main(int argc, char **argv) {
                                       ranspinor.data(),
                                       prop_meta.gamma,
                                       gts,
-                                      prop_meta.p),
+                                      (prop_meta.p[0] == 0 && 
+                                       prop_meta.p[1] == 0 &&
+                                       prop_meta.p[2] == 0 ) ? NULL : prop_meta.p ),
           "[cpff_invert_contract] Error from prepare_gamma_timeslice_oet!",
           true, CVC_EXIT_MALLOC_FAILURE);
 
@@ -483,100 +411,114 @@ int main(int argc, char **argv) {
           sw.elapsed_print("check_residual_clover");
         }
 
-        if( mom_props.count( prop_key ) == 0 ){
-          mom_props.emplace( std::make_pair( prop_key,
-                                             std::vector<double>(nelem) ) );
+        if( props.count( prop_key ) == 0 ){
+          props.emplace( std::make_pair( prop_key,
+                                         std::vector<double>(nelem) ) );
         }
-        memcpy( mom_props[ prop_key ].data(), spinor_work[1], sizeof_spinor_field);
+        memcpy( props[ prop_key ].data(), spinor_work[1], sizeof_spinor_field);
 
         if ( g_write_propagator ) {
           sprintf(filename, "%s.conf%.4d.t%d.px%dpy%dpz%d.gamma%02d.f%s.sample%.5d.inverted", 
               filename_prefix, Nconf, gts,
               prop_meta.p[0], prop_meta.p[1], prop_meta.p[1], 
               prop_meta.gamma, prop_meta.flav.c_str(), isample);
-          exitstatus = write_propagator( mom_props[ prop_key ].data(), filename, 0, g_propagator_precision);
+          exitstatus = write_propagator( props[ prop_key ].data(), filename, 0, g_propagator_precision);
           if ( exitstatus != 0 ) {
             fprintf(stderr, "[cpff_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(2);
           }
         }
-      }  // end of loop over non-zero momentum propagators
+      }  // end of loop over required propagators
 
-      // TODO continue here
+      /*****************************************************************
+       * contractions for 2-point functons
+       *****************************************************************/
+      for( int icor = 0; icor < twopt_correls.size(); icor++ ){
+        for ( int isrc_mom = 0; isrc_mom < g_source_momentum_number; isrc_mom++ ) {
+          int zero_mom[3] = {0,0,0};
+          int prop_mom[3] = {
+            g_source_momentum_list[isrc_mom][0],
+            g_source_momentum_list[isrc_mom][1],
+            g_source_momentum_list[isrc_mom][2] };
 
-//      /*****************************************************************
-//       * contractions for 2-point functons
-//       *****************************************************************/
-//      for( int icor = 0; icor < twopt_correls.size();  
-//      for ( int isrc_mom = 0; isrc_mom < g_source_momentum_number; isrc_mom++ ) {
-//
-//        double * contr_x = init_1level_dtable ( 2 * VOLUME );
-//        if ( contr_x == NULL ) {
-//          fprintf(stderr, "[cpff_invert_contract] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
-//          EXIT(3);
-//        }
-//
-//        double ** contr_p = init_2level_dtable ( g_sink_momentum_number , 2 * T );
-//        if ( contr_p == NULL ) {
-//          fprintf(stderr, "[cpff_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
-//          EXIT(3);
-//        }
-//
-//        // TODO continue here
-//
-//        int source_momentum[3] = {
-//          g_source_momentum_list[isrc_mom][0],
-//          g_source_momentum_list[isrc_mom][1],
-//          g_source_momentum_list[isrc_mom][2] };
-//
-//        for ( int flavor_ctr = 0; flavor_ctr < propagator_flavor_number; ++flavor_ctr ) {
-//        for ( int isrc_gamma = 0; isrc_gamma < src_gammas.size(); isrc_gamma++ ) {
-//        for ( int isnk_gamma = 0; isnk_gamma < sink_gammas.size(); isnk_gamma++ ) {
-//        for ( int ibprop_gamma = 0; ibprop_gamma < src_gammas.size(); ibprop_gamma++ ){
-//
-//          char twopttag[20];
-//          snprintf(twopttag, 20, "u+-g-%s-g", flavor_ctr = 0 ? "u" : "d");
-//
-//          sw.reset();
-//          contract_twopoint_xdep_snk_gamma_only( contr_x, 
-//              sink_gammas[isnk_gamma], 
-//              stochastic_propagator_zero_list[op_id_up][isnk_gamma], 
-//              stochastic_propagator_mom_list[flavor_ctr][isrc_gamma][isrc_mom],
-//              1 /*stride*/, 1/*factor*/);
-//          sw.elapsed_print("contract_twopoint_xdep");
-//
-//          /* momentum projection at sink */
-//          sw.reset();
-//          exitstatus = momentum_projection ( contr_x, contr_p[0], T, g_sink_momentum_number, g_sink_momentum_list );
-//          if(exitstatus != 0) {
-//            fprintf(stderr, "[cpff_invert_contract] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-//            EXIT(3);
-//          }
-//          sw.elapsed_print("sink momentum_projection");
-//
-//          sprintf ( data_tag, "/%s/t%d/s%d/gf%d/gi%d/pix%dpiy%dpiz%d", 
-//              twopttag, gts, isample,
-//              g_source_gamma_id_list[isnk_gamma], g_source_gamma_id_list[isrc_gamma],
-//              source_momentum[0], source_momentum[1], source_momentum[2] );
-//
-//#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-//          exitstatus = contract_write_to_aff_file ( contr_p, affw, data_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
-//#elif ( defined HAVE_HDF5 )          
-//          exitstatus = contract_write_to_h5_file ( contr_p, output_filename, data_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
-//#endif
-//          if(exitstatus != 0) {
-//            fprintf(stderr, "[cpff_invert_contract] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-//            return(3);
-//          }
-//
-//        }  /* end of loop on gamma at sink */
-//        }  /* end of loop on gammas at source */
-//        }  /* end of loop over flavors */ 
-//
-//        fini_1level_dtable ( &contr_x );
-//        fini_2level_dtable ( &contr_p );
-//
-//      }  /* end of loop on source momenta */
+          // when the correlator has been defined with the source momentum carried by
+          // the backward propagator, we need to retrieve the propagator with
+          // negative momemntum
+          stoch_prop_meta_t fwdprop_meta;
+          stoch_prop_meta_t bwdprop_meta;
+          if( twopt_correls[icor].src_mom_prop == "bwd" ){
+            for( auto & mom_component : prop_mom ){
+              mom_component = -mom_component;
+            }
+            bwdprop_meta = stoch_prop_meta_t( prop_mom, twopt_correls[icor].gb, 
+                                              twopt_correls[icor].bprop_flav );
+            fwdprop_meta = stoch_prop_meta_t( zero_mom, twopt_correls[icor].gi,
+                                              twopt_correls[icor].fprop_flav );
+          } else {
+            bwdprop_meta = stoch_prop_meta_t( zero_mom, twopt_correls[icor].gb, 
+                                              twopt_correls[icor].bprop_flav );
+            fwdprop_meta = stoch_prop_meta_t( prop_mom, twopt_correls[icor].gi,
+                                              twopt_correls[icor].fprop_flav );
+          }
+
+          double * contr_x = init_1level_dtable ( 2 * VOLUME );
+          if ( contr_x == NULL ) {
+            fprintf(stderr, "[cpff_invert_contract] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
+            EXIT(3);
+          }
+
+          double ** contr_p = init_2level_dtable ( g_sink_momentum_number , 2 * T );
+          if ( contr_p == NULL ) {
+            fprintf(stderr, "[cpff_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+            EXIT(3);
+          }
+
+          int source_momentum[3] = {
+            g_source_momentum_list[isrc_mom][0],
+            g_source_momentum_list[isrc_mom][1],
+            g_source_momentum_list[isrc_mom][2] };
+
+            char twopttag[20];
+            snprintf(twopttag, 20, "%s+-g-%s-g", twopt_correls[icor].bprop_flav.c_str(),
+                                                 twopt_correls[icor].fprop_flav.c_str() );
+
+            sw.reset();
+            contract_twopoint_xdep_snk_gamma_only( contr_x, 
+                twopt_correls[icor].gf, 
+                props[ bwdprop_meta.make_key() ].data(), 
+                props[ fwdprop_meta.make_key() ].data(),
+                1 /*stride*/, 1.0 /*factor*/);
+            sw.elapsed_print("contract_twopoint_xdep");
+
+            /* momentum projection at sink */
+            sw.reset();
+            exitstatus = momentum_projection ( contr_x, contr_p[0], T, g_sink_momentum_number, g_sink_momentum_list );
+            if(exitstatus != 0) {
+              fprintf(stderr, "[cpff_invert_contract] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(3);
+            }
+            sw.elapsed_print("sink momentum_projection");
+
+            sprintf ( data_tag, "/%s/t%d/s%d/gf%d/gi%d/pix%dpiy%dpiz%d", 
+                twopttag, gts, isample,
+                twopt_correls[icor].gf, twopt_correls[icor].gi,
+                source_momentum[0], source_momentum[1], source_momentum[2] );
+
+#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
+          exitstatus = contract_write_to_aff_file ( contr_p, affw, data_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+#elif ( defined HAVE_HDF5 )          
+          exitstatus = contract_write_to_h5_file ( contr_p, output_filename, data_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+#endif
+          if(exitstatus != 0) {
+            fprintf(stderr, "[cpff_invert_contract] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            return(3);
+          }
+
+        fini_1level_dtable ( &contr_x );
+        fini_2level_dtable ( &contr_p );
+        } // end of loop over source momenta
+      }  /* end of loop on 2pt function contractions */
+        
 //
 //      /*****************************************************************/
 //      /*****************************************************************/
