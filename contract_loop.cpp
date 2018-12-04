@@ -441,23 +441,13 @@ int contract_loop_write_to_h5_file (double *** const loop, void * file, char*tag
 
     fini_1level_dtable ( &zbuffer );
 
-    retime = _GET_TIME;
-    if ( io_proc == 2 ) fprintf(stdout, "# [contract_loop_write_to_h5_file] time for saving momentum space results = %e seconds\n", retime-ratime);
-
     /***************************************************************************
      * time measurement
      ***************************************************************************/
     gettimeofday ( &tb, (struct timezone *)NULL );
   
-    seconds  = tb.tv_sec  - ta.tv_sec;
-    useconds = tb.tv_usec - ta.tv_usec;
-    if ( useconds < 0 ) {
-      useconds += 1000000;
-      seconds--;
-    }
-    fprintf ( stdout, "# [contract_loop_write_to_h5_file] time for momentum projection %lu sec %lu usec %s %d\n", 
-        seconds, useconds, __FILE__, __LINE__ );
-  
+    show_time ( &ta, &tb, "contract_loop_write_to_h5_file", "write h5", 1 );
+
   }  /* end of of if io_proc > 0 */
   
   return(0);
