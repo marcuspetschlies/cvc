@@ -81,6 +81,8 @@ void contract_twopoint_snk_momentum ( double * const contr, int const idsource, 
  * structures of chi and psi can be different (although this is
  * implicit and no regard is made for possible sign changes or the fact
  * that the resulting correlator could be real or imaginary)
+ * The implicitly included allows us to keep the identity of the
+ * resulting correlation function clear (idsink really is idsink).
  *
  * @param contr contraction field (2*VOLUME)
  * @param idsink gamma id at sink
@@ -94,7 +96,7 @@ void contract_twopoint_xdep_snk_gamma_only(
     T * const contr, const int idsink, 
     T const * chi, T const * psi, 
     int const stride, double const factor);
-#include "impl/impl_contract_twopoint_xdep_snk_gamma_only.hpp"
+#include "impl_contract_twopoint_xdep_snk_gamma_only.hpp"
 
 void contract_twopoint_snk_momentum_trange(double *contr, const int idsource, const int idsink, double **chi, double **phi, int n_c, int* snk_mom, int tmin, int tmax);
 

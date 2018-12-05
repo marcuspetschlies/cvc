@@ -63,13 +63,14 @@ extern "C"
 #include "Q_phi.h"
 #include "clover.h"
 #include "ranlxd.h"
-#include "types.h"
 
 #include "init_g_gauge_field.hpp"
 #include "Stopwatch.hpp"
 #include "Core.hpp"
 #include "enums.hpp"
 #include "ParallelMT19937_64.hpp"
+#include "meta_types.hpp"
+#include "meta_parsing.hpp"
 
 #include <vector>
 #include <map>
@@ -107,7 +108,9 @@ int main(int argc, char **argv) {
   std::vector<threept_oet_meta_t> threept_correls;
   
   std::map<std::string, stoch_prop_meta_t> props_meta;
+  std::map<std::string, stoch_prop_meta_t> seq_props_meta;
   std::map<std::string, std::vector<double>> props;
+  std::map<std::string, std::vector<double>> seq_props;
 
   std::map<std::string, int> flav_op_ids;
   flav_op_ids["u"] = 0;
@@ -117,100 +120,99 @@ int main(int argc, char **argv) {
   flav_op_ids["cp"] = 4;
   flav_op_ids["cm"] = 5;
 
-  const bool do_singlet = true;
-  const bool use_g0_g5_pion = true;
-  const bool use_g0_g5_singlet = true;
+  const bool do_singlet_2pt = false;
+  const bool do_singlet_3pt = false;
+  const bool use_g0_g5_pion_2pt = false;
+  const bool use_g0_g5_pion_3pt = false;
+  const bool use_g0_g5_singlet_2pt = false;
+  const bool use_g0_g5_singlet_3pt = false;
 
   // \bar{chi}_d g5 chi_u \bar{chi}_u g5 chi_d
-  twopt_correls.push_back( twopt_oet_meta_t("u", "u", "fwd", 5, 5, 5) );
-  if( use_g0_g5_pion ){
+  // calculated via
+  // = - g5 S_u^dag g5 g5 S_u g5 [eta eta^dag]
+  //         this g5 ^ is implicitly included in the contraction later such that source
+  //         and sink gammas are explicit
+  // The gamma structure at the backwards propagator, however, must be specified,
+  // see "gb" below.
+  //twopt_correls.push_back( twopt_oet_meta_t("u", /* forward (undaggered) prop flavor */ 
+  //                                          "u", /* backward (daggered) prop flavor */
+  //                                          "fwd", /* source momentum carried by forward prop */
+  //                                          5, /* gi */ 
+  //                                          5, /* gf */
+  //                                          5, /* gb: gamma structure to get the correct backward propagator */
+  //                                          -1.0 /* normalisation */) );
+  
+  // note that in the twisted basis, \bar{d} g0 g5 u -> \bar{chi}_d g0 chi_u
+  if( use_g0_g5_pion_2pt ){
     // \bar{chi}_d g0 chi_u \bar{chi}_u g5 chi_d 
-    twopt_correls.push_back( twopt_oet_meta_t("u", "u", "fwd", 5, 0, 5) );
+    twopt_correls.push_back( twopt_oet_meta_t("u", "u", "fwd", 5, 0, 5, -1.0) );
     // \bar{chi}_d g5 chi_u \bar{chi}_u g0 chi_d
-    twopt_correls.push_back( twopt_oet_meta_t("u", "u", "fwd", 0, 5, 5) );
+    twopt_correls.push_back( twopt_oet_meta_t("u", "u", "fwd", 0, 5, 5, -1.0) );
     // \bar{chi}_d g0 chi_u \bar{chi}_u g0 chi_d
-    twopt_correls.push_back( twopt_oet_meta_t("u", "u", "fwd", 0, 0, 5) ); 
+    twopt_correls.push_back( twopt_oet_meta_t("u", "u", "fwd", 0, 0, 5, -1.0) ); 
   }
 
-  if( do_singlet ){
+  if( do_singlet_2pt ){
     // \bar{chi}_u chi_u \bar{chi}_u chi_u
-    twopt_correls.push_back( twopt_oet_meta_t("u", "d", "fwd", 4, 4, 5) );
-    twopt_correls.push_back( twopt_oet_meta_t("d", "u", "fwd", 4, 4, 5) );
-    if( use_g0_g5_singlet ){
+    // = g5 S_d^dag g5 1 S_u 1
+    twopt_correls.push_back( twopt_oet_meta_t("u", "d", "fwd", 4, 4, 5, -1.0) );
+    // \bar{chi}_d chi_d \bar{chi}_d chi_d
+    twopt_correls.push_back( twopt_oet_meta_t("d", "u", "fwd", 4, 4, 5, -1.0) );
+    if( use_g0_g5_singlet_2pt ){
       // \bar{chi}_u g0 g5 chi_u  \bar{chi}_u chi_u
-      twopt_correls.push_back( twopt_oet_meta_t("u", "d", "fwd", 4, 6, 5) );
-      twopt_correls.push_back( twopt_oet_meta_t("d", "u", "fwd", 4, 6, 5) );
+      twopt_correls.push_back( twopt_oet_meta_t("u", "d", "fwd", 4, 6, 5, -1.0) );
+      // \bar{chi}_d g0 g5 chi_d  \bar{chi}_d chi_d
+      twopt_correls.push_back( twopt_oet_meta_t("d", "u", "fwd", 4, 6, 5, -1.0) );
       // \bar{chi}_u chi_u  \bar{chi}_u g5 g0 chi_u =
       // - \bar{chi}_u chi_u  \bar{chi}_u g0 g5 chi_u
-      twopt_correls.push_back( twopt_oet_meta_t("u", "d", "fwd", 0, 5, 4) );
-      twopt_correls.push_back( twopt_oet_meta_t("d", "u", "fwd", 0, 5, 4) );
+      twopt_correls.push_back( twopt_oet_meta_t("u", "d", "fwd", 0, 5, 4, -1.0) );
+      // - \bar{chi}_d chi_d  \bar{chi}_d g0 g5 chi_d
+      twopt_correls.push_back( twopt_oet_meta_t("d", "u", "fwd", 0, 5, 4, -1.0) );
       // \bar{chi}_u g0 g5 chi_u  \bar{chi}_u g5 g0 chi_u =
       // - \bar{chi}_u g0 g5 chi_u  \bar{chi}_u g0 g5 chi_u
-      twopt_correls.push_back( twopt_oet_meta_t("u", "d", "fwd", 0, 6, 4) );
-      twopt_correls.push_back( twopt_oet_meta_t("d", "u", "fwd", 0, 6, 4) );
+      twopt_correls.push_back( twopt_oet_meta_t("u", "d", "fwd", 0, 6, 4, -1.0) );
+      // - \bar{chi}_d g0 g5 chi_d  \bar{chi}_d g0 g5 chi_d
+      twopt_correls.push_back( twopt_oet_meta_t("d", "u", "fwd", 0, 6, 4, -1.0) );
     }
   }
 
-  // iterate through the correlation function definitions and create
-  // a map of all the forward and backward propagators required
-  // to compute the requested correlation functions
-  // we use maps to avoid duplicates
-  for( int icor = 0; icor < twopt_correls.size(); ++icor ){
-    debug_printf(0, 0, 
-                 "2pt function [ g%02d %s^dag g05 g%02d %s g%02d ] with src_mom at on %s prop\n",
-                 twopt_correls[icor].gb, 
-                 twopt_correls[icor].bprop_flav.c_str(),
-                 twopt_correls[icor].gf,
-                 twopt_correls[icor].fprop_flav.c_str(),
-                 twopt_correls[icor].gi,
-                 twopt_correls[icor].src_mom_prop.c_str());
+  // 0 component of vector current between pi^+ states
+  // \bar{chi}_d g5 chi_u \bar{chi}_u g0 chi_u \bar{chi}_u g5 \bar{chi}_d
+  // = - g5 S_u^dag g5 g5 S_d^dag g5 g0 S_u g5
+  //      these g5  ^             ^  are implicitly included
+  //      such that source, sink and current gamma are explicit
+  threept_correls.push_back( threept_oet_meta_t("u", /* forward prop flavor */
+                                                "u", /* backward prop flavor */
+                                                "d", /* sequential prop flavor */
+                                                "fwd", /* source momentum carried by */ 
+                                                5, /* gi */ 
+                                                5, /* gf */ 
+                                                0, /* gc */ 
+                                                5, /* gb */ 
+                                                -1.0) );
 
-    for( int isrc_mom = 0; isrc_mom < g_source_momentum_number; ++isrc_mom ){
-      int source_momentum[3];
-      // if the source momentum is carried by the backward propagator,
-      // we need to dagger the momentum projector
-      if( twopt_correls[icor].src_mom_prop == "bwd" ){
-        source_momentum[0] = -g_source_momentum_list[isrc_mom][0];
-        source_momentum[1] = -g_source_momentum_list[isrc_mom][1];
-        source_momentum[2] = -g_source_momentum_list[isrc_mom][2];
-        stoch_prop_meta_t bwd_prop( source_momentum,
-                                    twopt_correls[icor].gb,
-                                    twopt_correls[icor].bprop_flav );
-        std::string prop_key = bwd_prop.make_key();
-        props_meta[ prop_key ] = bwd_prop;
-      } else {
-        source_momentum[0] = g_source_momentum_list[isrc_mom][0];
-        source_momentum[1] = g_source_momentum_list[isrc_mom][1];
-        source_momentum[2] = g_source_momentum_list[isrc_mom][2];
-        stoch_prop_meta_t fwd_prop( source_momentum,
-                                    twopt_correls[icor].gi,
-                                    twopt_correls[icor].fprop_flav );
-        std::string prop_key = fwd_prop.make_key();
-        props_meta[ prop_key ] = fwd_prop;
-      }
-    } // loop over source momenta
-    // if the source momentum is carried by the backward propagator,
-    // we need a corresponding zero momentum forward propagator
-    if( twopt_correls[icor].src_mom_prop == "bwd" ){
-      int source_momentum[3] = {0,0,0};
-      stoch_prop_meta_t fwd_prop( source_momentum,
-                                  twopt_correls[icor].gi,
-                                  twopt_correls[icor].fprop_flav );
-      props_meta[ fwd_prop.make_key() ] = fwd_prop;
-    // if it is carried by the forward propagator, instead,
-    // we need a corresponding 
-    } else {
-      int bprop_momentum[3] = {0,0,0};
-      stoch_prop_meta_t bwd_prop( bprop_momentum,
-                                  twopt_correls[icor].gb,
-                                  twopt_correls[icor].bprop_flav );
-      props_meta[ bwd_prop.make_key() ] = bwd_prop;
-    }
-  } // end of loop over two pt functions to generate map of fwd/bwd propagator metadata
+  // scalar density (twisted basis -> gamma_5) between pi^+ states
+  // \bar{chi}_d g5 chi_u \bar{chi}_u g5 chi_u \bar{chi}_u g5 \bar{chi}_d
+  // = - g5 S_u^dag g5 g5 S_d^dag g5 g5 S_u g5
+  threept_correls.push_back( threept_oet_meta_t("u", "u", "d", "fwd", 5, 5, 5, 5, -1.0) );
+
+  if( use_g0_g5_pion_3pt ){
+    // \bar{chi}_d g5 chi_u \bar{chi}_u g0 chi_u \bar{chi}_u g0 \bar{chi}_d
+    // = + g5 S_u^dag g5 g5 S_d^dag g5 g0 S_u g0
+    threept_correls.push_back( threept_oet_meta_t("u", "u", "d", "fwd", 4, 5, 0, 5, 1.0) );
+    // \bar{chi}_d g5 chi_u \bar{chi}_u g5 chi_u \bar{chi}_u g0 g5 \bar{chi}_d
+    // = + g5 S_u^dag g5 g5 S_d^dag g5 g0 S_u g0 g5
+    threept_correls.push_back( threept_oet_meta_t("u", "u", "d", "fwd", 6, 5, 0, 5, 1.0) );
+  }
+
+  
+  // derive the required propagators from the correlation function definitions
+  get_fwd_bwd_props_meta_from_npt_oet_meta(twopt_correls, props_meta);
+  get_fwd_bwd_seq_props_meta_from_npt_oet_meta(threept_correls, props_meta, seq_props_meta);
 
   sizeof_spinor_field    = _GSI(VOLUME) * sizeof(double);
 
-  debug_printf(0, 0, "%d propagators\n will use %f GB of memory\n\n", 
+  debug_printf(0, 0, "\n%d propagators will use %f GB of memory\n\n", 
       props_meta.size(),
       1.0e-9*props_meta.size()*(double)sizeof_spinor_field*g_nproc );
 
@@ -361,7 +363,9 @@ int main(int argc, char **argv) {
       
       // generate the stochastic source
       // first a z2 (x) z2 volume source
+      sw.reset();
       rng.gen_z2(ranspinor.data(), 24);
+      sw.elapsed_print("Z2 volume source");
       // we can write the random spinor to file if we want
       if ( g_write_source ) {
         sprintf(filename, "%s.conf%.4d.t%d.sample%.5d", filename_prefix, Nconf, gts, isample);
@@ -481,6 +485,10 @@ int main(int argc, char **argv) {
             char twopttag[20];
             snprintf(twopttag, 20, "%s+-g-%s-g", twopt_correls[icor].bprop_flav.c_str(),
                                                  twopt_correls[icor].fprop_flav.c_str() );
+
+            debug_printf(0, 3,
+                         "Contracting [%s]^dag g%02d [%s] in x-space\n",
+                         bwdprop_meta.make_key().c_str(), twopt_correls[icor].gf, fwdprop_meta.make_key().c_str() );
 
             sw.reset();
             contract_twopoint_xdep_snk_gamma_only( contr_x, 
