@@ -105,7 +105,7 @@ class Stopwatch {
     cvc::duration elapsed_print(const char* const name){
       cvc::duration duration = elapsed();
       if(rank==0){ 
-        std::cout << name << " " << duration.mean 
+        std::cout << "STOPWATCH " << name << " " << duration.mean 
           << " seconds" << std::endl
           << "min(" << duration.min << ") max(" 
           << duration.max << ")" << std::endl;
