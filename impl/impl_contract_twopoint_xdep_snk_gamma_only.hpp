@@ -1,3 +1,5 @@
+#pragma once
+
 #include "loop_tools.h"
 #include "cvc_linalg.h"
 #include "cvc_complex.h"
