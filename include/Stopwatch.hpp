@@ -55,7 +55,7 @@ class Stopwatch {
                     &Nranks);
 #else
       rank = 0;
-      Nranks = 0;
+      Nranks = 1;
 #endif
       reset();
     }
