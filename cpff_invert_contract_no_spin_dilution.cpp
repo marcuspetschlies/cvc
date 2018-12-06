@@ -546,10 +546,15 @@ int main(int argc, char **argv) {
         // time slice 'gts'
         const int gtseq = ( gts + g_sequential_source_timeslice_list[iseq_timeslice] + T_global ) % T_global;
         for( int iseq_mom = 0; iseq_mom < g_seq_source_momentum_number; iseq_mom++){
+          debug_printf(0, 0,
+                       "iseq_timeslice = %d / %d, iseq_mom = %d / %d\n",
+                       iseq_timeslice, g_sequential_source_timeslice_number,
+                       iseq_mom, g_seq_source_momentum_number);
+
           // the sequential propagator is daggered, so we have to dagger the momentum projector
           int seq_source_momentum[3] = { -g_seq_source_momentum_list[iseq_mom][0],
                                          -g_seq_source_momentum_list[iseq_mom][1],
-                                         -g_seq_source_momentum_list[iseq_mom][3] };
+                                         -g_seq_source_momentum_list[iseq_mom][2] };
 
           std::map<std::string, seq_stoch_prop_meta_t> seq_props_meta;
           std::map<std::string, std::vector<double>> seq_props;
@@ -586,7 +591,10 @@ int main(int argc, char **argv) {
             sw.elapsed_print("init_sequential_source");
 
             memset(spinor_work[1], 0, sizeof_spinor_field);
-            
+           
+            debug_printf(0, 0,
+                         "Inverting to generate propagator %s\n",
+                         seq_prop_key.c_str()); 
             sw.reset();
             CHECK_EXITSTATUS_NEGATIVE(
               exitstatus,
