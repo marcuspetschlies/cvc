@@ -108,9 +108,7 @@ int main(int argc, char **argv) {
   std::vector<threept_oet_meta_t> threept_correls;
   
   std::map<std::string, stoch_prop_meta_t> props_meta;
-  std::map<std::string, stoch_prop_meta_t> seq_props_meta;
   std::map<std::string, std::vector<double>> props;
-  std::map<std::string, std::vector<double>> seq_props;
 
   std::map<std::string, int> flav_op_ids;
   flav_op_ids["u"] = 0;
@@ -178,8 +176,10 @@ int main(int argc, char **argv) {
 
   // 0 component of vector current between pi^+ states
   // \bar{chi}_d g5 chi_u \bar{chi}_u g0 chi_u \bar{chi}_u g5 \bar{chi}_d
-  // = - g5 S_u^dag g5 g5 S_d^dag g5 g0 S_u g5
-  //      these g5  ^             ^  are implicitly included
+  // = - g5 S_u^dag g5 g5 g5 S_d^dag g5 g0 S_u g5
+  //    this g5                       ^  is implicitly included
+  //    these g5     ^     ^  are suppressed and their effect must be included
+  //                          in the normalisation of the three-pt function
   //      such that source, sink and current gamma are explicit
   threept_correls.push_back( threept_oet_meta_t("u", /* forward prop flavor */
                                                 "u", /* backward prop flavor */
@@ -206,17 +206,17 @@ int main(int argc, char **argv) {
   }
 
   
-  // derive the required propagators from the correlation function definitions
+  // derive the required fwd / bwd propagators from the correlation function definitions
   get_fwd_bwd_props_meta_from_npt_oet_meta(twopt_correls, props_meta);
-  get_fwd_bwd_seq_props_meta_from_npt_oet_meta(threept_correls, props_meta, seq_props_meta);
+  get_fwd_bwd_props_meta_from_npt_oet_meta(threept_correls, props_meta);
 
   sizeof_spinor_field    = _GSI(VOLUME) * sizeof(double);
 
-  debug_printf(0, 0, "\n%d propagators will use %f GB of memory\n\n", 
+  debug_printf(0, 0, "\n%lu forward / backward propagators will use %f GB of memory\n\n", 
       props_meta.size(),
       1.0e-9*props_meta.size()*(double)sizeof_spinor_field*g_nproc );
 
-  debug_printf(0, 0, "\n\nList of non-zero momentum propagators to be generated\n");
+  debug_printf(0, 0, "\n\nList of forward propagators to be generated\n");
   for( auto const & prop : props_meta ) {
     debug_printf(0, 0, "Propagator: %s to be generated\n", prop.first.c_str());
   }
@@ -275,17 +275,16 @@ int main(int argc, char **argv) {
   }
   fprintf(stdout, "# [cpff_invert_contract] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
   
-  const size_t nelem = _GSI( VOLUME+RAND );
-
   // memory for a random spinor and the non-spin-diluted stochastic source
-  std::vector<double> ranspinor(nelem);
-  std::vector<double> stochastic_source(nelem);
+  std::vector<double> ranspinor( _GSI(VOLUME) );
+  std::vector<double> stochastic_source( _GSI(VOLUME) );
 
   /***************************************************************************
    * allocate memory for spinor fields 
    * WITH HALO
    ***************************************************************************/
-  double ** spinor_work  = init_2level_dtable ( 2, nelem );
+  const size_t spinor_length_with_halo = _GSI( VOLUME+RAND );
+  double ** spinor_work  = init_2level_dtable ( 2, spinor_length_with_halo );
   if ( spinor_work == NULL ) {
     fprintf(stderr, "[cpff_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT(1);
@@ -299,6 +298,9 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[cpff_invert_contract] Error from init_rng_state %s %d\n", __FILE__, __LINE__ );;
     EXIT( 50 );
   }
+
+  // we xor the starting seed with the configuration number to obtain a unique seed on
+  // each gauge configuration
   ParallelMT19937_64 rng( (unsigned long long)(g_seed^Nconf) );
 
   // handy stopwatch which we may use throughout for timings
@@ -359,7 +361,6 @@ int main(int argc, char **argv) {
         fprintf(stderr, "[cpff_invert_contract] Error from sync_rng_state, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(38);
       }
-
       
       // generate the stochastic source
       // first a z2 (x) z2 volume source
@@ -376,9 +377,9 @@ int main(int argc, char **argv) {
       }
       
 
-      // loop over all required propagators
-      for( auto const & prop : props_meta ){
-        stoch_prop_meta_t prop_meta = prop.second;
+      // loop over all required forward / backward propagators
+      for( auto const & prop_meta_pair : props_meta ){
+        stoch_prop_meta_t prop_meta = prop_meta_pair.second;
         std::string prop_key = prop_meta.make_key();
 
         /***************************************************************************
@@ -401,11 +402,12 @@ int main(int argc, char **argv) {
         debug_printf(0, 0, "Inverting to generate propagator %s\n", prop_meta.make_key().c_str() );
 
         sw.reset();
-        exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], flav_op_ids[ prop_meta.flav ] );
-        if(exitstatus < 0) {
-          fprintf(stderr, "[cpff_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-          EXIT(44);
-        }
+        CHECK_EXITSTATUS_NEGATIVE(
+          exitstatus,
+          _TMLQCD_INVERT( spinor_work[1], spinor_work[0], flav_op_ids[ prop_meta.flav ] ),
+          "[cpff_invert_contract] Error from TMLQCD_INVERT",
+          true,
+          CVC_EXIT_UTIL_FUNCTION_FAILURE);
         sw.elapsed_print("TMQLCD_INVERT");
 
         if ( g_check_inversion ) {
@@ -417,7 +419,7 @@ int main(int argc, char **argv) {
 
         if( props.count( prop_key ) == 0 ){
           props.emplace( std::make_pair( prop_key,
-                                         std::vector<double>(nelem) ) );
+                                         std::vector<double>( _GSI(VOLUME) ) ) );
         }
         memcpy( props[ prop_key ].data(), spinor_work[1], sizeof_spinor_field);
 
@@ -495,7 +497,7 @@ int main(int argc, char **argv) {
                 twopt_correls[icor].gf, 
                 props[ bwdprop_meta.make_key() ].data(), 
                 props[ fwdprop_meta.make_key() ].data(),
-                1 /*stride*/, 1.0 /*factor*/);
+                1 /*stride*/, twopt_correls[icor].normalisation );
             sw.elapsed_print("contract_twopoint_xdep");
 
             /* momentum projection at sink */
@@ -526,7 +528,91 @@ int main(int argc, char **argv) {
         fini_2level_dtable ( &contr_p );
         } // end of loop over source momenta
       }  /* end of loop on 2pt function contractions */
-        
+      
+      /* *************************************************************************
+       * inversions / contractions for local current insertion threept functions
+       *
+       * rather than generating all sequential propagators in one go (as we do for
+       * the forward and backward propagators), we iterate over the sequential
+       * source time slices and momenta and generate only the required subsets
+       * for this particular source ts / momentum combination
+       *
+       * We then invert and do all relevant contractions. This way, we use the
+       * minimum amount of memory possible.
+       *
+       **************************************************************************/
+      for( int iseq_timeslice = 0; iseq_timeslice < g_sequential_source_timeslice_number; iseq_timeslice++ ){
+        // this is the sink time slice (global coords) counted from the current source
+        // time slice 'gts'
+        const int gtseq = ( gts + g_sequential_source_timeslice_list[iseq_timeslice] + T_global ) % T_global;
+        for( int iseq_mom = 0; iseq_mom < g_seq_source_momentum_number; iseq_mom++){
+          // the sequential propagator is daggered, so we have to dagger the momentum projector
+          int seq_source_momentum[3] = { -g_seq_source_momentum_list[iseq_mom][0],
+                                         -g_seq_source_momentum_list[iseq_mom][1],
+                                         -g_seq_source_momentum_list[iseq_mom][3] };
+
+          std::map<std::string, seq_stoch_prop_meta_t> seq_props_meta;
+          std::map<std::string, std::vector<double>> seq_props;
+
+          // generate meta-data for all sequential propagators required for this sequential source time slice
+          // and sequential source momentum
+          get_seq_props_meta_from_npt_oet_meta(threept_correls, seq_source_momentum, gtseq, seq_props_meta);
+
+          debug_printf(0, 0, 
+                       "\n\n%lu sequential propagators will use %f GB of memory\n\n",
+                       seq_props_meta.size(), seq_props_meta.size()*sizeof_spinor_field*1.0e-9); 
+          
+          for( auto const & seq_prop_meta_pair : seq_props_meta ){
+            seq_stoch_prop_meta_t seq_prop_meta = seq_prop_meta_pair.second;
+
+            // the key for the current sequential propagator to be generated
+            std::string seq_prop_key = seq_prop_meta.make_key();
+
+            // in order to generate the source, we need to retrieve the correct backward propagator
+            // from our 'props' map and pass that to 'init_sequential_source'
+            std::string bprop_key = seq_prop_meta.src_prop.make_key();
+
+            sw.reset();
+            CHECK_EXITSTATUS_NONZERO(
+              exitstatus,
+              init_sequential_source(spinor_work[0], 
+                                     props[ bprop_key ].data(),
+                                     gtseq, 
+                                     seq_source_momentum,
+                                     seq_prop_meta.gamma),
+              "[cpff_invert_contract] Error from init_sequential_source",
+              true,
+              CVC_EXIT_UTIL_FUNCTION_FAILURE);
+            sw.elapsed_print("init_sequential_source");
+
+            memset(spinor_work[1], 0, sizeof_spinor_field);
+            
+            sw.reset();
+            CHECK_EXITSTATUS_NEGATIVE(
+              exitstatus,
+              _TMLQCD_INVERT( spinor_work[1], spinor_work[0], flav_op_ids[ seq_prop_meta.flav ] ),
+              "[cpff_invert_contract] Error from TMLQCD_INVERT",
+              true,
+              CVC_EXIT_UTIL_FUNCTION_FAILURE);
+            sw.elapsed_print("TMLQCD_INVERT");
+
+            if( g_check_inversion ){
+              check_residual_clover( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase,
+                                     mzz[ flav_op_ids[ seq_prop_meta.flav ] ],
+                                     mzzinv[ flav_op_ids[ seq_prop_meta.flav ] ], 1 );
+            }
+
+            if( seq_props.count( seq_prop_key ) == 0 ){
+              seq_props.emplace( std::make_pair( seq_prop_key,
+                                             std::vector<double>( _GSI(VOLUME) ) ) );
+            }
+            memcpy( seq_props[ seq_prop_key ].data(), spinor_work[1], sizeof_spinor_field);
+          } // end of loop over inversions for sequential propagators
+
+        } // end of loop over sequential momenta
+      } // end of loop over sequential source time slices
+
+
 //
 //      /*****************************************************************/
 //      /*****************************************************************/

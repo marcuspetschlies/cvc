@@ -29,21 +29,24 @@ void get_fwd_bwd_props_meta_from_npt_oet_meta(const std::vector<T> & correls,
 #include "impl/impl_get_fwd_bwd_props_meta_from_npt_oet_meta.hpp"
 
 /**
- * @brief extract information about fwd, bwd and seq propagators from npt function meta
+ * @brief extract information about seq propagators from npt function meta
  *
- * Extract meta-data about fwd, bwd and sequential propagators from a vector
+ * Extract meta-data about sequential propagators from a vector
  * of correlator meta-data types [three,four,...]pt_oet_meta_t. The templating is
  * a hack, as explained for get_fwd_bwd_props_meta_from_npt_oet_meta.
  *
  * @tparam T correlator meta definition type threept_oet_meta_t, fourpt_oet_meta_t, ... 
  * @param correls const reference to vector of correlator meta-data, in
- * @param props_meta reference to map of fwd/bwd propagator meta-data, out
+ * @param seq_mom the sequential source momentum (this is generally the sink momentum), in
+ * @param seq_src_ts global time slice at which the source of the sequential propagator
+ *                   is to sit, in
  * @param seq_props_meta reference to map of seq propagator meta-data, out
  */
 template <typename T>
-void get_fwd_bwd_seq_props_meta_from_npt_oet_meta(const std::vector<T> & correls,
-                                                  std::map<std::string, stoch_prop_meta_t> & props_meta,
-                                                  std::map<std::string, stoch_prop_meta_t> & seq_props_meta);
-#include "impl/impl_get_fwd_bwd_seq_props_meta_from_npt_oet_meta.hpp"
+void get_seq_props_meta_from_npt_oet_meta(const std::vector<T> & correls,
+                                          const int seq_mom[3],
+                                          const int seq_src_ts,
+                                          std::map<std::string, stoch_prop_meta_t> & seq_props_meta);
+#include "impl/impl_get_seq_props_meta_from_npt_oet_meta.hpp"
 
 } // namespace(cvc)

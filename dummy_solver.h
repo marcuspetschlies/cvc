@@ -14,11 +14,14 @@ namespace cvc {
 int dummy_solver ( double * const propagator, double * const source, int const op_id );
 }  /* end of namespace cvc */
 #elif ( defined GPU_DIRECT_SOLVER )
+
+/* note that we don't have a semicolon at the end of the function calls such that
+ * these macros can also be used recursively in another macro */
 #  define _TMLQCD_INVERT(PROP, SOURCE, OP_ID) \
-  invert_quda_direct((PROP), (SOURCE), (OP_ID));
+  invert_quda_direct((PROP), (SOURCE), (OP_ID))
 #else
 #  define _TMLQCD_INVERT(PROP, SOURCE, OP_ID) \
-  tmLQCD_invert((PROP), (SOURCE), (OP_ID), 0);
+  tmLQCD_invert((PROP), (SOURCE), (OP_ID), 0)
 #endif
 
 #endif

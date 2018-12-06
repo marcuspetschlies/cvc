@@ -24,14 +24,6 @@ int main(int argc, char ** argv){
   
   // this will throw an exception and leave the twopt_oet_meta_t incompletely constructed
   try{
-    twopt_correls.push_back( twopt_oet_meta_t("umpalumpa", "u", "fwd", 4, 2, 5) );
-  }
-  catch( const std::exception &e ){
-    std::cout << e.what() << std::endl;
-  }
-
-  // this will throw an exception and leave the twopt_oet_meta_t incompletely constructed
-  try{
     twopt_correls.push_back( twopt_oet_meta_t("d", "u", "bleh", 4, 2, 5) );
   }
   catch( const std::exception &e ){
