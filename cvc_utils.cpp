@@ -2349,8 +2349,8 @@ int ranz2(double * const y, unsigned int const NRAND) {
 int ranz3 ( double * const y, unsigned int const NRAND ) {
 
   double const sqrt_three_half = 0.8660254037844386;
-  double const yre[3] = {1., 0.5,              0.5             };
-  double const yim[3] = {0., sqrt_three_half, -sqrt_three_half };
+  double const yre[3] = {1., -0.5,             -0.5             };
+  double const yim[3] = {0.,  sqrt_three_half, -sqrt_three_half };
 
   ranlxd ( y, NRAND );
 
