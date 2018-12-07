@@ -1,7 +1,5 @@
 /****************************************************
- * twopt_invert_contract.c
- *
- * Wed Jul  5 14:08:25 CEST 2017
+ * twopt_invert_contract
  *
  * PURPOSE:
  * DONE:
@@ -52,7 +50,6 @@ extern "C"
 #include "read_input_parser.h"
 #include "contractions_io.h"
 #include "Q_clover_phi.h"
-#include "contract_cvc_tensor.h"
 #include "prepare_source.h"
 #include "prepare_propagator.h"
 #include "project.h"
@@ -89,15 +86,20 @@ int main(int argc, char **argv) {
   int exitstatus;
   int io_proc = -1;
   int check_propagator_residual = 0;
-  unsigned int Vhalf;
-  double **eo_spinor_field=NULL;
+  double **spinor_field=NULL;
   char filename[100];
   // double ratime, retime;
   double **lmzz[2] = { NULL, NULL }, **lmzzinv[2] = { NULL, NULL };
-  double **smzz[2] = { NULL, NULL }, **smzzinv[2] = { NULL, NULL };
   double *gauge_field_with_phase = NULL;
+  size_t sizeof_spinor_field = 0;
 
+  const int gamma_f1_nucleon_number                                = 4;
+  int gamma_f1_nucleon_list[gamma_f1_nucleon_number]               = { 14, 11,  8,  2 };
+  double gamma_f1_nucleon_sign[gamma_f1_nucleon_number]            = { +1, +1, -1, -1 };
+  /* double gamma_f1_nucleon_transposed_sign[gamma_f1_nucleon_number] = { -1, -1, +1, -1 }; */
 
+  const int sink_momentum_number = 1;
+  const int sink_momentum_list[1][3] = {0,0,0};
 
 #ifdef HAVE_LHPC_AFF
   struct AffWriter_s *affw = NULL;
@@ -139,7 +141,8 @@ int main(int argc, char **argv) {
   /*********************************
    * initialize MPI parameters for cvc
    *********************************/
-  exitstatus = tmLQCD_invert_init(argc, argv, 1, 0);
+  /* exitstatus = tmLQCD_invert_init(argc, argv, 1, 0); */
+  exitstatus = tmLQCD_invert_init(argc, argv, 1);
   if(exitstatus != 0) {
     EXIT(1);
   }
@@ -188,10 +191,10 @@ int main(int argc, char **argv) {
 
   geometry();
 
+  sizeof_spinor_field = _GSI( VOLUME ) * sizeof ( double );
+
   mpi_init_xchange_eo_spinor();
   mpi_init_xchange_eo_propagator();
-
-  Vhalf                  = VOLUME / 2;
 
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
@@ -236,7 +239,7 @@ int main(int argc, char **argv) {
   /***********************************************************
    * initialize clover, lmzz and lmzzinv
    ***********************************************************/
-  exitstatus = init_clover ( &g_clover, &lmzz, &lmzzinv, gauge_field_with_phase, g_mu, g_csw );
+  exitstatus = init_clover ( &lmzz, &lmzzinv, gauge_field_with_phase );
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[twopt_invert_contract] Error from init_clover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
     EXIT(1);
@@ -254,10 +257,10 @@ int main(int argc, char **argv) {
 
 
   /***********************************************************
-   * allocate eo_spinor_field
+   * allocate spinor_field
    ***********************************************************/
-  eo_spinor_field = init_2level_dtable ( 96, _GSI( Vhalf ) );
-  if( eo_spinor_field == NULL ) {
+  spinor_field = init_2level_dtable ( 24, _GSI( VOLUME ) );
+  if( spinor_field == NULL ) {
     fprintf(stderr, "[twopt_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
     EXIT(123);
   }
@@ -306,423 +309,124 @@ int main(int argc, char **argv) {
      * propagators with source at gsx
      **********************************************************/
 
-    /**********************************************************
-     * l+ - type propagator
-     **********************************************************/
-    exitstatus = point_to_all_fermion_propagator_clover_full2eo ( &(eo_spinor_field[0]), &(eo_spinor_field[12]), _OP_ID_UP,
-        gsx, gauge_field_with_phase, lmzz[0], lmzzinv[0], check_propagator_residual );
-
-    if ( exitstatus != 0 ) {
-      fprintf(stderr, "[twopt_invert_contract] Error from point_to_all_fermion_propagator_clover_full2eo status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(21);
+    /***********************************************************
+     * up-type propagator
+     ***********************************************************/
+    exitstatus = point_source_propagator ( &(spinor_field[0]), gsx, _OP_ID_UP, 0, 0, NULL, check_propagator_residual, gauge_field_with_phase, lmzz );
+    if(exitstatus != 0) {
+      fprintf(stderr, "[twopt_invert_contract] Error from point_source_propagator, status was %d\n", exitstatus);
+      EXIT(12);
     }
 
-    if ( g_write_propagator ) {
-      /**********************************************************
-       * write l+ - type propagator to disk
-       **********************************************************/
-      double * spinor_field = init_1level_dtable ( _GSI(VOLUME ) );
-      if ( spinor_field == NULL ) {
-        fprintf(stderr, "[twopt_invert_contract] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
-        EXIT(21);
-      }
-
-      for ( int isc = 0; isc < 12; isc++ ) {
-        spinor_field_eo2lexic ( spinor_field, eo_spinor_field[isc], eo_spinor_field[isc+12] );
-        sprintf(filename, "source.%.4d.t%dx%dy%dz%d.f%d.c%d.inverted", Nconf, gsx[0], gsx[1], gsx[2], gsx[3], _OP_ID_UP, isc );
-
-        if ( ( exitstatus = write_propagator( spinor_field, filename, 0, g_propagator_precision) ) != 0 ) {
-          fprintf(stderr, "[twopt_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-          EXIT(2);
-        }
-      }
-      fini_1level_dtable ( &spinor_field );
-    }  /* end of if write propagator */
-
-    /**********************************************************
-     * l- - type propagator
-     **********************************************************/
-    exitstatus = point_to_all_fermion_propagator_clover_full2eo ( &(eo_spinor_field[24]), &(eo_spinor_field[36]), _OP_ID_DN,
-        gsx, gauge_field_with_phase, lmzz[1], lmzzinv[1], check_propagator_residual );
-
-    if ( exitstatus != 0 ) {
-      fprintf(stderr, "[twopt_invert_contract] Error from point_to_all_fermion_propagator_clover_full2eo; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(21);
-    }
-
-    if ( g_write_propagator ) {
-      /**********************************************************
-       * write l- - type propagator to disk
-       **********************************************************/
-      double * spinor_field = init_1level_dtable ( _GSI(VOLUME ) );
-      if ( spinor_field == NULL ) {
-        fprintf(stderr, "[twopt_invert_contract] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
-        EXIT(21);
-      }
-
-      for ( int isc = 0; isc < 12; isc++ ) {
-        spinor_field_eo2lexic ( spinor_field, eo_spinor_field[24+isc], eo_spinor_field[36+isc] );
-        sprintf(filename, "source.%.4d.t%dx%dy%dz%d.f%d.c%d.inverted", Nconf, gsx[0], gsx[1], gsx[2], gsx[3], _OP_ID_DN, isc );
-
-        if ( ( exitstatus = write_propagator( spinor_field, filename, 0, g_propagator_precision) ) != 0 ) {
-          fprintf(stderr, "[twopt_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-          EXIT(2);
-        }
-      }
-      fini_1level_dtable ( &spinor_field );
-    }  /* end of if write propagator */
-
-    /***************************************************************************/
-    /***************************************************************************/
-
-    /***************************************************************************
-     * local - local 2-point u-u
-     ***************************************************************************/
-    sprintf(aff_tag, "/twopt/l+l+/t%dx%dy%dz%d", gsx[0], gsx[1], gsx[2], gsx[3] );
-    exitstatus = contract_local_local_2pt_eo (
-       &(eo_spinor_field[24]), &(eo_spinor_field[36]),
-       &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
-       g_source_gamma_id_list, g_source_gamma_id_number,
-       g_source_gamma_id_list, g_source_gamma_id_number,
-       g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
-
-    if( exitstatus != 0 ) {
-      fprintf(stderr, "[twopt_invert_contract] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(1);
+    /***********************************************************
+     * dn-type propagator
+     ***********************************************************/
+    exitstatus = point_source_propagator ( &(spinor_field[12]), gsx, _OP_ID_DN, 0, 0, NULL, check_propagator_residual, gauge_field_with_phase, lmzz );
+    if(exitstatus != 0) {
+      fprintf(stderr, "[twopt_invert_contract] Error from point_source_propagator, status was %d\n", exitstatus);
+      EXIT(12);
     }
 
     /***************************************************************************
-     * local - local 2-point d-u
+     * Nucleon - Nucleon correlation function
      ***************************************************************************/
-    sprintf(aff_tag, "/twopt/l-l+/t%dx%dy%dz%d", gsx[0], gsx[1], gsx[2], gsx[3] );
-    exitstatus = contract_local_local_2pt_eo (
-       &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
-       &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
-       g_source_gamma_id_list, g_source_gamma_id_number,
-       g_source_gamma_id_list, g_source_gamma_id_number,
-       g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
 
-    if( exitstatus != 0 ) {
-      fprintf(stderr, "[twopt_invert_contract] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(1);
+    /* allocate propagator fields */
+    fermion_propagator_type * fp  = create_fp_field ( VOLUME );
+    fermion_propagator_type * fp2 = create_fp_field ( VOLUME );
+    fermion_propagator_type * fp3 = create_fp_field ( VOLUME );
+
+    /* up propagator as propagator type field */
+    assign_fermion_propagator_from_spinor_field ( fp,  &(spinor_field[ 0]), VOLUME);
+
+    /* dn propagator as propagator type field */
+    assign_fermion_propagator_from_spinor_field ( fp2, &(spinor_field[12]), VOLUME);
+
+    double ** v2 = init_2level_dtable ( VOLUME, 32 );
+    if ( v2 == NULL ) {
+      fprintf(stderr, "[twopt_invert_contract] Error from init_2level_dtable, %s %d\n", __FILE__, __LINE__);
+      EXIT(47);
     }
 
-    /***************************************************************************/
-    /***************************************************************************/
+    double *** vp = init_3level_dtable ( T, sink_momentum_number, 32 );
+    if ( vp == NULL ) {
+      fprintf(stderr, "[twopt_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
+      EXIT(47);
+    }
 
-    /***************************************************************************
-     * st-type propagators
-     *
-     * fix: check_propagator_residual = 0 here; needs 
-     *      2nd set of mzz and mzzinv for strange quark mass;
-     *      either that or use the actual clover field in 
-     *      application of Dirac operator
-     ***************************************************************************/
+    /***********************************************************
+     * contractions for N - N with up and dn propagagor
+     ***********************************************************/
+    for ( int if1 = 0; if1 < gamma_f1_nucleon_number; if1++ ) {
+    for ( int if2 = 0; if2 < gamma_f1_nucleon_number; if2++ ) {
 
-    for ( int imass = 0; imass < g_twisted_masses_number; imass++ ) {
+      fermion_propagator_field_eq_gamma_ti_fermion_propagator_field ( fp3, gamma_f1_nucleon_list[if2], fp2, VOLUME );
 
-      if ( g_cart_id == 0 && g_verbose > 1 ) fprintf ( stdout, "# [twopt_invert_contract] using mass no. %d = %16.7f\n", imass, g_twisted_masses_list[imass] );
+      fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fp3, gamma_f1_nucleon_list[if1], fp3, VOLUME );
 
-      int const op_id_p = 2 * ( 1 + imass );
-      int const op_id_m = op_id_p + 1;
+      fermion_propagator_field_eq_fermion_propagator_field_ti_re    ( fp3, fp3, -gamma_f1_nucleon_sign[if1]*gamma_f1_nucleon_sign[if2], VOLUME );
 
-      /***************************************************************************
-       * initialize clover, lmzz and lmzzinv
-       ***************************************************************************/
-      exitstatus = init_clover ( &g_clover, &smzz, &smzzinv, gauge_field_with_phase, g_twisted_masses_list[imass], g_csw );
+      sprintf(aff_tag, "/N-N/t%.2dx%.2dy%.2dz%.2d/gi%.2d/gf%.2d/n1",
+          gsx[0], gsx[1], gsx[2], gsx[3],
+          gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2]);
+
+      exitstatus = contract_v5 ( v2, fp, fp3, fp, VOLUME );
       if ( exitstatus != 0 ) {
-        fprintf(stderr, "[twopt_invert_contract] Error from init_clover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-        EXIT(1);
+        fprintf(stderr, "[twopt_invert_contract] Error from contract_v5, status was %d\n", exitstatus);
+        EXIT(48);
       }
 
-      /***************************************************************************/
-      /***************************************************************************/
-
-      /***************************************************************************
-       * s+ - type propagator
-       ***************************************************************************/
-      exitstatus = point_to_all_fermion_propagator_clover_full2eo ( &(eo_spinor_field[48]), &(eo_spinor_field[60]), op_id_p,
-          gsx, gauge_field_with_phase, smzz[0], smzzinv[0], check_propagator_residual );
-
+      exitstatus = contract_vn_momentum_projection ( vp, v2, 16, sink_momentum_list, sink_momentum_number);
       if ( exitstatus != 0 ) {
-        fprintf(stderr, "[twopt_invert_contract] Error from point_to_all_fermion_propagator_clover_full2eo status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(21);
+        fprintf(stderr, "[twopt_invert_contract] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+        EXIT(48);
       }
 
-      if ( g_write_propagator ) {
-        /**********************************************************
-         * write s+ - type propagator to disk
-         **********************************************************/
-        double * spinor_field = init_1level_dtable ( _GSI(VOLUME ) );
-        if ( spinor_field == NULL ) {
-          fprintf(stderr, "[twopt_invert_contract] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
-          EXIT(21);
-        }
-
-        for ( int isc = 0; isc < 12; isc++ ) {
-          spinor_field_eo2lexic ( spinor_field, eo_spinor_field[48+isc], eo_spinor_field[60+isc] );
-          sprintf(filename, "source.%.4d.t%dx%dy%dz%d.op%d.c%d.inverted", Nconf, gsx[0], gsx[1], gsx[2], gsx[3], op_id_p, isc );
-
-          if ( ( exitstatus = write_propagator( spinor_field, filename, 0, g_propagator_precision) ) != 0 ) {
-            fprintf(stderr, "[twopt_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-            EXIT(2);
-          }
-        }
-        fini_1level_dtable ( &spinor_field );
-      }  /* end of if write propagator */
-
-      /***************************************************************************
-       * s- - type propagator
-       ***************************************************************************/
-      exitstatus = point_to_all_fermion_propagator_clover_full2eo ( &(eo_spinor_field[72]), &(eo_spinor_field[84]), op_id_m,
-          gsx, gauge_field_with_phase, smzz[1], smzzinv[1], check_propagator_residual );
-
+      exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, sink_momentum_list, sink_momentum_number, io_proc );
       if ( exitstatus != 0 ) {
-        fprintf(stderr, "[twopt_invert_contract] Error from point_to_all_fermion_propagator_clover_full2eo; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(21);
+        fprintf(stderr, "[twopt_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+        EXIT(49);
       }
-
-      if ( g_write_propagator ) {
-        /**********************************************************
-         * write s- - type propagator to disk
-         **********************************************************/
-        double * spinor_field = init_1level_dtable ( _GSI(VOLUME ) );
-        if ( spinor_field == NULL ) {
-          fprintf(stderr, "[twopt_invert_contract] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
-          EXIT(21);
-        }
-
-        for ( int isc = 0; isc < 12; isc++ ) {
-          spinor_field_eo2lexic ( spinor_field, eo_spinor_field[72+isc], eo_spinor_field[84+isc] );
-          sprintf(filename, "source.%.4d.t%dx%dy%dz%d.op%d.c%d.inverted", Nconf, gsx[0], gsx[1], gsx[2], gsx[3], op_id_m, isc );
-
-          if ( ( exitstatus = write_propagator( spinor_field, filename, 0, g_propagator_precision) ) != 0 ) {
-            fprintf(stderr, "[twopt_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-            EXIT(2);
-          }
-        }
-        fini_1level_dtable ( &spinor_field );
-      }  /* end of if write propagator */
-
-      /***************************************************************************/
-      /***************************************************************************/
-
-      /***************************************************************************
-       * local - local 2-point s+ - u
-       ***************************************************************************/
-      sprintf(aff_tag, "/twopt/s+u+/t%dx%dy%dz%d/m%10.8f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass] );
-      exitstatus = contract_local_local_2pt_eo (
-         &(eo_spinor_field[72]), &(eo_spinor_field[84]),
-         &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
-         g_source_gamma_id_list, g_source_gamma_id_number,
-         g_source_gamma_id_list, g_source_gamma_id_number,
-         g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
-
-      if( exitstatus != 0 ) {
-        fprintf(stderr, "[twopt_invert_contract] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(1);
-      }
-
-      /***************************************************************************
-       * local - local 2-point s- - u
-       ***************************************************************************/
-      sprintf(aff_tag, "/twopt/s-l+/t%dx%dy%dz%d/m%10.8f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass] );
-      exitstatus = contract_local_local_2pt_eo (
-         &(eo_spinor_field[60]), &(eo_spinor_field[72]),
-         &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
-         g_source_gamma_id_list, g_source_gamma_id_number,
-         g_source_gamma_id_list, g_source_gamma_id_number,
-         g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
-
-      if( exitstatus != 0 ) {
-        fprintf(stderr, "[twopt_invert_contract] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(1);
-      }
-
-      /***************************************************************************
-       * local - local 2-point s- - s+
-       ***************************************************************************/
-      sprintf(aff_tag, "/twopt/s-s+/t%dx%dy%dz%d/m%10.8f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass] );
-      exitstatus = contract_local_local_2pt_eo (
-         &(eo_spinor_field[48]), &(eo_spinor_field[60]),
-         &(eo_spinor_field[48]), &(eo_spinor_field[60]),
-         g_source_gamma_id_list, g_source_gamma_id_number,
-         g_source_gamma_id_list, g_source_gamma_id_number,
-         g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
-
-      if( exitstatus != 0 ) {
-        fprintf(stderr, "[twopt_invert_contract] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(1);
-      }
-
-      /***************************************************************************
-       * local - local 2-point s+ - s+
-       ***************************************************************************/
-      sprintf(aff_tag, "/twopt/s+s+/t%dx%dy%dz%d/m%10.8f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass] );
-      exitstatus = contract_local_local_2pt_eo (
-         &(eo_spinor_field[72]), &(eo_spinor_field[84]),
-         &(eo_spinor_field[48]), &(eo_spinor_field[60]),
-         g_source_gamma_id_list, g_source_gamma_id_number,
-         g_source_gamma_id_list, g_source_gamma_id_number,
-         g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
-
-      if( exitstatus != 0 ) {
-        fprintf(stderr, "[twopt_invert_contract] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(1);
-      }
-
-      /***************************************************************************/
-      /***************************************************************************/
-
-      fini_clover ( &smzz, &smzzinv );
-
-      /***************************************************************************/
-      /***************************************************************************/
-
-      /***************************************************************************
-       * omega baryon
-       *
-       * use smearing ?
-       * can also use up, dn eo propagator space for reordering
-       ***************************************************************************/
-
-      double ** spinor_field = init_2level_dtable ( 24, _GSI((size_t)VOLUME) );
-      if ( spinor_field == NULL ) {
-        fprintf(stderr, "[twopt_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
-        EXIT(1);
-      }
-
-      /* full volume s+ propagator */
-      for ( int i = 0; i < 12; i++ ) {
-        spinor_field_lexic2eo ( spinor_field[   i], eo_spinor_field[48+i], eo_spinor_field[60+i] );
-      }
- 
-      /* full volume sm propagator */
-      for ( int i = 0; i < 12; i++ ) {
-        spinor_field_lexic2eo ( spinor_field[12+i], eo_spinor_field[72+i], eo_spinor_field[84+i] );
-      }
-
-      if( g_fermion_type == _TM_FERMION ) {
-        spinor_field_tm_rotation ( spinor_field[ 0], spinor_field[ 0], +1, g_fermion_type, 12*VOLUME);
-
-        spinor_field_tm_rotation ( spinor_field[12], spinor_field[12], -1, g_fermion_type, 12*VOLUME);
-      }
-
-      /* allocate propagator fields */
-      fermion_propagator_type * fp  = create_fp_field ( VOLUME );
-      fermion_propagator_type * fp2 = create_fp_field ( VOLUME );
-      fermion_propagator_type * fp3 = create_fp_field ( VOLUME );
-
-      /* sp propagator as propagator type field */
-      assign_fermion_propagator_from_spinor_field ( fp,  &(spinor_field[ 0]), VOLUME);
-
-      /* sm propagator as propagator type field */
-      assign_fermion_propagator_from_spinor_field ( fp2, &(spinor_field[12]), VOLUME);
-
-      double ** v2 = init_2level_dtable ( VOLUME, 32 );
-      if ( v2 == NULL ) {
-        fprintf(stderr, "[twopt_invert_contract] Error from init_2level_dtable, %s %d\n", __FILE__, __LINE__);
-        EXIT(47);
-      }
-
-      double *** vp = init_3level_dtable ( T, g_sink_momentum_number, 32 );
-      if ( vp == NULL ) {
-        fprintf(stderr, "[twopt_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
-        EXIT(47);
-      }
-
-      /* vertex list */
-      int const    gamma_f1_number                    = 3;
-      int const    gamma_f1_list[gamma_f1_number]     = { 9,  0,  7 };
-      double const gamma_f1_src_sign[gamma_f1_number] = {-1, +1, +1 };
-      double const gamma_f1_snk_sign[gamma_f1_number] = {+1, +1, -1 }; 
-
-
-      /***********************************************************
-       * contractions for Omega^- - Omega^-
-       *   with s+ ( and s- ) propagator
-       ***********************************************************/
-      for ( int if1 = 0; if1 < gamma_f1_number; if1++ ) {
-
-        /* fp2 <- fp x Gamma_i1 */
-        fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fp2, gamma_f1_list[if1], fp, VOLUME );
-        fermion_propagator_field_eq_fermion_propagator_field_ti_re (fp2, fp2, gamma_f1_src_sign[if1], VOLUME );
-
-      for ( int if2 = 0; if2 < gamma_f1_number; if2++ ) {
-
-        /* fp3 <- Gamma_f1 x fp */
-        fermion_propagator_field_eq_gamma_ti_fermion_propagator_field ( fp3, gamma_f1_list[if2], fp, VOLUME );
-        fermion_propagator_field_eq_fermion_propagator_field_ti_re (fp3, fp3, gamma_f1_snk_sign[if2], VOLUME );
-
-        /***********************************************************/
-        /***********************************************************/
-  
-        sprintf(aff_tag, "/omega-omega/t%.2dx%.2dy%.2dz%.2d/m%10.8f/gi%.2d/gf%.2d/d1",
-            gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass],
-            gamma_f1_list[if1], gamma_f1_list[if2]);
-
-        exitstatus = contract_v5 ( v2, fp2, fp3, fp, VOLUME );
-        if ( exitstatus != 0 ) {
-          fprintf(stderr, "[twopt_invert_contract] Error from contract_v5, status was %d\n", exitstatus);
-          EXIT(48);
-        }
-
-        exitstatus = contract_vn_momentum_projection ( vp, v2, 16, g_sink_momentum_list, g_sink_momentum_number);
-        if ( exitstatus != 0 ) {
-          fprintf(stderr, "[twopt_invert_contract] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
-          EXIT(48);
-        }
-
-        exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
-        if ( exitstatus != 0 ) {
-          fprintf(stderr, "[twopt_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
-          EXIT(49);
-        }
-
-        /***********************************************************/
-        /***********************************************************/
-
-        sprintf(aff_tag, "/omega-omega/t%.2dx%.2dy%.2dz%.2d/m%10.8f/gi%.2d/gf%.2d/d6",
-            gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass],
-            gamma_f1_list[if1], gamma_f1_list[if2]);
-
-        exitstatus = contract_v6 ( v2, fp, fp2, fp3, VOLUME );
-        if ( exitstatus != 0 ) {
-          fprintf(stderr, "[twopt_invert_contract] Error from contract_v6, status was %d\n", exitstatus);
-          EXIT(48);
-        }
-
-        exitstatus = contract_vn_momentum_projection ( vp, v2, 16, g_sink_momentum_list, g_sink_momentum_number);
-        if ( exitstatus != 0 ) {
-          fprintf(stderr, "[twopt_invert_contract] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
-          EXIT(48);
-        }
-
-        exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
-        if ( exitstatus != 0 ) {
-          fprintf(stderr, "[twopt_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
-          EXIT(49);
-        }
-
-      }}  /* end of loop on i1, f1 vertex */
 
       /***********************************************************/
       /***********************************************************/
 
-      /***********************************************************
-       * clean up
-       ***********************************************************/
-      free_fp_field ( &fp  );
-      free_fp_field ( &fp2 );
-      free_fp_field ( &fp3 );
-      fini_2level_dtable ( &v2 );
-      fini_3level_dtable ( &vp );
+      sprintf(aff_tag, "/N-N/t%.2dx%.2dy%.2dz%.2d/gi%.2d/gf%.2d/n2",
+          gsx[0], gsx[1], gsx[2], gsx[3],
+          gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2]);
+
+      exitstatus = contract_v6 ( v2, fp, fp3, fp, VOLUME );
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[twopt_invert_contract] Error from contract_v6, status was %d\n", exitstatus);
+        EXIT(48);
+      }
+
+      exitstatus = contract_vn_momentum_projection ( vp, v2, 16, sink_momentum_list, sink_momentum_number);
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[twopt_invert_contract] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+        EXIT(48);
+      }
+
+      exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, sink_momentum_list, sink_momentum_number, io_proc );
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[twopt_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+        EXIT(49);
+      }
+
+    }}
+
+    /***********************************************************/
+    /***********************************************************/
+
+    /***********************************************************
+     * clean up
+     ***********************************************************/
+    free_fp_field ( &fp  );
+    free_fp_field ( &fp2 );
+    free_fp_field ( &fp3 );
+    fini_2level_dtable ( &v2 );
+    fini_3level_dtable ( &vp );
  
-      fini_2level_dtable ( &spinor_field );
-
-      fini_clover ( &smzz, &smzzinv );
-
-    }  /* end of loop on extra masses */
 
     /***************************************************************************/
     /***************************************************************************/
@@ -743,6 +447,253 @@ int main(int argc, char **argv) {
 
   }  /* end of loop on source locations */
 
+  /***************************************************************************/
+  /***************************************************************************/
+
+  /***************************************************************************
+   ***************************************************************************
+   **
+   ** stochastic version
+   **
+   ***************************************************************************
+   ***************************************************************************/
+
+  /***********************************************************
+   * loop on source timeslices
+   ***********************************************************/
+  for( int isource_location = 0; isource_location < g_source_location_number; isource_location++ ) {
+
+    /***********************************************************
+     * determine source processes
+     ***********************************************************/
+    int const gts  = ( g_source_coords_list[isource_location][0] +  T_global ) %  T_global;
+
+    int const source_proc_id = ( gts / T == g_proc_coords[0] ) ? g_cart_id : -1;
+
+    int const source_timeslice = ( source_proc_id == g_cart_id ) ? gts % T : -1;
+
+    if ( source_proc_id == g_cart_id && g_verbose > 1 ) fprintf ( stdout, "# [twopt_invert_contract] proc %4d has source timeslice %3d / %3d\n", source_proc_id, gts , source_timeslice );
+
+    double ** stochastic_source = init_2level_dtable ( 12, _GSI( VOLUME ) );
+    if( stochastic_source == NULL ) {
+      fprintf(stderr, "[twopt_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+      EXIT(123);
+    }
+
+    double ** spinor_work = init_2level_dtable ( 12, _GSI( VOLUME+RAND ) );
+    if( spinor_work == NULL ) {
+      fprintf(stderr, "[twopt_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+      EXIT(123);
+    }
+
+    /**********************************************************
+     * zero momentum vector
+     **********************************************************/
+    int const zero_momentum[3] = {0,0,0};
+
+    for ( int isample = 0; isample < g_nsample_oet; isample++ ) {
+
+#ifdef HAVE_LHPC_AFF
+      /***********************************************
+       * writer for aff output file
+       ***********************************************/
+      if(io_proc == 2) {
+        sprintf(filename, "%s_oet.%.4d.t%d.aff", outfile_prefix, Nconf, gts );
+        fprintf(stdout, "# [twopt_invert_contract] writing data to file %s\n", filename);
+        affw = aff_writer(filename);
+        const char * aff_status_str = aff_writer_errstr ( affw );
+        if( aff_status_str != NULL ) {
+          fprintf(stderr, "[twopt_invert_contract] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+          EXIT(15);
+        }
+      }  /* end of if io_proc == 2 */
+#endif
+
+        /**********************************************************
+         * stochastic timeslice source
+         **********************************************************/
+        exitstatus = init_timeslice_source_z3_oet ( stochastic_source, gts, zero_momentum,  1 );
+        if(exitstatus != 0) {
+          fprintf(stderr, "[twopt_invert_contract] Error from point_source_propagator, status was %d\n", exitstatus);
+          EXIT(12);
+        }
+
+        if ( g_write_source ) {
+          for ( int ia = 0; ia < 12; ia++ ) {
+            sprintf ( filename, "%s.%.4d.%.5d.%.2d", filename_prefix, Nconf, isample, ia );
+            if ( ( exitstatus = write_propagator( stochastic_source[ia], filename, 0, g_propagator_precision) ) != 0 ) {
+              fprintf(stderr, "[twopt_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(2);
+            }
+          }
+        }
+
+        /***********************************************************
+         * invert
+         ***********************************************************/
+        for ( int ia = 0; ia < 12; ia++ ) {
+
+          /***********************************************************
+           * up-type propagator
+           ***********************************************************/
+        memcpy ( spinor_work[0], stochastic_source[ia], sizeof_spinor_field );
+
+        if( g_fermion_type == _TM_FERMION ) spinor_field_tm_rotation ( spinor_work[0], spinor_work[0], +1, g_fermion_type, VOLUME);
+
+        memset ( spinor_work[1] , 0, sizeof_spinor_field );
+
+        exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], _OP_ID_UP);
+
+        if(exitstatus < 0) {
+          fprintf(stderr, "[twopt_invert_contract] Error from invert, status was %d\n", exitstatus);
+          EXIT(12);
+        }
+        if( g_fermion_type == _TM_FERMION ) spinor_field_tm_rotation ( spinor_work[1], spinor_work[1], +1, g_fermion_type, VOLUME);
+
+        memcpy ( spinor_field[ia], spinor_work[1], sizeof_spinor_field );
+
+        /***********************************************************
+         * dn-type propagator
+         ***********************************************************/
+        memcpy ( spinor_work[0], stochastic_source[ia], sizeof_spinor_field );
+        if( g_fermion_type == _TM_FERMION ) spinor_field_tm_rotation ( spinor_work[0], spinor_work[0], -1, g_fermion_type, VOLUME);
+
+        memset ( spinor_work[1] , 0, sizeof_spinor_field );
+
+        exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], _OP_ID_DN);
+
+        if(exitstatus < 0) {
+          fprintf(stderr, "[twopt_invert_contract] Error from invert, status was %d\n", exitstatus);
+          EXIT(12);
+        }
+        if( g_fermion_type == _TM_FERMION ) spinor_field_tm_rotation ( spinor_work[1], spinor_work[1], -1, g_fermion_type, VOLUME);
+  
+        memcpy ( spinor_field[12+ia], spinor_work[1], sizeof_spinor_field );
+      }
+
+      /***************************************************************************/
+      /***************************************************************************/
+
+      /***************************************************************************
+       * Nucleon - Nucleon correlation function
+       ***************************************************************************/
+
+      /* allocate propagator fields */
+      fermion_propagator_type * fp  = create_fp_field ( VOLUME );
+      fermion_propagator_type * fp2 = create_fp_field ( VOLUME );
+      fermion_propagator_type * fp3 = create_fp_field ( VOLUME );
+
+      /* up propagator as propagator type field */
+      assign_fermion_propagator_from_spinor_field ( fp,  &(spinor_field[ 0]), VOLUME);
+
+      /* dn propagator as propagator type field */
+      assign_fermion_propagator_from_spinor_field ( fp2, &(spinor_field[12]), VOLUME);
+
+      double ** v2 = init_2level_dtable ( VOLUME, 32 );
+      if ( v2 == NULL ) {
+        fprintf(stderr, "[twopt_invert_contract] Error from init_2level_dtable, %s %d\n", __FILE__, __LINE__);
+        EXIT(47);
+      }
+
+      double *** vp = init_3level_dtable ( T, sink_momentum_number, 32 );
+      if ( vp == NULL ) {
+        fprintf(stderr, "[twopt_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
+        EXIT(47);
+      }
+
+      /***********************************************************
+       * contractions for N - N with up and dn propagagor
+       ***********************************************************/
+      for ( int if1 = 0; if1 < gamma_f1_nucleon_number; if1++ ) {
+      for ( int if2 = 0; if2 < gamma_f1_nucleon_number; if2++ ) {
+
+        fermion_propagator_field_eq_gamma_ti_fermion_propagator_field ( fp3, gamma_f1_nucleon_list[if2], fp2, VOLUME );
+
+        fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fp3, gamma_f1_nucleon_list[if1], fp3, VOLUME );
+
+        fermion_propagator_field_eq_fermion_propagator_field_ti_re (fp3, fp3, -gamma_f1_nucleon_sign[if1]*gamma_f1_nucleon_sign[if2], VOLUME );
+
+        sprintf(aff_tag, "/N-N/t%.2d/gi%.2d/gf%.2d/n1", gts, gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2]);
+
+        exitstatus = contract_v5 ( v2, fp, fp3, fp, VOLUME );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[twopt_invert_contract] Error from contract_v5, status was %d\n", exitstatus);
+          EXIT(48);
+        }
+
+        exitstatus = contract_vn_momentum_projection ( vp, v2, 16, sink_momentum_list, sink_momentum_number);
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[twopt_invert_contract] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+          EXIT(48);
+        }
+
+        exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, sink_momentum_list, sink_momentum_number, io_proc );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[twopt_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+          EXIT(49);
+        }
+
+        /***********************************************************/
+        /***********************************************************/
+
+        sprintf(aff_tag, "/N-N/t%.2d /gi%.2d/gf%.2d/n2", gts, gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2]);
+
+        exitstatus = contract_v6 ( v2, fp, fp3, fp, VOLUME );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[twopt_invert_contract] Error from contract_v6, status was %d\n", exitstatus);
+          EXIT(48);
+        }
+
+        exitstatus = contract_vn_momentum_projection ( vp, v2, 16, sink_momentum_list, sink_momentum_number);
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[twopt_invert_contract] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+          EXIT(48);
+        }
+
+        exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, sink_momentum_list, sink_momentum_number, io_proc );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[twopt_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+          EXIT(49);
+        }
+
+      }}
+
+      /***********************************************************/
+      /***********************************************************/
+
+      /***********************************************************
+       * clean up
+       ***********************************************************/
+      free_fp_field ( &fp  );
+      free_fp_field ( &fp2 );
+      free_fp_field ( &fp3 );
+      fini_2level_dtable ( &v2 );
+      fini_3level_dtable ( &vp );
+      fini_2level_dtable ( &spinor_work );
+      fini_2level_dtable ( &stochastic_source );
+ 
+      /***************************************************************************/
+      /***************************************************************************/
+
+#ifdef HAVE_LHPC_AFF
+      /***************************************************************************
+       * close AFF writer
+       ***************************************************************************/
+      if(io_proc == 2) {
+        const char * aff_status_str = (char*)aff_writer_close (affw);
+        if( aff_status_str != NULL ) {
+          fprintf(stderr, "[twopt_invert_contract] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+          EXIT(32);
+        }
+      }  /* end of if io_proc == 2 */
+#endif  /* of ifdef HAVE_LHPC_AFF */
+
+      exitstatus = init_timeslice_source_z3_oet ( NULL, -1, NULL,  -2 );
+
+    }  /* end of loop on oet samples */
+
+  }  /* end of loop on source timeslices */
+
   /****************************************
    * free the allocated memory, finalize
    ****************************************/
@@ -752,10 +703,10 @@ int main(int argc, char **argv) {
 #endif
   free( gauge_field_with_phase );
 
-  fini_2level_dtable ( &eo_spinor_field );
+  fini_2level_dtable ( &spinor_field );
 
   /* free clover matrix terms */
-  fini_clover ( &lmzz, &lmzzinv );
+  fini_clover ( );
 
   free_geometry();
 
