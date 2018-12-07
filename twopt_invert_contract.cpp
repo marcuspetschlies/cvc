@@ -141,8 +141,8 @@ int main(int argc, char **argv) {
   /*********************************
    * initialize MPI parameters for cvc
    *********************************/
-  /* exitstatus = tmLQCD_invert_init(argc, argv, 1, 0); */
-  exitstatus = tmLQCD_invert_init(argc, argv, 1);
+  exitstatus = tmLQCD_invert_init(argc, argv, 1, 0);
+  /* exitstatus = tmLQCD_invert_init(argc, argv, 1); */
   if(exitstatus != 0) {
     EXIT(1);
   }
@@ -287,11 +287,7 @@ int main(int argc, char **argv) {
 
 #ifdef HAVE_LHPC_AFF
     /***********************************************
-     ***********************************************
-     **
-     ** writer for aff output file
-     **
-     ***********************************************
+     * writer for aff output file
      ***********************************************/
     if(io_proc == 2) {
       sprintf(filename, "%s.%.4d.t%dx%dy%dz%d.aff", outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3]);
@@ -310,7 +306,7 @@ int main(int argc, char **argv) {
      **********************************************************/
 
     /***********************************************************
-     * up-type propagator
+     * up-type point-to-all propagator
      ***********************************************************/
     exitstatus = point_source_propagator ( &(spinor_field[0]), gsx, _OP_ID_UP, 0, 0, NULL, check_propagator_residual, gauge_field_with_phase, lmzz );
     if(exitstatus != 0) {
@@ -319,7 +315,7 @@ int main(int argc, char **argv) {
     }
 
     /***********************************************************
-     * dn-type propagator
+     * dn-type point-to-all propagator
      ***********************************************************/
     exitstatus = point_source_propagator ( &(spinor_field[12]), gsx, _OP_ID_DN, 0, 0, NULL, check_propagator_residual, gauge_field_with_phase, lmzz );
     if(exitstatus != 0) {
@@ -534,7 +530,7 @@ int main(int argc, char **argv) {
         for ( int ia = 0; ia < 12; ia++ ) {
 
           /***********************************************************
-           * up-type propagator
+           * up-type stochastic propagator
            ***********************************************************/
         memcpy ( spinor_work[0], stochastic_source[ia], sizeof_spinor_field );
 
@@ -548,12 +544,21 @@ int main(int argc, char **argv) {
           fprintf(stderr, "[twopt_invert_contract] Error from invert, status was %d\n", exitstatus);
           EXIT(12);
         }
+
+        if ( check_propagator_residual ) {
+          exitstatus = check_residual_clover ( &(spinor_work[1]) , &(spinor_work[0]), gauge_field_with_phase, lmzz[_OP_ID_UP], 1  );
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "[twopt_invert_contract] Error from check_residual_clover, status was %d %s  %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(3);
+          }
+        }
+
         if( g_fermion_type == _TM_FERMION ) spinor_field_tm_rotation ( spinor_work[1], spinor_work[1], +1, g_fermion_type, VOLUME);
 
         memcpy ( spinor_field[ia], spinor_work[1], sizeof_spinor_field );
 
         /***********************************************************
-         * dn-type propagator
+         * dn-type stochastic propagator
          ***********************************************************/
         memcpy ( spinor_work[0], stochastic_source[ia], sizeof_spinor_field );
         if( g_fermion_type == _TM_FERMION ) spinor_field_tm_rotation ( spinor_work[0], spinor_work[0], -1, g_fermion_type, VOLUME);
@@ -566,6 +571,15 @@ int main(int argc, char **argv) {
           fprintf(stderr, "[twopt_invert_contract] Error from invert, status was %d\n", exitstatus);
           EXIT(12);
         }
+
+        if ( check_propagator_residual ) {
+          exitstatus = check_residual_clover ( &(spinor_work[1]) , &(spinor_work[0]), gauge_field_with_phase, lmzz[_OP_ID_DN], 1  );
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "[twopt_invert_contract] Error from check_residual_clover, status was %d %s  %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(3);
+          }
+        }
+
         if( g_fermion_type == _TM_FERMION ) spinor_field_tm_rotation ( spinor_work[1], spinor_work[1], -1, g_fermion_type, VOLUME);
   
         memcpy ( spinor_field[12+ia], spinor_work[1], sizeof_spinor_field );
