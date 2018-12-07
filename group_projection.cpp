@@ -2986,11 +2986,12 @@ int get_reference_rotation ( int pref[3], int *Rref, int const p[3] ) {
 /***********************************************************/
 /***********************************************************/
 
+
 /***********************************************************
  * return reference momentum
  ***********************************************************/
 int get_reference_momentum ( int pref[3], int const p[3] ) {
-
+#if 0
   /***********************************************************
    * momentum lists, up to d^+ d = 3
    ***********************************************************/
@@ -3072,7 +3073,7 @@ int get_reference_momentum ( int pref[3], int const p[3] ) {
             char name[] = "Rref";
             rot_printf_rint_matrix (R, 3, name, stdout );
           }
-          *Rref = irot;
+           = irot;
           break;
         }
 
@@ -3132,7 +3133,7 @@ int get_reference_momentum ( int pref[3], int const p[3] ) {
 
   rot_fini_rotation_matrix ( &S );
   rot_fini_rotation_matrix ( &R );
-
+#endif  /* of if 0 */
   return(0);
 }  /* end of get_reference_momentum */
 
