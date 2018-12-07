@@ -2305,10 +2305,16 @@ int wilson_loop(complex *w, double*gauge_field, const int xstart, const int dir,
  
 }
 
+/********************************************************/
+/********************************************************/
+
 int IRand(int min, int max) {
   return( min + (int)( ((double)(max-min+1)) * ((double)(rand())) /
                       ((double)(RAND_MAX) + 1.0) ) );
 }
+
+/********************************************************/
+/********************************************************/
 
 double Random_Z2() {
   if(IRand(0, 1) == 0)
@@ -2316,20 +2322,53 @@ double Random_Z2() {
   return( -1.0 / sqrt(2.0));
 }  /* end of Random_Z2 */
 
-int ranz2(double * y, unsigned int NRAND) {
+/********************************************************/
+/********************************************************/
+
+int ranz2(double * const y, unsigned int const NRAND) {
   const double sqrt2inv = 1. / sqrt(2.);
-  unsigned int k;
 
   ranlxd(y, NRAND);
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(k) shared(y,NRAND)
+#pragma omp parallel for
 #endif
-  for(k=0; k<NRAND; k++) {
+  for ( unsigned int k = 0; k < NRAND; k++) {
     y[k] = (double)(2 * (int)(y[k]>=0.5) - 1) * sqrt2inv;
   }
   return(0);
 }  /* end of ranz2 */
+
+/********************************************************/
+/********************************************************/
+
+/********************************************************
+ * y must have real and imaginary part, i.e. length
+ * of 2 NRAND doubles
+ ********************************************************/
+int ranz3 ( double * const y, unsigned int const NRAND ) {
+
+  double const sqrt_three_half = 0.8660254037844386;
+  double const yre[3] = {1., 0.5,              0.5             };
+  double const yim[3] = {0., sqrt_three_half, -sqrt_three_half };
+
+  ranlxd ( y, NRAND );
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for 
+#endif
+  for ( unsigned int k = 0; k < NRAND; k++ ) {
+    int const idx = (int)( 3 * y[k] );
+    unsigned int l = 2 * ( NRAND - 2 - k );
+
+    y[l  ] = yre[idx];
+    y[l+1] = yim[idx];
+  }
+  return(0);
+}  /* end of ranz3 */
+
+/********************************************************/
+/********************************************************/
 
 /********************************************************
  * random_gauge_field
