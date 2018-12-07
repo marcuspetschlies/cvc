@@ -13,7 +13,9 @@ namespace cvc {
 /************************************************************************************
  * dummy solver
  ************************************************************************************/
-int dummy_solver ( double * const propagator, double * const source, const int op_id, int write_prop) {
+/* int dummy_solver ( double * const propagator, double * const source, const int op_id, int write_prop ) */
+int dummy_solver ( double * const propagator, double * const source, const int op_id, int write_prop )
+{
     return( rangauss(propagator, _GSI(VOLUME) ) );
 }  /* end of dummy_solver */
 #endif
