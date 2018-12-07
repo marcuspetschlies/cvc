@@ -176,7 +176,7 @@ int init_eo_sequential_source(double *s_even, double *s_odd, double *p_even, dou
 #ifdef HAVE_MPI
   /* have seq source timeslice ? */
   i = tseq / T;
-  exitstatus = MPI_Cart_rank(g_tr_comm, &i, &source_proc_id);
+  int exitstatus = MPI_Cart_rank(g_tr_comm, &i, &source_proc_id);
   if(exitstatus !=  MPI_SUCCESS ) {
     fprintf(stderr, "[init_eo_sequential_source] Error from MPI_Cart_rank, status was %d\n", exitstatus);
     EXIT(9);
