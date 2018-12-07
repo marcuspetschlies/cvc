@@ -844,7 +844,8 @@ int point_source_propagator (double **prop, int gsx[4], int op_id, int smear_sou
       spinor_field_tm_rotation(spinor_work[0], spinor_work[0], rotation_direction, g_fermion_type, VOLUME);
     }
 #ifdef HAVE_TMLQCD_LIBWRAPPER
-    exitstatus = _TMLQCD_INVERT(spinor_work[1], spinor_work[0], op_id, 0);
+    /* exitstatus = _TMLQCD_INVERT(spinor_work[1], spinor_work[0], op_id, 0); */
+    exitstatus = _TMLQCD_INVERT(spinor_work[1], spinor_work[0], op_id );
     if(exitstatus != 0) {
       fprintf(stderr, "[point_source_propagator] Error from tmLQCD_invert, status was %d\n", exitstatus);
       EXIT(12);
