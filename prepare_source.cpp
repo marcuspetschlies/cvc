@@ -164,7 +164,7 @@ int init_eo_sequential_source(double *s_even, double *s_odd, double *p_even, dou
   const size_t offset = _GSI(VOL3half);
   const size_t bytes  = offset * sizeof(double);
 
-  int i, exitstatus, x0, x1, x2, x3;
+  int i, x0, x1, x2, x3;
   unsigned int ix;
   int source_proc_id = 0;
   double q_phase;
@@ -238,8 +238,7 @@ int check_vvdagger_locality (double** V, int numV, int base_coords[4], char*tag,
   const unsigned int N = T*LX*LY*LZ / 2;
   const size_t sizeof_field = _GSI(N) * sizeof(double);
 
-  unsigned int ix;
-  int i, k, ia, isrc, ishift[4];
+  int ishift[4];
   int gcoords[4], lcoords[4], source_proc_id=0;
   int exitstatus;
   double norm[12];
@@ -251,7 +250,7 @@ int check_vvdagger_locality (double** V, int numV, int base_coords[4], char*tag,
   double **buffer=NULL;
 
 
-  for(isrc=0; isrc<16; isrc++)
+  for ( int isrc=0; isrc<16; isrc++)
   {
     ishift[0] =  isrc      / 8;
     ishift[1] = (isrc % 8) / 4;
@@ -284,12 +283,10 @@ int check_vvdagger_locality (double** V, int numV, int base_coords[4], char*tag,
     }
 #endif
 
-    if(source_proc_id == g_cart_id) {
-      ix = g_lexic2eosub[g_ipt[lcoords[0]][lcoords[1]][lcoords[2]][lcoords[3]]];
-    }
-    for(ia=0; ia<12; ia++) {
+    for ( int ia=0; ia<12; ia++) {
       memset(sp[ia], 0, sizeof_field);
       if(source_proc_id == g_cart_id) {
+        unsigned int const ix = g_lexic2eosub[g_ipt[lcoords[0]][lcoords[1]][lcoords[2]][lcoords[3]]];
         sp[ia][_GSI(ix)+2*ia] = 1.;
       }
     }
@@ -299,9 +296,9 @@ int check_vvdagger_locality (double** V, int numV, int base_coords[4], char*tag,
       return(3);
     }
 
-    for(ia=0; ia<12; ia++) {
+    for ( int ia=0; ia<12; ia++) {
       if(g_cart_id == source_proc_id) {
-        ix = g_lexic2eosub[g_ipt[lcoords[0]][lcoords[1]][lcoords[2]][lcoords[3]]];
+        unsigned int ix = g_lexic2eosub[g_ipt[lcoords[0]][lcoords[1]][lcoords[2]][lcoords[3]]];
         _co_eq_fv_dag_ti_fv(&w, sp[ia]+_GSI(ix), sp[ia]+_GSI(ix));
         norm[ia] = w.re;
       }
@@ -313,11 +310,11 @@ int check_vvdagger_locality (double** V, int numV, int base_coords[4], char*tag,
     }
 #endif
 
-    for(ia=0; ia<12; ia++) {
+    for ( int ia=0; ia<12; ia++) {
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(ix,w) shared(sp)
+#pragma omp parallel for private(w) shared(sp)
 #endif
-      for(ix=0; ix<N; ix++) {
+      for ( unsigned int ix=0; ix<N; ix++) {
         _co_eq_fv_dag_ti_fv(&w, sp[ia]+_GSI(ix), sp[ia]+_GSI(ix) );
         sp[0][_GSI(ix)+2*ia  ] = w.re;
         sp[0][_GSI(ix)+2*ia+1] = w.im;
@@ -334,16 +331,16 @@ int check_vvdagger_locality (double** V, int numV, int base_coords[4], char*tag,
 
     init_2level_buffer(&buffer, 12, 2*xid_nc);
     memset(buffer[0], 0, 12*xid_nc*sizeof(double));
-    for(ia=0; ia<12; ia++) {
-      for(i=0; i<xid_nc; i++) {
-        for(k=0; k<xid_count[i]; k++) {
+    for ( int ia=0; ia<12; ia++) {
+      for ( unsigned int i=0; i<xid_nc; i++) {
+        for ( unsigned int k=0; k<xid_count[i]; k++) {
           buffer[ia][2*i  ] += sp[0][_GSI(xid_member[i][k])+2*ia  ];
           buffer[ia][2*i+1] += sp[0][_GSI(xid_member[i][k])+2*ia+1];
         }
       }
     }
-    for(ia=0; ia<12; ia++) {
-      for(i=0; i<xid_nc; i++) {
+    for ( int ia=0; ia<12; ia++) {
+      for ( unsigned int i=0; i<xid_nc; i++) {
         buffer[ia][2*i  ] /= xid_count[i];
         buffer[ia][2*i+1] /= xid_count[i];
       }
@@ -355,8 +352,8 @@ int check_vvdagger_locality (double** V, int numV, int base_coords[4], char*tag,
       fprintf(stderr, "[check_vvdagger_locality] Error from fopen\n");
       EXIT(2);
     }
-    for(i=0; i<xid_nc; i++) {
-      for(ia=0; ia<12; ia++) {
+    for ( unsigned int i=0; i<xid_nc; i++) {
+      for ( int ia=0; ia<12; ia++) {
         fprintf(ofs, "%6d %16.7e %6u %3d %25.16e\n", i, xid_val[i], xid_count[i], ia, buffer[ia][2*i] );
       }
     }
@@ -498,7 +495,7 @@ int init_clover_eo_sequential_source(double *s_even, double *s_odd, double *p_ev
   const size_t offset = _GSI(VOL3half);
   const size_t sizeof_eo_spinor_field_timeslice  = offset * sizeof(double);
 
-  int i, exitstatus, x0;
+  int i, x0;
 
   /* have seq source timeslice ? */
   const int source_proc_id = ( g_proc_coords[0] == tseq / T ) ? g_cart_id : -1;
@@ -668,7 +665,6 @@ int init_coherent_sequential_source(double *s, double **p, int tseq, int ncoh, i
   const double pz = 2. * M_PI * pseq[2] / (double)LZ_global;
   const double phase_offset =  g_proc_coords[1]*LX * px + g_proc_coords[2]*LY * py + g_proc_coords[3]*LZ * pz;
   const size_t sizeof_spinor_field = _GSI(VOLUME) * sizeof(double);
-  const size_t sizeof_spinor_field_timeslice = _GSI(LX*LY*LZ) * sizeof(double);
 
   int have_source=0, lts=-1, icoh;
 
@@ -908,5 +904,165 @@ int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init) {
   return(0);
 }  /* end of init_timeslice_source_oet */
 
+/**********************************************************/
+/**********************************************************/
+
+/**********************************************************
+ * oet Z3 timeslice sources with spin-color dilution 
+ **********************************************************/
+int init_timeslice_source_z3_oet ( double ** const s, int const  tsrc, int const momentum[3], int const init ) {
+  const unsigned int sf_items = _GSI(VOLUME);
+  const size_t       sf_bytes = sf_items * sizeof(double);
+  const int          have_source = ( tsrc / T == g_proc_coords[0] ) ? 1 : 0;
+  const unsigned int VOL3 = LX*LY*LZ;
+
+  static double *ran = NULL;
+  
+  if(init > 0) {
+    if(ran != NULL) {
+      free(ran);
+      ran = NULL;
+    }
+  
+    if(have_source) {
+      if ( g_verbose > 1 ) fprintf(stdout, "# [init_timeslice_source_z3_oet] proc%.4d = (%d, %d, %d, %d) allocates random field\n", g_cart_id,
+          g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3]);
+      ran = ( double * ) malloc( 2 * VOL3 * sizeof(double) );
+      if(ran == NULL) {
+        fprintf(stderr, "[init_timeslice_source_z3_oet] Error from malloc %s %d\n", __FILE__, __LINE__ );
+        return(1);
+      }
+    }
+  } else if ( init == 0 ) {
+    if( have_source ) {
+      if( ran == NULL ) {
+        fprintf(stdout, "# [init_timeslice_source_z3_oet] proc%.4d Error, illegal call to function init_timeslice_source_z3_oet with init = 0, random field is not initialized\n", g_cart_id);
+        fflush(stdout);
+        fprintf(stderr, "[init_timeslice_source_z3_oet] proc%.4d Error, illegal call to function init_timeslice_source_z3_oet with init = 0, random field is not initialized\n", g_cart_id);
+        return(2);
+      }
+    }
+  } else if ( init == -1 ) {
+    /**********************************************************
+     * recover ran from existing set of sources
+     * copy the spin-color component number 0 into the ran
+     * field for each site in the timeslice
+     **********************************************************/
+    if ( g_cart_id == 0 ) {
+      fprintf(stdout, "# [init_timeslice_source_z3_oet] recovering random field from stochastic source\n");
+    }
+    if ( ran != NULL ) { free(ran); ran = NULL; }
+    if ( have_source ) {
+        const int timeslice = tsrc % T;  /* local timeslice */
+        ran = (double*)malloc( 2 * VOL3 * sizeof(double) );
+        if(ran == NULL) {
+          fprintf(stderr, "[init_timeslice_source_z3_oet] Error from malloc %s %d\n", __FILE__, __LINE__);
+          return(1);
+        }
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+      for( unsigned ix=0; ix<VOL3; ix++) {
+        unsigned int const iix = _GSI(timeslice * VOL3 + ix);
+
+        ran[2*ix  ] = s[0][iix  ];
+        ran[2*ix+1] = s[0][iix+1];
+      }
+    }
+    return(0);
+  }  /* end of if init > 0 */
+
+  /* initialize spinor fields to zero */
+
+  for ( int i = 0; i < 12; i++ ) {
+    memset ( s[i], 0, sf_bytes );
+  }
+
+  if(have_source) {
+    if(init > 0) {
+      if ( g_verbose > 0 ) fprintf(stdout, "# [init_timeslice_source_z3_oet] proc%.4d drawing random vector\n", g_cart_id);
+      ranz3 ( ran, VOL3 );
+
+    } else {
+      if ( g_verbose > 0 ) fprintf(stdout, "# [init_timeslice_source_z3_oet] proc%.4d using existing random vector\n", g_cart_id);
+    }
+
+    const int timeslice = tsrc % T;  /*local timeslice */
+    double *buffer = NULL;
+
+    if(momentum != NULL) {
+      const double       TWO_MPI = 2. * M_PI;
+      const double       p[3] = {
+         TWO_MPI * (double)momentum[0]/(double)LX_global,
+         TWO_MPI * (double)momentum[1]/(double)LY_global,
+         TWO_MPI * (double)momentum[2]/(double)LZ_global };
+      const double phase_offset = p[0] * g_proc_coords[1] * LX + p[1] * g_proc_coords[2] * LY + p[2] * g_proc_coords[3] * LZ;
+      buffer = (double*)malloc(6*VOL3*sizeof(double));
+      if( g_verbose > 4 ) {
+        fprintf(stdout, "# [init_timeslice_source_z3_oet] proc%.4d p = %e %e %e\n", g_cart_id, p[0], p[1], p[2] );
+        fprintf(stdout, "# [init_timeslice_source_z3_oet] proc%.4d phase offset = %e\n", g_cart_id, phase_offset );
+      }
+#ifdef HAVE_OPENMP
+#pragma omp parallel shared(buffer, p, ran)
+{
+#endif
+      double phase, cphase, sphase;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+      for( int x1 = 0; x1 < LX; x1++ ) {
+      for( int x2 = 0; x2 < LY; x2++ ) {
+      for( int x3 = 0; x3 < LZ; x3++ ) {
+        phase = phase_offset + x1 * p[0] + x2 * p[1] + x3 * p[2];
+        cphase = cos( phase );
+        sphase = sin( phase );
+        unsigned int const iix = 2 * g_ipt[0][x1][x2][x3];
+        double * const b_ = buffer + iix;
+        double * const r_ = ran    + iix;
+
+        b_[0] = r_[0] * cphase - r_[1] * sphase;
+        b_[1] = r_[0] * sphase + r_[1] * cphase;
+      }}}
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+    } else {
+      buffer = ran;
+    } /* end of if momentum != NULL */
+
+
+    for ( int isc = 0; isc < 12; isc++ ) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel shared (buffer)
+{
+#pragma omp for
+#endif
+      for( unsigned int ix = 0; ix < VOL3; ix++ ) {
+
+        unsigned int iix = _GSI(timeslice * VOL3 + ix) + 2 * isc;
+
+        /* set isc-th spin-component in ith spinor field */
+        memcpy (s[0]+(iix + 6*0) , buffer+(6*ix), 6*sizeof(double) );
+        s[isc][iix  ] = buffer[2*ix  ];
+        s[isc][iix+1] = buffer[2*ix+1];
+
+      }  /* of ix */
+
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+    }  /* end of loop on spin-color components */
+
+    if (momentum != NULL) free(buffer);
+
+  }  /* end of if have source */
+
+  if(init == 2) free(ran);
+
+  return(0);
+}  /* end of init_timeslice_source_z3_oet */
 
 }  /* end of namespace cvc */
