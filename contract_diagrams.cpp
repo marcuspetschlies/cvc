@@ -40,6 +40,7 @@
 #include "table_init_z.h"
 #include "gamma.h"
 #include "zm4x4.h"
+#include "rotations.h"
 #include "contract_diagrams.h"
 
 namespace cvc {
