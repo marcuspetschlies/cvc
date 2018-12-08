@@ -974,12 +974,21 @@ int init_timeslice_source_z3_oet ( double ** const s, int const  tsrc, int const
 
   /* initialize spinor fields to zero */
 
-  for ( int i = 0; i < 12; i++ ) {
-    memset ( s[i], 0, sf_bytes );
+  if ( init >= 0 ) {
+    /**********************************************************
+     * whichever non-negative value for init, set
+     * spinor fields to zero
+     **********************************************************/
+    for ( int i = 0; i < 12; i++ ) {
+      memset ( s[i], 0, sf_bytes );
+    }
   }
 
-  if(have_source) {
-    if(init > 0) {
+  if ( have_source && init >= 0 ) {
+    /**********************************************************
+     * Z_3 sampling
+     **********************************************************/
+    if ( init > 0 ) {
       if ( g_verbose > 0 ) fprintf(stdout, "# [init_timeslice_source_z3_oet] proc%.4d drawing random vector\n", g_cart_id);
       ranz3 ( ran, VOL3 );
 
@@ -991,13 +1000,16 @@ int init_timeslice_source_z3_oet ( double ** const s, int const  tsrc, int const
     double *buffer = NULL;
 
     if(momentum != NULL) {
+      /**********************************************************
+       * add momentum factor
+       **********************************************************/
       const double       TWO_MPI = 2. * M_PI;
       const double       p[3] = {
          TWO_MPI * (double)momentum[0]/(double)LX_global,
          TWO_MPI * (double)momentum[1]/(double)LY_global,
          TWO_MPI * (double)momentum[2]/(double)LZ_global };
       const double phase_offset = p[0] * g_proc_coords[1] * LX + p[1] * g_proc_coords[2] * LY + p[2] * g_proc_coords[3] * LZ;
-      buffer = (double*)malloc(6*VOL3*sizeof(double));
+      buffer = ( double* ) malloc ( 2*VOL3*sizeof(double) );
       if( g_verbose > 4 ) {
         fprintf(stdout, "# [init_timeslice_source_z3_oet] proc%.4d p = %e %e %e\n", g_cart_id, p[0], p[1], p[2] );
         fprintf(stdout, "# [init_timeslice_source_z3_oet] proc%.4d phase offset = %e\n", g_cart_id, phase_offset );
@@ -1035,20 +1047,19 @@ int init_timeslice_source_z3_oet ( double ** const s, int const  tsrc, int const
     for ( int isc = 0; isc < 12; isc++ ) {
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel shared (buffer)
+#pragma omp parallel shared (buffer,isc)
 {
 #pragma omp for
 #endif
       for( unsigned int ix = 0; ix < VOL3; ix++ ) {
 
-        unsigned int iix = _GSI(timeslice * VOL3 + ix) + 2 * isc;
+        unsigned int const iix = _GSI(timeslice * VOL3 + ix) + 2 * isc;
 
         /* set isc-th spin-component in ith spinor field */
-        memcpy (s[0]+(iix + 6*0) , buffer+(6*ix), 6*sizeof(double) );
         s[isc][iix  ] = buffer[2*ix  ];
         s[isc][iix+1] = buffer[2*ix+1];
 
-      }  /* of ix */
+      }  /* of loop on ix */
 
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */
@@ -1060,7 +1071,11 @@ int init_timeslice_source_z3_oet ( double ** const s, int const  tsrc, int const
 
   }  /* end of if have source */
 
-  if(init == 2) free(ran);
+  if ( init == 2 ) free(ran);
+  if ( init == -2 ) {
+    if ( ran != NULL ) free(ran);
+    ran = NULL;
+  }
 
   return(0);
 }  /* end of init_timeslice_source_z3_oet */
