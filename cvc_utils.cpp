@@ -2358,8 +2358,8 @@ int ranz3 ( double * const y, unsigned int const NRAND ) {
 #pragma omp parallel for 
 #endif
   for ( unsigned int k = 0; k < NRAND; k++ ) {
-    int const idx = (int)( 3 * y[k] );
-    unsigned int l = 2 * ( NRAND - 2 - k );
+    int const idx = (int)( 3 * y[NRAND - k - 1] );
+    unsigned int l = 2 * ( NRAND - k -1 );
 
     y[l  ] = yre[idx];
     y[l+1] = yim[idx];
@@ -4913,8 +4913,10 @@ int check_residual_clover ( double**prop, double**source, double*gauge_field, do
     spinor_field_norm_diff ( &diff_e, eo_spinor_work[2], eo_spinor_work[0], Vhalf);
     spinor_field_norm_diff ( &diff_o, eo_spinor_work[3], eo_spinor_work[1], Vhalf);
     
-    if(g_cart_id==0) fprintf(stdout, "# [check_residual_clover] propagator %3d norm diff even part = %e / %e\n", k, diff_e, sqrt(norm_e) );
-    if(g_cart_id==0) fprintf(stdout, "# [check_residual_clover] propagator %3d norm diff odd  part = %e / %e\n", k, diff_o, sqrt(norm_o) );
+    if(g_cart_id==0) {
+      fprintf(stdout, "# [check_residual_clover] propagator %3d norm diff even part = %e / %e\n", k, diff_e, sqrt(norm_e) );
+      fprintf(stdout, "# [check_residual_clover] propagator %3d norm diff odd  part = %e / %e\n", k, diff_o, sqrt(norm_o) );
+    }
     
   }  /* end of loop on nf */
 
