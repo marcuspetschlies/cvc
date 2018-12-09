@@ -5763,30 +5763,29 @@ void spinor_field_eq_spinor_field_ti_re (double *r, double *s, double c, unsigne
 /****************************************************************************
  * d = || r - s ||
  ****************************************************************************/
-void spinor_field_norm_diff (double*d, double *r, double *s, unsigned int N) {
+void spinor_field_norm_diff (double * const d, double * const r, double * const s, unsigned int const N) {
 
-  const int nthreads = g_num_threads;
-  const int sincr    = _GSI(nthreads);
 
-  unsigned int ix, iix;
-  int threadid = 0;
-  double daccum=0., daccumt, sp1[24];
+  double daccum=0.;
 #ifdef HAVE_OPENMP
   omp_lock_t writelock;
 #endif
 
 #ifdef HAVE_OPENMP
   omp_init_lock(&writelock);
-#pragma omp parallel default(shared) private(threadid,ix,iix,daccumt,sp1) shared(d,r,s,N,daccum)
+#pragma omp parallel
 {
-  threadid = omp_get_thread_num();
 #endif
-  daccumt = 0.;
-  iix = _GSI(threadid);
-  for(ix = threadid; ix < N; ix += nthreads ) {
+  double sp1[24];
+  double daccumt = 0.;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for ( unsigned int ix = 0; ix < N; ix++ ) {
+    unsigned int const iix = _GSI( ix );
     _fv_eq_fv_mi_fv(sp1, r+iix, s+iix);
     _re_pl_eq_fv_dag_ti_fv(daccumt,sp1,sp1);
-    iix += sincr;
   }
 #ifdef HAVE_OPENMP
   omp_set_lock(&writelock);
@@ -5807,7 +5806,11 @@ void spinor_field_norm_diff (double*d, double *r, double *s, unsigned int N) {
 
 #ifdef HAVE_MPI
   daccumt = 0.;
-  MPI_Allreduce(&daccum, &daccumt, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid);
+  if ( MPI_Allreduce(&daccum, &daccumt, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid) != MPI_SUCCESS ) {
+    fprintf ( stderr, "[spinor_field_norm_diff] Error from MPI_Allreduce %s %d\n", __FILE__, __LINE__ );
+    *d = sqrt ( -1. );
+    return;
+  }
   /* TEST */
   /* fprintf(stdout, "# [spinor_field_norm_diff] proc%.4d full d = %25.16e\n", g_cart_id, daccumt); */
   *d = sqrt(daccumt);

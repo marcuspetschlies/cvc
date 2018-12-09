@@ -137,7 +137,8 @@ void spinor_field_pl_eq_spinor_field(double*r, double*s, unsigned int N);
 void spinor_field_eq_spinor_field_ti_real_field (double*r, double*s, double *c, unsigned int N);
 void spinor_field_eq_spinor_field_ti_complex_field (double*r, double*s, double *c, unsigned int N);
 
-void spinor_field_norm_diff (double*d, double *r, double *s, unsigned int N);
+void spinor_field_norm_diff (double * const d, double * const r, double * const s, unsigned int const N);
+
 void g5_phi(double *phi, unsigned int N);
 
 spinor_propagator_type *create_sp_field(size_t N);
