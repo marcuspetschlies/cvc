@@ -35,7 +35,7 @@
 
 namespace cvc {
 
-int prepare_volume_source(double *s, unsigned int V) {
+int prepare_volume_source ( double * const s, unsigned int const V ) {
 
   int status = 0;
 
@@ -47,6 +47,13 @@ int prepare_volume_source(double *s, unsigned int V) {
     case 2:
       /* status = ranz2(s, 24*V); */
       status = ranz2(s, _GSI(V) );
+      break;
+    case 3:
+      status = ranz3(s, _GSI(V/2) );
+      break;
+    default:
+      if ( g_cart_id == 0 ) fprintf ( stderr, "[prepare_volume_source] Error, unknown noise type\n");
+      status = 1;
       break;
   }
 
