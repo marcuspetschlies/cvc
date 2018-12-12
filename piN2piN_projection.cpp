@@ -1,8 +1,6 @@
 /****************************************************
- * piN2piN_projection.cpp
+ * piN2piN_projection
  * 
- * Fr 27. Jul 16:46:24 CEST 2018
- *
  * PURPOSE:
  *   originally copied from piN2piN_correlators.cpp
  * TODO:
@@ -221,16 +219,19 @@ int main(int argc, char **argv) {
       EXIT(2);
     }
 
-    int ref_row_target    = -1;     // no reference row for target irrep
-    int * ref_row_spin    = NULL;   // no reference row for spin matrices
-    int refframerot       = -1;     // reference frame rotation FIXME none for now
-    int row_target        = -1;     // no target row
-    int cartesian_list[1] = { 0 };  // not cartesian
-    int parity_list[1]    = { 1 };  // intrinsic parity is +1
+    /****************************************************
+     * parameters for setting the projector
+     ****************************************************/
+    int ref_row_target          = -1;     // no reference row for target irrep
+    int * ref_row_spin          = NULL;   // no reference row for spin matrices
+    int refframerot             = -1;     // reference frame rotation FIXME none for now
+    int row_target              = -1;     // no target row
+    int cartesian_list[1]       = { 0 };  // not cartesian
+    int parity_list[1]          = { 1 };  // intrinsic parity is +1
     const int ** momentum_list  = NULL;   // no momentum list given
-    int bispinor_list[1]  = { 1 };  // bispinor yes
-    int J2_list[1]        = { 1 };  // spin 1/2
-    int Pref[3];
+    int bispinor_list[1]        = { 1 };  // bispinor yes
+    int J2_list[1]              = { 1 };  // spin 1/2
+    int Pref[3] = {-1,-1,-1};
 
     int const Ptot[3] = {
       g_twopoint_function_list[i2pt].pf1[0] + g_twopoint_function_list[i2pt].pf2[0],
@@ -248,12 +249,11 @@ int main(int argc, char **argv) {
       fprintf ( stderr, "[piN2piN_projection] Error from get_reference_rotation, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(4);
     } else if ( g_verbose > 1 ) {
-      fprintf ( stdout, "# [piN2piN_projection] twopoint_function %3d Ptot = %3d %3d %3d refframerot %2d\n", i2pt, 
-          Ptot[0], Ptot[1], Ptot[2], refframerot );
+      fprintf ( stdout, "# [piN2piN_projection] twopoint_function %3d Ptot = %3d %3d %3d refframerot %2d for Pref = %3d %3d %3d\n", i2pt, 
+          Ptot[0], Ptot[1], Ptot[2], refframerot, Pref[0], Pref[1], Pref[2]);
     }
 
     fflush ( stdout );
-
 
     /****************************************************
      * set the projector with the info we have
@@ -284,7 +284,7 @@ int main(int argc, char **argv) {
       if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_projection] projector P == Ptot\n" );
     }
 
-
+#if 0
     int const nrot      = projector.rtarget->n;
     int const irrep_dim = projector.rtarget->dim;
 
@@ -565,7 +565,7 @@ int main(int argc, char **argv) {
       }  // end of loop on coherent source locations
 
     }  // end of loop on base source locations
-#if 0
+
 #endif  /* of if 0 */
 
     /******************************************************
