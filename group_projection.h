@@ -146,7 +146,7 @@ void rot_mat_eq_product_mat_ti_rot_mat ( double _Complex **R, rot_mat_table_type
 
 int rot_mat_table_rotate_multiplett_product ( rot_mat_table_type *rtab, rot_mat_table_type *rapply, rot_mat_table_type *rtarget, int n, int with_IR, FILE*ofs );
 
-void rot_mat_table_eq_product_mat_table ( rot_mat_table_type *r, rot_mat_table_type *s, int n );
+void rot_mat_table_eq_product_mat_table ( rot_mat_table_type *r, rot_mat_table_type *s, int const n );
 
 int rot_mat_table_get_spin2 ( rot_mat_table_type *t );
 

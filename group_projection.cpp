@@ -2219,9 +2219,10 @@ void product_mat_pl_eq_mat_ti_co ( double _Complex **R, rot_mat_table_type *r, i
 /***********************************************************/
 /***********************************************************/
 
-void rot_mat_table_eq_product_mat_table ( rot_mat_table_type *r, rot_mat_table_type *s, int n ) {
+void rot_mat_table_eq_product_mat_table ( rot_mat_table_type *r, rot_mat_table_type *s, int const n ) {
   
-  int dim[n];
+  int *dim = init_1level_itable ( n );
+
   int pdim =1;
 
   for ( int i = 0; i < n; i++ ) {
@@ -2258,8 +2259,9 @@ void rot_mat_table_eq_product_mat_table ( rot_mat_table_type *r, rot_mat_table_t
   }
   
   fini_2level_itable ( &coords );
+  fini_1level_itable ( &dim );
   return;
-}  /* end of product_mat_pl_eq_mat_ti_co */
+}  /* end of rot_mat_table_eq_product_mat_table */
 
 /***********************************************************/
 /***********************************************************/
@@ -2829,6 +2831,7 @@ int get_reference_rotation ( int pref[3], int *Rref, int const p[3] ) {
    ***********************************************************/
 
   int ref_found = 0;
+  int rot_found = 0;
 
   int const pzero[3] = {0,0,0};
 
@@ -2879,6 +2882,10 @@ int get_reference_rotation ( int pref[3], int *Rref, int const p[3] ) {
     if ( comp_int3_abs ( p , momentum_ref[ic] ) ) {
 
       ref_found = 1;
+      pref[0] = momentum_ref[ic][0];
+      pref[1] = momentum_ref[ic][1];
+      pref[2] = momentum_ref[ic][2];
+      
 
       if ( g_verbose > 1 ) fprintf ( stdout, "# [get_reference_rotation] p = %3d %3d %3d has pref %3d %3d %3d\n",
           p[0], p[1], p[2], momentum_ref[ic][0], momentum_ref[ic][1], momentum_ref[ic][2] );
@@ -2902,15 +2909,10 @@ int get_reference_rotation ( int pref[3], int *Rref, int const p[3] ) {
         int prot[3] = {0,0,0};
         rot_point ( prot, (int*)momentum_ref[ic], R );
 
-        double const norm = sqrt(
-          _SQR(prot[0] - p[0]) + 
-          _SQR(prot[1] - p[1]) + 
-          _SQR(prot[2] - p[2]) );
-
         /***********************************************************
          * check norm, break for loop of match is found
          ***********************************************************/
-        if ( norm == 0 ) {
+        if ( _INT3_EQ_INT3(prot, p ) ) {
           if ( g_verbose > 2 ) {
             fprintf( stdout, "# [get_reference_rotation] rot %2d n = ( %d,  %d,  %d) w = %16.6e pi\n", irot,
                 cubic_group_double_cover_rotations[irot].n[0], cubic_group_double_cover_rotations[irot].n[1], cubic_group_double_cover_rotations[irot].n[2],
@@ -2920,222 +2922,27 @@ int get_reference_rotation ( int pref[3], int *Rref, int const p[3] ) {
             rot_printf_rint_matrix (R, 3, name, stdout );
           }
           *Rref = irot;
+          rot_found = 1;
           break;
         }
 
       }  // end of loop on rotations
 #endif  /* of ifdef CUBIC_GROUP_DOUBLE_COVER */
 
+#ifdef CUBIC_GROUP_SINGLE_COVER
+      fprintf ( stderr, "[get_reference_rotation] Error, single cover version not yet implemented\n" );
+      break;
+#endif  /* of ifdef CUBIC_GROUP_DOUBLE_COVER */
+
     }  /* end of if p == pref */
-
-#if 0
-#endif  // of if 0
-
-#if 0
-      for(int irot=0; irot < 24; irot++ ) {
-
-        double _Complex ** S = rot_init_rotation_matrix (3);
-        double _Complex ** R = rot_init_rotation_matrix (3);
-
-        rot_rotation_matrix_spherical_basis_Wigner_D ( S, 2, cubic_group_rotations_v2[irot].a );
-
-        rot_spherical2cartesian_3x3 ( R, S );
-
-        if ( ! rot_mat_check_is_real_int ( R, 3 ) ) {
-          fprintf(stderr, "[reference_rotations] rot_mat_check_is_real_int false for matrix R rot %2d\n", irot);
-          EXIT(6);
-        }
-
-        int prot[3] = {0,0,0};
-        rot_point ( prot, (int*)momentum_ref[ic], R );
-
-        double norm = sqrt(
-          _SQR(prot[0] - momentum_class[imom][0]) + 
-          _SQR(prot[1] - momentum_class[imom][1]) + 
-          _SQR(prot[2] - momentum_class[imom][2]) );
-
-      
-        if ( norm == 0 ) {
-          rot_count++;
-          fprintf( stdout, "# [reference_rotations] rot %2d %5s a = %16.7e pi %16.7e pi %16.7e pi\n", irot+1,
-              cubic_group_rotations_v2[irot].name,
-              cubic_group_rotations_v2[irot].a[0] / M_PI,
-              cubic_group_rotations_v2[irot].a[1] / M_PI,
-              cubic_group_rotations_v2[irot].a[2] / M_PI );
-
-          char name[40];
-          sprintf(name, "Rref[[%d,%2d,%2u]]", ic, imom, rot_count);
-          rot_printf_rint_matrix (R, 3, name, stdout );
-        }
-
-        rot_fini_rotation_matrix ( &S );
-        rot_fini_rotation_matrix ( &R );
-
-      }  // end of loop on rotations
-
-#endif  // of if 0
 
   }  /* end of loop on momentum classes */
 
   rot_fini_rotation_matrix ( &S );
   rot_fini_rotation_matrix ( &R );
 
-  return(0);
+  return( ( ref_found == 0 ) || ( rot_found == 0 ) );
 }  /* end of get_reference_rotation */
-
-/***********************************************************/
-/***********************************************************/
-
-
-/***********************************************************
- * return reference momentum
- ***********************************************************/
-int get_reference_momentum ( int pref[3], int const p[3] ) {
-#if 0
-  /***********************************************************
-   * momentum lists, up to d^+ d = 3
-   ***********************************************************/
-
-  int ref_found = 0;
-
-  int const pzero[3] = {0,0,0};
-
-  int const momentum_ref[3][3] = { {0,0,1}, {1,1,0}, {1,1,1} };
-
-  /***********************************************************
-   * return -1 for momentum p = 0,0,0 and for any of the
-   * reference momenta itself
-   ***********************************************************/
-  if ( _INT3_EQ_INT3(p, pzero) || 
-       _INT3_EQ_INT3(p, momentum_ref[0]) || 
-       _INT3_EQ_INT3(p, momentum_ref[1]) || 
-       _INT3_EQ_INT3(p, momentum_ref[2])  ) {
-
-    if ( g_verbose > 2 ) fprintf ( stdout, "# [get_reference_momentum] p is ref momentum\n" );
-    pref[0] = p[0];
-    pref[1] = p[1];
-    pref[2] = p[2];
-    return ( 0 );
-  }
-
-  /***********************************************************
-   * allocate rotation matrices
-   ***********************************************************/
-  double _Complex ** S = rot_init_rotation_matrix (3);
-  double _Complex ** R = rot_init_rotation_matrix (3);
-
-  /***********************************************************
-   * loop on momentum classes
-   ***********************************************************/
-  for ( int ic = 0; ic < 3 && !ref_found; ic++ ) 
-  {
-
-    if ( comp_int3_abs ( p , momentum_ref[ic] ) ) {
-
-      ref_found = 1;
-
-      if ( g_verbose > 1 ) fprintf ( stdout, "# [get_reference_rotation] p = %3d %3d %3d has pref %3d %3d %3d\n",
-          p[0], p[1], p[2], momentum_ref[ic][0], momentum_ref[ic][1], momentum_ref[ic][2] );
-
-      /***********************************************************
-       * loop on rotations
-       ***********************************************************/
-
-#ifdef CUBIC_GROUP_DOUBLE_COVER
-      for ( int irot = 0; irot < 48; irot++ ) {
-
-        rot_rotation_matrix_spherical_basis ( S, 2, cubic_group_double_cover_rotations[irot].n, cubic_group_double_cover_rotations[irot].w );
-
-        rot_spherical2cartesian_3x3 ( R, S );
-
-        if ( ! rot_mat_check_is_real_int ( R, 3 ) ) {
-          fprintf(stderr, "[get_reference_rotation] rot_mat_check_is_real_int false for matrix R rot %2d %s %d\n", irot, __FILE__, __LINE__ );
-          return ( 1 );
-        }
-
-        int prot[3] = {0,0,0};
-        rot_point ( prot, (int*)momentum_ref[ic], R );
-
-        double const norm = sqrt(
-          _SQR(prot[0] - p[0]) + 
-          _SQR(prot[1] - p[1]) + 
-          _SQR(prot[2] - p[2]) );
-
-        /***********************************************************
-         * check norm, break for loop of match is found
-         ***********************************************************/
-        if ( norm == 0 ) {
-          if ( g_verbose > 2 ) {
-            fprintf( stdout, "# [get_reference_rotation] rot %2d n = ( %d,  %d,  %d) w = %16.6e pi\n", irot,
-                cubic_group_double_cover_rotations[irot].n[0], cubic_group_double_cover_rotations[irot].n[1], cubic_group_double_cover_rotations[irot].n[2],
-                cubic_group_double_cover_rotations[irot].w / M_PI );
-
-            char name[] = "Rref";
-            rot_printf_rint_matrix (R, 3, name, stdout );
-          }
-           = irot;
-          break;
-        }
-
-      }  // end of loop on rotations
-#endif  /* of ifdef CUBIC_GROUP_DOUBLE_COVER */
-
-    }  /* end of if p == pref */
-
-#if 0
-#endif  // of if 0
-
-#if 0
-      for(int irot=0; irot < 24; irot++ ) {
-
-        double _Complex ** S = rot_init_rotation_matrix (3);
-        double _Complex ** R = rot_init_rotation_matrix (3);
-
-        rot_rotation_matrix_spherical_basis_Wigner_D ( S, 2, cubic_group_rotations_v2[irot].a );
-
-        rot_spherical2cartesian_3x3 ( R, S );
-
-        if ( ! rot_mat_check_is_real_int ( R, 3 ) ) {
-          fprintf(stderr, "[reference_rotations] rot_mat_check_is_real_int false for matrix R rot %2d\n", irot);
-          EXIT(6);
-        }
-
-        int prot[3] = {0,0,0};
-        rot_point ( prot, (int*)momentum_ref[ic], R );
-
-        double norm = sqrt(
-          _SQR(prot[0] - momentum_class[imom][0]) + 
-          _SQR(prot[1] - momentum_class[imom][1]) + 
-          _SQR(prot[2] - momentum_class[imom][2]) );
-
-      
-        if ( norm == 0 ) {
-          rot_count++;
-          fprintf( stdout, "# [reference_rotations] rot %2d %5s a = %16.7e pi %16.7e pi %16.7e pi\n", irot+1,
-              cubic_group_rotations_v2[irot].name,
-              cubic_group_rotations_v2[irot].a[0] / M_PI,
-              cubic_group_rotations_v2[irot].a[1] / M_PI,
-              cubic_group_rotations_v2[irot].a[2] / M_PI );
-
-          char name[40];
-          sprintf(name, "Rref[[%d,%2d,%2u]]", ic, imom, rot_count);
-          rot_printf_rint_matrix (R, 3, name, stdout );
-        }
-
-        rot_fini_rotation_matrix ( &S );
-        rot_fini_rotation_matrix ( &R );
-
-      }  // end of loop on rotations
-
-#endif  // of if 0
-
-  }  /* end of loop on momentum classes */
-
-  rot_fini_rotation_matrix ( &S );
-  rot_fini_rotation_matrix ( &R );
-#endif  /* of if 0 */
-  return(0);
-}  /* end of get_reference_momentum */
 
 /***********************************************************/
 /***********************************************************/
