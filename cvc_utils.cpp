@@ -30,6 +30,7 @@
 #include "scalar_products.h"
 #include "matrix_init.h"
 #include "table_init_i.h"
+#include "table_init_d.h"
 
 namespace cvc {
 
@@ -2352,18 +2353,26 @@ int ranz3 ( double * const y, unsigned int const NRAND ) {
   double const yre[3] = {1., -0.5,             -0.5             };
   double const yim[3] = {0.,  sqrt_three_half, -sqrt_three_half };
 
-  ranlxd ( y, NRAND );
+  double * rf = init_1level_dtable ( NRAND );
+  if ( rf == NULL )  {
+    fprintf ( stderr, "[ranz3] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__ );
+    return ( 1 );
+  }
+
+  ranlxd ( rf, NRAND );
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel for 
+#pragma omp parallel for shared(rf)
 #endif
   for ( unsigned int k = 0; k < NRAND; k++ ) {
-    int const idx = (int)( 3 * y[NRAND - k - 1] );
-    unsigned int l = 2 * ( NRAND - k -1 );
+    int const idx = (int)( 3 * rf[k] );
 
-    y[l  ] = yre[idx];
-    y[l+1] = yim[idx];
+    y[2*k  ] = yre[idx];
+    y[2*k+1] = yim[idx];
+    /* if ( g_verbose > 4 ) fprintf ( stdout, "# [ranz3] k = %6u rf = %25.16e idx = %d y = %25.16e %25.16e\n", k, rf[k], idx, y[2*k], y[2*k+1] ); */
   }
+
+  fini_1level_dtable ( &rf );
   return(0);
 }  /* end of ranz3 */
 
