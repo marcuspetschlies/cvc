@@ -5805,15 +5805,15 @@ void spinor_field_norm_diff (double * const d, double * const r, double * const 
   /* fprintf(stdout, "# [spinor_field_norm_diff] proc%.4d daccum = %25.16e\n", g_cart_id, daccum); */
 
 #ifdef HAVE_MPI
-  daccumt = 0.;
-  if ( MPI_Allreduce(&daccum, &daccumt, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid) != MPI_SUCCESS ) {
+  double daccumx = 0.;
+  if ( MPI_Allreduce(&daccum, &daccumx, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid) != MPI_SUCCESS ) {
     fprintf ( stderr, "[spinor_field_norm_diff] Error from MPI_Allreduce %s %d\n", __FILE__, __LINE__ );
     *d = sqrt ( -1. );
     return;
   }
   /* TEST */
   /* fprintf(stdout, "# [spinor_field_norm_diff] proc%.4d full d = %25.16e\n", g_cart_id, daccumt); */
-  *d = sqrt(daccumt);
+  *d = sqrt(daccumx);
 #else
   *d = sqrt( daccum );
 #endif
