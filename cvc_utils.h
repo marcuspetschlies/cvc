@@ -77,11 +77,11 @@ void contract_twopoint_snk_momentum ( double * const contr, int const idsource, 
  * @brief contract two propagators with fixed gamma structures
  * Computes \chi^/dagger \gamma_5 \gamma_sink \psi(p_src), where
  * we assume that \chi and \psi are of the form D^{-1} \gamma \eta,
- * where \eta is an appropriate stochastic source and the gamma
+ * where \eta is an appropriate (stochastic) source and the gamma
  * structures of chi and psi can be different (although this is
  * implicit and no regard is made for possible sign changes or the fact
  * that the resulting correlator could be real or imaginary)
- * The implicitly included allows us to keep the identity of the
+ * The implicitly included gamma5 allows us to keep the identity of the
  * resulting correlation function clear (idsink really is idsink).
  *
  * @param contr contraction field (2*VOLUME)
@@ -91,12 +91,35 @@ void contract_twopoint_snk_momentum ( double * const contr, int const idsource, 
  * @param stride stride for contr
  * @param factor normalisation of contraction
  */
-template <typename T>
-void contract_twopoint_xdep_snk_gamma_only(
-    T * const contr, const int idsink, 
-    T const * chi, T const * psi, 
+template <typename TYPE>
+void contract_twopoint_xdep_gamma5_gamma_snk_only(
+    TYPE * const contr, const int idsink, 
+    TYPE const * chi, TYPE const * psi, 
     int const stride, double const factor);
-#include "impl_contract_twopoint_xdep_snk_gamma_only.hpp"
+#include "impl_contract_twopoint_xdep_gamma5_gamma_snk_only.hpp"
+
+/**                                                                                                                                               
+ * @brief contract two propagators with fixed gamma structures
+ * Computes \chi^/dagger \gamma_5 \gamma_sink \psi(p_src), where
+ * we assume that \chi and \psi are of the form D^{-1} \gamma \eta,
+ * where \eta is an appropriate (stochastic) source and the gamma
+ * structures of chi and psi can be different (although this is
+ * implicit and no regard is made for possible sign changes or the fact
+ * that the resulting correlator could be real or imaginary)
+ * The implicitly included gamma5 allows us to keep the identity of the
+ * resulting correlation function clear (idsink really is idsink).
+ *
+ * @param contr contraction field (2*T)
+ * @param idsink gamma id at sink
+ * @param snk_mom stride for contr
+ * @param chi backward propagator (will be daggered)
+ * @param psi forward propagator
+ * @param factor normalisation of contraction
+ */
+void contract_twopoint_gamma5_gamma_snk_only_snk_momentum(
+    double * const contr, const int idsink, int const snk_mom[3],
+    double const * chi, double const * psi, 
+    double const factor);
 
 void contract_twopoint_snk_momentum_trange(double *contr, const int idsource, const int idsink, double **chi, double **phi, int n_c, int* snk_mom, int tmin, int tmax);
 

@@ -358,6 +358,7 @@ add_library(cvc
   gauge_io.cpp
   make_x_orbits.cpp
   rng/ParallelMT19937_64.cpp
+  contract/contract_twopoint_gamma5_gamma_snk_only_snk_momentum.cpp
 )
 add_executable(cpff_invert_contract
   cpff_invert_contract.cpp)
