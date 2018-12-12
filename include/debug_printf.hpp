@@ -9,6 +9,7 @@
 
 #include "global.h"
 #include <cstdarg>
+#include <cstdio>
 
 /* Function along the lines of printf which produces output on a single
  * or all MPI tasks (unordered) when g_debug_level is at or
@@ -27,6 +28,7 @@ static inline void debug_printf(const int proc_id,
     va_start(arglist, format);
     vprintf(format, arglist);
     va_end(arglist);
+    fflush(stdout);
   }
 }
 
