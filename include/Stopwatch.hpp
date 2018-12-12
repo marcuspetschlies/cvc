@@ -22,6 +22,7 @@
 #include <chrono>
 #include <mpi.h>
 #include <iostream>
+#include <cstdio>
 
 namespace cvc {
 
@@ -67,8 +68,8 @@ class Stopwatch {
       time = std::chrono::steady_clock::now();
     }
    
-    cvc::duration elapsed(void) {
-      cvc::duration duration;
+    duration elapsed(void) {
+      duration duration;
       double seconds;
 
       std::chrono::duration<double> elapsed_seconds = std::chrono::steady_clock::now() - time;
@@ -102,19 +103,20 @@ class Stopwatch {
       return(duration);
     }
 
-    cvc::duration elapsed_print(const char* const name){
-      cvc::duration duration = elapsed();
+    duration elapsed_print(const char* const name){
+      duration duration = elapsed();
       if(rank==0){ 
         std::cout << "STOPWATCH " << name << " " << duration.mean 
           << " seconds" << std::endl
           << "min(" << duration.min << ") max(" 
           << duration.max << ")" << std::endl;
+        fflush(stdout);
       }
       return(duration);
     }
     
-    cvc::duration elapsed_print_and_reset(const char* const name){
-      cvc::duration duration = elapsed_print(name);
+    duration elapsed_print_and_reset(const char* const name){
+      duration duration = elapsed_print(name);
       reset();
       return(duration);
     }

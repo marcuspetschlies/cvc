@@ -142,7 +142,7 @@ class Core {
          tmLQCD_initialised,
          initialised;
     
-    cvc::Stopwatch* sw;
+    Stopwatch* sw;
     std::string application_name;
     po::options_description cmd_desc;
     po::variables_map cmd_options;
