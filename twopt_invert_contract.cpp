@@ -581,6 +581,7 @@ int main(int argc, char **argv) {
           }
 
           if ( check_propagator_residual ) {
+            memcpy ( spinor_work[0], stochastic_source[ia], sizeof_spinor_field );
             exitstatus = check_residual_clover ( &(spinor_work[1]) , &(spinor_work[0]), gauge_field_with_phase, lmzz[_OP_ID_UP], 1  );
             if ( exitstatus != 0 ) {
               fprintf ( stderr, "[twopt_invert_contract] Error from check_residual_clover, status was %d %s  %d\n", exitstatus, __FILE__, __LINE__ );
@@ -608,6 +609,7 @@ int main(int argc, char **argv) {
           }
 
           if ( check_propagator_residual ) {
+            memcpy ( spinor_work[0], stochastic_source[ia], sizeof_spinor_field );
             exitstatus = check_residual_clover ( &(spinor_work[1]) , &(spinor_work[0]), gauge_field_with_phase, lmzz[_OP_ID_DN], 1  );
             if ( exitstatus != 0 ) {
               fprintf ( stderr, "[twopt_invert_contract] Error from check_residual_clover, status was %d %s  %d\n", exitstatus, __FILE__, __LINE__ );
