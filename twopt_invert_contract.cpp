@@ -445,6 +445,8 @@ int main(int argc, char **argv) {
 
   }  /* end of loop on source locations */
 
+  fini_2level_dtable ( &spinor_field );
+
   /***************************************************************************/
   /***************************************************************************/
 
@@ -474,8 +476,14 @@ int main(int argc, char **argv) {
     EXIT(123);
   }
 
-  double ** stochastic_source_mom = init_2level_dtable ( 12, _GSI( VOLUME ) );
-  if( stochastic_source_mom == NULL ) {
+  double ** stochastic_propagator_zero = init_2level_dtable ( 24, _GSI( VOLUME ) );
+  if( stochastic_propagator_zero == NULL ) {
+    fprintf(stderr, "[twopt_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+    EXIT(123);
+  }
+
+  double ** stochastic_propagator_mom = init_2level_dtable ( 24, _GSI( VOLUME ) );
+  if( stochastic_propagator_mom == NULL ) {
     fprintf(stderr, "[twopt_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
     EXIT(123);
   }
@@ -553,7 +561,15 @@ int main(int argc, char **argv) {
 
         int const source_momentum[3] = { -g_sink_momentum_list[imom][0], -g_sink_momentum_list[imom][1], -g_sink_momentum_list[imom][2] };
 
-        exitstatus = init_timeslice_source_z3_oet ( stochastic_source_mom, gts, source_momentum, 0 );
+        if ( imom == 0 && ! ( 
+              ( source_momentum[0] == 0 ) &&
+              ( source_momentum[1] == 0 ) &&
+              ( source_momentum[2] == 0 ) ) ) {
+          fprintf ( stderr, "# [twopt_invert_contract] Error, first momentum must be 0,0,0\n");
+          EXIT(1);
+        }
+
+        exitstatus = init_timeslice_source_z3_oet ( stochastic_source, gts, source_momentum, 0 );
         if(exitstatus != 0) {
           fprintf(stderr, "[twopt_invert_contract] Error from point_source_propagator, status was %d\n", exitstatus);
           EXIT(12);
@@ -591,7 +607,9 @@ int main(int argc, char **argv) {
 
           if( g_fermion_type == _TM_FERMION ) spinor_field_tm_rotation ( spinor_work[1], spinor_work[1], +1, g_fermion_type, VOLUME);
   
-          memcpy ( spinor_field[ia], spinor_work[1], sizeof_spinor_field );
+          memcpy ( stochastic_propagator_mom[ia], spinor_work[1], sizeof_spinor_field );
+
+          if ( imom == 0 ) memcpy ( stochastic_propagator_zero[ia], spinor_work[1], sizeof_spinor_field );
   
           /***********************************************************
            * dn-type stochastic propagator
@@ -619,7 +637,9 @@ int main(int argc, char **argv) {
 
           if( g_fermion_type == _TM_FERMION ) spinor_field_tm_rotation ( spinor_work[1], spinor_work[1], -1, g_fermion_type, VOLUME);
  
-          memcpy ( spinor_field[12+ia], spinor_work[1], sizeof_spinor_field );
+          memcpy ( stochastic_propagator_mom[12+ia], spinor_work[1], sizeof_spinor_field );
+          
+          if ( imom == 0 ) memcpy ( stochastic_propagator_zero[12+ia], spinor_work[1], sizeof_spinor_field );
 
         }  /* end of loop on spin-color isc */
 
@@ -631,15 +651,19 @@ int main(int argc, char **argv) {
          ***************************************************************************/
 
         /* allocate propagator fields */
+        fermion_propagator_type * fp_mom = create_fp_field ( VOLUME );
         fermion_propagator_type * fp  = create_fp_field ( VOLUME );
         fermion_propagator_type * fp2 = create_fp_field ( VOLUME );
         fermion_propagator_type * fp3 = create_fp_field ( VOLUME );
 
-        /* up propagator as propagator type field */
-        assign_fermion_propagator_from_spinor_field ( fp,  &(spinor_field[ 0]), VOLUME);
+        /* up propagator with non-zero momentum as propagator type field */
+        assign_fermion_propagator_from_spinor_field ( fp_mom,  &(stochastic_propagator_mom[ 0]), VOLUME);
 
-        /* dn propagator as propagator type field */
-        assign_fermion_propagator_from_spinor_field ( fp2, &(spinor_field[12]), VOLUME);
+        /* up propagator with zero momentum as propagator type field */
+        assign_fermion_propagator_from_spinor_field ( fp,  &(stochastic_propagator_zero[ 0]), VOLUME);
+
+        /* dn propagator with zero momentum as propagator type field */
+        assign_fermion_propagator_from_spinor_field ( fp2, &(stochastic_propagator_zero[12]), VOLUME);
 
         double ** v2 = init_2level_dtable ( VOLUME, 32 );
         if ( v2 == NULL ) {
@@ -667,7 +691,7 @@ int main(int argc, char **argv) {
 
           sprintf(aff_tag, "/N-N/t%.2d/gi%.2d/gf%.2d/n1", gts, gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2]);
 
-          exitstatus = contract_v5 ( v2, fp, fp3, fp, VOLUME );
+          exitstatus = contract_v5 ( v2, fp_mom, fp3, fp, VOLUME );
           if ( exitstatus != 0 ) {
             fprintf(stderr, "[twopt_invert_contract] Error from contract_v5, status was %d\n", exitstatus);
             EXIT(48);
@@ -690,7 +714,7 @@ int main(int argc, char **argv) {
 
           sprintf(aff_tag, "/N-N/t%.2d /gi%.2d/gf%.2d/n2", gts, gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2]);
 
-          exitstatus = contract_v6 ( v2, fp, fp3, fp, VOLUME );
+          exitstatus = contract_v6 ( v2, fp_mom, fp3, fp, VOLUME );
           if ( exitstatus != 0 ) {
             fprintf(stderr, "[twopt_invert_contract] Error from contract_v6, status was %d\n", exitstatus);
             EXIT(48);
@@ -720,6 +744,7 @@ int main(int argc, char **argv) {
         fini_3level_dtable ( &vp );
 
 
+        free_fp_field ( &fp_mom );
         free_fp_field ( &fp  );
         free_fp_field ( &fp2 );
         free_fp_field ( &fp3 );
@@ -744,14 +769,14 @@ int main(int argc, char **argv) {
 
       exitstatus = init_timeslice_source_z3_oet ( NULL, -1, NULL,  -2 );
 
-    }  /* end of loop on oet samples */
+    }  /* end of loop on source timeslices */  
 
-  }  /* end of loop on source timeslices */
-
+  }  /* end of loop on oet samples */
 
   fini_2level_dtable ( &spinor_work           );
   fini_2level_dtable ( &stochastic_source     );
-  fini_2level_dtable ( &stochastic_source_mom );
+  fini_2level_dtable ( &stochastic_propagator_mom );
+  fini_2level_dtable ( &stochastic_propagator_zero );
 
   /****************************************
    * free the allocated memory, finalize
@@ -761,8 +786,6 @@ int main(int argc, char **argv) {
   free(g_gauge_field);
 #endif
   free( gauge_field_with_phase );
-
-  fini_2level_dtable ( &spinor_field );
 
   /* free clover matrix terms */
   fini_clover ( );
