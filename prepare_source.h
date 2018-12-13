@@ -31,7 +31,7 @@ int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init);
    * Takes a random spinor, restricts it to a single time slice, multiplies
    * with a gamma structure of choice and the momentum phase, if any. 
    * @param s spinor, assumed to have 24*VOLUME elements
-   * @param ran spinor, assumed to contain random elements of some time
+   * @param ran spinor, assumed to contain random elements of some type
    *            in all 24*VOLUME elements
    * @param gamma_id gamma structure to be used at the source
    * @param t_src source time slice
