@@ -37,7 +37,7 @@ void get_seq_props_meta_from_npt_oet_meta(const std::vector<T> & correls,
   // we use a map to avoid duplicates
   for( int icor = 0; icor < correls.size(); ++icor ){
     debug_printf(0, 0,
-                 "parsing 3pt function [ g%02d %s^dag g05 g%02d g05 %s^dag g05 g%02d %s g%02d ] with src_mom on %s prop\n",
+                 "parsing 3pt function [ g%d %s^dag g5 g%d g5 %s^dag g5 g%d %s g%d ] with src_mom on %s prop\n",
                  correls[icor].gb,
                  correls[icor].bprop_flav.c_str(),
                  correls[icor].gf,
