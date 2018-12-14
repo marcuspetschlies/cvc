@@ -1,4 +1,5 @@
 #include "types.h"
+#include "meta_types.hpp"
 
 #include <vector>
 #include <exception>
@@ -20,11 +21,11 @@ int main(int argc, char ** argv){
                                            4,
                                            "d") );
 
-  twopt_correls.push_back( twopt_oet_meta_t("u", "u", "bwd", 4, 2, 5) );
+  twopt_correls.push_back( twopt_oet_meta_t("u", "u", "bwd", 4, 2, 5, {1.0, 0.0} ) );
   
   // this will throw an exception and leave the twopt_oet_meta_t incompletely constructed
   try{
-    twopt_correls.push_back( twopt_oet_meta_t("d", "u", "bleh", 4, 2, 5) );
+    twopt_correls.push_back( twopt_oet_meta_t("d", "u", "bleh", 4, 2, 5, {0.2, 22.23}) );
   }
   catch( const std::exception &e ){
     std::cout << e.what() << std::endl;

@@ -1,8 +1,12 @@
 #pragma once
 
+#include "cvc_complex.h"
+
 #include <string>
 #include <cstring>
 #include <stdexcept>
+
+namespace cvc {
 
 static inline std::string check_mom_prop(const std::string prop_in)
 {
@@ -43,7 +47,7 @@ typedef struct stoch_prop_meta_t
   {
     char temp[100];
     snprintf(temp, 100, 
-             "f%s_g%02d_px%+dpy%+dpz%+d",
+             "f%s_g%d_px%+dpy%+dpz%+d",
              flav_in.c_str(), gamma_in, p_in[0], p_in[1], p_in[2]);
     return std::string(temp);
   }
@@ -134,7 +138,7 @@ typedef struct twopt_oet_meta_t {
                    const int gi_in,
                    const int gf_in,
                    const int gb_in,
-                   const double normalisation_in)
+                   const ::cvc::complex normalisation_in)
   {
     gi = gi_in;
     gf = gf_in;
@@ -151,7 +155,7 @@ typedef struct twopt_oet_meta_t {
   int gi;
   int gf;
   int gb;
-  double normalisation;
+  ::cvc::complex normalisation;
 
 } twopt_oet_meta_t;
 
@@ -210,7 +214,7 @@ typedef struct threept_oet_meta_t : twopt_oet_meta_t
                      const int gf_in,
                      const int gc_in,
                      const int gb_in,
-                     const double normalisation_in) :
+                     const ::cvc::complex normalisation_in) :
     twopt_oet_meta_t( fprop_flav_in, bprop_flav_in, src_mom_prop_in,
                       gi_in, gf_in, gb_in, normalisation_in )
   {
@@ -221,3 +225,5 @@ typedef struct threept_oet_meta_t : twopt_oet_meta_t
   int gc;
   std::string sprop_flav;
 } threept_oet_meta_t; 
+
+} // naemspace(cvc)
