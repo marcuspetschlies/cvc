@@ -89,13 +89,11 @@ void contract_twopoint_snk_momentum ( double * const contr, int const idsource, 
  * @param chi backward propagator 
  * @param psi forward propagator
  * @param stride stride for contr
- * @param factor normalisation of contraction
  */
 template <typename TYPE>
 void contract_twopoint_xdep_gamma5_gamma_snk_only(
     TYPE * const contr, const int idsink, 
-    TYPE const * chi, TYPE const * psi, 
-    int const stride, double const factor);
+    TYPE const * chi, TYPE const * psi); 
 #include "impl_contract_twopoint_xdep_gamma5_gamma_snk_only.hpp"
 
 /**                                                                                                                                               
@@ -114,12 +112,33 @@ void contract_twopoint_xdep_gamma5_gamma_snk_only(
  * @param snk_mom stride for contr
  * @param chi backward propagator (will be daggered)
  * @param psi forward propagator
- * @param factor normalisation of contraction
  */
 void contract_twopoint_gamma5_gamma_snk_only_snk_momentum(
     double * const contr, const int idsink, int const snk_mom[3],
-    double const * chi, double const * psi, 
-    double const factor);
+    double const * chi, double const * psi);
+
+/**
+ * @brief Scale correlation function
+ *
+ * @param contr pointer to correlation function
+ * @param l_half half the number of elements (generally this is T)
+ * @param normalisation normalisation factor (something like {-1.0/vol3, 0.0})
+ */
+static inline void scale_cplx(double * const contr, size_t const l_half, ::cvc::complex normalisation)
+{
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+#endif
+  {
+    ::cvc::complex temp;
+    FOR_IN_PARALLEL(i, 0, l_half){
+      temp.re = contr[2*i  ];
+      temp.im = contr[2*i+1];
+      contr[2*i  ] = normalisation.re * temp.re - normalisation.im * temp.im;
+      contr[2*i+1] = normalisation.re * temp.im + normalisation.im * temp.re;
+    }
+  }
+}
 
 void contract_twopoint_snk_momentum_trange(double *contr, const int idsource, const int idsink, double **chi, double **phi, int n_c, int* snk_mom, int tmin, int tmax);
 

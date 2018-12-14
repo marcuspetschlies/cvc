@@ -10,8 +10,7 @@ namespace cvc {
 
 void contract_twopoint_gamma5_gamma_snk_only_snk_momentum(
     double * const contr, const int idsink, int const snk_mom[3],
-    double const * chi, double const * psi, 
-    double const factor)
+    double const * chi, double const * psi) 
 {
   size_t const VOL3 = LX*LY*LZ;
   double const TWO_MPI = 2.0 * M_PI;
@@ -24,7 +23,7 @@ void contract_twopoint_gamma5_gamma_snk_only_snk_momentum(
                               (double)( g_proc_coords[3] * LZ ) * pz;
   
   // we pre-generate the vector of phases
-  std::vector<cvc::complex> phases(VOL3);
+  std::vector<::cvc::complex> phases(VOL3);
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel
@@ -43,7 +42,7 @@ void contract_twopoint_gamma5_gamma_snk_only_snk_momentum(
     size_t iix, ix3d;
     unsigned int x0;
 
-    cvc::complex w1, w2;
+    ::cvc::complex w1, w2;
 
     FOR_IN_PARALLEL(ix, 0, VOL3){
        x = g_lexic2coords[ix][1];
@@ -51,8 +50,8 @@ void contract_twopoint_gamma5_gamma_snk_only_snk_momentum(
        z = g_lexic2coords[ix][3];
 
        phase = phase_offset + x*px + y*py + z*pz;
-       phases[ix].re = factor*cos(phase);
-       phases[ix].im = factor*sin(phase);
+       phases[ix].re = cos(phase);
+       phases[ix].im = sin(phase);
     }
 
     FOR_IN_PARALLEL(ix, 0, VOLUME)
