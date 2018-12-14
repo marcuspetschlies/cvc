@@ -77,6 +77,7 @@ extern "C"
 #include <string>
 #include <utility>
 
+
 using namespace cvc;
 
 
@@ -105,7 +106,8 @@ int main(int argc, char **argv) {
   Core core(argc, argv);
 
   std::vector<twopt_oet_meta_t> twopt_correls;
-  std::vector<threept_oet_meta_t> threept_correls;
+  std::vector<threept_oet_meta_t> local_threept_correls;
+  std::vector<threept_oet_meta_t> deriv_threept_correls;
   
   std::map<std::string, stoch_prop_meta_t> props_meta;
   std::map<std::string, std::vector<double>> props;
@@ -118,97 +120,114 @@ int main(int argc, char **argv) {
   flav_op_ids["cp"] = 4;
   flav_op_ids["cm"] = 5;
 
+  const bool use_g0_g5_sink_pion_2pt = true;
+  const bool use_g0_g5_sink_pion_3pt = false;
+  
   const bool do_singlet_2pt = false;
   const bool do_singlet_3pt = false;
-  const bool use_g0_g5_pion_2pt = false;
-  const bool use_g0_g5_pion_3pt = false;
-  const bool use_g0_g5_singlet_2pt = false;
-  const bool use_g0_g5_singlet_3pt = false;
+  const bool use_g0_g5_sink_singlet_2pt = false;
+  const bool use_g0_g5_sink_singlet_3pt = false;
+
+  const double one_ov_vol3 = 1.0/(LX*LY*LZ);
+
+  debug_printf(0,0, "one_ov_vol3 = %f\n", one_ov_vol3);
 
   // \bar{chi}_d g5 chi_u \bar{chi}_u g5 chi_d
   // calculated via
-  // = - g5 S_u^dag g5 g5 S_u g5 [eta eta^dag]
-  //         this g5 ^ is implicitly included in the contraction later such that source
-  //         and sink gammas are explicit
+  // = - <g5 S_u^dag | g5 g5 | S_u g5 [eta eta^dag]>
+  //       ^               ^       ^
+  //       gb              gf      gi
+  // 
+  // = - <g5 S_u^dag | g5 g5 | S_u g5 [eta eta^dag] >
+  //            this g5 ^ is implicitly included in the contraction later such that source
+  //            and sink gammas are explicit
   // The gamma structure at the backwards propagator, however, must be specified,
   // see "gb" below.
-  //twopt_correls.push_back( twopt_oet_meta_t("u", /* forward (undaggered) prop flavor */ 
-  //                                          "u", /* backward (daggered) prop flavor */
-  //                                          "fwd", /* source momentum carried by forward prop */
-  //                                          5, /* gi */ 
-  //                                          5, /* gf */
-  //                                          5, /* gb: gamma structure to get the correct backward propagator */
-  //                                          -1.0 /* normalisation */) );
+  twopt_correls.push_back( twopt_oet_meta_t("u", /* forward (undaggered) prop flavor */ 
+                                            "u", /* backward (daggered) prop flavor */
+                                            "fwd", /* source momentum carried by forward prop */
+                                            5, /* gi */ 
+                                            5, /* gf */
+                                            5, /* gb: gamma structure to get the correct backward propagator */
+                                            {one_ov_vol3, 0.0} /* normalisation */) );
   
-  // note that in the twisted basis, \bar{d} g0 g5 u -> \bar{chi}_d g0 chi_u
-  if( use_g0_g5_pion_2pt ){
-    // \bar{chi}_d g0 chi_u \bar{chi}_u g5 chi_d 
-    twopt_correls.push_back( twopt_oet_meta_t("u", "u", "fwd", 5, 0, 5, -1.0) );
-    // \bar{chi}_d g5 chi_u \bar{chi}_u g0 chi_d
-    twopt_correls.push_back( twopt_oet_meta_t("u", "u", "fwd", 0, 5, 5, -1.0) );
-    // \bar{chi}_d g0 chi_u \bar{chi}_u g0 chi_d
-    twopt_correls.push_back( twopt_oet_meta_t("u", "u", "fwd", 0, 0, 5, -1.0) ); 
+  // note that in the twisted basis, \bar{d} g0 g5 u -> i\bar{chi}_d g0 chi_u
+  //               and at the source \bar{u} g5 g0 d -> i\bar{chi}_u g0 chi_d
+  // it can be shown that the resulting correlation functions are real
+  if( use_g0_g5_sink_pion_2pt ){
+    // +i \bar{chi}_d g0 chi_u \bar{chi}_u g5 chi_d 
+    // = -i (g5 S_u^dag | g5 g0 | S_u g5)
+    twopt_correls.push_back( twopt_oet_meta_t("u", "u", "fwd", 5, 0, 5, {0.0, -one_ov_vol3}) );
+    // we cannot put this at the source using OET unless we do spin dilution
   }
 
+  // while we can't have non-diagonal gamma structures at the source
+  // without spin-dilution, a diagaonal gamma, as required for the eta
+  // two-pt function, is not a problem
   if( do_singlet_2pt ){
     // \bar{chi}_u chi_u \bar{chi}_u chi_u
-    // = g5 S_d^dag g5 1 S_u 1
-    twopt_correls.push_back( twopt_oet_meta_t("u", "d", "fwd", 4, 4, 5, -1.0) );
+    // = g5 S_d^dag | g5 1 | S_u 1
+    twopt_correls.push_back( twopt_oet_meta_t("u", "d", "fwd", 4, 4, 5, {-one_ov_vol3, 0.0}) );
+
     // \bar{chi}_d chi_d \bar{chi}_d chi_d
-    twopt_correls.push_back( twopt_oet_meta_t("d", "u", "fwd", 4, 4, 5, -1.0) );
-    if( use_g0_g5_singlet_2pt ){
+    // = g5 S_u^dag | g5 1 | S_d 1
+    twopt_correls.push_back( twopt_oet_meta_t("d", "u", "fwd", 4, 4, 5, {-one_ov_vol3, 0.0}) );
+    
+    // for the flavor singlet, we have \bar{u/d} g0 g5 u/d -> \bar{chi}_u/d g0 g5 chi_u/d
+    if( use_g0_g5_sink_singlet_2pt ){
       // \bar{chi}_u g0 g5 chi_u  \bar{chi}_u chi_u
-      twopt_correls.push_back( twopt_oet_meta_t("u", "d", "fwd", 4, 6, 5, -1.0) );
+      // = g5 S_d^dag | g5 g0 g5 | S_u 1
+      twopt_correls.push_back( twopt_oet_meta_t("u", "d", "fwd", 4, 6, 5, {-one_ov_vol3, 0.0}) );
       // \bar{chi}_d g0 g5 chi_d  \bar{chi}_d chi_d
-      twopt_correls.push_back( twopt_oet_meta_t("d", "u", "fwd", 4, 6, 5, -1.0) );
-      // \bar{chi}_u chi_u  \bar{chi}_u g5 g0 chi_u =
-      // - \bar{chi}_u chi_u  \bar{chi}_u g0 g5 chi_u
-      twopt_correls.push_back( twopt_oet_meta_t("u", "d", "fwd", 0, 5, 4, -1.0) );
-      // - \bar{chi}_d chi_d  \bar{chi}_d g0 g5 chi_d
-      twopt_correls.push_back( twopt_oet_meta_t("d", "u", "fwd", 0, 5, 4, -1.0) );
-      // \bar{chi}_u g0 g5 chi_u  \bar{chi}_u g5 g0 chi_u =
-      // - \bar{chi}_u g0 g5 chi_u  \bar{chi}_u g0 g5 chi_u
-      twopt_correls.push_back( twopt_oet_meta_t("u", "d", "fwd", 0, 6, 4, -1.0) );
-      // - \bar{chi}_d g0 g5 chi_d  \bar{chi}_d g0 g5 chi_d
-      twopt_correls.push_back( twopt_oet_meta_t("d", "u", "fwd", 0, 6, 4, -1.0) );
+      // = g5 S_u^dag | g5 g0 g5 | S_d 1
+      twopt_correls.push_back( twopt_oet_meta_t("d", "u", "fwd", 4, 6, 5, {-one_ov_vol3, 0.0}) );
     }
   }
 
   // 0 component of vector current between pi^+ states
   // \bar{chi}_d g5 chi_u \bar{chi}_u g0 chi_u \bar{chi}_u g5 \bar{chi}_d
-  // = - g5 S_u^dag g5 g5 g5 S_d^dag g5 g0 S_u g5
-  //    this g5                       ^  is implicitly included
+  // = - g5 S_u^dag g5 g5 g5 S_d^dag | g5 g0 | S_u g5
+  //     ^             ^                  ^        ^
+  //     gb            gf                 gc       gi
+  // = - g5 S_u^dag g5 g5 g5 S_d^dag | g5 g0 | S_u g5
+  //    this g5                         ^  is implicitly included
   //    these g5     ^     ^  are suppressed and their effect must be included
   //                          in the normalisation of the three-pt function
   //      such that source, sink and current gamma are explicit
-  threept_correls.push_back( threept_oet_meta_t("u", /* forward prop flavor */
-                                                "u", /* backward prop flavor */
-                                                "d", /* sequential prop flavor */
-                                                "fwd", /* source momentum carried by */ 
-                                                5, /* gi */ 
-                                                5, /* gf */ 
-                                                0, /* gc */ 
-                                                5, /* gb */ 
-                                                -1.0) );
+  local_threept_correls.push_back( 
+      threept_oet_meta_t("u", /* forward prop flavor */
+                         "u", /* backward prop flavor */
+                         "d", /* sequential prop flavor */
+                         "fwd", /* source momentum carried by */ 
+                         5, /* gi */ 
+                         5, /* gf */ 
+                         0, /* gc */ 
+                         5, /* gb */ 
+                         {-one_ov_vol3, 0.0}) );
 
-  // scalar density (twisted basis -> gamma_5) between pi^+ states
-  // \bar{chi}_d g5 chi_u \bar{chi}_u g5 chi_u \bar{chi}_u g5 \bar{chi}_d
-  // = - g5 S_u^dag g5 g5 S_d^dag g5 g5 S_u g5
-  threept_correls.push_back( threept_oet_meta_t("u", "u", "d", "fwd", 5, 5, 5, 5, -1.0) );
+  //// scalar density (twisted basis -> gamma_5) between pi^+ states
+  //// \bar{chi}_d g5 chi_u \bar{chi}_u g5 chi_u \bar{chi}_u g5 \bar{chi}_d
+  //// = - g5 S_u^dag g5 g5 S_d^dag | g5 g5 | S_u g5
+  local_threept_correls.push_back( 
+      threept_oet_meta_t("u", "u", "d", "fwd", 5, 5, 5, 5, {-one_ov_vol3, 0.0} ) );
 
-  if( use_g0_g5_pion_3pt ){
-    // \bar{chi}_d g5 chi_u \bar{chi}_u g0 chi_u \bar{chi}_u g0 \bar{chi}_d
-    // = + g5 S_u^dag g5 g5 S_d^dag g5 g0 S_u g0
-    threept_correls.push_back( threept_oet_meta_t("u", "u", "d", "fwd", 4, 5, 0, 5, 1.0) );
-    // \bar{chi}_d g5 chi_u \bar{chi}_u g5 chi_u \bar{chi}_u g0 g5 \bar{chi}_d
-    // = + g5 S_u^dag g5 g5 S_d^dag g5 g0 S_u g0 g5
-    threept_correls.push_back( threept_oet_meta_t("u", "u", "d", "fwd", 6, 5, 0, 5, 1.0) );
+  if( use_g0_g5_sink_pion_3pt ){
+    // \bar{chi}_d g0 chi_u \bar{chi}_u g0 chi_u \bar{chi}_u g5 \bar{chi}_d
+    // = + g5 S_u^dag g5 g0 g5 S_d^dag | g5 g0 | S_u g5
+    local_threept_correls.push_back( threept_oet_meta_t("u", "u", "d", "fwd", 5, 5, 0, 5, {0.0, one_ov_vol3}) );
+    // \bar{chi}_d g0 chi_u \bar{chi}_u g5 chi_u \bar{chi}_u g5 \bar{chi}_d
+    // = + g5 S_u^dag g5 g0 g5 S_d^dag | g5 g5 | S_u g5
+    local_threept_correls.push_back( threept_oet_meta_t("u", "u", "d", "fwd", 5, 5, 5, 5, {0.0, one_ov_vol3}) );
   }
+ 
+  // TODO define appropriate correlators for the local eta three-pt funtions
+  //
+  // TODO define appropriate correlators for derivatives
 
-  
   // derive the required fwd / bwd propagators from the correlation function definitions
   get_fwd_bwd_props_meta_from_npt_oet_meta(twopt_correls, props_meta);
-  get_fwd_bwd_props_meta_from_npt_oet_meta(threept_correls, props_meta);
+  get_fwd_bwd_props_meta_from_npt_oet_meta(local_threept_correls, props_meta);
+  get_fwd_bwd_props_meta_from_npt_oet_meta(deriv_threept_correls, props_meta);
 
   sizeof_spinor_field    = _GSI(VOLUME) * sizeof(double);
 
@@ -231,10 +250,13 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * initialize own gauge field or get from tmLQCD wrapper
    ***************************************************************************/
-  CHECK_EXITSTATUS_NONZERO(exitstatus,
+  CHECK_EXITSTATUS_NONZERO(
+      exitstatus,
       init_g_gauge_field(),
       "[cpff_invert_contract] Error initialising gauge field!",
-      true, CVC_EXIT_GAUGE_INIT_FAILURE);
+      true, 
+      CVC_EXIT_GAUGE_INIT_FAILURE);
+
   // set the configuration number
 #ifdef HAVE_TMLQCD_LIBWRAPPER
   Nconf = g_tmLQCD_lat.nstore;
@@ -243,18 +265,22 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * multiply the temporal phase to the gauge field
    ***************************************************************************/
-  CHECK_EXITSTATUS_NONZERO(exitstatus,
+  CHECK_EXITSTATUS_NONZERO(
+      exitstatus,
       gauge_field_eq_gauge_field_ti_phase ( &gauge_field_with_phase, g_gauge_field, co_phase_up ),
       "[cpff_invert_contract] Error from gauge_field_eq_gauge_field_ti_phase!",
-      true, CVC_EXIT_UTIL_FUNCTION_FAILURE);
+      true, 
+      CVC_EXIT_UTIL_FUNCTION_FAILURE);
 
   /***************************************************************************
    * check plaquettes
    ***************************************************************************/
-  CHECK_EXITSTATUS_NONZERO(exitstatus,
+  CHECK_EXITSTATUS_NONZERO(
+      exitstatus,
       plaquetteria( gauge_field_with_phase ),
       "[cpff_invert_contract] Error from plaquetteria!",
-      true, CVC_EXIT_UTIL_FUNCTION_FAILURE);
+      true, 
+      CVC_EXIT_UTIL_FUNCTION_FAILURE);
 
   /***************************************************************************
    * initialize clover, mzz and mzz_inv
@@ -385,22 +411,25 @@ int main(int argc, char **argv) {
         /***************************************************************************
          * prepare stochastic timeslice source at source momentum
          ***************************************************************************/
-        CHECK_EXITSTATUS_NONZERO(exitstatus,
-          prepare_gamma_timeslice_oet(stochastic_source.data(),
-                                      ranspinor.data(),
-                                      prop_meta.gamma,
-                                      gts,
-                                      (prop_meta.p[0] == 0 && 
-                                       prop_meta.p[1] == 0 &&
-                                       prop_meta.p[2] == 0 ) ? NULL : prop_meta.p ),
+        CHECK_EXITSTATUS_NONZERO(
+          exitstatus,
+          prepare_gamma_timeslice_oet(
+            stochastic_source.data(),
+            ranspinor.data(),
+            prop_meta.gamma,
+            gts,
+            (prop_meta.p[0] == 0 && 
+             prop_meta.p[1] == 0 &&
+             prop_meta.p[2] == 0 ) ? NULL : prop_meta.p ),
           "[cpff_invert_contract] Error from prepare_gamma_timeslice_oet!",
-          true, CVC_EXIT_MALLOC_FAILURE);
+          true, 
+          CVC_EXIT_MALLOC_FAILURE);
 
         memcpy ( spinor_work[0], stochastic_source.data(), sizeof_spinor_field );
         memset ( spinor_work[1], 0, sizeof_spinor_field );
 
-        debug_printf(0, 0, "Inverting to generate propagator %s\n", prop_meta.make_key().c_str() );
-
+        debug_printf(0, 0, "Inverting to generate propagator %s\n", prop_key.c_str() );
+        
         sw.reset();
         CHECK_EXITSTATUS_NEGATIVE(
           exitstatus,
@@ -408,7 +437,7 @@ int main(int argc, char **argv) {
           "[cpff_invert_contract] Error from TMLQCD_INVERT",
           true,
           CVC_EXIT_UTIL_FUNCTION_FAILURE);
-        sw.elapsed_print("TMQLCD_INVERT");
+        sw.elapsed_print("TMLQCD_INVERT");
 
         if ( g_check_inversion ) {
           sw.reset();
@@ -418,13 +447,15 @@ int main(int argc, char **argv) {
         }
 
         if( props.count( prop_key ) == 0 ){
+          sw.reset();
           props.emplace( std::make_pair( prop_key,
                                          std::vector<double>( _GSI(VOLUME) ) ) );
+          sw.elapsed_print("Propagator memory allocation");
         }
         memcpy( props[ prop_key ].data(), spinor_work[1], sizeof_spinor_field);
 
         if ( g_write_propagator ) {
-          sprintf(filename, "%s.conf%.4d.t%d.px%dpy%dpz%d.gamma%02d.f%s.sample%.5d.inverted", 
+          sprintf(filename, "%s.conf%.4d.t%d.px%dpy%dpz%d.gamma%d.f%s.sample%.5d.inverted", 
               filename_prefix, Nconf, gts,
               prop_meta.p[0], prop_meta.p[1], prop_meta.p[1], 
               prop_meta.gamma, prop_meta.flav.c_str(), isample);
@@ -489,15 +520,16 @@ int main(int argc, char **argv) {
                                                  twopt_correls[icor].fprop_flav.c_str() );
 
             debug_printf(0, 3,
-                         "Contracting [%s]^dag g%02d [%s] in x-space\n",
+                         "Contracting [%s]^dag g5 g%d [%s] in x-space\n",
                          bwdprop_meta.make_key().c_str(), twopt_correls[icor].gf, fwdprop_meta.make_key().c_str() );
 
             sw.reset();
-            contract_twopoint_xdep_snk_gamma_only( contr_x, 
-                twopt_correls[icor].gf, 
-                props[ bwdprop_meta.make_key() ].data(), 
-                props[ fwdprop_meta.make_key() ].data(),
-                1 /*stride*/, twopt_correls[icor].normalisation );
+            contract_twopoint_xdep_gamma5_gamma_snk_only( 
+              contr_x, 
+              twopt_correls[icor].gf, 
+              props[ bwdprop_meta.make_key() ].data(), 
+              props[ fwdprop_meta.make_key() ].data(),
+              1 /*stride*/);
             sw.elapsed_print("contract_twopoint_xdep");
 
             /* momentum projection at sink */
@@ -507,9 +539,13 @@ int main(int argc, char **argv) {
               fprintf(stderr, "[cpff_invert_contract] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(3);
             }
-            sw.elapsed_print("sink momentum_projection");
+            for( int i = 0; i < g_sink_momentum_number; ++i){
+              scale_cplx(contr_p[i], T, twopt_correls[icor].normalisation);
+            }
+            sw.elapsed_print("sink momentum_projection and normalisation");
 
-            sprintf ( data_tag, "/%s/t%d/s%d/gf%d/gi%d/pix%dpiy%dpiz%d", 
+            snprintf ( 
+                data_tag, 400, "/%s/t%d/s%d/gf%d/gi%d/pix%dpiy%dpiz%d", 
                 twopttag, gts, isample,
                 twopt_correls[icor].gf, twopt_correls[icor].gi,
                 source_momentum[0], source_momentum[1], source_momentum[2] );
@@ -541,236 +577,168 @@ int main(int argc, char **argv) {
        * minimum amount of memory possible.
        *
        **************************************************************************/
-      for( int iseq_timeslice = 0; iseq_timeslice < g_sequential_source_timeslice_number; iseq_timeslice++ ){
-        // this is the sink time slice (global coords) counted from the current source
-        // time slice 'gts'
-        const int gtseq = ( gts + g_sequential_source_timeslice_list[iseq_timeslice] + T_global ) % T_global;
-        for( int iseq_mom = 0; iseq_mom < g_seq_source_momentum_number; iseq_mom++){
-          debug_printf(0, 0,
-                       "iseq_timeslice = %d / %d, iseq_mom = %d / %d\n",
-                       iseq_timeslice, g_sequential_source_timeslice_number,
-                       iseq_mom, g_seq_source_momentum_number);
-
-          // the sequential propagator is daggered, so we have to dagger the momentum projector
-          int seq_source_momentum[3] = { -g_seq_source_momentum_list[iseq_mom][0],
-                                         -g_seq_source_momentum_list[iseq_mom][1],
-                                         -g_seq_source_momentum_list[iseq_mom][2] };
-
-          std::map<std::string, seq_stoch_prop_meta_t> seq_props_meta;
-          std::map<std::string, std::vector<double>> seq_props;
-
-          // generate meta-data for all sequential propagators required for this sequential source time slice
-          // and sequential source momentum
-          get_seq_props_meta_from_npt_oet_meta(threept_correls, seq_source_momentum, gtseq, seq_props_meta);
-
-          debug_printf(0, 0, 
-                       "\n\n%lu sequential propagators will use %f GB of memory\n\n",
-                       seq_props_meta.size(), seq_props_meta.size()*sizeof_spinor_field*1.0e-9); 
-          
-          for( auto const & seq_prop_meta_pair : seq_props_meta ){
-            seq_stoch_prop_meta_t seq_prop_meta = seq_prop_meta_pair.second;
-
-            // the key for the current sequential propagator to be generated
-            std::string seq_prop_key = seq_prop_meta.make_key();
-
-            // in order to generate the source, we need to retrieve the correct backward propagator
-            // from our 'props' map and pass that to 'init_sequential_source'
-            std::string bprop_key = seq_prop_meta.src_prop.make_key();
-
-            sw.reset();
-            CHECK_EXITSTATUS_NONZERO(
-              exitstatus,
-              init_sequential_source(spinor_work[0], 
-                                     props[ bprop_key ].data(),
-                                     gtseq, 
-                                     seq_source_momentum,
-                                     seq_prop_meta.gamma),
-              "[cpff_invert_contract] Error from init_sequential_source",
-              true,
-              CVC_EXIT_UTIL_FUNCTION_FAILURE);
-            sw.elapsed_print("init_sequential_source");
-
-            memset(spinor_work[1], 0, sizeof_spinor_field);
-           
+      if( local_threept_correls.size() > 0 ){
+        for( int iseq_timeslice = 0; iseq_timeslice < g_sequential_source_timeslice_number; iseq_timeslice++ ){
+          // this is the sink time slice (global coords) counted from the current source
+          // time slice 'gts'
+          const int gtseq = ( gts + g_sequential_source_timeslice_list[iseq_timeslice] + T_global ) % T_global;
+          for( int iseq_mom = 0; iseq_mom < g_seq_source_momentum_number; iseq_mom++){
             debug_printf(0, 0,
-                         "Inverting to generate propagator %s\n",
-                         seq_prop_key.c_str()); 
-            sw.reset();
-            CHECK_EXITSTATUS_NEGATIVE(
-              exitstatus,
-              _TMLQCD_INVERT( spinor_work[1], spinor_work[0], flav_op_ids[ seq_prop_meta.flav ] ),
-              "[cpff_invert_contract] Error from TMLQCD_INVERT",
-              true,
-              CVC_EXIT_UTIL_FUNCTION_FAILURE);
-            sw.elapsed_print("TMLQCD_INVERT");
+                         "iseq_timeslice = %d / %d, iseq_mom = %d / %d\n",
+                         iseq_timeslice, g_sequential_source_timeslice_number,
+                         iseq_mom, g_seq_source_momentum_number);
 
-            if( g_check_inversion ){
-              check_residual_clover( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase,
-                                     mzz[ flav_op_ids[ seq_prop_meta.flav ] ],
-                                     mzzinv[ flav_op_ids[ seq_prop_meta.flav ] ], 1 );
+            // the sequential propagator is daggered, so we have to dagger the momentum projector
+            int seq_source_momentum[3] = { -g_seq_source_momentum_list[iseq_mom][0],
+                                           -g_seq_source_momentum_list[iseq_mom][1],
+                                           -g_seq_source_momentum_list[iseq_mom][2] };
+
+            std::map<std::string, seq_stoch_prop_meta_t> seq_props_meta;
+            std::map<std::string, std::vector<double>> seq_props;
+
+            // generate meta-data for all sequential propagators required for this sequential source time slice
+            // and sequential source momentum
+            get_seq_props_meta_from_npt_oet_meta(local_threept_correls, seq_source_momentum, gtseq, seq_props_meta);
+
+            debug_printf(0, 0, 
+                         "\n\n%lu sequential propagators will use %f GB of memory\n\n",
+                         seq_props_meta.size(), seq_props_meta.size()*sizeof_spinor_field*1.0e-9); 
+            
+            for( auto const & seq_prop_meta_pair : seq_props_meta ){
+              seq_stoch_prop_meta_t seq_prop_meta = seq_prop_meta_pair.second;
+
+              // the key for the current sequential propagator to be generated
+              std::string seq_prop_key = seq_prop_meta.make_key();
+
+              // in order to generate the source, we need to retrieve the correct backward propagator
+              // from our 'props' map and pass that to 'init_sequential_source'
+              std::string bprop_key = seq_prop_meta.src_prop.make_key();
+
+              sw.reset();
+              CHECK_EXITSTATUS_NONZERO(
+                exitstatus,
+                init_sequential_source(spinor_work[0], 
+                                       props[ bprop_key ].data(),
+                                       gtseq, 
+                                       seq_source_momentum,
+                                       seq_prop_meta.gamma),
+                "[cpff_invert_contract] Error from init_sequential_source",
+                true,
+                CVC_EXIT_UTIL_FUNCTION_FAILURE);
+              sw.elapsed_print("init_sequential_source");
+
+              memset(spinor_work[1], 0, sizeof_spinor_field);
+             
+              debug_printf(0, 0,
+                           "Inverting to generate propagator %s\n",
+                           seq_prop_key.c_str()); 
+              sw.reset();
+              CHECK_EXITSTATUS_NEGATIVE(
+                exitstatus,
+                _TMLQCD_INVERT( spinor_work[1], spinor_work[0], flav_op_ids[ seq_prop_meta.flav ] ),
+                "[cpff_invert_contract] Error from TMLQCD_INVERT",
+                true,
+                CVC_EXIT_UTIL_FUNCTION_FAILURE);
+              sw.elapsed_print("TMLQCD_INVERT");
+
+              if( g_check_inversion ){
+                check_residual_clover( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase,
+                                       mzz[ flav_op_ids[ seq_prop_meta.flav ] ],
+                                       mzzinv[ flav_op_ids[ seq_prop_meta.flav ] ], 1 );
+              }
+
+              if( seq_props.count( seq_prop_key ) == 0 ){
+                sw.reset();
+                seq_props.emplace( 
+                  std::make_pair( seq_prop_key,
+                  std::vector<double>( _GSI(VOLUME) ) ) );
+                sw.elapsed_print("Propagator memory allocation");
+              }
+              memcpy( seq_props[ seq_prop_key ].data(), spinor_work[1], sizeof_spinor_field);
+            } // end of loop over inversions for sequential propagators
+
+            // now the contractions
+            for(int icor = 0; icor < local_threept_correls.size(); ++icor){
+              const threept_oet_meta_t & correl = local_threept_correls[icor];
+              int bwd_prop_mom[3] = {0,0,0};
+              int fwd_prop_mom[3] = {0,0,0};
+             
+              double ** contr_p = init_2level_dtable ( g_source_momentum_number, 2*T );
+              if ( contr_p == NULL ) {
+                fprintf(stderr, "[cpff_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+                EXIT(47);
+              }
+              
+              for(int isrc_mom = 0; isrc_mom < g_source_momentum_number; ++isrc_mom){
+                // make sure that we get the propagator with correct source momentum, depending on which
+                // one is carrying it
+                if( correl.src_mom_prop == "bwd" ){
+                  for( int i : {0,1,2} ) {
+                    // the backward propagator, part of the sequential propagator, is daggered
+                    // so the momentum projector is daggered 
+                    bwd_prop_mom[i] = -g_source_momentum_list[isrc_mom][i]; 
+                    fwd_prop_mom[i] = 0;
+                  }
+                } else {
+                  for( int i : {0,1,2} ) {
+                    bwd_prop_mom[i] = 0;
+                    fwd_prop_mom[i] = g_source_momentum_list[isrc_mom][i]; 
+                  }
+                }
+
+                std::string seq_prop_key = seq_stoch_prop_meta_t(
+                    seq_source_momentum,
+                    correl.gf,
+                    gtseq,
+                    correl.sprop_flav,
+                    bwd_prop_mom,
+                    correl.gb,
+                    correl.bprop_flav).make_key();
+
+                std::string fwd_prop_key = stoch_prop_meta_t(
+                    fwd_prop_mom,
+                    correl.gi,
+                    correl.fprop_flav).make_key();
+
+                int current_momentum[3] = {
+                  -( g_source_momentum_list[isrc_mom][0] + seq_source_momentum[0] ),
+                  -( g_source_momentum_list[isrc_mom][1] + seq_source_momentum[1] ),
+                  -( g_source_momentum_list[isrc_mom][2] + seq_source_momentum[2] ) };
+
+                sw.reset();
+                contract_twopoint_gamma5_gamma_snk_only_snk_momentum( 
+                  contr_p[isrc_mom], correl.gc, current_momentum,
+                  seq_props[ seq_prop_key ].data(), props[ fwd_prop_key ].data());
+                scale_cplx( contr_p[isrc_mom], T, correl.normalisation );
+                sw.elapsed_print("contract_twopoint_gamma5_gamma_snk_only_snk_momentum local current and normalisation");
+              }
+
+              snprintf ( data_tag, 400, "/s%s%s+-g-%s/t%d/s%d/dt%d/gf%d/gc%d/gi%d/pfx%dpfy%dpfz%d/",
+                         correl.bprop_flav.c_str(), correl.sprop_flav.c_str(), correl.fprop_flav.c_str(),
+                         gts, isample, g_sequential_source_timeslice_list[iseq_timeslice],
+                         correl.gf, correl.gc, correl.gi,
+                         seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
+
+              #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
+                  exitstatus = contract_write_to_aff_file ( contr_p, affw, data_tag, g_source_momentum_list, g_source_momentum_number, io_proc );
+              #elif ( defined HAVE_HDF5 )
+                  exitstatus = contract_write_to_h5_file ( contr_p, output_filename, data_tag, g_source_momentum_list, g_source_momentum_number, io_proc );
+              #endif
+              if(exitstatus != 0) {
+                fprintf(stderr, "[cpff_invert_contract] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(3);
+              }
+              fini_2level_dtable ( &contr_p );
+            } // end of loop over local threept correlator contractions
+
+            // now the covariant derivative insertions
+            for( int ifwdbwd : {0,1} ){
+
             }
+          } // end of loop over sequential momenta
+        } // end of loop over sequential source time slices
+      } // if(local_threept_correls.size() > 0)
 
-            if( seq_props.count( seq_prop_key ) == 0 ){
-              seq_props.emplace( std::make_pair( seq_prop_key,
-                                             std::vector<double>( _GSI(VOLUME) ) ) );
-            }
-            memcpy( seq_props[ seq_prop_key ].data(), spinor_work[1], sizeof_spinor_field);
-          } // end of loop over inversions for sequential propagators
-
-        } // end of loop over sequential momenta
-      } // end of loop over sequential source time slices
-
-
-//
-//      /*****************************************************************/
-//      /*****************************************************************/
-//
-//      /*****************************************************************
-//       * loop on sequential source momenta p_f
-//       *****************************************************************/
-//      for( int iseq_mom=0; iseq_mom < g_seq_source_momentum_number; iseq_mom++) {
-//
-//        int seq_source_momentum[3] = { g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2] };
-//
-//        /*****************************************************************
-//         * loop on sequential source gamma ids
-//         *****************************************************************/
-//        for ( int iseq_gamma = 0; iseq_gamma < g_sequential_source_gamma_id_number; iseq_gamma++ ) {
-//
-//          int seq_source_gamma = g_sequential_source_gamma_id_list[iseq_gamma];
-//
-//          /*****************************************************************
-//           * loop on sequential source timeslices
-//           *****************************************************************/
-//          for ( int iseq_timeslice = 0; iseq_timeslice < g_sequential_source_timeslice_number; iseq_timeslice++ ) {
-//
-//            /*****************************************************************
-//             * global sequential source timeslice
-//             * NOTE: counted from current source timeslice
-//             *****************************************************************/
-//            int gtseq = ( gts + g_sequential_source_timeslice_list[iseq_timeslice] + T_global ) % T_global;
-//
-//            /*****************************************************************
-//             * invert for sequential timeslice propagator
-//             *****************************************************************/
-//            for ( int i = 0; i < 4; i++ ) {
-//
-//              /*****************************************************************
-//               * prepare sequential timeslice source 
-//               *****************************************************************/
-//              exitstatus = init_sequential_source ( spinor_work[0], stochastic_propagator_zero_list[i], gtseq, seq_source_momentum, seq_source_gamma );
-//              if( exitstatus != 0 ) {
-//                fprintf(stderr, "[cpff_invert_contract] Error from init_sequential_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-//                EXIT(64);
-//              }
-//              if ( g_write_sequential_source ) {
-//                sprintf(filename, "%s.%.4d.t%d.qx%dqy%dqz%d.g%d.dt%d.%d.%.5d", filename_prefix, Nconf, gts,
-//                    seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], seq_source_gamma,
-//                    g_sequential_source_timeslice_list[iseq_timeslice], i, isample);
-//                if ( ( exitstatus = write_propagator( spinor_work[0], filename, 0, g_propagator_precision) ) != 0 ) {
-//                  fprintf(stderr, "[cpff_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-//                  EXIT(2);
-//                }
-//              }  /* end of if g_write_sequential_source */
-//
-//              memset ( spinor_work[1], 0, sizeof_spinor_field );
-//
-//              exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_up );
-//              if(exitstatus < 0) {
-//                fprintf(stderr, "[cpff_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-//                EXIT(44);
-//              }
-//
-//              if ( g_check_inversion ) {
-//                check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_up], mzzinv[op_id_up], 1 );
-//              }
-//
-//              memcpy( sequential_propagator_list[i], spinor_work[1], sizeof_spinor_field );
-//            }  /* end of loop on oet spin components */
-//
-//            if ( g_write_sequential_propagator ) {
-//              for ( int ispin = 0; ispin < 4; ispin++ ) {
-//                sprintf ( filename, "%s.%.4d.t%d.qx%dqy%dqz%d.g%d.dt%d.%d.%.5d.inverted", filename_prefix, Nconf, gts,
-//                    seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], seq_source_gamma, 
-//                    g_sequential_source_timeslice_list[iseq_timeslice], ispin, isample);
-//                if ( ( exitstatus = write_propagator( sequential_propagator_list[ispin], filename, 0, g_propagator_precision) ) != 0 ) {
-//                  fprintf(stderr, "[cpff_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-//                  EXIT(2);
-//                }
-//              }
-//            }  /* end of if g_write_sequential_propagator */
-//
-//            /*****************************************************************/
-//            /*****************************************************************/
-//
-//            /*****************************************************************
-//             * contractions for local current insertion
-//             *****************************************************************/
-//
-//            /*****************************************************************
-//             * loop on local gamma matrices
-//             *****************************************************************/
-//            for ( int icur_gamma = 0; icur_gamma < gamma_current_number; icur_gamma++ ) {
-//
-//              int gamma_current = gamma_current_list[icur_gamma];
-//
-//              for ( int isrc_gamma = 0; isrc_gamma < g_source_gamma_id_number; isrc_gamma++ ) {
-//
-//                int gamma_source = g_source_gamma_id_list[isrc_gamma];
-//
-//                double ** contr_p = init_2level_dtable ( g_source_momentum_number, 2*T );
-//                if ( contr_p == NULL ) {
-//                  fprintf(stderr, "[cpff_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
-//                  EXIT(47);
-//                }
-//
-//                /*****************************************************************
-//                 * loop on source momenta
-//                 *****************************************************************/
-//                for ( int isrc_mom = 0; isrc_mom < g_source_momentum_number; isrc_mom++ ) {
-//
-//                  int source_momentum[3] = {
-//                    g_source_momentum_list[isrc_mom][0],
-//                    g_source_momentum_list[isrc_mom][1],
-//                    g_source_momentum_list[isrc_mom][2] };
-//
-//                  int current_momentum[3] = {
-//                    -( source_momentum[0] + seq_source_momentum[0] ),
-//                    -( source_momentum[1] + seq_source_momentum[1] ),
-//                    -( source_momentum[2] + seq_source_momentum[2] ) };
-//
-//                  sw.reset();
-//                  contract_twopoint_snk_momentum ( contr_p[isrc_mom], gamma_source,  gamma_current, 
-//                      stochastic_propagator_mom_list[isrc_mom], 
-//                      sequential_propagator_list, 4, 1, current_momentum, 1);
-//                  sw.elapsed_print("contract_twopoint_snk_momentum local current");
-//
-//                }  /* end of loop on source momenta */
-//
-//                sprintf ( data_tag, "/d+-g-sud/t%d/s%d/dt%d/gf%d/gc%d/gi%d/pfx%dpfy%dpfz%d/", 
-//                    gts, isample, g_sequential_source_timeslice_list[iseq_timeslice],
-//                    seq_source_gamma, gamma_current, gamma_source,
-//                    seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
-//
-//#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-//                exitstatus = contract_write_to_aff_file ( contr_p, affw, data_tag, g_source_momentum_list, g_source_momentum_number, io_proc );
-//#elif ( defined HAVE_HDF5 )
-//                exitstatus = contract_write_to_h5_file ( contr_p, output_filename, data_tag, g_source_momentum_list, g_source_momentum_number, io_proc );
-//#endif
-//                if(exitstatus != 0) {
-//                  fprintf(stderr, "[cpff_invert_contract] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-//                  EXIT(3);
-//                }
-//              
-//                fini_2level_dtable ( &contr_p );
-//
-//              }  /* end of loop on source gamma id */
-//
-//            }  /* end of loop on current gamma id */
-//
-//            /*****************************************************************/
-//            /*****************************************************************/
-//
 //            /*****************************************************************
 //             * contractions for cov deriv insertion
 //             *****************************************************************/
