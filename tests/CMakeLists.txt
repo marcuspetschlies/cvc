@@ -28,6 +28,9 @@ target_link_libraries(test_prepare_gamma_timeslice_oet cvc ${cvc_libraries})
 add_executable(test_meta_types test_meta_types.cpp)
 target_link_libraries(test_meta_types ${cvc_libraries})
 
+add_executable(test_threept_oet_shifts test_threept_oet_shifts.cpp)
+target_link_libraries(test_threept_oet_shifts cvc ${cvc_libraries})
+
 # copy over test file for test of h5utils
 configure_file(${CMAKE_SOURCE_DIR}/tests/test.h5
   ${CMAKE_BINARY_DIR}/tests/test.h5
