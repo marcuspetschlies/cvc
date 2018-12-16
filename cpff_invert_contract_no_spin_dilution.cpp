@@ -103,7 +103,11 @@ int main(int argc, char **argv) {
   char data_tag[400];
 
   // initialise CVC core functionality and read input files
-  Core core(argc, argv);
+  Core core(argc, argv, "cpff_invert_contract_no_spin_dilution");
+  if( !core.is_initialised() ){
+    debug_printf(0,g_proc_id,"Core initialisation failed!\n");
+    return(CVC_EXIT_CORE_INIT_FAILURE);
+  }
 
   std::vector<twopt_oet_meta_t> twopt_correls;
   std::vector<threept_oet_meta_t> local_threept_correls;
@@ -123,9 +127,9 @@ int main(int argc, char **argv) {
   const bool use_g0_g5_sink_pion_2pt = true;
   const bool use_g0_g5_sink_pion_3pt = false;
   
-  const bool do_singlet_2pt = false;
-  const bool do_singlet_3pt = false;
-  const bool use_g0_g5_sink_singlet_2pt = false;
+  const bool do_singlet_2pt = true;
+  const bool do_singlet_3pt = true;
+  const bool use_g0_g5_sink_singlet_2pt = true;
   const bool use_g0_g5_sink_singlet_3pt = false;
 
   const double one_ov_vol3 = 1.0/(LX*LY*LZ);
@@ -220,8 +224,30 @@ int main(int argc, char **argv) {
     local_threept_correls.push_back( threept_oet_meta_t("u", "u", "d", "fwd", 5, 5, 5, 5, {0.0, one_ov_vol3}) );
   }
  
-  // TODO define appropriate correlators for the local eta three-pt funtions
-  //
+  if( do_singlet_3pt ){
+    // \bar{chi}_u 1 chi_u \bar{chi}_u g0 chi_u \bar{chi}_u 1 \bar{chi}_u
+    // g5 S_d^dag g5 1 g5 S_d^dag g5 g0 S_u 1
+    local_threept_correls.push_back( 
+        threept_oet_meta_t("u", "d", "d", "fwd", 4, 4, 0, 5, {-one_ov_vol3, 0.0} ) );
+
+    // \bar{chi}_u 1 chi_u \bar{chi}_u 1 chi_u \bar{chi}_u 1 \bar{chi}_u
+    // g5 S_d^dag g5 1 g5 S_d^dag g5 1 S_u 1
+    local_threept_correls.push_back( 
+        threept_oet_meta_t("u", "d", "d", "fwd", 4, 4, 4, 5, {-one_ov_vol3, 0.0} ) );
+    
+    // \bar{chi}_d 1 chi_d \bar{chi}_d g0 chi_d \bar{chi}_d 1 \bar{chi}_d
+    // g5 S_u^dag g5 1 g5 S_u^dag g5 g0 S_d 1
+    local_threept_correls.push_back( 
+        threept_oet_meta_t("d", "u", "u", "fwd", 4, 4, 0, 5, {-one_ov_vol3, 0.0} ) );
+    
+    // \bar{chi}_d 1 chi_d \bar{chi}_d 1 chi_d \bar{chi}_d 1 \bar{chi}_d
+    // g5 S_u^dag g5 1 g5 S_u^dag g5 1 S_d 1
+    local_threept_correls.push_back( 
+        threept_oet_meta_t("d", "u", "u", "fwd", 4, 4, 4, 5, {-one_ov_vol3, 0.0} ) );
+
+    // TODO add eta 3pt funtions with g0 g5 at the sink
+  }
+
   // TODO define appropriate correlators for derivatives
 
   // derive the required fwd / bwd propagators from the correlation function definitions
@@ -406,7 +432,7 @@ int main(int argc, char **argv) {
       // loop over all required forward / backward propagators
       for( auto const & prop_meta_pair : props_meta ){
         stoch_prop_meta_t prop_meta = prop_meta_pair.second;
-        std::string prop_key = prop_meta.make_key();
+        std::string prop_key = prop_meta.key();
 
         /***************************************************************************
          * prepare stochastic timeslice source at source momentum
@@ -521,14 +547,14 @@ int main(int argc, char **argv) {
 
             debug_printf(0, 3,
                          "Contracting [%s]^dag g5 g%d [%s] in x-space\n",
-                         bwdprop_meta.make_key().c_str(), twopt_correls[icor].gf, fwdprop_meta.make_key().c_str() );
+                         bwdprop_meta.key().c_str(), twopt_correls[icor].gf, fwdprop_meta.key().c_str() );
 
             sw.reset();
             contract_twopoint_xdep_gamma5_gamma_snk_only( 
               contr_x, 
               twopt_correls[icor].gf, 
-              props[ bwdprop_meta.make_key() ].data(), 
-              props[ fwdprop_meta.make_key() ].data(),
+              props[ bwdprop_meta.key() ].data(), 
+              props[ fwdprop_meta.key() ].data(),
               1 /*stride*/);
             sw.elapsed_print("contract_twopoint_xdep");
 
@@ -608,11 +634,11 @@ int main(int argc, char **argv) {
               seq_stoch_prop_meta_t seq_prop_meta = seq_prop_meta_pair.second;
 
               // the key for the current sequential propagator to be generated
-              std::string seq_prop_key = seq_prop_meta.make_key();
+              std::string seq_prop_key = seq_prop_meta.key();
 
               // in order to generate the source, we need to retrieve the correct backward propagator
               // from our 'props' map and pass that to 'init_sequential_source'
-              std::string bprop_key = seq_prop_meta.src_prop.make_key();
+              std::string bprop_key = seq_prop_meta.src_prop.key();
 
               sw.reset();
               CHECK_EXITSTATUS_NONZERO(
@@ -693,12 +719,12 @@ int main(int argc, char **argv) {
                     correl.sprop_flav,
                     bwd_prop_mom,
                     correl.gb,
-                    correl.bprop_flav).make_key();
+                    correl.bprop_flav).key();
 
                 std::string fwd_prop_key = stoch_prop_meta_t(
                     fwd_prop_mom,
                     correl.gi,
-                    correl.fprop_flav).make_key();
+                    correl.fprop_flav).key();
 
                 int current_momentum[3] = {
                   -( g_source_momentum_list[isrc_mom][0] + seq_source_momentum[0] ),

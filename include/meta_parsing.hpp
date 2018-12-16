@@ -46,7 +46,7 @@ template <typename T>
 void get_seq_props_meta_from_npt_oet_meta(const std::vector<T> & correls,
                                           const int seq_mom[3],
                                           const int seq_src_ts,
-                                          std::map<std::string, stoch_prop_meta_t> & seq_props_meta);
+                                          std::map<std::string, seq_stoch_prop_meta_t> & seq_props_meta);
 #include "impl/impl_get_seq_props_meta_from_npt_oet_meta.hpp"
 
 } // namespace(cvc)

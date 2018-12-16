@@ -22,7 +22,7 @@ static inline void extract_seq_props(const int seq_mom[3],
                                  correl.gb,
                                  correl.bprop_flav);
 
-  seq_props_meta[ seq_prop.make_key() ] = seq_prop;
+  seq_props_meta[ seq_prop.key() ] = seq_prop;
 }
 
 template <typename T>

@@ -1,7 +1,9 @@
 #pragma once
 
 #include "cvc_complex.h"
+#include "types.h"
 
+#include <vector>
 #include <string>
 #include <cstring>
 #include <stdexcept>
@@ -37,13 +39,14 @@ typedef struct stoch_prop_meta_t
     flav = flav_in;
   }
 
-  std::string make_key(void){
-    return make_key(p, gamma, flav);
+  std::string key(void) const 
+  {
+    return key(p, gamma, flav);
   }
 
-  std::string make_key(const int p_in[3],
+  std::string key(const int p_in[3],
                        const int gamma_in,
-                       const std::string flav_in)
+                       const std::string flav_in) const
   {
     char temp[100];
     snprintf(temp, 100, 
@@ -76,21 +79,21 @@ typedef struct seq_stoch_prop_meta_t
     flav = seq_flav_in;
   }
 
-  std::string make_key(void)
+  std::string key(void) const
   {
-    return make_key(p, gamma, seq_src_ts, flav);
+    return key(p, gamma, seq_src_ts, flav);
   }
 
-  std::string make_key(const int p_in[3],
+  std::string key(const int p_in[3],
                        const int gamma_in,
                        const int seq_src_ts_in,
-                       const std::string flav_in)
+                       const std::string flav_in) const
   {
     char temp[100];
     snprintf(temp, 100,
-             "f%s_g%02d_px%+dpy%+dpz%+d::ts%d_",
+             "f%s_g%d_px%+dpy%+dpz%+d::ts%d_",
              flav_in.c_str(), gamma_in, p_in[0], p_in[1], p_in[2], seq_src_ts_in);
-    return( (std::string(temp)+src_prop.make_key()) );
+    return( (std::string(temp)+src_prop.key()) );
   }
 
   int p[3];
@@ -100,6 +103,12 @@ typedef struct seq_stoch_prop_meta_t
 
   stoch_prop_meta_t src_prop;
 } seq_stoch_prop_meta_t;
+
+typedef struct shifted_prop_meta_t
+{
+  std::vector<shift_t> shifts;
+  std::string prop_key;
+} shifted_prop_meta_t;
 
 /**
  * @brief Meta-description of a meson two-point function
@@ -225,5 +234,30 @@ typedef struct threept_oet_meta_t : twopt_oet_meta_t
   int gc;
   std::string sprop_flav;
 } threept_oet_meta_t; 
+
+typedef struct threept_shifts_oet_meta_t : threept_oet_meta_t
+{
+  threept_shifts_oet_meta_t(
+      const std::string fprop_flav_in,
+      const std::string bprop_flav_in,
+      const std::string sprop_flav_in,
+      const std::string src_mom_prop_in,
+      const int gi_in,
+      const int gf_in,
+      const int gc_in,
+      const int gb_in,
+      const std::vector<shift_t> left_shifts_in,
+      const std::vector<shift_t> right_shifts_in,
+      const ::cvc::complex normalisation_in
+      ) :
+    threept_oet_meta_t(fprop_flav_in, bprop_flav_in, sprop_flav_in,
+                       src_mom_prop_in, gi_in, gf_in, gc_in, gb_in, normalisation_in)
+  {
+    left_shifts = left_shifts_in;
+    right_shifts = right_shifts_in; 
+  }
+  std::vector<shift_t> left_shifts;
+  std::vector<shift_t> right_shifts;
+} threept_shifts_oet_meta_t;
 
 } // naemspace(cvc)

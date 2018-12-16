@@ -35,7 +35,7 @@ void get_fwd_bwd_props_meta_from_npt_oet_meta(const std::vector<T> & correls,
         stoch_prop_meta_t bwd_prop( source_momentum,
                                     correls[icor].gb,
                                     correls[icor].bprop_flav );
-        std::string prop_key = bwd_prop.make_key();
+        std::string prop_key = bwd_prop.key();
         props_meta[ prop_key ] = bwd_prop;
       // source momentum can also be carried by the forward propagator,
       // no daggering is necessary
@@ -46,7 +46,7 @@ void get_fwd_bwd_props_meta_from_npt_oet_meta(const std::vector<T> & correls,
         stoch_prop_meta_t fwd_prop( source_momentum,
                                     correls[icor].gi,
                                     correls[icor].fprop_flav );
-        std::string prop_key = fwd_prop.make_key();
+        std::string prop_key = fwd_prop.key();
         props_meta[ prop_key ] = fwd_prop;
       } else {
       // finally, a correlation function might have been specified
@@ -58,7 +58,7 @@ void get_fwd_bwd_props_meta_from_npt_oet_meta(const std::vector<T> & correls,
         stoch_prop_meta_t fwd_prop( source_momentum,
                                     correls[icor].gi,
                                     correls[icor].fprop_flav );
-        std::string prop_key = fwd_prop.make_key();
+        std::string prop_key = fwd_prop.key();
         props_meta[ prop_key ] = fwd_prop;
       }
     } // loop over source momenta
@@ -70,7 +70,7 @@ void get_fwd_bwd_props_meta_from_npt_oet_meta(const std::vector<T> & correls,
       stoch_prop_meta_t fwd_prop( source_momentum,
                                   correls[icor].gi,
                                   correls[icor].fprop_flav );
-      props_meta[ fwd_prop.make_key() ] = fwd_prop;
+      props_meta[ fwd_prop.key() ] = fwd_prop;
     // if it is carried by the forward propagator, instead,
     // we need a corresponding backward propagator
     } else {
@@ -78,7 +78,7 @@ void get_fwd_bwd_props_meta_from_npt_oet_meta(const std::vector<T> & correls,
       stoch_prop_meta_t bwd_prop( bprop_momentum,
                                   correls[icor].gb,
                                   correls[icor].bprop_flav );
-      props_meta[ bwd_prop.make_key() ] = bwd_prop;
+      props_meta[ bwd_prop.key() ] = bwd_prop;
     }
   } // end of loop over two pt functions to generate map of fwd/bwd propagator metadata
 }

@@ -145,10 +145,10 @@ int main(int argc, char ** argv){
   get_seq_props_meta_from_npt_oet_meta(threept_shift_correls, p, 24, seq_props_meta);
 
   for( auto const & prop : props_meta ){
-    std::cout << prop.second.make_key() << std::endl;
+    std::cout << prop.second.key() << std::endl;
   }
   for( auto const & prop : seq_props_meta ){
-    std::cout << prop.second.make_key() << std::endl;
+    std::cout << prop.second.key() << std::endl;
   }
 
   return 0;

@@ -3,12 +3,17 @@
 
 namespace cvc {
 
-typedef enum latDims_t {
+typedef enum latDim_t {
   DIM_T = 0,
   DIM_X,
   DIM_Y,
   DIM_Z
-} latDims_t;
+} latDim_t;
+
+typedef enum shift_dir_t {
+  DIR_FWD = 0,
+  DIR_BWD
+} shift_dir_t;
 
 typedef enum ExitCode_t {
   CVC_EXIT_SUCCESS = 0,
