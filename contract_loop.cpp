@@ -515,14 +515,14 @@ int loop_read_from_h5_file (double *** const loop, void * file, char*tag, int co
         /* open an existing file. */
         if ( g_verbose > 1 ) fprintf ( stdout, "# [loop_read_from_h5_file] open existing file\n" );
   
-        unsigned flags = H5F_ACC_RDWR;  /* IN: File access flags. Allowable values are:
-                                           H5F_ACC_RDWR   --- Allow read and write access to file.
-                                           H5F_ACC_RDONLY --- Allow read-only access to file.
+        unsigned flags = H5F_ACC_RDONLY;  /* IN: File access flags. Allowable values are:
+                                             H5F_ACC_RDWR   --- Allow read and write access to file.
+                                             H5F_ACC_RDONLY --- Allow read-only access to file.
   
-                                           H5F_ACC_RDWR and H5F_ACC_RDONLY are mutually exclusive; use exactly one.
-                                           An additional flag, H5F_ACC_DEBUG, prints debug information.
-                                           This flag can be combined with one of the above values using the bit-wise OR operator (`|'),
-                                           but it is used only by HDF5 Library developers; it is neither tested nor supported for use in applications. */
+                                             H5F_ACC_RDWR and H5F_ACC_RDONLY are mutually exclusive; use exactly one.
+                                             An additional flag, H5F_ACC_DEBUG, prints debug information.
+                                             This flag can be combined with one of the above values using the bit-wise OR operator (`|'),
+                                             but it is used only by HDF5 Library developers; it is neither tested nor supported for use in applications. */
         hid_t fapl_id = H5P_DEFAULT;
         /*  hid_t H5Fopen ( const char *name, unsigned flags, hid_t fapl_id ) */
         file_id = H5Fopen (         filename,         flags,        fapl_id );
@@ -672,14 +672,14 @@ int loop_get_momentum_list_from_h5_file ( int (*momentum_list)[3], void * file, 
         /* open an existing file. */
         if ( g_verbose > 1 ) fprintf ( stdout, "# [loop_get_momentum_list_from_h5_file] open existing file\n" );
   
-        unsigned flags = H5F_ACC_RDWR;  /* IN: File access flags. Allowable values are:
-                                           H5F_ACC_RDWR   --- Allow read and write access to file.
-                                           H5F_ACC_RDONLY --- Allow read-only access to file.
+        unsigned flags = H5F_ACC_RDONLY;  /* IN: File access flags. Allowable values are:
+                                             H5F_ACC_RDWR   --- Allow read and write access to file.
+                                             H5F_ACC_RDONLY --- Allow read-only access to file.
   
-                                           H5F_ACC_RDWR and H5F_ACC_RDONLY are mutually exclusive; use exactly one.
-                                           An additional flag, H5F_ACC_DEBUG, prints debug information.
-                                           This flag can be combined with one of the above values using the bit-wise OR operator (`|'),
-                                           but it is used only by HDF5 Library developers; it is neither tested nor supported for use in applications. */
+                                             H5F_ACC_RDWR and H5F_ACC_RDONLY are mutually exclusive; use exactly one.
+                                             An additional flag, H5F_ACC_DEBUG, prints debug information.
+                                             This flag can be combined with one of the above values using the bit-wise OR operator (`|'),
+                                             but it is used only by HDF5 Library developers; it is neither tested nor supported for use in applications. */
         hid_t fapl_id = H5P_DEFAULT;
         /*  hid_t H5Fopen ( const char *name, unsigned flags, hid_t fapl_id ) */
         file_id = H5Fopen (         filename,         flags,        fapl_id );
