@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/time.h>
 
 #ifdef HAVE_MPI
 #  include <mpi.h>
@@ -71,6 +72,11 @@ namespace cvc {
 int contract_local_loop_stochastic ( double *** const loop, double * const source, double * const prop, int const momentum_number, int ( * const momentum_list)[3] ) {
 
   unsigned int const VOL3 = LX * LY * LZ;
+ 
+  struct timeval ta, tb;
+  long unsigned int seconds, useconds;
+
+  gettimeofday ( &ta, (struct timezone *)NULL );
 
   double * loop_x = init_1level_dtable ( 32 * VOLUME );
   if ( loop_x == NULL ) {
@@ -81,12 +87,18 @@ int contract_local_loop_stochastic ( double *** const loop, double * const sourc
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-  for ( int ix = 0; ix < VOLUME; ix++ ) {
+  for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
       unsigned int const offset = _GSI ( ix );
       double * const source_ = source + offset;
       double * const prop_   = prop   + offset;
-      _contract_loop_x_spin_diluted ( loop_x+16*ix, source_ , prop_ );
+      double * const loop_   = loop_x + 16*ix;
+      _contract_loop_x_spin_diluted ( loop_, source_ , prop_ );
   }  /* end of loop on volume */
+
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  
+  show_time ( &ta, &tb, "contract_local_loop_stochastic", "local contract", g_cart_id == 0 );
+
 
   if ( momentum_number > 0 && momentum_list != NULL ) {
     /***********************************************************
@@ -105,7 +117,7 @@ int contract_local_loop_stochastic ( double *** const loop, double * const sourc
        * spatial dimensions
        ***********************************************************/
       int exitstatus = momentum_projection2 ( loop_x + offset, loop[it][0], 16, momentum_number, momentum_list, NULL );
-      if ( exitstatus == 0 ) {
+      if ( exitstatus != 0 ) {
         fprintf ( stderr, "[contract_local_loop_stochastic] Error from momentum_projection2, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         return ( 2 );
       }
@@ -119,6 +131,13 @@ int contract_local_loop_stochastic ( double *** const loop, double * const sourc
   }  /* end of if momentum projection else */
 
   fini_1level_dtable ( &loop_x );
+
+  /***********************************************************
+   * time measurement
+   ***********************************************************/
+  gettimeofday ( &ta, (struct timezone *)NULL );
+  
+  show_time ( &tb, &ta, "contract_local_loop_stochastic", "momentum projection", g_cart_id == 0 );
 
  return ( 0 );
 }  /* end of contract_local_loop_stochastic */
@@ -142,13 +161,16 @@ int contract_loop_write_to_h5_file (double *** const loop, void * file, char*tag
 
   if ( io_proc > 0 ) {
 
-    double ratime, retime;
-
     double * zbuffer = NULL;
 
     char * filename = (char *)file;
 
-    ratime = _GET_TIME;
+    /***************************************************************************
+     * time measurement
+     ***************************************************************************/
+    struct timeval ta, tb;
+    long unsigned int seconds, useconds;
+    gettimeofday ( &ta, (struct timezone *)NULL );
 
     if ( io_proc == 2 ) {
       /***************************************************************************
@@ -419,11 +441,15 @@ int contract_loop_write_to_h5_file (double *** const loop, void * file, char*tag
 
     fini_1level_dtable ( &zbuffer );
 
-    retime = _GET_TIME;
-    if ( io_proc == 2 ) fprintf(stdout, "# [contract_loop_write_to_h5_file] time for saving momentum space results = %e seconds\n", retime-ratime);
+    /***************************************************************************
+     * time measurement
+     ***************************************************************************/
+    gettimeofday ( &tb, (struct timezone *)NULL );
+  
+    show_time ( &ta, &tb, "contract_loop_write_to_h5_file", "write h5", 1 );
 
   }  /* end of of if io_proc > 0 */
-
+  
   return(0);
 
 }  /* end of contract_loop_write_to_h5_file */

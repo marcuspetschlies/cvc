@@ -485,8 +485,11 @@ int write_lime_contraction(double * const s, char * filename, const int prec, co
   int status = 0;
   int ME_flag=0, MB_flag=0;
 
-  // n_uint64_t bytes;
+#ifdef HAVE_MPI
+  MPI_Offset bytes;
+#else
   n_uint64_t bytes;
+#endif
 
   DML_Checksum checksum;
   char *message;
@@ -523,12 +526,16 @@ int write_lime_contraction(double * const s, char * filename, const int prec, co
   header = lemonCreateHeader(MB_flag, ME_flag, "cvc_contraction-format", bytes);
   status = lemonWriteRecordHeader(header, writer);
   lemonDestroyHeader(header);
-  lemonWriteRecordData( message, (uint64_t*)&bytes, writer);
+  lemonWriteRecordData( message, &bytes, writer);
   lemonWriterCloseRecord(writer);
   free(message);
 
   // binary data message
+#ifdef HAVE_MPI
+  bytes = (MPI_Offset)LX_global * LY_global * LZ_global * T_global * (MPI_Offset) (2*N*sizeof(double) * prec / 64);
+#else
   bytes = (n_uint64_t)LX_global * LY_global * LZ_global * T_global * (n_uint64_t) (2*N*sizeof(double) * prec / 64);
+#endif
   MB_flag=1, ME_flag=0;
   header = lemonCreateHeader(MB_flag, ME_flag, "scidac-binary-data", bytes);
   status = lemonWriteRecordHeader(header, writer);
@@ -548,7 +555,7 @@ int write_lime_contraction(double * const s, char * filename, const int prec, co
   header = lemonCreateHeader(MB_flag, ME_flag, "scidac-checksum", bytes);
   status = lemonWriteRecordHeader(header, writer);
   lemonDestroyHeader(header);
-  lemonWriteRecordData( message, (uint64_t*)&bytes, writer);
+  lemonWriteRecordData( message, &bytes, writer);
   lemonWriterCloseRecord(writer);
   free(message);
 

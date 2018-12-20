@@ -1,5 +1,5 @@
 /****************************************************
- * loop_invert_contract.cpp
+ * loop_invert_contract
  *
  * PURPOSE:
  * DONE:
@@ -78,7 +78,7 @@ void usage() {
 
 int main(int argc, char **argv) {
   
-  const char outfile_prefix[] = "cpff";
+  const char outfile_prefix[] = "loop";
 
   const char fbwd_str[2][4] =  { "fwd", "bwd" };
 
@@ -89,11 +89,15 @@ int main(int argc, char **argv) {
   int check_propagator_residual = 0;
   size_t sizeof_spinor_field;
   char filename[100];
-  // double ratime, retime;
+
+  struct timeval ta, tb;
+  long unsigned int seconds, useconds;
+
   double **mzz[2]    = { NULL, NULL }, **mzzinv[2]    = { NULL, NULL };
   double **DW_mzz[2] = { NULL, NULL }, **DW_mzzinv[2] = { NULL, NULL };
   double *gauge_field_with_phase = NULL;
-  int op_id_up = -1, op_id_dn = -1;
+  int op_id_up = -1;
+  /* int op_id_dn = -1; */
   char output_filename[400];
   int * rng_state = NULL;
 
@@ -134,6 +138,7 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * initialize MPI parameters for cvc
    ***************************************************************************/
+  /* exitstatus = tmLQCD_invert_init(argc, argv, 1, 0); */
   exitstatus = tmLQCD_invert_init(argc, argv, 1);
   if(exitstatus != 0) {
     EXIT(1);
@@ -274,10 +279,10 @@ int main(int argc, char **argv) {
    ***********************************************************/
   if ( g_fermion_type == _TM_FERMION ) {
     op_id_up = 0;
-    op_id_dn = 1;
+    /* op_id_dn = 1; */
   } else if ( g_fermion_type == _WILSON_FERMION ) {
     op_id_up = 0;
-    op_id_dn = 0;
+    /* op_id_dn = 0; */
   }
 
   /***************************************************************************
@@ -434,13 +439,14 @@ int main(int argc, char **argv) {
     memset ( spinor_work[1], 0, sizeof_spinor_field );
 
     exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_up );
-    if(exitstatus != 0) {
+    if(exitstatus < 0) {
       fprintf(stderr, "[loop_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(44);
     }
 
     if ( check_propagator_residual ) {
-      check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_up], 1 );
+      memcpy ( spinor_work[0], stochastic_source, sizeof_spinor_field );
+      check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_up], mzzinv[op_id_up], 1 );
     }
 
     memcpy( stochastic_propagator, spinor_work[1], sizeof_spinor_field);
@@ -453,15 +459,23 @@ int main(int argc, char **argv) {
       }
     }
 
+    gettimeofday ( &ta, (struct timezone *) NULL );
+
     /***************************************************************************
      * apply Wilson Dirac operator
      ***************************************************************************/
 
     /* decompose lexic stochastic_propagator into even/odd eo_spinor_work */
     spinor_field_lexic2eo ( stochastic_propagator, eo_spinor_work[0], eo_spinor_work[1] );
+    /* apply D_W */
     Q_clover_phi_matrix_eo ( eo_spinor_work[2],  eo_spinor_work[3],  eo_spinor_work[0],  eo_spinor_work[1], gauge_field_with_phase,  eo_spinor_work[4], DW_mzz[op_id_up]);
+    /* compose full spinor field */
     spinor_field_eo2lexic ( DW_stochastic_propagator, eo_spinor_work[2], eo_spinor_work[3] );
 
+    gettimeofday ( &tb, (struct timezone *)NULL );
+
+    show_time ( &ta, &tb, "loop_invert_contract", "DW", io_proc == 2 );
+ 
     /***************************************************************************
      *
      * contraction for local loops using std one-end-trick
@@ -545,10 +559,17 @@ int main(int argc, char **argv) {
        *****************************************************************/
       for ( int mu = 0; mu < 4; mu++ ) {
 
+        gettimeofday ( &ta, (struct timezone *)NULL );
+        
         /*****************************************************************
          * apply cov deriv direction = mu and fbwd = ifbwd
          *****************************************************************/
+
         spinor_field_eq_cov_deriv_spinor_field ( stochastic_propagator_deriv, stochastic_propagator, mu, ifbwd, gauge_field_with_phase );
+
+        gettimeofday ( &tb, (struct timezone *)NULL );
+
+        show_time ( &ta, &tb, "loop_invert_contract", "spinor_field_eq_cov_deriv_spinor_field", io_proc == 2 );
 
         /***************************************************************************
          * group name for contraction
@@ -583,7 +604,7 @@ int main(int argc, char **argv) {
          * group name for contraction
          * gen one-end-trick, single displ
          ***************************************************************************/
-        sprintf ( data_tag, "/conf_%.4d/nstoch_%.4d/%s/fbwd%d/dir%d", Nconf, isample, "DW_LoopsD", ifbwd, mu );
+        sprintf ( data_tag, "/conf_%.4d/nstoch_%.4d/%s/%s/dir%d", Nconf, isample, "DW_LoopsD", fbwd_str[ifbwd], mu );
 
         /***************************************************************************
          * loop contractions
@@ -612,14 +633,14 @@ int main(int argc, char **argv) {
          * 2nd loop on fwd / bwd
          ***************************************************************************/
         for ( int kfbwd = 0; kfbwd <= 1; kfbwd++ ) {
-  
+
           spinor_field_eq_cov_deriv_spinor_field ( stochastic_propagator_dderiv, stochastic_propagator_deriv, mu, kfbwd, gauge_field_with_phase );
 
           /***************************************************************************
            * group name for contraction
            * std one-end-trick, double displ
            ***************************************************************************/
-          sprintf ( data_tag, "/conf_%.4d/nstoch_%.4d/%s/fbwd%d/fbwd%d/dir%d", Nconf, isample, "LoopsDD", kfbwd, ifbwd, mu );
+          sprintf ( data_tag, "/conf_%.4d/nstoch_%.4d/%s/%s/%s/dir%d", Nconf, isample, "LoopsDD", fbwd_str[kfbwd], fbwd_str[ifbwd], mu );
 
           /***************************************************************************
            * loop contractions
@@ -683,7 +704,6 @@ int main(int argc, char **argv) {
     /*****************************************************************/
 
   }  /* end of loop on oet samples */
-
 
   /***************************************************************************
    * decallocate fields
