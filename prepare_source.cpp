@@ -44,7 +44,6 @@ int prepare_volume_source ( double * const s, unsigned int const V) {
   int status = 0;
 
   struct timeval ta, tb;
-  long unsigned int seconds, useconds;
 
   gettimeofday ( &ta, (struct timezone *)NULL );
 
