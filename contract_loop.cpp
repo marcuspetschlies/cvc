@@ -74,7 +74,6 @@ int contract_local_loop_stochastic ( double *** const loop, double * const sourc
   unsigned int const VOL3 = LX * LY * LZ;
  
   struct timeval ta, tb;
-  long unsigned int seconds, useconds;
 
   gettimeofday ( &ta, (struct timezone *)NULL );
 
@@ -169,7 +168,6 @@ int contract_loop_write_to_h5_file (double *** const loop, void * file, char*tag
      * time measurement
      ***************************************************************************/
     struct timeval ta, tb;
-    long unsigned int seconds, useconds;
     gettimeofday ( &ta, (struct timezone *)NULL );
 
     if ( io_proc == 2 ) {
