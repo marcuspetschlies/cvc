@@ -169,6 +169,18 @@ int main(int argc, char **argv) {
     }
   }}}
 
+  exitstatus = loop_get_momentum_list_from_h5_file ( g_sink_momentum_list, filename, g_sink_momentum_number, io_proc );
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "[] Error from loop_get_momentum_list_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    EXIT(1);
+  }
+
+  if ( g_verbose > 2 && io_proc == 2 ) {
+    for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+      fprintf ( stdout, " %3d  ( %3d, %3d, %3d)\n", imom, g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2] );
+    }
+  }
+
   /***************************************************************************
    * allocate memory for contractions
    ***************************************************************************/
