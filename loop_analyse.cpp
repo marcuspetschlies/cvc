@@ -157,9 +157,9 @@ int main(int argc, char **argv) {
    * count momenta and build momentum list
    ***************************************************************************/
   g_sink_momentum_number = 0;
-  for( int x1 = 0; x1 < LX; x1++ ) {
-  for( int x2 = 0; x2 < LY; x2++ ) {
-  for( int x3 = 0; x3 < LZ; x3++ ) {
+  for( int x1 = -LX_global/2+1; x1 < LX_global/2; x1++ ) {
+  for( int x2 = -LY_global/2+1; x2 < LY_global/2; x2++ ) {
+  for( int x3 = -LZ_global/2+1; x3 < LZ_global/2; x3++ ) {
     int const qq = x1*x1 + x2*x2 + x3*x3;
     if ( qq <= Qsq ) {
       g_sink_momentum_list[g_sink_momentum_number][0] = x1;
@@ -168,6 +168,12 @@ int main(int argc, char **argv) {
       g_sink_momentum_number++;
     }
   }}}
+  if ( g_sink_momentum_number <= 0 ) {
+    fprintf ( stderr, "[loop_analyse] Error, momentum list is empty %s %d\n", __FILE__, __LINE__ );
+    EXIT(1);
+  } else {
+    if (io_proc == 2 && g_verbose > 1 ) fprintf ( stdout, "# [loop_analyse] number of momenta <= %3d is %3d\n", Qsq, g_sink_momentum_number );
+  }
 
   exitstatus = loop_get_momentum_list_from_h5_file ( g_sink_momentum_list, filename, g_sink_momentum_number, io_proc );
   if ( exitstatus != 0 ) {
@@ -196,6 +202,7 @@ int main(int argc, char **argv) {
   sprintf ( filename, "%s.%.4d_%s_Ns%.4d_step%.4d_Qsq%d.h5", filename_prefix, Nconf, filename_prefix2, g_nsample, Nsave, Qsq );
   if ( io_proc == 2 && g_verbose > 2 ) fprintf ( stdout, "# [loop_analyse] loop filename = %s\n", filename );
 
+#if 0
   /***************************************************************************
    * loop on stochastic oet samples
    ***************************************************************************/
@@ -266,6 +273,7 @@ int main(int argc, char **argv) {
      */
 
   }  /* end of loop on oet samples */
+#endif  /* of if 0 */
 
   /***************************************************************************
    * decallocate fields
