@@ -162,9 +162,11 @@ int main(int argc, char **argv) {
   for( int x3 = -LZ_global/2+1; x3 < LZ_global/2; x3++ ) {
     int const qq = x1*x1 + x2*x2 + x3*x3;
     if ( qq <= Qsq ) {
+      /*
       g_sink_momentum_list[g_sink_momentum_number][0] = x1;
       g_sink_momentum_list[g_sink_momentum_number][1] = x2;
       g_sink_momentum_list[g_sink_momentum_number][2] = x3;
+      */
       g_sink_momentum_number++;
     }
   }}}
