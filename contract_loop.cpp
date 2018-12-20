@@ -40,6 +40,7 @@
 #include "cvc_geometry.h"
 #include "cvc_utils.h"
 #include "mpi_init.h"
+#include "table_init_i.h"
 #include "table_init_d.h"
 #include "table_init_z.h"
 #include "project.h"
@@ -639,7 +640,6 @@ int loop_get_momentum_list_from_h5_file ( int (*momentum_list)[3], void * file, 
      * time measurement
      ***************************************************************************/
     struct timeval ta, tb;
-    long unsigned int seconds, useconds;
     gettimeofday ( &ta, (struct timezone *)NULL );
 
     /***************************************************************************
@@ -647,7 +647,7 @@ int loop_get_momentum_list_from_h5_file ( int (*momentum_list)[3], void * file, 
      * zbuffer is significant
      ***************************************************************************/
     ibuffer = init_1level_itable ( 3 * momentum_number );
-    if( zbuffer == NULL ) {
+    if( ibuffer == NULL ) {
       fprintf(stderr, "[loop_get_momentum_list_from_h5_file] Error from init_1level_itable %s %d\n", __FILE__, __LINE__);
       return(1);
     }
