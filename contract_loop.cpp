@@ -295,7 +295,7 @@ int contract_loop_write_to_h5_file (double *** const loop, void * file, char*tag
       hid_t mem_type_id   = H5T_NATIVE_DOUBLE;
       hid_t mem_space_id  = H5S_ALL;
       hid_t file_space_id = H5S_ALL;
-      hid_t xfer_plit_id  = H5P_DEFAULT;
+      hid_t xfer_plist_id  = H5P_DEFAULT;
       hid_t lcpl_id       = H5P_DEFAULT;
       hid_t dcpl_id       = H5P_DEFAULT;
       hid_t dapl_id       = H5P_DEFAULT;
@@ -381,7 +381,7 @@ int contract_loop_write_to_h5_file (double *** const loop, void * file, char*tag
                const void * buf           IN: Buffer with data to be written to the file.
         herr_t H5Dwrite ( hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id, hid_t file_space_id, hid_t xfer_plist_id, const void * buf )
        */
-      status = H5Dwrite (       dataset_id,       mem_type_id,       mem_space_id,       file_space_id,        xfer_plit_id,    zbuffer );
+      status = H5Dwrite (       dataset_id,       mem_type_id,       mem_space_id,       file_space_id,        xfer_plist_id,    zbuffer );
   
       if( status < 0 ) {
         fprintf(stderr, "[contract_loop_write_to_h5_file] Error from H5Dwrite, status was %d %s %d\n", status, __FILE__, __LINE__);
@@ -453,6 +453,173 @@ int contract_loop_write_to_h5_file (double *** const loop, void * file, char*tag
   return(0);
 
 }  /* end of contract_loop_write_to_h5_file */
+
+#endif  /* of if defined HAVE_HDF5 */
+
+/***********************************************************/
+/***********************************************************/
+
+#ifdef HAVE_HDF5
+
+/***************************************************************************
+ * read time-momentum-dependent accumulated loop data from HDF5 file
+ *
+ * OUT: loop            : T x Nmom x 2nc doubles
+ * IN : file            : here filename
+ * IN : momentum_number : number of momenta
+ * IN : io_proc         : I/O id
+ *
+ ***************************************************************************/
+int loop_read_from_h5_file (double *** const loop, void * file, char*tag, int const momentum_number, int const nc, int const io_proc ) {
+
+  if ( io_proc > 0 ) {
+
+    double * zbuffer = NULL;
+
+    char * filename = (char *)file;
+
+    /***************************************************************************
+     * time measurement
+     ***************************************************************************/
+    struct timeval ta, tb;
+    long unsigned int seconds, useconds;
+    gettimeofday ( &ta, (struct timezone *)NULL );
+
+    if ( io_proc == 2 ) {
+      /***************************************************************************
+       * recvbuf for MPI_Gather; io_proc 2 is receive process,
+       * zbuffer is significant
+       ***************************************************************************/
+      zbuffer = init_1level_dtable ( 2 * nc * T_global * momentum_number );
+      if( zbuffer == NULL ) {
+        fprintf(stderr, "[loop_read_from_h5_file] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
+        return(1);
+      }
+    }  /* end of if io_proc == 2 else */
+
+    /***************************************************************************
+     * io_proc 2 is origin of Cartesian grid and does the write to disk
+     ***************************************************************************/
+    if(io_proc == 2) {
+  
+      /***************************************************************************
+       * create or open file
+       ***************************************************************************/
+
+      hid_t   file_id = -1;
+      herr_t  status;
+
+      struct stat fileStat;
+      if ( stat( filename, &fileStat) < 0 ) {
+        fprintf ( stderr, "[loop_read_from_h5_file] Error, file %s does not exist %s %d\n", filename, __FILE__, __LINE__ );
+        return ( 1 );
+      } else {
+        /* open an existing file. */
+        if ( g_verbose > 1 ) fprintf ( stdout, "# [contract_loop_write_to_h5_file] open existing file\n" );
+  
+        unsigned flags = H5F_ACC_RDWR;  /* IN: File access flags. Allowable values are:
+                                           H5F_ACC_RDWR   --- Allow read and write access to file.
+                                           H5F_ACC_RDONLY --- Allow read-only access to file.
+  
+                                           H5F_ACC_RDWR and H5F_ACC_RDONLY are mutually exclusive; use exactly one.
+                                           An additional flag, H5F_ACC_DEBUG, prints debug information.
+                                           This flag can be combined with one of the above values using the bit-wise OR operator (`|'),
+                                           but it is used only by HDF5 Library developers; it is neither tested nor supported for use in applications. */
+        hid_t fapl_id = H5P_DEFAULT;
+        /*  hid_t H5Fopen ( const char *name, unsigned flags, hid_t fapl_id ) */
+        file_id = H5Fopen (         filename,         flags,        fapl_id );
+
+        if ( file_id < 0 ) {
+          fprintf ( stderr, "[loop_read_from_h5_file] Error from H5Fopen %s %d\n", __FILE__, __LINE__ );
+          return ( 2 );
+        }
+      }
+  
+      if ( g_verbose > 1 ) fprintf ( stdout, "# [loop_read_from_h5_file] file_id = %ld\n", file_id );
+  
+      /***************************************************************************
+       * open H5 data set
+       ***************************************************************************/
+      hid_t dapl_id       = H5P_DEFAULT;
+
+      hid_t dataset_id = H5Dopen2 ( file_id, tag, dapl_id );
+      if ( dataset_id < 0 ) {
+        fprintf ( stderr, "[loop_read_from_h5_file] Error from H5Dopen2 %s %d\n", __FILE__, __LINE__ );
+        return ( 3 );
+      }
+
+      /***************************************************************************
+       * some default settings for H5Dread
+       ***************************************************************************/
+      hid_t mem_type_id   = H5T_NATIVE_DOUBLE;
+      hid_t mem_space_id  = H5S_ALL;
+      hid_t file_space_id = H5S_ALL;
+      hid_t xfer_plist_id = H5P_DEFAULT;
+
+      /***************************************************************************
+       * read data set
+       ***************************************************************************/
+      status = H5Dread ( dataset_id, mem_type_id, mem_space_id, file_space_id, xfer_plist_id, (void*)zbuffer );
+      if ( status < 0 ) {
+        fprintf ( stderr, "[loop_read_from_h5_file] Error from H5Dread %s %d\n", __FILE__, __LINE__ );
+        return ( 4 );
+      }
+
+      /***************************************************************************
+       * close data set
+       ***************************************************************************/
+      status = H5Dclose ( dataset_id );
+      if ( status < 0 ) {
+        fprintf ( stderr, "[loop_read_from_h5_file] Error from H5Dclose %s %d\n", __FILE__, __LINE__ );
+        return ( 5 );
+      }
+
+      /***************************************************************************
+       * close the file
+       ***************************************************************************/
+      status = H5Fclose ( file_id );
+      if( status < 0 ) {
+        fprintf(stderr, "[loop_read_from_h5_file] Error from H5Fclose, status was %d %s %d\n", status, __FILE__, __LINE__);
+        return(6);
+      } 
+
+    }  /* if io_proc == 2 */
+
+#ifdef HAVE_MPI
+    /***************************************************************************
+     * io_proc == 2 must be id 0 in g_tr_comm / g_cart_grid
+     ***************************************************************************/
+    int mitems = T * momentum_number * nc * 2;
+    MPI_Status = mstatus;
+
+#if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ ) 
+    mstatus = MPI_Scatter ( zbuffer, mitems, MPI_DOUBLE, loop[0][0], mitems, MPI_DOUBLE, 0, g_tr_comm   );
+#else
+    mstatus = MPI_Scatter ( zbuffer, mitems, MPI_DOUBLE, loop[0][0], mitems, MPI_DOUBLE, 0, g_cart_grid );
+#endif
+    if ( mstatus != MPI_SUCCESS ) {
+      fprintf(stderr, "[loop_read_from_h5_file] Error from MPI_Scatter, status was %d %s %d\n", status, __FILE__, __LINE__);
+      return(7);
+    }
+#else
+    /* T == T_global */
+    memcpy ( loop[0][0], zbuffer, T * momentum_number * nc * 2 * sizeof(double) );
+#endif
+
+    fini_1level_dtable ( &zbuffer );
+
+    /***************************************************************************
+     * time measurement
+     ***************************************************************************/
+    gettimeofday ( &tb, (struct timezone *)NULL );
+  
+    show_time ( &ta, &tb, "loop_read_from_h5_file", "write h5", 1 );
+
+  }  /* end of of if io_proc > 0 */
+  
+  return(0);
+
+}  /* end of loop_read_from_h5_file */
 
 #endif  /* of if defined HAVE_HDF5 */
 
