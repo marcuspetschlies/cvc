@@ -480,7 +480,6 @@ int loop_read_from_h5_file (double *** const loop, void * file, char*tag, int co
      * time measurement
      ***************************************************************************/
     struct timeval ta, tb;
-    long unsigned int seconds, useconds;
     gettimeofday ( &ta, (struct timezone *)NULL );
 
     if ( io_proc == 2 ) {
