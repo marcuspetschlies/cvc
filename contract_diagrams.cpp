@@ -936,6 +936,7 @@ int contract_diagram_write_h5 (double _Complex***diagram, hid_t file, hid_t memt
 /***********************************************
  * write contracted scalar diagram to AFF
  ***********************************************/
+#ifdef HAVE_LHPC_AFF
 int contract_diagram_write_scalar_aff (double _Complex*diagram, struct AffWriter_s*affw, char*aff_tag, int const tstart, int const dt, int const fbwd, int const io_proc ) {
 
   const int nt = dt + 1; /* tstart + dt */
@@ -977,6 +978,7 @@ int contract_diagram_write_scalar_aff (double _Complex*diagram, struct AffWriter
   }  /* end of if io_proc == 2 */
   return(0);
 }  // end of contract_diagram_write_scalar_aff
+#endif  /* of HAVE_LHPC_AFF */
 
 /***********************************************/
 /***********************************************/
@@ -1046,6 +1048,7 @@ void printf_data_from_key ( char *key_name, double _Complex **key_data, int cons
 /***********************************************
  * 
  ***********************************************/
+#ifdef HAVE_LHPC_AFF
 int contract_diagram_read_key_qlua ( 
     double _Complex **fac, // output
     char const *prefix,    // key prefix
@@ -1153,6 +1156,7 @@ int contract_diagram_read_key_qlua (
 
   return(0);
 }  // end of contract_diagram_read_key_qlua
+#endif  /* end of if def HAVE_LHPC_AFF */
 
 /***********************************************/
 /***********************************************/
@@ -1160,6 +1164,7 @@ int contract_diagram_read_key_qlua (
 /***********************************************
  * 
  ***********************************************/
+#ifdef HAVE_LHPC_AFF
 int contract_diagram_read_oet_key_qlua ( 
     double _Complex ***fac, // output
     char const *prefix,     // key prefix
@@ -1247,6 +1252,8 @@ int contract_diagram_read_oet_key_qlua (
 
   return(0);
 }  // end of contract_diagram_read_oet_key_qlua
+
+#endif  /* end of if def HAVE_LHPC_AFF */
 
 /***********************************************/
 /***********************************************/
