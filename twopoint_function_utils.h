@@ -35,6 +35,8 @@ int twopoint_function_fill_data ( twopoint_function_type *p, char *datafile_pref
 
 int twopoint_function_write_data ( twopoint_function_type *p );
 
+int twopoint_function_data_location_identifier ( char * udli, twopoint_function_type *p, char * const datafile_prefix, int const ids );
+
 }  // end of namespace cvc
 
 

@@ -29,6 +29,7 @@
 #include "io_utils.h"
 #include "zm4x4.h"
 #include "table_init_z.h"
+#include "group_projection.h"
 #include "contract_diagrams.h"
 #include "twopoint_function_utils.h"
 
@@ -620,6 +621,7 @@ int twopoint_function_accumulate_diagrams ( double _Complex *** const diagram, t
  ********************************************************************************/
 int twopoint_function_fill_data ( twopoint_function_type *p, char * datafile_prefix ) {
 
+#ifdef HAVE_LHPC_AFF
   int const nT = p->T;  // timeslices
   int const d  = p->d;  // spin dimension
   int const nD = p->n;  // number of diagrams / data sets
@@ -662,6 +664,17 @@ int twopoint_function_fill_data ( twopoint_function_type *p, char * datafile_pre
   int const Ptot[3] = { p->pf1[0] + p->pf2[0], p->pf1[1] + p->pf2[1], p->pf1[2] + p->pf2[2] } ;
 
   /******************************************************
+   * reference frame momentum for current total momentum
+   ******************************************************/
+  int Pref[3];
+  exitstatus = get_reference_rotation ( Pref, NULL, Ptot );
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "[twopoint_function_fill_data] Error from get_reference_rotation, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(4);
+  } 
+
+
+  /******************************************************
    * for the filename we need the reference momentum
    ******************************************************/
 
@@ -699,7 +712,7 @@ int twopoint_function_fill_data ( twopoint_function_type *p, char * datafile_pre
        * AFF reader
        ******************************************************/
       sprintf(filename, "%s.%c.PX%dPY%dPZ%d.%.4d.t%dx%dy%dz%d.aff", datafile_prefix, diagram_tag[0],
-          Ptot[0], Ptot[1], Ptot[2], Nconf,
+          Pref[0], Pref[1], Pref[2], Nconf,
           p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3] );
  
       affr = aff_reader  (filename);
@@ -715,8 +728,11 @@ int twopoint_function_fill_data ( twopoint_function_type *p, char * datafile_pre
         return(103);
       }
     } else {
-      if ( g_verbose > 3 ) fprintf ( stdout, "# [twopoint_function_fill_data] using existing reader\n");
+      if ( g_verbose > 3 ) fprintf ( stdout, "# [twopoint_function_fill_data] using existing reader %s %d\n", __FILE__, __LINE__);
     }  /* end of need new reader */
+
+    /* copy temporary diagram tag to diagram tag */
+    strcpy ( diagram_tag, diagram_tag_tmp );
 
     /* current filename pattern uses lower-case tag, so this 
      * toupper is not needed now */
@@ -724,7 +740,7 @@ int twopoint_function_fill_data ( twopoint_function_type *p, char * datafile_pre
     /* filename_tag[0] = toupper ( diagram_tag[0] ); */
 
     sprintf( key, "/%s/%s/%s/%s", p->name, diagram_tag, p->fbwd, key_suffix );
-    if ( g_verbose > 3 ) fprintf ( stdout, "# [twopoint_function_fill_data] key = %s\n", key );
+    if ( g_verbose > 3 ) fprintf ( stdout, "# [twopoint_function_fill_data] key = %s %s %d\n", key, __FILE__, __LINE__ );
 
 
     affdir = aff_reader_chpath (affr, affn, key );
@@ -737,7 +753,7 @@ int twopoint_function_fill_data ( twopoint_function_type *p, char * datafile_pre
 
     if ( strcmp ( p->norm , "NA" ) != 0 ) {
       double const norm = twopoint_function_get_diagram_norm ( p, i );
-      if ( g_verbose > 3 ) fprintf ( stdout, "# [twopoint_function_fill_data] using diagram norm %2d %16.7e\n", i, norm );
+      if ( g_verbose > 3 ) fprintf ( stdout, "# [twopoint_function_fill_data] using diagram norm %2d %16.7e %s %d\n", i, norm, __FILE__, __LINE__ );
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
@@ -761,7 +777,10 @@ int twopoint_function_fill_data ( twopoint_function_type *p, char * datafile_pre
   }
 
   return(0);
-
+#else
+  fprintf ( stdout, "# [twopoint_function_fill_data] non-aff version not yet implemented\n" );
+  return(1);
+#endif
 }  // end of twopoint_function_fill_data
 
 /********************************************************************************/
@@ -769,17 +788,14 @@ int twopoint_function_fill_data ( twopoint_function_type *p, char * datafile_pre
 #if ! ( ( defined HAVE_LHPC_AFF ) || ( defined HAVE_HDF5 ) )
 /********************************************************************************
  * write diagrams in a twopoint
+ *
+ * ASCII version
  ********************************************************************************/
 int twopoint_function_write_data ( twopoint_function_type *p ) {
 
   int const nT     = p->T;         // timeslices
   int const ncomp  = p->d * p->d;  // number of components per timeslice of the data set; usually ( spin dimension )^2
   int const nD     = p->n;         // number of data sets, usually number of diagrams
-
-#ifndef HAVE_LHPC_AFF
-  fprintf ( stderr, "[twopoint_function_write_data] Error, only AFF writing implemented %s %d\n", __FILE__, __LINE__ );
-  return(3);
-#endif
 
   if ( nT <= 0 || ncomp <= 0 || nD <= 0 ) {
     fprintf ( stderr, "[twopoint_function_write_data] Error, wrong number of timeslices, components or data sets %s %d\n", __FILE__, __LINE__ );
@@ -800,9 +816,9 @@ int twopoint_function_write_data ( twopoint_function_type *p ) {
   char filename[200];
 
   /******************************************************
-   * open AFF writer
+   * set FILE pointer
    ******************************************************/
-  sprintf ( filename, "%s.%s.PX%dPY%dPZ%d.%s.%.4d.t%dx%dy%dz%d", p->name, p->group, Ptot[0], Ptot[1], Ptot[2], p->irrep, Nconf,
+  sprintf ( filename, "%s.%s.PX%dPY%dPZ%d.%s.%.4d.t%dx%dy%dz%d.dat", p->name, p->group, Ptot[0], Ptot[1], Ptot[2], p->irrep, Nconf,
       p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3] );
   if ( g_verbose > 3 ) fprintf ( stdout, "# [twopoint_function_write_data] filename = %s %s %d\n", filename, __FILE__, __LINE__ );
 
@@ -832,7 +848,7 @@ int twopoint_function_write_data ( twopoint_function_type *p ) {
     char dataset_tag[10];
     twopoint_function_get_diagram_name ( dataset_tag, p, i );
 
-    sprintf( key, "/%s/%s/%s/%s", p->name, dataset_tag, p->fbwd, key_suffix );
+    sprintf( key, "/%s/%s%s/%s", p->name, p->fbwd, key_suffix, dataset_tag );
     fprintf ( ofs, "# %s\n", key );
 
     size_t uitems = ncomp * nT;
@@ -883,7 +899,7 @@ int twopoint_function_write_data ( twopoint_function_type *p ) {
   /******************************************************
    * open AFF writer
    ******************************************************/
-  sprintf ( filename, "%s.%s.PX%dPY%dPZ%d.%s.%.4d.t%dx%dy%dz%d", p->name, p->group, Ptot[0], Ptot[1], Ptot[2], p->irrep, Nconf,
+  sprintf ( filename, "%s.%s.PX%dPY%dPZ%d.%s.%.4d.t%dx%dy%dz%d.aff", p->name, p->group, Ptot[0], Ptot[1], Ptot[2], p->irrep, Nconf,
       p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3] );
   if ( g_verbose > 3 ) fprintf ( stdout, "# [twopoint_function_write_data] filename = %s %s %d\n", filename, __FILE__, __LINE__ );
 
@@ -919,7 +935,7 @@ int twopoint_function_write_data ( twopoint_function_type *p ) {
     char dataset_tag[10];
     twopoint_function_get_diagram_name ( dataset_tag, p, i );
 
-    sprintf( key, "/%s/%s/%s/%s", p->name, dataset_tag, p->fbwd, key_suffix );
+    sprintf( key, "/%s/%s%s/%s", p->name, p->fbwd, key_suffix, dataset_tag );
     fprintf ( stdout, "# [twopoint_function_write_data] key = %s\n", key );
 
     struct AffNode_s * affdir = aff_writer_mkpath ( affw, affn, key );
@@ -929,7 +945,7 @@ int twopoint_function_write_data ( twopoint_function_type *p ) {
     }
 
     uint32_t uitems = ncomp * nT;
-    exitstatus = aff_node_put_complex ( affw, affdir, dataset[i][0], uitems );
+    exitstatus = aff_node_put_complex ( affw, affdir, dataset[0][0], uitems );
     if( exitstatus != 0 ) {
       fprintf(stderr, "[twopoint_function_write_data] Error from aff_node_put_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       return(105);
@@ -1240,5 +1256,71 @@ int twopoint_function_write_data ( twopoint_function_type *p ) {
 }  // end of twopoint_function_write_data
 
 #endif
+
+
+/********************************************************************************/
+/********************************************************************************/
+
+/********************************************************************************
+ * read diagrams for a twopoint
+ ********************************************************************************/
+int twopoint_function_data_location_identifier ( char * udli, twopoint_function_type *p, char * const datafile_prefix, int const ids ) {
+
+  char key[500];
+  char key_suffix[400];
+  char diagram_tag[20] = "NA";
+  char filename[200];
+  int exitstatus;
+
+  /******************************************************
+   * total momentum
+   ******************************************************/
+  int const Ptot[3] = { p->pf1[0] + p->pf2[0], p->pf1[1] + p->pf2[1], p->pf1[2] + p->pf2[2] } ;
+
+  /******************************************************
+   * reference frame momentum for current total momentum
+   ******************************************************/
+  int Pref[3];
+  exitstatus = get_reference_rotation ( Pref, NULL, Ptot );
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "[twopoint_function_data_location_identifier] Error from get_reference_rotation, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(4);
+  } 
+
+  /* write "last part" of key name into key_suffix;
+   * including all momenta and vertex gamma ids */
+  exitstatus = contract_diagram_key_suffix_from_type ( key_suffix, p );
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "[twopoint_function_data_location_identifier] Error from contract_diagram_key_suffix_from_type, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    return(1);
+  }
+
+  /******************************************************
+   * diagram tag
+   ******************************************************/
+  twopoint_function_get_diagram_name ( diagram_tag, p, ids );
+
+  /******************************************************
+   * data filename
+   ******************************************************/
+  sprintf(filename, "%s.%c.PX%dPY%dPZ%d.%.4d.t%dx%dy%dz%d.aff", datafile_prefix, diagram_tag[0],
+      Pref[0], Pref[1], Pref[2], Nconf,
+      p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3] );
+ 
+  /******************************************************
+   * key name
+   ******************************************************/
+  sprintf( key, "/%s/%s/%s/%s", p->name, diagram_tag, p->fbwd, key_suffix );
+  if ( g_verbose > 3 ) fprintf ( stdout, "# [twopoint_function_data_location_identifier] key = %s %s %d\n", key, __FILE__, __LINE__ );
+
+  /******************************************************
+   * udli
+   ******************************************************/
+  sprintf ( udli, "%s%s", filename, key );
+
+  if ( g_verbose > 4 ) fprintf ( stdout, "# [twopoint_function_data_location_identifier] udli = %s\n", udli );
+
+  return(0);
+}  // end of twopoint_function_data_location_identifier
 
 }  // end of namespace cvc
