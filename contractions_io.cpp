@@ -1,7 +1,5 @@
 /*****************************************************************************
- * contractions_io.c
- *
- * Tue Nov 15 12:04:09 CET 2016
+ * contractions_io
  *
  * PURPOSE
  * - functions for i/o of contractions, derived from propagator_io
@@ -41,6 +39,10 @@ extern "C"
 
 #ifdef __cplusplus
 }
+#endif
+
+#ifdef HAVE_LHPC_AFF
+#include "lhpc-aff.h"
 #endif
 
 #include "cvc_complex.h"
@@ -637,5 +639,59 @@ int read_lime_contraction(double * const s, char * filename, const int N, const 
   fclose(ifs);
   return(0);
 }  /* end of read_lime_contraction */
+
+/***********************************************************/
+/***********************************************************/
+
+#ifdef HAVE_LHPC_AFF
+/***********************************************************
+ * read AFF contraction
+ ***********************************************************/
+int read_aff_contraction ( void * const contr, void * const areader, void * const afilename, char * tag, unsigned int const nc) {
+
+  struct AffReader_s *affr = NULL;
+  struct AffNode_s *affn = NULL, *affdir = NULL;
+  uint32_t items = nc;
+  int exitstatus;
+
+  if ( areader != NULL ) {
+    affr = (struct AffReader_s *) areader;
+  } else if ( afilename != NULL ) {
+    char * filename = (char*) afilename;
+    if (g_verbose > 2 ) fprintf ( stdout, "# [read_aff_contraction] new AFF reader for file %s %s %d\n", filename, __FILE__, __LINE__ );
+
+    affr = aff_reader (filename);
+    if( const char * aff_status_str = aff_reader_errstr(affr) ) {
+      fprintf(stderr, "[read_aff_contraction] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+      return( 4 );
+    } else {
+      if (g_verbose > 2 ) fprintf(stdout, "# [read_aff_contraction] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
+    }
+  } else { 
+    fprintf ( stderr, "[read_aff_contraction] Error, neither reader nor filename\n" );
+    return ( 1 );
+  }
+
+  if( (affn = aff_reader_root( affr )) == NULL ) {
+    fprintf(stderr, "[read_aff_contraction] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+    return( 2 );
+  }
+
+  affdir = aff_reader_chpath ( affr, affn, tag );
+  exitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*) contr, items );
+  if( exitstatus != 0 ) {
+    fprintf(stderr, "[read_aff_contraction] Error from aff_node_get_complex for key \"%s\", status was %d %s %d\n", tag, exitstatus, __FILE__, __LINE__);
+    return ( 105 );
+  }
+
+  if ( areader == NULL )  {
+    /* in that case affr was reader within the scope of this function */
+    aff_reader_close ( affr );
+  }
+
+  return ( 0 );
+
+}  /* end of read_aff_contraction */
+#endif
 
 }  /* end of namespace cvc */
