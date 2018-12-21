@@ -2824,7 +2824,7 @@ inline int comp_int3_abs ( int const a[3] , int const b[3] ) {
  * return the first valid reference rotation found in the
  * list of all rotations
  ***********************************************************/
-int get_reference_rotation ( int pref[3], int *Rref, int const p[3] ) {
+int get_reference_rotation ( int pref[3], int * Rref, int const p[3] ) {
 
   /***********************************************************
    * momentum lists, up to d^+ d = 3
@@ -2863,7 +2863,7 @@ int get_reference_rotation ( int pref[3], int *Rref, int const p[3] ) {
     pref[0] = p[0];
     pref[1] = p[1];
     pref[2] = p[2];
-    *Rref = -1;
+    if ( Rref != NULL ) *Rref = -1;
     return ( 0 );
   }
 
@@ -2921,7 +2921,7 @@ int get_reference_rotation ( int pref[3], int *Rref, int const p[3] ) {
             char name[] = "Rref";
             rot_printf_rint_matrix (R, 3, name, stdout );
           }
-          *Rref = irot;
+          if ( Rref != NULL ) *Rref = irot;
           rot_found = 1;
           break;
         }
