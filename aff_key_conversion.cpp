@@ -162,7 +162,7 @@ int v2_key_index_conversion ( double _Complex *buffer, int perm[4], int N, int L
  *************************************************************************************/
 int vn_oet_read_key ( double _Complex *key_buffer, char*tag, int const i_sample, int const pi2[3], int const pf1[3], int const pf2[3], int const source_coords[4], int const gamma_id, int const C_gamma_id, struct AffReader_s *affr ) {
 
-
+#ifdef HAVE_LHPC_AFF
   int exitstatus, perm[4];
   char key[200];
   double _Complex **buffer_aux = NULL, ***buffer = NULL;
@@ -238,7 +238,10 @@ int vn_oet_read_key ( double _Complex *key_buffer, char*tag, int const i_sample,
   fini_2level_zbuffer ( &buffer_aux );
   fini_3level_zbuffer ( &buffer );
   return(0);
-
+#else
+  fprintf( stderr, "[vn_oet_read_key] Error, non-aff version not yet implemented\n" );
+  return ( 1 );
+#endif
 }  /* end vn_oet_read_key */
 
 /**************************************************************************************/
