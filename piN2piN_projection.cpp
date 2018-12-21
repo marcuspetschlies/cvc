@@ -224,7 +224,8 @@ int main(int argc, char **argv) {
      ****************************************************/
     int ref_row_target          = -1;     // no reference row for target irrep
     int * ref_row_spin          = NULL;   // no reference row for spin matrices
-    int refframerot             = -1;     // reference frame rotation FIXME none for now
+    int refframerot             = -1;     // reference frame rotation
+                                          //   added below
     int row_target              = -1;     // no target row
     int cartesian_list[1]       = { 0 };  // not cartesian
     int parity_list[1]          = { 1 };  // intrinsic parity is +1
@@ -284,7 +285,7 @@ int main(int argc, char **argv) {
       if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_projection] projector P == Ptot\n" );
     }
 
-#if 0
+
     int const nrot      = projector.rtarget->n;
     int const irrep_dim = projector.rtarget->dim;
 
@@ -389,12 +390,27 @@ int main(int argc, char **argv) {
          ******************************************************/
         for ( int irotl = 0; irotl < 2*nrot; irotl ++ ) {
 
+          if ( g_verbose > 3 ) fprintf ( stdout, "# [piN2piN_projection] left rotref %2d - %2d\n", irotl / nrot, irotl % nrot );
 
+          /******************************************************
+           * set momentum vector ( = spin-1 ) rotation matrix
+           *
+           *                                          proper rotation          rotation-reflection
+           ******************************************************/
           double _Complex ** Rpl = ( irotl < nrot ) ? projector.rp->R[irotl] : projector.rp->IR[irotl-nrot];
 
+          /******************************************************
+           * rotate the final momentum vectors pf1, pf2 with Rpl
+           * left = sink side
+           ******************************************************/
           rot_point ( tp.pf1, g_twopoint_function_list[i2pt].pf1, Rpl );
           rot_point ( tp.pf2, g_twopoint_function_list[i2pt].pf2, Rpl );
 
+          /******************************************************
+           * set the spinor ( = spin-1/2 bispinor ) rotation matrix
+           *
+           *                                          proper rotation               rotation-reflection
+           ******************************************************/
           double _Complex ** Rsl = ( irotl < nrot ) ? projector.rspin[0].R[irotl] : projector.rspin[0].IR[irotl-nrot];
           memcpy ( gl.v, Rsl[0], 16*sizeof(double _Complex) );
 
@@ -404,14 +420,21 @@ int main(int argc, char **argv) {
            * Gamma_{f_1, 1/2} --->
            *
            *   S(R)^* Gamma_{f_1, 1/2} S(R)^H
+           *
+           *   ****************************
+           *   * ANNIHILATION / SINK SIDE *
+           *   ****************************
            ******************************************************/
           gamma_matrix_set ( &gf11, g_twopoint_function_list[i2pt].gf1[0], 1. );
           /* gl^C gf11 gl^H */
           gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gf11, &gl, 'C', &gf11, &gl, 'H' );
 
           gamma_matrix_set ( &gf12, g_twopoint_function_list[i2pt].gf1[1], 1. );
-          /* gl^C gf12 gl^H */
-          gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gf12, &gl, 'C', &gf12, &gl, 'H' );
+          /* gl^N gf12 gl^H */
+          gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gf12, &gl, 'N', &gf12, &gl, 'H' );
+
+          tp.gf1[0] = gf11.id;
+          tp.gf1[1] = gf12.id;
 
           /******************************************************
            * Gamma_{f_2} ---> S(R) Gamma_{f_2} S(R)^+
@@ -420,8 +443,6 @@ int main(int argc, char **argv) {
           /* gl^N gf2 gl^H */
           gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gf2, &gl, 'N', &gf2, &gl, 'H' );
 
-          tp.gf1[0] = gf11.id;
-          tp.gf1[1] = gf12.id;
           tp.gf2    = gf2.id;
 
         /******************************************************
@@ -433,6 +454,9 @@ int main(int argc, char **argv) {
          ******************************************************/
         for ( int irotr = 0; irotr < 2*nrot; irotr ++ ) {
 
+          if ( g_verbose > 3 ) fprintf ( stdout, "# [piN2piN_projection] right rotref %2d - %2d\n", irotr / nrot, irotr % nrot );
+
+          /*                                          proper rotation          rotation-reflection */
           double _Complex ** Rpr = ( irotr < nrot ) ? projector.rp->R[irotr] : projector.rp->IR[irotr-nrot];
 
           rot_point ( tp.pi1, g_twopoint_function_list[i2pt].pi1, Rpr );
@@ -446,6 +470,9 @@ int main(int argc, char **argv) {
            *
            *   S(R) Gamma_{i_1, 1/2} S(R)^t
            *
+           *   **************************
+           *   * CREATION / SOURCE SIDE *
+           *   **************************
            ******************************************************/
           
           gamma_matrix_set ( &gi11, g_twopoint_function_list[i2pt].gi1[0], 1. );
@@ -453,8 +480,11 @@ int main(int argc, char **argv) {
           gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gi11, &gr, 'N', &gi11, &gr, 'T' );
 
           gamma_matrix_set ( &gi12, g_twopoint_function_list[i2pt].gi1[1], 1. );
-          /* gr^N gi12 gr^T */
-          gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gi12, &gr, 'N', &gi12, &gr, 'T' );
+          /* gr^N gi12 gr^H */
+          gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gi12, &gr, 'N', &gi12, &gr, 'H' );
+
+          tp.gi1[0] = gi11.id;
+          tp.gi1[1] = gi12.id;
 
           /******************************************************
            * Gamma_{i_2} ---> S(R) Gamma_{i_2} S(R)^+
@@ -463,8 +493,6 @@ int main(int argc, char **argv) {
           /* gr^N gi2 gr^H */
           gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gi2, &gr, 'N', &gi2, &gr, 'H' );
 
-          tp.gi1[0] = gi11.id;
-          tp.gi1[1] = gi12.id;
           tp.gi2    = gi2.id;
 
           // TEST
@@ -475,7 +503,7 @@ int main(int argc, char **argv) {
           //sprintf (  name, "R%.2d_TWPT_R%.2d", irotl, irotr );
           //twopoint_function_print ( &tp, name, stdout );
 
-
+#if 0
           /******************************************************
            * fill the diagram with data
            ******************************************************/
@@ -483,6 +511,19 @@ int main(int argc, char **argv) {
             fprintf ( stderr, "[piN2piN_projection] Error from twopoint_function_fill_data, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(212);
           }
+#endif  /* of if 0 */
+
+
+          /******************************************************
+           * fill the diagram with data
+           ******************************************************/
+          char tp_udli[500];
+          if ( ( exitstatus = twopoint_function_data_location_identifier ( tp_udli, &tp, filename_prefix , 0) ) != 0 ) {
+            fprintf ( stderr, "[piN2piN_projection] Error from twopoint_function_data_location_identifier, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(212);
+          }
+
+#if 0
 
           /******************************************************
            * sum up data sets in tp
@@ -494,13 +535,13 @@ int main(int argc, char **argv) {
 
           /******************************************************
            * residual rotation of complete 4x4 correlator
-           * at source and sink
+           * at sink ( left ) and source ( right )
            *
            * use Rsl, Rsr above
            *
-           * tp.c[0] <- Rsl^t x tp.c[0] x Rsr^*
+           * tp.c[0] <- Rsl^H x tp.c[0] x Rsr
            ******************************************************/
-          contract_diagram_mat_op_ti_zm4x4_field_ti_mat_op ( tp.c[0], Rsl, 'T' , tp.c[0], Rsr, 'C', tp.T );
+          contract_diagram_mat_op_ti_zm4x4_field_ti_mat_op ( tp.c[0], Rsl, 'H' , tp.c[0], Rsr, 'N', tp.T );
 
           /******************************************************
            * projection variants
@@ -513,16 +554,28 @@ int main(int argc, char **argv) {
             for ( int rsnk = 0; rsnk < irrep_dim; rsnk++ ) {
             for ( int rsrc = 0; rsrc < irrep_dim; rsrc++ ) {
 
+
+              /******************************************************
+               * unique irrep rows and reference row identifier
+               *
+               * note: reference row rref determines the projector,
+               *       same for source and sink
+               ******************************************************/
               int const irrr = ( rref * irrep_dim + rsnk ) * irrep_dim + rsrc;
 
+              /******************************************************
+               * curren projection coefficient for chosen irrep rows
+               * at source and sink, together with sign factors
+               * from rotation+basis projection of gamma matrices
+               ******************************************************/
               double _Complex const zcoeff = 
-                  gf11.s  /* gamma rot sign f_1,1 */
-                * gf12.s  /* gamma rot sign f_1,2 */
-                * gf2.s   /* gamma rot sign f_2 */
-                * Tirrepr[rsnk][rref]  /* phase irrep matrix sink */
-                * gi11.s  /* gamma rot sign i_1,1 */
-                * gi12.s  /* gamma rot sign i_1,2 */
-                * gi2.s   /* gamma rot sign i_2 */
+                  gf11.s                        /* gamma rot sign f_1,1      */
+                * gf12.s                        /* gamma rot sign f_1,2      */
+                * gf2.s                         /* gamma rot sign f_2        */
+                * Tirrepr[rsnk][rref]           /* phase irrep matrix sink   */
+                * gi11.s                        /* gamma rot sign i_1,1      */
+                * gi12.s                        /* gamma rot sign i_1,2      */
+                * gi2.s                         /* gamma rot sign i_2        */
                 * conj ( Tirrepl[rsrc][rref] ); /* phase irrep matrix source */
                 
               contract_diagram_zm4x4_field_eq_zm4x4_field_pl_zm4x4_field_ti_co ( tp_project[irrr].c[0], tp_project[irrr].c[0], tp.c[0], zcoeff, tp.T );
@@ -530,16 +583,17 @@ int main(int argc, char **argv) {
             }  // end of loop on rsrc
             }  // end of loop on rsnk
           }  // end of loop on rref
-#if 0
+
 #endif  /* end of if 0 */
 
         }  // end of loop on source rotations
         }  // end of loop on sink rotations
-
+#if 0
         /******************************************************
          * output of tp_project
+         *
+         * loop over individiual projection variants
          ******************************************************/
-
         for ( int itp = 0; itp < n_tp_project; itp++ ) {
  
           exitstatus = twopoint_function_write_data ( &( tp_project[itp] ) );
@@ -549,8 +603,6 @@ int main(int argc, char **argv) {
           }
 
         }  /* end of loop on 2-point functions */
-#if 0
-#endif  /* end of if 0 */
 
         /******************************************************
          * deallocate twopoint_function vars tp and tp_project
@@ -562,11 +614,11 @@ int main(int argc, char **argv) {
         free ( tp_project );
         tp_project = NULL;
 
+#endif  /* of if 0 */
       }  // end of loop on coherent source locations
 
     }  // end of loop on base source locations
 
-#endif  /* of if 0 */
 
     /******************************************************
      * deallocate space inside little_group
