@@ -52,8 +52,10 @@ extern "C"
 #include "project.h"
 #include "table_init_z.h"
 #include "table_init_d.h"
+#include "contract_diagrams.h"
 #include "twopoint_function_utils.h"
 #include "zm4x4.h"
+#include "gamma.h"
 
 
 
@@ -85,11 +87,10 @@ int main(int argc, char **argv) {
 
   const int gamma_f1_nucleon_number                                = 1;
   int gamma_f1_nucleon_list[gamma_f1_nucleon_number]               = { 14 };
-  double gamma_f1_nucleon_sign[gamma_f1_nucleon_number]            = { +1 };
+  /* double gamma_f1_nucleon_sign[gamma_f1_nucleon_number]            = { +1 }; */
   /* double gamma_f1_nucleon_transposed_sign[gamma_f1_nucleon_number] = { -1 }; */
 
 #ifdef HAVE_LHPC_AFF
-  struct AffWriter_s *affw = NULL;
   char aff_tag[400];
 #endif
 
@@ -153,8 +154,6 @@ int main(int argc, char **argv) {
 
   geometry();
 
-  size_t sizeof_spinor_field = _GSI( VOLUME ) * sizeof ( double );
-
   mpi_init_xchange_eo_spinor();
   mpi_init_xchange_eo_propagator();
 
@@ -167,6 +166,21 @@ int main(int argc, char **argv) {
     EXIT(14);
   }
   fprintf(stdout, "# [twopt_analyse] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
+
+  /***********************************************************
+   * initialize gamma matrix algebra and several
+   * gamma basis matrices
+   ***********************************************************/
+  init_gamma_matrix ();
+
+  /***********************************************************
+   * set gamma matrices
+   *   tmLQCD counting
+   ***********************************************************/
+  gamma_matrix_type gamma[16];
+  for ( int i = 0; i < 16; i++ ) {
+    gamma_matrix_set ( &(gamma[i]), i, 1. );
+  }
 
   /***************************************************************************
    ***************************************************************************
@@ -216,7 +230,7 @@ int main(int argc, char **argv) {
       EXIT(123);
     }
 
-    memcpy ( tp.source_coords, gsx );
+    memcpy ( tp.source_coords, gsx, 4*sizeof(int) );
 
 #ifdef HAVE_LHPC_AFF
     /***********************************************
@@ -225,7 +239,7 @@ int main(int argc, char **argv) {
     sprintf(filename, "%s.%.4d.t%dx%dy%dz%d.aff", outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3]);
    
     struct AffReader_s * affr = aff_reader ( filename );
-    const char * aff_status_str = aff_writer_errstr ( affr );
+    const char * aff_status_str = aff_reader_errstr ( affr );
     if( aff_status_str != NULL ) {
       fprintf(stderr, "[twopt_analyse] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
       EXIT(15);
@@ -234,41 +248,49 @@ int main(int argc, char **argv) {
 
     for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
 
-      tp.pi1[0] = -g_sink_momentum_list[0];
-      tp.pi1[1] = -g_sink_momentum_list[1];
-      tp.pi1[2] = -g_sink_momentum_list[2];
+      tp.pi1[0] = -g_sink_momentum_list[imom][0];
+      tp.pi1[1] = -g_sink_momentum_list[imom][1];
+      tp.pi1[2] = -g_sink_momentum_list[imom][2];
 
-      tp.pf1[0] =  g_sink_momentum_list[0];
-      tp.pf1[1] =  g_sink_momentum_list[1];
-      tp.pf1[2] =  g_sink_momentum_list[2];
+      tp.pf1[0] =  g_sink_momentum_list[imom][0];
+      tp.pf1[1] =  g_sink_momentum_list[imom][1];
+      tp.pf1[2] =  g_sink_momentum_list[imom][2];
 
       for ( int if1 = 0; if1 < gamma_f1_nucleon_number; if1++ ) {
       for ( int if2 = 0; if2 < gamma_f1_nucleon_number; if2++ ) {
 
-        tp.gi1[0] = gamma_f1_nucleon_number[if1];
-        tp.gi1[2] = 4;
+        tp.gi1[0] = gamma_f1_nucleon_list[if1];
+        tp.gi1[1] = 4;
 
-        tp.gf1[0] = gamma_f1_nucleon_number[if2];
-        tp.gf1[2] = 4;
+        tp.gf1[0] = gamma_f1_nucleon_list[if2];
+        tp.gf1[1] = 4;
 
+        /***********************************************************
+         * show the 2-point function content
+         ***********************************************************/
+        twopoint_function_print ( &tp, tp.name, stdout );
+
+        /***********************************************************
+         * read the n1 data set
+         ***********************************************************/
         sprintf(aff_tag, "/N-N/t%.2dx%.2dy%.2dz%.2d/gi%.2d/gf%.2d/n1",
             gsx[0], gsx[1], gsx[2], gsx[3],
             gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2]);
 
-        exitstatus = read_aff_contraction ( (void*)(tp.c[0][0][0]), affr, NULL, data_tag, T*16 );
+        exitstatus = read_aff_contraction ( (void*)(tp.c[0][0][0]), affr, NULL, aff_tag, T*16 );
         if(exitstatus != 0) {
           fprintf(stderr, "[twopt_analyse] Error from read_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(12);
         }
 
-        /***********************************************************/
-        /***********************************************************/
-
+        /***********************************************************
+         * read the n2 data set
+         ***********************************************************/
         sprintf(aff_tag, "/N-N/t%.2dx%.2dy%.2dz%.2d/gi%.2d/gf%.2d/n2",
             gsx[0], gsx[1], gsx[2], gsx[3],
             gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2]);
 
-        exitstatus = read_aff_contraction ( (void*)(tp.c[1][0][0]), affr, NULL, data_tag, T*16 );
+        exitstatus = read_aff_contraction ( (void*)(tp.c[1][0][0]), affr, NULL, aff_tag, T*16 );
         if(exitstatus != 0) {
           fprintf(stderr, "[twopt_analyse] Error from read_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(12);
@@ -282,7 +304,7 @@ int main(int argc, char **argv) {
         /***********************************************************
          * reorder relative to source
          ***********************************************************/
-        reorder_to_absolute_time ( tp.c[0], tp.c[0] tp.source_coords[0], tp.reorder, tp.T );
+        reorder_to_absolute_time ( tp.c[0], tp.c[0], tp.source_coords[0], tp.reorder, tp.T );
 
         /***********************************************************
          * add source phase
@@ -341,19 +363,186 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * close AFF reader
      ***************************************************************************/
-    coaff_reader_close ( affr );
+    aff_reader_close ( affr );
 #endif  /* of ifdef HAVE_LHPC_AFF */
 
   }  /* end of loop on source locations */
+
+  /***************************************************************************
+   ***************************************************************************
+   **
+   ** stochastic propagator version
+   **
+   ***************************************************************************
+   ***************************************************************************/
+
+  /***************************************************************************
+   * loop on oet samples
+   ***************************************************************************/
+  for ( int isample = 0; isample < g_nsample_oet; isample++ ) {
+
+    /***************************************************************************
+     * loop on source locations
+     ***************************************************************************/
+    for( int isource_location = 0; isource_location < g_source_location_number; isource_location++ ) {
+  
+      /***********************************************************
+       * determine source coordinates, find out, if source_location is in this process
+       ***********************************************************/
+      int const gts  = ( g_source_coords_list[isource_location][0] +  T_global ) %  T_global;
+
+      int const source_proc_id = ( gts / T == g_proc_coords[0] ) ? g_cart_id : -1;
+
+      int const source_timeslice = ( source_proc_id == g_cart_id ) ? gts % T : -1;
+
+      tp.source_coords[0] = gts;
+      tp.source_coords[1] = -1;
+      tp.source_coords[2] = -1;
+      tp.source_coords[3] = -1;
+  
+#ifdef HAVE_LHPC_AFF
+      /***********************************************
+       * writer for aff output file
+       ***********************************************/
+      /* sprintf(filename, "%s_oet.%.4d.t%d.%.5d.aff", outfile_prefix, Nconf, gts, gsx[1], isample ); */
+      sprintf(filename, "%s_oet.%.4d.t%d.aff", outfile_prefix, Nconf, gts );
+     
+      struct AffReader_s * affr = aff_reader ( filename );
+      const char * aff_status_str = aff_reader_errstr ( affr );
+      if( aff_status_str != NULL ) {
+        fprintf(stderr, "[twopt_analyse] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+        EXIT(15);
+      }
+#endif
+  
+      for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+  
+        tp.pi1[0] = -g_sink_momentum_list[imom][0];
+        tp.pi1[1] = -g_sink_momentum_list[imom][1];
+        tp.pi1[2] = -g_sink_momentum_list[imom][2];
+  
+        tp.pf1[0] =  g_sink_momentum_list[imom][0];
+        tp.pf1[1] =  g_sink_momentum_list[imom][1];
+        tp.pf1[2] =  g_sink_momentum_list[imom][2];
+  
+        for ( int if1 = 0; if1 < gamma_f1_nucleon_number; if1++ ) {
+        for ( int if2 = 0; if2 < gamma_f1_nucleon_number; if2++ ) {
+  
+          tp.gi1[0] = gamma_f1_nucleon_list[if1];
+          tp.gi1[1] = 4;
+  
+          tp.gf1[0] = gamma_f1_nucleon_list[if2];
+          tp.gf1[1] = 4;
+  
+          /***********************************************************
+           * show the 2-point function content
+           ***********************************************************/
+          twopoint_function_print ( &tp, tp.name, stdout );
+  
+          /***********************************************************
+           * read the n1 data set
+           ***********************************************************/
+          sprintf(aff_tag, "/N-N/t%.2d/gi%.2d/gf%.2d/n1", gts, gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2]);
+
+          exitstatus = read_aff_contraction ( (void*)(tp.c[0][0][0]), affr, NULL, aff_tag, T*16 );
+          if(exitstatus != 0) {
+            fprintf(stderr, "[twopt_analyse] Error from read_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(12);
+          }
+  
+          /***********************************************************
+           * read the n2 data set
+           ***********************************************************/
+          sprintf(aff_tag, "/N-N/t%.2d/gi%.2d/gf%.2d/n2", gts, gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2]);
+
+          exitstatus = read_aff_contraction ( (void*)(tp.c[1][0][0]), affr, NULL, aff_tag, T*16 );
+          if(exitstatus != 0) {
+            fprintf(stderr, "[twopt_analyse] Error from read_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(12);
+          }
+  
+          /***********************************************************
+           * add up diagrams
+           ***********************************************************/
+          exitstatus = contract_diagram_zm4x4_field_pl_eq_zm4x4_field ( tp.c[0], tp.c[1], tp.T );
+  
+          /***********************************************************
+           * reorder relative to source
+           ***********************************************************/
+          reorder_to_absolute_time ( tp.c[0], tp.c[0], tp.source_coords[0], tp.reorder, tp.T );
+  
+          /***********************************************************
+           * add source phase
+           ***********************************************************/
+          /* exitstatus = correlator_add_source_phase ( tp.c[0], tp.pi1,  &(tp.source_coords[1]), tp.T ); */
+  
+          /***********************************************************
+           * add boundary phase
+           ***********************************************************/
+          if ( strcmp ( tp.fbwd, "fwd" ) == 0 ) {
+            exitstatus = correlator_add_baryon_boundary_phase ( tp.c[0], 0, +1, tp.T );
+          } else if ( strcmp ( tp.fbwd, "bwd" ) == 0 ) {
+            exitstatus = correlator_add_baryon_boundary_phase ( tp.c[0], 0, -1, tp.T );
+          }
+  
+          /******************************************************
+           * apply gi1[1] and gf1[1]
+           ******************************************************/
+          if ( ( tp.gi1[1] != -1 ) && ( tp.gf1[1] != -1 ) ) {
+            exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( tp.c[0], tp.c[0], gamma[tp.gf1[1]], gamma[tp.gi1[1]],tp.T );
+          }
+  
+          /******************************************************
+           * spin / spin-parity projection
+           ******************************************************/
+          correlator_spin_parity_projection ( tp.c[0], tp.c[0], (double)tp.parity_project, tp.T );
+  
+          /******************************************************
+           * trace
+           ******************************************************/
+          double _Complex * corr_tr = init_1level_ztable ( T );
+#pragma omp parallel for
+          for ( int i = 0; i < T; i++ )  {
+            co_eq_tr_zm4x4 ( corr_tr+i, tp.c[0][i] );
+          }
+  
+          fini_1level_ztable ( &corr_tr );
+  
+          sprintf ( filename, "%s_oet_n%.4d_px%dpy%dpz%d_gi1%d_gi2%d", tp.name, Nconf,
+              tp.pf1[0], tp.pf1[1], tp.pf1[2],
+              tp.gi1[0], tp.gf1[0] );
+  
+          FILE * ofs = fopen ( filename, "a" );
+          for ( int i = 0; i < T; i++ )  {
+            fprintf ( ofs , "%3d %25.16e %25.16e\n", i, creal( corr_tr[i] ), cimag ( corr_tr[i] ) );
+          }
+          fclose ( ofs );
+        }}
+  
+      }  /* end of loop on momenta */
+  
+      /***************************************************************************/
+      /***************************************************************************/
+  
+#ifdef HAVE_LHPC_AFF
+      /***************************************************************************
+       * close AFF reader
+       ***************************************************************************/
+      aff_reader_close ( affr );
+#endif  /* of ifdef HAVE_LHPC_AFF */
+  
+    }  /* end of loop on source locations */
+
+  }  /* end of loop on samples */ 
 
   twopoint_function_fini ( &tp );
 
   /***************************************************************************/
   /***************************************************************************/
 
-  /****************************************
+  /***************************************************************************
    * free the allocated memory, finalize
-   ****************************************/
+   ***************************************************************************/
 
   free_geometry();
 
