@@ -543,7 +543,7 @@ int main(int argc, char **argv) {
        * writer for aff output file
        ***********************************************/
       if(io_proc == 2) {
-        sprintf(filename, "%s_oet.%.4d.t%d.aff", outfile_prefix, Nconf, gts );
+        sprintf(filename, "%s_oet.%.4d.t%d.s%.5d.aff", outfile_prefix, Nconf, gts, isample );
         fprintf(stdout, "# [twopt_invert_contract] writing data to file %s\n", filename);
         affw = aff_writer(filename);
         const char * aff_status_str = aff_writer_errstr ( affw );
