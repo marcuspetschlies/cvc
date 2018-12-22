@@ -712,7 +712,7 @@ int main(int argc, char **argv) {
           /***********************************************************/
           /***********************************************************/
 
-          sprintf(aff_tag, "/N-N/t%.2d /gi%.2d/gf%.2d/n2", gts, gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2]);
+          sprintf(aff_tag, "/N-N/t%.2d/gi%.2d/gf%.2d/n2", gts, gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2]);
 
           exitstatus = contract_v6 ( v2, fp_mom, fp3, fp, VOLUME );
           if ( exitstatus != 0 ) {
