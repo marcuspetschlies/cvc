@@ -556,10 +556,10 @@ int momentum_projection (double*V, double *W, unsigned int nv, int momentum_numb
 #pragma omp for
 #endif
     for(ix=0; ix<VOL3; ix++) {
-      q_phase = q_offset \
-        + lexic_coords[ix].x[0] * q[0] \
-        + lexic_coords[ix].x[1] * q[1] \
-        + lexic_coords[ix].x[2] * q[2];
+      q_phase = q_offset +
+                lexic_coords[ix].x[0] * q[0] +
+                lexic_coords[ix].x[1] * q[1] +
+                lexic_coords[ix].x[2] * q[2];
       zphase[i][ix] = cos(q_phase) + I*sin(q_phase);
     }
 #ifdef HAVE_OPENMP
@@ -587,13 +587,13 @@ int momentum_projection (double*V, double *W, unsigned int nv, int momentum_numb
 
 #ifdef HAVE_MPI
 #  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
-  i = 2 * nv * momentum_number;
-  void *buffer = malloc(i * sizeof(double));
+  unsigned int count = 2 * nv * momentum_number;
+  void *buffer = malloc(count * sizeof(double));
   if(buffer == NULL) {
     return(1);
   }
-  memcpy(buffer, W, i*sizeof(double));
-  int status = MPI_Allreduce(buffer, (void*)W, i, MPI_DOUBLE, MPI_SUM, g_ts_comm);
+  memcpy(buffer, W, count*sizeof(double));
+  int status = MPI_Allreduce(buffer, (void*)W, count, MPI_DOUBLE, MPI_SUM, g_ts_comm);
   if(status != MPI_SUCCESS) {
     fprintf(stderr, "[momentum_projection] Error from MPI_Allreduce, status was %d\n", status);
     return(2);
