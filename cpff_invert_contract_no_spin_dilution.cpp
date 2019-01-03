@@ -506,7 +506,7 @@ int main(int argc, char **argv) {
 
           // when the correlator has been defined with the source momentum carried by
           // the backward propagator, we need to retrieve the propagator with
-          // negative momemntum
+          // negative momemntum because the backward propagator is daggered
           stoch_prop_meta_t fwdprop_meta;
           stoch_prop_meta_t bwdprop_meta;
           if( twopt_correls[icor].src_mom_prop == "bwd" ){
@@ -614,7 +614,7 @@ int main(int argc, char **argv) {
                          iseq_timeslice, g_sequential_source_timeslice_number,
                          iseq_mom, g_seq_source_momentum_number);
 
-            // the sequential propagator is daggered, so we have to dagger the momentum projector
+            // the sequential propagator is daggered in the contraction below, so we have to dagger the momentum projector
             int seq_source_momentum[3] = { -g_seq_source_momentum_list[iseq_mom][0],
                                            -g_seq_source_momentum_list[iseq_mom][1],
                                            -g_seq_source_momentum_list[iseq_mom][2] };
@@ -726,10 +726,16 @@ int main(int argc, char **argv) {
                     correl.gi,
                     correl.fprop_flav).key();
 
+                // momentum conservation in the CVC phase convention implies 
+                //   p_c = -( p_src + p_seq )
+                // where p_seq is interchangable with the sink momentum in this case
+                // however, as noted above, in the contaction below we dagger the sequential
+                // propagator such that our seq_source_momentum carries an implicit minus
+                // sign which we compensate for here
                 int current_momentum[3] = {
-                  -( g_source_momentum_list[isrc_mom][0] + seq_source_momentum[0] ),
-                  -( g_source_momentum_list[isrc_mom][1] + seq_source_momentum[1] ),
-                  -( g_source_momentum_list[isrc_mom][2] + seq_source_momentum[2] ) };
+                  -( g_source_momentum_list[isrc_mom][0] - seq_source_momentum[0] ),
+                  -( g_source_momentum_list[isrc_mom][1] - seq_source_momentum[1] ),
+                  -( g_source_momentum_list[isrc_mom][2] - seq_source_momentum[2] ) };
 
                 sw.reset();
                 contract_twopoint_gamma5_gamma_snk_only_snk_momentum( 
@@ -758,9 +764,9 @@ int main(int argc, char **argv) {
             } // end of loop over local threept correlator contractions
 
             // now the covariant derivative insertions
-            for( int ifwdbwd : {0,1} ){
+            //for( int ifwdbwd : {0,1} ){
 
-            }
+            //}
           } // end of loop over sequential momenta
         } // end of loop over sequential source time slices
       } // if(local_threept_correls.size() > 0)
