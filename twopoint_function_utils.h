@@ -27,7 +27,7 @@ int twopoint_function_accumulate_diagrams ( double _Complex *** const diagram, t
 
 void twopoint_function_fini ( twopoint_function_type *p );
 
-void * twopoint_function_allocate ( twopoint_function_type *p );
+void * twopoint_function_allocate ( twopoint_function_type *p, int const copy_data );
 
 void twopoint_function_show_data ( twopoint_function_type *p, FILE*ofs );
 
