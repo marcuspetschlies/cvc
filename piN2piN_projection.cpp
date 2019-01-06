@@ -57,6 +57,8 @@ extern "C"
 #include "group_projection.h"
 #include "little_group_projector_set.h"
 
+#define MAX_UDLI_NUM 1000
+
 
 using namespace cvc;
 
@@ -80,6 +82,12 @@ int main(int argc, char **argv) {
   char filename[200];
   // double ratime, retime;
   FILE *ofs = NULL;
+
+  char udli_list[MAX_UDLI_NUM][500];
+  int udli_count = 0;
+  char udli_name[500];
+  twopoint_function_type *udli_ptr[MAX_UDLI_NUM];
+
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
@@ -325,7 +333,7 @@ int main(int argc, char **argv) {
 
         twopoint_function_init ( &tp );
 
-        twopoint_function_copy ( &tp, &( g_twopoint_function_list[i2pt] ) );
+        twopoint_function_copy ( &tp, &( g_twopoint_function_list[i2pt], 1 ) );
 
         /******************************************************
          * final, projected twopoint function struct for
@@ -362,7 +370,7 @@ int main(int argc, char **argv) {
          ******************************************************/
         for ( int i = 0; i < n_tp_project; i++ ) {
           twopoint_function_init ( &(tp_project[i]) );
-          twopoint_function_copy ( &(tp_project[i]), &( g_twopoint_function_list[i2pt] ) );
+          twopoint_function_copy ( &(tp_project[i]), &( g_twopoint_function_list[i2pt], 1 ) );
 
           /* number of data sets in tp_project is always 1
            *   we save the sum of all diagrams in here */
@@ -517,10 +525,51 @@ int main(int argc, char **argv) {
           /******************************************************
            * fill the diagram with data
            ******************************************************/
-          char tp_udli[500];
-          if ( ( exitstatus = twopoint_function_data_location_identifier ( tp_udli, &tp, filename_prefix , 0) ) != 0 ) {
-            fprintf ( stderr, "[piN2piN_projection] Error from twopoint_function_data_location_identifier, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-            EXIT(212);
+          for ( int ids = 0; ids < tp.n; ids++ ) {
+            if ( ( exitstatus = twopoint_function_data_location_identifier ( udli_name, &tp, filename_prefix, ids) ) != 0 ) {
+              fprintf ( stderr, "[piN2piN_projection] Error from twopoint_function_data_location_identifier, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+              EXIT(212);
+            }
+
+            /* check, whether udli_name exists in udli list */
+            int udli_id = -1;
+            for ( int i = 0; i < udli_count; i++ ) {
+              if ( strcmp ( udli_name, udli_list[i] ) == 0 ) {
+                udli_id  = i;
+                break;
+              }
+            }
+            if ( udli_id == -1 ) {
+              fprintf ( stdout, "# [piN2piN_projection] could not find udli_name %s in udli_list\n", udli_name );
+
+              /* new entry */
+
+              /* check, that number udlis is not exceeded */
+              udli_count++;
+              if ( udli_count == MAX_UDLI_NUM ) {
+                fprintf ( stderr, "[piN2piN_projection] Error, maximal number of udli exceeded\n" );
+                EXIT(111);
+              }
+
+              twopoint_function_init ( &(udli_ptr[udli_count]) );
+
+              twopoint_function_copy ( &(udli_ptr[udli_count]), &tp, 0 );
+              udli_ptr[udli_count].n = 1;
+              sprintf ( udli_ptr[udli_count].name, udli_name );
+
+              twopoint_function_allocate ( &(udli_ptr[udli_count]) );
+
+              /* fill data from udli */
+              if ( ( exitstatus = twopoint_function_fill_data_from_udli ( &(udli_ptr[udli_count]) , udli_name ) ) != 0 ) {
+                fprintf ( stderr, "[piN2piN_projection] Error from twopoint_function_fill_data_from_udli, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                EXIT(212);
+              }
+
+              /* set data pointers in tp */
+
+            } else {
+              if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_projection] udli_name %s matches udli_list[%d] %s\n", udli_name, udli_id, udli_list[udli_id] );
+            }
           }
 
 #if 0

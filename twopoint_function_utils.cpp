@@ -140,7 +140,7 @@ void twopoint_function_print ( twopoint_function_type *p, char *name, FILE*ofs )
 /********************************************************************************
  *
  ********************************************************************************/
-void twopoint_function_copy ( twopoint_function_type *p, twopoint_function_type *r ) {
+void twopoint_function_copy ( twopoint_function_type *p, twopoint_function_type *r, int const copy_data ) {
   strcpy( p->name, r->name );
   strcpy( p->type, r->type );
   strcpy( p->diagrams, r->diagrams );
@@ -163,12 +163,14 @@ void twopoint_function_copy ( twopoint_function_type *p, twopoint_function_type 
   p->reorder = r->reorder;
   p->T       = r->T;
   p->d       = r->d;
-  if ( r->c != NULL ) {
-    if ( twopoint_function_allocate ( p ) != NULL ) {
-      fprintf ( stderr, "[twopoint_function_copy] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
-    } else {
-      memcpy ( p->c[0][0][0], r->c[0][0][0], p->n * p->T * p->d * p->d * sizeof( double _Complex ) );
-    }
+  if ( copy_data ) {
+    if ( r->c != NULL ) {
+      if ( twopoint_function_allocate ( p ) != NULL ) {
+        fprintf ( stderr, "[twopoint_function_copy] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
+      } else {
+        memcpy ( p->c[0][0][0], r->c[0][0][0], p->n * p->T * p->d * p->d * sizeof( double _Complex ) );
+      }
+    }  /* end of if copy_data */
   }
   return;
 }  // end of twopoint_function_copy
