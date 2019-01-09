@@ -306,13 +306,13 @@ inline void set_omp_number_threads (void) {
  ***************************************************************************/
 inline void show_time ( struct timeval * const ta, struct timeval * const tb, char * tag, char * timer, int const io ) {
 
-  long unsigned int seconds =  tb->tv_sec  - ta->tv_sec;
-  long unsigned int useconds = tb->tv_usec - ta->tv_usec;
+  long int seconds =  tb->tv_sec  - ta->tv_sec;
+  long int useconds = tb->tv_usec - ta->tv_usec;
   if ( useconds < 0 ) {
     useconds += 1000000;
     seconds--;
   }
-  if ( io ) fprintf ( stdout, "# [%s] time for %s %lu sec %lu usec\n", tag, timer, seconds, useconds );
+  if ( io ) fprintf ( stdout, "# [%s] time for %s %ld sec %ld usec\n", tag, timer, seconds, useconds );
 
 }  /* end of show_time */
 

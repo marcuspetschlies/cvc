@@ -4266,7 +4266,7 @@ int save_rng_state ( int const id, char * filename ) {
       sprintf ( myfilename, filename );
     }
 
-    if ( g_verbose > 1 ) fprintf ( stdout, "# [save_rng_state] proc %d save rng state to file\n" );
+    if ( g_verbose > 1 ) fprintf ( stdout, "# [save_rng_state] proc %d save rng state to file\n", g_cart_id );
     FILE *ofs = fopen ( myfilename, "w" );
     if ( ofs == NULL ) {
       fprintf ( stderr, "[save_rng_state] Error from fopen %s %d\n", __FILE__, __LINE__ );
@@ -4309,7 +4309,7 @@ int read_rng_state ( int **rng_state, int const id, char * filename ) {
     } else {
       strcpy ( myfilename, filename );
     }
-    if ( g_verbose > 1 ) fprintf ( stdout, "# [read_rng_state] proc %d reads rng state from file\n" );
+    if ( g_verbose > 1 ) fprintf ( stdout, "# [read_rng_state] proc %d reads rng state from file\n" , g_cart_id);
     FILE *ofs = fopen ( myfilename, "r" );
     if ( ofs == NULL ) {
       fprintf ( stderr, "[read_rng_state] Error from fopen %s %d\n", __FILE__, __LINE__ );
