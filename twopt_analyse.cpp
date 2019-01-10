@@ -210,6 +210,7 @@ int main(int argc, char **argv) {
 
   twopoint_function_allocate ( &tp );
 
+#if 0
   /***********************************************************
    * loop on source locations
    ***********************************************************/
@@ -243,6 +244,8 @@ int main(int argc, char **argv) {
     if( aff_status_str != NULL ) {
       fprintf(stderr, "[twopt_analyse] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
       EXIT(15);
+    } else {
+      if ( g_verbose > 1 ) fprintf ( stdout, "# [twopt_analyse] Reading data from file %s\n", filename );
     }
 #endif
 
@@ -273,9 +276,10 @@ int main(int argc, char **argv) {
         /***********************************************************
          * read the n1 data set
          ***********************************************************/
-        sprintf(aff_tag, "/N-N/t%.2dx%.2dy%.2dz%.2d/gi%.2d/gf%.2d/n1",
+        sprintf(aff_tag, "/N-N/t%.2dx%.2dy%.2dz%.2d/gi%.2d/gf%.2d/n1/px%.2dpy%.2dpz%.2d",
             gsx[0], gsx[1], gsx[2], gsx[3],
-            gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2]);
+            gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2],
+            tp.pf1[0], tp.pf1[1], tp.pf1[2] );
 
         exitstatus = read_aff_contraction ( (void*)(tp.c[0][0][0]), affr, NULL, aff_tag, T*16 );
         if(exitstatus != 0) {
@@ -286,9 +290,10 @@ int main(int argc, char **argv) {
         /***********************************************************
          * read the n2 data set
          ***********************************************************/
-        sprintf(aff_tag, "/N-N/t%.2dx%.2dy%.2dz%.2d/gi%.2d/gf%.2d/n2",
+        sprintf(aff_tag, "/N-N/t%.2dx%.2dy%.2dz%.2d/gi%.2d/gf%.2d/n2/px%.2dpy%.2dpz%.2d",
             gsx[0], gsx[1], gsx[2], gsx[3],
-            gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2]);
+            gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2],
+            tp.pf1[0], tp.pf1[1], tp.pf1[2] );
 
         exitstatus = read_aff_contraction ( (void*)(tp.c[1][0][0]), affr, NULL, aff_tag, T*16 );
         if(exitstatus != 0) {
@@ -304,7 +309,8 @@ int main(int argc, char **argv) {
         /***********************************************************
          * reorder relative to source
          ***********************************************************/
-        reorder_to_absolute_time ( tp.c[0], tp.c[0], tp.source_coords[0], tp.reorder, tp.T );
+        /* reorder_to_absolute_time ( tp.c[0], tp.c[0], tp.source_coords[0], tp.reorder, tp.T ); */
+        reorder_to_relative_time ( tp.c[0], tp.c[0], tp.source_coords[0], tp.reorder, tp.T );
 
         /***********************************************************
          * add source phase
@@ -324,7 +330,7 @@ int main(int argc, char **argv) {
          * apply gi1[1] and gf1[1]
          ******************************************************/
         if ( ( tp.gi1[1] != -1 ) && ( tp.gf1[1] != -1 ) ) {
-          exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( tp.c[0], tp.c[0], gamma[tp.gf1[1]], gamma[tp.gi1[1]],tp.T );
+          exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( tp.c[0], tp.c[0], gamma[tp.gf1[1]], gamma[tp.gi1[1]], tp.T );
         }
 
         /******************************************************
@@ -341,18 +347,21 @@ int main(int argc, char **argv) {
           co_eq_tr_zm4x4 ( corr_tr+i, tp.c[0][i] );
         }
 
-        fini_1level_ztable ( &corr_tr );
 
-        sprintf ( filename, "%s_n%.4d_px%dpy%dpz%d_gi1%d_gi2%d", tp.name, Nconf,
+        sprintf ( filename, "%s_px%dpy%dpz%d_gi1%d_gi2%d_%s_parity%d_n%.4d", tp.name,
             tp.pf1[0], tp.pf1[1], tp.pf1[2],
-            tp.gi1[0], tp.gf1[0] );
+            tp.gi1[0], tp.gf1[0], tp.fbwd, tp.parity_project, Nconf );
 
-        FILE * ofs = fopen ( filename, "a" );
+        FILE * ofs = ( isource_location == 0 ) ? fopen ( filename, "w" ) : fopen ( filename, "a" );
+        fprintf ( ofs, "# t%.2dx%.2dy%.2dz%.2d\n", gsx[0], gsx[1], gsx[2], gsx[3] );
         for ( int i = 0; i < T; i++ )  {
           fprintf ( ofs , "%3d %25.16e %25.16e\n", i, creal( corr_tr[i] ), cimag ( corr_tr[i] ) );
         }
         fclose ( ofs );
-      }}
+
+        fini_1level_ztable ( &corr_tr );
+
+      }}  /* end of loops on gi1[0] and gf1[0] */
 
     }  /* end of loop on momenta */
 
@@ -367,6 +376,8 @@ int main(int argc, char **argv) {
 #endif  /* of ifdef HAVE_LHPC_AFF */
 
   }  /* end of loop on source locations */
+#endif  /* of if 0 */
+
 
   /***************************************************************************
    ***************************************************************************
@@ -442,7 +453,9 @@ int main(int argc, char **argv) {
           /***********************************************************
            * read the n1 data set
            ***********************************************************/
-          sprintf(aff_tag, "/N-N/t%.2d/gi%.2d/gf%.2d/n1", gts, gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2]);
+          sprintf(aff_tag, "/N-N/t%.2d/gi%.2d/gf%.2d/n1/px%.2dpy%.2dpz%.2d",
+              gts, gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2],
+              tp.pf1[0], tp.pf1[1], tp.pf1[2] );
 
           exitstatus = read_aff_contraction ( (void*)(tp.c[0][0][0]), affr, NULL, aff_tag, T*16 );
           if(exitstatus != 0) {
@@ -453,7 +466,9 @@ int main(int argc, char **argv) {
           /***********************************************************
            * read the n2 data set
            ***********************************************************/
-          sprintf(aff_tag, "/N-N/t%.2d/gi%.2d/gf%.2d/n2", gts, gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2]);
+          sprintf(aff_tag, "/N-N/t%.2d /gi%.2d/gf%.2d/n2/px%.2dpy%.2dpz%.2d",
+              gts, gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2],
+              tp.pf1[0], tp.pf1[1], tp.pf1[2] );
 
           exitstatus = read_aff_contraction ( (void*)(tp.c[1][0][0]), affr, NULL, aff_tag, T*16 );
           if(exitstatus != 0) {
@@ -469,7 +484,8 @@ int main(int argc, char **argv) {
           /***********************************************************
            * reorder relative to source
            ***********************************************************/
-          reorder_to_absolute_time ( tp.c[0], tp.c[0], tp.source_coords[0], tp.reorder, tp.T );
+          /* reorder_to_absolute_time ( tp.c[0], tp.c[0], tp.source_coords[0], tp.reorder, tp.T ); */
+          reorder_to_relative_time ( tp.c[0], tp.c[0], tp.source_coords[0], tp.reorder, tp.T );
   
           /***********************************************************
            * add source phase
@@ -506,18 +522,21 @@ int main(int argc, char **argv) {
             co_eq_tr_zm4x4 ( corr_tr+i, tp.c[0][i] );
           }
   
-          fini_1level_ztable ( &corr_tr );
-  
-          sprintf ( filename, "%s_oet_n%.4d_px%dpy%dpz%d_gi1%d_gi2%d", tp.name, Nconf,
+          sprintf ( filename, "%s_oet_px%dpy%dpz%d_gi1%d_gi2%d_%s_parity%d_n%.4d", tp.name,
               tp.pf1[0], tp.pf1[1], tp.pf1[2],
-              tp.gi1[0], tp.gf1[0] );
-  
-          FILE * ofs = fopen ( filename, "a" );
+              tp.gi1[0], tp.gf1[0], tp.fbwd, tp.parity_project, Nconf );
+
+          FILE * ofs = ( isample == 0 && isource_location == 0 ) ? fopen ( filename, "w" ) : fopen ( filename, "a" );
+
+          fprintf ( ofs, "# s%d t%d\n", isample, gts );
           for ( int i = 0; i < T; i++ )  {
             fprintf ( ofs , "%3d %25.16e %25.16e\n", i, creal( corr_tr[i] ), cimag ( corr_tr[i] ) );
           }
           fclose ( ofs );
-        }}
+
+          fini_1level_ztable ( &corr_tr );
+
+        }}  /* end of loops on gi1[0] and gf1[0] */
   
       }  /* end of loop on momenta */
   
@@ -534,6 +553,9 @@ int main(int argc, char **argv) {
     }  /* end of loop on source locations */
 
   }  /* end of loop on samples */ 
+
+#if 0
+#endif  /* of if 0 */
 
   twopoint_function_fini ( &tp );
 
