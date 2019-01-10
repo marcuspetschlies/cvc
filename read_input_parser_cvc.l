@@ -1150,7 +1150,7 @@ namespace cvc {
   cvc::twopoint_function_init ( cvc::twopoint_function_ptr );
   strcpy(cvc::twopoint_function_set_type, "list");
   if(cvc::twopoint_function_generic_set==1) {
-    cvc::twopoint_function_copy ( cvc::twopoint_function_ptr, &(cvc::twopoint_function_generic) );
+    cvc::twopoint_function_copy ( cvc::twopoint_function_ptr, &(cvc::twopoint_function_generic), 1 );
   }
   BEGIN(TWOPOINTFUNCTION);
 }
