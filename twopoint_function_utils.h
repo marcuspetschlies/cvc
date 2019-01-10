@@ -15,7 +15,7 @@ void twopoint_function_print_correlator_data ( double _Complex * const c, twopoi
   
 void twopoint_function_get_aff_filename_prefix (char*filename, twopoint_function_type*p);
 
-void twopoint_function_copy ( twopoint_function_type *p, twopoint_function_type *r );
+void twopoint_function_copy ( twopoint_function_type *p, twopoint_function_type *r , int const copy_data );
 
 double twopoint_function_get_diagram_norm ( twopoint_function_type *p, int const id );
 
@@ -27,7 +27,7 @@ int twopoint_function_accumulate_diagrams ( double _Complex *** const diagram, t
 
 void twopoint_function_fini ( twopoint_function_type *p );
 
-void * twopoint_function_allocate ( twopoint_function_type *p, int const copy_data );
+void * twopoint_function_allocate ( twopoint_function_type * p );
 
 void twopoint_function_show_data ( twopoint_function_type *p, FILE*ofs );
 
