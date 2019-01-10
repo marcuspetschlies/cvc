@@ -585,6 +585,9 @@ int correlator_spin_parity_projection (double _Complex ***sp_out, double _Comple
   return(0);
 }  /* end of correlator_spin_parity_projection */
 
+/***********************************************/
+/***********************************************/
+
 /***********************************************
  *
  ***********************************************/
@@ -618,6 +621,14 @@ int reorder_to_absolute_time (double _Complex ***sp_out, double _Complex ***sp_i
   fini_3level_zbuffer ( &buffer );
   return(0);
 }  /* end of reorder_to_absolute_time */
+
+/***********************************************
+ * wrapper for reordering to absolute,
+ * which uses dir = +1
+ ***********************************************/
+int reorder_to_relative_time (double _Complex ***sp_out, double _Complex ***sp_in, int const tsrc, int const dir, unsigned int const N) {
+  return ( reorder_to_absolute_time ( sp_out, sp_in, tsrc, -dir, N) );
+}  /* end of reorder_to_relative_time */
 
 /***********************************************/
 /***********************************************/
