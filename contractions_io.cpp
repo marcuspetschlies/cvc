@@ -678,9 +678,17 @@ int read_aff_contraction ( void * const contr, void * const areader, void * cons
   }
 
   affdir = aff_reader_chpath ( affr, affn, tag );
+  if ( affdir == NULL ) {
+    fprintf(stderr, "[read_aff_contraction] Error from affdir %s %d\n", __FILE__, __LINE__);
+    return( 2 );
+  }
+
+  /* fprintf ( stdout, "# [read_aff_contraction] items = %u path = %s\n", items , tag); */
+
   exitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*) contr, items );
   if( exitstatus != 0 ) {
-    fprintf(stderr, "[read_aff_contraction] Error from aff_node_get_complex for key \"%s\", status was %d %s %d\n", tag, exitstatus, __FILE__, __LINE__);
+    fprintf(stderr, "[read_aff_contraction] Error from aff_node_get_complex for key \"%s\", status was %d errmsg %s %s %d\n", tag, exitstatus,
+       aff_reader_errstr ( affr ), __FILE__, __LINE__);
     return ( 105 );
   }
 
