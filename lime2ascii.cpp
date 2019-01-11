@@ -75,13 +75,14 @@ int main(int argc, char **argv) {
   char limefile_name[100] = "NA";
   char limefile_type[100] = "DiracFermion";
   int limefile_pos = 0;
+  int tsize = 0, lsize = 0;
   // double ratime, retime;
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:l:t:p:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:l:t:p:T:L:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -95,6 +96,12 @@ int main(int argc, char **argv) {
       break;
     case 'p':
       limefile_pos = atoi ( optarg );
+      break;
+    case 'T':
+      tsize = atoi ( optarg );
+      break;
+    case 'L':
+      lsize = atoi ( optarg );
       break;
     case 'h':
     case '?':
@@ -111,10 +118,23 @@ int main(int argc, char **argv) {
 
   g_the_time = time(NULL);
 
-  /* set the default values */
-  if(filename_set==0) sprintf ( filename, "cvc.input");
-  /* fprintf(stdout, "# [lime2ascii] Reading input from file %s\n", filename); */
-  read_input_parser(filename);
+  /***************************************************************************
+   * set the default values
+   ***************************************************************************/
+  if ( filename_set ) {
+    /* fprintf(stdout, "# [lime2ascii] Reading input from file %s\n", filename); */
+    read_input_parser( filename );
+  } else {
+    set_default_input_values();
+
+    T  = tsize;
+
+    L  = lsize;
+    LX = lsize;
+    LY = lsize;
+    LZ = lsize;
+
+  }
 
   /***************************************************************************
    * initialize MPI parameters for cvc
