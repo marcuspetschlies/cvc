@@ -84,7 +84,6 @@ int main(int argc, char **argv) {
   FILE *ofs = NULL;
 
   char udli_list[MAX_UDLI_NUM][500];
-  int udli_count = 0;
   char udli_name[500];
   twopoint_function_type *udli_ptr[MAX_UDLI_NUM];
 
@@ -392,6 +391,13 @@ int main(int argc, char **argv) {
         gamma_matrix_init ( &gr );
 
         /******************************************************
+         * reset udli counter
+         ******************************************************/
+        int udli_count = 0;
+
+
+
+        /******************************************************
          * loop on little group elements
          *  - rotations and rotation-reflections
          *  - at sink, left-applied element
@@ -531,7 +537,9 @@ int main(int argc, char **argv) {
               EXIT(212);
             }
 
-            /* check, whether udli_name exists in udli list */
+            /******************************************************
+             * check, whether udli_name exists in udli list
+             ******************************************************/
             int udli_id = -1;
             for ( int i = 0; i < udli_count; i++ ) {
               if ( strcmp ( udli_name, udli_list[i] ) == 0 ) {
@@ -542,35 +550,58 @@ int main(int argc, char **argv) {
             if ( udli_id == -1 ) {
               fprintf ( stdout, "# [piN2piN_projection] could not find udli_name %s in udli_list\n", udli_name );
 
-              /* new entry */
+              /******************************************************
+               * start new entry
+               ******************************************************/
 
-              /* check, that number udlis is not exceeded */
-              udli_count++;
+              /******************************************************
+               * check, that number udlis is not exceeded
+               ******************************************************/
               if ( udli_count == MAX_UDLI_NUM ) {
                 fprintf ( stderr, "[piN2piN_projection] Error, maximal number of udli exceeded\n" );
                 EXIT(111);
+              } else {
+                if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_projection] starting udli entry number %d\n", udli_count );
               }
 
-              twopoint_function_init ( &(udli_ptr[udli_count]) );
+              twopoint_function_init ( udli_ptr[udli_count] );
 
-              twopoint_function_copy ( &(udli_ptr[udli_count]), &tp, 0 );
-              udli_ptr[udli_count].n = 1;
-              sprintf ( udli_ptr[udli_count].name, udli_name );
+              twopoint_function_copy ( udli_ptr[udli_count], &tp, 0 );
 
-              twopoint_function_allocate ( &(udli_ptr[udli_count]) );
+              udli_ptr[udli_count]->n = 1;
 
-              /* fill data from udli */
-              if ( ( exitstatus = twopoint_function_fill_data_from_udli ( &(udli_ptr[udli_count]) , udli_name ) ) != 0 ) {
+              sprintf ( udli_ptr[udli_count]->name, udli_name );
+
+              twopoint_function_allocate ( udli_ptr[udli_count] );
+
+              /******************************************************
+               * fill data from udli
+               ******************************************************/
+              if ( ( exitstatus = twopoint_function_fill_data_from_udli ( udli_ptr[udli_count] , udli_name ) ) != 0 ) {
                 fprintf ( stderr, "[piN2piN_projection] Error from twopoint_function_fill_data_from_udli, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                 EXIT(212);
               }
 
-              /* set data pointers in tp */
+              /******************************************************
+               * set udli_id on new entry
+               ******************************************************/
+              udli_id = udli_count;
+
+              /******************************************************
+               * count new entry
+               ******************************************************/
+              udli_count++;
 
             } else {
               if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_projection] udli_name %s matches udli_list[%d] %s\n", udli_name, udli_id, udli_list[udli_id] );
             }
-          }
+
+            /******************************************************
+             * copy data from udli_id entry to current tp
+             ******************************************************/
+            memcpy ( tp.c[ids][0][0], udli_ptr[udli_id]->c[0][0][0], tp.T * tp.d * tp.d * sizeof(double _Complex ) );
+
+          }  /* end of loop on data sets = diagrams */
 
 #if 0
 
@@ -664,6 +695,12 @@ int main(int argc, char **argv) {
         tp_project = NULL;
 
 #endif  /* of if 0 */
+
+        for ( int i = 0; i < udli_count; i++ ) {
+          twopoint_function_fini ( udli_ptr[i] );
+        }
+
+
       }  // end of loop on coherent source locations
 
     }  // end of loop on base source locations

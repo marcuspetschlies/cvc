@@ -1325,4 +1325,187 @@ int twopoint_function_data_location_identifier ( char * udli, twopoint_function_
   return(0);
 }  // end of twopoint_function_data_location_identifier
 
+/********************************************************************************/
+/********************************************************************************/
+
+/********************************************************************************
+ * read diagrams for a twopoint
+ ********************************************************************************/
+int twopoint_function_fill_data_from_udli ( twopoint_function_type *p, char * udli ) {
+
+#ifdef HAVE_LHPC_AFF
+  int const nT = p->T;  // timeslices
+  int const d  = p->d;  // spin dimension
+  int const nD = p->n;  // number of diagrams / data sets
+  /* fix: does this need to be generalized ? */
+  /* char const filename_prefix[] = "piN_piN_diagrams"; */
+
+  if ( p->c == NULL ) {
+    fprintf ( stdout, "# [twopoint_function_fill_data_from_udli] Warning, data array not intialized; allocing p->c %s %d\n", __FILE__, __LINE__ );
+ 
+    if ( twopoint_function_allocate ( p ) == NULL ) {
+      fprintf ( stderr, "[twopoint_function_fill_data_from_udli] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
+      return(1);
+    }
+  }
+
+  /******************************************************
+   * baryon correlators, so d = 4 hard-coded here
+   *
+   * ONLY RELEVANT FOR APPLYING DIAGRAM NORM HERE,
+   * SHOULD BE REMOVED
+   ******************************************************/
+  if ( d != 4 ) {
+    fprintf ( stderr, "[twopoint_function_fill_data_from_udli] Error, spinor dimension must be 4 %s %d\n", __FILE__, __LINE__ );
+    return(3);
+  }
+
+  /******************************************************
+   * only one data set is read at a time
+   ******************************************************/
+  if ( nD != 1 ) {
+    fprintf ( stderr, "[twopoint_function_fill_data_from_udli] Error, read only one data set %s %d\n", __FILE__, __LINE__ );
+    return(3);
+  }
+
+#ifdef HAVE_LHPC_AFF
+  struct AffReader_s *affr = NULL;
+  struct AffNode_s *affn = NULL;
+  struct AffNode_s *affdir = NULL;
+#else
+  fprintf ( stderr, "[twopoint_function_fill_data_from_udli] Error, HAVE_LHPC_AFF not defined %s %d\n", __FILE__, __LINE__ );
+  return(1);
+#endif
+
+  char key[500];
+  char key_suffix[400];
+  char diagram_tag[20] = "NA";
+  char filename[200];
+  int exitstatus;
+
+  /******************************************************
+   * total momentum
+   ******************************************************/
+  int const Ptot[3] = { p->pf1[0] + p->pf2[0], p->pf1[1] + p->pf2[1], p->pf1[2] + p->pf2[2] } ;
+
+  /******************************************************
+   * reference frame momentum for current total momentum
+   ******************************************************/
+  int Pref[3];
+  exitstatus = get_reference_rotation ( Pref, NULL, Ptot );
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "[twopoint_function_fill_data_from_udli] Error from get_reference_rotation, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(4);
+  } 
+
+
+  /******************************************************
+   * for the filename we need the reference momentum
+   ******************************************************/
+
+  /* write "last part" of key name into key_suffix;
+   * including all momenta and vertex gamma ids */
+  exitstatus = contract_diagram_key_suffix_from_type ( key_suffix, p );
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "[twopoint_function_fill_data_from_udli] Error from contract_diagram_key_suffix_from_type, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    return(1);
+  }
+
+  /******************************************************
+   * loop on diagrams / data sets within 2-point function
+   ******************************************************/
+  for ( int i = 0; i < nD; i++ ) {
+
+    double _Complex *** const diagram = p->c[i];
+
+    char diagram_tag_tmp[20];
+    twopoint_function_get_diagram_name ( diagram_tag_tmp, p, i );
+
+    if ( /* here we need a new reader */
+         ( affr == NULL ) || /* reader not set */
+         ( strcmp ( diagram_tag, "NA" ) == 0 ) || /* diagram tag has not been set */
+         ( diagram_tag[0] != diagram_tag_tmp[0] ) /* diagram tag has changed */
+       ) {
+
+       if ( affr != NULL ) {
+        aff_reader_close (affr);
+        affr = NULL;
+       }
+       if ( strcmp ( diagram_tag, diagram_tag_tmp ) != 0 ) strcpy ( diagram_tag, diagram_tag_tmp );
+
+      /******************************************************
+       * AFF reader
+       ******************************************************/
+      sprintf(filename, "%s.%c.PX%dPY%dPZ%d.%.4d.t%dx%dy%dz%d.aff", datafile_prefix, diagram_tag[0],
+          Pref[0], Pref[1], Pref[2], Nconf,
+          p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3] );
+ 
+      affr = aff_reader  (filename);
+      if ( const char * aff_status_str =  aff_reader_errstr(affr) ) {
+        fprintf(stderr, "[twopoint_function_fill_data_from_udli] Error from aff_reader for filename %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__);
+        EXIT(4);
+      } else {
+        if ( g_verbose > 1 ) fprintf(stdout, "# [twopoint_function_fill_data_from_udli] reading data from file %s %s %d\n", filename, __FILE__, __LINE__);
+      }
+
+      if( (affn = aff_reader_root( affr )) == NULL ) {
+        fprintf(stderr, "[twopoint_function_fill_data_from_udli] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
+        return(103);
+      }
+    } else {
+      if ( g_verbose > 3 ) fprintf ( stdout, "# [twopoint_function_fill_data_from_udli] using existing reader %s %d\n", __FILE__, __LINE__);
+    }  /* end of need new reader */
+
+    /* copy temporary diagram tag to diagram tag */
+    strcpy ( diagram_tag, diagram_tag_tmp );
+
+    /* current filename pattern uses lower-case tag, so this 
+     * toupper is not needed now */
+    /* strcpy ( filename_tag, diagram_tag ); */
+    /* filename_tag[0] = toupper ( diagram_tag[0] ); */
+
+    sprintf( key, "/%s/%s/%s/%s", p->name, diagram_tag, p->fbwd, key_suffix );
+    if ( g_verbose > 3 ) fprintf ( stdout, "# [twopoint_function_fill_data_from_udli] key = %s %s %d\n", key, __FILE__, __LINE__ );
+
+
+    affdir = aff_reader_chpath (affr, affn, key );
+    uint32_t uitems = d *d * nT;
+    exitstatus = aff_node_get_complex (affr, affdir, diagram[0][0], uitems );
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[twopoint_function_fill_data_from_udli] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(105);
+    }
+
+    if ( strcmp ( p->norm , "NA" ) != 0 ) {
+      double const norm = twopoint_function_get_diagram_norm ( p, i );
+      if ( g_verbose > 3 ) fprintf ( stdout, "# [twopoint_function_fill_data_from_udli] using diagram norm %2d %16.7e %s %d\n", i, norm, __FILE__, __LINE__ );
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+      for ( int t = 0; t < nT; t++ ) {
+        zm4x4_ti_eq_re ( diagram[t], norm );
+      }
+
+    }  // end of if norm not NA
+#if 0
+#endif  /* of if 0 */
+
+  }  // end of loop on diagrams / data sets
+
+  // close the AFF reader
+  if ( affr != NULL ) aff_reader_close ( affr );
+
+  // TEST
+  if ( g_verbose > 5 ) {
+    twopoint_function_show_data ( p, stdout );
+  }
+
+  return(0);
+#else
+  fprintf ( stdout, "# [twopoint_function_fill_data_from_udli] non-aff version not yet implemented\n" );
+  return(1);
+#endif
+}  // end of twopoint_function_fill_data_from_udli
+
 }  // end of namespace cvc
