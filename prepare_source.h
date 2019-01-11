@@ -26,6 +26,8 @@ int init_coherent_sequential_source(double *s, double **p, int tseq, int ncoh, i
 
 int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init);
 
+int init_sequential_fht_source ( double * const s, double * const p, int const pseq[3], int const gseq);
+
 }  /* end of namespace cvc */
 
 #endif

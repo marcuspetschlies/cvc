@@ -1021,4 +1021,54 @@ int init_timeslice_source_oet ( double ** const s, int const tsrc, int * const m
   return(0);
 }  /* end of init_timeslice_source_oet */
 
+
+/*************************************************************************/
+/*************************************************************************/
+
+/*************************************************************************
+ * prepare a sequential FHT source
+ *************************************************************************/
+int init_sequential_fht_source ( double * const s, double * const p, int const pseq[3], int const gseq) {
+
+  const double px = 2. * M_PI * pseq[0] / (double)LX_global;
+  const double py = 2. * M_PI * pseq[1] / (double)LY_global;
+  const double pz = 2. * M_PI * pseq[2] / (double)LZ_global;
+  const double phase_offset =  g_proc_coords[1]*LX * px + g_proc_coords[2]*LY * py + g_proc_coords[3]*LZ * pz;
+  const size_t sizeof_spinor_field = _GSI(VOLUME) * sizeof(double);
+
+  memset(s, 0, sizeof_spinor_field);
+
+  if(s == NULL || p == NULL) {
+    fprintf(stderr, "[init_sequential_source] Error, field is null\n");
+    return(1);
+  }
+
+  /* (1) multiply with phase and Gamma structure */
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+    double spinor1[24], phase;
+    complex w;
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
+
+      unsigned int const iix = _GSI( ix );
+
+      phase = phase_offset + g_lexic2coords[ix][1] * px + g_lexic2coords[ix][2] * py + g_lexic2coords[ix][3] * pz;
+      w.re =  cos(phase);
+      w.im =  sin(phase);
+      _fv_eq_gamma_ti_fv(spinor1, gseq, p + iix);
+      _fv_eq_fv_ti_co(s + iix, spinor1, &w);
+    }
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+  return(0);
+}  /* end of function init_sequential_fht_source */
+
 }  /* end of namespace cvc */
