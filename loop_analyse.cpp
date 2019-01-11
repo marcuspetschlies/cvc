@@ -68,6 +68,8 @@ int main(int argc, char **argv) {
 
   /* const char fbwd_str[2][4] =  { "fwd", "bwd" }; */
 
+  int const conf_traj = 4;  /* meaning of this ? from HMC run ? */
+
   int c;
   int filename_set = 0;
   int exitstatus;
@@ -154,6 +156,12 @@ int main(int argc, char **argv) {
   fprintf(stdout, "# [loop_analyse] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
 
   /***************************************************************************
+   * loop data filename
+   ***************************************************************************/
+  sprintf ( filename, "%s.%.4d_%s_Ns%.4d_step%.4d_Qsq%d.h5", filename_prefix, Nconf, filename_prefix2, g_nsample, Nsave, Qsq );
+  if ( io_proc == 2 && g_verbose > 2 ) fprintf ( stdout, "# [loop_analyse] loop filename = %s\n", filename );
+
+  /***************************************************************************
    * count momenta and build momentum list
    ***************************************************************************/
   g_sink_momentum_number = 0;
@@ -198,17 +206,12 @@ int main(int argc, char **argv) {
     EXIT(48);
   }
 
-  /***************************************************************************
-   * loop data filename
-   ***************************************************************************/
-  sprintf ( filename, "%s.%.4d_%s_Ns%.4d_step%.4d_Qsq%d.h5", filename_prefix, Nconf, filename_prefix2, g_nsample, Nsave, Qsq );
-  if ( io_proc == 2 && g_verbose > 2 ) fprintf ( stdout, "# [loop_analyse] loop filename = %s\n", filename );
 
-#if 0
   /***************************************************************************
    * loop on stochastic oet samples
    ***************************************************************************/
-  for ( int isample = 0; isample < g_nsample; isample++ ) {
+  for ( int isample = g_sourceid; isample <= g_sourceid2; isample += g_sourceid_step )
+  {
 
     int const Nstoch = isample * Nsave + 1;
     char loop_type[100];
@@ -217,7 +220,7 @@ int main(int argc, char **argv) {
     sprintf ( loop_type, "%s", "Scalar" );
     sprintf ( loop_name, "%s", "loop" );
 
-    sprintf ( data_tag, "/conf_%.4d/Nstoch_%.4d/%s/%s", Nconf, Nstoch, loop_type, loop_name );
+    sprintf ( data_tag, "/conf_%.4d/Nstoch_%.4d/%s/%s", conf_traj, Nstoch, loop_type, loop_name );
     if ( io_proc == 2 && g_verbose > 2 ) fprintf( stdout, "# [loop_analyse] data_tag = %s\n", data_tag);
 
     exitstatus = loop_read_from_h5_file ( loop[isample], filename, data_tag, g_sink_momentum_number, 16, io_proc );
@@ -233,13 +236,14 @@ int main(int argc, char **argv) {
       for ( int iproc = 0; iproc < g_nproc_t; iproc++ ) {
         if ( g_tr_id == iproc ) {
           char output_filename[400];
-          sprintf ( output_filename, "conf_%.4d.Nstoch_%.4d.%s.%s", Nconf, Nstoch, loop_type, loop_name );
+          sprintf ( output_filename, "Nconf_%.4d.Nstoch_%.4d.%s.%s", Nconf, Nstoch, loop_type, loop_name );
           FILE * ofs = fopen ( output_filename, "w" );
           if ( ofs == NULL ) {
             fprintf ( stderr, "[loop_analyse] Error from fopen %s %d\n", __FILE__, __LINE__ );
             EXIT(1);
           }
 
+          fprintf ( ofs, "# [loop_analyse] %s\n", data_tag );
           for ( int x0 = 0; x0 < T; x0++ ) {
             int const y0 = x0 + g_proc_coords[0] * T;
 
@@ -247,7 +251,7 @@ int main(int argc, char **argv) {
 
               for( int ic = 0; ic < 16; ic++ ) {
 
-                fprintf ( ofs, "%4d   %3d% 3d% 3d   %d %d  %25.16e %25.16e\n", y0, 
+                fprintf ( ofs, " %3d %4d   %3d% 3d% 3d   %d %d  %25.16e %25.16e\n", Nstoch, y0, 
                     g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
                     ic/4, ic%4, loop[isample][x0][imom][2*ic], loop[isample][x0][imom][2*ic+1] );
 
@@ -262,6 +266,8 @@ int main(int argc, char **argv) {
 #endif
       }  /* end of loop on procs in time direction */
     }  /* end of if io_proc > 0 and verbosity high level enough */
+#if 0
+#endif  /* of if 0 */
 
     /*****************************************************************/
     /*****************************************************************/
@@ -275,12 +281,12 @@ int main(int argc, char **argv) {
      */
 
   }  /* end of loop on oet samples */
-#endif  /* of if 0 */
 
   /***************************************************************************
    * decallocate fields
    ***************************************************************************/
   fini_4level_dtable ( &loop );
+
 
   /***************************************************************************
    * free the allocated memory, finalize
