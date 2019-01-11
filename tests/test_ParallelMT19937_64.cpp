@@ -29,7 +29,7 @@ using namespace cvc;
 
 int main(int argc, char** argv)
 {
-  cvc::Core core(argc,argv);
+  Core core(argc,argv);
   if( !(core.is_initialised()) ){
     std::cout << "Core initialisation failed!\n";
     return(CVC_EXIT_CORE_INIT_FAILURE);
