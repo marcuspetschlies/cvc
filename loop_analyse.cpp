@@ -220,7 +220,7 @@ int main(int argc, char **argv) {
     sprintf ( loop_type, "%s", "Scalar" );
     sprintf ( loop_name, "%s", "loop" );
 
-    sprintf ( data_tag, "/conf_%.4d/Nstoch_%.4d/%s/%s", conf_traj, Nstoch, loop_type, loop_name );
+    sprintf ( data_tag, "/conf_%.4d/Nstoch_%.4d/%s/%s", Nconf, Nstoch, loop_type, loop_name );
     if ( io_proc == 2 && g_verbose > 2 ) fprintf( stdout, "# [loop_analyse] data_tag = %s\n", data_tag);
 
     exitstatus = loop_read_from_h5_file ( loop[isample], filename, data_tag, g_sink_momentum_number, 16, io_proc );
