@@ -69,10 +69,10 @@ int main(int argc, char **argv) {
  
 #if defined CUBIC_GROUP_DOUBLE_COVER
   char const little_group_list_filename[] = "little_groups_2Oh.tab";
-  int (* const set_rot_mat_table ) ( rot_mat_table_type*, const char*, const char*) = set_rot_mat_table_cubic_group_double_cover;
+  /* int (* const set_rot_mat_table ) ( rot_mat_table_type*, const char*, const char*) = set_rot_mat_table_cubic_group_double_cover; */
 #elif defined CUBIC_GROUP_SINGLE_COVER
   const char little_group_list_filename[] = "little_groups_Oh.tab";
-  int (* const set_rot_mat_table ) ( rot_mat_table_type*, const char*, const char*) = set_rot_mat_table_cubic_group_single_cover;
+  /* int (* const set_rot_mat_table ) ( rot_mat_table_type*, const char*, const char*) = set_rot_mat_table_cubic_group_single_cover; */
 #endif
 
 
@@ -80,9 +80,10 @@ int main(int argc, char **argv) {
   int filename_set = 0;
   int exitstatus;
   char filename[200];
-  // double ratime, retime;
+  double ratime, retime;
   FILE *ofs = NULL;
 
+  int udli_count = 0;
   char udli_list[MAX_UDLI_NUM][500];
   char udli_name[500];
   twopoint_function_type *udli_ptr[MAX_UDLI_NUM];
@@ -266,8 +267,21 @@ int main(int argc, char **argv) {
     /****************************************************
      * set the projector with the info we have
      ****************************************************/
-    exitstatus = little_group_projector_set ( &projector, &little_group, g_twopoint_function_list[i2pt].irrep , row_target, 1,
-        J2_list, momentum_list, bispinor_list, parity_list, cartesian_list, ref_row_target, ref_row_spin, g_twopoint_function_list[i2pt].type, refframerot );
+    exitstatus = little_group_projector_set (
+        &projector,
+        &little_group,
+        g_twopoint_function_list[i2pt].irrep ,
+        row_target,
+        1,
+        J2_list,
+        momentum_list,
+        bispinor_list,
+        parity_list,
+        cartesian_list,
+        ref_row_target,
+        ref_row_spin,
+        g_twopoint_function_list[i2pt].type,
+        refframerot );
 
     if ( exitstatus != 0 ) {
       fprintf ( stderr, "[piN2piN_projection] Error from little_group_projector_set, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -332,7 +346,7 @@ int main(int argc, char **argv) {
 
         twopoint_function_init ( &tp );
 
-        twopoint_function_copy ( &tp, &( g_twopoint_function_list[i2pt], 1 ) );
+        twopoint_function_copy ( &tp, &( g_twopoint_function_list[i2pt] ), 1 );
 
         /******************************************************
          * final, projected twopoint function struct for
@@ -369,7 +383,7 @@ int main(int argc, char **argv) {
          ******************************************************/
         for ( int i = 0; i < n_tp_project; i++ ) {
           twopoint_function_init ( &(tp_project[i]) );
-          twopoint_function_copy ( &(tp_project[i]), &( g_twopoint_function_list[i2pt], 1 ) );
+          twopoint_function_copy ( &(tp_project[i]), &( g_twopoint_function_list[i2pt]), 1 );
 
           /* number of data sets in tp_project is always 1
            *   we save the sum of all diagrams in here */
@@ -389,13 +403,6 @@ int main(int argc, char **argv) {
         gamma_matrix_type gl, gr, gi11, gi12, gi2, gf11, gf12, gf2;
         gamma_matrix_init ( &gl );
         gamma_matrix_init ( &gr );
-
-        /******************************************************
-         * reset udli counter
-         ******************************************************/
-        int udli_count = 0;
-
-
 
         /******************************************************
          * loop on little group elements
@@ -447,6 +454,11 @@ int main(int argc, char **argv) {
           /* gl^N gf12 gl^H */
           gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gf12, &gl, 'N', &gf12, &gl, 'H' );
 
+          if ( gf11.id == -1 || gf12.id == -1 ) {
+            fprintf ( stderr, "[piN2piN_projection] Error from gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op for gf1 %s %d\n", __FILE__, __LINE__ );
+            EXIT(217);
+          }
+
           tp.gf1[0] = gf11.id;
           tp.gf1[1] = gf12.id;
 
@@ -497,6 +509,11 @@ int main(int argc, char **argv) {
           /* gr^N gi12 gr^H */
           gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gi12, &gr, 'N', &gi12, &gr, 'H' );
 
+          if ( gi11.id == -1 || gi12.id == -1 ) {
+            fprintf ( stderr, "[piN2piN_projection] Error from gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op for gi1 %s %d\n", __FILE__, __LINE__ );
+            EXIT(218);
+          }
+
           tp.gi1[0] = gi11.id;
           tp.gi1[1] = gi12.id;
 
@@ -509,30 +526,34 @@ int main(int argc, char **argv) {
 
           tp.gi2    = gi2.id;
 
-          // TEST
-          // fprintf ( stdout, "# [piN2piN_projection]  rot %2d %2d     gf11 %2d %6.2f   gf12 %2d %6.2f   gf2 %2d %6.2f   gi11 %2d %6.2f   gi12 %2d %6.2f   gi2 %2d %6.2f\n", 
-          //    irotl, irotr, gf11.id, gf11.s, gf12.id, gf12.s, gf2.id, gf2.s, gi11.id, gi11.s, gi12.id, gi12.s, gi2.id, gi2.s);
+          /* TEST */
+          if ( g_verbose > 4 ) 
+            fprintf ( stdout, "# [piN2piN_projection] rot %2d %2d     gf11 %2d %6.2f   gf12 %2d %6.2f   gf2 %2d %6.2f   gi11 %2d %6.2f   gi12 %2d %6.2f   gi2 %2d %6.2f\n", 
+              irotl, irotr, gf11.id, gf11.s, gf12.id, gf12.s, gf2.id, gf2.s, gi11.id, gi11.s, gi12.id, gi12.s, gi2.id, gi2.s);
 
-          //char name[100];
-          //sprintf (  name, "R%.2d_TWPT_R%.2d", irotl, irotr );
-          //twopoint_function_print ( &tp, name, stdout );
+          if ( g_verbose > 4 && io_proc == 2 ) {
+            char name[100];
+            sprintf (  name, "R%.2d_TWPT_R%.2d", irotl, irotr );
+            twopoint_function_print ( &tp, name, stdout );
+          }
 
-#if 0
           /******************************************************
            * fill the diagram with data
+           *
+           * this takes too long
            ******************************************************/
+          /*
           if ( ( exitstatus = twopoint_function_fill_data ( &tp, filename_prefix ) ) != 0 ) {
             fprintf ( stderr, "[piN2piN_projection] Error from twopoint_function_fill_data, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(212);
           }
-#endif  /* of if 0 */
-
+          */
 
           /******************************************************
            * fill the diagram with data
            ******************************************************/
           for ( int ids = 0; ids < tp.n; ids++ ) {
-            if ( ( exitstatus = twopoint_function_data_location_identifier ( udli_name, &tp, filename_prefix, ids) ) != 0 ) {
+            if ( ( exitstatus = twopoint_function_data_location_identifier ( udli_name, &tp, filename_prefix, ids, "#" ) ) != 0 ) {
               fprintf ( stderr, "[piN2piN_projection] Error from twopoint_function_data_location_identifier, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
               EXIT(212);
             }
@@ -540,6 +561,7 @@ int main(int argc, char **argv) {
             /******************************************************
              * check, whether udli_name exists in udli list
              ******************************************************/
+            ratime = _GET_TIME;
             int udli_id = -1;
             for ( int i = 0; i < udli_count; i++ ) {
               if ( strcmp ( udli_name, udli_list[i] ) == 0 ) {
@@ -547,11 +569,14 @@ int main(int argc, char **argv) {
                 break;
               }
             }
+            retime = _GET_TIME;
+            if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_projection] time for matching udli_name = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__ );
+
             if ( udli_id == -1 ) {
               fprintf ( stdout, "# [piN2piN_projection] could not find udli_name %s in udli_list\n", udli_name );
 
               /******************************************************
-               * start new entry
+               * start new entry in udli list
                ******************************************************/
 
               /******************************************************
@@ -562,6 +587,12 @@ int main(int argc, char **argv) {
                 EXIT(111);
               } else {
                 if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_projection] starting udli entry number %d\n", udli_count );
+              }
+
+              udli_ptr[udli_count] = ( twopoint_function_type *)malloc ( sizeof ( twopoint_function_type ) );
+              if ( udli_ptr[udli_count] == NULL ) {
+                fprintf ( stderr, "[piN2piN_projection] Error from malloc %s %d\n", __FILE__, __LINE__ );
+                EXIT(211);
               }
 
               twopoint_function_init ( udli_ptr[udli_count] );
@@ -577,7 +608,7 @@ int main(int argc, char **argv) {
               /******************************************************
                * fill data from udli
                ******************************************************/
-              if ( ( exitstatus = twopoint_function_fill_data_from_udli ( udli_ptr[udli_count] , udli_name ) ) != 0 ) {
+              if ( ( exitstatus = twopoint_function_fill_data_from_udli ( udli_ptr[udli_count] , udli_name , io_proc) ) != 0 ) {
                 fprintf ( stderr, "[piN2piN_projection] Error from twopoint_function_fill_data_from_udli, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                 EXIT(212);
               }
@@ -586,6 +617,11 @@ int main(int argc, char **argv) {
                * set udli_id on new entry
                ******************************************************/
               udli_id = udli_count;
+
+              /******************************************************
+               * set entry in udli_list
+               ******************************************************/
+              strcpy ( udli_list[udli_id], udli_name );
 
               /******************************************************
                * count new entry
@@ -603,14 +639,30 @@ int main(int argc, char **argv) {
 
           }  /* end of loop on data sets = diagrams */
 
-#if 0
+          /******************************************************
+           * apply diagram norm
+           *
+           * a little overhead, since this done for each tp,
+           * not each udli_ptr only
+           ******************************************************/
+          if ( ( exitstatus = twopoint_function_apply_diagram_norm ( &tp ) ) != 0 ) {
+            fprintf ( stderr, "[piN2piN_projection] Error from twopoint_function_apply_diagram_norm, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(213);
+          }
+
 
           /******************************************************
            * sum up data sets in tp
            * - add data sets 1,...,tp.n-1 to data set 0
            ******************************************************/
+          /*
           for ( int i = 1; i < tp.n; i++ ) {
             contract_diagram_zm4x4_field_pl_eq_zm4x4_field ( tp.c[0], tp.c[i], tp.T );
+          }
+          */
+          if ( ( exitstatus = twopoint_function_accum_diagrams ( tp.c[0], &tp ) ) != 0 ) {
+            fprintf ( stderr, "[piN2piN_projection] Error from twopoint_function_accum_diagrams, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(216);
           }
 
           /******************************************************
@@ -660,22 +712,42 @@ int main(int argc, char **argv) {
                 
               contract_diagram_zm4x4_field_eq_zm4x4_field_pl_zm4x4_field_ti_co ( tp_project[irrr].c[0], tp_project[irrr].c[0], tp.c[0], zcoeff, tp.T );
 
+              if ( g_verbose > 4 ) fprintf ( stdout, "# [piN2piN_projection] zcoeff = %16.7e   %16.7e\n", creal( zcoeff ), cimag( zcoeff ) );
+
             }  // end of loop on rsrc
             }  // end of loop on rsnk
           }  // end of loop on rref
 
-#endif  /* end of if 0 */
-
         }  // end of loop on source rotations
         }  // end of loop on sink rotations
-#if 0
+
+
         /******************************************************
          * output of tp_project
          *
          * loop over individiual projection variants
          ******************************************************/
         for ( int itp = 0; itp < n_tp_project; itp++ ) {
+
+          /******************************************************
+           * multiply overall phase factor and group projection
+           * normalization
+           ******************************************************/
+          double _Complex const ztmp = twopoint_function_get_correlator_phase ( &(tp_project[itp]) ) * \
+                                       (double)( projector.rtarget->dim * projector.rtarget->dim ) / \
+                                       ( 4. *    projector.rtarget->n   * projector.rtarget->n );
+
+          if ( g_verbose > 4 ) fprintf ( stdout, "# [piN2piN_projection] correlator norm = %25.16e %25.16e\n", creal( ztmp ), cimag( ztmp ) );
+
+          exitstatus = contract_diagram_zm4x4_field_ti_eq_co ( tp_project[itp].c[0], ztmp, tp_project[itp].T );
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "[piN2piN_projection] Error from contract_diagram_zm4x4_field_ti_eq_co %s %d\n", __FILE__, __LINE__ );
+            EXIT(217)
+          }
  
+          /******************************************************
+           * write to disk
+           ******************************************************/
           exitstatus = twopoint_function_write_data ( &( tp_project[itp] ) );
           if ( exitstatus != 0 ) {
             fprintf ( stderr, "[piN2piN_projection] Error from twopoint_function_write_data, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -694,12 +766,15 @@ int main(int argc, char **argv) {
         free ( tp_project );
         tp_project = NULL;
 
-#endif  /* of if 0 */
-
+        /******************************************************
+         * reset udli_count and deallocate udli_ptr
+         ******************************************************/
         for ( int i = 0; i < udli_count; i++ ) {
           twopoint_function_fini ( udli_ptr[i] );
+          free ( udli_ptr[i] );
+          udli_ptr[i] = NULL;
         }
-
+        udli_count = 0;
 
       }  // end of loop on coherent source locations
 
@@ -728,10 +803,6 @@ int main(int argc, char **argv) {
    * free the allocated memory, finalize
    ******************************************************/
   free_geometry();
-
-#ifdef HAVE_TMLQCD_LIBWRAPPER
-  tmLQCD_finalise();
-#endif
 
 #ifdef HAVE_MPI
   MPI_Finalize();

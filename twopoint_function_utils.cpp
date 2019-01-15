@@ -24,6 +24,7 @@
 #endif
 
 #include "types.h"
+#include "cvc_timer.h"
 #include "global.h"
 #include "default_input_values.h"
 #include "io_utils.h"
@@ -106,33 +107,33 @@ void twopoint_function_init ( twopoint_function_type *p ) {
  *
  ********************************************************************************/
 void twopoint_function_print ( twopoint_function_type *p, char *name, FILE*ofs ) {
-  fprintf(ofs, "# [print_twopoint_function] %s.name = %s\n", name, p->name);
-  fprintf(ofs, "# [print_twopoint_function] %s.type = %s\n", name, p->type);
-  fprintf(ofs, "# [print_twopoint_function] %s.pi1  = (%3d,%3d, %3d)\n", name, p->pi1[0], p->pi1[1], p->pi1[2] );
-  fprintf(ofs, "# [print_twopoint_function] %s.pi2  = (%3d,%3d, %3d)\n", name, p->pi2[0], p->pi2[1], p->pi2[2] );
-  fprintf(ofs, "# [print_twopoint_function] %s.pf1  = (%3d,%3d, %3d)\n", name, p->pf1[0], p->pf1[1], p->pf1[2] );
-  fprintf(ofs, "# [print_twopoint_function] %s.pf2  = (%3d,%3d, %3d)\n", name, p->pf2[0], p->pf2[1], p->pf2[2] );
-  fprintf(ofs, "# [print_twopoint_function] %s.gi1  = (%3d,%3d)\n", name, p->gi1[0], p->gi1[1] );
-  fprintf(ofs, "# [print_twopoint_function] %s.gi2  =  %3d\n", name, p->gi2 );
-  fprintf(ofs, "# [print_twopoint_function] %s.gf1  = (%3d,%3d)\n", name, p->gf1[0], p->gf1[1] );
-  fprintf(ofs, "# [print_twopoint_function] %s.gf2  =  %3d\n", name, p->gf2 );
-  fprintf(ofs, "# [print_twopoint_function] %s.n    =  %3d\n", name, p->n );
-  fprintf(ofs, "# [print_twopoint_function] %s.spin_project    =  %3d\n", name, p->spin_project );
-  fprintf(ofs, "# [print_twopoint_function] %s.parity_project  =  %3d\n", name, p->parity_project );
-  fprintf(ofs, "# [print_twopoint_function] %s.diagrams        =  %s\n", name, p->diagrams );
-  fprintf(ofs, "# [print_twopoint_function] %s.norm            =  %s\n", name, p->norm );
-  fprintf(ofs, "# [print_twopoint_function] %s.source_coords   =  (%3d, %3d, %3d, %3d)\n", name, 
+  fprintf(ofs, "# [twopoint_function_print] %s.name = %s\n", name, p->name);
+  fprintf(ofs, "# [twopoint_function_print] %s.type = %s\n", name, p->type);
+  fprintf(ofs, "# [twopoint_function_print] %s.pi1  = (%3d,%3d, %3d)\n", name, p->pi1[0], p->pi1[1], p->pi1[2] );
+  fprintf(ofs, "# [twopoint_function_print] %s.pi2  = (%3d,%3d, %3d)\n", name, p->pi2[0], p->pi2[1], p->pi2[2] );
+  fprintf(ofs, "# [twopoint_function_print] %s.pf1  = (%3d,%3d, %3d)\n", name, p->pf1[0], p->pf1[1], p->pf1[2] );
+  fprintf(ofs, "# [twopoint_function_print] %s.pf2  = (%3d,%3d, %3d)\n", name, p->pf2[0], p->pf2[1], p->pf2[2] );
+  fprintf(ofs, "# [twopoint_function_print] %s.gi1  = (%3d,%3d)\n", name, p->gi1[0], p->gi1[1] );
+  fprintf(ofs, "# [twopoint_function_print] %s.gi2  =  %3d\n", name, p->gi2 );
+  fprintf(ofs, "# [twopoint_function_print] %s.gf1  = (%3d,%3d)\n", name, p->gf1[0], p->gf1[1] );
+  fprintf(ofs, "# [twopoint_function_print] %s.gf2  =  %3d\n", name, p->gf2 );
+  fprintf(ofs, "# [twopoint_function_print] %s.n    =  %3d\n", name, p->n );
+  fprintf(ofs, "# [twopoint_function_print] %s.spin_project    =  %3d\n", name, p->spin_project );
+  fprintf(ofs, "# [twopoint_function_print] %s.parity_project  =  %3d\n", name, p->parity_project );
+  fprintf(ofs, "# [twopoint_function_print] %s.diagrams        =  %s\n", name, p->diagrams );
+  fprintf(ofs, "# [twopoint_function_print] %s.norm            =  %s\n", name, p->norm );
+  fprintf(ofs, "# [twopoint_function_print] %s.source_coords   =  (%3d, %3d, %3d, %3d)\n", name, 
       p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3] );
-  fprintf(ofs, "# [print_twopoint_function] %s.reorder         =  %3d\n", name, p->reorder );
-  fprintf(ofs, "# [print_twopoint_function] %s.fbwd            =  %s\n", name, p->fbwd );
-  fprintf(ofs, "# [print_twopoint_function] %s.T               =  %d\n", name, p->T );
-  fprintf(ofs, "# [print_twopoint_function] %s.d               =  %d\n", name, p->d );
-  fprintf(ofs, "# [print_twopoint_function] %s.group           =  %s\n", name, p->group );
-  fprintf(ofs, "# [print_twopoint_function] %s.irrep           =  %s\n", name, p->irrep );
+  fprintf(ofs, "# [twopoint_function_print] %s.reorder         =  %3d\n", name, p->reorder );
+  fprintf(ofs, "# [twopoint_function_print] %s.fbwd            =  %s\n", name, p->fbwd );
+  fprintf(ofs, "# [twopoint_function_print] %s.T               =  %d\n", name, p->T );
+  fprintf(ofs, "# [twopoint_function_print] %s.d               =  %d\n", name, p->d );
+  fprintf(ofs, "# [twopoint_function_print] %s.group           =  %s\n", name, p->group );
+  fprintf(ofs, "# [twopoint_function_print] %s.irrep           =  %s\n", name, p->irrep );
   if ( p->c != NULL ) {
-    fprintf ( ofs, "# [print_twopoint_function] data array is set\n");
+    fprintf ( ofs, "# [twopoint_function_print] data array is set\n");
   } else {
-    fprintf ( ofs, "# [print_twopoint_function] data is empty\n");
+    fprintf ( ofs, "# [twopoint_function_print] data is empty\n");
   }
   return;
 }  // end of twopoint_function_print
@@ -1266,7 +1267,7 @@ int twopoint_function_write_data ( twopoint_function_type *p ) {
 /********************************************************************************
  * read diagrams for a twopoint
  ********************************************************************************/
-int twopoint_function_data_location_identifier ( char * udli, twopoint_function_type *p, char * const datafile_prefix, int const ids ) {
+int twopoint_function_data_location_identifier ( char * udli, twopoint_function_type *p, char * const datafile_prefix, int const ids , char * const sep) {
 
   char key[500];
   char key_suffix[400];
@@ -1318,7 +1319,7 @@ int twopoint_function_data_location_identifier ( char * udli, twopoint_function_
   /******************************************************
    * udli
    ******************************************************/
-  sprintf ( udli, "%s%s", filename, key );
+  sprintf ( udli, "%s%s%s", filename, sep, key );
 
   if ( g_verbose > 4 ) fprintf ( stdout, "# [twopoint_function_data_location_identifier] udli = %s\n", udli );
 
@@ -1331,33 +1332,48 @@ int twopoint_function_data_location_identifier ( char * udli, twopoint_function_
 /********************************************************************************
  * read diagrams for a twopoint
  ********************************************************************************/
-int twopoint_function_fill_data_from_udli ( twopoint_function_type *p, char * udli ) {
+int twopoint_function_fill_data_from_udli ( twopoint_function_type *p, char * udli, int const io_proc ) {
 
 #ifdef HAVE_LHPC_AFF
   int const nT = p->T;  // timeslices
   int const d  = p->d;  // spin dimension
   int const nD = p->n;  // number of diagrams / data sets
+  char sep[] = "#";
   /* fix: does this need to be generalized ? */
   /* char const filename_prefix[] = "piN_piN_diagrams"; */
 
+  static struct AffReader_s *affr = NULL;
+  static struct AffNode_s *affn = NULL;
+  struct AffNode_s *affdir = NULL;
+
+  char key[500];
+  static char filename[500] = "NA";
+  char filename_tmp[500];
+  int exitstatus;
+
+
+  /******************************************************
+   * check for NULL p or udli
+   * if so, just close the AFF reader and return
+   ******************************************************/
+  if ( p == NULL || udli == NULL ) {
+    if ( affr != NULL ) aff_reader_close ( affr );
+    affr = NULL;
+    return( 0 );
+  }
+
+  /******************************************************
+   * check for non-NULL data array p->c
+   * if NULL, allocate it according to data size
+   * given in p
+   ******************************************************/
   if ( p->c == NULL ) {
-    fprintf ( stdout, "# [twopoint_function_fill_data_from_udli] Warning, data array not intialized; allocing p->c %s %d\n", __FILE__, __LINE__ );
+    if ( g_verbose > 2 ) fprintf ( stdout, "# [twopoint_function_fill_data_from_udli] Warning, data array not intialized; allocing p->c %s %d\n", __FILE__, __LINE__ );
  
     if ( twopoint_function_allocate ( p ) == NULL ) {
       fprintf ( stderr, "[twopoint_function_fill_data_from_udli] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
       return(1);
     }
-  }
-
-  /******************************************************
-   * baryon correlators, so d = 4 hard-coded here
-   *
-   * ONLY RELEVANT FOR APPLYING DIAGRAM NORM HERE,
-   * SHOULD BE REMOVED
-   ******************************************************/
-  if ( d != 4 ) {
-    fprintf ( stderr, "[twopoint_function_fill_data_from_udli] Error, spinor dimension must be 4 %s %d\n", __FILE__, __LINE__ );
-    return(3);
   }
 
   /******************************************************
@@ -1368,138 +1384,97 @@ int twopoint_function_fill_data_from_udli ( twopoint_function_type *p, char * ud
     return(3);
   }
 
-#ifdef HAVE_LHPC_AFF
-  struct AffReader_s *affr = NULL;
-  struct AffNode_s *affn = NULL;
-  struct AffNode_s *affdir = NULL;
-#else
-  fprintf ( stderr, "[twopoint_function_fill_data_from_udli] Error, HAVE_LHPC_AFF not defined %s %d\n", __FILE__, __LINE__ );
-  return(1);
-#endif
+  if ( io_proc == 2 ) {
 
-  char key[500];
-  char key_suffix[400];
-  char diagram_tag[20] = "NA";
-  char filename[200];
-  int exitstatus;
+    double ratime = _GET_TIME;
+    char name[500];
+    char *ptr = NULL;
 
-  /******************************************************
-   * total momentum
-   ******************************************************/
-  int const Ptot[3] = { p->pf1[0] + p->pf2[0], p->pf1[1] + p->pf2[1], p->pf1[2] + p->pf2[2] } ;
+    /******************************************************
+     * get filename and AFF key from udli
+     ******************************************************/
+    if ( g_verbose > 2 ) fprintf ( stdout, "# [twopoint_function_fill_data_from_udli] udli = %s\n", udli );
 
-  /******************************************************
-   * reference frame momentum for current total momentum
-   ******************************************************/
-  int Pref[3];
-  exitstatus = get_reference_rotation ( Pref, NULL, Ptot );
-  if ( exitstatus != 0 ) {
-    fprintf ( stderr, "[twopoint_function_fill_data_from_udli] Error from get_reference_rotation, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    return(4);
-  } 
+    strcpy ( name, udli );
+
+    ptr = strtok( name, sep );
+    if ( ptr == NULL ) { 
+      fprintf ( stderr, "[twopoint_function_fill_data_from_udli] Error, cannot get filename from udli %s %d\n", __FILE__, __LINE__ );
+      return(5); 
+    } else {
+      strcpy ( filename_tmp, ptr );
+      ptr = strtok ( NULL, sep );
+      if ( ptr == NULL )  { 
+        fprintf ( stderr, "[twopoint_function_fill_data_from_udli] Error, cannot get key from udli %s %d\n", __FILE__, __LINE__ );
+        return(6); 
+      } else {
+        strcpy ( key, ptr );
+      }
+    }
+
+    if ( g_verbose > 2 ) fprintf ( stdout, "# [twopoint_function_fill_data_from_udli] file = %s, key = %s\n", filename_tmp, key );
 
 
-  /******************************************************
-   * for the filename we need the reference momentum
-   ******************************************************/
+    /******************************************************
+     * check for new filename
+     * if new filename, open new reader
+     * also if AFF reader is still NULL,
+     * initialize a new reader
+     ******************************************************/
+    if ( ( strcmp( filename, filename_tmp ) != 0 ) || ( affr == NULL ) ) {
+      strcpy ( filename, filename_tmp );
+      if ( g_verbose > 2 ) fprintf ( stdout, "# [twopoint_function_fill_data_from_udli] new reader for file %s and reader\n", filename );
 
-  /* write "last part" of key name into key_suffix;
-   * including all momenta and vertex gamma ids */
-  exitstatus = contract_diagram_key_suffix_from_type ( key_suffix, p );
-  if ( exitstatus != 0 ) {
-    fprintf ( stderr, "[twopoint_function_fill_data_from_udli] Error from contract_diagram_key_suffix_from_type, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-    return(1);
-  }
-
-  /******************************************************
-   * loop on diagrams / data sets within 2-point function
-   ******************************************************/
-  for ( int i = 0; i < nD; i++ ) {
-
-    double _Complex *** const diagram = p->c[i];
-
-    char diagram_tag_tmp[20];
-    twopoint_function_get_diagram_name ( diagram_tag_tmp, p, i );
-
-    if ( /* here we need a new reader */
-         ( affr == NULL ) || /* reader not set */
-         ( strcmp ( diagram_tag, "NA" ) == 0 ) || /* diagram tag has not been set */
-         ( diagram_tag[0] != diagram_tag_tmp[0] ) /* diagram tag has changed */
-       ) {
-
-       if ( affr != NULL ) {
+      if ( affr != NULL ) {
         aff_reader_close (affr);
         affr = NULL;
-       }
-       if ( strcmp ( diagram_tag, diagram_tag_tmp ) != 0 ) strcpy ( diagram_tag, diagram_tag_tmp );
+      }
 
       /******************************************************
        * AFF reader
        ******************************************************/
-      sprintf(filename, "%s.%c.PX%dPY%dPZ%d.%.4d.t%dx%dy%dz%d.aff", datafile_prefix, diagram_tag[0],
-          Pref[0], Pref[1], Pref[2], Nconf,
-          p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3] );
- 
       affr = aff_reader  (filename);
       if ( const char * aff_status_str =  aff_reader_errstr(affr) ) {
         fprintf(stderr, "[twopoint_function_fill_data_from_udli] Error from aff_reader for filename %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__);
-        EXIT(4);
-      } else {
-        if ( g_verbose > 1 ) fprintf(stdout, "# [twopoint_function_fill_data_from_udli] reading data from file %s %s %d\n", filename, __FILE__, __LINE__);
+        return(4);
       }
 
+      /******************************************************
+       * AFF root node
+       ******************************************************/
       if( (affn = aff_reader_root( affr )) == NULL ) {
         fprintf(stderr, "[twopoint_function_fill_data_from_udli] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
         return(103);
       }
+
     } else {
-      if ( g_verbose > 3 ) fprintf ( stdout, "# [twopoint_function_fill_data_from_udli] using existing reader %s %d\n", __FILE__, __LINE__);
-    }  /* end of need new reader */
+      if ( g_verbose > 2 ) fprintf ( stdout, "# [twopoint_function_fill_data_from_udli] keeping previous filename %s and reader for udli %s\n", filename, udli );
+    }
 
-    /* copy temporary diagram tag to diagram tag */
-    strcpy ( diagram_tag, diagram_tag_tmp );
-
-    /* current filename pattern uses lower-case tag, so this 
-     * toupper is not needed now */
-    /* strcpy ( filename_tag, diagram_tag ); */
-    /* filename_tag[0] = toupper ( diagram_tag[0] ); */
-
-    sprintf( key, "/%s/%s/%s/%s", p->name, diagram_tag, p->fbwd, key_suffix );
-    if ( g_verbose > 3 ) fprintf ( stdout, "# [twopoint_function_fill_data_from_udli] key = %s %s %d\n", key, __FILE__, __LINE__ );
-
-
-    affdir = aff_reader_chpath (affr, affn, key );
+    /******************************************************
+     * read data set
+     ******************************************************/
+    if ( ( affdir = aff_reader_chpath (affr, affn, key ) ) == NULL ) {
+      fprintf(stderr, "[twopoint_function_fill_data_from_udli] Error from aff_reader_chpath %s %d\n", __FILE__, __LINE__);
+      return(106);
+    }
     uint32_t uitems = d *d * nT;
-    exitstatus = aff_node_get_complex (affr, affdir, diagram[0][0], uitems );
+    exitstatus = aff_node_get_complex (affr, affdir, p->c[0][0][0], uitems );
     if( exitstatus != 0 ) {
       fprintf(stderr, "[twopoint_function_fill_data_from_udli] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       return(105);
     }
 
-    if ( strcmp ( p->norm , "NA" ) != 0 ) {
-      double const norm = twopoint_function_get_diagram_norm ( p, i );
-      if ( g_verbose > 3 ) fprintf ( stdout, "# [twopoint_function_fill_data_from_udli] using diagram norm %2d %16.7e %s %d\n", i, norm, __FILE__, __LINE__ );
+    double retime = _GET_TIME;
+    if ( g_verbose > 0 ) fprintf ( stdout, "# [twopoint_function_fill_data_from_udli] time for reading AFF data set = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__ );
 
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-      for ( int t = 0; t < nT; t++ ) {
-        zm4x4_ti_eq_re ( diagram[t], norm );
-      }
-
-    }  // end of if norm not NA
+    // TEST
+    if ( g_verbose > 5 ) {
+      twopoint_function_show_data ( p, stdout );
+    }
 #if 0
 #endif  /* of if 0 */
-
-  }  // end of loop on diagrams / data sets
-
-  // close the AFF reader
-  if ( affr != NULL ) aff_reader_close ( affr );
-
-  // TEST
-  if ( g_verbose > 5 ) {
-    twopoint_function_show_data ( p, stdout );
-  }
+  }  /* end of if io_proc == 2 */
 
   return(0);
 #else
@@ -1507,5 +1482,253 @@ int twopoint_function_fill_data_from_udli ( twopoint_function_type *p, char * ud
   return(1);
 #endif
 }  // end of twopoint_function_fill_data_from_udli
+
+/********************************************************************************/
+/********************************************************************************/
+
+/********************************************************************************
+ * normalize diagrams
+ ********************************************************************************/
+int twopoint_function_apply_diagram_norm ( twopoint_function_type *p ) {
+
+  int const nT = p->T;  // timeslices
+  int const d  = p->d;  // spin dimension
+  int const nD = p->n;  // number of diagrams / data sets
+
+  double ratime = _GET_TIME;
+
+  /******************************************************
+   * for now, check, that d is 4
+   * this should be generalized
+   ******************************************************/
+  if ( d != 4 ) {
+    fprintf ( stderr, "[twopoint_function_apply_diagram_norm] Error, spinor dimension must be 4 %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
+
+  if ( p->c == NULL ) {
+    fprintf ( stderr, "[twopoint_function_apply_diagram_norm] Error, data array not initialized %s %d\n", __FILE__, __LINE__ );
+    return(2);
+  }
+
+  if ( strcmp ( p->norm , "NA" ) == 0 ) {
+    if( g_verbose > 0 ) fprintf ( stderr, "[twopoint_function_apply_diagram_norm] Warning, norm is not set %s %d\n", __FILE__, __LINE__ );
+    return(0);
+  }
+
+  for ( int id = 0; id < nD; id++ ) {
+
+    double _Complex *** const diagram = p->c[id];
+
+    double const norm = twopoint_function_get_diagram_norm ( p, id );
+    if ( g_verbose > 3 ) fprintf ( stdout, "# [twopoint_function_apply_diagram_norm] using diagram norm %2d %16.7e %s %d\n", id, norm, __FILE__, __LINE__ );
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+    for ( int t = 0; t < nT; t++ ) {
+      zm4x4_ti_eq_re ( diagram[t], norm );
+    }
+
+  }  // end of loop on data sets
+
+  double retime = _GET_TIME;
+  if ( g_verbose > 0 ) fprintf ( stdout, "# [twopoint_function_apply_diagram_norm] time for apply norm = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__ );
+  return ( 0 );
+}  /* end of twopoint_function_apply_diagram_norm */
+
+/********************************************************************************/
+/********************************************************************************/
+
+/********************************************************************************
+ * accumulate given p->cs in z
+ ********************************************************************************/
+int twopoint_function_accum_diagrams ( double _Complex *** const z, twopoint_function_type *p ) {
+
+  if ( z == NULL || p->c == NULL || p->n <= 0 ) {
+    fprintf ( stderr, "[twopoint_function_accum_diagrams] Error, nothing to copy from / to %s %d\n", __FILE__, __LINE__ );
+    return ( 1 );
+  }
+
+  int const nD = p->n;
+
+  /******************************************************
+   * IF z is NOT p->c[0], then
+   * put data set p->c[0] into z
+   ******************************************************/
+  if ( p->c[0] != z ) {
+    memcpy ( z[0][0], p->c[0][0][0], p->T * p->d * p->d * sizeof(double _Complex ) );
+  }
+
+  /******************************************************
+   * add data sets 1,...,p->n-1 to data set 0,
+   * which is already in z
+   ******************************************************/
+  for ( int i = 1; i < nD; i++ ) {
+    contract_diagram_zm4x4_field_pl_eq_zm4x4_field ( z, p->c[i], p->T );
+  }
+
+  return( 0 );
+}  /* end of twopoint_function_accum_diagrams */
+
+/********************************************************************************/
+/********************************************************************************/
+
+
+#ifdef HAVE_HDF5
+
+/********************************************************************************
+ * read projected correlators from HDF5 file
+ ********************************************************************************/
+int twopoint_function_correlator_from_h5_file ( twopoint_function_type * const p, int const io_proc ) {
+
+  int exitstatus;
+  char key_suffix[500];
+
+  /******************************************************
+   * io_proc 0 and 1 return
+   ******************************************************/
+  if ( io_proc != 2 ) return ( 0 );
+
+  if( p->c == NULL ) {
+    fprintf ( stdout, "# [twopoint_function_correlator_from_h5_file] Warning, allocate data array %s %d\n", __FILE__, __LINE__ );
+
+    if ( twopoint_function_allocate ( p ) == NULL ) {
+      fprintf ( stderr, "[twopoint_function_correlator_from_h5_file] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
+      return ( 1 );
+    }
+  }
+
+  /******************************************************
+   * get the suffix for the full group name
+   *   made of vertex gamma ids and momenta
+   ******************************************************/
+  exitstatus = contract_diagram_key_suffix_from_type ( key_suffix, p );
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "[twopoint_function_correlator_from_h5_file] Error from contract_diagram_key_suffix_from_type, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    return(1);
+  }
+
+  int const Ptot[3] = { p->pf1[0] + p->pf2[0], p->pf1[1] + p->pf2[1], p->pf1[2] + p->pf2[2] } ;
+
+  char filename[500];
+
+   sprintf ( filename, "%s.%s.PX%dPY%dPZ%d.%s.%.4d.t%dx%dy%dz%d.h5", p->name, p->group, Ptot[0], Ptot[1], Ptot[2], p->irrep, Nconf,
+       p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3] );
+
+  double * zbuffer = NULL;
+
+  /***************************************************************************
+   * time measurement
+   ***************************************************************************/
+  struct timeval ta, tb;
+  gettimeofday ( &ta, (struct timezone *)NULL );
+
+  /***************************************************************************
+   * open file
+   ***************************************************************************/
+
+  hid_t   file_id = -1;
+  herr_t  status;
+
+  struct stat fileStat;
+  if ( stat( filename, &fileStat) < 0 ) {
+    fprintf ( stderr, "[twopoint_function_correlator_from_h5_file] Error, file %s does not exist %s %d\n", filename, __FILE__, __LINE__ );
+    return ( 1 );
+  } else {
+    /* open an existing file. */
+    if ( g_verbose > 1 ) fprintf ( stdout, "# [twopoint_function_correlator_from_h5_file] open existing file\n" );
+  
+    unsigned flags = H5F_ACC_RDONLY;  /* IN: File access flags. Allowable values are:
+                                         H5F_ACC_RDWR   --- Allow read and write access to file.
+                                         H5F_ACC_RDONLY --- Allow read-only access to file.
+  
+                                         H5F_ACC_RDWR and H5F_ACC_RDONLY are mutually exclusive; use exactly one.
+                                         An additional flag, H5F_ACC_DEBUG, prints debug information.
+                                         This flag can be combined with one of the above values using the bit-wise OR operator (`|'),
+                                         but it is used only by HDF5 Library developers; it is neither tested nor supported for use in applications. */
+    hid_t fapl_id = H5P_DEFAULT;
+    /*  hid_t H5Fopen ( const char *name, unsigned flags, hid_t fapl_id ) */
+    file_id = H5Fopen (         filename,         flags,        fapl_id );
+
+    if ( file_id < 0 ) {
+      fprintf ( stderr, "[twopoint_function_correlator_from_h5_file] Error from H5Fopen %s %d\n", __FILE__, __LINE__ );
+      return ( 2 );
+    }
+  }  /* end of if file exists */
+  
+  if ( g_verbose > 1 ) fprintf ( stdout, "# [twopoint_function_correlator_from_h5_file] file_id = %ld\n", file_id );
+  
+  /***************************************************************************
+   * some default settings for H5Dopen2, H5Dread
+   ***************************************************************************/
+  hid_t dapl_id       = H5P_DEFAULT;
+
+  hid_t mem_type_id   = H5T_NATIVE_DOUBLE;
+  hid_t mem_space_id  = H5S_ALL;
+  hid_t file_space_id = H5S_ALL;
+  hid_t xfer_plist_id = H5P_DEFAULT;
+
+  /***************************************************************************
+   * loop on data sets / diagrams
+   ***************************************************************************/
+  for ( int ids = 0; ids < p->n; ids++ ) {
+
+    char name[100];
+    twopoint_function_get_diagram_name ( name, p, ids );
+
+    char tag[500];
+    sprintf( tag, "/%s/%s%s", name, p->fbwd, key_suffix );
+
+    /***************************************************************************
+     * open H5 data set
+     ***************************************************************************/
+    hid_t dataset_id = H5Dopen2 ( file_id, tag, dapl_id );
+    if ( dataset_id < 0 ) {
+      fprintf ( stderr, "[twopoint_function_correlator_from_h5_file] Error from H5Dopen2 for tag %s %s %d\n", tag, __FILE__, __LINE__ );
+      return ( 3 );
+    }
+
+    /***************************************************************************
+     * read data set
+     ***************************************************************************/
+    status = H5Dread ( dataset_id, mem_type_id, mem_space_id, file_space_id, xfer_plist_id, (void*)(p->c[ids][0][0]) );
+    if ( status < 0 ) {
+      fprintf ( stderr, "[twopoint_function_correlator_from_h5_file] Error from H5Dread %s %d\n", __FILE__, __LINE__ );
+      return ( 4 );
+    }
+
+    /***************************************************************************
+     * close data set
+     ***************************************************************************/
+    status = H5Dclose ( dataset_id );
+    if ( status < 0 ) {
+      fprintf ( stderr, "[twopoint_function_correlator_from_h5_file] Error from H5Dclose %s %d\n", __FILE__, __LINE__ );
+      return ( 5 );
+    }
+
+  }  /* end of loop on data sets / diagrams */
+
+  /***************************************************************************
+   * close the file
+   ***************************************************************************/
+  status = H5Fclose ( file_id );
+  if( status < 0 ) {
+    fprintf(stderr, "[twopoint_function_correlator_from_h5_file] Error from H5Fclose, status was %d %s %d\n", status, __FILE__, __LINE__);
+    return(6);
+  } 
+
+  /***************************************************************************
+   * time measurement
+   ***************************************************************************/
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  
+  show_time ( &ta, &tb, "twopoint_function_correlator_from_h5_file", "write h5", 1 );
+
+  return(0);
+
+}  /* end of twopoint_function_correlator_from_h5_file */
+
+#endif  /* of if HAVE_HDF5 */
 
 }  // end of namespace cvc

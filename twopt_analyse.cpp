@@ -210,7 +210,6 @@ int main(int argc, char **argv) {
 
   twopoint_function_allocate ( &tp );
 
-#if 0
   /***********************************************************
    * loop on source locations
    ***********************************************************/
@@ -376,9 +375,9 @@ int main(int argc, char **argv) {
 #endif  /* of ifdef HAVE_LHPC_AFF */
 
   }  /* end of loop on source locations */
-#endif  /* of if 0 */
 
 
+#if 0
   /***************************************************************************
    ***************************************************************************
    **
@@ -388,40 +387,39 @@ int main(int argc, char **argv) {
    ***************************************************************************/
 
   /***************************************************************************
-   * loop on oet samples
+   * loop on source locations
    ***************************************************************************/
-  for ( int isample = 0; isample < g_nsample_oet; isample++ ) {
+  for( int isource_location = 0; isource_location < g_source_location_number; isource_location++ ) {
+  
+    /***********************************************************
+     * determine source coordinates, find out, if source_location is in this process
+     ***********************************************************/
+    int const gts  = ( g_source_coords_list[isource_location][0] +  T_global ) %  T_global;
 
+    int const source_proc_id = ( gts / T == g_proc_coords[0] ) ? g_cart_id : -1;
+
+    int const source_timeslice = ( source_proc_id == g_cart_id ) ? gts % T : -1;
+
+    tp.source_coords[0] = gts;
+    tp.source_coords[1] = -1;
+    tp.source_coords[2] = -1;
+    tp.source_coords[3] = -1;
+  
     /***************************************************************************
-     * loop on source locations
+     * loop on oet samples
      ***************************************************************************/
-    for( int isource_location = 0; isource_location < g_source_location_number; isource_location++ ) {
-  
-      /***********************************************************
-       * determine source coordinates, find out, if source_location is in this process
-       ***********************************************************/
-      int const gts  = ( g_source_coords_list[isource_location][0] +  T_global ) %  T_global;
+    for ( int isample = 0; isample < g_nsample_oet; isample++ ) {
 
-      int const source_proc_id = ( gts / T == g_proc_coords[0] ) ? g_cart_id : -1;
-
-      int const source_timeslice = ( source_proc_id == g_cart_id ) ? gts % T : -1;
-
-      tp.source_coords[0] = gts;
-      tp.source_coords[1] = -1;
-      tp.source_coords[2] = -1;
-      tp.source_coords[3] = -1;
-  
 #ifdef HAVE_LHPC_AFF
       /***********************************************
        * writer for aff output file
        ***********************************************/
-      /* sprintf(filename, "%s_oet.%.4d.t%d.%.5d.aff", outfile_prefix, Nconf, gts, gsx[1], isample ); */
-      sprintf(filename, "%s_oet.%.4d.t%d.aff", outfile_prefix, Nconf, gts );
+      sprintf(filename, "%s_oet.%.4d.s%d.t%d.aff", outfile_prefix, Nconf, isample, gts );
      
       struct AffReader_s * affr = aff_reader ( filename );
       const char * aff_status_str = aff_reader_errstr ( affr );
       if( aff_status_str != NULL ) {
-        fprintf(stderr, "[twopt_analyse] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+        fprintf(stderr, "[twopt_analyse] Error from aff_reader, status was %s for filename %s %s %d\n", aff_status_str, filename, __FILE__, __LINE__);
         EXIT(15);
       }
 #endif
@@ -453,7 +451,7 @@ int main(int argc, char **argv) {
           /***********************************************************
            * read the n1 data set
            ***********************************************************/
-          sprintf(aff_tag, "/N-N/t%.2d/gi%.2d/gf%.2d/n1/px%.2dpy%.2dpz%.2d",
+          sprintf(aff_tag, "/N-N/s%d/t%.2d/gi%.2d/gf%.2d/n1/px%.2dpy%.2dpz%.2d", isample,
               gts, gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2],
               tp.pf1[0], tp.pf1[1], tp.pf1[2] );
 
@@ -466,7 +464,7 @@ int main(int argc, char **argv) {
           /***********************************************************
            * read the n2 data set
            ***********************************************************/
-          sprintf(aff_tag, "/N-N/t%.2d /gi%.2d/gf%.2d/n2/px%.2dpy%.2dpz%.2d",
+          sprintf(aff_tag, "/N-N/s%d/t%.2d/gi%.2d/gf%.2d/n2/px%.2dpy%.2dpz%.2d", isample,
               gts, gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2],
               tp.pf1[0], tp.pf1[1], tp.pf1[2] );
 
@@ -554,7 +552,6 @@ int main(int argc, char **argv) {
 
   }  /* end of loop on samples */ 
 
-#if 0
 #endif  /* of if 0 */
 
   twopoint_function_fini ( &tp );

@@ -722,9 +722,18 @@ void gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( gamma_matrix_type *gout, ga
   double _Complex Z_1 = 1., Z_0 = 0.;
   double _Complex v[16];
 
+
+  /************************************************
+   * check, whether gin has been initialized to
+   * one of the 16 basis elements
+   *
+   * if not, i.e. if gin id is -1, 
+   * then return by default with gout id -1
+   * and gout norm factor 1.
+   ************************************************/
   if ( gin->id == -1 ) {
     gout->id = -1;
-    gout->s  = 0.;
+    gout->s  =  1.;
     return;
   }
 

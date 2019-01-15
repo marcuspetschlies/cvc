@@ -1,5 +1,6 @@
 #ifndef _TYPES_H
 #define _TYPES_H
+
 namespace cvc {
 
 typedef double * spinor_vector_type;
@@ -11,7 +12,7 @@ typedef struct {
   // type, m-m, b-b, mxb-b, mxb-mxb
   char type [20];
   // name of 2-pt function
-  char name[50];
+  char name[500];
   // number of diagrams
   int n;
   // list of diagrams
