@@ -1,7 +1,9 @@
 #ifndef _DUMMY_SOLVER_H
 #define _DUMMY_SOLVER_H
 
-#include "tmLQCD.h"
+#if defined HAVE_TMLQCD_LIBWRAPPER
+  #include "tmLQCD.h"
+#endif
 
 #if ( defined DUMMY_SOLVER ) && ( defined GPU_DIRECT_SOLVER )
 #error exclusive XXX_SOLVER definitions
