@@ -538,6 +538,7 @@ int main(int argc, char **argv) {
           }
 
           if ( check_propagator_residual ) {
+            memcpy ( spinor_work[0], stochastic_source_list[i], sizeof_spinor_field );
             check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_dn], mzzinv[op_id_dn], 1 );
           }
 
@@ -654,9 +655,8 @@ int main(int argc, char **argv) {
               EXIT(64);
             }
             if ( g_write_sequential_source ) {
-              sprintf ( filename, "%s_fht.%.4d.t%d.qx%dqy%dqz%d.g%d.dt%d.%d.%.5d", filename_prefix, Nconf, gts,
-                  seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], seq_source_gamma,
-                  g_sequential_source_timeslice_list[iseq_timeslice], i, isample);
+              sprintf ( filename, "%s_fht.%.4d.t%d.qx%dqy%dqz%d.g%d.%d.%.5d", filename_prefix, Nconf, gts,
+                  seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], seq_source_gamma, i, isample);
               if ( ( exitstatus = write_propagator( sequential_source, filename, 0, g_propagator_precision) ) != 0 ) {
                 fprintf(stderr, "[cpff_fht_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                 EXIT(2);
@@ -768,7 +768,7 @@ int main(int argc, char **argv) {
 
       }  /* end of loop on sequential source momenta */
 
-      fini_1label_dtable ( &sequential_source );
+      fini_1level_dtable ( &sequential_source );
 
       exitstatus = init_timeslice_source_oet ( NULL, -1, NULL, -2 );
 
