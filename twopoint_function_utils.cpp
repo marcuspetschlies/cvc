@@ -1674,11 +1674,11 @@ int twopoint_function_correlator_from_h5_file ( twopoint_function_type * const p
    ***************************************************************************/
   for ( int ids = 0; ids < p->n; ids++ ) {
 
-    char name[100];
-    twopoint_function_get_diagram_name ( name, p, ids );
+    char diagram_name[100];
+    twopoint_function_get_diagram_name ( diagram_name, p, ids );
 
     char tag[500];
-    sprintf( tag, "/%s/%s%s", name, p->fbwd, key_suffix );
+    sprintf( tag, "/%s/%s%s/%s", p->name, p->fbwd, key_suffix, diagram_name );
 
     /***************************************************************************
      * open H5 data set
