@@ -7195,5 +7195,28 @@ void fini_momentum_classes ( int **** p_class, int **p_nmem, int *p_num ) {
 /****************************************************************************/
 /****************************************************************************/
 
+int random_z2_scalar_field ( int * const b , unsigned int const N ) {
+
+  double * d = init_1level_dtable ( N );
+  if( d == NULL ) {
+    fprintf ( stderr, "[random_binary_field] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
+
+  ranlxd ( d, N );
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( unsigned i = 0; i < N; i++ ) {
+    b[i] = 2 * (int)( d[i] <= 0.5 ) - 1 ;
+  }
+
+  fini_1level_dtable ( &d );
+  return(0);
+
+} /* end of random_binary_field */
+/****************************************************************************/
+/****************************************************************************/
 
 }  /* end of namespace cvc */
