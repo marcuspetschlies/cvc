@@ -2095,7 +2095,7 @@ int rot_mat_table_rotate_multiplett ( rot_mat_table_type * const rtab, rot_mat_t
   }  // end of loop on elements of rtab
 
   return(0);
-}  /* end of loop on rot_mat_table_rotate_multiplett */
+}  /* end of rot_mat_table_rotate_multiplett */
 
 
 /***********************************************************/
@@ -2943,6 +2943,109 @@ int get_reference_rotation ( int pref[3], int * Rref, int const p[3] ) {
 
   return( ( ref_found == 0 ) || ( rot_found == 0 ) );
 }  /* end of get_reference_rotation */
+
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * rotate a projection matrix multiplett
+ ***********************************************************/
+
+int rot_mat_table_rotate_ref_multiplett ( rot_mat_table_type * const rtab, rot_mat_table_type * const rapply, rot_mat_table_type * const rtarget, int const parity, FILE*ofs ) {
+
+  if ( ofs == NULL ) ofs = stdout;
+
+  if ( rtab->dim != rapply->dim ) {
+    fprintf(stderr, "[rot_mat_table_rotate_ref_multiplett] Error, incompatible dimensions\n");
+    return(1);
+  }
+
+  if ( rtab->n != rtarget->dim ) {
+    fprintf(stderr, "[rot_mat_table_rotate_ref_multiplett] Error, incompatible number of rotations in rtab and matrix dimension in rtarget\n");
+    return(2);
+  }
+  
+  /***********************************************************/
+  /***********************************************************/
+  fprintf ( ofs, "# [rot_mat_table_rotate_ref_multiplett] using rapply %s / %s for rtarget %s / %s\n", rapply->group, rapply->irrep, rtarget->group, rtarget->irrep );
+  /***********************************************************/
+  /***********************************************************/
+
+  /***********************************************************
+   * loop on elements in rtab
+   ***********************************************************/
+  for ( int ia = 0; ia < rtab->n; ia++ ) {
+
+    /***********************************************************
+     * loop on rotations = elements of rtarget
+     *
+     * R rotations
+     ***********************************************************/
+    for ( int irot = 0; irot < rtarget->n; irot++ ) {
+
+      double _Complex **R2 = rot_init_rotation_matrix ( rtab->dim );
+      double _Complex **R3 = rot_init_rotation_matrix ( rtab->dim );
+
+      rot_mat_ti_mat (R2, rapply->R[irot], rtab->R[ia], rtab->dim );
+
+      for ( int k = 0; k < rtarget->dim; k++ ) {
+        rot_mat_pl_eq_mat_ti_co ( R3, rtab->R[k], rtarget->R[irot][k][ia], rtab->dim );
+      }
+
+      char name[100];
+      sprintf( name, "R2[[%2d]]", rtarget->rid[irot] );
+      rot_printf_matrix ( R2, rtab->dim, name, ofs );
+      fprintf(ofs, "\n");
+      sprintf( name, "R3[[%2d]]", rtarget->rid[irot] );
+      rot_printf_matrix ( R3, rtab->dim, name, ofs );
+      double norm = rot_mat_norm_diff ( R2, R3, rtab->dim );
+      double norm2 = sqrt( rot_mat_norm2 ( R2, rtab->dim ) );
+
+      fprintf(ofs, "# [rot_mat_table_rotate_ref_multiplett]  R[[%2d]] rid  %2d norm diff = %16.7e / %16.7e\n\n", irot+1,
+          rtarget->rid[irot], norm, norm2 );
+
+      rot_fini_rotation_matrix ( &R2 );
+      rot_fini_rotation_matrix ( &R3 );
+
+    }  // end of loop on rotations
+
+    /***********************************************************
+     * IR rotations
+     ***********************************************************/
+    for ( int irot = 0; irot < rtarget->n; irot++ ) {
+
+      double _Complex **R2 = rot_init_rotation_matrix ( rtab->dim );
+      double _Complex **R3 = rot_init_rotation_matrix ( rtab->dim );
+
+      rot_mat_ti_mat (R2, rapply->IR[irot], rtab->R[ia], rtab->dim );
+      // multiply with pairty
+      rot_mat_ti_eq_re ( R2, parity, rtab->dim );
+
+
+      for ( int k = 0; k < rtarget->dim; k++ ) {
+        rot_mat_pl_eq_mat_ti_co ( R3, rtab->R[k], rtarget->IR[irot][k][ia], rtab->dim );
+      }
+
+      char name[100];
+      sprintf( name, "IR2[[%2d]]", rtarget->rmid[irot] );
+      rot_printf_matrix ( R2, rtab->dim, name, ofs );
+      fprintf(ofs, "\n");
+      sprintf( name, "IR3[[%2d]]", rtarget->rmid[irot] );
+      rot_printf_matrix ( R3, rtab->dim, name, ofs );
+      double norm = rot_mat_norm_diff ( R2, R3, rtab->dim );
+      double norm2 = sqrt( rot_mat_norm2 ( R2, rtab->dim ) );
+      fprintf(ofs, "# [rot_mat_table_rotate_ref_multiplett] IR[[%2d]] rmid %2d norm diff = %16.7e / %16.7e\n\n", irot+1,
+          rtarget->rmid[irot], norm, norm2 );
+
+      rot_fini_rotation_matrix ( &R2 );
+      rot_fini_rotation_matrix ( &R3 );
+    }  // end of loop on rotation-reflections
+
+  }  // end of loop on elements of rtab
+
+  return(0);
+}  /* end of rot_mat_table_rotate_ref_multiplett */
 
 /***********************************************************/
 /***********************************************************/
