@@ -348,18 +348,18 @@ int main(int argc, char **argv) {
 
         twopoint_function_copy ( &tp, &( g_twopoint_function_list[i2pt] ), 1 );
 
-        /******************************************************
-         * final, projected twopoint function struct for
-         * all the reference index choices
-         ******************************************************/
-        twopoint_function_type * tp_project = NULL;
-
         if ( twopoint_function_allocate ( &tp ) == NULL ) {
           fprintf ( stderr, "[piN2piN_projection] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
           EXIT(123);
         }
 
+        /******************************************************/
+        /******************************************************/
+
         /******************************************************
+         * final, projected twopoint function struct for
+         * all the reference index choices
+         *
          * tp_project = list of projected 2-pt functions
          *   how many ? well,...
          *   n_tp_project =      ref row     row sink    row source
@@ -368,7 +368,9 @@ int main(int argc, char **argv) {
          *   we have nrow x nrow ( source, sink ) operators
          *   
          ******************************************************/
-        int const n_tp_project = irrep_dim * irrep_dim * irrep_dim;
+        twopoint_function_type * tp_project = NULL;
+
+        int const n_tp_project = irrep_dim * irrep_dim * irrep_dim * irrep_dim;
         tp_project = (twopoint_function_type *) malloc ( n_tp_project * sizeof (twopoint_function_type ) );
         if (  tp_project == NULL ) {
           fprintf ( stderr, "[piN2piN_projection] Error from malloc %s %d\n", __FILE__, __LINE__ );
@@ -390,7 +392,11 @@ int main(int argc, char **argv) {
           tp_project[i].n = 1;
           sprintf ( tp_project[i].norm, "NA" );
           /* abuse the diagrams name string to label the row-coordinates */
-          sprintf ( tp_project[i].diagrams, "rref_%d_rsnk%d_rsrc%d", i/(irrep_dim*irrep_dim), (i%(irrep_dim*irrep_dim))/irrep_dim, i%irrep_dim );
+          sprintf ( tp_project[i].diagrams, "ref_snk%d/ref_src%d/row_snk%d/row_src%d", 
+                i                                          / ( irrep_dim * irrep_dim * irrep_dim ), 
+              ( i % ( irrep_dim *irrep_dim * irrep_dim ) ) / (             irrep_dim * irrep_dim ),
+              ( i % (            irrep_dim * irrep_dim ) ) /                           irrep_dim,
+                i %                          irrep_dim   );
 
 
           /* allocate memory */
@@ -678,13 +684,24 @@ int main(int argc, char **argv) {
           /******************************************************
            * projection variants
            ******************************************************/
+
+          /******************************************************
+           * irrep matrix for left-applied rotation
+           *   = sink side
+           ******************************************************/
           double _Complex ** Tirrepl = ( irotl < nrot ) ? projector.rtarget->R[irotl] : projector.rtarget->IR[irotl-nrot];
+
+          /******************************************************
+           * irrep matrix for right-applied rotation
+           *   = source side
+           ******************************************************/
           double _Complex ** Tirrepr = ( irotr < nrot ) ? projector.rtarget->R[irotr] : projector.rtarget->IR[irotr-nrot];
 
-          for ( int rref = 0; rref < irrep_dim; rref++ ) {
+          for ( int ref_snk = 0; ref_snk < irrep_dim; ref_snk++ ) {
+          for ( int ref_src = 0; ref_src < irrep_dim; ref_src++ ) {
 
-            for ( int rsnk = 0; rsnk < irrep_dim; rsnk++ ) {
-            for ( int rsrc = 0; rsrc < irrep_dim; rsrc++ ) {
+            for ( int row_snk = 0; row_snk < irrep_dim; row_snk++ ) {
+            for ( int row_src = 0; row_src < irrep_dim; row_src++ ) {
 
 
               /******************************************************
@@ -693,7 +710,7 @@ int main(int argc, char **argv) {
                * note: reference row rref determines the projector,
                *       same for source and sink
                ******************************************************/
-              int const irrr = ( rref * irrep_dim + rsnk ) * irrep_dim + rsrc;
+              int const irrr = ( ( ref_snk * irrep_dim + ref_src ) * irrep_dim + row_snk ) * irrep_dim + row_src;
 
               /******************************************************
                * curren projection coefficient for chosen irrep rows
@@ -701,25 +718,27 @@ int main(int argc, char **argv) {
                * from rotation+basis projection of gamma matrices
                ******************************************************/
               double _Complex const zcoeff = 
-                  gf11.s                        /* gamma rot sign f_1,1      */
-                * gf12.s                        /* gamma rot sign f_1,2      */
-                * gf2.s                         /* gamma rot sign f_2        */
-                * Tirrepr[rsnk][rref]           /* phase irrep matrix sink   */
-                * gi11.s                        /* gamma rot sign i_1,1      */
-                * gi12.s                        /* gamma rot sign i_1,2      */
-                * gi2.s                         /* gamma rot sign i_2        */
-                * conj ( Tirrepl[rsrc][rref] ); /* phase irrep matrix source */
+                  gf11.s                               /* gamma rot sign f_1,1      */
+                * gf12.s                               /* gamma rot sign f_1,2      */
+                * gf2.s                                /* gamma rot sign f_2        */
+                * gi11.s                               /* gamma rot sign i_1,1      */
+                * gi12.s                               /* gamma rot sign i_1,2      */
+                * gi2.s                                /* gamma rot sign i_2        */
+                *        Tirrepl[row_snk][ref_snk]     /* phase irrep matrix sink   */
+                * conj ( Tirrepr[row_src][ref_src] );  /* phase irrep matrix source */
                 
               contract_diagram_zm4x4_field_eq_zm4x4_field_pl_zm4x4_field_ti_co ( tp_project[irrr].c[0], tp_project[irrr].c[0], tp.c[0], zcoeff, tp.T );
 
               if ( g_verbose > 4 ) fprintf ( stdout, "# [piN2piN_projection] zcoeff = %16.7e   %16.7e\n", creal( zcoeff ), cimag( zcoeff ) );
 
-            }  // end of loop on rsrc
-            }  // end of loop on rsnk
-          }  // end of loop on rref
+            }  // end of loop on row_src
+            }  // end of loop on row_snk
+
+          }  // end of loop on ref_src
+          }  // end of loop on ref_snk
 
         }  // end of loop on source rotations
-        }  // end of loop on sink rotations
+        }  // end of loop on sink   rotations
 
 
         /******************************************************
