@@ -167,25 +167,16 @@ int main(int argc, char **argv) {
   }
 
   /******************************************************
-   * check source coords list
-   ******************************************************/
-  for ( int i = 0; i < g_source_location_number; i++ ) {
-    g_source_coords_list[i][0] = ( g_source_coords_list[i][0] +  T_global ) %  T_global;
-    g_source_coords_list[i][1] = ( g_source_coords_list[i][1] + LX_global ) % LX_global;
-    g_source_coords_list[i][2] = ( g_source_coords_list[i][2] + LY_global ) % LY_global;
-    g_source_coords_list[i][3] = ( g_source_coords_list[i][3] + LZ_global ) % LZ_global;
-  }
-
-   
-  /******************************************************
    * loop on 2-point functions
    ******************************************************/
   for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
 
+    twopoint_function_type * tp = &(g_twopoint_function_list[i2pt]);
+
     /******************************************************
      * read twopoint function data
      ******************************************************/
-    exitstatus = twopoint_function_correlator_from_h5_file ( &(g_twopoint_function_list[i2pt]), io_proc );
+    exitstatus = twopoint_function_correlator_from_h5_file ( tp, io_proc );
     if ( exitstatus != 0 ) {
       fprintf ( stderr, "[test_correlator_read] Error from twopoint_function_correlator_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(2);
@@ -199,18 +190,17 @@ int main(int argc, char **argv) {
       fprintf ( stderr, "[test_correlator_read] Error from fopen %s %d\n", __FILE__, __LINE__ );
       EXIT(12);
     }
-    twopoint_function_print ( &(g_twopoint_function_list[i2pt]), "TWPT", ofs );
+    twopoint_function_print ( tp, "TWPT", ofs );
 
-    twopoint_function_show_data ( &(g_twopoint_function_list[i2pt]), ofs );
+    twopoint_function_show_data ( tp, ofs );
 
     fclose ( ofs );
-
 
     /****************************************************
      * read little group parameters
      ****************************************************/
     little_group_type little_group;
-    if ( ( exitstatus = little_group_read ( &little_group, g_twopoint_function_list[i2pt].group, little_group_list_filename ) ) != 0 ) {
+    if ( ( exitstatus = little_group_read ( &little_group, tp->roup, little_group_list_filename ) ) != 0 ) {
       fprintf ( stderr, "[test_correlator_read] Error from little_group_read, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(2);
     }
@@ -249,9 +239,9 @@ int main(int argc, char **argv) {
     int Pref[3] = {-1,-1,-1};
 
     int const Ptot[3] = {
-      g_twopoint_function_list[i2pt].pf1[0] + g_twopoint_function_list[i2pt].pf2[0],
-      g_twopoint_function_list[i2pt].pf1[1] + g_twopoint_function_list[i2pt].pf2[1],
-      g_twopoint_function_list[i2pt].pf1[2] + g_twopoint_function_list[i2pt].pf2[2] };
+      tp->pf1[0] + tp->.pf2[0],
+      tp->pf1[1] + tp->.pf2[1],
+      tp->pf1[2] + tp->.pf2[2] };
 
     /* if ( g_verbose > 1 ) fprintf ( stdout, "# [test_correlator_read] twopoint_function %3d Ptot = %3d %3d %3d\n", i2pt, 
         Ptot[0], Ptot[1], Ptot[2] ); */
@@ -276,7 +266,7 @@ int main(int argc, char **argv) {
     exitstatus = little_group_projector_set (
         &projector,
         &little_group,
-        g_twopoint_function_list[i2pt].irrep ,
+        tp->irrep ,
         row_target,
         1,
         J2_list,
@@ -286,7 +276,7 @@ int main(int argc, char **argv) {
         cartesian_list,
         ref_row_target,
         ref_row_spin,
-        g_twopoint_function_list[i2pt].type,
+        tp->type,
         refframerot );
 
     if ( exitstatus != 0 ) {
@@ -315,9 +305,17 @@ int main(int argc, char **argv) {
     /****************************************************
      * apply projector to twopoint function data
      ****************************************************/
+    int const nrot  = projector.rtarget->n;
 
+    /* proper rotations */
+    for ( int irot = 0; irot < nrot; irot++ ) {
+      
+    }
 
+    /* rotation-reflections */
+    for ( int irot = 0; irot < nrot; irot++ ) {
 
+    }
 
     /******************************************************
      * deallocate space inside little_group
@@ -328,7 +326,8 @@ int main(int argc, char **argv) {
      * deallocate space inside projector
      ******************************************************/
     fini_little_group_projector ( &projector );
-
+#if 0
+#endif  /* of if 0 */
 
   }  // end of loop on 2-point functions
 
