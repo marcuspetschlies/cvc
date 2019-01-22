@@ -76,7 +76,7 @@ void usage() {
 
 int main(int argc, char **argv) {
   
-  const char outfile_prefix[] = "twopt";
+  const char outfile_prefix[] = "npv_fht";
 
   int c;
   int filename_set = 0;
@@ -84,7 +84,6 @@ int main(int argc, char **argv) {
   int exitstatus;
   int io_proc = -1;
   int check_propagator_residual = 0;
-  double **spinor_field=NULL;
   char filename[100];
   // double ratime, retime;
   double **lmzz[2] = { NULL, NULL }, **lmzzinv[2] = { NULL, NULL };
@@ -97,7 +96,7 @@ int main(int argc, char **argv) {
 
 #ifdef HAVE_LHPC_AFF
   struct AffWriter_s *affw = NULL;
-  char aff_tag[400];
+  char aff_tag[500];
 #endif
 
 #ifdef HAVE_MPI
@@ -249,20 +248,259 @@ int main(int argc, char **argv) {
   }
   fprintf(stdout, "# [npv_fht_invert_contract] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
 
-
-  /***********************************************************
-   * allocate spinor_field
-   ***********************************************************/
-  spinor_field = init_2level_dtable ( 24, _GSI( VOLUME ) );
-  if( spinor_field == NULL ) {
-    fprintf(stderr, "[npv_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
-    EXIT(123);
-  }
-  
   /***************************************************************************
    ***************************************************************************
    **
-   ** point-to-all version
+   ** packed loops
+   **
+   ***************************************************************************
+   ***************************************************************************/
+
+  /***********************************************************
+   * allocate fields
+   ***********************************************************/
+  double *** loop_field = init_3level_dtable ( VOLUME, 12, 24 );
+  if ( loop_field == NULL ) {
+    fprintf(stderr, "[npv_fht_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__);
+    EXIT(122);
+  }
+
+  double *** loop_field_sum = init_3level_dtable ( VOLUME, 12, 24 );
+  if ( loop_field_sum == NULL ) {
+    fprintf(stderr, "[npv_fht_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__);
+    EXIT(122);
+  }
+
+  double ** spinor_work = init_2level_dtable ( 2, _GSI( VOLUME+RAND ) );
+  if( spinor_work == NULL ) {
+    fprintf(stderr, "[npv_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+    EXIT(121);
+  }
+  
+  double * stochastic_source = init_1level_dtable ( _GSI( VOLUME ) );
+  if( stochastic_source == NULL ) {
+    fprintf(stderr, "[npv_fht_invert_contract] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
+    EXIT(120);
+  }
+  
+  double ** stochastic_propagator = init_2level_dtable ( 12, _GSI( VOLUME ) );
+  if( stochastic_propagator == NULL ) {
+    fprintf(stderr, "[npv_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+    EXIT(119);
+  }
+
+  double **** loop_ti_loop_sum = init_4level_dtable ( 12, 12, 12, 24 );
+  if( loop_ti_loop_sum == NULL ) {
+    fprintf(stderr, "[npv_fht_invert_contract] Error from init_4level_dtable %s %d\n", __FILE__, __LINE__);
+    EXIT(118);
+  }
+
+  double **** loop_ti_loop_diag = init_4level_dtable ( 12, 12, 12, 24 );
+  if( loop_ti_loop_diag == NULL ) {
+    fprintf(stderr, "[npv_fht_invert_contract] Error from init_4level_dtable %s %d\n", __FILE__, __LINE__);
+    EXIT(118);
+  }
+
+
+  memset ( loop_field[0][0], 288 * VOLUME * sizeof(double) );
+  /***********************************************************
+   * fill the loop field
+   ***********************************************************/
+  for ( int isample = 0; isample < g_nsample; isample++ ) {
+
+    exitstatus = prepare_volume_source ( stochastic_source, VOLUME );
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[npv_fht_invert_contract] Error from prepare_volume_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(118);
+    }
+
+    for ( int gts = 0; gts < T_global; gts++ ) {
+
+      int const have_source = ( gts / T == g_proc_coords[0] );
+      int const lts = have_source ? gts % T : -1;
+
+      memset ( spinor_work[1], 0, sizeof_spinor_field );
+
+      for ( int isc = 0; isc < 12; isc++ ) {
+
+        if ( have_source ) {
+          size_t const offset = lts * _GSI( VOL3 );
+          size_t const bytes  = _GSI( VOL3 ) * sizeof(double);
+
+          /* set spin-color source */
+#pragma omp parallel for
+          for( size_t ix = 0; ix < VOL3; ix++ ) {
+            size_t const iix = offset + _GSI(ix) + 2 * isc;
+            spinor_work[0][iix  ] = stochastic_source[iix  ];
+            spinor_work[0][iix+1] = stochastic_source[iix+1];
+          }
+
+        }  /* end of if have source */
+
+        if( g_fermion_type == _TM_FERMION ) spinor_field_tm_rotation ( spinor_work[0], spinor_work[0], +1, g_fermion_type, VOLUME);
+
+        exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], _OP_ID_UP);
+
+        if(exitstatus < 0) {
+          fprintf(stderr, "[npv_fht_invert_contract] Error from invert, status was %d\n", exitstatus);
+          EXIT(12);
+        }
+
+        if ( check_propagator_residual ) {
+          memcpy ( spinor_work[0], stochastic_source, sizeof_spinor_field );
+          exitstatus = check_residual_clover ( &(spinor_work[1]) , &(spinor_work[0]), gauge_field_with_phase, lmzz[_OP_ID_UP], 1  );
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "[npv_fht_invert_contract] Error from check_residual_clover, status was %d %s  %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(3);
+          }
+        }
+
+        if( g_fermion_type == _TM_FERMION ) spinor_field_tm_rotation ( spinor_work[1], spinor_work[1], +1, g_fermion_type, VOLUME);
+
+        /* source process copy timeslice of solution vector */
+        if ( have_source ) {
+          size_t const offset = lts * _GSI( VOL3 );
+          memcpy ( stochastic_propagator[isc] + offset, spinor_work[1] + offset, sizeof_spinor_field_timeslice );
+        }  /* end of if have source */
+
+      }  /* end of loop on spin-color */
+
+    }  /* end of loop on timeslices */
+
+
+    /***********************************************************
+     * contract packed vectors to loop
+     *
+     * note: no reduction in spin and color
+     *
+     ***********************************************************/
+    exitstatus = contract_loop_spin_color_open ( loop_field, stochastic_source, stochastic_propagator );
+    if ( exitstatus != 0 ) {
+      fprintf ( stderr, "[npv_fht_invert_contract] Error from contract_loop_spin_color_open, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(117);
+    }
+
+    /***********************************************************
+     * cumulative sum of space-time dependent loop fields
+     ***********************************************************/
+#pragma omp parallel for
+    for ( size_t ix = 0; ix < _GSI(VOLUME); ix++ ) {
+      loop_field_sum[0][0][ix] += loop_field[0][0][ix];
+    }
+ 
+    /***********************************************************
+     * loop ti loop
+     *
+     ***********************************************************/
+    exitstatus = loop_ti_loop_reduce_spin_color_open_accum ( loop_ti_loop_diag[0][0][0], loop_field );
+    if ( exitstatus != 0 ) {
+      fprintf ( stderr, "[npv_fht_invert_contract] Error from loop_ti_loop_reduce_spin_color_open_accum, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(116);
+    }
+
+    /***********************************************************/
+    /***********************************************************/
+
+  }  /* end of loop on samples */
+
+  /***********************************************************
+   * sum of loops times sum of loops
+   ***********************************************************/
+  exitstatus = loop_ti_loop_reduce_spin_color_open_accum ( loop_ti_loop_sum[0][0][0], loop_field_sum );
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "[npv_fht_invert_contract] Error from loop_ti_loop_reduce_spin_color_open_accum, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    EXIT(115);
+  }
+
+  /***********************************************************
+   * write to AFF file
+   ***********************************************************/
+#ifdef HAVE_LHPC_AFF
+  if(io_proc == 2) {
+    /* open AFF writer */
+    sprintf(filename, "%s.%.4d.loop.aff", outfile_prefix, Nconf );
+    if ( g_verbose > 0 ) fprintf(stdout, "# [npv_fht_invert_contract] writing data to file %s\n", filename);
+    affw = aff_writer(filename);
+    char * aff_status_str = (char*)aff_writer_errstr ( affw );
+    if( aff_status_str != NULL ) {
+      fprintf(stderr, "[npv_fht_invert_contract] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+      EXIT(15);
+    }
+
+    struct AffNode_s * affn = aff_writer_root(affw);
+    if( affn == NULL ) {
+      fprintf(stderr, "[npv_fht_invert_contract] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
+      EXIT(2);
+    }
+
+    /* write loop field sum */
+    sprintf ( aff_tag, "/loop/sum/S%d", g_nsample );
+    struct AffNode_s *affdir = aff_writer_mkpath (affw, affn, aff_tag );
+    if ( affdir == NULL ) {
+      fprintf(stderr, "[npv_fht_invert_contract] Error from aff_writer_mkpath for tag %s %s %d\n", aff_tag, __FILE__, __LINE__);
+      EXIT(2);
+    }
+
+    if ( ( exitstatus = aff_node_put_complex ( affw, affdir, loop_field_sum[0][0], (uint32_t)(12*12*VOLUME) ) ) != 0 ) {
+      fprintf(stderr, "[npv_fht_invert_contract] Error from aff_node_put_complex for tag %s, status was %d %s %d\n", aff_tag, exitstatus, __FILE__, __LINE__);
+      EXIT(2);
+    }
+
+    /* write loop_ti_loop_diag */
+    sprintf ( aff_tag, "/loop_ti_loop/diag/S%d", g_nsample );
+    affdir = aff_writer_mkpath (affw, affn, aff_tag );
+    if ( affdir == NULL ) {
+      fprintf(stderr, "[npv_fht_invert_contract] Error from aff_writer_mkpath for tag %s %s %d\n", aff_tag, __FILE__, __LINE__);
+      EXIT(2);
+    }
+
+    if ( ( exitstatus = aff_node_put_complex ( affw, affdir, loop_ti_loop_diag[0][0][0], (uint32_t)(12*12*12*12) ) ) != 0 ) {
+      fprintf(stderr, "[npv_fht_invert_contract] Error from aff_node_put_complex for tag %s, status was %d %s %d\n", aff_tag, exitstatus, __FILE__, __LINE__);
+      EXIT(2);
+    }
+
+    /* write loop_ti_loop_sum */
+    sprintf ( aff_tag, "/loop_ti_loop/sum/S%d", g_nsample );
+    affdir = aff_writer_mkpath (affw, affn, aff_tag );
+    if ( affdir == NULL ) {
+      fprintf(stderr, "[npv_fht_invert_contract] Error from aff_writer_mkpath for tag %s %s %d\n", aff_tag, __FILE__, __LINE__);
+      EXIT(2);
+    }
+
+    if ( ( exitstatus = aff_node_put_complex ( affw, affdir, loop_ti_loop_sum[0][0][0], (uint32_t)(12*12*12*12) ) ) != 0 ) {
+      fprintf(stderr, "[npv_fht_invert_contract] Error from aff_node_put_complex for tag %s, status was %d %s %d\n", aff_tag, exitstatus, __FILE__, __LINE__);
+      EXIT(2);
+    }
+
+    /* close AFF writer */
+    aff_status_str = (char*)aff_writer_close (affw);
+    if( aff_status_str != NULL ) {
+      fprintf(stderr, "[npv_fht_invert_contract] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+      EXIT(2);
+    }
+
+  }  /* end of if io_proc == 2 */
+#endif
+
+  /***********************************************************
+   * deallocate
+   *
+   * loop_field_sum will be needed below
+   * to construct sequential sources
+   ***********************************************************/
+  fini_1level_dtable ( &stochastic_source );
+  fini_3level_dtable ( &stochastic_propagator );
+  
+  fini_4level_dtable ( &loop_ti_loop_sum );
+  fini_4level_dtable ( &loop_ti_loop_diag );
+  fini_3level_dtable ( &loop_field );
+
+  STOPPED HERE
+
+  /***************************************************************************
+   ***************************************************************************
+   **
+   ** point-to-all propagators
    **
    ***************************************************************************
    ***************************************************************************/
@@ -272,8 +510,27 @@ int main(int argc, char **argv) {
    ***********************************************************/
   for( int isource_location = 0; isource_location < g_source_location_number; isource_location++ ) {
 
+    double ** propagator_up = init_2level_dtable ( 12, _GSI(VOLUME) );
+    if ( propagator_up == NULL ) {
+      fprintf(stderr, "[npv_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+      EXIT(123);
+    }
+
+    double ** propagator_dn = init_2level_dtable ( 12, _GSI(VOLUME) );
+    if ( propagator_dn == NULL ) {
+      fprintf(stderr, "[npv_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+      EXIT(123);
+    }
+
+    double ** sequential_propagator = init_2level_dtable ( 12, _GSI(VOLUME) );
+    if ( sequential_propagator == NULL ) {
+      fprintf(stderr, "[npv_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+      EXIT(123);
+    }
+
     /***********************************************************
-     * determine source coordinates, find out, if source_location is in this process
+     * determine source coordinates, find out,
+     * if source_location is in this process
      ***********************************************************/
     gsx[0] = ( g_source_coords_list[isource_location][0] +  T_global ) %  T_global;
     gsx[1] = ( g_source_coords_list[isource_location][1] + LX_global ) % LX_global;
@@ -309,8 +566,11 @@ int main(int argc, char **argv) {
 
     /***********************************************************
      * up-type point-to-all propagator
+     *
+     * source smearing yes
+     * sink   smeaming no
      ***********************************************************/
-    exitstatus = point_source_propagator ( &(spinor_field[0]), gsx, _OP_ID_UP, 0, 0, NULL, check_propagator_residual, gauge_field_with_phase, lmzz );
+    exitstatus = point_source_propagator ( &(spinor_field[0]), gsx, _OP_ID_UP, 1, 0, NULL, check_propagator_residual, gauge_field_with_phase, lmzz );
     if(exitstatus != 0) {
       fprintf(stderr, "[npv_fht_invert_contract] Error from point_source_propagator, status was %d\n", exitstatus);
       EXIT(12);
@@ -318,8 +578,11 @@ int main(int argc, char **argv) {
 
     /***********************************************************
      * dn-type point-to-all propagator
+     *
+     * source smearing yes
+     * sink   smearing no
      ***********************************************************/
-    exitstatus = point_source_propagator ( &(spinor_field[12]), gsx, _OP_ID_DN, 0, 0, NULL, check_propagator_residual, gauge_field_with_phase, lmzz );
+    exitstatus = point_source_propagator ( &(spinor_field[12]), gsx, _OP_ID_DN, 1, 0, NULL, check_propagator_residual, gauge_field_with_phase, lmzz );
     if(exitstatus != 0) {
       fprintf(stderr, "[npv_fht_invert_contract] Error from point_source_propagator, status was %d\n", exitstatus);
       EXIT(12);
@@ -395,23 +658,46 @@ int main(int argc, char **argv) {
 
       exitstatus = contract_v6 ( v2, fp, fp3, fp, VOLUME );
       if ( exitstatus != 0 ) {
-        fprintf(stderr, "[npv_fht_invert_contract] Error from contract_v6, status was %d\n", exitstatus);
+        fprintf(stderr, "[npv_fht_invert_contract] Error from contract_v6, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(48);
       }
 
       exitstatus = contract_vn_momentum_projection ( vp, v2, 16, g_sink_momentum_list, g_sink_momentum_number);
       if ( exitstatus != 0 ) {
-        fprintf(stderr, "[npv_fht_invert_contract] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+        fprintf(stderr, "[npv_fht_invert_contract] Error from contract_vn_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(48);
       }
 
       exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
       if ( exitstatus != 0 ) {
-        fprintf(stderr, "[npv_fht_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+        fprintf(stderr, "[npv_fht_invert_contract] Error from contract_vn_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(49);
       }
 
-    }}
+    }}  /* end of loop on gamma_f1_nucleon at source and sink */
+
+    /***********************************************************/
+    /***********************************************************/
+
+    /***********************************************************
+     * sequential inversions with loop field sum
+     ***********************************************************/
+
+    double *** loop_field_sum_gamma_conjugate = init_3level_dtable ( VOLUME, 12, 24 );
+    if ( loop_field_sum_gamma_conjugate == NULL ) {
+      fprintf ( stderr, "[npv_fht_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
+      EXIT(49);
+    }
+    memset ( loop_field_sum_gamma_conjugate, 0, 12*12*VOLUME*2*sizeof(double) );
+
+    /* gamma_mu ... gamma_mu */
+    fermion_propagator_field_pl_eq_gamma_ti_fermion_propagator_field_ti_gamma ( loop_field_sum_gamma_conjugate, 0, loop_field_sum,                 0, VOLUME );
+    fermion_propagator_field_pl_eq_gamma_ti_fermion_propagator_field_ti_gamma ( loop_field_sum_gamma_conjugate, 1, loop_field_sum_gamma_conjugate, 1, VOLUME );
+    fermion_propagator_field_pl_eq_gamma_ti_fermion_propagator_field_ti_gamma ( loop_field_sum_gamma_conjugate, 2, loop_field_sum_gamma_conjugate, 2, VOLUME );
+    fermion_propagator_field_pl_eq_gamma_ti_fermion_propagator_field_ti_gamma ( loop_field_sum_gamma_conjugate, 3, loop_field_sum_gamma_conjugate, 3, VOLUME );
+
+STOPPED HERE
+
 
     /***********************************************************/
     /***********************************************************/
@@ -425,6 +711,9 @@ int main(int argc, char **argv) {
     fini_2level_dtable ( &v2 );
     fini_3level_dtable ( &vp );
  
+    fini_2level_dtable ( &propagator_up );
+    fini_2level_dtable ( &propagator_dn );
+    fini_2level_dtable ( &sequential_propagator );
 
     /***************************************************************************/
     /***************************************************************************/
@@ -445,347 +734,19 @@ int main(int argc, char **argv) {
 
   }  /* end of loop on source locations */
 
-  fini_2level_dtable ( &spinor_field );
-
   /***************************************************************************/
   /***************************************************************************/
 
   /***************************************************************************
-   ***************************************************************************
-   **
-   ** stochastic version
-   **
-   ***************************************************************************
-   ***************************************************************************/
-
-  /**********************************************************
-   * initialize rng
-   **********************************************************/
-  exitstatus = init_rng_stat_file ( g_seed, NULL );
-  if ( exitstatus != 0 ) {
-    fprintf ( stderr, "[npv_fht_invert_contract] Error from init_rng_stat_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-    EXIT(1);
-  }
-
-  /**********************************************************
-   * memory for spinor fields
-   **********************************************************/
-  double ** stochastic_source = init_2level_dtable ( 12, _GSI( VOLUME ) );
-  if( stochastic_source == NULL ) {
-    fprintf(stderr, "[npv_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
-    EXIT(123);
-  }
-
-  double ** stochastic_propagator_zero = init_2level_dtable ( 24, _GSI( VOLUME ) );
-  if( stochastic_propagator_zero == NULL ) {
-    fprintf(stderr, "[npv_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
-    EXIT(123);
-  }
-
-  double ** stochastic_propagator_mom = init_2level_dtable ( 24, _GSI( VOLUME ) );
-  if( stochastic_propagator_mom == NULL ) {
-    fprintf(stderr, "[npv_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
-    EXIT(123);
-  }
-
-  double ** spinor_work = init_2level_dtable ( 2, _GSI( VOLUME+RAND ) );
-  if( spinor_work == NULL ) {
-    fprintf(stderr, "[npv_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
-    EXIT(123);
-  }
-
-  /**********************************************************
-   * loop on oet samples
-   **********************************************************/
-  for ( int isample = 0; isample < g_nsample_oet; isample++ ) {
-
-    /***********************************************************
-     * loop on source timeslices
-     ***********************************************************/
-    for( int isource_location = 0; isource_location < g_source_location_number; isource_location++ ) {
-
-      /***********************************************************
-       * determine source processes
-       ***********************************************************/
-      int const gts  = ( g_source_coords_list[isource_location][0] +  T_global ) %  T_global;
-
-      int const source_proc_id = ( gts / T == g_proc_coords[0] ) ? g_cart_id : -1;
-
-      int const source_timeslice = ( source_proc_id == g_cart_id ) ? gts % T : -1;
-
-      if ( source_proc_id == g_cart_id && g_verbose > 1 ) 
-        fprintf ( stdout, "# [npv_fht_invert_contract] proc %4d has source timeslice %3d / %3d\n", source_proc_id, gts , source_timeslice );
-
-      /**********************************************************
-       * stochastic timeslice source
-       **********************************************************/
-      exitstatus = init_timeslice_source_z3_oet ( stochastic_source, gts, NULL,  1 );
-      if(exitstatus != 0) {
-        fprintf(stderr, "[npv_fht_invert_contract] Error from point_source_propagator, status was %d\n", exitstatus);
-        EXIT(12);
-      }
-
-      if ( g_write_source ) {
-        /**********************************************************
-         * write stochastic source to lime file
-         **********************************************************/
-        for ( int ia = 0; ia < 12; ia++ ) {
-          sprintf ( filename, "%s.%.4d.%.5d.%.2d", filename_prefix, Nconf, isample, ia );
-          if ( ( exitstatus = write_propagator( stochastic_source[ia], filename, 0, g_propagator_precision) ) != 0 ) {
-            fprintf(stderr, "[npv_fht_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(2);
-           }
-        }
-      }
-
-#ifdef HAVE_LHPC_AFF
-      /***********************************************
-       * writer for aff output file
-       ***********************************************/
-      if(io_proc == 2) {
-        sprintf(filename, "%s_oet.%.4d.t%d.s%.5d.aff", outfile_prefix, Nconf, gts, isample );
-        fprintf(stdout, "# [npv_fht_invert_contract] writing data to file %s\n", filename);
-        affw = aff_writer(filename);
-        const char * aff_status_str = aff_writer_errstr ( affw );
-        if( aff_status_str != NULL ) {
-          fprintf(stderr, "[npv_fht_invert_contract] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-          EXIT(15);
-        }
-      }  /* end of if io_proc == 2 */
-#endif
-
-      /**********************************************************
-       * loop on momenta
-       **********************************************************/
-      for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
-
-        int const source_momentum[3] = { -g_sink_momentum_list[imom][0], -g_sink_momentum_list[imom][1], -g_sink_momentum_list[imom][2] };
-
-        if ( imom == 0 && ! ( 
-              ( source_momentum[0] == 0 ) &&
-              ( source_momentum[1] == 0 ) &&
-              ( source_momentum[2] == 0 ) ) ) {
-          fprintf ( stderr, "# [npv_fht_invert_contract] Error, first momentum must be 0,0,0\n");
-          EXIT(1);
-        }
-
-        exitstatus = init_timeslice_source_z3_oet ( stochastic_source, gts, source_momentum, 0 );
-        if(exitstatus != 0) {
-          fprintf(stderr, "[npv_fht_invert_contract] Error from point_source_propagator, status was %d\n", exitstatus);
-          EXIT(12);
-        }
-
-        /***********************************************************
-         * invert
-         ***********************************************************/
-        for ( int ia = 0; ia < 12; ia++ ) {
-
-          /***********************************************************
-           * up-type stochastic propagator
-           ***********************************************************/
-          memcpy ( spinor_work[0], stochastic_source[ia], sizeof_spinor_field );
-
-          if( g_fermion_type == _TM_FERMION ) spinor_field_tm_rotation ( spinor_work[0], spinor_work[0], +1, g_fermion_type, VOLUME);
-
-          memset ( spinor_work[1] , 0, sizeof_spinor_field );
-
-          exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], _OP_ID_UP);
-
-          if(exitstatus < 0) {
-            fprintf(stderr, "[npv_fht_invert_contract] Error from invert, status was %d\n", exitstatus);
-            EXIT(12);
-          }
-
-          if ( check_propagator_residual ) {
-            memcpy ( spinor_work[0], stochastic_source[ia], sizeof_spinor_field );
-            exitstatus = check_residual_clover ( &(spinor_work[1]) , &(spinor_work[0]), gauge_field_with_phase, lmzz[_OP_ID_UP], 1  );
-            if ( exitstatus != 0 ) {
-              fprintf ( stderr, "[npv_fht_invert_contract] Error from check_residual_clover, status was %d %s  %d\n", exitstatus, __FILE__, __LINE__ );
-              EXIT(3);
-            }
-          }
-
-          if( g_fermion_type == _TM_FERMION ) spinor_field_tm_rotation ( spinor_work[1], spinor_work[1], +1, g_fermion_type, VOLUME);
-  
-          memcpy ( stochastic_propagator_mom[ia], spinor_work[1], sizeof_spinor_field );
-
-          if ( imom == 0 ) memcpy ( stochastic_propagator_zero[ia], spinor_work[1], sizeof_spinor_field );
-  
-          /***********************************************************
-           * dn-type stochastic propagator
-           ***********************************************************/
-          memcpy ( spinor_work[0], stochastic_source[ia], sizeof_spinor_field );
-          if( g_fermion_type == _TM_FERMION ) spinor_field_tm_rotation ( spinor_work[0], spinor_work[0], -1, g_fermion_type, VOLUME);
-
-          memset ( spinor_work[1] , 0, sizeof_spinor_field );
-
-          exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], _OP_ID_DN);
-
-          if(exitstatus < 0) {
-            fprintf(stderr, "[npv_fht_invert_contract] Error from invert, status was %d\n", exitstatus);
-            EXIT(12);
-          }
-
-          if ( check_propagator_residual ) {
-            memcpy ( spinor_work[0], stochastic_source[ia], sizeof_spinor_field );
-            exitstatus = check_residual_clover ( &(spinor_work[1]) , &(spinor_work[0]), gauge_field_with_phase, lmzz[_OP_ID_DN], 1  );
-            if ( exitstatus != 0 ) {
-              fprintf ( stderr, "[npv_fht_invert_contract] Error from check_residual_clover, status was %d %s  %d\n", exitstatus, __FILE__, __LINE__ );
-              EXIT(3);
-            }
-          }
-
-          if( g_fermion_type == _TM_FERMION ) spinor_field_tm_rotation ( spinor_work[1], spinor_work[1], -1, g_fermion_type, VOLUME);
- 
-          memcpy ( stochastic_propagator_mom[12+ia], spinor_work[1], sizeof_spinor_field );
-          
-          if ( imom == 0 ) memcpy ( stochastic_propagator_zero[12+ia], spinor_work[1], sizeof_spinor_field );
-
-        }  /* end of loop on spin-color isc */
-
-        /***************************************************************************/
-        /***************************************************************************/
-
-        /***************************************************************************
-         * Nucleon - Nucleon correlation function
-         ***************************************************************************/
-
-        /* allocate propagator fields */
-        fermion_propagator_type * fp_mom = create_fp_field ( VOLUME );
-        fermion_propagator_type * fp  = create_fp_field ( VOLUME );
-        fermion_propagator_type * fp2 = create_fp_field ( VOLUME );
-        fermion_propagator_type * fp3 = create_fp_field ( VOLUME );
-
-        /* up propagator with non-zero momentum as propagator type field */
-        assign_fermion_propagator_from_spinor_field ( fp_mom,  &(stochastic_propagator_mom[ 0]), VOLUME);
-
-        /* up propagator with zero momentum as propagator type field */
-        assign_fermion_propagator_from_spinor_field ( fp,  &(stochastic_propagator_zero[ 0]), VOLUME);
-
-        /* dn propagator with zero momentum as propagator type field */
-        assign_fermion_propagator_from_spinor_field ( fp2, &(stochastic_propagator_zero[12]), VOLUME);
-
-        double ** v2 = init_2level_dtable ( VOLUME, 32 );
-        if ( v2 == NULL ) {
-          fprintf(stderr, "[npv_fht_invert_contract] Error from init_2level_dtable, %s %d\n", __FILE__, __LINE__);
-          EXIT(47);
-        }
-
-        double *** vp = init_3level_dtable ( T, 1, 32 );
-        if ( vp == NULL ) {
-          fprintf(stderr, "[npv_fht_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
-          EXIT(47);
-        }
-
-        /***********************************************************
-         * contractions for N - N with up and dn propagagor
-         ***********************************************************/
-        for ( int if1 = 0; if1 < gamma_f1_nucleon_number; if1++ ) {
-        for ( int if2 = 0; if2 < gamma_f1_nucleon_number; if2++ ) {
-  
-          fermion_propagator_field_eq_gamma_ti_fermion_propagator_field ( fp3, gamma_f1_nucleon_list[if2], fp2, VOLUME );
-
-          fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fp3, gamma_f1_nucleon_list[if1], fp3, VOLUME );
-
-          fermion_propagator_field_eq_fermion_propagator_field_ti_re (fp3, fp3, -gamma_f1_nucleon_sign[if1]*gamma_f1_nucleon_sign[if2], VOLUME );
-
-          sprintf(aff_tag, "/N-N/t%.2d/gi%.2d/gf%.2d/n1", gts, gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2]);
-
-          exitstatus = contract_v5 ( v2, fp_mom, fp3, fp, VOLUME );
-          if ( exitstatus != 0 ) {
-            fprintf(stderr, "[npv_fht_invert_contract] Error from contract_v5, status was %d\n", exitstatus);
-            EXIT(48);
-          }
-
-          exitstatus = contract_vn_momentum_projection ( vp, v2, 16, &(g_sink_momentum_list[imom]), 1 );
-          if ( exitstatus != 0 ) {
-            fprintf(stderr, "[npv_fht_invert_contract] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
-            EXIT(48);
-          }
-
-          exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, &(g_sink_momentum_list[imom]), 1, io_proc );
-          if ( exitstatus != 0 ) {
-            fprintf(stderr, "[npv_fht_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
-            EXIT(49);
-          }
-
-          /***********************************************************/
-          /***********************************************************/
-
-          sprintf(aff_tag, "/N-N/t%.2d/gi%.2d/gf%.2d/n2", gts, gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2]);
-
-          exitstatus = contract_v6 ( v2, fp_mom, fp3, fp, VOLUME );
-          if ( exitstatus != 0 ) {
-            fprintf(stderr, "[npv_fht_invert_contract] Error from contract_v6, status was %d\n", exitstatus);
-            EXIT(48);
-          }
-
-          exitstatus = contract_vn_momentum_projection ( vp, v2, 16, &(g_sink_momentum_list[imom]), 1 );
-          if ( exitstatus != 0 ) {
-            fprintf(stderr, "[npv_fht_invert_contract] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
-            EXIT(48);
-          }
-
-          exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, &(g_sink_momentum_list[imom]), 1, io_proc );
-          if ( exitstatus != 0 ) {
-            fprintf(stderr, "[npv_fht_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
-            EXIT(49);
-          }
-
-        }}
-
-        /***********************************************************/
-        /***********************************************************/
-
-        /***********************************************************
-         * clean up
-         ***********************************************************/
-        fini_2level_dtable ( &v2 );
-        fini_3level_dtable ( &vp );
-
-
-        free_fp_field ( &fp_mom );
-        free_fp_field ( &fp  );
-        free_fp_field ( &fp2 );
-        free_fp_field ( &fp3 );
-
-      }  /* end of loop on sink momentum list */
-
-      /***************************************************************************/
-      /***************************************************************************/
-
-#ifdef HAVE_LHPC_AFF
-      /***************************************************************************
-       * close AFF writer
-       ***************************************************************************/
-      if(io_proc == 2) {
-        const char * aff_status_str = (char*)aff_writer_close (affw);
-        if( aff_status_str != NULL ) {
-          fprintf(stderr, "[npv_fht_invert_contract] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-          EXIT(32);
-        }
-      }  /* end of if io_proc == 2 */
-#endif  /* of ifdef HAVE_LHPC_AFF */
-
-      exitstatus = init_timeslice_source_z3_oet ( NULL, -1, NULL,  -2 );
-
-    }  /* end of loop on source timeslices */  
-
-  }  /* end of loop on oet samples */
-
-  fini_2level_dtable ( &spinor_work           );
-  fini_2level_dtable ( &stochastic_source     );
-  fini_2level_dtable ( &stochastic_propagator_mom );
-  fini_2level_dtable ( &stochastic_propagator_zero );
-
-  /****************************************
    * free the allocated memory, finalize
-   ****************************************/
+   ***************************************************************************/
 
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   free(g_gauge_field);
 #endif
   free( gauge_field_with_phase );
+
+  fini_2level_dtable ( &spinor_work );
 
   /* free clover matrix terms */
   fini_clover ( );
@@ -795,7 +756,6 @@ int main(int argc, char **argv) {
 #ifdef HAVE_TMLQCD_LIBWRAPPER
   tmLQCD_finalise();
 #endif
-
 
 #ifdef HAVE_MPI
   mpi_fini_xchange_contraction();
