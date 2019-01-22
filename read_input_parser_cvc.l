@@ -1151,6 +1151,7 @@ namespace cvc {
   strcpy(cvc::twopoint_function_set_type, "list");
   if(cvc::twopoint_function_generic_set==1) {
     cvc::twopoint_function_copy ( cvc::twopoint_function_ptr, &(cvc::twopoint_function_generic), 1 );
+    if(cvc::myverbose) printf("# [read_input_parser] line %d copy from generic \n", cvc::line_of_file);
   }
   BEGIN(TWOPOINTFUNCTION);
 }
