@@ -696,7 +696,7 @@ int twopoint_function_fill_data ( twopoint_function_type *p, char * datafile_pre
 
     double _Complex *** const diagram = p->c[i];
 
-    char diagram_tag_tmp[20];
+    char diagram_tag_tmp[500];
     twopoint_function_get_diagram_name ( diagram_tag_tmp, p, i );
 
     if ( /* here we need a new reader */
@@ -848,7 +848,7 @@ int twopoint_function_write_data ( twopoint_function_type *p ) {
 
     double _Complex *** const dataset = p->c[i];
 
-    char dataset_tag[10];
+    char dataset_tag[500];
     twopoint_function_get_diagram_name ( dataset_tag, p, i );
 
     sprintf( key, "/%s/%s%s/%s", p->name, p->fbwd, key_suffix, dataset_tag );
@@ -935,7 +935,7 @@ int twopoint_function_write_data ( twopoint_function_type *p ) {
 
     double _Complex *** const dataset = p->c[i];
 
-    char dataset_tag[10];
+    char dataset_tag[500];
     twopoint_function_get_diagram_name ( dataset_tag, p, i );
 
     sprintf( key, "/%s/%s%s/%s", p->name, p->fbwd, key_suffix, dataset_tag );
@@ -972,6 +972,66 @@ int twopoint_function_write_data ( twopoint_function_type *p ) {
 /********************************************************************************/
 /********************************************************************************/
 
+hid_t twopoint_function_h5_co_group ( hid_t * const grp_list, int * const grp_list_nmem, char * const grp_name, char * const grp_sep, hid_t const loc_id0 ) {
+
+  hid_t lcpl_id       = H5P_DEFAULT;
+  hid_t gcpl_id       = H5P_DEFAULT;
+  hid_t gapl_id       = H5P_DEFAULT;
+
+  /******************************************************
+   * create the target (sub-)group and all
+   * groups in hierarchy above if they don't exist
+   ******************************************************/
+  int nmem = *grp_list_nmem;
+  char grp_name_tmp[400];
+  char * grp_ptr = NULL;
+  hid_t loc_id = ( nmem == 0 ) ? loc_id0 : grp_list[nmem-1]; 
+
+  strcpy ( grp_name_tmp, grp_name );
+  if ( g_verbose > 2 ) fprintf ( stdout, "# [twopoint_function_h5_co_group] full grp_name_tmp = %s\n", grp_name_tmp );
+  grp_ptr = strtok ( grp_name_tmp, grp_sep );
+
+  while ( grp_ptr != NULL ) {
+    hid_t grp;
+    fprintf ( stdout, "# [twopoint_function_h5_co_group] grp_ptr = %s\n", grp_ptr );
+
+    grp = H5Gopen2( loc_id, grp_ptr, gapl_id );
+    if ( grp < 0 ) {
+      fprintf ( stderr, "[twopoint_function_h5_co_group] Error from H5Gopen2 for group %s, status was %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
+      grp = H5Gcreate2 (       loc_id,         grp_ptr,       lcpl_id,       gcpl_id,       gapl_id );
+      if ( grp < 0 ) {
+        fprintf ( stderr, "[twopoint_function_h5_co_group] Error from H5Gcreate2 for group %s, status was %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
+        return ( -2 );
+      } else {
+        fprintf ( stdout, "# [twopoint_function_h5_co_group] created group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
+      }
+    } else {
+      fprintf ( stdout, "# [twopoint_function_h5_co_group] opened group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
+    }
+    grp_ptr = strtok(NULL, grp_sep );
+
+    grp_list[nmem] = grp;
+    loc_id = grp;
+    nmem++;
+    if ( nmem == MAX_SUBGROUP_NUMBER ) {
+      fprintf ( stderr, "[twopoint_function_h5_co_group] Error, grp_list_nmem has reached MAX_SUBGROUP_NUMBER %s %d\n", __FILE__, __LINE__ );
+      return ( -1 );
+    }
+  }  /* end of loop on sub-groups */
+
+  /******************************************************
+   * update grp_list_nmem
+   ******************************************************/
+  *grp_list_nmem = nmem;
+  if ( g_verbose > 2 ) fprintf ( stdout, "# [twopoint_function_h5_co_group] new grp list nmem = %d %s %d\n", *grp_list_nmem, __FILE__, __LINE__ );
+
+  return ( loc_id );
+
+}  /* twopoint_function_h5_co_group */
+
+/********************************************************************************/
+/********************************************************************************/
+
 /********************************************************************************
  * write diagrams in a twopoint
  * HDF5 version
@@ -995,7 +1055,7 @@ int twopoint_function_write_data ( twopoint_function_type *p ) {
   char filename[200];
 
   /******************************************************
-   * HDF5 reader
+   * HDF5 writer
    ******************************************************/
 
   hid_t   file_id;
@@ -1096,38 +1156,18 @@ int twopoint_function_write_data ( twopoint_function_type *p ) {
    * groups in hierarchy above if they don't exist
    ******************************************************/
   hid_t grp_list[MAX_SUBGROUP_NUMBER];
+  hid_t loc_id;
   int grp_list_nmem = 0;
-  char grp_name[400], grp_name_tmp[400];
-  char * grp_ptr = NULL;
+  char grp_name[500];
   char grp_sep[] = "/";
   sprintf( grp_name, "/%s/%s%s", p->name, p->fbwd, key_suffix );
-  strcpy ( grp_name_tmp, grp_name );
   fprintf ( stdout, "# [twopoint_function_write_data] full grp_name = %s\n", grp_name );
-  grp_ptr = strtok ( grp_name_tmp, grp_sep );
 
-  while ( grp_ptr != NULL ) {
-    hid_t grp;
-    hid_t loc_id = ( grp_list_nmem == 0 ) ? file_id : grp_list[grp_list_nmem-1];
-    fprintf ( stdout, "# [twopoint_function_write_data] grp_ptr = %s\n", grp_ptr );
-
-    grp = H5Gopen2( loc_id, grp_ptr, gapl_id );
-    if ( grp < 0 ) {
-      fprintf ( stderr, "[twopoint_function_write_data] Error from H5Gopen2 for group %s, status was %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
-      grp = H5Gcreate2 (       loc_id,         grp_ptr,       lcpl_id,       gcpl_id,       gapl_id );
-      if ( grp < 0 ) {
-        fprintf ( stderr, "[twopoint_function_write_data] Error from H5Gcreate2 for group %s, status was %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
-        return ( 110 );
-      } else {
-        fprintf ( stdout, "# [twopoint_function_write_data] created group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
-      }
-    } else {
-      fprintf ( stdout, "# [twopoint_function_write_data] opened group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
-    }
-    grp_ptr = strtok(NULL, grp_sep );
-
-    grp_list[grp_list_nmem] = grp;
-    grp_list_nmem++;
-  }  /* end of loop on sub-groups */
+  loc_id = twopoint_function_h5_co_group ( grp_list, &grp_list_nmem, grp_name, grp_sep, file_id );
+  if ( loc_id < 0 ) {
+    fprintf ( stderr, "[twopoint_function_write_data] Error from twopoint_function_h5_co_group, returned loc_id is %d %s %d\n", loc_id, __FILE__, __LINE__ );
+    return ( 1 );
+  }
 
   //    hid_t loc_id 	IN: File or group identifier.
   //    const char *name 	IN: Absolute or relative name of the o new group.
@@ -1154,24 +1194,41 @@ int twopoint_function_write_data ( twopoint_function_type *p ) {
   for ( int i = 0; i < nD; i++ ) 
   {
 
-    double _Complex *** const dataset = p->c[i];
-    hid_t loc_id = ( grp_list_nmem == 0 ) ? file_id : grp_list[grp_list_nmem - 1 ];
-    fprintf ( stdout, "# [twopoint_function_write_data] data set %2d loc_id = %ld %s %d\n", i, loc_id , __FILE__, __LINE__ );
-
     /******************************************************
      * construct the full key
      ******************************************************/
-    char name[10];
-    twopoint_function_get_diagram_name ( name, p, i );
+    char dataset_name[500];
+    twopoint_function_get_diagram_name ( dataset_name, p, i );
+    if ( strcmp( dataset_name, "NA" ) == 0 ) {
+      fprintf ( stderr, "[twopoint_function_write_data] Warning, could not find data set number %d %s %d\n", i, __FILE__, __LINE__ );
+      continue;
+    } else {
+      if ( g_verbose > 2 ) fprintf ( stdout, "# [twopoint_function_write_data] dataset name = %s %s %d\n", dataset_name, __FILE__, __LINE__ );
+    }
 
-    fprintf ( stdout, "# [twopoint_function_write_data] name = %s %s %d\n", name, __FILE__, __LINE__ );
+    /******************************************************
+     * create/open data set group
+     ******************************************************/
+    hid_t dataset_grp_list[MAX_SUBGROUP_NUMBER];
+    int dataset_grp_nmem = 0;
+    loc_id = ( grp_list_nmem == 0 ) ? file_id : grp_list[grp_list_nmem - 1 ];
+
+    loc_id = twopoint_function_h5_co_group ( dataset_grp_list, &dataset_grp_nmem, dataset_name, grp_sep, loc_id );
+    if ( loc_id < 0 ) {
+      fprintf ( stderr, "[twopoint_function_write_data] Error from twopoint_function_h5_co_group, returned loc_id is %d %s %d\n", loc_id, __FILE__, __LINE__ );
+      return ( 1 );
+    }
+
+    /* pointer to data */
+    double _Complex *** const dataset = p->c[i];
+    if ( g_verbose > 2 ) fprintf ( stdout, "# [twopoint_function_write_data] dataset %2d loc_id = %ld %s %d\n", i, loc_id , __FILE__, __LINE__ );
 
     /******************************************************
      * create a data set
      ******************************************************/
 
     //             hid_t loc_id 	IN: Location identifier
-    //             const char *name     	IN: Dataset name
+    //             const char *name    	IN: Dataset name
     //             hid_t dtype_id 	IN: Datatype identifier
     //             hid_t space_id 	IN: Dataspace identifier
     //             hid_t lcpl_id 	IN: Link creation property list
@@ -1181,7 +1238,7 @@ int twopoint_function_write_data ( twopoint_function_type *p ) {
     // hid_t dataset_id   = H5Dcreate2 ( file_id,      key,                    dtype_id,       space_id,   H5P_DEFAULT,   H5P_DEFAULT,   H5P_DEFAULT   );
 
     //           hid_t H5Dcreate ( hid_t loc_id, const char *name, hid_t dtype_id, hid_t space_id, hid_t lcpl_id, hid_t dcpl_id, hid_t dapl_id ) 
-    hid_t dataset_id = H5Dcreate (       loc_id,             name,       dtype_id,       space_id,       lcpl_id,       dcpl_id,       dapl_id );
+    hid_t dataset_id = H5Dcreate (       loc_id,           "data",       dtype_id,       space_id,       lcpl_id,       dcpl_id,       dapl_id );
 
 
     /******************************************************
@@ -1211,6 +1268,18 @@ int twopoint_function_write_data ( twopoint_function_type *p ) {
       return(105);
     }
 
+    /******************************************************
+     * close all (sub-)groups in reverse order
+     ******************************************************/
+    for ( int ig = dataset_grp_nmem - 1; ig >= 0; ig-- ) {
+      status = H5Gclose ( dataset_grp_list[ig] );
+      if( status < 0 ) {
+        fprintf(stderr, "[twopoint_function_write_data] Error from H5Gclose, status was %d %s %d\n", status, __FILE__, __LINE__);
+        return(105);
+      } else {
+        fprintf(stdout, "# [twopoint_function_write_data] closed group %ld %s %d\n", grp_list[ig], __FILE__, __LINE__);
+      }
+    }
   }  // end of loop on diagrams / data sets
 
   /******************************************************
@@ -1271,7 +1340,7 @@ int twopoint_function_data_location_identifier ( char * udli, twopoint_function_
 
   char key[500];
   char key_suffix[400];
-  char diagram_tag[20] = "NA";
+  char diagram_tag[500] = "NA";
   char filename[200];
   int exitstatus;
 
@@ -1674,11 +1743,11 @@ int twopoint_function_correlator_from_h5_file ( twopoint_function_type * const p
    ***************************************************************************/
   for ( int ids = 0; ids < p->n; ids++ ) {
 
-    char diagram_name[100];
+    char diagram_name[500];
     twopoint_function_get_diagram_name ( diagram_name, p, ids );
 
     char tag[500];
-    sprintf( tag, "/%s/%s%s/%s", p->name, p->fbwd, key_suffix, diagram_name );
+    sprintf( tag, "/%s/%s%s/%s/data", p->name, p->fbwd, key_suffix, diagram_name );
 
     /***************************************************************************
      * open H5 data set
