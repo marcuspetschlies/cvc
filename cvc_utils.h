@@ -196,6 +196,10 @@ void fermion_propagator_field_eq_fermion_propagator_field_ti_gamma (fermion_prop
 
 void fermion_propagator_field_eq_fermion_propagator_field_ti_re (fermion_propagator_type*r, fermion_propagator_type*s, double c, unsigned int N);
 
+void fermion_propagator_field_pl_eq_gamma_ti_fermion_propagator_field_ti_gamma ( fermion_propagator_type * const r,
+    int const mu, fermion_propagator_type * const s, int const nu, unsigned int const N );
+
+
 int const get_io_proc (void);
 
 int init_momentum_classes ( int **** p_class, int **p_nmem, int *p_num );
