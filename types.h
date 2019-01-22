@@ -16,7 +16,7 @@ typedef struct {
   // number of diagrams
   int n;
   // list of diagrams
-  char diagrams[400];
+  char diagrams[500];
   // momenta at up to 4 vertices, default 0,0,0
   int pi1[3];
   int pi2[3];
