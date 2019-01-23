@@ -166,11 +166,13 @@ void twopoint_function_copy ( twopoint_function_type *p, twopoint_function_type 
   p->d       = r->d;
   if ( copy_data ) {
     if ( r->c != NULL ) {
-      if ( twopoint_function_allocate ( p ) != NULL ) {
+      if ( twopoint_function_allocate ( p ) == NULL ) {
         fprintf ( stderr, "[twopoint_function_copy] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
       } else {
         memcpy ( p->c[0][0][0], r->c[0][0][0], p->n * p->T * p->d * p->d * sizeof( double _Complex ) );
       }
+    } else {
+      fprintf ( stderr, "[twopoint_function_copy] Warning, source data array is NULL, cannot copy data %s %d\n", __FILE__, __LINE__ );
     }  /* end of if copy_data */
   }
   return;
