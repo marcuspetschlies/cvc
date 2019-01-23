@@ -74,6 +74,11 @@ void gamma_matrix_fill ( gamma_matrix_type *g) {
   int p[4], isimag;
   double s[4];
 
+  if ( id < 0 || id > 15 ) {
+    /* fprintf ( stderr, "[gamma_matrix_fill] gamma id to be filled is outside basis range\n" ); */
+    return;
+  }
+
   p[0] = gamma_permutation[id][ 0] / 6;
   p[1] = gamma_permutation[id][ 6] / 6;
   p[2] = gamma_permutation[id][12] / 6;
