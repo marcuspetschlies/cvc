@@ -200,7 +200,7 @@ int main(int argc, char **argv) {
      * read little group parameters
      ****************************************************/
     little_group_type little_group;
-    if ( ( exitstatus = little_group_read ( &little_group, tp->roup, little_group_list_filename ) ) != 0 ) {
+    if ( ( exitstatus = little_group_read ( &little_group, tp->group, little_group_list_filename ) ) != 0 ) {
       fprintf ( stderr, "[test_correlator_read] Error from little_group_read, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(2);
     }
@@ -239,9 +239,9 @@ int main(int argc, char **argv) {
     int Pref[3] = {-1,-1,-1};
 
     int const Ptot[3] = {
-      tp->pf1[0] + tp->.pf2[0],
-      tp->pf1[1] + tp->.pf2[1],
-      tp->pf1[2] + tp->.pf2[2] };
+      tp->pf1[0] + tp->pf2[0],
+      tp->pf1[1] + tp->pf2[1],
+      tp->pf1[2] + tp->pf2[2] };
 
     /* if ( g_verbose > 1 ) fprintf ( stdout, "# [test_correlator_read] twopoint_function %3d Ptot = %3d %3d %3d\n", i2pt, 
         Ptot[0], Ptot[1], Ptot[2] ); */
@@ -308,14 +308,48 @@ int main(int argc, char **argv) {
     int const nrot  = projector.rtarget->n;
 
     /* proper rotations */
-    for ( int irot = 0; irot < nrot; irot++ ) {
-      
-    }
+    /* for ( int irot = 0; irot < nrot; irot++ ) */
+    for ( int irot = 0; irot < 2; irot++ )
+    {
 
+      for ( int it = 0; it < tp->T; it++ )
+      {
+        double _Complex *** CS = init_3level_ztable ( projector.rtarget->dim, tp->d, tp->d );
+        double _Complex *** CT = init_3level_ztable ( projector.rtarget->dim, tp->d, tp->d );
+
+        /* C^{irrep src}_{spin-J ref_snk, spin-J ref_src} x S^J_{r,r'} */
+        for ( int ir = 0; ir < projector.rtarget->dim; ir++ ) {
+          rot_mat_ti_mat ( CS[ir], tp->c[ir][it], projector.rspin[0].R[irot], tp->d );
+        }
+
+        /* T^Gamma__{ir, ref_snk} x C^{irrep src}_{spin-J ref_snk, spin-J ref_src} x S^J_{r,r'} */
+
+        for ( int ir = 0; ir < projector.rtarget->dim; ir++ ) {
+          for ( int kr = 0; kr < projector.rtarget->dim; kr++ ) {
+            rot_mat_pl_eq_mat_ti_co ( CT[ir], tp->c[kr][it], projector.rtarget->R[irot][ir][kr], tp->d );
+          }
+        }
+ 
+        for ( int ir = 0; ir < projector.rtarget->dim; ir++ ) {
+          double const diff = rot_mat_norm_diff ( CT[ir], CS[ir], tp->d );
+          double const norm = sqrt ( rot_mat_norm2 ( CT[ir], tp->d ) );
+
+          fprintf ( stdout, "# [test_correlator_read] 2pt %2d rot %2d t %3d ref_src %2d diff %16.7e norm %16.7e\n", i2pt, irot, it, ir, diff, norm );
+       
+        }
+
+        fini_3level_ztable ( &CS );
+        fini_3level_ztable ( &CT );
+
+      }  /* end of loop on timeslices */
+    }  /* end of loop on rotations */  
+
+#if 0
     /* rotation-reflections */
     for ( int irot = 0; irot < nrot; irot++ ) {
 
     }
+#endif  /* of if 0 */
 
     /******************************************************
      * deallocate space inside little_group
@@ -326,8 +360,6 @@ int main(int argc, char **argv) {
      * deallocate space inside projector
      ******************************************************/
     fini_little_group_projector ( &projector );
-#if 0
-#endif  /* of if 0 */
 
   }  // end of loop on 2-point functions
 
@@ -339,6 +371,11 @@ int main(int argc, char **argv) {
    *
    * free the allocated memory, finalize
    ******************************************************/
+
+  for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
+    twopoint_function_fini ( &(g_twopoint_function_list[i2pt]) );
+  }
+
   free_geometry();
 
 #ifdef HAVE_MPI
