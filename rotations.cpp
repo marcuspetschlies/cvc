@@ -703,7 +703,7 @@ void rot_mat_pl_eq_mat_ti_co (double _Complex **R, double _Complex **S, double _
 /***********************************************************
  *
  ***********************************************************/
-void rot_mat_pl_eq_mat_ti_co (double _Complex **R, double _Complex **S, double _Complex c, int N) {
+void rot_mat_pl_eq_mat_ti_co (double _Complex ** const R, double _Complex ** const S, double _Complex const c, int const N) {
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
