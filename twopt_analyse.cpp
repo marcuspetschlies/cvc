@@ -376,8 +376,6 @@ int main(int argc, char **argv) {
 
   }  /* end of loop on source locations */
 
-
-#if 0
   /***************************************************************************
    ***************************************************************************
    **
@@ -552,6 +550,7 @@ int main(int argc, char **argv) {
 
   }  /* end of loop on samples */ 
 
+#if 0
 #endif  /* of if 0 */
 
   twopoint_function_fini ( &tp );
