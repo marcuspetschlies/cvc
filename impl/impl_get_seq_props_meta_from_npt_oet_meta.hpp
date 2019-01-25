@@ -47,6 +47,12 @@ void get_seq_props_meta_from_npt_oet_meta(const std::vector<T> & correls,
                  correls[icor].gi,
                  correls[icor].src_mom_prop.c_str());
     if( correls[icor].src_mom_prop == "bwd" ){
+      // if the source momentum is carried by the backward propagator
+      // which is part of the sequential propagator, we need to generate
+      // one sequential propagator per source momentum
+      // since in the contractions we dagger the sequential propagator,
+      // the backward propagator corresponding to the correct momentum
+      // is the one with the source momentum projector daggered
       for(int isrc_mom = 0; isrc_mom < g_source_momentum_number; ++isrc_mom){
         const int bprop_mom[3] = { -g_source_momentum_list[isrc_mom][0],
                                    -g_source_momentum_list[isrc_mom][1],

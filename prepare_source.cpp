@@ -1032,8 +1032,8 @@ int init_timeslice_source_oet ( double ** const s, int const tsrc, int * const m
       int const * const momentum)
   {
     const unsigned int vol3 = LX * LY * LZ;
-    const size_t vol3_fv_size = _GSI(vol3);
-    const bool have_source = (t_src / T) == g_proc_coords[0];
+    const size_t vol3_fv_size = _GSI(vol3)*sizeof(double);
+    const bool have_source = ( (t_src / T) == g_proc_coords[0] );
     const unsigned int src_index = (t_src % T)*vol3;
     const unsigned int src_offset = _GSI(src_index);
 
@@ -1047,7 +1047,7 @@ int init_timeslice_source_oet ( double ** const s, int const tsrc, int * const m
       { 
         return(-1);
       }
-      memcpy((void*)buffer.data(), (void*)(ran+src_offset), _GSI(vol3)*sizeof(double));
+      memcpy((void*)buffer.data(), (void*)(ran+src_offset), vol3_fv_size );
     }
     double * const bufptr = buffer.data();
 
