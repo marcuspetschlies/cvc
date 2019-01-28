@@ -422,6 +422,9 @@ int main(int argc, char **argv) {
       }  // end of loop on source rotations
     }  // end of loop on sink rotations
 
+    /******************************************************
+     * plot the projected data set
+     ******************************************************/
     for ( int ref_snk = 0; ref_snk < irrep_dim; ref_snk++ ) {
     for ( int ref_src = 0; ref_src < irrep_dim; ref_src++ ) {
 
@@ -434,127 +437,10 @@ int main(int argc, char **argv) {
     }}
 
 
+    /******************************************************
+     * check the rotation property
+     ******************************************************/
     twopoint_function_check_reference_rotation ( Cproj, &projector, 1.e-12 );
-
-#if 0
-    for ( int row_snk = 0; row_snk < irrep_dim; row_snk++ ) {
-    for ( int row_src = 0; row_src < irrep_dim; row_src++ ) {
-
-      /******************************************************
-       * fixed reference index at sink
-       ******************************************************/
-
-      for ( int iref1 = 0; iref1 < irrep_dim; iref1++ ) {
- 
-        for ( int irot = 0; irot < 2*nrot; irot++ )
-        {
-          double _Complex ** Rspin  = ( irot < nrot ) ? projector.rspin[0].R[irot] :  projector.rspin[0].IR[irot-nrot];
-          double _Complex ** Tirrep = ( irot < nrot ) ? projector.rtarget->R[irot] :  projector.rtarget->IR[irot-nrot];
-
-          fprintf ( stdout, "# [test_ref_rotation] \n# [test_ref_rotation] \n" );
-          char name[400];
-          sprintf ( name, "R%.2d", irot );
-
-          rot_printf_matrix ( Rspin, dim, name, stdout );
-          fprintf ( stdout, "# [test_ref_rotation] \n" );
-
-          double _Complex *** R1 = init_3level_ztable ( irrep_dim, dim, dim ) ;
-          double _Complex *** R2 = init_3level_ztable ( irrep_dim, dim, dim ) ;
-          double _Complex ** Raux = init_2level_ztable ( dim, dim ) ;
-
-          for ( int iref2 = 0; iref2 < irrep_dim; iref2++ ) {
-            rot_mat_ti_mat ( R1[iref2], Cproj[iref1][iref2][row_snk][row_src].c[0][0], Rspin, dim );
-          }
-
-          for ( int iref2 = 0; iref2 < irrep_dim; iref2++ ) {
-            for ( int i = 0; i < irrep_dim; i++ ) {
-              /* R2 += Tirrep Cproj */
-              rot_mat_pl_eq_mat_ti_co ( R2[iref2], Cproj[iref1][i][row_snk][row_src].c[0][0], Tirrep[iref2][i], dim );
-            }
-          }
-
-          for ( int iref2 = 0; iref2 < irrep_dim; iref2++ ) {
-
-            sprintf ( name, "Rsnk_r%.2d_%d_%d_%d_%d", irot, row_snk, row_src, iref1, iref2 );
-            rot_printf_matrix_comp ( R1[iref2], R2[iref2], dim, name, stdout );
-
-            double const diff = rot_mat_norm_diff ( R1[iref2], R2[iref2], dim );
-            double const norm = sqrt ( rot_mat_norm2 ( R1[iref2], dim ) );
-
-            if ( ( norm > deps && diff/norm < deps ) || ( norm <= deps && diff <= deps ) ) {
-              fprintf ( stdout, "# [test_ref_rotation] %s diff norm %e    %e  okay\n\n", name, diff, norm );
-            } else {
-              fprintf ( stdout, "# [test_ref_rotation] %s diff norm %e    %e  ERROR\n\n", name, diff, norm );
-            }
-          }
-
-          fini_3level_ztable ( &R1 );
-          fini_3level_ztable ( &R2 );
-          fini_2level_ztable ( &Raux );
-
-        }  /* end of loop on rotations */
-
-      }  /* end of loop on iref1 */
-
-      /******************************************************
-       * fixed reference index at src
-       ******************************************************/
-
-      for ( int iref2 = 0; iref2 < irrep_dim; iref2++ ) {
- 
-        for ( int irot = 0; irot < 2*nrot; irot++ )
-        {
-
-          double _Complex ** Rspin  = ( irot < nrot ) ? projector.rspin[0].R[irot] :  projector.rspin[0].IR[irot-nrot];
-          double _Complex ** Tirrep = ( irot < nrot ) ? projector.rtarget->R[irot] :  projector.rtarget->IR[irot-nrot];
-
-          fprintf ( stdout, "# [test_ref_rotation] \n# [test_ref_rotation] \n" );
-          char name[400];
-          sprintf ( name, "R%.2d", irot );
-
-          rot_printf_matrix ( Rspin, dim, name, stdout );
-          fprintf ( stdout, "# [test_ref_rotation] \n" );
-
-          double _Complex *** R1 = init_3level_ztable ( irrep_dim, dim, dim ) ;
-          double _Complex *** R2 = init_3level_ztable ( irrep_dim, dim, dim ) ;
-          double _Complex ** Raux = init_2level_ztable ( dim, dim ) ;
-
-          for ( int iref1 = 0; iref1 < irrep_dim; iref1++ ) {
-            rot_mat_adj_ti_mat ( R1[iref1], Rspin, Cproj[iref1][iref2][row_snk][row_src].c[0][0], dim );
-          }
-
-          for ( int iref1 = 0; iref1 < irrep_dim; iref1++ ) {
-            for ( int i = 0; i < irrep_dim; i++ ) {
-              /* R2 += Tirrep Cproj */
-              rot_mat_pl_eq_mat_ti_co ( R2[iref1], Cproj[i][iref2][row_snk][row_src].c[0][0], conj( Tirrep[iref1][i] ), dim );
-            }
-          }
-
-          for ( int iref1 = 0; iref1 < irrep_dim; iref1++ ) {
-
-            sprintf ( name, "Rsrc_r%.2d_%d_%d_%d_%d", irot, row_snk, row_src, iref1, iref2 );
-            rot_printf_matrix_comp ( R1[iref1], R2[iref1], dim, name, stdout );
-
-            double const diff = rot_mat_norm_diff ( R1[iref1], R2[iref1], dim );
-            double const norm = sqrt ( rot_mat_norm2 ( R1[iref1], dim ) );
-
-            if ( ( norm > deps && diff/norm < deps ) || ( norm <= deps && diff <= deps ) ) {
-              fprintf ( stdout, "# [test_ref_rotation] %s diff norm %e    %e  okay\n\n", name, diff, norm );
-            } else {
-              fprintf ( stdout, "# [test_ref_rotation] %s diff norm %e    %e  ERROR\n\n", name, diff, norm );
-            }
-          }
-
-          fini_3level_ztable ( &R1 );
-          fini_3level_ztable ( &R2 );
-          fini_2level_ztable ( &Raux );
-
-        }  /* end of loop on rotations */
-
-      }  /* end of loop on iref2 */
-
-    }}  /* end of loops on row_src, row_snk */
-#endif  /* of if 0 */
 
     /******************************************************
      * deallocate
