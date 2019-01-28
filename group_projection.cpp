@@ -361,7 +361,7 @@ int little_group_read_list (little_group_type **lg, const char * filename )  {
 
 int little_group_init ( little_group_type *lg ) {
 
-  if ( lg != NULL ) {
+  if ( lg == NULL ) {
     fprintf(stderr, "[little_group_init] Error, lg is NULL\n");
     return (1);
   }
@@ -371,7 +371,7 @@ int little_group_init ( little_group_type *lg ) {
   lg->nirrep = 0;
   lg->lirrep = NULL;
 
-  return(1);
+  return(0);
 }  // end of little_group_init
 
 /***********************************************************/
@@ -1245,7 +1245,7 @@ int fini_little_group_projector (little_group_projector_type *p ) {
 
 int little_group_projector_show (little_group_projector_type *p, FILE*ofs, int with_mat ) {
 
-  fprintf( ofs, "\n\n# [little_group_projector_show] begin of projector\n" );
+  fprintf( ofs, "# [little_group_projector_show] begin of projector\n" );
   fprintf( ofs, "# [little_group_projector_show] number of interpolators = %d\n", p->n);
   fprintf( ofs, "# [little_group_projector_show] total momentum P = %2d %2d %2d\n", p->P[0], p->P[1], p->P[2] );
  
