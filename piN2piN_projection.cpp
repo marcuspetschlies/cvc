@@ -48,6 +48,7 @@ extern "C"
 #include "read_input_parser.h"
 #include "matrix_init.h"
 #include "table_init_z.h"
+#include "table_init_2pt.h"
 #include "contract_diagrams.h"
 #include "aff_key_conversion.h"
 #include "zm4x4.h"
@@ -368,12 +369,10 @@ int main(int argc, char **argv) {
          *   we have nrow x nrow ( source, sink ) operators
          *   
          ******************************************************/
-        twopoint_function_type * tp_project = NULL;
-
         int const n_tp_project = irrep_dim * irrep_dim * irrep_dim * irrep_dim;
-        tp_project = (twopoint_function_type *) malloc ( n_tp_project * sizeof (twopoint_function_type ) );
-        if (  tp_project == NULL ) {
-          fprintf ( stderr, "[piN2piN_projection] Error from malloc %s %d\n", __FILE__, __LINE__ );
+        twopoint_function_type **** tp_project = init_4level_2pttable ( irrep_dim, irrep_dim, irrep_dim, irrep_dim );
+        if ( tp_project == NULL ) {
+          fprintf ( stderr, "[piN2piN_projection] Error from a init_4level_2pttable %s %d\n", __FILE__, __LINE__ );
           EXIT(124);
         }
  
@@ -384,15 +383,17 @@ int main(int argc, char **argv) {
          *   g_twopoint_function_list
          ******************************************************/
         for ( int i = 0; i < n_tp_project; i++ ) {
-          twopoint_function_init ( &(tp_project[i]) );
-          twopoint_function_copy ( &(tp_project[i]), &( g_twopoint_function_list[i2pt]), 1 );
+          twopoint_function_type * tp_project_ptr = tp_project[0][0][0];
+
+          twopoint_function_init ( &(tp_project_ptr[i]) );
+          twopoint_function_copy ( &(tp_project_ptr[i]), &( g_twopoint_function_list[i2pt]), 1 );
 
           /* number of data sets in tp_project is always 1
            *   we save the sum of all diagrams in here */
-          tp_project[i].n = 1;
-          sprintf ( tp_project[i].norm, "NA" );
+          tp_project_ptr[i].n = 1;
+          sprintf ( tp_project_ptr[i].norm, "NA" );
           /* abuse the diagrams name string to label the row-coordinates */
-          sprintf ( tp_project[i].diagrams, "ref_snk%d/ref_src%d/row_snk%d/row_src%d", 
+          sprintf ( tp_project_ptr[i].diagrams, "ref_snk%d/ref_src%d/row_snk%d/row_src%d", 
                 i                                          / ( irrep_dim * irrep_dim * irrep_dim ), 
               ( i % ( irrep_dim *irrep_dim * irrep_dim ) ) / (             irrep_dim * irrep_dim ),
               ( i % (            irrep_dim * irrep_dim ) ) /                           irrep_dim,
@@ -400,7 +401,7 @@ int main(int argc, char **argv) {
 
 
           /* allocate memory */
-          if ( twopoint_function_allocate ( &(tp_project[i]) ) == NULL ) {
+          if ( twopoint_function_allocate ( &(tp_project_ptr[i]) ) == NULL ) {
             fprintf ( stderr, "[piN2piN_projection] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
             EXIT(125);
           }
@@ -607,7 +608,7 @@ int main(int argc, char **argv) {
 
               udli_ptr[udli_count]->n = 1;
 
-              sprintf ( udli_ptr[udli_count]->name, udli_name );
+              strcpy ( udli_ptr[udli_count]->name, udli_name );
 
               twopoint_function_allocate ( udli_ptr[udli_count] );
 
@@ -703,15 +704,6 @@ int main(int argc, char **argv) {
             for ( int row_snk = 0; row_snk < irrep_dim; row_snk++ ) {
             for ( int row_src = 0; row_src < irrep_dim; row_src++ ) {
 
-
-              /******************************************************
-               * unique irrep rows and reference row identifier
-               *
-               * note: reference row rref determines the projector,
-               *       same for source and sink
-               ******************************************************/
-              int const irrr = ( ( ref_snk * irrep_dim + ref_src ) * irrep_dim + row_snk ) * irrep_dim + row_src;
-
               /******************************************************
                * curren projection coefficient for chosen irrep rows
                * at source and sink, together with sign factors
@@ -727,7 +719,9 @@ int main(int argc, char **argv) {
                 *        Tirrepl[row_snk][ref_snk]     /* phase irrep matrix sink   */
                 * conj ( Tirrepr[row_src][ref_src] );  /* phase irrep matrix source */
                 
-              contract_diagram_zm4x4_field_eq_zm4x4_field_pl_zm4x4_field_ti_co ( tp_project[irrr].c[0], tp_project[irrr].c[0], tp.c[0], zcoeff, tp.T );
+              contract_diagram_zm4x4_field_eq_zm4x4_field_pl_zm4x4_field_ti_co (
+                  tp_project[ref_snk][ref_src][row_snk][row_src].c[0],
+                  tp_project[ref_snk][ref_src][row_snk][row_src].c[0], tp.c[0], zcoeff, tp.T );
 
               if ( g_verbose > 4 ) fprintf ( stdout, "# [piN2piN_projection] zcoeff = %16.7e   %16.7e\n", creal( zcoeff ), cimag( zcoeff ) );
 
@@ -740,7 +734,13 @@ int main(int argc, char **argv) {
         }  // end of loop on source rotations
         }  // end of loop on sink   rotations
 
+        /******************************************************
+         * check reference index rotations
+         ******************************************************/
 
+        twopoint_function_check_reference_rotation ( tp_project, &projector, 5.e-12 );
+
+#if 0
         /******************************************************
          * output of tp_project
          *
@@ -748,17 +748,19 @@ int main(int argc, char **argv) {
          ******************************************************/
         for ( int itp = 0; itp < n_tp_project; itp++ ) {
 
+          twopoint_function_type * tp_project_ptr = tp_project[0][0][0];
+
           /******************************************************
            * multiply overall phase factor and group projection
            * normalization
            ******************************************************/
-          double _Complex const ztmp = twopoint_function_get_correlator_phase ( &(tp_project[itp]) ) * \
+          double _Complex const ztmp = twopoint_function_get_correlator_phase ( &(tp_project_ptr[itp]) ) * \
                                        (double)( projector.rtarget->dim * projector.rtarget->dim ) / \
                                        ( 4. *    projector.rtarget->n   * projector.rtarget->n );
 
           if ( g_verbose > 4 ) fprintf ( stdout, "# [piN2piN_projection] correlator norm = %25.16e %25.16e\n", creal( ztmp ), cimag( ztmp ) );
 
-          exitstatus = contract_diagram_zm4x4_field_ti_eq_co ( tp_project[itp].c[0], ztmp, tp_project[itp].T );
+          exitstatus = contract_diagram_zm4x4_field_ti_eq_co ( tp_project_ptr[itp].c[0], ztmp, tp_project_ptr[itp].T );
           if ( exitstatus != 0 ) {
             fprintf ( stderr, "[piN2piN_projection] Error from contract_diagram_zm4x4_field_ti_eq_co %s %d\n", __FILE__, __LINE__ );
             EXIT(217)
@@ -767,23 +769,23 @@ int main(int argc, char **argv) {
           /******************************************************
            * write to disk
            ******************************************************/
-          exitstatus = twopoint_function_write_data ( &( tp_project[itp] ) );
+          exitstatus = twopoint_function_write_data ( &( tp_project_ptr[itp] ) );
           if ( exitstatus != 0 ) {
             fprintf ( stderr, "[piN2piN_projection] Error from twopoint_function_write_data, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(12);
           }
 
         }  /* end of loop on 2-point functions */
+#endif  /* of if 0 */
 
         /******************************************************
          * deallocate twopoint_function vars tp and tp_project
          ******************************************************/
         twopoint_function_fini ( &tp );
         for ( int i = 0; i < n_tp_project; i++ ) {
-          twopoint_function_fini ( &(tp_project[i]) );
+          twopoint_function_fini ( &(tp_project[0][0][0][i]) );
         }
-        free ( tp_project );
-        tp_project = NULL;
+        fini_4level_2pttable ( &tp_project );
 
         /******************************************************
          * reset udli_count and deallocate udli_ptr
