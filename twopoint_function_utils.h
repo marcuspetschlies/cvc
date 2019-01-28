@@ -2,6 +2,8 @@
 #define TWOPOINT_FUNCTION_UTILS_H
 
 #include "types.h"
+#include "group_projection.h"
+
 namespace cvc {
 
 void twopoint_function_init ( twopoint_function_type *p );
@@ -44,6 +46,8 @@ int twopoint_function_apply_diagram_norm ( twopoint_function_type *p );
 int twopoint_function_accum_diagrams ( double _Complex *** const z, twopoint_function_type *p );
 
 int twopoint_function_correlator_from_h5_file ( twopoint_function_type * const p, int const io_proc );
+
+void twopoint_function_check_reference_rotation ( twopoint_function_type **** const tp, little_group_projector_type * const pr , double const deps );
 
 }  // end of namespace cvc
 

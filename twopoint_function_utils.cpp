@@ -30,6 +30,7 @@
 #include "io_utils.h"
 #include "zm4x4.h"
 #include "table_init_z.h"
+#include "rotations.h"
 #include "group_projection.h"
 #include "contract_diagrams.h"
 #include "twopoint_function_utils.h"
@@ -1801,5 +1802,154 @@ int twopoint_function_correlator_from_h5_file ( twopoint_function_type * const p
 }  /* end of twopoint_function_correlator_from_h5_file */
 
 #endif  /* of if HAVE_HDF5 */
+
+/***************************************************************************/
+/***************************************************************************/
+
+/***************************************************************************
+ *
+ ***************************************************************************/
+void twopoint_function_check_reference_rotation ( twopoint_function_type **** const tp, little_group_projector_type * const pr, double const deps ) {
+
+  int const dim       = pr->rspin[0].dim;
+  int const irrep_dim = pr->rtarget->dim;
+  int const nrot      = pr->rtarget->n;
+  int const nT        = tp[0][0][0][0].T;
+
+  char name[400];
+
+  for ( int row_snk = 0; row_snk < irrep_dim; row_snk++ ) {
+  for ( int row_src = 0; row_src < irrep_dim; row_src++ ) {
+
+    /******************************************************
+     * fixed reference index at sink
+     ******************************************************/
+
+    for ( int iref1 = 0; iref1 < irrep_dim; iref1++ ) {
+ 
+      for ( int irot = 0; irot < 2*nrot; irot++ )
+      {
+        double _Complex ** Rspin  = ( irot < nrot ) ? pr->rspin[0].R[irot] :  pr->rspin[0].IR[irot-nrot];
+        double _Complex ** Tirrep = ( irot < nrot ) ? pr->rtarget->R[irot] :  pr->rtarget->IR[irot-nrot];
+
+        fprintf ( stdout, "# [twopoint_function_check_reference_rotation] \n# [test_ref_rotation] \n" );
+
+        if ( g_verbose > 2 ) {
+          sprintf ( name, "R%.2d", irot );
+          rot_printf_matrix ( Rspin, dim, name, stdout );
+          fprintf ( stdout, "# [twopoint_function_check_reference_rotation] \n" );
+        }
+
+        for ( int it = 0; it < nT; it ++ ) {
+
+          double _Complex *** R1  = init_3level_ztable ( irrep_dim, dim, dim ) ;
+          double _Complex *** R2  = init_3level_ztable ( irrep_dim, dim, dim ) ;
+          double _Complex ** Raux = init_2level_ztable ( dim, dim ) ;
+
+          for ( int iref2 = 0; iref2 < irrep_dim; iref2++ ) {
+            rot_mat_ti_mat ( R1[iref2], tp[iref1][iref2][row_snk][row_src].c[0][it], Rspin, dim );
+          }
+
+          for ( int iref2 = 0; iref2 < irrep_dim; iref2++ ) {
+            for ( int i = 0; i < irrep_dim; i++ ) {
+              /* R2 += Tirrep Cproj */
+              rot_mat_pl_eq_mat_ti_co ( R2[iref2], tp[iref1][i][row_snk][row_src].c[0][it], Tirrep[iref2][i], dim );
+            }
+          }
+
+          for ( int iref2 = 0; iref2 < irrep_dim; iref2++ ) {
+
+            sprintf ( name, "Rsnk_r%.2d_t%.2d_ref%d_%d_%d_%d", irot, it, row_snk, row_src, iref1, iref2 );
+            if ( g_verbose > 2 ) {
+              rot_printf_matrix_comp ( R1[iref2], R2[iref2], dim, name, stdout );
+            }
+
+            double const diff = rot_mat_norm_diff ( R1[iref2], R2[iref2], dim );
+            double const norm = sqrt ( rot_mat_norm2 ( R1[iref2], dim ) );
+
+            if ( ( norm > deps && diff/norm < deps ) || ( norm <= deps && diff <= deps ) ) {
+              fprintf ( stdout, "# [twopoint_function_check_reference_rotation] %s diff norm %e    %e  okay\n\n", name, diff, norm );
+            } else {
+              fprintf ( stdout, "# [twopoint_function_check_reference_rotation] %s diff norm %e    %e  ERROR\n\n", name, diff, norm );
+            }
+          }
+
+          fini_3level_ztable ( &R1 );
+          fini_3level_ztable ( &R2 );
+          fini_2level_ztable ( &Raux );
+
+        }  /* end of loop on time slices */
+
+      }  /* end of loop on rotations */
+
+    }  /* end of loop on iref1 */
+
+    /******************************************************
+     * fixed reference index at src
+     ******************************************************/
+
+    for ( int iref2 = 0; iref2 < irrep_dim; iref2++ ) {
+ 
+      for ( int irot = 0; irot < 2*nrot; irot++ )
+      {
+
+        double _Complex ** Rspin  = ( irot < nrot ) ? pr->rspin[0].R[irot] :  pr->rspin[0].IR[irot-nrot];
+        double _Complex ** Tirrep = ( irot < nrot ) ? pr->rtarget->R[irot] :  pr->rtarget->IR[irot-nrot];
+
+        fprintf ( stdout, "# [twopoint_function_check_reference_rotation] \n# [twopoint_function_check_reference_rotation] \n" );
+
+        if ( g_verbose > 2 ) {
+          sprintf ( name, "R%.2d", irot );
+          rot_printf_matrix ( Rspin, dim, name, stdout );
+          fprintf ( stdout, "# [twopoint_function_check_reference_rotation] \n" );
+        }
+
+        for ( int it = 0; it < nT; it ++ ) {
+
+          double _Complex *** R1 = init_3level_ztable ( irrep_dim, dim, dim ) ;
+          double _Complex *** R2 = init_3level_ztable ( irrep_dim, dim, dim ) ;
+          double _Complex ** Raux = init_2level_ztable ( dim, dim ) ;
+
+          for ( int iref1 = 0; iref1 < irrep_dim; iref1++ ) {
+            rot_mat_adj_ti_mat ( R1[iref1], Rspin, tp[iref1][iref2][row_snk][row_src].c[0][it], dim );
+          }
+
+          for ( int iref1 = 0; iref1 < irrep_dim; iref1++ ) {
+            for ( int i = 0; i < irrep_dim; i++ ) {
+              /* R2 += Tirrep Cproj */
+              rot_mat_pl_eq_mat_ti_co ( R2[iref1], tp[i][iref2][row_snk][row_src].c[0][it], conj( Tirrep[iref1][i] ), dim );
+            }
+          }
+
+          for ( int iref1 = 0; iref1 < irrep_dim; iref1++ ) {
+
+            sprintf ( name, "Rsrc_r%.2d_t%.2d_ref%d_%d_%d_%d", irot, it, row_snk, row_src, iref1, iref2 );
+            if ( g_verbose > 2 ) {
+              rot_printf_matrix_comp ( R1[iref1], R2[iref1], dim, name, stdout );
+            }
+
+            double const diff = rot_mat_norm_diff ( R1[iref1], R2[iref1], dim );
+            double const norm = sqrt ( rot_mat_norm2 ( R1[iref1], dim ) );
+
+            if ( ( norm > deps && diff/norm < deps ) || ( norm <= deps && diff <= deps ) ) {
+              fprintf ( stdout, "# [twopoint_function_check_reference_rotation] %s diff norm %e    %e  okay\n\n", name, diff, norm );
+            } else {
+              fprintf ( stdout, "# [twopoint_function_check_reference_rotation] %s diff norm %e    %e  ERROR\n\n", name, diff, norm );
+            }
+          }
+
+          fini_3level_ztable ( &R1 );
+          fini_3level_ztable ( &R2 );
+          fini_2level_ztable ( &Raux );
+
+        }  /* end of loop on time slices */
+      }  /* end of loop on rotations */
+
+    }  /* end of loop on iref2 */
+
+  }}  /* end of loops on row_src, row_snk */
+
+}  /* end of twopoint_function_check_reference_rotation */
+
 
 }  // end of namespace cvc
