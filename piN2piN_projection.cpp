@@ -68,6 +68,8 @@ using namespace cvc;
  ***********************************************************/
 int main(int argc, char **argv) {
  
+#define _ZCOEFF_EPS 8.e-12
+
 #if defined CUBIC_GROUP_DOUBLE_COVER
   char const little_group_list_filename[] = "little_groups_2Oh.tab";
   /* int (* const set_rot_mat_table ) ( rot_mat_table_type*, const char*, const char*) = set_rot_mat_table_cubic_group_double_cover; */
@@ -80,6 +82,7 @@ int main(int argc, char **argv) {
   int c;
   int filename_set = 0;
   int exitstatus;
+  int check_reference_rotation = 0;
   char filename[200];
   double ratime, retime;
   FILE *ofs = NULL;
@@ -94,11 +97,15 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:")) != -1) {
+  while ((c = getopt(argc, argv, "ch?f:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
       filename_set=1;
+      break;
+    case 'c':
+      check_reference_rotation = 1;
+      fprintf ( stdout, "# [piN2piN_projection] check_reference_rotation set to %d\n", check_reference_rotation );
       break;
     case 'h':
     case '?':
@@ -194,12 +201,6 @@ int main(int argc, char **argv) {
     }
     twopoint_function_print ( &(g_twopoint_function_list[i2pt]), "TWPT", ofs );
     fclose ( ofs );
-
-    /****************************************************
-     * set number of timeslices
-     ****************************************************/
-    int const nT = g_twopoint_function_list[i2pt].T;
-    if ( io_proc == 2 ) fprintf( stdout, "# [piN2piN_projection] number of timeslices (incl. src and snk) is %d\n", nT);
 
     /****************************************************
      * read little group parameters
@@ -718,7 +719,13 @@ int main(int argc, char **argv) {
                 * gi2.s                                /* gamma rot sign i_2        */
                 *        Tirrepl[row_snk][ref_snk]     /* phase irrep matrix sink   */
                 * conj ( Tirrepr[row_src][ref_src] );  /* phase irrep matrix source */
-                
+              
+              if ( cabs( zcoeff ) < _ZCOEFF_EPS ) {
+                /* if ( g_verbose > 4 ) fprintf ( stdout, "# [piN2piN_projection] | zcoeff = %16.7e + I %16.7e | < _ZCOEFF_EPS, continue\n", creal( zcoeff ), cimag( zcoeff ) ); */
+                continue;
+              }
+
+
               contract_diagram_zm4x4_field_eq_zm4x4_field_pl_zm4x4_field_ti_co (
                   tp_project[ref_snk][ref_src][row_snk][row_src].c[0],
                   tp_project[ref_snk][ref_src][row_snk][row_src].c[0], tp.c[0], zcoeff, tp.T );
@@ -738,7 +745,9 @@ int main(int argc, char **argv) {
          * check reference index rotations
          ******************************************************/
 
-        twopoint_function_check_reference_rotation ( tp_project, &projector, 5.e-12 );
+        if ( check_reference_rotation ) {
+          twopoint_function_check_reference_rotation ( tp_project, &projector, 5.e-12 );
+        }
 
 #if 0
         /******************************************************
