@@ -187,8 +187,8 @@ int main(int argc, char **argv) {
   const int interpolator_number       = 1;               // one (for now imaginary) interpolator
   const int interpolator_bispinor[1]  = {0};               // no need for bispinor now
   const int interpolator_parity[1]    = {1};               // intrinsic operator parity
-  const int interpolator_cartesian[1] = {1};               // spherical basis (0) or cartesian basis (1) ? cartesian basis only meaningful for J = 1, J2 = 2, i.e. 3-dim. representation
-  const int interpolator_J2[1]        = {2};
+  const int interpolator_cartesian[1] = {0};               // spherical basis (0) or cartesian basis (1) ? cartesian basis only meaningful for J = 1, J2 = 2, i.e. 3-dim. representation
+  const int interpolator_J2[1]        = {1};
   const char correlator_name[]    = "basis_vector";  // just some arbitrary name for now
 #if 0
 #endif
@@ -204,7 +204,7 @@ int main(int argc, char **argv) {
 #endif
 
   // reference frame rotation
-  int const refframerot = 9;  // C4x-
+  int const refframerot = -1;  // none
   // int const refframerot = 0;  // Id
 
   int ** interpolator_momentum_list = init_2level_itable ( interpolator_number, 3 );
@@ -220,7 +220,7 @@ int main(int argc, char **argv) {
    * loop on little groups
    ****************************************************/
   // for ( int ilg = 0; ilg < nlg; ilg++ )
-  for ( int ilg = 1; ilg <= 1; ilg++ )
+  for ( int ilg = 0; ilg <= 0; ilg++ )
   {
 
     const int n_irrep = lg[ilg].nirrep;
@@ -432,7 +432,12 @@ int main(int argc, char **argv) {
   /****************************************************/
   /****************************************************/
 
-  little_group_fini ( &lg, nlg );
+  for ( int i = 0; i < nlg; i++ ) {
+    little_group_fini ( &(lg[i]) );
+  }
+  free ( lg );
+
+
 
   /****************************************************/
   /****************************************************/
