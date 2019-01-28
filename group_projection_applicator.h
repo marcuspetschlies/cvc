@@ -48,10 +48,10 @@ typedef struct {
 /***********************************************************
  * abs max
  ***********************************************************/
-inline double dgeps (double const a, double const eps ) {
+inline double __dgeps (double const a, double const eps ) {
   double t = fabs ( a );
   return( t > eps ? a : 0. );
-}  // end of dgeps
+}  // end of __dgeps
 
 
 
@@ -313,7 +313,7 @@ inline little_group_projector_applicator_type * show_little_group_projector_appl
       if ( cabs ( a->c[iparity][irot] ) < eps ) continue;
       // fprintf ( myofs, "# [show_little_group_projector_applicator] rot %2d par %2d elem %-8s", irot+1 , 1 - 2*iparity, a->rotation_name[iparity][irot] );
       fprintf ( myofs, "     rot %2d par %2d elem %-8s", irot+1 , 1 - 2*iparity, a->rotation_name[iparity][irot] );
-      // fprintf ( myofs, "  c  %25.16e %25.16e\n", dgeps( creal( a->c[iparity][irot]), eps ), dgeps( cimag( a->c[iparity][irot]), eps ) );
+      // fprintf ( myofs, "  c  %25.16e %25.16e\n", __dgeps( creal( a->c[iparity][irot]), eps ), __dgeps( cimag( a->c[iparity][irot]), eps ) );
 
       for ( int iop = 0; iop < a->interpolator_n; iop++ ) {
         fprintf ( myofs, "  p%d (%2d %2d %2d)", iop+1, a->prot[iparity][irot][iop][0], a->prot[iparity][irot][iop][1], a->prot[iparity][irot][iop][2] );
@@ -325,8 +325,8 @@ inline little_group_projector_applicator_type * show_little_group_projector_appl
         // show the rotated basis vectors
         fprintf ( myofs, "  v%d (", iop+1);
         for ( int k = 0; k < a->interpolator_dim[iop]; k++ ) {
-          double const dre = dgeps ( creal( a->v[iparity][irot][iop][k]), eps );
-          double const dim = dgeps ( cimag( a->v[iparity][irot][iop][k]), eps );
+          double const dre = __dgeps ( creal( a->v[iparity][irot][iop][k]), eps );
+          double const dim = __dgeps ( cimag( a->v[iparity][irot][iop][k]), eps );
           fprintf ( myofs, " %16.7e +I %16.7e,", dre, dim );
               // creal( a->v[0][irot][iop][k]), cimag( a->v[0][irot][iop][k] ) );
         }
@@ -335,7 +335,7 @@ inline little_group_projector_applicator_type * show_little_group_projector_appl
 
       }  // end of loop on operators
 
-      fprintf ( myofs, "  c  %25.16e %25.16e\n", dgeps( creal( a->c[iparity][irot]), eps ), dgeps( cimag( a->c[iparity][irot]), eps ) );
+      fprintf ( myofs, "  c  %25.16e %25.16e\n", __dgeps( creal( a->c[iparity][irot]), eps ), __dgeps( cimag( a->c[iparity][irot]), eps ) );
 
     }  // end of loop on rotations
 
