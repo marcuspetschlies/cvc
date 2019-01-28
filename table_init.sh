@@ -13,6 +13,9 @@ MyName=$(echo $0 | awk -F\/ '{sub(/\.sh/,"",$NF);print $NF}')
 #TYPE="char"
 #TAG="c"
 
+#TYPE="twopoint_function_type"
+#TAG="2pt"
+
 TAG=$1
 if [ "X$TAG" == "X" ]; then
   echo "[$MyName] Error, need type identifier"
@@ -24,6 +27,7 @@ case "$TAG" in
   "d") TYPE="double";;
   "i") TYPE="int";;
   "c") TYPE="char";;
+  "2pt") TYPE="twopoint_function_type";;
   *) exit 1;;
 esac
 
