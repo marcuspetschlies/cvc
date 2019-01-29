@@ -47,7 +47,23 @@ int twopoint_function_accum_diagrams ( double _Complex *** const z, twopoint_fun
 
 int twopoint_function_correlator_from_h5_file ( twopoint_function_type * const p, int const io_proc );
 
-void twopoint_function_check_reference_rotation ( twopoint_function_type **** const tp, little_group_projector_type * const pr , double const deps );
+void twopoint_function_check_reference_rotation ( twopoint_function_type * const tp, little_group_projector_type * const pr , double const deps );
+
+/***************************************************************************/
+/***************************************************************************/
+
+/***************************************************************************
+ * coords to index
+ ***************************************************************************/
+inline unsigned int coords_to_index ( const int * coords, const unsigned int * dims, const unsigned int n ) {
+
+  unsigned int res = coords[0];
+  for ( unsigned int i = 1; i < n; i++ ) {
+    res = res * dims[i] + coords[i];
+  }
+  return ( res );
+}  /* end of coords_to_index */
+
 
 }  // end of namespace cvc
 

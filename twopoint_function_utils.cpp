@@ -232,7 +232,7 @@ void twopoint_function_print_diagram_key (char*key, twopoint_function_type *p, i
   char comma[] = ",";
   char *ptr = NULL;
   char diag_str[20];
-  char diagrams[400];
+  char diagrams[_TWOPOINT_FUNCTION_TYPE_MAX_STRING_LENGTH];
   char fbwd_str[20] = "";
 
   if ( ! ( strcmp( p->fbwd, "NA" ) == 0 ) ) {
@@ -520,7 +520,7 @@ void twopoint_function_get_diagram_name (char *diagram_name,  twopoint_function_
 
   char comma[] = ",";
   char *ptr = NULL;
-  char diagrams[500];
+  char diagrams[_TWOPOINT_FUNCTION_TYPE_MAX_STRING_LENGTH];
   strcpy ( diagram_name, "NA" );
 
   strcpy( diagrams, p->diagrams );
@@ -1809,12 +1809,13 @@ int twopoint_function_correlator_from_h5_file ( twopoint_function_type * const p
 /***************************************************************************
  *
  ***************************************************************************/
-void twopoint_function_check_reference_rotation ( twopoint_function_type **** const tp, little_group_projector_type * const pr, double const deps ) {
+void twopoint_function_check_reference_rotation ( twopoint_function_type * const tp, little_group_projector_type * const pr, double const deps ) {
 
   int const dim       = pr->rspin[0].dim;
   int const irrep_dim = pr->rtarget->dim;
   int const nrot      = pr->rtarget->n;
-  int const nT        = tp[0][0][0][0].T;
+  int const nT        = tp[0].T;
+  unsigned int const index_conv_dim[4] = { irrep_dim, irrep_dim, irrep_dim, irrep_dim };
 
   char name[400];
 
@@ -1847,13 +1848,17 @@ void twopoint_function_check_reference_rotation ( twopoint_function_type **** co
           double _Complex ** Raux = init_2level_ztable ( dim, dim ) ;
 
           for ( int iref2 = 0; iref2 < irrep_dim; iref2++ ) {
-            rot_mat_ti_mat ( R1[iref2], tp[iref1][iref2][row_snk][row_src].c[0][it], Rspin, dim );
+            int const coords[] = { iref1, iref2, row_snk, row_src };
+            unsigned int idx = coords_to_index (  coords, index_conv_dim, 4 );
+            rot_mat_ti_mat ( R1[iref2], tp[ idx ].c[0][it], Rspin, dim );
           }
 
           for ( int iref2 = 0; iref2 < irrep_dim; iref2++ ) {
             for ( int i = 0; i < irrep_dim; i++ ) {
+              int const coords[] = { iref1, i, row_snk, row_src };
+              unsigned int idx = coords_to_index (  coords, index_conv_dim, 4 );
               /* R2 += Tirrep Cproj */
-              rot_mat_pl_eq_mat_ti_co ( R2[iref2], tp[iref1][i][row_snk][row_src].c[0][it], Tirrep[iref2][i], dim );
+              rot_mat_pl_eq_mat_ti_co ( R2[iref2], tp[ idx ].c[0][it], Tirrep[iref2][i], dim );
             }
           }
 
@@ -1911,13 +1916,18 @@ void twopoint_function_check_reference_rotation ( twopoint_function_type **** co
           double _Complex ** Raux = init_2level_ztable ( dim, dim ) ;
 
           for ( int iref1 = 0; iref1 < irrep_dim; iref1++ ) {
-            rot_mat_adj_ti_mat ( R1[iref1], Rspin, tp[iref1][iref2][row_snk][row_src].c[0][it], dim );
+            int const coords[] = { iref1, iref2, row_snk, row_src };
+            unsigned int const idx = coords_to_index ( coords, index_conv_dim, 4 );
+            rot_mat_adj_ti_mat ( R1[iref1], Rspin, tp[ idx ].c[0][it], dim );
           }
 
           for ( int iref1 = 0; iref1 < irrep_dim; iref1++ ) {
             for ( int i = 0; i < irrep_dim; i++ ) {
+
+              int const coords[] = { i, iref2, row_snk, row_src };
+              unsigned int const idx = coords_to_index ( coords, index_conv_dim, 4 );
               /* R2 += Tirrep Cproj */
-              rot_mat_pl_eq_mat_ti_co ( R2[iref1], tp[i][iref2][row_snk][row_src].c[0][it], conj( Tirrep[iref1][i] ), dim );
+              rot_mat_pl_eq_mat_ti_co ( R2[iref1], tp[ idx ].c[0][it], conj( Tirrep[iref1][i] ), dim );
             }
           }
 
