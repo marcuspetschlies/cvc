@@ -440,7 +440,7 @@ int main(int argc, char **argv) {
     /******************************************************
      * check the rotation property
      ******************************************************/
-    twopoint_function_check_reference_rotation ( Cproj, &projector, 1.e-12 );
+    twopoint_function_check_reference_rotation ( Cproj[0][0][0], &projector, 1.e-12 );
 
     /******************************************************
      * deallocate
