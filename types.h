@@ -8,15 +8,17 @@ typedef double * fermion_vector_type;
 typedef double ** fermion_propagator_type;
 typedef double ** spinor_propagator_type;
 
+#define _TWOPOINT_FUNCTION_TYPE_MAX_STRING_LENGTH 1200
+
 typedef struct {
   // type, m-m, b-b, mxb-b, mxb-mxb
   char type [20];
   // name of 2-pt function
-  char name[500];
+  char name[_TWOPOINT_FUNCTION_TYPE_MAX_STRING_LENGTH];
   // number of diagrams
   int n;
   // list of diagrams
-  char diagrams[500];
+  char diagrams[_TWOPOINT_FUNCTION_TYPE_MAX_STRING_LENGTH];
   // momenta at up to 4 vertices, default 0,0,0
   int pi1[3];
   int pi2[3];
@@ -36,7 +38,7 @@ typedef struct {
   // reorder in time -1 / 0 [default] / +1
   int reorder;
   // normalization for diagrams
-  char norm[500];
+  char norm[_TWOPOINT_FUNCTION_TYPE_MAX_STRING_LENGTH];
   // fwd / bwd propagation, default "NA"
   char fbwd[20];
   // number of timeslices, default -1, will be set to T_global
