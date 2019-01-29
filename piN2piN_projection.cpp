@@ -376,7 +376,7 @@ int main(int argc, char **argv) {
           fprintf ( stderr, "[piN2piN_projection] Error from a init_4level_2pttable %s %d\n", __FILE__, __LINE__ );
           EXIT(124);
         }
- 
+
         /******************************************************
          * loop on elements of tp_project
          * - initialize
@@ -746,7 +746,7 @@ int main(int argc, char **argv) {
          ******************************************************/
 
         if ( check_reference_rotation ) {
-          twopoint_function_check_reference_rotation ( tp_project, &projector, 5.e-12 );
+          twopoint_function_check_reference_rotation ( tp_project[0][0][0], &projector, 5.e-12 );
         }
 
 #if 0
