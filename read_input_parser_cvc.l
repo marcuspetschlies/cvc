@@ -1141,7 +1141,7 @@ namespace cvc {
 }
 
 <INITTWOPOINTFUNCTION>Init{SPC}* {
-  if(cvc::g_twopoint_function_number==MAX_MXB_MXB_2PT_NUM) {
+  if(cvc::g_twopoint_function_number==MAX_TWOPOINT_FUNCTION_NUM) {
     fprintf(stderr, "[read_input_parser] Error, too many twopoint_function\n");
     exit(1);
   }
