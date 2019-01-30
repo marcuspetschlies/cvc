@@ -2,7 +2,6 @@
  * test_correlator_read
  * 
  * PURPOSE:
- *   originally copied from piN2piN_correlators.cpp
  * TODO:
  * DONE:
  *
@@ -82,12 +81,6 @@ int main(int argc, char **argv) {
   char filename[200];
   double ratime, retime;
   FILE *ofs = NULL;
-
-  int udli_count = 0;
-  char udli_list[MAX_UDLI_NUM][500];
-  char udli_name[500];
-  twopoint_function_type *udli_ptr[MAX_UDLI_NUM];
-
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
@@ -196,172 +189,137 @@ int main(int argc, char **argv) {
 
     fclose ( ofs );
 
-    /****************************************************
-     * read little group parameters
-     ****************************************************/
-    little_group_type little_group;
-    if ( ( exitstatus = little_group_read ( &little_group, tp->group, little_group_list_filename ) ) != 0 ) {
-      fprintf ( stderr, "[test_correlator_read] Error from little_group_read, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-      EXIT(2);
-    }
+  }  // end of loop on reading of 2-point functions
+
+  /****************************************************
+   * take all info about group etc. for projector
+   * from twopoint function zero
+   ****************************************************/
+  twopoint_function_type * tp = &(g_twopoint_function_list[0]);
+
+  /****************************************************
+   * read little group parameters
+   ****************************************************/
+  little_group_type little_group;
+  if ( ( exitstatus = little_group_read ( &little_group, tp->group, little_group_list_filename ) ) != 0 ) {
+    fprintf ( stderr, "[test_correlator_read] Error from little_group_read, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    EXIT(2);
+  }
     
-    sprintf ( filename, "little_group_%d.show", i2pt );
-    if ( ( ofs = fopen ( filename, "w" ) ) == NULL ) {
-      fprintf ( stderr, "[test_correlator_read] Error from fopen %s %d\n", __FILE__, __LINE__ );
-      EXIT(12);
-    }
-    little_group_show ( &little_group, ofs, 1 );
-    fclose ( ofs );
+  sprintf ( filename, "little_group_%d.show", 0 );
+  if ( ( ofs = fopen ( filename, "w" ) ) == NULL ) {
+    fprintf ( stderr, "[test_correlator_read] Error from fopen %s %d\n", __FILE__, __LINE__ );
+    EXIT(12);
+  }
+  little_group_show ( &little_group, ofs, 1 );
+  fclose ( ofs );
 
-    /****************************************************
-     * initialize and set projector 
-     * for current little group and irrep
-     ****************************************************/
-    little_group_projector_type projector;
-    if ( ( exitstatus = init_little_group_projector ( &projector ) ) != 0 ) {
-      fprintf ( stderr, "# [test_correlator_read] Error from init_little_group_projector, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(2);
-    }
+  /****************************************************
+   * initialize and set projector 
+   * for current little group and irrep
+   ****************************************************/
+  little_group_projector_type projector;
+  if ( ( exitstatus = init_little_group_projector ( &projector ) ) != 0 ) {
+    fprintf ( stderr, "# [test_correlator_read] Error from init_little_group_projector, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(2);
+  }
 
-    /****************************************************
-     * parameters for setting the projector
-     ****************************************************/
-    int ref_row_target          = -1;     // no reference row for target irrep
-    int * ref_row_spin          = NULL;   // no reference row for spin matrices
-    int refframerot             = -1;     // reference frame rotation
+  /****************************************************
+   * parameters for setting the projector
+   ****************************************************/
+  int ref_row_target          = -1;     // no reference row for target irrep
+  int * ref_row_spin          = NULL;   // no reference row for spin matrices
+  int refframerot             = -1;     // reference frame rotation
                                           //   added below
-    int row_target              = -1;     // no target row
-    int cartesian_list[1]       = { 0 };  // not cartesian
-    int parity_list[1]          = { 1 };  // intrinsic parity is +1
-    const int ** momentum_list  = NULL;   // no momentum list given
-    int bispinor_list[1]        = { 1 };  // bispinor yes
-    int J2_list[1]              = { 1 };  // spin 1/2
-    int Pref[3] = {-1,-1,-1};
+  int row_target              = -1;     // no target row
+  int cartesian_list[1]       = { 0 };  // not cartesian
+  int parity_list[1]          = { 1 };  // intrinsic parity is +1
+  const int ** momentum_list  = NULL;   // no momentum list given
+  int bispinor_list[1]        = { 1 };  // bispinor yes
+  int J2_list[1]              = { 1 };  // spin 1/2
+  int Pref[3] = {-1,-1,-1};
 
-    int const Ptot[3] = {
+  int const Ptot[3] = {
       tp->pf1[0] + tp->pf2[0],
       tp->pf1[1] + tp->pf2[1],
       tp->pf1[2] + tp->pf2[2] };
 
-    /* if ( g_verbose > 1 ) fprintf ( stdout, "# [test_correlator_read] twopoint_function %3d Ptot = %3d %3d %3d\n", i2pt, 
-        Ptot[0], Ptot[1], Ptot[2] ); */
+  if ( g_verbose > 3 ) fprintf ( stdout, "# [test_correlator_read] twopoint_function Ptot = %3d %3d %3d\n", Ptot[0], Ptot[1], Ptot[2] );
 
-    /****************************************************
-     * do we need a reference frame rotation ?
-     ****************************************************/
-    exitstatus = get_reference_rotation ( Pref, &refframerot, Ptot );
-    if ( exitstatus != 0 ) {
-      fprintf ( stderr, "[test_correlator_read] Error from get_reference_rotation, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(4);
-    } else if ( g_verbose > 1 ) {
-      fprintf ( stdout, "# [test_correlator_read] twopoint_function %3d Ptot = %3d %3d %3d refframerot %2d for Pref = %3d %3d %3d\n", i2pt, 
-          Ptot[0], Ptot[1], Ptot[2], refframerot, Pref[0], Pref[1], Pref[2]);
-    }
+  /****************************************************
+   * do we need a reference frame rotation ?
+   ****************************************************/
+  exitstatus = get_reference_rotation ( Pref, &refframerot, Ptot );
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "[test_correlator_read] Error from get_reference_rotation, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(4);
+  } else if ( g_verbose > 1 ) {
+    fprintf ( stdout, "# [test_correlator_read] twopoint_function Ptot = %3d %3d %3d refframerot %2d for Pref = %3d %3d %3d\n", 
+        Ptot[0], Ptot[1], Ptot[2], refframerot, Pref[0], Pref[1], Pref[2]);
+  }
 
-    fflush ( stdout );
+  fflush ( stdout );
 
-    /****************************************************
-     * set the projector with the info we have
-     ****************************************************/
-    exitstatus = little_group_projector_set (
-        &projector,
-        &little_group,
-        tp->irrep ,
-        row_target,
-        1,
-        J2_list,
-        momentum_list,
-        bispinor_list,
-        parity_list,
-        cartesian_list,
-        ref_row_target,
-        ref_row_spin,
-        tp->type,
-        refframerot );
+  /****************************************************
+   * set the projector with the info we have
+   ****************************************************/
+  exitstatus = little_group_projector_set (
+      &projector,
+      &little_group,
+      tp->irrep ,
+      row_target,
+      1,
+      J2_list,
+      momentum_list,
+      bispinor_list,
+      parity_list,
+      cartesian_list,
+      ref_row_target,
+      ref_row_spin,
+      tp->type,
+      refframerot );
 
-    if ( exitstatus != 0 ) {
-      fprintf ( stderr, "[test_correlator_read] Error from little_group_projector_set, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(3);
-    }
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "[test_correlator_read] Error from little_group_projector_set, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(3);
+  }
 
-    sprintf ( filename, "little_group_projector_%d.show", i2pt );
-    if ( ( ofs = fopen ( filename, "w" ) ) == NULL ) {
-      fprintf ( stderr, "[test_correlator_read] Error from fopen %s %d\n", __FILE__, __LINE__ );
-      EXIT(12);
-    }
-    exitstatus = little_group_projector_show ( &projector, ofs, 1 );
-    fclose ( ofs );
+  sprintf ( filename, "little_group_projector_%d.show", 0 );
+  if ( ( ofs = fopen ( filename, "w" ) ) == NULL ) {
+    fprintf ( stderr, "[test_correlator_read] Error from fopen %s %d\n", __FILE__, __LINE__ );
+    EXIT(12);
+  }
+  exitstatus = little_group_projector_show ( &projector, ofs, 1 );
+  fclose ( ofs );
 
-    /****************************************************
-     * check, that projector has correct d-vector
-     ****************************************************/
-    if ( ( projector.P[0] != Ptot[0] ) || ( projector.P[1] != Ptot[1] ) || ( projector.P[2] != Ptot[2] ) ) {
-      fprintf ( stderr, "[test_correlator_read] Error, projector P != Ptot\n" );
-      EXIT(12);
-    } else {
-      if ( g_verbose > 2 ) fprintf ( stdout, "# [test_correlator_read] projector P == Ptot\n" );
-    }
+  /****************************************************
+   * check, that projector has correct d-vector
+   ****************************************************/
+  if ( ( projector.P[0] != Ptot[0] ) || ( projector.P[1] != Ptot[1] ) || ( projector.P[2] != Ptot[2] ) ) {
+    fprintf ( stderr, "[test_correlator_read] Error, projector P != Ptot\n" );
+    EXIT(12);
+  } else {
+    if ( g_verbose > 2 ) fprintf ( stdout, "# [test_correlator_read] projector P == Ptot\n" );
+  }
 
-    /****************************************************
-     * apply projector to twopoint function data
-     ****************************************************/
-    int const nrot  = projector.rtarget->n;
+  /****************************************************
+   * check the transformation behaviour with respect
+   * to reference indices
+   *
+   * NOTE: Assume, that everything relevant has been read
+   ****************************************************/
+  /* twopoint_function_check_reference_rotation ( g_twopoint_function_list, &projector, 5.e-12 ); */
+  twopoint_function_check_reference_rotation_vector_spinor ( g_twopoint_function_list, &projector, 5.e-12 );
 
-    /* proper rotations */
-    /* for ( int irot = 0; irot < nrot; irot++ ) */
-    for ( int irot = 0; irot < 2; irot++ )
-    {
+  /******************************************************
+   * deallocate space inside little_group
+   ******************************************************/
+  little_group_fini ( &little_group );
 
-      for ( int it = 0; it < tp->T; it++ )
-      {
-        double _Complex *** CS = init_3level_ztable ( projector.rtarget->dim, tp->d, tp->d );
-        double _Complex *** CT = init_3level_ztable ( projector.rtarget->dim, tp->d, tp->d );
-
-        /* C^{irrep src}_{spin-J ref_snk, spin-J ref_src} x S^J_{r,r'} */
-        for ( int ir = 0; ir < projector.rtarget->dim; ir++ ) {
-          rot_mat_ti_mat ( CS[ir], tp->c[ir][it], projector.rspin[0].R[irot], tp->d );
-        }
-
-        /* T^Gamma__{ir, ref_snk} x C^{irrep src}_{spin-J ref_snk, spin-J ref_src} x S^J_{r,r'} */
-
-        for ( int ir = 0; ir < projector.rtarget->dim; ir++ ) {
-          for ( int kr = 0; kr < projector.rtarget->dim; kr++ ) {
-            rot_mat_pl_eq_mat_ti_co ( CT[ir], tp->c[kr][it], projector.rtarget->R[irot][ir][kr], tp->d );
-          }
-        }
- 
-        for ( int ir = 0; ir < projector.rtarget->dim; ir++ ) {
-          double const diff = rot_mat_norm_diff ( CT[ir], CS[ir], tp->d );
-          double const norm = sqrt ( rot_mat_norm2 ( CT[ir], tp->d ) );
-
-          fprintf ( stdout, "# [test_correlator_read] 2pt %2d rot %2d t %3d ref_src %2d diff %16.7e norm %16.7e\n", i2pt, irot, it, ir, diff, norm );
-       
-        }
-
-        fini_3level_ztable ( &CS );
-        fini_3level_ztable ( &CT );
-
-      }  /* end of loop on timeslices */
-    }  /* end of loop on rotations */  
-
-#if 0
-    /* rotation-reflections */
-    for ( int irot = 0; irot < nrot; irot++ ) {
-
-    }
-#endif  /* of if 0 */
-
-    /******************************************************
-     * deallocate space inside little_group
-     ******************************************************/
-    little_group_fini ( &little_group );
-
-    /******************************************************
-     * deallocate space inside projector
-     ******************************************************/
-    fini_little_group_projector ( &projector );
-
-  }  // end of loop on 2-point functions
+  /******************************************************
+   * deallocate space inside projector
+   ******************************************************/
+  fini_little_group_projector ( &projector );
 
   /******************************************************/
   /******************************************************/
