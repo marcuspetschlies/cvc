@@ -749,7 +749,6 @@ int main(int argc, char **argv) {
           twopoint_function_check_reference_rotation ( tp_project[0][0][0], &projector, 5.e-12 );
         }
 
-#if 0
         /******************************************************
          * output of tp_project
          *
@@ -785,7 +784,6 @@ int main(int argc, char **argv) {
           }
 
         }  /* end of loop on 2-point functions */
-#endif  /* of if 0 */
 
         /******************************************************
          * deallocate twopoint_function vars tp and tp_project
