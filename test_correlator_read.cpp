@@ -178,18 +178,23 @@ int main(int argc, char **argv) {
     /******************************************************
      * print the 2-point function parameters
      ******************************************************/
-    sprintf ( filename, "twopoint_function_%d.show", i2pt );
-    if ( ( ofs = fopen ( filename, "w" ) ) == NULL ) {
-      fprintf ( stderr, "[test_correlator_read] Error from fopen %s %d\n", __FILE__, __LINE__ );
-      EXIT(12);
-    }
-    twopoint_function_print ( tp, "TWPT", ofs );
+    if ( g_verbose > 2 ) {
+      sprintf ( filename, "twopoint_function_%d.show", i2pt );
+      if ( ( ofs = fopen ( filename, "w" ) ) == NULL ) {
+        fprintf ( stderr, "[test_correlator_read] Error from fopen %s %d\n", __FILE__, __LINE__ );
+        EXIT(12);
+      }
+      twopoint_function_print ( tp, "TWPT", ofs );
 
-    twopoint_function_show_data ( tp, ofs );
+      twopoint_function_show_data ( tp, ofs );
 
-    fclose ( ofs );
+      fclose ( ofs );
+
+    }  /* end of if verbose > 2 */
 
   }  // end of loop on reading of 2-point functions
+
+#if 0 
 
   /****************************************************
    * take all info about group etc. for projector
@@ -320,6 +325,8 @@ int main(int argc, char **argv) {
    * deallocate space inside projector
    ******************************************************/
   fini_little_group_projector ( &projector );
+
+#endif
 
   /******************************************************/
   /******************************************************/
