@@ -1811,10 +1811,10 @@ int twopoint_function_correlator_from_h5_file ( twopoint_function_type * const p
  ***************************************************************************/
 void twopoint_function_check_reference_rotation ( twopoint_function_type * const tp, little_group_projector_type * const pr, double const deps ) {
 
-  int const dim       = pr->rspin[0].dim;
-  int const irrep_dim = pr->rtarget->dim;
-  int const nrot      = pr->rtarget->n;
-  int const nT        = tp[0].T;
+  unsigned int const dim       = pr->rspin[0].dim;
+  unsigned int const irrep_dim = pr->rtarget->dim;
+  unsigned int const nrot      = pr->rtarget->n;
+  unsigned int const nT        = tp[0].T;
   unsigned int const index_conv_dim[4] = { irrep_dim, irrep_dim, irrep_dim, irrep_dim };
 
   char name[400];
@@ -1969,10 +1969,10 @@ void twopoint_function_check_reference_rotation ( twopoint_function_type * const
  ***************************************************************************/
 void twopoint_function_check_reference_rotation_vector_spinor ( twopoint_function_type * const tp, little_group_projector_type * const pr, double const deps ) {
 
-  int const dim       = pr->rspin[0].dim;
-  int const irrep_dim = pr->rtarget->dim;
-  int const nrot      = pr->rtarget->n;
-  int const nT        = tp[0].T;
+  unsigned int const dim       = pr->rspin[0].dim;
+  unsigned int const irrep_dim = pr->rtarget->dim;
+  unsigned int const nrot      = pr->rtarget->n;
+  unsigned int const nT        = tp[0].T;
   unsigned int const index_conv_dim[4] = { irrep_dim, irrep_dim, irrep_dim, irrep_dim };
 
   char name[400];
@@ -2118,8 +2118,5 @@ void twopoint_function_check_reference_rotation_vector_spinor ( twopoint_functio
   }}  /* end of loops on row_src, row_snk */
 
 }  /* end of twopoint_function_check_reference_rotation */
-
-
-}  // end of namespace cvc
 
 }  // end of namespace cvc

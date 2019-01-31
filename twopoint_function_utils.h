@@ -49,6 +49,8 @@ int twopoint_function_correlator_from_h5_file ( twopoint_function_type * const p
 
 void twopoint_function_check_reference_rotation ( twopoint_function_type * const tp, little_group_projector_type * const pr , double const deps );
 
+void twopoint_function_check_reference_rotation_vector_spinor ( twopoint_function_type * const tp, little_group_projector_type * const pr, double const deps );
+
 /***************************************************************************/
 /***************************************************************************/
 
