@@ -11,6 +11,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wall")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wall")
+
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -g -ggdb")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -g -ggdb")
+
 # we will collect any libraries that we want to link against to compile
 # CVC main programs in this list which we grow below with list(APPEND cvc_libraries [...])
 set(cvc_libraries)
@@ -261,7 +267,8 @@ list(APPEND SOURCES "${CMAKE_CURRENT_BINARY_DIR}/gitversion.cpp")
 
 find_package(Boost
              REQUIRED
-             program_options)
+             program_options
+             graph)
 if( NOT Boost_FOUND )
   message( FATAL_ERROR "Unable to find Boost. Did you try specifying -DBOOST_ROOT?")
 else()

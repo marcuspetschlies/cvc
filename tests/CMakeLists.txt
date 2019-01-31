@@ -31,6 +31,9 @@ target_link_libraries(test_meta_types ${cvc_libraries})
 add_executable(test_threept_oet_shifts test_threept_oet_shifts.cpp)
 target_link_libraries(test_threept_oet_shifts cvc ${cvc_libraries})
 
+add_executable(boost_graph boost_graph.cpp)
+target_link_libraries(boost_graph ${cvc_libraries})
+
 # copy over test file for test of h5utils
 configure_file(${CMAKE_SOURCE_DIR}/tests/test.h5
   ${CMAKE_BINARY_DIR}/tests/test.h5
