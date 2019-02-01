@@ -759,11 +759,19 @@ int main(int argc, char **argv) {
           twopoint_function_type * tp_project_ptr = tp_project[0][0][0];
 
           /******************************************************
-           * multiply overall phase factor and group projection
-           * normalization
+           * multiply group projection normalization
            ******************************************************/
-          double _Complex const ztmp = twopoint_function_get_correlator_phase ( &(tp_project_ptr[itp]) ) * \
-                                       (double)( projector.rtarget->dim * projector.rtarget->dim ) / \
+          /* No, not this part, 
+           * twopoint_function_get_correlator_phase ( &(tp_project_ptr[itp]) )
+           *
+           * this has been added in piN2piN_diagrams_complete via
+           * via factor in zsign from function contract_diagram_get_correlator_phase */
+
+          /* ztmp given by ( irrep_dim / number of little group members )^2
+           *   factor of 4 because ...->n is the number of proper rotations only,
+           *   so half the number group elements
+           */
+          double _Complex const ztmp = (double)( projector.rtarget->dim * projector.rtarget->dim ) / \
                                        ( 4. *    projector.rtarget->n   * projector.rtarget->n );
 
           if ( g_verbose > 4 ) fprintf ( stdout, "# [piN2piN_projection] correlator norm = %25.16e %25.16e\n", creal( ztmp ), cimag( ztmp ) );
