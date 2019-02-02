@@ -49,6 +49,8 @@ long unsigned int factorial (int n);
 
 void rot_mat_unity ( double _Complex **R, int N );
 
+void rot_mat_zero ( double _Complex **R, int N );
+
 void rot_axis2polar ( double*theta, double*phi, int n[3] );
 
 void rot_rotation_matrix_spherical_basis ( double _Complex**R, int J2, int n[3], double w);
