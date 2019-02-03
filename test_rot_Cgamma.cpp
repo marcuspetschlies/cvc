@@ -198,8 +198,7 @@ int main(int argc, char **argv) {
   /***********************************************************
    * loop on rotations
    ***********************************************************/
-  /* for(int irot=0; irot < 48; irot++ ) */
-  for(int irot=1; irot <= 1; irot++ )
+  for(int irot=0; irot < 48; irot++ )
   {
 
     fprintf(stdout, "\n\n# [test_rot_Cgamma] rot no %2d\n", irot );
@@ -259,10 +258,11 @@ int main(int argc, char **argv) {
 
       for ( int k = 0; k < 3; k++ ) {
 
-        double _Complex const zcoeff = -R[k][i] * g_gamma_transposed_sign[k+1] * g_gamma_transposed_sign[i+1];
+        double _Complex const zcoeff = R[k][i] * g_gamma_transposed_sign[k+1] * g_gamma_transposed_sign[i+1];
+
         fprintf ( stdout, "# [test_rot_Cgamma] zcoeff = %25.16e %25.16e\n", creal(zcoeff), cimag(zcoeff) );
 
-        rot_mat_pl_eq_mat_ti_co ( A, g[k+1].m, R[k][i] * g_gamma_transposed_sign[k+1] * g_gamma_transposed_sign[i+1] , 4);
+        rot_mat_pl_eq_mat_ti_co ( A, g[k+1].m, zcoeff, 4 );
       }
       rot_printf_matrix ( A, 4, "A", stdout );
 
