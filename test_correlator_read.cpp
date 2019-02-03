@@ -194,7 +194,6 @@ int main(int argc, char **argv) {
 
   }  // end of loop on reading of 2-point functions
 
-#if 0 
 
   /****************************************************
    * take all info about group etc. for projector
@@ -232,16 +231,16 @@ int main(int argc, char **argv) {
   /****************************************************
    * parameters for setting the projector
    ****************************************************/
-  int ref_row_target          = -1;     // no reference row for target irrep
-  int * ref_row_spin          = NULL;   // no reference row for spin matrices
-  int refframerot             = -1;     // reference frame rotation
-                                          //   added below
-  int row_target              = -1;     // no target row
-  int cartesian_list[1]       = { 0 };  // not cartesian
-  int parity_list[1]          = { 1 };  // intrinsic parity is +1
-  const int ** momentum_list  = NULL;   // no momentum list given
-  int bispinor_list[1]        = { 1 };  // bispinor yes
-  int J2_list[1]              = { 1 };  // spin 1/2
+  int ref_row_target          = -1;        // no reference row for target irrep
+  int * ref_row_spin          = NULL;      // no reference row for spin matrices
+  int refframerot             = -1;        // reference frame rotation
+                                           //   added below
+  int row_target              = -1;        // no target row
+  int cartesian_list[2]       = { 0, 1 };  // not cartesian
+  int parity_list[2]          = { 1, 1 };  // intrinsic parity is +1
+  const int ** momentum_list  = NULL;      // no momentum list given
+  int bispinor_list[2]        = { 1, 0 };  // bispinor yes
+  int J2_list[2]              = { 1, 2 };  // spin 1/2
   int Pref[3] = {-1,-1,-1};
 
   int const Ptot[3] = {
@@ -273,7 +272,7 @@ int main(int argc, char **argv) {
       &little_group,
       tp->irrep ,
       row_target,
-      1,
+      2,
       J2_list,
       momentum_list,
       bispinor_list,
@@ -326,6 +325,7 @@ int main(int argc, char **argv) {
    ******************************************************/
   fini_little_group_projector ( &projector );
 
+#if 0 
 #endif
 
   /******************************************************/
