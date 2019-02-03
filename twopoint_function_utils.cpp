@@ -1969,11 +1969,12 @@ void twopoint_function_check_reference_rotation ( twopoint_function_type * const
  ***************************************************************************/
 void twopoint_function_check_reference_rotation_vector_spinor ( twopoint_function_type * const tp, little_group_projector_type * const pr, double const deps ) {
 
-  unsigned int const dim       = pr->rspin[0].dim;
-  unsigned int const irrep_dim = pr->rtarget->dim;
-  unsigned int const nrot      = pr->rtarget->n;
-  unsigned int const nT        = tp[0].T;
-  unsigned int const index_conv_dim[4] = { irrep_dim, irrep_dim, irrep_dim, irrep_dim };
+  unsigned int const spinor_dim        = pr->rspin[0].dim;
+  unsigned int const vector_dim        = pr->rspin[1].dim;
+  unsigned int const irrep_dim         = pr->rtarget->dim;
+  unsigned int const nrot              = pr->rtarget->n;
+  unsigned int const nT                = tp[0].T;
+  unsigned int const index_conv_dim[6] = { irrep_dim, irrep_dim, irrep_dim, irrep_dim, vector_dim, vector_dim };
 
   char name[400];
 
@@ -1989,56 +1990,108 @@ void twopoint_function_check_reference_rotation_vector_spinor ( twopoint_functio
       for ( int irot = 0; irot < 2*nrot; irot++ )
       {
         double _Complex ** Rspin  = ( irot < nrot ) ? pr->rspin[0].R[irot] :  pr->rspin[0].IR[irot-nrot];
+        double _Complex ** Rvec   = ( irot < nrot ) ? pr->rspin[1].R[irot] :  pr->rspin[1].IR[irot-nrot];
         double _Complex ** Tirrep = ( irot < nrot ) ? pr->rtarget->R[irot] :  pr->rtarget->IR[irot-nrot];
 
-        fprintf ( stdout, "# [twopoint_function_check_reference_rotation] \n# [test_ref_rotation] \n" );
+        fprintf ( stdout, "# [twopoint_function_check_reference_rotation_vector_spinor] \n# [test_ref_rotation] \n" );
 
+        /******************************************************
+         * show the spinor rotation matrix
+         ******************************************************/
         if ( g_verbose > 2 ) {
-          sprintf ( name, "R%.2d", irot );
-          rot_printf_matrix ( Rspin, dim, name, stdout );
-          fprintf ( stdout, "# [twopoint_function_check_reference_rotation] \n" );
+          sprintf ( name, "Rspin%.2d", irot );
+          rot_printf_matrix ( Rspin, spinor_dim, name, stdout );
+          fprintf ( stdout, "# [twopoint_function_check_reference_rotation_vector_spinor] \n\n" );
+
+          sprintf ( name, "Rvec%.2d", irot );
+          rot_printf_matrix ( Rvec, vector_dim, name, stdout );
+          fprintf ( stdout, "# [twopoint_function_check_reference_rotation_vector_spinor] \n\n" );
         }
 
         for ( int it = 0; it < nT; it ++ ) {
 
-          double _Complex *** R1  = init_3level_ztable ( irrep_dim, dim, dim ) ;
-          double _Complex *** R2  = init_3level_ztable ( irrep_dim, dim, dim ) ;
-          double _Complex ** Raux = init_2level_ztable ( dim, dim ) ;
+          double _Complex ***** R1  = init_5level_ztable ( irrep_dim, vector_dim, vector_dim, spinor_dim, spinor_dim );
+          double _Complex ***** R2  = init_5level_ztable ( irrep_dim, vector_dim, vector_dim, spinor_dim, spinor_dim );
+          double _Complex ** Raux = init_2level_ztable ( spinor_dim, spinor_dim ) ;
 
-          for ( int iref2 = 0; iref2 < irrep_dim; iref2++ ) {
-            int const coords[] = { iref1, iref2, row_snk, row_src };
-            unsigned int idx = coords_to_index (  coords, index_conv_dim, 4 );
-            rot_mat_ti_mat ( R1[iref2], tp[ idx ].c[0][it], Rspin, dim );
-          }
-
-          for ( int iref2 = 0; iref2 < irrep_dim; iref2++ ) {
-            for ( int i = 0; i < irrep_dim; i++ ) {
-              int const coords[] = { iref1, i, row_snk, row_src };
-              unsigned int idx = coords_to_index (  coords, index_conv_dim, 4 );
-              /* R2 += Tirrep Cproj */
-              rot_mat_pl_eq_mat_ti_co ( R2[iref2], tp[ idx ].c[0][it], Tirrep[iref2][i], dim );
-            }
-          }
-
+          /******************************************************
+           * R1_{iref2; vi, vk} =
+           *
+           *   tp_{iref1,iref2,row_snk,row_src; vi,vj} Rvec_{vj,vk} Rspin
+           ******************************************************/
           for ( int iref2 = 0; iref2 < irrep_dim; iref2++ ) {
 
-            sprintf ( name, "Rsnk_r%.2d_t%.2d_ref%d_%d_%d_%d", irot, it, row_snk, row_src, iref1, iref2 );
-            if ( g_verbose > 2 ) {
-              rot_printf_matrix_comp ( R1[iref2], R2[iref2], dim, name, stdout );
-            }
+            for ( int vi = 0; vi < vector_dim; vi++ ) {
+            for ( int vk = 0; vk < vector_dim; vk++ ) {
 
-            double const diff = rot_mat_norm_diff ( R1[iref2], R2[iref2], dim );
-            double const norm = sqrt ( rot_mat_norm2 ( R1[iref2], dim ) );
+              rot_mat_zero ( R1[iref2][vi][vk], spinor_dim );
+   
+              for ( int vj = 0; vj < vector_dim; vj++ ) {
 
-            if ( ( norm > deps && diff/norm < deps ) || ( norm <= deps && diff <= deps ) ) {
-              fprintf ( stdout, "# [twopoint_function_check_reference_rotation] %s diff norm %e    %e  okay\n\n", name, diff, norm );
-            } else {
-              fprintf ( stdout, "# [twopoint_function_check_reference_rotation] %s diff norm %e    %e  ERROR\n\n", name, diff, norm );
-            }
-          }
+                int const coords[] = { iref1, iref2, row_snk, row_src, vi, vj };
+                unsigned int idx = coords_to_index (  coords, index_conv_dim, 6 );
 
-          fini_3level_ztable ( &R1 );
-          fini_3level_ztable ( &R2 );
+                rot_mat_ti_mat ( Raux, tp[ idx ].c[0][it], Rspin, spinor_dim );
+
+                rot_mat_pl_eq_mat_ti_co ( R1[iref2][vi][vk], Raux, Rvec[vj][vk], spinor_dim );
+
+              }  /* end of loop on left vector rotation index vj */
+
+            }}  /* end of loop on left and right vector reference index vi, vk */
+
+          }  /* end of loop on right irrep reference index iref2 */
+
+          /******************************************************
+           * irrep rotation of same tp [ idx ] as above
+           ******************************************************/
+          for ( int iref2 = 0; iref2 < irrep_dim; iref2++ ) {
+
+            for ( int vi = 0; vi < vector_dim; vi++ ) {
+            for ( int vk = 0; vk < vector_dim; vk++ ) {
+
+              for ( int i = 0; i < irrep_dim; i++ ) {
+
+                int const coords[] = { iref1, i, row_snk, row_src, vi, vk };
+                unsigned int idx = coords_to_index (  coords, index_conv_dim, 6 );
+
+                /* R2 += Tirrep Cproj */
+                rot_mat_pl_eq_mat_ti_co ( R2[iref2][vi][vk], tp[ idx ].c[0][it], Tirrep[iref2][i], spinor_dim );
+
+              }  /* end of loop on irrep rotation index i */
+
+            }}  /* end of loop on left and right vector reference index vi, vk */
+
+          }  /* end of right irrep reference index iref2 */
+
+          /******************************************************
+           * check diff and norm
+           ******************************************************/
+          for ( int iref2 = 0; iref2 < irrep_dim; iref2++ ) {
+
+            for ( int vi = 0; vi < vector_dim; vi++ ) {
+            for ( int vk = 0; vk < vector_dim; vk++ ) {
+
+              sprintf ( name, "Rsnk_r%.2d_t%.2d_gref%d_%d_%d_%d_vref%d_%d", irot, it, row_snk, row_src, iref1, iref2, vi, vk );
+              if ( g_verbose > 2 ) {
+                rot_printf_matrix_comp ( R1[iref2][vi][vk], R2[iref2][vi][vk], spinor_dim, name, stdout );
+              }
+
+              double const diff = rot_mat_norm_diff ( R1[iref2][vi][vk], R2[iref2][vi][vk], spinor_dim );
+              double const norm = sqrt ( rot_mat_norm2 ( R1[iref2][vi][vk], spinor_dim ) );
+
+              if ( ( norm > deps && diff/norm < deps ) || ( norm <= deps && diff <= deps ) ) {
+                fprintf ( stdout, "# [twopoint_function_check_reference_rotation] %s diff norm %e    %e  okay\n\n", name, diff, norm );
+              } else {
+                fprintf ( stdout, "# [twopoint_function_check_reference_rotation] %s diff norm %e    %e  ERROR\n\n", name, diff, norm );
+              }
+
+            }}  /* end of loop on left and right vector reference index vi, vk */
+
+          }  /* end of loop on right irrep reference index iref2 */
+
+          /* deallocate */
+          fini_5level_ztable ( &R1 );
+          fini_5level_ztable ( &R2 );
           fini_2level_ztable ( &Raux );
 
         }  /* end of loop on time slices */
@@ -2047,6 +2100,7 @@ void twopoint_function_check_reference_rotation_vector_spinor ( twopoint_functio
 
     }  /* end of loop on iref1 */
 
+#if 0
     /******************************************************
      * fixed reference index at src
      ******************************************************/
@@ -2114,7 +2168,7 @@ void twopoint_function_check_reference_rotation_vector_spinor ( twopoint_functio
       }  /* end of loop on rotations */
 
     }  /* end of loop on iref2 */
-
+#endif  /* of if 0 */
   }}  /* end of loops on row_src, row_snk */
 
 }  /* end of twopoint_function_check_reference_rotation */
