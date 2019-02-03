@@ -1,14 +1,18 @@
 #ifndef _TYPES_H
 #define _TYPES_H
 
-#include "enums.hpp"
-
 namespace cvc {
 
 typedef double * spinor_vector_type;
 typedef double * fermion_vector_type;
 typedef double ** fermion_propagator_type;
 typedef double ** spinor_propagator_type;
+
+typedef struct mom_t {
+  int x;
+  int y;
+  int z;
+} mom_t;
 
 typedef struct {
   int gi;
@@ -36,12 +40,6 @@ typedef struct {
   int nt;
   int nv;
 } gsp_type;
-
-typedef struct shift_t {
-  int origin_shift[4];
-  latDim_t dim;
-  shift_dir_t dir;
-} shift_t;
 
 }  /* end of namespace cvc */
 #endif

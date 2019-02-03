@@ -384,6 +384,9 @@ add_library(cvc_bare
   matrix_init.cpp
   project.cpp
 )
+add_library(const_arrays
+  const_arrays.cpp
+)
 
 add_executable(cpff_invert_contract
   cpff_invert_contract.cpp)

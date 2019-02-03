@@ -85,9 +85,9 @@ typedef struct seq_stoch_prop_meta_t
   }
 
   std::string key(const int p_in[3],
-                       const int gamma_in,
-                       const int seq_src_ts_in,
-                       const std::string flav_in) const
+                  const int gamma_in,
+                  const int seq_src_ts_in,
+                  const std::string flav_in) const
   {
     char temp[100];
     snprintf(temp, 100,
