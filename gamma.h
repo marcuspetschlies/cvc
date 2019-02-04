@@ -8,6 +8,7 @@ typedef struct {
   double _Complex *m[4];
   int id;
   double s;
+  double _Complex z;
 } gamma_matrix_type;
 
 
