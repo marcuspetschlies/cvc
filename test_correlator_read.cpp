@@ -236,7 +236,7 @@ int main(int argc, char **argv) {
   int refframerot             = -1;        // reference frame rotation
                                            //   added below
   int row_target              = -1;        // no target row
-  int cartesian_list[2]       = { 0, 1 };  // not cartesian
+  int cartesian_list[2]       = { 0, 1 };  // no yes cartesian
   int parity_list[2]          = { 1, 1 };  // intrinsic parity is +1
   const int ** momentum_list  = NULL;      // no momentum list given
   int bispinor_list[2]        = { 1, 0 };  // bispinor yes
@@ -313,7 +313,7 @@ int main(int argc, char **argv) {
    * NOTE: Assume, that everything relevant has been read
    ****************************************************/
   /* twopoint_function_check_reference_rotation ( g_twopoint_function_list, &projector, 5.e-12 ); */
-  twopoint_function_check_reference_rotation_vector_spinor ( g_twopoint_function_list, &projector, 5.e-12 );
+  twopoint_function_check_reference_rotation_vector_spinor ( g_twopoint_function_list, &projector, 5.e-10 );
 
   /******************************************************
    * deallocate space inside little_group
