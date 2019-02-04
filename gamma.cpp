@@ -56,6 +56,7 @@ void gamma_matrix_init ( gamma_matrix_type *g) {
   g->m[3] = g->v + 12;
   g->id = -1;
   g->s  = 1.;
+  g->z  = 1.;
 }  /* end of gamma_matrix_init */
   
 /************************************************/
@@ -117,7 +118,7 @@ void gamma_matrix_set ( gamma_matrix_type *g, int id, double s ) {
 
 void gamma_matrix_printf (gamma_matrix_type *g, char*name, FILE*ofs) {
 
-  fprintf(ofs, "# [gamma_matrix_printf] %s id %2d sign %16.7e\n", name, g->id, g->s);
+  fprintf(ofs, "# [gamma_matrix_printf] %s id %2d sign %16.7e z %16.7e %16.7e\n", name, g->id, g->s, creal(g->z) , cimag(g->z) );
   fprintf(ofs, "%s <- array(dim=c(4,4))\n", name);
   for (int i=0; i<4; i++) {
   for (int k=0; k<4; k++) {
@@ -412,6 +413,7 @@ int get_gamma_signs ( char * const mode , int const gid ) {
   static int res_g2c[16];
   static int res_gd[16];
   static int res_Cc[16];
+  static int res_gt[16];
 
 
   if ( ( ! signs_initialized ) || ( strcmp ( mode, "init" ) == 0 ) ) {
@@ -689,6 +691,24 @@ res_Cc[13] =   1;
 res_Cc[14] =   1;
 res_Cc[15] =   1;
 
+
+res_gt[ 0] =   1;
+res_gt[ 1] =  -1;
+res_gt[ 2] =   1;
+res_gt[ 3] =  -1;
+res_gt[ 4] =   1;
+res_gt[ 5] =   1;
+res_gt[ 6] =  -1;
+res_gt[ 7] =   1;
+res_gt[ 8] =  -1;
+res_gt[ 9] =   1;
+res_gt[10] =   1;
+res_gt[11] =  -1;
+res_gt[12] =   1;
+res_gt[13] =   1;
+res_gt[14] =  -1;
+res_gt[15] =   1;
+
     signs_initialized = 1;
 
 
@@ -711,6 +731,7 @@ res_Cc[15] =   1;
   else if ( strcmp( mode, "g2c"  ) == 0 ) res_ptr = res_g2c;
   else if ( strcmp( mode, "gd"   ) == 0 ) res_ptr = res_gd;
   else if ( strcmp( mode, "Cc"   ) == 0 ) res_ptr = res_Cc;
+  else if ( strcmp( mode, "gt"   ) == 0 ) res_ptr = res_Cc;
 
 
   return ( res_ptr[gid] );
