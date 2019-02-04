@@ -1976,6 +1976,8 @@ void twopoint_function_check_reference_rotation_vector_spinor ( twopoint_functio
   unsigned int const nT                = tp[0].T;
   unsigned int const index_conv_dim[6] = { irrep_dim, irrep_dim, irrep_dim, irrep_dim, vector_dim, vector_dim };
 
+  fprintf( stdout, "# [twopoint_function_check_reference_rotation_vector_spinor] spinor_dim = %u   vector_dim = %u   irrep_dim = %u\n", spinor_dim, vector_dim, irrep_dim );
+
   char name[400];
 
   for ( int row_snk = 0; row_snk < irrep_dim; row_snk++ ) {
@@ -1987,7 +1989,7 @@ void twopoint_function_check_reference_rotation_vector_spinor ( twopoint_functio
 
     for ( int iref1 = 0; iref1 < irrep_dim; iref1++ ) {
  
-      for ( int irot = 0; irot < 2*nrot; irot++ )
+      for ( int irot = 0; irot < nrot; irot++ )
       {
         double _Complex ** Rspin  = ( irot < nrot ) ? pr->rspin[0].R[irot] :  pr->rspin[0].IR[irot-nrot];
         double _Complex ** Rvec   = ( irot < nrot ) ? pr->rspin[1].R[irot] :  pr->rspin[1].IR[irot-nrot];
