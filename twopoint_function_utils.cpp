@@ -1980,16 +1980,24 @@ void twopoint_function_check_reference_rotation_vector_spinor ( twopoint_functio
 
   char name[400];
 
-  for ( int row_snk = 0; row_snk < irrep_dim; row_snk++ ) {
-  for ( int row_src = 0; row_src < irrep_dim; row_src++ ) {
+  for ( int row_snk = 0; row_snk < irrep_dim; row_snk++ )
+  // for ( int row_snk = 0; row_snk < 1; row_snk++ )
+  {
+  for ( int row_src = 0; row_src < irrep_dim; row_src++ )
+  // for ( int row_src = 0; row_src < 1; row_src++ )
+  {
 
     /******************************************************
      * fixed reference index at sink
      ******************************************************/
 
-    for ( int iref1 = 0; iref1 < irrep_dim; iref1++ ) {
+    for ( int iref1 = 0; iref1 < irrep_dim; iref1++ )
+    // for ( int iref1 = 0; iref1 < 1; iref1++ )
+    {
  
+      // for ( int irot = 0; irot < 2*nrot; irot++ )
       for ( int irot = 0; irot < nrot; irot++ )
+      // for ( int irot = 8; irot < 9; irot++ )
       {
         double _Complex ** Rspin  = ( irot < nrot ) ? pr->rspin[0].R[irot] :  pr->rspin[0].IR[irot-nrot];
         double _Complex ** Rvec   = ( irot < nrot ) ? pr->rspin[1].R[irot] :  pr->rspin[1].IR[irot-nrot];
@@ -2000,7 +2008,7 @@ void twopoint_function_check_reference_rotation_vector_spinor ( twopoint_functio
         /******************************************************
          * show the spinor rotation matrix
          ******************************************************/
-        if ( g_verbose > 2 ) {
+        if ( g_verbose > 1 ) {
           sprintf ( name, "Rspin%.2d", irot );
           rot_printf_matrix ( Rspin, spinor_dim, name, stdout );
           fprintf ( stdout, "# [twopoint_function_check_reference_rotation_vector_spinor] \n\n" );
@@ -2010,7 +2018,9 @@ void twopoint_function_check_reference_rotation_vector_spinor ( twopoint_functio
           fprintf ( stdout, "# [twopoint_function_check_reference_rotation_vector_spinor] \n\n" );
         }
 
-        for ( int it = 0; it < nT; it ++ ) {
+        /* for ( int it = 0; it < nT; it ++ ) */
+        for ( int it = 0; it < 1; it ++ )
+        {
 
           double _Complex ***** R1  = init_5level_ztable ( irrep_dim, vector_dim, vector_dim, spinor_dim, spinor_dim );
           double _Complex ***** R2  = init_5level_ztable ( irrep_dim, vector_dim, vector_dim, spinor_dim, spinor_dim );
@@ -2035,7 +2045,8 @@ void twopoint_function_check_reference_rotation_vector_spinor ( twopoint_functio
 
                 rot_mat_ti_mat ( Raux, tp[ idx ].c[0][it], Rspin, spinor_dim );
 
-                rot_mat_pl_eq_mat_ti_co ( R1[iref2][vi][vk], Raux, Rvec[vj][vk], spinor_dim );
+                // rot_mat_pl_eq_mat_ti_co ( R1[iref2][vi][vk], Raux, Rvec[vj][vk], spinor_dim );
+                rot_mat_pl_eq_mat_ti_co ( R1[iref2][vi][vk], Raux, Rvec[vk][vj], spinor_dim );
 
               }  /* end of loop on left vector rotation index vj */
 
@@ -2050,6 +2061,8 @@ void twopoint_function_check_reference_rotation_vector_spinor ( twopoint_functio
 
             for ( int vi = 0; vi < vector_dim; vi++ ) {
             for ( int vk = 0; vk < vector_dim; vk++ ) {
+
+              rot_mat_zero ( R2[iref2][vi][vk] , spinor_dim );
 
               for ( int i = 0; i < irrep_dim; i++ ) {
 

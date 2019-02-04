@@ -92,6 +92,38 @@ int main(int argc, char **argv) {
   char udli_name[500];
   twopoint_function_type *udli_ptr[MAX_UDLI_NUM];
 
+  /***********************************************************
+   * set gamma_basis_matching_phase
+   ***********************************************************/
+  double _Complex const gamma_basis_matching_phase[16] =  {
+   1.,  /*  0 = C gy */
+  ,  /*  1 =  */
+  -1.,  /*  2 =  */
+  ,  /*  3 =  */
+   1.,  /*  4 =  */
+  ,  /*  5 =  */
+  ,  /*  6 =  */
+  -1.,  /*  7 =  */
+  -1.,  /*  8 =  */
+   1.,  /*  9 =  */
+  ,  /* 10 =  */
+   1.,  /* 11 =  */
+  ,  /* 12 =  */
+  -1.,  /* 13 =  */
+   1.,  /* 14 =  */
+   1.   /* 15 =  */
+  };
+
+   /* vertex f1 for nucleon-type, C g5, C, C g0 g5, C g0 */
+  int gamma_f1_nucleon_list[gamma_f1_nucleon_number]               = { 14, 11,  8,  2 };
+  double gamma_f1_nucleon_sign[gamma_f1_nucleon_number]            = { +1, +1, -1, -1 };
+
+  /* vertex f1 for Delta-type operators, C gi, C gi g0 */
+  int gamma_f1_delta_list[gamma_f1_delta_number]        = { 9,  0,  7, 13,  4, 15 };
+  double gamma_f1_delta_snk_sign[gamma_f1_delta_number] = {+1, +1, -1, -1, +1, +1 };
+
+
+
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
@@ -509,9 +541,14 @@ int main(int argc, char **argv) {
            *   **************************
            ******************************************************/
           
+          /* gi11 <- 2pt gi1[0] */
           gamma_matrix_set ( &gi11, g_twopoint_function_list[i2pt].gi1[0], 1. );
+#if 0
           /* gr^N gi11 gr^T */
           gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gi11, &gr, 'N', &gi11, &gr, 'T' );
+#endif  /* of if 0 */
+          /* gi11 <- gr^C gi11 gr^H */
+          gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gi11, &gr, 'C', &gi11, &gr, 'H' );
 
           gamma_matrix_set ( &gi12, g_twopoint_function_list[i2pt].gi1[1], 1. );
           /* gr^N gi12 gr^H */
@@ -534,8 +571,10 @@ int main(int argc, char **argv) {
 
           tp.gi2    = gi2.id;
 
-          /* TEST */
-          if ( g_verbose > 4 ) 
+          /******************************************************
+           * TEST
+           ******************************************************/
+          if ( g_verbose > 1 ) 
             fprintf ( stdout, "# [piN2piN_projection] rot %2d %2d     gf11 %2d %6.2f   gf12 %2d %6.2f   gf2 %2d %6.2f   gi11 %2d %6.2f   gi12 %2d %6.2f   gi2 %2d %6.2f\n", 
               irotl, irotr, gf11.id, gf11.s, gf12.id, gf12.s, gf2.id, gf2.s, gi11.id, gi11.s, gi12.id, gi12.s, gi2.id, gi2.s);
 
@@ -771,8 +810,11 @@ int main(int argc, char **argv) {
            *   factor of 4 because ...->n is the number of proper rotations only,
            *   so half the number group elements
            */
+
+
+
           double _Complex const ztmp = (double)( projector.rtarget->dim * projector.rtarget->dim ) / \
-                                       ( 4. *    projector.rtarget->n   * projector.rtarget->n );
+                                       ( 4. *    projector.rtarget->n   * projector.rtarget->n   );
 
           if ( g_verbose > 4 ) fprintf ( stdout, "# [piN2piN_projection] correlator norm = %25.16e %25.16e\n", creal( ztmp ), cimag( ztmp ) );
 

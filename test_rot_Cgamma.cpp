@@ -225,7 +225,9 @@ int main(int argc, char **argv) {
       gamma_matrix_init ( gout+i );
 
       /* gout_i <- grot x Cg_i grot^T */
-      gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( gout+i, &grot, 'N', Cg+i, &grot, 'T' );
+      // gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( gout+i, &grot, 'N', Cg+i, &grot, 'T' );
+
+      gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( gout+i, &grot, 'C', Cg+i, &grot, 'H' );
 
       if ( g_verbose > 1 ) {
         char name[20];
@@ -258,7 +260,8 @@ int main(int argc, char **argv) {
 
       for ( int k = 0; k < 3; k++ ) {
 
-        double _Complex const zcoeff = R[k][i] * g_gamma_transposed_sign[k+1] * g_gamma_transposed_sign[i+1];
+        // double _Complex const zcoeff = R[k][i] * g_gamma_transposed_sign[k+1] * g_gamma_transposed_sign[i+1];
+        double _Complex const zcoeff = R[k][i];
 
         fprintf ( stdout, "# [test_rot_Cgamma] zcoeff = %25.16e %25.16e\n", creal(zcoeff), cimag(zcoeff) );
 
