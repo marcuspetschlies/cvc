@@ -93,31 +93,37 @@ int main(int argc, char **argv) {
   twopoint_function_type *udli_ptr[MAX_UDLI_NUM];
 
   /***********************************************************
-   * set gamma_basis_matching_phase
+   * set Cg basis projection coefficients
    ***********************************************************/
-  double _Complex const Cgamma_basis_matching_phase[16] =  {
-   1.,  /*  0 = C gy        */
-  -1.,  /*  1 = C gz g5     */
-  -1.,  /*  2 = C g0        */
-  -1.,  /*  3 = C gx g5     */
-   1.,  /*  4 = C gy g0     */
-   1.,  /*  5 = C gy g0 g5  */
-   1.,  /*  6 = C gy g5     */
-  -1.,  /*  7 = C gz        */
-  -1.,  /*  8 = C g0 g5     */
-   1.,  /*  9 = C gx        */
-  -1.,  /* 10 = C gz g0 g5  */
-   1.,  /* 11 = C           */
-  -1.,  /* 12 = C gx g0 g5  */
-  -1.,  /* 13 = C gx g0     */
-   1.,  /* 14 = C g5        */
-   1.   /* 15 = C gz g0     */
+  double const Cgamma_basis_matching_coeff[16] = {
+    1.00,  /*  0 =  Cgy        */
+   -1.00,  /*  1 =  Cgzg5      */
+   -1.00,  /*  2 =  Cg0        */
+    1.00,  /*  3 =  Cgxg5      */
+    1.00,  /*  4 =  Cgyg0      */
+   -1.00,  /*  5 =  Cgyg5g0    */
+    1.00,  /*  6 =  Cgyg5      */
+   -1.00,  /*  7 =  Cgz        */
+    1.00,  /*  8 =  Cg5g0      */
+    1.00,  /*  9 =  Cgx        */
+    1.00,  /* 10 =  Cgzg5g0    */
+    1.00,  /* 11 =  C          */
+   -1.00,  /* 12 =  Cgxg5g0    */
+   -1.00,  /* 13 =  Cgxg0      */
+    1.00,  /* 14 =  Cg5        */
+    1.00   /* 15 =  Cgzg0      */
   };
 
+  /***********************************************************
+   * initialize MPI if used
+   ***********************************************************/
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
+  /***********************************************************
+   * evaluate command line arguments
+   ***********************************************************/
   while ((c = getopt(argc, argv, "ch?f:")) != -1) {
     switch (c) {
     case 'f':
@@ -149,7 +155,9 @@ int main(int argc, char **argv) {
   g_num_threads = 1;
 #endif
 
-  /* initialize MPI parameters */
+  /***********************************************************
+   * package-own initialization of MPI parameters
+   ***********************************************************/
   mpi_init(argc, argv);
 
   /***********************************************************
@@ -168,6 +176,7 @@ int main(int argc, char **argv) {
     EXIT(1);
   }
   geometry();
+
 
   /***********************************************************
    * set io process
@@ -488,6 +497,17 @@ int main(int argc, char **argv) {
             EXIT(217);
           }
 
+          /******************************************************
+           * NEW: correct gf11 for basis matching
+           *
+           * This sign is necessary, but for the time being is
+           * ALREADY added 
+           *
+           * NOT needed for gf12
+           ******************************************************/
+          gf11.s *= Cgamma_basis_matching_coeff[ gf11.id ];
+
+          /* transcribe gf1 gamma ids to tp.gf1 */
           tp.gf1[0] = gf11.id;
           tp.gf1[1] = gf12.id;
 
@@ -498,6 +518,7 @@ int main(int argc, char **argv) {
           /* gl^N gf2 gl^H */
           gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gf2, &gl, 'N', &gf2, &gl, 'H' );
 
+          /* transcribe gf2 gamma id to tp.gf2 */
           tp.gf2    = gf2.id;
 
         /******************************************************
@@ -548,6 +569,14 @@ int main(int argc, char **argv) {
             EXIT(218);
           }
 
+          /******************************************************
+           * NEW: correct gi11 sign for basis matching
+           *
+           * NOT needed for gi12
+           ******************************************************/
+          gi11.s *= Cgamma_basis_matching_coeff[ gi11.id ];
+
+          /* transcribe */
           tp.gi1[0] = gi11.id;
           tp.gi1[1] = gi12.id;
 
@@ -858,8 +887,11 @@ int main(int argc, char **argv) {
      ******************************************************/
     fini_little_group_projector ( &projector );
 
+#if 0
+#endif  /* of if 0 */
 
   }  // end of loop on 2-point functions
+
 
   /******************************************************/
   /******************************************************/

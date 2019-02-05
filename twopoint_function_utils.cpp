@@ -78,12 +78,21 @@ void twopoint_function_init ( twopoint_function_type *p ) {
   p->pf2[0] = 0;
   p->pf2[1] = 0;
   p->pf2[2] = 0;
+
   p->gi1[0] = -1;
   p->gi1[1] = -1;
   p->gf1[0] = -1;
   p->gf1[1] = -1;
   p->gi2    = -1;
   p->gf2    = -1;
+
+  p->si1[0] = 1.;
+  p->si1[1] = 1.;
+  p->sf1[0] = 1.;
+  p->sf1[1] = 1.;
+  p->si2    = 1.;
+  p->sf2    = 1.;
+
   p->n      = 0;
   strcpy( p->type, "NA" );
   strcpy( p->name, "NA" );
@@ -114,10 +123,19 @@ void twopoint_function_print ( twopoint_function_type *p, char *name, FILE*ofs )
   fprintf(ofs, "# [twopoint_function_print] %s.pi2  = (%3d,%3d, %3d)\n", name, p->pi2[0], p->pi2[1], p->pi2[2] );
   fprintf(ofs, "# [twopoint_function_print] %s.pf1  = (%3d,%3d, %3d)\n", name, p->pf1[0], p->pf1[1], p->pf1[2] );
   fprintf(ofs, "# [twopoint_function_print] %s.pf2  = (%3d,%3d, %3d)\n", name, p->pf2[0], p->pf2[1], p->pf2[2] );
+
   fprintf(ofs, "# [twopoint_function_print] %s.gi1  = (%3d,%3d)\n", name, p->gi1[0], p->gi1[1] );
   fprintf(ofs, "# [twopoint_function_print] %s.gi2  =  %3d\n", name, p->gi2 );
   fprintf(ofs, "# [twopoint_function_print] %s.gf1  = (%3d,%3d)\n", name, p->gf1[0], p->gf1[1] );
   fprintf(ofs, "# [twopoint_function_print] %s.gf2  =  %3d\n", name, p->gf2 );
+
+  fprintf(ofs, "# [twopoint_function_print] %s.si1  = ( %16.7e + I %16.7e, %16.7e + I %16.7e )\n", name, 
+      creal(p->si1[0]), cimag(p->si1[0]), creal(p->si1[1]), cimag(p->si1[1]) );
+  fprintf(ofs, "# [twopoint_function_print] %s.si2  =   %16.7e + I %16.7e\n", name, creal( p->si2 ), cimag ( p->si2 ));
+  fprintf(ofs, "# [twopoint_function_print] %s.sf1  = ( %16.7e + I %16.7e, %16.7e + I %16.7e )\n", name, 
+      creal(p->sf1[0]), cimag(p->sf1[0]), creal(p->sf1[1]), cimag(p->sf1[1]) );
+  fprintf(ofs, "# [twopoint_function_print] %s.sf2  =   %16.7e + I %16.7e\n", name, creal( p->sf2 ), cimag( p->sf2 ) );
+
   fprintf(ofs, "# [twopoint_function_print] %s.n    =  %3d\n", name, p->n );
   fprintf(ofs, "# [twopoint_function_print] %s.spin_project    =  %3d\n", name, p->spin_project );
   fprintf(ofs, "# [twopoint_function_print] %s.parity_project  =  %3d\n", name, p->parity_project );
@@ -154,17 +172,24 @@ void twopoint_function_copy ( twopoint_function_type *p, twopoint_function_type 
   memcpy( p->pi2, r->pi2, 3*sizeof(int) );
   memcpy( p->pf1, r->pf1, 3*sizeof(int) );
   memcpy( p->pf2, r->pf2, 3*sizeof(int) );
+
   memcpy( p->gi1, r->gi1, 2*sizeof(int) );
   memcpy( p->gf1, r->gf1, 2*sizeof(int) );
   p->gi2 = r->gi2;
   p->gf2 = r->gf2;
-  p->n = r->n;
-  p->spin_project = r->spin_project;
+
+  memcpy( p->si1, r->si1, 2*sizeof(double _Complex) );
+  memcpy( p->sf1, r->sf1, 2*sizeof(double _Complex) );
+  p->si2 = r->si2;
+  p->sf2 = r->sf2;
+
+  p->n              = r->n;
+  p->spin_project   = r->spin_project;
   p->parity_project = r->parity_project;
   memcpy( p->source_coords, r->source_coords, 4*sizeof(int) );
-  p->reorder = r->reorder;
-  p->T       = r->T;
-  p->d       = r->d;
+  p->reorder        = r->reorder;
+  p->T              = r->T;
+  p->d              = r->d;
   if ( copy_data ) {
     if ( r->c != NULL ) {
       if ( twopoint_function_allocate ( p ) == NULL ) {
@@ -1980,24 +2005,24 @@ void twopoint_function_check_reference_rotation_vector_spinor ( twopoint_functio
 
   char name[400];
 
-  for ( int row_snk = 0; row_snk < irrep_dim; row_snk++ )
-  // for ( int row_snk = 0; row_snk < 1; row_snk++ )
+  // for ( int row_snk = 0; row_snk < irrep_dim; row_snk++ )
+  for ( int row_snk = 0; row_snk < 1; row_snk++ )
   {
-  for ( int row_src = 0; row_src < irrep_dim; row_src++ )
-  // for ( int row_src = 0; row_src < 1; row_src++ )
+  // for ( int row_src = 0; row_src < irrep_dim; row_src++ )
+  for ( int row_src = 0; row_src < 1; row_src++ )
   {
 
     /******************************************************
      * fixed reference index at sink
      ******************************************************/
 
-    for ( int iref1 = 0; iref1 < irrep_dim; iref1++ )
-    // for ( int iref1 = 0; iref1 < 1; iref1++ )
+    // for ( int iref1 = 0; iref1 < irrep_dim; iref1++ )
+    for ( int iref1 = 0; iref1 < 1; iref1++ )
     {
  
       // for ( int irot = 0; irot < 2*nrot; irot++ )
-      for ( int irot = 0; irot < nrot; irot++ )
-      // for ( int irot = 8; irot < 9; irot++ )
+      // for ( int irot = 0; irot < nrot; irot++ )
+      for ( int irot = 8; irot < 9; irot++ )
       {
         double _Complex ** Rspin  = ( irot < nrot ) ? pr->rspin[0].R[irot] :  pr->rspin[0].IR[irot-nrot];
         double _Complex ** Rvec   = ( irot < nrot ) ? pr->rspin[1].R[irot] :  pr->rspin[1].IR[irot-nrot];
@@ -2045,8 +2070,7 @@ void twopoint_function_check_reference_rotation_vector_spinor ( twopoint_functio
 
                 rot_mat_ti_mat ( Raux, tp[ idx ].c[0][it], Rspin, spinor_dim );
 
-                // rot_mat_pl_eq_mat_ti_co ( R1[iref2][vi][vk], Raux, Rvec[vj][vk], spinor_dim );
-                rot_mat_pl_eq_mat_ti_co ( R1[iref2][vi][vk], Raux, Rvec[vk][vj], spinor_dim );
+                rot_mat_pl_eq_mat_ti_co ( R1[iref2][vi][vk], Raux, Rvec[vj][vk], spinor_dim );
 
               }  /* end of loop on left vector rotation index vj */
 
