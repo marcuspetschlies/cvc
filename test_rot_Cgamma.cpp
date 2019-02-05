@@ -194,14 +194,18 @@ int main(int argc, char **argv) {
 
   }
 
+  int const nrot = Spin_12b.n;
 
   /***********************************************************
    * loop on rotations
    ***********************************************************/
-  for(int irot=0; irot < 48; irot++ )
+  for(int irot=0; irot < 2*nrot; irot++ )
   {
 
     fprintf(stdout, "\n\n# [test_rot_Cgamma] rot no %2d\n", irot );
+
+    double _Complex ** Rspin_12b = irot < nrot ? Spin_12b.R[irot] : Spin_12b.IR[irot-nrot];
+    double _Complex ** Rspin_1   = irot < nrot ? Spin_1.R[irot] : Spin_1.IR[irot-nrot];
 
     /***********************************************************
      * init helper matrices
@@ -215,7 +219,7 @@ int main(int argc, char **argv) {
     gamma_matrix_init ( &grot );
 
     /* grot <- Spin_12b */
-    memcpy ( grot.v , Spin_12b.R[irot][0], 16*sizeof(double _Complex) );
+    memcpy ( grot.v , Rspin_12b[0], 16*sizeof(double _Complex) );
    
     /***********************************************************
      * induced spin-1/2 + 1/2 rotation
@@ -239,7 +243,7 @@ int main(int argc, char **argv) {
 
     /* R <- cartesian <- Spin_1 */
     double _Complex **R = init_2level_ztable ( 3, 3 );
-    rot_spherical2cartesian_3x3 ( R, Spin_1.R[irot] );
+    rot_spherical2cartesian_3x3 ( R, Rspin_1 );
 
     if ( rot_mat_check_is_real_int ( R, 3 ) == 0 ) {
       fprintf ( stderr, "[test_rot_Cgamma] Error from rot_mat_check_is_real_int\n" );
