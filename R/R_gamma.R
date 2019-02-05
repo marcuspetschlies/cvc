@@ -100,7 +100,8 @@ set_Cgamma_basis_matching <- function(g) {
   ##  return(Cg)
   z <- array ( dim=c(16, 16) )
 
-  cat ( "  double _Complex const gamma_basis_matching_coeff[16] = {\n" )
+  # cat ( "  double _Complex const gamma_basis_matching_coeff[16] = {\n" )
+  cat ( "  double const Cgamma_basis_matching_coeff[16] = {\n" )
 
   for ( i in 1:16 ) {
     
@@ -111,9 +112,10 @@ set_Cgamma_basis_matching <- function(g) {
     idx <- which( abs(z[i,]) > eps )
     if ( length(idx) > 1 || length(idx) == 0 ) stop("no / too many matches for i = ", i )
 
-    cat ( 
-         formatC( Re(z[i,idx]), width=8, digits=2, format="f" ), " + ",
-         formatC( Im(z[i,idx]), width=6, digits=2, format="f" ), "*I" )
+    cat ( formatC( Re(z[i,idx]), width=8, digits=2, format="f" )
+          # " + ",
+          # formatC( Im(z[i,idx]), width=6, digits=2, format="f" ), "*I" 
+        )
 
     if ( i < 16 ) {
       cat ( ",  /* " )
@@ -121,7 +123,7 @@ set_Cgamma_basis_matching <- function(g) {
       cat ( "   /* " )
     }
     cat( formatC( i-1, width=2, digits=2, format="d" ), " =  ",
-         formatC( names(Cg[idx]), width=10, format="s" ), " */\n", sep="" )
+         formatC( names(Cg[idx]), width=-10, format="s" ), " */\n", sep="" )
   }
 
   cat( "  };\n" )
