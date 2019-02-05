@@ -29,6 +29,11 @@ typedef struct {
   int gi2;
   int gf1[2];
   int gf2;
+  // gamma matrix phases to match with used gamma basis; default is 1.
+  double _Complex si1[2];
+  double _Complex si2;
+  double _Complex sf1[2];
+  double _Complex sf2;
   // spin-1/2, spin-3/2 projection, default -1
   int spin_project;
   // parity projection, -1 / 0 [default] / +1
