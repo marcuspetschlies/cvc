@@ -95,35 +95,24 @@ int main(int argc, char **argv) {
   /***********************************************************
    * set gamma_basis_matching_phase
    ***********************************************************/
-  double _Complex const gamma_basis_matching_phase[16] =  {
-   1.,  /*  0 = C gy */
-  ,  /*  1 =  */
-  -1.,  /*  2 =  */
-  ,  /*  3 =  */
-   1.,  /*  4 =  */
-  ,  /*  5 =  */
-  ,  /*  6 =  */
-  -1.,  /*  7 =  */
-  -1.,  /*  8 =  */
-   1.,  /*  9 =  */
-  ,  /* 10 =  */
-   1.,  /* 11 =  */
-  ,  /* 12 =  */
-  -1.,  /* 13 =  */
-   1.,  /* 14 =  */
-   1.   /* 15 =  */
+  double _Complex const Cgamma_basis_matching_phase[16] =  {
+   1.,  /*  0 = C gy        */
+  -1.,  /*  1 = C gz g5     */
+  -1.,  /*  2 = C g0        */
+  -1.,  /*  3 = C gx g5     */
+   1.,  /*  4 = C gy g0     */
+   1.,  /*  5 = C gy g0 g5  */
+   1.,  /*  6 = C gy g5     */
+  -1.,  /*  7 = C gz        */
+  -1.,  /*  8 = C g0 g5     */
+   1.,  /*  9 = C gx        */
+  -1.,  /* 10 = C gz g0 g5  */
+   1.,  /* 11 = C           */
+  -1.,  /* 12 = C gx g0 g5  */
+  -1.,  /* 13 = C gx g0     */
+   1.,  /* 14 = C g5        */
+   1.   /* 15 = C gz g0     */
   };
-
-   /* vertex f1 for nucleon-type, C g5, C, C g0 g5, C g0 */
-  int gamma_f1_nucleon_list[gamma_f1_nucleon_number]               = { 14, 11,  8,  2 };
-  double gamma_f1_nucleon_sign[gamma_f1_nucleon_number]            = { +1, +1, -1, -1 };
-
-  /* vertex f1 for Delta-type operators, C gi, C gi g0 */
-  int gamma_f1_delta_list[gamma_f1_delta_number]        = { 9,  0,  7, 13,  4, 15 };
-  double gamma_f1_delta_snk_sign[gamma_f1_delta_number] = {+1, +1, -1, -1, +1, +1 };
-
-
-
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
