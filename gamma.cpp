@@ -760,6 +760,7 @@ void gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( gamma_matrix_type *gout, ga
   if ( gin->id == -1 ) {
     gout->id = -1;
     gout->s  =  1.;
+    fprintf ( stdout, "# [gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op] Warning, input gamma gin is not set\n" );
     return;
   }
 
