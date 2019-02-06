@@ -124,12 +124,14 @@ int main(int argc, char **argv) {
   flav_op_ids["cp"] = 4;
   flav_op_ids["cm"] = 5;
 
-  const bool use_g0_g5_sink_pion_2pt = true;
+
+  // these various options are included here but we will not use them in practice
+  // I keep the code below because it is nice documentation of what is going on
+  const bool use_g0_g5_sink_pion_2pt = false;
   const bool use_g0_g5_sink_pion_3pt = false;
-  
-  const bool do_singlet_2pt = true;
-  const bool do_singlet_3pt = true;
-  const bool use_g0_g5_sink_singlet_2pt = true;
+  const bool do_singlet_2pt = false;
+  const bool do_singlet_3pt = false;
+  const bool use_g0_g5_sink_singlet_2pt = false;
   const bool use_g0_g5_sink_singlet_3pt = false;
 
   const double one_ov_vol3 = 1.0/(LX*LY*LZ);
@@ -154,6 +156,15 @@ int main(int argc, char **argv) {
                                             5, /* gf */
                                             5, /* gb: gamma structure to get the correct backward propagator */
                                             {one_ov_vol3, 0.0} /* normalisation */) );
+
+  // Kaon two-pt function
+  twopt_correls.push_back( twopt_oet_meta_t("u",
+                                            "sp",
+                                            "fwd",
+                                            5,
+                                            5,
+                                            5,
+                                            {one_ov_vol3, 0.0}) );
   
   // note that in the twisted basis, \bar{d} g0 g5 u -> i\bar{chi}_d g0 chi_u
   //               and at the source \bar{u} g5 g0 d -> i\bar{chi}_u g0 chi_d
@@ -245,7 +256,11 @@ int main(int argc, char **argv) {
     local_threept_correls.push_back( 
         threept_oet_meta_t("d", "u", "u", "fwd", 4, 4, 4, 5, {-one_ov_vol3, 0.0} ) );
 
-    // TODO add eta 3pt funtions with g0 g5 at the sink
+    if( use_g0_g5_sink_singlet_3pt ){
+      // TODO add eta 3pt funtions with g0 g5 at the sink
+      // this is not implemented since we are not presently interested in the
+      // singlet three point function
+    }
   }
 
   // TODO define appropriate correlators for derivatives
@@ -615,6 +630,7 @@ int main(int argc, char **argv) {
                          iseq_mom, g_seq_source_momentum_number);
 
             // the sequential propagator is daggered in the contraction below, so we have to dagger the momentum projector
+            // which will be applied at the sequential (sink) time slice
             int seq_source_momentum[3] = { -g_seq_source_momentum_list[iseq_mom][0],
                                            -g_seq_source_momentum_list[iseq_mom][1],
                                            -g_seq_source_momentum_list[iseq_mom][2] };
@@ -677,7 +693,7 @@ int main(int argc, char **argv) {
                 sw.reset();
                 seq_props.emplace( 
                   std::make_pair( seq_prop_key,
-                  std::vector<double>( _GSI(VOLUME) ) ) );
+                                  std::vector<double>( _GSI(VOLUME) ) ) );
                 sw.elapsed_print("Propagator memory allocation");
               }
               memcpy( seq_props[ seq_prop_key ].data(), spinor_work[1], sizeof_spinor_field);
@@ -686,8 +702,8 @@ int main(int argc, char **argv) {
             // now the contractions
             for(int icor = 0; icor < local_threept_correls.size(); ++icor){
               const threept_oet_meta_t & correl = local_threept_correls[icor];
-              int bwd_prop_mom[3] = {0,0,0};
-              int fwd_prop_mom[3] = {0,0,0};
+              int bwd_prop_mom[3];
+              int fwd_prop_mom[3];
              
               double ** contr_p = init_2level_dtable ( g_source_momentum_number, 2*T );
               if ( contr_p == NULL ) {
@@ -701,7 +717,8 @@ int main(int argc, char **argv) {
                 if( correl.src_mom_prop == "bwd" ){
                   for( int i : {0,1,2} ) {
                     // the backward propagator, part of the sequential propagator, is daggered
-                    // so the momentum projector is daggered 
+                    // as part of the sequential propagator, so the momentum projector is daggered 
+                    // to get the correct momentum
                     bwd_prop_mom[i] = -g_source_momentum_list[isrc_mom][i]; 
                     fwd_prop_mom[i] = 0;
                   }
@@ -728,10 +745,10 @@ int main(int argc, char **argv) {
 
                 // momentum conservation in the CVC phase convention implies 
                 //   p_c = -( p_src + p_seq )
-                // where p_seq is interchangable with the sink momentum in this case
-                // however, as noted above, in the contaction below we dagger the sequential
+                // where p_seq is interchangable with the sink momentum (in this case)
+                // However, as noted above, in the contaction below we dagger the sequential
                 // propagator such that our seq_source_momentum carries an implicit minus
-                // sign which we compensate for here
+                // sign which we compensate for here (see setting of seq_source_momentum above)
                 int current_momentum[3] = {
                   -( g_source_momentum_list[isrc_mom][0] - seq_source_momentum[0] ),
                   -( g_source_momentum_list[isrc_mom][1] - seq_source_momentum[1] ),
@@ -745,11 +762,13 @@ int main(int argc, char **argv) {
                 sw.elapsed_print("contract_twopoint_gamma5_gamma_snk_only_snk_momentum local current and normalisation");
               }
 
+              // as above, the sequential propagator (and hence sequential momentum projector) is daggered, 
+              // so it has an implicit minus sign
               snprintf ( data_tag, 400, "/s%s%s+-g-%s/t%d/s%d/dt%d/gf%d/gc%d/gi%d/pfx%dpfy%dpfz%d/",
                          correl.bprop_flav.c_str(), correl.sprop_flav.c_str(), correl.fprop_flav.c_str(),
                          gts, isample, g_sequential_source_timeslice_list[iseq_timeslice],
                          correl.gf, correl.gc, correl.gi,
-                         seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
+                         -seq_source_momentum[0], -seq_source_momentum[1], -seq_source_momentum[2] );
 
               #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
                   exitstatus = contract_write_to_aff_file ( contr_p, affw, data_tag, g_source_momentum_list, g_source_momentum_number, io_proc );
@@ -763,10 +782,34 @@ int main(int argc, char **argv) {
               fini_2level_dtable ( &contr_p );
             } // end of loop over local threept correlator contractions
 
-            // now the covariant derivative insertions
-            //for( int ifwdbwd : {0,1} ){
+            // now the covariant derivative insertions for which:
+            // 1) we compute the first derivative insertion only for zero momentum
+            // 2) we compute the second derivative insertion only for the case of zero
+            //    momentum exchange and then only if the particle momentum squared is
+            //    smaller or equal to 5 and then only if at least two momentum components
+            //    are non-zero
+            if( (seq_source_momentum[0] == 0 && 
+                 seq_source_momentum[1] == 0 && 
+                 seq_source_momentum[2] == 0) ||
+                ( (seq_source_momentum[0]*seq_source_momentum[0] +
+                   seq_source_momentum[1]*seq_source_momentum[1] +
+                   seq_source_momentum[2]*seq_source_momentum[2]) <= 5 ) ){
+              for( int i_d1_fwdbwd : {0,1} ){
+                for( int d1_mu = 0; d1_mu < 4; d1_mu++ ){
 
-            //}
+                  
+                  // restrict the cases for which the second derivative is computed
+                  if( ( abs(seq_source_momentum[0]) > 0 && abs(seq_source_momentum[1]) > 0 ) ||
+                      ( abs(seq_source_momentum[0]) > 0 && abs(seq_source_momentum[2]) > 0 ) ||
+                      ( abs(seq_source_momentum[1]) > 0 && abs(seq_source_momentum[2]) > 0 ) ){
+                    for( int i_d2_fwdbwd : {0,1} ){
+                      for( int d2_mu = 0; d2_mu < 4; d2_mu++ ){
+                      }
+                    }
+                  }
+                }
+              }
+            }
           } // end of loop over sequential momenta
         } // end of loop over sequential source time slices
       } // if(local_threept_correls.size() > 0)

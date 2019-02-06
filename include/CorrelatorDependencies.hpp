@@ -5,6 +5,10 @@
 
 #include <string>
 #include <iostream>
+#include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/graph_traits.hpp>
+
+#include <cstdio>
 
 namespace cvc {
 
@@ -80,5 +84,49 @@ struct CorrFulfill : public FulfillDependency {
     std::cout << msg;
   }
 };
+
+/**
+ * @brief recursively fulfill dependencies starting at a particular vertex
+ *
+ * @tparam Graph
+ * @param v
+ * @param g
+ */
+template <typename Graph>
+static inline void descend_and_fulfill(typename boost::graph_traits<Graph>::vertex_descriptor v,
+                                       Graph & g)
+{
+  std::cout << "Entered " << g[v].name << std::endl;
+  
+  // if we hit a vertex which can be fulfilled immediately, let's do so
+  // this will break one class of infinite recursions
+  if( g[v].independent && !g[v].fulfilled ){
+    std::cout << "Calling fulfill of " << g[v].name << std::endl;
+    fflush(stdout);
+    (*(g[v].fulfill))();
+    g[v].fulfilled = true;
+  }
+ 
+  // otherwise we descend further, but never up the level hierarchy
+  typename boost::graph_traits<Graph>::out_edge_iterator e, e_end;
+  for( boost::tie(e, e_end) = boost::out_edges(v, g); e != e_end; ++e)
+    if( g[boost::target(*e, g)].fulfilled == false && 
+        g[boost::target(*e, g)].level < g[v].level ){
+      std::cout << "Descending into " << g[boost::target(*e, g)].name << std::endl;
+      fflush(stdout);
+      descend_and_fulfill( boost::target(*e, g), g );
+    }
+
+  std::cout << "Came up the hierarchy, ready to fulfill!" << std::endl;
+  fflush(stdout);
+
+  // in any case, when we come back here, we are ready to fulfill
+  //if( g[v].fulfilled == false ){
+    std::cout << "Calling fulfill of " << g[v].name << std::endl;
+    fflush(stdout);
+    (*(g[v].fulfill))();
+    g[v].fulfilled = true;
+  //}
+}
 
 } // namespace(cvc)

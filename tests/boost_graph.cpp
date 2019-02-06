@@ -21,12 +21,14 @@ using namespace cvc;
 using namespace boost;
 
 struct VertexProperties {
-  VertexProperties() : fulfilled(false) {}
-  VertexProperties(const std::string& _name) : name(_name), fulfilled(false) {};
+  VertexProperties() : fulfilled(false), independent(false), level(1) {}
+  VertexProperties(const std::string& _name) : name(_name), fulfilled(false), independent(false), level(1) {};
 
   std::string name;
   int component;
   bool fulfilled;
+  bool independent;
+  unsigned int level;
   std::shared_ptr<FulfillDependency> fulfill;
 };
 
@@ -112,6 +114,19 @@ std::vector<ComponentGraph> connected_components_subgraphs(DepGraph const &g)
   return component_graphs;
 }
 
+template <typename Graph>
+void
+add_unique_edge(typename graph_traits<Graph>::vertex_descriptor from,
+                typename graph_traits<Graph>::vertex_descriptor to,
+                Graph & g)
+{
+  if( edge(from, to, g).second == false ){
+    add_edge(from, to, g);
+    if( g[from].level <= g[to].level ){
+      g[from].level = g[to].level + 1;
+    }
+  }
+}
 
 int main(int, char*[])
 {
@@ -123,7 +138,7 @@ int main(int, char*[])
   for(int mom_x = -3; mom_x <= 3; mom_x++){
     for(int mom_y = -3; mom_y <= 3; mom_y++){
       for(int mom_z = -3; mom_z <= 3; mom_z++){
-        if( mom_x*mom_x + mom_y*mom_y + mom_z*mom_z < 2 ){
+        if( mom_x*mom_x + mom_y*mom_y + mom_z*mom_z < 5 ){
           in_momenta.push_back( mom_t{ mom_x, mom_y, mom_z } );
           out_momenta.push_back( mom_t{ mom_x, mom_y, mom_z } );
         }
@@ -151,15 +166,9 @@ int main(int, char*[])
              in_mom.x, in_mom.y, in_mom.z);
 
     for( auto const & out_mom : out_momenta ){
-      char corrname[200];
-      snprintf(corrname,
-               200,
-               "sdu+-g-u/gf%d/pfx%dpfy%dpfz%d/"
-               "gc%d/"
-               "gi%d/pix%dpiy%dpiz%d",
-               5, out_mom.x, out_mom.y, out_mom.z,
-               0,
-               5, in_mom.x, in_mom.y, in_mom.z);
+      mom_t seqmom = {-(out_mom.x+in_mom.x), 
+                      -(out_mom.y+in_mom.y),
+                      -(out_mom.z+in_mom.z)};
 
       char seqsrcname[200];
       snprintf(seqsrcname,
@@ -170,6 +179,7 @@ int main(int, char*[])
 
       Vertex seqsrcvertex = add_vertex(seqsrcname, g);
       g[seqsrcvertex].fulfill.reset( new SeqSourceFulfill(dt, out_mom, bwdpropname) );
+      g[seqsrcvertex].independent = true;
 
       char seqpropname[200];
       snprintf(seqpropname,
@@ -178,24 +188,30 @@ int main(int, char*[])
                5, out_mom.x, out_mom.y, out_mom.z,
                5, in_mom.x, in_mom.y, in_mom.z);
 
-      Vertex corrvertex = add_vertex(corrname, g);
       Vertex seqpropvertex = add_vertex(seqpropname, g);
       g[seqpropvertex].fulfill.reset( new PropFulfill("d", seqsrcname) );
-      
-      if( edge(seqpropvertex, seqsrcvertex, g).second == false ){
-        add_edge(seqpropvertex, seqsrcvertex, g);
-      }
-      if( edge(corrvertex, seqpropvertex, g).second == false ){
-        add_edge(corrvertex, seqpropvertex, g);
-      }
+      add_unique_edge(seqpropvertex, seqsrcvertex, g);
 
+      char corrname[200];
+      snprintf(corrname,
+               200,
+               "sdu+-g-u/gf%d/pfx%dpfy%dpfz%d/"
+               "gc%d/"
+               "gi%d/pix%dpiy%dpiz%d",
+               5, out_mom.x, out_mom.y, out_mom.z,
+               0,
+               5, in_mom.x, in_mom.y, in_mom.z);
+      
+      Vertex corrvertex = add_vertex(corrname, g);
+      g[corrvertex].fulfill.reset( new CorrFulfill(fwdpropname, seqpropname, seqmom, 0 ) ); 
+      add_unique_edge(corrvertex, seqpropvertex, g);
+
+      // for derivative operators we don't have any momentum transfer
       if( (in_mom.x == -out_mom.x && in_mom.y == -out_mom.y && in_mom.z == -out_mom.z) ||
           ( (in_mom.x == 0 && in_mom.x == out_mom.x) && 
             (in_mom.y == 0 && in_mom.y == out_mom.y) && 
             (in_mom.z == 0 && in_mom.z == out_mom.z) ) ){
 
-        // for derivative operators we don't have any momentum transfer
-        mom_t seqmom = {0, 0, 0};
         for( int dim1 : {DIM_T, DIM_X, DIM_Y, DIM_Z} ){
           for( int dir1 : {DIR_FWD, DIR_BWD}  ){
             for( int dim2 : {DIM_T, DIM_X, DIM_Y, DIM_Z} ){
@@ -229,12 +245,11 @@ int main(int, char*[])
                            in_mom.x, in_mom.y, in_mom.z);
         
                   Vertex Dpropvertex = add_vertex(Dpropname, g);
-                  g[Dpropvertex].fulfill.reset( new CovDevFulfill( fwdpropname, dir1, dim1 ) ); 
+                  g[Dpropvertex].fulfill.reset( new CovDevFulfill( fwdpropname, dir1, dim1 ) );
+                  g[Dpropvertex].independent = true; 
 
                   Vertex DDpropvertex = add_vertex(DDpropname, g);
-                  if( edge(DDpropvertex, Dpropvertex, g).second == false ){
-                    add_edge(DDpropvertex, Dpropvertex, g);
-                  }
+                  add_unique_edge(DDpropvertex, Dpropvertex, g);
                   g[DDpropvertex].fulfill.reset( new CovDevFulfill( Dpropname, dir2, dim2 ) );
                   
 
@@ -250,12 +265,8 @@ int main(int, char*[])
                   
                   // even if we add this a million times, the vertex will be unique
                   Vertex Dcorrvertex = add_vertex(Dcorrname,g);
-                  if( edge(Dcorrvertex, Dpropvertex, g).second == false ){
-                    add_edge(Dcorrvertex,Dpropvertex,g);
-                  }
-                  if( edge(Dcorrvertex, seqpropvertex, g).second == false ){
-                    add_edge(Dcorrvertex, seqpropvertex, g);
-                  }
+                  add_unique_edge(Dcorrvertex, Dpropvertex,g);
+                  add_unique_edge(Dcorrvertex, seqpropvertex, g);
                   g[Dcorrvertex].fulfill.reset( new CorrFulfill(Dpropname, seqpropname, seqmom, gc ) ); 
 
                   char DDcorrname[200];
@@ -270,12 +281,8 @@ int main(int, char*[])
                            d2name,
                            5, in_mom.x, in_mom.y, in_mom.z);
                   Vertex DDcorrvertex = add_vertex(DDcorrname, g);
-                  if( edge(DDcorrvertex, DDpropvertex, g).second == false ){
-                    add_edge(DDcorrvertex, DDpropvertex, g);
-                  }
-                  if( edge(DDcorrvertex, seqpropvertex, g).second == false ){
-                    add_edge(DDcorrvertex, seqpropvertex, g);
-                  }
+                  add_unique_edge(DDcorrvertex, DDpropvertex, g);
+                  add_unique_edge(DDcorrvertex, seqpropvertex, g);
                   g[DDcorrvertex].fulfill.reset( new CorrFulfill(DDpropname, seqpropname, seqmom, gc ) );
                 } // gc
               } // dir2
@@ -296,9 +303,14 @@ int main(int, char*[])
   std::cout << std::endl;
 
   graph_traits<DepGraph>::edge_iterator ei, ei_end;
+  graph_traits<DepGraph>::vertex_descriptor from, to;
   for(boost::tie(ei, ei_end) = edges(g); ei != ei_end; ++ei){
-    std::cout << "( " << name_map[source(*ei, g)] << " -> " <<
-      name_map[target(*ei,g)] << " )" << std::endl;
+    from = source(*ei, g);
+    to = target(*ei, g);
+    std::cout << "( " << g[from].name << "(" <<
+      g[from].level << ")" << " -> " <<
+      g[to].name << "(" << g[to].level << ")" <<
+      " )" << std::endl;
   }
   std::cout << std::endl;
 
@@ -315,18 +327,15 @@ int main(int, char*[])
 
   for( auto const& component : connected_components_subgraphs(g))
   {
-    std::cout << "Component" << std::endl;
+    std::cout << std::endl;
     for( auto e : make_iterator_range(edges(component))){
-      std::cout << name_map[source(e, component)] << " -> " << name_map[target(e, component)] << std::endl;
+      std::cout << g[source(e,component)].name << " --> " << g[target(e,component)].name << std::endl;
     }
     std::cout << std::endl;
-    
-    // fulfill all dependencies, this will need to be tweaked, of course
-    for( auto e : make_iterator_range(edges(component))){
-      if( !g[target(e, component)].fulfilled ){
-        (*g[target(e, component)].fulfill)();
-        g[target(e, component)].fulfilled = true;
-      }
+
+    for( auto v : make_iterator_range(vertices(component))){
+      if( !g[v].fulfilled )
+        descend_and_fulfill<DepGraph>( v, g );
     }
   }
   return 0;
