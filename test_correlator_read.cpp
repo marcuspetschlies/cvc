@@ -231,13 +231,14 @@ int main(int argc, char **argv) {
   /****************************************************
    * parameters for setting the projector
    ****************************************************/
+  int nspin                   = 2;
   int ref_row_target          = -1;        // no reference row for target irrep
   int * ref_row_spin          = NULL;      // no reference row for spin matrices
   int refframerot             = -1;        // reference frame rotation
                                            //   added below
   int row_target              = -1;        // no target row
   int cartesian_list[2]       = { 0, 1 };  // no yes cartesian
-  int parity_list[2]          = { 1, 1 };  // intrinsic parity is +1
+  int parity_list[2]          = { 1, -1 }; // intrinsic parity
   const int ** momentum_list  = NULL;      // no momentum list given
   int bispinor_list[2]        = { 1, 0 };  // bispinor yes
   int J2_list[2]              = { 1, 2 };  // spin 1/2
@@ -272,7 +273,7 @@ int main(int argc, char **argv) {
       &little_group,
       tp->irrep ,
       row_target,
-      2,
+      nspin,
       J2_list,
       momentum_list,
       bispinor_list,
@@ -324,9 +325,6 @@ int main(int argc, char **argv) {
    * deallocate space inside projector
    ******************************************************/
   fini_little_group_projector ( &projector );
-
-#if 0 
-#endif
 
   /******************************************************/
   /******************************************************/

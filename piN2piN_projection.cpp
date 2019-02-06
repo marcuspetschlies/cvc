@@ -484,26 +484,24 @@ int main(int argc, char **argv) {
            *   * ANNIHILATION / SINK SIDE *
            *   ****************************
            ******************************************************/
-          gamma_matrix_set ( &gf11, g_twopoint_function_list[i2pt].gf1[0], 1. );
+          /* set and rotate gf11 */
+          gamma_matrix_set ( &gf11, g_twopoint_function_list[i2pt].gf1[0], Cgamma_basis_matching_coeff[ g_twopoint_function_list[i2pt].gf1[0] ] );
           /* gl^C gf11 gl^H */
           gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gf11, &gl, 'C', &gf11, &gl, 'H' );
 
+          /* set and rotate gf12 */
           gamma_matrix_set ( &gf12, g_twopoint_function_list[i2pt].gf1[1], 1. );
           /* gl^N gf12 gl^H */
           gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gf12, &gl, 'N', &gf12, &gl, 'H' );
 
+          /* check for not set or error */
           if ( gf11.id == -1 || gf12.id == -1 ) {
             fprintf ( stderr, "[piN2piN_projection] Error from gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op for gf1 %s %d\n", __FILE__, __LINE__ );
             EXIT(217);
           }
 
           /******************************************************
-           * NEW: correct gf11 for basis matching
-           *
-           * This sign is necessary, but for the time being is
-           * ALREADY added 
-           *
-           * NOT needed for gf12
+           * correct gf11 for basis matching
            ******************************************************/
           gf11.s *= Cgamma_basis_matching_coeff[ gf11.id ];
 
@@ -514,6 +512,7 @@ int main(int argc, char **argv) {
           /******************************************************
            * Gamma_{f_2} ---> S(R) Gamma_{f_2} S(R)^+
            ******************************************************/
+          /* set and rotate gf2 */
           gamma_matrix_set ( &gf2, g_twopoint_function_list[i2pt].gf2, 1. );
           /* gl^N gf2 gl^H */
           gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gf2, &gl, 'N', &gf2, &gl, 'H' );
@@ -552,11 +551,12 @@ int main(int argc, char **argv) {
            ******************************************************/
           
           /* gi11 <- 2pt gi1[0] */
-          gamma_matrix_set ( &gi11, g_twopoint_function_list[i2pt].gi1[0], 1. );
+          gamma_matrix_set ( &gi11, g_twopoint_function_list[i2pt].gi1[0], Cgamma_basis_matching_coeff[ g_twopoint_function_list[i2pt].gi1[0] ] );
 #if 0
           /* gr^N gi11 gr^T */
           gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gi11, &gr, 'N', &gi11, &gr, 'T' );
 #endif  /* of if 0 */
+
           /* gi11 <- gr^C gi11 gr^H */
           gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gi11, &gr, 'C', &gi11, &gr, 'H' );
 
@@ -570,9 +570,7 @@ int main(int argc, char **argv) {
           }
 
           /******************************************************
-           * NEW: correct gi11 sign for basis matching
-           *
-           * NOT needed for gi12
+           * correct gi11 sign for basis matching
            ******************************************************/
           gi11.s *= Cgamma_basis_matching_coeff[ gi11.id ];
 
@@ -798,13 +796,14 @@ int main(int argc, char **argv) {
         }  // end of loop on source rotations
         }  // end of loop on sink   rotations
 
+#if 0
         /******************************************************
          * check reference index rotations
          ******************************************************/
-
         if ( check_reference_rotation ) {
           twopoint_function_check_reference_rotation ( tp_project[0][0][0], &projector, 5.e-12 );
         }
+#endif  /* of if 0 */
 
         /******************************************************
          * output of tp_project
@@ -887,11 +886,7 @@ int main(int argc, char **argv) {
      ******************************************************/
     fini_little_group_projector ( &projector );
 
-#if 0
-#endif  /* of if 0 */
-
   }  // end of loop on 2-point functions
-
 
   /******************************************************/
   /******************************************************/
