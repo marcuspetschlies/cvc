@@ -2069,8 +2069,10 @@ void twopoint_function_check_reference_rotation_vector_spinor ( twopoint_functio
           fprintf ( stdout, "# [twopoint_function_check_reference_rotation_vector_spinor] \n\n" );
         }
 
-        /* for ( int it = 0; it < nT; it ++ ) */
-        for ( int it = 0; it < 1; it ++ )
+        /******************************************************
+         * loop on timeslices
+         ******************************************************/
+        for ( int it = 0; it < nT; it++ )
         {
 
           double _Complex ***** R1  = init_5level_ztable ( irrep_dim, vector_dim, vector_dim, spinor_dim, spinor_dim );
@@ -2196,8 +2198,10 @@ void twopoint_function_check_reference_rotation_vector_spinor ( twopoint_functio
           fprintf ( stdout, "# [twopoint_function_check_reference_rotation_vector_spinor] \n\n" );
         }
 
-        /*  for ( int it = 0; it < nT; it ++ ) */
-        for ( int it = 0; it < 1; it ++ )
+        /******************************************************
+         * loop on timeslices
+         ******************************************************/
+        for ( int it = 0; it < nT; it++ )
         {
 
           double _Complex ***** R1 = init_5level_ztable ( irrep_dim, vector_dim, vector_dim, spinor_dim, spinor_dim );
