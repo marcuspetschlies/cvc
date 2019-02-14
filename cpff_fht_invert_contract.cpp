@@ -141,7 +141,8 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * initialize MPI parameters for cvc
    ***************************************************************************/
-  exitstatus = tmLQCD_invert_init(argc, argv, 1, 0);
+  /* exitstatus = tmLQCD_invert_init(argc, argv, 1, 0); */
+  exitstatus = tmLQCD_invert_init(argc, argv, 1);
   if(exitstatus != 0) {
     EXIT(1);
   }
@@ -654,9 +655,8 @@ int main(int argc, char **argv) {
               EXIT(64);
             }
             if ( g_write_sequential_source ) {
-              sprintf ( filename, "%s_fht.%.4d.t%d.qx%dqy%dqz%d.g%d.dt%d.%d.%.5d", filename_prefix, Nconf, gts,
-                  seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], seq_source_gamma,
-                  g_sequential_source_timeslice_list[iseq_timeslice], i, isample);
+              sprintf ( filename, "%s_fht.%.4d.t%d.qx%dqy%dqz%d.g%d.%d.%.5d", filename_prefix, Nconf, gts,
+                  seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], seq_source_gamma, i, isample);
               if ( ( exitstatus = write_propagator( sequential_source, filename, 0, g_propagator_precision) ) != 0 ) {
                 fprintf(stderr, "[cpff_fht_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                 EXIT(2);
@@ -743,11 +743,11 @@ int main(int argc, char **argv) {
                   g_source_gamma_id_list[isnk_gamma], seq_source_gamma, g_source_gamma_id_list[isrc_gamma],
                   source_momentum[0], source_momentum[1], source_momentum[2] );
     
-    #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
+#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
               exitstatus = contract_write_to_aff_file ( contr_p, affw, data_tag, sink_momentum_list, 1, io_proc );
-    #elif ( defined HAVE_HDF5 )          
+#elif ( defined HAVE_HDF5 )          
               exitstatus = contract_write_to_h5_file ( contr_p, output_filename, data_tag, sink_momentum_list, 1, io_proc );
-    #endif
+#endif
               if(exitstatus != 0) {
                 fprintf(stderr, "[cpff_fht_invert_contract] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 return(3);
@@ -768,7 +768,7 @@ int main(int argc, char **argv) {
 
       }  /* end of loop on sequential source momenta */
 
-      fini_1label_dtable ( &sequential_source );
+      fini_1level_dtable ( &sequential_source );
 
       exitstatus = init_timeslice_source_oet ( NULL, -1, NULL, -2 );
 
