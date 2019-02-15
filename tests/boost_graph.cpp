@@ -1,4 +1,5 @@
-#include "CorrelatorDependencies.hpp"
+#include "DependencyGraph.hpp"
+#include "DependencyFulfilling.hpp"
 #include "enums.hpp"
 #include "types.h"
 
@@ -19,114 +20,6 @@
 
 using namespace cvc;
 using namespace boost;
-
-struct VertexProperties {
-  VertexProperties() : fulfilled(false), independent(false), level(1) {}
-  VertexProperties(const std::string& _name) : name(_name), fulfilled(false), independent(false), level(1) {};
-
-  std::string name;
-  int component;
-  bool fulfilled;
-  bool independent;
-  unsigned int level;
-  std::shared_ptr<FulfillDependency> fulfill;
-};
-
-// we want to create a graph with unique, named vertices, so we specialize the
-// internal vertex name
-namespace boost { 
-  namespace graph {
-
-    template<>
-    struct internal_vertex_name<VertexProperties>
-    {
-      typedef multi_index::member<VertexProperties, std::string, &VertexProperties::name> type;
-    };
-
-    template<>
-    struct internal_vertex_constructor<VertexProperties>
-    {
-      typedef vertex_from_name<VertexProperties> type;
-    };
-
-} }
-
-typedef adjacency_list<vecS, 
-                        vecS, 
-                        undirectedS,
-                        VertexProperties
-                       > DepGraph;
-
-typedef typename graph_traits<DepGraph>::vertex_descriptor Vertex;
-typedef typename graph_traits<DepGraph>::edge_descriptor Edge;
-typedef graph_traits<DepGraph> DepGraphTraits;
-
-typedef boost::shared_ptr<std::vector<unsigned long>> vertex_component_map;
-
-/**
- * @brief is edge in component 'which'?
- */
-struct EdgeInComponent {
-  vertex_component_map mapping;
-  unsigned long which;
-  DepGraph const& master;
-
-  EdgeInComponent() = delete;
-  EdgeInComponent(vertex_component_map _mapping, const unsigned long _which, DepGraph const& _master) :
-    mapping(_mapping), which(_which), master(_master) {}
-
-  template <typename Edge>
-  bool operator()(const Edge& e) const {
-    return mapping->at(source(e,master)) == which ||
-           mapping->at(target(e,master)) == which;
-  }
-};
-
-struct VertexInComponent {
-  vertex_component_map mapping;
-  unsigned long which;
-  DepGraph const& master;
-
-  VertexInComponent() = delete;
-  VertexInComponent(vertex_component_map _mapping, const unsigned long _which, DepGraph const& _master) :
-    mapping(_mapping), which(_which), master(_master) {}
-
-  template <typename Vertex>
-  bool operator()(const Vertex& v) const {
-    return mapping->at(v) == which;
-  }
-};
-
-typedef filtered_graph<DepGraph, EdgeInComponent, VertexInComponent> ComponentGraph;
-
-std::vector<ComponentGraph> connected_components_subgraphs(DepGraph const &g)
-{
-  vertex_component_map mapping = make_shared<std::vector<unsigned long>>(num_vertices(g));
-  size_t num = connected_components(g, mapping->data());
-
-  std::vector<ComponentGraph> component_graphs;
-
-  for( size_t i = 0; i < num; ++i){
-    component_graphs.push_back(ComponentGraph(g, EdgeInComponent(mapping, i, g),
-                                              VertexInComponent(mapping, i, g)));
-  }
-
-  return component_graphs;
-}
-
-template <typename Graph>
-void
-add_unique_edge(typename graph_traits<Graph>::vertex_descriptor from,
-                typename graph_traits<Graph>::vertex_descriptor to,
-                Graph & g)
-{
-  if( edge(from, to, g).second == false ){
-    add_edge(from, to, g);
-    if( g[from].level <= g[to].level ){
-      g[from].level = g[to].level + 1;
-    }
-  }
-}
 
 int main(int, char*[])
 {
