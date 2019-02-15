@@ -48,9 +48,9 @@ void enter_node(const YAML::Node &node, const unsigned int depth, const bool ver
           std::cout << it->first << ": ";
         }
         if( it->first.as<std::string>() == "MomentumList" ){
-          construct_momentum_list(it->second, verbose, momentum_lists);
+          cvc::yaml::construct_momentum_list(it->second, verbose, momentum_lists);
         } else if ( it->first.as<std::string>() == "TimeSlicePropagator" ){
-          construct_time_slice_propagator(it->second, verbose, momentum_lists, ts_prop_meta);
+          cvc::yaml::construct_time_slice_propagator(it->second, verbose, momentum_lists, ts_prop_meta);
         } else {
           char msg[200];
           snprintf(msg, 200,

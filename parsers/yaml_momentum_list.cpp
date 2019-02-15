@@ -9,6 +9,9 @@
 
 #include "algorithms.hpp"
 
+namespace cvc {
+namespace yaml {
+
 std::vector< std::vector<int> > parse_momentum_list(const YAML::Node & node)
 {
   if( node.Type() != YAML::NodeType::Sequence ){
@@ -96,3 +99,5 @@ void construct_momentum_list(const YAML::Node & node,
   mom_lists[id] = momentum_list;
 }
 
+} //namespace(yaml)
+} //namespace(cvc)

@@ -6,6 +6,9 @@
 
 #include "meta_types.hpp"
 
+namespace cvc {
+namespace yaml {
+
 void construct_time_slice_propagator(const YAML::Node &node, 
                                      const bool verbose,
                                      std::map< std::string, std::vector< std::vector<int> > > & mom_lists,
@@ -61,4 +64,6 @@ void construct_time_slice_propagator(const YAML::Node &node,
   if(verbose) std::cout << std::endl;
 }
 
+} // namespace(yaml)
+} // namespace(cvc)
 
