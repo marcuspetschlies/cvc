@@ -2,8 +2,6 @@
 #define _UWERR_H
 
 #include <math.h>
-#include "global.h"
-#include "derived_quantities.h"
 
 #define MAX_NO_REPLICA 100
 
