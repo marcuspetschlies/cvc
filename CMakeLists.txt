@@ -413,3 +413,4 @@ target_link_libraries(cpff_invert_contract_no_spin_dilution
 
 add_subdirectory(external/googletest)
 add_subdirectory(tests)
+add_subdirectory(parsers)
