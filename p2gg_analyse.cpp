@@ -276,10 +276,27 @@ int main(int argc, char **argv) {
         for( int mu = 0; mu < 4; mu++) {
         for( int nu = 0; nu < 4; nu++) {
 
+          double const p[4] = {
+              0., 
+              TWO_MPI * sink_momentum[0] / LX_global,
+              TWO_MPI * sink_momentum[1] / LY_global,
+              TWO_MPI * sink_momentum[2] / LZ_global };
+
+          double const phase = - ( p[0] * gsx[0] + p[1] * gsx[1] + p[2] * gsx[2] + p[3] * gsx[3] ) + 0.5 * ( p[mu] - p[nu] );
+
+          double _Complex ephase = cexp ( phase * I );
+
           /**********************************************************
-           * sort data from buffer into hvp
+           * sort data from buffer into hvp,
+           * add source phase
            **********************************************************/
-          memcpy ( hvp[isink_momentum][mu][nu][iconf][isrc], buffer[mu][nu], 2*T*sizeof(double) );
+          for ( int it = 0; it < T; it++ ) {
+
+            double _Complex ztmp = ( buffer[mu][nu][2*it] +  buffer[mu][nu][2*it+1] * I ) * ephase;
+
+            hvp[isink_momentum][mu][nu][iconf][isrc][2*it  ] = creal( ztmp );
+            hvp[isink_momentum][mu][nu][iconf][isrc][2*it+1] = cimag( ztmp );
+          }
 
         }  /* end of loop on direction nu */
         }  /* end of loop on direction mu */
@@ -301,7 +318,25 @@ int main(int argc, char **argv) {
   /****************************************
    * now some statistical analysis
    ****************************************/
-  /* STOPPED HERE */
+
+  for ( int isink_momentum = 0; isink_momentum < g_sink_momentum_number; isink_momentum++ ) {
+
+    int const sink_momentum[3] = {
+        g_sink_momentum_list[isink_momentum][0],
+        g_sink_momentum_list[isink_momentum][1],
+        g_sink_momentum_list[isink_momentum][1] };
+
+    for( int mu = 0; mu < 4; mu++) {
+    for( int nu = 0; nu < 4; nu++) {
+
+
+
+
+
+    }}
+
+  }
+
 
   /****************************************
    * free the allocated memory, finalize
