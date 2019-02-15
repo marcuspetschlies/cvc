@@ -2,6 +2,7 @@
 
 #include "cvc_complex.h"
 #include "types.h"
+#include "DependencyGraph.hpp"
 
 #include <map>
 #include <vector>
@@ -239,6 +240,7 @@ typedef struct threept_oet_meta_t : twopt_oet_meta_t
 typedef struct MetaCollection {
   std::map<std::string, std::vector< std::vector<int> > > mom_lists;
   std::map<std::string, stoch_prop_meta_t> ts_props;
+  DepGraph g;
 } MetaCollection;
 
 //typedef struct threept_shifts_oet_meta_t : threept_oet_meta_t
