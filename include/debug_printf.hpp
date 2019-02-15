@@ -8,6 +8,7 @@
 #define DEBUG_PRINTF_HPP
 
 #include "global.h"
+
 #include <cstdarg>
 #include <cstdio>
 
