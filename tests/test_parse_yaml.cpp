@@ -9,7 +9,10 @@
 #include <cmath>
 #include <cstring>
 
+#include <meta_types.hpp>
+
 std::map< std::string, std::vector< std::vector<int> > > momentum_lists;
+std::map< std::string, cvc::stoch_prop_meta_t > ts_prop_meta; 
 
 // we sort momenta by psq first.
 // For equal psq, we sort by maximum component: (2,2,1) < (0,0,3)
@@ -81,12 +84,18 @@ std::vector< std::vector<int> > psq_to_momentum_list(const YAML::Node & node)
   return momenta; 
 }
 
-void construct_momentum_list(const YAML::Node & node, const bool verbose)
+void construct_momentum_list(const YAML::Node & node, 
+                             const bool verbose,
+                             std::map< std::string, std::vector< std::vector<int> > > & mom_lists )
 {
   if( node.Type() != YAML::NodeType::Map ){
-    throw( std::invalid_argument("in construct_momentum_list, 'node' must be of type YAML::NodeType::Scalar\n") );
+    throw( std::invalid_argument("in construct_momentum_list, 'node' must be of type YAML::NodeType::Map\n") );
   }
-  std::string id = "undefined";
+  if( !node["id"] || !(node["Psqmax"] || node["Plist"]) ){
+    throw( std::invalid_argument("For 'MomentumList', the 'id' property and one of 'Psqmax' or 'Plist' must be defined!\n") );
+  }
+
+  std::string id;
   std::vector<std::vector<int>> momentum_list;
   for(YAML::const_iterator it = node.begin(); it != node.end(); ++it){
     if(verbose){
@@ -95,10 +104,8 @@ void construct_momentum_list(const YAML::Node & node, const bool verbose)
     if( it->first.as<std::string>() == "id" ){
       id = it->second.as<std::string>();
     } else if( it->first.as<std::string>() == "Plist" ){
-      if(verbose) std::cout << " -> ";
       momentum_list = parse_momentum_list( it->second );
     } else if( it->first.as<std::string>() == "Psqmax" ){
-      if(verbose) std::cout << " -> ";
       momentum_list = psq_to_momentum_list( it->second );
     } else {
       char msg[200];
@@ -108,25 +115,77 @@ void construct_momentum_list(const YAML::Node & node, const bool verbose)
       throw( std::invalid_argument(msg) );
     }
   }
-  if( id == "undefined" ){
-    throw( std::invalid_argument("No valid 'id' defined for a MomentumList!\n") );
-  } else {
-    if( verbose ){
-      for( const auto & mom : momentum_list ){
-        std::cout << "[";
-        for(size_t i = 0; i < mom.size(); ++i){
-          std::cout << mom[i];
-          if( i < mom.size()-1 ){
-            std::cout << ",";
-          } else {
-            std::cout << "] ";
-          } 
+  if( verbose ){
+    std::cout << std::endl << "   ";
+    for( const auto & mom : momentum_list ){
+      std::cout << "[";
+      for(size_t i = 0; i < mom.size(); ++i){
+        std::cout << mom[i];
+        if( i < mom.size()-1 ){
+          std::cout << ",";
+        } else {
+          std::cout << "] ";
+        } 
+      }
+    }
+    std::cout << std::endl;
+  }
+  mom_lists[id] = momentum_list;
+}
+
+void construct_time_slice_propagator(const YAML::Node &node, 
+                                     const bool verbose,
+                                     std::map< std::string, std::vector< std::vector<int> > > & mom_lists,
+                                     std::map< std::string, cvc::stoch_prop_meta_t > & props_meta) {
+  if( node.Type() != YAML::NodeType::Map ){
+    throw( std::invalid_argument("in construct_time_slice_propagator, 'node' must be of type YAML::NodeType::Map\n") );
+  }
+  if( !(node["id"]) || !(node["solver_id"]) || !(node["solver_driver"]) ||
+      !(node["g_src"]) || !(node["P_src"]) ){
+    throw( std::invalid_argument("for TimeSlicePropagator, the properties 'id', 'solver_id',"
+                                 " 'solver_driver', 'g_src' and 'P_src' must be defined!\n") );
+  }
+  if( verbose ){
+    for(YAML::const_iterator it = node.begin(); it != node.end(); ++it){
+      std::cout << "\n  " << it->first << ": " << it->second;
+    }
+  }
+  if( !mom_lists.count( node["P_src"].as<std::string>() ) ){
+    char msg[200];
+    snprintf(msg, 200,
+             "The momentum list '%s' does not seem to exist!\n",
+             node["P_src"].as<std::string>().c_str() );
+    throw( std::invalid_argument(msg) );
+  }
+  const std::string momlist_key = node["P_src"].as<std::string>();
+  for( auto & mom : mom_lists[ momlist_key ] ){
+    if( node["g_src"].Type() == YAML::NodeType::Scalar ){
+      if(verbose) std::cout << std::endl;
+      
+      int g_src;
+      if( node["g_src"].as<std::string>().find("spin_dilution") != std::string::npos ){
+        g_src = -1;
+      } else {
+        g_src = node["g_src"].as<int>();
+      }
+
+      cvc::stoch_prop_meta_t stoch_prop(mom.data(), g_src, node["id"].as<std::string>());
+      props_meta[stoch_prop.key()] = stoch_prop;
+      if(verbose){
+        std::cout << "Added stoch_prop_meta_t: " << stoch_prop.key();
+      }
+    } else {
+      for(size_t i = 0; i < node["g_src"].size(); ++i){
+        cvc::stoch_prop_meta_t stoch_prop(mom.data(), node["g_src"][i].as<int>(), 
+                                          node["id"].as<std::string>());
+        props_meta[stoch_prop.key()] = stoch_prop;
+        if(verbose){
+          std::cout << "Added stoch_prop_meta_t: " << stoch_prop.key() << std::endl;
         }
       }
-      std::cout << std::endl;
     }
-    momentum_lists[id] = momentum_list;
   }
+  if(verbose) std::cout << std::endl;
 }
 
 void enter_node(const YAML::Node &node, const unsigned int depth, const bool verbose = true){
@@ -161,9 +220,15 @@ void enter_node(const YAML::Node &node, const unsigned int depth, const bool ver
           std::cout << it->first << ": ";
         }
         if( it->first.as<std::string>() == "MomentumList" ){
-          construct_momentum_list(it->second, verbose);
+          construct_momentum_list(it->second, verbose, momentum_lists);
+        } else if ( it->first.as<std::string>() == "TimeSlicePropagator" ){
+          construct_time_slice_propagator(it->second, verbose, momentum_lists, ts_prop_meta);
         } else {
-          enter_node(it->second, depth+1);
+          char msg[200];
+          snprintf(msg, 200,
+                   "%s is not a valid Object name\n",
+                   it->first.as<std::string>().c_str());
+          throw( std::invalid_argument(msg) );
         }
       }
     case YAML::NodeType::Null:
@@ -173,11 +238,14 @@ void enter_node(const YAML::Node &node, const unsigned int depth, const bool ver
     default:
       break;
   }
+  for(const auto & prop : ts_prop_meta){
+    std::cout << prop.first << std::endl;
+  }
 }
 
 
 int main(int argc, char ** argv){
   YAML::Node input_node = YAML::LoadFile("definitions.yaml");
-  enter_node(input_node, 0);
+  enter_node(input_node, 0); std::cout << std::endl;
   return 0;
 }
