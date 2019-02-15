@@ -104,11 +104,11 @@ typedef struct seq_stoch_prop_meta_t
   stoch_prop_meta_t src_prop;
 } seq_stoch_prop_meta_t;
 
-typedef struct shifted_prop_meta_t
-{
-  std::vector<shift_t> shifts;
-  std::string prop_key;
-} shifted_prop_meta_t;
+//typedef struct shifted_prop_meta_t
+//{
+//  std::vector<shift_t> shifts;
+//  std::string prop_key;
+//} shifted_prop_meta_t;
 
 /**
  * @brief Meta-description of a meson two-point function
@@ -235,29 +235,29 @@ typedef struct threept_oet_meta_t : twopt_oet_meta_t
   std::string sprop_flav;
 } threept_oet_meta_t; 
 
-typedef struct threept_shifts_oet_meta_t : threept_oet_meta_t
-{
-  threept_shifts_oet_meta_t(
-      const std::string fprop_flav_in,
-      const std::string bprop_flav_in,
-      const std::string sprop_flav_in,
-      const std::string src_mom_prop_in,
-      const int gi_in,
-      const int gf_in,
-      const int gc_in,
-      const int gb_in,
-      const std::vector<shift_t> left_shifts_in,
-      const std::vector<shift_t> right_shifts_in,
-      const ::cvc::complex normalisation_in
-      ) :
-    threept_oet_meta_t(fprop_flav_in, bprop_flav_in, sprop_flav_in,
-                       src_mom_prop_in, gi_in, gf_in, gc_in, gb_in, normalisation_in)
-  {
-    left_shifts = left_shifts_in;
-    right_shifts = right_shifts_in; 
-  }
-  std::vector<shift_t> left_shifts;
-  std::vector<shift_t> right_shifts;
-} threept_shifts_oet_meta_t;
+//typedef struct threept_shifts_oet_meta_t : threept_oet_meta_t
+//{
+//  threept_shifts_oet_meta_t(
+//      const std::string fprop_flav_in,
+//      const std::string bprop_flav_in,
+//      const std::string sprop_flav_in,
+//      const std::string src_mom_prop_in,
+//      const int gi_in,
+//      const int gf_in,
+//      const int gc_in,
+//      const int gb_in,
+//      const std::vector<shift_t> left_shifts_in,
+//      const std::vector<shift_t> right_shifts_in,
+//      const ::cvc::complex normalisation_in
+//      ) :
+//    threept_oet_meta_t(fprop_flav_in, bprop_flav_in, sprop_flav_in,
+//                       src_mom_prop_in, gi_in, gf_in, gc_in, gb_in, normalisation_in)
+//  {
+//    left_shifts = left_shifts_in;
+//    right_shifts = right_shifts_in; 
+//  }
+//  std::vector<shift_t> left_shifts;
+//  std::vector<shift_t> right_shifts;
+//} threept_shifts_oet_meta_t;
 
 } // naemspace(cvc)
