@@ -3,6 +3,7 @@
 #include "cvc_complex.h"
 #include "types.h"
 
+#include <map>
 #include <vector>
 #include <string>
 #include <cstring>
@@ -234,6 +235,11 @@ typedef struct threept_oet_meta_t : twopt_oet_meta_t
   int gc;
   std::string sprop_flav;
 } threept_oet_meta_t; 
+
+typedef struct MetaCollection {
+  std::map<std::string, std::vector< std::vector<int> > > mom_lists;
+  std::map<std::string, stoch_prop_meta_t> ts_props;
+} MetaCollection;
 
 //typedef struct threept_shifts_oet_meta_t : threept_oet_meta_t
 //{
