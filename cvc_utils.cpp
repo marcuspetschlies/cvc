@@ -6360,7 +6360,7 @@ void spinor_field_eq_gauge_field_dag_ti_spinor_field (double*r, double *gf, doub
  * determine the source process id and local source coordinates from
  * global source coordinates
  **************************************************************************/
-int get_point_source_info (int gcoords[4], int lcoords[4], int*proc_id) {
+int get_point_source_info (int const gcoords[4], int lcoords[4], int * const proc_id) {
 
   int source_proc_id = 0;
   int exitstatus;
