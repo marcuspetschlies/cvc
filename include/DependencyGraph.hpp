@@ -10,7 +10,6 @@
 #include <boost/range/iterator_range.hpp>
 #include <boost/make_shared.hpp>
 
-
 namespace cvc {
 
 struct VertexProperties {
@@ -96,7 +95,7 @@ struct VertexInComponent {
 
 typedef boost::filtered_graph<DepGraph, EdgeInComponent, VertexInComponent> ComponentGraph;
 
-std::vector<ComponentGraph> connected_components_subgraphs(DepGraph const &g)
+static inline std::vector<ComponentGraph> connected_components_subgraphs(DepGraph const &g)
 {
   vertex_component_map mapping = boost::make_shared<std::vector<unsigned long>>(num_vertices(g));
   size_t num = connected_components(g, mapping->data());
@@ -112,6 +111,7 @@ std::vector<ComponentGraph> connected_components_subgraphs(DepGraph const &g)
 }
 
 template <typename Graph>
+static inline
 void
 add_unique_edge(typename boost::graph_traits<Graph>::vertex_descriptor from,
                 typename boost::graph_traits<Graph>::vertex_descriptor to,
