@@ -88,6 +88,7 @@ class Core {
         std::cerr << ex.what() << std::endl;
       }
 
+
       // if usage information is requested, we display it and finalise
       if( cmd_options.count("help") ){
         if(world_rank == 0){
@@ -146,7 +147,7 @@ class Core {
     std::string application_name;
     po::options_description cmd_desc;
     po::variables_map cmd_options;
-    
+   
     /**
      * @brief Pointer to external function to populate cmd_desc.
      * If command line arguments beyond the default are required,
@@ -251,6 +252,9 @@ class Core {
         ("input_filename,f",
          po::value<std::string>()->default_value( std::string("cvc.input") ),
          "CVC input file name")
+        ("definitions_yaml,y",
+         po::value<std::string>()->default_value( std::string("definitions.yaml") ),
+         "YAML input file for object definitions")
         ("verbose,v", "verbose core output");
     }
 };

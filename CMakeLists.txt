@@ -192,11 +192,12 @@ endif()
 #  message(FATAL_ERROR "FFTW_HOME must be defined!" )
 #endif()
 
-# maybe we might want to use yaml in CVC at some point
-#find_package(yaml-cpp REQUIRED)
-#message("Found yaml-cpp: ${YAML_CPP_LIBRARIES}")
-#include_directories(${YAML_CPP_INCLUDE_DIR})
-#link_libraries(${YAML_CPP_LIBRARIES})
+## we use YAML for our advanced input file as we can't be arsed to write FLEX parsing
+## routines for all this stuff
+find_package(yaml-cpp REQUIRED)
+message("Found yaml-cpp: ${YAML_CPP_LIBRARIES}")
+include_directories(${YAML_CPP_INCLUDE_DIR})
+link_libraries(${YAML_CPP_LIBRARIES})
 
 set(LAPACK_HOME CACHE PATH "Path to custom LAPACK library")
 if(NOT LAPACK_HOME)
