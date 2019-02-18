@@ -4,8 +4,8 @@
 #include "incomp_gamma.h"
 
 double incomp_gamma(
-		 double U  /* upper limit of integration, in */,
-		 double Nexp  /* exponent in the integrand */) {
+		 double const U     /* upper limit of integration, in */,
+		 double const Nexp  /* exponent in the integrand */) {
   if(Nexp==1.) {
     return(1-exp(-U));
   } else if(Nexp==0.5) {
