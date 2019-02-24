@@ -616,11 +616,11 @@ int write_lemon_spinor(double * const s, char * filename, const int append, cons
   int status = 0;
   int ME_flag=0, MB_flag=0;
 
-#ifdef HAVE_MPI
+/* #ifdef HAVE_MPI
   MPI_Offset bytes;
-#else
+#else */
   n_uint64_t bytes;
-#endif
+/* #endif */
 
   DML_Checksum checksum;
   char *message;
@@ -655,11 +655,11 @@ int write_lemon_spinor(double * const s, char * filename, const int append, cons
   free(message);
 
   // binary data message
-#ifdef HAVE_MPI
+/* #ifdef HAVE_MPI
   bytes = (MPI_Offset)LX_global * LY_global * LZ_global * T_global * (MPI_Offset) (24*sizeof(double) * prec / 64);
-#else
+#else */
   bytes = (n_uint64_t)LX_global * LY_global * LZ_global * T_global * (n_uint64_t) (24*sizeof(double) * prec / 64);
-#endif
+/* #endif */
   MB_flag=1, ME_flag=0;
   header = lemonCreateHeader(MB_flag, ME_flag, "scidac-binary-data", bytes);
   status = lemonWriteRecordHeader(header, writer);

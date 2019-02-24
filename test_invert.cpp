@@ -280,13 +280,15 @@ int main(int argc, char **argv) {
   }
 
   memset ( spinor_work[0], 0, sizeof_spinor_field );
+#if 0
   if ( g_cart_id == 0 ) {
     // spinor_work[0][0] = 1.;
-    spinor_work[0][_GSI(1)+8] = 1.;
-    // spinor_work[0][_GSI(1)] = 1.;
+    // spinor_work[0][_GSI(1)+8] = 1.;
+    spinor_work[0][_GSI(1)] = 1.;
     // spinor_work[0][_GSI(2)+8] = 1.;
   }
-
+#endif
+  exitstatus = prepare_volume_source ( spinor_work[0], VOLUME );
   memset ( spinor_work[1], 0, sizeof_spinor_field );
 
   // exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_dn );
@@ -297,8 +299,8 @@ int main(int argc, char **argv) {
   }
 
   if ( check_propagator_residual ) {
-    // check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_dn], 1 );
-    check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_up], 1 );
+    // check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_dn], mzzinv[op_id_dn], 1 );
+    check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_up], mzzinv[op_id_up], 1 );
   }
 
   // exitstatus = prepare_volume_source ( double * const s, unsigned int const V);

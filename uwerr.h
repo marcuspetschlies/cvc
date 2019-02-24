@@ -5,6 +5,9 @@
 #include "global.h"
 
 #define MAX_NO_REPLICA 100
+#define _SQR(_a)   ( (_a) * (_a) )
+#define _num_bin(_n) (1 + (int)rint( log( (double)(_n) ) / log(2.0) ))
+#define TINY (1e-15)
 
 typedef int (*dquant)(void*, void*, double*);
  
