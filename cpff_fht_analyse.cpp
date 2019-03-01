@@ -212,6 +212,11 @@ int main(int argc, char **argv) {
           g_sink_momentum_list[isink_momentum][1],
           g_sink_momentum_list[isink_momentum][2] };
  
+        int const source_momentum[3] = {
+          -sink_momentum[0],
+          -sink_momentum[1],
+          -sink_momentum[2] };
+
         /***********************************************************
          * allocate corr_std
          ***********************************************************/
@@ -256,11 +261,6 @@ int main(int argc, char **argv) {
             }  /* end of if io_proc == 2 */
 #endif
 
-            int const source_momentum[3] = {
-              -sink_momentum[0],
-              -sink_momentum[1],
-              -sink_momentum[2] };
-
             sprintf ( key , "/d+-g-d-g/std/t%d/s0/gf%d/gi%d/pix%dpiy%dpiz%d/px%dpy%dpz%d",
                 gts, g_source_gamma_id_list[igf], g_source_gamma_id_list[igi],
                 source_momentum[0], source_momentum[1], source_momentum[2],
@@ -284,6 +284,33 @@ int main(int argc, char **argv) {
 
           }  /* end of loop on sources per configuration */
         }  /* end of loop on configurations */
+
+
+        /****************************************
+         * show all data
+         ****************************************/
+        if ( g_verbose > 4 ) {
+          sprintf ( filename, "d+-g-d-g_s0_gf%d_gi%d_pfx%.2dpfy%.2dpfz%.2d_pix%.2dpiy%.2dpiz%.2d.std",
+              g_source_gamma_id_list[igf],
+              g_source_gamma_id_list[igi],
+              sink_momentum[0], sink_momentum[1], sink_momentum[2],
+              source_momentum[0], source_momentum[1], source_momentum[2] );
+
+          FILE * ofs = fopen ( filename, "w" );
+
+          for ( int iconf = 0; iconf < num_conf; iconf++ )
+          {
+            for( int isrc = 0; isrc < num_src_per_conf; isrc++ )
+            {
+              for ( int it = 0; it < T; it++ ) {
+                fprintf ( ofs, "%6d %3d %2d %25.16e %25.16e\n", conf_src_list[iconf][isrc][0],
+                    conf_src_list[iconf][isrc][1],
+                    it, corr_std[iconf][isrc][2*it], corr_std[iconf][isrc][2*it+1] );
+              }
+            }
+          }
+          fclose ( ofs );
+        }  /* end of if verbosity */
 
         /****************************************
          * statistical analysis
@@ -381,6 +408,11 @@ int main(int argc, char **argv) {
               g_source_momentum_list[iseq_momentum][1],
               g_source_momentum_list[iseq_momentum][2] };
 
+            int const source_momentum[3] = {
+              - ( sink_momentum[0] + seq_source_momentum[0] ),
+              - ( sink_momentum[1] + seq_source_momentum[1] ),
+              - ( sink_momentum[2] + seq_source_momentum[2] ) };
+
             double *** corr_fht = init_3level_dtable ( num_conf, num_src_per_conf, 2 * T );
             if ( corr_fht == NULL ) {
               fprintf(stderr, "[cpff_fht_analyse] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__);
@@ -422,11 +454,6 @@ int main(int argc, char **argv) {
                 }  /* end of if io_proc == 2 */
 #endif
 
-                int const source_momentum[3] = {
-                  - ( sink_momentum[0] + seq_source_momentum[0] ),
-                  - ( sink_momentum[1] + seq_source_momentum[1] ),
-                  - ( sink_momentum[2] + seq_source_momentum[2] ) };
-
                 sprintf ( key , "/d+-g-d-g/fht/t%d/s0/gf%d/gc%d/pcx%dpcy%dpcz%d/gi%d/pix%dpiy%dpiz%d/px%dpy%dpz%d",
                     gts, g_source_gamma_id_list[igf],
                     g_sequential_source_gamma_id_list[igc], seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
@@ -456,23 +483,28 @@ int main(int argc, char **argv) {
              * show all data
              ****************************************/
             if ( g_verbose > 4 ) {
-              fprintf (stdout , "# d+-g-d-g  s0 gf%d gc%d pcx%dpcy%dpcz%d gi%d px%dpy%dpz%d\n",
+              sprintf ( filename, "d+-g-d-g_s0_gf%d_gc%d_gi%d_pfx%.2dpfy%.2dpfz%.2d_pcx%.2dpcy%.2dpcz%.2d_pix%.2dpiy%.2dpiz%.2d.fht",
                   g_source_gamma_id_list[igf],
-                  g_sequential_source_gamma_id_list[igc], seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
+                  g_sequential_source_gamma_id_list[igc],
                   g_source_gamma_id_list[igi],
-                  sink_momentum[0], sink_momentum[1], sink_momentum[2] );
+                  sink_momentum[0], sink_momentum[1], sink_momentum[2],
+                  seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
+                  source_momentum[0], source_momentum[1], source_momentum[2] );
+
+              FILE * ofs = fopen ( filename, "w" );
 
               for ( int iconf = 0; iconf < num_conf; iconf++ )
               {
                 for( int isrc = 0; isrc < num_src_per_conf; isrc++ )
                 {
                   for ( int it = 0; it < T; it++ ) {
-                    fprintf ( stdout, "c %6d s %3d t %2d   std %25.16e %25.16e   fht %25.16e %25.16e\n", conf_src_list[iconf][isrc][0],
+                    fprintf ( ofs, "%6d %3d %2d %25.16e %25.16e\n", conf_src_list[iconf][isrc][0],
                         conf_src_list[iconf][isrc][1],
-                        it, corr_std[iconf][isrc][2*it], corr_std[iconf][isrc][2*it+1], corr_fht[iconf][isrc][2*it], corr_fht[iconf][isrc][2*it+1] );
+                        it, corr_fht[iconf][isrc][2*it], corr_fht[iconf][isrc][2*it+1] );
                   }
                 }
               }
+              fclose ( ofs );
             }  /* end of if verbosity */
 
             /****************************************
