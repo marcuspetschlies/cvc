@@ -89,7 +89,7 @@ int contract_diagram_read_oet_key_qlua (
   int const ncomp         // components
 );
 
-double _Complex contract_diagram_get_correlator_phase ( char * type, int const gi11, int const gi12, int const gi2, int const gf11, int const gf12, int const gf2 );
+double _Complex contract_diagram_get_correlator_phase ( char * const type, int const gi11, int const gi12, int const gi2, int const gf11, int const gf12, int const gf2 );
  
 
 int contract_diagram_zm4x4_field_pl_eq_zm4x4_field ( double _Complex *** const s, double _Complex *** const r, unsigned int const N);
@@ -97,6 +97,12 @@ int contract_diagram_zm4x4_field_pl_eq_zm4x4_field ( double _Complex *** const s
 int contract_diagram_zm4x4_field_eq_zm4x4_field_pl_zm4x4_field_ti_co ( double _Complex *** const s, double _Complex *** const r, double _Complex *** const p, double _Complex const z, unsigned int const N);
 
 void contract_diagram_mat_op_ti_zm4x4_field_ti_mat_op ( double _Complex *** const sp_out, double _Complex ** const R1, char const op1 , double _Complex *** const sp_in, double _Complex ** const R2, char const op2, unsigned int const N );
+
+int contract_diagram_finalize ( double _Complex *** const diagram, char * const diagram_type, int const sx[4], int const p[3], 
+    int const gf11_id, int const gf12_id, int const gf12_sign, int const gf2_id,
+    int const gi11_id, int const gi12_id, int const gi12_sign, int const gi2_id,
+    unsigned int const N );
+
 
 }  // end of namespace cvc
 #endif
