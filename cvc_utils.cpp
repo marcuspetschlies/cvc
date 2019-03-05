@@ -3277,7 +3277,7 @@ void contract_twopoint_snk_momentum ( double * const contr, int const idsource, 
   double * ssource = (double*)calloc ( n_s , sizeof(double) );
 
   /* default value for sign is 1. */
-#pragma unroll
+
   for ( unsigned int mu = 0; mu < n_s; mu++ ) {
     ssource[mu] = 1.;
   }
@@ -3285,7 +3285,7 @@ void contract_twopoint_snk_momentum ( double * const contr, int const idsource, 
   if ( idsource >= 0 && n_s > 1 ) {
     /* permutation and sign from the source gamma matrix; the minus sign
      * in the lower two lines is the action of gamma_5 */
-#pragma unroll
+
     for ( unsigned int mu = 0; mu < n_s; mu++ ) {
       psource[mu] = gamma_permutation[idsource][6*mu] / 6;
       ssource[mu] = gamma_sign[idsource][6*mu] * gamma_sign[5][gamma_permutation[idsource][6*mu]];
@@ -3297,7 +3297,7 @@ void contract_twopoint_snk_momentum ( double * const contr, int const idsource, 
   if ( g_cart_id == 0 && g_verbose > 3 ) {
     fprintf(stdout, "# [contract_twopoint_snk_momentum] __________________________________\n");
     for ( unsigned int mu = 0; mu < n_s; mu++ ) {
-      fprintf(stdout, "# [contract_twopoint_snk_momentum] isource=%d, idsink=%d, p[%d] = %d, s[%d] = %e\n", mu, idsource, idsink, psource[mu], mu, ssource[mu] );
+      fprintf(stdout, "# [contract_twopoint_snk_momentum] isource=%d, idsink=%d, p[%d] = %d, s[%d] = %e\n", idsource, idsink, mu, psource[mu], mu, ssource[mu] );
     }
   }
 
@@ -3648,53 +3648,51 @@ void contract_twopoint_snk_momentum_trange(double *contr, const int idsource, co
  *   prec - precision type, 64 for double precision, single precision else
  *
  ******************************************************************************/
-void contract_twopoint_xdep(void*contr, const int idsource, const int idsink, void*chi, void*phi, int n_c, int stride, double factor, size_t prec) {
+void contract_twopoint_xdep(void*contr, const int idsource, const int idsink, void * const chi, void * const phi, int const n_s, int const n_c, unsigned int const stride, double const factor, size_t const prec) {
+
+
+  int isimag = 0;
+  int    * psource = (int   *)calloc ( n_s , sizeof(int)    );
+  double * ssource = (double*)calloc ( n_s , sizeof(double) );
+
+  for ( unsigned int mu = 0; mu < n_s; mu++ ) {
+    ssource[mu] = 1.;
+  }
+
+  if ( idsource >= 0 && idsource < 16 && n_s > 1 ) {
+    /* permutation and sign from the source gamma matrix; the minus sign
+     * in the lower two lines is the action of gamma_5 */
+#pragma unroll
+    for ( unsigned int mu = 0; mu < n_s; mu++ ) {
+      psource[mu] = gamma_permutation[idsource][6*mu] / 6;
+      ssource[mu] = gamma_sign[idsource][6*mu] * gamma_sign[5][gamma_permutation[idsource][6*mu]];
+    }
+
+    isimag = gamma_permutation[idsource][ 0] % 2;
+  }
+
+  if ( g_cart_id == 0 && g_verbose > 3 ) {
+    fprintf(stdout, "# [contract_twopoint_xdep] __________________________________\n");
+    for ( unsigned int mu = 0; mu < n_s; mu++ ) {
+      fprintf(stdout, "# [contract_twopoint_xdep] isource=%d, idsink=%d, p[%d] = %d, s[%d] = %e\n", idsource, idsink, mu, psource[mu], mu, ssource[mu] );
+    }
+  }
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel shared(chi,phi,stride,n_c,factor,prec,contr)
+#pragma omp parallel shared(contr,psource,ssource,isimag)
 {
 #endif
-  const int psource[4] = { gamma_permutation[idsource][ 0] / 6,
-                           gamma_permutation[idsource][ 6] / 6,
-                           gamma_permutation[idsource][12] / 6,
-                           gamma_permutation[idsource][18] / 6 };
-  const int isimag = gamma_permutation[idsource][ 0] % 2;
-  /* sign from the source gamma matrix; the minus sign
-   * in the lower two lines is the action of gamma_5 */
-  double ssource[4];
-
-  ssource[0] = (double)( gamma_sign[idsource][ 0] * gamma_sign[5][gamma_permutation[idsource][ 0]] );
-  ssource[1] = (double)( gamma_sign[idsource][ 6] * gamma_sign[5][gamma_permutation[idsource][ 6]] );
-  ssource[2] = (double)( gamma_sign[idsource][12] * gamma_sign[5][gamma_permutation[idsource][12]] );
-  ssource[3] = (double)( gamma_sign[idsource][18] * gamma_sign[5][gamma_permutation[idsource][18]] );
-
-/*
- * if( g_cart_id == 0 ) {
-    fprintf(stdout, "__________________________________\n");
-    fprintf(stdout, "isource=%d, idsink=%d, p[0] = %d, s[0] = %e\n", idsource, idsink, psource[0], ssource[0]);
-    fprintf(stdout, "isource=%d, idsink=%d, p[1] = %d, s[1] = %e\n", idsource, idsink, psource[1], ssource[1]);
-    fprintf(stdout, "isource=%d, idsink=%d, p[2] = %d, s[2] = %e\n", idsource, idsink, psource[2], ssource[2]);
-    fprintf(stdout, "isource=%d, idsink=%d, p[3] = %d, s[3] = %e\n", idsource, idsink, psource[3], ssource[3]);
-    fprintf(stdout, "isource=%d, idsink=%d, factor = %e\n", idsource, idsink, factor);
-
-    fprintf(stdout, "# %3d %3d ssource = %e\t%e\t%e\t%e\n", idsource, idsink,
-        ssource[0], ssource[1], ssource[2], ssource[3]);
-  }
-*/
-
-  int mu, c, j;
-  unsigned int ix, iix;
   double  spinor1[24], spinor2[24];
   complex w;
 
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-  for(ix=0; ix<VOLUME; ix++) {
-    iix = ix * stride;
+  for ( unsigned int ix=0; ix<VOLUME; ix++) {
+    unsigned int const iix = ix * stride;
 
-    for(mu=0; mu<4; mu++) {
-      for(c=0; c<n_c; c++) {
+    for ( int mu=0; mu<n_s; mu++) {
+      for ( int c=0; c<n_c; c++) {
 
         if(prec==64) {
           _fv_eq_gamma_ti_fv(spinor1, idsink, (double*)(((double**)phi)[mu*n_c+c])+_GSI(ix));
