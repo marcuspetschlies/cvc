@@ -444,34 +444,28 @@ int correlator_add_baryon_boundary_phase ( double _Complex *** const sp, int con
     if ( g_verbose > 3 ) fprintf(stdout, "# [add_baryon_boundary_phase] multiplying with boundary step function\n");
 
 
-    if ( tsrc > 0 ) {
-      // assume lattice ordering timeslices 0, 1, ..., T-1
-
-#pragma omp parallel for
-      for( int ir = 0; ir < T; ir++ ) {
-        int const it = ir + g_proc_coords[0] * T;  // global t-value, 0 <= t < T_global
-        if( it < tsrc ) {
-
-          zm4x4_ti_eq_re ( sp[it], -1 );
-
-        }  // end of if it < tsrc
-
-      }  // end of loop on ir
-
-    } else {
-      // assume ordering from source, timeslices tsrc, tsrc+1, ..., ( tsrc+t+T_global ) % T_global
-
-      int const tmin = ( dir == +1 ) ? _MIN( T_global - tsrc, N ) : _MIN(1,    N);
-      int const tmax = ( dir == +1 ) ? _MIN( T_global - 1,    N ) : _MIN(tsrc, N);
+    // MUST assume lattice ordering timeslices 0, 1, ..., T-1
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-      for( int it = tmin; it <= tmax; it++ ) {
-        zm4x4_ti_eq_re ( sp[it], -1. );
-      }  // end of loop on ir
-    }  // end of else of if tsrc > 0
-  
+    for( int ir = 0; ir < N; ir++ ) {                            // counter of global timeslice
+      int const it = ( dir * ir + tsrc + T_global ) % T_global;  // global timeslice, 0 <= it < T_global
+      int const is = it % T;                                     // local timeslice, 0 <= is < T
+#ifdef HAVE_MPI
+      //    need -1           my timeslice
+      if( ( it < tsrc ) && ( it / T == g_proc_coords[0] ) ) 
+#else
+      if( ( it < tsrc ) )
+#endif
+      {
+
+        zm4x4_ti_eq_re ( sp[is], -1 );
+
+      }  // end of if it < tsrc
+
+    }  // end of loop on ir
+
   }  // end of if propagator bc type is 1
 
   return(0);
@@ -495,7 +489,14 @@ int correlator_add_source_phase ( double _Complex ***sp, int const p[3], int con
 #pragma omp parallel for
 #endif
   for( unsigned int ix = 0; ix < N; ix++ ) {
-    zm4x4_ti_eq_co ( sp[ix], w );
+#ifdef HAVE_MPI
+    // not my timeslice ? go on
+    if ( ix / T != g_proc_coords[0] ) continue;
+    unsigned int const is = ix % T;
+#else
+    unsigned int const is = ix;
+#endif
+    zm4x4_ti_eq_co ( sp[is], w );
   }
   return(0);
 }  /* end of correlator_add_source_phase */
@@ -1391,7 +1392,7 @@ int contract_diagram_zm4x4_field_mul_gamma_lr ( double _Complex *** const sp_out
  * baryon at source gets (1) from adjoint current construction and -I from 
  * factor I in C, which comes adjoint
  ********************************************************************************/
-double _Complex contract_diagram_get_correlator_phase ( char * type, int const gi11, int const gi12, int const gi2, int const gf11, int const gf12, int const gf2 ) {
+double _Complex contract_diagram_get_correlator_phase ( char * const type, int const gi11, int const gi12, int const gi2, int const gf11, int const gf12, int const gf2 ) {
 
   double _Complex zsign = 0.;
 
@@ -1444,7 +1445,30 @@ double _Complex contract_diagram_get_correlator_phase ( char * type, int const g
     int const sigma_gf2 = get_gamma_signs ( "g0d", gf2 );
 
     zsign = ( ( sigma_gi2 == -1 ) ? I : 1 ) * ( ( sigma_gf2 == -1 ) ? I : 1 );
-  }
+
+  } else if ( strcmp( type , "mxb-J-b" ) == 0 ) {
+    /********************************************************************************
+     * meson-baryon - current insertion - baryon
+     *
+     * at source and sink
+     ********************************************************************************/
+
+    int const sigma_gi2 = get_gamma_signs ( "g0d", gi2 );
+
+    zsign = (double _Complex) ( get_gamma_signs ( "g0d" , gi11 ) * get_gamma_signs ( "g0d" , gi12 ) ) * (-1) * (I) * (-I);
+
+    zsign *= ( sigma_gi2 == -1 ) ? I : 1.;
+
+  } else if ( strcmp( type , "b-J-b" ) == 0 ) {
+    /********************************************************************************
+     * baryon - current insertion - baryon
+     *
+     * at source and sink
+     ********************************************************************************/
+
+    zsign = (double _Complex) ( get_gamma_signs ( "g0d" , gi11 ) * get_gamma_signs ( "g0d" , gi12 ) ) * (-1) * (I) * (-I);
+
+  }  /* end of if type */
 
   if (g_verbose > 2) {
     fprintf(stdout, "# [contract_diagram_get_correlator_phase] gf1 %2d - %2d\n"\
@@ -1519,5 +1543,62 @@ void contract_diagram_mat_op_ti_zm4x4_field_ti_mat_op ( double _Complex *** cons
   fini_2level_ztable ( &S2 );
 
 }  /* end of contract_diagram_mat_op_ti_zm4x4_field_ti_mat_op */
+
+
+/********************************************************************************/
+/********************************************************************************/
+
+/********************************************************************************
+ *  
+ ********************************************************************************/
+int contract_diagram_finalize ( double _Complex *** const diagram, char * const diagram_type, int const sx[4], int const p[3], 
+    int const gf11_id, int const gf12_id, int const gf12_sign, int const gf2_id,
+    int const gi11_id, int const gi12_id, int const gi12_sign, int const gi2_id,
+    unsigned int const N )
+{
+
+  int exitstatus;
+
+  if ( g_verbose > 4 ) {
+    fprintf ( stdout, "# [contract_diagram_finalize] sx = ( %3d, %3d, %3d, %3d ) p = (%3d, %3d, %3d) gf = (%3d, %3d; %3d) sf12 %2d gi = (%3d, %3d; %3d) si12 %2d \n",
+        sx[0], sx[1], sx[2], sx[3], p[0], p[1], p[2],
+        gf11_id, gf12_id, gf2_id, gf12_sign, gi11_id, gi12_id, gi2_id, gi12_sign );
+  }
+
+
+  /*******************************************
+   * add boundary phase
+   *******************************************/
+  correlator_add_baryon_boundary_phase ( diagram, sx[0], +1, N );
+
+  /*******************************************
+   * add momentum phase at source
+   *******************************************/
+  correlator_add_source_phase ( diagram, p, &(sx[1]), N );
+
+  /*******************************************
+   * add overall phase factor
+   *******************************************/
+  double _Complex const zsign = contract_diagram_get_correlator_phase ( diagram_type, gi11_id, gi12_id, gi2_id, gf11_id, gf12_id, gf2_id );
+
+  contract_diagram_zm4x4_field_ti_eq_co ( diagram, zsign, N );
+
+  /*******************************************
+   * add outer gamma matrices
+   *******************************************/
+  gamma_matrix_type gf12;
+  gamma_matrix_set ( &gf12, gf12_id, gf12_sign );
+
+  gamma_matrix_type gi12;
+  gamma_matrix_set ( &gi12, gi12_id, gi12_sign );
+
+  if ( ( exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( diagram, diagram, gf12, gi12, N ) ) != 0 ) {
+    fprintf( stderr, "[contract_diagram_finalize] Error from contract_diagram_zm4x4_field_mul_gamma_lr, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+
+
+  return(0);
+}  /* end of contract_diagram_finalize */
 
 }  // end of namespace cvc

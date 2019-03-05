@@ -1,13 +1,5 @@
 /****************************************************
- * meson_baryon_factorized_diagrams_3pt.cpp
- * 
- * Di 6. Mär 09:04:43 CET 2018
- *
- * PURPOSE:
- *   originally copied from test_diagrams.cpp
- * TODO:
- * DONE:
- *
+ * meson_baryon_factorized_diagrams_3pt
  ****************************************************/
 
 #include <stdlib.h>
@@ -68,12 +60,13 @@ void usage() {
  * main program
  ***********************************************************/
 int main(int argc, char **argv) {
-  
+ 
   int c;
   int filename_set = 0;
   int exitstatus;
   char filename[200];
   int io_proc = -1;
+  int npt_mode = 0;
 
 #ifdef HAVE_LHPC_AFF
   struct AffReader_s *affr = NULL;
@@ -83,20 +76,26 @@ int main(int argc, char **argv) {
 #endif
 
   // pion-type gamma list at vertex i2
-  int const gamma_i2_number = 2;
-  int const gamma_i2_list[gamma_i2_number]    = { 15,  7 };
+  int const gamma_i2_number = 1;
+  //                                              g5   g5 gt ~ gx gy gz
+  // int const gamma_i2_list[gamma_i2_number] = { 15,  7 };
+  int const gamma_i2_list[gamma_i2_number]    = { 15 };
 
   // pion-type gamma list at vertex f2
-  // const int gamma_f2_number = 4;
-  // int gamma_f2_list[gamma_f2_number]    = { 15,  0,  8,  7 };
+  // const int gamma_f2_number = 1;
+  //                                        g5   1  gt gtg5 
+  // int gamma_f2_list[gamma_f2_number] = { 15,  0,  8,   7 };
+  // int gamma_f2_list[gamma_f2_number]    = { 15 };
+
   // current vertex
   int const gamma_f2_number = 6;
   int const gamma_f2_list[gamma_f2_number] = { 1, 2, 4, 14, 13, 11 } ;
 
-
   // Nucleon-type gamma list at vertex f1
-  int const gamma_f1_number = 4;
-  int const gamma_f1_list[gamma_f1_number]    = { 10,  5,  2, 13 };
+  int const gamma_f1_number = 1;
+  //                                                  C,  g5    Cg5, 1      Cgt, g5    Cg5gt, 1
+  // int const gamma_f1_list[gamma_f1_number][2] = { {10, 15}, { 5,  0},  { 2,   15}, {13,    0} };
+  int const gamma_f1_list[gamma_f1_number][2]    = {           { 5,  0} };
 
   // list of permutations for recombinations
   int const permutation_list[6][4] =  {
@@ -148,15 +147,43 @@ int main(int argc, char **argv) {
    // char const mm_m1_factor_list[mm_m1_factor_number][20] = { "fl-fl" };
    char const mm_m1_factor_list[mm_m1_factor_number][20] = { "fl-gc-fl-gi" };
 
+
+   // char diagram_type[] = "mxb-mxb";
+   char diagram_type[] = "mxb-J-b";
+
+   int const gamma_basis_conversion_to_cvc[16] =  { 
+      4, //  0 = 1
+      1, //  1 = x
+      2, //  2 = y 
+     13, //  3 = xy 
+      3, //  4 = z
+     14, //  6 = xz
+     15, //  7 = yz 
+      6, //  8 = xyz
+      0, //  9 = t
+     10, //  0 = tx
+     11, // 10 = ty
+      9, // 11 = txy 
+     12, // 12 = tz
+      8, // 13 = txz
+      7, // 14 = tyz
+      5  // 15 = txyz 
+   };
+
+
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:n:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
       filename_set=1;
+      break;
+    case 'n':
+      npt_mode = atoi ( optarg );
+      fprintf ( stdout, "# [meson_baryon_factorized_diagrams_3pt] n-pt mode set to %d\n", npt_mode );
       break;
     case 'h':
     case '?':
@@ -261,11 +288,11 @@ int main(int argc, char **argv) {
     int t_base = g_source_coords_list[i_src][0];
 
     /******************************************************
-     * open AFF input and output files
+     * open AFF output files
      ******************************************************/
     if(io_proc == 2) {
       /* AFF output file */
-      sprintf(filename, "%s.%.4d.tsrc%.2d.aff", "meson_baryon_factorized_diagrams_3pt", Nconf, t_base );
+      sprintf(filename, "%s.%.4d.tsrc%.2d.aff", g_outfile_prefix, Nconf, t_base );
       affw = aff_writer (filename);
       aff_status_str = (char*)aff_writer_errstr(affw);
       if( aff_status_str != NULL ) {
@@ -299,7 +326,11 @@ int main(int argc, char **argv) {
     for ( int isample = 0; isample < g_nsample; isample++ ) {
       if(io_proc == 2) {
         /* AFF input files */
-        sprintf(filename, "%s.%.4d.tbase%.2d.%.5d.aff", "contract_v2_phi_light", Nconf, t_base, isample );
+        if ( npt_mode == 2 ) {
+          sprintf(filename, "%s.%.4d.tbase%.2d.%.5d.aff", "contract_v2_phi_light", Nconf, t_base, isample );
+        } else if ( npt_mode == 3 ) {
+          sprintf(filename, "%s.%.4d.tbase%.2d.dt%.2d.%.5d.aff", "contract_v2_phi_light", Nconf, t_base, g_src_snk_time_separation, isample );
+        }
         affr = aff_reader (filename);
         aff_status_str = (char*)aff_reader_errstr(affr);
         if( aff_status_str != NULL ) {
@@ -323,7 +354,7 @@ int main(int argc, char **argv) {
             if ( io_proc == 2 ) {
 
               exitstatus = contract_diagram_read_key_qlua ( b_v2_factor[ifac][igf][ipf][isample], b_v2_factor_list[ifac], 
-                  -1, NULL, g_source_coords_list[i_src], isample, "v2", gamma_f1_list[igf], g_sink_momentum_list[ipf], affr, T_global, 192);
+                  -1, NULL, g_source_coords_list[i_src], isample, "v2", gamma_f1_list[igf][0], g_sink_momentum_list[ipf], affr, T_global, 192);
  
               if ( exitstatus != 0 ) {
                 fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_read_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -359,7 +390,11 @@ int main(int argc, char **argv) {
     for ( int isample = 0; isample < g_nsample; isample++ ) {
       if(io_proc == 2) {
         /* AFF input files */
-        sprintf(filename, "%s.%.4d.tbase%.2d.%.5d.aff", "contract_v4_phi_light", Nconf, t_base, isample );
+        if ( npt_mode == 2 ) {
+          sprintf(filename, "%s.%.4d.tbase%.2d.%.5d.aff", "contract_v4_phi_light", Nconf, t_base, isample );
+        } else if ( npt_mode == 3 ) {
+          sprintf(filename, "%s.%.4d.tbase%.2d.dt%.2d.%.5d.aff", "contract_v4_phi_light", Nconf, t_base, g_src_snk_time_separation, isample );
+        }
         affr = aff_reader (filename);
         aff_status_str = (char*)aff_reader_errstr(affr);
         if( aff_status_str != NULL ) {
@@ -383,7 +418,7 @@ int main(int argc, char **argv) {
             if ( io_proc == 2 ) {
  
               exitstatus = contract_diagram_read_key_qlua ( b_v4_factor[ifac][igf][ipf][isample], b_v4_factor_list[ifac],
-                  -1, NULL, g_source_coords_list[i_src], isample, "v4", gamma_f1_list[igf], g_sink_momentum_list[ipf], affr, T_global, 192);
+                  -1, NULL, g_source_coords_list[i_src], isample, "v4", gamma_f1_list[igf][0], g_sink_momentum_list[ipf], affr, T_global, 192);
  
               if ( exitstatus != 0 ) {
                 fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_read_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -520,6 +555,11 @@ int main(int argc, char **argv) {
                **************************************************************************************/
               for ( int ipi2 = 0; ipi2 < g_seq_source_momentum_number; ipi2++ ) {
 
+                int const pi1[3] = {
+                  -( g_total_momentum_list[iptot][0] + g_seq_source_momentum_list[ipi2][0] ),
+                  -( g_total_momentum_list[iptot][1] + g_seq_source_momentum_list[ipi2][1] ),
+                  -( g_total_momentum_list[iptot][2] + g_seq_source_momentum_list[ipi2][2] ) };
+
                 /**************************************************************************************
                  * loop on gi1
                  **************************************************************************************/
@@ -528,8 +568,10 @@ int main(int argc, char **argv) {
                   char aff_tag_suffix[200];
 
                   contract_diagram_key_suffix ( aff_tag_suffix, gamma_f2_list[igf2], g_seq2_source_momentum_list[ipf2],
-                      gamma_f1_list[igf1], g_sink_momentum_list[ipf1], gamma_i2_list[igi2], g_seq_source_momentum_list[ipi2], 
-                      gamma_f1_list[igi1] );
+                      gamma_f1_list[igf1][0], gamma_f1_list[igf1][1], g_sink_momentum_list[ipf1], 
+                      gamma_i2_list[igi2], g_seq_source_momentum_list[ipi2], 
+                      gamma_f1_list[igi1][0], gamma_f1_list[igi1][1], NULL, NULL );
+
 
                   /**************************************************************************************
                    * loop on v3 factors
@@ -558,7 +600,7 @@ int main(int argc, char **argv) {
 
                         /* reduce to diagram, average over stochastic samples */
                         if ( ( exitstatus = contract_diagram_sample ( diagram, b_v3_factor[iv3][igi2][ipi2][igf2][ipf2], b_v2_factor[iv2][igf1][ipf1],
-                                g_nsample, permutation_list[ip], gamma[gamma_f1_list[igi1]] , T_global ) ) != 0 ) {
+                                g_nsample, permutation_list[ip], gamma[gamma_f1_list[igi1][0]] , T_global ) ) != 0 ) {
                           fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_sample, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                           EXIT(105);
                         }
@@ -576,13 +618,27 @@ int main(int argc, char **argv) {
   
                           get_point_source_info (gsx, sx, &source_proc_id);
   
+                          /*******************************************
+                           * add to diagram (in place)
+                           * - baryon boundary phase
+                           * - source phase
+                           * - outer gamma matrices
+                           * - overall phase from conventions
+                           *
+                           * NOTE: SIGN for GF12 CHOSEN AS +1 for now
+                           *******************************************/
+                          exitstatus = contract_diagram_finalize ( diagram, diagram_type, gsx, pi1, 
+                              gamma_basis_conversion_to_cvc[gamma_f1_list[igf1][0]], gamma_basis_conversion_to_cvc[gamma_f1_list[igf1][1]], +1, gamma_basis_conversion_to_cvc[gamma_f2_list[igf2]],
+                              gamma_basis_conversion_to_cvc[gamma_f1_list[igi1][0]], gamma_basis_conversion_to_cvc[gamma_f1_list[igi1][1]], +1, gamma_basis_conversion_to_cvc[gamma_i2_list[igi2]],
+                              T_global );
+
                           /**************************************************************************************/
                           /**************************************************************************************/
   
                           char aff_tag[500];
    
                           /* AFF */
-                          sprintf(aff_tag, "/v3/%s/v2/%s//p%d%d%d%d/%s/%s", b_v3_factor_list[iv3], b_v2_factor_list[iv2],  
+                          sprintf(aff_tag, "/v3/%s/v2/%s/p%d%d%d%d/%s/%s", b_v3_factor_list[iv3], b_v2_factor_list[iv2],  
                               permutation_list[ip][0], permutation_list[ip][1], permutation_list[ip][2], permutation_list[ip][3], "fwd", aff_tag_suffix );
   
                           if ( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
@@ -591,7 +647,7 @@ int main(int argc, char **argv) {
                           } 
    
                           /* AFF */
-                          sprintf(aff_tag, "/v3/%s/v2/%s//p%d%d%d%d/%s/%s", b_v3_factor_list[iv3], b_v2_factor_list[iv2],  
+                          sprintf(aff_tag, "/v3/%s/v2/%s/p%d%d%d%d/%s/%s", b_v3_factor_list[iv3], b_v2_factor_list[iv2],  
                               permutation_list[ip][0], permutation_list[ip][1], permutation_list[ip][2], permutation_list[ip][3], "bwd", aff_tag_suffix );
   
                           if ( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
@@ -628,7 +684,7 @@ int main(int argc, char **argv) {
 
                         /* reduce to diagram, average over stochastic samples */
                         if ( ( exitstatus = contract_diagram_sample ( diagram, b_v3_factor[iv3][igi2][ipi2][igf2][ipf2], b_v4_factor[iv4][igf1][ipf1],
-                                g_nsample, permutation_list[ip], gamma[gamma_f1_list[igi1]] , T_global ) ) != 0 ) {
+                                g_nsample, permutation_list[ip], gamma[gamma_f1_list[igi1][0]] , T_global ) ) != 0 ) {
                           fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_sample, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                           EXIT(105);
                         }
@@ -646,13 +702,21 @@ int main(int argc, char **argv) {
   
                           get_point_source_info (gsx, sx, &source_proc_id);
   
+                          /*******************************************
+                           * finalize diagram
+                           *******************************************/
+                          exitstatus = contract_diagram_finalize ( diagram, diagram_type, gsx, pi1, 
+                              gamma_basis_conversion_to_cvc[gamma_f1_list[igf1][0]], gamma_basis_conversion_to_cvc[gamma_f1_list[igf1][1]], +1, gamma_basis_conversion_to_cvc[gamma_f2_list[igf2]],
+                              gamma_basis_conversion_to_cvc[gamma_f1_list[igi1][0]], gamma_basis_conversion_to_cvc[gamma_f1_list[igi1][1]], +1, gamma_basis_conversion_to_cvc[gamma_i2_list[igi2]],
+                              T_global );
+
                           /**************************************************************************************/
                           /**************************************************************************************/
   
                           char aff_tag[500];
    
                           /* AFF */
-                          sprintf(aff_tag, "/v3/%s/v4/%s//p%d%d%d%d/%s/%s", b_v3_factor_list[iv3], b_v4_factor_list[iv4],  
+                          sprintf(aff_tag, "/v3/%s/v4/%s/p%d%d%d%d/%s/%s", b_v3_factor_list[iv3], b_v4_factor_list[iv4],  
                               permutation_list[ip][0], permutation_list[ip][1], permutation_list[ip][2], permutation_list[ip][3], "fwd", aff_tag_suffix );
   
                           if ( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
@@ -661,13 +725,15 @@ int main(int argc, char **argv) {
                           } 
    
                           /* AFF */
-                          sprintf(aff_tag, "/v3/%s/v4/%s//p%d%d%d%d/%s/%s", b_v3_factor_list[iv3], b_v4_factor_list[iv4],  
+                          sprintf(aff_tag, "/v3/%s/v4/%s/p%d%d%d%d/%s/%s", b_v3_factor_list[iv3], b_v4_factor_list[iv4],  
                               permutation_list[ip][0], permutation_list[ip][1], permutation_list[ip][2], permutation_list[ip][3], "bwd", aff_tag_suffix );
   
                           if ( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
                             fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                             EXIT(106);
                           }
+
+
   
                         }  // end of loop on coherent source locations
 
@@ -689,10 +755,8 @@ int main(int argc, char **argv) {
     fini_6level_ztable ( &b_v2_factor );
     fini_8level_ztable ( &b_v3_factor );
 
-
     /**************************************************************************************/
     /**************************************************************************************/
-
 
     /**************************************************************************************
      * W diagrams
@@ -711,7 +775,11 @@ int main(int argc, char **argv) {
 
       if(io_proc == 2) {
         /* AFF input files */
-        sprintf(filename, "%s.%.4d.tbase%.2d.%.5d.aff", "contract_v3_phi_light", Nconf, t_base , isample );
+        if ( npt_mode == 2 ) {
+          sprintf(filename, "%s.%.4d.tbase%.2d.%.5d.aff", "contract_v3_phi_light", Nconf, t_base , isample );
+        } else if ( npt_mode == 3 ) {
+          sprintf(filename, "%s.%.4d.tbase%.2d.dt%.2d.%.5d.aff", "contract_v3_phi_light", Nconf, t_base , g_src_snk_time_separation, isample );
+        }
         affr = aff_reader (filename);
         aff_status_str = (char*)aff_reader_errstr(affr);
         if( aff_status_str != NULL ) {
@@ -800,7 +868,7 @@ int main(int argc, char **argv) {
                 if ( io_proc == 2 ) {
 
                   exitstatus = contract_diagram_read_key_qlua ( w_v2_factor[ifac][igi][ipi][igf][ipf][isample], w_v2_factor_list[ifac], gamma_i2_list[igi], g_seq_source_momentum_list[ipi],
-                    g_source_coords_list[i_src], isample, "v2", gamma_f1_list[igf], g_sink_momentum_list[ipf], affr, T_global, 192);
+                    g_source_coords_list[i_src], isample, "v2", gamma_f1_list[igf][0], g_sink_momentum_list[ipf], affr, T_global, 192);
 
                   if ( exitstatus != 0 ) {
                     fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_read_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -821,6 +889,8 @@ int main(int argc, char **argv) {
 
     }  // end of loop factors
 
+    if(io_proc == 2) aff_reader_close (affr);
+
     /**************************************************************************************/
     /**************************************************************************************/
 
@@ -832,6 +902,23 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from init_8level_ztable %s %d\n", __FILE__, __LINE__ );
        EXIT(47);
     }
+
+    if(io_proc == 2) {
+      /* AFF input files */
+      sprintf(filename, "%s.%.4d.tbase%.2d.aff", "contract_v4_xi_light", Nconf, t_base );
+      affr = aff_reader (filename);
+      aff_status_str = (char*)aff_reader_errstr(affr);
+      if( aff_status_str != NULL ) {
+        fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from aff_reader, status was %s\n", aff_status_str);
+        EXIT(4);
+      } else {
+        fprintf(stdout, "# [meson_baryon_factorized_diagrams_3pt] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
+      }
+      if( (affn = aff_reader_root( affr )) == NULL ) {
+        fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+        EXIT(103);
+      }
+    } // end of if io_proc 
 
     for ( int ifac = 0; ifac < w_v4_factor_number; ifac++ ) {
 
@@ -848,7 +935,7 @@ int main(int argc, char **argv) {
                 if ( io_proc == 2 ) {
 
                   exitstatus = contract_diagram_read_key_qlua ( w_v4_factor[ifac][igi][ipi][igf][ipf][isample], w_v4_factor_list[ifac], gamma_i2_list[igi], g_seq_source_momentum_list[ipi],
-                      g_source_coords_list[i_src], isample, "v2", gamma_f1_list[igf], g_sink_momentum_list[ipf], affr, T_global, 192);
+                      g_source_coords_list[i_src], isample, "v4", gamma_f1_list[igf][0], g_sink_momentum_list[ipf], affr, T_global, 192);
 
                   if ( exitstatus != 0 ) {
                     fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_read_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -917,6 +1004,11 @@ int main(int argc, char **argv) {
                **************************************************************************************/
               for ( int ipi2 = 0; ipi2 < g_seq_source_momentum_number; ipi2++ ) {
 
+                int const pi1[3] = {
+                  -( g_total_momentum_list[iptot][0] + g_seq_source_momentum_list[ipi2][0] ),
+                  -( g_total_momentum_list[iptot][1] + g_seq_source_momentum_list[ipi2][1] ),
+                  -( g_total_momentum_list[iptot][2] + g_seq_source_momentum_list[ipi2][2] ) };
+
                 /**************************************************************************************
                  * loop on gi1
                  **************************************************************************************/
@@ -924,9 +1016,10 @@ int main(int argc, char **argv) {
 
                   char aff_tag_suffix[200];
 
-                  contract_diagram_key_suffix ( aff_tag_suffix, gamma_f2_list[igf2], g_seq2_source_momentum_list[ipf2], gamma_f1_list[igf1], g_sink_momentum_list[ipf1],
+                  contract_diagram_key_suffix ( aff_tag_suffix, gamma_f2_list[igf2], g_seq2_source_momentum_list[ipf2],
+                      gamma_f1_list[igf1][0], gamma_f1_list[igf1][1], g_sink_momentum_list[ipf1],
                       gamma_i2_list[igi2], g_seq_source_momentum_list[ipi2], 
-                      gamma_f1_list[igi1] );
+                      gamma_f1_list[igi1][0], gamma_f1_list[igi1][1], NULL, NULL );
 
                   /**************************************************************************************
                    * loop on v3 factors
@@ -955,7 +1048,7 @@ int main(int argc, char **argv) {
 
                         /* reduce to diagram, average over stochastic samples */
                         if ( ( exitstatus = contract_diagram_sample ( diagram, w_v3_factor[iv3][igf2][ipf2], w_v2_factor[iv2][igi2][ipi2][igf1][ipf1], g_nsample, permutation_list[ip],
-                                gamma[gamma_f1_list[igf1]], T_global ) ) != 0 ) {
+                                gamma[gamma_f1_list[igf1][0]], T_global ) ) != 0 ) {
                           fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_sample, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                           EXIT(105);
                         }
@@ -973,6 +1066,17 @@ int main(int argc, char **argv) {
       
                           get_point_source_info (gsx, sx, &source_proc_id);
       
+                          /*******************************************
+                           * finalize diagram
+                           *******************************************/
+                          exitstatus = contract_diagram_finalize ( diagram, diagram_type, gsx, pi1,
+                              gamma_basis_conversion_to_cvc[gamma_f1_list[igf1][0]], gamma_basis_conversion_to_cvc[gamma_f1_list[igf1][1]], +1, gamma_basis_conversion_to_cvc[gamma_f2_list[igf2]],
+                              gamma_basis_conversion_to_cvc[gamma_f1_list[igi1][0]], gamma_basis_conversion_to_cvc[gamma_f1_list[igi1][1]], +1, gamma_basis_conversion_to_cvc[gamma_i2_list[igi2]],
+                              T_global );
+
+                          /*******************************************/
+                          /*******************************************/
+
                           char aff_tag[500];
       
                           /* AFF key */
@@ -1022,7 +1126,7 @@ int main(int argc, char **argv) {
 
                         /* reduce to diagram, average over stochastic samples */
                         if ( ( exitstatus = contract_diagram_sample ( diagram, w_v3_factor[iv3][igf2][ipf2], w_v4_factor[iv4][igi2][ipi2][igf1][ipf1], g_nsample, permutation_list[ip],
-                                gamma[gamma_f1_list[igf1]], T_global ) ) != 0 ) {
+                                gamma[gamma_f1_list[igf1][0]], T_global ) ) != 0 ) {
                           fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_sample, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                           EXIT(105);
                         }
@@ -1040,6 +1144,17 @@ int main(int argc, char **argv) {
       
                           get_point_source_info (gsx, sx, &source_proc_id);
       
+                          /*******************************************
+                           * finalize diagram
+                           *******************************************/
+                          exitstatus = contract_diagram_finalize ( diagram, diagram_type, gsx, pi1,
+                              gamma_basis_conversion_to_cvc[gamma_f1_list[igf1][0]], gamma_basis_conversion_to_cvc[gamma_f1_list[igf1][1]], +1, gamma_basis_conversion_to_cvc[gamma_f2_list[igf2]],
+                              gamma_basis_conversion_to_cvc[gamma_f1_list[igi1][0]], gamma_basis_conversion_to_cvc[gamma_f1_list[igi1][1]], +1, gamma_basis_conversion_to_cvc[gamma_i2_list[igi2]],
+                              T_global );
+
+                          /*******************************************/
+                          /*******************************************/
+
                           char aff_tag[500];
       
                           /* AFF key */
@@ -1233,7 +1348,7 @@ int main(int argc, char **argv) {
               if ( io_proc == 2 ) {
 
                 exitstatus = contract_diagram_read_oet_key_qlua ( z_v2_factor[ifac][igf][ipf], z_v2_factor_list[ifac], NULL, gsx,
-                    "v2", gamma_f1_list[igf], g_sink_momentum_list[ipf], affr, T_global, 192 );
+                    "v2", gamma_f1_list[igf][0], g_sink_momentum_list[ipf], affr, T_global, 192 );
 
                 if ( exitstatus != 0 ) {
                   fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_read_oet_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -1294,7 +1409,7 @@ int main(int argc, char **argv) {
               if ( io_proc == 2 ) {
 
                 exitstatus = contract_diagram_read_oet_key_qlua ( z_v4_factor[ifac][igf][ipf], z_v4_factor_list[ifac], NULL, gsx,
-                    "v4", gamma_f1_list[igf], g_sink_momentum_list[ipf], affr, T_global, 192 );
+                    "v4", gamma_f1_list[igf][0], g_sink_momentum_list[ipf], affr, T_global, 192 );
 
                 if ( exitstatus != 0 ) {
                   fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_read_oet_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -1360,6 +1475,11 @@ int main(int argc, char **argv) {
                    **************************************************************************************/
                   for ( int ipi2 = 0; ipi2 < g_seq_source_momentum_number; ipi2++ ) {
 
+                    int const pi1[3] = {
+                      -( g_total_momentum_list[iptot][0] + g_seq_source_momentum_list[ipi2][0] ),
+                      -( g_total_momentum_list[iptot][1] + g_seq_source_momentum_list[ipi2][1] ),
+                      -( g_total_momentum_list[iptot][2] + g_seq_source_momentum_list[ipi2][2] ) };
+
                     /**************************************************************************************
                      * loop on gi1
                      **************************************************************************************/
@@ -1368,8 +1488,9 @@ int main(int argc, char **argv) {
                       char aff_tag_suffix[200];
 
                       contract_diagram_key_suffix ( aff_tag_suffix, gamma_f2_list[igf2], g_seq2_source_momentum_list[ipf2],
-                          gamma_f1_list[igf1], g_sink_momentum_list[ipf1], gamma_i2_list[igi2], g_seq_source_momentum_list[ipi2],
-                          gamma_f1_list[igi1] );
+                          gamma_f1_list[igf1][0], gamma_f1_list[igf1][1], g_sink_momentum_list[ipf1], 
+                          gamma_i2_list[igi2], g_seq_source_momentum_list[ipi2],
+                          gamma_f1_list[igi1][0], gamma_f1_list[igi1][1], NULL, NULL );
 
 
                       /**************************************************************************************
@@ -1397,11 +1518,22 @@ int main(int argc, char **argv) {
                              * Z diagrams
                              **************************************************************************************/
                             if ( ( exitstatus = contract_diagram_sample_oet (diagram, z_v3_factor[iv3][ipi2][igf2][ipf2],  z_v2_factor[iv2][igf1][ipf1], gamma[gamma_i2_list[igi2]],
-                                    permutation_list[ip], gamma[gamma_f1_list[igi1]], T_global ) ) != 0 ) {
+                                    permutation_list[ip], gamma[gamma_f1_list[igi1][0]], T_global ) ) != 0 ) {
                               fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_sample_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                               EXIT(105);
                             }
         
+                            /*******************************************/
+                            /*******************************************/
+
+                            /*******************************************
+                             * finalize diagram
+                             *******************************************/
+                            exitstatus = contract_diagram_finalize ( diagram, diagram_type, gsx, pi1,
+                              gamma_basis_conversion_to_cvc[gamma_f1_list[igf1][0]], gamma_basis_conversion_to_cvc[gamma_f1_list[igf1][1]], +1, gamma_basis_conversion_to_cvc[gamma_f2_list[igf2]],
+                              gamma_basis_conversion_to_cvc[gamma_f1_list[igi1][0]], gamma_basis_conversion_to_cvc[gamma_f1_list[igi1][1]], +1, gamma_basis_conversion_to_cvc[gamma_i2_list[igi2]],
+                              T_global );
+
                             /**************************************************************************************/
                             /**************************************************************************************/
         
@@ -1453,11 +1585,22 @@ int main(int argc, char **argv) {
                              * Z diagrams
                              **************************************************************************************/
                             if ( ( exitstatus = contract_diagram_sample_oet (diagram, z_v3_factor[iv3][ipi2][igf2][ipf2],  z_v4_factor[iv4][igf1][ipf1], gamma[gamma_i2_list[igi2]],
-                                    permutation_list[ip], gamma[gamma_f1_list[igi1]], T_global ) ) != 0 ) {
+                                    permutation_list[ip], gamma[gamma_f1_list[igi1][0]], T_global ) ) != 0 ) {
                               fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_sample_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                               EXIT(105);
                             }
         
+                            /*******************************************/
+                            /*******************************************/
+
+                            /*******************************************
+                             * finalize diagram
+                             *******************************************/
+                            exitstatus = contract_diagram_finalize ( diagram, diagram_type, gsx, pi1,
+                              gamma_basis_conversion_to_cvc[gamma_f1_list[igf1][0]], gamma_basis_conversion_to_cvc[gamma_f1_list[igf1][1]], +1, gamma_basis_conversion_to_cvc[gamma_f2_list[igf2]],
+                              gamma_basis_conversion_to_cvc[gamma_f1_list[igi1][0]], gamma_basis_conversion_to_cvc[gamma_f1_list[igi1][1]], +1, gamma_basis_conversion_to_cvc[gamma_i2_list[igi2]],
+                              T_global );
+
                             /**************************************************************************************/
                             /**************************************************************************************/
         
@@ -1510,13 +1653,11 @@ int main(int argc, char **argv) {
       }  // end of loop on oet sampels
 
     }  /* end of loop on coherent source locations */
-
 #if 0
 #endif  // of if 0
 
     /**************************************************************************************/
     /**************************************************************************************/
-
 
     /**************************************************************************************
      * direct diagrams
@@ -1594,7 +1735,7 @@ int main(int argc, char **argv) {
 
               if ( io_proc == 2 ) {
 
-                exitstatus = contract_diagram_read_key_qlua ( bb_t1_factor[ifac][igi][igf][ipf], bb_t1_factor_list[ifac], gamma_f1_list[igi], NULL, gsx, -1, "t1", gamma_f1_list[igf], g_sink_momentum_list[ipf], affr, T_global, 16);
+                exitstatus = contract_diagram_read_key_qlua ( bb_t1_factor[ifac][igi][igf][ipf], bb_t1_factor_list[ifac], gamma_f1_list[igi][0], NULL, gsx, -1, "t1", gamma_f1_list[igf][0], g_sink_momentum_list[ipf], affr, T_global, 16);
                 if ( exitstatus != 0 ) {
                   fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_read_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                   EXIT(114);
@@ -1608,7 +1749,7 @@ int main(int argc, char **argv) {
 
               if ( io_proc == 2 ) {
 
-                exitstatus = contract_diagram_read_key_qlua ( bb_t2_factor[ifac][igi][igf][ipf], bb_t2_factor_list[ifac], gamma_f1_list[igi], NULL, gsx, -1, "t2", gamma_f1_list[igf], g_sink_momentum_list[ipf], affr, T_global, 16);
+                exitstatus = contract_diagram_read_key_qlua ( bb_t2_factor[ifac][igi][igf][ipf], bb_t2_factor_list[ifac], gamma_f1_list[igi][0], NULL, gsx, -1, "t2", gamma_f1_list[igf][0], g_sink_momentum_list[ipf], affr, T_global, 16);
                 if ( exitstatus != 0 ) {
                   fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_read_key_qlua, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                   EXIT(115);
@@ -1761,6 +1902,11 @@ int main(int argc, char **argv) {
                    **************************************************************************************/
                   for ( int ipi2 = 0; ipi2 < g_seq_source_momentum_number; ipi2++ ) {
 
+                    int const pi1[3] = {
+                      -( g_total_momentum_list[iptot][0] + g_seq_source_momentum_list[ipi2][0] ),
+                      -( g_total_momentum_list[iptot][1] + g_seq_source_momentum_list[ipi2][1] ),
+                      -( g_total_momentum_list[iptot][2] + g_seq_source_momentum_list[ipi2][2] ) };
+
                     /**************************************************************************************
                      * loop on gi1
                      **************************************************************************************/
@@ -1768,8 +1914,10 @@ int main(int argc, char **argv) {
 
                       char aff_tag_suffix[200];
 
-                      contract_diagram_key_suffix ( aff_tag_suffix, gamma_f2_list[igf2], g_seq2_source_momentum_list[ipf2], gamma_f1_list[igf1], g_sink_momentum_list[ipf1], gamma_i2_list[igi2], g_seq_source_momentum_list[ipi2],
-                          gamma_f1_list[igi1] );
+                      contract_diagram_key_suffix ( aff_tag_suffix, gamma_f2_list[igf2], g_seq2_source_momentum_list[ipf2],
+                          gamma_f1_list[igf1][0], gamma_f1_list[igf1][1], g_sink_momentum_list[ipf1],
+                          gamma_i2_list[igi2], g_seq_source_momentum_list[ipi2],
+                          gamma_f1_list[igi1][0], gamma_f1_list[igi1][1], NULL, NULL );
 
 
                       /**************************************************************************************
@@ -1807,6 +1955,17 @@ int main(int argc, char **argv) {
 
                           // transpose
                           exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global );
+
+                          /*******************************************/
+                          /*******************************************/
+
+                          /*******************************************
+                           * finalize diagram
+                           *******************************************/
+                          exitstatus = contract_diagram_finalize ( diagram, diagram_type, gsx, pi1,
+                              gamma_basis_conversion_to_cvc[gamma_f1_list[igf1][0]], gamma_basis_conversion_to_cvc[gamma_f1_list[igf1][1]], +1, gamma_basis_conversion_to_cvc[gamma_f2_list[igf2]],
+                              gamma_basis_conversion_to_cvc[gamma_f1_list[igi1][0]], gamma_basis_conversion_to_cvc[gamma_f1_list[igi1][1]], +1, gamma_basis_conversion_to_cvc[gamma_i2_list[igi2]],
+                              T_global );
 
                           /* AFF */
                           sprintf(aff_tag, "/m1/%s/t1/%s/p0000/fwd/%s", mm_m1_factor_list[im1], bb_t1_factor_list[it1], aff_tag_suffix );
@@ -1859,6 +2018,17 @@ int main(int argc, char **argv) {
                           // transpose
                           exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global );
 
+                          /*******************************************/
+                          /*******************************************/
+
+                          /*******************************************
+                           * finalize diagram
+                           *******************************************/
+                          exitstatus = contract_diagram_finalize ( diagram, diagram_type, gsx, pi1,
+                              gamma_basis_conversion_to_cvc[gamma_f1_list[igf1][0]], gamma_basis_conversion_to_cvc[gamma_f1_list[igf1][1]], +1, gamma_basis_conversion_to_cvc[gamma_f2_list[igf2]],
+                              gamma_basis_conversion_to_cvc[gamma_f1_list[igi1][0]], gamma_basis_conversion_to_cvc[gamma_f1_list[igi1][1]], +1, gamma_basis_conversion_to_cvc[gamma_i2_list[igi2]],
+                              T_global );
+
                           /* AFF */
                           sprintf(aff_tag, "/m1/%s/t2/%s/p0000/fwd/%s", mm_m1_factor_list[im1], bb_t2_factor_list[it2], aff_tag_suffix );
                           if( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
@@ -1900,7 +2070,6 @@ int main(int argc, char **argv) {
       }  // end of loop on stochastic oet samples
 
     }  // end of loop coherent source timeslices
-
 #if 0
 #endif  // of if 0
 

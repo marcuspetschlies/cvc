@@ -733,8 +733,14 @@ res_gt[15] =   1;
   else if ( strcmp( mode, "Cc"   ) == 0 ) res_ptr = res_Cc;
   else if ( strcmp( mode, "gt"   ) == 0 ) res_ptr = res_Cc;
 
+  if ( ( gid >= 0 ) && ( gid < 16 ) ) {
+    /* gamma id within range of basis elements */
+    return ( res_ptr[gid] );
+  } else {
+    /* outside basis, return 0 */
+    return ( 0 );
+  }
 
-  return ( res_ptr[gid] );
 
 }  // end of get_gamma_signs
 
