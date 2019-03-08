@@ -59,7 +59,7 @@ extern "C"
 #include "dummy_solver.h"
 #include "Q_phi.h"
 #include "clover.h"
-#include "ranlxd.h"
+#include "smearing_techniques.h"
 
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
@@ -91,6 +91,7 @@ int main(int argc, char **argv) {
   // double ratime, retime;
   double **mzz[2] = { NULL, NULL }, **mzzinv[2] = { NULL, NULL };
   double *gauge_field_with_phase = NULL;
+  double *gauge_field_smeared = NULL;
   int op_id_up = -1, op_id_dn = -1;
   char output_filename[400];
   int * rng_state = NULL;
@@ -232,6 +233,27 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[cpff_fht_invert_contract] Error from gauge_field_eq_gauge_field_ti_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(38);
   }
+
+  /***************************************************************************
+   * smeared gauge field
+   ***************************************************************************/
+  if( N_Jacobi > 0 ) {
+
+    alloc_gauge_field ( &gauge_field_smeared, VOLUMEPLUSRAND );
+
+    memcpy ( gauge_field_smeared, g_gauge_field, 72*VOLUME*sizeof(double) );
+
+    if ( N_ape > 0 ) {
+      exitstatus = APE_Smearing ( gauge_field_smeared, alpha_ape, N_ape );
+      if ( exitstatus !=  0 ) {
+        fprintf(stderr, "[cpff_fht_invert_contract] Error from APE_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(47);
+      }
+
+    }  /* end of if N_ape > 0 */
+     
+  }  /* end of if N_Jacobi > 0 */
+
 
   /***************************************************************************
    * check plaquettes
@@ -458,21 +480,38 @@ int main(int argc, char **argv) {
        *   propagator
        ***************************************************************************/
       for( int i = 0; i < 4; i++) {
+        /* copy source into work field */
         memcpy ( spinor_work[0], stochastic_source_list[i], sizeof_spinor_field );
 
+        /* source-smear the stochastic source */
+        if ( ( exitstatus = Jacobi_Smearing ( gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi ) ) != 0 ) {
+          fprintf(stderr, "[cpff_fht_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(72);
+        }
+
+        /* init solution to 0 */
         memset ( spinor_work[1], 0, sizeof_spinor_field );
 
+        /* invert */
         exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_dn );
         if(exitstatus < 0) {
           fprintf(stderr, "[cpff_fht_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(44);
         }
 
+        /* check residual */
         if ( check_propagator_residual ) {
           memcpy ( spinor_work[0], stochastic_source_list[i], sizeof_spinor_field );
           check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_dn], mzzinv[op_id_dn], 1 );
         }
 
+        /* source-smear the stochastic propagator */
+        if ( ( exitstatus = Jacobi_Smearing ( gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi ) ) != 0 ) {
+          fprintf(stderr, "[cpff_fht_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(72);
+        }
+
+        /* copy solution into stochastic_propagator_zero_list */
         memcpy( stochastic_propagator_zero_list[i], spinor_work[1], sizeof_spinor_field);
       }
       if ( g_write_propagator ) {
@@ -526,6 +565,13 @@ int main(int argc, char **argv) {
 
           memset ( spinor_work[1], 0, sizeof_spinor_field );
 
+          /* source-smear the stochastic source */
+          if ( ( exitstatus = Jacobi_Smearing ( gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi ) ) != 0 ) {
+            fprintf(stderr, "[cpff_fht_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(72);
+          }
+
+          /* invert */
           exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_dn );
           if(exitstatus < 0) {
             fprintf(stderr, "[cpff_fht_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
@@ -535,6 +581,12 @@ int main(int argc, char **argv) {
           if ( check_propagator_residual ) {
             memcpy ( spinor_work[0], stochastic_source_list[i], sizeof_spinor_field );
             check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_dn], mzzinv[op_id_dn], 1 );
+          }
+
+          /* source-smear the stochastic propagator */
+          if ( ( exitstatus = Jacobi_Smearing ( gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi ) ) != 0 ) {
+            fprintf(stderr, "[cpff_fht_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(72);
           }
 
           memcpy( stochastic_propagator_mom_list[isrc_mom][i], spinor_work[1], sizeof_spinor_field);
@@ -606,8 +658,9 @@ int main(int argc, char **argv) {
 
       }  /* end of loop on source momenta */
 
-      /*****************************************************************/
-      /*****************************************************************/
+      /*****************************************************************
+       * sequential propagator and contractions for 3-point function
+       *****************************************************************/
 
       double * sequential_source = init_1level_dtable ( _GSI(VOLUME) );
       if ( sequential_source == NULL ) {
@@ -786,7 +839,8 @@ int main(int argc, char **argv) {
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   free(g_gauge_field);
 #endif
-  free( gauge_field_with_phase );
+  if ( gauge_field_with_phase != NULL ) free( gauge_field_with_phase );
+  if ( gauge_field_smeared    != NULL ) free( gauge_field_smeared );
 
   /* free clover matrix terms */
   fini_clover ( &mzz, &mzzinv );
