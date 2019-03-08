@@ -733,6 +733,120 @@ int main(int argc, char **argv) {
             /***********************************************************
              ***********************************************************
              **
+             ** statistical analysis for acosh ratio FHT
+             **
+             ***********************************************************
+             ***********************************************************/
+     
+            Nt = 0;
+            if ( fold_propagator == 0 ) {
+              Nt = T;   
+            } else if ( fold_propagator == 1 ) {
+              Nt = T / 2 + 1;
+            }
+            data = init_3level_dtable ( num_conf, num_src_per_conf, Nt );
+            res = init_3level_dtable ( Nt, Nt, 5 );
+        
+            /***********************************************************
+             * fold correlator
+             ***********************************************************/
+            if ( fold_propagator == 0 ) {
+
+              for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+                for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+                  for ( int it = 0; it < Nt; it++ ) {
+                    data[iconf][isrc][it] = corr_fht[iconf][isrc][2*it+1];
+                  }
+                }
+              }
+            } else if ( fold_propagator == 1 ) {
+              for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+                for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+                  data[iconf][isrc][0] = corr_fht[iconf][isrc][1];
+
+                  for ( int it = 1; it < Nt-1; it++ ) {
+                    data[iconf][isrc][it] = ( corr_fht[iconf][isrc][2*it+1] + corr_fht[iconf][isrc][2*(T-it)+1] ) * 0.5;
+                  }
+                  data[iconf][isrc][Nt-1] = corr_fht[iconf][isrc][2*Nt-1];
+                }
+              }
+            }  /* end of if Nt == */
+        
+            /***********************************************************
+             * symmetric acosh ratio
+             ***********************************************************/
+            for ( int itau = 0; itau < Nt/2; itau++ )
+            {
+              for ( int it = itau; it < Nt-itau; it++ )
+              {
+                uwerr_init ( &ustat );
+        
+                ustat.nalpha   = Nt;  /* real and imaginary part */
+                ustat.nreplica = 1;
+                for (  int i = 0; i < ustat.nreplica; i++) ustat.n_r[i] = num_conf * num_src_per_conf / ustat.nreplica;
+                ustat.s_tau = 1.5;
+                /* sprintf ( ustat.obsname, "corr_std_log_ratio_t%d_tau%d", it, itau ); */
+                sprintf ( ustat.obsname, "corr_std_acosh_ratio_t%d_tau%d", it, itau );
+        
+                /* ustat.func  = log_ratio_1_1;
+                ustat.dfunc = dlog_ratio_1_1;
+                ustat.para  = init_1level_itable ( 2 );
+                ((int*)ustat.para)[0] = 2 *   it;
+                ((int*)ustat.para)[1] = 2 * ( it + itau ); */
+         
+                ustat.func  = acosh_ratio;
+                ustat.dfunc = dacosh_ratio;
+                ustat.para  = init_1level_itable ( 3 );
+                ((int*)ustat.para)[0] = it - itau;
+                ((int*)ustat.para)[1] = it + itau;
+                ((int*)ustat.para)[2] = it;
+    
+                exitstatus = uwerr_analysis ( data[0][0], &ustat );
+                if ( exitstatus == 0 ) {
+                  res[it][itau][0] = ustat.value;
+                  res[it][itau][1] = ustat.dvalue;
+                  res[it][itau][2] = ustat.ddvalue;
+                  res[it][itau][3] = ustat.tauint;
+                  res[it][itau][4] = ustat.dtauint;
+                } else {
+                  fprintf ( stderr, "[cpff_fht_analyse] Warning return status from uwerr_analysis was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                }
+       
+                uwerr_free ( &ustat );
+              }  /* end of loop on tau */
+            }  /* end of loop on t */
+        
+            /* sprintf ( filename, "%s_std_log_ratio_gf%d_gi%d_PX%d_PY%d_PZ%d.uwerr", g_outfile_prefix,
+                g_source_gamma_id_list[igf], g_source_gamma_id_list[igi],
+                sink_momentum[0], sink_momentum[1], sink_momentum[2] ); */
+    
+            sprintf ( filename, "%s_fht_acosh_ratio_gf%d_gi%d_PX%d_PY%d_PZ%d.uwerr", g_outfile_prefix,
+                g_source_gamma_id_list[igf], g_source_gamma_id_list[igi],
+                sink_momentum[0], sink_momentum[1], sink_momentum[2] );
+    
+            ofs = fopen ( filename, "w" );
+        
+            fprintf ( ofs, "# nalpha   = %llu\n", ustat.nalpha );
+            fprintf ( ofs, "# nreplica = %llu\n", ustat.nreplica );
+            for (  int i = 0; i < ustat.nreplica; i++) fprintf( ofs, "# nr[%d] = %llu\n", i, ustat.n_r[i] );
+            fprintf ( ofs, "#\n" );
+        
+            for ( int itau = 0; itau < Nt/2; itau++ )
+            {
+              for ( int it = itau; it < Nt-itau; it++ )
+              {
+                fprintf ( ofs, "%3d %3d %16.7e %16.7e %16.7e %16.7e %16.7e\n", it, itau,
+                    res[it][itau][0], res[it][itau][1], res[it][itau][2], res[it][itau][3], res[it][itau][4] );
+              }
+            }
+    
+            fclose( ofs );
+            fini_3level_dtable ( &res );
+            fini_3level_dtable ( &data );
+
+            /***********************************************************
+             ***********************************************************
+             **
              ** statistical analysis for FHT / STD correlator
              **
              ***********************************************************
