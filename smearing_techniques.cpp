@@ -255,8 +255,8 @@ int APE_Smearing(double *smeared_gauge_field, double APE_smearing_alpha, int APE
  * N, kappa = Jacobi smearing parameters (in)
  *
  *****************************************************/
-int Jacobi_Smearing(double *smeared_gauge_field, double *psi, int N, double kappa) {
-  const unsigned int sf_items = _GSI(VOLUME);
+int Jacobi_Smearing(double *smeared_gauge_field, double *psi, int const N, double const kappa) {
+  const size_t sf_items = _GSI(VOLUME);
   const size_t sf_bytes = sf_items * sizeof(double);
   const double norm = 1.0 / (1.0 + 6.0*kappa);
 
@@ -284,9 +284,9 @@ int Jacobi_Smearing(double *smeared_gauge_field, double *psi, int N, double kapp
 {
 #endif
 
-  int idx, idy;
-  int index_s, index_s_mx, index_s_px, index_s_my, index_s_py, index_s_mz, index_s_pz, index_g_mx;
-  int index_g_px, index_g_my, index_g_py, index_g_mz, index_g_pz; 
+  unsigned int idx, idy;
+  unsigned int index_s, index_s_mx, index_s_px, index_s_my, index_s_py, index_s_mz, index_s_pz, index_g_mx;
+  unsigned int index_g_px, index_g_my, index_g_py, index_g_mz, index_g_pz; 
   double *s=NULL, spinor[24];
 
 #ifdef HAVE_OPENMP

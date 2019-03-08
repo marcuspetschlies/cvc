@@ -1,5 +1,5 @@
 /*****************************************************************************
- * contractions_io.c
+ * contractions_io
  *
  * Tue Nov 15 12:04:09 CET 2016
  *
@@ -24,6 +24,7 @@
 #include <time.h>
 #include <sys/time.h> 
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <math.h>
 #ifdef HAVE_MPI
 #  include <mpi.h>
@@ -41,6 +42,10 @@ extern "C"
 
 #ifdef __cplusplus
 }
+#endif
+
+#ifdef HAVE_HDF5
+#include <hdf5.h>
 #endif
 
 #include "cvc_complex.h"
@@ -644,5 +649,134 @@ int read_lime_contraction(double * const s, char * filename, const int N, const 
   fclose(ifs);
   return(0);
 }  /* end of read_lime_contraction */
+
+/***************************************************************************/
+/***************************************************************************/
+
+#ifdef HAVE_HDF5
+
+/***************************************************************************
+ * read time-momentum-dependent accumulated loop data from HDF5 file
+ *
+ * OUT: buffer          : date set
+ * IN : file            : here filename
+ * IN : tag             : here group
+ * IN : io_proc         : I/O id
+ *
+ ***************************************************************************/
+int read_from_h5_file ( void * const buffer, void * file, char*tag,  int const io_proc ) {
+
+  if ( io_proc > 0 ) {
+
+    char * filename = (char *)file;
+
+    /***************************************************************************
+     * time measurement
+     ***************************************************************************/
+    struct timeval ta, tb;
+    gettimeofday ( &ta, (struct timezone *)NULL );
+
+    /***************************************************************************
+     * io_proc 2 is origin of Cartesian grid and does the write to disk
+     ***************************************************************************/
+    if(io_proc == 2) {
+  
+      /***************************************************************************
+       * create or open file
+       ***************************************************************************/
+
+      hid_t   file_id = -1;
+      herr_t  status;
+
+      struct stat fileStat;
+      if ( stat( filename, &fileStat) < 0 ) {
+        fprintf ( stderr, "[read_from_h5_file] Error, file %s does not exist %s %d\n", filename, __FILE__, __LINE__ );
+        return ( 1 );
+      } else {
+        /* open an existing file. */
+        if ( g_verbose > 1 ) fprintf ( stdout, "# [read_from_h5_file] open existing file\n" );
+  
+        unsigned flags = H5F_ACC_RDONLY;  /* IN: File access flags. Allowable values are:
+                                             H5F_ACC_RDWR   --- Allow read and write access to file.
+                                             H5F_ACC_RDONLY --- Allow read-only access to file.
+  
+                                             H5F_ACC_RDWR and H5F_ACC_RDONLY are mutually exclusive; use exactly one.
+                                             An additional flag, H5F_ACC_DEBUG, prints debug information.
+                                             This flag can be combined with one of the above values using the bit-wise OR operator (`|'),
+                                             but it is used only by HDF5 Library developers; it is neither tested nor supported for use in applications. */
+        hid_t fapl_id = H5P_DEFAULT;
+        /*  hid_t H5Fopen ( const char *name, unsigned flags, hid_t fapl_id ) */
+        file_id = H5Fopen (         filename,         flags,        fapl_id );
+
+        if ( file_id < 0 ) {
+          fprintf ( stderr, "[read_from_h5_file] Error from H5Fopen %s %d\n", __FILE__, __LINE__ );
+          return ( 2 );
+        }
+      }
+  
+      if ( g_verbose > 1 ) fprintf ( stdout, "# [read_from_h5_file] file_id = %ld\n", file_id );
+  
+      /***************************************************************************
+       * open H5 data set
+       ***************************************************************************/
+      hid_t dapl_id       = H5P_DEFAULT;
+
+      hid_t dataset_id = H5Dopen2 ( file_id, tag, dapl_id );
+      if ( dataset_id < 0 ) {
+        fprintf ( stderr, "[read_from_h5_file] Error from H5Dopen2 %s %d\n", __FILE__, __LINE__ );
+        return ( 3 );
+      }
+
+      /***************************************************************************
+       * some default settings for H5Dread
+       ***************************************************************************/
+      hid_t mem_type_id   = H5T_NATIVE_DOUBLE;
+      hid_t mem_space_id  = H5S_ALL;
+      hid_t file_space_id = H5S_ALL;
+      hid_t xfer_plist_id = H5P_DEFAULT;
+
+      /***************************************************************************
+       * read data set
+       ***************************************************************************/
+      status = H5Dread ( dataset_id, mem_type_id, mem_space_id, file_space_id, xfer_plist_id, buffer );
+      if ( status < 0 ) {
+        fprintf ( stderr, "[read_from_h5_file] Error from H5Dread %s %d\n", __FILE__, __LINE__ );
+        return ( 4 );
+      }
+
+      /***************************************************************************
+       * close data set
+       ***************************************************************************/
+      status = H5Dclose ( dataset_id );
+      if ( status < 0 ) {
+        fprintf ( stderr, "[read_from_h5_file] Error from H5Dclose %s %d\n", __FILE__, __LINE__ );
+        return ( 5 );
+      }
+
+      /***************************************************************************
+       * close the file
+       ***************************************************************************/
+      status = H5Fclose ( file_id );
+      if( status < 0 ) {
+        fprintf(stderr, "[read_from_h5_file] Error from H5Fclose, status was %d %s %d\n", status, __FILE__, __LINE__);
+        return(6);
+      } 
+
+    }  /* if io_proc == 2 */
+
+    /***************************************************************************
+     * time measurement
+     ***************************************************************************/
+    gettimeofday ( &tb, (struct timezone *)NULL );
+  
+    show_time ( &ta, &tb, "read_from_h5_file", "write h5", 1 );
+
+  }  /* end of of if io_proc > 0 */
+  
+  return(0);
+
+}  /* end of read_from_h5_file */
+
+#endif  /* of if HAVE_HDF5 */
 
 }  /* end of namespace cvc */

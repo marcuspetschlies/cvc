@@ -59,7 +59,7 @@ extern "C"
 #include "dummy_solver.h"
 #include "Q_phi.h"
 #include "clover.h"
-#include "ranlxd.h"
+#include "smearing_techniques.h"
 
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
@@ -91,6 +91,7 @@ int main(int argc, char **argv) {
   // double ratime, retime;
   double **mzz[2] = { NULL, NULL }, **mzzinv[2] = { NULL, NULL };
   double *gauge_field_with_phase = NULL;
+  double *gauge_field_smeared = NULL;
   int op_id_up = -1, op_id_dn = -1;
   char output_filename[400];
   int * rng_state = NULL;
@@ -234,6 +235,27 @@ int main(int argc, char **argv) {
   }
 
   /***************************************************************************
+   * smeared gauge field
+   ***************************************************************************/
+  if( N_Jacobi > 0 ) {
+
+    alloc_gauge_field ( &gauge_field_smeared, VOLUMEPLUSRAND );
+
+    memcpy ( gauge_field_smeared, g_gauge_field, 72*VOLUME*sizeof(double) );
+
+    if ( N_ape > 0 ) {
+      exitstatus = APE_Smearing ( gauge_field_smeared, alpha_ape, N_ape );
+      if ( exitstatus !=  0 ) {
+        fprintf(stderr, "[cpff_fht_invert_contract] Error from APE_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(47);
+      }
+
+    }  /* end of if N_ape > 0 */
+     
+  }  /* end of if N_Jacobi > 0 */
+
+
+  /***************************************************************************
    * check plaquettes
    ***************************************************************************/
   exitstatus = plaquetteria ( gauge_field_with_phase );
@@ -277,7 +299,7 @@ int main(int argc, char **argv) {
    * WITH HALO
    ***************************************************************************/
   size_t nelem = _GSI( VOLUME+RAND );
-  double ** spinor_work  = init_2level_dtable ( 2, nelem );
+  double ** spinor_work  = init_2level_dtable ( 3, nelem );
   if ( spinor_work == NULL ) {
     fprintf(stderr, "[cpff_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT(1);
@@ -296,6 +318,12 @@ int main(int argc, char **argv) {
 
   double ** stochastic_propagator_zero_list = init_2level_dtable ( 4, nelem );
   if ( stochastic_propagator_zero_list == NULL ) {
+    fprintf(stderr, "[cpff_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+    EXIT(48);
+  }
+
+  double ** stochastic_propagator_zero_smeared_list = init_2level_dtable ( 4, nelem );
+  if ( stochastic_propagator_zero_smeared_list == NULL ) {
     fprintf(stderr, "[cpff_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT(48);
   }
@@ -407,7 +435,7 @@ int main(int argc, char **argv) {
           }
         }
         /* recover the ran field */
-        if( (exitstatus = init_timeslice_source_oet(stochastic_source_list, gts, NULL, -1 ) ) != 0 ) {
+        if( ( exitstatus = init_timeslice_source_oet ( stochastic_source_list, gts, NULL, -1 ) ) != 0 ) {
           fprintf(stderr, "[cpff_fht_invert_contract] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(64);
         }
@@ -420,7 +448,7 @@ int main(int argc, char **argv) {
          *   penultimate argument is momentum vector for the source, NULL here
          *   final argument in arg list is 1
          */
-        if( (exitstatus = init_timeslice_source_oet(stochastic_source_list, gts, NULL, 1 ) ) != 0 ) {
+        if( (exitstatus = init_timeslice_source_oet ( stochastic_source_list, gts, NULL, 1 ) ) != 0 ) {
           fprintf(stderr, "[cpff_fht_invert_contract] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(64);
         }
@@ -450,29 +478,60 @@ int main(int argc, char **argv) {
         EXIT(38);
       }
 
+      /***************************************************************************/
+      /***************************************************************************/
 
       /***************************************************************************
        * invert for stochastic timeslice propagator at zero momentum
        *   dn flavor
-       *   this one will run from source to sink as part of the sequential
+       *   this one will run from source to insertion as part of the sequential
        *   propagator
+       *
+       *   DO NOT SMEAR AT SINK
+       *
        ***************************************************************************/
       for( int i = 0; i < 4; i++) {
+        /* copy source into work field */
         memcpy ( spinor_work[0], stochastic_source_list[i], sizeof_spinor_field );
 
+        /* init solution to 0 */
         memset ( spinor_work[1], 0, sizeof_spinor_field );
 
+        /***************************************************************************
+         * source-smear the stochastic source
+         ***************************************************************************/
+        if ( ( exitstatus = Jacobi_Smearing ( gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi ) ) != 0 ) {
+          fprintf(stderr, "[cpff_fht_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(72);
+        }
+
+        /* save smeared source to spinor work 2 */
+        memcpy ( spinor_work[2], spinor_work[0], sizeof_spinor_field );
+
+        /* invert */
         exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_dn );
         if(exitstatus < 0) {
           fprintf(stderr, "[cpff_fht_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(44);
         }
 
+        /* check residual */
         if ( check_propagator_residual ) {
-          memcpy ( spinor_work[0], stochastic_source_list[i], sizeof_spinor_field );
-          check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_dn], mzzinv[op_id_dn], 1 );
+          check_residual_clover ( &(spinor_work[1]), &(spinor_work[2]), gauge_field_with_phase, mzz[op_id_dn], mzzinv[op_id_dn], 1 );
         }
 
+        /*****************************************************************
+         * SINK-SMEAR the stochastic propagator with zero momentum
+         * store in a different propagator list
+         *****************************************************************/
+        memcpy ( stochastic_propagator_zero_smeared_list[i], spinor_work[1], sizeof_spinor_field );
+
+        if ( ( exitstatus = Jacobi_Smearing ( gauge_field_smeared, stochastic_propagator_zero_smeared_list[i], N_Jacobi, kappa_Jacobi ) ) != 0 ) {
+          fprintf(stderr, "[cpff_fht_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(72);
+        }
+
+        /* copy unsmreaded solution into stochastic_propagator_zero_list */
         memcpy( stochastic_propagator_zero_list[i], spinor_work[1], sizeof_spinor_field);
       }
       if ( g_write_propagator ) {
@@ -485,8 +544,16 @@ int main(int argc, char **argv) {
         }
       }
 
+      /***************************************************************************/
+      /***************************************************************************/
+
       /***************************************************************************
        * invert for stochastic timeslice propagator at source momenta
+       *   dn flavor
+       *   this one will run from source to sink
+       *
+       *   smear at source and sink
+       *
        ***************************************************************************/
       for ( int isrc_mom = 0; isrc_mom < g_source_momentum_number; isrc_mom++ ) {
 
@@ -526,6 +593,18 @@ int main(int argc, char **argv) {
 
           memset ( spinor_work[1], 0, sizeof_spinor_field );
 
+          /***************************************************************************
+           * source-smear the stochastic source
+           ***************************************************************************/
+          if ( ( exitstatus = Jacobi_Smearing ( gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi ) ) != 0 ) {
+           fprintf(stderr, "[cpff_fht_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(72);
+          }
+
+          /* save smeared source to spinor work 2 */
+          memcpy ( spinor_work[2], spinor_work[0], sizeof_spinor_field );
+
+          /* invert */
           exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_dn );
           if(exitstatus < 0) {
             fprintf(stderr, "[cpff_fht_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
@@ -533,10 +612,18 @@ int main(int argc, char **argv) {
           }
 
           if ( check_propagator_residual ) {
-            memcpy ( spinor_work[0], stochastic_source_list[i], sizeof_spinor_field );
-            check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_dn], mzzinv[op_id_dn], 1 );
+            check_residual_clover ( &(spinor_work[1]), &(spinor_work[2]), gauge_field_with_phase, mzz[op_id_dn], mzzinv[op_id_dn], 1 );
           }
 
+          /***************************************************************************
+           * sink-smear the stochastic propagator
+           ***************************************************************************/
+          if ( ( exitstatus = Jacobi_Smearing ( gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi ) ) != 0 ) {
+            fprintf(stderr, "[cpff_fht_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(72);
+          }
+
+          /* copy solution into stochastic_propagator_mom_list */
           memcpy( stochastic_propagator_mom_list[isrc_mom][i], spinor_work[1], sizeof_spinor_field);
 
         }  /* end of loop on spinor components */
@@ -582,7 +669,7 @@ int main(int argc, char **argv) {
            *   includes momentum projection via sink_momentum
            */
           contract_twopoint_snk_momentum ( contr_p[0], g_source_gamma_id_list[isrc_gamma], g_source_gamma_id_list[isnk_gamma],
-              stochastic_propagator_mom_list[isrc_mom], stochastic_propagator_zero_list, 4, 1, sink_momentum, 1 );
+              stochastic_propagator_mom_list[isrc_mom], stochastic_propagator_zero_smeared_list, 4, 1, sink_momentum, 1 );
 
           /* write to file */
           sprintf ( data_tag, "/d+-g-d-g/std/t%d/s%d/gf%d/gi%d/pix%dpiy%dpiz%d", gts, isample,
@@ -606,8 +693,9 @@ int main(int argc, char **argv) {
 
       }  /* end of loop on source momenta */
 
-      /*****************************************************************/
-      /*****************************************************************/
+      /*****************************************************************
+       * sequential propagator and contractions for 3-point function
+       *****************************************************************/
 
       double * sequential_source = init_1level_dtable ( _GSI(VOLUME) );
       if ( sequential_source == NULL ) {
@@ -635,7 +723,9 @@ int main(int argc, char **argv) {
           for ( int i = 0; i < 4; i++ ) {
 
             /*****************************************************************
-             * prepare sequential timeslice source 
+             * prepare sequential timeslice source
+             *
+             * NO SOURCE-SMEARING of sequential fht source
              *****************************************************************/
             exitstatus = init_sequential_fht_source ( sequential_source, stochastic_propagator_zero_list[i], seq_source_momentum, seq_source_gamma );
             if( exitstatus != 0 ) {
@@ -663,6 +753,14 @@ int main(int argc, char **argv) {
             if ( check_propagator_residual ) {
               memcpy ( spinor_work[0], sequential_source, sizeof_spinor_field );
               check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_up], mzzinv[op_id_up], 1 );
+            }
+
+            /*****************************************************************
+             * sink-smear the sequential fht propagator
+             *****************************************************************/
+            if ( ( exitstatus = Jacobi_Smearing ( gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi ) ) != 0 ) {
+              fprintf(stderr, "[cpff_fht_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(72);
             }
 
             memcpy( sequential_propagator_list[i], spinor_work[1], sizeof_spinor_field );
@@ -770,6 +868,7 @@ int main(int argc, char **argv) {
    ***************************************************************************/
   fini_3level_dtable ( &stochastic_propagator_mom_list );
   fini_2level_dtable ( &stochastic_propagator_zero_list );
+  fini_2level_dtable ( &stochastic_propagator_zero_smeared_list );
   fini_2level_dtable ( &stochastic_source_list );
   fini_2level_dtable ( &sequential_propagator_list );
   fini_2level_dtable ( &spinor_work );
@@ -786,7 +885,8 @@ int main(int argc, char **argv) {
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   free(g_gauge_field);
 #endif
-  free( gauge_field_with_phase );
+  if ( gauge_field_with_phase != NULL ) free( gauge_field_with_phase );
+  if ( gauge_field_smeared    != NULL ) free( gauge_field_smeared );
 
   /* free clover matrix terms */
   fini_clover ( &mzz, &mzzinv );
