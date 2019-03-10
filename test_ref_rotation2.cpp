@@ -224,7 +224,7 @@ int main(int argc, char **argv) {
     int refframerot             = -1;        /* reference frame rotation added below */
     int row_target              = -1;        /* no target row */
     int cartesian_list[2]       = { 0, 1 };  /* not cartesian */
-    int parity_list[2]          = { 1, 1 };  /* intrinsic parity is +1 */
+    int parity_list[2]          = { 1, -1 };  /* intrinsic parity is +1 */
     const int ** momentum_list  = NULL;      /* no momentum list given */
     int bispinor_list[2]        = { 1, 0 };  /* bispinor yes / no */
     int J2_list[2]              = { 1, 2 };  /* 2 x spin + 1 = dim ( / 2 for bispinor ) */
@@ -294,6 +294,7 @@ int main(int argc, char **argv) {
       if ( g_verbose > 2 ) fprintf ( stdout, "# [test_ref_rotation2] projector P == Ptot\n" );
     }
 
+
     /****************************************************
      *
      ****************************************************/
@@ -304,6 +305,12 @@ int main(int argc, char **argv) {
      * example data field
      ******************************************************/
     double _Complex **** C = init_4level_ztable ( vector_dim, vector_dim, spinor_dim, spinor_dim );
+    if ( C == NULL ) {
+      fprintf ( stderr, "[test_ref_rotation2] Error from init_4level_ztable %s %d\n", __FILE__, __LINE__ );
+      EXIT(1);
+    }
+
+    double _Complex **** RCR = init_4level_ztable ( vector_dim, vector_dim, spinor_dim, spinor_dim );
     if ( C == NULL ) {
       fprintf ( stderr, "[test_ref_rotation2] Error from init_4level_ztable %s %d\n", __FILE__, __LINE__ );
       EXIT(1);
@@ -322,7 +329,6 @@ int main(int argc, char **argv) {
       twopoint_function_allocate ( &( Cproj[0][0][0][0][0][i] ) );
     }
 
-
     ranlxd ( (double*)(C[0][0][0]), 2 * vector_dim * vector_dim * spinor_dim * spinor_dim );
 
     for ( int i = 0; i < vector_dim; i++ ) {
@@ -337,7 +343,8 @@ int main(int argc, char **argv) {
      *  - rotations and rotation-reflections
      *  - at sink, left-applied element
      ******************************************************/
-    for ( int irotl = 0; irotl < 2*nrot; irotl ++ )
+    // for ( int irotl = 0; irotl < 2*nrot; irotl ++ )
+    for ( int irotl = 0; irotl < 1; irotl ++ )
     {
 
       if ( g_verbose > 3 ) fprintf ( stdout, "# [test_ref_rotation2] left rotref %2d - %2d\n", irotl / nrot, irotl % nrot );
@@ -375,10 +382,10 @@ int main(int argc, char **argv) {
          ******************************************************/
         double _Complex ** R1 = init_2level_ztable ( spinor_dim, spinor_dim );
         double _Complex ** R2 = init_2level_ztable ( spinor_dim, spinor_dim );
-        double _Complex ** R3 = init_2level_ztable ( spinor_dim, spinor_dim );
 
         for ( int ivl = 0; ivl < vector_dim; ivl++ ) {
 
+#if 0
           /* find rotated vector index  */
           double _Complex * vl_vec  = init_1level_ztable ( vector_dim );
           double _Complex * vl_vec2 = init_1level_ztable ( vector_dim );
@@ -395,9 +402,10 @@ int main(int argc, char **argv) {
             }
           }
           fprintf ( stdout, "# [test_ref_rotation2] Rl e_%d = ( %16.7e + I %16.7e )   e_%d\n", creal(zRvl), cimag(zRvl), ivl, iRvl );
-
+#endif
         for ( int ivr = 0; ivr < vector_dim; ivr++ ) {
 
+#if 0
           /* find rotated vector index  */
           double _Complex * vr_vec  = init_1level_ztable ( vector_dim );
           double _Complex * vr_vec2 = init_1level_ztable ( vector_dim );
@@ -409,44 +417,52 @@ int main(int argc, char **argv) {
           for ( int i = 0; i < vector_dim; i++ ) {
             if ( cabs(vr_vec2[i]) > 1.e-10 ) {
               iRvr = i;
-             zRvr = vr_vec2[i]; 
+              zRvr = vr_vec2[i]; 
               break;
             }
           }
           fprintf ( stdout, "# [test_ref_rotation2] Rr e_%d = ( %16.7e + I %16.7e )   e_%d\n", creal(zRvr), cimag(zRvr), ivr, iRvr );
-
+#endif
           /******************************************************
            * apply spin rotation
            ******************************************************/
-          /* R1 = C x Sr */
-          rot_mat_ti_mat ( R1, C[iRvl][iRvr], Sr, dim[1] );
 
-          /* R2 = Sl^+ x R1 */
-          rot_mat_adj_ti_mat ( R2, Sl, R1, dim[1]);
+          memset ( RCR[0][0][0], 0, vector_dim*vector_dim*spinor_dim*spinor_dim*sizeof(double _Complex) );
 
-          contract_diagram_mat_op_ti_zm4x4_field_ti_mat_op ( &R3, Sl, 'H' , &C, Sr, 'N', 1 );
+          for ( int i = 0; i < vector_dim; i++ ) {
+          for ( int k = 0; k < vector_dim; k++ ) {
 
-        /******************************************************
-         * projection variants
-         ******************************************************/
+            /* R1 = C x Sr */
+            rot_mat_ti_mat ( R1, C[i][k], Sr, spinor_dim );
 
-        /******************************************************
-         * irrep matrix for left-applied rotation
-         *   = sink side
-         ******************************************************/
-        double _Complex ** Tirrepl = ( irotl < nrot ) ? projector.rtarget->R[irotl] : projector.rtarget->IR[irotl-nrot];
+            /* R2 = Sl^+ x R1 */
+            rot_mat_adj_ti_mat ( R2, Sl, R1, spinor_dim );
 
-        /******************************************************
-         * irrep matrix for right-applied rotation
-         *   = source side
-         ******************************************************/
-        double _Complex ** Tirrepr = ( irotr < nrot ) ? projector.rtarget->R[irotr] : projector.rtarget->IR[irotr-nrot];
+            rot_mat_pl_eq_mat_ti_co ( RCR[ivl][ivr], R2, conj(Rl[i][ivl]) * Rr[k][ivr] , spinor_dim );
 
-        for ( int ref_snk = 0; ref_snk < irrep_dim; ref_snk++ ) {
-        for ( int ref_src = 0; ref_src < irrep_dim; ref_src++ ) {
+          }}
 
-          for ( int row_snk = 0; row_snk < irrep_dim; row_snk++ ) {
-          for ( int row_src = 0; row_src < irrep_dim; row_src++ ) {
+          /******************************************************
+           * projection variants
+           ******************************************************/
+
+          /******************************************************
+           * irrep matrix for left-applied rotation
+           *   = sink side
+           ******************************************************/
+          double _Complex ** Tirrepl = ( irotl < nrot ) ? projector.rtarget->R[irotl] : projector.rtarget->IR[irotl-nrot];
+
+          /******************************************************
+           * irrep matrix for right-applied rotation
+           *   = source side
+           ******************************************************/
+          double _Complex ** Tirrepr = ( irotr < nrot ) ? projector.rtarget->R[irotr] : projector.rtarget->IR[irotr-nrot];
+  
+          for ( int ref_snk = 0; ref_snk < irrep_dim; ref_snk++ ) {
+          for ( int ref_src = 0; ref_src < irrep_dim; ref_src++ ) {
+
+            for ( int row_snk = 0; row_snk < irrep_dim; row_snk++ ) {
+            for ( int row_src = 0; row_src < irrep_dim; row_src++ ) {
 
 
               /******************************************************
@@ -454,13 +470,11 @@ int main(int argc, char **argv) {
                * at source and sink, together with sign factors
                * from rotation+basis projection of gamma matrices
                ******************************************************/
-              double _Complex const zcoeff = Tirrepl[row_snk][ref_snk] * conj ( Tirrepr[row_src][ref_src] );
+              double _Complex const zcoeff = Tirrepl[row_snk][ref_snk] * conj ( Tirrepr[row_src][ref_src] ) * \
+                                             ( ( irotl < nrot ) ? 1. : ( projector.parity[0] * projector.parity[1] ) ) * \
+                                             ( ( irotr < nrot ) ? 1. : ( projector.parity[0] * projector.parity[1] ) );
                 
-              /* contract_diagram_zm4x4_field_eq_zm4x4_field_pl_zm4x4_field_ti_co ( 
-                  &(Cproj[ref_snk][ref_src][row_snk][row_src]), 
-                  &(Cproj[ref_snk][ref_src][row_snk][row_src]), &R2, zcoeff, 1 ); */
-
-              rot_mat_pl_eq_mat_ti_co ( Cproj[ref_snk][ref_src][row_snk][row_src][ivl][ivr].c[0][0], R2, zcoeff, spinor_dim );
+              rot_mat_pl_eq_mat_ti_co ( Cproj[ref_snk][ref_src][row_snk][row_src][ivl][ivr].c[0][0], RCR[ivl][ivr], zcoeff, spinor_dim );
 
               fprintf ( stdout, "# [test_ref_rotation2] rotl %d %2d rotr %d %2d ref %2d %2d row %2d %2d vec %2d %2d z %25.16e %25.16e\n", 
                   irotl/nrot, irotl%nrot, irotr/nrot, irotr%nrot,
@@ -471,22 +485,23 @@ int main(int argc, char **argv) {
 
         }  // end of loop on ref_src
         }  // end of loop on ref_snk
-#if 0
-#endif  /* of if 0 */
 
+#if 0
           fini_1level_ztable ( &vr_vec );
           fini_1level_ztable ( &vr_vec2 );
+#endif  /* of if 0 */
 
         }  // end of loop on ivr
 
+#if 0
           fini_1level_ztable ( &vl_vec );
           fini_1level_ztable ( &vl_vec2 );
+#endif  /* of if 0 */
 
         }  // end of loop on ivl
 
         fini_2level_ztable ( &R1 );
         fini_2level_ztable ( &R2 );
-        fini_2level_ztable ( &R3 );
 
       }  // end of loop on source rotations
     }  // end of loop on sink rotations
@@ -512,12 +527,20 @@ int main(int argc, char **argv) {
     }}
 
 
-#if 0
+
     /******************************************************
      * check the rotation property
      ******************************************************/
-    twopoint_function_check_reference_rotation ( Cproj, &projector, 1.e-12 );
+    twopoint_function_check_reference_rotation_vector_spinor ( Cproj[0][0][0][0][0], &projector, 1.e-12 );
 
+    fini_4level_ztable ( &C );
+    fini_4level_ztable ( &RCR );
+
+    for ( int i = 0; i < irrep_dim * irrep_dim * irrep_dim * irrep_dim * vector_dim * vector_dim ; i++ ) {
+      twopoint_function_fini ( &( Cproj[0][0][0][0][0][i] ) );
+    }
+    fini_6level_2pttable ( &Cproj );
+#if 0
 #endif  /* of if 0 */
 
     /******************************************************
@@ -527,12 +550,6 @@ int main(int argc, char **argv) {
 
     fini_little_group_projector ( &projector );
 
-    fini_4level_ztable ( &C );
-
-    for ( int i = 0; i < irrep_dim * irrep_dim * irrep_dim * irrep_dim * vector_dim * vector_dim ; i++ ) {
-      twopoint_function_fini ( &( Cproj[0][0][0][0][0][i] ) );
-    }
-    fini_6level_2pttable ( &Cproj );
 
   }  // end of loop on 2-point functions
 
