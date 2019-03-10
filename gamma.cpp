@@ -733,8 +733,14 @@ res_gt[15] =   1;
   else if ( strcmp( mode, "Cc"   ) == 0 ) res_ptr = res_Cc;
   else if ( strcmp( mode, "gt"   ) == 0 ) res_ptr = res_Cc;
 
+  if ( ( gid >= 0 ) && ( gid < 16 ) ) {
+    /* gamma id within range of basis elements */
+    return ( res_ptr[gid] );
+  } else {
+    /* outside basis, return 0 */
+    return ( 0 );
+  }
 
-  return ( res_ptr[gid] );
 
 }  // end of get_gamma_signs
 
@@ -760,6 +766,7 @@ void gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( gamma_matrix_type *gout, ga
   if ( gin->id == -1 ) {
     gout->id = -1;
     gout->s  =  1.;
+    fprintf ( stdout, "# [gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op] Warning, input gamma gin is not set\n" );
     return;
   }
 
