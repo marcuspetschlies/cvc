@@ -24,7 +24,7 @@ int init_sequential_source ( double * const s, double * const p, int const tseq,
 
 int init_coherent_sequential_source(double *s, double **p, int tseq, int ncoh, int pseq[3], int gseq);
 
-int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init);
+int init_timeslice_source_oet ( double ** const s, int const tsrc, int * const momentum, int const spin_dilution, int const color_dilution, int const init);
 
 int init_sequential_fht_source ( double * const s, double * const p, int const pseq[3], int const gseq);
 
