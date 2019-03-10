@@ -320,7 +320,6 @@ int main(int argc, char **argv) {
       if ( g_verbose > 2 ) fprintf ( stdout, "# [test_ref_rotation2] projector P == Ptot\n" );
     }
 
-
     /****************************************************
      *
      ****************************************************/
@@ -331,12 +330,6 @@ int main(int argc, char **argv) {
      * example data field
      ******************************************************/
     double _Complex **** C = init_4level_ztable ( vector_dim, vector_dim, spinor_dim, spinor_dim );
-    if ( C == NULL ) {
-      fprintf ( stderr, "[test_ref_rotation2] Error from init_4level_ztable %s %d\n", __FILE__, __LINE__ );
-      EXIT(1);
-    }
-
-    double _Complex **** RCR = init_4level_ztable ( vector_dim, vector_dim, spinor_dim, spinor_dim );
     if ( C == NULL ) {
       fprintf ( stderr, "[test_ref_rotation2] Error from init_4level_ztable %s %d\n", __FILE__, __LINE__ );
       EXIT(1);
@@ -355,6 +348,7 @@ int main(int argc, char **argv) {
       twopoint_function_allocate ( &( Cproj[0][0][0][0][0][i] ) );
     }
 
+
     ranlxd ( (double*)(C[0][0][0]), 2 * vector_dim * vector_dim * spinor_dim * spinor_dim );
 
     for ( int i = 0; i < vector_dim; i++ ) {
@@ -369,8 +363,7 @@ int main(int argc, char **argv) {
      *  - rotations and rotation-reflections
      *  - at sink, left-applied element
      ******************************************************/
-    // for ( int irotl = 0; irotl < 2*nrot; irotl ++ )
-    for ( int irotl = 0; irotl < 1; irotl ++ )
+    for ( int irotl = 0; irotl < 2*nrot; irotl ++ )
     {
 
       if ( g_verbose > 3 ) fprintf ( stdout, "# [test_ref_rotation2] left rotref %2d - %2d\n", irotl / nrot, irotl % nrot );
@@ -553,7 +546,6 @@ int main(int argc, char **argv) {
           for ( int ref_snk = 0; ref_snk < irrep_dim; ref_snk++ ) {
           for ( int ref_src = 0; ref_src < irrep_dim; ref_src++ ) {
 
->>>>>>> 79266c729d3428c000736a783b1d05476280dfd7
             for ( int row_snk = 0; row_snk < irrep_dim; row_snk++ ) {
             for ( int row_src = 0; row_src < irrep_dim; row_src++ ) {
 
@@ -632,6 +624,12 @@ int main(int argc, char **argv) {
 
     fini_little_group_projector ( &projector );
 
+    fini_4level_ztable ( &C );
+
+    for ( int i = 0; i < irrep_dim * irrep_dim * irrep_dim * irrep_dim * vector_dim * vector_dim ; i++ ) {
+      twopoint_function_fini ( &( Cproj[0][0][0][0][0][i] ) );
+    }
+    fini_6level_2pttable ( &Cproj );
 
   }  // end of loop on 2-point functions
 

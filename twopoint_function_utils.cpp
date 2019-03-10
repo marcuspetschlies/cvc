@@ -2034,8 +2034,6 @@ void twopoint_function_check_reference_rotation_vector_spinor ( twopoint_functio
   unsigned int const coords_dim        = 6;
   unsigned int const index_conv_dim[6] = { irrep_dim, irrep_dim, irrep_dim, irrep_dim, vector_dim, vector_dim };
 
-  fprintf( stdout, "# [twopoint_function_check_reference_rotation_vector_spinor] spinor_dim = %u   vector_dim = %u   irrep_dim = %u\n", spinor_dim, vector_dim, irrep_dim );
-
   char name[400];
 
   for ( int row_snk = 0; row_snk < irrep_dim; row_snk++ )

@@ -164,7 +164,7 @@ int main(int argc, char **argv) {
    ******************************************************/
   for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
 
-    twopoint_function_type * const tp = &(g_twopoint_function_list[i2pt]);
+    twopoint_function_type * tp = &(g_twopoint_function_list[i2pt]);
 
     /******************************************************
      * read twopoint function data
