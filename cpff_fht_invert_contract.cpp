@@ -252,6 +252,11 @@ int main(int argc, char **argv) {
 
     }  /* end of if N_ape > 0 */
      
+    exitstatus = plaquetteria ( gauge_field_smeared );
+    if(exitstatus != 0) {
+      fprintf(stderr, "[cpff_fht_invert_contract] Error from plaquetteria, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(38);
+    }
   }  /* end of if N_Jacobi > 0 */
 
 
@@ -435,7 +440,7 @@ int main(int argc, char **argv) {
           }
         }
         /* recover the ran field */
-        if( ( exitstatus = init_timeslice_source_oet ( stochastic_source_list, gts, NULL, -1 ) ) != 0 ) {
+        if( ( exitstatus = init_timeslice_source_oet ( stochastic_source_list, gts, NULL, 4, 1, -1 ) ) != 0 ) {
           fprintf(stderr, "[cpff_fht_invert_contract] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(64);
         }
@@ -448,7 +453,7 @@ int main(int argc, char **argv) {
          *   penultimate argument is momentum vector for the source, NULL here
          *   final argument in arg list is 1
          */
-        if( (exitstatus = init_timeslice_source_oet ( stochastic_source_list, gts, NULL, 1 ) ) != 0 ) {
+        if( (exitstatus = init_timeslice_source_oet ( stochastic_source_list, gts, NULL, 4, 1, 1 ) ) != 0 ) {
           fprintf(stderr, "[cpff_fht_invert_contract] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(64);
         }
@@ -569,7 +574,7 @@ int main(int argc, char **argv) {
         /***************************************************************************
          * prepare stochastic timeslice source at source momentum
          ***************************************************************************/
-        exitstatus = init_timeslice_source_oet ( stochastic_source_list, gts, source_momentum, 0 );
+        exitstatus = init_timeslice_source_oet ( stochastic_source_list, gts, source_momentum, 4 , 1, 0 );
         if( exitstatus != 0 ) {
           fprintf(stderr, "[cpff_fht_invert_contract] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(64);
@@ -847,7 +852,7 @@ int main(int argc, char **argv) {
 
       fini_1level_dtable ( &sequential_source );
 
-      exitstatus = init_timeslice_source_oet ( NULL, -1, NULL, -2 );
+      exitstatus = init_timeslice_source_oet ( NULL, -1, NULL, 0, 0, -2 );
 
     }  /* end of loop on oet samples */
 
