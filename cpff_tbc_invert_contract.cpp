@@ -608,7 +608,7 @@ int main(int argc, char **argv) {
 
       /***************************************************************************
        *
-       * (III.2) contractions for 2-point functons
+       * (III.2) contractions for 2-point functions
        *
        ***************************************************************************/
 
@@ -627,13 +627,6 @@ int main(int argc, char **argv) {
        ***************************************************************************/
       for ( int isample = 0; isample < g_nsample; isample++ ) {
 
-        double ** contr_p = init_2level_dtable ( g_seq_source_momentum_number, 2*T );
-        if ( contr_p == NULL ) {
-          fprintf(stderr, "[cpff_tbc_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
-          EXIT(47);
-        }
-
-
         /***************************************************************************
          * loop on gamma matrix
          *
@@ -645,6 +638,12 @@ int main(int argc, char **argv) {
 
         for ( int isnk_gamma = 0; isnk_gamma < g_source_gamma_id_number; isnk_gamma++ ) {
           int const sink_gamma = g_source_gamma_id_list[isnk_gamma];
+
+          double ** contr_p = init_2level_dtable ( g_seq_source_momentum_number, 2*T );
+          if ( contr_p == NULL ) {
+            fprintf(stderr, "[cpff_tbc_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+            EXIT(47);
+          }
 
           /***************************************************************************
            * loop on momenta
@@ -680,11 +679,12 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[cpff_tbc_invert_contract] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             return(3);
           }
+        
+          fini_2level_dtable ( &contr_p );
 
         }  /* end of loop on gamma at sink */
         // }  /* end of loop on gammas at source */
 
-        fini_2level_dtable ( &contr_p );
 
       }  /* end of loop on samples */
 
