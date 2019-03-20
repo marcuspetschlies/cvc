@@ -146,8 +146,91 @@ done  # of ilg
 ########################################
 elif [ "X$tag" == "XD-D" ]; then
 ########################################
-  echo "[$MyName] to be implented"
-  exit 1
+
+  type="b-b"
+
+  irrep_list[0]="Hg;Hu"
+  irrep_list[1]=""
+  irrep_list[2]=""
+  irrep_list[3]=""
+
+  gi1_list=(  9,4  0,4  7,4 13,4  4,4 15,4 )
+  gf1_list=(  9,4  0,4  7,4 13,4  4,4 15,4 )
+
+  fbwd_list=( fwd bwd )
+
+  d_spin=4
+  reorder=0
+  diagrams="d1,d2,d3,d4,d5,d6"
+  num_diag=$(echo $diagrams | tr ',' ' ' | wc -w )
+  echo "# [$MyName] diagrams = $diagrams, num_diag = $num_diag" >> $log
+
+cat << EOF
+
+BeginTwopointFunctionGeneric
+  n        = $num_diag
+  d        = $d_spin
+  type     = $type
+  tag      = $tag
+  reorder  = $reorder
+  T        = $src_snk_time_separation
+  diagrams = $diagrams
+EndTwopointFunction
+
+EOF
+
+for((ilg=0; ilg<4; ilg++)); do
+  lg=${littlegroup_list[$ilg]}
+
+  nptot=$( echo ${ptot_list[$ilg]} | tr ';' ' ' | wc -w )
+  echo "# [$MyName] lg = $lg nptot = $nptot" >> $log
+
+  ### for(( iptot=0; iptot<$nptot; iptot++ ));
+  for(( iptot=0; iptot<1; iptot++ ));
+  do
+
+    ptot=$( echo ${ptot_list[$ilg]} | awk -F\; '{print $('$iptot'+1)}' )
+
+    pf1=$ptot
+    pi1=$(echo $ptot | tr ',' ' ' | awk '{printf("%d,%d,%d", -$1, -$2, -$3)}')
+ 
+    echo "# [$MyName] lg = $lg ptot = $ptot pi1 = $pi1 pf1 = $pf1" >> $log
+
+    nirrep=$(echo ${irrep_list[$ilg]} | tr ';' ' ' | wc -w)
+
+    for(( iirrep=0; iirrep<$nirrep; iirrep++)) ; do
+
+      irrep=$( echo ${irrep_list[$ilg]} | awk -F\; '{print $('$iirrep'+1)}' )
+
+      irrep_dim=$( get_irrep_dim $irrep )
+
+      echo "# [$MyName] lg = $lg ptot = $ptot irrep = $irrep irrep_dim = $irrep_dim" >> $log
+
+      for fbwd in "fwd" "bwd"; do
+
+        for gi1 in ${gi1_list[*]}; do
+        for gf1 in ${gf1_list[*]}; do
+
+cat << EOF
+
+BeginTwopointFunctionInit
+  irrep    = $irrep
+  pi1      = $pi1
+  pf1      = $pf1
+  gi1      = $gi1
+  gf1      = $gf1
+  group    = $lg
+  fbwd     = $fbwd
+EndTwopointFunction
+
+EOF
+        done  # of gf1
+        done  # of gi1
+      done  # of fbwd
+    done  # of irrep
+  done  # of ptot
+done  # of ilg
+
 fi
 
 echo "# [$MyName] (`date`)" >> $log
