@@ -19,7 +19,8 @@
 
 namespace cvc {
 
-int APE_Smearing(double *smeared_gauge_field, double APE_smearing_alpha, int APE_smearing_niter);
+int APE_Smearing(double *smeared_gauge_field, double const APE_smearing_alpha, int const APE_smearing_niter);
+
 int Jacobi_Smearing(double *smeared_gauge_field, double *psi, int N, double kappa);
 
 int rms_radius ( double *r_rms, double *s, int source_coords[4] );
