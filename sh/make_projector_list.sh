@@ -4,6 +4,9 @@ log=$MyName.log
 out=$MyName.out
 err=$MyName.err
 
+
+sigma_g0d=( 1 -1 -1 -1  1 -1  1 -1 -1 -1  1  1  1 -1 -1 -1 )
+
 ########################################
 # get irrep dimension from first
 #   character of irrep name
@@ -149,10 +152,11 @@ elif [ "X$tag" == "XD-D" ]; then
 
   type="b-b"
 
-  irrep_list[0]="Hg;Hu"
-  irrep_list[1]=""
-  irrep_list[2]=""
-  irrep_list[3]=""
+  irrep_list[0]="G1g;G2g;Hg;G1u;G2u;Hu"
+  irrep_list[1]="G1;G2"
+  irrep_list[2]="G1"
+  irrep_list[3]="K1;K2;G1"
+
 
   gi1_list=(  9,4  0,4  7,4 13,4  4,4 15,4 )
   gf1_list=(  9,4  0,4  7,4 13,4  4,4 15,4 )
@@ -209,7 +213,19 @@ for((ilg=0; ilg<4; ilg++)); do
       for fbwd in "fwd" "bwd"; do
 
         for gi1 in ${gi1_list[*]}; do
+          
+          gi1_12=($( echo $gi1 | tr ',' ' ' ))
+
+          norm_str="  # norm     ="
+          s0d=${sigma_g0d[${gi1_12[0]}]}
+          if [ $s0d -ne 1 ]; then
+            norm_str="  norm     = $s0d"
+            for((i=1;i<$num_diag -1 ;i++));do norm_str="${norm_str},${sigma_g0d[${gi1_12[0]}]}"; done
+          fi
+
         for gf1 in ${gf1_list[*]}; do
+
+          gf1_12=($( echo $gf1 | tr ',' ' ' ))
 
 cat << EOF
 
@@ -221,6 +237,7 @@ BeginTwopointFunctionInit
   gf1      = $gf1
   group    = $lg
   fbwd     = $fbwd
+$norm_str
 EndTwopointFunction
 
 EOF
