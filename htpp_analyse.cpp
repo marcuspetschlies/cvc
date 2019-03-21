@@ -46,7 +46,6 @@ extern "C"
 #include "mpi_init.h"
 #include "set_default.h"
 #include "io.h"
-#include "propagator_io.h"
 #include "read_input_parser.h"
 #include "contractions_io.h"
 #include "project.h"
@@ -56,13 +55,6 @@ extern "C"
 #include "twopoint_function_utils.h"
 #include "gamma.h"
 #include "uwerr.h"
-
-
-#include "clover.h"
-
-#define _OP_ID_UP 0
-#define _OP_ID_DN 1
-
 
 using namespace cvc;
 
@@ -369,6 +361,7 @@ int main(int argc, char **argv) {
        ***************************************************************************/
       double *** res = init_3level_dtable ( 2, n_tc, 5 );
 
+      uwerr ustat;
       for ( int it = 0; it < 2*n_tc; it++ )
       {
           uwerr_init ( &ustat );
@@ -440,6 +433,7 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * free the allocated memory, finalize
    ***************************************************************************/
+  fini_3level_itable ( &conf_src_list );
 
   free_geometry();
 
