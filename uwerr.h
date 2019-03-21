@@ -2,8 +2,12 @@
 #define _UWERR_H
 
 #include <math.h>
+#include "global.h"
 
 #define MAX_NO_REPLICA 100
+#define _SQR(_a)   ( (_a) * (_a) )
+#define _num_bin(_n) (1 + (int)rint( log( (double)(_n) ) / log(2.0) ))
+#define TINY (1e-15)
 
 typedef int (*dquant)(void*, void*, double*);
  
@@ -38,7 +42,7 @@ typedef struct {
 
 extern int uwerr_verbose;
 
-static inline void ARITHMEAN(double *data_pointer, size_t data_stride, size_t data_number, double *res_pointer) {
+static inline void ARITHMEAN ( double * const data_pointer, size_t const data_stride, size_t const data_number, double * const res_pointer) {
   size_t i;
   *res_pointer = 0.0;
   for(i=0; i<data_number; i++) {
@@ -47,8 +51,8 @@ static inline void ARITHMEAN(double *data_pointer, size_t data_stride, size_t da
   *res_pointer /= (double)data_number;
 }
 
-static inline void WEIGHEDMEAN(double *data_pointer, size_t data_stride, size_t data_number, double *res_pointer,
-  size_t *weights_pointer) {
+static inline void WEIGHEDMEAN ( double * const data_pointer, size_t const data_stride, size_t const data_number, double * const res_pointer,
+  size_t * const weights_pointer) {
   size_t i;
   double n=0.0;
   *res_pointer = 0.0;
@@ -59,7 +63,7 @@ static inline void WEIGHEDMEAN(double *data_pointer, size_t data_stride, size_t 
   *res_pointer /= n;
 }
 
-static inline void STDDEV(double *data_pointer, size_t data_stride, size_t data_number, double *res_pointer) {
+static inline void STDDEV ( double * const data_pointer, size_t const data_stride, size_t const data_number, double * const res_pointer) {
   size_t j;
   double mean=0.0;
   *res_pointer = 0.0;
@@ -70,7 +74,7 @@ static inline void STDDEV(double *data_pointer, size_t data_stride, size_t data_
   *res_pointer = sqrt( *res_pointer / (double)(data_number-1) / (double)(data_number) );
 }
 
-static inline void VARIANCE(double *data_pointer, size_t data_stride, size_t data_number, double *res_pointer) {
+static inline void VARIANCE ( double * const data_pointer, size_t const data_stride, size_t const data_number, double * const res_pointer) {
   size_t j;
   double mean=0.0, d;
   *res_pointer = 0.0;
@@ -83,7 +87,8 @@ static inline void VARIANCE(double *data_pointer, size_t data_stride, size_t dat
   *res_pointer /= (double)(data_number - 1);
 }
 
-static inline void VARIANCE_FIXED_MEAN(double *data_pointer, double mean, size_t data_stride, size_t data_number, double *res_pointer) {
+static inline void VARIANCE_FIXED_MEAN ( double * const data_pointer, double const mean, size_t const data_stride, size_t const data_number,
+    double * const res_pointer) {
   size_t j;
   double d;
   *res_pointer = 0.0;
@@ -94,7 +99,7 @@ static inline void VARIANCE_FIXED_MEAN(double *data_pointer, double mean, size_t
   *res_pointer /= (double)(data_number);
 }
 
-static inline void SUM(double *data_pointer, size_t data_stride, size_t data_number, double *res_pointer) {
+static inline void SUM ( double * const data_pointer, size_t const data_stride, size_t const data_number, double * const res_pointer) {
   size_t i;
   *res_pointer = 0.0;
   for(i=0; i<data_number; i++) {
@@ -102,62 +107,71 @@ static inline void SUM(double *data_pointer, size_t data_stride, size_t data_num
   }
 }
 
-static inline void ASSIGN(double *data_pointer1, double *data_pointer2, size_t data_number) {
+static inline void ASSIGN ( double * const data_pointer1, double * const data_pointer2, size_t const data_number) {
   memcpy((void*)data_pointer1, (void*)data_pointer2, data_number*sizeof(double));
 }
 
-static inline void COPY_STRIDED(double *data_pointer1, double *data_pointer2, size_t data_stride, size_t data_number) {
+static inline void COPY_STRIDED ( double * const data_pointer1, double * const data_pointer2, size_t const data_stride, size_t const data_number) {
   size_t i;
   for(i=0; i<data_number; i++) {
     data_pointer1[i] =  data_pointer2[i*data_stride];
   }
 }
 
-static inline void ADD(double *data_pointer1, double *data_pointer2, size_t data_number) {
+static inline void ADD ( double * const data_pointer1, double * const data_pointer2, size_t const data_number) {
   size_t i;
   for(i=0; i<data_number; i++) {
     *(data_pointer1 + i) += *(data_pointer2 + i);
   }
 }
 
-static inline void ADD_ASSIGN(double *data_pointer1, double *data_pointer2, double *data_pointer3,
-                      size_t data_number) {
-  size_t i;
-  for(i=0; i<data_number; i++) {
+static inline void ADD_ASSIGN ( double * const data_pointer1, double * const data_pointer2, double * const data_pointer3,
+                      size_t const data_number) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( size_t i=0; i<data_number; i++) {
     *(data_pointer1 + i) = *(data_pointer2 + i) + *(data_pointer3 + i);
   }
 }
 
-static inline void SUB(double *data_pointer1, double *data_pointer2, size_t data_number) {
-  size_t i;
-  for(i=0; i<data_number; i++) {
+static inline void SUB ( double * const data_pointer1, double * const data_pointer2, size_t const data_number) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( size_t i=0; i<data_number; i++) {
     *(data_pointer1 + i) -= *(data_pointer2 + i);
   }
 }
-static inline void SUB_ASSIGN(double *data_pointer1, double *data_pointer2, double *data_pointer3,
-                      size_t data_number) {
-  size_t i;
-  for(i=0; i<data_number; i++) {
+static inline void SUB_ASSIGN ( double * const data_pointer1, double * const data_pointer2, double * const data_pointer3,
+                      size_t const data_number) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( size_t i=0; i<data_number; i++) {
     *(data_pointer1 + i) = *(data_pointer2 + i) - *(data_pointer3 + i);
   }
 }
 
-static inline void PROD(double *data_pointer1, double *data_pointer2, size_t data_number) {
-  size_t i;
-  for(i=0; i<data_number; i++) {
+static inline void PROD ( double * const data_pointer1, double * const data_pointer2, size_t const data_number) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( size_t i=0; i<data_number; i++) {
     *(data_pointer1 + i) *= *(data_pointer2 + i);
   }
 }
 
-static inline void PROD_ASSIGN(double *data_pointer1, double *data_pointer2, double *data_pointer3,
-                      size_t data_number) {
-  size_t i;
-  for(i=0; i<data_number; i++) {
+static inline void PROD_ASSIGN ( double * const data_pointer1, double * const data_pointer2, double * const data_pointer3, size_t const data_number) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( size_t i=0; i<data_number; i++) {
     *(data_pointer1 + i) = *(data_pointer2 + i) * *(data_pointer3 + i);
   }
 }
 
-static inline void NORM2(double *data_pointer1, size_t data_number, double *res_pointer) {
+static inline void NORM2 ( double * const data_pointer1, size_t const data_number, double * const res_pointer) {
   size_t i;
   double d;
   *res_pointer = 0.0;
@@ -167,7 +181,7 @@ static inline void NORM2(double *data_pointer1, size_t data_number, double *res_
   }
 }
 
-static inline void DIFFNORM2(double *data_pointer1, double *data_pointer2, size_t data_number, double *res_pointer) {
+static inline void DIFFNORM2 ( double * const data_pointer1, double * const data_pointer2, size_t const data_number, double * const res_pointer) {
   size_t i;
   double d;
   *res_pointer = 0.0;
@@ -177,14 +191,16 @@ static inline void DIFFNORM2(double *data_pointer1, double *data_pointer2, size_
   }
 }
 
-static inline void SET_TO(double *data_pointer, size_t data_number, double value) {
-  size_t i;
-  for(i=0; i<data_number; i++) {
+static inline void SET_TO ( double * const data_pointer, size_t const data_number, double const value) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( size_t i=0; i<data_number; i++) {
     *(data_pointer + i) = value;
   }
 }
 
-static inline void MIN_UINT(size_t *int_pointer, size_t int_number, size_t *res_pointer) {
+static inline void MIN_UINT ( size_t * const int_pointer, size_t const int_number, size_t * const res_pointer) {
               size_t i;
               *res_pointer = *int_pointer;
               for(i=1; i<int_number; i++) {
@@ -194,7 +210,7 @@ static inline void MIN_UINT(size_t *int_pointer, size_t int_number, size_t *res_
               }
 }
 
-static inline void ABS_MAX_DBL(double *dbl_pointer, size_t dbl_number, double *res_pointer) {   \
+static inline void ABS_MAX_DBL ( double * const dbl_pointer, size_t const dbl_number, double * const res_pointer) {   \
               size_t i;
               *res_pointer = fabs(*(dbl_pointer));
               for(i=1; i<dbl_number; i++) {
@@ -204,9 +220,14 @@ static inline void ABS_MAX_DBL(double *dbl_pointer, size_t dbl_number, double *r
               }
 }
 
-int uwerr_analysis (double *data, uwerr *u);
-int uwerr_init(uwerr *u);
-int uwerr_free(uwerr *u);
-int uwerr_calloc(uwerr *u);
-int uwerr_printf(uwerr u);
+int uwerr_init ( uwerr * const u );
+
+int uwerr_calloc ( uwerr * const u );
+
+int uwerr_free ( uwerr * const u );
+
+int uwerr_printf ( uwerr const u );
+
+int uwerr_analysis (double * const data, uwerr * const u);
+
 #endif
