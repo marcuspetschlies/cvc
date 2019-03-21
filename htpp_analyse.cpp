@@ -54,9 +54,8 @@ extern "C"
 #include "table_init_d.h"
 #include "contract_diagrams.h"
 #include "twopoint_function_utils.h"
-#include "zm4x4.h"
 #include "gamma.h"
-
+#include "uwerr.h"
 
 
 #include "clover.h"
@@ -251,7 +250,8 @@ int main(int argc, char **argv) {
 
       if ( g_verbose > 2 ) fprintf ( stdout, "# [htpp_analyse] key = %s\n", key );
 
-      sprintf ( filename, "%s_pfx%dpfy%dpfz%d_gf_%s_dt%d_pi2x%dpi2y%dpi2z%d_gi2_%s_g1_%s_g2_%s_PX%d_PY%d_PZ%d",
+      char output_filename[400];
+      sprintf ( output_filename, "%s_pfx%dpfy%dpfz%d_gf_%s_dt%d_pi2x%dpi2y%dpi2z%d_gi2_%s_g1_%s_g2_%s_PX%d_PY%d_PZ%d",
           diagram_name, 
           tp->pf1[0], tp->pf1[1], tp->pf1[2], gamma_bin_to_name[tp->gf1[0]], g_src_snk_time_separation, 
           tp->pi2[0], tp->pi2[1], tp->pi2[2], gamma_bin_to_name[tp->gi2], 
@@ -260,7 +260,7 @@ int main(int argc, char **argv) {
 
       if ( g_verbose > 2 ) fprintf ( stdout, "# [htpp_analyse] filename = %s\n", filename );
 
-      FILE * ofs = fopen ( filename, "a" );
+      FILE * ofs = fopen ( output_filename, "a" );
 
       /***********************************************************
        * field to store all data
@@ -363,12 +363,13 @@ int main(int argc, char **argv) {
       /***************************************************************************
        ***************************************************************************
        **
-       ** statistical analysis for corr
+       ** UWerr statistical analysis for corr
        **
        ***************************************************************************
        ***************************************************************************/
+      double *** res = init_3level_dtable ( 2, n_tc, 5 );
 
-      for ( int it = 0; it < n_tc; it++ )
+      for ( int it = 0; it < 2*n_tc; it++ )
       {
           uwerr_init ( &ustat );
     
@@ -383,25 +384,21 @@ int main(int argc, char **argv) {
           ustat.dfunc = NULL;
           ustat.para  = NULL; */
 
-          exitstatus = uwerr_analysis ( data[0][0], &ustat );
+          exitstatus = uwerr_analysis ( corr[0][0], &ustat );
           if ( exitstatus == 0 ) {
-            res[it][itau][0] = ustat.value;
-            res[it][itau][1] = ustat.dvalue;
-            res[it][itau][2] = ustat.ddvalue;
-            res[it][itau][3] = ustat.tauint;
-            res[it][itau][4] = ustat.dtauint;
+            res[it%2][it/2][0] = ustat.value;
+            res[it%2][it/2][1] = ustat.dvalue;
+            res[it%2][it/2][2] = ustat.ddvalue;
+            res[it%2][it/2][3] = ustat.tauint;
+            res[it%2][it/2][4] = ustat.dtauint;
           } else {
-            fprintf ( stderr, "[cpff_fht_analyse] Warning return status from uwerr_analysis was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-           }
+            fprintf ( stderr, "[hptt_analyse] Warning return status from uwerr_analysis was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          }
    
           uwerr_free ( &ustat );
-        }  /* end of loop on tau */
       }  /* end of loop on t */
     
-      sprintf ( filename, "%s_std_acosh_ratio_gf%d_gi%d_PX%d_PY%d_PZ%d.uwerr", g_outfile_prefix,
-          g_source_gamma_id_list[igf], g_source_gamma_id_list[igi],
-          sink_momentum[0], sink_momentum[1], sink_momentum[2] );
-
+      sprintf ( filename, "%s.uwerr", output_filename );
       FILE * uwerr_ofs = fopen ( filename, "w" );
    
       fprintf ( uwerr_ofs, "# nalpha   = %llu\n", ustat.nalpha );
@@ -409,17 +406,19 @@ int main(int argc, char **argv) {
       for (  int i = 0; i < ustat.nreplica; i++) fprintf( uwerr_ofs, "# nr[%d] = %llu\n", i, ustat.n_r[i] );
       fprintf ( uwerr_ofs, "#\n" );
     
-      for ( int itau = 0; itau < Nt/2; itau++ )
+      for ( int it = 0; it < n_tc; it++ )
       {
-        for ( int it = itau; it < Nt-itau; it++ )
-        {
-           fprintf ( uwerr_ofs, "%3d %3d %16.7e %16.7e %16.7e %16.7e %16.7e\n", it, itau,
-              res[it][itau][0], res[it][itau][1], res[it][itau][2], res[it][itau][3], res[it][itau][4] );
-        }
+         fprintf ( uwerr_ofs, "%3d %16.7e %16.7e %16.7e %16.7e %16.7e     %16.7e %16.7e %16.7e %16.7e %16.7e\n",
+             it,
+             res[0][it][0], res[0][it][1], res[0][it][2], res[0][it][3], res[0][it][4],
+             res[1][it][0], res[1][it][1], res[1][it][2], res[1][it][3], res[1][it][4] );
       }
     
       fclose( uwerr_ofs );
       fini_3level_dtable ( &res );
+
+      /***************************************************************************/
+      /***************************************************************************/
 
       /***************************************************************************
        * free the correlator field
