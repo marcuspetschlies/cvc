@@ -71,7 +71,6 @@ int main(int argc, char **argv) {
 
   int c;
   int filename_set = 0;
-  int gsx[4], sx[4];
   int exitstatus;
   int io_proc = -1;
   char ensemble_name[100] = "c13";
@@ -82,12 +81,21 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:S:N:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
       filename_set=1;
       break;
+    case 'N':
+      num_conf = atoi ( optarg );
+      fprintf ( stdout, "# [htpp_analyse] number of configs = %d\n", num_conf );
+      break;
+    case 'S':
+      num_src_per_conf = atoi ( optarg );
+      fprintf ( stdout, "# [htpp_analyse] number of sources per config = %d\n", num_src_per_conf );
+      break;
+
     case 'h':
     case '?':
     default:
@@ -183,10 +191,10 @@ int main(int argc, char **argv) {
     char streamc;
     sscanf( line, "%c %d %d %d %d %d", &streamc,
         conf_src_list[count/num_src_per_conf][count%num_src_per_conf],
+        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+1,
         conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+2,
         conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+3,
-        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+4,
-        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+1 );
+        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+4 );
 
     count++;
   }
@@ -225,6 +233,8 @@ int main(int argc, char **argv) {
 
     twopoint_function_type * tp = &(g_twopoint_function_list[i_2pt]);
 
+    twopoint_function_allocate ( tp );
+
     for ( int i_diag = 0; i_diag < tp->n; i_diag++ ) {
 
       char diagram_name[500];
@@ -250,7 +260,7 @@ int main(int argc, char **argv) {
           gamma_bin_to_name[tp->gf2], gamma_bin_to_name[tp->gi1[0]],
           tp->pf2[0], tp->pf2[1], tp->pf2[2] );
 
-      if ( g_verbose > 2 ) fprintf ( stdout, "# [htpp_analyse] filename = %s\n", filename );
+      if ( g_verbose > 2 ) fprintf ( stdout, "# [htpp_analyse] output_filename = %s\n", output_filename );
 
       FILE * ofs = fopen ( output_filename, "a" );
 
@@ -278,16 +288,18 @@ int main(int argc, char **argv) {
           /***********************************************************
            * store the source coordinates
            ***********************************************************/
-          gsx[0] = conf_src_list[iconf][isrc][1];
-          gsx[1] = conf_src_list[iconf][isrc][2];
-          gsx[2] = conf_src_list[iconf][isrc][3];
-          gsx[3] = conf_src_list[iconf][isrc][4];
+          int const gsx[4] = {
+            conf_src_list[iconf][isrc][1],
+            conf_src_list[iconf][isrc][2],
+            conf_src_list[iconf][isrc][3],
+            conf_src_list[iconf][isrc][4] };
 
 #ifdef HAVE_LHPC_AFF
           /***********************************************************
            * writer for aff output file
            ***********************************************************/
-          sprintf ( filename, "contract_3pt_hl_seq.%.4d.tbase%.2d.aff", Nconf, t_base );
+          /* sprintf ( filename, "contract_3pt_hl_seq.%.4d.tbase%.2d.aff", Nconf, t_base ); */
+          sprintf ( filename, "contract_3pt_hl_seq.%.4d.t%d_x%d_y%d_z%d.aff", Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
    
           struct AffReader_s * affr = aff_reader ( filename );
           const char * aff_status_str = aff_reader_errstr ( affr );
@@ -311,9 +323,9 @@ int main(int argc, char **argv) {
             int t_coherent = ( t_base + ( T_global / g_coherent_source_number ) * icoh ) % T_global;
 
             int const csx[4] = { t_coherent ,
-                               ( gsx[1] + (LX_global/2) * icoh) % LX_global,
-                               ( gsx[2] + (LY_global/2) * icoh) % LY_global,
-                               ( gsx[3] + (LZ_global/2) * icoh) % LZ_global };
+                               ( gsx[1] + (LX_global / g_coherent_source_number ) * icoh) % LX_global,
+                               ( gsx[2] + (LY_global / g_coherent_source_number ) * icoh) % LY_global,
+                               ( gsx[3] + (LZ_global / g_coherent_source_number ) * icoh) % LZ_global };
 
             /***********************************************************
              * output key
@@ -323,8 +335,15 @@ int main(int argc, char **argv) {
             /***********************************************************
              * source phase factor
              ***********************************************************/
-            double _Complex const ephase = cexp ( 2. * M_PI * ( tp->pi1[0] * csx[1] + tp->pi1[1] * csx[2] + tp->pi1[2] * csx[3] ) * I );
-  
+            double _Complex const ephase = cexp ( 2. * M_PI * ( 
+                  tp->pi1[0] * csx[1] / (double)LX_global 
+                + tp->pi1[1] * csx[2] / (double)LY_global 
+                + tp->pi1[2] * csx[3] / (double)LZ_global ) * I );
+            if ( g_verbose > 4 ) fprintf ( stdout, "# [htpp_analyse] pi1 = %3d %3d %3d csx = %3d %3d %3d  ephase = %16.7e %16.7e\n",
+                tp->pi1[0], tp->pi1[1], tp->pi1[2],
+                csx[1], csx[2], csx[3],
+                creal( ephase ), cimag( ephase ) );
+
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
@@ -332,17 +351,23 @@ int main(int argc, char **argv) {
               /* order from source */
               int const tt = ( csx[0] + it ) % tp->T; 
               double _Complex const zbuffer = tp->c[i_diag][tt][0][0] * ephase;
+              
               corr[iconf][isrc*g_coherent_source_number+icoh][2*it  ] = creal ( zbuffer );
               corr[iconf][isrc*g_coherent_source_number+icoh][2*it+1] = cimag ( zbuffer );
             }
 
             for ( int it = 0; it < n_tc; it++ ) {
-              fprintf ( ofs, "%4d %25.16e %25.16e\n", it,
+              int const tt = ( csx[0] + it ) % tp->T; 
+              fprintf ( ofs, "%4d %25.16e %25.16e\n", tt,
                   corr[iconf][isrc*g_coherent_source_number+icoh][2*it  ],
                   corr[iconf][isrc*g_coherent_source_number+icoh][2*it+1] );
             } 
 
           }  /* end of loop on coherent sources */
+
+#if 0
+#endif  /* of if 0 */
+
 
 #ifdef HAVE_LHPC_AFF
           aff_reader_close ( affr );
@@ -409,7 +434,8 @@ int main(int argc, char **argv) {
     
       fclose( uwerr_ofs );
       fini_3level_dtable ( &res );
-
+#if 0
+#endif  /* of if 0 */
       /***************************************************************************/
       /***************************************************************************/
 
@@ -424,6 +450,8 @@ int main(int argc, char **argv) {
       fclose ( ofs );
 
     }  /* end of loop on diagrams */
+
+    twopoint_function_fini ( tp );
 
   }  /* end of loop on 2-point functions */
 
