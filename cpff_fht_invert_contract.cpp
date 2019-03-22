@@ -239,6 +239,9 @@ int main(int argc, char **argv) {
    ***************************************************************************/
   if( N_Jacobi > 0 ) {
 
+    /***************************************************************************
+     * NOTE: gauge_field_smeared, needs boundary
+     ***************************************************************************/
     alloc_gauge_field ( &gauge_field_smeared, VOLUMEPLUSRAND );
 
     memcpy ( gauge_field_smeared, g_gauge_field, 72*VOLUME*sizeof(double) );
@@ -356,7 +359,6 @@ int main(int argc, char **argv) {
   /* for ( int i = 0; i < rlxd_size(); i++ ) {
     fprintf ( stdout, "rng %2d %10d\n", g_cart_id, rng_state[i] );
   } */
-
 
   /***************************************************************************
    * loop on source timeslices
@@ -482,6 +484,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "[cpff_fht_invert_contract] Error from save_rng_state, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );;
         EXIT(38);
       }
+
 
       /***************************************************************************/
       /***************************************************************************/
@@ -852,9 +855,11 @@ int main(int argc, char **argv) {
 
       fini_1level_dtable ( &sequential_source );
 
+
       exitstatus = init_timeslice_source_oet ( NULL, -1, NULL, 0, 0, -2 );
 
     }  /* end of loop on oet samples */
+
 
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
     if(io_proc == 2) {
