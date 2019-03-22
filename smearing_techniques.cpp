@@ -260,6 +260,17 @@ int Jacobi_Smearing(double *smeared_gauge_field, double *psi, int const N, doubl
   const size_t sf_bytes = sf_items * sizeof(double);
   const double norm = 1.0 / (1.0 + 6.0*kappa);
 
+  if ( N == 0 || kappa == 0.0 ) {
+    if ( g_cart_id == 0 ) fprintf(stdout, "# [Jacobi_Smearing] Warning, nothing to smear\n");
+    return ( 0 );
+  }
+
+  if ( smeared_gauge_field == NULL || psi == NULL ) {
+    fprintf(stderr, "[Jacobi_Smearing] Error, input / output fields are NULL \n");
+    return(4);
+  }
+
+
   int i1;
   double *psi_old = (double*)malloc( _GSI(VOLUME+RAND)*sizeof(double));
   if(psi_old == NULL) {
