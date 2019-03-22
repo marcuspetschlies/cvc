@@ -25,7 +25,7 @@ int cvc_tensor_eo_check_wi_position_space (double **tensor_eo);
 
 int apply_constant_cvc_vertex_at_source (double**s, int mu, int fbwd, const unsigned int N );
 
-int contract_write_to_aff_file (double ** const c_tp, struct AffWriter_s*affw, char*tag, int (* const momentum_list)[3], int const momentum_number, int const io_proc );
+int contract_write_to_aff_file (double ** const c_tp, struct AffWriter_s*affw, char*tag, const int (* momentum_list)[3], int const momentum_number, int const io_proc );
 
 int contract_write_to_h5_file (double ** const c_tp, void * file, char*tag, const int (*momentum_list)[3], int const momentum_number, int const io_proc );
 
