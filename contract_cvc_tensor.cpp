@@ -758,7 +758,7 @@ int cvc_tensor_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, c
  *
  ***************************************************************************/
 
-int contract_write_to_aff_file (double ** const c_tp, struct AffWriter_s*affw, char*tag, int (* const momentum_list)[3], int const momentum_number, int const io_proc ) {
+int contract_write_to_aff_file (double ** const c_tp, struct AffWriter_s*affw, char*tag, const int (* momentum_list)[3], int const momentum_number, int const io_proc ) {
 
   int exitstatus, i;
   double ratime, retime;
