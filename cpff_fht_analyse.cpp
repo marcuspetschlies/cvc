@@ -50,8 +50,12 @@ void usage() {
 
 int main(int argc, char **argv) {
   
+
   const char flavor_prefix_std[] = "u+-g-u-g";
   const char flavor_prefix_fht[] = "u+-g-suu-g";
+
+  int const gamma_id_to_bin[16] = { 8, 1, 2, 4, 0, 15, 7, 14, 13, 11, 9, 10, 12, 3, 5, 6 };
+
 
   int c;
   int filename_set = 0;
@@ -62,6 +66,8 @@ int main(int argc, char **argv) {
   int num_conf = 0;
   char ensemble_name[100] = "cA211a.30.32";
   int fold_propagator = 0;
+  int use_disc = 0;
+  int use_conn = 1;
 
   char key[400];
 
@@ -69,7 +75,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:N:S:F:")) != -1) {
+  while ((c = getopt(argc, argv, "dch?f:N:S:F:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -86,6 +92,14 @@ int main(int argc, char **argv) {
     case 'F':
       fold_propagator = atoi ( optarg );
       fprintf ( stdout, "# [cpff_fht_analyse] fold_propagator set to %d\n", fold_propagator );
+      break;
+    case 'd':
+      use_disc = 1;
+      fprintf ( stdout, "# [cpff_fht_analyse] use_disc set to %d\n", use_disc );
+      break;
+    case 'c':
+      use_conn = 1;
+      fprintf ( stdout, "# [cpff_fht_analyse] use_conn set to %d\n", use_conn );
       break;
     case 'h':
     case '?':
@@ -557,65 +571,112 @@ int main(int argc, char **argv) {
             }
 
             /***********************************************************
-             * loop on configs and source locations per config
+             * read connected part
              ***********************************************************/
-            for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-              for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-                Nconf = conf_src_list[iconf][isrc][0];
+            if ( use_conn ) {
+              /***********************************************************
+               * loop on configs and source locations per config
+               ***********************************************************/
+              for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+                for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+                  Nconf = conf_src_list[iconf][isrc][0];
 
-                /***********************************************************
-                 * copy source coordinates
-                 ***********************************************************/
-                int const gsx[4] = {
-                    conf_src_list[iconf][isrc][1],
-                    conf_src_list[iconf][isrc][2],
-                    conf_src_list[iconf][isrc][3],
-                    conf_src_list[iconf][isrc][4] };
+                  /***********************************************************
+                   * copy source coordinates
+                   ***********************************************************/
+                  int const gsx[4] = {
+                      conf_src_list[iconf][isrc][1],
+                      conf_src_list[iconf][isrc][2],
+                      conf_src_list[iconf][isrc][3],
+                      conf_src_list[iconf][isrc][4] };
 
-                int const gts = gsx[0];
-                int source_timeslice = -1, source_proc_id = -1;
+                  int const gts = gsx[0];
+                  int source_timeslice = -1, source_proc_id = -1;
 
-                exitstatus = get_timeslice_source_info ( gts, &source_timeslice, &source_proc_id );
-                if( exitstatus != 0 ) {
-                  fprintf(stderr, "[cpff_fht_analyse] Error from get_timeslice_source_info status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                  EXIT(123);
-                }
+                  exitstatus = get_timeslice_source_info ( gts, &source_timeslice, &source_proc_id );
+                  if( exitstatus != 0 ) {
+                    fprintf(stderr, "[cpff_fht_analyse] Error from get_timeslice_source_info status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                    EXIT(123);
+                  }
 
 #ifdef HAVE_HDF5
-                /***********************************************************
-                 * filename for data file
-                 ***********************************************************/
-                if(io_proc == 2) {
-                  sprintf ( filename, "%s.%.4d.t%d.h5", g_outfile_prefix, Nconf, gts );
-                  fprintf(stdout, "# [cpff_fht_analyse] reading data from file %s\n", filename);
-                }  /* end of if io_proc == 2 */
+                  /***********************************************************
+                   * filename for data file
+                   ***********************************************************/
+                  if(io_proc == 2) {
+                    sprintf ( filename, "%s.%.4d.t%d.h5", g_outfile_prefix, Nconf, gts );
+                    fprintf(stdout, "# [cpff_fht_analyse] reading data from file %s\n", filename);
+                  }  /* end of if io_proc == 2 */
 #endif
 
-                sprintf ( key , "/%s/fht/t%d/s0/gf%d/gc%d/pcx%dpcy%dpcz%d/gi%d/pix%dpiy%dpiz%d/px%dpy%dpz%d",
-                    flavor_prefix_fht,
-                    gts, g_source_gamma_id_list[igf],
-                    g_sequential_source_gamma_id_list[igc], seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
-                    g_source_gamma_id_list[igi],            source_momentum[0],     source_momentum[1],     source_momentum[2],
-                    sink_momentum[0], sink_momentum[1], sink_momentum[2] );
-                if ( g_verbose > 2 ) fprintf ( stdout, "# [cpff_fht_analyse] key = %s\n", key );
+                  sprintf ( key , "/%s/fht/t%d/s0/gf%d/gc%d/pcx%dpcy%dpcz%d/gi%d/pix%dpiy%dpiz%d/px%dpy%dpz%d",
+                      flavor_prefix_fht,
+                      gts, g_source_gamma_id_list[igf],
+                      g_sequential_source_gamma_id_list[igc], seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
+                      g_source_gamma_id_list[igi],            source_momentum[0],     source_momentum[1],     source_momentum[2],
+                      sink_momentum[0], sink_momentum[1], sink_momentum[2] );
+                  if ( g_verbose > 2 ) fprintf ( stdout, "# [cpff_fht_analyse] key = %s\n", key );
 
-                double * buffer = init_1level_dtable ( 2*T );
+                  double * buffer = init_1level_dtable ( 2*T );
+ 
+                  exitstatus = read_from_h5_file ( (void*)buffer, filename, key, io_proc );
+                  if( exitstatus != 0 ) {
+                    fprintf(stderr, "[cpff_fht_analyse] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                    EXIT(105);
+                  }
 
-                exitstatus = read_from_h5_file ( (void*)buffer, filename, key, io_proc );
-                if( exitstatus != 0 ) {
-                  fprintf(stderr, "[cpff_fht_analyse] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                  EXIT(105);
+                  for ( int it = 0; it < T; it++ ) {
+                    corr_fht[iconf][isrc][2*it  ] = buffer[2*( ( it + gts ) % T)  ];
+                    corr_fht[iconf][isrc][2*it+1] = buffer[2*( ( it + gts ) % T)+1];
+                  }
+
+                  fini_1level_dtable ( &buffer );
+
+                }  /* end of loop on sources per configuration */
+              }  /* end of loop on configurations */
+            }  /* end of if use conn */
+
+            double *** corr_fht_disc = init_3level_dtable ( num_conf, num_src_per_conf, 2*T );
+            if ( corr_fht_disc == NULL ) {
+              fprintf(stderr, "[cpff_fht_analyse] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__);
+              EXIT(16);
+            }
+
+            double *** corr_fht_disc_vev = init_3level_dtable ( num_conf, num_src_per_conf, 2*T );
+            if ( corr_fht_disc_vev == NULL ) {
+              fprintf(stderr, "[cpff_fht_analyse] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__);
+              EXIT(16);
+            }
+
+            /****************************************
+             * read disconnected data
+             ****************************************/
+            if ( use_disc ) {
+
+              double * buffer  = init_1level_dtable ( num_conf );
+
+              sprintf ( filename, "M.PX%d_PY%d_PZ%d.s%d.4x4.g%d.red", seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], g_nsample, gamma_id_to_bin[igc] );
+              FILE * ofs = fopen ( filename, "r" );
+
+              for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+                fscanf ( ofs, "%lf", buffer+iconf );
+              }
+              fclose ( ofs );
+
+              /* prepare the 3-point functions */
+              for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+                for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+                  for ( int it = 0; it < 2*T; it++ ) {
+                    corr_fht_disc[iconf][isrc][it] = corr_std[iconf][isrc][it] * buffer[iconf];
+                  }
+                  for ( int it = 0; it < T; it++ ) {
+                    corr_fht_disc_vev[iconf][isrc][2*it] = buffer[iconf];
+                  }
                 }
+              }
+              fini_1level_dtable ( &buffer );
 
-                for ( int it = 0; it < T; it++ ) {
-                  corr_fht[iconf][isrc][2*it  ] = buffer[2*( ( it + gts ) % T)  ];
-                  corr_fht[iconf][isrc][2*it+1] = buffer[2*( ( it + gts ) % T)+1];
-                }
-
-                fini_1level_dtable ( &buffer );
-
-              }  /* end of loop on sources per configuration */
-            }  /* end of loop on configurations */
+            }  /* end of if use disc */
 
             /****************************************
              * show all data
@@ -671,16 +732,22 @@ int main(int argc, char **argv) {
             } else if ( fold_propagator == 1 ) {
               for ( int iconf = 0; iconf < num_conf; iconf++ ) {
                 for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-                  data[iconf][isrc][0] = corr_fht[iconf][isrc][0];
-                  data[iconf][isrc][1] = corr_fht[iconf][isrc][1];
+                  data[iconf][isrc][0] = corr_fht[iconf][isrc][0] * use_conn + corr_fht_disc[iconf][isrc][0] * use_disc;
+                  data[iconf][isrc][1] = corr_fht[iconf][isrc][1] * use_conn + corr_fht_disc[iconf][isrc][1] * use_disc;
         
                   for ( int it = 1; it <Nt-1; it++ ) {
-                    data[iconf][isrc][2*it  ] = ( corr_fht[iconf][isrc][2*it  ] + corr_fht[iconf][isrc][2*(T-it)  ] ) * 0.5;
-                    data[iconf][isrc][2*it+1] = ( corr_fht[iconf][isrc][2*it+1] + corr_fht[iconf][isrc][2*(T-it)+1] ) * 0.5;
+                    data[iconf][isrc][2*it  ] = ( 
+                          ( corr_fht[iconf][isrc][2*it  ]      + corr_fht[iconf][isrc][2*(T-it)  ]      ) * use_conn 
+                        + ( corr_fht_disc[iconf][isrc][2*it  ] + corr_fht_disc[iconf][isrc][2*(T-it)  ] ) * use_disc
+                        ) * 0.5;
+                    data[iconf][isrc][2*it+1] = ( 
+                          ( corr_fht[iconf][isrc][2*it+1]      + corr_fht[iconf][isrc][2*(T-it)+1]      ) * use_conn
+                        + ( corr_fht_disc[iconf][isrc][2*it+1] + corr_fht_disc[iconf][isrc][2*(T-it)+1] ) * use_conn
+                        ) * 0.5;
                   }
         
-                  data[iconf][isrc][2*Nt-2] = corr_fht[iconf][isrc][2*Nt-2];
-                  data[iconf][isrc][2*Nt-1] = corr_fht[iconf][isrc][2*Nt-1];
+                  data[iconf][isrc][2*Nt-2] = corr_fht[iconf][isrc][2*Nt-2] * use_conn + corr_fht_disc[iconf][isrc][2*Nt-2] * use_disc;
+                  data[iconf][isrc][2*Nt-1] = corr_fht[iconf][isrc][2*Nt-1] * use_conn + corr_fht_disc[iconf][isrc][2*Nt-1] * use_disc;
                 }
               }
             }  /* end of if fold_propagator */
@@ -1035,6 +1102,8 @@ int main(int argc, char **argv) {
              * free corr_fht field
              **********************************************************/
             fini_3level_dtable ( &corr_fht );
+            fini_3level_dtable ( &corr_fht_disc );
+            fini_3level_dtable ( &corr_fht_disc_vev );
 
           }  /* end of loop on sequential source momenta */
 

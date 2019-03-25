@@ -136,8 +136,8 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * initialize MPI parameters for cvc
    ***************************************************************************/
-  /* exitstatus = tmLQCD_invert_init(argc, argv, 1, 0); */
-  exitstatus = tmLQCD_invert_init(argc, argv, 1);
+  exitstatus = tmLQCD_invert_init(argc, argv, 1, 0);
+  /* exitstatus = tmLQCD_invert_init(argc, argv, 1); */
   if(exitstatus != 0) {
     EXIT(1);
   }
@@ -239,6 +239,9 @@ int main(int argc, char **argv) {
    ***************************************************************************/
   if( N_Jacobi > 0 ) {
 
+    /***************************************************************************
+     * NOTE: gauge_field_smeared, needs boundary
+     ***************************************************************************/
     alloc_gauge_field ( &gauge_field_smeared, VOLUMEPLUSRAND );
 
     memcpy ( gauge_field_smeared, g_gauge_field, 72*VOLUME*sizeof(double) );
@@ -356,7 +359,6 @@ int main(int argc, char **argv) {
   /* for ( int i = 0; i < rlxd_size(); i++ ) {
     fprintf ( stdout, "rng %2d %10d\n", g_cart_id, rng_state[i] );
   } */
-
 
   /***************************************************************************
    * loop on source timeslices
@@ -483,6 +485,7 @@ int main(int argc, char **argv) {
         EXIT(38);
       }
 
+
       /***************************************************************************/
       /***************************************************************************/
 
@@ -514,7 +517,7 @@ int main(int argc, char **argv) {
         memcpy ( spinor_work[2], spinor_work[0], sizeof_spinor_field );
 
         /* invert */
-        exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_dn );
+        exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_up );
         if(exitstatus < 0) {
           fprintf(stderr, "[cpff_fht_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(44);
@@ -522,7 +525,7 @@ int main(int argc, char **argv) {
 
         /* check residual */
         if ( check_propagator_residual ) {
-          check_residual_clover ( &(spinor_work[1]), &(spinor_work[2]), gauge_field_with_phase, mzz[op_id_dn], mzzinv[op_id_dn], 1 );
+          check_residual_clover ( &(spinor_work[1]), &(spinor_work[2]), gauge_field_with_phase, mzz[op_id_up], mzzinv[op_id_up], 1 );
         }
 
         /*****************************************************************
@@ -610,14 +613,14 @@ int main(int argc, char **argv) {
           memcpy ( spinor_work[2], spinor_work[0], sizeof_spinor_field );
 
           /* invert */
-          exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_dn );
+          exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_up );
           if(exitstatus < 0) {
             fprintf(stderr, "[cpff_fht_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(44);
           }
 
           if ( check_propagator_residual ) {
-            check_residual_clover ( &(spinor_work[1]), &(spinor_work[2]), gauge_field_with_phase, mzz[op_id_dn], mzzinv[op_id_dn], 1 );
+            check_residual_clover ( &(spinor_work[1]), &(spinor_work[2]), gauge_field_with_phase, mzz[op_id_up], mzzinv[op_id_up], 1 );
           }
 
           /***************************************************************************
@@ -677,7 +680,7 @@ int main(int argc, char **argv) {
               stochastic_propagator_mom_list[isrc_mom], stochastic_propagator_zero_smeared_list, 4, 1, sink_momentum, 1 );
 
           /* write to file */
-          sprintf ( data_tag, "/d+-g-d-g/std/t%d/s%d/gf%d/gi%d/pix%dpiy%dpiz%d", gts, isample,
+          sprintf ( data_tag, "/u+-g-u-g/std/t%d/s%d/gf%d/gi%d/pix%dpiy%dpiz%d", gts, isample,
               g_source_gamma_id_list[isnk_gamma], g_source_gamma_id_list[isrc_gamma],
               source_momentum[0], source_momentum[1], source_momentum[2] );
 
@@ -820,7 +823,7 @@ int main(int argc, char **argv) {
                   sequential_propagator_list, 4, 1, sink_momentum, 1);
 
               /* write to file */
-              sprintf ( data_tag, "/d+-g-d-g/fht/t%d/s%d/gf%d/gc%d/pcx%dpcy%dpcz%d/gi%d/pix%dpiy%dpiz%d", gts, isample,
+              sprintf ( data_tag, "/u+-g-suu-g/fht/t%d/s%d/gf%d/gc%d/pcx%dpcy%dpcz%d/gi%d/pix%dpiy%dpiz%d", gts, isample,
                   g_source_gamma_id_list[isnk_gamma], 
                   seq_source_gamma, seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
                   g_source_gamma_id_list[isrc_gamma], source_momentum[0], source_momentum[1], source_momentum[2] );
@@ -852,9 +855,11 @@ int main(int argc, char **argv) {
 
       fini_1level_dtable ( &sequential_source );
 
+
       exitstatus = init_timeslice_source_oet ( NULL, -1, NULL, 0, 0, -2 );
 
     }  /* end of loop on oet samples */
+
 
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
     if(io_proc == 2) {
