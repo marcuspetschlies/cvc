@@ -50,6 +50,9 @@ void usage() {
 
 int main(int argc, char **argv) {
   
+  const char flavor_prefix_std[] = "u+-g-u-g";
+  const char flavor_prefix_fht[] = "u+-g-suu-g";
+
   int c;
   int filename_set = 0;
   int exitstatus;
@@ -267,7 +270,8 @@ int main(int argc, char **argv) {
             }  /* end of if io_proc == 2 */
 #endif
 
-            sprintf ( key , "/d+-g-d-g/std/t%d/s0/gf%d/gi%d/pix%dpiy%dpiz%d/px%dpy%dpz%d",
+            sprintf ( key , "/%s/std/t%d/s0/gf%d/gi%d/pix%dpiy%dpiz%d/px%dpy%dpz%d",
+                flavor_prefix_std,
                 gts, g_source_gamma_id_list[igf], g_source_gamma_id_list[igi],
                 source_momentum[0], source_momentum[1], source_momentum[2],
                 sink_momentum[0], sink_momentum[1], sink_momentum[2] );
@@ -296,7 +300,8 @@ int main(int argc, char **argv) {
          * show all data
          ***********************************************************/
         if ( g_verbose > 4 ) {
-          sprintf ( filename, "d+-g-d-g_s0_gf%d_gi%d_pfx%.2dpfy%.2dpfz%.2d_pix%.2dpiy%.2dpiz%.2d.std",
+          sprintf ( filename, "%s-g_s0_gf%d_gi%d_pfx%.2dpfy%.2dpfz%.2d_pix%.2dpiy%.2dpiz%.2d.std",
+              flavor_prefix_std,
               g_source_gamma_id_list[igf],
               g_source_gamma_id_list[igi],
               sink_momentum[0], sink_momentum[1], sink_momentum[2],
@@ -586,7 +591,8 @@ int main(int argc, char **argv) {
                 }  /* end of if io_proc == 2 */
 #endif
 
-                sprintf ( key , "/d+-g-d-g/fht/t%d/s0/gf%d/gc%d/pcx%dpcy%dpcz%d/gi%d/pix%dpiy%dpiz%d/px%dpy%dpz%d",
+                sprintf ( key , "/%s/fht/t%d/s0/gf%d/gc%d/pcx%dpcy%dpcz%d/gi%d/pix%dpiy%dpiz%d/px%dpy%dpz%d",
+                    flavor_prefix_fht,
                     gts, g_source_gamma_id_list[igf],
                     g_sequential_source_gamma_id_list[igc], seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
                     g_source_gamma_id_list[igi],            source_momentum[0],     source_momentum[1],     source_momentum[2],
@@ -615,7 +621,8 @@ int main(int argc, char **argv) {
              * show all data
              ****************************************/
             if ( g_verbose > 4 ) {
-              sprintf ( filename, "d+-g-d-g_s0_gf%d_gc%d_gi%d_pfx%.2dpfy%.2dpfz%.2d_pcx%.2dpcy%.2dpcz%.2d_pix%.2dpiy%.2dpiz%.2d.fht",
+              sprintf ( filename, "%s-g_s0_gf%d_gc%d_gi%d_pfx%.2dpfy%.2dpfz%.2d_pcx%.2dpcy%.2dpcz%.2d_pix%.2dpiy%.2dpiz%.2d.fht",
+                  flavor_prefix_fht,
                   g_source_gamma_id_list[igf],
                   g_sequential_source_gamma_id_list[igc],
                   g_source_gamma_id_list[igi],
