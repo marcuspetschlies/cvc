@@ -298,8 +298,8 @@ int main(int argc, char **argv) {
           /***********************************************************
            * writer for aff output file
            ***********************************************************/
-          /* sprintf ( filename, "contract_3pt_hl_seq.%.4d.tbase%.2d.aff", Nconf, t_base ); */
-          sprintf ( filename, "contract_3pt_hl_seq.%.4d.t%d_x%d_y%d_z%d.aff", Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+          /* sprintf ( filename, "%d/contract_3pt_hl_seq.%.4d.tbase%.2d.aff", Nconf, Nconf, t_base ); */
+          sprintf ( filename, "%d/contract_3pt_hl_seq.%.4d.t%d_x%d_y%d_z%d.aff", Nconf, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
    
           struct AffReader_s * affr = aff_reader ( filename );
           const char * aff_status_str = aff_reader_errstr ( affr );
@@ -308,6 +308,7 @@ int main(int argc, char **argv) {
             EXIT(5);
           } else {
             if ( g_verbose > 1 ) fprintf ( stdout, "# [htpp_analyse] Reading data from file %s\n", filename );
+            fflush ( stdout );
           }
 #endif
 
@@ -362,6 +363,8 @@ int main(int argc, char **argv) {
                   corr[iconf][isrc*g_coherent_source_number+icoh][2*it  ],
                   corr[iconf][isrc*g_coherent_source_number+icoh][2*it+1] );
             } 
+
+            fflush ( ofs );
 
           }  /* end of loop on coherent sources */
 
