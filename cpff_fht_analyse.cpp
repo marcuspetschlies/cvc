@@ -52,6 +52,7 @@ int main(int argc, char **argv) {
   
 
   const char flavor_prefix_std[] = "u+-g-u-g";
+  const char flavor_prefix_std2[] = "d+-g-d-g";
   const char flavor_prefix_fht[] = "u+-g-suu-g";
 
   int const gamma_id_to_bin[16] = { 8, 1, 2, 4, 0, 15, 7, 14, 13, 11, 9, 10, 12, 3, 5, 6 };
@@ -294,9 +295,26 @@ int main(int argc, char **argv) {
             double * buffer = init_1level_dtable ( 2*T );
 
             exitstatus = read_from_h5_file ( (void *)buffer, filename, key, io_proc );
+
             if( exitstatus != 0 ) {
-              fprintf(stderr, "[cpff_fht_analyse] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              EXIT(105);
+
+              fprintf ( stdout, "# [cpff_fht_analyse] Warning, read_from_h5_file status was %d for flavor prefix %s %s %d\n", exitstatus, flavor_prefix_std, __FILE__, __LINE__);
+
+              sprintf ( key , "/%s/std/t%d/s0/gf%d/gi%d/pix%dpiy%dpiz%d/px%dpy%dpz%d",
+                  flavor_prefix_std2,
+                  gts, g_source_gamma_id_list[igf], g_source_gamma_id_list[igi],
+                  source_momentum[0], source_momentum[1], source_momentum[2],
+                  sink_momentum[0], sink_momentum[1], sink_momentum[2] );
+              if ( g_verbose > 2 ) fprintf ( stdout, "# [cpff_fht_analyse] key (2) = %s\n", key );
+
+              exitstatus = read_from_h5_file ( (void *)buffer, filename, key, io_proc );
+
+              if( exitstatus != 0 ) {
+                fprintf(stderr, "[cpff_fht_analyse] Error from read_from_h5_file (2), status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(105);
+              } else {
+                fprintf ( stdout, "# [cpff_fht_analyse] read_from_h5_file successful for flavor prefix %s\n", flavor_prefix_std2 );
+              }
             }
 
             for ( int it = 0; it < T; it++ ) {
