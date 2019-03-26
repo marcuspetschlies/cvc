@@ -242,25 +242,43 @@ int main(int argc, char **argv) {
       twopoint_function_get_diagram_name ( diagram_name,  tp, i_diag );
 
       char key[500];
-
-      sprintf ( key, "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/pi2x%dpi2y%dpi2z%d/gi2_%s/g1_%s/g2_%s/PX%d_PY%d_PZ%d",
-          diagram_name, 
-          tp->pf1[0], tp->pf1[1], tp->pf1[2], gamma_bin_to_name[tp->gf1[0]], g_src_snk_time_separation, 
-          tp->pi2[0], tp->pi2[1], tp->pi2[2], gamma_bin_to_name[tp->gi2], 
-          gamma_bin_to_name[tp->gf2], gamma_bin_to_name[tp->gi1[0]],
-          tp->pf2[0], tp->pf2[1], tp->pf2[2] );
-
-      if ( g_verbose > 2 ) fprintf ( stdout, "# [htpp_analyse] key = %s\n", key );
-
       char output_filename[400];
-      sprintf ( output_filename, "%s_pfx%dpfy%dpfz%d_gf_%s_dt%d_pi2x%dpi2y%dpi2z%d_gi2_%s_g1_%s_g2_%s_PX%d_PY%d_PZ%d",
-          diagram_name, 
-          tp->pf1[0], tp->pf1[1], tp->pf1[2], gamma_bin_to_name[tp->gf1[0]], g_src_snk_time_separation, 
-          tp->pi2[0], tp->pi2[1], tp->pi2[2], gamma_bin_to_name[tp->gi2], 
-          gamma_bin_to_name[tp->gf2], gamma_bin_to_name[tp->gi1[0]],
-          tp->pf2[0], tp->pf2[1], tp->pf2[2] );
 
-      if ( g_verbose > 2 ) fprintf ( stdout, "# [htpp_analyse] output_filename = %s\n", output_filename );
+      if ( strcmp ( tp->type , "mxm-j-m" ) == 0 ) {
+        sprintf ( key, "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/pi2x%dpi2y%dpi2z%d/gi2_%s/g1_%s/g2_%s/PX%d_PY%d_PZ%d",
+            diagram_name, 
+            tp->pf1[0], tp->pf1[1], tp->pf1[2], gamma_bin_to_name[tp->gf1[0]], g_src_snk_time_separation, 
+            tp->pi2[0], tp->pi2[1], tp->pi2[2], gamma_bin_to_name[tp->gi2], 
+            gamma_bin_to_name[tp->gf2], gamma_bin_to_name[tp->gi1[0]],
+            tp->pf2[0], tp->pf2[1], tp->pf2[2] );
+
+        sprintf ( output_filename, "%s_pfx%dpfy%dpfz%d_gf_%s_dt%d_pi2x%dpi2y%dpi2z%d_gi2_%s_g1_%s_g2_%s_PX%d_PY%d_PZ%d",
+            diagram_name, 
+            tp->pf1[0], tp->pf1[1], tp->pf1[2], gamma_bin_to_name[tp->gf1[0]], g_src_snk_time_separation, 
+            tp->pi2[0], tp->pi2[1], tp->pi2[2], gamma_bin_to_name[tp->gi2], 
+            gamma_bin_to_name[tp->gf2], gamma_bin_to_name[tp->gi1[0]],
+            tp->pf2[0], tp->pf2[1], tp->pf2[2] );
+
+      } else if ( strcmp ( tp->type , "m-j-m" ) == 0 ) {
+  
+        sprintf ( key, "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/g1_%s/g2_%s/PX%d_PY%d_PZ%d",
+            diagram_name, 
+            tp->pf1[0], tp->pf1[1], tp->pf1[2], gamma_bin_to_name[tp->gf1[0]], g_src_snk_time_separation, 
+            gamma_bin_to_name[tp->gf2], gamma_bin_to_name[tp->gi1[0]],
+            tp->pf2[0], tp->pf2[1], tp->pf2[2] );
+
+        sprintf ( output_filename, "%s_pfx%dpfy%dpfz%d_gf_%s_dt%d_g1_%s_g2_%s_PX%d_PY%d_PZ%d",
+            diagram_name, 
+            tp->pf1[0], tp->pf1[1], tp->pf1[2], gamma_bin_to_name[tp->gf1[0]], g_src_snk_time_separation, 
+            gamma_bin_to_name[tp->gf2], gamma_bin_to_name[tp->gi1[0]],
+            tp->pf2[0], tp->pf2[1], tp->pf2[2] );
+
+      }
+
+      if ( g_verbose > 2 ) {
+        fprintf ( stdout, "# [htpp_analyse] key             = %s\n", key );
+        fprintf ( stdout, "# [htpp_analyse] output_filename = %s\n", output_filename );
+      }
 
       FILE * ofs = fopen ( output_filename, "a" );
 
