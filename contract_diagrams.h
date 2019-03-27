@@ -104,5 +104,7 @@ int contract_diagram_finalize ( double _Complex *** const diagram, char * const 
     unsigned int const N );
 
 
+int contract_diagram_co_eq_tr_zm4x4_field ( double _Complex * const r, double _Complex *** const diagram, unsigned int const N );
+
 }  // end of namespace cvc
 #endif
