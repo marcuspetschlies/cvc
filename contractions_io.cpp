@@ -22,6 +22,8 @@
 #include <time.h>
 #include <sys/time.h> 
 #include <sys/types.h>
+#include <sys/stat.h>
+
 #include <math.h>
 #ifdef HAVE_MPI
 #  include <mpi.h>
@@ -45,6 +47,10 @@ extern "C"
 #include "lhpc-aff.h"
 #endif
 
+#ifdef HAVE_HDF5
+#include "hdf5.h"
+#endif
+
 #include "cvc_complex.h"
 #include "global.h"
 #include "cvc_geometry.h"
@@ -53,6 +59,7 @@ extern "C"
 #include "propagator_io.h"
 #include "contractions_io.h"
 #include "cvc_utils.h"
+#include "cvc_timer.h"
 
 namespace cvc {
 
