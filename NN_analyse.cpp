@@ -74,8 +74,6 @@ typedef struct {
 
 int main(int argc, char **argv) {
   
-  char const gamma_bin_to_name[16][8] = { "id", "gx", "gy", "gxgy", "gz", "gxgz", "gygz", "gtg5", "gt", "gxgt", "gygt", "gzg5", "gzgt", "gyg5", "gxg5", "g5" };
-
   int c;
   int filename_set = 0;
   int exitstatus;
@@ -166,6 +164,38 @@ int main(int argc, char **argv) {
   mpi_init_xchange_eo_propagator();
 
   /***********************************************************
+   * parity projection matrices
+   ***********************************************************/
+  gamma_matrix_type Pp_ukqcd, Pm_ukqcd;
+  gamma_matrix_init ( &Pp_ukqcd );
+  gamma_matrix_init ( &Pm_ukqcd );
+
+  gamma_matrix_zero ( &Pp_ukqcd );
+  /* ( 1 + gt ) / 2. */
+  Pp_ukqcd.m[0][0] =  0.5;
+  Pp_ukqcd.m[1][1] =  0.5;
+  Pp_ukqcd.m[2][2] =  0.5;
+  Pp_ukqcd.m[3][3] =  0.5;
+
+  Pp_ukqcd.m[0][2] =  0.5;
+  Pp_ukqcd.m[1][3] =  0.5;
+  Pp_ukqcd.m[2][0] =  0.5;
+  Pp_ukqcd.m[3][1] =  0.5;
+
+  gamma_matrix_zero ( &Pm_ukqcd );
+  /* ( 1 - gt ) / 2 */
+  Pm_ukqcd.m[0][0] =  0.5;
+  Pm_ukqcd.m[1][1] =  0.5;
+  Pm_ukqcd.m[2][2] =  0.5;
+  Pm_ukqcd.m[3][3] =  0.5;
+
+  Pm_ukqcd.m[0][2] = -0.5;
+  Pm_ukqcd.m[1][3] = -0.5;
+  Pm_ukqcd.m[2][0] = -0.5;
+  Pm_ukqcd.m[3][1] = -0.5;
+
+
+  /***********************************************************
    * set io process
    ***********************************************************/
   io_proc = get_io_proc ();
@@ -210,6 +240,7 @@ int main(int argc, char **argv) {
   char line[100];
   int countc = -1, counts=0;
   int conf_prev = -1;
+
   while ( fgets ( line, 100, ofs) != NULL && countc < num_conf && counts < num_src_per_conf ) {
     if ( line[0] == '#' ) {
       fprintf( stdout, "# [NN_analyse] comment %s\n", line );
@@ -293,7 +324,7 @@ int main(int argc, char **argv) {
       if ( corr == NULL ) {
         fprintf ( stderr, "[NN_analyse] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
         EXIT(1);
-      } * *//
+      } */
 
       /***********************************************************
        * loop on configs 
@@ -334,7 +365,7 @@ int main(int argc, char **argv) {
           /***********************************************************
            * read data block from h5 file
            ***********************************************************/
-          double **** buffer = init_4level_dtable ( tp->T, sink_momentum_number, tp->d*tp->d; 2 );
+          double **** buffer = init_4level_dtable ( tp->T, sink_momentum_number, tp->d * tp->d, 2 );
           if ( buffer == NULL ) {
             fprintf(stderr, "[NN_analyse] Error from ,init_4level_dtable %s %d\n", __FILE__, __LINE__ );
             EXIT(12);
@@ -350,43 +381,64 @@ int main(int argc, char **argv) {
            * write into data field
            ***********************************************************/
           for ( int it = 0; it < tp->T; it++ ) {
-            memcpy ( tp->c[idiag][it][0], buffer[it][sink_momentum_id][0], tp->d * tp->d * 2*sizeof(double) )
+            memcpy ( tp->c[i_diag][it][0], buffer[it][sink_momentum_id][0], tp->d * tp->d * 2*sizeof(double) );
           }
 
-          fini_4level_dtable ( buffer );
+          fini_4level_dtable ( &buffer );
 
           /***********************************************************
            * finalize correlator
            ***********************************************************/
 #if 0
           /* add boundary phase */
-          if ( ( exitstatus = correlator_add_baryon_boundary_phase ( tp->c[idiag], gsx[0], +1, tp->T ) ) != 0 ) {
+          if ( ( exitstatus = correlator_add_baryon_boundary_phase ( tp->c[i_diag], gsx[0], +1, tp->T ) ) != 0 ) {
             fprintf( stderr, "[NN_analyse] Error from correlator_add_baryon_boundary_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(103);
           }
 
           // add source phase
-          if ( ( exitstatus = correlator_add_source_phase ( tp->c[idiag], tp->pi1, &(gsx[1]), tp->T ) ) != 0 ) {
+          if ( ( exitstatus = correlator_add_source_phase ( tp->c[i_diag], tp->pi1, &(gsx[1]), tp->T ) ) != 0 ) {
             fprintf( stderr, "[NN_analyse] Error from correlator_add_source_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(104);
-          }
-
-          // add outer gamma matrices
-          if ( ( exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( tp->c[idiag], tp->c[idiag], gf12, gi12, tp->T ) ) != 0 ) {
-            fprintf( stderr, "[NN_analyse] Error from contract_diagram_zm4x4_field_mul_gamma_lr, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(105);
           }
 #endif  /* of if 0 */
 
           /***********************************************************
            * project to spin parity
            ***********************************************************/
+          double _Complex **** zbuffer = init_4level_ztable ( 2, tp->T, tp->d, tp->d );
+          double _Complex ** ztr = init_2level_ztable ( 2 , tp->T );
+
+          if ( ( exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( zbuffer[0], tp->c[i_diag], Pp_ukqcd, Pp_ukqcd, tp->T ) ) != 0 ) {
+            fprintf( stderr, "[NN_analyse] Error from contract_diagram_zm4x4_field_mul_gamma_lr, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(105);
+          }
+
+          if ( ( exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( zbuffer[1], tp->c[i_diag], Pm_ukqcd, Pm_ukqcd, tp->T ) ) != 0 ) {
+            fprintf( stderr, "[NN_analyse] Error from contract_diagram_zm4x4_field_mul_gamma_lr, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(105);
+          }
+
+          /***********************************************************
+           * trace
+           ***********************************************************/
+          exitstatus = contract_diagram_co_eq_tr_zm4x4_field ( ztr[0], zbuffer[0], tp->T );
+          exitstatus = contract_diagram_co_eq_tr_zm4x4_field ( ztr[1], zbuffer[1], tp->T );
+
 
           /***********************************************************
            * write to ofs
            ***********************************************************/
+          fprintf ( ofs, "%s/%s\n", data_filename, key );
+          for ( int it = 0; it < tp->T; it++ ) {
+            fprintf ( ofs, "%3d %25.16e %25.16e    %25.16e %25.16e\n" , it, 
+                creal( ztr[0][it] ), cimag( ztr[0][it] ),
+                creal( ztr[1][it] ), cimag( ztr[1][it] ) );
+          } 
 
 
+          fini_2level_ztable ( &ztr );
+          fini_4level_ztable ( &zbuffer );
         }  /* end of loop on source locations */
 
       }  /* end of loop on configs */
