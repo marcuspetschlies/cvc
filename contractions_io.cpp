@@ -829,7 +829,7 @@ int read_from_h5_file ( void * const buffer, void * file, char*tag,  int const i
      ***************************************************************************/
     gettimeofday ( &tb, (struct timezone *)NULL );
   
-    show_time ( &ta, &tb, "read_from_h5_file", "write h5", 1 );
+    show_time ( &ta, &tb, "read_from_h5_file", "read h5", 1 );
 
   }  /* end of of if io_proc > 0 */
   
