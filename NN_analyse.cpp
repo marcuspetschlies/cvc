@@ -67,6 +67,8 @@ void usage() {
 }
 
 typedef struct {
+  int nc;
+  int ns;
   int * conf;
   int ***src;
   char *stream;
@@ -78,7 +80,7 @@ int main(int argc, char **argv) {
   int filename_set = 0;
   int exitstatus;
   int io_proc = -1;
-  char ensemble_name[100] = "c13";
+  char ensemble_name[100] = "NA";
   char filename[100];
   int num_conf = 0, num_src_per_conf = 0;
   char streamc;
@@ -88,7 +90,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:S:N:P:p:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:S:N:P:p:e:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -109,6 +111,10 @@ int main(int argc, char **argv) {
     case 'p':
       sink_momentum_id = atoi ( optarg );
       fprintf ( stdout, "# [NN_analyse] sink momentum id set to = %d\n", sink_momentum_id );
+      break;
+    case 'e':
+      strcpy ( ensemble_name, optarg );
+      fprintf ( stdout, "# [NN_analyse] ensemble name set to = %s\n", ensemble_name );
       break;
     case 'h':
     case '?':
@@ -172,27 +178,14 @@ int main(int argc, char **argv) {
 
   gamma_matrix_zero ( &Pp_ukqcd );
   /* ( 1 + gt ) / 2. */
-  Pp_ukqcd.m[0][0] =  0.5;
-  Pp_ukqcd.m[1][1] =  0.5;
-  Pp_ukqcd.m[2][2] =  0.5;
-  Pp_ukqcd.m[3][3] =  0.5;
-
-  Pp_ukqcd.m[0][2] =  0.5;
-  Pp_ukqcd.m[1][3] =  0.5;
-  Pp_ukqcd.m[2][0] =  0.5;
-  Pp_ukqcd.m[3][1] =  0.5;
+  Pp_ukqcd.m[0][0] =  1.;
+  Pp_ukqcd.m[1][1] =  1.;
 
   gamma_matrix_zero ( &Pm_ukqcd );
   /* ( 1 - gt ) / 2 */
-  Pm_ukqcd.m[0][0] =  0.5;
-  Pm_ukqcd.m[1][1] =  0.5;
-  Pm_ukqcd.m[2][2] =  0.5;
-  Pm_ukqcd.m[3][3] =  0.5;
+  Pm_ukqcd.m[2][2] =  1.;
+  Pm_ukqcd.m[3][3] =  1.;
 
-  Pm_ukqcd.m[0][2] = -0.5;
-  Pm_ukqcd.m[1][3] = -0.5;
-  Pm_ukqcd.m[2][0] = -0.5;
-  Pm_ukqcd.m[3][1] = -0.5;
 
 
   /***********************************************************
@@ -237,15 +230,20 @@ int main(int argc, char **argv) {
     EXIT(16);
   }
 
+  conf_src_list.nc = num_conf;
+  conf_src_list.ns = num_src_per_conf;
+
   char line[100];
   int countc = -1, counts=0;
   int conf_prev = -1;
 
-  while ( fgets ( line, 100, ofs) != NULL && countc < num_conf && counts < num_src_per_conf ) {
+  while ( fgets ( line, 100, ofs) != NULL && countc < num_conf && counts <= num_src_per_conf ) {
     if ( line[0] == '#' ) {
       fprintf( stdout, "# [NN_analyse] comment %s\n", line );
       continue;
     }
+
+    if( g_verbose > 4 ) fprintf ( stdout, "# [NN_analyse] line = \"%s\"\n", line );
 
     int conf_tmp, src_tmp[4];
     char stream_tmp;
@@ -255,19 +253,26 @@ int main(int argc, char **argv) {
      ***********************************************************/
     sscanf( line, "%c %d %d %d %d %d", &stream_tmp, &conf_tmp, src_tmp, src_tmp+1, src_tmp+2, src_tmp+3 );
 
+    /* fprintf ( stdout, "# [NN_analyse] before: conf_tmp = %4d   conf_prev = %4d   countc = %d   counts = %d\n", conf_tmp, conf_prev, countc, counts ); */
+
     if ( conf_tmp != conf_prev ) {
       /* new config */
       countc++;
       counts=0;
       conf_prev = conf_tmp;
+
+      conf_src_list.stream[countc] = stream_tmp;
+      conf_src_list.conf[countc]   = conf_tmp;
     }
 
-    conf_src_list.stream[countc] = stream_tmp;
-    conf_src_list.conf[countc]   = conf_tmp;
+    /* fprintf ( stdout, "# [NN_analyse] after : conf_tmp = %4d   conf_prev = %4d   countc = %d   counts = %d\n", conf_tmp, conf_prev, countc, counts ); */
 
     memcpy ( conf_src_list.src[countc][counts] , src_tmp, 4*sizeof(int) );
 
     counts++;
+
+#if 0
+#endif
   }
 
   fclose ( ofs );
@@ -277,8 +282,8 @@ int main(int argc, char **argv) {
    ***********************************************************/
   if ( g_verbose > 4 ) {
     fprintf ( stdout, "# [NN_analyse] conf_src_list conf t x y z\n" );
-    for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-      for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+    for ( int iconf = 0; iconf < conf_src_list.nc; iconf++ ) {
+      for( int isrc = 0; isrc < conf_src_list.ns; isrc++ ) {
         fprintf ( stdout, "  %2c %6d %3d %3d %3d %3d\n", 
             conf_src_list.stream[iconf],
             conf_src_list.conf[iconf],
@@ -289,6 +294,8 @@ int main(int argc, char **argv) {
       }
     }
   }
+
+  fflush ( stdout );
 
   /***************************************************************************
    * loop on twopoint functions
@@ -305,17 +312,17 @@ int main(int argc, char **argv) {
 
       twopoint_function_get_diagram_name ( diagram_name,  tp, i_diag );
 
-      char output_filename[400];
+      char output_filename[400] = "NA";
 
-      if ( strcmp ( tp->type , "nucl-nucl" ) == 0 ) {
-        sprintf ( output_filename, "%s.%s", tp->type, diagram_name );
+      if ( strcmp ( tp->type , "b-b" ) == 0 ) {
+        sprintf ( output_filename, "%s.%s", tp->name, diagram_name );
       }
 
       if ( g_verbose > 2 ) {
         fprintf ( stdout, "# [NN_analyse] output_filename = %s\n", output_filename );
       }
 
-      FILE * ofs = fopen ( output_filename, "a" );
+      FILE * ofs = fopen ( output_filename, "w" );
 
       /***********************************************************
        * field to store all data
@@ -350,16 +357,18 @@ int main(int argc, char **argv) {
             conf_src_list.src[iconf][isrc][3] };
 
           char key[500], data_filename[500];
-          if ( strcmp ( tp->type , "nucl-nucl" ) == 0 ) {
-            sprintf ( key, "/conf_%.4d/sx%.2dsy%.2dsz%.2dst%.2d/%s", Nconf, gsx[1], gsx[2], gsx[3], gsx[0], diagram_name );
+          if ( strcmp ( tp->type , "b-b" ) == 0 ) {
+            sprintf ( key, "/conf_%.4d/sx%.2dsy%.2dsz%.2dst%.2d/%s/%s", Nconf, gsx[1], gsx[2], gsx[3], gsx[0], tp->name, diagram_name );
 
-            sprintf ( data_filename, "%s/twop.%.4d_r%c_%s.%.2d.%.2d.%.2d.%.2d.h5", filename_prefix, Nconf, streamc, filename_prefix2, 
+            sprintf ( data_filename, "%s/%.4d_r%c/twop.%.4d_r%c_%s.%.2d.%.2d.%.2d.%.2d.h5", filename_prefix, Nconf, streamc, Nconf, streamc, filename_prefix2, 
                 gsx[1], gsx[2], gsx[3], gsx[0] );
           }
           if ( g_verbose > 2 ) {
             fprintf ( stdout, "# [NN_analyse] key             = %s\n", key );
             fprintf ( stdout, "# [NN_analyse] data_filename   = %s\n", data_filename );
           }
+
+
 
 #ifdef HAVE_HDF5
           /***********************************************************
@@ -377,6 +386,7 @@ int main(int argc, char **argv) {
             EXIT(12);
           }
 #endif
+
           /***********************************************************
            * write into data field
            ***********************************************************/
@@ -429,16 +439,20 @@ int main(int argc, char **argv) {
           /***********************************************************
            * write to ofs
            ***********************************************************/
-          fprintf ( ofs, "%s/%s\n", data_filename, key );
+          fprintf ( ofs, "# %s/%s\n", data_filename, key );
           for ( int it = 0; it < tp->T; it++ ) {
             fprintf ( ofs, "%3d %25.16e %25.16e    %25.16e %25.16e\n" , it, 
                 creal( ztr[0][it] ), cimag( ztr[0][it] ),
                 creal( ztr[1][it] ), cimag( ztr[1][it] ) );
           } 
 
+          fflush ( ofs );
 
           fini_2level_ztable ( &ztr );
           fini_4level_ztable ( &zbuffer );
+#if 0
+#endif  /* of if 0 */
+
         }  /* end of loop on source locations */
 
       }  /* end of loop on configs */
@@ -461,6 +475,8 @@ int main(int argc, char **argv) {
     twopoint_function_fini ( tp );
 
   }  /* end of loop on 2-point functions */
+
+
 
   /***************************************************************************/
   /***************************************************************************/
