@@ -490,11 +490,11 @@ int write_lime_contraction(double * const s, char * filename, const int prec, co
   int status = 0;
   int ME_flag=0, MB_flag=0;
 
-/* #ifdef HAVE_MPI
+#ifdef HAVE_MPI
   MPI_Offset bytes;
-#else */
+#else
   n_uint64_t bytes;
-/* #endif */
+#endif
 
   DML_Checksum checksum;
   char *message;

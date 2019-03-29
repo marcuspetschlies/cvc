@@ -270,7 +270,7 @@ int main(int argc, char **argv) {
   /***********************************************
    * initialize clover, mzz and mzz_inv
    ***********************************************/
-  exitstatus = init_clover ( &mzz, &mzzinv, gauge_field_with_phase );
+  exitstatus = init_clover ( &g_clover, &mzz, &mzzinv, gauge_field_with_phase, g_mu, g_csw );
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[p2gg_contract] Error from init_clover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
     EXIT(1);
@@ -760,7 +760,7 @@ int main(int argc, char **argv) {
   fini_2level_dtable ( &eo_spinor_work );
 
   /* free clover matrix terms */
-  fini_clover ();
+  fini_clover ( &mzz, &mzzinv );
 
   free_geometry();
 
