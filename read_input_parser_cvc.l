@@ -17,7 +17,7 @@ CORRCONFIG [0-9","";""\-""("")"][0-9","";""\-""("")"]+
 NAME [a-zA-Z0-9_]+
 TYPE [0-9A-Z]+
 SDIGIT {SIGN}?[[:digit:]]
-STRING [a-zA-Z0-9"."_"\-""/"","]+
+STRING [a-zA-Z0-9"."_"\-""/"","+]+
 EQL {SPC}*={SPC}*
 
 %{

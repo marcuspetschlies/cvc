@@ -26,7 +26,7 @@ int uwerr_verbose;
  *
  * - initialize uwerr struct
  *******************************************************/
-int uwerr_init(uwerr *u) {
+int uwerr_init( uwerr * const u) {
   int i;
   u->value   = 0.;
   u->dvalue  = 0.;
@@ -55,28 +55,28 @@ int uwerr_init(uwerr *u) {
   u->p_r_mean = 0.;
   u->p_r_var  = 0.;
   return(0);
-}
+}  /* end of uwerr_init  */
 
 /*******************************************************
  * uwerr_free
  *
  * - free uwerr data fields
  *******************************************************/
-int uwerr_free(uwerr *u) {
-  if(u->tau!=NULL)   { free(u->tau);   u->tau   = NULL; }
-  if(u->gamma!=NULL) { free(u->gamma); u->gamma = NULL; }
-  if(u->p_r!=NULL)   { free(u->p_r);   u->p_r   = NULL; }
-  if(u->bins!=NULL)  { free(u->bins);  u->bins  = NULL; }
-  if(u->binbd!=NULL) { free(u->binbd); u->binbd = NULL; }
+int uwerr_free ( uwerr * const u ) {
+  if(u->tau   !=NULL) { free(u->tau);   u->tau   = NULL; }
+  if(u->gamma !=NULL) { free(u->gamma); u->gamma = NULL; }
+  if(u->p_r   !=NULL) { free(u->p_r);   u->p_r   = NULL; }
+  if(u->bins  !=NULL) { free(u->bins);  u->bins  = NULL; }
+  if(u->binbd !=NULL) { free(u->binbd); u->binbd = NULL; }
   return(0);
-}
+}  /* end of uwerr_free */
 
 /*******************************************************
  * uwerr_calloc
  *
  * - allocate mem for UWerr Gamma, tau_int, histogram
  *******************************************************/
-int uwerr_calloc(uwerr *u) {
+int uwerr_calloc ( uwerr * const u ) {
   int k;
   if (u->Wmax == 0) {
     fprintf(stderr, "[uwerr_calloc] Error, Wmax=%lu; obsname=%s\n", u->Wmax, u->obsname);
@@ -121,14 +121,14 @@ int uwerr_calloc(uwerr *u) {
     //fprintf(stdout, "[uwerr] Warning, number of bins <= 3, no allocation\n");
   }
   return(0);
-}
+}  /* end of uwerr_calloc */
 
 /*******************************************************
  * uwerr_printf
  *
  * - print uwerr data to files
  *******************************************************/
-int uwerr_printf(uwerr u) {
+int uwerr_printf ( uwerr const u ) {
 
   size_t W, k, n;
   char format[400], filename[400];
@@ -229,7 +229,7 @@ int uwerr_printf(uwerr u) {
   }
 
   return(0);
-}
+}  /* end of uwerr_printf */
 
 /*******************************************************
  * uwerr_analysis
@@ -249,7 +249,7 @@ int uwerr_printf(uwerr u) {
   return(_exit_status);                  \
 }
 
-int uwerr_analysis(double *data, uwerr *u) {
+int uwerr_analysis(double * const data, uwerr * const u) {
 
   size_t nalpha   = u->nalpha;
   size_t nreplica = u->nreplica;
@@ -588,4 +588,4 @@ int uwerr_analysis(double *data, uwerr *u) {
 
   return(0);
 
-}
+}  /* end of uwerr_analysis */

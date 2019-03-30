@@ -1601,4 +1601,24 @@ int contract_diagram_finalize ( double _Complex *** const diagram, char * const 
   return(0);
 }  /* end of contract_diagram_finalize */
 
+/********************************************************************************/
+/********************************************************************************/
+
+/********************************************************************************
+ *  
+ ********************************************************************************/
+int contract_diagram_co_eq_tr_zm4x4_field ( double _Complex * const r, double _Complex *** const diagram, unsigned int const N ) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( unsigned int t = 0; t < N; t++ ) {
+
+    co_eq_tr_zm4x4 ( r+t, diagram[t] );
+  }
+  return ( 0 );
+}
+
+/********************************************************************************/
+/********************************************************************************/
+
 }  // end of namespace cvc
