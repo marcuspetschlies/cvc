@@ -105,7 +105,7 @@ int main(int argc, char **argv) {
   double ***cvc_tp = NULL;
   char filename[100];
   // double ratime, retime;
-  double **mzz[2], **mzzinv[2];
+  double **mzz[2] = { NULL, NULL }, **mzzinv[2] = { NULL, NULL };
   double *gauge_field_with_phase = NULL;
 
 
@@ -153,7 +153,8 @@ int main(int argc, char **argv) {
   /*********************************
    * initialize MPI parameters for cvc
    *********************************/
-  exitstatus = tmLQCD_invert_init(argc, argv, 1, 0);
+  /* exitstatus = tmLQCD_invert_init(argc, argv, 1, 0); */
+  exitstatus = tmLQCD_invert_init(argc, argv, 1 );
   if(exitstatus != 0) {
     EXIT(1);
   }
@@ -270,7 +271,7 @@ int main(int argc, char **argv) {
   /***********************************************
    * initialize clover, mzz and mzz_inv
    ***********************************************/
-  exitstatus = init_clover ( &mzz, &mzzinv, gauge_field_with_phase );
+  exitstatus = init_clover ( &g_clover, &mzz, &mzzinv, gauge_field_with_phase, g_mu, g_csw );
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[p2gg_contract] Error from init_clover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
     EXIT(1);
@@ -387,7 +388,7 @@ int main(int argc, char **argv) {
        * up-type propagators
        **********************************************************/
       exitstatus = point_to_all_fermion_propagator_clover_full2eo ( &(eo_spinor_field[mu*12]), &(eo_spinor_field[60+12*mu]), _OP_ID_UP,
-          g_shifted_source_coords, gauge_field_with_phase, g_mzz_up, g_mzzinv_up, check_propagator_residual );
+          g_shifted_source_coords, gauge_field_with_phase, mzz[0], mzzinv[0], check_propagator_residual );
 
       if ( exitstatus != 0 ) {
         fprintf(stderr, "[p2gg_mixed] Error from point_to_all_fermion_propagator_clover_full2eo status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -399,7 +400,7 @@ int main(int argc, char **argv) {
        * dn-type propagators
        **********************************************************/
       exitstatus = point_to_all_fermion_propagator_clover_full2eo ( &(eo_spinor_field[120+mu*12]), &(eo_spinor_field[180+12*mu]), _OP_ID_DN,
-          g_shifted_source_coords, gauge_field_with_phase, g_mzz_dn, g_mzzinv_dn, check_propagator_residual );
+          g_shifted_source_coords, gauge_field_with_phase, mzz[1], mzzinv[1], check_propagator_residual );
 
       if ( exitstatus != 0 ) {
         fprintf(stderr, "[p2gg_mixed] Error from point_to_all_fermion_propagator_clover_full2eo; status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -689,9 +690,12 @@ int main(int argc, char **argv) {
           /***************************************************************************/
           /***************************************************************************/
 
-
-          /* subtract contact term */
+#if 0
+          /* subtract contact term
+           *   contact term is stored; DO NOT subtract here
+           */
           cvc_tensor_eo_subtract_contact_term (cvc_tensor_eo, contact_term[0], gsx, (int)( source_proc_id == g_cart_id ) );
+#endif  /* of if 0 */
 
           /* momentum projections */
           exitstatus = cvc_tensor_eo_momentum_projection ( &cvc_tp, cvc_tensor_eo, g_sink_momentum_list, g_sink_momentum_number);
@@ -760,7 +764,7 @@ int main(int argc, char **argv) {
   fini_2level_dtable ( &eo_spinor_work );
 
   /* free clover matrix terms */
-  fini_clover ();
+  fini_clover ( &mzz, &mzzinv );
 
   free_geometry();
 
