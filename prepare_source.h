@@ -16,7 +16,8 @@ int init_clover_eo_spincolor_pointsource_propagator(double *s_even, double *s_od
 
 int fini_clover_eo_propagator(double *p_even, double *p_odd, double *r_even, double *r_odd , double*gauge_field, double*mzzinv, double *work0);
 
-int init_clover_eo_sequential_source(double *s_even, double *s_odd, double *p_even, double *p_odd, int tseq, double*gauge_field, double*mzzinv, int pseq[3], int gseq, double *work0);
+int init_clover_eo_sequential_source ( double * const s_even, double * const s_odd, double * const p_even, double * const p_odd, int const tseq, double * const gauge_field, double * const mzzinv, int const pseq[3], int const gseq, double * const work0);
+
 
 int check_vvdagger_locality (double** V, int numV, int gcoords[4], char*tag, double **sp);
 

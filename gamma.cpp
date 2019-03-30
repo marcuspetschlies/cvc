@@ -304,4 +304,43 @@ void gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( gamma_matrix_type *g1, gamma
   g1->s  = 0;
 }  /* end of gamma_matrix_eq_gamma_matrix_ti_gamma_matrix */
 
+/********************************************************************************/
+/********************************************************************************/
+
+/********************************************************************************
+ * gamma matrix in qlua gamma basis
+ * and in qlua binary counting
+ ********************************************************************************/
+void gamma_matrix_ukqcd_binary ( gamma_matrix_type * const g, int const n  ) {
+
+  gamma_matrix_type gx, gy, gz, gt;
+  gamma_matrix_set ( &gt, 5,  1. );
+  gamma_matrix_set ( &gx, 1, -1. );
+  gamma_matrix_set ( &gy, 2, -1. );
+  gamma_matrix_set ( &gz, 3, -1. );
+
+  int gamma_bin[4] = {0,0,0,0};
+  int n0 = n;
+  gamma_bin[0] = n0 % 2;
+  n0 = n0 >> 1;
+  gamma_bin[1] = n0 % 2;
+  n0 = n0 >> 1;
+  gamma_bin[2] = n0 % 2;
+  n0 = n0 >> 1;
+  gamma_bin[3] = n0 % 2;
+
+  gamma_matrix_set ( g, 4, 1. );
+
+  if ( gamma_bin[0] ) { gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( g, g, &gx ); }
+  if ( gamma_bin[1] ) { gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( g, g, &gy ); }
+  if ( gamma_bin[2] ) { gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( g, g, &gz ); }
+  if ( gamma_bin[3] ) { gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( g, g, &gt ); }
+
+  g->id = n;
+  g->s  = 1;
+
+  return;
+}  /* end of gamma_matrix_qlua_binary */
+
+
 }  /* end of namespace cvc */

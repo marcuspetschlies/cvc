@@ -37,5 +37,7 @@ void gamma_matrix_set ( gamma_matrix_type *g, int id, double s );
 
 void gamma_matrix_eq_gamma_matrix_pl_gamma_matrix_ti_co (gamma_matrix_type *g1, gamma_matrix_type *g2, gamma_matrix_type *g3, double _Complex c );
 
+void gamma_matrix_ukqcd_binary ( gamma_matrix_type * const g, int const n  );
+
 }
 #endif
