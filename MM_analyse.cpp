@@ -1,5 +1,5 @@
 /****************************************************
- * NN_analyse
+ * MM_analyse
  *
  * PURPOSE:
  * DONE:
@@ -98,23 +98,23 @@ int main(int argc, char **argv) {
       break;
     case 'N':
       num_conf = atoi ( optarg );
-      fprintf ( stdout, "# [NN_analyse] number of configs = %d\n", num_conf );
+      fprintf ( stdout, "# [MM_analyse] number of configs = %d\n", num_conf );
       break;
     case 'S':
       num_src_per_conf = atoi ( optarg );
-      fprintf ( stdout, "# [NN_analyse] number of sources per config = %d\n", num_src_per_conf );
+      fprintf ( stdout, "# [MM_analyse] number of sources per config = %d\n", num_src_per_conf );
       break;
     case 'P':
       sink_momentum_number = atoi ( optarg );
-      fprintf ( stdout, "# [NN_analyse] number of sink momenta set to = %d\n", sink_momentum_number );
+      fprintf ( stdout, "# [MM_analyse] number of sink momenta set to = %d\n", sink_momentum_number );
       break;
     case 'p':
       sink_momentum_id = atoi ( optarg );
-      fprintf ( stdout, "# [NN_analyse] sink momentum id set to = %d\n", sink_momentum_id );
+      fprintf ( stdout, "# [MM_analyse] sink momentum id set to = %d\n", sink_momentum_id );
       break;
     case 'e':
       strcpy ( ensemble_name, optarg );
-      fprintf ( stdout, "# [NN_analyse] ensemble name set to = %s\n", ensemble_name );
+      fprintf ( stdout, "# [MM_analyse] ensemble name set to = %s\n", ensemble_name );
       break;
     case 'h':
     case '?':
@@ -128,7 +128,7 @@ int main(int argc, char **argv) {
 
   /* set the default values */
   if(filename_set==0) strcpy(filename, "twopt.input");
-  /* fprintf(stdout, "# [NN_analyse] Reading input from file %s\n", filename); */
+  /* fprintf(stdout, "# [MM_analyse] Reading input from file %s\n", filename); */
   read_input_parser(filename);
 
   /*********************************
@@ -141,26 +141,26 @@ int main(int argc, char **argv) {
    * report git version
    ******************************************************/
   if ( g_cart_id == 0 ) {
-    fprintf(stdout, "# [NN_analyse] git version = %s\n", g_gitversion);
+    fprintf(stdout, "# [MM_analyse] git version = %s\n", g_gitversion);
   }
 
   /*********************************
    * set number of openmp threads
    *********************************/
 #ifdef HAVE_OPENMP
-  if(g_cart_id == 0) fprintf(stdout, "# [NN_analyse] setting omp number of threads to %d\n", g_num_threads);
+  if(g_cart_id == 0) fprintf(stdout, "# [MM_analyse] setting omp number of threads to %d\n", g_num_threads);
   omp_set_num_threads(g_num_threads);
 #pragma omp parallel
 {
-  fprintf(stdout, "# [NN_analyse] proc%.4d thread%.4d using %d threads\n", g_cart_id, omp_get_thread_num(), omp_get_num_threads());
+  fprintf(stdout, "# [MM_analyse] proc%.4d thread%.4d using %d threads\n", g_cart_id, omp_get_thread_num(), omp_get_num_threads());
 }
 #else
-  if(g_cart_id == 0) fprintf(stdout, "[NN_analyse] Warning, resetting global thread number to 1\n");
+  if(g_cart_id == 0) fprintf(stdout, "[MM_analyse] Warning, resetting global thread number to 1\n");
   g_num_threads = 1;
 #endif
 
   if ( init_geometry() != 0 ) {
-    fprintf(stderr, "[NN_analyse] Error from init_geometry %s %d\n", __FILE__, __LINE__);
+    fprintf(stderr, "[MM_analyse] Error from init_geometry %s %d\n", __FILE__, __LINE__);
     EXIT(4);
   }
 
@@ -193,10 +193,10 @@ int main(int argc, char **argv) {
    ***********************************************************/
   io_proc = get_io_proc ();
   if( io_proc < 0 ) {
-    fprintf(stderr, "[NN_analyse] Error, io proc must be ge 0 %s %d\n", __FILE__, __LINE__);
+    fprintf(stderr, "[MM_analyse] Error, io proc must be ge 0 %s %d\n", __FILE__, __LINE__);
     EXIT(14);
   }
-  fprintf(stdout, "# [NN_analyse] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
+  fprintf(stdout, "# [MM_analyse] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
 
 
   /***********************************************************
@@ -205,7 +205,7 @@ int main(int argc, char **argv) {
   sprintf ( filename, "source_coords.%s.nsrc%d.lst" , ensemble_name, num_src_per_conf);
   FILE *ofs = fopen ( filename, "r" );
   if ( ofs == NULL ) {
-    fprintf(stderr, "[NN_analyse] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__);
+    fprintf(stderr, "[MM_analyse] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__);
     EXIT(15);
   }
 
@@ -214,19 +214,19 @@ int main(int argc, char **argv) {
 
   conf_src_list.conf = init_1level_itable ( num_conf );
   if ( conf_src_list.conf == NULL ) {
-    fprintf(stderr, "[NN_analyse] Error from init_1level_itable %s %d\n", __FILE__, __LINE__);
+    fprintf(stderr, "[MM_analyse] Error from init_1level_itable %s %d\n", __FILE__, __LINE__);
     EXIT(16);
   }
 
   conf_src_list.src = init_3level_itable ( num_conf, num_src_per_conf, 4 );
   if ( conf_src_list.src == NULL ) {
-    fprintf(stderr, "[NN_analyse] Error from init_3level_itable %s %d\n", __FILE__, __LINE__);
+    fprintf(stderr, "[MM_analyse] Error from init_3level_itable %s %d\n", __FILE__, __LINE__);
     EXIT(16);
   }
 
   conf_src_list.stream = init_1level_ctable ( num_conf );
   if ( conf_src_list.stream == NULL ) {
-    fprintf(stderr, "[NN_analyse] Error from init_1level_ctable %s %d\n", __FILE__, __LINE__);
+    fprintf(stderr, "[MM_analyse] Error from init_1level_ctable %s %d\n", __FILE__, __LINE__);
     EXIT(16);
   }
 
@@ -239,11 +239,11 @@ int main(int argc, char **argv) {
 
   while ( fgets ( line, 100, ofs) != NULL && countc < num_conf && counts <= num_src_per_conf ) {
     if ( line[0] == '#' ) {
-      fprintf( stdout, "# [NN_analyse] comment %s\n", line );
+      fprintf( stdout, "# [MM_analyse] comment %s\n", line );
       continue;
     }
 
-    if( g_verbose > 4 ) fprintf ( stdout, "# [NN_analyse] line = \"%s\"\n", line );
+    if( g_verbose > 4 ) fprintf ( stdout, "# [MM_analyse] line = \"%s\"\n", line );
 
     int conf_tmp, src_tmp[4];
     char stream_tmp;
@@ -253,7 +253,7 @@ int main(int argc, char **argv) {
      ***********************************************************/
     sscanf( line, "%c %d %d %d %d %d", &stream_tmp, &conf_tmp, src_tmp, src_tmp+1, src_tmp+2, src_tmp+3 );
 
-    /* fprintf ( stdout, "# [NN_analyse] before: conf_tmp = %4d   conf_prev = %4d   countc = %d   counts = %d\n", conf_tmp, conf_prev, countc, counts ); */
+    /* fprintf ( stdout, "# [MM_analyse] before: conf_tmp = %4d   conf_prev = %4d   countc = %d   counts = %d\n", conf_tmp, conf_prev, countc, counts ); */
 
     if ( conf_tmp != conf_prev ) {
       /* new config */
@@ -265,7 +265,7 @@ int main(int argc, char **argv) {
       conf_src_list.conf[countc]   = conf_tmp;
     }
 
-    /* fprintf ( stdout, "# [NN_analyse] after : conf_tmp = %4d   conf_prev = %4d   countc = %d   counts = %d\n", conf_tmp, conf_prev, countc, counts ); */
+    /* fprintf ( stdout, "# [MM_analyse] after : conf_tmp = %4d   conf_prev = %4d   countc = %d   counts = %d\n", conf_tmp, conf_prev, countc, counts ); */
 
     memcpy ( conf_src_list.src[countc][counts] , src_tmp, 4*sizeof(int) );
 
@@ -281,7 +281,7 @@ int main(int argc, char **argv) {
    * show all configs and source locations
    ***********************************************************/
   if ( g_verbose > 4 ) {
-    fprintf ( stdout, "# [NN_analyse] conf_src_list conf t x y z\n" );
+    fprintf ( stdout, "# [MM_analyse] conf_src_list conf t x y z\n" );
     for ( int iconf = 0; iconf < conf_src_list.nc; iconf++ ) {
       for( int isrc = 0; isrc < conf_src_list.ns; isrc++ ) {
         fprintf ( stdout, "  %2c %6d %3d %3d %3d %3d\n", 
@@ -319,7 +319,7 @@ int main(int argc, char **argv) {
       }
 
       if ( g_verbose > 2 ) {
-        fprintf ( stdout, "# [NN_analyse] output_filename = %s\n", output_filename );
+        fprintf ( stdout, "# [MM_analyse] output_filename = %s\n", output_filename );
       }
 
       FILE * ofs = fopen ( output_filename, "w" );
@@ -329,7 +329,7 @@ int main(int argc, char **argv) {
        ***********************************************************/
       /* double *** corr = init_3level_dtable ( num_conf, num_src_per_conf * g_coherent_source_number, 2 * tp->T );
       if ( corr == NULL ) {
-        fprintf ( stderr, "[NN_analyse] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
+        fprintf ( stderr, "[MM_analyse] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
         EXIT(1);
       } */
 
@@ -357,15 +357,15 @@ int main(int argc, char **argv) {
             conf_src_list.src[iconf][isrc][3] };
 
           char key[500], data_filename[500];
-          if ( strcmp ( tp->type , "b-b" ) == 0 ) {
+          if ( strcmp ( tp->type , "m-m" ) == 0 ) {
             sprintf ( key, "/conf_%.4d/sx%.2dsy%.2dsz%.2dst%.2d/%s/%s", Nconf, gsx[1], gsx[2], gsx[3], gsx[0], tp->name, diagram_name );
 
             sprintf ( data_filename, "%s/%.4d_r%c/twop.%.4d_r%c_%s.%.2d.%.2d.%.2d.%.2d.h5", filename_prefix, Nconf, streamc, Nconf, streamc, filename_prefix2, 
                 gsx[1], gsx[2], gsx[3], gsx[0] );
           }
           if ( g_verbose > 2 ) {
-            fprintf ( stdout, "# [NN_analyse] key             = %s\n", key );
-            fprintf ( stdout, "# [NN_analyse] data_filename   = %s\n", data_filename );
+            fprintf ( stdout, "# [MM_analyse] key             = %s\n", key );
+            fprintf ( stdout, "# [MM_analyse] data_filename   = %s\n", data_filename );
           }
 
 
@@ -376,13 +376,13 @@ int main(int argc, char **argv) {
            ***********************************************************/
           double **** buffer = init_4level_dtable ( tp->T, sink_momentum_number, tp->d * tp->d, 2 );
           if ( buffer == NULL ) {
-            fprintf(stderr, "[NN_analyse] Error from ,init_4level_dtable %s %d\n", __FILE__, __LINE__ );
+            fprintf(stderr, "[MM_analyse] Error from ,init_4level_dtable %s %d\n", __FILE__, __LINE__ );
             EXIT(12);
           }
 
           exitstatus = read_from_h5_file ( (void*)(buffer[0][0][0]), data_filename, key, io_proc );
           if ( exitstatus != 0 ) {
-            fprintf(stderr, "[NN_analyse] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            fprintf(stderr, "[MM_analyse] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(12);
           }
 #endif
@@ -399,59 +399,17 @@ int main(int argc, char **argv) {
           /***********************************************************
            * finalize correlator
            ***********************************************************/
-#if 0
-          /* add boundary phase */
-          if ( ( exitstatus = correlator_add_baryon_boundary_phase ( tp->c[i_diag], gsx[0], +1, tp->T ) ) != 0 ) {
-            fprintf( stderr, "[NN_analyse] Error from correlator_add_baryon_boundary_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(103);
-          }
-
-          // add source phase
-          if ( ( exitstatus = correlator_add_source_phase ( tp->c[i_diag], tp->pi1, &(gsx[1]), tp->T ) ) != 0 ) {
-            fprintf( stderr, "[NN_analyse] Error from correlator_add_source_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(104);
-          }
-#endif  /* of if 0 */
-
-          /***********************************************************
-           * project to spin parity
-           ***********************************************************/
-          double _Complex **** zbuffer = init_4level_ztable ( 2, tp->T, tp->d, tp->d );
-          double _Complex ** ztr = init_2level_ztable ( 2 , tp->T );
-
-          if ( ( exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( zbuffer[0], tp->c[i_diag], Pp_ukqcd, Pp_ukqcd, tp->T ) ) != 0 ) {
-            fprintf( stderr, "[NN_analyse] Error from contract_diagram_zm4x4_field_mul_gamma_lr, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(105);
-          }
-
-          if ( ( exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( zbuffer[1], tp->c[i_diag], Pm_ukqcd, Pm_ukqcd, tp->T ) ) != 0 ) {
-            fprintf( stderr, "[NN_analyse] Error from contract_diagram_zm4x4_field_mul_gamma_lr, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(105);
-          }
-
-          /***********************************************************
-           * trace
-           ***********************************************************/
-          exitstatus = contract_diagram_co_eq_tr_zm4x4_field ( ztr[0], zbuffer[0], tp->T );
-          exitstatus = contract_diagram_co_eq_tr_zm4x4_field ( ztr[1], zbuffer[1], tp->T );
-
 
           /***********************************************************
            * write to ofs
            ***********************************************************/
           fprintf ( ofs, "# %s/%s\n", data_filename, key );
           for ( int it = 0; it < tp->T; it++ ) {
-            fprintf ( ofs, "%3d %25.16e %25.16e    %25.16e %25.16e\n" , it, 
-                creal( ztr[0][it] ), cimag( ztr[0][it] ),
-                creal( ztr[1][it] ), cimag( ztr[1][it] ) );
+            fprintf ( ofs, "%3d %25.16e %25.16e\n" , it, 
+                creal( tp->c[i_diag][it][0][0] ), cimag( tp->c[i_diag][it][0][0] ) );
           } 
 
           fflush ( ofs );
-
-          fini_2level_ztable ( &ztr );
-          fini_4level_ztable ( &zbuffer );
-#if 0
-#endif  /* of if 0 */
 
         }  /* end of loop on source locations */
 
@@ -499,8 +457,8 @@ int main(int argc, char **argv) {
 
   if(g_cart_id==0) {
     g_the_time = time(NULL);
-    fprintf(stdout, "# [NN_analyse] %s# [NN_analyse] end of run\n", ctime(&g_the_time));
-    fprintf(stderr, "# [NN_analyse] %s# [NN_analyse] end of run\n", ctime(&g_the_time));
+    fprintf(stdout, "# [MM_analyse] %s# [MM_analyse] end of run\n", ctime(&g_the_time));
+    fprintf(stderr, "# [MM_analyse] %s# [MM_analyse] end of run\n", ctime(&g_the_time));
   }
 
   return(0);

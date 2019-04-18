@@ -237,14 +237,13 @@ int main(int argc, char **argv) {
     EXIT(47);
   }
 
-  if ( ( exitstatus = plaquetteria  ( gauge_field_smeared ) ) != 0 ) {
-    fprintf(stderr, "[test_smearing] Error from plaquetteria, status was %d\n", exitstatus);
-    EXIT(2);
-  }
-  
   double plaq;
   plaquette2 ( &plaq, gauge_field_smeared );
 
+  sprintf ( filename, "%s.%.4d.N%d_a%6.4f", gaugefilename_prefix, Nconf, N_ape, alpha_ape );
+
+
+  memcpy ( g_gauge_field, gauge_field_smeared, sizeof_gauge_field);
   exitstatus = write_lime_gauge_field ( filename, plaq,  Nconf,  64 );
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[test_smearing] Error from write_lime_gauge_field, status was %d\n", exitstatus);
@@ -254,6 +253,11 @@ int main(int argc, char **argv) {
   fprintf ( stdout, "# [test_smearing] finished APE-smearing gauge field\n" );
   fflush ( stdout );
 
+  if ( ( exitstatus = plaquetteria  ( gauge_field_smeared ) ) != 0 ) {
+    fprintf(stderr, "[test_smearing] Error from plaquetteria, status was %d\n", exitstatus);
+    EXIT(2);
+  }
+  
   exitstatus = init_2level_buffer( &spinor_work, 2, _GSI(VOLUME+RAND) );
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[test_smearing] Error from init_2level_buffer, status was %d\n", exitstatus);
@@ -340,9 +344,6 @@ int main(int argc, char **argv) {
   }
 #endif  /* of if 0 */
   
-
-#if 0
-
   int source_proc_id, sx[4];
   int gsx[4] = { g_source_coords_list[0][0], g_source_coords_list[0][1], g_source_coords_list[0][2], g_source_coords_list[0][3] };
  
@@ -362,6 +363,7 @@ int main(int argc, char **argv) {
   for ( int Nsmear = 0; Nsmear <= 2*N_Jacobi; Nsmear += 5 ) { 
 
     fprintf ( stdout, "# [test_smearing] N = %3d  kappa = %f\n", Nsmear, kappa_Jacobi );
+    fflush ( stdout );
 
     double r_rms;
     exitstatus = rms_radius ( &r_rms, spinor_work[1], gsx );
@@ -383,6 +385,7 @@ int main(int argc, char **argv) {
 
   exitstatus = source_profile ( spinor_work[1], gsx, filename );
 
+#if 0
 #endif  /* of if 0 */
 
   /***********************************************
