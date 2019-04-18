@@ -130,7 +130,7 @@ int main(int argc, char **argv) {
 
   plaquette2 ( &plaq, g_gauge_field );
 
-  sprintf ( filename, "%s.%.4d", filename_prefix, Nconf );
+  sprintf ( filename, "%s.%.4d", gaugefilename_prefix, Nconf );
   exitstatus = write_lime_gauge_field ( filename, plaq, Nconf, 64 );
 
   free_geometry();
