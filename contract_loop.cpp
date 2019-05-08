@@ -597,7 +597,7 @@ int loop_read_from_h5_file (double *** const loop, void * file, char*tag, int co
     mstatus = MPI_Scatter ( zbuffer, mitems, MPI_DOUBLE, loop[0][0], mitems, MPI_DOUBLE, 0, g_cart_grid );
 #endif
     if ( mstatus != MPI_SUCCESS ) {
-      fprintf(stderr, "[loop_read_from_h5_file] Error from MPI_Scatter, status was %d %s %d\n", status, __FILE__, __LINE__);
+      fprintf(stderr, "[loop_read_from_h5_file] Error from MPI_Scatter, status was %d %s %d\n", mstatus, __FILE__, __LINE__);
       return(7);
     }
 #else
@@ -755,7 +755,7 @@ int loop_get_momentum_list_from_h5_file ( int (*momentum_list)[3], void * file, 
     mstatus = MPI_Bcast( ibuffer, mitems, MPI_INT, 0, g_cart_grid );
 #endif
     if ( mstatus != MPI_SUCCESS ) {
-      fprintf(stderr, "[loop_get_momentum_list_from_h5_file] Error from MPI_Bcast, status was %d %s %d\n", status, __FILE__, __LINE__);
+      fprintf(stderr, "[loop_get_momentum_list_from_h5_file] Error from MPI_Bcast, status was %d %s %d\n", mstatus, __FILE__, __LINE__);
       return(7);
     }
 #endif
