@@ -426,7 +426,7 @@ int main(int argc, char **argv) {
        &(eo_spinor_field[0]), &(eo_spinor_field[60]), gauge_field_with_phase );
 
     gettimeofday ( &tb, (struct timezone *)NULL );
-    show_time ( &ta, &tb, "p2gg_invert_contract", "contract_cvc_tensor_eo", io_proc );
+    show_time ( &ta, &tb, "p2gg_invert_contract", "contract_cvc_tensor_eo", io_proc==2 );
 
     /* subtract contact term */
     gettimeofday ( &ta, (struct timezone *)NULL );
@@ -434,7 +434,7 @@ int main(int argc, char **argv) {
     cvc_tensor_eo_subtract_contact_term ( hvp_tensor_eo, contact_term, gsx, (int)( source_proc_id == g_cart_id ) );
 
     gettimeofday ( &tb, (struct timezone *)NULL );
-    show_time ( &ta, &tb, "p2gg_invert_contract", "cvc_tensor_eo_subtract_contact_term", io_proc );
+    show_time ( &ta, &tb, "p2gg_invert_contract", "cvc_tensor_eo_subtract_contact_term", io_proc==2 );
 
     /* momentum projections */
 
@@ -453,7 +453,7 @@ int main(int argc, char **argv) {
     }
 
     gettimeofday ( &tb, (struct timezone *)NULL );
-    show_time ( &ta, &tb, "p2gg_invert_contract", "cvc_tensor_eo_momentum_projection", io_proc );
+    show_time ( &ta, &tb, "p2gg_invert_contract", "cvc_tensor_eo_momentum_projection", io_proc==2 );
 
     /* write results to file */
     sprintf(aff_tag, "/hvp/u-cvc-u-cvc/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
@@ -467,7 +467,7 @@ int main(int argc, char **argv) {
     }
 
     gettimeofday ( &tb, (struct timezone *)NULL );
-    show_time ( &ta, &tb, "p2gg_invert_contract", "cvc_tensor_tp_write_to_aff_file", io_proc );
+    show_time ( &ta, &tb, "p2gg_invert_contract", "cvc_tensor_tp_write_to_aff_file", io_proc==2 );
 
     fini_3level_dtable ( &cvc_tp );
 
@@ -482,7 +482,7 @@ int main(int argc, char **argv) {
       }
 
       gettimeofday ( &tb, (struct timezone *)NULL );
-      show_time ( &ta, &tb, "p2gg_invert_contract", "cvc_tensor_eo_check_wi_position_space", io_proc );
+      show_time ( &ta, &tb, "p2gg_invert_contract", "cvc_tensor_eo_check_wi_position_space", io_proc==2 );
 
     }
 
@@ -506,7 +506,7 @@ int main(int argc, char **argv) {
         g_sequential_source_gamma_id_list, g_sequential_source_gamma_id_number, g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
 
     gettimeofday ( &tb, (struct timezone *)NULL );
-    show_time ( &ta, &tb, "p2gg_invert_contract", "contract_local_cvc_2pt_eo", io_proc );
+    show_time ( &ta, &tb, "p2gg_invert_contract", "contract_local_cvc_2pt_eo", io_proc==2 );
 
     if( exitstatus != 0 ) {
       fprintf(stderr, "[p2gg_invert_contract] Error from contract_local_cvc_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -533,7 +533,7 @@ int main(int argc, char **argv) {
        g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
 
     gettimeofday ( &tb, (struct timezone *)NULL );
-    show_time ( &ta, &tb, "p2gg_invert_contract", "contract_local_local_2pt_eo", io_proc );
+    show_time ( &ta, &tb, "p2gg_invert_contract", "contract_local_local_2pt_eo", io_proc==2 );
 
     if( exitstatus != 0 ) {
       fprintf(stderr, "[p2gg_invert_contract] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -557,7 +557,7 @@ int main(int argc, char **argv) {
        g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
 
     gettimeofday ( &tb, (struct timezone *)NULL );
-    show_time ( &ta, &tb, "p2gg_invert_contract", "contract_local_cvc_2pt_eo", io_proc );
+    show_time ( &ta, &tb, "p2gg_invert_contract", "contract_local_local_2pt_eo", io_proc==2 );
 
     if( exitstatus != 0 ) {
       fprintf(stderr, "[p2gg_invert_contract] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -651,7 +651,7 @@ int main(int argc, char **argv) {
                   seq_source_momentum, sequential_source_gamma_id, eo_spinor_work[0]);
 
               gettimeofday ( &tb, (struct timezone *)NULL );
-              show_time ( &ta, &tb, "p2gg_invert_contract", "init_clover_eo_sequential_source", io_proc );
+              show_time ( &ta, &tb, "p2gg_invert_contract", "init_clover_eo_sequential_source", io_proc==2 );
 
               if(exitstatus != 0) {
                 fprintf(stderr, "[p2gg_invert_contract] Error from init_clover_eo_sequential_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -689,7 +689,7 @@ int main(int argc, char **argv) {
                   gauge_field_with_phase, mzz[iflavor], mzzinv[iflavor], 1 );
  
               gettimeofday ( &tb, (struct timezone *)NULL );
-              show_time ( &ta, &tb, "p2gg_invert_contract", "check_residuum_eo", io_proc );
+              show_time ( &ta, &tb, "p2gg_invert_contract", "check_residuum_eo", io_proc==2 );
 
               /* copy solution into place */
               memcpy ( eo_spinor_field[eo_seq_spinor_field_id_e], eo_spinor_work[0], sizeof_eo_spinor_field );
@@ -716,19 +716,19 @@ int main(int argc, char **argv) {
                 gauge_field_with_phase );
 
             gettimeofday ( &tb, (struct timezone *)NULL );
-            show_time ( &ta, &tb, "p2gg_invert_contract", "contract_cvc_tensor_eo", io_proc );
+            show_time ( &ta, &tb, "p2gg_invert_contract", "contract_cvc_tensor_eo", io_proc==2 );
 
             /* write the contact term to file */
             gettimeofday ( &ta, (struct timezone *)NULL );
 
             exitstatus = cvc_tensor_eo_write_contact_term_to_aff_file (contact_term, affw, aff_tag, io_proc );
             if(exitstatus != 0) {
-              fprintf(stderr, "[p2gg_invert_contract] Error from cvc_tensor_eo_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              fprintf(stderr, "[p2gg_invert_contract] Error from cvc_tensor_eo_write_contact_term_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(26);
             }
 
             gettimeofday ( &tb, (struct timezone *)NULL );
-            show_time ( &ta, &tb, "p2gg_invert_contract", "cvc_tensor_eo_write_contact_term_to_aff_file", io_proc );
+            show_time ( &ta, &tb, "p2gg_invert_contract", "cvc_tensor_eo_write_contact_term_to_aff_file", io_proc==2 );
 
             /***************************************************************************/
             /***************************************************************************/
@@ -755,7 +755,7 @@ int main(int argc, char **argv) {
               EXIT(26);
             }
             gettimeofday ( &tb, (struct timezone *)NULL );
-            show_time ( &ta, &tb, "p2gg_invert_contract", "cvc_tensor_eo_momentum_projection", io_proc );
+            show_time ( &ta, &tb, "p2gg_invert_contract", "cvc_tensor_eo_momentum_projection", io_proc==2 );
 
              
             /* flavor-dependent aff tag  */
@@ -774,7 +774,7 @@ int main(int argc, char **argv) {
             }
 
             gettimeofday ( &tb, (struct timezone *)NULL );
-            show_time ( &ta, &tb, "p2gg_invert_contract", "cvc_tensor_tp_write_to_aff_file", io_proc );
+            show_time ( &ta, &tb, "p2gg_invert_contract", "cvc_tensor_tp_write_to_aff_file", io_proc==2 );
 
             fini_3level_dtable ( &cvc_tp );
 
@@ -789,7 +789,7 @@ int main(int argc, char **argv) {
               }
 
               gettimeofday ( &tb, (struct timezone *)NULL );
-              show_time ( &ta, &tb, "p2gg_invert_contract", "cvc_tensor_eo_check_wi_position_space", io_proc );
+              show_time ( &ta, &tb, "p2gg_invert_contract", "cvc_tensor_eo_check_wi_position_space", io_proc==2 );
 
             }
 
@@ -817,7 +817,7 @@ int main(int argc, char **argv) {
                 g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
 
             gettimeofday ( &tb, (struct timezone *)NULL );
-            show_time ( &ta, &tb, "p2gg_invert_contract", "contract_local_local_2pt_eo", io_proc );
+            show_time ( &ta, &tb, "p2gg_invert_contract", "contract_local_local_2pt_eo", io_proc==2 );
 
             if( exitstatus != 0 ) {
               fprintf(stderr, "[p2gg_invert_contract] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -875,7 +875,7 @@ int main(int argc, char **argv) {
 #endif
 
   gettimeofday ( &end_time, (struct timezone *)NULL );
-  show_time ( &start_time, &end_time, "p2gg_invert_contract", "runtime", io_proc );
+  show_time ( &start_time, &end_time, "p2gg_invert_contract", "runtime", io_proc==2 );
 
   if(g_cart_id==0) {
     g_the_time = time(NULL);
