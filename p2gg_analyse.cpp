@@ -64,6 +64,7 @@ int main(int argc, char **argv) {
   int num_src_per_conf = 0;
   int num_conf = 0;
   char ensemble_name[100] = "cA211a.30.32";
+  int fold_correlator= 0;
 
 #ifdef HAVE_LHPC_AFF
   struct AffReader_s *affr = NULL;
@@ -74,7 +75,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "Wh?f:N:S:")) != -1) {
+  while ((c = getopt(argc, argv, "Wh?f:N:S:F:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -91,6 +92,10 @@ int main(int argc, char **argv) {
     case 'W':
       check_momentum_space_WI = 1;
       fprintf ( stdout, "# [p2gg_analyse] check_momentum_space_WI set to %d\n", check_momentum_space_WI );
+      break;
+    case 'F':
+      fold_correlator = atoi ( optarg );
+      fprintf ( stdout, "# [p2gg_analyse] fold_correlator set to %d\n", fold_correlator );
       break;
     case 'h':
     case '?':
@@ -469,45 +474,55 @@ int main(int argc, char **argv) {
         g_sink_momentum_list[imom][1],
         g_sink_momentum_list[imom][1] };
 
-    /* for( int mu = 0; mu < 4; mu++) */
-    for( int mu = 1; mu < 2; mu++)
-    {
-    /* for( int nu = 0; nu < 4; nu++) */
-    for( int nu = 1; nu < 2; nu++)
+    for( int mu = 0; mu < 4; mu++)
     {
 
-      int const Thp1 = T_global / 2 + 1;
-      double *** data = init_3level_dtable ( num_conf, num_src_per_conf, 2 * Thp1 );
-      double *** res = init_3level_dtable ( 2, T_global, 5 );
+    for( int nu = 0; nu < 4; nu++)
+    {
 
-      /****************************************
-       * fold
-       ****************************************/
-      for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-        for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-          data[iconf][isrc][0] = hvp[imom][mu][nu][iconf][isrc][0];
-          data[iconf][isrc][1] = hvp[imom][mu][nu][iconf][isrc][1];
+      int const nT = fold_correlator ? T_global / 2 + 1 : T_global ;
 
-          for ( int it = 1; it < Thp1-1; it++ ) {
-            data[iconf][isrc][2*it  ] = ( hvp[imom][mu][nu][iconf][isrc][2*it  ] + hvp[imom][mu][nu][iconf][isrc][2*(T_global-it)  ] ) * 0.5;
-            data[iconf][isrc][2*it+1] = ( hvp[imom][mu][nu][iconf][isrc][2*it+1] + hvp[imom][mu][nu][iconf][isrc][2*(T_global-it)+1] ) * 0.5;
+      double *** data = init_3level_dtable ( num_conf, num_src_per_conf, 2 * nT );
+      double *** res = init_3level_dtable ( 2, nT, 5 );
 
+      if ( fold_correlator ) {
+        /****************************************
+         * fold
+         ****************************************/
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+            int const Thp1 = T_global / 2 + 1;
+            data[iconf][isrc][0] = hvp[imom][mu][nu][iconf][isrc][0];
+            data[iconf][isrc][1] = hvp[imom][mu][nu][iconf][isrc][1];
+
+            for ( int it = 1; it < Thp1-1; it++ ) {
+              data[iconf][isrc][2*it  ] = ( hvp[imom][mu][nu][iconf][isrc][2*it  ] + hvp[imom][mu][nu][iconf][isrc][2*(T_global-it)  ] ) * 0.5;
+              data[iconf][isrc][2*it+1] = ( hvp[imom][mu][nu][iconf][isrc][2*it+1] + hvp[imom][mu][nu][iconf][isrc][2*(T_global-it)+1] ) * 0.5;
+            }
+
+            data[iconf][isrc][2*Thp1-2] = hvp[imom][mu][nu][iconf][isrc][2*Thp1-2];
+            data[iconf][isrc][2*Thp1-1] = hvp[imom][mu][nu][iconf][isrc][2*Thp1-1];
           }
-
-          data[iconf][isrc][2*Thp1-2] = hvp[imom][mu][nu][iconf][isrc][2*Thp1-2];
-          data[iconf][isrc][2*Thp1-1] = hvp[imom][mu][nu][iconf][isrc][2*Thp1-1];
         }
-      }
+      } else {
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+            for ( int it = 0; it < 2*T_global; it++ ) {
+              data[iconf][isrc][it] = hvp[imom][mu][nu][iconf][isrc][it];
+            }
+          }
+        }
+      }  /* end of if fold propagator */
 
       uwerr ustat;
       /****************************************
        * real and imag part
        ****************************************/
-      for ( int it = 0; it < 2*T_global; it++ ) {
+      for ( int it = 0; it < 2* nT; it++ ) {
 
         uwerr_init ( &ustat );
 
-        ustat.nalpha   = 2 * Thp1;  /* real and imaginary part */
+        ustat.nalpha   = 2 * nT;  /* real and imaginary part */
         ustat.nreplica = 1;
         for (  int i = 0; i < ustat.nreplica; i++) ustat.n_r[i] = num_conf * num_src_per_conf / ustat.nreplica;
         ustat.s_tau = 1.5;
@@ -535,19 +550,19 @@ int main(int argc, char **argv) {
       for (  int i = 0; i < ustat.nreplica; i++) fprintf( ofs, "# nr[%d] = %llu\n", i, ustat.n_r[i] );
       fprintf ( ofs, "#\n" );
 
-      for ( int it = 0; it < Thp1; it++ ) {
+      for ( int it = 0; it < nT; it++ ) {
 
         fprintf ( ofs, "%3d %16.7e %16.7e %16.7e %16.7e %16.7e    %16.7e %16.7e %16.7e %16.7e %16.7e\n", it,
             res[0][it][0], res[0][it][1], res[0][it][2], res[0][it][3], res[0][it][4],
             res[1][it][0], res[1][it][1], res[1][it][2], res[1][it][3], res[1][it][4] );
       }
 
-
       fclose( ofs );
 
       fini_3level_dtable ( &res );
       fini_3level_dtable ( &data );
-    }}
+
+    }}  /* end of loop on nu, mu */
 
   }  /* end of loop on momenta */
 
@@ -555,6 +570,8 @@ int main(int argc, char **argv) {
    * free hvp field
    **********************************************************/
   fini_6level_dtable ( &hvp );
+
+#if 0
 
   /**********************************************************
    **********************************************************
@@ -569,7 +586,8 @@ int main(int argc, char **argv) {
     EXIT(16);
   }
 
-  for ( int iseq_source_momentum = 0; iseq_source_momentum < g_seq_source_momentum_number; iseq_source_momentum++) {
+  for ( int iseq_source_momentum = 0; iseq_source_momentum < g_seq_source_momentum_number; iseq_source_momentum++) 
+  {
 
     int const seq_source_momentum[3] = {
       g_seq_source_momentum_list[iseq_source_momentum][0],
@@ -699,14 +717,12 @@ int main(int argc, char **argv) {
               fini_3level_dtable( &buffer );
       
             }  /* end of loop on sink momenta */
-      #if 0
-      #endif  /* if if 0 */
-      
-      #ifdef HAVE_LHPC_AFF
+
+#ifdef HAVE_LHPC_AFF
             if(io_proc == 2) {
               aff_reader_close ( affr );
             }  /* end of if io_proc == 2 */
-      #endif  /* of ifdef HAVE_LHPC_AFF */
+#endif  /* of ifdef HAVE_LHPC_AFF */
       
           }  /* end of loop on source locations */
       
@@ -745,7 +761,6 @@ int main(int argc, char **argv) {
 
   }  /* end of loop on seq source momentum */
 
-#if 0
 #endif  /* if if 0 */
 
   /**********************************************************
