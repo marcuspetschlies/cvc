@@ -1307,6 +1307,14 @@ int cvc_tensor_eo_check_wi_position_space (double **tensor_eo) {
            - conn_buffer[_GWI(4*2+nu,g_idn[ix][2],stride)+1] - conn_buffer[_GWI(4*3+nu,g_idn[ix][3],stride)+1];
       
       norm += w.re*w.re + w.im*w.im;
+
+      if( g_verbose > 4 ) {
+        int const t =   ix                / (LX*LY*LZ) + g_proc_coords[0] * T;
+        int const x = ( ix % (LX*LY*LZ) ) / (   LY*LZ) + g_proc_coords[1] * LX;
+        int const y = ( ix % (   LY*LZ) ) / (      LZ) + g_proc_coords[2] * LY;
+        int const z = ( ix % (      LZ) )              + g_proc_coords[3] * LZ;
+        fprintf ( stdout, "# [cvc_tensor_eo_check_wi_position_space] WI p %4d   nu %d   x %3d %3d %3d %3d  w %16.7e %16.7e\n", g_cart_id, nu, t, x, y, z, w.re, w.im );
+      }
     }
 #ifdef HAVE_MPI
     double dtmp = norm;

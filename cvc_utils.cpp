@@ -3662,7 +3662,7 @@ void contract_twopoint_xdep(void*contr, const int idsource, const int idsink, vo
   if ( idsource >= 0 && idsource < 16 && n_s > 1 ) {
     /* permutation and sign from the source gamma matrix; the minus sign
      * in the lower two lines is the action of gamma_5 */
-#pragma unroll
+
     for ( unsigned int mu = 0; mu < n_s; mu++ ) {
       psource[mu] = gamma_permutation[idsource][6*mu] / 6;
       ssource[mu] = gamma_sign[idsource][6*mu] * gamma_sign[5][gamma_permutation[idsource][6*mu]];
