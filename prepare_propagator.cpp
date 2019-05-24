@@ -838,6 +838,10 @@ int point_source_propagator (double **prop, int gsx[4], int op_id, int smear_sou
     /* source-smear the point source */
     if ( smear_source ) {
       exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[point_source_propagator] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        return(11);
+      }
     }
 
     if( g_fermion_type == _TM_FERMION ) {
@@ -848,7 +852,7 @@ int point_source_propagator (double **prop, int gsx[4], int op_id, int smear_sou
     exitstatus = _TMLQCD_INVERT(spinor_work[1], spinor_work[0], op_id );
     if(exitstatus != 0) {
       fprintf(stderr, "[point_source_propagator] Error from tmLQCD_invert, status was %d\n", exitstatus);
-      EXIT(12);
+      return(12);
     }
 #endif
 
@@ -863,6 +867,10 @@ int point_source_propagator (double **prop, int gsx[4], int op_id, int smear_sou
     /* sink-smear the point-source propagator */
     if ( smear_sink ) {
       exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[point_source_propagator] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        return(11);
+      }
     }
 
     memcpy( prop[is], spinor_work[1], sizeof_spinor_field);
