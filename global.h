@@ -85,7 +85,7 @@
 #define _ONE_OVER_SQRT2 (0.707106781186548)
 
 #define MAX_M_M_2PT_NUM 16
-#define MAX_MXB_MXB_2PT_NUM 1200
+#define MAX_TWOPOINT_FUNCTION_NUM 3200
 #define MAX_SOURCE_LOCATION_NUMBER 128
 
 #define MAX_MOMENTUM_NUMBER 300
@@ -168,6 +168,11 @@ EXTERN int gamma_permutation[16][24], gamma_sign[16][24];
 EXTERN int perm_tab_3[6][3], perm_tab_4[24][4], perm_tab_3e[3][3], perm_tab_3o[3][3], perm_tab_4e[12][4], perm_tab_4o[12][4];
 EXTERN double perm_tab_3_sign[6];
 
+EXTERN int g_gamma_mult_table[16][16];
+EXTERN double g_gamma_mult_sign[16][16];
+EXTERN double g_gamma_adjoint_sign[16];
+EXTERN double g_gamma_transposed_sign[16];
+
 EXTERN int g_resume, g_subtract;
 EXTERN int g_source_location, g_source_coords_list[MAX_SOURCE_LOCATION_NUMBER][4], g_source_location_number;
 
@@ -240,7 +245,7 @@ EXTERN tmLQCD_lat_params g_tmLQCD_lat;
 EXTERN tmLQCD_deflator_params g_tmLQCD_defl;
 #endif
 
-EXTERN twopoint_function_type g_twopoint_function_list[MAX_MXB_MXB_2PT_NUM];
+EXTERN twopoint_function_type g_twopoint_function_list[MAX_TWOPOINT_FUNCTION_NUM];
 EXTERN int g_twopoint_function_number;
 
 EXTERN double **g_clover, **g_mzz_up, **g_mzz_dn, **g_mzzinv_up, **g_mzzinv_dn;

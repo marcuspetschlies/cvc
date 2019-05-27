@@ -92,6 +92,7 @@ int main(int argc, char **argv) {
   int write_stochastic_source = 0;
   double **spinor_work = NULL;
   size_t sizeof_spinor_field = 0, sizeof_gauge_field = 0;
+  double plaq_r;
 
 
 #ifdef HAVE_MPI
@@ -173,7 +174,7 @@ int main(int argc, char **argv) {
   switch(g_gauge_file_format) {
     case 0:
       sprintf(filename, "%s.%.4d", gaugefilename_prefix, Nconf);
-      if(g_cart_id==0) fprintf(stdout, "reading gauge field from file %s\n", filename);
+      if(g_cart_id==0) fprintf(stdout, "# [test_smearing] reading ILDG gauge field from file %s\n", filename);
       exitstatus = read_lime_gauge_field_doubleprec(filename);
       break;
     case 1:
@@ -227,11 +228,30 @@ int main(int argc, char **argv) {
   xchange_gauge_field ( gauge_field_smeared );
 #endif
 
+  fprintf ( stdout, "# [test_smearing] start APE-smearing gauge field\n" );
+  fflush ( stdout );
+
   exitstatus = APE_Smearing(gauge_field_smeared, alpha_ape, N_ape);
   if(exitstatus != 0) {
     fprintf(stderr, "[test_smearing] Error from APE_Smearing, status was %d\n", exitstatus);
     EXIT(47);
   }
+
+  double plaq;
+  plaquette2 ( &plaq, gauge_field_smeared );
+
+  sprintf ( filename, "%s.%.4d.N%d_a%6.4f", gaugefilename_prefix, Nconf, N_ape, alpha_ape );
+
+
+  memcpy ( g_gauge_field, gauge_field_smeared, sizeof_gauge_field);
+  exitstatus = write_lime_gauge_field ( filename, plaq,  Nconf,  64 );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[test_smearing] Error from write_lime_gauge_field, status was %d\n", exitstatus);
+    EXIT(2);
+  }
+
+  fprintf ( stdout, "# [test_smearing] finished APE-smearing gauge field\n" );
+  fflush ( stdout );
 
   if ( ( exitstatus = plaquetteria  ( gauge_field_smeared ) ) != 0 ) {
     fprintf(stderr, "[test_smearing] Error from plaquetteria, status was %d\n", exitstatus);
@@ -243,6 +263,8 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[test_smearing] Error from init_2level_buffer, status was %d\n", exitstatus);
     EXIT(2);
   }
+#if 0
+#endif  /* of if 0 */
 
 #if 0
   exitstatus = init_rng_stat_file (g_seed, NULL);
@@ -340,6 +362,9 @@ int main(int argc, char **argv) {
   memcpy( spinor_work[1], spinor_work[0], sizeof_spinor_field );
   for ( int Nsmear = 0; Nsmear <= 2*N_Jacobi; Nsmear += 5 ) { 
 
+    fprintf ( stdout, "# [test_smearing] N = %3d  kappa = %f\n", Nsmear, kappa_Jacobi );
+    fflush ( stdout );
+
     double r_rms;
     exitstatus = rms_radius ( &r_rms, spinor_work[1], gsx );
 
@@ -359,6 +384,9 @@ int main(int argc, char **argv) {
   exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
 
   exitstatus = source_profile ( spinor_work[1], gsx, filename );
+
+#if 0
+#endif  /* of if 0 */
 
   /***********************************************
    * free the allocated memory, finalize

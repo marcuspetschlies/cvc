@@ -17,7 +17,7 @@ CORRCONFIG [0-9","";""\-""("")"][0-9","";""\-""("")"]+
 NAME [a-zA-Z0-9_]+
 TYPE [0-9A-Z]+
 SDIGIT {SIGN}?[[:digit:]]
-STRING [a-zA-Z0-9"."_"\-""/"","]+
+STRING [a-zA-Z0-9"."_"\-""/"","+]+
 EQL {SPC}*={SPC}*
 
 %{
@@ -556,6 +556,8 @@ namespace cvc {
     cvc::g_noise_type = 1;
   } else if(strcmp(yytext, "Z2")==0 ) {
     cvc::g_noise_type = 2;
+  } else if(strcmp(yytext, "Z3")==0 ) {
+    cvc::g_noise_type = 3;
   }
   if(cvc::myverbose!=0) printf("# [read_input_parser] noise type set to %s\n",yytext);
 }  
@@ -1139,7 +1141,7 @@ namespace cvc {
 }
 
 <INITTWOPOINTFUNCTION>Init{SPC}* {
-  if(cvc::g_twopoint_function_number==MAX_MXB_MXB_2PT_NUM) {
+  if(cvc::g_twopoint_function_number==MAX_TWOPOINT_FUNCTION_NUM) {
     fprintf(stderr, "[read_input_parser] Error, too many twopoint_function\n");
     exit(1);
   }
@@ -1148,7 +1150,8 @@ namespace cvc {
   cvc::twopoint_function_init ( cvc::twopoint_function_ptr );
   strcpy(cvc::twopoint_function_set_type, "list");
   if(cvc::twopoint_function_generic_set==1) {
-    cvc::twopoint_function_copy ( cvc::twopoint_function_ptr, &(cvc::twopoint_function_generic) );
+    cvc::twopoint_function_copy ( cvc::twopoint_function_ptr, &(cvc::twopoint_function_generic), 1 );
+    if(cvc::myverbose) printf("# [read_input_parser] line %d copy from generic \n", cvc::line_of_file);
   }
   BEGIN(TWOPOINTFUNCTION);
 }
@@ -1229,6 +1232,16 @@ namespace cvc {
         &(cvc::twopoint_function_ptr->spin_project) );
   }
 
+  {SPC}*T{EQL}{DIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9_] = %d", cvc::name,
+        &(cvc::twopoint_function_ptr->T) );
+  }
+
+  {SPC}*d{EQL}{DIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9_] = %d", cvc::name,
+        &(cvc::twopoint_function_ptr->d) );
+  }
+
   {SPC}*parity_project{EQL}{SDIGIT}+ {
     sscanf(yytext, " %[a-zA-Z0-9_] = %d", cvc::name,
         &(cvc::twopoint_function_ptr->parity_project) );
@@ -1249,6 +1262,54 @@ namespace cvc {
 
   {SPC}*fbwd{EQL}{STRING} {
     sscanf(yytext, " %[a-zA-Z0-9] = %s", cvc::name, cvc::twopoint_function_ptr->fbwd );
+  }
+
+  {SPC}*group{EQL}{STRING} {
+    sscanf(yytext, " %[a-zA-Z0-9] = %s", cvc::name, cvc::twopoint_function_ptr->group );
+  }
+
+  {SPC}*irrep{EQL}{STRING} {
+    sscanf(yytext, " %[a-zA-Z0-9] = %s", cvc::name, cvc::twopoint_function_ptr->irrep );
+  }
+
+  {SPC}*sf1{EQL}{FLT},{FLT},{FLT},{FLT} {
+    double dtmp[4];
+    sscanf(yytext, " %[a-zA-Z0-9] = %lf,%lf,%lf,%lf", cvc::name, dtmp, dtmp+1, dtmp+2, dtmp+3 );
+    
+    cvc::twopoint_function_ptr->sf1[0] = dtmp[0] + dtmp[1] * I;
+    cvc::twopoint_function_ptr->sf1[1] = dtmp[2] + dtmp[3] * I;
+    if ( cvc::myverbose ) printf ( "# [read_input_parser] sf1 set to %16.7e I %16.7e and %16.7e I %16.7e\n",
+        creal ( cvc::twopoint_function_ptr->sf1[0] ), cimag ( cvc::twopoint_function_ptr->sf1[0] ),
+        creal ( cvc::twopoint_function_ptr->sf1[1] ), cimag ( cvc::twopoint_function_ptr->sf1[1] ) );
+  }
+
+  {SPC}*si1{EQL}{FLT},{FLT},{FLT},{FLT} {
+    double dtmp[4];
+    sscanf(yytext, " %[a-zA-Z0-9] = %lf,%lf,%lf,%lf", cvc::name, dtmp, dtmp+1, dtmp+2, dtmp+3 );
+    
+    cvc::twopoint_function_ptr->si1[0] = dtmp[0] + dtmp[1] * I;
+    cvc::twopoint_function_ptr->si1[1] = dtmp[2] + dtmp[3] * I;
+    if ( cvc::myverbose ) printf ( "# [read_input_parser] si1 set to %16.7e I %16.7e and %16.7e I %16.7e\n",
+        creal ( cvc::twopoint_function_ptr->si1[0] ), cimag ( cvc::twopoint_function_ptr->si1[0] ),
+        creal ( cvc::twopoint_function_ptr->si1[1] ), cimag ( cvc::twopoint_function_ptr->si1[1] ) );
+  }
+
+  {SPC}*si2{EQL}{FLT},{FLT},{FLT},{FLT} {
+    double dtmp[2];
+    sscanf(yytext, " %[a-zA-Z0-9] = %lf,%lf", cvc::name, dtmp, dtmp+1 );
+    
+    cvc::twopoint_function_ptr->si2 = dtmp[0] + dtmp[1] * I;
+    if ( cvc::myverbose ) printf ( "# [read_input_parser] si2 set to %16.7e I %16.7e\n",
+        creal ( cvc::twopoint_function_ptr->si2 ), cimag ( cvc::twopoint_function_ptr->si2 ) );
+  }
+
+  {SPC}*sf2{EQL}{FLT},{FLT},{FLT},{FLT} {
+    double dtmp[2];
+    sscanf(yytext, " %[a-zA-Z0-9] = %lf,%lf", cvc::name, dtmp, dtmp+1 );
+    
+    cvc::twopoint_function_ptr->sf2 = dtmp[0] + dtmp[1] * I;
+    if ( cvc::myverbose ) printf ( "# [read_input_parser] sf2 set to %16.7e I %16.7e\n",
+        creal ( cvc::twopoint_function_ptr->sf2 ), cimag ( cvc::twopoint_function_ptr->sf2 ) );
   }
 
   EndTwopointFunction{SPC}* {

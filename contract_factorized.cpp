@@ -206,7 +206,7 @@ int contract_v6 (double **v6, fermion_propagator_type *prop1, fermion_propagator
  * p momentum
  * c color
  ******************************************************/
-int contract_vn_momentum_projection (double***vp, double**vx, int n, int (*momentum_list)[3], int momentum_number) {
+int contract_vn_momentum_projection (double *** const vp, double ** const vx, int const n, const int (* const momentum_list)[3], int const momentum_number) {
 
   const unsigned int VOL3 = LX*LY*LZ;
   int exitstatus;
@@ -232,7 +232,8 @@ int contract_vn_momentum_projection (double***vp, double**vx, int n, int (*momen
 /******************************************************
  * write a vn block to AFF file
  ******************************************************/
-int contract_vn_write_aff (double ***vp, int n, struct AffWriter_s*affw, char*tag, int (*momentum_list)[3], int momentum_number, int io_proc ) {
+#ifdef HAVE_LHPC_AFF
+int contract_vn_write_aff (double *** const vp, int const n, struct AffWriter_s*affw, char*tag, const int (* const momentum_list)[3], int const momentum_number, int const io_proc ) {
 
   int exitstatus;
   double ratime, retime;
@@ -324,10 +325,12 @@ int contract_vn_write_aff (double ***vp, int n, struct AffWriter_s*affw, char*ta
   return(0);
 
 }  /* end of contract_vn_write_aff */
+#endif  /* end of if def HAVE_LHPC_AFF */
 
 /******************************************************
  * write a vn block to AFF file
  ******************************************************/
+#ifdef HAVE_LHPC_AFF
 int contract_vn_write_aff_interval (double ***vp, int n, struct AffWriter_s*affw, char*tag, int (*momentum_list)[3], int momentum_number, int tmin, int tmax, int io_proc ) {
   
   int exitstatus;
@@ -421,5 +424,6 @@ int contract_vn_write_aff_interval (double ***vp, int n, struct AffWriter_s*affw
   return(0);
 
 } /* end of contract_vn_write_aff_interval */
+#endif  /* of if def HAVE_LHPC_AFF */
 
 }  /* end of namespace cvc */

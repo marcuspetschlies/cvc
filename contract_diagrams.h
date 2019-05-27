@@ -21,23 +21,27 @@ int match_momentum_id ( int **pid, int **m1, int **m2, int N1, int N2 );
 
 int * get_conserved_momentum_id ( int (*p1)[3], int const n1, int const p2[3], int (*p3)[3], int const n3 );
 
-int correlator_add_baryon_boundary_phase ( double _Complex *** const sp, int const tsrc, int const N );
+int get_momentum_id ( int const p1[3], int (* const p2)[3], unsigned int const N );
+
+int correlator_add_baryon_boundary_phase ( double _Complex *** const sp, int const tsrc, int const dir, int const N );
 
 int correlator_add_source_phase ( double _Complex ***sp, int const p[3], int const source_coords[3], unsigned int const N );
 
-int correlator_spin_parity_projection (double _Complex ***sp_out, double _Complex ***sp_in, double c, unsigned N);
+int correlator_spin_parity_projection (double _Complex ***sp_out, double _Complex ***sp_in, double const c, unsigned const N);
 
-int correlator_spin_projection (double _Complex ***sp_out, double _Complex ***sp_in, double c, unsigned N);
+int correlator_spin_projection (double _Complex ***sp_out, double _Complex ***sp_in, int const i, int const k, double const a, double const b, unsigned int const N);
 
-int reorder_to_absolute_time (double _Complex ***sp_out, double _Complex ***sp_in, int tsrc, int dir, unsigned N);
+int reorder_to_absolute_time (double _Complex ***sp_out, double _Complex ***sp_in, int const tsrc, int const dir, unsigned int const N);
 
-int contract_diagram_zmx4x4_field_ti_co_field ( double _Complex ***sp_out, double _Complex ***sp_in, double _Complex *c_in, unsigned int N);
+int reorder_to_relative_time (double _Complex ***sp_out, double _Complex ***sp_in, int const tsrc, int const dir, unsigned int const N);
 
-int contract_diagram_zmx4x4_field_eq_zm4x4_field_ti_co ( double _Complex *** const sp_out, double _Complex *** const sp_in, double _Complex const c_in, unsigned int const N);
+int contract_diagram_zm4x4_field_ti_co_field ( double _Complex ***sp_out, double _Complex ***sp_in, double _Complex *c_in, unsigned int N);
 
-int contract_diagram_zmx4x4_field_ti_eq_co ( double _Complex *** const sp_out, double _Complex const c_in, unsigned int const N);
+int contract_diagram_zm4x4_field_eq_zm4x4_field_ti_co ( double _Complex *** const sp_out, double _Complex *** const sp_in, double _Complex const c_in, unsigned int const N);
 
-int contract_diagram_zmx4x4_field_ti_eq_re ( double _Complex *** const sp, double const r_in, unsigned int const N);
+int contract_diagram_zm4x4_field_ti_eq_co ( double _Complex *** const sp_out, double _Complex const c_in, unsigned int const N);
+
+int contract_diagram_zm4x4_field_ti_eq_re ( double _Complex *** const sp, double const r_in, unsigned int const N);
 
 int contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( double _Complex *** const sp_out, double _Complex *** const sp_in, unsigned int const N);
 
@@ -51,8 +55,10 @@ int contract_diagram_write_scalar_aff (double _Complex*diagram, struct AffWriter
 
 int contract_diagram_write_fp ( double _Complex*** const diagram, FILE *fp, char*tag, int const tstart, unsigned int const dt, int const fbwd );
 
-int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const pf2[3], int const gf1, int const pf1[3], int const gi2, int const pi2[3], int const gi1, int const pi1[3], int const sx[4] );
-  
+int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const pf2[3], int const gf11, int const gf12, int const pf1[3], int const gi2, int const pi2[3], int const gi11, int const gi12, int const pi1[3], int const sx[4] );
+
+int contract_diagram_key_suffix_from_type ( char * key_suffix, twopoint_function_type * p );
+
 int contract_diagram_zm4x4_field_mul_gamma_lr ( double _Complex *** const sp_out, double _Complex *** const sp_in, gamma_matrix_type const gl, gamma_matrix_type const gr, unsigned int const N );
 
 int contract_diagram_read_key_qlua (
@@ -83,7 +89,22 @@ int contract_diagram_read_oet_key_qlua (
   int const ncomp         // components
 );
 
-   
+double _Complex contract_diagram_get_correlator_phase ( char * const type, int const gi11, int const gi12, int const gi2, int const gf11, int const gf12, int const gf2 );
+ 
 
-}  /* end of namespace cvc */
+int contract_diagram_zm4x4_field_pl_eq_zm4x4_field ( double _Complex *** const s, double _Complex *** const r, unsigned int const N);
+
+int contract_diagram_zm4x4_field_eq_zm4x4_field_pl_zm4x4_field_ti_co ( double _Complex *** const s, double _Complex *** const r, double _Complex *** const p, double _Complex const z, unsigned int const N);
+
+void contract_diagram_mat_op_ti_zm4x4_field_ti_mat_op ( double _Complex *** const sp_out, double _Complex ** const R1, char const op1 , double _Complex *** const sp_in, double _Complex ** const R2, char const op2, unsigned int const N );
+
+int contract_diagram_finalize ( double _Complex *** const diagram, char * const diagram_type, int const sx[4], int const p[3], 
+    int const gf11_id, int const gf12_id, int const gf12_sign, int const gf2_id,
+    int const gi11_id, int const gi12_id, int const gi12_sign, int const gi2_id,
+    unsigned int const N );
+
+
+int contract_diagram_co_eq_tr_zm4x4_field ( double _Complex * const r, double _Complex *** const diagram, unsigned int const N );
+
+}  // end of namespace cvc
 #endif

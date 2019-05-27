@@ -28,6 +28,7 @@
 #include "cvc_geometry.h"
 #include "mpi_init.h"
 #include "matrix_init.h"
+#include "gamma.h"
 #include "rotations.h"
 #include "cvc_utils.h"
 
@@ -35,330 +36,25 @@ namespace cvc {
 
 static int n_block[3], block_L, nn_block, block_LL[3], rot_block_params_set = 0;
 
-
 rotation_type cubic_group_double_cover_rotations[48];
 rotation_type cubic_group_rotations[24];
+rotation_type cubic_group_rotations_v2[24];
+
+int cubic_group_double_cover_identification_table[24][2];
 
 void rot_init_rotation_table () {
-  cubic_group_double_cover_rotations[0].n[0] = 0;
-  cubic_group_double_cover_rotations[0].n[1] = 0;
-  cubic_group_double_cover_rotations[0].n[2] = 0;
-  cubic_group_double_cover_rotations[0].w = 0;
-  cubic_group_double_cover_rotations[1].n[0] = 1;
-  cubic_group_double_cover_rotations[1].n[1] = 0;
-  cubic_group_double_cover_rotations[1].n[2] = 0;
-  cubic_group_double_cover_rotations[1].w = M_PI;
-  cubic_group_double_cover_rotations[2].n[0] = 0;
-  cubic_group_double_cover_rotations[2].n[1] = 1;
-  cubic_group_double_cover_rotations[2].n[2] = 0;
-  cubic_group_double_cover_rotations[2].w = M_PI;
-  cubic_group_double_cover_rotations[3].n[0] = 0;
-  cubic_group_double_cover_rotations[3].n[1] = 0;
-  cubic_group_double_cover_rotations[3].n[2] = 1;
-  cubic_group_double_cover_rotations[3].w = M_PI;
-  cubic_group_double_cover_rotations[4].n[0] = 1;
-  cubic_group_double_cover_rotations[4].n[1] = 0;
-  cubic_group_double_cover_rotations[4].n[2] = 0;
-  cubic_group_double_cover_rotations[4].w = -M_PI;
-  cubic_group_double_cover_rotations[5].n[0] = 0;
-  cubic_group_double_cover_rotations[5].n[1] = 1;
-  cubic_group_double_cover_rotations[5].n[2] = 0;
-  cubic_group_double_cover_rotations[5].w = -M_PI;
-  cubic_group_double_cover_rotations[6].n[0] = 0;
-  cubic_group_double_cover_rotations[6].n[1] = 0;
-  cubic_group_double_cover_rotations[6].n[2] = 1;
-  cubic_group_double_cover_rotations[6].w = -M_PI;
-  cubic_group_double_cover_rotations[7].n[0] = 1;
-  cubic_group_double_cover_rotations[7].n[1] = 0;
-  cubic_group_double_cover_rotations[7].n[2] = 0;
-  cubic_group_double_cover_rotations[7].w = M_PI/2;
-  cubic_group_double_cover_rotations[8].n[0] = 0;
-  cubic_group_double_cover_rotations[8].n[1] = 1;
-  cubic_group_double_cover_rotations[8].n[2] = 0;
-  cubic_group_double_cover_rotations[8].w = M_PI/2;
-  cubic_group_double_cover_rotations[9].n[0] = 0;
-  cubic_group_double_cover_rotations[9].n[1] = 0;
-  cubic_group_double_cover_rotations[9].n[2] = 1;
-  cubic_group_double_cover_rotations[9].w = M_PI/2;
-  cubic_group_double_cover_rotations[10].n[0] = 1;
-  cubic_group_double_cover_rotations[10].n[1] = 0;
-  cubic_group_double_cover_rotations[10].n[2] = 0;
-  cubic_group_double_cover_rotations[10].w = -M_PI/2;
-  cubic_group_double_cover_rotations[11].n[0] = 0;
-  cubic_group_double_cover_rotations[11].n[1] = 1;
-  cubic_group_double_cover_rotations[11].n[2] = 0;
-  cubic_group_double_cover_rotations[11].w = -M_PI/2;
-  cubic_group_double_cover_rotations[12].n[0] = 0;
-  cubic_group_double_cover_rotations[12].n[1] = 0;
-  cubic_group_double_cover_rotations[12].n[2] = 1;
-  cubic_group_double_cover_rotations[12].w = -M_PI/2;
-  cubic_group_double_cover_rotations[13].n[0] = 1;
-  cubic_group_double_cover_rotations[13].n[1] = 0;
-  cubic_group_double_cover_rotations[13].n[2] = 0;
-  cubic_group_double_cover_rotations[13].w = 3*M_PI/2;
-  cubic_group_double_cover_rotations[14].n[0] = 0;
-  cubic_group_double_cover_rotations[14].n[1] = 1;
-  cubic_group_double_cover_rotations[14].n[2] = 0;
-  cubic_group_double_cover_rotations[14].w = 3*M_PI/2;
-  cubic_group_double_cover_rotations[15].n[0] = 0;
-  cubic_group_double_cover_rotations[15].n[1] = 0;
-  cubic_group_double_cover_rotations[15].n[2] = 1;
-  cubic_group_double_cover_rotations[15].w = 3*M_PI/2;
-  cubic_group_double_cover_rotations[16].n[0] = 1;
-  cubic_group_double_cover_rotations[16].n[1] = 0;
-  cubic_group_double_cover_rotations[16].n[2] = 0;
-  cubic_group_double_cover_rotations[16].w = -3*M_PI/2;
-  cubic_group_double_cover_rotations[17].n[0] = 0;
-  cubic_group_double_cover_rotations[17].n[1] = 1;
-  cubic_group_double_cover_rotations[17].n[2] = 0;
-  cubic_group_double_cover_rotations[17].w = -3*M_PI/2;
-  cubic_group_double_cover_rotations[18].n[0] = 0;
-  cubic_group_double_cover_rotations[18].n[1] = 0;
-  cubic_group_double_cover_rotations[18].n[2] = 1;
-  cubic_group_double_cover_rotations[18].w = -3*M_PI/2;
-  cubic_group_double_cover_rotations[19].n[0] = 1;
-  cubic_group_double_cover_rotations[19].n[1] = 1;
-  cubic_group_double_cover_rotations[19].n[2] = 1;
-  cubic_group_double_cover_rotations[19].w = 2*M_PI/3;
-  cubic_group_double_cover_rotations[20].n[0] = -1;
-  cubic_group_double_cover_rotations[20].n[1] = 1;
-  cubic_group_double_cover_rotations[20].n[2] = 1;
-  cubic_group_double_cover_rotations[20].w = 2*M_PI/3;
-  cubic_group_double_cover_rotations[21].n[0] = -1;
-  cubic_group_double_cover_rotations[21].n[1] = -1;
-  cubic_group_double_cover_rotations[21].n[2] = 1;
-  cubic_group_double_cover_rotations[21].w = 2*M_PI/3;
-  cubic_group_double_cover_rotations[22].n[0] = 1;
-  cubic_group_double_cover_rotations[22].n[1] = -1;
-  cubic_group_double_cover_rotations[22].n[2] = 1;
-  cubic_group_double_cover_rotations[22].w = 2*M_PI/3;
-  cubic_group_double_cover_rotations[23].n[0] = 1;
-  cubic_group_double_cover_rotations[23].n[1] = 1;
-  cubic_group_double_cover_rotations[23].n[2] = 1;
-  cubic_group_double_cover_rotations[23].w = -2*M_PI/3;
-  cubic_group_double_cover_rotations[24].n[0] = -1;
-  cubic_group_double_cover_rotations[24].n[1] = 1;
-  cubic_group_double_cover_rotations[24].n[2] = 1;
-  cubic_group_double_cover_rotations[24].w = -2*M_PI/3;
-  cubic_group_double_cover_rotations[25].n[0] = -1;
-  cubic_group_double_cover_rotations[25].n[1] = -1;
-  cubic_group_double_cover_rotations[25].n[2] = 1;
-  cubic_group_double_cover_rotations[25].w = -2*M_PI/3;
-  cubic_group_double_cover_rotations[26].n[0] = 1;
-  cubic_group_double_cover_rotations[26].n[1] = -1;
-  cubic_group_double_cover_rotations[26].n[2] = 1;
-  cubic_group_double_cover_rotations[26].w = -2*M_PI/3;
-  cubic_group_double_cover_rotations[27].n[0] = 1;
-  cubic_group_double_cover_rotations[27].n[1] = 1;
-  cubic_group_double_cover_rotations[27].n[2] = 1;
-  cubic_group_double_cover_rotations[27].w = 4*M_PI/3;
-  cubic_group_double_cover_rotations[28].n[0] = -1;
-  cubic_group_double_cover_rotations[28].n[1] = 1;
-  cubic_group_double_cover_rotations[28].n[2] = 1;
-  cubic_group_double_cover_rotations[28].w = 4*M_PI/3;
-  cubic_group_double_cover_rotations[29].n[0] = -1;
-  cubic_group_double_cover_rotations[29].n[1] = -1;
-  cubic_group_double_cover_rotations[29].n[2] = 1;
-  cubic_group_double_cover_rotations[29].w = 4*M_PI/3;
-  cubic_group_double_cover_rotations[30].n[0] = 1;
-  cubic_group_double_cover_rotations[30].n[1] = -1;
-  cubic_group_double_cover_rotations[30].n[2] = 1;
-  cubic_group_double_cover_rotations[30].w = 4*M_PI/3;
-  cubic_group_double_cover_rotations[31].n[0] = 1;
-  cubic_group_double_cover_rotations[31].n[1] = 1;
-  cubic_group_double_cover_rotations[31].n[2] = 1;
-  cubic_group_double_cover_rotations[31].w = -4*M_PI/3;
-  cubic_group_double_cover_rotations[32].n[0] = -1;
-  cubic_group_double_cover_rotations[32].n[1] = 1;
-  cubic_group_double_cover_rotations[32].n[2] = 1;
-  cubic_group_double_cover_rotations[32].w = -4*M_PI/3;
-  cubic_group_double_cover_rotations[33].n[0] = -1;
-  cubic_group_double_cover_rotations[33].n[1] = -1;
-  cubic_group_double_cover_rotations[33].n[2] = 1;
-  cubic_group_double_cover_rotations[33].w = -4*M_PI/3;
-  cubic_group_double_cover_rotations[34].n[0] = 1;
-  cubic_group_double_cover_rotations[34].n[1] = -1;
-  cubic_group_double_cover_rotations[34].n[2] = 1;
-  cubic_group_double_cover_rotations[34].w = -4*M_PI/3;
-  cubic_group_double_cover_rotations[35].n[0] = 0;
-  cubic_group_double_cover_rotations[35].n[1] = 1;
-  cubic_group_double_cover_rotations[35].n[2] = 1;
-  cubic_group_double_cover_rotations[35].w = M_PI;
-  cubic_group_double_cover_rotations[36].n[0] = 0;
-  cubic_group_double_cover_rotations[36].n[1] = -1;
-  cubic_group_double_cover_rotations[36].n[2] = 1;
-  cubic_group_double_cover_rotations[36].w = M_PI;
-  cubic_group_double_cover_rotations[37].n[0] = 1;
-  cubic_group_double_cover_rotations[37].n[1] = 1;
-  cubic_group_double_cover_rotations[37].n[2] = 0;
-  cubic_group_double_cover_rotations[37].w = M_PI;
-  cubic_group_double_cover_rotations[38].n[0] = 1;
-  cubic_group_double_cover_rotations[38].n[1] = -1;
-  cubic_group_double_cover_rotations[38].n[2] = 0;
-  cubic_group_double_cover_rotations[38].w = M_PI;
-  cubic_group_double_cover_rotations[39].n[0] = 1;
-  cubic_group_double_cover_rotations[39].n[1] = 0;
-  cubic_group_double_cover_rotations[39].n[2] = 1;
-  cubic_group_double_cover_rotations[39].w = M_PI;
-  cubic_group_double_cover_rotations[40].n[0] = -1;
-  cubic_group_double_cover_rotations[40].n[1] = 0;
-  cubic_group_double_cover_rotations[40].n[2] = 1;
-  cubic_group_double_cover_rotations[40].w = M_PI;
-  cubic_group_double_cover_rotations[41].n[0] = 0;
-  cubic_group_double_cover_rotations[41].n[1] = 1;
-  cubic_group_double_cover_rotations[41].n[2] = 1;
-  cubic_group_double_cover_rotations[41].w = -M_PI;
-  cubic_group_double_cover_rotations[42].n[0] = 0;
-  cubic_group_double_cover_rotations[42].n[1] = -1;
-  cubic_group_double_cover_rotations[42].n[2] = 1;
-  cubic_group_double_cover_rotations[42].w = -M_PI;
-  cubic_group_double_cover_rotations[43].n[0] = 1;
-  cubic_group_double_cover_rotations[43].n[1] = 1;
-  cubic_group_double_cover_rotations[43].n[2] = 0;
-  cubic_group_double_cover_rotations[43].w = -M_PI;
-  cubic_group_double_cover_rotations[44].n[0] = 1;
-  cubic_group_double_cover_rotations[44].n[1] = -1;
-  cubic_group_double_cover_rotations[44].n[2] = 0;
-  cubic_group_double_cover_rotations[44].w = -M_PI;
-  cubic_group_double_cover_rotations[45].n[0] = 1;
-  cubic_group_double_cover_rotations[45].n[1] = 0;
-  cubic_group_double_cover_rotations[45].n[2] = 1;
-  cubic_group_double_cover_rotations[45].w = -M_PI;
-  cubic_group_double_cover_rotations[46].n[0] = -1;
-  cubic_group_double_cover_rotations[46].n[1] = 0;
-  cubic_group_double_cover_rotations[46].n[2] = 1;
-  cubic_group_double_cover_rotations[46].w = -M_PI;
-  cubic_group_double_cover_rotations[47].n[0] = 0;
-  cubic_group_double_cover_rotations[47].n[1] = 0;
-  cubic_group_double_cover_rotations[47].n[2] = 0;
-  cubic_group_double_cover_rotations[47].w = 2*M_PI;
+#include "set_cubic_group_double_cover_elements.h"
 
-  /***********************************************************/
-  /***********************************************************/
+#include "set_cubic_group_elements.h"
 
-  
-  /***********************************************************
-   * I
-   ***********************************************************/
-  cubic_group_rotations[0].n[0] =  0;
-  cubic_group_rotations[0].n[1] =  0;
-  cubic_group_rotations[0].n[2] =  0;
-  cubic_group_rotations[0].w = 0;
-  /***********************************************************
-   * 8 C_3
-   ***********************************************************/
-  cubic_group_rotations[1].n[0] =  1;
-  cubic_group_rotations[1].n[1] =  1;
-  cubic_group_rotations[1].n[2] =  1;
-  cubic_group_rotations[1].w = -2*M_PI / 3.;
-  cubic_group_rotations[2].n[0] =  1;
-  cubic_group_rotations[2].n[1] =  1;
-  cubic_group_rotations[2].n[2] =  1;
-  cubic_group_rotations[2].w =  2*M_PI / 3.;
-  cubic_group_rotations[3].n[0] = -1;
-  cubic_group_rotations[3].n[1] =  1;
-  cubic_group_rotations[3].n[2] =  1;
-  cubic_group_rotations[3].w = -2*M_PI / 3.;
-  cubic_group_rotations[4].n[0] = -1;
-  cubic_group_rotations[4].n[1] =  1;
-  cubic_group_rotations[4].n[2] =  1;
-  cubic_group_rotations[4].w =  2*M_PI / 3.;
-  cubic_group_rotations[5].n[0] = -1;
-  cubic_group_rotations[5].n[1] = -1;
-  cubic_group_rotations[5].n[2] =  1;
-  cubic_group_rotations[5].w = -2*M_PI / 3.;
-  cubic_group_rotations[6].n[0] = -1;
-  cubic_group_rotations[6].n[1] = -1;
-  cubic_group_rotations[6].n[2] =  1;
-  cubic_group_rotations[6].w =  2*M_PI / 3.;
-  cubic_group_rotations[7].n[0] =  1;
-  cubic_group_rotations[7].n[1] = -1;
-  cubic_group_rotations[7].n[2] =  1;
-  cubic_group_rotations[7].w = -2*M_PI / 3.;
-  cubic_group_rotations[8].n[0] =  1;
-  cubic_group_rotations[8].n[1] = -1;
-  cubic_group_rotations[8].n[2] =  1;
-  cubic_group_rotations[8].w =  2*M_PI / 3;
+#include "set_cubic_group_elements_v2.h"
 
-  /***********************************************************
-   * 6 C_4
-   ***********************************************************/
-  cubic_group_rotations[9].n[0] =  1;
-  cubic_group_rotations[9].n[1] =  0;
-  cubic_group_rotations[9].n[2] =  0;
-  cubic_group_rotations[9].w =   -M_PI / 2;
-  cubic_group_rotations[10].n[0] = 1;
-  cubic_group_rotations[10].n[1] = 0;
-  cubic_group_rotations[10].n[2] = 0;
-  cubic_group_rotations[10].w =   M_PI / 2;
-  cubic_group_rotations[11].n[0] = 0;
-  cubic_group_rotations[11].n[1] = 1;
-  cubic_group_rotations[11].n[2] = 0;
-  cubic_group_rotations[11].w =   -M_PI / 2;
-  cubic_group_rotations[12].n[0] = 0;
-  cubic_group_rotations[12].n[1] = 1;
-  cubic_group_rotations[12].n[2] = 0;
-  cubic_group_rotations[12].w =    M_PI / 2;
-  cubic_group_rotations[13].n[0] = 0;
-  cubic_group_rotations[13].n[1] = 0;
-  cubic_group_rotations[13].n[2] = 1;
-  cubic_group_rotations[13].w =   -M_PI / 2;
-  cubic_group_rotations[14].n[0] = 0;
-  cubic_group_rotations[14].n[1] = 0;
-  cubic_group_rotations[14].n[2] = 1;
-  cubic_group_rotations[14].w =    M_PI / 2;
-
-  /***********************************************************
-   * 6 C'_2
-   ***********************************************************/
-  cubic_group_rotations[15].n[0] =  0;
-  cubic_group_rotations[15].n[1] =  1;
-  cubic_group_rotations[15].n[2] =  1;
-  cubic_group_rotations[15].w =   -M_PI;
-  cubic_group_rotations[16].n[0] =  0;
-  cubic_group_rotations[16].n[1] = -1;
-  cubic_group_rotations[16].n[2] =  1;
-  cubic_group_rotations[16].w =   -M_PI;
-  cubic_group_rotations[17].n[0] =  1;
-  cubic_group_rotations[17].n[1] =  1;
-  cubic_group_rotations[17].n[2] =  0;
-  cubic_group_rotations[17].w =   -M_PI;
-  cubic_group_rotations[18].n[0] =  1;
-  cubic_group_rotations[18].n[1] = -1;
-  cubic_group_rotations[18].n[2] =  0;
-  cubic_group_rotations[18].w =   -M_PI;
-  cubic_group_rotations[19].n[0] =  1;
-  cubic_group_rotations[19].n[1] =  0;
-  cubic_group_rotations[19].n[2] =  1;
-  cubic_group_rotations[19].w =   -M_PI;
-  cubic_group_rotations[20].n[0] = -1;
-  cubic_group_rotations[20].n[1] =  0;
-  cubic_group_rotations[20].n[2] =  1;
-  cubic_group_rotations[20].w =   -M_PI;
-
-  /***********************************************************
-   * 3 C_2
-   ***********************************************************/
-  cubic_group_rotations[21].n[0] =  1;
-  cubic_group_rotations[21].n[1] =  0;
-  cubic_group_rotations[21].n[2] =  0;
-  cubic_group_rotations[21].w =   -M_PI;
-  cubic_group_rotations[22].n[0] =  0;
-  cubic_group_rotations[22].n[1] =  1;
-  cubic_group_rotations[22].n[2] =  0;
-  cubic_group_rotations[22].w =   -M_PI;
-  cubic_group_rotations[23].n[0] =  0;
-  cubic_group_rotations[23].n[1] =  0;
-  cubic_group_rotations[23].n[2] =  1;
-  cubic_group_rotations[23].w =   -M_PI;
-
+#include "set_cubic_group_double_cover_identification_table.h"
   return;
 }  /* end of rot_init_rotation_table */
 
-
 /***********************************************************/
 /***********************************************************/
-
 
 /***********************************************************
  *
@@ -371,7 +67,8 @@ void rot_init_rotation_table () {
  *
  * set block_LL[3], which gives the block length in each
  * of the 3 directions
- * */
+ *
+ ***********************************************************/
 void rot_init_block_params (void) {
   block_L = _MIN( _MIN(LX,LY) , LZ );
   if ( g_cart_id == 0 )
@@ -400,20 +97,55 @@ void rot_init_block_params (void) {
   rot_block_params_set = 1;
 }  /* rot_init_block_params */
 
+/***********************************************************/
+/***********************************************************/
+
 /***********************************************************
  *
  ***********************************************************/
 void rot_printf_matrix (double _Complex **R, int N, char *A, FILE*ofs ) {
+  const double eps = 5.e-14;
   if ( g_cart_id == 0 ) {
     fprintf(ofs, "%s <- array(dim = c(%d , %d))\n", A, N, N);
     for( int ik = 0; ik < N; ik++ ) {
     for( int il = 0; il < N; il++ ) {
-      fprintf(ofs, "%s[%d,%d] <- %25.16e + %25.16e*1.i\n", A, ik+1, il+1, creal( R[ik][il] ), cimag( R[ik][il] ));
+      double dre = creal( R[ik][il] );
+      double dim = cimag( R[ik][il] );
+      fprintf(ofs, "%s[%d,%d] <- %25.16e + %25.16e*1.i\n", A, ik+1, il+1, 
+          ( fabs(dre) > eps ? dre : 0. ), ( fabs(dim) > eps ? dim : 0. ) );
     }}
     fflush(ofs);
   }
 }  /* end of rot_printf_matrix */
  
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ *
+ ***********************************************************/
+void rot_printf_matrix_comp (double _Complex **R, double _Complex **S, int N, char *A, FILE*ofs ) {
+  const double eps = 5.e-15;
+  if ( g_cart_id == 0 ) {
+    /* fprintf(ofs, "%s <- array(dim = c(%d , %d))\n", A, N, N); */
+    for( int ik = 0; ik < N; ik++ ) {
+    for( int il = 0; il < N; il++ ) {
+      double dre = creal( R[ik][il] );
+      double dim = cimag( R[ik][il] );
+      double tre = creal( S[ik][il] );
+      double tim = cimag( S[ik][il] );
+      fprintf(ofs, "%s %d %d    %25.16e + %25.16e*1.i    %25.16e + %25.16e*1.i\n", A, ik+1, il+1, 
+          ( fabs(dre) > eps ? dre : 0. ), ( fabs(dim) > eps ? dim : 0. ),
+          ( fabs(tre) > eps ? tre : 0. ), ( fabs(tim) > eps ? tim : 0. ) );
+    }}
+    fflush(ofs);
+  }
+}  /* end of rot_printf_matrix_comp */
+
+/***********************************************************/
+/***********************************************************/
+
 /***********************************************************
  *
  ***********************************************************/
@@ -432,6 +164,8 @@ void rot_printf_rint_matrix (double _Complex **R, int N, char *A, FILE*ofs ) {
   }
 }  /* end of rot_printf_matrix */
  
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  *
@@ -453,40 +187,44 @@ double _Complex determinant_dxd (double _Complex **R, int d) {
       break;
     case 4:
       res =
-      + R[0][0] * R[0][1] * R[0][2] * R[0][3]
-      - R[0][0] * R[0][1] * R[0][3] * R[0][2]
-      + R[0][0] * R[0][3] * R[0][1] * R[0][2]
-      - R[0][0] * R[0][3] * R[0][2] * R[0][1]
-      + R[0][0] * R[0][2] * R[0][3] * R[0][1]
-      - R[0][0] * R[0][2] * R[0][1] * R[0][3]
-      - R[0][3] * R[0][0] * R[0][1] * R[0][2]
-      + R[0][3] * R[0][0] * R[0][2] * R[0][1]
-      - R[0][3] * R[0][2] * R[0][0] * R[0][1]
-      + R[0][3] * R[0][2] * R[0][1] * R[0][0]
-      - R[0][3] * R[0][1] * R[0][2] * R[0][0]
-      + R[0][3] * R[0][1] * R[0][0] * R[0][2]
-      + R[0][2] * R[0][0] * R[0][1] * R[0][3]
-      - R[0][2] * R[0][0] * R[0][3] * R[0][1]
-      + R[0][2] * R[0][3] * R[0][0] * R[0][1]
-      - R[0][2] * R[0][3] * R[0][1] * R[0][0]
-      + R[0][2] * R[0][1] * R[0][3] * R[0][0]
-      - R[0][2] * R[0][1] * R[0][0] * R[0][3]
-      + R[0][1] * R[0][2] * R[0][0] * R[0][3]
-      - R[0][1] * R[0][2] * R[0][3] * R[0][0]
-      + R[0][1] * R[0][3] * R[0][2] * R[0][0]
-      - R[0][1] * R[0][3] * R[0][0] * R[0][2]
-      + R[0][1] * R[0][0] * R[0][3] * R[0][2]
-      - R[0][1] * R[0][0] * R[0][2] * R[0][3];
+      + R[0][0] * R[1][1] * R[2][2] * R[3][3]
+      + R[0][0] * R[1][3] * R[2][1] * R[3][2]
+      + R[0][0] * R[1][2] * R[2][3] * R[3][1]
+      + R[0][3] * R[1][0] * R[2][2] * R[3][1]
+      + R[0][3] * R[1][2] * R[2][1] * R[3][0]
+      + R[0][3] * R[1][1] * R[2][0] * R[3][2]
+      + R[0][2] * R[1][0] * R[2][1] * R[3][3]
+      + R[0][2] * R[1][3] * R[2][0] * R[3][1]
+      + R[0][2] * R[1][1] * R[2][3] * R[3][0]
+      + R[0][1] * R[1][2] * R[2][0] * R[3][3]
+      + R[0][1] * R[1][3] * R[2][2] * R[3][0]
+      + R[0][1] * R[1][0] * R[2][3] * R[3][2]
+      - R[0][0] * R[1][1] * R[2][3] * R[3][2]
+      - R[0][0] * R[1][3] * R[2][2] * R[3][1]
+      - R[0][0] * R[1][2] * R[2][1] * R[3][3]
+      - R[0][3] * R[1][0] * R[2][1] * R[3][2]
+      - R[0][3] * R[1][2] * R[2][0] * R[3][1]
+      - R[0][3] * R[1][1] * R[2][2] * R[3][0]
+      - R[0][2] * R[1][0] * R[2][3] * R[3][1]
+      - R[0][2] * R[1][3] * R[2][1] * R[3][0]
+      - R[0][2] * R[1][1] * R[2][0] * R[3][3]
+      - R[0][1] * R[1][2] * R[2][3] * R[3][0]
+      - R[0][1] * R[1][3] * R[2][0] * R[3][2]
+      - R[0][1] * R[1][0] * R[2][2] * R[3][3];
       break;
     default:
       fprintf(stdout, "[determinant_dxd] Error, dim = %d not implemented\n", d);
       return(sqrt(-1.));
       break;
   }
+  /* fprintf(stdout, "[determinant_dxd] Error, dim = %d det = %25.16e\n", d, res); */
 
   return(res);
 
 } /* end of determinant_dxd */
+
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  * safe, if C = R
@@ -502,8 +240,61 @@ void rot_mat_adj (double _Complex **C, double _Complex **R, int N) {
   rot_fini_rotation_matrix ( &S );
 }  /* end of rot_mat_adj */
 
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * safe, if C = R
+ ***********************************************************/
+void rot_mat_conj (double _Complex ** const C, double _Complex ** const R, unsigned int const N) {
+
+  for ( unsigned int i=0; i<N; i++) {
+  for ( unsigned int k=0; k<N; k++) {
+    C[i][k] = conj( R[i][k] );
+  }}
+}  /* end of rot_mat_conj */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * safe, if C = R
+ ***********************************************************/
+void rot_mat_trans (double _Complex ** const C, double _Complex ** const R, unsigned int const N) {
+
+  double _Complex **S = rot_init_rotation_matrix ( N );
+
+  for ( unsigned int i=0; i<N; i++) {
+  for ( unsigned int k=0; k<N; k++) {
+    S[i][k] = R[k][i];
+  }}
+  memcpy(C[0], S[0], N*N*sizeof(double _Complex));
+  rot_fini_rotation_matrix ( &S );
+}  /* end of rot_mat_trans */
+
+/***********************************************************/
+/***********************************************************/
+
 /***********************************************************
  *
+ ***********************************************************/
+void rot_mat_assign (double _Complex **C, double _Complex **R, int N) {
+  if( C != R ) {
+    memcpy (C[0], R[0], N*N*sizeof(double _Complex) );
+  }
+
+  return;
+}  /* end of rot_mat_assign */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * safe for C = S in memory
+ *
+ * matrix U below is for cartesian -> spherical contravariant
+ *
+ * v_sph_con = U v_cart
  ***********************************************************/
 void rot_spherical2cartesian_3x3 (double _Complex **C, double _Complex **S) {
 
@@ -550,39 +341,228 @@ void rot_spherical2cartesian_3x3 (double _Complex **C, double _Complex **S) {
   return;
 }  /* end of rot_spherical2cartesian_3x3 */
 
+/***********************************************************/
+/***********************************************************/
+
 /***********************************************************
- *
+ * 
  ***********************************************************/
-void rot_mat_ti_mat (double _Complex **C, double _Complex **A, double _Complex **B, int N) {
+void rot_cartesian_to_spherical_contravariant_mat (double _Complex ***S, double _Complex ***C, int M, int N ) {
+
+  const double _Complex r = 1. / sqrt(2.);
+
+  double _Complex **U = NULL;
+  int exitstatus = init_2level_zbuffer ( &U, 3, 3);
+
+  U[0][0] = -r;
+  U[0][1] =  I*r;
+  U[0][2] =  0.;
+  U[1][0] =  0.;
+  U[1][1] =  0.;
+  U[1][2] =  1.;
+  U[2][0] =  r;
+  U[2][1] =  I*r;
+  U[2][2] =  0.;
+
+  for ( int k = 0; k < 3; k++ ) {
+    /* set spherical-contravariant element k */
+    memset ( S[k][0], 0, N*M*sizeof(double _Complex) );
+
+    /* S[k} += U_kl C[l] */
+    for ( int l = 0; l < 3; l++ ) {
+      for ( int r = 0; r < N*M; r++ ) {
+        S[k][0][r] += U[k][l] * C[l][0][r];
+      }
+    }
+  }
+
+  fini_2level_zbuffer ( &U );
+  return;
+
+}  /* end of rot_cartesian_to_spherical_contravariant_mat */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * safe, if C = A or C = B in memory
+ ***********************************************************/
+void rot_mat_ti_mat (double _Complex ** const C, double _Complex ** const A, double _Complex ** const B, int const N) {
 
   char CHAR_N = 'N';
   int INT_N = N;
   double _Complex Z_1 = 1., Z_0 = 0.;
 
-  /* _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1); */
+  double _Complex Ctmp[N*N];
 
-  /* */
-  _F(zgemm) ( &CHAR_N, &CHAR_N, &INT_N, &INT_N, &INT_N, &Z_1, B[0], &INT_N, A[0], &INT_N, &Z_0, C[0], &INT_N, 1, 1);
+#if 0
+  if ( g_verbose > 4 ) {
+    for ( int i = 0; i< N; i++ ) {
+    for ( int j = 0; j< N; j++ ) {
+      // fprintf(stdout, "# [rot_mat_ti_mat] A[%d, %d] = %e + I %e\n", i, j, creal(A[i][j]), cimag(A[i][j]) );
+      fprintf(stdout, "# [rot_mat_ti_mat] A[%d, %d] = %e + I %e\n", i, j, creal(A[0][i*N+j]), cimag(A[0][i*N+j]) );
+    }}
+
+    for ( int i = 0; i< N; i++ ) {
+    for ( int j = 0; j< N; j++ ) {
+      // fprintf(stdout, "# [rot_mat_ti_mat] B[%d, %d] = %e + I %e\n", i, j, creal(B[i][j]), cimag(B[i][j]) );
+      fprintf(stdout, "# [rot_mat_ti_mat] B[%d, %d] = %e + I %e\n", i, j, creal(B[0][i*N+j]), cimag(B[0][i*N+j]) );
+    }}
+  }
+
+  if ( g_verbose > 3 ) {
+    fprintf(stdout, "# [rot_mat_ti_mat] BLAS_TRANSA/B = %c\n", CHAR_N );
+    fprintf(stdout, "# [rot_mat_ti_mat] BLAS_M/N/K    = %d\n", INT_N );
+    fprintf(stdout, "# [rot_mat_ti_mat] BLAS_ALPHA    = %e + I %e\n", creal(Z_1), cimag(Z_1));
+    fprintf(stdout, "# [rot_mat_ti_mat] BLAS_BETA     = %e + I %e\n", creal(Z_0), cimag(Z_0));
+    fprintf(stdout, "# [rot_mat_ti_mat] BLAS_LDA/B/C  = %d\n", INT_N );
+  }
+#endif  /* of if 0 */
+
+/* _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1); */
+   _F(zgemm) ( &CHAR_N,      &CHAR_N,      &INT_N,  &INT_N,  &INT_N,  &Z_1,        B[0],   &INT_N,    A[0],   &INT_N,    &Z_0,       Ctmp,   &INT_N,   1,1);
+
+#if 0
+  if ( g_verbose > 4 ) {
+    for ( int i = 0; i< N; i++ ) {
+    for ( int j = 0; j< N; j++ ) {
+      // fprintf(stdout, "# [rot_mat_ti_mat] C[%d, %d] = %e + I %e\n", i, j, creal(C[i][j]), cimag(C[i][j]) );
+      fprintf(stdout, "# [rot_mat_ti_mat] C[%d, %d] = %e + I %e\n", i, j, creal(C[0][i*N+j]), cimag(C[0][i*N+j]) );
+    }}
+  }
+#endif  /* of if 0 */
+
+  memcpy ( C[0], Ctmp, N*N*sizeof(double _Complex) );
 
   return;
-}  /* end of rot_mat_ti_mat */
+}  // end of rot_mat_ti_mat
+
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
- *
+ * safe, if C = A or C = B in memory
  ***********************************************************/
-void rot_mat_ti_mat_adj (double _Complex **C, double _Complex **A, double _Complex **B, int N) {
+void rot_mat_ti_mat_adj (double _Complex ** const C, double _Complex ** const A, double _Complex ** const B, int const N) {
 
   char CHAR_N = 'N', CHAR_C = 'C';
   int INT_N = N;
   double _Complex Z_1 = 1., Z_0 = 0.;
 
+  double _Complex Ctmp[N*N]; 
+
   /* _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1); */
 
-  /* */
-  _F(zgemm) ( &CHAR_C, &CHAR_N, &INT_N, &INT_N, &INT_N, &Z_1, B[0], &INT_N, A[0], &INT_N, &Z_0, C[0], &INT_N, 1, 1);
+  _F(zgemm) ( &CHAR_C, &CHAR_N, &INT_N, &INT_N, &INT_N, &Z_1, B[0], &INT_N, A[0], &INT_N, &Z_0, Ctmp, &INT_N, 1, 1);
 
+  memcpy ( C[0], Ctmp, N*N*sizeof(double _Complex ) );
   return;
-}  /* end of rot_mat_ti_mat_adj */
+}  // end of rot_mat_ti_mat_adj
+
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * w = A v for N-component vectors vrs v, w
+ ***********************************************************/
+void rot_mat_ti_vec (double _Complex * const w, double _Complex ** const A, double _Complex * const v, int const N) {
+
+  char CHAR_T = 'T';
+  int INT_N = N, INT_1 = 1;
+  double _Complex Z_1 = 1., Z_0 = 0.;
+
+  _F(zgemv)( &CHAR_T, &INT_N, &INT_N, &Z_1, A[0], &INT_N, v, &INT_1, &Z_0, w, &INT_1, 1 );
+  return;
+}  /* end of rot_mat_ti_vec */
+
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * w <- cw * w +  cv * R v
+ *
+ ***********************************************************/
+void rot_vec_accum_vec_ti_co_pl_mat_ti_vec_ti_co (double _Complex *w, double _Complex **A, double _Complex *v, double _Complex cv, double _Complex cw, int N) {
+
+  char CHAR_T = 'T';
+  int INT_N = N, INT_1 = 1;
+
+  _F(zgemv)( &CHAR_T, &INT_N, &INT_N, &cv, A[0], &INT_N, v, &INT_1, &cw, w, &INT_1, 1 );
+  return;
+}  /* end of rot_vec_accum_vec_ti_co_pl_mat_ti_vec_ti_co */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * w = w + v * c
+ ***********************************************************/
+void rot_vec_pl_eq_rot_vec_ti_co ( double _Complex * const w, double _Complex * const v, double _Complex const c, int const N) {
+  
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+  for ( int i = 0; i < N; i++ ) {
+    w[i] += v[i] * c;
+  }
+#endif
+}  // end of rot_vec_pl_eq_rot_vec_ti_co
+
+
+/***********************************************************
+ * w <- cw * w +  cv * R^t v
+ *
+ ***********************************************************/
+void rot_vec_accum_vec_ti_co_pl_mat_transpose_ti_vec_ti_co (double _Complex *w, double _Complex **A, double _Complex *v, double _Complex cv, double _Complex cw, int N) {
+
+  char CHAR_T = 'N';
+  int INT_N = N, INT_1 = 1;
+
+  _F(zgemv)( &CHAR_T, &INT_N, &INT_N, &cv, A[0], &INT_N, v, &INT_1, &cw, w, &INT_1, 1 );
+  return;
+}  /* end of rot_vec_accum_vec_ti_co_pl_mat_transpose_ti_vec_ti_co */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ *
+ ***********************************************************/
+void rot_mat_transpose_ti_vec (double _Complex *w, double _Complex **A, double _Complex *v, int N) {
+
+  char CHAR_T = 'N';
+  int INT_N = N, INT_1 = 1;
+  double _Complex Z_1 = 1., Z_0 = 0.;
+
+  _F(zgemv)( &CHAR_T, &INT_N, &INT_N, &Z_1, A[0], &INT_N, v, &INT_1, &Z_0, w, &INT_1, 1 );
+  return;
+}  /* end of rot_mat_transpose_ti_vec */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ *
+ ***********************************************************/
+void rot_mat_adjoint_ti_vec (double _Complex *w, double _Complex **A, double _Complex *v, int N) {
+
+  char CHAR_T = 'N';
+  int INT_N = N, INT_1 = 1;
+  double _Complex Z_1 = 1., Z_0 = 0.;
+  double _Complex vv[N];
+
+  for ( int i = 0; i < N; i++ ) vv[i] = conj(v[i]);
+  _F(zgemv)( &CHAR_T, &INT_N, &INT_N, &Z_1, A[0], &INT_N, vv, &INT_1, &Z_0, w, &INT_1, 1 );
+  for ( int i = 0; i < N; i++ ) w[i] = conj(w[i]);
+  return;
+}  /* end of rot_mat_adjoint_ti_vec */
+
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  *
@@ -601,6 +581,8 @@ void rot_mat_adj_ti_mat (double _Complex **C, double _Complex **A, double _Compl
   return;
 }  /* end of rot_mat_adj_ti_mat */
 
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  *
@@ -614,27 +596,52 @@ double rot_mat_norm2 (double _Complex **R, int N) {
   return(res);
 }  /* end of rot_mat_norm2 */
 
+/***********************************************************/
+/***********************************************************/
+
 /***********************************************************
+ * 3 checks:
  *
+ * || R R^+ - unit matrix || < eps
+ * | Re(det(R)) -1 |         < eps
+ * | Im(det(R))    |         < eps
  ***********************************************************/
 int rot_mat_check_is_sun (double _Complex **R, int N) {
   const double eps = 5.e-15;
   double _Complex **A = NULL;
   double _Complex z = determinant_dxd (R, N);
 
+#if 0
   if( init_2level_buffer ( (double***)(&A), N, 2*N ) != 0 ) {
     EXIT (1);
   }
+  rot_mat_ti_mat_adj (A, R, R, N);
+  double d = rot_mat_norm2 (A, N);
+  fini_2level_buffer( (double***)(&A));
+  return(  (int)( ( fabs(d - N) < eps ) && ( fabs( creal(z) - 1 ) < eps ) && ( fabs( cimag(z) ) < eps ) ) );
+#endif  /* of if 0 */
 
+  if( init_2level_zbuffer ( &A, N, N ) != 0 ) { return (0); }
+  /* A <- R x R^+ */
   rot_mat_ti_mat_adj (A, R, R, N);
 
-  double d = rot_mat_norm2 (A, N);
+  /* A <- A - unit matrix */
+  for ( int i = 0; i < N; i++ )  { A[i][i] -= 1.; }
 
-  fini_2level_buffer( (double***)(&A));
+  /* d = tr[ A x A^+ ] */
+  double d = sqrt( rot_mat_norm2 (A, N) );
 
-  return(  (int)( ( fabs(d - N) < eps ) && ( fabs( creal(z) - 1 ) < eps ) && ( fabs( cimag(z) ) < eps ) ) );
+  fini_2level_zbuffer( &A);
+
+  /* fprintf( stdout, "# [rot_mat_check_is_sun] det (R) = %e  %e\n", creal(z), cimag(z) );
+  fprintf( stdout, "# [rot_mat_check_is_sun] d       = %e\n", d ); */
+
+  return(  (int)( ( d < eps ) && ( fabs( creal(z) - 1 ) < eps ) && ( fabs( cimag(z) ) < eps ) ) );
 
 }  /* end of rot_mat_check_is_sun */
+
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  *
@@ -658,6 +665,73 @@ int rot_mat_check_is_real_int (double _Complex **R, int N ) {
   return(res);
 }  /* rot_mat_check_is_int */
 
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ *
+ ***********************************************************/
+void rot_mat_ti_eq_re (double _Complex **R, double c, int N) {
+  for(int i=0; i<N; i++) {
+  for(int k=0; k<N; k++) {
+    R[i][k] *= c;
+  }}
+  return;
+}  /* end of rot_mat_ti_eq_re */
+
+
+/***********************************************************/
+/***********************************************************/
+
+#if 0
+/***********************************************************
+ *
+ ***********************************************************/
+void rot_mat_pl_eq_mat_ti_co (double _Complex **R, double _Complex **S, double _Complex c, int N) {
+  for(int i=0; i<N; i++) {
+  for(int k=0; k<N; k++) {
+    R[i][k] += c * S[i][k];
+  }}
+  return;
+}  /* end of rot_mat_pl_eq_mat_ti_co */
+#endif
+
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ *
+ ***********************************************************/
+void rot_mat_pl_eq_mat_ti_co (double _Complex ** const R, double _Complex ** const S, double _Complex const c, int const N) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( int i = 0; i < N*N; i++ ) {
+    double _Complex z = S[0][i];
+    R[0][i] += c * z;
+  }
+  return;
+}  /* end of rot_mat_pl_eq_mat_ti_co */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ *
+ ***********************************************************/
+void rot_mat_eq_mat_pl_mat (double _Complex **R, double _Complex **S1, double _Complex **S2, int N) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( int i = 0; i < N*N; i++ ) {
+    R[0][i] = S1[0][i] + S2[0][i];
+  }
+  return;
+}  /* end of rot_mat_pl_eq_mat_ti_co */
+
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  *
@@ -670,6 +744,8 @@ long unsigned int factorial (int n)
     return(1);
 }  /* end of factorial */
 
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  *
@@ -683,10 +759,12 @@ void axis2polar ( double*theta, double*phi, int n[3] ) {
     *phi   = 0.;
   } else {
     *theta = acos( n[2] / r );
+
     *phi   = atan2( n[1], n[0] );
+    if ( *phi < 0 ) *phi += 2. * M_PI;
   }
 
-  if (g_cart_id == 0 ) {
+  if (g_cart_id == 0 && g_verbose > 5 ) {
     fprintf(stdout, "# [axis2polar] n %2d %2d %2d   phi %25.16e pi   theta  %25.16e pi\n", n[0], n[1], n[2], *phi/M_PI, *theta/M_PI);
     fflush(stdout);
   }
@@ -695,6 +773,8 @@ void axis2polar ( double*theta, double*phi, int n[3] ) {
 
 }  /* end of axis2polar */
 
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  * input
@@ -718,11 +798,16 @@ void rot_rotation_matrix_spherical_basis ( double _Complex**R, int J2, int n[3],
 
   u = cos ( w / 2. ) - I * sin( w / 2.) * cos( theta );
 
+  /* TEST */
+  /*
   if ( g_cart_id == 0 ) {
     fprintf(stdout, "# [rotation_matrix_spherical_basis] v = %25.16e\n"\
                     "# [rotation_matrix_spherical_basis] u = %25.16e + %25.16e I\n",
                     v, creal(u), cimag(u));
   }
+  */
+  /* END OF TEST */
+
   for( int ik = 0; ik <= J2; ik++ ) {
     int k2 = J2 - 2*ik;
 
@@ -749,9 +834,14 @@ void rot_rotation_matrix_spherical_basis ( double _Complex**R, int J2, int n[3],
       if ( m1_pl_m2 >= 0 ) {
 
         int smax = _MIN( J_mi_m1, J_mi_m2 );
+
+        /* TEST */
+        /*
         if (g_cart_id == 0 ) {
           fprintf(stdout, "# [rotation_matrix_spherical_basis] 2 J = %d, 2 m1 = %d, 2 m2 = %d, smax = %d\n", J2, k2, l2, smax);
         }
+        */
+        /* END OF TEST */
 
         double _Complex ssum = 0.;
         for( int s = 0; s <= smax; s++ ) {
@@ -763,9 +853,15 @@ void rot_rotation_matrix_spherical_basis ( double _Complex**R, int J2, int n[3],
 
       } else {
         int smax = _MIN( J_pl_m1, J_pl_m2 );
+
+        /* TEST */
+        /*
         if (g_cart_id == 0 ) {
           fprintf(stdout, "# [rotation_matrix_spherical_basis] 2 J = %d, 2 m1 = %d, 2 m2 = %d, smax = %d\n", J2, k2, l2, smax);
         }
+        */
+        /* END OF TEST */
+        
 
         double _Complex ssum = 0.;
         for( int s = 0; s <= smax; s++ ) {
@@ -789,26 +885,31 @@ void rot_rotation_matrix_spherical_basis ( double _Complex**R, int J2, int n[3],
     }}
   }
   */
+  /* END OF TEST */
 
   return;
 }  /* end of rot_rotation_matrix_spherical_basis */
 
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  * bi-spinor rotation matrix as (1/2, 0) + (0, 1/2)
  ***********************************************************/
-double _Complex **rot_bispinor_rotation_matrix_spherical_basis ( int n[3], double w ) {
+int rot_bispinor_rotation_matrix_spherical_basis ( double _Complex**ASpin, int n[3], double w ) {
 
-  double _Complex **SSpin = NULL, **ASpin = NULL;
+  double _Complex **SSpin = NULL;
   int exitstatus = init_2level_buffer( (double***)&SSpin, 2, 4 );
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[rot_bispinor_rotation_matrix_spherical_basis] Error from init_2level_buffer, status was %d\n", exitstatus);
-    return(NULL);
+    return(1);
   }
-  exitstatus = init_2level_buffer( (double***)&ASpin, 4, 8 );
-  if ( exitstatus != 0 ) {
-    fprintf(stderr, "[rot_bispinor_rotation_matrix_spherical_basis] Error from init_2level_buffer, status was %d\n", exitstatus);
-    return(NULL);
+  if ( ASpin == NULL ) {
+    /* exitstatus = init_2level_buffer( (double***)&ASpin, 4, 8 ); */
+    /* if ( exitstatus != 0 ) { */
+    /* fprintf(stderr, "[rot_bispinor_rotation_matrix_spherical_basis] Error from init_2level_buffer, status was %d\n", exitstatus); */
+    fprintf(stderr, "[rot_bispinor_rotation_matrix_spherical_basis] Error, ASpin is NULL\n");
+    return(1);
   }
 
   rot_rotation_matrix_spherical_basis ( SSpin, 1, n, w);
@@ -823,17 +924,25 @@ double _Complex **rot_bispinor_rotation_matrix_spherical_basis ( int n[3], doubl
   ASpin[3][3] = SSpin[1][1];
 
   fini_2level_buffer( (double***)&SSpin );
-  return( ASpin );
+  return( 0 );
 }  /* end of rot_bispinor_rotation_matrix_spherical_basis */ 
+
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  * rotate a 3-dim integer vector
+ * safe if nrot = nn in memory
  ***********************************************************/
-void rot_point ( int nrot[3], int n[3], double _Complex **R) {
+void rot_point ( int nrot[3], int const nn[3], double _Complex ** const R) {
+  int const n[3] = { nn[0], nn[1], nn[2] };
   nrot[0] = (int)creal(R[0][0] * (double _Complex)n[0] + R[0][1] * (double _Complex)n[1] + R[0][2] * (double _Complex)n[2]);
   nrot[1] = (int)creal(R[1][0] * (double _Complex)n[0] + R[1][1] * (double _Complex)n[1] + R[1][2] * (double _Complex)n[2]);
   nrot[2] = (int)creal(R[2][0] * (double _Complex)n[0] + R[2][1] * (double _Complex)n[1] + R[2][2] * (double _Complex)n[2]);
 }  /* end of rot_point */
+
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  * inverse rotate a 3-dim integer vector
@@ -844,6 +953,8 @@ void rot_point_inv ( int nrot[3], int n[3], double _Complex **R) {
   nrot[2] = (int)creal( conj(R[0][2]) * (double _Complex)n[0] + conj(R[1][2]) * (double _Complex)n[1] + conj(R[2][2]) * (double _Complex)n[2]);
 }  /* end of rot_point_inv */
 
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  * rotate a global 3-dim integer vector module L
@@ -853,6 +964,9 @@ void rot_global_point_mod ( int nrot[3], int n[3], double _Complex **R) {
   nrot[1] = ( (int)creal(R[1][0] * (double _Complex)n[0] + R[1][1] * (double _Complex)n[1] + R[1][2] * (double _Complex)n[2]) + LY_global ) % LY_global;
   nrot[2] = ( (int)creal(R[2][0] * (double _Complex)n[0] + R[2][1] * (double _Complex)n[1] + R[2][2] * (double _Complex)n[2]) + LZ_global ) % LZ_global;
 }  /* end of rot_point */
+
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  * rotate a 3-dim integer vector
@@ -866,6 +980,9 @@ void rot_center_global_point ( int nrot[3], int n[3], double _Complex **R) {
   nrot[2] = (int)creal( R[2][0] * (double _Complex)nshift[0] + R[2][1] * (double _Complex)nshift[1] + R[2][2] * (double _Complex)nshift[2]) + LZ_global/2;
 }  /* end of rot_point */
 
+/***********************************************************/
+/***********************************************************/
+
 /***********************************************************
  * inverse rotate a 3-dim integer vector, center of
  * rotation is the center of the lattice cube
@@ -876,6 +993,9 @@ void rot_center_global_point_inv ( int nrot[3], int n[3], double _Complex **R) {
   nrot[1] = (int)creal( conj(R[0][1]) * (double _Complex)nshift[0] + conj(R[1][1]) * (double _Complex)nshift[1] + conj(R[2][1]) * (double _Complex)nshift[2]) + LY_global/2;
   nrot[2] = (int)creal( conj(R[0][2]) * (double _Complex)nshift[0] + conj(R[1][2]) * (double _Complex)nshift[1] + conj(R[2][2]) * (double _Complex)nshift[2]) + LZ_global/2;
 }  /* end of rot_point_inv */
+
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  * rotate a 3-dim local integer vector
@@ -898,6 +1018,9 @@ void rot_center_local_point ( int nrot[3], int n[3], double _Complex **R, int l[
   }
 }  /* end of rot_point */
 
+/***********************************************************/
+/***********************************************************/
+
 /***********************************************************
  * rotate a 3-dim local integer vector
  * center of the rotation is the center of the local lattice
@@ -919,6 +1042,54 @@ void rot_center_local_point_inv ( int nrot[3], int n[3], double _Complex **R, in
   }
 }  /* end of rot_point */
 
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * squared diff norm of R and S
+ *
+ * tr [ (A-B)^+ (A-B) ]
+ *
+ ***********************************************************/
+double rot_mat_diff_norm2 (double _Complex **R, double _Complex **S , int N ) {
+
+  double _Complex z;
+  double norm2 = 0;
+
+  for ( int i = 0; i < N; i++ ) {
+  for ( int k = 0; k < N; k++ ) {
+    z = R[i][k] - S[i][k];
+    norm2 += creal( z * conj(z) );
+  }}
+  return(norm2);
+}  /* end of rot_mat_diff_norm2 */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * diff norm of R and S
+ *
+ * tr [ (A-B)^+ (A-B) ]
+ *
+ ***********************************************************/
+double rot_mat_diff_norm (double _Complex **R, double _Complex **S , int N ) {
+
+  double _Complex z;
+  double norm2 = 0;
+
+  for ( int i = 0; i < N; i++ ) {
+  for ( int k = 0; k < N; k++ ) {
+    z = R[i][k] - S[i][k];
+    norm2 += creal( z * conj(z) );
+  }}
+  return( sqrt( norm2 ) );
+}  /* end of rot_mat_diff_norm */
+
+/***********************************************************/
+/***********************************************************/
+/***********************************************************/
+/***********************************************************/
 
 /***********************************************************
  * rotate the gauge field
@@ -1384,6 +1555,9 @@ int rot_gauge_field ( double*gf_rot, double *gf, double _Complex **R) {
 
 }  /* end of rot_gauge_field */
 
+/***********************************************************/
+/***********************************************************/
+
 /***********************************************************
  *
  * rotate a spinor field
@@ -1790,6 +1964,9 @@ int rot_spinor_field ( double*sf_rot, double *sf, double _Complex **R) {
 
 }  /* end of rot_spinor_field */
 
+/***********************************************************/
+/***********************************************************/
+
 void rot_bispinor_mat_ti_spinor_field (double *sf_rot, double _Complex **R, double *sf, unsigned int N) {
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
@@ -1800,6 +1977,9 @@ void rot_bispinor_mat_ti_spinor_field (double *sf_rot, double _Complex **R, doub
   }
 }  /* end of rot_bispinor_mat_ti_spinor_field */
 
+/***********************************************************/
+/***********************************************************/
+
 void rot_bispinor_mat_ti_fp_field( fermion_propagator_type *fp_rot, double _Complex ** R, fermion_propagator_type *fp, unsigned int N ) {
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
@@ -1808,6 +1988,9 @@ void rot_bispinor_mat_ti_fp_field( fermion_propagator_type *fp_rot, double _Comp
     rot_bispinor_mat_ti_fp( fp_rot[ix], R, fp[ix] );
   }
 }  /* end of rot_bispinor_mat_ti_fp_field */
+
+/***********************************************************/
+/***********************************************************/
 
 void rot_fp_field_ti_bispinor_mat ( fermion_propagator_type *fp_rot, double _Complex ** R, fermion_propagator_type *fp, unsigned int N) {
 #ifdef HAVE_OPENMP
@@ -1818,6 +2001,9 @@ void rot_fp_field_ti_bispinor_mat ( fermion_propagator_type *fp_rot, double _Com
   }
 }  /* end of rot_fp_field_ti_bispinor_mat */
 
+/***********************************************************/
+/***********************************************************/
+
 void rot_spinor_field_ti_bispinor_mat ( double**sf_rot, double _Complex ** R, double**sf, unsigned int N ) {
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
@@ -1826,6 +2012,9 @@ void rot_spinor_field_ti_bispinor_mat ( double**sf_rot, double _Complex ** R, do
     rot_fv_ti_bispinor_mat ( sf_rot, R, sf, ix);
   }
 }  /* end of rot_spinor_field_ti_bispinor_mat */
+
+/***********************************************************/
+/***********************************************************/
 
 void rot_bispinor_mat_ti_sp_field ( spinor_propagator_type *sp_rot, double _Complex ** R, spinor_propagator_type *sp, unsigned int N ) {
 #ifdef HAVE_OPENMP
@@ -1836,6 +2025,9 @@ void rot_bispinor_mat_ti_sp_field ( spinor_propagator_type *sp_rot, double _Comp
   }
 }  /* end of rot_bispinor_mat_ti_sp_field */
 
+/***********************************************************/
+/***********************************************************/
+
 void rot_sp_field_ti_bispinor_mat ( spinor_propagator_type *sp_rot, double _Complex ** R, spinor_propagator_type *sp, unsigned int N ) {
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
@@ -1845,4 +2037,661 @@ void rot_sp_field_ti_bispinor_mat ( spinor_propagator_type *sp_rot, double _Comp
   }
 }  /* end of rot_sp_field_bispinor_mat */
 
-}  /* end of namespace cvc */
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * set unit matrix
+ ***********************************************************/
+void rot_mat_unity ( double _Complex **R, int N ) {
+  memset ( R[0], 0, N*N*sizeof( double _Complex ) );
+  for ( int i = 0; i < N; i++ ) {
+    R[i][i] = 1.;
+  }
+  return;
+}  /* end of rot_mat_unity */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * set zero matrix
+ ***********************************************************/
+void rot_mat_zero ( double _Complex **R, int N ) {
+  memset ( R[0], 0, N*N*sizeof( double _Complex ) );
+  return;
+}  /* end of rot_mat_zero */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * effect of parity on spherical basis state 
+ ***********************************************************/
+void rot_inversion_matrix_spherical_basis ( double _Complex**R, int J2, int bispinor ) {
+
+  int dim = J2 + 1;
+
+
+  if ( J2 % 4 == 0 ) {
+    /***********************************************************
+     * spin 0, 2, 4, ...
+     ***********************************************************/
+    rot_mat_unity ( R, dim );
+    return;
+
+  } else if ( J2 % 4 == 2 ) {
+    /***********************************************************
+     * spin 1, 3, 5, ...
+     ***********************************************************/
+    rot_mat_unity ( R , dim );
+    rot_mat_ti_eq_re ( R, -1., dim );
+    return;
+
+  } else if ( ( J2 % 2 == 1 ) && !bispinor ) {
+
+    /***********************************************************
+     * spin 1/2, 3/2, 5/2, ...
+     ***********************************************************/
+    rot_mat_unity ( R , dim );
+    return;
+  }
+
+
+
+  if ( ( J2 == 1 && bispinor ) || ( J2 == 3 ) ) {
+    gamma_matrix_type g;
+    gamma_matrix_set ( &g, 0, 1 );
+
+    memcpy ( R[0], g.v, 16*sizeof(double _Complex) );
+    return;
+  } 
+  
+  memset ( R[0], 0, (1+bispinor) * dim * (1+bispinor)* dim * sizeof(double _Complex) );
+  fprintf( stderr, "[rot_inversion_matrix_spherical_basis] Error, unknown combination of J2 and bispinor\n");
+  return;
+}  /* end of rot_inversion_matrix_spherical_basis */
+
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * set Wigner d-function for all M, M'
+ ***********************************************************/
+void wigner_d (double **wd, double b, int J2 ) {
+
+  double cbh = cos ( 0.5 * b );
+  double sbh = sin ( 0.5 * b );
+
+  for ( int im1 = 0; im1 <= J2; im1++ ) {
+
+    int J_mi_m1 = im1;
+    int J_pl_m1 = J2 - im1;
+
+    long unsigned int  J_mi_m1_fac = factorial ( J_mi_m1 );
+    long unsigned int  J_pl_m1_fac = factorial ( J_pl_m1 );
+
+    for ( int im2 = 0; im2 <= J2; im2++ ) {
+
+      int J_mi_m2  = im2;
+      int J_pl_m2  = J2 - im2;
+      int m1_pl_m2 = J2 - im1 - im2;
+
+      int sign     = J_mi_m2 % 2 == 0 ? 1 : -1;
+
+      long unsigned int  J_mi_m2_fac = factorial ( J_mi_m2 );
+      long unsigned int  J_pl_m2_fac = factorial ( J_pl_m2 );
+
+      int k_min = _MAX( -m1_pl_m2, 0 );
+      int k_max = _MIN( J_mi_m1, J_mi_m2 );
+
+      // fprintf( stdout, "# [wigner_d] J2= %d M1 = %4.1f M2 = %4.1f k_min = %d k_max = %d\n", J2, (J2-2*im1)/2., (J2-2*im2)/2., k_min, k_max );
+
+      double f = sign * sqrt( J_mi_m1_fac * J_pl_m1_fac * J_mi_m2_fac * J_pl_m2_fac );
+
+      double dtmp = 0.;
+
+      for ( int k = k_min; k <= k_max; k++ ) {
+
+        int k_sign = k % 2 == 0 ? 1 : -1;
+
+        dtmp += k_sign * pow ( cbh, m1_pl_m2 + 2*k ) * pow ( sbh, J2 - m1_pl_m2 - 2*k ) / \
+                ( factorial ( k ) * factorial ( J_mi_m1 - k ) * factorial ( J_mi_m2 - k ) * factorial ( m1_pl_m2 + k ) );
+
+      }
+
+      wd[im1][im2] = f * dtmp;
+
+    }  /* end of loop on im2 */
+  }    /* end of loop on im1 */
+
+  /* TEST */
+  /*
+  if (g_cart_id == 0 && g_verbose > 4 ) {
+    const double eps = 5.e-15;
+      fprintf(stdout, "d <- array(dim=(%d , %d))\n", J2+1, J2+1);
+    for( int ik = 0; ik <= J2; ik++ ) {
+    for( int il = 0; il <= J2; il++ ) {
+      double dtmp = fabs( wd[ik][il] ) > eps ? wd[ik][il] : 0.;
+      fprintf(stdout, "d[%d,%d] <- %25.16e\n", ik+1, il+1, dtmp );
+    }}
+  }
+  */
+  /* END OF TEST */
+
+  return;
+}  /* end of wigner_d */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * input
+ * J2 = 2 x J (J = 0, 1/2, 1, 3/2, ... )
+ * a,b,c Euler angles
+ *
+ * output
+ * R  = rotation matrix in spherical basis
+ ***********************************************************/
+int rot_rotation_matrix_spherical_basis_Wigner_D ( double _Complex**R, int J2, double a[3] ) {
+
+  int exitstatus;
+  double **wd = NULL;
+
+  if ( ( exitstatus = init_2level_buffer ( &wd, J2+1, J2+1 ) ) != 0 ) {
+    fprintf(stderr, "[rot_rotation_matrix_spherical_basis_Wigner_D] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    return(1);
+  }
+
+  wigner_d ( wd, a[1], J2 );
+
+  for ( int im1 = 0; im1 <= J2; im1++ ) {
+    double m1 = ( J2 - 2*im1 ) / 2.;
+
+    double _Complex z1 = cos ( m1 * a[0] ) - I * sin ( m1 * a[0] );
+
+    for ( int im2 = 0; im2 <= J2; im2++ ) {
+      double m2 = ( J2 - 2*im2 ) / 2.;
+
+      // fprintf (stdout, "# [rot_rotation_matrix_spherical_basis_Wigner_D] J2 = %d m1 = %3.1f m2 = %3.1f\n", J2, m1, m2);
+
+      double _Complex z2 = cos ( m2 * a[2] ) - I * sin ( m2 * a[2] );
+
+      // fprintf(stdout, "# [Wigner-D] m1 = %4.1f m2 = %4.1f alpha = %25.16e z1 = %25.16e %25.16e gamma = %25.16e z2 = %25.16e %25.16e\n", m1, m2, a[0], creal(z1), cimag(z1), a[2], creal(z2), cimag(z2));
+
+      R[im1][im2] = z1 * z2 * wd[im1][im2];
+    }
+  }
+
+
+  fini_2level_buffer ( &wd );
+
+
+  /* TEST */
+/*
+  if (g_cart_id == 0 && g_verbose > 4 ) {
+      fprintf(stdout, "R <- array(dim=(%d , %d))\n", J2+1, J2+1);
+    for( int ik = 0; ik <= J2; ik++ ) {
+    for( int il = 0; il <= J2; il++ ) {
+      fprintf(stdout, "R[%d,%d] <- %25.16e + %25.16e*1.i\n", ik+1, il+1, creal( R[ik][il] ), cimag( R[ik][il] ));
+    }}
+  }
+*/
+
+  return(0);
+}  /* end of rot_rotation_matrix_spherical_basis_Wigner_D */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * norm difference of matrices
+ ***********************************************************/
+double rot_mat_norm_diff ( double _Complex **R, double _Complex **S, int N ) {
+
+  double res = 0.;
+  for(int i = 0; i < N; i++ ) {
+  for(int k = 0; k < N; k++ ) {
+      double _Complex z = R[i][k] - S[i][k];
+      res += creal( z * conj( z ) );
+    }
+  }
+  return( sqrt( res ) );
+}  /* end of rot_mat_norm_diff */
+
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ *
+ ***********************************************************/
+void rot_mat_get_euler_angles ( double a[3], int n[3], double w ) {
+
+  const double eps = 5.e-15;
+  double theta, phi;
+  double dtmp;
+  /* double wpos = w >= 0. ? w : w + 2 * M_PI; */
+  double wpos = w;
+
+  axis2polar ( &theta, &phi, n );
+
+  /* fprintf ( stdout, "# [rot_mat_get_euler_angles] w = %e pi, wpos = %e pi, theta = %e pi, phi = %e pi\n", w/M_PI, wpos/M_PI, theta/M_PI, phi/M_PI ); */
+
+  dtmp = 2. * asin( sin ( theta ) * sin ( wpos / 2. ) );
+  a[1] = fabs( dtmp ) < eps ? 0. : dtmp;
+
+  double a_pl_g_h = atan( cos ( theta ) * tan ( wpos / 2. ) );
+  double a_mi_g_h =  phi - M_PI / 2;
+
+  dtmp = a_pl_g_h + a_mi_g_h;
+  a[0] = fabs ( dtmp ) < eps ? 0. : dtmp;
+
+  dtmp = a_pl_g_h - a_mi_g_h;
+  a[2] = fabs ( dtmp ) < eps ? 0. : dtmp;
+
+
+  /* TEST */
+  /* check, whether Euler angles are within range */
+  if ( a[0] < 0 || a[0] > 2*M_PI ) fprintf(stderr, "[rot_mat_get_euler_angles] alpha out of range\n");
+  if ( a[1] < 0 || a[1] >   M_PI ) fprintf(stderr, "[rot_mat_get_euler_angles] beta  out of range\n");
+  if ( a[2] < 0 || a[2] > 2*M_PI ) fprintf(stderr, "[rot_mat_get_euler_angles] gamma out of range\n");
+  /* END OF TEST */
+
+  return;
+}  /* end of rot_mat_get_euler_angles */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * build spin-1 rotations in cartesian basis
+ * directly from n and omega
+ ***********************************************************/
+int rot_mat_spin1_cartesian ( double _Complex **R, int n[3], double omega ) {
+
+  if ( n[0] == 0 && n[1] == 0 && n[2] == 0 ) {
+    memset ( R[0], 0, 9 * sizeof( double _Complex ) );
+    R[0][0] = 1.;
+    R[1][1] = 1.;
+    R[2][2] = 1.;
+    return(0);
+  }
+
+  double cos_omega = cos( omega );
+  double sin_omega = sin( omega );
+  double sin_omega_h = sin ( 0.5 * omega );
+  double one_mi_cos_omega = 2. * sin_omega_h * sin_omega_h;
+
+  double nnorm = 1. / sqrt( n[0] * n[0] + n[1] * n[1] + n[2] * n[2] );
+  double d[3] = { n[0] * nnorm, n[1] * nnorm, n[2] * nnorm };
+
+  R[0][0] = cos_omega  + one_mi_cos_omega * d[0] * d[0];
+  R[0][1] = one_mi_cos_omega * d[0] * d[1] - sin_omega * d[2];
+  R[0][2] = one_mi_cos_omega * d[2] * d[0] + sin_omega * d[1];
+
+  R[1][0] = one_mi_cos_omega * d[0] * d[1] + sin_omega * d[2];
+  R[1][1] = cos_omega  + one_mi_cos_omega * d[1] * d[1];
+  R[1][2] = one_mi_cos_omega * d[1] * d[2] - sin_omega * d[0];
+
+  R[2][0] = one_mi_cos_omega * d[2] * d[0] - sin_omega * d[1];
+  R[2][1] = one_mi_cos_omega * d[1] * d[2] + sin_omega * d[0];
+  R[2][2] = cos_omega  + one_mi_cos_omega * d[2] * d[2];
+
+  return(0);
+}  /* end of rot_mat_spin1_cartesian */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * build spin-1/2 rotations in spherical basis
+ * directly from n and omega
+ ***********************************************************/
+int rot_mat_spin1_2_spherical ( double _Complex **R, int n[3], double omega ) {
+
+  if ( n[0] == 0 && n[1] == 0 && n[2] == 0 ) {
+    /***********************************************************
+     * For R = I and R = J set to any vector 
+     ***********************************************************/
+    n[0] = 1;
+    n[1] = 2;
+    n[2] = 3;
+  }
+
+  double cos_omega_half = cos( omega / 2. );
+  double sin_omega_half = sin( omega / 2. );
+
+  double nnorm = 1. / sqrt( n[0] * n[0] + n[1] * n[1] + n[2] * n[2] );
+  double d[3] = { n[0] * nnorm, n[1] * nnorm, n[2] * nnorm };
+
+  R[0][0] = cos_omega_half - I * d[2] * sin_omega_half;
+
+  R[0][1] = ( -I * d[0] - d[1] ) * sin_omega_half;
+
+  R[1][0] = ( -I * d[0] + d[1] ) * sin_omega_half;
+
+  R[1][1] = cos_omega_half + I * d[2] * sin_omega_half;
+
+  return(0);
+}  /* end of rot_mat_spin1_2_spherical */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * trace
+ ***********************************************************/
+double _Complex rot_mat_trace ( double _Complex ** const R, int const N ) {
+  double _Complex res = 0.;
+
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+  omp_init_lock(&writelock);
+#pragma omp parallel shared(res)
+{
+#endif
+  double _Complex c = 0.;
+  double _Complex * const R_ = R[0];
+  int const Np1 = N+1;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for ( int i = 0; i < N; i++ ) {
+    c += R_[i*Np1];
+  }
+#ifdef HAVE_OPENMP
+  omp_set_lock(&writelock);
+  res += c;
+  omp_unset_lock(&writelock);
+}  // end of parallel region
+  omp_destroy_lock(&writelock);
+#else
+  res = c;
+#endif
+
+  return(res);
+}  // end of rot_mat_trace
+
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * trace
+ ***********************************************************/
+double _Complex rot_mat_trace_weight_re ( double _Complex ** const R, double * const weight, int const N ) {
+  double _Complex res = 0.;
+
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+  omp_init_lock(&writelock);
+#pragma omp parallel shared(res)
+{
+#endif
+
+  double _Complex * const R_ = R[0];
+  int const Np1 = N+1;
+  double _Complex c = 0.;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for ( int i = 0; i < N; i++ ) {
+    c += R_[i*Np1] * weight[i];
+  }
+#ifdef HAVE_OPENMP
+  omp_set_lock(&writelock);
+  res += c;
+  omp_unset_lock(&writelock);
+}  // end of parallel region
+  omp_destroy_lock(&writelock);
+#else
+
+  res = c;
+#endif
+  return(res);
+}  // end of rot_mat_trace
+
+
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ *
+ ***********************************************************/
+void rot_vec_pl_eq_vec_ti_co ( double _Complex*v, double _Complex*w, double _Complex c , int N ) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( int i = 0; i < N; i++ ) {
+    v[i] += w[i] * c;
+  }
+}  /* end of rot_vec_pl_eq_vec_ti_co */
+
+/***********************************************************/
+/***********************************************************/
+
+void rot_vec_normalize ( double _Complex *v, int N ) {
+  double eps = 9.e-15;
+  double norm=0.;
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( int i = 0; i < N; i++ ) {
+    norm += creal ( v[i] * conj ( v[i] ) );
+  }
+  norm = sqrt ( norm );
+  norm = norm < eps ? 0. : 1./norm;
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( int i = 0; i < N; i++ ) {
+    v[i] *= norm;
+  }
+  return;
+}  /* end of rot_vec_normalize */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************************************************/
+/***********************************************************************************************/
+
+/***********************************************************************************************
+ *
+ ***********************************************************************************************/
+void rot_mat_eq_diag_re_ti_mat ( double _Complex **A, double*lambda, double _Complex **B, int num ) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( int i = 0; i < num; i++ ) { 
+    double _Complex *A_ = A[i];
+    double _Complex *B_ = B[i];
+    double lambda_ = lambda[i];
+    for ( int k = 0; k < num; k++ ) {
+      A_[k] = lambda_ * B_[k];
+    }
+  }
+}  /* end of rot_mat_eq_diag_re_ti_mat */
+
+/***********************************************************************************************/
+/***********************************************************************************************/
+
+/***********************************************************************************************
+ *
+ ***********************************************************************************************/
+void rot_mat_eq_mat_ti_diag_re ( double _Complex **A, double*lambda, double _Complex **B, int num ) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( int i = 0; i < num; i++ ) {
+    double _Complex *A_ = A[i];
+    double _Complex *B_ = B[i];
+    for ( int k = 0; k < num; k++ ) {
+      A_[k] = lambda[k] * B_[k];
+    }
+  }
+}  /* end of rot_mat_eq_mat_ti_diag_re */
+
+/***********************************************************************************************/
+/***********************************************************************************************/
+
+/***********************************************************************************************
+ *
+ ***********************************************************************************************/
+void rot_mat_eq_diag_re_ti_mat_ti_diag_re ( double _Complex **A, double*lambda, double _Complex **B, int num ) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( int i = 0; i < num; i++ ) {
+    double _Complex *A_ = A[i];
+    double _Complex *B_ = B[i];
+    double lambda_ = lambda[i];
+    for ( int k = 0; k < num; k++ ) {
+      A_[k] = lambda_ * B_[k] * lambda[k];
+    }
+  }
+}  /* end of rot_mat_eq_diag_re_ti_mat_ti_diag_re */
+
+/***********************************************************************************************/
+/***********************************************************************************************/
+
+/***********************************************************************************************
+ *
+ ***********************************************************************************************/
+void rot_vec_eq_mat_diag ( double _Complex *w, double _Complex **A, int num ) {
+
+  double _Complex * const A_ = A[0];
+  int const nump1 = num+1;
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( int i = 0; i < num; i++ ) {
+    w[i] = A_[i*nump1];
+  }
+}  /* end of rot_vec_eq_mat_diag */
+
+/***********************************************************************************************/
+/***********************************************************************************************/
+
+/***********************************************************************************************
+ *
+ ***********************************************************************************************/
+double _Complex co_eq_trace_mat_ti_mat_weight_re ( double _Complex ** const A, double _Complex ** const B, double * const weight, int const num ) {
+
+  double _Complex res = 0.;
+
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+  omp_init_lock(&writelock);
+#pragma omp parallel
+{
+#endif
+
+  double _Complex c = 0.;
+  double _Complex * const B_ = B[0];
+  double _Complex Brow[num];
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for ( int i = 0; i < num; i++ ) {
+
+    for ( int k = 0; k < num; k++ ) Brow[k] = B_[k*num+i] * weight[k];
+    double _Complex * const A_ = A[i];
+    double _Complex weight_ = weight[i];
+
+    for ( int k = 0; k < num; k++ ) {
+      c += A_[k] * weight_ * Brow [k];
+    }
+  }
+#ifdef HAVE_OPENMP
+  omp_set_lock(&writelock);
+  res += c;
+  omp_unset_lock(&writelock);
+}  // end of parallel region
+  omp_destroy_lock(&writelock);
+#else
+  res = c;
+#endif
+  return ( res );
+}  // end of co_eq_trace_mat_ti_mat_weight_re
+
+
+/***********************************************************************************************/
+/***********************************************************************************************/
+
+/***********************************************************************************************
+ *
+ ***********************************************************************************************/
+double _Complex co_eq_trace_mat_ti_weight_ti_mat_ti_weight_re ( double _Complex ** const A, double * const w1, double _Complex ** const B, double * const w2, int const num ) {
+
+  double _Complex res = 0.;
+
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+  omp_init_lock(&writelock);
+#pragma omp parallel
+{
+#endif
+
+  double _Complex c = 0.;
+  double _Complex * const B_ = B[0];
+  double _Complex Brow[num];
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for ( int i = 0; i < num; i++ ) {
+
+    for ( int k = 0; k < num; k++ ) Brow[k] = B_[k*num+i] * w1[k];
+    double _Complex * const A_ = A[i];
+    double _Complex weight_ = w2[i];
+
+    for ( int k = 0; k < num; k++ ) {
+      c += A_[k] * weight_ * Brow [k];
+    }
+  }
+#ifdef HAVE_OPENMP
+  omp_set_lock(&writelock);
+  res += c;
+  omp_unset_lock(&writelock);
+}  // end of parallel region
+  omp_destroy_lock(&writelock);
+#else
+  res = c;
+#endif
+  return ( res );
+}  // end of co_eq_trace_mat_ti_weight_ti_mat_ti_weight_re
+
+/***********************************************************************************************/
+/***********************************************************************************************/
+
+/***********************************************************************************************
+ * print vector
+ ***********************************************************************************************/
+void rot_vec_printf (double _Complex * const v, int const N, char *A, FILE*ofs ) {
+
+  double const eps = 5.e-14;
+  fprintf(ofs, "%s <- numeric(%d)\n", A, N);
+  for( int ik = 0; ik < N; ik++ ) {
+    double dre = creal( v[ik] );
+    double dim = cimag( v[ik] );
+    fprintf(ofs, "%s[%d] <- %25.16e + %25.16e*1.i\n", A, ik+1, ( fabs(dre) > eps ? dre : 0. ), ( fabs(dim) > eps ? dim : 0. ) );
+  }
+  fflush(ofs);
+}  // end of rot_printf_matrix
+
+/***********************************************************************************************/
+/***********************************************************************************************/
+
+}  // end of namespace cvc

@@ -67,6 +67,11 @@ typedef struct {
   (c1)->re += (c2)->re * (r); \
   (c1)->im += (c2)->im * (r);}
 
+/* c1 += c2^* * r */
+#define _co_pl_eq_co_conj_ti_re(c1,c2,r) {\
+  (c1)->re += (c2)->re * (r); \
+  (c1)->im -= (c2)->im * (r);}
+   
 /* c1 -= c2 */
 #define _co_mi_eq_co(c1,c2) {\
   (c1)->re -= (c2)->re; \

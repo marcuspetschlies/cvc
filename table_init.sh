@@ -1,9 +1,39 @@
 #!/bin/bash
+MyName=$(echo $0 | awk -F\/ '{sub(/\.sh/,"",$NF);print $NF}')
 
-TYPE="double _Complex"
-TAG="z"
+#TYPE="double _Complex"
+#TAG="z"
+
+#TYPE="double"
+#TAG="d"
+
+#TYPE="int"
+#TAG="i"
+
+#TYPE="char"
+#TAG="c"
+
+#TYPE="twopoint_function_type"
+#TAG="2pt"
+
+TAG=$1
+if [ "X$TAG" == "X" ]; then
+  echo "[$MyName] Error, need type identifier"
+  exit 1
+fi
+
+case "$TAG" in
+  "z") TYPE="double _Complex";;
+  "d") TYPE="double";;
+  "i") TYPE="int";;
+  "c") TYPE="char";;
+  "2pt") TYPE="twopoint_function_type";;
+  *) exit 1;;
+esac
 
 TTAG=$( echo $TAG | tr '[:lower:]' '[:upper:]')
+
+SIZE_TYPE="size_t"
 
 FILE=table_init_${TAG}.h
 
@@ -25,8 +55,8 @@ EOF
 
 cat << EOF >> $FILE
 
-inline $TYPE * init_1level_${TAG}table ( int const N0 ) {
-  return( ( $TYPE *) calloc ( N0 , sizeof( $TYPE ) ) );
+inline $TYPE * init_1level_${TAG}table ( ${SIZE_TYPE} const N0 ) {
+  return( N0 == 0 ? NULL : ( $TYPE *) calloc ( N0 , sizeof( $TYPE ) ) );
 }  // end of init_1level_${TAG}table
 
 /************************************************************************************/
@@ -56,9 +86,9 @@ for LEVEL in $(seq 2 8 ); do
 
   printf "inline %s %s init_%dlevel_%stable (" "$TYPE" "$PTR"  $LEVEL "$TAG"
 for ((k=1; k < $LEVEL; k++ )) do
-  printf "int const N%d, " $(($k - 1 ))
+  printf "${SIZE_TYPE} const N%d, " $(($k - 1 ))
 done
-printf "int const N%d ) {\n" $(($LEVEL - 1 ))
+printf "${SIZE_TYPE} const N%d ) {\n" $(($LEVEL - 1 ))
 
 printf "  %s %s s__ = NULL;\n" "${TYPE}" "$PTR2"
 printf "  s__ = init_%dlevel_%stable ( N0*N1" $(( $LEVEL - 1 )) "$TAG"
@@ -71,10 +101,10 @@ printf ");\n"
 cat << EOF
   if ( s__ == NULL ) return( NULL );
 
-  ${TYPE} $PTR s_ = ( ${TYPE} $PTR) malloc( N0 * sizeof( ${TYPE} $PTR2) );
+  ${TYPE} $PTR s_ = ( N0 == 0 ) ? NULL : ( ${TYPE} $PTR) malloc( N0 * sizeof( ${TYPE} $PTR2) );
   if ( s_ == NULL ) return ( NULL );
 
-  for ( int i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
+  for ( ${SIZE_TYPE} i = 0; i < N0; i++ ) s_[i] = s__ + i * N1;
   return( s_ );
 }  // end of init_${LEVEL}level_${TAG}table
 

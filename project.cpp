@@ -485,7 +485,7 @@ int momentum_projection (double*V, double *W, unsigned int nv, int momentum_numb
  *
  * zgemm calculates V x phase, which is  nv x momentum_number (F) = momentum_number x nv (C)
  **************************************************************************************************************/
-int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_number, int (*momentum_list)[3], int gshift[3]) {
+int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_number, const int (* const momentum_list)[3], int gshift[3]) {
 
   typedef struct {
     int x[3];

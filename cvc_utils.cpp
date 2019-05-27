@@ -29,6 +29,8 @@
 #include "Q_clover_phi.h"
 #include "scalar_products.h"
 #include "matrix_init.h"
+#include "table_init_i.h"
+#include "table_init_d.h"
 
 namespace cvc {
 
@@ -2304,10 +2306,16 @@ int wilson_loop(complex *w, double*gauge_field, const int xstart, const int dir,
  
 }
 
+/********************************************************/
+/********************************************************/
+
 int IRand(int min, int max) {
   return( min + (int)( ((double)(max-min+1)) * ((double)(rand())) /
                       ((double)(RAND_MAX) + 1.0) ) );
 }
+
+/********************************************************/
+/********************************************************/
 
 double Random_Z2() {
   if(IRand(0, 1) == 0)
@@ -2315,20 +2323,61 @@ double Random_Z2() {
   return( -1.0 / sqrt(2.0));
 }  /* end of Random_Z2 */
 
-int ranz2(double * y, unsigned int NRAND) {
+/********************************************************/
+/********************************************************/
+
+int ranz2(double * const y, unsigned int const NRAND) {
   const double sqrt2inv = 1. / sqrt(2.);
-  unsigned int k;
 
   ranlxd(y, NRAND);
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(k) shared(y,NRAND)
+#pragma omp parallel for
 #endif
-  for(k=0; k<NRAND; k++) {
+  for ( unsigned int k = 0; k < NRAND; k++) {
     y[k] = (double)(2 * (int)(y[k]>=0.5) - 1) * sqrt2inv;
   }
   return(0);
 }  /* end of ranz2 */
+
+/********************************************************/
+/********************************************************/
+
+/********************************************************
+ * y must have real and imaginary part, i.e. length
+ * of 2 NRAND doubles
+ ********************************************************/
+int ranz3 ( double * const y, unsigned int const NRAND ) {
+
+  double const sqrt_three_half = 0.8660254037844386;
+  double const yre[3] = {1., -0.5,             -0.5             };
+  double const yim[3] = {0.,  sqrt_three_half, -sqrt_three_half };
+
+  double * rf = init_1level_dtable ( NRAND );
+  if ( rf == NULL )  {
+    fprintf ( stderr, "[ranz3] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__ );
+    return ( 1 );
+  }
+
+  ranlxd ( rf, NRAND );
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for shared(rf)
+#endif
+  for ( unsigned int k = 0; k < NRAND; k++ ) {
+    int const idx = (int)( 3 * rf[k] );
+
+    y[2*k  ] = yre[idx];
+    y[2*k+1] = yim[idx];
+    /* if ( g_verbose > 4 ) fprintf ( stdout, "# [ranz3] k = %6u rf = %25.16e idx = %d y = %25.16e %25.16e\n", k, rf[k], idx, y[2*k], y[2*k+1] ); */
+  }
+
+  fini_1level_dtable ( &rf );
+  return(0);
+}  /* end of ranz3 */
+
+/********************************************************/
+/********************************************************/
 
 /********************************************************
  * random_gauge_field
@@ -4873,8 +4922,10 @@ int check_residual_clover ( double**prop, double**source, double*gauge_field, do
     spinor_field_norm_diff ( &diff_e, eo_spinor_work[2], eo_spinor_work[0], Vhalf);
     spinor_field_norm_diff ( &diff_o, eo_spinor_work[3], eo_spinor_work[1], Vhalf);
     
-    if(g_cart_id==0) fprintf(stdout, "# [check_residual_clover] propagator %3d norm diff even part = %e / %e\n", k, diff_e, sqrt(norm_e) );
-    if(g_cart_id==0) fprintf(stdout, "# [check_residual_clover] propagator %3d norm diff odd  part = %e / %e\n", k, diff_o, sqrt(norm_o) );
+    if(g_cart_id==0) {
+      fprintf(stdout, "# [check_residual_clover] propagator %3d norm diff even part = %e / %e\n", k, diff_e, sqrt(norm_e) );
+      fprintf(stdout, "# [check_residual_clover] propagator %3d norm diff odd  part = %e / %e\n", k, diff_o, sqrt(norm_o) );
+    }
     
   }  /* end of loop on nf */
 
@@ -5721,30 +5772,29 @@ void spinor_field_eq_spinor_field_ti_re (double *r, double *s, double c, unsigne
 /****************************************************************************
  * d = || r - s ||
  ****************************************************************************/
-void spinor_field_norm_diff (double*d, double *r, double *s, unsigned int N) {
+void spinor_field_norm_diff (double * const d, double * const r, double * const s, unsigned int const N) {
 
-  const int nthreads = g_num_threads;
-  const int sincr    = _GSI(nthreads);
 
-  unsigned int ix, iix;
-  int threadid = 0;
-  double daccum=0., daccumt, sp1[24];
+  double daccum=0.;
 #ifdef HAVE_OPENMP
   omp_lock_t writelock;
 #endif
 
 #ifdef HAVE_OPENMP
   omp_init_lock(&writelock);
-#pragma omp parallel default(shared) private(threadid,ix,iix,daccumt,sp1) shared(d,r,s,N,daccum)
+#pragma omp parallel
 {
-  threadid = omp_get_thread_num();
 #endif
-  daccumt = 0.;
-  iix = _GSI(threadid);
-  for(ix = threadid; ix < N; ix += nthreads ) {
+  double sp1[24];
+  double daccumt = 0.;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for ( unsigned int ix = 0; ix < N; ix++ ) {
+    unsigned int const iix = _GSI( ix );
     _fv_eq_fv_mi_fv(sp1, r+iix, s+iix);
     _re_pl_eq_fv_dag_ti_fv(daccumt,sp1,sp1);
-    iix += sincr;
   }
 #ifdef HAVE_OPENMP
   omp_set_lock(&writelock);
@@ -5764,11 +5814,15 @@ void spinor_field_norm_diff (double*d, double *r, double *s, unsigned int N) {
   /* fprintf(stdout, "# [spinor_field_norm_diff] proc%.4d daccum = %25.16e\n", g_cart_id, daccum); */
 
 #ifdef HAVE_MPI
-  daccumt = 0.;
-  MPI_Allreduce(&daccum, &daccumt, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid);
+  double daccumx = 0.;
+  if ( MPI_Allreduce(&daccum, &daccumx, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid) != MPI_SUCCESS ) {
+    fprintf ( stderr, "[spinor_field_norm_diff] Error from MPI_Allreduce %s %d\n", __FILE__, __LINE__ );
+    *d = sqrt ( -1. );
+    return;
+  }
   /* TEST */
   /* fprintf(stdout, "# [spinor_field_norm_diff] proc%.4d full d = %25.16e\n", g_cart_id, daccumt); */
-  *d = sqrt(daccumt);
+  *d = sqrt(daccumx);
 #else
   *d = sqrt( daccum );
 #endif
@@ -6993,6 +7047,43 @@ void fermion_propagator_field_eq_fermion_propagator_field_ti_gamma (fermion_prop
 #endif
 }  /* end of fermion_propagator_field_eq_fermion_propagator_field_ti_gamma  */
 
+/*****************************************************/
+/*****************************************************/
+
+/*****************************************************
+ * r += gamma[mu] s gamma[nu]
+ *
+ * safe, if r == s
+ *****************************************************/
+void fermion_propagator_field_pl_eq_gamma_ti_fermion_propagator_field_ti_gamma ( fermion_propagator_type * const r, 
+    int const mu, fermion_propagator_type * const s, int const nu, unsigned int const N ) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel 
+{
+#endif
+  fermion_propagator_type _f, _h, _r, _s;
+  create_fp( &_f );
+  create_fp( &_h );
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for( unsigned int ix = 0; ix < N; ix++ ) {
+    _r = r[ix];
+    _s = s[ix];
+    _fp_eq_gamma_ti_fp( _f, mu, _s );
+    _fp_eq_fp_ti_gamma( _h, nu, _f );
+    _fp_pl_eq_fp( _r, _h );
+  }
+  free_fp( &_f );
+  free_fp( &_h );
+
+#ifdef HAVE_OPENMP
+  }  /* end of parallel region */
+#endif
+}  /* end of fermion_propagator_field_pl_eq_gamma_ti_fermion_propagator_field_ti_gamma  */
+
 
 
 
@@ -7059,5 +7150,110 @@ int const get_io_proc (void) {
 /****************************************************************************/
 /****************************************************************************/
 
+int init_momentum_classes ( int **** p_class, int **p_nmem, int *p_num ) {
+
+  *p_num = 4;
+  *p_nmem = (int *)malloc( *p_num * sizeof (int) );
+
+  *p_class = (int***) malloc ( *p_num * sizeof(int**) );
+
+  (*p_nmem)[0] = 1;
+  (*p_class)[0] = init_2level_itable ( 1, 3 );
+
+  (*p_nmem)[1] = 6;
+  (*p_class)[1] = init_2level_itable ( 6, 3 );
+  (*p_class)[1][0][2] =  1;
+  (*p_class)[1][1][2] = -1;
+  (*p_class)[1][2][1] =  1;
+  (*p_class)[1][3][1] = -1;
+  (*p_class)[1][4][0] =  1;
+  (*p_class)[1][5][0] = -1;
+
+  (*p_nmem)[2] = 12;
+  (*p_class)[2] = init_2level_itable ( 12, 3 );
+  (*p_class)[2][ 0][0] =  1; (*p_class)[2][ 0][1] =  1;
+  (*p_class)[2][ 1][0] =  1; (*p_class)[2][ 1][1] = -1;
+  (*p_class)[2][ 2][0] = -1; (*p_class)[2][ 2][1] =  1;
+  (*p_class)[2][ 3][0] = -1; (*p_class)[2][ 3][1] = -1;
+
+  (*p_class)[2][ 4][0] =  1; (*p_class)[2][ 4][2] =  1;
+  (*p_class)[2][ 5][0] =  1; (*p_class)[2][ 5][2] = -1;
+  (*p_class)[2][ 6][0] = -1; (*p_class)[2][ 6][2] =  1;
+  (*p_class)[2][ 7][0] = -1; (*p_class)[2][ 7][2] = -1;
+
+  (*p_class)[2][ 8][1] =  1; (*p_class)[2][ 8][2] =  1;
+  (*p_class)[2][ 9][1] =  1; (*p_class)[2][ 9][2] = -1;
+  (*p_class)[2][10][1] = -1; (*p_class)[2][10][2] =  1;
+  (*p_class)[2][11][1] = -1; (*p_class)[2][11][2] = -1;
+
+  (*p_nmem)[3] = 8;
+  (*p_class)[3] = init_2level_itable ( 8, 3 );
+  (*p_class)[3][0][0] =  1; (*p_class)[3][0][1] =  1; (*p_class)[3][0][2] =  1;
+  (*p_class)[3][1][0] =  1; (*p_class)[3][1][1] =  1; (*p_class)[3][1][2] = -1;
+  (*p_class)[3][2][0] =  1; (*p_class)[3][2][1] = -1; (*p_class)[3][2][2] =  1;
+  (*p_class)[3][3][0] =  1; (*p_class)[3][3][1] = -1; (*p_class)[3][3][2] = -1;
+  (*p_class)[3][4][0] = -1; (*p_class)[3][4][1] =  1; (*p_class)[3][4][2] =  1;
+  (*p_class)[3][5][0] = -1; (*p_class)[3][5][1] =  1; (*p_class)[3][5][2] = -1;
+  (*p_class)[3][6][0] = -1; (*p_class)[3][6][1] = -1; (*p_class)[3][6][2] =  1;
+  (*p_class)[3][7][0] = -1; (*p_class)[3][7][1] = -1; (*p_class)[3][7][2] = -1;
+ 
+  // TEST
+  for ( int i = 0; i < *p_num; i++ ) {
+    for ( int k = 0; k < (*p_nmem)[i]; k++ ) {
+      fprintf ( stdout, "[init_momentum_classes] %2d %2d   %3d %3d %3d\n",
+          i, k, (*p_class)[i][k][0], (*p_class)[i][k][1], (*p_class)[i][k][2] );
+    }
+    fprintf ( stdout, "\n\n" );
+  }
+
+  return(0);
+}  // end of init_momentum_classes
+
+/****************************************************************************/
+/****************************************************************************/
+
+void fini_momentum_classes ( int **** p_class, int **p_nmem, int *p_num ) {
+
+  if ( *p_nmem != NULL ) {
+    free ( *p_nmem );
+    *p_nmem = NULL;
+  }
+
+  if ( *p_class != NULL ) {
+    for ( int i = 0; i < *p_num; i++ ) {
+      fini_2level_itable ( &((*p_class)[i]) );
+    }
+    free ( *p_class );
+    *p_class = NULL;
+  }
+
+}  // end of fini_momentum_classes
+
+/****************************************************************************/
+/****************************************************************************/
+
+int random_z2_scalar_field ( int * const b , unsigned int const N ) {
+
+  double * d = init_1level_dtable ( N );
+  if( d == NULL ) {
+    fprintf ( stderr, "[random_binary_field] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
+
+  ranlxd ( d, N );
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( unsigned i = 0; i < N; i++ ) {
+    b[i] = 2 * (int)( d[i] <= 0.5 ) - 1 ;
+  }
+
+  fini_1level_dtable ( &d );
+  return(0);
+
+} /* end of random_binary_field */
+/****************************************************************************/
+/****************************************************************************/
 
 }  /* end of namespace cvc */

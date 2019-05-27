@@ -33,7 +33,7 @@ namespace cvc {
  * Performs a number of APE smearing steps
  *
  ************************************************************/
-int APE_Smearing(double *smeared_gauge_field, double APE_smearing_alpha, int APE_smearing_niter) {
+int APE_Smearing(double *smeared_gauge_field, double const APE_smearing_alpha, int const APE_smearing_niter) {
   const unsigned int gf_items = 72*VOLUME;
   const size_t gf_bytes = gf_items * sizeof(double);
 
@@ -54,15 +54,15 @@ int APE_Smearing(double *smeared_gauge_field, double APE_smearing_alpha, int APE
 #pragma omp parallel
 {
 #endif
-    int idx;
+    unsigned int idx;
     double M1[18], M2[18];
-    int index;
-    int index_mx_1, index_mx_2, index_mx_3;
-    int index_px_1, index_px_2, index_px_3;
-    int index_my_1, index_my_2, index_my_3;
-    int index_py_1, index_py_2, index_py_3;
-    int index_mz_1, index_mz_2, index_mz_3;
-    int index_pz_1, index_pz_2, index_pz_3;
+    unsigned int index;
+    unsigned int index_mx_1, index_mx_2, index_mx_3;
+    unsigned int index_px_1, index_px_2, index_px_3;
+    unsigned int index_my_1, index_my_2, index_my_3;
+    unsigned int index_py_1, index_py_2, index_py_3;
+    unsigned int index_mz_1, index_mz_2, index_mz_3;
+    unsigned int index_pz_1, index_pz_2, index_pz_3;
     double *U = NULL;
 
 #ifdef HAVE_OPENMP
@@ -257,7 +257,7 @@ int APE_Smearing(double *smeared_gauge_field, double APE_smearing_alpha, int APE
  * N, kappa = Jacobi smearing parameters (in)
  *
  *****************************************************/
-int Jacobi_Smearing(double *smeared_gauge_field, double *psi, int N, double kappa) {
+int Jacobi_Smearing(double *smeared_gauge_field, double *psi, int const N, double const kappa) {
   const unsigned int sf_items = _GSI(VOLUME);
   const size_t sf_bytes = sf_items * sizeof(double);
   const double norm = 1.0 / (1.0 + 6.0*kappa);
@@ -271,6 +271,10 @@ int Jacobi_Smearing(double *smeared_gauge_field, double *psi, int N, double kapp
     return(3);
   }
 
+  if ( smeared_gauge_field == NULL ) {
+    fprintf ( stderr, "[Jacobi_Smearing] Error, smeared_gauge_field is NULL\n");
+    return (4);
+  }
 #ifdef HAVE_MPI
   xchange_gauge_field (smeared_gauge_field);
 #endif
@@ -288,9 +292,9 @@ int Jacobi_Smearing(double *smeared_gauge_field, double *psi, int N, double kapp
 {
 #endif
 
-    int idx, idy;
-    int index_s, index_s_mx, index_s_px, index_s_my, index_s_py, index_s_mz, index_s_pz, index_g_mx;
-    int index_g_px, index_g_my, index_g_py, index_g_mz, index_g_pz; 
+    unsigned int idx, idy;
+    unsigned int index_s, index_s_mx, index_s_px, index_s_my, index_s_py, index_s_mz, index_s_pz, index_g_mx;
+    unsigned int index_g_px, index_g_my, index_g_py, index_g_mz, index_g_pz; 
     double *s=NULL, spinor[24];
 
 #ifdef HAVE_OPENMP

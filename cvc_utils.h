@@ -52,7 +52,11 @@ int wilson_loop(complex *w, double*gauge_field, const int xstart, const int dir,
 
 int IRand(int min, int max);
 double Random_Z2();
-int ranz2(double * y, unsigned int NRAND);
+
+int ranz2(double * const y, unsigned int const NRAND);
+
+int ranz3 ( double * const y, unsigned int const NRAND );
+
 void random_gauge_field(double *gfield, double h);
 void random_gauge_point(double **gauge_point, double heat);
 void random_cm(double *A, double heat);
@@ -133,7 +137,8 @@ void spinor_field_pl_eq_spinor_field(double*r, double*s, unsigned int N);
 void spinor_field_eq_spinor_field_ti_real_field (double*r, double*s, double *c, unsigned int N);
 void spinor_field_eq_spinor_field_ti_complex_field (double*r, double*s, double *c, unsigned int N);
 
-void spinor_field_norm_diff (double*d, double *r, double *s, unsigned int N);
+void spinor_field_norm_diff (double * const d, double * const r, double * const s, unsigned int const N);
+
 void g5_phi(double *phi, unsigned int N);
 
 spinor_propagator_type *create_sp_field(size_t N);
@@ -191,7 +196,17 @@ void fermion_propagator_field_eq_fermion_propagator_field_ti_gamma (fermion_prop
 
 void fermion_propagator_field_eq_fermion_propagator_field_ti_re (fermion_propagator_type*r, fermion_propagator_type*s, double c, unsigned int N);
 
+void fermion_propagator_field_pl_eq_gamma_ti_fermion_propagator_field_ti_gamma ( fermion_propagator_type * const r,
+    int const mu, fermion_propagator_type * const s, int const nu, unsigned int const N );
+
+
 int const get_io_proc (void);
+
+int init_momentum_classes ( int **** p_class, int **p_nmem, int *p_num );
+
+void fini_momentum_classes ( int **** p_class, int **p_nmem, int *p_num );
+
+int random_binary_field ( int * const b , unsigned int const N );
 
 }  /* end of namespace cvc */
 #endif

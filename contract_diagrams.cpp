@@ -25,6 +25,9 @@
 #ifdef HAVE_LHPC_AFF
 #include "lhpc-aff.h"
 #endif
+#ifdef HAVE_HDF5
+#include "hdf5.h"
+#endif
 
 #include "cvc_complex.h"
 #include "ilinalg.h"
@@ -37,6 +40,7 @@
 #include "table_init_z.h"
 #include "gamma.h"
 #include "zm4x4.h"
+#include "rotations.h"
 #include "contract_diagrams.h"
 
 namespace cvc {
@@ -289,6 +293,8 @@ int match_momentum_id ( int **pid, int **m1, int **m2, int N1, int N2 ) {
     }
   }
 
+  int found_no_match = 1;
+
   for ( int i = 0; i < N1; i++ ) {
     int found = 0;
     int p[3] = { m1[i][0], m1[i][1], m1[i][2] };
@@ -306,9 +312,12 @@ int match_momentum_id ( int **pid, int **m1, int **m2, int N1, int N2 ) {
       (*pid)[i] = -1;
       /* return(2); */
     }
-  }
 
-  /* TEST */
+    found_no_match = found_no_match && !found;
+
+  }  // end of loop on momenta to be matched
+
+  // TEST
   if ( g_verbose > 2 ) {
     for ( int i = 0; i < N1; i++ ) {
       if ( (*pid)[i] == -1 ) {
@@ -321,8 +330,8 @@ int match_momentum_id ( int **pid, int **m1, int **m2, int N1, int N2 ) {
     }
   }
 
-  return(0);
-}  /* end of match_momentum_id */
+  return( found_no_match );
+}  // end of match_momentum_id
 
 /***********************************************/
 /***********************************************/
@@ -365,9 +374,13 @@ int * get_conserved_momentum_id ( int (*p1)[3], int const n1, int const p2[3], i
  
   int *momentum_id = NULL;
   exitstatus = match_momentum_id ( &momentum_id, momentum_list, momentum_list_all, n1, n3 );
-  if ( exitstatus != 0 ) {
+  if ( exitstatus == 1 ) {
+    fprintf(stderr, "[get_minus_momentum_id] Error, not a single match\n");
+    free ( momentum_id );
+    return ( NULL );
+  } else if ( exitstatus != 0 ) {
     fprintf(stderr, "[get_minus_momentum_id] Error from match_momentum_id, status was %d\n", exitstatus );
-    return( NULL );
+    return ( NULL );
   }
   
   fini_2level_ibuffer ( &momentum_list );
@@ -375,6 +388,19 @@ int * get_conserved_momentum_id ( int (*p1)[3], int const n1, int const p2[3], i
 
   return( momentum_id );
 
+}  // end of get_conserved_momentum_id
+
+/***********************************************
+ *
+ ***********************************************/
+int get_momentum_id ( int const p1[3], int (* const p2)[3], unsigned int const N ) {
+  for ( unsigned int i = 0; i < N; i++ ) {
+    if ( ( p1[0] == p2[i][0] ) && ( p1[1] == p2[i][1] ) && ( p1[2] == p2[i][2] ) ) {
+       return ( i );   
+    }
+
+  }
+  return ( -1 );
 }  // end of get_momentum_id
 
 /***********************************************/
@@ -384,36 +410,63 @@ int * get_conserved_momentum_id ( int (*p1)[3], int const n1, int const p2[3], i
  * multiply x-space spinor propagator field
  *   with boundary phase
  ***********************************************/
-int correlator_add_baryon_boundary_phase ( double _Complex *** const sp, int const tsrc, int const N ) {
+int correlator_add_baryon_boundary_phase ( double _Complex *** const sp, int const tsrc, int const dir, int const N ) {
 
   if( g_propagator_bc_type == 0 ) {
-    /* multiply with phase factor */
+    // multiply with phase factor
     if ( g_verbose > 3 ) fprintf(stdout, "# [correlator_add_baryon_boundary_phase] multiplying with boundary phase factor\n");
+
+    if ( tsrc > 0 ) {
+      // assume lattice ordering
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+      for( int it = 0; it < N; it++ ) {
+        int ir = (it + g_proc_coords[0] * T - tsrc + T_global) % T_global;
+        const double _Complex w = cexp ( I * 3. * M_PI*(double)ir / (double)T_global  );
+        zm4x4_ti_eq_co ( sp[it], w );
+      }
+    } else if ( tsrc == 0 ) {
+      // assume ordering from source
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-    for( int it = 0; it < N; it++ ) {
-      // int ir = (it + g_proc_coords[0] * T - tsrc + T_global) % T_global;
-      // const double _Complex w = cexp ( I * 3. * M_PI*(double)ir / (double)T_global  );
-      const double _Complex w = cexp ( I * 3. * M_PI*(double)it / (double)T_global  );
-      zm4x4_ti_eq_co ( sp[it], w );
+      for( int it = 0; it < N; it++ ) {
+        const double _Complex w = cexp ( I * 3. * M_PI*(double)( (dir*it + T_global ) % T_global )  / (double)T_global  );
+        zm4x4_ti_eq_co ( sp[it], w );
+      }
     }
 
   } else if ( g_propagator_bc_type == 1 ) {
-    /* multiply with step function */
+
+    // multiply with step function
     if ( g_verbose > 3 ) fprintf(stdout, "# [add_baryon_boundary_phase] multiplying with boundary step function\n");
 
-    int const tmin = _MIN( T_global - tsrc, N );
-    int const tmax = _MIN( T_global - 1,    N );
+
+    // MUST assume lattice ordering timeslices 0, 1, ..., T-1
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-    for( int it = tmin; it <= tmax; it++ ) {
-      zm4x4_ti_eq_re ( sp[it], -1. );
+    for( int ir = 0; ir < N; ir++ ) {                            // counter of global timeslice
+      int const it = ( dir * ir + tsrc + T_global ) % T_global;  // global timeslice, 0 <= it < T_global
+      int const is = it % T;                                     // local timeslice, 0 <= is < T
+#ifdef HAVE_MPI
+      //    need -1           my timeslice
+      if( ( it < tsrc ) && ( it / T == g_proc_coords[0] ) ) 
+#else
+      if( ( it < tsrc ) )
+#endif
+      {
+
+        zm4x4_ti_eq_re ( sp[is], -1 );
+
+      }  // end of if it < tsrc
+
     }  // end of loop on ir
-  }
+
+  }  // end of if propagator bc type is 1
 
   return(0);
 }  // end of correlator_add_baryon_boundary_phase
@@ -436,12 +489,19 @@ int correlator_add_source_phase ( double _Complex ***sp, int const p[3], int con
 #pragma omp parallel for
 #endif
   for( unsigned int ix = 0; ix < N; ix++ ) {
-    zm4x4_ti_eq_co ( sp[ix], w );
+#ifdef HAVE_MPI
+    // not my timeslice ? go on
+    if ( ix / T != g_proc_coords[0] ) continue;
+    unsigned int const is = ix % T;
+#else
+    unsigned int const is = ix;
+#endif
+    zm4x4_ti_eq_co ( sp[is], w );
   }
   return(0);
 }  /* end of correlator_add_source_phase */
 
-int correlator_spin_projection (double _Complex ***sp_out, double _Complex ***sp_in, int i, int k, double a, double b, unsigned N) {
+int correlator_spin_projection (double _Complex ***sp_out, double _Complex ***sp_in, int const i, int const k, double const a, double const b, unsigned int const N) {
 
   int ik = 4*i+k;
   
@@ -515,7 +575,7 @@ int correlator_spin_projection (double _Complex ***sp_out, double _Complex ***sp
 /***********************************************
  *
  ***********************************************/
-int correlator_spin_parity_projection (double _Complex ***sp_out, double _Complex ***sp_in, double c, unsigned N) {
+int correlator_spin_parity_projection (double _Complex ***sp_out, double _Complex ***sp_in, double const c, unsigned int const N) {
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
@@ -526,16 +586,22 @@ int correlator_spin_parity_projection (double _Complex ***sp_out, double _Comple
   return(0);
 }  /* end of correlator_spin_parity_projection */
 
+/***********************************************/
+/***********************************************/
+
 /***********************************************
  *
  ***********************************************/
-int reorder_to_absolute_time (double _Complex ***sp_out, double _Complex ***sp_in, int tsrc, int dir, unsigned N) {
+int reorder_to_absolute_time (double _Complex ***sp_out, double _Complex ***sp_in, int const tsrc, int const dir, unsigned int const N) {
 
   int exitstatus;
   double _Complex ***buffer = NULL;
 
-  if ( dir == 0 && sp_out != sp_in ) {
-    memcpy( sp_out[0][0], sp_in[0][0],  N*16*sizeof(double _Complex) );
+  if ( dir == 0 ) {
+    // nothing to be done except if sp_out and sp_in are not the same fields in memory
+    if ( sp_out != sp_in ) {
+      memcpy( sp_out[0][0], sp_in[0][0],  N*16*sizeof(double _Complex) );
+    }
     return(0);
   }
 
@@ -557,10 +623,18 @@ int reorder_to_absolute_time (double _Complex ***sp_out, double _Complex ***sp_i
   return(0);
 }  /* end of reorder_to_absolute_time */
 
+/***********************************************
+ * wrapper for reordering to absolute,
+ * which uses dir = +1
+ ***********************************************/
+int reorder_to_relative_time (double _Complex ***sp_out, double _Complex ***sp_in, int const tsrc, int const dir, unsigned int const N) {
+  return ( reorder_to_absolute_time ( sp_out, sp_in, tsrc, -dir, N) );
+}  /* end of reorder_to_relative_time */
+
 /***********************************************/
 /***********************************************/
 
-int contract_diagram_zmx4x4_field_ti_co_field ( double _Complex ***sp_out, double _Complex ***sp_in, double _Complex *c_in, unsigned int N) {
+int contract_diagram_zm4x4_field_ti_co_field ( double _Complex ***sp_out, double _Complex ***sp_in, double _Complex *c_in, unsigned int N) {
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
@@ -570,17 +644,17 @@ int contract_diagram_zmx4x4_field_ti_co_field ( double _Complex ***sp_out, doubl
 #if 0
     if ( ir == 0 && g_verbose > 3 ) {
       zm4x4_printf ( sp_in[ir], "sp_in", stdout );
-      fprintf(stdout, "# [contract_diagram_zmx4x4_field_ti_co_field] c_in = %25.15e %25.16e\n", creal(c_in[ir]), cimag(c_in[ir]));
+      fprintf(stdout, "# [contract_diagram_zm4x4_field_ti_co_field] c_in = %25.15e %25.16e\n", creal(c_in[ir]), cimag(c_in[ir]));
     }
 #endif  /* of if 0 */
   }
   return(0);
-}  /* end of contract_diagram_zmx4x4_field_ti_co_field */
+}  /* end of contract_diagram_zm4x4_field_ti_co_field */
 
 /***********************************************/
 /***********************************************/
 
-int contract_diagram_zmx4x4_field_eq_zm4x4_field_ti_co ( double _Complex *** const sp_out, double _Complex *** const sp_in, double _Complex const c_in, unsigned int const N) {
+int contract_diagram_zm4x4_field_eq_zm4x4_field_ti_co ( double _Complex *** const sp_out, double _Complex *** const sp_in, double _Complex const c_in, unsigned int const N) {
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
@@ -589,12 +663,12 @@ int contract_diagram_zmx4x4_field_eq_zm4x4_field_ti_co ( double _Complex *** con
     zm4x4_eq_zm4x4_ti_co ( sp_out[ir], sp_in[ir], c_in );
   }
   return(0);
-}  /* end of contract_diagram_zmx4x4_field_eq_zm4x4_field_ti_co */
+}  /* end of contract_diagram_zm4x4_field_eq_zm4x4_field_ti_co */
 
 /***********************************************/
 /***********************************************/
 
-int contract_diagram_zmx4x4_field_ti_eq_co ( double _Complex *** const sp_out, double _Complex const c_in, unsigned int const N) {
+int contract_diagram_zm4x4_field_ti_eq_co ( double _Complex *** const sp_out, double _Complex const c_in, unsigned int const N) {
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
@@ -603,14 +677,14 @@ int contract_diagram_zmx4x4_field_ti_eq_co ( double _Complex *** const sp_out, d
     zm4x4_eq_zm4x4_ti_co ( sp_out[ir], sp_out[ir], c_in );
   }
   return(0);
-}  /* end of contract_diagram_zmx4x4_field_ti_eq_co */
+}  /* end of contract_diagram_zm4x4_field_ti_eq_co */
 
 
 
 /***********************************************/
 /***********************************************/
 
-int contract_diagram_zmx4x4_field_ti_eq_re ( double _Complex *** const sp, double const r_in, unsigned int const N) {
+int contract_diagram_zm4x4_field_ti_eq_re ( double _Complex *** const sp, double const r_in, unsigned int const N) {
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
@@ -619,12 +693,38 @@ int contract_diagram_zmx4x4_field_ti_eq_re ( double _Complex *** const sp, doubl
     zm4x4_ti_eq_re ( sp[ir], r_in );
   }
   return(0);
-}  /* end of contract_diagram_zmx4x4_field_ti_eq_re */
+}  /* end of contract_diagram_zm4x4_field_ti_eq_re */
 
 /***********************************************/
 /***********************************************/
 
+int contract_diagram_zm4x4_field_pl_eq_zm4x4_field ( double _Complex *** const s, double _Complex *** const r, unsigned int const N) {
 
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for( unsigned int ir = 0; ir < N; ir++) {
+    zm4x4_pl_eq_zm4x4 ( s[ir], r[ir] );
+  }
+  return(0);
+}  /* end of contract_diagram_zm4x4_field_pl_eq_zm4x4 */
+
+/***********************************************/
+/***********************************************/
+
+int contract_diagram_zm4x4_field_eq_zm4x4_field_pl_zm4x4_field_ti_co ( double _Complex *** const s, double _Complex *** const r, double _Complex *** const p, double _Complex const z, unsigned int const N) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for( unsigned int ir = 0; ir < N; ir++) {
+    zm4x4_eq_zm4x4_pl_zm4x4_ti_co ( s[ir], r[ir], p[ir], z );
+  }
+  return(0);
+}  /* end of contract_diagram_zm4x4_field_eq_zm4x4_field_pl_zm4x4_field_ti_co */
+
+/***********************************************/
+/***********************************************/
 
 int contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( double _Complex *** const sp_out, double _Complex *** const sp_in, unsigned int const N) {
 
@@ -678,7 +778,7 @@ int contract_diagram_sample (double _Complex ***diagram, double _Complex ***xi, 
   }
 
   /* normalize with 1 / nsample */
-  if ( ( exitstatus = contract_diagram_zmx4x4_field_ti_eq_co ( diagram, znorm, nT ) ) != 0 ) {
+  if ( ( exitstatus = contract_diagram_zm4x4_field_ti_eq_co ( diagram, znorm, nT ) ) != 0 ) {
     fprintf(stderr, "[contract_diagram_sample] Error from contract_diagram_zm4x4_field_ti_eq_co, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     return(4);
   }
@@ -726,6 +826,7 @@ int contract_diagram_sample_oet (double _Complex ***diagram, double _Complex ***
 /***********************************************/
 /***********************************************/
 
+#ifdef HAVE_LHPC_AFF
 /***********************************************
  * write contracted diagram to AFF
  ***********************************************/
@@ -771,6 +872,75 @@ int contract_diagram_write_aff (double _Complex***diagram, struct AffWriter_s*af
   }  /* end of if io_proc == 2 */
   return(0);
 }  /* end of contract_diagram_write_aff */
+#endif  // of if def HAVE_LHPC_AFF
+
+/***********************************************/
+/***********************************************/
+#if 0
+#ifdef HAVE_HDF5
+/***********************************************
+ * write contracted diagram to HDF5
+ ***********************************************/
+int contract_diagram_write_h5 (double _Complex***diagram, hid_t file, hid_t memtype, hid_t filetype, char * tag, int const tstart, int const dt, int const fbwd, int const io_proc ) {
+
+  const unsigned int offset = 16;
+  const size_t bytes = offset * sizeof(double _Complex);
+  const int nt = dt + 1; // tstart + dt
+
+  int exitstatus;
+  double rtime;
+  herr_t status;
+
+  if ( io_proc == 2 ) {
+    rtime = _GET_TIME;
+
+    complex *wbuffer = (complex*)malloc ( nt*16*sizeof(complex) );
+    if ( wbuffer == NULL ) {
+      fprintf(stderr, "[contract_diagram_write_h5] Error from wbuffer %s %d\n", __FILE__, __LINE__);
+     return(1);
+    }
+
+    // extract data for tstart <= t <= tstart + dt
+    for ( int i = 0; i <= dt; i++ ) {
+      int t = ( tstart + i * fbwd  + T_global ) % T_global;
+      memcpy( wbuffer + i*offset, diagram[t][0], bytes );
+    }
+
+    //     hid_t       file, filetype, memtype, strtype, space, dset;
+    // create dataspace
+    int dims[1] = { offset*nt };
+    hid_t space = H5Screate_simple (1, dims, NULL);
+    if ( space < 0 ) {
+      fprintf ( stderr, "# [contract_diagram_write_h5] Error from H5Screate_simple, status was %d %s %d\n", status, __FILE__, __LINE__ );
+      return (2);
+    }
+
+    // create dataset
+    hid_t dset = H5Dcreate ( file, dataset, filetype, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT );
+    if ( dset < 0 ) {
+      fprintf ( stderr, "# [contract_diagram_write_h5] Error from H5Dcreat, status was %d %s %d\n", status, __FILE__, __LINE__ );
+      return (3);
+    }
+
+    // write data to file
+    status = H5Dwrite ( dset, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, wbuffer );
+    if ( status < 0 ) {
+      fprintf ( stderr, "# [contract_diagram_write_h5] Error from H5Dwrite, status was %d %s %d\n", status, __FILE__, __LINE__ );
+      return (4);
+    }
+
+
+    free( wbuffer );
+    status = H5Sclose (space);
+    status = H5Dclose (dset);
+
+    rtime = _GET_TIME - rtime;
+    if (g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [contract_diagram_write_h5] time for contract_diagram_write_h5 = %e seconds %s %d\n", rtime, __FILE__, __LINE__);
+  }  // end of if io_proc == 2
+  return(0);
+}  // end of contract_diagram_write_h5
+#endif  // of if def HAVE_HDF5
+#endif
 
 /***********************************************/
 /***********************************************/
@@ -778,6 +948,7 @@ int contract_diagram_write_aff (double _Complex***diagram, struct AffWriter_s*af
 /***********************************************
  * write contracted scalar diagram to AFF
  ***********************************************/
+#ifdef HAVE_LHPC_AFF
 int contract_diagram_write_scalar_aff (double _Complex*diagram, struct AffWriter_s*affw, char*aff_tag, int const tstart, int const dt, int const fbwd, int const io_proc ) {
 
   const int nt = dt + 1; /* tstart + dt */
@@ -819,6 +990,7 @@ int contract_diagram_write_scalar_aff (double _Complex*diagram, struct AffWriter
   }  /* end of if io_proc == 2 */
   return(0);
 }  // end of contract_diagram_write_scalar_aff
+#endif  /* of HAVE_LHPC_AFF */
 
 /***********************************************/
 /***********************************************/
@@ -832,7 +1004,7 @@ int contract_diagram_write_fp ( double _Complex*** const diagram, FILE *fp, char
   rtime = _GET_TIME;
 
   if ( ( fbwd != 0 ) && ( dt != T_global - 1 ) ) {
-    fprintf ( stderr, "[contract_diagram_write_fp] Error, incompatible dt and fbwd arguments\n", __FILE__, __LINE__ );
+    fprintf ( stderr, "[contract_diagram_write_fp] Error, incompatible dt and fbwd arguments %s %d\n", __FILE__, __LINE__ );
     return(1);
   }
 
@@ -888,6 +1060,7 @@ void printf_data_from_key ( char *key_name, double _Complex **key_data, int cons
 /***********************************************
  * 
  ***********************************************/
+#ifdef HAVE_LHPC_AFF
 int contract_diagram_read_key_qlua ( 
     double _Complex **fac, // output
     char const *prefix,    // key prefix
@@ -995,6 +1168,7 @@ int contract_diagram_read_key_qlua (
 
   return(0);
 }  // end of contract_diagram_read_key_qlua
+#endif  /* end of if def HAVE_LHPC_AFF */
 
 /***********************************************/
 /***********************************************/
@@ -1002,6 +1176,7 @@ int contract_diagram_read_key_qlua (
 /***********************************************
  * 
  ***********************************************/
+#ifdef HAVE_LHPC_AFF
 int contract_diagram_read_oet_key_qlua ( 
     double _Complex ***fac, // output
     char const *prefix,     // key prefix
@@ -1090,13 +1265,15 @@ int contract_diagram_read_oet_key_qlua (
   return(0);
 }  // end of contract_diagram_read_oet_key_qlua
 
+#endif  /* end of if def HAVE_LHPC_AFF */
+
 /***********************************************/
 /***********************************************/
 
 /***********************************************
  *
  ***********************************************/
-int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const pf2[3], int const gf1, int const pf1[3], int const gi2, int const pi2[3], int const gi1, int const pi1[3], int const sx[4] ) {
+int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const pf2[3], int const gf11, int const gf12, int const pf1[3], int const gi2, int const pi2[3], int const gi11, int const gi12, int const pi1[3], int const sx[4]  ) {
 
   char sx_str[40] = "";
   char gf2_str[40] = "";
@@ -1110,13 +1287,23 @@ int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const 
 
   if ( sx != NULL ) { sprintf ( sx_str, "/t%.2dx%.2dy%.2dz%.2d", sx[0], sx[1], sx[2], sx[3] ); }
 
-  if ( gf2 > -1 ) { sprintf( gf2_str, "gf2%.2d", gf2 ); }
+  if ( gf2 > -1 ) { sprintf( gf2_str, "/gf2%.2d", gf2 ); }
 
-  if ( gf1 > -1 ) { sprintf( gf1_str, "/gf1%.2d", gf1 ); }
+  if ( gf11 > -1 ) { 
+    sprintf( gf1_str, "/gf1%.2d", gf11 ); 
+    if ( gf12 > -1 ) { 
+      sprintf( gf1_str, "%s_%.2d", gf1_str, gf12 ); 
+    }
+  }
 
   if ( gi2 > -1 ) { sprintf( gi2_str, "/gi2%.2d", gi2 ); }
 
-  if ( gi1 > -1 ) { sprintf( gi1_str, "/gi1%.2d", gi1 ); }
+  if ( gi11 > -1 ) { 
+    sprintf( gi1_str, "/gi1%.2d", gi11 ); 
+    if ( gi12 > -1 ) { 
+      sprintf( gi1_str, "%s_%.2d", gi1_str, gi12 ); 
+    }
+  }
 
   if ( pf2 != NULL ) { sprintf ( pf2_str, "/pf2x%.2dpf2y%.2dpf2z%.2d", pf2[0], pf2[1], pf2[2] ); }
 
@@ -1137,6 +1324,38 @@ int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const 
 
 }  // end of contract_diagram_key_suffix  
 
+/***********************************************/
+/***********************************************/
+
+/***********************************************
+ * 
+ ***********************************************/
+int contract_diagram_key_suffix_from_type ( char * key_suffix, twopoint_function_type * p ) {
+
+  int exitstatus;
+
+  if ( strcmp( p->type, "mxb-mxb" ) == 0 ) {
+
+    exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
+
+  } else if ( strcmp( p->type, "mxb-b" ) == 0 ) {
+
+    exitstatus = contract_diagram_key_suffix ( key_suffix,     -1,   NULL, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
+
+  } else if ( strcmp( p->type, "b-b" ) == 0 ) {
+
+    exitstatus = contract_diagram_key_suffix ( key_suffix,     -1,   NULL, p->gf1[0], p->gf1[1], p->pf1,      -1,  NULL, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
+
+  } else if ( strcmp( p->type, "m-m" ) == 0 ) {
+
+    exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2,        -1,         -1,  NULL, p->gi2, p->pi2,        -1,        -1,   NULL, p->source_coords );
+
+  } else {
+    fprintf ( stderr, "[contract_diagram_key_suffix_from_type] unknown twopoint_function type %s %s %d\n", p->type, __FILE__, __LINE__ );
+    return( 1 );
+  }
+  return ( 0 );
+}  // end of contract_diagram_key_suffix_from_type
 
 /***********************************************/
 /***********************************************/
@@ -1146,7 +1365,7 @@ int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const 
  ***********************************************/
 int contract_diagram_zm4x4_field_mul_gamma_lr ( double _Complex *** const sp_out, double _Complex *** const sp_in, gamma_matrix_type const gl, gamma_matrix_type const gr, unsigned int const N ) {
 
-  double _Complex ** sp_aux = init_2level_ztable ( 4, 4 );
+  double _Complex *** sp_aux = init_3level_ztable ( N, 4, 4 );
   if ( sp_aux == NULL ) { return(1); }
 
 #ifdef HAVE_OPENMP
@@ -1155,17 +1374,251 @@ int contract_diagram_zm4x4_field_mul_gamma_lr ( double _Complex *** const sp_out
   for ( unsigned int it = 0; it < N; it++ ) {
 
     // sp_aux <- sp_in x Gamma_r
-    zm4x4_eq_zm4x4_ti_zm4x4 ( sp_aux, sp_in[it],  (double _Complex**)gr.m );
+    zm4x4_eq_zm4x4_ti_zm4x4 ( sp_aux[it], sp_in[it],  (double _Complex**)gr.m );
 
     // diagram <- Gamma_f1_1 x diagram_buffer
-    zm4x4_eq_zm4x4_ti_zm4x4 ( sp_out[it], (double _Complex**)gl.m, sp_aux );
+    zm4x4_eq_zm4x4_ti_zm4x4 ( sp_out[it], (double _Complex**)gl.m, sp_aux[it] );
   }
-
-  fini_2level_ztable ( &sp_aux );
+  
+  fini_3level_ztable ( &sp_aux );
 
   return (0);
 }  // end of contract_diagram_zm4x4_field_mul_gamma_lr
 
 /***********************************************/
 /***********************************************/
-}  /* end of namespace cvc */
+
+/********************************************************************************
+ * baryon at source gets (1) from adjoint current construction and -I from 
+ * factor I in C, which comes adjoint
+ ********************************************************************************/
+double _Complex contract_diagram_get_correlator_phase ( char * const type, int const gi11, int const gi12, int const gi2, int const gf11, int const gf12, int const gf2 ) {
+
+  double _Complex zsign = 0.;
+
+  if ( strcmp( type , "b-b" ) == 0 ) {
+    /********************************************************************************
+     * baryon - baryon 2-point function
+     *
+     ********************************************************************************/
+
+    zsign = (double _Complex) ( get_gamma_signs ( "g0d" , gi11 ) * get_gamma_signs ( "g0d" , gi12 ) ) * (-1) * (I) * (-I);
+        // sigma_Cgamma_adj_g0_dagger[p->gi1[0]] * sigma_gamma_adj_g0_dagger[p->gi1[1]] 
+
+  } else if ( strcmp( type , "mxb-b" ) == 0 ) {
+    /********************************************************************************
+     * meson-baryon - baryon 2-point function
+     *
+     * meson-baryon at source
+     *
+     ********************************************************************************/
+
+    int const sigma_gi2 = get_gamma_signs ( "g0d", gi2 );
+
+    zsign = (double _Complex) ( get_gamma_signs ( "g0d" , gi11 ) * get_gamma_signs ( "g0d" , gi12 ) ) * (-1) * (I) * (-I);
+        // sigma_Cgamma_adj_g0_dagger[p->gi1[0]] * sigma_gamma_adj_g0_dagger[p->gi1[1]] * sigma_gamma_adj_g0_dagger[p->gi2] 
+        
+    zsign *= ( sigma_gi2 == -1 ) ? I : 1.;
+
+  } else if ( strcmp( type , "mxb-mxb" ) == 0 ) {
+    /********************************************************************************
+     * meson-baryon - meson-baryon
+     *
+     * at source and sink
+     ********************************************************************************/
+
+    int const sigma_gi2 = get_gamma_signs ( "g0d", gi2 );
+    int const sigma_gf2 = get_gamma_signs ( "g0d", gf2 );
+
+    zsign = (double _Complex) ( get_gamma_signs ( "g0d" , gi11 ) * get_gamma_signs ( "g0d" , gi12 ) ) * (-1) * (I) * (-I);
+        // sigma_Cgamma_adj_g0_dagger[p->gi1[0]] * sigma_gamma_adj_g0_dagger[p->gi1[1]] * sigma_gamma_adj_g0_dagger[p->gi2] 
+        
+    zsign *= ( sigma_gi2 == -1 ) ? I : 1.;
+    zsign *= ( sigma_gf2 == -1 ) ? I : 1.;
+
+  } else if ( strcmp( type , "m-m" ) == 0 ) {
+    /********************************************************************************
+     * meson - meson
+     ********************************************************************************/
+
+    int const sigma_gi2 = get_gamma_signs ( "g0d", gi2 );
+    int const sigma_gf2 = get_gamma_signs ( "g0d", gf2 );
+
+    zsign = ( ( sigma_gi2 == -1 ) ? I : 1 ) * ( ( sigma_gf2 == -1 ) ? I : 1 );
+
+  } else if ( strcmp( type , "mxb-J-b" ) == 0 ) {
+    /********************************************************************************
+     * meson-baryon - current insertion - baryon
+     *
+     * at source and sink
+     ********************************************************************************/
+
+    int const sigma_gi2 = get_gamma_signs ( "g0d", gi2 );
+
+    zsign = (double _Complex) ( get_gamma_signs ( "g0d" , gi11 ) * get_gamma_signs ( "g0d" , gi12 ) ) * (-1) * (I) * (-I);
+
+    zsign *= ( sigma_gi2 == -1 ) ? I : 1.;
+
+  } else if ( strcmp( type , "b-J-b" ) == 0 ) {
+    /********************************************************************************
+     * baryon - current insertion - baryon
+     *
+     * at source and sink
+     ********************************************************************************/
+
+    zsign = (double _Complex) ( get_gamma_signs ( "g0d" , gi11 ) * get_gamma_signs ( "g0d" , gi12 ) ) * (-1) * (I) * (-I);
+
+  }  /* end of if type */
+
+  if (g_verbose > 2) {
+    fprintf(stdout, "# [contract_diagram_get_correlator_phase] gf1 %2d - %2d\n"\
+                    "                                          gf2 %2d\n"\
+                    "                                          gi1 %2d - %2d\n"\
+                    "                                          gi2 %2d\n"\
+                    "                                          phase %3.0f  %3.0f\n",
+        gf11, gf12, gf2, gi11, gi12, gi2, creal(zsign), cimag(zsign) );
+  }
+
+  return( zsign );
+
+}  // end of contract_diagram_get_correlator_phase
+
+/********************************************************************************/
+/********************************************************************************/
+
+/********************************************************************************
+ *  
+ *  safe, if sp_out = sp_in in memory
+ ********************************************************************************/
+void contract_diagram_mat_op_ti_zm4x4_field_ti_mat_op ( double _Complex *** const sp_out, double _Complex ** const R1, char const op1 , double _Complex *** const sp_in, double _Complex ** const R2, char const op2, unsigned int const N ) {
+
+  int const dim = 4;
+
+  double _Complex ** S1 = init_2level_ztable ( dim, dim );
+  double _Complex ** S2 = init_2level_ztable ( dim, dim );
+
+  /* apply op1 to R1 */
+  if ( op1 == 'N' ) {
+    rot_mat_assign ( S1, R1, dim );
+  } else if ( op1 == 'C' ) {
+    rot_mat_conj   ( S1, R1, dim );
+  } else if ( op1 == 'H' ) {
+    rot_mat_adj    ( S1, R1, dim );
+  } else if ( op1 == 'T' ) {
+    rot_mat_trans  ( S1, R1, dim );
+  }
+  /* apply op2 to R2 */
+  if ( op2 == 'N' ) {
+    rot_mat_assign ( S2, R2, dim );
+  } else if ( op2 == 'C' ) {
+    rot_mat_conj   ( S2, R2, dim );
+  } else if ( op2 == 'H' ) {
+    rot_mat_adj    ( S2, R2, dim );
+  } else if ( op2 == 'T' ) {
+    rot_mat_trans  ( S2, R2, dim );
+  }
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel shared ( S1, S2 )
+  {
+#endif
+  double _Complex ** sp_aux = init_2level_ztable ( dim, dim );
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for ( unsigned int it = 0; it < N; it++ ) {
+    /* sp_aux = S1 sp_in = R1^op1 sp_in */
+    rot_mat_ti_mat ( sp_aux,     S1,     sp_in[it], dim );
+    /* sp_out = sp_aux S2 = R1^op1 sp_in R2^op2 */
+    rot_mat_ti_mat ( sp_out[it], sp_aux, S2,        dim );
+  }
+
+  fini_2level_ztable ( &sp_aux );
+#ifdef HAVE_OPENMP
+  }  /* end of parallel region */
+#endif
+
+  fini_2level_ztable ( &S1 );
+  fini_2level_ztable ( &S2 );
+
+}  /* end of contract_diagram_mat_op_ti_zm4x4_field_ti_mat_op */
+
+
+/********************************************************************************/
+/********************************************************************************/
+
+/********************************************************************************
+ *  
+ ********************************************************************************/
+int contract_diagram_finalize ( double _Complex *** const diagram, char * const diagram_type, int const sx[4], int const p[3], 
+    int const gf11_id, int const gf12_id, int const gf12_sign, int const gf2_id,
+    int const gi11_id, int const gi12_id, int const gi12_sign, int const gi2_id,
+    unsigned int const N )
+{
+
+  int exitstatus;
+
+  if ( g_verbose > 4 ) {
+    fprintf ( stdout, "# [contract_diagram_finalize] sx = ( %3d, %3d, %3d, %3d ) p = (%3d, %3d, %3d) gf = (%3d, %3d; %3d) sf12 %2d gi = (%3d, %3d; %3d) si12 %2d \n",
+        sx[0], sx[1], sx[2], sx[3], p[0], p[1], p[2],
+        gf11_id, gf12_id, gf2_id, gf12_sign, gi11_id, gi12_id, gi2_id, gi12_sign );
+  }
+
+
+  /*******************************************
+   * add boundary phase
+   *******************************************/
+  correlator_add_baryon_boundary_phase ( diagram, sx[0], +1, N );
+
+  /*******************************************
+   * add momentum phase at source
+   *******************************************/
+  correlator_add_source_phase ( diagram, p, &(sx[1]), N );
+
+  /*******************************************
+   * add overall phase factor
+   *******************************************/
+  double _Complex const zsign = contract_diagram_get_correlator_phase ( diagram_type, gi11_id, gi12_id, gi2_id, gf11_id, gf12_id, gf2_id );
+
+  contract_diagram_zm4x4_field_ti_eq_co ( diagram, zsign, N );
+
+  /*******************************************
+   * add outer gamma matrices
+   *******************************************/
+  gamma_matrix_type gf12;
+  gamma_matrix_set ( &gf12, gf12_id, gf12_sign );
+
+  gamma_matrix_type gi12;
+  gamma_matrix_set ( &gi12, gi12_id, gi12_sign );
+
+  if ( ( exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( diagram, diagram, gf12, gi12, N ) ) != 0 ) {
+    fprintf( stderr, "[contract_diagram_finalize] Error from contract_diagram_zm4x4_field_mul_gamma_lr, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+
+
+  return(0);
+}  /* end of contract_diagram_finalize */
+
+/********************************************************************************/
+/********************************************************************************/
+
+/********************************************************************************
+ *  
+ ********************************************************************************/
+int contract_diagram_co_eq_tr_zm4x4_field ( double _Complex * const r, double _Complex *** const diagram, unsigned int const N ) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( unsigned int t = 0; t < N; t++ ) {
+
+    co_eq_tr_zm4x4 ( r+t, diagram[t] );
+  }
+  return ( 0 );
+}
+
+/********************************************************************************/
+/********************************************************************************/
+
+}  // end of namespace cvc

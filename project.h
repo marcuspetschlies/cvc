@@ -10,7 +10,10 @@ int project_reduce_from_propagator_field (double *p, double * r, double *V, int 
 
 int project_expand_to_propagator_field(double *s, double *p, double *V, int num1, int num2, unsigned int N);
 int momentum_projection (double*V, double *W, unsigned int nv, int momentum_number, int (*momentum_list)[3]);
-int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_number, int (*momentum_list)[3], int gshift[3]);
+
+/* int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_number, int (*momentum_list)[3], int gshift[3]); */
+int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_number, const int (* const momentum_list)[3], int gshift[3]);
+
 int momentum_projection3 (double*V, double *W, unsigned int nv, int momentum_number, int (*momentum_list)[3]);
 
 void make_lexic_phase_field_3d (double*phase, int *momentum);

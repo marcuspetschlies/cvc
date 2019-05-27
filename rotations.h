@@ -2,26 +2,54 @@
 #define _ROTATIONS_H
 
 #include "ilinalg.h"
+#include "table_init_z.h"
 
 namespace cvc {
 
 typedef struct {
   int n[3];
   double w;
+  double a[3];
+  char name[40];
 } rotation_type; 
+
+/********************************************************/
+/********************************************************/
 
 typedef struct {
   double _Complex **m;
   int d;
 } rotation_matrix_type;
 
+/********************************************************/
+/********************************************************/
+
+/********************************************************
+ *
+ ********************************************************/
+inline double dgeps (double const a, double const eps ) {
+  double t = fabs ( a );
+  return( t > eps ? a : 0. );
+}  // end of dgeps
+
+/********************************************************/
+/********************************************************/
+
 void rot_init_block_params (void);
 
 extern rotation_type cubic_group_double_cover_rotations[48];
+extern rotation_type cubic_group_rotations[24];
+extern rotation_type cubic_group_rotations_v2[24];
+extern int cubic_group_double_cover_identification_table[24][2];
+
 
 void rot_init_rotation_table (void);
 
 long unsigned int factorial (int n);
+
+void rot_mat_unity ( double _Complex **R, int N );
+
+void rot_mat_zero ( double _Complex **R, int N );
 
 void rot_axis2polar ( double*theta, double*phi, int n[3] );
 
@@ -29,25 +57,41 @@ void rot_rotation_matrix_spherical_basis ( double _Complex**R, int J2, int n[3],
 
 void rot_spherical2cartesian_3x3 (double _Complex **C, double _Complex **S);
 
+void rot_cartesian_to_spherical_contravariant_mat (double _Complex ***S, double _Complex ***C, int M, int N );
+
+
 void rot_mat_adj (double _Complex **C, double _Complex **R, int N);
 
-void rot_mat_ti_mat (double _Complex **C, double _Complex **A, double _Complex **B, int N);
+void rot_mat_conj (double _Complex ** const C, double _Complex ** const R, unsigned int const N);
 
-void rot_mat_ti_mat_adj (double _Complex **C, double _Complex **A, double _Complex **B, int N);
+void rot_mat_trans (double _Complex ** const C, double _Complex ** const R, unsigned int const N);
+
+void rot_mat_assign (double _Complex **C, double _Complex **R, int N);
+
+void rot_mat_ti_mat (double _Complex ** const C, double _Complex ** const A, double _Complex ** const B, int const N);
+
+void rot_mat_ti_mat_adj (double _Complex ** const C, double _Complex ** const A, double _Complex ** const B, int const N);
 
 void rot_mat_adj_ti_mat (double _Complex **C, double _Complex **A, double _Complex **B, int N);
 
 void rot_printf_matrix (double _Complex **R, int N, char *A, FILE*ofs );
 
+void rot_printf_matrix_comp (double _Complex **R, double _Complex **S, int N, char *A, FILE*ofs );
+
 double rot_mat_norm2 (double _Complex **R, int N);
 
 int rot_mat_check_is_sun (double _Complex **R, int N);
 
-void rot_point ( int nrot[3], int n[3], double _Complex **R);
+void rot_point ( int nrot[3], int const nn[3], double _Complex ** const R);
 
 void rot_point_inv ( int nrot[3], int n[3], double _Complex **R);
 
 int rot_mat_check_is_real_int (double _Complex **R, int N );
+
+void rot_mat_ti_eq_re (double _Complex **R, double c, int N);
+
+void rot_mat_pl_eq_mat_ti_co (double _Complex ** const R, double _Complex ** const S, double _Complex const c, int const N);
+
 
 void rot_global_point_mod ( int nrot[3], int n[3], double _Complex **R);
 
@@ -65,7 +109,7 @@ void rot_printf_rint_matrix (double _Complex **R, int N, char *A, FILE*ofs );
 
 int rot_spinor_field ( double*sf_rot, double *sf, double _Complex **R);
 
-double _Complex **rot_bispinor_rotation_matrix_spherical_basis ( int n[3], double w );
+int rot_bispinor_rotation_matrix_spherical_basis ( double _Complex **ASpin, int n[3], double w );
 
 void rot_bispinor_mat_ti_spinor_field (double *sf_rot, double _Complex **R, double *sf, unsigned int N);
 
@@ -78,6 +122,62 @@ void rot_spinor_field_ti_bispinor_mat ( double**sf_rot, double _Complex ** R, do
 void rot_bispinor_mat_ti_sp_field ( spinor_propagator_type *sp_rot, double _Complex ** R, spinor_propagator_type *sp, unsigned int N );
 
 void rot_sp_field_ti_bispinor_mat ( spinor_propagator_type *sp_rot, double _Complex ** R, spinor_propagator_type *sp, unsigned int N );
+
+void rot_inversion_matrix_spherical_basis ( double _Complex**R, int J2, int bispinor );
+
+double rot_mat_diff_norm2 (double _Complex **R, double _Complex **S , int N );
+
+double rot_mat_diff_norm (double _Complex **R, double _Complex **S , int N );
+
+void wigner_d (double **wd, double b, int J2 );
+
+int rot_rotation_matrix_spherical_basis_Wigner_D ( double _Complex**R, int J2, double a[3] );
+
+double rot_mat_norm_diff ( double _Complex **R, double _Complex **S, int N );
+
+void rot_mat_get_euler_angles ( double a[3], int n[3], double w );
+ 
+int rot_mat_spin1_cartesian ( double _Complex **R, int n[3], double omega );
+
+void rot_mat_ti_vec (double _Complex * const w, double _Complex ** const A, double _Complex * const v, int const N);
+
+void rot_mat_transpose_ti_vec (double _Complex *w, double _Complex **A, double _Complex *v, int N);
+
+void rot_mat_adjoint_ti_vec (double _Complex *w, double _Complex **A, double _Complex *v, int N);
+
+void rot_vec_pl_eq_rot_vec_ti_co ( double _Complex * const w, double _Complex * const v, double _Complex const c, int const N);
+
+void rot_vec_accum_vec_ti_co_pl_mat_ti_vec_ti_co (double _Complex *w, double _Complex **A, double _Complex *v, double _Complex cv, double _Complex cw, int N);
+
+void rot_vec_accum_vec_ti_co_pl_mat_transpose_ti_vec_ti_co (double _Complex *w, double _Complex **A, double _Complex *v, double _Complex cv, double _Complex cw, int N);
+
+int rot_mat_spin1_2_spherical ( double _Complex **R, int n[3], double omega );
+
+void rot_mat_eq_mat_pl_mat (double _Complex **R, double _Complex **S1, double _Complex **S2, int N);
+
+double _Complex rot_mat_trace ( double _Complex ** const R, int const N );
+
+double _Complex rot_mat_trace_weight_re ( double _Complex ** const R, double * const weight, int const N );
+
+double _Complex co_eq_trace_mat_ti_mat_weight_re ( double _Complex ** const A, double _Complex ** const B, double * const weight, int const num );
+
+double _Complex co_eq_trace_mat_ti_weight_ti_mat_ti_weight_re ( double _Complex ** const A, double * const w1, double _Complex ** const B, double * const w2, int const num );
+
+void rot_vec_pl_eq_vec_ti_co ( double _Complex*v, double _Complex*w, double _Complex c , int N );
+
+void rot_vec_normalize ( double _Complex *v, int N );
+
+void rot_mat_eq_diag_re_ti_mat ( double _Complex **A, double*lambda, double _Complex **B, int num );
+
+void rot_mat_eq_mat_ti_diag_re ( double _Complex **A, double*lambda, double _Complex **B, int num );
+
+void rot_mat_eq_diag_re_ti_mat_ti_diag_re ( double _Complex **A, double*lambda, double _Complex **B, int num );
+
+void rot_vec_eq_mat_diag ( double _Complex *w, double _Complex **A, int num );
+
+void co_pl_eq_mat_diag ( double _Complex * const w, double _Complex ** const A, int num );
+
+void rot_vec_printf (double _Complex * const v, int const N, char *A, FILE*ofs );
 
 /***********************************************************
  * check boundary status of a point
@@ -129,17 +229,16 @@ inline void rot_reduce_point_bnd ( int nred[3], int n[3] ) {
  ***********************************************************/
 inline double _Complex **rot_init_rotation_matrix (int N ) {
 
-  double _Complex **SSpin = NULL;
-  int exitstatus = init_2level_buffer( (double***)&SSpin, N, 2*N );
-  if ( exitstatus != 0 ) {
-    fprintf(stderr, "[rot_bispinor_rotation_matrix_spherical_basis] Error from init_2level_buffer, status was %d\n", exitstatus);
+  double _Complex ** SSpin = init_2level_ztable ( N, N );
+  if ( SSpin == NULL ) {
+    fprintf(stderr, "[rot_init_rotation_matrix] Error from init_2level_ztable %s %d\n", __FILE__, __LINE__);
     return(NULL);
   }
   return(SSpin);
 }  /* end of rot_init_rotation_matrix */
 
 inline double _Complex **rot_fini_rotation_matrix ( double _Complex ***R ) {
-  fini_2level_buffer( (double***)R );
+  fini_2level_ztable ( R );
   return(NULL);
 }  /* end of rot_fini_rotation_matrix */
 
