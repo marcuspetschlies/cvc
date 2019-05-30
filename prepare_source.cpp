@@ -223,7 +223,10 @@ int init_eo_sequential_source(double *s_even, double *s_odd, double *p_even, dou
   const size_t offset = _GSI(VOL3half);
   const size_t bytes  = offset * sizeof(double);
 
-  int i, exitstatus, x0, x1, x2, x3;
+  int i, x0, x1, x2, x3;
+#ifdef HAVE_MPI
+  int exitstatus;
+#endif
   unsigned int ix;
   int source_proc_id = 0;
   double q_phase;
@@ -566,7 +569,7 @@ int init_clover_eo_sequential_source ( double * const s_even, double * const s_o
   const size_t offset = _GSI(VOL3half);
   const size_t sizeof_eo_spinor_field_timeslice  = offset * sizeof(double);
 
-  int i, exitstatus, x0;
+  int i, x0;
 
   /* have seq source timeslice ? */
   const int source_proc_id = ( g_proc_coords[0] == tseq / T ) ? g_cart_id : -1;
