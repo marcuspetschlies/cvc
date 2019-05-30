@@ -7263,4 +7263,90 @@ int check_eigenpairs ( double ** const eo_evecs_field, double ** evecs_eval, uns
 /****************************************************************************/
 /****************************************************************************/
 
+/****************************************************************************
+ * check WI in momentum space
+ ****************************************************************************/
+int check_momentum_space_wi_tpvec ( double *** const hvp , int const pvec[3] ) {
+
+  double const TWO_MPI = 2. * M_PI;
+  double const wi_eps  = 1.e-07;
+
+  for ( int nu = 0; nu < 4; nu++ ) {
+  
+    double ** hvp_p = init_2level_dtable ( T_global, 8 );
+  
+    for ( int mu = 0; mu < 4; mu++ ) {
+  
+      /* FT t -> k */
+      for ( int ik = 0; ik < T_global; ik++ ) {
+  
+        double const p0 = TWO_MPI * ik / T_global;
+
+        for ( int it = 0; it  < T; it++ ) {
+          /* double const phase = p0 * ( it + ( (mu==0) - (nu==0) ) * 0.5 ); */
+          double const phase = p0 * ( it + ( (mu==0) ) * 0.5 );
+  
+          double const cphase = cos ( phase );
+          double const sphase = sin ( phase );
+ 
+          double a[2] = { hvp[mu][nu][2*it  ], hvp[mu][nu][2*it+1] };
+  
+          double const b[2] = { cphase, sphase };
+  
+          hvp_p[ik][2*mu  ] += a[0] * b[0] - a[1] * b[1];
+          hvp_p[ik][2*mu+1] += a[0] * b[1] + a[1] * b[0];
+        }  /* end of loop on timeslices */
+  
+      }  /* end of loop on momentum component 0 */
+  
+    }  /* end of loop on mu */
+  
+    for ( int ik = 0; ik < T_global; ik++ ) {
+      double const sinph[4] = {
+        2. * sin ( ik * M_PI / T_global ),
+        2. * sin ( pvec[0] * M_PI / LX_global ),
+        2. * sin ( pvec[1] * M_PI / LY_global ),
+        2. * sin ( pvec[2] * M_PI / LZ_global ) };
+  
+      double const avabsre =  0.25 * ( fabs( hvp_p[ik][0] ) + fabs( hvp_p[ik][2] ) + fabs( hvp_p[ik][4] ) + fabs( hvp_p[ik][6] ) );
+      double const avabsim =  0.25 * ( fabs( hvp_p[ik][1] ) + fabs( hvp_p[ik][3] ) + fabs( hvp_p[ik][5] ) + fabs( hvp_p[ik][7] ) );
+
+      double const absnormre =  
+        sinph[0] * hvp_p[ik][0] +
+        sinph[1] * hvp_p[ik][2] +
+        sinph[2] * hvp_p[ik][4] +
+        sinph[3] * hvp_p[ik][6];
+  
+      double const absnormim =
+        sinph[0] * hvp_p[ik][1] +
+        sinph[1] * hvp_p[ik][3] +
+        sinph[2] * hvp_p[ik][5] +
+        sinph[3] * hvp_p[ik][7];
+  
+      double const relnormre = absnormre / avabsre;
+      double const relnormim = absnormim / avabsim;
+
+      int okay = ( fabs(relnormre) < wi_eps && fabs(relnormim) < wi_eps ) ? 1 : 0;
+
+      fprintf ( stdout, "# [check_momentum_space_wi_tpvec] %d p %3d %3d %3d %3d %12.4e %12.4e  %12.4e %12.4e  ok %d\n", nu, ik,
+          pvec[0], pvec[1], pvec[2], absnormre, absnormim, relnormre, relnormim, okay );
+ 
+    /* 
+      if ( !okay ) {
+        fprintf ( stderr, "[check_momentum_space_wi_tpvec] Error in momentum space WI %s %d\n", __FILE__, __LINE__ );
+        return(2);
+      }
+      */
+    }  /* end of loop on momentum component 0 */
+  
+    fini_2level_dtable ( &hvp_p );
+  
+  }  /* end of loop on nu */
+
+  return(0);
+}  /* end of check_momentum_space_wi_tpvec */
+
+
+/****************************************************************************/
+/****************************************************************************/
 }  /* end of namespace cvc */
