@@ -1020,6 +1020,28 @@ int point_to_all_fermion_propagator_clover_full2eo ( double **eo_spinor_field_e,
       fprintf(stderr, "[point_to_all_fermion_propagator_clover_full2eo] Error from tmLQCD_invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(19);
     }
+
+    if ( g_write_propagator ) {
+      char filename[400];
+      if ( op_id == 0 ) {
+        sprintf(filename, "%s.%.4d.t%dx%dy%dz%d.%d.inverted", filename_prefix, Nconf,
+           global_source_coords[0],
+           global_source_coords[1],
+           global_source_coords[2],
+           global_source_coords[3], i );
+      } else if ( op_id == 1 ) {
+        sprintf(filename, "%s.%.4d.t%dx%dy%dz%d.%d.inverted", filename_prefix2, Nconf, 
+           global_source_coords[0],
+           global_source_coords[1],
+           global_source_coords[2],
+           global_source_coords[3], i );
+      }
+      if ( ( exitstatus = write_propagator( spinor_work[1], filename, 0, g_propagator_precision) ) != 0 ) {
+        fprintf(stderr, "[point_to_all_fermion_propagator_clover_full2eo] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(2);
+      }
+    }
+
     spinor_field_lexic2eo ( spinor_work[1], eo_spinor_field_e[i], eo_spinor_field_o[i] );
 
   }  /* end of loop on spin-color */
