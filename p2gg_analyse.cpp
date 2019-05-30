@@ -333,6 +333,8 @@ int main(int argc, char **argv) {
 
         } else if ( operator_type == 1 ) {
 
+          gettimeofday ( &ta, (struct timezone *)NULL );
+
           for( int mu = 0; mu < 4; mu++) {
           for( int nu = 0; nu < 4; nu++) {
             sprintf ( key , "/%s/%s/t%.2dx%.2dy%.2dz%.2d/gf%.2d/gi%.2d/px%dpy%dpz%d", correlator_prefix, flavor_tag,
@@ -348,6 +350,8 @@ int main(int argc, char **argv) {
             }
           }}
 
+          gettimeofday ( &tb, (struct timezone *)NULL );
+          show_time ( &ta, &tb, "p2gg_analyse", "read-ll-tensor-aff", g_cart_id == 0 );
         }  /* end of if operator_type */
 
         /**********************************************************
@@ -358,9 +362,9 @@ int main(int argc, char **argv) {
 
           double const p[4] = {
               0., 
-              TWO_MPI * sink_momentum[0] / LX_global,
-              TWO_MPI * sink_momentum[1] / LY_global,
-              TWO_MPI * sink_momentum[2] / LZ_global };
+              TWO_MPI * (double)sink_momentum[0] / (double)LX_global,
+              TWO_MPI * (double)sink_momentum[1] / (double)LY_global,
+              TWO_MPI * (double)sink_momentum[2] / (double)LZ_global };
 
           double phase = 0.;
           if ( operator_type == 0 ) {
@@ -404,6 +408,8 @@ int main(int argc, char **argv) {
    * show all data
    ****************************************/
   if ( g_verbose > 5 ) {
+    gettimeofday ( &ta, (struct timezone *)NULL );
+
     for ( int iconf = 0; iconf < num_conf; iconf++ )
     {
       for( int isrc = 0; isrc < num_src_per_conf; isrc++ )
@@ -420,6 +426,8 @@ int main(int argc, char **argv) {
         }
       }
     }
+    gettimeofday ( &tb, (struct timezone *)NULL );
+    show_time ( &ta, &tb, "p2gg_analyse", "show-all-data", g_cart_id == 0 );
   }
 
   /****************************************
@@ -463,6 +471,7 @@ int main(int argc, char **argv) {
 
     for( int nu = 0; nu < 4; nu++)
     {
+      gettimeofday ( &ta, (struct timezone *)NULL );
 
       int const nT = fold_correlator ? T_global / 2 + 1 : T_global ;
 
@@ -546,6 +555,8 @@ int main(int argc, char **argv) {
       fini_3level_dtable ( &res );
       fini_3level_dtable ( &data );
 
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "p2gg_analyse", "uwerr-analysis-rein", g_cart_id == 0 );
     }}  /* end of loop on nu, mu */
 
   }  /* end of loop on momenta */
@@ -617,6 +628,8 @@ int main(int argc, char **argv) {
             /***********************************************
              * reader for aff input file
              ***********************************************/
+            gettimeofday ( &ta, (struct timezone *)NULL );
+
             struct AffNode_s *affn = NULL, *affdir = NULL;
       
             sprintf ( filename, "%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", Nconf, g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
@@ -632,6 +645,9 @@ int main(int argc, char **argv) {
               fprintf(stderr, "[p2gg_analyse] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
               return(103);
             }
+          
+            gettimeofday ( &tb, (struct timezone *)NULL );
+            show_time ( &ta, &tb, "p2gg_analyse", "open-init-aff-reader", g_cart_id == 0 );
 #endif
             /**********************************************************
              * read the contact term
@@ -640,7 +656,9 @@ int main(int argc, char **argv) {
              { {0,0}, {0,0}, {0,0}, {0,0} },
              { {0,0}, {0,0}, {0,0}, {0,0} } };
 
-            if ( correlator_type == 0 ) {
+            if ( operator_type == 0 ) {
+              gettimeofday ( &ta, (struct timezone *)NULL );
+
               for ( int iflavor = 0; iflavor <= 1; iflavor++ ) {
 
                 int const flavor_id = 1 - 2 * iflavor;
@@ -668,7 +686,17 @@ int main(int argc, char **argv) {
 
                 }  /* end of loop on mu */
               }  /* end of loop on flavor id */
-            }  /* end of if correlator_type == 0 */
+              gettimeofday ( &tb, (struct timezone *)NULL );
+              show_time ( &ta, &tb, "p2gg_analyse", "read-contact-term-aff", g_cart_id == 0 );
+            }  /* end of if operator_type == 0 */
+
+            if ( g_verbose > 2 ) {
+              fprintf ( stdout, "# [p2gg_analyse] conf %6d src %3d %3d %3d %3d contact term\n", Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+              for ( int mu = 0; mu < 4; mu++ ) {
+                fprintf ( stdout, "    %d   %25.61e %25.16e   %25.61e %25.16e\n", 0,
+                    contact_term[0][mu][0], contact_term[0][mu][1], contact_term[1][mu][0], contact_term[1][mu][1] );
+              }
+            }
 
             /**********************************************************
              * loop on momenta
@@ -690,8 +718,10 @@ int main(int argc, char **argv) {
 
                 int const flavor_id = 1 - 2 * iflavor;
 
-                if ( correlator_type == 0 ) {
-      
+                if ( operator_type == 0 ) {
+
+                  gettimeofday ( &ta, (struct timezone *)NULL );
+
                   sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d/px%.2dpy%.2dpz%.2d", correlator_prefix,
                       gsx[0], gsx[1], gsx[2], gsx[3],
                       flavor_id * seq_source_momentum[0],
@@ -713,8 +743,14 @@ int main(int argc, char **argv) {
                     EXIT(105);
                   }
 
-                } else if ( correlator_type == 1 ) {
+                  gettimeofday ( &tb, (struct timezone *)NULL );
+                  show_time ( &ta, &tb, "p2gg_analyse", "read-pgg-tensor-aff", g_cart_id == 0 );
 
+                } else if ( operator_type == 1 ) {
+
+                  gettimeofday ( &tb, (struct timezone *)NULL );
+                  
+                  show_time ( &ta, &tb, "p2gg_analyse", "read-pgg-tensor-aff", g_cart_id == 0 );
                   for ( int mu = 0; mu < 4; mu++ ) {
                   for ( int nu = 0; nu < 4; nu++ ) {
                     sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d/gf%.2d/gi%.2d/px%dpy%dpz%d", correlator_prefix,
@@ -740,7 +776,9 @@ int main(int argc, char **argv) {
                     }
                   }}
 
-                }  /* end of if correlator_type */
+                  gettimeofday ( &tb, (struct timezone *)NULL );
+                  show_time ( &ta, &tb, "p2gg_analyse", "read-pgg-tensor-components-aff", g_cart_id == 0 );
+                }  /* end of if operator_type */
 
               }  /* end of loop on flavors */
 
@@ -748,32 +786,46 @@ int main(int argc, char **argv) {
                * loop on shifts in directions mu, nu
                **********************************************************/
               for( int mu = 0; mu < 4; mu++) {
-              for( int nu = 0; nu < 4; nu++) {
+               for( int nu = 0; nu < 4; nu++) {
       
                 double const p[4] = { 0., 
-                    TWO_MPI * sink_momentum[0] / LX_global,
-                    TWO_MPI * sink_momentum[1] / LY_global,
-                    TWO_MPI * sink_momentum[2] / LZ_global };
+                    TWO_MPI * (double)sink_momentum[0] / (double)LX_global,
+                    TWO_MPI * (double)sink_momentum[1] / (double)LY_global,
+                    TWO_MPI * (double)sink_momentum[2] / (double)LZ_global };
+
+                if (g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse] p = %25.16e %25.16e %25.16e %25.16e\n", p[0], p[1], p[2], p[3] ); 
 
                 double const q[4] = { 0., 
-                    TWO_MPI * seq_source_momentum[0] / LX_global,
-                    TWO_MPI * seq_source_momentum[1] / LY_global,
-                    TWO_MPI * seq_source_momentum[2] / LZ_global };
+                    TWO_MPI * (double)seq_source_momentum[0] / (double)LX_global,
+                    TWO_MPI * (double)seq_source_momentum[1] / (double)LY_global,
+                    TWO_MPI * (double)seq_source_momentum[2] / (double)LZ_global };
+                
+                if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse] q = %25.16e %25.16e %25.16e %25.16e\n", q[0], q[1], q[2], q[3] ); 
       
-                double const p_phase = 0., q_phase = 0.;
+                double p_phase = 0., q_phase = 0.;
 
-                if ( correlator_type == 0 ) {
+                if ( operator_type == 0 ) {
                   /*                     p_src^nu x_src^nu                                                   + 1/2 p_snk^mu - 1/2 p_snk^nu */
-                  double const p_phase = -( p[0] * gsx[0] + p[1] * gsx[1] + p[2] * gsx[2] + p[3] * gsx[3] ) + 0.5 * ( p[mu] - p[nu] );
-                  double const q_phase = -( q[0] * gsx[0] + q[1] * gsx[1] + q[2] * gsx[2] + q[3] * gsx[3] ) + 0.5 * (       - q[nu] );
-                } else if ( correlator_type == 1 ) {
-                  double const p_phase = -( p[0] * gsx[0] + p[1] * gsx[1] + p[2] * gsx[2] + p[3] * gsx[3] );
-                  double const q_phase = -( q[0] * gsx[0] + q[1] * gsx[1] + q[2] * gsx[2] + q[3] * gsx[3] );
+                  p_phase = -( p[0] * gsx[0] + p[1] * gsx[1] + p[2] * gsx[2] + p[3] * gsx[3] ) + 0.5 * ( p[mu] - p[nu] );
+                  q_phase = -( q[0] * gsx[0] + q[1] * gsx[1] + q[2] * gsx[2] + q[3] * gsx[3] ) + 0.5 * (       - q[nu] );
+                } else if ( operator_type == 1 ) {
+                  p_phase = -( p[0] * gsx[0] + p[1] * gsx[1] + p[2] * gsx[2] + p[3] * gsx[3] );
+                  q_phase = -( q[0] * gsx[0] + q[1] * gsx[1] + q[2] * gsx[2] + q[3] * gsx[3] );
                 }
 
                 double _Complex const p_ephase = cexp ( p_phase * I );
                 double _Complex const q_ephase = cexp ( q_phase * I );
       
+                if ( g_verbose > 2 ) {
+                  fprintf ( stdout, "# [p2gg_analyse] p %3d %3d %3d x %3d %3d %3d %3d p_phase %25.16e p_ephase %25.16e %25.16e\n",
+                      sink_momentum[0], sink_momentum[1], sink_momentum[2], 
+                      gsx[0], gsx[1], gsx[2], gsx[3], p_phase, creal( p_ephase ), cimag( p_ephase ) );
+                  
+                  fprintf ( stdout, "# [p2gg_analyse] q %3d %3d %3d x %3d %3d %3d %3d q_phase %25.16e q_ephase %25.16e %25.16e\n",
+                      sink_momentum[0], sink_momentum[1], sink_momentum[2], 
+                      gsx[0], gsx[1], gsx[2], gsx[3], q_phase, creal( q_ephase ), cimag( q_ephase ) );
+                      
+                }
       
                 /**********************************************************
                  * sort data from buffer into pgg,
@@ -835,6 +887,8 @@ int main(int argc, char **argv) {
          * show all data
          ****************************************/
         if ( g_verbose > 5 ) {
+          gettimeofday ( &ta, (struct timezone *)NULL );
+
           for ( int iconf = 0; iconf < num_conf; iconf++ )
           {
             for( int isrc = 0; isrc < num_src_per_conf; isrc++ )
@@ -851,6 +905,8 @@ int main(int argc, char **argv) {
               }
             }
           }
+          gettimeofday ( &tb, (struct timezone *)NULL );
+          show_time ( &ta, &tb, "p2gg_analyse", "show-all-data", g_cart_id == 0 );
         }
 
         /****************************************
@@ -898,6 +954,8 @@ int main(int argc, char **argv) {
           for( int nu = 0; nu < 4; nu++)
           {
       
+            gettimeofday ( &ta, (struct timezone *)NULL );
+
             int const nT = fold_correlator ? T_global / 2 + 1 : T_global ;
       
             double *** data = init_3level_dtable ( num_conf, num_src_per_conf, 2 * nT );
@@ -986,6 +1044,8 @@ int main(int argc, char **argv) {
             fini_3level_dtable ( &res );
             fini_3level_dtable ( &data );
       
+            gettimeofday ( &tb, (struct timezone *)NULL );
+            show_time ( &ta, &tb, "p2gg_analyse", "uwerr-analysis-reim", g_cart_id == 0 );
           }}  /* end of loop on nu, mu */
       
         }  /* end of loop on momenta */
