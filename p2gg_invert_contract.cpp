@@ -95,7 +95,6 @@ int main(int argc, char **argv) {
   size_t sizeof_eo_spinor_field;
   size_t sizeof_spinor_field;
   double **eo_spinor_field=NULL, **eo_spinor_work=NULL;
-  double contact_term[2][8];
   char filename[100];
   // double ratime, retime;
   double **mzz[2] = { NULL, NULL }, **mzzinv[2] = { NULL, NULL };

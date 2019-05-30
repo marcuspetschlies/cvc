@@ -690,11 +690,13 @@ int main(int argc, char **argv) {
           /***************************************************************************/
           /***************************************************************************/
 
-#if 0
+
+
           /* subtract contact term
            *   contact term is stored; DO NOT subtract here
            */
           cvc_tensor_eo_subtract_contact_term (cvc_tensor_eo, contact_term[0], gsx, (int)( source_proc_id == g_cart_id ) );
+#if 0
 #endif  /* of if 0 */
 
           /* momentum projections */
