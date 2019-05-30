@@ -378,7 +378,7 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * local - local 2-point u-u
      ***************************************************************************/
-    sprintf(aff_tag, "/twopt/l+l+/t%dx%dy%dz%d", gsx[0], gsx[1], gsx[2], gsx[3] );
+    sprintf(aff_tag, "/twopt/lp-gf-lp-gi/t%dx%dy%dz%d", gsx[0], gsx[1], gsx[2], gsx[3] );
     exitstatus = contract_local_local_2pt_eo (
        &(eo_spinor_field[24]), &(eo_spinor_field[36]),
        &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
@@ -394,7 +394,7 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * local - local 2-point d-u
      ***************************************************************************/
-    sprintf(aff_tag, "/twopt/l-l+/t%dx%dy%dz%d", gsx[0], gsx[1], gsx[2], gsx[3] );
+    sprintf(aff_tag, "/twopt/lm-gf-lp-gi/t%dx%dy%dz%d", gsx[0], gsx[1], gsx[2], gsx[3] );
     exitstatus = contract_local_local_2pt_eo (
        &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
        &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
@@ -510,7 +510,7 @@ int main(int argc, char **argv) {
       /***************************************************************************
        * local - local 2-point s+ - u
        ***************************************************************************/
-      sprintf(aff_tag, "/twopt/s+u+/t%dx%dy%dz%d/m%10.8f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass] );
+      sprintf(aff_tag, "/twopt/sp-gf-lp-gi/t%dx%dy%dz%d/m%10.8f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass] );
       exitstatus = contract_local_local_2pt_eo (
          &(eo_spinor_field[72]), &(eo_spinor_field[84]),
          &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
@@ -526,7 +526,7 @@ int main(int argc, char **argv) {
       /***************************************************************************
        * local - local 2-point s- - u
        ***************************************************************************/
-      sprintf(aff_tag, "/twopt/s-l+/t%dx%dy%dz%d/m%10.8f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass] );
+      sprintf(aff_tag, "/twopt/sm-gf-lp-gi/t%dx%dy%dz%d/m%10.8f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass] );
       exitstatus = contract_local_local_2pt_eo (
          &(eo_spinor_field[60]), &(eo_spinor_field[72]),
          &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
@@ -542,7 +542,7 @@ int main(int argc, char **argv) {
       /***************************************************************************
        * local - local 2-point s- - s+
        ***************************************************************************/
-      sprintf(aff_tag, "/twopt/s-s+/t%dx%dy%dz%d/m%10.8f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass] );
+      sprintf(aff_tag, "/twopt/sm-gf-sp-gi/t%dx%dy%dz%d/m%10.8f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass] );
       exitstatus = contract_local_local_2pt_eo (
          &(eo_spinor_field[48]), &(eo_spinor_field[60]),
          &(eo_spinor_field[48]), &(eo_spinor_field[60]),
@@ -558,7 +558,7 @@ int main(int argc, char **argv) {
       /***************************************************************************
        * local - local 2-point s+ - s+
        ***************************************************************************/
-      sprintf(aff_tag, "/twopt/s+s+/t%dx%dy%dz%d/m%10.8f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass] );
+      sprintf(aff_tag, "/twopt/sp-gf-sp-gi/t%dx%dy%dz%d/m%10.8f", gsx[0], gsx[1], gsx[2], gsx[3], g_twisted_masses_list[imass] );
       exitstatus = contract_local_local_2pt_eo (
          &(eo_spinor_field[72]), &(eo_spinor_field[84]),
          &(eo_spinor_field[48]), &(eo_spinor_field[60]),
