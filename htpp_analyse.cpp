@@ -383,10 +383,6 @@ int main(int argc, char **argv) {
 
           }  /* end of loop on coherent sources */
 
-#if 0
-#endif  /* of if 0 */
-
-
 #ifdef HAVE_LHPC_AFF
           aff_reader_close ( affr );
 #endif
@@ -394,6 +390,8 @@ int main(int argc, char **argv) {
 
       }  /* end of loop on configs */
       
+
+#if 0
 
       /***************************************************************************
        ***************************************************************************
@@ -452,7 +450,7 @@ int main(int argc, char **argv) {
     
       fclose( uwerr_ofs );
       fini_3level_dtable ( &res );
-#if 0
+
 #endif  /* of if 0 */
       /***************************************************************************/
       /***************************************************************************/
