@@ -229,6 +229,7 @@ int main(int argc, char **argv) {
     }
   }
 
+
   /***********************************************************
    ***********************************************************
    **
@@ -565,10 +566,8 @@ int main(int argc, char **argv) {
    * free hvp field
    **********************************************************/
   fini_6level_dtable ( &hvp );
-
 #if 0
 #endif  /* of if 0  */
-
 
   /**********************************************************
    **********************************************************
@@ -659,7 +658,8 @@ int main(int argc, char **argv) {
             if ( operator_type == 0 ) {
               gettimeofday ( &ta, (struct timezone *)NULL );
 
-              for ( int iflavor = 0; iflavor <= 1; iflavor++ ) {
+              for ( int iflavor = 0; iflavor <= 1; iflavor++ )
+              {
 
                 int const flavor_id = 1 - 2 * iflavor;
 
@@ -690,7 +690,7 @@ int main(int argc, char **argv) {
               show_time ( &ta, &tb, "p2gg_analyse", "read-contact-term-aff", g_cart_id == 0 );
             }  /* end of if operator_type == 0 */
 
-            if ( g_verbose > 2 ) {
+            if ( g_verbose > 4 ) {
               fprintf ( stdout, "# [p2gg_analyse] conf %6d src %3d %3d %3d %3d contact term\n", Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
               for ( int mu = 0; mu < 4; mu++ ) {
                 fprintf ( stdout, "    %d   %25.61e %25.16e   %25.61e %25.16e\n", 0,
@@ -714,7 +714,8 @@ int main(int argc, char **argv) {
                 EXIT(15);
               }
       
-              for ( int iflavor = 0; iflavor <= 1; iflavor++ ) {
+              for ( int iflavor = 0; iflavor <= 1; iflavor++ )
+              {
 
                 int const flavor_id = 1 - 2 * iflavor;
 
@@ -793,14 +794,14 @@ int main(int argc, char **argv) {
                     TWO_MPI * (double)sink_momentum[1] / (double)LY_global,
                     TWO_MPI * (double)sink_momentum[2] / (double)LZ_global };
 
-                if (g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse] p = %25.16e %25.16e %25.16e %25.16e\n", p[0], p[1], p[2], p[3] ); 
+                if (g_verbose > 4 ) fprintf ( stdout, "# [p2gg_analyse] p = %25.16e %25.16e %25.16e %25.16e\n", p[0], p[1], p[2], p[3] ); 
 
                 double const q[4] = { 0., 
                     TWO_MPI * (double)seq_source_momentum[0] / (double)LX_global,
                     TWO_MPI * (double)seq_source_momentum[1] / (double)LY_global,
                     TWO_MPI * (double)seq_source_momentum[2] / (double)LZ_global };
                 
-                if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse] q = %25.16e %25.16e %25.16e %25.16e\n", q[0], q[1], q[2], q[3] ); 
+                if ( g_verbose > 4 ) fprintf ( stdout, "# [p2gg_analyse] q = %25.16e %25.16e %25.16e %25.16e\n", q[0], q[1], q[2], q[3] ); 
       
                 double p_phase = 0., q_phase = 0.;
 
@@ -816,7 +817,7 @@ int main(int argc, char **argv) {
                 double _Complex const p_ephase = cexp ( p_phase * I );
                 double _Complex const q_ephase = cexp ( q_phase * I );
       
-                if ( g_verbose > 2 ) {
+                if ( g_verbose > 4 ) {
                   fprintf ( stdout, "# [p2gg_analyse] p %3d %3d %3d x %3d %3d %3d %3d p_phase %25.16e p_ephase %25.16e %25.16e\n",
                       sink_momentum[0], sink_momentum[1], sink_momentum[2], 
                       gsx[0], gsx[1], gsx[2], gsx[3], p_phase, creal( p_ephase ), cimag( p_ephase ) );
