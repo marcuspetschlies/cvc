@@ -178,6 +178,45 @@ int main(int argc, char **argv) {
     fclose ( ofs );
 
     fini_1level_dtable ( &spinor_field );
+  } else if ( strcmp ( limefile_type, "GaugeField" ) == 0 ) {
+    g_gauge_field = init_1level_dtable ( 72*VOLUME );
+    exitstatus = read_lime_gauge_field_doubleprec ( limefile_name );
+
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[lime2ascii] Error from read_lime_gauge_field_doubleprec, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(2);
+    }
+
+    sprintf ( filename,"%s.ascii", limefile_name );
+    FILE * ofs = fopen ( filename, "w" );
+/*
+    exitstatus = printf_gauge_field( g_gauge_field, ofs );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[lime2ascii] Error from printf_gauge_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(2);
+    }
+*/
+    for ( int x0 = 0; x0 < T; x0++ ) {
+    for ( int x1 = 0; x1 < LX; x1++ ) {
+    for ( int x2 = 0; x2 < LY; x2++ ) {
+    for ( int x3 = 0; x3 < LZ; x3++ ) {
+      unsigned int const ix = g_ipt[x0][x1][x2][x3];
+
+      for ( int mu = 0; mu < 4; mu++ ) {
+        fprintf ( ofs, "# [lime2ascii] x %3d %3d %3d %3d mu %2d\n", x0, x1, x2, x3, mu );
+
+        unsigned int const iy = _GGI(ix,mu);
+        for ( int a = 0; a < 3; a++ ) {
+        for ( int b = 0; b < 3; b++ ) {
+          fprintf ( ofs, "  %3d %3d   %25.16e  %25.16e\n", a, b, g_gauge_field[iy+2*(3*a+b)], g_gauge_field[iy+2*(3*a+b)+1] );
+        }}
+      }
+    }}}}
+
+    fclose ( ofs );
+
+    fini_1level_dtable ( &g_gauge_field );
+
   }
 
   free_geometry();
