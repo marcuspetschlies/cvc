@@ -364,6 +364,9 @@ int main(int argc, char **argv) {
                 gamma_f1_list[if1], gamma_f1_list[if2], diagram_name,
                 tp.pf1[0], tp.pf1[1], tp.pf1[2] );
 
+            if ( g_verbose > 2 ) fprintf ( stdout, "# [twopt_analyse] aff_tag = %s\n", aff_tag );
+            fflush ( stdout );
+
             exitstatus = read_aff_contraction ( (void*)(tp.c[idiag][0][0]), affr, NULL, aff_tag, T*16 );
             if(exitstatus != 0) {
               fprintf(stderr, "[twopt_analyse] Error from read_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
