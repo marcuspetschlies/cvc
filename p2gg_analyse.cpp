@@ -693,7 +693,7 @@ int main(int argc, char **argv) {
             if ( g_verbose > 4 ) {
               fprintf ( stdout, "# [p2gg_analyse] conf %6d src %3d %3d %3d %3d contact term\n", Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
               for ( int mu = 0; mu < 4; mu++ ) {
-                fprintf ( stdout, "    %d   %25.61e %25.16e   %25.61e %25.16e\n", 0,
+                fprintf ( stdout, "    %d   %25.16e %25.16e   %25.16e %25.16e\n", 0,
                     contact_term[0][mu][0], contact_term[0][mu][1], contact_term[1][mu][0], contact_term[1][mu][1] );
               }
             }
