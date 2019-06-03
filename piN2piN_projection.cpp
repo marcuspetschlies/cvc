@@ -14,6 +14,7 @@
 #include <complex.h>
 #include <math.h>
 #include <time.h>
+#include <sys/time.h>
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
@@ -86,11 +87,14 @@ int main(int argc, char **argv) {
   char filename[200];
   double ratime, retime;
   FILE *ofs = NULL;
+  struct 
 
   int udli_count = 0;
   char udli_list[MAX_UDLI_NUM][500];
   char udli_name[500];
   twopoint_function_type *udli_ptr[MAX_UDLI_NUM];
+
+  struct timeval ta, tb;
 
   /***********************************************************
    * set Cg basis projection coefficients
@@ -235,12 +239,15 @@ int main(int argc, char **argv) {
     /****************************************************
      * read little group parameters
      ****************************************************/
+    gettimeofday ( &ta, (struct timezone *)NULL );
     little_group_type little_group;
     if ( ( exitstatus = little_group_read ( &little_group, g_twopoint_function_list[i2pt].group, little_group_list_filename ) ) != 0 ) {
       fprintf ( stderr, "[piN2piN_projection] Error from little_group_read, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(2);
     }
-    
+    gettimeofday ( &tb, (struct timezone *)NULL );
+    show_time ( &ta, &tb, "piN2piN_projection", "little_group_read", g_cart_id == 0 );
+
     sprintf ( filename, "little_group_%d.show", i2pt );
     if ( ( ofs = fopen ( filename, "w" ) ) == NULL ) {
       fprintf ( stderr, "[piN2piN_projection] Error from fopen %s %d\n", __FILE__, __LINE__ );
