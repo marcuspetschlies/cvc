@@ -695,6 +695,14 @@ int main(int argc, char **argv) {
           /* subtract contact term
            *   contact term is stored; DO NOT subtract here
            */
+          if ( g_cart_id == 0 ) {
+            fprintf ( stdout, "# [p2gg_contract] p2gg subtract contact term %s %d\n", __FILE__, __LINE__ );
+          }
+          fflush ( stdout );
+#ifdef HAVE_MPI
+          MPI_Barrier ( g_cart_grid );
+#endif
+
           cvc_tensor_eo_subtract_contact_term (cvc_tensor_eo, contact_term[0], gsx, (int)( source_proc_id == g_cart_id ) );
 #if 0
 #endif  /* of if 0 */
@@ -722,6 +730,13 @@ int main(int argc, char **argv) {
 
           /* check position space WI */
           if(check_position_space_WI) {
+            if ( g_cart_id == 0 ) {
+              fprintf ( stdout, "# [p2gg_contract] p2gg check position space WI %s %d\n", __FILE__, __LINE__ );
+            }
+            fflush ( stdout );
+#ifdef HAVE_MPI
+            MPI_Barrier ( g_cart_grid );
+#endif
             exitstatus = cvc_tensor_eo_check_wi_position_space ( cvc_tensor_eo );
             if(exitstatus != 0) {
               fprintf(stderr, "[p2gg_contract] Error from cvc_tensor_eo_check_wi_position_space for full, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
