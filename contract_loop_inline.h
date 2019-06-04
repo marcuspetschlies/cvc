@@ -428,4 +428,28 @@ static inline void _contract_loop_x_spin_color_diluted ( double * const _r, doub
   (_r)[287] += -(_p)[22] * (_s)[23] + (_p)[23] * (_s)[22];
 }  /* end of _contract_loop_x_spin_color_diluted */ 
 
+
+static inline void project_loop ( double * const l_out, double _Complex ** const g, double * const l_in, unsigned int const N ) {
+
+#pragma omp parallel for
+  for ( unsigned int i = 0; i < N ; i++ ) {
+
+    double _Complex zbuffer = 0.;
+
+    for ( int sigma = 0; sigma < 4; sigma++ ) {
+    for ( int tau = 0; tau < 4; tau++ ) {
+      /* _l_in <- l_in[sigma][tau] */
+      double * const _l_in = l_in + 2 * ( 16*i + 4 * sigma + tau );
+
+      /* zbuffer += l_in[sigma][tau] * g[tau][sigma] */
+      zbuffer += ( _l_in[0] + _l_in[1] * I ) * g[tau][sigma];
+    }}
+
+    l_out[2*i  ] = creal ( zbuffer );
+    l_out[2*i+1] = cimag ( zbuffer );
+  }
+
+  return;
+}  /* end of project_loop */
+
 #endif

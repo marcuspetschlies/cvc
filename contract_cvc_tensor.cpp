@@ -2567,4 +2567,164 @@ int cvc_loop_eo_check_wi_momentum_space_lma ( double **wi, double ***loop_lma, i
 
 /***********************************************************/
 /***********************************************************/
+
+
+/***********************************************************
+ * eo-prec contractions for cvc - cvc tensor
+ *
+ * NOTE: neither conn_e nor conn_o nor contact_term 
+ *       are initialized to zero here
+ ***********************************************************/
+void contract_cvc_local_tensor_eo ( double * const conn_e, double * const conn_o, double ** const sprop_list_e, double ** const sprop_list_o, double ** const tprop_list_e, double ** const tprop_list_o , double * const gauge_field ) {
+  
+  unsigned int const Vhalf = VOLUME / 2;
+  size_t const sizeof_eo_propagator_field = Vhalf * 288 * sizeof(double);
+
+  int exitstatus;
+  complex *conn_ = NULL;
+
+  /* auxilliary fermion propagator field with halo */
+  fermion_propagator_type *fp_aux        = create_fp_field( (VOLUME+RAND)/2 );
+
+  /* fermion propagator fields without halo */
+  fermion_propagator_type *gamma_fp_X[4];
+  gamma_fp_X[0] = create_fp_field( Vhalf );
+  gamma_fp_X[1] = create_fp_field( Vhalf );
+  gamma_fp_X[2] = create_fp_field( Vhalf );
+  gamma_fp_X[3] = create_fp_field( Vhalf );
+
+  fermion_propagator_type *fp_Y_gamma       = create_fp_field( Vhalf );
+  fermion_propagator_type *gamma_fp_Y_gamma = create_fp_field( Vhalf );
+  fermion_propagator_type *fp_X             = create_fp_field( Vhalf );
+
+  /**********************************************************
+   **********************************************************
+   **
+   ** contractions
+   **
+   **********************************************************
+   **********************************************************/  
+
+ 
+  /**********************************************************
+   * (1) X = T^e, Y = S^o
+   **********************************************************/  
+
+  /* fp_X = tprop^e */
+  if ( ( exitstatus = assign_fermion_propagator_from_spinor_field (fp_X, tprop_list_e, Vhalf) ) != 0 ) {
+    fprintf ( stderr, "[contract_cvc_local_tensor_eo] Error from assign_fermion_propagator_from_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    return;
+  }
+  /* fp_aux = fp_X */
+  memcpy(fp_aux[0][0], fp_X[0][0], sizeof_eo_propagator_field );
+
+  /* gamma_fp_X^o = Gamma_mu^f fp_aux^e */
+  for( int mu=0; mu<4; mu++) {
+    apply_cvc_vertex_propagator_eo ( gamma_fp_X[mu], fp_aux, mu, 0, gauge_field, 1);
+  }
+
+  /* loop on nu */
+  for( int nu=0; nu<4; nu++ )
+  {
+
+    /* fp_Y_gamma^o = sprop^o , source + nu */
+    exitstatus = assign_fermion_propagator_from_spinor_field (fp_Y_gamma, sprop_list_o, Vhalf);
+
+    /* fp_Y_gamma^o = fp_Y_gamma^o * gamma_nu  */
+    fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fp_Y_gamma, nu, fp_Y_gamma, Vhalf );
+
+    for( int mu=0; mu<4; mu++ ) {
+
+      conn_ = (complex*)( conn_o + (4*mu+nu)*2*Vhalf );
+
+      /* contract S^o Gamma_nu, Gamma_mu T^e */
+      co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field (conn_, fp_Y_gamma, gamma_fp_X[mu], 1., Vhalf);
+
+
+      /* fp_aux^o = fp_Y_gamma^o */
+      memcpy(fp_aux[0][0], fp_Y_gamma[0][0], sizeof_eo_propagator_field );
+      
+      /* gamma_fp_Y_gamma^e = Gamma_mu^f fp_aux^o */
+      apply_cvc_vertex_propagator_eo ( gamma_fp_Y_gamma, fp_aux, mu, 0, gauge_field, 0);
+
+      conn_ = (complex*)( conn_e + (4*mu+nu)*2*Vhalf );
+
+      /* contract gamma_fp_Y_gamma^e, T^e */
+      co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field (conn_, gamma_fp_Y_gamma, fp_X, -1., Vhalf);
+
+    }
+
+  }  /* end of loop on nu */
+
+  /**********************************************************
+   * (3) X = T^o, Y = S^e
+   **********************************************************/  
+
+  /* fp_X = tprop^o */
+  if ( ( exitstatus = assign_fermion_propagator_from_spinor_field (fp_X, tprop_list_o, Vhalf) ) !=  0 ) {
+    fprintf ( stderr, "[contract_cvc_local_tensor_eo] Error from assign_fermion_propagator_from_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    return;
+  }
+
+  /* fp_aux^o = fp_X^o */
+  memcpy(fp_aux[0][0], fp_X[0][0], sizeof_eo_propagator_field );
+
+  /* gamma_fp_X^e = Gamma_mu^f fp_aux^o */
+  for( int mu=0; mu<4; mu++) {
+    apply_cvc_vertex_propagator_eo ( gamma_fp_X[mu], fp_aux, mu, 0, gauge_field, 0);
+  }
+
+  /* loop on nu */
+  for( int nu=0; nu<4; nu++ )
+  {
+  
+
+    /* fp_Y_gamma^e = sprop^e , source + nu */
+    if ( ( exitstatus = assign_fermion_propagator_from_spinor_field (fp_Y_gamma, sprop_list_e, Vhalf) ) != 0 ) {
+      fprintf ( stderr, "[contract_cvc_local_tensor_eo] Error from assign_fermion_propagator_from_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      return;
+    }
+
+    /* fp_Y_gamma^e = fp_Y_gamma^e * gamma_nu  */
+    fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fp_Y_gamma, nu, fp_Y_gamma, Vhalf );
+
+    for( int mu=0; mu<4; mu++ ) {
+
+      conn_ = (complex*)( conn_e + (4*mu+nu)*2*Vhalf );
+
+      /* contract S^e Gamma_nu^b, Gamma_mu^f T^o */
+      co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field (conn_, fp_Y_gamma, gamma_fp_X[mu], 1., Vhalf);
+
+      /* fp_aux^e = fp_Y_gamma^e */
+      memcpy(fp_aux[0][0], fp_Y_gamma[0][0], sizeof_eo_propagator_field );
+      
+      /* gamma_fp_Y_gamma^o = Gamma_mu^f fp_aux^e */
+      apply_cvc_vertex_propagator_eo ( gamma_fp_Y_gamma, fp_aux, mu, 0, gauge_field, 1);
+
+      conn_ = (complex*)( conn_o + (4*mu+nu)*2*Vhalf );
+
+      /* contract gamma_fp_Y_gamma^o, T^o */
+      co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field (conn_, gamma_fp_Y_gamma, fp_X, -1., Vhalf);
+
+    }
+
+  }  /* end of loop on nu */
+
+  /* free auxilliary fields */
+  free_fp_field(&fp_aux);
+  free_fp_field(&fp_X);
+  free_fp_field(&(gamma_fp_X[0]));
+  free_fp_field(&(gamma_fp_X[1]));
+  free_fp_field(&(gamma_fp_X[2]));
+  free_fp_field(&(gamma_fp_X[3]));
+  free_fp_field( &fp_Y_gamma );
+  free_fp_field( &gamma_fp_Y_gamma );
+
+  return;
+
+}  /* end of contract_cvc_local_tensor_eo */
+
+/***********************************************************/
+/***********************************************************/
+
 }  /* end of namespace cvc */

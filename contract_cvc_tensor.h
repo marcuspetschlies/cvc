@@ -81,6 +81,8 @@ int contract_cvc_tensor_eo_lm_mee_ct (
 );
 
 
+void contract_cvc_local_tensor_eo ( double * const conn_e, double * const conn_o, double ** const sprop_list_e, double ** const sprop_list_o, double ** const tprop_list_e, double ** const tprop_list_o , double * const gauge_field );
+
 }  /* end of namespace cvc */
 
 #endif
