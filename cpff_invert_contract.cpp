@@ -149,8 +149,8 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * initialize MPI parameters for cvc
    ***************************************************************************/
-  /* exitstatus = tmLQCD_invert_init(argc, argv, 1, 0); */
-  exitstatus = tmLQCD_invert_init(argc, argv, 1);
+  exitstatus = tmLQCD_invert_init(argc, argv, 1, 0);
+  /* exitstatus = tmLQCD_invert_init(argc, argv, 1); */
   if(exitstatus != 0) {
     EXIT(1);
   }
@@ -237,6 +237,7 @@ int main(int argc, char **argv) {
     EXIT(7);
   }
 #endif
+
 
   /***************************************************************************
    * multiply the temporal phase to the gauge field
@@ -466,7 +467,6 @@ int main(int argc, char **argv) {
         EXIT(38);
       }
 
-
       /***************************************************************************
        * invert for stochastic timeslice propagator at zero momentum
        *   dn flavor
@@ -540,6 +540,7 @@ int main(int argc, char **argv) {
           memcpy ( spinor_work[0], stochastic_source_list[i], sizeof_spinor_field );
 
           memset ( spinor_work[1], 0, sizeof_spinor_field );
+
 
           exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_dn );
           if(exitstatus < 0) {
@@ -948,6 +949,7 @@ int main(int argc, char **argv) {
 
   }  /* end of loop on source timeslices */
 
+
   /***************************************************************************
    * decallocate spinor fields
    ***************************************************************************/
@@ -966,15 +968,18 @@ int main(int argc, char **argv) {
    * free the allocated memory, finalize
    ***************************************************************************/
 
-#ifndef HAVE_TMLQCD_LIBWRAPPER
-  free(g_gauge_field);
-#endif
   free( gauge_field_with_phase );
 
   /* free clover matrix terms */
   fini_clover ( &mzz, &mzzinv );
 
+
+#ifndef HAVE_TMLQCD_LIBWRAPPER
+  free(g_gauge_field);
+#endif
+
   free_geometry();
+
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
   tmLQCD_finalise();
