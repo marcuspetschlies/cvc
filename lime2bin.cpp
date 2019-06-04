@@ -1,7 +1,5 @@
 /****************************************************
- * lime2ascii.cpp
- *
- * So 4. Nov 12:11:21 CET 2018
+ * lime2bin.cpp
  *
  * PURPOSE:
  * DONE:
@@ -112,7 +110,7 @@ int main(int argc, char **argv) {
   }
 
 #ifdef HAVE_MPI
-  fprintf ( stderr, "[lime2ascii] Not to be used in MPI mode\n");
+  fprintf ( stderr, "[lime2bin] Not to be used in MPI mode\n");
   exit(1);
 #endif
 
@@ -122,12 +120,13 @@ int main(int argc, char **argv) {
    * set the default values
    ***************************************************************************/
   if ( filename_set ) {
-    /* fprintf(stdout, "# [lime2ascii] Reading input from file %s\n", filename); */
+    /* fprintf(stdout, "# [lime2bin] Reading input from file %s\n", filename); */
     read_input_parser( filename );
   } else {
     set_default_input_values();
 
     T  = tsize;
+    T_global  = T;
 
     L  = lsize;
     LX = lsize;
@@ -145,7 +144,7 @@ int main(int argc, char **argv) {
    * report git version
    ***************************************************************************/
   if ( g_cart_id == 0 ) {
-    fprintf(stdout, "# [lime2ascii] git version = %s\n", g_gitversion);
+    fprintf(stdout, "# [lime2bin] git version = %s\n", g_gitversion);
   }
 
   /***************************************************************************
@@ -157,7 +156,7 @@ int main(int argc, char **argv) {
    * initialize geometry fields
    ***************************************************************************/
   if ( init_geometry() != 0 ) {
-    fprintf(stderr, "[lime2ascii] Error from init_geometry %s %d\n", __FILE__, __LINE__);
+    fprintf(stderr, "[lime2bin] Error from init_geometry %s %d\n", __FILE__, __LINE__);
     EXIT(4);
   }
 
@@ -168,63 +167,24 @@ int main(int argc, char **argv) {
     exitstatus = read_lime_spinor ( spinor_field, limefile_name, limefile_pos);
 
     if ( exitstatus != 0 ) {
-      fprintf(stderr, "[lime2ascii] Error from read_lime_spinor, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      fprintf(stderr, "[lime2bin] Error from read_lime_spinor, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(2);
     }
 
-    sprintf ( filename,"%s.ascii", limefile_name );
+    sprintf ( filename,"%s.bin", limefile_name );
     FILE * ofs = fopen ( filename, "w" );
-    exitstatus = printf_spinor_field ( spinor_field, 0, ofs );
+    fwrite ( spinor_field, sizeof(double), T*LX*LY*LZ*24, ofs );
     fclose ( ofs );
 
     fini_1level_dtable ( &spinor_field );
-  } else if ( strcmp ( limefile_type, "GaugeField" ) == 0 ) {
-    g_gauge_field = init_1level_dtable ( 72*VOLUME );
-    exitstatus = read_lime_gauge_field_doubleprec ( limefile_name );
-
-    if ( exitstatus != 0 ) {
-      fprintf(stderr, "[lime2ascii] Error from read_lime_gauge_field_doubleprec, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(2);
-    }
-
-    sprintf ( filename,"%s.ascii", limefile_name );
-    FILE * ofs = fopen ( filename, "w" );
-/*
-    exitstatus = printf_gauge_field( g_gauge_field, ofs );
-    if ( exitstatus != 0 ) {
-      fprintf(stderr, "[lime2ascii] Error from printf_gauge_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(2);
-    }
-*/
-    for ( int x0 = 0; x0 < T; x0++ ) {
-    for ( int x1 = 0; x1 < LX; x1++ ) {
-    for ( int x2 = 0; x2 < LY; x2++ ) {
-    for ( int x3 = 0; x3 < LZ; x3++ ) {
-      unsigned int const ix = g_ipt[x0][x1][x2][x3];
-
-      for ( int mu = 0; mu < 4; mu++ ) {
-        fprintf ( ofs, "# [lime2ascii] x %3d %3d %3d %3d mu %2d\n", x0, x1, x2, x3, mu );
-
-        unsigned int const iy = _GGI(ix,mu);
-        for ( int a = 0; a < 3; a++ ) {
-        for ( int b = 0; b < 3; b++ ) {
-          fprintf ( ofs, "  %3d %3d   %25.16e  %25.16e\n", a, b, g_gauge_field[iy+2*(3*a+b)], g_gauge_field[iy+2*(3*a+b)+1] );
-        }}
-      }
-    }}}}
-
-    fclose ( ofs );
-
-    fini_1level_dtable ( &g_gauge_field );
-
   }
 
   free_geometry();
 
   if(g_cart_id==0) {
     g_the_time = time(NULL);
-    fprintf(stdout, "# [lime2ascii] %s# [lime2ascii] end of run\n", ctime(&g_the_time));
-    fprintf(stderr, "# [lime2ascii] %s# [lime2ascii] end of run\n", ctime(&g_the_time));
+    fprintf(stdout, "# [lime2bin] %s# [lime2bin] end of run\n", ctime(&g_the_time));
+    fprintf(stderr, "# [lime2bin] %s# [lime2bin] end of run\n", ctime(&g_the_time));
   }
 
   return(0);

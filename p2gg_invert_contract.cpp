@@ -93,7 +93,6 @@ int main(int argc, char **argv) {
   size_t sizeof_eo_spinor_field;
   size_t sizeof_spinor_field;
   double **eo_spinor_field=NULL, **eo_spinor_work=NULL;
-  double contact_term[2][8];
   char filename[100];
   // double ratime, retime;
   double **mzz[2] = { NULL, NULL }, **mzzinv[2] = { NULL, NULL };
@@ -620,7 +619,8 @@ int main(int argc, char **argv) {
                                            (1 - 2*iflavor) * g_seq_source_momentum[2] };
 
             if( g_verbose > 2 && g_cart_id == 0)
-              fprintf(stdout, "# [p2gg_invert_contract] using flavor-dependent sequential source momentum (%d, %d, %d)\n", seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2]);
+              fprintf(stdout, "# [p2gg_invert_contract] using flavor-dependent sequential source momentum (%d, %d, %d)\n",
+                  seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2]);
 
             /***************************************************************************
              * allocate memory for contractions, initialize
@@ -657,6 +657,30 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "[p2gg_invert_contract] Error from init_clover_eo_sequential_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(25);
               }
+
+              if ( g_write_sequential_source ) {
+                double * spinor_field_write = init_1level_dtable ( _GSI(VOLUME) );
+                int const isc = is % 12;
+                int const imu = is / 12;
+                int shift[4] = {0,0,0,0};
+                if ( imu < 4 ) shift[imu]++;
+
+                sprintf ( filename, "source.%.4d.t%dx%dy%dz%d.t%d.g%d.px%dpy%dpz%d.fl%d.%d", Nconf, 
+                    (gsx[0]+shift[0])%T_global,
+                    (gsx[1]+shift[1])%LX_global,
+                    (gsx[2]+shift[2])%LY_global,
+                    (gsx[3]+shift[3])%LZ_global,
+                    g_shifted_sequential_source_timeslice, sequential_source_gamma_id,
+                    seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], iflavor, isc );
+
+                spinor_field_eo2lexic ( spinor_field_write, eo_spinor_field[ eo_seq_spinor_field_id_e ], eo_spinor_field[ eo_seq_spinor_field_id_o ] );
+
+                if ( ( exitstatus = write_propagator( spinor_field_write, filename, 0, g_propagator_precision) ) != 0 ) {
+                  fprintf(stderr, "[p2gg_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                  EXIT(2);
+                }
+              }
+
 
               /***************************************************************************
                * invert
@@ -703,7 +727,7 @@ int main(int argc, char **argv) {
             /* flavor-dependent aff tag  */
             sprintf(aff_tag, "/p-cvc-cvc/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d",
                 gsx[0], gsx[1], gsx[2], gsx[3], 
-                g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2],
+                seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
                 sequential_source_gamma_id, g_sequential_source_timeslice, iflavor );
 
             /* contraction for P - cvc - cvc tensor */
@@ -758,12 +782,6 @@ int main(int argc, char **argv) {
             show_time ( &ta, &tb, "p2gg_invert_contract", "cvc_tensor_eo_momentum_projection", io_proc==2 );
 
              
-            /* flavor-dependent aff tag  */
-            sprintf(aff_tag, "/p-cvc-cvc/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d",
-                                  gsx[0], gsx[1], gsx[2], gsx[3], 
-                                  g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2],
-                                  sequential_source_gamma_id, g_sequential_source_timeslice, iflavor );
-
             /* write results to file */
             gettimeofday ( &ta, (struct timezone *)NULL );
 
@@ -803,7 +821,7 @@ int main(int argc, char **argv) {
              ***************************************************************************/
             /* flavor-dependent AFF tag */
             sprintf(aff_tag, "/p-loc-loc/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d", gsx[0], gsx[1], gsx[2], gsx[3],
-                g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2],
+                seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
                 sequential_source_gamma_id, g_sequential_source_timeslice, iflavor );
 
             /* contract  */

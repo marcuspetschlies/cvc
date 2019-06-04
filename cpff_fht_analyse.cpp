@@ -69,6 +69,7 @@ int main(int argc, char **argv) {
   int fold_propagator = 0;
   int use_disc = 0;
   int use_conn = 1;
+  int use_reim = 0;
 
   char key[400];
 
@@ -76,7 +77,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "dch?f:N:S:F:")) != -1) {
+  while ((c = getopt(argc, argv, "dch?f:N:S:F:R:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -93,6 +94,10 @@ int main(int argc, char **argv) {
     case 'F':
       fold_propagator = atoi ( optarg );
       fprintf ( stdout, "# [cpff_fht_analyse] fold_propagator set to %d\n", fold_propagator );
+      break;
+    case 'R':
+      use_reim = atoi ( optarg );
+      fprintf ( stdout, "# [cpff_fht_analyse] use_reim set to %d\n", use_reim );
       break;
     case 'd':
       use_disc = 1;
@@ -627,12 +632,18 @@ int main(int argc, char **argv) {
                   }  /* end of if io_proc == 2 */
 #endif
 
-                  sprintf ( key , "/%s/fht/t%d/s0/gf%d/gc%d/pcx%dpcy%dpcz%d/gi%d/pix%dpiy%dpiz%d/px%dpy%dpz%d",
+                  /***********************************************************
+                   * read fwd displacement data
+                   ***********************************************************/
+                  sprintf ( key , "/%s/fht/t%d/s0/gf%d/gc%d/%spcx%dpcy%dpcz%d/gi%d/pix%dpiy%dpiz%d/px%dpy%dpz%d",
                       flavor_prefix_fht,
                       gts, g_source_gamma_id_list[igf],
-                      g_sequential_source_gamma_id_list[igc], seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
+                      g_sequential_source_gamma_id_list[igc],
+                      "d_mu0_fwd/",
+                      seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
                       g_source_gamma_id_list[igi],            source_momentum[0],     source_momentum[1],     source_momentum[2],
                       sink_momentum[0], sink_momentum[1], sink_momentum[2] );
+
                   if ( g_verbose > 2 ) fprintf ( stdout, "# [cpff_fht_analyse] key = %s\n", key );
 
                   double * buffer = init_1level_dtable ( 2*T );
@@ -646,6 +657,31 @@ int main(int argc, char **argv) {
                   for ( int it = 0; it < T; it++ ) {
                     corr_fht[iconf][isrc][2*it  ] = buffer[2*( ( it + gts ) % T)  ];
                     corr_fht[iconf][isrc][2*it+1] = buffer[2*( ( it + gts ) % T)+1];
+                  }
+
+                  /***********************************************************
+                   * read bwd displacement data
+                   ***********************************************************/
+                  sprintf ( key , "/%s/fht/t%d/s0/gf%d/gc%d/%spcx%dpcy%dpcz%d/gi%d/pix%dpiy%dpiz%d/px%dpy%dpz%d",
+                      flavor_prefix_fht,
+                      gts, g_source_gamma_id_list[igf],
+                      g_sequential_source_gamma_id_list[igc],
+                      "d_mu0_bwd/",
+                      seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
+                      g_source_gamma_id_list[igi],            source_momentum[0],     source_momentum[1],     source_momentum[2],
+                      sink_momentum[0], sink_momentum[1], sink_momentum[2] );
+
+                  if ( g_verbose > 2 ) fprintf ( stdout, "# [cpff_fht_analyse] key = %s\n", key );
+
+                  exitstatus = read_from_h5_file ( (void*)buffer, filename, key, io_proc );
+                  if( exitstatus != 0 ) {
+                    fprintf(stderr, "[cpff_fht_analyse] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                    EXIT(105);
+                  }
+
+                  for ( int it = 0; it < T; it++ ) {
+                    corr_fht[iconf][isrc][2*it  ] = ( corr_fht[iconf][isrc][2*it  ] - buffer[2*( ( it + gts ) % T)  ] ) * 0.5;
+                    corr_fht[iconf][isrc][2*it+1] = ( corr_fht[iconf][isrc][2*it+1] - buffer[2*( ( it + gts ) % T)+1] ) * 0.5;
                   }
 
                   fini_1level_dtable ( &buffer );
@@ -760,7 +796,7 @@ int main(int argc, char **argv) {
                         ) * 0.5;
                     data[iconf][isrc][2*it+1] = ( 
                           ( corr_fht[iconf][isrc][2*it+1]      + corr_fht[iconf][isrc][2*(T-it)+1]      ) * use_conn
-                        + ( corr_fht_disc[iconf][isrc][2*it+1] + corr_fht_disc[iconf][isrc][2*(T-it)+1] ) * use_conn
+                        + ( corr_fht_disc[iconf][isrc][2*it+1] + corr_fht_disc[iconf][isrc][2*(T-it)+1] ) * use_disc
                         ) * 0.5;
                   }
         
@@ -847,19 +883,19 @@ int main(int argc, char **argv) {
               for ( int iconf = 0; iconf < num_conf; iconf++ ) {
                 for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
                   for ( int it = 0; it < Nt; it++ ) {
-                    data[iconf][isrc][it] = corr_fht[iconf][isrc][2*it+1];
+                    data[iconf][isrc][it] = corr_fht[iconf][isrc][2*it + use_reim ];
                   }
                 }
               }
             } else if ( fold_propagator == 1 ) {
               for ( int iconf = 0; iconf < num_conf; iconf++ ) {
                 for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-                  data[iconf][isrc][0] = corr_fht[iconf][isrc][1];
+                  data[iconf][isrc][0] = corr_fht[iconf][isrc][ use_reim ];
 
                   for ( int it = 1; it < Nt-1; it++ ) {
-                    data[iconf][isrc][it] = ( corr_fht[iconf][isrc][2*it+1] + corr_fht[iconf][isrc][2*(T-it)+1] ) * 0.5;
+                    data[iconf][isrc][it] = ( corr_fht[iconf][isrc][2*it + use_reim ] + corr_fht[iconf][isrc][2*(T-it) + use_reim ] ) * 0.5;
                   }
-                  data[iconf][isrc][Nt-1] = corr_fht[iconf][isrc][2*Nt-1];
+                  data[iconf][isrc][Nt-1] = corr_fht[iconf][isrc][2*Nt-2 + use_reim ];
                 }
               }
             }  /* end of if Nt == */
@@ -959,7 +995,7 @@ int main(int argc, char **argv) {
               for ( int iconf = 0; iconf < num_conf; iconf++ ) {
                 for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
                   for ( int it = 0; it < Nt; it++ ) {
-                    data[iconf][isrc][   it] = corr_fht[iconf][isrc][2*it+1];
+                    data[iconf][isrc][   it] = corr_fht[iconf][isrc][2*it+ use_reim ];
                     data[iconf][isrc][Nt+it] = corr_std[iconf][isrc][2*it  ];
                   }
                 }
@@ -967,16 +1003,16 @@ int main(int argc, char **argv) {
             } else if ( fold_propagator == 1 ) {
               for ( int iconf = 0; iconf < num_conf; iconf++ ) {
                 for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-                  data[iconf][isrc][0 ] = corr_fht[iconf][isrc][1];
+                  data[iconf][isrc][0 ] = corr_fht[iconf][isrc][ use_reim ];
                   data[iconf][isrc][Nt] = corr_std[iconf][isrc][0];
         
                   for ( int it = 1; it <Nt-1; it++ ) {
-                    data[iconf][isrc][   it] = ( corr_fht[iconf][isrc][2*it+1] + corr_fht[iconf][isrc][2*(T-it)+1] ) * 0.5;
-                    data[iconf][isrc][Nt+it] = ( corr_std[iconf][isrc][2*it  ] + corr_std[iconf][isrc][2*(T-it)  ] ) * 0.5;
+                    data[iconf][isrc][   it] = ( corr_fht[iconf][isrc][2*it + use_reim ] + corr_fht[iconf][isrc][2*(T-it) + use_reim ] ) * 0.5;
+                    data[iconf][isrc][Nt+it] = ( corr_std[iconf][isrc][2*it            ] + corr_std[iconf][isrc][2*(T-it)            ] ) * 0.5;
                   }
         
-                  data[iconf][isrc][  Nt-1] = corr_fht[iconf][isrc][2*Nt-1];
-                  data[iconf][isrc][2*Nt-1] = corr_std[iconf][isrc][2*Nt-2];
+                  data[iconf][isrc][  Nt-1] = corr_fht[iconf][isrc][2*Nt-2 + use_reim ];
+                  data[iconf][isrc][2*Nt-1] = corr_std[iconf][isrc][2*Nt-2            ];
  
                 }
               }

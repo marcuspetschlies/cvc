@@ -251,6 +251,8 @@ inline void show_time ( struct timeval * const ta, struct timeval * const tb, ch
 
 }  /* end of show_time */
 
+int check_momentum_space_wi_tpvec ( double *** const hvp , int const pvec[3] );
+
 }  /* end of namespace cvc */
 #endif
 

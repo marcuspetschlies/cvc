@@ -223,7 +223,10 @@ int init_eo_sequential_source(double *s_even, double *s_odd, double *p_even, dou
   const size_t offset = _GSI(VOL3half);
   const size_t bytes  = offset * sizeof(double);
 
-  int i, exitstatus, x0, x1, x2, x3;
+  int i, x0, x1, x2, x3;
+#ifdef HAVE_MPI
+  int exitstatus;
+#endif
   unsigned int ix;
   int source_proc_id = 0;
   double q_phase;
@@ -552,8 +555,10 @@ int fini_clover_eo_propagator(double *p_even, double *p_odd, double *r_even, dou
  * calculate A^{-1} g5 Gamma (pvec) (p_even, p_odd)^t on timeslice tseq
  *
  * safe, if s_even = p_even or s_odd = p_odd
+ *
+ * EXPECTS SCHUR-DECOMPOSITION of the inverted Dirac operator
  ***************************************************************************************************/
-int init_clover_eo_sequential_source ( double * const s_even, double * const s_odd, double * const p_even, double * const p_odd, int const tseq, double * const gauge_field, double * const mzzinv, int const pseq[3], int const gseq, double * const work0) {
+int init_clover_eo_sequential_source_SchurDecomp ( double * const s_even, double * const s_odd, double * const p_even, double * const p_odd, int const tseq, double * const gauge_field, double * const mzzinv, int const pseq[3], int const gseq, double * const work0) {
   const unsigned int Vhalf = VOLUME/2;
   const unsigned int VOL3half = LX*LY*LZ/2;
   const int tloc = tseq % T;
@@ -566,12 +571,12 @@ int init_clover_eo_sequential_source ( double * const s_even, double * const s_o
   const size_t offset = _GSI(VOL3half);
   const size_t sizeof_eo_spinor_field_timeslice  = offset * sizeof(double);
 
-  int i, exitstatus, x0;
+  int i, x0;
 
   /* have seq source timeslice ? */
   const int source_proc_id = ( g_proc_coords[0] == tseq / T ) ? g_cart_id : -1;
 
-  if(g_cart_id == source_proc_id && g_verbose > 2) fprintf(stdout, "# [init_clover_eo_sequential_source] proc %d = (%d,%d,%d,%d) has t sequential %2d / %2d\n", g_cart_id,
+  if(g_cart_id == source_proc_id && g_verbose > 2) fprintf(stdout, "# [init_clover_eo_sequential_source_SchurDecomp] proc %d = (%d,%d,%d,%d) has t sequential %2d / %2d\n", g_cart_id,
      g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3], tseq, tloc);
 
 
@@ -652,8 +657,118 @@ int init_clover_eo_sequential_source ( double * const s_even, double * const s_o
   MPI_Barrier( g_cart_grid );
 #endif
   return(0);
+}  /* end of init_clover_eo_sequential_source_SchurDecomp */
+
+/***************************************************************************************************/
+/***************************************************************************************************/
+
+/***************************************************************************************************
+ * prepare sequential source from propagator
+ *
+ * calculate A^{-1} g5 Gamma (pvec) (p_even, p_odd)^t on timeslice tseq
+ *
+ * safe, if s_even = p_even or s_odd = p_odd
+ ***************************************************************************************************/
+int init_clover_eo_sequential_source ( double * const s_even, double * const s_odd, double * const p_even, double * const p_odd, int const tseq, double * const gauge_field, double * const mzzinv, int const pseq[3], int const gseq, double * const work0) {
+  const unsigned int Vhalf = VOLUME/2;
+  const unsigned int VOL3half = LX*LY*LZ/2;
+  const int tloc = tseq % T;
+  const size_t sizeof_eo_spinor_field = 24 * Vhalf * sizeof(double);
+  const double MPI2 = 2. * M_PI;
+
+  const double  q[3] = {MPI2 * pseq[0] / LX_global, MPI2 * pseq[1] / LY_global, MPI2 * pseq[2] / LZ_global};
+  const double  q_offset = q[0] * g_proc_coords[1] * LX + q[1] * g_proc_coords[2] * LY + q[2] * g_proc_coords[3] * LZ;
+
+  const size_t offset = _GSI(VOL3half);
+  const size_t sizeof_eo_spinor_field_timeslice  = offset * sizeof(double);
+
+  /* have seq source timeslice ? */
+  int const source_proc_id = ( g_proc_coords[0] == tseq / T ) ? g_cart_id : -1;
+
+  if(g_cart_id == source_proc_id && g_verbose > 2) {
+    fprintf(stdout, "# [init_clover_eo_sequential_source] proc %d = (%d,%d,%d,%d) has t sequential %2d / %2d\n",
+        g_cart_id, g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3], tseq, tloc);
+  }
+
+  if(g_cart_id == source_proc_id) {
+    /***************************************************************************************************
+     * ONLY PROCESSES which have the source timeslice set the sequential source
+     ***************************************************************************************************/
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+    double spinor1[24];
+    /*************/
+    /* even part */
+    /*************/
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for ( unsigned int ix = 0; ix < VOL3half; ix++) {
+      unsigned int const ixeosub  = tloc * VOL3half + ix;
+      double const q_phase = q[0] * g_eosubt2coords[0][tloc][ix][0] + q[1] * g_eosubt2coords[0][tloc][ix][1] + q[2] * g_eosubt2coords[0][tloc][ix][2] + q_offset;
+      /* fprintf(stdout, "# [init_clover_eo_sequential_source] proc%.4d t = %3d x_e = %6u = %3d %3d %3d\n", g_cart_id, tloc, ixeosub, 
+          g_eosubt2coords[0][tloc][ix][0], g_eosubt2coords[0][tloc][ix][1], g_eosubt2coords[0][tloc][ix][2]); */
+      complex const w = { cos(q_phase), sin(q_phase) };
+      double * const s_ = s_even + _GSI(ixeosub);
+      double * const p_ = p_even + _GSI(ixeosub);
+      
+      _fv_eq_fv_ti_co(spinor1, p_, &w);
+      _fv_eq_gamma_ti_fv(s_, gseq, spinor1);
+
+    }  /* end of loop on ix */
+
+
+    /*************/
+    /* odd part  */
+    /*************/
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for ( unsigned int ix = 0; ix < VOL3half; ix++) {
+      unsigned int const ixeosub  = tloc * VOL3half + ix;
+      double const q_phase = q[0] * g_eosubt2coords[1][tloc][ix][0] + q[1] * g_eosubt2coords[1][tloc][ix][1] + q[2] * g_eosubt2coords[1][tloc][ix][2] + q_offset;
+      /* fprintf(stdout, "# [init_clover_eo_sequential_source] proc%.4d t = %3d x_o = %6u = %3d %3d %3d\n", g_cart_id, tloc, ixeosub,
+          g_eosubt2coords[1][tloc][ix][0], g_eosubt2coords[1][tloc][ix][1], g_eosubt2coords[1][tloc][ix][2]); */
+      complex const w = { cos(q_phase), sin(q_phase) };
+      double * const s_ = s_odd + _GSI(ixeosub);
+      double * const p_ = p_odd + _GSI(ixeosub);
+      
+      _fv_eq_fv_ti_co(spinor1, p_, &w);
+      _fv_eq_gamma_ti_fv(s_, gseq, spinor1);
+
+    }  /* end of loop on ix */
+
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+    /***************************************/
+    /* remaining timeslice are set to zero */
+    /***************************************/
+#pragma omp parallel for
+    for ( int i=1; i<T; i++) {
+      int const x0 = (tloc + i) % T;
+      memset ( s_even + x0 * offset, 0, sizeof_eo_spinor_field_timeslice );
+      memset ( s_odd  + x0 * offset, 0, sizeof_eo_spinor_field_timeslice );
+    }
+
+  } else {
+    /***************************************************************************************************
+     * ALL OTHER PROCESSES set their spinor field timeslices to zero
+     ***************************************************************************************************/
+    // printf("# [] process %d setting source to zero\n", g_cart_id);
+    memset(s_even, 0, sizeof_eo_spinor_field);
+    memset(s_odd,  0, sizeof_eo_spinor_field);
+  }
+
+  return(0);
 }  /* end of init_clover_eo_sequential_source */
 
+/*************************************************************************/
+/*************************************************************************/
 
 /*************************************************************************
  * prepare a sequential source
