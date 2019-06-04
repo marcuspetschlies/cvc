@@ -417,6 +417,9 @@ int main(int argc, char **argv) {
 
     /***************************************************************************
      * full hvp tensor
+     *
+     * sink   operator --- conserved vector current
+     * source operator --- conserved vector current
      ***************************************************************************/
     /* contraction */
     contract_cvc_tensor_eo ( hvp_tensor_eo[0], hvp_tensor_eo[1], contact_term, &(eo_spinor_field[120]), &(eo_spinor_field[180]),
@@ -457,6 +460,8 @@ int main(int argc, char **argv) {
     }
 
     fini_2level_dtable ( &hvp_tensor_eo );
+#if 0
+#endif  /* of if 0 */
 
     /***************************************************************************/
     /***************************************************************************/
@@ -518,6 +523,56 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[p2gg_invert_contract] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(1);
     }
+
+    /***************************************************************************/
+    /***************************************************************************/
+
+    /***************************************************************************
+     * mixed hvp tensor
+     *
+     * sink   operator --- conserved vector current
+     * source operator --- local vector current
+     ***************************************************************************/
+    double ** cl_tensor_eo = init_2level_dtable ( 2, 32 * (size_t)Vhalf );
+    if( cl_tensor_eo == NULL ) {
+      fprintf(stderr, "[p2gg_invert_contract] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
+      EXIT(24);
+    }
+
+    contract_cvc_local_tensor_eo ( cl_tensor_eo[0], cl_tensor_eo[1],
+        &(eo_spinor_field[168]), &(eo_spinor_field[228]), &(eo_spinor_field[ 48]), &(eo_spinor_field[108]),
+        gauge_field_with_phase );
+
+    cvc_tp = init_3level_dtable ( g_sink_momentum_number, 16, 2*T);
+    if ( cvc_tp == NULL ) {
+      fprintf ( stderr, "[p2gg_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
+      EXIT(12);
+    }
+
+    exitstatus = cvc_tensor_eo_momentum_projection ( &cvc_tp, cl_tensor_eo, g_sink_momentum_list, g_sink_momentum_number);
+    if(exitstatus != 0) {
+      fprintf(stderr, "[p2gg_invert_contract] Error from cvc_tensor_eo_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(26);
+    }
+    /* write results to file */
+    sprintf(aff_tag, "/hvp/u-cvc-u-lvc/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
+    exitstatus = cvc_tensor_tp_write_to_aff_file ( cvc_tp, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+    if(exitstatus != 0 ) {
+      fprintf(stderr, "[p2gg_invert_contract] Error from cvc_tensor_tp_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(45);
+    }
+    fini_3level_dtable ( &cvc_tp );
+
+    /* check position space WI */
+    if(check_position_space_WI) {
+      exitstatus = cvc_tensor_eo_check_wi_position_space ( cl_tensor_eo );
+      if(exitstatus != 0) {
+        fprintf(stderr, "[p2gg_invert_contract] Error from cvc_tensor_eo_check_wi_position_space for mixed, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(38);
+      }
+    }
+
+    fini_2level_dtable ( &cl_tensor_eo );
 
     /***************************************************************************/
     /***************************************************************************/
