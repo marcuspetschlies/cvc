@@ -231,4 +231,40 @@ int dacosh_ratio_deriv ( void *param , void *v_in, double *v_out) {
 /********************************************************/
 /********************************************************/
 
+/********************************************************
+ *
+ ********************************************************/
+int a_mi_b_ti_c ( void * param , void * v_in, double * v_out) {
+  int * const trange = (int*)v_in;
+  int const idx_a = trange[0];
+  int const idx_b = trange[1];
+  int const idx_c = trange[2];
+
+  *v_out = ((double*)param)[idx_a] - ((double*)param)[idx_b] * ((double*)param)[idx_c];
+  return(0);
+}  /* end of a_mi_b_ti_c */
+
+/********************************************************
+ *
+ ********************************************************/
+int da_mi_b_ti_c ( void *param , void *v_in, double *v_out) {
+  int * const trange = (int*)v_in;
+  int const idx_a = trange[0];
+  int const idx_b = trange[1];
+  int const idx_c = trange[2];
+
+  /* derivative w.r.t. a */
+  v_out[idx_a] = 1.;
+
+  /* derivative w.r.t. b */
+  v_out[idx_b] = -((double*)param)[idx_c];
+
+  /* derivative w.r.t. c */
+  v_out[idx_c] = -((double*)param)[idx_b];
+
+  return(0);
+}  /* end of da_mi_b_ti_c */
+
+/********************************************************/
+/********************************************************/
 }  /* end of namespace cvc */
