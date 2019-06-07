@@ -229,7 +229,7 @@ int main(int argc, char **argv) {
     }
   }
 
-
+#if 0
   /***********************************************************
    ***********************************************************
    **
@@ -566,7 +566,7 @@ int main(int argc, char **argv) {
    * free hvp field
    **********************************************************/
   fini_6level_dtable ( &hvp );
-#if 0
+
 #endif  /* of if 0  */
 
   /**********************************************************
@@ -939,7 +939,125 @@ int main(int argc, char **argv) {
 #endif  /* if if 0 */
 
         /****************************************
-         * now some statistical analysis
+         * statistical analysis for orbit average
+         *
+         * ASSUMES MOMENTUM LIST IS AN ORBIT AND
+         * SEQUENTIAL MOMENTUM IS ZERO
+         ****************************************/
+        int const nT = T_global;
+        double *** data = init_3level_dtable ( num_conf, num_src_per_conf, 2 * nT );
+        double *** res = init_3level_dtable ( 2, nT, 5 );
+      
+        int epstensor[3][3] = { {0,1,2}, {1,2,0}, {2,0,1} };
+
+        gettimeofday ( &ta, (struct timezone *)NULL );
+
+#pragma omp parallel for         
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+            for ( int it = 0; it < T; it++ ) {
+
+              double const norm  = ( g_sink_momentum_list[0][0] == 0  && g_sink_momentum_list[0][1] == 0  && g_sink_momentum_list[0][2] == 0  ) ? 0 : 
+                1. / ( 4. * (
+                        _SQR( sin( g_sink_momentum_list[0][0] * M_PI / (double)LX_global ) ) + 
+                        _SQR( sin( g_sink_momentum_list[0][1] * M_PI / (double)LY_global ) ) + 
+                        _SQR( sin( g_sink_momentum_list[0][2] * M_PI / (double)LZ_global ) )  ) * (double)g_sink_momentum_number );
+
+              for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+      
+                int const p[3] = {
+                    g_sink_momentum_list[imom][0],
+                    g_sink_momentum_list[imom][1],
+                    g_sink_momentum_list[imom][2] };
+
+                double const phat[3] = {
+                    2. * sin ( p[0] * M_PI / LX_global ),
+                    2. * sin ( p[1] * M_PI / LY_global ),
+                    2. * sin ( p[2] * M_PI / LZ_global ) };
+
+                double const phat2 = phat[0] * phat[0] + phat[1] * phat[1] + phat[2] * phat[2];
+              
+
+                for ( int a = 0; a < 3; a++ ) {
+
+                  data[iconf][isrc][2*it  ] += phat[epstensor[a][0]] * ( 
+                      pgg[iconf][isrc][imom][epstensor[a][1]+1][epstensor[a][2]+1][2*it  ]
+                    - pgg[iconf][isrc][imom][epstensor[a][2]+1][epstensor[a][1]+1][2*it  ]
+                    );
+
+                  data[iconf][isrc][2*it+1] += phat[epstensor[a][0]] * ( 
+                      pgg[iconf][isrc][imom][epstensor[a][1]+1][epstensor[a][2]+1][2*it+1]
+                    - pgg[iconf][isrc][imom][epstensor[a][2]+1][epstensor[a][1]+1][2*it+1]
+                    );
+                }  /* end of loop on permutations */
+
+              }  /* end of loop on momenta */
+
+              data[iconf][isrc][2*it  ] *= norm;
+              data[iconf][isrc][2*it+1] *= norm;
+            }  /* end of loop on timeslices */
+          }
+        }  /* end of loop on configurations */
+
+        uwerr ustat;
+        /****************************************
+         * real and imag part
+         ****************************************/
+        for ( int it = 0; it < 2* nT; it++ ) {
+      
+              uwerr_init ( &ustat );
+      
+              ustat.nalpha   = 2 * nT;  /* real and imaginary part */
+              ustat.nreplica = 1;
+              for (  int i = 0; i < ustat.nreplica; i++) ustat.n_r[i] = num_conf * num_src_per_conf / ustat.nreplica;
+              ustat.s_tau = 1.5;
+              sprintf ( ustat.obsname, "p_j_j_orbit_PX%d_PY%d_PZ%d", g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2] );
+      
+              ustat.ipo = it + 1;  /* real / imag part : 2*it, shifted by 1 */
+      
+              uwerr_analysis ( data[0][0], &ustat );
+      
+              res[it%2][it/2][0] = ustat.value;
+              res[it%2][it/2][1] = ustat.dvalue;
+              res[it%2][it/2][2] = ustat.ddvalue;
+              res[it%2][it/2][3] = ustat.tauint;
+              res[it%2][it/2][4] = ustat.dtauint;
+      
+              uwerr_free ( &ustat );
+        }  /* end of loop on ipos */
+      
+        sprintf ( filename, "p_j_j_orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.uwerr", 
+                seq_source_momentum[0],
+                seq_source_momentum[1],
+                seq_source_momentum[2],
+                sequential_source_gamma_id,
+                sequential_source_timeslice,
+                g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2]);
+        FILE * ofs = fopen ( filename, "w" );
+      
+        fprintf ( ofs, "# nalpha   = %llu\n", ustat.nalpha );
+        fprintf ( ofs, "# nreplica = %llu\n", ustat.nreplica );
+        for (  int i = 0; i < ustat.nreplica; i++) fprintf( ofs, "# nr[%d] = %llu\n", i, ustat.n_r[i] );
+        fprintf ( ofs, "#\n" );
+      
+        for ( int it = 0; it < nT; it++ ) {
+      
+              fprintf ( ofs, "%3d %16.7e %16.7e %16.7e %16.7e %16.7e    %16.7e %16.7e %16.7e %16.7e %16.7e\n", it,
+                  res[0][it][0], res[0][it][1], res[0][it][2], res[0][it][3], res[0][it][4],
+                  res[1][it][0], res[1][it][1], res[1][it][2], res[1][it][3], res[1][it][4] );
+        }
+      
+        fclose( ofs );
+      
+        fini_3level_dtable ( &res );
+        fini_3level_dtable ( &data );
+     
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "p2gg_analyse", "uwerr-analysis-reim", g_cart_id == 0 );
+
+        /****************************************
+         * statistical analysis for 
+         * individual components
          ****************************************/
       
         for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
@@ -1050,6 +1168,8 @@ int main(int argc, char **argv) {
           }}  /* end of loop on nu, mu */
       
         }  /* end of loop on momenta */
+
+
 
         /**********************************************************
          * free p2gg table
