@@ -86,7 +86,6 @@ int main(int argc, char **argv) {
   char correlator_prefix[100], flavor_tag[100];
   int loop_type = 0;
 
-  double ****** pgg_conn = NULL;
   double ****** pgg_disc = NULL;
   double ****** hvp = NULL;
 
@@ -581,16 +580,10 @@ int main(int argc, char **argv) {
   /**********************************************************
    **********************************************************
    **
-   ** P -> gg connected 3-point function
+   ** P -> gg disconnected P-loop 3-point function
    **
    **********************************************************
    **********************************************************/
-
-  if ( operator_type == 0 ) {
-    strcpy ( correlator_prefix, "p-cvc-cvc" );
-  } else if ( operator_type == 1 ) {
-    strcpy ( correlator_prefix, "p-loc-loc" );
-  }
 
   for ( int iseq_source_momentum = 0; iseq_source_momentum < g_seq_source_momentum_number; iseq_source_momentum++) 
   {
@@ -610,6 +603,10 @@ int main(int argc, char **argv) {
       EXIT(112);
     }
 
+
+    /**********************************************************
+     * oet type string
+     **********************************************************/
     char loop_type_str[30];
     switch (loop_type) {
       case  1:
@@ -624,11 +621,15 @@ int main(int argc, char **argv) {
         fprintf ( stderr, "[p2gg_analyse_wdisc] Error, loop type not specified\n");
         EXIT(12);
     }
+    /**********************************************************
+     * use real or imaginary part of loop
+     **********************************************************/
     int const loop_type_reim = loop_type > 0 ? 0 : 1;
 
     for ( int iconf = 0; iconf < num_conf; iconf++ ) {
       Nconf = conf_src_list[iconf][0][0];
-      sprintf ( filename, "Nconf_%d.%s.px%dpy%dpz%d", Nconf, loop_type_str, seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
+      sprintf ( filename, "loops/Nconf_%d.%s.px%dpy%dpz%d", Nconf, loop_type_str, seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
+      /* sprintf ( filename, "loops/Nconf_%.4d.%s.loop_gamma4", Nconf, loop_type_str ); */
       if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse_wdisc] reading loop data from file %s\n", filename );
       FILE * ofs = fopen ( filename, "r" );
       if ( ofs == NULL ) {
@@ -641,7 +642,6 @@ int main(int argc, char **argv) {
           for ( int mu = 0; mu < 4; mu++ ) {
           for ( int nu = 0; nu < 4; nu++ ) {
             fscanf ( ofs, "%lf %lf\n", loops_matrix[iconf][isample][t][mu]+2*nu, loops_matrix[iconf][isample][t][mu]+2*nu+1 );
-
             if ( g_verbose > 4 ) {
               fprintf ( stdout, "loop_mat c %6d s %3d t %3d m %d nu %d l %25.16e %25.16e\n", Nconf, isample, t, mu, nu,
                   loops_matrix[iconf][isample][t][mu][2*nu], loops_matrix[iconf][isample][t][mu][2*nu+1] );
@@ -727,320 +727,10 @@ int main(int argc, char **argv) {
 
         }  /* end of loop on configurations */
         
-#if 0
-        pgg_conn = init_6level_dtable ( num_conf, num_src_per_conf, g_sink_momentum_number, 4, 4, 2 * T );
-        if ( pgg_conn == NULL ) {
-          fprintf(stderr, "[p2gg_analyse_wdisc] Error from init_6level_dtable %s %d\n", __FILE__, __LINE__);
-          EXIT(16);
-        }
-
-        /***********************************************************
-         * loop on configs and source locations per config
-         ***********************************************************/
-        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-          for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-      
-            Nconf = conf_src_list[iconf][isrc][0];
-      
-            /***********************************************************
-             * copy source coordinates
-             ***********************************************************/
-            int const gsx[4] = {
-                conf_src_list[iconf][isrc][1],
-                conf_src_list[iconf][isrc][2],
-                conf_src_list[iconf][isrc][3],
-                conf_src_list[iconf][isrc][4] };
-      
-#ifdef HAVE_LHPC_AFF
-            /***********************************************
-             * reader for aff input file
-             ***********************************************/
-            gettimeofday ( &ta, (struct timezone *)NULL );
-
-            struct AffNode_s *affn = NULL, *affdir = NULL;
-      
-            sprintf ( filename, "%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", Nconf, g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
-            fprintf(stdout, "# [p2gg_analyse_wdisc] reading data from file %s\n", filename);
-            affr = aff_reader ( filename );
-            const char * aff_status_str = aff_reader_errstr ( affr );
-            if( aff_status_str != NULL ) {
-              fprintf(stderr, "[p2gg_analyse_wdisc] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-              EXIT(15);
-            }
-      
-            if( (affn = aff_reader_root( affr )) == NULL ) {
-              fprintf(stderr, "[p2gg_analyse_wdisc] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
-              return(103);
-            }
-          
-            gettimeofday ( &tb, (struct timezone *)NULL );
-            show_time ( &ta, &tb, "p2gg_analyse_wdisc", "open-init-aff-reader", g_cart_id == 0 );
-#endif
-            /**********************************************************
-             * read the contact term
-             **********************************************************/
-            double contact_term[2][4][2] = {
-             { {0,0}, {0,0}, {0,0}, {0,0} },
-             { {0,0}, {0,0}, {0,0}, {0,0} } };
-
-            if ( operator_type == 0 ) {
-              gettimeofday ( &ta, (struct timezone *)NULL );
-
-              for ( int iflavor = 0; iflavor <= 1; iflavor++ )
-              {
-
-                int const flavor_id = 1 - 2 * iflavor;
-
-                for ( int mu = 0; mu < 4; mu++ ) {
-                  sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d/contact_term/mu%d", correlator_prefix,
-                      gsx[0], gsx[1], gsx[2], gsx[3],
-                      flavor_id * seq_source_momentum[0],
-                      flavor_id * seq_source_momentum[1],
-                      flavor_id * seq_source_momentum[2],
-                      sequential_source_gamma_id, sequential_source_timeslice,
-                      iflavor, mu );
-
-                  if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse_wdisc] contact term key = %s\n", key );
-
-                  affdir = aff_reader_chpath (affr, affn, key );
-                  exitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*)(contact_term[iflavor][mu]), 1 );
-                  if( exitstatus != 0 ) {
-                    fprintf(stderr, "[p2gg_analyse_wdisc] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                    EXIT(105);
-                  }
-
-                  if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse_wdisc] contact term fl %d mu %d   %25.16e %25.16e\n", iflavor, mu,
-                      contact_term[iflavor][mu][0], contact_term[iflavor][mu][1] );
-
-                }  /* end of loop on mu */
-              }  /* end of loop on flavor id */
-              gettimeofday ( &tb, (struct timezone *)NULL );
-              show_time ( &ta, &tb, "p2gg_analyse_wdisc", "read-contact-term-aff", g_cart_id == 0 );
-            }  /* end of if operator_type == 0 */
-
-            if ( g_verbose > 4 ) {
-              fprintf ( stdout, "# [p2gg_analyse_wdisc] conf %6d src %3d %3d %3d %3d contact term\n", Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
-              for ( int mu = 0; mu < 4; mu++ ) {
-                fprintf ( stdout, "    %d   %25.16e %25.16e   %25.16e %25.16e\n", 0,
-                    contact_term[0][mu][0], contact_term[0][mu][1], contact_term[1][mu][0], contact_term[1][mu][1] );
-              }
-            }
-
-            /**********************************************************
-             * loop on momenta
-             **********************************************************/
-            for ( int isink_momentum = 0; isink_momentum < g_sink_momentum_number; isink_momentum++ ) {
-
-              int const sink_momentum[3] = {
-                  g_sink_momentum_list[isink_momentum][0],
-                  g_sink_momentum_list[isink_momentum][1],
-                  g_sink_momentum_list[isink_momentum][2] };
-      
-              double **** buffer = init_4level_dtable( 2, 4, 4, 2 * T );
-              if( buffer == NULL ) {
-                fprintf(stderr, "[p2gg_analyse_wdisc] Error from init_4level_dtable %s %d\n", __FILE__, __LINE__);
-                EXIT(15);
-              }
-      
-              for ( int iflavor = 0; iflavor <= 1; iflavor++ )
-              {
-
-                int const flavor_id = 1 - 2 * iflavor;
-
-                if ( operator_type == 0 ) {
-
-                  gettimeofday ( &ta, (struct timezone *)NULL );
-
-                  sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d/px%.2dpy%.2dpz%.2d", correlator_prefix,
-                      gsx[0], gsx[1], gsx[2], gsx[3],
-                      flavor_id * seq_source_momentum[0],
-                      flavor_id * seq_source_momentum[1],
-                      flavor_id * seq_source_momentum[2],
-                      sequential_source_gamma_id, sequential_source_timeslice,
-                      iflavor,
-                      flavor_id * sink_momentum[0],
-                      flavor_id * sink_momentum[1],
-                      flavor_id * sink_momentum[2] );
-      
-                  if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse_wdisc] key = %s\n", key );
-      
-                  affdir = aff_reader_chpath (affr, affn, key );
-                  uint32_t uitems = 16 * T;
-                  exitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*)(buffer[iflavor][0][0]), uitems );
-                  if( exitstatus != 0 ) {
-                    fprintf(stderr, "[p2gg_analyse_wdisc] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                    EXIT(105);
-                  }
-
-                  gettimeofday ( &tb, (struct timezone *)NULL );
-                  show_time ( &ta, &tb, "p2gg_analyse_wdisc", "read-pgg-tensor-aff", g_cart_id == 0 );
-
-                } else if ( operator_type == 1 ) {
-
-                  gettimeofday ( &tb, (struct timezone *)NULL );
-                  
-                  show_time ( &ta, &tb, "p2gg_analyse_wdisc", "read-pgg-tensor-aff", g_cart_id == 0 );
-                  for ( int mu = 0; mu < 4; mu++ ) {
-                  for ( int nu = 0; nu < 4; nu++ ) {
-                    sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d/gf%.2d/gi%.2d/px%dpy%dpz%d", correlator_prefix,
-                        gsx[0], gsx[1], gsx[2], gsx[3],
-                        flavor_id * seq_source_momentum[0],
-                        flavor_id * seq_source_momentum[1],
-                        flavor_id * seq_source_momentum[2],
-                        sequential_source_gamma_id, sequential_source_timeslice,
-                        iflavor,
-                        mu, nu,
-                        flavor_id * sink_momentum[0],
-                        flavor_id * sink_momentum[1],
-                        flavor_id * sink_momentum[2] );
-      
-                    if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse_wdisc] key = %s\n", key );
-      
-                    affdir = aff_reader_chpath (affr, affn, key );
-                    uint32_t uitems = T;
-                    exitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*)(buffer[iflavor][mu][nu]), uitems );
-                    if( exitstatus != 0 ) {
-                      fprintf(stderr, "[p2gg_analyse_wdisc] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                      EXIT(105);
-                    }
-                  }}
-
-                  gettimeofday ( &tb, (struct timezone *)NULL );
-                  show_time ( &ta, &tb, "p2gg_analyse_wdisc", "read-pgg-tensor-components-aff", g_cart_id == 0 );
-                }  /* end of if operator_type */
-
-              }  /* end of loop on flavors */
-
-              /**********************************************************
-               * loop on shifts in directions mu, nu
-               **********************************************************/
-              for( int mu = 0; mu < 4; mu++) {
-               for( int nu = 0; nu < 4; nu++) {
-      
-                double const p[4] = { 0., 
-                    TWO_MPI * (double)sink_momentum[0] / (double)LX_global,
-                    TWO_MPI * (double)sink_momentum[1] / (double)LY_global,
-                    TWO_MPI * (double)sink_momentum[2] / (double)LZ_global };
-
-                if (g_verbose > 4 ) fprintf ( stdout, "# [p2gg_analyse_wdisc] p = %25.16e %25.16e %25.16e %25.16e\n", p[0], p[1], p[2], p[3] ); 
-
-                double const q[4] = { 0., 
-                    TWO_MPI * (double)seq_source_momentum[0] / (double)LX_global,
-                    TWO_MPI * (double)seq_source_momentum[1] / (double)LY_global,
-                    TWO_MPI * (double)seq_source_momentum[2] / (double)LZ_global };
-                
-                if ( g_verbose > 4 ) fprintf ( stdout, "# [p2gg_analyse_wdisc] q = %25.16e %25.16e %25.16e %25.16e\n", q[0], q[1], q[2], q[3] ); 
-      
-                double p_phase = 0., q_phase = 0.;
-
-                if ( operator_type == 0 ) {
-                  /*                     p_src^nu x_src^nu                                                   + 1/2 p_snk^mu - 1/2 p_snk^nu */
-                  p_phase = -( p[0] * gsx[0] + p[1] * gsx[1] + p[2] * gsx[2] + p[3] * gsx[3] ) + 0.5 * ( p[mu] - p[nu] );
-                  q_phase = -( q[0] * gsx[0] + q[1] * gsx[1] + q[2] * gsx[2] + q[3] * gsx[3] ) + 0.5 * (       - q[nu] );
-                } else if ( operator_type == 1 ) {
-                  p_phase = -( p[0] * gsx[0] + p[1] * gsx[1] + p[2] * gsx[2] + p[3] * gsx[3] );
-                  q_phase = -( q[0] * gsx[0] + q[1] * gsx[1] + q[2] * gsx[2] + q[3] * gsx[3] );
-                }
-
-                double _Complex const p_ephase = cexp ( p_phase * I );
-                double _Complex const q_ephase = cexp ( q_phase * I );
-      
-                if ( g_verbose > 4 ) {
-                  fprintf ( stdout, "# [p2gg_analyse_wdisc] p %3d %3d %3d x %3d %3d %3d %3d p_phase %25.16e p_ephase %25.16e %25.16e\n",
-                      sink_momentum[0], sink_momentum[1], sink_momentum[2], 
-                      gsx[0], gsx[1], gsx[2], gsx[3], p_phase, creal( p_ephase ), cimag( p_ephase ) );
-                  
-                  fprintf ( stdout, "# [p2gg_analyse_wdisc] q %3d %3d %3d x %3d %3d %3d %3d q_phase %25.16e q_ephase %25.16e %25.16e\n",
-                      sink_momentum[0], sink_momentum[1], sink_momentum[2], 
-                      gsx[0], gsx[1], gsx[2], gsx[3], q_phase, creal( q_ephase ), cimag( q_ephase ) );
-                      
-                }
-      
-                /**********************************************************
-                 * sort data from buffer into pgg,
-                 * multiply source phase
-                 **********************************************************/
-#pragma omp parallel for
-                for ( int it = 0; it < T; it++ ) {
-
-                  /**********************************************************
-                   * order from source time
-                   **********************************************************/
-                  int const tt = ( it - gsx[0] + T_global ) % T_global; 
-      
-                  /**********************************************************
-                   * add the two flavor components
-                   **********************************************************/
-                  double _Complex ztmp = ( 
-                        ( buffer[0][mu][nu][2*it] +  buffer[0][mu][nu][2*it+1] * I )
-                      + ( buffer[1][mu][nu][2*it] -  buffer[1][mu][nu][2*it+1] * I ) * (double)sequential_source_gamma_id_sign[ sequential_source_gamma_id ]
-                      ) * p_ephase;
-
-                  /**********************************************************
-                   * for mu == nu and at source time subtract the contact term
-                   **********************************************************/
-                  if ( mu == nu ) {
-                    if ( tt == 0 ) {
-                       ztmp -= ( contact_term[0][mu][0] + I * contact_term[0][mu][1] );
-                     }
-                  }
-
-                  /**********************************************************
-                   * multiply source phase from pion momentum
-                   **********************************************************/
-                  ztmp *= q_ephase;
-
-                  /**********************************************************
-                   * write into pgg
-                   **********************************************************/
-                  pgg_conn[iconf][isrc][isink_momentum][mu][nu][2*tt  ] = creal( ztmp );
-                  pgg_conn[iconf][isrc][isink_momentum][mu][nu][2*tt+1] = cimag( ztmp );
-                      }  /* end of loop on timeslices */
-      
-              }  /* end of loop on direction nu */
-              }  /* end of loop on direction mu */
-      
-              fini_4level_dtable( &buffer );
-      
-            }  /* end of loop on sink momenta */
-
-#ifdef HAVE_LHPC_AFF
-            aff_reader_close ( affr );
-#endif  /* of ifdef HAVE_LHPC_AFF */
-      
-          }  /* end of loop on source locations */
-      
-        }   /* end of loop on configurations */
-      
         /****************************************
-         * show all data
+         * pointer to be used for UWerr analysis
          ****************************************/
-        if ( g_verbose > 5 ) {
-          gettimeofday ( &ta, (struct timezone *)NULL );
-
-          for ( int iconf = 0; iconf < num_conf; iconf++ )
-          {
-            for( int isrc = 0; isrc < num_src_per_conf; isrc++ )
-            {
-              for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
-                for ( int mu = 0; mu < 4; mu++ ) {
-                for ( int nu = 0; nu < 4; nu++ ) {
-                  for ( int it = 0; it < T; it++ ) {
-                    fprintf ( stdout, "c %6d s %3d p %3d %3d %3d m %d %d pgg %3d  %25.16e %25.16e\n", iconf, isrc, 
-                        g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], mu, nu, it, 
-                        pgg_conn[iconf][isrc][imom][mu][nu][2*it], pgg_conn[iconf][isrc][imom][mu][nu][2*it+1] );
-                  }
-                }}
-              }
-            }
-          }
-          gettimeofday ( &tb, (struct timezone *)NULL );
-          show_time ( &ta, &tb, "p2gg_analyse_wdisc", "show-all-data", g_cart_id == 0 );
-        }
-#endif  /* if if 0 */
-
         double ****** pgg = pgg_disc;
-
 
         /****************************************
          * check WI in momentum space
@@ -1301,10 +991,265 @@ int main(int argc, char **argv) {
 
         }  /* end of loop on momenta */
 
+        /****************************************
+         * statistical analysis for orbit average
+         *
+         * ASSUMES MOMENTUM LIST IS AN ORBIT AND
+         * SEQUENTIAL MOMENTUM IS ZERO
+         ****************************************/
+        int const nT = T_global;
+        double *** data = init_3level_dtable ( num_conf, num_src_per_conf, 2 * nT );
+        double *** res = init_3level_dtable ( 2, nT, 5 );
+      
+        int epstensor[3][3] = { {0,1,2}, {1,2,0}, {2,0,1} };
+
+        gettimeofday ( &ta, (struct timezone *)NULL );
+
+#pragma omp parallel for         
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+            for ( int it = 0; it < T; it++ ) {
+
+              double const norm  = ( g_sink_momentum_list[0][0] == 0  && g_sink_momentum_list[0][1] == 0  && g_sink_momentum_list[0][2] == 0  ) ? 0 : 
+                1. / ( 4. * (
+                        _SQR( sin( g_sink_momentum_list[0][0] * M_PI / (double)LX_global ) ) + 
+                        _SQR( sin( g_sink_momentum_list[0][1] * M_PI / (double)LY_global ) ) + 
+                        _SQR( sin( g_sink_momentum_list[0][2] * M_PI / (double)LZ_global ) )  ) * (double)g_sink_momentum_number );
+
+              for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+      
+                int const p[3] = {
+                    g_sink_momentum_list[imom][0],
+                    g_sink_momentum_list[imom][1],
+                    g_sink_momentum_list[imom][2] };
+
+                double const phat[3] = {
+                    2. * sin ( p[0] * M_PI / LX_global ),
+                    2. * sin ( p[1] * M_PI / LY_global ),
+                    2. * sin ( p[2] * M_PI / LZ_global ) };
+
+                double const phat2 = phat[0] * phat[0] + phat[1] * phat[1] + phat[2] * phat[2];
+              
+
+                for ( int a = 0; a < 3; a++ ) {
+
+                  data[iconf][isrc][2*it  ] += phat[epstensor[a][0]] * ( 
+                      pgg[iconf][isrc][imom][epstensor[a][1]+1][epstensor[a][2]+1][2*it  ]
+                    - pgg[iconf][isrc][imom][epstensor[a][2]+1][epstensor[a][1]+1][2*it  ]
+                    );
+
+                  data[iconf][isrc][2*it+1] += phat[epstensor[a][0]] * ( 
+                      pgg[iconf][isrc][imom][epstensor[a][1]+1][epstensor[a][2]+1][2*it+1]
+                    - pgg[iconf][isrc][imom][epstensor[a][2]+1][epstensor[a][1]+1][2*it+1]
+                    );
+                }  /* end of loop on permutations */
+
+              }  /* end of loop on momenta */
+
+              data[iconf][isrc][2*it  ] *= norm;
+              data[iconf][isrc][2*it+1] *= norm;
+            }  /* end of loop on timeslices */
+          }
+        }  /* end of loop on configurations */
+
+        uwerr ustat;
+        /****************************************
+         * real and imag part
+         ****************************************/
+        for ( int it = 0; it < 2* nT; it++ ) {
+      
+              uwerr_init ( &ustat );
+      
+              ustat.nalpha   = 2 * nT;  /* real and imaginary part */
+              ustat.nreplica = 1;
+              for (  int i = 0; i < ustat.nreplica; i++) ustat.n_r[i] = num_conf * num_src_per_conf / ustat.nreplica;
+              ustat.s_tau = 1.5;
+              sprintf ( ustat.obsname, "p_j_j_orbit_PX%d_PY%d_PZ%d", g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2] );
+      
+              ustat.ipo = it + 1;  /* real / imag part : 2*it, shifted by 1 */
+      
+              uwerr_analysis ( data[0][0], &ustat );
+      
+              res[it%2][it/2][0] = ustat.value;
+              res[it%2][it/2][1] = ustat.dvalue;
+              res[it%2][it/2][2] = ustat.ddvalue;
+              res[it%2][it/2][3] = ustat.tauint;
+              res[it%2][it/2][4] = ustat.dtauint;
+      
+              uwerr_free ( &ustat );
+        }  /* end of loop on ipos */
+      
+        sprintf ( filename, "p_disc_%s_j_j_orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.uwerr", loop_type_str,
+                seq_source_momentum[0],
+                seq_source_momentum[1],
+                seq_source_momentum[2],
+                sequential_source_gamma_id,
+                sequential_source_timeslice,
+                g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2]);
+        FILE * ofs = fopen ( filename, "w" );
+      
+        fprintf ( ofs, "# nalpha   = %llu\n", ustat.nalpha );
+        fprintf ( ofs, "# nreplica = %llu\n", ustat.nreplica );
+        for (  int i = 0; i < ustat.nreplica; i++) fprintf( ofs, "# nr[%d] = %llu\n", i, ustat.n_r[i] );
+        fprintf ( ofs, "#\n" );
+      
+        for ( int it = 0; it < nT; it++ ) {
+      
+              fprintf ( ofs, "%3d %16.7e %16.7e %16.7e %16.7e %16.7e    %16.7e %16.7e %16.7e %16.7e %16.7e\n", it,
+                  res[0][it][0], res[0][it][1], res[0][it][2], res[0][it][3], res[0][it][4],
+                  res[1][it][0], res[1][it][1], res[1][it][2], res[1][it][3], res[1][it][4] );
+        }
+      
+        fclose( ofs );
+      
+        fini_3level_dtable ( &res );
+        fini_3level_dtable ( &data );
+
+        /****************************************
+         * statistical analysis for orbit average
+         *
+         * WITH SUBTRACTION
+         *
+         * ASSUMES MOMENTUM LIST IS AN ORBIT AND
+         * SEQUENTIAL MOMENTUM IS ZERO
+         ****************************************/
+        double ** data2 = init_2level_dtable ( num_conf, 4 * nT + 1 );
+        res = init_3level_dtable ( 2, nT, 5 );
+      
+        gettimeofday ( &ta, (struct timezone *)NULL );
+
+        double const norm  = ( g_sink_momentum_list[0][0] == 0  && g_sink_momentum_list[0][1] == 0  && g_sink_momentum_list[0][2] == 0  ) ? 0 : 
+            1. / ( 4. * (
+                _SQR( sin( g_sink_momentum_list[0][0] * M_PI / (double)LX_global ) ) + 
+                _SQR( sin( g_sink_momentum_list[0][1] * M_PI / (double)LY_global ) ) + 
+                _SQR( sin( g_sink_momentum_list[0][2] * M_PI / (double)LZ_global ) )  ) * (double)g_sink_momentum_number * (double)num_src_per_conf );
+
+#pragma omp parallel for         
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for ( int it = 0; it < T; it++ ) {
+            for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+              for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+      
+                int const p[3] = {
+                    g_sink_momentum_list[imom][0],
+                    g_sink_momentum_list[imom][1],
+                    g_sink_momentum_list[imom][2] };
+
+                double const phat[3] = {
+                    2. * sin ( p[0] * M_PI / LX_global ),
+                    2. * sin ( p[1] * M_PI / LY_global ),
+                    2. * sin ( p[2] * M_PI / LZ_global ) };
+
+                double const phat2 = phat[0] * phat[0] + phat[1] * phat[1] + phat[2] * phat[2];
+              
+
+                for ( int a = 0; a < 3; a++ ) {
+
+                  data2[iconf][2*it  ] += phat[epstensor[a][0]] * ( 
+                      pgg[iconf][isrc][imom][epstensor[a][1]+1][epstensor[a][2]+1][2*it  ]
+                    - pgg[iconf][isrc][imom][epstensor[a][2]+1][epstensor[a][1]+1][2*it  ]
+                    );
+
+                  data2[iconf][2*it+1] += phat[epstensor[a][0]] * ( 
+                      pgg[iconf][isrc][imom][epstensor[a][1]+1][epstensor[a][2]+1][2*it+1]
+                    - pgg[iconf][isrc][imom][epstensor[a][2]+1][epstensor[a][1]+1][2*it+1]
+                    );
+
+                  data2[iconf][2*it + 2*nT    ] += phat[epstensor[a][0]] * ( 
+                      hvp[iconf][isrc][imom][epstensor[a][1]+1][epstensor[a][2]+1][2*it  ]
+                    - hvp[iconf][isrc][imom][epstensor[a][2]+1][epstensor[a][1]+1][2*it  ]
+                    );
+
+                  data2[iconf][2*it + 2*nT + 1] += phat[epstensor[a][0]] * ( 
+                      hvp[iconf][isrc][imom][epstensor[a][1]+1][epstensor[a][2]+1][2*it+1]
+                    - hvp[iconf][isrc][imom][epstensor[a][2]+1][epstensor[a][1]+1][2*it+1]
+                    );
+
+                }  /* end of loop on permutations */
+
+              }  /* end of loop on momenta */
+
+            }  /* end of loop on source timeslices */
+
+            data2[iconf][2*it  ]         *= norm;
+            data2[iconf][2*it+1]         *= norm;
+            data2[iconf][2*it + 2*nT   ] *= norm;
+            data2[iconf][2*it + 2*nT +1] *= norm;
+          }  /* end of loop on timeslices */
+
+          /* real part of loop */
+          for ( int it = 0; it < nT; it++ ) {
+            data2[iconf][4*nT] += loop_avg[iconf][2*it+loop_type_reim];
+          }
+          data2[iconf][4*nT] *= 1. / (double)nT;
+
+
+        }  /* end of loop on configurations */
+
+        /* uwerr ustat; */
+
+        /****************************************
+         * real and imag part
+         ****************************************/
+        for ( int it = 0; it < 2* nT; it++ ) {
+      
+              uwerr_init ( &ustat );
+      
+              ustat.nalpha   = 4 * nT + 1;  /* twice real and imaginary part and time-averaged loop */
+              ustat.nreplica = 1;
+              for (  int i = 0; i < ustat.nreplica; i++) ustat.n_r[i] = num_conf / ustat.nreplica;
+              ustat.s_tau = 1.5;
+              sprintf ( ustat.obsname, "p_disc_j_j_sub_orbit_PX%d_PY%d_PZ%d", g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2] );
+      
+              ustat.func  = a_mi_b_ti_c;
+              ustat.dfunc = da_mi_b_ti_c;
+              ustat.para  = (void * ) init_1level_itable ( 3 );
+              ((int*)(ustat.para))[0] = it;
+              ((int*)(ustat.para))[1] = it + 2*nT;
+              ((int*)(ustat.para))[2] = 4 * nT;
+  
+              uwerr_analysis ( data2[0], &ustat );
+      
+              res[it%2][it/2][0] = ustat.value;
+              res[it%2][it/2][1] = ustat.dvalue;
+              res[it%2][it/2][2] = ustat.ddvalue;
+              res[it%2][it/2][3] = ustat.tauint;
+              res[it%2][it/2][4] = ustat.dtauint;
+      
+              uwerr_free ( &ustat );
+        }  /* end of loop on ipos */
+      
+        sprintf ( filename, "p_disc_%s_sub_j_j_orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.uwerr", loop_type_str,
+                seq_source_momentum[0],
+                seq_source_momentum[1],
+                seq_source_momentum[2],
+                sequential_source_gamma_id,
+                sequential_source_timeslice,
+                g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2]);
+      
+        ofs = fopen ( filename, "w" );
+      
+        fprintf ( ofs, "# nalpha   = %llu\n", ustat.nalpha );
+        fprintf ( ofs, "# nreplica = %llu\n", ustat.nreplica );
+        for (  int i = 0; i < ustat.nreplica; i++) fprintf( ofs, "# nr[%d] = %llu\n", i, ustat.n_r[i] );
+        fprintf ( ofs, "#\n" );
+      
+        for ( int it = 0; it < nT; it++ ) {
+      
+              fprintf ( ofs, "%3d %16.7e %16.7e %16.7e %16.7e %16.7e    %16.7e %16.7e %16.7e %16.7e %16.7e\n", it,
+                  res[0][it][0], res[0][it][1], res[0][it][2], res[0][it][3], res[0][it][4],
+                  res[1][it][0], res[1][it][1], res[1][it][2], res[1][it][3], res[1][it][4] );
+        }
+      
+        fclose( ofs );
+      
+        fini_3level_dtable ( &res );
+        fini_2level_dtable ( &data2 );
+
+
         /**********************************************************
          * free p2gg table
          **********************************************************/
-        fini_6level_dtable ( &pgg_conn );
         fini_6level_dtable ( &pgg_disc );
 
       }  /* end of loop on sequential source timeslices */
