@@ -7,6 +7,7 @@
 #ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
+#include "uwerr.h"
 
 namespace cvc {
 
@@ -253,6 +254,10 @@ inline void show_time ( struct timeval * const ta, struct timeval * const tb, ch
 
 int check_momentum_space_wi_tpvec ( double *** const hvp , int const pvec[3] );
 
+int apply_uwerr_real ( double * const data, unsigned int const nmeas, unsigned int const ndata, int const ipo_first, int const ipo_stride, char * obs_name );
+
+int apply_uwerr_func ( double * const data, unsigned int const nmeas, unsigned int const ndata, unsigned int const nset, int const narg, int * const arg_first, int * const arg_stride, char * obs_name,
+   dquant func, dquant dfunc );
 }  /* end of namespace cvc */
 #endif
 
