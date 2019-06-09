@@ -67,11 +67,15 @@ int main(int argc, char **argv) {
   
   double const TWO_MPI = 2. * M_PI;
 
-  char const hvp_flavor_tag[] = "u-cvc-u-cvc";
-  char const ll_flavor_tag[] = "u-gf-u-gi";
-
   char const reim_str[2][3] = {"re" , "im"};
 
+  char const operator_type_tag[4][8]  = { "cvc-cvc"    , "lvc-lvc"    , "cvc-lvc"    , "lvc-cvc"    };
+
+  char const correlator_prefix[4][20] = { "hvp"        , "local-local", "hvp"        , "local-cvc"  };
+
+  char const flavor_tag[4][20]        = { "u-cvc-u-cvc", "u-gf-u-gi"  , "u-cvc-u-lvc", "u-gf-u-cvc" };
+
+  char const loop_type_tag[3][8] = { "NA", "dOp", "Scalar" };
 
   /***********************************************************
    * sign for g5 Gamma^\dagger g5
@@ -94,7 +98,6 @@ int main(int argc, char **argv) {
   int fold_correlator= 0;
   struct timeval ta, tb;
   int operator_type = -1;
-  char correlator_prefix[100], flavor_tag[100];
   int loop_type = 0;
 
   double ****** pgg_disc = NULL;
@@ -265,14 +268,6 @@ int main(int argc, char **argv) {
     EXIT(16);
   }
 
-  if ( operator_type == 0 ) {
-    strcpy ( correlator_prefix, "hvp" );
-    strcpy ( flavor_tag, hvp_flavor_tag );
-  } else if ( operator_type == 1 ) {
-    strcpy ( correlator_prefix, "local-local" );
-    strcpy ( flavor_tag, ll_flavor_tag );
-  }
-
   /***********************************************************
    * loop on configs and source locations per config
    ***********************************************************/
@@ -298,8 +293,9 @@ int main(int argc, char **argv) {
       gettimeofday ( &ta, (struct timezone *)NULL );
       struct AffNode_s *affn = NULL, *affdir = NULL;
 
-      sprintf ( filename, "%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", Nconf, g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
-      /* sprintf ( filename, "%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", Nconf, "hvp", Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
+      /* sprintf ( filename, "%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", Nconf, g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
+      sprintf ( filename, "%d/%s.%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", Nconf, correlator_prefix[operator_type], flavor_tag[operator_type], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+
       fprintf(stdout, "# [p2gg_analyse_wdisc] reading data from file %s\n", filename);
       affr = aff_reader ( filename );
       const char * aff_status_str = aff_reader_errstr ( affr );
@@ -334,11 +330,11 @@ int main(int argc, char **argv) {
           EXIT(15);
         }
 
-        if ( operator_type == 0 ) {
+        if ( operator_type == 0 || operator_type == 2 ) {
 
           gettimeofday ( &ta, (struct timezone *)NULL );
 
-          sprintf ( key , "/%s/%s/t%.2dx%.2dy%.2dz%.2d/px%.2dpy%.2dpz%.2d", correlator_prefix, flavor_tag,
+          sprintf ( key , "/%s/%s/t%.2dx%.2dy%.2dz%.2d/px%.2dpy%.2dpz%.2d", correlator_prefix[operator_type], flavor_tag[operator_type],
               gsx[0], gsx[1], gsx[2], gsx[3],
               sink_momentum[0], sink_momentum[1], sink_momentum[2] );
 
@@ -361,7 +357,7 @@ int main(int argc, char **argv) {
 
           for( int mu = 0; mu < 4; mu++) {
           for( int nu = 0; nu < 4; nu++) {
-            sprintf ( key , "/%s/%s/t%.2dx%.2dy%.2dz%.2d/gf%.2d/gi%.2d/px%dpy%dpz%d", correlator_prefix, flavor_tag,
+            sprintf ( key , "/%s/%s/t%.2dx%.2dy%.2dz%.2d/gf%.2d/gi%.2d/px%dpy%dpz%d", correlator_prefix[operator_type], flavor_tag[operator_type],
                 gsx[0], gsx[1], gsx[2], gsx[3], mu, nu, sink_momentum[0], sink_momentum[1], sink_momentum[2] );
 
             if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse_wdisc] key = %s\n", key );
@@ -395,6 +391,8 @@ int main(int argc, char **argv) {
             phase = - ( p[0] * gsx[0] + p[1] * gsx[1] + p[2] * gsx[2] + p[3] * gsx[3] ) + 0.5 * ( p[mu] - p[nu] );
           } else if ( operator_type == 1 ) {
             phase = - ( p[0] * gsx[0] + p[1] * gsx[1] + p[2] * gsx[2] + p[3] * gsx[3] );
+          } else if ( operator_type == 2 ) {
+            phase = - ( p[0] * gsx[0] + p[1] * gsx[1] + p[2] * gsx[2] + p[3] * gsx[3] ) + 0.5 * ( p[mu] );
           }
 
           double _Complex ephase = cexp ( phase * I );
@@ -485,12 +483,14 @@ int main(int argc, char **argv) {
    * components
    ****************************************/
 
+
   for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
 
     int const momentum[3] = { g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2] };
 
-    for( int mu = 0; mu < 4; mu++) {
-    for( int nu = 0; nu < 4; nu++) {
+    /* spatial components */
+    for( int mu = 1; mu < 4; mu++) {
+    for( int nu = 1; nu < 4; nu++) {
       for ( int ireim = 0; ireim < 2; ireim++ ) {
 
         double *** data = init_3level_dtable ( num_conf, num_src_per_conf, T_global );
@@ -506,7 +506,8 @@ int main(int argc, char **argv) {
         }
 
         char obs_name[100];
-        sprintf ( obs_name, "hvp_jmu%d_jnu%d.PX%d_PY%d_PZ%d.%s", mu, nu, momentum[0], momentum[1], momentum[2], reim_str[ireim] );
+        sprintf ( obs_name, "%s.%s.jmu%d_jnu%d.PX%d_PY%d_PZ%d.%s", correlator_prefix[operator_type], flavor_tag[operator_type],
+            mu, nu, momentum[0], momentum[1], momentum[2], reim_str[ireim] );
 
         /* apply UWerr analysis */
         exitstatus = apply_uwerr_real ( data[0][0], num_conf*num_src_per_conf, T_global, 0, 1, obs_name );
@@ -530,38 +531,11 @@ int main(int argc, char **argv) {
   for ( int ireim = 0; ireim < 2; ireim++ ) {
     double *** data = init_3level_dtable ( num_conf, num_src_per_conf, T_global );
 
-#if 0
-    double const norm = 1. / ( 2. * (
-        (g_sink_momentum_list[0][0] != 0) + 
-        (g_sink_momentum_list[0][1] != 0) + 
-        (g_sink_momentum_list[0][2] != 0) ) * g_sink_momentum_number );
-
-#pragma omp prallel for
-    for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-      for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-        for ( int it = 0; it < T_global; it++ ) {
-          /* sum over momentum orbit */
-          for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
-            int const p[3] = { _ISIGN(g_sink_momentum_list[imom][0]), _ISIGN(g_sink_momentum_list[imom][1]), _ISIGN(g_sink_momentum_list[imom][2]) };
-
-            for ( int ia = 0; ia < 3; ia++ ) {
-              data[iconf][isrc][it] += p[epsilon_tensor[ia][0]] * ( 
-                  hvp[iconf][isrc][imom][epsilon_tensor[ia][1]+1][epsilon_tensor[ia][2]+1][2*it+ireim]
-                - hvp[iconf][isrc][imom][epsilon_tensor[ia][2]+1][epsilon_tensor[ia][1]+1][2*it+ireim]
-                );
-            }  /* end of loop on permutations */
-          }  /* end of loop on momenta */
-          /* normalize */
-          data[iconf][isrc][it] *= norm;
-        }  /* end of loop on timeslices */
-      }  /* end of loop on sources */
-    }  /* end of loop on configurations */
-#endif  /* of if 0  */
-
     int const dim[3] = {num_conf, num_src_per_conf, T_global };
     antisymmetric_orbit_average_spatial ( data, hvp, dim, g_sink_momentum_number, g_sink_momentum_list, ireim );
     char obs_name[100];
-    sprintf ( obs_name, "hvp_orbit.PX%d_PY%d_PZ%d.%s", g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2], reim_str[ireim] );
+    sprintf ( obs_name, "%s.%s.orbit.PX%d_PY%d_PZ%d.%s", correlator_prefix[operator_type], flavor_tag[operator_type],
+        g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2], reim_str[ireim] );
 
     /* apply UWerr analysis */
     exitstatus = apply_uwerr_real ( data[0][0], num_conf*num_src_per_conf, T_global, 0, 1, obs_name );
@@ -604,20 +578,18 @@ int main(int argc, char **argv) {
     /**********************************************************
      * oet type string
      **********************************************************/
-    char loop_type_str[30];
     switch (loop_type) {
       case  1:
       case -1:
-        sprintf ( loop_type_str, "dOp" );
-        break;
       case  2:
       case -2:
-        sprintf ( loop_type_str, "Scalar" );
+        fprintf ( stdout, "# [p2gg_analyse_wdisc] Using loop type %s\n", loop_type_tag[loop_type]);
         break;
       default:
         fprintf ( stderr, "[p2gg_analyse_wdisc] Error, loop type not specified\n");
         EXIT(12);
     }
+
     /**********************************************************
      * use real or imaginary part of loo
      *
@@ -633,8 +605,8 @@ int main(int argc, char **argv) {
 
     for ( int iconf = 0; iconf < num_conf; iconf++ ) {
       Nconf = conf_src_list[iconf][0][0];
-      sprintf ( filename, "loops/Nconf_%d.%s.px%dpy%dpz%d", Nconf, loop_type_str, seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
-      /* sprintf ( filename, "loops/Nconf_%.4d.%s.loop_gamma4", Nconf, loop_type_str ); */
+      sprintf ( filename, "loops/Nconf_%d.%s.px%dpy%dpz%d", Nconf, loop_type_tag[loop_type], seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
+      /* sprintf ( filename, "loops/Nconf_%.4d.%s.loop_gamma4", Nconf, loop_type_tag[loop_type] ); */
       if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse_wdisc] reading loop data from file %s\n", filename );
       FILE * ofs = fopen ( filename, "r" );
       if ( ofs == NULL ) {
@@ -647,6 +619,7 @@ int main(int argc, char **argv) {
           for ( int mu = 0; mu < 4; mu++ ) {
           for ( int nu = 0; nu < 4; nu++ ) {
             fscanf ( ofs, "%lf %lf\n", loops_matrix[iconf][isample][t][mu]+2*nu, loops_matrix[iconf][isample][t][mu]+2*nu+1 );
+            /* show all data */
             if ( g_verbose > 4 ) {
               fprintf ( stdout, "loop_mat c %6d s %3d t %3d m %d nu %d l %25.16e %25.16e\n", Nconf, isample, t, mu, nu,
                   loops_matrix[iconf][isample][t][mu][2*nu], loops_matrix[iconf][isample][t][mu][2*nu+1] );
@@ -683,6 +656,9 @@ int main(int argc, char **argv) {
 
       double ** loop_avg = init_2level_dtable ( num_conf, 2*T );
 
+      /**********************************************************
+       * average loop over samples for each config and timeslice
+       **********************************************************/
 #pragma omp parallel for
       for ( int iconf = 0; iconf < num_conf; iconf++ ) {
         for ( int t = 0; t < T; t++ ) {
@@ -697,6 +673,7 @@ int main(int argc, char **argv) {
           /* normalize */
           loop_avg[iconf][2*t  ] *= 1. / g_nsample;
           loop_avg[iconf][2*t+1] *= 1. / g_nsample;
+          /* show all data */
           if( g_verbose > 3 ) {
             fprintf ( stdout, "loop_avg c %6d gseq %2d t %3d l %25.16e %25.16e\n", conf_src_list[iconf][0][0],
                 sequential_source_gamma_id, t, loop_avg[iconf][2*t], loop_avg[iconf][2*t+1] );
@@ -785,10 +762,10 @@ int main(int argc, char **argv) {
               g_sink_momentum_list[imom][1],
               g_sink_momentum_list[imom][2] };
       
-          for( int mu = 0; mu < 4; mu++)
+          for( int mu = 1; mu < 4; mu++)
           {
       
-          for( int nu = 0; nu < 4; nu++)
+          for( int nu = 1; nu < 4; nu++)
           {
             for ( int ireim = 0; ireim < 2; ireim++ ) {
       
@@ -804,7 +781,8 @@ int main(int argc, char **argv) {
               }
        
               char obs_name[100];
-              sprintf ( obs_name, "pgg_disc_%s_jmu%d_jnu%d.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s", loop_type_str,
+              sprintf ( obs_name, "pgg_disc.%s.%s.%s.jmu%d_jnu%d.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s", correlator_prefix[operator_type], flavor_tag[operator_type],
+                  loop_type_tag[loop_type],
                   mu, nu, seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
                   sequential_source_gamma_id, sequential_source_timeslice,
                   momentum[0], momentum[1], momentum[2], reim_str[ireim] );
@@ -836,10 +814,10 @@ int main(int argc, char **argv) {
               g_sink_momentum_list[imom][1],
               g_sink_momentum_list[imom][2] };
       
-          for( int mu = 0; mu < 4; mu++)
+          for( int mu = 1; mu < 4; mu++)
           {
       
-          for( int nu = 0; nu < 4; nu++)
+          for( int nu = 1; nu < 4; nu++)
           {
             for ( int ireim = 0; ireim < 2; ireim++ ) {
       
@@ -872,7 +850,8 @@ int main(int argc, char **argv) {
               }  /* end of loop on configurations */
       
               char obs_name[100];
-              sprintf ( obs_name, "pgg_disc_%s_sub_jmu%d_jnu%d.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s", loop_type_str,
+              sprintf ( obs_name, "pgg_disc.%s.%s.%s.sub.jmu%d_jnu%d.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s", correlator_prefix[operator_type], flavor_tag[operator_type],
+                  loop_type_tag[loop_type],
                   mu, nu, seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
                   sequential_source_gamma_id, sequential_source_timeslice, momentum[0], momentum[1], momentum[2], reim_str[ireim] );
 
@@ -904,7 +883,8 @@ int main(int argc, char **argv) {
           antisymmetric_orbit_average_spatial ( data, pgg, dim, g_sink_momentum_number, g_sink_momentum_list, ireim );
       
           char obs_name[100];
-          sprintf ( obs_name, "pgg_disc_%s_j_j_orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s", loop_type_str,
+          sprintf ( obs_name, "pgg_disc.%s.%s.%s.j_j_orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s", correlator_prefix[operator_type], flavor_tag[operator_type],
+              loop_type_tag[loop_type],
               seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id, sequential_source_timeslice,
                 g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2], reim_str[ireim] );
 
@@ -958,9 +938,10 @@ int main(int argc, char **argv) {
           }  /* end of loop on configurations */
 
           char obs_name[100];
-          sprintf ( obs_name, "pgg_disc_%s_sub_j_j_orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s", loop_type_str,
-                seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id, sequential_source_timeslice,
-                g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2], reim_str[ireim]);
+          sprintf ( obs_name, "pgg_disc.%s.%s.%s.sub.j_j_orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s", correlator_prefix[operator_type], flavor_tag[operator_type],
+              loop_type_tag[loop_type],
+              seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id, sequential_source_timeslice,
+              g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2], reim_str[ireim]);
       
           int arg_first[3] = { 0, T_global, 2*T_global };
           int arg_stride[3] = { 1, 1, 0};
