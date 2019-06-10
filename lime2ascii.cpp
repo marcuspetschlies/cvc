@@ -128,6 +128,7 @@ int main(int argc, char **argv) {
     set_default_input_values();
 
     T  = tsize;
+    T_global = tsize;
 
     L  = lsize;
     LX = lsize;
