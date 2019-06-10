@@ -56,8 +56,16 @@ int main(int argc, char **argv) {
   
   double const TWO_MPI = 2. * M_PI;
 
-  char const hvp_flavor_tag[] = "u-cvc-u-cvc";
-  char const ll_flavor_tag[] = "u-gf-u-gi";
+  char const reim_str[2][3] = {"re" , "im"};
+
+  char const hvp_operator_type_tag[3][12]  = { "cvc-cvc"    , "lvc-lvc"    , "cvc-lvc" };
+
+  char const hvp_correlator_prefix[3][20] = { "hvp"        , "local-local", "hvp"     };
+
+  char const hvp_flavor_tag[3][20]        = { "u-cvc-u-cvc", "u-gf-u-gi"  , "u-cvc-u-lvc" };
+
+  char const pgg_operator_type_tag[3][12]  = { "p-cvc-cvc"    , "p-lvc-lvc"    , "p-cvc-lvc" };
+
 
   /***********************************************************
    * sign for g5 Gamma^\dagger g5
@@ -65,10 +73,6 @@ int main(int argc, char **argv) {
    *
    ***********************************************************/
   int const sequential_source_gamma_id_sign[16] ={ -1, -1, -1, -1, +1, +1,  +1,  +1,  +1,  +1,  -1,  -1,  -1,  -1,  -1,  -1 };
-
-  char const reim_str[2][3] = {"re" , "im"};
-
-  char const operator_type_tag[3][12]  = { "p-cvc-cvc"    , "p-lvc-lvc"    , "p-cvc-lvc" };
 
   int c;
   int filename_set = 0;
@@ -232,7 +236,7 @@ int main(int argc, char **argv) {
     }
   }
 
-#if 0
+
   /***********************************************************
    ***********************************************************
    **
@@ -244,14 +248,6 @@ int main(int argc, char **argv) {
   if ( hvp == NULL ) {
     fprintf(stderr, "[p2gg_analyse] Error from init_6level_dtable %s %d\n", __FILE__, __LINE__);
     EXIT(16);
-  }
-
-  if ( operator_type == 0 ) {
-    strcpy ( correlator_prefix, "hvp" );
-    strcpy ( flavor_tag, hvp_flavor_tag );
-  } else if ( operator_type == 1 ) {
-    strcpy ( correlator_prefix, "local-local" );
-    strcpy ( flavor_tag, ll_flavor_tag );
   }
 
   /***********************************************************
@@ -280,6 +276,7 @@ int main(int argc, char **argv) {
       struct AffNode_s *affn = NULL, *affdir = NULL;
 
       sprintf ( filename, "%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", Nconf, g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+      /* sprintf ( filename, "%d/%s.%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", Nconf, hvp_correlator_prefix[operator_type], hvp_flavor_tag[operator_type], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
       fprintf(stdout, "# [p2gg_analyse] reading data from file %s\n", filename);
       affr = aff_reader ( filename );
       const char * aff_status_str = aff_reader_errstr ( affr );
@@ -314,11 +311,12 @@ int main(int argc, char **argv) {
           EXIT(15);
         }
 
-        if ( operator_type == 0 ) {
+        if ( operator_type == 0 || operator_type == 2 ) {
 
           gettimeofday ( &ta, (struct timezone *)NULL );
 
-          sprintf ( key , "/%s/%s/t%.2dx%.2dy%.2dz%.2d/px%.2dpy%.2dpz%.2d", correlator_prefix, flavor_tag,
+          sprintf ( key , "/%s/%s/t%.2dx%.2dy%.2dz%.2d/px%.2dpy%.2dpz%.2d", hvp_correlator_prefix[operator_type], hvp_flavor_tag[operator_type],
+
               gsx[0], gsx[1], gsx[2], gsx[3],
               sink_momentum[0], sink_momentum[1], sink_momentum[2] );
 
@@ -341,7 +339,7 @@ int main(int argc, char **argv) {
 
           for( int mu = 0; mu < 4; mu++) {
           for( int nu = 0; nu < 4; nu++) {
-            sprintf ( key , "/%s/%s/t%.2dx%.2dy%.2dz%.2d/gf%.2d/gi%.2d/px%dpy%dpz%d", correlator_prefix, flavor_tag,
+            sprintf ( key , "/%s/%s/t%.2dx%.2dy%.2dz%.2d/gf%.2d/gi%.2d/px%dpy%dpz%d", hvp_correlator_prefix[operator_type], hvp_flavor_tag[operator_type],
                 gsx[0], gsx[1], gsx[2], gsx[3], mu, nu, sink_momentum[0], sink_momentum[1], sink_momentum[2] );
 
             if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse] key = %s\n", key );
@@ -375,6 +373,8 @@ int main(int argc, char **argv) {
             phase = - ( p[0] * gsx[0] + p[1] * gsx[1] + p[2] * gsx[2] + p[3] * gsx[3] ) + 0.5 * ( p[mu] - p[nu] );
           } else if ( operator_type == 1 ) {
             phase = - ( p[0] * gsx[0] + p[1] * gsx[1] + p[2] * gsx[2] + p[3] * gsx[3] );
+          } else if ( operator_type == 2 ) {
+            phase = - ( p[0] * gsx[0] + p[1] * gsx[1] + p[2] * gsx[2] + p[3] * gsx[3] ) + 0.5 * ( p[mu] );
           }
 
           double _Complex ephase = cexp ( phase * I );
@@ -470,106 +470,44 @@ int main(int argc, char **argv) {
         g_sink_momentum_list[imom][1],
         g_sink_momentum_list[imom][2] };
 
-    for( int mu = 0; mu < 4; mu++)
-    {
+    for( int mu = 0; mu < 4; mu++) {
+    for( int nu = 0; nu < 4; nu++) {
+      for ( int ireim = 0; ireim < 2; ireim++ ) {
 
-    for( int nu = 0; nu < 4; nu++)
-    {
-      gettimeofday ( &ta, (struct timezone *)NULL );
+        double *** data = init_3level_dtable ( num_conf, num_src_per_conf, T_global );
 
-      int const nT = fold_correlator ? T_global / 2 + 1 : T_global ;
-
-      double *** data = init_3level_dtable ( num_conf, num_src_per_conf, 2 * nT );
-      double *** res = init_3level_dtable ( 2, nT, 5 );
-
-      if ( fold_correlator ) {
-        /****************************************
-         * fold
-         ****************************************/
+        /* fill data array */
+#pragma omp parallel for
         for ( int iconf = 0; iconf < num_conf; iconf++ ) {
           for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-            int const Thp1 = T_global / 2 + 1;
-            data[iconf][isrc][0] = hvp[iconf][isrc][imom][mu][nu][0];
-            data[iconf][isrc][1] = hvp[iconf][isrc][imom][mu][nu][1];
-
-            for ( int it = 1; it < Thp1-1; it++ ) {
-              data[iconf][isrc][2*it  ] = ( hvp[iconf][isrc][imom][mu][nu][2*it  ] + hvp[iconf][isrc][imom][mu][nu][2*(T_global-it)  ] ) * 0.5;
-              data[iconf][isrc][2*it+1] = ( hvp[iconf][isrc][imom][mu][nu][2*it+1] + hvp[iconf][isrc][imom][mu][nu][2*(T_global-it)+1] ) * 0.5;
-            }
-
-            data[iconf][isrc][2*Thp1-2] = hvp[iconf][isrc][imom][mu][nu][2*Thp1-2];
-            data[iconf][isrc][2*Thp1-1] = hvp[iconf][isrc][imom][mu][nu][2*Thp1-1];
-          }
-        }
-      } else {
-        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-          for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-            for ( int it = 0; it < 2*T_global; it++ ) {
-              data[iconf][isrc][it] = hvp[iconf][isrc][imom][mu][nu][it];
+            for ( int it = 0; it < T_global; it++ ) {
+              data[iconf][isrc][it] = hvp[iconf][isrc][imom][mu][nu][2*it+ireim];
             }
           }
         }
-      }  /* end of if fold propagator */
 
-      uwerr ustat;
-      /****************************************
-       * real and imag part
-       ****************************************/
-      for ( int it = 0; it < 2* nT; it++ ) {
+        char obs_name[100];
+        sprintf ( obs_name, "%s.%s.jmu%d_jnu%d.PX%d_PY%d_PZ%d.%s", hvp_correlator_prefix[operator_type], hvp_flavor_tag[operator_type],
+            mu, nu, momentum[0], momentum[1], momentum[2], reim_str[ireim] );
 
-        uwerr_init ( &ustat );
+        /* apply UWerr analysis */
+        exitstatus = apply_uwerr_real ( data[0][0], num_conf*num_src_per_conf, T_global, 0, 1, obs_name );
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[p2gg_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(1);
+        }
 
-        ustat.nalpha   = 2 * nT;  /* real and imaginary part */
-        ustat.nreplica = 1;
-        for (  int i = 0; i < ustat.nreplica; i++) ustat.n_r[i] = num_conf * num_src_per_conf / ustat.nreplica;
-        ustat.s_tau = 1.5;
-        sprintf ( ustat.obsname, "jmu%d.jnu%d.PX%d_PY%d_PZ%d", mu, nu, momentum[0], momentum[1], momentum[2] );
+        fini_3level_dtable ( &data );
 
-        ustat.ipo = it + 1;  /* real / imag part : 2*it, shifted by 1 */
-
-        /* uwerr_analysis ( hvp[imom][mu][nu][0][0], &ustat ); */
-        uwerr_analysis ( data[0][0], &ustat );
-
-        res[it%2][it/2][0] = ustat.value;
-        res[it%2][it/2][1] = ustat.dvalue;
-        res[it%2][it/2][2] = ustat.ddvalue;
-        res[it%2][it/2][3] = ustat.tauint;
-        res[it%2][it/2][4] = ustat.dtauint;
-
-        uwerr_free ( &ustat );
-      }  /* end of loop on ipos */
-
-      sprintf ( filename, "jmu%d_jnu%d.PX%d_PY%d_PZ%d.uwerr", mu, nu, momentum[0], momentum[1], momentum[2] );
-      FILE * ofs = fopen ( filename, "w" );
-
-      fprintf ( ofs, "# nalpha   = %llu\n", ustat.nalpha );
-      fprintf ( ofs, "# nreplica = %llu\n", ustat.nreplica );
-      for (  int i = 0; i < ustat.nreplica; i++) fprintf( ofs, "# nr[%d] = %llu\n", i, ustat.n_r[i] );
-      fprintf ( ofs, "#\n" );
-
-      for ( int it = 0; it < nT; it++ ) {
-
-        fprintf ( ofs, "%3d %16.7e %16.7e %16.7e %16.7e %16.7e    %16.7e %16.7e %16.7e %16.7e %16.7e\n", it,
-            res[0][it][0], res[0][it][1], res[0][it][2], res[0][it][3], res[0][it][4],
-            res[1][it][0], res[1][it][1], res[1][it][2], res[1][it][3], res[1][it][4] );
-      }
-
-      fclose( ofs );
-
-      fini_3level_dtable ( &res );
-      fini_3level_dtable ( &data );
-
-      gettimeofday ( &tb, (struct timezone *)NULL );
-      show_time ( &ta, &tb, "p2gg_analyse", "uwerr-analysis-rein", g_cart_id == 0 );
+      }  /* end of loop on re / im */
     }}  /* end of loop on nu, mu */
-
   }  /* end of loop on momenta */
 
   /**********************************************************
    * free hvp field
    **********************************************************/
   fini_6level_dtable ( &hvp );
-
+#if 0
 #endif  /* of if 0  */
 
   /**********************************************************
@@ -661,7 +599,7 @@ int main(int argc, char **argv) {
                 int const flavor_id = 1 - 2 * iflavor;
 
                 for ( int mu = 0; mu < 4; mu++ ) {
-                  sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d/contact_term/mu%d", operator_type_tag[operator_type],
+                  sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d/contact_term/mu%d", pgg_operator_type_tag[operator_type],
                       gsx[0], gsx[1], gsx[2], gsx[3],
                       flavor_id * seq_source_momentum[0],
                       flavor_id * seq_source_momentum[1],
@@ -716,11 +654,11 @@ int main(int argc, char **argv) {
 
                 int const flavor_id = 1 - 2 * iflavor;
 
-                if ( operator_type == 0 ) {
+                if ( operator_type == 0 || operator_type == 2 ) {
 
                   gettimeofday ( &ta, (struct timezone *)NULL );
 
-                  sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d/px%.2dpy%.2dpz%.2d", operator_type_tag[operator_type],
+                  sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d/px%.2dpy%.2dpz%.2d", pgg_operator_type_tag[operator_type],
                       gsx[0], gsx[1], gsx[2], gsx[3],
                       flavor_id * seq_source_momentum[0],
                       flavor_id * seq_source_momentum[1],
@@ -731,7 +669,7 @@ int main(int argc, char **argv) {
                       flavor_id * sink_momentum[1],
                       flavor_id * sink_momentum[2] );
       
-                  if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse] key = %s\n", key );
+                  if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse] pgg key = %s\n", key );
       
                   affdir = aff_reader_chpath (affr, affn, key );
                   uint32_t uitems = 16 * T;
@@ -751,7 +689,7 @@ int main(int argc, char **argv) {
                   show_time ( &ta, &tb, "p2gg_analyse", "read-pgg-tensor-aff", g_cart_id == 0 );
                   for ( int mu = 0; mu < 4; mu++ ) {
                   for ( int nu = 0; nu < 4; nu++ ) {
-                    sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d/gf%.2d/gi%.2d/px%dpy%dpz%d", correlator_prefix,
+                    sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d/gf%.2d/gi%.2d/px%dpy%dpz%d", pgg_operator_type_tag[operator_type],
                         gsx[0], gsx[1], gsx[2], gsx[3],
                         flavor_id * seq_source_momentum[0],
                         flavor_id * seq_source_momentum[1],
@@ -808,6 +746,10 @@ int main(int argc, char **argv) {
                   q_phase = -( q[0] * gsx[0] + q[1] * gsx[1] + q[2] * gsx[2] + q[3] * gsx[3] ) + 0.5 * (       - q[nu] );
                 } else if ( operator_type == 1 ) {
                   p_phase = -( p[0] * gsx[0] + p[1] * gsx[1] + p[2] * gsx[2] + p[3] * gsx[3] );
+                  q_phase = -( q[0] * gsx[0] + q[1] * gsx[1] + q[2] * gsx[2] + q[3] * gsx[3] );
+
+                } else if ( operator_type == 2 ) {
+                  p_phase = -( p[0] * gsx[0] + p[1] * gsx[1] + p[2] * gsx[2] + p[3] * gsx[3] ) + 0.5 * ( p[mu] );
                   q_phase = -( q[0] * gsx[0] + q[1] * gsx[1] + q[2] * gsx[2] + q[3] * gsx[3] );
                 }
 
@@ -941,122 +883,34 @@ int main(int argc, char **argv) {
          * ASSUMES MOMENTUM LIST IS AN ORBIT AND
          * SEQUENTIAL MOMENTUM IS ZERO
          ****************************************/
-        int const nT = T_global;
-        double *** data = init_3level_dtable ( num_conf, num_src_per_conf, 2 * nT );
-        double *** res = init_3level_dtable ( 2, nT, 5 );
-      
-        int epstensor[3][3] = { {0,1,2}, {1,2,0}, {2,0,1} };
+        for ( int ireim = 0; ireim < 2; ireim++ ) {
 
-        gettimeofday ( &ta, (struct timezone *)NULL );
+          double *** data = init_3level_dtable ( num_conf, num_src_per_conf, T_global );
+ 
+          int const dim[3] = { num_conf, num_src_per_conf, T_global };
+          antisymmetric_orbit_average_spatial ( data, pgg, dim, g_sink_momentum_number, g_sink_momentum_list, ireim );
 
-#pragma omp parallel for         
-        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-          for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-            for ( int it = 0; it < T; it++ ) {
+          char obs_name[100];
+          sprintf ( obs_name, "pgg_conn.%s.j_j_orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s", pgg_operator_type_tag[operator_type],
+              seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id, sequential_source_timeslice,
+                g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2], reim_str[ireim] );
 
-              double const norm  = ( g_sink_momentum_list[0][0] == 0  && g_sink_momentum_list[0][1] == 0  && g_sink_momentum_list[0][2] == 0  ) ? 0 : 
-                1. / ( 4. * (
-                        _SQR( sin( g_sink_momentum_list[0][0] * M_PI / (double)LX_global ) ) + 
-                        _SQR( sin( g_sink_momentum_list[0][1] * M_PI / (double)LY_global ) ) + 
-                        _SQR( sin( g_sink_momentum_list[0][2] * M_PI / (double)LZ_global ) )  ) * (double)g_sink_momentum_number );
-
-              for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
-      
-                int const p[3] = {
-                    g_sink_momentum_list[imom][0],
-                    g_sink_momentum_list[imom][1],
-                    g_sink_momentum_list[imom][2] };
-
-                double const phat[3] = {
-                    2. * sin ( p[0] * M_PI / LX_global ),
-                    2. * sin ( p[1] * M_PI / LY_global ),
-                    2. * sin ( p[2] * M_PI / LZ_global ) };
-
-                double const phat2 = phat[0] * phat[0] + phat[1] * phat[1] + phat[2] * phat[2];
-              
-
-                for ( int a = 0; a < 3; a++ ) {
-
-                  data[iconf][isrc][2*it  ] += phat[epstensor[a][0]] * ( 
-                      pgg[iconf][isrc][imom][epstensor[a][1]+1][epstensor[a][2]+1][2*it  ]
-                    - pgg[iconf][isrc][imom][epstensor[a][2]+1][epstensor[a][1]+1][2*it  ]
-                    );
-
-                  data[iconf][isrc][2*it+1] += phat[epstensor[a][0]] * ( 
-                      pgg[iconf][isrc][imom][epstensor[a][1]+1][epstensor[a][2]+1][2*it+1]
-                    - pgg[iconf][isrc][imom][epstensor[a][2]+1][epstensor[a][1]+1][2*it+1]
-                    );
-                }  /* end of loop on permutations */
-
-              }  /* end of loop on momenta */
-
-              data[iconf][isrc][2*it  ] *= norm;
-              data[iconf][isrc][2*it+1] *= norm;
-            }  /* end of loop on timeslices */
+          /* apply UWerr analysis */
+          exitstatus = apply_uwerr_real ( data[0][0], num_conf*num_src_per_conf, T_global, 0, 1, obs_name );
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "[p2gg_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(1);
           }
-        }  /* end of loop on configurations */
 
-        uwerr ustat;
-        /****************************************
-         * real and imag part
-         ****************************************/
-        for ( int it = 0; it < 2* nT; it++ ) {
-      
-              uwerr_init ( &ustat );
-      
-              ustat.nalpha   = 2 * nT;  /* real and imaginary part */
-              ustat.nreplica = 1;
-              for (  int i = 0; i < ustat.nreplica; i++) ustat.n_r[i] = num_conf * num_src_per_conf / ustat.nreplica;
-              ustat.s_tau = 1.5;
-              sprintf ( ustat.obsname, "p_j_j_orbit_PX%d_PY%d_PZ%d", g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2] );
-      
-              ustat.ipo = it + 1;  /* real / imag part : 2*it, shifted by 1 */
-      
-              uwerr_analysis ( data[0][0], &ustat );
-      
-              res[it%2][it/2][0] = ustat.value;
-              res[it%2][it/2][1] = ustat.dvalue;
-              res[it%2][it/2][2] = ustat.ddvalue;
-              res[it%2][it/2][3] = ustat.tauint;
-              res[it%2][it/2][4] = ustat.dtauint;
-      
-              uwerr_free ( &ustat );
-        }  /* end of loop on ipos */
-      
-        sprintf ( filename, "p_j_j_orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.uwerr", 
-                seq_source_momentum[0],
-                seq_source_momentum[1],
-                seq_source_momentum[2],
-                sequential_source_gamma_id,
-                sequential_source_timeslice,
-                g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2]);
-        FILE * ofs = fopen ( filename, "w" );
-      
-        fprintf ( ofs, "# nalpha   = %llu\n", ustat.nalpha );
-        fprintf ( ofs, "# nreplica = %llu\n", ustat.nreplica );
-        for (  int i = 0; i < ustat.nreplica; i++) fprintf( ofs, "# nr[%d] = %llu\n", i, ustat.n_r[i] );
-        fprintf ( ofs, "#\n" );
-      
-        for ( int it = 0; it < nT; it++ ) {
-      
-              fprintf ( ofs, "%3d %16.7e %16.7e %16.7e %16.7e %16.7e    %16.7e %16.7e %16.7e %16.7e %16.7e\n", it,
-                  res[0][it][0], res[0][it][1], res[0][it][2], res[0][it][3], res[0][it][4],
-                  res[1][it][0], res[1][it][1], res[1][it][2], res[1][it][3], res[1][it][4] );
-        }
-      
-        fclose( ofs );
-      
-        fini_3level_dtable ( &res );
-        fini_3level_dtable ( &data );
-     
-        gettimeofday ( &tb, (struct timezone *)NULL );
-        show_time ( &ta, &tb, "p2gg_analyse", "uwerr-analysis-reim", g_cart_id == 0 );
+          fini_3level_dtable ( &data );
+
+        }  /* end of loop on real / imag */
 
         /****************************************
-         * statistical analysis for 
+         * STATISTICAL ANALYSIS for real and
+         * imaginary part of individual
          * individual components
          ****************************************/
-      
         for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
       
           int const momentum[3] = {
@@ -1064,109 +918,39 @@ int main(int argc, char **argv) {
               g_sink_momentum_list[imom][1],
               g_sink_momentum_list[imom][2] };
       
-          for( int mu = 0; mu < 4; mu++)
-          {
+          for( int mu = 0; mu < 4; mu++) {
+          for( int nu = 0; nu < 4; nu++) {
+            for ( int ireim = 0; ireim < 2; ireim++ ) {
       
-          for( int nu = 0; nu < 4; nu++)
-          {
-      
-            gettimeofday ( &ta, (struct timezone *)NULL );
+              double *** data = init_3level_dtable ( num_conf, num_src_per_conf, T_global );
 
-            int const nT = fold_correlator ? T_global / 2 + 1 : T_global ;
-      
-            double *** data = init_3level_dtable ( num_conf, num_src_per_conf, 2 * nT );
-            double *** res = init_3level_dtable ( 2, nT, 5 );
-      
-            if ( fold_correlator ) {
-              /****************************************
-               * fold
-               ****************************************/
+#pragma omp parallel for
               for ( int iconf = 0; iconf < num_conf; iconf++ ) {
                 for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-                  int const Thp1 = T_global / 2 + 1;
-                  data[iconf][isrc][0] = pgg[iconf][isrc][imom][mu][nu][0];
-                  data[iconf][isrc][1] = pgg[iconf][isrc][imom][mu][nu][1];
-      
-                  for ( int it = 1; it < Thp1-1; it++ ) {
-                    data[iconf][isrc][2*it  ] = ( pgg[iconf][isrc][imom][mu][nu][2*it  ] + pgg[iconf][isrc][imom][mu][nu][2*(T_global-it)  ] ) * 0.5;
-                    data[iconf][isrc][2*it+1] = ( pgg[iconf][isrc][imom][mu][nu][2*it+1] + pgg[iconf][isrc][imom][mu][nu][2*(T_global-it)+1] ) * 0.5;
-                  }
-      
-                  data[iconf][isrc][2*Thp1-2] = pgg[iconf][isrc][imom][mu][nu][2*Thp1-2];
-                  data[iconf][isrc][2*Thp1-1] = pgg[iconf][isrc][imom][mu][nu][2*Thp1-1];
-                }
-              }
-            } else {
-              for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-                for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-                  for ( int it = 0; it < 2*T_global; it++ ) {
-                    data[iconf][isrc][it] = pgg[iconf][isrc][imom][mu][nu][it];
+                  for ( int it = 0; it < T_global; it++ ) {
+                    data[iconf][isrc][it] = pgg[iconf][isrc][imom][mu][nu][2*it+ireim];
                   }
                 }
               }
-            }  /* end of if fold propagator */
-      
-            uwerr ustat;
-            /****************************************
-             * real and imag part
-             ****************************************/
-            for ( int it = 0; it < 2* nT; it++ ) {
-      
-              uwerr_init ( &ustat );
-      
-              ustat.nalpha   = 2 * nT;  /* real and imaginary part */
-              ustat.nreplica = 1;
-              for (  int i = 0; i < ustat.nreplica; i++) ustat.n_r[i] = num_conf * num_src_per_conf / ustat.nreplica;
-              ustat.s_tau = 1.5;
-              sprintf ( ustat.obsname, "p_jmu%d.jnu%d.  PX%d_PY%d_PZ%d", mu, nu, momentum[0], momentum[1], momentum[2] );
-      
-              ustat.ipo = it + 1;  /* real / imag part : 2*it, shifted by 1 */
-      
-              uwerr_analysis ( data[0][0], &ustat );
-      
-              res[it%2][it/2][0] = ustat.value;
-              res[it%2][it/2][1] = ustat.dvalue;
-              res[it%2][it/2][2] = ustat.ddvalue;
-              res[it%2][it/2][3] = ustat.tauint;
-              res[it%2][it/2][4] = ustat.dtauint;
-      
-              uwerr_free ( &ustat );
-            }  /* end of loop on ipos */
-      
-            sprintf ( filename, "p_jmu%d_jnu%d.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.uwerr", 
-                mu, nu, 
-                seq_source_momentum[0],
-                seq_source_momentum[1],
-                seq_source_momentum[2],
-                sequential_source_gamma_id,
-                sequential_source_timeslice,
-                momentum[0], momentum[1], momentum[2] );
-            FILE * ofs = fopen ( filename, "w" );
-      
-            fprintf ( ofs, "# nalpha   = %llu\n", ustat.nalpha );
-            fprintf ( ofs, "# nreplica = %llu\n", ustat.nreplica );
-            for (  int i = 0; i < ustat.nreplica; i++) fprintf( ofs, "# nr[%d] = %llu\n", i, ustat.n_r[i] );
-            fprintf ( ofs, "#\n" );
-      
-            for ( int it = 0; it < nT; it++ ) {
-      
-              fprintf ( ofs, "%3d %16.7e %16.7e %16.7e %16.7e %16.7e    %16.7e %16.7e %16.7e %16.7e %16.7e\n", it,
-                  res[0][it][0], res[0][it][1], res[0][it][2], res[0][it][3], res[0][it][4],
-                  res[1][it][0], res[1][it][1], res[1][it][2], res[1][it][3], res[1][it][4] );
-            }
-      
-            fclose( ofs );
-      
-            fini_3level_dtable ( &res );
-            fini_3level_dtable ( &data );
-      
-            gettimeofday ( &tb, (struct timezone *)NULL );
-            show_time ( &ta, &tb, "p2gg_analyse", "uwerr-analysis-reim", g_cart_id == 0 );
+
+              char obs_name[100];
+              sprintf ( obs_name, "pgg_conn.%s.jmu%d_jnu%d.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s", pgg_operator_type_tag[operator_type],
+                  mu, nu, seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
+                  sequential_source_gamma_id, sequential_source_timeslice,
+                  momentum[0], momentum[1], momentum[2], reim_str[ireim] );
+
+              /* apply UWerr analysis */
+              exitstatus = apply_uwerr_real ( data[0][0], num_conf*num_src_per_conf, T_global, 0, 1, obs_name );
+              if ( exitstatus != 0 ) {
+                fprintf ( stderr, "[p2gg_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                EXIT(1);
+              }
+
+              fini_3level_dtable ( &data );
+
+            }  /* end of loop on real / imag */
           }}  /* end of loop on nu, mu */
-      
         }  /* end of loop on momenta */
-
-
 
         /**********************************************************
          * free p2gg table
