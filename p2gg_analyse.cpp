@@ -66,6 +66,9 @@ int main(int argc, char **argv) {
    ***********************************************************/
   int const sequential_source_gamma_id_sign[16] ={ -1, -1, -1, -1, +1, +1,  +1,  +1,  +1,  +1,  -1,  -1,  -1,  -1,  -1,  -1 };
 
+  char const reim_str[2][3] = {"re" , "im"};
+
+  char const operator_type_tag[3][12]  = { "p-cvc-cvc"    , "p-lvc-lvc"    , "p-cvc-lvc" };
 
   int c;
   int filename_set = 0;
@@ -582,12 +585,6 @@ int main(int argc, char **argv) {
     EXIT(16);
   }
 
-  if ( operator_type == 0 ) {
-    strcpy ( correlator_prefix, "p-cvc-cvc" );
-  } else if ( operator_type == 1 ) {
-    strcpy ( correlator_prefix, "p-loc-loc" );
-  }
-
   for ( int iseq_source_momentum = 0; iseq_source_momentum < g_seq_source_momentum_number; iseq_source_momentum++) 
   {
 
@@ -664,7 +661,7 @@ int main(int argc, char **argv) {
                 int const flavor_id = 1 - 2 * iflavor;
 
                 for ( int mu = 0; mu < 4; mu++ ) {
-                  sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d/contact_term/mu%d", correlator_prefix,
+                  sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d/contact_term/mu%d", operator_type_tag[operator_type],
                       gsx[0], gsx[1], gsx[2], gsx[3],
                       flavor_id * seq_source_momentum[0],
                       flavor_id * seq_source_momentum[1],
@@ -723,7 +720,7 @@ int main(int argc, char **argv) {
 
                   gettimeofday ( &ta, (struct timezone *)NULL );
 
-                  sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d/px%.2dpy%.2dpz%.2d", correlator_prefix,
+                  sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d/px%.2dpy%.2dpz%.2d", operator_type_tag[operator_type],
                       gsx[0], gsx[1], gsx[2], gsx[3],
                       flavor_id * seq_source_momentum[0],
                       flavor_id * seq_source_momentum[1],
