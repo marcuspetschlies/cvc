@@ -506,6 +506,18 @@ int main(int argc, char **argv) {
       EXIT(1);
     }
 
+    /* contraction */
+    exitstatus = contract_local_local_2pt_eo (
+       &(eo_spinor_field[168]), &(eo_spinor_field[228]),
+       &(eo_spinor_field[ 48]), &(eo_spinor_field[108]),
+       g_sink_gamma_id_list, g_sink_gamma_id_number,
+       g_sink_gamma_id_list, g_sink_gamma_id_number,
+       g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
+
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[p2gg_invert_contract] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(1);
+    }
     /***************************************************************************
      * local - local 2-point  d - u
      ***************************************************************************/
@@ -797,7 +809,7 @@ int main(int argc, char **argv) {
              * contraction for P - local - local tensor
              ***************************************************************************/
             /* flavor-dependent AFF tag */
-            sprintf(aff_tag, "/p-loc-loc/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d", gsx[0], gsx[1], gsx[2], gsx[3],
+            sprintf(aff_tag, "/p-lvc-lvc/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d", gsx[0], gsx[1], gsx[2], gsx[3],
                 seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
                 sequential_source_gamma_id, g_sequential_source_timeslice, iflavor );
 
@@ -924,5 +936,4 @@ int main(int argc, char **argv) {
   }
 
   return(0);
-
 }
