@@ -64,7 +64,8 @@ int main(int argc, char **argv) {
 
   char const hvp_flavor_tag[3][20]        = { "u-cvc-u-cvc", "u-gf-u-gi"  , "u-cvc-u-lvc" };
 
-  char const pgg_operator_type_tag[3][12]  = { "p-cvc-cvc"    , "p-lvc-lvc"    , "p-cvc-lvc" };
+  /* char const pgg_operator_type_tag[3][12]  = { "p-cvc-cvc"    , "p-lvc-lvc"    , "p-cvc-lvc" }; */
+  char const pgg_operator_type_tag[3][12]  = { "p-cvc-cvc"    , "p-loc-loc"    , "p-cvc-lvc" };
 
 
   /***********************************************************
@@ -236,7 +237,7 @@ int main(int argc, char **argv) {
     }
   }
 
-
+#if 0
   /***********************************************************
    ***********************************************************
    **
@@ -507,8 +508,9 @@ int main(int argc, char **argv) {
    * free hvp field
    **********************************************************/
   fini_6level_dtable ( &hvp );
-#if 0
+
 #endif  /* of if 0  */
+
 
   /**********************************************************
    **********************************************************
@@ -567,6 +569,7 @@ int main(int argc, char **argv) {
             struct AffNode_s *affn = NULL, *affdir = NULL;
       
             sprintf ( filename, "%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", Nconf, g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+            /* sprintf ( filename, "%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", Nconf, pgg_operator_type_tag[operator_type], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
             fprintf(stdout, "# [p2gg_analyse] reading data from file %s\n", filename);
             affr = aff_reader ( filename );
             const char * aff_status_str = aff_reader_errstr ( affr );
@@ -960,8 +963,10 @@ int main(int argc, char **argv) {
       }  /* end of loop on sequential source timeslices */
 
     }  /* end of loop on sequential source gamma id */
-
+#if 0
+#endif  /* of if 0  */
   }  /* end of loop on seq source momentum */
+
 
   /**********************************************************
    * free the allocated memory, finalize
