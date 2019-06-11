@@ -2724,6 +2724,61 @@ void contract_cvc_local_tensor_eo ( double * const conn_e, double * const conn_o
 
 }  /* end of contract_cvc_local_tensor_eo */
 
+
+/****************************************************
+ * average 4x4 tensor spatial components over orbit
+ * with totally antisymmetric 3x3 tensor
+ ****************************************************/
+void antisymmetric_orbit_average_spatial (double *** const d_out, double ****** const d_in, int const dim[3], int const momentum_num, int  const (*momentum_list)[3], int const reim ) {
+
+  int const epsilon_tensor[3][3] = { {0,1,2}, {1,2,0}, {2,0,1} };
+
+  /* double const norm = 1. / ( 2. * (double)(
+      (momentum_list[0][0] != 0) +
+      (momentum_list[0][1] != 0) +
+      (momentum_list[0][2] != 0) ) * (double)momentum_num );
+   */
+
+  double const pnorm[3] = {
+    2. * sin( M_PI * momentum_list[0][0] / LX_global ),
+    2. * sin( M_PI * momentum_list[0][1] / LY_global ),
+    2. * sin( M_PI * momentum_list[0][2] / LZ_global )
+  };
+  double const pnorm2 = pnorm[0] * pnorm[0] + pnorm[1] * pnorm[1] + pnorm[2] * pnorm[2];
+  double const norm = 1. / ( 2. * pnorm2 * (double)momentum_num );
+
+  if ( g_verbose > 3 ) fprintf ( stdout, "# [antisymmetric_orbit_average_spatial] norm = %f\n", norm );
+#pragma omp prallel for
+  for ( int i = 0; i < dim[0]; i++ ) {
+    for ( int k = 0; k < dim[1]; k++ ) {
+      for ( int l = 0; l < dim[2]; l++ ) {
+        /* sum over momentum orbit */
+        for ( int imom = 0; imom < momentum_num; imom++ ) {
+          /* int const p[3] = { _ISIGN(momentum_list[imom][0]), _ISIGN(momentum_list[imom][1]), _ISIGN(momentum_list[imom][2]) }; */
+          double const p[3] = {
+              2. * sin( M_PI *  momentum_list[imom][0] / LX_global ),
+              2. * sin( M_PI *  momentum_list[imom][1] / LY_global ),
+              2. * sin( M_PI *  momentum_list[imom][2] / LZ_global ) };
+
+          /* fprintf ( stdout, "# [antisymmetric_orbit_average_spatial] p = %f %f %f\n", p[0], p[1],  p[2] ); */
+          for ( int ia = 0; ia < 3; ia++ ) {
+            d_out[i][k][l] += p[epsilon_tensor[ia][0]] * (
+                d_in[i][k][imom][epsilon_tensor[ia][1]+1][epsilon_tensor[ia][2]+1][2*l+reim]
+              - d_in[i][k][imom][epsilon_tensor[ia][2]+1][epsilon_tensor[ia][1]+1][2*l+reim]
+              );
+          }  /* end of loop on permutations */
+        }  /* end of loop on momenta */
+        /* normalize */
+        d_out[i][k][l] *= norm;
+        /* if ( g_verbose > 5 ) fprintf ( stdout, " i %3d k %3d l %3d d_out %25.16e\n", i, k, l, d_out[i][k][l] ); */
+      }  /* end of loop on dim[2] */
+    }  /* end of loop on dim[1] */
+  }  /* end of loop on dim[0] */
+
+  return;
+}  /* end of antisymmetric_orbit_average_spatial */
+
+
 /***********************************************************/
 /***********************************************************/
 
