@@ -7354,8 +7354,11 @@ int check_momentum_space_wi_tpvec ( double *** const hvp , int const pvec[3] ) {
 
 /****************************************************************************
  * apply UWerr analysis to a single data set, including output
+ *
+ * ipo_first  = first ipo, start counting with zero
+ * ipo_stride = step size between ipos
  ****************************************************************************/
-int apply_uwerr_real ( double * const data, unsigned int const nmeas, unsigned int const ndata, int const ipo_first, int const ipo_stride, char * obs_name ) {
+int apply_uwerr_real ( double * const data, unsigned int const nmeas, unsigned int const ndata, unsigned int const ipo_first, unsigned int const ipo_stride, char * obs_name ) {
  
   struct timeval ta, tb;
   uwerr ustat;
@@ -7384,7 +7387,14 @@ int apply_uwerr_real ( double * const data, unsigned int const nmeas, unsigned i
     ustat.s_tau    = 1.5;
     strcpy ( ustat.obsname, obs_name );
 
-    ustat.ipo = i + 1;
+    ustat.ipo = ipo_first + i * ipo_stride + 1;  /* uwerr ipo starts counting with 1, NOT zero */
+    if ( ustat.ipo > ndata ) {
+      break;
+    } else {
+      if ( g_verbose > 2 ) {
+        fprintf ( stdout, "# [apply_uwerr_real] obs %s ipo %lu\n", ustat.obsname, ustat.ipo );
+      }
+    }
 
     uwerr_analysis ( data, &ustat );
 
