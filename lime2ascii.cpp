@@ -73,6 +73,7 @@ int main(int argc, char **argv) {
   int exitstatus;
   char filename[100];
   char limefile_name[100] = "NA";
+  char limefile_suffix[100] = "inverted";
   char limefile_type[100] = "DiracFermion";
   int limefile_pos = 0;
   int tsize = 0, lsize = 0;
@@ -165,6 +166,10 @@ int main(int argc, char **argv) {
   geometry();
 
   if ( strcmp ( limefile_type, "DiracFermion" ) == 0 ) {
+    /***************************************************************************
+     * write as Dirac fermion
+     ***************************************************************************/
+
     double * spinor_field = init_1level_dtable ( _GSI(VOLUME) );
     exitstatus = read_lime_spinor ( spinor_field, limefile_name, limefile_pos);
 
@@ -179,7 +184,13 @@ int main(int argc, char **argv) {
     fclose ( ofs );
 
     fini_1level_dtable ( &spinor_field );
+
   } else if ( strcmp ( limefile_type, "GaugeField" ) == 0 ) {
+
+    /***************************************************************************
+     * write as gauge field
+     ***************************************************************************/
+
     g_gauge_field = init_1level_dtable ( 72*VOLUME );
     exitstatus = read_lime_gauge_field_doubleprec ( limefile_name );
 
@@ -218,6 +229,47 @@ int main(int argc, char **argv) {
 
     fini_1level_dtable ( &g_gauge_field );
 
+  } else if ( strcmp ( limefile_type, "DiracPropagator" ) == 0 ) {
+    /***************************************************************************
+     * write as Dirac propagator
+     ***************************************************************************/
+
+    double ** propagator_field = init_2level_dtable ( 12, _GSI(VOLUME) );
+    for ( int i = 0; i < 12; i++ ) {
+      sprintf ( filename, "%s.%d.%s", limefile_name, i, limefile_suffix );
+      exitstatus = read_lime_spinor ( propagator_field[i], filename, limefile_pos);
+
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[lime2ascii] Error from read_lime_spinor, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(2);
+      }
+    }  /* of loop on i */
+
+    sprintf ( filename,"%s.%s.ascii", limefile_name, limefile_suffix );
+    FILE * ofs = fopen ( filename, "w" );
+
+    fprintf ( ofs, "s <- array(dim=c(4,3,4,3))\n" );
+    for ( int x0 = 0; x0 < T; x0++ ) {
+    for ( int x1 = 0; x1 < LX; x1++ ) {
+    for ( int x2 = 0; x2 < LY; x2++ ) {
+    for ( int x3 = 0; x3 < LZ; x3++ ) {
+      unsigned int const ix = g_ipt[x0][x1][x2][x3];
+      fprintf ( ofs, "# [lime2ascii] x %3d %3d %3d %3d\n", x0, x1, x2, x3 );
+
+
+      for ( int i = 0; i < 12; i++ ) {
+      for ( int k = 0; k < 12; k++ ) {
+
+        fprintf ( ofs, "s[%d,%d,%d,%d] <- (%25.16e) + (%25.16e)*1.i\n", i/3+1, i%3+1, k/3+1, k%3+1, 
+            propagator_field[k][_GSI(ix)+2*i], propagator_field[k][_GSI(ix)+2*i+1] );
+      }}
+#if 0
+#endif
+    }}}}
+
+    fclose ( ofs );
+
+    fini_2level_dtable ( &propagator_field );
   }
 
   free_geometry();
