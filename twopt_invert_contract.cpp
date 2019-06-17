@@ -92,16 +92,16 @@ int main(int argc, char **argv) {
   double *gauge_field_with_phase = NULL;
   double *gauge_field_smeared = NULL;
 
-#if 0
   int const    gamma_f1_number                           = 1;
   int const    gamma_f1_list[gamma_f1_number]            = { 14 }; /*, 11,  8,  2 }; */
   double const gamma_f1_sign[gamma_f1_number]            = { +1 }; /*, +1, -1, -1 }; */
   /* double const gamma_f1_transposed_sign[gamma_f1_number] = { -1, -1, +1, -1 }; */
-#endif  /* of if 0 */
 
+#if 0
   int const    gamma_f1_number                = 3;
   int const    gamma_f1_list[gamma_f1_number] = { 9,  0,  7 };
   double const gamma_f1_sign[gamma_f1_number] = {-1, +1, +1 };
+#endif  /* of if 0 */
 
 #ifdef HAVE_LHPC_AFF
   struct AffWriter_s *affw = NULL;
@@ -250,7 +250,7 @@ int main(int argc, char **argv) {
     if ( N_ape > 0 ) {
       exitstatus = APE_Smearing(gauge_field_smeared, alpha_ape, N_ape);
       if(exitstatus != 0) {
-        fprintf(stderr, "[piN2piN_factorized] Error from APE_Smearing, status was %d\n", exitstatus);
+        fprintf(stderr, "[twopt_invert_contract] Error from APE_Smearing, status was %d\n", exitstatus);
         EXIT(47);
       }
     }  /* end of if N_aoe > 0 */
@@ -346,8 +346,18 @@ int main(int argc, char **argv) {
       EXIT(12);
     }
 
+    if ( g_write_propagator ) {
+      for ( int i = 0; i < 12; i++ ) {
+        sprintf ( filename, "Rpsource.%.4d.t%dx%dy%dz%d.%d.inverted", Nconf, 
+            gsx[0], gsx[1], gsx[2], gsx[3] , i );
 
-#if 0
+        if ( ( exitstatus = write_propagator( spinor_field[i], filename, 0, g_propagator_precision) ) != 0 ) {
+          fprintf(stderr, "[twopt_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(2);
+        }
+      }
+    }
+
     /***********************************************************
      * dn-type point-to-all propagator
      ***********************************************************/
@@ -356,6 +366,20 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[twopt_invert_contract] Error from point_source_propagator, status was %d\n", exitstatus);
       EXIT(12);
     }
+
+    if ( g_write_propagator ) {
+      for ( int i = 0; i < 12; i++ ) {
+        sprintf ( filename, "Rnsource.%.4d.t%dx%dy%dz%d.%d.inverted", Nconf, 
+            gsx[0], gsx[1], gsx[2], gsx[3] , i );
+
+        if ( ( exitstatus = write_propagator( spinor_field[12+i], filename, 0, g_propagator_precision) ) != 0 ) {
+          fprintf(stderr, "[twopt_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(2);
+        }
+      }
+    }
+
+#if 0
 #endif  /* of if 0 */
 
     /***************************************************************************
@@ -377,7 +401,7 @@ int main(int argc, char **argv) {
       EXIT(47);
     }
 
-#if 0
+
     /***************************************************************************
      * spin 1/2 2-point correlation function
      ***************************************************************************/
@@ -448,11 +472,13 @@ int main(int argc, char **argv) {
       }
 
     }}
+#if 0
 #endif  /* of if 0 */
 
     /***************************************************************************/
     /***************************************************************************/
 
+#if 0
     /***************************************************************************
      * spin ( 1 + 1/2 ) 2-point correlation function
      ***************************************************************************/
@@ -523,6 +549,8 @@ int main(int argc, char **argv) {
       }  /* end of loop on if2 ( final ) vertex */
 
     }  /* end of loop on if1 (initial) vertex */
+
+#endif  /* of if 0 */
 
     /***************************************************************************
      * clean up
