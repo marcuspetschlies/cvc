@@ -49,6 +49,15 @@ extern "C"
 
 using namespace cvc;
 
+#ifndef MESON_BARYON_FACTORIZED_DIAGRAMS_2PT
+#define MESON_BARYON_FACTORIZED_DIAGRAMS_2PT
+#endif
+
+#ifdef MESON_BARYON_FACTORIZED_DIAGRAMS_3PT
+#undef MESON_BARYON_FACTORIZED_DIAGRAMS_3PT
+#endif
+
+
 /***********************************************************
  * usage function
  ***********************************************************/
@@ -66,7 +75,6 @@ int main(int argc, char **argv) {
   int exitstatus;
   char filename[200];
   int io_proc = -1;
-  int npt_mode = 0;
 
 #ifdef HAVE_LHPC_AFF
   struct AffReader_s *affr = NULL;
@@ -81,15 +89,20 @@ int main(int argc, char **argv) {
   // int const gamma_i2_list[gamma_i2_number] = { 15,  7 };
   int const gamma_i2_list[gamma_i2_number]    = { 15 };
 
+#if defined MESON_BARYON_FACTORIZED_DIAGRAMS_2PT
   // pion-type gamma list at vertex f2
-  // const int gamma_f2_number = 1;
-  //                                        g5   1  gt gtg5 
-  // int gamma_f2_list[gamma_f2_number] = { 15,  0,  8,   7 };
-  // int gamma_f2_list[gamma_f2_number]    = { 15 };
-
+  int const gamma_f2_number = 1;
+  //                                           g5   1  gt gtg5 
+  int const gamma_f2_list[gamma_f2_number] = { 15 };
+  // int const gamma_f2_list[gamma_f2_number] = { 15,  0,  8,   7 };
+  //
+#elif defined MESON_BARYON_FACTORIZED_DIAGRAMS_3PT
   // current vertex
   int const gamma_f2_number = 6;
   int const gamma_f2_list[gamma_f2_number] = { 1, 2, 4, 14, 13, 11 } ;
+#else
+#error "need MESON_BARYON_FACTORIZED_DIAGRAMS_<2/3>PT defined" 
+#endif
 
   // Nucleon-type gamma list at vertex f1
   int const gamma_f1_number = 1;
@@ -108,8 +121,11 @@ int main(int argc, char **argv) {
 
 
    int const b_v3_factor_number = 1;
-   // char const b_v3_factor_list[b_v3_factor_number][20] = { "xil-gf-sll" };
+#if defined MESON_BARYON_FACTORIZED_DIAGRAMS_2PT
+   char const b_v3_factor_list[b_v3_factor_number][20] = { "xil-gf-sll" };
+#elif defined MESON_BARYON_FACTORIZED_DIAGRAMS_3PT
    char const b_v3_factor_list[b_v3_factor_number][20] = { "xil-gc-sll" };
+#endif
 
    int const b_v2_factor_number = 1;
    char const b_v2_factor_list[b_v2_factor_number][20] = { "phil-gf-fl-fl" };
@@ -118,8 +134,11 @@ int main(int argc, char **argv) {
    char const b_v4_factor_list[b_v4_factor_number][20] = { "phil-gf-fl-fl" };
 
    int const w_v3_factor_number = 1;
-   // char const w_v3_factor_list[w_v3_factor_number][20] = { "g5.phil-gf-fl" };
+#if defined MESON_BARYON_FACTORIZED_DIAGRAMS_2PT
+   char const w_v3_factor_list[w_v3_factor_number][20] = { "g5.phil-gf-fl" };
+#elif defined MESON_BARYON_FACTORIZED_DIAGRAMS_3PT
    char const w_v3_factor_list[w_v3_factor_number][20] = { "g5.phil-gc-fl" };
+#endif
 
    int const w_v2_factor_number = 2;
    char const w_v2_factor_list[w_v2_factor_number][20] = { "g5.xil-gf-fl-sll", "g5.xil-gf-sll-fl" };
@@ -128,8 +147,11 @@ int main(int argc, char **argv) {
    char const w_v4_factor_list[w_v4_factor_number][20] = { "g5.xil-gf-fl-sll", "g5.xil-gf-sll-fl" };
 
    int const z_v3_factor_number = 1;
-   // char const z_v3_factor_list[z_v3_factor_number][20] = { "phil-gf-fl" };
+#if defined MESON_BARYON_FACTORIZED_DIAGRAMS_2PT
+   char const z_v3_factor_list[z_v3_factor_number][20] = { "phil-gf-fl" };
+#elif defined MESON_BARYON_FACTORIZED_DIAGRAMS_3PT
    char const z_v3_factor_list[z_v3_factor_number][20] = { "phil-gc-fl" };
+#endif
 
    int const z_v2_factor_number = 1;
    char const z_v2_factor_list[z_v2_factor_number][20] = { "phil-gf-fl-fl" };
@@ -144,12 +166,20 @@ int main(int argc, char **argv) {
    char const bb_t2_factor_list[bb_t2_factor_number][20] = { "fl-fl" };
 
    int const mm_m1_factor_number = 1;
-   // char const mm_m1_factor_list[mm_m1_factor_number][20] = { "fl-fl" };
+#if defined MESON_BARYON_FACTORIZED_DIAGRAMS_2PT
+   char const mm_m1_factor_list[mm_m1_factor_number][20] = { "fl-fl" };
+#elif defined MESON_BARYON_FACTORIZED_DIAGRAMS_3PT
    char const mm_m1_factor_list[mm_m1_factor_number][20] = { "fl-gc-fl-gi" };
+#endif
 
 
-   // char diagram_type[] = "mxb-mxb";
+#if defined MESON_BARYON_FACTORIZED_DIAGRAMS_2PT
+   char diagram_type[] = "mxb-mxb";
+   int const npt_mode = 2;
+#elif defined MESON_BARYON_FACTORIZED_DIAGRAMS_3PT
    char diagram_type[] = "mxb-J-b";
+   int const npt_mode = 3;
+#endif
 
    int const gamma_basis_conversion_to_cvc[16] =  { 
       4, //  0 = 1
@@ -175,16 +205,18 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:n:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
       filename_set=1;
       break;
+/*
     case 'n':
       npt_mode = atoi ( optarg );
       fprintf ( stdout, "# [meson_baryon_factorized_diagrams_3pt] n-pt mode set to %d\n", npt_mode );
       break;
+*/
     case 'h':
     case '?':
     default:
@@ -271,6 +303,7 @@ int main(int argc, char **argv) {
   /******************************************************
    * check source coords list
    ******************************************************/
+
   for ( int i = 0; i < g_source_location_number; i++ ) {
     g_source_coords_list[i][0] = ( g_source_coords_list[i][0] +  T_global ) %  T_global;
     g_source_coords_list[i][1] = ( g_source_coords_list[i][1] + LX_global ) % LX_global;
@@ -292,7 +325,15 @@ int main(int argc, char **argv) {
      ******************************************************/
     if(io_proc == 2) {
       /* AFF output file */
-      sprintf(filename, "%s.%.4d.tsrc%.2d.aff", g_outfile_prefix, Nconf, t_base );
+      if ( npt_mode == 2 ) {
+        sprintf(filename, "%s_2pt.%.4d.tsrc%.2d.aff", g_outfile_prefix, Nconf, t_base );
+      } else if ( npt_mode == 3 ) {
+        sprintf(filename, "%s_3pt.%.4d.tsrc%.2d.aff", g_outfile_prefix, Nconf, t_base );
+      } else {
+        fprintf ( stderr, "[meson_baryon_factorized_diagrams_3pt] Error, unrecognized npt_mode value %s %d\n", __FILE__, __LINE__ );
+        EXIT(125);
+      }
+
       affw = aff_writer (filename);
       aff_status_str = (char*)aff_writer_errstr(affw);
       if( aff_status_str != NULL ) {
@@ -641,8 +682,8 @@ int main(int argc, char **argv) {
                           sprintf(aff_tag, "/v3/%s/v2/%s/p%d%d%d%d/%s/%s", b_v3_factor_list[iv3], b_v2_factor_list[iv2],  
                               permutation_list[ip][0], permutation_list[ip][1], permutation_list[ip][2], permutation_list[ip][3], "fwd", aff_tag_suffix );
   
-                          if ( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
-                            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                          if ( ( exitstatus = contract_diagram_write_aff_sst ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
+                            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff_sst, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                             EXIT(106);
                           } 
    
@@ -650,8 +691,8 @@ int main(int argc, char **argv) {
                           sprintf(aff_tag, "/v3/%s/v2/%s/p%d%d%d%d/%s/%s", b_v3_factor_list[iv3], b_v2_factor_list[iv2],  
                               permutation_list[ip][0], permutation_list[ip][1], permutation_list[ip][2], permutation_list[ip][3], "bwd", aff_tag_suffix );
   
-                          if ( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
-                            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                          if ( ( exitstatus = contract_diagram_write_aff_sst ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
+                            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff_sst, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                             EXIT(106);
                           }
   
@@ -719,8 +760,8 @@ int main(int argc, char **argv) {
                           sprintf(aff_tag, "/v3/%s/v4/%s/p%d%d%d%d/%s/%s", b_v3_factor_list[iv3], b_v4_factor_list[iv4],  
                               permutation_list[ip][0], permutation_list[ip][1], permutation_list[ip][2], permutation_list[ip][3], "fwd", aff_tag_suffix );
   
-                          if ( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
-                            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                          if ( ( exitstatus = contract_diagram_write_aff_sst ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
+                            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff_sst, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                             EXIT(106);
                           } 
    
@@ -728,8 +769,8 @@ int main(int argc, char **argv) {
                           sprintf(aff_tag, "/v3/%s/v4/%s/p%d%d%d%d/%s/%s", b_v3_factor_list[iv3], b_v4_factor_list[iv4],  
                               permutation_list[ip][0], permutation_list[ip][1], permutation_list[ip][2], permutation_list[ip][3], "bwd", aff_tag_suffix );
   
-                          if ( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
-                            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                          if ( ( exitstatus = contract_diagram_write_aff_sst ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
+                            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff_sst, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                             EXIT(106);
                           }
 
@@ -1083,8 +1124,8 @@ int main(int argc, char **argv) {
                           sprintf(aff_tag, "/v3/%s/v2/%s/p%d%d%d%d/%s/%s", w_v3_factor_list[iv3], w_v2_factor_list[iv2],  
                               permutation_list[ip][0], permutation_list[ip][1], permutation_list[ip][2], permutation_list[ip][3], "fwd", aff_tag_suffix );
 
-                          if ( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
-                            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                          if ( ( exitstatus = contract_diagram_write_aff_sst ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
+                            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff_sst, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                             EXIT(106);
                           }
       
@@ -1092,8 +1133,8 @@ int main(int argc, char **argv) {
                           sprintf(aff_tag, "/v3/%s/v2/%s/p%d%d%d%d/%s/%s", w_v3_factor_list[iv3], w_v2_factor_list[iv2],  
                               permutation_list[ip][0], permutation_list[ip][1], permutation_list[ip][2], permutation_list[ip][3], "bwd", aff_tag_suffix );
 
-                          if ( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
-                            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                          if ( ( exitstatus = contract_diagram_write_aff_sst ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
+                            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff_sst, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                             EXIT(106);
                           }
       
@@ -1161,8 +1202,8 @@ int main(int argc, char **argv) {
                           sprintf(aff_tag, "/v3/%s/v4/%s/p%d%d%d%d/%s/%s", w_v3_factor_list[iv3], w_v4_factor_list[iv4],  
                               permutation_list[ip][0], permutation_list[ip][1], permutation_list[ip][2], permutation_list[ip][3], "fwd", aff_tag_suffix );
 
-                          if ( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
-                            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                          if ( ( exitstatus = contract_diagram_write_aff_sst ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
+                            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff_sst, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                             EXIT(106);
                           }
       
@@ -1170,8 +1211,8 @@ int main(int argc, char **argv) {
                           sprintf(aff_tag, "/v3/%s/v4/%s/p%d%d%d%d/%s/%s", w_v3_factor_list[iv3], w_v4_factor_list[iv4],  
                               permutation_list[ip][0], permutation_list[ip][1], permutation_list[ip][2], permutation_list[ip][3], "bwd", aff_tag_suffix );
 
-                          if ( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
-                            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                          if ( ( exitstatus = contract_diagram_write_aff_sst ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
+                            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff_sst, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                             EXIT(106);
                           }
       
@@ -1543,8 +1584,8 @@ int main(int argc, char **argv) {
                             sprintf(aff_tag, "/v3/%s/v2/%s/p%d%d%d%d/%s/%s", z_v3_factor_list[iv3], z_v2_factor_list[iv2],  
                                 permutation_list[ip][0], permutation_list[ip][1], permutation_list[ip][2], permutation_list[ip][3], "fwd", aff_tag_suffix );
 
-                            if ( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
-                              fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                            if ( ( exitstatus = contract_diagram_write_aff_sst ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
+                              fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff_sst, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                               EXIT(106);
                             }
         
@@ -1552,8 +1593,8 @@ int main(int argc, char **argv) {
                             sprintf(aff_tag, "/v3/%s/v2/%s/p%d%d%d%d/%s/%s", z_v3_factor_list[iv3], z_v2_factor_list[iv2],  
                                 permutation_list[ip][0], permutation_list[ip][1], permutation_list[ip][2], permutation_list[ip][3], "bwd", aff_tag_suffix );
 
-                            if ( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
-                              fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                            if ( ( exitstatus = contract_diagram_write_aff_sst ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
+                              fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff_sst, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                               EXIT(106);
                             }
         
@@ -1610,8 +1651,8 @@ int main(int argc, char **argv) {
                             sprintf(aff_tag, "/v3/%s/v4/%s/p%d%d%d%d/%s/%s", z_v3_factor_list[iv3], z_v4_factor_list[iv4],  
                                 permutation_list[ip][0], permutation_list[ip][1], permutation_list[ip][2], permutation_list[ip][3], "fwd", aff_tag_suffix );
 
-                            if ( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
-                              fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                            if ( ( exitstatus = contract_diagram_write_aff_sst ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
+                              fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff_sst, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                               EXIT(106);
                             }
         
@@ -1619,8 +1660,8 @@ int main(int argc, char **argv) {
                             sprintf(aff_tag, "/v3/%s/v4/%s/p%d%d%d%d/%s/%s", z_v3_factor_list[iv3], z_v4_factor_list[iv4],  
                                 permutation_list[ip][0], permutation_list[ip][1], permutation_list[ip][2], permutation_list[ip][3], "bwd", aff_tag_suffix );
 
-                            if ( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
-                              fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                            if ( ( exitstatus = contract_diagram_write_aff_sst ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
+                              fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff_sst, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                               EXIT(106);
                             }
         
@@ -1969,15 +2010,15 @@ int main(int argc, char **argv) {
 
                           /* AFF */
                           sprintf(aff_tag, "/m1/%s/t1/%s/p0000/fwd/%s", mm_m1_factor_list[im1], bb_t1_factor_list[it1], aff_tag_suffix );
-                          if( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
-                            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff, status was %d\n", exitstatus);
+                          if( ( exitstatus = contract_diagram_write_aff_sst ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
+                            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff_sst, status was %d\n", exitstatus);
                             EXIT(154);
                           }
    
                           /* AFF */
                           sprintf(aff_tag, "/m1/%s/t1/%s/p0000/bwd/%s", mm_m1_factor_list[im1], bb_t1_factor_list[it1], aff_tag_suffix );
-                          if( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
-                            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff, status was %d\n", exitstatus);
+                          if( ( exitstatus = contract_diagram_write_aff_sst ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
+                            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff_sst, status was %d\n", exitstatus);
                             EXIT(155);
                           }
 
@@ -2031,15 +2072,15 @@ int main(int argc, char **argv) {
 
                           /* AFF */
                           sprintf(aff_tag, "/m1/%s/t2/%s/p0000/fwd/%s", mm_m1_factor_list[im1], bb_t2_factor_list[it2], aff_tag_suffix );
-                          if( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
-                            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff, status was %d\n", exitstatus);
+                          if( ( exitstatus = contract_diagram_write_aff_sst ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
+                            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff_sst, status was %d\n", exitstatus);
                             EXIT(154);
                           }
    
                           /* AFF */
                           sprintf(aff_tag, "/m1/%s/t2/%s/p0000/bwd/%s", mm_m1_factor_list[im1], bb_t2_factor_list[it2], aff_tag_suffix );
-                          if( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
-                            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff, status was %d\n", exitstatus);
+                          if( ( exitstatus = contract_diagram_write_aff_sst ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, -1, io_proc ) ) != 0 ) {
+                            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_write_aff_sst, status was %d\n", exitstatus);
                             EXIT(155);
                           }
 
