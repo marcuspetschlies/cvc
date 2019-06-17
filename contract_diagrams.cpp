@@ -829,6 +829,8 @@ int contract_diagram_sample_oet (double _Complex ***diagram, double _Complex ***
 #ifdef HAVE_LHPC_AFF
 /***********************************************
  * write contracted diagram to AFF
+ *
+ * index sequence t - s_sink - s_source
  ***********************************************/
 int contract_diagram_write_aff (double _Complex***diagram, struct AffWriter_s*affw, char*aff_tag, int const tstart, int const dt, int const fbwd, int const io_proc ) {
 
@@ -872,6 +874,59 @@ int contract_diagram_write_aff (double _Complex***diagram, struct AffWriter_s*af
   }  /* end of if io_proc == 2 */
   return(0);
 }  /* end of contract_diagram_write_aff */
+
+
+/***********************************************
+ * write contracted diagram to AFF
+ *
+ * index sequence s_sink - s_source - t
+ ***********************************************/
+int contract_diagram_write_aff_sst (double _Complex***diagram, struct AffWriter_s*affw, char*aff_tag, int const tstart, int const dt, int const fbwd, int const io_proc ) {
+
+  const unsigned int offset = 16;
+  const size_t bytes = offset * sizeof(double _Complex);
+  const int nt = dt + 1; /* tstart + dt */
+
+  int exitstatus;
+  double rtime;
+  struct AffNode_s *affn = NULL, *affdir=NULL;
+  double _Complex ***aff_buffer = NULL;
+
+  if ( io_proc == 2 ) {
+    rtime = _GET_TIME;
+
+    if( (affn = aff_writer_root(affw)) == NULL ) {
+      fprintf(stderr, "[contract_diagram_write_aff_sst] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
+      return(2);
+    }
+
+    if( ( exitstatus = init_3level_zbuffer ( &aff_buffer, 4, 4, nt ) ) != 0 ) {
+      fprintf(stderr, "[contract_diagram_write_aff_sst] Error from init_3level_zbuffer %s %d\n", __FILE__, __LINE__);
+      return(6);
+    }
+
+#pragma omp parallel for
+    for ( int i = 0; i <= dt; i++ ) {
+      int const t = ( tstart + i * fbwd  + T_global ) % T_global;
+      for ( int isl = 0; isl < 4; isl++ ) {
+      for ( int isr = 0; isr < 4; isr++ ) {
+        aff_buffer[isl][isr][i] = diagram[t][isl][isr];
+      }}
+    }  /* end of loop on timeslices */
+
+    affdir = aff_writer_mkpath (affw, affn, aff_tag );
+    if ( ( exitstatus = aff_node_put_complex (affw, affdir, aff_buffer[0][0], (uint32_t)(nt*offset) ) ) != 0 ) {
+      fprintf(stderr, "[contract_diagram_write_aff_sst] Error from aff_node_put_complex for tag %s, status was %d %s %d\n", aff_tag, exitstatus, __FILE__, __LINE__);
+      return(1);
+    }
+
+    fini_3level_zbuffer ( &aff_buffer );
+
+    rtime = _GET_TIME - rtime;
+    if (g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [contract_diagram_write_aff_sst] time for contract_diagram_write_aff_sst = %e seconds %s %d\n", rtime, __FILE__, __LINE__);
+  }  /* end of if io_proc == 2 */
+  return(0);
+}  /* end of contract_diagram_write_aff_sst */
 #endif  // of if def HAVE_LHPC_AFF
 
 /***********************************************/
