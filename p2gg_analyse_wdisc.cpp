@@ -99,6 +99,7 @@ int main(int argc, char **argv) {
   struct timeval ta, tb;
   int operator_type = -1;
   int loop_type = 0;
+  int loop_stats = 1;
 
   double ****** pgg_disc = NULL;
   double ****** hvp = NULL;
@@ -546,7 +547,8 @@ int main(int argc, char **argv) {
     fini_3level_dtable ( &data );
 
   }  /* end of loop on re / im */
-
+#if 0
+#endif  /* of if 0 */
 
   /**********************************************************
    **********************************************************
@@ -655,6 +657,10 @@ int main(int argc, char **argv) {
       project_loop ( loops_proj[0][0], gf.m, loops_matrix[0][0][0][0], num_conf * g_nsample * T );
 
       double ** loop_avg = init_2level_dtable ( num_conf, 2*T );
+      if ( loop_avg == NULL ) {
+        fprintf ( stderr, "[p2gg_analyse_wdisc] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+        EXIT(115);
+      }
 
       /**********************************************************
        * average loop over samples for each config and timeslice
@@ -674,13 +680,146 @@ int main(int argc, char **argv) {
           loop_avg[iconf][2*t  ] *= 1. / g_nsample;
           loop_avg[iconf][2*t+1] *= 1. / g_nsample;
           /* show all data */
-          if( g_verbose > 3 ) {
-            fprintf ( stdout, "loop_avg c %6d gseq %2d t %3d l %25.16e %25.16e\n", conf_src_list[iconf][0][0],
-                sequential_source_gamma_id, t, loop_avg[iconf][2*t], loop_avg[iconf][2*t+1] );
+        }
+      }
+
+      /**********************************************************
+       * show averaged loops
+       **********************************************************/
+      if( g_verbose > 3 ) {
+        sprintf ( filename, "loop.g%d.px%dpy%dpz%d.avg", sequential_source_gamma_id,
+            seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
+
+        FILE *lfs = fopen ( filename, "w" );
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for ( int t = 0; t < T_global; t++ ) {
+            fprintf ( lfs, "%25.16e %25.16e\n", loop_avg[iconf][2*t], loop_avg[iconf][2*t+1] ); 
           }
         }
       }
 
+      /**********************************************************
+       * statistical analysis for loops
+       **********************************************************/
+      if ( loop_stats ) {
+        double ** data = init_2level_dtable ( num_conf, T_global );
+
+#pragma omp parallel for
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+           for ( int it = 0; it < T_global; it++ ) {
+            data[iconf][it] = loop_avg[iconf][2*it+loop_type_reim];
+          }
+        }
+
+        char obs_name[100];
+        sprintf ( obs_name, "loop_avg.%s.QX%d_QY%d_QZ%d.g%d", loop_type_tag[loop_type],
+            seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id );
+
+        /* apply UWerr analysis */
+        exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[p2gg_analyse_wdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(1);
+        }
+
+#pragma omp parallel for
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for ( int it = 0; it < T_global; it++ ) {
+            data[iconf][it] = loop_avg[iconf][2*((it+1)%T_global)+loop_type_reim] - loop_avg[iconf][2*it+loop_type_reim];
+          }
+        }
+
+        sprintf ( obs_name, "loop_avg.dfwd.%s.QX%d_QY%d_QZ%d.g%d", loop_type_tag[loop_type],
+            seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id );
+
+        /* apply UWerr analysis */
+        exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[p2gg_analyse_wdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(1);
+        }
+
+#pragma omp parallel for
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for ( int it = 0; it < T_global; it++ ) {
+            data[iconf][it] = 
+                    loop_avg[iconf][2 * ( (it+1+T_global)%T_global) + loop_type_reim] 
+              +     loop_avg[iconf][2 * ( (it-1+T_global)%T_global) + loop_type_reim] 
+              - 2 * loop_avg[iconf][2 *    it                       + loop_type_reim];
+          }
+        }
+
+        sprintf ( obs_name, "loop_avg.ddsym.%s.QX%d_QY%d_QZ%d.g%d", loop_type_tag[loop_type],
+            seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id );
+
+        /* apply UWerr analysis */
+        exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[p2gg_analyse_wdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(1);
+        }
+
+#pragma omp parallel for
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for ( int it = 0; it < T_global; it++ ) {
+            data[iconf][it] = (
+                loop_avg[iconf][2 * ( (it+1+T_global)%T_global) + loop_type_reim] 
+              + loop_avg[iconf][2 * ( (it-1+T_global)%T_global) + loop_type_reim] 
+              + loop_avg[iconf][2 *    it                       + loop_type_reim] ) / 3.;
+          }
+        }
+
+        sprintf ( obs_name, "loop_avg.s3sym.%s.QX%d_QY%d_QZ%d.g%d", loop_type_tag[loop_type],
+            seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id );
+
+        /* apply UWerr analysis */
+        exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[p2gg_analyse_wdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(1);
+        }
+        fini_2level_dtable ( &data );
+
+      }  /* end of if loop_stats */
+
+      /**********************************************************
+       * loop data for pgg
+       *
+       * use ddsym here
+       **********************************************************/
+      double ** loop_pgg = init_2level_dtable ( num_conf, 2*T );
+      if ( loop_pgg == NULL ) {
+        fprintf ( stderr, "[p2gg_analyse_wdisc] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+        EXIT(115);
+      }
+
+#pragma omp parallel for
+      for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+        for ( int it = 0; it < T_global; it++ ) {
+          for ( int ireim = 0; ireim < 2; ireim++ ) {
+            loop_pgg[iconf][2*it + ireim ] =
+              /*
+                      loop_avg[iconf][2 * ( (it+1+T_global)%T_global) + ireim ]
+                +     loop_avg[iconf][2 * ( (it-1+T_global)%T_global) + ireim ]
+                - 2 * loop_avg[iconf][2 *    it                       + ireim ];
+               */
+              /*
+              (
+                  loop_avg[iconf][2 * ( (it+1+T_global)%T_global) + ireim ]
+                + loop_avg[iconf][2 * ( (it-1+T_global)%T_global) + ireim ]
+                + loop_avg[iconf][2 *    it                       + ireim ] ) / 3.;
+              */
+                loop_avg[iconf][2 * it + ireim ];
+
+          }
+        }
+      }
+
+      fini_2level_dtable ( &loop_avg );
+
+      /**********************************************************
+       * loop on sequential source timeslices
+       **********************************************************/
       for ( int isequential_source_timeslice = 0; isequential_source_timeslice < g_sequential_source_timeslice_number; isequential_source_timeslice++)
       {
 
@@ -708,8 +847,8 @@ int main(int argc, char **argv) {
               for ( int s2 = 0; s2 < 4; s2++ ) {
                 for ( int it = 0; it < T; it++ ) {
 
-                  pgg_disc[iconf][isrc][imom][s1][s2][2*it  ] = hvp[iconf][isrc][imom][s1][s2][2*it  ] * loop_avg[iconf][2*tseq+loop_type_reim];
-                  pgg_disc[iconf][isrc][imom][s1][s2][2*it+1] = hvp[iconf][isrc][imom][s1][s2][2*it+1] * loop_avg[iconf][2*tseq+loop_type_reim];
+                  pgg_disc[iconf][isrc][imom][s1][s2][2*it  ] = hvp[iconf][isrc][imom][s1][s2][2*it  ] * loop_pgg[iconf][2*tseq+loop_type_reim];
+                  pgg_disc[iconf][isrc][imom][s1][s2][2*it+1] = hvp[iconf][isrc][imom][s1][s2][2*it+1] * loop_pgg[iconf][2*tseq+loop_type_reim];
 
                 }
               }}
@@ -843,7 +982,7 @@ int main(int argc, char **argv) {
 
                 /* time-averaged loop */
                 for ( int it = 0; it < T_global; it++ ) {
-                  data[iconf][2*T_global] += loop_avg[iconf][2*it+loop_type_reim];
+                  data[iconf][2*T_global] += loop_pgg[iconf][2*it+loop_type_reim];
                 }
                 data[iconf][2*T_global] *= 1. / (double)T_global;
 
@@ -928,7 +1067,7 @@ int main(int argc, char **argv) {
               data[iconf][T_global+it] *= 1. / (double)num_src_per_conf;
 
               /* time-averaged loop */
-              data[iconf][2*T_global] += loop_avg[iconf][2*it+loop_type_reim];
+              data[iconf][2*T_global] += loop_pgg[iconf][2*it+loop_type_reim];
   
             }  /* end of loop on timeslices */
 
@@ -964,8 +1103,10 @@ int main(int argc, char **argv) {
         fini_6level_dtable ( &pgg_disc );
 
       }  /* end of loop on sequential source timeslices */
+#if 0
+#endif /* of if 0 */
 
-      fini_2level_dtable ( &loop_avg );
+      fini_2level_dtable ( &loop_pgg );
 
       fini_3level_dtable ( &loops_proj ); 
 
