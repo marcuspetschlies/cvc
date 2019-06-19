@@ -347,6 +347,7 @@ int main(int argc, char **argv) {
     /**************************************************************************************/
     /**************************************************************************************/
 
+
     /**************************************************************************************
      * B diagrams
      **************************************************************************************/
@@ -627,7 +628,8 @@ int main(int argc, char **argv) {
                       /**************************************************************************************
                        * loop on permutations
                        **************************************************************************************/
-                      for ( int ip = 0; ip < 6; ip++ ) {
+                      for ( int ip = 0; ip < 6; ip++ ) 
+                      {
 
                         double _Complex ***diagram = init_3level_ztable ( T_global, 4, 4 );
                         if ( diagram == NULL ) {
@@ -795,6 +797,8 @@ int main(int argc, char **argv) {
 
     fini_6level_ztable ( &b_v2_factor );
     fini_8level_ztable ( &b_v3_factor );
+#if 0
+#endif  /* of if 0  */
 
     /**************************************************************************************/
     /**************************************************************************************/
@@ -1558,7 +1562,7 @@ int main(int argc, char **argv) {
                             /**************************************************************************************
                              * Z diagrams
                              **************************************************************************************/
-                            if ( ( exitstatus = contract_diagram_sample_oet (diagram, z_v3_factor[iv3][ipi2][igf2][ipf2],  z_v2_factor[iv2][igf1][ipf1], gamma[gamma_i2_list[igi2]],
+                            if ( ( exitstatus = contract_diagram_sample_oet (diagram, z_v3_factor[iv3][ipi2][igf2][ipf2],  z_v2_factor[iv2][igf1][ipf1], gamma[ gamma_i2_list[igi2] ],
                                     permutation_list[ip], gamma[gamma_f1_list[igi1][0]], T_global ) ) != 0 ) {
                               fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_sample_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                               EXIT(105);
@@ -1625,7 +1629,8 @@ int main(int argc, char **argv) {
                             /**************************************************************************************
                              * Z diagrams
                              **************************************************************************************/
-                            if ( ( exitstatus = contract_diagram_sample_oet (diagram, z_v3_factor[iv3][ipi2][igf2][ipf2],  z_v4_factor[iv4][igf1][ipf1], gamma[gamma_i2_list[igi2]],
+
+                            if ( ( exitstatus = contract_diagram_sample_oet (diagram, z_v3_factor[iv3][ipi2][igf2][ipf2],  z_v4_factor[iv4][igf1][ipf1], gamma[ gamma_i2_list[igi2] ],
                                     permutation_list[ip], gamma[gamma_f1_list[igi1][0]], T_global ) ) != 0 ) {
                               fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from contract_diagram_sample_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                               EXIT(105);
