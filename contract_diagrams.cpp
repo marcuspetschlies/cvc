@@ -892,11 +892,13 @@ int contract_diagram_sample (double _Complex ***diagram, double _Complex ***xi, 
   /* copy to diagram */  
   memcpy( diagram[0][0], diagram_buffer[0], 16*nT*sizeof(double _Complex) );
 
+#if 0
   /* transpose (to conform with full diagram code) */
   if ( ( exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, nT ) ) != 0 ) {
     fprintf(stderr, "[contract_diagram_sample] Error from contract_diagram_zm4x4_field_eq_zm4x4_field_transposed, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     return(3);
   }
+#endif  /* of if 0 */
 
   /* normalize with 1 / nsample */
   if ( ( exitstatus = contract_diagram_zm4x4_field_ti_eq_co ( diagram, znorm, nT ) ) != 0 ) {
@@ -935,11 +937,13 @@ int contract_diagram_sample_oet (double _Complex ***diagram, double _Complex ***
   /* copy to diagram */  
   memcpy( diagram[0][0], diagram_buffer[0], 16*nT*sizeof(double _Complex) );
 
+#if 0
   /* transpose (to conform with full diagram code) */
   if ( ( exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, nT ) ) != 0 ) {
     fprintf(stderr, "[contract_diagram_sample_oet] Error from contract_diagram_zm4x4_field_eq_zm4x4_field_transposed, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     return(3);
   }
+#endif  /* of if 0  */
 
   /* clean up diagram_buffer */
   fini_2level_zbuffer ( &diagram_buffer );
