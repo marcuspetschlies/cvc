@@ -219,6 +219,125 @@ int contract_diagram_oet_v2_gamma_v3 ( double _Complex **vdiag, double _Complex 
   return(0);
 }  /* end of function contract_diagram_oet_v2_gamma_v3 */
 
+/****************************************************
+ * QLUA-version of index ordering
+ * v2[alpha_p[0], alpha_p[1], alpha_p[2], m] g[alpha_2, alpha_3]  v3[ alpha_p[3], m]
+ ****************************************************/
+int contract_diagram_v2_gamma_v3_qlua ( double _Complex **vdiag, double _Complex **v2, double _Complex **v3, gamma_matrix_type g, int const perm[4], unsigned int const N, int const init ) {
+
+  if ( init ) {
+    if ( g_cart_id == 0 ) fprintf(stdout, "# [contract_diagram_v2_gamma_v3] initializing output field to zero\n");
+    memset( vdiag[0], 0, 16*T_global*sizeof(double _Complex ) );
+  }
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( unsigned int it = 0; it < N; it++ ) {
+
+    for ( int sigma3 = 0; sigma3 < 4; sigma3++ ) {
+      for ( int sigma4 = 0; sigma4 < 4; sigma4++ ) {
+
+        int vdiag_index = 4 * sigma3 + sigma4;
+        /* vdiag[it][vdiag_index] = 0.; */
+
+        /****************************************************/
+        /****************************************************/
+
+        for ( int sigma1 = 0; sigma1 < 4; sigma1++ ) {
+          for ( int sigma2 = 0; sigma2 < 4; sigma2++ ) {
+
+            int idx[4]  = { sigma1, sigma2, sigma3, sigma4 };
+
+            int pidx[4] = { idx[perm[0]], idx[perm[1]], idx[perm[2]], idx[perm[3]] };
+
+            for ( int m = 0; m < 3; m++ ) {
+
+              /* use the permutation */
+              int v2_pindex = 3 * ( 4 * ( 4 * pidx[0] + pidx[1] ) + pidx[2] ) + m;
+ 
+              int v3_index  = 4 * m + pidx[3];
+
+              vdiag[it][vdiag_index] -=  v2[it][v2_pindex] * v3[it][v3_index] * g.m[sigma1][sigma2];
+            }  /* end of loop on color index m */
+          }  /* end of loop on spin index sigma2 */
+        }  /* end of loop on spin index sigma1 */
+
+        /****************************************************/
+        /****************************************************/
+
+      }  /* end of loop on spin index sigma4 */
+    }  /* end of loop on spin index sigma3 */
+
+  }  /* end of loop on N */
+
+  return(0);
+}  /* end of function contract_diagram_v2_gamma_v3 */
+
+/****************************************************
+ * QLUA-version of index ordering
+ * we always sum in the following way
+ * goet[b_oet][a_oet]  v2[a_oet][alpha_p[0], alpha_p[1], alpha_p[2], m] g[alpha_2, alpha_3]  v3[b_oet][ alpha_p[3], m]
+ ****************************************************/
+int contract_diagram_oet_v2_gamma_v3_qlua ( double _Complex **vdiag, double _Complex ***v2, double _Complex ***v3, gamma_matrix_type goet, gamma_matrix_type g, int const perm[4], unsigned int const N, int const init ) {
+
+  if ( init ) {
+    if ( g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [contract_diagram_oet_v2_amma_v3] initializing output field to zero\n");
+    memset( vdiag[0], 0, 16*T_global*sizeof(double _Complex ) );
+  }
+
+  for ( int sigma_oet = 0; sigma_oet < 4; sigma_oet++ ) {
+  for ( int tau_oet   = 0; tau_oet   < 4; tau_oet++ ) {
+
+    double _Complex c = goet.m[tau_oet][sigma_oet];
+    if ( c == 0 ) continue;
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+    for ( unsigned int it = 0; it < N; it++ ) {
+
+      for ( int sigma3 = 0; sigma3 < 4; sigma3++ ) {
+        for ( int sigma4 = 0; sigma4 < 4; sigma4++ ) {
+
+          int vdiag_index = 4 * sigma3 + sigma4;
+          /* vdiag[it][vdiag_index] = 0.; */
+
+          /****************************************************/
+          /****************************************************/
+
+          for ( int sigma1 = 0; sigma1 < 4; sigma1++ ) {
+            for ( int sigma2 = 0; sigma2 < 4; sigma2++ ) {
+
+              int idx[4]  = { sigma1, sigma2, sigma3, sigma4 };
+
+              int pidx[4] = { idx[perm[0]], idx[perm[1]], idx[perm[2]], idx[perm[3]] };
+
+              for ( int m = 0; m < 3; m++ ) {
+
+                /* use the permutation */
+                int v2_pindex = 3 * ( 4 * ( 4 * pidx[0] + pidx[1] ) + pidx[2] ) + m;
+ 
+                int v3_index  = 4 * m + pidx[3];
+
+                vdiag[it][vdiag_index] -=  c * v2[sigma_oet][it][v2_pindex] * v3[tau_oet][it][v3_index] * g.m[sigma1][sigma2];
+              }  /* end of loop on color index m */
+            }  /* end of loop on spin index delta */
+          }  /* end of loop on spin index gamma */
+
+          /****************************************************/
+          /****************************************************/
+
+        }  /* end of loop on spin index beta */
+      }  /* end of loop on spin index alpha */
+
+    }  /* end of loop on N */
+
+  }  /* end of loop on tau   oet */
+  }  /* end of loop on sigma oet */
+  return(0);
+}  /* end of function contract_diagram_oet_v2_gamma_v3 */
+
 #if 0
 /****************************************************
  *
@@ -762,7 +881,9 @@ int contract_diagram_sample (double _Complex ***diagram, double _Complex ***xi, 
 
 
   for ( int isample = 0; isample < nsample; isample++ ) {
-    if ( ( exitstatus = contract_diagram_v2_gamma_v3 ( diagram_buffer, phi[isample], xi[isample], C, perm, nT, (int)(isample==0) ) ) != 0 ) {
+    /* if ( ( exitstatus = contract_diagram_v2_gamma_v3 ( diagram_buffer, phi[isample], xi[isample], C, perm, nT, (int)(isample==0) ) ) != 0 ) */ 
+    if ( ( exitstatus = contract_diagram_v2_gamma_v3_qlua ( diagram_buffer, phi[isample], xi[isample], C, perm, nT, (int)(isample==0) ) ) != 0 )
+    {
       fprintf(stderr, "[contract_diagram_sample] Error from contract_diagram_v2_gamma_v3, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       return(1);
     }
@@ -804,7 +925,9 @@ int contract_diagram_sample_oet (double _Complex ***diagram, double _Complex ***
     return(2);
   }
 
-  if ( ( exitstatus = contract_diagram_oet_v2_gamma_v3 ( diagram_buffer, phi, xi, goet, C, perm, nT, 1 ) ) != 0 ) {
+  /* if ( ( exitstatus = contract_diagram_oet_v2_gamma_v3 ( diagram_buffer, phi, xi, goet, C, perm, nT, 1 ) ) != 0 ) */
+  if ( ( exitstatus = contract_diagram_oet_v2_gamma_v3_qlua ( diagram_buffer, phi, xi, goet, C, perm, nT, 1 ) ) != 0 )
+  {
     fprintf(stderr, "[contract_diagram_sample_oet] Error from contract_diagram_oet_v2_gamma_v3, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     return(2);
   }
@@ -1634,10 +1757,11 @@ int contract_diagram_finalize ( double _Complex *** const diagram, char * const 
   /*******************************************
    * add overall phase factor
    *******************************************/
+/*
   double _Complex const zsign = contract_diagram_get_correlator_phase ( diagram_type, gi11_id, gi12_id, gi2_id, gf11_id, gf12_id, gf2_id );
 
   contract_diagram_zm4x4_field_ti_eq_co ( diagram, zsign, N );
-
+*/
   /*******************************************
    * add outer gamma matrices
    *******************************************/

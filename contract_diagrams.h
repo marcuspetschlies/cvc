@@ -11,6 +11,11 @@ int contract_diagram_v2_gamma_v3 ( double _Complex **vdiag, double _Complex **v2
 
 int contract_diagram_oet_v2_gamma_v3 ( double _Complex **vdiag, double _Complex ***v2, double _Complex ***v3, gamma_matrix_type goet, gamma_matrix_type g, int const perm[4], unsigned int const N, int const init );
 
+
+int contract_diagram_v2_gamma_v3_qlua ( double _Complex **vdiag, double _Complex **v2, double _Complex **v3, gamma_matrix_type g, int const perm[4], unsigned int const N, int const init );
+
+int contract_diagram_oet_v2_gamma_v3_qlua ( double _Complex **vdiag, double _Complex ***v2, double _Complex ***v3, gamma_matrix_type goet, gamma_matrix_type g, int const perm[4], unsigned int const N, int const init );
+
 #if 0
 void contract_b1 (double _Complex ***b1, double _Complex **v3, **double v2, gamma_matrix_type g);
 
