@@ -1999,8 +1999,11 @@ int main(int argc, char **argv) {
                           // multiply baryon 2-point function with meson 2-point function
                           exitstatus = contract_diagram_zm4x4_field_ti_co_field ( diagram, bb_aux, mm_m1_factor[im1][igi2][ipi2][igf2][ipf2][0], T_global );
 
+#if 0
+                          NOT needed for qlua code
                           // transpose
                           exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global );
+#endif  /* of if 0 */
 
                           /*******************************************/
                           /*******************************************/
@@ -2061,8 +2064,11 @@ int main(int argc, char **argv) {
                           // multiply baryon 2-point function with meson 2-point function
                           exitstatus = contract_diagram_zm4x4_field_ti_co_field ( diagram, bb_aux, mm_m1_factor[im1][igi2][ipi2][igf2][ipf2][0], T_global );
 
+#if 0
+                          NOT needed for qlua code
                           // transpose
                           exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global );
+#endif  /* of if 0 */
 
                           /*******************************************/
                           /*******************************************/
