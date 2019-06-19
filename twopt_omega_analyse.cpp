@@ -467,8 +467,10 @@ int main(int argc, char **argv) {
           for ( int k = 0; k < 3; k++ ) {
 
             for ( int l = 0; l < 3; l++ ) {
+              /* c_aux = P_{i,l} tp_tensor_{l,k} */
               correlator_spin_projection ( c_aux, tp_tensor.c[3*l+k], i+1, l+1, (double)(i==l), -1., tp_tensor.T );
 
+              /* c_proj_{i,k} += c_aux */
               contract_diagram_zm4x4_field_pl_eq_zm4x4_field ( c_proj[3*i+k], c_aux, tp_tensor.T );
             }
 
