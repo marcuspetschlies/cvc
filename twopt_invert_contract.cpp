@@ -143,8 +143,8 @@ int main(int argc, char **argv) {
   /*********************************
    * initialize MPI parameters for cvc
    *********************************/
-  /* exitstatus = tmLQCD_invert_init(argc, argv, 1, 0); */
-  exitstatus = tmLQCD_invert_init(argc, argv, 1);
+  exitstatus = tmLQCD_invert_init(argc, argv, 1, 0);
+  /* exitstatus = tmLQCD_invert_init(argc, argv, 1); */
   if(exitstatus != 0) {
     EXIT(1);
   }
@@ -401,7 +401,6 @@ int main(int argc, char **argv) {
       EXIT(47);
     }
 
-
     /***************************************************************************
      * spin 1/2 2-point correlation function
      ***************************************************************************/
@@ -424,6 +423,15 @@ int main(int argc, char **argv) {
 
       fermion_propagator_field_eq_fermion_propagator_field_ti_re    ( fp3, fp3, -gamma_f1_sign[if1]*gamma_f1_sign[if2], VOLUME );
 
+      double *** vpsum = init_3level_dtable ( T, g_sink_momentum_number, 32 );
+      if ( vpsum == NULL ) {
+        fprintf(stderr, "[twopt_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
+        EXIT(47);
+      }
+
+      /***********************************************************
+       * diagram n1
+       ***********************************************************/
       sprintf(aff_tag, "/N-N/t%.2dx%.2dy%.2dz%.2d/gi%.2d/gf%.2d/n1",
           gsx[0], gsx[1], gsx[2], gsx[3],
           gamma_f1_list[if1], gamma_f1_list[if2]);
@@ -446,8 +454,14 @@ int main(int argc, char **argv) {
         EXIT(49);
       }
 
-      /***********************************************************/
-      /***********************************************************/
+#pragma omp parallel for
+      for ( int i = 0; i < g_sink_momentum_number * T * 32; i++ ) {
+        vpsum[0][0][i] += vp[0][0][i];
+      }
+
+      /***********************************************************
+       * diagram n2
+       ***********************************************************/
 
       sprintf(aff_tag, "/N-N/t%.2dx%.2dy%.2dz%.2d/gi%.2d/gf%.2d/n2",
           gsx[0], gsx[1], gsx[2], gsx[3],
@@ -471,6 +485,24 @@ int main(int argc, char **argv) {
         EXIT(49);
       }
 
+#pragma omp parallel for
+      for ( int i = 0; i < g_sink_momentum_number * T * 32; i++ ) {
+        vpsum[0][0][i] += vp[0][0][i];
+      }
+     
+      /***********************************************************/
+      /***********************************************************/
+
+      sprintf(aff_tag, "/N-N/t%.2dx%.2dy%.2dz%.2d/gi%.2d/gf%.2d/n1+n2", gsx[0], gsx[1], gsx[2], gsx[3], gamma_f1_list[if1], gamma_f1_list[if2]);
+      
+      exitstatus = contract_vn_write_aff ( vpsum, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[twopt_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+        EXIT(49);
+      }
+
+      fini_3level_dtable ( &vpsum );
+   
     }}
 #if 0
 #endif  /* of if 0 */
