@@ -56,6 +56,34 @@ int main(int argc, char **argv) {
 
   int const gamma_id_to_bin[16] = { 8, 1, 2, 4, 0, 15, 7, 14, 13, 11, 9, 10, 12, 3, 5, 6 };
 
+  char const reim_str[2][3] = { "re", "im" };
+
+  char const gamma_id_to_Cg_ascii[16][10] = {
+    "Cgy",
+    "Cgzg5",
+    "Cgt",
+    "Cgxg5",
+    "Cgygt",
+    "Cgyg5gt",
+    "Cgyg5",
+    "Cgz",
+    "Cg5gt",
+    "Cgx",
+    "Cgzg5gt",
+    "C",
+    "Cgxg5gt",
+    "Cgxgt",
+    "Cg5",
+    "Cgzgt"
+  };
+
+  char const fbwd_str[2][4] = { "fwd", "bwd" };
+
+  const int gamma_f1_number            = 3;
+  /*                                       C gx C gy C gz */
+  int gamma_f1_list[gamma_f1_number]   = {    9,   0,   7 };
+
+
 
   int c;
   int filename_set = 0;
@@ -238,9 +266,9 @@ int main(int argc, char **argv) {
         /***********************************************************
          * allocate corr_std
          ***********************************************************/
-        double **** corr_std = init_4level_dtable ( num_conf, num_src_per_conf, 3, 2 * T );
+        double ***** corr_std = init_5level_dtable ( num_conf, num_src_per_conf, 2, 3, 2 * T_global );
         if ( corr_std == NULL ) {
-          fprintf(stderr, "[twopt_uwerr_analyse] Error from init_4level_dtable %s %d\n", __FILE__, __LINE__);
+          fprintf(stderr, "[twopt_uwerr_analyse] Error from init_5level_dtable %s %d\n", __FILE__, __LINE__);
           EXIT(16);
         }
 
@@ -251,88 +279,49 @@ int main(int argc, char **argv) {
 
           Nconf = conf_src_list[iconf][0][0];
 
-          /***********************************************************
-           * filename for data file 
-           *
-           * Cgx Cgx
-           ***********************************************************/
-          sprintf ( filename, "%s_px%dpy%dpz%d_Cgx_Cgx_fwd_parity1_n%.4d", g_outfile_prefix, 
-              sink_momentum[0], sink_momentum[1], sink_momentum[2], Nconf );
-          fprintf(stdout, "# [twopt_uwerr_analyse] reading data from file %s\n", filename);
-          fflush( stdout );
-          FILE *ofs = fopen ( filename, "r" );
-          if ( ofs == NULL ) {
-            fprintf ( stderr, "[twopt_uwerr_analyse] Error from fopen for file %s %s %d\n", filename, __FILE__, __LINE__ );
-            EXIT(1);
-          }
+          for ( int ifbwd = 0; ifbwd < 2; ifbwd++ ) {
 
-          for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-            char source_coords_tag[100];
-            int itmp;
-            fscanf( ofs, "# %s", source_coords_tag );
-            /* if ( g_verbose > 4 ) fprintf ( stdout, "# [twopt_uwerr_analyse] source_coords_tag = %s %s %d\n", source_coords_tag, __FILE__, __LINE__ ); */
-            for ( int it = 0; it < T; it++ ) {
-              fscanf ( ofs, "%d %lf %lf\n", &itmp, corr_std[iconf][isrc][0]+2*it, corr_std[iconf][isrc][0]+2*it+1 );
-            }
-          }  /* end of loop on sources per configuration */
-          fclose ( ofs );
+            for ( int if1 = 0; if1 < 3; if1++ ) {
 
-          /***********************************************************
-           * filename for data file 
-           *
-           * Cgy Cgy
-           ***********************************************************/
-          sprintf ( filename, "%s_px%dpy%dpz%d_Cgy_Cgy_fwd_parity1_n%.4d", g_outfile_prefix, 
-              sink_momentum[0], sink_momentum[1], sink_momentum[2], Nconf );
-          fprintf(stdout, "# [twopt_uwerr_analyse] reading data from file %s\n", filename);
-          ofs = fopen ( filename, "r" );
-          if ( ofs == NULL ) {
-            fprintf ( stderr, "[twopt_uwerr_analyse] Error from fopen for file %s %s %d\n", filename, __FILE__, __LINE__ );
-            EXIT(1);
-          }
+              /***********************************************************
+               * filename for data file 
+               ***********************************************************/
+              sprintf ( filename, "%s_px%dpy%dpz%d_%s_%s_%s_parity%d_n%.4d", g_outfile_prefix, 
+                  sink_momentum[0], sink_momentum[1], sink_momentum[2],
+                  gamma_id_to_Cg_ascii[gamma_f1_list[if1]], gamma_id_to_Cg_ascii[gamma_f1_list[if1]],
+                  fbwd_str[ifbwd], 1 - 2 * ifbwd, Nconf );
 
-          for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-            char source_coords_tag[100];
-            fscanf( ofs, "# %s", source_coords_tag );
-            for ( int it = 0; it < T; it++ ) {
-              int itmp;
-              fscanf ( ofs, "%d %lf %lf\n", &itmp, corr_std[iconf][isrc][1]+2*it, corr_std[iconf][isrc][1]+2*it+1 );
-            }
-          }  /* end of loop on sources per configuration */
-          fclose ( ofs );
+              fprintf(stdout, "# [twopt_uwerr_analyse] reading data from file %s\n", filename);
+              fflush( stdout );
+              FILE *ofs = fopen ( filename, "r" );
+              if ( ofs == NULL ) {
+                fprintf ( stderr, "[twopt_uwerr_analyse] Error from fopen for file %s %s %d\n", filename, __FILE__, __LINE__ );
+                EXIT(1);
+              }
 
-          /***********************************************************
-           * filename for data file 
-           *
-           * Cgz Cgz
-           ***********************************************************/
-          sprintf ( filename, "%s_px%dpy%dpz%d_Cgz_Cgz_fwd_parity1_n%.4d", g_outfile_prefix, 
-              sink_momentum[0], sink_momentum[1], sink_momentum[2], Nconf );
-          fprintf(stdout, "# [twopt_uwerr_analyse] reading data from file %s\n", filename);
-          ofs = fopen ( filename, "r" );
-          if ( ofs == NULL ) {
-            fprintf ( stderr, "[twopt_uwerr_analyse] Error from fopen for file %s %s %d\n", filename, __FILE__, __LINE__ );
-            EXIT(1);
-          }
+              for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+                char source_coords_tag[100];
+                int itmp;
+                fscanf( ofs, "# %s", source_coords_tag );
+                /* if ( g_verbose > 4 ) fprintf ( stdout, "# [twopt_uwerr_analyse] source_coords_tag = %s %s %d\n", source_coords_tag, __FILE__, __LINE__ ); */
+                for ( int it = 0; it < T_global; it++ ) {
+                  fscanf ( ofs, "%d %lf %lf\n", &itmp, corr_std[iconf][isrc][ifbwd][if1]+2*it, corr_std[iconf][isrc][ifbwd][if1]+2*it+1 );
+                }
+              }  /* end of loop on sources per configuration */
+ 
+              fclose ( ofs );
 
-          for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-            char source_coords_tag[100];
-            fscanf( ofs, "# %s", source_coords_tag );
-            for ( int it = 0; it < T; it++ ) {
-              int itmp;
-              fscanf ( ofs, "%d %lf %lf\n", &itmp, corr_std[iconf][isrc][2]+2*it, corr_std[iconf][isrc][2]+2*it+1 );
-            }
-          }  /* end of loop on sources per configuration */
-          fclose ( ofs );
+            }  /* end of loop on f1 gamma */
+
+          }  /* end of loop on fwd, bwd */
 
         }  /* end of loop on configurations */
-
 
         /***********************************************************
          * show all data
          ***********************************************************/
         if ( g_verbose > 4 ) {
-          sprintf ( filename, "%s.px%dpy%dpz%d.parity1.std", g_outfile_prefix, sink_momentum[0], sink_momentum[1], sink_momentum[2] );
+          sprintf ( filename, "%s.px%dpy%dpz%d.std", g_outfile_prefix, sink_momentum[0], sink_momentum[1], sink_momentum[2] );
 
           FILE * ofs = fopen ( filename, "w" );
 
@@ -340,18 +329,26 @@ int main(int argc, char **argv) {
           {
             for( int isrc = 0; isrc < num_src_per_conf; isrc++ )
             {
-              for ( int icomp = 0; icomp < 3; icomp++ ) {
-                for ( int it = 0; it < T; it++ ) {
-                  fprintf ( ofs, "%6d %3d %2d %4d %25.16e %25.16e\n", conf_src_list[iconf][isrc][0],
-                      conf_src_list[iconf][isrc][1], icomp,
-                      it, corr_std[iconf][isrc][icomp][2*it], corr_std[iconf][isrc][icomp][2*it+1] );
-                }
-              }  /* end of loop on components */
+              for ( int ifbwd = 0; ifbwd < 2; ifbwd++ )
+              {
+                for ( int icomp = 0; icomp < 3; icomp++ )
+                {
+                  for ( int it = 0; it < T_global; it++ ) {
+                    fprintf ( ofs, "%6d %3d %s %2d %2d    %4d %25.16e %25.16e\n", 
+                        conf_src_list[iconf][isrc][0],
+                        conf_src_list[iconf][isrc][1], 
+                        fbwd_str[ifbwd], 
+                        1 - 2*ifbwd, 
+                        icomp,
+                        it, 
+                        corr_std[iconf][isrc][ifbwd][icomp][2*it], corr_std[iconf][isrc][ifbwd][icomp][2*it+1] );
+                  }
+                }  /* end of loop on components */
+              }
             }
           }
           fclose ( ofs );
         }  /* end of if verbosity */
-
 
         /***********************************************************
          ***********************************************************
@@ -361,89 +358,37 @@ int main(int argc, char **argv) {
          ***********************************************************
          ***********************************************************/
  
-        int Nt = 0;
-        if ( fold_propagator == 0 ) {
-          Nt = T;   
-        } else if ( fold_propagator == 1 ) {
-          Nt = T / 2 + 1;
-        }
-        double **** data = init_4level_dtable ( num_conf, num_src_per_conf, 3, 2 * Nt );
-        double *** res = init_3level_dtable ( 2, Nt, 5 );
-    
-        /***********************************************************
-         * fold correlator
-         ***********************************************************/
-        if ( fold_propagator == 0 ) {
-          memcpy ( data[0][0][0], corr_std[0][0][0], 3*num_conf*num_src_per_conf*2*Nt*sizeof(double) );
-        } else if ( fold_propagator == 1 ) {
-#if 0
-          for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-            for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-              data[iconf][isrc][0] = corr_std[iconf][isrc][0];
-              data[iconf][isrc][1] = corr_std[iconf][isrc][1];
-    
-              for ( int it = 1; it < Nt-1; it++ ) {
-                data[iconf][isrc][2*it  ] = ( corr_std[iconf][isrc][2*it  ] + corr_std[iconf][isrc][2*(T-it)  ] ) * 0.5;
-                data[iconf][isrc][2*it+1] = ( corr_std[iconf][isrc][2*it+1] + corr_std[iconf][isrc][2*(T-it)+1] ) * 0.5;
-    
-              }
-    
-              data[iconf][isrc][2*Nt-2] = corr_std[iconf][isrc][2*Nt-2];
-              data[iconf][isrc][2*Nt-1] = corr_std[iconf][isrc][2*Nt-1];
-            }
-          }
-#endif
-        }  /* end of if fold_propagator */
-    
-        uwerr ustat;
-        /***********************************************************
-         * real and imag part
-         ***********************************************************/
-        for ( int it = 0; it < 2*Nt; it++ )
+        for ( int ifbwd = 0; ifbwd < 2; ifbwd++ )
         {
-          uwerr_init ( &ustat );
-    
-          ustat.nalpha   = 2 * Nt;  /* real and imaginary part */
-          ustat.nreplica = 1;
-          for (  int i = 0; i < ustat.nreplica; i++) ustat.n_r[i] = 3 * num_conf * num_src_per_conf / ustat.nreplica;
-          ustat.s_tau = 1.5;
-          sprintf ( ustat.obsname, "corr_std" );
-    
-          ustat.ipo = it + 1;  /* real / imag part : 2*it, shifted by 1 */
-    
-          exitstatus = uwerr_analysis ( data[0][0][0], &ustat );
-          if ( exitstatus == 0 ) {
-            res[it%2][it/2][0] = ustat.value;
-            res[it%2][it/2][1] = ustat.dvalue;
-            res[it%2][it/2][2] = ustat.ddvalue;
-            res[it%2][it/2][3] = ustat.tauint;
-            res[it%2][it/2][4] = ustat.dtauint;
-          } else {
-            fprintf ( stderr, "[twopt_uwerr_analyse] Warning return status from uwerr_analysis was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-          }
-   
-          uwerr_free ( &ustat );
-        }  /* end of loop on ipos */
-    
-        sprintf ( filename, "%s_std_PX%d_PY%d_PZ%d.uwerr", g_outfile_prefix,
-            sink_momentum[0], sink_momentum[1], sink_momentum[2] );
+          for ( int icomp = 0; icomp < 3; icomp++ )
+          {
+            for ( int ireim = 0; ireim < 2; ireim++ ) {
 
-        FILE * ofs = fopen ( filename, "w" );
-    
-        fprintf ( ofs, "# nalpha   = %llu\n", ustat.nalpha );
-        fprintf ( ofs, "# nreplica = %llu\n", ustat.nreplica );
-        for (  int i = 0; i < ustat.nreplica; i++) fprintf( ofs, "# nr[%d] = %llu\n", i, ustat.n_r[i] );
-        fprintf ( ofs, "#\n" );
-    
-        for ( int it = 0; it < Nt; it++ ) {
-          fprintf ( ofs, "%3d %16.7e %16.7e %16.7e %16.7e %16.7e    %16.7e %16.7e %16.7e %16.7e %16.7e\n", it,
-              res[0][it][0], res[0][it][1], res[0][it][2], res[0][it][3], res[0][it][4],
-              res[1][it][0], res[1][it][1], res[1][it][2], res[1][it][3], res[1][it][4] );
-        }
-    
-        fclose( ofs );
-        fini_3level_dtable ( &res );
-        fini_4level_dtable ( &data );
+              double *** data = init_3level_dtable ( num_conf, num_src_per_conf, T_global );
+ 
+#pragma omp parallel for
+              for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+                for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+                  for ( int it = 0; it < T_global; it++ ) { 
+                    data[iconf][isrc][it] = corr_std[iconf][isrc][ifbwd][icomp][2*it + ireim];
+               }}}
+
+              char obsname[200];
+              sprintf ( obsname, "%s.%s_%s.%s.p%d.PX%d_PY%d_PZ%d.%s", g_outfile_prefix,
+                  gamma_id_to_Cg_ascii[gamma_f1_list[icomp]], gamma_id_to_Cg_ascii[gamma_f1_list[icomp]], fbwd_str[ifbwd], 1 - 2 * ifbwd,
+                  sink_momentum[0], sink_momentum[1], sink_momentum[2], reim_str[ireim] );
+
+              exitstatus = apply_uwerr_real ( data[0][0], num_conf*num_src_per_conf, T_global, 0, 1, obsname );
+              if ( exitstatus != 0 ) {
+                fprintf ( stderr, "[twopt_uwerr_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                EXIT(1);
+              }
+
+              fini_3level_dtable ( &data );
+
+            }  /* end of loop on reim */
+          }  /* end of loop on components */
+        } /* end of loop on fbwd */
 
         /***********************************************************
          ***********************************************************
@@ -452,111 +397,87 @@ int main(int argc, char **argv) {
          **
          ***********************************************************
          ***********************************************************/
+        for ( int ireim = 0; ireim < 2; ireim++ ) {
  
-        Nt = 0;
-        if ( fold_propagator == 0 ) {
-          Nt = T;   
-        } else if ( fold_propagator == 1 ) {
-          Nt = T / 2 + 1;
-        }
-        data = init_4level_dtable ( num_conf, num_src_per_conf, 3, 2 * Nt );
-        res = init_3level_dtable ( Nt, Nt, 5 );
-    
-        /***********************************************************
-         * fold correlator
-         ***********************************************************/
-        if ( fold_propagator == 0 ) {
-          memcpy ( data[0][0][0], corr_std[0][0][0], 3*num_conf*num_src_per_conf*2*Nt*sizeof(double) );
-        } else if ( fold_propagator == 1 ) {
-#if 0
+          double *** data = init_3level_dtable ( num_conf, num_src_per_conf, T_global );
+
+          /***********************************************************
+           * fold correlator
+           ***********************************************************/
+#pragma omp paralle for
           for ( int iconf = 0; iconf < num_conf; iconf++ ) {
             for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-              data[iconf][isrc][0] = corr_std[iconf][isrc][0];
-              data[iconf][isrc][1] = corr_std[iconf][isrc][1];
-    
-              for ( int it = 1; it < Nt-1; it++ ) {
-                data[iconf][isrc][2*it  ] = ( corr_std[iconf][isrc][2*it  ] + corr_std[iconf][isrc][2*(T-it)  ] ) * 0.5;
-                data[iconf][isrc][2*it+1] = ( corr_std[iconf][isrc][2*it+1] + corr_std[iconf][isrc][2*(T-it)+1] ) * 0.5;
-    
+              for ( int it = 0; it < T_global; it++ ) {
+                data[iconf][isrc][it] = 0.;
+                for ( int icomp = 0; icomp < 3; icomp++ ) {
+                  data[iconf][isrc][it] += (
+                    corr_std[iconf][isrc][0][icomp][2 * it + ireim] + corr_std[iconf][isrc][1][icomp][2 * ( (T_global - it) % T_global ) + ireim]
+                  );
+                }
+                data[iconf][isrc][it] /= 6.;
               }
-    
-              data[iconf][isrc][2*Nt-2] = corr_std[iconf][isrc][2*Nt-2];
-              data[iconf][isrc][2*Nt-1] = corr_std[iconf][isrc][2*Nt-1];
             }
           }
-#endif
-        }  /* end of if fold_propagator */
-    
-        /***********************************************************
-         * symmetric acosh ratio
-         ***********************************************************/
-        for ( int itau = 0; itau < Nt/2; itau++ )
-        {
-          for ( int it = itau; it < Nt-itau; it++ )
-          {
-            uwerr_init ( &ustat );
-    
-            ustat.nalpha   = 2 * Nt;  /* real and imaginary part */
-            ustat.nreplica = 1;
-            for (  int i = 0; i < ustat.nreplica; i++) ustat.n_r[i] = 3 * num_conf * num_src_per_conf / ustat.nreplica;
-            ustat.s_tau = 1.5;
-            sprintf ( ustat.obsname, "corr_std_log_ratio_t%d_tau%d", it, itau );
-    
-            ustat.func  = acosh_ratio;
-            ustat.dfunc = dacosh_ratio;
-            ustat.para  = init_1level_itable ( 3 );
-            ((int*)ustat.para)[0] = 2 * ( it - itau );
-            ((int*)ustat.para)[1] = 2 * ( it + itau );
-            ((int*)ustat.para)[2] = 2 *   it;
 
-            exitstatus = uwerr_analysis ( data[0][0][0], &ustat );
-            if ( exitstatus == 0 ) {
-              res[it][itau][0] = ustat.value;
-              res[it][itau][1] = ustat.dvalue;
-              res[it][itau][2] = ustat.ddvalue;
-              res[it][itau][3] = ustat.tauint;
-              res[it][itau][4] = ustat.dtauint;
-            } else {
-              fprintf ( stderr, "[twopt_uwerr_analyse] Warning return status from uwerr_analysis was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          sprintf ( filename, "%s.avg.%s.p%d.PX%d_PY%d_PZ%d.%s.dat", g_outfile_prefix, fbwd_str[0], +1, sink_momentum[0], sink_momentum[1], sink_momentum[2], reim_str[ireim]);
+          FILE * fdat = fopen ( filename, "w" );
+          for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+            for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+              for ( int it = 0; it < T_global; it++ ) {
+                fprintf ( fdat, "%3d %25.16e\n", it, data[iconf][isrc][it] );
+              }
             }
-   
-            uwerr_free ( &ustat );
-          }  /* end of loop on tau */
-        }  /* end of loop on t */
-    
-        /* sprintf ( filename, "%s_std_log_ratio_gf%d_gi%d_PX%d_PY%d_PZ%d.uwerr", g_outfile_prefix,
-            g_source_gamma_id_list[igf], g_source_gamma_id_list[igi],
-            sink_momentum[0], sink_momentum[1], sink_momentum[2] ); */
-
-        sprintf ( filename, "%s_std_acosh_ratio_PX%d_PY%d_PZ%d.uwerr", g_outfile_prefix,
-            sink_momentum[0], sink_momentum[1], sink_momentum[2] );
-
-        ofs = fopen ( filename, "w" );
-    
-        fprintf ( ofs, "# nalpha   = %llu\n", ustat.nalpha );
-        fprintf ( ofs, "# nreplica = %llu\n", ustat.nreplica );
-        for (  int i = 0; i < ustat.nreplica; i++) fprintf( ofs, "# nr[%d] = %llu\n", i, ustat.n_r[i] );
-        fprintf ( ofs, "#\n" );
-    
-        for ( int itau = 0; itau < Nt/2; itau++ )
-        {
-          for ( int it = itau; it < Nt-itau; it++ )
-          {
-            fprintf ( ofs, "%3d %3d %16.7e %16.7e %16.7e %16.7e %16.7e\n", it, itau,
-                res[it][itau][0], res[it][itau][1], res[it][itau][2], res[it][itau][3], res[it][itau][4] );
           }
-        }
-    
-        fclose( ofs );
-        fini_3level_dtable ( &res );
-        fini_4level_dtable ( &data );
+          fclose ( fdat );
+
+          char obsname[200];
+          sprintf ( obsname, "%s.avg.%s.p%d.PX%d_PY%d_PZ%d.%s", g_outfile_prefix, fbwd_str[0], +1, sink_momentum[0], sink_momentum[1], sink_momentum[2], reim_str[ireim] );
+
+          exitstatus = apply_uwerr_real ( data[0][0], num_conf*num_src_per_conf, T_global, 0, 1, obsname );
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "[twopt_uwerr_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(1);
+          }
+
+          if ( ireim == 0) {
+            /***********************************************************
+             * symmetric acosh ratio
+             ***********************************************************/
+
+            for ( int itau = 1; itau < T_global / 4; itau++ )
+            {
+
+              char obsname[200];
+              /* sprintf ( obsname, "%s.avg.acoshratio.tau%d.PX%d_PY%d_PZ%d.%s", g_outfile_prefix, itau, sink_momentum[0], sink_momentum[1], sink_momentum[2], reim_str[ireim] ); */
+              sprintf ( obsname, "%s.avg.logratio.tau%d.PX%d_PY%d_PZ%d.%s", g_outfile_prefix, itau, sink_momentum[0], sink_momentum[1], sink_momentum[2], reim_str[ireim] );
+
+              /* int arg_first[3]  = { 0, 2*itau, itau };
+              int arg_stride[3] = {1, 1, 1};
+              */
+              int arg_first[2]  = { 0, itau };
+              int arg_stride[2] = {1, 1 };
+
+              /* exitstatus = apply_uwerr_func ( data[0][0], num_conf*num_src_per_conf, T_global, T_global/2-itau, 3, arg_first, arg_stride, obsname, acosh_ratio, dacosh_ratio ); */
+              exitstatus = apply_uwerr_func ( data[0][0], num_conf*num_src_per_conf, T_global, T_global/2-itau, 2, arg_first, arg_stride, obsname, log_ratio_1_1, dlog_ratio_1_1 );
+              if ( exitstatus != 0 ) {
+                fprintf ( stderr, "[twopt_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                EXIT(1);
+              }
+            }
+
+          }  /* end of if reim == 0 */
+
+          fini_3level_dtable ( &data );
+
+        }  /* end of loop on reim */
+
 #if 0
 #endif  /* of if 0 */
 
         /**********************************************************
          * free corr_std field
          **********************************************************/
-        fini_4level_dtable ( &corr_std );
+        fini_5level_dtable ( &corr_std );
 
       }  /* end of loop on sink momenta */
 
