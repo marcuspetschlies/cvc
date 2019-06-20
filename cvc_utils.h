@@ -4,6 +4,8 @@
 #ifndef _CVC_UTIL_H
 #define _CVC_UTIL_H
 
+#include "uwerr.h"
+
 namespace cvc {
 
 int read_input (char *filename);
@@ -207,6 +209,10 @@ int init_momentum_classes ( int **** p_class, int **p_nmem, int *p_num );
 void fini_momentum_classes ( int **** p_class, int **p_nmem, int *p_num );
 
 int random_binary_field ( int * const b , unsigned int const N );
+
+int apply_uwerr_real ( double * const data, unsigned int const nmeas, unsigned int const ndata, unsigned int const ipo_first, unsigned int const ipo_stride, char * obs_name );
+
+int apply_uwerr_func ( double * const data, unsigned int const nmeas, unsigned int const ndata, unsigned int const nset, int const narg, int * const arg_first, int * const arg_stride, char * obs_name, dquant func, dquant dfunc );
 
 }  /* end of namespace cvc */
 #endif

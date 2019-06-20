@@ -31,6 +31,8 @@
 #include "matrix_init.h"
 #include "table_init_i.h"
 #include "table_init_d.h"
+#include "uwerr.h"
+#include "cvc_timer.h"
 
 namespace cvc {
 
@@ -7253,6 +7255,174 @@ int random_z2_scalar_field ( int * const b , unsigned int const N ) {
   return(0);
 
 } /* end of random_binary_field */
+
+/****************************************************************************/
+/****************************************************************************/
+
+
+/****************************************************************************
+ * apply UWerr analysis to a single data set, including output
+ *
+ * ipo_first  = first ipo, start counting with zero
+ * ipo_stride = step size between ipos
+ ****************************************************************************/
+int apply_uwerr_real ( double * const data, unsigned int const nmeas, unsigned int const ndata, unsigned int const ipo_first, unsigned int const ipo_stride, char * obs_name ) {
+ 
+  struct timeval ta, tb;
+  uwerr ustat;
+  char filename[400];
+
+  gettimeofday ( &ta, (struct timezone *)NULL );
+
+  if ( data == NULL ) {
+    fprintf ( stderr, "[apply_uwerr_real] Error, data is NULL %s %d\n", __FILE__, __LINE__ );
+    return ( 1 );
+  }
+
+  double ** res = init_2level_dtable ( ndata, 5 );
+  if ( res == NULL ) {
+    fprintf ( stderr, "[apply_uwerr_real] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+    return ( 2 );
+  }
+
+  for ( unsigned int i = 0; i < ndata; i++ ) {
+
+    uwerr_init ( &ustat );
+
+    ustat.nalpha   = ndata; 
+    ustat.nreplica = 1;
+    ustat.n_r[0]   = nmeas;
+    ustat.s_tau    = 1.5;
+    strcpy ( ustat.obsname, obs_name );
+
+    ustat.ipo = ipo_first + i * ipo_stride + 1;  /* uwerr ipo starts counting with 1, NOT zero */
+    if ( ustat.ipo > ndata ) {
+      break;
+    } else {
+      if ( g_verbose > 2 ) {
+        fprintf ( stdout, "# [apply_uwerr_real] obs %s ipo %lu\n", ustat.obsname, ustat.ipo );
+      }
+    }
+
+    uwerr_analysis ( data, &ustat );
+
+    res[i][0] = ustat.value;
+    res[i][1] = ustat.dvalue;
+    res[i][2] = ustat.ddvalue;
+    res[i][3] = ustat.tauint;
+    res[i][4] = ustat.dtauint;
+
+    uwerr_free ( &ustat );
+  }  /* end of loop on ipos */
+
+  sprintf ( filename, "%s.uwerr", obs_name );
+  FILE * ofs = fopen ( filename, "w" );
+  if ( ofs == NULL ) {
+    fprintf ( stderr, "[apply_uwerr_real] Error from fopen for file %s %s %d\n", filename, __FILE__, __LINE__ );
+    return ( 3 );
+  }
+
+  fprintf ( ofs, "# nalpha   = %llu\n", ustat.nalpha );
+  fprintf ( ofs, "# nreplica = %llu\n", ustat.nreplica );
+  fprintf ( ofs, "# nr[0]    = %llu\n", ustat.n_r[0] );
+  fprintf ( ofs, "#\n" );
+
+  for ( unsigned int i = 0; i < ndata; i++ ) {
+
+    fprintf ( ofs, "%3d %16.7e %16.7e %16.7e %16.7e %16.7e\n", i,
+      res[i][0], res[i][1], res[i][2], res[i][3], res[i][4] );
+  }
+
+  fclose( ofs );
+
+  fini_2level_dtable ( &res );
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "apply_uwerr_real", obs_name, 1 );
+
+  return(0);
+
+}  /* end of apply_uwerr_real */
+
+/****************************************************************************/
+/****************************************************************************/
+
+/****************************************************************************
+ * apply UWerr analysis to a single data set, including output
+ ****************************************************************************/
+int apply_uwerr_func ( double * const data, unsigned int const nmeas, unsigned int const ndata, unsigned int const nset, int const narg, int * const arg_first, int * const arg_stride, char * obs_name,
+   dquant func, dquant dfunc ) {
+ 
+  struct timeval ta, tb;
+  uwerr ustat;
+  char filename[400];
+
+  gettimeofday ( &ta, (struct timezone *)NULL );
+
+  if ( data == NULL ) {
+    fprintf ( stderr, "[apply_uwerr_func] Error, data is NULL %s %d\n", __FILE__, __LINE__ );
+    return ( 1 );
+  }
+
+  double ** res = init_2level_dtable ( nset, 5 );
+  if ( res == NULL ) {
+    fprintf ( stderr, "[apply_uwerr_func] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+    return ( 2 );
+  }
+
+  for ( unsigned int i = 0; i < nset; i++ ) {
+
+    uwerr_init ( &ustat );
+
+    ustat.nalpha   = ndata; 
+    ustat.nreplica = 1;
+    ustat.n_r[0]   = nmeas;
+    ustat.s_tau    = 1.5;
+    strcpy ( ustat.obsname, obs_name );
+
+    ustat.func  = func;
+    ustat.dfunc = dfunc;
+    ustat.para  = (void * ) init_1level_itable ( narg );
+    for ( int iarg = 0; iarg < narg; iarg++ ) {
+      ((int*)(ustat.para))[iarg] = arg_first[iarg] + i * arg_stride[iarg];
+    }
+
+    uwerr_analysis ( data, &ustat );
+
+    res[i][0] = ustat.value;
+    res[i][1] = ustat.dvalue;
+    res[i][2] = ustat.ddvalue;
+    res[i][3] = ustat.tauint;
+    res[i][4] = ustat.dtauint;
+
+    uwerr_free ( &ustat );
+  }  /* end of loop on ipos */
+
+  sprintf ( filename, "%s.uwerr", obs_name );
+  FILE * ofs = fopen ( filename, "w" );
+  if ( ofs == NULL ) {
+    fprintf ( stderr, "[apply_uwerr_func] Error from fopen for file %s %s %d\n", filename, __FILE__, __LINE__ );
+    return ( 3 );
+  }
+
+  fprintf ( ofs, "# nalpha   = %llu\n", ustat.nalpha );
+  fprintf ( ofs, "# nreplica = %llu\n", ustat.nreplica );
+  fprintf ( ofs, "# nr[0]    = %llu\n", ustat.n_r[0] );
+  fprintf ( ofs, "#\n" );
+
+  for ( unsigned int i = 0; i < nset; i++ ) {
+    fprintf ( ofs, "%3d %16.7e %16.7e %16.7e %16.7e %16.7e\n", i, res[i][0], res[i][1], res[i][2], res[i][3], res[i][4] );
+  }
+
+  fclose( ofs );
+
+  fini_2level_dtable ( &res );
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "apply_uwerr_func", obs_name, 1 );
+
+  return(0);
+
+}  /* end of apply_uwerr_func */
+
 /****************************************************************************/
 /****************************************************************************/
 
