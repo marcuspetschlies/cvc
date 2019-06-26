@@ -839,4 +839,66 @@ int read_from_h5_file ( void * const buffer, void * file, char*tag,  int const i
 
 #endif  /* of if HAVE_HDF5 */
 
+#ifdef HAVE_LHPC_AFF
+/***********************************************************
+ * write AFF contraction
+ ***********************************************************/
+int write_aff_contraction ( void * const contr, void * const awriter, void * const afilename, char * tag, unsigned int const nc) {
+
+  struct AffWriter_s *affw = NULL;
+  struct AffNode_s *affn = NULL, *affdir = NULL;
+  uint32_t items = nc;
+  int exitstatus;
+
+  if ( awriter != NULL ) {
+    affw = (struct AffWriter_s *) awriter;
+  } else if ( afilename != NULL ) {
+    char * filename = (char*) afilename;
+    if (g_verbose > 2 ) fprintf ( stdout, "# [write_aff_contraction] new AFF reader for file %s %s %d\n", filename, __FILE__, __LINE__ );
+
+    affw = aff_writer (filename);
+    if( const char * aff_status_str = aff_writer_errstr(affw) ) {
+      fprintf(stderr, "[write_aff_contraction] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+      return( 4 );
+    } else {
+      if (g_verbose > 2 ) fprintf(stdout, "# [write_aff_contraction] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
+    }
+  } else { 
+    fprintf ( stderr, "[write_aff_contraction] Error, neither reader nor filename\n" );
+    return ( 1 );
+  }
+
+  if( (affn = aff_writer_root( affw )) == NULL ) {
+    fprintf(stderr, "[read_aff_contraction] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
+    return( 2 );
+  }
+
+  affdir = aff_writer_mkpath ( affw, affn, tag );
+  if ( affdir == NULL ) {
+    fprintf(stderr, "[write_aff_contraction] Error from aff_writer_mkpath %s %d\n", __FILE__, __LINE__);
+    return( 2 );
+  }
+
+  /* fprintf ( stdout, "# [write_aff_contraction] items = %u path = %s\n", items , tag); */
+
+  exitstatus = aff_node_put_complex ( affw, affdir, (double _Complex*) contr, items );      
+  if( exitstatus != 0 ) {
+    fprintf(stderr, "[write_aff_contraction] Error from aff_node_put_complex for key \"%s\", status was %d errmsg %s %s %d\n", tag, exitstatus,
+       aff_writer_errstr ( affw ), __FILE__, __LINE__);
+    return ( 105 );
+  }
+
+  if ( awriter == NULL )  {
+    const char * aff_status_str = (char*)aff_writer_close (affw);
+    if( aff_status_str != NULL ) {
+      fprintf(stderr, "[write_aff_contraction] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+      return(32);
+    }
+  }
+
+  return ( 0 );
+
+}  /* end of write_aff_contraction */
+#endif
+
 }  /* end of namespace cvc */
