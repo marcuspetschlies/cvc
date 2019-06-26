@@ -1704,6 +1704,9 @@ int main(int argc, char **argv) {
                       // transpose
                       exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global );
 
+                      /* multiply factor -1 from pi-pi Wick contraction closed fermion loop */
+                      exitstatus = contract_diagram_zm4x4_field_ti_eq_re ( diagram, -1., T_global );
+
                       /* AFF */
                       sprintf(aff_tag, "/%s/s1/fwd/%s", "pixN-pixN", aff_tag_suffix );
                       if( ( exitstatus = contract_diagram_write_aff ( diagram, affw, aff_tag, gsx[0], g_src_snk_time_separation, +1, io_proc ) ) != 0 ) {
@@ -1729,6 +1732,9 @@ int main(int argc, char **argv) {
 
                       // transpose
                       exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram, diagram, T_global );
+
+                      /* multiply factor -1 from pi-pi Wick contraction closed fermion loop */
+                      exitstatus = contract_diagram_zm4x4_field_ti_eq_re ( diagram, -1., T_global );
 
                       /* AFF */
                       sprintf(aff_tag, "/%s/s2/fwd/%s", "pixN-pixN", aff_tag_suffix );
