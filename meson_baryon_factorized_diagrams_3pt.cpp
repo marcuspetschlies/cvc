@@ -49,14 +49,18 @@ extern "C"
 
 using namespace cvc;
 
-#ifndef MESON_BARYON_FACTORIZED_DIAGRAMS_2PT
-#define MESON_BARYON_FACTORIZED_DIAGRAMS_2PT
-#endif
+/* #define MESON_BARYON_FACTORIZED_DIAGRAMS_2PT */
 
-#ifdef MESON_BARYON_FACTORIZED_DIAGRAMS_3PT
-#undef MESON_BARYON_FACTORIZED_DIAGRAMS_3PT
-#endif
+#define MESON_BARYON_FACTORIZED_DIAGRAMS_3PT
 
+
+#ifdef MESON_BARYON_FACTORIZED_DIAGRAMS_2PT
+#warning "using MESON_BARYON_FACTORIZED_DIAGRAMS_2PT"
+#elif defined MESON_BARYON_FACTORIZED_DIAGRAMS_3PT
+#warning "using MESON_BARYON_FACTORIZED_DIAGRAMS_3PT"
+#else
+#error "need either MESON_BARYON_FACTORIZED_DIAGRAMS_2PT or MESON_BARYON_FACTORIZED_DIAGRAMS_3PT defined"
+#endif
 
 /***********************************************************
  * usage function
@@ -1997,7 +2001,31 @@ int main(int argc, char **argv) {
                           memcpy( bb_aux[0][0], bb_t1_factor[it1][igi1][igf1][ipf1][0], 16*T_global*sizeof(double _Complex) );
 
                           // multiply baryon 2-point function with meson 2-point function
+#if defined MESON_BARYON_FACTORIZED_DIAGRAMS_2PT
+
                           exitstatus = contract_diagram_zm4x4_field_ti_co_field ( diagram, bb_aux, mm_m1_factor[im1][igi2][ipi2][igf2][ipf2][0], T_global );
+
+#elif defined MESON_BARYON_FACTORIZED_DIAGRAMS_3PT
+
+                          /* fwd direction */
+                          int isnk = ( gsx[0] + g_src_snk_time_separation + T_global ) % T_global;
+                          for ( int it = 0; it <= g_src_snk_time_separation; it++ ) {
+                            int const icur = ( it + gsx[0] + T_global ) % T_global;
+                            zm4x4_eq_zm4x4_ti_co ( diagram[icur], bb_aux[isnk],  mm_m1_factor[im1][igi2][ipi2][igf2][ipf2][icur][0] );
+                          }
+
+                          /* bwd direction 
+                           *
+                           * keep the fwd value at source time, so start with it = 1
+                           */
+                          isnk = ( gsx[0] - g_src_snk_time_separation + T_global ) % T_global;
+                          for ( int it = 1; it <= g_src_snk_time_separation; it++ ) {
+                            int const icur = ( -it + gsx[0] + T_global ) % T_global;
+                            zm4x4_eq_zm4x4_ti_co ( diagram[icur], bb_aux[isnk],  mm_m1_factor[im1][igi2][ipi2][igf2][ipf2][icur][0] );
+                          }
+#endif
+                          /* multiply factor -1 from pi-pi Wick contraction closed fermion loop */
+                          exitstatus = contract_diagram_zm4x4_field_ti_eq_re ( diagram, -1., T_global );
 
 #if 0
                           NOT needed for qlua code
@@ -2064,6 +2092,8 @@ int main(int argc, char **argv) {
                           // multiply baryon 2-point function with meson 2-point function
                           exitstatus = contract_diagram_zm4x4_field_ti_co_field ( diagram, bb_aux, mm_m1_factor[im1][igi2][ipi2][igf2][ipf2][0], T_global );
 
+                          /* multiply factor -1 from pi-pi Wick contraction closed fermion loop */
+                          exitstatus = contract_diagram_zm4x4_field_ti_eq_re ( diagram, -1., T_global );
 #if 0
                           NOT needed for qlua code
                           // transpose
