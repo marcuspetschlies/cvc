@@ -1,0 +1,14 @@
+udu-Du-Ud-DUU
+12
+v2  phil-gf-fl-fl     v3  xil-gf-sll      T  T  T  3412
+v2  phil-gf-fl-fl     v3  xil-gf-sll      T  T  N  1342
+v2  g5.xil-gf-fl-sll  v3  g5.phil-gf-fl   N  T  T  3412
+v2  g5.xil-gf-fl-sll  v3  g5.phil-gf-fl   T  T  N  1324
+v2  g5.xil-gf-sll-fl  v3  g5.phil-gf-fl   N  T  N  1324
+v2  g5.xil-gf-sll-fl  v3  g5.phil-gf-fl   N  T  N  1342
+v4  phil-gf-fl-fl     v3  phil-gf-fl      N  N  N  3142
+v4  phil-gf-fl-fl     v3  phil-gf-fl      N  N  N  3124
+v2  phil-gf-fl-fl     v3  phil-gf-fl      N  N  N  1324
+v2  phil-gf-fl-fl     v3  phil-gf-fl      N  N  N  1342
+t1  fl-fl             m1  fl-fl           T  T  N  1111
+t2  fl-fl             m1  fl-fl           T  T  N  1111
