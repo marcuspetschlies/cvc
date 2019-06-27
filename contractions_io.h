@@ -35,6 +35,8 @@ int read_binary_contraction_data(double * const s, LimeReader * limereader,
   const int prec, const int N, DML_Checksum * ans);
 
 
+int write_aff_contraction ( void * const contr, void * const awriter, void * const afilename, char * tag, unsigned int const nc);
+
 int read_aff_contraction ( void * const contr, void * const areader, void * const afilename, char * tag, unsigned int const nc);
 
 #ifdef HAVE_HDF5
