@@ -56,6 +56,7 @@ typedef struct {
   char flavor_name[20];
 
   int diagram_num;
+  char diagram_name_list[MAX_DIAGRAM_NUM][10];
 
   char OPi1_list[MAX_DIAGRAM_NUM];
   char OPf1_list[MAX_DIAGRAM_NUM];
@@ -72,9 +73,9 @@ typedef struct {
 } fccl_struct;
 
 
-/* #define MESON_BARYON_FACTORIZED_DIAGRAMS_2PT */
+#define MESON_BARYON_FACTORIZED_DIAGRAMS_2PT
 
-#define MESON_BARYON_FACTORIZED_DIAGRAMS_3PT
+/* #define MESON_BARYON_FACTORIZED_DIAGRAMS_3PT */
 
 
 #ifdef MESON_BARYON_FACTORIZED_DIAGRAMS_2PT
@@ -175,10 +176,10 @@ int main(int argc, char **argv) {
 #endif
 
   // Nucleon-type gamma list at vertex f1
-  int const gamma_f1_number = 1;
+  int const gamma_f1_number = 2;
   //                                                  C,  g5    Cg5, 1      Cgt, g5    Cg5gt, 1
   // int const gamma_f1_list[gamma_f1_number][2] = { {10, 15}, { 5,  0},  { 2,   15}, {13,    0} };
-  int const gamma_f1_list[gamma_f1_number][2]    = {           { 5,  0} };
+  int const gamma_f1_list[gamma_f1_number][2]    = {           { 5,  0}  , {13,    0} };
 
 
 #if defined MESON_BARYON_FACTORIZED_DIAGRAMS_2PT
@@ -288,7 +289,9 @@ int main(int argc, char **argv) {
     EXIT(24);
   }
 
-
+  /******************************************************
+   * read the diagram identifiers
+   ******************************************************/
   for ( int i = 0; i < fcc_num; i++ ) {
 
     fscanf ( ifs, "%s\n", fccl[i].flavor_name );
@@ -300,7 +303,7 @@ int main(int argc, char **argv) {
       fprintf ( stdout, "# [meson_baryon_factorized_correlators_3pt] reading %s with %d diagrams\n", fccl[i].flavor_name, fccl[i].diagram_num ); 
     }
     for ( int idiag = 0; idiag < fccl[i].diagram_num; idiag++ ) {
-      fscanf ( ifs, "%s %s %s %s %c %c %c %1d%1d%1d%1d\n", 
+      fscanf ( ifs, "%s %s %s %s %c %c %c %1d%1d%1d%1d  %s\n", 
           fccl[i].RN2_list[idiag],
           fccl[i].PXGP2_list[idiag],
           fccl[i].RN1_list[idiag],
@@ -311,10 +314,11 @@ int main(int argc, char **argv) {
           fccl[i].permutation_list[idiag]+0,
           fccl[i].permutation_list[idiag]+1,
           fccl[i].permutation_list[idiag]+2,
-          fccl[i].permutation_list[idiag]+3  );
+          fccl[i].permutation_list[idiag]+3,
+          fccl[i].diagram_name_list[idiag] );
 
       if ( g_verbose > 2 ) {
-        fprintf ( stdout, "  %3s %20s %3s %20s %c %c %c %2d%2d%2d%2d\n", 
+        fprintf ( stdout, "  %3s %20s %3s %20s %c %c %c %2d%2d%2d%2d  %s\n", 
             fccl[i].RN2_list[idiag],
             fccl[i].PXGP2_list[idiag],
             fccl[i].RN1_list[idiag],
@@ -325,7 +329,8 @@ int main(int argc, char **argv) {
             fccl[i].permutation_list[idiag][0],
             fccl[i].permutation_list[idiag][1],
             fccl[i].permutation_list[idiag][2],
-            fccl[i].permutation_list[idiag][3]  );
+            fccl[i].permutation_list[idiag][3],
+            fccl[i].diagram_name_list[idiag] );
 
       }
     }
@@ -363,7 +368,7 @@ int main(int argc, char **argv) {
       if ( npt_mode == 2 ) {
         sprintf(filename, "%s_2pt.%.4d.tsrc%.2d.aff", outfile_prefix, Nconf, t_base );
       } else if ( npt_mode == 3 ) {
-        sprintf(filename, "%s_3pt.%.4d.tsrc%.2d.aff", outfile_prefix, Nconf, t_base );
+        sprintf(filename, "%s_3pt.%.4d.tsrc%.2d.dt%d.aff", outfile_prefix, Nconf, t_base, g_src_snk_time_separation );
       } else {
         fprintf ( stderr, "[meson_baryon_factorized_correlators_3pt] Error, unrecognized npt_mode value %s %d\n", __FILE__, __LINE__ );
         EXIT(125);
@@ -383,7 +388,7 @@ int main(int argc, char **argv) {
       if ( npt_mode == 2 ) {
         sprintf(filename, "%s_2pt.%.4d.tsrc%.2d.aff", infile_prefix, Nconf, t_base );
       } else if ( npt_mode == 3 ) {
-        sprintf(filename, "%s_3pt.%.4d.tsrc%.2d.aff", infile_prefix, Nconf, t_base );
+        sprintf(filename, "%s_3pt.%.4d.tsrc%.2d.dt%d.aff", infile_prefix, Nconf, t_base , g_src_snk_time_separation );
       } else {
         fprintf ( stderr, "[meson_baryon_factorized_correlators_3pt] Error, unrecognized npt_mode value %s %d\n", __FILE__, __LINE__ );
         EXIT(125);
@@ -501,6 +506,7 @@ int main(int argc, char **argv) {
                         for ( int idiag = 0; idiag < fcc_ptr->diagram_num; idiag++ )
                         {
 
+                          printf ( "\n\n" );
                           char diagram_key[1000];
 
                           sprintf ( diagram_key, "/%s/%s/%s/%s/p%d%d%d%d/%s/gf2%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/gf1%.2d_%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/gi2%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/gi1%.2d_%.2d",
@@ -534,17 +540,22 @@ int main(int argc, char **argv) {
                            * determine the sign from tables
                            **************************************************************************************/
 
-                          int const sign_OPi1 = fcc_ptr->OPi1_list[idiag] == 'T' ? gamma_qlua_transpose_sign[ gamma_f1_list[igi1][0] ] : 1.;
+                          int const sign_OPi1 = fcc_ptr->OPi1_list[idiag] == 'T' ? gamma_qlua_transpose_sign[ gamma_f1_list[igi1][0] ] : 1;
 
-                          int const sign_OPf1 = fcc_ptr->OPf1_list[idiag] == 'T' ? gamma_qlua_transpose_sign[ gamma_f1_list[igf1][0] ] : 1.;
+                          int const sign_OPf1 = fcc_ptr->OPf1_list[idiag] == 'T' ? gamma_qlua_transpose_sign[ gamma_f1_list[igf1][0] ] : 1;
 
                           exitstatus = contract_diagram_zm4x4_field_ti_eq_re ( diagram[idiag], sign_OPi1 * sign_OPf1, nT );
+
+                          if ( g_verbose > 2 ) fprintf ( stdout, "# [meson_baryon_factorized_correlators_3pt] sign_OPi1 = %d  sign_OPf1 = %d\n" , sign_OPi1, sign_OPf1 );
 
                           /**************************************************************************************
                            * transpose the diagram if so listed
                            **************************************************************************************/
                           if ( fcc_ptr->OPD_list[idiag] == 'T' ) {
+                            if ( g_verbose > 2 ) fprintf ( stdout, "# [meson_baryon_factorized_correlators_3pt] transposing diagram\n" );
                             exitstatus = contract_diagram_zm4x4_field_eq_zm4x4_field_transposed ( diagram[idiag], diagram[idiag], nT );
+                          } else {
+                            if ( g_verbose > 2 ) fprintf ( stdout, "# [meson_baryon_factorized_correlators_3pt] NOT transposing diagram\n" );
                           }
 
                           for ( int ia = 0; ia < 4; ia++ ) {
@@ -555,11 +566,40 @@ int main(int argc, char **argv) {
                           }}
 
                           char correlator_key[1000];
-                          sprintf ( correlator_key, "/%s%s", fcc_ptr->flavor_name, diagram_key );
+                          sprintf ( correlator_key, "/%s/%s%s", fcc_ptr->flavor_name, fcc_ptr->diagram_name_list[idiag], diagram_key );
 
                           exitstatus = write_aff_contraction ( buffer[0][0], affw, NULL, correlator_key, 16*nT );
 
                         }  /* end of loop on diagrams */
+
+                        for ( int idiag = 1; idiag < fcc_ptr->diagram_num; idiag++ ) 
+                        {
+                          exitstatus = contract_diagram_zm4x4_field_pl_eq_zm4x4_field ( diagram[0], diagram[idiag], nT );
+                        }
+
+                        char correlator_key[1000];
+                        sprintf ( correlator_key, "/%s/%s/gf2%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/gf1%.2d_%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/gi2%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/gi1%.2d_%.2d",
+                            fcc_ptr->flavor_name,
+                            fbwd_str[ifbwd], gamma_f2_list[igf2],
+                            g_seq2_source_momentum_list[ipf2][0], g_seq2_source_momentum_list[ipf2][1], g_seq2_source_momentum_list[ipf2][2],
+                            gamma_f1_list[igf1][0], gamma_f1_list[igf1][1],
+                            g_sink_momentum_list[ipf1][0], g_sink_momentum_list[ipf1][1], g_sink_momentum_list[ipf1][2],
+                            gamma_i2_list[igi2],
+                            g_seq_source_momentum_list[ipi2][0],
+                            g_seq_source_momentum_list[ipi2][1],
+                            g_seq_source_momentum_list[ipi2][2],
+                            gamma_f1_list[igi1][0], gamma_f1_list[igi1][1] );
+
+                        fprintf ( stdout, "# [meson_baryon_factorized_correlators_3pt] correlator_key = %s %s %d\n", correlator_key, __FILE__, __LINE__ );
+
+                        for ( int ia = 0; ia < 4; ia++ ) {
+                        for ( int ib = 0; ib < 4; ib++ ) {
+                          for ( int it = 0; it < nT; it++ ) {
+                            buffer[ia][ib][it] = diagram[0][it][ia][ib];
+                          }
+                        }}
+
+                        exitstatus = write_aff_contraction ( buffer[0][0], affw, NULL, correlator_key, 16*nT );
 
                         fini_4level_ztable ( &diagram );
                         fini_3level_ztable ( &buffer );
