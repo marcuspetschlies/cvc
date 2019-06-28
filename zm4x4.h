@@ -650,6 +650,16 @@ static inline void zm4x4_printf (double _Complex **r, char*name, FILE*ofs ) {
   }
 }  /* end of zm4x4_printf */
 
+/***********************************************************/
+/***********************************************************/
+
+static inline void zm4x4_eq_unity (double _Complex **r ) {
+  memset ( r[0], 0, 16*sizeof(double _Complex ) );
+  r[0][ 0] = 1.;
+  r[0][ 5] = 1.;
+  r[0][10] = 1.;
+  r[0][15] = 1.;
+}  /* end of zm4x4_eq_unity */
 
 }  /* end of namespace cvc */
 
