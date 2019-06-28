@@ -1,0 +1,56 @@
+udu-Uu-Uu-DUU
+14
+v2  phil-gf-fl-fl     v3  xil-gc-sll     N  N  N  1342  B3
+v2  phil-gf-fl-fl     v3  xil-gc-sll     N  N  N  1324  B5
+v4  phil-gf-fl-fl     v3  xil-gc-sll     N  N  N  3142  B4
+v4  phil-gf-fl-fl     v3  xil-gc-sll     N  N  N  3124  B6
+v4  g5.xil-gf-sll-fl  v3  g5.phil-gc-fl  N  N  N  3124  W5
+v4  g5.xil-gf-sll-fl  v3  g5.phil-gc-fl  N  N  N  3142  W7
+v2  g5.xil-gf-sll-fl  v3  g5.phil-gc-fl  N  N  N  1324  W6
+v2  g5.xil-gf-sll-fl  v3  g5.phil-gc-fl  N  N  N  1342  W8
+v2  phil-gf-fl-fl     v3  phil-gc-fl     N  N  N  1342  Z5
+v2  phil-gf-fl-fl     v3  phil-gc-fl     N  N  N  1324  Z7
+v4  phil-gf-fl-fl     v3  phil-gc-fl     N  N  N  3142  Z6
+v4  phil-gf-fl-fl     v3  phil-gc-fl     N  N  N  3124  Z8
+t1  fl-fl             m1  fl-gc-fl-gi    T  T  N  1111  S3
+t2  fl-fl             m1  fl-gc-fl-gi    T  T  N  1111  S4
+udu-Dd-Dd-DUU
+6
+v2  phil-gf-fl-fl     v3  xil-gc-sll     T  T  T  3412  B7
+v2  phil-gf-fl-fl     v3  xil-gc-sll     T  T  T  1342  B8
+v2  phil-gf-fl-fl     v3  phil-gc-fl     T  T  T  3412  Z9
+v2  phil-gf-fl-fl     v3  phil-gc-fl     T  T  N  1342  Z10
+t1  fl-fl             m1  fl-gc-fl-gi    T  T  N  1111  S5
+t2  fl-fl             m1  fl-gc-fl-gi    T  T  N  1111  S6
+udu-Uu-Ud-UDD
+8
+v2  phil-gf-fl-fl     v3  xil-gc-sll     N  N  T  3412  B9
+v2  phil-gf-fl-fl     v3  xil-gc-sll     T  N  N  1324  B11
+v4  phil-gf-fl-fl     v3  xil-gc-sll     N  T  N  3142  B10
+v4  phil-gf-fl-fl     v3  xil-gc-sll     N  T  N  3124  B12
+v4  g5.xil-gf-fl-sll  v3  g5.phil-gc-fl  T  N  N  3412  W17
+v4  g5.xil-gf-fl-sll  v3  g5.phil-gc-fl  T  N  N  3142  W19
+v2  g5.xil-gf-fl-sll  v3  g5.phil-gc-fl  T  N  T  3412  W18
+v2  g5.xil-gf-fl-sll  v3  g5.phil-gc-fl  T  N  N  1342  W20
+udu-Uu-Dd-DUU
+4
+v2  g5.xil-gf-sll-fl  v3  g5.phil-gc-fl  N  N  N  1342  W9
+v2  g5.xil-gf-sll-fl  v3  g5.phil-gc-fl  N  N  N  1324  W11
+v4  g5.xil-gf-fl-sll  v3  g5.phil-gc-fl  N  T  N  3412  W10
+v4  g5.xil-gf-fl-sll  v3  g5.phil-gc-fl  T  T  N  3124  W12
+udu-Dd-Uu-DUU
+4
+v2  g5.xil-gf-sll-fl  v3  g5.phil-gc-fl  T  T  N  1342  W13
+v2  g5.xil-gf-sll-fl  v3  g5.phil-gc-fl  T  T  T  3412  W15
+v2  g5.xil-gf-fl-sll  v3  g5.phil-gc-fl  T  T  T  3412  W14
+v2  g5.xil-gf-fl-sll  v3  g5.phil-gc-fl  T  T  N  1342  W16
+udu-Dd-Ud-UDD
+8
+v2  g5.xil-gf-sll-fl  v3  g5.phil-gc-fl  T  T  N  1324  W21
+v2  g5.xil-gf-sll-fl  v3  g5.phil-gc-fl  N  T  T  3412  W23
+v2  g5.xil-gf-fl-sll  v3  g5.phil-gc-fl  N  T  N  1324  W22
+v2  g5.xil-gf-fl-sll  v3  g5.phil-gc-fl  N  T  N  1342  W24
+v2  phil-gf-fl-fl     v3  phil-gc-fl     N  N  T  3412  Z11
+v2  phil-gf-fl-fl     v3  phil-gc-fl     T  N  N  1324  Z13
+v4  phil-gf-fl-fl     v3  phil-gc-fl     N  N  N  3412  Z12
+v4  phil-gf-fl-fl     v3  phil-gc-fl     T  N  N  3124  Z14
