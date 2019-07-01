@@ -46,7 +46,8 @@ int uwerr_init( uwerr * const u) {
   u->write_flag = 0;
   u->func = NULL;
   u->dfunc = NULL;
-  u->s_tau = 0.;
+  /* u->s_tau = 0.; */
+  u->s_tau = 1.5;  /* use a default value */
   u->ipo = 0;
   u->Qval = 0.;
   u->p_r  = NULL;
@@ -446,7 +447,7 @@ int uwerr_analysis(double * const data, uwerr * const u) {
   // TEST
   //fprintf(stdout, "[uwerr] Gamma_F[0] = %25.16e\n", Gamma_F[0]);
   if (Gamma_F[0]==0.0) {
-    fprintf(stderr, "[uwerr] ERROR, no fluctuations; return\n");
+    fprintf(stderr, "[uwerr] ERROR, no fluctuations for %s; return\n", u->obsname);
     uwerr_free(u);
     _UWERR_FREE_EXIT(-5)
   }

@@ -477,6 +477,7 @@ int main(int argc, char **argv) {
     if(check_position_space_WI) {
       gettimeofday ( &ta, (struct timezone *)NULL );
 
+      if( g_cart_id == 0 && g_verbose > 0 ) fprintf ( stdout, "# [p2gg_invert_contract] check position space WI for cvc-cvc tensor %s %d\n", __FILE__, __LINE__ );
       exitstatus = cvc_tensor_eo_check_wi_position_space ( hvp_tensor_eo );
       if(exitstatus != 0) {
         fprintf(stderr, "[p2gg_invert_contract] Error from cvc_tensor_eo_check_wi_position_space for full, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -544,6 +545,18 @@ int main(int argc, char **argv) {
       EXIT(1);
     }
 
+    /* contraction */
+    exitstatus = contract_local_local_2pt_eo (
+       &(eo_spinor_field[168]), &(eo_spinor_field[228]),
+       &(eo_spinor_field[ 48]), &(eo_spinor_field[108]),
+       g_sink_gamma_id_list, g_sink_gamma_id_number,
+       g_sink_gamma_id_list, g_sink_gamma_id_number,
+       g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
+
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[p2gg_invert_contract] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(1);
+    }
     /***************************************************************************
      * local - local 2-point  d - u
      ***************************************************************************/
@@ -609,6 +622,7 @@ int main(int argc, char **argv) {
 
     /* check position space WI */
     if(check_position_space_WI) {
+      if( g_cart_id == 0 && g_verbose > 0 ) fprintf ( stdout, "# [p2gg_invert_contract] check position space WI for cvc-lcv tensor %s %d\n", __FILE__, __LINE__ );
       exitstatus = cvc_tensor_eo_check_wi_position_space ( cl_tensor_eo );
       if(exitstatus != 0) {
         fprintf(stderr, "[p2gg_invert_contract] Error from cvc_tensor_eo_check_wi_position_space for mixed, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -855,6 +869,8 @@ int main(int argc, char **argv) {
             if(check_position_space_WI) {
               gettimeofday ( &ta, (struct timezone *)NULL );
 
+              if( g_cart_id == 0 && g_verbose > 0 ) fprintf ( stdout, "# [p2gg_invert_contract] check position space WI for p-cvc-cvc tensor fl %d %s %d\n",
+                 iflavor, __FILE__, __LINE__ );
               exitstatus = cvc_tensor_eo_check_wi_position_space ( p2gg_tensor_eo );
               if(exitstatus != 0) {
                 fprintf(stderr, "[p2gg_invert_contract] Error from cvc_tensor_eo_check_wi_position_space for full, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -875,7 +891,7 @@ int main(int argc, char **argv) {
              * contraction for P - local - local tensor
              ***************************************************************************/
             /* flavor-dependent AFF tag */
-            sprintf(aff_tag, "/p-loc-loc/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d", gsx[0], gsx[1], gsx[2], gsx[3],
+            sprintf(aff_tag, "/p-lvc-lvc/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d", gsx[0], gsx[1], gsx[2], gsx[3],
                 seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
                 sequential_source_gamma_id, g_sequential_source_timeslice, iflavor );
 
@@ -885,8 +901,8 @@ int main(int argc, char **argv) {
             exitstatus = contract_local_local_2pt_eo (
                 &(eo_spinor_field[ ( 1 - iflavor ) * 120 + 48]), &(eo_spinor_field[ ( 1 - iflavor ) * 120 + 108]),
                 &(eo_spinor_field[288]), &(eo_spinor_field[348]),
-                g_source_gamma_id_list, g_source_gamma_id_number,
-                g_source_gamma_id_list, g_source_gamma_id_number,
+                g_sink_gamma_id_list, g_sink_gamma_id_number,
+                g_sink_gamma_id_list, g_sink_gamma_id_number,
                 g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
 
             gettimeofday ( &tb, (struct timezone *)NULL );
@@ -896,6 +912,59 @@ int main(int argc, char **argv) {
               fprintf(stderr, "[p2gg_invert_contract] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(1);
             }
+
+            /***************************************************************************
+             * P - cvc - lvc tensor
+             ***************************************************************************/
+            /* flavor-dependent aff tag  */
+            sprintf(aff_tag, "/p-cvc-lvc/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d",
+                gsx[0], gsx[1], gsx[2], gsx[3], 
+                seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
+                sequential_source_gamma_id, g_sequential_source_timeslice, iflavor );
+
+            double ** cl_tensor_eo = init_2level_dtable ( 2, 32 * (size_t)Vhalf);
+            if( cl_tensor_eo == NULL ) {
+              fprintf(stderr, "[p2gg_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+              EXIT(24);
+            }
+             /* contraction for P - cvc - lvc tensor */
+            contract_cvc_local_tensor_eo ( cl_tensor_eo[0], cl_tensor_eo[1],
+                &(eo_spinor_field[ ( 1 - iflavor ) * 120 + 48]), &(eo_spinor_field[ ( 1 - iflavor ) * 120 + 108]), &(eo_spinor_field[288]), &(eo_spinor_field[348]),
+                gauge_field_with_phase );
+
+               /* momentum projections */
+            cvc_tp = init_3level_dtable ( g_sink_momentum_number, 16, 2*T);
+            if ( cvc_tp == NULL ) {
+              fprintf ( stderr, "[p2gg_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
+              EXIT(12);
+            }
+
+            exitstatus = cvc_tensor_eo_momentum_projection ( &cvc_tp, cl_tensor_eo, g_sink_momentum_list, g_sink_momentum_number);
+            if(exitstatus != 0) {
+              fprintf(stderr, "[p2gg_invert_contract] Error from cvc_tensor_eo_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(26);
+            }
+
+            /* write results to file */
+            exitstatus = cvc_tensor_tp_write_to_aff_file ( cvc_tp, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+            if(exitstatus != 0 ) {
+              fprintf(stderr, "[p2gg_invert_contract] Error from cvc_tensor_tp_write_to_aff_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(45);
+            }
+            fini_3level_dtable ( &cvc_tp );
+
+            /* check position space WI */
+            if(check_position_space_WI) {
+              if( g_cart_id == 0 && g_verbose > 0 ) fprintf ( stdout, "# [p2gg_invert_contract] check position space WI for p-cvc-lvc tensor fl %d %s %d\n",
+                 iflavor, __FILE__, __LINE__ );
+              exitstatus = cvc_tensor_eo_check_wi_position_space ( cl_tensor_eo );
+              if(exitstatus != 0) {
+                fprintf(stderr, "[p2gg_invert_contract] Error from cvc_tensor_eo_check_wi_position_space for full, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(38);
+              }
+            }
+
+            fini_2level_dtable ( &cl_tensor_eo );
 
           }  /* end of loop on flavor */
 
@@ -957,5 +1026,4 @@ int main(int argc, char **argv) {
   }
 
   return(0);
-
 }

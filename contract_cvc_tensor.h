@@ -7,6 +7,8 @@
  *
  ****************************************************/
 
+#define _ISIGN(i_) ( (i_)==0 ? 0 : ( (i_)>0 ? 1 : -1 )  )
+
 namespace cvc {
 
 void init_contract_cvc_tensor_usource(double *gauge_field, int source_coords[4], complex *phase);
@@ -82,6 +84,13 @@ int contract_cvc_tensor_eo_lm_mee_ct (
 
 
 void contract_cvc_local_tensor_eo ( double * const conn_e, double * const conn_o, double ** const sprop_list_e, double ** const sprop_list_o, double ** const tprop_list_e, double ** const tprop_list_o , double * const gauge_field );
+
+
+/****************************************************
+ * average 4x4 tensor spatial components over orbit
+ * with totally antisymmetric 3x3 tensor
+ ****************************************************/
+void antisymmetric_orbit_average_spatial (double *** const d_out, double ****** const d_in, int const dim[3], int const momentum_num, int  const (*momentum_list)[3], int const reim );
 
 }  /* end of namespace cvc */
 

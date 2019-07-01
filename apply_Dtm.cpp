@@ -205,19 +205,42 @@ int main(int argc, char **argv) {
     EXIT(9);
   }
 
-  /****************************************
-   * read read the spinor fields
-   ****************************************/
-  if(g_cart_id==0) fprintf(stdout, "# [apply_Dtm] Reading prop. from file %s\n", filename_prefix);
-  if( read_lime_spinor(g_spinor_field[0], filename_prefix, 0) != 0 ) {
-    fprintf(stderr, "[apply_Dtm] Error, could not read file %s\n", filename_prefix);
-    EXIT(9);
+  double * zero_gauge_field = init_1level_dtable ( 72*(VOLUMEPLUSRAND) );
+  memset ( zero_gauge_field, 0., 72*VOLUME*sizeof(double) );
+
+  for ( int i =0; i< 12; i++ )  {
+    /****************************************
+     * read read the spinor fields
+     ****************************************/
+
+    sprintf ( filename, "%s.%.4d.t%dx%dy%dz%d.%d.inverted", filename_prefix, Nconf, 
+        g_source_coords_list[0][0],
+        g_source_coords_list[0][1],
+        g_source_coords_list[0][2],
+        g_source_coords_list[0][3], i );
+
+    if(g_cart_id==0) fprintf(stdout, "# [apply_Dtm] Reading prop. from file %s\n", filename_prefix);
+    if( read_lime_spinor(g_spinor_field[0], filename, 0) != 0 ) {
+      fprintf(stderr, "[apply_Dtm] Error, could not read file %s\n", filename_prefix);
+      EXIT(9);
+    }
+
+
+    /* Q_phi ( g_spinor_field[1], g_spinor_field[0], gauge_field_with_phase, g_mu ); */
+    Q_phi ( g_spinor_field[1], g_spinor_field[0], zero_gauge_field, g_mu );
+
+    sprintf ( filename, "D_%s.%.4d.t%dx%dy%dz%d.%d.inverted.ascii", filename_prefix, Nconf, 
+        g_source_coords_list[0][0],
+        g_source_coords_list[0][1],
+        g_source_coords_list[0][2],
+        g_source_coords_list[0][3], i );
+    FILE * ofs = fopen( filename, "w");
+    exitstatus = printf_spinor_field ( g_spinor_field[1], 0, ofs );
+    fclose ( ofs );
+
   }
 
-  Q_phi ( g_spinor_field[1], g_spinor_field[0], gauge_field_with_phase, g_mu );
-
-  exitstatus = printf_spinor_field ( g_spinor_field[1], 0, stdout );
-
+  fini_1level_dtable ( &zero_gauge_field );
 #if 0
   spinor_scalar_product_re(&norm2, g_spinor_field[0], g_spinor_field[0], VOLUME);
   fprintf(stdout, "# [apply_Dtm] propagator norm = %e\n", sqrt(norm2));
