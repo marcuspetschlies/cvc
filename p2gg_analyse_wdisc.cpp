@@ -255,7 +255,7 @@ int main(int argc, char **argv) {
     }
   }
 
-
+#if 0
   /***********************************************************
    ***********************************************************
    **
@@ -547,7 +547,7 @@ int main(int argc, char **argv) {
     fini_3level_dtable ( &data );
 
   }  /* end of loop on re / im */
-#if 0
+
 #endif  /* of if 0 */
 
   /**********************************************************
@@ -702,26 +702,51 @@ int main(int argc, char **argv) {
        * statistical analysis for loops
        **********************************************************/
       if ( loop_stats ) {
-        double ** data = init_2level_dtable ( num_conf, T_global );
+
+        dquant cumulants[4] = { cumulant_1, cumulant_2, cumulant_3, cumulant_4 };
+        dquant dcumulants[4] = { dcumulant_1, dcumulant_2, dcumulant_3, dcumulant_4 };
+
+        double ** data = init_2level_dtable ( num_conf, 4 * T_global );
 
 #pragma omp parallel for
         for ( int iconf = 0; iconf < num_conf; iconf++ ) {
            for ( int it = 0; it < T_global; it++ ) {
-            data[iconf][it] = loop_avg[iconf][2*it+loop_type_reim];
+            double const ltmp = loop_avg[iconf][2*it+loop_type_reim];
+            double dtmp = 1.;
+            for ( int icum = 0; icum < 4; icum++ ) {
+              dtmp *= ltmp;
+              data[iconf][ icum * T_global + it ] = dtmp;
+            }
           }
         }
 
-        char obs_name[100];
-        sprintf ( obs_name, "loop_avg.%s.QX%d_QY%d_QZ%d.g%d", loop_type_tag[loop_type],
-            seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id );
+        for ( int icum = 0; icum < 4; icum++ ) {
 
-        /* apply UWerr analysis */
-        exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
-        if ( exitstatus != 0 ) {
-          fprintf ( stderr, "[p2gg_analyse_wdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-          EXIT(1);
-        }
+          char obs_name[100];
+          sprintf ( obs_name, "loop.%s.QX%d_QY%d_QZ%d.g%d.k%d", loop_type_tag[loop_type],
+              seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id, icum+1 );
 
+          /* apply UWerr analysis */
+          int * arg_first  = init_1level_itable ( icum + 1 );
+          int * arg_stride = init_1level_itable ( icum + 1 );
+          for ( int k = 0; k <= icum ; k++ ) {
+            arg_first[k]  = k * T_global;
+            arg_stride[k] = 1;
+          }
+
+          exitstatus = apply_uwerr_func ( data[0], num_conf, 4*T_global, T_global, icum+1, arg_first, arg_stride, obs_name, cumulants[icum], dcumulants[icum] );
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "[p2gg_analyse_wdisc] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(115);
+          }
+
+          fini_1level_itable ( &arg_first );
+          fini_1level_itable ( &arg_stride );
+
+        }  /* end of loop on cumulants */
+
+        fini_2level_dtable ( &data );
+#if 0
 #pragma omp parallel for
         for ( int iconf = 0; iconf < num_conf; iconf++ ) {
           for ( int it = 0; it < T_global; it++ ) {
@@ -779,9 +804,11 @@ int main(int argc, char **argv) {
           EXIT(1);
         }
         fini_2level_dtable ( &data );
+#endif  /* of if 0 */
 
       }  /* end of if loop_stats */
 
+#if 0
       /**********************************************************
        * loop data for pgg
        *
@@ -1103,10 +1130,11 @@ int main(int argc, char **argv) {
         fini_6level_dtable ( &pgg_disc );
 
       }  /* end of loop on sequential source timeslices */
-#if 0
-#endif /* of if 0 */
 
       fini_2level_dtable ( &loop_pgg );
+
+#endif /* of if 0 */
+
 
       fini_3level_dtable ( &loops_proj ); 
 
