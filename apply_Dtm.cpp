@@ -229,6 +229,10 @@ int main(int argc, char **argv) {
     /* Q_phi ( g_spinor_field[1], g_spinor_field[0], gauge_field_with_phase, g_mu ); */
     Q_phi ( g_spinor_field[1], g_spinor_field[0], zero_gauge_field, g_mu );
 
+    spinor_field_ti_eq_re ( g_spinor_field[1], 2.*g_kappa, VOLUME );
+
+
+
     sprintf ( filename, "D_%s.%.4d.t%dx%dy%dz%d.%d.inverted.ascii", filename_prefix, Nconf, 
         g_source_coords_list[0][0],
         g_source_coords_list[0][1],

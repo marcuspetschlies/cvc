@@ -629,7 +629,7 @@ int loop_read_from_h5_file (double *** const loop, void * file, char*tag, int co
  * IN : io_proc         : I/O id
  *
  ***************************************************************************/
-int loop_get_momentum_list_from_h5_file ( int (*momentum_list)[3], void * file, int const momentum_number, int const io_proc ) {
+int loop_get_momentum_list_from_h5_file ( int ** const momentum_list, void * file, int const momentum_number, int const io_proc ) {
 
   if ( io_proc > 0 ) {
 
