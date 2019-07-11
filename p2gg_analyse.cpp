@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "Wh?f:N:S:F:O:")) != -1) {
+  while ((c = getopt(argc, argv, "Wh?f:N:S:F:O:E:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -123,6 +123,10 @@ int main(int argc, char **argv) {
     case 'O':
       operator_type = atoi ( optarg );
       fprintf ( stdout, "# [p2gg_analyse] operator_type set to %d\n", operator_type );
+      break;
+    case 'E':
+      strcpy ( ensemble_name, optarg );
+      fprintf ( stdout, "# [p2gg_analyse] ensemble_name set to %s\n", ensemble_name );
       break;
     case 'h':
     case '?':
@@ -223,7 +227,7 @@ int main(int argc, char **argv) {
   fclose ( ofs );
 
 
-  if ( g_verbose > 5 ) {
+  if ( g_verbose > 1 ) {
     for ( int iconf = 0; iconf < num_conf; iconf++ ) {
       for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
         fprintf ( stdout, "conf_src_list %6d %3d %3d %3d %3d\n", 
@@ -237,7 +241,7 @@ int main(int argc, char **argv) {
     }
   }
 
-#if 0
+
   /***********************************************************
    ***********************************************************
    **
@@ -276,13 +280,13 @@ int main(int argc, char **argv) {
       gettimeofday ( &ta, (struct timezone *)NULL );
       struct AffNode_s *affn = NULL, *affdir = NULL;
 
-      sprintf ( filename, "%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", Nconf, g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
-      /* sprintf ( filename, "%d/%s.%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", Nconf, hvp_correlator_prefix[operator_type], hvp_flavor_tag[operator_type], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
+      /* sprintf ( filename, "%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", Nconf, g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
+      sprintf ( filename, "%d/%s.%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", Nconf, hvp_correlator_prefix[operator_type], hvp_flavor_tag[operator_type], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
       fprintf(stdout, "# [p2gg_analyse] reading data from file %s\n", filename);
       affr = aff_reader ( filename );
       const char * aff_status_str = aff_reader_errstr ( affr );
       if( aff_status_str != NULL ) {
-        fprintf(stderr, "[p2gg_analyse] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+        fprintf(stderr, "[p2gg_analyse] Error from aff_reader for filename %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__);
         EXIT(15);
       }
 
@@ -508,7 +512,7 @@ int main(int argc, char **argv) {
    * free hvp field
    **********************************************************/
   fini_6level_dtable ( &hvp );
-
+#if 0
 #endif  /* of if 0  */
 
 
