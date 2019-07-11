@@ -2748,7 +2748,7 @@ void antisymmetric_orbit_average_spatial (double *** const d_out, double ****** 
   double const norm = 1. / ( 2. * pnorm2 * (double)momentum_num );
 
   if ( g_verbose > 3 ) fprintf ( stdout, "# [antisymmetric_orbit_average_spatial] norm = %f\n", norm );
-#pragma omp prallel for
+#pragma omp parallel for
   for ( int i = 0; i < dim[0]; i++ ) {
     for ( int k = 0; k < dim[1]; k++ ) {
       for ( int l = 0; l < dim[2]; l++ ) {
