@@ -188,6 +188,8 @@ void set_default_input_values(void) {
   g_sink_momentum[2] = _default_sink_momentum_z;
   g_sink_momentum_set = _default_sink_momentum_set;
   g_sink_momentum_number = _default_sink_momentum_number;
+  
+  g_insertion_momentum_number = _default_insertion_momentum_number;
 
   g_seq_source_momentum[0] = _default_seq_source_momentum_x;
   g_seq_source_momentum[1] = _default_seq_source_momentum_y;
