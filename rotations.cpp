@@ -935,7 +935,7 @@ int rot_bispinor_rotation_matrix_spherical_basis ( double _Complex**ASpin, int n
  * safe if nrot = nn in memory
  ***********************************************************/
 void rot_point ( int nrot[3], int const nn[3], double _Complex ** const R) {
-  int const n[3] = { nn[0], nn[1], nn[2] };
+  double _Complex const n[3] = { nn[0], nn[1], nn[2] };
   nrot[0] = (int)creal(R[0][0] * (double _Complex)n[0] + R[0][1] * (double _Complex)n[1] + R[0][2] * (double _Complex)n[2]);
   nrot[1] = (int)creal(R[1][0] * (double _Complex)n[0] + R[1][1] * (double _Complex)n[1] + R[1][2] * (double _Complex)n[2]);
   nrot[2] = (int)creal(R[2][0] * (double _Complex)n[0] + R[2][1] * (double _Complex)n[1] + R[2][2] * (double _Complex)n[2]);
