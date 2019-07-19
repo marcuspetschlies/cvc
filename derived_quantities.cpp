@@ -378,4 +378,40 @@ int dcumulant_4  ( void * param , void * v_in, double * v_out) {
 
 /********************************************************/
 /********************************************************/
+
+/********************************************************
+ *
+ ********************************************************/
+int ratio_1_2_mi_3 ( void * param , void * v_in, double * v_out) {
+  int * const trange = (int*)v_in;
+  int const i1  = trange[0];
+  int const i2  = trange[1];
+  int const i3  = trange[1];
+
+  *v_out = ((double*)param)[i1] / ((double*)param)[i2] - ((double*)param)[i3];
+  return(0);
+}  /* end of ratio_1_2_mi_3 */
+
+/********************************************************
+ *
+ ********************************************************/
+int dratio_1_2_mi_3(void *param , void *v_in, double *v_out) {
+  int * const trange = (int*)v_in;
+  int const i1 = trange[0];
+  int const i2 = trange[1];
+  int const i3 = trange[2];
+
+  /* derivative w.r.t. zaehler */
+  v_out[i1] = 1. / ((double*)param)[i2];
+  /* derivative w.r.t. nenner */
+  v_out[i2] = -((double*)param)[i1] / ( _SQR( ((double*)param)[i2] ) );
+  /* derivative w.r.t. subtraction */
+  v_out[i3] = -1.;
+
+  return(0);
+}  /* end of dratio_1_2_mi_3 */
+
+/********************************************************/
+/********************************************************/
+
 }  /* end of namespace cvc */

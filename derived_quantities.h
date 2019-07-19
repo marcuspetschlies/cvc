@@ -40,6 +40,10 @@ int dcumulant_3  ( void * param , void * v_in, double * v_out);
 int  cumulant_4  ( void * param , void * v_in, double * v_out);
 int dcumulant_4  ( void * param , void * v_in, double * v_out);
 
+int ratio_1_2_mi_3 ( void * param , void * v_in, double * v_out);
+int dratio_1_2_mi_3 ( void * param , void * v_in, double * v_out);
+
+
 }
 
 #endif
