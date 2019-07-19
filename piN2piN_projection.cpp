@@ -44,6 +44,7 @@ extern "C"
 #include "global.h"
 #include "cvc_geometry.h"
 #include "cvc_utils.h"
+#include "cvc_timer.h"
 #include "mpi_init.h"
 #include "io.h"
 #include "read_input_parser.h"
@@ -87,7 +88,6 @@ int main(int argc, char **argv) {
   char filename[200];
   double ratime, retime;
   FILE *ofs = NULL;
-  struct 
 
   int udli_count = 0;
   char udli_list[MAX_UDLI_NUM][500];
@@ -181,11 +181,19 @@ int main(int argc, char **argv) {
   }
   geometry();
 
-
   /***********************************************************
    * set io process
    ***********************************************************/
   int const io_proc = get_io_proc ();
+
+  /***********************************************************
+   * TEST: report size of twopoint_function_type
+   ***********************************************************/
+  if ( io_proc == 0 ) {
+    fprintf ( stdout, "# [piN2piN_projection] sizeof twopoint_function_type = %lu\n", sizeof ( twopoint_function_type ) );
+  }
+
+
 
   /****************************************************
    * set cubic group single/double cover
@@ -897,6 +905,8 @@ int main(int argc, char **argv) {
 
   /******************************************************/
   /******************************************************/
+#if 0
+#endif  /* of if 0 */
 
   /******************************************************
    * finalize
