@@ -25,7 +25,8 @@ int acosh_ratio ( void * param , void * v_in, double * v_out);
 
 int dacosh_ratio ( void * param , void * v_in, double * v_out);
 
-int acosh_ratio_deriv ( void * param , void * v_in, double * v_out);
+int acosh_ratio_deriv  ( void * param , void * v_in, double * v_out);
+int dacosh_ratio_deriv ( void * param , void * v_in, double * v_out);
 
 int a_mi_b_ti_c ( void * param , void * v_in, double * v_out);
 

@@ -191,7 +191,7 @@ int acosh_ratio_deriv ( void * param , void * v_in, double * v_out) {
   *v_out =  ( z1 + z2  - ( y1 + y2 ) * v / w ) / w * 0.5 * dacoshx;
   return(0);
 }  /* end of acosh_ratio_deriv */
-#if 0
+
 /********************************************************
  *
  ********************************************************/
@@ -206,27 +206,38 @@ int dacosh_ratio_deriv ( void *param , void *v_in, double *v_out) {
   int const iy2 = trange[4];
   int const iw  = trange[5];
 
-  double const z1 ((double*)param)[ iz1 ];
-  double const z2 ((double*)param)[ iz2 ];
-  double const v  ((double*)param)[ iv  ];
-  double const y1 ((double*)param)[ iy1 ];
-  double const y2 ((double*)param)[ iy2 ];
-  double const w  ((double*)param)[ iw  ];
+  double const z1 = ((double*)param)[ iz1 ];
+  double const z2 = ((double*)param)[ iz2 ];
+  double const v  = ((double*)param)[ iv  ];
+  double const y1 = ((double*)param)[ iy1 ];
+  double const y2 = ((double*)param)[ iy2 ];
+  double const w  = ((double*)param)[ iw  ];
 
   double const x       = ( y1 + y2 ) / w * 0.5;
   double const dacosh  = 1 / sqrt ( x*x - 1. );
 
-  /* derivative w.r.t. zaehler1 */
-  v_out[zaehler1] =  0.5 / ((double*)param)[nenner] * dacoshx;
+  /* derivative w.r.t. z1 */
+  v_out[iz1] =  dacosh / w * 0.5;
 
-  /* derivative w.r.t. zaehler2 */
-  v_out[zaehler2] =  0.5 / ((double*)param)[nenner] * dacoshx;
+  /* derivative w.r.t. z2 */
+  v_out[iz2] =  dacosh / w * 0.5;
 
-  /* derivative w.r.t. nenner */
-  v_out[nenner]  = -(  ((double*)param)[zaehler1] + ((double*)param)[zaehler2] ) / _SQR( ((double*)param)[nenner] ) * dacoshx * 0.5;
+  /* derivative w.r.t. v */
+  v_out[iv]  = -dacosh * ( y1 + y2 )  / ( 2. * w * w );
+
+  /* derivative w.r.t. y1 */
+  v_out[iy1]  = (-4 * v * w + (y1 + y2) * (z1 + z2) ) / ( w * (4 * _POW2(w) - _POW2(y1 + y2) )  * sqrt(-4 + _POW2( ( y1 + y2 ) / w) ) );
+
+  /* derivative w.r.t. y2 */
+  v_out[iy2]  = (-4 * v * w + ( y1 + y2 ) * ( z1 + z2 ) ) / ( w * ( 4 * _POW2(w) - _POW2(y1 + y2) ) * sqrt(-4 + _POW2( ( y1 + y2 ) / w ) ) );
+
+  /* derivative w.r.t. y2 */
+  v_out[iw]  = ( -v * ( y1 + y2 ) * ( -8 * _POW2(w) + _POW2( y1 + y2 ) ) - 4 * _POW3(w) * ( z1 + z2 ) ) \
+        / ( _POW3(w) * ( 4 * _POW2(w) - _POW2( y1 + y2 ) ) * sqrt( -4 + _POW2( (y1 + y2) / w ) ) );
 
   return(0);
 }  /* end of dacosh_ratio_deriv */
+#if 0
 #endif  /* of if 0 */
 
 /********************************************************/
