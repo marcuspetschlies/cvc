@@ -199,7 +199,8 @@ int main(int argc, char **argv) {
 
   geometry();
 
-  unsigned int const VOL3 = LX * LY * LZ;
+  unsigned int const VOL3     = LX * LY * LZ;
+  unsigned int const VOL3half = VOL3 / 2;
   mpi_init_xchange_eo_spinor();
   mpi_init_xchange_eo_propagator();
 
@@ -498,21 +499,37 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
         /* loop on timeslices */
         for ( int it = 0; it < T; it++ ) {
-          complex z_e, z_o;
+          complex z;
+
           /* loop on 3-volume */
-          for ( int ix = 0; ix < VOL3; ix++ ) {
-            unsigned int const iix = _GSI( it*VOL3+ix);
+          for ( int ix = 0; ix < VOL3half; ix++ ) {
+
+            unsigned int const iix = _GSI( it * VOL3half + ix );
+
+            /* even part */
+            int const x1 = g_eosubt2coords[0][it][ix][0];
+            int const x2 = g_eosubt2coords[0][it][ix][1];
+            int const x3 = g_eosubt2coords[0][it][ix][2];
+
+            unsigned int const ixe = g_ipt[0][x1][x2][x3];
 
             double * const __ve = eo_evecs_field[iv][0] + iix;
             double * const __we = eo_spinor_work[0]     + iix;
-            _co_eq_fv_dag_ti_fv ( &z_e, __ve, __we );
+            _co_eq_fv_dag_ti_fv ( &z, __ve, __we );
+            vw_x[igamma][iv][it][2*ixe  ] = z.re;
+            vw_x[igamma][iv][it][2*ixe+1] = z.im;
 
+            /* odd part */
+            int const y1 = g_eosubt2coords[1][it][ix][0];
+            int const y2 = g_eosubt2coords[1][it][ix][1];
+            int const y3 = g_eosubt2coords[1][it][ix][2];
+
+            unsigned int const ixo = g_ipt[0][y1][y2][y3];
             double * const __vo = eo_evecs_field[iv][1] + iix;
             double * const __wo = eo_spinor_work[1]     + iix;
-            _co_eq_fv_dag_ti_fv ( &z_o, __vo, __wo );
-
-            vw_x[igamma][iv][it][2*ix  ] = ( z_e.re + z_o.re );  /* even + odd real parts */
-            vw_x[igamma][iv][it][2*ix+1] = ( z_e.im + z_o.im );  /* even + odd imag parts */
+            _co_eq_fv_dag_ti_fv ( &z, __vo, __wo );
+            vw_x[igamma][iv][it][2*ixo  ] = z.re;  /* even + odd real parts */
+            vw_x[igamma][iv][it][2*ixo+1] = z.im;  /* even + odd imag parts */
           }
         }
       }  /* end of loop on evecs iv */
