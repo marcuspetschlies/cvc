@@ -225,6 +225,9 @@ int sort_dfield_by_map ( double * const v, unsigned int const nv, unsigned int *
 int vdag_gloc_w_scalar_product ( double _Complex ***** const vw_mat, double *** const veo,  int const nv, double ** const weo, int const iweo,
     int const momentum_number, int  (* const momentum_list)[3] , int const gamma_id_number, int * const gamma_id_list );
 
+int vdag_gloc_w_scalar_product_pt ( double _Complex **** const vw_mat, double *** const veo,  int const nv, double ** const weo, int const iweo,
+    int const pt_number, int  (* const pt_list)[4] , int const gamma_id_number, int * const gamma_id_list );
+
 /***************************************************************************
  * set number of openmp threads
  ***************************************************************************/
