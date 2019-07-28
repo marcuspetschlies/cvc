@@ -817,13 +817,18 @@ int write_vdag_gloc_v_to_file ( double _Complex ***** vv, int const nv, int cons
 #endif
 
   double _Complex *** buffer = NULL;
-  if ( io_proc == 2 ) {
-    buffer = init_3level_ztable ( T_global, nv, nv );
+  if ( io_proc > 0 ) {
+    if ( io_proc == 2 ) {
+      buffer = init_3level_ztable ( T_global, nv, nv );
+    } else if ( io_proc == 1 ) {
+      buffer = init_3level_ztable ( 1, 1, 1 );
+    }
     if ( buffer == NULL ) {
       fprintf ( stderr, "[write_vdag_gloc_v_to_file] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
       return(3);
     }
   }
+
 
   /* write data sets to file */
   for ( int imom = 0; imom < momentum_number; imom++ ) {
@@ -831,6 +836,7 @@ int write_vdag_gloc_v_to_file ( double _Complex ***** vv, int const nv, int cons
     for ( int igamma = 0; igamma < gamma_id_number; igamma++ ) {
 
       if( io_proc == 2 ) memset ( buffer[0][0] , 0, T_global * nv * nv * sizeof(double _Complex) );
+
 #ifdef HAVE_MPI
       int count = 2 * T * nv * nv;
 
@@ -841,6 +847,7 @@ int write_vdag_gloc_v_to_file ( double _Complex ***** vv, int const nv, int cons
           return(4);
         }
       }
+
 #else
       memcpy ( buffer[0][0], vv[imom][igamma][0][0], T * nv * nv * sizeof( double _Complex ) );
 #endif
