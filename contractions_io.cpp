@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <complex.h>
 #include <sys/time.h> 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -44,6 +45,10 @@ extern "C"
 }
 #endif
 
+#ifdef HAVE_LHPC_AFF
+#include "lhpc-aff.h"
+#endif
+
 #ifdef HAVE_HDF5
 #include <hdf5.h>
 #endif
@@ -56,6 +61,7 @@ extern "C"
 #include "propagator_io.h"
 #include "contractions_io.h"
 #include "cvc_utils.h"
+#include "table_init_z.h"
 
 namespace cvc {
 
@@ -779,4 +785,102 @@ int read_from_h5_file ( void * const buffer, void * file, char*tag,  int const i
 
 #endif  /* of if HAVE_HDF5 */
 
+/***************************************************************************/
+/***************************************************************************/
+
+/***************************************************************************
+ *
+ ***************************************************************************/
+int write_vdag_gloc_v_to_file ( double _Complex ***** vv, int const nv, int const momentum_number, int  (* const momentum_list)[3] , int const gamma_id_number, int * const gamma_id_list, void * writer, void * file, char * tag , int const io_proc ) {
+
+  int exitstatus;
+  struct timeval ta, tb;
+  gettimeofday ( &ta, (struct timezone *)NULL );
+
+#ifdef HAVE_LHPC_AFF
+  struct AffNode_s * affn = NULL;
+  struct AffWriter_s * affw = NULL;
+    
+  if ( io_proc == 2 ) {
+    affw = (struct AffWriter_s *)writer;
+    if ( affw == NULL ) {
+      fprintf(stderr, "[write_vdag_gloc_v_to_file] Error, aff writer is NULL %s %d\n", __FILE__, __LINE__);
+      return(1);
+    }
+
+    affn = aff_writer_root( affw );
+    if( affn == NULL ) {
+      fprintf(stderr, "[write_vdag_gloc_v_to_file] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
+      return(2);
+    }
+  }
+#endif
+
+  double _Complex *** buffer = NULL;
+  if ( io_proc == 2 ) {
+    buffer = init_3level_ztable ( T_global, nv, nv );
+    if ( buffer == NULL ) {
+      fprintf ( stderr, "[write_vdag_gloc_v_to_file] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__ );
+      return(3);
+    }
+  }
+
+  /* write data sets to file */
+  for ( int imom = 0; imom < momentum_number; imom++ ) {
+
+    for ( int igamma = 0; igamma < gamma_id_number; igamma++ ) {
+
+      if( io_proc == 2 ) memset ( buffer[0][0] , 0, T_global * nv * nv * sizeof(double _Complex) );
+#ifdef HAVE_MPI
+      int count = 2 * T * nv * nv;
+
+      if ( io_proc > 0 ) {
+        exitstatus = MPI_Gather ( vv[imom][igamma][0][0], count, MPI_DOUBLE, buffer[0][0], count, MPI_DOUBLE, 0, g_tr_comm );
+        if ( exitstatus != MPI_SUCCESS ) {
+          fprintf ( stderr, "[write_vdag_gloc_v_to_file] Error from MPI_Gather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          return(4);
+        }
+      }
+#else
+      memcpy ( buffer[0][0], vv[imom][igamma][0][0], T * nv * nv * sizeof( double _Complex ) );
+#endif
+
+#ifdef HAVE_LHPC_AFF
+      if ( io_proc == 2 ) {
+        /* AFF write */
+        uint32_t items = ( uint32_t )T_global * nv * nv;
+        char key[400];
+
+        sprintf ( key, "%s/PX%d_PY%d_PZ%d/G%d", tag,
+            momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2], gamma_id_list[igamma] );
+
+        struct AffNode_s * affdir = aff_writer_mkpath ( affw, affn, key );
+        if ( affdir == NULL ) {
+          fprintf ( stderr, "[write_vdag_gloc_v_to_file] Error from aff_writer_mkpath %d %s %d\n", __FILE__, __LINE__);
+          return(5);
+        }
+
+        exitstatus = aff_node_put_complex ( affw, affdir, buffer[0][0], items );
+        if(exitstatus != 0) {
+          fprintf ( stderr, "[write_vdag_gloc_v_to_file] Error from aff_node_put_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          return(6);
+        }
+
+      }  /* end of if io_proc == 2 */
+#endif  /* of use AFF */
+
+    }  /* end of loop on gamma matrices */
+
+  }  /* end of loop on momenta */
+
+  fini_3level_ztable ( &buffer );
+
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "write_vdag_gloc_v_to_file", "scalar-products-write", g_cart_id == 0 );
+
+  return(0);
+}  /* end of write_vdag_gloc_v_to_file */
+
+/***************************************************************************/
+/***************************************************************************/
 }  /* end of namespace cvc */
