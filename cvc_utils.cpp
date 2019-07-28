@@ -7578,4 +7578,229 @@ int apply_uwerr_func ( double * const data, unsigned int const nmeas, unsigned i
 
 /****************************************************************************/
 /****************************************************************************/
+
+/****************************************************************************
+ * calculate scalar products
+ ****************************************************************************/
+int vdag_gloc_w_scalar_product ( double _Complex ***** const vw_mat, double *** const veo,  int const nv, double ** const weo, int const iweo,
+    int const momentum_number, int  (* const momentum_list)[3] , int const gamma_id_number, int * const gamma_id_list ) {
+
+  unsigned int const Vhalf    = VOLUME / 2;
+  unsigned int const VOL3     = LX * LY * LZ;
+  unsigned int const VOL3half = VOL3 / 2;
+
+  int exitstatus;
+  struct timeval ta, tb;
+
+  gettimeofday ( &ta, (struct timezone *)NULL );
+
+  double ** eo_spinor_field = init_2level_dtable ( 2, _GSI(Vhalf) );
+  if ( eo_spinor_field == NULL ) {
+    fprintf ( stderr, "[vdag_gloc_w_scalar_product] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+    return(3);
+  }
+
+  double **** vw_p = init_4level_dtable ( momentum_number, gamma_id_number, nv , 2 * T );
+  if ( vw_p == NULL ) {
+    fprintf ( stderr, "[vdag_gloc_w_scalar_product] Error from init_4level_dtable %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
+
+  double **** vw_x = init_4level_dtable ( gamma_id_number, nv, T, 2 * VOL3 );
+  if ( vw_p == NULL ) {
+    fprintf ( stderr, "[vdag_gloc_w_scalar_product] Error from init_4level_dtable %s %d\n", __FILE__, __LINE__ );
+    return(2);
+  }
+  
+  /* loop on source gamma's */
+  for ( int igamma = 0; igamma < gamma_id_number; igamma++ ) {
+
+    /* apply local gamma matrix */
+    spinor_field_eq_gamma_ti_spinor_field ( eo_spinor_field[0], gamma_id_list[igamma], weo[0], Vhalf );
+    spinor_field_eq_gamma_ti_spinor_field ( eo_spinor_field[1], gamma_id_list[igamma], weo[1], Vhalf );
+
+    /* apply g5  */
+    g5_phi ( eo_spinor_field[0], Vhalf );
+    g5_phi ( eo_spinor_field[1], Vhalf );
+
+    /* loop on evecs */
+    for ( int iv = 0; iv < nv; iv++ ) {
+
+#pragma omp parallel for
+      /* loop on timeslices */
+      for ( int it = 0; it < T; it++ ) {
+        complex z;
+
+        /* loop on 3-volume */
+        for ( int ix = 0; ix < VOL3half; ix++ ) {
+
+          unsigned int const iix = _GSI( it * VOL3half + ix );
+
+          /* even part */
+          int const x1 = g_eosubt2coords[0][it][ix][0];
+          int const x2 = g_eosubt2coords[0][it][ix][1];
+          int const x3 = g_eosubt2coords[0][it][ix][2];
+
+          unsigned int const ixe = g_ipt[0][x1][x2][x3];
+
+          double * const __ve = veo[iv][0]         + iix;
+          double * const __we = eo_spinor_field[0] + iix;
+          _co_eq_fv_dag_ti_fv ( &z, __ve, __we );
+          vw_x[igamma][iv][it][2*ixe  ] = z.re;
+          vw_x[igamma][iv][it][2*ixe+1] = z.im;
+
+          /* odd part */
+          int const y1 = g_eosubt2coords[1][it][ix][0];
+          int const y2 = g_eosubt2coords[1][it][ix][1];
+          int const y3 = g_eosubt2coords[1][it][ix][2];
+
+          unsigned int const ixo = g_ipt[0][y1][y2][y3];
+          double * const __vo = veo[iv][1]         + iix;
+          double * const __wo = eo_spinor_field[1] + iix;
+          _co_eq_fv_dag_ti_fv ( &z, __vo, __wo );
+          vw_x[igamma][iv][it][2*ixo  ] = z.re;  /* even + odd real parts */
+          vw_x[igamma][iv][it][2*ixo+1] = z.im;  /* even + odd imag parts */
+        }
+      }
+    }  /* end of loop on evecs iv */
+  }  /* end of loop on source gamma */
+
+  /* momentum projection */
+  exitstatus = momentum_projection ( vw_x[0][0][0], vw_p[0][0][0], T * nv * gamma_id_number, momentum_number, momentum_list );
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "[vdag_gloc_w_scalar_product] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    return(5);
+  }
+
+  /* sort into vw_mat */
+  for ( int imom = 0; imom < momentum_number; imom++ ) {
+#pragma omp parallel for
+    for ( int igamma = 0; igamma < gamma_id_number; igamma++ ) {
+      for ( int it = 0; it < T; it++ ) {
+        for ( int iv = 0; iv < nv; iv++ ) {
+          vw_mat[imom][igamma][it][iweo][iv] = vw_p[imom][igamma][iv][2*it] + vw_p[imom][igamma][iv][2*it+1] * I;
+        }
+      }
+    }
+  }  /* end of loop on momenta */
+
+  fini_4level_dtable ( &vw_x );
+  fini_4level_dtable ( &vw_p );
+  fini_2level_dtable ( &eo_spinor_field );
+
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "vdag_gloc_w_scalar_product", "scalar-products-calculation", g_cart_id == 0 );
+
+  return(0);
+}  /* end of vdag_gloc_w_scalar_product */
+
+/****************************************************************************/
+/****************************************************************************/
+
+/****************************************************************************
+ * calculate scalar products
+ ****************************************************************************/
+int vdag_gloc_w_scalar_product_pt ( double _Complex **** const vw_mat, double *** const veo,  int const nv, double ** const weo, int const iweo,
+    int const pt_number, int  (* const pt_list)[4] , int const gamma_id_number, int * const gamma_id_list ) {
+
+  unsigned int const Vhalf    = VOLUME / 2;
+  unsigned int const VOL3     = LX * LY * LZ;
+  unsigned int const VOL3half = VOL3 / 2;
+
+  int exitstatus;
+  struct timeval ta, tb;
+
+  gettimeofday ( &ta, (struct timezone *)NULL );
+
+  double ** eo_spinor_field = init_2level_dtable ( 2, _GSI(Vhalf) );
+  if ( eo_spinor_field == NULL ) {
+    fprintf ( stderr, "[vdag_gloc_w_scalar_product_pt] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+    return(3);
+  }
+
+  double **** vw_x = init_4level_dtable ( gamma_id_number, nv, T, 2 * VOL3 );
+  if ( vw_p == NULL ) {
+    fprintf ( stderr, "[vdag_gloc_w_scalar_product_pt] Error from init_4level_dtable %s %d\n", __FILE__, __LINE__ );
+    return(2);
+  }
+  
+  /* loop on source gamma's */
+  for ( int igamma = 0; igamma < gamma_id_number; igamma++ ) {
+
+    /* apply local gamma matrix */
+    spinor_field_eq_gamma_ti_spinor_field ( eo_spinor_field[0], gamma_id_list[igamma], weo[0], Vhalf );
+    spinor_field_eq_gamma_ti_spinor_field ( eo_spinor_field[1], gamma_id_list[igamma], weo[1], Vhalf );
+
+    /* apply g5  */
+    g5_phi ( eo_spinor_field[0], Vhalf );
+    g5_phi ( eo_spinor_field[1], Vhalf );
+
+    /* loop on evecs */
+    for ( int iv = 0; iv < nv; iv++ ) {
+
+      STOPPED HERE
+#pragma omp parallel for
+      /* loop on timeslices */
+      for ( int ipt = 0; ipt < 
+      for ( int it = 0; it < T; it++ ) {
+        complex z;
+
+        /* loop on 3-volume */
+        for ( int ix = 0; ix < VOL3half; ix++ ) {
+
+          unsigned int const iix = _GSI( it * VOL3half + ix );
+
+          /* even part */
+          int const x1 = g_eosubt2coords[0][it][ix][0];
+          int const x2 = g_eosubt2coords[0][it][ix][1];
+          int const x3 = g_eosubt2coords[0][it][ix][2];
+
+          unsigned int const ixe = g_ipt[0][x1][x2][x3];
+
+          double * const __ve = veo[iv][0]         + iix;
+          double * const __we = eo_spinor_field[0] + iix;
+          _co_eq_fv_dag_ti_fv ( &z, __ve, __we );
+          vw_x[igamma][iv][it][2*ixe  ] = z.re;
+          vw_x[igamma][iv][it][2*ixe+1] = z.im;
+
+          /* odd part */
+          int const y1 = g_eosubt2coords[1][it][ix][0];
+          int const y2 = g_eosubt2coords[1][it][ix][1];
+          int const y3 = g_eosubt2coords[1][it][ix][2];
+
+          unsigned int const ixo = g_ipt[0][y1][y2][y3];
+          double * const __vo = veo[iv][1]         + iix;
+          double * const __wo = eo_spinor_field[1] + iix;
+          _co_eq_fv_dag_ti_fv ( &z, __vo, __wo );
+          vw_x[igamma][iv][it][2*ixo  ] = z.re;  /* even + odd real parts */
+          vw_x[igamma][iv][it][2*ixo+1] = z.im;  /* even + odd imag parts */
+        }
+      }
+    }  /* end of loop on evecs iv */
+  }  /* end of loop on source gamma */
+
+  /* sort into vw_mat */
+  for ( int ipt = 0; ipt < pt_number; ip++ ) {
+#pragma omp parallel for
+    for ( int igamma = 0; igamma < gamma_id_number; igamma++ ) {
+      for ( int it = 0; it < T; it++ ) {
+        for ( int iv = 0; iv < nv; iv++ ) {
+          vw_mat[imom][igamma][it][iweo][iv] = vw_p[imom][igamma][iv][2*it] + vw_p[imom][igamma][iv][2*it+1] * I;
+        }
+      }
+    }
+  }  /* end of loop on momenta */
+
+  fini_4level_dtable ( &vw_x );
+  fini_2level_dtable ( &eo_spinor_field );
+
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "vdag_gloc_w_scalar_product_pt", "scalar-products-point-calculation", g_cart_id == 0 );
+
+  return(0);
+}  /* end of vdag_gloc_w_scalar_product_pt */
+
+/****************************************************************************/
+/****************************************************************************/
+
 }  /* end of namespace cvc */
