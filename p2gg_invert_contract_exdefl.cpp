@@ -294,7 +294,7 @@ int main(int argc, char **argv) {
     EXIT(123);
   }
   
-#if 0
+
   /***********************************************************
    * read evecs,
    * convert to cvc spinor conventions
@@ -440,6 +440,7 @@ int main(int argc, char **argv) {
     show_time ( &ta, &tb, "p2gg_invert_contract_exdefl", "check-eigenpairs", g_cart_id == 0 );
 
   }  /* end of if check eigenpair equation */
+#if 0
 #endif  /* of if 0 */
 
 
