@@ -306,6 +306,16 @@ void gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( gamma_matrix_type *g1, gamma
 
 /********************************************************************************/
 /********************************************************************************/
+void gamma_matrix_eq_gamma_matrix ( gamma_matrix_type *g1, gamma_matrix_type *g2 ) {
+  gamma_matrix_init ( g1 );
+  memcpy ( g1->v, g2->v , 16*sizeof(double _Complex ));
+  g1->id = g2->id;
+  g1->s  = g2->s;
+}
+
+
+/********************************************************************************/
+/********************************************************************************/
 
 /********************************************************************************
  * gamma matrix in qlua gamma basis
@@ -313,12 +323,19 @@ void gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( gamma_matrix_type *g1, gamma
  ********************************************************************************/
 void gamma_matrix_ukqcd_binary ( gamma_matrix_type * const g, int const n  ) {
 
-  gamma_matrix_type gx, gy, gz, gt;
+  gamma_matrix_type gx, gy, gz, gt, gaux, gaux2;
   gamma_matrix_set ( &gt, 5,  1. );
   gamma_matrix_set ( &gx, 1, -1. );
   gamma_matrix_set ( &gy, 2, -1. );
   gamma_matrix_set ( &gz, 3, -1. );
 
+  /*
+  gamma_matrix_printf ( &gt, "# [gamma_matrix_ukqcd_binary] gt", stdout );
+  gamma_matrix_printf ( &gx, "# [gamma_matrix_ukqcd_binary] gx", stdout );
+  gamma_matrix_printf ( &gy, "# [gamma_matrix_ukqcd_binary] gy", stdout );
+  gamma_matrix_printf ( &gz, "# [gamma_matrix_ukqcd_binary] gz", stdout );
+  */
+  
   int gamma_bin[4] = {0,0,0,0};
   int n0 = n;
   gamma_bin[0] = n0 % 2;
@@ -329,15 +346,48 @@ void gamma_matrix_ukqcd_binary ( gamma_matrix_type * const g, int const n  ) {
   n0 = n0 >> 1;
   gamma_bin[3] = n0 % 2;
 
-  gamma_matrix_set ( g, 4, 1. );
+  /* fprintf ( stdout, "# [gamma_matrix_ukqcd_binary] gamma_bin = %d %d %d %d\n", gamma_bin[0], gamma_bin[1], gamma_bin[2], gamma_bin[3] ); */
 
+  gamma_matrix_init ( &gaux );
+  gamma_matrix_init ( &gaux2 );
+  gamma_matrix_set ( &gaux, 4, 1. );
+
+  /* gamma_matrix_printf ( &gaux, "# [gamma_matrix_ukqcd_binary] gaux", stdout ); */
+#if 0
   if ( gamma_bin[0] ) { gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( g, g, &gx ); }
   if ( gamma_bin[1] ) { gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( g, g, &gy ); }
   if ( gamma_bin[2] ) { gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( g, g, &gz ); }
   if ( gamma_bin[3] ) { gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( g, g, &gt ); }
+#endif
+  if ( gamma_bin[0] ) { 
+    gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( &gaux2, &gaux, &gx );
+    gamma_matrix_eq_gamma_matrix ( &gaux, &gaux2 );
+  }
+  /* gamma_matrix_printf ( &gaux, "# [gamma_matrix_ukqcd_binary] gaux[1]", stdout ); */
 
+  if ( gamma_bin[1] ) { 
+    gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( &gaux2, &gaux, &gy ); 
+    gamma_matrix_eq_gamma_matrix ( &gaux, &gaux2 );
+  }
+  /* gamma_matrix_printf ( &gaux, "# [gamma_matrix_ukqcd_binary] gaux[2]", stdout ); */
+
+  if ( gamma_bin[2] ) { 
+    gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( &gaux2, &gaux, &gz );
+    gamma_matrix_eq_gamma_matrix ( &gaux, &gaux2 );
+  }
+  /* gamma_matrix_printf ( &gaux, "# [gamma_matrix_ukqcd_binary] gaux[3]", stdout ); */
+
+  if ( gamma_bin[3] ) { 
+    gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( &gaux2, &gaux, &gt ); 
+    gamma_matrix_eq_gamma_matrix ( &gaux, &gaux2 );
+  }
+  /*  gamma_matrix_printf ( &gaux, "# [gamma_matrix_ukqcd_binary] gaux[4]", stdout ); */
+
+  gamma_matrix_eq_gamma_matrix ( g, &gaux );
   g->id = n;
   g->s  = 1;
+
+  /* gamma_matrix_printf ( g, "# [gamma_matrix_ukqcd_binary] gbin", stdout ); */
 
   return;
 }  /* end of gamma_matrix_qlua_binary */

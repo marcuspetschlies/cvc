@@ -8,6 +8,7 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <complex.h>
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
@@ -6649,7 +6650,6 @@ int plaquetteria  (double*gauge_field ) {
 
 }  /* end of plaquetteria */
 
-
 /***********************************************************
  * multiply the phase to the gauge field
  ***********************************************************/
@@ -6695,6 +6695,67 @@ int gauge_field_eq_gauge_field_ti_phase (double**gauge_field_with_phase, double*
   if( g_cart_id == 0 ) fprintf(stdout, "# [gauge_field_eq_gauge_field_ti_phase] time for gauge_field_eq_gauge_field_ti_phase = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
   return(0);
 }  /* end of gauge_field_eq_gauge_field_ti_phase */
+
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * multiply the bc -1 to the gauge field in t-direction
+ ***********************************************************/
+int gauge_field_eq_gauge_field_ti_bcfactor (double ** const gauge_field_with_bc, double * const gauge_field, double _Complex const bcfactor ) {
+
+  int exitstatus;
+  struct timeval ta, tb;
+  complex const wbc = { creal(bcfactor), cimag(bcfactor) };
+ 
+  gettimeofday ( &ta, (struct timezone *)NULL );
+ 
+  /* allocate gauge field if necessary */
+  if( *gauge_field_with_bc == NULL ) {
+    if( g_cart_id == 0 ) fprintf(stdout, "# [gauge_field_eq_gauge_field_ti_bcfactor] allocating new gauge field\n" );
+
+    alloc_gauge_field( gauge_field_with_bc, VOLUMEPLUSRAND);
+    if( *gauge_field_with_bc == NULL )  {
+      fprintf(stderr, "[gauge_field_eq_gauge_field_ti_bcfactore] Error from alloc_gauge_field %s %d\n", __FILE__, __LINE__);
+      return(1);
+    }
+  }
+
+  /* copy all gauge field */
+  memcpy (  (*gauge_field_with_bc), gauge_field, 72*VOLUME*sizeof(double) );
+
+  unsigned int const VOL3 = LX * LY * LZ;
+  int const have_temporal_boundary = ( ( T_global - 1 ) / T == g_proc_coords[0] );
+  if ( have_temporal_boundary ) {
+    if ( g_verbose > 2 ) fprintf ( stdout, "# [gauge_field_eq_gauge_field_ti_bcfactor] proc %4d (%3d,%3d,%3d,%3d) has boundary timeslice\n",
+        g_cart_id, g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3] );
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+    for( unsigned int iy = 0; iy < VOL3; iy++ ) {
+      unsigned int const ix  = ( T - 1 ) * VOL3 + iy;
+      /* only in time direction */
+      unsigned int const iix = _GGI(ix,0);
+      _cm_eq_cm_ti_co ( (*gauge_field_with_bc) + iix, gauge_field + iix, &wbc );
+    }
+  }  /* end of if have_temporal_boundary */
+
+#ifdef HAVE_MPI
+  xchange_gauge_field( *gauge_field_with_bc );
+#endif
+
+  /* measure the plaquette */
+  exitstatus = plaquetteria( *gauge_field_with_bc );
+  if( exitstatus != 0 ) {
+    fprintf(stderr, "[gauge_field_eq_gauge_field_ti_bcfactor] Error from plaquetteria, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(2);
+  }
+
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "gauge_field_eq_gauge_field_ti_bcfactor", "all", g_cart_id == 0 );
+
+  return(0);
+}  /* end of gauge_field_eq_gauge_field_ti_bcfactor */
 
 /***********************************************************/
 /***********************************************************/
@@ -7517,4 +7578,192 @@ int apply_uwerr_func ( double * const data, unsigned int const nmeas, unsigned i
 
 /****************************************************************************/
 /****************************************************************************/
+
+/****************************************************************************
+ * calculate scalar products
+ ****************************************************************************/
+int vdag_gloc_w_scalar_product ( double _Complex ***** const vw_mat, double *** const veo,  int const nv, double ** const weo, int const iweo,
+    int const momentum_number, int  (* const momentum_list)[3] , int const gamma_id_number, int * const gamma_id_list ) {
+
+  unsigned int const Vhalf    = VOLUME / 2;
+  unsigned int const VOL3     = LX * LY * LZ;
+  unsigned int const VOL3half = VOL3 / 2;
+
+  int exitstatus;
+  struct timeval ta, tb;
+
+  gettimeofday ( &ta, (struct timezone *)NULL );
+
+  double ** eo_spinor_field = init_2level_dtable ( 2, _GSI(Vhalf) );
+  if ( eo_spinor_field == NULL ) {
+    fprintf ( stderr, "[vdag_gloc_w_scalar_product] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+    return(3);
+  }
+
+  /* loop on source gamma's */
+  for ( int igamma = 0; igamma < gamma_id_number; igamma++ ) {
+
+    /* apply local gamma matrix */
+    spinor_field_eq_gamma_ti_spinor_field ( eo_spinor_field[0], gamma_id_list[igamma], weo[0], Vhalf );
+    spinor_field_eq_gamma_ti_spinor_field ( eo_spinor_field[1], gamma_id_list[igamma], weo[1], Vhalf );
+
+    /* apply g5  */
+    g5_phi ( eo_spinor_field[0], Vhalf );
+    g5_phi ( eo_spinor_field[1], Vhalf );
+
+    /* loop on timeslices */
+    for ( int it = 0; it < T; it++ ) {
+
+      double ** vw_p = init_2level_dtable ( momentum_number, 2*nv );
+      if ( vw_p == NULL ) {
+        fprintf ( stderr, "[vdag_gloc_w_scalar_product] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+        return(1);
+      }
+
+      double ** vw_x = init_2level_dtable ( nv, 2 * VOL3 );
+      if ( vw_x == NULL ) {
+        fprintf ( stderr, "[vdag_gloc_w_scalar_product] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+        return(2);
+      }
+  
+#pragma omp parallel for
+      /* loop on evecs */
+      for ( int iv = 0; iv < nv; iv++ ) {
+
+        complex z;
+
+        /* loop on 3-volume */
+        for ( int ix = 0; ix < VOL3half; ix++ ) {
+
+          unsigned int const iix = _GSI( it * VOL3half + ix );
+
+          /* even part */
+          int const x1 = g_eosubt2coords[0][it][ix][0];
+          int const x2 = g_eosubt2coords[0][it][ix][1];
+          int const x3 = g_eosubt2coords[0][it][ix][2];
+
+          unsigned int const ixe = g_ipt[0][x1][x2][x3];
+
+          double * const __ve = veo[iv][0]         + iix;
+          double * const __we = eo_spinor_field[0] + iix;
+          _co_eq_fv_dag_ti_fv ( &z, __ve, __we );
+          vw_x[iv][2*ixe  ] = z.re;
+          vw_x[iv][2*ixe+1] = z.im;
+
+          /* odd part */
+          int const y1 = g_eosubt2coords[1][it][ix][0];
+          int const y2 = g_eosubt2coords[1][it][ix][1];
+          int const y3 = g_eosubt2coords[1][it][ix][2];
+
+          unsigned int const ixo = g_ipt[0][y1][y2][y3];
+          double * const __vo = veo[iv][1]         + iix;
+          double * const __wo = eo_spinor_field[1] + iix;
+          _co_eq_fv_dag_ti_fv ( &z, __vo, __wo );
+          vw_x[iv][2*ixo  ] = z.re;  /* even + odd real parts */
+          vw_x[iv][2*ixo+1] = z.im;  /* even + odd imag parts */
+        }  /* end of loop on ix */
+      }  /* end of loop on evecs iv */
+
+      /* momentum projection */
+      exitstatus = momentum_projection ( vw_x[0], vw_p[0], nv, momentum_number, momentum_list );
+      if ( exitstatus != 0 ) {
+        fprintf ( stderr, "[vdag_gloc_w_scalar_product] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        return(5);
+      }
+
+      /* sort into vw_mat */
+      for ( int imom = 0; imom < momentum_number; imom++ ) {
+#pragma omp parallel for
+        for ( int iv = 0; iv < nv; iv++ ) {
+          vw_mat[imom][igamma][it][iweo][iv] = vw_p[imom][2*iv] + vw_p[imom][2*iv+1] * I;
+        }
+      }  /* end of loop on momenta */
+
+      fini_2level_dtable ( &vw_x );
+      fini_2level_dtable ( &vw_p );
+
+    }  /* end of loop on timeslices */  
+  }  /* end of loop on source gamma */
+
+  fini_2level_dtable ( &eo_spinor_field );
+
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "vdag_gloc_w_scalar_product", "scalar-products-calculation", g_cart_id == 0 );
+
+  return(0);
+}  /* end of vdag_gloc_w_scalar_product */
+
+/****************************************************************************/
+/****************************************************************************/
+
+/****************************************************************************
+ * calculate scalar products
+ ****************************************************************************/
+int vdag_gloc_w_scalar_product_pt ( double _Complex **** const vw_mat, double *** const veo,  int const nv, double ** const weo, int const iweo,
+    int const pt_number, int  (* const pt_list)[4] , int const gamma_id_number, int * const gamma_id_list ) {
+
+  struct timeval ta, tb;
+
+  gettimeofday ( &ta, (struct timezone *)NULL );
+
+  for ( int ipt = 0; ipt < pt_number; ipt++ ) {
+
+    int const have_pt = (
+        ( pt_list[ipt][0] /  T == g_proc_coords[0] ) &&
+        ( pt_list[ipt][1] / LX == g_proc_coords[1] ) &&
+        ( pt_list[ipt][2] / LY == g_proc_coords[2] ) &&
+        ( pt_list[ipt][3] / LZ == g_proc_coords[3] ) );
+
+    if ( have_pt ) {
+
+      if ( g_verbose > 2 ) fprintf ( stdout, "# [vdag_gloc_w_scalar_product_pt] proc %d (%3d, %3d, %3d, %3d) has point %3d %3d %3d %3d\n",
+          g_cart_id,
+          g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3], 
+          pt_list[ipt][0], pt_list[ipt][1], pt_list[ipt][2], pt_list[ipt][3] );
+
+      int const x0 = pt_list[ipt][0] %  T;
+      int const x1 = pt_list[ipt][1] % LX;
+      int const x2 = pt_list[ipt][2] % LY;
+      int const x3 = pt_list[ipt][3] % LZ;
+
+      unsigned int const ix = g_ipt[x0][x1][x2][x3];
+      int const ieo = !g_iseven[ix];
+      unsigned int const ixeosub = g_lexic2eosub[ix];
+
+      /* loop on source gamma's */
+      for ( int igamma = 0; igamma < gamma_id_number; igamma++ ) {
+
+        double _sp1[24], _sp2[24];
+
+        /* apply local gamma matrix */
+        _fv_eq_gamma_ti_fv ( _sp1, gamma_id_list[igamma], weo[ieo] + _GSI(ixeosub) );
+
+        /* apply g5  */
+        _fv_eq_gamma_ti_fv ( _sp2, 5, _sp1 );
+      
+#pragma omp parallel for
+        for ( int iv = 0; iv < nv; iv++ ) {
+
+          complex z;
+
+          double * const __v = veo[iv][ieo] + _GSI(ixeosub);
+          double * const __w = _sp2;
+          _co_eq_fv_dag_ti_fv ( &z, __v, __w );
+
+          vw_mat[ipt][igamma][iweo][iv] = z.re + z.im * I;
+
+        }  /* end of loop on evecs iv */
+      }  /* end of loop on source gamma */
+    }  /* end of if have_pt */
+  }  /* end of loop on points */
+
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "vdag_gloc_w_scalar_product_pt", "scalar-products-point-calculation", g_cart_id == 0 );
+
+  return(0);
+}  /* end of vdag_gloc_w_scalar_product_pt */
+
+/****************************************************************************/
+/****************************************************************************/
+
 }  /* end of namespace cvc */

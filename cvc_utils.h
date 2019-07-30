@@ -187,6 +187,8 @@ int plaquetteria  (double*gauge_field );
 
 int gauge_field_eq_gauge_field_ti_phase (double**gauge_field_with_phase, double*gauge_field, complex co_phase[4] );
 
+int gauge_field_eq_gauge_field_ti_bcfactor (double ** const gauge_field_with_bc, double * const gauge_field, double _Complex const bcfactor );
+
 void co_field_eq_fv_dag_ti_fv (double * const c, double * const r, double * const s, unsigned int const N );
 
 void co_field_pl_eq_fv_dag_ti_fv (double*c, double*r, double*s, unsigned int N );
@@ -219,6 +221,12 @@ unsigned int * sort_by_dvalue_mapping ( double * const value, unsigned int const
 
 int sort_dfield_by_map ( double * const v, unsigned int const nv, unsigned int * const map, unsigned int const N );
 
+
+int vdag_gloc_w_scalar_product ( double _Complex ***** const vw_mat, double *** const veo,  int const nv, double ** const weo, int const iweo,
+    int const momentum_number, int  (* const momentum_list)[3] , int const gamma_id_number, int * const gamma_id_list );
+
+int vdag_gloc_w_scalar_product_pt ( double _Complex **** const vw_mat, double *** const veo,  int const nv, double ** const weo, int const iweo,
+    int const pt_number, int  (* const pt_list)[4] , int const gamma_id_number, int * const gamma_id_list );
 
 /***************************************************************************
  * set number of openmp threads
