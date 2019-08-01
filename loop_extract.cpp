@@ -276,7 +276,7 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * exact part
    ***************************************************************************/
-#if 0
+
   if ( exdef_nev > 0 ) {
      /* allocate memory for contractions */
     double *** loop_exact = init_3level_dtable ( T, sink_momentum_number, 32 );
@@ -285,59 +285,79 @@ int main(int argc, char **argv) {
       EXIT(48);
     }
 
-    sprintf ( filename, "loop_probD%d.%.4d_r%d_exact_NeV%d_Qsq%d.h5", hier_prob_D,  confid, stream, exdef_nev, Qsq );
-    if ( io_proc == 2 && g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", filename );
+    char data_filename[400];
+    sprintf ( data_filename, "loop_probD%d.%.4d_r%d_exact_NeV%d_Qsq%d.h5", hier_prob_D,  confid, stream, exdef_nev, Qsq );
+    if ( io_proc == 2 && g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", data_filename );
 
-    sprintf ( data_tag, "/conf_%.4d/%s/loop" , confid, oet_type );
-    if ( g_verbose > 2 ) fprintf( stdout, "# [loop_extract] data_tag = %s\n", data_tag);
+    sprintf ( data_tag_prefix, "/conf_%.4d/%s" , confid, oet_type );
 
-    exitstatus = loop_read_from_h5_file ( loop_exact, filename, data_tag, sink_momentum_number, 16, io_proc );
-    if ( exitstatus != 0 ) {
-      fprintf ( stderr, "[loop_extract] Error from loop_read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-      EXIT(1);
-    }
+    for ( int idir = 0; idir < num_dir; idir++ ) {
 
-    double _Complex **** zloop_exact = init_4level_ztable ( g_sink_momentum_number, T, 4, 4 );
-    if ( zloop_exact == NULL ) {
-      fprintf(stderr, "[loop_extract] Error from init_4level_ztable %s %d\n", __FILE__, __LINE__ );;
-      EXIT(48);
-    }
+      if ( have_deriv ) {
+        sprintf ( data_tag, "%s/dir_%.2d/loop" , data_tag_prefix, idir );
+      } else {
+        sprintf ( data_tag, "%s/loop" , data_tag_prefix );
+      }
 
-    for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+      if ( g_verbose > 2 ) fprintf( stdout, "# [loop_extract] data_tag = %s\n", data_tag);
+
+      exitstatus = loop_read_from_h5_file ( loop_exact, data_filename, data_tag, sink_momentum_number, 16, io_proc );
+      if ( exitstatus != 0 ) {
+        fprintf ( stderr, "[loop_extract] Error from loop_read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(1);
+      }
+
+      double _Complex **** zloop_exact = init_4level_ztable ( g_sink_momentum_number, T, 4, 4 );
+      if ( zloop_exact == NULL ) {
+        fprintf(stderr, "[loop_extract] Error from init_4level_ztable %s %d\n", __FILE__, __LINE__ );;
+        EXIT(48);
+      }
+
+      for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
 #pragma omp parallel for
-      for ( int it = 0; it < T; it++ ) {
-        /* transpose and normalize */
-        for ( int ia = 0; ia < 4; ia++ ) {
-        for ( int ib = 0; ib < 4; ib++ ) {
-          zloop_exact[imom][it][ia][ib] = ( loop_exact[it][sink_momentum_matchid[imom] ][2*(4*ib+ia)] + loop_exact[it][sink_momentum_matchid[imom]][2*(4*ib+ia)+1] * I ) * loop_norm;
-        }}
-      }
+        for ( int it = 0; it < T; it++ ) {
+          /* transpose and normalize */
+          for ( int ia = 0; ia < 4; ia++ ) {
+          for ( int ib = 0; ib < 4; ib++ ) {
+            zloop_exact[imom][it][ia][ib] = ( loop_exact[it][sink_momentum_matchid[imom] ][2*(4*ib+ia)] + loop_exact[it][sink_momentum_matchid[imom]][2*(4*ib+ia)+1] * I ) * loop_norm;
+          }}
+        }
+ 
+        if ( have_deriv ) {
+          sprintf ( filename, "loop.%.4d.exact.%s.nev%d.mu%d.PX%d_PY%d_PZ%d", confid, oet_type, exdef_nev, idir, 
+              g_sink_momentum_list[imom][0],
+              g_sink_momentum_list[imom][1],
+              g_sink_momentum_list[imom][2] );
+        } else  {
+          sprintf ( filename, "loop.%.4d.exact.%s.nev%d.PX%d_PY%d_PZ%d", confid, oet_type, exdef_nev,
+              g_sink_momentum_list[imom][0],
+              g_sink_momentum_list[imom][1],
+              g_sink_momentum_list[imom][2] );
+        }
 
-      sprintf ( filename, "loop.%.4d.exact.%s.nev%d.PX%d_PY%d_PZ%d", confid, oet_type, exdef_nev, 
-          g_sink_momentum_list[imom][0],
-          g_sink_momentum_list[imom][1],
-          g_sink_momentum_list[imom][2] );
+        if ( g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", filename );
 
-      if ( g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", filename );
+        /* write to text file */
+        FILE * ofs = fopen ( filename, "w" );
 
-      /* write to text file */
-      FILE * ofs = fopen ( filename, "w" );
+        for ( int it = 0; it < T; it++ ) {
+          for ( int ia = 0; ia < 4; ia++ ) {
+          for ( int ib = 0; ib < 4; ib++ ) {
+            fprintf ( ofs, "%3d %d %d %25.16e %25.16e\n", it, ia, ib, creal( zloop_exact[imom][it][ia][ib] ), cimag ( zloop_exact[imom][it][ia][ib] ) );
+          }}
+        }
 
-      for ( int it = 0; it < T; it++ ) {
-        for ( int ia = 0; ia < 4; ia++ ) {
-        for ( int ib = 0; ib < 4; ib++ ) {
-          fprintf ( ofs, "%3d %d %d %25.16e %25.16e\n", it, ia, ib, creal( zloop_exact[imom][it][ia][ib] ), cimag ( zloop_exact[imom][it][ia][ib] ) );
-        }}
-      }
+        fclose ( ofs );
+      }  /* end of loop on momenta */
 
-      fclose ( ofs );
-    }
+      fini_4level_ztable ( &zloop_exact );
+
+    }  /* end of loop on direction */
 
     fini_3level_dtable ( &loop_exact );
-    fini_4level_ztable ( &zloop_exact );
 
   }  /* of if exdef_nev > 0 */
-
+#if 0
 #endif  /* of if 0 */
 
   /***************************************************************************
