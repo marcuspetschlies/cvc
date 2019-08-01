@@ -169,6 +169,8 @@ namespace cvc {
 
 #define _default_seq_source_momentum_number 0
 
+#define _default_insertion_momentum_number 0
+
 #define _default_rng_state NULL
 #define _default_verbose  0
 #define _default_m0 0.

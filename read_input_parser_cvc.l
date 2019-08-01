@@ -181,6 +181,7 @@ namespace cvc {
 %x SNKMOMX
 %x SNKMOMY
 %x SNKMOMZ
+%x INSMOM
 %x SEQSRCMOM
 %x SEQSRCMOMX
 %x SEQSRCMOMY
@@ -343,6 +344,9 @@ namespace cvc {
 ^sink_momentum_x{SPC}*={SPC}*              BEGIN(SNKMOMX);
 ^sink_momentum_y{SPC}*={SPC}*              BEGIN(SNKMOMY);
 ^sink_momentum_z{SPC}*={SPC}*              BEGIN(SNKMOMZ);
+
+^insertion_momentum{SPC}*={SPC}*           BEGIN(INSMOM);
+
 ^seq_source_momentum_x{SPC}*={SPC}*        BEGIN(SEQSRCMOMX);
 ^seq_source_momentum_y{SPC}*={SPC}*        BEGIN(SEQSRCMOMY);
 ^seq_source_momentum_z{SPC}*={SPC}*        BEGIN(SEQSRCMOMZ);
@@ -1002,6 +1006,13 @@ namespace cvc {
       cvc::g_sink_momentum_list[cvc::g_sink_momentum_number]+1, cvc::g_sink_momentum_list[cvc::g_sink_momentum_number]+2);
   cvc::g_sink_momentum_number++;
   if(cvc::myverbose!=0) printf("# [read_input_parser] added sink momentum %s to list; total number is now %d\n", yytext, cvc::g_sink_momentum_number);
+}
+
+<INSMOM>{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
+  sscanf(yytext, "%d,%d,%d", cvc::g_insertion_momentum_list[cvc::g_insertion_momentum_number],
+      cvc::g_insertion_momentum_list[cvc::g_insertion_momentum_number]+1, cvc::g_insertion_momentum_list[cvc::g_insertion_momentum_number]+2);
+  cvc::g_insertion_momentum_number++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] added insertion momentum %s to list; total number is now %d\n", yytext, cvc::g_insertion_momentum_number);
 }
 
 <SEQSRCMOMX>{SDIGIT}+ {
