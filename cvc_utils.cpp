@@ -6140,10 +6140,10 @@ void spinor_field_eq_spinor_field_ti_real_field (double*r, double*s, double *c, 
  * r = s * c
  * safe, if r = s
  ***********************************************************/
-void spinor_field_eq_spinor_field_ti_complex_field (double*r, double*s, double *c, unsigned int N) {
+void spinor_field_eq_spinor_field_ti_complex_field ( double * const r, double * const s, double * const c, unsigned int const N) {
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel shared(r,s,c,N)
+#pragma omp parallel
 {
 #endif
   unsigned int ix, offset;
