@@ -301,7 +301,9 @@ int main(int argc, char **argv) {
    ***********************************************************/
   gettimeofday ( &ta, (struct timezone *)NULL );
 
-  sprintf ( filename, "%s/eves.%.4d.NeV%d.proc%d", filename_prefix, Nconf, evecs_num, g_cart_id );
+  /* sprintf ( filename, "%s/eves.%.4d.NeV%d.proc%d", filename_prefix, Nconf, evecs_num, g_cart_id ); */
+  sprintf ( filename, "%s/eves.%.4d.NeV%d.x0_%d_x1_%d_x2_%d_x3_%d", filename_prefix, Nconf, evecs_num, 
+      g_proc_coords[1], g_proc_coords[2], g_proc_coords[3], g_proc_coords[0] );
   FILE * fs = fopen ( filename, "r" );
   if ( fs == NULL ) {
     fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__ );
