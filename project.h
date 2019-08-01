@@ -43,6 +43,7 @@ int momentum_projection_eo_timeslice (
   int const add,
   int const ts_reduce);
 
+void make_phase_field_timeslice (double _Complex ** const phase, int const momentum_number, int (* const momentum_list)[3] );
 
 }  /* end of namespace cvc */
 
