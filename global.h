@@ -92,6 +92,7 @@
 #define MAX_SEQUENTIAL_SOURCE_TIMESLICE_NUMBER 128
 
 #define MAX_PARAM_NUMBER 100
+#define MAX_SMEARING_LEVEL_NUMBER 10
 
 namespace cvc {
 
@@ -266,6 +267,8 @@ EXTERN int g_twisted_masses_number;
 
 extern const char *g_gitversion;
 
+EXTERN gaussian_smearing_level_type g_gaussian_smearing_level[MAX_SMEARING_LEVEL_NUMBER];
+EXTERN int g_gaussian_smearing_level_number;
 
 }
 

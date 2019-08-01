@@ -294,6 +294,8 @@ void set_default_input_values(void) {
   g_twisted_masses_number = _default_twisted_masses_number;
 
   g_tbc_phase_number = _default_tbc_phase_number;
+
+  g_gaussian_smearing_level_number = _default_gaussian_smearing_level_number;
 }  /* end of set_default_input_values */
 
 }  /* end of namespace cvc */

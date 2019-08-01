@@ -34,5 +34,11 @@ typedef struct {
   int nv;
 } gsp_type;
 
+
+typedef struct {
+  int n;
+  double alpha;
+} gaussian_smearing_level_type;
+
 }  /* end of namespace cvc */
 #endif

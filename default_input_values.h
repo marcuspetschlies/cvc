@@ -209,5 +209,7 @@ namespace cvc {
 #define _default_twisted_masses_number 0
 
 #define _default_tbc_phase_number 0
+
+#define _default_gaussian_smearing_level_number 0
 }
 #endif
