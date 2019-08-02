@@ -11,6 +11,7 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <complex.h>
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
@@ -84,7 +85,6 @@ inline void get_spin_color_oet_comp ( double * const r_out, double * const r_in,
  
   int const spin_dim  = ( sd == 0 ) ? 0 : 4 / sd;
   int const color_dim = ( cd == 0 ) ? 0 : 3 / cd;
-  int const isc = cd * is + ic;
   unsigned int const VOL3 = LX * LY * LZ;
 
 #ifdef HAVE_OPENMP
@@ -115,8 +115,6 @@ int main(int argc, char **argv) {
   
   const char outfile_prefix[] = "cpff";
 
-  const char fbwd_str[2][4] =  { "fwd", "bwd" };
-
   int c;
   int filename_set = 0;
   int exitstatus;
@@ -127,7 +125,6 @@ int main(int argc, char **argv) {
   double **mzz[2] = { NULL, NULL }, **mzzinv[2] = { NULL, NULL };
   double * gauge_field_smeared = NULL;
   double * gauge_field_with_phase = NULL;
-  int op_id_up = -1, op_id_dn = -1;
   char output_filename[400];
   int * rng_state = NULL;
   int spin_dilution = 4;
@@ -234,7 +231,6 @@ int main(int argc, char **argv) {
 
   unsigned int const VOL3 = LX * LY * LZ;
   size_t const sizeof_spinor_field           = _GSI(VOLUME) * sizeof(double);
-  size_t const sizeof_spinor_field_timeslice = _GSI(VOL3)   * sizeof(double);
 
   /***************************************************************************
    *
@@ -361,6 +357,7 @@ int main(int argc, char **argv) {
   /***********************************************************
    * set operator ids depending on fermion type
    ***********************************************************/
+  int op_id_up = -1, op_id_dn = -1;
   if ( g_fermion_type == _TM_FERMION ) {
     op_id_up = 0;
     op_id_dn = 1;
@@ -420,20 +417,6 @@ int main(int argc, char **argv) {
     EXIT(48);
   }
 
-#if 0
-  double * stochastic_source_zero_smeared = init_2level_dtable ( spin_color_dilution, _GSI ( VOLUME ) );
-  if ( stochastic_source_zero_smeared == NULL ) {
-    fprintf(stderr, "[jj_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );;
-    EXIT(48);
-  }
-#endif
-
-  double ** stochastic_source_mom_smeared = init_2level_dtable ( spin_color_dilution, _GSI ( VOLUME ) );
-  if ( stochastic_source_mom_smeared == NULL ) {
-    fprintf(stderr, "[jj_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );;
-    EXIT(48);
-  }
-
   /***************************************************************************
    * initialize rng state
    ***************************************************************************/
@@ -463,6 +446,23 @@ int main(int argc, char **argv) {
   }
 
   make_phase_field_timeslice ( ephase, g_source_momentum_number, g_source_momentum_list );
+#if 0
+  for ( int imom = 0; imom < g_source_momentum_number; imom++ ) {
+    for ( int x = 0; x < LX; x++ ) {
+    for ( int y = 0; y < LY; y++ ) {
+    for ( int z = 0; z < LZ; z++ ) {
+      unsigned int const ix = g_ipt[0][x][y][z];
+
+      fprintf ( stdout, "# [jj_invert_contract] p %3d %3d %3d  x %3d %3d %3d  e %16.7e %16.7e\n", 
+          g_source_momentum_list[imom][0], g_source_momentum_list[imom][1], g_source_momentum_list[imom][2],
+          x + g_proc_coords[1] * LX,
+          y + g_proc_coords[2] * LY,
+          z + g_proc_coords[3] * LZ,
+          creal(ephase[imom][ix]), cimag(ephase[imom][ix]) );
+    }}}
+  }
+  EXIT(255);
+#endif  /* of if 0 */
 
   /***************************************************************************
    *
@@ -554,6 +554,7 @@ int main(int argc, char **argv) {
       EXIT(38);
     }
 
+
     /***************************************************************************
      *
      * loop on source smearing levels
@@ -596,6 +597,7 @@ int main(int argc, char **argv) {
         }
       }  /* end of if write smeared zero-momentum source */
 
+
       /***************************************************************************
        * loop on source timeslices
        ***************************************************************************/
@@ -634,6 +636,19 @@ int main(int argc, char **argv) {
             get_spin_color_oet_comp ( spinor_work[2], stochastic_source_smeared, is, ic, spin_dilution, color_dilution , source_timeslice );
           }
 
+          if ( g_write_source ) {
+            /* write smeared stochastic source at smearing level ismear */
+            sprintf(filename, "%s.%.4d.%.5d.Nsrc%d_Asrc%6.4f.t%d.d%d", filename_prefix, Nconf, isample,
+                smearing_level_list[ismear].n, smearing_level_list[ismear].alpha, gts, isc );
+
+            exitstatus = write_propagator( spinor_work[2], filename, 0, g_propagator_precision);
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[jj_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(2);
+            }
+          }  /* end of if write smeared zero-momentum source */
+
+
           /***************************************************************************
            * loop on flavors
            ***************************************************************************/
@@ -642,7 +657,7 @@ int main(int argc, char **argv) {
             /* init solution field to zero */
             memset ( spinor_work[1], 0, sizeof_spinor_field );
             /* copy source to spinor work 0 */
-            memcpy ( spinor_work[1], spinor_work[2], sizeof_spinor_field );
+            memcpy ( spinor_work[0], spinor_work[2], sizeof_spinor_field );
 
             /* call solver via tmLQCD */
             exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], iflavor );
@@ -670,9 +685,12 @@ int main(int argc, char **argv) {
               }
             }
           }  /* end of loop on iflavor */
+#if 0
+#endif  /* of if 0  */
         }  /* end of loop on color dilution */
         }  /* end of loop on spin dilution */
       }  /* end of loop on source timeslices */
+
 
     }  /* end of loop on smearing levels */
 
@@ -683,6 +701,7 @@ int main(int argc, char **argv) {
      * now we restart with the momentum-source inversions                      *
      *                                                                         *
      ***************************************************************************/
+
 
     /***************************************************************************
      *
@@ -881,11 +900,10 @@ int main(int argc, char **argv) {
                     stochastic_propagator_mom,
                     spin_dilution, color_dilution, sink_momentum, 1);
 
-                sprintf ( data_tag, "/%s/t%d/s%d/Nsnk%d_Asnk%6.4f/Nsrc%d_Asrc%6.4f/Gf_%s/Gi_%s/PX%d_PY%d_PZ%d", flavor_combination[iflavor], gts, isample,
+                sprintf ( data_tag, "/%s/t%d/s%d/nsnk%d_asnk%6.4f/nsrc%d_asrc%6.4f/gf_%s/gi_%s", flavor_combination[iflavor], gts, isample,
                     smearing_level_list[ksmear].n, smearing_level_list[ksmear].alpha,
                     smearing_level_list[ismear].n, smearing_level_list[ismear].alpha,
-                    gamma_vertex_name[isnk_gamma], gamma_vertex_name[isrc_gamma],
-                    sink_momentum[0], sink_momentum[1], sink_momentum[2] );
+                    gamma_vertex_name[isnk_gamma], gamma_vertex_name[isrc_gamma]);
 
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
                 exitstatus = contract_write_to_aff_file ( &contr_p, affw, data_tag, &sink_momentum, 1, io_proc );
@@ -912,6 +930,8 @@ int main(int argc, char **argv) {
       }  /* end of loop on source smearing levels */
 
     }  /* end of loop on sink momenta */
+#if 0
+#endif  /* of if 0 */
 
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
     if(io_proc == 2) {
@@ -948,7 +968,8 @@ int main(int argc, char **argv) {
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   free(g_gauge_field);
 #endif
-  free( gauge_field_with_phase );
+  if ( gauge_field_with_phase != NULL ) free( gauge_field_with_phase );
+  if ( gauge_field_smeared    != NULL ) free( gauge_field_smeared    );
 
   /* free clover matrix terms */
   fini_clover ( &mzz, &mzzinv );
