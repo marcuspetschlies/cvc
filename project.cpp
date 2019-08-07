@@ -1225,5 +1225,52 @@ int project_reduce_from_propagator_field_per_timeslice (double *p, double * r, d
   return(0);
 }  /* end of project_reduce_from_propagator_field_per_timeslice */
 
+/****************************************************************/
+/****************************************************************/
+
+/****************************************************************
+ * 3-dim phase field
+ * input:
+ *   momentum_number - number of momenta in momentum_list
+ *   momentum_list - list of integer 3-momentum vectors
+ * output:
+ *   phase 2-dim array of phases momentum_number x VOL3
+ ****************************************************************/
+void make_phase_field_timeslice (double _Complex ** const phase, int const momentum_number, int (* const momentum_list)[3] ) {
+
+  double const TWO_MPI = 2. * M_PI;
+  unsigned int const VOL3 = LX*LY*LZ;
+  double _Complex const IMAGU = 1.0 * I;
+
+
+  for( int imom = 0; imom < momentum_number; imom++ ) {
+    /* 3-vector p for current momentum */
+    double const p[3] = { TWO_MPI * momentum_list[imom][0] / (double)LX_global, 
+                          TWO_MPI * momentum_list[imom][1] / (double)LY_global, 
+                          TWO_MPI * momentum_list[imom][2] / (double)LZ_global };
+
+    /* phase part due to MPI cart grid offset */
+    double const phase_part = (g_proc_coords[1]*LX) * p[0] + (g_proc_coords[2]*LY) * p[1] + (g_proc_coords[3]*LZ) * p[2];
+
+    if(g_verbose > 2 && g_cart_id == 0) {
+      fprintf(stdout, "# [make_phase_field_timeslice] using phase momentum = (%d, %d, %d)\n", momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2] );
+    }
+
+    /* make phase field in lexic ordering */
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for( unsigned int ix = 0; ix < VOL3; ix++) {
+      double const dtmp = phase_part \
+                          + g_lexic2coords[ix][1] * p[0] \
+                          + g_lexic2coords[ix][2] * p[1] \
+                          + g_lexic2coords[ix][3] * p[2];
+      /* exp( i phase ) */
+      phase[imom][ix] = cexp( dtmp * IMAGU );
+    }
+
+  }  /* end of loop on momenta */
+
+}  /* end of make_phase_field_timeslice */
 
 }  /* end of namespace cvc */

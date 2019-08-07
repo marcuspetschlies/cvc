@@ -207,6 +207,7 @@ namespace cvc {
 %x VERBOSITYLEVEL
 %x TWISTEDMASSES
 %x TBC_PHASE
+%x GAUSSIANSMEARINGLEVEL
 
 %%
 ^T{SPC}*={SPC}*                            BEGIN(TT);
@@ -373,6 +374,8 @@ namespace cvc {
 
 ^twisted_mass{SPC}*={SPC}*                 BEGIN(TWISTEDMASSES);
 ^tbc_phase{SPC}*={SPC}*                    BEGIN(TBC_PHASE);
+
+^gaussian_smearing_level{SPC}*={SPC}*      BEGIN(GAUSSIANSMEARINGLEVEL);
 
   /* start namespace inclusion here */
 
@@ -1223,6 +1226,14 @@ namespace cvc {
       cvc::g_tbc_phase_list[cvc::g_tbc_phase_number]+3 );
   cvc::g_tbc_phase_number++;
   if(cvc::myverbose!=0) printf("# [read_input_parser] added tbc phase number %d to list %s\n", cvc::g_tbc_phase_number, yytext );
+}
+
+<GAUSSIANSMEARINGLEVEL>{DIGIT}+,{FLT}+ {
+  sscanf(yytext, "%d,%lf", 
+      &(cvc::g_gaussian_smearing_level[cvc::g_gaussian_smearing_level_number].n),
+      &(cvc::g_gaussian_smearing_level[cvc::g_gaussian_smearing_level_number].alpha) );
+  cvc::g_gaussian_smearing_level_number++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] added Gaussian smearing level %s to list; total number is now %d\n", yytext, cvc::g_gaussian_smearing_level_number);
 }
 
 <*>^#   {

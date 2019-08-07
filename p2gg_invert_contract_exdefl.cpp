@@ -55,6 +55,7 @@ extern "C"
 #include "table_init_z.h"
 #include "table_init_d.h"
 #include "dummy_solver.h"
+#include "gauge_io.h"
 
 #include "clover.h"
 
@@ -102,13 +103,14 @@ int main(int argc, char **argv) {
   int evecs_num = 0;
   int check_eigenpair_equation = 0;
   int rotate_eigenvectors = 1;
+  int evecs_file_format = -1;
   struct timeval ta, tb, start_time, end_time;
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "pcwh?f:n:")) != -1) {
+  while ((c = getopt(argc, argv, "pcwh?f:n:m:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -125,6 +127,13 @@ int main(int argc, char **argv) {
       break;
     case 'p':
       check_eigenpair_equation = 1;
+      break;
+    case 'm':
+      if ( strcmp ( optarg, "lime" ) == 0 ) {
+        evecs_file_format = 0;
+      } else if ( strcmp ( optarg, "partfile" ) == 0 ) {
+        evecs_file_format = 1;
+      }
       break;
     case 'h':
     case '?':
@@ -211,15 +220,31 @@ int main(int argc, char **argv) {
 
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
-  if(!(strcmp(gaugefilename_prefix,"identity")==0)) {
-    /* read the gauge field */
-    sprintf ( filename, "%s.%.4d", gaugefilename_prefix, Nconf );
-    if(g_cart_id==0) fprintf(stdout, "# [p2gg_invert_contract_exdefl] reading gauge field from file %s\n", filename);
-    exitstatus = read_lime_gauge_field_doubleprec(filename);
-  } else {
+
+  if( strcmp ( gaugefilename_prefix, "identity" ) == 0 ) {
     /* initialize unit matrices */
     if(g_cart_id==0) fprintf(stdout, "\n# [p2gg_invert_contract_exdefl] initializing unit matrices\n");
     exitstatus = unit_gauge_field ( g_gauge_field, VOLUME );
+
+  } else if( strcmp ( gaugefilename_prefix, "random" ) == 0 ) {
+    /* random matrices */
+    if(g_cart_id==0) fprintf(stdout, "\n# [p2gg_invert_contract_exdefl] initializing random matrices\n");
+    random_gauge_field ( g_gauge_field, 1.0 );
+
+
+    sprintf ( filename, "%s.%.4d", "conf" , Nconf );
+    double plaq =0.;
+    plaquette2 ( &plaq, g_gauge_field );
+    exitstatus = write_lime_gauge_field( filename, plaq, Nconf, 64 );
+
+  } else {
+    /* read the gauge field */
+    sprintf ( filename, "%s.%.4d", gaugefilename_prefix, Nconf );
+    if(g_cart_id==0) {
+      fprintf(stdout, "# [p2gg_invert_contract_exdefl] reading gauge field from file %s\n", filename);
+    }
+    fflush ( stdout );
+    exitstatus = read_lime_gauge_field_doubleprec(filename);
   }
 #else
   Nconf = g_tmLQCD_lat.nstore;
@@ -301,32 +326,94 @@ int main(int argc, char **argv) {
    ***********************************************************/
   gettimeofday ( &ta, (struct timezone *)NULL );
 
-  /* sprintf ( filename, "%s/eves.%.4d.NeV%d.proc%d", filename_prefix, Nconf, evecs_num, g_cart_id ); */
-  sprintf ( filename, "%s/eves.%.4d.NeV%d.x0_%d_x1_%d_x2_%d_x3_%d", filename_prefix, Nconf, evecs_num, 
-      g_proc_coords[1], g_proc_coords[2], g_proc_coords[3], g_proc_coords[0] );
-  FILE * fs = fopen ( filename, "r" );
-  if ( fs == NULL ) {
-    fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__ );
-    EXIT(12);
+  if ( g_read_source ) {
+    /* read evecs from file */
+    if ( evecs_file_format == 0 ) {
+      for ( int iv = 0; iv <  evecs_num; iv++ ) {
+        /* sprintf ( filename, "eves.%.4d.evec%d.lime", Nconf, iv ); */
+        sprintf ( filename, "%s/eves.%d.NeV%d.x0_%d_x1_%d_x2_%d_x3_%d.lime", filename_prefix, Nconf, evecs_num, 
+            g_proc_coords[1], g_proc_coords[2], g_proc_coords[3], g_proc_coords[0] );
+        if ( ( exitstatus = read_lime_spinor( eo_evecs_field[iv][0], filename, 0) ) != 0 ) {
+          fprintf(stderr, "[p2gg_invert_contract_exdefl] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(2);
+        }
+      }
+    } else if ( evecs_file_format == 1 ) {
+      /* sprintf ( filename, "%s/eves.%.4d.NeV%d.proc%d", filename_prefix, Nconf, evecs_num, g_cart_id ); */
+      sprintf ( filename, "%s/eves.%d.NeV%d.x0_%d_x1_%d_x2_%d_x3_%d", filename_prefix, Nconf, evecs_num, 
+          g_proc_coords[1], g_proc_coords[2], g_proc_coords[3], g_proc_coords[0] );
+      FILE * fs = fopen ( filename, "r" );
+      if ( fs == NULL ) {
+        fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__ );
+        EXIT(12);
+      } else {
+        if ( g_verbose > 0 ) fprintf ( stdout, "[p2gg_invert_contract_exdefl] proc %4d ( %3d, %3d, %3d, %3d ) reading evecs from part-file %s\n",
+            g_cart_id, g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3], filename );
+      }
+
+      size_t count = _GSI(VOLUME);
+
+      for ( int iv = 0; iv <  evecs_num; iv++ ) {
+        size_t const offset = iv * count;
+        if ( count != fread ( eo_evecs_field[iv][0], sizeof(double), count, fs) ) {
+          fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from fread %s %d\n", __FILE__, __LINE__ );
+          EXIT(12);
+        }
+      }
+
+      fclose ( fs );
+    }
   } else {
-    if ( g_verbose > 0 ) fprintf ( stdout, "[p2gg_invert_contract_exdefl] proc %4d ( %3d, %3d, %3d, %3d ) reading evecs from part-file %s\n",
-        g_cart_id, g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3], filename );
-  }
-
-  size_t count = _GSI(VOLUME);
-
-  for ( int iv = 0; iv <  evecs_num; iv++ ) {
-    size_t const offset = iv * count;
-    if ( count != fread ( eo_evecs_field[iv][0], sizeof(double), count, fs) ) {
-      fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from fread %s %d\n", __FILE__, __LINE__ );
-      EXIT(12);
+    if ( strcmp ( filename_prefix, "random" ) == 0 ) {
+      /* random spinor fields */
+      random_spinor_field ( eo_evecs_field[0][0], evecs_num * VOLUME );
+    } else {
+      fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error, no procedure %s %d\n", __FILE__, __LINE__ );
+      EXIT(188);
     }
   }
 
-  fclose ( fs );
-
   gettimeofday ( &tb, (struct timezone *)NULL );
-  show_time ( &ta, &tb, "p2gg_invert_contract_exdefl", "read-evecs-partfile", g_cart_id == 0 );
+  show_time ( &ta, &tb, "p2gg_invert_contract_exdefl", "read-evecs", g_cart_id == 0 );
+
+  /***********************************************************
+   * write eigenvectors
+   ***********************************************************/
+  if ( g_write_source ) {
+    gettimeofday ( &ta, (struct timezone *)NULL );
+    if ( evecs_file_format == 0 ) {
+      for ( int iv = 0; iv <  evecs_num; iv++ ) {
+        /* sprintf ( filename, "eves.%.4d.evec%d.lime", Nconf, iv ); */
+        sprintf ( filename, "%s/eves.%d.NeV%d.x0_%d_x1_%d_x2_%d_x3_%d.lime", filename_prefix, Nconf, evecs_num, 
+            g_proc_coords[1], g_proc_coords[2], g_proc_coords[3], g_proc_coords[0] );
+        if ( ( exitstatus = write_propagator( eo_evecs_field[iv][0], filename, 0, g_propagator_precision) ) != 0 ) {
+          fprintf(stderr, "[p2gg_invert_contract_exdefl] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(2);
+        }
+      }
+    } else if ( evecs_file_format == 1 ) {
+      /* sprintf ( filename, "eves.%.4d.NeV%d.proc%d", Nconf, evecs_num, g_cart_id ); */
+      sprintf ( filename, "%s/eves.%d.NeV%d.x0_%d_x1_%d_x2_%d_x3_%d", filename_prefix, Nconf, evecs_num, 
+          g_proc_coords[1], g_proc_coords[2], g_proc_coords[3], g_proc_coords[0] );
+      FILE * fs = fopen ( filename, "w" );
+      if ( fs == NULL ) {
+        fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__ );
+        EXIT(12);
+      }
+      size_t count = _GSI(VOLUME);
+
+      for ( int iv = 0; iv <  evecs_num; iv++ ) {
+        size_t const offset = iv * count;
+        if ( count != fwrite ( eo_evecs_field[iv][0], sizeof(double), count, fs) ) {
+          fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from fread %s %d\n", __FILE__, __LINE__ );
+          EXIT(12);
+        }
+      }
+      fclose ( fs );
+    }
+    gettimeofday ( &tb, (struct timezone *)NULL );
+    show_time ( &ta, &tb, "p2gg_invert_contract_exdefl", "write-evecs", g_cart_id == 0 );
+  }  /* end of if g_write_source */
 
   /***********************************************************
    * rotate in position space x <-> z
@@ -378,8 +465,10 @@ int main(int argc, char **argv) {
   }  /* end of if rotate eigenvectors */
 
   /***********************************************************
+   *
    * calcualte eigenvalues
    * check eigenpair equation
+   *
    ***********************************************************/
   if ( check_eigenpair_equation ) {
 
@@ -407,7 +496,7 @@ int main(int argc, char **argv) {
       g5_phi ( eo_spinor_work[1], Vhalf );
       
       /***********************************************************
-       * estimate eigenvector
+       * estimate eigenvalues
        ***********************************************************/
       double norm_e, norm_o;
       spinor_scalar_product_re ( &norm_e, eo_evecs_field[i][0], eo_evecs_field[i][0], Vhalf);
@@ -445,8 +534,6 @@ int main(int argc, char **argv) {
 #if 0
 #endif  /* of if 0 */
 
-
-
 #ifdef HAVE_LHPC_AFF
   /***********************************************************
    * writer for aff output file
@@ -465,7 +552,9 @@ int main(int argc, char **argv) {
 #endif
 
   /***********************************************************
+   *
    * calculate scalar products
+   *
    ***********************************************************/
 
   gettimeofday ( &ta, (struct timezone *)NULL );
@@ -476,25 +565,45 @@ int main(int argc, char **argv) {
     EXIT(11);
   }
 
-  double _Complex ***** vw_mat_src = init_5level_ztable ( g_source_momentum_number, g_source_gamma_id_number, T, evecs_num, evecs_num );
-  if ( vw_mat_src == NULL ) {
-    fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from init_5level_ztable %s %d\n", __FILE__, __LINE__ );
-    EXIT(11);
+  /***********************************************************
+   * allocate for source set
+   ***********************************************************/
+  double _Complex ***** vw_mat_src = NULL;
+  if ( g_source_momentum_number > 0 && g_source_gamma_id_number > 0 ) {
+    vw_mat_src = init_5level_ztable ( g_source_momentum_number, g_source_gamma_id_number, T, evecs_num, evecs_num );
+    if ( vw_mat_src == NULL ) {
+      fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from init_5level_ztable %s %d\n", __FILE__, __LINE__ );
+      EXIT(11);
+    }
   }
   
-  double _Complex ***** vw_mat_snk = init_5level_ztable ( g_sink_momentum_number, g_sink_gamma_id_number, T, evecs_num, evecs_num );
-  if ( vw_mat_snk == NULL ) {
-    fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from init_5level_ztable %s %d\n", __FILE__, __LINE__ );
-    EXIT(11);
+  /***********************************************************
+   * allocate for sink set
+   ***********************************************************/
+  double _Complex ***** vw_mat_snk = NULL;
+  if ( g_sink_momentum_number > 0 && g_sink_gamma_id_number > 0 ) {
+    vw_mat_snk = init_5level_ztable ( g_sink_momentum_number, g_sink_gamma_id_number, T, evecs_num, evecs_num );
+    if ( vw_mat_snk == NULL ) {
+      fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from init_5level_ztable %s %d\n", __FILE__, __LINE__ );
+      EXIT(11);
+    }
   }
   
-  double _Complex **** vw_mat_pt = init_4level_ztable ( g_source_location_number, g_sink_gamma_id_number, evecs_num, evecs_num );
-  if ( vw_mat_pt == NULL ) {
-    fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from init_4level_ztable %s %d\n", __FILE__, __LINE__ );
-    EXIT(11);
+  /***********************************************************
+   * allocate for sink set on source locations
+   ***********************************************************/
+  double _Complex **** vw_mat_pt = NULL;
+  if ( g_source_gamma_id_number > 0  && g_source_location_number > 0 ) {
+    vw_mat_pt = init_4level_ztable ( g_source_location_number, g_source_gamma_id_number, evecs_num, evecs_num );
+    if ( vw_mat_pt == NULL ) {
+      fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from init_4level_ztable %s %d\n", __FILE__, __LINE__ );
+      EXIT(11);
+    }
   }
   
-  /* loop on rhs eigenvector */
+  /***********************************************************
+   * loop on rhs eigenvector
+   ***********************************************************/
   for ( int iw = 0; iw < evecs_num; iw++ ) {
     /* apply g5 Dbar to eigenvector iw */
     memcpy ( eo_spinor_work[0], eo_evecs_field[iw][0], sizeof_eo_spinor_field );
@@ -515,32 +624,38 @@ int main(int argc, char **argv) {
     /***********************************************************
      * reduction for source set
      ***********************************************************/
-    exitstatus = vdag_gloc_w_scalar_product ( vw_mat_src, eo_evecs_field, evecs_num, &(eo_spinor_work[2]), iw,
-        g_source_momentum_number, g_source_momentum_list, g_source_gamma_id_number, g_source_gamma_id_list );
-    if ( exitstatus != 0 ) {
-      fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from vdag_gloc_w_scalar_product, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-      EXIT(17);
-    }
+    if ( vw_mat_src != NULL ) {
+      exitstatus = vdag_gloc_w_scalar_product ( vw_mat_src, eo_evecs_field, evecs_num, &(eo_spinor_work[2]), iw,
+          g_source_momentum_number, g_source_momentum_list, g_source_gamma_id_number, g_source_gamma_id_list );
+      if ( exitstatus != 0 ) {
+        fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from vdag_gloc_w_scalar_product, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(17);
+      }
+    }  /* end of if vw_mat_src */
 
     /***********************************************************
      * reduction for sink set
      ***********************************************************/
-    exitstatus = vdag_gloc_w_scalar_product ( vw_mat_snk, eo_evecs_field, evecs_num, &(eo_spinor_work[2]), iw,
-        g_sink_momentum_number, g_sink_momentum_list, g_sink_gamma_id_number, g_sink_gamma_id_list );
-    if ( exitstatus != 0 ) {
-      fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from vdag_gloc_w_scalar_product, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-      EXIT(17);
-    }
+    if ( vw_mat_snk != NULL ) {
+      exitstatus = vdag_gloc_w_scalar_product ( vw_mat_snk, eo_evecs_field, evecs_num, &(eo_spinor_work[2]), iw,
+          g_sink_momentum_number, g_sink_momentum_list, g_sink_gamma_id_number, g_sink_gamma_id_list );
+      if ( exitstatus != 0 ) {
+        fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from vdag_gloc_w_scalar_product, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(17);
+      }
+    }  /* end of if vw_mat_snk */
 
     /***********************************************************
-     * reduction for sink set
+     * reduction for sink set at source locations only
      ***********************************************************/
-    exitstatus = vdag_gloc_w_scalar_product_pt ( vw_mat_pt, eo_evecs_field, evecs_num, &(eo_spinor_work[2]), iw,
-        g_source_location_number, g_source_coords_list , g_sink_gamma_id_number, g_sink_gamma_id_list );
-    if ( exitstatus != 0 ) {
-      fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from vdag_gloc_w_scalar_product_pt, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-      EXIT(17);
-    }
+    if ( vw_mat_pt != NULL ) {
+      exitstatus = vdag_gloc_w_scalar_product_pt ( vw_mat_pt, eo_evecs_field, evecs_num, &(eo_spinor_work[2]), iw,
+          g_source_location_number, g_source_coords_list , g_source_gamma_id_number, g_source_gamma_id_list );
+      if ( exitstatus != 0 ) {
+        fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from vdag_gloc_w_scalar_product_pt, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(17);
+      }
+    }  /* end of if vw_mat_pt  */
 
   }  /* end of loop on rhs eigenvectors w */
 
@@ -556,109 +671,146 @@ int main(int argc, char **argv) {
   char key[400];
   sprintf ( key, "/vdag-gp-w/C%d/N%d", Nconf, evecs_num );
   
+  /***********************************************************
+   * write for source set
+   ***********************************************************/
+  if ( vw_mat_src != NULL ) {
+    gettimeofday ( &ta, (struct timezone *)NULL );
 #ifdef HAVE_LHPC_AFF
-  exitstatus = write_vdag_gloc_v_to_file ( vw_mat_src, evecs_num, g_source_momentum_number, g_source_momentum_list , g_source_gamma_id_number, g_source_gamma_id_list,
-      affw, NULL, key , io_proc );
+    exitstatus = write_vdag_gloc_v_to_file ( vw_mat_src, evecs_num, g_source_momentum_number, g_source_momentum_list , g_source_gamma_id_number, g_source_gamma_id_list,
+        affw, NULL, key , io_proc );
 #endif
-  if ( exitstatus != 0 ) {
-    fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from write_vdag_gloc_v_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-    EXIT(15);
-  }
+    if ( exitstatus != 0 ) {
+      fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from write_vdag_gloc_v_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(15);
+    }
+    fini_5level_ztable ( &vw_mat_src );
 
+    gettimeofday ( &tb, (struct timezone *)NULL );
+    show_time ( &ta, &tb, "p2gg_invert_contract_exdefl", "write-vw_mat_src", g_cart_id == 0 );
 
+  }  /* end of if vw_mat_src */
+
+  /***********************************************************
+   * write for sink set
+   ***********************************************************/
+  if ( vw_mat_snk != NULL ) {
+    gettimeofday ( &ta, (struct timezone *)NULL );
 #ifdef HAVE_LHPC_AFF
-  exitstatus = write_vdag_gloc_v_to_file ( vw_mat_snk, evecs_num, g_sink_momentum_number, g_sink_momentum_list , g_sink_gamma_id_number, g_sink_gamma_id_list,
-      affw, NULL, key , io_proc );
+    exitstatus = write_vdag_gloc_v_to_file ( vw_mat_snk, evecs_num, g_sink_momentum_number, g_sink_momentum_list , g_sink_gamma_id_number, g_sink_gamma_id_list,
+        affw, NULL, key , io_proc );
 #endif
-  if ( exitstatus != 0 ) {
-    fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from write_vdag_gloc_v_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-    EXIT(15);
-  }
+    if ( exitstatus != 0 ) {
+      fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from write_vdag_gloc_v_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(15);
+    }
+    fini_5level_ztable ( &vw_mat_snk );
 
-  gettimeofday ( &tb, (struct timezone *)NULL );
-  show_time ( &ta, &tb, "p2gg_invert_contract_exdefl", "vw_mat-write", g_cart_id == 0 );
-
-  fini_5level_ztable ( &vw_mat_src );
-  fini_5level_ztable ( &vw_mat_snk );
+    gettimeofday ( &tb, (struct timezone *)NULL );
+    show_time ( &ta, &tb, "p2gg_invert_contract_exdefl", "write-vw_mat_snk", g_cart_id == 0 );
+  }  /* end of if vw_mat_snk */
 
   /***********************************************************/
   /***********************************************************/
-
 
   /***********************************************************
    * write vw_mat_pt to file
    ***********************************************************/
-  if ( io_proc >= 0 ) {
-    double _Complex **** buffer = NULL;
+  if ( vw_mat_pt != NULL ) {
+    gettimeofday ( &ta, (struct timezone *)NULL );
 
-    if ( io_proc > 0 ) {
-      if ( io_proc == 2 ) {
-        buffer = init_4level_ztable ( g_source_location_number, g_sink_gamma_id_number, evecs_num, evecs_num );
-      } else if ( io_proc == 1 ) {
-        buffer = init_4level_ztable ( 1, 1, 1, 1 );
+    if ( io_proc >= 0 ) {
+      double _Complex **** buffer = NULL;
+  
+      /***********************************************************
+       * io write process needs a recv buffer;
+       * io send  processes need alibi buffer
+       ***********************************************************/
+      if ( io_proc > 0 ) {
+        if ( io_proc == 2 ) {
+          buffer = init_4level_ztable ( g_source_location_number, g_source_gamma_id_number, evecs_num, evecs_num );
+        } else if ( io_proc == 1 ) {
+          buffer = init_4level_ztable ( 1, 1, 1, 1 );
+        }
+        if ( buffer == NULL ) {
+          fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from init_4level_ztable %s %d\n", __FILE__, __LINE__ );
+          EXIT(18);
+        }
       }
-      if ( buffer == NULL ) {
-        fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from init_4level_ztable %s %d\n", __FILE__, __LINE__ );
-        EXIT(18);
-      }
-    }
-
+  
+    /***********************************************************
+     * all data into buffer on io process
+     *
+     *   global Reduce here; since the source locations can be
+     *   all over the lattice
+     *   not had source means all entries in vw_mat_pt are
+     *   zero as initialized, so we can reduce via summation
+     ***********************************************************/
 #ifdef HAVE_MPI
-    exitstatus = MPI_Reduce ( vw_mat_pt[0][0][0], buffer[0][0][0], 2 * g_source_location_number * g_sink_gamma_id_number * evecs_num * evecs_num, MPI_DOUBLE, MPI_SUM, 0, g_cart_grid );
-    if ( exitstatus != MPI_SUCCESS ) {
-      fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from write_vdag_gloc_v_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-      EXIT(19);
-    }
-#else
-    memcpy ( buffer[0][0][0], vw_mat_pt[0][0][0], g_source_location_number * g_sink_gamma_id_number * evecs_num * evecs_num * sizeof( double _Complex ) );
-#endif
-
-    if ( io_proc == 2 ) {
-      struct AffNode_s * affn = aff_writer_root( affw );
-      if( affn == NULL ) {
-        fprintf(stderr, "[p2gg_invert_contract_exdefl] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
-        EXIT(17);
+      exitstatus = MPI_Reduce ( vw_mat_pt[0][0][0], buffer[0][0][0], 2 * g_source_location_number * g_source_gamma_id_number * evecs_num * evecs_num, MPI_DOUBLE, MPI_SUM, 0, g_cart_grid );
+      if ( exitstatus != MPI_SUCCESS ) {
+        fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from write_vdag_gloc_v_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(19);
       }
+#else
+      memcpy ( buffer[0][0][0], vw_mat_pt[0][0][0], g_source_location_number * g_source_gamma_id_number * evecs_num * evecs_num * sizeof( double _Complex ) );
+#endif
+  
+      if ( io_proc == 2 ) {
+        struct AffNode_s * affn = aff_writer_root( affw );
+        if( affn == NULL ) {
+          fprintf(stderr, "[p2gg_invert_contract_exdefl] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
+          EXIT(17);
+        }
+  
+        uint32_t items = ( uint32_t )evecs_num * evecs_num;
+  
+        for ( int ipt = 0; ipt < g_source_location_number; ipt++ ) {
+          for ( int igamma = 0; igamma < g_source_gamma_id_number; igamma++ ) {
+  
+            sprintf ( key, "/vdag-gp-w/C%d/N%d/T%d_X%d_Y%d_Z%d/G%d", Nconf, evecs_num, 
+               g_source_coords_list[ipt][0],
+               g_source_coords_list[ipt][1],
+               g_source_coords_list[ipt][2],
+               g_source_coords_list[ipt][3], g_source_gamma_id_list[igamma]);
+  
+            struct AffNode_s * affdir = aff_writer_mkpath ( affw, affn, key );
+            if ( affdir == NULL ) {
+              fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from aff_writer_mkpath %s %d\n", __FILE__,  __LINE__ );
+              EXIT(15);
+            }
+  
+            exitstatus = aff_node_put_complex ( affw, affdir, buffer[ipt][igamma][0], items );
+            if(exitstatus != 0) {
+              fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from aff_node_put_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(16);
+            }
+          }  /* end of loop on gamma */
+        }  /* end of loop on source coords */
+      }  /* end of if io_proc == 2 */
+  
+      fini_4level_ztable ( &buffer );
+  
+    }  /* end of if io_proc > 0 */
+  
+    fini_4level_ztable ( &vw_mat_pt );
 
-      uint32_t items = ( uint32_t )evecs_num * evecs_num;
+    gettimeofday ( &tb, (struct timezone *)NULL );
+    show_time ( &ta, &tb, "p2gg_invert_contract_exdefl", "write-vw_mat_pt", io_proc == 2 );
 
-      for ( int ipt = 0; ipt < g_source_location_number; ipt++ ) {
-        for ( int igamma = 0; igamma < g_sink_gamma_id_number; igamma++ ) {
-
-          sprintf ( key, "/vdag-gp-w/C%d/N%d/T%d_X%d_Y%d_Z%d/G%d", Nconf, evecs_num, 
-             g_source_coords_list[ipt][0],
-             g_source_coords_list[ipt][1],
-             g_source_coords_list[ipt][2],
-             g_source_coords_list[ipt][3], g_sink_gamma_id_list[igamma]);
-
-
-          struct AffNode_s * affdir = aff_writer_mkpath ( affw, affn, key );
-          if ( affdir == NULL ) {
-            fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from aff_writer_mkpath %d %s %d\n", __FILE__, __LINE__);
-            EXIT(15);
-          }
-
-          exitstatus = aff_node_put_complex ( affw, affdir, buffer[ipt][igamma][0], items );
-          if(exitstatus != 0) {
-            fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from aff_node_put_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(16);
-          }
-        }  /* end of loop on gamma */
-      }  /* end of loop on source coords */
-    }  /* end of if io_proc == 2 */
-
-    fini_4level_ztable ( &buffer );
-  }
-
-  fini_4level_ztable ( &vw_mat_pt );
+  }  /* end of if vw_mat_pt */
 
   /***********************************************************/
   /***********************************************************/
 
   /***********************************************************
+   *
    * write eigenvalues to file
+   *
    ***********************************************************/
   if ( io_proc == 2 ) {
+    gettimeofday ( &ta, (struct timezone *)NULL );
+
     struct AffNode_s * affn = aff_writer_root( affw );
     if( affn == NULL ) {
       fprintf(stderr, "[p2gg_invert_contract_exdefl] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
@@ -672,7 +824,7 @@ int main(int argc, char **argv) {
   
     struct AffNode_s * affdir = aff_writer_mkpath ( affw, affn, key );
     if ( affdir == NULL ) {
-      fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from aff_writer_mkpath %d %s %d\n", __FILE__, __LINE__);
+      fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from aff_writer_mkpath %s %d\n", __FILE__, __LINE__);
       EXIT(15);
     }
   
@@ -682,8 +834,6 @@ int main(int argc, char **argv) {
       EXIT(16);
     }
   }  /* end of if io_proc == 2 */
-#if 0
-#endif  /* of if 0 */
 
   /***********************************************************
    * close writer
@@ -695,9 +845,104 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[p2gg_invert_contract_exdefl] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
       EXIT(32);
     }
+
+    gettimeofday ( &tb, (struct timezone *)NULL );
+    show_time ( &ta, &tb, "p2gg_invert_contract_exdefl", "write-eigenvalues", io_proc == 2 );
   }  /* end of if io_proc == 2 */
 #endif
   
+#ifndef HAVE_MPI
+  /***********************************************************
+   * check by hand
+   ***********************************************************/
+  if ( g_sink_momentum_number > 0 && g_sink_gamma_id_number > 0 ) {
+
+    double _Complex ***** sp = init_5level_ztable ( g_sink_momentum_number, g_sink_gamma_id_number, T, evecs_num, evecs_num );
+    if ( sp == NULL ) {
+      fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from ,init_5level_ztable %s %d\n", __FILE__, __LINE__);
+      EXIT(16);
+    }
+  
+    double ** spinor_field = init_2level_dtable ( 2, _GSI( VOLUME ) );
+    if ( spinor_field == NULL ) {
+      fprintf ( stderr, "[p2gg_invert_contract_exdefl] Error from ,init_2level_dtable %s %d\n", __FILE__, __LINE__);
+      EXIT(16);
+    }
+    for ( int iw = 0; iw < evecs_num; iw++ ) {
+      memcpy ( eo_spinor_work[0], eo_evecs_field[iw][0], sizeof_eo_spinor_field );
+      memcpy ( eo_spinor_work[1], eo_evecs_field[iw][1], sizeof_eo_spinor_field );
+      memset ( eo_spinor_work[2], 0, sizeof_eo_spinor_field );
+      memset ( eo_spinor_work[3], 0, sizeof_eo_spinor_field );
+      memset ( eo_spinor_work[4], 0, sizeof_eo_spinor_field );
+  
+      Q_clover_phi_matrix_eo ( eo_spinor_work[2], eo_spinor_work[3], eo_spinor_work[0], eo_spinor_work[1], gauge_field_with_bc, eo_spinor_work[4], mzz[1] );
+  
+      spinor_field_eo2lexic ( spinor_field[0], eo_spinor_work[2], eo_spinor_work[3] );
+  
+      g5_phi ( spinor_field[0], VOLUME );
+  
+      double norm = 0.;
+      spinor_scalar_product_re ( &norm, spinor_field[0], spinor_field[0], VOLUME );
+      fprintf ( stdout, "# [p2gg_invert_contract_exdefl] eval %3d = %25.16e\n", iw, norm );
+  
+      for ( int iv = 0; iv < evecs_num; iv++ ) {
+        spinor_field_eo2lexic ( spinor_field[1], eo_evecs_field[iv][0], eo_evecs_field[iv][1] );
+  
+        for ( int x0 = 0; x0 < T;  x0++ ) {
+        for ( int x1 = 0; x1 < LX; x1++ ) {
+        for ( int x2 = 0; x2 < LY; x2++ ) {
+        for ( int x3 = 0; x3 < LZ; x3++ ) {
+  
+          unsigned int ix = g_ipt[x0][x1][x2][x3];
+  
+          for ( int ig = 0; ig < g_sink_gamma_id_number; ig++ ) {
+            double s[24];
+            complex w;
+            _fv_eq_gamma_ti_fv ( s, g_sink_gamma_id_list[ig], spinor_field[0]+_GSI(ix) );
+            _fv_ti_eq_g5 ( s );
+            _co_eq_fv_dag_ti_fv ( &w, spinor_field[1]+_GSI(ix), s );
+  
+            for ( int ip = 0; ip <  g_sink_momentum_number; ip++ ) {
+              double _Complex ephase = cexp( 2. * M_PI * I * (
+                  g_sink_momentum_list[ip][0] * x1 / (double)LX  
+                + g_sink_momentum_list[ip][1] * x2 / (double)LY  
+                + g_sink_momentum_list[ip][2] * x3 / (double)LZ ) );
+  
+              sp[ip][ig][x0][iw][iv] += ( w.re + w.im * I ) * ephase;
+            }
+          }
+        }}}}
+      }
+    }
+  
+    for ( int ip = 0; ip <  g_sink_momentum_number; ip++ ) {
+      for ( int ig = 0; ig < g_sink_gamma_id_number; ig++ ) {
+        char key[400];
+  
+        fprintf ( stdout, "# /vdag-gp-w/C%d/N%d/PX%d_PY%d_PZ%d/G%d\n", Nconf, evecs_num, 
+            g_sink_momentum_list[ip][0],
+            g_sink_momentum_list[ip][1],
+            g_sink_momentum_list[ip][2],  g_sink_gamma_id_list[ig] );
+  
+        for ( int x0 = 0; x0 < T;  x0++ ) {
+          for ( int iw = 0; iw < evecs_num; iw++ ) {
+          for ( int iv = 0; iv < evecs_num; iv++ ) {
+            fprintf ( stdout, "  %25.16e %26.16e\n", creal ( sp[ip][ig][x0][iw][iv] ), cimag ( sp[ip][ig][x0][iw][iv] ) );
+          }}
+        }
+      }
+    }
+  
+    fini_5level_ztable ( &sp );
+    fini_2level_dtable ( &spinor_field );
+  }
+
+  /***********************************************************
+   * end of check by hand
+   ***********************************************************/
+
+#endif
+
   /***********************************************************
    * free the allocated memory, finalize
    ***********************************************************/
