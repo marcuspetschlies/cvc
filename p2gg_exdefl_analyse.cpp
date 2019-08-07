@@ -67,12 +67,14 @@ int main(int argc, char **argv) {
   int evecs_num = 0;
   struct timeval ta, tb, start_time, end_time;
   char key[400];
+  int evecs_use_step = -1;
+  int evecs_use_min  = -1;
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:n:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:n:s:m:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -80,6 +82,12 @@ int main(int argc, char **argv) {
       break;
     case 'n':
       evecs_num = atoi ( optarg );
+      break;
+    case 's':
+      evecs_use_step = atoi ( optarg );
+      break;
+    case 'm':
+      evecs_use_min = atoi ( optarg );
       break;
     case 'h':
     case '?':
@@ -311,10 +319,15 @@ int main(int argc, char **argv) {
   show_time ( &ta, &tb, "p2gg_exdefl_analyse", "aff-read-mat-p", g_cart_id == 0 );
 
   /***********************************************************
+   * set default values for step size and minimal number
+   * of evecs to be used in partial trace
+   ***********************************************************/
+  if ( evecs_use_step == -1 ) evecs_use_step = 1;
+  if ( evecs_use_min  == -1 ) evecs_use_min  = evecs_num;
+
+  /***********************************************************
    * loop on upper limit of eigenvectors
    ***********************************************************/
-  int evecs_use_step = 1;
-  int evecs_use_min  = 1;
   for ( int evecs_use = evecs_use_min; evecs_use <= evecs_num; evecs_use += evecs_use_step ) {
 
     double _Complex * loop_p = init_1level_ztable ( T_global );
