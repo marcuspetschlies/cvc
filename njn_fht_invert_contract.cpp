@@ -380,13 +380,16 @@ int main(int argc, char **argv) {
    ***************************************************************************/
   unsigned int const VOL3 = LX * LY * LZ;
 
-  double _Complex ** ephase = init_2level_ztable ( g_seq_source_momentum_number, VOL3 );
-  if ( ephase == NULL ) {
-    fprintf ( stderr, "[njn_fht_invert_contract] Error from init_2level_ztable %s %d\n", __FILE__, __LINE__ );
-    EXIT(12);
-  }
+  double _Complex ** ephase = NULL;
+  if ( g_seq_source_momentum_number > 0 ) {
+    ephase = init_2level_ztable ( g_seq_source_momentum_number, VOL3 );
+    if ( ephase == NULL ) {
+      fprintf ( stderr, "[njn_fht_invert_contract] Error from init_2level_ztable %s %d\n", __FILE__, __LINE__ );
+      EXIT(12);
+    }
 
-  make_phase_field_timeslice ( ephase, g_seq_source_momentum_number, g_seq_source_momentum_list );
+    make_phase_field_timeslice ( ephase, g_seq_source_momentum_number, g_seq_source_momentum_list );
+  }  /* end of if g_seq_source_momentum_number > 0 */
 
   /***************************************************************************
    *
