@@ -220,7 +220,7 @@ int main(int argc, char **argv) {
 
   if ( g_verbose > 2 ) {
     for ( int iw = 0; iw < evecs_num; iw++ ) {
-      fprintf( stdout, "# [] eval %6d   %25.16e   %25.16e\n", iw, evecs_eval[iw] , evecs_eval_inv[iw] );
+      fprintf( stdout, "# [p2gg_exdefl_analyse] eval %6d   %25.16e   %25.16e\n", iw, evecs_eval[iw] , evecs_eval_inv[iw] );
     }
   }
 
@@ -438,7 +438,7 @@ int main(int argc, char **argv) {
     }
 
     /***********************************************************
-     * write loop to file
+     * write 3-point function to file
      ***********************************************************/
     sprintf ( filename, "%s.3pt.disc.g%d.px%d_py%d_pz%d.qx%d_qy%d_qz%d.nev%d.%.4d", outfile_prefix, source_gamma_id,
         source_momentum[0], source_momentum[1], source_momentum[2], 
@@ -459,11 +459,13 @@ int main(int argc, char **argv) {
 
     fclose ( ofs );
 
-    fini_1level_ztable ( &loop_p );
     fini_5level_ztable ( &corr_v );
     fini_2level_ztable ( &corr_3pt );
 
+    fini_1level_ztable ( &loop_p );
+
   }  /* end of loop on upper limits */
+
 
   fini_5level_ztable ( &vw_mat_v );
   fini_3level_ztable ( &vw_mat_p );
