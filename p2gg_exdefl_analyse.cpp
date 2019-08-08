@@ -363,44 +363,109 @@ int main(int argc, char **argv) {
 
     fclose ( ofs );
 
+    /***********************************************************
+     * allocate corr_v = jj tensor
+     ***********************************************************/
     double _Complex ***** corr_v = init_5level_ztable ( g_sink_momentum_number, g_sink_gamma_id_number, g_sink_gamma_id_number, T_global, T_global );
     if ( corr_v == NULL ) {
       fprintf ( stderr, "[p2gg_exdefl_analyse] Error from init_5level_ztable %s %d\n", __FILE__, __LINE__);
       EXIT(15);
     }
-    
+
+    /***********************************************************
+     * allocate 3-point function
+     ***********************************************************/
     double _Complex ** corr_3pt = init_2level_ztable ( g_sequential_source_timeslice_number, T_global );
     if ( corr_3pt == NULL ) {
       fprintf ( stderr, "[p2gg_exdefl_analyse] Error from init_2level_ztable %s %d\n", __FILE__, __LINE__);
       EXIT(15);
     }
 
+    /***********************************************************
+     * loop on sink momenta
+     *
+     *  ( source momentum is fixed )
+     ***********************************************************/
     for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
 
+      /***********************************************************
+       * id of momentum vector in g_sink_momentum_list, which
+       * fulfills momentum conservation
+       * psnk[imom] + source_momentum + psnk[kmom] = 0
+       ***********************************************************/
       int kmom = get_momentum_id ( g_sink_momentum_list[imom], source_momentum, g_sink_momentum_number, g_sink_momentum_list );
 
-      if ( kmom == -1 ) continue;
+      if ( kmom == -1 ) continue;  /* no such momentum was found */
+
       if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_exdefl_analyse] psrc = %3d %3d %3d   psnk = %3d %3d %3d   pcur = %3d %3d %3d\n",
           source_momentum[0], source_momentum[1], source_momentum[2],
           g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
           g_sink_momentum_list[kmom][0], g_sink_momentum_list[kmom][1], g_sink_momentum_list[kmom][2] );
 
+      /***********************************************************
+       * loop on tensor components at sink and current side
+       ***********************************************************/
       for ( int ig1 = 0; ig1 < g_sink_gamma_id_number; ig1++ ) {
       for ( int ig2 = 0; ig2 < g_sink_gamma_id_number; ig2++ ) {
 
+        /***********************************************************
+         * loop on time slice combinations at sink and current side
+         ***********************************************************/
 #pragma omp parallel for
         for ( int x0 = 0; x0 < T_global; x0++ ) {
         for ( int y0 = 0; y0 < T_global; y0++ ) {
+
+          /***********************************************************
+           * loop on evec ids, partial trace
+           ***********************************************************/
           for ( int iw = 0; iw < evecs_use; iw++ ) {
           for ( int iv = 0; iv < evecs_use; iv++ ) {
             corr_v[imom][ig1][ig2][x0][y0] += vw_mat_v[imom][ig1][x0][iw][iv] * vw_mat_v[kmom][ig2][y0][iv][iw] * evecs_eval_inv[iw] * evecs_eval_inv[iv];
           }}
-        }}
-      }}
-    }
 
+        }}
+
+        /***********************************************************
+         * write tensor to file
+         ***********************************************************/
+        sprintf ( filename, "%s.jj.g%d_g%d.px%d_py%d_pz%d.qx%d_qy%d_qz%d.nev%d.%.4d", outfile_prefix,
+            g_sink_gamma_id_list[ig1], g_sink_gamma_id_list[ig2],
+            g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
+            g_sink_momentum_list[kmom][0], g_sink_momentum_list[kmom][1], g_sink_momentum_list[kmom][2],
+            evecs_use, Nconf );
+
+        FILE * ofs = fopen ( filename, "w" );
+        if ( ofs == NULL ) {
+          fprintf ( stderr, "[p2gg_exdefl_analyse] Error from fopen %s %d\n", __FILE__, __LINE__);
+          EXIT(21);
+        }
+
+        for ( int x0 = 0; x0 < T_global; x0++ ) {
+        for ( int y0 = 0; y0 < T_global; y0++ ) {
+          fprintf ( ofs, "%3d %3d %25.16e  %25.16e\n", x0, y0, creal( corr_v[imom][ig1][ig2][x0][y0] ), cimag( corr_v[imom][ig1][ig2][x0][y0] ) );
+        }}
+
+        fclose ( ofs );
+
+      }}  /* end of loop on tensor components at current and sink */
+
+    }  /* end of loop on sink momenta */
+
+    /***********************************************************
+     * (half of the) epsion tensor
+     *   all even permutations
+     ***********************************************************/
     int const epsilon_tensor[3][3] = { {0,1,2}, {1,2,0}, {2,0,1} };
 
+    /***********************************************************
+     * set norm
+     * norm = 1 / pvec^2 / #{psnk}
+     *
+     * NOTE: g_sink_momentum_list should be one momentum orbit
+     *       AT MOST
+     *       as done here, this ONLY WORKS for total momentum
+     *       zero
+     ***********************************************************/
     double pvec[3] = {
         2 * sin ( M_PI * g_sink_momentum_list[0][0] / (double)LX_global ),
         2 * sin ( M_PI * g_sink_momentum_list[0][1] / (double)LY_global ),
@@ -408,37 +473,74 @@ int main(int argc, char **argv) {
 
     double const norm = 1. / ( pvec[0] * pvec[0] + pvec[1] * pvec[1] + pvec[2] * pvec[2] ) / (double)g_sink_momentum_number;
 
+    /***********************************************************
+     * loop over sink momenta = average over (sub-)orbit
+     ***********************************************************/
     for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
 
       pvec[0] = 2 * sin ( M_PI * g_sink_momentum_list[imom][0] / (double)LX_global );
       pvec[1] = 2 * sin ( M_PI * g_sink_momentum_list[imom][1] / (double)LY_global );
       pvec[2] = 2 * sin ( M_PI * g_sink_momentum_list[imom][2] / (double)LZ_global );
 
+      /***********************************************************
+       * loop over permuations for 3-dim. epsilon tensor
+       ***********************************************************/
       for ( int iperm = 0; iperm < 3; iperm++ ) {
         int const ia = epsilon_tensor[iperm][0];
         int const ib = epsilon_tensor[iperm][1];
         int const ic = epsilon_tensor[iperm][2];
 
+        /***********************************************************
+         * loop on source - sink time separations
+         *   tsnk - tsrc = g_sequential_source_timeslice_list[idt]
+         ***********************************************************/
         for ( int idt = 0; idt < g_sequential_source_timeslice_number; idt++ ) {
 
-#pragma omp parallel for
+          /***********************************************************
+           * loop on source timeslices
+           *   all T_global lattice timeslices enter
+           ***********************************************************/
           for ( int tsrc = 0; tsrc < T_global; tsrc++ ) {
-            int tsnk = ( tsrc + g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
 
-            for ( int tcur = 0; tcur < T_global; tcur++ ) {
-              int itsc = ( tcur - tsrc + T_global ) % T_global;
+            /***********************************************************
+             * tsnk = tsrc + ( source - sink time sep. )
+             ***********************************************************/
+            int const tsnk = ( tsrc + g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
 
+            /***********************************************************
+             * loop on current time
+             *   all T_global timeslices enter
+             ***********************************************************/
+#pragma omp parallel for
+            for ( int itsc = 0; itsc < T_global; itsc++ ) {
+
+              /***********************************************************
+               * time difference current - sink
+               ***********************************************************/
+              int tcur = ( tsnk + itsc + T_global ) % T_global;
+
+              /***********************************************************
+               * contribution to the 3-pt function
+               *
+               *   loop_p at source time x 2-pt jj tensor at current , sink time
+               *
+               *   real part = Re ( Loop ) x Re ( jj tensor ) 
+               *             = pion channel ( iso-triplet pseudoscalar )
+               *
+               *   imag part = Im ( Loop ) x Im ( jj tensor ) 
+               *             = eta  channel ( iso-singlet pseudoscalar )
+               ***********************************************************/
               corr_3pt[idt][itsc] += 
-                  creal( loop_p[tsrc] ) *  creal( corr_v[imom][ia][ib][tcur][tsnk] ) * pvec[ic] * norm 
-                + cimag( loop_p[tsrc] ) *  cimag( corr_v[imom][ia][ib][tcur][tsnk] ) * pvec[ic] * norm *I;
+                  ( creal( loop_p[tsrc] ) * ( creal( corr_v[imom][ia][ib][tcur][tsnk] ) - creal( corr_v[imom][ib][ia][tcur][tsnk] ) ) * pvec[ic] * norm )
+                + ( cimag( loop_p[tsrc] ) * ( cimag( corr_v[imom][ia][ib][tcur][tsnk] ) - cimag( corr_v[imom][ib][ia][tcur][tsnk] ) ) * pvec[ic] * norm ) * I;
             }
           }
-        }
-      }
-    }
+        }  /* end of loop on source - sink time separations */
+      }  /* end of loop on permutations */
+    }  /* end of loop on sink momenta */
 
     /***********************************************************
-     * write loop to file
+     * write 3-point to file
      ***********************************************************/
     sprintf ( filename, "%s.3pt.disc.g%d.px%d_py%d_pz%d.qx%d_qy%d_qz%d.nev%d.%.4d", outfile_prefix, source_gamma_id,
         source_momentum[0], source_momentum[1], source_momentum[2], 
