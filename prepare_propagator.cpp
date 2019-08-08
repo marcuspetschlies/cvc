@@ -832,7 +832,7 @@ int point_source_propagator (double **prop, int gsx[4], int op_id, int smear_sou
   int exitstatus;
   double ratime, retime;
   double **spinor_work = NULL;
-  int rotation_direction = op_id == 0 ? +1 : -1;
+  int const rotation_direction = op_id == 0 ? +1 : -1;
 
   ratime = _GET_TIME;
   get_point_source_info (gsx, sx, &source_proc_id);
@@ -904,10 +904,14 @@ int point_source_propagator (double **prop, int gsx[4], int op_id, int smear_sou
  *
  *   gauge_field and mzz are only needed, if residual is checked
  **************************************************************************/
-int prepare_propagator_from_source ( double ** const prop, double ** const source , int const nsc, int const op_id, int const check_residual, double * const gauge_field, double ** mzz[2], char * prefix ) {
+int prepare_propagator_from_source ( double ** const prop, double ** const source , int const nsc, int const op_id,
+    int smear_source, int smear_sink, double *gauge_field_smeared,
+    int const check_residual, double * const gauge_field, double ** mzz[2], char * prefix ) {
 
   size_t const sizeof_spinor_field           = _GSI(VOLUME) * sizeof(double);
+  int const rotation_direction = op_id == 0 ? +1 : -1;
   int exitstatus;
+
 
   /***************************************************************************
    * allocate memory for spinor work fields
@@ -919,35 +923,90 @@ int prepare_propagator_from_source ( double ** const prop, double ** const sourc
     return(1);
   }
 
-  /* loop on set of given source fields */
+  /***************************************************************************
+   * loop on set of given source fields
+   ***************************************************************************/
   for ( int isc = 0; isc < nsc; isc++ ) {
 
-    /* copy the source field */
+    /***************************************************************************
+     * copy the source field
+     ***************************************************************************/
     memcpy ( spinor_work[2], source[isc], sizeof_spinor_field );
 
-    /* init solution field to zero */
+    /***************************************************************************
+     * init solution field to zero
+     ***************************************************************************/
     memset ( spinor_work[1], 0, sizeof_spinor_field );
 
-    /* copy source again, to preserve original source */
+    /***************************************************************************
+     * copy source again, to preserve original source
+     ***************************************************************************/
     memcpy ( spinor_work[0], spinor_work[2], sizeof_spinor_field );
 
-    /* call solver via tmLQCD */
+
+    /***************************************************************************
+     * source-smear the source
+     ***************************************************************************/
+    if ( smear_source ) {
+      exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[point_source_propagator] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        return(11);
+      }
+    }
+
+    /***************************************************************************
+     * twisted-mass rotate spinor field on the source side
+     ***************************************************************************/
+    if( g_fermion_type == _TM_FERMION ) {
+      spinor_field_tm_rotation(spinor_work[0], spinor_work[0], rotation_direction, g_fermion_type, VOLUME);
+    }
+
+
+    /***************************************************************************
+     * call solver via tmLQCD
+     ***************************************************************************/
     exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id );
     if(exitstatus < 0) {
       fprintf(stderr, "[prepare_propagator_from_source] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       return(44);
     }
 
-    /* check the solution in spinor_work[1]
-     * residual = || D [1] - [2] || */
+    /***************************************************************************
+     * check the solution in spinor_work[1]
+     * residual = || D [1] - [2] ||
+     ***************************************************************************/
     if ( check_residual ) {
       check_residual_clover ( &(spinor_work[1]), &(spinor_work[2]), gauge_field, mzz[op_id], 1 );
     }
 
-    /* copy the solution into the target output field */
+
+    /***************************************************************************
+     * twisted-mass rotate spinor field on the sink side
+     ***************************************************************************/
+    if( g_fermion_type == _TM_FERMION ) {
+      spinor_field_tm_rotation(spinor_work[1], spinor_work[1], rotation_direction, g_fermion_type, VOLUME);
+    }
+
+    /***************************************************************************
+     * sink-smear the propagator
+     ***************************************************************************/
+    if ( smear_sink ) {
+      exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[point_source_propagator] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        return(11);
+      }
+    }
+
+    /***************************************************************************
+     * copy the solution into the target output field
+     ***************************************************************************/
     memcpy( prop[isc], spinor_work[1], sizeof_spinor_field );
 
-    /* optionally write the propagator */
+    /***************************************************************************
+     * optionally write the propagator
+     ***************************************************************************/
     if ( g_write_propagator && ( prefix != NULL ) ) {
       char filename[400];
       sprintf ( filename, "%s.%d.inverted", prefix, isc );
