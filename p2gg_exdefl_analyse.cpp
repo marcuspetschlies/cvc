@@ -153,19 +153,46 @@ int main(int argc, char **argv) {
 
 #ifdef HAVE_LHPC_AFF
   /***********************************************************
-   * writer for aff output file
+   * reader for aff input file
    ***********************************************************/
   struct AffReader_s *affr = NULL;
-  if(io_proc == 2) {
-    sprintf ( filename, "%s.%.4d.nev%d.aff", infile_prefix, Nconf, evecs_num );
-    fprintf(stdout, "# [p2gg_exdefl_analyse] reading data from file %s\n", filename);
-    affr = aff_reader ( filename );
-    const char * aff_status_str = aff_reader_errstr ( affr );
-    if( aff_status_str != NULL ) {
-      fprintf(stderr, "[p2gg_exdefl_analyse] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-      EXIT(15);
-    }
-  }  /* end of if io_proc == 2 */
+  sprintf ( filename, "%s.%.4d.nev%d.aff", infile_prefix, Nconf, evecs_num );
+  fprintf(stdout, "# [p2gg_exdefl_analyse] reading data from file %s\n", filename);
+  affr = aff_reader ( filename );
+  char * aff_status_str = (char*)aff_reader_errstr ( affr );
+  if( aff_status_str != NULL ) {
+    fprintf(stderr, "[p2gg_exdefl_analyse] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+    EXIT(15);
+  }
+
+  /* set root node */
+  struct AffNode_s * affrn = aff_reader_root( affr );
+  if( affrn == NULL ) {
+    fprintf(stderr, "[p2gg_exdefl_analyse] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+    EXIT(17);
+  }
+
+  /***********************************************************
+   * writer for aff output file
+   ***********************************************************/
+  struct AffWriter_s *affw = NULL;
+  sprintf ( filename, "%s.%.4d.nev%d.aff", outfile_prefix, Nconf, evecs_num );
+  fprintf(stdout, "# [p2gg_exdefl_analyse] writing data to file %s\n", filename);
+  affw = aff_writer ( filename );
+  aff_status_str = (char*)aff_writer_errstr ( affw );
+  if( aff_status_str != NULL ) {
+    fprintf(stderr, "[p2gg_exdefl_analyse] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+    EXIT(16);
+  }
+
+  struct AffNode_s * affwn = aff_writer_root( affw );
+  if( affwn == NULL ) {
+    fprintf(stderr, "[p2gg_exdefl_analyse] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
+    EXIT(17);
+  }
+
+#else
+#error "need lhp-aff lib; currently no other output method implemented"
 #endif
 
   /***********************************************************
@@ -190,19 +217,13 @@ int main(int argc, char **argv) {
     EXIT(11);
   }
 
-  struct AffNode_s * affn = aff_reader_root( affr );
-  if( affn == NULL ) {
-    fprintf(stderr, "[p2gg_exdefl_analyse] Error, aff writer is not initialized %s %d\n", __FILE__, __LINE__);
-    EXIT(17);
-  }
-
   /* AFF read */
   uint32_t uitems = ( uint32_t )evecs_num;
 
   sprintf ( key, "/eval/C%d/N%d", Nconf, evecs_num );
   if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_exdefl_analyse] reading key %s %s %d\n", key, __FILE__, __LINE__ );
 
-  struct AffNode_s * affdir = aff_reader_chpath ( affr, affn, key );
+  struct AffNode_s * affdir = aff_reader_chpath ( affr, affrn, key );
   if ( affdir == NULL ) {
     fprintf ( stderr, "[p2gg_exdefl_analyse] Error from aff_writer_mkpath %s %d\n", __FILE__, __LINE__);
     EXIT(15);
@@ -253,7 +274,7 @@ int main(int argc, char **argv) {
       source_momentum[0], source_momentum[1], source_momentum[2], source_gamma_id);
   if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_exdefl_analyse] reading key %s %s %d\n", key, __FILE__, __LINE__ );
 
-  affdir = aff_reader_chpath ( affr, affn, key );
+  affdir = aff_reader_chpath ( affr, affrn, key );
   if ( affdir == NULL ) {
     fprintf ( stderr, "[p2gg_exdefl_analyse] Error from aff_reader_chpath %s %d\n", __FILE__, __LINE__);
     EXIT(15);
@@ -301,7 +322,7 @@ int main(int argc, char **argv) {
           sink_momentum[0], sink_momentum[1], sink_momentum[2], sink_gamma_id);
       if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_exdefl_analyse] reading key %s %s %d\n", key, __FILE__, __LINE__ );
 
-      affdir = aff_reader_chpath ( affr, affn, key );
+      affdir = aff_reader_chpath ( affr, affrn, key );
       if ( affdir == NULL ) {
         fprintf ( stderr, "[p2gg_exdefl_analyse] Error from aff_reader_chpath %s %d\n", __FILE__, __LINE__);
         EXIT(15);
@@ -339,6 +360,8 @@ int main(int argc, char **argv) {
     /***********************************************************
      * partial trace
      ***********************************************************/
+    gettimeofday ( &ta, (struct timezone *)NULL );
+
 #pragma omp parallel for
     for ( int x0 = 0; x0 < T_global; x0++ ) {
       for ( int iw = 0; iw < evecs_use; iw++ ) {
@@ -346,9 +369,27 @@ int main(int argc, char **argv) {
       }
     }
 
+    gettimeofday ( &tb, (struct timezone *)NULL );
+    show_time ( &ta, &tb, "p2gg_exdefl_analyse", "loop-partial-trace", g_cart_id == 0 );
+
     /***********************************************************
      * write loop to file
      ***********************************************************/
+#ifdef HAVE_LHPC_AFF
+    sprintf ( key, "/loop/g%d/px%d_py%d_pz%d/nev%d", source_gamma_id, source_momentum[0], source_momentum[1], source_momentum[2], evecs_use ); 
+ 
+    affdir = aff_writer_mkpath ( affw, affwn, key );
+    if ( affdir == NULL ) {
+      fprintf ( stderr, "[p2gg_exdefl_analyse] Error from aff_writer_mkpath %d %s %d\n", __FILE__, __LINE__);
+      EXIT(17);
+    }
+
+    exitstatus = aff_node_put_complex ( affw, affdir, loop_p, (uint32_t)T_global );
+    if(exitstatus != 0) {
+      fprintf ( stderr, "[p2gg_exdefl_analyse] Error from aff_node_put_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(18);
+    }
+#else
     sprintf ( filename, "%s.loop.g%d.px%d_py%d_pz%d.nev%d.%.4d", outfile_prefix, source_gamma_id,
         source_momentum[0], source_momentum[1], source_momentum[2], evecs_use, Nconf ); 
     FILE * ofs = fopen ( filename, "w" );
@@ -356,12 +397,11 @@ int main(int argc, char **argv) {
       fprintf ( stderr, "[p2gg_exdefl_analyse] Error from fopen %s %d\n", __FILE__, __LINE__);
       EXIT(21);
     }
-
     for ( int x0 = 0; x0 < T_global; x0++ ) {
       fprintf ( ofs, "%25.16e  %25.16e\n", creal(loop_p[x0]), cimag(loop_p[x0]) );
     }
-
     fclose ( ofs );
+#endif
 
     /***********************************************************
      * allocate corr_v = jj tensor
@@ -408,6 +448,8 @@ int main(int argc, char **argv) {
       for ( int ig1 = 0; ig1 < g_sink_gamma_id_number; ig1++ ) {
       for ( int ig2 = 0; ig2 < g_sink_gamma_id_number; ig2++ ) {
 
+        gettimeofday ( &ta, (struct timezone *)NULL );
+
         /***********************************************************
          * loop on time slice combinations at sink and current side
          ***********************************************************/
@@ -425,9 +467,31 @@ int main(int argc, char **argv) {
 
         }}
 
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "p2gg_exdefl_analyse", "jj-tensor-TxT-partial-trace", g_cart_id == 0 );
+
         /***********************************************************
          * write tensor to file
          ***********************************************************/
+#ifdef HAVE_LHPC_AFF
+        sprintf ( key, "/jj/g%d_g%d/px%d_py%d_pz%d/qx%d_qy%d_qz%d/nev%d",
+            g_sink_gamma_id_list[ig1], g_sink_gamma_id_list[ig2],
+            g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
+            g_sink_momentum_list[kmom][0], g_sink_momentum_list[kmom][1], g_sink_momentum_list[kmom][2],
+            evecs_use );
+
+        affdir = aff_writer_mkpath ( affw, affwn, key );
+        if ( affdir == NULL ) {
+          fprintf ( stderr, "[p2gg_exdefl_analyse] Error from aff_writer_mkpath %d %s %d\n", __FILE__, __LINE__);
+          EXIT(17);
+        }
+
+        exitstatus = aff_node_put_complex ( affw, affdir, corr_v[imom][ig1][ig2][0], (uint32_t)T_global*T_global );
+        if(exitstatus != 0) { 
+          fprintf ( stderr, "[p2gg_exdefl_analyse] Error from aff_node_put_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(18);
+        }
+#else
         sprintf ( filename, "%s.jj.g%d_g%d.px%d_py%d_pz%d.qx%d_qy%d_qz%d.nev%d.%.4d", outfile_prefix,
             g_sink_gamma_id_list[ig1], g_sink_gamma_id_list[ig2],
             g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
@@ -444,9 +508,8 @@ int main(int argc, char **argv) {
         for ( int y0 = 0; y0 < T_global; y0++ ) {
           fprintf ( ofs, "%3d %3d %25.16e  %25.16e\n", x0, y0, creal( corr_v[imom][ig1][ig2][x0][y0] ), cimag( corr_v[imom][ig1][ig2][x0][y0] ) );
         }}
-
         fclose ( ofs );
-
+#endif
       }}  /* end of loop on tensor components at current and sink */
 
     }  /* end of loop on sink momenta */
@@ -472,6 +535,8 @@ int main(int argc, char **argv) {
         2 * sin ( M_PI * g_sink_momentum_list[0][2] / (double)LZ_global ) };
 
     double const norm = 1. / ( pvec[0] * pvec[0] + pvec[1] * pvec[1] + pvec[2] * pvec[2] ) / (double)g_sink_momentum_number;
+
+    gettimeofday ( &ta, (struct timezone *)NULL );
 
     /***********************************************************
      * loop over sink momenta = average over (sub-)orbit
@@ -539,9 +604,33 @@ int main(int argc, char **argv) {
       }  /* end of loop on permutations */
     }  /* end of loop on sink momenta */
 
+    gettimeofday ( &tb, (struct timezone *)NULL );
+    show_time ( &ta, &tb, "p2gg_exdefl_analyse", "3pt-dt-T-orbit-average", g_cart_id == 0 );
+
     /***********************************************************
      * write 3-point to file
      ***********************************************************/
+#ifdef HAVE_LHPC_AFF
+    for ( int idt = 0; idt < g_sequential_source_timeslice_number; idt++ ) {
+
+      sprintf ( key, "/pgg/disc/orbit/g%d/px%d_py%d_pz%d/qx%d_qy%d_qz%d/nev%d/dt%d", source_gamma_id,
+          source_momentum[0], source_momentum[1], source_momentum[2], 
+          g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2],
+          evecs_use , g_sequential_source_timeslice_list[idt] ); 
+
+      affdir = aff_writer_mkpath ( affw, affwn, key );
+      if ( affdir == NULL ) {
+        fprintf ( stderr, "[p2gg_exdefl_analyse] Error from aff_writer_mkpath %d %s %d\n", __FILE__, __LINE__);
+        EXIT(17);
+      }
+
+      exitstatus = aff_node_put_complex ( affw, affdir, corr_3pt[idt], (uint32_t)T_global );
+      if(exitstatus != 0) {
+        fprintf ( stderr, "[p2gg_exdefl_analyse] Error from aff_node_put_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(18);
+      }
+    }
+#else
     sprintf ( filename, "%s.3pt.disc.g%d.px%d_py%d_pz%d.qx%d_qy%d_qz%d.nev%d.%.4d", outfile_prefix, source_gamma_id,
         source_momentum[0], source_momentum[1], source_momentum[2], 
         g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2],
@@ -558,8 +647,8 @@ int main(int argc, char **argv) {
             g_sequential_source_timeslice_list[idt], itsc, creal( corr_3pt[idt][itsc]), cimag( corr_3pt[idt][itsc]) );
       }
     }
-
     fclose ( ofs );
+#endif
 
     fini_5level_ztable ( &corr_v );
     fini_2level_ztable ( &corr_3pt );
@@ -576,9 +665,13 @@ int main(int argc, char **argv) {
    * close writer
    ***********************************************************/
 #ifdef HAVE_LHPC_AFF
-  if(io_proc == 2) {
-    aff_reader_close ( affr );
-  }  /* end of if io_proc == 2 */
+  aff_reader_close ( affr );
+
+  aff_status_str = (char*)aff_writer_close ( affw );
+  if( aff_status_str != NULL ) {
+    fprintf(stderr, "[p2gg_exdefl_analyse] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+    EXIT(32);
+  }
 #endif
   
   /***********************************************************
