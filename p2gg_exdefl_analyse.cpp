@@ -380,7 +380,7 @@ int main(int argc, char **argv) {
  
     affdir = aff_writer_mkpath ( affw, affwn, key );
     if ( affdir == NULL ) {
-      fprintf ( stderr, "[p2gg_exdefl_analyse] Error from aff_writer_mkpath %d %s %d\n", __FILE__, __LINE__);
+      fprintf ( stderr, "[p2gg_exdefl_analyse] Error from aff_writer_mkpath %s %d\n", __FILE__, __LINE__);
       EXIT(17);
     }
 
@@ -482,7 +482,7 @@ int main(int argc, char **argv) {
 
         affdir = aff_writer_mkpath ( affw, affwn, key );
         if ( affdir == NULL ) {
-          fprintf ( stderr, "[p2gg_exdefl_analyse] Error from aff_writer_mkpath %d %s %d\n", __FILE__, __LINE__);
+          fprintf ( stderr, "[p2gg_exdefl_analyse] Error from aff_writer_mkpath %s %d\n", __FILE__, __LINE__);
           EXIT(17);
         }
 
@@ -620,7 +620,7 @@ int main(int argc, char **argv) {
 
       affdir = aff_writer_mkpath ( affw, affwn, key );
       if ( affdir == NULL ) {
-        fprintf ( stderr, "[p2gg_exdefl_analyse] Error from aff_writer_mkpath %d %s %d\n", __FILE__, __LINE__);
+        fprintf ( stderr, "[p2gg_exdefl_analyse] Error from aff_writer_mkpath %s %d\n", __FILE__, __LINE__);
         EXIT(17);
       }
 
