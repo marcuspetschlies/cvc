@@ -57,7 +57,7 @@ using namespace cvc;
 int main(int argc, char **argv) {
 
   const char infile_prefix[] = "p2gg";
-  const char outfile_prefix[] = "p2gg_exdefl_analyse";
+  /* const char outfile_prefix[] = "p2gg_exdefl_analyse"; */
 
   int c;
   int filename_set = 0;
@@ -156,7 +156,7 @@ int main(int argc, char **argv) {
    * reader for aff input file
    ***********************************************************/
   struct AffReader_s *affr = NULL;
-  sprintf ( filename, "%s.%.4d.nev%d.aff", infile_prefix, Nconf, evecs_num );
+  sprintf ( filename, "%s/%d/%s.%.4d.nev%d.aff", filename_prefix, Nconf, infile_prefix, Nconf, evecs_num );
   fprintf(stdout, "# [p2gg_exdefl_analyse] reading data from file %s\n", filename);
   affr = aff_reader ( filename );
   char * aff_status_str = (char*)aff_reader_errstr ( affr );
@@ -176,7 +176,7 @@ int main(int argc, char **argv) {
    * writer for aff output file
    ***********************************************************/
   struct AffWriter_s *affw = NULL;
-  sprintf ( filename, "%s.%.4d.nev%d.aff", outfile_prefix, Nconf, evecs_num );
+  sprintf ( filename, "%s.%.4d.nev%d.aff", g_outfile_prefix, Nconf, evecs_num );
   fprintf(stdout, "# [p2gg_exdefl_analyse] writing data to file %s\n", filename);
   affw = aff_writer ( filename );
   aff_status_str = (char*)aff_writer_errstr ( affw );
@@ -337,7 +337,7 @@ int main(int argc, char **argv) {
   }
 
   gettimeofday ( &tb, (struct timezone *)NULL );
-  show_time ( &ta, &tb, "p2gg_exdefl_analyse", "aff-read-mat-p", g_cart_id == 0 );
+  show_time ( &ta, &tb, "p2gg_exdefl_analyse", "aff-read-mat-v", g_cart_id == 0 );
 
   /***********************************************************
    * set default values for step size and minimal number
@@ -390,7 +390,7 @@ int main(int argc, char **argv) {
       EXIT(18);
     }
 #else
-    sprintf ( filename, "%s.loop.g%d.px%d_py%d_pz%d.nev%d.%.4d", outfile_prefix, source_gamma_id,
+    sprintf ( filename, "%s.loop.g%d.px%d_py%d_pz%d.nev%d.%.4d", g_outfile_prefix, source_gamma_id,
         source_momentum[0], source_momentum[1], source_momentum[2], evecs_use, Nconf ); 
     FILE * ofs = fopen ( filename, "w" );
     if ( ofs == NULL ) {
@@ -492,7 +492,7 @@ int main(int argc, char **argv) {
           EXIT(18);
         }
 #else
-        sprintf ( filename, "%s.jj.g%d_g%d.px%d_py%d_pz%d.qx%d_qy%d_qz%d.nev%d.%.4d", outfile_prefix,
+        sprintf ( filename, "%s.jj.g%d_g%d.px%d_py%d_pz%d.qx%d_qy%d_qz%d.nev%d.%.4d", g_outfile_prefix,
             g_sink_gamma_id_list[ig1], g_sink_gamma_id_list[ig2],
             g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
             g_sink_momentum_list[kmom][0], g_sink_momentum_list[kmom][1], g_sink_momentum_list[kmom][2],
@@ -631,7 +631,7 @@ int main(int argc, char **argv) {
       }
     }
 #else
-    sprintf ( filename, "%s.3pt.disc.g%d.px%d_py%d_pz%d.qx%d_qy%d_qz%d.nev%d.%.4d", outfile_prefix, source_gamma_id,
+    sprintf ( filename, "%s.3pt.disc.g%d.px%d_py%d_pz%d.qx%d_qy%d_qz%d.nev%d.%.4d", g_outfile_prefix, source_gamma_id,
         source_momentum[0], source_momentum[1], source_momentum[2], 
         g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2],
         evecs_use, Nconf ); 
