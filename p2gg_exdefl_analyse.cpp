@@ -38,6 +38,9 @@
 #include "table_init_d.h"
 #include "clover.h"
 
+#undef _USE_ATA_TENSOR
+#define _USE_PTA_TENSOR
+
 /****************************************************
  * return momentum id from list according
  * to momentum conservation
@@ -62,8 +65,9 @@ using namespace cvc;
  ****************************************************/
 int main(int argc, char **argv) {
 
-  const char infile_prefix[] = "p2gg";
-  const char outfile_prefix[] = "p2gg_exdefl_analyse";
+  char const infile_prefix[] = "p2gg";
+  char const outfile_prefix[] = "p2gg_exdefl_analyse";
+  double const TWO_MPI = 2. * M_PI;
 
   int c;
   int filename_set = 0;
@@ -367,12 +371,10 @@ int main(int argc, char **argv) {
       EXIT(11);
     }
   
+    /***********************************************************
+     * loop on source points
+     ***********************************************************/
     for ( int ix = 0; ix < g_source_location_number; ix++ ) {
-      int const gsx[3] = {
-          g_source_coords_list[ix][0],
-          g_source_coords_list[ix][1],
-          g_source_coords_list[ix][2],
-          g_source_coords_list[ix][3] };
   
       for ( int igam = 0; igam < g_sink_gamma_id_number; igam++ ) {
         int sink_gamma_id = g_sink_gamma_id_list[igam];
@@ -467,8 +469,11 @@ int main(int argc, char **argv) {
     fclose ( ofs );
 #endif
 
+#ifdef _USE_ATA_TENSOR
     if ( vw_mat_v != NULL ) {
       /***********************************************************
+       *
+       * ATA JJ TENSOR
        *
        * construct all-to-all jj tensor and the 3-point
        * function
@@ -545,6 +550,7 @@ int main(int argc, char **argv) {
           /***********************************************************
            * write tensor to file
            ***********************************************************/
+          gettimeofday ( &ta, (struct timezone *)NULL );
 #ifdef HAVE_LHPC_AFF
           sprintf ( key, "/jj/g%d_g%d/px%d_py%d_pz%d/qx%d_qy%d_qz%d/nev%d",
               g_sink_gamma_id_list[ig1], g_sink_gamma_id_list[ig2],
@@ -582,10 +588,13 @@ int main(int argc, char **argv) {
           }}
           fclose ( ofs );
 #endif
+          gettimeofday ( &tb, (struct timezone *)NULL );
+          show_time ( &ta, &tb, "p2gg_exdefl_analyse", "jj-tensor-a2a-write", g_cart_id == 0 );
         }}  /* end of loop on tensor components at current and sink */
   
       }  /* end of loop on sink momenta */
   
+
       /***********************************************************
        * (half of the) epsion tensor
        *   all even permutations
@@ -682,6 +691,7 @@ int main(int argc, char **argv) {
       /***********************************************************
        * write 3-point to file
        ***********************************************************/
+      gettimeofday ( &ta, (struct timezone *)NULL );
 #ifdef HAVE_LHPC_AFF
       for ( int idt = 0; idt < g_sequential_source_timeslice_number; idt++ ) {
   
@@ -721,18 +731,25 @@ int main(int argc, char **argv) {
       }
       fclose ( ofs );
 #endif
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "p2gg_exdefl_analyse", "3pt-ata-write", g_cart_id == 0 );
   
       fini_5level_ztable ( &corr_v );
       fini_2level_ztable ( &corr_3pt );
 
     }  /* end of if vw_mat_v != NULL */
 
+#endif  /* of ifdef _USE_ATA_TENSOR */
 
     /***********************************************************/
     /***********************************************************/
+
+#ifdef _USE_PTA_TENSOR
 
     if ( vw_mat_v != NULL && vw_mat_vpt != NULL ) {
       /***********************************************************
+       *
+       * PTA JJ TENSOR
        *
        * construct point-to-all jj tensor and the 3-point
        * function
@@ -774,15 +791,15 @@ int main(int argc, char **argv) {
          ***********************************************************/
         for ( int isx = 0; isx < g_source_location_number; isx++ ) {
           int const tsnk = g_source_coords_list[isx][0];
-          int const xsrc[3] = {
+          int const xsnk[3] = {
               g_source_coords_list[isx][1],
               g_source_coords_list[isx][2],
               g_source_coords_list[isx][3] };
 
           double _Complex const ephase = TWO_MPI * ( 
-              ( g_sink_momentum_list[kmom][0] / (double)LX_global ) * xsrc[0] 
-            + ( g_sink_momentum_list[kmom][1] / (double)LY_global ) * xsrc[1] 
-            + ( g_sink_momentum_list[kmom][2] / (double)LZ_global ) * xsrc[2] );
+              ( g_sink_momentum_list[kmom][0] / (double)LX_global ) * xsnk[0] 
+            + ( g_sink_momentum_list[kmom][1] / (double)LY_global ) * xsnk[1] 
+            + ( g_sink_momentum_list[kmom][2] / (double)LZ_global ) * xsnk[2] );
 
           /***********************************************************
            * loop on tensor components at sink and current side
@@ -812,19 +829,18 @@ int main(int argc, char **argv) {
             }
   
             gettimeofday ( &tb, (struct timezone *)NULL );
-            show_time ( &ta, &tb, "p2gg_exdefl_analyse", "jj-tensor-TxT-partial-trace", g_cart_id == 0 );
+            show_time ( &ta, &tb, "p2gg_exdefl_analyse", "jj-tensor-pta-partial-trace", g_cart_id == 0 );
   
             /***********************************************************
              * write tensor to file
              ***********************************************************/
+            gettimeofday ( &ta, (struct timezone *)NULL );
 #ifdef HAVE_LHPC_AFF
             sprintf ( key, "/jj/g%d_g%d/px%d_py%d_pz%d/qx%d_qy%d_qz%d/nev%d/t%d_x%d_y%d_z%d",
                 g_sink_gamma_id_list[ig1], g_sink_gamma_id_list[ig2],
                 g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
                 g_sink_momentum_list[kmom][0], g_sink_momentum_list[kmom][1], g_sink_momentum_list[kmom][2],
-                evecs_use, 
-                g_source_coords_list[isx][0], g_source_coords_list[isx][1], g_source_coords_list[isx][2], g_source_coords_list[isx][3].
-                tsnk, xsrc[0], xsrc[1], xsrc[2]);
+                evecs_use, tsnk, xsnk[0], xsnk[1], xsnk[2]);
   
             affdir = aff_writer_mkpath ( affw, affwn, key );
             if ( affdir == NULL ) {
@@ -832,7 +848,7 @@ int main(int argc, char **argv) {
               EXIT(17);
             }
   
-            exitstatus = aff_node_put_complex ( affw, affdir, corr_v[imom][ig1][ig2][isx], (uint32_t)T_global*T_global );
+            exitstatus = aff_node_put_complex ( affw, affdir, corr_v[imom][ig1][ig2][isx], (uint32_t)T_global);
             if(exitstatus != 0) { 
               fprintf ( stderr, "[p2gg_exdefl_analyse] Error from aff_node_put_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(18);
@@ -842,7 +858,7 @@ int main(int argc, char **argv) {
                 g_sink_gamma_id_list[ig1], g_sink_gamma_id_list[ig2],
                 g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
                 g_sink_momentum_list[kmom][0], g_sink_momentum_list[kmom][1], g_sink_momentum_list[kmom][2],
-                evecs_use, Nconf, tsnk, xsrc[0], xsrc[1], xsrc[2] );
+                evecs_use, Nconf, tsnk, xnk[0], xsnk[1], xsnk[2] );
   
             FILE * ofs = fopen ( filename, "w" );
             if ( ofs == NULL ) {
@@ -855,6 +871,9 @@ int main(int argc, char **argv) {
             }
             fclose ( ofs );
 #endif
+            gettimeofday ( &tb, (struct timezone *)NULL );
+            show_time ( &ta, &tb, "p2gg_exdefl_analyse", "jj-tensor-pta-write", g_cart_id == 0 );
+
           }}  /* end of loop on tensor components at current and sink */
         }  /* end of loop on source locations */
       }  /* end of loop on sink momenta */
@@ -884,6 +903,12 @@ int main(int argc, char **argv) {
       gettimeofday ( &ta, (struct timezone *)NULL );
   
       for ( int isx = 0; isx < g_source_location_number; isx++ ) {
+
+        int const tsnk = g_source_coords_list[isx][0];
+        int const xsnk[3] = {
+            g_source_coords_list[isx][1],
+            g_source_coords_list[isx][2],
+            g_source_coords_list[isx][3] };
 
         /***********************************************************
          * allocate 3-point function
@@ -916,63 +941,59 @@ int main(int argc, char **argv) {
              *   tsnk - tsrc = g_sequential_source_timeslice_list[idt]
              ***********************************************************/
             for ( int idt = 0; idt < g_sequential_source_timeslice_number; idt++ ) {
-    STOPPED HERE
+
               /***********************************************************
-               * loop on source timeslices
-               *   all T_global lattice timeslices enter
+               * tsrc = tsnk - ( source - sink time sep. )
                ***********************************************************/
-              for ( int tsrc = 0; tsrc < T_global; tsrc++ ) {
+              int const tsrc = ( tsnk - g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
+    
+              /***********************************************************
+               * loop on current time
+               *   all T_global timeslices enter
+               ***********************************************************/
+#pragma omp parallel for
+              for ( int itsc = 0; itsc < T_global; itsc++ ) {
     
                 /***********************************************************
-                 * tsnk = tsrc + ( source - sink time sep. )
+                 * time difference current - sink
                  ***********************************************************/
-                int const tsnk = ( tsrc + g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
+                int tcur = ( tsnk + itsc + T_global ) % T_global;
     
                 /***********************************************************
-                 * loop on current time
-                 *   all T_global timeslices enter
+                 * contribution to the 3-pt function
+                 *
+                 *   loop_p at source time x 2-pt jj tensor at current , sink time
+                 *
+                 *   real part = Re ( Loop ) x Re ( jj tensor ) 
+                 *             = pion channel ( iso-triplet pseudoscalar )
+                 *
+                 *   imag part = Im ( Loop ) x Im ( jj tensor ) 
+                 *             = eta  channel ( iso-singlet pseudoscalar )
                  ***********************************************************/
-  #pragma omp parallel for
-                for ( int itsc = 0; itsc < T_global; itsc++ ) {
-    
-                  /***********************************************************
-                   * time difference current - sink
-                   ***********************************************************/
-                  int tcur = ( tsnk + itsc + T_global ) % T_global;
-    
-                  /***********************************************************
-                   * contribution to the 3-pt function
-                   *
-                   *   loop_p at source time x 2-pt jj tensor at current , sink time
-                   *
-                   *   real part = Re ( Loop ) x Re ( jj tensor ) 
-                   *             = pion channel ( iso-triplet pseudoscalar )
-                   *
-                   *   imag part = Im ( Loop ) x Im ( jj tensor ) 
-                   *             = eta  channel ( iso-singlet pseudoscalar )
-                   ***********************************************************/
-                  corr_3pt[idt][itsc] += 
-                      ( creal( loop_p[tsrc] ) * ( creal( corr_v[imom][ia][ib][isx][tcur] ) - creal( corr_v[imom][ib][ia][isx][tcur] ) ) * pvec[ic] * norm )
-                    + ( cimag( loop_p[tsrc] ) * ( cimag( corr_v[imom][ia][ib][isx][tcur] ) - cimag( corr_v[imom][ib][ia][isx][tcur] ) ) * pvec[ic] * norm ) * I;
-                }
-              }
+                corr_3pt[idt][itsc] += 
+                    ( creal( loop_p[tsrc] ) * ( creal( corr_v[imom][ia][ib][isx][tcur] ) - creal( corr_v[imom][ib][ia][isx][tcur] ) ) * pvec[ic] * norm )
+                  + ( cimag( loop_p[tsrc] ) * ( cimag( corr_v[imom][ia][ib][isx][tcur] ) - cimag( corr_v[imom][ib][ia][isx][tcur] ) ) * pvec[ic] * norm ) * I;
+
+              }  /* end of loop on current-sink time separations */
             }  /* end of loop on source - sink time separations */
           }  /* end of loop on permutations */
         }  /* end of loop on sink momenta */
     
         gettimeofday ( &tb, (struct timezone *)NULL );
-        show_time ( &ta, &tb, "p2gg_exdefl_analyse", "3pt-a2a-dt-T-orbit-average", g_cart_id == 0 );
+        show_time ( &ta, &tb, "p2gg_exdefl_analyse", "3pt-p2a-dt-T-orbit-average", g_cart_id == 0 );
     
         /***********************************************************
          * write 3-point to file
          ***********************************************************/
-  #ifdef HAVE_LHPC_AFF
+        gettimeofday ( &ta, (struct timezone *)NULL );
+#ifdef HAVE_LHPC_AFF
         for ( int idt = 0; idt < g_sequential_source_timeslice_number; idt++ ) {
     
-          sprintf ( key, "/pgg/disc/orbit/g%d/px%d_py%d_pz%d/qx%d_qy%d_qz%d/nev%d/dt%d", source_gamma_id,
+          sprintf ( key, "/pgg/disc/orbit/g%d/px%d_py%d_pz%d/qx%d_qy%d_qz%d/nev%d/dt%d/t%d_x%d_y%d_z%d", source_gamma_id,
               source_momentum[0], source_momentum[1], source_momentum[2], 
               g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2],
-              evecs_use , g_sequential_source_timeslice_list[idt] ); 
+              evecs_use , g_sequential_source_timeslice_list[idt],
+              tsnk, xsnk[0], xsnk[1], xsnk[2] ); 
     
           affdir = aff_writer_mkpath ( affw, affwn, key );
           if ( affdir == NULL ) {
@@ -985,12 +1006,13 @@ int main(int argc, char **argv) {
             fprintf ( stderr, "[p2gg_exdefl_analyse] Error from aff_node_put_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(18);
           }
-        }
-  #else
-        sprintf ( filename, "%s.3pt.disc.g%d.px%d_py%d_pz%d.qx%d_qy%d_qz%d.nev%d.%.4d", outfile_prefix, source_gamma_id,
+        }  /* end of loop on source-sink time separations */
+#else
+        sprintf ( filename, "%s.3pt.disc.g%d.px%d_py%d_pz%d.qx%d_qy%d_qz%d.nev%d.%.4d.t%d_x%d_y%d_z%d", outfile_prefix, source_gamma_id,
             source_momentum[0], source_momentum[1], source_momentum[2], 
             g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2],
-            evecs_use, Nconf ); 
+            evecs_use, Nconf,
+            tsnk, xsnk[0], xsnk[1], xsnk[2] ); 
         ofs = fopen ( filename, "w" );
         if ( ofs == NULL ) {
           fprintf ( stderr, "[p2gg_exdefl_analyse] Error from fopen %s %d\n", __FILE__, __LINE__);
@@ -1004,15 +1026,18 @@ int main(int argc, char **argv) {
           }
         }
         fclose ( ofs );
-  #endif
+#endif
         fini_2level_ztable ( &corr_3pt );
+
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "p2gg_exdefl_analyse", "3pt-p2a-writ3e", g_cart_id == 0 );
 
       }  /* end of loop on source locations */
   
       fini_5level_ztable ( &corr_v );
 
     }  /* end of if vw_mat_p != NULL */
-
+#endif  /* of _USE_PTA_TENSOR */
 
     /***********************************************************/
     /***********************************************************/

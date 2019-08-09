@@ -258,6 +258,12 @@ int main(int argc, char **argv) {
 
           for ( int ievecs = evecs_use_min; ievecs <= evecs_num; ievecs += evecs_use_step ) {
 
+            /***********************************************************
+             *
+             * ATA PGG
+             *   all-to-all 3pt function analysis
+             *
+             ***********************************************************/
             sprintf( key, "/pgg/disc/orbit/g%d/px%d_py%d_pz%d/qx%d_qy%d_qz%d/nev%d/dt%d", g_source_gamma_id_list[igsrc],
                 g_source_momentum_list[ipsrc][0], g_source_momentum_list[ipsrc][1], g_source_momentum_list[ipsrc][2],
                 g_sink_momentum_list[ipsnk][0], g_sink_momentum_list[ipsnk][1], g_sink_momentum_list[ipsnk][2],
@@ -357,6 +363,125 @@ int main(int argc, char **argv) {
             }  /* end of loop on real / imag */
 
             fini_2level_ztable ( &pgg_disc );
+
+            /***********************************************************/
+            /***********************************************************/
+
+            /***********************************************************
+             *
+             * PTA PGG
+             *   all-to-all 3pt function analysis
+             *
+             ***********************************************************/
+
+            double _Complex *** pgg_disc_pta = init_3level_ztable ( num_conf, num_src_per_conf, T_global );
+            if ( pgg_disc_pta == NULL ) {
+              fprintf(stderr, "[p2gg_exdefl_uwerr_analyse] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__);
+              EXIT(15);
+            }
+
+            /***********************************************************
+             * loop on configurations
+             ***********************************************************/
+            for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+
+#ifdef HAVE_LHPC_AFF
+              /***********************************************************
+               * reader for aff input file
+               ***********************************************************/
+              struct AffReader_s *affr = NULL;
+              sprintf ( filename, "%s.pref_%d_%d_%d.%.4d.nev%d.aff", infile_prefix,
+                  g_sink_momentum_list[ipsnk][0], g_sink_momentum_list[ipsnk][1], g_sink_momentum_list[ipsnk][2],
+                  conf_src_list[iconf][0][0], evecs_num );
+
+              if ( g_verbose > 2 ) fprintf(stdout, "# [p2gg_exdefl_uwerr_analyse] reading data from file %s\n", filename);
+              affr = aff_reader ( filename );
+              const char * aff_status_str = aff_reader_errstr ( affr );
+              if( aff_status_str != NULL ) {
+                fprintf(stderr, "[p2gg_exdefl_uwerr_analyse] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+                EXIT(15);
+              }
+
+              /* set root node */
+              struct AffNode_s * affrn = aff_reader_root( affr );
+              if( affrn == NULL ) {
+                fprintf(stderr, "[p2gg_exdefl_uwerr_analyse] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+                EXIT(17);
+              }
+
+              for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+
+                sprintf( key, "/pgg/disc/orbit/g%d/px%d_py%d_pz%d/qx%d_qy%d_qz%d/nev%d/dt%d/t%d_x%d_y%d_z%d", g_source_gamma_id_list[igsrc],
+                    g_source_momentum_list[ipsrc][0], g_source_momentum_list[ipsrc][1], g_source_momentum_list[ipsrc][2],
+                    g_sink_momentum_list[ipsnk][0], g_sink_momentum_list[ipsnk][1], g_sink_momentum_list[ipsnk][2],
+                    ievecs, g_sequential_source_timeslice_list[idt],
+                    conf_src_list[iconf][isrc][1], conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4] );
+
+                if ( g_verbose > 0 ) fprintf ( stdout, "# [p2gg_exdefl_uwerr_analyse] reading key %s %s %d\n", key , __FILE__, __LINE__ );
+
+                struct AffNode_s * affdir = aff_reader_chpath ( affr, affrn, key );
+                if ( affdir == NULL ) {
+                  fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from aff_reader_chpath %s %d\n", __FILE__, __LINE__);
+                  EXIT(15);
+                }
+
+                uint32_t uitems = T_global;
+                exitstatus = aff_node_get_complex ( affr, affdir, pgg_disc_pta[iconf][isrc], uitems );
+                if(exitstatus != 0) {
+                  fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                  EXIT(16);
+                }
+
+              }  /* end of loop on source locations */
+
+              aff_reader_close ( affr );
+#else
+#error "[p2gg_exdefl_uwerr_analyse] need lhp-aff lib; currently no other input method implemented"
+#endif
+            }  /* end of loop on configurations */
+
+            /***********************************************************
+             * UWerr analysis
+             ***********************************************************/
+            for ( int ireim = 0; ireim < 2; ireim++ ) {
+
+              double *** data = init_3level_dtable ( num_conf, num_src_per_conf, T_global );
+              if( data == NULL ) {
+                fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__);
+                EXIT(16);
+              }
+
+
+#pragma omp parallel for
+              for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+                for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+                  for ( int it = 0; it < T_global; it++ ) {
+                    data[iconf][isrc][it] = ( ireim == 0 ) ?  creal ( pgg_disc_pta[iconf][isrc][it] ) : cimag ( pgg_disc_pta[iconf][isrc][it] );
+                  }
+                }
+              }
+
+              char obs_name[100];
+              sprintf ( obs_name, "pgg_disc.lm.pta.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.nev%d.%s", 
+                  g_source_momentum_list[ipsrc][0], g_source_momentum_list[ipsrc][1], g_source_momentum_list[ipsrc][2],
+                  g_source_gamma_id_list[igsrc], g_sequential_source_timeslice_list[idt],
+                  g_sink_momentum_list[ipsnk][0], g_sink_momentum_list[ipsnk][1], g_sink_momentum_list[ipsnk][2],
+                  ievecs, reim_str[ireim] );
+
+              if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_exdefl_uwerr_analyse] obs_name = %s %s %d\n", obs_name, __FILE__, __LINE__ );
+
+              /* apply UWerr analysis */
+              exitstatus = apply_uwerr_real ( data[0][0], num_conf * num_src_per_conf, T_global, 0, 1, obs_name );
+              if ( exitstatus != 0 ) {
+                fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                EXIT(1);
+              }
+
+              fini_3level_dtable ( &data );
+
+            }  /* end of loop on real / imag */
+
+            fini_3level_ztable ( &pgg_disc_pta );
 
           }  /* end of loop on evecs number */
         }  /* end of loop on source - sink time separations */

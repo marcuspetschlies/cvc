@@ -69,20 +69,13 @@ int main(int argc, char **argv) {
 
   char const reim_str[2][3] = {"re" , "im"};
 
-  char const operator_type_tag[4][8]  = { "cvc-cvc"    , "lvc-lvc"    , "cvc-lvc"    , "lvc-cvc"    };
+  /* char const operator_type_tag[4][8]  = { "cvc-cvc"    , "lvc-lvc"    , "cvc-lvc"    , "lvc-cvc"    }; */
 
   char const correlator_prefix[4][20] = { "hvp"        , "local-local", "hvp"        , "local-cvc"  };
 
   char const flavor_tag[4][20]        = { "u-cvc-u-cvc", "u-gf-u-gi"  , "u-cvc-u-lvc", "u-gf-u-cvc" };
 
   char const loop_type_tag[3][8] = { "NA", "dOp", "Scalar" };
-
-  /***********************************************************
-   * sign for g5 Gamma^\dagger g5
-   *                                                0,  1,  2,  3, id,  5, 0_5, 1_5, 2_5, 3_5, 0_1, 0_2, 0_3, 1_2, 1_3, 2_3
-   *
-   ***********************************************************/
-  int const sequential_source_gamma_id_sign[16] ={ -1, -1, -1, -1, +1, +1,  +1,  +1,  +1,  +1,  -1,  -1,  -1,  -1,  -1,  -1 };
 
   int const gamma_tmlqcd_to_binary[16] = { 8, 1, 2, 4, 0,  15, 7, 14, 13, 11, 9, 10, 12, 3, 5, 6 };
 
@@ -256,6 +249,21 @@ int main(int argc, char **argv) {
   }
 
   /***********************************************************
+   * how to normalize loops
+   ***********************************************************/
+  double loop_norm = 0.;
+  if (   strcmp ( loop_type_tag[loop_type], "dOp"     ) == 0  
+      || strcmp ( loop_type_tag[loop_type], "LpsDw"   ) == 0
+      || strcmp ( loop_type_tag[loop_type], "LpsDwCv" ) == 0 ) {
+    loop_norm = -4. * g_kappa;
+  } else if ( strcmp ( loop_type_tag[loop_type], "Scalar"  ) == 0 
+           || strcmp ( loop_type_tag[loop_type], "Loops"   ) == 0
+           || strcmp ( loop_type_tag[loop_type], "LoopsCv" ) == 0 ) {
+    loop_norm = -8. * g_mu * g_kappa * g_kappa;
+  }
+  if ( g_verbose > 0 ) fprintf ( stdout, "# [p2gg_analyse_wdisc] oet_type %s loop_norm = %25.16e\n", loop_type_tag[loop_type], loop_norm );
+
+  /***********************************************************
    ***********************************************************
    **
    ** HVP
@@ -296,7 +304,7 @@ int main(int argc, char **argv) {
       /* sprintf ( filename, "%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", Nconf, g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
       sprintf ( filename, "%d/%s.%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", Nconf, correlator_prefix[operator_type], flavor_tag[operator_type], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
 
-      fprintf(stdout, "# [p2gg_analyse_wdisc] reading data from file %s\n", filename);
+      if ( g_verbose > 0 ) fprintf(stdout, "# [p2gg_analyse_wdisc] reading data from file %s %s %d\n", filename, __FILE__, __LINE__);
       affr = aff_reader ( filename );
       const char * aff_status_str = aff_reader_errstr ( affr );
       if( aff_status_str != NULL ) {
@@ -482,8 +490,6 @@ int main(int argc, char **argv) {
    * imaginary part of HVP tensor
    * components
    ****************************************/
-
-
   for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
 
     int const momentum[3] = { g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2] };
@@ -608,7 +614,7 @@ int main(int argc, char **argv) {
       Nconf = conf_src_list[iconf][0][0];
       sprintf ( filename, "loops/Nconf_%d.%s.px%dpy%dpz%d", Nconf, loop_type_tag[loop_type], seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
       /* sprintf ( filename, "loops/Nconf_%.4d.%s.loop_gamma4", Nconf, loop_type_tag[loop_type] ); */
-      if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse_wdisc] reading loop data from file %s\n", filename );
+      if ( g_verbose > 0 ) fprintf ( stdout, "# [p2gg_analyse_wdisc] reading loop data from file %s %s %d\n", filename, __FILE__, __LINE__ );
       FILE * ofs = fopen ( filename, "r" );
       if ( ofs == NULL ) {
         fprintf ( stderr, "[p2gg_analyse_wdisc] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__ );
@@ -619,7 +625,10 @@ int main(int argc, char **argv) {
         for ( int t = 0; t < T; t++ ) {
           for ( int mu = 0; mu < 4; mu++ ) {
           for ( int nu = 0; nu < 4; nu++ ) {
-            fscanf ( ofs, "%lf %lf\n", loops_matrix[iconf][isample][t][mu]+2*nu, loops_matrix[iconf][isample][t][mu]+2*nu+1 );
+            if ( fscanf ( ofs, "%lf %lf\n", loops_matrix[iconf][isample][t][mu]+2*nu, loops_matrix[iconf][isample][t][mu]+2*nu+1 ) != 2 ) {
+              fprintf ( stderr, "[p2gg_analyse_wdisc] Error from fscanf %s %d\n", __FILE__, __LINE__ );
+              EXIT(126);
+            }
             /* show all data */
             if ( g_verbose > 4 ) {
               fprintf ( stdout, "loop_mat c %6d s %3d t %3d m %d nu %d l %25.16e %25.16e\n", Nconf, isample, t, mu, nu,
@@ -666,6 +675,7 @@ int main(int argc, char **argv) {
        **********************************************************/
 #pragma omp parallel for
       for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+        double const norm = loop_norm / (double)g_nsample;
         for ( int t = 0; t < T; t++ ) {
           loop_avg[iconf][2*t  ] = 0.; 
           loop_avg[iconf][2*t+1] = 0.; 
@@ -676,9 +686,9 @@ int main(int argc, char **argv) {
           }
 
           /* normalize */
-          loop_avg[iconf][2*t  ] *= 1. / g_nsample;
-          loop_avg[iconf][2*t+1] *= 1. / g_nsample;
-          /* show all data */
+          loop_avg[iconf][2*t  ] *= norm;
+          loop_avg[iconf][2*t+1] *= norm;
+
         }
       }
 
@@ -864,9 +874,11 @@ int main(int argc, char **argv) {
         for ( int iconf = 0; iconf < num_conf; iconf++ ) {
 
           for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-              /* calculate the sequential source timeslice; tseq = source timeslice + source-sink-timeseparation */
-              int const tseq = ( sequential_source_timeslice + conf_src_list[iconf][isrc][1] ) % T_global;
-              if ( g_verbose > 3 ) fprintf ( stdout, "# [p2gg_analyse_wdisc] t_src %3d dt %3d tseq %3d\n", conf_src_list[iconf][isrc][1] , sequential_source_timeslice, tseq );
+ 
+            /* calculate the sequential source timeslice; tseq = source timeslice + source-sink-timeseparation */
+            int const tseq = ( conf_src_list[iconf][isrc][1] - sequential_source_timeslice + T_global ) % T_global;
+            if ( g_verbose > 3 ) fprintf ( stdout, "# [p2gg_analyse_wdisc] tsnk (v) %3d dt %3d tsrc (loop) %3d\n",
+                conf_src_list[iconf][isrc][1] , sequential_source_timeslice, tseq );
 
             for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
               for ( int s1 = 0; s1 < 4; s1++ ) {
@@ -912,8 +924,6 @@ int main(int argc, char **argv) {
           gettimeofday ( &tb, (struct timezone *)NULL );
           show_time ( &ta, &tb, "p2gg_analyse_wdisc", "check-wi-in-momentum-space", g_cart_id == 0 );
         }  /* end of if check_momentum_space_WI */
-
-
 
         /****************************************
          * STATISTICAL ANALYSIS for real and
