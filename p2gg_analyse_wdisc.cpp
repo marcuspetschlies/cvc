@@ -255,7 +255,6 @@ int main(int argc, char **argv) {
     }
   }
 
-#if 0
   /***********************************************************
    ***********************************************************
    **
@@ -547,7 +546,7 @@ int main(int argc, char **argv) {
     fini_3level_dtable ( &data );
 
   }  /* end of loop on re / im */
-
+#if 0
 #endif  /* of if 0 */
 
   /**********************************************************
@@ -808,7 +807,7 @@ int main(int argc, char **argv) {
 
       }  /* end of if loop_stats */
 
-#if 0
+
       /**********************************************************
        * loop data for pgg
        *
@@ -1132,7 +1131,7 @@ int main(int argc, char **argv) {
       }  /* end of loop on sequential source timeslices */
 
       fini_2level_dtable ( &loop_pgg );
-
+#if 0
 #endif /* of if 0 */
 
 
