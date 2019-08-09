@@ -742,18 +742,9 @@ int main(int argc, char **argv) {
       /***********************************************************
        * allocate corr_v = jj tensor
        ***********************************************************/
-      double _Complex ***** corr_v = init_5level_ztable ( g_sink_momentum_number, g_sink_gamma_id_number, g_sink_gamma_id_number, T_global, g_source_location_number);
+      double _Complex ***** corr_v = init_5level_ztable ( g_sink_momentum_number, g_sink_gamma_id_number, g_sink_gamma_id_number, g_source_location_number, T_global);
       if ( corr_v == NULL ) {
         fprintf ( stderr, "[p2gg_exdefl_analyse] Error from init_5level_ztable %s %d\n", __FILE__, __LINE__);
-        EXIT(15);
-      }
-  
-      /***********************************************************
-       * allocate 3-point function
-       ***********************************************************/
-      double _Complex ** corr_3pt = init_2level_ztable ( g_sequential_source_timeslice_number, T_global );
-      if ( corr_3pt == NULL ) {
-        fprintf ( stderr, "[p2gg_exdefl_analyse] Error from init_2level_ztable %s %d\n", __FILE__, __LINE__);
         EXIT(15);
       }
   
@@ -807,14 +798,15 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
             for ( int x0 = 0; x0 < T_global; x0++ ) {
   
-              STOPPPED HERE
               /***********************************************************
                * loop on evec ids, partial trace
                * add the Fourier phase from source location
+               *
+               * v_all [x0] x v_pt [y0]
                ***********************************************************/
               for ( int iw = 0; iw < evecs_use; iw++ ) {
               for ( int iv = 0; iv < evecs_use; iv++ ) {
-                corr_v[imom][ig1][ig2][x0][isx] += vw_mat_v[imom][ig1][x0][iw][iv] * vw_mat_vpt[isx][ig2][iv][iw] * evecs_eval_inv[iw] * evecs_eval_inv[iv] * ephase;
+                corr_v[imom][ig1][ig2][isx][x0] += vw_mat_v[imom][ig1][x0][iw][iv] * vw_mat_vpt[isx][ig2][iv][iw] * evecs_eval_inv[iw] * evecs_eval_inv[iv] * ephase;
               }}
   
             }
@@ -831,7 +823,8 @@ int main(int argc, char **argv) {
                 g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
                 g_sink_momentum_list[kmom][0], g_sink_momentum_list[kmom][1], g_sink_momentum_list[kmom][2],
                 evecs_use, 
-                g_source_coords_list[isx][0], g_source_coords_list[isx][1], g_source_coords_list[isx][2], g_source_coords_list[isx][3] );
+                g_source_coords_list[isx][0], g_source_coords_list[isx][1], g_source_coords_list[isx][2], g_source_coords_list[isx][3].
+                tsnk, xsrc[0], xsrc[1], xsrc[2]);
   
             affdir = aff_writer_mkpath ( affw, affwn, key );
             if ( affdir == NULL ) {
@@ -839,32 +832,31 @@ int main(int argc, char **argv) {
               EXIT(17);
             }
   
-            exitstatus = aff_node_put_complex ( affw, affdir, corr_v[imom][ig1][ig2][0], (uint32_t)T_global*T_global );
+            exitstatus = aff_node_put_complex ( affw, affdir, corr_v[imom][ig1][ig2][isx], (uint32_t)T_global*T_global );
             if(exitstatus != 0) { 
               fprintf ( stderr, "[p2gg_exdefl_analyse] Error from aff_node_put_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(18);
-           }
+            }
 #else
-          sprintf ( filename, "%s.jj.g%d_g%d.px%d_py%d_pz%d.qx%d_qy%d_qz%d.nev%d.%.4d", outfile_prefix,
-              g_sink_gamma_id_list[ig1], g_sink_gamma_id_list[ig2],
-              g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
-              g_sink_momentum_list[kmom][0], g_sink_momentum_list[kmom][1], g_sink_momentum_list[kmom][2],
-              evecs_use, Nconf );
+            sprintf ( filename, "%s.jj.g%d_g%d.px%d_py%d_pz%d.qx%d_qy%d_qz%d.nev%d.%.4d.t%d_x%d_y%d_z%d", outfile_prefix,
+                g_sink_gamma_id_list[ig1], g_sink_gamma_id_list[ig2],
+                g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
+                g_sink_momentum_list[kmom][0], g_sink_momentum_list[kmom][1], g_sink_momentum_list[kmom][2],
+                evecs_use, Nconf, tsnk, xsrc[0], xsrc[1], xsrc[2] );
   
-          FILE * ofs = fopen ( filename, "w" );
-          if ( ofs == NULL ) {
-            fprintf ( stderr, "[p2gg_exdefl_analyse] Error from fopen %s %d\n", __FILE__, __LINE__);
-            EXIT(21);
-          }
+            FILE * ofs = fopen ( filename, "w" );
+            if ( ofs == NULL ) {
+              fprintf ( stderr, "[p2gg_exdefl_analyse] Error from fopen %s %d\n", __FILE__, __LINE__);
+              EXIT(21);
+            }
   
-          for ( int x0 = 0; x0 < T_global; x0++ ) {
-          for ( int y0 = 0; y0 < T_global; y0++ ) {
-            fprintf ( ofs, "%3d %3d %25.16e  %25.16e\n", x0, y0, creal( corr_v[imom][ig1][ig2][x0][y0] ), cimag( corr_v[imom][ig1][ig2][x0][y0] ) );
-          }}
-          fclose ( ofs );
+            for ( int x0 = 0; x0 < T_global; x0++ ) {
+              fprintf ( ofs, "%3d %3d %25.16e  %25.16e\n", x0, y0, creal( corr_v[imom][ig1][ig2][isx][x0] ), cimag( corr_v[imom][ig1][ig2][isx][x0] ) );
+            }
+            fclose ( ofs );
 #endif
-        }}  /* end of loop on tensor components at current and sink */
-  
+          }}  /* end of loop on tensor components at current and sink */
+        }  /* end of loop on source locations */
       }  /* end of loop on sink momenta */
   
       /***********************************************************
@@ -891,120 +883,133 @@ int main(int argc, char **argv) {
   
       gettimeofday ( &ta, (struct timezone *)NULL );
   
-      /***********************************************************
-       * loop over sink momenta = average over (sub-)orbit
-       ***********************************************************/
-      for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
-  
-        pvec[0] = 2 * sin ( M_PI * g_sink_momentum_list[imom][0] / (double)LX_global );
-        pvec[1] = 2 * sin ( M_PI * g_sink_momentum_list[imom][1] / (double)LY_global );
-        pvec[2] = 2 * sin ( M_PI * g_sink_momentum_list[imom][2] / (double)LZ_global );
-  
+      for ( int isx = 0; isx < g_source_location_number; isx++ ) {
+
         /***********************************************************
-         * loop over permuations for 3-dim. epsilon tensor
+         * allocate 3-point function
          ***********************************************************/
-        for ( int iperm = 0; iperm < 3; iperm++ ) {
-          int const ia = epsilon_tensor[iperm][0];
-          int const ib = epsilon_tensor[iperm][1];
-          int const ic = epsilon_tensor[iperm][2];
-  
+        double _Complex ** corr_3pt = init_2level_ztable ( g_sequential_source_timeslice_number, T_global );
+        if ( corr_3pt == NULL ) {
+          fprintf ( stderr, "[p2gg_exdefl_analyse] Error from init_2level_ztable %s %d\n", __FILE__, __LINE__);
+          EXIT(15);
+        }
+    
+        /***********************************************************
+         * loop over sink momenta = average over (sub-)orbit
+         ***********************************************************/
+        for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+    
+          pvec[0] = 2 * sin ( M_PI * g_sink_momentum_list[imom][0] / (double)LX_global );
+          pvec[1] = 2 * sin ( M_PI * g_sink_momentum_list[imom][1] / (double)LY_global );
+          pvec[2] = 2 * sin ( M_PI * g_sink_momentum_list[imom][2] / (double)LZ_global );
+    
           /***********************************************************
-           * loop on source - sink time separations
-           *   tsnk - tsrc = g_sequential_source_timeslice_list[idt]
+           * loop over permuations for 3-dim. epsilon tensor
            ***********************************************************/
-          for ( int idt = 0; idt < g_sequential_source_timeslice_number; idt++ ) {
-  
+          for ( int iperm = 0; iperm < 3; iperm++ ) {
+            int const ia = epsilon_tensor[iperm][0];
+            int const ib = epsilon_tensor[iperm][1];
+            int const ic = epsilon_tensor[iperm][2];
+    
             /***********************************************************
-             * loop on source timeslices
-             *   all T_global lattice timeslices enter
+             * loop on source - sink time separations
+             *   tsnk - tsrc = g_sequential_source_timeslice_list[idt]
              ***********************************************************/
-            for ( int tsrc = 0; tsrc < T_global; tsrc++ ) {
-  
+            for ( int idt = 0; idt < g_sequential_source_timeslice_number; idt++ ) {
+    STOPPED HERE
               /***********************************************************
-               * tsnk = tsrc + ( source - sink time sep. )
+               * loop on source timeslices
+               *   all T_global lattice timeslices enter
                ***********************************************************/
-              int const tsnk = ( tsrc + g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
-  
-              /***********************************************************
-               * loop on current time
-               *   all T_global timeslices enter
-               ***********************************************************/
-#pragma omp parallel for
-              for ( int itsc = 0; itsc < T_global; itsc++ ) {
-  
+              for ( int tsrc = 0; tsrc < T_global; tsrc++ ) {
+    
                 /***********************************************************
-                 * time difference current - sink
+                 * tsnk = tsrc + ( source - sink time sep. )
                  ***********************************************************/
-                int tcur = ( tsnk + itsc + T_global ) % T_global;
-  
+                int const tsnk = ( tsrc + g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
+    
                 /***********************************************************
-                 * contribution to the 3-pt function
-                 *
-                 *   loop_p at source time x 2-pt jj tensor at current , sink time
-                 *
-                 *   real part = Re ( Loop ) x Re ( jj tensor ) 
-                 *             = pion channel ( iso-triplet pseudoscalar )
-                 *
-                 *   imag part = Im ( Loop ) x Im ( jj tensor ) 
-                 *             = eta  channel ( iso-singlet pseudoscalar )
+                 * loop on current time
+                 *   all T_global timeslices enter
                  ***********************************************************/
-                corr_3pt[idt][itsc] += 
-                    ( creal( loop_p[tsrc] ) * ( creal( corr_v[imom][ia][ib][tcur][tsnk] ) - creal( corr_v[imom][ib][ia][tcur][tsnk] ) ) * pvec[ic] * norm )
-                  + ( cimag( loop_p[tsrc] ) * ( cimag( corr_v[imom][ia][ib][tcur][tsnk] ) - cimag( corr_v[imom][ib][ia][tcur][tsnk] ) ) * pvec[ic] * norm ) * I;
+  #pragma omp parallel for
+                for ( int itsc = 0; itsc < T_global; itsc++ ) {
+    
+                  /***********************************************************
+                   * time difference current - sink
+                   ***********************************************************/
+                  int tcur = ( tsnk + itsc + T_global ) % T_global;
+    
+                  /***********************************************************
+                   * contribution to the 3-pt function
+                   *
+                   *   loop_p at source time x 2-pt jj tensor at current , sink time
+                   *
+                   *   real part = Re ( Loop ) x Re ( jj tensor ) 
+                   *             = pion channel ( iso-triplet pseudoscalar )
+                   *
+                   *   imag part = Im ( Loop ) x Im ( jj tensor ) 
+                   *             = eta  channel ( iso-singlet pseudoscalar )
+                   ***********************************************************/
+                  corr_3pt[idt][itsc] += 
+                      ( creal( loop_p[tsrc] ) * ( creal( corr_v[imom][ia][ib][isx][tcur] ) - creal( corr_v[imom][ib][ia][isx][tcur] ) ) * pvec[ic] * norm )
+                    + ( cimag( loop_p[tsrc] ) * ( cimag( corr_v[imom][ia][ib][isx][tcur] ) - cimag( corr_v[imom][ib][ia][isx][tcur] ) ) * pvec[ic] * norm ) * I;
+                }
               }
-            }
-          }  /* end of loop on source - sink time separations */
-        }  /* end of loop on permutations */
-      }  /* end of loop on sink momenta */
-  
-      gettimeofday ( &tb, (struct timezone *)NULL );
-      show_time ( &ta, &tb, "p2gg_exdefl_analyse", "3pt-a2a-dt-T-orbit-average", g_cart_id == 0 );
-  
-      /***********************************************************
-       * write 3-point to file
-       ***********************************************************/
-#ifdef HAVE_LHPC_AFF
-      for ( int idt = 0; idt < g_sequential_source_timeslice_number; idt++ ) {
-  
-        sprintf ( key, "/pgg/disc/orbit/g%d/px%d_py%d_pz%d/qx%d_qy%d_qz%d/nev%d/dt%d", source_gamma_id,
+            }  /* end of loop on source - sink time separations */
+          }  /* end of loop on permutations */
+        }  /* end of loop on sink momenta */
+    
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "p2gg_exdefl_analyse", "3pt-a2a-dt-T-orbit-average", g_cart_id == 0 );
+    
+        /***********************************************************
+         * write 3-point to file
+         ***********************************************************/
+  #ifdef HAVE_LHPC_AFF
+        for ( int idt = 0; idt < g_sequential_source_timeslice_number; idt++ ) {
+    
+          sprintf ( key, "/pgg/disc/orbit/g%d/px%d_py%d_pz%d/qx%d_qy%d_qz%d/nev%d/dt%d", source_gamma_id,
+              source_momentum[0], source_momentum[1], source_momentum[2], 
+              g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2],
+              evecs_use , g_sequential_source_timeslice_list[idt] ); 
+    
+          affdir = aff_writer_mkpath ( affw, affwn, key );
+          if ( affdir == NULL ) {
+            fprintf ( stderr, "[p2gg_exdefl_analyse] Error from aff_writer_mkpath %s %d\n", __FILE__, __LINE__);
+            EXIT(17);
+          }
+    
+          exitstatus = aff_node_put_complex ( affw, affdir, corr_3pt[idt], (uint32_t)T_global );
+          if(exitstatus != 0) {
+            fprintf ( stderr, "[p2gg_exdefl_analyse] Error from aff_node_put_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(18);
+          }
+        }
+  #else
+        sprintf ( filename, "%s.3pt.disc.g%d.px%d_py%d_pz%d.qx%d_qy%d_qz%d.nev%d.%.4d", outfile_prefix, source_gamma_id,
             source_momentum[0], source_momentum[1], source_momentum[2], 
             g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2],
-            evecs_use , g_sequential_source_timeslice_list[idt] ); 
-  
-        affdir = aff_writer_mkpath ( affw, affwn, key );
-        if ( affdir == NULL ) {
-          fprintf ( stderr, "[p2gg_exdefl_analyse] Error from aff_writer_mkpath %s %d\n", __FILE__, __LINE__);
-          EXIT(17);
+            evecs_use, Nconf ); 
+        ofs = fopen ( filename, "w" );
+        if ( ofs == NULL ) {
+          fprintf ( stderr, "[p2gg_exdefl_analyse] Error from fopen %s %d\n", __FILE__, __LINE__);
+          EXIT(21);
         }
-  
-        exitstatus = aff_node_put_complex ( affw, affdir, corr_3pt[idt], (uint32_t)T_global );
-        if(exitstatus != 0) {
-          fprintf ( stderr, "[p2gg_exdefl_analyse] Error from aff_node_put_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-          EXIT(18);
+    
+        for ( int idt = 0; idt < g_sequential_source_timeslice_number; idt++ ) {
+          for ( int itsc = 0; itsc < T_global; itsc++ ) {
+            fprintf ( ofs, "%3d %3d %25.16e  %25.16e\n", 
+                g_sequential_source_timeslice_list[idt], itsc, creal( corr_3pt[idt][itsc]), cimag( corr_3pt[idt][itsc]) );
+          }
         }
-      }
-#else
-      sprintf ( filename, "%s.3pt.disc.g%d.px%d_py%d_pz%d.qx%d_qy%d_qz%d.nev%d.%.4d", outfile_prefix, source_gamma_id,
-          source_momentum[0], source_momentum[1], source_momentum[2], 
-          g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2],
-          evecs_use, Nconf ); 
-      ofs = fopen ( filename, "w" );
-      if ( ofs == NULL ) {
-        fprintf ( stderr, "[p2gg_exdefl_analyse] Error from fopen %s %d\n", __FILE__, __LINE__);
-        EXIT(21);
-      }
-  
-      for ( int idt = 0; idt < g_sequential_source_timeslice_number; idt++ ) {
-        for ( int itsc = 0; itsc < T_global; itsc++ ) {
-          fprintf ( ofs, "%3d %3d %25.16e  %25.16e\n", 
-              g_sequential_source_timeslice_list[idt], itsc, creal( corr_3pt[idt][itsc]), cimag( corr_3pt[idt][itsc]) );
-        }
-      }
-      fclose ( ofs );
-#endif
+        fclose ( ofs );
+  #endif
+        fini_2level_ztable ( &corr_3pt );
+
+      }  /* end of loop on source locations */
   
       fini_5level_ztable ( &corr_v );
-      fini_2level_ztable ( &corr_3pt );
 
     }  /* end of if vw_mat_p != NULL */
 
