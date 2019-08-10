@@ -38,7 +38,7 @@
 #include "table_init_d.h"
 #include "clover.h"
 
-#undef _USE_ATA_TENSOR
+#define _USE_ATA_TENSOR
 #define _USE_PTA_TENSOR
 
 /****************************************************
@@ -66,7 +66,7 @@ using namespace cvc;
 int main(int argc, char **argv) {
 
   char const infile_prefix[] = "p2gg";
-  char const outfile_prefix[] = "p2gg_exdefl_analyse";
+  /* char const outfile_prefix[] = "p2gg_exdefl_analyse"; */
   double const TWO_MPI = 2. * M_PI;
 
   int c;
@@ -186,7 +186,7 @@ int main(int argc, char **argv) {
    * writer for aff output file
    ***********************************************************/
   struct AffWriter_s *affw = NULL;
-  sprintf ( filename, "%s.%.4d.nev%d.aff", outfile_prefix, Nconf, evecs_num );
+  sprintf ( filename, "%s.%.4d.nev%d.aff", g_outfile_prefix, Nconf, evecs_num );
   fprintf(stdout, "# [p2gg_exdefl_analyse] writing data to file %s\n", filename);
   affw = aff_writer ( filename );
   aff_status_str = (char*)aff_writer_errstr ( affw );
@@ -456,7 +456,7 @@ int main(int argc, char **argv) {
       EXIT(18);
     }
 #else
-    sprintf ( filename, "%s.loop.g%d.px%d_py%d_pz%d.nev%d.%.4d", outfile_prefix, source_gamma_id,
+    sprintf ( filename, "%s.loop.g%d.px%d_py%d_pz%d.nev%d.%.4d", g_outfile_prefix, source_gamma_id,
         source_momentum[0], source_momentum[1], source_momentum[2], evecs_use, Nconf ); 
     FILE * ofs = fopen ( filename, "w" );
     if ( ofs == NULL ) {
@@ -512,7 +512,10 @@ int main(int argc, char **argv) {
          ***********************************************************/
         int kmom = get_momentum_id ( g_sink_momentum_list[imom], source_momentum, g_sink_momentum_number, g_sink_momentum_list );
   
-        if ( kmom == -1 ) continue;  /* no such momentum was found */
+        if ( kmom == -1 ) {
+          fprintf ( stderr, "[p2gg_exdefl_analyse] Warning momentum not found %s %d\n", __FILE__, __LINE__ );
+          continue;  /* no such momentum was found */
+        }
   
         if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_exdefl_analyse] psrc = %3d %3d %3d   psnk = %3d %3d %3d   pcur = %3d %3d %3d\n",
             source_momentum[0], source_momentum[1], source_momentum[2],
@@ -570,7 +573,7 @@ int main(int argc, char **argv) {
             EXIT(18);
           }
 #else
-          sprintf ( filename, "%s.jj.g%d_g%d.px%d_py%d_pz%d.qx%d_qy%d_qz%d.nev%d.%.4d", outfile_prefix,
+          sprintf ( filename, "%s.jj.g%d_g%d.px%d_py%d_pz%d.qx%d_qy%d_qz%d.nev%d.%.4d", g_outfile_prefix,
               g_sink_gamma_id_list[ig1], g_sink_gamma_id_list[ig2],
               g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
               g_sink_momentum_list[kmom][0], g_sink_momentum_list[kmom][1], g_sink_momentum_list[kmom][2],
@@ -713,7 +716,7 @@ int main(int argc, char **argv) {
         }
       }
 #else
-      sprintf ( filename, "%s.3pt.disc.g%d.px%d_py%d_pz%d.qx%d_qy%d_qz%d.nev%d.%.4d", outfile_prefix, source_gamma_id,
+      sprintf ( filename, "%s.3pt.disc.g%d.px%d_py%d_pz%d.qx%d_qy%d_qz%d.nev%d.%.4d", g_outfile_prefix, source_gamma_id,
           source_momentum[0], source_momentum[1], source_momentum[2], 
           g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2],
           evecs_use, Nconf ); 
@@ -796,10 +799,10 @@ int main(int argc, char **argv) {
               g_source_coords_list[isx][2],
               g_source_coords_list[isx][3] };
 
-          double _Complex const ephase = TWO_MPI * ( 
+          double _Complex const ephase = cexp ( TWO_MPI * (
               ( g_sink_momentum_list[kmom][0] / (double)LX_global ) * xsnk[0] 
             + ( g_sink_momentum_list[kmom][1] / (double)LY_global ) * xsnk[1] 
-            + ( g_sink_momentum_list[kmom][2] / (double)LZ_global ) * xsnk[2] );
+            + ( g_sink_momentum_list[kmom][2] / (double)LZ_global ) * xsnk[2] ) * 1.i );
 
           /***********************************************************
            * loop on tensor components at sink and current side
@@ -854,7 +857,7 @@ int main(int argc, char **argv) {
               EXIT(18);
             }
 #else
-            sprintf ( filename, "%s.jj.g%d_g%d.px%d_py%d_pz%d.qx%d_qy%d_qz%d.nev%d.%.4d.t%d_x%d_y%d_z%d", outfile_prefix,
+            sprintf ( filename, "%s.jj.g%d_g%d.px%d_py%d_pz%d.qx%d_qy%d_qz%d.nev%d.%.4d.t%d_x%d_y%d_z%d", g_outfile_prefix,
                 g_sink_gamma_id_list[ig1], g_sink_gamma_id_list[ig2],
                 g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
                 g_sink_momentum_list[kmom][0], g_sink_momentum_list[kmom][1], g_sink_momentum_list[kmom][2],
@@ -1008,7 +1011,7 @@ int main(int argc, char **argv) {
           }
         }  /* end of loop on source-sink time separations */
 #else
-        sprintf ( filename, "%s.3pt.disc.g%d.px%d_py%d_pz%d.qx%d_qy%d_qz%d.nev%d.%.4d.t%d_x%d_y%d_z%d", outfile_prefix, source_gamma_id,
+        sprintf ( filename, "%s.3pt.disc.g%d.px%d_py%d_pz%d.qx%d_qy%d_qz%d.nev%d.%.4d.t%d_x%d_y%d_z%d", g_outfile_prefix, source_gamma_id,
             source_momentum[0], source_momentum[1], source_momentum[2], 
             g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2],
             evecs_use, Nconf,
