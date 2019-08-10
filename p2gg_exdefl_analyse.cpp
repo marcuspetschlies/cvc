@@ -38,7 +38,7 @@
 #include "table_init_d.h"
 #include "clover.h"
 
-#undef _USE_ATA_TENSOR
+#define _USE_ATA_TENSOR
 #define _USE_PTA_TENSOR
 
 /****************************************************
@@ -651,7 +651,8 @@ int main(int argc, char **argv) {
               /***********************************************************
                * tsnk = tsrc + ( source - sink time sep. )
                ***********************************************************/
-              int const tsnk = ( tsrc + g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
+              /* int const tsnk = ( tsrc + g_sequential_source_timeslice_list[idt] + T_global ) % T_global; */
+              int const tsnk = ( tsrc - g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
   
               /***********************************************************
                * loop on current time
@@ -945,7 +946,8 @@ int main(int argc, char **argv) {
               /***********************************************************
                * tsrc = tsnk - ( source - sink time sep. )
                ***********************************************************/
-              int const tsrc = ( tsnk - g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
+              /* int const tsrc = ( tsnk - g_sequential_source_timeslice_list[idt] + T_global ) % T_global; */
+              int const tsrc = ( tsnk + g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
     
               /***********************************************************
                * loop on current time
