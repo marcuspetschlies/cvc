@@ -330,9 +330,9 @@ int main(int argc, char **argv) {
     /* read evecs from file */
     if ( evecs_file_format == 0 ) {
       for ( int iv = 0; iv <  evecs_num; iv++ ) {
-        /* sprintf ( filename, "eves.%.4d.evec%d.lime", Nconf, iv ); */
-        sprintf ( filename, "%s/eves.%d.NeV%d.x0_%d_x1_%d_x2_%d_x3_%d.lime", filename_prefix, Nconf, evecs_num, 
-            g_proc_coords[1], g_proc_coords[2], g_proc_coords[3], g_proc_coords[0] );
+        sprintf ( filename, "eves.%.4d.evec%d.lime", Nconf, iv );
+        /* sprintf ( filename, "%s/eves.%d.NeV%d.x0_%d_x1_%d_x2_%d_x3_%d.lime", filename_prefix, Nconf, evecs_num,  
+            g_proc_coords[1], g_proc_coords[2], g_proc_coords[3], g_proc_coords[0] );*/
         if ( ( exitstatus = read_lime_spinor( eo_evecs_field[iv][0], filename, 0) ) != 0 ) {
           fprintf(stderr, "[p2gg_invert_contract_exdefl] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(2);
@@ -383,9 +383,9 @@ int main(int argc, char **argv) {
     gettimeofday ( &ta, (struct timezone *)NULL );
     if ( evecs_file_format == 0 ) {
       for ( int iv = 0; iv <  evecs_num; iv++ ) {
-        /* sprintf ( filename, "eves.%.4d.evec%d.lime", Nconf, iv ); */
-        sprintf ( filename, "%s/eves.%d.NeV%d.x0_%d_x1_%d_x2_%d_x3_%d.lime", filename_prefix, Nconf, evecs_num, 
-            g_proc_coords[1], g_proc_coords[2], g_proc_coords[3], g_proc_coords[0] );
+        sprintf ( filename, "eves.%.4d.evec%d.lime", Nconf, iv );
+        /* sprintf ( filename, "%s/eves.%d.NeV%d.x0_%d_x1_%d_x2_%d_x3_%d.lime", filename_prefix, Nconf, evecs_num, 
+            g_proc_coords[1], g_proc_coords[2], g_proc_coords[3], g_proc_coords[0] );*/
         if ( ( exitstatus = write_propagator( eo_evecs_field[iv][0], filename, 0, g_propagator_precision) ) != 0 ) {
           fprintf(stderr, "[p2gg_invert_contract_exdefl] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(2);
