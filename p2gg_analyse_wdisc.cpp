@@ -708,7 +708,9 @@ int main(int argc, char **argv) {
       }
 
       /**********************************************************
+       *
        * statistical analysis for loops
+       *
        **********************************************************/
       if ( loop_stats ) {
 
@@ -717,6 +719,10 @@ int main(int argc, char **argv) {
 
         double ** data = init_2level_dtable ( num_conf, 4 * T_global );
 
+      /**********************************************************
+       * STATISTICAL ANALYSIS for loops 
+       * simple loops
+       **********************************************************/
 #pragma omp parallel for
         for ( int iconf = 0; iconf < num_conf; iconf++ ) {
            for ( int it = 0; it < T_global; it++ ) {
@@ -729,6 +735,7 @@ int main(int argc, char **argv) {
           }
         }
 
+        /* loop on cumulants */
         for ( int icum = 0; icum < 4; icum++ ) {
 
           char obs_name[100];
@@ -756,6 +763,10 @@ int main(int argc, char **argv) {
 
         fini_2level_dtable ( &data );
 #if 0
+      /**********************************************************
+       * STATISTICAL ANALYSIS for loops 
+       * with fwd difference
+       **********************************************************/
 #pragma omp parallel for
         for ( int iconf = 0; iconf < num_conf; iconf++ ) {
           for ( int it = 0; it < T_global; it++ ) {
@@ -773,6 +784,10 @@ int main(int argc, char **argv) {
           EXIT(1);
         }
 
+      /**********************************************************
+       * STATISTICAL ANALYSIS for loops 
+       * with symmetric 3-point 2nd order difference
+       **********************************************************/
 #pragma omp parallel for
         for ( int iconf = 0; iconf < num_conf; iconf++ ) {
           for ( int it = 0; it < T_global; it++ ) {
@@ -793,6 +808,10 @@ int main(int argc, char **argv) {
           EXIT(1);
         }
 
+      /**********************************************************
+       * STATISTICAL ANALYSIS for loops
+       * 3-point average
+       **********************************************************/
 #pragma omp parallel for
         for ( int iconf = 0; iconf < num_conf; iconf++ ) {
           for ( int it = 0; it < T_global; it++ ) {
@@ -819,9 +838,9 @@ int main(int argc, char **argv) {
 
 
       /**********************************************************
+       *
        * loop data for pgg
        *
-       * use ddsym here
        **********************************************************/
       double ** loop_pgg = init_2level_dtable ( num_conf, 2*T );
       if ( loop_pgg == NULL ) {
@@ -833,19 +852,31 @@ int main(int argc, char **argv) {
       for ( int iconf = 0; iconf < num_conf; iconf++ ) {
         for ( int it = 0; it < T_global; it++ ) {
           for ( int ireim = 0; ireim < 2; ireim++ ) {
+            /**********************************************************
+             * loop from symmetric 3-point 2nd order difference
+             **********************************************************/
+            /*
             loop_pgg[iconf][2*it + ireim ] =
-              /*
                       loop_avg[iconf][2 * ( (it+1+T_global)%T_global) + ireim ]
                 +     loop_avg[iconf][2 * ( (it-1+T_global)%T_global) + ireim ]
                 - 2 * loop_avg[iconf][2 *    it                       + ireim ];
-               */
-              /*
+             */
+
+            /**********************************************************
+             * loop from 3-point average
+             **********************************************************/
+            /*
+            loop_pgg[iconf][2*it + ireim ] =
               (
                   loop_avg[iconf][2 * ( (it+1+T_global)%T_global) + ireim ]
                 + loop_avg[iconf][2 * ( (it-1+T_global)%T_global) + ireim ]
                 + loop_avg[iconf][2 *    it                       + ireim ] ) / 3.;
-              */
-                loop_avg[iconf][2 * it + ireim ];
+             */
+
+            /**********************************************************
+             * loop
+             **********************************************************/
+            loop_pgg[iconf][2*it + ireim ] = loop_avg[iconf][2 * it + ireim ];
 
           }
         }
@@ -944,14 +975,21 @@ int main(int argc, char **argv) {
           {
             for ( int ireim = 0; ireim < 2; ireim++ ) {
       
-              double *** data = init_3level_dtable ( num_conf, num_src_per_conf, T_global );
+              double ** data = init_2level_dtable ( num_conf, T_global );
+              if ( data == NULL ) {
+                fprintf ( stderr, "[p2gg_analyse_wdisc] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+                EXIT(78);
+              }
 
 #pragma omp parallel for
               for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-                for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-                  for ( int it = 0; it < T_global; it++ ) {
-                    data[iconf][isrc][it] = pgg[iconf][isrc][imom][mu][nu][2*it+ireim];
+                for ( int it = 0; it < T_global; it++ ) {
+                  data[iconf][it] = 0.;
+                  for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+                    data[iconf][it] += pgg[iconf][isrc][imom][mu][nu][2*it+ireim];
                   }
+                  data[iconf][it] /= (double)num_src_per_conf;
+
                 }
               }
        
@@ -963,18 +1001,19 @@ int main(int argc, char **argv) {
                   momentum[0], momentum[1], momentum[2], reim_str[ireim] );
 
               /* apply UWerr analysis */
-              exitstatus = apply_uwerr_real ( data[0][0], num_conf*num_src_per_conf, T_global, 0, 1, obs_name );
+              exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
               if ( exitstatus != 0 ) {
                 fprintf ( stderr, "[p2gg_analyse_wdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                 EXIT(1);
               }
 
-              fini_3level_dtable ( &data );
+              fini_2level_dtable ( &data );
 
             }  /* end of loop on real / imag */
           }}  /* end of loop on nu, mu */
         }  /* end of loop on momenta */
 
+#ifdef _USE_SUBTRACTED
         /****************************************
          * STATISTICAL ANALYSIS for subtracted
          * correlation function
@@ -1044,6 +1083,7 @@ int main(int argc, char **argv) {
             }  /* end of loop on real / imag */
           }}  /* end of loop on nu, mu */
         }  /* end of loop on momenta */
+#endif  /* of ifdef _USE_SUBTRACTED */
 
         /****************************************
          * statistical analysis for orbit average
@@ -1052,11 +1092,34 @@ int main(int argc, char **argv) {
          * SEQUENTIAL MOMENTUM IS ZERO
          ****************************************/
         for ( int ireim = 0; ireim < 2; ireim++ ) {
-          double *** data = init_3level_dtable ( num_conf, num_src_per_conf, T_global );
+          double *** data_aux = init_3level_dtable ( num_conf, num_src_per_conf, T_global );
+          if ( data_aux == NULL ) {
+            fprintf ( stderr, "[p2gg_analyse_wdisc] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
+            EXIT(79);
+          }
+          double ** data = init_2level_dtable ( num_conf, T_global );
+          if ( data == NULL ) {
+            fprintf ( stderr, "[p2gg_analyse_wdisc] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+            EXIT(79);
+          }
 
           int const dim[3] = { num_conf, num_src_per_conf, T_global };
-          antisymmetric_orbit_average_spatial ( data, pgg, dim, g_sink_momentum_number, g_sink_momentum_list, ireim );
+          antisymmetric_orbit_average_spatial ( data_aux, pgg, dim, g_sink_momentum_number, g_sink_momentum_list, ireim );
       
+          /****************************************
+           * block data
+           ****************************************/
+#pragma omp parallel for
+          for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+            for ( int it = 0; it < T_global; it++ ) {
+              for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+                data[iconf][it] += data_aux[iconf][isrc][it];
+              }
+              data[iconf][it] /= (double)num_src_per_conf;
+            }
+          }
+          fini_3level_dtable ( &data_aux );
+
           char obs_name[100];
           sprintf ( obs_name, "pgg_disc.%s.%s.%s.j_j_orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s", correlator_prefix[operator_type], flavor_tag[operator_type],
               loop_type_tag[loop_type],
@@ -1064,15 +1127,16 @@ int main(int argc, char **argv) {
                 g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2], reim_str[ireim] );
 
           /* apply UWerr analysis */
-          exitstatus = apply_uwerr_real ( data[0][0], num_conf*num_src_per_conf, T_global, 0, 1, obs_name );
+          exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
           if ( exitstatus != 0 ) {
             fprintf ( stderr, "[p2gg_analyse_wdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(1);
           }
 
-          fini_3level_dtable ( &data );
+          fini_2level_dtable ( &data );
         }  /* end of loop on real / imag */
 
+#ifdef _USE_SUBTRACTED
         /****************************************
          * statistical analysis for orbit average
          *
@@ -1131,7 +1195,7 @@ int main(int argc, char **argv) {
           fini_2level_dtable ( &data );
 
         }  /* end of loop on real / imag */
-
+#endif  /* of ifdef _USE_SUBTRACTED */
 
         /**********************************************************
          * free p2gg table
