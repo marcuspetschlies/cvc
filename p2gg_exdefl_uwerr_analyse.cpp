@@ -89,6 +89,7 @@ int main(int argc, char **argv) {
   int evecs_use_min = -1;
   int use_pta = 0;
   int use_ata = 0;
+  int use_loop = 0;
 
 #ifdef HAVE_LHPC_AFF
   char key[400];
@@ -98,7 +99,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "uUWh?f:N:S:F:O:E:n:s:m:")) != -1) {
+  while ((c = getopt(argc, argv, "luUWh?f:N:S:F:O:E:n:s:m:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -144,6 +145,10 @@ int main(int argc, char **argv) {
     case 'U':
       use_ata = 1;
       fprintf ( stdout, "# [p2gg_exdefl_uwerr_analyse] use_ata set to %d\n", use_ata );
+      break;
+    case 'l':
+      use_loop = 1;
+      fprintf ( stdout, "# [p2gg_exdefl_uwerr_analyse] use_loop set to %d\n", use_loop );
       break;
     case 'h':
     case '?':
@@ -258,15 +263,127 @@ int main(int argc, char **argv) {
   /***********************************************************
    *
    ***********************************************************/
-  for ( int igsrc = 0; igsrc < g_source_gamma_id_number; igsrc++ ) {
+  for ( int ievecs = evecs_use_min; ievecs <= evecs_num; ievecs += evecs_use_step ) {
+  
+    for ( int igsrc = 0; igsrc < g_source_gamma_id_number; igsrc++ ) {
 
-    for ( int ipsrc = 0; ipsrc < g_source_momentum_number; ipsrc++ ) {
+      for ( int ipsrc = 0; ipsrc < g_source_momentum_number; ipsrc++ ) {
 
-      for ( int ipsnk = 0; ipsnk < g_sink_momentum_number; ipsnk++ ) {
+        if ( use_loop ) {
+          /***********************************************************
+           *
+           * LOOP
+           *
+           ***********************************************************/
+          sprintf( key, "/loop/g%d/px%d_py%d_pz%d/nev%d", g_source_gamma_id_list[igsrc],
+                g_source_momentum_list[ipsrc][0], g_source_momentum_list[ipsrc][1], g_source_momentum_list[ipsrc][2],
+                ievecs );
+          if ( g_verbose > 0 ) fprintf ( stdout, "# [p2gg_exdefl_uwerr_analyse] reading key %s %s %d\n", key , __FILE__, __LINE__ );
+  
+          double _Complex ** loop = init_2level_ztable ( num_conf, T_global );
+          if ( loop == NULL ) {
+            fprintf(stderr, "[p2gg_exdefl_uwerr_analyse] Error from init_2level_ztable %s %d\n", __FILE__, __LINE__);
+            EXIT(15);
+          }
+  
+          /***********************************************************
+           * loop on configurations
+           ***********************************************************/
+          for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+  
+#ifdef HAVE_LHPC_AFF
+            /***********************************************************
+             * reader for aff input file
+             ***********************************************************/
+            struct AffReader_s *affr = NULL;
+            sprintf ( filename, "%s.pref_%d_%d_%d.%.4d.nev%d.aff", infile_prefix,
+                g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2],
+                conf_src_list[iconf][0][0], evecs_num );
+  
+            if ( g_verbose > 2 ) fprintf(stdout, "# [p2gg_exdefl_uwerr_analyse] reading data from file %s\n", filename);
+            affr = aff_reader ( filename );
+            const char * aff_status_str = aff_reader_errstr ( affr );
+            if( aff_status_str != NULL ) {
+              fprintf(stderr, "[p2gg_exdefl_uwerr_analyse] Error from aff_reader for file %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__);
+              EXIT(15);
+            }
+  
+            /* set root node */
+            struct AffNode_s * affrn = aff_reader_root( affr );
+            if( affrn == NULL ) {
+              fprintf(stderr, "[p2gg_exdefl_uwerr_analyse] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+              EXIT(17);
+            }
+  
+            struct AffNode_s * affdir = aff_reader_chpath ( affr, affrn, key );
+            if ( affdir == NULL ) {
+              fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from aff_reader_chpath %s %d\n", __FILE__, __LINE__);
+              EXIT(15);
+            }
+  
+            uint32_t uitems = T_global;
+            exitstatus = aff_node_get_complex ( affr, affdir, loop[iconf], uitems );
+            if(exitstatus != 0) {
+              fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(16);
+            }
+  
+            aff_reader_close ( affr );
+#else
+#error "[p2gg_exdefl_uwerr_analyse] need lhp-aff lib; currently no other input method implemented"
+#endif
+          }  /* end of loop on configurations */
+  
+          /***********************************************************
+           * UWerr analysis
+           ***********************************************************/
+          for ( int ireim = 0; ireim < 2; ireim++ ) {
+  
+            double ** data = init_2level_dtable ( num_conf, T_global );
+            if( data == NULL ) {
+              fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+              EXIT(16);
+            }
+  
+  
+#pragma omp parallel for
+            for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+              for ( int it = 0; it < T_global; it++ ) {
+                data[iconf][it] = ( ireim == 0 ) ?  creal ( loop[iconf][it] ) : cimag ( loop[iconf][it] );
 
-        for ( int idt = 0; idt < g_sequential_source_timeslice_number; idt++ ) {
+                /* write the data */
+                if ( g_verbose > 4 ) {
+                  fprintf ( stdout, "loop lm Q %3d %3d %3d g %2d nev %3d %s %6d %3d %25.16e\n"  ,
+                      g_source_momentum_list[ipsrc][0], g_source_momentum_list[ipsrc][1], g_source_momentum_list[ipsrc][2],
+                      g_source_gamma_id_list[igsrc], ievecs, reim_str[ireim], conf_src_list[iconf][0][0], it, data[iconf][it] );
+                }
+              }
+            }
+  
+            char obs_name[100];
+            sprintf ( obs_name, "loop.lm.QX%d_QY%d_QZ%d.g%d.nev%d.%s", 
+                g_source_momentum_list[ipsrc][0], g_source_momentum_list[ipsrc][1], g_source_momentum_list[ipsrc][2],
+                g_source_gamma_id_list[igsrc], ievecs, reim_str[ireim] );
+            if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_exdefl_uwerr_analyse] obs_name = %s %s %d\n", obs_name, __FILE__, __LINE__ );
+  
+            /* apply UWerr analysis */
+            exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+            if ( exitstatus != 0 ) {
+              fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+              EXIT(1);
+            }
+  
+            fini_2level_dtable ( &data );
+  
+          }  /* end of loop on real / imag */
+  
+          fini_2level_ztable ( &loop );
 
-          for ( int ievecs = evecs_use_min; ievecs <= evecs_num; ievecs += evecs_use_step ) {
+        }  /* end of if use_loop */
+
+        for ( int ipsnk = 0; ipsnk < g_sink_momentum_number; ipsnk++ ) {
+
+          for ( int idt = 0; idt < g_sequential_source_timeslice_number; idt++ ) {
 
             if ( use_ata ) {
               /***********************************************************
@@ -505,7 +622,7 @@ int main(int argc, char **argv) {
                 if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_exdefl_uwerr_analyse] obs_name = %s %s %d\n", obs_name, __FILE__, __LINE__ );
   
                 /* apply UWerr analysis */
-                exitstatus = apply_uwerr_real ( data[0], num_conf * num_src_per_conf, T_global, 0, 1, obs_name );
+                exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
                 if ( exitstatus != 0 ) {
                   fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                   EXIT(1);
@@ -519,11 +636,11 @@ int main(int argc, char **argv) {
             
             }  /* end of if use pta */
 
-          }  /* end of loop on evecs number */
-        }  /* end of loop on source - sink time separations */
-      }  /* end of loop on sink / reference momenta */
-    }  /* end of loop on source / reference momena */
-  }  /* end of loop on source gamma ids */
+          }  /* end of loop on source - sink time separations */
+        }  /* end of loop on sink / reference momenta */
+      }  /* end of loop on source / reference momena */
+    }  /* end of loop on source gamma ids */
+  }  /* end of loop on evecs number */
 
 #if 0
 #endif  /* of if 0  */
