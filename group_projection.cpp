@@ -1,4 +1,4 @@
-/****************************************************
+  /****************************************************
  * group_projection.cpp
  *
  * Fr 10. Nov 16:15:09 CET 2017
@@ -42,6 +42,18 @@
 namespace cvc {
 
 little_group_type *little_groups = NULL;
+
+#if defined CUBIC_GROUP_SINGLE_COVER
+char const cubic_group_rotations_R_names[24][12] = { "E", "C31-", "C31+", "C33+", "C33-", "C32-", "C32+", "C34+", "C34-", "C4x-", "C4x+", "C4y-", "C4y+", "C4z-", "C4z+", "C2d`", "C2f`", "C2a`", "C2b`", "C2c`", "C2e`", "C2x", "C2y", "C2z" };
+
+char const cubic_group_rotations_IR_names[24][12] = { "i", "S61+", "S61-", "S63-", "S63+", "S62+", "S62-", "S64-", "S64+", "S4x+", "S4x-", "S4y+", "S4y-", "S4z+", "S4z-", "sigma_d4", "sigma_d6", "sigma_d1", "sigma_d2", "sigma_d3", "sigma_d5", "sigma_x", "sigma_y", "sigma_z" };
+
+#elif defined CUBIC_GROUP_DOUBLE_COVER
+char const cubic_group_rotations_R_names[48][12] = { "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA" };
+
+char const cubic_group_rotations_IR_names[48][12] = { "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA" };
+#endif
+
 
 /***********************************************************/
 /***********************************************************/
@@ -726,6 +738,7 @@ void rot_mat_table_printf ( rot_mat_table_type *t, char*name, FILE*ofs ) {
   fprintf( ofs, "%s_IR <- list()\n", name );
 
   for ( int i = 0; i < t->n; i++ ) {
+    fprintf ( ofs, "# [rot_mat_table_printf] R %2d %s\n", t->rid[i], cubic_group_rotations_R_names[t->rid[i]] );
     sprintf( name_full, "%s_R[[%2d]]", name, t->rid[i]+1 );
     rot_printf_matrix ( t->R[i], t->dim, name_full, ofs );
     fprintf( ofs, "\n");
@@ -733,6 +746,7 @@ void rot_mat_table_printf ( rot_mat_table_type *t, char*name, FILE*ofs ) {
   fprintf( ofs, "\n\n");
 
   for ( int i = 0; i < t->n; i++ ) {
+    fprintf ( ofs, "# [rot_mat_table_printf] IR %2d %s\n", t->rmid[i], cubic_group_rotations_IR_names[t->rmid[i]] );
     sprintf( name_full, "%s_IR[[%2d]]", name, t->rmid[i]+1 );
     rot_printf_matrix ( t->IR[i], t->dim, name_full, ofs );
     fprintf( ofs, "\n");
