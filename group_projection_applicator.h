@@ -292,8 +292,8 @@ inline little_group_projector_applicator_type * show_little_group_projector_appl
   /***********************************************************
    * reduce the applicator
    ***********************************************************/
-  // reduce_little_group_projector_applicator ( a, 1 );
-  reduce_little_group_projector_applicator ( a, 0 );
+  reduce_little_group_projector_applicator ( a, 1 );
+  // reduce_little_group_projector_applicator ( a, 0 );
 
   /***********************************************************/
   /***********************************************************/
