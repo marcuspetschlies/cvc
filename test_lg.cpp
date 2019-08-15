@@ -74,7 +74,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:r:")) != -1) {
     switch (c) {
       case 'f':
         strcpy(filename, optarg);
@@ -82,6 +82,7 @@ int main(int argc, char **argv) {
         break;
       case 'r':
         refframerot = atoi ( optarg );
+        fprintf ( stdout, "# [test_lg] using Reference frame rotation no. %d\n", refframerot );
         break;
       case 'h':
       case '?':
@@ -185,22 +186,22 @@ int main(int argc, char **argv) {
     EXIT(2);
   }
 
-#if 0
   int const interpolator_number       = 1;           // one (for now imaginary) interpolator
-  int const interpolator_bispinor[1]  = {0};         // no need for bispinor now
+  int const interpolator_bispinor[1]  = {1};         // no need for bispinor now
   int const interpolator_parity[1]    = {1};         // intrinsic operator parity, value 1 = intrinsic parity +1, -1 = intrinsic parity -1,
                                                      // value 0 = opposite parity not taken into account
   int const interpolator_cartesian[1] = {0};         // spherical basis (0) or cartesian basis (1) ? cartesian basis only meaningful for J = 1, J2 = 2, i.e. 3-dim. representation
-  int const interpolator_J2[1]        = {0};
+  int const interpolator_J2[1]        = {1};
   char const correlator_name[]    = "basis_vector";  // just some arbitrary name for now
-#endif  /* of if 0 */
 
+#if 0
   int const interpolator_number       = 2;               // one (for now imaginary) interpolator
   int const interpolator_bispinor[2]  = {0,0};           // no need for bispinor now
   int const interpolator_parity[2]    = {-1,-1};         // intrinsic operator parity
   int const interpolator_cartesian[2] = {0,0};           // spherical basis (0) or cartesian basis (1) ? cartesian basis only meaningful for J = 1, J2 = 2, i.e. 3-dim. representation
   char const correlator_name[]        = "basis_vector";  // just some arbitrary name for now
   int const interpolator_J2[2]        = {0,0};
+#endif  /* of if 0 */
 
   int ** interpolator_momentum_list = init_2level_itable ( interpolator_number, 3 );
   if ( interpolator_momentum_list == NULL ) {
@@ -225,7 +226,7 @@ int main(int argc, char **argv) {
    * loop on little groups
    ****************************************************/
   /* for ( int ilg = 0; ilg < nlg; ilg++ ) */
-  for ( int ilg = 0; ilg <= 0; ilg++ )
+  for ( int ilg = 1; ilg <= 1; ilg++ )
   {
 
     int const n_irrep = lg[ilg].nirrep;
@@ -294,180 +295,179 @@ int main(int argc, char **argv) {
     {
 
       /****************************************************
-        loop on spin quantum numbers
+       * loop on reference rows of spin matrix
        ****************************************************/
-      /* 
-      for ( int interpolator_J2 = 0; interpolator_J2 <= 8; interpolator_J2 +=2 )
-      {
+      for ( int r1 = 0; r1 <= interpolator_J2[0]; r1++ ) {
+        int const ref_row_spin[1] = { r1 };
+
+      /* for ( int r2 = 0; r2 <= interpolator_J2[1]; r2++ ) {
+
+        int const ref_row_spin[2] = { r1, r2 }; 
        */
 
         /****************************************************
-         * loop on reference rows of spin matrix
+         * rotation matrix for current irrep
          ****************************************************/
-        for ( int r1 = 0; r1 <= interpolator_J2[0]; r1++ ) {
-        for ( int r2 = 0; r2 <= interpolator_J2[1]; r2++ ) {
+        rot_mat_table_type r_irrep;
+        init_rot_mat_table ( &r_irrep );
 
-          int const ref_row_spin[2] = { r1, r2 };
+        exitstatus = set_rot_mat_table ( &r_irrep, lg[ilg].name, lg[ilg].lirrep[i_irrep] );
 
-          /****************************************************
-           * rotation matrix for current irrep
-           ****************************************************/
-          rot_mat_table_type r_irrep;
-          init_rot_mat_table ( &r_irrep );
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[test_lg] Error from set_rot_mat_table_cubic_group, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(2);
+        }
 
-          exitstatus = set_rot_mat_table ( &r_irrep, lg[ilg].name, lg[ilg].lirrep[i_irrep] );
-
-          if ( exitstatus != 0 ) {
-            fprintf ( stderr, "[test_lg] Error from set_rot_mat_table_cubic_group, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(2);
-          }
-
-          int const dim_irrep = r_irrep.dim;
-    
-          /****************************************************
-           * loop on reference rows of irrep matrix
-           ****************************************************/
-          for ( int ref_row_target = 0; ref_row_target < dim_irrep; ref_row_target++ ) {
+        int const dim_irrep = r_irrep.dim;
   
-            /****************************************************
-             * loop on momentum configurations
-             ****************************************************/
+        /****************************************************
+         * loop on reference rows of irrep matrix
+         ****************************************************/
+        for ( int ref_row_target = 0; ref_row_target < dim_irrep; ref_row_target++ ) {
 
-            for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
-                
+          /****************************************************
+           * loop on momentum configurations
+           ****************************************************/
+
+          for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+              
+            if ( interpolator_number == 1 ) {
+              interpolator_momentum_list[0][0] = Ptot[0];
+              interpolator_momentum_list[0][1] = Ptot[1];
+              interpolator_momentum_list[0][2] = Ptot[2];
+
+            } else if ( interpolator_number == 2 ) {
+
               interpolator_momentum_list[0][0] = g_sink_momentum_list[imom][0];
               interpolator_momentum_list[0][1] = g_sink_momentum_list[imom][1];
               interpolator_momentum_list[0][2] = g_sink_momentum_list[imom][2];
 
-              if ( interpolator_number == 2 ) {
-                interpolator_momentum_list[1][0] = Ptot[0] - interpolator_momentum_list[0][0]; 
-                interpolator_momentum_list[1][1] = Ptot[1] - interpolator_momentum_list[0][1];
-                interpolator_momentum_list[1][2] = Ptot[2] - interpolator_momentum_list[0][2];
-              }
+              interpolator_momentum_list[1][0] = Ptot[0] - interpolator_momentum_list[0][0]; 
+              interpolator_momentum_list[1][1] = Ptot[1] - interpolator_momentum_list[0][1];
+              interpolator_momentum_list[1][2] = Ptot[2] - interpolator_momentum_list[0][2];
+            }
 
-              /****************************************************
-               * cut for single interpolator momenta with norm
-               * square > 3
-               ****************************************************/
-              if ( _NORM_SQR_3D( interpolator_momentum_list[0] ) > 3 ) {
-                fprintf ( stdout, "# [test_lg] skipping p1 = (%d, %d, %d)\n",
-                    interpolator_momentum_list[0][0], interpolator_momentum_list[0][1], interpolator_momentum_list[0][2] );
+            /****************************************************
+             * cut for single interpolator momenta with norm
+             * square > 3
+             ****************************************************/
+            if ( _NORM_SQR_3D( interpolator_momentum_list[0] ) > 3 ) {
+              fprintf ( stdout, "# [test_lg] skipping p1 = (%d, %d, %d)\n",
+                  interpolator_momentum_list[0][0], interpolator_momentum_list[0][1], interpolator_momentum_list[0][2] );
+              continue;
+            }
+
+            if ( interpolator_number > 1 ) {
+              if ( _NORM_SQR_3D( interpolator_momentum_list[1] ) > 3 ) {
+                fprintf ( stdout, "# [test_lg] skipping p2 = (%d, %d, %d)\n",
+                    interpolator_momentum_list[1][0], interpolator_momentum_list[1][1], interpolator_momentum_list[1][2] );
                 continue;
               }
+            }
 
-              if ( interpolator_number > 1 ) {
-                if ( _NORM_SQR_3D( interpolator_momentum_list[1] ) > 3 ) {
-                  fprintf ( stdout, "# [test_lg] skipping p2 = (%d, %d, %d)\n",
-                      interpolator_momentum_list[1][0], interpolator_momentum_list[1][1], interpolator_momentum_list[1][2] );
-                  continue;
-                }
-              }
+            /****************************************************
+             * momentum tag
+             ****************************************************/
+            char momentum_str[100];
+            sprintf( momentum_str, ".p1x%d_p1y%d_p1z%d", interpolator_momentum_list[0][0], interpolator_momentum_list[0][1], interpolator_momentum_list[0][2] );
+            if ( interpolator_number == 2 ) {
+              sprintf( momentum_str, "%s.p2x%d_p2y%d_p2z%d", momentum_str, interpolator_momentum_list[1][0], interpolator_momentum_list[1][1], interpolator_momentum_list[1][2] );
+            }
 
-              /****************************************************
-               * momentum tag
-               ****************************************************/
-              char momentum_str[100];
-              sprintf( momentum_str, ".p1x%d_p1y%d_p1z%d", interpolator_momentum_list[0][0], interpolator_momentum_list[0][1], interpolator_momentum_list[0][2] );
-              if ( interpolator_number == 2 ) {
-                sprintf( momentum_str, "%s.p2x%d_p2y%d_p2z%d", momentum_str, interpolator_momentum_list[1][0], interpolator_momentum_list[1][1], interpolator_momentum_list[1][2] );
-              }
+            /****************************************************
+             * output file
+             ****************************************************/
+            if ( interpolator_number == 2 ) {
+              sprintf ( filename, "lg_%s_irrep_%s_J2_%d_%d_spinref%d_%d_irrepref%d%s_Rref%.2d.sbd", 
+                  lg[ilg].name, lg[ilg].lirrep[i_irrep], interpolator_J2[0], interpolator_J2[1], ref_row_spin[0], ref_row_spin[1], ref_row_target, momentum_str,
+                  refframerot );
+            } else if ( interpolator_number == 1 ) {
+              sprintf ( filename, "lg_%s_irrep_%s_J2_%d_spinref%d_irrepref%d%s_Rref%.2d.sbd",
+                  lg[ilg].name, lg[ilg].lirrep[i_irrep], interpolator_J2[0], ref_row_spin[0], ref_row_target , momentum_str,
+                  refframerot );
+            }
+
+            FILE*ofs = fopen ( filename, "w" );
+            if ( ofs == NULL ) {
+              fprintf ( stderr, "# [test_lg] Error from fopen %s %d\n", __FILE__, __LINE__);
+              EXIT(2);
+            }
+
+            /****************************************************
+             * loop on irrep multiplet
+             ****************************************************/
+            /* for ( int row_target = 0; row_target < dim_irrep; row_target++ ) { */
+            int const row_target = -1;
   
-              /****************************************************
-               * output file
-               ****************************************************/
-              if ( interpolator_number == 2 ) {
-                sprintf ( filename, "lg_%s_irrep_%s_J2_%d_%d_spinref%d_%d_irrepref%d%s_Rref%.2d.sbd", 
-                    lg[ilg].name, lg[ilg].lirrep[i_irrep], interpolator_J2[0], interpolator_J2[1], ref_row_spin[0], ref_row_spin[1], ref_row_target, momentum_str,
-                    refframerot );
-              } else if ( interpolator_number == 1 ) {
-                sprintf ( filename, "lg_%s_irrep_%s_J2_%d_spinref%d_irrepref%d%s_Rref%.2d.sbd",
-                    lg[ilg].name, lg[ilg].lirrep[i_irrep], interpolator_J2[0], ref_row_spin[0], ref_row_target , momentum_str,
-                    refframerot );
-              }
+            /* exitstatus = little_group_projector_set ( &p, &(lg[ilg]), lg[ilg].lirrep[i_irrep], row_target, interpolator_number,
+                  &interpolator_J2, (const int**)interpolator_momentum_list, &interpolator_bispinor, &interpolator_parity, &interpolator_cartesian,
+                  ref_row_target , &ref_row_spin, correlator_name );
+             */
   
-              FILE*ofs = fopen ( filename, "w" );
-              if ( ofs == NULL ) {
-                fprintf ( stderr, "# [test_lg] Error from fopen %s %d\n", __FILE__, __LINE__);
+              exitstatus = little_group_projector_set ( &p, &(lg[ilg]), lg[ilg].lirrep[i_irrep], row_target, interpolator_number,
+                  interpolator_J2, (const int**)interpolator_momentum_list, interpolator_bispinor, interpolator_parity, interpolator_cartesian,
+                  ref_row_target , ref_row_spin, correlator_name, refframerot );
+
+              if ( exitstatus != 0 ) {
+                fprintf ( stderr, "# [test_lg] Error from little_group_projector_set, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(2);
               }
   
-              /****************************************************
-               * loop on irrep multiplet
-               ****************************************************/
-              /* for ( int row_target = 0; row_target < dim_irrep; row_target++ ) { */
-              int const row_target = -1;
-    
-              /* exitstatus = little_group_projector_set ( &p, &(lg[ilg]), lg[ilg].lirrep[i_irrep], row_target, interpolator_number,
-                    &interpolator_J2, (const int**)interpolator_momentum_list, &interpolator_bispinor, &interpolator_parity, &interpolator_cartesian,
-                    ref_row_target , &ref_row_spin, correlator_name );
-               */
-    
-                exitstatus = little_group_projector_set ( &p, &(lg[ilg]), lg[ilg].lirrep[i_irrep], row_target, interpolator_number,
-                    interpolator_J2, (const int**)interpolator_momentum_list, interpolator_bispinor, interpolator_parity, interpolator_cartesian,
-                    ref_row_target , ref_row_spin, correlator_name, refframerot );
-  
-                if ( exitstatus != 0 ) {
-                  fprintf ( stderr, "# [test_lg] Error from little_group_projector_set, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                  EXIT(2);
-                }
-    
-                /****************************************************/
-                /****************************************************/
-     
-                exitstatus = little_group_projector_show ( &p, ofs , 1 );
-                if ( exitstatus != 0 ) {
-                  fprintf ( stderr, "# [test_lg] Error from little_group_projector_show, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                  EXIT(2);
-                }
-    
-
-                /****************************************************
-                 * apply the projector
-                 ****************************************************/
-                little_group_projector_applicator_type **app = little_group_projector_apply ( &p, ofs );
-                if ( app == NULL ) {
-                  fprintf ( stderr, "# [test_lg] Error from little_group_projector_apply %s %d\n", __FILE__, __LINE__);
-                  EXIT(2);
-                }
-    
-                /****************************************************/
-                /****************************************************/
-  
-                /****************************************************
-                 * finalize applicators
-                 ****************************************************/
-  
-                for ( int irow = 0; irow < dim_irrep; irow++ ) {
-                  free ( fini_little_group_projector_applicator ( app[irow] ) );
-                }
-                free ( app );
-
-                /****************************************************/
-                /****************************************************/
-    
-                fini_little_group_projector ( &p );
-    
-              /* } */  // end of loop on row_target
-    
               /****************************************************/
               /****************************************************/
    
+              exitstatus = little_group_projector_show ( &p, ofs , 1 );
+              if ( exitstatus != 0 ) {
+                fprintf ( stderr, "# [test_lg] Error from little_group_projector_show, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(2);
+              }
+  
+
               /****************************************************
-               * close output file
+               * apply the projector
                ****************************************************/
-              fclose ( ofs );
+              little_group_projector_applicator_type **app = little_group_projector_apply ( &p, ofs );
+              if ( app == NULL ) {
+                fprintf ( stderr, "# [test_lg] Error from little_group_projector_apply %s %d\n", __FILE__, __LINE__);
+                EXIT(2);
+              }
   
-            }  /* end of loop on sink momenta */
+              /****************************************************/
+              /****************************************************/
 
-          }  /* end of loop on ref_row_target */
+              /****************************************************
+               * finalize applicators
+               ****************************************************/
+
+              for ( int irow = 0; irow < dim_irrep; irow++ ) {
+                free ( fini_little_group_projector_applicator ( app[irow] ) );
+              }
+              free ( app );
+
+              /****************************************************/
+              /****************************************************/
   
+              fini_little_group_projector ( &p );
   
-          fini_rot_mat_table ( &r_irrep );
+            /* } */  // end of loop on row_target
+  
+            /****************************************************/
+            /****************************************************/
+ 
+            /****************************************************
+             * close output file
+             ****************************************************/
+            fclose ( ofs );
 
-        }  // end of loop on ref_row_spin2
-        }  // end of loop on ref_row_spin1
+          }  /* end of loop on sink momenta */
 
-      /* } */  /* end of loop on interpolator J2 */
+        }  /* end of loop on ref_row_target */
+
+
+        fini_rot_mat_table ( &r_irrep );
+
+      /* } */ /* end of loop on ref_row_spin2 */
+      }  /* end of loop on ref_row_spin1 */
 
     }  /* end of loop on irreps */
 
