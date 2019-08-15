@@ -185,7 +185,6 @@ int main(int argc, char **argv) {
     EXIT(2);
   }
 
-#if 0
   int const interpolator_number       = 1;           // one (for now imaginary) interpolator
   int const interpolator_bispinor[1]  = {0};         // no need for bispinor now
   int const interpolator_parity[1]    = {1};         // intrinsic operator parity, value 1 = intrinsic parity +1, -1 = intrinsic parity -1,
@@ -193,14 +192,16 @@ int main(int argc, char **argv) {
   int const interpolator_cartesian[1] = {0};         // spherical basis (0) or cartesian basis (1) ? cartesian basis only meaningful for J = 1, J2 = 2, i.e. 3-dim. representation
   int const interpolator_J2[1]        = {0};
   char const correlator_name[]    = "basis_vector";  // just some arbitrary name for now
-#endif  /* of if 0 */
 
+#if 0
   int const interpolator_number       = 2;               // one (for now imaginary) interpolator
   int const interpolator_bispinor[2]  = {0,0};           // no need for bispinor now
   int const interpolator_parity[2]    = {-1,-1};         // intrinsic operator parity
   int const interpolator_cartesian[2] = {0,0};           // spherical basis (0) or cartesian basis (1) ? cartesian basis only meaningful for J = 1, J2 = 2, i.e. 3-dim. representation
   char const correlator_name[]        = "basis_vector";  // just some arbitrary name for now
   int const interpolator_J2[2]        = {0,0};
+#endif  /* of if 0 */
+
 
   int ** interpolator_momentum_list = init_2level_itable ( interpolator_number, 3 );
   if ( interpolator_momentum_list == NULL ) {
