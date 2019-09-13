@@ -187,11 +187,11 @@ int main(int argc, char **argv) {
   }
 
   int const interpolator_number       = 1;           // one (for now imaginary) interpolator
-  int const interpolator_bispinor[1]  = {1};         // no need for bispinor now
+  int const interpolator_bispinor[1]  = {0};         // bispinor no 0 / yes 1
   int const interpolator_parity[1]    = {1};         // intrinsic operator parity, value 1 = intrinsic parity +1, -1 = intrinsic parity -1,
                                                      // value 0 = opposite parity not taken into account
   int const interpolator_cartesian[1] = {0};         // spherical basis (0) or cartesian basis (1) ? cartesian basis only meaningful for J = 1, J2 = 2, i.e. 3-dim. representation
-  int const interpolator_J2[1]        = {1};
+  int const interpolator_J2[1]        = {3};
   char const correlator_name[]    = "basis_vector";  // just some arbitrary name for now
 
 #if 0
@@ -225,8 +225,7 @@ int main(int argc, char **argv) {
   /****************************************************
    * loop on little groups
    ****************************************************/
-  /* for ( int ilg = 0; ilg < nlg; ilg++ ) */
-  for ( int ilg = 1; ilg <= 1; ilg++ )
+  for ( int ilg = 0; ilg < nlg; ilg++ )
   {
 
     int const n_irrep = lg[ilg].nirrep;
