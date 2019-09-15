@@ -193,7 +193,7 @@ int main(int argc, char **argv) {
   int const interpolator_parity[3]    = {-1,-1,-1};      // intrinsic operator parity, value 1 = intrinsic parity +1, -1 = intrinsic parity -1,
                                                          // value 0 = opposite parity not taken into account
   int const interpolator_cartesian[3] = {0,0,0};         // spherical basis (0) or cartesian basis (1) ? cartesian basis only meaningful for J = 1, J2 = 2, i.e. 3-dim. representation
-  int const interpolator_J2[1]        = {0,0,0};
+  int const interpolator_J2[3]        = {0,0,0};
   char const correlator_name[]        = "basis_vector";  // just some arbitrary name for now
 
   int ** interpolator_momentum_list = init_2level_itable ( interpolator_number, 3 );
@@ -298,9 +298,9 @@ int main(int argc, char **argv) {
             interpolator_momentum_list[1][1] = g_sink_momentum_list[imom2][1];
             interpolator_momentum_list[1][2] = g_sink_momentum_list[imom2][2];
 
-            interpolator_momentum_list[2][0] = Ptot[0] - interpolator_momentum_list[1][0]; 
-            interpolator_momentum_list[2][1] = Ptot[1] - interpolator_momentum_list[1][1];
-            interpolator_momentum_list[2][2] = Ptot[2] - interpolator_momentum_list[1][2];
+            interpolator_momentum_list[2][0] = Ptot[0] - ( interpolator_momentum_list[0][0] + interpolator_momentum_list[1][0] ); 
+            interpolator_momentum_list[2][1] = Ptot[1] - ( interpolator_momentum_list[0][1] + interpolator_momentum_list[1][1] );
+            interpolator_momentum_list[2][2] = Ptot[2] - ( interpolator_momentum_list[0][2] + interpolator_momentum_list[1][2] );
 
             int const p12[3] = {
               interpolator_momentum_list[0][0] + interpolator_momentum_list[1][0],
@@ -335,7 +335,7 @@ int main(int argc, char **argv) {
             int const single_particle_momentum_squared_cutoff_skip = 
                 1 * ( _NORM_SQR_3D( interpolator_momentum_list[0] ) > single_particle_momentum_squared_cutoff )
               + 2 * ( _NORM_SQR_3D( interpolator_momentum_list[1] ) > single_particle_momentum_squared_cutoff )
-              + 4 * ( _NORM_SQR_3D( interpolator_momentum_list[2] ) > single_particle_momentum_squared_cutoff )
+              + 4 * ( _NORM_SQR_3D( interpolator_momentum_list[2] ) > single_particle_momentum_squared_cutoff );
 
             if ( single_particle_momentum_squared_cutoff_skip ) {
               fprintf ( stdout, "# [test_lg_3p] single_particle_momentum_squared_cutoff_skip true, reason = %d\n",
@@ -450,7 +450,7 @@ int main(int argc, char **argv) {
 
         fini_rot_mat_table ( &r_irrep );
 
-      }  /* end of loop on ref_row_spin1 */
+      }}}  /* end of loop on ref_row_spin1,2,3 */
 
     }  /* end of loop on irreps */
 
