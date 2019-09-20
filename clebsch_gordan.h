@@ -119,14 +119,14 @@ static inline double clebsch_gordan_coeff ( int const c2, int const gamma2, int 
  ******************************************************************************************/
 static inline double _Complex luescher_c_matrix ( int const l1, int const m1, int const l2, int const m2, int const l3, int const m3 ) {
 
-  double _Complex const ipow[4] = { 1., I, -1., -I. };
+  double _Complex const ipow[4] = { 1., I, -1., -I };
   double const norm = sqrt( ( 2. * l1 + 1. ) * ( 2. * l2 + 1.  ) / ( 2. * l3 + 1. ) );
 
   double const c1 = clebsch_gordan_coeff ( 2*l3, 0, 2*l1, 0, 2*l2, 0 );
 
   double const c2 = clebsch_gordan_coeff ( 2*l3, 2*m3, 2*l1, 2*m1, 2*l2, 2*m2 );
 
-  return ( ipow[ ( ( l1 - l2 + l3 ) % 4 +4  ) % 4 ] * norm * c1 * c2 ):
+  return ( ipow[ ( ( l1 - l2 + l3 ) % 4 +4  ) % 4 ] * norm * c1 * c2 );
 
 }  /* end of luescher_c_matrix */
 
