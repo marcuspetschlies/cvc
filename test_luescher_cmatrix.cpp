@@ -46,19 +46,21 @@ extern "C"
 #include "ranlxd.h"
 #include "group_projection.h"
 #include "little_group_projector_set.h"
+#include "clebsch_gordan.h"
 
-#define _NORM_SQR_3D(_a) ( (_a)[0] * (_a)[0] + (_a)[1] * (_a)[1] + (_a)[2] * (_a)[2] )
+#define _DBL_GTR_EPS(_a,_b) ( fabs(_a)>(_b) ? _a : 0 )
 
 
 using namespace cvc;
 
 int main(int argc, char **argv) {
 
+  double const eps_tiny = 1.e-14;
+
   int c;
   int filename_set = 0;
   char filename[100];
   int exitstatus;
-  int refframerot = -1;  // no reference frame rotation
 
 
 #ifdef HAVE_MPI
@@ -137,6 +139,18 @@ int main(int argc, char **argv) {
 
       for ( int l2 = 0; l2 <= lmax; l2 ++ ) {
         for ( int m2 = -l2; m2 <= l2; m2++ ) {
+
+          int const jmin = abs( l1 -l2 );
+          int const jmax = l1 + l2;
+
+          for ( int j = jmin; j <= jmax; j++ ) {
+            for ( int s = -j; s <= j; s++ ) {
+              double _Complex const z = luescher_c_matrix ( l1, m1, j, s, l2, m2 );
+              fprintf ( stdout, "%3d %3d    %3d %3d    %3d %3d    %25.16e %25.16e\n", l1, m1, j, s, l2, m2, 
+                   _DBL_GTR_EPS(  creal(z), eps_tiny ),
+                   _DBL_GTR_EPS( cimag(z) , eps_tiny ) );
+            }
+          }
         }
       }
     }
