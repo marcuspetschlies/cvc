@@ -156,6 +156,8 @@ int get_reference_rotation ( int pref[3], int *Rref, int const p[3] );
 
 inline int comp_int3_abs ( int const a[3] , int const b[3] );
 
+int get_little_group_elements ( int const p[3], rot_mat_table_type * const rtab );
+
 /***********************************************************/
 /***********************************************************/
 
@@ -186,7 +188,6 @@ static inline int product_vector_coords2index ( int *coords, int *dim, int n ) {
 static inline void product_vector_set_element ( double _Complex*v, double _Complex c, int *coords, int *dim, int n ) {
   v[ product_vector_coords2index ( coords, dim, n ) ] = c;
 }  /* end of product_vector_set_element */
-
 
 }  /* end of namespace cvc */
 

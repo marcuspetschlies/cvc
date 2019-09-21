@@ -3069,4 +3069,59 @@ int rot_mat_table_rotate_ref_multiplett ( rot_mat_table_type * const rtab, rot_m
 /***********************************************************/
 /***********************************************************/
 
+int get_little_group_elements ( int const p[3], rot_mat_table_type * const rtab ) {
+
+  int const nrot =  rtab->n;
+  if ( rtab->dim != 3 ) {
+    fprintf ( stderr, "[get_little_group_elements] Error, rot dim must be 3\n" );
+    return ( 1 );
+  }
+
+  for ( int irot = 0; irot < nrot; irot++ ) {
+    int q[3];
+
+    double _Complex **C = rot_init_rotation_matrix ( 3 );
+
+    rot_spherical2cartesian_3x3 ( C, rtab->R[irot] );
+
+    if ( ! rot_mat_check_is_real_int ( C, 3 ) ) {
+      fprintf ( stderr, "[test_get_lg] Error, R %d / %d is not real int\n", irot, rtab->rid[irot] );
+      return ( 2 );
+    /* } else {
+      fprintf ( stdout, "# [test_get_lg] R %d / %d is real int\n", irot, rtab->rid[irot] );
+      */
+    }
+
+    rot_point ( q, p, C );
+    if ( q[0] == p[0] && q[1] == p[1] && q[2] == p[2] ) {
+      fprintf ( stdout, "# [get_little_group_elements] p %3d %3d %3d    R %2d   rid  %2d\n", 
+          p[0], p[1], p[2], irot, rtab->rid[irot] );
+    }
+
+    rot_fini_rotation_matrix ( &C );
+  }
+  for ( int irot = 0; irot < nrot; irot++ ) {
+    int q[3];
+    double _Complex **C = rot_init_rotation_matrix ( 3 );
+
+    rot_spherical2cartesian_3x3 ( C, rtab->R[irot] );
+
+    if ( ! rot_mat_check_is_real_int ( C, 3 ) ) {
+      fprintf ( stderr, "[test_get_lg] Error, R %d / %d is not real int\n", irot, rtab->rid[irot] );
+      return ( 2 );
+    }
+
+    rot_point ( q, p, C );
+    if ( q[0] == -p[0] && q[1] == -p[1] && q[2] == -p[2] ) {
+      fprintf ( stdout, "# [get_little_group_elements] p %3d %3d %3d   IR %2d   rmid %2d\n", 
+          p[0], p[1], p[2], irot, rtab->rid[irot] );
+    }
+    rot_fini_rotation_matrix ( &C );
+  }
+  return ( 0 );
+}  /* end of get_little_group_elements */
+
+
+/***********************************************************/
+/***********************************************************/
 }  /* end of namespace cvc */
