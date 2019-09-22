@@ -2728,11 +2728,14 @@ void contract_cvc_local_tensor_eo ( double * const conn_e, double * const conn_o
 /****************************************************
  * average 4x4 tensor spatial components over orbit
  * with totally antisymmetric 3x3 tensor
+ *
+ * uses continuum momenta 2 sin( p /2 )
  ****************************************************/
-void antisymmetric_orbit_average_spatial (double *** const d_out, double ****** const d_in, int const dim[3], int const momentum_num, int  const (*momentum_list)[3], int const reim ) {
+void antisymmetric_orbit_average_spatial (double ** const d_out, double ***** const d_in, int const dim[2], int const momentum_num, int  const (*momentum_list)[3], int const reim ) {
 
   int const epsilon_tensor[3][3] = { {0,1,2}, {1,2,0}, {2,0,1} };
-
+  int const p_elem_nonzero = ( momentum_list[0][0] != 0 ) + ( momentum_list[0][1] != 0 ) + ( momentum_list[0][2] != 0 );
+    
   /* double const norm = 1. / ( 2. * (double)(
       (momentum_list[0][0] != 0) +
       (momentum_list[0][1] != 0) +
@@ -2744,14 +2747,13 @@ void antisymmetric_orbit_average_spatial (double *** const d_out, double ****** 
     2. * sin( M_PI * momentum_list[0][1] / LY_global ),
     2. * sin( M_PI * momentum_list[0][2] / LZ_global )
   };
-  double const pnorm2 = pnorm[0] * pnorm[0] + pnorm[1] * pnorm[1] + pnorm[2] * pnorm[2];
-  double const norm = 1. / ( 2. * pnorm2 * (double)momentum_num );
+  double const pnorm2 = _POWSUM23D ( pnorm );
+  double const norm = ( p_elem_nonzero == 0 ) ? 0. : 1. / ( 2. * pnorm2 * (double)momentum_num );
 
   if ( g_verbose > 3 ) fprintf ( stdout, "# [antisymmetric_orbit_average_spatial] norm = %f\n", norm );
 #pragma omp parallel for
   for ( int i = 0; i < dim[0]; i++ ) {
-    for ( int k = 0; k < dim[1]; k++ ) {
-      for ( int l = 0; l < dim[2]; l++ ) {
+    for ( int l = 0; l < dim[1]; l++ ) {
         /* sum over momentum orbit */
         for ( int imom = 0; imom < momentum_num; imom++ ) {
           /* int const p[3] = { _ISIGN(momentum_list[imom][0]), _ISIGN(momentum_list[imom][1]), _ISIGN(momentum_list[imom][2]) }; */
@@ -2762,22 +2764,136 @@ void antisymmetric_orbit_average_spatial (double *** const d_out, double ****** 
 
           /* fprintf ( stdout, "# [antisymmetric_orbit_average_spatial] p = %f %f %f\n", p[0], p[1],  p[2] ); */
           for ( int ia = 0; ia < 3; ia++ ) {
-            d_out[i][k][l] += p[epsilon_tensor[ia][0]] * (
-                d_in[i][k][imom][epsilon_tensor[ia][1]+1][epsilon_tensor[ia][2]+1][2*l+reim]
-              - d_in[i][k][imom][epsilon_tensor[ia][2]+1][epsilon_tensor[ia][1]+1][2*l+reim]
+            d_out[i][l] += p[epsilon_tensor[ia][0]] * (
+                d_in[i][imom][epsilon_tensor[ia][1]+1][epsilon_tensor[ia][2]+1][2*l+reim]
+              - d_in[i][imom][epsilon_tensor[ia][2]+1][epsilon_tensor[ia][1]+1][2*l+reim]
               );
           }  /* end of loop on permutations */
         }  /* end of loop on momenta */
         /* normalize */
-        d_out[i][k][l] *= norm;
-        /* if ( g_verbose > 5 ) fprintf ( stdout, " i %3d k %3d l %3d d_out %25.16e\n", i, k, l, d_out[i][k][l] ); */
-      }  /* end of loop on dim[2] */
+        d_out[i][l] *= norm;
+        /* if ( g_verbose > 5 ) fprintf ( stdout, " i %3d l %3d d_out %25.16e\n", i, l, d_out[i][l] ); */
     }  /* end of loop on dim[1] */
   }  /* end of loop on dim[0] */
 
   return;
 }  /* end of antisymmetric_orbit_average_spatial */
 
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * HVP orbit average and separation into
+ * irrep structures
+ *
+ * uses continuum momenta 2 sin ( p / 2 )
+ *
+ * 0 = A1 ii
+ * 1 = A1'  00
+ * 2 = T1 0i, i0
+ * 3 = T2 i != j
+ * 4 = E  11 + 22 - 2/3 ii
+ ***********************************************************/
+
+
+void hvp_irrep_separation_orbit_average (double *** const d_out, double ***** const d_in, int const dim[2], int const momentum_num, int  const (*momentum_list)[3], int const reim ) {
+
+  double const one_over_three = 1./3.;
+  double const two_over_three = 2./3.;
+  int const p_elem_nonzero = ( momentum_list[0][0] != 0 ) + ( momentum_list[0][1] != 0 ) + ( momentum_list[0][2] != 0 );
+
+  int const p_elem_abs_nonequal = 
+       ( abs( momentum_list[0][0] ) != abs( momentum_list[0][1] ) )
+     + ( abs( momentum_list[0][0] ) != abs( momentum_list[0][2] ) )
+     + ( abs( momentum_list[0][1] ) != abs( momentum_list[0][2] ) );
+
+  double const psin[3] = {
+      2. * sin( M_PI *  momentum_list[0][0] / LX_global ),
+      2. * sin( M_PI *  momentum_list[0][1] / LX_global ),
+      2. * sin( M_PI *  momentum_list[0][2] / LX_global ) };
+  double const p2 = _POWSUM23D ( psin );
+  double const p4 = _POWSUM43D ( psin );
+  double const one_over_sqrt_p2          = ( p_elem_nonzero == 0 ) ? 0. : 1. / sqrt ( p2 );
+  double const one_over_sqrt_p2sqr_mi_p4 = ( p_elem_nonzero <  2 ) ? 0. : 1. / sqrt (  p2 * p2 - p4 );
+  double const one_over_momentum_num = 1. / (double)momentum_num;
+  double const one_over_sqrt_p4_mi_p2sqr_over_three = ( p_elem_abs_nonequal == 0 ) ? 0. : 1. / sqrt( p4 - p2 * p2 / 3. );
+
+
+#pragma omp parallel for
+  for ( int i = 0; i < dim[0]; i++ ) {
+    for ( int l = 0; l < dim[1]; l++ ) {
+
+        d_out[0][i][l] = 0.;
+        d_out[1][i][l] = 0.;
+        d_out[2][i][l] = 0.;
+        d_out[3][i][l] = 0.;
+        d_out[4][i][l] = 0.;
+
+        /* sum over momentum orbit */
+        for ( int imom = 0; imom < momentum_num; imom++ ) {
+          /* int const psign[3] = { _ISIGN(momentum_list[imom][0]), _ISIGN(momentum_list[imom][1]), _ISIGN(momentum_list[imom][2]) }; */
+
+          double const pvec[3] = {
+              2. * sin( M_PI *  momentum_list[imom][0] / LX_global ),
+              2. * sin( M_PI *  momentum_list[imom][1] / LY_global ),
+              2. * sin( M_PI *  momentum_list[imom][2] / LZ_global ) };
+
+          double const pvec2_ti_one_over_three = _POWSUM23D( pvec ) * one_over_three;
+
+          /* fprintf ( stdout, "# [antisymmetric_orbit_average_spatial] p = %d %d %d\n", p[0], p[1],  p[2] ); */
+
+          /* A1 */
+          d_out[0][i][l] += d_in[i][imom][1][1][2*l+reim] + d_in[i][imom][2][2][2*l+reim] + d_in[i][imom][3][3][2*l+reim];
+
+          /* A1' */
+          d_out[1][i][l] += d_in[i][imom][0][0][2*l+reim];
+
+          /* T1 */
+          d_out[2][i][l] += 
+              pvec[0] * ( d_in[i][imom][0][1][2*l+reim] + d_in[i][imom][1][0][2*l+reim] ) 
+            + pvec[1] * ( d_in[i][imom][0][2][2*l+reim] + d_in[i][imom][2][0][2*l+reim] )
+            + pvec[2] * ( d_in[i][imom][0][3][2*l+reim] + d_in[i][imom][3][0][2*l+reim] );
+
+          /* T2 */
+          d_out[3][i][l] += 
+              pvec[0] * pvec[1] * ( d_in[i][imom][1][2][2*l+reim] + d_in[i][imom][2][1][2*l+reim] )
+            + pvec[0] * pvec[2] * ( d_in[i][imom][1][3][2*l+reim] + d_in[i][imom][3][1][2*l+reim] )
+            + pvec[1] * pvec[2] * ( d_in[i][imom][2][3][2*l+reim] + d_in[i][imom][3][2][2*l+reim] );
+
+          /* E */
+          d_out[4][i][l] += 
+              ( pvec2_ti_one_over_three - pvec[0] * pvec[0] ) * d_in[i][imom][1][1][2*l+reim] 
+            + ( pvec2_ti_one_over_three - pvec[1] * pvec[1] ) * d_in[i][imom][2][2][2*l+reim] 
+            + ( pvec2_ti_one_over_three - pvec[2] * pvec[2] ) * d_in[i][imom][3][3][2*l+reim];
+            
+        }  /* end of loop on momenta */
+
+        /* A1 normalize */
+        d_out[0][i][l] *= one_over_momentum_num;
+
+        /* A1p normalize */
+        d_out[1][i][l] *= one_over_momentum_num;
+     
+        /* T1 normalize */
+        d_out[2][i][l] *= one_over_momentum_num * one_over_sqrt_p2 * 0.5;
+
+        /* T2 normalize */
+        d_out[3][i][l] *= one_over_momentum_num * one_over_sqrt_p2sqr_mi_p4 * 0.5;
+
+        /* E normalize */
+        d_out[4][i][l] *= one_over_momentum_num * one_over_sqrt_p4_mi_p2sqr_over_three;
+
+        if ( g_verbose > 5 ) {
+          fprintf ( stdout, " i %3d l %3d reim %d    A1  %16.7e A1' %16.7e T1  %16.7e T2  %16.7e E   %16.7e\n", i, l, reim,
+              d_out[0][i][l], d_out[1][i][l], d_out[2][i][l], d_out[3][i][l], d_out[4][i][l] );
+        }
+
+    }  /* end of loop on dim[1] */
+  }  /* end of loop on dim[0] */
+
+  return;
+
+}  /* end of hvp_irrep_separation_orbit_average  */
 
 /***********************************************************/
 /***********************************************************/
