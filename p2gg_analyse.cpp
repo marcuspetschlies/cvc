@@ -246,11 +246,6 @@ int main(int argc, char **argv) {
    **
    **********************************************************
    **********************************************************/
-  double ****** pgg = init_6level_dtable ( num_conf, num_src_per_conf, g_sink_momentum_number, 4, 4, 2 * T );
-  if ( pgg == NULL ) {
-    fprintf(stderr, "[p2gg_analyse] Error from init_6level_dtable %s %d\n", __FILE__, __LINE__);
-    EXIT(16);
-  }
 
   for ( int iseq_source_momentum = 0; iseq_source_momentum < g_seq_source_momentum_number; iseq_source_momentum++) 
   {
@@ -269,6 +264,12 @@ int main(int argc, char **argv) {
       {
 
         int const sequential_source_timeslice = g_sequential_source_timeslice_list[ isequential_source_timeslice ];
+
+        double ****** pgg = init_6level_dtable ( num_conf, num_src_per_conf, g_sink_momentum_number, 4, 4, 2 * T );
+        if ( pgg == NULL ) {
+          fprintf(stderr, "[p2gg_analyse] Error from init_6level_dtable %s %d\n", __FILE__, __LINE__);
+          EXIT(16);
+        }
 
         /***********************************************************
          * loop on configs and source locations per config
@@ -342,7 +343,7 @@ int main(int argc, char **argv) {
                   affdir = aff_reader_chpath (affr, affn, key );
                   exitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*)(contact_term[iflavor][mu]), 1 );
                   if( exitstatus != 0 ) {
-                    fprintf(stderr, "[p2gg_analyse] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                    fprintf(stderr, "[p2gg_analyse] Error from aff_node_get_complex for key %s, status was %d %s %d\n", key, exitstatus, __FILE__, __LINE__);
                     EXIT(105);
                   }
 
@@ -608,7 +609,7 @@ int main(int argc, char **argv) {
          * source average
          ****************************************/
         double ***** pgg_src_avg = init_5level_dtable ( num_conf, g_sink_momentum_number, 4, 4, 2 * T );
-        if ( pgg == NULL ) {
+        if ( pgg_src_avg == NULL ) {
           fprintf(stderr, "[p2gg_analyse] Error from init_5level_dtable %s %d\n", __FILE__, __LINE__);
           EXIT(16);
         }
@@ -698,7 +699,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
               for ( int iconf = 0; iconf < num_conf; iconf++ ) {
                 for ( int it = 0; it < T_global; it++ ) {
-                  data[iconf][it] = pgg[iconf][imom][mu][nu][2*it+ireim];
+                  data[iconf][it] = pgg_src_avg[iconf][imom][mu][nu][2*it+ireim];
                 }
               }
 
