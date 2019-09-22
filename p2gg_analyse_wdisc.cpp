@@ -1018,10 +1018,6 @@ int main(int argc, char **argv) {
 
         }  /* end of loop on configurations */
         
-        /****************************************
-         * pointer to be used for UWerr analysis
-         ****************************************/
-        double ****** pgg = pgg_disc;
 
         /****************************************
          * check WI in momentum space
@@ -1033,7 +1029,7 @@ int main(int argc, char **argv) {
            for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
              for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
 
-                exitstatus = check_momentum_space_wi_tpvec ( pgg[iconf][isrc][imom], g_sink_momentum_list[imom] );
+                exitstatus = check_momentum_space_wi_tpvec ( pgg_disc[iconf][isrc][imom], g_sink_momentum_list[imom] );
                 if ( exitstatus != 0  ) {
                   fprintf ( stderr, "[p2gg_analyse_wdisc] Error from check_momentum_space_wi_tpvec, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                   EXIT(2);
@@ -1048,6 +1044,27 @@ int main(int argc, char **argv) {
           show_time ( &ta, &tb, "p2gg_analyse_wdisc", "check-wi-in-momentum-space", g_cart_id == 0 );
         }  /* end of if check_momentum_space_WI */
 
+        /****************************************
+         * pgg_disc source average
+         ****************************************/
+        double ***** pgg = init_5level_dtable ( num_conf, g_sink_momentum_number, 4, 4, 2 * T_global );
+        if ( pgg == NULL ) {
+          fprintf(stderr, "[p2gg_analyse_wdisc] Error from init_5level_dtable %s %d\n", __FILE__, __LINE__);
+          EXIT(16);
+        }
+#pragma omp parallel for
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for ( int i = 0; i < g_sink_momentum_number * 32 * T_global; i++ ) {
+            pgg[iconf][0][0][0][i] = 0.;
+
+            for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+              pgg[iconf][0][0][0][i] += pgg_disc[iconf][isrc][0][0][0][i];
+            }
+            pgg[iconf][0][0][0][i] /= (double)num_src_per_conf;
+          }
+        }
+
+#if 0
         /****************************************
          * STATISTICAL ANALYSIS for real and
          * imaginary part
@@ -1076,12 +1093,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
               for ( int iconf = 0; iconf < num_conf; iconf++ ) {
                 for ( int it = 0; it < T_global; it++ ) {
-                  data[iconf][it] = 0.;
-                  for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-                    data[iconf][it] += pgg[iconf][isrc][imom][mu][nu][2*it+ireim];
-                  }
-                  data[iconf][it] /= (double)num_src_per_conf;
-
+                  data[iconf][it] += pgg[iconf][imom][mu][nu][2*it+ireim];
                 }
               }
        
@@ -1104,7 +1116,9 @@ int main(int argc, char **argv) {
             }  /* end of loop on real / imag */
           }}  /* end of loop on nu, mu */
         }  /* end of loop on momenta */
+#endif  /* of if 0 */
 
+#if 0
 #ifdef _USE_SUBTRACTED
         /****************************************
          * STATISTICAL ANALYSIS for subtracted
@@ -1135,17 +1149,11 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
               for ( int iconf = 0; iconf < num_conf; iconf++ ) {
                 for ( int it = 0; it < T_global; it++ ) {
-                  for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-                    /* real part of pgg_disc */
-                    data[iconf][           it] += pgg_disc[iconf][isrc][imom][mu][nu][2*it+ireim];
-                    /* real part of hvp */
-                    data[iconf][T_global + it] += hvp[iconf][isrc][imom][mu][nu][2*it+ireim];
-                  }
-
-                  /* normalize */
-                  data[iconf][           it] *= 1. / num_src_per_conf;
-                  data[iconf][T_global + it] *= 1. / num_src_per_conf;
-                }  /* end of loop on timeslices */
+                  /* real part of pgg_disc */
+                  data[iconf][           it] += pgg_disc[iconf][imom][mu][nu][2*it+ireim];
+                  /* real part of hvp */
+                  data[iconf][T_global + it] += hvp[iconf][imom][mu][nu][2*it+ireim];
+                }
 
                 /* time-averaged loop */
                 for ( int it = 0; it < T_global; it++ ) {
@@ -1175,7 +1183,9 @@ int main(int argc, char **argv) {
             }  /* end of loop on real / imag */
           }}  /* end of loop on nu, mu */
         }  /* end of loop on momenta */
+
 #endif  /* of ifdef _USE_SUBTRACTED */
+#endif  /* of if 0 */
 
         /****************************************
          * statistical analysis for orbit average
@@ -1184,36 +1194,18 @@ int main(int argc, char **argv) {
          * SEQUENTIAL MOMENTUM IS ZERO
          ****************************************/
         for ( int ireim = 0; ireim < 2; ireim++ ) {
-          double *** data_aux = init_3level_dtable ( num_conf, num_src_per_conf, T_global );
-          if ( data_aux == NULL ) {
-            fprintf ( stderr, "[p2gg_analyse_wdisc] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
-            EXIT(79);
-          }
           double ** data = init_2level_dtable ( num_conf, T_global );
           if ( data == NULL ) {
             fprintf ( stderr, "[p2gg_analyse_wdisc] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
             EXIT(79);
           }
 
-          int const dim[3] = { num_conf, num_src_per_conf, T_global };
-          antisymmetric_orbit_average_spatial ( data_aux, pgg, dim, g_sink_momentum_number, g_sink_momentum_list, ireim );
+          int const dim[2] = { num_conf, T_global };
+          antisymmetric_orbit_average_spatial ( data, pgg, dim, g_sink_momentum_number, g_sink_momentum_list, ireim );
       
-          /****************************************
-           * block data
-           ****************************************/
-#pragma omp parallel for
-          for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-            for ( int it = 0; it < T_global; it++ ) {
-              for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-                data[iconf][it] += data_aux[iconf][isrc][it];
-              }
-              data[iconf][it] /= (double)num_src_per_conf;
-            }
-          }
-          fini_3level_dtable ( &data_aux );
 
           char obs_name[100];
-          sprintf ( obs_name, "pgg_disc.%s.%s.%s.j_j_orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s", correlator_prefix[operator_type], flavor_tag[operator_type],
+          sprintf ( obs_name, "pgg_disc.%s.%s.%s.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s", correlator_prefix[operator_type], flavor_tag[operator_type],
               loop_type_tag[loop_type],
               seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id, sequential_source_timeslice,
                 g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2], reim_str[ireim] );
@@ -1224,6 +1216,29 @@ int main(int argc, char **argv) {
             fprintf ( stderr, "[p2gg_analyse_wdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(1);
           }
+
+          if ( write_data == 1 ) {
+            sprintf ( obs_name, "pgg_disc.%s.%s.%s.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s.dat", correlator_prefix[operator_type], flavor_tag[operator_type],
+                loop_type_tag[loop_type],
+                seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id, sequential_source_timeslice,
+                  g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2], reim_str[ireim] );
+
+            FILE * ofs = fopen ( obs_name, "w" );
+            if ( ofs == NULL ) {
+              fprintf ( stdout, "[p2gg_analyse_wdisc] Error from fopen for file %s %s %d\n", obs_name, __FILE__, __LINE__ );
+              EXIT(12);
+            }
+
+            for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+              for ( int tau = -T_global/2+1; tau <= T_global/2; tau++ ) {
+                int const it = ( tau < 0 ) ? tau + T_global : tau;
+
+                fprintf ( ofs, "%5d%25.16e%8d\n", tau, data[iconf][it], conf_src_list[iconf][0][0] );
+              }
+            }
+            fclose ( ofs );
+
+          }  /* end of if write data */
 
           fini_2level_dtable ( &data );
         }  /* end of loop on real / imag */
@@ -1238,10 +1253,10 @@ int main(int argc, char **argv) {
          * SEQUENTIAL MOMENTUM IS ZERO
          ****************************************/
         for ( int ireim = 0; ireim < 2; ireim++ ) {
-          double **** data_aux = init_4level_dtable ( 2, num_conf, num_src_per_conf, T_global );
+          double *** data_aux = init_3level_dtable ( 2, num_conf, T_global );
           double ** data = init_2level_dtable ( num_conf, 2 * T_global + 1 );
   
-          int const dim[3] = { num_conf, num_src_per_conf, T_global };
+          int const dim[2] = { num_conf, T_global };
           antisymmetric_orbit_average_spatial ( data_aux[0], pgg, dim, g_sink_momentum_number, g_sink_momentum_list, ireim );
           antisymmetric_orbit_average_spatial ( data_aux[1], hvp, dim, g_sink_momentum_number, g_sink_momentum_list, ireim );
      
@@ -1249,14 +1264,8 @@ int main(int argc, char **argv) {
           for ( int iconf = 0; iconf < num_conf; iconf++ ) {
             for ( int it = 0; it < T_global; it++ ) {
 
-              for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-
-                data[iconf][         it] += data_aux[0][iconf][isrc][it];
-                data[iconf][T_global+it] += data_aux[1][iconf][isrc][it];
-
-              }
-              data[iconf][         it] *= 1. / (double)num_src_per_conf;
-              data[iconf][T_global+it] *= 1. / (double)num_src_per_conf;
+              data[iconf][         it] += data_aux[0][iconf][it];
+              data[iconf][T_global+it] += data_aux[1][iconf][it];
 
               /* time-averaged loop */
               data[iconf][2*T_global] += loop_pgg[iconf][2*it+loop_type_reim];
@@ -1269,7 +1278,7 @@ int main(int argc, char **argv) {
           }  /* end of loop on configurations */
 
           char obs_name[100];
-          sprintf ( obs_name, "pgg_disc.%s.%s.%s.sub.j_j_orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s", correlator_prefix[operator_type], flavor_tag[operator_type],
+          sprintf ( obs_name, "pgg_disc.%s.%s.%s.sub.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s", correlator_prefix[operator_type], flavor_tag[operator_type],
               loop_type_tag[loop_type],
               seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id, sequential_source_timeslice,
               g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2], reim_str[ireim]);
@@ -1283,16 +1292,39 @@ int main(int argc, char **argv) {
             EXIT(115);
           }
 
-          fini_4level_dtable ( &data_aux );
+          if ( write_data == 1 ) {
+            sprintf ( obs_name, "pgg_disc.%s.%s.%s.sub.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s", correlator_prefix[operator_type], flavor_tag[operator_type],
+                loop_type_tag[loop_type],
+                seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id, sequential_source_timeslice,
+                  g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2], reim_str[ireim] );
+
+            FILE * ofs = fopen ( obs_name, "w" );
+            if ( ofs == NULL ) {
+              fprintf ( stdout, "[p2gg_analyse_wdisc] Error from fopen for file %s %s %d\n", obs_name, __FILE__, __LINE__ );
+              EXIT(12);
+            }
+
+            for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+              for ( int tau = -T_global/2+1; tau <= T_global/2; tau++ ) {
+                int const it = ( tau < 0 ) ? tau + T_global : tau;
+                fprintf ( ofs, "%5d%25.16e%25.16e%25.16e%8d\n", tau, data[iconf][it], data[iconf][T_global + it], data[iconf][2*T_global], conf_src_list[iconf][0][0] );
+              }
+            }
+            fclose ( ofs );
+
+          }  /* end of if write data */
+          fini_3level_dtable ( &data_aux );
           fini_2level_dtable ( &data );
 
         }  /* end of loop on real / imag */
+
 #endif  /* of ifdef _USE_SUBTRACTED */
 
         /**********************************************************
          * free p2gg table
          **********************************************************/
         fini_6level_dtable ( &pgg_disc );
+        fini_5level_dtable ( &pgg );
 
       }  /* end of loop on sequential source timeslices */
 
