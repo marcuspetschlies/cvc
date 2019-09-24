@@ -273,7 +273,9 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, const ch
 
       for ( int i = 0; i < nrot; i++ ) {
         t->rid[i] = i;
-        rot_rotation_matrix_spherical_basis ( t->R[i], 2, cubic_group_double_cover_rotations[i].n, cubic_group_double_cover_rotations[i].w );
+        /* rot_rotation_matrix_spherical_basis ( t->R[i], 2, cubic_group_double_cover_rotations[i].n, cubic_group_double_cover_rotations[i].w ); */
+        rot_mat_spin1_cartesian ( t->R[i], cubic_group_double_cover_rotations[i].n, cubic_group_double_cover_rotations[i].w );
+
       }
       
       memcpy ( t->rmid, t->rid, nrot * sizeof(int) );
@@ -298,7 +300,8 @@ int set_rot_mat_table_cubic_group_double_cover ( rot_mat_table_type *t, const ch
 
       for ( int i = 0; i < nrot; i++ ) {
         t->rid[i] = i;
-        rot_rotation_matrix_spherical_basis ( t->R[i], 2, cubic_group_double_cover_rotations[i].n, cubic_group_double_cover_rotations[i].w );
+        /* rot_rotation_matrix_spherical_basis ( t->R[i], 2, cubic_group_double_cover_rotations[i].n, cubic_group_double_cover_rotations[i].w ); */
+        rot_mat_spin1_cartesian ( t->R[i], cubic_group_double_cover_rotations[i].n, cubic_group_double_cover_rotations[i].w );
       }
   
       /* 6C8, 6C8' additional minus sign, R8 to R19 */
