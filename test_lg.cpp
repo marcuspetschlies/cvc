@@ -186,6 +186,7 @@ int main(int argc, char **argv) {
     EXIT(2);
   }
 
+#if 0
   int const interpolator_number       = 1;           // one (for now imaginary) interpolator
   int const interpolator_bispinor[1]  = {0};         // bispinor no 0 / yes 1
   int const interpolator_parity[1]    = {1};         // intrinsic operator parity, value 1 = intrinsic parity +1, -1 = intrinsic parity -1,
@@ -194,14 +195,14 @@ int main(int argc, char **argv) {
   int const interpolator_J2[1]        = {3};
   char const correlator_name[]    = "basis_vector";  // just some arbitrary name for now
 
-#if 0
+#endif  /* of if 0 */
+
   int const interpolator_number       = 2;               // one (for now imaginary) interpolator
   int const interpolator_bispinor[2]  = {0,0};           // no need for bispinor now
-  int const interpolator_parity[2]    = {-1,-1};         // intrinsic operator parity
-  int const interpolator_cartesian[2] = {0,0};           // spherical basis (0) or cartesian basis (1) ? cartesian basis only meaningful for J = 1, J2 = 2, i.e. 3-dim. representation
+  int const interpolator_parity[2]    = {1,1};           // intrinsic operator parity
+  int const interpolator_cartesian[2] = {1,1};           // spherical basis (0) or cartesian basis (1) ? cartesian basis only meaningful for J = 1, J2 = 2, i.e. 3-dim. representation
   char const correlator_name[]        = "basis_vector";  // just some arbitrary name for now
-  int const interpolator_J2[2]        = {0,0};
-#endif  /* of if 0 */
+  int const interpolator_J2[2]        = {2,2};
 
   int ** interpolator_momentum_list = init_2level_itable ( interpolator_number, 3 );
   if ( interpolator_momentum_list == NULL ) {
@@ -225,7 +226,8 @@ int main(int argc, char **argv) {
   /****************************************************
    * loop on little groups
    ****************************************************/
-  for ( int ilg = 0; ilg < nlg; ilg++ )
+  /* for ( int ilg = 0; ilg < nlg; ilg++ ) */
+  for ( int ilg = 0; ilg <= 0; ilg++ )
   {
 
     int const n_irrep = lg[ilg].nirrep;
@@ -297,12 +299,11 @@ int main(int argc, char **argv) {
        * loop on reference rows of spin matrix
        ****************************************************/
       for ( int r1 = 0; r1 <= interpolator_J2[0]; r1++ ) {
-        int const ref_row_spin[1] = { r1 };
+        /* int const ref_row_spin[1] = { r1 }; */
 
-      /* for ( int r2 = 0; r2 <= interpolator_J2[1]; r2++ ) {
+      for ( int r2 = 0; r2 <= interpolator_J2[1]; r2++ ) {
 
         int const ref_row_spin[2] = { r1, r2 }; 
-       */
 
         /****************************************************
          * rotation matrix for current irrep
@@ -341,9 +342,15 @@ int main(int argc, char **argv) {
               interpolator_momentum_list[0][1] = g_sink_momentum_list[imom][1];
               interpolator_momentum_list[0][2] = g_sink_momentum_list[imom][2];
 
-              interpolator_momentum_list[1][0] = Ptot[0] - interpolator_momentum_list[0][0]; 
+              /* interpolator_momentum_list[1][0] = Ptot[0] - interpolator_momentum_list[0][0]; 
               interpolator_momentum_list[1][1] = Ptot[1] - interpolator_momentum_list[0][1];
               interpolator_momentum_list[1][2] = Ptot[2] - interpolator_momentum_list[0][2];
+              */
+
+              /* TEST */
+              interpolator_momentum_list[1][0] = 0;
+              interpolator_momentum_list[1][1] = 0;
+              interpolator_momentum_list[1][2] = 0;
             }
 
             /****************************************************
@@ -465,7 +472,7 @@ int main(int argc, char **argv) {
 
         fini_rot_mat_table ( &r_irrep );
 
-      /* } */ /* end of loop on ref_row_spin2 */
+      }  /* end of loop on ref_row_spin2 */
       }  /* end of loop on ref_row_spin1 */
 
     }  /* end of loop on irreps */
