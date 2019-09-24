@@ -171,14 +171,14 @@ int main(int argc, char **argv) {
    * here in spherical basis
    ****************************************************/
 
-  rot_mat_table_type Rpvec;
-  init_rot_mat_table ( &Rpvec );
-  exitstatus = set_rot_mat_table_spin ( &Rpvec, 2, 0 );
+  rot_mat_table_type Rspin1;
+  init_rot_mat_table ( &Rspin1 );
+  exitstatus = set_rot_mat_table_spin ( &Rspin1, 2, 0 );
 
   /****************************************************
-   * loop on little groups
+   * loop on chosen total momenta
    ****************************************************/
-  for ( int ilg = 0; ilg < nlg; ilg++ )
+  for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ )
   {
 
     int ** momentum_pair_selection = init_2level_itable ( g_sink_momentum_number * g_sink_momentum_number, 5 );
@@ -187,11 +187,111 @@ int main(int argc, char **argv) {
       EXIT(2);
     }
 
-    int const P[3] = {  
-      lg[ilg].d[0],
-      lg[ilg].d[1],
-      lg[ilg].d[2] };
 
+    /****************************************************
+     * set momentum vector
+     ****************************************************/
+    int Pref[3], refframerot;
+    int const P[3] = {  
+      g_total_momentum_list[iptot][0],
+      g_total_momentum_list[iptot][1],
+      g_total_momentum_list[iptot][2] };
+      /* lg[ilg].d[0], lg[ilg].d[1], lg[ilg].d[2]  */
+
+    /****************************************************
+     * get reference frame rotation
+     ****************************************************/
+    exitstatus = get_reference_rotation ( Pref, &refframerot, P );
+    if ( refframerot == -1 ) refframerot = 0;
+    if ( exitstatus != 0 ) {
+      fprintf ( stderr, "[test_lg_momentum_classes] Error from get_reference_rotation, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(4);
+    } else if ( g_verbose > 1 ) {
+      fprintf ( stdout, "# [test_lg_momentum_classes] P = %3d %3d %3d refframerot %2d for Pref = %3d %3d %3d\n",
+      P[0], P[1], P[2], refframerot, Pref[0], Pref[1], Pref[2]);
+    }
+
+    /****************************************************
+     * get little group
+     ****************************************************/
+    int ilg = -1;
+    for ( int i = 0; i < nlg; i++ ) {
+      if ( ( Pref[0] == lg[i].d[0] ) && 
+           ( Pref[1] == lg[i].d[1] ) && 
+           ( Pref[2] == lg[i].d[2] )  ) {
+        ilg = i;
+      }
+    }
+    if ( ilg == -1 ) {
+      fprintf ( stderr, "[test_lg_momentum_classes] Error, could not find lg %s %d\n", __FILE__, __LINE__);
+      EXIT(4);
+    } else {
+      fprintf ( stdout, "# [test_lg_momentum_classes] P %3d %3d %3d   Pref %3d %3d %3d   lg %s\n",
+          P[0], P[1], P[2], Pref[0], Pref[1], Pref[2], lg[ilg].name );
+    }
+
+    /****************************************************
+     * make cartesian-basis spin-1 reference frame
+     * rotation
+     ****************************************************/
+    double _Complex **refframerot_p = rot_init_rotation_matrix ( 3 );
+#if defined CUBIC_GROUP_DOUBLE_COVER
+    rot_mat_spin1_cartesian ( refframerot_p, cubic_group_double_cover_rotations[refframerot].n, cubic_group_double_cover_rotations[refframerot].w );
+#elif defined CUBIC_GROUP_SINGLE_COVER
+    rot_rotation_matrix_spherical_basis_Wigner_D ( refframerot_p, 2, cubic_group_rotations_v2[refframerot].a );
+    rot_spherical2cartesian_3x3 ( refframerot_p, refframerot_p );
+#endif
+    if ( ! ( rot_mat_check_is_real_int ( refframerot_p, 3) ) ) {
+      fprintf(stderr, "[test_lg_momentum_classes] Error rot_mat_check_is_real_int refframerot_p %s %d\n", __FILE__, __LINE__);
+      EXIT(72);
+    }
+
+    /****************************************************
+     * list of rotations all rotations, spin 1, spherical
+     ****************************************************/
+    rot_mat_table_type Rpvec;
+    init_rot_mat_table ( &Rpvec );
+
+    exitstatus = alloc_rot_mat_table ( &Rpvec, "SU2", "spin1", 3, lg[ilg].nr );
+
+    for ( int irot = 0; irot < Rpvec.n; irot++ ) {
+
+      /* copy rotation, transform spin-1 to Cartesian basis  */
+      rot_spherical2cartesian_3x3 ( Rpvec.R[irot], Rspin1.R[lg[ilg].r[irot]] );
+      Rpvec.rid[irot] = lg[ilg].r[irot];
+
+      if ( ! rot_mat_check_is_real_int ( Rpvec.R[irot], 3 ) ) {
+        fprintf ( stderr, "[test_lg_momentum_classes] Error, R %d / %d is not real int\n", irot, Rpvec.rid[irot] );
+        EXIT(1);
+      }
+
+
+      /* copy reflection-rotation, transform spin-1 to Cartesian basis  */
+      rot_spherical2cartesian_3x3 ( Rpvec.IR[irot], Rspin1.IR[lg[ilg].rm[irot]] );
+      Rpvec.rmid[irot] = lg[ilg].rm[irot];
+
+      if ( ! rot_mat_check_is_real_int ( Rpvec.IR[irot], 3 ) ) {
+        fprintf ( stderr, "[test_lg_momentum_classes] Error, R %d / %d is not real int\n", irot, Rpvec.rmid[irot] );
+        EXIT(1);
+      }
+    }
+
+    for ( int irot = 0; irot < Rpvec.n; irot++ ) {
+      // R <- Rref x R
+      rot_mat_ti_mat ( Rpvec.R[irot], refframerot_p, Rpvec.R[irot], 3 );
+      // R <- R x Rref^+
+      rot_mat_ti_mat_adj ( Rpvec.R[irot], Rpvec.R[irot], refframerot_p, 3 );
+ 
+      // IR <- Rref x IR
+      rot_mat_ti_mat ( Rpvec.IR[irot], refframerot_p, Rpvec.IR[irot], 3 );
+      // IR <- IR x Rref^+
+      rot_mat_ti_mat_adj ( Rpvec.IR[irot], Rpvec.IR[irot], refframerot_p, 3 );
+
+    }
+
+    /****************************************************
+     * check pairs
+     ****************************************************/
     int count_pairs = 0;
     for ( int i = 0; i < g_sink_momentum_number; i++ ) {
       int const p1[3] = {
@@ -205,12 +305,19 @@ int main(int argc, char **argv) {
         g_sink_momentum_list[k][1],
         g_sink_momentum_list[k][2] };
 
+      /****************************************************
+       * discard momentum pairs,
+       * which do not add up to P
+       ****************************************************/
       if ( ! (
                  ( ( p1[0] + p2[0] ==  P[0] ) && ( p1[1] + p2[1] ==  P[1] ) && ( p1[2] + p2[2] ==  P[2] ) )
-              || ( ( p1[0] + p2[0] == -P[0] ) && ( p1[1] + p2[1] == -P[1] ) && ( p1[2] + p2[2] == -P[2] ) )
+            /*  || ( ( p1[0] + p2[0] == -P[0] ) && ( p1[1] + p2[1] == -P[1] ) && ( p1[2] + p2[2] == -P[2] ) ) */
             ) ) continue;
 
 
+      /****************************************************
+       * initialize momentum_pair_selection entry
+       ****************************************************/
       momentum_pair_selection[count_pairs][0] = i;
       momentum_pair_selection[count_pairs][1] = k;
       momentum_pair_selection[count_pairs][2] = -1;
@@ -218,8 +325,8 @@ int main(int argc, char **argv) {
       momentum_pair_selection[count_pairs][4] = -1;
       count_pairs++;
 
-      if ( g_verbose > 0 ) fprintf ( stdout, "# [test_lg_momentum_classes] P %3d %3d %3d  pair %4d   p1 %3d %3d %3d p2 %3d %3d %3d\n", 
-          P[0], P[1], P[2], count_pairs, p1[0], p1[1], p1[2], p2[0], p2[1], p2[2] );
+      if ( g_verbose > 0 ) fprintf ( stdout, "# [test_lg_momentum_classes] P %3d %3d %3d i %3d k %3d pair %4d   p1 %3d %3d %3d p2 %3d %3d %3d\n", 
+          P[0], P[1], P[2], i, k, count_pairs-1, p1[0], p1[1], p1[2], p2[0], p2[1], p2[2] );
     }}
 
 
@@ -228,19 +335,7 @@ int main(int argc, char **argv) {
       /****************************************************
        * loop on proper rotations
        ****************************************************/
-      for ( int irot = 0; irot < lg[ilg].nr ; irot++ ) {
-
-        double _Complex **C = rot_init_rotation_matrix ( 3  );
-
-        rot_spherical2cartesian_3x3 ( C, Rpvec.R[lg[ilg].r[irot]] );
-
-        if ( ! rot_mat_check_is_real_int ( C, 3 ) ) {
-          fprintf ( stderr, "[test_lg_momentum_classes] Error, R %d / %d is not real int\n", irot, lg[ilg].r[irot] );
-          EXIT(1);
-        /* } else {
-          if ( g_verbose > 2 ) fprintf ( stdout, "# [test_lg_momentum_classes] rot %d / %d is okay\n", irot, lg[ilg].r[irot] );
-          */
-        }
+      for ( int irot = 0; irot < Rpvec.n; irot++ ) {
 
         int p1rot[3] = {0,0,0}, p2rot[3] = {0,0,0};
         /* if ( g_verbose > 0 ) fprintf ( stdout, "# [test_lg_momentum_classes] momentum_pair_selection %3d  i %3d  k %3d  flag %2d\n",
@@ -251,8 +346,8 @@ int main(int argc, char **argv) {
         */
 
 
-        rot_point ( p1rot, g_sink_momentum_list[momentum_pair_selection[i][0]], C );
-        rot_point ( p2rot, g_sink_momentum_list[momentum_pair_selection[i][1]], C );
+        rot_point ( p1rot, g_sink_momentum_list[momentum_pair_selection[i][0]], Rpvec.R[irot] );
+        rot_point ( p2rot, g_sink_momentum_list[momentum_pair_selection[i][1]], Rpvec.R[irot] );
 
         for ( int k = 0; k < count_pairs; k++ ) {
 
@@ -268,41 +363,21 @@ int main(int argc, char **argv) {
             momentum_pair_selection[k][3] = lg[ilg].r[irot]+1;
           }
         }
-#if 0
-#endif  /* of if 0  */
-
-        rot_fini_rotation_matrix ( &C );
 
       }  /* end of loop on proper rotations */
 
       /****************************************************
        * loop on rotation-reflections
        ****************************************************/
-      for ( int irot = 0; irot < lg[ilg].nrm ; irot++ ) {
-
-        double _Complex **C = rot_init_rotation_matrix ( 3  );
-
-        rot_spherical2cartesian_3x3 ( C, Rpvec.IR[lg[ilg].rm[irot]] );
-
-        if ( ! rot_mat_check_is_real_int ( C, 3 ) ) {
-          fprintf ( stderr, "[test_lg_momentum_classes] Error, IR %d / %d is not real int\n", irot, lg[ilg].rm[irot] );
-          EXIT(1);
-        /* } else {
-          if ( g_verbose > 2 ) fprintf ( stdout, "# [test_lg_momentum_classes] rot %d / %d is okay\n", irot, lg[ilg].r[irot] );
-          */
-        }
+      for ( int irot = 0; irot < Rpvec.n ; irot++ ) {
 
         int p1rot[3] = {0,0,0}, p2rot[3] = {0,0,0};
         /* if ( g_verbose > 0 ) fprintf ( stdout, "# [test_lg_momentum_classes] momentum_pair_selection %3d  i %3d  k %3d  flag %2d\n",
             i, momentum_pair_selection[i][0], momentum_pair_selection[i][1], momentum_pair_selection[i][2] );
-
-        fflush ( stdout );
-        fflush ( stderr );
         */
 
-
-        rot_point ( p1rot, g_sink_momentum_list[momentum_pair_selection[i][0]], C );
-        rot_point ( p2rot, g_sink_momentum_list[momentum_pair_selection[i][1]], C );
+        rot_point ( p1rot, g_sink_momentum_list[momentum_pair_selection[i][0]], Rpvec.IR[irot] );
+        rot_point ( p2rot, g_sink_momentum_list[momentum_pair_selection[i][1]], Rpvec.IR[irot] );
 
         for ( int k = 0; k < count_pairs; k++ ) {
 
@@ -318,18 +393,22 @@ int main(int argc, char **argv) {
             momentum_pair_selection[k][4] = lg[ilg].rm[irot]+1;
           }
         }
-#if 0
-#endif  /* of if 0  */
-
-        rot_fini_rotation_matrix ( &C );
 
       }  /* end of loop on proper rotations */
 
     }  /* end of loop on pairs */
 
+    fprintf ( stdout, "%10s  %3s    %3s %3s  (%3s %3s %3s) (%3s %3s %3s)      %3s  %3s %3s  (%3s %3s %3s) (%3s %3s %3s)\n",
+        "# lg", "#pp", "#p1", "#p2", 
+        "p1x", "p1y", "p1z",
+        "p2x", "p2y", "p2z",
+        "#qq", "#R", "#IR",
+        "q1x", "q1y", "q1z",
+        "q2x", "q2y", "q2z" );
+
     for ( int i = 0; i < count_pairs; i++ ) {
-      fprintf ( stdout, "%10s     %3d %3d  (%3d %3d %3d) (%3d %3d %3d)      %3d  %3d %3d  (%3d %3d %3d) (%3d %3d %3d)\n",
-          lg[ilg].name, momentum_pair_selection[i][0], momentum_pair_selection[i][1],
+      fprintf ( stdout, "%10s  %3d    %3d %3d  (%3d %3d %3d) (%3d %3d %3d)      %3d  %3d %3d  (%3d %3d %3d) (%3d %3d %3d)\n",
+          lg[ilg].name, i, momentum_pair_selection[i][0], momentum_pair_selection[i][1],
           g_sink_momentum_list[momentum_pair_selection[i][0]][0],
           g_sink_momentum_list[momentum_pair_selection[i][0]][1],
           g_sink_momentum_list[momentum_pair_selection[i][0]][2],
@@ -346,13 +425,42 @@ int main(int argc, char **argv) {
           g_sink_momentum_list[ momentum_pair_selection[momentum_pair_selection[i][2]][1] ][1],
           g_sink_momentum_list[ momentum_pair_selection[momentum_pair_selection[i][2]][1] ][2] );
     }
-#if 0
-#endif  /* of if 0  */
+
+    sprintf ( filename, "momentum_pairs-PX%d_PY%d_PZ%d.lst" , P[0], P[1], P[2] );
+    FILE * ofs = fopen ( filename, "w");
+    fprintf( ofs, "p1_list=( " );
+    for ( int i = 0, icomp=-1; i < count_pairs; i++ ) {
+      if ( momentum_pair_selection[i][2] > icomp ) { 
+        fprintf ( ofs, "\"%d,%d,%d\" ", 
+            g_sink_momentum_list[ momentum_pair_selection[momentum_pair_selection[i][2]][0] ][0],
+            g_sink_momentum_list[ momentum_pair_selection[momentum_pair_selection[i][2]][0] ][1],
+            g_sink_momentum_list[ momentum_pair_selection[momentum_pair_selection[i][2]][0] ][2] );
+        icomp = momentum_pair_selection[i][2];
+      }
+    }
+    fprintf( ofs, " )\n" );
+
+    fprintf( ofs, "\np2_list=( " );
+    for ( int i = 0, icomp=-1; i < count_pairs; i++ ) {
+      if ( momentum_pair_selection[i][2] > icomp ) { 
+        fprintf ( ofs, "\"%d,%d,%d\" ", 
+            g_sink_momentum_list[ momentum_pair_selection[momentum_pair_selection[i][2]][1] ][0],
+            g_sink_momentum_list[ momentum_pair_selection[momentum_pair_selection[i][2]][1] ][1],
+            g_sink_momentum_list[ momentum_pair_selection[momentum_pair_selection[i][2]][1] ][2] );
+        icomp = momentum_pair_selection[i][2];
+      }
+    }
+    fprintf( ofs, " )\n" );
+
+    fclose ( ofs );
 
     fini_2level_itable ( &momentum_pair_selection );
-  }  /* end of loop on little groups */
+    fini_rot_mat_table ( &Rpvec );
+    rot_fini_rotation_matrix ( &refframerot_p );
 
-  fini_rot_mat_table ( &Rpvec );
+  }  /* end of loop on total momenta */
+
+  fini_rot_mat_table ( &Rspin1 );
 
   /****************************************************/
   /****************************************************/
