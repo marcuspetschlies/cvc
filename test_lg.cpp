@@ -265,27 +265,30 @@ int main(int argc, char **argv) {
      * d-vector and reference rotation
      ****************************************************/
     int Ptot[3] = { lg[ilg].d[0], lg[ilg].d[1], lg[ilg].d[2] };
-    double _Complex ** refframerot_p = rot_init_rotation_matrix ( 3 );
-    if ( refframerot_p == NULL ) {
-      fprintf(stderr, "[test_lg] Error rot_init_rotation_matrix %s %d\n", __FILE__, __LINE__);
-      EXIT(10);
-    }
+
+    if ( refframerot > -1 ) {
+      double _Complex ** refframerot_p = rot_init_rotation_matrix ( 3 );
+      if ( refframerot_p == NULL ) {
+        fprintf(stderr, "[test_lg] Error rot_init_rotation_matrix %s %d\n", __FILE__, __LINE__);
+        EXIT(10);
+      }
 
 #if defined CUBIC_GROUP_DOUBLE_COVER
-    rot_mat_spin1_cartesian ( refframerot_p, cubic_group_double_cover_rotations[refframerot].n, cubic_group_double_cover_rotations[refframerot].w );
+      rot_mat_spin1_cartesian ( refframerot_p, cubic_group_double_cover_rotations[refframerot].n, cubic_group_double_cover_rotations[refframerot].w );
 #elif defined CUBIC_GROUP_SINGLE_COVER
-    rot_rotation_matrix_spherical_basis_Wigner_D ( refframerot_p, 2, cubic_group_rotations_v2[refframerot].a );
-    rot_spherical2cartesian_3x3 ( refframerot_p, refframerot_p );
+      rot_rotation_matrix_spherical_basis_Wigner_D ( refframerot_p, 2, cubic_group_rotations_v2[refframerot].a );
+      rot_spherical2cartesian_3x3 ( refframerot_p, refframerot_p );
 #endif
-    if ( ! ( rot_mat_check_is_real_int ( refframerot_p, 3) ) ) {
-      fprintf(stderr, "[test_lg] Error rot_mat_check_is_real_int refframerot_p %s %d\n", __FILE__, __LINE__);
-      EXIT(72);
+      if ( ! ( rot_mat_check_is_real_int ( refframerot_p, 3) ) ) {
+        fprintf(stderr, "[test_lg] Error rot_mat_check_is_real_int refframerot_p %s %d\n", __FILE__, __LINE__);
+        EXIT(72);
+      }
+      rot_point ( Ptot, Ptot, refframerot_p );
+      rot_fini_rotation_matrix ( &refframerot_p );
+      if ( g_verbose > 2 ) fprintf ( stdout, "# [test_lg] Ptot = %3d %3d %3d   R[%2d] ---> Ptot = %3d %3d %3d\n",
+          lg[ilg].d[0], lg[ilg].d[1], lg[ilg].d[2],
+          refframerot, Ptot[0], Ptot[1], Ptot[2] );
     }
-    rot_point ( Ptot, Ptot, refframerot_p );
-    rot_fini_rotation_matrix ( &refframerot_p );
-    if ( g_verbose > 2 ) fprintf ( stdout, "# [test_lg] Ptot = %3d %3d %3d   R[%2d] ---> Ptot = %3d %3d %3d\n",
-        lg[ilg].d[0], lg[ilg].d[1], lg[ilg].d[2],
-        refframerot, Ptot[0], Ptot[1], Ptot[2] );
 
     /****************************************************
      * loop on irreps
