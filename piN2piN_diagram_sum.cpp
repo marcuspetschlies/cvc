@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
 #endif
 
 
-  char const twopt_name_list[5][20] = { "N-N", "D-D", "pixN-D", "pixN-pixN", "m-m" };
+  char const twopt_name_list[5][20] = { "N-N", "D-D", "pixN-D", "pixN-pixN", "pi-pi" };
   int const twopt_name_number = 5;
 
 
@@ -236,6 +236,8 @@ int main(int argc, char **argv) {
      ******************************************************/
     for ( int iname = 0; iname < twopt_name_number; iname++ ) {
 
+      gettimeofday ( &ta, (struct timezone *)NULL );
+
       /******************************************************
        * AFF readers
        *
@@ -287,7 +289,9 @@ int main(int argc, char **argv) {
       }
       for ( int i = 0 ; i < affr_diag_tag_num; i++ ) {
         for ( int k = 0; k < source_location_number; k++ ) {
-          sprintf ( filename, "%s.%c.t%.2dx%.2dy%.2dz%.2d.aff", filename_prefix, affr_diag_tag_list[i], 
+          sprintf ( filename, "%s.%c.PX%dPY%dPZ%d.%.4d.t%dx%dy%dz%d.aff", filename_prefix, affr_diag_tag_list[i],
+              g_total_momentum_list[ipref][0], g_total_momentum_list[ipref][1], g_total_momentum_list[ipref][2],
+              Nconf,
               source_coords_list[k][0], source_coords_list[k][1], source_coords_list[k][2], source_coords_list[k][3] );
 
           affr[i][k] = aff_reader ( filename );
@@ -300,9 +304,15 @@ int main(int argc, char **argv) {
         }
       }
 
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "piN2piN_diagram_sum", "open-reader-list", io_proc == 2 );
+
       /******************************************************
        * AFF writer
        ******************************************************/
+
+      gettimeofday ( &ta, (struct timezone *)NULL );
+
       sprintf ( filename, "%s.PX%d_PY%d_PZ%d.aff", twopt_name_list[iname], 
           g_total_momentum_list[ipref][0], g_total_momentum_list[ipref][1], g_total_momentum_list[ipref][2] );
       
@@ -312,6 +322,9 @@ int main(int argc, char **argv) {
         EXIT(48);
       }
 
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "piN2piN_diagram_sum", "open-writer", io_proc == 2 );
+
       /******************************************************/
       /******************************************************/
 
@@ -319,6 +332,8 @@ int main(int argc, char **argv) {
        * loop on 2-point functions
        ******************************************************/
       for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
+
+        gettimeofday ( &ta, (struct timezone *)NULL );
 
         if ( strcmp ( g_twopoint_function_list[i2pt].name , twopt_name_list[iname] ) != 0 ) {
           if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagram_sum] skip twopoint %6d %s %d\n", i2pt, __FILE__, __LINE__ );
@@ -356,6 +371,9 @@ int main(int argc, char **argv) {
             if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagram_sum] skip twopoint %6d %s %d\n", i2pt, __FILE__, __LINE__ );
             continue;
         }
+
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "piN2piN_diagram_sum", "check-valid-twopt", io_proc == 2 );
 
         if ( g_verbose > 4 ) {
           gettimeofday ( &ta, (struct timezone *)NULL );
@@ -397,6 +415,7 @@ int main(int argc, char **argv) {
             fprintf ( stderr, "[piN2piN_diagram_sum] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
             EXIT(125);
           }
+          memcpy ( tp[i].source_coords , source_coords_list[i], 4 * sizeof ( int ) );
         }
 
         gettimeofday ( &tb, (struct timezone *)NULL );
@@ -420,6 +439,8 @@ int main(int argc, char **argv) {
            * loop on source locations
            ******************************************************/
  
+          gettimeofday ( &ta, (struct timezone *)NULL );
+
           for( int isrc = 0; isrc < source_location_number; isrc++) {
 
             /******************************************************
@@ -440,8 +461,7 @@ int main(int argc, char **argv) {
             sprintf( key, "/%s/%s/%s/%s", tp[isrc].name, diagram_name, tp[isrc].fbwd, key_suffix );
             if ( g_verbose > 3 ) fprintf ( stdout, "# [piN2piN_diagram_sum] key = %s %s %d\n", key, __FILE__, __LINE__ );
 
-            int const affr_id = source_location_number * affr_diag_id + isrc;
-            exitstatus = read_aff_contraction ( tp[isrc].c[idiag][0][0], affr[affr_id], NULL, key, nc );
+            exitstatus = read_aff_contraction ( tp[isrc].c[idiag][0][0], affr[affr_diag_id][isrc], NULL, key, nc );
             if ( exitstatus != 0 ) {
               fprintf ( stderr, "[piN2piN_diagram_sum] Error from read_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
               EXIT(129);
@@ -449,6 +469,9 @@ int main(int argc, char **argv) {
 
           }  /* end of loop on source locations */
         
+          gettimeofday ( &tb, (struct timezone *)NULL );
+          show_time ( &ta, &tb, "piN2piN_diagram_sum", "read-diagram-all-src", io_proc == 2 );
+
         }  /* end of loop on diagrams */
 
         /******************************************************
