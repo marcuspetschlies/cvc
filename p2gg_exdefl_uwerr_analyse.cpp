@@ -410,6 +410,13 @@ int main(int argc, char **argv) {
                   g_source_momentum_list[ipsrc][0], g_source_momentum_list[ipsrc][1], g_source_momentum_list[ipsrc][2],
                   g_sink_momentum_list[ipsnk][0], g_sink_momentum_list[ipsnk][1], g_sink_momentum_list[ipsnk][2],
                   ievecs, g_sequential_source_timeslice_list[idt] );
+
+              char key_aux[400];
+              sprintf( key_aux, "/pgg/disc/orbit/g%d/px%d_py%d_pz%d/qx%d_qy%d_qz%d/nev%d/dt%d", g_source_gamma_id_list[igsrc],
+                  g_source_momentum_list[ipsrc][0], g_source_momentum_list[ipsrc][1], g_source_momentum_list[ipsrc][2],
+                  g_sink_momentum_list[ipsnk][0], g_sink_momentum_list[ipsnk][1], g_sink_momentum_list[ipsnk][2],
+                  ievecs, -g_sequential_source_timeslice_list[idt] );
+
               if ( g_verbose > 0 ) fprintf ( stdout, "# [p2gg_exdefl_uwerr_analyse] reading key %s %s %d\n", key , __FILE__, __LINE__ );
   
               double _Complex ** pgg_disc = init_2level_ztable ( num_conf, T_global );
@@ -427,6 +434,8 @@ int main(int argc, char **argv) {
                 /***********************************************************
                  * reader for aff input file
                  ***********************************************************/
+                gettimeofday ( &ta, (struct timezone *)NULL );
+
                 struct AffReader_s *affr = NULL;
                 sprintf ( filename, "%s.pref_%d_%d_%d.%.4d.nev%d.aff", infile_prefix,
                     g_sink_momentum_list[ipsnk][0], g_sink_momentum_list[ipsnk][1], g_sink_momentum_list[ipsnk][2],
@@ -449,8 +458,19 @@ int main(int argc, char **argv) {
   
                 struct AffNode_s * affdir = aff_reader_chpath ( affr, affrn, key );
                 if ( affdir == NULL ) {
-                  fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from aff_reader_chpath %s %d\n", __FILE__, __LINE__);
-                  EXIT(15);
+                  fprintf ( stdout, "[p2gg_exdefl_uwerr_analyse] Warning, error from aff_reader_chpath for key %s %s %d\n", key, __FILE__, __LINE__);
+                  fprintf ( stdout, "[p2gg_exdefl_uwerr_analyse] Warning, trying auxilliary key %s %s %d\n", key_aux, __FILE__, __LINE__);
+
+                  if ( aff_reader_clearerr ( affr ) != 0 ) {
+                    fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from aff_reader_clearerr %s %d\n", __FILE__, __LINE__);
+                    EXIT(15);
+                  }
+
+                  affdir = aff_reader_chpath ( affr, affrn, key_aux );
+                  if ( affdir == NULL ) {
+                    fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from aff_reader_chpath for auxilliary key %s %s %d\n", key_aux, __FILE__, __LINE__);
+                    EXIT(15);
+                  }
                 }
   
                 uint32_t uitems = T_global;
@@ -461,6 +481,10 @@ int main(int argc, char **argv) {
                 }
   
                 aff_reader_close ( affr );
+
+                gettimeofday ( &tb, (struct timezone *)NULL );
+                show_time ( &ta, &tb, "p2gg_exdefl_uwerr_analyse", "open-init-aff-reader-read-ata-key", g_cart_id == 0 );
+
 #else
 #error "[p2gg_exdefl_uwerr_analyse] need lhp-aff lib; currently no other input method implemented"
 #endif
@@ -471,6 +495,8 @@ int main(int argc, char **argv) {
                ***********************************************************/
               for ( int ireim = 0; ireim < 2; ireim++ ) {
   
+                gettimeofday ( &ta, (struct timezone *)NULL );
+
                 double ** data = init_2level_dtable ( num_conf, T_global );
                 if( data == NULL ) {
                   fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
@@ -533,6 +559,9 @@ int main(int argc, char **argv) {
 
                 fini_2level_dtable ( &data );
   
+                gettimeofday ( &tb, (struct timezone *)NULL );
+                show_time ( &ta, &tb, "p2gg_exdefl_uwerr_analyse", "uwerr-analysis", g_cart_id == 0 );
+
               }  /* end of loop on real / imag */
   
               fini_2level_ztable ( &pgg_disc );
@@ -565,6 +594,8 @@ int main(int argc, char **argv) {
                 /***********************************************************
                  * reader for aff input file
                  ***********************************************************/
+                gettimeofday ( &ta, (struct timezone *)NULL );
+
                 struct AffReader_s *affr = NULL;
                 sprintf ( filename, "%s.pref_%d_%d_%d.%.4d.nev%d.aff", infile_prefix,
                     g_sink_momentum_list[ipsnk][0], g_sink_momentum_list[ipsnk][1], g_sink_momentum_list[ipsnk][2],
@@ -611,6 +642,9 @@ int main(int argc, char **argv) {
                 }  /* end of loop on source locations */
   
                 aff_reader_close ( affr );
+
+                gettimeofday ( &tb, (struct timezone *)NULL );
+                show_time ( &ta, &tb, "p2gg_exdefl_uwerr_analyse", "open-init-aff-reader-read-pta-key", g_cart_id == 0 );
 #else
 #error "[p2gg_exdefl_uwerr_analyse] need lhp-aff lib; currently no other input method implemented"
 #endif
@@ -621,6 +655,8 @@ int main(int argc, char **argv) {
                ***********************************************************/
               for ( int ireim = 0; ireim < 2; ireim++ ) {
   
+                gettimeofday ( &ta, (struct timezone *)NULL );
+
                 double ** data = init_2level_dtable ( num_conf, T_global );
                 if( data == NULL ) {
                   fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
@@ -686,6 +722,9 @@ int main(int argc, char **argv) {
 
                 fini_2level_dtable ( &data );
   
+                gettimeofday ( &tb, (struct timezone *)NULL );
+                show_time ( &ta, &tb, "p2gg_exdefl_uwerr_analyse", "uwerr-analysis", g_cart_id == 0 );
+
               }  /* end of loop on real / imag */
   
               fini_3level_ztable ( &pgg_disc_pta );
