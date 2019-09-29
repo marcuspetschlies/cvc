@@ -290,6 +290,9 @@ int main(int argc, char **argv) {
 #ifdef HAVE_LHPC_AFF
             /***********************************************************
              * reader for aff input file
+             *
+             * loop is contained in all sink momentum ref files, so
+             * read from file for sink momentum id 0
              ***********************************************************/
             struct AffReader_s *affr = NULL;
             sprintf ( filename, "%s.pref_%d_%d_%d.%.4d.nev%d.aff", infile_prefix,
@@ -522,12 +525,12 @@ int main(int argc, char **argv) {
                 }
   
                 char obs_name[100];
-                sprintf ( obs_name, "pgg_disc.%s.%s.%s.lm.ata.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.nev%d.%s.dat",
+                sprintf ( obs_name, "pgg_disc.%s.%s.%s.lm.ata.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.nev%d.%s",
                     correlator_prefix[operator_type], flavor_tag[operator_type],
                     loop_type_tag[loop_type],
                     g_source_momentum_list[ipsrc][0], g_source_momentum_list[ipsrc][1], g_source_momentum_list[ipsrc][2], g_source_gamma_id_list[igsrc],
                     g_sequential_source_timeslice_list[idt],
-                    g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2],
+                    g_sink_momentum_list[ipsnk][0], g_sink_momentum_list[ipsnk][1], g_sink_momentum_list[ipsnk][2],
                     ievecs, reim_str[ireim] );
 
                 if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_exdefl_uwerr_analyse] obs_name = %s %s %d\n", obs_name, __FILE__, __LINE__ );
@@ -684,12 +687,12 @@ int main(int argc, char **argv) {
                 }
   
                 char obs_name[100];
-                sprintf ( obs_name, "pgg_disc.%s.%s.%s.lm.pta.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.nev%d.%s.dat",
+                sprintf ( obs_name, "pgg_disc.%s.%s.%s.lm.pta.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.nev%d.%s",
                     correlator_prefix[operator_type], flavor_tag[operator_type],
                     loop_type_tag[loop_type],
                     g_source_momentum_list[ipsrc][0], g_source_momentum_list[ipsrc][1], g_source_momentum_list[ipsrc][2], g_source_gamma_id_list[igsrc],
                     g_sequential_source_timeslice_list[idt],
-                    g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2],
+                    g_sink_momentum_list[ipsnk][0], g_sink_momentum_list[ipsnk][1], g_sink_momentum_list[ipsnk][2],
                     ievecs, reim_str[ireim] );
 
                 if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_exdefl_uwerr_analyse] obs_name = %s %s %d\n", obs_name, __FILE__, __LINE__ );
