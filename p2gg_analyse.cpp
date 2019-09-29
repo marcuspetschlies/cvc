@@ -58,8 +58,9 @@ int main(int argc, char **argv) {
 
   char const reim_str[2][3] = {"re" , "im"};
 
-  /* char const pgg_operator_type_tag[3][12]  = { "p-cvc-cvc"    , "p-lvc-lvc"    , "p-cvc-lvc" }; */
-  char const pgg_operator_type_tag[3][12]  = { "p-cvc-cvc"    , "p-loc-loc"    , "p-cvc-lvc" };
+  char const pgg_operator_type_tag[3][12]     = { "p-cvc-cvc" , "p-lvc-lvc" , "p-cvc-lvc" };
+
+  char const pgg_operator_type_tag_aux[3][12] = { "NA"        , "p-loc-loc" , "NA"        };
 
 
   /***********************************************************
@@ -338,9 +339,14 @@ int main(int argc, char **argv) {
                       sequential_source_gamma_id, sequential_source_timeslice,
                       iflavor, mu );
 
+                  affdir = aff_reader_chpath (affr, affn, key );
+                  if ( affdir == NULL ) {
+                    fprintf(stderr, "[p2gg_analyse] Error from aff_reader_chpath for key %s %s %d\n", key,  __FILE__, __LINE__);
+                    EXIT(116);
+                  }
+
                   if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse] contact term key = %s\n", key );
 
-                  affdir = aff_reader_chpath (affr, affn, key );
                   exitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*)(contact_term[iflavor][mu]), 1 );
                   if( exitstatus != 0 ) {
                     fprintf(stderr, "[p2gg_analyse] Error from aff_node_get_complex for key %s, status was %d %s %d\n", key, exitstatus, __FILE__, __LINE__);
@@ -432,9 +438,38 @@ int main(int argc, char **argv) {
                         flavor_id * sink_momentum[1],
                         flavor_id * sink_momentum[2] );
       
+                    affdir = aff_reader_chpath (affr, affn, key );
+                    if ( affdir == NULL ) {
+                      fprintf(stderr, "# [p2gg_analyse] Warning from aff_reader_chpath for key %s %s %d\n", key,  __FILE__, __LINE__);
+
+                      sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d/gf%.2d/gi%.2d/px%dpy%dpz%d", pgg_operator_type_tag_aux[operator_type],
+                          gsx[0], gsx[1], gsx[2], gsx[3],
+                          flavor_id * seq_source_momentum[0],
+                          flavor_id * seq_source_momentum[1],
+                          flavor_id * seq_source_momentum[2],
+                          sequential_source_gamma_id, sequential_source_timeslice,
+                          iflavor,
+                          mu, nu,
+                          flavor_id * sink_momentum[0],
+                          flavor_id * sink_momentum[1],
+                          flavor_id * sink_momentum[2] );
+
+                      if ( aff_reader_clearerr ( affr ) != 0 ) {
+                        fprintf ( stderr, "[p2gg_analyse] Error from aff_reader_clearerr %s %d\n", __FILE__, __LINE__);
+                        EXIT(15);
+                      }
+
+                      affdir = aff_reader_chpath (affr, affn, key );
+                      if ( affdir == NULL ) {
+                        fprintf(stderr, "[p2gg_analyse] Error from aff_reader_chpath for key %s %s %d\n", key, __FILE__, __LINE__);
+                        EXIT(115);
+                      } 
+
+                    }
+
+
                     if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse] key = %s\n", key );
       
-                    affdir = aff_reader_chpath (affr, affn, key );
                     uint32_t uitems = T;
                     exitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*)(buffer[iflavor][mu][nu]), uitems );
                     if( exitstatus != 0 ) {
