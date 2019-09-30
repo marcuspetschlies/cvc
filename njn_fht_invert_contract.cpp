@@ -380,13 +380,16 @@ int main(int argc, char **argv) {
    ***************************************************************************/
   unsigned int const VOL3 = LX * LY * LZ;
 
-  double _Complex ** ephase = init_2level_ztable ( g_seq_source_momentum_number, VOL3 );
-  if ( ephase == NULL ) {
-    fprintf ( stderr, "[njn_fht_invert_contract] Error from init_2level_ztable %s %d\n", __FILE__, __LINE__ );
-    EXIT(12);
-  }
+  double _Complex ** ephase = NULL;
+  if ( g_seq_source_momentum_number > 0 ) {
+    ephase = init_2level_ztable ( g_seq_source_momentum_number, VOL3 );
+    if ( ephase == NULL ) {
+      fprintf ( stderr, "[njn_fht_invert_contract] Error from init_2level_ztable %s %d\n", __FILE__, __LINE__ );
+      EXIT(12);
+    }
 
-  make_phase_field_timeslice ( ephase, g_seq_source_momentum_number, g_seq_source_momentum_list );
+    make_phase_field_timeslice ( ephase, g_seq_source_momentum_number, g_seq_source_momentum_list );
+  }  /* end of if g_seq_source_momentum_number > 0 */
 
   /***************************************************************************
    *
@@ -701,7 +704,8 @@ int main(int argc, char **argv) {
         /***************************************************************************
          * invert the Dirac operator on the sequential source
          ***************************************************************************/
-        exitstatus = prepare_propagator_from_source ( sequential_propagator, sequential_source[1], 12, _OP_ID_UP, check_propagator_residual, gauge_field_with_phase, lmzz, NULL );
+        exitstatus = prepare_propagator_from_source ( sequential_propagator, sequential_source[1], 12, _OP_ID_UP, 0, 0, NULL,
+            check_propagator_residual, gauge_field_with_phase, lmzz, NULL );
         if ( exitstatus != 0 ) {
           fprintf ( stderr, "[njn_fht_invert_contract] Error from prepare_propagator_from_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(123);
