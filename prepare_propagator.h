@@ -23,7 +23,9 @@ int prepare_seq_stochastic_vertex_stochastic_oet (double**seq_prop, double**stoc
 
 int point_source_propagator (double **prop, int gsx[4], int op_id, int smear_source, int smear_sink, double *gauge_field_smeared, int check_residual, double *gauge_field, double **mzz[2] );
 
-int prepare_propagator_from_source ( double ** const prop, double ** const source , int const nsc, int const op_id, int const check_residual, double * const gauge_field, double ** mzz[2], char * prefix );
+int prepare_propagator_from_source ( double ** const prop, double ** const source , int const nsc, int const op_id,
+    int smear_source, int smear_sink, double *gauge_field_smeared, 
+    int const check_residual, double * const gauge_field, double ** mzz[2], char * prefix );
 
 }  /* end of namespace cvc */
 #endif

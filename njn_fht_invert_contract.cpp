@@ -704,7 +704,8 @@ int main(int argc, char **argv) {
         /***************************************************************************
          * invert the Dirac operator on the sequential source
          ***************************************************************************/
-        exitstatus = prepare_propagator_from_source ( sequential_propagator, sequential_source[1], 12, _OP_ID_UP, check_propagator_residual, gauge_field_with_phase, lmzz, NULL );
+        exitstatus = prepare_propagator_from_source ( sequential_propagator, sequential_source[1], 12, _OP_ID_UP, 0, 0, NULL,
+            check_propagator_residual, gauge_field_with_phase, lmzz, NULL );
         if ( exitstatus != 0 ) {
           fprintf ( stderr, "[njn_fht_invert_contract] Error from prepare_propagator_from_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(123);
