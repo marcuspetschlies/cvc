@@ -495,7 +495,7 @@ int write_lime_contraction(double * const s, char * filename, const int prec, co
   int ME_flag=0, MB_flag=0;
 
   // n_uint64_t bytes;
-  n_uint64_t bytes;
+  LEMON_OFFSET_TYPE bytes;
 
   DML_Checksum checksum;
   char *message;
@@ -532,7 +532,7 @@ int write_lime_contraction(double * const s, char * filename, const int prec, co
   header = lemonCreateHeader(MB_flag, ME_flag, "cvc_contraction-format", bytes);
   status = lemonWriteRecordHeader(header, writer);
   lemonDestroyHeader(header);
-  lemonWriteRecordData( message, (uint64_t*)&bytes, writer);
+  lemonWriteRecordData( message, &bytes, writer);
   lemonWriterCloseRecord(writer);
   free(message);
 
@@ -557,7 +557,7 @@ int write_lime_contraction(double * const s, char * filename, const int prec, co
   header = lemonCreateHeader(MB_flag, ME_flag, "scidac-checksum", bytes);
   status = lemonWriteRecordHeader(header, writer);
   lemonDestroyHeader(header);
-  lemonWriteRecordData( message, (uint64_t*)&bytes, writer);
+  lemonWriteRecordData( message, &bytes, writer);
   lemonWriterCloseRecord(writer);
   free(message);
 
