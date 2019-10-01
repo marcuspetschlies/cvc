@@ -57,8 +57,6 @@ int main(int argc, char **argv) {
   const char infile_prefix[] = "p2gg_exdefl_analyse";
   char const reim_str[2][6] = { "re", "im" };
 
-  double const TWO_MPI = 2. * M_PI;
-
   char const correlator_prefix[4][20] = { "hvp"        , "local-local", "hvp"        , "local-cvc"  };
 
   char const flavor_tag[4][20]        = { "u-cvc-u-cvc", "u-gf-u-gi"  , "u-cvc-u-lvc", "u-gf-u-cvc" };
@@ -546,14 +544,15 @@ int main(int argc, char **argv) {
                   char output_filename[200];
                   sprintf ( output_filename, "%s.dat", obs_name );
 
-                  FILE * ofs = fopen ( obs_name, "w" );
+                  FILE * ofs = fopen ( output_filename, "w" );
                   if ( exitstatus != 0 ) {
                     fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from fopen %s %d\n", __FILE__, __LINE__ );
                     EXIT(1);
                   }
                   for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-                    for ( int it = 0; it < T_global; it++ ) {
-                      fprintf ( ofs, "%4d%25.16e%8d\n", it, data[iconf][it], conf_src_list[iconf][0][0] );
+                    for ( int tau = -T_global/2+1; tau <= T_global/2; tau++ ) {
+                      int const it = ( tau < 0 ) ? tau + T_global : tau;
+                      fprintf ( ofs, "%4d%25.16e%8d\n", tau, data[iconf][it], conf_src_list[iconf][0][0] );
                     }
                   }
 
@@ -709,14 +708,15 @@ int main(int argc, char **argv) {
                   char output_filename[200];
                   sprintf ( output_filename, "%s.dat", obs_name );
 
-                  FILE * ofs = fopen ( obs_name, "w" );
+                  FILE * ofs = fopen ( output_filename, "w" );
                   if ( exitstatus != 0 ) {
                     fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from fopen %s %d\n", __FILE__, __LINE__ );
                     EXIT(1);
                   }
                   for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-                    for ( int it = 0; it < T_global; it++ ) {
-                      fprintf ( ofs, "%4d%25.16e%8d\n", it, data[iconf][it], conf_src_list[iconf][0][0] );
+                    for ( int tau = -T_global/2+1; tau <= T_global/2; tau++ ) {
+                      int const it = ( tau < 0 ) ? tau + T_global : tau;
+                      fprintf ( ofs, "%4d%25.16e%8d\n", tau, data[iconf][it], conf_src_list[iconf][0][0] );
                     }
                   }
 
