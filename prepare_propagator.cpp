@@ -823,7 +823,7 @@ int prepare_seq_stochastic_vertex_stochastic_oet (double**seq_prop, double**stoc
 /*******************************************************************/
 /*******************************************************************/
 
-int point_source_propagator (double **prop, int gsx[4], int op_id, int smear_source, int smear_sink, double *gauge_field_smeared, int check_residual, double *gauge_field, double **mzz[2] ) {
+int point_source_propagator (double ** const prop, int const gsx[4], int const op_id, int const smear_source, int const smear_sink, double * const gauge_field_smeared, int const check_residual, double * const gauge_field, double ** mzz[2] ) {
 
   const size_t sizeof_spinor_field = _GSI(VOLUME) * sizeof(double);
 
