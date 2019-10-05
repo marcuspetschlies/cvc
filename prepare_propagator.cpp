@@ -931,18 +931,12 @@ int prepare_propagator_from_source ( double ** const prop, double ** const sourc
     /***************************************************************************
      * copy the source field
      ***************************************************************************/
-    memcpy ( spinor_work[2], source[isc], sizeof_spinor_field );
+    memcpy ( spinor_work[0], source[isc], sizeof_spinor_field );
 
     /***************************************************************************
      * init solution field to zero
      ***************************************************************************/
     memset ( spinor_work[1], 0, sizeof_spinor_field );
-
-    /***************************************************************************
-     * copy source again, to preserve original source
-     ***************************************************************************/
-    memcpy ( spinor_work[0], spinor_work[2], sizeof_spinor_field );
-
 
     /***************************************************************************
      * source-smear the source
@@ -962,6 +956,10 @@ int prepare_propagator_from_source ( double ** const prop, double ** const sourc
       spinor_field_tm_rotation(spinor_work[0], spinor_work[0], rotation_direction, g_fermion_type, VOLUME);
     }
 
+    /***************************************************************************
+     * copy source again, to preserve original source
+     ***************************************************************************/
+    memcpy ( spinor_work[2], spinor_work[0], sizeof_spinor_field );
 
     /***************************************************************************
      * call solver via tmLQCD
@@ -979,7 +977,6 @@ int prepare_propagator_from_source ( double ** const prop, double ** const sourc
     if ( check_residual ) {
       check_residual_clover ( &(spinor_work[1]), &(spinor_work[2]), gauge_field, mzz[op_id], 1 );
     }
-
 
     /***************************************************************************
      * twisted-mass rotate spinor field on the sink side
