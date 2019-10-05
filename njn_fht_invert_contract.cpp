@@ -129,7 +129,6 @@ int main(int argc, char **argv) {
 
   int c;
   int filename_set = 0;
-  int gsx[4], sx[4];
   int exitstatus;
   int io_proc = -1;
   int check_propagator_residual = 0;
@@ -350,7 +349,7 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * allocate spinor fields
    *
-   * makro _GSI(k) = 24 * k 
+   * makro _GSI(k) = 24 * k  ( "Get Spinor Index" ))
    * 24 = 4*3*2 = number of real spin-color components
    ***************************************************************************/
 
@@ -409,12 +408,14 @@ int main(int argc, char **argv) {
     /***********************************************************
      * determine source coordinates, find out, if source_location is in this process
      ***********************************************************/
-    gsx[0] = ( g_source_coords_list[isource_location][0] +  T_global ) %  T_global;
-    gsx[1] = ( g_source_coords_list[isource_location][1] + LX_global ) % LX_global;
-    gsx[2] = ( g_source_coords_list[isource_location][2] + LY_global ) % LY_global;
-    gsx[3] = ( g_source_coords_list[isource_location][3] + LZ_global ) % LZ_global;
 
-    int source_proc_id = -1;
+    int const gsx[4] = {
+        ( g_source_coords_list[isource_location][0] +  T_global ) %  T_global,
+        ( g_source_coords_list[isource_location][1] + LX_global ) % LX_global,
+        ( g_source_coords_list[isource_location][2] + LY_global ) % LY_global,
+        ( g_source_coords_list[isource_location][3] + LZ_global ) % LZ_global };
+
+    int sx[4], source_proc_id = -1;
     exitstatus = get_point_source_info (gsx, sx, &source_proc_id);
     if( exitstatus != 0 ) {
       fprintf(stderr, "[njn_fht_invert_contract] Error from get_point_source_info status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -504,7 +505,7 @@ int main(int argc, char **argv) {
 
     /***************************************************************************
      *
-     * contractions for the nucleon 2-point functionsa
+     * contractions for the nucleon 2-point functions
      *
      * now we have up and down propagator and can proceed with
      * contractions
@@ -642,6 +643,18 @@ int main(int argc, char **argv) {
        * done
        ***************************************************************************/
 
+      /***************************************************************************
+       * Possibly Todo:
+       * - add up n1, n2, write once n1+n2 instead of n1, n2 separately
+       * - add boundary condition phase before writing
+       * - add source phase ( for non-zero momentum ) before writing
+       * - reorder from source time before writing
+       * - projection to pos. / neg. parity before writing ---
+       *       BUT: this is only really meaningful
+       *       in center-of-mass frame, where momentum = 0 and parity is a good 
+       *       quantum number
+       ***************************************************************************/
+
     }}  /* end of loop on Dirac Gamma structures */
 
     /***************************************************************************
@@ -668,6 +681,12 @@ int main(int argc, char **argv) {
           g_seq_source_momentum_list[imom][2] };
 
       /***************************************************************************
+       *
+       * Part II: sequential up - after - up inversion and contraction
+       *
+       ***************************************************************************/
+
+      /***************************************************************************
        * multiply the Fourier phase
        *
        * sequential source = exp( i p_seq x ) propagator_up
@@ -690,17 +709,12 @@ int main(int argc, char **argv) {
         int gamma_id = g_sequential_source_gamma_id_list[igamma];
 
         /***************************************************************************
-         *
-         * Part II: sequential up - after -up inversion and contraction
-         *
-         ***************************************************************************/
-
-        /***************************************************************************
          * multiply the sequential gamma matrix
          ***************************************************************************/
         for ( int isc = 0; isc < 12; isc++ ) {
           spinor_field_eq_gamma_ti_spinor_field ( sequential_source[1][isc], gamma_id, sequential_source[0][isc], VOLUME );
         }
+
         /***************************************************************************
          * invert the Dirac operator on the sequential source
          ***************************************************************************/
@@ -727,7 +741,8 @@ int main(int argc, char **argv) {
         assign_fermion_propagator_from_spinor_field ( fp3, propagator_dn, VOLUME);
 
         /***************************************************************************
-         * contractions for N-N diagrams n1, n2 with sequential up - after - up
+         * contractions as for N-N diagrams n1, n2,
+         * but with sequential up - after - up in two different places
          ***************************************************************************/
         for ( int if1 = 0; if1 < gamma_f1_number; if1++ ) {
         for ( int if2 = 0; if2 < gamma_f1_number; if2++ ) {
@@ -776,7 +791,7 @@ int main(int argc, char **argv) {
           /***************************************************************************
            * diagram t2
            ***************************************************************************/
-          sprintf(aff_tag, "/N-ubG-N/T%d_X%d_Y%d_Z%d/Gf_%s/Gc_%s/Gi_%s/QX%d_QY%d_QZ%d/t2",
+          sprintf(aff_tag, "/N-ubGu-N/T%d_X%d_Y%d_Z%d/Gf_%s/Gc_%s/Gi_%s/QX%d_QY%d_QZ%d/t2",
               gsx[0], gsx[1], gsx[2], gsx[3],
               gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ],
               gamma_id_to_ascii[gamma_id],
@@ -864,14 +879,14 @@ int main(int argc, char **argv) {
 
       } // end of loop on sequential source gamma matrices
 
-          /***************************************************************************/
-          /***************************************************************************/
+      /***************************************************************************/
+      /***************************************************************************/
 
-          /***************************************************************************
-           *
-           * Part III sequential down - after - down inversion and contraction
-           *
-           ***************************************************************************/
+      /***************************************************************************
+       *
+       * Part III sequential down - after - down inversion and contraction
+       *
+       ***************************************************************************/
 
       /***************************************************************************
        * multiply the Fourier phase
@@ -910,6 +925,15 @@ int main(int argc, char **argv) {
           fprintf ( stderr, "[njn_fht_invert_contract] Error from prepare_propagator_from_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(123);
         }
+
+        /***************************************************************************
+         * fill the fermion propagator fp with propagator_up
+         * 
+         * this may be removed; fp is still set from
+         * previous Part II
+         ***************************************************************************/
+        assign_fermion_propagator_from_spinor_field ( fp, propagator_up, VOLUME);
+
         /***************************************************************************
          * fill the fermion propagator fp2 with sequential_propagator
          ***************************************************************************/
@@ -921,10 +945,9 @@ int main(int argc, char **argv) {
         for ( int if1 = 0; if1 < gamma_f1_number; if1++ ) {
         for ( int if2 = 0; if2 < gamma_f1_number; if2++ ) {
 
-
     
           /***************************************************************************
-           * here we calculate fp3 = Gamma[if2] x propagator_up / fp3 x Gamma[if1]
+           * here we calculate fp3 = Gamma[if2] x sequential propagator / fp2 x Gamma[if1]
            ***************************************************************************/
           fermion_propagator_field_eq_gamma_ti_fermion_propagator_field ( fp3, gamma_f1_list[if2], fp2, VOLUME );
     
