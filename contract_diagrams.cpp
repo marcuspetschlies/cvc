@@ -1340,7 +1340,11 @@ int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const 
   char pi2_str[40] = "";
   char pi1_str[40] = "";
 
-  if ( sx != NULL ) { sprintf ( sx_str, "/t%.2dx%.2dy%.2dz%.2d", sx[0], sx[1], sx[2], sx[3] ); }
+  if ( sx != NULL ) { 
+    if ( ( sx[0] != -1 ) && ( sx[1] != -1 ) && ( sx[2] != -1 ) && ( sx[3] != -1 )  ) {
+      sprintf ( sx_str, "/t%.2dx%.2dy%.2dz%.2d", sx[0], sx[1], sx[2], sx[3] ); 
+    }
+  }
 
   if ( gf2 > -1 ) { sprintf( gf2_str, "/gf2%.2d", gf2 ); }
 
