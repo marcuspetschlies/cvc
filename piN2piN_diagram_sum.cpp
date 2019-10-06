@@ -51,6 +51,8 @@ extern "C"
 #include "zm4x4.h"
 #include "gamma.h"
 #include "twopoint_function_utils.h"
+#include "rotations.h"
+#include "group_projection.h"
 
 using namespace cvc;
 
@@ -178,6 +180,11 @@ int main(int argc, char **argv) {
   }
   geometry();
 
+  /****************************************************
+   * set cubic group single/double cover
+   * rotation tables
+   ****************************************************/
+  rot_init_rotation_table();
 
   /***********************************************************
    * set io process
@@ -249,13 +256,13 @@ int main(int argc, char **argv) {
       int affr_diag_tag_num = 0;
       char affr_diag_tag_list[12];
 
-      if ( strcmp( twopt_name_list[iname], "N-N" ) == 0 )  {
+      if (        strcmp( twopt_name_list[iname], "N-N"       ) == 0 )  {
         affr_diag_tag_num = 1;
         affr_diag_tag_list[0] = 'n';
-      } else if ( strcmp( twopt_name_list[iname], "D-D" ) == 0 )  {
+      } else if ( strcmp( twopt_name_list[iname], "D-D"       ) == 0 )  {
         affr_diag_tag_num = 1;
         affr_diag_tag_list[0] = 'd';
-      } else if ( strcmp( twopt_name_list[iname], "pixN-D" ) == 0 )  {
+      } else if ( strcmp( twopt_name_list[iname], "pixN-D"    ) == 0 )  {
         affr_diag_tag_num = 1;
         affr_diag_tag_list[0] = 't';
       } else if ( strcmp( twopt_name_list[iname], "pixN-pixN" ) == 0 )  {
@@ -264,7 +271,7 @@ int main(int argc, char **argv) {
         affr_diag_tag_list[1] = 'w';
         affr_diag_tag_list[2] = 'z';
         affr_diag_tag_list[3] = 's';
-      } else if ( strcmp( twopt_name_list[iname], "pi-pi" ) == 0 )  {
+      } else if ( strcmp( twopt_name_list[iname], "pi-pi"     ) == 0 )  {
         affr_diag_tag_num = 1;
         affr_diag_tag_list[0] = 'm';
       } else {
@@ -299,7 +306,7 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[piN2piN_diagram_sum] Error from aff_reader for filename %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__);
             EXIT(45);
           } else {
-            if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagram_sum] reading data from file %s %s %d\n", filename, __FILE__, __LINE__);
+            if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagram_sum] opened data file %s for reading %s %d\n", filename, __FILE__, __LINE__);
           }
         }
       }
@@ -343,7 +350,7 @@ int main(int argc, char **argv) {
         int ptot[3];
         if (   ( strcmp ( g_twopoint_function_list[i2pt].type , "b-b" ) == 0 ) 
             || ( strcmp ( g_twopoint_function_list[i2pt].type , "m-m" ) == 0 ) 
-            || ( strcmp ( g_twopoint_function_list[i2pt].type , "mxb-m" ) == 0 ) ) {
+            || ( strcmp ( g_twopoint_function_list[i2pt].type , "mxb-b" ) == 0 ) ) {
 
           ptot[0] = g_twopoint_function_list[i2pt].pf1[0];
           ptot[1] = g_twopoint_function_list[i2pt].pf1[1];
@@ -521,11 +528,20 @@ int main(int argc, char **argv) {
         char key[500], key_suffix[400];
 
         /* key suffix */
-        exitstatus = contract_diagram_key_suffix ( key_suffix, tp_sum.gf2, tp_sum.pf2, tp_sum.gf1[0], tp_sum.gf1[1], tp_sum.pf1, tp_sum.gi2, tp_sum.pi2, tp_sum.gi1[0], tp_sum.gi1[1], tp_sum.pi1, NULL);
+#if 0
+        exitstatus = contract_diagram_key_suffix ( key_suffix, tp_sum.gf2, tp_sum.pf2, tp_sum.gf1[0], tp_sum.gf1[1], tp_sum.pf1, tp_sum.gi2, tp_sum.pi2, tp_sum.gi1[0], tp_sum.gi1[1], tp_sum.pi1, NULL); */
         if ( exitstatus != 0 ) {
           fprintf ( stderr, "[piN2piN_diagram_sum] Error from contract_diagram_key_suffix, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(12);
         }
+#endif  /* of if 0 */
+
+        exitstatus = contract_diagram_key_suffix_from_type ( key_suffix, &tp_sum );
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[piN2piN_diagram_sum] Error from contract_diagram_key_suffix_from_type, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(12);
+        }
+
 
         /* full key */
         sprintf( key, "/%s/%s%s", tp_sum.name, tp_sum.fbwd, key_suffix );
