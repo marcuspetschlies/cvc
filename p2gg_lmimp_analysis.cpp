@@ -58,6 +58,8 @@ int main(int argc, char **argv) {
 
   char const loop_type_tag[3][8]      = { "NA", "dOp", "Scalar" };
 
+  char const pgg_operator_type_tag[3][12] = { "p-cvc-cvc" , "p-lvc-lvc" , "p-cvc-lvc" };
+
 
   int c;
   int filename_set = 0;
@@ -71,12 +73,16 @@ int main(int argc, char **argv) {
   int evecs_use_step = -1;
   int evecs_use_min = -1;
   int write_data = 0;
-  int operator_type = 1;
+  int operator_type_disc = 1;
+  int operator_type_conn = 1;
   int loop_type = 2;
-  int use_reim = -1;
+  int use_reim_disc = -1;
+  int use_reim_conn = -1;
   double lm_am_weight[3] = { 0., 0., 0. };
+  int use_conn_disc = 0;
+  int use_fbwd = 0;
 
-  while ((c = getopt(argc, argv, "h?f:N:O:E:n:s:m:w:r:b:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:N:O:E:n:s:m:w:r:b:u:d:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -87,8 +93,8 @@ int main(int argc, char **argv) {
       fprintf ( stdout, "# [p2gg_lmimp_analysis] number of configs = %d\n", num_conf );
       break;
     case 'O':
-      operator_type = atoi ( optarg );
-      fprintf ( stdout, "# [p2gg_lmimp_analysis] operator_type set to %d\n", operator_type );
+      sscanf( optarg, "%d,%d", &operator_type_conn, &operator_type_disc );
+      fprintf ( stdout, "# [p2gg_lmimp_analysis] operator_type_conn/disc set to %d / %d\n", operator_type_conn, operator_type_disc );
       break;
     case 'E':
       strcpy ( ensemble_name, optarg );
@@ -108,13 +114,21 @@ int main(int argc, char **argv) {
       fprintf ( stdout, "# [p2gg_lmimp_analysis] write_data set to %d\n", write_data );
       break;
     case 'r':
-      use_reim = atoi ( optarg );
-      fprintf ( stdout, "# [p2gg_lmimp_analysis] use_reim set to %d\n", use_reim );
+      sscanf( optarg, "%d,%d", &use_reim_conn, &use_reim_disc );
+      fprintf ( stdout, "# [p2gg_lmimp_analysis] use_reim_conn / disc set to %d / %d\n", use_reim_conn, use_reim_disc );
       break;
     case 'b':
       sscanf ( optarg, "%lf,%lf,%lf",  lm_am_weight, lm_am_weight+1, lm_am_weight+2 );
       fprintf ( stdout, "# [p2gg_lmimp_analysis] weights set to pta-am %16.7f   pta-lm %16.7f   ata-lm %16.7f\n", 
           lm_am_weight[0], lm_am_weight[1], lm_am_weight[2] );
+      break;
+    case 'u':
+      use_conn_disc = atoi ( optarg );
+      fprintf ( stdout, "# [p2gg_lmimp_analysis] use_conn_disc set to %d\n", use_conn_disc );
+      break;
+    case 'd':
+      use_fbwd = atoi ( optarg );
+      fprintf ( stdout, "# [p2gg_lmimp_analysis] use_fbwd set to %d\n", use_fbwd );
       break;
     case 'h':
     case '?':
@@ -186,6 +200,22 @@ int main(int argc, char **argv) {
 #endif  /* of if 0 */
 
   /**********************************************************
+   * check use_reim
+   **********************************************************/
+  if ( use_conn_disc == 1 || use_conn_disc == 3 ) {
+    if ( use_reim_conn == -1 ) {
+      fprintf ( stderr, "[p2gg_lmimp_analysis] use_reim_conn must be specified\n" );
+      EXIT(1);
+    }
+  }
+  if ( use_conn_disc == 2 || use_conn_disc == 3 ) {
+    if ( use_reim_disc == -1 ) {
+      fprintf ( stderr, "[p2gg_lmimp_analysis] use_reim_disc must be specified\n" );
+      EXIT(1);
+    }
+  }
+
+  /**********************************************************
    * loop on sequential source momenta
    **********************************************************/
   for ( int iseq_source_momentum = 0; iseq_source_momentum < g_seq_source_momentum_number; iseq_source_momentum++)
@@ -210,7 +240,8 @@ int main(int argc, char **argv) {
       for ( int isequential_source_timeslice = 0; isequential_source_timeslice < g_sequential_source_timeslice_number; isequential_source_timeslice++)
       {
 
-        int const sequential_source_timeslice = abs( g_sequential_source_timeslice_list[ isequential_source_timeslice ] );
+        /* int const sequential_source_timeslice = abs( g_sequential_source_timeslice_list[ isequential_source_timeslice ] ); */
+        int const sequential_source_timeslice = g_sequential_source_timeslice_list[ isequential_source_timeslice ];
 
         /**********************************************************
          * loop on sink momentum
@@ -225,37 +256,91 @@ int main(int argc, char **argv) {
           /***********************************************************
            * read pta am data
            ***********************************************************/
-          double *** pta_am = init_3level_dtable ( 2, num_conf, T_global );
-          if( pta_am == NULL ) {
-            fprintf ( stderr, "[p2gg_lmimp_analysis] Error from init_3level_dtable  %s %d\n", __FILE__, __LINE__ );
-            EXIT(1);
+          double *** pta_am_disc = NULL, *** pta_am_conn = NULL;
+
+          if ( use_conn_disc == 2 || use_conn_disc == 3 ) {
+            pta_am_disc = init_3level_dtable ( 2, num_conf, T_global );
+            if( pta_am_disc == NULL ) {
+              fprintf ( stderr, "[p2gg_lmimp_analysis] Error from init_3level_dtable  %s %d\n", __FILE__, __LINE__ );
+              EXIT(1);
+            }
+          }
+
+          if ( use_conn_disc == 1 || use_conn_disc == 3 ) {
+            pta_am_conn = init_3level_dtable ( 2, num_conf, T_global );
+            if( pta_am_conn == NULL ) {
+              fprintf ( stderr, "[p2gg_lmimp_analysis] Error from init_3level_dtable  %s %d\n", __FILE__, __LINE__ );
+              EXIT(1);
+            }
           }
 
           for ( int ifbwd = 0; ifbwd <= 1; ifbwd++ ) {
 
-            int const tseq = ifbwd == 0 ? sequential_source_timeslice : -sequential_source_timeslice;
-
-            sprintf ( filename, "%s/pgg_disc.%s.%s.%s.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s.dat",
-                filename_prefix,
-                correlator_prefix[operator_type], flavor_tag[operator_type],
-                loop_type_tag[loop_type],
-                seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id, tseq,
-                sink_momentum[0], sink_momentum[1], sink_momentum[2], reim_str[use_reim] );
-
-            FILE * fs_pta_am = fopen ( filename, "r" );
-            if( fs_pta_am == NULL ) {
-              fprintf ( stderr, "[p2gg_lmimp_analysis] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__ );
-              EXIT(2);
+            if ( ifbwd == 0 && use_fbwd != 1 && use_fbwd != 3 ) {
+              continue;
+            } else if ( ifbwd == 1 && use_fbwd != 2 && use_fbwd != 3 ) {
+              continue;
             }
-            fprintf ( stdout, "# [p2gg_lmimp_analysis] reading pta am from file %s %s %d\n", filename, __FILE__, __LINE__ );
+  
+            /***********************************************************
+             * P-disc
+             ***********************************************************/
+            if ( use_conn_disc == 2 || use_conn_disc == 3 ) {
 
-            for ( int iconf = 0; iconf < num_conf; iconf++) {
-              int itmp[2];
-              for ( int it = 0; it < T_global; it++ ) {
-                fscanf ( fs_pta_am, "%d %lf %d\n", itmp, pta_am[ifbwd][iconf]+it , itmp+1 );
+              int const tseq = ifbwd == 0 ? sequential_source_timeslice : -sequential_source_timeslice;
+
+              sprintf ( filename, "%s/pgg_disc.%s.%s.%s.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s.dat",
+                  filename_prefix,
+                  correlator_prefix[operator_type_disc], flavor_tag[operator_type_disc],
+                  loop_type_tag[loop_type],
+                  seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id, tseq,
+                  sink_momentum[0], sink_momentum[1], sink_momentum[2], reim_str[use_reim_disc] );
+
+              FILE * fs_pta_am_disc = fopen ( filename, "r" );
+              if( fs_pta_am_disc == NULL ) {
+                fprintf ( stderr, "[p2gg_lmimp_analysis] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__ );
+                EXIT(2);
               }
-            }
-            fclose ( fs_pta_am );
+              fprintf ( stdout, "# [p2gg_lmimp_analysis] reading pta am from file %s %s %d\n", filename, __FILE__, __LINE__ );
+
+              for ( int iconf = 0; iconf < num_conf; iconf++) {
+                int itmp[2];
+                for ( int it = 0; it < T_global; it++ ) {
+                  fscanf ( fs_pta_am_disc, "%d %lf %d\n", itmp, pta_am_disc[ifbwd][iconf]+it , itmp+1 );
+                }
+              }
+              fclose ( fs_pta_am_disc );
+            }  /* end of if use conn disc */
+
+            /***********************************************************
+             * fully connected
+             ***********************************************************/
+            if ( use_conn_disc == 1 || use_conn_disc == 3 ) {
+
+              int const tseq = ifbwd == 0 ? -sequential_source_timeslice : sequential_source_timeslice;
+
+              sprintf ( filename, "%s/pgg_conn.%s.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s.dat",
+                  filename_prefix,
+                  pgg_operator_type_tag[operator_type_conn],
+                  seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id, tseq,
+                  sink_momentum[0], sink_momentum[1], sink_momentum[2], reim_str[use_reim_conn] );
+
+              FILE * fs_pta_am_conn = fopen ( filename, "r" );
+              if( fs_pta_am_conn == NULL ) {
+                fprintf ( stderr, "[p2gg_lmimp_analysis] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__ );
+                EXIT(2);
+              }
+              fprintf ( stdout, "# [p2gg_lmimp_analysis] reading pta am from file %s %s %d\n", filename, __FILE__, __LINE__ );
+
+              for ( int iconf = 0; iconf < num_conf; iconf++) {
+                int itmp[2];
+                for ( int it = 0; it < T_global; it++ ) {
+                  fscanf ( fs_pta_am_conn, "%d %lf %d\n", itmp, pta_am_conn[ifbwd][iconf]+it , itmp+1 );
+                }
+              }
+              fclose ( fs_pta_am_conn );
+            }  /* end of if use conn disc */
+
           }  /* end of loop on ifbwd */
 
           /***********************************************************
@@ -263,80 +348,104 @@ int main(int argc, char **argv) {
            ***********************************************************/
           for ( int ievecs = evecs_use_min; ievecs <= evecs_num; ievecs += evecs_use_step ) {
 
-            /***********************************************************
-             * read pta lm
-             ***********************************************************/
-            double *** pta_lm = init_3level_dtable ( 2, num_conf, T_global );
-            if( pta_lm == NULL ) {
-              fprintf ( stderr, "[p2gg_lmimp_analysis] Error from init_3level_dtable  %s %d\n", __FILE__, __LINE__ );
-              EXIT(3);
-            }
+            double *** pta_lm_disc = NULL, *** ata_lm_disc = NULL;
+            double *** pta_lm_conn = NULL, *** ata_lm_conn = NULL;
 
-            double *** ata_lm = init_3level_dtable ( 2, num_conf, T_global );
-            if( ata_lm == NULL ) {
-              fprintf ( stderr, "[p2gg_lmimp_analysis] Error from init_3level_dtable  %s %d\n", __FILE__, __LINE__ );
-              EXIT(1);
+            if ( use_conn_disc == 2 || use_conn_disc == 3 ) {
+              pta_lm_disc = init_3level_dtable ( 2, num_conf, T_global );
+              if( pta_lm_disc == NULL ) {
+                fprintf ( stderr, "[p2gg_lmimp_analysis] Error from init_3level_dtable  %s %d\n", __FILE__, __LINE__ );
+                EXIT(3);
+              }
+
+              ata_lm_disc = init_3level_dtable ( 2, num_conf, T_global );
+              if( ata_lm_disc == NULL ) {
+                fprintf ( stderr, "[p2gg_lmimp_analysis] Error from init_3level_dtable  %s %d\n", __FILE__, __LINE__ );
+                EXIT(1);
+              }
             }
   
+            if ( use_conn_disc == 1 || use_conn_disc == 3 ) {
+              pta_lm_conn = init_3level_dtable ( 2, num_conf, T_global );
+              if( pta_lm_conn == NULL ) {
+                fprintf ( stderr, "[p2gg_lmimp_analysis] Error from init_3level_dtable  %s %d\n", __FILE__, __LINE__ );
+                EXIT(3);
+              }
 
+              ata_lm_conn = init_3level_dtable ( 2, num_conf, T_global );
+              if( ata_lm_conn == NULL ) {
+                fprintf ( stderr, "[p2gg_lmimp_analysis] Error from init_3level_dtable  %s %d\n", __FILE__, __LINE__ );
+                EXIT(1);
+              }
+            }
+  
             if ( ievecs > 0 ) {
-              for ( int ifbwd = 0; ifbwd <= 1; ifbwd++ ) {
-  
-                int const tseq = ifbwd == 0 ? sequential_source_timeslice : -sequential_source_timeslice;
-  
-                sprintf ( filename, "%s/pta-%s/pgg_disc.%s.%s.%s.lm.pta.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.nev%d.%s.dat",
-                    filename_prefix2, fbwd_str[ifbwd],
-                    correlator_prefix[operator_type], flavor_tag[operator_type],
-                    loop_type_tag[loop_type],
-                    seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id, tseq,
-                    sink_momentum[0], sink_momentum[1], sink_momentum[2], ievecs, reim_str[use_reim] );
-  
-                FILE * fs_pta_lm = fopen ( filename, "r" );
-                if( fs_pta_lm == NULL ) {
-                  fprintf ( stderr, "[p2gg_lmimp_analysis] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__ );
-                  EXIT(2);
-                }
-                fprintf ( stdout, "# [p2gg_lmimp_analysis] reading pta lm from file %s %s %d\n", filename, __FILE__, __LINE__ );
-  
-                for ( int iconf = 0; iconf < num_conf; iconf++) {
-                  int itmp[2];
-                  for ( int it = 0; it < T_global; it++ ) {
-                    fscanf ( fs_pta_lm, "%d %lf %d\n", itmp, pta_lm[ifbwd][iconf]+it , itmp+1 );
-                  }
-                }
-                fclose ( fs_pta_lm );
-              }
-  
-              /***********************************************************
-               * read ata lm
-               ***********************************************************/
-              for ( int ifbwd = 0; ifbwd <= 1; ifbwd++ ) {
-  
-                int const tseq = ifbwd == 0 ? sequential_source_timeslice : -sequential_source_timeslice;
-  
-                sprintf ( filename, "%s/ata-%s/pgg_disc.%s.%s.%s.lm.ata.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.nev%d.%s.dat",
-                    filename_prefix3, fbwd_str[ifbwd],
-                    correlator_prefix[operator_type], flavor_tag[operator_type],
-                    loop_type_tag[loop_type],
-                    seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id, tseq,
-                    sink_momentum[0], sink_momentum[1], sink_momentum[2], ievecs, reim_str[use_reim] );
-  
-                FILE * fs_ata_lm = fopen ( filename, "r" );
-                if( fs_ata_lm == NULL ) {
-                  fprintf ( stderr, "[p2gg_lmimp_analysis] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__ );
-                  EXIT(2);
-                }
-                fprintf ( stdout, "# [p2gg_lmimp_analysis] reading ata lm from file %s %s %d\n", filename, __FILE__, __LINE__ );
-  
-                for ( int iconf = 0; iconf < num_conf; iconf++) {
-                  int itmp[2];
-                  for ( int it = 0; it < T_global; it++ ) {
-                    fscanf ( fs_ata_lm, "%d %lf %d\n", itmp, ata_lm[ifbwd][iconf]+it , itmp+1 );
-                  }
-                }
-                fclose ( fs_ata_lm );
-              }
 
+              for ( int ifbwd = 0; ifbwd <= 1; ifbwd++ ) {
+
+                if ( ifbwd == 0 && use_fbwd != 1 && use_fbwd != 3 ) {
+                  continue;
+                } else if ( ifbwd == 1 && use_fbwd != 2 && use_fbwd != 3 ) {
+                  continue;
+                }
+  
+                if ( use_conn_disc == 2 || use_conn_disc == 3 ) {
+
+                  /***********************************************************
+                   * read pta lm P-disc
+                   ***********************************************************/
+                  int const tseq = ifbwd == 0 ? sequential_source_timeslice : -sequential_source_timeslice;
+  
+                  sprintf ( filename, "%s/pta-%s/pgg_disc.%s.%s.%s.lm.pta.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.nev%d.%s.dat",
+                      filename_prefix2, fbwd_str[ifbwd],
+                      correlator_prefix[operator_type_disc], flavor_tag[operator_type_disc],
+                      loop_type_tag[loop_type],
+                      seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id, tseq,
+                      sink_momentum[0], sink_momentum[1], sink_momentum[2], ievecs, reim_str[use_reim_disc] );
+  
+                  FILE * fs_pta_lm_disc = fopen ( filename, "r" );
+                  if( fs_pta_lm_disc == NULL ) {
+                    fprintf ( stderr, "[p2gg_lmimp_analysis] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__ );
+                    EXIT(2);
+                  }
+                  fprintf ( stdout, "# [p2gg_lmimp_analysis] reading pta lm from file %s %s %d\n", filename, __FILE__, __LINE__ );
+  
+                  for ( int iconf = 0; iconf < num_conf; iconf++) {
+                    int itmp[2];
+                    for ( int it = 0; it < T_global; it++ ) {
+                      fscanf ( fs_pta_lm_disc, "%d %lf %d\n", itmp, pta_lm_disc[ifbwd][iconf]+it , itmp+1 );
+                    }
+                  }
+                  fclose ( fs_pta_lm_disc );
+  
+                  /***********************************************************
+                   * read ata lm P-disc
+                   ***********************************************************/
+  
+                  sprintf ( filename, "%s/ata-%s/pgg_disc.%s.%s.%s.lm.ata.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.nev%d.%s.dat",
+                      filename_prefix3, fbwd_str[ifbwd],
+                      correlator_prefix[operator_type_disc], flavor_tag[operator_type_disc],
+                      loop_type_tag[loop_type],
+                      seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id, tseq,
+                      sink_momentum[0], sink_momentum[1], sink_momentum[2], ievecs, reim_str[use_reim_disc] );
+  
+                  FILE * fs_ata_lm_disc = fopen ( filename, "r" );
+                  if( fs_ata_lm_disc == NULL ) {
+                    fprintf ( stderr, "[p2gg_lmimp_analysis] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__ );
+                    EXIT(2);
+                  }
+                  fprintf ( stdout, "# [p2gg_lmimp_analysis] reading ata lm from file %s %s %d\n", filename, __FILE__, __LINE__ );
+  
+                  for ( int iconf = 0; iconf < num_conf; iconf++) {
+                    int itmp[2];
+                    for ( int it = 0; it < T_global; it++ ) {
+                      fscanf ( fs_ata_lm_disc, "%d %lf %d\n", itmp, ata_lm_disc[ifbwd][iconf]+it , itmp+1 );
+                    }
+                  }
+                  fclose ( fs_ata_lm_disc );
+                }
+
+              }
             }  /* end of if ievecs > 0 */
 
             /***********************************************************
@@ -348,15 +457,41 @@ int main(int argc, char **argv) {
               EXIT(10);
             }
 
+
+            /***********************************************************
+             * add P-disc
+             ***********************************************************/
+            if ( use_conn_disc == 2 || use_conn_disc == 3 ) {
+              double const norm = ( use_fbwd == 3 ) ? 0.5 : 1.; 
 #pragma omp parallel for
-            for ( int iconf = 0; iconf < num_conf; iconf++) {
-              for ( int it = 0; it < T_global; it++ ) {
-                int const itfwd = it;
-                int const itbwd = T_global - it - 2;
-                pgg[iconf][it] = 0.5 * (
-                    lm_am_weight[0] * pta_am[0][iconf][itfwd] + ( -lm_am_weight[1] * pta_lm[0][iconf][itfwd] + lm_am_weight[2] * ata_lm[0][iconf][itfwd] )  /* fwd contribution */
-                  - lm_am_weight[0] * pta_am[1][iconf][itbwd] - ( -lm_am_weight[1] * pta_lm[1][iconf][itbwd] + lm_am_weight[2] * ata_lm[1][iconf][itbwd] )  /* bwd contribution */
-                  );
+              for ( int iconf = 0; iconf < num_conf; iconf++) {
+                for ( int it = 0; it < T_global; it++ ) {
+                  int const itfwd = it;
+                  int const itbwd = T_global - it - 2;
+                  pgg[iconf][it] += norm * (
+                      lm_am_weight[0] * pta_am_disc[0][iconf][itfwd] + ( -lm_am_weight[1] * pta_lm_disc[0][iconf][itfwd] + lm_am_weight[2] * ata_lm_disc[0][iconf][itfwd] )  /* fwd contribution */
+                    - lm_am_weight[0] * pta_am_disc[1][iconf][itbwd] - ( -lm_am_weight[1] * pta_lm_disc[1][iconf][itbwd] + lm_am_weight[2] * ata_lm_disc[1][iconf][itbwd] )  /* bwd contribution */
+  
+                    );
+                }
+              }
+            }
+
+            /***********************************************************
+             * add fully connected
+             ***********************************************************/
+            if ( use_conn_disc == 1 || use_conn_disc == 3 ) {
+              double const norm = ( use_fbwd == 3 ) ? 0.5 : 1.; 
+#pragma omp parallel for
+              for ( int iconf = 0; iconf < num_conf; iconf++) {
+                for ( int it = 0; it < T_global; it++ ) {
+                  int const itfwd = it;
+                  int const itbwd = T_global - it - 2;
+                  pgg[iconf][it] += norm * (
+                      lm_am_weight[0] * pta_am_conn[0][iconf][itfwd] + ( -lm_am_weight[1] * pta_lm_conn[0][iconf][itfwd] + lm_am_weight[2] * ata_lm_conn[0][iconf][itfwd] )  /* fwd contribution */
+                    - lm_am_weight[0] * pta_am_conn[1][iconf][itbwd] - ( -lm_am_weight[1] * pta_lm_conn[1][iconf][itbwd] + lm_am_weight[2] * ata_lm_conn[1][iconf][itbwd] )  /* bwd contribution */
+                    );
+                }
               }
             }
 
@@ -364,12 +499,10 @@ int main(int argc, char **argv) {
              * UWerr analysis
              ***********************************************************/
             char obs_name[100];
-            sprintf ( obs_name, "pgg_disc.%s.%s.%s.lmimp.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.nev%d.%s",
-                correlator_prefix[operator_type], flavor_tag[operator_type],
-                loop_type_tag[loop_type],
+            sprintf ( obs_name, "%s.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.nev%d",
+                g_outfile_prefix,
                 seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id, sequential_source_timeslice,
-                sink_momentum[0], sink_momentum[1], sink_momentum[2],
-                ievecs, reim_str[use_reim] );
+                sink_momentum[0], sink_momentum[1], sink_momentum[2], ievecs );
 
             exitstatus = apply_uwerr_real ( pgg[0], num_conf, T_global, 0, 1, obs_name );
             if ( exitstatus != 0 ) {
@@ -396,12 +529,15 @@ int main(int argc, char **argv) {
               fclose ( ofs );
             }  /* end of if write_data */
 
-            fini_3level_dtable ( &pta_lm );
-            fini_3level_dtable ( &ata_lm );
+            fini_3level_dtable ( &pta_lm_disc );
+            fini_3level_dtable ( &ata_lm_disc );
+            fini_3level_dtable ( &pta_lm_conn );
+            fini_3level_dtable ( &ata_lm_conn );
 
           }  /* end of loop on evecs number */
 
-          fini_3level_dtable ( &pta_am );
+          fini_3level_dtable ( &pta_am_disc );
+          fini_3level_dtable ( &pta_am_conn );
 
         }  /* end of loop on g_sink_momentum_number */
       }  /* end of loop on g_sequential_source_timeslice_number */
