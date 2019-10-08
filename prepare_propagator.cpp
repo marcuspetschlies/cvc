@@ -823,7 +823,7 @@ int prepare_seq_stochastic_vertex_stochastic_oet (double**seq_prop, double**stoc
 /*******************************************************************/
 /*******************************************************************/
 
-int point_source_propagator (double **prop, int gsx[4], int op_id, int smear_source, int smear_sink, double *gauge_field_smeared, int check_residual, double *gauge_field, double **mzz[2] ) {
+int point_source_propagator (double ** const prop, int const gsx[4], int const op_id, int const smear_source, int const smear_sink, double * const gauge_field_smeared, int const check_residual, double * const gauge_field, double ** mzz[2] ) {
 
   const size_t sizeof_spinor_field = _GSI(VOLUME) * sizeof(double);
 
@@ -931,18 +931,12 @@ int prepare_propagator_from_source ( double ** const prop, double ** const sourc
     /***************************************************************************
      * copy the source field
      ***************************************************************************/
-    memcpy ( spinor_work[2], source[isc], sizeof_spinor_field );
+    memcpy ( spinor_work[0], source[isc], sizeof_spinor_field );
 
     /***************************************************************************
      * init solution field to zero
      ***************************************************************************/
     memset ( spinor_work[1], 0, sizeof_spinor_field );
-
-    /***************************************************************************
-     * copy source again, to preserve original source
-     ***************************************************************************/
-    memcpy ( spinor_work[0], spinor_work[2], sizeof_spinor_field );
-
 
     /***************************************************************************
      * source-smear the source
@@ -962,6 +956,10 @@ int prepare_propagator_from_source ( double ** const prop, double ** const sourc
       spinor_field_tm_rotation(spinor_work[0], spinor_work[0], rotation_direction, g_fermion_type, VOLUME);
     }
 
+    /***************************************************************************
+     * copy source again, to preserve original source
+     ***************************************************************************/
+    memcpy ( spinor_work[2], spinor_work[0], sizeof_spinor_field );
 
     /***************************************************************************
      * call solver via tmLQCD
@@ -979,7 +977,6 @@ int prepare_propagator_from_source ( double ** const prop, double ** const sourc
     if ( check_residual ) {
       check_residual_clover ( &(spinor_work[1]), &(spinor_work[2]), gauge_field, mzz[op_id], 1 );
     }
-
 
     /***************************************************************************
      * twisted-mass rotate spinor field on the sink side

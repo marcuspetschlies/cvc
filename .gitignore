@@ -11,3 +11,4 @@ build_*/
 test/
 build.*
 build-*
+*.c

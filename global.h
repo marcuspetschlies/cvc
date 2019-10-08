@@ -14,6 +14,12 @@
 #include "tmLQCD.h"
 #endif
 
+#ifdef HAVE_LIBLEMON
+#  ifndef LEMON_OFFSET_TYPE
+#    define LEMON_OFFSET_TYPE MPI_Offset
+#  endif
+#endif
+
 #define _TM_FERMION        0
 #define _WILSON_FERMION    1
 #define _DW_WILSON_FERMION 2
