@@ -354,9 +354,16 @@ int main(int argc, char **argv) {
    * 24 = 4*3*2 = number of real spin-color components
    ***************************************************************************/
 
-  /* up quark propagator */
+  /* up quark propagator with source and sink smearing*/
   double ** propagator_up = init_2level_dtable ( 12, _GSI( VOLUME ) );
   if( propagator_up == NULL ) {
+    fprintf(stderr, "[njn_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+    EXIT(123);
+  }
+
+  /* up quark propagator with source smearing to use for sequential inversion*/
+  double ** propagator_up_src_smeared = init_2level_dtable ( 12, _GSI( VOLUME ) );
+  if( propagator_up_src_smeared == NULL ) {
     fprintf(stderr, "[njn_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
     EXIT(123);
   }
@@ -364,6 +371,13 @@ int main(int argc, char **argv) {
   /* down quark propagator */
   double ** propagator_dn = init_2level_dtable ( 12, _GSI( VOLUME ) );
   if( propagator_dn == NULL ) {
+    fprintf(stderr, "[njn_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+    EXIT(123);
+  }
+
+  /* down quark propagator with source smearing*/
+  double ** propagator_dn_src_smeared = init_2level_dtable ( 12, _GSI( VOLUME ) );
+  if( propagator_dn_src_smeared == NULL ) {
     fprintf(stderr, "[njn_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
     EXIT(123);
   }
@@ -457,7 +471,16 @@ int main(int argc, char **argv) {
      * NOTE: quark flavor is controlled by 
      * _OP_ID_UP and _OP_ID_DN below
      ***********************************************************/
-    exitstatus = point_source_propagator ( propagator_up, gsx, _OP_ID_UP, 0, 0, NULL, check_propagator_residual, gauge_field_with_phase, lmzz );
+    exitstatus = point_source_propagator ( propagator_up, gsx, _OP_ID_UP, 1, 1, NULL, check_propagator_residual, gauge_field_with_phase, lmzz );
+    if(exitstatus != 0) {
+      fprintf(stderr, "[njn_fht_invert_contract] Error from point_source_propagator, status was %d\n", exitstatus);
+      EXIT(12);
+    }
+
+    /***********************************************************
+     * up-type point-to-all propagator only source smeared
+     ***********************************************************/
+    exitstatus = point_source_propagator ( propagator_up_src_smeared, gsx, _OP_ID_UP, 1, 0, NULL, check_propagator_residual, gauge_field_with_phase, lmzz );
     if(exitstatus != 0) {
       fprintf(stderr, "[njn_fht_invert_contract] Error from point_source_propagator, status was %d\n", exitstatus);
       EXIT(12);
@@ -484,7 +507,16 @@ int main(int argc, char **argv) {
     /***********************************************************
      * dn-type point-to-all propagator
      ***********************************************************/
-    exitstatus = point_source_propagator ( propagator_dn, gsx, _OP_ID_DN, 0, 0, NULL, check_propagator_residual, gauge_field_with_phase, lmzz );
+    exitstatus = point_source_propagator ( propagator_dn, gsx, _OP_ID_DN, 1, 1, NULL, check_propagator_residual, gauge_field_with_phase, lmzz );
+    if(exitstatus != 0) {
+      fprintf(stderr, "[njn_fht_invert_contract] Error from point_source_propagator, status was %d\n", exitstatus);
+      EXIT(12);
+    }
+
+    /***********************************************************
+     * dn-type point-to-all propagator only source smeared
+     ***********************************************************/
+    exitstatus = point_source_propagator ( propagator_dn_src_smeared, gsx, _OP_ID_DN, 1, 0, NULL, check_propagator_residual, gauge_field_with_phase, lmzz );
     if(exitstatus != 0) {
       fprintf(stderr, "[njn_fht_invert_contract] Error from point_source_propagator, status was %d\n", exitstatus);
       EXIT(12);
@@ -678,7 +710,7 @@ int main(int argc, char **argv) {
         for ( int it = 0; it < T; it++ ) {
           /* memory offset for timeslice it */
           size_t const offset =  it * _GSI(VOL3);
-          spinor_field_eq_spinor_field_ti_complex_field ( sequential_source[0][isc] + offset, propagator_up[isc] + offset, (double*)(ephase[imom]), VOL3 );
+          spinor_field_eq_spinor_field_ti_complex_field ( sequential_source[0][isc] + offset, propagator_up_src_smeared[isc] + offset, (double*)(ephase[imom]), VOL3 );
         }
       }
 
@@ -704,7 +736,7 @@ int main(int argc, char **argv) {
         /***************************************************************************
          * invert the Dirac operator on the sequential source
          ***************************************************************************/
-        exitstatus = prepare_propagator_from_source ( sequential_propagator, sequential_source[1], 12, _OP_ID_UP, 0, 0, NULL,
+        exitstatus = prepare_propagator_from_source ( sequential_propagator, sequential_source[1], 12, _OP_ID_UP, 0, 1, NULL,
             check_propagator_residual, gauge_field_with_phase, lmzz, NULL );
         if ( exitstatus != 0 ) {
           fprintf ( stderr, "[njn_fht_invert_contract] Error from prepare_propagator_from_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
@@ -884,7 +916,7 @@ int main(int argc, char **argv) {
         for ( int it = 0; it < T; it++ ) {
           /* memory offset for timeslice it */
           size_t const offset =  it * _GSI(VOL3);
-          spinor_field_eq_spinor_field_ti_complex_field ( sequential_source[0][isc] + offset, propagator_dn[isc] + offset, (double*)(ephase[imom]), VOL3 );
+          spinor_field_eq_spinor_field_ti_complex_field ( sequential_source[0][isc] + offset, propagator_dn_src_smeared[isc] + offset, (double*)(ephase[imom]), VOL3 );
         }
       }
 
@@ -905,13 +937,13 @@ int main(int argc, char **argv) {
         /***************************************************************************
          * invert the Dirac operator on the sequential source
          ***************************************************************************/
-        exitstatus = prepare_propagator_from_source ( sequential_propagator, sequential_source[1], 12, _OP_ID_DN, check_propagator_residual, gauge_field_with_phase, lmzz, NULL );
+        exitstatus = prepare_propagator_from_source ( sequential_propagator, sequential_source[1], 12, _OP_ID_DN, 0, 1, NULL, check_propagator_residual, gauge_field_with_phase, lmzz, NULL );
         if ( exitstatus != 0 ) {
           fprintf ( stderr, "[njn_fht_invert_contract] Error from prepare_propagator_from_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(123);
         }
         /***************************************************************************
-         * fill the fermion propagator fp2 with sequential_propagator
+         * fill the fermion propagator fp2 point_source_propagatorwith sequential_propagator
          ***************************************************************************/
         assign_fermion_propagator_from_spinor_field ( fp2, sequential_propagator, VOLUME);
 
@@ -1032,6 +1064,8 @@ int main(int argc, char **argv) {
    ***************************************************************************/
   fini_2level_dtable ( &propagator_up );
   fini_2level_dtable ( &propagator_dn );
+  fini_2level_dtable ( &propagator_up_src_smeared );
+  fini_2level_dtable ( &propagator_dn_src_smeared );
   fini_2level_dtable ( &sequential_propagator );
   fini_2level_ztable ( &ephase );
 
