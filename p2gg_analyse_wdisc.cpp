@@ -107,7 +107,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "Wh?f:N:S:F:O:D:w:")) != -1) {
+  while ((c = getopt(argc, argv, "Wh?f:N:S:F:O:D:w:E:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -140,6 +140,10 @@ int main(int argc, char **argv) {
     case 'w':
       write_data = atoi ( optarg );
       fprintf ( stdout, "# [p2gg_analyse_wdisc] write_data set to %d\n", write_data );
+      break;
+    case 'E':
+      strcpy ( ensemble_name, optarg );
+      fprintf ( stdout, "# [p2gg_analyse_wdisc] ensemble_name set to %d\n", ensemble_name );
       break;
     case 'h':
     case '?':
