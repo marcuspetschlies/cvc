@@ -501,9 +501,9 @@ int main(int argc, char **argv) {
      * NOTE: quark flavor is controlled by 
      * _OP_ID_UP and _OP_ID_DN below
      ***********************************************************/
-    exitstatus = point_source_propagator ( propagator_up, gsx, _OP_ID_UP, 1, 0, NULL, check_propagator_residual, gauge_field_with_phase, lmzz );
+    exitstatus = point_source_propagator ( propagator_up, gsx, _OP_ID_UP, 1, 0, gauge_field_smeared, check_propagator_residual, gauge_field_with_phase, lmzz );
     if(exitstatus != 0) {
-      fprintf(stderr, "[njn_fht_invert_contract] Error from point_source_propagator, status was %d\n", exitstatus);
+      fprintf(stderr, "[njn_fht_invert_contract] Error from point_source_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(12);
     }
 
@@ -545,9 +545,9 @@ int main(int argc, char **argv) {
      *
      * ONLY SOURCE smearing here
      ***********************************************************/
-    exitstatus = point_source_propagator ( propagator_dn, gsx, _OP_ID_DN, 1, 0, NULL, check_propagator_residual, gauge_field_with_phase, lmzz );
+    exitstatus = point_source_propagator ( propagator_dn, gsx, _OP_ID_DN, 1, 0, gauge_field_smeared, check_propagator_residual, gauge_field_with_phase, lmzz );
     if(exitstatus != 0) {
-      fprintf(stderr, "[njn_fht_invert_contract] Error from point_source_propagator, status was %d\n", exitstatus);
+      fprintf(stderr, "[njn_fht_invert_contract] Error from point_source_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(12);
     }
 
