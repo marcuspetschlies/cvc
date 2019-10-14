@@ -141,12 +141,6 @@ int main(int argc, char **argv) {
   int const    gamma_f1_list[gamma_f1_number]            = { 14 , 11,  8,  2 };
   double const gamma_f1_sign[gamma_f1_number]            = { +1 , +1, -1, -1 };
 
-#if 0
-  int const    gamma_f1_number                = 3;
-  int const    gamma_f1_list[gamma_f1_number] = { 9,  0,  7 };
-  double const gamma_f1_sign[gamma_f1_number] = {-1, +1, +1 };
-#endif  /* of if 0 */
-
 #ifdef HAVE_LHPC_AFF
   struct AffWriter_s *affw = NULL;
   char aff_tag[400];
