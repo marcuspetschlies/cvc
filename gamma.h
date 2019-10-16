@@ -49,5 +49,9 @@ void gamma_matrix_get_id_sign ( int * id, double * s, gamma_matrix_type * g );
 
 void gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( gamma_matrix_type *gout, gamma_matrix_type *gop1, char op1, gamma_matrix_type *gin, gamma_matrix_type *gop2, char op2 );
 
+void gamma_matrix_ti_eq_re ( gamma_matrix_type * const g1, double const z );
+
+void gamma_matrix_ti_eq_co ( gamma_matrix_type * const g1, double _Complex const z );
+
 }
 #endif
