@@ -21,19 +21,6 @@
 #include "lhpc-aff.h"
 #endif
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
-#  ifdef HAVE_TMLQCD_LIBWRAPPER
-#    include "tmLQCD.h"
-#  endif
-
-#ifdef __cplusplus
-}
-#endif
-
 #define MAIN_PROGRAM
 
 #include "cvc_linalg.h"
@@ -71,8 +58,54 @@ typedef struct {
   char *stream;
 } conf_src_list_type;
 
+/***************************************************************************
+ *
+ ***************************************************************************/
 int main(int argc, char **argv) {
-  
+ 
+  char const reim_str[2][3] = { "re", "im" };
+
+    char const gamma_id_to_Cg_ascii[16][10] = {
+    "Cgy",
+    "Cgzg5",
+    "Cgt",
+    "Cgxg5",
+    "Cgygt",
+    "Cgyg5gt",
+    "Cgyg5",
+    "Cgz",
+    "Cg5gt",
+    "Cgx",
+    "Cgzg5gt",
+    "C",
+    "Cgxg5gt",
+    "Cgxgt",
+    "Cg5",
+    "Cgzgt"
+  };
+
+
+  char const gamma_id_to_ascii[16][10] = {
+    "gt",
+    "gx",
+    "gy",
+    "gz",
+    "id",
+    "g5",
+    "gtg5",
+    "gxg5",
+    "gyg5",
+    "gzg5",
+    "gtgx",
+    "gtgy",
+    "gtgz",
+    "gxgy",
+    "gxgz",
+    "gygz"
+  };
+
+
+
   int c;
   int filename_set = 0;
   int exitstatus;
@@ -80,14 +113,12 @@ int main(int argc, char **argv) {
   char ensemble_name[100] = "NA";
   char filename[100];
   int num_conf = 0, num_src_per_conf = 0;
-  char streamc;
-  int sink_momentum_number = -1, sink_momentum_id = -1;
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:S:N:P:p:e:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:S:N:e:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -100,14 +131,6 @@ int main(int argc, char **argv) {
     case 'S':
       num_src_per_conf = atoi ( optarg );
       fprintf ( stdout, "# [NN_analyse] number of sources per config = %d\n", num_src_per_conf );
-      break;
-    case 'P':
-      sink_momentum_number = atoi ( optarg );
-      fprintf ( stdout, "# [NN_analyse] number of sink momenta set to = %d\n", sink_momentum_number );
-      break;
-    case 'p':
-      sink_momentum_id = atoi ( optarg );
-      fprintf ( stdout, "# [NN_analyse] sink momentum id set to = %d\n", sink_momentum_id );
       break;
     case 'e':
       strcpy ( ensemble_name, optarg );
@@ -132,7 +155,6 @@ int main(int argc, char **argv) {
    * initialize MPI parameters for cvc
    *********************************/
   mpi_init(argc, argv);
-  mpi_init_xchange_contraction(2);
 
   /******************************************************
    * report git version
@@ -163,27 +185,14 @@ int main(int argc, char **argv) {
 
   geometry();
 
-  mpi_init_xchange_eo_spinor();
-  mpi_init_xchange_eo_propagator();
-
   /***********************************************************
-   * parity projection matrices
+   * gamma matrices
    ***********************************************************/
 
   gamma_matrix_type gammaMat[16];
   for ( int i = 0; i < 16; i++ ) {
     gamma_matrix_set ( gammaMat+i, i, 1. );
   }
-
-  gamma_matrix_type Parityp, Paritym;
-  gamma_matrix_init ( &Parityp );
-  gamma_matrix_init ( &Paritym );
-
-  gamma_matrix_eq_gamma_matrix_pl_gamma_matrix_ti_re ( &gammaParityP, &(gammaMat[4]), &(gammaMat[0]),  1.0 );
-  gamma_matrix_ti_eq_re ( &gammaParityP, 0.5 );
-
-  gamma_matrix_eq_gamma_matrix_pl_gamma_matrix_ti_re ( &gammaParityP, &(gammaMat[4]), &(gammaMat[0]), -1.0 );
-  gamma_matrix_ti_eq_re ( &gammaParityM, 0.5 );
 
   /***********************************************************
    * set io process
@@ -199,7 +208,7 @@ int main(int argc, char **argv) {
   /***********************************************************
    * read list of configs and source locations
    ***********************************************************/
-  sprintf ( filename, "source_coords.%s.nsrc%d.lst" , ensemble_name, num_src_per_conf);
+  sprintf ( filename, "source_coords.%s.lst" , ensemble_name );
   FILE *ofs = fopen ( filename, "r" );
   if ( ofs == NULL ) {
     fprintf(stderr, "[NN_analyse] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__);
@@ -250,7 +259,7 @@ int main(int argc, char **argv) {
      ***********************************************************/
     sscanf( line, "%c %d %d %d %d %d", &stream_tmp, &conf_tmp, src_tmp, src_tmp+1, src_tmp+2, src_tmp+3 );
 
-    /* fprintf ( stdout, "# [NN_analyse] before: conf_tmp = %4d   conf_prev = %4d   countc = %d   counts = %d\n", conf_tmp, conf_prev, countc, counts ); */
+    if ( g_verbose > 5 ) fprintf ( stdout, "# [NN_analyse] before: conf_tmp = %4d   conf_prev = %4d   countc = %d   counts = %d\n", conf_tmp, conf_prev, countc, counts );
 
     if ( conf_tmp != conf_prev ) {
       /* new config */
@@ -262,7 +271,7 @@ int main(int argc, char **argv) {
       conf_src_list.conf[countc]   = conf_tmp;
     }
 
-    /* fprintf ( stdout, "# [NN_analyse] after : conf_tmp = %4d   conf_prev = %4d   countc = %d   counts = %d\n", conf_tmp, conf_prev, countc, counts ); */
+    if ( g_verbose > 5 ) fprintf ( stdout, "# [NN_analyse] after : conf_tmp = %4d   conf_prev = %4d   countc = %d   counts = %d\n", conf_tmp, conf_prev, countc, counts );
 
     memcpy ( conf_src_list.src[countc][counts] , src_tmp, 4*sizeof(int) );
 
@@ -303,6 +312,15 @@ int main(int argc, char **argv) {
 
     twopoint_function_allocate ( tp );
 
+    if ( g_verbose > 2 ) {
+      twopoint_function_print ( tp, "tp", stdout );
+    }
+
+    double _Complex **** corr = init_4level_ztable ( 2, num_conf, num_src_per_conf, tp->T );
+    if ( corr == NULL ) {
+      fprintf ( stderr, "[] Error from init_4level_ztable %s %d\n", __FILE__, __LINE__ );
+      EXIT(15);
+    }
 
     /***********************************************************
      * loop on configs 
@@ -310,8 +328,6 @@ int main(int argc, char **argv) {
     for( int iconf = 0; iconf < num_conf; iconf++ ) {
           
       int const Nconf = conf_src_list.conf[iconf];
-
-      char const streamc = conf_src_list.stream[iconf];
 
       /***********************************************************
        * loop on sources per config
@@ -327,8 +343,19 @@ int main(int argc, char **argv) {
           conf_src_list.src[iconf][isrc][2],
           conf_src_list.src[iconf][isrc][3] };
 
-        char data_filename[500];
 
+        memcpy ( tp->source_coords, gsx , 4 * sizeof( int ) );
+
+        char data_filename[500];
+            
+        sprintf ( data_filename, "%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+        if ( g_verbose > 2 ) {
+          fprintf ( stdout, "# [NN_analyse] data_filename   = %s\n", data_filename );
+        }
+
+        /***********************************************************
+         * loop on diagrams
+         ***********************************************************/
         for ( int i_diag = 0; i_diag < tp->n; i_diag++ ) {
 
           char diagram_name[500];
@@ -336,141 +363,254 @@ int main(int argc, char **argv) {
           twopoint_function_get_diagram_name ( diagram_name,  tp, i_diag );
 
           if ( g_verbose > 2 ) {
-            fprintf ( stdout, "# [NN_analyse] output_filename = %s\n", output_filename );
+            fprintf ( stdout, "# [NN_analyse] diagram_name = %s\n", diagram_name );
           }
 
           char key[500];
 
-          sprintf ( key, "/%s/T%d_X%d_Y%d_Z%d/Gi_%s/Gf_%d/%s/px%.2dpy%.2dpz%.2d", tp->name, gsx[0], gsx[1], gsx[2], gsx[3], gsx[0],
-              gamma_id_to_Cg_ascii[tp->gi1[0]],
-              gamma_id_to_Cg_ascii[tp->gf1[0]],
-              diagram_name,
-              tp->pf1[0], tp->pf1[1], tp->pf1[2] );
+          if ( strcmp ( tp->type, "b-b" ) == 0 ) {
 
+            sprintf ( key, "/%s/T%d_X%d_Y%d_Z%d/Gi_%s/Gf_%s/%s/px%.2dpy%.2dpz%.2d", tp->name, gsx[0], gsx[1], gsx[2], gsx[3],
+                gamma_id_to_Cg_ascii[tp->gi1[0]],
+                gamma_id_to_Cg_ascii[tp->gf1[0]],
+                diagram_name,
+                tp->pf1[0], tp->pf1[1], tp->pf1[2] );
 
-          if ( strcmp ( tp->type , "b-b" ) == 0 ) {
-            sprintf ( key, "/conf_%.4d/sx%.2dsy%.2dsz%.2dst%.2d/%s/%s", Nconf, gsx[1], gsx[2], gsx[3], gsx[0], tp->name, diagram_name );
+          } else if ( strcmp( tp->type , "b-qq-b" ) == 0 ) {
 
-            sprintf ( data_filename, "%s/%.4d_r%c/twop.%.4d_r%c_%s.%.2d.%.2d.%.2d.%.2d.h5", filename_prefix, Nconf, streamc, Nconf, streamc, filename_prefix2, 
-                gsx[1], gsx[2], gsx[3], gsx[0] );
+            sprintf ( key, "/%s/T%d_X%d_Y%d_Z%d/Gf_%s/Gc_%s/Gi_%s/QX%d_QY%d_QZ%d/%s/px%.2dpy%.2dpz%.2d", tp->name, gsx[0], gsx[1], gsx[2], gsx[3],
+                gamma_id_to_Cg_ascii[tp->gf1[0]],
+                gamma_id_to_ascii[tp->gf2],
+                gamma_id_to_Cg_ascii[tp->gi1[0]],
+                tp->pf2[0], tp->pf2[1], tp->pf2[2],
+                diagram_name,
+                tp->pf1[0], tp->pf1[1], tp->pf1[2] );
+
           }
+
           if ( g_verbose > 2 ) {
-            fprintf ( stdout, "# [NN_analyse] key             = %s\n", key );
-            fprintf ( stdout, "# [NN_analyse] data_filename   = %s\n", data_filename );
+            fprintf ( stdout, "# [NN_analyse] key = %s\n", key );
           }
 
 
-
-#ifdef HAVE_HDF5
           /***********************************************************
-           * read data block from h5 file
+           * read data block from AFF file
            ***********************************************************/
-          double **** buffer = init_4level_dtable ( tp->T, sink_momentum_number, tp->d * tp->d, 2 );
-          if ( buffer == NULL ) {
-            fprintf(stderr, "[NN_analyse] Error from ,init_4level_dtable %s %d\n", __FILE__, __LINE__ );
-            EXIT(12);
-          }
-
-          exitstatus = read_from_h5_file ( (void*)(buffer[0][0][0]), data_filename, key, io_proc );
+          exitstatus = read_aff_contraction ( tp->c[i_diag][0][0] , NULL, data_filename, key, tp->d * tp->d * tp->T );
           if ( exitstatus != 0 ) {
-            fprintf(stderr, "[NN_analyse] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            fprintf(stderr, "[NN_analyse] Error from form read_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(12);
           }
-#endif
 
-          /***********************************************************
-           * write into data field
-           ***********************************************************/
-          for ( int it = 0; it < tp->T; it++ ) {
-            memcpy ( tp->c[i_diag][it][0], buffer[it][sink_momentum_id][0], tp->d * tp->d * 2*sizeof(double) );
-          }
+        }  /* end of loop on diagrams */
 
-          fini_4level_dtable ( &buffer );
-
-          /***********************************************************
-           * finalize correlator
-           ***********************************************************/
-#if 0
-          /* add boundary phase */
-          if ( ( exitstatus = correlator_add_baryon_boundary_phase ( tp->c[i_diag], gsx[0], +1, tp->T ) ) != 0 ) {
-            fprintf( stderr, "[NN_analyse] Error from correlator_add_baryon_boundary_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(103);
-          }
-
-          // add source phase
-          if ( ( exitstatus = correlator_add_source_phase ( tp->c[i_diag], tp->pi1, &(gsx[1]), tp->T ) ) != 0 ) {
-            fprintf( stderr, "[NN_analyse] Error from correlator_add_source_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(104);
-          }
-#endif  /* of if 0 */
-
-          /***********************************************************
-           * project to spin parity
-           ***********************************************************/
-          double _Complex **** zbuffer = init_4level_ztable ( 2, tp->T, tp->d, tp->d );
-          double _Complex ** ztr = init_2level_ztable ( 2 , tp->T );
-
-          if ( ( exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( zbuffer[0], tp->c[i_diag], Pp_ukqcd, Pp_ukqcd, tp->T ) ) != 0 ) {
-            fprintf( stderr, "[NN_analyse] Error from contract_diagram_zm4x4_field_mul_gamma_lr, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(105);
-          }
-
-          if ( ( exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( zbuffer[1], tp->c[i_diag], Pm_ukqcd, Pm_ukqcd, tp->T ) ) != 0 ) {
-            fprintf( stderr, "[NN_analyse] Error from contract_diagram_zm4x4_field_mul_gamma_lr, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(105);
-          }
-
-          /***********************************************************
-           * trace
-           ***********************************************************/
-          exitstatus = contract_diagram_co_eq_tr_zm4x4_field ( ztr[0], zbuffer[0], tp->T );
-          exitstatus = contract_diagram_co_eq_tr_zm4x4_field ( ztr[1], zbuffer[1], tp->T );
+        if ( g_verbose > 2 ) {
+          twopoint_function_show_data ( tp, stdout );
+        }
 
 
-          /***********************************************************
-           * write to ofs
-           ***********************************************************/
-          fprintf ( ofs, "# %s/%s\n", data_filename, key );
-          for ( int it = 0; it < tp->T; it++ ) {
-            fprintf ( ofs, "%3d %25.16e %25.16e    %25.16e %25.16e\n" , it, 
-                creal( ztr[0][it] ), cimag( ztr[0][it] ),
-                creal( ztr[1][it] ), cimag( ztr[1][it] ) );
-          } 
+        /***********************************************************
+         * apply norm factors to diagrams
+         ***********************************************************/
+        if ( ( exitstatus = twopoint_function_apply_diagram_norm ( tp ) )  != 0 ) {
+          fprintf( stderr, "[NN_analyse] Error from twopoint_function_apply_diagram_norm, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(103);
+        }
 
-          fflush ( ofs );
+        /***********************************************************
+         * add up normalized diagrams to entry 0
+         ***********************************************************/
+        if ( ( exitstatus = twopoint_function_accum_diagrams ( tp->c[0], tp ) ) != 0 ) {
+          fprintf( stderr, "[NN_analyse] Error from twopoint_function_accum_diagrams, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(104);
+        }
 
-          fini_2level_ztable ( &ztr );
-          fini_4level_ztable ( &zbuffer );
-#if 0
-#endif  /* of if 0 */
+        /***********************************************************
+         * add boundary phase
+         ***********************************************************/
+        if ( ( exitstatus = correlator_add_baryon_boundary_phase ( tp->c[0], gsx[0], +1, tp->T ) ) != 0 ) {
+          fprintf( stderr, "[NN_analyse] Error from correlator_add_baryon_boundary_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(103);
+        }
 
-        }  /* end of loop on source locations */
+        /***********************************************************
+         * add source phase
+         ***********************************************************/
+        if ( ( exitstatus = correlator_add_source_phase ( tp->c[0], tp->pi1, &(gsx[1]), tp->T ) ) != 0 ) {
+          fprintf( stderr, "[NN_analyse] Error from correlator_add_source_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(104);
+        }
 
-      }  /* end of loop on configs */
+        /***********************************************************
+         * reorder from source time forward
+         ***********************************************************/
+        if ( ( exitstatus = reorder_to_relative_time ( tp->c[0], tp->c[0], gsx[0], +1, tp->T ) ) != 0 ) {
+          fprintf( stderr, "[NN_analyse] Error from reorder_to_relative_time, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(104);
+        }
+
+        /***********************************************************
+         * spin matrix multiplication left and right
+         ***********************************************************/
+        if ( ( exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( tp->c[0], tp->c[0], gammaMat[tp->gf1[1]], gammaMat[tp->gi1[1]], tp->T ) ) != 0 ) {
+          fprintf( stderr, "[NN_analyse] Error from contract_diagram_zm4x4_field_mul_gamma_lr, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(105);
+        }
+
+        /***********************************************************
+         * project to spin parity and trace
+         ***********************************************************/
+
+        double _Complex *** zbuffer = init_3level_ztable ( tp->T, tp->d, tp->d );
+        if ( zbuffer == NULL ) {
+          fprintf( stderr, "[NN_analyse] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__);
+          EXIT(105);
+        }
+
+        if ( ( exitstatus = correlator_spin_parity_projection ( zbuffer, tp->c[0],  1., tp->T ) ) != 0 ) {
+          fprintf( stderr, "[NN_analyse] Error from correlator_spin_parity_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(105);
+        }
+
       
-      /***************************************************************************/
-      /***************************************************************************/
+        if ( ( exitstatus = contract_diagram_co_eq_tr_zm4x4_field ( corr[0][iconf][isrc], zbuffer, tp->T ) ) != 0 ) {
+          fprintf( stderr, "[NN_analyse] Error from contract_diagram_co_eq_tr_zm4x4_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(105);
+        }
 
-      /***************************************************************************
-       * free the correlator field
-       ***************************************************************************/
-      /* fini_3level_dtable ( &corr ); */
 
-      /***************************************************************************
-       * close output file
-       ***************************************************************************/
-      fclose ( ofs );
+        if ( ( exitstatus = correlator_spin_parity_projection ( zbuffer, tp->c[0], -1., tp->T ) ) != 0 ) {
+          fprintf( stderr, "[NN_analyse] Error from correlator_spin_parity_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(105);
+        }
 
-    }  /* end of loop on diagrams */
+        if ( ( exitstatus = contract_diagram_co_eq_tr_zm4x4_field ( corr[1][iconf][isrc], zbuffer, tp->T ) ) != 0 ) {
+          fprintf( stderr, "[NN_analyse] Error from contract_diagram_co_eq_tr_zm4x4_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(105);
+        }
+
+        fini_3level_ztable ( &zbuffer );
+
+      }  /* end of loop on source locations */
+
+    }  /* end of loop on configurations */
+  
+
+    /***********************************************************
+     * write correlator to file
+     ***********************************************************/
+
+    if ( strcmp ( tp->type, "b-b" ) == 0 ) {
+      sprintf ( filename,  "%s.Gi_%s_%s.Gf_%s_%s.px%dpy%dpz%d.corr", tp->name,
+          gamma_id_to_Cg_ascii[tp->gi1[0]],
+          gamma_id_to_ascii[tp->gi1[1]],
+          gamma_id_to_Cg_ascii[tp->gf1[0]],
+          gamma_id_to_ascii[tp->gf1[1]],
+          tp->pf1[0], tp->pf1[1], tp->pf1[2] );
+
+    } else if ( strcmp( tp->type, "b-qq-b" ) == 0 ) {
+
+      sprintf ( filename,  "%s.Gi_%s_%s.Gc_%s.Gf_%s_%s.qx%dqy%dqz%d.px%dpy%dpz%d.corr", tp->name,
+          gamma_id_to_Cg_ascii[tp->gi1[0]],
+          gamma_id_to_ascii[tp->gi1[1]],
+          gamma_id_to_ascii[tp->gf2],
+          gamma_id_to_Cg_ascii[tp->gf1[0]],
+          gamma_id_to_ascii[tp->gf1[1]],
+          tp->pf2[0], tp->pf2[1], tp->pf2[2],
+          tp->pf1[0], tp->pf1[1], tp->pf1[2] );
+    }
+
+    FILE * ofs = fopen ( filename, "w" );
+    for( int iconf = 0; iconf < num_conf; iconf++ ) {
+
+      for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
+
+        fprintf ( ofs, "# %s %c %6d   %3d %3d %3d %3d\n", ensemble_name, conf_src_list.stream[iconf], conf_src_list.conf[iconf],
+            conf_src_list.src[iconf][isrc][0],
+            conf_src_list.src[iconf][isrc][1],
+            conf_src_list.src[iconf][isrc][2],
+            conf_src_list.src[iconf][isrc][3] );
+
+        for ( int it = 0; it < tp->T; it++ ) {
+          fprintf ( ofs, "%3d %25.16e %25.16e    %25.16e %25.16e\n" , it, 
+              creal( corr[0][iconf][isrc][it] ), cimag( corr[0][iconf][isrc][it] ),
+              creal( corr[1][iconf][isrc][it] ), cimag( corr[1][iconf][isrc][it] ) );
+        } 
+
+      }  /* end of loop on source locations */
+    }  /* end of loop on configs */
+    fclose ( ofs );
+      
+    /***************************************************************************
+     * UWerr analysis
+     ***************************************************************************/
+
+    for ( int iparity = 0; iparity < 2; iparity++ ) {
+      for ( int ireim = 0; ireim < 2; ireim++ ) {
+
+        double ** data = init_2level_dtable ( num_conf, tp->T );
+        if ( data == NULL ) {
+          fprintf ( stderr, "[NN_analyse] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+          EXIT(16);
+        }
+
+        /* block data over sources */
+        for( int iconf = 0; iconf < num_conf; iconf++ ) {
+ 
+          for ( int it = 0; it < tp->T; it++ ) {
+
+            data[iconf][it] = 0.;
+
+            for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
+              data[iconf][it] += *(((double*)( corr[iparity][iconf][isrc]+it )) + ireim );
+            }
+
+            data[iconf][it] /= (double)num_src_per_conf;
+          }
+        }
+
+        char obs_name[500];
+        
+        if ( strcmp ( tp->type, "b-b" ) == 0 ) {
+          sprintf ( obs_name,  "%s.Gi_%s_%s.Gf_%s_%s.px%dpy%dpz%d.parity%d.%s", tp->name,
+              gamma_id_to_Cg_ascii[tp->gi1[0]],
+              gamma_id_to_ascii[tp->gi1[1]],
+              gamma_id_to_Cg_ascii[tp->gf1[0]],
+              gamma_id_to_ascii[tp->gf1[1]],
+              tp->pf1[0], tp->pf1[1], tp->pf1[2], -2*iparity+1, reim_str[ireim] );
+
+        } else if ( strcmp( tp->type , "b-qq-b" ) == 0 ) {
+
+          sprintf ( obs_name,  "%s.Gi_%s_%s.Gc_%s.Gf_%s_%s.qx%dqy%dqz%d.px%dpy%dpz%d.parity%d.%s", tp->name,
+              gamma_id_to_Cg_ascii[tp->gi1[0]],
+              gamma_id_to_ascii[tp->gi1[1]],
+              gamma_id_to_ascii[tp->gf2],
+              gamma_id_to_Cg_ascii[tp->gf1[0]],
+              gamma_id_to_ascii[tp->gf1[1]],
+              tp->pf2[0], tp->pf2[1], tp->pf2[2],
+              tp->pf1[0], tp->pf1[1], tp->pf1[2], 
+              -2*iparity+1, reim_str[ireim] );
+        }
+
+        exitstatus = apply_uwerr_real ( data[0], num_conf, tp->T, 0, 1, obs_name );
+        if ( exitstatus != 0  ) {
+          fprintf ( stderr, "[NN_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(16);
+        }
+
+        fini_2level_dtable ( &data );
+      }  /* end of loop on reim */
+    }  /* end of loop on parity */
+
+
+    /***************************************************************************
+     * free the correlator field
+     ***************************************************************************/
+    fini_4level_ztable ( &corr );
 
     twopoint_function_fini ( tp );
 
   }  /* end of loop on 2-point functions */
-
-
-
-  /***************************************************************************/
-  /***************************************************************************/
 
   /***************************************************************************
    * free the allocated memory, finalize
@@ -482,8 +622,6 @@ int main(int argc, char **argv) {
   free_geometry();
 
 #ifdef HAVE_MPI
-  mpi_fini_xchange_contraction();
-  mpi_fini_xchange_eo_spinor();
   mpi_fini_datatypes();
   MPI_Finalize();
 #endif
