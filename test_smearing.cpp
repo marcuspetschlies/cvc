@@ -1,14 +1,8 @@
-/****************************************************
- * test_smearing.cpp
- * 
- * Wed Jun 14 11:15:23 CEST 2017
- *
- * PURPOSE:
- * TODO:
- * DONE:
- *
- ****************************************************/
+/***************************************************************************
 
+ * test_smearing
+ *
+ ***************************************************************************/
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -55,7 +49,7 @@ extern "C"
 #include "read_input_parser.h"
 #include "smearing_techniques.h"
 #include "contractions_io.h"
-#include "matrix_init.h"
+#include "table_init_d.h"
 #include "project.h"
 #include "prepare_source.h"
 #include "prepare_propagator.h"
@@ -86,12 +80,7 @@ int main(int argc, char **argv) {
   int filename_set = 0;
   int exitstatus;
   char filename[200];
-  double *tmLQCD_gauge_field = NULL;
   double *gauge_field_smeared = NULL;
-  int read_stochastic_source = 0;
-  int write_stochastic_source = 0;
-  double **spinor_work = NULL;
-  size_t sizeof_spinor_field = 0, sizeof_gauge_field = 0;
   double plaq_r;
 
 
@@ -99,19 +88,11 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "rwh?f:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
       filename_set=1;
-      break;
-    case 'r':
-      read_stochastic_source = 1;
-      fprintf(stdout, "# [test_smearing] will read stochastic source\n");
-      break;
-    case 'w':
-      write_stochastic_source = 1;
-      fprintf(stdout, "# [test_smearing] will write stochastic source\n");
       break;
     case 'h':
     case '?':
@@ -165,10 +146,12 @@ int main(int argc, char **argv) {
   }
   geometry();
 
-  sizeof_spinor_field = _GSI( VOLUME ) * sizeof( double );
-  sizeof_gauge_field  = 72 * VOLUME * sizeof( double );
+  size_t const sizeof_spinor_field = _GSI( VOLUME ) * sizeof( double );
+  size_t const sizeof_gauge_field  = 72 * VOLUME * sizeof( double );
 
-  /* read the gauge field */
+  /***************************************************************************
+   * read the gauge field
+   ***************************************************************************/
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   switch(g_gauge_file_format) {
@@ -213,12 +196,18 @@ int main(int argc, char **argv) {
   
   /* unit_gauge_field( g_gauge_field, VOLUME); */
 
-  /* measure the plaquette */
-  if ( ( exitstatus = plaquetteria  ( g_gauge_field ) ) != 0 ) {
+  /***************************************************************************
+   * measure the plaquette
+   ***************************************************************************/
+  exitstatus = plaquetteria  ( g_gauge_field );
+  if ( exitstatus != 0 ) {
     fprintf(stderr, "[test_smearing] Error from plaquetteria, status was %d\n", exitstatus);
     EXIT(2);
   }
  
+  /***************************************************************************
+   * smeared gauge field
+   ***************************************************************************/
   alloc_gauge_field( &gauge_field_smeared, VOLUMEPLUSRAND);
 
   if ( g_cart_id == 0 ) { fprintf(stdout, "# [test_smearing] smearing gauge field \n"); }
@@ -228,39 +217,47 @@ int main(int argc, char **argv) {
   xchange_gauge_field ( gauge_field_smeared );
 #endif
 
-  fprintf ( stdout, "# [test_smearing] start APE-smearing gauge field\n" );
-  fflush ( stdout );
+  if ( N_ape > 0 ) {
+    if ( g_cart_id == 0 ) fprintf ( stdout, "# [test_smearing] start APE-smearing gauge field\n" );
 
-  exitstatus = APE_Smearing(gauge_field_smeared, alpha_ape, N_ape);
-  if(exitstatus != 0) {
-    fprintf(stderr, "[test_smearing] Error from APE_Smearing, status was %d\n", exitstatus);
-    EXIT(47);
-  }
+    exitstatus = APE_Smearing ( gauge_field_smeared, alpha_ape, N_ape);
+    if(exitstatus != 0) {
+      fprintf(stderr, "[test_smearing] Error from APE_Smearing, status was %d\n", exitstatus);
+      EXIT(47);
+    }
+  }  /* end of if N_ape > 0 */
 
-  double plaq;
-  plaquette2 ( &plaq, gauge_field_smeared );
-
-  sprintf ( filename, "%s.%.4d.N%d_a%6.4f", gaugefilename_prefix, Nconf, N_ape, alpha_ape );
-
-
-  memcpy ( g_gauge_field, gauge_field_smeared, sizeof_gauge_field);
-  exitstatus = write_lime_gauge_field ( filename, plaq,  Nconf,  64 );
+  /***************************************************************************
+   * plaquette of APE smeared gauge field
+   ***************************************************************************/
+  exitstatus = plaquetteria  ( gauge_field_smeared );
   if ( exitstatus != 0 ) {
-    fprintf(stderr, "[test_smearing] Error from write_lime_gauge_field, status was %d\n", exitstatus);
-    EXIT(2);
-  }
-
-  fprintf ( stdout, "# [test_smearing] finished APE-smearing gauge field\n" );
-  fflush ( stdout );
-
-  if ( ( exitstatus = plaquetteria  ( gauge_field_smeared ) ) != 0 ) {
     fprintf(stderr, "[test_smearing] Error from plaquetteria, status was %d\n", exitstatus);
     EXIT(2);
   }
-  
-  exitstatus = init_2level_buffer( &spinor_work, 2, _GSI(VOLUME+RAND) );
-  if ( exitstatus != 0 ) {
-    fprintf(stderr, "[test_smearing] Error from init_2level_buffer, status was %d\n", exitstatus);
+
+  if ( N_ape > 0 ) {
+    memcpy ( g_gauge_field, gauge_field_smeared, sizeof_gauge_field);
+    double plaq = 0;
+    plaquette2 ( &plaq,  g_gauge_field );
+
+    sprintf ( filename, "%s.N%d_a%4.2f.%.4d", gaugefilename_prefix, N_ape, alpha_ape, Nconf );
+    exitstatus = write_lime_gauge_field ( filename, plaq,  Nconf,  64 );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[test_smearing] Error from write_lime_gauge_field, status was %d\n", exitstatus);
+      EXIT(2);
+    }
+
+    if ( g_cart_id == 0 ) fprintf ( stdout, "# [test_smearing] finished APE-smearing gauge field\n" );
+  }
+
+
+  /***************************************************************************
+   * spinor fields
+   ***************************************************************************/
+  double ** spinor_work = init_2level_dtable ( 2, _GSI(VOLUME+RAND) );
+  if ( spinor_work == NULL ) {
+    fprintf(stderr, "[test_smearing] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT(2);
   }
 #if 0
@@ -360,28 +357,42 @@ int main(int argc, char **argv) {
    * smearing rms source radius
    *******************************************/
   memcpy( spinor_work[1], spinor_work[0], sizeof_spinor_field );
-  for ( int Nsmear = 0; Nsmear <= 2*N_Jacobi; Nsmear += 5 ) { 
+
+  double ** r2 = init_2level_dtable ( T_global, 4 );
+  double ** w2 = init_2level_dtable ( T_global, 4 );
+
+  sprintf ( filename, "r2_w2.N%d_a%4.2f.%.4d", N_Jacobi, kappa_Jacobi, Nconf );
+  FILE * ofs = NULL; 
+  if ( g_cart_id == 0 ) {
+    ofs = fopen ( filename, "w" );
+  }
+
+  for ( int Nsmear = 0; Nsmear <= N_Jacobi; Nsmear += 5 ) { 
 
     fprintf ( stdout, "# [test_smearing] N = %3d  kappa = %f\n", Nsmear, kappa_Jacobi );
     fflush ( stdout );
 
-    double r_rms;
-    exitstatus = rms_radius ( &r_rms, spinor_work[1], gsx );
+    exitstatus = rms_radius ( r2, w2, spinor_work[1], gsx );
 
     if (g_cart_id == 0 ) {
-      fprintf(stdout, "  r_rms %4d %25.16e\n", Nsmear, r_rms);
+      for ( int it = 0; it < T_global; it++ ) {
+        for ( int ispin = 0; ispin < 4; ispin ++ ) {
+          fprintf ( ofs, "%4d   %4d %2d    %25.16e %25.16e\n", Nsmear, it, ispin, r2[it][ispin], w2[it][ispin] );
+        }
+      }
     }
 
     exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], 5, kappa_Jacobi);
   }
+  if ( g_cart_id == 0 ) fclose ( ofs );
+  
+  fini_2level_dtable ( &r2 );
+  fini_2level_dtable ( &w2 );
 
   /***********************************************
    * source profile
    ***********************************************/
-  memcpy( spinor_work[1], spinor_work[0], sizeof_spinor_field );
-  sprintf( filename, "source_profile.N%.4d.k%4.2f", N_Jacobi, kappa_Jacobi );
-
-  exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
+  sprintf( filename, "source_profile.N%d.k%4.2f", N_Jacobi, kappa_Jacobi );
 
   exitstatus = source_profile ( spinor_work[1], gsx, filename );
 
@@ -393,7 +404,7 @@ int main(int argc, char **argv) {
    ***********************************************/
   free_geometry();
 
-  fini_2level_buffer( &spinor_work );
+  fini_2level_dtable ( &spinor_work );
 
   if( g_gauge_field != NULL ) free( g_gauge_field );
 
