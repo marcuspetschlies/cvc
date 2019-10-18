@@ -407,7 +407,7 @@ int get_momentum_id ( int const p1[3], int (* const p2)[3], unsigned int const N
 /***********************************************/
 
 /***********************************************
- * multiply x-space spinor propagator field
+ * multiply spinor propagator field
  *   with boundary phase
  ***********************************************/
 int correlator_add_baryon_boundary_phase ( double _Complex *** const sp, int const tsrc, int const dir, int const N ) {
