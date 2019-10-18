@@ -476,17 +476,21 @@ int source_profile ( double *s, int source_coords[4], char*prefix ) {
   }
 #endif
   
-  if ( source_coords[0] / T == g_proc_coords[0] ) {
-    int t = source_coords[0] % T;
+  /*if ( source_coords[0] / T == g_proc_coords[0] )
+    int t = source_coords[0] % T;*/
+  for ( int t = 0; t < T; t++ )
+  {
+
+    int const tt = t + g_proc_coords[0] * T;
 
     /* write in partfile format */
     if ( prefix == NULL ) {
-      sprintf( filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.proct%.2dprocx%.2dprocy%.2dprocz%.2d", "source_profile", Nconf, 
-          source_coords[0], source_coords[1], source_coords[2], source_coords[3], 
+      sprintf( filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.ts%d.proct%.2dprocx%.2dprocy%.2dprocz%.2d", "source_profile", Nconf, 
+          source_coords[0], source_coords[1], source_coords[2], source_coords[3], tt,
           g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3] );
     } else {
-      sprintf( filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.proct%.2dprocx%.2dprocy%.2dprocz%.2d", prefix, Nconf, 
-          source_coords[0], source_coords[1], source_coords[2], source_coords[3], 
+      sprintf( filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.ts%d.proct%.2dprocx%.2dprocy%.2dprocz%.2d", prefix, Nconf, 
+          source_coords[0], source_coords[1], source_coords[2], source_coords[3], tt,
           g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3] );
     }
     FILE *ofs = fopen( filename, "w");
@@ -515,7 +519,7 @@ int source_profile ( double *s, int source_coords[4], char*prefix ) {
     }
 
     fclose ( ofs );
-  }  /* end of if have source timeslice */
+   }  /* end of if have source timeslice */
   return(0);
 }  /* end of source_profile */
 
