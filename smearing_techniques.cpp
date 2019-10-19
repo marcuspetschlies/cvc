@@ -387,6 +387,12 @@ int rms_radius ( double ** const r2, double ** const w2, double * const s, int c
   int LL[3] = { LX_global, LY_global, LZ_global };
   int dsrc[3] = { source_coords[1], source_coords[2], source_coords[3] };
 
+  memset ( r2[0], 0, 4*T_global*sizeof(double) );
+  memset ( w2[0], 0, 4*T_global*sizeof(double) );
+
+  double ** r2_aux = init_2level_dtable ( T, 4 );
+  double ** w2_aux = init_2level_dtable ( T, 4 );
+
   for ( int t = 0; t < T; t++ ) {
 
     double r2_accum[4] = {0., 0., 0., 0.};
@@ -419,32 +425,47 @@ int rms_radius ( double ** const r2, double ** const w2, double * const s, int c
 
       }
     }}}
-    int const tt = t + g_proc_coords[0] * T;
-    r2[tt][0] = r2_accum[0];
-    r2[tt][1] = r2_accum[1];
-    r2[tt][2] = r2_accum[2];
-    r2[tt][3] = r2_accum[3];
-    w2[tt][0] = w2_accum[0];
-    w2[tt][1] = w2_accum[1];
-    w2[tt][2] = w2_accum[2];
-    w2[tt][3] = w2_accum[3];
+    r2_aux[t][0] = r2_accum[0];
+    r2_aux[t][1] = r2_accum[1];
+    r2_aux[t][2] = r2_accum[2];
+    r2_aux[t][3] = r2_accum[3];
+    w2_aux[t][0] = w2_accum[0];
+    w2_aux[t][1] = w2_accum[1];
+    w2_aux[t][2] = w2_accum[2];
+    w2_aux[t][3] = w2_accum[3];
   }  /* end of loop on timeslices */
 
 #ifdef HAVE_MPI
-  double ** buffer = init_2level_dtable ( T_global, 4 );
-  if ( MPI_Allreduce( buffer[0], r2[0], 4*T_global, MPI_DOUBLE, MPI_SUM, g_cart_grid ) != MPI_SUCCESS) {
-    fprintf(stderr, "[rms_radius] Error from MPI_Allreduce\n");
+  double ** buffer = init_2level_dtable ( T, 4 );
+  memset ( buffer[0], 0, 4*T*sizeof(double) );
+  if ( MPI_Reduce( r2_aux[0], buffer[0], 4*T, MPI_DOUBLE, MPI_SUM, 0, g_ts_comm ) != MPI_SUCCESS) {
+    fprintf(stderr, "[rms_radius] Error from MPI_Reduce %s %d\n", __FILE__, __LINE__);
     return(1);
   }
-  memcpy ( r2[0], buffer[0], 4*T_global*sizeof(double) );
 
-  if ( MPI_Allreduce( buffer[0], w2[0], 4*T_global, MPI_DOUBLE, MPI_SUM, g_cart_grid ) != MPI_SUCCESS) {
-    fprintf(stderr, "[rms_radius] Error from MPI_Allreduce\n");
+  if ( MPI_Gather( buffer[0], 4*T, MPI_DOUBLE, r2[0], 4*T, MPI_DOUBLE, 0, g_tr_comm ) != MPI_SUCCESS ) {
+    fprintf(stderr, "[rms_radius] Error from MPI_Gather %s %d\n", __FILE__, __LINE__);
     return(1);
   }
-  memcpy ( w2[0], buffer[0], 4*T_global*sizeof(double) );
+
+  if ( MPI_Reduce( w2_aux[0], buffer[0], 4*T, MPI_DOUBLE, MPI_SUM, 0, g_ts_comm ) != MPI_SUCCESS) {
+    fprintf(stderr, "[rms_radius] Error from MPI_Reduce %s %d\n", __FILE__, __LINE__);
+    return(1);
+  }
+
+  if ( MPI_Gather( buffer[0], 4*T, MPI_DOUBLE, w2[0], 4*T, MPI_DOUBLE, 0, g_tr_comm ) != MPI_SUCCESS ) {
+    fprintf(stderr, "[rms_radius] Error from MPI_Gather %s %d\n", __FILE__, __LINE__);
+    return(1);
+  }
   fini_2level_dtable ( &buffer );
+#else
+  memcpy ( r2[0], r2_aux[0], 4*T*sizeof(double) );
+  memcpy ( w2[0], w2_aux[0], 4*T*sizeof(double) );
 #endif
+
+  fini_2level_dtable ( &r2_aux );
+  fini_2level_dtable ( &w2_aux );
+
   return(0);
 }  /* end of rms_radius */
 
