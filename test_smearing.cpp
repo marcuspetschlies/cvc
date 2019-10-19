@@ -343,9 +343,12 @@ int main(int argc, char **argv) {
   
   memset( spinor_work[0], 0, sizeof_spinor_field );
 
-  for ( int isrc = 0; isrc < g_source_location_number; isrc++ ) {
+#if 0
+  /* for ( int isrc = 0; isrc < g_source_location_number; isrc++ ) */
+  for ( int isrc = 0; isrc <= 0; isrc++ )
+  {
     int source_proc_id = -1, sx[4] = {0,0,0,0};
-    int gsx[4] = { g_source_coords_list[0][0], g_source_coords_list[0][1], g_source_coords_list[0][2], g_source_coords_list[0][3] };
+    int gsx[4] = { g_source_coords_list[isrc][0], g_source_coords_list[isrc][1], g_source_coords_list[isrc][2], g_source_coords_list[isrc][3] };
  
     get_point_source_info (gsx, sx, &source_proc_id);
 
@@ -355,7 +358,22 @@ int main(int argc, char **argv) {
       spinor_work[0][ _GSI( g_ipt[sx[0]][sx[1]][sx[2]][sx[3]]) ] = 1.;
     }
   }
+#endif
 
+  for ( int it = 0; it <= T_global; it++ )
+  {
+    int source_proc_id = -1, sx[4] = {0,0,0,0};
+    int gsx[4] = { it, g_source_coords_list[0][1], g_source_coords_list[0][2], g_source_coords_list[0][3] };
+ 
+    get_point_source_info (gsx, sx, &source_proc_id);
+
+    if ( source_proc_id == g_cart_id ) {
+      fprintf(stdout, "# [test_smearing] proc%.4d has the source %3d %3d %3d %3d / %3d %3d %3d %3d\n", source_proc_id,
+          gsx[0], gsx[1], gsx[2], gsx[3], sx[0], sx[1], sx[2], sx[3]);
+      spinor_work[0][ _GSI( g_ipt[sx[0]][sx[1]][sx[2]][sx[3]]) ] = 1.;
+    }
+  }
+  int gsx[4] = { g_source_coords_list[0][0], g_source_coords_list[0][1], g_source_coords_list[0][2], g_source_coords_list[0][3] };
 
   /*******************************************
    * smearing rms source radius
