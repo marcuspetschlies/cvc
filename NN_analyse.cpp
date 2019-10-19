@@ -542,6 +542,26 @@ int main(int argc, char **argv) {
     fclose ( ofs );
       
     /***************************************************************************
+     * fwd, bwd average
+     ***************************************************************************/
+    if ( tp->T == T_global ) {
+      if ( g_verbose > 2 ) fprintf ( stdout, "# [NN_analyse] fwd / bwd average\n" );
+#pragma omp parallel for
+      for( int iconf = 0; iconf < num_conf; iconf++ ) {
+        for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
+          for ( int it = 0; it <= T_global/2; it++ ) {
+            int const itt = ( T_global - it ) % T_global;
+            double _Complex const zp[2] = { corr[0][iconf][isrc][it] , corr[0][iconf][isrc][itt] };
+            double _Complex const zm[2] = { corr[1][iconf][isrc][it] , corr[1][iconf][isrc][itt] };
+
+            corr[0][iconf][isrc][it] = 0.5 * ( zp[0] - zm[1] );
+            corr[1][iconf][isrc][it] = 0.5 * ( zp[1] - zm[0] );
+          }
+        }
+      }
+    }
+
+    /***************************************************************************
      * UWerr analysis
      ***************************************************************************/
 
@@ -555,6 +575,7 @@ int main(int argc, char **argv) {
         }
 
         /* block data over sources */
+#pragma omp parallel for
         for( int iconf = 0; iconf < num_conf; iconf++ ) {
  
           for ( int it = 0; it < tp->T; it++ ) {
