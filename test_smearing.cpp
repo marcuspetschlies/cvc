@@ -341,17 +341,21 @@ int main(int argc, char **argv) {
   }
 #endif  /* of if 0 */
   
-  int source_proc_id, sx[4];
-  int gsx[4] = { g_source_coords_list[0][0], g_source_coords_list[0][1], g_source_coords_list[0][2], g_source_coords_list[0][3] };
- 
-  get_point_source_info (gsx, sx, &source_proc_id);
-
   memset( spinor_work[0], 0, sizeof_spinor_field );
-  if ( source_proc_id == g_cart_id ) {
-    fprintf(stdout, "# [test_smearing] proc%.4d has the source %3d %3d %3d %3d / %3d %3d %3d %3d\n", source_proc_id,
-        gsx[0], gsx[1], gsx[2], gsx[3], sx[0], sx[1], sx[2], sx[3]);
-    spinor_work[0][ _GSI( g_ipt[sx[0]][sx[1]][sx[2]][sx[3]]) ] = 1.;
+
+  for ( int isrc = 0; isrc < g_source_location_number; isrc++ ) {
+    int source_proc_id = -1, sx[4] = {0,0,0,0};
+    int gsx[4] = { g_source_coords_list[0][0], g_source_coords_list[0][1], g_source_coords_list[0][2], g_source_coords_list[0][3] };
+ 
+    get_point_source_info (gsx, sx, &source_proc_id);
+
+    if ( source_proc_id == g_cart_id ) {
+      fprintf(stdout, "# [test_smearing] proc%.4d has the source %3d %3d %3d %3d / %3d %3d %3d %3d\n", source_proc_id,
+          gsx[0], gsx[1], gsx[2], gsx[3], sx[0], sx[1], sx[2], sx[3]);
+      spinor_work[0][ _GSI( g_ipt[sx[0]][sx[1]][sx[2]][sx[3]]) ] = 1.;
+    }
   }
+
 
   /*******************************************
    * smearing rms source radius
@@ -369,8 +373,7 @@ int main(int argc, char **argv) {
 
   for ( int Nsmear = 0; Nsmear <= N_Jacobi; Nsmear += 5 ) { 
 
-    fprintf ( stdout, "# [test_smearing] N = %3d  kappa = %f\n", Nsmear, kappa_Jacobi );
-    fflush ( stdout );
+    if ( g_cart_id == 0 ) fprintf ( stdout, "# [test_smearing] N = %3d  kappa = %f\n", Nsmear, kappa_Jacobi );
 
     exitstatus = rms_radius ( r2, w2, spinor_work[1], gsx );
 
@@ -383,6 +386,10 @@ int main(int argc, char **argv) {
     }
 
     exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], 5, kappa_Jacobi);
+    if ( exitstatus != 0 ) {
+      fprintf ( stderr, "[test_smearing] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(12);
+    }
   }
   if ( g_cart_id == 0 ) fclose ( ofs );
   
@@ -393,7 +400,6 @@ int main(int argc, char **argv) {
    * source profile
    ***********************************************/
   sprintf( filename, "source_profile.N%d.k%4.2f", N_Jacobi, kappa_Jacobi );
-
   exitstatus = source_profile ( spinor_work[1], gsx, filename );
 
 #if 0
