@@ -386,7 +386,7 @@ int main(int argc, char **argv) {
    * prepare the Fourier phase field
    ***************************************************************************/
   unsigned int const VOL3 = LX * LY * LZ;
-  size_t const sizeof_spinor_field = _GSI( VOLUME );
+  size_t const sizeof_spinor_field = _GSI( VOLUME ) * sizeof( double );
 
   double _Complex ** ephase = NULL;
   if ( g_seq_source_momentum_number > 0 ) {
