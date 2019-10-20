@@ -24,6 +24,7 @@
 #include "global.h"
 #include "mpi_init.h"
 #include "cvc_geometry.h"
+#include "table_init_d.h"
 #include "cvc_utils.h"
 #include "smearing_techniques.h"
 
@@ -363,7 +364,7 @@ int Jacobi_Smearing(double *smeared_gauge_field, double *psi, int const N, doubl
 /*****************************************************/
 /*****************************************************/
 
-inline double distance_square ( int *r, int *r0, int *LL, int N ) {
+inline double distance_square ( int * const r, int * const r0, int * const LL, int const N ) {
 
   double rr = 0.;
 
@@ -381,48 +382,90 @@ inline double distance_square ( int *r, int *r0, int *LL, int N ) {
 /*****************************************************
  * rms radius of source
  *****************************************************/
-int rms_radius ( double *r_rms, double *s, int source_coords[4] ) {
+int rms_radius ( double ** const r2, double ** const w2, double * const s, int const source_coords[4] ) {
 
   int LL[3] = { LX_global, LY_global, LZ_global };
+  int dsrc[3] = { source_coords[1], source_coords[2], source_coords[3] };
 
-  int d[3];
-  double rr = 0.;
-  double r_rms_accum = 0.;
-  double norm_accum = 0.;
-  complex w;
+  memset ( r2[0], 0, 4*T_global*sizeof(double) );
+  memset ( w2[0], 0, 4*T_global*sizeof(double) );
 
-  if ( source_coords[0] / T == g_proc_coords[0] ) {
-    int t = source_coords[0] % T;
+  double ** r2_aux = init_2level_dtable ( T, 4 );
+  double ** w2_aux = init_2level_dtable ( T, 4 );
+
+  for ( int t = 0; t < T; t++ ) {
+
+    double r2_accum[4] = {0., 0., 0., 0.};
+    double w2_accum[4] = {0., 0., 0., 0.};
 
     for ( int x = 0; x < LX; x++ ) {
-      d[0] = x + g_proc_coords[1]*LX;
     for ( int y = 0; y < LY; y++ ) {
-      d[1] = y + g_proc_coords[2]*LY;
     for ( int z = 0; z < LZ; z++ ) {
-      d[2] = z + g_proc_coords[3]*LZ;
-      unsigned int ix = _GSI(g_ipt[t][x][y][z]);
-      _co_eq_fv_dag_ti_fv ( &w, s+ix, s+ix  );
 
-      rr = distance_square ( d, &(source_coords[1]), LL, 3 );
+      int d[3] = {
+        x + g_proc_coords[1]*LX,
+        y + g_proc_coords[2]*LY,
+        z + g_proc_coords[3]*LZ };
 
-      /* fprintf(stdout, "# [rms_radius] proc%.4d x = %2d %2d %2d %2d rr = %25.16e w = %25.16e\n", g_cart_id,
-          t+g_proc_coords[0]*T, x+g_proc_coords[1]*LX, y+g_proc_coords[2]*LY, z+g_proc_coords[3]*LZ, rr, w.re ); */
+      unsigned int const ix = _GSI(g_ipt[t][x][y][z]);
 
-      r_rms_accum += rr * w.re;
-      norm_accum  += w.re;
+      double rr = distance_square ( d, dsrc, LL, 3 );
+
+      for ( int ispin = 0; ispin < 4; ispin++ ) {
+
+        double w = 0.;
+        for ( int icol = 0; icol < 3; icol++ ) {
+          double const a = s[ix+2*(3*ispin+icol)  ];
+          double const b = s[ix+2*(3*ispin+icol)+1];
+          w += a*a + b*b;
+        }
+
+        r2_accum[ispin] += rr * w;
+        w2_accum[ispin] += w;
+
+      }
     }}}
-  }
-  /* fprintf(stdout, "# [rms_radius] proc%.4d r_rms_accum = %25.16e norm_accum = %25.16e\n", g_cart_id, r_rms_accum, norm_accum); */
+    r2_aux[t][0] = r2_accum[0];
+    r2_aux[t][1] = r2_accum[1];
+    r2_aux[t][2] = r2_accum[2];
+    r2_aux[t][3] = r2_accum[3];
+    w2_aux[t][0] = w2_accum[0];
+    w2_aux[t][1] = w2_accum[1];
+    w2_aux[t][2] = w2_accum[2];
+    w2_aux[t][3] = w2_accum[3];
+  }  /* end of loop on timeslices */
+
 #ifdef HAVE_MPI
-  double sbuffer[2] = {r_rms_accum, norm_accum}, rbuffer[2];
-  if ( MPI_Allreduce( sbuffer, rbuffer, 2, MPI_DOUBLE, MPI_SUM, g_cart_grid ) != MPI_SUCCESS) {
-    fprintf(stderr, "[rms_radius] Error from MPI_Allreduce\n");
+  double ** buffer = init_2level_dtable ( T, 4 );
+  memset ( buffer[0], 0, 4*T*sizeof(double) );
+  if ( MPI_Reduce( r2_aux[0], buffer[0], 4*T, MPI_DOUBLE, MPI_SUM, 0, g_ts_comm ) != MPI_SUCCESS) {
+    fprintf(stderr, "[rms_radius] Error from MPI_Reduce %s %d\n", __FILE__, __LINE__);
     return(1);
   }
-  r_rms_accum = rbuffer[0];
-  norm_accum  = rbuffer[1];
+
+  if ( MPI_Gather( buffer[0], 4*T, MPI_DOUBLE, r2[0], 4*T, MPI_DOUBLE, 0, g_tr_comm ) != MPI_SUCCESS ) {
+    fprintf(stderr, "[rms_radius] Error from MPI_Gather %s %d\n", __FILE__, __LINE__);
+    return(1);
+  }
+
+  if ( MPI_Reduce( w2_aux[0], buffer[0], 4*T, MPI_DOUBLE, MPI_SUM, 0, g_ts_comm ) != MPI_SUCCESS) {
+    fprintf(stderr, "[rms_radius] Error from MPI_Reduce %s %d\n", __FILE__, __LINE__);
+    return(1);
+  }
+
+  if ( MPI_Gather( buffer[0], 4*T, MPI_DOUBLE, w2[0], 4*T, MPI_DOUBLE, 0, g_tr_comm ) != MPI_SUCCESS ) {
+    fprintf(stderr, "[rms_radius] Error from MPI_Gather %s %d\n", __FILE__, __LINE__);
+    return(1);
+  }
+  fini_2level_dtable ( &buffer );
+#else
+  memcpy ( r2[0], r2_aux[0], 4*T*sizeof(double) );
+  memcpy ( w2[0], w2_aux[0], 4*T*sizeof(double) );
 #endif
-  *r_rms = sqrt( r_rms_accum / norm_accum );
+
+  fini_2level_dtable ( &r2_aux );
+  fini_2level_dtable ( &w2_aux );
+
   return(0);
 }  /* end of rms_radius */
 
@@ -454,17 +497,21 @@ int source_profile ( double *s, int source_coords[4], char*prefix ) {
   }
 #endif
   
-  if ( source_coords[0] / T == g_proc_coords[0] ) {
-    int t = source_coords[0] % T;
+  /*if ( source_coords[0] / T == g_proc_coords[0] )
+    int t = source_coords[0] % T;*/
+  for ( int t = 0; t < T; t++ )
+  {
+
+    int const tt = t + g_proc_coords[0] * T;
 
     /* write in partfile format */
     if ( prefix == NULL ) {
-      sprintf( filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.proct%.2dprocx%.2dprocy%.2dprocz%.2d", "source_profile", Nconf, 
-          source_coords[0], source_coords[1], source_coords[2], source_coords[3], 
+      sprintf( filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.ts%d.proct%.2dprocx%.2dprocy%.2dprocz%.2d", "source_profile", Nconf, 
+          source_coords[0], source_coords[1], source_coords[2], source_coords[3], tt,
           g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3] );
     } else {
-      sprintf( filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.proct%.2dprocx%.2dprocy%.2dprocz%.2d", prefix, Nconf, 
-          source_coords[0], source_coords[1], source_coords[2], source_coords[3], 
+      sprintf( filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.ts%d.proct%.2dprocx%.2dprocy%.2dprocz%.2d", prefix, Nconf, 
+          source_coords[0], source_coords[1], source_coords[2], source_coords[3], tt,
           g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3] );
     }
     FILE *ofs = fopen( filename, "w");
@@ -493,7 +540,7 @@ int source_profile ( double *s, int source_coords[4], char*prefix ) {
     }
 
     fclose ( ofs );
-  }  /* end of if have source timeslice */
+   }  /* end of if have source timeslice */
   return(0);
 }  /* end of source_profile */
 

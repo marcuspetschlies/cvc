@@ -669,7 +669,7 @@ int read_aff_contraction ( void * const contr, void * const areader, void * cons
 
     affr = aff_reader (filename);
     if( const char * aff_status_str = aff_reader_errstr(affr) ) {
-      fprintf(stderr, "[read_aff_contraction] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+      fprintf(stderr, "[read_aff_contraction] Error from aff_reader for file %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__);
       return( 4 );
     } else {
       if (g_verbose > 2 ) fprintf(stdout, "# [read_aff_contraction] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);

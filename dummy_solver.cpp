@@ -9,7 +9,7 @@
 #include "cvc_utils.h"
 
 namespace cvc {
-#ifdef DUMMY_SOLVER
+#if ( defined DUMMY_SOLVER ) || !(defined HAVE_TMLQCD_LIBWRAPPER )
 /************************************************************************************
  * dummy solver
  ************************************************************************************/

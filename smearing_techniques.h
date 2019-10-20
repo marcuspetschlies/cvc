@@ -23,7 +23,7 @@ int APE_Smearing(double *smeared_gauge_field, double const APE_smearing_alpha, i
 
 int Jacobi_Smearing(double *smeared_gauge_field, double *psi, int N, double kappa);
 
-int rms_radius ( double *r_rms, double *s, int source_coords[4] );
+int rms_radius ( double ** const r2, double ** const w2, double * const s, int const source_coords[4] );
 
 int source_profile ( double *s, int source_coords[4], char*prefix );
 
