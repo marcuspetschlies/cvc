@@ -16,7 +16,7 @@
 
 #ifdef HAVE_LIBLEMON
 #  ifndef LEMON_OFFSET_TYPE
-#    define LEMON_OFFSET_TYPE n_uint64_t
+#    define LEMON_OFFSET_TYPE MPI_Offset
 #  endif
 #endif
 
