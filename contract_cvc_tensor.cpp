@@ -1477,7 +1477,7 @@ int contract_local_loop_stochastic_clover (double***eo_stochastic_propagator, do
  *       are initialized to zero here
  ***********************************************************/
 int contract_local_local_2pt_eo ( double**sprop_list_e, double**sprop_list_o, double**tprop_list_e, double**tprop_list_o, 
-    int *gamma_sink_list, int gamma_sink_num, int*gamma_source_list, int gamma_source_num, int (*momentum_list)[3], int momentum_number,  struct AffWriter_s*affw, char*tag,
+    const int * gamma_sink_list, int const gamma_sink_num, const int * gamma_source_list, int const gamma_source_num, int (*momentum_list)[3], int momentum_number,  struct AffWriter_s*affw, char*tag,
     int io_proc ) {
   
   const unsigned int Vhalf = VOLUME / 2;
