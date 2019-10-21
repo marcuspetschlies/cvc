@@ -9,6 +9,10 @@
 
 #define _ISIGN(i_) ( (i_)==0 ? 0 : ( (i_)>0 ? 1 : -1 )  )
 
+# define _POWSUM23D(p_) ( (p_)[0] * (p_)[0] + (p_)[1] * (p_)[1] + (p_)[2] * (p_)[2] )
+
+# define _POWSUM43D(p_) ( (p_)[0] * (p_)[0] * (p_)[0] * (p_)[0] + (p_)[1] * (p_)[1] * (p_)[1] * (p_)[1] + (p_)[2] * (p_)[2] * (p_)[2] * (p_)[2] )
+
 namespace cvc {
 
 void init_contract_cvc_tensor_usource(double *gauge_field, int source_coords[4], complex *phase);
@@ -90,7 +94,9 @@ void contract_cvc_local_tensor_eo ( double * const conn_e, double * const conn_o
  * average 4x4 tensor spatial components over orbit
  * with totally antisymmetric 3x3 tensor
  ****************************************************/
-void antisymmetric_orbit_average_spatial (double *** const d_out, double ****** const d_in, int const dim[3], int const momentum_num, int  const (*momentum_list)[3], int const reim );
+void antisymmetric_orbit_average_spatial (double ** const d_out, double ***** const d_in, int const dim[2], int const momentum_num, int  const (*momentum_list)[3], int const reim );
+
+void hvp_irrep_separation_orbit_average (double *** const d_out, double ***** const d_in, int const dim[2], int const momentum_num, int  const (*momentum_list)[3], int const reim );
 
 }  /* end of namespace cvc */
 

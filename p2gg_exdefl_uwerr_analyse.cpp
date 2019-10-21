@@ -56,20 +56,13 @@ int main(int argc, char **argv) {
   
   const char infile_prefix[] = "p2gg_exdefl_analyse";
   char const reim_str[2][6] = { "re", "im" };
-#if 0
-  double const TWO_MPI = 2. * M_PI;
 
-  char const reim_str[2][3] = {"re" , "im"};
+  char const correlator_prefix[4][20] = { "hvp"        , "local-local", "hvp"        , "local-cvc"  };
 
-  char const hvp_operator_type_tag[3][12]  = { "cvc-cvc"    , "lvc-lvc"    , "cvc-lvc" };
+  char const flavor_tag[4][20]        = { "u-cvc-u-cvc", "u-gf-u-gi"  , "u-cvc-u-lvc", "u-gf-u-cvc" };
 
-  char const hvp_correlator_prefix[3][20] = { "hvp"        , "local-local", "hvp"     };
+  char const loop_type_tag[3][8]      = { "NA", "dOp", "Scalar" };
 
-  char const hvp_flavor_tag[3][20]        = { "u-cvc-u-cvc", "u-gf-u-gi"  , "u-cvc-u-lvc" };
-
-  /* char const pgg_operator_type_tag[3][12]  = { "p-cvc-cvc"    , "p-lvc-lvc"    , "p-cvc-lvc" }; */
-  char const pgg_operator_type_tag[3][12]  = { "p-cvc-cvc"    , "p-loc-loc"    , "p-cvc-lvc" };
-#endif
 
   int c;
   int filename_set = 0;
@@ -80,15 +73,17 @@ int main(int argc, char **argv) {
   int num_src_per_conf = 1;
   int num_conf = 0;
   char ensemble_name[100] = "cA211a.30.32";
-  int fold_correlator= 0;
   struct timeval ta, tb;
-  int operator_type = -1;
   /* char correlator_prefix[100], flavor_tag[100]; */
   int evecs_num = -1;
   int evecs_use_step = -1;
   int evecs_use_min = -1;
   int use_pta = 0;
   int use_ata = 0;
+  int use_loop = 0;
+  int write_data = 0;
+  int operator_type = 1;
+  int loop_type = 2;
 
 #ifdef HAVE_LHPC_AFF
   char key[400];
@@ -98,7 +93,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "uUWh?f:N:S:F:O:E:n:s:m:")) != -1) {
+  while ((c = getopt(argc, argv, "luUWh?f:N:S:O:E:n:s:m:w:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -115,10 +110,6 @@ int main(int argc, char **argv) {
     case 'W':
       check_momentum_space_WI = 1;
       fprintf ( stdout, "# [p2gg_exdefl_uwerr_analyse] check_momentum_space_WI set to %d\n", check_momentum_space_WI );
-      break;
-    case 'F':
-      fold_correlator = atoi ( optarg );
-      fprintf ( stdout, "# [p2gg_exdefl_uwerr_analyse] fold_correlator set to %d\n", fold_correlator );
       break;
     case 'O':
       operator_type = atoi ( optarg );
@@ -144,6 +135,14 @@ int main(int argc, char **argv) {
     case 'U':
       use_ata = 1;
       fprintf ( stdout, "# [p2gg_exdefl_uwerr_analyse] use_ata set to %d\n", use_ata );
+      break;
+    case 'l':
+      use_loop = 1;
+      fprintf ( stdout, "# [p2gg_exdefl_uwerr_analyse] use_loop set to %d\n", use_loop );
+      break;
+    case 'w':
+      write_data = atoi( optarg );
+      fprintf ( stdout, "# [p2gg_exdefl_uwerr_analyse] write_data set to %d\n", write_data );
       break;
     case 'h':
     case '?':
@@ -258,15 +257,148 @@ int main(int argc, char **argv) {
   /***********************************************************
    *
    ***********************************************************/
-  for ( int igsrc = 0; igsrc < g_source_gamma_id_number; igsrc++ ) {
+  for ( int ievecs = evecs_use_min; ievecs <= evecs_num; ievecs += evecs_use_step ) {
+  
+    for ( int igsrc = 0; igsrc < g_source_gamma_id_number; igsrc++ ) {
 
-    for ( int ipsrc = 0; ipsrc < g_source_momentum_number; ipsrc++ ) {
+      for ( int ipsrc = 0; ipsrc < g_source_momentum_number; ipsrc++ ) {
 
-      for ( int ipsnk = 0; ipsnk < g_sink_momentum_number; ipsnk++ ) {
+        if ( use_loop ) {
+          /***********************************************************
+           *
+           * LOOP
+           *
+           ***********************************************************/
+          sprintf( key, "/loop/g%d/px%d_py%d_pz%d/nev%d", g_source_gamma_id_list[igsrc],
+                g_source_momentum_list[ipsrc][0], g_source_momentum_list[ipsrc][1], g_source_momentum_list[ipsrc][2],
+                ievecs );
+          if ( g_verbose > 0 ) fprintf ( stdout, "# [p2gg_exdefl_uwerr_analyse] reading key %s %s %d\n", key , __FILE__, __LINE__ );
+  
+          double _Complex ** loop = init_2level_ztable ( num_conf, T_global );
+          if ( loop == NULL ) {
+            fprintf(stderr, "[p2gg_exdefl_uwerr_analyse] Error from init_2level_ztable %s %d\n", __FILE__, __LINE__);
+            EXIT(15);
+          }
+  
+          /***********************************************************
+           * loop on configurations
+           ***********************************************************/
+          for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+  
+#ifdef HAVE_LHPC_AFF
+            /***********************************************************
+             * reader for aff input file
+             *
+             * loop is contained in all sink momentum ref files, so
+             * read from file for sink momentum id 0
+             ***********************************************************/
+            struct AffReader_s *affr = NULL;
+            sprintf ( filename, "%s.pref_%d_%d_%d.%.4d.nev%d.aff", infile_prefix,
+                g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2],
+                conf_src_list[iconf][0][0], evecs_num );
+  
+            if ( g_verbose > 2 ) fprintf(stdout, "# [p2gg_exdefl_uwerr_analyse] reading data from file %s\n", filename);
+            affr = aff_reader ( filename );
+            const char * aff_status_str = aff_reader_errstr ( affr );
+            if( aff_status_str != NULL ) {
+              fprintf(stderr, "[p2gg_exdefl_uwerr_analyse] Error from aff_reader for file %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__);
+              EXIT(15);
+            }
+  
+            /* set root node */
+            struct AffNode_s * affrn = aff_reader_root( affr );
+            if( affrn == NULL ) {
+              fprintf(stderr, "[p2gg_exdefl_uwerr_analyse] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+              EXIT(17);
+            }
+  
+            struct AffNode_s * affdir = aff_reader_chpath ( affr, affrn, key );
+            if ( affdir == NULL ) {
+              fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from aff_reader_chpath %s %d\n", __FILE__, __LINE__);
+              EXIT(15);
+            }
+  
+            uint32_t uitems = T_global;
+            exitstatus = aff_node_get_complex ( affr, affdir, loop[iconf], uitems );
+            if(exitstatus != 0) {
+              fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(16);
+            }
+  
+            aff_reader_close ( affr );
+#else
+#error "[p2gg_exdefl_uwerr_analyse] need lhp-aff lib; currently no other input method implemented"
+#endif
+          }  /* end of loop on configurations */
+  
+          /***********************************************************
+           * UWerr analysis
+           ***********************************************************/
+          for ( int ireim = 0; ireim < 2; ireim++ ) {
+  
+            double ** data = init_2level_dtable ( num_conf, T_global );
+            if( data == NULL ) {
+              fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+              EXIT(16);
+            }
+  
+  
+#pragma omp parallel for
+            for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+              for ( int it = 0; it < T_global; it++ ) {
+                data[iconf][it] = ( ireim == 0 ) ?  creal ( loop[iconf][it] ) : cimag ( loop[iconf][it] );
 
-        for ( int idt = 0; idt < g_sequential_source_timeslice_number; idt++ ) {
+                /* write the data */
+                if ( g_verbose > 4 ) {
+                  fprintf ( stdout, "loop lm Q %3d %3d %3d g %2d nev %3d %s %6d %3d %25.16e\n"  ,
+                      g_source_momentum_list[ipsrc][0], g_source_momentum_list[ipsrc][1], g_source_momentum_list[ipsrc][2],
+                      g_source_gamma_id_list[igsrc], ievecs, reim_str[ireim], conf_src_list[iconf][0][0], it, data[iconf][it] );
+                }
+              }
+            }
+  
+            char obs_name[100];
+            sprintf ( obs_name, "loop.lm.QX%d_QY%d_QZ%d.g%d.nev%d.%s", 
+                g_source_momentum_list[ipsrc][0], g_source_momentum_list[ipsrc][1], g_source_momentum_list[ipsrc][2],
+                g_source_gamma_id_list[igsrc], ievecs, reim_str[ireim] );
+            if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_exdefl_uwerr_analyse] obs_name = %s %s %d\n", obs_name, __FILE__, __LINE__ );
+  
+            /* apply UWerr analysis */
+            exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+            if ( exitstatus != 0 ) {
+              fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+              EXIT(1);
+            }
+  
+            if ( write_data == 1 ) {
+              sprintf ( obs_name, "loop.lm.QX%d_QY%d_QZ%d.g%d.nev%d.%s.dat",
+                  g_source_momentum_list[ipsrc][0], g_source_momentum_list[ipsrc][1], g_source_momentum_list[ipsrc][2],
+                  g_source_gamma_id_list[igsrc], ievecs, reim_str[ireim] );
+              FILE * ofs = fopen ( obs_name, "w" );
+              if ( exitstatus != 0 ) {
+                fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from fopen %s %d\n", __FILE__, __LINE__ );
+                EXIT(1);
+              }
+              for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+                for ( int it = 0; it < T_global; it++ ) {
+                  fprintf ( ofs, "%4d%25.16e%8d\n", it, data[iconf][it], conf_src_list[iconf][0][0] );
+                }
+              }
 
-          for ( int ievecs = evecs_use_min; ievecs <= evecs_num; ievecs += evecs_use_step ) {
+              fclose ( ofs );
+            }  /* end of if write_data */
+
+            fini_2level_dtable ( &data );
+  
+          }  /* end of loop on real / imag */
+  
+          fini_2level_ztable ( &loop );
+
+        }  /* end of if use_loop */
+
+        for ( int ipsnk = 0; ipsnk < g_sink_momentum_number; ipsnk++ ) {
+
+          for ( int idt = 0; idt < g_sequential_source_timeslice_number; idt++ ) {
 
             if ( use_ata ) {
               /***********************************************************
@@ -279,6 +411,13 @@ int main(int argc, char **argv) {
                   g_source_momentum_list[ipsrc][0], g_source_momentum_list[ipsrc][1], g_source_momentum_list[ipsrc][2],
                   g_sink_momentum_list[ipsnk][0], g_sink_momentum_list[ipsnk][1], g_sink_momentum_list[ipsnk][2],
                   ievecs, g_sequential_source_timeslice_list[idt] );
+
+              char key_aux[400];
+              sprintf( key_aux, "/pgg/disc/orbit/g%d/px%d_py%d_pz%d/qx%d_qy%d_qz%d/nev%d/dt%d", g_source_gamma_id_list[igsrc],
+                  g_source_momentum_list[ipsrc][0], g_source_momentum_list[ipsrc][1], g_source_momentum_list[ipsrc][2],
+                  g_sink_momentum_list[ipsnk][0], g_sink_momentum_list[ipsnk][1], g_sink_momentum_list[ipsnk][2],
+                  ievecs, -g_sequential_source_timeslice_list[idt] );
+
               if ( g_verbose > 0 ) fprintf ( stdout, "# [p2gg_exdefl_uwerr_analyse] reading key %s %s %d\n", key , __FILE__, __LINE__ );
   
               double _Complex ** pgg_disc = init_2level_ztable ( num_conf, T_global );
@@ -296,6 +435,8 @@ int main(int argc, char **argv) {
                 /***********************************************************
                  * reader for aff input file
                  ***********************************************************/
+                gettimeofday ( &ta, (struct timezone *)NULL );
+
                 struct AffReader_s *affr = NULL;
                 sprintf ( filename, "%s.pref_%d_%d_%d.%.4d.nev%d.aff", infile_prefix,
                     g_sink_momentum_list[ipsnk][0], g_sink_momentum_list[ipsnk][1], g_sink_momentum_list[ipsnk][2],
@@ -318,8 +459,19 @@ int main(int argc, char **argv) {
   
                 struct AffNode_s * affdir = aff_reader_chpath ( affr, affrn, key );
                 if ( affdir == NULL ) {
-                  fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from aff_reader_chpath %s %d\n", __FILE__, __LINE__);
-                  EXIT(15);
+                  fprintf ( stdout, "[p2gg_exdefl_uwerr_analyse] Warning, error from aff_reader_chpath for key %s %s %d\n", key, __FILE__, __LINE__);
+                  fprintf ( stdout, "[p2gg_exdefl_uwerr_analyse] Warning, trying auxilliary key %s %s %d\n", key_aux, __FILE__, __LINE__);
+
+                  if ( aff_reader_clearerr ( affr ) != 0 ) {
+                    fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from aff_reader_clearerr %s %d\n", __FILE__, __LINE__);
+                    EXIT(15);
+                  }
+
+                  affdir = aff_reader_chpath ( affr, affrn, key_aux );
+                  if ( affdir == NULL ) {
+                    fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from aff_reader_chpath for auxilliary key %s %s %d\n", key_aux, __FILE__, __LINE__);
+                    EXIT(15);
+                  }
                 }
   
                 uint32_t uitems = T_global;
@@ -330,6 +482,10 @@ int main(int argc, char **argv) {
                 }
   
                 aff_reader_close ( affr );
+
+                gettimeofday ( &tb, (struct timezone *)NULL );
+                show_time ( &ta, &tb, "p2gg_exdefl_uwerr_analyse", "open-init-aff-reader-read-ata-key", g_cart_id == 0 );
+
 #else
 #error "[p2gg_exdefl_uwerr_analyse] need lhp-aff lib; currently no other input method implemented"
 #endif
@@ -340,6 +496,8 @@ int main(int argc, char **argv) {
                ***********************************************************/
               for ( int ireim = 0; ireim < 2; ireim++ ) {
   
+                gettimeofday ( &ta, (struct timezone *)NULL );
+
                 double ** data = init_2level_dtable ( num_conf, T_global );
                 if( data == NULL ) {
                   fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
@@ -365,11 +523,14 @@ int main(int argc, char **argv) {
                 }
   
                 char obs_name[100];
-                sprintf ( obs_name, "pgg_disc.lm.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.nev%d.%s", 
-                    g_source_momentum_list[ipsrc][0], g_source_momentum_list[ipsrc][1], g_source_momentum_list[ipsrc][2],
-                    g_source_gamma_id_list[igsrc], g_sequential_source_timeslice_list[idt],
+                sprintf ( obs_name, "pgg_disc.%s.%s.%s.lm.ata.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.nev%d.%s",
+                    correlator_prefix[operator_type], flavor_tag[operator_type],
+                    loop_type_tag[loop_type],
+                    g_source_momentum_list[ipsrc][0], g_source_momentum_list[ipsrc][1], g_source_momentum_list[ipsrc][2], g_source_gamma_id_list[igsrc],
+                    g_sequential_source_timeslice_list[idt],
                     g_sink_momentum_list[ipsnk][0], g_sink_momentum_list[ipsnk][1], g_sink_momentum_list[ipsnk][2],
                     ievecs, reim_str[ireim] );
+
                 if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_exdefl_uwerr_analyse] obs_name = %s %s %d\n", obs_name, __FILE__, __LINE__ );
   
                 /* apply UWerr analysis */
@@ -379,8 +540,30 @@ int main(int argc, char **argv) {
                   EXIT(1);
                 }
   
+                if ( write_data == 1 ) {
+                  char output_filename[200];
+                  sprintf ( output_filename, "%s.dat", obs_name );
+
+                  FILE * ofs = fopen ( output_filename, "w" );
+                  if ( exitstatus != 0 ) {
+                    fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from fopen %s %d\n", __FILE__, __LINE__ );
+                    EXIT(1);
+                  }
+                  for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+                    for ( int tau = -T_global/2+1; tau <= T_global/2; tau++ ) {
+                      int const it = ( tau < 0 ) ? tau + T_global : tau;
+                      fprintf ( ofs, "%4d%25.16e%8d\n", tau, data[iconf][it], conf_src_list[iconf][0][0] );
+                    }
+                  }
+
+                  fclose ( ofs );
+                }  /* end of if write_data */
+
                 fini_2level_dtable ( &data );
   
+                gettimeofday ( &tb, (struct timezone *)NULL );
+                show_time ( &ta, &tb, "p2gg_exdefl_uwerr_analyse", "uwerr-analysis", g_cart_id == 0 );
+
               }  /* end of loop on real / imag */
   
               fini_2level_ztable ( &pgg_disc );
@@ -413,6 +596,8 @@ int main(int argc, char **argv) {
                 /***********************************************************
                  * reader for aff input file
                  ***********************************************************/
+                gettimeofday ( &ta, (struct timezone *)NULL );
+
                 struct AffReader_s *affr = NULL;
                 sprintf ( filename, "%s.pref_%d_%d_%d.%.4d.nev%d.aff", infile_prefix,
                     g_sink_momentum_list[ipsnk][0], g_sink_momentum_list[ipsnk][1], g_sink_momentum_list[ipsnk][2],
@@ -459,6 +644,9 @@ int main(int argc, char **argv) {
                 }  /* end of loop on source locations */
   
                 aff_reader_close ( affr );
+
+                gettimeofday ( &tb, (struct timezone *)NULL );
+                show_time ( &ta, &tb, "p2gg_exdefl_uwerr_analyse", "open-init-aff-reader-read-pta-key", g_cart_id == 0 );
 #else
 #error "[p2gg_exdefl_uwerr_analyse] need lhp-aff lib; currently no other input method implemented"
 #endif
@@ -469,6 +657,8 @@ int main(int argc, char **argv) {
                ***********************************************************/
               for ( int ireim = 0; ireim < 2; ireim++ ) {
   
+                gettimeofday ( &ta, (struct timezone *)NULL );
+
                 double ** data = init_2level_dtable ( num_conf, T_global );
                 if( data == NULL ) {
                   fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
@@ -496,34 +686,59 @@ int main(int argc, char **argv) {
                 }
   
                 char obs_name[100];
-                sprintf ( obs_name, "pgg_disc.lm.pta.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.nev%d.%s", 
-                    g_source_momentum_list[ipsrc][0], g_source_momentum_list[ipsrc][1], g_source_momentum_list[ipsrc][2],
-                    g_source_gamma_id_list[igsrc], g_sequential_source_timeslice_list[idt],
+                sprintf ( obs_name, "pgg_disc.%s.%s.%s.lm.pta.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.nev%d.%s",
+                    correlator_prefix[operator_type], flavor_tag[operator_type],
+                    loop_type_tag[loop_type],
+                    g_source_momentum_list[ipsrc][0], g_source_momentum_list[ipsrc][1], g_source_momentum_list[ipsrc][2], g_source_gamma_id_list[igsrc],
+                    g_sequential_source_timeslice_list[idt],
                     g_sink_momentum_list[ipsnk][0], g_sink_momentum_list[ipsnk][1], g_sink_momentum_list[ipsnk][2],
                     ievecs, reim_str[ireim] );
-  
+
                 if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_exdefl_uwerr_analyse] obs_name = %s %s %d\n", obs_name, __FILE__, __LINE__ );
   
                 /* apply UWerr analysis */
-                exitstatus = apply_uwerr_real ( data[0], num_conf * num_src_per_conf, T_global, 0, 1, obs_name );
+                exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
                 if ( exitstatus != 0 ) {
                   fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                   EXIT(1);
                 }
   
+
+                if ( write_data == 1 ) {
+                  char output_filename[200];
+                  sprintf ( output_filename, "%s.dat", obs_name );
+
+                  FILE * ofs = fopen ( output_filename, "w" );
+                  if ( exitstatus != 0 ) {
+                    fprintf ( stderr, "[p2gg_exdefl_uwerr_analyse] Error from fopen %s %d\n", __FILE__, __LINE__ );
+                    EXIT(1);
+                  }
+                  for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+                    for ( int tau = -T_global/2+1; tau <= T_global/2; tau++ ) {
+                      int const it = ( tau < 0 ) ? tau + T_global : tau;
+                      fprintf ( ofs, "%4d%25.16e%8d\n", tau, data[iconf][it], conf_src_list[iconf][0][0] );
+                    }
+                  }
+
+                  fclose ( ofs );
+                }  /* end of if write_data */
+
                 fini_2level_dtable ( &data );
   
+                gettimeofday ( &tb, (struct timezone *)NULL );
+                show_time ( &ta, &tb, "p2gg_exdefl_uwerr_analyse", "uwerr-analysis", g_cart_id == 0 );
+
               }  /* end of loop on real / imag */
   
               fini_3level_ztable ( &pgg_disc_pta );
             
             }  /* end of if use pta */
 
-          }  /* end of loop on evecs number */
-        }  /* end of loop on source - sink time separations */
-      }  /* end of loop on sink / reference momenta */
-    }  /* end of loop on source / reference momena */
-  }  /* end of loop on source gamma ids */
+          }  /* end of loop on source - sink time separations */
+        }  /* end of loop on sink / reference momenta */
+      }  /* end of loop on source / reference momena */
+    }  /* end of loop on source gamma ids */
+  }  /* end of loop on evecs number */
 
 #if 0
 #endif  /* of if 0  */

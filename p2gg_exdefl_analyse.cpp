@@ -612,13 +612,16 @@ int main(int argc, char **argv) {
        *       AT MOST
        *       as done here, this ONLY WORKS for total momentum
        *       zero
+       *
+       * THIS SHOULD MATCH the steps in
+       * contract_cvc_tensor.cp/antisymmetric_orbit_average_spatial
        ***********************************************************/
       double pvec[3] = {
           2 * sin ( M_PI * g_sink_momentum_list[0][0] / (double)LX_global ),
           2 * sin ( M_PI * g_sink_momentum_list[0][1] / (double)LY_global ),
           2 * sin ( M_PI * g_sink_momentum_list[0][2] / (double)LZ_global ) };
   
-      double const norm = 1. / ( pvec[0] * pvec[0] + pvec[1] * pvec[1] + pvec[2] * pvec[2] ) / (double)g_sink_momentum_number;
+      double const norm = 1. / ( pvec[0] * pvec[0] + pvec[1] * pvec[1] + pvec[2] * pvec[2] ) / (double)g_sink_momentum_number / 2.;
   
       gettimeofday ( &ta, (struct timezone *)NULL );
   
