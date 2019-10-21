@@ -554,8 +554,11 @@ int main(int argc, char **argv) {
             double _Complex const zp[2] = { corr[0][iconf][isrc][it] , corr[0][iconf][isrc][itt] };
             double _Complex const zm[2] = { corr[1][iconf][isrc][it] , corr[1][iconf][isrc][itt] };
 
-            corr[0][iconf][isrc][it] = 0.5 * ( zp[0] - zm[1] );
-            corr[1][iconf][isrc][it] = 0.5 * ( zp[1] - zm[0] );
+            corr[0][iconf][isrc][it ] = 0.5 * ( zp[0] - zm[1] );
+            corr[0][iconf][isrc][itt] = corr[0][iconf][isrc][it];
+
+            corr[1][iconf][isrc][it ] = 0.5 * ( zm[0] - zp[1] );
+            corr[1][iconf][isrc][itt] = corr[1][iconf][isrc][it];
           }
         }
       }
