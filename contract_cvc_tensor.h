@@ -35,9 +35,10 @@ int contract_write_to_aff_file (double ** const c_tp, struct AffWriter_s*affw, c
 
 int contract_write_to_h5_file (double ** const c_tp, void * file, char*tag, const int (*momentum_list)[3], int const momentum_number, int const io_proc );
 
-int contract_local_local_2pt_eo ( double**sprop_list_e, double**sprop_list_o, double**tprop_list_e, double**tprop_list_o,
+/* int contract_local_local_2pt_eo ( double**sprop_list_e, double**sprop_list_o, double**tprop_list_e, double**tprop_list_o,
     int *gamma_sink_list, int gamma_sink_num, int*gamma_source_list, int gamma_source_num, int (*momentum_list)[3], int momentum_number,  struct AffWriter_s*affw, char*tag,
-    int io_proc );
+    int io_proc ); */
+int contract_local_local_2pt_eo ( double**sprop_list_e, double**sprop_list_o, double**tprop_list_e, double**tprop_list_o, const int * gamma_sink_list, int const gamma_sink_num, const int * gamma_source_list, int const gamma_source_num, int (*momentum_list)[3], int momentum_number,  struct AffWriter_s*affw, char*tag, int io_proc );
 
 int contract_local_cvc_2pt_eo ( double**sprop_list_e, double**sprop_list_o, double**tprop_list_e, double**tprop_list_o,
   int *gamma_sink_list, int gamma_sink_num, int (*momentum_list)[3], int momentum_number,  struct AffWriter_s*affw, char*tag,
