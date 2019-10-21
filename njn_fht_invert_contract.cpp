@@ -339,14 +339,6 @@ int main(int argc, char **argv) {
   }
   fprintf(stdout, "# [njn_fht_invert_contract] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
 
-
-  /***************************************************************************
-   * allocate spinor fields
-   *
-   * makro _GSI(k) = 24 * k  ( "Get Spinor Index" ))
-   * 24 = 4*3*2 = number of real spin-color components
-   ***************************************************************************/
-
   /***************************************************************************
    * prepare the Fourier phase field
    ***************************************************************************/
