@@ -347,41 +347,6 @@ int main(int argc, char **argv) {
    * 24 = 4*3*2 = number of real spin-color components
    ***************************************************************************/
 
-  /* up quark propagator with source and sink smearing*/
-  double ** propagator_up = init_2level_dtable ( 12, _GSI( VOLUME ) );
-  if( propagator_up == NULL ) {
-    fprintf(stderr, "[njn_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
-    EXIT(123);
-  }
-
-  /* up quark propagator with source smearing to use for sequential inversion*/
-  double ** propagator_up_snk_smeared = init_2level_dtable ( 12, _GSI( VOLUME ) );
-  if( propagator_up_snk_smeared == NULL ) {
-    fprintf(stderr, "[njn_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
-    EXIT(123);
-  }
-
-  /* down quark propagator */
-  double ** propagator_dn = init_2level_dtable ( 12, _GSI( VOLUME ) );
-  if( propagator_dn == NULL ) {
-    fprintf(stderr, "[njn_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
-    EXIT(123);
-  }
-
-  /* down quark propagator with source smearing*/
-  double ** propagator_dn_snk_smeared = init_2level_dtable ( 12, _GSI( VOLUME ) );
-  if( propagator_dn_snk_smeared == NULL ) {
-    fprintf(stderr, "[njn_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
-    EXIT(123);
-  }
-
-  /* sequential propagator */
-  double ** sequential_propagator = init_2level_dtable ( 12, _GSI( VOLUME ) );
-  if( sequential_propagator == NULL ) {
-    fprintf(stderr, "[njn_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
-    EXIT(123);
-  }
-
   /***************************************************************************
    * prepare the Fourier phase field
    ***************************************************************************/
@@ -515,7 +480,7 @@ int main(int argc, char **argv) {
       memcpy ( propagator_up_snk_smeared[i], propagator_up[i], sizeof_spinor_field );
 
       /* sink-smear propagator */
-      exitstatus = Jacobi_Smearing ( gauge_field_smeared, propagator_up[i], N_Jacobi, kappa_Jacobi);
+      exitstatus = Jacobi_Smearing ( gauge_field_smeared, propagator_up_snk_smeared[i], N_Jacobi, kappa_Jacobi);
       if(exitstatus != 0) {
         fprintf(stderr, "[njn_fht_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         return(11);
@@ -559,7 +524,7 @@ int main(int argc, char **argv) {
       memcpy ( propagator_dn_snk_smeared[i], propagator_dn[i], sizeof_spinor_field );
 
       /* sink-smear propagator */
-      exitstatus = Jacobi_Smearing ( gauge_field_smeared, propagator_dn[i], N_Jacobi, kappa_Jacobi);
+      exitstatus = Jacobi_Smearing ( gauge_field_smeared, propagator_dn_snk_smeared[i], N_Jacobi, kappa_Jacobi);
       if(exitstatus != 0) {
         fprintf(stderr, "[njn_fht_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         return(11);
