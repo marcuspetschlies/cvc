@@ -115,7 +115,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "ch?f:")) != -1) {
+  while ((c = getopt(argc, argv, "wch?f:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
