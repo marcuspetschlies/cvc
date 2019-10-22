@@ -83,6 +83,7 @@ int main(int argc, char **argv) {
   struct timeval ta, tb;
   int operator_type = -1;
   int write_data = 0;
+  int charged_ps=0;
 
 #ifdef HAVE_LHPC_AFF
   struct AffReader_s *affr = NULL;
@@ -93,7 +94,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "Wh?f:N:S:F:O:E:w:")) != -1) {
+  while ((c = getopt(argc, argv, "CWh?f:N:S:F:O:E:w:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -126,6 +127,10 @@ int main(int argc, char **argv) {
     case 'w':
       write_data = atoi ( optarg );
       fprintf ( stdout, "# [p2gg_analyse] write_data set to %d\n", write_data );
+      break;
+    case 'C':
+      charged_ps = 1;
+      fprintf ( stdout, "# [p2gg_analyse] charged_ps set to %d\n", charged_ps );
       break;
     case 'h':
     case '?':
@@ -391,7 +396,11 @@ int main(int argc, char **argv) {
 
                 int const flavor_id = 1 - 2 * iflavor;
 
-                if ( operator_type == 0 || operator_type == 2 ) {
+                /**********************************************************
+                 * neutral ps and cvc - cvc or cvc - lvc
+                 **********************************************************/
+
+                if ( ( charged_ps == 0 ) && ( operator_type == 0 || operator_type == 2 ) ) {
 
                   gettimeofday ( &ta, (struct timezone *)NULL );
 
@@ -419,11 +428,13 @@ int main(int argc, char **argv) {
                   gettimeofday ( &tb, (struct timezone *)NULL );
                   show_time ( &ta, &tb, "p2gg_analyse", "read-pgg-tensor-aff", g_cart_id == 0 );
 
-                } else if ( operator_type == 1 ) {
+                /**********************************************************
+                 * neutral ps and lvc - lvc
+                 **********************************************************/
+                } else if ( ( charged_ps == 0 ) && ( operator_type == 1 ) ) {
 
-                  gettimeofday ( &tb, (struct timezone *)NULL );
+                  gettimeofday ( &ta, (struct timezone *)NULL );
                   
-                  show_time ( &ta, &tb, "p2gg_analyse", "read-pgg-tensor-aff", g_cart_id == 0 );
                   for ( int mu = 0; mu < 4; mu++ ) {
                   for ( int nu = 0; nu < 4; nu++ ) {
                     sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d/gf%.2d/gi%.2d/px%dpy%dpz%d", pgg_operator_type_tag[operator_type],
@@ -480,7 +491,76 @@ int main(int argc, char **argv) {
 
                   gettimeofday ( &tb, (struct timezone *)NULL );
                   show_time ( &ta, &tb, "p2gg_analyse", "read-pgg-tensor-components-aff", g_cart_id == 0 );
-                }  /* end of if operator_type */
+
+                /**********************************************************
+                 * charged ps and lvc - lvc
+                 **********************************************************/
+                } else if ( ( charged_ps == 1 ) && ( operator_type == 1 ) ) {
+
+                  gettimeofday ( &ta, (struct timezone *)NULL );
+
+                  char flavor_tag[12];
+
+                  
+                  for ( int mu = 0; mu < 4; mu++ ) {
+                  for ( int nu = 0; nu < 4; nu++ ) {
+                    sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d/gf%.2d/gi%.2d/px%dpy%dpz%d", pgg_operator_type_tag[operator_type],
+                        gsx[0], gsx[1], gsx[2], gsx[3],
+                        flavor_id * seq_source_momentum[0],
+                        flavor_id * seq_source_momentum[1],
+                        flavor_id * seq_source_momentum[2],
+                        sequential_source_gamma_id, sequential_source_timeslice,
+                        iflavor,
+                        mu, nu,
+                        flavor_id * sink_momentum[0],
+                        flavor_id * sink_momentum[1],
+                        flavor_id * sink_momentum[2] );
+      
+                    affdir = aff_reader_chpath (affr, affn, key );
+                    if ( affdir == NULL ) {
+                      fprintf(stderr, "# [p2gg_analyse] Warning from aff_reader_chpath for key %s %s %d\n", key,  __FILE__, __LINE__);
+
+                      sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d/gf%.2d/gi%.2d/px%dpy%dpz%d", pgg_operator_type_tag_aux[operator_type],
+                          gsx[0], gsx[1], gsx[2], gsx[3],
+                          flavor_id * seq_source_momentum[0],
+                          flavor_id * seq_source_momentum[1],
+                          flavor_id * seq_source_momentum[2],
+                          sequential_source_gamma_id, sequential_source_timeslice,
+                          iflavor,
+                          mu, nu,
+                          flavor_id * sink_momentum[0],
+                          flavor_id * sink_momentum[1],
+                          flavor_id * sink_momentum[2] );
+
+                      if ( aff_reader_clearerr ( affr ) != 0 ) {
+                        fprintf ( stderr, "[p2gg_analyse] Error from aff_reader_clearerr %s %d\n", __FILE__, __LINE__);
+                        EXIT(15);
+                      }
+
+                      affdir = aff_reader_chpath (affr, affn, key );
+                      if ( affdir == NULL ) {
+                        fprintf(stderr, "[p2gg_analyse] Error from aff_reader_chpath for key %s %s %d\n", key, __FILE__, __LINE__);
+                        EXIT(115);
+                      } 
+
+                    }
+
+
+                    if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse] key = %s\n", key );
+      
+                    uint32_t uitems = T;
+                    exitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*)(buffer[iflavor][mu][nu]), uitems );
+                    if( exitstatus != 0 ) {
+                      fprintf(stderr, "[p2gg_analyse] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                      EXIT(105);
+                    }
+                  }}
+
+                  gettimeofday ( &tb, (struct timezone *)NULL );
+                  show_time ( &ta, &tb, "p2gg_analyse", "read-pgg-tensor-components-aff", g_cart_id == 0 );
+
+
+                }  /* end of if charged 0/1 and operator_type */
 
               }  /* end of loop on flavors */
 
