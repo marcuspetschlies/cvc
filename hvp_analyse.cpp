@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "Wh?f:N:S:F:O:D:w:")) != -1) {
+  while ((c = getopt(argc, argv, "Wh?f:N:S:F:O:D:w:E:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -130,6 +130,10 @@ int main(int argc, char **argv) {
     case 'w':
       write_data = atoi ( optarg );
       fprintf ( stdout, "# [hvp_analyse] write_data set to %d\n", write_data );
+      break;
+    case 'E':
+      strcpy ( ensemble_name, optarg );
+      fprintf ( stdout, "# [hvp_analyse] ensemble_name set to %s\n", ensemble_name );
       break;
     case 'h':
     case '?':
