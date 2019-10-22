@@ -565,12 +565,13 @@ int main(int argc, char **argv) {
       /***************************************************************************
        * loop on sequential source gamma matrices
        ***************************************************************************/
+/*
       for( int isequential_source_gamma_id = 0; isequential_source_gamma_id < g_sequential_source_gamma_id_number; isequential_source_gamma_id++) {
 
         int const sequential_source_gamma_id = g_sequential_source_gamma_id_list[ isequential_source_gamma_id ];
         if( g_verbose > 2 && g_cart_id == 0) fprintf(stdout, "# [p2gg_invert_contract_local] using sequential source gamma id no. %2d = %d\n",
             isequential_source_gamma_id, sequential_source_gamma_id);
-
+*/
         /***************************************************************************
          * loop on sequential source time slices
          ***************************************************************************/
@@ -605,6 +606,12 @@ int main(int argc, char **argv) {
              **
              ***************************************************************************
              ***************************************************************************/
+
+            /***************************************************************************
+             * set sequential source gamma id
+             ***************************************************************************/
+            int sequential_source_gamma_id = 4;
+            if( g_verbose > 2 && g_cart_id == 0) fprintf(stdout, "# [p2gg_invert_contract_local] using sequential source gamma id = %d\n", sequential_source_gamma_id);
 
             /***************************************************************************
              * prepare sequential source and sequential propagator
@@ -767,6 +774,12 @@ int main(int argc, char **argv) {
              ***************************************************************************
              ***************************************************************************/
 
+            /***************************************************************************
+             * set sequential source gamma id
+             ***************************************************************************/
+            sequential_source_gamma_id = 5;
+            if( g_verbose > 2 && g_cart_id == 0) fprintf(stdout, "# [p2gg_invert_contract_local] using sequential source gamma id = %d\n", sequential_source_gamma_id);
+
             for( int is = 0; is < 12; is++ ) 
             {
               int eo_spinor_field_id_e     = iflavor * 24 + is;
@@ -865,7 +878,8 @@ int main(int argc, char **argv) {
           }  /* end of loop on flavor */
 
         }  /* end of loop on sequential source timeslices */
-      }  /* end of loop on sequential source gamma id */
+
+/*      } */  /* end of loop on sequential source gamma id */
     }  /* end of loop on sequential source momentum */
 
     /***************************************************************************/
