@@ -62,6 +62,19 @@ int main(int argc, char **argv) {
 
   char const pgg_operator_type_tag_aux[3][12] = { "NA"        , "p-loc-loc" , "NA"        };
 
+  /*                            gt  gx  gy  gz */
+  int const gamma_v_list[4] = {  0,  1,  2,  3 };
+
+  /*                            gtg5 gxg5 gyg5 gzg5 */
+  int const gamma_a_list[4] = {    6,   7,   8,   9 };
+
+  /* vector, axial vector */
+  int const gamma_va_list[8] = { 0,  1,  2,  3,  6,   7,   8,   9 };
+
+  /*                             id  g5 */
+  int const gamma_sp_list[2] = { 4  , 5 };
+
+
 
   /***********************************************************
    * sign for g5 Gamma^\dagger g5
@@ -493,71 +506,169 @@ int main(int argc, char **argv) {
                   show_time ( &ta, &tb, "p2gg_analyse", "read-pgg-tensor-components-aff", g_cart_id == 0 );
 
                 /**********************************************************
+                 *
                  * charged ps and lvc - lvc
+                 *
                  **********************************************************/
                 } else if ( ( charged_ps == 1 ) && ( operator_type == 1 ) ) {
 
                   gettimeofday ( &ta, (struct timezone *)NULL );
 
-                  char flavor_tag[12];
-
+                  double * buffer2 = init_1level_dtable( 2 * T );
+                  if( buffer == NULL ) {
+                    fprintf(stderr, "[p2gg_analyse] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+                    EXIT(15);
+                  }
                   
                   for ( int mu = 0; mu < 4; mu++ ) {
                   for ( int nu = 0; nu < 4; nu++ ) {
-                    sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d/gf%.2d/gi%.2d/px%dpy%dpz%d", pgg_operator_type_tag[operator_type],
+
+                    uint32_t uitems = T;
+
+                    /**********************************************************
+                     * G_v Xbar-X G_a Xbar, G_v at sink, G_a at source
+                     **********************************************************/
+                    sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d-%d_%d/gf%.2d/gi%.2d/px%dpy%dpz%d", pgg_operator_type_tag[operator_type],
                         gsx[0], gsx[1], gsx[2], gsx[3],
                         flavor_id * seq_source_momentum[0],
                         flavor_id * seq_source_momentum[1],
                         flavor_id * seq_source_momentum[2],
                         sequential_source_gamma_id, sequential_source_timeslice,
-                        iflavor,
-                        mu, nu,
+                        1-iflavor, iflavor, 1-iflavor,
+                        gamma_v_list[mu], gamma_a_list[nu],
                         flavor_id * sink_momentum[0],
                         flavor_id * sink_momentum[1],
                         flavor_id * sink_momentum[2] );
       
                     affdir = aff_reader_chpath (affr, affn, key );
                     if ( affdir == NULL ) {
-                      fprintf(stderr, "# [p2gg_analyse] Warning from aff_reader_chpath for key %s %s %d\n", key,  __FILE__, __LINE__);
+                      fprintf(stderr, "[p2gg_analyse] Error from aff_reader_chpath for key %s %s %d\n", key, __FILE__, __LINE__);
+                      EXIT(115);
+                    } 
 
-                      sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d/gf%.2d/gi%.2d/px%dpy%dpz%d", pgg_operator_type_tag_aux[operator_type],
-                          gsx[0], gsx[1], gsx[2], gsx[3],
-                          flavor_id * seq_source_momentum[0],
-                          flavor_id * seq_source_momentum[1],
-                          flavor_id * seq_source_momentum[2],
-                          sequential_source_gamma_id, sequential_source_timeslice,
-                          iflavor,
-                          mu, nu,
-                          flavor_id * sink_momentum[0],
-                          flavor_id * sink_momentum[1],
-                          flavor_id * sink_momentum[2] );
-
-                      if ( aff_reader_clearerr ( affr ) != 0 ) {
-                        fprintf ( stderr, "[p2gg_analyse] Error from aff_reader_clearerr %s %d\n", __FILE__, __LINE__);
-                        EXIT(15);
-                      }
-
-                      affdir = aff_reader_chpath (affr, affn, key );
-                      if ( affdir == NULL ) {
-                        fprintf(stderr, "[p2gg_analyse] Error from aff_reader_chpath for key %s %s %d\n", key, __FILE__, __LINE__);
-                        EXIT(115);
-                      } 
-
-                    }
-
-
-                    if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse] key = %s\n", key );
+                    if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse] key 1 = %s\n", key );
       
-                    uint32_t uitems = T;
                     exitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*)(buffer[iflavor][mu][nu]), uitems );
                     if( exitstatus != 0 ) {
                       fprintf(stderr, "[p2gg_analyse] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                       EXIT(105);
                     }
+
+                    /**********************************************************
+                     * G_a Xbar-X G_v X , G_a at sink, G_v at source
+                     **********************************************************/
+                    sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d-%d_%d/gf%.2d/gi%.2d/px%dpy%dpz%d", pgg_operator_type_tag[operator_type],
+                        gsx[0], gsx[1], gsx[2], gsx[3],
+                        flavor_id * seq_source_momentum[0],
+                        flavor_id * seq_source_momentum[1],
+                        flavor_id * seq_source_momentum[2],
+                        sequential_source_gamma_id, sequential_source_timeslice,
+                        1-iflavor, iflavor, iflavor,
+                        gamma_a_list[mu], gamma_v_list[nu],
+                        flavor_id * sink_momentum[0],
+                        flavor_id * sink_momentum[1],
+                        flavor_id * sink_momentum[2] );
+      
+                    affdir = aff_reader_chpath (affr, affn, key );
+                    if ( affdir == NULL ) {
+                      fprintf(stderr, "[p2gg_analyse] Error from aff_reader_chpath for key %s %s %d\n", key, __FILE__, __LINE__);
+                      EXIT(115);
+                    } 
+
+                    if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse] key 2 = %s\n", key );
+      
+                    exitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*)(buffer2), uitems );
+                    if( exitstatus != 0 ) {
+                      fprintf(stderr, "[p2gg_analyse] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                      EXIT(105);
+                    }
+
+                    /* add up contributions */
+                    for ( int it = 0; it < 2*T; it++ ) {
+                      buffer[iflavor][mu][nu][it] += buffer2[it];
+                    }
+
+                    /**********************************************************
+                     * G_v X-Xbar G_a X , G_v at sink, G_a at source
+                     **********************************************************/
+                    sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d-%d_%d/gf%.2d/gi%.2d/px%dpy%dpz%d", pgg_operator_type_tag[operator_type],
+                        gsx[0], gsx[1], gsx[2], gsx[3],
+                        flavor_id * seq_source_momentum[0],
+                        flavor_id * seq_source_momentum[1],
+                        flavor_id * seq_source_momentum[2],
+                        sequential_source_gamma_id, sequential_source_timeslice,
+                        iflavor, 1-iflavor, iflavor,
+                        gamma_v_list[mu], gamma_a_list[nu],
+                        flavor_id * sink_momentum[0],
+                        flavor_id * sink_momentum[1],
+                        flavor_id * sink_momentum[2] );
+      
+                    affdir = aff_reader_chpath (affr, affn, key );
+                    if ( affdir == NULL ) {
+                      fprintf(stderr, "[p2gg_analyse] Error from aff_reader_chpath for key %s %s %d\n", key, __FILE__, __LINE__);
+                      EXIT(115);
+                    } 
+
+                    if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse] key 3 = %s\n", key );
+      
+                    exitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*)(buffer[iflavor][mu][nu]), uitems );
+                    if( exitstatus != 0 ) {
+                      fprintf(stderr, "[p2gg_analyse] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                      EXIT(105);
+                    }
+
+                    /* add up contributions */
+                    for ( int it = 0; it < 2*T; it++ ) {
+                      buffer[iflavor][mu][nu][it] += buffer2[it];
+                    }
+
+                    /**********************************************************
+                     * G_a X-Xbar G_v Xbar , G_a at sink, G_v at source
+                     **********************************************************/
+                    sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d-%d_%d/gf%.2d/gi%.2d/px%dpy%dpz%d", pgg_operator_type_tag[operator_type],
+                        gsx[0], gsx[1], gsx[2], gsx[3],
+                        flavor_id * seq_source_momentum[0],
+                        flavor_id * seq_source_momentum[1],
+                        flavor_id * seq_source_momentum[2],
+                        sequential_source_gamma_id, sequential_source_timeslice,
+                        iflavor, 1-iflavor, 1-iflavor,
+                        gamma_a_list[mu], gamma_v_list[nu],
+                        flavor_id * sink_momentum[0],
+                        flavor_id * sink_momentum[1],
+                        flavor_id * sink_momentum[2] );
+      
+                    affdir = aff_reader_chpath (affr, affn, key );
+                    if ( affdir == NULL ) {
+                      fprintf(stderr, "[p2gg_analyse] Error from aff_reader_chpath for key %s %s %d\n", key, __FILE__, __LINE__);
+                      EXIT(115);
+                    } 
+
+                    if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse] key 4 = %s\n", key );
+      
+                    exitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*)(buffer2), uitems );
+                    if( exitstatus != 0 ) {
+                      fprintf(stderr, "[p2gg_analyse] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                      EXIT(105);
+                    }
+
+                    /* add up contributions */
+                    for ( int it = 0; it < 2*T; it++ ) {
+                      buffer[iflavor][mu][nu][it] += buffer2[it];
+                    }
+
+                    /**********************************************************
+                     * normalize
+                     **********************************************************/
+                    for ( int it = 0; it < 2*T; it++ ) {
+                      buffer[iflavor][mu][nu][it] *= 0.5;
+                    }
+
                   }}
 
+                  fini_1level_dtable( &buffer2 );
                   gettimeofday ( &tb, (struct timezone *)NULL );
-                  show_time ( &ta, &tb, "p2gg_analyse", "read-pgg-tensor-components-aff", g_cart_id == 0 );
+
+                  show_time ( &ta, &tb, "p2gg_analyse", "read-pgg-tensor-components-charged-aff", g_cart_id == 0 );
 
 
                 }  /* end of if charged 0/1 and operator_type */
