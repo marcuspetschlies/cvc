@@ -274,10 +274,11 @@ int main(int argc, char **argv) {
       g_seq_source_momentum_list[iseq_source_momentum][1],
       g_seq_source_momentum_list[iseq_source_momentum][2] };
 
+/*
     for( int isequential_source_gamma_id = 0; isequential_source_gamma_id < g_sequential_source_gamma_id_number; isequential_source_gamma_id++)
     {
-
-      int const sequential_source_gamma_id = g_sequential_source_gamma_id_list[ isequential_source_gamma_id ];
+*/
+      int const sequential_source_gamma_id = charged_ps == 0 ? 4 : 5;
 
       for ( int isequential_source_timeslice = 0; isequential_source_timeslice < g_sequential_source_timeslice_number; isequential_source_timeslice++)
       {
@@ -416,7 +417,7 @@ int main(int argc, char **argv) {
                 if ( ( charged_ps == 0 ) && ( operator_type == 0 || operator_type == 2 ) ) {
 
                   gettimeofday ( &ta, (struct timezone *)NULL );
-
+                
                   sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d/px%.2dpy%.2dpz%.2d", pgg_operator_type_tag[operator_type],
                       gsx[0], gsx[1], gsx[2], gsx[3],
                       flavor_id * seq_source_momentum[0],
@@ -739,9 +740,23 @@ int main(int argc, char **argv) {
                   /**********************************************************
                    * add the two flavor components
                    **********************************************************/
+
+                  double sigma_5d = 0;
+                  if ( charged_ps == 0 ) {
+                    sigma_5d = 
+                         (double)sequential_source_gamma_id_sign[ sequential_source_gamma_id ]
+                       * (double)sequential_source_gamma_id_sign[ gamma_v_list[0] ]
+                       * (double)sequential_source_gamma_id_sign[ gamma_v_list[0] ];
+                  } else if ( charged_ps == 1 ) {
+                    sigma_5d = 
+                         (double)sequential_source_gamma_id_sign[ sequential_source_gamma_id ]
+                       * (double)sequential_source_gamma_id_sign[ gamma_v_list[0] ]
+                       * (double)sequential_source_gamma_id_sign[ gamma_a_list[0] ];
+                  }
+
                   double _Complex ztmp = ( 
                         ( buffer[0][mu][nu][2*it] +  buffer[0][mu][nu][2*it+1] * I )
-                      + ( buffer[1][mu][nu][2*it] -  buffer[1][mu][nu][2*it+1] * I ) * (double)sequential_source_gamma_id_sign[ sequential_source_gamma_id ]
+                      + ( buffer[1][mu][nu][2*it] -  buffer[1][mu][nu][2*it+1] * I ) *  sigma_5d /* (double)sequential_source_gamma_id_sign[ sequential_source_gamma_id ] */
                       ) * p_ephase;
 
                   /**********************************************************
@@ -958,7 +973,7 @@ int main(int argc, char **argv) {
 
       }  /* end of loop on sequential source timeslices */
 
-    }  /* end of loop on sequential source gamma id */
+/*    } */ /* end of loop on sequential source gamma id */
 
   }  /* end of loop on seq source momentum */
 
