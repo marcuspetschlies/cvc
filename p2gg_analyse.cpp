@@ -516,8 +516,8 @@ int main(int argc, char **argv) {
                   gettimeofday ( &ta, (struct timezone *)NULL );
 
                   double * buffer2 = init_1level_dtable( 2 * T );
-                  if( buffer == NULL ) {
-                    fprintf(stderr, "[p2gg_analyse] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+                  if( buffer2 == NULL ) {
+                    fprintf(stderr, "[p2gg_analyse] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
                     EXIT(15);
                   }
                   
@@ -554,6 +554,7 @@ int main(int argc, char **argv) {
                       fprintf(stderr, "[p2gg_analyse] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                       EXIT(105);
                     }
+
 
                     /**********************************************************
                      * G_a Xbar-X G_v X , G_a at sink, G_v at source
@@ -594,15 +595,15 @@ int main(int argc, char **argv) {
                      **********************************************************/
                     sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d-%d_%d/gf%.2d/gi%.2d/px%dpy%dpz%d", pgg_operator_type_tag[operator_type],
                         gsx[0], gsx[1], gsx[2], gsx[3],
-                        flavor_id * seq_source_momentum[0],
-                        flavor_id * seq_source_momentum[1],
-                        flavor_id * seq_source_momentum[2],
+                        -flavor_id * seq_source_momentum[0],
+                        -flavor_id * seq_source_momentum[1],
+                        -flavor_id * seq_source_momentum[2],
                         sequential_source_gamma_id, sequential_source_timeslice,
                         iflavor, 1-iflavor, iflavor,
                         gamma_v_list[mu], gamma_a_list[nu],
-                        flavor_id * sink_momentum[0],
-                        flavor_id * sink_momentum[1],
-                        flavor_id * sink_momentum[2] );
+                        -flavor_id * sink_momentum[0],
+                        -flavor_id * sink_momentum[1],
+                        -flavor_id * sink_momentum[2] );
       
                     affdir = aff_reader_chpath (affr, affn, key );
                     if ( affdir == NULL ) {
@@ -612,13 +613,13 @@ int main(int argc, char **argv) {
 
                     if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse] key 3 = %s\n", key );
       
-                    exitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*)(buffer[iflavor][mu][nu]), uitems );
+                    exitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*)(buffer2), uitems );
                     if( exitstatus != 0 ) {
                       fprintf(stderr, "[p2gg_analyse] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                       EXIT(105);
                     }
 
-                    /* add up contributions */
+                    /* subtract contributions */
                     for ( int it = 0; it < 2*T; it++ ) {
                       buffer[iflavor][mu][nu][it] += buffer2[it];
                     }
@@ -628,15 +629,15 @@ int main(int argc, char **argv) {
                      **********************************************************/
                     sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d-%d_%d/gf%.2d/gi%.2d/px%dpy%dpz%d", pgg_operator_type_tag[operator_type],
                         gsx[0], gsx[1], gsx[2], gsx[3],
-                        flavor_id * seq_source_momentum[0],
-                        flavor_id * seq_source_momentum[1],
-                        flavor_id * seq_source_momentum[2],
+                        -flavor_id * seq_source_momentum[0],
+                        -flavor_id * seq_source_momentum[1],
+                        -flavor_id * seq_source_momentum[2],
                         sequential_source_gamma_id, sequential_source_timeslice,
                         iflavor, 1-iflavor, 1-iflavor,
                         gamma_a_list[mu], gamma_v_list[nu],
-                        flavor_id * sink_momentum[0],
-                        flavor_id * sink_momentum[1],
-                        flavor_id * sink_momentum[2] );
+                        -flavor_id * sink_momentum[0],
+                        -flavor_id * sink_momentum[1],
+                        -flavor_id * sink_momentum[2] );
       
                     affdir = aff_reader_chpath (affr, affn, key );
                     if ( affdir == NULL ) {
@@ -748,11 +749,13 @@ int main(int argc, char **argv) {
                        * (double)sequential_source_gamma_id_sign[ gamma_v_list[0] ]
                        * (double)sequential_source_gamma_id_sign[ gamma_v_list[0] ];
                   } else if ( charged_ps == 1 ) {
-                    sigma_5d = 
+                    sigma_5d =
                          (double)sequential_source_gamma_id_sign[ sequential_source_gamma_id ]
                        * (double)sequential_source_gamma_id_sign[ gamma_v_list[0] ]
                        * (double)sequential_source_gamma_id_sign[ gamma_a_list[0] ];
                   }
+
+                  if ( g_verbose > 5 ) fprintf (stdout, "# [p2gg_analyse] sigma_5d = %f for charged_ps = %d\n", sigma_5d, charged_ps );
 
                   double _Complex ztmp = ( 
                         ( buffer[0][mu][nu][2*it] +  buffer[0][mu][nu][2*it+1] * I )
