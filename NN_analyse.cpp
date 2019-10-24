@@ -40,6 +40,7 @@
 #include "twopoint_function_utils.h"
 #include "gamma.h"
 #include "uwerr.h"
+#include "derived_quantities.h"
 
 using namespace cvc;
 
@@ -58,14 +59,8 @@ typedef struct {
   char *stream;
 } conf_src_list_type;
 
-/***************************************************************************
- *
- ***************************************************************************/
-int main(int argc, char **argv) {
- 
-  char const reim_str[2][3] = { "re", "im" };
 
-    char const gamma_id_to_Cg_ascii[16][10] = {
+  char const gamma_id_to_Cg_ascii[16][10] = {
     "Cgy",
     "Cgzg5",
     "Cgt",
@@ -104,7 +99,71 @@ int main(int argc, char **argv) {
     "gygz"
   };
 
+/***************************************************************************
+ *
+ ***************************************************************************/
+void make_key_string ( char * key, twopoint_function_type *tp, const char * type, const char * diagram_name , const int * sx ) {
 
+  const int * gsx = ( sx == NULL ) ? tp->source_coords : sx;
+  const char * tp_type = ( type ==  NULL ) ? tp->type : type;
+
+  if ( strcmp ( tp_type, "b-b" ) == 0 ) {
+
+    sprintf ( key, "/%s/T%d_X%d_Y%d_Z%d/Gi_%s/Gf_%s/%s/px%.2dpy%.2dpz%.2d", tp->name, gsx[0], gsx[1], gsx[2], gsx[3],
+        gamma_id_to_Cg_ascii[tp->gi1[0]],
+        gamma_id_to_Cg_ascii[tp->gf1[0]],
+        diagram_name,
+        tp->pf1[0], tp->pf1[1], tp->pf1[2] );
+
+  } else if ( strcmp( tp_type , "b-qq-b" ) == 0 ) {
+
+    sprintf ( key, "/%s/T%d_X%d_Y%d_Z%d/Gf_%s/Gc_%s/Gi_%s/QX%d_QY%d_QZ%d/%s/px%.2dpy%.2dpz%.2d", tp->name, gsx[0], gsx[1], gsx[2], gsx[3],
+        gamma_id_to_Cg_ascii[tp->gf1[0]],
+        gamma_id_to_ascii[tp->gf2],
+        gamma_id_to_Cg_ascii[tp->gi1[0]],
+        tp->pf2[0], tp->pf2[1], tp->pf2[2],
+        diagram_name,
+        tp->pf1[0], tp->pf1[1], tp->pf1[2] );
+
+  }
+}  /* end of make_key_string */
+
+
+/***************************************************************************
+ *
+ ***************************************************************************/
+void make_correlator_string ( char * name , twopoint_function_type * tp , const char * type ) {
+
+  const char * tp_type = ( type ==  NULL ) ? tp->type : type;
+
+ if ( strcmp ( tp_type, "b-b" ) == 0 ) {
+   sprintf ( name,  "%s.Gi_%s_%s.Gf_%s_%s.px%dpy%dpz%d", tp->name,
+       gamma_id_to_Cg_ascii[tp->gi1[0]],
+       gamma_id_to_ascii[tp->gi1[1]],
+       gamma_id_to_Cg_ascii[tp->gf1[0]],
+       gamma_id_to_ascii[tp->gf1[1]],
+       tp->pf1[0], tp->pf1[1], tp->pf1[2] );
+
+  } else if ( strcmp( tp_type, "b-qq-b" ) == 0 ) {
+
+    sprintf ( name,  "%s.Gi_%s_%s.Gc_%s.Gf_%s_%s.qx%dqy%dqz%d.px%dpy%dpz%d", tp->name,
+        gamma_id_to_Cg_ascii[tp->gi1[0]],
+        gamma_id_to_ascii[tp->gi1[1]],
+        gamma_id_to_ascii[tp->gf2],
+        gamma_id_to_Cg_ascii[tp->gf1[0]],
+        gamma_id_to_ascii[tp->gf1[1]],
+        tp->pf2[0], tp->pf2[1], tp->pf2[2],
+        tp->pf1[0], tp->pf1[1], tp->pf1[2] );
+  }
+}  /* end of make_correlator_string */
+
+
+/***************************************************************************
+ *
+ ***************************************************************************/
+int main(int argc, char **argv) {
+ 
+  char const reim_str[2][3] = { "re", "im" };
 
   int c;
   int filename_set = 0;
@@ -303,6 +362,12 @@ int main(int argc, char **argv) {
 
   fflush ( stdout );
 
+  double _Complex ***** corr = init_5level_ztable ( g_twopoint_function_number, 2, num_conf, num_src_per_conf, T_global  );
+  if ( corr == NULL ) {
+    fprintf ( stderr, "[NN_analyse] Error from init_5level_ztable %s %d\n", __FILE__, __LINE__ );
+    EXIT(15);
+  }
+
   /***************************************************************************
    * loop on twopoint functions
    ***************************************************************************/
@@ -314,12 +379,6 @@ int main(int argc, char **argv) {
 
     if ( g_verbose > 2 ) {
       twopoint_function_print ( tp, "tp", stdout );
-    }
-
-    double _Complex **** corr = init_4level_ztable ( 2, num_conf, num_src_per_conf, tp->T );
-    if ( corr == NULL ) {
-      fprintf ( stderr, "[] Error from init_4level_ztable %s %d\n", __FILE__, __LINE__ );
-      EXIT(15);
     }
 
     /***********************************************************
@@ -367,26 +426,7 @@ int main(int argc, char **argv) {
           }
 
           char key[500];
-
-          if ( strcmp ( tp->type, "b-b" ) == 0 ) {
-
-            sprintf ( key, "/%s/T%d_X%d_Y%d_Z%d/Gi_%s/Gf_%s/%s/px%.2dpy%.2dpz%.2d", tp->name, gsx[0], gsx[1], gsx[2], gsx[3],
-                gamma_id_to_Cg_ascii[tp->gi1[0]],
-                gamma_id_to_Cg_ascii[tp->gf1[0]],
-                diagram_name,
-                tp->pf1[0], tp->pf1[1], tp->pf1[2] );
-
-          } else if ( strcmp( tp->type , "b-qq-b" ) == 0 ) {
-
-            sprintf ( key, "/%s/T%d_X%d_Y%d_Z%d/Gf_%s/Gc_%s/Gi_%s/QX%d_QY%d_QZ%d/%s/px%.2dpy%.2dpz%.2d", tp->name, gsx[0], gsx[1], gsx[2], gsx[3],
-                gamma_id_to_Cg_ascii[tp->gf1[0]],
-                gamma_id_to_ascii[tp->gf2],
-                gamma_id_to_Cg_ascii[tp->gi1[0]],
-                tp->pf2[0], tp->pf2[1], tp->pf2[2],
-                diagram_name,
-                tp->pf1[0], tp->pf1[1], tp->pf1[2] );
-
-          }
+          make_key_string ( key, tp, tp->type, diagram_name, gsx );
 
           if ( g_verbose > 2 ) {
             fprintf ( stdout, "# [NN_analyse] key = %s\n", key );
@@ -398,7 +438,8 @@ int main(int argc, char **argv) {
            ***********************************************************/
           exitstatus = read_aff_contraction ( tp->c[i_diag][0][0] , NULL, data_filename, key, tp->d * tp->d * tp->T );
           if ( exitstatus != 0 ) {
-            fprintf(stderr, "[NN_analyse] Error from form read_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            fprintf(stderr, "[NN_analyse] Error from form read_aff_contraction for file %s key %s, status was %d %s %d\n", 
+                data_filename, key, exitstatus, __FILE__, __LINE__ );
             EXIT(12);
           }
 
@@ -473,7 +514,7 @@ int main(int argc, char **argv) {
         }
 
       
-        if ( ( exitstatus = contract_diagram_co_eq_tr_zm4x4_field ( corr[0][iconf][isrc], zbuffer, tp->T ) ) != 0 ) {
+        if ( ( exitstatus = contract_diagram_co_eq_tr_zm4x4_field ( corr[i_2pt][0][iconf][isrc], zbuffer, tp->T ) ) != 0 ) {
           fprintf( stderr, "[NN_analyse] Error from contract_diagram_co_eq_tr_zm4x4_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(105);
         }
@@ -484,7 +525,7 @@ int main(int argc, char **argv) {
           EXIT(105);
         }
 
-        if ( ( exitstatus = contract_diagram_co_eq_tr_zm4x4_field ( corr[1][iconf][isrc], zbuffer, tp->T ) ) != 0 ) {
+        if ( ( exitstatus = contract_diagram_co_eq_tr_zm4x4_field ( corr[i_2pt][1][iconf][isrc], zbuffer, tp->T ) ) != 0 ) {
           fprintf( stderr, "[NN_analyse] Error from contract_diagram_co_eq_tr_zm4x4_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(105);
         }
@@ -496,29 +537,14 @@ int main(int argc, char **argv) {
     }  /* end of loop on configurations */
   
 
+    char correlator_name[500];
+    make_correlator_string ( correlator_name , tp, tp->type  );
+
     /***********************************************************
      * write correlator to file
      ***********************************************************/
 
-    if ( strcmp ( tp->type, "b-b" ) == 0 ) {
-      sprintf ( filename,  "%s.Gi_%s_%s.Gf_%s_%s.px%dpy%dpz%d.corr", tp->name,
-          gamma_id_to_Cg_ascii[tp->gi1[0]],
-          gamma_id_to_ascii[tp->gi1[1]],
-          gamma_id_to_Cg_ascii[tp->gf1[0]],
-          gamma_id_to_ascii[tp->gf1[1]],
-          tp->pf1[0], tp->pf1[1], tp->pf1[2] );
-
-    } else if ( strcmp( tp->type, "b-qq-b" ) == 0 ) {
-
-      sprintf ( filename,  "%s.Gi_%s_%s.Gc_%s.Gf_%s_%s.qx%dqy%dqz%d.px%dpy%dpz%d.corr", tp->name,
-          gamma_id_to_Cg_ascii[tp->gi1[0]],
-          gamma_id_to_ascii[tp->gi1[1]],
-          gamma_id_to_ascii[tp->gf2],
-          gamma_id_to_Cg_ascii[tp->gf1[0]],
-          gamma_id_to_ascii[tp->gf1[1]],
-          tp->pf2[0], tp->pf2[1], tp->pf2[2],
-          tp->pf1[0], tp->pf1[1], tp->pf1[2] );
-    }
+    sprintf ( filename, "%s.corr", correlator_name );
 
     FILE * ofs = fopen ( filename, "w" );
     for( int iconf = 0; iconf < num_conf; iconf++ ) {
@@ -533,8 +559,8 @@ int main(int argc, char **argv) {
 
         for ( int it = 0; it < tp->T; it++ ) {
           fprintf ( ofs, "%3d %25.16e %25.16e    %25.16e %25.16e\n" , it, 
-              creal( corr[0][iconf][isrc][it] ), cimag( corr[0][iconf][isrc][it] ),
-              creal( corr[1][iconf][isrc][it] ), cimag( corr[1][iconf][isrc][it] ) );
+              creal( corr[i_2pt][0][iconf][isrc][it] ), cimag( corr[i_2pt][0][iconf][isrc][it] ),
+              creal( corr[i_2pt][1][iconf][isrc][it] ), cimag( corr[i_2pt][1][iconf][isrc][it] ) );
         } 
 
       }  /* end of loop on source locations */
@@ -551,14 +577,14 @@ int main(int argc, char **argv) {
         for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
           for ( int it = 0; it <= T_global/2; it++ ) {
             int const itt = ( T_global - it ) % T_global;
-            double _Complex const zp[2] = { corr[0][iconf][isrc][it] , corr[0][iconf][isrc][itt] };
-            double _Complex const zm[2] = { corr[1][iconf][isrc][it] , corr[1][iconf][isrc][itt] };
+            double _Complex const zp[2] = { corr[i_2pt][0][iconf][isrc][it] , corr[i_2pt][0][iconf][isrc][itt] };
+            double _Complex const zm[2] = { corr[i_2pt][1][iconf][isrc][it] , corr[i_2pt][1][iconf][isrc][itt] };
 
-            corr[0][iconf][isrc][it ] = 0.5 * ( zp[0] - zm[1] );
-            corr[0][iconf][isrc][itt] = corr[0][iconf][isrc][it];
+            corr[i_2pt][0][iconf][isrc][it ] = 0.5 * ( zp[0] - zm[1] );
+            corr[i_2pt][0][iconf][isrc][itt] = corr[i_2pt][0][iconf][isrc][it];
 
-            corr[1][iconf][isrc][it ] = 0.5 * ( zm[0] - zp[1] );
-            corr[1][iconf][isrc][itt] = corr[1][iconf][isrc][it];
+            corr[i_2pt][1][iconf][isrc][it ] = 0.5 * ( zm[0] - zp[1] );
+            corr[i_2pt][1][iconf][isrc][itt] = corr[i_2pt][1][iconf][isrc][it];
           }
         }
       }
@@ -566,6 +592,8 @@ int main(int argc, char **argv) {
 
     /***************************************************************************
      * UWerr analysis
+     *
+     *   for correlator corr
      ***************************************************************************/
 
     for ( int iparity = 0; iparity < 2; iparity++ ) {
@@ -586,7 +614,7 @@ int main(int argc, char **argv) {
             data[iconf][it] = 0.;
 
             for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
-              data[iconf][it] += *(((double*)( corr[iparity][iconf][isrc]+it )) + ireim );
+              data[iconf][it] += *(((double*)( corr[i_2pt][iparity][iconf][isrc]+it )) + ireim );
             }
 
             data[iconf][it] /= (double)num_src_per_conf;
@@ -595,26 +623,7 @@ int main(int argc, char **argv) {
 
         char obs_name[500];
         
-        if ( strcmp ( tp->type, "b-b" ) == 0 ) {
-          sprintf ( obs_name,  "%s.Gi_%s_%s.Gf_%s_%s.px%dpy%dpz%d.parity%d.%s", tp->name,
-              gamma_id_to_Cg_ascii[tp->gi1[0]],
-              gamma_id_to_ascii[tp->gi1[1]],
-              gamma_id_to_Cg_ascii[tp->gf1[0]],
-              gamma_id_to_ascii[tp->gf1[1]],
-              tp->pf1[0], tp->pf1[1], tp->pf1[2], -2*iparity+1, reim_str[ireim] );
-
-        } else if ( strcmp( tp->type , "b-qq-b" ) == 0 ) {
-
-          sprintf ( obs_name,  "%s.Gi_%s_%s.Gc_%s.Gf_%s_%s.qx%dqy%dqz%d.px%dpy%dpz%d.parity%d.%s", tp->name,
-              gamma_id_to_Cg_ascii[tp->gi1[0]],
-              gamma_id_to_ascii[tp->gi1[1]],
-              gamma_id_to_ascii[tp->gf2],
-              gamma_id_to_Cg_ascii[tp->gf1[0]],
-              gamma_id_to_ascii[tp->gf1[1]],
-              tp->pf2[0], tp->pf2[1], tp->pf2[2],
-              tp->pf1[0], tp->pf1[1], tp->pf1[2], 
-              -2*iparity+1, reim_str[ireim] );
-        }
+        sprintf ( obs_name,  "%s.parity%d.%s", correlator_name, -2*iparity+1, reim_str[ireim] );
 
         exitstatus = apply_uwerr_real ( data[0], num_conf, tp->T, 0, 1, obs_name );
         if ( exitstatus != 0  ) {
@@ -622,7 +631,24 @@ int main(int argc, char **argv) {
           EXIT(16);
         }
 
+
+        for ( int itau = 1; itau < tp->T/2; itau++ ) {
+
+          sprintf ( obs_name,  "%s.parity%d.%s.log_ratio.tau%d", correlator_name, -2*iparity+1, reim_str[ireim], itau );
+
+          int arg_first[2]  = {0, itau};
+          int arg_stride[2] = {1,1};
+      
+          exitstatus = apply_uwerr_func ( data[0], num_conf, tp->T, tp->T/2-itau, 2, arg_first, arg_stride, obs_name, log_ratio_1_1, dlog_ratio_1_1 );
+          if ( exitstatus != 0  ) {
+            fprintf ( stderr, "[NN_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(16);
+          }
+
+        }
+
         fini_2level_dtable ( &data );
+
       }  /* end of loop on reim */
     }  /* end of loop on parity */
 
@@ -630,15 +656,77 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * free the correlator field
      ***************************************************************************/
-    fini_4level_ztable ( &corr );
 
     twopoint_function_fini ( tp );
 
   }  /* end of loop on 2-point functions */
 
+
+  /***************************************************************************
+   * UWerr analyse ratio sub
+   ***************************************************************************/
+  twopoint_function_type * tp1 = &(g_twopoint_function_list[0]);
+  twopoint_function_type * tp2 = &(g_twopoint_function_list[1]);
+
+  char correlator_name[500];
+  make_correlator_string ( correlator_name , tp2, NULL );
+
+  for ( int iparity = 0; iparity < 1; iparity++ ) {
+    for ( int ireim = 0; ireim < 1; ireim++ ) {
+
+      int const nt = tp1->T / 2 + 1;
+
+      double ** data = init_2level_dtable ( num_conf, 2 * nt );
+      if ( data == NULL ) {
+        fprintf ( stderr, "[NN_analyse] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+        EXIT(16);
+      }
+
+        /* block data over sources */
+#pragma omp parallel for
+        for( int iconf = 0; iconf < num_conf; iconf++ ) {
+ 
+          for ( int it = 0; it < nt; it++ ) {
+
+            data[iconf][it] = 0.;
+
+            for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
+              data[iconf][it   ] += *(((double*)( corr[0][iparity][iconf][isrc]+it )) + ireim );
+              data[iconf][it+nt] += *(((double*)( corr[1][iparity][iconf][isrc]+it )) + ireim );
+            }
+
+            data[iconf][it   ] /= (double)num_src_per_conf;
+            data[iconf][it+nt] /= (double)num_src_per_conf;
+          }
+        }
+
+        char obs_name[500];
+        
+        for ( int itau = 1; itau < nt; itau++ ) {
+
+          sprintf ( obs_name,  "%s.parity%d.%s.fht_ratio.tau%d", correlator_name, -2*iparity+1, reim_str[ireim], itau );
+
+          int arg_first[4]  = {nt, 0, nt+itau, itau };
+          int arg_stride[4] = {1, 1, 1, 1};
+      
+          exitstatus = apply_uwerr_func ( data[0], num_conf, 2*nt, nt-itau, 4, arg_first, arg_stride, obs_name, ratio_1_1_sub, dratio_1_1_sub );
+          if ( exitstatus != 0  ) {
+            fprintf ( stderr, "[NN_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(16);
+          }
+
+        }
+
+        fini_2level_dtable ( &data );
+
+      }  /* end of loop on reim */
+    }  /* end of loop on parity */
+
+
   /***************************************************************************
    * free the allocated memory, finalize
    ***************************************************************************/
+  fini_5level_ztable ( &corr );
   fini_1level_itable ( &(conf_src_list.conf) );
   fini_3level_itable ( &(conf_src_list.src) );
   fini_1level_ctable ( &(conf_src_list.stream) );
