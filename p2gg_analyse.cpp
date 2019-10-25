@@ -515,6 +515,9 @@ int main(int argc, char **argv) {
 
                   gettimeofday ( &ta, (struct timezone *)NULL );
 
+                  int const flavor_sign1 = ( 1 - iflavor ) * flavor_id - iflavor * flavor_id;
+                  int const flavor_sign2 = -flavor_sign1;
+
                   double * buffer2 = init_1level_dtable( 2 * T );
                   if( buffer2 == NULL ) {
                     fprintf(stderr, "[p2gg_analyse] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
@@ -531,15 +534,15 @@ int main(int argc, char **argv) {
                      **********************************************************/
                     sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d-%d_%d/gf%.2d/gi%.2d/px%dpy%dpz%d", pgg_operator_type_tag[operator_type],
                         gsx[0], gsx[1], gsx[2], gsx[3],
-                        flavor_id * seq_source_momentum[0],
-                        flavor_id * seq_source_momentum[1],
-                        flavor_id * seq_source_momentum[2],
+                        flavor_sign1 * seq_source_momentum[0],
+                        flavor_sign1 * seq_source_momentum[1],
+                        flavor_sign1 * seq_source_momentum[2],
                         sequential_source_gamma_id, sequential_source_timeslice,
                         1-iflavor, iflavor, 1-iflavor,
                         gamma_v_list[mu], gamma_a_list[nu],
-                        flavor_id * sink_momentum[0],
-                        flavor_id * sink_momentum[1],
-                        flavor_id * sink_momentum[2] );
+                        flavor_sign1 * sink_momentum[0],
+                        flavor_sign1 * sink_momentum[1],
+                        flavor_sign1 * sink_momentum[2] );
       
                     affdir = aff_reader_chpath (affr, affn, key );
                     if ( affdir == NULL ) {
@@ -561,15 +564,15 @@ int main(int argc, char **argv) {
                      **********************************************************/
                     sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d-%d_%d/gf%.2d/gi%.2d/px%dpy%dpz%d", pgg_operator_type_tag[operator_type],
                         gsx[0], gsx[1], gsx[2], gsx[3],
-                        flavor_id * seq_source_momentum[0],
-                        flavor_id * seq_source_momentum[1],
-                        flavor_id * seq_source_momentum[2],
+                        flavor_sign1 * seq_source_momentum[0],
+                        flavor_sign1 * seq_source_momentum[1],
+                        flavor_sign1 * seq_source_momentum[2],
                         sequential_source_gamma_id, sequential_source_timeslice,
                         1-iflavor, iflavor, iflavor,
                         gamma_a_list[mu], gamma_v_list[nu],
-                        flavor_id * sink_momentum[0],
-                        flavor_id * sink_momentum[1],
-                        flavor_id * sink_momentum[2] );
+                        flavor_sign1 * sink_momentum[0],
+                        flavor_sign1 * sink_momentum[1],
+                        flavor_sign1 * sink_momentum[2] );
       
                     affdir = aff_reader_chpath (affr, affn, key );
                     if ( affdir == NULL ) {
@@ -595,15 +598,15 @@ int main(int argc, char **argv) {
                      **********************************************************/
                     sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d-%d_%d/gf%.2d/gi%.2d/px%dpy%dpz%d", pgg_operator_type_tag[operator_type],
                         gsx[0], gsx[1], gsx[2], gsx[3],
-                        -flavor_id * seq_source_momentum[0],
-                        -flavor_id * seq_source_momentum[1],
-                        -flavor_id * seq_source_momentum[2],
+                        flavor_sign2 * seq_source_momentum[0],
+                        flavor_sign2 * seq_source_momentum[1],
+                        flavor_sign2 * seq_source_momentum[2],
                         sequential_source_gamma_id, sequential_source_timeslice,
                         iflavor, 1-iflavor, iflavor,
                         gamma_v_list[mu], gamma_a_list[nu],
-                        -flavor_id * sink_momentum[0],
-                        -flavor_id * sink_momentum[1],
-                        -flavor_id * sink_momentum[2] );
+                        flavor_sign2 * sink_momentum[0],
+                        flavor_sign2 * sink_momentum[1],
+                        flavor_sign2 * sink_momentum[2] );
       
                     affdir = aff_reader_chpath (affr, affn, key );
                     if ( affdir == NULL ) {
@@ -629,15 +632,15 @@ int main(int argc, char **argv) {
                      **********************************************************/
                     sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d-%d_%d/gf%.2d/gi%.2d/px%dpy%dpz%d", pgg_operator_type_tag[operator_type],
                         gsx[0], gsx[1], gsx[2], gsx[3],
-                        -flavor_id * seq_source_momentum[0],
-                        -flavor_id * seq_source_momentum[1],
-                        -flavor_id * seq_source_momentum[2],
+                        flavor_sign2 * seq_source_momentum[0],
+                        flavor_sign2 * seq_source_momentum[1],
+                        flavor_sign2 * seq_source_momentum[2],
                         sequential_source_gamma_id, sequential_source_timeslice,
                         iflavor, 1-iflavor, 1-iflavor,
                         gamma_a_list[mu], gamma_v_list[nu],
-                        -flavor_id * sink_momentum[0],
-                        -flavor_id * sink_momentum[1],
-                        -flavor_id * sink_momentum[2] );
+                        flavor_sign2 * sink_momentum[0],
+                        flavor_sign2 * sink_momentum[1],
+                        flavor_sign2 * sink_momentum[2] );
       
                     affdir = aff_reader_chpath (affr, affn, key );
                     if ( affdir == NULL ) {

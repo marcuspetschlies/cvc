@@ -80,7 +80,7 @@ void usage() {
 
 int main(int argc, char **argv) {
 
-  const char outfile_prefix[] = "p2gg";
+  /* const char outfile_prefix[] = "p2gg"; */
 
   int c;
   int filename_set = 0;
@@ -290,6 +290,12 @@ int main(int argc, char **argv) {
     EXIT(123);
   }
   
+  /***********************************************************
+   * set output file prefix
+   ***********************************************************/
+  char outfile_prefix[200];
+  strcpy ( outfile_prefix, g_outfile_prefix );
+
   /***********************************************************
    ***********************************************************
    **
