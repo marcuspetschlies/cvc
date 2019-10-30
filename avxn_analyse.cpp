@@ -78,6 +78,7 @@ int main(int argc, char **argv) {
   int loop_num_evecs = 0;
   int loop_nstoch = 0;
   int loop_use_es = 0;
+  int write_data = 0;
 
   char loop_type[10] = "LpsDw";
 
@@ -85,7 +86,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:N:S:F:R:r:E:v:n:u:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:N:S:F:R:r:E:v:n:u:w:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -126,6 +127,10 @@ int main(int argc, char **argv) {
     case 'u':
       loop_use_es = atoi ( optarg );
       fprintf ( stdout, "# [avxn_analyse] loop_use_es set to %d\n", loop_use_es );
+      break;
+    case 'w':
+      write_data = atoi ( optarg );
+      fprintf ( stdout, "# [avxn_analyse] write_date set to %d\n", write_data );
       break;
     case 'h':
     case '?':
@@ -201,7 +206,7 @@ int main(int argc, char **argv) {
     EXIT(15);
   }
 
-  int *** conf_src_list = init_3level_itable ( num_conf, num_src_per_conf, 5 );
+  int *** conf_src_list = init_3level_itable ( num_conf, num_src_per_conf, 6 );
   if ( conf_src_list == NULL ) {
     fprintf(stderr, "[avxn_analyse] Error from init_3level_itable %s %d\n", __FILE__, __LINE__);
     EXIT(16);
@@ -213,13 +218,17 @@ int main(int argc, char **argv) {
       fprintf( stdout, "# [avxn_analyse] comment %s\n", line );
       continue;
     }
+    int itmp[5];
+    char ctmp;
 
-    sscanf( line, "%d %d %d %d %d", 
-        conf_src_list[count/num_src_per_conf][count%num_src_per_conf],
-        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+1,
-        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+2,
-        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+3,
-        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+4 );
+    sscanf( line, "%c %d %d %d %d %d", &ctmp, itmp, itmp+1, itmp+2, itmp+3, itmp+4 );
+
+    conf_src_list[count/num_src_per_conf][count%num_src_per_conf][0] = (int)ctmp;
+    conf_src_list[count/num_src_per_conf][count%num_src_per_conf][1] = itmp[0];
+    conf_src_list[count/num_src_per_conf][count%num_src_per_conf][2] = itmp[1];
+    conf_src_list[count/num_src_per_conf][count%num_src_per_conf][3] = itmp[2];
+    conf_src_list[count/num_src_per_conf][count%num_src_per_conf][4] = itmp[3];
+    conf_src_list[count/num_src_per_conf][count%num_src_per_conf][5] = itmp[4];
 
     count++;
   }
@@ -230,13 +239,13 @@ int main(int argc, char **argv) {
   if ( g_verbose > 4 ) {
     for ( int iconf = 0; iconf < num_conf; iconf++ ) {
       for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-        fprintf ( stdout, "conf_src_list %6d %3d %3d %3d %3d\n", 
+        fprintf ( stdout, "conf_src_list %c %6d %3d %3d %3d %3d\n", 
             conf_src_list[iconf][isrc][0],
             conf_src_list[iconf][isrc][1],
             conf_src_list[iconf][isrc][2],
             conf_src_list[iconf][isrc][3],
-            conf_src_list[iconf][isrc][4] );
-
+            conf_src_list[iconf][isrc][4],
+            conf_src_list[iconf][isrc][5] );
       }
     }
   }
@@ -287,11 +296,12 @@ int main(int argc, char **argv) {
         g_sink_momentum_list[isink_momentum][2] };
   
     for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-      Nconf = conf_src_list[iconf][0][0];
+      Nconf = conf_src_list[iconf][0][1];
      
       for( int imeson = 0; imeson < 2; imeson++ ) {
 
-        sprintf( filename, "%s/twop.%.4d.pseudoscalar.%d.PX%d_PY%d_PZ%d", filename_prefix, Nconf, imeson+1,
+        sprintf( filename, "%s/stream_%c/twop.%.4d.pseudoscalar.%d.PX%d_PY%d_PZ%d",
+            filename_prefix, conf_src_list[iconf][0][0]  Nconf, imeson+1,
             ( 1 - 2 * imeson) * g_sink_momentum_list[isink_momentum][0],
             ( 1 - 2 * imeson) * g_sink_momentum_list[isink_momentum][1],
             ( 1 - 2 * imeson) * g_sink_momentum_list[isink_momentum][2] );
@@ -358,9 +368,9 @@ int main(int argc, char **argv) {
         double const source_phase = 0.;
 
         /* double const source_phase = -2. * M_PI * ( 
-            g_sink_momentum_list[imom][0] * conf_src_list[iconf][isrc][2] / (double)LX_global + 
-            g_sink_momentum_list[imom][1] * conf_src_list[iconf][isrc][3] / (double)LY_global + 
-            g_sink_momentum_list[imom][2] * conf_src_list[iconf][isrc][4] / (double)LZ_global ); */
+            g_sink_momentum_list[imom][0] * conf_src_list[iconf][isrc][3] / (double)LX_global + 
+            g_sink_momentum_list[imom][1] * conf_src_list[iconf][isrc][4] / (double)LY_global + 
+            g_sink_momentum_list[imom][2] * conf_src_list[iconf][isrc][5] / (double)LZ_global ); */
 
         /* double const ephase[2] = { cos ( source_phase ), sin ( source_phase ) }; */
 
@@ -498,7 +508,7 @@ int main(int argc, char **argv) {
   
           double _Complex *** zloop_buffer = init_3level_ztable ( T_global, 4, 4 );
   
-          sprintf ( filename, "%s/loop.%.4d.stoch.%s.nev%d.Nstoch%d.mu%d.PX%d_PY%d_PZ%d", filename_prefix2, conf_src_list[iconf][0][0],
+          sprintf ( filename, "%s/loop.%.4d.stoch.%s.nev%d.Nstoch%d.mu%d.PX%d_PY%d_PZ%d", filename_prefix2, conf_src_list[iconf][0][1],
               loop_type,
               loop_num_evecs,
               loop_nstoch,
@@ -563,7 +573,7 @@ int main(int argc, char **argv) {
   
           double _Complex *** zloop_buffer = init_3level_ztable ( T_global, 4, 4 );
           
-          sprintf ( filename, "%s/loop.%.4d.exact.%s.nev%d.mu%d.PX%d_PY%d_PZ%d", filename_prefix2, conf_src_list[iconf][0][0],
+          sprintf ( filename, "%s/loop.%.4d.exact.%s.nev%d.mu%d.PX%d_PY%d_PZ%d", filename_prefix2, conf_src_list[iconf][0][1],
               loop_type,
               loop_num_evecs,
               idir,
@@ -769,9 +779,9 @@ int main(int argc, char **argv) {
     for ( int iconf = 0; iconf < num_conf; iconf++ ) {
       for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
 
-        int const tins = ( g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][1] ) % T_global;
+        int const tins = ( g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] ) % T_global;
 
-        if ( g_verbose > 4 ) fprintf ( stdout, "# [avxn_analyse] t_src %3d   dt %3d   t_ins %3d\n", conf_src_list[iconf][isrc][1],
+        if ( g_verbose > 4 ) fprintf ( stdout, "# [avxn_analyse] t_src %3d   dt %3d   t_ins %3d\n", conf_src_list[iconf][isrc][2],
             g_sequential_source_timeslice_list[idt], tins );
 
         for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
@@ -790,9 +800,9 @@ int main(int argc, char **argv) {
           /* double const source_phase = 0.; */
 
           /* double const source_phase = -2. * M_PI * (
-              g_sink_momentum_list[imom][0] * conf_src_list[iconf][isrc][2] / (double)LX_global +
-              g_sink_momentum_list[imom][1] * conf_src_list[iconf][isrc][3] / (double)LY_global +
-              g_sink_momentum_list[imom][2] * conf_src_list[iconf][isrc][4] / (double)LZ_global );
+              g_sink_momentum_list[imom][0] * conf_src_list[iconf][isrc][3] / (double)LX_global +
+              g_sink_momentum_list[imom][1] * conf_src_list[iconf][isrc][4] / (double)LY_global +
+              g_sink_momentum_list[imom][2] * conf_src_list[iconf][isrc][5] / (double)LZ_global );
               */
 
           /* double const ephase[2] = { cos ( source_phase ), sin ( source_phase ) }; */
@@ -1128,10 +1138,10 @@ int main(int argc, char **argv) {
       for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
 
         /* sink time = source time + dt  */
-        int const tsink  = (  g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][1] + T_global ) % T_global;
-        int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][1] + T_global ) % T_global;
+        int const tsink  = (  g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
+        int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
 
-        if ( g_verbose > 4 ) fprintf ( stdout, "# [avxn_analyse] t_src %3d   dt %3d   tsink %3d\n", conf_src_list[iconf][isrc][1],
+        if ( g_verbose > 4 ) fprintf ( stdout, "# [avxn_analyse] t_src %3d   dt %3d   tsink %3d\n", conf_src_list[iconf][isrc][2],
             g_sequential_source_timeslice_list[idt], tsink );
 
         for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
@@ -1150,9 +1160,9 @@ int main(int argc, char **argv) {
           /* double const source_phase = 0.; */
 
           /* double const source_phase = -2. * M_PI * (
-              g_sink_momentum_list[imom][0] * conf_src_list[iconf][isrc][2] / (double)LX_global +
-              g_sink_momentum_list[imom][1] * conf_src_list[iconf][isrc][3] / (double)LY_global +
-              g_sink_momentum_list[imom][2] * conf_src_list[iconf][isrc][4] / (double)LZ_global );
+              g_sink_momentum_list[imom][0] * conf_src_list[iconf][isrc][3] / (double)LX_global +
+              g_sink_momentum_list[imom][1] * conf_src_list[iconf][isrc][4] / (double)LY_global +
+              g_sink_momentum_list[imom][2] * conf_src_list[iconf][isrc][5] / (double)LZ_global );
               */
 
           /* double const ephase[2] = { cos ( source_phase ), sin ( source_phase ) }; */
@@ -1187,19 +1197,19 @@ int main(int argc, char **argv) {
           for ( int it = 0; it < T_global; it++ ) {
 
             /* fwd 1 insertion time = source time      + it */
-            int const tins_fwd_1 = (  it + conf_src_list[iconf][isrc][1]                                           + T_global ) % T_global;
+            int const tins_fwd_1 = (  it + conf_src_list[iconf][isrc][2]                                           + T_global ) % T_global;
 
             /* fwd 2 insertion time = source time + dt - it */
-            int const tins_fwd_2 = ( -it + conf_src_list[iconf][isrc][1] + g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
+            int const tins_fwd_2 = ( -it + conf_src_list[iconf][isrc][2] + g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
 
             /* bwd 1 insertion time = source time      - it */
-            int const tins_bwd_1 = ( -it + conf_src_list[iconf][isrc][1]                                           + T_global ) % T_global;
+            int const tins_bwd_1 = ( -it + conf_src_list[iconf][isrc][2]                                           + T_global ) % T_global;
 
             /* bwd 2 insertion time = source time - dt + it */
-            int const tins_bwd_2 = (  it + conf_src_list[iconf][isrc][1] - g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
+            int const tins_bwd_2 = (  it + conf_src_list[iconf][isrc][2] - g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
 
             if ( g_verbose > 2 ) fprintf ( stdout, "# [avxn_average] insertion times tsrc %3d dt %2d  tins %3d %3d %3d %3d\n",
-                conf_src_list[iconf][isrc][1], g_sequential_source_timeslice_list[idt],
+                conf_src_list[iconf][isrc][2], g_sequential_source_timeslice_list[idt],
                 tins_fwd_1, tins_fwd_2, tins_bwd_1, tins_bwd_2 );
 
             /**********************************************************
@@ -1408,8 +1418,8 @@ int main(int argc, char **argv) {
         for ( int it = 0; it < nT; it++ ) {
           data[iconf][isrc][it] = threep_44[iconf][isrc][it][ireim];
         }
-        int const tsink  = (  g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][1] + T_global ) % T_global;
-        int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][1] + T_global ) % T_global;
+        int const tsink  = (  g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
+        int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
         data[iconf][isrc][nT] = 0.5 * ( twop_orbit[iconf][isrc][tsink][ireim] + twop_orbit[iconf][isrc][tsink2][ireim] );
       }}
 
@@ -1435,8 +1445,8 @@ int main(int argc, char **argv) {
         for ( int it = 0; it < nT; it++ ) {
           data[iconf][isrc][it] = threep_4k[iconf][isrc][it][ireim];
         }
-        int const tsink  = (  g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][1] + T_global ) % T_global;
-        int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][1] + T_global ) % T_global;
+        int const tsink  = (  g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
+        int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
         data[iconf][isrc][nT] = 0.5 * ( twop_orbit[iconf][isrc][tsink][ireim] + twop_orbit[iconf][isrc][tsink2][ireim] );
       }}
 
@@ -1462,8 +1472,8 @@ int main(int argc, char **argv) {
         for ( int it = 0; it < nT; it++ ) {
           data[iconf][isrc][it] = threep_ik[iconf][isrc][it][ireim];
         }
-        int const tsink  = (  g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][1] + T_global ) % T_global;
-        int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][1] + T_global ) % T_global;
+        int const tsink  = (  g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
+        int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
         data[iconf][isrc][nT] = 0.5 * ( twop_orbit[iconf][isrc][tsink][ireim] + twop_orbit[iconf][isrc][tsink2][ireim] );
       }}
 
@@ -1803,16 +1813,16 @@ int main(int argc, char **argv) {
         }
         for ( int ia = 0; ia < 4; ia++ ) {
         for ( int ib = 0; ib < 4; ib++ ) {
-          loop_accum_fwd[ia][ib][0][0] = loop_sub[0][iconf][ia][ib][conf_src_list[iconf][isrc][1]][0];
-          loop_accum_fwd[ia][ib][0][1] = loop_sub[0][iconf][ia][ib][conf_src_list[iconf][isrc][1]][1];
+          loop_accum_fwd[ia][ib][0][0] = loop_sub[0][iconf][ia][ib][conf_src_list[iconf][isrc][2]][0];
+          loop_accum_fwd[ia][ib][0][1] = loop_sub[0][iconf][ia][ib][conf_src_list[iconf][isrc][2]][1];
 
           for ( int it = 1; it < Thp1; it++ ) {
             /* fwd case */
-            int const ifwd = ( conf_src_list[iconf][isrc][1] + it + T_global ) % T_global;
+            int const ifwd = ( conf_src_list[iconf][isrc][2] + it + T_global ) % T_global;
             loop_accum_fwd[ia][ib][it][0] = loop_accum_fwd[ia][ib][it-1][0] + loop_sub[0][iconf][ia][ib][ifwd][0];
             loop_accum_fwd[ia][ib][it][1] = loop_accum_fwd[ia][ib][it-1][1] + loop_sub[0][iconf][ia][ib][ifwd][1];
             /* bwd case */
-            int const ibwd = ( conf_src_list[iconf][isrc][1] - it + T_global ) % T_global;
+            int const ibwd = ( conf_src_list[iconf][isrc][2] - it + T_global ) % T_global;
             loop_accum_bwd[ia][ib][it][0] = loop_accum_bwd[ia][ib][it-1][0] + loop_sub[0][iconf][ia][ib][ibwd][0];
             loop_accum_bwd[ia][ib][it][1] = loop_accum_bwd[ia][ib][it-1][1] + loop_sub[0][iconf][ia][ib][ibwd][1];
           }
