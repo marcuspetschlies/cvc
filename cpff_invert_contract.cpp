@@ -90,7 +90,7 @@ int main(int argc, char **argv) {
   char filename[100];
   // double ratime, retime;
   double **mzz[2] = { NULL, NULL }, **mzzinv[2] = { NULL, NULL };
-  double *gauge_field_with_phase = NULL;
+  double *gauge_field_with_phase = NULL, *gauge_field_smeared = NULL;
   int op_id_up = -1, op_id_dn = -1;
   char output_filename[400];
   int * rng_state = NULL;
@@ -265,6 +265,27 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[cpff_invert_contract] Error from init_clover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
     EXIT(1);
   }
+
+  /***********************************************
+   * if we want to use Jacobi smearing, we need
+   * smeared gauge field
+   ***********************************************/
+  if( N_Jacobi > 0 ) {
+
+    alloc_gauge_field ( &gauge_field_smeared, VOLUMEPLUSRAND);
+
+    memcpy ( gauge_field_smeared, g_gauge_field, 72*VOLUME*sizeof(double));
+
+    if ( N_ape > 0 ) {
+      exitstatus = APE_Smearing(gauge_field_smeared, alpha_ape, N_ape);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[cpff_invert_contract] Error from APE_Smearing, status was %d\n", exitstatus);
+        EXIT(47);
+      }
+    }  /* end of if N_aoe > 0 */
+  }  /* end of if N_Jacobi > 0 */
+
+
 
   /***************************************************************************
    * set io process
@@ -474,7 +495,19 @@ int main(int argc, char **argv) {
        *   propagator
        ***************************************************************************/
       for( int i = 0; i < spin_color_dilution; i++) {
+
         memcpy ( spinor_work[0], stochastic_source_list[i], sizeof_spinor_field );
+
+        if ( N_Jacobi > 0 ) {
+          /***************************************************************************
+           * source-smearing
+           ***************************************************************************/
+          exitstatus = Jacobi_Smearing ( gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
+          if(exitstatus != 0) {
+            fprintf(stderr, "[cpff_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            return(11);
+          }
+        }
 
         memset ( spinor_work[1], 0, sizeof_spinor_field );
 
@@ -539,6 +572,17 @@ int main(int argc, char **argv) {
         for( int i = 0; i < spin_color_dilution; i++) {
           memcpy ( spinor_work[0], stochastic_source_list[i], sizeof_spinor_field );
 
+          if ( N_Jacobi > 0 ) {
+            /***************************************************************************
+             * source-smearing
+             ***************************************************************************/
+            exitstatus = Jacobi_Smearing ( gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
+            if(exitstatus != 0) {
+              fprintf(stderr, "[cpff_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+              return(11);
+            }
+          }
+          
           memset ( spinor_work[1], 0, sizeof_spinor_field );
 
 
