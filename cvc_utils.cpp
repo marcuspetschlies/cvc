@@ -3739,6 +3739,8 @@ void contract_twopoint_xdep(void*contr, const int idsource, const int idsink, vo
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */
 #endif
+  free ( psource );
+  free ( ssource );
 }  /* end of contract_twopoint_xdep */
 
 
