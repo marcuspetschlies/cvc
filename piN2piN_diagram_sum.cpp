@@ -43,20 +43,16 @@ extern "C"
 #include "mpi_init.h"
 #include "io.h"
 #include "read_input_parser.h"
-#include "matrix_init.h"
+#include "contractions_io.h"
+#include "table_init_i.h"
 #include "table_init_z.h"
 #include "table_init_2pt.h"
 #include "contract_diagrams.h"
-#include "aff_key_conversion.h"
 #include "zm4x4.h"
 #include "gamma.h"
 #include "twopoint_function_utils.h"
 #include "rotations.h"
 #include "group_projection.h"
-#include "little_group_projector_set.h"
-
-#define MAX_UDLI_NUM 10000
-
 
 using namespace cvc;
 
@@ -107,22 +103,15 @@ int main(int argc, char **argv) {
 #endif
 
 
-  char const diagram_name_list[5][20] = { "N-N", "D-D", "pixN-D", "pixN-pixN", "m-m" };
-  int const diagram_name_number = 5;
+  char const twopt_name_list[5][20] = { "N-N", "D-D", "pixN-D", "pixN-pixN", "pi-pi" };
+  int const twopt_name_number = 5;
 
 
   int c;
   int filename_set = 0;
   int exitstatus;
-  int check_reference_rotation = 0;
   char filename[200];
-  double ratime, retime;
   FILE *ofs = NULL;
-
-  int udli_count = 0;
-  char udli_list[MAX_UDLI_NUM][500];
-  char udli_name[500];
-  twopoint_function_type *udli_ptr[MAX_UDLI_NUM];
 
   struct timeval ta, tb;
   struct timeval start_time, end_time;
@@ -137,15 +126,11 @@ int main(int argc, char **argv) {
   /***********************************************************
    * evaluate command line arguments
    ***********************************************************/
-  while ((c = getopt(argc, argv, "ch?f:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
       filename_set=1;
-      break;
-    case 'c':
-      check_reference_rotation = 1;
-      fprintf ( stdout, "# [piN2piN_diagram_sum] check_reference_rotation set to %d\n", check_reference_rotation );
       break;
     case 'h':
     case '?':
@@ -195,6 +180,11 @@ int main(int argc, char **argv) {
   }
   geometry();
 
+  /****************************************************
+   * set cubic group single/double cover
+   * rotation tables
+   ****************************************************/
+  rot_init_rotation_table();
 
   /***********************************************************
    * set io process
@@ -212,6 +202,38 @@ int main(int argc, char **argv) {
   }
 
   /******************************************************
+   * total number of source locations, 
+   * base x coherent
+   *
+   * fill a list of all source coordinates
+   ******************************************************/
+  int const source_location_number = g_source_location_number * g_coherent_source_number;
+  int ** source_coords_list = init_2level_itable ( source_location_number, 4 );
+  if( source_coords_list == NULL ) {
+    fprintf ( stderr, "[] Error from init_2level_itable %s %d\n", __FILE__, __LINE__ );
+    EXIT( 43 );
+  }
+  for ( int ib = 0; ib < g_source_location_number; ib++ ) {
+    g_source_coords_list[ib][0] = ( g_source_coords_list[ib][0] +  T_global ) %  T_global;
+    g_source_coords_list[ib][1] = ( g_source_coords_list[ib][1] + LX_global ) % LX_global;
+    g_source_coords_list[ib][2] = ( g_source_coords_list[ib][2] + LY_global ) % LY_global;
+    g_source_coords_list[ib][3] = ( g_source_coords_list[ib][3] + LZ_global ) % LZ_global;
+
+    int const t_base = g_source_coords_list[ib][0];
+    
+    for ( int ic = 0; ic < g_coherent_source_number; ic++ ) {
+      int const ibc = ib * g_coherent_source_number + ic;
+
+      int const t_coherent = ( t_base + ( T_global / g_coherent_source_number ) * ic ) % T_global;
+      source_coords_list[ibc][0] = t_coherent;
+      source_coords_list[ibc][1] = ( g_source_coords_list[ib][1] + (LX_global/2) * ic ) % LX_global;
+      source_coords_list[ibc][2] = ( g_source_coords_list[ib][2] + (LY_global/2) * ic ) % LY_global;
+      source_coords_list[ibc][3] = ( g_source_coords_list[ib][3] + (LZ_global/2) * ic ) % LZ_global;
+    }
+  }
+
+
+  /******************************************************
    * loop on reference moving frames
    ******************************************************/
   for ( int ipref = 0; ipref < g_total_momentum_number; ipref++ ) {
@@ -219,20 +241,108 @@ int main(int argc, char **argv) {
     /******************************************************
      * loop diagram names
      ******************************************************/
-    for ( int iname = 0; iname < diagram_name_number; iname++ ) {
+    for ( int iname = 0; iname < twopt_name_number; iname++ ) {
+
+      gettimeofday ( &ta, (struct timezone *)NULL );
 
       /******************************************************
+       * AFF readers
+       *
        * open AFF files for name and pref
        * we know which here
+       * 12 is some upper limit
+       ******************************************************/
+      struct AffReader_s *** affr = NULL;
+      int affr_diag_tag_num = 0;
+      char affr_diag_tag_list[12];
+
+      if (        strcmp( twopt_name_list[iname], "N-N"       ) == 0 )  {
+        affr_diag_tag_num = 1;
+        affr_diag_tag_list[0] = 'n';
+      } else if ( strcmp( twopt_name_list[iname], "D-D"       ) == 0 )  {
+        affr_diag_tag_num = 1;
+        affr_diag_tag_list[0] = 'd';
+      } else if ( strcmp( twopt_name_list[iname], "pixN-D"    ) == 0 )  {
+        affr_diag_tag_num = 1;
+        affr_diag_tag_list[0] = 't';
+      } else if ( strcmp( twopt_name_list[iname], "pixN-pixN" ) == 0 )  {
+        affr_diag_tag_num = 4;
+        affr_diag_tag_list[0] = 'b';
+        affr_diag_tag_list[1] = 'w';
+        affr_diag_tag_list[2] = 'z';
+        affr_diag_tag_list[3] = 's';
+      } else if ( strcmp( twopt_name_list[iname], "pi-pi"     ) == 0 )  {
+        affr_diag_tag_num = 1;
+        affr_diag_tag_list[0] = 'm';
+      } else {
+        fprintf( stderr, "[piN2piN_diagram_sum] Error, unrecognized twopt name %s %s %d\n", twopt_name_list[iname], __FILE__, __LINE__ );
+        EXIT(123);
+      }
+
+      /* total number of readers */
+      int const affr_num = source_location_number * affr_diag_tag_num;
+      affr = (struct AffReader_s *** )malloc ( affr_diag_tag_num * sizeof ( struct AffReader_s ** )) ;
+      if ( affr == NULL ) {
+        fprintf( stderr, "[piN2piN_diagram_sum] Error from malloc %s %d\n", __FILE__, __LINE__ );
+        EXIT(124);
+      }
+      affr[0] = (struct AffReader_s ** )malloc ( affr_num * sizeof ( struct AffReader_s *)) ;
+      if ( affr[0] == NULL ) {
+        fprintf( stderr, "[piN2piN_diagram_sum] Error from malloc %s %d\n", __FILE__, __LINE__ );
+        EXIT(124);
+      }
+      for( int i = 1; i< affr_diag_tag_num; i++ ) {
+        affr[i] = affr[i-1] + source_location_number;
+      }
+      for ( int i = 0 ; i < affr_diag_tag_num; i++ ) {
+        for ( int k = 0; k < source_location_number; k++ ) {
+          sprintf ( filename, "%s.%c.PX%dPY%dPZ%d.%.4d.t%dx%dy%dz%d.aff", filename_prefix, affr_diag_tag_list[i],
+              g_total_momentum_list[ipref][0], g_total_momentum_list[ipref][1], g_total_momentum_list[ipref][2],
+              Nconf,
+              source_coords_list[k][0], source_coords_list[k][1], source_coords_list[k][2], source_coords_list[k][3] );
+
+          affr[i][k] = aff_reader ( filename );
+          if ( const char * aff_status_str =  aff_reader_errstr ( affr[i][k] ) ) {
+            fprintf(stderr, "[piN2piN_diagram_sum] Error from aff_reader for filename %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__);
+            EXIT(45);
+          } else {
+            if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagram_sum] opened data file %s for reading %s %d\n", filename, __FILE__, __LINE__);
+          }
+        }
+      }
+
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "piN2piN_diagram_sum", "open-reader-list", io_proc == 2 );
+
+      /******************************************************
+       * AFF writer
        ******************************************************/
 
+      gettimeofday ( &ta, (struct timezone *)NULL );
+
+      sprintf ( filename, "%s.PX%d_PY%d_PZ%d.aff", twopt_name_list[iname], 
+          g_total_momentum_list[ipref][0], g_total_momentum_list[ipref][1], g_total_momentum_list[ipref][2] );
+      
+      struct AffWriter_s * affw = aff_writer(filename);
+      if ( const char * aff_status_str = aff_writer_errstr ( affw ) ) {
+        fprintf(stderr, "[piN2piN_diagram_sum] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+        EXIT(48);
+      }
+
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "piN2piN_diagram_sum", "open-writer", io_proc == 2 );
+
+      /******************************************************/
+      /******************************************************/
 
       /******************************************************
        * loop on 2-point functions
        ******************************************************/
       for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
 
-        if ( strcmp ( g_twopoint_function_list[i2pt].name , diagram_name_list[iname] ) != 0 ) {
+        gettimeofday ( &ta, (struct timezone *)NULL );
+
+        if ( strcmp ( g_twopoint_function_list[i2pt].name , twopt_name_list[iname] ) != 0 ) {
           if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagram_sum] skip twopoint %6d %s %d\n", i2pt, __FILE__, __LINE__ );
           continue;
         }
@@ -240,7 +350,7 @@ int main(int argc, char **argv) {
         int ptot[3];
         if (   ( strcmp ( g_twopoint_function_list[i2pt].type , "b-b" ) == 0 ) 
             || ( strcmp ( g_twopoint_function_list[i2pt].type , "m-m" ) == 0 ) 
-            || ( strcmp ( g_twopoint_function_list[i2pt].type , "mxb-m" ) == 0 ) ) {
+            || ( strcmp ( g_twopoint_function_list[i2pt].type , "mxb-b" ) == 0 ) ) {
 
           ptot[0] = g_twopoint_function_list[i2pt].pf1[0];
           ptot[1] = g_twopoint_function_list[i2pt].pf1[1];
@@ -252,7 +362,7 @@ int main(int argc, char **argv) {
           ptot[2] = g_twopoint_function_list[i2pt].pf1[2] + g_twopoint_function_list[i2pt].pf2[2];
         }
 
-        int pref[3], &refframerot;
+        int pref[3], refframerot;
         exitstatus = get_reference_rotation ( pref, &refframerot, ptot );
         if ( exitstatus != 0 ) {
           fprintf ( stderr, "[piN2piN_diagram_sum] Error from get_reference_rotation, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -268,6 +378,9 @@ int main(int argc, char **argv) {
             if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagram_sum] skip twopoint %6d %s %d\n", i2pt, __FILE__, __LINE__ );
             continue;
         }
+
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "piN2piN_diagram_sum", "check-valid-twopt", io_proc == 2 );
 
         if ( g_verbose > 4 ) {
           gettimeofday ( &ta, (struct timezone *)NULL );
@@ -287,72 +400,109 @@ int main(int argc, char **argv) {
         }  /* end of if g_verbose */
 
         /******************************************************
-         * loop on source locations
+         * allocate tp_sum
          ******************************************************/
- 
-        for( int i_src = 0; i_src<g_source_location_number; i_src++) {
+        gettimeofday ( &ta, (struct timezone *)NULL );
 
-          int const t_base = g_source_coords_list[i_src][0];
+        twopoint_function_type tp_sum;
+        twopoint_function_type * tp = init_1level_2pttable ( source_location_number );
+
+        twopoint_function_init ( &tp_sum );
+        twopoint_function_copy ( &tp_sum, &( g_twopoint_function_list[i2pt]), 0 );
+          
+        if ( twopoint_function_allocate ( &tp_sum) == NULL ) {
+          fprintf ( stderr, "[piN2piN_diagram_sum] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
+          EXIT(131);
+        }
+
+        for ( int i = 0; i < source_location_number; i++ ) {
+          twopoint_function_init ( &(tp[i]) );
+          twopoint_function_copy ( &(tp[i]), &( g_twopoint_function_list[i2pt]), 0 );
+          if ( twopoint_function_allocate ( &(tp[i]) ) == NULL ) {
+            fprintf ( stderr, "[piN2piN_diagram_sum] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
+            EXIT(125);
+          }
+          memcpy ( tp[i].source_coords , source_coords_list[i], 4 * sizeof ( int ) );
+        }
+
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "piN2piN_diagram_sum", "init-copy-allocate-twopt", io_proc == 2 );
+
+        /******************************************************
+         * loop on diagram in twopt
+         ******************************************************/
+        for ( int idiag = 0; idiag < g_twopoint_function_list[i2pt].n ; idiag++ ) {
+
+          char diagram_name[10];
+          twopoint_function_get_diagram_name ( diagram_name, &tp_sum, idiag );
+
+          int const affr_diag_id = diagram_name_to_reader_id ( diagram_name );
+          if ( affr_diag_id == -1 ) {
+            fprintf ( stderr, "[piN2piN_diagram_sum] Error from diagram_name_to_reader_id %s %d\n", __FILE__, __LINE__ );
+            EXIT(127);
+          }
 
           /******************************************************
-           * loop on coherent source locations
+           * loop on source locations
            ******************************************************/
-          for( int i_coherent=0; i_coherent<g_coherent_source_number; i_coherent++) {
-          
-            int const t_coherent = ( t_base + ( T_global / g_coherent_source_number ) * i_coherent ) % T_global;
+ 
+          gettimeofday ( &ta, (struct timezone *)NULL );
 
-            int const gsx[4] = { t_coherent,
-                        ( g_source_coords_list[i_src][1] + (LX_global/2) * i_coherent ) % LX_global,
-                        ( g_source_coords_list[i_src][2] + (LY_global/2) * i_coherent ) % LY_global,
-                        ( g_source_coords_list[i_src][3] + (LZ_global/2) * i_coherent ) % LZ_global };
-
+          for( int isrc = 0; isrc < source_location_number; isrc++) {
 
             /******************************************************
-             * loop on diagram in twopt
+             * read the twopoint function diagram items
+             *
+             * get which aff reader from diagram name
              ******************************************************/
-            for ( int idiag 0; idiag < g_twopoint_function_list[i2pt].n ; idiag++ ) {
+            char key[500];
+            char key_suffix[400];
+            unsigned int const nc = tp_sum.d * tp_sum.d * tp_sum.T;
 
-              char diagram_name[10];
-              twopoint_function_get_diagram_name ( diagram_name, &(g_twopoint_function_list[i2pt]), idiag );
+            exitstatus = contract_diagram_key_suffix_from_type ( key_suffix, &(tp[isrc]) );
+            if ( exitstatus != 0 ) {
+              fprintf ( stderr, "[piN2piN_diagram_sum] Error from contract_diagram_key_suffix_from_type, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+              EXIT(1);
+            }
 
-              int const affr_id = diagram_name_to_reader_id ( diagram_name );
-              if ( affr_id == -1 ) {
-                fprintf ( stderr, "[piN2piN_diagram_sum] Error from diagram_name_to_reader_id %s %d\n", __FILE__, __LINE__ );
-                EXIT(127);
-              }
+            sprintf( key, "/%s/%s/%s/%s", tp[isrc].name, diagram_name, tp[isrc].fbwd, key_suffix );
+            if ( g_verbose > 3 ) fprintf ( stdout, "# [piN2piN_diagram_sum] key = %s %s %d\n", key, __FILE__, __LINE__ );
 
-              /******************************************************
-               * read the twopoint function diagram items
-               *
-               * get which aff reader from diagram name
-               ******************************************************/
-              char diagram_key[500];
-              int const nc = g_twopoint_function_list[i2pt].d * g_twopoint_function_list[i2pt].d;
+            exitstatus = read_aff_contraction ( tp[isrc].c[idiag][0][0], affr[affr_diag_id][isrc], NULL, key, nc );
+            if ( exitstatus != 0 ) {
+              fprintf ( stderr, "[piN2piN_diagram_sum] Error from read_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+              EXIT(129);
+            }
 
-              exitstatus = read_aff_contraction ( contr, affr[affr_id], NULL, diagram_key, nc );
-              if ( exitstatus != 0 ) {
-                fprintf ( stderr, "[piN2piN_diagram_sum] Error from read_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-                EXIT(129);
-              }
+          }  /* end of loop on source locations */
+        
+          gettimeofday ( &tb, (struct timezone *)NULL );
+          show_time ( &ta, &tb, "piN2piN_diagram_sum", "read-diagram-all-src", io_proc == 2 );
 
-            }  /* end of loop on diagrams */
-
-          }  /* end of loop on coherent source locations */
-
-        }  /* end of loop on base source locations */
+        }  /* end of loop on diagrams */
 
         /******************************************************
          * average over source locations
          ******************************************************/
+        for( int isrc = 0; isrc < source_location_number; isrc++) {
+
+          double const norm = 1. / (double)source_location_number;
+#pragma omp parallel for
+          for ( int i = 0; i < tp_sum.n * tp_sum.d * tp_sum.d * tp_sum.T; i++ ) {
+            tp_sum.c[0][0][0][i] += tp[isrc].c[0][0][0][i] * norm;
+          }
+        }
 
         /******************************************************
          * apply diagram norm
          ******************************************************/
         gettimeofday ( &ta, (struct timezone *)NULL );
-        if ( ( exitstatus = twopoint_function_apply_diagram_norm ( &tp ) ) != 0 ) {
+        
+        if ( ( exitstatus = twopoint_function_apply_diagram_norm ( &tp_sum ) ) != 0 ) {
           fprintf ( stderr, "[piN2piN_diagram_sum] Error from twopoint_function_apply_diagram_norm, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(213);
         }
+
         gettimeofday ( &tb, (struct timezone *)NULL );
         show_time ( &ta, &tb, "piN2piN_diagram_sum", "twopoint_function_apply_diagram_norm", io_proc == 2 );
 
@@ -361,21 +511,60 @@ int main(int argc, char **argv) {
          * add up diagrams
          ******************************************************/
         gettimeofday ( &ta, (struct timezone *)NULL );
-        if ( ( exitstatus = twopoint_function_accum_diagrams ( tp.c[0], &tp ) ) != 0 ) {
+
+        if ( ( exitstatus = twopoint_function_accum_diagrams ( tp_sum.c[0], &tp_sum ) ) != 0 ) {
           fprintf ( stderr, "[piN2piN_diagram_sum] Error from twopoint_function_accum_diagrams, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(216);
         }
+
         gettimeofday ( &tb, (struct timezone *)NULL );
         show_time ( &ta, &tb, "piN2piN_diagram_sum", "twopoint_function_accum_diagrams", io_proc == 2 );
 
         /******************************************************
          * write to h5 file
          ******************************************************/
-        exitstatus = twopoint_function_write_data ( &( tp_project_ptr[itp] ) );
+        gettimeofday ( &ta, (struct timezone *)NULL );
+        
+        char key[500], key_suffix[400];
+
+        /* key suffix */
+#if 0
+        exitstatus = contract_diagram_key_suffix ( key_suffix, tp_sum.gf2, tp_sum.pf2, tp_sum.gf1[0], tp_sum.gf1[1], tp_sum.pf1, tp_sum.gi2, tp_sum.pi2, tp_sum.gi1[0], tp_sum.gi1[1], tp_sum.pi1, NULL); */
         if ( exitstatus != 0 ) {
-          fprintf ( stderr, "[piN2piN_diagram_sum] Error from twopoint_function_write_data, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          fprintf ( stderr, "[piN2piN_diagram_sum] Error from contract_diagram_key_suffix, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(12);
         }
+#endif  /* of if 0 */
+
+        exitstatus = contract_diagram_key_suffix_from_type ( key_suffix, &tp_sum );
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[piN2piN_diagram_sum] Error from contract_diagram_key_suffix_from_type, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(12);
+        }
+
+
+        /* full key */
+        sprintf( key, "/%s/%s%s", tp_sum.name, tp_sum.fbwd, key_suffix );
+        if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagram_sum] key = %s %s %d\n", key, __FILE__, __LINE__ );
+
+        unsigned int const nc = tp_sum.d * tp_sum.d * tp_sum.T;
+        exitstatus = write_aff_contraction ( tp_sum.c[0][0][0], affw, NULL, key, nc);
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[piN2piN_diagram_sum] Error from write_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(12);
+        }
+        
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "piN2piN_diagram_sum", "write-key-to-file", io_proc == 2 );
+
+        /******************************************************
+         * deallocate tp_sum and tp list
+         ******************************************************/
+        for ( int i = 0; i < source_location_number; i++ ) {
+          twopoint_function_fini ( &( tp[i] ) );
+        }
+        fini_1level_2pttable ( &tp );
+        twopoint_function_fini ( &tp_sum );
 
       }  /* end of loop on 2-point functions */
 
@@ -383,66 +572,17 @@ int main(int argc, char **argv) {
        * close AFF readers
        ******************************************************/
       for ( int ir = 0; ir < affr_num; ir++ ) {
-        aff_reader_close ( affr[ir] );
-        affr[ir] = NULL;
+        aff_reader_close ( affr[0][ir] );
+      }
+
+      if ( const char * aff_status_str = aff_writer_close ( affw ) ) {
+        fprintf(stderr, "[piN2piN_diagram_sum] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+        EXIT(46);
       }
 
     }  /* end of loop on twopoint function names */
 
   }  /* end of loop on reference moving frames */
-
-        /******************************************************
-         * this is a temporary twopoint function struct to
-         * store one term in the projection sum
-         ******************************************************/
-        gettimeofday ( &ta, (struct timezone *)NULL );
-
-        twopoint_function_type tp;
-
-        twopoint_function_init ( &tp );
-
-        twopoint_function_copy ( &tp, &( g_twopoint_function_list[i2pt] ), 1 );
-
-        if ( twopoint_function_allocate ( &tp ) == NULL ) {
-          fprintf ( stderr, "[piN2piN_diagram_sum] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
-          EXIT(123);
-        }
-
-        gettimeofday ( &tb, (struct timezone *)NULL );
-        show_time ( &ta, &tb, "piN2piN_diagram_sum", "init-copy-allocate-tp", io_proc == 2 );
-
-        /******************************************************/
-        /******************************************************/
-
-
-            twopoint_function_init ( udli_ptr[udli_count] );
-
-            twopoint_function_copy ( udli_ptr[udli_count], &tp, 0 );
-
-            udli_ptr[udli_count]->n = 1;
-
-            strcpy ( udli_ptr[udli_count]->name, udli_name );
-
-            twopoint_function_allocate ( udli_ptr[udli_count] );
-
-
-
-
-
-
-        }  /* end of loop on n_tp_project */
-
-        gettimeofday ( &tb, (struct timezone *)NULL );
-        show_time ( &ta, &tb, "piN2piN_diagram_sum", "group-projection-norm-output", io_proc == 2 );
-
-        /******************************************************
-         * deallocate twopoint_function vars tp and tp_project
-         ******************************************************/
-        twopoint_function_fini ( &tp );
-        for ( int i = 0; i < n_tp_project; i++ ) {
-          twopoint_function_fini ( &(tp_project[0][0][0][i]) );
-        }
-
 
   /******************************************************/
   /******************************************************/
@@ -453,6 +593,7 @@ int main(int argc, char **argv) {
    * free the allocated memory, finalize
    ******************************************************/
   free_geometry();
+  fini_2level_itable ( &source_coords_list  );
 
 #ifdef HAVE_MPI
   MPI_Finalize();
