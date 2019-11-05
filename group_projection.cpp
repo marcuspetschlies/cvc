@@ -2854,7 +2854,7 @@ int get_reference_rotation ( int pref[3], int * Rref, int const p[3] ) {
 
   int const pzero[3] = {0,0,0};
 
-  int const momentum_ref[3][3] = { {0,0,1}, {1,1,0}, {1,1,1} };
+  int const momentum_ref[4][3] = { {0,0,1}, {1,1,0}, {1,1,1} , {0,0,2} };
 
   /*
   int const momentum_num[3] = { 6, 12, 8};
@@ -2876,7 +2876,8 @@ int get_reference_rotation ( int pref[3], int * Rref, int const p[3] ) {
   if ( _INT3_EQ_INT3(p, pzero) || 
        _INT3_EQ_INT3(p, momentum_ref[0]) || 
        _INT3_EQ_INT3(p, momentum_ref[1]) || 
-       _INT3_EQ_INT3(p, momentum_ref[2])  ) {
+       _INT3_EQ_INT3(p, momentum_ref[2]) || 
+       _INT3_EQ_INT3(p, momentum_ref[3])  ) {
 
     if ( g_verbose > 1 ) fprintf ( stdout, "# [get_reference_rotation] p is ref momentum, refframerot -1\n" );
     pref[0] = p[0];
@@ -2895,7 +2896,7 @@ int get_reference_rotation ( int pref[3], int * Rref, int const p[3] ) {
   /***********************************************************
    * loop on momentum classes
    ***********************************************************/
-  for ( int ic = 0; ic < 3 && !ref_found; ic++ ) 
+  for ( int ic = 0; ic < 4 && !ref_found; ic++ ) 
   {
 
     if ( comp_int3_abs ( p , momentum_ref[ic] ) ) {
