@@ -239,7 +239,7 @@ int main(int argc, char **argv) {
     }
      */
 
-#if 0
+
     /****************************************************
      * complete the interpolator momentum list
      * by using momentum conservation and 
@@ -258,6 +258,7 @@ int main(int argc, char **argv) {
       interpolator_momentum_list[1][2] = lg[ilg].d[2] - interpolator_momentum_list[0][2];
 
     }
+#if 0
 #endif  /* end of if 0 */
 
     /****************************************************
@@ -345,15 +346,10 @@ int main(int argc, char **argv) {
               interpolator_momentum_list[0][1] = g_sink_momentum_list[imom][1];
               interpolator_momentum_list[0][2] = g_sink_momentum_list[imom][2];
 
-              /* interpolator_momentum_list[1][0] = Ptot[0] - interpolator_momentum_list[0][0]; 
+              interpolator_momentum_list[1][0] = Ptot[0] - interpolator_momentum_list[0][0]; 
               interpolator_momentum_list[1][1] = Ptot[1] - interpolator_momentum_list[0][1];
               interpolator_momentum_list[1][2] = Ptot[2] - interpolator_momentum_list[0][2];
-              */
 
-              /* TEST */
-              interpolator_momentum_list[1][0] = 0;
-              interpolator_momentum_list[1][1] = 0;
-              interpolator_momentum_list[1][2] = 0;
             }
 
             /****************************************************
