@@ -67,7 +67,7 @@ set_gamma_basis_all <- function ( g ) {
   return( invisible(r) )
 }  # end of set_gamma_basis_all
 
-set_Cgamma_basis_matching <- function(g) {
+set_Cgamma_basis_matching <- function(g, show_matching = F) {
 
   eps <- 1.e-12
 
@@ -97,36 +97,38 @@ set_Cgamma_basis_matching <- function(g) {
   Cg[["Cgyg5g0"]] <- C %*% g[["y"]] %*% g[["5"]] %*% g[["t"]]
   Cg[["Cgzg5g0"]] <- C %*% g[["z"]] %*% g[["5"]] %*% g[["t"]]
 
-  ##  return(Cg)
-  z <- array ( dim=c(16, 16) )
 
-  # cat ( "  double _Complex const gamma_basis_matching_coeff[16] = {\n" )
-  cat ( "  double const Cgamma_basis_matching_coeff[16] = {\n" )
+  if ( show_matching ) {
+    z <- array ( dim=c(16, 16) )
 
-  for ( i in 1:16 ) {
+    # cat ( "  double _Complex const gamma_basis_matching_coeff[16] = {\n" )
+    cat ( "  double const Cgamma_basis_matching_coeff[16] = {\n" )
+
+    for ( i in 1:16 ) {
     
-    for ( k in 1:16 ) {
-      z[i,k] <- sum( diag ( t(Conj(Cg[[k]])) %*% b[[i]] ) ) / 4
+      for ( k in 1:16 ) {
+        z[i,k] <- sum( diag ( t(Conj(Cg[[k]])) %*% b[[i]] ) ) / 4
+      }
+
+      idx <- which( abs(z[i,]) > eps )
+      if ( length(idx) > 1 || length(idx) == 0 ) stop("no / too many matches for i = ", i )
+
+      cat ( formatC( Re(z[i,idx]), width=8, digits=2, format="f" )
+            # " + ",
+            # formatC( Im(z[i,idx]), width=6, digits=2, format="f" ), "*I" 
+          )
+
+      if ( i < 16 ) {
+        cat ( ",  /* " )
+      } else {
+        cat ( "   /* " )
+      }
+      cat( formatC( i-1, width=2, digits=2, format="d" ), " =  ",
+           formatC( names(Cg[idx]), width=-10, format="s" ), " */\n", sep="" )
     }
 
-    idx <- which( abs(z[i,]) > eps )
-    if ( length(idx) > 1 || length(idx) == 0 ) stop("no / too many matches for i = ", i )
+    cat( "  };\n" )
+  }  # end of if show_matching
 
-    cat ( formatC( Re(z[i,idx]), width=8, digits=2, format="f" )
-          # " + ",
-          # formatC( Im(z[i,idx]), width=6, digits=2, format="f" ), "*I" 
-        )
-
-    if ( i < 16 ) {
-      cat ( ",  /* " )
-    } else {
-      cat ( "   /* " )
-    }
-    cat( formatC( i-1, width=2, digits=2, format="d" ), " =  ",
-         formatC( names(Cg[idx]), width=-10, format="s" ), " */\n", sep="" )
-  }
-
-  cat( "  };\n" )
-
-  return ( invisible ( z ) )
+  return ( invisible ( Cg ) )
 }  # end of set_Cgamma_basis_matching 
