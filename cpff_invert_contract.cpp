@@ -678,7 +678,7 @@ int main(int argc, char **argv) {
           g_source_momentum_list[isrc_mom][2] };
 
         for ( int isrc_gamma = 0; isrc_gamma < g_source_gamma_id_number; isrc_gamma++ ) {
-        for ( int isnk_gamma = 0; isnk_gamma < g_source_gamma_id_number; isnk_gamma++ ) {
+        for ( int isnk_gamma = 0; isnk_gamma < g_sink_gamma_id_number; isnk_gamma++ ) {
         
           /* allocate contraction fields in position and momentum space */
           double * contr_x = init_1level_dtable ( 2 * VOLUME );
@@ -728,7 +728,7 @@ int main(int argc, char **argv) {
         }  /* end of loop on gammas at source */
  
         if ( N_Jacobi > 0 ) {
-          fini_2level_dtable ( &stochastic_propagator_zero_smeared_list );
+          fini_2level_dtable ( &stochastic_propagator_mom_smeared_list );
         }
 
       }  /* end of loop on source momenta */
