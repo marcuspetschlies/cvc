@@ -40,12 +40,17 @@
 #include "uwerr.h"
 #include "derived_quantities.h"
 
+#ifndef _SQR
 #define _SQR(_a) ((_a)*(_a))
+#endif
+
 #define _LOOP_ANALYSIS
-#undef _RAT_METHOD
+
+#define _RAT_METHOD
 #undef _FHT_METHOD_ALLT
-#define _FHT_METHOD_ACCUM
-#undef _TWOP_STATS
+#undef _FHT_METHOD_ACCUM
+
+#define _TWOP_STATS
 
 using namespace cvc;
 
@@ -56,6 +61,72 @@ void usage() {
   EXIT(0);
 }
 
+
+/**********************************************************
+ *
+ **********************************************************/
+inline void write_data_real ( double ** data, char * filename, int *** lst, unsigned int const n0, unsigned int const n1 ) {
+
+  FILE * ofs = fopen ( filename, "w" );
+  if ( ofs == NULL ) {
+    fprintf ( stderr, "[write_data_real] Error from fopen %s %d\n",  __FILE__, __LINE__ );
+    EXIT(1);
+  }
+
+  for ( unsigned int i0 = 0; i0 < n0; i0++ ) {
+    fprintf ( ofs, "# %c %6d\n", lst[i0][0][0], lst[i0][0][1] );
+    for ( unsigned int i1 = 0; i1 < n1; i1++ ) {
+      fprintf ( ofs, "%25.16e\n", data[i0][i1] );
+    }
+  }
+
+  fclose ( ofs );
+}  /* end of write_data_real */
+
+
+/**********************************************************
+ *
+ **********************************************************/
+inline void write_data_real2_reim ( double **** data, char * filename, int *** lst, unsigned int const n0, unsigned int const n1, unsigned int const n2, int const ri ) {
+
+  FILE * ofs = fopen ( filename, "w" );
+  if ( ofs == NULL ) {
+    fprintf ( stderr, "[write_data_real2_reim] Error from fopen %s %d\n", __FILE__, __LINE__ );
+    EXIT(1);
+  }
+
+  for ( unsigned int i0 = 0; i0 < n0; i0++ ) {
+  for ( unsigned int i1 = 0; i1 < n1; i1++ ) {
+    fprintf ( ofs , "# %c %6d %3d %3d %3d %3d\n", lst[i0][i1][0], lst[i0][i1][1], lst[i0][i1][2], lst[i0][i1][3], lst[i0][i1][4], lst[i0][i1][5] );
+
+    for ( unsigned int i2 = 0; i2 < n2; i2++ ) {
+      fprintf ( ofs, "%25.16e\n", data[i0][i1][i2][ri] );
+    }
+  }}
+  fclose ( ofs );
+}  /* end of write_data_real2_reim */
+
+/**********************************************************
+ *
+ **********************************************************/
+inline void src_avg_real2_reim ( double ** data, double ****corr, unsigned int const n0, unsigned int const n1, unsigned int const n2, int const ri ) {
+
+#pragma omp parallel for
+  for ( unsigned int iconf = 0; iconf < n0; iconf++ ) {
+    for ( unsigned int it = 0; it < n2; it++ ) {
+      double dtmp = 0.;
+
+      for ( unsigned int isrc = 0; isrc < n1; isrc++ ) {
+        dtmp += corr[iconf][isrc][it][ri];
+      }
+      data[iconf][it] = dtmp / (double)n1;
+    }
+  }
+}  /* end of src_avg_real2_reim */
+
+/**********************************************************
+ *
+ **********************************************************/
 int main(int argc, char **argv) {
   
   /* int const gamma_id_to_bin[16] = { 8, 1, 2, 4, 0, 15, 7, 14, 13, 11, 9, 10, 12, 3, 5, 6 }; */
@@ -66,7 +137,7 @@ int main(int argc, char **argv) {
   int filename_set = 0;
   int exitstatus;
   int io_proc = -1;
-  char filename[100];
+  char filename[600];
   int num_src_per_conf = 0;
   int num_conf = 0;
   char ensemble_name[100] = "NA";
@@ -236,7 +307,7 @@ int main(int argc, char **argv) {
   fclose ( ofs );
 
 
-  if ( g_verbose > 4 ) {
+  if ( g_verbose > 3 ) {
     for ( int iconf = 0; iconf < num_conf; iconf++ ) {
       for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
         fprintf ( stdout, "conf_src_list %c %6d %3d %3d %3d %3d\n", 
@@ -290,18 +361,13 @@ int main(int argc, char **argv) {
 
   for ( int isink_momentum = 0; isink_momentum < g_sink_momentum_number; isink_momentum++ ) {
 
-    int const sink_momentum[3] = {
-        g_sink_momentum_list[isink_momentum][0],
-        g_sink_momentum_list[isink_momentum][1],
-        g_sink_momentum_list[isink_momentum][2] };
-  
     for ( int iconf = 0; iconf < num_conf; iconf++ ) {
       Nconf = conf_src_list[iconf][0][1];
      
       for( int imeson = 0; imeson < 2; imeson++ ) {
 
-        sprintf( filename, "%s/stream_%c/twop.%.4d.pseudoscalar.%d.PX%d_PY%d_PZ%d",
-            filename_prefix, conf_src_list[iconf][0][0]  Nconf, imeson+1,
+        sprintf( filename, "stream_%c/%s/twop.%.4d.pseudoscalar.%d.PX%d_PY%d_PZ%d",
+            conf_src_list[iconf][0][0], filename_prefix, Nconf, imeson+1,
             ( 1 - 2 * imeson) * g_sink_momentum_list[isink_momentum][0],
             ( 1 - 2 * imeson) * g_sink_momentum_list[isink_momentum][1],
             ( 1 - 2 * imeson) * g_sink_momentum_list[isink_momentum][2] );
@@ -342,7 +408,37 @@ int main(int argc, char **argv) {
 
         }
         fclose ( dfs );
-      }
+
+        /**********************************************************
+         * write source-averaged correlator to ascii file
+         **********************************************************/
+        if ( write_data == 2 ) {
+          for ( int ireim = 0; ireim < 2; ireim++ ) {
+            double ** data = init_2level_dtable ( num_conf, T_global );
+
+#pragma omp parallel for
+           for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+             for ( int it = 0; it < T_global; it++ ) {
+               double dtmp = 0.;
+               for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+                  dtmp += twop[isink_momentum][iconf][isrc][imeson][it][ireim];
+                }
+                data[iconf][it] = dtmp / (double)num_src_per_conf;
+              }
+            }
+
+            sprintf( filename, "twop.pseudoscalar.%d.PX%d_PY%d_PZ%d.%s.corr", imeson+1,
+              ( 1 - 2 * imeson) * g_sink_momentum_list[isink_momentum][0],
+              ( 1 - 2 * imeson) * g_sink_momentum_list[isink_momentum][1],
+              ( 1 - 2 * imeson) * g_sink_momentum_list[isink_momentum][2], reim_str[ireim] );
+
+            write_data_real ( data, filename, conf_src_list, num_conf, T_global );
+            fini_2level_dtable ( &data );
+          }  /* end of loop on reim */
+        }  /* end of if write_data == 2 */
+
+
+      }  /* end of loop on meson type */
     }
   }  /* end of loop on sink momenta */
 
@@ -365,7 +461,6 @@ int main(int argc, char **argv) {
 
       /* averaging starts here */
       for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
-        double const source_phase = 0.;
 
         /* double const source_phase = -2. * M_PI * ( 
             g_sink_momentum_list[imom][0] * conf_src_list[iconf][isrc][3] / (double)LX_global + 
@@ -399,6 +494,18 @@ int main(int argc, char **argv) {
     }  /* end of loop on isrc */
   }  /* end of loop on iconf */
 
+  /**********************************************************
+   * write orbit-averaged data to ascii file, per source
+   **********************************************************/
+  if ( write_data == 1 ) {
+    for ( int ireim = 0; ireim <=0; ireim++ ) {
+      sprintf ( filename, "twop.pseudoscalar.orbit.PX%d_PY%d_PZ%d.%s.corr", g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2],
+          reim_str[ireim]);
+
+      write_data_real2_reim ( twop_orbit, filename, conf_src_list, num_conf, num_src_per_conf, T_global, ireim );
+    }
+  }  /* end of if write data */
+
 #ifdef _TWOP_STATS
   /**********************************************************
    * 
@@ -407,31 +514,58 @@ int main(int argc, char **argv) {
    **********************************************************/
   for ( int ireim = 0; ireim < 1; ireim++ ) {
 
-    double *** data = init_3level_dtable ( num_conf, num_src_per_conf, T_global );
+    if ( num_conf < 6 ) {
+      fprintf ( stderr, "[avxn_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
+      EXIT(1);
+    }
+
+    /* double *** data = init_3level_dtable ( num_conf, num_src_per_conf, T_global ); */
+    double ** data = init_2level_dtable ( num_conf, T_global );
     if ( data == NULL ) {
-      fprintf ( stderr, "[avxn_analyse] Error from init_3level_dtable %s %d\n",  __FILE__, __LINE__ );
+      fprintf ( stderr, "[avxn_analyse] Error from init_Xlevel_dtable %s %d\n",  __FILE__, __LINE__ );
       EXIT(1);
     }
 
     /* fill data array */
-    if ( twop_fold_propagator) {
+    if ( twop_fold_propagator != 0 ) {
 #pragma omp parallel for
       for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-        for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+
+        /* for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
           for ( int it = 0; it <= T_global/2; it++ ) {
             int const itt = ( T_global - it ) % T_global;
-              data[iconf][isrc][it ] = 0.5 * ( twop_orbit[iconf][isrc][it][ireim] + twop_orbit[iconf][isrc][itt][ireim] );
+              data[iconf][isrc][it ] = 0.5 * ( twop_orbit[iconf][isrc][it][ireim] + twop_fold_propagator * twop_orbit[iconf][isrc][itt][ireim] );
               data[iconf][isrc][itt] = data[iconf][isrc][it];
-         } 
-       }
+          } 
+        } */
+
+        for ( int it = 0; it <= T_global/2; it++ ) {
+            int const itt = ( T_global - it ) % T_global;
+            data[iconf][it ] = 0.;
+            data[iconf][itt] = 0.;
+          for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+              data[iconf][it ] += 0.5 * ( twop_orbit[iconf][isrc][it][ireim] + twop_fold_propagator * twop_orbit[iconf][isrc][itt][ireim] );
+          } 
+          data[iconf][it ] /= (double)num_src_per_conf;
+          data[iconf][itt] = data[iconf][it];
+         }
       }
     } else {
 #pragma omp parallel for
       for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-        for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+
+        /* for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
           for ( int it = 0; it < T_global; it++ ) {
             data[iconf][isrc][it] = twop_orbit[iconf][isrc][it][ireim];
           }
+        } */
+
+        for ( int it = 0; it < T_global; it++ ) {
+          data[iconf][it] = 0.;
+          for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+            data[iconf][it] += twop_orbit[iconf][isrc][it][ireim];
+          }
+          data[iconf][it] /= (double)num_src_per_conf;
         }
       }
     }
@@ -443,12 +577,26 @@ int main(int argc, char **argv) {
           g_sink_momentum_list[0][2], reim_str[ireim] );
 
     /* apply UWerr analysis */
-    exitstatus = apply_uwerr_real ( data[0][0], num_conf*num_src_per_conf, T_global, 0, 1, obs_name );
+    exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
     if ( exitstatus != 0 ) {
       fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(1);
     }
 
+    /**********************************************************
+     * write data to ascii file
+     **********************************************************/
+    if ( write_data == 2 ) {
+      sprintf ( filename, "%s.corr", obs_name );
+
+      write_data_real ( data, filename, conf_src_list, num_conf, T_global );
+      
+    }  /* end of if write data */
+
+
+    /**********************************************************
+     * acosh ratio for m_eff
+     **********************************************************/
     int const Thp1 = T_global / 2 + 1;
     for ( int itau = 1; itau < Thp1/2; itau++ ) {
       int narg = 3;
@@ -462,7 +610,7 @@ int main(int argc, char **argv) {
         g_sink_momentum_list[0][1],
         g_sink_momentum_list[0][2], reim_str[ireim] );
 
-      exitstatus = apply_uwerr_func ( data[0][0], num_conf*num_src_per_conf, T_global, nT, narg, arg_first, arg_stride, obs_name, acosh_ratio, dacosh_ratio );
+      exitstatus = apply_uwerr_func ( data[0], num_conf, T_global, nT, narg, arg_first, arg_stride, obs_name, acosh_ratio, dacosh_ratio );
       if ( exitstatus != 0 ) {
         fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(115);
@@ -470,8 +618,10 @@ int main(int argc, char **argv) {
 
     }
 
-    fini_3level_dtable ( &data );
+    /* fini_3level_dtable ( &data ); */
+    fini_2level_dtable ( &data );
   }  /* end of loop on reim */
+
 #endif  /* of ifdef _TWOP_STATS */
 
 #ifdef _LOOP_ANALYSIS
@@ -508,7 +658,7 @@ int main(int argc, char **argv) {
   
           double _Complex *** zloop_buffer = init_3level_ztable ( T_global, 4, 4 );
   
-          sprintf ( filename, "%s/loop.%.4d.stoch.%s.nev%d.Nstoch%d.mu%d.PX%d_PY%d_PZ%d", filename_prefix2, conf_src_list[iconf][0][1],
+          sprintf ( filename, "stream_%c/%s/loop.%.4d.stoch.%s.nev%d.Nstoch%d.mu%d.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix2, conf_src_list[iconf][0][1],
               loop_type,
               loop_num_evecs,
               loop_nstoch,
@@ -539,7 +689,7 @@ int main(int argc, char **argv) {
           }
           fclose ( dfs );
   
-  #pragma omp parallel for
+#pragma omp parallel for
           for ( int imu = 0; imu < 4; imu++ ) {
             for ( int it = 0; it < T_global; it++ ) {
   
@@ -548,7 +698,12 @@ int main(int argc, char **argv) {
               for ( int ib = 0; ib < 4; ib++ ) {
                 ztmp += zloop_buffer[it][ia][ib] * gamma_mu[imu].m[ib][ia];
               }}
-              /* factor 0.5 from using doublet vs wanted single flavor */
+
+              /**********************************************************
+               * factor 0.5 from using doublet vs wanted single flavor
+               *
+               * WHERE DID THAT COME FROM ???
+               **********************************************************/
               loop[imom][iconf][imu][idir][it][0] = 0.5 * creal ( ztmp );
               loop[imom][iconf][imu][idir][it][1] = 0.5 * cimag ( ztmp );
             }
@@ -573,7 +728,7 @@ int main(int argc, char **argv) {
   
           double _Complex *** zloop_buffer = init_3level_ztable ( T_global, 4, 4 );
           
-          sprintf ( filename, "%s/loop.%.4d.exact.%s.nev%d.mu%d.PX%d_PY%d_PZ%d", filename_prefix2, conf_src_list[iconf][0][1],
+          sprintf ( filename, "stream_%c/%s/loop.%.4d.exact.%s.nev%d.mu%d.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix2, conf_src_list[iconf][0][1],
               loop_type,
               loop_num_evecs,
               idir,
@@ -611,8 +766,16 @@ int main(int argc, char **argv) {
               for ( int ia = 0; ia < 4; ia++ ) {
               for ( int ib = 0; ib < 4; ib++ ) {
                 ztmp += zloop_buffer[it][ia][ib] * gamma_mu[imu].m[ib][ia];
+
+                /* the following version gives a huge expectation value for the symmetrized and subtracted loop;
+                 * this cannot be right */
+                /* ztmp += zloop_buffer[it][ia][ib] * gamma_mu[imu].m[ia][ib]; */
               }}
-              /* factor 0.5 from using doublet vs wanted single flavor */
+              /**********************************************************
+               * factor 0.5 from using doublet vs wanted single flavor
+               *
+               * AGAIN, WHERE DID THAT COME FROM ???
+               **********************************************************/
               loop_exact[imom][iconf][imu][idir][it][0] = 0.5 * creal ( ztmp );
               loop_exact[imom][iconf][imu][idir][it][1] = 0.5 * cimag ( ztmp );
             }
@@ -645,20 +808,20 @@ int main(int argc, char **argv) {
         for ( int iconf = 0; iconf < num_conf; iconf++ ) {
           for ( int it = 0; it < T_global; it++ ) {
             loop_sub[imom][iconf][imu][idir][it][0] = 0.5 * ( 
-                  loop[imom][iconf][imu][idir][it][0]       + loop[imom][iconf][idir][imu][it][0] 
+                        loop[imom][iconf][imu][idir][it][0] +       loop[imom][iconf][idir][imu][it][0] 
                 + loop_exact[imom][iconf][imu][idir][it][0] + loop_exact[imom][iconf][idir][imu][it][0] 
                 );
             loop_sub[imom][iconf][imu][idir][it][1] = 0.5 * ( 
-                  loop[imom][iconf][imu][idir][it][1]       + loop[imom][iconf][idir][imu][it][1] 
+                        loop[imom][iconf][imu][idir][it][1] +       loop[imom][iconf][idir][imu][it][1] 
                 + loop_exact[imom][iconf][imu][idir][it][1] + loop_exact[imom][iconf][idir][imu][it][1] 
                 );
             /* subtract trace for diagonal */
             if ( imu == idir ) {
               loop_sub[imom][iconf][imu][idir][it][0] -= 0.25 * ( 
-                   loop[imom][iconf][0][0][it][0]
-                 + loop[imom][iconf][1][1][it][0]
-                 + loop[imom][iconf][2][2][it][0]
-                 + loop[imom][iconf][3][3][it][0] 
+                         loop[imom][iconf][0][0][it][0]
+                 +       loop[imom][iconf][1][1][it][0]
+                 +       loop[imom][iconf][2][2][it][0]
+                 +       loop[imom][iconf][3][3][it][0] 
                  + loop_exact[imom][iconf][0][0][it][0]
                  + loop_exact[imom][iconf][1][1][it][0]
                  + loop_exact[imom][iconf][2][2][it][0]
@@ -666,10 +829,10 @@ int main(int argc, char **argv) {
                  );
 
               loop_sub[imom][iconf][imu][idir][it][1] -= 0.25 * ( 
-                   loop[imom][iconf][0][0][it][1]
-                 + loop[imom][iconf][1][1][it][1]
-                 + loop[imom][iconf][2][2][it][1]
-                 + loop[imom][iconf][3][3][it][1] 
+                         loop[imom][iconf][0][0][it][1]
+                 +       loop[imom][iconf][1][1][it][1]
+                 +       loop[imom][iconf][2][2][it][1]
+                 +       loop[imom][iconf][3][3][it][1] 
                  + loop_exact[imom][iconf][0][0][it][1]
                  + loop_exact[imom][iconf][1][1][it][1]
                  + loop_exact[imom][iconf][2][2][it][1]
@@ -685,6 +848,44 @@ int main(int argc, char **argv) {
   fini_6level_dtable ( &loop );
   fini_6level_dtable ( &loop_exact );
 
+  /**********************************************************
+   * tag to characterize the loops w.r.t. low-mode and
+   * stochastic part
+   **********************************************************/
+  char loop_tag[400];
+  sprintf ( loop_tag, "es%d.nev%d.Nstoch%d", loop_use_es, loop_num_evecs, loop_nstoch );
+
+  /**********************************************************
+   * write loop_sub to separate ascii file
+   **********************************************************/
+  if ( write_data ) {
+    for ( int imom = 0; imom < g_insertion_momentum_number; imom++ ) {
+      for ( int imu = 0; imu < 4; imu++ ) {
+      for ( int idir = 0; idir < 4; idir++ ) {
+
+        sprintf ( filename, "loop_sub.stoch.%s.%s.g%d_D%d.PX%d_PY%d_PZ%d.corr",
+            loop_type, loop_tag, imu, idir,
+            g_insertion_momentum_list[imom][0],
+            g_insertion_momentum_list[imom][1],
+            g_insertion_momentum_list[imom][2] );
+
+
+        FILE * loop_sub_fs = fopen( filename, "w" );
+        if ( loop_sub_fs == NULL ) {
+          fprintf ( stderr, "[avxn_analyse] Error from fopen %s %d\n", __FILE__, __LINE__ );
+          EXIT(1);
+        } 
+
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          fprintf ( loop_sub_fs , "# %c %6d\n", conf_src_list[iconf][0][0], conf_src_list[iconf][0][1] );
+          for ( int it = 0; it < T_global; it++ ) {
+              fprintf ( loop_sub_fs , "%25.16e %25.16e\n", loop_sub[imom][iconf][imu][idir][it][0], loop_sub[imom][iconf][imu][idir][it][1] );
+            }
+          }
+        fclose ( loop_sub_fs );
+      }}  /* end of loop on idir, imu */
+    }  /* end of loop on insertion momentum */
+  }  /* end of if write data */
 
   /**********************************************************
    *
@@ -692,10 +893,12 @@ int main(int argc, char **argv) {
    *
    **********************************************************/
 
-  char loop_tag[400];
-  sprintf ( loop_tag, "es%d.nev%d.Nstoch%d", loop_use_es, loop_num_evecs, loop_nstoch );
-
   for ( int imom = 0; imom < g_insertion_momentum_number; imom++ ) {
+
+    if ( num_conf < 6 ) {
+      fprintf ( stderr, "[avxn_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
+      EXIT(1);
+    }
 
     for ( int ireim = 0; ireim < 2; ireim++ ) {
       
@@ -1139,11 +1342,16 @@ int main(int argc, char **argv) {
 
         /* sink time = source time + dt  */
         int const tsink  = (  g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
+        /* sink time with time reversal = source time - dt  */
         int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
 
-        if ( g_verbose > 4 ) fprintf ( stdout, "# [avxn_analyse] t_src %3d   dt %3d   tsink %3d\n", conf_src_list[iconf][isrc][2],
-            g_sequential_source_timeslice_list[idt], tsink );
+        if ( g_verbose > 4 ) fprintf ( stdout, "# [avxn_analyse] t_src %3d   dt %3d   tsink %3d tsink2 %3d\n", conf_src_list[iconf][isrc][2],
+            g_sequential_source_timeslice_list[idt], tsink, tsink2 );
 
+        /**********************************************************
+         * !!! LOOK OUT:
+         *       This includes the momentum orbit average !!!
+         **********************************************************/
         for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
 
           double const mom[3] = { 
@@ -1255,8 +1463,8 @@ int main(int argc, char **argv) {
               */
 
               threep_4k[iconf][isrc][it][0] += (
-                  ( a_fwd_phase[1] - b_fwd_phase[1] ) * ( loop_sub[0][iconf][3][k][tins_fwd_1][0] + loop_sub[0][iconf][3][k][tins_fwd_2][0] )
-                + ( a_bwd_phase[1] - b_bwd_phase[1] ) * ( loop_sub[0][iconf][3][k][tins_bwd_1][0] + loop_sub[0][iconf][3][k][tins_bwd_2][0] )
+                   ( a_fwd_phase[1] - b_fwd_phase[1] ) * ( loop_sub[0][iconf][3][k][tins_fwd_1][0] + loop_sub[0][iconf][3][k][tins_fwd_2][0] )
+                 + ( a_bwd_phase[1] - b_bwd_phase[1] ) * ( loop_sub[0][iconf][3][k][tins_bwd_1][0] + loop_sub[0][iconf][3][k][tins_bwd_2][0] )
               ) * 0.125 * mom[k];
 
             }
@@ -1298,6 +1506,56 @@ int main(int argc, char **argv) {
     }  /* end of loop on iconf */
 
     /**********************************************************
+     * write 3pt function to ascii file, per source
+     **********************************************************/
+    if ( write_data == 1) {
+      /**********************************************************
+       * write 44 3pt
+       **********************************************************/
+      for ( int ireim = 0; ireim < 1; ireim++ ) {
+        sprintf ( filename, "threep.%s.g4_D4.dtsnk%d.PX%d_PY%d_PZ%d.%s.corr",
+            loop_tag,
+            g_sequential_source_timeslice_list[idt],
+            g_sink_momentum_list[0][0],
+            g_sink_momentum_list[0][1],
+            g_sink_momentum_list[0][2], reim_str[ireim] );
+
+        write_data_real2_reim ( threep_44, filename, conf_src_list, num_conf, num_src_per_conf, T_global, ireim );
+
+      }  /* end of loop on ireim */
+
+      /**********************************************************
+       * write 4k 3pt
+       **********************************************************/
+      for ( int ireim = 0; ireim < 1; ireim++ ) {
+        sprintf ( filename, "threep.%s.g4_Dk.dtsnk%d.PX%d_PY%d_PZ%d.%s.corr",
+            loop_tag,
+            g_sequential_source_timeslice_list[idt],
+            g_sink_momentum_list[0][0],
+            g_sink_momentum_list[0][1],
+            g_sink_momentum_list[0][2], reim_str[ireim] );
+
+        write_data_real2_reim ( threep_4k, filename, conf_src_list, num_conf, num_src_per_conf, T_global, ireim );
+      }  /* end of loop on ireim */
+
+      /**********************************************************
+       * write ik 3pt
+       **********************************************************/
+      for ( int ireim = 0; ireim < 1; ireim++ ) {
+        sprintf ( filename, "threep.%s.gk_Dl.dtsnk%d.PX%d_PY%d_PZ%d.%s.corr",
+            loop_tag,
+            g_sequential_source_timeslice_list[idt],
+            g_sink_momentum_list[0][0],
+            g_sink_momentum_list[0][1],
+            g_sink_momentum_list[0][2], reim_str[ireim] );
+
+        write_data_real2_reim ( threep_ik, filename, conf_src_list, num_conf, num_src_per_conf, T_global, ireim );
+      }  /* end of loop on ireim */
+
+    }  /* end of if write_data */
+
+
+    /**********************************************************
      *
      * STATISTICAL ANALYSIS for threep
      *
@@ -1305,9 +1563,16 @@ int main(int argc, char **argv) {
      *
      **********************************************************/
     for ( int ireim = 0; ireim < 1; ireim++ ) {
-      double *** data = init_3level_dtable ( num_conf, num_src_per_conf, T_global );
+
+      if ( num_conf < 6 ) {
+        fprintf ( stderr, "[avxn_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
+        EXIT(1);
+      }
+
+      /* double *** data = init_3level_dtable ( num_conf, num_src_per_conf, T_global ); */
+      double ** data = init_2level_dtable ( num_conf, T_global );
       if ( data == NULL ) {
-        fprintf ( stderr, "[avxn_analyse] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
+        fprintf ( stderr, "[avxn_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
         EXIT(1);
       }
 
@@ -1316,10 +1581,20 @@ int main(int argc, char **argv) {
        **********************************************************/
 #pragma omp parallel for
       for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-      for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-      for ( int it = 0; it < T_global; it++ ) {
-        data[iconf][isrc][it] = threep_44[iconf][isrc][it][ireim];
-      }}}
+
+        /* for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+        for ( int it = 0; it < T_global; it++ ) {
+          data[iconf][isrc][it] = threep_44[iconf][isrc][it][ireim];
+        }} */
+
+        for ( int it = 0; it < T_global; it++ ) {
+          double dtmp = 0.;
+          for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+            dtmp += threep_44[iconf][isrc][it][ireim];
+          }
+          data[iconf][it] = dtmp / (double)num_src_per_conf;
+        }
+      }
 
       char obs_name[100];
       sprintf ( obs_name, "threep.%s.g4_D4.dtsnk%d.PX%d_PY%d_PZ%d.%s",
@@ -1330,10 +1605,15 @@ int main(int argc, char **argv) {
           g_sink_momentum_list[0][2], reim_str[ireim] );
 
       /* apply UWerr analysis */
-      exitstatus = apply_uwerr_real ( data[0][0], num_conf*num_src_per_conf, T_global, 0, 1, obs_name );
+      exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
       if ( exitstatus != 0 ) {
         fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(1);
+      }
+
+      if ( write_data == 2 ) {
+        sprintf ( filename, "%s.corr", obs_name );
+        write_data_real ( data, filename, conf_src_list, num_conf, T_global );
       }
 
       /**********************************************************
@@ -1341,10 +1621,19 @@ int main(int argc, char **argv) {
        **********************************************************/
 #pragma omp parallel for
       for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-      for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-      for ( int it = 0; it < T_global; it++ ) {
-        data[iconf][isrc][it] = threep_4k[iconf][isrc][it][ireim];
-      }}}
+        /* for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+        for ( int it = 0; it < T_global; it++ ) {
+          data[iconf][isrc][it] = threep_4k[iconf][isrc][it][ireim];
+        }} */
+
+        for ( int it = 0; it < T_global; it++ ) {
+          double dtmp = 0.;
+          for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+            dtmp += threep_4k[iconf][isrc][it][ireim];
+          }
+          data[iconf][it] = dtmp / (double)num_src_per_conf;
+        }
+      }
 
       sprintf ( obs_name, "threep.%s.g4_Dk.dtsnk%d.PX%d_PY%d_PZ%d.%s",
           loop_tag,
@@ -1354,10 +1643,15 @@ int main(int argc, char **argv) {
           g_sink_momentum_list[0][2], reim_str[ireim] );
 
       /* apply UWerr analysis */
-      exitstatus = apply_uwerr_real ( data[0][0], num_conf*num_src_per_conf, T_global, 0, 1, obs_name );
+      exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
       if ( exitstatus != 0 ) {
         fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(1);
+      }
+
+      if ( write_data == 2 ) {
+        sprintf ( filename, "%s.corr", obs_name );
+        write_data_real ( data, filename, conf_src_list, num_conf, T_global );
       }
 
       /**********************************************************
@@ -1365,10 +1659,18 @@ int main(int argc, char **argv) {
        **********************************************************/
 #pragma omp parallel for
       for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-      for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-      for ( int it = 0; it < T_global; it++ ) {
-        data[iconf][isrc][it] = threep_ik[iconf][isrc][it][ireim];
-      }}}
+        /* for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+        for ( int it = 0; it < T_global; it++ ) {
+          data[iconf][isrc][it] = threep_ik[iconf][isrc][it][ireim];
+        }} */
+        for ( int it = 0; it < T_global; it++ ) {
+          double dtmp = 0.;
+          for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+            dtmp += threep_ik[iconf][isrc][it][ireim];
+          }
+          data[iconf][it] = dtmp / (double)num_src_per_conf;
+        }
+      }
 
       sprintf ( obs_name, "threep.%s.gi_Dk.dtsnk%d.PX%d_PY%d_PZ%d.%s",
           loop_tag,
@@ -1378,13 +1680,20 @@ int main(int argc, char **argv) {
           g_sink_momentum_list[0][2], reim_str[ireim] );
 
       /* apply UWerr analysis */
-      exitstatus = apply_uwerr_real ( data[0][0], num_conf*num_src_per_conf, T_global, 0, 1, obs_name );
+      exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
       if ( exitstatus != 0 ) {
         fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(1);
       }
 
-      fini_3level_dtable ( &data );
+      if ( write_data == 2 ) {
+        sprintf ( filename, "%s.corr", obs_name );
+        write_data_real ( data, filename, conf_src_list, num_conf, T_global );
+      }
+
+
+      /* fini_3level_dtable ( &data ); */
+      fini_2level_dtable ( &data );
     }  /* end of loop on reim */
 
     /**********************************************************
@@ -1396,32 +1705,33 @@ int main(int argc, char **argv) {
     for ( int ireim = 0; ireim < 1; ireim++ ) {
 
       /* UWerr parameters */
-      int dt = g_sequential_source_timeslice_list[idt];
       int nT = g_sequential_source_timeslice_list[idt] + 1;
       int narg          = 2;
       int arg_first[2]  = { 0, nT };
       int arg_stride[2] = { 1,  0 };
       char obs_name[100];
 
-      double *** data = init_3level_dtable ( num_conf, num_src_per_conf, nT + 1 );
+      double ** data = init_2level_dtable ( num_conf, nT + 1 );
       if ( data == NULL ) {
-        fprintf ( stderr, "[avxn_analyse] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
+        fprintf ( stderr, "[avxn_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
         EXIT(1);
       }
 
       /**********************************************************
        * O44
        **********************************************************/
+      src_avg_real2_reim ( data, threep_44, num_conf, num_src_per_conf, nT, ireim );
+
 #pragma omp parallel for
       for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-      for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-        for ( int it = 0; it < nT; it++ ) {
-          data[iconf][isrc][it] = threep_44[iconf][isrc][it][ireim];
+        double dtmp = 0.;
+        for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+          int const tsink  = (  g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
+          int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
+          dtmp += 0.5 * ( twop_orbit[iconf][isrc][tsink][ireim] + twop_orbit[iconf][isrc][tsink2][ireim] );
         }
-        int const tsink  = (  g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
-        int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
-        data[iconf][isrc][nT] = 0.5 * ( twop_orbit[iconf][isrc][tsink][ireim] + twop_orbit[iconf][isrc][tsink2][ireim] );
-      }}
+        data[iconf][nT] = dtmp / (double)num_src_per_conf;
+      }
 
       sprintf ( obs_name, "ratio.%s.g4_D4.dtsnk%d.PX%d_PY%d_PZ%d.%s",
         loop_tag,
@@ -1430,7 +1740,7 @@ int main(int argc, char **argv) {
         g_sink_momentum_list[0][1],
         g_sink_momentum_list[0][2], reim_str[ireim] );
 
-      exitstatus = apply_uwerr_func ( data[0][0], num_conf*num_src_per_conf, nT+1, nT, narg, arg_first, arg_stride, obs_name, ratio_1_1, dratio_1_1 );
+      exitstatus = apply_uwerr_func ( data[0], num_conf, nT+1, nT, narg, arg_first, arg_stride, obs_name, ratio_1_1, dratio_1_1 );
       if ( exitstatus != 0 ) {
         fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(115);
@@ -1439,16 +1749,18 @@ int main(int argc, char **argv) {
       /**********************************************************
        * O4k
        **********************************************************/
+      src_avg_real2_reim ( data, threep_4k, num_conf, num_src_per_conf, nT, ireim );
+
 #pragma omp parallel for
       for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-      for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-        for ( int it = 0; it < nT; it++ ) {
-          data[iconf][isrc][it] = threep_4k[iconf][isrc][it][ireim];
+        double dtmp = 0.;
+        for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+          int const tsink  = (  g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
+          int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
+          dtmp += 0.5 * ( twop_orbit[iconf][isrc][tsink][ireim] + twop_orbit[iconf][isrc][tsink2][ireim] );
         }
-        int const tsink  = (  g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
-        int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
-        data[iconf][isrc][nT] = 0.5 * ( twop_orbit[iconf][isrc][tsink][ireim] + twop_orbit[iconf][isrc][tsink2][ireim] );
-      }}
+        data[iconf][nT] = dtmp / (double)num_src_per_conf;
+      }
 
       sprintf ( obs_name, "ratio.%s.g4_Dk.dtsnk%d.PX%d_PY%d_PZ%d.%s",
         loop_tag,
@@ -1457,7 +1769,7 @@ int main(int argc, char **argv) {
         g_sink_momentum_list[0][1],
         g_sink_momentum_list[0][2], reim_str[ireim] );
 
-      exitstatus = apply_uwerr_func ( data[0][0], num_conf*num_src_per_conf, nT+1, nT, narg, arg_first, arg_stride, obs_name, ratio_1_1, dratio_1_1 );
+      exitstatus = apply_uwerr_func ( data[0], num_conf, nT+1, nT, narg, arg_first, arg_stride, obs_name, ratio_1_1, dratio_1_1 );
       if ( exitstatus != 0 ) {
         fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(115);
@@ -1466,16 +1778,18 @@ int main(int argc, char **argv) {
       /**********************************************************
        * Oik
        **********************************************************/
+      src_avg_real2_reim ( data, threep_ik, num_conf, num_src_per_conf, nT, ireim );
+
 #pragma omp parallel for
       for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-      for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-        for ( int it = 0; it < nT; it++ ) {
-          data[iconf][isrc][it] = threep_ik[iconf][isrc][it][ireim];
+        double dtmp = 0;
+        for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+          int const tsink  = (  g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
+          int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
+          dtmp += 0.5 * ( twop_orbit[iconf][isrc][tsink][ireim] + twop_orbit[iconf][isrc][tsink2][ireim] );
         }
-        int const tsink  = (  g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
-        int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
-        data[iconf][isrc][nT] = 0.5 * ( twop_orbit[iconf][isrc][tsink][ireim] + twop_orbit[iconf][isrc][tsink2][ireim] );
-      }}
+        data[iconf][nT] = dtmp / (double)num_src_per_conf;
+      }
 
       sprintf ( obs_name, "ratio.%s.gi_Dk.dtsnk%d.PX%d_PY%d_PZ%d.%s",
         loop_tag,
@@ -1484,13 +1798,13 @@ int main(int argc, char **argv) {
         g_sink_momentum_list[0][1],
         g_sink_momentum_list[0][2], reim_str[ireim] );
 
-      exitstatus = apply_uwerr_func ( data[0][0], num_conf*num_src_per_conf, nT+1, nT, narg, arg_first, arg_stride, obs_name, ratio_1_1, dratio_1_1 );
+      exitstatus = apply_uwerr_func ( data[0], num_conf, nT+1, nT, narg, arg_first, arg_stride, obs_name, ratio_1_1, dratio_1_1 );
       if ( exitstatus != 0 ) {
         fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(115);
       }
 
-      fini_3level_dtable ( &data );
+      fini_2level_dtable ( &data );
 
     }  /* end of loop on reim */
 
@@ -1504,6 +1818,8 @@ int main(int argc, char **argv) {
   /**********************************************************/
   /**********************************************************/
 
+
+#if 0
 #ifdef _FHT_METHOD_ALLT
   /**********************************************************
    *
@@ -2024,6 +2340,8 @@ int main(int argc, char **argv) {
 
   }  /* end FHT calculation */
 #endif  /* end of ifdef _FHT_METHOD_ACCUM */
+
+#endif  /* of if 0 */
 
   fini_6level_dtable ( &loop_sub );
 
