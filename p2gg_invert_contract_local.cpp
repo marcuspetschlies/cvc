@@ -87,6 +87,9 @@ int main(int argc, char **argv) {
 
   /*                             id  g5 */
   int const gamma_sp_list[2] = { 4  , 5 };
+
+  int const gamma_s = { 4 };
+  int const gamma_p = { 5 };
   
 
   int c;
@@ -434,6 +437,8 @@ int main(int argc, char **argv) {
       EXIT(1);
     }
 
+
+
     /***************************************************************************
      * local - local 2-point  d - u
      ***************************************************************************/
@@ -610,7 +615,8 @@ int main(int argc, char **argv) {
             /***************************************************************************
              * set sequential source gamma id
              ***************************************************************************/
-            int sequential_source_gamma_id = 4;
+            int sequential_source_gamma_id = gamma_s;
+
             if( g_verbose > 2 && g_cart_id == 0) fprintf(stdout, "# [p2gg_invert_contract_local] using sequential source gamma id = %d\n", sequential_source_gamma_id);
 
             /***************************************************************************
@@ -777,7 +783,7 @@ int main(int argc, char **argv) {
             /***************************************************************************
              * set sequential source gamma id
              ***************************************************************************/
-            sequential_source_gamma_id = 5;
+            sequential_source_gamma_id = gamma_p;
             if( g_verbose > 2 && g_cart_id == 0) fprintf(stdout, "# [p2gg_invert_contract_local] using sequential source gamma id = %d\n", sequential_source_gamma_id);
 
             for( int is = 0; is < 12; is++ ) 
