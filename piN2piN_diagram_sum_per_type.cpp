@@ -94,7 +94,7 @@ static inline int diagram_name_to_reader_id ( char * name ) {
  * return diagram tag and number of tags
  ***********************************************************/
 
-static inline int twopt_name_to_diagram_tag ( int * num, char * tag, char * name ) {
+static inline int twopt_name_to_diagram_tag ( int * num, char * tag, const char * name ) {
 
   if (        strcmp( name, "N-N"       ) == 0 )  {
     *num = 1;
@@ -115,7 +115,7 @@ static inline int twopt_name_to_diagram_tag ( int * num, char * tag, char * name
     *num = 1;
     tag[0] = 'm';
   } else {
-    fprintf( stderr, "[twopt_name_to_diagram_tag] Error, unrecognized twopt name %s %s %d\n", twopt_name_list[iname], __FILE__, __LINE__ );
+    fprintf( stderr, "[twopt_name_to_diagram_tag] Error, unrecognized twopt name %s %s %d\n", name, __FILE__, __LINE__ );
     return(1);
   }
   return( 0 );
@@ -125,9 +125,13 @@ static inline int twopt_name_to_diagram_tag ( int * num, char * tag, char * name
 /***********************************************************
  * combine diagrams
  ***********************************************************/
-int twopt_combine_diagrams ( twopoint_function_type * const tp_sum, twopoint_function_type * const tp , struct AffReader_s *** affr, int const ntp ) {
+int twopt_combine_diagrams ( twopoint_function_type * const tp_sum, twopoint_function_type * const tp, int const ntp, struct AffReader_s *** affr, struct AffWriter_s * affw ) {
 
   int const ndiag = tp_sum->n;
+  int const io_true = ( g_verbose > 2 );
+
+  struct timeval ta, tb;
+  int exitstatus;
 
   /******************************************************
    * loop on diagram in twopt
@@ -177,7 +181,7 @@ int twopt_combine_diagrams ( twopoint_function_type * const tp_sum, twopoint_fun
     }  /* end of loop on source locations */
 
     gettimeofday ( &tb, (struct timezone *)NULL );
-    show_time ( &ta, &tb, "twopt_combine_diagrams", "read-diagram-all-src", io_proc == 2 );
+    show_time ( &ta, &tb, "twopt_combine_diagrams", "read-diagram-all-src", io_true  );
 
   }  /* end of loop on diagrams */
 
@@ -186,7 +190,7 @@ int twopt_combine_diagrams ( twopoint_function_type * const tp_sum, twopoint_fun
    ******************************************************/
   for( int isrc = 0; isrc < ntp; isrc++) {
 
-    double const norm = 1. / (double)source_location_number;
+    double const norm = 1. / (double)ntp;
 #pragma omp parallel for
     for ( int i = 0; i < tp_sum->n * tp_sum->d * tp_sum->d * tp_sum->T; i++ ) {
       tp_sum->c[0][0][0][i] += tp[isrc].c[0][0][0][i] * norm;
@@ -204,7 +208,7 @@ int twopt_combine_diagrams ( twopoint_function_type * const tp_sum, twopoint_fun
   }
 
   gettimeofday ( &tb, (struct timezone *)NULL );
-  show_time ( &ta, &tb, "twopt_combine_diagrams", "twopoint_function_apply_diagram_norm", io_proc == 2 );
+  show_time ( &ta, &tb, "twopt_combine_diagrams", "twopoint_function_apply_diagram_norm", io_true  );
 
   /******************************************************
    * add up diagrams
@@ -217,10 +221,10 @@ int twopt_combine_diagrams ( twopoint_function_type * const tp_sum, twopoint_fun
   }
 
   gettimeofday ( &tb, (struct timezone *)NULL );
-  show_time ( &ta, &tb, "twopt_combine_diagrams", "twopoint_function_accum_diagrams", io_proc == 2 );
+  show_time ( &ta, &tb, "twopt_combine_diagrams", "twopoint_function_accum_diagrams", io_true  );
 
   /******************************************************
-   * write to h5 file
+   * write to aff file
    ******************************************************/
   gettimeofday ( &ta, (struct timezone *)NULL );
 
@@ -245,7 +249,7 @@ int twopt_combine_diagrams ( twopoint_function_type * const tp_sum, twopoint_fun
   }
 
   gettimeofday ( &tb, (struct timezone *)NULL );
-  show_time ( &ta, &tb, "twopt_combine_diagrams", "write-key-to-file", io_proc == 2 );
+  show_time ( &ta, &tb, "twopt_combine_diagrams", "write-key-to-file", io_true );
 
   return ( 0 );
 }  /* end of twopt_combine_diagrams */
@@ -262,22 +266,23 @@ int main(int argc, char **argv) {
   int const twopt_name_number = 5;
 
   char const twopt_type_list[4][20] = { "b-b", "mxb-b" , "mxb-mxb", "m-m" };
-  int const twopt_type_number = 3; /* m-m not included here */
+  /* int const twopt_type_number = 3; */ /* m-m not included here */
 
 
-  int const momentum_orbit_000[ 1][3] = { {0,0,0} };
+  const int momentum_orbit_000[ 1][3] = { {0,0,0} };
 
-  int const momentum_orbit_001[ 6][3] = { {0,0,1}, {0,0,-1}, {0,1,0}, {0,-1,0}, {1,0,0}, {-1,0,0} };
+  const int momentum_orbit_001[ 6][3] = { {0,0,1}, {0,0,-1}, {0,1,0}, {0,-1,0}, {1,0,0}, {-1,0,0} };
 
-  int const momentum_orbit_110[12][3] = { {1,1,0}, {1,-1,0}, {-1,1,0}, {-1,-1,0}, {1,0,1}, {1,0,-1}, {-1,0,1}, {-1,0,-1}, {0,1,1}, {0,1,-1}, {0,-1,1}, {0,-1,-1} };
+  const int momentum_orbit_110[12][3] = { {1,1,0}, {1,-1,0}, {-1,1,0}, {-1,-1,0}, {1,0,1}, {1,0,-1}, {-1,0,1}, {-1,0,-1}, {0,1,1}, {0,1,-1}, {0,-1,1}, {0,-1,-1} };
 
-  int const momentum_orbit_111[ 8][3] = { {1,1,1}, {1,1,-1}, {1,-1,1}, {1,-1,-1}, {-1,1,1}, {-1,1,-1}, {-1,-1,1}, {-1,-1,-1} };
+  const int momentum_orbit_111[ 8][3] = { {1,1,1}, {1,1,-1}, {1,-1,1}, {1,-1,-1}, {-1,1,1}, {-1,1,-1}, {-1,-1,1}, {-1,-1,-1} };
 
-  int const ** momentum_orbit_list[4] = { momentum_orbit_000, momentum_orbit_001, momentum_orbit_110, momentum_orbit_111 };
+  const int (* momentum_orbit_list[4])[3] = { momentum_orbit_000, momentum_orbit_001, momentum_orbit_110, momentum_orbit_111 };
   int const momentum_orbit_nelem[4]   = {1, 6, 12, 8 };
+  int const momentum_orbit_num        = 4;
   int const momentum_orbit_pref[4][3] = { {0,0,0}, {0,0,1}, {1,1,0}, {1,1,1} };
 
-
+  int const p2_cutoff = 3;
 
 
   int c;
@@ -416,7 +421,8 @@ int main(int argc, char **argv) {
    ******************************************************/
   for ( int ipref = 0; ipref < g_total_momentum_number; ipref++ ) {
 
-    for ( int iorbit = 0; iorbit < momentum_orbit_num; iorbit++ ) {
+    int iorbit = 0;
+    for ( ; iorbit < momentum_orbit_num; iorbit++ ) {
       if ( _V3_EQ_V3( g_total_momentum_list[ipref] , momentum_orbit_pref[iorbit] ) ) break;
     }
     if ( iorbit == momentum_orbit_num ) {
@@ -585,7 +591,7 @@ int main(int argc, char **argv) {
           /******************************************************
            * loop on diagram in twopt
            ******************************************************/
-          exitstatus = twopt_combine_diagrams ( &tp_sum, tp , affr, source_location_number );
+          exitstatus = twopt_combine_diagrams ( &tp_sum, tp , source_location_number, affr, affw );
           if ( exitstatus != 0 ) {
             fprintf ( stderr, "[piN2piN_diagram_sum_per_type] Error from twopt_combine_diagrams, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(12);
@@ -634,7 +640,8 @@ int main(int argc, char **argv) {
    ******************************************************/
   for ( int ipref = 0; ipref < g_total_momentum_number; ipref++ ) {
 
-    for ( int iorbit = 0; iorbit < momentum_orbit_num; iorbit++ ) {
+    int iorbit = 0;
+    for ( ; iorbit < momentum_orbit_num; iorbit++ ) {
       if ( _V3_EQ_V3( g_total_momentum_list[ipref] , momentum_orbit_pref[iorbit] ) ) break;
     }
     if ( iorbit == momentum_orbit_num ) {
@@ -821,7 +828,7 @@ int main(int argc, char **argv) {
           /******************************************************
            * combine diagrams
            ******************************************************/
-          exitstatus = twopt_combine_diagrams ( &tp_sum, tp , affr, source_location_number );
+          exitstatus = twopt_combine_diagrams ( &tp_sum, tp , source_location_number, affr, affw );
           if ( exitstatus != 0 ) {
             fprintf ( stderr, "[piN2piN_diagram_sum_per_type] Error from twopt_combine_diagrams, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(12);
@@ -871,7 +878,8 @@ int main(int argc, char **argv) {
    ******************************************************/
   for ( int ipref = 0; ipref < g_total_momentum_number; ipref++ ) {
 
-    for ( int iorbit = 0; iorbit < momentum_orbit_num; iorbit++ ) {
+    int iorbit = 0;
+    for ( ; iorbit < momentum_orbit_num; iorbit++ ) {
       if ( _V3_EQ_V3( g_total_momentum_list[ipref] , momentum_orbit_pref[iorbit] ) ) break;
     }
     if ( iorbit == momentum_orbit_num ) {
@@ -1074,7 +1082,7 @@ int main(int argc, char **argv) {
           /******************************************************
            * combine diagrams
            ******************************************************/
-          exitstatus = twopt_combine_diagrams ( &tp_sum, tp , affr, source_location_number );
+          exitstatus = twopt_combine_diagrams ( &tp_sum, tp , source_location_number, affr, affw );
           if ( exitstatus != 0 ) {
             fprintf ( stderr, "[piN2piN_diagram_sum_per_type] Error from twopt_combine_diagrams, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(12);
