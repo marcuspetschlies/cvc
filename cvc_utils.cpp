@@ -7842,4 +7842,45 @@ int vdag_gloc_w_scalar_product_pt ( double _Complex **** const vw_mat, double **
 /****************************************************************************/
 /****************************************************************************/
 
+/****************************************************************************
+ * x-dep. plaquette field
+ ****************************************************************************/
+int plaquette_field ( double ** const pl, double * const gfield ) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  double s[18], t[18], u[18];
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for ( unsigned int ix = 0; ix < VOLUME; ix++) {
+    /* time-like */
+    for ( int nu = 1; nu < 4; nu++ ) {
+      _cm_eq_cm_ti_cm(s, gfield + _GGI(ix, 0), gfield + _GGI(g_iup[ix][ 0], nu) );
+      _cm_eq_cm_ti_cm(t, gfield + _GGI(ix,nu), gfield + _GGI(g_iup[ix][nu],  0) );
+      _cm_eq_cm_ti_cm_dag(u, s, t);
+      _re_pl_eq_tr_cm ( pl[0]+ix, u );
+    }
+
+    /* space-like */
+    for ( int mu = 1; mu<3; mu++) {
+    for ( int nu = mu+1; nu < 4; nu++) {
+      _cm_eq_cm_ti_cm(s, gfield + _GGI(ix, mu), gfield + _GGI( g_iup[ix][mu], nu) );
+      _cm_eq_cm_ti_cm(t, gfield + _GGI(ix, nu), gfield + _GGI( g_iup[ix][nu], mu) );
+      _cm_eq_cm_ti_cm_dag(u, s, t);
+      _re_pl_eq_tr_cm( pl[1]+ix, u);
+    }}
+  }
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+  return( 0 );
+
+}  /* end of plaquette field */
+
+
+
 }  /* end of namespace cvc */
