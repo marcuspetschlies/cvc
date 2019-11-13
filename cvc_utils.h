@@ -229,6 +229,8 @@ int vdag_gloc_w_scalar_product ( double _Complex ***** const vw_mat, double *** 
 int vdag_gloc_w_scalar_product_pt ( double _Complex **** const vw_mat, double *** const veo,  int const nv, double ** const weo, int const iweo,
     int const pt_number, int  (* const pt_list)[4] , int const gamma_id_number, int * const gamma_id_list );
 
+int gluonic_operators ( double ** op, double * const gfield );
+
 /***************************************************************************
  * set number of openmp threads
  ***************************************************************************/
