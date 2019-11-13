@@ -9,8 +9,12 @@
 #TYPE="int"
 #TAG="i"
 
-TYPE="char"
-TAG="c"
+#TYPE="char"
+#TAG="c"
+
+TYPE="su3"
+TAG="su3"
+
 
 TTAG=$( echo $TAG | tr '[:lower:]' '[:upper:]')
 
