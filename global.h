@@ -202,8 +202,8 @@ EXTERN double model_dcoeff_re, model_dcoeff_im, model_mrho;
 EXTERN double g_prop_normsqr;
 EXTERN double g_qhatsqr_min, g_qhatsqr_max;
 
-EXTERN int Nlong, N_ape, N_Jacobi;
-EXTERN double alpha_ape, kappa_Jacobi;
+EXTERN int Nlong, N_ape, N_Jacobi, g_n_stout;
+EXTERN double alpha_ape, kappa_Jacobi, g_rho_stout;
 EXTERN int g_source_timeslice, g_no_extra_masses, g_no_light_masses, g_no_strange_masses, \
          g_sequential_source_timeslice, g_sequential_source_location_x, g_sequential_source_location_y, g_sequential_source_location_z, \
          g_sequential_source_timeslice_list[MAX_SEQUENTIAL_SOURCE_TIMESLICE_NUMBER], g_sequential_source_timeslice_number;
