@@ -680,6 +680,36 @@ int main(int argc, char **argv) {
 
               }  /* end of loop on flavors */
 
+
+              /****************************************
+               * show all data before flavor combination
+               ****************************************/
+              if ( g_verbose > 5 ) {
+                gettimeofday ( &ta, (struct timezone *)NULL );
+
+                for ( int iflavor = 0; iflavor < 2; iflavor++ ) {
+                  fprintf ( stdout , "# /%s/c%d/t%dx%dy%dz%d/qx%dqy%dqz%d/gseq%d/tseq%d/fl%d/px%dpy%dpz%d\n", pgg_operator_type_tag[operator_type],
+                      conf_src_list[iconf][isrc][0],
+                      conf_src_list[iconf][isrc][1],
+                      conf_src_list[iconf][isrc][2],
+                      conf_src_list[iconf][isrc][3],
+                      conf_src_list[iconf][isrc][4],
+                      seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
+                      sequential_source_gamma_id, sequential_source_timeslice, iflavor,
+                      sink_momentum[0], sink_momentum[1], sink_momentum[2] );
+
+                  for ( int mu = 0; mu < 4; mu++ ) {
+                  for ( int nu = 0; nu < 4; nu++ ) {
+                    for ( int it = 0; it < T; it++ ) {
+                      fprintf ( stdout, "r %d %d    %3d    %25.16e %25.16e\n", 
+                          mu, nu, it, buffer[iflavor][mu][nu][2*it], buffer[iflavor][mu][nu][2*it+1] );
+                    }
+                  }}
+                }
+                gettimeofday ( &tb, (struct timezone *)NULL );
+                show_time ( &ta, &tb, "p2gg_analyse", "show-all-raw-data", g_cart_id == 0 );
+              }
+
               /**********************************************************
                * loop on shifts in directions mu, nu
                **********************************************************/
@@ -812,12 +842,22 @@ int main(int argc, char **argv) {
             for( int isrc = 0; isrc < num_src_per_conf; isrc++ )
             {
               for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+
+                fprintf ( stdout , "# /%s/c%d/t%dx%dy%dz%d/qx%dqy%dqz%d/gseq%d/tseq%d/px%dpy%dpz%d\n", pgg_operator_type_tag[operator_type],
+                    conf_src_list[iconf][isrc][0],
+                    conf_src_list[iconf][isrc][1],
+                    conf_src_list[iconf][isrc][2],
+                    conf_src_list[iconf][isrc][3],
+                    conf_src_list[iconf][isrc][4],
+                    seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
+                    sequential_source_gamma_id, sequential_source_timeslice,
+                    g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2] );
+
                 for ( int mu = 0; mu < 4; mu++ ) {
                 for ( int nu = 0; nu < 4; nu++ ) {
                   for ( int it = 0; it < T; it++ ) {
-                    fprintf ( stdout, "c %6d s %3d p %3d %3d %3d m %d %d pgg %3d  %25.16e %25.16e\n", iconf, isrc, 
-                        g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], mu, nu, it, 
-                        pgg[iconf][isrc][imom][mu][nu][2*it], pgg[iconf][isrc][imom][mu][nu][2*it+1] );
+                    fprintf ( stdout, "c %d %d    %3d    %25.16e %25.16e\n", 
+                        mu, nu, it, pgg[iconf][isrc][imom][mu][nu][2*it], pgg[iconf][isrc][imom][mu][nu][2*it+1] );
                   }
                 }}
               }
