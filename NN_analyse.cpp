@@ -157,6 +157,22 @@ void make_correlator_string ( char * name , twopoint_function_type * tp , const 
   }
 }  /* end of make_correlator_string */
 
+/***************************************************************************
+ *
+ ***************************************************************************/
+void make_diagram_list_string ( char * s, twopoint_function_type * tp ) {
+  char comma = ',';
+  char bar  = '_';
+  char * s_ = s;
+  strcpy ( s, tp->diagrams );
+  while ( *s_ != '\0' ) {
+    if ( *s_ ==  comma ) *s_ = bar;
+    s_++;
+  }
+  if ( g_verbose > 2 ) fprintf ( stdout, "# [make_diagram_list_string] %s ---> %s\n", tp->diagrams, s );
+  return;
+}  /* end of make_diagram_list_string */
+
 
 /***************************************************************************
  *
@@ -170,7 +186,7 @@ int main(int argc, char **argv) {
   int exitstatus;
   int io_proc = -1;
   char ensemble_name[100] = "NA";
-  char filename[100];
+  char filename[600];
   int num_conf = 0, num_src_per_conf = 0;
 
 #ifdef HAVE_MPI
@@ -537,14 +553,16 @@ int main(int argc, char **argv) {
     }  /* end of loop on configurations */
   
 
-    char correlator_name[500];
+    char correlator_name[500], diagram_list_string[60];
     make_correlator_string ( correlator_name , tp, tp->type  );
+
+    make_diagram_list_string ( diagram_list_string, tp );
 
     /***********************************************************
      * write correlator to file
      ***********************************************************/
 
-    sprintf ( filename, "%s.corr", correlator_name );
+    sprintf ( filename, "%s.%s.corr", correlator_name, diagram_list_string );
 
     FILE * ofs = fopen ( filename, "w" );
     for( int iconf = 0; iconf < num_conf; iconf++ ) {
@@ -570,6 +588,7 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * fwd, bwd average
      ***************************************************************************/
+#if 0
     if ( tp->T == T_global ) {
       if ( g_verbose > 2 ) fprintf ( stdout, "# [NN_analyse] fwd / bwd average\n" );
 #pragma omp parallel for
@@ -589,7 +608,7 @@ int main(int argc, char **argv) {
         }
       }
     }
-
+#endif
     /***************************************************************************
      * UWerr analysis
      *
@@ -598,6 +617,11 @@ int main(int argc, char **argv) {
 
     for ( int iparity = 0; iparity < 2; iparity++ ) {
       for ( int ireim = 0; ireim < 2; ireim++ ) {
+
+        if ( num_conf < 6 ) {
+          fprintf ( stderr, "[NN_analyse] number of observations too small, continue %s %d\n", __FILE__, __LINE__ );
+          continue;
+        }
 
         double ** data = init_2level_dtable ( num_conf, tp->T );
         if ( data == NULL ) {
@@ -663,18 +687,90 @@ int main(int argc, char **argv) {
 
 
   /***************************************************************************
-   * UWerr analyse ratio sub
+   * 3 data sets
    ***************************************************************************/
   twopoint_function_type * tp1 = &(g_twopoint_function_list[0]);
   twopoint_function_type * tp2 = &(g_twopoint_function_list[1]);
+  twopoint_function_type * tp3 = &(g_twopoint_function_list[2]);
+
+  twopoint_function_type tp;
+  twopoint_function_init ( &tp );
+
+  twopoint_function_copy ( &tp, tp2 , 0 );
+  sprintf ( tp.name, "%s+%s", tp2->name, tp3->name );
+
 
   char correlator_name[500];
-  make_correlator_string ( correlator_name , tp2, NULL );
+  make_correlator_string ( correlator_name , &tp, NULL );
+
+  /***************************************************************************
+   * UWerr analysis
+   *
+   *   for correlator corr
+   ***************************************************************************/
+
+  for ( int iparity = 0; iparity < 2; iparity++ ) {
+      for ( int ireim = 0; ireim < 2; ireim++ ) {
+
+        int const nT = tp.T;
+
+        if ( num_conf < 6 ) {
+          fprintf ( stderr, "[NN_analyse] number of observations too small, continue %s %d\n", __FILE__, __LINE__ );
+          continue;
+        }
+
+        double ** data = init_2level_dtable ( num_conf, nT );
+        if ( data == NULL ) {
+          fprintf ( stderr, "[NN_analyse] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+          EXIT(16);
+        }
+
+        /* block data over sources */
+#pragma omp parallel for
+        for( int iconf = 0; iconf < num_conf; iconf++ ) {
+ 
+          for ( int it = 0; it < nT; it++ ) {
+
+            data[iconf][it] = 0.;
+
+            for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
+              data[iconf][it] +=
+                  *(((double*)( corr[1][iparity][iconf][isrc]+it )) + ireim )
+                + *(((double*)( corr[2][iparity][iconf][isrc]+it )) + ireim );
+            }
+
+            data[iconf][it] /= (double)num_src_per_conf;
+          }
+        }
+
+        char obs_name[500];
+        
+        sprintf ( obs_name,  "%s.parity%d.%s", correlator_name, -2*iparity+1, reim_str[ireim] );
+
+        exitstatus = apply_uwerr_real ( data[0], num_conf, nT, 0, 1, obs_name );
+        if ( exitstatus != 0  ) {
+          fprintf ( stderr, "[NN_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(16);
+        }
+
+        fini_2level_dtable ( &data );
+
+      }  /* end of loop on reim */
+  }  /* end of loop on parity */
+
+  /***************************************************************************
+   * UWerr analyse ratio sub
+   ***************************************************************************/
 
   for ( int iparity = 0; iparity < 1; iparity++ ) {
     for ( int ireim = 0; ireim < 1; ireim++ ) {
 
-      int const nt = tp1->T / 2 + 1;
+      if ( num_conf < 6 ) {
+        fprintf ( stderr, "[NN_analyse] number of observations too small, continue %s %d\n", __FILE__, __LINE__ );
+        continue;
+      }
+
+      int const nt = tp.T / 2 + 1;
 
       double ** data = init_2level_dtable ( num_conf, 2 * nt );
       if ( data == NULL ) {
@@ -692,7 +788,10 @@ int main(int argc, char **argv) {
 
             for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
               data[iconf][it   ] += *(((double*)( corr[0][iparity][iconf][isrc]+it )) + ireim );
-              data[iconf][it+nt] += *(((double*)( corr[1][iparity][iconf][isrc]+it )) + ireim );
+
+              data[iconf][it+nt] += 
+                  *(((double*)( corr[1][iparity][iconf][isrc]+it )) + ireim )
+                + *(((double*)( corr[2][iparity][iconf][isrc]+it )) + ireim );
             }
 
             data[iconf][it   ] /= (double)num_src_per_conf;
