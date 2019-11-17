@@ -441,7 +441,8 @@ int main(int argc, char **argv) {
       }
     }  /* end of if io_proc == 2 */
 #else
-#  error "need AFF library; no other I/O method than AFF available"
+    fprintf(stderr, "[njn_fht_invert_contract] Error, no AFF lib %s %d\n",  __FILE__, __LINE__);
+    EXIT(15);
 #endif
 
     /**********************************************************
@@ -775,9 +776,11 @@ int main(int argc, char **argv) {
           g_seq_source_momentum_list[imom][2] };
 
       /***************************************************************************
-       *
-       * Part II: sequential up - after - up inversion and contraction
-       *
+       ***************************************************************************
+       **
+       ** Part II: sequential up - after - up inversion and contraction
+       **
+       ***************************************************************************
        ***************************************************************************/
 
       /***************************************************************************
@@ -822,6 +825,12 @@ int main(int argc, char **argv) {
         }
 
         /***************************************************************************
+         *
+         * p - ubar u - p
+         *
+         ***************************************************************************/
+
+        /***************************************************************************
          * fill the fermion propagator fp with sink-smeared propagator_up
          ***************************************************************************/
         assign_fermion_propagator_from_spinor_field ( fp, propagator_up_snk_smeared, VOLUME);
@@ -856,7 +865,7 @@ int main(int argc, char **argv) {
           /***************************************************************************
            * diagram t1
            ***************************************************************************/
-          sprintf(aff_tag, "/N-ubGu-N/T%d_X%d_Y%d_Z%d/Gf_%s/Gc_%s/Gi_%s/QX%d_QY%d_QZ%d/t1",
+          sprintf(aff_tag, "/N-qbGq-N/T%d_X%d_Y%d_Z%d/Gf_%s/Gc_%s/Gi_%s/QX%d_QY%d_QZ%d/t1",
               gsx[0], gsx[1], gsx[2], gsx[3],
               gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ],
               gamma_id_to_ascii[gamma_id],
@@ -888,7 +897,7 @@ int main(int argc, char **argv) {
           /***************************************************************************
            * diagram t2
            ***************************************************************************/
-          sprintf(aff_tag, "/N-ubGu-N/T%d_X%d_Y%d_Z%d/Gf_%s/Gc_%s/Gi_%s/QX%d_QY%d_QZ%d/t2",
+          sprintf(aff_tag, "/N-qbGq-N/T%d_X%d_Y%d_Z%d/Gf_%s/Gc_%s/Gi_%s/QX%d_QY%d_QZ%d/t2",
               gsx[0], gsx[1], gsx[2], gsx[3],
               gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ],
               gamma_id_to_ascii[gamma_id],
@@ -916,7 +925,7 @@ int main(int argc, char **argv) {
           /***************************************************************************
            * diagram t3
            ***************************************************************************/
-          sprintf(aff_tag, "/N-ubGu-N/T%d_X%d_Y%d_Z%d/Gf_%s/Gc_%s/Gi_%s/QX%d_QY%d_QZ%d/t3",
+          sprintf(aff_tag, "/N-qbGq-N/T%d_X%d_Y%d_Z%d/Gf_%s/Gc_%s/Gi_%s/QX%d_QY%d_QZ%d/t3",
               gsx[0], gsx[1], gsx[2], gsx[3],
               gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ],
               gamma_id_to_ascii[gamma_id],
@@ -948,7 +957,7 @@ int main(int argc, char **argv) {
           /***************************************************************************
            * diagram t4
            ***************************************************************************/
-          sprintf(aff_tag, "/N-ubGu-N/T%d_X%d_Y%d_Z%d/Gf_%s/Gc_%s/Gi_%s/QX%d_QY%d_QZ%d/t4",
+          sprintf(aff_tag, "/N-qbGq-N/T%d_X%d_Y%d_Z%d/Gf_%s/Gc_%s/Gi_%s/QX%d_QY%d_QZ%d/t4",
               gsx[0], gsx[1], gsx[2], gsx[3],
               gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ],
               gamma_id_to_ascii[gamma_id],
@@ -974,15 +983,123 @@ int main(int argc, char **argv) {
           }
         }} // end of loop on Dirac gamma structures
 
+        /***************************************************************************/
+        /***************************************************************************/
+
+        /***************************************************************************
+         *
+         * n - ubar u - n
+         *
+         ***************************************************************************/
+
+        /***************************************************************************
+         * fill the fermion propagator fp with sink-smeared propagator_up
+         ***************************************************************************/
+        assign_fermion_propagator_from_spinor_field ( fp, propagator_up_snk_smeared, VOLUME);
+
+        /***************************************************************************
+         * fill the fermion propagator fp2 with sink-smeared propagator_dn
+         ***************************************************************************/
+        assign_fermion_propagator_from_spinor_field ( fp2, propagator_dn_snk_smeared, VOLUME);
+
+        /***************************************************************************
+         * fill the fermion propagator fp3 with sequential_propagator
+         *   is already sink-smeared
+         ***************************************************************************/
+        assign_fermion_propagator_from_spinor_field ( fp3, sequential_propagator, VOLUME);
+
+        /***************************************************************************
+         * contractions as for N-N diagrams n1, n2,
+         * but with sequential up - after - up in two different places
+         ***************************************************************************/
+        for ( int if1 = 0; if1 < gamma_f1_number; if1++ ) {
+        for ( int if2 = 0; if2 < gamma_f1_number; if2++ ) {
+    
+          /***************************************************************************
+           * here we calculate fp3 = Gamma[if2] x propagator_dn / fp3 x Gamma[if1]
+           ***************************************************************************/
+          fermion_propagator_field_eq_gamma_ti_fermion_propagator_field ( fp3, gamma_f1_list[if2], fp3, VOLUME );
+    
+          fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fp3, gamma_f1_list[if1], fp3, VOLUME );
+    
+          fermion_propagator_field_eq_fermion_propagator_field_ti_re    ( fp3, fp3, -gamma_f1_sign[if1]*gamma_f1_sign[if2], VOLUME );
+    
+          /***************************************************************************
+           * diagram t7
+           ***************************************************************************/
+          sprintf(aff_tag, "/N-qbGq-N/T%d_X%d_Y%d_Z%d/Gf_%s/Gc_%s/Gi_%s/QX%d_QY%d_QZ%d/t7",
+              gsx[0], gsx[1], gsx[2], gsx[3],
+              gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ],
+              gamma_id_to_ascii[gamma_id],
+              gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], 
+              momentum[0], momentum[1], momentum[2] );
+    
+          /* the actual contraction
+           *   the operation is called type v5 here  */
+          exitstatus = contract_v5 ( vx, fp2, fp3, fp2, VOLUME );
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_v5, status was %d\n", exitstatus);
+            EXIT(48);
+          }
+    
+          /* (partial) Fourier transform, projection from position space to a (small) subset of momentum space */
+          exitstatus = contract_vn_momentum_projection ( vp, vx, 16, g_sink_momentum_list, g_sink_momentum_number);
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+            EXIT(48);
+          }
+    
+          /* write to AFF file */
+          exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+            EXIT(49);
+          }
+    
+          /***************************************************************************
+           * diagram t8
+           ***************************************************************************/
+          sprintf(aff_tag, "/N-qbGq-N/T%d_X%d_Y%d_Z%d/Gf_%s/Gc_%s/Gi_%s/QX%d_QY%d_QZ%d/t8",
+              gsx[0], gsx[1], gsx[2], gsx[3],
+              gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ],
+              gamma_id_to_ascii[gamma_id],
+              gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], 
+              momentum[0], momentum[1], momentum[2] );
+    
+          exitstatus = contract_v6 ( vx, fp2, fp3, fp2, VOLUME );
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_v6, status was %d\n", exitstatus);
+            EXIT(48);
+          }
+    
+          exitstatus = contract_vn_momentum_projection ( vp, vx, 16, g_sink_momentum_list, g_sink_momentum_number);
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+            EXIT(48);
+          }
+    
+          exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+            EXIT(49);
+          }
+
+        }} // end of loop on Dirac gamma structures
+
+        /***************************************************************************/
+        /***************************************************************************/
+
       } // end of loop on sequential source gamma matrices
 
       /***************************************************************************/
       /***************************************************************************/
 
       /***************************************************************************
-       *
-       * Part III sequential down - after - down inversion and contraction
-       *
+       ***************************************************************************
+       **
+       ** Part III sequential down - after - down inversion and contraction
+       **
+       ***************************************************************************
        ***************************************************************************/
 
       /***************************************************************************
@@ -1026,10 +1143,13 @@ int main(int argc, char **argv) {
         }
 
         /***************************************************************************
+         *
+         * p - dbar d - p
+         *
+         ***************************************************************************/
+
+        /***************************************************************************
          * fill the fermion propagator fp with sink-smeared propagator_up
-         * 
-         * this may be removed; fp is still set from
-         * previous Part II
          ***************************************************************************/
         assign_fermion_propagator_from_spinor_field ( fp, propagator_up_snk_smeared, VOLUME);
 
@@ -1045,7 +1165,6 @@ int main(int argc, char **argv) {
         for ( int if1 = 0; if1 < gamma_f1_number; if1++ ) {
         for ( int if2 = 0; if2 < gamma_f1_number; if2++ ) {
 
-    
           /***************************************************************************
            * here we calculate fp3 = Gamma[if2] x sequential propagator / fp2 x Gamma[if1]
            ***************************************************************************/
@@ -1056,9 +1175,9 @@ int main(int argc, char **argv) {
           fermion_propagator_field_eq_fermion_propagator_field_ti_re    ( fp3, fp3, -gamma_f1_sign[if1]*gamma_f1_sign[if2], VOLUME );
     
           /***************************************************************************
-           * diagram t1
+           * diagram t5
            ***************************************************************************/
-          sprintf(aff_tag, "/N-dbGd-N/T%d_X%d_Y%d_Z%d/Gf_%s/Gc_%s/Gi_%s/QX%d_QY%d_QZ%d/t1",
+          sprintf(aff_tag, "/N-qbGq-N/T%d_X%d_Y%d_Z%d/Gf_%s/Gc_%s/Gi_%s/QX%d_QY%d_QZ%d/t5",
               gsx[0], gsx[1], gsx[2], gsx[3],
               gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ],
               gamma_id_to_ascii[gamma_id],
@@ -1088,9 +1207,9 @@ int main(int argc, char **argv) {
           }
     
           /***************************************************************************
-           * diagram t2
+           * diagram t6
            ***************************************************************************/
-          sprintf(aff_tag, "/N-dbGd-N/T%d_X%d_Y%d_Z%d/Gf_%s/Gc_%s/Gi_%s/QX%d_QY%d_QZ%d/t2",
+          sprintf(aff_tag, "/N-qbGq-N/T%d_X%d_Y%d_Z%d/Gf_%s/Gc_%s/Gi_%s/QX%d_QY%d_QZ%d/t6",
               gsx[0], gsx[1], gsx[2], gsx[3],
               gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ],
               gamma_id_to_ascii[gamma_id],
@@ -1116,6 +1235,172 @@ int main(int argc, char **argv) {
           }
     
         }}  /* end of loop on Dirac Gamma structures */
+
+        /***************************************************************************/
+        /***************************************************************************/
+ 
+        /***************************************************************************
+         *
+         * n - dbar d - n
+         *
+         ***************************************************************************/
+
+        /***************************************************************************
+         * fill the fermion propagator fp  with sink-smeared propagator_up
+         ***************************************************************************/
+        assign_fermion_propagator_from_spinor_field ( fp, propagator_up_snk_smeared, VOLUME);
+
+        /***************************************************************************
+         * fill the fermion propagator fp2 with sink-smeared propagator_dn
+         ***************************************************************************/
+        assign_fermion_propagator_from_spinor_field ( fp2, propagator_dn_snk_smeared, VOLUME);
+
+        /***************************************************************************
+         * fill the fermion propagator fp3 with sequential_propagator
+         *   is sink-smeared
+         ***************************************************************************/
+        assign_fermion_propagator_from_spinor_field ( fp3, sequential_propagator, VOLUME);
+
+        /***************************************************************************
+         * contractions for N-J-N diagrams t1, t2 with sequential down - after - down
+         ***************************************************************************/
+        for ( int if1 = 0; if1 < gamma_f1_number; if1++ ) {
+        for ( int if2 = 0; if2 < gamma_f1_number; if2++ ) {
+
+          /***************************************************************************
+           * here we calculate fp = Gamma[if2] x propagator_up / fp x Gamma[if1]
+           ***************************************************************************/
+          fermion_propagator_field_eq_gamma_ti_fermion_propagator_field ( fp, gamma_f1_list[if2], fp, VOLUME );
+    
+          fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fp, gamma_f1_list[if1], fp, VOLUME );
+    
+          fermion_propagator_field_eq_fermion_propagator_field_ti_re    ( fp, fp, -gamma_f1_sign[if1]*gamma_f1_sign[if2], VOLUME );
+    
+          /***************************************************************************
+           * diagram t9
+           ***************************************************************************/
+          sprintf(aff_tag, "/N-qbGq-N/T%d_X%d_Y%d_Z%d/Gf_%s/Gc_%s/Gi_%s/QX%d_QY%d_QZ%d/t9",
+              gsx[0], gsx[1], gsx[2], gsx[3],
+              gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ],
+              gamma_id_to_ascii[gamma_id],
+              gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], 
+              momentum[0], momentum[1], momentum[2] );
+    
+          /* the actual contraction
+           *   the operation is called type v5 here  */
+          exitstatus = contract_v5 ( vx, fp2, fp, fp3, VOLUME );
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_v5, status was %d\n", exitstatus);
+            EXIT(48);
+          }
+    
+          /* (partial) Fourier transform, projection from position space to a (small) subset of momentum space */
+          exitstatus = contract_vn_momentum_projection ( vp, vx, 16, g_sink_momentum_list, g_sink_momentum_number);
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+            EXIT(48);
+          }
+    
+          /* write to AFF file */
+          exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+            EXIT(49);
+          }
+    
+          /***************************************************************************
+           * diagram t10
+           ***************************************************************************/
+          sprintf(aff_tag, "/N-qbGq-N/T%d_X%d_Y%d_Z%d/Gf_%s/Gc_%s/Gi_%s/QX%d_QY%d_QZ%d/t10",
+              gsx[0], gsx[1], gsx[2], gsx[3],
+              gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ],
+              gamma_id_to_ascii[gamma_id],
+              gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], 
+              momentum[0], momentum[1], momentum[2] );
+    
+          exitstatus = contract_v6 ( vx, fp2, fp, fp3, VOLUME );
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_v6, status was %d\n", exitstatus);
+            EXIT(48);
+          }
+    
+          exitstatus = contract_vn_momentum_projection ( vp, vx, 16, g_sink_momentum_list, g_sink_momentum_number);
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+            EXIT(48);
+          }
+    
+          exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+            EXIT(49);
+          }
+    
+          /***************************************************************************
+           * diagram t11
+           ***************************************************************************/
+          sprintf(aff_tag, "/N-qbGq-N/T%d_X%d_Y%d_Z%d/Gf_%s/Gc_%s/Gi_%s/QX%d_QY%d_QZ%d/t11",
+              gsx[0], gsx[1], gsx[2], gsx[3],
+              gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ],
+              gamma_id_to_ascii[gamma_id],
+              gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], 
+              momentum[0], momentum[1], momentum[2] );
+    
+          /* the actual contraction
+           *   the operation is called type v5 here  */
+          exitstatus = contract_v5 ( vx, fp3, fp, fp2, VOLUME );
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_v5, status was %d\n", exitstatus);
+            EXIT(48);
+          }
+    
+          /* (partial) Fourier transform, projection from position space to a (small) subset of momentum space */
+          exitstatus = contract_vn_momentum_projection ( vp, vx, 16, g_sink_momentum_list, g_sink_momentum_number);
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+            EXIT(48);
+          }
+    
+          /* write to AFF file */
+          exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+            EXIT(49);
+          }
+    
+          /***************************************************************************
+           * diagram t12
+           ***************************************************************************/
+          sprintf(aff_tag, "/N-qbGq-N/T%d_X%d_Y%d_Z%d/Gf_%s/Gc_%s/Gi_%s/QX%d_QY%d_QZ%d/t12",
+              gsx[0], gsx[1], gsx[2], gsx[3],
+              gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ],
+              gamma_id_to_ascii[gamma_id],
+              gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], 
+              momentum[0], momentum[1], momentum[2] );
+    
+          exitstatus = contract_v6 ( vx, fp3, fp, fp2, VOLUME );
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_v6, status was %d\n", exitstatus);
+            EXIT(48);
+          }
+    
+          exitstatus = contract_vn_momentum_projection ( vp, vx, 16, g_sink_momentum_list, g_sink_momentum_number);
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+            EXIT(48);
+          }
+
+          exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+            EXIT(49);
+          }
+
+        }}  /* end of loop on Dirac Gamma structures */
+
+        /***************************************************************************/
+        /***************************************************************************/
+
 
       }  /* end of loop on sequential source gamma ids */
 
