@@ -1100,6 +1100,7 @@ int main(int argc, char **argv) {
    ***************************************************************************/
 
   free( gauge_field_with_phase );
+  free( gauge_field_smeared );
 
   /* free clover matrix terms */
   fini_clover ( &mzz, &mzzinv );

@@ -208,6 +208,8 @@ namespace cvc {
 %x TWISTEDMASSES
 %x TBC_PHASE
 %x GAUSSIANSMEARINGLEVEL
+%x NSTOUT
+%x RHOSTOUT
 
 %%
 ^T{SPC}*={SPC}*                            BEGIN(TT);
@@ -286,6 +288,8 @@ namespace cvc {
 ^N_hyp{SPC}*={SPC}*                        BEGIN(NHYP);
 ^alpha_hyp{SPC}*={SPC}*                    BEGIN(ALPHAHYP);
 ^kappa_Jacobi{SPC}*={SPC}*                 BEGIN(KAPPAJACOBI);
+^N_Stout{SPC}*={SPC}*                      BEGIN(NSTOUT);
+^rho_Stout{SPC}*={SPC}*                    BEGIN(RHOSTOUT);
 ^source_timeslice{SPC}*={SPC}*             BEGIN(SRCTIMESLICE);
 
 ^sequential_source_timeslice{SPC}*={SPC}*  BEGIN(SEQSRCTIMESLICE);
@@ -703,6 +707,17 @@ namespace cvc {
   cvc::kappa_Jacobi = atof(yytext);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set cvc::kappa_Jacobi to %s\n", yytext);
 }
+
+<NSTOUT>{DIGIT}+ {
+  cvc::g_n_stout = atoi(yytext);
+  if(cvc::myverbose!=0) printf("# [read_input_parser] set cvc::g_n_stout to %s\n", yytext);
+}
+
+<RHOSTOUT>{FLT} {
+  cvc::g_rho_stout = atof(yytext);
+  if(cvc::myverbose!=0) printf("# [read_input_parser] set cvc::g_rho_stout to %s\n", yytext);
+}
+
 <SRCTIMESLICE>{DIGIT}+ {
   cvc::g_source_timeslice = atoi(yytext);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set source timeslice to %s\n", yytext);

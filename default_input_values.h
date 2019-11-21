@@ -74,9 +74,11 @@ namespace cvc {
 #define _default_Nlong -1
 #define _default_N_ape -1
 #define _default_N_Jacobi -1
+#define _default_n_stout -1
 
 #define _default_alpha_ape 0.
 #define _default_kappa_Jacobi 0.
+#define _default_rho_stout 0.
 
 #define _default_alpha_hyp 0.
 #define _default_N_hyp 0
