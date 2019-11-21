@@ -7847,33 +7847,57 @@ int vdag_gloc_w_scalar_product_pt ( double _Complex **** const vw_mat, double **
  ****************************************************************************/
 int plaquette_field ( double ** const pl, double * const gfield ) {
 
+  /* index sequence 
+   * 0 = t - x
+   * 1 = t - y
+   * 2 = t - z
+   * 3 = x - y
+   * 4 = x - z
+   * 5 = y - u
+   */
+
 #ifdef HAVE_OPENMP
 #pragma omp parallel
 {
 #endif
-  double s[18], t[18], u[18];
+  double s[18], t[18], u[6][18];
+  double pl_tmp[10] = { 0., 0., 0., 0., 0., 0., 0., 0., 0., 0. };
+  double * _pl;
 
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
   for ( unsigned int ix = 0; ix < VOLUME; ix++) {
-    /* time-like */
-    for ( int nu = 1; nu < 4; nu++ ) {
-      _cm_eq_cm_ti_cm(s, gfield + _GGI(ix, 0), gfield + _GGI(g_iup[ix][ 0], nu) );
-      _cm_eq_cm_ti_cm(t, gfield + _GGI(ix,nu), gfield + _GGI(g_iup[ix][nu],  0) );
-      _cm_eq_cm_ti_cm_dag(u, s, t);
-      _re_pl_eq_tr_cm ( pl[0]+ix, u );
+    /* plaquette loops */
+    int imunu = 0;
+    for ( int mu = 0; mu < 3; mu++ ) {
+      for ( int nu = mu + 1; nu < 4; nu++ ) {
+        _cm_eq_cm_ti_cm(s, gfield + _GGI(ix, mu), gfield + _GGI(g_iup[ix][mu], nu) );
+        _cm_eq_cm_ti_cm(t, gfield + _GGI(ix, nu), gfield + _GGI(g_iup[ix][nu], mu) );
+        _cm_eq_cm_ti_cm_dag(u[imunu], s, t);
+        imunu++;
+      }
     }
 
+    /* G_tx G_tx  */
+    _re_pl_eq_tr_cm ( pl_tmp[0], u[0] );
+    _re_pl_eq_tr_cm ( pl_tmp[0], u[1] );
+    _re_pl_eq_tr_cm ( pl_tmp[0], u[2] );
+    pl_tmp[0] -= 9.;
+
+    /* for O_xx */
+    _re_pl_eq_tr_cm ( pl_tmp[1], u[0] );  /* x - t */
+    _re_pl_eq_tr_cm ( pl_tmp[1], u[3] );  /* x - y */
+    _re_pl_eq_tr_cm ( pl_tmp[1], u[4] );  /* x - z */
+
+    /* for O_yy */
+    _re_pl_eq_tr_cm ( pl_tmp[2], u[1] );  /* y - t */
+    _re_pl_eq_tr_cm ( pl_tmp[2], u[3] );  /* y - x */
+    _re_pl_eq_tr_cm ( pl_tmp[2], u[4] );  /* y - z */
+
+
     /* space-like */
-    for ( int mu = 1; mu<3; mu++) {
-    for ( int nu = mu+1; nu < 4; nu++) {
-      _cm_eq_cm_ti_cm(s, gfield + _GGI(ix, mu), gfield + _GGI( g_iup[ix][mu], nu) );
-      _cm_eq_cm_ti_cm(t, gfield + _GGI(ix, nu), gfield + _GGI( g_iup[ix][nu], mu) );
-      _cm_eq_cm_ti_cm_dag(u, s, t);
-      _re_pl_eq_tr_cm( pl[1]+ix, u);
-    }}
-  }
+  }  /* end of loop on ix */
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */
 #endif
