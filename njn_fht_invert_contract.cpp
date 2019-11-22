@@ -642,7 +642,7 @@ int main(int argc, char **argv) {
       /* write to AFF file */
       exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
       if ( exitstatus != 0 ) {
-        fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+        fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(49);
       }
 
@@ -665,7 +665,7 @@ int main(int argc, char **argv) {
 
       exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
       if ( exitstatus != 0 ) {
-        fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+        fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d %s %d\n", exitstatus,  __FILE__, __LINE__);
         EXIT(49);
       }
 
@@ -712,7 +712,7 @@ int main(int argc, char **argv) {
       /* write to AFF file */
       exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
       if ( exitstatus != 0 ) {
-        fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+        fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d %s %d\n", exitstatus,  __FILE__, __LINE__);
         EXIT(49);
       }
 
@@ -735,7 +735,7 @@ int main(int argc, char **argv) {
 
       exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
       if ( exitstatus != 0 ) {
-        fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+        fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d %s %d\n", exitstatus,  __FILE__, __LINE__);
         EXIT(49);
       }
 
@@ -842,16 +842,16 @@ int main(int argc, char **argv) {
         assign_fermion_propagator_from_spinor_field ( fp2, sequential_propagator, VOLUME);
 
         /***************************************************************************
-         * fill the fermion propagator fp3 with sink-smeared propagator_dn
-         ***************************************************************************/
-        assign_fermion_propagator_from_spinor_field ( fp3, propagator_dn_snk_smeared, VOLUME);
-
-        /***************************************************************************
          * contractions as for N-N diagrams n1, n2,
          * but with sequential up - after - up in two different places
          ***************************************************************************/
         for ( int if1 = 0; if1 < gamma_f1_number; if1++ ) {
         for ( int if2 = 0; if2 < gamma_f1_number; if2++ ) {
+
+          /***************************************************************************
+           * fill the fermion propagator fp3 with sink-smeared propagator_dn
+           ***************************************************************************/
+          assign_fermion_propagator_from_spinor_field ( fp3, propagator_dn_snk_smeared, VOLUME);
     
           /***************************************************************************
            * here we calculate fp3 = Gamma[if2] x propagator_dn / fp3 x Gamma[if1]
@@ -890,7 +890,7 @@ int main(int argc, char **argv) {
           /* write to AFF file */
           exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
           if ( exitstatus != 0 ) {
-            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d %s %d\n", exitstatus,  __FILE__, __LINE__);
             EXIT(49);
           }
     
@@ -918,7 +918,7 @@ int main(int argc, char **argv) {
     
           exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
           if ( exitstatus != 0 ) {
-            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d %s %d\n", exitstatus,  __FILE__, __LINE__);
             EXIT(49);
           }
 
@@ -950,7 +950,7 @@ int main(int argc, char **argv) {
           /* write to AFF file */
           exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
           if ( exitstatus != 0 ) {
-            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d %s %d\n", exitstatus,  __FILE__, __LINE__);
             EXIT(49);
           }
     
@@ -978,7 +978,7 @@ int main(int argc, char **argv) {
     
           exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
           if ( exitstatus != 0 ) {
-            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d %s %d\n", exitstatus,  __FILE__, __LINE__);
             EXIT(49);
           }
         }} // end of loop on Dirac gamma structures
@@ -1003,18 +1003,18 @@ int main(int argc, char **argv) {
         assign_fermion_propagator_from_spinor_field ( fp2, propagator_dn_snk_smeared, VOLUME);
 
         /***************************************************************************
-         * fill the fermion propagator fp3 with sequential_propagator
-         *   is already sink-smeared
-         ***************************************************************************/
-        assign_fermion_propagator_from_spinor_field ( fp3, sequential_propagator, VOLUME);
-
-        /***************************************************************************
          * contractions as for N-N diagrams n1, n2,
          * but with sequential up - after - up in two different places
          ***************************************************************************/
         for ( int if1 = 0; if1 < gamma_f1_number; if1++ ) {
         for ( int if2 = 0; if2 < gamma_f1_number; if2++ ) {
     
+          /***************************************************************************
+           * fill the fermion propagator fp3 with sequential_propagator
+           *   is already sink-smeared
+           ***************************************************************************/
+          assign_fermion_propagator_from_spinor_field ( fp3, sequential_propagator, VOLUME);
+
           /***************************************************************************
            * here we calculate fp3 = Gamma[if2] x propagator_dn / fp3 x Gamma[if1]
            ***************************************************************************/
@@ -1052,7 +1052,7 @@ int main(int argc, char **argv) {
           /* write to AFF file */
           exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
           if ( exitstatus != 0 ) {
-            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d %s %d\n", exitstatus,  __FILE__, __LINE__);
             EXIT(49);
           }
     
@@ -1080,7 +1080,7 @@ int main(int argc, char **argv) {
     
           exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
           if ( exitstatus != 0 ) {
-            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d %s %d\n", exitstatus,  __FILE__, __LINE__);
             EXIT(49);
           }
 
@@ -1202,7 +1202,7 @@ int main(int argc, char **argv) {
           /* write to AFF file */
           exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
           if ( exitstatus != 0 ) {
-            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d %s %d\n", exitstatus,  __FILE__, __LINE__);
             EXIT(49);
           }
     
@@ -1230,7 +1230,7 @@ int main(int argc, char **argv) {
     
           exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
           if ( exitstatus != 0 ) {
-            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d %s %d\n", exitstatus,  __FILE__, __LINE__);
             EXIT(49);
           }
     
@@ -1244,11 +1244,6 @@ int main(int argc, char **argv) {
          * n - dbar d - n
          *
          ***************************************************************************/
-
-        /***************************************************************************
-         * fill the fermion propagator fp  with sink-smeared propagator_up
-         ***************************************************************************/
-        assign_fermion_propagator_from_spinor_field ( fp, propagator_up_snk_smeared, VOLUME);
 
         /***************************************************************************
          * fill the fermion propagator fp2 with sink-smeared propagator_dn
@@ -1266,6 +1261,12 @@ int main(int argc, char **argv) {
          ***************************************************************************/
         for ( int if1 = 0; if1 < gamma_f1_number; if1++ ) {
         for ( int if2 = 0; if2 < gamma_f1_number; if2++ ) {
+
+          /***************************************************************************
+           * fill the fermion propagator fp  with sink-smeared propagator_up
+           ***************************************************************************/
+          assign_fermion_propagator_from_spinor_field ( fp, propagator_up_snk_smeared, VOLUME);
+
 
           /***************************************************************************
            * here we calculate fp = Gamma[if2] x propagator_up / fp x Gamma[if1]
@@ -1304,7 +1305,7 @@ int main(int argc, char **argv) {
           /* write to AFF file */
           exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
           if ( exitstatus != 0 ) {
-            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d %s %d\n", exitstatus,  __FILE__, __LINE__);
             EXIT(49);
           }
     
@@ -1332,7 +1333,7 @@ int main(int argc, char **argv) {
     
           exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
           if ( exitstatus != 0 ) {
-            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d %s %d\n", exitstatus,  __FILE__, __LINE__);
             EXIT(49);
           }
     
@@ -1364,7 +1365,7 @@ int main(int argc, char **argv) {
           /* write to AFF file */
           exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
           if ( exitstatus != 0 ) {
-            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d %s %d\n", exitstatus,  __FILE__, __LINE__);
             EXIT(49);
           }
     
@@ -1392,7 +1393,7 @@ int main(int argc, char **argv) {
 
           exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
           if ( exitstatus != 0 ) {
-            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+            fprintf(stderr, "[njn_fht_invert_contract] Error from contract_vn_write_aff, status was %d %s %d\n", exitstatus,  __FILE__, __LINE__);
             EXIT(49);
           }
 
