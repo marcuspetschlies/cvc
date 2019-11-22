@@ -1,6 +1,8 @@
 #ifndef _PREPARE_SOURCE_H
 #define _PREPARE_SOURCE_H
 
+#include "gamma.h"
+
 namespace cvc {
 
 int prepare_volume_source ( double * const s, unsigned int const V);
@@ -27,6 +29,8 @@ int init_coherent_sequential_source(double *s, double **p, int tseq, int ncoh, i
 int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init);
 
 int init_timeslice_source_z3_oet ( double ** const s, int const  tsrc, int const momentum[3], int const init );
+
+int prepare_sequential_fht_loop_source ( double ** const  seq_source, double _Complex *** const loop, double ** const prop, gamma_matrix_type * gamma_mat, int const gamma_num, double _Complex * const ephase, int const type );
 
 }  /* end of namespace cvc */
 

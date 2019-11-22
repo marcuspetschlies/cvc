@@ -32,6 +32,8 @@
 #include "ranlxd.h"
 #include "matrix_init.h"
 #include "make_x_orbits.h"
+#include "gamma.h"
+#include "table_init_z.h"
 
 namespace cvc {
 
@@ -1086,5 +1088,112 @@ int init_timeslice_source_z3_oet ( double ** const s, int const  tsrc, int const
 
   return(0);
 }  /* end of init_timeslice_source_z3_oet */
+
+/**********************************************************/
+/**********************************************************/
+
+/**********************************************************
+ * prepare sequential FHT source with loop
+ **********************************************************/
+int prepare_sequential_fht_loop_source ( double ** const seq_source, double _Complex *** const loop, double ** const prop, gamma_matrix_type * gamma_mat, int const gamma_num, double _Complex * const ephase, int const type ) {
+  
+  unsigned int const VOL3 = LX * LY * LZ;
+#pragma omp parallel for
+  for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
+
+    double _Complex ** M = init_2level_ztable ( 12, 12 );
+    double _Complex **_loop = loop[ix];
+
+    for ( int ig = 0; ig < gamma_num; ig++ ) {
+      for ( int ialpha = 0; ialpha < 4; ialpha++ ) {
+      for ( int ia = 0; ia < 3; ia++ ) {
+        int const ka = 3 * ialpha + ia;
+
+        for ( int ibeta = 0; ibeta < 4; ibeta++ ) {
+        for ( int ib = 0; ib < 3; ib++ ) {
+          int const kb = 3 * ibeta + ib;
+
+          for ( int igamma = 0; igamma < 4; igamma++ ) {
+            int const kc = 3 * igamma + ia;
+          for ( int idelta = 0; idelta < 4; idelta++ ) {
+            int const kd = 3 * idelta + ib;
+
+            M[ka][kb] += gamma_mat[ig].m[ialpha][igamma] * _loop[kc][kd] *  gamma_mat[ig].m[idelta][ibeta];
+
+          }}  /*  end of loop on idelta, igamma */
+
+        }}  /* end of loop on ib, ibeta  */
+
+      }}  /* end of loop on ia, ialpha */
+
+    }  /* end of loop on vertex gamma list */
+
+    unsigned int const ix3 = ix % VOL3;
+
+    if ( type == 1 ) {
+
+      /**********************************************************
+       * ztmp = Tr [ M ]
+       **********************************************************/
+      double _Complex ztmp = 0.;
+
+      for ( int ia = 0; ia < 12; ia++ ) {
+        ztmp += M[ia][ia];
+      }
+
+      /**********************************************************
+       * ztmp = ztmp * exp ( i p_seq x_seq )
+       **********************************************************/
+      ztmp *= ephase[ix3];
+
+      /**********************************************************
+       * seq_source = ztmp * prop = Tr[ gLg ] * exp(ipx) * prop
+       **********************************************************/
+      for ( int ib = 0; ib < 12; ib++ ) {
+      for ( int ia = 0; ia < 12; ia++ ) {
+        double _Complex a = ( prop[ib][_GSI(ix) + 2*ia] + I * prop[ib][_GSI(ix) + 2*ia+1] ) * ztmp;
+        seq_source[ib][_GSI(ix) + 2*ia  ] = creal( a );
+        seq_source[ib][_GSI(ix) + 2*ia+1] = cimag( a );
+      }}
+    } else if ( type == 2 ) {
+
+      double _Complex U[12][12];
+
+      for ( int ialpha = 0; ialpha < 4; ialpha++ ) {
+      for ( int ia = 0; ia < 3; ia++ ) {
+        int const ka = 3 * ialpha + ia;
+
+        for ( int ibeta = 0; ibeta < 4; ibeta++ ) {
+        for ( int ib = 0; ib < 3; ib++ ) {
+          int const kb = 3 * ibeta + ib;
+
+          U[0][0] = 0.;
+
+          for ( int igamma = 0; igamma < 4; igamma++ ) {
+          for ( int ic = 0; ic < 3; ic++ ) {
+            int const kc = 3 * igamma + ic;
+            U[ka][kb] += M[ka][kc] * ( prop[kb][_GSI(ix)+2*kc] + I * prop[kb][_GSI(ix)+2*kc+1] );
+          }}
+
+          U[ka][kb] *= ephase[ix3];
+        }}
+      }} 
+
+      for( int ib = 0; ib  < 12; ib++ ) {
+      for( int ia = 0; ia  < 12; ia++ ) {
+        seq_source[ib][_GSI(ix)+2*ia  ] = creal( U[ia][ib] );
+        seq_source[ib][_GSI(ix)+2*ia+1] = cimag( U[ia][ib] );
+      }}
+    }  /* end of if type */
+
+    fini_2level_ztable ( &M );
+
+  }  /* end of loop on volume */
+
+  return (0);
+}  /* end of prepare_sequential_fht_loop_source */
+
+/**********************************************************/
+/**********************************************************/
 
 }  /* end of namespace cvc */
