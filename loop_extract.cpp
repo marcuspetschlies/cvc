@@ -178,9 +178,9 @@ int main(int argc, char **argv) {
   /* sprintf ( filename, "loop_probD%d.%.4d_r%d_exact_NeV%d_Qsq%d.h5", hier_prob_D,  confid, stream, exdef_nev, Qsq ); */
 
   /* MG_loop_lightquark_conf_conf.1016_runtype_probD8_part1_stoch_NeV0_Ns0128_step0001_Qsq22.h5 */
-  /* sprintf ( filename, "MG_loop_lightquark_conf_conf.%.4d_runtype_probD%d_part1_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", confid, hier_prob_D, exdef_nev, nsample, nstep, Qsq ); */
+  sprintf ( filename, "MG_loop_lightquark_conf_conf.%.4d_runtype_probD%d_part1_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", confid, hier_prob_D, exdef_nev, nsample, nstep, Qsq );
  
-  sprintf ( filename, "loop_probD%d.%.4d_r%d_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", hier_prob_D, confid, stream, exdef_nev, nsample, nstep, Qsq );
+  /* sprintf ( filename, "loop_probD%d.%.4d_r%d_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", hier_prob_D, confid, stream, exdef_nev, nsample, nstep, Qsq ); */
 
   if ( io_proc == 2 && g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", filename );
 
@@ -277,6 +277,7 @@ int main(int argc, char **argv) {
    * exact part
    ***************************************************************************/
 
+#if 0
   if ( exdef_nev > 0 ) {
      /* allocate memory for contractions */
     double *** loop_exact = init_3level_dtable ( T, sink_momentum_number, 32 );
@@ -357,9 +358,9 @@ int main(int argc, char **argv) {
     fini_3level_dtable ( &loop_exact );
 
   }  /* of if exdef_nev > 0 */
-#if 0
 #endif  /* of if 0 */
 
+#if 0
   /***************************************************************************
    * stochastic part
    ***************************************************************************/
@@ -461,7 +462,8 @@ int main(int argc, char **argv) {
   fini_4level_ztable ( &zloop_stoch );
   fini_3level_dtable ( &loop_stoch );
 
-#if 0
+#endif  /* of if 0 */
+
   /***************************************************************************
    * stochastic part with volume sources
    *
@@ -477,7 +479,8 @@ int main(int argc, char **argv) {
     EXIT(48);
   }
 
-  sprintf ( filename, "MG_loop_lightquark_conf_conf.%.4d_runtype_probD%d_part1_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", confid, hier_prob_D, exdef_nev, nsample, nstep, Qsq );
+  char data_filename[400];
+  sprintf ( data_filename, "MG_loop_lightquark_conf_conf.%.4d_runtype_probD%d_part1_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", confid, hier_prob_D, exdef_nev, nsample, nstep, Qsq );
   if ( g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", filename );
 
   double _Complex ***** zloop_stoch = init_5level_ztable ( nsample,  g_sink_momentum_number, T, 4, 4 );
@@ -486,77 +489,99 @@ int main(int argc, char **argv) {
     EXIT(48);
   }
 
-  for ( int isample = 0; isample < nsample; isample++ )
+  for ( int idir = 0; idir < num_dir; idir++ )
   {
+
+    for ( int isample = 0; isample < nsample; isample++ )
+    {
     
-    unsigned int const Nstoch = isample * nstep + 1;
+      unsigned int const Nstoch = ( isample + 1 ) * nstep;
 
+      if ( cumulative ) {
+        sprintf ( data_tag_prefix, "/conf_%.4d/Nstoch_%.4d/%s" , confid, Nstoch, oet_type );
+      } else {
+        sprintf ( data_tag_prefix, "/conf_%.4d/nstoch_%.4d/%s" , confid, Nstoch, oet_type );
+      }
+
+      /* sprintf ( data_tag_prefix, "/conf_%.4d/Nstoch_%.4d/%s" , confid, Nstoch, oet_type ); */
+
+      if ( have_deriv ) {
+        sprintf ( data_tag, "%s/dir_%.2d/loop" , data_tag_prefix, idir );
+      } else {
+        sprintf ( data_tag, "%s/loop" , data_tag_prefix );
+      }
+
+      if ( g_verbose > 2 ) fprintf( stdout, "# [loop_extract] data_tag = %s\n", data_tag);
+
+      exitstatus = loop_read_from_h5_file ( loop_stoch, data_filename, data_tag, sink_momentum_number, 16, io_proc );
+      if ( exitstatus != 0 ) {
+        fprintf ( stderr, "[loop_extract] Error from loop_read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(1);
+      }
+
+      for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+#pragma omp parallel for
+        for ( int it = 0; it < T; it++ ) {
+          /* transpose and normalize */
+          for ( int ia = 0; ia < 4; ia++ ) {
+          for ( int ib = 0; ib < 4; ib++ ) {
+            zloop_stoch[isample][imom][it][ia][ib] = ( loop_stoch[it][sink_momentum_matchid[imom]][2*(4*ib + ia)] + loop_stoch[it][sink_momentum_matchid[imom]][2*(4*ib + ia)+1] * I ) * loop_norm;
+          }}
+        }
+      }  /* end of loop on momenta */
+    }  /* end of loop on samples */
+
+    /***************************************************************************
+     * undo accumulation, backwards in sample id
+     ***************************************************************************/
     if ( cumulative ) {
-      sprintf ( data_tag, "/conf_0004/Nstoch_%.4d/%s/loop" , Nstoch, oet_type );
-    } else {
-      sprintf ( data_tag, "/conf_%.4d/nstoch_%.4d/%s/loop" , confid, Nstoch, oet_type );
-    }
-
-    if ( g_verbose > 2 ) fprintf( stdout, "# [loop_extract] data_tag = %s\n", data_tag);
-
-    exitstatus = loop_read_from_h5_file ( loop_stoch, filename, data_tag, sink_momentum_number, 16, io_proc );
-    if ( exitstatus != 0 ) {
-      fprintf ( stderr, "[loop_extract] Error from loop_read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-      EXIT(1);
+      for ( int isample = nsample - 1; isample > 0; isample-- ) {
+#pragma omp parallel for
+        for ( int idx = 0; idx < 16 *T * g_sink_momentum_number; idx++ ) {
+          zloop_stoch[isample][0][0][0][idx] -= zloop_stoch[isample-1][0][0][0][idx];
+        }
+      }
     }
 
     for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
 
-      for ( int it = 0; it < T; it++ ) {
-        /* transpose and normalize */
-        for ( int ia = 0; ia < 4; ia++ ) {
-        for ( int ib = 0; ib < 4; ib++ ) {
-          zloop_stoch[isample][imom][it][ia][ib] = ( loop_stoch[it][sink_momentum_matchid[imom]][2*(4*ib + ia)] + loop_stoch[it][sink_momentum_matchid[imom]][2*(4*ib + ia)+1] * I ) * loop_norm;
-        }}
+      /* sprintf ( filename, "loop.%.4d.stoch.%s.nev%d.PX%d_PY%d_PZ%d", confid, oet_type, exdef_nev,
+          g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2] ); */
+
+      if ( have_deriv ) {
+        sprintf ( filename, "loop.%.4d.stoch.%s.nev%d.mu%d.PX%d_PY%d_PZ%d", confid, oet_type, exdef_nev, idir,
+            g_sink_momentum_list[imom][0],
+            g_sink_momentum_list[imom][1],
+            g_sink_momentum_list[imom][2] );
+      } else {
+        sprintf ( filename, "loop.%.4d.stoch.%s.nev%d.PX%d_PY%d_PZ%d", confid, oet_type, exdef_nev,
+            g_sink_momentum_list[imom][0],
+            g_sink_momentum_list[imom][1],
+            g_sink_momentum_list[imom][2] );
+      } 
+
+      if ( g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", filename );
+
+      FILE * ofs = fopen ( filename, "w" );
+  
+      /* write to ASCII file  */
+      for ( int isample = 0; isample < nsample; isample++ ) {
+        for ( int it = 0; it < T; it++ ) {
+          for ( int ia = 0; ia < 4; ia++ ) {
+          for ( int ib = 0; ib < 4; ib++ ) {
+            fprintf ( ofs, "%6d %3d %d %d %25.16e %25.16e\n", isample, it, ia, ib, creal( zloop_stoch[isample][imom][it][ia][ib] ), cimag ( zloop_stoch[isample][imom][it][ia][ib] ) );
+          }}
+        }
       }
-    }  /* end of loop on momenta */
 
-  }  /* end of loop on samples */
+      fclose ( ofs );
+    }  /* end of loop on sink momenta */
 
-  /***************************************************************************
-   * undo accumulation, backwards in sample id
-   ***************************************************************************/
-  if ( cumulative ) {
-    for ( int isample = nsample - 1; isample > 0; isample-- ) {
-#pragma omp parallel for
-      for ( int idx = 0; idx < 16 *T * g_sink_momentum_number; idx++ ) {
-        zloop_stoch[isample][0][0][0][idx] -= zloop_stoch[isample-1][0][0][0][idx];
-      }
-    }
-  }
-
-  for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
-
-    sprintf ( filename, "loop.%.4d.stoch.%s.nev%d.PX%d_PY%d_PZ%d", confid, oet_type, exdef_nev,
-        g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2] );
-
-
-    if ( g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", filename );
-
-    FILE * ofs = fopen ( filename, "w" );
-
-    for ( int isample = 0; isample < nsample; isample++ ) {
-      for ( int it = 0; it < T; it++ ) {
-        /* transpose and normalize */
-        for ( int ia = 0; ia < 4; ia++ ) {
-        for ( int ib = 0; ib < 4; ib++ ) {
-          fprintf ( ofs, "%6d %3d %d %d %25.16e %25.16e\n", isample, it, ia, ib, creal( zloop_stoch[isample][imom][it][ia][ib] ), cimag ( zloop_stoch[isample][imom][it][ia][ib] ) );
-        }}
-      }
-    }
-
-    fclose ( ofs );
-
-  }
+  }  /* end of loop on directions */
 
   fini_5level_ztable ( &zloop_stoch );
   fini_3level_dtable ( &loop_stoch );
-
+#if 0
 #endif  /* of if 0 */
 
   /*****************************************************************/
