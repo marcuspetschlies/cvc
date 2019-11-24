@@ -60,6 +60,7 @@ extern "C"
 #include "Q_phi.h"
 #include "clover.h"
 #include "ranlxd.h"
+#include "smearing_techniques.h"
 
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
@@ -81,6 +82,8 @@ int main(int argc, char **argv) {
 
   const char fbwd_str[2][4] =  { "fwd", "bwd" };
 
+  int const current_momentum_sqr_max = 3;
+
   int c;
   int filename_set = 0;
   int exitstatus;
@@ -90,7 +93,7 @@ int main(int argc, char **argv) {
   char filename[100];
   // double ratime, retime;
   double **mzz[2] = { NULL, NULL }, **mzzinv[2] = { NULL, NULL };
-  double *gauge_field_with_phase = NULL;
+  double *gauge_field_with_phase = NULL, *gauge_field_smeared = NULL;
   int op_id_up = -1, op_id_dn = -1;
   char output_filename[400];
   int * rng_state = NULL;
@@ -149,8 +152,8 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * initialize MPI parameters for cvc
    ***************************************************************************/
-  /* exitstatus = tmLQCD_invert_init(argc, argv, 1, 0); */
-  exitstatus = tmLQCD_invert_init(argc, argv, 1);
+  exitstatus = tmLQCD_invert_init(argc, argv, 1, 0);
+  /* exitstatus = tmLQCD_invert_init(argc, argv, 1); */
   if(exitstatus != 0) {
     EXIT(1);
   }
@@ -238,6 +241,7 @@ int main(int argc, char **argv) {
   }
 #endif
 
+
   /***************************************************************************
    * multiply the temporal phase to the gauge field
    ***************************************************************************/
@@ -264,6 +268,27 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[cpff_invert_contract] Error from init_clover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
     EXIT(1);
   }
+
+  /***********************************************
+   * if we want to use Jacobi smearing, we need
+   * smeared gauge field
+   ***********************************************/
+  if( N_Jacobi > 0 ) {
+
+    alloc_gauge_field ( &gauge_field_smeared, VOLUMEPLUSRAND);
+
+    memcpy ( gauge_field_smeared, g_gauge_field, 72*VOLUME*sizeof(double));
+
+    if ( N_ape > 0 ) {
+      exitstatus = APE_Smearing(gauge_field_smeared, alpha_ape, N_ape);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[cpff_invert_contract] Error from APE_Smearing, status was %d\n", exitstatus);
+        EXIT(47);
+      }
+    }  /* end of if N_aoe > 0 */
+  }  /* end of if N_Jacobi > 0 */
+
+
 
   /***************************************************************************
    * set io process
@@ -311,6 +336,12 @@ int main(int argc, char **argv) {
 
   double ** stochastic_propagator_zero_list = init_2level_dtable ( spin_color_dilution, nelem );
   if ( stochastic_propagator_zero_list == NULL ) {
+    fprintf(stderr, "[cpff_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+    EXIT(48);
+  }
+
+  double ** stochastic_propagator_zero_smeared_list = init_2level_dtable ( spin_color_dilution, nelem );
+  if ( stochastic_propagator_zero_smeared_list == NULL ) {
     fprintf(stderr, "[cpff_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT(48);
   }
@@ -466,7 +497,6 @@ int main(int argc, char **argv) {
         EXIT(38);
       }
 
-
       /***************************************************************************
        * invert for stochastic timeslice propagator at zero momentum
        *   dn flavor
@@ -474,7 +504,19 @@ int main(int argc, char **argv) {
        *   propagator
        ***************************************************************************/
       for( int i = 0; i < spin_color_dilution; i++) {
+
         memcpy ( spinor_work[0], stochastic_source_list[i], sizeof_spinor_field );
+
+        if ( N_Jacobi > 0 ) {
+          /***************************************************************************
+           * SOURCE SMEARING
+           ***************************************************************************/
+          exitstatus = Jacobi_Smearing ( gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
+          if(exitstatus != 0) {
+            fprintf(stderr, "[cpff_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            return(11);
+          }
+        }
 
         memset ( spinor_work[1], 0, sizeof_spinor_field );
 
@@ -488,8 +530,22 @@ int main(int argc, char **argv) {
           check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_dn], mzzinv[op_id_dn], 1 );
         }
 
+
         memcpy( stochastic_propagator_zero_list[i], spinor_work[1], sizeof_spinor_field);
-      }
+        
+        /***************************************************************************
+         * SINK SMEARING
+         ***************************************************************************/
+        memcpy( stochastic_propagator_zero_smeared_list[i], spinor_work[1], sizeof_spinor_field);
+        if ( N_Jacobi > 0 ) {
+          exitstatus = Jacobi_Smearing ( gauge_field_smeared, stochastic_propagator_zero_smeared_list[i], N_Jacobi, kappa_Jacobi);
+          if(exitstatus != 0) {
+            fprintf(stderr, "[cpff_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            return(11);
+          }
+        }
+      }  /* end of loop on spin color dilution indices */
+
       if ( g_write_propagator ) {
         for ( int i = 0; i < spin_color_dilution; i++ ) {
           sprintf(filename, "%s.%.4d.t%d.%d.%.5d.inverted", filename_prefix, Nconf, gts, i, isample);
@@ -510,9 +566,9 @@ int main(int argc, char **argv) {
          * since we use it in the daggered timeslice propagator
          ***************************************************************************/
         int source_momentum[3] = {
-          - g_source_momentum_list[isrc_mom][0],
-          - g_source_momentum_list[isrc_mom][1],
-          - g_source_momentum_list[isrc_mom][2] };
+            -g_source_momentum_list[isrc_mom][0],
+            -g_source_momentum_list[isrc_mom][1],
+            -g_source_momentum_list[isrc_mom][2] };
 
         /***************************************************************************
          * prepare stochastic timeslice source at source momentum
@@ -539,6 +595,17 @@ int main(int argc, char **argv) {
         for( int i = 0; i < spin_color_dilution; i++) {
           memcpy ( spinor_work[0], stochastic_source_list[i], sizeof_spinor_field );
 
+          if ( N_Jacobi > 0 ) {
+            /***************************************************************************
+             * source-smearing
+             ***************************************************************************/
+            exitstatus = Jacobi_Smearing ( gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
+            if(exitstatus != 0) {
+              fprintf(stderr, "[cpff_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+              return(11);
+            }
+          }
+          
           memset ( spinor_work[1], 0, sizeof_spinor_field );
 
           exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_dn );
@@ -550,6 +617,10 @@ int main(int argc, char **argv) {
           if ( check_propagator_residual ) {
             check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_dn], mzzinv[op_id_dn], 1 );
           }
+
+          /***************************************************************************
+           * NO SINK SMEARING
+           ***************************************************************************/
 
           memcpy( stochastic_propagator_mom_list[isrc_mom][i], spinor_work[1], sizeof_spinor_field);
 
@@ -569,9 +640,37 @@ int main(int argc, char **argv) {
       }  /* end of loop on source momenta */
 
       /*****************************************************************
+       *
        * contractions for 2-point functons
+       *
        *****************************************************************/
       for ( int isrc_mom = 0; isrc_mom < g_source_momentum_number; isrc_mom++ ) {
+
+        double ** stochastic_propagator_mom_smeared_list = NULL;
+
+        if ( N_Jacobi > 0 ) {
+          stochastic_propagator_mom_smeared_list = init_2level_dtable ( spin_color_dilution, _GSI(VOLUME) );
+          if ( stochastic_propagator_mom_smeared_list == NULL ) {
+            fprintf(stderr, "[cpff_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+            EXIT(48);
+          }
+
+          /***************************************************************************
+           * sink smearing
+           ***************************************************************************/
+          for( int i = 0; i < spin_color_dilution; i++) {
+      
+            memcpy( stochastic_propagator_mom_smeared_list[i], stochastic_propagator_mom_list[isrc_mom][i], sizeof_spinor_field);
+           
+            exitstatus = Jacobi_Smearing ( gauge_field_smeared, stochastic_propagator_mom_smeared_list[i], N_Jacobi, kappa_Jacobi);
+            if(exitstatus != 0) {
+              fprintf(stderr, "[cpff_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+              return(11);
+            }
+          }
+        }  else {
+          stochastic_propagator_mom_smeared_list = stochastic_propagator_mom_list[isrc_mom];
+        }
 
         int source_momentum[3] = {
           g_source_momentum_list[isrc_mom][0],
@@ -579,7 +678,7 @@ int main(int argc, char **argv) {
           g_source_momentum_list[isrc_mom][2] };
 
         for ( int isrc_gamma = 0; isrc_gamma < g_source_gamma_id_number; isrc_gamma++ ) {
-        for ( int isnk_gamma = 0; isnk_gamma < g_source_gamma_id_number; isnk_gamma++ ) {
+        for ( int isnk_gamma = 0; isnk_gamma < g_sink_gamma_id_number; isnk_gamma++ ) {
         
           /* allocate contraction fields in position and momentum space */
           double * contr_x = init_1level_dtable ( 2 * VOLUME );
@@ -595,9 +694,10 @@ int main(int argc, char **argv) {
           }
 
           /* contractions in x-space */
-          contract_twopoint_xdep ( contr_x, g_source_gamma_id_list[isrc_gamma], g_source_gamma_id_list[isnk_gamma], 
-              stochastic_propagator_mom_list[isrc_mom],
-              stochastic_propagator_zero_list, spin_dilution, color_dilution, 1, 1., 64 );
+          contract_twopoint_xdep ( contr_x, g_source_gamma_id_list[isrc_gamma], g_sink_gamma_id_list[isnk_gamma], 
+              stochastic_propagator_mom_smeared_list,
+              stochastic_propagator_zero_smeared_list, 
+              spin_dilution, color_dilution, 1, 1., 64 );
 
           /* momentum projection at sink */
           exitstatus = momentum_projection ( contr_x, contr_p[0], T, g_sink_momentum_number, g_sink_momentum_list );
@@ -606,7 +706,7 @@ int main(int argc, char **argv) {
             EXIT(3);
           }
 
-          sprintf ( data_tag, "/d+-g-d-g/t%d/s%d/gf%d/gi%d/pix%dpiy%dpiz%d", gts, isample,
+          sprintf ( data_tag, "/u-gf-d-gi/t%d/s%d/gf%d/gi%d/pix%dpiy%dpiz%d", gts, isample,
               g_source_gamma_id_list[isnk_gamma], g_source_gamma_id_list[isrc_gamma],
               source_momentum[0], source_momentum[1], source_momentum[2] );
 
@@ -626,6 +726,10 @@ int main(int argc, char **argv) {
 
         }  /* end of loop on gamma at sink */
         }  /* end of loop on gammas at source */
+ 
+        if ( N_Jacobi > 0 ) {
+          fini_2level_dtable ( &stochastic_propagator_mom_smeared_list );
+        }
 
       }  /* end of loop on source momenta */
 
@@ -664,12 +768,26 @@ int main(int argc, char **argv) {
 
               /*****************************************************************
                * prepare sequential timeslice source 
+               *
+               * THROUGH THE SINK, so use the SINK SMEARED stochastic zero momentum propagator
                *****************************************************************/
-              exitstatus = init_sequential_source ( spinor_work[0], stochastic_propagator_zero_list[i], gtseq, seq_source_momentum, seq_source_gamma );
+              exitstatus = init_sequential_source ( spinor_work[0], stochastic_propagator_zero_smeared_list[i], gtseq, seq_source_momentum, seq_source_gamma );
               if( exitstatus != 0 ) {
                 fprintf(stderr, "[cpff_invert_contract] Error from init_sequential_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(64);
               }
+
+              if ( N_Jacobi > 0 ) {
+                /***************************************************************************
+                 * SINK SMEARING THE SEQUENTIAL SOURCE
+                 ***************************************************************************/
+                exitstatus = Jacobi_Smearing ( gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
+                if(exitstatus != 0) {
+                  fprintf(stderr, "[cpff_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                  return(11);
+                }
+              }
+
               if ( g_write_sequential_source ) {
                 sprintf(filename, "%s.%.4d.t%d.qx%dqy%dqz%d.g%d.dt%d.%d.%.5d", filename_prefix, Nconf, gts,
                     seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], seq_source_gamma,
@@ -691,6 +809,12 @@ int main(int argc, char **argv) {
               if ( check_propagator_residual ) {
                 check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_up], mzzinv[op_id_up], 1 );
               }
+
+              /***************************************************************************
+               * NO SMEARING AT THIS END OF THE PRPOAGATOR
+               *
+               * this end runs to the insertion
+               ***************************************************************************/
 
               memcpy( sequential_propagator_list[i], spinor_work[1], sizeof_spinor_field );
             }  /* end of loop on oet spin components */
@@ -746,13 +870,20 @@ int main(int argc, char **argv) {
                     -( source_momentum[1] + seq_source_momentum[1] ),
                     -( source_momentum[2] + seq_source_momentum[2] ) };
 
+                  int const current_momentum_sqr = 
+                      _SQR( current_momentum[0] ) + 
+                      _SQR( current_momentum[1] ) + 
+                      _SQR( current_momentum[2] ); 
+
+                  if ( current_momentum_sqr > current_momentum_sqr_max ) continue;
+
                   contract_twopoint_snk_momentum ( contr_p[isrc_mom], gamma_source,  gamma_current, 
                       stochastic_propagator_mom_list[isrc_mom], 
                       sequential_propagator_list, spin_dilution, color_dilution, current_momentum, 1);
 
                 }  /* end of loop on source momenta */
 
-                sprintf ( data_tag, "/d+-g-sud/t%d/s%d/dt%d/gf%d/gc%d/gi%d/pfx%dpfy%dpfz%d/", 
+                sprintf ( data_tag, "/u-gc-sud-gi/t%d/s%d/dt%d/gf%d/gc%d/gi%d/pfx%dpfy%dpfz%d/", 
                     gts, isample, g_sequential_source_timeslice_list[iseq_timeslice],
                     seq_source_gamma, gamma_current, gamma_source,
                     seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
@@ -837,7 +968,7 @@ int main(int argc, char **argv) {
 
                   }  /* end of loop on source momenta */
 
-                  sprintf ( data_tag, "/d+-gd-sud/t%d/s%d/dt%d/gf%d/gc%d/d%d/%s/gi%d/pfx%dpfy%dpfz%d/", 
+                  sprintf ( data_tag, "/u-gd-sud-gi/t%d/s%d/dt%d/gf%d/gc%d/d%d/%s/gi%d/pfx%dpfy%dpfz%d/", 
                       gts, isample, g_sequential_source_timeslice_list[iseq_timeslice],
                       seq_source_gamma, mu, mu, fbwd_str[ifbwd], gamma_source,
                       seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
@@ -858,7 +989,7 @@ int main(int argc, char **argv) {
 
                 /*****************************************************************/
                 /*****************************************************************/
-
+#if 0
                 for ( int kfbwd = 0; kfbwd <= 1; kfbwd++ ) {
   
                   for ( int i = 0; i < spin_color_dilution; i++ ) {
@@ -916,7 +1047,7 @@ int main(int argc, char **argv) {
                   }  /* end of loop on source gamma id */
 
                 }  /* end of loop on fbwd directions k */
-
+#endif
               }  /* end of loop on directions for cov deriv */
 
               fini_2level_dtable ( &sequential_propagator_deriv_list );
@@ -948,11 +1079,13 @@ int main(int argc, char **argv) {
 
   }  /* end of loop on source timeslices */
 
+
   /***************************************************************************
    * decallocate spinor fields
    ***************************************************************************/
   fini_3level_dtable ( &stochastic_propagator_mom_list );
   fini_2level_dtable ( &stochastic_propagator_zero_list );
+  fini_2level_dtable ( &stochastic_propagator_zero_smeared_list );
   fini_2level_dtable ( &stochastic_source_list );
   fini_2level_dtable ( &sequential_propagator_list );
   fini_2level_dtable ( &spinor_work );
@@ -966,15 +1099,19 @@ int main(int argc, char **argv) {
    * free the allocated memory, finalize
    ***************************************************************************/
 
-#ifndef HAVE_TMLQCD_LIBWRAPPER
-  free(g_gauge_field);
-#endif
   free( gauge_field_with_phase );
+  free( gauge_field_smeared );
 
   /* free clover matrix terms */
   fini_clover ( &mzz, &mzzinv );
 
+
+#ifndef HAVE_TMLQCD_LIBWRAPPER
+  free(g_gauge_field);
+#endif
+
   free_geometry();
+
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
   tmLQCD_finalise();

@@ -207,6 +207,9 @@ namespace cvc {
 %x VERBOSITYLEVEL
 %x TWISTEDMASSES
 %x TBC_PHASE
+%x GAUSSIANSMEARINGLEVEL
+%x NSTOUT
+%x RHOSTOUT
 
 %%
 ^T{SPC}*={SPC}*                            BEGIN(TT);
@@ -285,6 +288,8 @@ namespace cvc {
 ^N_hyp{SPC}*={SPC}*                        BEGIN(NHYP);
 ^alpha_hyp{SPC}*={SPC}*                    BEGIN(ALPHAHYP);
 ^kappa_Jacobi{SPC}*={SPC}*                 BEGIN(KAPPAJACOBI);
+^N_Stout{SPC}*={SPC}*                      BEGIN(NSTOUT);
+^rho_Stout{SPC}*={SPC}*                    BEGIN(RHOSTOUT);
 ^source_timeslice{SPC}*={SPC}*             BEGIN(SRCTIMESLICE);
 
 ^sequential_source_timeslice{SPC}*={SPC}*  BEGIN(SEQSRCTIMESLICE);
@@ -373,6 +378,8 @@ namespace cvc {
 
 ^twisted_mass{SPC}*={SPC}*                 BEGIN(TWISTEDMASSES);
 ^tbc_phase{SPC}*={SPC}*                    BEGIN(TBC_PHASE);
+
+^gaussian_smearing_level{SPC}*={SPC}*      BEGIN(GAUSSIANSMEARINGLEVEL);
 
   /* start namespace inclusion here */
 
@@ -700,6 +707,17 @@ namespace cvc {
   cvc::kappa_Jacobi = atof(yytext);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set cvc::kappa_Jacobi to %s\n", yytext);
 }
+
+<NSTOUT>{DIGIT}+ {
+  cvc::g_n_stout = atoi(yytext);
+  if(cvc::myverbose!=0) printf("# [read_input_parser] set cvc::g_n_stout to %s\n", yytext);
+}
+
+<RHOSTOUT>{FLT} {
+  cvc::g_rho_stout = atof(yytext);
+  if(cvc::myverbose!=0) printf("# [read_input_parser] set cvc::g_rho_stout to %s\n", yytext);
+}
+
 <SRCTIMESLICE>{DIGIT}+ {
   cvc::g_source_timeslice = atoi(yytext);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set source timeslice to %s\n", yytext);
@@ -1223,6 +1241,14 @@ namespace cvc {
       cvc::g_tbc_phase_list[cvc::g_tbc_phase_number]+3 );
   cvc::g_tbc_phase_number++;
   if(cvc::myverbose!=0) printf("# [read_input_parser] added tbc phase number %d to list %s\n", cvc::g_tbc_phase_number, yytext );
+}
+
+<GAUSSIANSMEARINGLEVEL>{DIGIT}+,{FLT}+ {
+  sscanf(yytext, "%d,%lf", 
+      &(cvc::g_gaussian_smearing_level[cvc::g_gaussian_smearing_level_number].n),
+      &(cvc::g_gaussian_smearing_level[cvc::g_gaussian_smearing_level_number].alpha) );
+  cvc::g_gaussian_smearing_level_number++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] added Gaussian smearing level %s to list; total number is now %d\n", yytext, cvc::g_gaussian_smearing_level_number);
 }
 
 <*>^#   {

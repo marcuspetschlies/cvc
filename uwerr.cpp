@@ -69,6 +69,7 @@ int uwerr_free ( uwerr * const u ) {
   if(u->p_r   !=NULL) { free(u->p_r);   u->p_r   = NULL; }
   if(u->bins  !=NULL) { free(u->bins);  u->bins  = NULL; }
   if(u->binbd !=NULL) { free(u->binbd); u->binbd = NULL; }
+  if(u->para  !=NULL) { free(u->para);  u->para  = NULL; }
   return(0);
 }  /* end of uwerr_free */
 

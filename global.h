@@ -14,6 +14,12 @@
 #include "tmLQCD.h"
 #endif
 
+#ifdef HAVE_LIBLEMON
+#  ifndef LEMON_OFFSET_TYPE
+#    define LEMON_OFFSET_TYPE MPI_Offset
+#  endif
+#endif
+
 #define _TM_FERMION        0
 #define _WILSON_FERMION    1
 #define _DW_WILSON_FERMION 2
@@ -86,12 +92,13 @@
 
 #define MAX_M_M_2PT_NUM 16
 #define MAX_MXB_MXB_2PT_NUM 16
-#define MAX_SOURCE_LOCATION_NUMBER 128
+#define MAX_SOURCE_LOCATION_NUMBER 280
 
-#define MAX_MOMENTUM_NUMBER 2000
+#define MAX_MOMENTUM_NUMBER 4000
 #define MAX_SEQUENTIAL_SOURCE_TIMESLICE_NUMBER 128
 
 #define MAX_PARAM_NUMBER 100
+#define MAX_SMEARING_LEVEL_NUMBER 10
 
 namespace cvc {
 
@@ -195,8 +202,8 @@ EXTERN double model_dcoeff_re, model_dcoeff_im, model_mrho;
 EXTERN double g_prop_normsqr;
 EXTERN double g_qhatsqr_min, g_qhatsqr_max;
 
-EXTERN int Nlong, N_ape, N_Jacobi;
-EXTERN double alpha_ape, kappa_Jacobi;
+EXTERN int Nlong, N_ape, N_Jacobi, g_n_stout;
+EXTERN double alpha_ape, kappa_Jacobi, g_rho_stout;
 EXTERN int g_source_timeslice, g_no_extra_masses, g_no_light_masses, g_no_strange_masses, \
          g_sequential_source_timeslice, g_sequential_source_location_x, g_sequential_source_location_y, g_sequential_source_location_z, \
          g_sequential_source_timeslice_list[MAX_SEQUENTIAL_SOURCE_TIMESLICE_NUMBER], g_sequential_source_timeslice_number;
@@ -266,6 +273,8 @@ EXTERN int g_twisted_masses_number;
 
 extern const char *g_gitversion;
 
+EXTERN gaussian_smearing_level_type g_gaussian_smearing_level[MAX_SMEARING_LEVEL_NUMBER];
+EXTERN int g_gaussian_smearing_level_number;
 
 }
 

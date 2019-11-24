@@ -57,6 +57,7 @@ int main(int argc, char **argv) {
 
   int const gamma_id_to_bin[16] = { 8, 1, 2, 4, 0, 15, 7, 14, 13, 11, 9, 10, 12, 3, 5, 6 };
 
+  char const reim_str[2][3] = {"re" , "im"};
 
   int c;
   int filename_set = 0;
@@ -70,6 +71,7 @@ int main(int argc, char **argv) {
   int use_disc = 0;
   int use_conn = 1;
   int use_reim = 0;
+  int write_data = 0;
 
   char key[400];
 
@@ -77,7 +79,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "dch?f:N:S:F:R:")) != -1) {
+  while ((c = getopt(argc, argv, "dch?f:N:S:F:R:w:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -106,6 +108,10 @@ int main(int argc, char **argv) {
     case 'c':
       use_conn = 1;
       fprintf ( stdout, "# [cpff_fht_analyse] use_conn set to %d\n", use_conn );
+      break;
+    case 'w':
+      write_data =atoi( optarg );
+      fprintf ( stdout, "# [cpff_fht_analyse] write_data set to %d\n", write_data );
       break;
     case 'h':
     case '?':
@@ -336,13 +342,15 @@ int main(int argc, char **argv) {
         /***********************************************************
          * show all data
          ***********************************************************/
-        if ( g_verbose > 4 ) {
-          sprintf ( filename, "%s-g_s0_gf%d_gi%d_pfx%.2dpfy%.2dpfz%.2d_pix%.2dpiy%.2dpiz%.2d.std",
-              flavor_prefix_std,
+        if ( write_data == 1 ) {
+          sprintf ( filename, 
+              /* "%s-g_s0_gf%d_gi%d_pfx%.2dpfy%.2dpfz%.2d_pix%.2dpiy%.2dpiz%.2d.std", */
+              "pion_pion_2pt.dat"
+              /* flavor_prefix_std,
               g_source_gamma_id_list[igf],
               g_source_gamma_id_list[igi],
               sink_momentum[0], sink_momentum[1], sink_momentum[2],
-              source_momentum[0], source_momentum[1], source_momentum[2] );
+              source_momentum[0], source_momentum[1], source_momentum[2] */ );
 
           FILE * ofs = fopen ( filename, "w" );
 
@@ -350,15 +358,15 @@ int main(int argc, char **argv) {
           {
             for( int isrc = 0; isrc < num_src_per_conf; isrc++ )
             {
+              fprintf ( ofs, "# %6d %3d\n", conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1] );
+                   
               for ( int it = 0; it < T; it++ ) {
-                fprintf ( ofs, "%6d %3d %2d %25.16e %25.16e\n", conf_src_list[iconf][isrc][0],
-                    conf_src_list[iconf][isrc][1],
-                    it, corr_std[iconf][isrc][2*it], corr_std[iconf][isrc][2*it+1] );
+                fprintf ( ofs, "%25.16e %25.16e\n", corr_std[iconf][isrc][2*it], corr_std[iconf][isrc][2*it+1] );
               }
             }
           }
           fclose ( ofs );
-        }  /* end of if verbosity */
+        }  /* end of if write_data */
 
         /***********************************************************
          ***********************************************************
@@ -368,89 +376,61 @@ int main(int argc, char **argv) {
          ***********************************************************
          ***********************************************************/
  
-        int Nt = 0;
-        if ( fold_propagator == 0 ) {
-          Nt = T;   
-        } else if ( fold_propagator == 1 ) {
-          Nt = T / 2 + 1;
-        }
-        double *** data = init_3level_dtable ( num_conf, num_src_per_conf, 2 * Nt );
-        double *** res = init_3level_dtable ( 2, Nt, 5 );
+        for ( int ireim = 0; ireim < 2; ireim++ ) {
+
+          int Nt = 0;
+          if ( fold_propagator == 0 ) {
+            Nt = T_global;   
+          } else if ( fold_propagator == 1 ) {
+            Nt = T_global / 2 + 1;
+          }
+
+          double ** data = init_2level_dtable ( num_conf, Nt );
     
-        /***********************************************************
-         * fold correlator
-         ***********************************************************/
-        if ( fold_propagator == 0 ) {
-          memcpy ( data[0][0], corr_std[0][0], num_conf*num_src_per_conf*2*Nt*sizeof(double) );
-        } else if ( fold_propagator == 1 ) {
-          for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-            for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-              data[iconf][isrc][0] = corr_std[iconf][isrc][0];
-              data[iconf][isrc][1] = corr_std[iconf][isrc][1];
-    
-              for ( int it = 1; it < Nt-1; it++ ) {
-                data[iconf][isrc][2*it  ] = ( corr_std[iconf][isrc][2*it  ] + corr_std[iconf][isrc][2*(T-it)  ] ) * 0.5;
-                data[iconf][isrc][2*it+1] = ( corr_std[iconf][isrc][2*it+1] + corr_std[iconf][isrc][2*(T-it)+1] ) * 0.5;
-    
+          /***********************************************************
+           * fold correlator
+           ***********************************************************/
+          if ( fold_propagator == 0 ) {
+            for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+              for ( int it = 0; it < T_global; it++ ) {
+                data[iconf][it] = 0.;
+                for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+                  data[iconf][it] += corr_std[iconf][isrc][2*it+ireim];
+                }
+                data[iconf][it] /= (double)num_src_per_conf;
               }
-    
-              data[iconf][isrc][2*Nt-2] = corr_std[iconf][isrc][2*Nt-2];
-              data[iconf][isrc][2*Nt-1] = corr_std[iconf][isrc][2*Nt-1];
             }
-          }
-        }  /* end of if Nt == */
-    
-        uwerr ustat;
-        /***********************************************************
-         * real and imag part
-         ***********************************************************/
-        for ( int it = 0; it < 2*Nt; it++ )
-        {
-          uwerr_init ( &ustat );
-    
-          ustat.nalpha   = 2 * Nt;  /* real and imaginary part */
-          ustat.nreplica = 1;
-          for (  int i = 0; i < ustat.nreplica; i++) ustat.n_r[i] = num_conf * num_src_per_conf / ustat.nreplica;
-          ustat.s_tau = 1.5;
-          sprintf ( ustat.obsname, "corr_std" );
-    
-          ustat.ipo = it + 1;  /* real / imag part : 2*it, shifted by 1 */
-    
-          exitstatus = uwerr_analysis ( data[0][0], &ustat );
-          if ( exitstatus == 0 ) {
-            res[it%2][it/2][0] = ustat.value;
-            res[it%2][it/2][1] = ustat.dvalue;
-            res[it%2][it/2][2] = ustat.ddvalue;
-            res[it%2][it/2][3] = ustat.tauint;
-            res[it%2][it/2][4] = ustat.dtauint;
-          } else {
-            fprintf ( stderr, "[cpff_fht_analyse] Warning return status from uwerr_analysis was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-          }
-   
-          uwerr_free ( &ustat );
-        }  /* end of loop on ipos */
-    
-        sprintf ( filename, "%s_std_gf%d_gi%d_PX%d_PY%d_PZ%d.uwerr", g_outfile_prefix,
-            g_source_gamma_id_list[igf], g_source_gamma_id_list[igi],
-            sink_momentum[0], sink_momentum[1], sink_momentum[2] );
+          } else if ( fold_propagator == 1 ) {
 
-        FILE * ofs = fopen ( filename, "w" );
+            for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+              for ( int it = 0; it <= T_global/2; it++ ) {
+                data[iconf][it] = 0.;
     
-        fprintf ( ofs, "# nalpha   = %llu\n", ustat.nalpha );
-        fprintf ( ofs, "# nreplica = %llu\n", ustat.nreplica );
-        for (  int i = 0; i < ustat.nreplica; i++) fprintf( ofs, "# nr[%d] = %llu\n", i, ustat.n_r[i] );
-        fprintf ( ofs, "#\n" );
+                for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+                  data[iconf][it] += ( corr_std[iconf][isrc][2*it+ireim] + corr_std[iconf][isrc][2 * ( (T_global-it)%T_global) + ireim  ] ) * 0.5;
+                }
     
-        for ( int it = 0; it < Nt; it++ ) {
-          fprintf ( ofs, "%3d %16.7e %16.7e %16.7e %16.7e %16.7e    %16.7e %16.7e %16.7e %16.7e %16.7e\n", it,
-              res[0][it][0], res[0][it][1], res[0][it][2], res[0][it][3], res[0][it][4],
-              res[1][it][0], res[1][it][1], res[1][it][2], res[1][it][3], res[1][it][4] );
-        }
-    
-        fclose( ofs );
-        fini_3level_dtable ( &res );
-        fini_3level_dtable ( &data );
+                data[iconf][it] /= (double)num_src_per_conf;
+              }
+            }
+          }  
 
+          char obs_name[100];
+          sprintf ( obs_name, "%s_std_gf%d_gi%d_PX%d_PY%d_PZ%d.%s", g_outfile_prefix,
+              g_source_gamma_id_list[igf], g_source_gamma_id_list[igi],
+              sink_momentum[0], sink_momentum[1], sink_momentum[2], reim_str[ireim] );
+
+          /* apply UWerr analysis */
+          exitstatus = apply_uwerr_real ( data[0], num_conf, Nt, 0, 1, obs_name );
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "[cpff_fht_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(1);
+          }
+
+          fini_2level_dtable ( &data );
+        }  /* end of loop on reim */
+
+#if 0
         /***********************************************************
          ***********************************************************
          **
@@ -562,9 +542,14 @@ int main(int argc, char **argv) {
         fini_3level_dtable ( &res );
         fini_3level_dtable ( &data );
 
+#endif  /* of if 0 */
 
         /***********************************************************
-         * read and analyse FHT correlator
+         ***********************************************************
+         **
+         ** read and analyse FHT correlator
+         **
+         ***********************************************************
          ***********************************************************/
 
         /***********************************************************
@@ -633,9 +618,17 @@ int main(int argc, char **argv) {
 #endif
 
                   /***********************************************************
-                   * read fwd displacement data
+                   * read aff key
                    ***********************************************************/
-                  sprintf ( key , "/%s/fht/t%d/s0/gf%d/gc%d/%spcx%dpcy%dpcz%d/gi%d/pix%dpiy%dpiz%d/px%dpy%dpz%d",
+                  sprintf ( key , "/%s/fht/t%d/s0/gf%d/gc%d/pcx%dpcy%dpcz%d/gi%d/pix%dpiy%dpiz%d/px%dpy%dpz%d",
+                      flavor_prefix_fht,
+                      gts, g_source_gamma_id_list[igf],
+                      g_sequential_source_gamma_id_list[igc],
+                      seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
+                      g_source_gamma_id_list[igi],            source_momentum[0],     source_momentum[1],     source_momentum[2],
+                      sink_momentum[0], sink_momentum[1], sink_momentum[2] );
+
+                  /* sprintf ( key , "/%s/fht/t%d/s0/gf%d/gc%d/%spcx%dpcy%dpcz%d/gi%d/pix%dpiy%dpiz%d/px%dpy%dpz%d",
                       flavor_prefix_fht,
                       gts, g_source_gamma_id_list[igf],
                       g_sequential_source_gamma_id_list[igc],
@@ -643,7 +636,7 @@ int main(int argc, char **argv) {
                       seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
                       g_source_gamma_id_list[igi],            source_momentum[0],     source_momentum[1],     source_momentum[2],
                       sink_momentum[0], sink_momentum[1], sink_momentum[2] );
-
+                      */
                   if ( g_verbose > 2 ) fprintf ( stdout, "# [cpff_fht_analyse] key = %s\n", key );
 
                   double * buffer = init_1level_dtable ( 2*T );
@@ -654,11 +647,15 @@ int main(int argc, char **argv) {
                     EXIT(105);
                   }
 
+                  /***********************************************************
+                   * multiply with factor of +imaginary unit
+                   ***********************************************************/
                   for ( int it = 0; it < T; it++ ) {
-                    corr_fht[iconf][isrc][2*it  ] = buffer[2*( ( it + gts ) % T)  ];
-                    corr_fht[iconf][isrc][2*it+1] = buffer[2*( ( it + gts ) % T)+1];
+                    corr_fht[iconf][isrc][2*it  ] = -buffer[2*( ( it + gts ) % T)+1];
+                    corr_fht[iconf][isrc][2*it+1] =  buffer[2*( ( it + gts ) % T)  ];
                   }
 
+#if 0
                   /***********************************************************
                    * read bwd displacement data
                    ***********************************************************/
@@ -684,6 +681,7 @@ int main(int argc, char **argv) {
                     corr_fht[iconf][isrc][2*it+1] = ( corr_fht[iconf][isrc][2*it+1] - buffer[2*( ( it + gts ) % T)+1] ) * 0.5;
                   }
 
+#endif  /* of if 0 */
                   fini_1level_dtable ( &buffer );
 
                 }  /* end of loop on sources per configuration */
@@ -735,15 +733,16 @@ int main(int argc, char **argv) {
             /****************************************
              * show all data
              ****************************************/
-            if ( g_verbose > 4 ) {
-              sprintf ( filename, "%s-g_s0_gf%d_gc%d_gi%d_pfx%.2dpfy%.2dpfz%.2d_pcx%.2dpcy%.2dpcz%.2d_pix%.2dpiy%.2dpiz%.2d.fht",
+            if ( write_data == 1 ) {
+              sprintf ( filename, "pion_j_pion_3pt.dat" );
+              /* sprintf ( filename, "%s-g_s0_gf%d_gc%d_gi%d_pfx%.2dpfy%.2dpfz%.2d_pcx%.2dpcy%.2dpcz%.2d_pix%.2dpiy%.2dpiz%.2d.fht",
                   flavor_prefix_fht,
                   g_source_gamma_id_list[igf],
                   g_sequential_source_gamma_id_list[igc],
                   g_source_gamma_id_list[igi],
                   sink_momentum[0], sink_momentum[1], sink_momentum[2],
                   seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
-                  source_momentum[0], source_momentum[1], source_momentum[2] );
+                  source_momentum[0], source_momentum[1], source_momentum[2] ); */
 
               FILE * ofs = fopen ( filename, "w" );
 
@@ -751,15 +750,15 @@ int main(int argc, char **argv) {
               {
                 for( int isrc = 0; isrc < num_src_per_conf; isrc++ )
                 {
-                  for ( int it = 0; it < T; it++ ) {
-                    fprintf ( ofs, "%6d %3d %2d %25.16e %25.16e\n", conf_src_list[iconf][isrc][0],
-                        conf_src_list[iconf][isrc][1],
-                        it, corr_fht[iconf][isrc][2*it], corr_fht[iconf][isrc][2*it+1] );
+                  fprintf ( ofs, "# %6d %3d\n", conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1] );
+
+                  for ( int it = 0; it < T_global; it++ ) {
+                    fprintf ( ofs, "%25.16e %25.16e\n", corr_fht[iconf][isrc][2*it], corr_fht[iconf][isrc][2*it+1] );
                   }
                 }
               }
               fclose ( ofs );
-            }  /* end of if verbosity */
+            }  /* end of if write_data */
 
             /***********************************************************
              ***********************************************************
@@ -769,18 +768,20 @@ int main(int argc, char **argv) {
              ***********************************************************
              ***********************************************************/
  
-            int Nt = 0;
-            if ( fold_propagator == 0 ) {
-              Nt = T;
-            } else if ( fold_propagator == 1 ) {
-              Nt = T / 2 + 1;
-            }
-            double *** data = init_3level_dtable ( num_conf, num_src_per_conf, 2 * Nt );
-            double *** res = init_3level_dtable ( 2, Nt, 5 );
+            /*
+              int Nt = 0;
+              if ( fold_propagator == 0 ) {
+                Nt = T_global;
+              } else if ( fold_propagator == 1 ) {
+                Nt = T_global / 2 + 1;
+              }
+              double ** data = init_2level_dtable ( num_conf, Nt );
+              */
         
             /***********************************************************
              * fold correlator
              ***********************************************************/
+#if 0
             if ( fold_propagator == 0 ) {
               memcpy ( data[0][0], corr_fht[0][0], num_conf*num_src_per_conf*2*Nt*sizeof(double) );
             } else if ( fold_propagator == 1 ) {
@@ -805,59 +806,63 @@ int main(int argc, char **argv) {
                 }
               }
             }  /* end of if fold_propagator */
+#endif  /* of if 0 */
         
-            uwerr ustat;
-            /***********************************************************
-             * real and imag part
-             ***********************************************************/
-            for ( int it = 0; it < 2*Nt; it++ )
-            {
-              uwerr_init ( &ustat );
-        
-              ustat.nalpha   = 2 * Nt;  /* real and imaginary part */
-              ustat.nreplica = 1;
-              for (  int i = 0; i < ustat.nreplica; i++) ustat.n_r[i] = num_conf * num_src_per_conf / ustat.nreplica;
-              ustat.s_tau = 1.5;
-              sprintf ( ustat.obsname, "corr_fht" );
-        
-              ustat.ipo = it + 1;  /* real / imag part : 2*it, shifted by 1 */
-        
-              exitstatus = uwerr_analysis ( data[0][0], &ustat );
-              if ( exitstatus == 0 ) {
-                res[it%2][it/2][0] = ustat.value;
-                res[it%2][it/2][1] = ustat.dvalue;
-                res[it%2][it/2][2] = ustat.ddvalue;
-                res[it%2][it/2][3] = ustat.tauint;
-                res[it%2][it/2][4] = ustat.dtauint;
-              } else {
-                fprintf ( stderr, "[cpff_fht_analyse] Warning return status from uwerr_analysis was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            for ( int ireim = 0; ireim < 2; ireim++ ) {
+
+              int Nt = 0;
+              if ( fold_propagator == 0 ) {
+                Nt = T_global;   
+              } else if ( fold_propagator == 1 ) {
+                Nt = T_global / 2 + 1;
               }
-       
-              uwerr_free ( &ustat );
-            }  /* end of loop on ipos */
-        
-            sprintf ( filename, "%s_fht_gf%d_gi%d_PX%d_PY%d_PZ%d.uwerr", g_outfile_prefix,
-                g_source_gamma_id_list[igf], g_source_gamma_id_list[igi],
-                sink_momentum[0], sink_momentum[1], sink_momentum[2] );
+
+              double ** data = init_2level_dtable ( num_conf, Nt );
     
-            FILE * ofs = fopen ( filename, "w" );
-        
-            fprintf ( ofs, "# nalpha   = %llu\n", ustat.nalpha );
-            fprintf ( ofs, "# nreplica = %llu\n", ustat.nreplica );
-            for (  int i = 0; i < ustat.nreplica; i++) fprintf( ofs, "# nr[%d] = %llu\n", i, ustat.n_r[i] );
-            fprintf ( ofs, "#\n" );
-        
-            for ( int it = 0; it < Nt; it++ ) {
-        
-              fprintf ( ofs, "%3d %16.7e %16.7e %16.7e %16.7e %16.7e    %16.7e %16.7e %16.7e %16.7e %16.7e\n", it,
-                  res[0][it][0], res[0][it][1], res[0][it][2], res[0][it][3], res[0][it][4],
-                  res[1][it][0], res[1][it][1], res[1][it][2], res[1][it][3], res[1][it][4] );
-            }
+              /***********************************************************
+               * fold correlator
+               ***********************************************************/
+              if ( fold_propagator == 0 ) {
+                for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+                  for ( int it = 0; it < T_global; it++ ) {
+                    data[iconf][it] = 0.;
+                    for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+                      data[iconf][it] += corr_fht[iconf][isrc][2*it+ireim];
+                    }
+                    data[iconf][it] /= (double)num_src_per_conf;
+                  }
+                }
+              } else if ( fold_propagator == 1 ) {
 
-            fclose( ofs );
-            fini_3level_dtable ( &res );
-            fini_3level_dtable ( &data );
+                for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+                  for ( int it = 0; it <= T_global/2; it++ ) {
+                    data[iconf][it] = 0.;
+    
+                    for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+                      data[iconf][it] += ( corr_fht[iconf][isrc][2*it+ireim] + corr_fht[iconf][isrc][2 * ( (T_global-it)%T_global) + ireim  ] ) * 0.5;
+                    }
+    
+                    data[iconf][it] /= (double)num_src_per_conf;
+                  }
+                }
+              }  
 
+              char obs_name[100];
+              sprintf ( obs_name, "%s_fht_gf%d_gi%d_PX%d_PY%d_PZ%d.%s", g_outfile_prefix,
+                  g_source_gamma_id_list[igf], g_source_gamma_id_list[igi],
+                  sink_momentum[0], sink_momentum[1], sink_momentum[2], reim_str[ireim] );
+
+              /* apply UWerr analysis */
+              exitstatus = apply_uwerr_real ( data[0], num_conf, Nt, 0, 1, obs_name );
+              if ( exitstatus != 0 ) {
+                fprintf ( stderr, "[cpff_fht_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                EXIT(1);
+              }
+
+              fini_2level_dtable ( &data );
+            }  /* end of loop on reim */
+
+#if 0
             /***********************************************************
              ***********************************************************
              **
@@ -1151,6 +1156,8 @@ int main(int argc, char **argv) {
 
             fini_3level_dtable ( &res );
             fini_3level_dtable ( &data );
+
+#endif  /* of if 0 */
 
             /**********************************************************
              * free corr_fht field

@@ -3739,6 +3739,8 @@ void contract_twopoint_xdep(void*contr, const int idsource, const int idsink, vo
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */
 #endif
+  free ( psource );
+  free ( ssource );
 }  /* end of contract_twopoint_xdep */
 
 
@@ -6140,10 +6142,10 @@ void spinor_field_eq_spinor_field_ti_real_field (double*r, double*s, double *c, 
  * r = s * c
  * safe, if r = s
  ***********************************************************/
-void spinor_field_eq_spinor_field_ti_complex_field (double*r, double*s, double *c, unsigned int N) {
+void spinor_field_eq_spinor_field_ti_complex_field ( double * const r, double * const s, double * const c, unsigned int const N) {
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel shared(r,s,c,N)
+#pragma omp parallel
 {
 #endif
   unsigned int ix, offset;
@@ -7637,11 +7639,37 @@ int vdag_gloc_w_scalar_product ( double _Complex ***** const vw_mat, double *** 
 
           unsigned int const iix = _GSI( it * VOL3half + ix );
 
-          /* even part */
+          /**********************************************
+           * even part
+           **********************************************/
           int const x1 = g_eosubt2coords[0][it][ix][0];
           int const x2 = g_eosubt2coords[0][it][ix][1];
           int const x3 = g_eosubt2coords[0][it][ix][2];
-
+#if 0
+/**********************************************
+ * BEGIN CHECK
+ **********************************************/
+          int use_even_point = 0;
+          int const xg[4] = {
+                it + g_proc_coords[0] * T,
+                x1 + g_proc_coords[1] * LX,
+                x2 + g_proc_coords[2] * LY,
+                x3 + g_proc_coords[3] * LZ };
+          for( int isrc = 0; isrc < g_source_location_number; isrc++ ) {
+            use_even_point = use_even_point || (
+                xg[0] == g_source_coords_list[isrc][0] &&
+                xg[1] == g_source_coords_list[isrc][1] &&
+                xg[2] == g_source_coords_list[isrc][2] &&
+                xg[3] == g_source_coords_list[isrc][3] );
+          }
+          if ( use_even_point ) { 
+            fprintf ( stdout, "# [vdag_gloc_w_scalar_product] proc %3d %3d %3d %3d use even point %3d %3d %3d %3d\n",
+                g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3],
+                xg[0], xg[1], xg[2], xg[3] );
+/**********************************************
+ * END CHECK 
+ **********************************************/
+#endif
           unsigned int const ixe = g_ipt[0][x1][x2][x3];
 
           double * const __ve = veo[iv][0]         + iix;
@@ -7649,18 +7677,66 @@ int vdag_gloc_w_scalar_product ( double _Complex ***** const vw_mat, double *** 
           _co_eq_fv_dag_ti_fv ( &z, __ve, __we );
           vw_x[iv][2*ixe  ] = z.re;
           vw_x[iv][2*ixe+1] = z.im;
-
-          /* odd part */
+#if 0
+/**********************************************
+ * BEGIN CHECK
+ **********************************************/
+            fprintf ( stdout, "# [vdag_gloc_w_scalar_product] gamma %2d   x %3d %3d %3d %3d   vw %3d %3d    value %25.16e  %25.16e\n",
+                gamma_id_list[igamma], xg[0], xg[1], xg[2], xg[3], iweo, iv, z.re, z.im );
+          }  /* end of use_even_point */
+/**********************************************
+ * END CHECK
+ **********************************************/
+#endif
+          /**********************************************
+           * odd part
+           **********************************************/
           int const y1 = g_eosubt2coords[1][it][ix][0];
           int const y2 = g_eosubt2coords[1][it][ix][1];
           int const y3 = g_eosubt2coords[1][it][ix][2];
-
+#if 0
+/**********************************************
+ * BEGIN CHECK
+ **********************************************/
+          int use_odd_point = 0;
+          int const yg[4] = {
+                it + g_proc_coords[0] * T,
+                y1 + g_proc_coords[1] * LX,
+                y2 + g_proc_coords[2] * LY,
+                y3 + g_proc_coords[3] * LZ };
+          for( int isrc = 0; isrc < g_source_location_number; isrc++ ) {
+            use_odd_point = use_odd_point || (
+                yg[0] == g_source_coords_list[isrc][0] &&
+                yg[1] == g_source_coords_list[isrc][1] &&
+                yg[2] == g_source_coords_list[isrc][2] &&
+                yg[3] == g_source_coords_list[isrc][3] );
+          }
+          if ( use_odd_point ) { 
+            fprintf ( stdout, "# [vdag_gloc_w_scalar_product] proc %3d %3d %3d %3d use odd  point %3d %3d %3d %3d\n",
+                g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3],
+                yg[0], yg[1], yg[2], yg[3] );
+/**********************************************
+ * END CHECK
+ **********************************************/
+#endif
           unsigned int const ixo = g_ipt[0][y1][y2][y3];
           double * const __vo = veo[iv][1]         + iix;
           double * const __wo = eo_spinor_field[1] + iix;
           _co_eq_fv_dag_ti_fv ( &z, __vo, __wo );
           vw_x[iv][2*ixo  ] = z.re;  /* even + odd real parts */
           vw_x[iv][2*ixo+1] = z.im;  /* even + odd imag parts */
+#if 0
+/**********************************************
+ * BEGIN CHECK
+ **********************************************/
+            fprintf ( stdout, "# [vdag_gloc_w_scalar_product] gamma %2d   x %3d %3d %3d %3d   vw %3d %3d    value %25.16e  %25.16e\n",
+                gamma_id_list[igamma], yg[0], yg[1], yg[2], yg[3], iweo, iv, z.re, z.im );
+          }  /* end of use_odd_point */
+/**********************************************
+ * END CHECK
+ **********************************************/
+#endif
+
         }  /* end of loop on ix */
       }  /* end of loop on evecs iv */
 
@@ -7765,5 +7841,99 @@ int vdag_gloc_w_scalar_product_pt ( double _Complex **** const vw_mat, double **
 
 /****************************************************************************/
 /****************************************************************************/
+
+/****************************************************************************
+ * operators for gluon momentum fraction
+ ****************************************************************************/
+int gluonic_operators ( double ** op, double * const gfield ) {
+
+  unsigned int const VOL3 = LX * LY * LZ;
+  double ** pl = init_2level_dtable ( T, 2 );
+  if ( pl == NULL ) {
+    fprintf( stderr, "[gluonic_operators] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+    return(2);
+  }
+
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+#endif
+
+  for ( int it = 0; it < T; it++ ) {
+#ifdef HAVE_OPENMP
+    omp_init_lock(&writelock);
+
+#pragma omp parallel shared(it)
+{
+#endif
+    double s[18], t[18], u[18];
+    double pl_tmp[2] = { 0, 0. };
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for ( unsigned int iy = 0; iy < VOL3; iy++) {
+
+      unsigned int const ix = it * VOL3 + iy;
+
+      /* time-like */
+      for ( int nu = 1; nu < 4; nu++ ) {
+        _cm_eq_cm_ti_cm(s, gfield + _GGI(ix, 0), gfield + _GGI(g_iup[ix][ 0], nu) );
+        _cm_eq_cm_ti_cm(t, gfield + _GGI(ix,nu), gfield + _GGI(g_iup[ix][nu],  0) );
+        _cm_eq_cm_ti_cm_dag(u, s, t);
+        _re_pl_eq_tr_cm ( &(pl_tmp[0]), u );
+      }
+
+      /* space-like */
+      for ( int mu = 1; mu<3; mu++) {
+      for ( int nu = mu+1; nu < 4; nu++) {
+        _cm_eq_cm_ti_cm(s, gfield + _GGI(ix, mu), gfield + _GGI( g_iup[ix][mu], nu) );
+        _cm_eq_cm_ti_cm(t, gfield + _GGI(ix, nu), gfield + _GGI( g_iup[ix][nu], mu) );
+        _cm_eq_cm_ti_cm_dag(u, s, t);
+        _re_pl_eq_tr_cm( &(pl_tmp[1]), u);
+      }}
+    }
+
+#ifdef HAVE_OPENMP
+    omp_set_lock(&writelock);
+#endif
+
+    pl[it][0] += pl_tmp[0];
+    pl[it][1] += pl_tmp[1];
+
+#ifdef HAVE_OPENMP
+    omp_unset_lock(&writelock);
+}  /* end of parallel region */
+    omp_destroy_lock(&writelock);
+#endif
+
+  }  /* end of loop on timeslices */
+
+
+#ifdef HAVE_MPI
+
+  double ** buffer = init_2level_dtable ( T, 2 );
+  if ( buffer == NULL ) {
+    fprintf( stderr, "[gluonic_operators] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+    return(3);
+  }
+  if ( MPI_Reduce ( pl[0], buffer[0], 2*T, MPI_DOUBLE, MPI_SUM,  0, g_ts_comm) != MPI_SUCCESS ) {
+    fprintf ( stderr, "[gluonic_operators] Error from MPI_Reduce %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
+
+  if ( MPI_Gather ( buffer[0], 2*T, MPI_DOUBLE, op[0], 2*T, MPI_DOUBLE, 0, g_tr_comm ) != MPI_SUCCESS ) {
+    fprintf ( stderr, "[gluonic_operators] Error from MPI_Gather %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
+
+  fini_2level_dtable ( &buffer );
+#else
+  memcpy ( op[0], pl[0], 2*T_global*sizeof(double) );
+#endif
+
+  fini_2level_dtable ( &pl );
+  return( 0 );
+
+}  /* end of gluonic_operators */
 
 }  /* end of namespace cvc */

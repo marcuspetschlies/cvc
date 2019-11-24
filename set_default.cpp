@@ -124,6 +124,9 @@ void set_default_input_values(void) {
   alpha_hyp[1] = _default_alpha_hyp;
   alpha_hyp[2] = _default_alpha_hyp;
 
+  g_n_stout   = _default_n_stout;
+  g_rho_stout = _default_rho_stout;
+
 
   g_source_timeslice  = _default_source_timeslice;
 
@@ -294,6 +297,8 @@ void set_default_input_values(void) {
   g_twisted_masses_number = _default_twisted_masses_number;
 
   g_tbc_phase_number = _default_tbc_phase_number;
+
+  g_gaussian_smearing_level_number = _default_gaussian_smearing_level_number;
 }  /* end of set_default_input_values */
 
 }  /* end of namespace cvc */

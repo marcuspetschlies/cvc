@@ -390,13 +390,11 @@ int main(int argc, char **argv) {
    * MG_loop_lightquark_conf_conf.1016_runtype_probD8_part1_stoch_NeV0_Ns0128_step0001_Qsq22.h5/conf_1016/nstoch_0114/Scalar/loop
    * loop                     Dataset {128, 461, 16, 2}
    ***************************************************************************/
-  for ( int isample = 0; isample < nsample; isample++ )
+  for ( unsigned int Nstoch = nstep; Nstoch <= nsample; Nstoch += nstep )
   {
     
-    unsigned int const Nstoch = isample * nstep + 1;
-
     double _Complex const norm = loop_norm / Nstoch / ( hier_prob_D * hier_prob_D * hier_prob_D  );
-    if ( g_verbose > 0 ) fprintf ( stdout, "# [loop_extract] norm stoch %25.16e %26.16e\n", creal( norm ), cimag ( norm ) );
+    if ( g_verbose > 0 ) fprintf ( stdout, "# [loop_extract] norm Nstoch %4d %25.16e %26.16e\n", Nstoch, creal( norm ), cimag ( norm ) );
 
     sprintf ( data_tag_prefix, "/conf_%.4d/Nstoch_%.4d/%s" , confid, Nstoch, oet_type );
 

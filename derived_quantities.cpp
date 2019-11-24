@@ -287,6 +287,7 @@ int cumulant_1  ( void * param , void * v_in, double * v_out) {
   int const idx_a = idx_range[0];
 
   *v_out = ((double*)param)[idx_a];
+  return(0);
 }  /* end of cumulant_1 */
 
 int dcumulant_1  ( void * param , void * v_in, double * v_out) {
@@ -296,6 +297,7 @@ int dcumulant_1  ( void * param , void * v_in, double * v_out) {
 
   v_out[idx_a] = 1.;
 
+  return(0);
 }  /* end of cumulant_1 */
 
 /********************************************************
@@ -309,6 +311,7 @@ int cumulant_2  ( void * param , void * v_in, double * v_out) {
   int const idx_b = idx_range[0];
 
   *v_out = ((double*)param)[idx_a] - _POW2( ((double*)param)[idx_b] );
+  return(0);
 }  /* end of cumulant_2 */
 
 int dcumulant_2  ( void * param , void * v_in, double * v_out) {
@@ -320,6 +323,7 @@ int dcumulant_2  ( void * param , void * v_in, double * v_out) {
   v_out[idx_a] = 1.;
 
   v_out[idx_b] = -2. * ((double*)param)[idx_b];
+  return(0);
 }  /* end of cumulant_2 */
 
 /********************************************************
@@ -334,6 +338,7 @@ int cumulant_3  ( void * param , void * v_in, double * v_out) {
   int const idx_c = idx_range[0];
 
   *v_out = ((double*)param)[idx_a] - 3 * ((double*)param)[idx_b] *  ((double*)param)[idx_c] + 2 *  _POW3( ((double*)param)[idx_c] );
+  return(0);
 }  /* end of cumulant_3 */
 
 int dcumulant_3  ( void * param , void * v_in, double * v_out) {
@@ -348,6 +353,7 @@ int dcumulant_3  ( void * param , void * v_in, double * v_out) {
   v_out[idx_b] = -3 * ((double*)param)[idx_c];
 
   v_out[idx_c] = -3 * ((double*)param)[idx_b] + 6. * _POW2( ((double*)param)[idx_c] );
+  return(0);
 }  /* end of cumulant_3 */
 
 /********************************************************
@@ -368,6 +374,7 @@ int cumulant_4  ( void * param , void * v_in, double * v_out) {
     -  3 * _POW2( ((double*)param)[idx_c] ) 
     + 12 * ((double*)param)[idx_c] * _POW2( ((double*)param)[idx_d] )
     -  6 *  _POW4( ((double*)param)[idx_d] );
+  return(0);
 }  /* end of cumulant_4 */
 
 int dcumulant_4  ( void * param , void * v_in, double * v_out) {
@@ -385,6 +392,7 @@ int dcumulant_4  ( void * param , void * v_in, double * v_out) {
   v_out[idx_c] = -6. * ((double*)param)[idx_c] + 12 * _POW2( ((double*)param)[idx_d] );
 
   v_out[idx_d] = -4 * ((double*)param)[idx_b] + 24 * ((double*)param)[idx_c] * ((double*)param)[idx_d] - 24 * _POW3( ((double*)param)[idx_d] );
+  return(0);
 }  /* end of cumulant_4 */
 
 /********************************************************/
