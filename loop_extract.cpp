@@ -276,7 +276,7 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * exact part
    ***************************************************************************/
-
+#if 0
   if ( exdef_nev > 0 ) {
      /* allocate memory for contractions */
     double *** loop_exact = init_3level_dtable ( T, sink_momentum_number, 32 );
@@ -357,13 +357,13 @@ int main(int argc, char **argv) {
     fini_3level_dtable ( &loop_exact );
 
   }  /* of if exdef_nev > 0 */
-#if 0
+
 #endif  /* of if 0 */
 
   /***************************************************************************
    * stochastic part
    ***************************************************************************/
-
+#if 0
   double *** loop_stoch = init_3level_dtable ( T, sink_momentum_number, 32 );
   if ( loop_stoch == NULL ) {
     fprintf(stderr, "[loop_extract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );;
@@ -461,7 +461,9 @@ int main(int argc, char **argv) {
   fini_4level_ztable ( &zloop_stoch );
   fini_3level_dtable ( &loop_stoch );
 
-#if 0
+#endif  /* of if 0 */
+
+
   /***************************************************************************
    * stochastic part with volume sources
    *
@@ -556,7 +558,7 @@ int main(int argc, char **argv) {
 
   fini_5level_ztable ( &zloop_stoch );
   fini_3level_dtable ( &loop_stoch );
-
+#if 0
 #endif  /* of if 0 */
 
   /*****************************************************************/
