@@ -244,7 +244,7 @@ int main(int argc, char **argv) {
    * set output filename
    ***************************************************************************/
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-  sprintf( output_filename, "%s.xg.%d.aff", outfile_prefix, Nconf );
+  sprintf( output_filename, "%s.xg.%d.aff", g_outfile_prefix, Nconf );
   affw = aff_writer (output_filename);
   if( const char * aff_status_str = aff_writer_errstr(affw) ) {
     fprintf(stderr, "[cpff_xg_contract] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
@@ -252,7 +252,7 @@ int main(int argc, char **argv) {
   }
 
 #elif (defined HAVE_HDF5 )
-  sprintf( output_filename, "%s.xg.%d.h5", outfile_prefix, Nconf );
+  sprintf( output_filename, "%s.xg.%d.h5", g_outfile_prefix, Nconf );
 #endif
 
 
@@ -328,6 +328,7 @@ int main(int argc, char **argv) {
     gettimeofday ( &ta, (struct timezone *)NULL );
 #ifdef HAVE_TMLQCD_LIBWRAPPER
     exitstatus = tmLQCD_stout_smear_gauge_field ( gauge_field_smeared_ptr, stout_iter , stout_rho );
+    /* exitstatus = tmLQCD_stout_smear_3d_gauge_field ( gauge_field_smeared_ptr, stout_iter , stout_rho ); */
 #else
     exitstatus = 1;
 #endif
