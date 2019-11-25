@@ -41,6 +41,8 @@
 #include "uwerr.h"
 #include "derived_quantities.h"
 
+#define TWOP_STATS
+
 using namespace cvc;
 
 void usage() {
@@ -439,6 +441,7 @@ int main(int argc, char **argv) {
     show_time ( &ta, &tb, "cpff_threep_analyse", "show-all-data", g_cart_id == 0 );
   }
 
+#ifdef TWOP_STATS
   /****************************************
    * STATISTICAL ANALYSIS
    ****************************************/
@@ -537,9 +540,18 @@ int main(int argc, char **argv) {
       }  /* end of loop on re / im */
     }}  /* end of loop on source and sink gamma id */
   }  /* end of loop on momenta */
+#endif  /* of TWOP_STATS */
 
   /**********************************************************
-   * free hvp field
+   * read 3-point functions
+   **********************************************************/
+
+
+
+
+
+  /**********************************************************
+   * free
    **********************************************************/
   fini_6level_dtable ( &corr );
 
