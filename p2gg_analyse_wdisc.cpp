@@ -1,5 +1,5 @@
 /****************************************************
- * p2gg_analyse_wdisc.c
+ * p2gg_analyse_wdisc
  *
  * PURPOSE:
  * DONE:
