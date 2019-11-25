@@ -143,7 +143,7 @@ int twopt_combine_diagrams ( twopoint_function_type * const tp_sum, twopoint_fun
 
     int const affr_diag_id = diagram_name_to_reader_id ( diagram_name );
     if ( affr_diag_id == -1 ) {
-      fprintf ( stderr, "[twopt_combine_diagrams] Error from diagram_name_to_reader_id %s %d\n", __FILE__, __LINE__ );
+      fprintf ( stderr, "[twopt_combine_diagrams] Error from diagram_name_to_reader_id for diagram name %s %s %d\n", diagram_name, __FILE__, __LINE__ );
       return(127);
     }
 
@@ -174,7 +174,7 @@ int twopt_combine_diagrams ( twopoint_function_type * const tp_sum, twopoint_fun
 
       exitstatus = read_aff_contraction ( tp[isrc].c[idiag][0][0], affr[affr_diag_id][isrc], NULL, key, nc );
       if ( exitstatus != 0 ) {
-        fprintf ( stderr, "[twopt_combine_diagrams] Error from read_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        fprintf ( stderr, "[twopt_combine_diagrams] Error from read_aff_contraction for key %s, status was %d %s %d\n", key, exitstatus, __FILE__, __LINE__ );
         return(129);
       }
 
@@ -616,6 +616,8 @@ int main(int argc, char **argv) {
       for ( int ir = 0; ir < affr_num; ir++ ) {
         aff_reader_close ( affr[0][ir] );
       }
+      free ( affr[0] );
+      free ( affr );
 
       if ( const char * aff_status_str = aff_writer_close ( affw ) ) {
         fprintf(stderr, "[piN2piN_diagram_sum_per_type] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
@@ -653,6 +655,8 @@ int main(int argc, char **argv) {
      * loop diagram names
      ******************************************************/
     for ( int iname = 2; iname <= 2; iname++ ) {
+
+      if( g_verbose > 4 ) fprintf( stdout, "# [piN2piN_diagram_sum_per_type] starting diagram name %s %s %d\n", twopt_name_list[iname], __FILE__, __LINE__ );
 
       gettimeofday ( &ta, (struct timezone *)NULL );
 
@@ -783,11 +787,17 @@ int main(int argc, char **argv) {
             g_seq_source_momentum_list[ipi2][2] };
 
           int const pi1[3] = {
-            -pf1[0] - pi1[0],
-            -pf1[1] - pi1[1],
-            -pf1[2] - pi1[2] };
+            -pf1[0] - pi2[0],
+            -pf1[1] - pi2[1],
+            -pf1[2] - pi2[2] };
 
-          if ( _V3_NORM_SQR(pi1) > p2_cutoff ) continue;
+          if ( _V3_NORM_SQR(pi1) > p2_cutoff ) { 
+            if ( g_verbose > 4 ) fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] skip pf1 = %3d %3d %3d   pi2 = %3d %3d %3d   pi1 = %3d %3d %3d for cutoff %d\n",
+                pf1[0], pf1[1], pf1[2],
+                pi2[0], pi2[1], pi2[2],
+                pi1[0], pi1[1], pi1[2], p2_cutoff );
+            continue;
+          }
 
           /******************************************************
            * allocate tp_sum
@@ -854,6 +864,8 @@ int main(int argc, char **argv) {
       for ( int ir = 0; ir < affr_num; ir++ ) {
         aff_reader_close ( affr[0][ir] );
       }
+      free ( affr[0] );
+      free ( affr );
 
       if ( const char * aff_status_str = aff_writer_close ( affw ) ) {
         fprintf(stderr, "[piN2piN_diagram_sum_per_type] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
@@ -1109,6 +1121,8 @@ int main(int argc, char **argv) {
       for ( int ir = 0; ir < affr_num; ir++ ) {
         aff_reader_close ( affr[0][ir] );
       }
+      free ( affr[0] );
+      free ( affr );
 
       if ( const char * aff_status_str = aff_writer_close ( affw ) ) {
         fprintf(stderr, "[piN2piN_diagram_sum_per_type] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
