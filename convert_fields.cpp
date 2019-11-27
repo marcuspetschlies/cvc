@@ -1,5 +1,5 @@
 /****************************************************
- * apply_Dtm
+ * convert_fields
  *
  ****************************************************/
 
@@ -99,13 +99,13 @@ int main(int argc, char **argv) {
 
   /* set the default values */
   if(filename_set==0) strcpy(filename, "cvc.input");
-  if(g_cart_id==0) fprintf(stdout, "# [apply_Dtm] Reading input from file %s\n", filename);
+  if(g_cart_id==0) fprintf(stdout, "# [convert_fields] Reading input from file %s\n", filename);
   read_input_parser(filename);
 
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
 
-  fprintf(stdout, "# [apply_Dtm] calling tmLQCD wrapper init functions\n");
+  fprintf(stdout, "# [convert_fields] calling tmLQCD wrapper init functions\n");
 
   /*********************************
    * initialize MPI parameters for cvc
@@ -153,12 +153,12 @@ int main(int argc, char **argv) {
   } else {
     /* read the gauge field */
     sprintf(filename, "%s.%.4d", gaugefilename_prefix, Nconf);
-    if(g_cart_id==0) fprintf(stdout, "# [apply_Dtm] reading gauge field from file %s\n", filename);
+    if(g_cart_id==0) fprintf(stdout, "# [convert_fields] reading gauge field from file %s\n", filename);
     exitstatus = read_lime_gauge_field_doubleprec(filename);
   }
 #else
    Nconf = g_tmLQCD_lat.nstore;
-   if(g_cart_id== 0) fprintf(stdout, "[apply_Dtm] Nconf = %d\n", Nconf);
+   if(g_cart_id== 0) fprintf(stdout, "[convert_fields] Nconf = %d\n", Nconf);
 
    exitstatus = tmLQCD_read_gauge(Nconf);
    if(exitstatus != 0) {
@@ -170,13 +170,13 @@ int main(int argc, char **argv) {
      EXIT(4);
    }
    if(&g_gauge_field == NULL) {
-     fprintf(stderr, "[apply_Dtm] Error, &g_gauge_field is NULL\n");
+     fprintf(stderr, "[convert_fields] Error, &g_gauge_field is NULL\n");
      EXIT(5);
    }
 #endif
 
   if(exitstatus != 0) {
-    fprintf(stderr, "[apply_Dtm] Error from setting g_gauge_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    fprintf(stderr, "[convert_fields] Error from setting g_gauge_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(38);
   }
 
@@ -195,7 +195,7 @@ int main(int argc, char **argv) {
     exitstatus = gauge_field_eq_gauge_field_ti_bcfactor ( &gauge_field_with_bc, g_gauge_field, -1. );
   }
   if(exitstatus != 0) {
-    fprintf(stderr, "[apply_Dtm] Error from gauge_field with boundary condition, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    fprintf(stderr, "[convert_fields] Error from gauge_field with boundary condition, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(38);
   }
 
@@ -204,7 +204,7 @@ int main(int argc, char **argv) {
    ***********************************************************/
   exitstatus = plaquetteria ( gauge_field_with_bc );
   if(exitstatus != 0) {
-    fprintf(stderr, "[apply_Dtm] Error from plaquetteria, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    fprintf(stderr, "[convert_fields] Error from plaquetteria, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(38);
   }
 
@@ -213,7 +213,7 @@ int main(int argc, char **argv) {
    ***********************************************/
   exitstatus = init_clover ( &mzz, &mzzinv, gauge_field_with_bc );
   if ( exitstatus != 0 ) {
-    fprintf(stderr, "[apply_Dtm] Error from init_clover, status was %d\n", exitstatus );
+    fprintf(stderr, "[convert_fields] Error from init_clover, status was %d\n", exitstatus );
     EXIT(1);
   }
 
@@ -224,32 +224,32 @@ int main(int argc, char **argv) {
 #if 0
   float *** propagator_field = init_3level_ftable ( VOLUME, 144, 2 );
   if ( propagator_field == NULL ) {
-    fprintf ( stderr, "# [apply_Dtm] Error from init_Xlevel_ftable %s %d\n", __FILE__, __LINE__ );
+    fprintf ( stderr, "# [convert_fields] Error from init_Xlevel_ftable %s %d\n", __FILE__, __LINE__ );
     EXIT(9);
   }
 #endif
 
   double ** spinor_field = init_2level_dtable ( 12, _GSI(VOLUME) );
   if ( spinor_field == NULL ) {
-    fprintf ( stderr, "# [apply_Dtm] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+    fprintf ( stderr, "# [convert_fields] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT(9);
   }
 
   double ** eo_spinor_work = init_2level_dtable ( 6, _GSI(VOLUME+RAND)/2 );
   if ( eo_spinor_work == NULL ) {
-    fprintf ( stderr, "# [apply_Dtm] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+    fprintf ( stderr, "# [convert_fields] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT(9);
   }
 
 
 #if 0
   sprintf ( filename, "%s.binary", filename_prefix );
-  if(g_cart_id==0) fprintf(stdout, "# [apply_Dtm] Reading prop. from file %s\n", filename );
+  if(g_cart_id==0) fprintf(stdout, "# [convert_fields] Reading prop. from file %s\n", filename );
 
 
   float *** buffer = init_3level_ftable ( VOLUME, 144, 2 );
   if ( propagator_field == NULL ) {
-    fprintf ( stderr, "# [apply_Dtm] Error from init_Xlevel_ftable %s %d\n", __FILE__, __LINE__ );
+    fprintf ( stderr, "# [convert_fields] Error from init_Xlevel_ftable %s %d\n", __FILE__, __LINE__ );
     EXIT(9);
   }
 
@@ -306,10 +306,10 @@ int main(int argc, char **argv) {
      ****************************************/
 
     sprintf ( filename, "%s_s%d_c%d", filename_prefix, i/3, i%3 );
-    if(g_cart_id==0) fprintf(stdout, "# [apply_Dtm] Reading prop. from file %s\n", filename_prefix);
+    if(g_cart_id==0) fprintf(stdout, "# [convert_fields] Reading prop. from file %s\n", filename_prefix);
     exitstatus = read_lime_spinor ( spinor_field[i], filename, 0 ); 
     if( exitstatus != 0 ) {
-      fprintf(stderr, "[apply_Dtm] Error from read_lime_spinor for file %s, status was %d %s %d\n", filename, exitstatus, __FILE__, __LINE__ );
+      fprintf(stderr, "[convert_fields] Error from read_lime_spinor for file %s, status was %d %s %d\n", filename, exitstatus, __FILE__, __LINE__ );
       EXIT(9);
     }
 #if 0
@@ -371,14 +371,14 @@ int main(int argc, char **argv) {
       sprintf ( filename, "%s_s%d_c%d.converted", filename_prefix, i/3, i%3 );
       exitstatus = write_propagator ( spinor_field[i],  filename, 0, 64 );
       if( exitstatus != 0 ) {
-        fprintf(stderr, "[apply_Dtm] Error from read_lime_spinor for file %s, status was %d %s %d\n", filename, exitstatus, __FILE__, __LINE__ );
+        fprintf(stderr, "[convert_fields] Error from read_lime_spinor for file %s, status was %d %s %d\n", filename, exitstatus, __FILE__, __LINE__ );
         EXIT(9);
       }
     }
 
     double norm = 0.;
     spinor_scalar_product_re ( &norm,      spinor_field[i], spinor_field[i], VOLUME );
-    fprintf(stdout, "# [apply_Dtm] norm %d2  %e\n", i, sqrt(norm));
+    fprintf(stdout, "# [convert_fields] norm %d2  %e\n", i, sqrt(norm));
 
     spinor_field_lexic2eo ( spinor_field[i], eo_spinor_work[0], eo_spinor_work[1] );
 
@@ -396,7 +396,7 @@ int main(int argc, char **argv) {
     int sx[4], source_proc_id;
     exitstatus = get_point_source_info ( g_source_coords_list[0], sx, &source_proc_id);
     if( exitstatus != 0 ) {
-      fprintf(stderr, "[apply_Dtm] Error from get_point_source_info, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      fprintf(stderr, "[convert_fields] Error from get_point_source_info, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(9);
     }
 
@@ -406,7 +406,7 @@ int main(int argc, char **argv) {
 
     double norm_diff = 0.;
     spinor_scalar_product_re ( &norm_diff, spinor_field[i], spinor_field[i], VOLUME);
-    fprintf(stdout, "# [apply_Dtm] norm-diff %2d %e\n", i, sqrt(norm_diff));
+    fprintf(stdout, "# [convert_fields] norm-diff %2d %e\n", i, sqrt(norm_diff));
 
 
   }  /* end of loop on spin color i */
@@ -437,9 +437,9 @@ int main(int argc, char **argv) {
 
   if(g_cart_id == 0) {
     g_the_time = time(NULL);
-    fprintf(stdout, "# [apply_Dtm] %s# [apply_Dtm] end fo run\n", ctime(&g_the_time));
+    fprintf(stdout, "# [convert_fields] %s# [convert_fields] end fo run\n", ctime(&g_the_time));
     fflush(stdout);
-    fprintf(stderr, "# [apply_Dtm] %s# [apply_Dtm] end fo run\n", ctime(&g_the_time));
+    fprintf(stderr, "# [convert_fields] %s# [convert_fields] end fo run\n", ctime(&g_the_time));
     fflush(stderr);
   }
   return(0);
