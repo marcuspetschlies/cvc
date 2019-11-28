@@ -1,5 +1,5 @@
 /****************************************************
- * NN_analyse
+ * mbscat_analyse
  *
  ****************************************************/
 
@@ -103,33 +103,48 @@ typedef struct {
 /***************************************************************************
  *
  ***************************************************************************/
-void make_key_string ( char * key, twopoint_function_type *tp, const char * type ) {
+int make_group_string ( char * key, twopoint_function_type *tp, const char * type , const char * data_set_name , const int data_set_id ) {
 
   const char * tp_type = ( type ==  NULL ) ? tp->type : type;
+  char tp_data_set_name[500];
+  if ( data_set_name == NULL ) {
+    if ( data_set_id < 0 || data_set_id >= tp->n ) {
+      fprintf ( stderr, "[make_group_string] Error, data_set_id out of bounds %s %d\n", __FILE__, __LINE__ );
+      return ( 1 );
+    }
+    twopoint_function_get_diagram_name ( tp_data_set_id,  tp, data_set_id );
+  }
 
   if ( strcmp ( tp_type, "b-b" ) == 0 ) {
 
-    sprintf ( key, "/%s/%s/gf1%.2d_%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/gi1%.2d_%.2d/pi1x%.2dpi1y%.2dpi1z%.2d", tp->name, tp->fbwd,
+    sprintf ( key, "/%s/%s/gf1%.2d_%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/gi1%.2d_%.2d/pi1x%.2dpi1y%.2dpi1z%.2d/t%.2dx%.2dy%.2dz%.2d/%s", tp->name, tp->fbwd,
         tp->gf1[0], tp->gf1[1], tp->pf1[0], tp->pf1[1], tp->pf1[2],
-        tp->gi1[0], tp->gi1[1], tp->pi1[0], tp->pi1[1], tp->pi1[2] );
+        tp->gi1[0], tp->gi1[1], tp->pi1[0], tp->pi1[1], tp->pi1[2],
+        tp->source_coords[0], tp->source_coords[1], tp->source_coords[2], tp->source_coords[3],
+        tp_data_set_name );
 
   } else if ( strcmp( tp_type , "mxb-b" ) == 0 ) {
 
-    sprintf ( key, "/%s/%s/gf1%.2d_%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/gi2%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/gi1%.2d_%.2d/pi1x%.2dpi1y%.2dpi1z%.2d", tp->name, tp->fbwd,
+    sprintf ( key, "/%s/%s/gf1%.2d_%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/gi2%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/gi1%.2d_%.2d/pi1x%.2dpi1y%.2dpi1z%.2d/t%.2dx%.2dy%.2dz%.2d/%s",
+        tp->name, tp->fbwd,
         tp->gf1[0], tp->gf1[1], tp->pf1[0], tp->pf1[1], tp->pf1[2],
         tp->gi2,                tp->pi2[0], tp->pi2[1], tp->pi2[2],
-        tp->gi1[0], tp->gi1[1], tp->pi1[0], tp->pi1[1], tp->pi1[2] );
+        tp->gi1[0], tp->gi1[1], tp->pi1[0], tp->pi1[1], tp->pi1[2],
+        tp->source_coords[0], tp->source_coords[1], tp->source_coords[2], tp->source_coords[3],
+        tp_data_set_name );
 
   } else if ( strcmp( tp_type , "mxb-mxb" ) == 0 ) {
 
-    sprintf ( key, "/%s/%s/gf2%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/gf1%.2d_%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/gi2%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/gi1%.2d_%.2d/pi1x%.2dpi1y%.2dpi1z%.2d",
+    sprintf ( key, "/%s/%s/gf2%.2d/pf2x%.2dpf2y%.2dpf2z%.2d/gf1%.2d_%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/gi2%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/gi1%.2d_%.2d/pi1x%.2dpi1y%.2dpi1z%.2d/t%.2dx%.2dy%.2dz%.2d/%s",
         tp->name, tp->fbwd,
         tp->gf2,                tp->pf2[0], tp->pf2[1], tp->pf2[2],
         tp->gf1[0], tp->gf1[1], tp->pf1[0], tp->pf1[1], tp->pf1[2],
         tp->gi2,                tp->pi2[0], tp->pi2[1], tp->pi2[2],
-        tp->gi1[0], tp->gi1[1], tp->pi1[0], tp->pi1[1], tp->pi1[2] );
+        tp->gi1[0], tp->gi1[1], tp->pi1[0], tp->pi1[1], tp->pi1[2],
+        tp->source_coords[0], tp->source_coords[1], tp->source_coords[2], tp->source_coords[3],
+        tp_data_set_name );
   }
-}  /* end of make_key_string */
+}  /* end of make_group_string */
 
 
 /***************************************************************************
@@ -208,19 +223,19 @@ int main(int argc, char **argv) {
       break;
     case 'N':
       num_conf = atoi ( optarg );
-      fprintf ( stdout, "# [NN_analyse] number of configs = %d\n", num_conf );
+      fprintf ( stdout, "# [mbscat_analyse] number of configs = %d\n", num_conf );
       break;
     case 'S':
       num_src_per_conf = atoi ( optarg );
-      fprintf ( stdout, "# [NN_analyse] number of sources per config = %d\n", num_src_per_conf );
+      fprintf ( stdout, "# [mbscat_analyse] number of sources per config = %d\n", num_src_per_conf );
       break;
     case 'E':
       strcpy ( ensemble_name, optarg );
-      fprintf ( stdout, "# [NN_analyse] ensemble name set to = %s\n", ensemble_name );
+      fprintf ( stdout, "# [mbscat_analyse] ensemble name set to = %s\n", ensemble_name );
       break;
     case 'W':
       write_data = atoi( optarg );
-      fprintf ( stdout, "# [NN_analyse] write_data to = %d\n", write_data );
+      fprintf ( stdout, "# [mbscat_analyse] write_data to = %d\n", write_data );
       break;
     case 'h':
     case '?':
@@ -234,7 +249,7 @@ int main(int argc, char **argv) {
 
   /* set the default values */
   if(filename_set==0) strcpy(filename, "twopt.input");
-  /* fprintf(stdout, "# [NN_analyse] Reading input from file %s\n", filename); */
+  /* fprintf(stdout, "# [mbscat_analyse] Reading input from file %s\n", filename); */
   read_input_parser(filename);
 
   /*********************************
@@ -246,26 +261,26 @@ int main(int argc, char **argv) {
    * report git version
    ******************************************************/
   if ( g_cart_id == 0 ) {
-    fprintf(stdout, "# [NN_analyse] git version = %s\n", g_gitversion);
+    fprintf(stdout, "# [mbscat_analyse] git version = %s\n", g_gitversion);
   }
 
   /*********************************
    * set number of openmp threads
    *********************************/
 #ifdef HAVE_OPENMP
-  if(g_cart_id == 0) fprintf(stdout, "# [NN_analyse] setting omp number of threads to %d\n", g_num_threads);
+  if(g_cart_id == 0) fprintf(stdout, "# [mbscat_analyse] setting omp number of threads to %d\n", g_num_threads);
   omp_set_num_threads(g_num_threads);
 #pragma omp parallel
 {
-  fprintf(stdout, "# [NN_analyse] proc%.4d thread%.4d using %d threads\n", g_cart_id, omp_get_thread_num(), omp_get_num_threads());
+  fprintf(stdout, "# [mbscat_analyse] proc%.4d thread%.4d using %d threads\n", g_cart_id, omp_get_thread_num(), omp_get_num_threads());
 }
 #else
-  if(g_cart_id == 0) fprintf(stdout, "[NN_analyse] Warning, resetting global thread number to 1\n");
+  if(g_cart_id == 0) fprintf(stdout, "[mbscat_analyse] Warning, resetting global thread number to 1\n");
   g_num_threads = 1;
 #endif
 
   if ( init_geometry() != 0 ) {
-    fprintf(stderr, "[NN_analyse] Error from init_geometry %s %d\n", __FILE__, __LINE__);
+    fprintf(stderr, "[mbscat_analyse] Error from init_geometry %s %d\n", __FILE__, __LINE__);
     EXIT(4);
   }
 
@@ -285,10 +300,10 @@ int main(int argc, char **argv) {
    ***********************************************************/
   io_proc = get_io_proc ();
   if( io_proc < 0 ) {
-    fprintf(stderr, "[NN_analyse] Error, io proc must be ge 0 %s %d\n", __FILE__, __LINE__);
+    fprintf(stderr, "[mbscat_analyse] Error, io proc must be ge 0 %s %d\n", __FILE__, __LINE__);
     EXIT(14);
   }
-  fprintf(stdout, "# [NN_analyse] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
+  fprintf(stdout, "# [mbscat_analyse] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
 
   /****************************************************
    * set cubic group single/double cover
@@ -302,7 +317,7 @@ int main(int argc, char **argv) {
   sprintf ( filename, "source_coords.%s.lst" , ensemble_name );
   FILE *ofs = fopen ( filename, "r" );
   if ( ofs == NULL ) {
-    fprintf(stderr, "[NN_analyse] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__);
+    fprintf(stderr, "[mbscat_analyse] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__);
     EXIT(15);
   }
 
@@ -311,19 +326,19 @@ int main(int argc, char **argv) {
 
   conf_src_list.conf = init_1level_itable ( num_conf );
   if ( conf_src_list.conf == NULL ) {
-    fprintf(stderr, "[NN_analyse] Error from init_1level_itable %s %d\n", __FILE__, __LINE__);
+    fprintf(stderr, "[mbscat_analyse] Error from init_1level_itable %s %d\n", __FILE__, __LINE__);
     EXIT(16);
   }
 
   conf_src_list.src = init_3level_itable ( num_conf, num_src_per_conf, 4 );
   if ( conf_src_list.src == NULL ) {
-    fprintf(stderr, "[NN_analyse] Error from init_3level_itable %s %d\n", __FILE__, __LINE__);
+    fprintf(stderr, "[mbscat_analyse] Error from init_3level_itable %s %d\n", __FILE__, __LINE__);
     EXIT(16);
   }
 
   conf_src_list.stream = init_1level_ctable ( num_conf );
   if ( conf_src_list.stream == NULL ) {
-    fprintf(stderr, "[NN_analyse] Error from init_1level_ctable %s %d\n", __FILE__, __LINE__);
+    fprintf(stderr, "[mbscat_analyse] Error from init_1level_ctable %s %d\n", __FILE__, __LINE__);
     EXIT(16);
   }
 
@@ -336,11 +351,11 @@ int main(int argc, char **argv) {
 
   while ( fgets ( line, 100, ofs) != NULL && countc < num_conf && counts <= num_src_per_conf ) {
     if ( line[0] == '#' ) {
-      fprintf( stdout, "# [NN_analyse] comment %s\n", line );
+      fprintf( stdout, "# [mbscat_analyse] comment %s\n", line );
       continue;
     }
 
-    if( g_verbose > 4 ) fprintf ( stdout, "# [NN_analyse] line = \"%s\"\n", line );
+    if( g_verbose > 4 ) fprintf ( stdout, "# [mbscat_analyse] line = \"%s\"\n", line );
 
     int conf_tmp, src_tmp[4];
     char stream_tmp;
@@ -350,7 +365,7 @@ int main(int argc, char **argv) {
      ***********************************************************/
     sscanf( line, "%c %d %d %d %d %d", &stream_tmp, &conf_tmp, src_tmp, src_tmp+1, src_tmp+2, src_tmp+3 );
 
-    if ( g_verbose > 5 ) fprintf ( stdout, "# [NN_analyse] before: conf_tmp = %4d   conf_prev = %4d   countc = %d   counts = %d\n", conf_tmp, conf_prev, countc, counts );
+    if ( g_verbose > 5 ) fprintf ( stdout, "# [mbscat_analyse] before: conf_tmp = %4d   conf_prev = %4d   countc = %d   counts = %d\n", conf_tmp, conf_prev, countc, counts );
 
     if ( conf_tmp != conf_prev ) {
       /* new config */
@@ -362,7 +377,7 @@ int main(int argc, char **argv) {
       conf_src_list.conf[countc]   = conf_tmp;
     }
 
-    if ( g_verbose > 5 ) fprintf ( stdout, "# [NN_analyse] after : conf_tmp = %4d   conf_prev = %4d   countc = %d   counts = %d\n", conf_tmp, conf_prev, countc, counts );
+    if ( g_verbose > 5 ) fprintf ( stdout, "# [mbscat_analyse] after : conf_tmp = %4d   conf_prev = %4d   countc = %d   counts = %d\n", conf_tmp, conf_prev, countc, counts );
 
     memcpy ( conf_src_list.src[countc][counts] , src_tmp, 4*sizeof(int) );
 
@@ -376,7 +391,7 @@ int main(int argc, char **argv) {
    * show all configs and source locations
    ***********************************************************/
   if ( g_verbose > 4 ) {
-    fprintf ( stdout, "# [NN_analyse] conf_src_list conf t x y z\n" );
+    fprintf ( stdout, "# [mbscat_analyse] conf_src_list conf t x y z\n" );
     for ( int iconf = 0; iconf < conf_src_list.nc; iconf++ ) {
       for( int isrc = 0; isrc < conf_src_list.ns; isrc++ ) {
         fprintf ( stdout, "  %2c %6d %3d %3d %3d %3d\n", 
@@ -394,7 +409,7 @@ int main(int argc, char **argv) {
 
   double _Complex **** corr = init_4level_ztable ( g_twopoint_function_number, num_conf, num_src_per_conf, T_global  );
   if ( corr == NULL ) {
-    fprintf ( stderr, "[NN_analyse] Error from init_Xlevel_ztable %s %d\n", __FILE__, __LINE__ );
+    fprintf ( stderr, "[mbscat_analyse] Error from init_Xlevel_ztable %s %d\n", __FILE__, __LINE__ );
     EXIT(15);
   }
 
@@ -433,10 +448,10 @@ int main(int argc, char **argv) {
 
     exitstatus = get_reference_rotation ( Pref, &refframerot, Ptot );
     if ( exitstatus != 0 ) {
-      fprintf ( stderr, "[NN_analyse] Error from get_reference_rotation, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      fprintf ( stderr, "[mbscat_analyse] Error from get_reference_rotation, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(4);
     } else if ( g_verbose > 1 ) {
-      fprintf ( stdout, "# [NN_analyse] twopoint_function %3d Ptot = %3d %3d %3d refframerot %2d for Pref = %3d %3d %3d\n", i2pt,
+      fprintf ( stdout, "# [mbscat_analyse] twopoint_function %3d Ptot = %3d %3d %3d refframerot %2d for Pref = %3d %3d %3d\n", i2pt,
       Ptot[0], Ptot[1], Ptot[2], refframerot, Pref[0], Pref[1], Pref[2]);
     }
 
@@ -468,7 +483,7 @@ int main(int argc, char **argv) {
             
         sprintf ( data_filename, "%s/%d/%s.PX%d_PY%d_PZ%d.aff", filename_prefix, Nconf, tp->name, Pref[0], Pref[1], Pref[2] );
         if ( g_verbose > 2 ) {
-          fprintf ( stdout, "# [NN_analyse] data_filename   = %s\n", data_filename );
+          fprintf ( stdout, "# [mbscat_analyse] data_filename   = %s\n", data_filename );
         }
 
         /***********************************************************
@@ -478,7 +493,7 @@ int main(int argc, char **argv) {
         make_key_string ( key, tp, tp->type );
 
         if ( g_verbose > 2 ) {
-          fprintf ( stdout, "# [NN_analyse] key = %s\n", key );
+          fprintf ( stdout, "# [mbscat_analyse] key = %s\n", key );
         }
 
         /***********************************************************
@@ -486,7 +501,7 @@ int main(int argc, char **argv) {
          ***********************************************************/
         exitstatus = read_aff_contraction ( tp->c[0][0][0] , NULL, data_filename, key, tp->d * tp->d * tp->T );
         if ( exitstatus != 0 ) {
-            fprintf(stderr, "[NN_analyse] Error from form read_aff_contraction for file %s key %s, status was %d %s %d\n", 
+            fprintf(stderr, "[mbscat_analyse] Error from form read_aff_contraction for file %s key %s, status was %d %s %d\n", 
                 data_filename, key, exitstatus, __FILE__, __LINE__ );
             EXIT(12);
           }
@@ -499,7 +514,7 @@ int main(int argc, char **argv) {
          * apply norm factors to diagrams
          ***********************************************************/
         if ( ( exitstatus = twopoint_function_apply_diagram_norm ( tp ) )  != 0 ) {
-          fprintf( stderr, "[NN_analyse] Error from twopoint_function_apply_diagram_norm, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          fprintf( stderr, "[mbscat_analyse] Error from twopoint_function_apply_diagram_norm, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(103);
         }
 
@@ -511,7 +526,7 @@ int main(int argc, char **argv) {
          ***********************************************************/
 #if 0
         if ( ( exitstatus = twopoint_function_accum_diagrams ( tp->c[0], tp ) ) != 0 ) {
-          fprintf( stderr, "[NN_analyse] Error from twopoint_function_accum_diagrams, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          fprintf( stderr, "[mbscat_analyse] Error from twopoint_function_accum_diagrams, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(104);
         }
 #endif
@@ -523,7 +538,7 @@ int main(int argc, char **argv) {
          ***********************************************************/
 #if 0
         if ( ( exitstatus = correlator_add_baryon_boundary_phase ( tp->c[0], gsx[0], +1, tp->T ) ) != 0 ) {
-          fprintf( stderr, "[NN_analyse] Error from correlator_add_baryon_boundary_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          fprintf( stderr, "[mbscat_analyse] Error from correlator_add_baryon_boundary_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(103);
         }
 #endif
@@ -535,7 +550,7 @@ int main(int argc, char **argv) {
          ***********************************************************/
 #if 0
         if ( ( exitstatus = correlator_add_source_phase ( tp->c[0], tp->pi1, &(gsx[1]), tp->T ) ) != 0 ) {
-          fprintf( stderr, "[NN_analyse] Error from correlator_add_source_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          fprintf( stderr, "[mbscat_analyse] Error from correlator_add_source_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(104);
         }
 #endif
@@ -547,7 +562,7 @@ int main(int argc, char **argv) {
          ***********************************************************/
 #if 0
         if ( ( exitstatus = reorder_to_relative_time ( tp->c[0], tp->c[0], gsx[0], +1, tp->T ) ) != 0 ) {
-          fprintf( stderr, "[NN_analyse] Error from reorder_to_relative_time, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          fprintf( stderr, "[mbscat_analyse] Error from reorder_to_relative_time, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(104);
         }
 #endif
@@ -559,7 +574,7 @@ int main(int argc, char **argv) {
          ***********************************************************/
 #if 0
         if ( ( exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( tp->c[0], tp->c[0], gammaMat[tp->gf1[1]], gammaMat[tp->gi1[1]], tp->T ) ) != 0 ) {
-          fprintf( stderr, "[NN_analyse] Error from contract_diagram_zm4x4_field_mul_gamma_lr, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          fprintf( stderr, "[mbscat_analyse] Error from contract_diagram_zm4x4_field_mul_gamma_lr, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(105);
         }
 #endif
@@ -569,13 +584,13 @@ int main(int argc, char **argv) {
          ***********************************************************/
         if ( ( exitstatus = correlator_spin_parity_projection ( tp->c[0], tp->c[0],  tp->parity_project, tp->T ) ) != 0 )
         {
-          fprintf( stderr, "[NN_analyse] Error from correlator_spin_parity_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          fprintf( stderr, "[mbscat_analyse] Error from correlator_spin_parity_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(105);
         }
 
       
         if ( ( exitstatus = contract_diagram_co_eq_tr_zm4x4_field ( corr[i2pt][iconf][isrc], tp->c[0], tp->T ) ) != 0 ) {
-          fprintf( stderr, "[NN_analyse] Error from contract_diagram_co_eq_tr_zm4x4_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          fprintf( stderr, "[mbscat_analyse] Error from contract_diagram_co_eq_tr_zm4x4_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(105);
         }
 
@@ -619,7 +634,7 @@ int main(int argc, char **argv) {
      ***************************************************************************/
 #if 0
     if ( tp->T == T_global ) {
-      if ( g_verbose > 2 ) fprintf ( stdout, "# [NN_analyse] fwd / bwd average\n" );
+      if ( g_verbose > 2 ) fprintf ( stdout, "# [mbscat_analyse] fwd / bwd average\n" );
 #pragma omp parallel for
       for( int iconf = 0; iconf < num_conf; iconf++ ) {
         for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
@@ -645,13 +660,13 @@ int main(int argc, char **argv) {
     for ( int ireim = 0; ireim < 2; ireim++ ) {
 
       if ( num_conf < 6 ) {
-        fprintf ( stderr, "[NN_analyse] number of observations too small, continue %s %d\n", __FILE__, __LINE__ );
+        fprintf ( stderr, "[mbscat_analyse] number of observations too small, continue %s %d\n", __FILE__, __LINE__ );
         continue;
       }
 
       double ** data = init_2level_dtable ( num_conf, tp->T );
       if ( data == NULL ) {
-        fprintf ( stderr, "[NN_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+        fprintf ( stderr, "[mbscat_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
         EXIT(16);
       }
 
@@ -677,7 +692,7 @@ int main(int argc, char **argv) {
 
       exitstatus = apply_uwerr_real ( data[0], num_conf, tp->T, 0, 1, obs_name );
       if ( exitstatus != 0  ) {
-        fprintf ( stderr, "[NN_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        fprintf ( stderr, "[mbscat_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(16);
       }
 
@@ -692,7 +707,7 @@ int main(int argc, char **argv) {
       
         exitstatus = apply_uwerr_func ( data[0], num_conf, tp->T, tp->T/2-itau, 2, arg_first, arg_stride, obs_name2, log_ratio_1_1, dlog_ratio_1_1 );
         if ( exitstatus != 0  ) {
-          fprintf ( stderr, "[NN_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          fprintf ( stderr, "[mbscat_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(16);
         }
       }
@@ -727,8 +742,8 @@ int main(int argc, char **argv) {
 
   if(g_cart_id==0) {
     g_the_time = time(NULL);
-    fprintf(stdout, "# [NN_analyse] %s# [NN_analyse] end of run\n", ctime(&g_the_time));
-    fprintf(stderr, "# [NN_analyse] %s# [NN_analyse] end of run\n", ctime(&g_the_time));
+    fprintf(stdout, "# [mbscat_analyse] %s# [mbscat_analyse] end of run\n", ctime(&g_the_time));
+    fprintf(stderr, "# [mbscat_analyse] %s# [mbscat_analyse] end of run\n", ctime(&g_the_time));
   }
 
   return(0);
