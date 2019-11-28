@@ -61,7 +61,7 @@ typedef struct {
 } conf_src_list_type;
 
 
-  char const gamma_id_to_Cg_ascii[16][10] = {
+char const gamma_id_to_Cg_ascii[16][10] = {
     "Cgy",
     "Cgzg5",
     "Cgt",
@@ -81,7 +81,7 @@ typedef struct {
   };
 
 
-  char const gamma_id_to_ascii[16][10] = {
+char const gamma_id_to_ascii[16][10] = {
     "gt",
     "gx",
     "gy",
@@ -101,7 +101,28 @@ typedef struct {
   };
 
 /***************************************************************************
- *
+ * replace fwd slash by dot to make output filename
+ ***************************************************************************/
+void slash_to_dot ( char * name ) {
+
+  for ( ; *name != '\0';  name++ ) {
+    if ( *name == '/' ) *name = '.';
+  }
+}
+
+/***************************************************************************
+ *  h5 data filename
+ ***************************************************************************/
+int make_data_filename ( char * name , const twopoint_function_type * tp, const int pref[3], const int conf_id) {
+  
+  sprintf ( name, "%s.%s.PX%dPY%dPZ%d.%s.%.4d.t%dx%dy%dz%d.h5", tp->name, tp->group, pref[0], pref[1], pref[2], tp->irrep, conf_id,
+      tp->source_coords[0], tp->source_coords[1], tp->source_coords[2], tp->source_coords[3] );
+
+  return(0);
+}  /* end of make_data_filename  */
+
+/***************************************************************************
+ * data key / group name for reading from h5 file
  ***************************************************************************/
 int make_group_string ( char * key, twopoint_function_type *tp, const char * type , const char * data_set_name , const int data_set_id ) {
 
@@ -112,7 +133,7 @@ int make_group_string ( char * key, twopoint_function_type *tp, const char * typ
       fprintf ( stderr, "[make_group_string] Error, data_set_id out of bounds %s %d\n", __FILE__, __LINE__ );
       return ( 1 );
     }
-    twopoint_function_get_diagram_name ( tp_data_set_id,  tp, data_set_id );
+    twopoint_function_get_diagram_name ( tp_data_set_name,  tp, data_set_id );
   }
 
   if ( strcmp ( tp_type, "b-b" ) == 0 ) {
@@ -148,54 +169,50 @@ int make_group_string ( char * key, twopoint_function_type *tp, const char * typ
 
 
 /***************************************************************************
- *
+ * correlator name for output file
  ***************************************************************************/
-void make_correlator_string ( char * name , twopoint_function_type * tp , const char * type ) {
+void make_correlator_string ( char * name , twopoint_function_type * tp , const char * type , const int data_set_id ) {
 
   const char * tp_type = ( type ==  NULL ) ? tp->type : type;
 
-  if ( strcmp ( tp_type, "b-b" ) == 0 ) {
+  char tp_data_set_name[500];
+  twopoint_function_get_diagram_name ( tp_data_set_name,  tp, data_set_id );
 
-    sprintf ( name, "%s.%s.gf1_%s_%s.pf1x%.2dpf1y%.2dpf1z%.2d.gi1_%s_%s.pi1x%.2dpi1y%.2dpi1z%.2d", tp->name, tp->fbwd,
+  slash_to_dot ( tp_data_set_name );
+
+  sprintf ( name, "%s.%s.%s.%s", tp->name, tp->group, tp->irrep, tp->fbwd );
+
+  if ( strcmp ( tp_type, "b-b" ) == 0 ) {
+    sprintf ( name, "%s.gf1_%s_%s.pf1x%.2dpf1y%.2dpf1z%.2d.gi1_%s_%s.pi1x%.2dpi1y%.2dpi1z%.2d", name,
         gamma_id_to_Cg_ascii[tp->gf1[0]], gamma_id_to_ascii[tp->gf1[1]], tp->pf1[0], tp->pf1[1], tp->pf1[2],
         gamma_id_to_Cg_ascii[tp->gi1[0]], gamma_id_to_ascii[tp->gi1[1]], tp->pi1[0], tp->pi1[1], tp->pi1[2] );
 
   } else if ( strcmp( tp_type , "mxb-b" ) == 0 ) {
 
-    sprintf ( name, "%s.%s.gf1_%s_%s.pf1x%.2dpf1y%.2dpf1z%.2d.gi2_%s.pi2x%.2dpi2y%.2dpi2z%.2d.gi1_%s_%s.pi1x%.2dpi1y%.2dpi1z%.2d", tp->name, tp->fbwd,
+    sprintf ( name, "%s.gf1_%s_%s.pf1x%.2dpf1y%.2dpf1z%.2d.gi2_%s.pi2x%.2dpi2y%.2dpi2z%.2d.gi1_%s_%s.pi1x%.2dpi1y%.2dpi1z%.2d",
+        name,
         gamma_id_to_Cg_ascii[tp->gf1[0]], gamma_id_to_ascii[tp->gf1[1]], tp->pf1[0], tp->pf1[1], tp->pf1[2],
         gamma_id_to_ascii[tp->gi2],                                      tp->pi2[0], tp->pi2[1], tp->pi2[2],
         gamma_id_to_Cg_ascii[tp->gi1[0]], gamma_id_to_ascii[tp->gi1[1]], tp->pi1[0], tp->pi1[1], tp->pi1[2] );
 
   } else if ( strcmp( tp_type , "mxb-mxb" ) == 0 ) {
 
-    sprintf ( name, "%s.%s.gf2_%s.pf2x%.2dpf2y%.2dpf2z%.2d.gf1_%s_%s.pf1x%.2dpf1y%.2dpf1z%.2d.gi2_%s.pi2x%.2dpi2y%.2dpi2z%.2d.gi1_%s_%s.pi1x%.2dpi1y%.2dpi1z%.2d",
-        tp->name, tp->fbwd,
+    sprintf ( name, "%s.gf2_%s.pf2x%.2dpf2y%.2dpf2z%.2d.gf1_%s_%s.pf1x%.2dpf1y%.2dpf1z%.2d.gi2_%s.pi2x%.2dpi2y%.2dpi2z%.2d.gi1_%s_%s.pi1x%.2dpi1y%.2dpi1z%.2d",
+        name, 
         gamma_id_to_ascii[tp->gf2],                                      tp->pf2[0], tp->pf2[1], tp->pf2[2],
         gamma_id_to_Cg_ascii[tp->gf1[0]], gamma_id_to_ascii[tp->gf1[1]], tp->pf1[0], tp->pf1[1], tp->pf1[2],
         gamma_id_to_ascii[tp->gi2],                                      tp->pi2[0], tp->pi2[1], tp->pi2[2],
         gamma_id_to_Cg_ascii[tp->gi1[0]], gamma_id_to_ascii[tp->gi1[1]], tp->pi1[0], tp->pi1[1], tp->pi1[2] );
   }
+
+  strcat ( name, tp_data_set_name );
+
 }  /* end of make_correlator_string */
+
 
 /***************************************************************************
  *
- ***************************************************************************/
-void make_diagram_list_string ( char * s, twopoint_function_type * tp ) {
-  char comma = ',';
-  char bar  = '_';
-  char * s_ = s;
-  strcpy ( s, tp->diagrams );
-  while ( *s_ != '\0' ) {
-    if ( *s_ ==  comma ) *s_ = bar;
-    s_++;
-  }
-  if ( g_verbose > 2 ) fprintf ( stdout, "# [make_diagram_list_string] %s ---> %s\n", tp->diagrams, s );
-  return;
-}  /* end of make_diagram_list_string */
-
-
-/***************************************************************************
+ * main program
  *
  ***************************************************************************/
 int main(int argc, char **argv) {
@@ -407,11 +424,6 @@ int main(int argc, char **argv) {
 
   fflush ( stdout );
 
-  double _Complex **** corr = init_4level_ztable ( g_twopoint_function_number, num_conf, num_src_per_conf, T_global  );
-  if ( corr == NULL ) {
-    fprintf ( stderr, "[mbscat_analyse] Error from init_Xlevel_ztable %s %d\n", __FILE__, __LINE__ );
-    EXIT(15);
-  }
 
   /***************************************************************************
    * loop on twopoint functions
@@ -426,6 +438,12 @@ int main(int argc, char **argv) {
       twopoint_function_print ( tp, "tp", stdout );
     }
 
+    double _Complex **** corr = init_4level_ztable ( tp->n, num_conf, num_src_per_conf, tp->T  );
+    if ( corr == NULL ) {
+      fprintf ( stderr, "[mbscat_analyse] Error from init_Xlevel_ztable %s %d\n", __FILE__, __LINE__ );
+      EXIT(15);
+    }
+
     /***************************************************************************
      * total and reference frame momentum
      ***************************************************************************/
@@ -435,7 +453,7 @@ int main(int argc, char **argv) {
       Ptot[1] = tp->pf2[1];
       Ptot[2] = tp->pf2[2];
 
-    } else if ( strcmp( tp->type, "b-b" ) == 0 || strcmp( tp->type, "mxb-b" ) == 0  || strcmp( tp->type, "m-m" ) == 0 ) {
+    } else if ( strcmp( tp->type, "b-b" ) == 0 || strcmp( tp->type, "mxb-b" ) == 0 ) {
       Ptot[0] = tp->pf1[0];
       Ptot[1] = tp->pf1[1];
       Ptot[2] = tp->pf1[2];
@@ -480,247 +498,230 @@ int main(int argc, char **argv) {
         memcpy ( tp->source_coords, gsx , 4 * sizeof( int ) );
 
         char data_filename[500];
-            
-        sprintf ( data_filename, "%s/%d/%s.PX%d_PY%d_PZ%d.aff", filename_prefix, Nconf, tp->name, Pref[0], Pref[1], Pref[2] );
+       
+        exitstatus = make_data_filename ( data_filename, tp, Pref , Nconf );
+     
         if ( g_verbose > 2 ) {
           fprintf ( stdout, "# [mbscat_analyse] data_filename   = %s\n", data_filename );
         }
 
         /***********************************************************
-         * key for tp
+         * data sets inside tp
          ***********************************************************/
-        char key[500];
-        make_key_string ( key, tp, tp->type );
+        for ( int idiag = 0; idiag < tp->n; idiag++ ) {
 
-        if ( g_verbose > 2 ) {
-          fprintf ( stdout, "# [mbscat_analyse] key = %s\n", key );
-        }
-
-        /***********************************************************
-         * read data block from AFF file
-         ***********************************************************/
-        exitstatus = read_aff_contraction ( tp->c[0][0][0] , NULL, data_filename, key, tp->d * tp->d * tp->T );
-        if ( exitstatus != 0 ) {
-            fprintf(stderr, "[mbscat_analyse] Error from form read_aff_contraction for file %s key %s, status was %d %s %d\n", 
+          /***********************************************************
+           * key for tp
+           ***********************************************************/
+          char key[500];
+          exitstatus = make_group_string ( key, tp, NULL , NULL, idiag );
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[mbscat_analyse] Error from make_group_string for file %s group %s, status was %d %s %d\n",
                 data_filename, key, exitstatus, __FILE__, __LINE__ );
-            EXIT(12);
+            EXIT(1);
           }
 
-        if ( g_verbose > 2 ) {
-          twopoint_function_show_data ( tp, stdout );
-        }
+          if ( g_verbose > 2 ) {
+            fprintf ( stdout, "# [mbscat_analyse] key = %s\n", key );
+          }
 
-        /***********************************************************
-         * apply norm factors to diagrams
-         ***********************************************************/
-        if ( ( exitstatus = twopoint_function_apply_diagram_norm ( tp ) )  != 0 ) {
-          fprintf( stderr, "[mbscat_analyse] Error from twopoint_function_apply_diagram_norm, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-          EXIT(103);
-        }
+          /***********************************************************
+           * read data block from HDF5 file
+           ***********************************************************/
+          read_from_h5_file ( tp->c[idiag][0][0], data_filename, key, io_proc );
+          if ( exitstatus != 0 ) {
+              fprintf(stderr, "[mbscat_analyse] Error from read_aff_contraction for file %s key %s, status was %d %s %d\n", 
+                  data_filename, key, exitstatus, __FILE__, __LINE__ );
+              EXIT(12);
+            }
 
+          if ( g_verbose > 2 ) {
+            twopoint_function_show_data ( tp, stdout );
+          }
 
-        /***********************************************************
-         * add up normalized diagrams to entry 0
-         *
-         * NO accumulation necessary here anymore
-         ***********************************************************/
+          /***********************************************************
+           * apply norm factors to diagrams
+           ***********************************************************/
+          if ( ( exitstatus = twopoint_function_apply_diagram_norm ( tp ) )  != 0 ) {
+            fprintf( stderr, "[mbscat_analyse] Error from twopoint_function_apply_diagram_norm, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(103);
+          }
+
+          /***********************************************************
+           * add up normalized diagrams to entry 0
+           *
+           * NO accumulation necessary here anymore
+           ***********************************************************/
 #if 0
-        if ( ( exitstatus = twopoint_function_accum_diagrams ( tp->c[0], tp ) ) != 0 ) {
-          fprintf( stderr, "[mbscat_analyse] Error from twopoint_function_accum_diagrams, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-          EXIT(104);
-        }
+          if ( ( exitstatus = twopoint_function_accum_diagrams ( tp->c[idiag], tp ) ) != 0 ) {
+            fprintf( stderr, "[mbscat_analyse] Error from twopoint_function_accum_diagrams, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(104);
+          }
+#endif
+
+          /***********************************************************
+           * add boundary phase
+           *
+           * HAS already been added
+           ***********************************************************/
+#if 0
+          if ( ( exitstatus = correlator_add_baryon_boundary_phase ( tp->c[idiag], gsx[0], +1, tp->T ) ) != 0 ) {
+            fprintf( stderr, "[mbscat_analyse] Error from correlator_add_baryon_boundary_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(103);
+          }
+#endif
+
+          /***********************************************************
+           * add source phase
+           *
+           * HAS already been added
+           ***********************************************************/
+#if 0
+          if ( ( exitstatus = correlator_add_source_phase ( tp->c[idiag], tp->pi1, &(gsx[1]), tp->T ) ) != 0 ) {
+            fprintf( stderr, "[mbscat_analyse] Error from correlator_add_source_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(104);
+          }
+#endif
+
+          /***********************************************************
+            * reorder from source time forward
+           *
+           * IS already ordered from source
+           ***********************************************************/
+#if 0
+          if ( ( exitstatus = reorder_to_relative_time ( tp->c[idiag], tp->c[idiag], gsx[0], +1, tp->T ) ) != 0 ) {
+            fprintf( stderr, "[mbscat_analyse] Error from reorder_to_relative_time, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(104);
+          }
+#endif
+
+          /***********************************************************
+           * spin matrix multiplication left and right
+           *
+           * HAS already been multiplied
+           ***********************************************************/
+#if 0
+          if ( ( exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( tp->c[0], tp->c[0], gammaMat[tp->gf1[1]], gammaMat[tp->gi1[1]], tp->T ) ) != 0 ) {
+            fprintf( stderr, "[mbscat_analyse] Error from contract_diagram_zm4x4_field_mul_gamma_lr, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(105);
+          }
 #endif
 
         /***********************************************************
-         * add boundary phase
+         * trace of 4x4
          *
-         * HAS already been added
+         * THIS NEEDS TO BE GENERALIZED
          ***********************************************************/
-#if 0
-        if ( ( exitstatus = correlator_add_baryon_boundary_phase ( tp->c[0], gsx[0], +1, tp->T ) ) != 0 ) {
-          fprintf( stderr, "[mbscat_analyse] Error from correlator_add_baryon_boundary_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-          EXIT(103);
-        }
-#endif
+          if ( ( exitstatus = contract_diagram_co_eq_tr_zm4x4_field ( corr[idiag][iconf][isrc], tp->c[0], tp->T ) ) != 0 ) {
+            fprintf( stderr, "[mbscat_analyse] Error from contract_diagram_co_eq_tr_zm4x4_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(105);
+          }
 
-        /***********************************************************
-         * add source phase
-         *
-         * HAS already been added
-         ***********************************************************/
-#if 0
-        if ( ( exitstatus = correlator_add_source_phase ( tp->c[0], tp->pi1, &(gsx[1]), tp->T ) ) != 0 ) {
-          fprintf( stderr, "[mbscat_analyse] Error from correlator_add_source_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-          EXIT(104);
-        }
-#endif
-
-        /***********************************************************
-         * reorder from source time forward
-         *
-         * IS already ordered from source
-         ***********************************************************/
-#if 0
-        if ( ( exitstatus = reorder_to_relative_time ( tp->c[0], tp->c[0], gsx[0], +1, tp->T ) ) != 0 ) {
-          fprintf( stderr, "[mbscat_analyse] Error from reorder_to_relative_time, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-          EXIT(104);
-        }
-#endif
-
-        /***********************************************************
-         * spin matrix multiplication left and right
-         *
-         * HAS already been multiplied
-         ***********************************************************/
-#if 0
-        if ( ( exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( tp->c[0], tp->c[0], gammaMat[tp->gf1[1]], gammaMat[tp->gi1[1]], tp->T ) ) != 0 ) {
-          fprintf( stderr, "[mbscat_analyse] Error from contract_diagram_zm4x4_field_mul_gamma_lr, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-          EXIT(105);
-        }
-#endif
-
-        /***********************************************************
-         * project to spin parity and trace
-         ***********************************************************/
-        if ( ( exitstatus = correlator_spin_parity_projection ( tp->c[0], tp->c[0],  tp->parity_project, tp->T ) ) != 0 )
-        {
-          fprintf( stderr, "[mbscat_analyse] Error from correlator_spin_parity_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-          EXIT(105);
-        }
-
-      
-        if ( ( exitstatus = contract_diagram_co_eq_tr_zm4x4_field ( corr[i2pt][iconf][isrc], tp->c[0], tp->T ) ) != 0 ) {
-          fprintf( stderr, "[mbscat_analyse] Error from contract_diagram_co_eq_tr_zm4x4_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-          EXIT(105);
-        }
-
+        }  /* end of loop on data sets */
+        
       }  /* end of loop on source locations */
-
+      
     }  /* end of loop on configurations */
   
+    for ( int idiag = 0; idiag < tp->n; idiag++ ) {
 
-    char correlator_name[500];
-    make_correlator_string ( correlator_name , tp, tp->type  );
+      char correlator_name[500];
+      make_correlator_string ( correlator_name, tp, NULL , idiag );
 
-    /***********************************************************
-     * write correlator to file
-     ***********************************************************/
-    if ( write_data == 1 ) {
-      sprintf ( filename, "%s.corr", correlator_name );
+      /***********************************************************
+       * write correlator to file
+       ***********************************************************/
+      if ( write_data == 1 ) {
+        
+        sprintf ( filename, "%s.corr", correlator_name );
 
-      FILE * ofs = fopen ( filename, "w" );
-      for( int iconf = 0; iconf < num_conf; iconf++ ) {
-
-        for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
-
-          fprintf ( ofs, "# %s %c %6d   %3d %3d %3d %3d\n", ensemble_name, conf_src_list.stream[iconf], conf_src_list.conf[iconf],
-              conf_src_list.src[iconf][isrc][0],
-              conf_src_list.src[iconf][isrc][1],
-              conf_src_list.src[iconf][isrc][2],
-              conf_src_list.src[iconf][isrc][3] );
-
-          for ( int it = 0; it < tp->T; it++ ) {
-            fprintf ( ofs, "%3d %25.16e %25.16e\n" , it, creal( corr[i2pt][iconf][isrc][it] ), cimag( corr[i2pt][iconf][isrc][it] ) );
-          } 
-
-        }  /* end of loop on source locations */
-      }  /* end of loop on configs */
-      fclose ( ofs );
-
-    }  /* end of if write_data */
-      
-    /***************************************************************************
-     * fwd, bwd average
-     ***************************************************************************/
-#if 0
-    if ( tp->T == T_global ) {
-      if ( g_verbose > 2 ) fprintf ( stdout, "# [mbscat_analyse] fwd / bwd average\n" );
-#pragma omp parallel for
-      for( int iconf = 0; iconf < num_conf; iconf++ ) {
-        for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
-          for ( int it = 0; it <= T_global/2; it++ ) {
-            int const itt = ( T_global - it ) % T_global;
-            double _Complex const zp[2] = { corr[i2pt][0][iconf][isrc][it] , corr[i2pt][0][iconf][isrc][itt] };
-            double _Complex const zm[2] = { corr[i2pt][1][iconf][isrc][it] , corr[i2pt][1][iconf][isrc][itt] };
-
-            corr[i2pt][0][iconf][isrc][it ] = 0.5 * ( zp[0] - zm[1] );
-            corr[i2pt][0][iconf][isrc][itt] = corr[i2pt][0][iconf][isrc][it];
-
-            corr[i2pt][1][iconf][isrc][it ] = 0.5 * ( zm[0] - zp[1] );
-            corr[i2pt][1][iconf][isrc][itt] = corr[i2pt][1][iconf][isrc][it];
-          }
-        }
-      }
-    }
-#endif
-    /***************************************************************************
-     * UWerr analysis for correlator 
-     ***************************************************************************/
-
-    for ( int ireim = 0; ireim < 2; ireim++ ) {
-
-      if ( num_conf < 6 ) {
-        fprintf ( stderr, "[mbscat_analyse] number of observations too small, continue %s %d\n", __FILE__, __LINE__ );
-        continue;
-      }
-
-      double ** data = init_2level_dtable ( num_conf, tp->T );
-      if ( data == NULL ) {
-        fprintf ( stderr, "[mbscat_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
-        EXIT(16);
-      }
-
-      /* block data over sources */
-#pragma omp parallel for
-      for( int iconf = 0; iconf < num_conf; iconf++ ) {
-
-        for ( int it = 0; it < tp->T; it++ ) {
-
-          data[iconf][it] = 0.;
+        FILE * ofs = fopen ( filename, "w" );
+        for( int iconf = 0; iconf < num_conf; iconf++ ) {
 
           for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
-            data[iconf][it] += *(((double*)( corr[i2pt][iconf][isrc]+it )) + ireim );
-          }
 
-          data[iconf][it] /= (double)num_src_per_conf;
+            fprintf ( ofs, "# %s %c %6d   %3d %3d %3d %3d\n", ensemble_name, conf_src_list.stream[iconf], conf_src_list.conf[iconf],
+                conf_src_list.src[iconf][isrc][0],
+                conf_src_list.src[iconf][isrc][1],
+                conf_src_list.src[iconf][isrc][2],
+                conf_src_list.src[iconf][isrc][3] );
+
+            for ( int it = 0; it < tp->T; it++ ) {
+              fprintf ( ofs, "%3d %25.16e %25.16e\n" , it, creal( corr[idiag][iconf][isrc][it] ), cimag( corr[idiag][iconf][isrc][it] ) );
+            } 
+
+          }  /* end of loop on source locations */
+        }  /* end of loop on configs */
+        fclose ( ofs );
+
+      }  /* end of if write_data */
+   
+      /***************************************************************************
+       * UWerr analysis for correlator 
+       ***************************************************************************/
+      for ( int ireim = 0; ireim < 2; ireim++ ) {
+
+        if ( num_conf < 6 ) {
+          fprintf ( stderr, "[mbscat_analyse] number of observations too small, continue %s %d\n", __FILE__, __LINE__ );
+          continue;
         }
-      }
 
-      char obs_name[500];
-        
-      sprintf ( obs_name,  "%s.parity%d.%s", correlator_name, tp->parity_project, reim_str[ireim] );
-
-      exitstatus = apply_uwerr_real ( data[0], num_conf, tp->T, 0, 1, obs_name );
-      if ( exitstatus != 0  ) {
-        fprintf ( stderr, "[mbscat_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-        EXIT(16);
-      }
-
-#if 0
-      for ( int itau = 1; itau < tp->T/2; itau++ ) {
-        char obs_name2[500];
-
-        sprintf ( obs_name2,  "%s.log_ratio.tau%d", obs_name, itau );
-
-        int arg_first[2]  = {0, itau};
-        int arg_stride[2] = {1,1};
-      
-        exitstatus = apply_uwerr_func ( data[0], num_conf, tp->T, tp->T/2-itau, 2, arg_first, arg_stride, obs_name2, log_ratio_1_1, dlog_ratio_1_1 );
-        if ( exitstatus != 0  ) {
-          fprintf ( stderr, "[mbscat_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        double ** data = init_2level_dtable ( num_conf, tp->T );
+        if ( data == NULL ) {
+          fprintf ( stderr, "[mbscat_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
           EXIT(16);
         }
-      }
+
+        /* block data over sources */
+#pragma omp parallel for
+        for( int iconf = 0; iconf < num_conf; iconf++ ) {
+
+          for ( int it = 0; it < tp->T; it++ ) {
+            data[iconf][it] = 0.;
+            for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
+             data[iconf][it] += *(((double*)( corr[idiag][iconf][isrc]+it )) + ireim );
+            } 
+            data[iconf][it] /= (double)num_src_per_conf;
+          }
+        }  /* end of loop on configs */
+
+        char obs_name[500];
+        sprintf ( obs_name,  "%s.%s", correlator_name, reim_str[ireim] );
+
+        exitstatus = apply_uwerr_real ( data[0], num_conf, tp->T, 0, 1, obs_name );
+        if ( exitstatus != 0  ) {
+          fprintf ( stderr, "[mbscat_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(16);
+        }
+
+#if 0
+        for ( int itau = 1; itau < tp->T/2; itau++ ) {
+          char obs_name2[500];
+  
+          sprintf ( obs_name2,  "%s.log_ratio.tau%d", obs_name, itau );
+  
+          int arg_first[2]  = {0, itau};
+          int arg_stride[2] = {1,1};
+        
+          exitstatus = apply_uwerr_func ( data[0], num_conf, tp->T, tp->T/2-itau, 2, arg_first, arg_stride, obs_name2, log_ratio_1_1, dlog_ratio_1_1 );
+          if ( exitstatus != 0  ) {
+            fprintf ( stderr, "[mbscat_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(16);
+          }
+        }
 #endif  /* of if 0 */
 
-      fini_2level_dtable ( &data );
+        fini_2level_dtable ( &data );
 
-    }  /* end of loop on reim */
+      }  /* end of loop on reim */
+
+    }
 
     /***************************************************************************
-     * free the correlator field
+     * free fields
      ***************************************************************************/
 
+    fini_4level_ztable ( &corr );
     twopoint_function_fini ( tp );
 
   }  /* end of loop on 2-point functions */
@@ -728,7 +729,6 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * free the allocated memory, finalize
    ***************************************************************************/
-  fini_4level_ztable ( &corr );
   fini_1level_itable ( &(conf_src_list.conf) );
   fini_3level_itable ( &(conf_src_list.src) );
   fini_1level_ctable ( &(conf_src_list.stream) );
