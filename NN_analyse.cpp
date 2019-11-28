@@ -420,7 +420,7 @@ int main(int argc, char **argv) {
       Ptot[1] = tp->pf2[1];
       Ptot[2] = tp->pf2[2];
 
-    } else if ( strcmp( tp->type, "b-b" ) == 0 || strcmp( tp->type, "mxb-b" ) == 0  || strcmp( tp->type, "m-m" ) == 0 ) {
+    } else if ( strcmp( tp->type, "b-b" ) == 0 || strcmp( tp->type, "mxb-b" ) == 0 ) {
       Ptot[0] = tp->pf1[0];
       Ptot[1] = tp->pf1[1];
       Ptot[2] = tp->pf1[2];
