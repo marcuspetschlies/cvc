@@ -68,6 +68,11 @@ void usage(void) {
   exit(0);
 }
 
+/***********************************************************
+ *
+ * MAIN PROGRAM
+ *
+ ***********************************************************/
 int main(int argc, char **argv) {
   
   int c, exitstatus;
@@ -75,12 +80,13 @@ int main(int argc, char **argv) {
   char filename[200];
   double **mzz[2] = { NULL, NULL }, **mzzinv[2] = { NULL, NULL };
   double *gauge_field_with_bc = NULL;
+  char field_type[12] = "NA";
 
 #ifdef HAVE_MPI
     MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?vf:")) != -1) {
+  while ((c = getopt(argc, argv, "h?vf:t:")) != -1) {
     switch (c) {
     case 'v':
       g_verbose = 1;
@@ -88,6 +94,10 @@ int main(int argc, char **argv) {
     case 'f':
       strcpy(filename, optarg);
       filename_set=1;
+      break;
+    case 't':
+      strcpy ( field_type , optarg );
+      fprintf ( stdout, "# [convert_fields] field_type set to %s\n", field_type );
       break;
     case 'h':
     case '?':
@@ -102,35 +112,13 @@ int main(int argc, char **argv) {
   if(g_cart_id==0) fprintf(stdout, "# [convert_fields] Reading input from file %s\n", filename);
   read_input_parser(filename);
 
-
-#ifdef HAVE_TMLQCD_LIBWRAPPER
-
-  fprintf(stdout, "# [convert_fields] calling tmLQCD wrapper init functions\n");
-
-  /*********************************
+  /***********************************************************
    * initialize MPI parameters for cvc
-   *********************************/
-  exitstatus = tmLQCD_invert_init(argc, argv, 1);
-  if(exitstatus != 0) {
-    EXIT(14);
-  }
-  exitstatus = tmLQCD_get_mpi_params(&g_tmLQCD_mpi);
-  if(exitstatus != 0) {
-    EXIT(15);
-  }
-  exitstatus = tmLQCD_get_lat_params(&g_tmLQCD_lat);
-  if(exitstatus != 0) {
-    EXIT(16);
-  }
-#endif
-
-  /*********************************
-   * initialize MPI parameters for cvc
-   *********************************/
+   ***********************************************************/
   mpi_init(argc, argv);
 
   if(init_geometry() != 0) {
-    fprintf(stderr, "Error from init_geometry\n");
+    fprintf(stderr, "[convert_fields] Error from init_geometry\n");
     exit(101);
   }
 
@@ -144,43 +132,25 @@ int main(int argc, char **argv) {
   mpi_init_xchange_eo_propagator();
 
 
-#ifndef HAVE_TMLQCD_LIBWRAPPER
+  /***********************************************************
+   * read gauge field
+   ***********************************************************/
+
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
 
   if( strcmp(gaugefilename_prefix,"identity") == 0 ) {
     exitstatus = unit_gauge_field ( g_gauge_field,  VOLUME );
-
   } else {
     /* read the gauge field */
     sprintf(filename, "%s.%.4d", gaugefilename_prefix, Nconf);
     if(g_cart_id==0) fprintf(stdout, "# [convert_fields] reading gauge field from file %s\n", filename);
     exitstatus = read_lime_gauge_field_doubleprec(filename);
   }
-#else
-   Nconf = g_tmLQCD_lat.nstore;
-   if(g_cart_id== 0) fprintf(stdout, "[convert_fields] Nconf = %d\n", Nconf);
-
-   exitstatus = tmLQCD_read_gauge(Nconf);
-   if(exitstatus != 0) {
-     EXIT(3);
-   }
-
-   exitstatus = tmLQCD_get_gauge_field_pointer(&g_gauge_field);
-   if(exitstatus != 0) {
-     EXIT(4);
-   }
-   if(&g_gauge_field == NULL) {
-     fprintf(stderr, "[convert_fields] Error, &g_gauge_field is NULL\n");
-     EXIT(5);
-   }
-#endif
 
   if(exitstatus != 0) {
     fprintf(stderr, "[convert_fields] Error from setting g_gauge_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(38);
   }
-
-
 
 #ifdef HAVE_MPI
    xchange_gauge();
@@ -220,18 +190,10 @@ int main(int argc, char **argv) {
 
   /***********************************************
    * allocate fields
-   ***********************************************/
-#if 0
-  float *** propagator_field = init_3level_ftable ( VOLUME, 144, 2 );
-  if ( propagator_field == NULL ) {
-    fprintf ( stderr, "# [convert_fields] Error from init_Xlevel_ftable %s %d\n", __FILE__, __LINE__ );
-    EXIT(9);
-  }
-#endif
-
-  double ** spinor_field = init_2level_dtable ( 12, _GSI(VOLUME) );
+   *****a******************************************/
+  double **  spinor_field = init_2level_dtable ( 12, _GSI(VOLUME) );
   if ( spinor_field == NULL ) {
-    fprintf ( stderr, "# [convert_fields] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+    fprintf ( stderr, "# [convert_fields] Error from init_Xlevel_ftable %s %d\n", __FILE__, __LINE__ );
     EXIT(9);
   }
 
@@ -241,173 +203,195 @@ int main(int argc, char **argv) {
     EXIT(9);
   }
 
+  if ( strcmp ( field_type , "fp" ) == 0 ) {
+    sprintf ( filename, "%s.binary", filename_prefix );
+    if(g_cart_id==0) fprintf(stdout, "# [convert_fields] Reading prop. from file %s\n", filename );
 
-#if 0
-  sprintf ( filename, "%s.binary", filename_prefix );
-  if(g_cart_id==0) fprintf(stdout, "# [convert_fields] Reading prop. from file %s\n", filename );
 
-
-  float *** buffer = init_3level_ftable ( VOLUME, 144, 2 );
-  if ( propagator_field == NULL ) {
-    fprintf ( stderr, "# [convert_fields] Error from init_Xlevel_ftable %s %d\n", __FILE__, __LINE__ );
-    EXIT(9);
-  }
-
-  FILE * pfs = fopen( filename, "r" );
-  fread( buffer[0][0], sizeof( float ), VOLUME*12*12*2, pfs );
-  fclose ( pfs );
-
-#if 0
-  sprintf ( filename, "%s.ascii", filename_prefix );
-  pfs = fopen( filename, "w" );
-
-  for( unsigned int ix = 0; ix < VOLUME; ix++ ) {
-    for ( int i = 0; i< 144; i++ ) {
-      float ftmp[2];
-      
-      byte_swap_assign_singleprec ( ftmp, propagator_field[ix][i], 2 );
-      propagator_field[ix][i][0] = ftmp[0];
-      propagator_field[ix][i][1] = ftmp[1];
-
-      fprintf ( pfs, "%16.7e %16.7e\n", 
-          propagator_field[ix][i][0], propagator_field[ix][i][1]
-          /* propagator_field[0][0][0][2*(144*ix+12*i+k)], propagator_field[0][0][0][2*(144*ix+12*i+k)+1] */
-          );
-    }
-  }
-  fclose ( pfs );
-#endif
-
-#pragma omp parallel for
-  for( unsigned int it = 0; it < T; it++ ) {
-  for( unsigned int ix = 0; ix < LX; ix++ ) {
-  for( unsigned int iy = 0; iy < LY; iy++ ) {
-  for( unsigned int iz = 0; iz < LZ; iz++ ) {
-
-    unsigned int const iix = g_ipt[it][ix][iy][iz];
-    unsigned int const iiy =  LX * ( LY * ( LZ * it + iz ) + iy ) + ix;
-
-    for ( int i = 0; i< 144; i++ ) {
-      float ftmp[2];
-      
-      byte_swap_assign_singleprec ( ftmp, buffer[iiy][i], 2 );
-      propagator_field[iix][i][0] = ftmp[0];
-      propagator_field[iix][i][1] = ftmp[1];
-    }
-  }}}}
-
-  fini_3level_ftable ( &buffer );
-#endif
-
-  for ( int i = 0; i < 12; i++ )
-  {
-    /****************************************
-     * read read the spinor fields
-     ****************************************/
-
-    sprintf ( filename, "%s_s%d_c%d", filename_prefix, i/3, i%3 );
-    if(g_cart_id==0) fprintf(stdout, "# [convert_fields] Reading prop. from file %s\n", filename_prefix);
-    exitstatus = read_lime_spinor ( spinor_field[i], filename, 0 ); 
-    if( exitstatus != 0 ) {
-      fprintf(stderr, "[convert_fields] Error from read_lime_spinor for file %s, status was %d %s %d\n", filename, exitstatus, __FILE__, __LINE__ );
+    float ** buffer = init_2level_ftable ( VOLUME, 288 );
+    if ( buffer == NULL ) {
+      fprintf ( stderr, "# [convert_fields] Error from init_Xlevel_ftable %s %d\n", __FILE__, __LINE__ );
       EXIT(9);
     }
-#if 0
-#endif
 
+    FILE * pfs = fopen( filename, "r" );
+    fread( buffer[0], sizeof( float ), VOLUME*12*12*2, pfs );
+    fclose ( pfs );
+
+  /***********************************************************
+   * reorder t,z,y,x to t,x,y,z
+   ***********************************************************/
 #pragma omp parallel for
-    for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
-#if 0
-      double spinor1[24];
-      for ( int isc = 0; isc < 12; isc++ ) {
-        /* int const idx = 3 * ( 3 * ( 4*(isc/3) + i/3 ) * isc%3 ) + i%3; */
-        int const idx = 3 * ( 3 * ( 4*(i/3) + isc/3 ) * i%3 ) + isc%3;
+    for( unsigned int it = 0; it < T; it++ ) {
+    for( unsigned int ix = 0; ix < LX; ix++ ) {
+    for( unsigned int iy = 0; iy < LY; iy++ ) {
+    for( unsigned int iz = 0; iz < LZ; iz++ ) {
+      double dtmp[288];
 
-        spinor1[2*isc  ] = (double)( propagator_field[ix][idx][0] );
-        spinor1[2*isc+1] = (double)( propagator_field[ix][idx][1] ); 
+      unsigned int const iix = g_ipt[it][ix][iy][iz];
+      unsigned int const iiy =  LX * ( LY * ( LZ * it + iz ) + iy ) + ix;
+
+      byte_swap_assign_single2double ( dtmp , buffer[iiy], 288 );
+  
+      /***********************************************************
+       * reorder spin-color at source and sink
+       ***********************************************************/
+      for ( int alpha = 0; alpha < 4; alpha++ ) {
+      for ( int a = 0; a < 3; a++ ) {
+        for ( int beta = 0; beta < 4; beta++ ) {
+        for ( int b = 0; b < 3; b++ ) {
+          spinor_field[3*beta + b][_GSI(iix) + 2 * ( 3*alpha + a )     ]  = buffer[iiy][ 2 * ( ( 4 *  (  3 * alpha + a ) + beta ) + b )     ];
+          spinor_field[3*beta + b][_GSI(iix) + 2 * ( 3*alpha + a ) + 1 ]  = buffer[iiy][ 2 * ( ( 4 *  (  3 * alpha + a ) + beta ) + b ) + 1 ];
+        }}
+      }}
+    }}}}
+
+    fini_2level_ftable ( &buffer );
+
+  }  /* end of field type fp */
+
+  int const nsc = ( strcmp ( field_type, "ds" ) == 0 ) ? 1 : 12;
+
+  /***********************************************************
+   * loop on fields
+   ***********************************************************/
+  for ( int i = 0; i < nsc; i++ )
+  {
+
+    /***********************************************************
+     * read read the spinor fields
+     ***********************************************************/
+    if ( strncmp( field_type , "ds" , 2) == 0 ) {
+
+      if ( strcmp( field_type , "ds12" ) == 0 ) {
+        sprintf ( filename, "%s_s%d_c%d", filename_prefix, i/3, i%3 ); 
+      } else {
+        sprintf ( filename, "%s", filename_prefix );
       }
-      _fv_cvc_eq_convert_fv_ukqcd ( spinor_field[i]+_GSI(ix) , spinor1 );
-#endif
-      _fv_cvc_eq_convert_fv_ukqcd ( spinor_field[i]+_GSI(ix) , spinor_field[i]+_GSI(ix) );
-    }
-  }
 
-#pragma omp parallel for
-  for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
-    double spinor1[4][24];
-    double const norm = 1. / sqrt( 2. );
-    for ( int ic =0; ic < 3; ic++ ) {
-      _fv_eq_fv ( spinor1[0], spinor_field[  ic] + _GSI(ix) );
-      _fv_eq_fv ( spinor1[1], spinor_field[3+ic] + _GSI(ix) );
-      _fv_eq_fv ( spinor1[2], spinor_field[6+ic] + _GSI(ix) );
-      _fv_eq_fv ( spinor1[3], spinor_field[9+ic] + _GSI(ix) );
-
-      /*  */
-      _fv_eq_fv_mi_fv (spinor_field[  ic]+_GSI(ix), spinor1[0], spinor1[2] );
-
-      /*  */
-      _fv_eq_fv_mi_fv (spinor_field[3+ic]+_GSI(ix), spinor1[1], spinor1[3] );
-
-      /*  */
-      _fv_eq_fv    ( spinor_field[6+ic]+_GSI(ix), spinor1[0] );
-      _fv_ti_eq_re ( spinor_field[6+ic]+_GSI(ix), -1. );
-      _fv_mi_eq_fv ( spinor_field[6+ic]+_GSI(ix), spinor1[2] );
-
-      /*  */
-      _fv_eq_fv    ( spinor_field[9+ic]+_GSI(ix), spinor1[1] );
-      _fv_ti_eq_re ( spinor_field[9+ic]+_GSI(ix), -1. );
-      _fv_mi_eq_fv ( spinor_field[9+ic]+_GSI(ix), spinor1[3] );
-
-      _fv_ti_eq_re ( spinor_field[  ic]+_GSI(ix), norm );
-      _fv_ti_eq_re ( spinor_field[3+ic]+_GSI(ix), norm );
-      _fv_ti_eq_re ( spinor_field[6+ic]+_GSI(ix), norm );
-      _fv_ti_eq_re ( spinor_field[9+ic]+_GSI(ix), norm );
-    }
-  }
-
-  for ( int i = 0; i < 12; i++ ) {
-    if ( g_write_propagator ) {
-      /* sprintf ( filename, "%s.%d.lime", filename_prefix , i ); */
-      sprintf ( filename, "%s_s%d_c%d.converted", filename_prefix, i/3, i%3 );
-      exitstatus = write_propagator ( spinor_field[i],  filename, 0, 64 );
+      if(g_cart_id==0) fprintf(stdout, "# [convert_fields] Reading field from file %s %s %d\n", filename, __FILE__, __LINE__ );
+      exitstatus = read_lime_spinor ( spinor_field[i], filename, 0 ); 
       if( exitstatus != 0 ) {
         fprintf(stderr, "[convert_fields] Error from read_lime_spinor for file %s, status was %d %s %d\n", filename, exitstatus, __FILE__, __LINE__ );
         EXIT(9);
       }
+    }  /* end of if field_type has ds */
+
+    /***********************************************************
+     * ukqcd -> cvc gamma basis rotation at sink;
+     ***********************************************************/
+#pragma omp parallel for
+    for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
+      _fv_cvc_eq_convert_fv_ukqcd ( spinor_field[i]+_GSI(ix) , spinor_field[i]+_GSI(ix) );
+    }
+  
+  }
+
+  if ( strcmp( field_type, "ds12" ) == 0 ) {
+    /***********************************************************
+     * ukqcd -> cvc gamma basis rotation at source;
+     * assumes specific forms of gamma_t and gamma_5
+     * requires all 12 spin-color components
+     ***********************************************************/
+#pragma omp parallel for
+    for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
+      double spinor1[4][24];
+      double const norm = 1. / sqrt( 2. );
+      for ( int ic =0; ic < 3; ic++ ) {
+        _fv_eq_fv ( spinor1[0], spinor_field[  ic] + _GSI(ix) );
+        _fv_eq_fv ( spinor1[1], spinor_field[3+ic] + _GSI(ix) );
+        _fv_eq_fv ( spinor1[2], spinor_field[6+ic] + _GSI(ix) );
+        _fv_eq_fv ( spinor1[3], spinor_field[9+ic] + _GSI(ix) );
+
+        /*  */
+        _fv_eq_fv_mi_fv (spinor_field[  ic]+_GSI(ix), spinor1[0], spinor1[2] );
+
+        /*  */
+        _fv_eq_fv_mi_fv (spinor_field[3+ic]+_GSI(ix), spinor1[1], spinor1[3] );
+
+        /*  */
+        _fv_eq_fv    ( spinor_field[6+ic]+_GSI(ix), spinor1[0] );
+        _fv_ti_eq_re ( spinor_field[6+ic]+_GSI(ix), -1. );
+        _fv_mi_eq_fv ( spinor_field[6+ic]+_GSI(ix), spinor1[2] );
+
+        /*  */
+        _fv_eq_fv    ( spinor_field[9+ic]+_GSI(ix), spinor1[1] );
+        _fv_ti_eq_re ( spinor_field[9+ic]+_GSI(ix), -1. );
+        _fv_mi_eq_fv ( spinor_field[9+ic]+_GSI(ix), spinor1[3] );
+
+        _fv_ti_eq_re ( spinor_field[  ic]+_GSI(ix), norm );
+        _fv_ti_eq_re ( spinor_field[3+ic]+_GSI(ix), norm );
+        _fv_ti_eq_re ( spinor_field[6+ic]+_GSI(ix), norm );
+        _fv_ti_eq_re ( spinor_field[9+ic]+_GSI(ix), norm );
+      }
+    }
+  }  /* end of if field_type == ds12 */
+
+  for ( int i = 0; i < nsc; i++ ) {
+    if ( g_write_propagator ) {
+      if ( g_source_type == 0 ) {
+        sprintf ( filename, "source.%.4d.%.2d.inverted", filename_prefix, i );
+      } else if ( g_source_type == 1 ) {
+        sprintf ( filename, "source.%.4d.%.5d.inverted", filename_prefix, i );
+      }
+      exitstatus = write_propagator ( spinor_field[i],  filename, 0, 64 );
+      if( exitstatus != 0 ) {
+        fprintf(stderr, "[convert_fields] Error from write_propagator for file %s, status was %d %s %d\n", filename, exitstatus, __FILE__, __LINE__ );
+        EXIT(9);
+      }
     }
 
+    /***********************************************************
+     * norm of input field
+     ***********************************************************/
     double norm = 0.;
     spinor_scalar_product_re ( &norm,      spinor_field[i], spinor_field[i], VOLUME );
     fprintf(stdout, "# [convert_fields] norm %d2  %e\n", i, sqrt(norm));
 
+    /***********************************************************
+     * apply D
+     ***********************************************************/
     spinor_field_lexic2eo ( spinor_field[i], eo_spinor_work[0], eo_spinor_work[1] );
 
     Q_clover_phi_matrix_eo ( eo_spinor_work[2], eo_spinor_work[3], eo_spinor_work[0], eo_spinor_work[1], gauge_field_with_bc, eo_spinor_work[4], mzz[1] );
 
     spinor_field_eo2lexic ( spinor_field[i], eo_spinor_work[2], eo_spinor_work[3] );
 
-#if 0
-    sprintf ( filename, "spinor.%d.ascii", i );
-    FILE * ffs = fopen( filename, "w" );
-    exitstatus = printf_spinor_field( spinor_field[i], 0, ffs);
-    fclose ( ffs );
-#endif
+    if ( g_write_source ) {
+      if ( g_source_type == 0 ) {
+        sprintf ( filename, "source.%.4d.%.2d.ascii", filename_prefix, i );
+      } else if ( g_source_type == 1 ) {
+        sprintf ( filename, "source.%.4d.%.5d.ascii", filename_prefix, i );
+      }
 
-    int sx[4], source_proc_id;
-    exitstatus = get_point_source_info ( g_source_coords_list[0], sx, &source_proc_id);
-    if( exitstatus != 0 ) {
-      fprintf(stderr, "[convert_fields] Error from get_point_source_info, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-      EXIT(9);
+      FILE * ffs = fopen( filename, "w" );
+      exitstatus = printf_spinor_field( spinor_field[i], 0, ffs);
+      if( exitstatus != 0 ) {
+        fprintf(stderr, "[convert_fields] Error from printf_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(9);
+      }
+      fclose ( ffs );
     }
 
-    if ( source_proc_id == g_cart_id ) {
-      spinor_field[i][_GSI( g_ipt[sx[0]][sx[1]][sx[2]][sx[3]]) + 2*i] -= 1.;
+    if ( g_source_type == 0 ) {
+      /***********************************************************
+       * check point source
+       ***********************************************************/
+      int sx[4], source_proc_id;
+      exitstatus = get_point_source_info ( g_source_coords_list[0], sx, &source_proc_id);
+      if( exitstatus != 0 ) {
+        fprintf(stderr, "[convert_fields] Error from get_point_source_info, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(9);
+      }
+
+      if ( source_proc_id == g_cart_id ) {
+        spinor_field[i][_GSI( g_ipt[sx[0]][sx[1]][sx[2]][sx[3]]) + 2*i] -= 1.;
+      }
+
+      double norm_diff = 0.;
+      spinor_scalar_product_re ( &norm_diff, spinor_field[i], spinor_field[i], VOLUME);
+      fprintf(stdout, "# [convert_fields] norm-diff %2d %e\n", i, sqrt(norm_diff));
     }
-
-    double norm_diff = 0.;
-    spinor_scalar_product_re ( &norm_diff, spinor_field[i], spinor_field[i], VOLUME);
-    fprintf(stdout, "# [convert_fields] norm-diff %2d %e\n", i, sqrt(norm_diff));
-
 
   }  /* end of loop on spin color i */
 
