@@ -94,7 +94,7 @@ int log_ratio_1_1 ( void * param , void * v_in, double * v_out) {
   int zaehler = trange[0];
   int nenner  = trange[1];
 
-  *v_out = log ( ((double*)param)[zaehler] / ((double*)param)[nenner] );
+  *v_out = log ( ((double*)param)[zaehler] / ((double*)param)[nenner] ) / (double)( nenner - zaehler );
   return(0);
 }  /* end of log_ratio_1_1 */
 
@@ -108,9 +108,9 @@ int dlog_ratio_1_1(void *param , void *v_in, double *v_out) {
   int nenner  = trange[1];
 
   /* derivative w.r.t. zaehler */
-  v_out[zaehler] =  1. / ((double*)param)[zaehler];
+  v_out[zaehler] =  1. / ((double*)param)[zaehler] / (double)( nenner - zaehler );
   /* derivative w.r.t. nenner */
-  v_out[nenner]  = -1. / ((double*)param)[nenner];
+  v_out[nenner]  = -1. / ((double*)param)[nenner ] / (double)( nenner - zaehler );
 
   return(0);
 }  /* end of dlog_ratio_1_1 */
