@@ -1864,4 +1864,195 @@ int Q_clover_eo_invert_subspace_stochastic_timeslice (
 #endif  /* of if 0  */
 
 
+/********************************************************************/
+/********************************************************************/
+ 
+/********************************************************************
+ *
+ ********************************************************************/
+int clover_rectangle_term_eo (double**s, double*gauge_field) {
+
+  const double norm  = 0.25;
+
+  double *** staples = init_4level_dtable ( 2, (VOLUME+RAND)/2, 2, 2, 18 );
+  if ( staples == NULL ) {
+    fprintf ( stderr, "[init_3level_dtable] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
+
+  for ( int imu = 0; imu<3; imu++) {
+
+    for ( int inu = imu+1; inu<4; inu++) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel shared(s,gauge_field)
+{
+#endif
+      double U1[18];
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+      for ( unsigned int ix = 0; ix < VOLUME; ix++ )
+      {
+    
+        int const ieo = 1 - g_iseven[ix];
+        unsigned int const iexeo = g_lexic2eosub[ix];
+    
+        /********************************
+         *    x + nu
+         *           x + mu + nu
+         *    |     |
+         *    |     | ^
+         *   _|_____|
+         *    |x     x + mu
+         *
+         ********************************/
+
+        _cm_eq_cm_ti_cm ( U1, gauge_field+_GGI(ix,imu), gauge_field+_GGI( g_iup[ix][imu], inu) );
+        _cm_eq_cm_dag_ti_cm ( s[ieo] + 18 * ( 4 * ixeo + imunu ), gauge_field+_GGI(ix, inu), U1 );
+
+        /********************************
+         *
+         *    x     x + mu
+         *   _|_____
+         *    |     |
+         *    |     | ^
+         *    |     |
+         *
+         *    x-nu  x + mu - nu
+         ********************************/
+
+        _cm_eq_cm_ti_cm ( U1, gauge_field+_GGI(ix,imu), gauge_field+_GGI( g_idn[g_iup[ix][imu]][inu], inu) );
+        _cm_eq_cm_dag_ti_cm ( s[ieo] + 18 * ( 4 * ixeo + imunu ), gauge_field+_GGI(ix, inu), U1 );
+
+
+
+        /********************************
+         *    x + nu
+         *     _____       x + mu + nu
+         *    |     
+         *    |      
+         *   _|_____
+         *    |x     x + mu
+         *        >
+         *       
+         ********************************/
+
+        _cm_eq_cm_ti_cm ( U1, gauge_field+_GGI(ix,inu), gauge_field+_GGI( g_iup[ix][inu], imu) );
+        _cm_eq_cm_dag_ti_cm ( s[ieo] + 18 * ( 12 * ixeo + 6 + imunu ), U1, gauge_field+_GGI(ix, inu) );
+
+
+STOPPED HERE
+        /* if (g_cart_id == 0 ) fprintf(stdout, "# [clover_rectangle_term_eo] xle=%8d xeo=%8d imu=%d inu=%d imunu=%d\n", ix, g_lexic2eosub[ix], imu, inu, imunu); */
+
+        /********************************
+         *    x + nu
+         *     ____ ____  x + 2 mu + nu
+         *    |         |
+         *    |         | ^
+         *   _|____ ____|
+         *    |x     x + 2 mu
+         *
+         ********************************/
+        _cm_eq_cm_ti_cm(U1, gauge_field+_GGI(ix,imu), gauge_field+_GGI(ix_pl_mu,inu) );
+        _cm_eq_cm_ti_cm(U2, gauge_field+_GGI(ix,inu), gauge_field+_GGI(ix_pl_nu,imu) );
+        _cm_eq_cm_ti_cm_dag( U3 , U1, U2 );
+        _cm_pl_eq_cm( s_ptr , U3 );
+#if 0
+#endif
+
+
+        /********************************
+         *    x 
+         *   _|____  x + mu
+         *    |    |
+         *    |    | ^
+         *    |____|
+         *           x + mu - nu
+         *    x - nu
+         *
+         ********************************/
+      /*
+        _cm_eq_cm_ti_cm_dag(U1, gauge_field+_GGI(ix,imu), gauge_field+_GGI(ix_pl_mu_mi_nu, inu) );
+        _cm_eq_cm_dag_ti_cm(U2, gauge_field+_GGI(ix_mi_nu, imu), gauge_field+_GGI(ix_mi_nu,inu) );
+       */
+        _cm_eq_cm_dag_ti_cm(U1, gauge_field+_GGI(ix_mi_nu,inu), gauge_field+_GGI(ix_mi_nu, imu) );
+        _cm_eq_cm_ti_cm_dag(U2, gauge_field+_GGI(ix_pl_mu_mi_nu, inu), gauge_field+_GGI(ix, imu) );
+        _cm_eq_cm_ti_cm(U3, U1, U2 );
+        _cm_pl_eq_cm( s_ptr , U3 );
+#if 0
+        char name[30];
+        sprintf(name, "%u_mi_%d__%d", ix, inu, inu);
+
+         _cm_fprintf(gauge_field+_GGI(ix_mi_nu,inu),        name, stdout);
+
+        sprintf(name, "%u_mi_%d__%d", ix, inu, imu);
+
+         _cm_fprintf(gauge_field+_GGI(ix_mi_nu, imu),       name, stdout);
+
+        sprintf(name, "%u_pl_%d_mi_%d__%d", ix, imu, inu, inu);
+
+         _cm_fprintf(gauge_field+_GGI(ix_pl_mu_mi_nu, inu), name, stdout);
+
+        sprintf(name, "%u__%d", ix, imu);
+
+         _cm_fprintf(gauge_field+_GGI(ix, imu),             name, stdout);
+#endif
+
+
+        /********************************
+         *    x-mu+nu 
+         *     ____  x + nu
+         *    |    |
+         *    |    | ^
+         *    |____|_
+         *         | x
+         *    x-mu
+         *
+         ********************************/
+        _cm_eq_cm_ti_cm_dag(U1, gauge_field+_GGI(ix, inu), gauge_field+_GGI(ix_mi_mu_pl_nu, imu) );
+        _cm_eq_cm_dag_ti_cm(U2, gauge_field+_GGI(ix_mi_mu,inu), gauge_field+_GGI(ix_mi_mu, imu) );
+        _cm_eq_cm_ti_cm(U3, U1, U2 );
+        _cm_pl_eq_cm( s_ptr , U3 );
+
+
+
+        /********************************
+         *    x-mu
+         *     ____|_  x
+         *    |    |
+         *    |    | ^
+         *    |____| x-nu
+         *  x-mu-nu 
+         *    
+         ********************************/
+        /*
+        _cm_eq_cm_ti_cm(U1, gauge_field+_GGI(ix_mi_mu_mi_nu, imu), gauge_field+_GGI(ix_mi_nu, inu) );
+        _cm_eq_cm_ti_cm(U2, gauge_field+_GGI(ix_mi_mu_mi_nu, inu),  gauge_field+_GGI(ix_mi_mu, imu) );
+        */
+        _cm_eq_cm_ti_cm(U1, gauge_field+_GGI(ix_mi_mu_mi_nu, inu), gauge_field+_GGI(ix_mi_mu, imu) );
+        _cm_eq_cm_ti_cm(U2, gauge_field+_GGI(ix_mi_mu_mi_nu, imu),  gauge_field+_GGI(ix_mi_nu, inu) );
+        _cm_eq_cm_dag_ti_cm(U3, U1, U2 );
+        _cm_pl_eq_cm( s_ptr , U3 );
+
+        _cm_eq_antiherm_cm(U3, s_ptr);
+#if 0
+#endif
+        /* TEST */
+        _cm_eq_cm_ti_re( s_ptr , U3, norm );
+        /* _cm_eq_cm_ti_im( s_ptr , U3, norm ); */
+
+        imunu++;
+      }  /* end of loop on nu */
+    }    /* end of loop on mu */
+  }      /* end of loop on ix */
+
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+  fini_3level_dtable ( &staples );
+}  /* end of clover_rectangle_term_eo */
+
 }  /* end of namespace cvc */
