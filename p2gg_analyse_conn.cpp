@@ -76,14 +76,14 @@ int main(int argc, char **argv) {
    *                         0,  1,  2,  3, id,  5, 0_5, 1_5, 2_5, 3_5, 0_1, 0_2, 0_3, 1_2, 1_3, 2_3
    *
    ***********************************************************/
-  int const sigma_5d[16] ={ -1, -1, -1, -1, +1, +1,  +1,  +1,  +1,  +1,  -1,  -1,  -1,  -1,  -1,  -1 };
+  int const sigma_5d_list[16] ={ -1, -1, -1, -1, +1, +1,  +1,  +1,  +1,  +1,  -1,  -1,  -1,  -1,  -1,  -1 };
 
   /***********************************************************
    * sign for g0 Gamma g0
    *                         0,  1,  2,  3, id,  5, 0_5, 1_5, 2_5, 3_5, 0_1, 0_2, 0_3, 1_2, 1_3, 2_3
    *
    ***********************************************************/
-  int const sigma_5d[16] ={  1, -1, -1, -1, +1, -1,  -1,  +1,  +1,  +1,  -1,  -1,  -1,  +1,  +1,  +1 };
+  int const sigma_t_list[16] ={  1, -1, -1, -1, +1, -1,  -1,  +1,  +1,  +1,  -1,  -1,  -1,  +1,  +1,  +1 };
 
   int c;
   int filename_set = 0;
@@ -417,7 +417,9 @@ int main(int argc, char **argv) {
                 if ( ( charged_ps == 0 ) && ( operator_type == 0 || operator_type == 2 ) ) {
 
                   gettimeofday ( &ta, (struct timezone *)NULL );
-               
+                    
+                  uint32_t uitems = 16 * T;
+
                   sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d/px%.2dpy%.2dpz%.2d", pgg_operator_type_tag[operator_type],
                       gsx[0], gsx[1], gsx[2], gsx[3],
                       seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
@@ -428,7 +430,7 @@ int main(int argc, char **argv) {
                   if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse_conn] pgg key %d = %s\n", 2*iflavor+0, key );
       
                   affdir = aff_reader_chpath (affr, affn, key );
-                  uint32_t uitems = 16 * T;
+ 
                   exitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*)(buffer[2*iflavor+0][0][0]), uitems );
                   if( exitstatus != 0 ) {
                     fprintf(stderr, "[p2gg_analyse_conn] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -445,7 +447,7 @@ int main(int argc, char **argv) {
                   if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse_conn] pgg key %d = %s\n", 2*iflavor+1, key );
       
                   affdir = aff_reader_chpath (affr, affn, key );
-                  uint32_t uitems = 16 * T;
+
                   exitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*)(buffer[2*iflavor+1][0][0]), uitems );
                   if( exitstatus != 0 ) {
                     fprintf(stderr, "[p2gg_analyse_conn] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -716,37 +718,37 @@ int main(int argc, char **argv) {
 
                 if ( charged_ps == 0 ) {
                   sigma_5d[0] = 
-                         sigma_5d[ sequential_source_gamma_id ]
-                       * sigma_5d[ gamma_v_list[mu] ]
-                       * sigma_5d[ gamma_v_list[nu] ];
+                         sigma_5d_list[ sequential_source_gamma_id ]
+                       * sigma_5d_list[ gamma_v_list[mu] ]
+                       * sigma_5d_list[ gamma_v_list[nu] ];
                   sigma_5d[1] = sigma_5d[0];
                   
                   sigma_t[0] = 
-                         sigma_t[ sequential_source_gamma_id ]
-                       * sigma_t[ gamma_v_list[mu] ]
-                       * sigma_t[ gamma_v_list[nu] ];
+                         sigma_t_list[ sequential_source_gamma_id ]
+                       * sigma_t_list[ gamma_v_list[mu] ]
+                       * sigma_t_list[ gamma_v_list[nu] ];
                   sigma_t[1] = sigma_t[0];
 
                 } else if ( charged_ps == 1 ) {
                   sigma_5d[0] =
-                         (double)sigma_5d[ sequential_source_gamma_id ]
-                       * (double)sigma_5d[ gamma_a_list[mu] ]
-                       * (double)sigma_5d[ gamma_v_list[nu] ];
+                         sigma_5d_list[ sequential_source_gamma_id ]
+                       * sigma_5d_list[ gamma_a_list[mu] ]
+                       * sigma_5d_list[ gamma_v_list[nu] ];
                   
                   sigma_5d[1] =
-                         (double)sigma_5d[ sequential_source_gamma_id ]
-                       * (double)sigma_5d[ gamma_v_list[mu] ]
-                       * (double)sigma_5d[ gamma_a_list[nu] ];
+                         sigma_5d_list[ sequential_source_gamma_id ]
+                       * sigma_5d_list[ gamma_v_list[mu] ]
+                       * sigma_5d_list[ gamma_a_list[nu] ];
                   
                   sigma_t[0] = 
-                         sigma_t[ sequential_source_gamma_id ]
-                       * sigma_t[ gamma_a_list[mu] ]
-                       * sigma_t[ gamma_v_list[nu] ];
-                  *
+                         sigma_t_list[ sequential_source_gamma_id ]
+                       * sigma_t_list[ gamma_a_list[mu] ]
+                       * sigma_t_list[ gamma_v_list[nu] ];
+
                   sigma_t[1] = 
-                         sigma_t[ sequential_source_gamma_id ]
-                       * sigma_t[ gamma_v_list[mu] ]
-                       * sigma_t[ gamma_a_list[nu] ];
+                         sigma_t_list[ sequential_source_gamma_id ]
+                       * sigma_t_list[ gamma_v_list[mu] ]
+                       * sigma_t_list[ gamma_a_list[nu] ];
                 }
 
                 if ( g_verbose > 5 ) 
@@ -796,6 +798,17 @@ int main(int argc, char **argv) {
                 }
       
                 /**********************************************************
+                 * weights for real and imaginary part
+                 **********************************************************/
+                int const cp[2] = { 
+                  ( 1 + sigma_5d[0] * sigma_t[0] ) / 2,
+                  ( 1 + sigma_5d[1] * sigma_t[1] ) / 2 };
+
+                int const cm[2] = { 
+                  ( 1 - sigma_5d[0] * sigma_t[0] ) / 2,
+                  ( 1 - sigma_5d[1] * sigma_t[1] ) / 2 };
+
+                /**********************************************************
                  * sort data from buffer into pgg,
                  * multiply source phase
                  **********************************************************/
@@ -808,61 +821,71 @@ int main(int argc, char **argv) {
                   int const tt = ( it - gsx[0] + T_global ) % T_global; 
       
                   /**********************************************************
-                   * add the two flavor components
-                   **********************************************************/
-                  int cp[2] = { 
-                    ( 1 + sigma_5d[0] * sigma_t[0] ) / 2,
-                    ( 1 + sigma_5d[1] * sigma_t[1] ) / 2 };
-
-                  int cm[2] = { 
-                    ( 1 - sigma_5d[0] * sigma_t[0] ) / 2,
-                    ( 1 - sigma_5d[1] * sigma_t[1] ) / 2 };
-
-
-                  double _Complex ztmp = 0.;
-
-                  if ( charged_ps == 0 ) {
-                    double dtmp[2] = {0.,0.};
-
-                    dtmp[0] =          buffer[0][mu][nu][2*it] 
-                        - sigma_t[0] * buffer[1][mu][nu][2*it]
-                        -              buffer[2][mu][nu][2*it]
-                        + sigma_t[0] * buffer[3][mu][nu][2*it];
-                    
-                    dtmp[1] =          buffer[0][mu][nu][2*it+1] 
-                        - sigma_t[0] * buffer[1][mu][nu][2*it+1]
-                        -              buffer[2][mu][nu][2*it+1]
-                        + sigma_t[0] * buffer[3][mu][nu][2*it+1];
-
-                    ztmp = 2 * ( ( cp[0] * dtmp[0] ) + I * ( cm[0] * dtmp[1] ) );  /* including overall factor of 2 */
-
-                  } else {
-
-
-
-                  }
-
-                  ztmp *= p_ephase;
-                      
-                  /**********************************************************
                    * for mu == nu and at source time subtract the contact term
                    **********************************************************/
-                  if ( mu == nu ) {
-                    if ( tt == 0 ) {
-                       ztmp -= ( contact_term[0][mu][0] + I * contact_term[0][mu][1] );
-                     }
-                  }
-
+                  double _Complex const zct = ( mu == nu && tt == 0 ) ?  -( contact_term[0][mu][0] + I * contact_term[0][mu][1] ) : 0.;
+                 
                   /**********************************************************
-                   * multiply source phase from pion momentum
+                   * add the two flavor components
+                   *
+                   * includes mom and -mom,
+                   * includes contact term
+                   * includes momentum phases p_phase and q_phase
                    **********************************************************/
-                  ztmp *= q_ephase;
 
-                  /**********************************************************
-                   * write into pgg
-                   **********************************************************/
-                  pgg[iconf][isrc][isink_momentum][mu][nu][2*tt  ] = creal( ztmp );
-                  pgg[iconf][isrc][isink_momentum][mu][nu][2*tt+1] = cimag( ztmp );
+                  if ( charged_ps == 0 ) {
+
+                    STOPPED HERE
+                      What about the contact term; where to be added ?
+                    /**********************************************************
+                     * P^{1,0} V^{1,0} V^{0,0}
+                     **********************************************************/
+                    double _Complex ztmp = 
+                        + ( (   ( buffer[0][mu][nu][2*it] + I * buffer[0][mu][nu][2*it+1] )
+                              - ( buffer[2][mu][nu][2*it] + I * buffer[2][mu][nu][2*it+1] ) 
+                            ) *       p_ephase                + zct ) *        q_phase
+                        /* opposite momentum */
+                        - ( (   ( buffer[1][mu][nu][2*it] + I * buffer[1][mu][nu][2*it+1] )
+                              - ( buffer[3][mu][nu][2*it] + I * buffer[3][mu][nu][2*it+1] ) 
+                            ) * conj( p_ephase ) * sigma_t[0] + zct ) * conj ( q_phase );
+                  
+                    /**********************************************************
+                     * times 2 to account for adding
+                     * P^{1,0} V^{0,0} V^{1,0}
+                     **********************************************************/
+                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt  ] = 2 * cp[0] * creal ( ztmp );
+                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt+1] = 2 * cm[0] * cimag ( ztmp );
+                  
+                  } else if ( charged_ps == 1 ) {
+                    /**********************************************************
+                     * P^{1,pm} A^{1,mp} V^{0,0}
+                     **********************************************************/
+                    double _Complex ztmp = 
+                        + ( (   ( buffer[0][mu][nu][2*it] + I * buffer[0][mu][nu][2*it+1] )
+                              - ( buffer[2][mu][nu][2*it] + I * buffer[2][mu][nu][2*it+1] ) 
+                            ) *       p_ephase                + zct ) *        q_phase
+                      /* opposite momentum */
+                        - ( (   ( buffer[1][mu][nu][2*it] + I * buffer[1][mu][nu][2*it+1] )
+                              - ( buffer[3][mu][nu][2*it] + I * buffer[3][mu][nu][2*it+1] ) 
+                            ) * conj( p_ephase ) * sigma_t[0] + zct ) * conj ( q_phase );
+
+                    /**********************************************************
+                     * P^{1,pm} V^{0,0} A^{1,mp}
+                     **********************************************************/
+                    double _Complex ztmp2 = 
+                        + ( (   ( buffer[4][mu][nu][2*it] + I * buffer[4][mu][nu][2*it+1] )
+                              - ( buffer[6][mu][nu][2*it] + I * buffer[6][mu][nu][2*it+1] ) 
+                            ) *       p_ephase                + zct ) *        q_phase
+                      /* opposite momentum */
+                        - ( (   ( buffer[5][mu][nu][2*it] + I * buffer[5][mu][nu][2*it+1] )
+                              - ( buffer[7][mu][nu][2*it] + I * buffer[7][mu][nu][2*it+1] ) 
+                            ) * conj( p_ephase ) * sigma_t[1] + zct ) * conj ( q_phase );
+
+                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt  ] = cm[0] * creal( ztmp ) + cm[1] * creal( ztmp2 );
+                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt+1] = cp[0] * cimag( ztmp ) + cp[1] * cimag( ztmp2 );
+                  
+                  }  /* end of if charged_ps == 1 */
+                      
                 }  /* end of loop on timeslices */
       
               }  /* end of loop on direction nu */
