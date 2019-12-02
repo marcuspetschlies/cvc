@@ -642,7 +642,7 @@ int main(int argc, char **argv) {
      * UWerr analysis for correlator 
      ***************************************************************************/
 
-    for ( int ireim = 0; ireim < 2; ireim++ ) {
+    for ( int ireim = 0; ireim < 1; ireim++ ) {
 
       if ( num_conf < 6 ) {
         fprintf ( stderr, "[NN_analyse] number of observations too small, continue %s %d\n", __FILE__, __LINE__ );
@@ -681,7 +681,7 @@ int main(int argc, char **argv) {
         EXIT(16);
       }
 
-#if 0
+
       for ( int itau = 1; itau < tp->T/2; itau++ ) {
         char obs_name2[500];
 
@@ -690,12 +690,13 @@ int main(int argc, char **argv) {
         int arg_first[2]  = {0, itau};
         int arg_stride[2] = {1,1};
       
-        exitstatus = apply_uwerr_func ( data[0], num_conf, tp->T, tp->T/2-itau, 2, arg_first, arg_stride, obs_name2, log_ratio_1_1, dlog_ratio_1_1 );
+        exitstatus = apply_uwerr_func ( data[0], num_conf, tp->T, tp->T-itau, 2, arg_first, arg_stride, obs_name2, log_ratio_1_1, dlog_ratio_1_1 );
         if ( exitstatus != 0  ) {
           fprintf ( stderr, "[NN_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(16);
         }
       }
+#if 0
 #endif  /* of if 0 */
 
       fini_2level_dtable ( &data );
