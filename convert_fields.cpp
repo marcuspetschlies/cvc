@@ -187,6 +187,10 @@ int main(int argc, char **argv) {
     EXIT(1);
   }
 
+  /***********************************************
+   * flavor tag
+   ***********************************************/
+  char flavor_tag = ( g_mu > 0 ) ? 'u' : 'd';
 
   /***********************************************
    * allocate fields
@@ -330,11 +334,12 @@ int main(int argc, char **argv) {
   for ( int i = 0; i < nsc; i++ ) {
     if ( g_write_propagator ) {
       if ( g_source_type == 0 ) {
-        sprintf ( filename, "source.%.4d.%.2d.inverted", filename_prefix, i );
+        sprintf ( filename, "source.%c.%.4d.t%dx%dy%dz%d.%.2d.inverted", flavor_tag, Nconf,
+            g_source_coords_list[0][0], g_source_coords_list[0][1], g_source_coords_list[0][2], g_source_coords_list[0][3], i );
       } else if ( g_source_type == 1 ) {
-        sprintf ( filename, "source.%.4d.%.5d.inverted", filename_prefix, i );
+        sprintf ( filename, "source.%c.%.4d.%.5d.inverted", flavor_tag, Nconf, i );
       }
-      exitstatus = write_propagator ( spinor_field[i],  filename, 0, 64 );
+      exitstatus = write_propagator ( spinor_field[i],  filename, 0, g_propagator_precision );
       if( exitstatus != 0 ) {
         fprintf(stderr, "[convert_fields] Error from write_propagator for file %s, status was %d %s %d\n", filename, exitstatus, __FILE__, __LINE__ );
         EXIT(9);
@@ -346,7 +351,7 @@ int main(int argc, char **argv) {
      ***********************************************************/
     double norm = 0.;
     spinor_scalar_product_re ( &norm,      spinor_field[i], spinor_field[i], VOLUME );
-    fprintf(stdout, "# [convert_fields] norm %d2  %e\n", i, sqrt(norm));
+    fprintf(stdout, "# [convert_fields] norm propagator %d2  %e\n", i, sqrt(norm));
 
     /***********************************************************
      * apply D
@@ -357,11 +362,16 @@ int main(int argc, char **argv) {
 
     spinor_field_eo2lexic ( spinor_field[i], eo_spinor_work[2], eo_spinor_work[3] );
 
+    norm = 0.;
+    spinor_scalar_product_re ( &norm,      spinor_field[i], spinor_field[i], VOLUME );
+    fprintf(stdout, "# [convert_fields] norm source     %d2  %e\n", i, sqrt(norm));
+
     if ( g_write_source ) {
       if ( g_source_type == 0 ) {
-        sprintf ( filename, "source.%.4d.%.2d.ascii", filename_prefix, i );
+        sprintf ( filename, "source.%c.%.4d.t%dx%dy%dz%d.%.2d.ascii", flavor_tag, Nconf, 
+            g_source_coords_list[0][0], g_source_coords_list[0][1], g_source_coords_list[0][2], g_source_coords_list[0][3], i );
       } else if ( g_source_type == 1 ) {
-        sprintf ( filename, "source.%.4d.%.5d.ascii", filename_prefix, i );
+        sprintf ( filename, "source.%c.%.4d.%.5d.ascii", flavor_tag, Nconf, i );
       }
 
       FILE * ffs = fopen( filename, "w" );
