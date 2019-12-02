@@ -7936,4 +7936,102 @@ int gluonic_operators ( double ** op, double * const gfield ) {
 
 }  /* end of gluonic_operators */
 
+/****************************************************************************/
+/****************************************************************************/
+
+/****************************************************************************
+ * operators for gluon momentum fraction
+ ****************************************************************************/
+int gluonic_operators_eo_from_fst ( double ** op, double ** const fst ) {
+
+  unsigned int const VOL3 = LX * LY * LZ;
+  double ** pl = init_2level_dtable ( T, 2 );
+  if ( pl == NULL ) {
+    fprintf( stderr, "[gluonic_operators] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+    return(2);
+  }
+
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+#endif
+
+  for ( int it = 0; it < T; it++ ) {
+#ifdef HAVE_OPENMP
+    omp_init_lock(&writelock);
+
+#pragma omp parallel shared(it)
+{
+#endif
+    double s[18];
+    double pl_tmp[2] = { 0, 0. };
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for ( unsigned int iy = 0; iy < VOL3; iy++) {
+
+      unsigned int const ix = it * VOL3 + iy;
+
+      unsigned int const ixeo = g_lexic2eosub[ix];
+      int const ieo = 1 - g_iseven[ix];
+
+      /* for O44 : G_{0,1} G_{1,0} + G_{0,2} G_{2,0} + G_{0,3} G_{3,0} 
+       * indices        0       0         1       1         2       2  */
+
+      for ( int nu = 0; nu < 3; nu++ ) {
+        _cm_eq_cm_ti_cm ( s, fst[ieo] + _GSWI( ixeo, nu), fst + _GSWI( ixeo, nu)] );
+        _re_pl_eq_tr_cm ( &(pl_tmp[0]), s );
+      }
+
+      /* for Okk : G_{1,2} G_{1,2} + G_{1,2} G_{1,2} + G_{1,2} G_{1,2} 
+       * indices        3       3         4       4         5       5 */
+      for ( int nu = 3; nu<6; nu++) {
+        _cm_eq_cm_ti_cm ( s, fst[ieo] + _GSWI( ixeo, nu), fst[ieo] + _GSWI( ixeo, nu)] );
+        _re_pl_eq_tr_cm ( &(pl_tmp[0]), s );
+      }
+    }
+
+#ifdef HAVE_OPENMP
+    omp_set_lock(&writelock);
+#endif
+
+    pl[it][0] += pl_tmp[0];
+    pl[it][1] += pl_tmp[1];
+
+#ifdef HAVE_OPENMP
+    omp_unset_lock(&writelock);
+}  /* end of parallel region */
+    omp_destroy_lock(&writelock);
+#endif
+
+  }  /* end of loop on timeslices */
+
+
+#ifdef HAVE_MPI
+
+  double ** buffer = init_2level_dtable ( T, 2 );
+  if ( buffer == NULL ) {
+    fprintf( stderr, "[gluonic_operators] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+    return(3);
+  }
+  if ( MPI_Reduce ( pl[0], buffer[0], 2*T, MPI_DOUBLE, MPI_SUM,  0, g_ts_comm) != MPI_SUCCESS ) {
+    fprintf ( stderr, "[gluonic_operators] Error from MPI_Reduce %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
+
+  if ( MPI_Gather ( buffer[0], 2*T, MPI_DOUBLE, op[0], 2*T, MPI_DOUBLE, 0, g_tr_comm ) != MPI_SUCCESS ) {
+    fprintf ( stderr, "[gluonic_operators] Error from MPI_Gather %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
+
+  fini_2level_dtable ( &buffer );
+#else
+  memcpy ( op[0], pl[0], 2*T_global*sizeof(double) );
+#endif
+
+  fini_2level_dtable ( &pl );
+  return( 0 );
+
+}  /* end of gluonic_operators_from_fst */
+
 }  /* end of namespace cvc */
