@@ -7938,7 +7938,7 @@ int gluonic_operators ( double ** op, double * const gfield ) {
 
 /****************************************************************************/
 /****************************************************************************/
-
+#if 0
 /****************************************************************************
  * operators for gluon momentum fraction
  ****************************************************************************/
@@ -8033,5 +8033,5 @@ int gluonic_operators_eo_from_fst ( double ** op, double ** const fst ) {
   return( 0 );
 
 }  /* end of gluonic_operators_from_fst */
-
+#endif
 }  /* end of namespace cvc */
