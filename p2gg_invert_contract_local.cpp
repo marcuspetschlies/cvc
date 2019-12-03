@@ -339,7 +339,7 @@ int main(int argc, char **argv) {
      ***********************************************
      ***********************************************/
     if(io_proc == 2) {
-      sprintf(filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3]);
+      sprintf(filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3]);
       fprintf(stdout, "# [p2gg_invert_contract_local] writing data to file %s\n", filename);
       affw = aff_writer(filename);
       const char * aff_status_str = aff_writer_errstr ( affw );
@@ -353,7 +353,7 @@ int main(int argc, char **argv) {
     /**********************************************************
      **********************************************************
      **
-     ** propagators with source at gsx and gsx + mu
+     ** propagators with source at gsx
      **
      **********************************************************
      **********************************************************/
@@ -384,12 +384,16 @@ int main(int argc, char **argv) {
     /***************************************************************************/
 
     /***************************************************************************
+     *
      * local - local 2-point  u - u
+     *
      ***************************************************************************/
     /* AFF tag */
     sprintf(aff_tag, "/local-local/u-gf-u-gi/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
 
-    /* contraction vector -vector */
+    /***************************************************************************
+     * contraction vector -vector
+     ***************************************************************************/
     exitstatus = contract_local_local_2pt_eo (
        &(eo_spinor_field[24]), &(eo_spinor_field[36]),
        &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
@@ -401,7 +405,9 @@ int main(int argc, char **argv) {
       EXIT(1);
     }
 
-    /* contraction axial - axial */
+    /***************************************************************************
+     * contraction axial - axial
+     ***************************************************************************/
     exitstatus = contract_local_local_2pt_eo (
        &(eo_spinor_field[24]), &(eo_spinor_field[36]),
        &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
@@ -413,7 +419,9 @@ int main(int argc, char **argv) {
       EXIT(1);
     }
 
-    /* contraction sp - vector,axial */
+    /***************************************************************************
+     * contraction sp - vector,axial
+     ***************************************************************************/
     exitstatus = contract_local_local_2pt_eo (
        &(eo_spinor_field[24]), &(eo_spinor_field[36]),
        &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
@@ -425,7 +433,9 @@ int main(int argc, char **argv) {
       EXIT(1);
     }
 
-    /* contraction vector,axial - sp */
+    /***************************************************************************
+     * contraction vector,axial - sp
+     ***************************************************************************/
     exitstatus = contract_local_local_2pt_eo (
        &(eo_spinor_field[24]), &(eo_spinor_field[36]),
        &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
@@ -437,15 +447,32 @@ int main(int argc, char **argv) {
       EXIT(1);
     }
 
+    /***************************************************************************
+     * contraction sp - sp
+     ***************************************************************************/
+    exitstatus = contract_local_local_2pt_eo (
+       &(eo_spinor_field[24]), &(eo_spinor_field[36]),
+       &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
+       gamma_sp_list, 2, gamma_sp_list, 2,
+       g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
+
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[p2gg_invert_contract_local] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(1);
+    }
 
 
     /***************************************************************************
+     *
      * local - local 2-point  d - u
+     *
      ***************************************************************************/
     /* AFF tag */
     sprintf(aff_tag, "/local-local/d-gf-u-gi/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
 
-    /* contraction vector - vector */
+    /***************************************************************************
+     * contraction vector - vector
+     ***************************************************************************/
     exitstatus = contract_local_local_2pt_eo (
        &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
        &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
@@ -457,7 +484,9 @@ int main(int argc, char **argv) {
       EXIT(1);
     }
 
-    /* contraction axial - axial */
+    /***************************************************************************
+     * contraction axial - axial
+     ***************************************************************************/
     exitstatus = contract_local_local_2pt_eo (
        &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
        &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
@@ -469,7 +498,9 @@ int main(int argc, char **argv) {
       EXIT(1);
     }
 
-    /* contraction sp - vector,axial*/
+    /***************************************************************************
+     * contraction sp - vector,axial
+     ***************************************************************************/
     exitstatus = contract_local_local_2pt_eo (
        &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
        &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
@@ -481,7 +512,9 @@ int main(int argc, char **argv) {
       EXIT(1);
     }
 
-    /* contraction vector,axial - sp */
+    /***************************************************************************
+     * contraction vector,axial - sp
+     ***************************************************************************/
     exitstatus = contract_local_local_2pt_eo (
        &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
        &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
@@ -492,6 +525,99 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[p2gg_invert_contract_local] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(1);
     }
+
+    /***************************************************************************
+     * contraction sp - sp
+     ***************************************************************************/
+    exitstatus = contract_local_local_2pt_eo (
+       &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
+       &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
+       gamma_sp_list, 2, gamma_sp_list, 2,
+       g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
+
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[p2gg_invert_contract_local] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(1);
+    }
+
+    /***************************************************************************
+     *
+     * local - local 2-point  u - d
+     *
+     ***************************************************************************/
+    /* AFF tag */
+    sprintf(aff_tag, "/local-local/u-gf-d-gi/t%.2dx%.2dy%.2dz%.2d", gsx[0], gsx[1], gsx[2], gsx[3] );
+
+    /***************************************************************************
+     * contraction vector - vector
+     ***************************************************************************/
+    exitstatus = contract_local_local_2pt_eo (
+       &(eo_spinor_field[24]), &(eo_spinor_field[36]),
+       &(eo_spinor_field[24]), &(eo_spinor_field[36]),
+       gamma_v_list, 4, gamma_v_list, 4,
+       g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
+
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[p2gg_invert_contract_local] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(1);
+    }
+
+    /***************************************************************************
+     * contraction axial - axial
+     ***************************************************************************/
+    exitstatus = contract_local_local_2pt_eo (
+       &(eo_spinor_field[24]), &(eo_spinor_field[36]),
+       &(eo_spinor_field[24]), &(eo_spinor_field[36]),
+       gamma_a_list, 4, gamma_a_list, 4,
+       g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
+
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[p2gg_invert_contract_local] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(1);
+    }
+
+    /***************************************************************************
+     * contraction sp - vector,axial
+     ***************************************************************************/
+    exitstatus = contract_local_local_2pt_eo (
+       &(eo_spinor_field[24]), &(eo_spinor_field[36]),
+       &(eo_spinor_field[24]), &(eo_spinor_field[36]),
+       gamma_sp_list, 2, gamma_va_list, 8,
+       g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
+
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[p2gg_invert_contract_local] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(1);
+    }
+
+    /***************************************************************************
+     * contraction vector,axial - sp
+     ***************************************************************************/
+    exitstatus = contract_local_local_2pt_eo (
+       &(eo_spinor_field[24]), &(eo_spinor_field[36]),
+       &(eo_spinor_field[24]), &(eo_spinor_field[36]),
+       gamma_va_list, 8, gamma_sp_list, 2,
+       g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
+
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[p2gg_invert_contract_local] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(1);
+    }
+
+    /***************************************************************************
+     * contraction sp - sp
+     ***************************************************************************/
+    exitstatus = contract_local_local_2pt_eo (
+       &(eo_spinor_field[24]), &(eo_spinor_field[36]),
+       &(eo_spinor_field[24]), &(eo_spinor_field[36]),
+       gamma_sp_list, 2, gamma_sp_list, 2,
+       g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
+
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[p2gg_invert_contract_local] Error from contract_local_local_2pt_eo, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(1);
+    }
+
 
     /***************************************************************************/
     /***************************************************************************/
