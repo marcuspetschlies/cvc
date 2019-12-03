@@ -357,8 +357,9 @@ int main(int argc, char **argv) {
 
             struct AffNode_s *affn = NULL, *affdir = NULL;
       
-            sprintf ( filename, "stream_%c/%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0], Nconf, g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
-            /* sprintf ( filename, "%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", Nconf, pgg_operator_type_tag[operator_type], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
+            /* sprintf ( filename, "stream_%c/%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0], Nconf, g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
+            sprintf ( filename, "stream_%c/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0], g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+            /* sprintf ( filename, "stream_%c/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0], pgg_operator_type_tag[operator_type], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
             fprintf(stdout, "# [p2gg_analyse] reading data from file %s\n", filename);
             affr = aff_reader ( filename );
             const char * aff_status_str = aff_reader_errstr ( affr );
@@ -707,12 +708,13 @@ int main(int argc, char **argv) {
                 gettimeofday ( &ta, (struct timezone *)NULL );
 
                 for ( int iflavor = 0; iflavor < 4; iflavor++ ) {
-                  fprintf ( stdout , "# /%s/c%d/t%dx%dy%dz%d/qx%dqy%dqz%d/gseq%d/tseq%d/fl%d/px%dpy%dpz%d\n", pgg_operator_type_tag[operator_type],
+                  fprintf ( stdout , "# /%s/stream_%c/c%d/t%dx%dy%dz%d/qx%dqy%dqz%d/gseq%d/tseq%d/fl%d/px%dpy%dpz%d\n", pgg_operator_type_tag[operator_type],
                       conf_src_list[iconf][isrc][0],
                       conf_src_list[iconf][isrc][1],
                       conf_src_list[iconf][isrc][2],
                       conf_src_list[iconf][isrc][3],
                       conf_src_list[iconf][isrc][4],
+                      conf_src_list[iconf][isrc][5],
                       seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
                       sequential_source_gamma_id, sequential_source_timeslice, iflavor,
                       sink_momentum[0], sink_momentum[1], sink_momentum[2] );
@@ -720,7 +722,7 @@ int main(int argc, char **argv) {
                   for ( int mu = 0; mu < 4; mu++ ) {
                   for ( int nu = 0; nu < 4; nu++ ) {
                     for ( int it = 0; it < T; it++ ) {
-                      fprintf ( stdout, "r %d %d    %3d    %25.16e %25.16e    %25.16e %25.16e\n\n", 
+                      fprintf ( stdout, "r %d %d    %3d    %25.16e %25.16e    %25.16e %25.16e\n", 
                           mu, nu, it, 
                           buffer[iflavor][0][mu][nu][2*it], buffer[iflavor][0][mu][nu][2*it+1], buffer[iflavor][1][mu][nu][2*it], buffer[iflavor][1][mu][nu][2*it+1] );
                     }
@@ -821,11 +823,11 @@ int main(int argc, char **argv) {
                 double _Complex const qm_ephase = conj ( q_ephase );
       
                 if ( g_verbose > 4 ) {
-                  fprintf ( stdout, "# [p2gg_analyse] p %3d %3d %3d x %3d %3d %3d %3d p_phase %25.16e   mp_ephase %25.16e %25.16e\n",
+                  fprintf ( stdout, "# [p2gg_analyse] p %3d %3d %3d x %3d %3d %3d %3d p_phase %25.16e   p_ephase %25.16e %25.16e     mp_ephase %25.16e %25.16e\n",
                       sink_momentum[0], sink_momentum[1], sink_momentum[2], 
                       gsx[0], gsx[1], gsx[2], gsx[3], p_phase, creal( p_ephase ), cimag( p_ephase ), creal( pm_ephase ), cimag( pm_ephase ) );
                   
-                  fprintf ( stdout, "# [p2gg_analyse] q %3d %3d %3d x %3d %3d %3d %3d q_phase %25.16e   qm_ephase %25.16e %25.16e\n",
+                  fprintf ( stdout, "# [p2gg_analyse] q %3d %3d %3d x %3d %3d %3d %3d q_phase %25.16e   q_ephase %25.16e %25.16e     qm_ephase %25.16e %25.16e\n",
                       sink_momentum[0], sink_momentum[1], sink_momentum[2], 
                       gsx[0], gsx[1], gsx[2], gsx[3], q_phase, creal( q_ephase ), cimag( q_ephase ), creal( qm_ephase ), cimag( qm_ephase ) );
                 }
@@ -847,10 +849,10 @@ int main(int argc, char **argv) {
                      * add the two flavor components
                      **********************************************************/
                     double _Complex ztmp = ( 
-                          +               ( buffer[0][0][mu][nu][2*it] +  buffer[0][0][mu][nu][2*it+1] * I )
-                          -               ( buffer[1][0][mu][nu][2*it] +  buffer[1][0][mu][nu][2*it+1] * I ) 
-                          - s5d_sign[0] * ( buffer[0][1][mu][nu][2*it] -  buffer[0][1][mu][nu][2*it+1] * I )
-                          + s5d_sign[0] * ( buffer[1][1][mu][nu][2*it] -  buffer[1][1][mu][nu][2*it+1] * I ) 
+                          -               ( buffer[0][0][mu][nu][2*it] +  buffer[0][0][mu][nu][2*it+1] * I )
+                          +               ( buffer[1][0][mu][nu][2*it] +  buffer[1][0][mu][nu][2*it+1] * I ) 
+                          + s5d_sign[0] * ( buffer[0][1][mu][nu][2*it] -  buffer[0][1][mu][nu][2*it+1] * I )
+                          - s5d_sign[0] * ( buffer[1][1][mu][nu][2*it] -  buffer[1][1][mu][nu][2*it+1] * I ) 
                         ) * p_ephase;
 
                     if ( ( mu == nu ) && ( tt == 0 ) ) {
@@ -892,14 +894,15 @@ int main(int argc, char **argv) {
                           - s5d_sign[0] * ( buffer[0][1][mu][nu][2*it] -  buffer[0][1][mu][nu][2*it+1] * I )
                           +               ( buffer[1][0][mu][nu][2*it] +  buffer[1][0][mu][nu][2*it+1] * I )
                           + s5d_sign[0] * ( buffer[1][1][mu][nu][2*it] -  buffer[1][1][mu][nu][2*it+1] * I )
-                        ) * p_ephase * q_phase;
+
+                        ) * p_ephase * q_ephase;
 
                     double _Complex ztmp2 = (
                           +               ( buffer[2][0][mu][nu][2*it] +  buffer[2][0][mu][nu][2*it+1] * I )
                           + s5d_sign[1] * ( buffer[2][1][mu][nu][2*it] -  buffer[2][1][mu][nu][2*it+1] * I )
                           -               ( buffer[3][0][mu][nu][2*it] +  buffer[3][0][mu][nu][2*it+1] * I )
                           - s5d_sign[1] * ( buffer[3][1][mu][nu][2*it] -  buffer[3][1][mu][nu][2*it+1] * I )
-                        ) * p_ephase * q_phase;
+                        ) * p_ephase * q_ephase;
 
                     /**********************************************************
                      * add up original and Parity-flavor transformed
