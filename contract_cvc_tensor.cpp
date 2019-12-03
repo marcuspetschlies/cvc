@@ -2731,7 +2731,7 @@ void contract_cvc_local_tensor_eo ( double * const conn_e, double * const conn_o
  *
  * uses continuum momenta 2 sin( p /2 )
  ****************************************************/
-void antisymmetric_orbit_average_spatial (double ** const d_out, double ***** const d_in, int const dim[2], int const momentum_num, int  const (*momentum_list)[3], int const reim ) {
+void antisymmetric_orbit_average_spatial (double ** const d_out, double ***** const d_in, int const dim[2], int const momentum_num, int ** const momentum_list, int const reim ) {
 
   int const epsilon_tensor[3][3] = { {0,1,2}, {1,2,0}, {2,0,1} };
   int const p_elem_nonzero = ( momentum_list[0][0] != 0 ) + ( momentum_list[0][1] != 0 ) + ( momentum_list[0][2] != 0 );
