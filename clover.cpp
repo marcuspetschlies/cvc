@@ -46,7 +46,8 @@ namespace cvc {
 
 int init_clover ( double *** clover_term, double **(*mzz)[2], double **(*mzzinv)[2], double*gauge_field, double const mass, double const csw ) {
   
-  double ratime, retime;
+  struct timeval ta, tb;
+
 
   /***********************************************
    * check, that mzz, mzzinv and clover_term
@@ -65,35 +66,44 @@ int init_clover ( double *** clover_term, double **(*mzz)[2], double **(*mzzinv)
   clover_term_init ( &((*mzz)[0]), 6);
   clover_term_init ( &((*mzz)[1]), 6);
 
+  gettimeofday ( &ta, (struct timezone *)NULL );
 
-  ratime = _GET_TIME;
   clover_term_eo  ( *clover_term, gauge_field );
-  retime = _GET_TIME;
-  if(g_cart_id == 0) fprintf(stdout, "# [init_clover] time for clover_term_eo = %e seconds\n", retime-ratime);
 
-  ratime = _GET_TIME;
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "init_clover", "clover_term_eo", g_cart_id == 0 );
+
+  gettimeofday ( &ta, (struct timezone *)NULL );
+
   clover_mzz_matrix ( (*mzz)[0], *clover_term,  mass, csw);
-  retime = _GET_TIME;
-  if(g_cart_id == 0) fprintf(stdout, "# [init_clover] time for clover_mzz_matrix = %e seconds\n", retime-ratime);
 
-  ratime = _GET_TIME;
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "init_clover", "clover_mzz_matrix", g_cart_id == 0 );
+
+  gettimeofday ( &ta, (struct timezone *)NULL );
+
   clover_mzz_matrix ( (*mzz)[1], *clover_term, -mass, csw);
-  retime = _GET_TIME;
-  if(g_cart_id == 0) fprintf(stdout, "# [init_clover] time for clover_mzz_matrix = %e seconds\n", retime-ratime);
+
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "init_clover", "clover_mzz_matrix", g_cart_id == 0 );
 
   clover_term_fini ( clover_term );
   clover_term_init ( &((*mzzinv)[0]), 8);
   clover_term_init ( &((*mzzinv)[1]), 8);
 
-  ratime = _GET_TIME;
-  clover_mzz_inv_matrix ( (*mzzinv)[0], (*mzz)[0] );
-  retime = _GET_TIME;
-  if( g_cart_id == 0 ) fprintf(stdout, "# [init_clover] time for clover_mzz_inv_matrix = %e seconds\n", retime-ratime);
+  gettimeofday ( &ta, (struct timezone *)NULL );
 
-  ratime = _GET_TIME;
+  clover_mzz_inv_matrix ( (*mzzinv)[0], (*mzz)[0] );
+
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "init_clover", "clover_mzz_inv_matrix", g_cart_id == 0 );
+
+  gettimeofday ( &ta, (struct timezone *)NULL );
+
   clover_mzz_inv_matrix ( (*mzzinv)[1], (*mzz)[1] );
-  retime = _GET_TIME;
-  if( g_cart_id == 0 ) fprintf(stdout, "# [init_clover] time for clover_mzz_inv_matrix = %e seconds\n", retime-ratime);
+
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "init_clover", "clover_mzz_inv_matrix", g_cart_id == 0 );
 
   /*
   (*mzz)[0]    = g_mzz_up;
