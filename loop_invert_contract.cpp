@@ -1,9 +1,6 @@
 /****************************************************
  * loop_invert_contract
  *
- * PURPOSE:
- * DONE:
- * TODO:
  ****************************************************/
 
 #include <stdlib.h>
@@ -90,13 +87,13 @@ int main(int argc, char **argv) {
   size_t sizeof_spinor_field;
   char filename[100];
 
-  struct timeval ta, tb;
+  struct timeval ta, tb, start_time, end_time;
 
   double **mzz[2]    = { NULL, NULL }, **mzzinv[2]    = { NULL, NULL };
   double **DW_mzz[2] = { NULL, NULL }, **DW_mzzinv[2] = { NULL, NULL };
   double *gauge_field_with_phase = NULL;
   int op_id_up = -1;
-  /* int op_id_dn = -1; */
+  int op_id_dn = -1;
   char output_filename[400];
   int * rng_state = NULL;
 
@@ -123,7 +120,8 @@ int main(int argc, char **argv) {
     }
   }
 
-  g_the_time = time(NULL);
+  gettimeofday ( &start_time, (struct timezone *) NULL );
+
 
   /* set the default values */
   if(filename_set==0) sprintf ( filename, "%s.input", outfile_prefix );
@@ -278,11 +276,14 @@ int main(int argc, char **argv) {
    ***********************************************************/
   if ( g_fermion_type == _TM_FERMION ) {
     op_id_up = 0;
-    /* op_id_dn = 1; */
+    op_id_dn = 1;
   } else if ( g_fermion_type == _WILSON_FERMION ) {
     op_id_up = 0;
-    /* op_id_dn = 0; */
-  }
+    op_id_dn = 0;
+   } else {
+     fprintf(stderr, "[loop_invert_contract] Error, unrecognized fermion type %d %s %d\n", g_fermion_type, __FILE__, __LINE__ );
+     EXIT(1);
+   }
 
   /***************************************************************************
    * allocate memory for full-VOLUME spinor fields 
@@ -748,11 +749,9 @@ int main(int argc, char **argv) {
   MPI_Finalize();
 #endif
 
-  if(g_cart_id==0) {
-    g_the_time = time(NULL);
-    fprintf(stdout, "# [loop_invert_contract] %s# [loop_invert_contract] end of run\n", ctime(&g_the_time));
-    fprintf(stderr, "# [loop_invert_contract] %s# [loop_invert_contract] end of run\n", ctime(&g_the_time));
-  }
+  gettimeofday ( &end_time, (struct timezone *) NULL );
+
+  show_time ( &start_time, &end_time, "loop_invert_contract", "runtime", g_cart_id == 0 );
 
   return(0);
 
