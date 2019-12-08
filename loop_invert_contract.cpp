@@ -282,6 +282,9 @@ int main(int argc, char **argv) {
   } else if ( g_fermion_type == _WILSON_FERMION ) {
     op_id_up = 0;
     /* op_id_dn = 0; */
+  } else {
+    fprintf(stderr, "[loop_invert_contract] Error, unrecognized fermion type %d %s %d\n", g_fermion_type, __FILE__, __LINE__ );
+    EXIT(1);
   }
 
   /***************************************************************************
@@ -541,6 +544,7 @@ int main(int argc, char **argv) {
       EXIT(44);
     }
 
+#ifdef _CONTRACT_COV_DISPL
     /*****************************************************************
      *
      * contractions for single and double cov displ
@@ -698,6 +702,7 @@ int main(int argc, char **argv) {
       }  /* end of loop on directions for mu for displ */
 
     }  /* end of loop on fbwd */
+#endif  /* end of if _CONTRACT_COV_DISPL */
 
     /*****************************************************************/
     /*****************************************************************/
