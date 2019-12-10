@@ -27,6 +27,7 @@
 #include "Q_clover_phi.h"
 #include "matrix_init.h"
 #include "project.h"
+#include "cvc_timer.h"
 
 namespace cvc {
 
@@ -499,6 +500,8 @@ int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_num
   double _Complex **zphase = NULL;
   double ratime, retime;
 
+  struct timeval ta, tb;
+
   char BLAS_TRANSA, BLAS_TRANSB;
   int BLAS_M, BLAS_K, BLAS_N, BLAS_LDA, BLAS_LDB, BLAS_LDC;
   int shift[3];
@@ -506,7 +509,7 @@ int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_num
   double _Complex BLAS_ALPHA = 1.;
   double _Complex BLAS_BETA  = 0.;
 
-  ratime = _GET_TIME;
+  gettimeofday ( &ta, (struct timezone *)NULL );
 
   point *lexic_coords = (point*)malloc(VOL3*sizeof(point));
   if(lexic_coords == NULL) {
@@ -593,8 +596,11 @@ int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_num
   free(buffer);
 #endif
 
-  retime = _GET_TIME;
-  if( g_cart_id == 0 ) fprintf(stdout, "# [momentum_projection2] time for momentum_projection2 = %e seconds\n", retime-ratime);
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  if( g_verbose > 0 ) {
+    show_time ( &ta, &tb, "momentum_projection2", "momentum_projection2", g_cart_id == 0 );
+  }
+
   return(0);
 }  /* end of momentum_projection2 */
 
