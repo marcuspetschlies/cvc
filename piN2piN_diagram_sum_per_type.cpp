@@ -121,6 +121,28 @@ static inline int twopt_name_to_diagram_tag ( int * num, char * tag, const char 
   return( 0 );
 }  /* end of twopt_name_to_diagram_tag */
 
+/***********************************************************
+ ***********************************************************/
+
+/***********************************************************
+ *
+ ***********************************************************/
+void make_diagram_list_string ( char * s, twopoint_function_type * tp ) {
+  char comma = ',';
+  char bar  = '_';
+  char * s_ = s;
+  strcpy ( s, tp->diagrams );
+  while ( *s_ != '\0' ) {
+    if ( *s_ ==  comma ) *s_ = bar;
+    s_++;
+  }
+  if ( g_verbose > 2 ) fprintf ( stdout, "# [make_diagram_list_string] %s ---> %s\n", tp->diagrams, s );
+  return;
+}  /* end of make_diagram_list_string */
+
+/***********************************************************/
+/***********************************************************/
+
 
 /***********************************************************
  * combine diagrams
@@ -228,7 +250,7 @@ int twopt_combine_diagrams ( twopoint_function_type * const tp_sum, twopoint_fun
    ******************************************************/
   gettimeofday ( &ta, (struct timezone *)NULL );
 
-  char key[500], key_suffix[400];
+  char key[500], key_suffix[400], diagram_list_string[60];
 
   /* key suffix */
   exitstatus = contract_diagram_key_suffix_from_type ( key_suffix, tp_sum );
@@ -237,8 +259,10 @@ int twopt_combine_diagrams ( twopoint_function_type * const tp_sum, twopoint_fun
     return(12);
   }
  
+  make_diagram_list_string ( diagram_list_string, tp_sum );
+
   /* full key */
-  sprintf( key, "/%s/%s%s", tp_sum->name, tp_sum->fbwd, key_suffix );
+  sprintf( key, "/%s/%s/%s%s", tp_sum->name, diagram_list_string, tp_sum->fbwd, key_suffix );
   if ( g_verbose > 2 ) fprintf ( stdout, "# [twopt_combine_diagrams] key = %s %s %d\n", key, __FILE__, __LINE__ );
 
   unsigned int const nc = tp_sum->d * tp_sum->d * tp_sum->T;
@@ -435,6 +459,24 @@ int main(int argc, char **argv) {
      ******************************************************/
     for ( int iname = 0; iname < 2; iname++ ) {
 
+      /******************************************************
+       * check if matching 2pts are in the list
+       ******************************************************/
+      int twopt_id_number = 0;
+      int * twopt_id_list = init_1level_itable ( g_twopoint_function_number );
+      for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
+        if ( strcmp ( g_twopoint_function_list[i2pt].name , twopt_name_list[iname] ) == 0 ) {
+          twopt_id_list[twopt_id_number] = i2pt;
+          twopt_id_number++;
+        }
+      }
+      if ( twopt_id_number == 0 ) {
+        if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] skip twopoint name %s %s %d\n", twopt_name_list[iname], __FILE__, __LINE__ );
+        continue;
+      } else if ( g_verbose > 2 ) {
+        fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] number of twopoint ids name %s %d  %s %d\n", twopt_name_list[iname], twopt_id_number, __FILE__, __LINE__ );
+      }
+
       gettimeofday ( &ta, (struct timezone *)NULL );
 
       /******************************************************
@@ -495,7 +537,7 @@ int main(int argc, char **argv) {
 
       gettimeofday ( &ta, (struct timezone *)NULL );
 
-      sprintf ( filename, "%s.PX%d_PY%d_PZ%d.aff", twopt_name_list[iname], 
+      sprintf ( filename, "%s.%.4d.PX%d_PY%d_PZ%d.aff", twopt_name_list[iname], Nconf,
           g_total_momentum_list[ipref][0], g_total_momentum_list[ipref][1], g_total_momentum_list[ipref][2] );
       
       struct AffWriter_s * affw = aff_writer(filename);
@@ -513,14 +555,16 @@ int main(int argc, char **argv) {
       /******************************************************
        * loop on 2-point functions
        ******************************************************/
-      for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
+      for ( int i2pt = 0; i2pt < twopt_id_number; i2pt++ ) {
 
         gettimeofday ( &ta, (struct timezone *)NULL );
 
-        if ( strcmp ( g_twopoint_function_list[i2pt].name , twopt_name_list[iname] ) != 0 ) {
+        /* if ( strcmp ( g_twopoint_function_list[i2pt].name , twopt_name_list[iname] ) != 0 ) {
           if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] skip twopoint %6d %s %d\n", i2pt, __FILE__, __LINE__ );
           continue;
-        }
+        } */
+
+        int const twopt_id = twopt_id_list[i2pt];
 
         gettimeofday ( &tb, (struct timezone *)NULL );
         show_time ( &ta, &tb, "piN2piN_diagram_sum_per_type", "check-valid-twopt", io_proc == 2 );
@@ -530,12 +574,12 @@ int main(int argc, char **argv) {
           /******************************************************
            * print the 2-point function parameters
            ******************************************************/
-          sprintf ( filename, "twopoint_function_%d.show", i2pt );
+          sprintf ( filename, "twopoint_function_%d.show", twopt_id  );
           if ( ( ofs = fopen ( filename, "w" ) ) == NULL ) {
             fprintf ( stderr, "[piN2piN_diagram_sum_per_type] Error from fopen %s %d\n", __FILE__, __LINE__ );
             EXIT(12);
           }
-          twopoint_function_print ( &(g_twopoint_function_list[i2pt]), "TWPT", ofs );
+          twopoint_function_print ( &(g_twopoint_function_list[twopt_id]), "TWPT", ofs );
           fclose ( ofs );
 
           gettimeofday ( &tb, (struct timezone *)NULL );
@@ -564,7 +608,7 @@ int main(int argc, char **argv) {
           twopoint_function_type * tp = init_1level_2pttable ( source_location_number );
 
           twopoint_function_init ( &tp_sum );
-          twopoint_function_copy ( &tp_sum, &( g_twopoint_function_list[i2pt]), 0 );
+          twopoint_function_copy ( &tp_sum, &( g_twopoint_function_list[twopt_id]), 0 );
           
           if ( twopoint_function_allocate ( &tp_sum) == NULL ) {
             fprintf ( stderr, "[piN2piN_diagram_sum_per_type] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
@@ -575,7 +619,7 @@ int main(int argc, char **argv) {
   
           for ( int i = 0; i < source_location_number; i++ ) {
             twopoint_function_init ( &(tp[i]) );
-            twopoint_function_copy ( &(tp[i]), &( g_twopoint_function_list[i2pt]), 0 );
+            twopoint_function_copy ( &(tp[i]), &( g_twopoint_function_list[twopt_id]), 0 );
             if ( twopoint_function_allocate ( &(tp[i]) ) == NULL ) {
               fprintf ( stderr, "[piN2piN_diagram_sum_per_type] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
               EXIT(125);
@@ -609,6 +653,8 @@ int main(int argc, char **argv) {
         }  /* end of loop on pf1 */
 
       }  /* end of loop on 2-point functions */
+
+      fini_1level_itable ( &twopt_id_list );
 
       /******************************************************
        * close AFF readers
@@ -655,6 +701,24 @@ int main(int argc, char **argv) {
      * loop diagram names
      ******************************************************/
     for ( int iname = 2; iname <= 2; iname++ ) {
+
+      /******************************************************
+       * check if matching 2pts are in the list
+       ******************************************************/
+      int twopt_id_number = 0;
+      int * twopt_id_list = init_1level_itable ( g_twopoint_function_number );
+      for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
+        if ( strcmp ( g_twopoint_function_list[i2pt].name , twopt_name_list[iname] ) == 0 ) {
+          twopt_id_list[twopt_id_number] = i2pt;
+          twopt_id_number++;
+        }
+      }
+      if ( twopt_id_number == 0 ) {
+        if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] skip twopoint name %s %s %d\n", twopt_name_list[iname], __FILE__, __LINE__ );
+        continue;
+      } else if ( g_verbose > 2 ) {
+        fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] number of twopoint ids name %s %d  %s %d\n", twopt_name_list[iname], twopt_id_number, __FILE__, __LINE__ );
+      }
 
       if( g_verbose > 4 ) fprintf( stdout, "# [piN2piN_diagram_sum_per_type] starting diagram name %s %s %d\n", twopt_name_list[iname], __FILE__, __LINE__ );
 
@@ -718,7 +782,7 @@ int main(int argc, char **argv) {
 
       gettimeofday ( &ta, (struct timezone *)NULL );
 
-      sprintf ( filename, "%s.PX%d_PY%d_PZ%d.aff", twopt_name_list[iname], 
+      sprintf ( filename, "%s.%.4d.PX%d_PY%d_PZ%d.aff", twopt_name_list[iname], Nconf,
           g_total_momentum_list[ipref][0], g_total_momentum_list[ipref][1], g_total_momentum_list[ipref][2] );
       
       struct AffWriter_s * affw = aff_writer(filename);
@@ -736,14 +800,16 @@ int main(int argc, char **argv) {
       /******************************************************
        * loop on 2-point functions
        ******************************************************/
-      for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
+      for ( int i2pt = 0; i2pt < twopt_id_number; i2pt++ ) {
 
         gettimeofday ( &ta, (struct timezone *)NULL );
 
-        if ( strcmp ( g_twopoint_function_list[i2pt].name , twopt_name_list[iname] ) != 0 ) {
+        int const twopt_id = twopt_id_list[i2pt];
+
+        /* if ( strcmp ( g_twopoint_function_list[i2pt].name , twopt_name_list[iname] ) != 0 ) {
           if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] skip twopoint %6d %s %d\n", i2pt, __FILE__, __LINE__ );
           continue;
-        }
+        } */
 
         gettimeofday ( &tb, (struct timezone *)NULL );
         show_time ( &ta, &tb, "piN2piN_diagram_sum_per_type", "check-valid-twopt", io_proc == 2 );
@@ -753,12 +819,12 @@ int main(int argc, char **argv) {
           /******************************************************
            * print the 2-point function parameters
            ******************************************************/
-          sprintf ( filename, "twopoint_function_%d.show", i2pt );
+          sprintf ( filename, "twopoint_function_%d.show", twopt_id );
           if ( ( ofs = fopen ( filename, "w" ) ) == NULL ) {
             fprintf ( stderr, "[piN2piN_diagram_sum_per_type] Error from fopen %s %d\n", __FILE__, __LINE__ );
             EXIT(12);
           }
-          twopoint_function_print ( &(g_twopoint_function_list[i2pt]), "TWPT", ofs );
+          twopoint_function_print ( &(g_twopoint_function_list[twopt_id]), "TWPT", ofs );
           fclose ( ofs );
 
           gettimeofday ( &tb, (struct timezone *)NULL );
@@ -808,7 +874,7 @@ int main(int argc, char **argv) {
           twopoint_function_type * tp = init_1level_2pttable ( source_location_number );
 
           twopoint_function_init ( &tp_sum );
-          twopoint_function_copy ( &tp_sum, &( g_twopoint_function_list[i2pt]), 0 );
+          twopoint_function_copy ( &tp_sum, &( g_twopoint_function_list[twopt_id]), 0 );
           
           if ( twopoint_function_allocate ( &tp_sum) == NULL ) {
             fprintf ( stderr, "[piN2piN_diagram_sum_per_type] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
@@ -821,7 +887,7 @@ int main(int argc, char **argv) {
   
           for ( int i = 0; i < source_location_number; i++ ) {
             twopoint_function_init ( &(tp[i]) );
-            twopoint_function_copy ( &(tp[i]), &( g_twopoint_function_list[i2pt]), 0 );
+            twopoint_function_copy ( &(tp[i]), &( g_twopoint_function_list[twopt_id]), 0 );
             if ( twopoint_function_allocate ( &(tp[i]) ) == NULL ) {
               fprintf ( stderr, "[piN2piN_diagram_sum_per_type] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
               EXIT(125);
@@ -857,6 +923,8 @@ int main(int argc, char **argv) {
         }  /* end of loop on pf1 */
 
       }  /* end of loop on 2-point functions */
+
+      fini_1level_itable ( &twopt_id_list );
 
       /******************************************************
        * close AFF readers
@@ -903,6 +971,24 @@ int main(int argc, char **argv) {
      * loop diagram names
      ******************************************************/
     for ( int iname = 3; iname <= 3; iname++ ) {
+
+      /******************************************************
+       * check if matching 2pts are in the list
+       ******************************************************/
+      int twopt_id_number = 0;
+      int * twopt_id_list = init_1level_itable ( g_twopoint_function_number );
+      for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
+        if ( strcmp ( g_twopoint_function_list[i2pt].name , twopt_name_list[iname] ) == 0 ) {
+          twopt_id_list[twopt_id_number] = i2pt;
+          twopt_id_number++;
+        }
+      }
+      if ( twopt_id_number == 0 ) {
+        if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] skip twopoint name %s %s %d\n", twopt_name_list[iname], __FILE__, __LINE__ );
+        continue;
+      } else if ( g_verbose > 2 ) {
+        fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] number of twopoint ids name %s %d  %s %d\n", twopt_name_list[iname], twopt_id_number, __FILE__, __LINE__ );
+      }
 
       gettimeofday ( &ta, (struct timezone *)NULL );
 
@@ -964,7 +1050,7 @@ int main(int argc, char **argv) {
 
       gettimeofday ( &ta, (struct timezone *)NULL );
 
-      sprintf ( filename, "%s.PX%d_PY%d_PZ%d.aff", twopt_name_list[iname], 
+      sprintf ( filename, "%s.%.4d.PX%d_PY%d_PZ%d.aff", twopt_name_list[iname], Nconf,
           g_total_momentum_list[ipref][0], g_total_momentum_list[ipref][1], g_total_momentum_list[ipref][2] );
       
       struct AffWriter_s * affw = aff_writer(filename);
@@ -982,14 +1068,16 @@ int main(int argc, char **argv) {
       /******************************************************
        * loop on 2-point functions
        ******************************************************/
-      for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
+      for ( int i2pt = 0; i2pt < twopt_id_number; i2pt++ ) {
 
         gettimeofday ( &ta, (struct timezone *)NULL );
 
-        if ( strcmp ( g_twopoint_function_list[i2pt].name , twopt_name_list[iname] ) != 0 ) {
+        int const twopt_id = twopt_id_list[i2pt];
+
+        /* if ( strcmp ( g_twopoint_function_list[i2pt].name , twopt_name_list[iname] ) != 0 ) {
           if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] skip twopoint %6d %s %d\n", i2pt, __FILE__, __LINE__ );
           continue;
-        }
+        } */
 
         gettimeofday ( &tb, (struct timezone *)NULL );
         show_time ( &ta, &tb, "piN2piN_diagram_sum_per_type", "check-valid-twopt", io_proc == 2 );
@@ -999,12 +1087,12 @@ int main(int argc, char **argv) {
           /******************************************************
            * print the 2-point function parameters
            ******************************************************/
-          sprintf ( filename, "twopoint_function_%d.show", i2pt );
+          sprintf ( filename, "twopoint_function_%d.show", twopt_id );
           if ( ( ofs = fopen ( filename, "w" ) ) == NULL ) {
             fprintf ( stderr, "[piN2piN_diagram_sum_per_type] Error from fopen %s %d\n", __FILE__, __LINE__ );
             EXIT(12);
           }
-          twopoint_function_print ( &(g_twopoint_function_list[i2pt]), "TWPT", ofs );
+          twopoint_function_print ( &(g_twopoint_function_list[twopt_id]), "TWPT", ofs );
           fclose ( ofs );
 
           gettimeofday ( &tb, (struct timezone *)NULL );
@@ -1062,7 +1150,7 @@ int main(int argc, char **argv) {
           twopoint_function_type * tp = init_1level_2pttable ( source_location_number );
 
           twopoint_function_init ( &tp_sum );
-          twopoint_function_copy ( &tp_sum, &( g_twopoint_function_list[i2pt]), 0 );
+          twopoint_function_copy ( &tp_sum, &( g_twopoint_function_list[twopt_id]), 0 );
           
           if ( twopoint_function_allocate ( &tp_sum) == NULL ) {
             fprintf ( stderr, "[piN2piN_diagram_sum_per_type] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
@@ -1076,7 +1164,7 @@ int main(int argc, char **argv) {
   
           for ( int i = 0; i < source_location_number; i++ ) {
             twopoint_function_init ( &(tp[i]) );
-            twopoint_function_copy ( &(tp[i]), &( g_twopoint_function_list[i2pt]), 0 );
+            twopoint_function_copy ( &(tp[i]), &( g_twopoint_function_list[twopt_id]), 0 );
             if ( twopoint_function_allocate ( &(tp[i]) ) == NULL ) {
               fprintf ( stderr, "[piN2piN_diagram_sum_per_type] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
               EXIT(125);
@@ -1114,6 +1202,8 @@ int main(int argc, char **argv) {
         }  /* end of loop on ptot */
 
       }  /* end of loop on 2-point functions */
+
+      fini_1level_itable ( &twopt_id_list );
 
       /******************************************************
        * close AFF readers
