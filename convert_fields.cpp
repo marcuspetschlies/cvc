@@ -63,6 +63,48 @@ static inline void _fv_cvc_eq_convert_fv_ukqcd ( double * const r , double * con
 }  /* end of _fv_cvc_eq_convert_fv_ukqcd */
 
 
+static inline void convert_ukqcd_to_cvc_at_source ( double ** spinor_field ) {
+
+    /***********************************************************
+     * ukqcd -> cvc gamma basis rotation at source;
+     * assumes specific forms of gamma_t and gamma_5
+     * requires all 12 spin-color components
+     ***********************************************************/
+#pragma omp parallel for
+    for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
+      double spinor1[4][24];
+      double const norm = 1. / sqrt( 2. );
+      for ( int ic =0; ic < 3; ic++ ) {
+        _fv_eq_fv ( spinor1[0], spinor_field[  ic] + _GSI(ix) );
+        _fv_eq_fv ( spinor1[1], spinor_field[3+ic] + _GSI(ix) );
+        _fv_eq_fv ( spinor1[2], spinor_field[6+ic] + _GSI(ix) );
+        _fv_eq_fv ( spinor1[3], spinor_field[9+ic] + _GSI(ix) );
+
+        /*  */
+        _fv_eq_fv_mi_fv (spinor_field[  ic]+_GSI(ix), spinor1[0], spinor1[2] );
+
+        /*  */
+        _fv_eq_fv_mi_fv (spinor_field[3+ic]+_GSI(ix), spinor1[1], spinor1[3] );
+
+        /*  */
+        _fv_eq_fv    ( spinor_field[6+ic]+_GSI(ix), spinor1[0] );
+        _fv_ti_eq_re ( spinor_field[6+ic]+_GSI(ix), -1. );
+        _fv_mi_eq_fv ( spinor_field[6+ic]+_GSI(ix), spinor1[2] );
+
+        /*  */
+        _fv_eq_fv    ( spinor_field[9+ic]+_GSI(ix), spinor1[1] );
+        _fv_ti_eq_re ( spinor_field[9+ic]+_GSI(ix), -1. );
+        _fv_mi_eq_fv ( spinor_field[9+ic]+_GSI(ix), spinor1[3] );
+
+        _fv_ti_eq_re ( spinor_field[  ic]+_GSI(ix), norm );
+        _fv_ti_eq_re ( spinor_field[3+ic]+_GSI(ix), norm );
+        _fv_ti_eq_re ( spinor_field[6+ic]+_GSI(ix), norm );
+        _fv_ti_eq_re ( spinor_field[9+ic]+_GSI(ix), norm );
+      }
+    }
+}  /* end of convert_ukqcd_to_cvc_at_source */
+
+
 void usage(void) {
   fprintf(stdout, "oldascii2binary -- usage:\n");
   exit(0);
@@ -81,12 +123,13 @@ int main(int argc, char **argv) {
   double **mzz[2] = { NULL, NULL }, **mzzinv[2] = { NULL, NULL };
   double *gauge_field_with_bc = NULL;
   char field_type[12] = "NA";
+  int rotate_source_side = 0;
 
 #ifdef HAVE_MPI
     MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?vf:t:")) != -1) {
+  while ((c = getopt(argc, argv, "sh?vf:t:")) != -1) {
     switch (c) {
     case 'v':
       g_verbose = 1;
@@ -98,6 +141,10 @@ int main(int argc, char **argv) {
     case 't':
       strcpy ( field_type , optarg );
       fprintf ( stdout, "# [convert_fields] field_type set to %s\n", field_type );
+      break;
+    case 's':
+      rotate_source_side = 1;
+      fprintf ( stdout, "# [convert_fields] rotate_source_side set to %d\n", rotate_source_side);
       break;
     case 'h':
     case '?':
@@ -291,45 +338,9 @@ int main(int argc, char **argv) {
   
   }
 
-  if ( strcmp( field_type, "ds12" ) == 0 ) {
-    /***********************************************************
-     * ukqcd -> cvc gamma basis rotation at source;
-     * assumes specific forms of gamma_t and gamma_5
-     * requires all 12 spin-color components
-     ***********************************************************/
-#pragma omp parallel for
-    for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
-      double spinor1[4][24];
-      double const norm = 1. / sqrt( 2. );
-      for ( int ic =0; ic < 3; ic++ ) {
-        _fv_eq_fv ( spinor1[0], spinor_field[  ic] + _GSI(ix) );
-        _fv_eq_fv ( spinor1[1], spinor_field[3+ic] + _GSI(ix) );
-        _fv_eq_fv ( spinor1[2], spinor_field[6+ic] + _GSI(ix) );
-        _fv_eq_fv ( spinor1[3], spinor_field[9+ic] + _GSI(ix) );
-
-        /*  */
-        _fv_eq_fv_mi_fv (spinor_field[  ic]+_GSI(ix), spinor1[0], spinor1[2] );
-
-        /*  */
-        _fv_eq_fv_mi_fv (spinor_field[3+ic]+_GSI(ix), spinor1[1], spinor1[3] );
-
-        /*  */
-        _fv_eq_fv    ( spinor_field[6+ic]+_GSI(ix), spinor1[0] );
-        _fv_ti_eq_re ( spinor_field[6+ic]+_GSI(ix), -1. );
-        _fv_mi_eq_fv ( spinor_field[6+ic]+_GSI(ix), spinor1[2] );
-
-        /*  */
-        _fv_eq_fv    ( spinor_field[9+ic]+_GSI(ix), spinor1[1] );
-        _fv_ti_eq_re ( spinor_field[9+ic]+_GSI(ix), -1. );
-        _fv_mi_eq_fv ( spinor_field[9+ic]+_GSI(ix), spinor1[3] );
-
-        _fv_ti_eq_re ( spinor_field[  ic]+_GSI(ix), norm );
-        _fv_ti_eq_re ( spinor_field[3+ic]+_GSI(ix), norm );
-        _fv_ti_eq_re ( spinor_field[6+ic]+_GSI(ix), norm );
-        _fv_ti_eq_re ( spinor_field[9+ic]+_GSI(ix), norm );
-      }
-    }
-  }  /* end of if field_type == ds12 */
+  if ( ( strcmp( field_type, "ds12" ) == 0 ) && rotate_source_side ) {
+    convert_ukqcd_to_cvc_at_source ( spinor_field );
+  }
 
   for ( int i = 0; i < nsc; i++ ) {
     if ( g_write_propagator ) {
@@ -337,7 +348,7 @@ int main(int argc, char **argv) {
         sprintf ( filename, "source.%c.%.4d.t%dx%dy%dz%d.%.2d.inverted", flavor_tag, Nconf,
             g_source_coords_list[0][0], g_source_coords_list[0][1], g_source_coords_list[0][2], g_source_coords_list[0][3], i );
       } else if ( g_source_type == 1 ) {
-        sprintf ( filename, "source.%c.%.4d.%.5d.inverted", flavor_tag, Nconf, i );
+        sprintf ( filename, "prop.%c.%.4d.%.5d", flavor_tag, Nconf, i );
       }
       exitstatus = write_propagator ( spinor_field[i],  filename, 0, g_propagator_precision );
       if( exitstatus != 0 ) {
@@ -351,7 +362,7 @@ int main(int argc, char **argv) {
      ***********************************************************/
     double norm = 0.;
     spinor_scalar_product_re ( &norm,      spinor_field[i], spinor_field[i], VOLUME );
-    fprintf(stdout, "# [convert_fields] norm propagator %d2  %e\n", i, sqrt(norm));
+    fprintf(stdout, "# [convert_fields] norm propagator %2d  %e\n", i, sqrt(norm));
 
     /***********************************************************
      * apply D
@@ -364,9 +375,10 @@ int main(int argc, char **argv) {
 
     norm = 0.;
     spinor_scalar_product_re ( &norm,      spinor_field[i], spinor_field[i], VOLUME );
-    fprintf(stdout, "# [convert_fields] norm source     %d2  %e\n", i, sqrt(norm));
+    fprintf(stdout, "# [convert_fields] norm source     %2d  %e\n", i, sqrt(norm));
 
     if ( g_write_source ) {
+
       if ( g_source_type == 0 ) {
         sprintf ( filename, "source.%c.%.4d.t%dx%dy%dz%d.%.2d.ascii", flavor_tag, Nconf, 
             g_source_coords_list[0][0], g_source_coords_list[0][1], g_source_coords_list[0][2], g_source_coords_list[0][3], i );
@@ -381,6 +393,32 @@ int main(int argc, char **argv) {
         EXIT(9);
       }
       fclose ( ffs );
+#if 0
+#endif
+      if ( g_source_type == 1 ) {
+        sprintf ( filename, "source.%c.%.4d.%.5d", flavor_tag, Nconf, i );
+        exitstatus = write_propagator ( spinor_field[i],  filename, 0, g_propagator_precision );
+        if( exitstatus != 0 ) {
+          fprintf(stderr, "[convert_fields] Error from write_propagator for file %s, status was %d %s %d\n", filename, exitstatus, __FILE__, __LINE__ );
+          EXIT(9);
+        }
+
+
+#pragma omp parallel for
+        for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
+          _fv_cvc_eq_convert_fv_ukqcd ( spinor_field[i]+_GSI(ix) , spinor_field[i]+_GSI(ix) );
+        }
+        sprintf ( filename, "source.%c.%.4d.%.5d.orig.ascii", flavor_tag, Nconf, i );
+        ffs = fopen( filename, "w" );
+        exitstatus = printf_spinor_field( spinor_field[i], 0, ffs);
+        if( exitstatus != 0 ) {
+          fprintf(stderr, "[convert_fields] Error from printf_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(9);
+        }
+        fclose ( ffs );
+#if 0
+#endif
+      }
     }
 
     if ( g_source_type == 0 ) {
