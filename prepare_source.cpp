@@ -1130,7 +1130,7 @@ int prepare_sequential_fht_loop_source ( double ** const seq_source, double _Com
 
     unsigned int const ix3 = ix % VOL3;
 
-    if ( type == 1 ) {
+    if ( type == 0 ) {
 
       /**********************************************************
        * ztmp = Tr [ M ]
@@ -1155,7 +1155,7 @@ int prepare_sequential_fht_loop_source ( double ** const seq_source, double _Com
         seq_source[ib][_GSI(ix) + 2*ia  ] = creal( a );
         seq_source[ib][_GSI(ix) + 2*ia+1] = cimag( a );
       }}
-    } else if ( type == 2 ) {
+    } else if ( type == 1 ) {
 
       double _Complex U[12][12];
 
