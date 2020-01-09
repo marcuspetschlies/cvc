@@ -4,6 +4,10 @@
 #ifndef _CVC_UTIL_H
 #define _CVC_UTIL_H
 
+#ifdef HAVE_OPENMP
+#include "omp.h"
+#endif
+
 #include "uwerr.h"
 
 namespace cvc {
@@ -216,6 +220,23 @@ int random_binary_field ( int * const b , unsigned int const N );
 int apply_uwerr_real ( double * const data, unsigned int const nmeas, unsigned int const ndata, unsigned int const ipo_first, unsigned int const ipo_stride, char * obs_name );
 
 int apply_uwerr_func ( double * const data, unsigned int const nmeas, unsigned int const ndata, unsigned int const nset, int const narg, int * const arg_first, int * const arg_stride, char * obs_name, dquant func, dquant dfunc );
+
+/***************************************************************************
+ * set number of openmp threads
+ ***************************************************************************/
+inline void set_omp_number_threads (void) {
+#ifdef HAVE_OPENMP
+  if(g_cart_id == 0) fprintf(stdout, "# [set_omp_number_threads] setting omp number of threads to %d\n", g_num_threads);
+  omp_set_num_threads(g_num_threads);
+#pragma omp parallel
+{
+  fprintf(stdout, "# [set_omp_number_threads] proc%.4d thread%.4d using %d threads\n", g_cart_id, omp_get_thread_num(), omp_get_num_threads());
+}
+#else
+  if(g_cart_id == 0) fprintf(stdout, "[set_omp_number_threads] Warning, resetting global thread number to 1\n");
+  g_num_threads = 1;
+#endif
+}  /* end of set_omp_number_threads */
 
 }  /* end of namespace cvc */
 #endif
