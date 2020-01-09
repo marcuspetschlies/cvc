@@ -416,6 +416,13 @@ int main(int argc, char **argv) {
           EXIT(9);
         }
         fclose ( ffs );
+        sprintf ( filename, "source.%c.%.4d.%.5d.orig", flavor_tag, Nconf, i );
+        exitstatus = write_propagator ( spinor_field[i],  filename, 0, g_propagator_precision );
+        if( exitstatus != 0 ) {
+          fprintf(stderr, "[convert_fields] Error from write_propagator for file %s, status was %d %s %d\n", filename, exitstatus, __FILE__, __LINE__ );
+          EXIT(9);
+        }
+
 #if 0
 #endif
       }
