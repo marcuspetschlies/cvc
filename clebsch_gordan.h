@@ -131,17 +131,7 @@ static inline double _Complex luescher_c_matrix ( int const l1, int const m1, in
 }  /* end of luescher_c_matrix */
 
 /******************************************************************************************
- * C matrix from Luescher's Quantization condition, numerical values
- *
- * IN
- * l1 = L_1, m1 = M_1
- * l2 = L_2, m2 = M_2
- * l3 = L_3, m3 = M_3
- *
- * OUT
- * cf. Bernard et al. JHEP08(2008)024
- * ( cf. also formula (2.25) in Goeckeler et al. PRD 86 094513 (2012) )
- *
+ * Clebsch-Gordan coefficients for j = l +/- 1/2 
  ******************************************************************************************/
 static inline double _Complex cg_lm_spin_12 ( int const l2, int const m2, int const sigma2, int const j2, int const s2 ) {
   return ( clebsch_gordan_coeff ( j2, s2, l2, m2, 1, sigma2 ) );
