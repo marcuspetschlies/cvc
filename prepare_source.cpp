@@ -37,6 +37,39 @@
 
 namespace cvc {
 
+int prepare_volume_source ( double * const s, unsigned int const V ) {
+
+  int status = 0;
+  struct timeval ta, tb;
+
+  gettimeofday ( &ta, (struct timezone *)NULL );
+
+  switch(g_noise_type) {
+    case 1:
+      status = rangauss(s, _GSI(V) );
+      break;
+    case 2:
+      status = ranz2(s, _GSI(V) );
+      break;
+#if 0
+    case 3:
+      status = ranz3(s, _GSI(V/2) );
+      break;
+#endif  /* of if 0 */
+    default:
+      if ( g_cart_id == 0 ) fprintf ( stderr, "[prepare_volume_source] Error, unknown noise type\n");
+      status = 1;
+      break;
+  }
+
+  gettimeofday ( &tb, (struct timezone *)NULL );
+
+  show_time ( &ta, &tb, "prepare_volume_source", "prepare volume source", g_cart_id == 0 );
+
+  return(status);
+}  /* end of prepare_volume_source */
+
+#if 0
 int prepare_volume_source ( double * const s, unsigned int const V) {
 
   unsigned int const  VOL3 = LX        * LY        * LZ;
@@ -108,6 +141,7 @@ int prepare_volume_source ( double * const s, unsigned int const V) {
 
   return(status);
 }  /* end of prepare_volume_source */
+#endif  /* if 0 */
 
 /*********************************************************/
 /*********************************************************/
