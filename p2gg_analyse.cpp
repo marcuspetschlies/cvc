@@ -100,7 +100,6 @@ int main(int argc, char **argv) {
   int num_src_per_conf = 0;
   int num_conf = 0;
   char ensemble_name[100] = "cA211a.30.32";
-  int fold_correlator= 0;
   struct timeval ta, tb;
   int operator_type = -1;
   int write_data = 0;
@@ -115,7 +114,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "CWh?f:N:S:F:O:E:w:")) != -1) {
+  while ((c = getopt(argc, argv, "CWh?f:N:S:O:E:w:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -132,10 +131,6 @@ int main(int argc, char **argv) {
     case 'W':
       check_momentum_space_WI = 1;
       fprintf ( stdout, "# [p2gg_analyse] check_momentum_space_WI set to %d\n", check_momentum_space_WI );
-      break;
-    case 'F':
-      fold_correlator = atoi ( optarg );
-      fprintf ( stdout, "# [p2gg_analyse] fold_correlator set to %d\n", fold_correlator );
       break;
     case 'O':
       operator_type = atoi ( optarg );
@@ -357,8 +352,8 @@ int main(int argc, char **argv) {
 
             struct AffNode_s *affn = NULL, *affdir = NULL;
       
-            /* sprintf ( filename, "stream_%c/%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0], Nconf, g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
-            sprintf ( filename, "stream_%c/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0], g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+            sprintf ( filename, "stream_%c/%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0], Nconf, g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+            /* sprintf ( filename, "stream_%c/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0], g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
             /* sprintf ( filename, "stream_%c/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0], pgg_operator_type_tag[operator_type], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
             fprintf(stdout, "# [p2gg_analyse] reading data from file %s\n", filename);
             affr = aff_reader ( filename );

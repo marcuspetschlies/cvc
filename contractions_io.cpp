@@ -896,7 +896,7 @@ int write_vdag_gloc_v_to_file ( double _Complex ***** vv, int const nv, int cons
  *
  ***************************************************************************/
 
-int write_h5_contraction ( void * const contr, void * const awriter, void * const afilename, char * tag, unsigned int const nc) {
+int write_h5_contraction ( void * const contr, void * const awriter, void * const afilename, char * tag, unsigned int const nc, const char * data_type ) {
 
   char * filename = (char *)afilename;
   if ( filename == NULL ) {
@@ -974,7 +974,15 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
     /***************************************************************************
      * some default settings for H5Dwrite
      ***************************************************************************/
-    hid_t mem_type_id   = H5T_NATIVE_DOUBLE;
+    hid_t mem_type_id;
+    if ( strcmp( data_type , "double" ) == 0 ) {
+      mem_type_id   = H5T_NATIVE_DOUBLE;
+    } else if ( strcmp( data_type , "int" ) == 0 ) {
+      mem_type_id   = H5T_NATIVE_INT;
+    } else {
+      fprintf ( stdout, "[write_h5_contraction] Error, unrecognized data_type %s %s %d\n", data_type, __FILE__, __LINE__ );
+      return ( 8 );
+    }
     hid_t mem_space_id  = H5S_ALL;
     hid_t file_space_id = H5S_ALL;
     hid_t xfer_plit_id  = H5P_DEFAULT;
@@ -994,40 +1002,62 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
   char grp_name[400], grp_name_tmp[400];
   char * grp_ptr = NULL;
   char grp_sep[] = "/";
+  char * dataset_name = NULL;
   strcpy ( grp_name, tag );
   strcpy ( grp_name_tmp, grp_name );
   if ( g_verbose > 1 ) fprintf ( stdout, "# [write_h5_contraction] full grp_name = %s\n", grp_name );
   grp_ptr = strtok ( grp_name_tmp, grp_sep );
-
+  
   while ( grp_ptr != NULL ) {
-    hid_t grp;
-    hid_t loc_id = ( grp_list_nmem == 0 ) ? file_id : grp_list[grp_list_nmem-1];
-    if ( g_verbose > 1 ) fprintf ( stdout, "# [write_h5_contraction] grp_ptr = %s\n", grp_ptr );
-
-    grp = H5Gopen2( loc_id, grp_ptr, gapl_id );
-    if ( grp < 0 ) {
-      fprintf ( stderr, "[write_h5_contraction] Error from H5Gopen2 for group %s, status was %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
-      grp = H5Gcreate2 (       loc_id,         grp_ptr,       lcpl_id,       gcpl_id,       gapl_id );
-      if ( grp < 0 ) {
-        fprintf ( stderr, "[write_h5_contraction] Error from H5Gcreate2 for group %s, status was %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
-        return ( 6 );
-      } else {
-        if ( g_verbose > 1 ) fprintf ( stdout, "# [write_h5_contraction] created group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
-      }
-    } else {
-      if ( g_verbose > 1 ) fprintf ( stdout, "# [write_h5_contraction] opened group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
-    }
     grp_ptr = strtok(NULL, grp_sep );
-
-    grp_list[grp_list_nmem] = grp;
     grp_list_nmem++;
+  }
+
+  if ( g_verbose > 4 ) {
+    fprintf ( stdout, "# [write_h5_contraction] grp_name %s grp_name_tmp %s  grp_list_nmem %d %s %d\n", grp_name, grp_name_tmp, grp_list_nmem, __FILE__, __LINE__ );
+  }
+
+  strcpy ( grp_name_tmp, grp_name );
+  grp_ptr = strtok ( grp_name_tmp, grp_sep );
+  int imem = 0;
+  while ( grp_ptr != NULL ) {
+    if ( imem == grp_list_nmem - 1 ) {
+      dataset_name = grp_ptr;
+    } else {
+      hid_t grp;
+      hid_t loc_id = ( imem == 0 ) ? file_id : grp_list[imem-1];
+      if ( g_verbose > 1 ) fprintf ( stdout, "# [write_h5_contraction] grp_ptr = %s\n", grp_ptr );
+
+      grp = H5Gopen2( loc_id, grp_ptr, gapl_id );
+      if ( grp < 0 ) {
+        fprintf ( stderr, "[write_h5_contraction] Error from H5Gopen2 for group %s, status was %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
+        grp = H5Gcreate2 (       loc_id,         grp_ptr,       lcpl_id,       gcpl_id,       gapl_id );
+        if ( grp < 0 ) {
+          fprintf ( stderr, "[write_h5_contraction] Error from H5Gcreate2 for group %s, status was %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
+          return ( 6 );
+        } else {
+          if ( g_verbose > 1 ) fprintf ( stdout, "# [write_h5_contraction] created group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
+        }
+      } else {
+        if ( g_verbose > 1 ) fprintf ( stdout, "# [write_h5_contraction] opened group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
+      }
+      grp_list[imem] = grp;
+    }
+
+    grp_ptr = strtok(NULL, grp_sep );
+    imem++;
   }  /* end of loop on sub-groups */
+
+  if ( g_verbose > 4 ) {
+    fprintf ( stdout, "# [write_h5_contraction] dataset_name %s  %s %d\n", dataset_name, __FILE__, __LINE__ );
+  }
 
   /***************************************************************************
    * write data set
    ***************************************************************************/
 
-  hid_t loc_id = ( grp_list_nmem == 0 ) ? file_id : grp_list[grp_list_nmem - 1 ];
+  /* hid_t loc_id = ( grp_list_nmem == 0 ) ? file_id : grp_list[grp_list_nmem - 1 ]; */
+  hid_t loc_id = ( grp_list_nmem == 1 ) ? file_id : grp_list[grp_list_nmem - 2 ];
 
   /***************************************************************************
    * create a data set
@@ -1044,7 +1074,8 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
 
                    hid_t H5Dcreate ( hid_t loc_id, const char *name, hid_t dtype_id, hid_t space_id, hid_t lcpl_id, hid_t dcpl_id, hid_t dapl_id ) 
        */
-  hid_t dataset_id = H5Dcreate (       loc_id,             tag,       dtype_id,       space_id,       lcpl_id,       dcpl_id,       dapl_id );
+  /* hid_t dataset_id = H5Dcreate (       loc_id,             tag,       dtype_id,       space_id,       lcpl_id,       dcpl_id,       dapl_id ); */
+  hid_t dataset_id = H5Dcreate (       loc_id,         dataset_name,       dtype_id,       space_id,       lcpl_id,       dcpl_id,       dapl_id );
 
       /***************************************************************************
        * write the current data set
@@ -1086,7 +1117,9 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
   /***************************************************************************
    * close all (sub-)groups in reverse order
    ***************************************************************************/
-  for ( int i = grp_list_nmem - 1; i>= 0; i-- ) {
+  /* for ( int i = grp_list_nmem - 1; i>= 0; i-- ) */
+  for ( int i = grp_list_nmem - 2; i>= 0; i-- )
+  {
     status = H5Gclose ( grp_list[i] );
     if( status < 0 ) {
       fprintf(stderr, "[write_h5_contraction] Error from H5Gclose, status was %d %s %d\n", status, __FILE__, __LINE__);

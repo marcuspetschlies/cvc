@@ -9,6 +9,7 @@
 #include <math.h>
 #include <time.h>
 #include <complex.h>
+#include <time.h>
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
@@ -4759,9 +4760,9 @@ int check_residual_clover ( double ** const prop, double ** const source, double
   int exitstatus;
   double **eo_spinor_work = NULL;
   double diff_e, diff_o, norm_e, norm_o;
-  double ratime, retime;
+  struct timeval start_time, end_time;
 
-  ratime = _GET_TIME;
+  gettimeofday ( &start_time, (struct timezone *) NULL );
 
   if ( ( exitstatus = init_2level_buffer ( &eo_spinor_work, 5, _GSI( (VOLUME+RAND)/2 ) ) ) != 0 ) {
     fprintf(stderr, "[check_residual_clover] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
@@ -4808,8 +4809,9 @@ int check_residual_clover ( double ** const prop, double ** const source, double
 
   fini_2level_buffer ( &eo_spinor_work );
 
-  retime = _GET_TIME;
-  if ( g_cart_id == 0 ) fprintf ( stdout, "# [check_residual_clover] time for check_residual_clover = %e seconds %s %d\n", retime-ratime , __FILE__, __LINE__ );
+  gettimeofday ( &end_time, (struct timezone *) NULL );
+  show_time ( &start_time, &end_time, "check_residual_clover", "check residual", g_cart_id == 0 );
+
   return(0);
 }  /* end of check_residual_clover */
 
@@ -6500,12 +6502,13 @@ int plaquetteria  (double*gauge_field ) {
 
   double ratime, retime;
   double plaq[4] = {0.,0.,0.,0.};
+  struct timeval ta, tb;
 #ifdef HAVE_OPENMP
   omp_lock_t writelock;
 #endif
 
 
-  ratime = _GET_TIME;
+  gettimeofday ( &ta, (struct timezone *)NULL );
 #ifdef HAVE_OPENMP
   omp_init_lock(&writelock);
 #pragma omp parallel shared(gauge_field,plaq)
@@ -6645,8 +6648,9 @@ int plaquetteria  (double*gauge_field ) {
     fprintf(stdout, "# [plaquetteria] plaquette (3) = %25.16e\n", plaq[2]);
     fprintf(stdout, "# [plaquetteria] plaquette (4) = %25.16e\n", plaq[3]);
   }
-  retime = _GET_TIME;
-  if (g_cart_id == 0 ) fprintf(stdout, "# [plaquetteria] time for calculating plaquettes %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "plaquetteria", "plaquettes", g_cart_id == 0 );
 
   return(0);
 
@@ -6659,9 +6663,10 @@ int gauge_field_eq_gauge_field_ti_phase (double**gauge_field_with_phase, double*
 
   int mu, exitstatus;
   unsigned int ix, iix;
-  double retime, ratime;
-  
-  ratime = _GET_TIME;
+  struct timeval ta, tb;
+
+  gettimeofday ( &ta, (struct timezone *)NULL );
+
   /* allocate gauge field if necessary */
   if( *gauge_field_with_phase == NULL ) {
     if( g_cart_id == 0 ) fprintf(stdout, "# [gauge_field_eq_gauge_field_ti_phase] allocating new gauge field\n" );
@@ -6693,8 +6698,9 @@ int gauge_field_eq_gauge_field_ti_phase (double**gauge_field_with_phase, double*
     fprintf(stderr, "[gauge_field_eq_gauge_field_ti_phase] Error from plaquetteria, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     return(2);
   }
-  retime = _GET_TIME;
-  if( g_cart_id == 0 ) fprintf(stdout, "# [gauge_field_eq_gauge_field_ti_phase] time for gauge_field_eq_gauge_field_ti_phase = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "gauge_field_eq_gauge_field_ti_phase", "multiply bc phase", g_cart_id == 0 );
   return(0);
 }  /* end of gauge_field_eq_gauge_field_ti_phase */
 
