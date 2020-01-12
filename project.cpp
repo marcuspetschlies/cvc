@@ -654,7 +654,7 @@ int momentum_projection2 ( double * const V, double * const W, unsigned int cons
 
   if ( g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [momentum_projection2] using shift vector (%d, %d, %d)\n", shift[0], shift[1], shift[2]);
 
-  double _Complex ** zphase = init_2level_ztable ( momentum_number, 2*VOL3 );
+  double _Complex ** zphase = init_2level_ztable ( momentum_number, VOL3 );
   if ( zphase == NULL ) {
     fprintf ( stderr, "# [] Error from init_2level_ztable %s %d\n", __FILE__, __LINE__ );
     return(1);
