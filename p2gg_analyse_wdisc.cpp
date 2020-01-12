@@ -1,9 +1,6 @@
 /****************************************************
  * p2gg_analyse_wdisc
  *
- * PURPOSE:
- * DONE:
- * TODO:
  ****************************************************/
 
 #include <stdlib.h>
@@ -218,9 +215,9 @@ int main(int argc, char **argv) {
     EXIT(15);
   }
 
-  int *** conf_src_list = init_3level_itable ( num_conf, num_src_per_conf, 5 );
+  int *** conf_src_list = init_3level_itable ( num_conf, num_src_per_conf, 6 );
   if ( conf_src_list == NULL ) {
-    fprintf(stderr, "[p2gg_analyse_wdisc] Error from init_3level_itable %s %d\n", __FILE__, __LINE__);
+    fprintf(stderr, "[p2gg_analyse_wdisc] Error from init_Xlevel_itable %s %d\n", __FILE__, __LINE__);
     EXIT(16);
   }
   char line[100];
@@ -231,12 +228,13 @@ int main(int argc, char **argv) {
       continue;
     }
 
-    sscanf( line, "%d %d %d %d %d", 
+    sscanf( line, "%c %d %d %d %d %d", 
         conf_src_list[count/num_src_per_conf][count%num_src_per_conf],
         conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+1,
         conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+2,
         conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+3,
-        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+4 );
+        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+4,
+        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+5 );
 
     count++;
   }
@@ -246,12 +244,13 @@ int main(int argc, char **argv) {
   if ( g_verbose > 5 ) {
     for ( int iconf = 0; iconf < num_conf; iconf++ ) {
       for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-        fprintf ( stdout, "conf_src_list %6d %3d %3d %3d %3d\n", 
+        fprintf ( stdout, "conf_src_list %c %6d %3d %3d %3d %3d\n", 
             conf_src_list[iconf][isrc][0],
             conf_src_list[iconf][isrc][1],
             conf_src_list[iconf][isrc][2],
             conf_src_list[iconf][isrc][3],
-            conf_src_list[iconf][isrc][4] );
+            conf_src_list[iconf][isrc][4],
+            conf_src_list[iconf][isrc][5] );
 
       }
     }
@@ -260,7 +259,8 @@ int main(int argc, char **argv) {
   /***********************************************************
    * how to normalize loops
    ***********************************************************/
-  double loop_norm = 0.;
+  double loop_norm = 1.;
+#if 0
   if (   strcmp ( loop_type_tag[loop_type], "dOp"     ) == 0  
       || strcmp ( loop_type_tag[loop_type], "LpsDw"   ) == 0
       || strcmp ( loop_type_tag[loop_type], "LpsDwCv" ) == 0 ) {
@@ -270,6 +270,7 @@ int main(int argc, char **argv) {
            || strcmp ( loop_type_tag[loop_type], "LoopsCv" ) == 0 ) {
     loop_norm = -8. * g_mu * g_kappa * g_kappa;
   }
+#endif
   if ( g_verbose > 0 ) fprintf ( stdout, "# [p2gg_analyse_wdisc] oet_type %s loop_norm = %25.16e\n", loop_type_tag[loop_type], loop_norm );
 
   /***********************************************************
@@ -291,16 +292,16 @@ int main(int argc, char **argv) {
   for ( int iconf = 0; iconf < num_conf; iconf++ ) {
     for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
 
-      Nconf = conf_src_list[iconf][isrc][0];
+      Nconf = conf_src_list[iconf][isrc][1];
 
       /***********************************************************
        * copy source coordinates
        ***********************************************************/
       int const gsx[4] = {
-          conf_src_list[iconf][isrc][1],
           conf_src_list[iconf][isrc][2],
           conf_src_list[iconf][isrc][3],
-          conf_src_list[iconf][isrc][4] };
+          conf_src_list[iconf][isrc][4],
+          conf_src_list[iconf][isrc][5] };
 
 #ifdef HAVE_LHPC_AFF
       /***********************************************
@@ -311,7 +312,8 @@ int main(int argc, char **argv) {
       struct AffNode_s *affn = NULL, *affdir = NULL;
 
       /* sprintf ( filename, "%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", Nconf, g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
-      sprintf ( filename, "%d/%s.%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", Nconf, correlator_prefix[operator_type], flavor_tag[operator_type], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+      /* sprintf ( filename, "%d/%s.%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", Nconf, correlator_prefix[operator_type], flavor_tag[operator_type], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
+      sprintf ( filename, "stream_%c/%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0], Nconf, g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
 
       if ( g_verbose > 0 ) fprintf(stdout, "# [p2gg_analyse_wdisc] reading data from file %s %s %d\n", filename, __FILE__, __LINE__);
       affr = aff_reader ( filename );
