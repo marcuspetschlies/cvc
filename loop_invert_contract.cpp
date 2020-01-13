@@ -357,13 +357,12 @@ int main(int argc, char **argv) {
     EXIT(48);
   }
 
-
   /***************************************************************************
    * initialize rng state
    ***************************************************************************/
-  exitstatus = init_rng_state ( g_seed, &rng_state);
+  exitstatus = init_rng_stat_file ( g_seed, NULL );
   if ( exitstatus != 0 ) {
-    fprintf(stderr, "[loop_invert_contract] Error from init_rng_state %s %d\n", __FILE__, __LINE__ );;
+    fprintf(stderr, "[loop_invert_contract] Error from init_rng_stat_file %s %d\n", __FILE__, __LINE__ );;
     EXIT( 50 );
   }
 
@@ -391,18 +390,6 @@ int main(int argc, char **argv) {
    * loop on stochastic oet samples
    ***************************************************************************/
   for ( int isample = 0; isample < g_nsample; isample++ ) {
-
-    /***************************************************************************
-     * synchronize rng states to state at zero
-     *
-     * This should not be neccessary!
-     ***************************************************************************/
-    /*
-    exitstatus = sync_rng_state ( rng_state, 0, 0 );
-    if(exitstatus != 0) {
-      fprintf(stderr, "[loop_invert_contract] Error from sync_rng_state, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(38);
-    } */
 
     /***************************************************************************
      * read stochastic oet source from file
@@ -433,21 +420,6 @@ int main(int argc, char **argv) {
     }  /* end of if read stochastic source - else */
 
     /***************************************************************************
-     * retrieve current rng state and 0 writes his state
-     ***************************************************************************/
-    exitstatus = get_rng_state ( rng_state );
-    if(exitstatus != 0) {
-      fprintf(stderr, "[loop_invert_contract] Error from get_rng_state, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(38);
-    }
-
-    exitstatus = save_rng_state ( 0, NULL );
-    if ( exitstatus != 0 ) {
-      fprintf(stderr, "[loop_invert_contract] Error from save_rng_state, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );;
-      EXIT(38);
-    }
-
-    /***************************************************************************
      * invert for stochastic propagator
      *   up flavor
      ***************************************************************************/
@@ -475,8 +447,6 @@ int main(int argc, char **argv) {
         EXIT(2);
       }
     }
-
-    gettimeofday ( &ta, (struct timezone *) NULL );
 
     /***************************************************************************
      * multiply stochastic propagator with g5 for oet,
@@ -535,6 +505,8 @@ int main(int argc, char **argv) {
      * multiply by g5
      ***************************************************************************/
 
+    gettimeofday ( &ta, (struct timezone *) NULL );
+
     /* decompose lexic stochastic_propagator into even/odd eo_spinor_work */
     spinor_field_lexic2eo ( stochastic_propagator, eo_spinor_work[0], eo_spinor_work[1] );
     /* apply D_W */
@@ -574,7 +546,6 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[loop_invert_contract] Error from contract_loop_write_to_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(44);
     }
-
 
 #if 0
 
