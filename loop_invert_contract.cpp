@@ -378,10 +378,12 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * write momentum configuration
    ***************************************************************************/
-  exitstatus = write_h5_contraction ( g_sink_momentum_list[0], NULL, output_filename, "/Momenta_list_xyz", 3*g_sink_momentum_number , "int" );
-  if ( exitstatus != 0 ) {
-    fprintf(stderr, "[loop_invert_contract] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );;
-    EXIT( 54 );
+  if ( io_proc == 2 ) {
+    exitstatus = write_h5_contraction ( g_sink_momentum_list[0], NULL, output_filename, "/Momenta_list_xyz", 3*g_sink_momentum_number , "int" );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[loop_invert_contract] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );;
+      EXIT( 54 );
+    }
   }
 #endif
 
@@ -477,18 +479,17 @@ int main(int argc, char **argv) {
     gettimeofday ( &ta, (struct timezone *) NULL );
 
     /***************************************************************************
-     *
-     * contraction for local loops using std one-end-trick
-     *
-     ***************************************************************************/
-
-    /***************************************************************************
-     * multiply stochastic propagator with g5 for oet
-     * add factor -1 for Wick contraction
+     * multiply stochastic propagator with g5 for oet,
+     * used for both std and gen oet
      ***************************************************************************/
     memcpy ( stochastic_propagator_g5, stochastic_propagator, sizeof_spinor_field );
     g5_phi ( stochastic_propagator_g5, VOLUME );
-    spinor_field_ti_eq_re ( stochastic_propagator_g5, -1., VOLUME );
+
+    /***************************************************************************
+     *
+     * CONTRACTION FOR LOCAL LOOPS USING STD ONE-END-TRICK
+     *
+     ***************************************************************************/
 
     /***************************************************************************
      * group name for contraction
@@ -504,18 +505,10 @@ int main(int argc, char **argv) {
       EXIT(44);
     }
 
-#if 0
-    for ( int it = 0; it < T; it++ ) {
-      for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
-        for ( int ic = 0; ic < 16; ic++ ) {
-          fprintf ( stdout, "tp %3d   %3d %3d %3d   %d %d   %25.16e %25.16e\n",
-              it+g_proc_coords[0]*T,
-              g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
-              ic/4, ic%4, loop[it][imom][2*ic], ic/4, ic%4, loop[it][imom][2*ic+1] );
-        }
-      }
-    }
-#endif  /* of if 0 */
+    /***************************************************************************
+     * factor -1 for STD-OET
+     ***************************************************************************/
+    complex_field_ti_eq_re ( loop[0][0], -1., T * g_sink_momentum_number * 16 );
 
     /***************************************************************************
      * write contraction to file
@@ -529,6 +522,12 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[loop_invert_contract] Error from contract_loop_write_to_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(44);
     }
+
+    /***************************************************************************
+     *
+     * CONTRACTION FOR LOCAL LOOPS USING GEN ONE-END-TRICK
+     *
+     ***************************************************************************/
 
 
     /***************************************************************************
@@ -549,12 +548,6 @@ int main(int argc, char **argv) {
 
     show_time ( &ta, &tb, "loop_invert_contract", "DW", io_proc == 2 );
  
-    /***************************************************************************
-     *
-     * contraction for local loops using gen one-end-trick
-     *
-     ***************************************************************************/
-
     /***************************************************************************
      * group name for contraction
      ***************************************************************************/
