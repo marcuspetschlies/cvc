@@ -152,5 +152,48 @@ void mpi_init_xchange_eo_propagator(void);
 void mpi_fini_xchange_eo_propagator(void);
 
 
+typedef struct {
+  int N;
+#ifdef HAVE_MPI
+  MPI_Datatype point;
+
+  MPI_Datatype time_slice_cont;
+
+#  if defined PARALLELTX || defined PARALLELTXY || defined PARALLELTXYZ
+
+  MPI_Datatype x_slice_vector;
+  MPI_Datatype x_subslice_cont;
+  MPI_Datatype x_slice_cont;
+
+  MPI_Datatype y_slice_vector;
+  MPI_Datatype y_subslice_cont;
+  MPI_Datatype y_slice_cont;
+
+  MPI_Datatype z_slice_vector;
+  MPI_Datatype z_subslice_cont;
+  MPI_Datatype z_slice_cont;
+
+  MPI_Datatype xt_edge_vector;
+  MPI_Datatype xt_edge_cont;
+  MPI_Datatype yt_edge_vector;
+  MPI_Datatype yt_edge_cont;
+  MPI_Datatype yx_edge_vector;
+  MPI_Datatype yx_edge_cont;
+  MPI_Datatype zt_edge_vector;
+  MPI_Datatype zt_edge_cont;
+  MPI_Datatype zx_edge_vector;
+  MPI_Datatype zx_edge_cont;
+  MPI_Datatype zy_edge_vector;
+  MPI_Datatype zy_edge_cont;
+#endif
+#endif
+
+} xchanger_type;
+
+void mpi_init_xchanger ( xchanger_type *x, int N);
+void mpi_fini_xchanger ( xchanger_type *x);
+void mpi_xchanger ( double *phi, xchanger_type *p );
+
+
 }  /* end of namespace cvc */
 #endif
