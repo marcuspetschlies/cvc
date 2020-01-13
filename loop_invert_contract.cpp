@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
   
   const char outfile_prefix[] = "loop";
 
-  const char fbwd_str[2][4] =  { "fwd", "bwd" };
+  /* const char fbwd_str[2][4] =  { "fwd", "bwd" }; */
 
   int c;
   int filename_set = 0;
@@ -85,7 +85,7 @@ int main(int argc, char **argv) {
   int io_proc = -1;
   int check_propagator_residual = 0;
   size_t sizeof_spinor_field;
-  char filename[100];
+  char filename[500];
 
   struct timeval ta, tb, start_time, end_time;
 
@@ -357,11 +357,18 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * initialize rng state
    ***************************************************************************/
-  exitstatus = init_rng_state ( g_seed, &rng_state);
+  /* exitstatus = init_rng_state ( g_seed, &rng_state);
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[loop_invert_contract] Error from init_rng_state %s %d\n", __FILE__, __LINE__ );;
     EXIT( 50 );
+  } */
+
+  exitstatus = init_rng_stat_file ( g_seed, NULL );
+  if(exitstatus != 0) {
+    fprintf(stderr, "[loop_invert_contract] Error from init_rng_stat_file status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(38);
   }
+
 
 #if ( defined HAVE_HDF5 )
   sprintf ( output_filename, "%s.%.4d.h5", outfile_prefix, Nconf );
@@ -418,7 +425,7 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * retrieve current rng state and 0 writes his state
      ***************************************************************************/
-    exitstatus = get_rng_state ( rng_state );
+    /* exitstatus = get_rng_state ( rng_state );
     if(exitstatus != 0) {
       fprintf(stderr, "[loop_invert_contract] Error from get_rng_state, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(38);
@@ -428,17 +435,17 @@ int main(int argc, char **argv) {
     if ( exitstatus != 0 ) {
       fprintf(stderr, "[loop_invert_contract] Error from save_rng_state, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );;
       EXIT(38);
-    }
+    }*/
 
     /***************************************************************************
      * invert for stochastic propagator
-     *   up flavor
+     *   dn flavor
      ***************************************************************************/
     memcpy ( spinor_work[0], stochastic_source, sizeof_spinor_field );
 
     memset ( spinor_work[1], 0, sizeof_spinor_field );
 
-    exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_up );
+    exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_dn );
     if(exitstatus < 0) {
       fprintf(stderr, "[loop_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(44);
@@ -446,19 +453,20 @@ int main(int argc, char **argv) {
 
     if ( check_propagator_residual ) {
       memcpy ( spinor_work[0], stochastic_source, sizeof_spinor_field );
-      check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_up], mzzinv[op_id_up], 1 );
+      check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_dn], mzzinv[op_id_dn], 1 );
     }
 
     memcpy( stochastic_propagator, spinor_work[1], sizeof_spinor_field);
 
     if ( g_write_propagator ) {
-      sprintf(filename, "%s.%.4d.%.5d.inverted", filename_prefix, Nconf, isample);
+      sprintf(filename, "%s.%.4d.op%d.%.5d.inverted", filename_prefix, Nconf, op_id_dn, isample);
       if ( ( exitstatus = write_propagator( stochastic_propagator, filename, 0, g_propagator_precision) ) != 0 ) {
         fprintf(stderr, "[loop_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(2);
       }
     }
 
+#if 0
     gettimeofday ( &ta, (struct timezone *) NULL );
 
     /***************************************************************************
@@ -468,14 +476,15 @@ int main(int argc, char **argv) {
     /* decompose lexic stochastic_propagator into even/odd eo_spinor_work */
     spinor_field_lexic2eo ( stochastic_propagator, eo_spinor_work[0], eo_spinor_work[1] );
     /* apply D_W */
-    Q_clover_phi_matrix_eo ( eo_spinor_work[2],  eo_spinor_work[3],  eo_spinor_work[0],  eo_spinor_work[1], gauge_field_with_phase,  eo_spinor_work[4], DW_mzz[op_id_up]);
+    Q_clover_phi_matrix_eo ( eo_spinor_work[2],  eo_spinor_work[3],  eo_spinor_work[0],  eo_spinor_work[1], gauge_field_with_phase,  eo_spinor_work[4], DW_mzz[op_id_dn]);
     /* compose full spinor field */
     spinor_field_eo2lexic ( DW_stochastic_propagator, eo_spinor_work[2], eo_spinor_work[3] );
 
     gettimeofday ( &tb, (struct timezone *)NULL );
 
     show_time ( &ta, &tb, "loop_invert_contract", "DW", io_proc == 2 );
- 
+#endif  /* of if 0 */
+
     /***************************************************************************
      *
      * contraction for local loops using std one-end-trick
@@ -509,6 +518,7 @@ int main(int argc, char **argv) {
       EXIT(44);
     }
 
+#if 0
     /***************************************************************************
      *
      * contraction for local loops using gen one-end-trick
@@ -541,6 +551,7 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[loop_invert_contract] Error from contract_loop_write_to_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(44);
     }
+#endif  /* of if 0 */
 
 #ifdef _CONTRACT_COV_DISPL
     /*****************************************************************
