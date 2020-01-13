@@ -55,6 +55,8 @@ int Q_clover_eo_invert_subspace_stochastic_timeslice (
   double*gauge_field, double**mzz[2], double**mzzinv[2],
   int timeslice, int flavor_id );
 
+int G_plaq_rect ( double *** Gp, double *** Gr, double * const gauge_field);
+
 
 }  /* end of namespace cvc */
 #endif
