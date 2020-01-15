@@ -892,11 +892,65 @@ int write_vdag_gloc_v_to_file ( double _Complex ***** vv, int const nv, int cons
 #ifdef HAVE_HDF5
 
 /***************************************************************************
+ * write attribute
+ *
+ ***************************************************************************/
+int write_h5_attribute ( const char * filename, const char * attr_name, const char * info ) {
+
+  herr_t status;
+
+  /* hid_t obj_id = H5Oopen ( , , ); */
+  hid_t file_id = H5Fopen ( filename, H5F_ACC_RDWR, H5P_DEFAULT );
+  if ( file_id < 0 ) {
+    fprintf( stderr, "[write_h5_attribute] Error from H5FOpen, status was %ld %s %d\n", file_id, __FILE__, __LINE__ );
+    return(1);
+  }
+
+  hid_t attrdat_id = H5Screate(H5S_SCALAR);
+  if ( attrdat_id < 0 ) {
+    fprintf( stderr, "[write_h5_attribute] Error from H5Screate, status was %ld %s %d\n", attrdat_id, __FILE__, __LINE__ );
+    return(1);
+  }
+
+  hid_t type_id = H5Tcopy(H5T_C_S1);
+
+  H5Tset_size(type_id, strlen( info ) );
+
+  hid_t attr_id = H5Acreate2 ( file_id, attr_name, type_id, attrdat_id, H5P_DEFAULT, H5P_DEFAULT);
+  if ( attr_id < 0 ) {
+    fprintf( stderr, "[write_h5_attribute] Error from H5Acreate2, status was %ld %s %d\n", attr_id, __FILE__, __LINE__ );
+    return(1);
+  }
+
+  status = H5Awrite ( attr_id, type_id, info );
+  if ( status < 0 ) {
+    fprintf( stderr, "[write_h5_attribute] Error from H5Awrite, status was %d %s %d\n", status, __FILE__, __LINE__ );
+    return(1);
+  }
+
+  H5Aclose(attr_id);
+
+  H5Tclose(type_id);
+
+  H5Sclose(attrdat_id);
+
+  status = H5Fclose ( file_id );
+  if ( status < 0 ) {
+    fprintf( stderr, "[write_h5_attribute] Error from H5Awrite, status was %d %s %d\n", status, __FILE__, __LINE__ );
+    return(1);
+  }
+
+  return (0);
+}  /* end of write_h5_attribute */
+
+
+
+/***************************************************************************
  * write contraction data to file
  *
  ***************************************************************************/
 
-int write_h5_contraction ( void * const contr, void * const awriter, void * const afilename, char * tag, unsigned int const nc, const char * data_type, const char * info ) {
+int write_h5_contraction ( void * const contr, void * const awriter, void * const afilename, char * tag, unsigned int const nc, const char * data_type ) {
 
   char * filename = (char *)afilename;
   if ( filename == NULL ) {
@@ -1083,26 +1137,8 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
   hid_t dataset_id = H5Dcreate (       loc_id,         dataset_name,       dtype_id,       space_id,       lcpl_id,       dcpl_id,       dapl_id );
 
   /***************************************************************************
-   * create attribute
+   * write the current data set
    ***************************************************************************/
-  if ( info != NULL ) {
-    const char * attr_name = "description";
-    hid_t attr_id = H5Acreate2( loc_id, attr_name, H5T_NATIVE_CHAR, space_id, H5P_DEFAULT, H5P_DEFAULT );
-    if ( attr_id < 0 ) {
-      fprintf ( stderr, "[write_h5_contraction] Error from H5Acreate2, status was %ld %s %d\n", attr_id, __FILE__, __LINE__ );
-      return ( 12 );
-    }
-
-    herr_t attr_err = H5Awrite ( attr_id, H5T_NATIVE_CHAR, info );
-    if ( attr_err != 0 ) {
-      fprintf ( stderr, "[write_h5_contraction] Error from H5AWrite, status was %d %s %d\n", attr_err, __FILE__, __LINE__ );
-      return ( 12 );
-    }
-  }
-
-      /***************************************************************************
-       * write the current data set
-       ***************************************************************************/
       /*
                hid_t dataset_id           IN: Identifier of the dataset to write to.
                hid_t mem_type_id          IN: Identifier of the memory datatype.
