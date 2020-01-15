@@ -378,11 +378,33 @@ int main(int argc, char **argv) {
    * write momentum configuration
    ***************************************************************************/
   if ( io_proc == 2 ) {
-    exitstatus = write_h5_contraction ( g_sink_momentum_list[0], NULL, output_filename, "/Momenta_list_xyz", 3*g_sink_momentum_number , "int" );
+
+    char message[1000];
+    strcpy( message, "<dirac_gamma_basis>tmlqcd</dirac_gamma_basis>" );
+    /* exitstatus = write_h5_contraction ( message, NULL, output_filename, "/decscription", strlen( message ), "char" );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[loop_invert_contract] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );;
+      EXIT( 54 );
+    } */
+
+    for ( int i = 0; i < g_sink_momentum_number; i++ ) {
+      g_sink_momentum_list[i][0] *= -1;
+      g_sink_momentum_list[i][1] *= -1;
+      g_sink_momentum_list[i][2] *= -1;
+    }
+
+    exitstatus = write_h5_contraction ( g_sink_momentum_list[0], NULL, output_filename, "/Momenta_list_xyz", 3*g_sink_momentum_number , "int" , message );
     if ( exitstatus != 0 ) {
       fprintf(stderr, "[loop_invert_contract] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );;
       EXIT( 54 );
     }
+
+    for ( int i = 0; i < g_sink_momentum_number; i++ ) {
+      g_sink_momentum_list[i][0] *= -1;
+      g_sink_momentum_list[i][1] *= -1;
+      g_sink_momentum_list[i][2] *= -1;
+    }
+
   }
 #endif
 
