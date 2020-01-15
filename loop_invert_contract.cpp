@@ -83,7 +83,7 @@ int main(int argc, char **argv) {
   int io_proc = -1;
   int check_propagator_residual = 0;
   size_t sizeof_spinor_field;
-  char filename[100];
+  char filename[300];
 
   struct timeval ta, tb, start_time, end_time;
 
@@ -379,30 +379,42 @@ int main(int argc, char **argv) {
    ***************************************************************************/
   if ( io_proc == 2 ) {
 
+    for ( int i = 0; i < g_sink_momentum_number; i++ ) {
+      g_sink_momentum_list[i][0] *= -1;
+      g_sink_momentum_list[i][1] *= -1;
+      g_sink_momentum_list[i][2] *= -1;
+    }
+
+    exitstatus = write_h5_contraction ( g_sink_momentum_list[0], NULL, output_filename, "/Momenta_list_xyz", 3*g_sink_momentum_number , "int" );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[loop_invert_contract] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );;
+      EXIT( 54 );
+    }
+
+    for ( int i = 0; i < g_sink_momentum_number; i++ ) {
+      g_sink_momentum_list[i][0] *= -1;
+      g_sink_momentum_list[i][1] *= -1;
+      g_sink_momentum_list[i][2] *= -1;
+    }
+
     char message[1000];
-    strcpy( message, "<dirac_gamma_basis>tmlqcd</dirac_gamma_basis>" );
-    /* exitstatus = write_h5_contraction ( message, NULL, output_filename, "/decscription", strlen( message ), "char" );
+    strcpy( message, "<dirac_gamma_basis>tmlqcd</dirac_gamma_basis>\n<noise_type>Z2xZ2</noise_type>" );
+    exitstatus = write_h5_attribute ( output_filename, "Description", message );
     if ( exitstatus != 0 ) {
-      fprintf(stderr, "[loop_invert_contract] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );;
-      EXIT( 54 );
-    } */
-
-    for ( int i = 0; i < g_sink_momentum_number; i++ ) {
-      g_sink_momentum_list[i][0] *= -1;
-      g_sink_momentum_list[i][1] *= -1;
-      g_sink_momentum_list[i][2] *= -1;
-    }
-
-    exitstatus = write_h5_contraction ( g_sink_momentum_list[0], NULL, output_filename, "/Momenta_list_xyz", 3*g_sink_momentum_number , "int" , message );
-    if ( exitstatus != 0 ) {
-      fprintf(stderr, "[loop_invert_contract] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );;
+      fprintf(stderr, "[loop_invert_contract] Error from write_h5_attribute, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );;
       EXIT( 54 );
     }
-
-    for ( int i = 0; i < g_sink_momentum_number; i++ ) {
-      g_sink_momentum_list[i][0] *= -1;
-      g_sink_momentum_list[i][1] *= -1;
-      g_sink_momentum_list[i][2] *= -1;
+    sprintf( message, "<kappa>%.8f</kappa>\n<mu>%.8f</mu>\n<Csw>%.8f</Csw>", g_kappa, g_mu, g_csw );
+    exitstatus = write_h5_attribute ( output_filename, "Ensemble-info", message );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[loop_invert_contract] Error from write_h5_attribute, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );;
+      EXIT( 54 );
+    }
+    sprintf( message, "<count>%d</count\n<phase_sign>%s</phase_sign>", g_sink_momentum_number, "-1" );
+    exitstatus = write_h5_attribute ( output_filename, "Momenta", message );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[loop_invert_contract] Error from write_h5_attribute, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );;
+      EXIT( 54 );
     }
 
   }
