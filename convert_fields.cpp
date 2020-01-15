@@ -345,7 +345,7 @@ int main(int argc, char **argv) {
   for ( int i = 0; i < nsc; i++ ) {
     if ( g_write_propagator ) {
       if ( g_source_type == 0 ) {
-        sprintf ( filename, "source.%c.%.4d.t%dx%dy%dz%d.%.2d.inverted", flavor_tag, Nconf,
+        sprintf ( filename, "%s.%c.%.4d.t%dx%dy%dz%d.%.2d.inverted", filename_prefix2, flavor_tag, Nconf,
             g_source_coords_list[0][0], g_source_coords_list[0][1], g_source_coords_list[0][2], g_source_coords_list[0][3], i );
       } else if ( g_source_type == 1 ) {
         sprintf ( filename, "prop.%c.%.4d.%.5d", flavor_tag, Nconf, i );
@@ -380,10 +380,10 @@ int main(int argc, char **argv) {
     if ( g_write_source ) {
 
       if ( g_source_type == 0 ) {
-        sprintf ( filename, "source.%c.%.4d.t%dx%dy%dz%d.%.2d.ascii", flavor_tag, Nconf, 
+        sprintf ( filename, "%s.%c.%.4d.t%dx%dy%dz%d.%.2d.ascii", filename_prefix2, flavor_tag, Nconf, 
             g_source_coords_list[0][0], g_source_coords_list[0][1], g_source_coords_list[0][2], g_source_coords_list[0][3], i );
       } else if ( g_source_type == 1 ) {
-        sprintf ( filename, "source.%c.%.4d.%.5d.ascii", flavor_tag, Nconf, i );
+        sprintf ( filename, "%s.%c.%.4d.%.5d.ascii", filename_prefix, flavor_tag, Nconf, i );
       }
 
       FILE * ffs = fopen( filename, "w" );
@@ -393,10 +393,10 @@ int main(int argc, char **argv) {
         EXIT(9);
       }
       fclose ( ffs );
-#if 0
-#endif
+
+
       if ( g_source_type == 1 ) {
-        sprintf ( filename, "source.%c.%.4d.%.5d", flavor_tag, Nconf, i );
+        sprintf ( filename, "%s.%c.%.4d.%.5d", filename_prefix2, flavor_tag, Nconf, i );
         exitstatus = write_propagator ( spinor_field[i],  filename, 0, g_propagator_precision );
         if( exitstatus != 0 ) {
           fprintf(stderr, "[convert_fields] Error from write_propagator for file %s, status was %d %s %d\n", filename, exitstatus, __FILE__, __LINE__ );
@@ -408,7 +408,7 @@ int main(int argc, char **argv) {
         for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
           _fv_cvc_eq_convert_fv_ukqcd ( spinor_field[i]+_GSI(ix) , spinor_field[i]+_GSI(ix) );
         }
-        sprintf ( filename, "source.%c.%.4d.%.5d.orig.ascii", flavor_tag, Nconf, i );
+        sprintf ( filename, "%s.%c.%.4d.%.5d.orig.ascii", filename_prefix2, flavor_tag, Nconf, i );
         ffs = fopen( filename, "w" );
         exitstatus = printf_spinor_field( spinor_field[i], 0, ffs);
         if( exitstatus != 0 ) {
@@ -416,7 +416,7 @@ int main(int argc, char **argv) {
           EXIT(9);
         }
         fclose ( ffs );
-        sprintf ( filename, "source.%c.%.4d.%.5d.orig", flavor_tag, Nconf, i );
+        sprintf ( filename, "%s.%c.%.4d.%.5d.orig", filename_prefix2, flavor_tag, Nconf, i );
         exitstatus = write_propagator ( spinor_field[i],  filename, 0, g_propagator_precision );
         if( exitstatus != 0 ) {
           fprintf(stderr, "[convert_fields] Error from write_propagator for file %s, status was %d %s %d\n", filename, exitstatus, __FILE__, __LINE__ );
