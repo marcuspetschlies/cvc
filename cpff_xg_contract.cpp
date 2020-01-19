@@ -289,6 +289,7 @@ int main(int argc, char **argv) {
     EXIT(48);
   }
 
+#if 0
 
   /***************************************************************************
    * gluonic operators from field strength tensor
@@ -344,9 +345,10 @@ int main(int argc, char **argv) {
     EXIT(48);
   }
 
-  fini_2level_dtable ( &pl );
   fini_3level_dtable ( &Gp );
   fini_3level_dtable ( &Gr );
+#endif
+  fini_2level_dtable ( &pl );
 
   /***********************************************
    * smear and calculate operators
@@ -449,6 +451,7 @@ int main(int argc, char **argv) {
     gettimeofday ( &tb, (struct timezone *)NULL );
     show_time ( &ta, &tb, "cpff_xg_contract", "write-to-file", io_proc==2 );
 
+#if 0
     /***************************************************************************
      * gluonic operators from elements of field strength tensor
      ***************************************************************************/
@@ -505,7 +508,7 @@ int main(int argc, char **argv) {
 
     fini_3level_dtable ( &Gp );
     fini_3level_dtable ( &Gr );
-
+#endif
 
     fini_2level_dtable ( &pl2 );
     
@@ -518,9 +521,6 @@ int main(int argc, char **argv) {
    * free the allocated memory, finalize
    ***************************************************************************/
   free ( gauge_field_smeared_ptr );
-  clover_term_fini ( &g_clover );
-
-  /* free clover matrix terms */
 
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
   const char * aff_status_str = (char*)aff_writer_close (affw);
@@ -528,9 +528,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[cpff_xg_contract] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
     return(32);
   }
-
 #endif
-
 
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   free(g_gauge_field);
