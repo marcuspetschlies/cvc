@@ -861,7 +861,7 @@ int write_vdag_gloc_v_to_file ( double _Complex ***** vv, int const nv, int cons
 
         struct AffNode_s * affdir = aff_writer_mkpath ( affw, affn, key );
         if ( affdir == NULL ) {
-          fprintf ( stderr, "[write_vdag_gloc_v_to_file] Error from aff_writer_mkpath %d %s %d\n", __FILE__, __LINE__);
+          fprintf ( stderr, "[write_vdag_gloc_v_to_file] Error from aff_writer_mkpath %s %d\n", __FILE__, __LINE__);
           return(5);
         }
 
@@ -890,6 +890,60 @@ int write_vdag_gloc_v_to_file ( double _Complex ***** vv, int const nv, int cons
 /***************************************************************************/
 
 #ifdef HAVE_HDF5
+
+/***************************************************************************
+ * write attribute
+ *
+ ***************************************************************************/
+int write_h5_attribute ( const char * filename, const char * attr_name, const char * info ) {
+
+  herr_t status;
+
+  /* hid_t obj_id = H5Oopen ( , , ); */
+  hid_t file_id = H5Fopen ( filename, H5F_ACC_RDWR, H5P_DEFAULT );
+  if ( file_id < 0 ) {
+    fprintf( stderr, "[write_h5_attribute] Error from H5FOpen, status was %ld %s %d\n", file_id, __FILE__, __LINE__ );
+    return(1);
+  }
+
+  hid_t attrdat_id = H5Screate(H5S_SCALAR);
+  if ( attrdat_id < 0 ) {
+    fprintf( stderr, "[write_h5_attribute] Error from H5Screate, status was %ld %s %d\n", attrdat_id, __FILE__, __LINE__ );
+    return(1);
+  }
+
+  hid_t type_id = H5Tcopy(H5T_C_S1);
+
+  H5Tset_size(type_id, strlen( info ) );
+
+  hid_t attr_id = H5Acreate2 ( file_id, attr_name, type_id, attrdat_id, H5P_DEFAULT, H5P_DEFAULT);
+  if ( attr_id < 0 ) {
+    fprintf( stderr, "[write_h5_attribute] Error from H5Acreate2, status was %ld %s %d\n", attr_id, __FILE__, __LINE__ );
+    return(1);
+  }
+
+  status = H5Awrite ( attr_id, type_id, info );
+  if ( status < 0 ) {
+    fprintf( stderr, "[write_h5_attribute] Error from H5Awrite, status was %d %s %d\n", status, __FILE__, __LINE__ );
+    return(1);
+  }
+
+  H5Aclose(attr_id);
+
+  H5Tclose(type_id);
+
+  H5Sclose(attrdat_id);
+
+  status = H5Fclose ( file_id );
+  if ( status < 0 ) {
+    fprintf( stderr, "[write_h5_attribute] Error from H5Awrite, status was %d %s %d\n", status, __FILE__, __LINE__ );
+    return(1);
+  }
+
+  return (0);
+}  /* end of write_h5_attribute */
+
+
 
 /***************************************************************************
  * write contraction data to file
@@ -954,31 +1008,19 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
     if ( g_verbose > 0 ) fprintf ( stdout, "# [write_h5_contraction] file_id = %ld\n", file_id );
 
     /***************************************************************************
-     * H5 data space and data type
-     ***************************************************************************/
-    hid_t dtype_id = H5Tcopy( H5T_NATIVE_DOUBLE );
-    status = H5Tset_order ( dtype_id, H5T_ORDER_LE );
-    /* big_endian() ?  H5T_IEEE_F64BE : H5T_IEEE_F64LE; */
-
-    hsize_t dims[1];
-    dims[0] = nc;    /* number of double elements */
-
-    /*
-               int rank                             IN: Number of dimensions of dataspace.
-               const hsize_t * current_dims         IN: Array specifying the size of each dimension.
-               const hsize_t * maximum_dims         IN: Array specifying the maximum size of each dimension.
-               hid_t H5Screate_simple( int rank, const hsize_t * current_dims, const hsize_t * maximum_dims )
-     */
-    hid_t space_id = H5Screate_simple(        1,                         dims,                          NULL);
-
-    /***************************************************************************
      * some default settings for H5Dwrite
      ***************************************************************************/
+    hid_t dtype_id;
     hid_t mem_type_id;
     if ( strcmp( data_type , "double" ) == 0 ) {
+      dtype_id = H5Tcopy( H5T_NATIVE_DOUBLE );
       mem_type_id   = H5T_NATIVE_DOUBLE;
     } else if ( strcmp( data_type , "int" ) == 0 ) {
+      dtype_id = H5Tcopy( H5T_NATIVE_INT );
       mem_type_id   = H5T_NATIVE_INT;
+    } else if ( strcmp( data_type , "char" ) == 0 ) {
+      dtype_id = H5Tcopy( H5T_NATIVE_CHAR );
+      mem_type_id   = H5T_NATIVE_CHAR;
     } else {
       fprintf ( stdout, "[write_h5_contraction] Error, unrecognized data_type %s %s %d\n", data_type, __FILE__, __LINE__ );
       return ( 8 );
@@ -992,6 +1034,23 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
     hid_t gcpl_id       = H5P_DEFAULT;
     hid_t gapl_id       = H5P_DEFAULT;
     /* size_t size_hint    = 0; */
+
+    /***************************************************************************
+     * H5 data space and data type
+     ***************************************************************************/
+    status = H5Tset_order ( dtype_id, H5T_ORDER_LE );
+    /* big_endian() ?  H5T_IEEE_F64BE : H5T_IEEE_F64LE; */
+
+    hsize_t dims[1];
+    dims[0] = nc;    /* number of double elements */
+
+    /*
+               int rank                             IN: Number of dimensions of dataspace.
+               const hsize_t * current_dims         IN: Array specifying the size of each dimension.
+               const hsize_t * maximum_dims         IN: Array specifying the maximum size of each dimension.
+               hid_t H5Screate_simple( int rank, const hsize_t * current_dims, const hsize_t * maximum_dims )
+     */
+    hid_t space_id = H5Screate_simple(        1,                         dims,                          NULL);
 
   /***************************************************************************
    * create the target (sub-)group and all
@@ -1077,9 +1136,9 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
   /* hid_t dataset_id = H5Dcreate (       loc_id,             tag,       dtype_id,       space_id,       lcpl_id,       dcpl_id,       dapl_id ); */
   hid_t dataset_id = H5Dcreate (       loc_id,         dataset_name,       dtype_id,       space_id,       lcpl_id,       dcpl_id,       dapl_id );
 
-      /***************************************************************************
-       * write the current data set
-       ***************************************************************************/
+  /***************************************************************************
+   * write the current data set
+   ***************************************************************************/
       /*
                hid_t dataset_id           IN: Identifier of the dataset to write to.
                hid_t mem_type_id          IN: Identifier of the memory datatype.

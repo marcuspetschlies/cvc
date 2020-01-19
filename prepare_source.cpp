@@ -141,7 +141,7 @@ int prepare_volume_source ( double * const s, unsigned int const V) {
 
   return(status);
 }  /* end of prepare_volume_source */
-#endif  /* if 0 */
+#endif  /* of if 0 */
 
 /*********************************************************/
 /*********************************************************/

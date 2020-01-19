@@ -83,7 +83,7 @@ int main(int argc, char **argv) {
   int io_proc = -1;
   int check_propagator_residual = 0;
   size_t sizeof_spinor_field;
-  char filename[100];
+  char filename[300];
 
   struct timeval ta, tb, start_time, end_time;
 
@@ -357,13 +357,12 @@ int main(int argc, char **argv) {
     EXIT(48);
   }
 
-
   /***************************************************************************
    * initialize rng state
    ***************************************************************************/
-  exitstatus = init_rng_state ( g_seed, &rng_state);
+  exitstatus = init_rng_stat_file ( g_seed, NULL );
   if ( exitstatus != 0 ) {
-    fprintf(stderr, "[loop_invert_contract] Error from init_rng_state %s %d\n", __FILE__, __LINE__ );;
+    fprintf(stderr, "[loop_invert_contract] Error from init_rng_stat_file %s %d\n", __FILE__, __LINE__ );;
     EXIT( 50 );
   }
 
@@ -378,10 +377,46 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * write momentum configuration
    ***************************************************************************/
-  exitstatus = write_h5_contraction ( g_sink_momentum_list[0], NULL, output_filename, "/Momenta_list_xyz", 3*g_sink_momentum_number , "int" );
-  if ( exitstatus != 0 ) {
-    fprintf(stderr, "[loop_invert_contract] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );;
-    EXIT( 54 );
+  if ( io_proc == 2 ) {
+
+    for ( int i = 0; i < g_sink_momentum_number; i++ ) {
+      g_sink_momentum_list[i][0] *= -1;
+      g_sink_momentum_list[i][1] *= -1;
+      g_sink_momentum_list[i][2] *= -1;
+    }
+
+    exitstatus = write_h5_contraction ( g_sink_momentum_list[0], NULL, output_filename, "/Momenta_list_xyz", 3*g_sink_momentum_number , "int" );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[loop_invert_contract] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );;
+      EXIT( 54 );
+    }
+
+    for ( int i = 0; i < g_sink_momentum_number; i++ ) {
+      g_sink_momentum_list[i][0] *= -1;
+      g_sink_momentum_list[i][1] *= -1;
+      g_sink_momentum_list[i][2] *= -1;
+    }
+
+    char message[1000];
+    strcpy( message, "<dirac_gamma_basis>tmlqcd</dirac_gamma_basis>\n<noise_type>Z2xZ2</noise_type>" );
+    exitstatus = write_h5_attribute ( output_filename, "Description", message );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[loop_invert_contract] Error from write_h5_attribute, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );;
+      EXIT( 54 );
+    }
+    sprintf( message, "<kappa>%.8f</kappa>\n<mu>%.8f</mu>\n<Csw>%.8f</Csw>", g_kappa, g_mu, g_csw );
+    exitstatus = write_h5_attribute ( output_filename, "Ensemble-info", message );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[loop_invert_contract] Error from write_h5_attribute, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );;
+      EXIT( 54 );
+    }
+    sprintf( message, "<count>%d</count\n<phase_sign>%s</phase_sign>", g_sink_momentum_number, "-1" );
+    exitstatus = write_h5_attribute ( output_filename, "Momenta", message );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[loop_invert_contract] Error from write_h5_attribute, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );;
+      EXIT( 54 );
+    }
+
   }
 #endif
 
@@ -389,18 +424,6 @@ int main(int argc, char **argv) {
    * loop on stochastic oet samples
    ***************************************************************************/
   for ( int isample = 0; isample < g_nsample; isample++ ) {
-
-    /***************************************************************************
-     * synchronize rng states to state at zero
-     *
-     * This should not be neccessary!
-     ***************************************************************************/
-    /*
-    exitstatus = sync_rng_state ( rng_state, 0, 0 );
-    if(exitstatus != 0) {
-      fprintf(stderr, "[loop_invert_contract] Error from sync_rng_state, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(38);
-    } */
 
     /***************************************************************************
      * read stochastic oet source from file
@@ -431,21 +454,6 @@ int main(int argc, char **argv) {
     }  /* end of if read stochastic source - else */
 
     /***************************************************************************
-     * retrieve current rng state and 0 writes his state
-     ***************************************************************************/
-    exitstatus = get_rng_state ( rng_state );
-    if(exitstatus != 0) {
-      fprintf(stderr, "[loop_invert_contract] Error from get_rng_state, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(38);
-    }
-
-    exitstatus = save_rng_state ( 0, NULL );
-    if ( exitstatus != 0 ) {
-      fprintf(stderr, "[loop_invert_contract] Error from save_rng_state, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );;
-      EXIT(38);
-    }
-
-    /***************************************************************************
      * invert for stochastic propagator
      *   up flavor
      ***************************************************************************/
@@ -474,21 +482,18 @@ int main(int argc, char **argv) {
       }
     }
 
-    gettimeofday ( &ta, (struct timezone *) NULL );
-
     /***************************************************************************
-     *
-     * contraction for local loops using std one-end-trick
-     *
-     ***************************************************************************/
-
-    /***************************************************************************
-     * multiply stochastic propagator with g5 for oet
-     * add factor -1 for Wick contraction
+     * multiply stochastic propagator with g5 for oet,
+     * used for both std and gen oet
      ***************************************************************************/
     memcpy ( stochastic_propagator_g5, stochastic_propagator, sizeof_spinor_field );
     g5_phi ( stochastic_propagator_g5, VOLUME );
-    spinor_field_ti_eq_re ( stochastic_propagator_g5, -1., VOLUME );
+
+    /***************************************************************************
+     *
+     * CONTRACTION FOR LOCAL LOOPS USING STD ONE-END-TRICK
+     *
+     ***************************************************************************/
 
     /***************************************************************************
      * group name for contraction
@@ -504,18 +509,10 @@ int main(int argc, char **argv) {
       EXIT(44);
     }
 
-#if 0
-    for ( int it = 0; it < T; it++ ) {
-      for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
-        for ( int ic = 0; ic < 16; ic++ ) {
-          fprintf ( stdout, "tp %3d   %3d %3d %3d   %d %d   %25.16e %25.16e\n",
-              it+g_proc_coords[0]*T,
-              g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
-              ic/4, ic%4, loop[it][imom][2*ic], ic/4, ic%4, loop[it][imom][2*ic+1] );
-        }
-      }
-    }
-#endif  /* of if 0 */
+    /***************************************************************************
+     * factor -1 for STD-OET
+     ***************************************************************************/
+    complex_field_ti_eq_re ( loop[0][0], -1., T * g_sink_momentum_number * 16 );
 
     /***************************************************************************
      * write contraction to file
@@ -530,11 +527,19 @@ int main(int argc, char **argv) {
       EXIT(44);
     }
 
+    /***************************************************************************
+     *
+     * CONTRACTION FOR LOCAL LOOPS USING GEN ONE-END-TRICK
+     *
+     ***************************************************************************/
+
 
     /***************************************************************************
      * apply Wilson Dirac operator
      * multiply by g5
      ***************************************************************************/
+
+    gettimeofday ( &ta, (struct timezone *) NULL );
 
     /* decompose lexic stochastic_propagator into even/odd eo_spinor_work */
     spinor_field_lexic2eo ( stochastic_propagator, eo_spinor_work[0], eo_spinor_work[1] );
@@ -549,12 +554,6 @@ int main(int argc, char **argv) {
 
     show_time ( &ta, &tb, "loop_invert_contract", "DW", io_proc == 2 );
  
-    /***************************************************************************
-     *
-     * contraction for local loops using gen one-end-trick
-     *
-     ***************************************************************************/
-
     /***************************************************************************
      * group name for contraction
      ***************************************************************************/
@@ -581,7 +580,6 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[loop_invert_contract] Error from contract_loop_write_to_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(44);
     }
-
 
 #if 0
 

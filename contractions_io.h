@@ -43,6 +43,8 @@ int read_from_h5_file ( void * const buffer, void * file, char*tag,  int const i
 
 int write_h5_contraction ( void * const contr, void * const awriter, void * const afilename, char * tag, unsigned int const nc, const char * data_type );
 
+int write_h5_attribute ( const char * filename, const char * attr_name, const char * info );
+
 #endif
 
 int write_vdag_gloc_v_to_file ( double _Complex ***** vv, int const nv, int const momentum_number, int  (* const momentum_list)[3] , int const gamma_id_number, int * const gamma_id_list, void * writer, void * file, char * tag , int const io_proc );

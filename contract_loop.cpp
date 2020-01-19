@@ -459,7 +459,7 @@ int contract_loop_write_to_h5_file (double *** const loop, void * file, char*tag
      ***************************************************************************/
     gettimeofday ( &tb, (struct timezone *)NULL );
   
-    show_time ( &ta, &tb, "contract_loop_write_to_h5_file", "write h5", 1 );
+    show_time ( &ta, &tb, "contract_loop_write_to_h5_file", "write h5", io_proc == 2 );
 
   }  /* end of of if io_proc > 0 */
   

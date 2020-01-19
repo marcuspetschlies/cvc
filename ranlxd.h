@@ -1,7 +1,7 @@
 
 namespace cvc {
 
-extern void ranlxd(double r[],int n);
+extern void ranlxd(double r[], unsigned int n);
 extern void rlxd_init(int level,int seed);
 extern int rlxd_size(void);
 extern void rlxd_get(int state[]);

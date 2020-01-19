@@ -7944,11 +7944,27 @@ int gluonic_operators ( double ** op, double * const gfield ) {
 
 /****************************************************************************/
 /****************************************************************************/
-#if 0
+
 /****************************************************************************
  * operators for gluon momentum fraction
+ * calculated from gluon field strength tensor G
+ *
+ * 6 components of G expected; each 3x3 complex matrix
+ * 
+ * G_{0,1}  G_{0,2}   G_{0,3}   G_{1,2}   G_{1,3}   G_{2,3}
+ *   0        1         2         3         4         5
+ *
+ * further we asume anti-symmetry in mu, nu
+ * G_{1,0} = - G_{0,1}
+ * G_{2,0} = - G_{0,2}
+ * G_{3,0} = - G_{0,3}
+ * G_{2,1} = - G_{1,2}
+ * G_{3,1} = - G_{1,3}
+ * G_{3,2} = - G_{2,3}
+ *
+ * diagonal elements are zero
  ****************************************************************************/
-int gluonic_operators_eo_from_fst ( double ** op, double ** const fst ) {
+int gluonic_operators_eo_from_fst ( double ** op, double *** const G ) {
 
   unsigned int const VOL3 = LX * LY * LZ;
   double ** pl = init_2level_dtable ( T, 2 );
@@ -7978,22 +7994,19 @@ int gluonic_operators_eo_from_fst ( double ** op, double ** const fst ) {
 
       unsigned int const ix = it * VOL3 + iy;
 
-      unsigned int const ixeo = g_lexic2eosub[ix];
-      int const ieo = 1 - g_iseven[ix];
-
       /* for O44 : G_{0,1} G_{1,0} + G_{0,2} G_{2,0} + G_{0,3} G_{3,0} 
        * indices        0       0         1       1         2       2  */
 
       for ( int nu = 0; nu < 3; nu++ ) {
-        _cm_eq_cm_ti_cm ( s, fst[ieo] + _GSWI( ixeo, nu), fst + _GSWI( ixeo, nu)] );
+        _cm_eq_cm_ti_cm ( s, G[ix][nu], G[ix][nu] );
         _re_pl_eq_tr_cm ( &(pl_tmp[0]), s );
       }
 
       /* for Okk : G_{1,2} G_{1,2} + G_{1,2} G_{1,2} + G_{1,2} G_{1,2} 
        * indices        3       3         4       4         5       5 */
       for ( int nu = 3; nu<6; nu++) {
-        _cm_eq_cm_ti_cm ( s, fst[ieo] + _GSWI( ixeo, nu), fst[ieo] + _GSWI( ixeo, nu)] );
-        _re_pl_eq_tr_cm ( &(pl_tmp[0]), s );
+        _cm_eq_cm_ti_cm ( s, G[ix][nu], G[ix][nu] );
+        _re_pl_eq_tr_cm ( &(pl_tmp[1]), s );
       }
     }
 
@@ -8039,5 +8052,6 @@ int gluonic_operators_eo_from_fst ( double ** op, double ** const fst ) {
   return( 0 );
 
 }  /* end of gluonic_operators_from_fst */
+#if 0
 #endif
 }  /* end of namespace cvc */
