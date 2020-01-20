@@ -570,11 +570,22 @@ int main(int argc, char **argv) {
           continue;
         }
 
+        double ** data = init_2level_dtable ( num_conf, T_global );
+        if ( data == NULL ) {
+          fprintf ( stderr, "[xg_exdefl_analyse] Error from init_Xlevel_dtable %s %d\n",  __FILE__, __LINE__ );
+          EXIT(1);
+        }
+
+#pragma omp parallel
+        for ( int i = 0; i < num_conf * T_global; i++ ) {
+          data[0][i] = twop_orbit[0][2*i+ireim];
+        }
+
         char obs_name[200];
         sprintf( obs_name, "%s.%s", obs_name_prefix, reim_str[ireim] );
 
         /* apply UWerr analysis */
-        exitstatus = apply_uwerr_real ( twop_orbit[0], num_conf, T_global, 0, 1, obs_name );
+        exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
         if ( exitstatus != 0 ) {
           fprintf ( stderr, "[xg_exdefl_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(1);
@@ -592,13 +603,14 @@ int main(int argc, char **argv) {
 
           sprintf ( obs_name, "%s.acosh_ratio.tau%d.%s", obs_name_prefix, itau, reim_str[ireim] );
 
-          exitstatus = apply_uwerr_func ( twop_orbit[0], num_conf, T_global, nT, narg, arg_first, arg_stride, obs_name, acosh_ratio, dacosh_ratio );
+          exitstatus = apply_uwerr_func ( data[0], num_conf, T_global, nT, narg, arg_first, arg_stride, obs_name, acosh_ratio, dacosh_ratio );
           if ( exitstatus != 0 ) {
             fprintf ( stderr, "[xg_exdefl_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(115);
           }
         }  /* end of loop on tau */
 
+        fini_2level_dtable ( &data );
       }  /* end of loop on reim */
 
     }  /* end of loop on evecs use accum steps */
@@ -640,7 +652,7 @@ int main(int argc, char **argv) {
        ***********************************************************/
       struct AffNode_s *affn = NULL, *affdir = NULL;
   
-      sprintf ( filename, "%s/stream_%c/%d/cpff.xg.%d.aff", filename_prefix2, conf_src_list[iconf][0][0], conf_src_list[iconf][0][1], conf_src_list[iconf][0][1] );
+      sprintf ( filename, "%s/stream_%c/%d/cpff.xg.%d.aff", filename_prefix3, conf_src_list[iconf][0][0], conf_src_list[iconf][0][1], conf_src_list[iconf][0][1] );
   
       fprintf(stdout, "# [xg_exdefl_analyse] reading data from file %s\n", filename);
       affr = aff_reader ( filename );
@@ -795,30 +807,29 @@ int main(int argc, char **argv) {
      *
      **********************************************************/
   
+    /**********************************************************
+     * loop on number of evecs
+     **********************************************************/
+    for ( int inev = 0; inev  < evecs_num_nstep ; inev++ ) {
+
       /**********************************************************
        * loop on source - sink time separations
        **********************************************************/
-      for ( int idt = 0; idt < g_sequential_source_timeslice_number; idt++ ) {
+      for ( int idt = 0; idt < T_global/2; idt++ ) {
     
-        double **** threep_44 = init_4level_dtable ( num_conf, num_src_per_conf, T_global, 2 ) ;
+        double ** threep_44 = init_2level_dtable ( num_conf, T_global ) ;
         if ( threep_44 == NULL ) {
-          fprintf ( stderr, "[xg_exdefl_analyse] Error from init_4level_dtable %s %d\n", __FILE__, __LINE__ );
+          fprintf ( stderr, "[xg_exdefl_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
           EXIT(1);
         }
     
 #pragma omp parallel for
         for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-          for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-    
-            /* sink time = source time + dt  */
-            /* int const tsink  = (  g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global; */
-            int const tsink  = (  g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
-            /* sink time with time reversal = source time - dt  */
-            /* int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global; */
-            int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
-    
-            /* if ( g_verbose > 4 ) fprintf ( stdout, "# [xg_exdefl_analyse] t_src %3d   dt %3d   tsink %3d tsink2 %3d\n", conf_src_list[iconf][isrc][2],
-                g_sequential_source_timeslice_list[idt], tsink, tsink2 ); */
+
+          for ( int tsrc = 0; tsrc < T_global; tsrc++ ) {
+            
+            int const tsnk1 = ( tsrc + idt + T_global ) % T_global;
+            int const tsnk2 = ( tsrc - idt + T_global ) % T_global;
     
             /**********************************************************
              * !!! LOOK OUT:
@@ -826,52 +837,22 @@ int main(int argc, char **argv) {
              **********************************************************/
             for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
     
-#if 0
-              double const mom[3] = { 
-                  2 * M_PI * g_sink_momentum_list[imom][0] / (double)LX_global,
-                  2 * M_PI * g_sink_momentum_list[imom][1] / (double)LY_global,
-                  2 * M_PI * g_sink_momentum_list[imom][2] / (double)LZ_global };
-#endif
-              /* twop values 
-               * a = meson 1 at +mom
-               */
-              double const a_fwd[2] = { twop[imom][iconf][isrc][0][tsink ][0], twop[imom][iconf][isrc][0][tsink ][1] };
-              double const a_bwd[2] = { twop[imom][iconf][isrc][0][tsink2][0], twop[imom][iconf][isrc][0][tsink2][1] };
+              const double a[2] = { twop[imom][iconf][inev][tsrc][2*(tsnk1)  ], twop[imom][iconf][inev][tsrc][2*(tsnk1)+1] };
+              const double b[2] = { twop[imom][iconf][inev][tsrc][2*(tsnk2)  ], twop[imom][iconf][inev][tsrc][2*(tsnk2)+1] };
 
-              double const b_fwd[2] = { twop[imom][iconf][isrc][1][tsink ][0], twop[imom][iconf][isrc][1][tsink ][1] };
-              double const b_bwd[2] = { twop[imom][iconf][isrc][1][tsink2][0], twop[imom][iconf][isrc][1][tsink2][1] };
-    
-              /* loop on insertion times */
               for ( int it = 0; it < T_global; it++ ) {
     
-                /* fwd 1 insertion time = source time      + it */
-                int const tins_fwd_1 = (  it + conf_src_list[iconf][isrc][2]                                           + T_global ) % T_global;
+                int const tins1 (  tsrc + it + T_global ) % T_global;
+                int const tins2 (  tsrc - it + T_global ) % T_global;
     
-                /* fwd 2 insertion time = source time + dt - it */
-                int const tins_fwd_2 = ( -it + conf_src_list[iconf][isrc][2] + g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
-    
-                /* bwd 1 insertion time = source time      - it */
-                int const tins_bwd_1 = ( -it + conf_src_list[iconf][isrc][2]                                           + T_global ) % T_global;
-    
-                /* bwd 2 insertion time = source time - dt + it */
-                int const tins_bwd_2 = (  it + conf_src_list[iconf][isrc][2] - g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
-    
-                if ( g_verbose > 2 ) fprintf ( stdout, "# [avxn_average] insertion times tsrc %3d    dt %3d    tc %3d    tins %3d %3d %3d %3d\n",
-                    conf_src_list[iconf][isrc][2], g_sequential_source_timeslice_list[idt], it,
-                    tins_fwd_1, tins_fwd_2, tins_bwd_1, tins_bwd_2 );
+                if ( g_verbose > 2 ) fprintf ( stdout, "# [avxn_average] insertion times tsrc %3d    dt %3d    tc %3d    tins %3d %3d\n", tsrc, idt, it, tins1, tins2 );
     
                 /**********************************************************
                  * O44, real parts only
                  **********************************************************/
-#if 0
-                threep_44[iconf][isrc][it][0] += ( 
-                        ( a_fwd[0] + b_fwd[0] ) * ( loop_sub[iconf][tins_fwd_1] + loop_sub[iconf][tins_fwd_2] ) 
-                      + ( a_bwd[0] + b_bwd[0] ) * ( loop_sub[iconf][tins_bwd_1] + loop_sub[iconf][tins_bwd_2] )
-                    ) * 0.125;
-#endif
 
-                threep_44[iconf][isrc][it][0] += ( 
-                        ( a_fwd[0] + b_fwd[0] ) * ( loop_sub[iconf][tins_fwd_1] + loop_sub[iconf][tins_fwd_2] ) 
+                threep_44[iconf][isrc][it] += ( 
+                        ( a[0] + b[0] ) * ( loop_sub[iconf][tins1] + loop_sub[iconf][tins_fwd_2] ) 
                     ) * 0.25;
     
               }  /* end of loop on it */

@@ -124,12 +124,13 @@ int dlog_ratio_1_1(void *param , void *v_in, double *v_out) {
  ********************************************************/
 int acosh_ratio ( void * param , void * v_in, double * v_out) {
  
-  int * trange = (int*)v_in;
-  int zaehler1 = trange[0];
-  int zaehler2 = trange[1];
-  int nenner   = trange[2];
+  const int * trange = (int*)v_in;
+  const int zaehler1 = trange[0];
+  const int zaehler2 = trange[1];
+  const int nenner   = trange[2];
+  const int tau = zaehler2 - nenner;
 
-  *v_out = acosh( ( ((double*)param)[zaehler1] + ((double*)param)[zaehler2] ) / ((double*)param)[nenner] * 0.5 );
+  *v_out = acosh( ( ((double*)param)[zaehler1] + ((double*)param)[zaehler2] ) / ((double*)param)[nenner] * 0.5 ) / (double)tau;
   return(0);
 }  /* end of acosh_ratio */
 
@@ -138,13 +139,14 @@ int acosh_ratio ( void * param , void * v_in, double * v_out) {
  ********************************************************/
 int dacosh_ratio ( void *param , void *v_in, double *v_out) {
 
-  int *trange = (int*)v_in;
-  int zaehler1 = trange[0];
-  int zaehler2 = trange[1];
-  int nenner   = trange[2];
+  const int *trange = (int*)v_in;
+  const int zaehler1 = trange[0];
+  const int zaehler2 = trange[1];
+  const int nenner   = trange[2];
+  const int tau = zaehler2 - nenner;
 
   double const x =  ( ((double*)param)[zaehler1] + ((double*)param)[zaehler2] ) / ((double*)param)[nenner] * 0.5;
-  double const dacoshx = 1. / sqrt( x*x - 1. );
+  double const dacoshx = 1. / sqrt( x*x - 1. ) / (double)tau;
 
   /* derivative w.r.t. zaehler1 */
   v_out[zaehler1] =  0.5 / ((double*)param)[nenner] * dacoshx;
