@@ -44,14 +44,12 @@
 #define _SQR(_a) ((_a)*(_a))
 #endif
 
-#undef _LOOP_ANALYSIS
+#define _LOOP_ANALYSIS
 
 #define _XG_PION
 #undef _XG_NUCLEON
 
-#undef _RAT_METHOD
-#undef _FHT_METHOD_ALLT
-#undef _FHT_METHOD_ACCUM
+#define _RAT_METHOD
 
 #define _TWOP_STATS
 
@@ -508,7 +506,7 @@ int main(int argc, char **argv) {
      *
      **********************************************************/
 
-    double ** twop_orbit = init_2level_dtable ( num_conf, 2 * T_global  );
+    double **** twop_orbit = init_4level_dtable ( num_conf, evecs_use_nstep, T_global, 2 * T_global  );
     if( twop_orbit == NULL ) {
       fprintf ( stderr, "[xg_exdefl_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
       EXIT (24);
@@ -526,12 +524,12 @@ int main(int argc, char **argv) {
           for ( int it1 = 0; it1 < T_global; it1++ ) {
           for ( int it2 = 0; it2 < T_global; it2++ ) {
             int const idt = ( it1 - it2 + T_global ) % T_global;
-            twop_orbit[iconf][2*idt  ] += twop[imom][iconf][inev][it1][2*it2  ];
-            twop_orbit[iconf][2*idt+1] += twop[imom][iconf][inev][it1][2*it2+1];
+            twop_orbit[iconf][inev][it1][2*it2  ] += twop[imom][iconf][inev][it1][2*it2  ];
+            twop_orbit[iconf][inev][it1][2*it2+1] += twop[imom][iconf][inev][it1][2*it2+1];
           }}  /* end of loop on it1,2 */
         }  /* end of loop on imom */
-        for ( int it = 0; it < 2*T_global; it++ ) {
-          twop_orbit[iconf][it] /= (double)( g_sink_momentum_number * T_global );
+        for ( int it = 0; it < 2*T_global*T_global; it++ ) {
+          twop_orbit[iconf][0][0][it] /= (double)( g_sink_momentum_number * T_global );
         }
       }  /* end of loop on iconf */
 
@@ -540,22 +538,9 @@ int main(int argc, char **argv) {
        **********************************************************/
 
       char obs_name_prefix[200];
-      sprintf ( obs_name_prefix, "%s.twop-orbit.gf_%s.gi_%s.px%d_py%d_pz%d.nev%d", g_outfile_prefix, 
+      sprintf ( obs_name_prefix, "twop.orbit.src-avg.gf_%s.gi_%s.px%d_py%d_pz%d.nev%d", 
               gamma_id_to_ascii[ g_sink_gamma_id_list[igf] ], gamma_id_to_ascii[ g_source_gamma_id_list[igi] ],
               g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2], evecs_use_num );
-
-      if ( write_data == 1 ) {
-        sprintf ( filename, "%s.corr", obs_name_prefix );
-        FILE * ofs = fopen ( filename, "w" );
- 
-        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-          fprintf( ofs, "#  %c %6d\n", conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] );
-          for ( int it = 0; it < T_global; it++ ) {
-            fprintf ( ofs, "%25.16e%25.16e\n", twop_orbit[iconf][2*it], twop_orbit[iconf][2*it+1] );
-          }
-        }
-        fclose ( ofs );
-      }  /* end of if write data */
 
 #ifdef _TWOP_STATS
       /**********************************************************
@@ -563,7 +548,7 @@ int main(int argc, char **argv) {
        * STATISTICAL ANALYSIS
        * 
        **********************************************************/
-      for ( int ireim = 0; ireim <= 1; ireim++ ) {
+      for ( int ireim = 0; ireim < 1; ireim++ ) {
 
         if ( num_conf < 6 ) {
           fprintf ( stderr, "[xg_exdefl_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
@@ -576,9 +561,17 @@ int main(int argc, char **argv) {
           EXIT(1);
         }
 
-#pragma omp parallel
-        for ( int i = 0; i < num_conf * T_global; i++ ) {
-          data[0][i] = twop_orbit[0][2*i+ireim];
+#pragma omp parallel for
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for ( int it1 = 0; it1 < T_global; it1++ ) {
+          for ( int it2 = 0; it2 < T_global; it2++ ) {
+            int const idt = ( it2 - it1 + T_global ) % T_global;
+
+            data[iconf][idt] += twop_orbit[iconf][inev][it1][2*it2+ireim];
+          }}
+          for ( int it = 0; it < T_global; it++ ) {
+            data[iconf][it] /= (double)T_global;
+          }
         }
 
         char obs_name[200];
@@ -590,6 +583,19 @@ int main(int argc, char **argv) {
           fprintf ( stderr, "[xg_exdefl_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(1);
         }
+
+        if ( write_data == 1 ) {
+          sprintf ( filename, "%s.corr", obs_name_prefix );
+          FILE * ofs = fopen ( filename, "w" );
+ 
+          for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+            fprintf( ofs, "#  %c %6d\n", conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] );
+            for ( int it = 0; it < T_global; it++ ) {
+              fprintf ( ofs, "%25.16e%25.16e\n", twop_orbit[iconf][2*it], twop_orbit[iconf][2*it+1] );
+            }
+          }
+          fclose ( ofs );
+        }  /* end of if write data */
 
         /**********************************************************
          * acosh ratio for m_eff
@@ -698,6 +704,10 @@ int main(int argc, char **argv) {
     {
 
       double ** data = init_2level_dtable ( num_conf, 4 );
+      if ( data == NULL ) {
+        fprintf ( stderr, "[xg_exdefl_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+        EXIT(25);
+      }
 
 #pragma omp parallel for
       for ( int i = 0; i< num_conf; i++ ) {
@@ -738,7 +748,7 @@ int main(int argc, char **argv) {
      **********************************************************/
     double ** loop_sub = init_2level_dtable ( num_conf, T_global );
     if ( loop_sub == NULL ) {
-      fprintf ( stdout, "[xg_exdefl_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+      fprintf ( stderr, "[xg_exdefl_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
       EXIT(25);
     }
   
@@ -810,14 +820,17 @@ int main(int argc, char **argv) {
     /**********************************************************
      * loop on number of evecs
      **********************************************************/
-    for ( int inev = 0; inev  < evecs_num_nstep ; inev++ ) {
+    for ( int inev = 0; inev  < evecs_use_nstep ; inev++ ) {
+
+      int const evecs_use_num = evecs_use_min + inev * evecs_use_step;
 
       /**********************************************************
        * loop on source - sink time separations
        **********************************************************/
-      for ( int idt = 0; idt < T_global/2; idt++ ) {
+      for ( int idt = 0; idt <= T_global/2; idt++ )
+      {
     
-        double ** threep_44 = init_2level_dtable ( num_conf, T_global ) ;
+        double *** threep_44 = init_3level_dtable ( num_conf, T_global, T_global ) ;
         if ( threep_44 == NULL ) {
           fprintf ( stderr, "[xg_exdefl_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
           EXIT(1);
@@ -840,10 +853,16 @@ int main(int argc, char **argv) {
               const double a[2] = { twop[imom][iconf][inev][tsrc][2*(tsnk1)  ], twop[imom][iconf][inev][tsrc][2*(tsnk1)+1] };
               const double b[2] = { twop[imom][iconf][inev][tsrc][2*(tsnk2)  ], twop[imom][iconf][inev][tsrc][2*(tsnk2)+1] };
 
+              /**********************************************************
+               * loop relative insertion times; relative to source time
+               **********************************************************/
               for ( int it = 0; it < T_global; it++ ) {
     
-                int const tins1 (  tsrc + it + T_global ) % T_global;
-                int const tins2 (  tsrc - it + T_global ) % T_global;
+                /**********************************************************
+                 * absolute insertion times
+                 **********************************************************/
+                int const tins1 = (  tsrc + it + T_global ) % T_global;
+                int const tins2 = (  tsrc - it + T_global ) % T_global;
     
                 if ( g_verbose > 2 ) fprintf ( stdout, "# [avxn_average] insertion times tsrc %3d    dt %3d    tc %3d    tins %3d %3d\n", tsrc, idt, it, tins1, tins2 );
     
@@ -851,9 +870,7 @@ int main(int argc, char **argv) {
                  * O44, real parts only
                  **********************************************************/
 
-                threep_44[iconf][isrc][it] += ( 
-                        ( a[0] + b[0] ) * ( loop_sub[iconf][tins1] + loop_sub[iconf][tins_fwd_2] ) 
-                    ) * 0.25;
+                threep_44[iconf][tsrc][it] += ( a[0] * loop_sub[iconf][tins1] + b[0] * loop_sub[iconf][tins2] ) * 0.5;
     
               }  /* end of loop on it */
     
@@ -864,12 +881,18 @@ int main(int argc, char **argv) {
              **********************************************************/
             /* O44 simple orbit average */
             double const norm44 = 1. / g_sink_momentum_number;
-            for ( int it = 0; it < 2 * T_global; it++ ) {
-              threep_44[iconf][isrc][0][it] *= norm44;
+            for ( int it = 0; it < T_global; it++ ) {
+              threep_44[iconf][tsrc][it] *= norm44;
             }
           }  /* end of loop on isrc */
         }  /* end of loop on iconf */
     
+        char obsname_prefix[400];
+        sprintf ( obsname_prefix, "threep.gf_%s.gi_%s.g4_D4.%s.dt%d.px%d_py%d_pz%d.nev%d",
+            gamma_id_to_ascii[ g_sink_gamma_id_list[igf] ], gamma_id_to_ascii[ g_source_gamma_id_list[igi] ],
+            smearing_tag, idt,
+            g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2], evecs_use_num );
+
         /**********************************************************
          * write 3pt function to ascii file, per source
          **********************************************************/
@@ -877,19 +900,17 @@ int main(int argc, char **argv) {
           /**********************************************************
            * write 44 3pt
            **********************************************************/
-          for ( int ireim = 0; ireim < 1; ireim++ ) {
-            sprintf ( filename, "threep.gf_%s.gi_%s.g4_D4.%s.dtsnk%d.PX%d_PY%d_PZ%d.%s.corr",
-                gamma_id_to_ascii[ g_sink_gamma_id_list[igf] ], gamma_id_to_ascii[ g_source_gamma_id_list[igi] ],
-                smearing_tag,
-                g_sequential_source_timeslice_list[idt],
-                g_sink_momentum_list[0][0],
-                g_sink_momentum_list[0][1],
-                g_sink_momentum_list[0][2], reim_str[ireim] );
+          sprintf ( filename, "%s.%s.corr", obsname_prefix, reim_str[0] );
+          FILE *ofs = fopen( filename , "w" );
     
-            write_data_real2_reim ( threep_44, filename, conf_src_list, num_conf, num_src_per_conf, T_global, ireim );
-    
-          }  /* end of loop on ireim */
-    
+          for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for ( int isrc = 0; isrc < T_global; isrc++ ) {
+            fprintf ( ofs, "# %c %6d %3d\n", conf_src_list[iconf][0][0], conf_src_list[iconf][0][1], isrc );
+            for ( int it = 0; it < T_global; it++ ) {
+              fprintf ( ofs, "%25.16e\n", threep_44[iconf][isrc][it] );
+            }
+          }}
+          fclose ( ofs );
         }  /* end of if write_data */
     
         /**********************************************************
@@ -899,14 +920,9 @@ int main(int argc, char **argv) {
          * with fixed source - sink separation
          *
          **********************************************************/
+    
         for ( int ireim = 0; ireim < 1; ireim++ ) {
-    
-          if ( num_conf < 6 ) {
-            fprintf ( stderr, "[xg_exdefl_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
-            EXIT(1);
-          }
-    
-          /* double *** data = init_3level_dtable ( num_conf, num_src_per_conf, T_global ); */
+
           double ** data = init_2level_dtable ( num_conf, T_global );
           if ( data == NULL ) {
             fprintf ( stderr, "[xg_exdefl_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
@@ -918,29 +934,17 @@ int main(int argc, char **argv) {
            **********************************************************/
 #pragma omp parallel for
           for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-    
-            /* for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-            for ( int it = 0; it < T_global; it++ ) {
-              data[iconf][isrc][it] = threep_44[iconf][isrc][it][ireim];
-            }} */
-    
             for ( int it = 0; it < T_global; it++ ) {
               double dtmp = 0.;
-              for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-                dtmp += threep_44[iconf][isrc][it][ireim];
+              for ( int isrc = 0; isrc < T_global; isrc++ ) {
+                dtmp += threep_44[iconf][isrc][it];
               }
-              data[iconf][it] = dtmp / (double)num_src_per_conf;
+              data[iconf][it] = dtmp / (double)T_global;
             }
           }
     
           char obs_name[100];
-          sprintf ( obs_name, "threep.gf_%s.gi_%s.g4_D4.%s.dtsnk%d.PX%d_PY%d_PZ%d.%s",
-              gamma_id_to_ascii[ g_sink_gamma_id_list[igf] ], gamma_id_to_ascii[ g_source_gamma_id_list[igi] ],
-              smearing_tag,
-              g_sequential_source_timeslice_list[idt],
-              g_sink_momentum_list[0][0],
-              g_sink_momentum_list[0][1],
-              g_sink_momentum_list[0][2], reim_str[ireim] );
+          sprintf ( obs_name, "%s.src-avg.%s", obsname_prefix, reim_str[ireim] );
     
           /* apply UWerr analysis */
           exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
@@ -949,9 +953,17 @@ int main(int argc, char **argv) {
             EXIT(1);
           }
     
-          if ( write_data == 2 ) {
+          if ( write_data == 1 ) {
             sprintf ( filename, "%s.corr", obs_name );
-            write_data_real ( data, filename, conf_src_list, num_conf, T_global );
+            FILE *ofs = fopen( filename , "w" );
+
+            for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+              fprintf ( ofs, "# %c %6d\n", conf_src_list[iconf][0][0], conf_src_list[iconf][0][1] );
+              for ( int it = 0; it < T_global; it++ ) {
+                fprintf ( ofs, "%25.16e\n", data[iconf][it] );
+              }
+            }
+            fclose ( ofs );
           }
     
           fini_2level_dtable ( &data );
@@ -966,83 +978,125 @@ int main(int argc, char **argv) {
         for ( int ireim = 0; ireim < 1; ireim++ ) {
     
           /* UWerr parameters */
-          int nT = g_sequential_source_timeslice_list[idt] + 1;
           int narg          = 2;
-          int arg_first[2]  = { 0, nT };
+          int arg_first[2]  = { 0, T_global };
           int arg_stride[2] = { 1,  0 };
           char obs_name[100];
     
-          double ** data = init_2level_dtable ( num_conf, nT + 1 );
+          double ** data = init_2level_dtable ( num_conf, T_global + 1 );
           if ( data == NULL ) {
             fprintf ( stderr, "[xg_exdefl_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
             EXIT(1);
           }
     
           /**********************************************************
-           * O44
+           * O44, source average
+           * TWOP, orbit-averaged, source average
            **********************************************************/
-          src_avg_real2_reim ( data, threep_44, num_conf, num_src_per_conf, nT, ireim );
-    
-#pragma omp parallel for
-
-          for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-            double dtmp = 0.;
-            for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-              /* int const tsink  = (  g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global; */
-              int const tsink  = (  g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
-              /* int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global; */
-              int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
-              /* dtmp += 0.5 * ( twop_orbit[iconf][isrc][tsink][ireim] + twop_orbit[iconf][isrc][tsink2][ireim] ); */
-              dtmp += twop_orbit[iconf][isrc][tsink][ireim];
-            }
-            data[iconf][nT] = dtmp / (double)num_src_per_conf;
-          }
-
-#if 0
 #pragma omp parallel for
           for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-            for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-              int const tsink  = (  g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
-              for( int it = 0; it < nT; it++ ) {
-                data[iconf*num_src_per_conf + isrc][it] = threep_44[iconf][isrc][it][ireim] /  twop_orbit[iconf][isrc][tsink][ireim];
+            for ( int it = 0; it < T_global; it++ ) {
+              double dtmp = 0.;
+              for ( int isrc = 0; isrc < T_global; isrc++ ) {
+                dtmp += threep_44[iconf][isrc][it];
               }
-              data[iconf*num_src_per_conf + isrc][nT] = 1.;
+              data[iconf][it] = dtmp / (double)T_global;
             }
+          
+            for ( int isrc = 0; isrc < T_global; isrc++ ) {
+
+              int const tsink1 = ( isrc + idt + T_global ) % T_global;
+              int const tsink2 = ( isrc - idt + T_global ) % T_global;
+
+              data[iconf][T_global] += ( twop_orbit[iconf][inev][isrc][2*tsink1] + twop_orbit[iconf][inev][isrc][2*tsink2] );
+            }
+            data[iconf][T_global] /= (double)T_global;
           }
-#endif
-    
-          sprintf ( obs_name, "ratio.gf_%s.gi_%s.g4_D4.%s.dtsnk%d.PX%d_PY%d_PZ%d.%s",
+
+          sprintf ( obs_name, "ratio.orbit.src-avg.gf_%s.gi_%s.g4_D4.%s.dt%d.PX%d_PY%d_PZ%d.nev%d.%s",
             gamma_id_to_ascii[ g_sink_gamma_id_list[igf] ], gamma_id_to_ascii[ g_source_gamma_id_list[igi] ],
-            smearing_tag,
-            g_sequential_source_timeslice_list[idt],
+            smearing_tag, idt,
             g_sink_momentum_list[0][0],
             g_sink_momentum_list[0][1],
-            g_sink_momentum_list[0][2], reim_str[ireim] );
+            g_sink_momentum_list[0][2], evecs_use_num, reim_str[ireim] );
     
-          exitstatus = apply_uwerr_func ( data[0], num_conf, nT+1, nT, narg, arg_first, arg_stride, obs_name, ratio_1_1, dratio_1_1 );
+          exitstatus = apply_uwerr_func ( data[0], num_conf, T_global + 1, T_global, narg, arg_first, arg_stride, obs_name, ratio_1_1, dratio_1_1 );
           if ( exitstatus != 0 ) {
             fprintf ( stderr, "[xg_exdefl_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(115);
           }
     
+          fini_2level_dtable ( &data );
         }  /* end of loop on reim */
     
-        fini_4level_dtable ( &threep_44 );
+        /**********************************************************
+         *
+         * STATISTICAL ANALYSIS for ratio
+         * with per-time-slice subtraction
+         *
+         **********************************************************/
+        for ( int ireim = 0; ireim < 1; ireim++ ) {
+
+          double ** data = init_2level_dtable ( num_conf, ( 2 * T_global + 1 ) * T_global );
+          if ( data == NULL ) {
+            fprintf ( stderr, "[xg_exdefl_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+            EXIT(1);
+          }
+
+#pragma omp parallel for
+          for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+            for ( int it = 0; it < T_global; it++ ) {
+              for ( int isrc = 0; isrc < T_global; isrc++ ) {
+                data[iconf][it*T_global + isrc] = threep_44[iconf][isrc][it];
+              }
+            }
+            for ( int it = 0; it < T_global; it++ ) {
+              for ( int isrc = 0; isrc < T_global; isrc++ ) {
+                int const tins = ( isrc + it + T_global ) % T_global;
+                data[iconf][ T_global * T_global + it * T_global ] =  loop_sub[iconf][tins];
+              }
+            }
+            for ( int isrc = 0; isrc < T_global; isrc++ ) {
+              int const tsink = ( isrc + idt + T_global ) % T_global;
+              data[iconf][ 2 * T_global * T_global + isrc] = twop_orbit[iconf][inev][isrc][2*tsink];
+            }
+          }
+
+          /* UWerr parameters */
+          int narg          = ( 2 * T_global + 1 ) * T_global;
+          int * arg_first = init_1level_itable ( narg );
+          int arg_first[2]  = { 0, T_global };
+
+          int * arg_stride = init_1level_itable ( narg );
+          for ( int i = 0; i < T_global; i++ ) arg_stride[i] = 1;
+
+          char obs_name[100];
+
+
+          fini_2level_dtable ( &data );
+          fini_1level_dtable ( &arg_first );
+          fini_1level_dtable ( &arg_stride );
+        }
+
+        fini_3level_dtable ( &threep_44 );
     
       }  /* end of loop on dt */
+
+    }  /* end of loop on evecs use */
+
 #endif  /* end of ifdef _RAT_METHOD */
   
-      /**********************************************************/
-      /**********************************************************/
+    /**********************************************************/
+    /**********************************************************/
   
-      fini_2level_dtable ( &loop_sub );
+    fini_2level_dtable ( &loop_sub );
 
 
-    }  /* end of loop on smearing levels */
+  }  /* end of loop on smearing levels */
 #endif  /* end of ifdef _LOOP_ANALYSIS */
 
     fini_5level_dtable ( &twop );
-    fini_2level_dtable ( &twop_orbit );
+    fini_4level_dtable ( &twop_orbit );
 
   }}  /* end of loop on gi, gf */
 
