@@ -1003,6 +1003,10 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
       hid_t fapl_id = H5P_DEFAULT;
       /*  hid_t H5Fopen ( const char *name, unsigned flags, hid_t fapl_id ) */
       file_id = H5Fopen (         filename,         flags,        fapl_id );
+      if ( file_id < 0 ) {
+        fprintf ( stderr, "[write_h5_contraction] Error from H5Fopen for filename %s %s %d\n", filename, __FILE__, __LINE__ );
+        return( 1 );
+      }
     }
 
     if ( g_verbose > 0 ) fprintf ( stdout, "# [write_h5_contraction] file_id = %ld\n", file_id );
