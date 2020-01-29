@@ -46,8 +46,8 @@
 
 #define _LOOP_ANALYSIS
 
-#undef _XG_PION
-#define _XG_NUCLEON
+#define _XG_PION
+#undef _XG_NUCLEON
 #undef _XG_CHARGED
 
 #define _TWOP_STATS
@@ -56,7 +56,7 @@
 #undef _FHT_METHOD_ALLT
 #undef _FHT_METHOD_ACCUM
 
-#undef _RAT_SUB_METHOD
+#define _RAT_SUB_METHOD
 
 
 #define MAX_SMEARING_LEVELS 40
@@ -205,6 +205,8 @@ int main(int argc, char **argv) {
   unsigned int stout_level_num = 0;
   int insertion_operator_type = 0;
   double temp_spat_weight[2] = { 1., -1. };
+  double twop_weight[2] = {0., 0.};
+  double fbwd_weight[2] = {0., 0.};
 
  #ifdef HAVE_LHPC_AFF
   struct AffReader_s *affr = NULL;
@@ -216,7 +218,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:N:S:F:R:E:w:O:s:W:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:N:S:F:R:E:w:O:s:W:T:B:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -253,7 +255,15 @@ int main(int argc, char **argv) {
       break;
     case 'W':
       sscanf( optarg, "%lf,%lf", temp_spat_weight, temp_spat_weight+1 );
-      fprintf ( stdout, "# [xg_analyse] temp_spat_weigt set to %25.16e / %25.16e\n", temp_spat_weight[0], temp_spat_weight[1] );
+      fprintf ( stdout, "# [xg_analyse] temp_spat_weight set to %25.16e / %25.16e\n", temp_spat_weight[0], temp_spat_weight[1] );
+      break;
+    case 'T':
+      sscanf( optarg, "%lf,%lf", twop_weight, twop_weight+1 );
+      fprintf ( stdout, "# [xg_analyse] twop_weight set to %25.16e / %25.16e\n", twop_weight[0], twop_weight[1] );
+      break;
+    case 'B':
+      sscanf( optarg, "%lf,%lf", fbwd_weight, fbwd_weight+1 );
+      fprintf ( stdout, "# [xg_analyse] fbwd_weight set to %25.16e / %25.16e\n", fbwd_weight[0], fbwd_weight[1] );
       break;
     case 'h':
     case '?':
@@ -374,6 +384,21 @@ int main(int argc, char **argv) {
   }
 
   /***********************************************************
+   * read twop function data
+   ***********************************************************/
+  double ******** twop = init_8level_dtable ( g_sink_gamma_id_number, g_source_gamma_id_number, g_sink_momentum_number, num_conf, num_src_per_conf, 2, T_global, 2 );
+  if( twop == NULL ) {
+    fprintf ( stderr, "[xg_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+    EXIT (24);
+  }
+
+  double ****** twop_orbit = init_6level_dtable ( g_sink_gamma_id_number, g_source_gamma_id_number, num_conf, num_src_per_conf, T_global, 2 );
+  if( twop_orbit == NULL ) {
+    fprintf ( stderr, "[xg_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+    EXIT (24);
+  }
+
+  /***********************************************************
    * loop on gamma at sink
    ***********************************************************/
   for ( int igf = 0; igf < g_sink_gamma_id_number; igf++ ) {
@@ -390,17 +415,6 @@ int main(int argc, char **argv) {
      ** 
      **********************************************************
      **********************************************************/
-
-    /***********************************************************
-     * read twop function data
-     ***********************************************************/
-    double ****** twop = NULL;
-
-    twop = init_6level_dtable ( g_sink_momentum_number, num_conf, num_src_per_conf, 2, T_global, 2 );
-    if( twop == NULL ) {
-      fprintf ( stderr, "[xg_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
-      EXIT (24);
-    }
 
 #ifdef _XG_PION
     /***********************************************************
@@ -498,8 +512,8 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
             for ( int it = 0; it < T_global; it++ ) {
               int const itt = ( conf_src_list[iconf][isrc][2] + it ) % T_global; 
-              twop[ipf][iconf][isrc][iflavor][it][0] = buffer[itt][0] * ephase[0] - buffer[itt][1] * ephase[1];
-              twop[ipf][iconf][isrc][iflavor][it][1] = buffer[itt][1] * ephase[0] + buffer[itt][0] * ephase[1];
+              twop[igf][igi][ipf][iconf][isrc][iflavor][it][0] = buffer[itt][0] * ephase[0] - buffer[itt][1] * ephase[1];
+              twop[igf][igi][ipf][iconf][isrc][iflavor][it][1] = buffer[itt][1] * ephase[0] + buffer[itt][0] * ephase[1];
             }
   
             gettimeofday ( &tb, (struct timezone *)NULL );
@@ -518,6 +532,39 @@ int main(int argc, char **argv) {
 
       }  /* end of loop on source locations */
     }  /* end of loop on configs */
+
+    /**********************************************************
+     * write correlator to ascii file
+     **********************************************************/
+    if ( write_data > 0 ) {
+
+      for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
+
+        sprintf( filename, "%s.%s.gf_%s.gi_%s.px%d_py%d_pz%d.corr", correlator_prefix[operator_type], flavor_tag[0],
+            gamma_id_to_ascii[ g_sink_gamma_id_list[igf] ], gamma_id_to_ascii[ g_source_gamma_id_list[igi] ],
+            g_sink_momentum_list[ipf][0], g_sink_momentum_list[ipf][1], g_sink_momentum_list[ipf][2] );
+
+        FILE * ofs = fopen( filename, "w" );
+        if ( ofs == NULL ) {
+          fprintf( stderr, "[xg_analyse] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__ );
+          EXIT(23);
+        } else {
+          fprintf( stdout, "# [xg_analyse] writing data to file %s %s %d\n", filename, __FILE__, __LINE__ );
+        }
+
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+            for ( int it = 0; it < T_global; it++ ) {
+              fprintf( ofs, " %25.16e %25.16e   %25.16e %25.16e\n",
+                  twop[igf][igi][ipf][iconf][isrc][0][it][0], twop[igf][igi][ipf][iconf][isrc][0][it][1],
+                  twop[igf][igi][ipf][iconf][isrc][1][it][0], twop[igf][igi][ipf][iconf][isrc][1][it][1] );
+            }
+          }
+        }
+     
+        fclose ( ofs );
+      }
+    }
 #endif  /* end of _XG_PION */
 
 #ifdef _XG_NUCLEON
@@ -538,10 +585,10 @@ int main(int argc, char **argv) {
         for( int it =0; it < T_global; it++ ) {
           fscanf ( fs, "%d %lf %lf %lf %lf\n", &itmp, dtmp+0, dtmp+1, dtmp+2, dtmp+3 );
               
-          twop[0][iconf][isrc][0][it][0] = dtmp[0];
-          twop[0][iconf][isrc][0][it][1] = dtmp[1];
-          twop[0][iconf][isrc][0][(T_global - it)%T_global][0] = -dtmp[2];
-          twop[0][iconf][isrc][0][(T_global - it)%T_global][1] = -dtmp[3];
+          twop[igf][igi][0][iconf][isrc][0][it][0] = dtmp[0];
+          twop[igf][igi][0][iconf][isrc][0][it][1] = dtmp[1];
+          twop[igf][igi][0][iconf][isrc][0][(T_global - it)%T_global][0] = -dtmp[2];
+          twop[igf][igi][0][iconf][isrc][0][(T_global - it)%T_global][1] = -dtmp[3];
         }
       }
     }
@@ -558,9 +605,13 @@ int main(int argc, char **argv) {
     for ( int iconf = 0; iconf < num_conf; iconf++ ) {
       for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
         for( int it =0; it < T_global; it++ ) {
-          fscanf ( fs, "%lf %lf %lf %lf\n", 
-              twop[0][iconf][isrc][0][it], twop[0][iconf][isrc][0][it]+1,
-              twop[0][iconf][isrc][1][it], twop[0][iconf][isrc][1][it]+1 );
+          if ( fscanf ( fs, "%lf %lf %lf %lf\n", 
+              twop[igf][igi][0][iconf][isrc][0][it], twop[igf][igi][0][iconf][isrc][0][it]+1,
+              twop[igf][igi][0][iconf][isrc][1][it], twop[igf][igi][0][iconf][isrc][1][it]+1 ) != 4 ) {
+
+            fprintf ( stderr, "[xg_analyse] Error from fscanf for file %s %s %d\n", filename, __FILE__, __LINE__ );
+            EXIT(2);
+          }
         }
       }
     }
@@ -587,13 +638,13 @@ int main(int argc, char **argv) {
         } else {
           if ( g_verbose > 2 ) fprintf( stdout, "# [xg_analyse] reading data from file %s %s %d\n", filename, __FILE__, __LINE__ );
         }
-        fscanf( fs, "%lf%lf\n", twop[ipf][iconf][isrc][0][0], &dtmp );
+        fscanf( fs, "%lf%lf\n", twop[igf][igi][ipf][iconf][isrc][0][0], &dtmp );
         for ( int it = 1; it < T_global/2; it++ ) {
-          fscanf( fs, "%lf%lf\n", twop[ipf][iconf][isrc][0][it] , twop[ipf][iconf][isrc][0][T_global - it] );
+          fscanf( fs, "%lf%lf\n", twop[igf][igi][ipf][iconf][isrc][0][it] , twop[igf][igi][ipf][iconf][isrc][0][T_global - it] );
         }
-        fscanf( fs, "%lf%lf\n", twop[ipf][iconf][isrc][0][T_global/2], &dtmp );
+        fscanf( fs, "%lf%lf\n", twop[igf][igi][ipf][iconf][isrc][0][T_global/2], &dtmp );
         fclose ( ofs );
-        memcpy( twop[ipf][iconf][isrc][1][0], twop[ipf][iconf][isrc][0][0], T_global*2*sizeof(double) );
+        memcpy( twop[igf][igi][ipf][iconf][isrc][1][0], twop[igf][igi][ipf][iconf][isrc][0][0], T_global*2*sizeof(double) );
       }
     }
 #endif  /* of _XG_CHARGED */
@@ -603,13 +654,6 @@ int main(int argc, char **argv) {
      * average 2-pt over momentum orbit
      *
      **********************************************************/
-
-    double **** twop_orbit = init_4level_dtable ( num_conf, num_src_per_conf, T_global, 2 );
-    if( twop_orbit == NULL ) {
-      fprintf ( stderr, "[xg_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
-      EXIT (24);
-    }
-
 #pragma omp parallel for
     for ( int iconf = 0; iconf < num_conf; iconf++ ) {
       for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
@@ -617,15 +661,15 @@ int main(int argc, char **argv) {
         /* averaging starts here */
         for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
           for ( int it = 0; it < T_global; it++ ) {
-            twop_orbit[iconf][isrc][it][0] += ( twop[imom][iconf][isrc][0][it][0] + twop[imom][iconf][isrc][1][it][0] ) * 0.5;
-            twop_orbit[iconf][isrc][it][1] += ( twop[imom][iconf][isrc][0][it][1] + twop[imom][iconf][isrc][1][it][1] ) * 0.5;
+            twop_orbit[igf][igi][iconf][isrc][it][0] += ( twop[igf][igi][imom][iconf][isrc][0][it][0] + twop[igf][igi][imom][iconf][isrc][1][it][0] ) * 0.5;
+            twop_orbit[igf][igi][iconf][isrc][it][1] += ( twop[igf][igi][imom][iconf][isrc][0][it][1] + twop[igf][igi][imom][iconf][isrc][1][it][1] ) * 0.5;
           }  /* end of loop on it */
         }  /* end of loop on imom */
 
         /* multiply norm from averages over momentum orbit and source locations */
         double const norm = 1. / (double)g_sink_momentum_number;
         for ( int it = 0; it < 2*T_global; it++ ) {
-          twop_orbit[iconf][isrc][0][it] *= norm;
+          twop_orbit[igf][igi][iconf][isrc][0][it] *= norm;
         }
       }  /* end of loop on isrc */
     }  /* end of loop on iconf */
@@ -645,11 +689,11 @@ int main(int argc, char **argv) {
             g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2] );
 #endif
 
-    if ( write_data == 1 ) {
+    if ( write_data > 0 ) {
       for ( int ireim = 0; ireim <= 1; ireim++ ) {
         sprintf ( filename, "%s.%s.corr", obs_name_prefix, reim_str[ireim]);
 
-        write_data_real2_reim ( twop_orbit, filename, conf_src_list, num_conf, num_src_per_conf, T_global, ireim );
+        write_data_real2_reim ( twop_orbit[igf][igi], filename, conf_src_list, num_conf, num_src_per_conf, T_global, ireim );
       }
     }  /* end of if write data */
 
@@ -682,7 +726,7 @@ int main(int argc, char **argv) {
               data[iconf][it ] = 0.;
               data[iconf][itt] = 0.;
             for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-                data[iconf][it ] += 0.5 * ( twop_orbit[iconf][isrc][it][ireim] + twop_fold_propagator * twop_orbit[iconf][isrc][itt][ireim] );
+                data[iconf][it ] += 0.5 * ( twop_orbit[igf][igi][iconf][isrc][it][ireim] + twop_fold_propagator * twop_orbit[igf][igi][iconf][isrc][itt][ireim] );
             } 
             data[iconf][it ] /= (double)num_src_per_conf;
             data[iconf][itt] = data[iconf][it];
@@ -695,7 +739,7 @@ int main(int argc, char **argv) {
           for ( int it = 0; it < T_global; it++ ) {
             data[iconf][it] = 0.;
             for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-              data[iconf][it] += twop_orbit[iconf][isrc][it][ireim];
+              data[iconf][it] += twop_orbit[igf][igi][iconf][isrc][it][ireim];
             }
             data[iconf][it] /= (double)num_src_per_conf;
           }
@@ -715,7 +759,7 @@ int main(int argc, char **argv) {
       /**********************************************************
        * write data to ascii file
        **********************************************************/
-      if ( write_data == 2 ) {
+      if ( write_data > 1 ) {
         sprintf ( filename, "%s.corr", obs_name );
         write_data_real ( data, filename, conf_src_list, num_conf, T_global );
       }  /* end of if write data */
@@ -753,58 +797,74 @@ int main(int argc, char **argv) {
 
 #endif  /* of ifdef _TWOP_STATS */
 
+  }}  /* end of source and sink gamma id */
 
-    /**********************************************************
-     * loop on stout smearing levels
-     **********************************************************/
+  /**********************************************************
+   * loop on stout smearing levels
+   **********************************************************/
   
-  for ( unsigned int istout = 0; istout < stout_level_num; istout++ ) {
-
+  double **** loop = NULL;
 #ifdef _LOOP_ANALYSIS
-    /**********************************************************
-     *
-     * loop fields
-     *
-     **********************************************************/
-    double *** loop = NULL;
+  /**********************************************************
+   *
+   * loop fields
+   *
+   **********************************************************/
+  loop = init_4level_dtable ( stout_level_num, num_conf, T_global, 2 );
+  if ( loop == NULL ) {
+    fprintf ( stdout, "[xg_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+    EXIT(25);
+  }
+
+  /**********************************************************
+   *
+   * read loop data
+   *
+   **********************************************************/
+  int conf_id_prev = -1;
+  for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+
+    int conf_id_new = conf_src_list[iconf][0][1];
+
+    if ( conf_id_new == conf_id_prev ) {
+      fprintf ( stdout, "# [xg_analyse] conf = %4d / %6d copy from previous\n", iconf, conf_src_list[iconf][0][1] );
+      for ( unsigned int istout = 0; istout < stout_level_num; istout++ ) {
+        memcpy ( loop[istout][iconf][0], loop[istout][iconf-1][0], 2*T_global*sizeof(double ) );
+      }
+      continue;
+    }
+
+    
+    /***********************************************************
+     * open AFF reader
+     ***********************************************************/
+    struct AffNode_s *affn = NULL, *affdir = NULL;
   
-    loop = init_3level_dtable ( num_conf, T_global, 2 );
-    if ( loop == NULL ) {
-      fprintf ( stdout, "[xg_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
-      EXIT(25);
+    sprintf ( filename, "%s/stream_%c/%d/cpff.xg.%d.aff", filename_prefix2, conf_src_list[iconf][0][0], conf_src_list[iconf][0][1], conf_src_list[iconf][0][1] );
+    /* sprintf ( filename, "stream_%c/cpff.xg.%d.aff", conf_src_list[iconf][0][0], conf_src_list[iconf][0][1], conf_src_list[iconf][0][1] ); */
+    /* sprintf ( filename, "cpff.xg.%d.aff", conf_src_list[iconf][0][1] ); */
+  
+    fprintf(stdout, "# [xg_analyse] reading data from file %s\n", filename);
+    affr = aff_reader ( filename );
+    const char * aff_status_str = aff_reader_errstr ( affr );
+    if( aff_status_str != NULL ) {
+      fprintf(stderr, "[xg_analyse] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+      EXIT(15);
+    }
+  
+    if( (affn = aff_reader_root( affr )) == NULL ) {
+      fprintf(stderr, "[xg_analyse] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+      return(103);
     }
   
     /**********************************************************
-     *
-     * read loop data
-     *
+     * loop on smearing levels
      **********************************************************/
-    for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-    
-      /***********************************************************
-       * open AFF reader
-       ***********************************************************/
-      struct AffNode_s *affn = NULL, *affdir = NULL;
-  
-      /* sprintf ( filename, "%s/stream_%c/%d/cpff.xg.%d.aff", filename_prefix2, conf_src_list[iconf][0][0], conf_src_list[iconf][0][1], conf_src_list[iconf][0][1] ); */
-      /* sprintf ( filename, "stream_%c/cpff.xg.%d.aff", conf_src_list[iconf][0][0], conf_src_list[iconf][0][1], conf_src_list[iconf][0][1] ); */
-      sprintf ( filename, "cpff.xg.%d.aff", conf_src_list[iconf][0][1] );
-  
-      fprintf(stdout, "# [xg_analyse] reading data from file %s\n", filename);
-      affr = aff_reader ( filename );
-      const char * aff_status_str = aff_reader_errstr ( affr );
-      if( aff_status_str != NULL ) {
-        fprintf(stderr, "[xg_analyse] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-        EXIT(15);
-      }
-  
-      if( (affn = aff_reader_root( affr )) == NULL ) {
-        fprintf(stderr, "[xg_analyse] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
-        return(103);
-      }
-  
+    for ( unsigned int istout = 0; istout < stout_level_num; istout++ ) {
+
       if ( stout_level_iter[istout] == 0 ) {
-        sprintf( key, "/StoutN%d/StoutRho%6.4f/%s", stout_level_iter[istout], stout_level_rho[istout], insertion_operator_name[insertion_operator_type] );
+        /* sprintf( key, "/StoutN%d/StoutRho%6.4f/%s", stout_level_iter[istout], stout_level_rho[istout], insertion_operator_name[insertion_operator_type] ); */
+        sprintf( key, "/StoutN%d/StoutRho%6.4f", stout_level_iter[istout], stout_level_rho[istout] );
       } else {
         sprintf( key, "/StoutN%d/StoutRho%6.4f", stout_level_iter[istout], stout_level_rho[istout] );
       }
@@ -818,16 +878,22 @@ int main(int argc, char **argv) {
       }
   
       uint32_t uitems = 2 * T_global;
-      exitstatus = aff_node_get_double ( affr, affdir, loop[iconf][0], uitems );
+      exitstatus = aff_node_get_double ( affr, affdir, loop[istout][iconf][0], uitems );
       if( exitstatus != 0 ) {
         fprintf(stderr, "[xg_analyse] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(105);
       }
   
-      aff_reader_close ( affr );
+    }  /* end of loop on stout smearing levels */
 
-    }  /* end of loop on configs */
+    aff_reader_close ( affr );
+    
+    conf_id_prev = conf_id_new;
+
+  }  /* end of loop on configs */
   
+  for ( unsigned int istout = 0; istout < stout_level_num; istout++ ) {
+
     char smearing_tag[50];
     sprintf ( smearing_tag, "stout_%d_%6.4f", stout_level_iter[istout], stout_level_rho[istout] );
 
@@ -845,10 +911,10 @@ int main(int argc, char **argv) {
         data[i][2] = 0.;
         data[i][3] = 0.;
         for( int it = 0; it < T_global; it++ ) {
-          data[i][0] += loop[i][it][0];
-          data[i][1] += loop[i][it][1];
-          data[i][2] += loop[i][it][0] + loop[i][it][1];
-          data[i][3] += loop[i][it][0] - loop[i][it][1];
+          data[i][0] += loop[istout][i][it][0];
+          data[i][1] += loop[istout][i][it][1];
+          data[i][2] += loop[istout][i][it][0] + loop[istout][i][it][1];
+          data[i][3] += loop[istout][i][it][0] - loop[istout][i][it][1];
         }
         data[i][0] /= (18. * VOLUME);
         data[i][1] /= (18. * VOLUME);
@@ -884,21 +950,19 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
     for ( int iconf = 0; iconf < num_conf; iconf++ ) {
       for ( int it = 0; it < T_global; it++ ) {
-        loop_sub[iconf][it] = temp_spat_weight[0] * loop[iconf][it][0] + temp_spat_weight[1] * loop[iconf][it][1];
+        loop_sub[iconf][it] = temp_spat_weight[0] * loop[istout][iconf][it][0] + temp_spat_weight[1] * loop[istout][iconf][it][1];
       }
     }  /* end of loop on configs */
-  
-    fini_3level_dtable ( &loop );
   
     /**********************************************************
      * tag to characterize the loops w.r.t. low-mode and
      * stochastic part
      **********************************************************/
+
     /**********************************************************
      * write loop_sub to separate ascii file
      **********************************************************/
-  
-    if ( write_data ) {
+    if ( write_data > 0 ) {
       sprintf ( filename, "loop_sub.%s.corr", smearing_tag );
   
       FILE * loop_sub_fs = fopen( filename, "w" );
@@ -921,7 +985,6 @@ int main(int argc, char **argv) {
      * STATISTICAL ANALYSIS OF LOOP VEC
      *
      **********************************************************/
-  
     if ( num_conf < 6 ) {
       fprintf ( stderr, "[xg_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
       EXIT(1);
@@ -946,6 +1009,10 @@ int main(int argc, char **argv) {
      *
      **********************************************************/
   
+    for ( int igf = 0; igf < g_sink_gamma_id_number; igf++ ) {
+
+    for ( int igi = 0; igi < g_source_gamma_id_number; igi++ ) {
+
       /**********************************************************
        * loop on source - sink time separations
        **********************************************************/
@@ -978,36 +1045,51 @@ int main(int argc, char **argv) {
             for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
     
 #if 0
+              /**********************************************************
+               * Do we need to add a source phase here ?
+               **********************************************************/
               double const mom[3] = { 
                   2 * M_PI * g_sink_momentum_list[imom][0] / (double)LX_global,
                   2 * M_PI * g_sink_momentum_list[imom][1] / (double)LY_global,
                   2 * M_PI * g_sink_momentum_list[imom][2] / (double)LZ_global };
 #endif
-              /* twop values 
-               * a = meson 1 at +mom
-               */
-              double const a_fwd[2] = { twop[imom][iconf][isrc][0][tsink ][0], twop[imom][iconf][isrc][0][tsink ][1] };
-              double const a_bwd[2] = { twop[imom][iconf][isrc][0][tsink2][0], twop[imom][iconf][isrc][0][tsink2][1] };
+              /**********************************************************
+               * twop values 
+               * a = field 0 at +mom
+               * b = field 1 at -mom AS READ ABOVE = parity partner
+               **********************************************************/
+              double const a_fwd[2] = { twop[igf][igi][imom][iconf][isrc][0][tsink ][0], twop[igf][igi][imom][iconf][isrc][0][tsink ][1] };
+              double const a_bwd[2] = { twop[igf][igi][imom][iconf][isrc][0][tsink2][0], twop[igf][igi][imom][iconf][isrc][0][tsink2][1] };
 
-              double const b_fwd[2] = { twop[imom][iconf][isrc][1][tsink ][0], twop[imom][iconf][isrc][1][tsink ][1] };
-              double const b_bwd[2] = { twop[imom][iconf][isrc][1][tsink2][0], twop[imom][iconf][isrc][1][tsink2][1] };
+              double const b_fwd[2] = { twop[igf][igi][imom][iconf][isrc][1][tsink ][0], twop[igf][igi][imom][iconf][isrc][1][tsink ][1] };
+              double const b_bwd[2] = { twop[igf][igi][imom][iconf][isrc][1][tsink2][0], twop[igf][igi][imom][iconf][isrc][1][tsink2][1] };
     
-              /* loop on insertion times */
+              /**********************************************************
+               * loop on insertion times
+               **********************************************************/
               for ( int it = 0; it < T_global; it++ ) {
     
-                /* fwd 1 insertion time = source time      + it */
+                /**********************************************************
+                 * fwd 1 insertion time = source time      + it
+                 **********************************************************/
                 int const tins_fwd_1 = (  it + conf_src_list[iconf][isrc][2]                                           + T_global ) % T_global;
     
-                /* fwd 2 insertion time = source time + dt - it */
+                /**********************************************************
+                 * fwd 2 insertion time = source time + dt - it
+                 **********************************************************/
                 int const tins_fwd_2 = ( -it + conf_src_list[iconf][isrc][2] + g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
     
-                /* bwd 1 insertion time = source time      - it */
+                /**********************************************************
+                 * bwd 1 insertion time = source time      - it
+                 **********************************************************/
                 int const tins_bwd_1 = ( -it + conf_src_list[iconf][isrc][2]                                           + T_global ) % T_global;
     
-                /* bwd 2 insertion time = source time - dt + it */
+                /**********************************************************
+                 * bwd 2 insertion time = source time - dt + it
+                 **********************************************************/
                 int const tins_bwd_2 = (  it + conf_src_list[iconf][isrc][2] - g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
     
-                if ( g_verbose > 2 ) fprintf ( stdout, "# [avxn_average] insertion times tsrc %3d    dt %3d    tc %3d    tins %3d %3d %3d %3d\n",
+                if ( g_verbose > 2 ) fprintf ( stdout, "# [xg_average] insertion times tsrc %3d    dt %3d    tc %3d    tins %3d %3d %3d %3d\n",
                     conf_src_list[iconf][isrc][2], g_sequential_source_timeslice_list[idt], it,
                     tins_fwd_1, tins_fwd_2, tins_bwd_1, tins_bwd_2 );
     
@@ -1015,28 +1097,38 @@ int main(int argc, char **argv) {
                  * O44, real parts only
                  **********************************************************/
 #ifdef _XG_NUCLEON
-                threep_44[iconf][isrc][it][0] += ( 
-                      /* a_fwd[0] * loop_sub[iconf][tins_fwd_1]*/
-                    + b_fwd[0] * loop_sub[iconf][tins_bwd_1]
-                  ) * 0.5;
-#else
-#if 0
+                threep_44[iconf][isrc][it][0] += (
+                    /* twop */
+                    twop_weight[0] * ( 
+                          fbwd_weight[0] * a_fwd[0] * loop_sub[iconf][tins_fwd_1] 
+                        + fbwd_weight[1] * a_bwd[0] * loop_sub[iconf][tins_bwd_1] 
+                      ) / ( fabs( fbwd_weight[0] ) + fabs( fbwd_weight[1] ) )
+                    /* twop parity partner */
+                  + twop_weight[1] * ( 
+                         fbwd_weight[0] * b_fwd[0] * loop_sub[iconf][tins_bwd_1]
+                       + fbwd_weight[1] * b_bwd[0] * loop_sub[iconf][tins_fwd_1]
+                      ) / ( fabs( fbwd_weight[0] ) + fabs( fbwd_weight[1] ) )
+                  ) / ( fabs( twop_weight[0] ) + fabs( twop_weight[1] ) );
+
+#else  /* of ifdef _XG_NUCLEON */
+
                 threep_44[iconf][isrc][it][0] += ( 
                         ( a_fwd[0] + b_fwd[0] ) * ( loop_sub[iconf][tins_fwd_1] + loop_sub[iconf][tins_fwd_2] ) 
                       + ( a_bwd[0] + b_bwd[0] ) * ( loop_sub[iconf][tins_bwd_1] + loop_sub[iconf][tins_bwd_2] )
                     ) * 0.125;
 
 
-                threep_44[iconf][isrc][it][0] += ( 
-                        ( a_fwd[0] + b_fwd[0] ) * ( loop_sub[iconf][tins_fwd_1] + loop_sub[iconf][tins_fwd_2] ) 
-                    ) * 0.25;
-#endif   
+#if 0
+                threep_44[iconf][isrc][it][0] += a_fwd[0] * loop_sub[iconf][tins_fwd_1];
 
                 threep_44[iconf][isrc][it][0] += ( 
                       a_fwd[0] * ( loop_sub[iconf][tins_fwd_1] + loop_sub[iconf][tins_fwd_2] )
                     + a_bwd[0] * ( loop_sub[iconf][tins_bwd_1] + loop_sub[iconf][tins_bwd_2] )
                     ) * 0.25;
 #endif
+
+#endif  /* end of else of ifdef _XG_NUCLEON */
+
               }  /* end of loop on it */
     
             }  /* end of loop on imom */
@@ -1053,31 +1145,38 @@ int main(int argc, char **argv) {
         }  /* end of loop on iconf */
     
         /**********************************************************
+         * name tag for observable
+         **********************************************************/
+        char obsname_tag[400];
+#ifdef _XG_NUCLEON
+        sprintf ( obsname_tag, "gf_%s.gi_%s.g4_D4.%s.dtsnk%d.PX%d_PY%d_PZ%d",
+            gamma_id_to_Cg_ascii[ g_sink_gamma_id_list[igf] ], gamma_id_to_Cg_ascii[ g_source_gamma_id_list[igi] ],
+            smearing_tag,
+            g_sequential_source_timeslice_list[idt],
+            g_sink_momentum_list[0][0],
+            g_sink_momentum_list[0][1],
+            g_sink_momentum_list[0][2] );
+#else
+        sprintf ( obsname_tag, "gf_%s.gi_%s.g4_D4.%s.dtsnk%d.PX%d_PY%d_PZ%d",
+            gamma_id_to_ascii[ g_sink_gamma_id_list[igf] ], gamma_id_to_ascii[ g_source_gamma_id_list[igi] ],
+            smearing_tag,
+            g_sequential_source_timeslice_list[idt],
+            g_sink_momentum_list[0][0],
+            g_sink_momentum_list[0][1],
+            g_sink_momentum_list[0][2] );
+#endif
+
+        /**********************************************************
          * write 3pt function to ascii file, per source
          **********************************************************/
-        if ( write_data == 1) {
+        if ( write_data > 0 ) {
           /**********************************************************
            * write 44 3pt
            **********************************************************/
           for ( int ireim = 0; ireim < 1; ireim++ ) {
     
-#ifdef _XG_NUCLEON
-            sprintf ( filename, "threep.gf_%s.gi_%s.g4_D4.%s.dtsnk%d.PX%d_PY%d_PZ%d.%s.corr",
-                gamma_id_to_Cg_ascii[ g_sink_gamma_id_list[igf] ], gamma_id_to_Cg_ascii[ g_source_gamma_id_list[igi] ],
-                smearing_tag,
-                g_sequential_source_timeslice_list[idt],
-                g_sink_momentum_list[0][0],
-                g_sink_momentum_list[0][1],
-                g_sink_momentum_list[0][2], reim_str[ireim] );
-#else
-            sprintf ( filename, "threep.gf_%s.gi_%s.g4_D4.%s.dtsnk%d.PX%d_PY%d_PZ%d.%s.corr",
-                gamma_id_to_ascii[ g_sink_gamma_id_list[igf] ], gamma_id_to_ascii[ g_source_gamma_id_list[igi] ],
-                smearing_tag,
-                g_sequential_source_timeslice_list[idt],
-                g_sink_momentum_list[0][0],
-                g_sink_momentum_list[0][1],
-                g_sink_momentum_list[0][2], reim_str[ireim] );
-#endif
+            sprintf ( filename, "threep.%s.%s.corr", obsname_tag, reim_str[ireim] );
+
             write_data_real2_reim ( threep_44, filename, conf_src_list, num_conf, num_src_per_conf, T_global, ireim );
     
           }  /* end of loop on ireim */
@@ -1097,9 +1196,10 @@ int main(int argc, char **argv) {
             fprintf ( stderr, "[xg_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
             EXIT(1);
           }
-    
-          /* double *** data = init_3level_dtable ( num_conf, num_src_per_conf, T_global ); */
-          double ** data = init_2level_dtable ( num_conf, T_global );
+
+          int nT = g_sequential_source_timeslice_list[idt] + 1;
+
+          double ** data = init_2level_dtable ( num_conf, nT );
           if ( data == NULL ) {
             fprintf ( stderr, "[xg_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
             EXIT(1);
@@ -1110,13 +1210,7 @@ int main(int argc, char **argv) {
            **********************************************************/
 #pragma omp parallel for
           for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-    
-            /* for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-            for ( int it = 0; it < T_global; it++ ) {
-              data[iconf][isrc][it] = threep_44[iconf][isrc][it][ireim];
-            }} */
-    
-            for ( int it = 0; it < T_global; it++ ) {
+            for ( int it = 0; it < nT; it++ ) {
               double dtmp = 0.;
               for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
                 dtmp += threep_44[iconf][isrc][it][ireim];
@@ -1125,33 +1219,17 @@ int main(int argc, char **argv) {
             }
           }
     
-          char obs_name[100];
-#ifdef _XG_NUCLEON
-          sprintf ( obs_name, "threep.gf_%s.gi_%s.g4_D4.%s.dtsnk%d.PX%d_PY%d_PZ%d.%s",
-              gamma_id_to_Cg_ascii[ g_sink_gamma_id_list[igf] ], gamma_id_to_Cg_ascii[ g_source_gamma_id_list[igi] ],
-              smearing_tag,
-              g_sequential_source_timeslice_list[idt],
-              g_sink_momentum_list[0][0],
-              g_sink_momentum_list[0][1],
-              g_sink_momentum_list[0][2], reim_str[ireim] );
-#else
-          sprintf ( obs_name, "threep.gf_%s.gi_%s.g4_D4.%s.dtsnk%d.PX%d_PY%d_PZ%d.%s",
-              gamma_id_to_ascii[ g_sink_gamma_id_list[igf] ], gamma_id_to_ascii[ g_source_gamma_id_list[igi] ],
-              smearing_tag,
-              g_sequential_source_timeslice_list[idt],
-              g_sink_momentum_list[0][0],
-              g_sink_momentum_list[0][1],
-              g_sink_momentum_list[0][2], reim_str[ireim] );
-#endif
+          char obs_name[500];
+          sprintf ( obs_name, "threep.%s.%s", obsname_tag, reim_str[ireim] );
 
           /* apply UWerr analysis */
-          exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+          exitstatus = apply_uwerr_real ( data[0], num_conf, nT, 0, 1, obs_name );
           if ( exitstatus != 0 ) {
             fprintf ( stderr, "[xg_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(1);
           }
     
-          if ( write_data == 2 ) {
+          if ( write_data > 1 ) {
             sprintf ( filename, "%s.corr", obs_name );
             write_data_real ( data, filename, conf_src_list, num_conf, T_global );
           }
@@ -1186,53 +1264,29 @@ int main(int argc, char **argv) {
           src_avg_real2_reim ( data, threep_44, num_conf, num_src_per_conf, nT, ireim );
     
 #pragma omp parallel for
-
           for ( int iconf = 0; iconf < num_conf; iconf++ ) {
             double dtmp = 0.;
             for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+              /* tsink counter from source time  */
               /* int const tsink  = (  g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global; */
+
+              /* tsink counted from 0, relative to source time */
               int const tsink  = (  g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
 #ifdef _XG_NUCLEON
-              dtmp += twop_orbit[iconf][isrc][tsink][ireim];
+              dtmp += twop_orbit[igf][igi][iconf][isrc][tsink][ireim];
 #else
+              /* tsink2 counted from absolute source time */
               /* int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global; */
+
+              /* tsink2 counted from 0, relative to source time */
               int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
-              dtmp += 0.5 * ( twop_orbit[iconf][isrc][tsink][ireim] + twop_orbit[iconf][isrc][tsink2][ireim] );
+              dtmp += 0.5 * ( twop_orbit[igf][igi][iconf][isrc][tsink][ireim] + twop_orbit[igf][igi][iconf][isrc][tsink2][ireim] );
 #endif
             }
             data[iconf][nT] = dtmp / (double)num_src_per_conf;
           }
 
-#if 0
-#pragma omp parallel for
-          for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-            for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-              int const tsink  = (  g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
-              for( int it = 0; it < nT; it++ ) {
-                data[iconf*num_src_per_conf + isrc][it] = threep_44[iconf][isrc][it][ireim] /  twop_orbit[iconf][isrc][tsink][ireim];
-              }
-              data[iconf*num_src_per_conf + isrc][nT] = 1.;
-            }
-          }
-#endif
-    
-#ifdef _XG_NUCLEON
-          sprintf ( obs_name, "ratio.gf_%s.gi_%s.g4_D4.%s.dtsnk%d.PX%d_PY%d_PZ%d.%s",
-            gamma_id_to_Cg_ascii[ g_sink_gamma_id_list[igf] ], gamma_id_to_Cg_ascii[ g_source_gamma_id_list[igi] ],
-            smearing_tag,
-            g_sequential_source_timeslice_list[idt],
-            g_sink_momentum_list[0][0],
-            g_sink_momentum_list[0][1],
-            g_sink_momentum_list[0][2], reim_str[ireim] );
-#else
-          sprintf ( obs_name, "ratio.gf_%s.gi_%s.g4_D4.%s.dtsnk%d.PX%d_PY%d_PZ%d.%s",
-            gamma_id_to_ascii[ g_sink_gamma_id_list[igf] ], gamma_id_to_ascii[ g_source_gamma_id_list[igi] ],
-            smearing_tag,
-            g_sequential_source_timeslice_list[idt],
-            g_sink_momentum_list[0][0],
-            g_sink_momentum_list[0][1],
-            g_sink_momentum_list[0][2], reim_str[ireim] );
-#endif
+          sprintf ( obs_name, "ratio.%s.%s", obsname_tag, reim_str[ireim] );
 
           exitstatus = apply_uwerr_func ( data[0], num_conf, nT+1, nT, narg, arg_first, arg_stride, obs_name, ratio_1_1, dratio_1_1 );
           if ( exitstatus != 0 ) {
@@ -1244,16 +1298,15 @@ int main(int argc, char **argv) {
     
 #ifdef _RAT_SUB_METHOD
 
-    /**********************************************************
-     *
-     * STATISTICAL ANALYSIS for ratio 
-     *
-     * with fixed source - sink separation  and
-     *
-     * with vev subtraction
-     *
-     **********************************************************/
-  
+        /**********************************************************
+         *
+         * STATISTICAL ANALYSIS for ratio sub
+         *
+         * with fixed source - sink separation  and
+         *
+         * with vev subtraction
+         *
+         **********************************************************/
         for ( int ireim = 0; ireim < 1; ireim++ ) {
     
           if ( num_conf < 6 ) {
@@ -1261,7 +1314,13 @@ int main(int argc, char **argv) {
             EXIT(1);
           }
     
-          double ** data = init_2level_dtable ( num_conf, T_global + 2 );
+          /* UWerr parameters */
+          int nT = g_sequential_source_timeslice_list[idt] + 1;
+          int narg          = 3;
+          int arg_first[3]  = { 0, nT, nT + 1 };
+          int arg_stride[3] = { 1,  0 , 0};
+
+          double ** data = init_2level_dtable ( num_conf, nT + 2 );
           if ( data == NULL ) {
             fprintf ( stderr, "[xg_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
             EXIT(1);
@@ -1273,7 +1332,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
           for ( int iconf = 0; iconf < num_conf; iconf++ ) {
 
-            for ( int it = 0; it < T_global; it++ ) {
+            for ( int it = 0; it < nT; it++ ) {
               double dtmp = 0.;
               for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
                 dtmp += threep_44[iconf][isrc][it][ireim];
@@ -1285,43 +1344,27 @@ int main(int argc, char **argv) {
             for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
               /* COUNT FROM SOURCE 0 */
               int const tsink  = (  g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
+#ifdef _XG_NUCLEON
+              data[iconf][nT] += twop_orbit[igf][igi][iconf][isrc][tsink][ireim];
+#else
               int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
-              data[iconf][T_global] += 0.5 * ( twop_orbit[iconf][isrc][tsink][ireim] + twop_orbit[iconf][isrc][tsink2][ireim] );
+              data[iconf][nT] += 0.5 * ( twop_orbit[igf][igi][iconf][isrc][tsink][ireim] + twop_orbit[igf][igi][iconf][isrc][tsink2][ireim] );
+#endif
             }
-            data[iconf][T_global] /= (double)num_src_per_conf;
+            data[iconf][nT] /= (double)num_src_per_conf;
 
-            data[iconf][T_global+1] = 0.;
+            data[iconf][nT + 1] = 0.;
             for ( int it = 0; it < T_global; it++ ) {
-              data[iconf][T_global+1] += loop_sub[iconf][it];
+              data[iconf][nT + 1] += loop_sub[iconf][it];
             }
-            data[iconf][T_global+1] /= (double)T_global;
+            data[iconf][nT + 1] /= (double)T_global;
           }
     
-          char obs_name[100];
-#ifdef _XG_NUCLEON
-          sprintf ( obs_name, "ratio.sub.gf_%s.gi_%s.g4_D4.%s.dtsnk%d.PX%d_PY%d_PZ%d.%s",
-              gamma_id_to_Cg_ascii[ g_sink_gamma_id_list[igf] ], gamma_id_to_Cg_ascii[ g_source_gamma_id_list[igi] ],
-              smearing_tag,
-              g_sequential_source_timeslice_list[idt],
-              g_sink_momentum_list[0][0],
-              g_sink_momentum_list[0][1],
-              g_sink_momentum_list[0][2], reim_str[ireim] );
-#else
-          sprintf ( obs_name, "ratio.sub.gf_%s.gi_%s.g4_D4.%s.dtsnk%d.PX%d_PY%d_PZ%d.%s",
-              gamma_id_to_ascii[ g_sink_gamma_id_list[igf] ], gamma_id_to_ascii[ g_source_gamma_id_list[igi] ],
-              smearing_tag,
-              g_sequential_source_timeslice_list[idt],
-              g_sink_momentum_list[0][0],
-              g_sink_momentum_list[0][1],
-              g_sink_momentum_list[0][2], reim_str[ireim] );
-#endif   
-          /* UWerr parameters */
-          int narg          = 3;
-          int arg_first[3]  = { 0, T_global, T_global+1 };
-          int arg_stride[3] = { 1,  0 , 0};
+          char obs_name[500];
+          sprintf ( obs_name, "ratio.sub.%s.%s", obsname_tag, reim_str[ireim] );
 
           /* apply UWerr analysis */
-          exitstatus = apply_uwerr_func ( data[0], num_conf, T_global+2, T_global, narg, arg_first, arg_stride, obs_name, ratio_1_2_mi_3, dratio_1_2_mi_3 );
+          exitstatus = apply_uwerr_func ( data[0], num_conf, nT+2, nT, narg, arg_first, arg_stride, obs_name, ratio_1_2_mi_3, dratio_1_2_mi_3 );
           if ( exitstatus != 0 ) {
             fprintf ( stderr, "[xg_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(1);
@@ -1329,6 +1372,82 @@ int main(int argc, char **argv) {
     
           fini_2level_dtable ( &data );
         }  /* end of loop on reim */
+
+        /**********************************************************
+         *
+         * summed ratio vev-subtracted
+         *
+         **********************************************************/
+        for ( int ireim = 0; ireim < 1; ireim++ ) {
+    
+          if ( num_conf < 6 ) {
+            fprintf ( stderr, "[xg_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
+            EXIT(1);
+          }
+    
+          /* UWerr parameters */
+          int nT = ( g_sequential_source_timeslice_list[idt] / 2 ) + 1;
+          int narg          = 3;
+          int arg_first[3]  = { 0, nT, nT + 1 };
+          int arg_stride[3] = { 1,  0 , 0};
+
+          double ** data = init_2level_dtable ( num_conf, nT + 2 );
+          if ( data == NULL ) {
+            fprintf ( stderr, "[xg_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+            EXIT(1);
+          }
+    
+          /**********************************************************
+           * partially summed threep_44
+           **********************************************************/
+#pragma omp parallel for
+          for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+
+            for ( int it = 0; it < nT; it++ ) {
+              const int tau1 =   g_sequential_source_timeslice_list[idt]       / 2 - it;
+              const int tau2 = ( g_sequential_source_timeslice_list[idt] + 1 ) / 2 + it;
+              double dtmp = 0.;
+              for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+                dtmp += threep_44[iconf][isrc][tau1][ireim] + threep_44[iconf][isrc][tau2][ireim];
+              }
+              data[iconf][it] = ( it == 0 ) ? dtmp : data[iconf][it-1] + dtmp;
+            }
+            for ( int it = 0; it < nT; it++ ) {
+              data[iconf][it] /= (double)num_src_per_conf * 2 * ( it + 1 );
+            }
+
+            for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+              /* COUNT FROM SOURCE 0 */
+              int const tsink  = (  g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
+#ifdef _XG_NUCLEON
+              data[iconf][nT] += twop_orbit[igf][igi][iconf][isrc][tsink][ireim];
+#else
+              int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
+              data[iconf][nT] += 0.5 * ( twop_orbit[igf][igi][iconf][isrc][tsink][ireim] + twop_orbit[igf][igi][iconf][isrc][tsink2][ireim] );
+#endif
+            }
+            data[iconf][nT] /= (double)num_src_per_conf;
+
+            data[iconf][nT + 1] = 0.;
+            for ( int it = 0; it < T_global; it++ ) {
+              data[iconf][nT + 1] += loop_sub[iconf][it];
+            }
+            data[iconf][nT + 1] /= (double)T_global;
+          }
+    
+          char obs_name[500];
+          sprintf ( obs_name, "ratio.sum.sub.%s.%s", obsname_tag, reim_str[ireim] );
+
+          /* apply UWerr analysis */
+          exitstatus = apply_uwerr_func ( data[0], num_conf, nT+2, nT, narg, arg_first, arg_stride, obs_name, ratio_1_2_mi_3, dratio_1_2_mi_3 );
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "[xg_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(1);
+          }
+    
+          fini_2level_dtable ( &data );
+        }  /* end of loop on reim */
+
     
 #endif  /* end of ifdef _RAT_SUB_METHOD */
 
@@ -1339,19 +1458,18 @@ int main(int argc, char **argv) {
 
 #endif  /* end of ifdef _RAT_METHOD */
   
-      /**********************************************************/
-      /**********************************************************/
-  
-      fini_2level_dtable ( &loop_sub );
+    }}  /* end of loop on gi, gf */
 
 #endif  /* end of ifdef _LOOP_ANALYSIS */
 
-    }  /* end of loop on smearing levels */
+    fini_2level_dtable ( &loop_sub );
 
-    fini_6level_dtable ( &twop );
-    fini_4level_dtable ( &twop_orbit );
+  }  /* end of loop on smearing levels */
 
-  }}  /* end of loop on gi, gf */
+  fini_8level_dtable ( &twop );
+  fini_6level_dtable ( &twop_orbit );
+  fini_4level_dtable ( &loop );
+
 
   /**********************************************************
    * free and finalize
