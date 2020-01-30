@@ -62,7 +62,7 @@ void usage() {
   EXIT(0);
 }
 
-#define MAX_SMEARING_LEVELS 12
+#define MAX_SMEARING_LEVELS 40
 
 int main(int argc, char **argv) {
   
@@ -103,6 +103,10 @@ int main(int argc, char **argv) {
       stout_level_iter[stout_level_num] = atoi ( optarg );
       fprintf ( stdout, "# [cpff_xg_contract] stout_level_iter %2d set to %2d\n", stout_level_num, stout_level_iter[stout_level_num] );
       stout_level_num++;
+      if ( stout_level_num == MAX_SMEARING_LEVELS ) {
+        fprintf ( stderr, "[cpff_xg_contract] Error, maximal number of stout smearing levels exceeded\n" );
+        EXIT(12);
+      }
       break;
     case 'h':
     case '?':
@@ -289,7 +293,7 @@ int main(int argc, char **argv) {
     EXIT(48);
   }
 
-
+#if 0
   /***************************************************************************
    * gluonic operators from field strength tensor
    ***************************************************************************/
@@ -344,9 +348,10 @@ int main(int argc, char **argv) {
     EXIT(48);
   }
 
-  fini_2level_dtable ( &pl );
   fini_3level_dtable ( &Gp );
   fini_3level_dtable ( &Gr );
+#endif  /* of if 0 */
+  fini_2level_dtable ( &pl );
 
   /***********************************************
    * smear and calculate operators
@@ -449,6 +454,7 @@ int main(int argc, char **argv) {
     gettimeofday ( &tb, (struct timezone *)NULL );
     show_time ( &ta, &tb, "cpff_xg_contract", "write-to-file", io_proc==2 );
 
+#if 0
     /***************************************************************************
      * gluonic operators from elements of field strength tensor
      ***************************************************************************/
@@ -505,7 +511,7 @@ int main(int argc, char **argv) {
 
     fini_3level_dtable ( &Gp );
     fini_3level_dtable ( &Gr );
-
+#endif  /* of if 0 */
 
     fini_2level_dtable ( &pl2 );
     
@@ -518,7 +524,6 @@ int main(int argc, char **argv) {
    * free the allocated memory, finalize
    ***************************************************************************/
   free ( gauge_field_smeared_ptr );
-  clover_term_fini ( &g_clover );
 
   /* free clover matrix terms */
 
@@ -528,9 +533,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[cpff_xg_contract] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
     return(32);
   }
-
 #endif
-
 
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   free(g_gauge_field);
