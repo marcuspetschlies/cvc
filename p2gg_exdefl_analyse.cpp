@@ -38,8 +38,13 @@
 #include "table_init_d.h"
 #include "clover.h"
 
+#define _USE_ATA_TWOP
 #undef _USE_ATA_TENSOR
-#define _USE_PTA_TENSOR
+#undef _USE_PTA_TENSOR
+
+#if ( defined _USE_ATA_TENSOR ) || ( defined _USE_PTA_TENSOR )
+#define _USE_LOOP
+#endif
 
 /****************************************************
  * return momentum id from list according
@@ -202,7 +207,7 @@ int main(int argc, char **argv) {
   }
 
 #else
-#error "need lhp-aff lib; currently no other output method implemented"
+#error "need lhpc-aff lib; currently no other output method implemented"
 #endif
 
   /***********************************************************
@@ -417,6 +422,7 @@ int main(int argc, char **argv) {
    ***********************************************************/
   for ( int evecs_use = evecs_use_min; evecs_use <= evecs_num; evecs_use += evecs_use_step ) {
 
+#ifdef _USE_LOOP
     double _Complex * loop_p = init_1level_ztable ( T_global );
     if ( loop_p == NULL ) {
       fprintf ( stderr, "[p2gg_exdefl_analyse] Error from init_1level_ztable %s %d\n", __FILE__, __LINE__);
@@ -468,6 +474,8 @@ int main(int argc, char **argv) {
     }
     fclose ( ofs );
 #endif
+
+#endif  /* of _USE_LOOP */
 
 #ifdef _USE_ATA_TENSOR
     if ( vw_mat_v != NULL ) {
@@ -1048,7 +1056,145 @@ int main(int argc, char **argv) {
     /***********************************************************/
     /***********************************************************/
 
+#ifdef _USE_LOOP
     fini_1level_ztable ( &loop_p );
+#endif
+
+    /***********************************************************/
+    /***********************************************************/
+
+
+#ifdef _USE_ATA_TWOP
+    if ( vw_mat_v != NULL ) {
+      /***********************************************************
+       *
+       * ATA JJ TWOP
+       *
+       * construct all-to-all jj 2-point function
+       *
+       ***********************************************************/
+  
+      /***********************************************************
+       * allocate corr_v = jj tensor
+       ***********************************************************/
+      double _Complex ***** corr_v = init_5level_ztable ( g_sink_momentum_number, g_sink_gamma_id_number, g_sink_gamma_id_number, T_global, T_global );
+      if ( corr_v == NULL ) {
+        fprintf ( stderr, "[p2gg_exdefl_analyse] Error from init_5level_ztable %s %d\n", __FILE__, __LINE__);
+        EXIT(15);
+      }
+  
+      gettimeofday ( &ta, (struct timezone *)NULL );
+
+      /***********************************************************
+       * loop on sink momenta
+       *
+       *  ( source momentum is fixed )
+       ***********************************************************/
+      for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+  
+        /***********************************************************
+         * id of momentum vector in g_sink_momentum_list, which
+         * fulfills momentum conservation
+         * psnk[imom] + source_momentum + psnk[kmom] = 0
+         ***********************************************************/
+        int kmom = get_momentum_id ( g_sink_momentum_list[imom], source_momentum, g_sink_momentum_number, g_sink_momentum_list );
+  
+        if ( kmom == -1 ) {
+          fprintf ( stderr, "[p2gg_exdefl_analyse] Warning momentum not found %s %d\n", __FILE__, __LINE__ );
+          continue;  /* no such momentum was found */
+        }
+  
+        if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_exdefl_analyse] psrc = %3d %3d %3d   psnk = %3d %3d %3d   pcur = %3d %3d %3d\n",
+            source_momentum[0], source_momentum[1], source_momentum[2],
+            g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
+            g_sink_momentum_list[kmom][0], g_sink_momentum_list[kmom][1], g_sink_momentum_list[kmom][2] );
+  
+        /***********************************************************
+         * loop on tensor components at sink and current side
+         ***********************************************************/
+        for ( int ig1 = 0; ig1 < g_sink_gamma_id_number; ig1++ ) {
+        for ( int ig2 = 0; ig2 < g_sink_gamma_id_number; ig2++ ) {
+  
+          gettimeofday ( &ta, (struct timezone *)NULL );
+  
+          /***********************************************************
+           * loop on time slice combinations at sink and current side
+           ***********************************************************/
+#pragma omp parallel for
+          for ( int x0 = 0; x0 < T_global; x0++ ) {
+          for ( int y0 = 0; y0 < T_global; y0++ ) {
+  
+            /***********************************************************
+             * loop on evec ids, partial trace
+             ***********************************************************/
+            for ( int iw = 0; iw < evecs_use; iw++ ) {
+            for ( int iv = 0; iv < evecs_use; iv++ ) {
+              corr_v[imom][ig1][ig2][x0][y0] += vw_mat_v[imom][ig1][x0][iw][iv] * vw_mat_v[kmom][ig2][y0][iv][iw] * evecs_eval_inv[iw] * evecs_eval_inv[iv];
+            }}
+  
+          }}
+  
+          gettimeofday ( &tb, (struct timezone *)NULL );
+          show_time ( &ta, &tb, "p2gg_exdefl_analyse", "jj-tensor-TxT-partial-trace", g_cart_id == 0 );
+  
+          /***********************************************************
+           * write tensor to file
+           ***********************************************************/
+          gettimeofday ( &ta, (struct timezone *)NULL );
+#ifdef HAVE_LHPC_AFF
+          sprintf ( key, "/jj/g%d_g%d/px%d_py%d_pz%d/qx%d_qy%d_qz%d/nev%d",
+              g_sink_gamma_id_list[ig1], g_sink_gamma_id_list[ig2],
+              g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
+              g_sink_momentum_list[kmom][0], g_sink_momentum_list[kmom][1], g_sink_momentum_list[kmom][2],
+              evecs_use );
+  
+          affdir = aff_writer_mkpath ( affw, affwn, key );
+          if ( affdir == NULL ) {
+            fprintf ( stderr, "[p2gg_exdefl_analyse] Error from aff_writer_mkpath %s %d\n", __FILE__, __LINE__);
+            EXIT(17);
+          }
+  
+          exitstatus = aff_node_put_complex ( affw, affdir, corr_v[imom][ig1][ig2][0], (uint32_t)T_global*T_global );
+          if(exitstatus != 0) { 
+            fprintf ( stderr, "[p2gg_exdefl_analyse] Error from aff_node_put_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(18);
+          }
+#else
+          sprintf ( filename, "%s.jj.g%d_g%d.px%d_py%d_pz%d.qx%d_qy%d_qz%d.nev%d.%.4d", g_outfile_prefix,
+              g_sink_gamma_id_list[ig1], g_sink_gamma_id_list[ig2],
+              g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
+              g_sink_momentum_list[kmom][0], g_sink_momentum_list[kmom][1], g_sink_momentum_list[kmom][2],
+              evecs_use, Nconf );
+  
+          FILE * ofs = fopen ( filename, "w" );
+          if ( ofs == NULL ) {
+            fprintf ( stderr, "[p2gg_exdefl_analyse] Error from fopen %s %d\n", __FILE__, __LINE__);
+            EXIT(21);
+          }
+  
+          for ( int x0 = 0; x0 < T_global; x0++ ) {
+          for ( int y0 = 0; y0 < T_global; y0++ ) {
+            fprintf ( ofs, "%3d %3d %25.16e  %25.16e\n", x0, y0, creal( corr_v[imom][ig1][ig2][x0][y0] ), cimag( corr_v[imom][ig1][ig2][x0][y0] ) );
+          }}
+          fclose ( ofs );
+#endif
+          gettimeofday ( &tb, (struct timezone *)NULL );
+          show_time ( &ta, &tb, "p2gg_exdefl_analyse", "jj-tensor-a2a-write", g_cart_id == 0 );
+        }}  /* end of loop on tensor components at current and sink */
+  
+      }  /* end of loop on sink momenta */
+  
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "p2gg_exdefl_analyse", "2pt-a2a-T-T", g_cart_id == 0 );
+
+      fini_5level_ztable ( &corr_v );
+
+    }  /* end of if vw_mat_v != NULL */
+
+#endif  /* of ifdef _USE_ATA_TWOP */
+
+    /***********************************************************/
+    /***********************************************************/
 
   }  /* end of loop on upper limits */
 
