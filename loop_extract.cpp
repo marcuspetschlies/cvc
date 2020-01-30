@@ -223,7 +223,8 @@ int main(int argc, char **argv) {
 
   /* MG_loop_lightquark_conf_conf.1016_runtype_probD8_part1_stoch_NeV0_Ns0128_step0001_Qsq22.h5 */
   /* sprintf ( filename, "MG_loop_lightquark_conf_conf.%.4d_runtype_probD%d_part1_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", confid, hier_prob_D, exdef_nev, nsample, nstep, Qsq ); */
-  sprintf ( filename, "%s.%.4d.h5", g_outfile_prefix, confid );
+  /* sprintf ( filename, "%s.%.4d.h5", g_outfile_prefix, confid ); */
+  sprintf ( filename, "%d/%s.%.4d.h5", confid, g_outfile_prefix, confid );
  
   /* sprintf ( filename, "loop_probD%d.%.4d_r%d_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", hier_prob_D, confid, stream, exdef_nev, nsample, nstep, Qsq ); */
 
@@ -527,7 +528,8 @@ int main(int argc, char **argv) {
 
   char data_filename[400];
   /* sprintf ( data_filename, "MG_loop_lightquark_conf_conf.%.4d_runtype_probD%d_part1_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", confid, hier_prob_D, exdef_nev, nsample, nstep, Qsq ); */
-  sprintf ( data_filename, "%s.%.4d.h5", g_outfile_prefix, confid );
+  /* sprintf ( data_filename, "%s.%.4d.h5", g_outfile_prefix, confid ); */
+  sprintf ( data_filename, "%d/%s.%.4d.h5", confid, g_outfile_prefix, confid );
   if ( g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", filename );
 
   double _Complex ***** zloop_stoch = init_5level_ztable ( nsample,  g_sink_momentum_number, T, 4, 4 );
