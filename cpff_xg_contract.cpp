@@ -306,8 +306,9 @@ int main(int argc, char **argv) {
   /***********************************************************
    * TEST initialize clover, lmzz and lmzzinv
    ***********************************************************/
-  clover_term_init ( &g_clover, 6);
+  /* clover_term_init ( &g_clover, 6);
   clover_term_eo  ( g_clover, g_gauge_field );
+  */
 
   /***********************************************************
    * plaquette and rectangle field strength tensors
@@ -318,8 +319,39 @@ int main(int argc, char **argv) {
     EXIT(8);
   }
 
+  double * gt = NULL;
+  init_gauge_trafo ( &gt, 1. );
+
+  apply_gt_gauge ( gt, g_gauge_field );
+
+  double *** Gpt = init_3level_dtable ( VOLUME, 6, 18 );
+  double *** Grt = init_3level_dtable ( VOLUME, 6, 18 );
+
+  exitstatus = G_plaq_rect ( Gpt, Grt, g_gauge_field );
+
+  for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
+    int imunu = 0;
+    for ( int imu = 0; imu < 3; imu++ ) {
+      for ( int inu = imu+1; inu < 4; inu++ ) {
+   STOPPED HERE
+        double U1[18], U2[18];
+        _cm_eq_cm_ti_cm ( 
+
+
+        for ( int i = 0; i < 9; i++ ) {
+          fprintf ( stdout, "FP %6d  %d %d   %d %d    %25.16e %25.16e    %25.16e %25.16e\n",
+              ix, imu, inu, i/3, i%3, 
+              Gp[ix][imunu][2*i], Gp[ix][imunu][2*i+1], Gpt[ix][imunu][2*i], Gpt[ix][imunu][2*i+1] );
+        }
+        imunu++;
+      }
+    }
+  }
+
+  free ( gt );
+
   /* fini TEST */
-  clover_term_fini ( &g_clover );
+  /* clover_term_fini ( &g_clover ); */
 
 #if 0
   exitstatus = gluonic_operators_eo_from_fst ( pl, Gp );
