@@ -241,7 +241,7 @@ int main(int argc, char **argv) {
 
   int *** conf_src_list = init_3level_itable ( num_conf, num_src_per_conf, 6 );
   if ( conf_src_list == NULL ) {
-    fprintf(stderr, "[p2gg_analyse_wdisc] Error from init_3level_itable %s %d\n", __FILE__, __LINE__);
+    fprintf(stderr, "[p2gg_analyse_wdisc] Error from init_Xlevel_itable %s %d\n", __FILE__, __LINE__);
     EXIT(16);
   }
   char line[100];
@@ -275,7 +275,6 @@ int main(int argc, char **argv) {
             conf_src_list[iconf][isrc][3],
             conf_src_list[iconf][isrc][4],
             conf_src_list[iconf][isrc][5] );
-
       }
     }
   }
