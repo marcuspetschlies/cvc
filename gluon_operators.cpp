@@ -397,7 +397,6 @@ int G_plaq_rect ( double *** Gp, double *** Gr, double * const gauge_field) {
    ********************************************************************/
 #endif  /* of TEST */
 
-
   /********************************************************************
    * xchange the rectangles
    *   INCLUDING edges ???
@@ -513,6 +512,154 @@ int G_plaq_rect ( double *** Gp, double *** Gr, double * const gauge_field) {
   }
 #if 0
 #endif  /* of if 0 */
+
+  /********************************************************************
+   * TEST
+   * alternative calculation of rectangles
+   ********************************************************************/
+#ifndef HAVE_MPI
+  for ( unsigned int ix = 0; ix < VOLUME; ix++ )
+  {
+
+    double U1[18], U2[18];
+    double R[6][18];
+
+    int imunu = 0;
+
+    for ( int imunu = 0; imunu < 6; imunu++ ) {
+    
+      const int imu = dirpairs[imunu][0];
+      const int inu = dirpairs[imunu][1];
+
+      memset ( R[imunu], 0, 18 * sizeof( double ) );
+
+      /* 2mu + nu  */
+
+      /* x -> x+mu -> x+mu+mu */
+      _cm_eq_cm_ti_cm( U1, gauge_field+_GGI(ix,imu), gauge_field+_GGI(g_iup[ix][imu],imu) );
+      /* x -> x+mu -> x+mu+mu -> x+mu+mu+nu */
+      _cm_eq_cm_ti_cm( U2, U1, gauge_field+_GGI( g_iup[ g_iup[ix][imu] ][imu], inu) );
+      /* x -> x+mu -> x+mu+mu -> x+mu+mu+nu -> x+mu+nu */
+      _cm_eq_cm_ti_cm_dag( U1, U2, gauge_field+_GGI( g_iup[g_iup[ix][inu]][imu], imu) );
+      /* x -> x+mu -> x+mu+mu -> x+mu+mu+nu -> x+mu+nu -> x+nu */
+      _cm_eq_cm_ti_cm_dag( U2, U1, gauge_field+_GGI( g_iup[ix][inu], imu) );
+      /* x -> x+mu -> x+mu+mu -> x+mu+mu+nu -> x+mu+nu -> x+nu -> x */
+      _cm_eq_cm_ti_cm_dag( U1, U2, gauge_field+_GGI( ix, inu) );
+      _cm_pl_eq_cm ( R[imunu], U1 );
+
+
+      /* x -> x-nu -> x-nu+mu */
+      _cm_eq_cm_dag_ti_cm( U1, gauge_field+_GGI( g_idn[ix][inu], inu ), gauge_field+_GGI( g_idn[ ix][inu], imu) );
+      /* x -> x-nu -> x-nu+mu -> x-nu+mu+mu */
+      _cm_eq_cm_ti_cm( U2, U1, gauge_field+_GGI( g_idn[ g_iup[ix][inu] ][imu], imu) );
+      /* x -> x-nu -> x-nu+mu -> x-nu+mu+mu -> x+mu+mu */
+      _cm_eq_cm_ti_cm( U1, U2, gauge_field+_GGI( g_iup[ g_iup[ix][imu] ][imu], inu) );
+      /* x -> x-nu -> x-nu+mu -> x-nu+mu+mu -> x+mu+mu -> x+mu */
+      _cm_eq_cm_ti_cm_dag( U2, U1, gauge_field+_GGI( g_iup[ix][imu], imu) );
+      /* x -> x-nu -> x-nu+mu -> x-nu+mu+mu -> x+mu+mu -> x+mu -> x */
+      _cm_eq_cm_ti_cm_dag( U1, U2, gauge_field+_GGI( ix, imu) );
+      _cm_pl_eq_cm ( R[imunu], U1 );
+
+
+      /* x -> x+nu -> x+nu-mu */
+      _cm_eq_cm_ti_cm_dag( U1, gauge_field+_GGI( ix, inu ), gauge_field+_GGI (g_idn[g_iup[ix][inu] ][imu], imu) );
+      /* x -> x+nu -> x+nu-mu -> x+nu-mu-mu */
+      _cm_eq_cm_ti_cm_dag( U2, U1, gauge_field+_GGI( g_idn[ g_idn[ g_iup[ix][inu] ][imu] ][imu], imu) );
+      /* x -> x+nu -> x+nu-mu -> x+nu-mu-mu -> x-mu-mu */
+      _cm_eq_cm_ti_cm_dag( U1, U2, gauge_field+_GGI( g_idn[ g_idn[ix][imu] ][imu], inu) );
+      /* x -> x+nu -> x+nu-mu -> x+nu-mu-mu -> x-mu-mu -> x-mu */
+      _cm_eq_cm_ti_cm( U2, U1, gauge_field+_GGI( g_idn[ g_idn[ix][imu] ][imu], imu) );
+      /* x -> x+nu -> x+nu-mu -> x+nu-mu-mu -> x-mu-mu -> x-mu -> x-mu */
+      _cm_eq_cm_ti_cm_dag( U1, U2, gauge_field+_GGI( g_idn[ix][imu], imu) );
+      _cm_pl_eq_cm ( R[imunu], U1 );
+
+      /* ( x-mu -> x-mu-mu -> x-mu-mu-nu )^+ */
+      _cm_eq_cm_ti_cm( U1, gauge_field+_GGI( g_idn[ g_idn[g_idn[ix][imu] ][imu] ][inu],inu), gauge_field+_GGI( g_idn[ g_idn[ix][imu] ][imu], imu) );
+      /* ( x -> x-mu -> x-mu-mu -> x-mu-mu-nu )^+ */
+      _cm_eq_cm_ti_cm( U2, U1, gauge_field+_GGI( g_idn[ix][imu], imu) );
+      /* x -> x-mu -> x-mu-mu -> x-mu-mu-nu -> x-mu-nu */
+      _cm_eq_cm_dag_ti_cm( U1, U2, gauge_field+_GGI( g_idn[ g_idn[g_idn[ix][inu] ][imu] ][imu], imu) );
+      /* x -> x-mu -> x-mu-mu -> x-mu-mu-nu -> x-mu-nu -> x-nu */
+      _cm_eq_cm_ti_cm( U2, U1, gauge_field+_GGI( g_idn[ g_idn[ix][imu] ][inu], imu) );
+      /* x -> x-mu -> x-mu-mu -> x-mu-mu-nu -> x-mu-nu -> x-nu -> x */
+      _cm_eq_cm_ti_cm( U1, U2, gauge_field+_GGI( g_idn[ix][inu], inu) );
+      _cm_pl_eq_cm ( R[imunu], U1 );
+
+
+      /* 2nu + mu  */
+
+      /* x -> x+mu -> x+mu+nu */
+      _cm_eq_cm_ti_cm( U1, gauge_field+_GGI(ix,imu), gauge_field+_GGI(g_iup[ix][imu],inu) );
+      /* x -> x+mu -> x+mu+nu -> x+mu+nu+nu */
+      _cm_eq_cm_ti_cm( U2, U1, gauge_field+_GGI( g_iup[ g_iup[ix][imu] ][inu], inu) );
+      /* x -> x+mu -> x+mu+nu -> x+mu+nu+nu -> x+nu+nu */
+      _cm_eq_cm_ti_cm_dag( U1, U2, gauge_field+_GGI( g_iup[g_iup[ix][inu]][inu], imu) );
+      /* x -> x+mu -> x+mu+nu -> x+mu+nu+nu -> x+nu+nu -> x+nu */
+      _cm_eq_cm_ti_cm_dag( U2, U1, gauge_field+_GGI( g_iup[ix][inu], inu) );
+      /* x -> x+mu -> x+mu+nu -> x+mu+nu+nu -> x+nu+nu -> x+nu -> x */
+      _cm_eq_cm_ti_cm_dag( U1, U2, gauge_field+_GGI( ix, inu) );
+      _cm_pl_eq_cm ( R[imunu], U1 );
+
+
+      /* ( x -> x-nu -> x-nu-nu )^+ */
+      _cm_eq_cm_ti_cm( U1, gauge_field+_GGI( g_idn[ g_idn[ix][inu] ][inu], inu ), gauge_field+_GGI( g_idn[ ix][inu], inu) );
+      /* x -> x-nu -> x-nu-nu -> x-nu-nu+mu */
+      _cm_eq_cm_dag_ti_cm( U2, U1, gauge_field+_GGI( g_idn[ g_idn[ix][inu] ][inu], imu) );
+      /* x -> x-nu -> x-nu-nu -> x-nu-nu+mu -> x-nu+mu */
+      _cm_eq_cm_ti_cm( U1, U2, gauge_field+_GGI( g_iup[ g_idn[ g_idn[ix][inu] ][inu] ][imu], inu) );
+      /* x -> x-nu -> x-nu-nu -> x-nu-nu+mu -> x-nu+mu -> x+mu */
+      _cm_eq_cm_ti_cm( U2, U1, gauge_field+_GGI( g_iup[ g_idn[ix][inu] ][imu], inu) );
+      /* x -> x-nu -> x-nu-nu -> x-nu-nu+mu -> x-nu+mu -> x+mu -> x */
+      _cm_eq_cm_ti_cm_dag( U1, U2, gauge_field+_GGI( ix, imu) );
+      _cm_pl_eq_cm ( R[imunu], U1 );
+
+
+      /* x -> x+nu -> x+nu+nu */
+      _cm_eq_cm_ti_cm( U1, gauge_field+_GGI( ix, inu ), gauge_field+_GGI ( g_iup[ix][inu], inu) );
+      /* x -> x+nu -> x+nu+nu -> x+nu+nu-mu */
+      _cm_eq_cm_ti_cm_dag( U2, U1, gauge_field+_GGI( g_idn[ g_iup[ g_iup[ix][inu] ][inu] ][imu], imu) );
+      /* x -> x+nu -> x+nu+nu -> x+nu+nu-mu -> x+nu-mu */
+      _cm_eq_cm_ti_cm_dag( U1, U2, gauge_field+_GGI( g_iup[ g_idn[ix][imu] ][inu], inu) );
+      /* x -> x+nu -> x+nu+nu -> x+nu+nu-mu -> x+nu-mu -> x-mu */
+      _cm_eq_cm_ti_cm_dag( U2, U1, gauge_field+_GGI( g_idn[ix][imu], inu) );
+      /* x -> x+nu -> x+nu+nu -> x+nu+nu-mu -> x+nu-mu -> x-mu -> x */
+      _cm_eq_cm_ti_cm( U1, U2, gauge_field+_GGI( g_idn[ix][imu], imu) );
+      _cm_pl_eq_cm ( R[imunu], U1 );
+
+
+      /* ( x-mu -> x-mu-nu -> x-mu-nu-nu )^+ */
+      _cm_eq_cm_ti_cm( U1, gauge_field+_GGI( g_idn[ g_idn[g_idn[ix][imu] ][inu] ][inu],inu), gauge_field+_GGI( g_idn[ g_idn[ix][imu] ][inu], inu) );
+      /* ( x -> x-mu -> x-mu-nu -> x-mu-nu-nu )^+ */
+      _cm_eq_cm_ti_cm( U2, U1, gauge_field+_GGI( g_idn[ix][imu], imu) );
+      /* x -> x-mu -> x-mu-nu -> x-mu-nu-nu -> x-nu-nu */
+      _cm_eq_cm_dag_ti_cm( U1, U2, gauge_field+_GGI( g_idn[ g_idn[g_idn[ix][imu] ][inu] ][inu], imu) );
+      /* x -> x-mu -> x-mu-nu -> x-mu-nu-nu -> x-nu-nu -> x-nu */
+      _cm_eq_cm_ti_cm( U2, U1, gauge_field+_GGI( g_idn[ g_idn[ix][inu] ][inu], inu) );
+      /* x -> x-mu -> x-mu-nu -> x-mu-nu-nu -> x-nu-nu -> x-nu -> x */
+      _cm_eq_cm_ti_cm( U1, U2, gauge_field+_GGI( g_idn[ix][inu], inu) );
+      _cm_pl_eq_cm ( R[imunu], U1 );
+
+      _cm_eq_antiherm_cm ( U1, R[imunu] );
+      _cm_eq_cm_ti_re ( R[imunu], U1, one_over_eight );
+
+    }
+    for ( int imunu = 0; imunu < 6; imunu++ ) {
+      for ( int k = 0; k < 9; k++ ) {
+          fprintf ( stdout, "G %6d %d    %d %d    %25.16e %25.16e     %25.16e%25.16e\n", ix, imunu, k/3, k%3,
+              Gr[ix][imunu][2*k], Gr[ix][imunu][2*k+1],
+              R[imunu][2*k], R[imunu][2*k+1] );
+      }
+      fprintf( stdout, "\n" );
+    }
+    fprintf ( stdout, "\n\n\n" );
+  }  /* end of loop on ix */
+#endif  /* of ifndef HAVE_MPI */
+
+  /********************************************************************
+   * end of TEST
+   ********************************************************************/
+
+
 
   fini_5level_dtable ( &rectangles );
 
@@ -676,21 +823,23 @@ int gluonic_operators_eo_from_fst ( double ** op, double *** const G ) {
 
       unsigned int const ix = it * VOL3 + iy;
 
-      /* for O44 : G_{0,1} G_{1,0} + G_{0,2} G_{2,0} + G_{0,3} G_{3,0} 
-       * indices        0       0         1       1         2       2  */
+      /* for O44 : G_{0,1} x G_{1,0} + G_{0,2} x G_{2,0} + G_{0,3} x G_{3,0} 
+       * indices        0  x      0         1  x      1         2  x      2  */
 
       for ( int nu = 0; nu < 3; nu++ ) {
         _cm_eq_cm_ti_cm ( s, G[ix][nu], G[ix][nu] );
         _re_pl_eq_tr_cm ( &(pl_tmp[0]), s );
       }
 
-      /* for Okk : G_{1,2} G_{1,2} + G_{1,2} G_{1,2} + G_{1,2} G_{1,2} 
-       * indices        3       3         4       4         5       5 */
+      /* for Okk : G_{1,2} x G_{1,2} + G_{1,2} x G_{1,2} + G_{1,2} x G_{1,2} 
+       * indices        3  x      3         4  x      4         5  x      5 */
       for ( int nu = 3; nu<6; nu++) {
         _cm_eq_cm_ti_cm ( s, G[ix][nu], G[ix][nu] );
         _re_pl_eq_tr_cm ( &(pl_tmp[1]), s );
       }
     }
+    pl_tmp[0] *= -1.;
+    pl_tmp[1] *= -1.;
 
 #ifdef HAVE_OPENMP
     omp_set_lock(&writelock);
