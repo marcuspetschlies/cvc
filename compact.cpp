@@ -68,13 +68,15 @@ int main(int argc, char **argv) {
   int num_conf = 0;
   char ensemble_name[100] = "NA";
   int operator_type = -1;
+  int flavor_type[4];
+  int flavor_num = 0;
   struct timeval ta, tb;
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:N:S:E:O:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:N:S:E:O:F:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -95,6 +97,11 @@ int main(int argc, char **argv) {
     case 'O':
       operator_type = atoi ( optarg );
       fprintf ( stdout, "# [compact] operator_type set to %d\n", operator_type );
+      break;
+    case 'F':
+      flavor_type[flavor_num] = atoi ( optarg );
+      fprintf ( stdout, "# [compact] flavor_type %d set to %d\n", flavor_num, flavor_type[flavor_num] );
+      flavor_num++;
       break;
     case 'h':
     case '?':
@@ -256,10 +263,11 @@ int main(int argc, char **argv) {
       /***********************************************************
        * loop on flavor
        ***********************************************************/
-      for ( int iflavor = 0; iflavor <= 1 ; iflavor++ ) {
+      for ( int iflavor = 0; iflavor < flavor_num ; iflavor++ ) {
+        const int flavor_id = flavor_type[iflavor];
 
         sprintf( key, "/%s/%s/t%.2dx%.2dy%.2dz%.2d",
-              correlator_prefix[operator_type], flavor_tag[iflavor],
+              correlator_prefix[operator_type], flavor_tag[flavor_id],
               conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5] );
   
         affpath = aff_reader_chpath (affr, affn, key );
@@ -332,7 +340,8 @@ int main(int argc, char **argv) {
   /***********************************************************
    * loop on flavor
    ***********************************************************/
-  for ( int iflavor = 0; iflavor <= 1 ; iflavor++ ) {
+  for ( int iflavor = 0; iflavor < flavor_num ; iflavor++ ) {
+    const int flavor_id = flavor_type[iflavor];
 
     /***********************************************************
      * loop on gamma at sink
@@ -359,7 +368,7 @@ int main(int argc, char **argv) {
     
           sprintf( data_filename, "%s/%s.%s.gf%.2d.gi%.2d.px%dpy%dpz%d.aff",
               filename_prefix3,
-              correlator_prefix[operator_type], flavor_tag[iflavor],
+              correlator_prefix[operator_type], flavor_tag[flavor_id],
               g_sink_gamma_id_list[igf], g_source_gamma_id_list[igi],
               g_sink_momentum_list[ipf][0], g_sink_momentum_list[ipf][1], g_sink_momentum_list[ipf][2] );
 
