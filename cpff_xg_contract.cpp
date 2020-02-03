@@ -415,7 +415,6 @@ int main(int argc, char **argv) {
   fini_3level_dtable ( &Gr );
   fini_2level_dtable ( &pl );
 
-#if 0
 
   /***********************************************
    * smear and calculate operators
@@ -597,6 +596,7 @@ int main(int argc, char **argv) {
 
   free ( gauge_field_smeared_ptr );
 
+#if 0
 #endif  /* of if 0 */
 
   /***************************************************************************
