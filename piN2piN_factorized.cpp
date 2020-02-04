@@ -191,22 +191,24 @@ int main(int argc, char **argv) {
 
 
   int c;
-  int filename_set = 0;
+  int filename_set                   = 0;
   int exitstatus;
-  int op_id_up= -1, op_id_dn = -1;
+  int op_id_up= -1, op_id_dn         = -1;
   int gsx[4], sx[4];
-  int source_proc_id = 0;
-  int read_stochastic_source       = 0;
-  int read_stochastic_source_oet   = 0;
-  int read_stochastic_propagator   = 0;
-  int write_stochastic_source      = 0;
-  int write_stochastic_source_oet  = 0;
-  int write_stochastic_propagator  = 0;
-  int read_forward_propagator      = 0;
-  int read_sequential_propagator   = 0;
-  int check_propagator_residual    = 0;
+  int source_proc_id                 = 0;
+  int read_stochastic_source         = 0;
+  int read_stochastic_source_oet     = 0;
+  int read_stochastic_propagator     = 0;
+  int read_stochastic_propagator_oet = 0;
+  int write_stochastic_source        = 0;
+  int write_stochastic_source_oet    = 0;
+  int write_stochastic_propagator_oet = 0;
+  int write_stochastic_propagator    = 0;
+  int read_forward_propagator        = 0;
+  int read_sequential_propagator     = 0;
+  int check_propagator_residual      = 0;
 /***********************************************************/
-  int mode_of_operation            = 0;
+  int mode_of_operation              = 0;
 
 /* mode of operation
  * 000 = 0 nothing
@@ -286,7 +288,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "pqSscrRwWh?f:m:")) != -1) {
+  while ((c = getopt(argc, argv, "tTpqSscrRwWh?f:m:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -331,6 +333,14 @@ int main(int argc, char **argv) {
     case 'q':
       read_sequential_propagator = 1;
       fprintf(stdout, "# [piN2piN_factorized] will read sequential propagator\n");
+      break;
+    case 't':
+      read_stochastic_propagator_oet = 1;
+      fprintf(stdout, "# [piN2piN_factorized] will read stochastic oet propagator\n");
+      break;
+    case 'T':
+      write_stochastic_propagator_oet = 1;
+      fprintf(stdout, "# [piN2piN_factorized] will write stochastic oet propagator\n");
       break;
     case 'h':
     case '?':
@@ -2699,44 +2709,58 @@ int main(int argc, char **argv) {
         /*****************************************************************
          * invert for stochastic timeslice propagator at zero momentum
          *****************************************************************/
-        for( int i = 0; i < 4; i++) {
-          memcpy(spinor_work[0], stochastic_source_list[i], sizeof_spinor_field);
+        if ( !read_stochastic_propagator_oet ) {
+          for( int i = 0; i < 4; i++) {
+            memcpy(spinor_work[0], stochastic_source_list[i], sizeof_spinor_field);
 
-          /* source-smearing stochastic momentum source */
-          if ( ( exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi) ) != 0 ) {
-            fprintf(stderr, "[piN2piN_factorized] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(5);
+            /* source-smearing stochastic momentum source */
+            if ( ( exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi) ) != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(5);
+            }
+
+            /* tm-rotate stochastic source */
+            if( g_fermion_type == _TM_FERMION ) {
+              spinor_field_tm_rotation ( spinor_work[0], spinor_work[0], +1, g_fermion_type, VOLUME);
+            }
+
+            memset(spinor_work[1], 0, sizeof_spinor_field);
+
+            exitstatus = _TMLQCD_INVERT(spinor_work[1], spinor_work[0], op_id_up);
+            if(exitstatus != 0) {
+              fprintf(stderr, "[piN2piN_factorized] Error from tmLQCD_invert, status was %d\n", exitstatus);
+              EXIT(44);
+            }
+
+            if ( check_propagator_residual ) {
+              check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_up], 1 );
+            }
+
+            /* tm-rotate stochastic propagator at sink */
+            if( g_fermion_type == _TM_FERMION ) {
+              spinor_field_tm_rotation(spinor_work[1], spinor_work[1], +1, g_fermion_type, VOLUME);
+            }
+
+            /* sink smearing stochastic propagator */
+            if ( ( exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi) ) != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(5);
+            }
+ 
+            memcpy( stochastic_propagator_zero_list[i], spinor_work[1], sizeof_spinor_field);
           }
 
-          /* tm-rotate stochastic source */
-          if( g_fermion_type == _TM_FERMION ) {
-            spinor_field_tm_rotation ( spinor_work[0], spinor_work[0], +1, g_fermion_type, VOLUME);
+        } else {
+          for( int i = 0; i < 4; i++) {
+            sprintf(filename, "%s-oet.%c.%.4d.t%.2d.%.2d.%.5d", filename_prefix2, 'u', Nconf, gsx[0], i, isample);
+            if ( g_cart_id == 0 ) fprintf( stdout, "# [piN2piN_factorized] Reading stochastic propagator oet mom from file %s %s %d\n", filename, __FILE__, __LINE__ );
+
+            exitstatus = read_lime_spinor ( stochastic_propagator_zero_list[i], filename, 0 );
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from read_lime_spinor, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+              EXIT(47);
+            }
           }
-
-          memset(spinor_work[1], 0, sizeof_spinor_field);
-
-          exitstatus = _TMLQCD_INVERT(spinor_work[1], spinor_work[0], op_id_up);
-          if(exitstatus != 0) {
-            fprintf(stderr, "[piN2piN_factorized] Error from tmLQCD_invert, status was %d\n", exitstatus);
-            EXIT(44);
-          }
-
-          if ( check_propagator_residual ) {
-            check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_up], 1 );
-          }
-
-          /* tm-rotate stochastic propagator at sink */
-          if( g_fermion_type == _TM_FERMION ) {
-            spinor_field_tm_rotation(spinor_work[1], spinor_work[1], +1, g_fermion_type, VOLUME);
-          }
-
-          /* sink smearing stochastic propagator */
-          if ( ( exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi) ) != 0 ) {
-            fprintf(stderr, "[piN2piN_factorized] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(5);
-          }
-
-          memcpy( stochastic_propagator_zero_list[i], spinor_work[1], sizeof_spinor_field);
         }
 
 
@@ -2853,41 +2877,56 @@ int main(int argc, char **argv) {
            * invert for stochastic timeslice propagator 
            *   with sequential * momentum p_i2
            *****************************************************************/
-          for( int i = 0; i < 4; i++) {
-            memcpy(spinor_work[0], stochastic_source_list[i], sizeof_spinor_field);
+          if ( !read_stochastic_propagator_oet ) {
+            for( int i = 0; i < 4; i++) {
+              memcpy(spinor_work[0], stochastic_source_list[i], sizeof_spinor_field);
 
-            /* source-smearing stochastic momentum source */
-            if ( ( exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi) ) != 0 ) {
-              fprintf(stderr, "[piN2piN_factorized] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              EXIT(12);
+              /* source-smearing stochastic momentum source */
+              if ( ( exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi) ) != 0 ) {
+                fprintf(stderr, "[piN2piN_factorized] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(12);
+              }
+
+              /* tm-rotate stochastic source */
+              if( g_fermion_type == _TM_FERMION ) {
+                spinor_field_tm_rotation ( spinor_work[0], spinor_work[0], +1, g_fermion_type, VOLUME);
+              }
+
+              memset(spinor_work[1], 0, sizeof_spinor_field);
+
+              exitstatus = _TMLQCD_INVERT(spinor_work[1], spinor_work[0], op_id_up);
+              if(exitstatus != 0) {
+                fprintf(stderr, "[piN2piN_factorized] Error from tmLQCD_invert, status was %d\n", exitstatus);
+                EXIT(44);
+              }
+
+              if ( check_propagator_residual ) {
+                check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_up], 1 );
+              }
+
+              /* tm-rotate stochastic propagator at sink */
+              if( g_fermion_type == _TM_FERMION ) {
+                 spinor_field_tm_rotation(spinor_work[1], spinor_work[1], +1, g_fermion_type, VOLUME);
+             }
+
+              /* sink smearing stochastic propagator */
+              exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
+
+              memcpy( stochastic_propagator_list[i], spinor_work[1], sizeof_spinor_field);
             }
+          } else {
+            for( int i = 0; i < 4; i++) {
+              sprintf(filename, "%s-oet.%c.%.4d.t%.2d.px%dpy%dpz%d.%.2d.%.5d", filename_prefix2, 'u', Nconf, gsx[0], 
+                  g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
+                  i, isample );
+              if ( g_cart_id == 0 ) fprintf( stdout, "# [piN2piN_factorized] Reading stochastic propagator oet mom from file %s %s %d\n", filename, __FILE__, __LINE__ );
 
-            /* tm-rotate stochastic source */
-            if( g_fermion_type == _TM_FERMION ) {
-              spinor_field_tm_rotation ( spinor_work[0], spinor_work[0], +1, g_fermion_type, VOLUME);
+              exitstatus = read_lime_spinor ( stochastic_propagator_list[i], filename, 0 );
+              if ( exitstatus != 0 ) {
+                fprintf(stderr, "[piN2piN_factorized] Error from read_lime_spinor, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                EXIT(47);
+              }
             }
-
-            memset(spinor_work[1], 0, sizeof_spinor_field);
-
-            exitstatus = _TMLQCD_INVERT(spinor_work[1], spinor_work[0], op_id_up);
-            if(exitstatus != 0) {
-              fprintf(stderr, "[piN2piN_factorized] Error from tmLQCD_invert, status was %d\n", exitstatus);
-              EXIT(44);
-            }
-
-            if ( check_propagator_residual ) {
-              check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_up], 1 );
-            }
-
-            /* tm-rotate stochastic propagator at sink */
-            if( g_fermion_type == _TM_FERMION ) {
-              spinor_field_tm_rotation(spinor_work[1], spinor_work[1], +1, g_fermion_type, VOLUME);
-            }
-
-            /* sink smearing stochastic propagator */
-            exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
-
-            memcpy( stochastic_propagator_list[i], spinor_work[1], sizeof_spinor_field);
           }
 
           /*****************************************************************/
