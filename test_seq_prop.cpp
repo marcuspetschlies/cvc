@@ -330,7 +330,7 @@ int main(int argc, char **argv) {
     spinor_field_eo2lexic ( spinor_work[0], eo_spinor_work[2], eo_spinor_work[3] );
 
     norm = 0.;
-    spinor_scalar_product_re ( &norm, spinor_work[0], fprop[i], VOLUME );
+    spinor_scalar_product_re ( &norm, spinor_work[0], spinor_work[0], VOLUME );
     fprintf(stdout, "# [test_seq_prop] norm source     %2d  %e\n", i, sqrt(norm));
 
 #if 0
@@ -442,7 +442,7 @@ int main(int argc, char **argv) {
     fprintf(stdout, "# [test_seq_prop] norm seq-source     %2d  %e\n", i, sqrt(norm));
 
 
-    if ( g_write_source ) {
+    if ( g_write_sequential_source ) {
       if ( g_source_type == 0 ) {
         sprintf ( filename, "seq-%s.%c.%.4d.t%dx%dy%dz%d.%.2d", filename_prefix3, flavor_tag, Nconf, 
             g_source_coords_list[0][0], g_source_coords_list[0][1], g_source_coords_list[0][2], g_source_coords_list[0][3], i );
@@ -484,7 +484,24 @@ int main(int argc, char **argv) {
       }}}
     }
 
+     if ( g_write_sequential_source ) {
+      if ( g_source_type == 0 ) {
+        sprintf ( filename, "seq2-%s.%c.%.4d.t%dx%dy%dz%d.%.2d", filename_prefix3, flavor_tag, Nconf,
+            g_source_coords_list[0][0], g_source_coords_list[0][1], g_source_coords_list[0][2], g_source_coords_list[0][3], i );
+      }
+
+      exitstatus = write_propagator ( spinor_work[0],  filename, 0, g_propagator_precision );
+      if( exitstatus != 0 ) {
+        fprintf(stderr, "[test_seq_prop] Error from write_propagator for file %s, status was %d %s %d\n", filename, exitstatus, __FILE__, __LINE__ );
+        EXIT(9);
+      }
+    }
+
+
     double norm_diff = 0.;
+
+    spinor_field_ti_eq_re ( spinor_work[0], -1., VOLUME );
+
     spinor_field_norm_diff ( &norm_diff, spinor_work[0], sprop[i], VOLUME );
 
     fprintf(stdout, "# [test_seq_prop] seq norm-diff %2d %e\n", i, sqrt(norm_diff));
