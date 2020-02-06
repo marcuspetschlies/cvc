@@ -41,6 +41,7 @@
 #include "derived_quantities.h"
 
 #define _LOOP_ANALYSIS
+#define _LOOP_STATS
 
 #define _XG_PION
 #undef _XG_NUCLEON
@@ -187,7 +188,7 @@ int main(int argc, char **argv) {
 
   char const flavor_tag[2][20]        = { "d-gf-u-gi" , "u-gf-d-gi" };
 
-  const char insertion_operator_name[1][20] = { "plaquette" };
+  const char insertion_operator_name[3][20] = { "plaquette" , "clover" , "rectangle" };
 
   int c;
   int filename_set = 0;
@@ -213,7 +214,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:N:S:F:R:E:w:O:s:W:T:B:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:N:S:F:R:E:w:O:s:W:T:B:I:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -259,6 +260,10 @@ int main(int argc, char **argv) {
     case 'B':
       sscanf( optarg, "%lf,%lf", fbwd_weight, fbwd_weight+1 );
       fprintf ( stdout, "# [xg_analyse] fbwd_weight set to %25.16e / %25.16e\n", fbwd_weight[0], fbwd_weight[1] );
+      break;
+    case 'I':
+      insertion_operator_type = atoi ( optarg );
+      fprintf ( stdout, "# [xg_analyse] insertion_operator_type set to %d\n", insertion_operator_type );
       break;
     case 'h':
     case '?':
@@ -928,7 +933,7 @@ int main(int argc, char **argv) {
 
   
     /* sprintf ( filename, "%s/stream_%c/%d/cpff.xg.%d.aff", filename_prefix2, conf_src_list[iconf][0][0], conf_src_list[iconf][0][1], conf_src_list[iconf][0][1] ); */
-    sprintf ( filename, "stream_%c/xg/cpff.xg/cpff.xg.%d.aff", conf_src_list[iconf][0][0], conf_src_list[iconf][0][1] );
+    sprintf ( filename, "stream_%c/%s/cpff.xg.%d.aff", conf_src_list[iconf][0][0], filename_prefix2, conf_src_list[iconf][0][1] );
     /* sprintf ( filename, "cpff.xg.%d.aff", conf_src_list[iconf][0][1] ); */
   
     fprintf(stdout, "# [xg_analyse] reading data from file %s\n", filename);
@@ -949,12 +954,8 @@ int main(int argc, char **argv) {
      **********************************************************/
     for ( unsigned int istout = 0; istout < stout_level_num; istout++ ) {
 
-      if ( stout_level_iter[istout] == 0 ) {
-        /* sprintf( key, "/StoutN%d/StoutRho%6.4f/%s", stout_level_iter[istout], stout_level_rho[istout], insertion_operator_name[insertion_operator_type] ); */
-        sprintf( key, "/StoutN%d/StoutRho%6.4f", stout_level_iter[istout], stout_level_rho[istout] );
-      } else {
-        sprintf( key, "/StoutN%d/StoutRho%6.4f", stout_level_iter[istout], stout_level_rho[istout] );
-      }
+      sprintf( key, "/StoutN%d/StoutRho%6.4f/%s", stout_level_iter[istout], stout_level_rho[istout], insertion_operator_name[insertion_operator_type] );
+      /* sprintf( key, "/StoutN%d/StoutRho%6.4f", stout_level_iter[istout], stout_level_rho[istout] ); */
           
       if ( g_verbose > 2 ) fprintf ( stdout, "# [xg_analyse] key = %s\n", key );
   
@@ -984,8 +985,9 @@ int main(int argc, char **argv) {
     char smearing_tag[50];
     sprintf ( smearing_tag, "stout_%d_%6.4f", stout_level_iter[istout], stout_level_rho[istout] );
 
+#ifdef _LOOP_STATS
     /**********************************************************
-     * analyse plaquettes
+     * STATISTICAL ANALYSE plaquettes
      **********************************************************/
     {
 
@@ -1010,7 +1012,7 @@ int main(int argc, char **argv) {
       }
 
       char obs_name[100];
-      sprintf ( obs_name, "plaquette.%s" , smearing_tag );
+      sprintf ( obs_name, "%s.%s" , insertion_operator_name[insertion_operator_type], smearing_tag );
 
       /* apply UWerr analysis */
       exitstatus = apply_uwerr_real ( data[0], num_conf, 4, 0, 1, obs_name );
@@ -1022,6 +1024,8 @@ int main(int argc, char **argv) {
       fini_2level_dtable ( &data );
 
     }  /* end of block */
+
+#endif  /* of _LOOP_STATS */
 
     /**********************************************************
      *
@@ -1050,7 +1054,7 @@ int main(int argc, char **argv) {
      * write loop_sub to separate ascii file
      **********************************************************/
     if ( write_data > 0 ) {
-      sprintf ( filename, "loop_sub.%s.corr", smearing_tag );
+      sprintf ( filename, "%s.timeslice.%s.corr", insertion_operator_name[insertion_operator_type], smearing_tag );
   
       FILE * loop_sub_fs = fopen( filename, "w" );
       if ( loop_sub_fs == NULL ) {
@@ -1067,6 +1071,7 @@ int main(int argc, char **argv) {
       fclose ( loop_sub_fs );
     }  /* end of if write data */
   
+#ifdef _LOOP_STATS
     /**********************************************************
      *
      * STATISTICAL ANALYSIS OF LOOP VEC
@@ -1078,7 +1083,7 @@ int main(int argc, char **argv) {
     }
   
     char obs_name[100];
-    sprintf ( obs_name, "loop_sub.%s" , smearing_tag );
+    sprintf ( obs_name, "%s.timeslice.%s" , insertion_operator_name[insertion_operator_type], smearing_tag );
   
     /* apply UWerr analysis */
     exitstatus = apply_uwerr_real ( loop_sub[0], num_conf, T_global, 0, 1, obs_name );
@@ -1087,6 +1092,8 @@ int main(int argc, char **argv) {
       EXIT(1);
     }
   
+#endif  /* of _LOOP_STATS */
+
 #ifdef _RAT_METHOD
     /**********************************************************
      *
@@ -1207,7 +1214,9 @@ int main(int argc, char **argv) {
 
 #if 0
                 threep_44[iconf][isrc][it][0] += a_fwd[0] * loop_sub[iconf][tins_fwd_1];
+#endif
 
+#if 0
                 threep_44[iconf][isrc][it][0] += ( 
                       a_fwd[0] * ( loop_sub[iconf][tins_fwd_1] + loop_sub[iconf][tins_fwd_2] )
                     + a_bwd[0] * ( loop_sub[iconf][tins_bwd_1] + loop_sub[iconf][tins_bwd_2] )
@@ -1236,17 +1245,17 @@ int main(int argc, char **argv) {
          **********************************************************/
         char obsname_tag[400];
 #ifdef _XG_NUCLEON
-        sprintf ( obsname_tag, "gf_%s.gi_%s.g4_D4.%s.dtsnk%d.PX%d_PY%d_PZ%d",
+        sprintf ( obsname_tag, "gf_%s.gi_%s.%s.%s.dtsnk%d.PX%d_PY%d_PZ%d",
             gamma_id_to_Cg_ascii[ g_sink_gamma_id_list[igf] ], gamma_id_to_Cg_ascii[ g_source_gamma_id_list[igi] ],
-            smearing_tag,
+            insertion_operator_name[insertion_operator_type], smearing_tag,
             g_sequential_source_timeslice_list[idt],
             g_sink_momentum_list[0][0],
             g_sink_momentum_list[0][1],
             g_sink_momentum_list[0][2] );
 #else
-        sprintf ( obsname_tag, "gf_%s.gi_%s.g4_D4.%s.dtsnk%d.PX%d_PY%d_PZ%d",
+        sprintf ( obsname_tag, "gf_%s.gi_%s.%s.%s.dtsnk%d.PX%d_PY%d_PZ%d",
             gamma_id_to_ascii[ g_sink_gamma_id_list[igf] ], gamma_id_to_ascii[ g_source_gamma_id_list[igi] ],
-            smearing_tag,
+            insertion_operator_name[insertion_operator_type], smearing_tag,
             g_sequential_source_timeslice_list[idt],
             g_sink_momentum_list[0][0],
             g_sink_momentum_list[0][1],
@@ -1284,7 +1293,8 @@ int main(int argc, char **argv) {
             EXIT(1);
           }
 
-          int nT = g_sequential_source_timeslice_list[idt] + 1;
+          /* int nT = g_sequential_source_timeslice_list[idt] + 1; */
+          int nT = T_global;
 
           double ** data = init_2level_dtable ( num_conf, nT );
           if ( data == NULL ) {

@@ -242,6 +242,7 @@ void clover_term_eo (double**s, double*gauge_field) {
 #if 0
 #endif
 
+
         /********************************
          *    x 
          *   _|____  x + mu
@@ -261,9 +262,6 @@ void clover_term_eo (double**s, double*gauge_field) {
         _cm_eq_cm_ti_cm(U3, U1, U2 );
         _cm_pl_eq_cm( s_ptr , U3 );
 #if 0
-#endif
-
-#if 0
         char name[30];
         sprintf(name, "%u_mi_%d__%d", ix, inu, inu);
 
@@ -282,6 +280,7 @@ void clover_term_eo (double**s, double*gauge_field) {
          _cm_fprintf(gauge_field+_GGI(ix, imu),             name, stdout);
 #endif
 
+
         /********************************
          *    x-mu+nu 
          *     ____  x + nu
@@ -296,8 +295,8 @@ void clover_term_eo (double**s, double*gauge_field) {
         _cm_eq_cm_dag_ti_cm(U2, gauge_field+_GGI(ix_mi_mu,inu), gauge_field+_GGI(ix_mi_mu, imu) );
         _cm_eq_cm_ti_cm(U3, U1, U2 );
         _cm_pl_eq_cm( s_ptr , U3 );
-#if 0
-#endif
+
+
 
         /********************************
          *    x-mu
@@ -316,11 +315,10 @@ void clover_term_eo (double**s, double*gauge_field) {
         _cm_eq_cm_ti_cm(U2, gauge_field+_GGI(ix_mi_mu_mi_nu, imu),  gauge_field+_GGI(ix_mi_nu, inu) );
         _cm_eq_cm_dag_ti_cm(U3, U1, U2 );
         _cm_pl_eq_cm( s_ptr , U3 );
-#if 0
-#endif
 
         _cm_eq_antiherm_cm(U3, s_ptr);
-
+#if 0
+#endif
         /* TEST */
         _cm_eq_cm_ti_re( s_ptr , U3, norm );
         /* _cm_eq_cm_ti_im( s_ptr , U3, norm ); */

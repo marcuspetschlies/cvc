@@ -1977,28 +1977,18 @@ void  TraceAdagB(complex *w, double A[12][24], double B[12][24]) {
 /* make random gauge transformation g */
 void init_gauge_trafo(double **g, double heat) {
 
-  int ix, i;
   double ran[12], inorm, u[18], v[18], w[18];
-#ifdef HAVE_MPI 
-  int cntr;
-  MPI_Request request[5];
-  MPI_Status status[5];
-#endif
 
   if(g_cart_id==0) fprintf(stdout, "# [init_gauge_trafo] initialising random gauge transformation\n");
 
   *g = (double*)calloc(18*VOLUMEPLUSRAND, sizeof(double));
   if(*g==(double*)NULL) {
     fprintf(stderr, "[init_gauge_trafo] not enough memory\n");
-#ifdef HAVE_MPI
-    MPI_Abort(MPI_COMM_WORLD, 1);
-    MPI_Finalize();
-#endif
-    exit(1);
+    EXIT(1);
   }
     
   /* set g to random field */
-  for(ix=0; ix<VOLUME; ix++) {
+  for ( unsigned int ix=0; ix<VOLUME; ix++) {
     u[ 0] = 0.; u[ 1] = 0.; u[ 2] = 0.; u[ 3] = 0.; u[ 4] = 0.; u[ 5] = 0.;
     u[ 6] = 0.; u[ 7] = 0.; u[ 8] = 0.; u[ 9] = 0.; u[10] = 0.; u[11] = 0.;
     u[12] = 0.; u[13] = 0.; u[14] = 0.; u[15] = 0.; u[16] = 0.; u[17] = 0.;
@@ -2067,48 +2057,12 @@ void init_gauge_trafo(double **g, double heat) {
     _cm_eq_cm_ti_cm(&(*g)[18*ix], u, w);
   }
 
-  /* exchange the field */
+  /* exchange the field 
+   *
+   * NOTE HERE! USE XCHANGER IF NEEDED BEFORE APPLICATION
+   * */
 
-/*
-  fprintf(stdout, "\n# [init_gauge_trafo] The gauge trafo field:\n");
-  fprintf(stdout, "\n\tg <- array(0., dim=c(%d,%d,%d))\n", VOLUME, 3,3);
-  for(ix=0; ix<VOLUME; ix++) {
-    for(i=0;i<9;i++) {
-      fprintf(stdout, "\tg[%6d,%d,%d] <- %25.16e + %25.16e*1.i\n", ix+1, i/3+1, i%3+1, (*g)[2*(9*ix+i)], (*g)[2*(9*ix+i)+1]);
-    }
-  }
-*/
-#ifdef HAVE_MPI
-
-  cntr = 0;
-
-  MPI_Isend(&(*g)[0], 18*LX*LY*LZ, MPI_DOUBLE, g_nb_t_dn, 83, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&(*g)[18*VOLUME], 18*LX*LY*LZ, MPI_DOUBLE, g_nb_t_up, 83, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Isend(&(*g)[18*(T-1)*LX*LY*LZ], 18*LX*LY*LZ, MPI_DOUBLE, g_nb_t_up, 84, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&(*g)[18*(T+1)*LX*LY*LZ], 18*LX*LY*LZ, MPI_DOUBLE, g_nb_t_dn, 84, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Waitall(cntr, request, status);
-#endif
-
-/*
-  fprintf(stdout, "Writing gauge transformation to std out\n");
-  const char *gauge_format="[(%25.16e +i*(%25.16e)), (%25.16e +i*(%25.16e)), (%25.16e +i*(%25.16e));"\
-                          " (%25.16e +i*(%25.16e)), (%25.16e +i*(%25.16e)), (%25.16e +i*(%25.16e));"\
-                         " (%25.16e +i*(%25.16e)), (%25.16e +i*(%25.16e)), (%25.16e +i*(%25.16e))]\n";
-  for(ix=0; ix<N; ix++) {
-   fprintf(stdout, "ix=%3d\n", ix);
-   fprintf(stdout, gauge_format, 
-     g[18*ix+ 0], g[18*ix+ 1], g[18*ix+ 2], g[18*ix+ 3], g[18*ix+ 4], g[18*ix+ 5], 
-     g[18*ix+ 6], g[18*ix+ 7], g[18*ix+ 8], g[18*ix+ 9], g[18*ix+10], g[18*ix+11], 
-     g[18*ix+12], g[18*ix+13], g[18*ix+14], g[18*ix+15], g[18*ix+16], g[18*ix+17]);
-  }
-*/
-}
+}  /* end of init_gauge_trafo */
 
 void apply_gt_gauge(double *g, double*gauge_field) {
 
