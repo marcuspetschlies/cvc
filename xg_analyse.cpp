@@ -40,17 +40,17 @@
 #include "uwerr.h"
 #include "derived_quantities.h"
 
-#ifndef _SQR
-#define _SQR(_a) ((_a)*(_a))
-#endif
-
 #define _LOOP_ANALYSIS
+#define _LOOP_STATS
 
 #define _XG_PION
 #undef _XG_NUCLEON
 #undef _XG_CHARGED
 
 #define _TWOP_STATS
+#define _TWOP_AFF
+#undef _TWOP_ASCII
+
 
 #define _RAT_METHOD
 #undef _FHT_METHOD_ALLT
@@ -159,6 +159,7 @@ int main(int argc, char **argv) {
     "gygz"
   };
 
+#ifdef _XG_NUCLEON
   char const gamma_id_to_Cg_ascii[16][10] = {
     "Cgy",
     "Cgzg5",
@@ -177,6 +178,7 @@ int main(int argc, char **argv) {
     "Cg5",
     "Cgzgt"
   };
+#endif
 
 
 
@@ -186,7 +188,7 @@ int main(int argc, char **argv) {
 
   char const flavor_tag[2][20]        = { "d-gf-u-gi" , "u-gf-d-gi" };
 
-  const char insertion_operator_name[1][20] = { "plaquette" };
+  const char insertion_operator_name[3][20] = { "plaquette" , "clover" , "rectangle" };
 
   int c;
   int filename_set = 0;
@@ -208,17 +210,11 @@ int main(int argc, char **argv) {
   double twop_weight[2] = {0., 0.};
   double fbwd_weight[2] = {0., 0.};
 
- #ifdef HAVE_LHPC_AFF
-  struct AffReader_s *affr = NULL;
-  char key[400];
-#endif
-
-
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:N:S:F:R:E:w:O:s:W:T:B:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:N:S:F:R:E:w:O:s:W:T:B:I:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -264,6 +260,10 @@ int main(int argc, char **argv) {
     case 'B':
       sscanf( optarg, "%lf,%lf", fbwd_weight, fbwd_weight+1 );
       fprintf ( stdout, "# [xg_analyse] fbwd_weight set to %25.16e / %25.16e\n", fbwd_weight[0], fbwd_weight[1] );
+      break;
+    case 'I':
+      insertion_operator_type = atoi ( optarg );
+      fprintf ( stdout, "# [xg_analyse] insertion_operator_type set to %d\n", insertion_operator_type );
       break;
     case 'h':
     case '?':
@@ -314,9 +314,6 @@ int main(int argc, char **argv) {
   }
 
   geometry();
-
-  mpi_init_xchange_eo_spinor();
-  mpi_init_xchange_eo_propagator();
 
   /***********************************************************
    * set io process
@@ -417,70 +414,83 @@ int main(int argc, char **argv) {
      **********************************************************/
 
 #ifdef _XG_PION
+
+#ifdef _TWOP_AFF
+    gettimeofday ( &ta, (struct timezone *)NULL );
+
     /***********************************************************
-     * loop on configs
+     * loop on flavor ids
      ***********************************************************/
-    for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-  
-      Nconf = conf_src_list[iconf][0][1];
- 
+    for ( int iflavor = 0; iflavor <= 1 ; iflavor++ ) {
+
       /***********************************************************
-       * loop on sources
+       * loop on sink momenta
        ***********************************************************/
-      for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+      for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
   
-        for ( int iflavor = 0; iflavor <= 1 ; iflavor++ ) {
-   
-          gettimeofday ( &ta, (struct timezone *)NULL );
-  
-          /***********************************************************
-           * open AFF reader
-           ***********************************************************/
-          struct AffNode_s *affn = NULL, *affdir = NULL;
+        /***********************************************************
+         * open AFF reader
+         ***********************************************************/
+        struct AffReader_s *affr = NULL;
+        struct AffNode_s *affn = NULL, *affdir = NULL;
+        char key[400];
+        char data_filename[500];
     
-          sprintf( filename, "%s/stream_%c/%d/%s.%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", filename_prefix,
-              conf_src_list[iconf][isrc][0], 
-              conf_src_list[iconf][isrc][1], 
-              correlator_prefix[operator_type], flavor_tag[iflavor],
-              conf_src_list[iconf][isrc][1], 
-              conf_src_list[iconf][isrc][2], 
-              conf_src_list[iconf][isrc][3], 
-              conf_src_list[iconf][isrc][4], 
-              conf_src_list[iconf][isrc][5] );
+        /* sprintf( data_filename, "%s/stream_%c/%d/%s.%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", filename_prefix,
+            conf_src_list[iconf][isrc][0], 
+            conf_src_list[iconf][isrc][1], 
+            correlator_prefix[operator_type], flavor_tag[iflavor],
+            conf_src_list[iconf][isrc][1], 
+            conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5] ); */
+ 
+        /* sprintf( data_filename, "%s/stream_%c/light/p2gg_twop_local/%s.%s.%d.gf%.2d.gi%.2d.aff",
+            filename_prefix,
+            conf_src_list[iconf][0][0], 
+            correlator_prefix[operator_type], flavor_tag[iflavor],
+            conf_src_list[iconf][0][1], g_sink_gamma_id_list[igf], g_source_gamma_id_list[igi] ); */
+
+        sprintf( data_filename, "%s/%s.%s.gf%.2d.gi%.2d.px%dpy%dpz%d.aff",
+            filename_prefix,
+            correlator_prefix[operator_type], flavor_tag[iflavor],
+            g_sink_gamma_id_list[igf], g_source_gamma_id_list[igi],
+            ( 1 - 2 * iflavor ) * g_sink_momentum_list[ipf][0], 
+            ( 1 - 2 * iflavor ) * g_sink_momentum_list[ipf][1],
+            ( 1 - 2 * iflavor ) * g_sink_momentum_list[ipf][2] );
+
+        affr = aff_reader ( data_filename );
+        const char * aff_status_str = aff_reader_errstr ( affr );
+        if( aff_status_str != NULL ) {
+          fprintf(stderr, "[xg_analyse] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+          EXIT(15);
+        } else {
+          if ( g_verbose > 1 ) fprintf(stdout, "# [xg_analyse] reading data from file %s\n", data_filename);
+        }
   
-          fprintf(stdout, "# [xg_analyse] reading data from file %s\n", filename);
-          affr = aff_reader ( filename );
-          const char * aff_status_str = aff_reader_errstr ( affr );
-          if( aff_status_str != NULL ) {
-            fprintf(stderr, "[xg_analyse] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-            EXIT(15);
-          }
+        if( (affn = aff_reader_root( affr )) == NULL ) {
+          fprintf(stderr, "[xg_analyse] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+          EXIT(103);
+        }
   
-          if( (affn = aff_reader_root( affr )) == NULL ) {
-            fprintf(stderr, "[xg_analyse] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
-            return(103);
-          }
-  
-          gettimeofday ( &tb, (struct timezone *)NULL );
-          show_time ( &ta, &tb, "xg_analyse", "open-init-aff-reader", g_cart_id == 0 );
-  
-          double ** buffer = init_2level_dtable ( T_global, 2 );
-  
+        double ** buffer = init_2level_dtable ( T_global, 2 );
+        if( buffer == NULL ) {
+          fprintf(stderr, "[xg_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+          EXIT(15);
+        }
+
+        /***********************************************************
+         * loop on configs
+         ***********************************************************/
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+
           /***********************************************************
-           * loop on sink momenta
+           * loop on sources
            ***********************************************************/
-          for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
-  
-            gettimeofday ( &ta, (struct timezone *)NULL );
-  
-            sprintf( key, "/%s/%s/t%.2dx%.2dy%.2dz%.2d/gf%.2d/gi%.2d/px%dpy%dpz%d",
-                correlator_prefix[operator_type], flavor_tag[iflavor],
-                conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5],
-                g_sink_gamma_id_list[igf], g_source_gamma_id_list[igi],
-                ( 1 - 2 * iflavor ) * g_sink_momentum_list[ipf][0], 
-                ( 1 - 2 * iflavor ) * g_sink_momentum_list[ipf][1], 
-                ( 1 - 2 * iflavor ) * g_sink_momentum_list[ipf][2] );
-  
+          for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+
+            sprintf( key, "/stream_%c/conf_%d/t%.2dx%.2dy%.2dz%.2d",
+                conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1],
+                conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5] );
+
             if ( g_verbose > 2 ) fprintf ( stdout, "# [xg_analyse] key = %s\n", key );
   
             affdir = aff_reader_chpath (affr, affn, key );
@@ -490,9 +500,9 @@ int main(int argc, char **argv) {
             }
   
             uint32_t uitems = T_global;
-            exitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*)buffer[0], uitems );
-            if( exitstatus != 0 ) {
-              fprintf(stderr, "[xg_analyse] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            int texitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*)buffer[0], uitems );
+            if( texitstatus != 0 ) {
+              fprintf(stderr, "[xg_analyse] Error from aff_node_get_complex, status was %d %s %d\n", texitstatus, __FILE__, __LINE__);
               EXIT(105);
             }
   
@@ -500,38 +510,117 @@ int main(int argc, char **argv) {
              * source phase
              ***********************************************************/
             const double phase = -TWO_MPI * ( 1 - 2 * iflavor ) * (
-                  conf_src_list[isrc][iconf][3] * g_sink_momentum_list[ipf][0] / (double)LX_global
-                + conf_src_list[isrc][iconf][4] * g_sink_momentum_list[ipf][1] / (double)LY_global
-                + conf_src_list[isrc][iconf][5] * g_sink_momentum_list[ipf][2] / (double)LZ_global );
+                  conf_src_list[iconf][isrc][3] * g_sink_momentum_list[ipf][0] / (double)LX_global
+                + conf_src_list[iconf][isrc][4] * g_sink_momentum_list[ipf][1] / (double)LY_global
+                + conf_src_list[iconf][isrc][5] * g_sink_momentum_list[ipf][2] / (double)LZ_global );
   
             const double ephase[2] = { cos( phase ) , sin( phase ) } ;
   
             /***********************************************************
              * order from source time and add source phase
              ***********************************************************/
-#pragma omp parallel for
             for ( int it = 0; it < T_global; it++ ) {
               int const itt = ( conf_src_list[iconf][isrc][2] + it ) % T_global; 
               twop[igf][igi][ipf][iconf][isrc][iflavor][it][0] = buffer[itt][0] * ephase[0] - buffer[itt][1] * ephase[1];
               twop[igf][igi][ipf][iconf][isrc][iflavor][it][1] = buffer[itt][1] * ephase[0] + buffer[itt][0] * ephase[1];
             }
   
-            gettimeofday ( &tb, (struct timezone *)NULL );
-            show_time ( &ta, &tb, "xg_analyse", "read-twop-tensor-aff", g_cart_id == 0 );
-  
-          }  /* end of loop on sink momenta */
-  
-          fini_2level_dtable( &buffer );
-  
-          /**********************************************************
-           * close the reader
-           **********************************************************/
-          aff_reader_close ( affr );
-  
-        }  /* end of loop on flavor */
+          }  /* end of loop on sources */
+        }  /* end of loop on configs */
+          
+        fini_2level_dtable( &buffer );
 
-      }  /* end of loop on source locations */
-    }  /* end of loop on configs */
+        /**********************************************************
+         * close the reader
+         **********************************************************/
+        aff_reader_close ( affr );
+  
+      }  /* end of loop on sink momenta */
+    }  /* end of loop on flavor */
+
+    gettimeofday ( &tb, (struct timezone *)NULL );
+    show_time ( &ta, &tb, "xg_analyse", "read-twop-tensor-aff", g_cart_id == 0 );
+#endif  /* of if _TWOP_AFF */
+
+#ifdef _TWOP_ASCII
+    gettimeofday ( &ta, (struct timezone *)NULL );
+
+    for ( int iflavor = 0; iflavor <= 1 ; iflavor++ ) {
+      for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
+
+        char data_filename[500];
+
+        sprintf( data_filename, "%s/%s.%s.gf%.2d.gi%.2d.px%dpy%dpz%d",
+            filename_prefix,
+            correlator_prefix[operator_type], flavor_tag[iflavor], g_sink_gamma_id_list[igf], g_source_gamma_id_list[igi],
+            ( 1 - 2 * iflavor ) * g_sink_momentum_list[ipf][0],
+            ( 1 - 2 * iflavor ) * g_sink_momentum_list[ipf][1],
+            ( 1 - 2 * iflavor ) * g_sink_momentum_list[ipf][2] );
+
+        fprintf(stdout, "# [xg_analyse] reading data from file %s\n", data_filename);
+
+        FILE * fs = fopen ( data_filename , "r" );
+        double ** buffer = init_2level_dtable ( T_global, 2 );
+
+        /***********************************************************
+         * loop on configs
+         ***********************************************************/
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+  
+          /***********************************************************
+           * loop on sources
+           ***********************************************************/
+          for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+  
+          /***********************************************************
+           * loop on timeslices
+           ***********************************************************/
+            for( int it = 0; it < T_global; it++ ) {
+
+              /***********************************************************
+               * 
+               ***********************************************************/
+              if ( fscanf ( fs, "%lf %lf\n", buffer[it], buffer[it]+1 ) != 2 ) {
+                fprintf ( stderr, "[] Error from fscanf for file %s %s %d\n", data_filename, __FILE__, __LINE__ );
+                EXIT(12);
+              }
+            }
+  
+            /***********************************************************
+             * source phase
+             ***********************************************************/
+            const double phase = -TWO_MPI * ( 1 - 2 * iflavor ) * (
+                  conf_src_list[iconf][isrc][3] * g_sink_momentum_list[ipf][0] / (double)LX_global
+                + conf_src_list[iconf][isrc][4] * g_sink_momentum_list[ipf][1] / (double)LY_global
+                + conf_src_list[iconf][isrc][5] * g_sink_momentum_list[ipf][2] / (double)LZ_global );
+  
+            const double ephase[2] = { cos( phase ) , sin( phase ) } ;
+  
+            /***********************************************************
+             * order from source time and add source phase
+             ***********************************************************/
+            for ( int it = 0; it < T_global; it++ ) {
+              int const itt = ( conf_src_list[iconf][isrc][2] + it ) % T_global; 
+              twop[igf][igi][ipf][iconf][isrc][iflavor][it][0] = buffer[itt][0] * ephase[0] - buffer[itt][1] * ephase[1];
+              twop[igf][igi][ipf][iconf][isrc][iflavor][it][1] = buffer[itt][1] * ephase[0] + buffer[itt][0] * ephase[1];
+            }
+  
+          }  /* end of loop on sources */
+  
+        }  /* end of loop on configs */
+
+        fini_2level_dtable( &buffer );
+
+        fclose ( fs );
+  
+      }  /* end of loop on sink momenta */
+
+    }  /* end of loop on flavor */
+
+    gettimeofday ( &tb, (struct timezone *)NULL );
+    show_time ( &ta, &tb, "xg_analyse", "read-twop-tensor-aff", g_cart_id == 0 );
+
+#endif  /* of if _TWOP_ASCII */
 
     /**********************************************************
      * write correlator to ascii file
@@ -564,7 +653,7 @@ int main(int argc, char **argv) {
      
         fclose ( ofs );
       }
-    }
+    }  /* end of if write data > 0 */
 #endif  /* end of _XG_PION */
 
 #ifdef _XG_NUCLEON
@@ -838,10 +927,13 @@ int main(int argc, char **argv) {
     /***********************************************************
      * open AFF reader
      ***********************************************************/
+    struct AffReader_s *affr = NULL;
     struct AffNode_s *affn = NULL, *affdir = NULL;
+    char key[400];
+
   
-    sprintf ( filename, "%s/stream_%c/%d/cpff.xg.%d.aff", filename_prefix2, conf_src_list[iconf][0][0], conf_src_list[iconf][0][1], conf_src_list[iconf][0][1] );
-    /* sprintf ( filename, "stream_%c/cpff.xg.%d.aff", conf_src_list[iconf][0][0], conf_src_list[iconf][0][1], conf_src_list[iconf][0][1] ); */
+    /* sprintf ( filename, "%s/stream_%c/%d/cpff.xg.%d.aff", filename_prefix2, conf_src_list[iconf][0][0], conf_src_list[iconf][0][1], conf_src_list[iconf][0][1] ); */
+    sprintf ( filename, "stream_%c/%s/cpff.xg.%d.aff", conf_src_list[iconf][0][0], filename_prefix2, conf_src_list[iconf][0][1] );
     /* sprintf ( filename, "cpff.xg.%d.aff", conf_src_list[iconf][0][1] ); */
   
     fprintf(stdout, "# [xg_analyse] reading data from file %s\n", filename);
@@ -862,12 +954,8 @@ int main(int argc, char **argv) {
      **********************************************************/
     for ( unsigned int istout = 0; istout < stout_level_num; istout++ ) {
 
-      if ( stout_level_iter[istout] == 0 ) {
-        /* sprintf( key, "/StoutN%d/StoutRho%6.4f/%s", stout_level_iter[istout], stout_level_rho[istout], insertion_operator_name[insertion_operator_type] ); */
-        sprintf( key, "/StoutN%d/StoutRho%6.4f", stout_level_iter[istout], stout_level_rho[istout] );
-      } else {
-        sprintf( key, "/StoutN%d/StoutRho%6.4f", stout_level_iter[istout], stout_level_rho[istout] );
-      }
+      sprintf( key, "/StoutN%d/StoutRho%6.4f/%s", stout_level_iter[istout], stout_level_rho[istout], insertion_operator_name[insertion_operator_type] );
+      /* sprintf( key, "/StoutN%d/StoutRho%6.4f", stout_level_iter[istout], stout_level_rho[istout] ); */
           
       if ( g_verbose > 2 ) fprintf ( stdout, "# [xg_analyse] key = %s\n", key );
   
@@ -897,8 +985,9 @@ int main(int argc, char **argv) {
     char smearing_tag[50];
     sprintf ( smearing_tag, "stout_%d_%6.4f", stout_level_iter[istout], stout_level_rho[istout] );
 
+#ifdef _LOOP_STATS
     /**********************************************************
-     * analyse plaquettes
+     * STATISTICAL ANALYSE plaquettes
      **********************************************************/
     {
 
@@ -923,7 +1012,7 @@ int main(int argc, char **argv) {
       }
 
       char obs_name[100];
-      sprintf ( obs_name, "plaquette.%s" , smearing_tag );
+      sprintf ( obs_name, "%s.%s" , insertion_operator_name[insertion_operator_type], smearing_tag );
 
       /* apply UWerr analysis */
       exitstatus = apply_uwerr_real ( data[0], num_conf, 4, 0, 1, obs_name );
@@ -935,6 +1024,8 @@ int main(int argc, char **argv) {
       fini_2level_dtable ( &data );
 
     }  /* end of block */
+
+#endif  /* of _LOOP_STATS */
 
     /**********************************************************
      *
@@ -963,7 +1054,7 @@ int main(int argc, char **argv) {
      * write loop_sub to separate ascii file
      **********************************************************/
     if ( write_data > 0 ) {
-      sprintf ( filename, "loop_sub.%s.corr", smearing_tag );
+      sprintf ( filename, "%s.timeslice.%s.corr", insertion_operator_name[insertion_operator_type], smearing_tag );
   
       FILE * loop_sub_fs = fopen( filename, "w" );
       if ( loop_sub_fs == NULL ) {
@@ -980,6 +1071,7 @@ int main(int argc, char **argv) {
       fclose ( loop_sub_fs );
     }  /* end of if write data */
   
+#ifdef _LOOP_STATS
     /**********************************************************
      *
      * STATISTICAL ANALYSIS OF LOOP VEC
@@ -991,7 +1083,7 @@ int main(int argc, char **argv) {
     }
   
     char obs_name[100];
-    sprintf ( obs_name, "loop_sub.%s" , smearing_tag );
+    sprintf ( obs_name, "%s.timeslice.%s" , insertion_operator_name[insertion_operator_type], smearing_tag );
   
     /* apply UWerr analysis */
     exitstatus = apply_uwerr_real ( loop_sub[0], num_conf, T_global, 0, 1, obs_name );
@@ -1000,6 +1092,8 @@ int main(int argc, char **argv) {
       EXIT(1);
     }
   
+#endif  /* of _LOOP_STATS */
+
 #ifdef _RAT_METHOD
     /**********************************************************
      *
@@ -1120,7 +1214,9 @@ int main(int argc, char **argv) {
 
 #if 0
                 threep_44[iconf][isrc][it][0] += a_fwd[0] * loop_sub[iconf][tins_fwd_1];
+#endif
 
+#if 0
                 threep_44[iconf][isrc][it][0] += ( 
                       a_fwd[0] * ( loop_sub[iconf][tins_fwd_1] + loop_sub[iconf][tins_fwd_2] )
                     + a_bwd[0] * ( loop_sub[iconf][tins_bwd_1] + loop_sub[iconf][tins_bwd_2] )
@@ -1149,17 +1245,17 @@ int main(int argc, char **argv) {
          **********************************************************/
         char obsname_tag[400];
 #ifdef _XG_NUCLEON
-        sprintf ( obsname_tag, "gf_%s.gi_%s.g4_D4.%s.dtsnk%d.PX%d_PY%d_PZ%d",
+        sprintf ( obsname_tag, "gf_%s.gi_%s.%s.%s.dtsnk%d.PX%d_PY%d_PZ%d",
             gamma_id_to_Cg_ascii[ g_sink_gamma_id_list[igf] ], gamma_id_to_Cg_ascii[ g_source_gamma_id_list[igi] ],
-            smearing_tag,
+            insertion_operator_name[insertion_operator_type], smearing_tag,
             g_sequential_source_timeslice_list[idt],
             g_sink_momentum_list[0][0],
             g_sink_momentum_list[0][1],
             g_sink_momentum_list[0][2] );
 #else
-        sprintf ( obsname_tag, "gf_%s.gi_%s.g4_D4.%s.dtsnk%d.PX%d_PY%d_PZ%d",
+        sprintf ( obsname_tag, "gf_%s.gi_%s.%s.%s.dtsnk%d.PX%d_PY%d_PZ%d",
             gamma_id_to_ascii[ g_sink_gamma_id_list[igf] ], gamma_id_to_ascii[ g_source_gamma_id_list[igi] ],
-            smearing_tag,
+            insertion_operator_name[insertion_operator_type], smearing_tag,
             g_sequential_source_timeslice_list[idt],
             g_sink_momentum_list[0][0],
             g_sink_momentum_list[0][1],
@@ -1197,7 +1293,8 @@ int main(int argc, char **argv) {
             EXIT(1);
           }
 
-          int nT = g_sequential_source_timeslice_list[idt] + 1;
+          /* int nT = g_sequential_source_timeslice_list[idt] + 1; */
+          int nT = T_global;
 
           double ** data = init_2level_dtable ( num_conf, nT );
           if ( data == NULL ) {
@@ -1294,6 +1391,8 @@ int main(int argc, char **argv) {
             EXIT(115);
           }
     
+          fini_2level_dtable ( &data );
+
         }  /* end of loop on reim */
     
 #ifdef _RAT_SUB_METHOD
@@ -1485,8 +1584,6 @@ int main(int argc, char **argv) {
 
 
 #ifdef HAVE_MPI
-  mpi_fini_xchange_contraction();
-  mpi_fini_xchange_eo_spinor();
   mpi_fini_datatypes();
   MPI_Finalize();
 #endif

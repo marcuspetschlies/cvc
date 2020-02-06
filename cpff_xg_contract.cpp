@@ -63,7 +63,9 @@ void usage() {
   EXIT(0);
 }
 
-#define MAX_SMEARING_LEVELS 12
+#define MAX_SMEARING_LEVELS 40
+
+#undef _GLUONIC_OPERATORS
 
 int main(int argc, char **argv) {
   
@@ -104,6 +106,10 @@ int main(int argc, char **argv) {
       stout_level_iter[stout_level_num] = atoi ( optarg );
       fprintf ( stdout, "# [cpff_xg_contract] stout_level_iter %2d set to %2d\n", stout_level_num, stout_level_iter[stout_level_num] );
       stout_level_num++;
+      if ( stout_level_num == MAX_SMEARING_LEVELS ) {
+        fprintf ( stderr, "[cpff_xg_contract] Error, maximal number of stout smearing levels exceeded\n" );
+        EXIT(12);
+      }
       break;
     case 'h':
     case '?':
@@ -230,15 +236,21 @@ int main(int argc, char **argv) {
   }
   fprintf(stdout, "# [cpff_xg_contract] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
 
+#if 0
+
   /***************************************************************************
    * set output filename
    ***************************************************************************/
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-  sprintf( output_filename, "%s.xg.%d.aff", g_outfile_prefix, Nconf );
-  affw = aff_writer (output_filename);
-  if( const char * aff_status_str = aff_writer_errstr(affw) ) {
-    fprintf(stderr, "[cpff_xg_contract] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-    EXIT( 4 );
+  if ( io_proc == 2 ) {
+    sprintf( output_filename, "%s.xg.%d.aff", g_outfile_prefix, Nconf );
+    affw = aff_writer (output_filename);
+    if( const char * aff_status_str = aff_writer_errstr(affw) ) {
+      fprintf(stderr, "[cpff_xg_contract] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+      EXIT( 4 );
+    } else {
+      fprintf ( stdout, "# [cpff_xg_contract] writing data to file %s %s %d\n", output_filename, __FILE__, __LINE__ );
+    }
   }
 
 #elif (defined HAVE_HDF5 )
@@ -291,6 +303,7 @@ int main(int argc, char **argv) {
     }
   }  /* end of if io_proc == 2 */
 
+#ifdef _GLUONIC_OPERATORS
   /***************************************************************************
    * gluonic operators from field strength tensor
    ***************************************************************************/
@@ -408,13 +421,14 @@ int main(int argc, char **argv) {
    ***********************************************************/
 #endif  /* of if 0 */
 
+  fini_3level_dtable ( &Gp );
+  fini_3level_dtable ( &Gr );
+#endif  /* of _GLUONIC_OPERATORS */
+
   /* fini TEST */
   /* clover_term_fini ( &g_clover ); */
 
-  fini_3level_dtable ( &Gp );
-  fini_3level_dtable ( &Gr );
   fini_2level_dtable ( &pl );
-
 
   /***********************************************
    * smear and calculate operators
@@ -525,6 +539,7 @@ int main(int argc, char **argv) {
     gettimeofday ( &tb, (struct timezone *)NULL );
     show_time ( &ta, &tb, "cpff_xg_contract", "write-to-file", io_proc==2 );
 
+#ifdef _GLUONIC_OPERATORS
     /***************************************************************************
      * gluonic operators from elements of field strength tensor
      ***************************************************************************/
@@ -536,7 +551,7 @@ int main(int argc, char **argv) {
       EXIT(8);
     }
 
-    exitstatus = G_plaq_rect ( Gp, Gr, g_gauge_field);
+    exitstatus = G_plaq_rect ( Gp, Gr, gf );
     if ( exitstatus != 0 ) {
       fprintf ( stderr, "[cpff_xg_contract] Error from G_plaq_rect, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(8);
@@ -586,6 +601,7 @@ int main(int argc, char **argv) {
 
     fini_3level_dtable ( &Gp );
     fini_3level_dtable ( &Gr );
+#endif  /* of _GLUONIC_OPERATORS */
 
     fini_2level_dtable ( &pl2 );
     
@@ -596,19 +612,20 @@ int main(int argc, char **argv) {
 
   free ( gauge_field_smeared_ptr );
 
-#if 0
-#endif  /* of if 0 */
-
   /***************************************************************************
    * close writer
    ***************************************************************************/
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-  const char * aff_status_str = (char*)aff_writer_close (affw);
-  if( aff_status_str != NULL ) {
-    fprintf(stderr, "[cpff_xg_contract] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-    return(32);
+  if ( io_proc == 2 ) {
+    const char * aff_status_str = (char*)aff_writer_close (affw);
+    if( aff_status_str != NULL ) {
+      fprintf(stderr, "[cpff_xg_contract] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+      return(32);
+    }
   }
 #endif
+
+#endif  /* of if 0 */
 
   /***************************************************************************
    * free the allocated memory, finalize
