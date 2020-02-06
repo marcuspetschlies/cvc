@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <complex.h>
 #ifdef HAVE_MPI
 #include <mpi.h>  
 #endif
@@ -362,5 +363,163 @@ int Jacobi_Smearing(double *smeared_gauge_field, double *psi, int const N, doubl
   free(psi_old);
   return(0);
 }  /* end of Jacobi_Smearing */
+
+
+void generic_staples ( double * const buff_out, const unsigned int x, const int mu, double * const buff_in )
+{
+  static double tmp[18], tmp2[18];
+
+#define _ADD_STAPLES_TO_COMPONENT(to, via) \
+  { \
+    _cm_eq_cm_ti_cm_dag ( tmp, buff_in + _GGI( g_iup[x][via], to), buff_in + _GGI( g_iup[x][to], via ) ); \
+    _cm_eq_cm_ti_cm ( tmp2, buff_in + _GGI( x, via), tmp); \
+    _cm_pl_eq_cm ( buff_out, tmp2 ); \
+    _cm_eq_cm_ti_cm ( tmp, buff_in + _GGI( g_idn[x][via], to), buff_in + _GGI( g_iup[g_idn[x][via]][to], via ) ); \
+    _cm_eq_cm_dag_ti_cm ( tmp2, buff_in + _GGI( g_idn[x][via], via), tmp ); \
+    _cm_pl_eq_cm ( buff_out, tmp2 ); \
+  }
+
+  _cm_eq_zero ( buff_out );
+
+  switch (mu)
+  {
+    case 0:
+      _ADD_STAPLES_TO_COMPONENT(0, 1);
+      _ADD_STAPLES_TO_COMPONENT(0, 2);
+      _ADD_STAPLES_TO_COMPONENT(0, 3);
+      break;
+
+    case 1:
+      _ADD_STAPLES_TO_COMPONENT(1, 0);
+      _ADD_STAPLES_TO_COMPONENT(1, 2);
+      _ADD_STAPLES_TO_COMPONENT(1, 3);
+      break;
+
+    case 2:
+      _ADD_STAPLES_TO_COMPONENT(2, 0);
+      _ADD_STAPLES_TO_COMPONENT(2, 1);
+      _ADD_STAPLES_TO_COMPONENT(2, 3);
+      break;
+
+    case 3:
+      _ADD_STAPLES_TO_COMPONENT(3, 0);
+      _ADD_STAPLES_TO_COMPONENT(3, 1);
+      _ADD_STAPLES_TO_COMPONENT(3, 2);
+      break;
+  }
+
+}  /* end of generic_staples */
+
+
+int exposu3( double * const vr, double * const p ) {
+  
+  double v[18], v2[18];
+
+#if 0
+  /* it writes 'p=vec(h_{j,mu})' in matrix form 'v' */
+  _make_su3(v,*p);
+#endif
+  _cm_eq_cm ( v, p );
+
+  /* v2 = v^2 */
+  _cm_eq_cm_ti_cm ( v2, v, v);
+
+  /* _cm_eq_cm ( vr, v2 );
+  return (0); */
+
+  /* 1/2 real part of trace of v2 */
+  double const a = 0.5 * ( v2[0] + v2[8] + v2[16] );
+
+  /* 1/3 imaginary part of tr v*v2 */
+  double const b = 0.33333333333333333 * (
+        v[ 0] * v2[ 1] + v[ 1] * v2[ 0]
+      + v[ 2] * v2[ 7] + v[ 3] * v2[ 6]
+      + v[ 4] * v2[13] + v[ 5] * v2[12]
+      + v[ 6] * v2[ 3] + v[ 7] * v2[ 2]
+      + v[ 8] * v2[ 9] + v[ 9] * v2[ 8]
+      + v[10] * v2[15] + v[11] * v2[14]
+      + v[12] * v2[ 5] + v[13] * v2[ 4]
+      + v[14] * v2[11] + v[15] * v2[10]
+      + v[16] * v2[17] + v[17] * v2[16] );
+
+  double _Complex a0  = 0.16059043836821615e-9;   /* 1 / 13 ! */
+  double _Complex a1  = 0.11470745597729725e-10;  /* 1 / 14 ! */
+  double _Complex a2  = 0.76471637318198165e-12;  /* 1 / 15 ! */
+  double fac = 0.20876756987868099e-8;            /* 1 / 12 ! */
+  double r   = 12.0;
+  _Complex double a1p;
+
+  for ( int i = 3; i <= 15; ++i)
+  {
+    a1p = a0 + a * a2;
+    a0 = fac + b * I * a2;
+    a2 = a1;
+    a1 = a1p;
+    fac *= r;
+    r -= 1.0;
+  }
+
+  /* vr = a0 + a1*v + a2*v2 */
+  _cm_eq_zero( vr );
+
+  /* vr = a0 * diag ( 1,1,1 ) */
+  vr[ 0] = creal( a0 );
+  vr[ 1] = cimag( a0 );
+  vr[ 8] = creal( a0 );
+  vr[ 9] = cimag( a0 );
+  vr[16] = creal( a0 );
+  vr[17] = cimag( a0 );
+
+  double _Complex z;
+  for ( int i = 0; i < 9; i++ ) {
+    z = ( v[2*i] + v[2*i+1] * I ) * a1 + ( v2[2*i] + v2[2*i+1] * I ) * a2;
+    vr[2*i]   += creal( z );
+    vr[2*i+1] += cimag( z );
+  }
+
+  return( 0 );
+}  /* end of exposu3 */
+
+
+int stout_smear_inplace ( double * const m_field, const int stout_n, const double stout_rho, double * const buffer )
+{
+  
+  /* start of the the stout smearing **/
+  for ( int iter = 0; iter < stout_n; ++iter)
+  {
+#ifdef HAVE_MPI
+    xchange_gauge_field ( m_field );
+#endif
+
+#pragma omp parallel for
+    for ( unsigned int x = 0; x < VOLUME; ++x) {
+      double tmp[18];
+
+      for ( int mu = 0; mu < 4; ++mu)
+      {
+        generic_staples( tmp, x, mu, m_field );
+        _cm_ti_eq_re( tmp, stout_rho );
+        _cm_eq_cm_ti_cm_dag ( buffer+ _GGI( x, mu), tmp, m_field + _GGI( x, mu) );
+        _cm_eq_antiherm_trless_cm ( tmp, buffer + _GGI( x, mu ) );
+        exposu3 ( buffer + _GGI(x, mu ), tmp );
+      }
+    }
+
+#pragma omp parallel for
+    for ( unsigned int x = 0; x < VOLUME; ++x) {
+      double tmp[18];
+
+      for(int mu = 0 ; mu < 4; ++mu)
+      {
+        _cm_eq_cm_ti_cm( tmp, buffer + _GGI(x, mu), m_field + _GGI(x, mu) );
+        _cm_eq_cm ( m_field + _GGI( x, mu ), tmp);
+      }
+    }
+
+  }  /* end of loop on iterations */
+
+  return(0);
+}  /* end of stout_smear_inplace */
+
 
 }  /* end of namespace cvc */
