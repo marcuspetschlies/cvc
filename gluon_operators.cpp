@@ -48,11 +48,6 @@ namespace cvc {
 int G_plaq_rect ( double *** Gp, double *** Gr, double * const gauge_field) {
 
   const int dirpairs[6][2] = { {0,1}, {0,2}, {0,3}, {1,2}, {1,3}, {2,3} };
-  const int dirpairsinv[4][4] = { 
-      { -1,  0,  1,  2},
-      {  0, -1,  3,  4},
-      {  1,  3, -1,  5},
-      {  2,  4,  5, -1} };
  
   const double one_over_four  = 0.250;
   const double one_over_eight = 0.125;
@@ -440,6 +435,7 @@ int G_plaq_rect ( double *** Gp, double *** Gr, double * const gauge_field) {
        *             ------>-----
        *
        ********************************************************************/
+
       _cm_eq_cm_pl_cm ( U1, rectangles[g_iup[ix][imu]][imunu][0][0], rectangles[g_iup[ix][imu]][imunu][0][1] );
       /* _cm_eq_cm ( U1, rectangles[g_iup[ix][imu]][imunu][0][0] );
       _cm_eq_cm ( U1, rectangles[g_iup[ix][imu]][imunu][0][1]); */
@@ -466,13 +462,13 @@ int G_plaq_rect ( double *** Gp, double *** Gr, double * const gauge_field) {
        *
        *
        ********************************************************************/
+
       _cm_eq_cm_pl_cm ( U1, rectangles[g_idn[ix][imu]][imunu][0][0], rectangles[g_idn[ix][imu]][imunu][0][1] );
       /* _cm_eq_cm ( U1, rectangles[g_idn[ix][imu]][imunu][0][0]  );
       _cm_eq_cm ( U1, rectangles[g_idn[ix][imu]][imunu][0][1]  ); */
       _cm_eq_cm_ti_cm ( U2, U1, gauge_field + _GGI( g_idn[ix][imu], imu ) );
       _cm_eq_cm_dag_ti_cm ( U1, gauge_field + _GGI( g_idn[ix][imu], imu ), U2 );
       _cm_pl_eq_cm ( Gr[ix][imunu], U1 );
-
 #if 0
 #endif  /* of if 0 */
 
@@ -488,13 +484,13 @@ int G_plaq_rect ( double *** Gp, double *** Gr, double * const gauge_field) {
        *
        *
        ********************************************************************/
+
       _cm_eq_cm_pl_cm ( U1, rectangles[g_iup[ix][inu]][imunu][1][0], rectangles[g_iup[ix][inu]][imunu][1][1] );
       /* _cm_eq_cm ( U1, rectangles[g_iup[ix][inu]][imunu][1][0]  );
       _cm_eq_cm ( U1, rectangles[g_iup[ix][inu]][imunu][1][1]  ); */
       _cm_eq_cm_ti_cm ( U2, gauge_field + _GGI(ix,inu), U1 );
       _cm_eq_cm_ti_cm_dag ( U1, U2, gauge_field + _GGI(ix,inu) );
       _cm_pl_eq_cm ( Gr[ix][imunu], U1 );
-
 #if 0
 #endif  /* of if 0 */
 
@@ -511,13 +507,13 @@ int G_plaq_rect ( double *** Gp, double *** Gr, double * const gauge_field) {
        * --->---      ---->---
        *
        ********************************************************************/
+
       _cm_eq_cm_pl_cm ( U1, rectangles[g_idn[ix][inu]][imunu][1][0], rectangles[g_idn[ix][inu]][imunu][1][1] );
       /* _cm_eq_cm ( U1, rectangles[g_idn[ix][inu]][imunu][1][0] );
       _cm_eq_cm ( U1, rectangles[g_idn[ix][inu]][imunu][1][1] ); */
       _cm_eq_cm_ti_cm ( U2, U1, gauge_field + _GGI( g_idn[ix][inu], inu) );
       _cm_eq_cm_dag_ti_cm ( U1, gauge_field + _GGI( g_idn[ix][inu],inu), U2 );
       _cm_pl_eq_cm ( Gr[ix][imunu], U1 );
-
 #if 0
 #endif  /* of if 0 */
 
@@ -907,5 +903,360 @@ int gluonic_operators_eo_from_fst ( double ** op, double *** const G ) {
 
 }  /* end of gluonic_operators_from_fst */
 
+
+/********************************************************************
+ * out
+ *   Gp : non-zero field strength tensor components
+ *        from plaquettes, 1x1 loops
+ ********************************************************************/
+int G_plaq ( double *** Gp, double * const gauge_field) {
+
+  const int dirpairs[6][2] = { {0,1}, {0,2}, {0,3}, {1,2}, {1,3}, {2,3} };
+  const double one_over_four  = 0.250;
+
+#ifdef HAVE_MPI
+  xchanger_type x_plaq;
+  mpi_init_xchanger ( &x_plaq, 18 );
+#endif
+
+  double ** plaquettes = init_2level_dtable ( VOLUMEPLUSRAND, 18 );
+  if ( plaquettes == NULL ) {
+    fprintf ( stderr, "[G_plaq] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
+
+#ifdef HAVE_MPI
+  /********************************************************************
+   * exchange gauge field to be sure
+   ********************************************************************/
+  xchange_gauge_field ( gauge_field );
+#endif
+
+  /********************************************************************
+   * calculate elementary plaquettes for all triples (ix, mu, nu )
+   ********************************************************************/
+
+  for ( int imunu = 0; imunu < 6; imunu++) {
+
+    const int imu = dirpairs[imunu][0]; 
+    const int inu = dirpairs[imunu][1]; 
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+    for ( unsigned int ix = 0; ix < VOLUME; ix++ )
+    {
+  
+      double U1[18], U2[18];
+
+        /********************************************************************
+         * P <- [ U_mu(x) U_nu(x+mu) ] * [ U_nu(x) U_mu(x+nu) ]^+
+         *   =  U_mu(x) U_nu(x+mu) U_mu(x+nu)^+ U_nu(x)^+
+         *
+         * x+nu >    x+mu+nu
+         *   _______
+         *  |       |
+         *  |       |
+         * ^|       | 
+         * _|_______|
+         *  |x  <    x + mu
+         *
+         ********************************************************************/
+        /********************************************************************
+         * 2 corners,
+         * (U1) U_mu(x) * U_nu(x+mu)
+         * (U2) U_nu(x) * U_mu(x+nu)
+         * then multply 
+         * U1 x U2^+ = U_mu(x) * U_nu(x+mu) * U_mu(x+nu)^+ * U_nu(x)^+
+         *           = U(x,x+mu) * U(x+mu,x+mu+nu) * U(x+nu+mu,x+nu) * U(x+nu,x)
+         ********************************************************************/
+        _cm_eq_cm_ti_cm ( U1, gauge_field + _GGI(ix, imu), gauge_field + _GGI( g_iup[ix][imu], inu) );
+        _cm_eq_cm_ti_cm ( U2, gauge_field + _GGI(ix, inu), gauge_field + _GGI( g_iup[ix][inu], imu) );
+        _cm_eq_cm_ti_cm_dag ( plaquettes[ix], U1, U2 );
+ 
+    }  /* end of loop on VOLUME */
+
+    /********************************************************************
+     * xchange the plaquettes,
+     *   INCLUDING edges
+     ********************************************************************/
+#ifdef HAVE_MPI
+    mpi_xchanger ( plaquettes[0], &x_plaq );
+#endif
+
+  /********************************************************************
+   * build G_munu from plaquettes
+   ********************************************************************/
+#ifdef HAVE_OPENMP
+#pragma omp parallel for shared(plaquettes)
+#endif
+    for ( unsigned int ix = 0; ix < VOLUME; ix++ )
+    {
+      double U1[18], U2[18], U3[18], U4[18];
+    
+      _cm_eq_zero ( U1 );
+      
+      /********************************************************************
+       * (1) U1 += U_{mu,nu}(x)
+       ********************************************************************/
+      _cm_pl_eq_cm ( U1, plaquettes[ix] );
+
+      /********************************************************************
+       * (2) U1 +=  U_{mu,nu}(x - mu)
+       ********************************************************************/
+      _cm_eq_cm_ti_cm( U2, plaquettes[ g_idn[ix][imu] ], gauge_field + _GGI( g_idn[ix][imu], imu ) );
+      _cm_eq_cm_dag_ti_cm( U3, gauge_field + _GGI( g_idn[ix][imu], imu ), U2 );
+      _cm_pl_eq_cm ( U1, U3 );
+
+      /********************************************************************
+       * (3) U1 += U_{mu,nu}(x - nu)
+       ********************************************************************/
+      _cm_eq_cm_ti_cm( U2, plaquettes[ g_idn[ix][inu] ], gauge_field + _GGI( g_idn[ix][inu], inu ) );
+      _cm_eq_cm_dag_ti_cm( U3, gauge_field + _GGI( g_idn[ix][inu], inu ), U2 );
+      _cm_pl_eq_cm ( U1, U3 );
+
+      /********************************************************************
+       * (4) U1 += U_{mu,nu}(x - nu - mu)
+       ********************************************************************/
+      _cm_eq_cm_ti_cm ( U4, gauge_field + _GGI(g_idn[g_idn[ix][imu]][inu], imu), gauge_field + _GGI(g_idn[ix][inu], inu) );
+      _cm_eq_cm_ti_cm ( U2, plaquettes[ g_idn[ g_idn[ix][inu] ][imu] ],  U4 );
+      _cm_eq_cm_dag_ti_cm ( U3, U4, U2 );
+      _cm_pl_eq_cm ( U1, U3 );
+
+      _cm_eq_antiherm_cm ( Gp[ix][imunu], U1 );
+      _cm_ti_eq_re ( Gp[ix][imunu], one_over_four );
+    }
+
+  }  /* end of loop on nu, mu */
+
+  fini_2level_dtable ( &plaquettes );
+
+#ifdef HAVE_MPI
+  mpi_fini_xchanger ( &x_plaq );
+#endif
+  return( 0 );
+
+}  /* end of G_plaq */
+
+
+/********************************************************************
+ * out
+ *   Gr : non-zero field strength tensor components
+ *        from rectangles, 1x2 and 2x1 loops  
+ ********************************************************************/
+int G_rect ( double *** Gr, double * const gauge_field) {
+
+  const int dirpairs[6][2] = { {0,1}, {0,2}, {0,3}, {1,2}, {1,3}, {2,3} };
+  const double one_over_eight = 0.125;
+
+#ifdef HAVE_MPI
+  xchanger_type x_rect;
+  mpi_init_xchanger ( &x_rect, 36 );
+#endif
+
+#ifdef HAVE_MPI
+  /********************************************************************
+   * exchange gauge field to be sure
+   ********************************************************************/
+  xchange_gauge_field ( gauge_field );
+#endif
+
+  /********************************************************************
+   * now build the rectangles from products of plaquettes
+   *
+   * needs rotation of plaquettes taken from neighbours to current site
+   ********************************************************************/
+  double *** rectangles = init_3level_dtable ( VOLUMEPLUSRAND, 2, 18 );
+  if ( rectangles == NULL ) {
+    fprintf ( stderr, "[G_rect] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
+    
+  for ( int imunu = 0; imunu < 6; imunu++) {
+
+    const int imu = dirpairs[imunu][0]; 
+    const int inu = dirpairs[imunu][1]; 
+
+  /********************************************************************
+   * calculation of rectangles
+   ********************************************************************/
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+    for ( unsigned int ix = 0; ix < VOLUME; ix++ )
+    {
+
+      double U1[18], U2[18];
+
+      memset ( rectangles[ix][0], 0, 36 * sizeof( double ) );
+
+      /* x -> x+mu -> x+mu+nu */
+      _cm_eq_cm_ti_cm( U1, gauge_field+_GGI(ix,imu), gauge_field+_GGI(g_iup[ix][imu],inu) );
+      /* x -> x+mu -> x+mu+nu -> x+nu */
+      _cm_eq_cm_ti_cm_dag( U2, U1, gauge_field+_GGI( g_iup[ix][inu], imu) );
+      /* x -> x+mu+nu -> x+nu -> x+nu-mu */
+      _cm_eq_cm_ti_cm_dag( U1, U2, gauge_field+_GGI( g_idn[g_iup[ix][inu]][imu], imu) );
+      /* x -> x+mu+nu -> x+nu -> x+nu-mu -> x-mu */
+      _cm_eq_cm_ti_cm_dag( U2, U1, gauge_field+_GGI( g_idn[ix][imu], inu) );
+      /* x -> x+mu+nu -> x+nu -> x+nu-mu -> x-mu -> x */
+      _cm_eq_cm_ti_cm( rectangles[ix][0], U2, gauge_field+_GGI( g_idn[ix][imu], imu) );
+
+
+      /* x -> x-nu -> x-nu+mu */
+      _cm_eq_cm_dag_ti_cm( U1, gauge_field+_GGI( g_idn[ix][inu],inu ), gauge_field+_GGI(g_idn[ix][inu],imu) );
+      /* x -> x-nu -> x-nu+mu -> x+mu */
+      _cm_eq_cm_ti_cm( U2, U1, gauge_field+_GGI( g_iup[ g_idn[ix][inu] ][imu], inu) );
+      /* x -> x-nu -> x-nu+mu -> x+mu -> x+mu+nu */
+      _cm_eq_cm_ti_cm( U1, U2, gauge_field+_GGI( g_iup[ix][imu], inu) );
+      /* x -> x-nu -> x-nu+mu -> x+mu -> x+mu+nu -> x+nu */
+      _cm_eq_cm_ti_cm_dag( U2, U1, gauge_field+_GGI( g_iup[ix][inu], imu) );
+      /* x -> x-nu -> x-nu+mu -> x+mu -> x+mu+nu -> x+nu -> x */
+      _cm_eq_cm_ti_cm_dag( rectangles[ix][1], U2, gauge_field+_GGI( ix, inu) );
+
+    } /* end of loop on ix */
+
+    /********************************************************************
+     * xchange the rectangles
+     ********************************************************************/
+#ifdef HAVE_MPI
+    mpi_xchanger ( rectangles[0][0], &x_rect );
+#endif
+
+    /********************************************************************
+     * build G_munu from rectangles
+     ********************************************************************/
+#ifdef HAVE_OPENMP
+#pragma omp parallel for shared(rectangles)
+#endif
+    for ( unsigned int ix = 0; ix < VOLUME; ix++ )
+    {
+  
+      double U1[18], U2[18], U3[18];
+     
+      _cm_eq_zero ( Gr[ix][imunu] );
+
+      /********************************************************************
+       *             ------<------
+       *             |           |
+       *             |           ^
+       *             |           |
+       *             x----x+mu----
+       *
+       *                   +
+       *
+       *             x----x+mu----
+       *             |           |
+       *             |           ^
+       *             |           |
+       *             ------>-----
+       *
+       ********************************************************************/
+
+      _cm_eq_cm_ti_cm( U1, gauge_field + _GGI(ix, imu), rectangles[g_iup[ix][imu]][0] );
+      _cm_eq_cm_ti_cm_dag( U2, U1, gauge_field + _GGI(ix, imu) );
+      _cm_pl_eq_cm ( Gr[ix][imunu], U2 );
+
+      _cm_eq_cm_dag_ti_cm ( U3, gauge_field + _GGI( g_idn[ix][inu], inu ), gauge_field + _GGI( g_idn[ix][inu], imu ) );
+      _cm_eq_cm_ti_cm ( U1, U3, rectangles[ g_idn[ g_iup[ix][imu]][inu] ][0] );
+      _cm_eq_cm_ti_cm_dag ( U2, U1, U3 );
+      _cm_pl_eq_cm ( Gr[ix][imunu], U2 );
+#if 0
+#endif  /* of if 0 */
+
+      /********************************************************************
+       * ------<------
+       * |           |
+       * |           ^
+       * |           |
+       * -----x-mu---x
+       *
+       *      +
+       *
+       * -----x-mu---x
+       * |           |
+       * |           ^
+       * |           |
+       * ------>-----
+       *
+       *
+       ********************************************************************/
+
+      _cm_eq_cm_dag_ti_cm ( U1, gauge_field + _GGI( g_idn[ix][imu], imu), rectangles[g_idn[ix][imu]][0] );
+      _cm_eq_cm_ti_cm ( U2, U1, gauge_field + _GGI( g_idn[ix][imu], imu) );
+      _cm_pl_eq_cm ( Gr[ix][imunu], U2 );
+
+
+      _cm_eq_cm_ti_cm ( U3, gauge_field + _GGI( g_idn[ g_idn[ix][inu] ][imu], imu ), gauge_field + _GGI( g_idn[ix][inu], inu ) );
+      _cm_eq_cm_dag_ti_cm ( U1, U3, rectangles[ g_idn[ g_idn[ix][imu] ][inu]  ][0] );
+      _cm_eq_cm_ti_cm ( U2, U1, U3 );
+      _cm_pl_eq_cm ( Gr[ix][imunu], U2 );
+#if 0
+#endif  /* of if 0 */
+
+      /********************************************************************
+       *         ---<---      ----<---
+       *         |     |      |      |
+       *         |     |      |      |
+       *   x-mu+nu     |    x+nu     ^
+       *         |     |      |      |
+       *         |     |      |      |
+       *         --->--x      x--->---
+       *
+       *
+       *
+       ********************************************************************/
+
+      _cm_eq_cm_ti_cm( U1, gauge_field + _GGI(ix,inu), rectangles[g_iup[ix][inu]][1] );
+      _cm_eq_cm_ti_cm_dag( U2, U1, gauge_field + _GGI(ix,inu) );
+      _cm_pl_eq_cm ( Gr[ix][imunu], U2 );
+
+      _cm_eq_cm_dag_ti_cm( U3, gauge_field + _GGI( g_idn[ix][imu], inu), gauge_field + _GGI( g_idn[ix][imu] , imu ) );
+      _cm_eq_cm_ti_cm ( U1, rectangles[ g_iup[ g_idn[ix][imu] ][inu] ][1], U3 );
+      _cm_eq_cm_dag_ti_cm ( U2, U3, U1 );
+      _cm_pl_eq_cm ( Gr[ix][imunu], U2 );
+#if 0
+#endif  /* of if 0 */
+
+      /********************************************************************
+       *
+       *
+       *
+       *       ---<--x      x---<---
+       *       |     |      |      |
+       *       |     |      |      |
+       * x-nu-mu     ^   x-nu      ^
+       *       |     |      |      |
+       *       |     |      |      |
+       *       --->---      ---->---
+       *
+       ********************************************************************/
+
+      _cm_eq_cm_dag_ti_cm ( U1, gauge_field + _GGI( g_idn[ix][inu], inu ), rectangles[g_idn[ix][inu] ][1] );
+      _cm_eq_cm_ti_cm ( U2, U1, gauge_field + _GGI( g_idn[ix][inu], inu ) );
+      _cm_pl_eq_cm ( Gr[ix][imunu], U2 );
+
+      _cm_eq_cm_ti_cm ( U3, gauge_field + _GGI ( g_idn[ g_idn[ix][inu] ][imu], inu ), gauge_field + _GGI( g_idn[ix][imu], imu ) );
+      _cm_eq_cm_dag_ti_cm ( U1, U3, rectangles[ g_idn[ g_idn[ix][inu] ][imu] ][1] );
+      _cm_eq_cm_ti_cm ( U2, U1, U3 );
+      _cm_pl_eq_cm ( Gr[ix][imunu], U2 );
+#if 0
+#endif  /* of if 0 */
+
+      /********************************************************************
+       * anti-hermitean part and normalization
+       ********************************************************************/
+      _cm_eq_antiherm_cm ( U1, Gr[ix][imunu] );
+      _cm_eq_cm_ti_re ( Gr[ix][imunu], U1, one_over_eight );
+    }
+  }
+
+  fini_3level_dtable ( &rectangles );
+
+#ifdef HAVE_MPI
+  mpi_fini_xchanger ( &x_rect );
+#endif
+  return( 0 );
+
+}  /* end of G_rect */
 
 }  /* end of namespace cvc */
