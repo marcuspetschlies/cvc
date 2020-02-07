@@ -365,6 +365,9 @@ int Jacobi_Smearing(double *smeared_gauge_field, double *psi, int const N, doubl
 }  /* end of Jacobi_Smearing */
 
 
+/******************************************
+ *
+ ******************************************/
 void generic_staples ( double * const buff_out, const unsigned int x, const int mu, double * const buff_in )
 {
   static double tmp[18], tmp2[18];
@@ -411,6 +414,9 @@ void generic_staples ( double * const buff_out, const unsigned int x, const int 
 }  /* end of generic_staples */
 
 
+/******************************************
+ *
+ ******************************************/
 int exposu3( double * const vr, double * const p ) {
   
   double v[18], v2[18];
@@ -481,6 +487,9 @@ int exposu3( double * const vr, double * const p ) {
 }  /* end of exposu3 */
 
 
+/******************************************
+ *
+ ******************************************/
 int stout_smear_inplace ( double * const m_field, const int stout_n, const double stout_rho, double * const buffer )
 {
   
@@ -521,5 +530,7 @@ int stout_smear_inplace ( double * const m_field, const int stout_n, const doubl
   return(0);
 }  /* end of stout_smear_inplace */
 
+/******************************************/
+/******************************************/
 
 }  /* end of namespace cvc */
