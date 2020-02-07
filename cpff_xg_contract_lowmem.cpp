@@ -53,6 +53,8 @@ void usage() {
 
 #define MAX_SMEARING_LEVELS 40
 
+#undef _GLUONIC_OPERATORS
+
 int main(int argc, char **argv) {
   
   const char outfile_prefix[] = "cpff";
@@ -181,11 +183,13 @@ int main(int argc, char **argv) {
    * set output filename
    ***************************************************************************/
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-  sprintf( output_filename, "%s.xg.%d.aff", g_outfile_prefix, Nconf );
-  affw = aff_writer (output_filename);
-  if( const char * aff_status_str = aff_writer_errstr(affw) ) {
-    fprintf(stderr, "[cpff_xg_contract_lowmem] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-    EXIT( 4 );
+  if ( io_proc == 2 ) {
+    sprintf( output_filename, "%s.xg.%d.aff", g_outfile_prefix, Nconf );
+    affw = aff_writer (output_filename);
+    if( const char * aff_status_str = aff_writer_errstr(affw) ) {
+      fprintf(stderr, "[cpff_xg_contract_lowmem] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+      EXIT( 4 );
+    }
   }
 
 #elif (defined HAVE_HDF5 )
@@ -263,6 +267,8 @@ int main(int argc, char **argv) {
     fprintf ( stderr, "[cpff_xg_contract_lowmem] Error from G_plaq_rect, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
     EXIT(8);
   }
+
+#ifdef _GLUONIC_OPERATORS
 
   /***********************************************************
    * gluonic operators from field strength tensor
@@ -354,12 +360,14 @@ int main(int argc, char **argv) {
    * END OF TEST
    ***********************************************************/
 #endif  /* of if 0 */
+  fini_3level_dtable ( &Gp );
+  fini_3level_dtable ( &Gr );
 
   /* fini TEST */
   /* clover_term_fini ( &g_clover ); */
 
-  fini_3level_dtable ( &Gp );
-  fini_3level_dtable ( &Gr );
+#endif  /* of ifdef _GLUONIC_OPERATORS */
+
   fini_2level_dtable ( &pl );
 
 
@@ -450,6 +458,7 @@ int main(int argc, char **argv) {
     gettimeofday ( &tb, (struct timezone *)NULL );
     show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "write-to-file", io_proc==2 );
 
+#ifdef _GLUONIC_OPERATORS
     /***************************************************************************
      * gluonic operators from elements of field strength tensor
      ***************************************************************************/
@@ -511,6 +520,7 @@ int main(int argc, char **argv) {
 
     fini_3level_dtable ( &Gp );
     fini_3level_dtable ( &Gr );
+#endif  /* of ifdef _GLUONIC_OPERATORS */
 
     fini_2level_dtable ( &pl2 );
     
@@ -527,10 +537,12 @@ int main(int argc, char **argv) {
    * close writer
    ***************************************************************************/
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-  const char * aff_status_str = (char*)aff_writer_close (affw);
-  if( aff_status_str != NULL ) {
-    fprintf(stderr, "[cpff_xg_contract_lowmem] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-    EXIT(32);
+  if ( io_proc == 2 ) {
+    const char * aff_status_str = (char*)aff_writer_close (affw);
+    if( aff_status_str != NULL ) {
+      fprintf(stderr, "[cpff_xg_contract_lowmem] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+      EXIT(32);
+    }
   }
 #endif
 
