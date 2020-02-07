@@ -65,7 +65,7 @@ void usage() {
 
 #define MAX_SMEARING_LEVELS 40
 
-#undef _GLUONIC_OPERATORS
+#define _GLUONIC_OPERATORS
 
 int main(int argc, char **argv) {
   
@@ -235,8 +235,6 @@ int main(int argc, char **argv) {
     EXIT(14);
   }
   fprintf(stdout, "# [cpff_xg_contract] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
-
-#if 0
 
   /***************************************************************************
    * set output filename
@@ -624,8 +622,6 @@ int main(int argc, char **argv) {
     }
   }
 #endif
-
-#endif  /* of if 0 */
 
   /***************************************************************************
    * free the allocated memory, finalize

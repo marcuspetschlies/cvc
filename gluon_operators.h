@@ -25,5 +25,9 @@ int gluonic_operators ( double ** op, double * const gfield );
 
 int gluonic_operators_eo_from_fst ( double ** op, double *** const G );
 
+int G_plaq ( double *** Gp, double * const gauge_field);
+
+int G_rect ( double *** Gr, double * const gauge_field);
+
 }  /* end of namespace cvc */
 #endif
