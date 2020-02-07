@@ -1111,7 +1111,7 @@ int G_rect ( double *** Gr, double * const gauge_field) {
 
 #ifdef HAVE_MPI
   xchanger_type x_rect;
-  mpi_init_xchanger ( &x_rect, 36 );
+  mpi_init_xchanger ( &x_rect, 18 );
 #endif
 
 #ifdef HAVE_MPI
@@ -1126,192 +1126,219 @@ int G_rect ( double *** Gr, double * const gauge_field) {
    *
    * needs rotation of plaquettes taken from neighbours to current site
    ********************************************************************/
-  double *** rectangles = init_3level_dtable ( VOLUMEPLUSRAND, 2, 18 );
+  double ** rectangles = init_2level_dtable ( VOLUMEPLUSRAND, 18 );
   if ( rectangles == NULL ) {
     fprintf ( stderr, "[G_rect] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
     return(1);
   }
-    
+  
+  memset ( Gr[0][0], 0, VOLUME * 54 * sizeof ( double ) );
+
   for ( int imunu = 0; imunu < 6; imunu++) {
 
     const int imu = dirpairs[imunu][0]; 
     const int inu = dirpairs[imunu][1]; 
 
-  /********************************************************************
-   * calculation of rectangles
-   ********************************************************************/
+    for ( int idir = 0; idir < 2; idir++ ) {
+
+      /********************************************************************
+       * calculation of rectangles
+       ********************************************************************/
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-    for ( unsigned int ix = 0; ix < VOLUME; ix++ )
-    {
+      for ( unsigned int ix = 0; ix < VOLUME; ix++ )
+      {
 
-      double U1[18], U2[18];
+        double U1[18], U2[18];
 
-      memset ( rectangles[ix][0], 0, 36 * sizeof( double ) );
+        memset ( rectangles[ix], 0, 18 * sizeof( double ) );
 
-      /* x -> x+mu -> x+mu+nu */
-      _cm_eq_cm_ti_cm( U1, gauge_field+_GGI(ix,imu), gauge_field+_GGI(g_iup[ix][imu],inu) );
-      /* x -> x+mu -> x+mu+nu -> x+nu */
-      _cm_eq_cm_ti_cm_dag( U2, U1, gauge_field+_GGI( g_iup[ix][inu], imu) );
-      /* x -> x+mu+nu -> x+nu -> x+nu-mu */
-      _cm_eq_cm_ti_cm_dag( U1, U2, gauge_field+_GGI( g_idn[g_iup[ix][inu]][imu], imu) );
-      /* x -> x+mu+nu -> x+nu -> x+nu-mu -> x-mu */
-      _cm_eq_cm_ti_cm_dag( U2, U1, gauge_field+_GGI( g_idn[ix][imu], inu) );
-      /* x -> x+mu+nu -> x+nu -> x+nu-mu -> x-mu -> x */
-      _cm_eq_cm_ti_cm( rectangles[ix][0], U2, gauge_field+_GGI( g_idn[ix][imu], imu) );
+        if ( idir == 0 ) {
 
+          /* x -> x+mu -> x+mu+nu */
+          _cm_eq_cm_ti_cm( U1, gauge_field+_GGI(ix,imu), gauge_field+_GGI(g_iup[ix][imu],inu) );
+          /* x -> x+mu -> x+mu+nu -> x+nu */
+          _cm_eq_cm_ti_cm_dag( U2, U1, gauge_field+_GGI( g_iup[ix][inu], imu) );
+          /* x -> x+mu+nu -> x+nu -> x+nu-mu */
+          _cm_eq_cm_ti_cm_dag( U1, U2, gauge_field+_GGI( g_idn[g_iup[ix][inu]][imu], imu) );
+          /* x -> x+mu+nu -> x+nu -> x+nu-mu -> x-mu */
+          _cm_eq_cm_ti_cm_dag( U2, U1, gauge_field+_GGI( g_idn[ix][imu], inu) );
+          /* x -> x+mu+nu -> x+nu -> x+nu-mu -> x-mu -> x */
+          _cm_eq_cm_ti_cm( rectangles[ix], U2, gauge_field+_GGI( g_idn[ix][imu], imu) );
 
-      /* x -> x-nu -> x-nu+mu */
-      _cm_eq_cm_dag_ti_cm( U1, gauge_field+_GGI( g_idn[ix][inu],inu ), gauge_field+_GGI(g_idn[ix][inu],imu) );
-      /* x -> x-nu -> x-nu+mu -> x+mu */
-      _cm_eq_cm_ti_cm( U2, U1, gauge_field+_GGI( g_iup[ g_idn[ix][inu] ][imu], inu) );
-      /* x -> x-nu -> x-nu+mu -> x+mu -> x+mu+nu */
-      _cm_eq_cm_ti_cm( U1, U2, gauge_field+_GGI( g_iup[ix][imu], inu) );
-      /* x -> x-nu -> x-nu+mu -> x+mu -> x+mu+nu -> x+nu */
-      _cm_eq_cm_ti_cm_dag( U2, U1, gauge_field+_GGI( g_iup[ix][inu], imu) );
-      /* x -> x-nu -> x-nu+mu -> x+mu -> x+mu+nu -> x+nu -> x */
-      _cm_eq_cm_ti_cm_dag( rectangles[ix][1], U2, gauge_field+_GGI( ix, inu) );
+        } else if ( idir == 1 ) {
 
-    } /* end of loop on ix */
+          /* x -> x-nu -> x-nu+mu */
+          _cm_eq_cm_dag_ti_cm( U1, gauge_field+_GGI( g_idn[ix][inu],inu ), gauge_field+_GGI(g_idn[ix][inu],imu) );
+          /* x -> x-nu -> x-nu+mu -> x+mu */
+          _cm_eq_cm_ti_cm( U2, U1, gauge_field+_GGI( g_iup[ g_idn[ix][inu] ][imu], inu) );
+          /* x -> x-nu -> x-nu+mu -> x+mu -> x+mu+nu */
+          _cm_eq_cm_ti_cm( U1, U2, gauge_field+_GGI( g_iup[ix][imu], inu) );
+          /* x -> x-nu -> x-nu+mu -> x+mu -> x+mu+nu -> x+nu */
+         _cm_eq_cm_ti_cm_dag( U2, U1, gauge_field+_GGI( g_iup[ix][inu], imu) );
+          /* x -> x-nu -> x-nu+mu -> x+mu -> x+mu+nu -> x+nu -> x */
+         _cm_eq_cm_ti_cm_dag( rectangles[ix], U2, gauge_field+_GGI( ix, inu) );
 
-    /********************************************************************
-     * xchange the rectangles
-     ********************************************************************/
+       }
+      } /* end of loop on ix */
+
+      /********************************************************************
+       * xchange the rectangles
+       ********************************************************************/
 #ifdef HAVE_MPI
-    mpi_xchanger ( rectangles[0][0], &x_rect );
+      mpi_xchanger ( rectangles[0], &x_rect );
 #endif
 
-    /********************************************************************
-     * build G_munu from rectangles
-     ********************************************************************/
+      /********************************************************************
+       * build G_munu from rectangles
+       ********************************************************************/
 #ifdef HAVE_OPENMP
 #pragma omp parallel for shared(rectangles)
 #endif
-    for ( unsigned int ix = 0; ix < VOLUME; ix++ )
-    {
+      for ( unsigned int ix = 0; ix < VOLUME; ix++ )
+      {
   
-      double U1[18], U2[18], U3[18], RR[18];
-     
-      memset ( RR, 0, 18 * sizeof( double ) );
+        double U1[18], U2[18], U3[18], RR[18];
 
-      /********************************************************************
-       *             ------<------
-       *             |           |
-       *             |           ^
-       *             |           |
-       *             x----x+mu----
-       *
-       *                   +
-       *
-       *             x----x+mu----
-       *             |           |
-       *             |           ^
-       *             |           |
-       *             ------>-----
-       *
-       ********************************************************************/
+        memset ( RR, 0, 18 * sizeof( double ) );
 
-      _cm_eq_cm_ti_cm( U1, gauge_field + _GGI(ix, imu), rectangles[g_iup[ix][imu]][0] );
-      _cm_eq_cm_ti_cm_dag( U2, U1, gauge_field + _GGI(ix, imu) );
-      _cm_pl_eq_cm ( RR, U2 );
+        if ( idir == 0 ) {
 
-      _cm_eq_cm_dag_ti_cm ( U3, gauge_field + _GGI( g_idn[ix][inu], inu ), gauge_field + _GGI( g_idn[ix][inu], imu ) );
-      _cm_eq_cm_ti_cm ( U1, U3, rectangles[ g_idn[ g_iup[ix][imu]][inu] ][0] );
-      _cm_eq_cm_ti_cm_dag ( U2, U1, U3 );
-      _cm_pl_eq_cm ( RR, U2 );
+          /********************************************************************
+           *             ------<------
+           *             |           |
+           *             |           ^
+           *             |           |
+           *             x----x+mu----
+           *
+           *                   +
+           *
+           *             x----x+mu----
+           *             |           |
+           *             |           ^
+           *             |           |
+           *             ------>-----
+           *
+           ********************************************************************/
+    
+          _cm_eq_cm_ti_cm( U1, gauge_field + _GGI(ix, imu), rectangles[g_iup[ix][imu]] );
+          _cm_eq_cm_ti_cm_dag( U2, U1, gauge_field + _GGI(ix, imu) );
+          _cm_pl_eq_cm ( RR, U2 );
+    
+          _cm_eq_cm_dag_ti_cm ( U3, gauge_field + _GGI( g_idn[ix][inu], inu ), gauge_field + _GGI( g_idn[ix][inu], imu ) );
+          _cm_eq_cm_ti_cm ( U1, U3, rectangles[ g_idn[ g_iup[ix][imu]][inu] ] );
+          _cm_eq_cm_ti_cm_dag ( U2, U1, U3 );
+          _cm_pl_eq_cm ( RR, U2 );
+#if 0
+#endif  /* of if 0 */
+    
+          /********************************************************************
+           * ------<------
+           * |           |
+           * |           ^
+           * |           |
+           * -----x-mu---x
+           *
+           *      +
+           *
+           * -----x-mu---x
+           * |           |
+           * |           ^
+           * |           |
+           * ------>-----
+           *
+           *
+           ********************************************************************/
+    
+          _cm_eq_cm_dag_ti_cm ( U1, gauge_field + _GGI( g_idn[ix][imu], imu), rectangles[g_idn[ix][imu]] );
+          _cm_eq_cm_ti_cm ( U2, U1, gauge_field + _GGI( g_idn[ix][imu], imu) );
+          _cm_pl_eq_cm ( RR, U2 );
+    
+    
+          _cm_eq_cm_ti_cm ( U3, gauge_field + _GGI( g_idn[ g_idn[ix][inu] ][imu], imu ), gauge_field + _GGI( g_idn[ix][inu], inu ) );
+          _cm_eq_cm_dag_ti_cm ( U1, U3, rectangles[ g_idn[ g_idn[ix][imu] ][inu]  ] );
+          _cm_eq_cm_ti_cm ( U2, U1, U3 );
+          _cm_pl_eq_cm ( RR, U2 );
+#if 0
+#endif  /* of if 0 */
+        } else if ( idir == 1 ) {
+
+          /********************************************************************
+           *         ---<---      ----<---
+           *         |     |      |      |
+           *         |     |      |      |
+           *   x-mu+nu     |    x+nu     ^
+           *         |     |      |      |
+           *         |     |      |      |
+           *         --->--x      x--->---
+           *
+           *
+           *
+           ********************************************************************/
+    
+          _cm_eq_cm_ti_cm( U1, gauge_field + _GGI(ix,inu), rectangles[g_iup[ix][inu]] );
+          _cm_eq_cm_ti_cm_dag( U2, U1, gauge_field + _GGI(ix,inu) );
+          _cm_pl_eq_cm ( RR, U2 );
+    
+          _cm_eq_cm_dag_ti_cm( U3, gauge_field + _GGI( g_idn[ix][imu], inu), gauge_field + _GGI( g_idn[ix][imu] , imu ) );
+          _cm_eq_cm_ti_cm ( U1, rectangles[ g_iup[ g_idn[ix][imu] ][inu] ], U3 );
+          _cm_eq_cm_dag_ti_cm ( U2, U3, U1 );
+          _cm_pl_eq_cm ( RR, U2 );
+#if 0
+#endif  /* of if 0 */
+    
+          /********************************************************************
+           *
+           *
+           *
+           *       ---<--x      x---<---
+           *       |     |      |      |
+           *       |     |      |      |
+           * x-nu-mu     ^   x-nu      ^
+           *       |     |      |      |
+           *       |     |      |      |
+           *       --->---      ---->---
+           *
+           ********************************************************************/
+    
+          _cm_eq_cm_dag_ti_cm ( U1, gauge_field + _GGI( g_idn[ix][inu], inu ), rectangles[g_idn[ix][inu] ] );
+          _cm_eq_cm_ti_cm ( U2, U1, gauge_field + _GGI( g_idn[ix][inu], inu ) );
+          _cm_pl_eq_cm ( RR, U2 );
+    
+          _cm_eq_cm_ti_cm ( U3, gauge_field + _GGI ( g_idn[ g_idn[ix][inu] ][imu], inu ), gauge_field + _GGI( g_idn[ix][imu], imu ) );
+          _cm_eq_cm_dag_ti_cm ( U1, U3, rectangles[ g_idn[ g_idn[ix][inu] ][imu] ] );
+          _cm_eq_cm_ti_cm ( U2, U1, U3 );
+          _cm_pl_eq_cm ( RR, U2 );
 #if 0
 #endif  /* of if 0 */
 
-      /********************************************************************
-       * ------<------
-       * |           |
-       * |           ^
-       * |           |
-       * -----x-mu---x
-       *
-       *      +
-       *
-       * -----x-mu---x
-       * |           |
-       * |           ^
-       * |           |
-       * ------>-----
-       *
-       *
-       ********************************************************************/
+        }
 
-      _cm_eq_cm_dag_ti_cm ( U1, gauge_field + _GGI( g_idn[ix][imu], imu), rectangles[g_idn[ix][imu]][0] );
-      _cm_eq_cm_ti_cm ( U2, U1, gauge_field + _GGI( g_idn[ix][imu], imu) );
-      _cm_pl_eq_cm ( RR, U2 );
+        /********************************************************************
+         * anti-hermitean part and normalization
+         ********************************************************************/
+        _cm_ti_eq_re ( RR, one_over_eight );
+        double p[9];
+        project_to_generators ( p, RR );
+ 
+        Gr[ix][imunu][0] += p[0];
+        Gr[ix][imunu][1] += p[1];
+        Gr[ix][imunu][2] += p[2];
+        Gr[ix][imunu][3] += p[3];
+        Gr[ix][imunu][4] += p[4];
+        Gr[ix][imunu][5] += p[5];
+        Gr[ix][imunu][6] += p[6];
+        Gr[ix][imunu][7] += p[7];
+        Gr[ix][imunu][8] += p[8];
 
+      }  /* end of loop on volume */
+  
+    }  /* end of loop on idir */
 
-      _cm_eq_cm_ti_cm ( U3, gauge_field + _GGI( g_idn[ g_idn[ix][inu] ][imu], imu ), gauge_field + _GGI( g_idn[ix][inu], inu ) );
-      _cm_eq_cm_dag_ti_cm ( U1, U3, rectangles[ g_idn[ g_idn[ix][imu] ][inu]  ][0] );
-      _cm_eq_cm_ti_cm ( U2, U1, U3 );
-      _cm_pl_eq_cm ( RR, U2 );
-#if 0
-#endif  /* of if 0 */
+  }  /* end of loop on mu nu  */
 
-      /********************************************************************
-       *         ---<---      ----<---
-       *         |     |      |      |
-       *         |     |      |      |
-       *   x-mu+nu     |    x+nu     ^
-       *         |     |      |      |
-       *         |     |      |      |
-       *         --->--x      x--->---
-       *
-       *
-       *
-       ********************************************************************/
-
-      _cm_eq_cm_ti_cm( U1, gauge_field + _GGI(ix,inu), rectangles[g_iup[ix][inu]][1] );
-      _cm_eq_cm_ti_cm_dag( U2, U1, gauge_field + _GGI(ix,inu) );
-      _cm_pl_eq_cm ( RR, U2 );
-
-      _cm_eq_cm_dag_ti_cm( U3, gauge_field + _GGI( g_idn[ix][imu], inu), gauge_field + _GGI( g_idn[ix][imu] , imu ) );
-      _cm_eq_cm_ti_cm ( U1, rectangles[ g_iup[ g_idn[ix][imu] ][inu] ][1], U3 );
-      _cm_eq_cm_dag_ti_cm ( U2, U3, U1 );
-      _cm_pl_eq_cm ( RR, U2 );
-#if 0
-#endif  /* of if 0 */
-
-      /********************************************************************
-       *
-       *
-       *
-       *       ---<--x      x---<---
-       *       |     |      |      |
-       *       |     |      |      |
-       * x-nu-mu     ^   x-nu      ^
-       *       |     |      |      |
-       *       |     |      |      |
-       *       --->---      ---->---
-       *
-       ********************************************************************/
-
-      _cm_eq_cm_dag_ti_cm ( U1, gauge_field + _GGI( g_idn[ix][inu], inu ), rectangles[g_idn[ix][inu] ][1] );
-      _cm_eq_cm_ti_cm ( U2, U1, gauge_field + _GGI( g_idn[ix][inu], inu ) );
-      _cm_pl_eq_cm ( RR, U2 );
-
-      _cm_eq_cm_ti_cm ( U3, gauge_field + _GGI ( g_idn[ g_idn[ix][inu] ][imu], inu ), gauge_field + _GGI( g_idn[ix][imu], imu ) );
-      _cm_eq_cm_dag_ti_cm ( U1, U3, rectangles[ g_idn[ g_idn[ix][inu] ][imu] ][1] );
-      _cm_eq_cm_ti_cm ( U2, U1, U3 );
-      _cm_pl_eq_cm ( RR, U2 );
-#if 0
-#endif  /* of if 0 */
-
-      /********************************************************************
-       * anti-hermitean part and normalization
-       ********************************************************************/
-      _cm_ti_eq_re ( RR, one_over_eight );
-      project_to_generators ( Gr[ix][imunu], RR );
-
-    }
-  }
-
-  fini_3level_dtable ( &rectangles );
+  fini_2level_dtable ( &rectangles );
 
 #ifdef HAVE_MPI
   mpi_fini_xchanger ( &x_rect );
