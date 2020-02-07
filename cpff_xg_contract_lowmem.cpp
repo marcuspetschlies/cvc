@@ -280,7 +280,7 @@ int main(int argc, char **argv) {
      * CLOVER DEFINITION
      *
      ***********************************************************/
-    double *** Gp = init_3level_dtable ( VOLUME, 6, 18 );
+    double *** Gp = init_3level_dtable ( VOLUME, 6, 9 );
     if ( Gp == NULL ) {
       fprintf ( stderr, "[cpff_xg_contract_lowmem] Error from  init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
       EXIT(8);
@@ -298,7 +298,7 @@ int main(int argc, char **argv) {
     /***********************************************************
      * measurement
      ***********************************************************/
-    exitstatus = gluonic_operators_eo_from_fst ( pl, Gp );
+    exitstatus = gluonic_operators_eo_from_fst_projected ( pl, Gp );
     if ( exitstatus != 0 ) {
       fprintf ( stderr, "[cpff_xg_contract_lowmem] Error from gluonic_operators_eo_from_fst, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(8);
@@ -332,7 +332,7 @@ int main(int argc, char **argv) {
      * RECTANGLE DEFINITION
      *
      ***********************************************************/
-    double *** Gr = init_3level_dtable ( VOLUME, 6, 18 );
+    double *** Gr = init_3level_dtable ( VOLUME, 6, 9 );
     if ( Gr == NULL ) {
       fprintf ( stderr, "[cpff_xg_contract_lowmem] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
       EXIT(8);
@@ -350,7 +350,7 @@ int main(int argc, char **argv) {
     /***********************************************************
      * measurement
      ***********************************************************/
-    exitstatus = gluonic_operators_eo_from_fst ( pl, Gr );
+    exitstatus = gluonic_operators_eo_from_fst_projected ( pl, Gr );
     if ( exitstatus != 0 ) {
       fprintf ( stderr, "[cpff_xg_contract_lowmem] Error from gluonic_operators_eo_from_fst, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(8);

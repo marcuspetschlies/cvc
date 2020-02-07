@@ -38,6 +38,66 @@
 
 namespace cvc {
 
+inline void project_to_generators ( double * const p, double * const A ) {
+
+  const double sq1  = 0.8164965809277260;  /* sqrt ( 2 / 3 ) */
+  const double sq2  = 0.5773502691896257;  /* sqrt ( 1 / 3 ) */
+
+  /* unit matrix */
+  p[0] = ( A[1] + A[9] + A[17] ) * sq1;
+
+  /* lambda_1 */
+  p[1] = A[3] + A[ 7];
+
+  /* lambda_2 */
+  p[2] = A[2] - A[ 6];
+
+  /* lambda_3 */
+  p[3] = A[1] - A[ 9];
+
+  /* lambda_4 */
+  p[4] = A[5] + A[13];
+
+  /* lambda_5 */
+  p[5] = A[4] - A[12];
+
+  /* lambda_6 */
+  p[6] = A[11] + A[15];
+
+  /* lambda_7 */
+  p[7] = A[10] - A[14];
+
+  /* lambda_2 / 2 */
+  p[8] = ( A[1] + A[9] - 2 * A[17] ) * sq2;
+}  /* end of project_to_generators */
+
+inline void restore_from_generators ( double * const A, double * const p ) {
+  const double one_over_sqrt3  = 0.5773502691896258;
+  const double one_over_sqrt6  = 0.4082482904638631;
+
+  A[ 0] = p[0] * one_over_sqrt6 + p[3] * 0.5 + p[8] * one_over_sqrt3;
+  A[ 1] = 0.;
+  A[ 2] =  p[1] * 0.5;
+  A[ 3] = -p[2] * 0.5;
+  A[ 4] =  p[4] * 0.5;
+  A[ 5] = -p[5] * 0.5;
+  A[ 6] =  p[1] * 0.5;
+  A[ 7] =  p[2] * 0.5;
+  A[ 8] = p[0] * one_over_sqrt6 - p[3] * 0.5 + p[8] * one_over_sqrt3;
+  A[ 9] = 0.;
+  A[10] =  p[6] * 0.5;
+  A[11] = -p[7] * 0.5;
+  A[12] =  p[4] * 0.5;
+  A[13] =  p[5] * 0.5;
+  A[14] =  p[6] * 0.5;
+  A[15] =  p[7] * 0.5;
+  A[16] = p[0] * one_over_sqrt6 - p[8] * 2 * one_over_sqrt3;
+  A[17] = 0.;
+}
+
+/********************************************************************/
+/********************************************************************/
+
 /********************************************************************
  * out
  *   Gp : non-zero field strength tensor components
@@ -1023,8 +1083,8 @@ int G_plaq ( double *** Gp, double * const gauge_field) {
       _cm_eq_cm_dag_ti_cm ( U3, U4, U2 );
       _cm_pl_eq_cm ( U1, U3 );
 
-      _cm_eq_antiherm_cm ( Gp[ix][imunu], U1 );
-      _cm_ti_eq_re ( Gp[ix][imunu], one_over_four );
+      _cm_ti_eq_re ( U1, one_over_four );
+      project_to_generators ( Gp[ix][imunu], U1 );
     }
 
   }  /* end of loop on nu, mu */
@@ -1131,9 +1191,9 @@ int G_rect ( double *** Gr, double * const gauge_field) {
     for ( unsigned int ix = 0; ix < VOLUME; ix++ )
     {
   
-      double U1[18], U2[18], U3[18];
+      double U1[18], U2[18], U3[18], RR[18];
      
-      _cm_eq_zero ( Gr[ix][imunu] );
+      memset ( RR, 0, 18 * sizeof( double ) );
 
       /********************************************************************
        *             ------<------
@@ -1154,12 +1214,12 @@ int G_rect ( double *** Gr, double * const gauge_field) {
 
       _cm_eq_cm_ti_cm( U1, gauge_field + _GGI(ix, imu), rectangles[g_iup[ix][imu]][0] );
       _cm_eq_cm_ti_cm_dag( U2, U1, gauge_field + _GGI(ix, imu) );
-      _cm_pl_eq_cm ( Gr[ix][imunu], U2 );
+      _cm_pl_eq_cm ( RR, U2 );
 
       _cm_eq_cm_dag_ti_cm ( U3, gauge_field + _GGI( g_idn[ix][inu], inu ), gauge_field + _GGI( g_idn[ix][inu], imu ) );
       _cm_eq_cm_ti_cm ( U1, U3, rectangles[ g_idn[ g_iup[ix][imu]][inu] ][0] );
       _cm_eq_cm_ti_cm_dag ( U2, U1, U3 );
-      _cm_pl_eq_cm ( Gr[ix][imunu], U2 );
+      _cm_pl_eq_cm ( RR, U2 );
 #if 0
 #endif  /* of if 0 */
 
@@ -1183,13 +1243,13 @@ int G_rect ( double *** Gr, double * const gauge_field) {
 
       _cm_eq_cm_dag_ti_cm ( U1, gauge_field + _GGI( g_idn[ix][imu], imu), rectangles[g_idn[ix][imu]][0] );
       _cm_eq_cm_ti_cm ( U2, U1, gauge_field + _GGI( g_idn[ix][imu], imu) );
-      _cm_pl_eq_cm ( Gr[ix][imunu], U2 );
+      _cm_pl_eq_cm ( RR, U2 );
 
 
       _cm_eq_cm_ti_cm ( U3, gauge_field + _GGI( g_idn[ g_idn[ix][inu] ][imu], imu ), gauge_field + _GGI( g_idn[ix][inu], inu ) );
       _cm_eq_cm_dag_ti_cm ( U1, U3, rectangles[ g_idn[ g_idn[ix][imu] ][inu]  ][0] );
       _cm_eq_cm_ti_cm ( U2, U1, U3 );
-      _cm_pl_eq_cm ( Gr[ix][imunu], U2 );
+      _cm_pl_eq_cm ( RR, U2 );
 #if 0
 #endif  /* of if 0 */
 
@@ -1208,12 +1268,12 @@ int G_rect ( double *** Gr, double * const gauge_field) {
 
       _cm_eq_cm_ti_cm( U1, gauge_field + _GGI(ix,inu), rectangles[g_iup[ix][inu]][1] );
       _cm_eq_cm_ti_cm_dag( U2, U1, gauge_field + _GGI(ix,inu) );
-      _cm_pl_eq_cm ( Gr[ix][imunu], U2 );
+      _cm_pl_eq_cm ( RR, U2 );
 
       _cm_eq_cm_dag_ti_cm( U3, gauge_field + _GGI( g_idn[ix][imu], inu), gauge_field + _GGI( g_idn[ix][imu] , imu ) );
       _cm_eq_cm_ti_cm ( U1, rectangles[ g_iup[ g_idn[ix][imu] ][inu] ][1], U3 );
       _cm_eq_cm_dag_ti_cm ( U2, U3, U1 );
-      _cm_pl_eq_cm ( Gr[ix][imunu], U2 );
+      _cm_pl_eq_cm ( RR, U2 );
 #if 0
 #endif  /* of if 0 */
 
@@ -1233,20 +1293,21 @@ int G_rect ( double *** Gr, double * const gauge_field) {
 
       _cm_eq_cm_dag_ti_cm ( U1, gauge_field + _GGI( g_idn[ix][inu], inu ), rectangles[g_idn[ix][inu] ][1] );
       _cm_eq_cm_ti_cm ( U2, U1, gauge_field + _GGI( g_idn[ix][inu], inu ) );
-      _cm_pl_eq_cm ( Gr[ix][imunu], U2 );
+      _cm_pl_eq_cm ( RR, U2 );
 
       _cm_eq_cm_ti_cm ( U3, gauge_field + _GGI ( g_idn[ g_idn[ix][inu] ][imu], inu ), gauge_field + _GGI( g_idn[ix][imu], imu ) );
       _cm_eq_cm_dag_ti_cm ( U1, U3, rectangles[ g_idn[ g_idn[ix][inu] ][imu] ][1] );
       _cm_eq_cm_ti_cm ( U2, U1, U3 );
-      _cm_pl_eq_cm ( Gr[ix][imunu], U2 );
+      _cm_pl_eq_cm ( RR, U2 );
 #if 0
 #endif  /* of if 0 */
 
       /********************************************************************
        * anti-hermitean part and normalization
        ********************************************************************/
-      _cm_eq_antiherm_cm ( U1, Gr[ix][imunu] );
-      _cm_eq_cm_ti_re ( Gr[ix][imunu], U1, one_over_eight );
+      _cm_ti_eq_re ( RR, one_over_eight );
+      project_to_generators ( Gr[ix][imunu], RR );
+
     }
   }
 
@@ -1259,4 +1320,118 @@ int G_rect ( double *** Gr, double * const gauge_field) {
 
 }  /* end of G_rect */
 
+/****************************************************************************/
+/****************************************************************************/
+
+/****************************************************************************
+ * operators for gluon momentum fraction
+ * calculated from gluon field strength tensor G
+ *
+ * 6 components of G expected; each 3x3 complex matrix
+ * 
+ * G_{0,1}  G_{0,2}   G_{0,3}   G_{1,2}   G_{1,3}   G_{2,3}
+ *   0        1         2         3         4         5
+ *
+ * further we asume anti-symmetry in mu, nu
+ * G_{1,0} = - G_{0,1}
+ * G_{2,0} = - G_{0,2}
+ * G_{3,0} = - G_{0,3}
+ * G_{2,1} = - G_{1,2}
+ * G_{3,1} = - G_{1,3}
+ * G_{3,2} = - G_{2,3}
+ *
+ * diagonal elements are zero
+ ****************************************************************************/
+int gluonic_operators_eo_from_fst_projected ( double ** op, double *** const G ) {
+
+  unsigned int const VOL3 = LX * LY * LZ;
+  double ** pl = init_2level_dtable ( T, 2 );
+  if ( pl == NULL ) {
+    fprintf( stderr, "[gluonic_operators] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+    return(2);
+  }
+
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+#endif
+
+  for ( int it = 0; it < T; it++ ) {
+#ifdef HAVE_OPENMP
+    omp_init_lock(&writelock);
+
+#pragma omp parallel shared(it)
+{
+#endif
+    double pl_tmp[2] = { 0, 0. };
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for ( unsigned int iy = 0; iy < VOL3; iy++) {
+
+      unsigned int const ix = it * VOL3 + iy;
+
+      /* for O44 : G_{0,1} x G_{1,0} + G_{0,2} x G_{2,0} + G_{0,3} x G_{3,0} 
+       * indices        0  x      0         1  x      1         2  x      2  */
+
+      for ( int nu = 0; nu < 3; nu++ ) {
+        for ( int k = 0; k < 9; k++ ) {
+          pl_tmp[0] += G[ix][nu][k] * G[ix][nu][k];
+        }
+      }
+
+
+      /* for Okk : G_{1,2} x G_{1,2} + G_{1,2} x G_{1,2} + G_{1,2} x G_{1,2} 
+       * indices        3  x      3         4  x      4         5  x      5 */
+      for ( int nu = 3; nu<6; nu++) {
+        for ( int k = 0; k < 9; k++ ) {
+          pl_tmp[1] += G[ix][nu][k] * G[ix][nu][k];
+        }
+      }
+    }
+    pl_tmp[0] *= 0.5;
+    pl_tmp[1] *= 0.5;
+
+#ifdef HAVE_OPENMP
+    omp_set_lock(&writelock);
+#endif
+
+    pl[it][0] += pl_tmp[0];
+    pl[it][1] += pl_tmp[1];
+
+#ifdef HAVE_OPENMP
+    omp_unset_lock(&writelock);
+}  /* end of parallel region */
+    omp_destroy_lock(&writelock);
+#endif
+
+  }  /* end of loop on timeslices */
+
+
+#ifdef HAVE_MPI
+
+  double ** buffer = init_2level_dtable ( T, 2 );
+  if ( buffer == NULL ) {
+    fprintf( stderr, "[gluonic_operators] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+    return(3);
+  }
+  if ( MPI_Reduce ( pl[0], buffer[0], 2*T, MPI_DOUBLE, MPI_SUM,  0, g_ts_comm) != MPI_SUCCESS ) {
+    fprintf ( stderr, "[gluonic_operators] Error from MPI_Reduce %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
+
+  if ( MPI_Gather ( buffer[0], 2*T, MPI_DOUBLE, op[0], 2*T, MPI_DOUBLE, 0, g_tr_comm ) != MPI_SUCCESS ) {
+    fprintf ( stderr, "[gluonic_operators] Error from MPI_Gather %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
+
+  fini_2level_dtable ( &buffer );
+#else
+  memcpy ( op[0], pl[0], 2*T_global*sizeof(double) );
+#endif
+
+  fini_2level_dtable ( &pl );
+  return( 0 );
+
+}  /* end of gluonic_operators_from_fst */
 }  /* end of namespace cvc */
