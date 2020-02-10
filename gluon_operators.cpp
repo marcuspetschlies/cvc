@@ -1369,7 +1369,7 @@ int G_rect ( double *** Gr, double * const gauge_field) {
  *
  * diagonal elements are zero
  ****************************************************************************/
-int gluonic_operators_eo_from_fst_projected ( double ** op, double *** const G ) {
+int gluonic_operators_eo_from_fst_projected ( double ** op, double *** const G, int const traceless ) {
 
   unsigned int const VOL3 = LX * LY * LZ;
   double ** pl = init_2level_dtable ( T, 2 );
@@ -1391,31 +1391,58 @@ int gluonic_operators_eo_from_fst_projected ( double ** op, double *** const G )
 #endif
     double pl_tmp[2] = { 0, 0. };
 
+    if ( traceless ) {
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-    for ( unsigned int iy = 0; iy < VOL3; iy++) {
+      for ( unsigned int iy = 0; iy < VOL3; iy++) {
 
-      unsigned int const ix = it * VOL3 + iy;
+        unsigned int const ix = it * VOL3 + iy;
 
-      /* for O44 : G_{0,1} x G_{1,0} + G_{0,2} x G_{2,0} + G_{0,3} x G_{3,0} 
-       * indices        0  x      0         1  x      1         2  x      2  */
+        /* for O44 : G_{0,1} x G_{1,0} + G_{0,2} x G_{2,0} + G_{0,3} x G_{3,0} 
+         * indices        0  x      0         1  x      1         2  x      2  */
 
-      for ( int nu = 0; nu < 3; nu++ ) {
-        for ( int k = 0; k < 9; k++ ) {
-          pl_tmp[0] += G[ix][nu][k] * G[ix][nu][k];
+        for ( int nu = 0; nu < 3; nu++ ) {
+          for ( int k = 1; k < 9; k++ ) {
+            pl_tmp[0] += G[ix][nu][k] * G[ix][nu][k];
+          }
+        }
+
+        /* for Okk : G_{1,2} x G_{1,2} + G_{1,2} x G_{1,2} + G_{1,2} x G_{1,2} 
+         * indices        3  x      3         4  x      4         5  x      5 */
+        for ( int nu = 3; nu<6; nu++) {
+          for ( int k = 1; k < 9; k++ ) {
+            pl_tmp[1] += G[ix][nu][k] * G[ix][nu][k];
+          }
         }
       }
+    } else {
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+      for ( unsigned int iy = 0; iy < VOL3; iy++) {
 
+        unsigned int const ix = it * VOL3 + iy;
 
-      /* for Okk : G_{1,2} x G_{1,2} + G_{1,2} x G_{1,2} + G_{1,2} x G_{1,2} 
-       * indices        3  x      3         4  x      4         5  x      5 */
-      for ( int nu = 3; nu<6; nu++) {
-        for ( int k = 0; k < 9; k++ ) {
-          pl_tmp[1] += G[ix][nu][k] * G[ix][nu][k];
+        /* for O44 : G_{0,1} x G_{1,0} + G_{0,2} x G_{2,0} + G_{0,3} x G_{3,0} 
+         * indices        0  x      0         1  x      1         2  x      2  */
+
+        for ( int nu = 0; nu < 3; nu++ ) {
+          for ( int k = 0; k < 9; k++ ) {
+            pl_tmp[0] += G[ix][nu][k] * G[ix][nu][k];
+          }
+        }
+
+        /* for Okk : G_{1,2} x G_{1,2} + G_{1,2} x G_{1,2} + G_{1,2} x G_{1,2} 
+         * indices        3  x      3         4  x      4         5  x      5 */
+        for ( int nu = 3; nu<6; nu++) {
+          for ( int k = 0; k < 9; k++ ) {
+            pl_tmp[1] += G[ix][nu][k] * G[ix][nu][k];
+          }
         }
       }
     }
+
     pl_tmp[0] *= 0.5;
     pl_tmp[1] *= 0.5;
 
