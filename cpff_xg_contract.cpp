@@ -291,7 +291,8 @@ int main(int argc, char **argv) {
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
     exitstatus = write_aff_contraction ( pl[0], affw, NULL, data_tag, 2 * T_global, "double" );
 #elif ( defined HAVE_HDF5 )
-    exitstatus = write_h5_contraction ( pl[0], NULL, output_filename, data_tag, 2 * T_global , "double" );
+    int const dims = 2 * T_global;
+    exitstatus = write_h5_contraction ( pl[0], NULL, output_filename, data_tag, 2 * T_global , "double", 1,  &dims );
 #else
     exitstatus = 1;
 #endif
@@ -344,7 +345,8 @@ int main(int argc, char **argv) {
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
     exitstatus = write_aff_contraction ( pl[0], affw, NULL, data_tag, 2 * T_global, "double" );
 #elif ( defined HAVE_HDF5 )
-    exitstatus = write_h5_contraction ( pl[0], NULL, output_filename, data_tag, 2 * T_global , "double" );
+    int const dims = 2 * T_global;
+    exitstatus = write_h5_contraction ( pl[0], NULL, output_filename, data_tag, 2 * T_global , "double", 1, &dims );
 #else
     exitstatus = 1;
 #endif
@@ -370,7 +372,8 @@ int main(int argc, char **argv) {
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
     exitstatus = write_aff_contraction ( pl[0], affw, NULL, data_tag, 2 * T_global, "double" );
 #elif ( defined HAVE_HDF5 )
-    exitstatus = write_h5_contraction ( pl[0], NULL, output_filename, data_tag, 2 * T_global , "double" );
+    int const dims = 2 * T_global;
+    exitstatus = write_h5_contraction ( pl[0], NULL, output_filename, data_tag, 2 * T_global , "double", 1, &dims );
 #else
     exitstatus = 1;
 #endif
@@ -524,7 +527,8 @@ int main(int argc, char **argv) {
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
       exitstatus = write_aff_contraction ( pl2[0], affw, NULL, data_tag, 2*T_global, "double" );
 #elif ( defined HAVE_HDF5 )
-      exitstatus = write_h5_contraction ( pl2[0], NULL, output_filename, data_tag, 2 * T_global, "double" );
+      int const dims = 2 * T_global;
+      exitstatus = write_h5_contraction ( pl2[0], NULL, output_filename, data_tag, 2 * T_global, "double", 1, &dims );
 #else
       exitstatus = 1;
 #endif
@@ -566,7 +570,8 @@ int main(int argc, char **argv) {
 #  if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
       exitstatus = write_aff_contraction ( pl2[0], affw, NULL, data_tag, 2 * T_global, "double" );
 #elif ( defined HAVE_HDF5 )
-      exitstatus = write_h5_contraction ( pl2[0], NULL, filename, data_tag, 2 * T_global , "double" );
+      int const dims = 2 * T_global;
+      exitstatus = write_h5_contraction ( pl2[0], NULL, filename, data_tag, 2 * T_global , "double", 1, &dims );
 #else
       exitstatus = 1;
 #endif
@@ -587,7 +592,8 @@ int main(int argc, char **argv) {
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
       exitstatus = write_aff_contraction ( pl2[0], affw, NULL, data_tag, 2 * T_global, "double" );
 #elif ( defined HAVE_HDF5 )
-      exitstatus = write_h5_contraction ( pl2[0], NULL, filename, data_tag, 2 * T_global, "double" );
+      int const dims = 2 * T_global;
+      exitstatus = write_h5_contraction ( pl2[0], NULL, filename, data_tag, 2 * T_global, "double", 1, &dims );
 #else
       exitstatus = 1;
 #endif
