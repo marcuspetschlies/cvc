@@ -488,6 +488,12 @@ int main(int argc, char **argv) {
     }
 
     /***************************************************************************
+     * multiply stochastic propagator 1 / ( 2 kappa ) for normalization
+     * in Hopping representation of Dirac operator
+     ***************************************************************************/
+    spinor_field_ti_eq_re ( stochastic_propagator, 1./(2.*g_kappa ), VOLUME );
+
+    /***************************************************************************
      * multiply stochastic propagator with g5 for oet,
      * used for both std and gen oet
      ***************************************************************************/
@@ -554,6 +560,8 @@ int main(int argc, char **argv) {
     spinor_field_eo2lexic ( DW_stochastic_propagator, eo_spinor_work[2], eo_spinor_work[3] );
     /* multiply by g5 */
     g5_phi ( DW_stochastic_propagator, VOLUME );
+    /* multiply with 2 kappa */
+    spinor_field_ti_eq_re ( DW_stochastic_propagator, 2*g_kappa, VOLUME );
 
     gettimeofday ( &tb, (struct timezone *)NULL );
 
