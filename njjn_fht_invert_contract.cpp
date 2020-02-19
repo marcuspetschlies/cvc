@@ -129,6 +129,8 @@ int main(int argc, char **argv) {
   
   const char outfile_prefix[] = "njjn_fht";
 
+  const char flavor_tag[4] = { 'u', 'd', 's', 'c' };
+
   const int sequential_gamma_sets = 4;
 
   int const sequential_gamma_num[4] = {4, 4, 1, 1};
