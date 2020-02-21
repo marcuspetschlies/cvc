@@ -1131,15 +1131,29 @@ int main(int argc, char **argv) {
 
               for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
 
-                hvp2[iconf][imom][s1][s2][2*it  ] += (
-                  + ( 1 + s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it  ]
-                  - ( st_sign + s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it  ]
-                  );
+                if ( loop_type == 1 ) {
+                  /* dOp case */
+                  hvp2[iconf][imom][s1][s2][2*it  ] += (
+                    + ( 1 + s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it  ]
+                    - ( st_sign + s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it  ]
+                    );
 
-                hvp2[iconf][imom][s1][s2][2*it+1] += (
-                  + ( 1 - s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it+1]
-                  + ( st_sign - s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it+1]
-                  );
+                  hvp2[iconf][imom][s1][s2][2*it+1] += (
+                    + ( 1 - s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it+1]
+                    - ( st_sign - s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it+1]
+                    );
+                } else if ( loop_type == 2 ) {
+                  /* Scalar case */
+                  hvp2[iconf][imom][s1][s2][2*it  ] += (
+                    + ( 1 + s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it  ]
+                    + ( st_sign + s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it  ]
+                    );
+
+                  hvp2[iconf][imom][s1][s2][2*it+1] += (
+                    + ( 1 - s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it+1]
+                    + ( st_sign - s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it+1]
+                    );
+                }
               }
               hvp2[iconf][imom][s1][s2][2*it  ] /= (double)num_src_per_conf;
               hvp2[iconf][imom][s1][s2][2*it+1] /= (double)num_src_per_conf;
@@ -1167,7 +1181,7 @@ int main(int argc, char **argv) {
           fprintf(stderr, "[p2gg_analyse_wdisc] Error from init_6level_dtable %s %d\n", __FILE__, __LINE__);
           EXIT(16);
         }
-
+#pragma omp parallel for
         for ( int iconf = 0; iconf < num_conf; iconf++ ) {
 
           for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
@@ -1188,19 +1202,35 @@ int main(int argc, char **argv) {
                 for ( int it = 0; it < T_global; it++ ) {
 
 /****************************************
- * This is a hack; check quantum numbers instead
+ *
+ * This is a hack;
+ * better to use vertex quantum numbers instead
+ *
  ****************************************/
-                  /* relevant for pi0 P-disc */
-                  pgg_disc[iconf][isrc][imom][s1][s2][2*it  ] = (
-                    + ( 1 + s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it  ] 
-                    - ( st_sign + s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it  ]
-                    ) * loop_pgg[iconf][2*tseq+loop_type_reim];
+                  if ( loop_type == 1 ) {
+                    /* dOp case */
+                    pgg_disc[iconf][isrc][imom][s1][s2][2*it  ] = (
+                      + ( 1 + s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it  ] 
+                      - ( st_sign + s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it  ]
+                      ) * loop_pgg[iconf][2*tseq+loop_type_reim];
 
-                  /* relevant for eta P-disc */
-                  pgg_disc[iconf][isrc][imom][s1][s2][2*it+1] = (
-                    + ( 1 - s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it+1] 
-                    + ( st_sign - s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it+1]
-                    ) * loop_pgg[iconf][2*tseq+loop_type_reim];
+                    pgg_disc[iconf][isrc][imom][s1][s2][2*it+1] = (
+                      + ( 1 - s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it+1] 
+                      - ( st_sign - s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it+1]
+                      ) * loop_pgg[iconf][2*tseq+loop_type_reim];
+
+                  } else if ( loop_type == 2 ) {
+                    /* Scalar */
+                    pgg_disc[iconf][isrc][imom][s1][s2][2*it  ] = (
+                      + ( 1 + s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it  ] 
+                      + ( st_sign + s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it  ]
+                      ) * loop_pgg[iconf][2*tseq+loop_type_reim];
+
+                    pgg_disc[iconf][isrc][imom][s1][s2][2*it+1] = (
+                      + ( 1 - s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it+1] 
+                      + ( st_sign - s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it+1]
+                      ) * loop_pgg[iconf][2*tseq+loop_type_reim];
+                  }
                 }
               }}
             }
