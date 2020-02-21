@@ -267,6 +267,9 @@ int apply_uwerr_real ( double * const data, unsigned int const nmeas, unsigned i
 
 int apply_uwerr_func ( double * const data, unsigned int const nmeas, unsigned int const ndata, unsigned int const nset, int const narg, int * const arg_first, int * const arg_stride, char * obs_name,
    dquant func, dquant dfunc );
+
+int read_source_coords_list ( int *** const conf_src_list, int const num_conf, int const num_src_per_conf, char * const ensemble_name );
+
 }  /* end of namespace cvc */
 #endif
 
