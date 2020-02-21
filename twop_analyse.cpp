@@ -64,7 +64,7 @@ int main(int argc, char **argv) {
 
   char const twop_correlator_prefix[1][20] = { "local-local" };
 
-  char const twop_flavor_tag[2][20]        = { "u-gf-u-gi" , "d-gf-u-gi" , "u-gf-d-gi" , "d-gf-d-gi" };
+  char const twop_flavor_tag[4][20]        = { "u-gf-u-gi" , "d-gf-u-gi" , "u-gf-d-gi" , "d-gf-d-gi" };
 
   int c;
   int filename_set = 0;
@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:N:S:F:c:s:E")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:N:S:F:c:s:E:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -185,14 +185,7 @@ int main(int argc, char **argv) {
   /***********************************************************
    * read list of configs and source locations
    ***********************************************************/
-  sprintf ( filename, "source_coords.%s.nsrc%d.lst" , ensemble_name, num_src_per_conf);
-  FILE *ofs = fopen ( filename, "r" );
-  if ( ofs == NULL ) {
-    fprintf(stderr, "[twop_analyse] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__);
-    EXIT(15);
-  }
-
-  int *** conf_src_list = init_3level_itable ( num_conf, num_src_per_conf, 5 );
+  int *** conf_src_list = init_3level_itable ( num_conf, num_src_per_conf, 6 );
   if ( conf_src_list == NULL ) {
     fprintf(stderr, "[twop_analyse] Error from init_3level_itable %s %d\n", __FILE__, __LINE__);
     EXIT(16);
@@ -364,7 +357,7 @@ int main(int argc, char **argv) {
 
         gettimeofday ( &ta, (struct timezone *)NULL );
 
-        sprintf ( filename, "%s/%s.%s.%.4d.gf%.2d.gi%.2d.px%dpy%dpz%d.aff", filename_prefix, twop_correlator_prefix[operator_type],
+        sprintf ( filename, "%s/%s.%s.gf%.2d.gi%.2d.px%dpy%dpz%d.aff", filename_prefix, twop_correlator_prefix[correlator_type],
             twop_flavor_tag[flavor_type], sink_gamma_id, source_gamma_id, sink_momentum[0], sink_momentum[1], sink_momentum[2] );
 
         /***********************************************
