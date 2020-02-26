@@ -246,7 +246,7 @@ int main(int argc, char **argv) {
   double gamma_i2_sign[gamma_i2_number] = { -1 };
 
   /* vertex f2 */
-  /*                                                  cvc - gamma_t = ukqcd g5 */
+  /*                                                  cvc  -gamma_t = ukqcd g5 */
   const int gamma_f2_number                        = 1;
   int gamma_f2_list[gamma_f2_number]               = {  0 };
   double gamma_f2_sign[gamma_f2_number]            = { -1 };
@@ -260,11 +260,11 @@ int main(int argc, char **argv) {
   double gamma_f1_nucleon_transposed_sign[gamma_f1_nucleon_number] = { -1, -1, +1, -1 }; */
 
   /* vertex f1 */
-  /*                                                  cvc - gamma_t gamma_x  = ukqcd C GX */
-  const int gamma_f1_nucleon_number                                = 1;
-  int gamma_f1_nucleon_list[gamma_f1_nucleon_number]               = { 12 };
-  double gamma_f1_nucleon_sign[gamma_f1_nucleon_number]            = { -1 };
-  double gamma_f1_nucleon_transposed_sign[gamma_f1_nucleon_number] = { -1 };
+  /*                                                  cvc  -gamma_x gamma_z  = i ukqcd C G5 */
+  const int gamma_f1_nucleon_number                                = 2;
+  int gamma_f1_nucleon_list[gamma_f1_nucleon_number]               = { 14, 13 };
+  double gamma_f1_nucleon_sign[gamma_f1_nucleon_number]            = { -1, -1 };
+  double gamma_f1_nucleon_transposed_sign[gamma_f1_nucleon_number] = { -1, -1 };
 
   /* vertex f1 for Delta-type operators, C gi, C gi g0 */
   /* const int gamma_f1_delta_number                       = 6;
@@ -272,10 +272,11 @@ int main(int argc, char **argv) {
   double gamma_f1_delta_src_sign[gamma_f1_delta_number] = {-1, +1, +1, +1, +1, -1 };
   double gamma_f1_delta_snk_sign[gamma_f1_delta_number] = {+1, +1, -1, -1, +1, +1 }; */
 
-  const int gamma_f1_delta_number                       = 1;
-  int gamma_f1_delta_list[gamma_f1_delta_number]        = { 12 };
-  double gamma_f1_delta_src_sign[gamma_f1_delta_number] = { -1 };
-  double gamma_f1_delta_snk_sign[gamma_f1_delta_number] = { -1 };
+  /*                                                  cvc  gamma_t gamma_z  = i ukqcd C GX */
+  const int gamma_f1_delta_number                       = 2;
+  int gamma_f1_delta_list[gamma_f1_delta_number]        = { 14, 13 };
+  double gamma_f1_delta_src_sign[gamma_f1_delta_number] = { -1, -1 };
+  double gamma_f1_delta_snk_sign[gamma_f1_delta_number] = { -1, -1 };
 
   /* vertex for the rho */
                                           /* g1, g2, g3, g0 g1, g0 g2, g0 g3 */
@@ -1361,6 +1362,8 @@ int main(int argc, char **argv) {
           /* spinor_field_eq_gamma_ti_spinor_field (spinor_work[1], 5, stochastic_propagator_list[i_sample], VOLUME ); */
           /* TEST PLEGMA UKQCD */
           spinor_field_eq_gamma_ti_spinor_field (spinor_work[1], 0, stochastic_propagator_list[i_sample], VOLUME );
+          spinor_field_ti_eq_re ( spinor_work[1], -1, VOLUME );
+
           spinor_field_eq_gamma_ti_spinor_field (spinor_work[0], gamma_f2_list[i], spinor_work[1], VOLUME );
           spinor_field_ti_eq_re ( spinor_work[0], gamma_f2_adjoint_sign[i], VOLUME);
 
@@ -1872,10 +1875,16 @@ int main(int argc, char **argv) {
 
           /*****************************************************************
            * phi^+ - gf2 - ud
+           *
+           * CHECK G5 APPLICATION HERE
            *****************************************************************/
-          /* spinor_work <- Gamma_f2^+ stochastic propagator */
-          spinor_field_eq_gamma_ti_spinor_field (spinor_work[0], gamma_f2_list[i], stochastic_propagator_list[i_sample], VOLUME );
-          /* g5_phi ( spinor_work[0], VOLUME ); */
+          /* spinor_field_eq_gamma_ti_spinor_field (spinor_work[1], 5, stochastic_propagator_list[i_sample], VOLUME ); */
+          /* TEST PLEGMA COMPARISON */
+          spinor_field_eq_gamma_ti_spinor_field (spinor_work[1], 0, stochastic_propagator_list[i_sample], VOLUME );
+          spinor_field_ti_eq_re ( spinor_work[1], -1, VOLUME );
+
+          /* spinor_work0 <- Gamma_f2^+ spinor_work1 propagator */
+          spinor_field_eq_gamma_ti_spinor_field (spinor_work[0], gamma_f2_list[i], spinor_work[1], VOLUME );
           spinor_field_ti_eq_re ( spinor_work[0], gamma_f2_g5_adjoint_sign[i], VOLUME);
 
           sprintf(aff_tag, "/v3/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.phi-g%.2d-ud/sample%.2d", 
@@ -2224,6 +2233,8 @@ int main(int argc, char **argv) {
             /* spinor_field_eq_gamma_ti_spinor_field (spinor_work[0], 5, stochastic_source_list[i_sample], VOLUME ); */
             /* TEST PLEGMA UKQCD */
             spinor_field_eq_gamma_ti_spinor_field (spinor_work[1], 0, stochastic_source_list[i_sample], VOLUME );
+            spinor_field_ti_eq_re ( spinor_work[1], -1, VOLUME );
+
             spinor_field_eq_gamma_ti_spinor_field (spinor_work[0], gamma_f1_nucleon_list[i], spinor_work[1], VOLUME );
             spinor_field_ti_eq_re ( spinor_work[0], gamma_f1_nucleon_sign[i], VOLUME);
 
@@ -2777,7 +2788,7 @@ int main(int argc, char **argv) {
         } else {
           for( int i = 0; i < 4; i++) {
             sprintf(filename, "%s-oet.%c.%.4d.t%.2d.%.2d.%.5d", filename_prefix2, 'u', Nconf, gsx[0], i, isample);
-            if ( g_cart_id == 0 ) fprintf( stdout, "# [piN2piN_factorized] Reading stochastic propagator oet mom from file %s %s %d\n", filename, __FILE__, __LINE__ );
+            if ( g_cart_id == 0 ) fprintf( stdout, "# [piN2piN_factorized] Reading stochastic propagator oet zero from file %s %s %d\n", filename, __FILE__, __LINE__ );
 
             exitstatus = read_lime_spinor ( stochastic_propagator_zero_list[i], filename, 0 );
             if ( exitstatus != 0 ) {
@@ -2787,14 +2798,13 @@ int main(int argc, char **argv) {
           }
         }
 
-
         /*****************************************************************
          * calculate V3
          *
          * phi^+ g5 Gamma_f2 ( pf2 ) U ( z_1xi )
          * phi^+ g5 Gamma_f2 ( pf2 ) D
          *****************************************************************/
-
+#if 0
         exitstatus= init_2level_buffer ( &v3, VOLUME, 24 );
         if ( exitstatus != 0 ) {
           fprintf(stderr, "[piN2piN_factorized] Error from init_2level_buffer, status was %d\n", exitstatus);
@@ -2843,7 +2853,6 @@ int main(int argc, char **argv) {
               EXIT(49);
             }
 
-#if 0
             /*****************************************************************/
             /*****************************************************************/
 
@@ -2871,12 +2880,127 @@ int main(int argc, char **argv) {
               fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_write_aff, status was %d\n", exitstatus);
               EXIT(49);
             }
-#endif  /* of if 0 */
+
           }  /* end of loop on spin components ispin */
 
         }  /* end of loop on gamma_f2_list */
 
         fini_2level_buffer ( &v3 );
+        fini_3level_buffer ( &vp );
+
+#endif  /* of if 0 */
+
+        /*****************************************************************/
+        /*****************************************************************/
+
+        /*****************************************************************
+         * calculate V2 and V4
+         *
+         * z_1phi = V4
+         * z_3phi = V2
+         *****************************************************************/
+
+        exitstatus= init_2level_buffer ( &v1, VOLUME, 72 );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[piN2piN_factorized] Error from init_2level_buffer, status was %d\n", exitstatus);
+          EXIT(47);
+        }
+
+        exitstatus= init_2level_buffer ( &v2, VOLUME, 384 );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[piN2piN_factorized] Error from init_2level_buffer, status was %d\n", exitstatus);
+          EXIT(47);
+        }
+
+        exitstatus= init_3level_buffer ( &vp, T, g_sink_momentum_number, 384 );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[piN2piN_factorized] Error from init_3level_buffer, status was %d\n", exitstatus);
+          EXIT(47);
+        }
+
+        for( int if1 = 0; if1 < gamma_f1_nucleon_number; if1++ ) {
+
+          for( int ispin = 0; ispin < 4; ispin++ ) {
+
+            /* spinor_work <- Gamma_f1^t x stochastic propagator */
+            spinor_field_eq_gamma_ti_spinor_field (spinor_work[0], gamma_f1_nucleon_list[if1], stochastic_propagator_zero_list[ispin], VOLUME );
+            spinor_field_ti_eq_re ( spinor_work[0], gamma_f1_nucleon_transposed_sign[if1], VOLUME);
+
+            /*****************************************************************/
+            /*****************************************************************/
+
+            /*****************************************************************
+             * phi - gf1 - d
+             *****************************************************************/
+            exitstatus = contract_v1 ( v1, spinor_work[0], fp2, VOLUME  );
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from contract_v1, status was %d\n", exitstatus);
+              EXIT(47);
+            }
+  
+            /*****************************************************************
+             * (3) phi - gf1 - d - u
+             *****************************************************************/
+            sprintf(aff_tag, "/v2-oet/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-d-u/sample%.2d/d%d", gsx[0], gsx[1], gsx[2], gsx[3],
+                0, 0, 0, gamma_f1_nucleon_list[if1], isample, ispin);
+
+            exitstatus = contract_v2_from_v1 ( v2, v1, fp, VOLUME );
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from contract_v4, status was %d\n", exitstatus);
+              EXIT(47);
+            }
+
+            exitstatus = contract_vn_momentum_projection ( vp, v2, 192, g_sink_momentum_list, g_sink_momentum_number);
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+              EXIT(48);
+            }
+
+            exitstatus = contract_vn_write_aff ( vp, 192, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+              EXIT(49);
+            }
+
+          }  /* end of loop on ispin */
+
+          /*****************************************************************/
+          /*****************************************************************/
+
+          /* fp3 <- Gamma_f1 x fp2 = Gamma_i1 x D */
+          fermion_propagator_field_eq_gamma_ti_fermion_propagator_field (fp3, gamma_f1_nucleon_list[if1], fp2, VOLUME );
+          fermion_propagator_field_eq_fermion_propagator_field_ti_re ( fp3, fp3, gamma_f1_nucleon_sign[if1], VOLUME );
+
+          for( int ispin = 0; ispin < 4; ispin++ ) {
+            /*****************************************************************
+             * (4) phi - gf1 - d - u
+             *****************************************************************/
+            sprintf(aff_tag, "/v4-oet/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-d-u/sample%.2d/d%d", gsx[0], gsx[1], gsx[2], gsx[3],
+                0,0,0, gamma_f1_nucleon_list[if1], isample, ispin);
+
+            exitstatus = contract_v4 ( v2, stochastic_propagator_zero_list[ispin], fp3, fp, VOLUME );
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from contract_v4, status was %d\n", exitstatus);
+              EXIT(47);
+            }
+
+            exitstatus = contract_vn_momentum_projection ( vp, v2, 192, g_sink_momentum_list, g_sink_momentum_number);
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+              EXIT(48);
+            }
+
+            exitstatus = contract_vn_write_aff ( vp, 192, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+              EXIT(49);
+            }
+
+          }  /* end of loop on ispin */
+        }  /* end of loop on gamma at f1 */
+
+        fini_2level_buffer ( &v1 );
+        fini_2level_buffer ( &v2 );
         fini_3level_buffer ( &vp );
 
         /*****************************************************************/
@@ -2993,10 +3117,9 @@ int main(int argc, char **argv) {
           fini_2level_buffer ( &v3 );
           fini_3level_buffer ( &vp );
 
-
           /*****************************************************************/
           /*****************************************************************/
-
+#if 0
           /*****************************************************************
            * calculate V2 and V4
            *
@@ -3004,114 +3127,207 @@ int main(int argc, char **argv) {
            * z_3phi = V2
            *****************************************************************/
 
-            exitstatus= init_2level_buffer ( &v1, VOLUME, 72 );
-            if ( exitstatus != 0 ) {
-              fprintf(stderr, "[piN2piN_factorized] Error from init_2level_buffer, status was %d\n", exitstatus);
-              EXIT(47);
-            }
+          exitstatus= init_2level_buffer ( &v1, VOLUME, 72 );
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[piN2piN_factorized] Error from init_2level_buffer, status was %d\n", exitstatus);
+            EXIT(47);
+          }
 
-            exitstatus= init_2level_buffer ( &v2, VOLUME, 384 );
-            if ( exitstatus != 0 ) {
-              fprintf(stderr, "[piN2piN_factorized] Error from init_2level_buffer, status was %d\n", exitstatus);
-              EXIT(47);
-            }
+          exitstatus= init_2level_buffer ( &v2, VOLUME, 384 );
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[piN2piN_factorized] Error from init_2level_buffer, status was %d\n", exitstatus);
+            EXIT(47);
+          }
 
-            exitstatus= init_3level_buffer ( &vp, T, g_sink_momentum_number, 384 );
-            if ( exitstatus != 0 ) {
-              fprintf(stderr, "[piN2piN_factorized] Error from init_3level_buffer, status was %d\n", exitstatus);
-              EXIT(47);
-            }
+          exitstatus= init_3level_buffer ( &vp, T, g_sink_momentum_number, 384 );
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[piN2piN_factorized] Error from init_3level_buffer, status was %d\n", exitstatus);
+            EXIT(47);
+          }
 
 
-            for( int if1 = 0; if1 < gamma_f1_nucleon_number; if1++ ) {
+          for( int if1 = 0; if1 < gamma_f1_nucleon_number; if1++ ) {
 
-              for( int ispin = 0; ispin < 4; ispin++ ) {
+            for( int ispin = 0; ispin < 4; ispin++ ) {
 
-                /* spinor_work <- Gamma_f1^t x stochastic propagator */
-                spinor_field_eq_gamma_ti_spinor_field (spinor_work[0], gamma_f1_nucleon_list[if1], stochastic_propagator_list[ispin], VOLUME );
-                spinor_field_ti_eq_re ( spinor_work[0], gamma_f1_nucleon_transposed_sign[if1], VOLUME);
+              /* spinor_work <- Gamma_f1^t x stochastic propagator */
+              spinor_field_eq_gamma_ti_spinor_field (spinor_work[0], gamma_f1_nucleon_list[if1], stochastic_propagator_list[ispin], VOLUME );
+              spinor_field_ti_eq_re ( spinor_work[0], gamma_f1_nucleon_transposed_sign[if1], VOLUME);
 
-                /*****************************************************************/
-                /*****************************************************************/
+              /*****************************************************************/
+              /*****************************************************************/
 
-                /*****************************************************************
-                 * phi - gf1 - d
-                 *****************************************************************/
-                exitstatus = contract_v1 ( v1, spinor_work[0], fp2, VOLUME  );
-                if ( exitstatus != 0 ) {
-                  fprintf(stderr, "[piN2piN_factorized] Error from contract_v1, status was %d\n", exitstatus);
-                  EXIT(47);
-                }
+              /*****************************************************************
+               * phi - gf1 - d
+               *****************************************************************/
+              exitstatus = contract_v1 ( v1, spinor_work[0], fp2, VOLUME  );
+              if ( exitstatus != 0 ) {
+                fprintf(stderr, "[piN2piN_factorized] Error from contract_v1, status was %d\n", exitstatus);
+                EXIT(47);
+              }
   
-                /*****************************************************************
-                 * (3) phi - gf1 - d - u
-                 *****************************************************************/
-                sprintf(aff_tag, "/v2-oet/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-d-u/sample%.2d/d%d", gsx[0], gsx[1], gsx[2], gsx[3],
-                    g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
-                    gamma_f1_nucleon_list[if1], isample, ispin);
+              /*****************************************************************
+               * (3) phi - gf1 - d - u
+               *****************************************************************/
+              sprintf(aff_tag, "/v2-oet/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-d-u/sample%.2d/d%d", gsx[0], gsx[1], gsx[2], gsx[3],
+                  g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
+                  gamma_f1_nucleon_list[if1], isample, ispin);
 
-                exitstatus = contract_v2_from_v1 ( v2, v1, fp, VOLUME );
-                if ( exitstatus != 0 ) {
-                  fprintf(stderr, "[piN2piN_factorized] Error from contract_v4, status was %d\n", exitstatus);
-                  EXIT(47);
-                }
+              exitstatus = contract_v2_from_v1 ( v2, v1, fp, VOLUME );
+              if ( exitstatus != 0 ) {
+                fprintf(stderr, "[piN2piN_factorized] Error from contract_v4, status was %d\n", exitstatus);
+                EXIT(47);
+              }
 
-                exitstatus = contract_vn_momentum_projection ( vp, v2, 192, g_sink_momentum_list, g_sink_momentum_number);
-                if ( exitstatus != 0 ) {
-                  fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
-                  EXIT(48);
-                }
+              exitstatus = contract_vn_momentum_projection ( vp, v2, 192, g_sink_momentum_list, g_sink_momentum_number);
+              if ( exitstatus != 0 ) {
+                fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+                EXIT(48);
+              }
 
-                exitstatus = contract_vn_write_aff ( vp, 192, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
-                if ( exitstatus != 0 ) {
-                  fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_write_aff, status was %d\n", exitstatus);
-                  EXIT(49);
-                }
+              exitstatus = contract_vn_write_aff ( vp, 192, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+              if ( exitstatus != 0 ) {
+                fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+                EXIT(49);
+              }
 
-              }  /* end of loop on ispin */
+            }  /* end of loop on ispin */
+
+            /*****************************************************************/
+            /*****************************************************************/
+
+            /* fp3 <- Gamma_f1 x fp2 = Gamma_i1 x D */
+            fermion_propagator_field_eq_gamma_ti_fermion_propagator_field (fp3, gamma_f1_nucleon_list[if1], fp2, VOLUME );
+            fermion_propagator_field_eq_fermion_propagator_field_ti_re ( fp3, fp3, gamma_f1_nucleon_sign[if1], VOLUME );
+
+            for( int ispin = 0; ispin < 4; ispin++ ) {
+              /*****************************************************************
+               * (4) phi - gf1 - d - u
+               *****************************************************************/
+              sprintf(aff_tag, "/v4-oet/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-d-u/sample%.2d/d%d", gsx[0], gsx[1], gsx[2], gsx[3],
+                  g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
+                  gamma_f1_nucleon_list[if1], isample, ispin);
+
+              exitstatus = contract_v4 ( v2, stochastic_propagator_list[ispin], fp3, fp, VOLUME );
+              if ( exitstatus != 0 ) {
+                fprintf(stderr, "[piN2piN_factorized] Error from contract_v4, status was %d\n", exitstatus);
+                EXIT(47);
+              }
+
+              exitstatus = contract_vn_momentum_projection ( vp, v2, 192, g_sink_momentum_list, g_sink_momentum_number);
+              if ( exitstatus != 0 ) {
+                fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+                EXIT(48);
+              }
+
+              exitstatus = contract_vn_write_aff ( vp, 192, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+              if ( exitstatus != 0 ) {
+                fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+                EXIT(49);
+              }
+
+            }  /* end of loop on ispin */
+          }  /* end of loop on gamma at f1 */
+
+          fini_2level_buffer ( &v1 );
+          fini_2level_buffer ( &v2 );
+          fini_3level_buffer ( &vp );
+#endif  /* of if 0 */
+
+          /*****************************************************************
+           * calculate V3
+           *
+           * phi^+ g5 Gamma_f2 ( pf2 ) U ( z_1xi )
+           * phi^+ g5 Gamma_f2 ( pf2 ) D
+           *****************************************************************/
+
+          exitstatus= init_2level_buffer ( &v3, VOLUME, 24 );
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[piN2piN_factorized] Error from init_2level_buffer, status was %d\n", exitstatus);
+            EXIT(47);
+          }
+
+          exitstatus= init_3level_buffer ( &vp, T, g_sink_momentum_number, 24 );
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[piN2piN_factorized] Error from init_3level_buffer, status was %d\n", exitstatus);
+            EXIT(47);
+          }
+
+          for ( int if2 = 0; if2 < gamma_f2_number; if2++ ) {
+
+            for( int ispin = 0; ispin < 4; ispin++ ) {
+
+              /*****************************************************************
+               * (1) phi - gf2 - u
+               *****************************************************************/
+
+              /* spinor_work[1] = g5 stochastic_propagator_list */
+              /* spinor_field_eq_gamma_ti_spinor_field (spinor_work[1], 5, stochastic_propagator_list[ispin], VOLUME ); */
+              /* TEST PLEGMA COMPARISON */
+              spinor_field_eq_gamma_ti_spinor_field (spinor_work[1], 0, stochastic_propagator_list[ispin], VOLUME );
+              spinor_field_ti_eq_re ( spinor_work[1], -1., VOLUME );
+
+              /* spinor_work[0] <- Gamma_f2^+ x spinor_work[1], up to sign */
+              spinor_field_eq_gamma_ti_spinor_field (spinor_work[0], gamma_f2_list[if2], spinor_work[1], VOLUME );
+              /* spinor_work <- spinor_work x sign for Gamma_f2^+ */
+              spinor_field_ti_eq_re ( spinor_work[0], gamma_f2_g5_adjoint_sign[if2], VOLUME);
+
+              sprintf(aff_tag, "/v3-oet/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-u/sample%.2d/d%d", gsx[0], gsx[1], gsx[2], gsx[3],
+                  -g_seq_source_momentum_list[iseq_mom][0], -g_seq_source_momentum_list[iseq_mom][1], -g_seq_source_momentum_list[iseq_mom][2],
+                  gamma_f2_list[if2], isample, ispin);
+
+              exitstatus = contract_v3 ( v3, spinor_work[0], fp, VOLUME );
+              if ( exitstatus != 0 ) {
+                fprintf(stderr, "[piN2piN_factorized] Error from contract_v3, status was %d\n", exitstatus);
+                EXIT(47);
+              }
+ 
+              exitstatus = contract_vn_momentum_projection ( vp, v3, 12, g_sink_momentum_list, g_sink_momentum_number);
+              if ( exitstatus != 0 ) {
+                fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+                EXIT(48);
+              }
+
+              exitstatus = contract_vn_write_aff ( vp, 12, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+              if ( exitstatus != 0 ) {
+                fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+                EXIT(49);
+              }
 
               /*****************************************************************/
               /*****************************************************************/
 
-              /* fp3 <- Gamma_f1 x fp2 = Gamma_i1 x D */
-              fermion_propagator_field_eq_gamma_ti_fermion_propagator_field (fp3, gamma_f1_nucleon_list[if1], fp2, VOLUME );
-              fermion_propagator_field_eq_fermion_propagator_field_ti_re ( fp3, fp3, gamma_f1_nucleon_sign[if1], VOLUME );
+              /*****************************************************************
+               * (2) phi - gf2 - d
+               *****************************************************************/
+              sprintf(aff_tag, "/v3-oet/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-d/sample%.2d/d%d", gsx[0], gsx[1], gsx[2], gsx[3],
+                  -g_seq_source_momentum_list[iseq_mom][0], -g_seq_source_momentum_list[iseq_mom][1], -g_seq_source_momentum_list[iseq_mom][2],
+                  gamma_f2_list[if2], isample, ispin);
 
+              exitstatus = contract_v3 ( v3, spinor_work[0], fp2, VOLUME );
+              if ( exitstatus != 0 ) {
+                fprintf(stderr, "[piN2piN_factorized] Error from contract_v3, status was %d\n", exitstatus);
+                EXIT(47);
+              }
+ 
+              exitstatus = contract_vn_momentum_projection ( vp, v3, 12, g_sink_momentum_list, g_sink_momentum_number);
+              if ( exitstatus != 0 ) {
+                fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+                EXIT(48);
+              }
 
-              for( int ispin = 0; ispin < 4; ispin++ ) {
-                /*****************************************************************
-                 * (4) phi - gf1 - d - u
-                 *****************************************************************/
-                sprintf(aff_tag, "/v4-oet/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-d-u/sample%.2d/d%d", gsx[0], gsx[1], gsx[2], gsx[3],
-                    g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
-                    gamma_f1_nucleon_list[if1], isample, ispin);
+              exitstatus = contract_vn_write_aff ( vp, 12, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+              if ( exitstatus != 0 ) {
+                fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+                EXIT(49);
+              }
 
-                exitstatus = contract_v4 ( v2, stochastic_propagator_list[ispin], fp3, fp, VOLUME );
-                if ( exitstatus != 0 ) {
-                  fprintf(stderr, "[piN2piN_factorized] Error from contract_v4, status was %d\n", exitstatus);
-                  EXIT(47);
-                }
+            }  /* end of loop on spin components ispin */
+ 
+          }  /* end of loop on gamma_f2_list */
 
-                exitstatus = contract_vn_momentum_projection ( vp, v2, 192, g_sink_momentum_list, g_sink_momentum_number);
-                if ( exitstatus != 0 ) {
-                  fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
-                  EXIT(48);
-                }
-
-                exitstatus = contract_vn_write_aff ( vp, 192, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
-                if ( exitstatus != 0 ) {
-                  fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_write_aff, status was %d\n", exitstatus);
-                  EXIT(49);
-                }
-
-              }  /* end of loop on ispin */
-            }  /* end of loop on gamma at f1 */
-
-
-            fini_2level_buffer ( &v1 );
-            fini_2level_buffer ( &v2 );
-            fini_3level_buffer ( &vp );
-
+          fini_2level_buffer ( &v3 );
+          fini_3level_buffer ( &vp );
         }  /* end of loop on sequential source momenta pi2 */
 
       } /* end of loop on oet samples */
