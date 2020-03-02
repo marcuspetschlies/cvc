@@ -20,6 +20,7 @@
 #include "cvc_linalg.h"
 #include "cvc_complex.h"
 #include "iblas.h"
+#include "ilinalg.h"
 #include "global.h"
 #include "cvc_geometry.h"
 #include "cvc_utils.h"
@@ -34,6 +35,7 @@
 #include "make_x_orbits.h"
 #include "gamma.h"
 #include "table_init_z.h"
+#include "table_init_d.h"
 
 namespace cvc {
 
@@ -1095,38 +1097,26 @@ int init_timeslice_source_z3_oet ( double ** const s, int const  tsrc, int const
 /**********************************************************
  * prepare sequential FHT source with loop
  **********************************************************/
-int prepare_sequential_fht_loop_source ( double ** const seq_source, double _Complex *** const loop, double ** const prop, gamma_matrix_type * gamma_mat, int const gamma_num, double _Complex * const ephase, int const type ) {
+int prepare_sequential_fht_loop_source ( double ** const seq_source, double _Complex *** const loop, double ** const prop, gamma_matrix_type * const gamma_mat, int const gamma_num, double _Complex * const ephase, int const type, gamma_matrix_type * const g5herm  ) {
   
   unsigned int const VOL3 = LX * LY * LZ;
 #pragma omp parallel for
   for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
 
     double _Complex ** M = init_2level_ztable ( 12, 12 );
-    double _Complex **_loop = loop[ix];
+    double _Complex ** _loop = loop[ix];
+    double _Complex ** _laux = init_2level_ztable ( 12, 12 );
+    if ( g5herm == NULL ) {
+      _scm_eq_scm(  _laux,  _loop );
+    } else {
+      _scm_eq_gamma_ti_scm_adj_ti_gamma ( _laux, g5herm->m, _loop,  g5herm->m );
+    }
 
     for ( int ig = 0; ig < gamma_num; ig++ ) {
-      for ( int ialpha = 0; ialpha < 4; ialpha++ ) {
-      for ( int ia = 0; ia < 3; ia++ ) {
-        int const ka = 3 * ialpha + ia;
-
-        for ( int ibeta = 0; ibeta < 4; ibeta++ ) {
-        for ( int ib = 0; ib < 3; ib++ ) {
-          int const kb = 3 * ibeta + ib;
-
-          for ( int igamma = 0; igamma < 4; igamma++ ) {
-            int const kc = 3 * igamma + ia;
-          for ( int idelta = 0; idelta < 4; idelta++ ) {
-            int const kd = 3 * idelta + ib;
-
-            M[ka][kb] += gamma_mat[ig].m[ialpha][igamma] * _loop[kc][kd] *  gamma_mat[ig].m[idelta][ibeta];
-
-          }}  /*  end of loop on idelta, igamma */
-
-        }}  /* end of loop on ib, ibeta  */
-
-      }}  /* end of loop on ia, ialpha */
-
+      _scm_pl_eq_gamma_ti_scm_ti_gamma ( M, gamma_mat->m, _laux,  gamma_mat->m );
     }  /* end of loop on vertex gamma list */
+
+    fini_2level_ztable ( &_laux );
 
     unsigned int const ix3 = ix % VOL3;
 
@@ -1137,9 +1127,7 @@ int prepare_sequential_fht_loop_source ( double ** const seq_source, double _Com
        **********************************************************/
       double _Complex ztmp = 0.;
 
-      for ( int ia = 0; ia < 12; ia++ ) {
-        ztmp += M[ia][ia];
-      }
+      _co_eq_tr_scm ( &ztmp, M );
 
       /**********************************************************
        * ztmp = ztmp * exp ( i p_seq x_seq )
@@ -1201,6 +1189,8 @@ int prepare_sequential_fht_loop_source ( double ** const seq_source, double _Com
  **********************************************************/
 int prepare_sequential_fht_twinpeak_source ( double ** const seq_source, double ** const prop, int const gamma_id, double _Complex * const ephase ) {
 
+  unsigned int const VOL3 = LX * LY * LZ;
+
   double * scalar_field = init_1level_dtable ( VOLUME );
 
   ranbinary ( scalar_field, VOLUME );
@@ -1219,10 +1209,10 @@ int prepare_sequential_fht_twinpeak_source ( double ** const seq_source, double 
       double * const _p = prop[isc] + _GSI(ix);
       double * const _s = seq_source[isc] + _GSI(ix);
 
-      _fv_eq_fv_ti_gamma ( spinor1, gamma_id, _p );
+      _fv_eq_gamma_ti_fv ( spinor1, gamma_id, _p );
       _fv_ti_eq_re ( spinor1, scalar_field[ix] );
 
-      _fv_eq_fv_ti_d2 ( _s, spinor1, ephase + (ix % VOL3) );
+      _fv_eq_fv_ti_d2 ( _s, spinor1, (double*)(ephase + (ix % VOL3)) );
       
     }
 #ifdef HAVE_OPENMP
