@@ -1155,7 +1155,7 @@ int prepare_sequential_fht_loop_source ( double ** const seq_source, double _Com
         for ( int ib = 0; ib < 3; ib++ ) {
           int const kb = 3 * ibeta + ib;
 
-          U[0][0] = 0.;
+          U[ka][kb] = 0.;
 
           for ( int igamma = 0; igamma < 4; igamma++ ) {
           for ( int ic = 0; ic < 3; ic++ ) {
