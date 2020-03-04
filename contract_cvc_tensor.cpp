@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/time.h>
 
 #ifdef HAVE_MPI
 #  include <mpi.h>
@@ -594,9 +595,9 @@ int cvc_tensor_eo_momentum_projection (double****tensor_tp, double**tensor_eo, i
   const unsigned int Vhalf = VOLUME / 2;
   int exitstatus, mu;
   double ***cvc_tp = NULL, *cvc_tensor_lexic=NULL;
-  double ratime, retime;
+  struct timeval ta, tb;
 
-  ratime = _GET_TIME;
+  gettimeofday ( &ta, (struct timezone *)NULL );
 
   if ( *tensor_tp == NULL ) {
     exitstatus = init_3level_buffer(tensor_tp, momentum_number, 16, 2*T);
@@ -622,8 +623,9 @@ int cvc_tensor_eo_momentum_projection (double****tensor_tp, double**tensor_eo, i
     return(3);
   }
   free ( cvc_tensor_lexic );
-  retime = _GET_TIME;
-  if( g_cart_id == 0 ) fprintf(stdout, "# [cvc_tensor_eo_momentum_projection] time for momentum projection = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "cvc_tensor_eo_momentum_projection", "ft", g_cart_id == 0 );
 
   return(0);
 }  /* end of cvc_tensor_eo_momentum_projection */
@@ -635,7 +637,6 @@ int cvc_tensor_eo_momentum_projection (double****tensor_tp, double**tensor_eo, i
 int cvc_tensor_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, char*tag, int (*momentum_list)[3], int momentum_number, int io_proc ) {
 
   int exitstatus, i;
-  double ratime, retime;
 #ifdef HAVE_LHPC_AFF
   struct AffNode_s *affn = NULL, *affdir=NULL;
 #endif
@@ -643,6 +644,9 @@ int cvc_tensor_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, c
   double *buffer = NULL;
   double _Complex *aff_buffer = NULL;
   double _Complex *zbuffer = NULL;
+  struct timeval ta, tb;
+
+  gettimeofday ( &ta, (struct timezone *)NULL );
 
   if ( io_proc == 2 ) {
 #ifdef HAVE_LHPC_AFF
@@ -657,8 +661,6 @@ int cvc_tensor_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, c
       return(6);
     }
   }
-
-  ratime = _GET_TIME;
 
   /* reorder cvc_tp into buffer with order time - munu - momentum */
   buffer = (double*)malloc(  momentum_number * 32 * T * sizeof(double) );
@@ -739,8 +741,8 @@ int cvc_tensor_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, c
   MPI_Barrier( g_cart_grid );
 #endif
 
-  retime = _GET_TIME;
-  if(io_proc == 2) fprintf(stdout, "# [cvc_tensor_tp_write_to_aff_file] time for saving momentum space results = %e seconds\n", retime-ratime);
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "cvc_tensor_tp_write_to_aff_file", "write", g_cart_id == 0 );
 
   return(0);
 
@@ -1485,10 +1487,14 @@ int contract_local_local_2pt_eo ( double**sprop_list_e, double**sprop_list_o, do
   const unsigned int VOL3half = VOL3 / 2;
 
   int exitstatus;
-  double ratime, retime;
+  
   double **conn_e = NULL, **conn_o = NULL, **conn_lexic = NULL;
   double **conn_p = NULL;
   char aff_tag[200];
+
+  struct timeval ta, tb;
+
+  gettimeofday ( &ta, (struct timezone *)NULL );
 
   /* auxilliary fermion propagator fields ( without halo ) */
   fermion_propagator_type *fp_S_e = create_fp_field( Vhalf );
@@ -1504,7 +1510,6 @@ int contract_local_local_2pt_eo ( double**sprop_list_e, double**sprop_list_o, do
    **
    **********************************************************
    **********************************************************/  
-  ratime = _GET_TIME;
 
   exitstatus = init_2level_buffer ( &conn_e, T, 2*VOL3half );
   if ( exitstatus != 0 ) {
@@ -1604,8 +1609,9 @@ int contract_local_local_2pt_eo ( double**sprop_list_e, double**sprop_list_o, do
   fini_2level_buffer ( &conn_lexic );
   fini_2level_buffer ( &conn_p );
 
-  retime = _GET_TIME;
-  if(g_cart_id==0) fprintf(stdout, "# [contract_local_local_2pt_eo] time for contract_cvc_tensor = %e seconds\n", retime-ratime);
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "contract_local_local_2pt_eo", "contract-ft-write", g_cart_id == 0 );
+
 
   return(0);
 
@@ -2582,6 +2588,9 @@ void contract_cvc_local_tensor_eo ( double * const conn_e, double * const conn_o
 
   int exitstatus;
   complex *conn_ = NULL;
+  struct timeval ta, tb;
+
+  gettimeofday ( &ta, (struct timezone *)NULL );
 
   /* auxilliary fermion propagator field with halo */
   fermion_propagator_type *fp_aux        = create_fp_field( (VOLUME+RAND)/2 );
@@ -2720,6 +2729,9 @@ void contract_cvc_local_tensor_eo ( double * const conn_e, double * const conn_o
   free_fp_field( &fp_Y_gamma );
   free_fp_field( &gamma_fp_Y_gamma );
 
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "contract_cvc_local_tensor_eo", "contract", g_cart_id == 0 );
+
   return;
 
 }  /* end of contract_cvc_local_tensor_eo */
@@ -2799,7 +2811,6 @@ void antisymmetric_orbit_average_spatial (double ** const d_out, double ***** co
 void hvp_irrep_separation_orbit_average (double *** const d_out, double ***** const d_in, int const dim[2], int const momentum_num, int  const (*momentum_list)[3], int const reim ) {
 
   double const one_over_three = 1./3.;
-  double const two_over_three = 2./3.;
   int const p_elem_nonzero = ( momentum_list[0][0] != 0 ) + ( momentum_list[0][1] != 0 ) + ( momentum_list[0][2] != 0 );
 
   int const p_elem_abs_nonequal = 
