@@ -349,6 +349,7 @@ int main(int argc, char **argv) {
     EXIT (24);
   }
 
+#ifdef _TWOP_CYD
   for ( int isink_momentum = 0; isink_momentum < g_sink_momentum_number; isink_momentum++ ) {
 
     for ( int iconf = 0; iconf < num_conf; iconf++ ) {
@@ -431,6 +432,134 @@ int main(int argc, char **argv) {
       }  /* end of loop on meson type */
     }
   }  /* end of loop on sink momenta */
+#endif
+
+#ifdef _TWOP_AFF
+    gettimeofday ( &ta, (struct timezone *)NULL );
+
+    /***********************************************************
+     * loop on flavor ids
+     ***********************************************************/
+    for ( int iflavor = 0; iflavor <= 1 ; iflavor++ ) {
+
+      /***********************************************************
+       * loop on sink momenta
+       ***********************************************************/
+      for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
+  
+        /***********************************************************
+         * open AFF reader
+         ***********************************************************/
+        struct AffReader_s *affr = NULL;
+        struct AffNode_s *affn = NULL, *affdir = NULL;
+        char key[400];
+        char data_filename[500];
+    
+        /* sprintf( data_filename, "%s/stream_%c/%d/%s.%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", filename_prefix,
+            conf_src_list[iconf][isrc][0], 
+            conf_src_list[iconf][isrc][1], 
+            correlator_prefix[operator_type], flavor_tag[iflavor],
+            conf_src_list[iconf][isrc][1], 
+            conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5] ); */
+ 
+        /* sprintf( data_filename, "%s/stream_%c/light/p2gg_twop_local/%s.%s.%d.gf%.2d.gi%.2d.aff",
+            filename_prefix,
+            conf_src_list[iconf][0][0], 
+            correlator_prefix[operator_type], flavor_tag[iflavor],
+            conf_src_list[iconf][0][1], g_sink_gamma_id_list[igf], g_source_gamma_id_list[igi] ); */
+
+        sprintf( data_filename, "%s/%s.%s.gf%.2d.gi%.2d.px%dpy%dpz%d.aff",
+            filename_prefix,
+            correlator_prefix[operator_type], flavor_tag[iflavor],
+            g_sink_gamma_id_list[igf], g_source_gamma_id_list[igi],
+            ( 1 - 2 * iflavor ) * g_sink_momentum_list[ipf][0], 
+            ( 1 - 2 * iflavor ) * g_sink_momentum_list[ipf][1],
+            ( 1 - 2 * iflavor ) * g_sink_momentum_list[ipf][2] );
+
+        affr = aff_reader ( data_filename );
+        const char * aff_status_str = aff_reader_errstr ( affr );
+        if( aff_status_str != NULL ) {
+          fprintf(stderr, "[avxn_analyse] Error from aff_reader for filename %s, status was %s %s %d\n", data_filename, aff_status_str, __FILE__, __LINE__);
+          EXIT(15);
+        } else avxn          if ( g_verbose > 1 ) fprintf(stdout, "# [avxn_analyse] reading data from file %s\n", data_filename);
+        }
+  
+        if( (affn = aff_reader_root( affr )) == NULL ) {
+          fprintf(stderr, "[avxn_analyse] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+          EXIT(103);
+        }
+  
+        double ** buffer = init_2level_dtable ( T_global, 2 );
+        if( buffer == NULL ) {
+          fprintf(stderr, "[avxn_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+          EXIT(15);
+        }
+
+        /***********************************************************
+         * loop on configs
+         ***********************************************************/
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+
+          /***********************************************************
+           * loop on sources
+           ***********************************************************/
+          for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+
+            sprintf( key, "/stream_%c/conf_%d/t%.2dx%.2dy%.2dz%.2d",
+                conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1],
+                conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5] );
+
+            if ( g_verbose > 2 ) fprintf ( stdout, "# [avxn_analyse] key = %s\n", key );
+  
+            affdir = aff_reader_chpath (affr, affn, key );
+            if( affdir == NULL ) {
+              fprintf(stderr, "[avxn_analyse] Error from aff_reader_chpath %s %d\n", __FILE__, __LINE__);
+              EXIT(105);
+            }
+  
+            uint32_t uitems = T_global;
+            int texitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*)buffer[0], uitems );
+            if( texitstatus != 0 ) {
+              fprintf(stderr, "[avxn_analyse] Error from aff_node_get_complex, status was %d %s %d\n", texitstatus, __FILE__, __LINE__);
+              EXIT(105);
+            }
+  
+            /***********************************************************
+             * source phase
+             ***********************************************************/
+            const double phase = -TWO_MPI * ( 1 - 2 * iflavor ) * (
+                  conf_src_list[iconf][isrc][3] * g_sink_momentum_list[ipf][0] / (double)LX_global
+                + conf_src_list[iconf][isrc][4] * g_sink_momentum_list[ipf][1] / (double)LY_global
+                + conf_src_list[iconf][isrc][5] * g_sink_momentum_list[ipf][2] / (double)LZ_global );
+  
+            const double ephase[2] = { cos( phase ) , sin( phase ) } ;
+  
+            /***********************************************************
+             * order from source time and add source phase
+             ***********************************************************/
+            for ( int it = 0; it < T_global; it++ ) {
+              int const itt = ( conf_src_list[iconf][isrc][2] + it ) % T_global; 
+              twop[igf][igi][ipf][iconf][isrc][iflavor][it][0] = buffer[itt][0] * ephase[0] - buffer[itt][1] * ephase[1];
+              twop[igf][igi][ipf][iconf][isrc][iflavor][it][1] = buffer[itt][1] * ephase[0] + buffer[itt][0] * ephase[1];
+            }
+  
+          }  /* end of loop on sources */
+        }  /* end of loop on configs */
+          
+        fini_2level_dtable( &buffer );
+
+        /**********************************************************
+         * close the reader
+         **********************************************************/
+        aff_reader_close ( affr );
+  
+      }  /* end of loop on sink momenta */
+    }  /* end of loop on flavor */
+
+    gettimeofday ( &tb, (struct timezone *)NULL );
+    show_time ( &ta, &tb, "avxn_analyse", "read-twop-tensor-aff", g_cart_id == 0 );
+
+#endif
 
   /**********************************************************
    * average 2-pt over momentum orbit
@@ -591,18 +720,14 @@ int main(int argc, char **argv) {
       int arg_stride[3] = {1,1,1};
       int nT = Thp1 - 2 * itau;
 
-      sprintf ( obs_name, "twop.pseudoscalar.orbit.acosh_ratio.tau%d.PX%d_PY%d_PZ%d.%s",
-        itau,
-        g_sink_momentum_list[0][0],
-        g_sink_momentum_list[0][1],
-        g_sink_momentum_list[0][2], reim_str[ireim] );
+      char obs_name2[100];
+      sprintf ( obs_name2, "%s.acosh_ratio.tau%d", obs_name, itau );
 
-      exitstatus = apply_uwerr_func ( data[0], num_conf, T_global, nT, narg, arg_first, arg_stride, obs_name, acosh_ratio, dacosh_ratio );
+      exitstatus = apply_uwerr_func ( data[0], num_conf, T_global, nT, narg, arg_first, arg_stride, obs_name2, acosh_ratio, dacosh_ratio );
       if ( exitstatus != 0 ) {
         fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(115);
       }
-
     }
 
     /* fini_3level_dtable ( &data ); */
@@ -635,7 +760,7 @@ int main(int argc, char **argv) {
 
   /**********************************************************
    *
-   * read stochastic loop data
+   * read stochastic hp loop data
    *
    **********************************************************/
   if ( loop_nstoch > 0 && ( loop_use_es == 1 || loop_use_es == 3 ) ) {
@@ -686,7 +811,7 @@ int main(int argc, char **argv) {
               double _Complex ztmp = 0.;
               for ( int ia = 0; ia < 4; ia++ ) {
               for ( int ib = 0; ib < 4; ib++ ) {
-                ztmp += zloop_buffer[it][ia][ib] * gamma_mu[imu].m[ib][ia];
+                ztmp += loop_transpose ?  zloop_buffer[it][ib][ia] * gamma_mu[imu].m[ib][ia] : zloop_buffer[it][ia][ib] * gamma_mu[imu].m[ib][ia];
               }}
 
               /**********************************************************
@@ -694,8 +819,8 @@ int main(int argc, char **argv) {
                *
                * WHERE DID THAT COME FROM ???
                **********************************************************/
-              loop[imom][iconf][imu][idir][it][0] = 0.5 * creal ( ztmp );
-              loop[imom][iconf][imu][idir][it][1] = 0.5 * cimag ( ztmp );
+              loop[imom][iconf][imu][idir][it][0] = creal ( ztmp * loop_norm );
+              loop[imom][iconf][imu][idir][it][1] = cimag ( ztmp * loop_norm );
             }
           }  /* end of loop on mu */
   
@@ -708,7 +833,7 @@ int main(int argc, char **argv) {
 
   /**********************************************************
    *
-   * read exact loop data
+   * read exact lm loop data
    *
    **********************************************************/
   if ( loop_num_evecs > 0 && ( loop_use_es == 2 || loop_use_es == 3 ) ) {
@@ -758,19 +883,15 @@ int main(int argc, char **argv) {
               double _Complex ztmp = 0.;
               for ( int ia = 0; ia < 4; ia++ ) {
               for ( int ib = 0; ib < 4; ib++ ) {
-                ztmp += zloop_buffer[it][ia][ib] * gamma_mu[imu].m[ib][ia];
-
-                /* the following version gives a huge expectation value for the symmetrized and subtracted loop;
-                 * this cannot be right */
-                /* ztmp += zloop_buffer[it][ia][ib] * gamma_mu[imu].m[ia][ib]; */
+                ztmp += loop_transpose ?  zloop_buffer[it][ib][ia] * gamma_mu[imu].m[ib][ia] : zloop_buffer[it][ia][ib] * gamma_mu[imu].m[ib][ia];
               }}
               /**********************************************************
                * factor 0.5 from using doublet vs wanted single flavor
                *
                * AGAIN, WHERE DID THAT COME FROM ???
                **********************************************************/
-              loop_exact[imom][iconf][imu][idir][it][0] = 0.5 * creal ( ztmp );
-              loop_exact[imom][iconf][imu][idir][it][1] = 0.5 * cimag ( ztmp );
+              loop_exact[imom][iconf][imu][idir][it][0] = creal ( ztmp * loop_norm );
+              loop_exact[imom][iconf][imu][idir][it][1] = cimag ( ztmp * loop_norm  );
             }
           }  /* end of loop on mu */
   
@@ -779,6 +900,76 @@ int main(int argc, char **argv) {
       }  /* end of loop on configs */
     }  /* end of loop on insertion momenta */
   }  /* end of if loop_nstoch > 0 */
+
+  /**********************************************************
+   *
+   * read stochastic volsrc loop data
+   *
+   **********************************************************/
+  if ( loop_nstoch > 0 && loop_use_es == 4 ) {
+    for ( int imom = 0; imom < g_insertion_momentum_number; imom++ ) {
+      for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+        for ( int idir = 0; idir < 4; idir++ ) {
+  
+          double _Complex *** zloop_buffer = init_3level_ztable ( T_global, 4, 4 );
+  
+          sprintf ( filename, "stream_%c/%s/loop.%d.stoch.%s.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix2, conf_src_list[iconf][0][1],
+              loop_type,
+              g_insertion_momentum_list[imom][0],
+              g_insertion_momentum_list[imom][1],
+              g_insertion_momentum_list[imom][2] );
+  
+          FILE * dfs = fopen ( filename, "r" );
+          if( dfs == NULL ) {
+            fprintf ( stderr, "[avxn_analyse] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__ );
+            EXIT (24);
+          } else {
+            if ( g_verbose > 2 ) fprintf ( stdout, "# [avxn_analyse] reading data from file %s\n", filename );
+          }
+  
+          for ( int it = 0; it < T_global; it++ ) {
+            int itmp[3];
+            double dtmp[2];
+            for ( int ia = 0; ia < 4; ia++ ) {
+            for ( int ib = 0; ib < 4; ib++ ) {
+              if ( fscanf ( dfs, "%d %d %d %lf %lf\n", itmp, itmp+1, itmp+2, dtmp, dtmp+1 ) != 5 ) {
+                fprintf ( stderr, "[avxn_analyse] Error from fscanf for filename %s %s %d\n", filename, __FILE__, __LINE__ );
+                EXIT (24);
+              }
+              zloop_buffer[it][ia][ib] = dtmp[0] + dtmp[1] * I;
+           
+              if ( g_verbose > 4 ) fprintf (stdout,"loop %3d %3d %3d  %25.16e %25.16e\n", 
+                  itmp[0], itmp[1], itmp[2], creal( zloop_buffer[it][ia][ib]), cimag( zloop_buffer[it][ia][ib]) );
+            }}
+          }
+          fclose ( dfs );
+  
+#pragma omp parallel for
+          for ( int imu = 0; imu < 4; imu++ ) {
+            for ( int it = 0; it < T_global; it++ ) {
+  
+              double _Complex ztmp = 0.;
+              for ( int ia = 0; ia < 4; ia++ ) {
+              for ( int ib = 0; ib < 4; ib++ ) {
+                ztmp += loop_transpose ?  zloop_buffer[it][ib][ia] * gamma_mu[imu].m[ib][ia] : zloop_buffer[it][ia][ib] * gamma_mu[imu].m[ib][ia];
+              }}
+
+              /**********************************************************
+               * factor 0.5 from using doublet vs wanted single flavor
+               *
+               * WHERE DID THAT COME FROM ???
+               **********************************************************/
+              loop[imom][iconf][imu][idir][it][0] = creal ( ztmp * loop_norm );
+              loop[imom][iconf][imu][idir][it][1] = cimag ( ztmp * loop_norm );
+            }
+          }  /* end of loop on mu */
+  
+          fini_3level_ztable ( &zloop_buffer );
+        }  /* end of loop on directions */
+      }  /* end of loop on configs */
+    }  /* end of loop on insertion momenta */
+  }  /* end of if loop_nstoch > 0 */
+
 
   /**********************************************************
    *
