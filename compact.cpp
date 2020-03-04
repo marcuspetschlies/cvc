@@ -241,9 +241,10 @@ int main(int argc, char **argv) {
       char key[400];
       char data_filename[500];
     
-      sprintf( data_filename, "%s/stream_%c/light/p2gg_twop_local/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff",
+      /* sprintf( data_filename, "%s/stream_%c/light/p2gg_twop_local/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", */
+      sprintf( data_filename, "%s/%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff",
           filename_prefix,
-          conf_src_list[iconf][0][0], 
+          conf_src_list[iconf][isrc][1], 
           filename_prefix2, 
           conf_src_list[iconf][0][1], conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5] );
 
