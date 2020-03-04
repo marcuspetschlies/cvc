@@ -38,6 +38,7 @@
 
 namespace cvc {
 
+#if 0
 inline void project_to_generators ( double * const p, double * const A ) {
 
   const double sq1  = 0.8164965809277260;  /* sqrt ( 2 / 3 ) */
@@ -94,6 +95,7 @@ inline void restore_from_generators ( double * const A, double * const p ) {
   A[16] = p[0] * one_over_sqrt6 - p[8] * 2 * one_over_sqrt3;
   A[17] = 0.;
 }
+#endif  /* of if 0 */
 
 /********************************************************************/
 /********************************************************************/
