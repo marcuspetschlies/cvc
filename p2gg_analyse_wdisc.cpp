@@ -46,7 +46,7 @@
 #define _TWOP_COMPACT
 #undef _TWOP_PERCONF
 
-#undef _USE_SUBTRACTED
+#define _USE_SUBTRACTED
 
 using namespace cvc;
 
@@ -119,6 +119,7 @@ int main(int argc, char **argv) {
   double loop_norm = 1.;
   int loop_transpose = 0;
   int loop_step = 1;
+  int loop_nev = -1;
 
   double ****** pgg_disc = NULL;
 
@@ -131,7 +132,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "tWh?f:N:S:F:O:D:w:E:r:n:s:")) != -1) {
+  while ((c = getopt(argc, argv, "tWh?f:N:S:F:O:D:w:E:r:n:s:v:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -184,6 +185,10 @@ int main(int argc, char **argv) {
     case 's':
       loop_step = atoi ( optarg );
       fprintf ( stdout, "# [p2gg_analyse_wdisc] loop_step set to %d\n", loop_step );
+      break;
+    case 'v':
+      loop_nev = atoi( optarg );
+      fprintf ( stdout, "# [p2gg_analyse_wdisc] loop_nev set to %d\n", loop_nev );
       break;
     case 'h':
     case '?':
@@ -567,8 +572,8 @@ int main(int argc, char **argv) {
         gettimeofday ( &ta, (struct timezone *)NULL );
         struct AffNode_s *affn = NULL, *affdir = NULL;
 
-        sprintf ( filename, "%s.%s.gf%.2d.gi%.2d.px%dpy%dpz%d.aff", 
-          correlator_prefix[operator_type], flavor_tag[operator_type], gamma_v_list[mu], gamma_v_list[nu],
+        sprintf ( filename, "%s/%s.%s.gf%.2d.gi%.2d.px%dpy%dpz%d.aff", 
+            filename_prefix2, correlator_prefix[operator_type], flavor_tag[operator_type], gamma_v_list[mu], gamma_v_list[nu],
           sink_momentum[0], sink_momentum[1], sink_momentum[2] );
 
         affr = aff_reader ( filename );
@@ -830,8 +835,13 @@ int main(int argc, char **argv) {
 
     for ( int iconf = 0; iconf < num_conf; iconf++ ) {
 
-      sprintf ( filename, "stream_%c/%s/loop.%d.stoch.%s.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix,
+      if ( loop_nev < 0 ) {
+        sprintf ( filename, "stream_%c/%s/loop.%d.stoch.%s.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix,
           conf_src_list[iconf][0][1], loop_type_tag[loop_type], seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
+      } else {
+        sprintf ( filename, "stream_%c/%s/loop.%.4d.stoch.%s.nev%d.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix,
+            conf_src_list[iconf][0][1], loop_type_tag[loop_type], loop_nev, seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
+      }
 
       if ( g_verbose > 0 ) fprintf ( stdout, "# [p2gg_analyse_wdisc] reading loop data from file %s %s %d\n", filename, __FILE__, __LINE__ );
       FILE * ofs = fopen ( filename, "r" );
@@ -877,6 +887,9 @@ int main(int argc, char **argv) {
         loop_st_sign *= -1;
       }
 
+      /**********************************************************
+       * project loop matrices to spin structure
+       **********************************************************/
       gamma_matrix_type gf;
       gamma_matrix_ukqcd_binary ( &gf, gamma_tmlqcd_to_binary[sequential_source_gamma_id] );
       if ( g_verbose > 2 ) gamma_matrix_printf ( &gf, "gseq_ukqcd", stdout );
@@ -887,18 +900,18 @@ int main(int argc, char **argv) {
         EXIT(112);
       }
 
-
+      if ( g_verbose > 0 ) fprintf ( stdout, "# [p2gg_analyse_wdisc] WARNING: using loop_transpose = %d %s %d\n", loop_transpose, __FILE__, __LINE__ );
       project_loop ( loops_proj[0][0], gf.m, loops_matrix[0][0][0][0], num_conf * g_nsample * T_global, loop_transpose );
 
+      /**********************************************************
+       * average loop over samples for each config and timeslice
+       **********************************************************/
       double ** loop_avg = init_2level_dtable ( num_conf, 2*T_global );
       if ( loop_avg == NULL ) {
         fprintf ( stderr, "[p2gg_analyse_wdisc] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
         EXIT(115);
       }
 
-      /**********************************************************
-       * average loop over samples for each config and timeslice
-       **********************************************************/
 #pragma omp parallel for
       for ( int iconf = 0; iconf < num_conf; iconf++ ) {
         double const norm = loop_norm / (double)( g_nsample * loop_step );
