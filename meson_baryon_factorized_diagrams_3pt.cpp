@@ -49,9 +49,9 @@ extern "C"
 
 using namespace cvc;
 
-#define MESON_BARYON_FACTORIZED_DIAGRAMS_2PT
+/* #define MESON_BARYON_FACTORIZED_DIAGRAMS_2PT */
 
-/* #define MESON_BARYON_FACTORIZED_DIAGRAMS_3PT */
+#define MESON_BARYON_FACTORIZED_DIAGRAMS_3PT
 
 
 #ifdef MESON_BARYON_FACTORIZED_DIAGRAMS_2PT
@@ -380,7 +380,7 @@ int main(int argc, char **argv) {
         affr = aff_reader (filename);
         aff_status_str = (char*)aff_reader_errstr(affr);
         if( aff_status_str != NULL ) {
-          fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from aff_reader, status was %s\n", aff_status_str);
+          fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from aff_reader for %s, status was %s %s %d\n", filename, aff_status_str, __FILE__ , __LINE__ );
           EXIT(4);
         } else {
           fprintf(stdout, "# [meson_baryon_factorized_diagrams_3pt] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
@@ -444,7 +444,7 @@ int main(int argc, char **argv) {
         affr = aff_reader (filename);
         aff_status_str = (char*)aff_reader_errstr(affr);
         if( aff_status_str != NULL ) {
-          fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from aff_reader, status was %s\n", aff_status_str);
+          fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from aff_reader for %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__ );
           EXIT(4);
         } else {
           fprintf(stdout, "# [meson_baryon_factorized_diagrams_3pt] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
@@ -502,7 +502,7 @@ int main(int argc, char **argv) {
       affr = aff_reader (filename);
       aff_status_str = (char*)aff_reader_errstr(affr);
       if( aff_status_str != NULL ) {
-        fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from aff_reader, status was %s\n", aff_status_str);
+        fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from aff_reader for %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__ );
         EXIT(4);
       } else {
         fprintf(stdout, "# [meson_baryon_factorized_diagrams_3pt] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
@@ -832,7 +832,7 @@ int main(int argc, char **argv) {
         affr = aff_reader (filename);
         aff_status_str = (char*)aff_reader_errstr(affr);
         if( aff_status_str != NULL ) {
-          fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from aff_reader, status was %s\n", aff_status_str);
+          fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from aff_reader for %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__ );
           EXIT(4);
         } else {
           fprintf(stdout, "# [meson_baryon_factorized_diagrams_3pt] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
@@ -890,7 +890,7 @@ int main(int argc, char **argv) {
       affr = aff_reader (filename);
       aff_status_str = (char*)aff_reader_errstr(affr);
       if( aff_status_str != NULL ) {
-        fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from aff_reader, status was %s\n", aff_status_str);
+        fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from aff_reader for %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__ );
         EXIT(4);
       } else {
         fprintf(stdout, "# [meson_baryon_factorized_diagrams_3pt] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
@@ -958,7 +958,7 @@ int main(int argc, char **argv) {
       affr = aff_reader (filename);
       aff_status_str = (char*)aff_reader_errstr(affr);
       if( aff_status_str != NULL ) {
-        fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from aff_reader, status was %s\n", aff_status_str);
+        fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from aff_reader for %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__ );
         EXIT(4);
       } else {
         fprintf(stdout, "# [meson_baryon_factorized_diagrams_3pt] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
@@ -1299,7 +1299,7 @@ int main(int argc, char **argv) {
           affr = aff_reader (filename);
           aff_status_str = (char*)aff_reader_errstr(affr);
           if( aff_status_str != NULL ) {
-            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from aff_reader, status was %s\n", aff_status_str);
+            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from aff_reader for %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__ );
             EXIT(4);
           } else {
             fprintf(stdout, "# [meson_baryon_factorized_diagrams_3pt] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
@@ -1371,7 +1371,7 @@ int main(int argc, char **argv) {
           affr = aff_reader (filename);
           aff_status_str = (char*)aff_reader_errstr(affr);
           if( aff_status_str != NULL ) {
-            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from aff_reader, status was %s\n", aff_status_str);
+            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from aff_reader for %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__ );
             EXIT(4);
           } else {
             fprintf(stdout, "# [meson_baryon_factorized_diagrams_3pt] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
@@ -1432,7 +1432,7 @@ int main(int argc, char **argv) {
           affr = aff_reader (filename);
           aff_status_str = (char*)aff_reader_errstr(affr);
           if( aff_status_str != NULL ) {
-            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from aff_reader, status was %s\n", aff_status_str);
+            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from aff_reader for %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__ );
             EXIT(4);
           } else {
             fprintf(stdout, "# [meson_baryon_factorized_diagrams_3pt] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
@@ -1575,13 +1575,14 @@ int main(int argc, char **argv) {
 #elif defined MESON_BARYON_FACTORIZED_DIAGRAMS_3PT
 
                             for ( int ia = 0; ia < 4; ia++ ) {
-                              int const tsnk = ( gsx[0] + g_src_snk_time_separation + T_global ) % T_global;
+                              int tsnk = ( gsx[0] + g_src_snk_time_separation + T_global ) % T_global;
 
                               for ( int it = 0; it <= g_src_snk_time_separation; it++ ) {
                                 int const tcur = ( it + gsx[0] + T_global ) % T_global;
                                 memcpy ( z_v2_buffer[ia][tcur] , z_v2_factor[iv2][igf1][ipf1][ia][tsnk], 192 * sizeof( double _Complex ) );
                               }
 
+                              tsnk = ( gsx[0] - g_src_snk_time_separation + T_global ) % T_global;
                               for ( int it = 1; it <= g_src_snk_time_separation; it++ ) {
                                 int const tcur = ( -it + gsx[0] + T_global ) % T_global;
                                 memcpy ( z_v2_buffer[ia][tcur] , z_v2_factor[iv2][igf1][ipf1][ia][tsnk], 192 * sizeof( double _Complex ) );
@@ -1668,13 +1669,14 @@ int main(int argc, char **argv) {
 #elif defined MESON_BARYON_FACTORIZED_DIAGRAMS_3PT
 
                             for ( int ia = 0; ia < 4; ia++ ) {
-                              int const tsnk = ( gsx[0] + g_src_snk_time_separation + T_global ) % T_global;
+                              int tsnk = ( gsx[0] + g_src_snk_time_separation + T_global ) % T_global;
 
                               for ( int it = 0; it <= g_src_snk_time_separation; it++ ) {
                                 int const tcur = ( it + gsx[0] + T_global ) % T_global;
                                 memcpy ( z_v4_buffer[ia][tcur] , z_v4_factor[iv4][igf1][ipf1][ia][tsnk], 192 * sizeof ( double _Complex ) );
                               }
 
+                              tsnk = ( gsx[0] - g_src_snk_time_separation + T_global ) % T_global;
                               for ( int it = 1; it <= g_src_snk_time_separation; it++ ) {
                                 int const tcur = ( -it + gsx[0] + T_global ) % T_global;
                                 memcpy ( z_v4_buffer[ia][tcur] , z_v4_factor[iv4][igf1][ipf1][ia][tsnk], 192 * sizeof ( double _Complex ) );
@@ -1804,7 +1806,7 @@ int main(int argc, char **argv) {
         affr = aff_reader (filename);
         aff_status_str = (char*)aff_reader_errstr(affr);
         if( aff_status_str != NULL ) {
-          fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from aff_reader, status was %s\n", aff_status_str);
+          fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from aff_reader for %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__ );
           EXIT(4);
         } else {
           fprintf(stdout, "# [meson_baryon_factorized_diagrams_3pt] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
@@ -1890,7 +1892,7 @@ int main(int argc, char **argv) {
           affr = aff_reader (filename);
           aff_status_str = (char*)aff_reader_errstr(affr);
           if( aff_status_str != NULL ) {
-            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from aff_reader, status was %s\n", aff_status_str);
+            fprintf(stderr, "[meson_baryon_factorized_diagrams_3pt] Error from aff_reader for %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__ );
             EXIT(4);
           } else {
             fprintf(stdout, "# [meson_baryon_factorized_diagrams_3pt] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
