@@ -262,9 +262,9 @@ int main(int argc, char **argv) {
   /* vertex f1 */
   /*                                                  cvc  -gamma_x gamma_z  = i ukqcd C G5 */
   const int gamma_f1_nucleon_number                                = 2;
-  int gamma_f1_nucleon_list[gamma_f1_nucleon_number]               = { 14, 13 };
-  double gamma_f1_nucleon_sign[gamma_f1_nucleon_number]            = { -1, -1 };
-  double gamma_f1_nucleon_transposed_sign[gamma_f1_nucleon_number] = { -1, -1 };
+  int gamma_f1_nucleon_list[gamma_f1_nucleon_number]               = { 14, 11 };
+  double gamma_f1_nucleon_sign[gamma_f1_nucleon_number]            = {  1, -1 };
+  double gamma_f1_nucleon_transposed_sign[gamma_f1_nucleon_number] = { -1,  1 };
 
   /* vertex f1 for Delta-type operators, C gi, C gi g0 */
   /* const int gamma_f1_delta_number                       = 6;
@@ -273,10 +273,10 @@ int main(int argc, char **argv) {
   double gamma_f1_delta_snk_sign[gamma_f1_delta_number] = {+1, +1, -1, -1, +1, +1 }; */
 
   /*                                                  cvc  gamma_t gamma_z  = i ukqcd C GX */
-  const int gamma_f1_delta_number                       = 2;
-  int gamma_f1_delta_list[gamma_f1_delta_number]        = { 14, 13 };
-  double gamma_f1_delta_src_sign[gamma_f1_delta_number] = { -1, -1 };
-  double gamma_f1_delta_snk_sign[gamma_f1_delta_number] = { -1, -1 };
+  const int gamma_f1_delta_number                       = 3;
+  int gamma_f1_delta_list[gamma_f1_delta_number]        = { 12,  5, 10 };
+  double gamma_f1_delta_src_sign[gamma_f1_delta_number] = {  1,  1, -1 };
+  double gamma_f1_delta_snk_sign[gamma_f1_delta_number] = {  1,  1, -1 };
 
   /* vertex for the rho */
                                           /* g1, g2, g3, g0 g1, g0 g2, g0 g3 */
@@ -1462,7 +1462,7 @@ int main(int argc, char **argv) {
           spinor_field_ti_eq_re ( spinor_work[1], -1., VOLUME );
 
           spinor_field_eq_gamma_ti_spinor_field (spinor_work[0], gamma_f1_nucleon_list[i], spinor_work[1], VOLUME );
-          spinor_field_ti_eq_re ( spinor_work[0], gamma_f1_nucleon_transposed_sign[i], VOLUME);
+          spinor_field_ti_eq_re ( spinor_work[0], gamma_f1_nucleon_sign[i], VOLUME);
 
           /*****************************************************************
            * xi - gf1 - u
