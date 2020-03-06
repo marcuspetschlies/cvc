@@ -42,6 +42,9 @@
 #include "uwerr.h"
 #include "derived_quantities.h"
 
+#undef _RAT
+#undef _RAT_SUB
+
 using namespace cvc;
 
 void usage() {
@@ -397,11 +400,15 @@ int main(int argc, char **argv) {
       twopoint_function_print ( tp, "tp", stdout );
     }
 
+
+    twopoint_function_type tp_aux;
+    twopoint_function_copy ( &tp_aux, tp, 0 );
+
     /***********************************************************
      * loop on configs 
      ***********************************************************/
     for( int iconf = 0; iconf < num_conf; iconf++ ) {
-          
+ 
       int const Nconf = conf_src_list.conf[iconf];
 
       /***********************************************************
@@ -423,7 +430,7 @@ int main(int argc, char **argv) {
 
         char data_filename[500];
             
-        sprintf ( data_filename, "%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+        sprintf ( data_filename, "%s/stream_%c/%d/%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix2, conf_src_list.stream[iconf], Nconf, filename_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
         if ( g_verbose > 2 ) {
           fprintf ( stdout, "# [NN_analyse] data_filename   = %s\n", data_filename );
         }
@@ -437,12 +444,26 @@ int main(int argc, char **argv) {
 
           twopoint_function_get_diagram_name ( diagram_name,  tp, i_diag );
 
+          if ( conf_src_list.stream[iconf] == 'a' && strcmp(tp->name, "N-qbGq-N" ) == 0 ) {
+            if ( strcmp( diagram_name, "t1" ) == 0 || strcmp( diagram_name, "t2" ) == 0 || strcmp( diagram_name, "t3" ) == 0 || strcmp( diagram_name, "t4" ) == 0 ) {
+              strcpy( tp_aux.name, "N-ubGu-N" );
+
+            } else if ( strcmp( diagram_name, "t5" ) == 0 ) {
+              strcpy( tp_aux.name, "N-dbGd-N" );
+              sprintf( diagram_name, "t1" );
+            } else if ( strcmp( diagram_name, "t6" ) == 0 ) {
+              strcpy( tp_aux.name, "N-dbGd-N" );
+              sprintf( diagram_name, "t2" );
+            }
+          }
+
           if ( g_verbose > 2 ) {
             fprintf ( stdout, "# [NN_analyse] diagram_name = %s\n", diagram_name );
           }
 
           char key[500];
-          make_key_string ( key, tp, tp->type, diagram_name, gsx );
+          /* make_key_string ( key, tp, tp->type, diagram_name, gsx ); */
+          make_key_string ( key, &tp_aux, tp_aux.type, diagram_name, gsx );
 
           if ( g_verbose > 2 ) {
             fprintf ( stdout, "# [NN_analyse] key = %s\n", key );
@@ -590,7 +611,7 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * fwd, bwd average
      ***************************************************************************/
-#if 0
+
     if ( tp->T == T_global ) {
       if ( g_verbose > 2 ) fprintf ( stdout, "# [NN_analyse] fwd / bwd average\n" );
 #pragma omp parallel for
@@ -610,7 +631,7 @@ int main(int argc, char **argv) {
         }
       }
     }
-#endif
+
     /***************************************************************************
      * UWerr analysis
      *
@@ -618,7 +639,9 @@ int main(int argc, char **argv) {
      ***************************************************************************/
 
     for ( int iparity = 0; iparity < 2; iparity++ ) {
-      for ( int ireim = 0; ireim < 2; ireim++ ) {
+
+      for ( int ireim = 0; ireim < 2; ireim++ )
+      {
 
         if ( num_conf < 6 ) {
           fprintf ( stderr, "[NN_analyse] number of observations too small, continue %s %d\n", __FILE__, __LINE__ );
@@ -649,7 +672,7 @@ int main(int argc, char **argv) {
 
         char obs_name[500];
         
-        sprintf ( obs_name,  "%s.parity%d.%s", correlator_name, -2*iparity+1, reim_str[ireim] );
+        sprintf ( obs_name,  "%s.%s.parity%d.%s", correlator_name, diagram_list_string, -2*iparity+1, reim_str[ireim] );
 
         exitstatus = apply_uwerr_real ( data[0], num_conf, tp->T, 0, 1, obs_name );
         if ( exitstatus != 0  ) {
@@ -658,19 +681,22 @@ int main(int argc, char **argv) {
         }
 
 
-        for ( int itau = 1; itau < tp->T/2; itau++ ) {
+        /* only for real part */
+        if ( ireim == 0 ) {
+          for ( int itau = 1; itau < tp->T/2; itau++ ) {
 
-          sprintf ( obs_name,  "%s.parity%d.%s.log_ratio.tau%d", correlator_name, -2*iparity+1, reim_str[ireim], itau );
+            sprintf ( obs_name,  "%s.parity%d.%s.log_ratio.tau%d", correlator_name, -2*iparity+1, reim_str[ireim], itau );
 
-          int arg_first[2]  = {0, itau};
-          int arg_stride[2] = {1,1};
+            int arg_first[2]  = {0, itau};
+            int arg_stride[2] = {1,1};
       
-          exitstatus = apply_uwerr_func ( data[0], num_conf, tp->T, tp->T/2-itau, 2, arg_first, arg_stride, obs_name, log_ratio_1_1, dlog_ratio_1_1 );
-          if ( exitstatus != 0  ) {
-            fprintf ( stderr, "[NN_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-            EXIT(16);
-          }
+            exitstatus = apply_uwerr_func ( data[0], num_conf, tp->T, tp->T/2-itau, 2, arg_first, arg_stride, obs_name, log_ratio_1_1, dlog_ratio_1_1 );
+            if ( exitstatus != 0  ) {
+              fprintf ( stderr, "[NN_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+              EXIT(16);
+            }
 
+          }
         }
 
         fini_2level_dtable ( &data );
@@ -687,6 +713,7 @@ int main(int argc, char **argv) {
 
   }  /* end of loop on 2-point functions */
 
+#ifdef _RAT
 
   /***************************************************************************
    * 3 data sets
@@ -695,15 +722,15 @@ int main(int argc, char **argv) {
   twopoint_function_type * tp2 = &(g_twopoint_function_list[1]);
   twopoint_function_type * tp3 = &(g_twopoint_function_list[2]);
 
-  twopoint_function_type tp;
-  twopoint_function_init ( &tp );
+  char correlator_name[500], correlator_name2[500];
+  char diagram_list_string[60], diagram_list_string2[60], diagram_list_string3[60];
+  make_correlator_string ( correlator_name , tp1, NULL );
+  make_correlator_string ( correlator_name2, tp2, NULL );
 
-  twopoint_function_copy ( &tp, tp2 , 0 );
-  sprintf ( tp.name, "%s+%s", tp2->name, tp3->name );
+  make_diagram_list_string ( diagram_list_string,  tp1 );
+  make_diagram_list_string ( diagram_list_string2, tp2 );
+  make_diagram_list_string ( diagram_list_string3, tp3 );
 
-
-  char correlator_name[500];
-  make_correlator_string ( correlator_name , &tp, NULL );
 
   /***************************************************************************
    * UWerr analysis
@@ -714,7 +741,7 @@ int main(int argc, char **argv) {
   for ( int iparity = 0; iparity < 2; iparity++ ) {
       for ( int ireim = 0; ireim < 2; ireim++ ) {
 
-        int const nT = tp.T;
+        int const nT = tp1->T;
 
         if ( num_conf < 6 ) {
           fprintf ( stderr, "[NN_analyse] number of observations too small, continue %s %d\n", __FILE__, __LINE__ );
@@ -747,7 +774,7 @@ int main(int argc, char **argv) {
 
         char obs_name[500];
         
-        sprintf ( obs_name,  "%s.parity%d.%s", correlator_name, -2*iparity+1, reim_str[ireim] );
+        sprintf ( obs_name,  "%s.%s.%s.parity%d.%s", correlator_name2, diagram_list_string2, diagram_list_string3, -2*iparity+1, reim_str[ireim] );
 
         exitstatus = apply_uwerr_real ( data[0], num_conf, nT, 0, 1, obs_name );
         if ( exitstatus != 0  ) {
@@ -759,6 +786,8 @@ int main(int argc, char **argv) {
 
       }  /* end of loop on reim */
   }  /* end of loop on parity */
+
+#ifdef _RAT_SUB
 
   /***************************************************************************
    * UWerr analyse ratio sub
@@ -772,7 +801,7 @@ int main(int argc, char **argv) {
         continue;
       }
 
-      int const nt = tp.T / 2 + 1;
+      int const nt = tp1->T / 2 + 1;
 
       double ** data = init_2level_dtable ( num_conf, 2 * nt );
       if ( data == NULL ) {
@@ -805,7 +834,10 @@ int main(int argc, char **argv) {
         
         for ( int itau = 1; itau < nt; itau++ ) {
 
-          sprintf ( obs_name,  "%s.parity%d.%s.fht_ratio.tau%d", correlator_name, -2*iparity+1, reim_str[ireim], itau );
+          sprintf ( obs_name,  "%s.%s.%s.%s.%s.parity%d.%s.fht_ratio.tau%d", 
+              correlator_name2, diagram_list_string2, diagram_list_string3,
+              correlator_name, diagram_list_string,
+              -2*iparity+1, reim_str[ireim], itau );
 
           int arg_first[4]  = {nt, 0, nt+itau, itau };
           int arg_stride[4] = {1, 1, 1, 1};
@@ -820,8 +852,12 @@ int main(int argc, char **argv) {
 
         fini_2level_dtable ( &data );
 
-      }  /* end of loop on reim */
-    }  /* end of loop on parity */
+    }  /* end of loop on reim */
+  }  /* end of loop on parity */
+
+#endif  /* of if _RAT_SUB */
+
+#endif  /* of if _RAT */
 
 
   /***************************************************************************
