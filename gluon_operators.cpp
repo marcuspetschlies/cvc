@@ -1118,7 +1118,7 @@ int G_plaq ( double *** Gp, double * const gauge_field) {
 #ifdef HAVE_OPENMP
   omp_destroy_lock(&writelock);
 #endif
-  symact /= (double)VOLUME * 6 * 3;
+  symact /= (double)VOLUME * g_nproc * 18.;
 #ifdef HAVE_MPI
   double dtmpexc = symact;
   if ( MPI_Allreduce ( &dtmpexc,  &symact, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid ) != MPI_SUCCESS ) {
@@ -1382,11 +1382,11 @@ int G_rect ( double *** Gr, double * const gauge_field) {
 
 #ifdef _SYM_ACTION
 #ifdef HAVE_OPENMP
-      omp_set_lock(&writelock);
+        omp_set_lock(&writelock);
 #endif
-      _re_pl_eq_tr_cm( &symact, RR );
+        _re_pl_eq_tr_cm( &symact, RR );
 #ifdef HAVE_OPENMP
-      omp_unset_lock(&writelock);
+        omp_unset_lock(&writelock);
 #endif
 #endif
 
@@ -1402,7 +1402,7 @@ int G_rect ( double *** Gr, double * const gauge_field) {
 #ifdef HAVE_OPENMP
   omp_destroy_lock(&writelock);
 #endif
-  symact /= (double)VOLUME * 6 * 3;
+  symact /= (double)VOLUME * g_nproc * 18;
 #ifdef HAVE_MPI
   double dtmpexc = symact;
   if ( MPI_Allreduce ( &dtmpexc,  &symact, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid ) != MPI_SUCCESS ) {
@@ -1411,7 +1411,7 @@ int G_rect ( double *** Gr, double * const gauge_field) {
   }
 #endif
   if ( g_cart_id == 0 ) {
-    fprintf ( stdout, "# [G_rect] plaquette action = %25.16e %s %d\n", symact, __FILE__, __LINE__ );
+    fprintf ( stdout, "# [G_rect] rectangle action = %25.16e %s %d\n", symact, __FILE__, __LINE__ );
   }
 #endif
 
@@ -1509,7 +1509,7 @@ int gluonic_operators_eo_from_fst_projected ( double ** op, double *** const G, 
           }
         }
 
-        /* for Okk : G_{1,2} x G_{1,2} + G_{1,2} x G_{1,2} + G_{1,2} x G_{1,2} 
+        /* for Okk : G_{1,2} x G_{1,2} + G_{1,3} x G_{1,3} + G_{2,3} x G_{2,3} 
          * indices        3  x      3         4  x      4         5  x      5 */
         for ( int nu = 3; nu<6; nu++) {
           for ( int k = 0; k < 9; k++ ) {
