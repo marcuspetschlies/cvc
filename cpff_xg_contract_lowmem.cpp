@@ -53,6 +53,7 @@ void usage() {
 
 #define MAX_SMEARING_LEVELS 40
 
+#define _GLUONIC_OPERATORS_PLAQ
 #define _GLUONIC_OPERATORS_CLOV
 #define _GLUONIC_OPERATORS_RECT
 
@@ -245,6 +246,7 @@ int main(int argc, char **argv) {
       EXIT(14);
     }
 
+#ifdef _GLUONIC_OPERATORS_PLAQ
     /***************************************************************************
      *
      * Measurement from plaqettes
@@ -271,6 +273,7 @@ int main(int argc, char **argv) {
         EXIT(48);
       }
     }  /* end of if io_proc == 2 */
+#endif
 
 #ifdef _GLUONIC_OPERATORS_CLOV
 
