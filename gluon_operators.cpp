@@ -33,6 +33,8 @@
 #define _F(s) s
 #endif
 
+#define _SYM_ACTION
+
 /********************************************************************/
 /********************************************************************/
 
@@ -994,6 +996,14 @@ int G_plaq ( double *** Gp, double * const gauge_field) {
   xchange_gauge_field ( gauge_field );
 #endif
 
+#ifdef _SYM_ACTION
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+  omp_init_lock(&writelock);
+#endif
+  double symact = 0.;
+#endif
+
   /********************************************************************
    * calculate elementary plaquettes for all triples (ix, mu, nu )
    ********************************************************************/
@@ -1087,11 +1097,39 @@ int G_plaq ( double *** Gp, double * const gauge_field) {
 
       _cm_ti_eq_re ( U1, one_over_four );
       project_to_generators ( Gp[ix][imunu], U1 );
-    }
+
+#ifdef _SYM_ACTION
+#ifdef HAVE_OPENMP
+      omp_set_lock(&writelock);
+#endif
+      _re_pl_eq_tr_cm( &symact, U1 );
+#ifdef HAVE_OPENMP
+      omp_unset_lock(&writelock);
+#endif
+#endif
+
+    }  /* end of loop on volume */
 
   }  /* end of loop on nu, mu */
 
   fini_2level_dtable ( &plaquettes );
+
+#ifdef _SYM_ACTION
+#ifdef HAVE_OPENMP
+  omp_destroy_lock(&writelock);
+#endif
+  symact /= (double)VOLUME * 6 * 3;
+#ifdef HAVE_MPI
+  double dtmpexc = symact;
+  if ( MPI_Allreduce ( &dtmpexc,  &symact, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid ) != MPI_SUCCESS ) {
+    fprintf ( stderr, "[G_plaq] Error from MPI_Allreduce %s %d\n", __FILE__, __LINE__ );
+    return ( 1 );
+  }
+#endif
+  if ( g_cart_id == 0 ) {
+    fprintf ( stdout, "# [G_plaq] plaquette action = %25.16e %s %d\n", symact, __FILE__, __LINE__ );
+  }
+#endif
 
 #ifdef HAVE_MPI
   mpi_fini_xchanger ( &x_plaq );
@@ -1114,6 +1152,14 @@ int G_rect ( double *** Gr, double * const gauge_field) {
 #ifdef HAVE_MPI
   xchanger_type x_rect;
   mpi_init_xchanger ( &x_rect, 18 );
+#endif
+
+#ifdef _SYM_ACTION
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+  omp_init_lock(&writelock);
+#endif
+  double symact = 0.;
 #endif
 
 #ifdef HAVE_MPI
@@ -1312,10 +1358,10 @@ int G_rect ( double *** Gr, double * const gauge_field) {
           _cm_eq_cm_dag_ti_cm ( U1, U3, rectangles[ g_idn[ g_idn[ix][inu] ][imu] ] );
           _cm_eq_cm_ti_cm ( U2, U1, U3 );
           _cm_pl_eq_cm ( RR, U2 );
-#if 0
-#endif  /* of if 0 */
 
-        }
+
+
+        }  /* end of if on idir */
 
         /********************************************************************
          * anti-hermitean part and normalization
@@ -1334,6 +1380,16 @@ int G_rect ( double *** Gr, double * const gauge_field) {
         Gr[ix][imunu][7] += p[7];
         Gr[ix][imunu][8] += p[8];
 
+#ifdef _SYM_ACTION
+#ifdef HAVE_OPENMP
+      omp_set_lock(&writelock);
+#endif
+      _re_pl_eq_tr_cm( &symact, RR );
+#ifdef HAVE_OPENMP
+      omp_unset_lock(&writelock);
+#endif
+#endif
+
       }  /* end of loop on volume */
   
     }  /* end of loop on idir */
@@ -1341,6 +1397,24 @@ int G_rect ( double *** Gr, double * const gauge_field) {
   }  /* end of loop on mu nu  */
 
   fini_2level_dtable ( &rectangles );
+
+#ifdef _SYM_ACTION
+#ifdef HAVE_OPENMP
+  omp_destroy_lock(&writelock);
+#endif
+  symact /= (double)VOLUME * 6 * 3;
+#ifdef HAVE_MPI
+  double dtmpexc = symact;
+  if ( MPI_Allreduce ( &dtmpexc,  &symact, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid ) != MPI_SUCCESS ) {
+    fprintf ( stderr, "[G_rect] Error from MPI_Allreduce %s %d\n", __FILE__, __LINE__ );
+    return ( 1 );
+  }
+#endif
+  if ( g_cart_id == 0 ) {
+    fprintf ( stdout, "# [G_rect] plaquette action = %25.16e %s %d\n", symact, __FILE__, __LINE__ );
+  }
+#endif
+
 
 #ifdef HAVE_MPI
   mpi_fini_xchanger ( &x_rect );
@@ -1376,7 +1450,7 @@ int gluonic_operators_eo_from_fst_projected ( double ** op, double *** const G, 
   unsigned int const VOL3 = LX * LY * LZ;
   double ** pl = init_2level_dtable ( T, 2 );
   if ( pl == NULL ) {
-    fprintf( stderr, "[gluonic_operators] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+    fprintf( stderr, "[gluonic_operators_eo_from_fst_projected] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
     return(2);
   }
 
@@ -1468,22 +1542,35 @@ int gluonic_operators_eo_from_fst_projected ( double ** op, double *** const G, 
 
   double ** buffer = init_2level_dtable ( T, 2 );
   if ( buffer == NULL ) {
-    fprintf( stderr, "[gluonic_operators] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+    fprintf( stderr, "[gluonic_operators_eo_from_fst_projected] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
     return(3);
   }
   if ( MPI_Reduce ( pl[0], buffer[0], 2*T, MPI_DOUBLE, MPI_SUM,  0, g_ts_comm) != MPI_SUCCESS ) {
-    fprintf ( stderr, "[gluonic_operators] Error from MPI_Reduce %s %d\n", __FILE__, __LINE__ );
+    fprintf ( stderr, "[gluonic_operators_eo_from_fst_projected] Error from MPI_Reduce %s %d\n", __FILE__, __LINE__ );
     return(1);
   }
 
   if ( MPI_Gather ( buffer[0], 2*T, MPI_DOUBLE, op[0], 2*T, MPI_DOUBLE, 0, g_tr_comm ) != MPI_SUCCESS ) {
-    fprintf ( stderr, "[gluonic_operators] Error from MPI_Gather %s %d\n", __FILE__, __LINE__ );
+    fprintf ( stderr, "[gluonic_operators_eo_from_fst_projected] Error from MPI_Gather %s %d\n", __FILE__, __LINE__ );
     return(1);
   }
 
   fini_2level_dtable ( &buffer );
 #else
   memcpy ( op[0], pl[0], 2*T_global*sizeof(double) );
+#endif
+
+#ifdef _SYM_ACTION
+  if ( g_cart_id == 0 ) {
+    double dtmp[2] = { 0., 0. };
+    for ( int i =0; i<T_global; i++ ) {
+      dtmp[0] += op[i][0];
+      dtmp[1] += op[i][1];
+    }
+    dtmp[0] /= (double)VOLUME * 18.;
+    dtmp[1] /= (double)VOLUME * 18.;
+    fprintf ( stdout, "# [gluonic_operators_eo_from_fst_projected] FST action temporal %25.16e   spatial %25.16e   total %25.16e\n", dtmp[0], dtmp[1], dtmp[0]+dtmp[1] );
+  }
 #endif
 
   fini_2level_dtable ( &pl );
