@@ -267,8 +267,25 @@ int G_plaq_rect ( double *** Gp, double *** Gr, double * const gauge_field) {
       _cm_eq_antiherm_cm ( Gp[ix][imunu], U1 );
 /* TEST      _cm_eq_cm ( Gp[ix][imunu], U1 ); */
       _cm_ti_eq_re ( Gp[ix][imunu], one_over_four );
-    }
-  }
+
+      /********************************************************************
+       * at high verbosity write G_plaq
+       ********************************************************************/
+      if ( g_verbose > 4 ) {
+        for( int ia = 0; ia < 9; ia++ ) {
+          fprintf ( stdout, "Gp %3d %3d %3d %3d    %d %d    %d %d    %25.16e %25.16e\n",
+               ix                           / (LX*LY*LZ) + g_proc_coords[0]*T,
+              (ix            % (LX*LY*LZ) ) / (LY*LZ)    + g_proc_coords[1]*LX,
+              (ix            % (LY*LZ)    ) / (LZ)       + g_proc_coords[2]*LY,
+              (ix            % LZ         )              + g_proc_coords[3]*LZ,
+              imu, inu, ia/3, ia%3,
+              Gp[ix][imunu][2*ia], Gp[ix][imunu][2*ia+1] );
+        }
+        fprintf ( stdout, "# Gp\n" );
+      }
+
+    }  /* end of loop on hyperplanes */
+  }  /* end of loop on volume */
 
 #if 0
   /********************************************************************
@@ -586,8 +603,26 @@ int G_plaq_rect ( double *** Gp, double *** Gr, double * const gauge_field) {
        ********************************************************************/
       _cm_eq_antiherm_cm ( U1, Gr[ix][imunu] );
       _cm_eq_cm_ti_re ( Gr[ix][imunu], U1, one_over_eight );
-    }
-  }
+
+      /********************************************************************
+       * at high verbosity write G_rect
+       ********************************************************************/
+      if ( g_verbose > 4 ) {
+        for( int ia = 0; ia < 9; ia++ ) {
+          fprintf ( stdout, "Gr %3d %3d %3d %3d    %d %d    %d %d    %25.16e %25.16e\n",
+               ix                           / (LX*LY*LZ) + g_proc_coords[0]*T,
+              (ix            % (LX*LY*LZ) ) / (LY*LZ)    + g_proc_coords[1]*LX,
+              (ix            % (LY*LZ)    ) / (LZ)       + g_proc_coords[2]*LY,
+              (ix            % LZ         )              + g_proc_coords[3]*LZ,
+              imu, inu, ia/3, ia%3,
+              Gr[ix][imunu][2*ia], Gr[ix][imunu][2*ia+1] );
+        }
+        fprintf ( stdout, "# Gr\n" );
+      }
+
+
+    }  /* end of loop on hyperplanes */
+  }  /* end of loop on volume */
 
 #if 0
   /********************************************************************
