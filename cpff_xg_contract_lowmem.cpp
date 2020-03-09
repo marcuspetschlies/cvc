@@ -53,8 +53,8 @@ void usage() {
 
 #define MAX_SMEARING_LEVELS 40
 
-#define _GLUONIC_OPERATORS_PLAQ
-#define _GLUONIC_OPERATORS_CLOV
+#undef _GLUONIC_OPERATORS_PLAQ
+#undef _GLUONIC_OPERATORS_CLOV
 #define _GLUONIC_OPERATORS_RECT
 
 int main(int argc, char **argv) {
@@ -461,6 +461,47 @@ int main(int argc, char **argv) {
       }
     }  /* end of if io_proc == 2  */
 
+
+    /********************************************************************
+     * at high verbosity write G_plaq
+     ********************************************************************/
+    if ( g_verbose > 4 ) {
+      double RR[18];
+      int const imunumap[6][2] ={ {0,1}, {0,2}, {0,3}, {1,2}, {1,3}, {2,3} };
+      for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
+        for ( int imunu = 0; imunu < 6; imunu++ ) {
+
+          double p[9];
+          memcpy ( p, Gr[ix][imunu], 9*sizeof(double) );
+
+          restore_from_generators ( RR, p );
+
+          for( int ia = 0; ia < 9; ia++ ) {
+            fprintf ( stdout, "Gr %3d %3d %3d %3d    %d %d    %d %d    %25.16e %25.16e\n",
+                   ix                           / (LX*LY*LZ) + g_proc_coords[0]*T,
+                  (ix            % (LX*LY*LZ) ) / (LY*LZ)    + g_proc_coords[1]*LX,
+                  (ix            % (LY*LZ)    ) / (LZ)       + g_proc_coords[2]*LY,
+                  (ix            % LZ         )              + g_proc_coords[3]*LZ,
+                  imunumap[imunu][0], imunumap[imunu][1], ia/3, ia%3, RR[2*ia], RR[2*ia+1] );
+          }
+          fprintf ( stdout, "# Gr\n" );
+
+          p[0] = 0.;
+          restore_from_generators ( RR, p );
+
+          for( int ia = 0; ia < 9; ia++ ) {
+            fprintf ( stdout, "Gr-tl %3d %3d %3d %3d    %d %d    %d %d    %25.16e %25.16e\n",
+                   ix                           / (LX*LY*LZ) + g_proc_coords[0]*T,
+                  (ix            % (LX*LY*LZ) ) / (LY*LZ)    + g_proc_coords[1]*LX,
+                  (ix            % (LY*LZ)    ) / (LZ)       + g_proc_coords[2]*LY,
+                  (ix            % LZ         )              + g_proc_coords[3]*LZ,
+                  imunumap[imunu][0], imunumap[imunu][1], ia/3, ia%3, RR[2*ia], RR[2*ia+1] );
+          }
+          fprintf ( stdout, "# Gr-tl\n" );
+
+        }
+      }
+    }
 
     fini_3level_dtable ( &Gr );
 
