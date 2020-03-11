@@ -654,6 +654,26 @@ int contract_diagram_zm4x4_field_ti_co_field ( double _Complex ***sp_out, double
 /***********************************************/
 /***********************************************/
 
+int contract_diagram_zm4x4_field_ti_co_conj_field ( double _Complex ***sp_out, double _Complex ***sp_in, double _Complex *c_in, unsigned int N) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for( unsigned int ir = 0; ir < N; ir++) {
+    zm4x4_eq_zm4x4_ti_co_conj ( sp_out[ir], sp_in[ir], c_in[ir] );
+#if 0
+    if ( ir == 0 && g_verbose > 3 ) {
+      zm4x4_printf ( sp_in[ir], "sp_in", stdout );
+      fprintf(stdout, "# [contract_diagram_zm4x4_field_ti_co_field] c_in = %25.15e %25.16e\n", creal(c_in[ir]), cimag(c_in[ir]));
+    }
+#endif  /* of if 0 */
+  }
+  return(0);
+}  /* end of contract_diagram_zm4x4_field_ti_co_conj_field */
+
+/***********************************************/
+/***********************************************/
+
 int contract_diagram_zm4x4_field_eq_zm4x4_field_ti_co ( double _Complex *** const sp_out, double _Complex *** const sp_in, double _Complex const c_in, unsigned int const N) {
 
 #ifdef HAVE_OPENMP

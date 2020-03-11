@@ -36,6 +36,8 @@ int reorder_to_absolute_time (double _Complex ***sp_out, double _Complex ***sp_i
 int reorder_to_relative_time (double _Complex ***sp_out, double _Complex ***sp_in, int const tsrc, int const dir, unsigned int const N);
 
 int contract_diagram_zm4x4_field_ti_co_field ( double _Complex ***sp_out, double _Complex ***sp_in, double _Complex *c_in, unsigned int N);
+int contract_diagram_zm4x4_field_ti_co_conj_field ( double _Complex ***sp_out, double _Complex ***sp_in, double _Complex *c_in, unsigned int N);
+
 
 int contract_diagram_zm4x4_field_eq_zm4x4_field_ti_co ( double _Complex *** const sp_out, double _Complex *** const sp_in, double _Complex const c_in, unsigned int const N);
 
