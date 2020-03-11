@@ -166,11 +166,13 @@ int G_plaq_rect ( double *** Gp, double *** Gr, double * const gauge_field);
 
 int gluonic_operators ( double ** op, double * const gfield );
 
+int gluonic_operators_projected ( double ** const op, double *** const G );
+
 int gluonic_operators_eo_from_fst ( double ** op, double *** const G );
 
-int G_plaq ( double *** Gp, double * const gauge_field);
+int G_plaq ( double *** Gp, double * const gauge_field, int const antihermitean );
 
-int G_rect ( double *** Gr, double * const gauge_field);
+int G_rect ( double *** Gr, double * const gauge_field, int const antihermitean );
 
 int gluonic_operators_eo_from_fst_projected ( double ** op, double *** const G, int const traceless );
 

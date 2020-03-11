@@ -1007,8 +1007,10 @@ int gluonic_operators_eo_from_fst ( double ** op, double *** const G ) {
  * out
  *   Gp : non-zero field strength tensor components
  *        from plaquettes, 1x1 loops
+ * in
+ *   antihermitean : hermitean = 0, antihermitean = 1
  ********************************************************************/
-int G_plaq ( double *** Gp, double * const gauge_field) {
+int G_plaq ( double *** Gp, double * const gauge_field, int const antihermitean ) {
 
   const int dirpairs[6][2] = { {0,1}, {0,2}, {0,3}, {1,2}, {1,3}, {2,3} };
   const double one_over_four  = 0.250;
@@ -1038,6 +1040,8 @@ int G_plaq ( double *** Gp, double * const gauge_field) {
 #endif
   double symact = 0.;
 #endif
+
+  memset ( Gp[0][0], 0, VOLUME * 54 * sizeof ( double ) );
 
   /********************************************************************
    * calculate elementary plaquettes for all triples (ix, mu, nu )
@@ -1131,7 +1135,12 @@ int G_plaq ( double *** Gp, double * const gauge_field) {
       _cm_pl_eq_cm ( U1, U3 );
 
       _cm_ti_eq_re ( U1, one_over_four );
-      project_to_generators ( Gp[ix][imunu], U1 );
+
+      if ( antihermitean == 0 ) {
+        project_to_generators_hermitean ( Gp[ix][imunu], U1 );
+      } else if ( antihermitean == 1 ) {
+        project_to_generators ( Gp[ix][imunu], U1 );
+      }
 
 #ifdef _SYM_ACTION
 #ifdef HAVE_OPENMP
@@ -1178,8 +1187,10 @@ int G_plaq ( double *** Gp, double * const gauge_field) {
  * out
  *   Gr : non-zero field strength tensor components
  *        from rectangles, 1x2 and 2x1 loops  
+ * in
+ *   antihermitean : hermitean = 0, anti-hermitean = 1
  ********************************************************************/
-int G_rect ( double *** Gr, double * const gauge_field) {
+int G_rect ( double *** Gr, double * const gauge_field, int const antihermitean ) {
 
   const int dirpairs[6][2] = { {0,1}, {0,2}, {0,3}, {1,2}, {1,3}, {2,3} };
   const double one_over_eight = 0.125;
@@ -1304,11 +1315,13 @@ int G_rect ( double *** Gr, double * const gauge_field) {
            *             ------>-----
            *
            ********************************************************************/
-    
+
           _cm_eq_cm_ti_cm( U1, gauge_field + _GGI(ix, imu), rectangles[g_iup[ix][imu]] );
           _cm_eq_cm_ti_cm_dag( U2, U1, gauge_field + _GGI(ix, imu) );
           _cm_pl_eq_cm ( RR, U2 );
-    
+#if 0
+#endif  /* of if 0 */
+
           _cm_eq_cm_dag_ti_cm ( U3, gauge_field + _GGI( g_idn[ix][inu], inu ), gauge_field + _GGI( g_idn[ix][inu], imu ) );
           _cm_eq_cm_ti_cm ( U1, U3, rectangles[ g_idn[ g_iup[ix][imu]][inu] ] );
           _cm_eq_cm_ti_cm_dag ( U2, U1, U3 );
@@ -1333,11 +1346,12 @@ int G_rect ( double *** Gr, double * const gauge_field) {
            *
            *
            ********************************************************************/
-    
+
           _cm_eq_cm_dag_ti_cm ( U1, gauge_field + _GGI( g_idn[ix][imu], imu), rectangles[g_idn[ix][imu]] );
           _cm_eq_cm_ti_cm ( U2, U1, gauge_field + _GGI( g_idn[ix][imu], imu) );
           _cm_pl_eq_cm ( RR, U2 );
-    
+#if 0
+#endif  /* of if 0 */
     
           _cm_eq_cm_ti_cm ( U3, gauge_field + _GGI( g_idn[ g_idn[ix][inu] ][imu], imu ), gauge_field + _GGI( g_idn[ix][inu], inu ) );
           _cm_eq_cm_dag_ti_cm ( U1, U3, rectangles[ g_idn[ g_idn[ix][imu] ][inu]  ] );
@@ -1345,6 +1359,7 @@ int G_rect ( double *** Gr, double * const gauge_field) {
           _cm_pl_eq_cm ( RR, U2 );
 #if 0
 #endif  /* of if 0 */
+
         } else if ( idir == 1 ) {
 
           /********************************************************************
@@ -1359,16 +1374,18 @@ int G_rect ( double *** Gr, double * const gauge_field) {
            *
            *
            ********************************************************************/
-    
+
           _cm_eq_cm_ti_cm( U1, gauge_field + _GGI(ix,inu), rectangles[g_iup[ix][inu]] );
           _cm_eq_cm_ti_cm_dag( U2, U1, gauge_field + _GGI(ix,inu) );
           _cm_pl_eq_cm ( RR, U2 );
-    
+#if 0
+#endif  /* of if 0 */
+
           _cm_eq_cm_dag_ti_cm( U3, gauge_field + _GGI( g_idn[ix][imu], inu), gauge_field + _GGI( g_idn[ix][imu] , imu ) );
           _cm_eq_cm_ti_cm ( U1, rectangles[ g_iup[ g_idn[ix][imu] ][inu] ], U3 );
           _cm_eq_cm_dag_ti_cm ( U2, U3, U1 );
           _cm_pl_eq_cm ( RR, U2 );
-#if 0
+#if 0   
 #endif  /* of if 0 */
     
           /********************************************************************
@@ -1384,26 +1401,35 @@ int G_rect ( double *** Gr, double * const gauge_field) {
            *       --->---      ---->---
            *
            ********************************************************************/
-    
+
           _cm_eq_cm_dag_ti_cm ( U1, gauge_field + _GGI( g_idn[ix][inu], inu ), rectangles[g_idn[ix][inu] ] );
           _cm_eq_cm_ti_cm ( U2, U1, gauge_field + _GGI( g_idn[ix][inu], inu ) );
           _cm_pl_eq_cm ( RR, U2 );
-    
+#if 0
+#endif  /* of if 0 */
+
+
           _cm_eq_cm_ti_cm ( U3, gauge_field + _GGI ( g_idn[ g_idn[ix][inu] ][imu], inu ), gauge_field + _GGI( g_idn[ix][imu], imu ) );
           _cm_eq_cm_dag_ti_cm ( U1, U3, rectangles[ g_idn[ g_idn[ix][inu] ][imu] ] );
           _cm_eq_cm_ti_cm ( U2, U1, U3 );
           _cm_pl_eq_cm ( RR, U2 );
-
-
+#if 0
+#endif  /* of if 0 */
 
         }  /* end of if on idir */
 
         /********************************************************************
          * anti-hermitean part and normalization
          ********************************************************************/
+
         _cm_ti_eq_re ( RR, one_over_eight );
+
         double p[9];
-        project_to_generators ( p, RR );
+        if ( antihermitean == 0 ) {
+          project_to_generators_hermitean ( p, RR );
+        } else if ( antihermitean == 1 ) {
+          project_to_generators ( p, RR );
+        }
  
         Gr[ix][imunu][0] += p[0];
         Gr[ix][imunu][1] += p[1];
@@ -1414,6 +1440,28 @@ int G_rect ( double *** Gr, double * const gauge_field) {
         Gr[ix][imunu][6] += p[6];
         Gr[ix][imunu][7] += p[7];
         Gr[ix][imunu][8] += p[8];
+
+        if ( g_verbose > 4 ) {
+          double U[18], q[9];
+          memcpy ( q, p, 9*sizeof(double) );
+          if ( antihermitean == 0 ) {
+            q[0] = 0.;
+            restore_from_generators_hermitean ( U, q );
+          } else if ( antihermitean == 1 ) {
+            restore_from_generators ( U, q );
+          }
+          const int dir[3] = { imu, (1-idir)*imu + idir*inu, inu };
+
+          for( int ia = 0; ia < 9; ia++ ) {
+            fprintf ( stdout, "RR-tl %3d %3d %3d %3d    %d %d %d     %d %d     %25.16e %25.16e\n",
+                 ix                           / (LX*LY*LZ) + g_proc_coords[0]*T,
+                (ix            % (LX*LY*LZ) ) / (LY*LZ)    + g_proc_coords[1]*LX,
+                (ix            % (LY*LZ)    ) / (LZ)       + g_proc_coords[2]*LY,
+                (ix            % LZ         )              + g_proc_coords[3]*LZ,
+                dir[0], dir[1], dir[2], ia/3, ia%3, U[2*ia], U[2*ia+1] );
+          }
+          fprintf ( stdout, "# RR-tl\n" );
+        }
 
 #ifdef _SYM_ACTION
 #ifdef HAVE_OPENMP
@@ -1611,5 +1659,98 @@ int gluonic_operators_eo_from_fst_projected ( double ** op, double *** const G, 
   fini_2level_dtable ( &pl );
   return( 0 );
 
-}  /* end of gluonic_operators_from_fst */
+}  /* end of gluonic_operators_from_fst_projected */
+
+/****************************************************************************/
+/****************************************************************************/
+
+/****************************************************************************
+ * operators for gluon momentum fraction
+ * use projected fields
+ ****************************************************************************/
+int gluonic_operators_projected ( double ** const op, double *** const G ) {
+
+  double const sqrt_three_over_two = 1.22474487139158904909;
+
+  unsigned int const VOL3 = LX * LY * LZ;
+  double ** pl = init_2level_dtable ( T, 2 );
+  if ( pl == NULL ) {
+    fprintf( stderr, "[gluonic_operators] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+    return(2);
+  }
+
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+#endif
+
+  for ( int it = 0; it < T; it++ ) {
+#ifdef HAVE_OPENMP
+    omp_init_lock(&writelock);
+
+#pragma omp parallel shared(it)
+{
+#endif
+    double pl_tmp[2] = { 0, 0. };
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for ( unsigned int iy = 0; iy < VOL3; iy++) {
+
+      unsigned int const ix = it * VOL3 + iy;
+
+      /* time-like */
+      for ( int nu = 0; nu < 3; nu++ ) {
+        pl_tmp[0] += G[ix][nu][0];
+      }
+
+      /* space-like */
+      for ( int nu = 3; nu < 6; nu++) {
+        pl_tmp[1] += G[ix][nu][0];
+      }
+    }
+
+#ifdef HAVE_OPENMP
+    omp_set_lock(&writelock);
+#endif
+
+    pl[it][0] += pl_tmp[0] * sqrt_three_over_two;
+    pl[it][1] += pl_tmp[1] * sqrt_three_over_two;
+
+#ifdef HAVE_OPENMP
+    omp_unset_lock(&writelock);
+}  /* end of parallel region */
+    omp_destroy_lock(&writelock);
+#endif
+
+  }  /* end of loop on timeslices */
+
+
+#ifdef HAVE_MPI
+
+  double ** buffer = init_2level_dtable ( T, 2 );
+  if ( buffer == NULL ) {
+    fprintf( stderr, "[gluonic_operators] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+    return(3);
+  }
+  if ( MPI_Reduce ( pl[0], buffer[0], 2*T, MPI_DOUBLE, MPI_SUM,  0, g_ts_comm) != MPI_SUCCESS ) {
+    fprintf ( stderr, "[gluonic_operators] Error from MPI_Reduce %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
+
+  if ( MPI_Gather ( buffer[0], 2*T, MPI_DOUBLE, op[0], 2*T, MPI_DOUBLE, 0, g_tr_comm ) != MPI_SUCCESS ) {
+    fprintf ( stderr, "[gluonic_operators] Error from MPI_Gather %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
+
+  fini_2level_dtable ( &buffer );
+#else
+  memcpy ( op[0], pl[0], 2*T_global*sizeof(double) );
+#endif
+
+  fini_2level_dtable ( &pl );
+  return( 0 );
+
+}  /* end of gluonic_operators_projected */
+
 }  /* end of namespace cvc */
