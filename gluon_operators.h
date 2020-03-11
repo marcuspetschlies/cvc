@@ -176,6 +176,7 @@ int G_rect ( double *** Gr, double * const gauge_field, int const antihermitean 
 
 int gluonic_operators_eo_from_fst_projected ( double ** op, double *** const G, int const traceless );
 
+int gluonic_operators_qtop_from_fst_projected ( double * op, double *** const G, int const traceless );
 
 }  /* end of namespace cvc */
 #endif
