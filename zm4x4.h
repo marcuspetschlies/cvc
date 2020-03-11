@@ -343,6 +343,29 @@ static inline void zm4x4_eq_zm4x4_ti_co (double _Complex **r, double _Complex **
 /***********************************************************/
 /***********************************************************/
 
+static inline void zm4x4_eq_zm4x4_ti_co_conj (double _Complex **r, double _Complex **s, double _Complex a ) {
+  double _Complex const c = conj ( a );
+  r[0][ 0] = s[0][ 0] * c;
+  r[0][ 1] = s[0][ 1] * c;
+  r[0][ 2] = s[0][ 2] * c;
+  r[0][ 3] = s[0][ 3] * c;
+  r[0][ 4] = s[0][ 4] * c;
+  r[0][ 5] = s[0][ 5] * c;
+  r[0][ 6] = s[0][ 6] * c;
+  r[0][ 7] = s[0][ 7] * c;
+  r[0][ 8] = s[0][ 8] * c;
+  r[0][ 9] = s[0][ 9] * c;
+  r[0][10] = s[0][10] * c;
+  r[0][11] = s[0][11] * c;
+  r[0][12] = s[0][12] * c;
+  r[0][13] = s[0][13] * c;
+  r[0][14] = s[0][14] * c;
+  r[0][15] = s[0][15] * c;
+}   /* end of zm4x4_eq_zm4x4_ti_co_conj */
+
+/***********************************************************/
+/***********************************************************/
+
 static inline void zm4x4_eq_zm4x4_pl_zm4x4_ti_co (double _Complex **r, double _Complex **s, double _Complex **t, double _Complex c ) {
   r[0][ 0] = s[0][ 0] + t[0][ 0] * c;
   r[0][ 1] = s[0][ 1] + t[0][ 1] * c;
