@@ -53,6 +53,7 @@ void usage() {
 
 #define MAX_SMEARING_LEVELS 40
 
+#define _GLUONIC_OPERATORS_PLAQ
 #define _GLUONIC_OPERATORS_CLOV
 #define _GLUONIC_OPERATORS_RECT
 
@@ -245,6 +246,7 @@ int main(int argc, char **argv) {
       EXIT(14);
     }
 
+#ifdef _GLUONIC_OPERATORS_PLAQ
     /***************************************************************************
      *
      * Measurement from plaqettes
@@ -271,15 +273,18 @@ int main(int argc, char **argv) {
         EXIT(48);
       }
     }  /* end of if io_proc == 2 */
+#endif
 
 #ifdef _GLUONIC_OPERATORS_CLOV
 
     /***********************************************************
-     * 
-     * Measurement with gluonic operators from field strength tensor
-     *
-     * CLOVER DEFINITION
-     *
+     ***********************************************************
+     **
+     ** Measurement with gluonic operators from field strength tensor
+     **
+     ** CLOVER DEFINITION
+     **
+     ***********************************************************
      ***********************************************************/
     double *** Gp = init_3level_dtable ( VOLUME, 6, 9 );
     if ( Gp == NULL ) {
@@ -292,7 +297,7 @@ int main(int argc, char **argv) {
      ***********************************************************/
     gettimeofday ( &ta, (struct timezone *)NULL );
 
-    exitstatus = G_plaq ( Gp, g_gauge_field);
+    exitstatus = G_plaq ( Gp, g_gauge_field, 1);
     if ( exitstatus != 0 ) {
       fprintf ( stderr, "[cpff_xg_contract_lowmem] Error from G_plaq, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(8);
@@ -361,18 +366,108 @@ int main(int argc, char **argv) {
       }
     }  /* end of if io_proc == 2  */
 
+    /***********************************************************/
+    /***********************************************************/
+
+    /***********************************************************
+     * measurement for qtop, EXCLUDING fst trace
+     ***********************************************************/
+    gettimeofday ( &ta, (struct timezone *)NULL );
+
+    exitstatus = gluonic_operators_qtop_from_fst_projected ( &(pl[0][0]), Gp, 1 );
+    if ( exitstatus != 0 ) {
+      fprintf ( stderr, "[cpff_xg_contract_lowmem] Error from gluonic_operators_qtop_from_fst_projected, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(8);
+    }
+
+    gettimeofday ( &tb, (struct timezone *)NULL );
+    show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "gluonic_operators_qtop_from_fst_projected-tl", io_proc==2 );
+
+    if ( io_proc == 2 ) {
+      sprintf ( data_tag, "%s/qtop-clover-tl", stout_tag );
+#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
+      exitstatus = write_aff_contraction ( &(pl[0][0]), affw, NULL, data_tag, T_global, "double" );
+#elif ( defined HAVE_HDF5 )
+      int const dims = T_global;
+      exitstatus = write_h5_contraction ( &(pl[0][0]), NULL, output_filename, data_tag, T_global , "double" , 1, &dims);
+#else
+      exitstatus = 1;
+#endif
+      if ( exitstatus != 0) {
+        fprintf(stderr, "[cpff_xg_contract_lowmem] Error from write_contraction %s %d\n", __FILE__, __LINE__ );
+        EXIT(48);
+      }
+    }  /* end of if io_proc == 2  */
+
+    /***********************************************************/
+    /***********************************************************/
+
+    /***********************************************************
+     * plaquette clover field strength tensors
+     *
+     * HERMITEAN PROJECTION
+     ***********************************************************/
+    gettimeofday ( &ta, (struct timezone *)NULL );
+
+    exitstatus = G_plaq ( Gp, g_gauge_field, 0 );
+    if ( exitstatus != 0 ) {
+      fprintf ( stderr, "[cpff_xg_contract_lowmem] Error from G_plaq, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(8);
+    }
+
+    gettimeofday ( &tb, (struct timezone *)NULL );
+    show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "G_plaq", io_proc==2 );
+
+    /***********************************************************/
+    /***********************************************************/
+
+    /***********************************************************
+     * measurement from symmetric action
+     ***********************************************************/
+    gettimeofday ( &ta, (struct timezone *)NULL );
+
+    exitstatus = gluonic_operators_projected ( pl, Gp );
+    if ( exitstatus != 0 ) {
+      fprintf ( stderr, "[cpff_xg_contract_lowmem] Error from gluonic_operators_projected, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(8);
+    }
+
+    gettimeofday ( &tb, (struct timezone *)NULL );
+    show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "gluonic_operators_eo_from_fst_projected", io_proc==2 );
+
+    if ( io_proc == 2 ) {
+      sprintf ( data_tag, "%s/clover-tr", stout_tag );
+#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
+      exitstatus = write_aff_contraction ( pl[0], affw, NULL, data_tag, 2 * T_global, "double" );
+#elif ( defined HAVE_HDF5 )
+      int const dims = 2 * T_global;
+      exitstatus = write_h5_contraction ( pl[0], NULL, output_filename, data_tag, 2 * T_global , "double", 1, &dims );
+#else
+      exitstatus = 1;
+#endif
+      if ( exitstatus != 0) {
+        fprintf(stderr, "[cpff_xg_contract_lowmem] Error from write_contraction %s %d\n", __FILE__, __LINE__ );
+        EXIT(48);
+      }
+    }  /* end of if io_proc == 2  */
+
     fini_3level_dtable ( &Gp );
 
 #endif  /* of _GLUONIC_OPERATORS_CLOV */
 
+    /***********************************************************/
+    /***********************************************************/
+
 #ifdef _GLUONIC_OPERATORS_RECT
 
     /***********************************************************
-     *
-     * Measurement with gluonic operators from field strength tensor
-     *
-     * RECTANGLE DEFINITION
-     *
+     ***********************************************************
+     **
+     ** Measurement with gluonic operators from field strength tensor
+     **
+     ** RECTANGLE DEFINITION
+     **
+     ***********************************************************
      ***********************************************************/
     double *** Gr = init_3level_dtable ( VOLUME, 6, 9 );
     if ( Gr == NULL ) {
@@ -385,7 +480,7 @@ int main(int argc, char **argv) {
      ***********************************************************/
     gettimeofday ( &ta, (struct timezone *)NULL );
 
-    exitstatus = G_rect ( Gr, g_gauge_field);
+    exitstatus = G_rect ( Gr, g_gauge_field, 1);
     if ( exitstatus != 0 ) {
       fprintf ( stderr, "[cpff_xg_contract_lowmem] Error from G_rect, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(8);
@@ -408,7 +503,7 @@ int main(int argc, char **argv) {
     }
 
     gettimeofday ( &tb, (struct timezone *)NULL );
-    show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "gluonic_operators_eo_from_fst_projected-tl", io_proc==2 );
+    show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "gluonic_operators_eo_from_fst_projected", io_proc==2 );
 
     if ( io_proc == 2 ) {
       sprintf ( data_tag, "%s/rectangle", stout_tag );
@@ -426,6 +521,9 @@ int main(int argc, char **argv) {
       }
     }  /* end of if io_proc == 2  */
 
+    /***********************************************************/
+    /***********************************************************/
+
     /***********************************************************
      *
      * measurement EXCLUDING fst trace
@@ -440,7 +538,7 @@ int main(int argc, char **argv) {
     }
 
     gettimeofday ( &tb, (struct timezone *)NULL );
-    show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "gluonic_operators_eo_from_fst_projected", io_proc==2 );
+    show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "gluonic_operators_eo_from_fst_projected-tl", io_proc==2 );
 
     if ( io_proc == 2 ) {
       sprintf ( data_tag, "%s/rectangle-tl", stout_tag );
@@ -458,10 +556,142 @@ int main(int argc, char **argv) {
       }
     }  /* end of if io_proc == 2  */
 
+    /***********************************************************/
+    /***********************************************************/
+
+    /***********************************************************
+     *
+     * measurement for qtop, EXCLUDING fst trace
+     *
+     ***********************************************************/
+    gettimeofday ( &ta, (struct timezone *)NULL );
+
+    gluonic_operators_qtop_from_fst_projected ( &(pl[0][0]), Gr, 1 );
+    if ( exitstatus != 0 ) {
+      fprintf ( stderr, "[cpff_xg_contract_lowmem] Error from gluonic_operators_qtop_from_fst_projected, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(8);
+    }
+
+    gettimeofday ( &tb, (struct timezone *)NULL );
+    show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "gluonic_operators_qtop_from_fst_projected-tl", io_proc==2 );
+
+    if ( io_proc == 2 ) {
+      sprintf ( data_tag, "%s/qtop-rectangle-tl", stout_tag );
+#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
+      exitstatus = write_aff_contraction ( &(pl[0][0]), affw, NULL, data_tag, T_global, "double" );
+#elif ( defined HAVE_HDF5 )
+      int const dims = T_global;
+      exitstatus = write_h5_contraction ( &(pl[0][0]), NULL, output_filename, data_tag, T_global , "double", 1, &dims );
+#else
+      exitstatus = 1;
+#endif
+      if ( exitstatus != 0) {
+        fprintf(stderr, "[cpff_xg_contract_lowmem] Error from write_contraction %s %d\n", __FILE__, __LINE__ );
+        EXIT(48);
+      }
+    }  /* end of if io_proc == 2  */
+
+    /********************************************************************/
+    /********************************************************************/
+
+    /********************************************************************
+     * at high verbosity write G_rect
+     ********************************************************************/
+    if ( g_verbose > 4 ) {
+      double RR[18];
+      int const imunumap[6][2] ={ {0,1}, {0,2}, {0,3}, {1,2}, {1,3}, {2,3} };
+      for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
+        for ( int imunu = 0; imunu < 6; imunu++ ) {
+
+          double p[9];
+          memcpy ( p, Gr[ix][imunu], 9*sizeof(double) );
+
+          restore_from_generators ( RR, p );
+
+          for( int ia = 0; ia < 9; ia++ ) {
+            fprintf ( stdout, "Gr %3d %3d %3d %3d    %d %d    %d %d    %25.16e %25.16e\n",
+                   ix                           / (LX*LY*LZ) + g_proc_coords[0]*T,
+                  (ix            % (LX*LY*LZ) ) / (LY*LZ)    + g_proc_coords[1]*LX,
+                  (ix            % (LY*LZ)    ) / (LZ)       + g_proc_coords[2]*LY,
+                  (ix            % LZ         )              + g_proc_coords[3]*LZ,
+                  imunumap[imunu][0], imunumap[imunu][1], ia/3, ia%3, RR[2*ia], RR[2*ia+1] );
+          }
+          fprintf ( stdout, "# Gr\n" );
+
+          p[0] = 0.;
+          restore_from_generators ( RR, p );
+
+          for( int ia = 0; ia < 9; ia++ ) {
+            fprintf ( stdout, "Gr-tl %3d %3d %3d %3d    %d %d    %d %d    %25.16e %25.16e\n",
+                   ix                           / (LX*LY*LZ) + g_proc_coords[0]*T,
+                  (ix            % (LX*LY*LZ) ) / (LY*LZ)    + g_proc_coords[1]*LX,
+                  (ix            % (LY*LZ)    ) / (LZ)       + g_proc_coords[2]*LY,
+                  (ix            % LZ         )              + g_proc_coords[3]*LZ,
+                  imunumap[imunu][0], imunumap[imunu][1], ia/3, ia%3, RR[2*ia], RR[2*ia+1] );
+          }
+          fprintf ( stdout, "# Gr-tl\n" );
+
+        }
+      }
+    }
+
+    /***********************************************************/
+    /***********************************************************/
+
+    /***********************************************************
+     * rectangle clover field strength tensors
+     *
+     * HERMITEAN PROJECTION
+     ***********************************************************/
+    gettimeofday ( &ta, (struct timezone *)NULL );
+
+    exitstatus = G_rect ( Gr, g_gauge_field, 0 );
+    if ( exitstatus != 0 ) {
+      fprintf ( stderr, "[cpff_xg_contract_lowmem] Error from G_rect, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(8);
+    }
+
+    gettimeofday ( &tb, (struct timezone *)NULL );
+    show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "G_rect", io_proc==2 );
+
+    /***********************************************************
+     *
+     * measurement from symmetric action
+     *
+     ***********************************************************/
+    gettimeofday ( &ta, (struct timezone *)NULL );
+
+    exitstatus = gluonic_operators_projected ( pl, Gr );
+    if ( exitstatus != 0 ) {
+      fprintf ( stderr, "[cpff_xg_contract_lowmem] Error from gluonic_operators_projected, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(8);
+    }
+
+    gettimeofday ( &tb, (struct timezone *)NULL );
+    show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "gluonic_operators_projected", io_proc==2 );
+
+    if ( io_proc == 2 ) {
+      sprintf ( data_tag, "%s/rectangle-tr", stout_tag );
+#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
+      exitstatus = write_aff_contraction ( pl[0], affw, NULL, data_tag, 2 * T_global, "double" );
+#elif ( defined HAVE_HDF5 )
+      int const dims = 2 * T_global;
+      exitstatus = write_h5_contraction ( pl[0], NULL, output_filename, data_tag, 2 * T_global , "double", 1, &dims );
+#else
+      exitstatus = 1;
+#endif
+      if ( exitstatus != 0) {
+        fprintf(stderr, "[cpff_xg_contract_lowmem] Error from write_contraction %s %d\n", __FILE__, __LINE__ );
+        EXIT(48);
+      }
+    }
 
     fini_3level_dtable ( &Gr );
 
 #endif  /*  of _GLUONIC_OPERATORS_RECT */
+
+    /***************************************************************************/
+    /***************************************************************************/
 
     fini_2level_dtable ( &pl );
 
