@@ -7444,7 +7444,7 @@ int apply_uwerr_real ( double * const data, unsigned int const nmeas, unsigned i
 
   for ( unsigned int i = 0; i < ndata; i++ ) {
 
-    fprintf ( ofs, "%3d %16.7e %16.7e %16.7e %16.7e %16.7e\n", i,
+    fprintf ( ofs, "%3d %25.16e %25.16e %25.16e %25.16e %25.16e\n", i,
       res[i][0], res[i][1], res[i][2], res[i][3], res[i][4] );
   }
 
@@ -7525,7 +7525,7 @@ int apply_uwerr_func ( double * const data, unsigned int const nmeas, unsigned i
   fprintf ( ofs, "#\n" );
 
   for ( unsigned int i = 0; i < nset; i++ ) {
-    fprintf ( ofs, "%3d %16.7e %16.7e %16.7e %16.7e %16.7e\n", i, res[i][0], res[i][1], res[i][2], res[i][3], res[i][4] );
+    fprintf ( ofs, "%3d %25.16e %25.16e %25.16e %25.16e %25.16e\n", i, res[i][0], res[i][1], res[i][2], res[i][3], res[i][4] );
   }
 
   fclose( ofs );
@@ -7798,6 +7798,63 @@ int vdag_gloc_w_scalar_product_pt ( double _Complex **** const vw_mat, double **
 
   return(0);
 }  /* end of vdag_gloc_w_scalar_product_pt */
+
+/****************************************************************************/
+/****************************************************************************/
+
+/***********************************************************
+ * read list of configs and source locations
+ ***********************************************************/
+
+int read_source_coords_list ( int *** const conf_src_list, int const num_conf, int const num_src_per_conf, char * const ensemble_name ) {
+
+  char filename[400];
+  sprintf ( filename, "source_coords.%s.lst" , ensemble_name );
+  FILE *ofs = fopen ( filename, "r" );
+  if ( ofs == NULL ) {
+    fprintf(stderr, "[read_source_coords_list] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__);
+    return(15);
+  }
+
+  char line[100];
+
+  int count = 0;
+  while ( fgets ( line, 100, ofs) != NULL && count < num_conf * num_src_per_conf ) {
+    if ( line[0] == '#' ) {
+      fprintf( stdout, "# [twopt_analyse] comment %s\n", line );
+      continue;
+    }
+
+    sscanf( line, "%c %d %d %d %d %d",
+        conf_src_list[count/num_src_per_conf][count%num_src_per_conf],
+        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+1,
+        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+2,
+        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+3,
+        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+4,
+        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+5 );
+
+    count++;
+  }
+
+  fclose ( ofs );
+
+  if ( g_verbose > 5 ) {
+    for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+      for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+        fprintf ( stdout, "conf_src_list %c %6d %3d %3d %3d %3d\n",
+            (char)conf_src_list[iconf][isrc][0],
+            conf_src_list[iconf][isrc][1],
+            conf_src_list[iconf][isrc][2],
+            conf_src_list[iconf][isrc][3],
+            conf_src_list[iconf][isrc][4],
+            conf_src_list[iconf][isrc][5] );
+
+      }
+    }
+  }
+  return(0);
+}  /* end of read_source_coords_list */
+
 
 /****************************************************************************/
 /****************************************************************************/

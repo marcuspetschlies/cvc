@@ -1138,21 +1138,35 @@ int main(int argc, char **argv) {
           for ( int s1 = 0; s1 < 4; s1++ ) {
           for ( int s2 = 0; s2 < 4; s2++ ) {
             int s5d_sign = sigma_g5d[ gamma_v_list[s1] ] * sigma_g5d[ gamma_v_list[s2] ];
-            int st_sign  = sigma_t[ gamma_v_list[s1] ]   * sigma_t[ gamma_v_list[s2] ];
+            int st_sign  = sigma_t[ gamma_v_list[s1] ]   * sigma_t[ gamma_v_list[s2] ] * loop_st_sign;
 
             for ( int it = 0; it < T_global; it++ ) {
 
               for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
 
-                hvp2[iconf][imom][s1][s2][2*it  ] += (
-                  + ( 1 + s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it  ]
-                  + ( st_sign + s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it  ]
-                  );
+                if ( loop_type == 1 ) {
+                  /* dOp case */
+                  hvp2[iconf][imom][s1][s2][2*it  ] += (
+                    + ( 1 + s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it  ]
+                    - ( st_sign + s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it  ]
+                    );
 
-                hvp2[iconf][imom][s1][s2][2*it+1] += (
-                  + ( 1 - s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it+1]
-                  + ( st_sign - s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it+1]
-                  );
+                  hvp2[iconf][imom][s1][s2][2*it+1] += (
+                    + ( 1 - s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it+1]
+                    - ( st_sign - s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it+1]
+                    );
+                } else if ( loop_type == 2 ) {
+                  /* Scalar case */
+                  hvp2[iconf][imom][s1][s2][2*it  ] += (
+                    + ( 1 + s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it  ]
+                    + ( st_sign + s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it  ]
+                    );
+
+                  hvp2[iconf][imom][s1][s2][2*it+1] += (
+                    + ( 1 - s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it+1]
+                    + ( st_sign - s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it+1]
+                    );
+                }
               }
               hvp2[iconf][imom][s1][s2][2*it  ] /= (double)num_src_per_conf;
               hvp2[iconf][imom][s1][s2][2*it+1] /= (double)num_src_per_conf;
@@ -1180,7 +1194,7 @@ int main(int argc, char **argv) {
           fprintf(stderr, "[p2gg_analyse_wdisc] Error from init_6level_dtable %s %d\n", __FILE__, __LINE__);
           EXIT(16);
         }
-
+#pragma omp parallel for
         for ( int iconf = 0; iconf < num_conf; iconf++ ) {
 
           for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
@@ -1200,15 +1214,36 @@ int main(int argc, char **argv) {
 
                 for ( int it = 0; it < T_global; it++ ) {
 
-                  pgg_disc[iconf][isrc][imom][s1][s2][2*it  ] = (
-                    + ( 1 + s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it  ] 
-                    + ( st_sign + s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it  ]
-                    ) * loop_pgg[iconf][2*tseq+loop_type_reim];
+/****************************************
+ *
+ * This is a hack;
+ * better to use vertex quantum numbers instead
+ *
+ ****************************************/
+                  if ( loop_type == 1 ) {
+                    /* dOp case */
+                    pgg_disc[iconf][isrc][imom][s1][s2][2*it  ] = (
+                      + ( 1 + s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it  ] 
+                      - ( st_sign + s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it  ]
+                      ) * loop_pgg[iconf][2*tseq+loop_type_reim];
 
-                  pgg_disc[iconf][isrc][imom][s1][s2][2*it+1] = (
-                    + ( 1 - s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it+1] 
-                    + ( st_sign - s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it+1]
-                    ) * loop_pgg[iconf][2*tseq+loop_type_reim];
+                    pgg_disc[iconf][isrc][imom][s1][s2][2*it+1] = (
+                      + ( 1 - s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it+1] 
+                      - ( st_sign - s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it+1]
+                      ) * loop_pgg[iconf][2*tseq+loop_type_reim];
+
+                  } else if ( loop_type == 2 ) {
+                    /* Scalar */
+                    pgg_disc[iconf][isrc][imom][s1][s2][2*it  ] = (
+                      + ( 1 + s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it  ] 
+                      + ( st_sign + s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it  ]
+                      ) * loop_pgg[iconf][2*tseq+loop_type_reim];
+
+                    pgg_disc[iconf][isrc][imom][s1][s2][2*it+1] = (
+                      + ( 1 - s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it+1] 
+                      + ( st_sign - s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it+1]
+                      ) * loop_pgg[iconf][2*tseq+loop_type_reim];
+                  }
                 }
               }}
             }
@@ -1416,12 +1451,8 @@ int main(int argc, char **argv) {
           }
 
           if ( write_data == 1 ) {
-            sprintf ( obs_name, "pgg_disc.%s.%s.%s.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s.dat", correlator_prefix[operator_type], flavor_tag[operator_type],
-                loop_type_tag[loop_type],
-                seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id, sequential_source_timeslice,
-                  sink_momentum_list[0][0], sink_momentum_list[0][1], sink_momentum_list[0][2], reim_str[ireim] );
-
-            FILE * ofs = fopen ( obs_name, "w" );
+            sprintf ( filename, "%s.corr", obs_name );
+            FILE * ofs = fopen ( filename, "w" );
             if ( ofs == NULL ) {
               fprintf ( stdout, "[p2gg_analyse_wdisc] Error from fopen for file %s %s %d\n", obs_name, __FILE__, __LINE__ );
               EXIT(12);
@@ -1492,21 +1523,20 @@ int main(int argc, char **argv) {
           }
 
           if ( write_data == 1 ) {
-            sprintf ( obs_name, "pgg_disc.%s.%s.%s.sub.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s", correlator_prefix[operator_type], flavor_tag[operator_type],
-                loop_type_tag[loop_type],
-                seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id, sequential_source_timeslice,
-                  sink_momentum_list[0][0], sink_momentum_list[0][1], sink_momentum_list[0][2], reim_str[ireim] );
-
-            FILE * ofs = fopen ( obs_name, "w" );
+            sprintf ( filename, "%s.corr", obs_name );
+            FILE * ofs = fopen ( filename, "w" );
             if ( ofs == NULL ) {
               fprintf ( stdout, "[p2gg_analyse_wdisc] Error from fopen for file %s %s %d\n", obs_name, __FILE__, __LINE__ );
               EXIT(12);
             }
 
             for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-              for ( int tau = -T_global/2+1; tau <= T_global/2; tau++ ) {
+              /* for ( int tau = -T_global/2+1; tau <= T_global/2; tau++ ) */
+              for ( int tau = 0; tau < T_global; tau++ )
+              {
                 int const it = ( tau < 0 ) ? tau + T_global : tau;
-                fprintf ( ofs, "%5d%25.16e%25.16e%25.16e%8d\n", tau, data[iconf][it], data[iconf][T_global + it], data[iconf][2*T_global], conf_src_list[iconf][0][0] );
+                fprintf ( ofs, "%5d%25.16e%25.16e%25.16e  %c%8d%4d\n", tau, data[iconf][it], data[iconf][T_global + it], data[iconf][2*T_global], 
+                    conf_src_list[iconf][0][0], conf_src_list[iconf][0][1],  conf_src_list[iconf][0][2] );
               }
             }
             fclose ( ofs );
