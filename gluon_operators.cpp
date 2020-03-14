@@ -1778,7 +1778,7 @@ int gluonic_operators_projected ( double ** const op, double *** const G ) {
  ****************************************************************************/
 int gluonic_operators_qtop_from_fst_projected ( double * op, double *** const G, int const traceless ) {
 
-  double const qtop_norm = 1. / ( 32. * M_PI * M_PI );
+  double const qtop_norm = -1. / ( 8. * M_PI * M_PI );
   unsigned int const VOL3 = LX * LY * LZ;
   double * pl = init_1level_dtable ( T );
   if ( pl == NULL ) {
