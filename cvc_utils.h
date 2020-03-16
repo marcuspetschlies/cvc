@@ -229,10 +229,6 @@ int vdag_gloc_w_scalar_product ( double _Complex ***** const vw_mat, double *** 
 int vdag_gloc_w_scalar_product_pt ( double _Complex **** const vw_mat, double *** const veo,  int const nv, double ** const weo, int const iweo,
     int const pt_number, int  (* const pt_list)[4] , int const gamma_id_number, int * const gamma_id_list );
 
-int gluonic_operators ( double ** op, double * const gfield );
-
-int gluonic_operators_eo_from_fst ( double ** op, double *** const G );
-
 /***************************************************************************
  * set number of openmp threads
  ***************************************************************************/
@@ -271,6 +267,9 @@ int apply_uwerr_real ( double * const data, unsigned int const nmeas, unsigned i
 
 int apply_uwerr_func ( double * const data, unsigned int const nmeas, unsigned int const ndata, unsigned int const nset, int const narg, int * const arg_first, int * const arg_stride, char * obs_name,
    dquant func, dquant dfunc );
+
+int read_source_coords_list ( int *** const conf_src_list, int const num_conf, int const num_src_per_conf, char * const ensemble_name );
+
 }  /* end of namespace cvc */
 #endif
 

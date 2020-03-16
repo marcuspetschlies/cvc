@@ -36,7 +36,7 @@ int dratio_1_1(void *param , void *v_in, double *v_out) {
   v_out[zaehler] = 1. / ((double*)param)[nenner];
   /* derivative w.r.t. nenner */
   v_out[nenner] =
-    -((double*)param)[zaehler] / ( _SQR( ((double*)param)[nenner] ) );
+    -((double*)param)[zaehler] / ( _POW2( ((double*)param)[nenner] ) );
 
   return(0);
 }  /* end of dratio_1_1 */
@@ -72,13 +72,13 @@ int dratio_1_1_sub ( void *param , void *v_in, double *v_out) {
   v_out[zaehler1] = 1. / ((double*)param)[nenner1];
 
   /* derivative w.r.t. nenner1 */
-  v_out[nenner1 ] = -((double*)param)[zaehler1] / ( _SQR( ((double*)param)[nenner1] ) );
+  v_out[nenner1 ] = -((double*)param)[zaehler1] / ( _POW2( ((double*)param)[nenner1] ) );
 
   /* derivative w.r.t. zaehler2 */
   v_out[zaehler2] = -1. / ((double*)param)[nenner2];
 
   /* derivative w.r.t. nenner2 */
-  v_out[nenner2 ] =  ((double*)param)[zaehler2] / ( _SQR( ((double*)param)[nenner2] ) );
+  v_out[nenner2 ] =  ((double*)param)[zaehler2] / ( _POW2( ((double*)param)[nenner2] ) );
 
   return(0);
 }  /* end of dratio_1_1_sub */
@@ -124,12 +124,13 @@ int dlog_ratio_1_1(void *param , void *v_in, double *v_out) {
  ********************************************************/
 int acosh_ratio ( void * param , void * v_in, double * v_out) {
  
-  int * trange = (int*)v_in;
-  int zaehler1 = trange[0];
-  int zaehler2 = trange[1];
-  int nenner   = trange[2];
+  const int * trange = (int*)v_in;
+  const int zaehler1 = trange[0];
+  const int zaehler2 = trange[1];
+  const int nenner   = trange[2];
+  const int tau = zaehler2 - nenner;
 
-  *v_out = acosh( ( ((double*)param)[zaehler1] + ((double*)param)[zaehler2] ) / ((double*)param)[nenner] * 0.5 );
+  *v_out = acosh( ( ((double*)param)[zaehler1] + ((double*)param)[zaehler2] ) / ((double*)param)[nenner] * 0.5 ) / (double)tau;
   return(0);
 }  /* end of acosh_ratio */
 
@@ -138,13 +139,14 @@ int acosh_ratio ( void * param , void * v_in, double * v_out) {
  ********************************************************/
 int dacosh_ratio ( void *param , void *v_in, double *v_out) {
 
-  int *trange = (int*)v_in;
-  int zaehler1 = trange[0];
-  int zaehler2 = trange[1];
-  int nenner   = trange[2];
+  const int *trange = (int*)v_in;
+  const int zaehler1 = trange[0];
+  const int zaehler2 = trange[1];
+  const int nenner   = trange[2];
+  const int tau = zaehler2 - nenner;
 
   double const x =  ( ((double*)param)[zaehler1] + ((double*)param)[zaehler2] ) / ((double*)param)[nenner] * 0.5;
-  double const dacoshx = 1. / sqrt( x*x - 1. );
+  double const dacoshx = 1. / sqrt( x*x - 1. ) / (double)tau;
 
   /* derivative w.r.t. zaehler1 */
   v_out[zaehler1] =  0.5 / ((double*)param)[nenner] * dacoshx;
@@ -153,7 +155,7 @@ int dacosh_ratio ( void *param , void *v_in, double *v_out) {
   v_out[zaehler2] =  0.5 / ((double*)param)[nenner] * dacoshx;
 
   /* derivative w.r.t. nenner */
-  v_out[nenner]  = -(  ((double*)param)[zaehler1] + ((double*)param)[zaehler2] ) / _SQR( ((double*)param)[nenner] ) * dacoshx * 0.5;
+  v_out[nenner]  = -(  ((double*)param)[zaehler1] + ((double*)param)[zaehler2] ) / _POW2( ((double*)param)[nenner] ) * dacoshx * 0.5;
 
   return(0);
 }  /* end of dacosh_ratio */
@@ -405,7 +407,7 @@ int ratio_1_2_mi_3 ( void * param , void * v_in, double * v_out) {
   int * const trange = (int*)v_in;
   int const i1  = trange[0];
   int const i2  = trange[1];
-  int const i3  = trange[1];
+  int const i3  = trange[2];
 
   *v_out = ((double*)param)[i1] / ((double*)param)[i2] - ((double*)param)[i3];
   return(0);
@@ -423,7 +425,7 @@ int dratio_1_2_mi_3(void *param , void *v_in, double *v_out) {
   /* derivative w.r.t. zaehler */
   v_out[i1] = 1. / ((double*)param)[i2];
   /* derivative w.r.t. nenner */
-  v_out[i2] = -((double*)param)[i1] / ( _SQR( ((double*)param)[i2] ) );
+  v_out[i2] = -((double*)param)[i1] / ( _POW2( ((double*)param)[i2] ) );
   /* derivative w.r.t. subtraction */
   v_out[i3] = -1.;
 

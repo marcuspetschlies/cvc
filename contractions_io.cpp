@@ -861,7 +861,7 @@ int write_vdag_gloc_v_to_file ( double _Complex ***** vv, int const nv, int cons
 
         struct AffNode_s * affdir = aff_writer_mkpath ( affw, affn, key );
         if ( affdir == NULL ) {
-          fprintf ( stderr, "[write_vdag_gloc_v_to_file] Error from aff_writer_mkpath %d %s %d\n", __FILE__, __LINE__);
+          fprintf ( stderr, "[write_vdag_gloc_v_to_file] Error from aff_writer_mkpath %s %d\n", __FILE__, __LINE__);
           return(5);
         }
 
@@ -892,11 +892,65 @@ int write_vdag_gloc_v_to_file ( double _Complex ***** vv, int const nv, int cons
 #ifdef HAVE_HDF5
 
 /***************************************************************************
+ * write attribute
+ *
+ ***************************************************************************/
+int write_h5_attribute ( const char * filename, const char * attr_name, const char * info ) {
+
+  herr_t status;
+
+  /* hid_t obj_id = H5Oopen ( , , ); */
+  hid_t file_id = H5Fopen ( filename, H5F_ACC_RDWR, H5P_DEFAULT );
+  if ( file_id < 0 ) {
+    fprintf( stderr, "[write_h5_attribute] Error from H5FOpen, status was %ld %s %d\n", file_id, __FILE__, __LINE__ );
+    return(1);
+  }
+
+  hid_t attrdat_id = H5Screate(H5S_SCALAR);
+  if ( attrdat_id < 0 ) {
+    fprintf( stderr, "[write_h5_attribute] Error from H5Screate, status was %ld %s %d\n", attrdat_id, __FILE__, __LINE__ );
+    return(1);
+  }
+
+  hid_t type_id = H5Tcopy(H5T_C_S1);
+
+  H5Tset_size(type_id, strlen( info ) );
+
+  hid_t attr_id = H5Acreate2 ( file_id, attr_name, type_id, attrdat_id, H5P_DEFAULT, H5P_DEFAULT);
+  if ( attr_id < 0 ) {
+    fprintf( stderr, "[write_h5_attribute] Error from H5Acreate2, status was %ld %s %d\n", attr_id, __FILE__, __LINE__ );
+    return(1);
+  }
+
+  status = H5Awrite ( attr_id, type_id, info );
+  if ( status < 0 ) {
+    fprintf( stderr, "[write_h5_attribute] Error from H5Awrite, status was %d %s %d\n", status, __FILE__, __LINE__ );
+    return(1);
+  }
+
+  H5Aclose(attr_id);
+
+  H5Tclose(type_id);
+
+  H5Sclose(attrdat_id);
+
+  status = H5Fclose ( file_id );
+  if ( status < 0 ) {
+    fprintf( stderr, "[write_h5_attribute] Error from H5Awrite, status was %d %s %d\n", status, __FILE__, __LINE__ );
+    return(1);
+  }
+
+  return (0);
+}  /* end of write_h5_attribute */
+
+
+
+/***************************************************************************
  * write contraction data to file
  *
  ***************************************************************************/
 
-int write_h5_contraction ( void * const contr, void * const awriter, void * const afilename, char * tag, unsigned int const nc) {
+int write_h5_contraction ( void * const contr, void * const awriter, void * const afilename, char * tag, unsigned int const nc, const char * data_type, int const ncdim, const int * const cdim ) {
 
   char * filename = (char *)afilename;
   if ( filename == NULL ) {
@@ -949,32 +1003,32 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
       hid_t fapl_id = H5P_DEFAULT;
       /*  hid_t H5Fopen ( const char *name, unsigned flags, hid_t fapl_id ) */
       file_id = H5Fopen (         filename,         flags,        fapl_id );
+      if ( file_id < 0 ) {
+        fprintf ( stderr, "[write_h5_contraction] Error from H5Fopen for filename %s %s %d\n", filename, __FILE__, __LINE__ );
+        return( 1 );
+      }
     }
 
     if ( g_verbose > 0 ) fprintf ( stdout, "# [write_h5_contraction] file_id = %ld\n", file_id );
 
     /***************************************************************************
-     * H5 data space and data type
-     ***************************************************************************/
-    hid_t dtype_id = H5Tcopy( H5T_NATIVE_DOUBLE );
-    status = H5Tset_order ( dtype_id, H5T_ORDER_LE );
-    /* big_endian() ?  H5T_IEEE_F64BE : H5T_IEEE_F64LE; */
-
-    hsize_t dims[1];
-    dims[0] = nc;    /* number of double elements */
-
-    /*
-               int rank                             IN: Number of dimensions of dataspace.
-               const hsize_t * current_dims         IN: Array specifying the size of each dimension.
-               const hsize_t * maximum_dims         IN: Array specifying the maximum size of each dimension.
-               hid_t H5Screate_simple( int rank, const hsize_t * current_dims, const hsize_t * maximum_dims )
-     */
-    hid_t space_id = H5Screate_simple(        1,                         dims,                          NULL);
-
-    /***************************************************************************
      * some default settings for H5Dwrite
      ***************************************************************************/
-    hid_t mem_type_id   = H5T_NATIVE_DOUBLE;
+    hid_t dtype_id;
+    hid_t mem_type_id;
+    if ( strcmp( data_type , "double" ) == 0 ) {
+      dtype_id = H5Tcopy( H5T_NATIVE_DOUBLE );
+      mem_type_id   = H5T_NATIVE_DOUBLE;
+    } else if ( strcmp( data_type , "int" ) == 0 ) {
+      dtype_id = H5Tcopy( H5T_NATIVE_INT );
+      mem_type_id   = H5T_NATIVE_INT;
+    } else if ( strcmp( data_type , "char" ) == 0 ) {
+      dtype_id = H5Tcopy( H5T_NATIVE_CHAR );
+      mem_type_id   = H5T_NATIVE_CHAR;
+    } else {
+      fprintf ( stdout, "[write_h5_contraction] Error, unrecognized data_type %s %s %d\n", data_type, __FILE__, __LINE__ );
+      return ( 8 );
+    }
     hid_t mem_space_id  = H5S_ALL;
     hid_t file_space_id = H5S_ALL;
     hid_t xfer_plit_id  = H5P_DEFAULT;
@@ -986,6 +1040,30 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
     /* size_t size_hint    = 0; */
 
   /***************************************************************************
+   * H5 data space and data type
+   ***************************************************************************/
+  status = H5Tset_order ( dtype_id, H5T_ORDER_LE );
+  /* big_endian() ?  H5T_IEEE_F64BE : H5T_IEEE_F64LE; */
+
+  /* hsize_t dims[1];
+  dims[0] = nc;*/    /* number of double elements */
+
+  hsize_t * dims = (hsize_t*) malloc ( ncdim * sizeof ( hsize_t ) );
+  for( int i=0; i<ncdim;i++ ) {
+    dims[i] = cdim[i];
+  }
+
+  /*
+             int rank                             IN: Number of dimensions of dataspace.
+             const hsize_t * current_dims         IN: Array specifying the size of each dimension.
+             const hsize_t * maximum_dims         IN: Array specifying the maximum size of each dimension.
+             hid_t H5Screate_simple( int rank, const hsize_t * current_dims, const hsize_t * maximum_dims )
+   */
+  hid_t space_id = H5Screate_simple(    ncdim,                         dims,                          NULL);
+
+  free ( dims );
+
+  /***************************************************************************
    * create the target (sub-)group and all
    * groups in hierarchy above if they don't exist
    ***************************************************************************/
@@ -994,40 +1072,66 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
   char grp_name[400], grp_name_tmp[400];
   char * grp_ptr = NULL;
   char grp_sep[] = "/";
+  char * dataset_name = NULL;
   strcpy ( grp_name, tag );
   strcpy ( grp_name_tmp, grp_name );
   if ( g_verbose > 1 ) fprintf ( stdout, "# [write_h5_contraction] full grp_name = %s\n", grp_name );
   grp_ptr = strtok ( grp_name_tmp, grp_sep );
-
+  
   while ( grp_ptr != NULL ) {
-    hid_t grp;
-    hid_t loc_id = ( grp_list_nmem == 0 ) ? file_id : grp_list[grp_list_nmem-1];
-    if ( g_verbose > 1 ) fprintf ( stdout, "# [write_h5_contraction] grp_ptr = %s\n", grp_ptr );
-
-    grp = H5Gopen2( loc_id, grp_ptr, gapl_id );
-    if ( grp < 0 ) {
-      fprintf ( stderr, "[write_h5_contraction] Error from H5Gopen2 for group %s, status was %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
-      grp = H5Gcreate2 (       loc_id,         grp_ptr,       lcpl_id,       gcpl_id,       gapl_id );
-      if ( grp < 0 ) {
-        fprintf ( stderr, "[write_h5_contraction] Error from H5Gcreate2 for group %s, status was %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
-        return ( 6 );
-      } else {
-        if ( g_verbose > 1 ) fprintf ( stdout, "# [write_h5_contraction] created group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
-      }
-    } else {
-      if ( g_verbose > 1 ) fprintf ( stdout, "# [write_h5_contraction] opened group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
-    }
     grp_ptr = strtok(NULL, grp_sep );
-
-    grp_list[grp_list_nmem] = grp;
     grp_list_nmem++;
+  }
+
+  if ( g_verbose > 4 ) {
+    fprintf ( stdout, "# [write_h5_contraction] grp_name %s grp_name_tmp %s  grp_list_nmem %d %s %d\n", grp_name, grp_name_tmp, grp_list_nmem, __FILE__, __LINE__ );
+  }
+
+  strcpy ( grp_name_tmp, grp_name );
+  grp_ptr = strtok ( grp_name_tmp, grp_sep );
+  int imem = 0;
+  while ( grp_ptr != NULL ) {
+    if ( imem == grp_list_nmem - 1 ) {
+      dataset_name = grp_ptr;
+    } else {
+      hid_t grp;
+      hid_t loc_id = ( imem == 0 ) ? file_id : grp_list[imem-1];
+      if ( g_verbose > 1 ) fprintf ( stdout, "# [write_h5_contraction] grp_ptr = %s\n", grp_ptr );
+
+      grp = H5Gopen2( loc_id, grp_ptr, gapl_id );
+      if ( grp < 0 ) {
+        fprintf ( stderr, "[write_h5_contraction] Error from H5Gopen2 for group %s, status was %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
+        grp = H5Gcreate2 (       loc_id,         grp_ptr,       lcpl_id,       gcpl_id,       gapl_id );
+        if ( grp < 0 ) {
+          fprintf ( stderr, "[write_h5_contraction] Error from H5Gcreate2 for group %s, status was %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
+          return ( 6 );
+        } else {
+          if ( g_verbose > 1 ) fprintf ( stdout, "# [write_h5_contraction] created group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
+        }
+      } else {
+        if ( g_verbose > 1 ) fprintf ( stdout, "# [write_h5_contraction] opened group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
+      }
+      grp_list[imem] = grp;
+    }
+
+    grp_ptr = strtok(NULL, grp_sep );
+    imem++;
   }  /* end of loop on sub-groups */
+
+  if ( g_verbose > 4 ) {
+    fprintf ( stdout, "# [write_h5_contraction] dataset_name %s  %s %d\n", dataset_name, __FILE__, __LINE__ );
+  }
 
   /***************************************************************************
    * write data set
    ***************************************************************************/
 
-  hid_t loc_id = ( grp_list_nmem == 0 ) ? file_id : grp_list[grp_list_nmem - 1 ];
+  /* hid_t loc_id = ( grp_list_nmem == 0 ) ? file_id : grp_list[grp_list_nmem - 1 ]; */
+  hid_t loc_id = ( grp_list_nmem == 1 ) ? file_id : grp_list[grp_list_nmem - 2 ];
+  if ( loc_id < 0 ) {
+    fprintf(stderr, "[write_h5_contraction] Error , loc_id < 0 %s %d\n", __FILE__, __LINE__);
+    return(18);
+  }
 
   /***************************************************************************
    * create a data set
@@ -1044,11 +1148,16 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
 
                    hid_t H5Dcreate ( hid_t loc_id, const char *name, hid_t dtype_id, hid_t space_id, hid_t lcpl_id, hid_t dcpl_id, hid_t dapl_id ) 
        */
-  hid_t dataset_id = H5Dcreate (       loc_id,             tag,       dtype_id,       space_id,       lcpl_id,       dcpl_id,       dapl_id );
+  /* hid_t dataset_id = H5Dcreate (       loc_id,             tag,       dtype_id,       space_id,       lcpl_id,       dcpl_id,       dapl_id ); */
+  hid_t dataset_id = H5Dcreate (       loc_id,         dataset_name,       dtype_id,       space_id,       lcpl_id,       dcpl_id,       dapl_id );
+  if ( dataset_id < 0 ) {
+    fprintf(stderr, "[write_h5_contraction] Error from H5Dcreate %s %d\n", __FILE__, __LINE__);
+    return(19);
+  }
 
-      /***************************************************************************
-       * write the current data set
-       ***************************************************************************/
+  /***************************************************************************
+   * write the current data set
+   ***************************************************************************/
       /*
                hid_t dataset_id           IN: Identifier of the dataset to write to.
                hid_t mem_type_id          IN: Identifier of the memory datatype.
@@ -1086,7 +1195,9 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
   /***************************************************************************
    * close all (sub-)groups in reverse order
    ***************************************************************************/
-  for ( int i = grp_list_nmem - 1; i>= 0; i-- ) {
+  /* for ( int i = grp_list_nmem - 1; i>= 0; i-- ) */
+  for ( int i = grp_list_nmem - 2; i>= 0; i-- )
+  {
     status = H5Gclose ( grp_list[i] );
     if( status < 0 ) {
       fprintf(stderr, "[write_h5_contraction] Error from H5Gclose, status was %d %s %d\n", status, __FILE__, __LINE__);

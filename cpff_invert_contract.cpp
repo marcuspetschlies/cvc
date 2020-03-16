@@ -101,10 +101,10 @@ int main(int argc, char **argv) {
   int color_dilution = 1;
 
 
-  /* int const gamma_current_number = 10;
-  int gamma_current_list[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }; */
-  int const gamma_current_number = 2;
-  int gamma_current_list[10] = {0, 1 };
+  int const gamma_current_number = 10;
+  int gamma_current_list[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+  /* int const gamma_current_number = 2;
+  int gamma_current_list[10] = {0, 1 }; */
 
   char data_tag[400];
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )

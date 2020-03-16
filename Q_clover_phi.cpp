@@ -178,6 +178,9 @@ void clover_term_init (double***s, int nmat) {
   }
 }  /* end of clover_term_init */
 
+/***********************************************************
+ * clover term, even-odd preconditioned
+ ***********************************************************/
 void clover_term_eo (double**s, double*gauge_field) {
 
   const double norm  = 0.25;
@@ -331,6 +334,9 @@ void clover_term_eo (double**s, double*gauge_field) {
 
 }  /* end of clover_term */
 
+/***********************************************************
+ * clover matrix for M_ee / M_oo
+ ***********************************************************/
 void clover_mzz_matrix (double**mzz, double**cl, double mu, double csw) {
 
   const double mutilde = 2. * g_kappa * mu;
@@ -1865,229 +1871,7 @@ int Q_clover_eo_invert_subspace_stochastic_timeslice (
 }  /* end of Q_clover_eo_invert_subspace_stochastic_timeslice */
 #endif  /* of if 0  */
 
-
 /********************************************************************/
 /********************************************************************/
-
-/********************************************************************
- * out
- *   Gp : non-zero field strength tensor components
- *        from plaquettes, 1x1 loops
- *   Gr : non-zero field strength tensor components
- *        from rectangles, 1x2 and 2x1 loops  
- ********************************************************************/
-int G_plaq_rect ( double *** Gp, double *** Gr, double * const gauge_field) {
-
-  const int dirpairs[6][2] = { {0,1}, {0,2}, {0,3}, {1,2}, {1,3}, {2,3} };
-  const int dirpairsinv[4][4] = { 
-      { -1,  0,  1,  2},
-      {  0, -1,  3,  4},
-      {  1,  3, -1,  5},
-      {  2,  4,  5, -1} };
- 
-  const double one_over_four  = 0.250;
-  const double one_over_eight = 0.125;
-
-  xchanger_type x_plaq, x_rect;
-  mpi_init_xchanger ( &x_plaq, 108 );
-  mpi_init_xchanger ( &x_rect, 432 );
-
-
-  double *** plaquettes = init_3level_dtable ( VOLUMEPLUSRAND, 6, 18 );
-  if ( plaquettes == NULL ) {
-    fprintf ( stderr, "[clover_rectangle_term] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
-    return(1);
-  }
-
-#ifdef HAVE_MPI
-  /********************************************************************
-   * exchange gauge field to be sure
-   ********************************************************************/
-  xchange_gauge_field ( gauge_field );
-#endif
-
-  /********************************************************************
-   * calculate elementary plaquettes for all triples (ix, mu, nu )
-   ********************************************************************/
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-  for ( unsigned int ix = 0; ix < VOLUME; ix++ )
-  {
-  
-    double U1[18], U2[18];
-
-    for ( int imunu = 0; imunu < 6; imunu++) {
-       
-      const int imu = dirpairs[imunu][0];
-      const int inu = dirpairs[imunu][1];
-
-        /********************************************************************
-         * P <- [ U_mu(x) U_nu(x+mu) ] * [ U_nu(x) U_mu(x+nu) ]^+
-         *   =  U_mu(x) U_nu(x+mu) U_mu(x+nu)^+ U_nu(x)^+
-         *
-         * x+nu >    x+mu+nu
-         *   _______
-         *  |       |
-         *  |       |
-         * ^|       | 
-         * _|_______|
-         *  |x  <    x + mu
-         *
-         ********************************************************************/
-        /********************************************************************
-         * 2 corners,
-         * (U1) U_mu(x) * U_nu(x+mu)
-         * (U2) U_nu(x) * U_mu(x+nu)
-         * then multply 
-         * U1 x U2^+ = U_mu(x) * U_nu(x+mu) * U_mu(x+nu)^+ * U_nu(x)^+
-         *           = U(x,x+mu) * U(x+mu,x+mu+nu) * U(x+nu+mu,x+nu) * U(x+nu,x)
-         ********************************************************************/
-        _cm_eq_cm_ti_cm ( U1, gauge_field + _GGI(ix, imu), gauge_field + _GGI( g_iup[ix][imu], inu) );
-        _cm_eq_cm_ti_cm ( U2, gauge_field + _GGI(ix, inu), gauge_field + _GGI( g_iup[ix][inu], imu) );
-        _cm_eq_cm_ti_cm_dag ( plaquettes[ix][imunu], U1, U2 );
- 
-    }  /* end of loop on direction pairs */
-  }  /* end of loop on VOLUME */
-
-  /********************************************************************
-   * xchange the plaquettes,
-   *   INCLUDING edges
-   ********************************************************************/
-#ifdef HAVE_MPI
-  mpi_xchanger ( plaquettes[0][0], &x_plaq );
-#endif
-
-  /********************************************************************
-   * build G_munu from plaquettes
-   ********************************************************************/
-#ifdef HAVE_OPENMP
-#pragma omp parallel for shared(plaquettes)
-#endif
-  for ( unsigned int ix = 0; ix < VOLUME; ix++ )
-  {
-  
-    double U1[18];
-    
-    for ( int imunu = 0; imunu < 6; imunu++) {
-
-      const int imu = dirpairs[imunu][0]; 
-      const int inu = dirpairs[imunu][1]; 
-
-      /********************************************************************
-       * 2 corners,
-       * (1) U_mu(x) * U_nu(x+mu)
-       * (2) U_
-       ********************************************************************/
-      _cm_eq_cm_pl_cm ( U1, plaquettes[ix][imunu], plaquettes[g_idn[ix][imu]][imunu] );
-      _cm_pl_eq_cm ( U1, plaquettes[g_idn[ix][inu]][imunu] );
-      _cm_pl_eq_cm ( U1, plaquettes[g_idn[g_idn[ix][inu]][imu]][imunu] );
-
-      _cm_eq_antiherm_cm ( Gp[ix][imunu], U1 );
-/* TEST      _cm_eq_cm ( Gp[ix][imunu], U1 ); */
-      _cm_ti_eq_re ( Gp[ix][imunu], one_over_four );
-    }
-  }
-
-  /********************************************************************
-   * now build the rectangles from products of plaquettes
-   ********************************************************************/
-  double ***** rectangles = init_5level_dtable ( VOLUMEPLUSRAND, 6, 2, 2, 18 );
-  if ( rectangles == NULL ) {
-    fprintf ( stderr, "[clover_rectangle_term] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
-    return(1);
-  }
-
-#pragma omp parallel for shared(plaquettes)
-  for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
-
-    for ( int imunu = 0; imunu < 6; imunu++) {
-
-      const int imu = dirpairs[imunu][0]; 
-      const int inu = dirpairs[imunu][1]; 
-
-        /**********************************************
-         *
-         * R_mu,nu,0,0 <- P_mu,nu,x-mu * P_mu,nu,x
-         *
-         **********************************************/
-        _cm_eq_cm_ti_cm ( rectangles[ix][imunu][0][0], plaquettes[g_idn[ix][imu]][imunu], plaquettes[ix][imunu] );
-    
-        /**********************************************
-         *
-         * R_mu,nu,0,1 <- P_mu,nu,x-mu-nu * P_mu,nu,x-nu
-         *
-         **********************************************/
-        _cm_eq_cm_ti_cm ( rectangles[ix][imunu][0][1], plaquettes[g_idn[g_idn[ix][imu]][inu]][imunu], plaquettes[g_idn[ix][inu]][imunu] );
-    
-        /**********************************************
-         *
-         * R_mu,nu,1,0 <- P_mu,nu,x-nu * P_mu,nu,x
-         *
-         **********************************************/
-        _cm_eq_cm_ti_cm ( rectangles[ix][imunu][1][0], plaquettes[g_idn[ix][inu]][imunu], plaquettes[ix][imunu] );
-    
-        /**********************************************
-         *
-         * R_mu,nu,1,1 <- P_mu,nu,x-mu-nu * P_mu,nu,x-mu
-         *
-         **********************************************/
-        _cm_eq_cm_ti_cm ( rectangles[ix][imunu][1][1], plaquettes[g_idn[g_idn[ix][inu]][imu]][imunu], plaquettes[g_idn[ix][imu]][imunu] );
-    
-    }  /* end of loop on imunu  */
-  }  /* end of loop on ix */
-
-  /********************************************************************
-   * xchange the rectangles
-   *   INCLUDING edges ???
-   ********************************************************************/
-#ifdef HAVE_MPI
-  mpi_xchanger ( rectangles[0][0][0][0], &x_rect );
-#endif
-
-  /********************************************************************
-   * build G_munu from rectangles
-   ********************************************************************/
-#ifdef HAVE_OPENMP
-#pragma omp parallel for shared(rectangles)
-#endif
-  for ( unsigned int ix = 0; ix < VOLUME; ix++ )
-  {
-  
-    double U1[18];
-    
-    for ( int imunu = 0; imunu < 6; imunu++) {
-
-      const int imu = dirpairs[imunu][0]; 
-      const int inu = dirpairs[imunu][1]; 
-
-      _cm_eq_zero ( U1 );
-
-      _cm_pl_eq_cm ( U1, rectangles[g_iup[ix][imu]][imunu][0][0] );
-      _cm_pl_eq_cm ( U1, rectangles[g_iup[ix][imu]][imunu][0][1] );
-      _cm_pl_eq_cm ( U1, rectangles[g_idn[ix][imu]][imunu][0][0] );
-      _cm_pl_eq_cm ( U1, rectangles[g_idn[ix][imu]][imunu][0][1] );
-
-      _cm_pl_eq_cm ( U1, rectangles[g_iup[ix][inu]][imunu][1][0] );
-      _cm_pl_eq_cm ( U1, rectangles[g_iup[ix][inu]][imunu][1][1] );
-      _cm_pl_eq_cm ( U1, rectangles[g_idn[ix][inu]][imunu][1][0] );
-      _cm_pl_eq_cm ( U1, rectangles[g_idn[ix][inu]][imunu][1][1] );
-
-      _cm_eq_antiherm_cm ( Gr[ix][imunu], U1 );
-      _cm_ti_eq_re ( Gr[ix][imunu], one_over_eight );
-    }
-  }
-  fini_5level_dtable ( &rectangles );
-#if 0
-#endif  /* of if 0 */
-
-  fini_3level_dtable ( &plaquettes );
-
-  mpi_fini_xchanger ( &x_plaq );
-  mpi_fini_xchanger ( &x_rect );
-  return( 0 );
-
-}  /* end of G_plaq_rect */
-
 
 }  /* end of namespace cvc */

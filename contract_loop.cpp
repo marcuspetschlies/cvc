@@ -91,9 +91,23 @@ int contract_local_loop_stochastic ( double *** const loop, double * const sourc
       unsigned int const offset = _GSI ( ix );
       double * const source_ = source + offset;
       double * const prop_   = prop   + offset;
-      double * const loop_   = loop_x + 16*ix;
+      double * const loop_   = loop_x + 32*ix;
       _contract_loop_x_spin_diluted ( loop_, source_ , prop_ );
   }  /* end of loop on volume */
+
+#if 0
+  for ( int x0 = 0; x0 < T; x0++ ) {
+  for ( int x1 = 0; x1 < LX; x1++ ) {
+  for ( int x2 = 0; x2 < LY; x2++ ) {
+  for ( int x3 = 0; x3 < LZ; x3++ ) {
+    unsigned int const ix = g_ipt[x0][x1][x2][x3];
+    for ( int ic = 0; ic  < 16; ic++ ) {
+      fprintf ( stdout, "tx %3d %3d %3d %3d   %d %d    %25.16e %25.16e\n",
+          x0+g_proc_coords[0]*T, x1+g_proc_coords[1]*LX, x2+g_proc_coords[2]*LY, x3+g_proc_coords[3]*LZ, ic/4, ic%4,
+          loop_x[32*ix+2*ic], loop_x[32*ix+2*ic+1] );
+    }
+  }}}}
+#endif  /* of if 0 */
 
   gettimeofday ( &tb, (struct timezone *)NULL );
   
@@ -278,7 +292,7 @@ int contract_loop_write_to_h5_file (double *** const loop, void * file, char*tag
       /* big_endian() ?  H5T_IEEE_F64BE : H5T_IEEE_F64LE; */
  
       /* shape of the output arary */ 
-      hsize_t dims[3] = { T_global, momentum_number, 2 * nc };
+      hsize_t dims[4] = { T_global, momentum_number, nc, 2 };
   
       /*
                  int rank                             IN: Number of dimensions of dataspace.
@@ -286,7 +300,7 @@ int contract_loop_write_to_h5_file (double *** const loop, void * file, char*tag
                  const hsize_t * maximum_dims         IN: Array specifying the maximum size of each dimension.
                  hid_t H5Screate_simple( int rank, const hsize_t * current_dims, const hsize_t * maximum_dims )
        */
-      hid_t space_id = H5Screate_simple(        3,                         dims,                          NULL);
+      hid_t space_id = H5Screate_simple(        4,                         dims,                          NULL);
   
       /***************************************************************************
        * some default settings for H5Dwrite
@@ -445,7 +459,7 @@ int contract_loop_write_to_h5_file (double *** const loop, void * file, char*tag
      ***************************************************************************/
     gettimeofday ( &tb, (struct timezone *)NULL );
   
-    show_time ( &ta, &tb, "contract_loop_write_to_h5_file", "write h5", 1 );
+    show_time ( &ta, &tb, "contract_loop_write_to_h5_file", "write h5", io_proc == 2 );
 
   }  /* end of of if io_proc > 0 */
   
@@ -542,7 +556,7 @@ int loop_read_from_h5_file (double *** const loop, void * file, char*tag, int co
 
       hid_t dataset_id = H5Dopen2 ( file_id, tag, dapl_id );
       if ( dataset_id < 0 ) {
-        fprintf ( stderr, "[loop_read_from_h5_file] Error from H5Dopen2 %s %d\n", __FILE__, __LINE__ );
+        fprintf ( stderr, "[loop_read_from_h5_file] Error from H5Dopen2 for tag %s %s %d\n", tag, __FILE__, __LINE__ );
         return ( 3 );
       }
 

@@ -43,6 +43,10 @@
 #include "gamma.h"
 #include "contract_loop_inline.h"
 
+#undef _TWOP_COMPACT
+#define _TWOP_PERCONF
+
+#define _USE_SUBTRACTED
 
 using namespace cvc;
 
@@ -112,6 +116,9 @@ int main(int argc, char **argv) {
   int hvp_stats = 1;
   int loop_type_reim = -1;
   int write_data = 0;
+  double loop_norm = 1.;
+  int loop_transpose = 0;
+  int loop_step = 1;
 
   double ****** pgg_disc = NULL;
 
@@ -124,7 +131,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "Wh?f:N:S:F:O:D:w:E:r:")) != -1) {
+  while ((c = getopt(argc, argv, "tWh?f:N:S:F:O:D:w:E:r:n:s:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -160,11 +167,23 @@ int main(int argc, char **argv) {
       break;
     case 'E':
       strcpy ( ensemble_name, optarg );
-      fprintf ( stdout, "# [p2gg_analyse_wdisc] ensemble_name set to %d\n", ensemble_name );
+      fprintf ( stdout, "# [p2gg_analyse_wdisc] ensemble_name set to %s\n", ensemble_name );
       break;
     case 'r':
       loop_type_reim = atoi ( optarg );
       fprintf ( stdout, "# [p2gg_analyse_wdisc] loop_type_reim set to %d\n", loop_type_reim );
+      break;
+    case 'n':
+      loop_norm = atof ( optarg );
+      fprintf ( stdout, "# [p2gg_analyse_wdisc] loop_norm set to %f\n", loop_norm );
+      break;
+    case 't':
+      loop_transpose = 1;
+      fprintf ( stdout, "# [p2gg_analyse_wdisc] loop_transpose set to %d\n", loop_transpose );
+      break;
+    case 's':
+      loop_step = atoi ( optarg );
+      fprintf ( stdout, "# [p2gg_analyse_wdisc] loop_step set to %d\n", loop_step );
       break;
     case 'h':
     case '?':
@@ -241,7 +260,7 @@ int main(int argc, char **argv) {
 
   int *** conf_src_list = init_3level_itable ( num_conf, num_src_per_conf, 6 );
   if ( conf_src_list == NULL ) {
-    fprintf(stderr, "[p2gg_analyse_wdisc] Error from init_3level_itable %s %d\n", __FILE__, __LINE__);
+    fprintf(stderr, "[p2gg_analyse_wdisc] Error from init_Xlevel_itable %s %d\n", __FILE__, __LINE__);
     EXIT(16);
   }
   char line[100];
@@ -275,7 +294,6 @@ int main(int argc, char **argv) {
             conf_src_list[iconf][isrc][3],
             conf_src_list[iconf][isrc][4],
             conf_src_list[iconf][isrc][5] );
-
       }
     }
   }
@@ -310,12 +328,14 @@ int main(int argc, char **argv) {
     }
   }
 
-
-
   /***********************************************************
    * how to normalize loops
    ***********************************************************/
-  double loop_norm = 1.;
+  if ( strcmp ( loop_type_tag[loop_type], "Scalar"  ) == 0 
+    || strcmp ( loop_type_tag[loop_type], "Loops"   ) == 0
+    || strcmp ( loop_type_tag[loop_type], "LoopsCv" ) == 0 ) {
+    loop_norm *= -1;  /* -1 from single g5^ukqcd entering in the std-oet  */
+  }
 #if 0
   if (   strcmp ( loop_type_tag[loop_type], "dOp"     ) == 0  
       || strcmp ( loop_type_tag[loop_type], "LpsDw"   ) == 0
@@ -342,6 +362,8 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[p2gg_analyse_wdisc] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
     EXIT(16);
   }
+
+#ifdef _TWOP_PERCONF
 
   /***********************************************************
    * loop on configs and source locations per config
@@ -509,6 +531,135 @@ int main(int argc, char **argv) {
 
   }   /* end of loop on configurations */
 
+#elif ( defined _TWOP_COMPACT )
+
+  /**********************************************************
+   * loop on momenta
+   **********************************************************/
+  for ( int isink_momentum = 0; isink_momentum < sink_momentum_number; isink_momentum++ ) {
+
+    for ( int ipsign = 0; ipsign < 2; ipsign++ ) {
+
+      int const psign = 1 - 2 * ipsign;
+
+      int const sink_momentum[3] = {
+          psign * sink_momentum_list[isink_momentum][0],
+          psign * sink_momentum_list[isink_momentum][1],
+          psign * sink_momentum_list[isink_momentum][2] };
+
+      double const p[4] = {
+          0., 
+          TWO_MPI * (double)sink_momentum[0] / (double)LX_global,
+          TWO_MPI * (double)sink_momentum[1] / (double)LY_global,
+          TWO_MPI * (double)sink_momentum[2] / (double)LZ_global };
+
+      /**********************************************************
+       * loop on shifts in directions mu, nu
+       **********************************************************/
+      for( int mu = 0; mu < 4; mu++) {
+      for( int nu = 0; nu < 4; nu++) {
+
+#ifdef HAVE_LHPC_AFF
+        /***********************************************
+         * reader for aff input file
+         ***********************************************/
+
+        gettimeofday ( &ta, (struct timezone *)NULL );
+        struct AffNode_s *affn = NULL, *affdir = NULL;
+
+        sprintf ( filename, "%s.%s.gf%.2d.gi%.2d.px%dpy%dpz%d.aff", 
+          correlator_prefix[operator_type], flavor_tag[operator_type], gamma_v_list[mu], gamma_v_list[nu],
+          sink_momentum[0], sink_momentum[1], sink_momentum[2] );
+
+        affr = aff_reader ( filename );
+        const char * aff_status_str = aff_reader_errstr ( affr );
+        if( aff_status_str != NULL ) {
+          fprintf(stderr, "[p2gg_analyse_wdisc] Error from aff_reader for filename %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__);
+          EXIT(15);
+        } else {
+          if ( g_verbose > 0 ) fprintf(stdout, "# [p2gg_analyse_wdisc] reading data from file %s %s %d\n", filename, __FILE__, __LINE__);
+        }
+
+        if( (affn = aff_reader_root( affr )) == NULL ) {
+          fprintf(stderr, "[p2gg_analyse_wdisc] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+          return(103);
+        }
+
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "p2gg_analyse_wdisc", "open-init-aff-reader", g_cart_id == 0 );
+#endif
+
+        double _Complex * buffer = init_1level_ztable( T_global );
+        if( buffer == NULL ) {
+          fprintf(stderr, "[p2gg_analyse_wdisc] Error from init_Xlevel_ztable %s %d\n", __FILE__, __LINE__);
+          EXIT(15);
+        }
+
+        gettimeofday ( &ta, (struct timezone *)NULL );
+        /***********************************************************
+         * loop on configs and source locations per config
+         ***********************************************************/
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+
+            /***********************************************************
+             * copy source coordinates
+             ***********************************************************/
+            int const gsx[4] = {
+                conf_src_list[iconf][isrc][2],
+                conf_src_list[iconf][isrc][3],
+                conf_src_list[iconf][isrc][4],
+                conf_src_list[iconf][isrc][5] };
+            double const phase =  - ( p[0] * gsx[0] + p[1] * gsx[1] + p[2] * gsx[2] + p[3] * gsx[3] );
+            double _Complex const ephase = cexp ( phase * I );
+
+
+            sprintf ( key , "/stream_%c/conf_%d/t%.2dx%.2dy%.2dz%.2d", conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1], gsx[0], gsx[1], gsx[2], gsx[3] );
+  
+            if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse_wdisc] key = %s\n", key );
+            affdir = aff_reader_chpath (affr, affn, key );
+            uint32_t uitems = T_global;
+            exitstatus = aff_node_get_complex ( affr, affdir, buffer, uitems );
+            if( exitstatus != 0 ) {
+              fprintf(stderr, "[p2gg_analyse_wdisc] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(105);
+            }
+
+            /**********************************************************
+             * sort data from buffer into hvp,
+             * add source phase
+             **********************************************************/
+#pragma omp parallel for
+            for ( int it = 0; it < T_global; it++ ) {
+              int const tt = ( it - gsx[0] + T_global ) % T_global; 
+
+              double _Complex ztmp = buffer[it] * ephase;
+ 
+              hvp[iconf][isrc][isink_momentum][ipsign][mu][nu][2*tt  ] = creal( ztmp );
+              hvp[iconf][isrc][isink_momentum][ipsign][mu][nu][2*tt+1] = cimag( ztmp );
+            }
+
+          }  /* end of loop on source positions */
+        }  /* end of loop on configs */
+        
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "p2gg_analyse_wdisc", "read-ll-tensor-aff", g_cart_id == 0 );
+
+        fini_1level_ztable( &buffer );
+
+#ifdef HAVE_LHPC_AFF
+        aff_reader_close ( affr );
+#endif  /* of ifdef HAVE_LHPC_AFF */
+
+      }  /* end of loop on nu */
+      }  /* end of loop on mu */
+
+    }  /* end of loop on psign */
+
+  }  /* end of loop on sink momenta */
+
+#endif
+
   /****************************************
    * show all data
    ****************************************/
@@ -612,53 +763,6 @@ int main(int argc, char **argv) {
       }
     }
   
-#if 0
-    /****************************************
-     * STATISTICAL ANALYSIS of real and
-     * imaginary part of HVP tensor
-     * components
-     ****************************************/
-    for ( int imom = 0; imom < sink_momentum_number; imom++ ) {
-  
-      int const momentum[3] = { sink_momentum_list[imom][0], sink_momentum_list[imom][1], sink_momentum_list[imom][2] };
-  
-      /* spatial components */
-      for( int mu = 1; mu < 4; mu++) {
-      for( int nu = 1; nu < 4; nu++) {
-        for ( int ireim = 0; ireim < 2; ireim++ ) {
-  
-          double ** data = init_2level_dtable ( num_conf, T_global );
-          if ( data == NULL ) {
-            fprintf(stderr, "[p2gg_analyse_wdisc] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
-            EXIT(16);
-          }
-  
-          /* fill data array */
-  #pragma omp parallel for
-          for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-            for ( int it = 0; it < T_global; it++ ) {
-              data[iconf][it] = hvp_src_avg[iconf][imom][mu][nu][2*it+ireim];
-            }
-          }
-  
-          char obs_name[100];
-          sprintf ( obs_name, "%s.%s.jmu%d_jnu%d.PX%d_PY%d_PZ%d.%s", correlator_prefix[operator_type], flavor_tag[operator_type],
-              mu, nu, momentum[0], momentum[1], momentum[2], reim_str[ireim] );
-  
-          /* apply UWerr analysis */
-          exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
-          if ( exitstatus != 0 ) {
-            fprintf ( stderr, "[p2gg_analyse_wdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-            EXIT(1);
-          }
-  
-          fini_2level_dtable ( &data );
-  
-        }  /* end of loop on re / im */
-      }}  /* end of loop on nu, mu */
-    }  /* end of loop on momenta */
-#endif  /* of if 0 */
-  
     /****************************************
      * STATISTICAL ANALYSIS of real and
      * imaginary part of anti-symmetricly
@@ -719,32 +823,16 @@ int main(int argc, char **argv) {
       EXIT(112);
     }
 
-
-    /**********************************************************
-     * oet type string
-     **********************************************************/
-    switch (loop_type) {
-      case  1:
-      case -1:
-      case  2:
-      case -2:
-        fprintf ( stdout, "# [p2gg_analyse_wdisc] Using loop type %s\n", loop_type_tag[loop_type]);
-        break;
-      default:
-        fprintf ( stderr, "[p2gg_analyse_wdisc] Error, loop type not specified\n");
-        EXIT(12);
-    }
-
     /**********************************************************
      * read the loop data from ASCII file
      **********************************************************/
     gettimeofday ( &ta, (struct timezone *)NULL );
 
     for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-      Nconf = conf_src_list[iconf][0][1];
-      sprintf ( filename, "stream_%c/loops/loop.%.4d.stoch.%s.nev0.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], 
-          Nconf, loop_type_tag[loop_type], seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
-      /* sprintf ( filename, "loops/Nconf_%.4d.%s.loop_gamma4", Nconf, loop_type_tag[loop_type] ); */
+
+      sprintf ( filename, "stream_%c/%s/loop.%.4d.stoch.%s.nev0.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix,
+          conf_src_list[iconf][0][1], loop_type_tag[loop_type], seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
+
       if ( g_verbose > 0 ) fprintf ( stdout, "# [p2gg_analyse_wdisc] reading loop data from file %s %s %d\n", filename, __FILE__, __LINE__ );
       FILE * ofs = fopen ( filename, "r" );
       if ( ofs == NULL ) {
@@ -754,7 +842,7 @@ int main(int argc, char **argv) {
 
       for ( int isample = 0; isample < g_nsample; isample++ ) {
         int itmp[4];
-        for ( int t = 0; t < T; t++ ) {
+        for ( int t = 0; t < T_global; t++ ) {
           for ( int mu = 0; mu < 4; mu++ ) {
           for ( int nu = 0; nu < 4; nu++ ) {
             if ( fscanf ( ofs, "%d %d %d %d %lf %lf\n", itmp, itmp+1, itmp+2, itmp+3, 
@@ -800,7 +888,7 @@ int main(int argc, char **argv) {
       }
 
 
-      project_loop ( loops_proj[0][0], gf.m, loops_matrix[0][0][0][0], num_conf * g_nsample * T_global );
+      project_loop ( loops_proj[0][0], gf.m, loops_matrix[0][0][0][0], num_conf * g_nsample * T_global, loop_transpose );
 
       double ** loop_avg = init_2level_dtable ( num_conf, 2*T_global );
       if ( loop_avg == NULL ) {
@@ -813,7 +901,7 @@ int main(int argc, char **argv) {
        **********************************************************/
 #pragma omp parallel for
       for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-        double const norm = loop_norm / (double)g_nsample;
+        double const norm = loop_norm / (double)( g_nsample * loop_step );
         for ( int t = 0; t < T_global; t++ ) {
           loop_avg[iconf][2*t  ] = 0.; 
           loop_avg[iconf][2*t+1] = 0.; 
@@ -980,7 +1068,7 @@ int main(int argc, char **argv) {
        * loop data for pgg
        *
        **********************************************************/
-      double ** loop_pgg = init_2level_dtable ( num_conf, 2*T );
+      double ** loop_pgg = init_2level_dtable ( num_conf, 2*T_global );
       if ( loop_pgg == NULL ) {
         fprintf ( stderr, "[p2gg_analyse_wdisc] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
         EXIT(115);
@@ -1023,9 +1111,9 @@ int main(int argc, char **argv) {
       fini_2level_dtable ( &loop_avg );
 
       /**********************************************************
-       * loop on sequential source timeslices
+       * block hvp over source positions
        **********************************************************/
-      double ***** hvp2 = init_5level_dtable ( num_conf, sink_momentum_number, 4, 4, 2 * T );
+      double ***** hvp2 = init_5level_dtable ( num_conf, sink_momentum_number, 4, 4, 2 * T_global );
       if ( hvp2 == NULL ) {
         fprintf(stderr, "[p2gg_analyse_wdisc] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
         EXIT(16);
@@ -1043,15 +1131,29 @@ int main(int argc, char **argv) {
 
               for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
 
-                hvp2[iconf][imom][s1][s2][2*it  ] += (
-                  - ( 1 + s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it  ]
-                  + ( st_sign + s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it  ]
-                  );
+                if ( loop_type == 1 ) {
+                  /* dOp case */
+                  hvp2[iconf][imom][s1][s2][2*it  ] += (
+                    + ( 1 + s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it  ]
+                    - ( st_sign + s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it  ]
+                    );
 
-                hvp2[iconf][imom][s1][s2][2*it+1] += (
-                  - ( 1 - s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it+1]
-                  + ( st_sign - s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it+1]
-                  );
+                  hvp2[iconf][imom][s1][s2][2*it+1] += (
+                    + ( 1 - s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it+1]
+                    - ( st_sign - s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it+1]
+                    );
+                } else if ( loop_type == 2 ) {
+                  /* Scalar case */
+                  hvp2[iconf][imom][s1][s2][2*it  ] += (
+                    + ( 1 + s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it  ]
+                    + ( st_sign + s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it  ]
+                    );
+
+                  hvp2[iconf][imom][s1][s2][2*it+1] += (
+                    + ( 1 - s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it+1]
+                    + ( st_sign - s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it+1]
+                    );
+                }
               }
               hvp2[iconf][imom][s1][s2][2*it  ] /= (double)num_src_per_conf;
               hvp2[iconf][imom][s1][s2][2*it+1] /= (double)num_src_per_conf;
@@ -1079,7 +1181,7 @@ int main(int argc, char **argv) {
           fprintf(stderr, "[p2gg_analyse_wdisc] Error from init_6level_dtable %s %d\n", __FILE__, __LINE__);
           EXIT(16);
         }
-
+#pragma omp parallel for
         for ( int iconf = 0; iconf < num_conf; iconf++ ) {
 
           for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
@@ -1099,15 +1201,36 @@ int main(int argc, char **argv) {
 
                 for ( int it = 0; it < T_global; it++ ) {
 
-                  pgg_disc[iconf][isrc][imom][s1][s2][2*it  ] = (
-                    - ( 1 + s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it  ] 
-                    + ( st_sign + s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it  ]
-                    ) * loop_pgg[iconf][2*tseq+loop_type_reim];
+/****************************************
+ *
+ * This is a hack;
+ * better to use vertex quantum numbers instead
+ *
+ ****************************************/
+                  if ( loop_type == 1 ) {
+                    /* dOp case */
+                    pgg_disc[iconf][isrc][imom][s1][s2][2*it  ] = (
+                      + ( 1 + s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it  ] 
+                      - ( st_sign + s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it  ]
+                      ) * loop_pgg[iconf][2*tseq+loop_type_reim];
 
-                  pgg_disc[iconf][isrc][imom][s1][s2][2*it+1] = (
-                    - ( 1 - s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it+1] 
-                    + ( st_sign - s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it+1]
-                    ) * loop_pgg[iconf][2*tseq+loop_type_reim];
+                    pgg_disc[iconf][isrc][imom][s1][s2][2*it+1] = (
+                      + ( 1 - s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it+1] 
+                      - ( st_sign - s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it+1]
+                      ) * loop_pgg[iconf][2*tseq+loop_type_reim];
+
+                  } else if ( loop_type == 2 ) {
+                    /* Scalar */
+                    pgg_disc[iconf][isrc][imom][s1][s2][2*it  ] = (
+                      + ( 1 + s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it  ] 
+                      + ( st_sign + s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it  ]
+                      ) * loop_pgg[iconf][2*tseq+loop_type_reim];
+
+                    pgg_disc[iconf][isrc][imom][s1][s2][2*it+1] = (
+                      + ( 1 - s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it+1] 
+                      + ( st_sign - s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it+1]
+                      ) * loop_pgg[iconf][2*tseq+loop_type_reim];
+                  }
                 }
               }}
             }
@@ -1315,12 +1438,8 @@ int main(int argc, char **argv) {
           }
 
           if ( write_data == 1 ) {
-            sprintf ( obs_name, "pgg_disc.%s.%s.%s.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s.dat", correlator_prefix[operator_type], flavor_tag[operator_type],
-                loop_type_tag[loop_type],
-                seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id, sequential_source_timeslice,
-                  sink_momentum_list[0][0], sink_momentum_list[0][1], sink_momentum_list[0][2], reim_str[ireim] );
-
-            FILE * ofs = fopen ( obs_name, "w" );
+            sprintf ( filename, "%s.corr", obs_name );
+            FILE * ofs = fopen ( filename, "w" );
             if ( ofs == NULL ) {
               fprintf ( stdout, "[p2gg_analyse_wdisc] Error from fopen for file %s %s %d\n", obs_name, __FILE__, __LINE__ );
               EXIT(12);
@@ -1341,6 +1460,7 @@ int main(int argc, char **argv) {
         }  /* end of loop on real / imag */
 
 
+#ifdef _USE_SUBTRACTED
         /****************************************
          * statistical analysis for orbit average
          *
@@ -1390,21 +1510,20 @@ int main(int argc, char **argv) {
           }
 
           if ( write_data == 1 ) {
-            sprintf ( obs_name, "pgg_disc.%s.%s.%s.sub.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s", correlator_prefix[operator_type], flavor_tag[operator_type],
-                loop_type_tag[loop_type],
-                seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id, sequential_source_timeslice,
-                  sink_momentum_list[0][0], sink_momentum_list[0][1], sink_momentum_list[0][2], reim_str[ireim] );
-
-            FILE * ofs = fopen ( obs_name, "w" );
+            sprintf ( filename, "%s.corr", obs_name );
+            FILE * ofs = fopen ( filename, "w" );
             if ( ofs == NULL ) {
               fprintf ( stdout, "[p2gg_analyse_wdisc] Error from fopen for file %s %s %d\n", obs_name, __FILE__, __LINE__ );
               EXIT(12);
             }
 
             for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-              for ( int tau = -T_global/2+1; tau <= T_global/2; tau++ ) {
+              /* for ( int tau = -T_global/2+1; tau <= T_global/2; tau++ ) */
+              for ( int tau = 0; tau < T_global; tau++ )
+              {
                 int const it = ( tau < 0 ) ? tau + T_global : tau;
-                fprintf ( ofs, "%5d%25.16e%25.16e%25.16e%8d\n", tau, data[iconf][it], data[iconf][T_global + it], data[iconf][2*T_global], conf_src_list[iconf][0][0] );
+                fprintf ( ofs, "%5d%25.16e%25.16e%25.16e  %c%8d%4d\n", tau, data[iconf][it], data[iconf][T_global + it], data[iconf][2*T_global], 
+                    conf_src_list[iconf][0][0], conf_src_list[iconf][0][1],  conf_src_list[iconf][0][2] );
               }
             }
             fclose ( ofs );
@@ -1414,7 +1533,7 @@ int main(int argc, char **argv) {
           fini_2level_dtable ( &data );
 
         }  /* end of loop on real / imag */
-#ifdef _USE_SUBTRACTED
+
 #endif  /* of ifdef _USE_SUBTRACTED */
 
         /**********************************************************
@@ -1434,8 +1553,6 @@ int main(int argc, char **argv) {
     fini_5level_dtable ( &loops_matrix );
 
   }  /* end of loop on seq source momentum */
-#if 0
-#endif  /* of if 0 */
 
   /**********************************************************
    * free the allocated memory, finalize

@@ -73,6 +73,24 @@ int main(int argc, char **argv) {
     "gygzgt",
     "gxgygzgt" };
 
+  const char gamma_cvc_to_string[16][12] = {
+    "gt",
+    "gx",
+    "gy",
+    "gz",
+    "1",
+    "g5",
+    "gtg5",
+    "gxg5",
+    "gyg5",
+    "gzg5",
+    "gtgx",
+    "gtgty",
+    "gtgz",
+    "gxgy",
+    "gxgz",
+    "gygz" };
+
 
   int c;
   int filename_set = 0;
@@ -82,17 +100,16 @@ int main(int argc, char **argv) {
   int Qsq = -1;
   int stream = -1;
   int confid = -1;
-  int exdef_nev = -1;
+  int exdef_nev = 0;
   int hier_prob_D = 0;
   char oet_type[20] = "NA";
   int nsample = 0;
   int nstep = 0;
   int sink_momentum_number = 0;
+  char gamma_basis_str[10] = "NA";
 
   struct timeval ta, tb;
-  long unsigned int seconds, useconds;
 
-  char output_filename[400];
   int cumulative = -1;
 
   char data_tag_prefix[300];
@@ -102,7 +119,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:Q:C:S:V:H:O:R:T:P:A:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:Q:C:S:V:H:O:R:T:P:A:G:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -137,6 +154,9 @@ int main(int argc, char **argv) {
       break;
     case 'A':
       cumulative = atoi ( optarg );
+      break;
+    case 'G':
+      strcpy ( gamma_basis_str, optarg );
       break;
     case 'h':
     case '?':
@@ -279,7 +299,7 @@ int main(int argc, char **argv) {
       }
     }
     if ( sink_momentum_matchid[i] == -1 ) {
-      fprintf ( stderr, "[loop_extract] Error, no match found for g_sink_momentum %d %d %s %d\n", i, __FILE__, __LINE__ );
+      fprintf ( stderr, "[loop_extract] Error, no match found for g_sink_momentum %d %s %d\n", i, __FILE__, __LINE__ );
       EXIT(1);
     } else {
       if ( g_verbose > 4 ) fprintf ( stdout, "# [loop_extract] momentum %3d p %3d, %3d %3d  machid %3d\n", i,
@@ -292,7 +312,7 @@ int main(int argc, char **argv) {
    ***************************************************************************/
   int const have_deriv = (
     strcmp( oet_type, "Loops"   ) == 0 ||
-    strcmp( oet_type, "LpsDw" ) == 0 ||
+    strcmp( oet_type, "LpsDw"   ) == 0 ||
     strcmp( oet_type, "LoopsCv" ) == 0 ||
     strcmp( oet_type, "LpsDwCv" ) == 0  );
 
@@ -507,7 +527,9 @@ int main(int argc, char **argv) {
   }
 
   char data_filename[400];
-  sprintf ( data_filename, "MG_loop_lightquark_conf_conf.%.4d_runtype_probD%d_part1_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", confid, hier_prob_D, exdef_nev, nsample, nstep, Qsq );
+  /* sprintf ( data_filename, "MG_loop_lightquark_conf_conf.%.4d_runtype_probD%d_part1_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", confid, hier_prob_D, exdef_nev, nsample, nstep, Qsq ); */
+  /* sprintf ( data_filename, "%s.%.4d.h5", g_outfile_prefix, confid ); */
+  sprintf ( data_filename, "%d/%s.%.4d.h5", confid, g_outfile_prefix, confid );
   if ( g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", filename );
 
   double _Complex ***** zloop_stoch = init_5level_ztable ( nsample,  g_sink_momentum_number, T, 4, 4 );
@@ -591,7 +613,11 @@ int main(int argc, char **argv) {
       if ( g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", filename );
 
       FILE * ofs = fopen ( filename, "w" );
-  
+      if ( ofs == NULL ) {
+        fprintf ( stderr, "[loop_extract] Error from open for filename %s %s %d\n", filename , __FILE__, __LINE__ );
+        EXIT(1);
+      }
+
       /* write to ASCII file  */
       for ( int isample = 0; isample < nsample; isample++ ) {
         for ( int it = 0; it < T; it++ ) {
@@ -606,12 +632,21 @@ int main(int argc, char **argv) {
 
       for ( int ig = 0; ig < g_sink_gamma_id_number; ig++ ) {
         gamma_matrix_type gf;
-        gamma_matrix_ukqcd_binary ( &gf, g_sink_gamma_id_list[ig] );
-        if ( g_verbose > 4 ) gamma_matrix_printf ( &gf, "gseq_ukqcd", stdout );
-
         char tr_filename[400];
-        sprintf ( tr_filename, "%s.g_%s", filename, gamma_binary_to_string[g_sink_gamma_id_list[ig]] );
+        if ( strcmp ( gamma_basis_str, "ukqcd" ) == 0 ) {
+          gamma_matrix_ukqcd_binary ( &gf, g_sink_gamma_id_list[ig] );
+          sprintf ( tr_filename, "%s.g_%s", filename, gamma_binary_to_string[g_sink_gamma_id_list[ig]] );
+        } else if ( strcmp ( gamma_basis_str, "cvc" ) ==  0 ) {
+          gamma_matrix_set ( &gf, g_sink_gamma_id_list[ig], 1.0 );
+          sprintf ( tr_filename, "%s.g_%s", filename, gamma_cvc_to_string[g_sink_gamma_id_list[ig]] );
+        }
+        if ( g_verbose > 4 ) gamma_matrix_printf ( &gf, gamma_basis_str, stdout );
+
         FILE * ofs = fopen ( tr_filename, "w" );
+        if ( ofs == NULL ) {
+          fprintf ( stderr, "[loop_extract] Error from open for filename %s %s %d\n", tr_filename , __FILE__, __LINE__ );
+          EXIT(1);
+        }
 
         for ( int isample = 0; isample < nsample; isample++ ) {
           for ( int it = 0; it < T; it++ ) {
@@ -645,6 +680,7 @@ int main(int argc, char **argv) {
 
   free_geometry();
   fini_2level_itable ( &sink_momentum_list );
+  fini_1level_itable ( &sink_momentum_matchid );
 
 #ifdef HAVE_MPI
   mpi_fini_xchange_contraction();

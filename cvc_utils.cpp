@@ -1977,28 +1977,18 @@ void  TraceAdagB(complex *w, double A[12][24], double B[12][24]) {
 /* make random gauge transformation g */
 void init_gauge_trafo(double **g, double heat) {
 
-  int ix, i;
   double ran[12], inorm, u[18], v[18], w[18];
-#ifdef HAVE_MPI 
-  int cntr;
-  MPI_Request request[5];
-  MPI_Status status[5];
-#endif
 
   if(g_cart_id==0) fprintf(stdout, "# [init_gauge_trafo] initialising random gauge transformation\n");
 
   *g = (double*)calloc(18*VOLUMEPLUSRAND, sizeof(double));
   if(*g==(double*)NULL) {
     fprintf(stderr, "[init_gauge_trafo] not enough memory\n");
-#ifdef HAVE_MPI
-    MPI_Abort(MPI_COMM_WORLD, 1);
-    MPI_Finalize();
-#endif
-    exit(1);
+    EXIT(1);
   }
     
   /* set g to random field */
-  for(ix=0; ix<VOLUME; ix++) {
+  for ( unsigned int ix=0; ix<VOLUME; ix++) {
     u[ 0] = 0.; u[ 1] = 0.; u[ 2] = 0.; u[ 3] = 0.; u[ 4] = 0.; u[ 5] = 0.;
     u[ 6] = 0.; u[ 7] = 0.; u[ 8] = 0.; u[ 9] = 0.; u[10] = 0.; u[11] = 0.;
     u[12] = 0.; u[13] = 0.; u[14] = 0.; u[15] = 0.; u[16] = 0.; u[17] = 0.;
@@ -2067,48 +2057,12 @@ void init_gauge_trafo(double **g, double heat) {
     _cm_eq_cm_ti_cm(&(*g)[18*ix], u, w);
   }
 
-  /* exchange the field */
+  /* exchange the field 
+   *
+   * NOTE HERE! USE XCHANGER IF NEEDED BEFORE APPLICATION
+   * */
 
-/*
-  fprintf(stdout, "\n# [init_gauge_trafo] The gauge trafo field:\n");
-  fprintf(stdout, "\n\tg <- array(0., dim=c(%d,%d,%d))\n", VOLUME, 3,3);
-  for(ix=0; ix<VOLUME; ix++) {
-    for(i=0;i<9;i++) {
-      fprintf(stdout, "\tg[%6d,%d,%d] <- %25.16e + %25.16e*1.i\n", ix+1, i/3+1, i%3+1, (*g)[2*(9*ix+i)], (*g)[2*(9*ix+i)+1]);
-    }
-  }
-*/
-#ifdef HAVE_MPI
-
-  cntr = 0;
-
-  MPI_Isend(&(*g)[0], 18*LX*LY*LZ, MPI_DOUBLE, g_nb_t_dn, 83, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&(*g)[18*VOLUME], 18*LX*LY*LZ, MPI_DOUBLE, g_nb_t_up, 83, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Isend(&(*g)[18*(T-1)*LX*LY*LZ], 18*LX*LY*LZ, MPI_DOUBLE, g_nb_t_up, 84, g_cart_grid, &request[cntr]);
-  cntr++;
-  MPI_Irecv(&(*g)[18*(T+1)*LX*LY*LZ], 18*LX*LY*LZ, MPI_DOUBLE, g_nb_t_dn, 84, g_cart_grid, &request[cntr]);
-  cntr++;
-
-  MPI_Waitall(cntr, request, status);
-#endif
-
-/*
-  fprintf(stdout, "Writing gauge transformation to std out\n");
-  const char *gauge_format="[(%25.16e +i*(%25.16e)), (%25.16e +i*(%25.16e)), (%25.16e +i*(%25.16e));"\
-                          " (%25.16e +i*(%25.16e)), (%25.16e +i*(%25.16e)), (%25.16e +i*(%25.16e));"\
-                         " (%25.16e +i*(%25.16e)), (%25.16e +i*(%25.16e)), (%25.16e +i*(%25.16e))]\n";
-  for(ix=0; ix<N; ix++) {
-   fprintf(stdout, "ix=%3d\n", ix);
-   fprintf(stdout, gauge_format, 
-     g[18*ix+ 0], g[18*ix+ 1], g[18*ix+ 2], g[18*ix+ 3], g[18*ix+ 4], g[18*ix+ 5], 
-     g[18*ix+ 6], g[18*ix+ 7], g[18*ix+ 8], g[18*ix+ 9], g[18*ix+10], g[18*ix+11], 
-     g[18*ix+12], g[18*ix+13], g[18*ix+14], g[18*ix+15], g[18*ix+16], g[18*ix+17]);
-  }
-*/
-}
+}  /* end of init_gauge_trafo */
 
 void apply_gt_gauge(double *g, double*gauge_field) {
 
@@ -7848,210 +7802,61 @@ int vdag_gloc_w_scalar_product_pt ( double _Complex **** const vw_mat, double **
 /****************************************************************************/
 /****************************************************************************/
 
-/****************************************************************************
- * operators for gluon momentum fraction
- ****************************************************************************/
-int gluonic_operators ( double ** op, double * const gfield ) {
+/***********************************************************
+ * read list of configs and source locations
+ ***********************************************************/
 
-  unsigned int const VOL3 = LX * LY * LZ;
-  double ** pl = init_2level_dtable ( T, 2 );
-  if ( pl == NULL ) {
-    fprintf( stderr, "[gluonic_operators] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
-    return(2);
+int read_source_coords_list ( int *** const conf_src_list, int const num_conf, int const num_src_per_conf, char * const ensemble_name ) {
+
+  char filename[400];
+  sprintf ( filename, "source_coords.%s.lst" , ensemble_name );
+  FILE *ofs = fopen ( filename, "r" );
+  if ( ofs == NULL ) {
+    fprintf(stderr, "[read_source_coords_list] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__);
+    return(15);
   }
 
-#ifdef HAVE_OPENMP
-  omp_lock_t writelock;
-#endif
+  char line[100];
 
-  for ( int it = 0; it < T; it++ ) {
-#ifdef HAVE_OPENMP
-    omp_init_lock(&writelock);
-
-#pragma omp parallel shared(it)
-{
-#endif
-    double s[18], t[18], u[18];
-    double pl_tmp[2] = { 0, 0. };
-
-#ifdef HAVE_OPENMP
-#pragma omp for
-#endif
-    for ( unsigned int iy = 0; iy < VOL3; iy++) {
-
-      unsigned int const ix = it * VOL3 + iy;
-
-      /* time-like */
-      for ( int nu = 1; nu < 4; nu++ ) {
-        _cm_eq_cm_ti_cm(s, gfield + _GGI(ix, 0), gfield + _GGI(g_iup[ix][ 0], nu) );
-        _cm_eq_cm_ti_cm(t, gfield + _GGI(ix,nu), gfield + _GGI(g_iup[ix][nu],  0) );
-        _cm_eq_cm_ti_cm_dag(u, s, t);
-        _re_pl_eq_tr_cm ( &(pl_tmp[0]), u );
-      }
-
-      /* space-like */
-      for ( int mu = 1; mu<3; mu++) {
-      for ( int nu = mu+1; nu < 4; nu++) {
-        _cm_eq_cm_ti_cm(s, gfield + _GGI(ix, mu), gfield + _GGI( g_iup[ix][mu], nu) );
-        _cm_eq_cm_ti_cm(t, gfield + _GGI(ix, nu), gfield + _GGI( g_iup[ix][nu], mu) );
-        _cm_eq_cm_ti_cm_dag(u, s, t);
-        _re_pl_eq_tr_cm( &(pl_tmp[1]), u);
-      }}
+  int count = 0;
+  while ( fgets ( line, 100, ofs) != NULL && count < num_conf * num_src_per_conf ) {
+    if ( line[0] == '#' ) {
+      fprintf( stdout, "# [twopt_analyse] comment %s\n", line );
+      continue;
     }
 
-#ifdef HAVE_OPENMP
-    omp_set_lock(&writelock);
-#endif
+    sscanf( line, "%c %d %d %d %d %d",
+        conf_src_list[count/num_src_per_conf][count%num_src_per_conf],
+        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+1,
+        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+2,
+        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+3,
+        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+4,
+        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+5 );
 
-    pl[it][0] += pl_tmp[0];
-    pl[it][1] += pl_tmp[1];
-
-#ifdef HAVE_OPENMP
-    omp_unset_lock(&writelock);
-}  /* end of parallel region */
-    omp_destroy_lock(&writelock);
-#endif
-
-  }  /* end of loop on timeslices */
-
-
-#ifdef HAVE_MPI
-
-  double ** buffer = init_2level_dtable ( T, 2 );
-  if ( buffer == NULL ) {
-    fprintf( stderr, "[gluonic_operators] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
-    return(3);
-  }
-  if ( MPI_Reduce ( pl[0], buffer[0], 2*T, MPI_DOUBLE, MPI_SUM,  0, g_ts_comm) != MPI_SUCCESS ) {
-    fprintf ( stderr, "[gluonic_operators] Error from MPI_Reduce %s %d\n", __FILE__, __LINE__ );
-    return(1);
+    count++;
   }
 
-  if ( MPI_Gather ( buffer[0], 2*T, MPI_DOUBLE, op[0], 2*T, MPI_DOUBLE, 0, g_tr_comm ) != MPI_SUCCESS ) {
-    fprintf ( stderr, "[gluonic_operators] Error from MPI_Gather %s %d\n", __FILE__, __LINE__ );
-    return(1);
+  fclose ( ofs );
+
+  if ( g_verbose > 5 ) {
+    for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+      for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+        fprintf ( stdout, "conf_src_list %c %6d %3d %3d %3d %3d\n",
+            (char)conf_src_list[iconf][isrc][0],
+            conf_src_list[iconf][isrc][1],
+            conf_src_list[iconf][isrc][2],
+            conf_src_list[iconf][isrc][3],
+            conf_src_list[iconf][isrc][4],
+            conf_src_list[iconf][isrc][5] );
+
+      }
+    }
   }
+  return(0);
+}  /* end of read_source_coords_list */
 
-  fini_2level_dtable ( &buffer );
-#else
-  memcpy ( op[0], pl[0], 2*T_global*sizeof(double) );
-#endif
-
-  fini_2level_dtable ( &pl );
-  return( 0 );
-
-}  /* end of gluonic_operators */
 
 /****************************************************************************/
 /****************************************************************************/
 
-/****************************************************************************
- * operators for gluon momentum fraction
- * calculated from gluon field strength tensor G
- *
- * 6 components of G expected; each 3x3 complex matrix
- * 
- * G_{0,1}  G_{0,2}   G_{0,3}   G_{1,2}   G_{1,3}   G_{2,3}
- *   0        1         2         3         4         5
- *
- * further we asume anti-symmetry in mu, nu
- * G_{1,0} = - G_{0,1}
- * G_{2,0} = - G_{0,2}
- * G_{3,0} = - G_{0,3}
- * G_{2,1} = - G_{1,2}
- * G_{3,1} = - G_{1,3}
- * G_{3,2} = - G_{2,3}
- *
- * diagonal elements are zero
- ****************************************************************************/
-int gluonic_operators_eo_from_fst ( double ** op, double *** const G ) {
-
-  unsigned int const VOL3 = LX * LY * LZ;
-  double ** pl = init_2level_dtable ( T, 2 );
-  if ( pl == NULL ) {
-    fprintf( stderr, "[gluonic_operators] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
-    return(2);
-  }
-
-#ifdef HAVE_OPENMP
-  omp_lock_t writelock;
-#endif
-
-  for ( int it = 0; it < T; it++ ) {
-#ifdef HAVE_OPENMP
-    omp_init_lock(&writelock);
-
-#pragma omp parallel shared(it)
-{
-#endif
-    double s[18];
-    double pl_tmp[2] = { 0, 0. };
-
-#ifdef HAVE_OPENMP
-#pragma omp for
-#endif
-    for ( unsigned int iy = 0; iy < VOL3; iy++) {
-
-      unsigned int const ix = it * VOL3 + iy;
-
-      /* for O44 : G_{0,1} G_{1,0} + G_{0,2} G_{2,0} + G_{0,3} G_{3,0} 
-       * indices        0       0         1       1         2       2  */
-
-      for ( int nu = 0; nu < 3; nu++ ) {
-        _cm_eq_cm_ti_cm ( s, G[ix][nu], G[ix][nu] );
-        _re_pl_eq_tr_cm ( &(pl_tmp[0]), s );
-      }
-
-      /* for Okk : G_{1,2} G_{1,2} + G_{1,2} G_{1,2} + G_{1,2} G_{1,2} 
-       * indices        3       3         4       4         5       5 */
-      for ( int nu = 3; nu<6; nu++) {
-        _cm_eq_cm_ti_cm ( s, G[ix][nu], G[ix][nu] );
-        _re_pl_eq_tr_cm ( &(pl_tmp[1]), s );
-      }
-    }
-
-#ifdef HAVE_OPENMP
-    omp_set_lock(&writelock);
-#endif
-
-    pl[it][0] += pl_tmp[0];
-    pl[it][1] += pl_tmp[1];
-
-#ifdef HAVE_OPENMP
-    omp_unset_lock(&writelock);
-}  /* end of parallel region */
-    omp_destroy_lock(&writelock);
-#endif
-
-  }  /* end of loop on timeslices */
-
-
-#ifdef HAVE_MPI
-
-  double ** buffer = init_2level_dtable ( T, 2 );
-  if ( buffer == NULL ) {
-    fprintf( stderr, "[gluonic_operators] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
-    return(3);
-  }
-  if ( MPI_Reduce ( pl[0], buffer[0], 2*T, MPI_DOUBLE, MPI_SUM,  0, g_ts_comm) != MPI_SUCCESS ) {
-    fprintf ( stderr, "[gluonic_operators] Error from MPI_Reduce %s %d\n", __FILE__, __LINE__ );
-    return(1);
-  }
-
-  if ( MPI_Gather ( buffer[0], 2*T, MPI_DOUBLE, op[0], 2*T, MPI_DOUBLE, 0, g_tr_comm ) != MPI_SUCCESS ) {
-    fprintf ( stderr, "[gluonic_operators] Error from MPI_Gather %s %d\n", __FILE__, __LINE__ );
-    return(1);
-  }
-
-  fini_2level_dtable ( &buffer );
-#else
-  memcpy ( op[0], pl[0], 2*T_global*sizeof(double) );
-#endif
-
-  fini_2level_dtable ( &pl );
-  return( 0 );
-
-}  /* end of gluonic_operators_from_fst */
-#if 0
-#endif
 }  /* end of namespace cvc */

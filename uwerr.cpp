@@ -19,6 +19,8 @@
 #include "uwerr.h"
 #include "incomp_gamma.h"
 
+#define UWERR_WMAX_LIMIT 5000
+
 int uwerr_verbose;
 
 /*******************************************************
@@ -293,6 +295,11 @@ int uwerr_analysis(double * const data, uwerr * const u) {
   for( i=1, ndata = u->n_r[0]; i<nreplica; ndata += u->n_r[i++] );
   /* Wmax - longest possible summation index + 1 */
   MIN_UINT(u->n_r, nreplica, &Wmax);
+
+  if ( Wmax > UWERR_WMAX_LIMIT ) {
+    Wmax = UWERR_WMAX_LIMIT;
+    fprintf ( stdout, "[uwerr_analysis] Warning, reset Wmax to upper limit %lu\n", Wmax );
+  }
 
   // TEST
   //fprintf(stdout, "[uwerr] ndata=%lu; Wmax=%lu, obsname=%s\n", ndata, Wmax, u->obsname);

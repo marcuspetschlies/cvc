@@ -52,6 +52,7 @@ extern "C"
 #include "clover.h"
 #include "ranlxd.h"
 #include "Q_clover_phi.h"
+#include "gluon_operators.h"
 
 using namespace cvc;
 
@@ -62,7 +63,9 @@ void usage() {
   EXIT(0);
 }
 
-#define MAX_SMEARING_LEVELS 12
+#define MAX_SMEARING_LEVELS 40
+
+#define _GLUONIC_OPERATORS
 
 int main(int argc, char **argv) {
   
@@ -103,6 +106,10 @@ int main(int argc, char **argv) {
       stout_level_iter[stout_level_num] = atoi ( optarg );
       fprintf ( stdout, "# [cpff_xg_contract] stout_level_iter %2d set to %2d\n", stout_level_num, stout_level_iter[stout_level_num] );
       stout_level_num++;
+      if ( stout_level_num == MAX_SMEARING_LEVELS ) {
+        fprintf ( stderr, "[cpff_xg_contract] Error, maximal number of stout smearing levels exceeded\n" );
+        EXIT(12);
+      }
       break;
     case 'h':
     case '?':
@@ -233,11 +240,15 @@ int main(int argc, char **argv) {
    * set output filename
    ***************************************************************************/
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-  sprintf( output_filename, "%s.xg.%d.aff", g_outfile_prefix, Nconf );
-  affw = aff_writer (output_filename);
-  if( const char * aff_status_str = aff_writer_errstr(affw) ) {
-    fprintf(stderr, "[cpff_xg_contract] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-    EXIT( 4 );
+  if ( io_proc == 2 ) {
+    sprintf( output_filename, "%s.xg.%d.aff", g_outfile_prefix, Nconf );
+    affw = aff_writer (output_filename);
+    if( const char * aff_status_str = aff_writer_errstr(affw) ) {
+      fprintf(stderr, "[cpff_xg_contract] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+      EXIT( 4 );
+    } else {
+      fprintf ( stdout, "# [cpff_xg_contract] writing data to file %s %s %d\n", output_filename, __FILE__, __LINE__ );
+    }
   }
 
 #elif (defined HAVE_HDF5 )
@@ -247,12 +258,11 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * operator output field
    ***************************************************************************/
-  double ** pl = NULL;
-  //if ( io_proc > 0  ) {
-    pl = init_2level_dtable ( T_global, 2 );
- // } else {
-  //  pl = init_2level_dtable ( 1, 1 );
-  //}
+  double ** pl = init_2level_dtable ( T_global, 2 );
+  if( pl == NULL ) {
+    fprintf(stderr, "[cpff_xg_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+    EXIT(14);
+  }
 
   /***************************************************************************
    *
@@ -269,27 +279,30 @@ int main(int argc, char **argv) {
     EXIT(14);
   }
 
-  if ( io_proc == 2 && g_verbose > 2 ) {
+  /* if ( io_proc == 2 && g_verbose > 2 ) {
     fprintf( stdout, "\n\n# [cpff_xg_contract] Original config\n" );
     for ( int it = 0; it < T_global; it++ ) {
       fprintf ( stdout, "x %3d %25.16e %25.16e\n", it, pl[it][0], pl[it][1] );
     }
-  }
+  } */
 
-  sprintf ( data_tag, "/StoutN%u/StoutRho%6.4f/plaquette", 0, 0. );
+  if ( io_proc == 2 ) {
+    sprintf ( data_tag, "/StoutN%u/StoutRho%6.4f/plaquette", 0, 0. );
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-  exitstatus = write_aff_contraction ( pl[0], affw, NULL, data_tag, 2 * T_global, "double" );
+    exitstatus = write_aff_contraction ( pl[0], affw, NULL, data_tag, 2 * T_global, "double" );
 #elif ( defined HAVE_HDF5 )
-  exitstatus = write_h5_contraction ( pl[0], NULL, filename, data_tag, 2 * T_global );
+    int const dims = 2 * T_global;
+    exitstatus = write_h5_contraction ( pl[0], NULL, output_filename, data_tag, 2 * T_global , "double", 1,  &dims );
 #else
-  exitstatus = 1;
+    exitstatus = 1;
 #endif
-  if ( exitstatus != 0) {
-    fprintf(stderr, "[cpff_xg_contract] Error from write_h5_contraction %s %d\n", __FILE__, __LINE__ );
-    EXIT(48);
-  }
+    if ( exitstatus != 0) {
+      fprintf(stderr, "[cpff_xg_contract] Error from write_h5_contraction %s %d\n", __FILE__, __LINE__ );
+      EXIT(48);
+    }
+  }  /* end of if io_proc == 2 */
 
-
+#ifdef _GLUONIC_OPERATORS
   /***************************************************************************
    * gluonic operators from field strength tensor
    ***************************************************************************/
@@ -300,53 +313,123 @@ int main(int argc, char **argv) {
     EXIT(8);
   }
 
+  /***********************************************************
+   * TEST initialize clover, lmzz and lmzzinv
+   ***********************************************************/
+  /* clover_term_init ( &g_clover, 6);
+  clover_term_eo  ( g_clover, g_gauge_field );
+  */
+
+  /***********************************************************
+   * plaquette and rectangle field strength tensors
+   ***********************************************************/
   exitstatus = G_plaq_rect ( Gp, Gr, g_gauge_field);
   if ( exitstatus != 0 ) {
     fprintf ( stderr, "[cpff_xg_contract] Error from G_plaq_rect, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
     EXIT(8);
   }
 
+  /***********************************************************
+   * gluonic operators from field strength tensor
+   *
+   * CLOVER DEFINITION
+   ***********************************************************/
   exitstatus = gluonic_operators_eo_from_fst ( pl, Gp );
-  if ( exitstatus != 0) {
-    fprintf(stderr, "[cpff_xg_contract] Error from gluonic_operators_eo_from_fst, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-    EXIT(48);
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "[cpff_xg_contract] Error from gluonic_operators_eo_from_fst, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    EXIT(8);
   }
 
-  sprintf ( data_tag, "/StoutN%u/StoutRho%6.4f/clover/plaquette", 0, 0. );
+  if ( io_proc == 2 ) {
+    sprintf ( data_tag, "/StoutN%u/StoutRho%6.4f/clover", 0, 0. );
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-  exitstatus = write_aff_contraction ( pl[0], affw, NULL, data_tag, 2 * T_global, "double" );
+    exitstatus = write_aff_contraction ( pl[0], affw, NULL, data_tag, 2 * T_global, "double" );
 #elif ( defined HAVE_HDF5 )
-  exitstatus = write_h5_contraction ( pl[0], NULL, filename, data_tag, 2 * T_global );
+    int const dims = 2 * T_global;
+    exitstatus = write_h5_contraction ( pl[0], NULL, output_filename, data_tag, 2 * T_global , "double", 1, &dims );
 #else
-  exitstatus = 1;
+    exitstatus = 1;
 #endif
-  if ( exitstatus != 0) {
-    fprintf(stderr, "[cpff_xg_contract] Error from write_h5_contraction %s %d\n", __FILE__, __LINE__ );
-    EXIT(48);
-  }
+    if ( exitstatus != 0) {
+      fprintf(stderr, "[cpff_xg_contract] Error from write_contraction %s %d\n", __FILE__, __LINE__ );
+      EXIT(48);
+    }
+  }  /* end of if io_proc == 2  */
 
-
+  /***********************************************************
+   * gluonic operators from field strength tensor
+   *
+   * RECTANGLE DEFINITION
+   ***********************************************************/
   exitstatus = gluonic_operators_eo_from_fst ( pl, Gr );
-  if ( exitstatus != 0) {
-    fprintf(stderr, "[cpff_xg_contract] Error from gluonic_operators_eo_from_fst, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-    EXIT(48);
-  }
-  sprintf ( data_tag, "/StoutN%u/StoutRho%6.4f/clover/rectangle", 0, 0. );
-#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-  exitstatus = write_aff_contraction ( pl[0], affw, NULL, data_tag, 2 * T_global, "double" );
-#elif ( defined HAVE_HDF5 )
-  exitstatus = write_h5_contraction ( pl[0], NULL, filename, data_tag, 2 * T_global );
-#else
-  exitstatus = 1;
-#endif
-  if ( exitstatus != 0) {
-    fprintf(stderr, "[cpff_xg_contract] Error from write_h5_contraction %s %d\n", __FILE__, __LINE__ );
-    EXIT(48);
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "[cpff_xg_contract] Error from gluonic_operators_eo_from_fst, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    EXIT(8);
   }
 
-  fini_2level_dtable ( &pl );
+  if ( io_proc == 2 ) {
+    sprintf ( data_tag, "/StoutN%u/StoutRho%6.4f/rectangle", 0, 0. );
+#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
+    exitstatus = write_aff_contraction ( pl[0], affw, NULL, data_tag, 2 * T_global, "double" );
+#elif ( defined HAVE_HDF5 )
+    int const dims = 2 * T_global;
+    exitstatus = write_h5_contraction ( pl[0], NULL, output_filename, data_tag, 2 * T_global , "double", 1, &dims );
+#else
+    exitstatus = 1;
+#endif
+    if ( exitstatus != 0) {
+      fprintf(stderr, "[cpff_xg_contract] Error from write_contraction %s %d\n", __FILE__, __LINE__ );
+      EXIT(48);
+    }
+  }  /* end of if io_proc == 2  */
+
+#if 0
+  /***********************************************************
+   * TEST apply gauge transformation
+   ***********************************************************/
+  double * gt = NULL;
+  init_gauge_trafo ( &gt, 1. );
+
+  apply_gt_gauge ( gt, g_gauge_field );
+
+  double *** Gpt = init_3level_dtable ( VOLUME, 6, 18 );
+  double *** Grt = init_3level_dtable ( VOLUME, 6, 18 );
+
+  exitstatus = G_plaq_rect ( Gpt, Grt, g_gauge_field );
+
+  for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
+    int imunu = 0;
+    for ( int imu = 0; imu < 3; imu++ ) {
+      for ( int inu = imu+1; inu < 4; inu++ ) {
+
+        complex w, wt;
+
+       /*  _co_eq_tr_cm ( &w,  Gp[ix][imunu] );
+        _co_eq_tr_cm ( &wt, Gpt[ix][imunu] );
+        fprintf ( stdout, "FP %6d  %d %d    %25.16e %25.16e    %25.16e %25.16e\n", ix, imu, inu, w.re, w.im, wt.re, wt.im ); */
+
+        _co_eq_tr_cm ( &w,  Gr[ix][imunu] );
+        _co_eq_tr_cm ( &wt, Grt[ix][imunu] );
+        fprintf ( stdout, "FR %6d  %d %d    %25.16e %25.16e    %25.16e %25.16e\n", ix, imu, inu, w.re, w.im, wt.re, wt.im );
+        imunu++;
+      }
+    }
+  }
+
+  free ( gt );
+  /***********************************************************
+   * END OF TEST
+   ***********************************************************/
+#endif  /* of if 0 */
+
   fini_3level_dtable ( &Gp );
   fini_3level_dtable ( &Gr );
+#endif  /* of _GLUONIC_OPERATORS */
+
+  /* fini TEST */
+  /* clover_term_fini ( &g_clover ); */
+
+  fini_2level_dtable ( &pl );
 
   /***********************************************
    * smear and calculate operators
@@ -409,6 +492,11 @@ int main(int argc, char **argv) {
 #endif
 
     double ** pl2 = init_2level_dtable ( T_global, 2 );
+    if( pl2 == NULL ) {
+      fprintf(stderr, "[cpff_xg_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+      EXIT(14);
+    }
+
 
     /***************************************************************************
      * gluonic operators from plaquettes
@@ -433,22 +521,27 @@ int main(int argc, char **argv) {
 
     gettimeofday ( &ta, (struct timezone *)NULL );
 
-    sprintf ( data_tag, "/StoutN%u/StoutRho%6.4f", stout_level_iter[istout], stout_rho );
+    sprintf ( data_tag, "/StoutN%u/StoutRho%6.4f/plaquette", stout_level_iter[istout], stout_rho );
+
+    if ( io_proc == 2 ) {
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-    exitstatus = write_aff_contraction ( pl2[0], affw, NULL, data_tag, 2*T_global, "double" );
+      exitstatus = write_aff_contraction ( pl2[0], affw, NULL, data_tag, 2*T_global, "double" );
 #elif ( defined HAVE_HDF5 )
-    exitstatus = write_h5_contraction ( pl2[0], NULL, output_filename, data_tag, 2 * T_global );
+      int const dims = 2 * T_global;
+      exitstatus = write_h5_contraction ( pl2[0], NULL, output_filename, data_tag, 2 * T_global, "double", 1, &dims );
 #else
-    exitstatus = 1;
+      exitstatus = 1;
 #endif
-    if ( exitstatus != 0) {
-      fprintf(stderr, "[cpff_xg_contract] Error from write_h5_contraction %s %d\n", __FILE__, __LINE__ );
-      EXIT(48);
-    }
+      if ( exitstatus != 0) {
+        fprintf(stderr, "[cpff_xg_contract] Error from write_contraction %s %d\n", __FILE__, __LINE__ );
+        EXIT(48);
+      }
+    }  /* end of if io_proc == 2  */
 
     gettimeofday ( &tb, (struct timezone *)NULL );
     show_time ( &ta, &tb, "cpff_xg_contract", "write-to-file", io_proc==2 );
 
+#ifdef _GLUONIC_OPERATORS
     /***************************************************************************
      * gluonic operators from elements of field strength tensor
      ***************************************************************************/
@@ -460,52 +553,59 @@ int main(int argc, char **argv) {
       EXIT(8);
     }
 
-    exitstatus = G_plaq_rect ( Gp, Gr, g_gauge_field);
+    exitstatus = G_plaq_rect ( Gp, Gr, gf );
     if ( exitstatus != 0 ) {
       fprintf ( stderr, "[cpff_xg_contract] Error from G_plaq_rect, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(8);
     }
 
-    exitstatus = gluonic_operators_eo_from_fst ( pl, Gp );
+    exitstatus = gluonic_operators_eo_from_fst ( pl2, Gp );
     if ( exitstatus != 0) {
       fprintf(stderr, "[cpff_xg_contract] Error from gluonic_operators_eo_from_fst, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(48);
     }
 
-    sprintf ( data_tag, "/StoutN%u/StoutRho%6.4f/clover/plaquette", stout_level_iter[istout], stout_rho );
+    if ( io_proc == 2 ) {
+      sprintf ( data_tag, "/StoutN%u/StoutRho%6.4f/clover", stout_level_iter[istout], stout_rho );
 #  if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-    exitstatus = write_aff_contraction ( pl[0], affw, NULL, data_tag, 2 * T_global, "double" );
+      exitstatus = write_aff_contraction ( pl2[0], affw, NULL, data_tag, 2 * T_global, "double" );
 #elif ( defined HAVE_HDF5 )
-    exitstatus = write_h5_contraction ( pl[0], NULL, filename, data_tag, 2 * T_global );
+      int const dims = 2 * T_global;
+      exitstatus = write_h5_contraction ( pl2[0], NULL, filename, data_tag, 2 * T_global , "double", 1, &dims );
 #else
-    exitstatus = 1;
+      exitstatus = 1;
 #endif
-    if ( exitstatus != 0) {
-      fprintf(stderr, "[cpff_xg_contract] Error from write_h5_contraction %s %d\n", __FILE__, __LINE__ );
-      EXIT(48);
-    }
+      if ( exitstatus != 0) {
+        fprintf(stderr, "[cpff_xg_contract] Error from write_contraction %s %d\n", __FILE__, __LINE__ );
+        EXIT(48);
+      }
+    }  /* end of if io_proc == 2  */
 
     exitstatus = gluonic_operators_eo_from_fst ( pl2, Gr );
     if ( exitstatus != 0) {
       fprintf(stderr, "[cpff_xg_contract] Error from gluonic_operators_eo_from_fst, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(48);
     }
-    sprintf ( data_tag, "/StoutN%u/StoutRho%6.4f/clover/rectangle", stout_level_iter[istout], stout_rho );
+
+    if ( io_proc == 2 ) {
+      sprintf ( data_tag, "/StoutN%u/StoutRho%6.4f/rectangle", stout_level_iter[istout], stout_rho );
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-    exitstatus = write_aff_contraction ( pl[0], affw, NULL, data_tag, 2 * T_global, "double" );
+      exitstatus = write_aff_contraction ( pl2[0], affw, NULL, data_tag, 2 * T_global, "double" );
 #elif ( defined HAVE_HDF5 )
-    exitstatus = write_h5_contraction ( pl[0], NULL, filename, data_tag, 2 * T_global );
+      int const dims = 2 * T_global;
+      exitstatus = write_h5_contraction ( pl2[0], NULL, filename, data_tag, 2 * T_global, "double", 1, &dims );
 #else
-    exitstatus = 1;
+      exitstatus = 1;
 #endif
-    if ( exitstatus != 0) {
-      fprintf(stderr, "[cpff_xg_contract] Error from write_h5_contraction %s %d\n", __FILE__, __LINE__ );
-      EXIT(48);
-    }
+      if ( exitstatus != 0) {
+        fprintf(stderr, "[cpff_xg_contract] Error from write_contraction %s %d\n", __FILE__, __LINE__ );
+        EXIT(48);
+      }
+    }  /* end of if io_proc == 2  */
 
     fini_3level_dtable ( &Gp );
     fini_3level_dtable ( &Gr );
-
+#endif  /* of _GLUONIC_OPERATORS */
 
     fini_2level_dtable ( &pl2 );
     
@@ -514,24 +614,24 @@ int main(int argc, char **argv) {
 
   }  /* end of if n_stout > 0 */
 
+  free ( gauge_field_smeared_ptr );
+
+  /***************************************************************************
+   * close writer
+   ***************************************************************************/
+#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
+  if ( io_proc == 2 ) {
+    const char * aff_status_str = (char*)aff_writer_close (affw);
+    if( aff_status_str != NULL ) {
+      fprintf(stderr, "[cpff_xg_contract] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+      return(32);
+    }
+  }
+#endif
+
   /***************************************************************************
    * free the allocated memory, finalize
    ***************************************************************************/
-  free ( gauge_field_smeared_ptr );
-  clover_term_fini ( &g_clover );
-
-  /* free clover matrix terms */
-
-#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-  const char * aff_status_str = (char*)aff_writer_close (affw);
-  if( aff_status_str != NULL ) {
-    fprintf(stderr, "[cpff_xg_contract] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-    return(32);
-  }
-
-#endif
-
-
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   free(g_gauge_field);
 #endif

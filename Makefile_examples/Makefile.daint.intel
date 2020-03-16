@@ -1,0 +1,93 @@
+# ##########
+work=/users/mpetschl/software/
+srcdir=..
+
+limedir=/users/mpetschl/software/lime-1.3.2/build-intel
+
+lemondir=/project/s982/mpetschl/software/LEMON/build-intel/
+
+fftwdir=/users/mpetschl/software/fftw-2.1.5/build-intel/
+
+lhpcdir=/users/mpetschl/software/aff/build-intel
+
+### qudadir=/project/s849/mpetschl/software/QUDA/build-intel
+
+### cudadir=/opt/nvidia/cudatoolkit9.1/9.1.85_3.18-6.0.7.0_5.1__g2eb7c52
+
+#hdf5_include=/opt/cray/pe/hdf5/1.10.2.0/INTEL/16.0/include/
+#hdf5_lib=/opt/cray/pe/hdf5/1.10.2.0/INTEL/16.0/lib/
+
+hdf5dir=/opt/cray/pe/hdf5-parallel/1.10.2.0/INTEL/16.0/
+
+CXX=CC -qopenmp -mkl
+CXXFLAGS= -Wall -g -O3 -DF_ -DHAVE_MPI -DPARALLELTXYZ -DHAVE_LIBLEMON -DHAVE_LHPC_AFF -DHAVE_OPENMP -DDUMMY_SOLVER
+
+CCDEP = g++
+DEPFLAGS = -MM
+
+INCLUDE = -I$(lemondir)/include/ -I$(limedir)/include/ -I$(srcdir) -I$(fftwdir)/include -I. -I$(lhpcdir)/include -I$(hdf5dir)/include
+
+LIBS = -L$(qudadir)/lib -L$(hdf5dir)/lib -L$(lhpcdir)/lib  -L$(lemondir)/lib/  -L$(limedir)/lib/ -L$(fftwdir)/lib -lfftw_mpi -lfftw  -llemon -llime  -llhpc-aff -lhdf5 -lm
+
+LDFLAGS = -L$(qudadir)/lib -L$(hdf5dir)/lib -L$(lemondir)/lib/ -L$(limedir)/lib/ -L$(fftwdir)/lib -lfftw_mpi -lfftw -llemon -llime -llhpc-aff -lhdf5 -lm 
+
+
+LINK = $(CXX) -o $@ ${LDFLAGS}
+COMPILE = ${CXX} $(INCLUDE) -o $@ ${CXXFLAGS}
+
+MODULES = DML_crc32 dml getopt cvc_utils cvc_geometry mpi_init io io_utils propagator_io read_input_parser_cvc \
+          get_index gauge_io contractions_io ranlxd ranlxs Q_phi set_default \
+          Q_clover_phi prepare_source matrix_init project make_x_orbits smearing_techniques clover \
+          prepare_propagator scalar_products  contract_cvc_tensor gamma rotations  \
+          gitversion contract_cvc_tensor_eo_lm_factors vdag_w_utils dummy_solver contract_factorized \
+	  contract_loop uwerr incomp_gamma gluon_operators
+
+HEADERS = getopt cvc_complex cvc_geometry cvc_linalg iblas icontract cvc_utils default_input_values dml global io io_utils \
+          mpi_init propagator_io read_input_parser get_index gauge_io contractions_io \
+          ranlxd ranlxs Q_phi set_default laplace_linalg Q_clover_phi \
+          prepare_source matrix_init project make_x_orbits smearing_techniques clover \
+          prepare_propagator scalar_products contract_cvc_tensor gamma gamma_mult_table rotations \
+          table_init_d table_init_z contract_cvc_tensor_eo_lm_factors vdag_w_utils dummy_solver contract_factorized \
+	  contract_loop uwerr incomp_gamma gluon_operators
+
+
+PROGRAM = loop_invert_contract p2gg_contract p2gg_invert_contract cpff_invert_contract p2gg_invert_contract_exdefl cpff_xg_contract_lowmem
+
+
+all: dep $(PROGRAM) 
+
+
+# ##########
+
+read_input_parser_cvc.cpp: ${srcdir}/read_input_parser_cvc.l
+	${LEX} -P cvc_ -i -t $< > ${srcdir}/read_input_parser_cvc.cpp
+
+$(addsuffix .d,$(MODULES)): %.d: ${srcdir}/%.cpp
+	 @ $(CCDEP) ${DEPFLAGS} ${INCLUDE} $< > $@
+
+$(addsuffix .d,$(PROGRAM)): %.d: ${srcdir}/%.cpp
+	 @ $(CCDEP) ${DEPFLAGS} ${INCLUDE} $< > $@
+
+dep: $(addsuffix .d,$(MODULES) ${PROGRAM})
+
+$(addsuffix .o,${MODULES}): %.o: ${srcdir}/%.cpp $(addprefix ${srcdir}/, $(addsuffix .h, ${HEADERS})) %.d
+	${COMPILE} ${OPTARGS} -c $< 
+
+$(addsuffix .o,${PROGRAM}): %.o: ${srcdir}/%.cpp %.d
+	${COMPILE} ${OPTARGS} -c $< 
+
+${PROGRAM}: %: %.o gitversion.cpp $(addsuffix .o,${MODULES})
+	${LINK}  $(addsuffix .o,${MODULES}) $@.o $(LIBS)
+
+gitversion.cpp: ${srcdir}/.git/HEAD ${srcdir}/.git/index
+	echo "namespace cvc { const char *g_gitversion = \"$(shell cd ${srcdir} && git rev-parse HEAD && cd -)\"; }" > ${srcdir}/gitversion.cpp
+
+# ##########
+
+
+clean:
+	rm -f *~ *.o *.d $(PROGRAM) ${srcdir}/gitversion.cpp
+
+.PHONY: clean
+
+# ##########

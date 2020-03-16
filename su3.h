@@ -10,5 +10,10 @@ typedef struct
 
 typedef su3 su3_tuple[4];
 
+extern double _Complex *** lambda_gm;
+
+void init_lambda_gm (void);
+void fini_lambda_gm (void);
+
 }
 #endif

@@ -258,9 +258,9 @@ void rlxd_init(int level,int seed)
 }
 
 
-void ranlxd(double r[],int n)
+void ranlxd(double r[], unsigned int n)
 {
-   int k;
+   unsigned int k;
 
    if (init==0)
       rlxd_init(1,1);
@@ -561,9 +561,9 @@ void rlxd_init(int level,int seed)
 }
 
 
-void ranlxd(double r[],int n)
+void ranlxd(double r[], unsigned int n)
 {
-   int k;
+   unsigned int k;
 
    if (init==0)
       rlxd_init(1,1);
