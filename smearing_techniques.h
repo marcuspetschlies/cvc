@@ -24,8 +24,6 @@ int Jacobi_Smearing(double *smeared_gauge_field, double *psi, int N, double kapp
 
 void generic_staples ( double * const buff_out, const unsigned int x, const int mu, double * const buff_in );
 
-int exposu3( double * const vr, double * const p );
-
 int stout_smear_inplace ( double * const m_field, const int stout_n, const double stout_rho, double * const buffer );
 
 }
