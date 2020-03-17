@@ -41,6 +41,7 @@
 #include "Q_clover_phi.h"
 #include "smearing_techniques.h"
 #include "gluon_operators.h"
+#include "gauge_io.h"
 
 using namespace cvc;
 
@@ -72,6 +73,8 @@ int main(int argc, char **argv) {
   double stout_rho = 0.;
   struct timeval ta, tb;
   struct timeval start_time, end_time;
+  int write_checkpoint = 0;
+  int read_checkpoint = 0;
 
   char data_tag[400];
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
@@ -82,7 +85,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:s:r:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:s:r:w:b:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -96,6 +99,14 @@ int main(int argc, char **argv) {
       stout_level_iter[stout_level_num] = atoi ( optarg );
       fprintf ( stdout, "# [cpff_xg_contract_lowmem] stout_level_iter %2d set to %2d\n", stout_level_num, stout_level_iter[stout_level_num] );
       stout_level_num++;
+      break;
+    case 'w':
+      write_checkpoint = atoi( optarg );
+      fprintf ( stdout, "# [cpff_xg_contract_lowmem] write checkpoint every %d iter\n", write_checkpoint );
+      break;
+    case 'b':
+      read_checkpoint = atoi( optarg );
+      fprintf ( stdout, "# [cpff_xg_contract_lowmem] read checkpoint %d iter\n", read_checkpoint );
       break;
     case 'h':
     case '?':
@@ -144,15 +155,19 @@ int main(int argc, char **argv) {
    ***************************************************************************/
 
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
-  if(!(strcmp(gaugefilename_prefix,"identity")==0)) {
-    /* read the gauge field */
-    sprintf ( filename, "%s.%.4d", gaugefilename_prefix, Nconf );
-    if(g_cart_id==0) fprintf(stdout, "# [cpff_xg_contract_lowmem] reading gauge field from file %s\n", filename);
-    exitstatus = read_lime_gauge_field_doubleprec(filename);
-  } else {
+  if( strcmp(gaugefilename_prefix,"identity" ) == 0 ) {
     /* initialize unit matrices */
     if(g_cart_id==0) fprintf(stdout, "\n# [cpff_xg_contract_lowmem] initializing unit matrices\n");
     exitstatus = unit_gauge_field ( g_gauge_field, VOLUME );
+  } else {
+    /* read the gauge field */
+    if ( read_checkpoint ) {
+      sprintf ( filename, "%s.%.4d.stoutn%d.stoutr%6.4f", gaugefilename_prefix, Nconf, read_checkpoint, stout_rho );
+    } else {
+      sprintf ( filename, "%s.%.4d", gaugefilename_prefix, Nconf );
+    }
+    if(g_cart_id==0) fprintf(stdout, "# [cpff_xg_contract_lowmem] reading gauge field from file %s\n", filename);
+    exitstatus = read_lime_gauge_field_doubleprec(filename);
   }
   if(exitstatus != 0) {
     fprintf ( stderr, "[cpff_xg_contract_lowmem] Error initializing gauge field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
@@ -232,6 +247,22 @@ int main(int argc, char **argv) {
     char timer_tag[100];
     sprintf( timer_tag, "stout-smear-%u", stout_iter );
     show_time ( &ta, &tb, "cpff_xg_contract_lowmem", timer_tag, io_proc==2 );
+
+    if ( write_checkpoint && ( stout_level_iter[istout] % write_checkpoint == 0 ) && ( stout_level_iter[istout] > 0 ) ) {
+      sprintf ( filename, "%s.%.4d.stoutn%d.stoutr%6.4f", gaugefilename_prefix, Nconf,  stout_level_iter[istout] , stout_rho );
+      if(g_cart_id==0) fprintf(stdout, "# [cpff_xg_contract_lowmem] writing gauge field to file %s\n", filename);
+
+      double plaq = 0.;
+      plaquette2 ( &plaq, g_gauge_field );
+
+      exitstatus = write_lime_gauge_field ( filename, plaq, Nconf, 64 );
+      if(exitstatus != 0) {
+        fprintf ( stderr, "[cpff_xg_contract_lowmem] Error from write_lime_gauge_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(8);
+      }
+
+    }
+
 
 #ifdef HAVE_MPI
     xchange_gauge_field ( g_gauge_field );
