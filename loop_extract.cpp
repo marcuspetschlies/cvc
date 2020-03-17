@@ -42,9 +42,9 @@
 
 using namespace cvc;
 
-#undef _EXDEFL_LOOP
-#undef _STOCHASTIC_HP
-#define _STOCHASTIC_VOLSRC
+#define _EXDEFL_LOOP
+#define _STOCHASTIC_HP
+#undef _STOCHASTIC_VOLSRC
 
 void usage() {
   fprintf(stdout, "Code to extract loop data\n");
@@ -221,12 +221,12 @@ int main(int argc, char **argv) {
    ***************************************************************************/
   /* sprintf ( filename, "loop_probD%d.%.4d_r%d_exact_NeV%d_Qsq%d.h5", hier_prob_D,  confid, stream, exdef_nev, Qsq ); */
 
+#ifdef _STOCHASTIC_VOLSRC
   /* MG_loop_lightquark_conf_conf.1016_runtype_probD8_part1_stoch_NeV0_Ns0128_step0001_Qsq22.h5 */
-  /* sprintf ( filename, "MG_loop_lightquark_conf_conf.%.4d_runtype_probD%d_part1_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", confid, hier_prob_D, exdef_nev, nsample, nstep, Qsq ); */
-  /* sprintf ( filename, "%s.%.4d.h5", g_outfile_prefix, confid ); */
-  sprintf ( filename, "%d/%s.%.4d.h5", confid, g_outfile_prefix, confid );
- 
-  /* sprintf ( filename, "loop_probD%d.%.4d_r%d_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", hier_prob_D, confid, stream, exdef_nev, nsample, nstep, Qsq ); */
+  sprintf ( filename, "MG_loop_lightquark_conf_conf.%.4d_runtype_probD%d_part1_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", confid, hier_prob_D, exdef_nev, nsample, nstep, Qsq );
+#else
+  sprintf ( filename, "loop_probD%d.%.4d_r%d_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", hier_prob_D, confid, stream, exdef_nev, nsample, nstep, Qsq );
+#endif
 
   if ( io_proc == 2 && g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", filename );
 
@@ -322,7 +322,7 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * exact part
    ***************************************************************************/
-#if _EXDEFL_LOOP
+#ifdef _EXDEFL_LOOP
   if ( exdef_nev > 0 ) {
      /* allocate memory for contractions */
     double *** loop_exact = init_3level_dtable ( T, sink_momentum_number, 32 );
@@ -410,7 +410,7 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * stochastic part
    ***************************************************************************/
-#if _STOCHASTIC_HP
+#ifdef _STOCHASTIC_HP
   double *** loop_stoch = init_3level_dtable ( T, sink_momentum_number, 32 );
   if ( loop_stoch == NULL ) {
     fprintf(stderr, "[loop_extract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );;
@@ -547,7 +547,8 @@ int main(int argc, char **argv) {
       unsigned int const Nstoch = ( isample + 1 ) * nstep;
 
       if ( cumulative ) {
-        sprintf ( data_tag_prefix, "/conf_%.4d/Nstoch_%.4d/%s" , confid, Nstoch, oet_type );
+        /* sprintf ( data_tag_prefix, "/conf_%.4d/Nstoch_%.4d/%s" , confid, Nstoch, oet_type ); */
+        sprintf ( data_tag_prefix, "/conf_%.4d/Nstoch_%.4d/%s" , 4, Nstoch, oet_type );
       } else {
         sprintf ( data_tag_prefix, "/conf_%.4d/nstoch_%.4d/%s" , confid, Nstoch, oet_type );
       }
