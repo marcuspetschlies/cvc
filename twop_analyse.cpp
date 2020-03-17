@@ -80,6 +80,7 @@ int main(int argc, char **argv) {
   int correlator_type = -1;
   int flavor_type = -1;
   int write_data = 0;
+  double twop_operator_norm[2] = {1., 1.};
 
 #ifdef HAVE_LHPC_AFF
   struct AffReader_s *affr = NULL;
@@ -90,7 +91,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:N:S:F:c:s:E:W:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:N:S:F:c:s:E:W:n:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -123,6 +124,10 @@ int main(int argc, char **argv) {
     case 'W':
       write_data = atof( optarg );
       fprintf ( stdout, "# [twop_analyse] write_data set to %d\n", write_data );
+      break;
+    case 'n':
+      sscanf ( optarg, "%lf,%lf", twop_operator_norm, twop_operator_norm+1 );
+      fprintf ( stdout, "# [twop_analyse] twop_operator_norm set to %e  %e\n", twop_operator_norm[0], twop_operator_norm[1] );
       break;
     case 'h':
     case '?':
@@ -474,8 +479,8 @@ int main(int argc, char **argv) {
 
                 double _Complex ztmp = ( buffer[2*it] +  buffer[2*it+1] * I ) * ephase;
   
-                corr[iconf][isrc][isink_momentum][isink_gamma][isource_gamma][2*tt  ] += creal( ztmp );
-                corr[iconf][isrc][isink_momentum][isink_gamma][isource_gamma][2*tt+1] += cimag( ztmp );
+                corr[iconf][isrc][isink_momentum][isink_gamma][isource_gamma][2*tt  ] += creal( ztmp ) * twop_operator_norm[0] * twop_operator_norm[1];
+                corr[iconf][isrc][isink_momentum][isink_gamma][isource_gamma][2*tt+1] += cimag( ztmp ) * twop_operator_norm[0] * twop_operator_norm[1];
               }
         
             }  /* end of loop on source locations */
@@ -600,7 +605,7 @@ int main(int argc, char **argv) {
 
           for ( int iconf = 0; iconf < num_conf; iconf++ ) {
             for ( int it = 0; it < T_global; it++ ) {
-              fprintf ( fs, "%25.16e\n", data[iconf][it] );
+              fprintf ( fs, "%3d %25.16e %c %6d\n", it, data[iconf][it], conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] );
             }
           }
 
