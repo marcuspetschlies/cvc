@@ -1609,7 +1609,7 @@ int twopoint_function_apply_diagram_norm ( twopoint_function_type *p ) {
   }
 
   if ( strcmp ( p->norm , "NA" ) == 0 ) {
-    if( g_verbose > 2 ) fprintf ( stderr, "[twopoint_function_apply_diagram_norm] Warning, norm is not set %s %d\n", __FILE__, __LINE__ );
+    if( g_verbose > 4 ) fprintf ( stderr, "[twopoint_function_apply_diagram_norm] Warning, norm is not set %s %d\n", __FILE__, __LINE__ );
     return(0);
   }
 
