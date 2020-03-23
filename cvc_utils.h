@@ -59,6 +59,8 @@ int ranz2(double * const y, unsigned int const NRAND);
 
 int ranz3 ( double * const y, unsigned int const NRAND );
 
+int ranbinary(double * const y, unsigned int const NRAND);
+
 void random_gauge_field(double *gfield, double h);
 void random_gauge_point(double **gauge_point, double heat);
 void random_cm(double *A, double heat);
