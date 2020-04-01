@@ -98,6 +98,7 @@ int main(int argc, char **argv) {
   int op_id_dn = -1;
   char output_filename[400];
   int * rng_state = NULL;
+  int restart = 0;
 
   char data_tag[400];
 
@@ -105,7 +106,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "ch?f:")) != -1) {
+  while ((c = getopt(argc, argv, "rch?f:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -113,6 +114,9 @@ int main(int argc, char **argv) {
       break;
     case 'c':
       check_propagator_residual = 1;
+      break;
+    case 'r':
+      restart = 1;
       break;
     case 'h':
     case '?':
@@ -381,7 +385,7 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * write momentum configuration
    ***************************************************************************/
-  if ( io_proc == 2 ) {
+  if ( ( io_proc == 2 ) && !restart ) {
 
     for ( int i = 0; i < g_sink_momentum_number; i++ ) {
       g_sink_momentum_list[i][0] *= -1;
@@ -428,7 +432,9 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * loop on stochastic oet samples
    ***************************************************************************/
-  for ( int isample = 0; isample < g_nsample; isample++ ) {
+  /* for ( int isample = 0; isample < g_nsample; isample++ ) */
+  for ( int isample = g_sourceid; isample <= g_sourceid2; isample += g_sourceid_step )
+  {
 
     /***************************************************************************
      * read stochastic oet source from file
