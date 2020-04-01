@@ -541,104 +541,99 @@ int main(int argc, char **argv) {
    * STATISTICAL ANALYSIS
    ****************************************/
 
-  for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+  for ( int isink_gamma   = 0; isink_gamma   < g_sink_gamma_id_number;   isink_gamma++ ) {
 
-    int const momentum[3] = {
-        g_sink_momentum_list[imom][0],
-        g_sink_momentum_list[imom][1],
-        g_sink_momentum_list[imom][2] };
+    int const sink_gamma_id = g_sink_gamma_id_list[ isink_gamma ];
 
-    for ( int isink_gamma   = 0; isink_gamma   < g_sink_gamma_id_number;   isink_gamma++ ) {
+  for ( int isource_gamma = 0; isource_gamma < g_source_gamma_id_number; isource_gamma++ ) {
 
-      int const sink_gamma_id = g_sink_gamma_id_list[ isink_gamma ];
+    int const source_gamma_id = g_source_gamma_id_list[ isource_gamma ];
 
-    for ( int isource_gamma = 0; isource_gamma < g_source_gamma_id_number; isource_gamma++ ) {
+    for ( int ireim = 0; ireim < 2; ireim++ ) {
 
-      int const source_gamma_id = g_source_gamma_id_list[ isource_gamma ];
+      double ** data = init_2level_dtable ( num_conf, T_global );
 
-      for ( int ireim = 0; ireim < 2; ireim++ ) {
-
-        double ** data = init_2level_dtable ( num_conf, T_global );
-
-        /* fill data array */
+      /* fill data array */
 #pragma omp parallel for
-        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-          for ( int it = 0; it < T_global; it++ ) {
-            data[iconf][it] = 0.;
+      for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+        for ( int it = 0; it < T_global; it++ ) {
+          data[iconf][it] = 0.;
+          for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
             for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
               data[iconf][it] += corr[iconf][isrc][imom][isink_gamma][isource_gamma][2*it+ireim];
             }
-            data[iconf][it] /= (double)num_src_per_conf;
           }
+          data[iconf][it] /= (double)num_src_per_conf * (double)g_sink_momentum_number;
         }
+      }
 
-        if ( fold_correlator ) {
+      if ( fold_correlator ) {
 #pragma omp parallel for
-          for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-            for ( int it = 1; it < T_global/2; it++ ) {
-              data[iconf][it] += data[iconf][T_global - it];
-              data[iconf][it] *= 0.5;
-              data[iconf][T_global - it] = data[iconf][it];
-            }
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for ( int it = 1; it < T_global/2; it++ ) {
+            data[iconf][it] += data[iconf][T_global - it];
+            data[iconf][it] *= 0.5;
+            data[iconf][T_global - it] = data[iconf][it];
+          }
+        }
+      }
+
+     /****************************************
+      * STATISTICAL ANALYSIS of real and
+      * imaginary part
+      ****************************************/
+
+      char obs_name[100];
+      sprintf ( obs_name, "%s.%s.gf%d.gi%d.PX%d_PY%d_PZ%d.%s", twop_correlator_prefix[correlator_type], twop_flavor_tag[ flavor_type],
+          sink_gamma_id, source_gamma_id, g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2], reim_str[ireim] );
+
+      /* apply UWerr analysis */
+      exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+      if ( exitstatus != 0 ) {
+        fprintf ( stderr, "[twop_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(1);
+      }
+
+      if ( write_data == 1 ) {
+        sprintf ( filename, "%s.corr" , obs_name );
+        FILE * fs = fopen( filename, "w" );
+
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for ( int it = 0; it < T_global; it++ ) {
+            /* fprintf ( fs, "%3d %25.16e %c %6d\n", it, data[iconf][it], conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] ); */
+            fprintf ( fs, "%3d %25.16e %6d\n", it, data[iconf][it], iconf * g_gauge_step );
           }
         }
 
-       /****************************************
-        * STATISTICAL ANALYSIS of real and
-        * imaginary part
-        ****************************************/
 
-        char obs_name[100];
-        sprintf ( obs_name, "%s.%s.gf%d.gi%d.PX%d_PY%d_PZ%d.%s", twop_correlator_prefix[correlator_type], twop_flavor_tag[ flavor_type],
-            sink_gamma_id, source_gamma_id, momentum[0], momentum[1], momentum[2], reim_str[ireim] );
+        fclose( fs );
+      }
 
-        /* apply UWerr analysis */
-        exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+      /****************************************
+       * STATISTICAL ANALYSIS of effective
+       * mass from time-split acosh ratio
+       ****************************************/
+      for ( int itau = 1; itau < T_global/2; itau++ )
+      {
+
+        char obs_name2[200];
+        sprintf( obs_name2, "%s.acoshratio.tau%d", obs_name, itau );
+
+        int arg_first[3]  = { 0, 2*itau, itau };
+        int arg_stride[3] = {1, 1, 1};
+
+        exitstatus = apply_uwerr_func ( data[0], num_conf, T_global, T_global/2-itau, 3, arg_first, arg_stride, obs_name2, acosh_ratio, dacosh_ratio );
+
         if ( exitstatus != 0 ) {
-          fprintf ( stderr, "[twop_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          fprintf ( stderr, "[twop_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(1);
         }
+      }
 
-        if ( write_data == 1 ) {
-          sprintf ( filename, "%s.corr" , obs_name );
-          FILE * fs = fopen( filename, "w" );
+      fini_2level_dtable ( &data );
 
-          for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-            for ( int it = 0; it < T_global; it++ ) {
-              fprintf ( fs, "%3d %25.16e %c %6d\n", it, data[iconf][it], conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] );
-            }
-          }
-
-
-          fclose( fs );
-        }
-
-        /****************************************
-         * STATISTICAL ANALYSIS of effective
-         * mass from time-split acosh ratio
-         ****************************************/
-        for ( int itau = 1; itau < T_global/2; itau++ )
-        {
-
-          char obs_name2[200];
-          sprintf( obs_name2, "%s.acoshratio.tau%d", obs_name, itau );
-
-          int arg_first[3]  = { 0, 2*itau, itau };
-          int arg_stride[3] = {1, 1, 1};
-
-          exitstatus = apply_uwerr_func ( data[0], num_conf, T_global, T_global/2-itau, 3, arg_first, arg_stride, obs_name2, acosh_ratio, dacosh_ratio );
-
-          if ( exitstatus != 0 ) {
-            fprintf ( stderr, "[twop_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-            EXIT(1);
-          }
-        }
-
-        fini_2level_dtable ( &data );
-
-      }  /* end of loop on re / im */
-    }}  /* end of loop on source and sink gamma id */
-  }  /* end of loop on momenta */
+    }  /* end of loop on re / im */
+  }}  /* end of loop on source and sink gamma id */
 
   /**********************************************************
    * free hvp field

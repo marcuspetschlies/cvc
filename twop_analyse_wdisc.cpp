@@ -390,15 +390,16 @@ int main(int argc, char **argv) {
         project_loop ( loops_proj_sink[isink_momentum][ipsign][isink_gamma][0][0], gf.m, loops_matrix[0][0][0][0], num_conf * loop_nsample * T_global, loop_transpose );
 
         if ( write_data == 1 ) {
-          sprintf ( filename, "loop.%s.%s.gf%d.px%d_py%d_pz%d.%s",
-              flavor_tag[0], loop_type_tag[loop_type], g_sink_gamma_id_list[isink_gamma], sink_momentum[0], sink_momentum[1], sink_momentum[2], reim_str[loop_type_reim[0]] );
+          sprintf ( filename, "loop.%s.%s.gf%d.px%d_py%d_pz%d",
+              flavor_tag[0], loop_type_tag[loop_type], g_sink_gamma_id_list[isink_gamma], sink_momentum[0], sink_momentum[1], sink_momentum[2] );
 
           FILE * fs = fopen ( filename, "w" );
           for ( int iconf = 0; iconf < num_conf; iconf++ ) {
             for ( int isample = 0; isample < loop_nsample; isample++ ) {
               for ( int it = 0; it < T_global; it++ ) {
-                fprintf ( fs, "%4d %3d %25.16e %c %6d\n", isample, it, 
-                    loops_proj_sink[isink_momentum][ipsign][isink_gamma][iconf][isample][2*it+loop_type_reim[0]] / double(loop_step),
+                fprintf ( fs, "%4d %3d %25.16e %25.16e %c %6d\n", isample, it, 
+                    loops_proj_sink[isink_momentum][ipsign][isink_gamma][iconf][isample][2*it  ] / double(loop_step),
+                    loops_proj_sink[isink_momentum][ipsign][isink_gamma][iconf][isample][2*it+1] / double(loop_step),
                     conf_src_list[iconf][0][0],
                     conf_src_list[iconf][0][1] );
               }
@@ -493,15 +494,16 @@ int main(int argc, char **argv) {
         project_loop ( loops_proj_source[isink_momentum][ipsign][isource_gamma][0][0], gf.m, loops_matrix[0][0][0][0], num_conf * loop_nsample * T_global, loop_transpose );
 
         if ( write_data == 1 ) {
-          sprintf ( filename, "loop.%s.%s.gi%d.px%d_py%d_pz%d.%s",
-              flavor_tag[0], loop_type_tag[loop_type], g_source_gamma_id_list[isource_gamma], sink_momentum[0], sink_momentum[1], sink_momentum[2], reim_str[loop_type_reim[1]] );
+          sprintf ( filename, "loop.%s.%s.gi%d.px%d_py%d_pz%d",
+              flavor_tag[0], loop_type_tag[loop_type], g_source_gamma_id_list[isource_gamma], sink_momentum[0], sink_momentum[1], sink_momentum[2] );
 
           FILE * fs = fopen ( filename, "w" );
           for ( int iconf = 0; iconf < num_conf; iconf++ ) {
             for ( int isample = 0; isample < loop_nsample; isample++ ) {
               for ( int it = 0; it < T_global; it++ ) {
-                fprintf ( fs, "%4d %3d %25.16e %c %6d\n", isample, it, 
-                    loops_proj_source[isink_momentum][ipsign][isource_gamma][iconf][isample][2*it+loop_type_reim[1]] / double(loop_step),
+                fprintf ( fs, "%4d %3d %25.16e %25.16e %c %6d\n", isample, it, 
+                    loops_proj_source[isink_momentum][ipsign][isource_gamma][iconf][isample][2*it] / double(loop_step),
+                    loops_proj_source[isink_momentum][ipsign][isource_gamma][iconf][isample][2*it+1] / double(loop_step),
                     conf_src_list[iconf][0][0],
                     conf_src_list[iconf][0][1] );
               }
@@ -521,6 +523,47 @@ int main(int argc, char **argv) {
   /**********************************************************
    **********************************************************
    **
+   ** possibly select real or imaginary part
+   **
+   **********************************************************
+   **********************************************************/
+  if ( loop_type_reim[0] >= 0 ) {
+    for ( int isink_momentum = 0; isink_momentum < sink_momentum_number; isink_momentum++ ) {
+      for ( int ipsign = 0; ipsign < 2; ipsign++ ) {
+        for ( int isink_gamma   = 0; isink_gamma   < g_sink_gamma_id_number;   isink_gamma++ ) {
+#pragma omp parallel for
+          for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+            for ( int isample = 0; isample < loop_nsample; isample++ ) {
+              for ( int it = 0; it < T_global; it++ ) {
+                loops_proj_sink[isink_momentum][ipsign][isink_gamma][iconf][isample][2*it+1-loop_type_reim[0]] = 0.;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if ( loop_type_reim[1] >= 0 ) {
+    for ( int isink_momentum = 0; isink_momentum < sink_momentum_number; isink_momentum++ ) {
+      for ( int ipsign = 0; ipsign < 2; ipsign++ ) {
+        for ( int isource_gamma   = 0; isource_gamma   < g_source_gamma_id_number;   isource_gamma++ ) {
+#pragma omp parallel for
+          for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+            for ( int isample = 0; isample < loop_nsample; isample++ ) {
+              for ( int it = 0; it < T_global; it++ ) {
+                loops_proj_source[isink_momentum][ipsign][isource_gamma][iconf][isample][2*it+1-loop_type_reim[1]] = 0.;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /**********************************************************
+   **********************************************************
+   **
    ** combine loops to 2pt function
    **
    **********************************************************
@@ -536,13 +579,13 @@ int main(int argc, char **argv) {
      **********************************************************/
     for ( int isource_gamma   = 0; isource_gamma   < g_source_gamma_id_number;   isource_gamma++ ) {
 
-      double *** corr = init_3level_dtable ( num_conf, sink_momentum_number, T_global );
+      double *** corr = init_3level_dtable ( num_conf, sink_momentum_number, 2*T_global );
       if ( corr == NULL ) {
         fprintf(stderr, "[twop_analyse_wdisc] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
         EXIT(16);
       }
 
-      double *** corr_sub = init_3level_dtable ( num_conf, sink_momentum_number, T_global );
+      double *** corr_sub = init_3level_dtable ( num_conf, sink_momentum_number, 2*T_global );
       if ( corr_sub == NULL ) {
         fprintf(stderr, "[twop_analyse_wdisc] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
         EXIT(16);
@@ -559,14 +602,15 @@ int main(int argc, char **argv) {
 #endif
         for ( int iconf =0; iconf < num_conf; iconf++ ) {
 
-          double ** loops_src = init_2level_dtable ( 2, T_global );
-          double ** loops_snk = init_2level_dtable ( 2, T_global );
+          double ** loops_src = init_2level_dtable ( 2, 2*T_global );
+          double ** loops_snk = init_2level_dtable ( 2, 2*T_global );
 
           /* sum over samples at source */
           for ( int ip =0; ip <= 1; ip++ ) {
             for ( int it = 0; it < T_global; it++ ) {
               for ( int isample = 0; isample<loop_nsample; isample++ ) {
-                loops_src[ip][it] += loops_proj_source[isink_momentum][ip][isource_gamma][iconf][isample][2*it+loop_type_reim[1]];
+                loops_src[ip][2*it  ] += loops_proj_source[isink_momentum][ip][isource_gamma][iconf][isample][2*it  ];
+                loops_src[ip][2*it+1] += loops_proj_source[isink_momentum][ip][isource_gamma][iconf][isample][2*it+1];
               }
             }
           }
@@ -575,7 +619,8 @@ int main(int argc, char **argv) {
           for ( int ip =0; ip <= 1; ip++ ) {
             for ( int it = 0; it < T_global; it++ ) {
               for ( int isample = 0; isample<loop_nsample; isample++ ) {
-                loops_snk[ip][it] += loops_proj_sink[isink_momentum][ip][isink_gamma][iconf][isample][2*it+loop_type_reim[0]];
+                loops_snk[ip][2*it  ] += loops_proj_sink[isink_momentum][ip][isink_gamma][iconf][isample][2*it  ];
+                loops_snk[ip][2*it+1] += loops_proj_sink[isink_momentum][ip][isink_gamma][iconf][isample][2*it+1];
               }
             }
           }
@@ -585,40 +630,56 @@ int main(int argc, char **argv) {
           for ( int it1 = 0; it1 < T_global; it1++ ) {
             int const idt = ( it1 - it0 + T_global ) % T_global;
  
-            corr[iconf][isink_momentum][idt] += 0.5 * ( 
-                  loops_snk[0][it1] * loops_src[0][it0] 
-                + loops_snk[1][it1] * loops_src[1][it0] );
+            corr[iconf][isink_momentum][2*idt  ] += 0.5 * ( 
+                    loops_snk[0][2*it1] * loops_src[0][2*it0] - loops_snk[0][2*it1+1] * loops_src[0][2*it0+1] 
+                  + loops_snk[1][2*it1] * loops_src[1][2*it0] - loops_snk[1][2*it1+1] * loops_src[1][2*it0+1] 
+                  );
+
+            corr[iconf][isink_momentum][2*idt+1] += 0.5 * ( 
+                    loops_snk[0][2*it1] * loops_src[0][2*it0+1] + loops_snk[0][2*it1+1] * loops_src[0][2*it0] 
+                  + loops_snk[1][2*it1] * loops_src[1][2*it0+1] + loops_snk[1][2*it1+1] * loops_src[1][2*it0] 
+                  );
+
           }}
       
 
           /* sum the "bias" over samples, diagonal in samples */
           for ( int isample =0; isample <  loop_nsample; isample++ ) {
             for ( int it0 = 0; it0 < T_global; it0++ ) {
-              double const dsrc[2] = {
-                loops_proj_source[isink_momentum][0][isource_gamma][iconf][isample][2*it0+loop_type_reim[1]],
-                loops_proj_source[isink_momentum][1][isource_gamma][iconf][isample][2*it0+loop_type_reim[1]] };
+              double const dsrc[2][2] = {
+                { loops_proj_source[isink_momentum][0][isource_gamma][iconf][isample][2*it0],
+                  loops_proj_source[isink_momentum][0][isource_gamma][iconf][isample][2*it0+1] },
+                { loops_proj_source[isink_momentum][1][isource_gamma][iconf][isample][2*it0],
+                  loops_proj_source[isink_momentum][1][isource_gamma][iconf][isample][2*it0+1] } };
 
               for ( int it1 = 0; it1 < T_global; it1++ ) {
-                double const dsnk[2] = {
-                  loops_proj_sink[isink_momentum][0][isink_gamma][iconf][isample][2*it1+loop_type_reim[0]],
-                  loops_proj_sink[isink_momentum][1][isink_gamma][iconf][isample][2*it1+loop_type_reim[0]] };
+                double const dsnk[2][2] = {
+                  { loops_proj_sink[isink_momentum][0][isink_gamma][iconf][isample][2*it1],
+                    loops_proj_sink[isink_momentum][0][isink_gamma][iconf][isample][2*it1+1] },
+                  { loops_proj_sink[isink_momentum][1][isink_gamma][iconf][isample][2*it1],
+                    loops_proj_sink[isink_momentum][1][isink_gamma][iconf][isample][2*it1+1] } };
 
                 int const idt = ( it1 - it0 + T_global ) % T_global;
 
-                corr_sub[iconf][isink_momentum][idt] += 0.5 * ( dsnk[0] * dsrc[0] + dsnk[1] * dsrc[1]  );
+                corr_sub[iconf][isink_momentum][2*idt] += 0.5 * ( 
+                      dsnk[0][0] * dsrc[0][0] - dsnk[0][1] * dsrc[0][1] 
+                    + dsnk[1][0] * dsrc[1][0] - dsnk[1][1] * dsrc[1][1]  );
+
+                corr_sub[iconf][isink_momentum][2*idt+1] += 0.5 * ( 
+                      dsnk[0][0] * dsrc[0][1] + dsnk[0][1] * dsrc[0][0] 
+                    + dsnk[1][0] * dsrc[1][1] + dsnk[1][1] * dsrc[1][0]  );
+
               }
             }
           }
 
-          double const norm_sub = 1. / ( (double)T_global * loop_nsample * ( loop_nsample - 1 ) * loop_step * loop_step * VOL3 ) 
-              * loop_norm[0] * loop_norm[1] * reim_sign[loop_type_reim[0]][loop_type_reim[1]];
-          for ( int idt = 0; idt < T_global; idt++ ) {
+          double const norm_sub = 1. / ( (double)T_global * loop_nsample * ( loop_nsample - 1 ) * loop_step * loop_step * VOL3 ) * loop_norm[0] * loop_norm[1] ;
+          for ( int idt = 0; idt < 2*T_global; idt++ ) {
             corr_sub[iconf][isink_momentum][idt] =  ( corr[iconf][isink_momentum][idt] - corr_sub[iconf][isink_momentum][idt] ) * norm_sub;
            }
 
-          double const norm = 1. / ( (double)T_global * loop_nsample * loop_nsample * loop_step * loop_step * VOL3 ) 
-              * loop_norm[0] * loop_norm[1] * reim_sign[loop_type_reim[0]][loop_type_reim[1]];
-          for ( int idt = 0; idt < T_global; idt++ ) {
+          double const norm = 1. / ( (double)T_global * loop_nsample * loop_nsample * loop_step * loop_step * VOL3 ) * loop_norm[0] * loop_norm[1];
+          for ( int idt = 0; idt < 2* T_global; idt++ ) {
             corr[iconf][isink_momentum][idt] *= norm;
           }
         
@@ -633,46 +694,50 @@ int main(int argc, char **argv) {
        * STATISTICAL ANALYSIS
        * for corr
        ****************************************/
-      double ** data = init_2level_dtable ( num_conf, T_global );
 
-      /* fill data array */
+      for ( int ireim = 0; ireim <=1; ireim++ ) {
+
+        double ** data = init_2level_dtable ( num_conf, T_global );
+
+        /* fill data array */
 #pragma omp parallel for
-      for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-        for ( int it = 0; it < T_global; it++ ) {
-          data[iconf][it] = 0.;
-          for ( int imom = 0; imom < sink_momentum_number; imom++ ) {
-            data[iconf][it] += corr[iconf][imom][it];
-          }
-          data[iconf][it] /= (double)sink_momentum_number;
-        }
-      }
-
-      char obs_name[100];
-      sprintf ( obs_name, "disc.%s-%s.%s.gf%d.gi%d.px%d_py%d_pz%d.%s_%s", 
-          flavor_tag[0], flavor_tag[1],
-          loop_type_tag[loop_type],
-          g_sink_gamma_id_list[isink_gamma], g_source_gamma_id_list[isource_gamma], 
-          sink_momentum_list[0][0], sink_momentum_list[0][1], sink_momentum_list[0][2], reim_str[loop_type_reim[0]], reim_str[loop_type_reim[1]] );
-
-      /* apply UWerr analysis */
-      exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
-      if ( exitstatus != 0 ) {
-        fprintf ( stderr, "[twop_analyse_wdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-        EXIT(1);
-      }
-
-      if ( write_data == 1 ) {
-        sprintf ( filename, "%s.corr" , obs_name );
-        FILE * fs = fopen( filename, "w" );
-
         for ( int iconf = 0; iconf < num_conf; iconf++ ) {
           for ( int it = 0; it < T_global; it++ ) {
-            fprintf ( fs, "%3d %25.16e %c %6d\n", it, data[iconf][it], conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] );
+            data[iconf][it] = 0.;
+            for ( int imom = 0; imom < sink_momentum_number; imom++ ) {
+              data[iconf][it] += corr[iconf][imom][2*it+ireim];
+            }
+            data[iconf][it] /= (double)sink_momentum_number;
           }
         }
 
-        fclose( fs );
-      }
+        char obs_name[100];
+        sprintf ( obs_name, "disc.%s-%s.%s.gf%d.gi%d.px%d_py%d_pz%d.%s", 
+            flavor_tag[0], flavor_tag[1],
+            loop_type_tag[loop_type],
+            g_sink_gamma_id_list[isink_gamma], g_source_gamma_id_list[isource_gamma], 
+            sink_momentum_list[0][0], sink_momentum_list[0][1], sink_momentum_list[0][2], reim_str[ireim] );
+
+        /* apply UWerr analysis */
+        exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[twop_analyse_wdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(1);
+        }
+
+        if ( write_data == 1 ) {
+          sprintf ( filename, "%s.corr" , obs_name );
+          FILE * fs = fopen( filename, "w" );
+
+          for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+            for ( int it = 0; it < T_global; it++ ) {
+              /* fprintf ( fs, "%3d %25.16e %c %6d\n", it, data[iconf][it], conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] ); */
+              fprintf ( fs, "%3d %25.16e %6d\n", it, data[iconf][it], iconf * g_gauge_step );
+            }
+          }
+
+          fclose( fs );
+        }
 #if 0
       /****************************************
        * STATISTICAL ANALYSIS of effective
@@ -696,51 +761,53 @@ int main(int argc, char **argv) {
       }
 #endif
 
-     /****************************************
-      * STATISTICAL ANALYSIS
-      * for corr_sub
-      ****************************************/
+       /****************************************
+        * STATISTICAL ANALYSIS
+        * for corr_sub
+        ****************************************/
 
-      /* fill data array */
+        /* fill data array */
 #pragma omp parallel for
-      for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-        for ( int it = 0; it < T_global; it++ ) {
-          data[iconf][it] = 0.;
-          for ( int imom = 0; imom < sink_momentum_number; imom++ ) {
-            data[iconf][it] += corr_sub[iconf][imom][it];
-          }
-          data[iconf][it] /= (double)sink_momentum_number;
-        }
-      }
-
-      sprintf ( obs_name, "disc.sub.%s-%s.%s.gf%d.gi%d.px%d_py%d_pz%d.%s_%s", 
-          flavor_tag[0], flavor_tag[1],
-          loop_type_tag[loop_type],
-          g_sink_gamma_id_list[isink_gamma], g_source_gamma_id_list[isource_gamma], 
-          sink_momentum_list[0][0], sink_momentum_list[0][1], sink_momentum_list[0][2],
-          reim_str[loop_type_reim[0]], reim_str[loop_type_reim[1]]);
-
-      /* apply UWerr analysis */
-      exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
-      if ( exitstatus != 0 ) {
-        fprintf ( stderr, "[twop_analyse_wdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-        EXIT(1);
-      }
-
-      if ( write_data == 1 ) {
-        sprintf ( filename, "%s.corr" , obs_name );
-        FILE * fs = fopen( filename, "w" );
-
         for ( int iconf = 0; iconf < num_conf; iconf++ ) {
           for ( int it = 0; it < T_global; it++ ) {
-            fprintf ( fs, "%3d %25.16e %c %6d\n", it, data[iconf][it], conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] );
+            data[iconf][it] = 0.;
+            for ( int imom = 0; imom < sink_momentum_number; imom++ ) {
+              data[iconf][it] += corr_sub[iconf][imom][2*it+ireim];
+            }
+            data[iconf][it] /= (double)sink_momentum_number;
           }
         }
 
-        fclose( fs );
-      }
+        sprintf ( obs_name, "disc.sub.%s-%s.%s.gf%d.gi%d.px%d_py%d_pz%d.%s", 
+            flavor_tag[0], flavor_tag[1],
+            loop_type_tag[loop_type],
+            g_sink_gamma_id_list[isink_gamma], g_source_gamma_id_list[isource_gamma], 
+            sink_momentum_list[0][0], sink_momentum_list[0][1], sink_momentum_list[0][2], reim_str[ireim] );
 
-      fini_2level_dtable ( &data );
+        /* apply UWerr analysis */
+        exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[twop_analyse_wdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(1);
+        }
+
+        if ( write_data == 1 ) {
+          sprintf ( filename, "%s.corr" , obs_name );
+          FILE * fs = fopen( filename, "w" );
+
+          for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+            for ( int it = 0; it < T_global; it++ ) {
+              /* fprintf ( fs, "%3d %25.16e %c %6d\n", it, data[iconf][it], conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] ); */
+              fprintf ( fs, "%3d %25.16e %6d\n", it, data[iconf][it], iconf * g_gauge_step );
+            }
+          }
+
+          fclose( fs );
+        }
+
+        fini_2level_dtable ( &data );
+
+      }  /* end of loop on reim */
 
       /**********************************************************/
       /**********************************************************/
