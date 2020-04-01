@@ -241,11 +241,12 @@ int main(int argc, char **argv) {
       char key[400];
       char data_filename[500];
     
-      sprintf( data_filename, "%s/stream_%c/light/p2gg_twop_local/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff",
+      sprintf( data_filename, "%s/stream_%c/%s/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff",
           filename_prefix,
-          conf_src_list[iconf][0][0], 
-          filename_prefix2, 
-          conf_src_list[iconf][0][1], conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5] );
+          conf_src_list[iconf][isrc][0], 
+          filename_prefix2,
+          filename_prefix3,
+          conf_src_list[iconf][isrc][1], conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5] );
 
       fprintf(stdout, "# [compact] reading data from file %s\n", data_filename);
       affr = aff_reader ( data_filename );
@@ -367,7 +368,7 @@ int main(int argc, char **argv) {
           char data_filename[500];
     
           sprintf( data_filename, "%s/%s.%s.gf%.2d.gi%.2d.px%dpy%dpz%d.aff",
-              filename_prefix3,
+              g_outfile_prefix,
               correlator_prefix[operator_type], flavor_tag[flavor_id],
               g_sink_gamma_id_list[igf], g_source_gamma_id_list[igi],
               g_sink_momentum_list[ipf][0], g_sink_momentum_list[ipf][1], g_sink_momentum_list[ipf][2] );

@@ -194,9 +194,6 @@ int main(int argc, char **argv) {
     fprintf ( stderr, "[cpff_xg_contract] Error initializing gauge field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
     EXIT(8);
   }
-#ifdef HAVE_MPI
-  xchange_gauge();
-#endif
 
 #else
   Nconf = g_tmLQCD_lat.nstore;
@@ -217,6 +214,9 @@ int main(int argc, char **argv) {
   }
 #endif
 
+#ifdef HAVE_MPI
+  xchange_gauge();
+#endif
   /***************************************************************************
    * check plaquettes
    ***************************************************************************/

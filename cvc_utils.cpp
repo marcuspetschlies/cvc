@@ -7444,7 +7444,7 @@ int apply_uwerr_real ( double * const data, unsigned int const nmeas, unsigned i
 
   for ( unsigned int i = 0; i < ndata; i++ ) {
 
-    fprintf ( ofs, "%3d %16.7e %16.7e %16.7e %16.7e %16.7e\n", i,
+    fprintf ( ofs, "%3d %25.16e %25.16e %25.16e %25.16e %25.16e\n", i,
       res[i][0], res[i][1], res[i][2], res[i][3], res[i][4] );
   }
 
@@ -7525,7 +7525,7 @@ int apply_uwerr_func ( double * const data, unsigned int const nmeas, unsigned i
   fprintf ( ofs, "#\n" );
 
   for ( unsigned int i = 0; i < nset; i++ ) {
-    fprintf ( ofs, "%3d %16.7e %16.7e %16.7e %16.7e %16.7e\n", i, res[i][0], res[i][1], res[i][2], res[i][3], res[i][4] );
+    fprintf ( ofs, "%3d %25.16e %25.16e %25.16e %25.16e %25.16e\n", i, res[i][0], res[i][1], res[i][2], res[i][3], res[i][4] );
   }
 
   fclose( ofs );

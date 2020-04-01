@@ -79,6 +79,8 @@ int main(int argc, char **argv) {
   struct timeval ta, tb;
   int correlator_type = -1;
   int flavor_type = -1;
+  int write_data = 0;
+  double twop_operator_norm[2] = {1., 1.};
 
 #ifdef HAVE_LHPC_AFF
   struct AffReader_s *affr = NULL;
@@ -89,7 +91,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:N:S:F:c:s:E:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:N:S:F:c:s:E:W:n:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -118,6 +120,14 @@ int main(int argc, char **argv) {
     case 's':
       flavor_type = atoi ( optarg );
       fprintf ( stdout, "# [twop_analyse] flavor_type set to %d\n", flavor_type );
+      break;
+    case 'W':
+      write_data = atof( optarg );
+      fprintf ( stdout, "# [twop_analyse] write_data set to %d\n", write_data );
+      break;
+    case 'n':
+      sscanf ( optarg, "%lf,%lf", twop_operator_norm, twop_operator_norm+1 );
+      fprintf ( stdout, "# [twop_analyse] twop_operator_norm set to %e  %e\n", twop_operator_norm[0], twop_operator_norm[1] );
       break;
     case 'h':
     case '?':
@@ -262,10 +272,7 @@ int main(int argc, char **argv) {
          **********************************************************/
         for ( int isink_momentum = 0; isink_momentum < g_sink_momentum_number; isink_momentum++ ) {
 
-          int const sink_momentum[3] = {
-            g_sink_momentum_list[isink_momentum][0],
-            g_sink_momentum_list[isink_momentum][1],
-            g_sink_momentum_list[isink_momentum][2] };
+          memset( corr[iconf][isrc][isink_momentum][isink_gamma][isource_gamma], 0, 2 * T_global * sizeof(double) );
 
           double * buffer = init_1level_dtable( 2 * T );
           if( buffer == NULL ) {
@@ -273,53 +280,73 @@ int main(int argc, char **argv) {
             EXIT(15);
           }
 
-          gettimeofday ( &ta, (struct timezone *)NULL );
+          for ( int ip = 0; ip < 2; ip++ )  {
 
-          /* sprintf ( key , "/%s/%s/t%.2dx%.2dy%.2dz%.2d/gf%.2d/gi%.2d/px%dpy%dpz%d", twop_correlator_prefix[ correlator_type ], twop_flavor_tag[ flavor_type ],
-              gsx[0], gsx[1], gsx[2], gsx[3], sink_gamma_id, source_gamma_id, sink_momentum[0], sink_momentum[1], sink_momentum[2] ); */
+            int const parity_sign = 1 - 2*ip;
 
-          sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/gf%.2d/gi%.2d/px%dpy%dpz%d", twop_correlator_prefix[ correlator_type ], twop_flavor_tag[ flavor_type ],
-              gsx[0], gsx[1], gsx[2], gsx[3], sink_gamma_id, source_gamma_id, sink_momentum[0], sink_momentum[1], sink_momentum[2] );
+            int ifl = -1;
+            if  ( flavor_type == 0 || flavor_type == 3 ) {
+              ifl = flavor_type;
+            } else if  ( flavor_type == 1 )  { 
+              ifl = flavor_type + ip;
+            } else if  ( flavor_type == 2 )  { 
+              ifl = flavor_type - ip;
+            }
 
-          if ( g_verbose > 2 ) fprintf ( stdout, "# [twop_analyse] key = %s\n", key );
+            int const sink_momentum[3] = {
+              parity_sign * g_sink_momentum_list[isink_momentum][0],
+              parity_sign * g_sink_momentum_list[isink_momentum][1],
+              parity_sign * g_sink_momentum_list[isink_momentum][2] };
 
-          affdir = aff_reader_chpath (affr, affn, key );
-          uint32_t uitems = (uint32_t)T_global;
-          exitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*)(buffer), uitems );
-          if( exitstatus != 0 ) {
-            fprintf(stderr, "[twop_analyse] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(105);
-          }
+            gettimeofday ( &ta, (struct timezone *)NULL );
 
-          gettimeofday ( &tb, (struct timezone *)NULL );
-          show_time ( &ta, &tb, "twop_analyse", "read-aff-key", g_cart_id == 0 );
+            /* sprintf ( key , "/%s/%s/t%.2dx%.2dy%.2dz%.2d/gf%.2d/gi%.2d/px%dpy%dpz%d", twop_correlator_prefix[ correlator_type ], twop_flavor_tag[ flavor_type ],
+                gsx[0], gsx[1], gsx[2], gsx[3], sink_gamma_id, source_gamma_id, sink_momentum[0], sink_momentum[1], sink_momentum[2] ); */
 
-          /**********************************************************
-           * source phase
-           **********************************************************/
-          double const p[3] = {
-              TWO_MPI * (double)sink_momentum[0] / (double)LX_global,
-              TWO_MPI * (double)sink_momentum[1] / (double)LY_global,
-              TWO_MPI * (double)sink_momentum[2] / (double)LZ_global };
+            sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/gf%.2d/gi%.2d/px%dpy%dpz%d", twop_correlator_prefix[ correlator_type ], twop_flavor_tag[ ifl ],
+                gsx[0], gsx[1], gsx[2], gsx[3], sink_gamma_id, source_gamma_id, sink_momentum[0], sink_momentum[1], sink_momentum[2] );
 
-          double const phase = -( p[0] * gsx[1] + p[1] * gsx[2] + p[2] * gsx[3] ) ;
+            if ( g_verbose > 2 ) fprintf ( stdout, "# [twop_analyse] key = %s\n", key );
 
-          double _Complex const ephase = cexp ( phase * I );
+            affdir = aff_reader_chpath (affr, affn, key );
+            uint32_t uitems = (uint32_t)T_global;
+            exitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*)(buffer), uitems );
+            if( exitstatus != 0 ) {
+              fprintf(stderr, "[twop_analyse] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(105);
+            }
 
-          /**********************************************************
-           * sort data from buffer into hvp,
-           * add source phase
-           **********************************************************/
+            gettimeofday ( &tb, (struct timezone *)NULL );
+            show_time ( &ta, &tb, "twop_analyse", "read-aff-key", g_cart_id == 0 );
+
+            /**********************************************************
+             * source phase
+             **********************************************************/
+            double const p[3] = {
+                TWO_MPI * (double)sink_momentum[0] / (double)LX_global,
+                TWO_MPI * (double)sink_momentum[1] / (double)LY_global,
+                TWO_MPI * (double)sink_momentum[2] / (double)LZ_global };
+
+            double const phase = -( p[0] * gsx[1] + p[1] * gsx[2] + p[2] * gsx[3] ) ;
+
+            double _Complex const ephase = cexp ( phase * I );
+
+            /**********************************************************
+             * sort data from buffer into hvp,
+             * add source phase
+             **********************************************************/
 #pragma omp parallel for
-          for ( int it = 0; it < T; it++ ) {
-            int const tt = ( it - gsx[0] + T_global ) % T_global; 
+            for ( int it = 0; it < T; it++ ) {
+              int const tt = ( it - gsx[0] + T_global ) % T_global; 
 
-            double _Complex ztmp = ( buffer[2*it] +  buffer[2*it+1] * I ) * ephase;
+              double _Complex ztmp = ( buffer[2*it] +  buffer[2*it+1] * I ) * ephase;
 
-            corr[iconf][isrc][isink_momentum][isink_gamma][isource_gamma][2*tt  ] = creal( ztmp );
-            corr[iconf][isrc][isink_momentum][isink_gamma][isource_gamma][2*tt+1] = cimag( ztmp );
-          }
+              corr[iconf][isrc][isink_momentum][isink_gamma][isource_gamma][2*tt  ] += creal( ztmp );
+              corr[iconf][isrc][isink_momentum][isink_gamma][isource_gamma][2*tt+1] += cimag( ztmp );
+            }
 
+          }  /* end of loop on ip */
+          
           fini_1level_dtable( &buffer );
 
         }  /* end of loop on sink momenta */
@@ -350,108 +377,122 @@ int main(int argc, char **argv) {
        **********************************************************/
       for ( int isink_momentum = 0; isink_momentum < g_sink_momentum_number; isink_momentum++ ) {
 
-        int const sink_momentum[3] = {
-            g_sink_momentum_list[isink_momentum][0],
-            g_sink_momentum_list[isink_momentum][1],
-            g_sink_momentum_list[isink_momentum][2] };
+        for ( int ip = 0; ip <=1; ip++ ) {
 
-        gettimeofday ( &ta, (struct timezone *)NULL );
+          int const parity_sign = 1 - 2 * ip;
 
-        sprintf ( filename, "%s/%s.%s.gf%.2d.gi%.2d.px%dpy%dpz%d.aff", filename_prefix, twop_correlator_prefix[correlator_type],
-            twop_flavor_tag[flavor_type], sink_gamma_id, source_gamma_id, sink_momentum[0], sink_momentum[1], sink_momentum[2] );
+          int const sink_momentum[3] = {
+              parity_sign * g_sink_momentum_list[isink_momentum][0],
+              parity_sign * g_sink_momentum_list[isink_momentum][1],
+              parity_sign * g_sink_momentum_list[isink_momentum][2] };
 
-        /***********************************************
-         * reader for aff input file
-         ***********************************************/
+          int ifl = -1;
+          if  ( flavor_type == 0 || flavor_type == 3 ) {
+            ifl = flavor_type;
+          } else if  ( flavor_type == 1 )  {
+            ifl = flavor_type + ip;
+          } else if  ( flavor_type == 2 )  {
+            ifl = flavor_type - ip;
+          }
 
-        struct AffNode_s *affn = NULL, *affdir = NULL;
-  
-        fprintf(stdout, "# [twop_analyse] reading data from file %s\n", filename);
-        affr = aff_reader ( filename );
-        const char * aff_status_str = aff_reader_errstr ( affr );
-        if( aff_status_str != NULL ) {
-          fprintf(stderr, "[twop_analyse] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-          EXIT(15);
-        }
+          gettimeofday ( &ta, (struct timezone *)NULL );
 
-        if( (affn = aff_reader_root( affr )) == NULL ) {
-          fprintf(stderr, "[twop_analyse] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
-          return(103);
-        }
+          sprintf ( filename, "%s/%s.%s.gf%.2d.gi%.2d.px%dpy%dpz%d.aff", filename_prefix, twop_correlator_prefix[correlator_type],
+              twop_flavor_tag[ ifl ], sink_gamma_id, source_gamma_id, sink_momentum[0], sink_momentum[1], sink_momentum[2] );
 
+          /***********************************************
+           * reader for aff input file
+           ***********************************************/
 
-        double * buffer = init_1level_dtable( 2 * T );
-        if( buffer == NULL ) {
-          fprintf(stderr, "[twop_analyse] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
-          EXIT(15);
-        }
+          struct AffNode_s *affn = NULL, *affdir = NULL;
+  
+          fprintf(stdout, "# [twop_analyse] reading data from file %s\n", filename);
+          affr = aff_reader ( filename );
+          const char * aff_status_str = aff_reader_errstr ( affr );
+          if( aff_status_str != NULL ) {
+            fprintf(stderr, "[twop_analyse] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+            EXIT(15);
+          }
 
-        /***********************************************************
-         * loop on configs and source locations per config
-         ***********************************************************/
-        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-          for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+          if( (affn = aff_reader_root( affr )) == NULL ) {
+            fprintf(stderr, "[twop_analyse] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+            return(103);
+          }
 
-            /***********************************************************
-             * copy source coordinates
-             ***********************************************************/
-            int const gsx[4] = {
-                conf_src_list[iconf][isrc][2],
-                conf_src_list[iconf][isrc][3],
-                conf_src_list[iconf][isrc][4],
-                conf_src_list[iconf][isrc][5] };
+          double * buffer = init_1level_dtable( 2 * T );
+          if( buffer == NULL ) {
+            fprintf(stderr, "[twop_analyse] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
+            EXIT(15);
+          }
+
+          /***********************************************************
+           * loop on configs and source locations per config
+           ***********************************************************/
+          for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+            for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+
+              /***********************************************************
+               * copy source coordinates
+               ***********************************************************/
+              int const gsx[4] = {
+                  conf_src_list[iconf][isrc][2],
+                  conf_src_list[iconf][isrc][3],
+                  conf_src_list[iconf][isrc][4],
+                  conf_src_list[iconf][isrc][5] };
   
-            sprintf ( key , "/stream_%c/conf_%d/t%.2dx%.2dy%.2dz%.2d",conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1],
-                conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5] );
+              sprintf ( key , "/stream_%c/conf_%d/t%.2dx%.2dy%.2dz%.2d",conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1],
+                  conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5] );
   
-            if ( g_verbose > 2 ) fprintf ( stdout, "# [twop_analyse] key = %s\n", key );
+              if ( g_verbose > 2 ) fprintf ( stdout, "# [twop_analyse] key = %s\n", key );
   
-            affdir = aff_reader_chpath (affr, affn, key );
-            if( affdir == NULL ) {
-              fprintf(stderr, "[twop_analyse] Error from aff_reader_chpath %s %d\n", __FILE__, __LINE__);
-              EXIT(105);
-            }
-            uint32_t uitems = (uint32_t)T_global;
-            exitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*)(buffer), uitems );
-            if( exitstatus != 0 ) {
-              fprintf(stderr, "[twop_analyse] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              EXIT(105);
-            }
+              affdir = aff_reader_chpath (affr, affn, key );
+              if( affdir == NULL ) {
+                fprintf(stderr, "[twop_analyse] Error from aff_reader_chpath %s %d\n", __FILE__, __LINE__);
+                EXIT(105);
+              }
+             uint32_t uitems = (uint32_t)T_global;
+              exitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*)(buffer), uitems );
+              if( exitstatus != 0 ) {
+                fprintf(stderr, "[twop_analyse] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(105);
+              }
   
-            /**********************************************************
-             * source phase
-             **********************************************************/
-            double const p[3] = {
-                TWO_MPI * (double)sink_momentum[0] / (double)LX_global,
-                TWO_MPI * (double)sink_momentum[1] / (double)LY_global,
-                TWO_MPI * (double)sink_momentum[2] / (double)LZ_global };
+              /**********************************************************
+               * source phase
+               **********************************************************/
+              double const p[3] = {
+                  TWO_MPI * (double)sink_momentum[0] / (double)LX_global,
+                  TWO_MPI * (double)sink_momentum[1] / (double)LY_global,
+                  TWO_MPI * (double)sink_momentum[2] / (double)LZ_global };
   
-            double const phase = -( p[0] * gsx[1] + p[1] * gsx[2] + p[2] * gsx[3] ) ;
+              double const phase = -( p[0] * gsx[1] + p[1] * gsx[2] + p[2] * gsx[3] ) ;
   
-            double _Complex const ephase = cexp ( phase * I );
+              double _Complex const ephase = cexp ( phase * I );
   
-            /**********************************************************
-             * sort data from buffer into hvp,
-             * add source phase
-             **********************************************************/
-  #pragma omp parallel for
-            for ( int it = 0; it < T; it++ ) {
-              int const tt = ( it - gsx[0] + T_global ) % T_global; 
+              /**********************************************************
+               * sort data from buffer into hvp,
+               * add source phase
+               **********************************************************/
+#pragma omp parallel for
+              for ( int it = 0; it < T; it++ ) {
+                int const tt = ( it - gsx[0] + T_global ) % T_global; 
+
+                double _Complex ztmp = ( buffer[2*it] +  buffer[2*it+1] * I ) * ephase;
   
-              double _Complex ztmp = ( buffer[2*it] +  buffer[2*it+1] * I ) * ephase;
-  
-              corr[iconf][isrc][isink_momentum][isink_gamma][isource_gamma][2*tt  ] = creal( ztmp );
-              corr[iconf][isrc][isink_momentum][isink_gamma][isource_gamma][2*tt+1] = cimag( ztmp );
-            }
+                corr[iconf][isrc][isink_momentum][isink_gamma][isource_gamma][2*tt  ] += creal( ztmp ) * twop_operator_norm[0] * twop_operator_norm[1];
+                corr[iconf][isrc][isink_momentum][isink_gamma][isource_gamma][2*tt+1] += cimag( ztmp ) * twop_operator_norm[0] * twop_operator_norm[1];
+              }
         
-          }  /* end of loop on source locations */
-        }   /* end of loop on configurations */
+            }  /* end of loop on source locations */
+          }   /* end of loop on configurations */
 
-        aff_reader_close ( affr );
-        fini_1level_dtable( &buffer );
+          aff_reader_close ( affr );
+          fini_1level_dtable( &buffer );
 
-        gettimeofday ( &tb, (struct timezone *)NULL );
-        show_time ( &ta, &tb, "twop_analyse", "open-init-aff-reader", g_cart_id == 0 );
+          gettimeofday ( &tb, (struct timezone *)NULL );
+          show_time ( &ta, &tb, "twop_analyse", "open-init-aff-reader", g_cart_id == 0 );
+
+        }  /* end of loop on parity */
 
       }  /* end of loop on sink momenta */
 
@@ -500,93 +541,99 @@ int main(int argc, char **argv) {
    * STATISTICAL ANALYSIS
    ****************************************/
 
-  for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+  for ( int isink_gamma   = 0; isink_gamma   < g_sink_gamma_id_number;   isink_gamma++ ) {
 
-    int const momentum[3] = {
-        g_sink_momentum_list[imom][0],
-        g_sink_momentum_list[imom][1],
-        g_sink_momentum_list[imom][2] };
+    int const sink_gamma_id = g_sink_gamma_id_list[ isink_gamma ];
 
-    for ( int isink_gamma   = 0; isink_gamma   < g_sink_gamma_id_number;   isink_gamma++ ) {
+  for ( int isource_gamma = 0; isource_gamma < g_source_gamma_id_number; isource_gamma++ ) {
 
-      int const sink_gamma_id = g_sink_gamma_id_list[ isink_gamma ];
+    int const source_gamma_id = g_source_gamma_id_list[ isource_gamma ];
 
-    for ( int isource_gamma = 0; isource_gamma < g_source_gamma_id_number; isource_gamma++ ) {
+    for ( int ireim = 0; ireim < 2; ireim++ ) {
 
-      int const source_gamma_id = g_source_gamma_id_list[ isource_gamma ];
+      double ** data = init_2level_dtable ( num_conf, T_global );
 
-      for ( int ireim = 0; ireim < 2; ireim++ ) {
+      /* fill data array */
+#pragma omp parallel for
+      for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+        for ( int it = 0; it < T_global; it++ ) {
+          data[iconf][it] = 0.;
+          for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+            for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+              data[iconf][it] += corr[iconf][isrc][imom][isink_gamma][isource_gamma][2*it+ireim];
+            }
+          }
+          data[iconf][it] /= (double)num_src_per_conf * (double)g_sink_momentum_number;
+        }
+      }
 
-        double *** data = init_3level_dtable ( num_conf, num_src_per_conf, T_global );
-
-        /* fill data array */
+      if ( fold_correlator ) {
 #pragma omp parallel for
         for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-          for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-            for ( int it = 0; it < T_global; it++ ) {
-              data[iconf][isrc][it] = corr[iconf][isrc][imom][isink_gamma][isource_gamma][2*it+ireim];
-            }
+          for ( int it = 1; it < T_global/2; it++ ) {
+            data[iconf][it] += data[iconf][T_global - it];
+            data[iconf][it] *= 0.5;
+            data[iconf][T_global - it] = data[iconf][it];
+          }
+        }
+      }
+
+     /****************************************
+      * STATISTICAL ANALYSIS of real and
+      * imaginary part
+      ****************************************/
+
+      char obs_name[100];
+      sprintf ( obs_name, "%s.%s.gf%d.gi%d.PX%d_PY%d_PZ%d.%s", twop_correlator_prefix[correlator_type], twop_flavor_tag[ flavor_type],
+          sink_gamma_id, source_gamma_id, g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2], reim_str[ireim] );
+
+      /* apply UWerr analysis */
+      exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+      if ( exitstatus != 0 ) {
+        fprintf ( stderr, "[twop_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(1);
+      }
+
+      if ( write_data == 1 ) {
+        sprintf ( filename, "%s.corr" , obs_name );
+        FILE * fs = fopen( filename, "w" );
+
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for ( int it = 0; it < T_global; it++ ) {
+            /* fprintf ( fs, "%3d %25.16e %c %6d\n", it, data[iconf][it], conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] ); */
+            fprintf ( fs, "%3d %25.16e %6d\n", it, data[iconf][it], iconf * g_gauge_step );
           }
         }
 
-        if ( fold_correlator ) {
-#pragma omp parallel for
-          for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-            for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-              for ( int it = 1; it < T_global/2; it++ ) {
-                data[iconf][isrc][it] += data[iconf][isrc][T_global - it];
-                data[iconf][isrc][it] *= 0.5;
-                data[iconf][isrc][T_global - it] = data[iconf][isrc][it];
-              }
-            }
-          }
-        }
 
-       /****************************************
-        * STATISTICAL ANALYSIS of real and
-        * imaginary part
-        ****************************************/
+        fclose( fs );
+      }
 
-        char obs_name[100];
-        sprintf ( obs_name, "%s.%s.gf%d.gi%d.PX%d_PY%d_PZ%d.%s", twop_correlator_prefix[correlator_type], twop_flavor_tag[ flavor_type],
-            sink_gamma_id, source_gamma_id, momentum[0], momentum[1], momentum[2], reim_str[ireim] );
+      /****************************************
+       * STATISTICAL ANALYSIS of effective
+       * mass from time-split acosh ratio
+       ****************************************/
+      for ( int itau = 1; itau < T_global/2; itau++ )
+      {
 
-        /* apply UWerr analysis */
-        exitstatus = apply_uwerr_real ( data[0][0], num_conf*num_src_per_conf, T_global, 0, 1, obs_name );
+        char obs_name2[200];
+        sprintf( obs_name2, "%s.acoshratio.tau%d", obs_name, itau );
+
+        int arg_first[3]  = { 0, 2*itau, itau };
+        int arg_stride[3] = {1, 1, 1};
+
+        exitstatus = apply_uwerr_func ( data[0], num_conf, T_global, T_global/2-itau, 3, arg_first, arg_stride, obs_name2, acosh_ratio, dacosh_ratio );
+
         if ( exitstatus != 0 ) {
-          fprintf ( stderr, "[twop_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          fprintf ( stderr, "[twop_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(1);
         }
+      }
 
+      fini_2level_dtable ( &data );
 
-        /****************************************
-         * STATISTICAL ANALYSIS of effective
-         * mass from time-split acosh ratio
-         ****************************************/
-#if 0
-        for ( int itau = 1; itau < T_global/2; itau++ )
-        {
-
-          char obs_name2[200];
-          sprintf( obs_name2, "%s.acoshratio.tau%d", obs_name, itau );
-
-          int arg_first[3]  = { 0, 2*itau, itau };
-          int arg_stride[3] = {1, 1, 1};
-
-          exitstatus = apply_uwerr_func ( data[0][0], num_conf*num_src_per_conf, T_global, T_global/2-itau, 3, arg_first, arg_stride, obs_name, acosh_ratio, dacosh_ratio );
-
-          if ( exitstatus != 0 ) {
-            fprintf ( stderr, "[twop_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-            EXIT(1);
-          }
-        }
-#endif
-
-        fini_3level_dtable ( &data );
-
-      }  /* end of loop on re / im */
-    }}  /* end of loop on source and sink gamma id */
-  }  /* end of loop on momenta */
+    }  /* end of loop on re / im */
+  }}  /* end of loop on source and sink gamma id */
 
   /**********************************************************
    * free hvp field
