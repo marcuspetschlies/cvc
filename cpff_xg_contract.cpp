@@ -236,8 +236,6 @@ int main(int argc, char **argv) {
   }
   fprintf(stdout, "# [cpff_xg_contract] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
 
-#if 0
-
   /***************************************************************************
    * set output filename
    ***************************************************************************/
@@ -382,7 +380,6 @@ int main(int argc, char **argv) {
     }
   }  /* end of if io_proc == 2  */
 
-#if 0
   /***********************************************************
    * TEST apply gauge transformation
    ***********************************************************/
@@ -419,10 +416,12 @@ int main(int argc, char **argv) {
   /***********************************************************
    * END OF TEST
    ***********************************************************/
-#endif  /* of if 0 */
 
   fini_3level_dtable ( &Gp );
   fini_3level_dtable ( &Gr );
+
+
+
 #endif  /* of _GLUONIC_OPERATORS */
 
   /* fini TEST */
@@ -624,8 +623,6 @@ int main(int argc, char **argv) {
     }
   }
 #endif
-
-#endif  /* of if 0 */
 
   /***************************************************************************
    * free the allocated memory, finalize
