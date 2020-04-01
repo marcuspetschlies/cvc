@@ -950,7 +950,7 @@ int write_h5_attribute ( const char * filename, const char * attr_name, const ch
  *
  ***************************************************************************/
 
-int write_h5_contraction ( void * const contr, void * const awriter, void * const afilename, char * tag, unsigned int const nc, const char * data_type ) {
+int write_h5_contraction ( void * const contr, void * const awriter, void * const afilename, char * tag, unsigned int const nc, const char * data_type, int const ncdim, const int * const cdim ) {
 
   char * filename = (char *)afilename;
   if ( filename == NULL ) {
@@ -1039,22 +1039,29 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
     hid_t gapl_id       = H5P_DEFAULT;
     /* size_t size_hint    = 0; */
 
-    /***************************************************************************
-     * H5 data space and data type
-     ***************************************************************************/
-    status = H5Tset_order ( dtype_id, H5T_ORDER_LE );
-    /* big_endian() ?  H5T_IEEE_F64BE : H5T_IEEE_F64LE; */
+  /***************************************************************************
+   * H5 data space and data type
+   ***************************************************************************/
+  status = H5Tset_order ( dtype_id, H5T_ORDER_LE );
+  /* big_endian() ?  H5T_IEEE_F64BE : H5T_IEEE_F64LE; */
 
-    hsize_t dims[1];
-    dims[0] = nc;    /* number of double elements */
+  /* hsize_t dims[1];
+  dims[0] = nc;*/    /* number of double elements */
 
-    /*
-               int rank                             IN: Number of dimensions of dataspace.
-               const hsize_t * current_dims         IN: Array specifying the size of each dimension.
-               const hsize_t * maximum_dims         IN: Array specifying the maximum size of each dimension.
-               hid_t H5Screate_simple( int rank, const hsize_t * current_dims, const hsize_t * maximum_dims )
-     */
-    hid_t space_id = H5Screate_simple(        1,                         dims,                          NULL);
+  hsize_t * dims = (hsize_t*) malloc ( ncdim * sizeof ( hsize_t ) );
+  for( int i=0; i<ncdim;i++ ) {
+    dims[i] = cdim[i];
+  }
+
+  /*
+             int rank                             IN: Number of dimensions of dataspace.
+             const hsize_t * current_dims         IN: Array specifying the size of each dimension.
+             const hsize_t * maximum_dims         IN: Array specifying the maximum size of each dimension.
+             hid_t H5Screate_simple( int rank, const hsize_t * current_dims, const hsize_t * maximum_dims )
+   */
+  hid_t space_id = H5Screate_simple(    ncdim,                         dims,                          NULL);
+
+  free ( dims );
 
   /***************************************************************************
    * create the target (sub-)group and all
@@ -1121,6 +1128,10 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
 
   /* hid_t loc_id = ( grp_list_nmem == 0 ) ? file_id : grp_list[grp_list_nmem - 1 ]; */
   hid_t loc_id = ( grp_list_nmem == 1 ) ? file_id : grp_list[grp_list_nmem - 2 ];
+  if ( loc_id < 0 ) {
+    fprintf(stderr, "[write_h5_contraction] Error , loc_id < 0 %s %d\n", __FILE__, __LINE__);
+    return(18);
+  }
 
   /***************************************************************************
    * create a data set
@@ -1139,6 +1150,10 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
        */
   /* hid_t dataset_id = H5Dcreate (       loc_id,             tag,       dtype_id,       space_id,       lcpl_id,       dcpl_id,       dapl_id ); */
   hid_t dataset_id = H5Dcreate (       loc_id,         dataset_name,       dtype_id,       space_id,       lcpl_id,       dcpl_id,       dapl_id );
+  if ( dataset_id < 0 ) {
+    fprintf(stderr, "[write_h5_contraction] Error from H5Dcreate %s %d\n", __FILE__, __LINE__);
+    return(19);
+  }
 
   /***************************************************************************
    * write the current data set

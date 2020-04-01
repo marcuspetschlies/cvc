@@ -20,6 +20,10 @@
 #include "lhpc-aff.h"
 #endif
 
+#ifdef HAVE_HDF5
+#include "hdf5.h"
+#endif
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -385,7 +389,8 @@ int main(int argc, char **argv) {
       g_sink_momentum_list[i][2] *= -1;
     }
 
-    exitstatus = write_h5_contraction ( g_sink_momentum_list[0], NULL, output_filename, "/Momenta_list_xyz", 3*g_sink_momentum_number , "int" );
+    int const dims[2] = { g_sink_momentum_number, 3 };
+    exitstatus = write_h5_contraction ( g_sink_momentum_list[0], NULL, output_filename, "/Momenta_list_xyz", 3*g_sink_momentum_number , "int", 2, dims );
     if ( exitstatus != 0 ) {
       fprintf(stderr, "[loop_invert_contract] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );;
       EXIT( 54 );
@@ -483,6 +488,12 @@ int main(int argc, char **argv) {
     }
 
     /***************************************************************************
+     * multiply stochastic propagator 1 / ( 2 kappa ) for normalization
+     * in Hopping representation of Dirac operator
+     ***************************************************************************/
+    spinor_field_ti_eq_re ( stochastic_propagator, 1./(2.*g_kappa ), VOLUME );
+
+    /***************************************************************************
      * multiply stochastic propagator with g5 for oet,
      * used for both std and gen oet
      ***************************************************************************/
@@ -549,6 +560,8 @@ int main(int argc, char **argv) {
     spinor_field_eo2lexic ( DW_stochastic_propagator, eo_spinor_work[2], eo_spinor_work[3] );
     /* multiply by g5 */
     g5_phi ( DW_stochastic_propagator, VOLUME );
+    /* multiply with 2 kappa */
+    spinor_field_ti_eq_re ( DW_stochastic_propagator, 2*g_kappa, VOLUME );
 
     gettimeofday ( &tb, (struct timezone *)NULL );
 

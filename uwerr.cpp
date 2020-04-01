@@ -298,7 +298,7 @@ int uwerr_analysis(double * const data, uwerr * const u) {
 
   if ( Wmax > UWERR_WMAX_LIMIT ) {
     Wmax = UWERR_WMAX_LIMIT;
-    fprintf ( stdout, "[uwerr_analysis] Warning, reset Wmax to upper limit %u\n", Wmax );
+    fprintf ( stdout, "[uwerr_analysis] Warning, reset Wmax to upper limit %lu\n", Wmax );
   }
 
   // TEST

@@ -292,7 +292,7 @@ int contract_loop_write_to_h5_file (double *** const loop, void * file, char*tag
       /* big_endian() ?  H5T_IEEE_F64BE : H5T_IEEE_F64LE; */
  
       /* shape of the output arary */ 
-      hsize_t dims[3] = { T_global, momentum_number, 2 * nc };
+      hsize_t dims[4] = { T_global, momentum_number, nc, 2 };
   
       /*
                  int rank                             IN: Number of dimensions of dataspace.
@@ -300,7 +300,7 @@ int contract_loop_write_to_h5_file (double *** const loop, void * file, char*tag
                  const hsize_t * maximum_dims         IN: Array specifying the maximum size of each dimension.
                  hid_t H5Screate_simple( int rank, const hsize_t * current_dims, const hsize_t * maximum_dims )
        */
-      hid_t space_id = H5Screate_simple(        3,                         dims,                          NULL);
+      hid_t space_id = H5Screate_simple(        4,                         dims,                          NULL);
   
       /***************************************************************************
        * some default settings for H5Dwrite
