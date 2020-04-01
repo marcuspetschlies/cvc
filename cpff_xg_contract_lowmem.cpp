@@ -223,7 +223,8 @@ int main(int argc, char **argv) {
     sprintf ( stout_tag, "/StoutN%u/StoutRho%6.4f", stout_level_iter[istout], stout_rho );
 
 
-    int const stout_iter = ( istout == 0 ) ? stout_level_iter[0] : stout_level_iter[istout] - stout_level_iter[istout - 1];
+    /* int const stout_iter = ( istout == 0 ) ? stout_level_iter[0] : stout_level_iter[istout] - stout_level_iter[istout - 1]; */
+    int const stout_iter = ( istout == 0 ) ? stout_level_iter[0] - read_checkpoint : stout_level_iter[istout] - stout_level_iter[istout - 1];
 
     if ( io_proc == 2 ) fprintf ( stdout, "# [cpff_xg_contract_lowmem] stout level %2d iter %2d\n", istout, stout_iter );
 
@@ -248,6 +249,9 @@ int main(int argc, char **argv) {
     sprintf( timer_tag, "stout-smear-%u", stout_iter );
     show_time ( &ta, &tb, "cpff_xg_contract_lowmem", timer_tag, io_proc==2 );
 
+    /***************************************************************************
+     * optionally write checkpoint configuration
+     ***************************************************************************/
     if ( write_checkpoint && ( stout_level_iter[istout] % write_checkpoint == 0 ) && ( stout_level_iter[istout] > 0 ) ) {
       sprintf ( filename, "%s.%.4d.stoutn%d.stoutr%6.4f", gaugefilename_prefix, Nconf,  stout_level_iter[istout] , stout_rho );
       if(g_cart_id==0) fprintf(stdout, "# [cpff_xg_contract_lowmem] writing gauge field to file %s\n", filename);
