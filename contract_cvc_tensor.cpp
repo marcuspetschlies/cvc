@@ -25,7 +25,6 @@
 #ifdef HAVE_OPENMP
 #  include <omp.h>
 #endif
-#include <getopt.h>
 
 #ifdef HAVE_LHPC_AFF
 #include "lhpc-aff.h"
