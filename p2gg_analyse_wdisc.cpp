@@ -1176,7 +1176,6 @@ int main(int argc, char **argv) {
 
       }  /* end of loop on configurations */
 
-
       /**********************************************************
        * loop on sequential source timeslices
        **********************************************************/
@@ -1214,6 +1213,8 @@ int main(int argc, char **argv) {
 
                 for ( int it = 0; it < T_global; it++ ) {
 
+                  int const loop_type_reim_sign[2] = { +1, loop_type_reim ? +1 : -1 };
+
 /****************************************
  *
  * This is a hack;
@@ -1225,24 +1226,24 @@ int main(int argc, char **argv) {
                     pgg_disc[iconf][isrc][imom][s1][s2][2*it  ] = (
                       + ( 1 + s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it  ] 
                       - ( st_sign + s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it  ]
-                      ) * loop_pgg[iconf][2*tseq+loop_type_reim];
+                      ) * loop_pgg[iconf][2*tseq+loop_type_reim] * loop_type_reim_sign[0];
 
                     pgg_disc[iconf][isrc][imom][s1][s2][2*it+1] = (
                       + ( 1 - s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it+1] 
                       - ( st_sign - s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it+1]
-                      ) * loop_pgg[iconf][2*tseq+loop_type_reim];
+                      ) * loop_pgg[iconf][2*tseq+loop_type_reim] * loop_type_reim_sign[1];
 
                   } else if ( loop_type == 2 ) {
                     /* Scalar */
                     pgg_disc[iconf][isrc][imom][s1][s2][2*it  ] = (
                       + ( 1 + s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it  ] 
                       + ( st_sign + s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it  ]
-                      ) * loop_pgg[iconf][2*tseq+loop_type_reim];
+                      ) * loop_pgg[iconf][2*tseq+loop_type_reim] * loop_type_reim_sign[0];
 
                     pgg_disc[iconf][isrc][imom][s1][s2][2*it+1] = (
                       + ( 1 - s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it+1] 
                       + ( st_sign - s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it+1]
-                      ) * loop_pgg[iconf][2*tseq+loop_type_reim];
+                      ) * loop_pgg[iconf][2*tseq+loop_type_reim] * loop_type_reim_sign[1];
                   }
                 }
               }}
