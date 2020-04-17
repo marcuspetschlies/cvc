@@ -2742,6 +2742,8 @@ void contract_cvc_local_tensor_eo ( double * const conn_e, double * const conn_o
  *
  * uses continuum momenta 2 sin( p /2 )
  ****************************************************/
+#undef  _ANTISYMMETRIC_ORBIT_AVERAGE_SPATIAL_SIN_MOMENTUM
+#define _ANTISYMMETRIC_ORBIT_AVERAGE_SPATIAL_LAT_MOMENTUM
 void antisymmetric_orbit_average_spatial (double ** const d_out, double ***** const d_in, int const dim[2], int const momentum_num, int ** const momentum_list, int const reim ) {
 
   int const epsilon_tensor[3][3] = { {0,1,2}, {1,2,0}, {2,0,1} };
@@ -2754,9 +2756,17 @@ void antisymmetric_orbit_average_spatial (double ** const d_out, double ***** co
    */
 
   double const pnorm[3] = {
+#if    ( defined _ANTISYMMETRIC_ORBIT_AVERAGE_SPATIAL_SIN_MOMENTUM )
+#  warning "[antisymmetric_orbit_average_spatial] using sine momentum"
     2. * sin( M_PI * momentum_list[0][0] / LX_global ),
     2. * sin( M_PI * momentum_list[0][1] / LY_global ),
     2. * sin( M_PI * momentum_list[0][2] / LZ_global )
+#elif ( defined _ANTISYMMETRIC_ORBIT_AVERAGE_SPATIAL_LAT_MOMENTUM )
+#  warning "[antisymmetric_orbit_average_spatial] using lattice momentum"
+    2. * M_PI * momentum_list[0][0] / (double)LX_global,
+    2. * M_PI * momentum_list[0][1] / (double)LY_global,
+    2. * M_PI * momentum_list[0][2] / (double)LZ_global
+#endif
   };
   double const pnorm2 = _POWSUM23D ( pnorm );
   double const norm = ( p_elem_nonzero == 0 ) ? 0. : 1. / ( 2. * pnorm2 * (double)momentum_num );
@@ -2769,10 +2779,16 @@ void antisymmetric_orbit_average_spatial (double ** const d_out, double ***** co
         for ( int imom = 0; imom < momentum_num; imom++ ) {
           /* int const p[3] = { _ISIGN(momentum_list[imom][0]), _ISIGN(momentum_list[imom][1]), _ISIGN(momentum_list[imom][2]) }; */
           double const p[3] = {
+#if   ( defined _ANTISYMMETRIC_ORBIT_AVERAGE_SPATIAL_SIN_MOMENTUM )
               2. * sin( M_PI *  momentum_list[imom][0] / LX_global ),
               2. * sin( M_PI *  momentum_list[imom][1] / LY_global ),
-              2. * sin( M_PI *  momentum_list[imom][2] / LZ_global ) };
-
+              2. * sin( M_PI *  momentum_list[imom][2] / LZ_global ) 
+#elif ( defined _ANTISYMMETRIC_ORBIT_AVERAGE_SPATIAL_LAT_MOMENTUM )
+              2. * M_PI *  momentum_list[imom][0] / (double)LX_global,
+              2. * M_PI *  momentum_list[imom][1] / (double)LY_global,
+              2. * M_PI *  momentum_list[imom][2] / (double)LZ_global
+#endif
+          };
           /* fprintf ( stdout, "# [antisymmetric_orbit_average_spatial] p = %f %f %f\n", p[0], p[1],  p[2] ); */
           for ( int ia = 0; ia < 3; ia++ ) {
             d_out[i][l] += p[epsilon_tensor[ia][0]] * (

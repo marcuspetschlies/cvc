@@ -1176,7 +1176,6 @@ int main(int argc, char **argv) {
 
       }  /* end of loop on configurations */
 
-
       /**********************************************************
        * loop on sequential source timeslices
        **********************************************************/
@@ -1194,6 +1193,12 @@ int main(int argc, char **argv) {
           fprintf(stderr, "[p2gg_analyse_wdisc] Error from init_6level_dtable %s %d\n", __FILE__, __LINE__);
           EXIT(16);
         }
+
+        /* remember: loop_type_reim = 1 means use imaginary part */
+        int const loop_type_reim_sign[2] = { +1, loop_type_reim ? -1 : +1 };
+        if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse_wdisc] loop_type_reim_sign = %d, %d\n", loop_type_reim_sign[0], loop_type_reim_sign[1] );
+
+
 #pragma omp parallel for
         for ( int iconf = 0; iconf < num_conf; iconf++ ) {
 
@@ -1211,8 +1216,11 @@ int main(int argc, char **argv) {
               for ( int s2 = 0; s2 < 4; s2++ ) {
                 int s5d_sign = sigma_g5d[ gamma_v_list[s1] ] * sigma_g5d[ gamma_v_list[s2] ];
                 int st_sign  = sigma_t[ gamma_v_list[s1] ]   * sigma_t[ gamma_v_list[s2] ] * loop_st_sign;
+                if ( g_verbose > 4 ) fprintf ( stdout, "# [p2gg_analyse_wdisc] s5d_sign = %d    st_sign = %d   loop_st_sign = %d\n",
+                    s5d_sign, st_sign, loop_st_sign );
 
                 for ( int it = 0; it < T_global; it++ ) {
+
 
 /****************************************
  *
@@ -1225,24 +1233,24 @@ int main(int argc, char **argv) {
                     pgg_disc[iconf][isrc][imom][s1][s2][2*it  ] = (
                       + ( 1 + s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it  ] 
                       - ( st_sign + s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it  ]
-                      ) * loop_pgg[iconf][2*tseq+loop_type_reim];
+                      ) * loop_pgg[iconf][2*tseq+loop_type_reim] * loop_type_reim_sign[0];
 
                     pgg_disc[iconf][isrc][imom][s1][s2][2*it+1] = (
                       + ( 1 - s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it+1] 
                       - ( st_sign - s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it+1]
-                      ) * loop_pgg[iconf][2*tseq+loop_type_reim];
+                      ) * loop_pgg[iconf][2*tseq+loop_type_reim] * loop_type_reim_sign[1];
 
                   } else if ( loop_type == 2 ) {
                     /* Scalar */
                     pgg_disc[iconf][isrc][imom][s1][s2][2*it  ] = (
                       + ( 1 + s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it  ] 
                       + ( st_sign + s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it  ]
-                      ) * loop_pgg[iconf][2*tseq+loop_type_reim];
+                      ) * loop_pgg[iconf][2*tseq+loop_type_reim] * loop_type_reim_sign[0];
 
                     pgg_disc[iconf][isrc][imom][s1][s2][2*it+1] = (
                       + ( 1 - s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it+1] 
                       + ( st_sign - s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it+1]
-                      ) * loop_pgg[iconf][2*tseq+loop_type_reim];
+                      ) * loop_pgg[iconf][2*tseq+loop_type_reim] * loop_type_reim_sign[1];
                   }
                 }
               }}
