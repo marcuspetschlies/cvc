@@ -383,7 +383,6 @@ int main(int argc, char **argv) {
     }
   }  /* end of if io_proc == 2  */
 
-#if 0
   /***********************************************************
    * TEST apply gauge transformation
    ***********************************************************/
@@ -420,10 +419,12 @@ int main(int argc, char **argv) {
   /***********************************************************
    * END OF TEST
    ***********************************************************/
-#endif  /* of if 0 */
 
   fini_3level_dtable ( &Gp );
   fini_3level_dtable ( &Gr );
+
+
+
 #endif  /* of _GLUONIC_OPERATORS */
 
   /* fini TEST */
