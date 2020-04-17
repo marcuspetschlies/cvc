@@ -240,11 +240,18 @@ int main(int argc, char **argv) {
       struct AffNode_s *affn = NULL, *affpath = NULL, *affdir = NULL;
       char key[400];
       char data_filename[500];
-    
+#if 0
       sprintf( data_filename, "%s/stream_%c/%s/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff",
           filename_prefix,
           conf_src_list[iconf][isrc][0], 
           filename_prefix2,
+          filename_prefix3,
+          conf_src_list[iconf][isrc][1], conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5] );
+#endif
+      sprintf( data_filename, "%s/stream_%c/%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff",
+          filename_prefix,
+          conf_src_list[iconf][isrc][0], 
+          conf_src_list[iconf][isrc][1], 
           filename_prefix3,
           conf_src_list[iconf][isrc][1], conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5] );
 
