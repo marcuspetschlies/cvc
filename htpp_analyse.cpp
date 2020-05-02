@@ -69,11 +69,12 @@ int main(int argc, char **argv) {
   
   char const gamma_bin_to_name[16][8] = { "id", "gx", "gy", "gxgy", "gz", "gxgz", "gygz", "gtg5", "gt", "gxgt", "gygt", "gzg5", "gzgt", "gyg5", "gxg5", "g5" };
 
+  char const reim_str[2][3]  = { "re", "im" };
   int c;
   int filename_set = 0;
   int exitstatus;
   int io_proc = -1;
-  char ensemble_name[100] = "c13";
+  char ensemble_name[100] = "NA";
   char filename[100];
   int num_conf = 0, num_src_per_conf = 0;
 
@@ -81,7 +82,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:S:N:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:S:N:E:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -95,7 +96,10 @@ int main(int argc, char **argv) {
       num_src_per_conf = atoi ( optarg );
       fprintf ( stdout, "# [htpp_analyse] number of sources per config = %d\n", num_src_per_conf );
       break;
-
+    case 'E':
+      strcpy ( ensemble_name, optarg );
+      fprintf ( stdout, "# [htpp_analyse] ensemble name set to %s\n", ensemble_name );
+      break;
     case 'h':
     case '?':
     default:
@@ -163,14 +167,14 @@ int main(int argc, char **argv) {
   /***********************************************************
    * read list of configs and source locations
    ***********************************************************/
-  sprintf ( filename, "source_coords.%s.nsrc%d.lst" , ensemble_name, num_src_per_conf);
+  sprintf ( filename, "source_coords.%s.lst" , ensemble_name, num_src_per_conf);
   FILE *ofs = fopen ( filename, "r" );
   if ( ofs == NULL ) {
     fprintf(stderr, "[htpp_analyse] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__);
     EXIT(15);
   }
 
-  int *** conf_src_list = init_3level_itable ( num_conf, num_src_per_conf, 5 );
+  int *** conf_src_list = init_3level_itable ( num_conf, num_src_per_conf, 6 );
   if ( conf_src_list == NULL ) {
     fprintf(stderr, "[htpp_analyse] Error from init_3level_itable %s %d\n", __FILE__, __LINE__);
     EXIT(16);
@@ -189,12 +193,13 @@ int main(int argc, char **argv) {
      * stream conf x y z t
      ***********************************************************/
     char streamc;
-    sscanf( line, "%c %d %d %d %d %d", &streamc,
+    sscanf( line, "%c %d %d %d %d %d",
         conf_src_list[count/num_src_per_conf][count%num_src_per_conf],
         conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+1,
         conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+2,
         conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+3,
-        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+4 );
+        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+4,
+        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+5 );
 
     count++;
   }
@@ -208,12 +213,13 @@ int main(int argc, char **argv) {
     fprintf ( stdout, "# [htpp_analyse] conf_src_list conf t x y z\n" );
     for ( int iconf = 0; iconf < num_conf; iconf++ ) {
       for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-        fprintf ( stdout, "  %6d %3d %3d %3d %3d\n", 
+        fprintf ( stdout, "%c  %6d %3d %3d %3d %3d\n", 
             conf_src_list[iconf][isrc][0],
             conf_src_list[iconf][isrc][1],
             conf_src_list[iconf][isrc][2],
             conf_src_list[iconf][isrc][3],
-            conf_src_list[iconf][isrc][4] );
+            conf_src_list[iconf][isrc][4],
+            conf_src_list[iconf][isrc][5] );
       }
     }
   }
@@ -294,30 +300,29 @@ int main(int argc, char **argv) {
        ***********************************************************/
       for( int iconf = 0; iconf < num_conf; iconf++ ) {
           
-          int const Nconf = conf_src_list[iconf][0][0];
-
         /***********************************************************
          * loop on sources per config
          ***********************************************************/
         for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
 
-          int const t_base = conf_src_list[iconf][isrc][1];
+          char const stream = conf_src_list[iconf][isrc][0];
+          int const Nconf   = conf_src_list[iconf][isrc][1];
+          int const t_base  = conf_src_list[iconf][isrc][2];
 
           /***********************************************************
            * store the source coordinates
            ***********************************************************/
           int const gsx[4] = {
-            conf_src_list[iconf][isrc][1],
             conf_src_list[iconf][isrc][2],
             conf_src_list[iconf][isrc][3],
-            conf_src_list[iconf][isrc][4] };
+            conf_src_list[iconf][isrc][4],
+            conf_src_list[iconf][isrc][5] };
 
 #ifdef HAVE_LHPC_AFF
           /***********************************************************
            * writer for aff output file
            ***********************************************************/
-          /* sprintf ( filename, "contract_3pt_hl_seq.%.4d.tbase%.2d.aff", Nconf, t_base ); */
-          sprintf ( filename, "contract_3pt_hl_seq.%.4d.t%d_x%d_y%d_z%d.aff", Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+          sprintf ( filename, "%s/stream_%c/%d/%s.%.4d.t%d_x%d_y%d_z%d.aff", filename_prefix, stream, Nconf, filename_prefix2, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
    
           struct AffReader_s * affr = aff_reader ( filename );
           const char * aff_status_str = aff_reader_errstr ( affr );
@@ -329,7 +334,7 @@ int main(int argc, char **argv) {
           }
 #endif
 
-          exitstatus = read_aff_contraction ( (void*)(tp->c[i_diag][0][0]), affr, NULL, key, T * tp->d * tp->d );
+          exitstatus = read_aff_contraction ( (void*)(tp->c[i_diag][0][0]), affr, NULL, key, T_global * tp->d * tp->d );
           if ( exitstatus != 0 ) {
             fprintf(stderr, "[htpp_analyse] Error from read_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(12);
@@ -390,9 +395,6 @@ int main(int argc, char **argv) {
 
       }  /* end of loop on configs */
       
-
-#if 0
-
       /***************************************************************************
        ***************************************************************************
        **
@@ -400,58 +402,39 @@ int main(int argc, char **argv) {
        **
        ***************************************************************************
        ***************************************************************************/
-      double *** res = init_3level_dtable ( 2, n_tc, 5 );
 
-      uwerr ustat;
-      for ( int it = 0; it < 2*n_tc; it++ )
-      {
-          uwerr_init ( &ustat );
-    
-          ustat.nalpha   = 2 * n_tc;  /* real and imaginary part */
-          ustat.nreplica = 1;
-          for (  int i = 0; i < ustat.nreplica; i++) ustat.n_r[i] = num_conf * num_src_per_conf * g_coherent_source_number / ustat.nreplica;
-          ustat.s_tau = 1.5;
-          sprintf ( ustat.obsname, "corr_t%d", it  );
-    
-          ustat.ipo = it + 1;
-          /* ustat.func  = NULL;
-          ustat.dfunc = NULL;
-          ustat.para  = NULL; */
+      for ( int ireim =0; ireim < 2; ireim++ ) {
 
-          exitstatus = uwerr_analysis ( corr[0][0], &ustat );
-          if ( exitstatus == 0 ) {
-            res[it%2][it/2][0] = ustat.value;
-            res[it%2][it/2][1] = ustat.dvalue;
-            res[it%2][it/2][2] = ustat.ddvalue;
-            res[it%2][it/2][3] = ustat.tauint;
-            res[it%2][it/2][4] = ustat.dtauint;
-          } else {
-            fprintf ( stderr, "[hptt_analyse] Warning return status from uwerr_analysis was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        int const nmeas = num_conf * num_src_per_conf * g_coherent_source_number;
+        double ** data = init_2level_dtable ( nmeas, n_tc );
+        if ( data == NULL ) {
+          fprintf ( stderr, "[htpp_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+          EXIT(12);
+        }
+
+#pragma omp parallel for
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+            for ( int icoh = 0; icoh < g_coherent_source_number; icoh++ ) {
+              for ( int it = 0; it < n_tc; it++ ) {
+                data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][it] = corr[iconf][isrc*g_coherent_source_number+icoh][2*it+ireim];
+              }
+            }
           }
-   
-          uwerr_free ( &ustat );
-      }  /* end of loop on t */
-    
-      sprintf ( filename, "%s.uwerr", output_filename );
-      FILE * uwerr_ofs = fopen ( filename, "w" );
-   
-      fprintf ( uwerr_ofs, "# nalpha   = %llu\n", ustat.nalpha );
-      fprintf ( uwerr_ofs, "# nreplica = %llu\n", ustat.nreplica );
-      for (  int i = 0; i < ustat.nreplica; i++) fprintf( uwerr_ofs, "# nr[%d] = %llu\n", i, ustat.n_r[i] );
-      fprintf ( uwerr_ofs, "#\n" );
-    
-      for ( int it = 0; it < n_tc; it++ )
-      {
-         fprintf ( uwerr_ofs, "%3d %16.7e %16.7e %16.7e %16.7e %16.7e     %16.7e %16.7e %16.7e %16.7e %16.7e\n",
-             it,
-             res[0][it][0], res[0][it][1], res[0][it][2], res[0][it][3], res[0][it][4],
-             res[1][it][0], res[1][it][1], res[1][it][2], res[1][it][3], res[1][it][4] );
-      }
-    
-      fclose( uwerr_ofs );
-      fini_3level_dtable ( &res );
+        }
 
-#endif  /* of if 0 */
+        char obs_name[400];
+        sprintf ( obs_name, "%s.%s", output_filename, reim_str[ireim] );
+
+        exitstatus = apply_uwerr_real (  data[0], nmeas, n_tc, 0, 1, obs_name );
+        if ( exitstatus != NULL ) {
+          fprintf ( stderr, "[htpp_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(14);
+        }
+
+        fini_2level_dtable ( &data );
+      }
+
       /***************************************************************************/
       /***************************************************************************/
 
