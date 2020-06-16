@@ -254,21 +254,22 @@ int main(int argc, char **argv) {
       struct AffNode_s *affn = NULL, *affpath = NULL, *affdir = NULL;
       char key[400];
       char data_filename[500];
-#if 0
+
       sprintf( data_filename, "%s/stream_%c/%s/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff",
           filename_prefix,
           conf_src_list[iconf][isrc][0], 
           filename_prefix2,
           filename_prefix3,
           conf_src_list[iconf][isrc][1], conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5] );
-#endif
+
+#if 0
       sprintf( data_filename, "%s/stream_%c/%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff",
           filename_prefix,
           conf_src_list[iconf][isrc][0], 
           conf_src_list[iconf][isrc][1], 
           filename_prefix3,
           conf_src_list[iconf][isrc][1], conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5] );
-
+#endif
       fprintf(stdout, "# [compact] reading data from file %s\n", data_filename);
       affr = aff_reader ( data_filename );
       const char * aff_status_str = aff_reader_errstr ( affr );
@@ -393,6 +394,8 @@ int main(int argc, char **argv) {
                   correlator_prefix[operator_type], flavor_tag[flavor_id],
                   g_sink_gamma_id_list[igf], g_source_gamma_id_list[igi],
                   g_sink_momentum_list[ipf][0], g_sink_momentum_list[ipf][1], g_sink_momentum_list[ipf][2] );
+
+              if ( g_verbose > 2 ) fprintf ( stdout, "# [compact] output filename = %s\n", data_filename );
     
               sprintf( key, "/stream_%c/conf_%d/t%.2dx%.2dy%.2dz%.2d",
                   conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1],
@@ -404,7 +407,7 @@ int main(int argc, char **argv) {
               int const ncdim   = 2;               /* real, imag */
               int const cdim[2] = {T_global, 2 };  /* T_global x [re,im] */
 
-              int texitstatus = write_h5_contraction ( twop_buffer[igf][igi][ipf][iflavor][0], NULL, filename, key, nc, "double", ncdim, cdim );
+              int texitstatus = write_h5_contraction ( twop_buffer[igf][igi][ipf][iflavor][0], NULL, data_filename, key, nc, "double", ncdim, cdim );
               if( texitstatus != 0 ) {
                 fprintf(stderr, "[compact] Error from write_h5_contraction, status was %d %s %d\n", texitstatus, __FILE__, __LINE__);
                 EXIT(105);
