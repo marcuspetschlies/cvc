@@ -43,10 +43,10 @@
 #include "gamma.h"
 #include "contract_loop_inline.h"
 
-#define _TWOP_COMPACT
-#undef _TWOP_PERCONF
+#define _TWOP_COMPACT 1
+#define _TWOP_PERCONF 0
 
-#define _USE_SUBTRACTED
+#define _USE_SUBTRACTED 1
 
 using namespace cvc;
 
@@ -368,7 +368,7 @@ int main(int argc, char **argv) {
     EXIT(16);
   }
 
-#ifdef _TWOP_PERCONF
+#if _TWOP_PERCONF
 
   /***********************************************************
    * loop on configs and source locations per config
@@ -536,7 +536,7 @@ int main(int argc, char **argv) {
 
   }   /* end of loop on configurations */
 
-#elif ( defined _TWOP_COMPACT )
+#elif _TWOP_COMPACT
 
   /**********************************************************
    * loop on momenta
@@ -836,7 +836,8 @@ int main(int argc, char **argv) {
     for ( int iconf = 0; iconf < num_conf; iconf++ ) {
 
       if ( loop_nev < 0 ) {
-        sprintf ( filename, "stream_%c/%s/loop.%d.stoch.%s.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix,
+        sprintf ( filename, "stream_%c/%s/%d/loop.%d.stoch.%s.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix,
+          conf_src_list[iconf][0][1],
           conf_src_list[iconf][0][1], loop_type_tag[loop_type], seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
       } else {
         sprintf ( filename, "stream_%c/%s/loop.%.4d.stoch.%s.nev%d.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix,
@@ -1481,7 +1482,7 @@ int main(int argc, char **argv) {
         }  /* end of loop on real / imag */
 
 
-#ifdef _USE_SUBTRACTED
+#if _USE_SUBTRACTED
         /****************************************
          * statistical analysis for orbit average
          *
@@ -1555,7 +1556,7 @@ int main(int argc, char **argv) {
 
         }  /* end of loop on real / imag */
 
-#endif  /* of ifdef _USE_SUBTRACTED */
+#endif  /* of if _USE_SUBTRACTED */
 
         /**********************************************************
          * free p2gg table
