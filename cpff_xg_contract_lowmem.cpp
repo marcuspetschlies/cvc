@@ -434,6 +434,36 @@ int main(int argc, char **argv) {
       }
     }  /* end of if io_proc == 2  */
 
+    /***********************************************************
+     * measurement for qtop, INCLUDING fst trace
+     ***********************************************************/
+    gettimeofday ( &ta, (struct timezone *)NULL );
+
+    exitstatus = gluonic_operators_qtop_from_fst_projected ( &(pl[0][0]), Gp, 0 );
+    if ( exitstatus != 0 ) {
+      fprintf ( stderr, "[cpff_xg_contract_lowmem] Error from gluonic_operators_qtop_from_fst_projected, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(8);
+    }
+
+    gettimeofday ( &tb, (struct timezone *)NULL );
+    show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "gluonic_operators_qtop_from_fst_projected", io_proc==2 );
+
+    if ( io_proc == 2 ) {
+      sprintf ( data_tag, "%s/qtop-clover", stout_tag );
+#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
+      exitstatus = write_aff_contraction ( &(pl[0][0]), affw, NULL, data_tag, T_global, "double" );
+#elif ( defined HAVE_HDF5 )
+      int const dims = T_global;
+      exitstatus = write_h5_contraction ( &(pl[0][0]), NULL, output_filename, data_tag, T_global , "double" , 1, &dims);
+#else
+      exitstatus = 1;
+#endif
+      if ( exitstatus != 0) {
+        fprintf(stderr, "[cpff_xg_contract_lowmem] Error from write_contraction %s %d\n", __FILE__, __LINE__ );
+        EXIT(48);
+      }
+    }  /* end of if io_proc == 2  */
+
     /***********************************************************/
     /***********************************************************/
 
