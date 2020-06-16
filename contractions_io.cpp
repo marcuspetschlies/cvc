@@ -698,7 +698,7 @@ int read_from_h5_file ( void * const buffer, void * file, char*tag,  int const i
         return ( 1 );
       } else {
         /* open an existing file. */
-        if ( g_verbose > 1 ) fprintf ( stdout, "# [read_from_h5_file] open existing file\n" );
+        if ( g_verbose > 2 ) fprintf ( stdout, "# [read_from_h5_file] open existing file\n" );
   
         unsigned flags = H5F_ACC_RDONLY;  /* IN: File access flags. Allowable values are:
                                              H5F_ACC_RDWR   --- Allow read and write access to file.
@@ -718,7 +718,7 @@ int read_from_h5_file ( void * const buffer, void * file, char*tag,  int const i
         }
       }
   
-      if ( g_verbose > 1 ) fprintf ( stdout, "# [read_from_h5_file] file_id = %ld\n", file_id );
+      if ( g_verbose > 2 ) fprintf ( stdout, "# [read_from_h5_file] file_id = %ld\n", file_id );
   
       /***************************************************************************
        * open H5 data set
@@ -773,7 +773,7 @@ int read_from_h5_file ( void * const buffer, void * file, char*tag,  int const i
      ***************************************************************************/
     gettimeofday ( &tb, (struct timezone *)NULL );
   
-    show_time ( &ta, &tb, "read_from_h5_file", "write h5", 1 );
+    show_time ( &ta, &tb, "read_from_h5_file", "read h5", 1 );
 
   }  /* end of of if io_proc > 0 */
   
@@ -969,7 +969,7 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
     if ( stat( filename, &fileStat) < 0 ) {
       /* creat a new file */
 
-      if ( g_verbose > 1 ) fprintf ( stdout, "# [write_h5_contraction] create new file\n" );
+      if ( g_verbose > 2 ) fprintf ( stdout, "# [write_h5_contraction] create new file\n" );
 
       unsigned flags = H5F_ACC_TRUNC; /* IN: File access flags. Allowable values are:
                                          H5F_ACC_TRUNC --- Truncate file, if it already exists, erasing all data previously stored in the file.
@@ -990,7 +990,7 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
 
     } else {
       /* open an existing file. */
-      if ( g_verbose > 1 ) fprintf ( stdout, "# [write_h5_contraction] open existing file\n" );
+      if ( g_verbose > 2 ) fprintf ( stdout, "# [write_h5_contraction] open existing file\n" );
 
       unsigned flags = H5F_ACC_RDWR;  /* IN: File access flags. Allowable values are:
                                          H5F_ACC_RDWR   --- Allow read and write access to file.
@@ -1009,7 +1009,7 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
       }
     }
 
-    if ( g_verbose > 0 ) fprintf ( stdout, "# [write_h5_contraction] file_id = %ld\n", file_id );
+    if ( g_verbose > 2 ) fprintf ( stdout, "# [write_h5_contraction] file_id = %ld\n", file_id );
 
     /***************************************************************************
      * some default settings for H5Dwrite
@@ -1026,7 +1026,7 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
       dtype_id = H5Tcopy( H5T_NATIVE_CHAR );
       mem_type_id   = H5T_NATIVE_CHAR;
     } else {
-      fprintf ( stdout, "[write_h5_contraction] Error, unrecognized data_type %s %s %d\n", data_type, __FILE__, __LINE__ );
+      fprintf ( stderr, "[write_h5_contraction] Error, unrecognized data_type %s %s %d\n", data_type, __FILE__, __LINE__ );
       return ( 8 );
     }
     hid_t mem_space_id  = H5S_ALL;
@@ -1075,7 +1075,7 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
   char * dataset_name = NULL;
   strcpy ( grp_name, tag );
   strcpy ( grp_name_tmp, grp_name );
-  if ( g_verbose > 1 ) fprintf ( stdout, "# [write_h5_contraction] full grp_name = %s\n", grp_name );
+  if ( g_verbose > 2 ) fprintf ( stdout, "# [write_h5_contraction] full grp_name = %s\n", grp_name );
   grp_ptr = strtok ( grp_name_tmp, grp_sep );
   
   while ( grp_ptr != NULL ) {
@@ -1096,7 +1096,7 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
     } else {
       hid_t grp;
       hid_t loc_id = ( imem == 0 ) ? file_id : grp_list[imem-1];
-      if ( g_verbose > 1 ) fprintf ( stdout, "# [write_h5_contraction] grp_ptr = %s\n", grp_ptr );
+      if ( g_verbose > 2 ) fprintf ( stdout, "# [write_h5_contraction] grp_ptr = %s\n", grp_ptr );
 
       grp = H5Gopen2( loc_id, grp_ptr, gapl_id );
       if ( grp < 0 ) {
@@ -1106,10 +1106,10 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
           fprintf ( stderr, "[write_h5_contraction] Error from H5Gcreate2 for group %s, status was %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
           return ( 6 );
         } else {
-          if ( g_verbose > 1 ) fprintf ( stdout, "# [write_h5_contraction] created group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
+          if ( g_verbose > 2 ) fprintf ( stdout, "# [write_h5_contraction] created group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
         }
       } else {
-        if ( g_verbose > 1 ) fprintf ( stdout, "# [write_h5_contraction] opened group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
+        if ( g_verbose > 2 ) fprintf ( stdout, "# [write_h5_contraction] opened group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
       }
       grp_list[imem] = grp;
     }
@@ -1203,7 +1203,7 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
       fprintf(stderr, "[write_h5_contraction] Error from H5Gclose, status was %d %s %d\n", status, __FILE__, __LINE__);
       return(11);
     } else {
-      if ( g_verbose > 1 ) fprintf(stdout, "# [write_h5_contraction] closed group %ld %s %d\n", grp_list[i], __FILE__, __LINE__);
+      if ( g_verbose > 2 ) fprintf(stdout, "# [write_h5_contraction] closed group %ld %s %d\n", grp_list[i], __FILE__, __LINE__);
     }
   }
 
