@@ -53,8 +53,9 @@ void usage() {
   EXIT(0);
 }
 
-#define _TWOP_AFF_SINGLE
-#undef _TWOP_AFF_MULT
+#define _TWOP_AFF_SINGLE 0
+#define _TWOP_AFF_MULT   0
+#define _TWOP_H5_SINGLE  1
 
 int main(int argc, char **argv) {
   
@@ -82,10 +83,7 @@ int main(int argc, char **argv) {
   int write_data = 0;
   double twop_operator_norm[2] = {1., 1.};
 
-#ifdef HAVE_LHPC_AFF
-  struct AffReader_s *affr = NULL;
   char key[400];
-#endif
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
@@ -216,7 +214,7 @@ int main(int argc, char **argv) {
     EXIT(16);
   }
 
-#ifdef _TWOP_AFF_MULT
+#if _TWOP_AFF_MULT
   /***********************************************************
    * loop on configs and source locations per config
    ***********************************************************/
@@ -244,7 +242,8 @@ int main(int argc, char **argv) {
       sprintf ( filename, "%d/%s.%.4d.t%d.aff", Nconf, g_outfile_prefix, Nconf, gsx[0] );
 
       fprintf(stdout, "# [twop_analyse] reading data from file %s\n", filename);
-      affr = aff_reader ( filename );
+
+      struct AffReader_s *affr = aff_reader ( filename );
       const char * aff_status_str = aff_reader_errstr ( affr );
       if( aff_status_str != NULL ) {
         fprintf(stderr, "[twop_analyse] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
@@ -363,7 +362,7 @@ int main(int argc, char **argv) {
 
 #endif
 
-#ifdef _TWOP_AFF_SINGLE
+#if _TWOP_AFF_SINGLE
   for ( int isink_gamma   = 0; isink_gamma   < g_sink_gamma_id_number;   isink_gamma++ ) {
 
     int const sink_gamma_id = g_sink_gamma_id_list[ isink_gamma ];
@@ -406,8 +405,8 @@ int main(int argc, char **argv) {
 
           struct AffNode_s *affn = NULL, *affdir = NULL;
   
-          fprintf(stdout, "# [twop_analyse] reading data from file %s\n", filename);
-          affr = aff_reader ( filename );
+          printf(stdout, "# [twop_analyse] reading data from file %s\n", filename);
+          struct AffReader_s * affr = aff_reader ( filename );
           const char * aff_status_str = aff_reader_errstr ( affr );
           if( aff_status_str != NULL ) {
             fprintf(stderr, "[twop_analyse] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
@@ -501,6 +500,121 @@ int main(int argc, char **argv) {
   }  /* end of loop on sink gamma id */
 
 #endif
+
+#if _TWOP_H5_SINGLE
+  for ( int isink_gamma   = 0; isink_gamma   < g_sink_gamma_id_number;   isink_gamma++ ) {
+
+    int const sink_gamma_id = g_sink_gamma_id_list[ isink_gamma ];
+
+    for ( int isource_gamma = 0; isource_gamma < g_source_gamma_id_number; isource_gamma++ ) {
+
+      int const source_gamma_id = g_source_gamma_id_list[ isource_gamma ];
+
+      /**********************************************************
+        * loop on momenta
+       **********************************************************/
+      for ( int isink_momentum = 0; isink_momentum < g_sink_momentum_number; isink_momentum++ ) {
+
+        for ( int ip = 0; ip <=1; ip++ ) {
+
+          int const parity_sign = 1 - 2 * ip;
+
+          int const sink_momentum[3] = {
+              parity_sign * g_sink_momentum_list[isink_momentum][0],
+              parity_sign * g_sink_momentum_list[isink_momentum][1],
+              parity_sign * g_sink_momentum_list[isink_momentum][2] };
+
+          int ifl = -1;
+          if  ( flavor_type == 0 || flavor_type == 3 ) {
+            ifl = flavor_type;
+          } else if  ( flavor_type == 1 )  {
+            ifl = flavor_type + ip;
+          } else if  ( flavor_type == 2 )  {
+            ifl = flavor_type - ip;
+          }
+
+          gettimeofday ( &ta, (struct timezone *)NULL );
+
+          sprintf ( filename, "%s/%s.%s.gf%.2d.gi%.2d.px%dpy%dpz%d.h5", filename_prefix, twop_correlator_prefix[correlator_type],
+              twop_flavor_tag[ ifl ], sink_gamma_id, source_gamma_id, sink_momentum[0], sink_momentum[1], sink_momentum[2] );
+
+          fprintf(stdout, "# [twop_analyse] reading data from file %s\n", filename);
+
+          double * buffer = init_1level_dtable( 2 * T );
+          if( buffer == NULL ) {
+            fprintf(stderr, "[twop_analyse] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
+            EXIT(15);
+          }
+
+          /***********************************************************
+           * loop on configs and source locations per config
+           ***********************************************************/
+          for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+            for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+
+              /***********************************************************
+               * copy source coordinates
+               ***********************************************************/
+              int const gsx[4] = {
+                  conf_src_list[iconf][isrc][2],
+                  conf_src_list[iconf][isrc][3],
+                  conf_src_list[iconf][isrc][4],
+                  conf_src_list[iconf][isrc][5] };
+  
+              sprintf ( key , "/stream_%c/conf_%d/t%.2dx%.2dy%.2dz%.2d",conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1],
+                  conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5] );
+  
+              if ( g_verbose > 2 ) fprintf ( stdout, "# [twop_analyse] key = %s\n", key );
+  
+              exitstatus = read_from_h5_file ( buffer, filename, key, io_proc );
+              if( exitstatus != 0 ) {
+                fprintf(stderr, "[twop_analyse] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(105);
+              }
+
+              /**********************************************************
+               * source phase
+               **********************************************************/
+              double const p[3] = {
+                  TWO_MPI * (double)sink_momentum[0] / (double)LX_global,
+                  TWO_MPI * (double)sink_momentum[1] / (double)LY_global,
+                  TWO_MPI * (double)sink_momentum[2] / (double)LZ_global };
+  
+              double const phase = -( p[0] * gsx[1] + p[1] * gsx[2] + p[2] * gsx[3] ) ;
+  
+              double _Complex const ephase = cexp ( phase * I );
+  
+              /**********************************************************
+               * sort data from buffer into hvp,
+               * add source phase
+               **********************************************************/
+#pragma omp parallel for
+              for ( int it = 0; it < T; it++ ) {
+                int const tt = ( it - gsx[0] + T_global ) % T_global; 
+
+                double _Complex ztmp = ( buffer[2*it] +  buffer[2*it+1] * I ) * ephase;
+  
+                corr[iconf][isrc][isink_momentum][isink_gamma][isource_gamma][2*tt  ] += creal( ztmp ) * twop_operator_norm[0] * twop_operator_norm[1];
+                corr[iconf][isrc][isink_momentum][isink_gamma][isource_gamma][2*tt+1] += cimag( ztmp ) * twop_operator_norm[0] * twop_operator_norm[1];
+              }
+        
+            }  /* end of loop on source locations */
+          }   /* end of loop on configurations */
+
+          fini_1level_dtable( &buffer );
+
+          gettimeofday ( &tb, (struct timezone *)NULL );
+          show_time ( &ta, &tb, "twop_analyse", "h5-read-all-src-conf", g_cart_id == 0 );
+
+        }  /* end of loop on parity */
+
+      }  /* end of loop on sink momenta */
+
+    }  /* end of loop on source gamma id */
+
+  }  /* end of loop on sink gamma id */
+
+#endif  /* of H5 single file */
 
   /****************************************
    * show all data
