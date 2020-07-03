@@ -1,11 +1,6 @@
 /****************************************************
- * piN2piN_projection
+ * piN2piN_projection_mod
  * 
- * PURPOSE:
- *   originally copied from piN2piN_correlators.cpp
- * TODO:
- * DONE:
- *
  ****************************************************/
 
 #include <stdlib.h>
@@ -42,9 +37,9 @@ extern "C"
 #include "ilinalg.h"
 #include "icontract.h"
 #include "global.h"
+#include "cvc_timer.h"
 #include "cvc_geometry.h"
 #include "cvc_utils.h"
-#include "cvc_timer.h"
 #include "mpi_init.h"
 #include "io.h"
 #include "read_input_parser.h"
@@ -60,7 +55,7 @@ extern "C"
 #include "group_projection.h"
 #include "little_group_projector_set.h"
 
-#define MAX_UDLI_NUM 1000
+#define MAX_UDLI_NUM 10000
 
 
 using namespace cvc;
@@ -95,6 +90,7 @@ int main(int argc, char **argv) {
   twopoint_function_type *udli_ptr[MAX_UDLI_NUM];
 
   struct timeval ta, tb;
+  struct timeval start_time, end_time;
 
   /***********************************************************
    * set Cg basis projection coefficients
@@ -147,6 +143,11 @@ int main(int argc, char **argv) {
   }
 
   /***********************************************************
+   * timer for total time
+   ***********************************************************/
+  gettimeofday ( &start_time, (struct timezone *)NULL );
+
+  /***********************************************************
    * set the default values
    ***********************************************************/
   if(filename_set==0) strcpy(filename, "cvc.input");
@@ -181,19 +182,11 @@ int main(int argc, char **argv) {
   }
   geometry();
 
+
   /***********************************************************
    * set io process
    ***********************************************************/
   int const io_proc = get_io_proc ();
-
-  /***********************************************************
-   * TEST: report size of twopoint_function_type
-   ***********************************************************/
-  if ( io_proc == 0 ) {
-    fprintf ( stdout, "# [piN2piN_projection] sizeof twopoint_function_type = %lu\n", sizeof ( twopoint_function_type ) );
-  }
-
-
 
   /****************************************************
    * set cubic group single/double cover
@@ -227,155 +220,189 @@ int main(int argc, char **argv) {
     g_source_coords_list[i][3] = ( g_source_coords_list[i][3] + LZ_global ) % LZ_global;
   }
 
-   
   /******************************************************
-   * loop on 2-point functions
+   * loop on source locations
    ******************************************************/
-  for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
+  for( int i_src = 0; i_src<g_source_location_number; i_src++) {
+
+    int const t_base = g_source_coords_list[i_src][0];
 
     /******************************************************
-     * print the 2-point function parameters
+     * loop on coherent source locations
      ******************************************************/
-    sprintf ( filename, "twopoint_function_%d.show", i2pt );
-    if ( ( ofs = fopen ( filename, "w" ) ) == NULL ) {
-      fprintf ( stderr, "[piN2piN_projection] Error from fopen %s %d\n", __FILE__, __LINE__ );
-      EXIT(12);
-    }
-    twopoint_function_print ( &(g_twopoint_function_list[i2pt]), "TWPT", ofs );
-    fclose ( ofs );
+    for( int i_coherent=0; i_coherent<g_coherent_source_number; i_coherent++) {
+      int const t_coherent = ( t_base + ( T_global / g_coherent_source_number ) * i_coherent ) % T_global;
 
-    /****************************************************
-     * read little group parameters
-     ****************************************************/
-    gettimeofday ( &ta, (struct timezone *)NULL );
-    little_group_type little_group;
-    if ( ( exitstatus = little_group_read ( &little_group, g_twopoint_function_list[i2pt].group, little_group_list_filename ) ) != 0 ) {
-      fprintf ( stderr, "[piN2piN_projection] Error from little_group_read, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-      EXIT(2);
-    }
-    gettimeofday ( &tb, (struct timezone *)NULL );
-    show_time ( &ta, &tb, "piN2piN_projection", "little_group_read", g_cart_id == 0 );
-
-    sprintf ( filename, "little_group_%d.show", i2pt );
-    if ( ( ofs = fopen ( filename, "w" ) ) == NULL ) {
-      fprintf ( stderr, "[piN2piN_projection] Error from fopen %s %d\n", __FILE__, __LINE__ );
-      EXIT(12);
-    }
-    little_group_show ( &little_group, ofs, 1 );
-    fclose ( ofs );
-
-    /****************************************************
-     * initialize and set projector 
-     * for current little group and irrep
-     ****************************************************/
-    little_group_projector_type projector;
-    if ( ( exitstatus = init_little_group_projector ( &projector ) ) != 0 ) {
-      fprintf ( stderr, "# [piN2piN_projection] Error from init_little_group_projector, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(2);
-    }
-
-    /****************************************************
-     * parameters for setting the projector
-     ****************************************************/
-    int ref_row_target          = -1;     // no reference row for target irrep
-    int * ref_row_spin          = NULL;   // no reference row for spin matrices
-    int refframerot             = -1;     // reference frame rotation
-                                          //   added below
-    int row_target              = -1;     // no target row
-    int cartesian_list[1]       = { 0 };  // not cartesian
-    int parity_list[1]          = { 1 };  // intrinsic parity is +1
-    const int ** momentum_list  = NULL;   // no momentum list given
-    int bispinor_list[1]        = { 1 };  // bispinor yes
-    int J2_list[1]              = { 1 };  // spin 1/2
-    int Pref[3] = {-1,-1,-1};
-
-    int const Ptot[3] = {
-      g_twopoint_function_list[i2pt].pf1[0] + g_twopoint_function_list[i2pt].pf2[0],
-      g_twopoint_function_list[i2pt].pf1[1] + g_twopoint_function_list[i2pt].pf2[1],
-      g_twopoint_function_list[i2pt].pf1[2] + g_twopoint_function_list[i2pt].pf2[2] };
-
-    /* if ( g_verbose > 1 ) fprintf ( stdout, "# [piN2piN_projection] twopoint_function %3d Ptot = %3d %3d %3d\n", i2pt, 
-        Ptot[0], Ptot[1], Ptot[2] ); */
-
-    /****************************************************
-     * do we need a reference frame rotation ?
-     ****************************************************/
-    exitstatus = get_reference_rotation ( Pref, &refframerot, Ptot );
-    if ( exitstatus != 0 ) {
-      fprintf ( stderr, "[piN2piN_projection] Error from get_reference_rotation, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(4);
-    } else if ( g_verbose > 1 ) {
-      fprintf ( stdout, "# [piN2piN_projection] twopoint_function %3d Ptot = %3d %3d %3d refframerot %2d for Pref = %3d %3d %3d\n", i2pt, 
-          Ptot[0], Ptot[1], Ptot[2], refframerot, Pref[0], Pref[1], Pref[2]);
-    }
-
-    fflush ( stdout );
-
-    /****************************************************
-     * set the projector with the info we have
-     ****************************************************/
-    exitstatus = little_group_projector_set (
-        &projector,
-        &little_group,
-        g_twopoint_function_list[i2pt].irrep ,
-        row_target,
-        1,
-        J2_list,
-        momentum_list,
-        bispinor_list,
-        parity_list,
-        cartesian_list,
-        ref_row_target,
-        ref_row_spin,
-        g_twopoint_function_list[i2pt].type,
-        refframerot );
-
-    if ( exitstatus != 0 ) {
-      fprintf ( stderr, "[piN2piN_projection] Error from little_group_projector_set, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(3);
-    }
-
-    sprintf ( filename, "little_group_projector_%d.show", i2pt );
-    if ( ( ofs = fopen ( filename, "w" ) ) == NULL ) {
-      fprintf ( stderr, "[piN2piN_projection] Error from fopen %s %d\n", __FILE__, __LINE__ );
-      EXIT(12);
-    }
-    exitstatus = little_group_projector_show ( &projector, ofs, 1 );
-    fclose ( ofs );
-
-    /****************************************************
-     * check, that projector has correct d-vector
-     ****************************************************/
-    if ( ( projector.P[0] != Ptot[0] ) || ( projector.P[1] != Ptot[1] ) || ( projector.P[2] != Ptot[2] ) ) {
-      fprintf ( stderr, "[piN2piN_projection] Error, projector P != Ptot\n" );
-      EXIT(12);
-    } else {
-      if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_projection] projector P == Ptot\n" );
-    }
+      int source_proc_id, sx[4];
+      int const gsx[4] = { t_coherent,
+                    ( g_source_coords_list[i_src][1] + (LX_global/2) * i_coherent ) % LX_global,
+                    ( g_source_coords_list[i_src][2] + (LY_global/2) * i_coherent ) % LY_global,
+                    ( g_source_coords_list[i_src][3] + (LZ_global/2) * i_coherent ) % LZ_global };
 
 
-    int const nrot      = projector.rtarget->n;
-    int const irrep_dim = projector.rtarget->dim;
-
-    /******************************************************
-     * loop on source locations
-     ******************************************************/
-    for( int i_src = 0; i_src<g_source_location_number; i_src++) {
-      int t_base = g_source_coords_list[i_src][0];
+      get_point_source_info (gsx, sx, &source_proc_id);
 
       /******************************************************
-       * loop on coherent source locations
+       * loop on 2-point functions
        ******************************************************/
-      for( int i_coherent=0; i_coherent<g_coherent_source_number; i_coherent++) {
-        int t_coherent = ( t_base + ( T_global / g_coherent_source_number ) * i_coherent ) % T_global;
+      for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
 
-        int source_proc_id, sx[4], gsx[4] = { t_coherent,
-                      ( g_source_coords_list[i_src][1] + (LX_global/2) * i_coherent ) % LX_global,
-                      ( g_source_coords_list[i_src][2] + (LY_global/2) * i_coherent ) % LY_global,
-                      ( g_source_coords_list[i_src][3] + (LZ_global/2) * i_coherent ) % LZ_global };
+        if ( g_verbose > 4 ) {
+          gettimeofday ( &ta, (struct timezone *)NULL );
+          /******************************************************
+           * print the 2-point function parameters
+           ******************************************************/
+          sprintf ( filename, "twopoint_function_%d.show", i2pt );
+          if ( ( ofs = fopen ( filename, "w" ) ) == NULL ) {
+            fprintf ( stderr, "[piN2piN_projection] Error from fopen %s %d\n", __FILE__, __LINE__ );
+            EXIT(12);
+          }
+          twopoint_function_print ( &(g_twopoint_function_list[i2pt]), "TWPT", ofs );
+          fclose ( ofs );
 
+          gettimeofday ( &tb, (struct timezone *)NULL );
+          show_time ( &ta, &tb, "piN2piN_projection", "print-twopoint", io_proc == 2 );
 
-        get_point_source_info (gsx, sx, &source_proc_id);
+        }  /* end of if g_verbose */
+
+        /****************************************************
+         * read little group parameters
+         ****************************************************/
+        gettimeofday ( &ta, (struct timezone *)NULL );
+
+        little_group_type little_group;
+        if ( ( exitstatus = little_group_read ( &little_group, g_twopoint_function_list[i2pt].group, little_group_list_filename ) ) != 0 ) {
+          fprintf ( stderr, "[piN2piN_projection] Error from little_group_read, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(2);
+        }
+
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "piN2piN_projection", "little_group_read", io_proc == 2 );
+
+        if ( g_verbose > 4 ) {
+          sprintf ( filename, "little_group_%d.show", i2pt );
+          if ( ( ofs = fopen ( filename, "w" ) ) == NULL ) {
+            fprintf ( stderr, "[piN2piN_projection] Error from fopen %s %d\n", __FILE__, __LINE__ );
+            EXIT(12);
+          }
+          little_group_show ( &little_group, ofs, 1 );
+          fclose ( ofs );
+        }
+
+        /****************************************************
+         * initialize and set projector 
+         * for current little group and irrep
+         ****************************************************/
+        gettimeofday ( &ta, (struct timezone *)NULL );
+
+        little_group_projector_type projector;
+        if ( ( exitstatus = init_little_group_projector ( &projector ) ) != 0 ) {
+          fprintf ( stderr, "# [piN2piN_projection] Error from init_little_group_projector, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(2);
+        }
+
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "piN2piN_projection", "init_little_group_projector", io_proc == 2 );
+
+        /****************************************************
+         * parameters for setting the projector
+         ****************************************************/
+        int ref_row_target          = -1;     // no reference row for target irrep
+        int * ref_row_spin          = NULL;   // no reference row for spin matrices
+        int refframerot             = -1;     // reference frame rotation
+                                          //   added below
+        int row_target              = -1;     // no target row
+        int cartesian_list[1]       = { 0 };  // not cartesian
+        int parity_list[1]          = { 1 };  // intrinsic parity is +1
+        const int ** momentum_list  = NULL;   // no momentum list given
+        int bispinor_list[1]        = { 1 };  // bispinor yes
+        int J2_list[1]              = { 1 };  // spin 1/2
+        int Pref[3] = {-1,-1,-1};
+
+        int const Ptot[3] = {
+          g_twopoint_function_list[i2pt].pf1[0] + g_twopoint_function_list[i2pt].pf2[0],
+          g_twopoint_function_list[i2pt].pf1[1] + g_twopoint_function_list[i2pt].pf2[1],
+          g_twopoint_function_list[i2pt].pf1[2] + g_twopoint_function_list[i2pt].pf2[2] };
+
+        if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_projection] twopoint_function %3d Ptot = %3d %3d %3d\n", i2pt, Ptot[0], Ptot[1], Ptot[2] );
+
+        /****************************************************
+         * do we need a reference frame rotation ?
+         ****************************************************/
+        gettimeofday ( &ta, (struct timezone *)NULL );
+
+        exitstatus = get_reference_rotation ( Pref, &refframerot, Ptot );
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[piN2piN_projection] Error from get_reference_rotation, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(4);
+        } else if ( g_verbose > 1 ) {
+          fprintf ( stdout, "# [piN2piN_projection] twopoint_function %3d Ptot = %3d %3d %3d refframerot %2d for Pref = %3d %3d %3d\n", i2pt, 
+          Ptot[0], Ptot[1], Ptot[2], refframerot, Pref[0], Pref[1], Pref[2]);
+        }
+
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "piN2piN_projection", "get_reference_rotation", io_proc == 2 );
+        fflush ( stdout );
+
+        /****************************************************
+         * set the projector with the info we have
+         ****************************************************/
+        gettimeofday ( &ta, (struct timezone *)NULL );
+
+        exitstatus = little_group_projector_set (
+            &projector,
+            &little_group,
+            g_twopoint_function_list[i2pt].irrep ,
+            row_target,
+            1,
+            J2_list,
+            momentum_list,
+            bispinor_list,
+            parity_list,
+            cartesian_list,
+            ref_row_target,
+            ref_row_spin,
+            g_twopoint_function_list[i2pt].type,
+            refframerot );
+
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[piN2piN_projection] Error from little_group_projector_set, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(3);
+        }
+
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "piN2piN_projection", "little_group_projector_set", io_proc == 2 );
+
+        if ( g_verbose > 4 ) {
+          /****************************************************
+           * show projector
+           ****************************************************/
+          gettimeofday ( &tb, (struct timezone *)NULL );
+
+          sprintf ( filename, "little_group_projector_%d.show", i2pt );
+          if ( ( ofs = fopen ( filename, "w" ) ) == NULL ) {
+            fprintf ( stderr, "[piN2piN_projection] Error from fopen %s %d\n", __FILE__, __LINE__ );
+            EXIT(12);
+          }
+          exitstatus = little_group_projector_show ( &projector, ofs, 1 );
+          fclose ( ofs );
+
+          gettimeofday ( &tb, (struct timezone *)NULL );
+          show_time ( &ta, &tb, "piN2piN_projection", "show-projector", io_proc == 2 );
+        }
+
+        /****************************************************
+         * check, that projector has correct d-vector
+         ****************************************************/
+        if ( ( projector.P[0] != Ptot[0] ) || ( projector.P[1] != Ptot[1] ) || ( projector.P[2] != Ptot[2] ) ) {
+          fprintf ( stderr, "[piN2piN_projection] Error, projector P != Ptot\n" );
+          EXIT(12);
+        } else {
+          if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_projection] projector P == Ptot\n" );
+        }
+
+        int const nrot      = projector.rtarget->n;
+        int const irrep_dim = projector.rtarget->dim;
 
         /******************************************************
          * set current source coords in 2pt function
@@ -389,6 +416,8 @@ int main(int argc, char **argv) {
          * this is a temporary twopoint function struct to
          * store one term in the projection sum
          ******************************************************/
+        gettimeofday ( &ta, (struct timezone *)NULL );
+
         twopoint_function_type tp;
 
         twopoint_function_init ( &tp );
@@ -399,6 +428,9 @@ int main(int argc, char **argv) {
           fprintf ( stderr, "[piN2piN_projection] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
           EXIT(123);
         }
+
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "piN2piN_projection", "init-copy-allocate-tp", io_proc == 2 );
 
         /******************************************************/
         /******************************************************/
@@ -428,6 +460,8 @@ int main(int argc, char **argv) {
          * - copy content of current reference element of
          *   g_twopoint_function_list
          ******************************************************/
+        gettimeofday ( &ta, (struct timezone *)NULL );
+
         for ( int i = 0; i < n_tp_project; i++ ) {
           twopoint_function_type * tp_project_ptr = tp_project[0][0][0];
 
@@ -453,6 +487,9 @@ int main(int argc, char **argv) {
           }
         }
 
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "piN2piN_projection", "init-copy-allocate-tp_project", io_proc == 2 );
+
         gamma_matrix_type gl, gr, gi11, gi12, gi2, gf11, gf12, gf2;
         gamma_matrix_init ( &gl );
         gamma_matrix_init ( &gr );
@@ -464,7 +501,7 @@ int main(int argc, char **argv) {
          ******************************************************/
         for ( int irotl = 0; irotl < 2*nrot; irotl ++ ) {
 
-          if ( g_verbose > 3 ) fprintf ( stdout, "# [piN2piN_projection] left rotref %2d - %2d\n", irotl / nrot, irotl % nrot );
+          /* if ( g_verbose > 4 ) fprintf ( stdout, "# [piN2piN_projection] left rotref %2d - %2d\n", irotl / nrot, irotl % nrot ); */
 
           /******************************************************
            * set momentum vector ( = spin-1 ) rotation matrix
@@ -544,7 +581,7 @@ int main(int argc, char **argv) {
          ******************************************************/
         for ( int irotr = 0; irotr < 2*nrot; irotr ++ ) {
 
-          if ( g_verbose > 3 ) fprintf ( stdout, "# [piN2piN_projection] right rotref %2d - %2d\n", irotr / nrot, irotr % nrot );
+          /* if ( g_verbose > 3 ) fprintf ( stdout, "# [piN2piN_projection] right rotref %2d - %2d\n", irotr / nrot, irotr % nrot ); */
 
           /*                                          proper rotation          rotation-reflection */
           double _Complex ** Rpr = ( irotr < nrot ) ? projector.rp->R[irotr] : projector.rp->IR[irotr-nrot];
@@ -605,7 +642,7 @@ int main(int argc, char **argv) {
           /******************************************************
            * TEST
            ******************************************************/
-          if ( g_verbose > 1 ) 
+          if ( g_verbose > 2 ) 
             fprintf ( stdout, "# [piN2piN_projection] rot %2d %2d     gf11 %2d %6.2f   gf12 %2d %6.2f   gf2 %2d %6.2f   gi11 %2d %6.2f   gi12 %2d %6.2f   gi2 %2d %6.2f\n", 
               irotl, irotr, gf11.id, gf11.s, gf12.id, gf12.s, gf2.id, gf2.s, gi11.id, gi11.s, gi12.id, gi12.s, gi2.id, gi2.s);
 
@@ -639,7 +676,8 @@ int main(int argc, char **argv) {
             /******************************************************
              * check, whether udli_name exists in udli list
              ******************************************************/
-            ratime = _GET_TIME;
+            gettimeofday ( &ta, (struct timezone *)NULL );
+
             int udli_id = -1;
             for ( int i = 0; i < udli_count; i++ ) {
               if ( strcmp ( udli_name, udli_list[i] ) == 0 ) {
@@ -647,11 +685,14 @@ int main(int argc, char **argv) {
                 break;
               }
             }
-            retime = _GET_TIME;
-            if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_projection] time for matching udli_name = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__ );
+
+            gettimeofday ( &tb, (struct timezone *)NULL );
+            show_time ( &ta, &tb, "piN2piN_projection", "check-udli-entry", io_proc == 2 );
 
             if ( udli_id == -1 ) {
               fprintf ( stdout, "# [piN2piN_projection] could not find udli_name %s in udli_list\n", udli_name );
+
+              gettimeofday ( &ta, (struct timezone *)NULL );
 
               /******************************************************
                * start new entry in udli list
@@ -706,6 +747,9 @@ int main(int argc, char **argv) {
                ******************************************************/
               udli_count++;
 
+              gettimeofday ( &tb, (struct timezone *)NULL );
+              show_time ( &ta, &tb, "piN2piN_projection", "add-udli-entry", io_proc == 2 );
+
             } else {
               if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_projection] udli_name %s matches udli_list[%d] %s\n", udli_name, udli_id, udli_list[udli_id] );
             }
@@ -723,16 +767,20 @@ int main(int argc, char **argv) {
            * a little overhead, since this done for each tp,
            * not each udli_ptr only
            ******************************************************/
+          gettimeofday ( &ta, (struct timezone *)NULL );
           if ( ( exitstatus = twopoint_function_apply_diagram_norm ( &tp ) ) != 0 ) {
             fprintf ( stderr, "[piN2piN_projection] Error from twopoint_function_apply_diagram_norm, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(213);
           }
+          gettimeofday ( &tb, (struct timezone *)NULL );
+          show_time ( &ta, &tb, "piN2piN_projection", "twopoint_function_apply_diagram_norm", io_proc == 2 );
 
 
           /******************************************************
            * sum up data sets in tp
            * - add data sets 1,...,tp.n-1 to data set 0
            ******************************************************/
+          gettimeofday ( &ta, (struct timezone *)NULL );
           /*
           for ( int i = 1; i < tp.n; i++ ) {
             contract_diagram_zm4x4_field_pl_eq_zm4x4_field ( tp.c[0], tp.c[i], tp.T );
@@ -743,6 +791,9 @@ int main(int argc, char **argv) {
             EXIT(216);
           }
 
+          gettimeofday ( &tb, (struct timezone *)NULL );
+          show_time ( &ta, &tb, "piN2piN_projection", "twopoint_function_accum_diagrams", io_proc == 2 );
+
           /******************************************************
            * residual rotation of complete 4x4 correlator
            * at sink ( left ) and source ( right )
@@ -751,7 +802,12 @@ int main(int argc, char **argv) {
            *
            * tp.c[0] <- Rsl^H x tp.c[0] x Rsr
            ******************************************************/
+          gettimeofday ( &ta, (struct timezone *)NULL );
+
           contract_diagram_mat_op_ti_zm4x4_field_ti_mat_op ( tp.c[0], Rsl, 'H' , tp.c[0], Rsr, 'N', tp.T );
+
+          gettimeofday ( &tb, (struct timezone *)NULL );
+          show_time ( &ta, &tb, "piN2piN_projection", "contract_diagram_mat_op_ti_zm4x4_field_ti_mat_op", io_proc == 2 );
 
           /******************************************************
            * projection variants
@@ -767,6 +823,9 @@ int main(int argc, char **argv) {
            * irrep matrix for right-applied rotation
            *   = source side
            ******************************************************/
+
+          gettimeofday ( &ta, (struct timezone *)NULL );
+
           double _Complex ** Tirrepr = ( irotr < nrot ) ? projector.rtarget->R[irotr] : projector.rtarget->IR[irotr-nrot];
 
           for ( int ref_snk = 0; ref_snk < irrep_dim; ref_snk++ ) {
@@ -811,6 +870,8 @@ int main(int argc, char **argv) {
         }  // end of loop on source rotations
         }  // end of loop on sink   rotations
 
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "piN2piN_projection", "row-col-accum-projection", io_proc == 2 );
 #if 0
         /******************************************************
          * check reference index rotations
@@ -825,6 +886,8 @@ int main(int argc, char **argv) {
          *
          * loop over individiual projection variants
          ******************************************************/
+        gettimeofday ( &ta, (struct timezone *)NULL );
+
         for ( int itp = 0; itp < n_tp_project; itp++ ) {
 
           twopoint_function_type * tp_project_ptr = tp_project[0][0][0];
@@ -865,7 +928,10 @@ int main(int argc, char **argv) {
             EXIT(12);
           }
 
-        }  /* end of loop on 2-point functions */
+        }  /* end of loop on n_tp_project */
+
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "piN2piN_projection", "group-projection-norm-output", io_proc == 2 );
 
         /******************************************************
          * deallocate twopoint_function vars tp and tp_project
@@ -877,36 +943,39 @@ int main(int argc, char **argv) {
         fini_4level_2pttable ( &tp_project );
 
         /******************************************************
-         * reset udli_count and deallocate udli_ptr
+         * deallocate space inside little_group
          ******************************************************/
-        for ( int i = 0; i < udli_count; i++ ) {
-          twopoint_function_fini ( udli_ptr[i] );
-          free ( udli_ptr[i] );
-          udli_ptr[i] = NULL;
-        }
-        udli_count = 0;
+        little_group_fini ( &little_group );
 
-      }  // end of loop on coherent source locations
+        /******************************************************
+         * deallocate space inside projector
+         ******************************************************/
+        fini_little_group_projector ( &projector );
 
-    }  // end of loop on base source locations
+      }  // end of loop on g_twopoint_function_number 2pt functions
 
+      /******************************************************
+       * reset udli_count and deallocate udli_ptr
+       *
+       * NOTE: too much memory ? free udli content
+       *       ONLY after loop on 2-point functions
+       *
+       * new-readin definitely after change of total
+       * momentum
+       ******************************************************/
+      for ( int i = 0; i < udli_count; i++ ) {
+        twopoint_function_fini ( udli_ptr[i] );
+        free ( udli_ptr[i] );
+        udli_ptr[i] = NULL;
+      }
+      udli_count = 0;
 
-    /******************************************************
-     * deallocate space inside little_group
-     ******************************************************/
-    little_group_fini ( &little_group );
+    }  // end of loop on coherent source locations
 
-    /******************************************************
-     * deallocate space inside projector
-     ******************************************************/
-    fini_little_group_projector ( &projector );
-
-  }  // end of loop on 2-point functions
+  }  // end of loop on base source locations
 
   /******************************************************/
   /******************************************************/
-#if 0
-#endif  /* of if 0 */
 
   /******************************************************
    * finalize
@@ -918,6 +987,11 @@ int main(int argc, char **argv) {
 #ifdef HAVE_MPI
   MPI_Finalize();
 #endif
+
+  gettimeofday ( &end_time, (struct timezone *)NULL );
+  show_time ( &start_time, &end_time, "piN2piN_projection", "total-time", io_proc == 2 );
+
+  
   if(g_cart_id == 0) {
     g_the_time = time(NULL);
     fprintf(stdout, "# [piN2piN_projection] %s# [piN2piN_projection] end fo run\n", ctime(&g_the_time));

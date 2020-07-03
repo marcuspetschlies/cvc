@@ -51,6 +51,8 @@ int contract_diagram_sample_oet (double _Complex ***diagram, double _Complex ***
 
 int contract_diagram_write_aff (double _Complex***diagram, struct AffWriter_s*affw, char*aff_tag, int const tstart, int const dt, int const fbwd, int const io_proc );
 
+int contract_diagram_write_aff_sst (double _Complex***diagram, struct AffWriter_s*affw, char*aff_tag, int const tstart, int const dt, int const fbwd, int const io_proc );
+
 int contract_diagram_write_scalar_aff (double _Complex*diagram, struct AffWriter_s*affw, char*aff_tag, int const tstart, int const dt, int const fbwd, int const io_proc );
 
 int contract_diagram_write_fp ( double _Complex*** const diagram, FILE *fp, char*tag, int const tstart, unsigned int const dt, int const fbwd );
@@ -103,6 +105,8 @@ int contract_diagram_finalize ( double _Complex *** const diagram, char * const 
     int const gi11_id, int const gi12_id, int const gi12_sign, int const gi2_id,
     unsigned int const N );
 
+
+int contract_diagram_co_eq_tr_zm4x4_field ( double _Complex * const r, double _Complex *** const diagram, unsigned int const N );
 
 }  // end of namespace cvc
 #endif

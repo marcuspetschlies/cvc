@@ -344,17 +344,19 @@ int little_group_projector_set (
       if ( use_refframerot ) {
         // R <- Rref x R
         rot_mat_ti_mat ( p->rspin[i].R[irot], refframerot_spin[i], p->rspin[i].R[irot] , rspin.dim );
+
         // R <- R x Rref^+
-        // WARNING: by commenting this we rotate phi as well
-        // rot_mat_ti_mat_adj ( p->rspin[i].R[irot], p->rspin[i].R[irot], refframerot_spin[i] , rspin.dim );
+        // WARNING: by commenting out the following step this we rotate phi as well
+        rot_mat_ti_mat_adj ( p->rspin[i].R[irot], p->rspin[i].R[irot], refframerot_spin[i] , rspin.dim );
       
         // IR <- Rref x IR
         rot_mat_ti_mat ( p->rspin[i].IR[irot], refframerot_spin[i], p->rspin[i].IR[irot] , rspin.dim );
+
         // IR <- IR x Rref^+
-        // WARNING: by commenting this we rotate phi as well
-        // rot_mat_ti_mat_adj ( p->rspin[i].IR[irot], p->rspin[i].IR[irot], refframerot_spin[i] , rspin.dim );
+        // WARNING: by commenting out the following step we rotate phi as well
+        rot_mat_ti_mat_adj ( p->rspin[i].IR[irot], p->rspin[i].IR[irot], refframerot_spin[i] , rspin.dim );
       
-      }
+      }  /* end of if use refframerot */
 
     }  /* end of loop on p->rtarget->n rotations */
 

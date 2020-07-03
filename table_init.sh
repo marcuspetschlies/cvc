@@ -7,6 +7,9 @@ MyName=$(echo $0 | awk -F\/ '{sub(/\.sh/,"",$NF);print $NF}')
 #TYPE="double"
 #TAG="d"
 
+#TYPE="float"
+#TAG="f"
+
 #TYPE="int"
 #TAG="i"
 
@@ -27,6 +30,7 @@ case "$TAG" in
   "d") TYPE="double";;
   "i") TYPE="int";;
   "c") TYPE="char";;
+  "f") TYPE="float";;
   "2pt") TYPE="twopoint_function_type";;
   *) exit 1;;
 esac

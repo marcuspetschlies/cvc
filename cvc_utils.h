@@ -4,6 +4,8 @@
 #ifndef _CVC_UTIL_H
 #define _CVC_UTIL_H
 
+#include "uwerr.h"
+
 namespace cvc {
 
 int read_input (char *filename);
@@ -174,6 +176,9 @@ int plaquetteria  (double*gauge_field );
 
 int gauge_field_eq_gauge_field_ti_phase (double**gauge_field_with_phase, double*gauge_field, complex co_phase[4] );
 
+int gauge_field_eq_gauge_field_ti_bcfactor (double ** const gauge_field_with_bc, double * const gauge_field, double _Complex const bcfactor );
+
+
 void co_field_eq_fv_dag_ti_fv (double*c, double*r, double*s, unsigned int N );
 
 void co_field_eq_fv_dag_ti_gamma_ti_fv (double*c, double*r, int gid, double*s, unsigned int N );
@@ -207,6 +212,10 @@ int init_momentum_classes ( int **** p_class, int **p_nmem, int *p_num );
 void fini_momentum_classes ( int **** p_class, int **p_nmem, int *p_num );
 
 int random_binary_field ( int * const b , unsigned int const N );
+
+int apply_uwerr_real ( double * const data, unsigned int const nmeas, unsigned int const ndata, unsigned int const ipo_first, unsigned int const ipo_stride, char * obs_name );
+
+int apply_uwerr_func ( double * const data, unsigned int const nmeas, unsigned int const ndata, unsigned int const nset, int const narg, int * const arg_first, int * const arg_stride, char * obs_name, dquant func, dquant dfunc );
 
 }  /* end of namespace cvc */
 #endif

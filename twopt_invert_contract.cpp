@@ -48,6 +48,7 @@ extern "C"
 #include "io.h"
 #include "propagator_io.h"
 #include "read_input_parser.h"
+#include "smearing_techniques.h"
 #include "contractions_io.h"
 #include "Q_clover_phi.h"
 #include "prepare_source.h"
@@ -56,13 +57,18 @@ extern "C"
 #include "table_init_z.h"
 #include "table_init_d.h"
 #include "dummy_solver.h"
+#include "contractions_io.h"
 #include "contract_factorized.h"
+#include "contract_diagrams.h"
 
 #include "clover.h"
 
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
 
+#ifdef STOCHASTIC
+#undef STOCHASTIC
+#endif
 
 using namespace cvc;
 
@@ -78,6 +84,25 @@ int main(int argc, char **argv) {
   
   const char outfile_prefix[] = "twopt";
 
+  char const gamma_id_to_Cg_ascii[16][10] = {
+    "Cgy",
+    "Cgzg5",
+    "Cgt",
+    "Cgxg5",
+    "Cgygt",
+    "Cgyg5gt",
+    "Cgyg5",
+    "Cgz",
+    "Cg5gt",
+    "Cgx",
+    "Cgzg5gt",
+    "C",
+    "Cgxg5gt",
+    "Cgxgt",
+    "Cg5",
+    "Cgzgt"
+  };
+
   int c;
   int filename_set = 0;
   int gsx[4], sx[4];
@@ -89,11 +114,18 @@ int main(int argc, char **argv) {
   // double ratime, retime;
   double **lmzz[2] = { NULL, NULL }, **lmzzinv[2] = { NULL, NULL };
   double *gauge_field_with_phase = NULL;
+  double *gauge_field_smeared = NULL;
 
-  const int gamma_f1_nucleon_number                                = 1;
-  int gamma_f1_nucleon_list[gamma_f1_nucleon_number]               = { 14 }; /*, 11,  8,  2 }; */
-  double gamma_f1_nucleon_sign[gamma_f1_nucleon_number]            = { +1 }; /*, +1, -1, -1 }; */
-  /* double gamma_f1_nucleon_transposed_sign[gamma_f1_nucleon_number] = { -1, -1, +1, -1 }; */
+  int const    gamma_f1_number                           = 1;
+  int const    gamma_f1_list[gamma_f1_number]            = { 14 }; /*, 11,  8,  2 }; */
+  double const gamma_f1_sign[gamma_f1_number]            = { +1 }; /*, +1, -1, -1 }; */
+  /* double const gamma_f1_transposed_sign[gamma_f1_number] = { -1, -1, +1, -1 }; */
+
+#if 0
+  int const    gamma_f1_number                = 3;
+  int const    gamma_f1_list[gamma_f1_number] = { 9,  0,  7 };
+  double const gamma_f1_sign[gamma_f1_number] = {-1, +1, +1 };
+#endif  /* of if 0 */
 
 #ifdef HAVE_LHPC_AFF
   struct AffWriter_s *affw = NULL;
@@ -185,7 +217,9 @@ int main(int argc, char **argv) {
 
   geometry();
 
+#if defined STOCHASTIC
   size_t sizeof_spinor_field = _GSI( VOLUME ) * sizeof ( double );
+#endif
 
   mpi_init_xchange_eo_spinor();
   mpi_init_xchange_eo_propagator();
@@ -230,6 +264,26 @@ int main(int argc, char **argv) {
     EXIT(38);
   }
 
+  /***********************************************
+   * smeared gauge field
+   ***********************************************/
+  if( N_Jacobi > 0 ) {
+
+    alloc_gauge_field ( &gauge_field_smeared, VOLUMEPLUSRAND);
+
+    memcpy ( gauge_field_smeared, g_gauge_field, 72*VOLUME*sizeof(double));
+
+    if ( N_ape > 0 ) {
+      exitstatus = APE_Smearing(gauge_field_smeared, alpha_ape, N_ape);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[twopt_invert_contract] Error from APE_Smearing, status was %d\n", exitstatus);
+        EXIT(47);
+      }
+    }  /* end of if N_aoe > 0 */
+  }  /* end of if N_Jacobi > 0 */
+
+
+
   /***********************************************************
    * initialize clover, lmzz and lmzzinv
    ***********************************************************/
@@ -258,7 +312,8 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[twopt_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
     EXIT(123);
   }
-  
+
+
   /***************************************************************************
    ***************************************************************************
    **
@@ -307,38 +362,58 @@ int main(int argc, char **argv) {
      * propagators with source at gsx
      **********************************************************/
 
+
     /***********************************************************
      * up-type point-to-all propagator
      ***********************************************************/
-    exitstatus = point_source_propagator ( &(spinor_field[0]), gsx, _OP_ID_UP, 0, 0, NULL, check_propagator_residual, gauge_field_with_phase, lmzz );
+    exitstatus = point_source_propagator ( &(spinor_field[0]), gsx, _OP_ID_UP, 1, 1, gauge_field_smeared, check_propagator_residual, gauge_field_with_phase, lmzz );
     if(exitstatus != 0) {
       fprintf(stderr, "[twopt_invert_contract] Error from point_source_propagator, status was %d\n", exitstatus);
       EXIT(12);
+    }
+
+    if ( g_write_propagator ) {
+      for ( int i = 0; i < 12; i++ ) {
+        sprintf ( filename, "Rpsource.%.4d.t%dx%dy%dz%d.%d.inverted", Nconf, 
+            gsx[0], gsx[1], gsx[2], gsx[3] , i );
+
+        if ( ( exitstatus = write_propagator( spinor_field[i], filename, 0, g_propagator_precision) ) != 0 ) {
+          fprintf(stderr, "[twopt_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(2);
+        }
+      }
     }
 
     /***********************************************************
      * dn-type point-to-all propagator
      ***********************************************************/
-    exitstatus = point_source_propagator ( &(spinor_field[12]), gsx, _OP_ID_DN, 0, 0, NULL, check_propagator_residual, gauge_field_with_phase, lmzz );
+    exitstatus = point_source_propagator ( &(spinor_field[12]), gsx, _OP_ID_DN, 1, 1, gauge_field_smeared, check_propagator_residual, gauge_field_with_phase, lmzz );
     if(exitstatus != 0) {
       fprintf(stderr, "[twopt_invert_contract] Error from point_source_propagator, status was %d\n", exitstatus);
       EXIT(12);
     }
 
-    /***************************************************************************
-     * Nucleon - Nucleon correlation function
-     ***************************************************************************/
+    if ( g_write_propagator ) {
+      for ( int i = 0; i < 12; i++ ) {
+        sprintf ( filename, "Rnsource.%.4d.t%dx%dy%dz%d.%d.inverted", Nconf, 
+            gsx[0], gsx[1], gsx[2], gsx[3] , i );
 
-    /* allocate propagator fields */
+        if ( ( exitstatus = write_propagator( spinor_field[12+i], filename, 0, g_propagator_precision) ) != 0 ) {
+          fprintf(stderr, "[twopt_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(2);
+        }
+      }
+    }
+
+#if 0
+#endif  /* of if 0 */
+
+    /***************************************************************************
+     * allocate propagator fields
+     ***************************************************************************/
     fermion_propagator_type * fp  = create_fp_field ( VOLUME );
     fermion_propagator_type * fp2 = create_fp_field ( VOLUME );
     fermion_propagator_type * fp3 = create_fp_field ( VOLUME );
-
-    /* up propagator as propagator type field */
-    assign_fermion_propagator_from_spinor_field ( fp,  &(spinor_field[ 0]), VOLUME);
-
-    /* dn propagator as propagator type field */
-    assign_fermion_propagator_from_spinor_field ( fp2, &(spinor_field[12]), VOLUME);
 
     double ** v2 = init_2level_dtable ( VOLUME, 32 );
     if ( v2 == NULL ) {
@@ -352,21 +427,40 @@ int main(int argc, char **argv) {
       EXIT(47);
     }
 
+    /***************************************************************************
+     * spin 1/2 2-point correlation function
+     ***************************************************************************/
+
+    /* up propagator as propagator type field */
+    assign_fermion_propagator_from_spinor_field ( fp,  &(spinor_field[ 0]), VOLUME);
+
+    /* dn propagator as propagator type field */
+    assign_fermion_propagator_from_spinor_field ( fp2, &(spinor_field[12]), VOLUME);
+
     /***********************************************************
-     * contractions for N - N with up and dn propagagor
+     * contractions
      ***********************************************************/
-    for ( int if1 = 0; if1 < gamma_f1_nucleon_number; if1++ ) {
-    for ( int if2 = 0; if2 < gamma_f1_nucleon_number; if2++ ) {
+    for ( int if1 = 0; if1 < gamma_f1_number; if1++ ) {
+    for ( int if2 = 0; if2 < gamma_f1_number; if2++ ) {
 
-      fermion_propagator_field_eq_gamma_ti_fermion_propagator_field ( fp3, gamma_f1_nucleon_list[if2], fp2, VOLUME );
+      fermion_propagator_field_eq_gamma_ti_fermion_propagator_field ( fp3, gamma_f1_list[if2], fp2, VOLUME );
 
-      fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fp3, gamma_f1_nucleon_list[if1], fp3, VOLUME );
+      fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fp3, gamma_f1_list[if1], fp3, VOLUME );
 
-      fermion_propagator_field_eq_fermion_propagator_field_ti_re    ( fp3, fp3, -gamma_f1_nucleon_sign[if1]*gamma_f1_nucleon_sign[if2], VOLUME );
+      fermion_propagator_field_eq_fermion_propagator_field_ti_re    ( fp3, fp3, -gamma_f1_sign[if1]*gamma_f1_sign[if2], VOLUME );
 
-      sprintf(aff_tag, "/N-N/t%.2dx%.2dy%.2dz%.2d/gi%.2d/gf%.2d/n1",
+      double *** vpsum = init_3level_dtable ( T, g_sink_momentum_number, 32 );
+      if ( vpsum == NULL ) {
+        fprintf(stderr, "[twopt_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
+        EXIT(47);
+      }
+
+      /***********************************************************
+       * diagram n1
+       ***********************************************************/
+      sprintf(aff_tag, "/N-N/t%.2dx%.2dy%.2dz%.2d/gi_%s/gf_%s/n1",
           gsx[0], gsx[1], gsx[2], gsx[3],
-          gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2]);
+          gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ]);
 
       exitstatus = contract_v5 ( v2, fp, fp3, fp, VOLUME );
       if ( exitstatus != 0 ) {
@@ -386,12 +480,18 @@ int main(int argc, char **argv) {
         EXIT(49);
       }
 
-      /***********************************************************/
-      /***********************************************************/
+#pragma omp parallel for
+      for ( int i = 0; i < g_sink_momentum_number * T * 32; i++ ) {
+        vpsum[0][0][i] += vp[0][0][i];
+      }
 
-      sprintf(aff_tag, "/N-N/t%.2dx%.2dy%.2dz%.2d/gi%.2d/gf%.2d/n2",
+      /***********************************************************
+       * diagram n2
+       ***********************************************************/
+
+      sprintf(aff_tag, "/N-N/t%.2dx%.2dy%.2dz%.2d/gi_%s/gf_%s/n2",
           gsx[0], gsx[1], gsx[2], gsx[3],
-          gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2]);
+          gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ]);
 
       exitstatus = contract_v6 ( v2, fp, fp3, fp, VOLUME );
       if ( exitstatus != 0 ) {
@@ -411,23 +511,140 @@ int main(int argc, char **argv) {
         EXIT(49);
       }
 
+#pragma omp parallel for
+      for ( int i = 0; i < g_sink_momentum_number * T * 32; i++ ) {
+        vpsum[0][0][i] += vp[0][0][i];
+      }
+     
+      /***********************************************************/
+      /***********************************************************/
+
+      for ( int i = 0; i < g_sink_momentum_number; i++ ) {
+
+        double _Complex *** diagram = init_3level_ztable ( T, 4, 4 );
+        double _Complex * diagram_tr = init_1level_ztable ( T );
+
+        for ( int it = 0; it < T; it++ ) {
+          memcpy ( diagram[it][0], vpsum[it][i], 16 * sizeof(double _Complex ) );
+        }
+
+
+        exitstatus = correlator_add_baryon_boundary_phase ( diagram, gsx[0], 1, T );
+
+        exitstatus = correlator_add_source_phase ( diagram, g_sink_momentum_list[i], &(gsx[1]), T );
+
+        exitstatus = reorder_to_relative_time ( diagram, diagram, gsx[0], 1, T );
+
+        exitstatus = correlator_spin_parity_projection ( diagram, diagram, 1., T);
+
+        exitstatus = contract_diagram_co_eq_tr_zm4x4_field ( diagram_tr, diagram, T );
+
+        sprintf(aff_tag, "/N-N/t%.2dx%.2dy%.2dz%.2d/gi_%s/gf_%s/PX%d_PY%d_PZ%d/n1+n2/P+/tr", gsx[0], gsx[1], gsx[2], gsx[3], 
+            gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ],
+            g_sink_momentum_list[i][0], g_sink_momentum_list[i][1], g_sink_momentum_list[i][2]);
+      
+        exitstatus = write_aff_contraction ( diagram_tr, affw, NULL, aff_tag, T );
+
+        fini_3level_ztable ( &diagram );
+        fini_1level_ztable ( &diagram_tr );
+      }
+
+      fini_3level_dtable ( &vpsum );
+   
     }}
+#if 0
+#endif  /* of if 0 */
 
-    /***********************************************************/
-    /***********************************************************/
+    /***************************************************************************/
+    /***************************************************************************/
 
-    /***********************************************************
+#if 0
+    /***************************************************************************
+     * spin ( 1 + 1/2 ) 2-point correlation function
+     ***************************************************************************/
+
+    /* up-type propagator as propagator type field */
+    assign_fermion_propagator_from_spinor_field ( fp,  &(spinor_field[ 0]), VOLUME);
+
+    for ( int if1 = 0; if1 < gamma_f1_number; if1++ ) {
+
+      /* fp2 <- fp x Gamma_i1 */
+      fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fp2, gamma_f1_list[if1], fp, VOLUME );
+      fermion_propagator_field_eq_fermion_propagator_field_ti_re (fp2, fp2, gamma_f1_sign[if1], VOLUME );
+
+      for ( int if2 = 0; if2 < gamma_f1_number; if2++ ) {
+
+        /* fp3 <- Gamma_f1 x fp */
+        fermion_propagator_field_eq_gamma_ti_fermion_propagator_field ( fp3, gamma_f1_list[if2], fp, VOLUME );
+        fermion_propagator_field_eq_fermion_propagator_field_ti_re (fp3, fp3, gamma_f1_sign[if2], VOLUME );
+
+        /***************************************************************************/
+        /***************************************************************************/
+
+        sprintf(aff_tag, "/omega-omega/t%.2dx%.2dy%.2dz%.2d/m%10.8f/gi%.2d/gf%.2d/d1",
+            gsx[0], gsx[1], gsx[2], gsx[3], g_mu, gamma_f1_list[if1], gamma_f1_list[if2]);
+
+        exitstatus = contract_v5 ( v2, fp2, fp3, fp, VOLUME );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[twopt_invert_contract] Error from contract_v5, status was %d\n", exitstatus);
+          EXIT(48);
+        }
+
+        exitstatus = contract_vn_momentum_projection ( vp, v2, 16, g_sink_momentum_list, g_sink_momentum_number);
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[twopt_invert_contract] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+          EXIT(48);
+        }
+
+        exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[twopt_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+          EXIT(49);
+        }
+
+        /***************************************************************************/
+        /***************************************************************************/
+
+        sprintf(aff_tag, "/omega-omega/t%.2dx%.2dy%.2dz%.2d/m%10.8f/gi%.2d/gf%.2d/d6",
+            gsx[0], gsx[1], gsx[2], gsx[3], g_mu, gamma_f1_list[if1], gamma_f1_list[if2]);
+
+        exitstatus = contract_v6 ( v2, fp, fp2, fp3, VOLUME );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[twopt_invert_contract] Error from contract_v6, status was %d\n", exitstatus);
+          EXIT(48);
+        }
+
+        exitstatus = contract_vn_momentum_projection ( vp, v2, 16, g_sink_momentum_list, g_sink_momentum_number);
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[twopt_invert_contract] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+          EXIT(48);
+        }
+
+        exitstatus = contract_vn_write_aff ( vp, 16, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[twopt_invert_contract] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+          EXIT(49);
+        }
+
+      }  /* end of loop on if2 ( final ) vertex */
+
+    }  /* end of loop on if1 (initial) vertex */
+
+#endif  /* of if 0 */
+
+    /***************************************************************************
      * clean up
-     ***********************************************************/
+     ***************************************************************************/
     free_fp_field ( &fp  );
     free_fp_field ( &fp2 );
     free_fp_field ( &fp3 );
     fini_2level_dtable ( &v2 );
     fini_3level_dtable ( &vp );
  
-
     /***************************************************************************/
     /***************************************************************************/
+#if 0
+#endif  /* of if 0  */
 
 #ifdef HAVE_LHPC_AFF
     /***************************************************************************
@@ -447,9 +664,11 @@ int main(int argc, char **argv) {
 
   fini_2level_dtable ( &spinor_field );
 
+
   /***************************************************************************/
   /***************************************************************************/
 
+#if defined STOCHASTIC
   /***************************************************************************
    ***************************************************************************
    **
@@ -680,16 +899,16 @@ int main(int argc, char **argv) {
         /***********************************************************
          * contractions for N - N with up and dn propagagor
          ***********************************************************/
-        for ( int if1 = 0; if1 < gamma_f1_nucleon_number; if1++ ) {
-        for ( int if2 = 0; if2 < gamma_f1_nucleon_number; if2++ ) {
+        for ( int if1 = 0; if1 < gamma_f1_number; if1++ ) {
+        for ( int if2 = 0; if2 < gamma_f1_number; if2++ ) {
   
-          fermion_propagator_field_eq_gamma_ti_fermion_propagator_field ( fp3, gamma_f1_nucleon_list[if2], fp2, VOLUME );
+          fermion_propagator_field_eq_gamma_ti_fermion_propagator_field ( fp3, gamma_f1_list[if2], fp2, VOLUME );
 
-          fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fp3, gamma_f1_nucleon_list[if1], fp3, VOLUME );
+          fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fp3, gamma_f1_list[if1], fp3, VOLUME );
 
-          fermion_propagator_field_eq_fermion_propagator_field_ti_re (fp3, fp3, -gamma_f1_nucleon_sign[if1]*gamma_f1_nucleon_sign[if2], VOLUME );
+          fermion_propagator_field_eq_fermion_propagator_field_ti_re (fp3, fp3, -gamma_f1_sign[if1]*gamma_f1_sign[if2], VOLUME );
 
-          sprintf(aff_tag, "/N-N/t%.2d/gi%.2d/gf%.2d/n1", gts, gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2]);
+          sprintf(aff_tag, "/N-N/t%.2d/gi_%s/gf_%s/n1", gts, gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ]);
 
           exitstatus = contract_v5 ( v2, fp_mom, fp3, fp, VOLUME );
           if ( exitstatus != 0 ) {
@@ -712,7 +931,7 @@ int main(int argc, char **argv) {
           /***********************************************************/
           /***********************************************************/
 
-          sprintf(aff_tag, "/N-N/t%.2d/gi%.2d/gf%.2d/n2", gts, gamma_f1_nucleon_list[if1], gamma_f1_nucleon_list[if2]);
+          sprintf(aff_tag, "/N-N/t%.2d/gi_%s/gf_%s/n2", gts, gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ]);
 
           exitstatus = contract_v6 ( v2, fp_mom, fp3, fp, VOLUME );
           if ( exitstatus != 0 ) {
@@ -778,6 +997,8 @@ int main(int argc, char **argv) {
   fini_2level_dtable ( &stochastic_propagator_mom );
   fini_2level_dtable ( &stochastic_propagator_zero );
 
+#endif  /* of if defined STOCHASTIC */
+
   /****************************************
    * free the allocated memory, finalize
    ****************************************/
@@ -786,6 +1007,8 @@ int main(int argc, char **argv) {
   free(g_gauge_field);
 #endif
   free( gauge_field_with_phase );
+
+  if ( gauge_field_smeared != NULL ) free ( gauge_field_smeared );
 
   /* free clover matrix terms */
   fini_clover ( );

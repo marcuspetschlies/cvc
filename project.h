@@ -21,6 +21,8 @@ void make_eo_phase_field (double*phase_e, double*phase_o, int *momentum);
 void make_o_phase_field_sliced3d (double _Complex**phase, int *momentum);
 void make_eo_phase_field_sliced3d (double _Complex**phase, int *momentum, int eo);
 
+void make_phase_field_timeslice (double _Complex ** const phase, int const momentum_number, int (* const momentum_list)[3] );
+
 }  /* end of namespace cvc */
 
 #endif

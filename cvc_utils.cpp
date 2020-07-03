@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <complex.h>
 #include <time.h>
 #ifdef HAVE_MPI
 #  include <mpi.h>
@@ -31,6 +32,8 @@
 #include "matrix_init.h"
 #include "table_init_i.h"
 #include "table_init_d.h"
+#include "uwerr.h"
+#include "cvc_timer.h"
 
 namespace cvc {
 
@@ -6729,6 +6732,70 @@ int gauge_field_eq_gauge_field_ti_phase (double**gauge_field_with_phase, double*
   return(0);
 }  /* end of gauge_field_eq_gauge_field_ti_phase */
 
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * multiply the bc -1 to the gauge field in t-direction
+ ***********************************************************/
+int gauge_field_eq_gauge_field_ti_bcfactor (double ** const gauge_field_with_bc, double * const gauge_field, double _Complex const bcfactor ) {
+
+  int exitstatus;
+  struct timeval ta, tb;
+  complex const wbc = { creal(bcfactor), cimag(bcfactor) };
+
+  gettimeofday ( &ta, (struct timezone *)NULL );
+
+  /* allocate gauge field if necessary */
+  if( *gauge_field_with_bc == NULL ) {
+    if( g_cart_id == 0 ) fprintf(stdout, "# [gauge_field_eq_gauge_field_ti_bcfactor] allocating new gauge field\n" );
+
+    alloc_gauge_field( gauge_field_with_bc, VOLUMEPLUSRAND);
+    if( *gauge_field_with_bc == NULL )  {
+      fprintf(stderr, "[gauge_field_eq_gauge_field_ti_bcfactore] Error from alloc_gauge_field %s %d\n", __FILE__, __LINE__);
+      return(1);
+    }
+  }
+
+  /* copy all gauge field */
+  memcpy (  (*gauge_field_with_bc), gauge_field, 72*VOLUME*sizeof(double) );
+
+  unsigned int const VOL3 = LX * LY * LZ;
+  int const have_temporal_boundary = ( ( T_global - 1 ) / T == g_proc_coords[0] );
+  if ( have_temporal_boundary ) {
+    if ( g_verbose > 2 ) fprintf ( stdout, "# [gauge_field_eq_gauge_field_ti_bcfactor] proc %4d (%3d,%3d,%3d,%3d) has boundary timeslice\n",
+        g_cart_id, g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3] );
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+    for( unsigned int iy = 0; iy < VOL3; iy++ ) {
+      unsigned int const ix  = ( T - 1 ) * VOL3 + iy;
+      /* only in time direction */
+      unsigned int const iix = _GGI(ix,0);
+      _cm_eq_cm_ti_co ( (*gauge_field_with_bc) + iix, gauge_field + iix, &wbc );
+    }
+  }  /* end of if have_temporal_boundary */
+
+#ifdef HAVE_MPI
+  xchange_gauge_field( *gauge_field_with_bc );
+#endif
+
+  /* measure the plaquette */
+  exitstatus = plaquetteria( *gauge_field_with_bc );
+  if( exitstatus != 0 ) {
+    fprintf(stderr, "[gauge_field_eq_gauge_field_ti_bcfactor] Error from plaquetteria, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(2);
+  }
+
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "gauge_field_eq_gauge_field_ti_bcfactor", "all", g_cart_id == 0 );
+
+  return(0);
+}  /* end of gauge_field_eq_gauge_field_ti_bcfactor */
+
+
+
+
 /* c = r^+ s point-wise */
 void co_field_eq_fv_dag_ti_fv (double*c, double*r, double*s, unsigned int N ) {
 #ifdef HAVE_OPENMP
@@ -7253,6 +7320,174 @@ int random_z2_scalar_field ( int * const b , unsigned int const N ) {
   return(0);
 
 } /* end of random_binary_field */
+
+/****************************************************************************/
+/****************************************************************************/
+
+
+/****************************************************************************
+ * apply UWerr analysis to a single data set, including output
+ *
+ * ipo_first  = first ipo, start counting with zero
+ * ipo_stride = step size between ipos
+ ****************************************************************************/
+int apply_uwerr_real ( double * const data, unsigned int const nmeas, unsigned int const ndata, unsigned int const ipo_first, unsigned int const ipo_stride, char * obs_name ) {
+ 
+  struct timeval ta, tb;
+  uwerr ustat;
+  char filename[400];
+
+  gettimeofday ( &ta, (struct timezone *)NULL );
+
+  if ( data == NULL ) {
+    fprintf ( stderr, "[apply_uwerr_real] Error, data is NULL %s %d\n", __FILE__, __LINE__ );
+    return ( 1 );
+  }
+
+  double ** res = init_2level_dtable ( ndata, 5 );
+  if ( res == NULL ) {
+    fprintf ( stderr, "[apply_uwerr_real] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+    return ( 2 );
+  }
+
+  for ( unsigned int i = 0; i < ndata; i++ ) {
+
+    uwerr_init ( &ustat );
+
+    ustat.nalpha   = ndata; 
+    ustat.nreplica = 1;
+    ustat.n_r[0]   = nmeas;
+    ustat.s_tau    = 1.5;
+    strcpy ( ustat.obsname, obs_name );
+
+    ustat.ipo = ipo_first + i * ipo_stride + 1;  /* uwerr ipo starts counting with 1, NOT zero */
+    if ( ustat.ipo > ndata ) {
+      break;
+    } else {
+      if ( g_verbose > 2 ) {
+        fprintf ( stdout, "# [apply_uwerr_real] obs %s ipo %lu\n", ustat.obsname, ustat.ipo );
+      }
+    }
+
+    uwerr_analysis ( data, &ustat );
+
+    res[i][0] = ustat.value;
+    res[i][1] = ustat.dvalue;
+    res[i][2] = ustat.ddvalue;
+    res[i][3] = ustat.tauint;
+    res[i][4] = ustat.dtauint;
+
+    uwerr_free ( &ustat );
+  }  /* end of loop on ipos */
+
+  sprintf ( filename, "%s.uwerr", obs_name );
+  FILE * ofs = fopen ( filename, "w" );
+  if ( ofs == NULL ) {
+    fprintf ( stderr, "[apply_uwerr_real] Error from fopen for file %s %s %d\n", filename, __FILE__, __LINE__ );
+    return ( 3 );
+  }
+
+  fprintf ( ofs, "# nalpha   = %llu\n", ustat.nalpha );
+  fprintf ( ofs, "# nreplica = %llu\n", ustat.nreplica );
+  fprintf ( ofs, "# nr[0]    = %llu\n", ustat.n_r[0] );
+  fprintf ( ofs, "#\n" );
+
+  for ( unsigned int i = 0; i < ndata; i++ ) {
+
+    fprintf ( ofs, "%3d %16.7e %16.7e %16.7e %16.7e %16.7e\n", i,
+      res[i][0], res[i][1], res[i][2], res[i][3], res[i][4] );
+  }
+
+  fclose( ofs );
+
+  fini_2level_dtable ( &res );
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "apply_uwerr_real", obs_name, 1 );
+
+  return(0);
+
+}  /* end of apply_uwerr_real */
+
+/****************************************************************************/
+/****************************************************************************/
+
+/****************************************************************************
+ * apply UWerr analysis to a single data set, including output
+ ****************************************************************************/
+int apply_uwerr_func ( double * const data, unsigned int const nmeas, unsigned int const ndata, unsigned int const nset, int const narg, int * const arg_first, int * const arg_stride, char * obs_name,
+   dquant func, dquant dfunc ) {
+ 
+  struct timeval ta, tb;
+  uwerr ustat;
+  char filename[400];
+
+  gettimeofday ( &ta, (struct timezone *)NULL );
+
+  if ( data == NULL ) {
+    fprintf ( stderr, "[apply_uwerr_func] Error, data is NULL %s %d\n", __FILE__, __LINE__ );
+    return ( 1 );
+  }
+
+  double ** res = init_2level_dtable ( nset, 5 );
+  if ( res == NULL ) {
+    fprintf ( stderr, "[apply_uwerr_func] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+    return ( 2 );
+  }
+
+  for ( unsigned int i = 0; i < nset; i++ ) {
+
+    uwerr_init ( &ustat );
+
+    ustat.nalpha   = ndata; 
+    ustat.nreplica = 1;
+    ustat.n_r[0]   = nmeas;
+    ustat.s_tau    = 1.5;
+    strcpy ( ustat.obsname, obs_name );
+
+    ustat.func  = func;
+    ustat.dfunc = dfunc;
+    ustat.para  = (void * ) init_1level_itable ( narg );
+    for ( int iarg = 0; iarg < narg; iarg++ ) {
+      ((int*)(ustat.para))[iarg] = arg_first[iarg] + i * arg_stride[iarg];
+    }
+
+    uwerr_analysis ( data, &ustat );
+
+    res[i][0] = ustat.value;
+    res[i][1] = ustat.dvalue;
+    res[i][2] = ustat.ddvalue;
+    res[i][3] = ustat.tauint;
+    res[i][4] = ustat.dtauint;
+
+    uwerr_free ( &ustat );
+  }  /* end of loop on ipos */
+
+  sprintf ( filename, "%s.uwerr", obs_name );
+  FILE * ofs = fopen ( filename, "w" );
+  if ( ofs == NULL ) {
+    fprintf ( stderr, "[apply_uwerr_func] Error from fopen for file %s %s %d\n", filename, __FILE__, __LINE__ );
+    return ( 3 );
+  }
+
+  fprintf ( ofs, "# nalpha   = %llu\n", ustat.nalpha );
+  fprintf ( ofs, "# nreplica = %llu\n", ustat.nreplica );
+  fprintf ( ofs, "# nr[0]    = %llu\n", ustat.n_r[0] );
+  fprintf ( ofs, "#\n" );
+
+  for ( unsigned int i = 0; i < nset; i++ ) {
+    fprintf ( ofs, "%3d %16.7e %16.7e %16.7e %16.7e %16.7e\n", i, res[i][0], res[i][1], res[i][2], res[i][3], res[i][4] );
+  }
+
+  fclose( ofs );
+
+  fini_2level_dtable ( &res );
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "apply_uwerr_func", obs_name, 1 );
+
+  return(0);
+
+}  /* end of apply_uwerr_func */
+
 /****************************************************************************/
 /****************************************************************************/
 

@@ -1,12 +1,6 @@
 /****************************************************
- * piN2piN_factorized.c
+ * piN2piN_factorized
  * 
- * Tue May 30 10:40:59 CEST 2017
- *
- * PURPOSE:
- * TODO:
- * DONE:
- *
  ****************************************************/
 
 #include <stdlib.h>
@@ -202,15 +196,17 @@ int main(int argc, char **argv) {
   int op_id_up= -1, op_id_dn = -1;
   int gsx[4], sx[4];
   int source_proc_id = 0;
-  int read_stochastic_source      = 0;
-  int read_stochastic_source_oet  = 0;
-  int read_stochastic_propagator  = 0;
-  int write_stochastic_source     = 0;
-  int write_stochastic_source_oet = 0;
-  int write_stochastic_propagator = 0;
-  int check_propagator_residual   = 0;
+  int read_stochastic_source       = 0;
+  int read_stochastic_source_oet   = 0;
+  int read_stochastic_propagator   = 0;
+  int write_stochastic_source      = 0;
+  int write_stochastic_source_oet  = 0;
+  int write_stochastic_propagator  = 0;
+  int read_forward_propagator      = 0;
+  int read_sequential_propagator   = 0;
+  int check_propagator_residual    = 0;
 /***********************************************************/
-  int mode_of_operation           = 0;
+  int mode_of_operation            = 0;
 
 /* mode of operation
  * 000 = 0 nothing
@@ -247,11 +243,11 @@ int main(int argc, char **argv) {
   double gamma_i2_sign[gamma_i2_number] = { +1 };
 
   /* vertex f2, gamma_5 and id,  vector indices and pseudo-vector */
-  const int gamma_f2_number                        = 1;
-  int gamma_f2_list[gamma_f2_number]               = {  5 };
-  double gamma_f2_sign[gamma_f2_number]            = { +1 };
-  double gamma_f2_adjoint_sign[gamma_f2_number]    = { +1 };
-  double gamma_f2_g5_adjoint_sign[gamma_f2_number] = { +1 };
+  const int gamma_f2_number                        = 6;
+  int gamma_f2_list[gamma_f2_number]               = {  5,  4,  0,  1,  2,  3 };
+  double gamma_f2_sign[gamma_f2_number]            = { +1, +1, +1, +1, +1, +1 };
+  double gamma_f2_adjoint_sign[gamma_f2_number]    = { +1, +1, +1, +1, +1, +1 };
+  double gamma_f2_g5_adjoint_sign[gamma_f2_number] = { +1, +1, -1, -1, -1, -1 };
 
   /* vertex c, vector indices and pseudo-vector */
   const int gamma_c_number            = 6;
@@ -290,7 +286,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "SscrRwWh?f:m:")) != -1) {
+  while ((c = getopt(argc, argv, "pqSscrRwWh?f:m:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -327,6 +323,14 @@ int main(int argc, char **argv) {
     case 'm':
       mode_of_operation = atoi( optarg );
       fprintf(stdout, "# [piN2piN_factorized] will use mdoe of operation %d\n", mode_of_operation );
+      break;
+    case 'p':
+      read_forward_propagator = 1;
+      fprintf(stdout, "# [piN2piN_factorized] will read forward propagator\n");
+      break;
+    case 'q':
+      read_sequential_propagator = 1;
+      fprintf(stdout, "# [piN2piN_factorized] will read sequential propagator\n");
       break;
     case 'h':
     case '?':
@@ -654,6 +658,7 @@ int main(int argc, char **argv) {
 
     if ( read_stochastic_source ) {
       sprintf(filename, "%s.%.4d.%.5d", filename_prefix, Nconf, isample + g_sourceid );
+      if ( g_cart_id == 0 && g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_factorized] reading stochastic source %s %s %d\n", filename, __FILE__, __LINE__);
       if ( ( exitstatus = read_lime_spinor( stochastic_source_list[isample], filename, 0) ) != 0 ) {
         fprintf(stderr, "[piN2piN_factorized] Error from read_lime_spinor, status was %d\n", exitstatus);
         EXIT(2);
@@ -684,6 +689,7 @@ int main(int argc, char **argv) {
 
     if ( read_stochastic_propagator ) {
       sprintf(filename, "%s.%.4d.%.5d", filename_prefix2, Nconf, isample + g_sourceid );
+      if ( g_cart_id == 0 && g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_factorized] reading stochastic propagator %s %s %d\n", filename, __FILE__, __LINE__);
       if ( ( exitstatus = read_lime_spinor( stochastic_propagator_list[isample], filename, 0) ) != 0 ) {
         fprintf(stderr, "[piN2piN_factorized] Error from read_lime_spinor, status was %d\n", exitstatus);
         EXIT(2);
@@ -855,19 +861,47 @@ int main(int argc, char **argv) {
       /***********************************************************
        * up-type propagator
        ***********************************************************/
-      exitstatus = point_source_propagator ( &(propagator_list_up[12*i_coherent]), gsx, op_id_up, 1, 1, gauge_field_smeared, check_propagator_residual, gauge_field_with_phase, mzz );
-      if(exitstatus != 0) {
-        fprintf(stderr, "[piN2piN_factorized] Error from point_source_propagator, status was %d\n", exitstatus);
-        EXIT(12);
+      if ( read_forward_propagator ) {
+        for ( int isc = 0; isc < n_s*n_c; isc++ ) {
+          sprintf ( filename, "source.%c.%.4d.t%dx%dy%dz%d.%.2d.inverted", 'u', Nconf, gsx[0], gsx[1], gsx[2], gsx[3], isc );
+
+          if ( g_cart_id == 0 && g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_factorized] reading up fwd propagator %s %s %d\n", filename, __FILE__, __LINE__);
+
+          exitstatus = read_lime_spinor ( propagator_list_up[n_s*n_c*i_coherent+isc], filename, 0 );
+          if(exitstatus != 0) {
+            fprintf(stderr, "[piN2piN_factorized] Error from read_lime_spinor, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(12);
+          }
+        }
+      } else {
+        exitstatus = point_source_propagator ( &(propagator_list_up[12*i_coherent]), gsx, op_id_up, 1, 1, gauge_field_smeared, check_propagator_residual, gauge_field_with_phase, mzz );
+        if(exitstatus != 0) {
+          fprintf(stderr, "[piN2piN_factorized] Error from point_source_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(12);
+        }
       }
 
       /***********************************************************
        * dn-type propagator
        ***********************************************************/
-      exitstatus = point_source_propagator ( &(propagator_list_dn[12*i_coherent]), gsx, op_id_dn, 1, 1, gauge_field_smeared, check_propagator_residual, gauge_field_with_phase, mzz );
-      if(exitstatus != 0) {
-        fprintf(stderr, "[piN2piN_factorized] Error from point_source_propagator, status was %d\n", exitstatus);
-        EXIT(12);
+      if ( read_forward_propagator ) {
+        for ( int isc = 0; isc < n_s*n_c; isc++ ) {
+          sprintf ( filename, "source.%c.%.4d.t%dx%dy%dz%d.%.2d.inverted", 'd', Nconf, gsx[0], gsx[1], gsx[2], gsx[3], isc );
+
+          if ( g_cart_id == 0 && g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_factorized] reading dn fwd propagator %s %s %d\n", filename, __FILE__, __LINE__);
+
+          exitstatus = read_lime_spinor ( propagator_list_dn[n_s*n_c*i_coherent+isc], filename, 0 );
+          if(exitstatus != 0) {
+            fprintf(stderr, "[piN2piN_factorized] Error from read_lime_spinor, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(12);
+          }
+        }
+      } else {
+        exitstatus = point_source_propagator ( &(propagator_list_dn[12*i_coherent]), gsx, op_id_dn, 1, 1, gauge_field_smeared, check_propagator_residual, gauge_field_with_phase, mzz );
+        if(exitstatus != 0) {
+          fprintf(stderr, "[piN2piN_factorized] Error from point_source_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(12);
+        }
       }
 
       /***********************************************************/
@@ -1667,65 +1701,80 @@ int main(int argc, char **argv) {
        * sequential propagator U^{-1} g5 exp(ip) D^{-1}: tfii
        ***********************************************************/
       if(g_cart_id == 0) fprintf(stdout, "# [piN2piN_factorized] sequential inversion fpr pi2 = (%d, %d, %d)\n", 
-      g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2]);
+          g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2]);
 
-      double **prop_list = (double**)malloc(g_coherent_source_number * sizeof(double*));
-      if(prop_list == NULL) {
-        fprintf(stderr, "[piN2piN_factorized] Error from malloc\n");
-        EXIT(43);
-      }
+      if ( read_sequential_propagator ) {
+        for ( int isc = 0; isc < n_s * n_c; isc++ ) {
+          sprintf ( filename, "seq_source.%c-%c.%.4d.t%dx%dy%dz%d.gseq%d.px%dpy%dpz%d.%.2d.inverted", 'u', 'd', Nconf, gsx[0], gsx[1], gsx[2], gsx[3], 5,
+              g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2], isc );
 
-      ratime = _GET_TIME;
-      for( int is=0;is<n_s*n_c;is++) {
+          exitstatus = read_lime_spinor ( sequential_propagator_list[isc], filename, 0 );
+          if(exitstatus != 0) {
+            fprintf(stderr, "[piN2piN_factorized] Error from read_lime_spinor, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(12);
+          }
+        }
+      } else {
 
-        /* extract spin-color source-component is from coherent source dn propagators */
-        for( int i=0; i<g_coherent_source_number; i++) {
-          if(g_cart_id == 0) fprintf(stdout, "# [piN2piN_factorized] using dn prop id %d / %d\n", (i_src * g_coherent_source_number + i), (i_src * g_coherent_source_number + i)*n_s*n_c + is);
-          prop_list[i] = propagator_list_dn[i * n_s*n_c + is];
+        double **prop_list = (double**)malloc(g_coherent_source_number * sizeof(double*));
+        if(prop_list == NULL) {
+          fprintf(stderr, "[piN2piN_factorized] Error from malloc\n");
+          EXIT(43);
         }
 
-        /* build sequential source */
-        exitstatus = init_coherent_sequential_source(spinor_work[0], prop_list, g_source_coords_list[i_src][0], g_coherent_source_number, g_seq_source_momentum_list[iseq_mom], 5);
-        if(exitstatus != 0) {
-          fprintf(stderr, "[piN2piN_factorized] Error from init_coherent_sequential_source, status was %d\n", exitstatus);
-          EXIT(14);
-        }
+        ratime = _GET_TIME;
+        for( int is=0;is<n_s*n_c;is++) {
 
-        /* source-smear the coherent source */
-        exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
+          /* extract spin-color source-component is from coherent source dn propagators */
+          for( int i=0; i<g_coherent_source_number; i++) {
+            if(g_cart_id == 0) fprintf(stdout, "# [piN2piN_factorized] using dn prop id %d / %d\n", (i_src * g_coherent_source_number + i), (i_src * g_coherent_source_number + i)*n_s*n_c + is);
+            prop_list[i] = propagator_list_dn[i * n_s*n_c + is];
+          }
 
-        /* tm-rotate sequential source */
-        if( g_fermion_type == _TM_FERMION ) {
-          spinor_field_tm_rotation(spinor_work[0], spinor_work[0], +1, g_fermion_type, VOLUME);
-        }
+          /* build sequential source */
+          exitstatus = init_coherent_sequential_source(spinor_work[0], prop_list, g_source_coords_list[i_src][0], g_coherent_source_number, g_seq_source_momentum_list[iseq_mom], 5);
+          if(exitstatus != 0) {
+            fprintf(stderr, "[piN2piN_factorized] Error from init_coherent_sequential_source, status was %d\n", exitstatus);
+            EXIT(14);
+          }
 
-        memset(spinor_work[1], 0, sizeof_spinor_field);
-        /* invert */
-        exitstatus = _TMLQCD_INVERT(spinor_work[1], spinor_work[0], op_id_up);
-        if(exitstatus != 0) {
-          fprintf(stderr, "[piN2piN_factorized] Error from tmLQCD_invert, status was %d\n", exitstatus);
-          EXIT(12);
-        }
+          /* source-smear the coherent source */
+          exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
 
-        if ( check_propagator_residual ) {
-          check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_up], 1 );
-        }
+          /* tm-rotate sequential source */
+          if( g_fermion_type == _TM_FERMION ) {
+            spinor_field_tm_rotation(spinor_work[0], spinor_work[0], +1, g_fermion_type, VOLUME);
+          }
 
-        /* tm-rotate at sink */
-        if( g_fermion_type == _TM_FERMION ) {
-          spinor_field_tm_rotation(spinor_work[1], spinor_work[1], +1, g_fermion_type, VOLUME);
-        }
+          memset(spinor_work[1], 0, sizeof_spinor_field);
+          /* invert */
+          exitstatus = _TMLQCD_INVERT(spinor_work[1], spinor_work[0], op_id_up);
+          if(exitstatus != 0) {
+            fprintf(stderr, "[piN2piN_factorized] Error from tmLQCD_invert, status was %d\n", exitstatus);
+            EXIT(12);
+          }
 
-        /* sink-smear the coherent-source propagator */
-        exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
+          if ( check_propagator_residual ) {
+            check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_up], 1 );
+          }
 
-        memcpy( sequential_propagator_list[is], spinor_work[1], sizeof_spinor_field);
+          /* tm-rotate at sink */
+          if( g_fermion_type == _TM_FERMION ) {
+            spinor_field_tm_rotation(spinor_work[1], spinor_work[1], +1, g_fermion_type, VOLUME);
+          }
 
-      }  /* end of loop on spin-color component */
-      retime = _GET_TIME;
-      if(g_cart_id == 0) fprintf(stdout, "# [piN2piN_factorized] time for seq propagator = %e seconds\n", retime-ratime);
+          /* sink-smear the coherent-source propagator */
+          exitstatus = Jacobi_Smearing(gauge_field_smeared, spinor_work[1], N_Jacobi, kappa_Jacobi);
 
-      free(prop_list);
+          memcpy( sequential_propagator_list[is], spinor_work[1], sizeof_spinor_field);
+
+        }  /* end of loop on spin-color component */
+        retime = _GET_TIME;
+        if(g_cart_id == 0) fprintf(stdout, "# [piN2piN_factorized] time for seq propagator = %e seconds\n", retime-ratime);
+
+        free(prop_list);
+      
+      }  /* end of if read sequential propagator */
  
       /***********************************************/
       /***********************************************/
@@ -2544,16 +2593,43 @@ int main(int argc, char **argv) {
       gsx[2] = ( g_source_coords_list[i_src][2] + (LY_global/2) * i_coherent ) % LY_global;
       gsx[3] = ( g_source_coords_list[i_src][3] + (LZ_global/2) * i_coherent ) % LZ_global;
 
-      exitstatus = point_source_propagator ( propagator_list_up, gsx, op_id_up, 1, 1, gauge_field_smeared, check_propagator_residual, gauge_field_with_phase, mzz );
-      if(exitstatus != 0) {
-        fprintf(stderr, "[piN2piN_factorized] Error from point_source_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(12);
+      /***********************************************
+       * up-type forward propagator
+       ***********************************************/
+      if ( read_forward_propagator ) {
+        for ( int isc = 0; isc < n_s*n_c; isc++ ) {
+          sprintf ( filename, "source.%c.%.4d.t%dx%dy%dz%d.%.2d.inverted", 'u', Nconf, gsx[0], gsx[1], gsx[2], gsx[3], isc );
+
+          exitstatus = read_lime_spinor ( propagator_list_up[isc], filename, 0 );
+          if(exitstatus != 0) {
+            fprintf(stderr, "[piN2piN_factorized] Error from read_lime_spinor, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(12);
+          }
+        }
+      } else {
+        exitstatus = point_source_propagator ( propagator_list_up, gsx, op_id_up, 1, 1, gauge_field_smeared, check_propagator_residual, gauge_field_with_phase, mzz );
+        if(exitstatus != 0) {
+          fprintf(stderr, "[piN2piN_factorized] Error from point_source_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(12);
+        }
       }
 
-      exitstatus = point_source_propagator ( propagator_list_dn, gsx, op_id_dn, 1, 1, gauge_field_smeared, check_propagator_residual, gauge_field_with_phase, mzz );
-      if(exitstatus != 0) {
-        fprintf(stderr, "[piN2piN_factorized] Error from point_source_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(12);
+      if ( read_forward_propagator ) {
+        for ( int isc = 0; isc < n_s*n_c; isc++ ) {
+          sprintf ( filename, "source.%c.%.4d.t%dx%dy%dz%d.%.2d.inverted", 'd', Nconf, gsx[0], gsx[1], gsx[2], gsx[3], isc );
+
+          exitstatus = read_lime_spinor ( propagator_list_dn[isc], filename, 0 );
+          if(exitstatus != 0) {
+            fprintf(stderr, "[piN2piN_factorized] Error from read_lime_spinor, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(12);
+          }
+        }
+      } else {
+        exitstatus = point_source_propagator ( propagator_list_dn, gsx, op_id_dn, 1, 1, gauge_field_smeared, check_propagator_residual, gauge_field_with_phase, mzz );
+        if(exitstatus != 0) {
+          fprintf(stderr, "[piN2piN_factorized] Error from point_source_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(12);
+        }
       }
 
       double **v1 = NULL, **v2 = NULL;

@@ -271,6 +271,10 @@ int Jacobi_Smearing(double *smeared_gauge_field, double *psi, int const N, doubl
     return(3);
   }
 
+  if ( smeared_gauge_field == NULL ) {
+    fprintf ( stderr, "[Jacobi_Smearing] Error, smeared_gauge_field is NULL\n");
+    return (4);
+  }
 #ifdef HAVE_MPI
   xchange_gauge_field (smeared_gauge_field);
 #endif

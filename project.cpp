@@ -27,6 +27,7 @@
 #include "Q_clover_phi.h"
 #include "matrix_init.h"
 #include "project.h"
+#include "cvc_timer.h"
 
 namespace cvc {
 
@@ -499,6 +500,8 @@ int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_num
   double _Complex **zphase = NULL;
   double ratime, retime;
 
+  struct timeval ta, tb;
+
   char BLAS_TRANSA, BLAS_TRANSB;
   int BLAS_M, BLAS_K, BLAS_N, BLAS_LDA, BLAS_LDB, BLAS_LDC;
   int shift[3];
@@ -506,7 +509,7 @@ int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_num
   double _Complex BLAS_ALPHA = 1.;
   double _Complex BLAS_BETA  = 0.;
 
-  ratime = _GET_TIME;
+  gettimeofday ( &ta, (struct timezone *)NULL );
 
   point *lexic_coords = (point*)malloc(VOL3*sizeof(point));
   if(lexic_coords == NULL) {
@@ -593,8 +596,11 @@ int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_num
   free(buffer);
 #endif
 
-  retime = _GET_TIME;
-  if( g_cart_id == 0 ) fprintf(stdout, "# [momentum_projection2] time for momentum_projection2 = %e seconds\n", retime-ratime);
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  if( g_verbose > 0 ) {
+    show_time ( &ta, &tb, "momentum_projection2", "momentum_projection2", g_cart_id == 0 );
+  }
+
   return(0);
 }  /* end of momentum_projection2 */
 
@@ -923,9 +929,52 @@ void make_eo_phase_field_sliced3d (double _Complex**phase, int *momentum, int eo
   if(g_cart_id == 0) fprintf(stdout, "# [make_o_phase_field_sliced3d] time for making eo phase field = %e seconds\n", retime-ratime);
 }  /* end of make_o_phase_field_sliced3d */
 
-/*******************************************************************
- * project nv spinor fields on a fermion propagator
- *******************************************************************/
+/*******************************************************************/
+/*******************************************************************/
 
+/****************************************************************
+ * 3-dim phase field
+ * input:
+ *   momentum_number - number of momenta in momentum_list
+ *   momentum_list - list of integer 3-momentum vectors
+ * output:
+ *   phase 2-dim array of phases momentum_number x VOL3
+ ****************************************************************/
+void make_phase_field_timeslice (double _Complex ** const phase, int const momentum_number, int (* const momentum_list)[3] ) {
+
+  double const TWO_MPI = 2. * M_PI;
+  unsigned int const VOL3 = LX*LY*LZ;
+  double _Complex const IMAGU = 1.0 * I;
+
+
+  for( int imom = 0; imom < momentum_number; imom++ ) {
+    /* 3-vector p for current momentum */
+    double const p[3] = { TWO_MPI * momentum_list[imom][0] / (double)LX_global,
+                          TWO_MPI * momentum_list[imom][1] / (double)LY_global,
+                          TWO_MPI * momentum_list[imom][2] / (double)LZ_global };
+
+    /* phase part due to MPI cart grid offset */
+    double const phase_part = (g_proc_coords[1]*LX) * p[0] + (g_proc_coords[2]*LY) * p[1] + (g_proc_coords[3]*LZ) * p[2];
+
+    if(g_verbose > 2 && g_cart_id == 0) {
+      fprintf(stdout, "# [make_phase_field_timeslice] using phase momentum = (%d, %d, %d)\n", momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2] );
+    }
+
+    /* make phase field in lexic ordering */
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for( unsigned int ix = 0; ix < VOL3; ix++) {
+      unsigned int const x1 =   ix                            / ( LY * LZ );
+      unsigned int const x2 = ( ix - x1 * LY * LZ           ) /        LZ;
+      unsigned int const x3 = ( ix - x1 * LY * LZ - x2 * LZ );
+      double const dtmp = phase_part + x1 * p[0] + x2 * p[1] + x3 * p[2];
+      /* exp( i phase ) */
+      phase[imom][ix] = cexp( dtmp * IMAGU );
+    }
+
+  }  /* end of loop on momenta */
+
+}  /* end of make_phase_field_timeslice */
 
 }  /* end of namespace cvc */

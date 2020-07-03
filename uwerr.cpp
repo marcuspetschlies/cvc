@@ -68,6 +68,7 @@ int uwerr_free ( uwerr * const u ) {
   if(u->p_r   !=NULL) { free(u->p_r);   u->p_r   = NULL; }
   if(u->bins  !=NULL) { free(u->bins);  u->bins  = NULL; }
   if(u->binbd !=NULL) { free(u->binbd); u->binbd = NULL; }
+  if(u->para  !=NULL) { free(u->para);  u->para  = NULL; }
   return(0);
 }  /* end of uwerr_free */
 
@@ -81,44 +82,52 @@ int uwerr_calloc ( uwerr * const u ) {
   if (u->Wmax == 0) {
     fprintf(stderr, "[uwerr_calloc] Error, Wmax=%lu; obsname=%s\n", u->Wmax, u->obsname);
     return(1);
-  } else if(u->gamma != NULL) {
-    fprintf(stderr, "[uwerr_calloc] Error, gamma not NULL; obsname=%s\n", u->obsname);
-    return(1);
-  } else {
-    u->gamma  = (double*)calloc(u->Wmax, sizeof(double));
   }
-  if(u->Wmax == 0) {
-    fprintf(stderr, "[uwerr_calloc] Error, Wmax=0\n");
-    return(2);
-  } else if (u->tau != NULL) {
-    fprintf(stderr, "[uwerr_calloc] Error, tau not NULL\n");
-    return(2);
-  } else {
-    u->tau  = (double*)calloc(u->Wmax, sizeof(double));
+
+  if ( u->gamma != NULL ) {
+    fprintf(stderr, "[uwerr_calloc] Warning, gamma not NULL; obsname=%s\n", u->obsname);
+    free ( u->gamma );
+    /* return(1); */
   }
+  u->gamma  = (double*)calloc(u->Wmax, sizeof(double));
+
+  if ( u->tau != NULL ) {
+    fprintf(stderr, "[uwerr_calloc] Warning, tau not NULL\n");
+    free ( u->tau );
+    /* return(2); */
+  }
+  u->tau  = (double*)calloc(u->Wmax, sizeof(double));
+
   if(u->nreplica>1) {
-    if(u->p_r==NULL) {
-      u->p_r = (double*)calloc(u->nreplica, sizeof(double));
-    } else {
-      fprintf(stderr, "[uwerr_calloc] Error, p_r not NULL\n");
-      return(3);
+    if ( u->p_r != NULL ) {
+      fprintf(stderr, "[uwerr_calloc] Warning, p_r not NULL\n");
+      free ( u->p_r );
+      /* return(3); */
     }
-  } else {
+    u->p_r = (double*)calloc(u->nreplica, sizeof(double));
+  /* } else {
     // TEST
-    //fprintf(stdout, "[uwerr] Warning, nreplica<=1\n");
+    fprintf(stdout, "[uwerr] Warning, nreplica<=1\n");
+   */
   }
   k = _num_bin(u->nreplica);
   if(k>3) {
-    if(u->bins==NULL && u->binbd==NULL) {
-      u->bins  = (double*)calloc(k, sizeof(double));
-      u->binbd = (double*)calloc(k+1, sizeof(double));
-    } else {
-      fprintf(stderr, "[uwerr_calloc] Error, bins/binbd not NULL\n");
-      return(4);
+    if ( u->bins != NULL ) {
+      fprintf(stderr, "[uwerr_calloc] Warning, bins not NULL\n");
+      free ( u->bins );
     }
-  } else {
+
+    if ( u->binbd != NULL) {
+      fprintf(stderr, "[uwerr_calloc] Warning,binbd not NULL\n");
+      free ( u->binbd );
+    }
+
+    u->bins  = (double*)calloc(k, sizeof(double));
+    u->binbd = (double*)calloc(k+1, sizeof(double));
+  /* } else {
     // TEST
     //fprintf(stdout, "[uwerr] Warning, number of bins <= 3, no allocation\n");
+   */
   }
   return(0);
 }  /* end of uwerr_calloc */
