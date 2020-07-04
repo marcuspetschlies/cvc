@@ -205,7 +205,7 @@ void fermion_propagator_field_pl_eq_gamma_ti_fermion_propagator_field_ti_gamma (
     int const mu, fermion_propagator_type * const s, int const nu, unsigned int const N );
 
 
-int const get_io_proc (void);
+int get_io_proc (void);
 
 int init_momentum_classes ( int **** p_class, int **p_nmem, int *p_num );
 
