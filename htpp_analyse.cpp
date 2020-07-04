@@ -245,7 +245,9 @@ int main(int argc, char **argv) {
       char output_filename[400];
 
       if ( strcmp ( tp->type , "mxm-j-m" ) == 0 ) {
-        sprintf ( key, "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/pi2x%dpi2y%dpi2z%d/gi2_%s/g1_%s/g2_%s/PX%d_PY%d_PZ%d",
+        sprintf ( key, 
+            /* "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/pi2x%dpi2y%dpi2z%d/gi2_%s/g1_%s/g2_%s/PX%d_PY%d_PZ%d", */
+            "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/pi2x%dpi2y%dpi2z%d/gi2_%s/g1_%s/g2_%s/x%d_y%d_z%d",
             diagram_name, 
             tp->pf1[0], tp->pf1[1], tp->pf1[2], gamma_bin_to_name[tp->gf1[0]], g_src_snk_time_separation, 
             tp->pi2[0], tp->pi2[1], tp->pi2[2], gamma_bin_to_name[tp->gi2], 
@@ -261,7 +263,9 @@ int main(int argc, char **argv) {
 
       } else if ( strcmp ( tp->type , "m-j-m" ) == 0 ) {
   
-        sprintf ( key, "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/g1_%s/g2_%s/PX%d_PY%d_PZ%d",
+        sprintf ( key, 
+            /* "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/g1_%s/g2_%s/PX%d_PY%d_PZ%d", */
+            "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/g1_%s/g2_%s/x%d_y%d_z%d",
             diagram_name, 
             tp->pf1[0], tp->pf1[1], tp->pf1[2], gamma_bin_to_name[tp->gf1[0]], g_src_snk_time_separation, 
             gamma_bin_to_name[tp->gf2], gamma_bin_to_name[tp->gi1[0]],
