@@ -55,6 +55,7 @@ extern "C"
 #include "twopoint_function_utils.h"
 #include "gamma.h"
 #include "uwerr.h"
+#include "cvc_timer.h"
 
 using namespace cvc;
 
@@ -84,6 +85,9 @@ int main(int argc, char **argv) {
   char ensemble_name[100] = "NA";
   char filename[100];
   int num_conf = 0, num_src_per_conf = 0;
+
+  struct timeval ta, tb;
+  struct timeval start_time, end_time;
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
@@ -115,7 +119,11 @@ int main(int argc, char **argv) {
     }
   }
 
-  g_the_time = time(NULL);
+  /***********************************************************
+   * timer for total time
+   ***********************************************************/
+  gettimeofday ( &start_time, (struct timezone *)NULL );
+
 
   /* set the default values */
   if(filename_set==0) strcpy(filename, "twopt.input");
@@ -271,7 +279,8 @@ int main(int argc, char **argv) {
       /***********************************************************
        * reader for aff output file
        ***********************************************************/
-      sprintf ( filename, "%s/stream_%c/%d/%s.%.4d.t%d_x%d_y%d_z%d.aff", filename_prefix, stream, Nconf, filename_prefix2, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+      sprintf ( filename, "%s/stream_%c/%d/%s.%.4d.t%d_x%d_y%d_z%d.aff",
+          filename_prefix, stream, Nconf, filename_prefix2, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
    
       struct AffReader_s * affr = aff_reader ( filename );
       const char * aff_status_str = aff_reader_errstr ( affr );
@@ -349,7 +358,9 @@ int main(int argc, char **argv) {
                 twopoint_function_get_diagram_name ( diagram_name,  tp, i_diag );
         
                 if ( strcmp ( tp->type , "m-j-m" ) == 0 ) {
-                  sprintf ( key, "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/g1_%s/g2_%s/PX%d_PY%d_PZ%d",
+                  sprintf ( key,
+                      /* "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/g1_%s/g2_%s/PX%d_PY%d_PZ%d", */
+                      "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/g1_%s/g2_%s/x%d_y%d_z%d",
                       diagram_name,
                       /* tp->pf1[0], tp->pf1[1], tp->pf1[2], */
                       pf[0], pf[1], pf[2],
@@ -365,11 +376,16 @@ int main(int argc, char **argv) {
                   fprintf ( stdout, "# [htpp_analyse] key = %s %s %d\n", key , __FILE__, __LINE__ );
                 }
 
+                gettimeofday ( &ta, (struct timezone *)NULL );
+
                 exitstatus = read_aff_contraction ( (void*)(tp->c[i_diag][0][0]), affr, NULL, key, T_global * tp->d * tp->d );
                 if ( exitstatus != 0 ) {
                   fprintf(stderr, "[htpp_analyse] Error from read_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                   EXIT(12);
                 }
+
+                gettimeofday ( &tb, (struct timezone *)NULL );
+                show_time ( &ta, &tb, "htpp_analyse", "read_aff_contraction", io_proc == 2 );
 
                 for( int icoh = 0; icoh < g_coherent_source_number; icoh++ ) {
  
@@ -441,7 +457,8 @@ int main(int argc, char **argv) {
 
         if ( strcmp ( tp->type , "m-j-m" ) == 0 ) {
 
-          sprintf ( output_filename, "%s_pfx%dpfy%dpfz%d_gf_%s_dt%d_g1_%s_g2_%s_PX%d_PY%d_PZ%d",
+          sprintf ( output_filename, 
+              "%s_pfx%dpfy%dpfz%d_gf_%s_dt%d_g1_%s_g2_%s_PX%d_PY%d_PZ%d",
               tp->name,
               g_sink_momentum_list[ipf][0], g_sink_momentum_list[ipf][1], g_sink_momentum_list[ipf][2],
               gamma_bin_to_name[tp->gf1[0]], g_src_snk_time_separation,
@@ -503,6 +520,7 @@ int main(int argc, char **argv) {
             -( g_sink_momentum_list[ipf][2] + g_source_momentum_list[ipf][2] ) };
 
         for ( int ireim =0; ireim < 2; ireim++ ) {
+          gettimeofday ( &ta, (struct timezone *)NULL );
 
           int const nmeas = num_conf * num_src_per_conf * g_coherent_source_number;
           double ** data = init_2level_dtable ( nmeas, n_tc );
@@ -539,6 +557,10 @@ int main(int argc, char **argv) {
           }
 
           fini_2level_dtable ( &data );
+
+          gettimeofday ( &tb, (struct timezone *)NULL );
+          show_time ( &ta, &tb, "htpp_analyse", "stats-uwerr-analysis", io_proc == 2 );
+
         }  /* end of loop on ireim */
       }
     }
@@ -569,11 +591,8 @@ int main(int argc, char **argv) {
   MPI_Finalize();
 #endif
 
-  if(g_cart_id==0) {
-    g_the_time = time(NULL);
-    fprintf(stdout, "# [htpp_analyse] %s# [htpp_analyse] end of run\n", ctime(&g_the_time));
-    fprintf(stderr, "# [htpp_analyse] %s# [htpp_analyse] end of run\n", ctime(&g_the_time));
-  }
+  gettimeofday ( &end_time, (struct timezone *)NULL );
+  show_time ( &start_time, &end_time, "htpp_analyse", "total-time", io_proc == 2 );
 
   return(0);
 
