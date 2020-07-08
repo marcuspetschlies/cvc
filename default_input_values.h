@@ -199,6 +199,7 @@ namespace cvc {
 #define _default_total_momentum_number 0
 
 #define _default_twopoint_function_number 0
+#define _default_twopoint_function_list NULL
 
 #define _default_zero 0
 

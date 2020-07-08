@@ -48,7 +48,8 @@ char const cubic_group_rotations_R_names[24][12] = { "E", "C31-", "C31+", "C33+"
 
 char const cubic_group_rotations_IR_names[24][12] = { "i", "S61+", "S61-", "S63-", "S63+", "S62+", "S62-", "S64-", "S64+", "S4x+", "S4x-", "S4y+", "S4y-", "S4z+", "S4z-", "sigma_d4", "sigma_d6", "sigma_d1", "sigma_d2", "sigma_d3", "sigma_d5", "sigma_x", "sigma_y", "sigma_z" };
 
-#elif defined CUBIC_GROUP_DOUBLE_COVER
+/* #elif defined CUBIC_GROUP_DOUBLE_COVER */
+#else
 char const cubic_group_rotations_R_names[48][12] = { "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA" };
 
 char const cubic_group_rotations_IR_names[48][12] = { "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA" };
