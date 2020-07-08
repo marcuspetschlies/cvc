@@ -309,40 +309,61 @@ int main(int argc, char **argv) {
           /***********************************************************
            * loop on source momenta
            ***********************************************************/
-          for ( int ipi = 0; ipi < g_source_momentum_number; ipi++ ) {
+          for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ ) {
 
             /***********************************************************
-             * add some filter if wanted
+             * loop on source momenta
              ***********************************************************/
+            for ( int ipi = 0; ipi < g_source_momentum_number; ipi++ ) {
+
+              /***********************************************************
+               * add some filter if wanted
+               ***********************************************************/
             
-            /***********************************************************
-             * loop on parity
-             ***********************************************************/
-            for ( int iparity = 0; iparity < 2; iparity++ ) {
-              int const sparity = 1 - 2 * iparity;
+              /***********************************************************
+               * loop on parity
+               ***********************************************************/
+              for ( int iparity = 0; iparity < 2; iparity++ ) {
+                int const sparity = 1 - 2 * iparity;
 
-              int const parity_sign = gamma_parity_sign[tp->gi1[0]] * gamma_parity_sign[tp->gf1[0]] * gamma_parity_sign[tp->gf2];
+                int const parity_sign =
+                      gamma_parity_sign[tp->gi1[0]]
+                    * gamma_parity_sign[tp->gi1[1]]
+                    * gamma_parity_sign[tp->gf1[0]]
+                    * gamma_parity_sign[tp->gf2];
 
-              int const charge_conjugation_sign = gamma_chargeconjugation_sign[tp->gi1[0]] * gamma_chargeconjugation_sign[tp->gf1[0]] * gamma_chargeconjugation_sign[tp->gf2];
+                int const charge_conjugation_sign = 
+                      gamma_chargeconjugation_sign[tp->gi1[0]]
+                    * gamma_chargeconjugation_sign[tp->gf1[1]] 
+                    * gamma_chargeconjugation_sign[tp->gf2];
 
-              int const g5herm_sign = gamma_g5herm_sign[tp->gi1[0]] * gamma_g5herm_sign[tp->gf1[0]] * gamma_g5herm_sign[tp->gf2]; 
+                int const g5herm_sign =
+                        gamma_g5herm_sign[tp->gi1[0]]
+                        gamma_g5herm_sign[tp->gi1[1]]
+                      * gamma_g5herm_sign[tp->gf1[0]]
+                      * gamma_g5herm_sign[tp->gf2];
 
-              if ( g_verbose > 2 ) fprintf( stdout, "# [htpp_analyse] parity_sign = %d; charge_conjugation_sign = %d; g5herm_sign = %d\n", parity_sign, charge_conjugation_sign, g5herm_sign ); 
+                if ( g_verbose > 2 ) fprintf( stdout, "# [htpp_analyse] parity_sign = %d; charge_conjugation_sign = %d; g5herm_sign = %d\n", parity_sign, charge_conjugation_sign, g5herm_sign ); 
 
-              int pf[3] = {
-                sparity * g_sink_momentum_list[ipf][0],
-                sparity * g_sink_momentum_list[ipf][1],
-                sparity * g_sink_momentum_list[ipf][2] };
+                 int pf[3] = {
+                  sparity * g_sink_momentum_list[ipf][0],
+                  sparity * g_sink_momentum_list[ipf][1],
+                  sparity * g_sink_momentum_list[ipf][2] };
 
-              int pi[3] = {
-                sparity * g_source_momentum_list[ipi][0],
-                sparity * g_source_momentum_list[ipi][1],
-                sparity * g_source_momentum_list[ipi][2] };
+                int pi1[3] = {
+                  sparity * g_source_momentum_list[ipi][0],
+                  sparity * g_source_momentum_list[ipi][1],
+                  sparity * g_source_momentum_list[ipi][2] };
 
-              int pc[3] = {
-                  -( pi[0] + pf[0] ),
-                  -( pi[1] + pf[1] ),
-                  -( pi[2] + pf[2] ) };
+                int pi2[3] = {
+                  -sparity * ( g_total_momentum_list[iptot][0] + pi1[0] ),
+                  -sparity * ( g_total_momentum_list[iptot][1] + pi1[1] ),
+                  -sparity * ( g_total_momentum_list[iptot][2] + pi1[2] )};
+
+                int pc[3] = {
+   sparity               g_total_momentum_list[iptot][0] - pf[0],
+                  g_total_momentum_list[iptot][1] - pf[1],
+                  g_total_momentum_list[iptot][2] - pf[2] };
 
               double const amp_re_factor = 0.25 * ( iparity == 0 ? ( 1 + parity_sign * charge_conjugation_sign * g5herm_sign ) : ( parity_sign + charge_conjugation_sign * g5herm_sign) );
               double const amp_im_factor = 0.25 * ( iparity == 0 ? ( 1 - parity_sign * charge_conjugation_sign * g5herm_sign ) : ( parity_sign - charge_conjugation_sign * g5herm_sign) );
