@@ -182,7 +182,7 @@ int main(int argc, char **argv) {
   /***********************************************************
    * read list of configs and source locations
    ***********************************************************/
-  sprintf ( filename, "source_coords.%s.lst" , ensemble_name, num_src_per_conf);
+  sprintf ( filename, "source_coords.%s.lst" , ensemble_name );
   FILE *ofs = fopen ( filename, "r" );
   if ( ofs == NULL ) {
     fprintf(stderr, "[htpp_analyse] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__);
@@ -207,7 +207,6 @@ int main(int argc, char **argv) {
      * QLUA source coords files have ordering 
      * stream conf x y z t
      ***********************************************************/
-    char streamc;
     sscanf( line, "%c %d %d %d %d %d",
         conf_src_list[count/num_src_per_conf][count%num_src_per_conf],
         conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+1,
@@ -334,12 +333,13 @@ int main(int argc, char **argv) {
 
                 int const charge_conjugation_sign = 
                       gamma_chargeconjugation_sign[tp->gi1[0]]
-                    * gamma_chargeconjugation_sign[tp->gf1[1]] 
+                    * gamma_chargeconjugation_sign[tp->gi1[1]]
+                    * gamma_chargeconjugation_sign[tp->gf1[0]] 
                     * gamma_chargeconjugation_sign[tp->gf2];
 
                 int const g5herm_sign =
                         gamma_g5herm_sign[tp->gi1[0]]
-                        gamma_g5herm_sign[tp->gi1[1]]
+                      * gamma_g5herm_sign[tp->gi1[1]]
                       * gamma_g5herm_sign[tp->gf1[0]]
                       * gamma_g5herm_sign[tp->gf2];
 
@@ -396,12 +396,12 @@ int main(int argc, char **argv) {
                         pc[0], pc[1], pc[2] );
                   } else if ( strcmp ( tp->type , "mxm-j-m" ) == 0 ) {
                     sprintf ( key,
-                        /* "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/g1_%s/g2_%s/PX%d_PY%d_PZ%d", */
-                        "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/pi2x%dpi2y%dpi2z%d/g1_%s/g2_%s/x%d_y%d_z%d",
+                        /* /sll+-g1-scl-g2/pfx0pfy0pfz0/gf_g5/dt12/pi2x0pi2y0pi2z0/gi2_g5/g1_gx/g2_g5/x0_y0_z0 */
+                        "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/pi2x%dpi2y%dpi2z%d/gi2_%s/g1_%s/g2_%s/x%d_y%d_z%d",
                         diagram_name,
                         pf[0], pf[1], pf[2],
                         gamma_bin_to_name[tp->gf1[0]], g_src_snk_time_separation,
-                        pi2[0], pi2[1], pi2[2],
+                        pi2[0], pi2[1], pi2[2], gamma_bin_to_name[tp->gi1[1]],
                         gamma_bin_to_name[tp->gf2], gamma_bin_to_name[tp->gi1[0]],
                         pc[0], pc[1], pc[2] );
                   } else {
@@ -483,60 +483,78 @@ int main(int argc, char **argv) {
     twopoint_function_type * tp = &(g_twopoint_function_list[i_2pt]);
 
     for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
+      
       for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ ) {
-      for ( int ipi = 0; ipi < g_source_momentum_number; ipi++ ) {
 
-        
+        for ( int ipi = 0; ipi < g_source_momentum_number; ipi++ ) {
 
-        int pc[3] = {
-          -( g_sink_momentum_list[ipf][0] + g_source_momentum_list[ipf][0] ), 
-          -( g_sink_momentum_list[ipf][1] + g_source_momentum_list[ipf][1] ), 
-          -( g_sink_momentum_list[ipf][2] + g_source_momentum_list[ipf][2] ) };
+         int pc[3] = {
+            g_total_momentum_list[iptot][0] - g_sink_momentum_list[ipf][0],
+            g_total_momentum_list[iptot][1] - g_sink_momentum_list[ipf][1],
+            g_total_momentum_list[iptot][2] - g_sink_momentum_list[ipf][2] };
 
-        char output_filename[400];
+          int pi2[3] = {
+            -g_total_momentum_list[iptot][0] - g_source_momentum_list[ipi][0],
+            -g_total_momentum_list[iptot][1] - g_source_momentum_list[ipi][1],
+            -g_total_momentum_list[iptot][2] - g_source_momentum_list[ipi][2] };
+ 
+          char output_filename[2000];
 
-        if ( strcmp ( tp->type , "m-j-m" ) == 0 ) {
+          if ( strcmp ( tp->type , "m-j-m" ) == 0 ) {
 
-          sprintf ( output_filename, 
-              "%s_pfx%dpfy%dpfz%d_gf_%s_dt%d_g1_%s_g2_%s_PX%d_PY%d_PZ%d",
-              tp->name,
-              g_sink_momentum_list[ipf][0], g_sink_momentum_list[ipf][1], g_sink_momentum_list[ipf][2],
-              gamma_bin_to_name[tp->gf1[0]], g_src_snk_time_separation,
-              gamma_bin_to_name[tp->gf2], gamma_bin_to_name[tp->gi1[0]],
-              pc[0], pc[1], pc[2] );
-        } else { 
-          continue;
-        }
-        fprintf ( stdout, "# [htpp_analyse] output_filename = %s\n", output_filename );
+            sprintf ( output_filename, 
+                /* "%s_pfx%dpfy%dpfz%d_gf_%s_dt%d_g1_%s_g2_%s_PX%d_PY%d_PZ%d", */
+                "%s_gf_%s_pfx%dpfy%dpfz%d_dt%d_gc_%s_pcx%d_pcy%d_pcz%d_gi_%s_pix%d_piy%d_piz%d",
+                tp->name,
+                gamma_bin_to_name[tp->gf1[0]], g_sink_momentum_list[ipf][0], g_sink_momentum_list[ipf][1], g_sink_momentum_list[ipf][2],
+                g_src_snk_time_separation, gamma_bin_to_name[tp->gf2], pc[0], pc[1], pc[2],
+                gamma_bin_to_name[tp->gi1[0]], g_source_momentum_list[ipi][0], g_source_momentum_list[ipi][1], g_source_momentum_list[ipi][2] );
+          } else if ( strcmp( tp->type , "mxm-j-m" ) == 0 )  {
+            sprintf ( output_filename, 
+                "%s_gf_%s_pfx%dpfy%dpfz%d_dt%d_gc_%s_pcx%d_pcy%d_pcz%d_gi2_%s_pi2x%dpi2y%dpi2z%d_gi1_pi1x%dpi1y%dpi1z%d",
+                tp->name,
+                gamma_bin_to_name[tp->gf1[0]],
+                g_sink_momentum_list[ipf][0], g_sink_momentum_list[ipf][1], g_sink_momentum_list[ipf][2],
+                g_src_snk_time_separation,
+                gamma_bin_to_name[tp->gf2], pc[0], pc[1], pc[2],
+                gamma_bin_to_name[tp->gi1[1]], 
+                pi2[0], pi2[1], pi2[2],
+                gamma_bin_to_name[tp->gi1[0]],
+                g_source_momentum_list[ipi][0], g_source_momentum_list[ipi][1], g_source_momentum_list[ipi][2] );
+          } else { 
+            continue;
+          }
+          fprintf ( stdout, "# [htpp_analyse] output_filename = %s\n", output_filename );
 
-        FILE * ofs = fopen ( output_filename, "w" );
+          FILE * ofs = fopen ( output_filename, "w" );
 
-        for( int iconf = 0; iconf < num_conf; iconf++ ) {
-          for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
-            for( int icoh = 0; icoh < g_coherent_source_number; icoh++ ) {
+          for( int iconf = 0; iconf < num_conf; iconf++ ) {
+            for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
+              for( int icoh = 0; icoh < g_coherent_source_number; icoh++ ) {
 
-               int const csx[4] = { 
-                   ( conf_src_list[iconf][isrc][2] + ( T_global / g_coherent_source_number ) * icoh ) % T_global,
-                   ( conf_src_list[iconf][isrc][3] + (LX_global / g_coherent_source_number ) * icoh) % LX_global,
-                   ( conf_src_list[iconf][isrc][4] + (LY_global / g_coherent_source_number ) * icoh) % LY_global,
-                   ( conf_src_list[iconf][isrc][5] + (LZ_global / g_coherent_source_number ) * icoh) % LZ_global };
+                 int const csx[4] = { 
+                     ( conf_src_list[iconf][isrc][2] + ( T_global / g_coherent_source_number ) * icoh ) % T_global,
+                     ( conf_src_list[iconf][isrc][3] + (LX_global / g_coherent_source_number ) * icoh) % LX_global,
+                     ( conf_src_list[iconf][isrc][4] + (LY_global / g_coherent_source_number ) * icoh) % LY_global,
+                     ( conf_src_list[iconf][isrc][5] + (LZ_global / g_coherent_source_number ) * icoh) % LZ_global };
 
-              /***********************************************************
-               * output key
-               ***********************************************************/
-              fprintf ( ofs, "# /%c/conf%d/t%d_x%d_y%d_z%d\n", conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1], csx[0], csx[1], csx[2], csx[3]  );
-              for ( int it = 0; it < n_tc; it++ ) {
-                fprintf ( ofs, "%4d %25.16e %25.16e\n", it,
-                corr[i_2pt][ipf][ipi][iconf][isrc*g_coherent_source_number+icoh][2*it  ],
-                corr[i_2pt][ipf][ipi][iconf][isrc*g_coherent_source_number+icoh][2*it+1] );
-              } 
+                /***********************************************************
+                 * output key
+                 ***********************************************************/
+                fprintf ( ofs, "# /%c/conf%d/t%d_x%d_y%d_z%d\n", conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1], csx[0], csx[1], csx[2], csx[3]  );
+                for ( int it = 0; it < n_tc; it++ ) {
+                  fprintf ( ofs, "%4d %25.16e %25.16e\n", it,
+                  corr[i_2pt][ipf][ipi][iconf][isrc*g_coherent_source_number+icoh][2*it  ],
+                  corr[i_2pt][ipf][ipi][iconf][isrc*g_coherent_source_number+icoh][2*it+1] );
+                } 
 
+              }
             }
           }
-        }
-        fclose ( ofs );
-      }
-    }
+          fclose ( ofs );
+        }  /* pi */
+      }  /* ptot */
+    }  /* pf */
   }  /* end of loop on 2pt functions */
 
   /***************************************************************************
@@ -550,39 +568,46 @@ int main(int argc, char **argv) {
 
     twopoint_function_type * tp = &(g_twopoint_function_list[i_2pt]);
 
-
     for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
-      for ( int ipi = 0; ipi < g_source_momentum_number; ipi++ ) {
 
-        int pc[3] = {
-            -( g_sink_momentum_list[ipf][0] + g_source_momentum_list[ipf][0] ),
-            -( g_sink_momentum_list[ipf][1] + g_source_momentum_list[ipf][1] ),
-            -( g_sink_momentum_list[ipf][2] + g_source_momentum_list[ipf][2] ) };
+      for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ ) {
 
-        for ( int ireim =0; ireim < 2; ireim++ ) {
-          gettimeofday ( &ta, (struct timezone *)NULL );
+        for ( int ipi = 0; ipi < g_source_momentum_number; ipi++ ) {
 
-          int const nmeas = num_conf * num_src_per_conf * g_coherent_source_number;
-          double ** data = init_2level_dtable ( nmeas, n_tc );
-          if ( data == NULL ) {
-            fprintf ( stderr, "[htpp_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
-            EXIT(12);
-          }
+          int pc[3] = {
+            g_total_momentum_list[iptot][0] - g_sink_momentum_list[ipf][0],
+            g_total_momentum_list[iptot][1] - g_sink_momentum_list[ipf][1],
+            g_total_momentum_list[iptot][2] - g_sink_momentum_list[ipf][2] };
+
+          int pi2[3] = {
+            -g_total_momentum_list[iptot][0] - g_source_momentum_list[ipi][0],
+            -g_total_momentum_list[iptot][1] - g_source_momentum_list[ipi][1],
+            -g_total_momentum_list[iptot][2] - g_source_momentum_list[ipi][2] };
+
+          for ( int ireim =0; ireim < 2; ireim++ ) {
+            gettimeofday ( &ta, (struct timezone *)NULL );
+
+            int const nmeas = num_conf * num_src_per_conf * g_coherent_source_number;
+            double ** data = init_2level_dtable ( nmeas, n_tc );
+            if ( data == NULL ) {
+              fprintf ( stderr, "[htpp_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+              EXIT(12);
+            }
 
 #pragma omp parallel for
-          for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-            for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-              for ( int icoh = 0; icoh < g_coherent_source_number; icoh++ ) {
-                for ( int it = 0; it < n_tc; it++ ) {
-                  data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][it] = corr[i_2pt][ipf][ipi][iconf][isrc*g_coherent_source_number+icoh][2*it+ireim];
+            for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+              for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+                for ( int icoh = 0; icoh < g_coherent_source_number; icoh++ ) {
+                  for ( int it = 0; it < n_tc; it++ ) {
+                    data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][it] = corr[i_2pt][ipf][ipi][iconf][isrc*g_coherent_source_number+icoh][2*it+ireim];
+                  }
                 }
               }
             }
-          }
 
-          char obs_name[400];
+            char obs_name[2000];
 
-          sprintf ( obs_name, "%s_pfx%dpfy%dpfz%d_gf_%s_dt%d_g1_%s_g2_%s_PX%d_PY%d_PZ%d.%s",
+            sprintf ( obs_name, "%s_pfx%dpfy%dpfz%d_gf_%s_dt%d_g1_%s_g2_%s_PX%d_PY%d_PZ%d.%s",
                            tp->name,
                            g_sink_momentum_list[ipf][0], g_sink_momentum_list[ipf][1], g_sink_momentum_list[ipf][2],
                            gamma_bin_to_name[tp->gf1[0]], g_src_snk_time_separation,
@@ -590,21 +615,47 @@ int main(int argc, char **argv) {
                            pc[0], pc[1], pc[2], reim_str[ireim] );
         
 
-          exitstatus = apply_uwerr_real (  data[0], nmeas, n_tc, 0, 1, obs_name );
-          if ( exitstatus != NULL ) {
-            fprintf ( stderr, "[htpp_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-            EXIT(14);
-          }
+            if ( strcmp ( tp->type , "m-j-m" ) == 0 ) {
 
-          fini_2level_dtable ( &data );
+              sprintf ( obs_name,
+                  /* "%s_pfx%dpfy%dpfz%d_gf_%s_dt%d_g1_%s_g2_%s_PX%d_PY%d_PZ%d", */
+                  "%s_gf_%s_pfx%dpfy%dpfz%d_dt%d_gc_%s_pcx%d_pcy%d_pcz%d_gi_%s_pix%d_piy%d_piz%d.%s",
+                  tp->name,
+                  gamma_bin_to_name[tp->gf1[0]], g_sink_momentum_list[ipf][0], g_sink_momentum_list[ipf][1], g_sink_momentum_list[ipf][2],
+                  g_src_snk_time_separation, gamma_bin_to_name[tp->gf2], pc[0], pc[1], pc[2],
+                  gamma_bin_to_name[tp->gi1[0]], g_source_momentum_list[ipi][0], g_source_momentum_list[ipi][1], g_source_momentum_list[ipi][2], reim_str[ireim] );
+            } else if ( strcmp( tp->type , "mxm-j-m" ) == 0 )  {
+              sprintf ( obs_name,
+                  "%s_gf_%s_pfx%dpfy%dpfz%d_dt%d_gc_%s_pcx%d_pcy%d_pcz%d_gi2_%s_pi2x%dpi2y%dpi2z%d_gi1_pi1x%dpi1y%dpi1z%d.%s",
+                  tp->name,
+                  gamma_bin_to_name[tp->gf1[0]],
+                  g_sink_momentum_list[ipf][0], g_sink_momentum_list[ipf][1], g_sink_momentum_list[ipf][2],
+                  g_src_snk_time_separation,
+                  gamma_bin_to_name[tp->gf2], pc[0], pc[1], pc[2],
+                  gamma_bin_to_name[tp->gi1[1]],
+                  pi2[0], pi2[1], pi2[2],
+                  gamma_bin_to_name[tp->gi1[0]],
+                  g_source_momentum_list[ipi][0], g_source_momentum_list[ipi][1], g_source_momentum_list[ipi][2], reim_str[ireim] );
+            } else {
+              continue;
+            }
 
-          gettimeofday ( &tb, (struct timezone *)NULL );
-          show_time ( &ta, &tb, "htpp_analyse", "stats-uwerr-analysis", io_proc == 2 );
+            exitstatus = apply_uwerr_real (  data[0], nmeas, n_tc, 0, 1, obs_name );
+            if ( exitstatus != NULL ) {
+              fprintf ( stderr, "[htpp_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+              EXIT(14);
+            }
 
-        }  /* end of loop on ireim */
-      }
-    }
-  }
+            fini_2level_dtable ( &data );
+  
+            gettimeofday ( &tb, (struct timezone *)NULL );
+            show_time ( &ta, &tb, "htpp_analyse", "stats-uwerr-analysis", io_proc == 2 );
+
+          }  /* end of loop on ireim */
+        }  /* ipi */
+      }  /* iptot */
+    }  /* ipf */
+  }  /* i2pt */
 
   /***************************************************************************/
   /***************************************************************************/
