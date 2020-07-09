@@ -542,14 +542,14 @@ void xchange_field(double *phi) {
  *****************************************************/
 void plaquette(double *pl) {
 
-  int ix, mu, nu; 
+  int mu, nu; 
   double s[18], t[18], u[18], pl_loc;
   complex w;
   double linksum[2], ls[2];
 
   pl_loc=0;
 
-  for(ix=0; ix<VOLUME; ix++) {
+  for( unsigned int ix=0; ix<VOLUME; ix++) {
     for(mu=0; mu<3; mu++) {
     for(nu=mu+1; nu<4; nu++) {
       _cm_eq_cm_ti_cm(s, &g_gauge_field[72*ix+mu*18], &g_gauge_field[72*g_iup[ix][mu]+18*nu]);
@@ -571,7 +571,7 @@ void plaquette(double *pl) {
 
   linksum[0] = 0.;
   linksum[1] = 0.;
-  for(ix=0; ix<VOLUME; ix++) {
+  for( unsigned int ix=0; ix<VOLUME; ix++) {
     for(mu=0; mu<4; mu++) {
       for(nu=0; nu<9; nu++) {
         linksum[0] += g_gauge_field[_GGI(ix,mu)+2*nu  ];
@@ -596,13 +596,13 @@ void plaquette(double *pl) {
  *****************************************************/
 void plaquette2(double *pl, double*gfield) {
 
-  int ix, mu, nu; 
+  int mu, nu; 
   double s[18], t[18], u[18], pl_loc;
   complex w;
 
   pl_loc=0;
 
-  for(ix=0; ix<VOLUME; ix++) {
+  for( unsigned int ix=0; ix<VOLUME; ix++) {
     for(mu=0; mu<3; mu++) {
     for(nu=mu+1; nu<4; nu++) {
       _cm_eq_cm_ti_cm(s, &gfield[72*ix+mu*18], &gfield[72*g_iup[ix][mu]+18*nu]);
@@ -628,9 +628,7 @@ void plaquette2(double *pl, double*gfield) {
 int write_contraction (double *s, int *nsource, char *filename, int Nmu, 
                        int write_ascii, int append) {
 
-  int x0, x1, x2, x3, ix, mu, i;
-  unsigned long int count=0;
-  int ti[2], lvol;
+  int x0, x1, x2, x3, ix, mu;
   FILE *ofs;
 #ifdef HAVE_MPI
   double *buffer;
@@ -684,25 +682,26 @@ int write_contraction (double *s, int *nsource, char *filename, int Nmu,
       }
     }
     else if(write_ascii == 0) {
-      ix = -1;
+      unsigned int ix = 0;
       for(x0=0; x0<T; x0++) {
       for(x1=0; x1<LX; x1++) {
       for(x2=0; x2<LY; x2++) {
       for(x3=0; x3<LZ; x3++) {
-        ix++;
         for(mu=0; mu<Nmu; mu++) {
           fwrite(s+_GWI(mu,ix,VOLUME), sizeof(double), 2, ofs);
         }
+        ix++;
       }
       }
       }
       }
     }
 #ifdef HAVE_MPI
+    int ti[2], lvol;
 #  if !(defined PARALLELTX || defined PARALLELTXY || defined PARALLELTXYZ)
     for(i=1; i<g_nproc; i++) {
       MPI_Recv(ti, 2, MPI_INT, i, 100+i, g_cart_grid, &status);
-      count = (unsigned long int)Nmu * (unsigned long int)(ti[0]*LX*LY*LZ) * 2;
+      unsigned long int count = (unsigned long int)Nmu * (unsigned long int)(ti[0]*LX*LY*LZ) * 2;
       if((void*)(buffer = (double*)calloc(count, sizeof(double))) == NULL) {
         MPI_Abort(MPI_COMM_WORLD, 1);
 	MPI_Finalize();
@@ -711,34 +710,34 @@ int write_contraction (double *s, int *nsource, char *filename, int Nmu,
       MPI_Recv(buffer, count, MPI_DOUBLE, i, 200+i, g_cart_grid, &status);
       if(write_ascii == 1) { /* write in ASCII format */
         /* write part from process i */
-	ix = -1;
+	unsigned int ix = 0;
         for(x0=0; x0<ti[0]; x0++) {
         for(x1=0; x1<LX; x1++) {
         for(x2=0; x2<LY; x2++) {
         for(x3=0; x3<LZ; x3++) {
-          ix++;
           fprintf(ofs, "# t=%3d, x=%3d, y=%3d, z=%3d\n", x0+ti[1], x1, x2, x3);
   	  for(mu=0; mu<Nmu; mu++) {
 	    fprintf(ofs, "%3d%25.16e%25.16e\n", mu, 
 	      buffer[2*(Nmu*ix+mu)], buffer[2*(Nmu*ix+mu)+1]);
 	  }
+          ix++;
         }
         }
         }
         }
       }
       else if(write_ascii == 2) { /* inner loop ix */
-	ix = -1;
+	unsigned int ix = 0;
         for(x0=0; x0<ti[0]; x0++) {
         for(x1=0; x1<LX; x1++) {
         for(x2=0; x2<LY; x2++) {
         for(x3=0; x3<LZ; x3++) {
-          ix++;
           fprintf(ofs, "# t=%3d, x=%3d, y=%3d, z=%3d\n", x0+ti[1], x1, x2, x3);
   	  for(mu=0; mu<Nmu; mu++) {
 	    fprintf(ofs, "%3d%25.16e%25.16e\n", mu, 
 	      buffer[_GWI(mu,ix,VOLUME)], buffer[_GWI(mu,ix,VOLUME)+1]);
 	  }
+          ix++;
         }
         }
         }
@@ -747,15 +746,15 @@ int write_contraction (double *s, int *nsource, char *filename, int Nmu,
       else if (write_ascii == 0) {
         lvol = ti[0]*LX*LY*LZ;
         fprintf(stdout, "lvol = %d\n", lvol);
-	ix = -1;
+	unsigned int ix = 0;
         for(x0=0; x0<ti[0]; x0++) {
         for(x1=0; x1<LX; x1++) {
         for(x2=0; x2<LY; x2++) {
         for(x3=0; x3<LZ; x3++) {
-          ix++;
   	  for(mu=0; mu<Nmu; mu++) {
             fwrite(buffer+_GWI(mu,ix,lvol), sizeof(double), 2, ofs);
           }
+          ix++;
         }
         }
         }
@@ -800,8 +799,8 @@ int read_contraction(double *s, int *nsource, char *filename, int Nmu) {
   return(1);
 #endif
 
-  unsigned long int shift=0, count=0;
-  int ix, mu, iy;
+  unsigned long int count=0;
+  int mu;
   double buffer[128];
   FILE *ofs = (FILE*)NULL;
 
@@ -819,16 +818,17 @@ int read_contraction(double *s, int *nsource, char *filename, int Nmu) {
 #  endif
 #endif
     count= Nmu * 2;
-    for(ix=0; ix<VOLUME; ix++) { 
+    for( unsigned int ix=0; ix<VOLUME; ix++) { 
       if( fread(buffer, sizeof(double), count, ofs) != count) return(107);
       for(mu=0; mu<Nmu; mu++) {
-        iy = index_conv(16*ix+mu, 2);
+        long int iy = index_conv(16*ix+mu, 2);
         s[iy  ] = buffer[2*mu  ];
         s[iy+1] = buffer[2*mu+1];
       } 
     }
   } else {
 #ifdef HAVE_MPI
+  unsigned long int shift=0;
 #  if ! ( defined PARALLELTX || defined PARALLELTXY || defined PARALLELTXYZ )
     /* shift = Volume of previous nodes * Nmu * 2(complex=2doubles) * 
                size of double */
@@ -837,7 +837,7 @@ int read_contraction(double *s, int *nsource, char *filename, int Nmu) {
 #  endif
 #endif
     count= Nmu * 2;
-    for(ix=0; ix<VOLUME; ix++) { 
+    for(unsigned int ix=0; ix<VOLUME; ix++) { 
       if( fread(buffer, sizeof(double), count, ofs) != count) return(107);
       for(mu=0; mu<Nmu; mu++) {
         s[_GWI(mu,ix,VOLUME)  ] = buffer[2*mu  ];
@@ -1977,7 +1977,6 @@ void  TraceAdagB(complex *w, double A[12][24], double B[12][24]) {
 /* make random gauge transformation g */
 void init_gauge_trafo(double **g, double heat) {
 
-  int ix, i;
   double ran[12], inorm, u[18], v[18], w[18];
 #ifdef HAVE_MPI 
   int cntr;
@@ -1998,7 +1997,7 @@ void init_gauge_trafo(double **g, double heat) {
   }
     
   /* set g to random field */
-  for(ix=0; ix<VOLUME; ix++) {
+  for( unsigned int ix=0; ix<VOLUME; ix++) {
     u[ 0] = 0.; u[ 1] = 0.; u[ 2] = 0.; u[ 3] = 0.; u[ 4] = 0.; u[ 5] = 0.;
     u[ 6] = 0.; u[ 7] = 0.; u[ 8] = 0.; u[ 9] = 0.; u[10] = 0.; u[11] = 0.;
     u[12] = 0.; u[13] = 0.; u[14] = 0.; u[15] = 0.; u[16] = 0.; u[17] = 0.;
@@ -2112,17 +2111,16 @@ void init_gauge_trafo(double **g, double heat) {
 
 void apply_gt_gauge(double *g, double*gauge_field) {
 
-  int ix, mu;
+  int  mu;
   double u[18];
-  FILE* ofs;
 
   if(g_cart_id==0) fprintf(stdout, "# [apply_gt_gauge] applying gauge transformation to gauge field\n");
 /*
-  ofs = fopen("# [apply_gt_gauge] gauge_field_before", "w");
+  FILE * ofs = fopen("# [apply_gt_gauge] gauge_field_before", "w");
   printf_gauge_field(gauge_field, ofs);
   fclose(ofs);
 */
-  for(ix=0; ix<VOLUME; ix++) {
+  for(unsigned int ix=0; ix<VOLUME; ix++) {
     for(mu=0; mu<4; mu++) {
       _cm_eq_cm_ti_cm(u, &g[18*ix], &gauge_field[_GGI(ix,mu)]);
       _cm_eq_cm_ti_cm_dag(&gauge_field[_GGI(ix, mu)], u, &g[18*g_iup[ix][mu]]);
@@ -2130,7 +2128,7 @@ void apply_gt_gauge(double *g, double*gauge_field) {
   }
   xchange_gauge();
 /*
-  ofs = fopen("# [apply_gt_gauge] gauge_field_after", "w");
+  FILE * ofs = fopen("# [apply_gt_gauge] gauge_field_after", "w");
   printf_gauge_field(gauge_field, ofs);
   fclose(ofs);
 */
@@ -2139,7 +2137,7 @@ void apply_gt_gauge(double *g, double*gauge_field) {
 /* apply gt to propagator; (is,ic) = (spin, colour)-index */
 void apply_gt_prop(double *g, double *phi, int is, int ic, int mu, char *basename, int source_location) {
 #ifndef HAVE_MPI
-  int ix, ix1[5], k;
+  int k;
   double psi1[24], psi2[24], psi3[24], *work[3];
   complex co[3];
   char filename[200];
@@ -2168,14 +2166,14 @@ void apply_gt_prop(double *g, double *phi, int is, int ic, int mu, char *basenam
 
   /* apply g to propagators from the left */
   for(k=0; k<3; k++) {
-    for(ix=0; ix<VOLUME; ix++) {
+    for(unsigned int ix=0; ix<VOLUME; ix++) {
       _fv_eq_cm_ti_fv(psi1, &g[18*ix], &work[k][_GSI(ix)]);
       _fv_eq_fv(&work[k][_GSI(ix)], psi1);
     }
   }
 
   /* apply g to propagators from the right */
-  for(ix=0; ix<VOLUME; ix++) {
+  for(unsigned int ix=0; ix<VOLUME; ix++) {
     _fv_eq_zero(psi1);
     _fv_eq_zero(psi2);
     _fv_eq_zero(psi3);
@@ -2268,12 +2266,12 @@ void get_filename(char *filename, const int nu, const int sc, const int sign) {
 
 int wilson_loop(complex *w, double*gauge_field, const int xstart, const int dir, const int Ldir) {
 
-  int ix, i;
+  int i;
   double U_[18], V_[18], *u1=(double*)NULL, *u2=(double*)NULL, *u3=(double*)NULL;
   complex tr, phase;
 
   if(dir==0) {
-    ix=g_iup[xstart][dir];
+    unsigned int ix=g_iup[xstart][dir];
     _cm_eq_cm_ti_cm(V_, gauge_field+_GGI(xstart, dir), gauge_field+_GGI(ix, dir));
     u1=U_; u2=V_;
     for(i=2; i<Ldir; i++) {
@@ -2289,7 +2287,7 @@ int wilson_loop(complex *w, double*gauge_field, const int xstart, const int dir,
 #endif
     _co_eq_tr_cm(&tr, u2);
   } else {
-    ix=g_iup[xstart][dir];
+    unsigned int ix=g_iup[xstart][dir];
     _cm_eq_cm_ti_cm(V_, gauge_field+_GGI(xstart, dir), gauge_field+_GGI(ix, dir));
     u1=U_; u2=V_;
     for(i=2; i<Ldir; i++) {
@@ -2392,7 +2390,6 @@ int ranz3 ( double * const y, unsigned int const NRAND ) {
  ********************************************************/
 void random_gauge_field(double *gfield, double h) {
 
-  int mu, ix;
   double buffer[72], *gauge_point[4];
 #ifdef HAVE_MPI
   int iproc, tgeom[2], tag, t;
@@ -2406,7 +2403,7 @@ void random_gauge_field(double *gfield, double h) {
   gauge_point[3] = buffer + 54;
 
 /*  if(g_cart_id==0) { */
-    for(ix=0; ix<VOLUME; ix++) {
+    for(unsigned int ix=0; ix<VOLUME; ix++) {
       random_gauge_point(gauge_point, h);
       memcpy((void*)(gfield + _GGI(ix,0)), (void*)buffer, 72*sizeof(double));
     }
@@ -2427,7 +2424,7 @@ void random_gauge_field(double *gfield, double h) {
       tag = 2*iproc;
       MPI_Recv((void*)tgeom, 2, MPI_INT, iproc, tag, g_cart_grid, &mstatus);
       for(t=0; t<tgeom[1]; t++) {
-        for(ix=0; ix<LX*LY*LZ; ix++) {
+        for(unsigned int ix=0; ix<LX*LY*LZ; ix++) {
           random_gauge_point(gauge_point, h);
           memcpy((void*)(gauge_ts + _GGI(ix,0)), (void*)buffer, 72*sizeof(double));
         }
@@ -2489,7 +2486,7 @@ void random_spinor_field (double *s, unsigned int V)  {
 int read_pimn(double *pimn, const int read_flag) {
 
   char filename[800];
-  int iostat, ix, mu, nu, iix, np;
+  int iostat, mu, nu, np;
   double ratime, retime, buff[32], *buff2=(double*)NULL;
 
   FILE *ofs;
@@ -2516,7 +2513,7 @@ int read_pimn(double *pimn, const int read_flag) {
   if(read_flag==0) {
     if(format==1) {
       fprintf(stdout, "reading of binary data from file %s\n", filename);
-      for(ix=0; ix<VOLUME; ix++) {
+      for(unsigned int ix=0; ix<VOLUME; ix++) {
         iostat = fread(buff, sizeof(double), 32, ofs);
         if(iostat != 32) {
           fprintf(stderr, "could not read proper amount of data\n");
@@ -2536,7 +2533,7 @@ int read_pimn(double *pimn, const int read_flag) {
       for(nu=0; nu<np; nu++) {
         fread(buff2, sizeof(double), (VOLUME/np)*32, ofs);
         for(mu=0; mu<16; mu++) {
-          for(ix=0; ix<VOLUME/np; ix++) {
+          for( unsigned int ix=0; ix<VOLUME/np; ix++) {
             pimn[_GWI(mu,ix+nu*(VOLUME/np),VOLUME)  ] = buff2[_GWI(mu,ix,VOLUME/np)  ];
             pimn[_GWI(mu,ix+nu*(VOLUME/np),VOLUME)+1] = buff2[_GWI(mu,ix,VOLUME/np)+1];
           }
@@ -2546,14 +2543,14 @@ int read_pimn(double *pimn, const int read_flag) {
     }
     else if(format==0 || format==2) {
       fprintf(stdout, "buffered reading of binary data from file %s in format %2d\n", filename, format);
-      for(ix=0; ix<VOLUME; ix++) {
+      for(unsigned int ix=0; ix<VOLUME; ix++) {
         iostat = fread(buff, sizeof(double), 32, ofs);
         if(iostat != 32) {
           fprintf(stderr, "could not read proper amount of data\n");
           return(-3);
         }
         for(mu=0; mu<16; mu++) {
-          iix = index_conv(16*ix+mu,format);
+          unsigned long int iix = index_conv(16*ix+mu,format);
           /* fprintf(stdout, "Dru's index: %8d\t my index: %8d\n", 16*ix+mu, iix); */
           pimn[iix  ] = buff[2*mu  ];
           pimn[iix+1] = buff[2*mu+1];
@@ -2564,7 +2561,7 @@ int read_pimn(double *pimn, const int read_flag) {
   else if(read_flag==1 && format==1) {
     /* reading from ascii file only in my format for testing purposes */
     fprintf(stdout, "reading in format 1 from ascii file %s\n", filename);
-    for(ix=0; ix<VOLUME; ix++) {
+    for(unsigned int ix=0; ix<VOLUME; ix++) {
       for(mu=0; mu<16; mu++) {
         fscanf(ofs, "%lf%lf", pimn+_GWI(mu,ix,VOLUME), pimn+_GWI(mu,ix,VOLUME)+1);
       }
