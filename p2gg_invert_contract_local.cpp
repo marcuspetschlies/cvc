@@ -97,7 +97,7 @@ void usage() {
 
 int main(int argc, char **argv) {
 
-  char const outfile_prefix[] = "p2gg_local";
+  /* char const outfile_prefix[] = "p2gg_local"; */
 
   /*                            gt  gx  gy  gz */
   int const gamma_v_list[4] = {  0,  1,  2,  3 };
@@ -108,12 +108,12 @@ int main(int argc, char **argv) {
   int const gamma_a_num = 4;
 
   /* vector, axial vector */
-  int const gamma_va_list[8] = { 0,  1,  2,  3,  6,   7,   8,   9 };
-  int const gamma_va_num = 8;
+  /* int const gamma_va_list[8] = { 0,  1,  2,  3,  6,   7,   8,   9 }; */
+  /* int const gamma_va_num = 8; */
 
   /*                             id  g5 */
-  int const gamma_sp_list[2] = { 4  , 5 };
-  int const gamma_sp_num = 2;
+  /* int const gamma_sp_list[2] = { 4  , 5 }; */
+  /* int const gamma_sp_num = 2; */
 
   int const gamma_s = 4;
   int const gamma_s_list[1] = { 4 };
@@ -134,10 +134,11 @@ int main(int argc, char **argv) {
   size_t sizeof_eo_spinor_field;
   size_t sizeof_spinor_field;
   double **eo_spinor_field=NULL, **eo_spinor_work=NULL;
-  char filename[100];
+  char filename[400];
   double **mzz[2] = { NULL, NULL }, **mzzinv[2] = { NULL, NULL };
   double *gauge_field_with_phase = NULL;
   int check_position_space_WI = 0;
+  int first_solve_dummy = 1;
   struct timeval start_time, end_time;
 
 
@@ -328,6 +329,63 @@ int main(int argc, char **argv) {
     EXIT(123);
   }
   
+  /***********************************************************
+   ***********************************************************
+   **
+   ** dummy inversion for solver tuning
+   **
+   ** use volume source
+   **
+   ***********************************************************
+   ***********************************************************/
+
+  if ( first_solve_dummy ) {
+    /***********************************************************
+     * initialize rng state
+     ***********************************************************/
+    exitstatus = init_rng_stat_file ( g_seed, NULL );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[p2gg_invert_contract_local] Error from init_rng_stat_file %s %d\n", __FILE__, __LINE__ );;
+      EXIT( 50 );
+    }
+
+    double * full_spinor_work[2]  = { eo_spinor_work[0],  eo_spinor_work[2] };
+    double * full_spinor_field[3] = { eo_spinor_field[0], eo_spinor_field[2], eo_spinor_field[4] };
+
+    if( ( exitstatus = prepare_volume_source ( full_spinor_field[0], VOLUME ) ) != 0 ) {
+      fprintf(stderr, "[p2gg_invert_contract_local] Error from prepare_volume_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(64);
+    }
+
+    spinor_field_lexic2eo ( full_spinor_field[0], eo_spinor_field[2], eo_spinor_field[3] );
+
+    memset ( full_spinor_work[1], 0, sizeof_spinor_field);
+    memcpy ( full_spinor_work[0], full_spinor_field[0], sizeof_spinor_field);
+
+    /* full_spinor_work[1] = D^-1 full_spinor_work[0],
+     * flavor id 0 
+     */
+    exitstatus = _TMLQCD_INVERT ( full_spinor_work[1], full_spinor_work[0], 0 );
+    if(exitstatus < 0) {
+      fprintf(stderr, "[p2gg_invert_contract_local] Error from _TMLQCD_INVERT, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(19);
+    }
+
+    /* full -> eo-precon
+     * full_spinor_work[0] = eo_spinor_work[0,1] <- full_spinor_work[1]
+     */
+    spinor_field_lexic2eo ( full_spinor_work[1], eo_spinor_work[0], eo_spinor_work[1] );
+
+    /* check residuum */
+    exitstatus = check_residuum_eo (
+        &( eo_spinor_field[2]), &(eo_spinor_field[3]),
+        &( eo_spinor_work[0] ), &( eo_spinor_work[1]),
+        gauge_field_with_phase, mzz[0], mzzinv[0], 1 );
+
+  }  /* end of first_solve_dummy */
+
+
+
   /***********************************************************
    ***********************************************************
    **
@@ -869,49 +927,52 @@ int main(int argc, char **argv) {
      ***************************************************************************/
 
     /***************************************************************************
-     * loop on sequential source gamma matrices
+     * loop on quark flavors
      ***************************************************************************/
-    for ( int iseq_source_momentum = 0; iseq_source_momentum < g_seq_source_momentum_number; iseq_source_momentum++) {
-
-      g_seq_source_momentum[0] = g_seq_source_momentum_list[iseq_source_momentum][0];
-      g_seq_source_momentum[1] = g_seq_source_momentum_list[iseq_source_momentum][1];
-      g_seq_source_momentum[2] = g_seq_source_momentum_list[iseq_source_momentum][2];
-
-      if( g_verbose > 2 && g_cart_id == 0) fprintf(stdout, "# [p2gg_invert_contract_local] using sequential source momentum no. %2d = (%d, %d, %d)\n", iseq_source_momentum,
-          g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2]);
+    /* for( int iflavor = 0; iflavor <= 1; iflavor++ ) */
+    for( int iflavor = 1; iflavor >= 0; iflavor-- )
+    {
 
       /***************************************************************************
        * loop on sequential source gamma matrices
        ***************************************************************************/
-/*
-      for( int isequential_source_gamma_id = 0; isequential_source_gamma_id < g_sequential_source_gamma_id_number; isequential_source_gamma_id++) {
+      for ( int iseq_source_momentum = 0; iseq_source_momentum < g_seq_source_momentum_number; iseq_source_momentum++) {
 
-        int const sequential_source_gamma_id = g_sequential_source_gamma_id_list[ isequential_source_gamma_id ];
-        if( g_verbose > 2 && g_cart_id == 0) fprintf(stdout, "# [p2gg_invert_contract_local] using sequential source gamma id no. %2d = %d\n",
-            isequential_source_gamma_id, sequential_source_gamma_id);
-*/
+        g_seq_source_momentum[0] = g_seq_source_momentum_list[iseq_source_momentum][0];
+        g_seq_source_momentum[1] = g_seq_source_momentum_list[iseq_source_momentum][1];
+        g_seq_source_momentum[2] = g_seq_source_momentum_list[iseq_source_momentum][2];
+
+        if( g_verbose > 2 && g_cart_id == 0) fprintf(stdout, "# [p2gg_invert_contract_local] using sequential source momentum no. %2d = (%d, %d, %d)\n", iseq_source_momentum,
+            g_seq_source_momentum[0], g_seq_source_momentum[1], g_seq_source_momentum[2]);
+
         /***************************************************************************
-         * loop on sequential source time slices
+         * loop on sequential source gamma matrices
          ***************************************************************************/
-        for ( int isequential_source_timeslice = 0; isequential_source_timeslice < g_sequential_source_timeslice_number; isequential_source_timeslice++) {
+/*
+        for( int isequential_source_gamma_id = 0; isequential_source_gamma_id < g_sequential_source_gamma_id_number; isequential_source_gamma_id++) {
 
-          g_sequential_source_timeslice = g_sequential_source_timeslice_list[ isequential_source_timeslice ];
-          /* shift sequential source timeslice by source timeslice gsx[0] */
-          int const g_shifted_sequential_source_timeslice = ( gsx[0] + g_sequential_source_timeslice + T_global ) % T_global;
-
-          if( g_verbose > 2 && g_cart_id == 0) 
-            fprintf(stdout, "# [p2gg_invert_contract_local] using sequential source timeslice %d / %d\n", g_sequential_source_timeslice, g_shifted_sequential_source_timeslice);
-
+          int const sequential_source_gamma_id = g_sequential_source_gamma_id_list[ isequential_source_gamma_id ];
+          if( g_verbose > 2 && g_cart_id == 0) fprintf(stdout, "# [p2gg_invert_contract_local] using sequential source gamma id no. %2d = %d\n",
+              isequential_source_gamma_id, sequential_source_gamma_id);
+*/
           /***************************************************************************
-           * loop on quark flavors
+           * loop on sequential source time slices
            ***************************************************************************/
-          for( int iflavor = 0; iflavor <= 1; iflavor++ )
-          {
+          for ( int isequential_source_timeslice = 0; isequential_source_timeslice < g_sequential_source_timeslice_number; isequential_source_timeslice++) {
 
-            /* flavor-dependent sequential source momentum */
+            g_sequential_source_timeslice = g_sequential_source_timeslice_list[ isequential_source_timeslice ];
+            /* shift sequential source timeslice by source timeslice gsx[0] */
+            int const g_shifted_sequential_source_timeslice = ( gsx[0] + g_sequential_source_timeslice + T_global ) % T_global;
+
+            if( g_verbose > 2 && g_cart_id == 0) 
+              fprintf(stdout, "# [p2gg_invert_contract_local] using sequential source timeslice %d / %d\n", g_sequential_source_timeslice, g_shifted_sequential_source_timeslice);
+
+            /***************************************************************************
+             * flavor-dependent sequential source momentum
+             ***************************************************************************/
             int const seq_source_momentum[3] = { (1 - 2*iflavor) * g_seq_source_momentum[0],
-                                           (1 - 2*iflavor) * g_seq_source_momentum[1],
-                                           (1 - 2*iflavor) * g_seq_source_momentum[2] };
+                                                 (1 - 2*iflavor) * g_seq_source_momentum[1],
+                                                 (1 - 2*iflavor) * g_seq_source_momentum[2] };
 
             if( g_verbose > 2 && g_cart_id == 0)
               fprintf(stdout, "# [p2gg_invert_contract_local] using flavor-dependent sequential source momentum (%d, %d, %d)\n",
@@ -1090,6 +1151,11 @@ int main(int argc, char **argv) {
              **
              ** invert and contract for flavor Xbar - after - X
              **
+             ** the upper is the old version; we want to try the following:
+             **
+             ** invert and contract for flavor X - after - Xbar
+             **
+             ** to keep the same flavor in the solver
              ***************************************************************************
              ***************************************************************************/
 
@@ -1101,7 +1167,7 @@ int main(int argc, char **argv) {
 
             for( int is = 0; is < 12; is++ ) 
             {
-              int eo_spinor_field_id_e     = iflavor * 24 + is;
+              int eo_spinor_field_id_e     = ( 1 - iflavor ) * 24 + is;
               int eo_spinor_field_id_o     = eo_spinor_field_id_e + 12;
               int eo_seq_spinor_field_id_e = 48 + is;
               int eo_seq_spinor_field_id_o = eo_seq_spinor_field_id_e + 12;
@@ -1109,7 +1175,7 @@ int main(int argc, char **argv) {
               exitstatus = init_clover_eo_sequential_source(
                   eo_spinor_field[ eo_seq_spinor_field_id_e ], eo_spinor_field[ eo_seq_spinor_field_id_o ],
                   eo_spinor_field[ eo_spinor_field_id_e     ], eo_spinor_field[ eo_spinor_field_id_o     ] ,
-                  g_shifted_sequential_source_timeslice, gauge_field_with_phase, mzzinv[iflavor][0],
+                  g_shifted_sequential_source_timeslice, gauge_field_with_phase, mzzinv[1-iflavor][0],
                   seq_source_momentum, sequential_source_gamma_id, eo_spinor_work[0]);
 
               if(exitstatus != 0) {
@@ -1124,7 +1190,7 @@ int main(int argc, char **argv) {
               spinor_field_eo2lexic ( full_spinor_work[0], eo_spinor_field[eo_seq_spinor_field_id_e], eo_spinor_field[eo_seq_spinor_field_id_o] );
 
               /* full_spinor_work[1] = D^-1 full_spinor_work[0] */
-              exitstatus = _TMLQCD_INVERT ( full_spinor_work[1], full_spinor_work[0], 1-iflavor );
+              exitstatus = _TMLQCD_INVERT ( full_spinor_work[1], full_spinor_work[0], iflavor );
               if(exitstatus < 0) {
                 fprintf(stderr, "[p2gg_invert_contract_local] Error from _TMLQCD_INVERT, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(19);
@@ -1139,7 +1205,7 @@ int main(int argc, char **argv) {
               exitstatus = check_residuum_eo ( 
                   &( eo_spinor_field[eo_seq_spinor_field_id_e]), &(eo_spinor_field[eo_seq_spinor_field_id_o]),
                   &( eo_spinor_work[0] ),                        &( eo_spinor_work[1] ),
-                  gauge_field_with_phase, mzz[1-iflavor], mzzinv[1-iflavor], 1 );
+                  gauge_field_with_phase, mzz[iflavor], mzzinv[iflavor], 1 );
  
               /* copy solution into place */
               memcpy ( eo_spinor_field[eo_seq_spinor_field_id_e], eo_spinor_work[0], sizeof_eo_spinor_field );
@@ -1156,7 +1222,7 @@ int main(int argc, char **argv) {
             /* flavor-dependent AFF tag */
             sprintf(aff_tag, "/p-lvc-lvc/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d-%d_%d", gsx[0], gsx[1], gsx[2], gsx[3],
                 seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
-                sequential_source_gamma_id, g_sequential_source_timeslice, 1-iflavor, iflavor, iflavor );
+                sequential_source_gamma_id, g_sequential_source_timeslice, iflavor, 1-iflavor, 1-iflavor );
 
             /***************************************************************************
              * contract
@@ -1164,7 +1230,7 @@ int main(int argc, char **argv) {
              * Tr[ G_a ( Xbar G_seq X ) G_v g5 Xbar^+ g5 ] = Tr[ X G_a Xbar G_seq X G_v ]
              ***************************************************************************/
             exitstatus = contract_local_local_2pt_eo (
-                &(eo_spinor_field[ ( 1 - iflavor ) * 24]), &(eo_spinor_field[ ( 1 - iflavor ) * 24 + 12]),
+                &(eo_spinor_field[ iflavor * 24]), &(eo_spinor_field[ iflavor * 24 + 12]),
                 &(eo_spinor_field[48]), &(eo_spinor_field[60]),
                 gamma_a_list, 4, gamma_v_list, 4,
                 g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
@@ -1177,14 +1243,14 @@ int main(int argc, char **argv) {
             /* flavor-dependent AFF tag */
             sprintf(aff_tag, "/p-lvc-lvc/t%.2dx%.2dy%.2dz%.2d/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d-%d_%d", gsx[0], gsx[1], gsx[2], gsx[3],
                 seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
-                sequential_source_gamma_id, g_sequential_source_timeslice, 1-iflavor, iflavor, 1-iflavor );
+                sequential_source_gamma_id, g_sequential_source_timeslice, iflavor, 1-iflavor, iflavor );
 
             /***************************************************************************
              * contract 
              * Tr[ G_v ( Xbar G_seq X ) G_a g5 X^+ g5 ] = Tr[ G_v Xbar G_seq X G_a Xbar ]
              ***************************************************************************/
             exitstatus = contract_local_local_2pt_eo (
-                &(eo_spinor_field[ iflavor * 24]), &(eo_spinor_field[ iflavor * 24 + 12]),
+                &(eo_spinor_field[ ( 1 - iflavor ) * 24]), &(eo_spinor_field[ ( 1 - iflavor ) * 24 + 12]),
                 &(eo_spinor_field[48]), &(eo_spinor_field[60]),
                 gamma_v_list, 4, gamma_a_list, 4,
                 g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
@@ -1194,12 +1260,12 @@ int main(int argc, char **argv) {
               EXIT(1);
             }
 
-          }  /* end of loop on flavor */
+          }  /* end of loop on sequential source timeslices */
 
-        }  /* end of loop on sequential source timeslices */
+/*        } */  /* end of loop on sequential source gamma id */
+      }  /* end of loop on sequential source momentum */
+    }  /* end of loop on flavor */
 
-/*      } */  /* end of loop on sequential source gamma id */
-    }  /* end of loop on sequential source momentum */
 
     /***************************************************************************/
     /***************************************************************************/
