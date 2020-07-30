@@ -776,6 +776,8 @@ int main(int argc, char **argv) {
                 +  2. * ( threep[imom][iconf][isrc][3][3][0][it  ][ireim] - threep[imom][iconf][isrc][3][3][1][it  ][ireim] ) );
             }
 
+            if ( g_verbose > 4 ) fprintf( stdout, "# [avxn_conn_analyse] tensor_trace = %25.16e %25.16e\n", tensor_trace[0], tensor_trace[1] );
+
             /**********************************************************
              * temporal gamma, temporal displacement
              **********************************************************/
@@ -786,8 +788,8 @@ int main(int argc, char **argv) {
                           ( threep[imom][iconf][isrc][0][0][0][it  ][ireim] - threep[imom][iconf][isrc][0][0][1][it  ][ireim] )
                 /* left-application. becomes right-application with fwd - bwd -> - ( bwd - fwd ) */
                 /*          fwd                                             - bwd */
-                    +     ( threep[imom][iconf][isrc][0][0][0][itm1][ireim] - threep[imom][iconf][isrc][0][0][1][itp1][ireim] )
-                    - tensor_trace[ireim];
+                    +     ( threep[imom][iconf][isrc][0][0][0][itm1][ireim] - threep[imom][iconf][isrc][0][0][1][itp1][ireim] );
+                  //   - tensor_trace[ireim];
             }
 
             /**********************************************************
@@ -801,6 +803,7 @@ int main(int argc, char **argv) {
                     +     ( threep[imom][iconf][isrc][imu][0][0][itm1][ireim] - threep[imom][iconf][isrc][imu][0][1][itp1][ireim] )
                     + 2 * ( threep[imom][iconf][isrc][0][imu][0][it  ][ireim] - threep[imom][iconf][isrc][0][imu][1][it  ][ireim] )
                 );
+                tensor_sym_sub[0][imu][ireim] = tensor_sym_sub[imu][0][ireim];
             }}
 
             /**********************************************************
@@ -817,31 +820,58 @@ int main(int argc, char **argv) {
                        threep[imom][iconf][isrc][imu][idim][0][it][ireim] - threep[imom][iconf][isrc][imu][idim][1][it][ireim] 
                     /* fwd                                                - bwd */
                      + threep[imom][iconf][isrc][idim][imu][0][it][ireim] - threep[imom][iconf][isrc][idim][imu][1][it][ireim] 
-                  ) - (imu == idim) * tensor_trace[ireim]; 
+                  ); // - (imu == idim) * tensor_trace[ireim]; 
                 }
               }
             }
 
             /**********************************************************
-             * O44, real parts only
+             * show symmetrized tensor
+             **********************************************************/
+            if ( g_verbose > 4 ) {
+              fprintf( stdout, "# tensor_sym_sub %c %6d %3d %3d  p %3d %3d %3d \n",
+                  conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1], conf_src_list[iconf][isrc][2], it,
+                  g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2]);
+              for ( int imu = 0; imu < 4; imu++ ) {
+                for ( int idim = 0; idim < 4; idim++ ) {
+                  fprintf( stdout, " %3d %3d %25.16e %25.16e\n", imu, idim, tensor_sym_sub[imu][idim][0], tensor_sym_sub[imu][idim][1] );
+                }
+              }
+
+            }
+
+
+
+            /**********************************************************
+             * O44
+             * real part only
              **********************************************************/
 
             threep_44[iconf][isrc][it][0] += tensor_sym_sub[0][0][0];
+            threep_44[iconf][isrc][it][1] += tensor_sym_sub[0][0][1];
 
             /**********************************************************
-             * Oik, again only real parts
+             * Oik
+             * again only real part
              **********************************************************/
             for ( int i = 0; i < 3; i++ ) {
               for ( int k = 0; k < 3; k++ ) {
                 threep_ik[iconf][isrc][it][0] += tensor_sym_sub[i][k][0] * mom[i] * mom[k];
+                threep_ik[iconf][isrc][it][1] += tensor_sym_sub[i][k][1] * mom[i] * mom[k];
               }
             }
 
             /**********************************************************
-             * O4k real part of loop, imaginary part of twop
+             * O4k
+             * want real observable,
+             * so set real part of observable to imaginary part of tensor
+             *
+             * NOTE: temporal component = 0
+             *       spatial components = 1, 2, 3
              **********************************************************/
             for ( int k = 0; k < 3; k++ ) {
-              threep_4k[iconf][isrc][it][0] += tensor_sym_sub[0][k][1] * mom[k];
+              threep_4k[iconf][isrc][it][0] += tensor_sym_sub[0][k+1][0] * mom[k];
+              threep_4k[iconf][isrc][it][1] += tensor_sym_sub[0][k+1][1] * mom[k];
             }
 
           }  /* end of loop on it */
@@ -887,7 +917,7 @@ int main(int argc, char **argv) {
       /**********************************************************
        * write 44 3pt
        **********************************************************/
-      for ( int ireim = 0; ireim < 1; ireim++ ) {
+      for ( int ireim = 0; ireim < 2; ireim++ ) {
         sprintf ( filename, "threep.conn.g4_D4.dtsnk%d.PX%d_PY%d_PZ%d.%s.corr",
             g_sequential_source_timeslice_list[idt],
             g_sink_momentum_list[0][0],
@@ -901,7 +931,7 @@ int main(int argc, char **argv) {
       /**********************************************************
        * write 4k 3pt
        **********************************************************/
-      for ( int ireim = 0; ireim < 1; ireim++ ) {
+      for ( int ireim = 0; ireim < 2; ireim++ ) {
         sprintf ( filename, "threep.conn.g4_Dk.dtsnk%d.PX%d_PY%d_PZ%d.%s.corr",
             g_sequential_source_timeslice_list[idt],
             g_sink_momentum_list[0][0],
@@ -914,7 +944,7 @@ int main(int argc, char **argv) {
       /**********************************************************
        * write ik 3pt
        **********************************************************/
-      for ( int ireim = 0; ireim < 1; ireim++ ) {
+      for ( int ireim = 0; ireim < 2; ireim++ ) {
         sprintf ( filename, "threep.conn.gi_Dk.dtsnk%d.PX%d_PY%d_PZ%d.%s.corr",
             g_sequential_source_timeslice_list[idt],
             g_sink_momentum_list[0][0],
@@ -934,7 +964,7 @@ int main(int argc, char **argv) {
      * with fixed source - sink separation
      *
      **********************************************************/
-    for ( int ireim = 0; ireim < 1; ireim++ ) {
+    for ( int ireim = 0; ireim < 2; ireim++ ) {
 
       if ( num_conf < 6 ) {
         fprintf ( stderr, "[avxn_conn_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
@@ -1000,7 +1030,7 @@ int main(int argc, char **argv) {
         }
       }
 
-      sprintf ( obs_name, "threepconn.g4_Dk.dtsnk%d.PX%d_PY%d_PZ%d.%s",
+      sprintf ( obs_name, "threep.conn.g4_Dk.dtsnk%d.PX%d_PY%d_PZ%d.%s",
           g_sequential_source_timeslice_list[idt],
           g_sink_momentum_list[0][0],
           g_sink_momentum_list[0][1],
@@ -1065,7 +1095,7 @@ int main(int argc, char **argv) {
      *   with source - sink fixed
      *
      **********************************************************/
-    for ( int ireim = 0; ireim < 1; ireim++ ) {
+    for ( int ireim = 0; ireim < 2; ireim++ ) {
 
       /* UWerr parameters */
       int nT = g_sequential_source_timeslice_list[idt] + 1;

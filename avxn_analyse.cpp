@@ -44,13 +44,18 @@
 #define _SQR(_a) ((_a)*(_a))
 #endif
 
-#define _LOOP_ANALYSIS
+#define _TWOP_CYD 0
+#define _TWOP_AFF 0
+#define _TWOP_H5  1
+#define _TWOP_STATS 1
 
-#define _RAT_METHOD
-#undef _FHT_METHOD_ALLT
-#define _FHT_METHOD_ACCUM
+#define _LOOP_ANALYSIS 1
 
-#define _TWOP_STATS
+#define _RAT_METHOD       1
+#define _RAT_SUB_METHOD   1
+#define _FHT_METHOD_ALLT  0
+#define _FHT_METHOD_ACCUM 0
+
 
 using namespace cvc;
 
@@ -133,6 +138,12 @@ int main(int argc, char **argv) {
 
   char const reim_str[2][3] = { "re", "im" };
 
+  char const correlator_prefix[2][20] = { "local-local" , "charged"};
+
+  char const flavor_tag[2][20]        = { "d-gf-u-gi" , "u-gf-d-gi" };
+
+  double const TWO_MPI = 2. * M_PI;
+
   int c;
   int filename_set = 0;
   int exitstatus;
@@ -144,18 +155,24 @@ int main(int argc, char **argv) {
   /* int use_disc = 0;
   int use_conn = 1; */
   int twop_fold_propagator = 0;
-  int loop_num_evecs = 0;
+  int loop_num_evecs = -1;
   int loop_nstoch = 0;
+  int loop_block_size = 1;
   int loop_use_es = 0;
   int write_data = 0;
+  double loop_norm = 1.;
+  int operator_type = 0;
 
   char loop_type[10] = "LpsDw";
+  int loop_transpose = 1;
+
+  struct timeval ta, tb, start_time, end_time;
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:N:S:F:E:v:n:u:w:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:N:S:F:E:v:n:u:w:t:b:m:O:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -177,6 +194,10 @@ int main(int argc, char **argv) {
       strcpy ( ensemble_name, optarg );
       fprintf ( stdout, "# [avxn_analyse] ensemble_name set to %s\n", ensemble_name );
       break;
+    case 'O':
+      operator_type = atoi ( optarg );
+      fprintf ( stdout, "# [avxn_analyse] operator_type set to %d\n", operator_type );
+      break;
     case 'v':
       loop_num_evecs = atoi ( optarg );
       fprintf ( stdout, "# [avxn_analyse] loop_num_evecs set to %d\n", loop_num_evecs );
@@ -189,9 +210,21 @@ int main(int argc, char **argv) {
       loop_use_es = atoi ( optarg );
       fprintf ( stdout, "# [avxn_analyse] loop_use_es set to %d\n", loop_use_es );
       break;
+    case 't':
+      loop_transpose = atoi ( optarg );
+      fprintf ( stdout, "# [avxn_analyse] loop_transpose %d\n", loop_transpose );
+      break;
     case 'w':
       write_data = atoi ( optarg );
       fprintf ( stdout, "# [avxn_analyse] write_date set to %d\n", write_data );
+      break;
+    case 'm':
+      loop_norm = atof ( optarg );
+      fprintf ( stdout, "# [avxn_analyse] loop_norm set to %e\n", loop_norm );
+      break;
+    case 'b':
+      loop_block_size = atof ( optarg );
+      fprintf ( stdout, "# [avxn_analyse] loop_block_size set to %d\n", loop_block_size );
       break;
     case 'h':
     case '?':
@@ -201,7 +234,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  g_the_time = time(NULL);
+  gettimeofday ( &start_time, (struct timezone *)NULL );
 
   /* set the default values */
   if(filename_set==0) strcpy(filename, "p2gg.input");
@@ -349,7 +382,7 @@ int main(int argc, char **argv) {
     EXIT (24);
   }
 
-#ifdef _TWOP_CYD
+#if _TWOP_CYD
   for ( int isink_momentum = 0; isink_momentum < g_sink_momentum_number; isink_momentum++ ) {
 
     for ( int iconf = 0; iconf < num_conf; iconf++ ) {
@@ -432,9 +465,9 @@ int main(int argc, char **argv) {
       }  /* end of loop on meson type */
     }
   }  /* end of loop on sink momenta */
-#endif
+#endif  /* end of _TWOP_CYD */
 
-#ifdef _TWOP_AFF
+#if _TWOP_AFF
     gettimeofday ( &ta, (struct timezone *)NULL );
 
     /***********************************************************
@@ -471,7 +504,7 @@ int main(int argc, char **argv) {
         sprintf( data_filename, "%s/%s.%s.gf%.2d.gi%.2d.px%dpy%dpz%d.aff",
             filename_prefix,
             correlator_prefix[operator_type], flavor_tag[iflavor],
-            g_sink_gamma_id_list[igf], g_source_gamma_id_list[igi],
+            g_sink_gamma_id_list[0], g_source_gamma_id_list[0],
             ( 1 - 2 * iflavor ) * g_sink_momentum_list[ipf][0], 
             ( 1 - 2 * iflavor ) * g_sink_momentum_list[ipf][1],
             ( 1 - 2 * iflavor ) * g_sink_momentum_list[ipf][2] );
@@ -481,7 +514,8 @@ int main(int argc, char **argv) {
         if( aff_status_str != NULL ) {
           fprintf(stderr, "[avxn_analyse] Error from aff_reader for filename %s, status was %s %s %d\n", data_filename, aff_status_str, __FILE__, __LINE__);
           EXIT(15);
-        } else avxn          if ( g_verbose > 1 ) fprintf(stdout, "# [avxn_analyse] reading data from file %s\n", data_filename);
+        } else {
+          if ( g_verbose > 1 ) fprintf(stdout, "# [avxn_analyse] reading data from file %s\n", data_filename);
         }
   
         if( (affn = aff_reader_root( affr )) == NULL ) {
@@ -539,8 +573,8 @@ int main(int argc, char **argv) {
              ***********************************************************/
             for ( int it = 0; it < T_global; it++ ) {
               int const itt = ( conf_src_list[iconf][isrc][2] + it ) % T_global; 
-              twop[igf][igi][ipf][iconf][isrc][iflavor][it][0] = buffer[itt][0] * ephase[0] - buffer[itt][1] * ephase[1];
-              twop[igf][igi][ipf][iconf][isrc][iflavor][it][1] = buffer[itt][1] * ephase[0] + buffer[itt][0] * ephase[1];
+              twop[ipf][iconf][isrc][iflavor][it][0] = buffer[itt][0] * ephase[0] - buffer[itt][1] * ephase[1];
+              twop[ipf][iconf][isrc][iflavor][it][1] = buffer[itt][1] * ephase[0] + buffer[itt][0] * ephase[1];
             }
   
           }  /* end of loop on sources */
@@ -559,7 +593,106 @@ int main(int argc, char **argv) {
     gettimeofday ( &tb, (struct timezone *)NULL );
     show_time ( &ta, &tb, "avxn_analyse", "read-twop-tensor-aff", g_cart_id == 0 );
 
-#endif
+#endif  /* of if _TWOP_AFF */
+
+#if _TWOP_H5
+
+  /***********************************************************
+   * loop on configs
+   ***********************************************************/
+  for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+
+    double ** buffer = init_2level_dtable ( T_global, 2 );
+
+    /***********************************************************
+     * loop on sources
+     ***********************************************************/
+    for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+
+      /***********************************************************
+       * open AFF reader
+       ***********************************************************/
+      char data_filename[500];
+      char key[400];
+    
+      sprintf( data_filename, "stream_%c/%s/corr.%.4d.t%d.h5",
+          conf_src_list[iconf][isrc][0],
+          filename_prefix,
+          conf_src_list[iconf][isrc][1],
+          conf_src_list[iconf][isrc][2] );
+
+      if ( g_verbose > 2 ) {
+        fprintf ( stdout, "# [avxn_conn_analyse] reading from data filename %s %s %d\n", data_filename, __FILE__, __LINE__ );
+        fflush(stdout);
+      }
+
+      /***********************************************************
+       * loop on sink momenta
+       ***********************************************************/
+      for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
+
+        gettimeofday ( &ta, (struct timezone *)NULL );
+
+        int pf[3] = {
+          g_sink_momentum_list[ipf][0],
+          g_sink_momentum_list[ipf][1],
+          g_sink_momentum_list[ipf][2] 
+        };
+
+        int pi[3] = {
+          -pf[0],
+          -pf[1],
+          -pf[2] 
+        };
+
+        sprintf( key, "/u+-g-u-g/t%d/gf5/pfx%dpfy%dpfz%d/gi5/pix%dpiy%dpiz%d",
+                conf_src_list[iconf][isrc][2], 
+                pf[0], pf[1], pf[2],
+                pi[0], pi[1], pi[2] );
+
+        
+        if ( g_verbose > 2 ) {
+          fprintf ( stdout, "# [avxn_conn_analyse] key = %s\n", key );
+          fflush(stdout);
+        }
+
+        exitstatus = read_from_h5_file ( (void*)buffer[0], data_filename, key,  io_proc );
+        if ( exitstatus != 0 ) {
+          fprintf( stderr, "[avxn_conn_analyse] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(1);
+        }
+
+        /***********************************************************
+         * NOTE: NO SOURCE PHASE NECESSARY
+         * ONLY REORDERUNG from source
+         ***********************************************************/
+#pragma omp parallel for
+        for ( int it = 0; it < T_global; it++ ) {
+          int const itt = ( it + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
+          twop[ipf][iconf][isrc][0][it][0] = buffer[itt][0];
+          twop[ipf][iconf][isrc][0][it][1] = buffer[itt][1];
+          twop[ipf][iconf][isrc][1][it][0] = buffer[itt][0];
+          twop[ipf][iconf][isrc][1][it][1] = buffer[itt][1];
+        }
+
+        /***********************************************************
+         * NOTE: opposite parity transformed case is given by 
+         *       complex conjugate
+         *       
+         ***********************************************************/
+
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "avxn_analyse", "read-twop-h5", g_cart_id == 0 );
+
+      }  /* end of loop on sink momenta */
+
+    }  /* end of loop on sources */
+
+    fini_2level_dtable ( &buffer );
+  }  /* end of loop on configs */
+          
+#endif  /* end of _TWOP_H5 */
+
 
   /**********************************************************
    * average 2-pt over momentum orbit
@@ -622,7 +755,7 @@ int main(int argc, char **argv) {
     }
   }  /* end of if write data */
 
-#ifdef _TWOP_STATS
+#if _TWOP_STATS
   /**********************************************************
    * 
    * STATISTICAL ANALYSIS
@@ -736,7 +869,7 @@ int main(int argc, char **argv) {
 
 #endif  /* of ifdef _TWOP_STATS */
 
-#ifdef _LOOP_ANALYSIS
+#if _LOOP_ANALYSIS
   /**********************************************************
    *
    * loop fields
@@ -748,7 +881,7 @@ int main(int argc, char **argv) {
 
   loop = init_6level_dtable ( g_insertion_momentum_number, num_conf, 4, 4, T_global, 2 );
   if ( loop == NULL ) {
-    fprintf ( stdout, "[avxn_analyse] Error from init_6level_dtable %s %d\n", __FILE__, __LINE__ );
+    fprintf ( stderr, "[avxn_analyse] Error from init_6level_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT(25);
   }
 
@@ -913,11 +1046,19 @@ int main(int argc, char **argv) {
   
           double _Complex *** zloop_buffer = init_3level_ztable ( T_global, 4, 4 );
   
-          sprintf ( filename, "stream_%c/%s/loop.%d.stoch.%s.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix2, conf_src_list[iconf][0][1],
-              loop_type,
-              g_insertion_momentum_list[imom][0],
-              g_insertion_momentum_list[imom][1],
-              g_insertion_momentum_list[imom][2] );
+          if (loop_num_evecs >= 0 ) {
+            sprintf ( filename, "stream_%c/%s/loop.%.4d.stoch.%s.nev%d.mu%d.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix2, conf_src_list[iconf][0][1],
+                loop_type, loop_num_evecs, idir,
+                g_insertion_momentum_list[imom][0],
+                g_insertion_momentum_list[imom][1],
+                g_insertion_momentum_list[imom][2] );
+          } else {
+            sprintf ( filename, "stream_%c/%s/loop.%d.stoch.%s.mu%d.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix2, conf_src_list[iconf][0][1],
+                loop_type, idir,
+                g_insertion_momentum_list[imom][0],
+                g_insertion_momentum_list[imom][1],
+                g_insertion_momentum_list[imom][2] );
+          }
   
           FILE * dfs = fopen ( filename, "r" );
           if( dfs == NULL ) {
@@ -927,21 +1068,27 @@ int main(int argc, char **argv) {
             if ( g_verbose > 2 ) fprintf ( stdout, "# [avxn_analyse] reading data from file %s\n", filename );
           }
   
+          for ( int istoch = 0; istoch < loop_nstoch / loop_block_size; istoch++ ) {
+            for ( int it = 0; it < T_global; it++ ) {
+              int itmp[4];
+              double dtmp[2];
+              for ( int ia = 0; ia < 4; ia++ ) {
+              for ( int ib = 0; ib < 4; ib++ ) {
+                if ( fscanf ( dfs, "%d %d %d %d %lf %lf\n", itmp, itmp+1, itmp+2, itmp+3, dtmp, dtmp+1 ) != 6 ) {
+                  fprintf ( stderr, "[avxn_analyse] Error from fscanf for filename %s %s %d\n", filename, __FILE__, __LINE__ );
+                  EXIT (24);
+                }
+                zloop_buffer[it][ia][ib] += dtmp[0] + dtmp[1] * I;
+              }}
+            }
+          }
           for ( int it = 0; it < T_global; it++ ) {
-            int itmp[3];
-            double dtmp[2];
             for ( int ia = 0; ia < 4; ia++ ) {
             for ( int ib = 0; ib < 4; ib++ ) {
-              if ( fscanf ( dfs, "%d %d %d %lf %lf\n", itmp, itmp+1, itmp+2, dtmp, dtmp+1 ) != 5 ) {
-                fprintf ( stderr, "[avxn_analyse] Error from fscanf for filename %s %s %d\n", filename, __FILE__, __LINE__ );
-                EXIT (24);
-              }
-              zloop_buffer[it][ia][ib] = dtmp[0] + dtmp[1] * I;
-           
-              if ( g_verbose > 4 ) fprintf (stdout,"loop %3d %3d %3d  %25.16e %25.16e\n", 
-                  itmp[0], itmp[1], itmp[2], creal( zloop_buffer[it][ia][ib]), cimag( zloop_buffer[it][ia][ib]) );
+              zloop_buffer[it][ia][ib] /= (double)loop_nstoch;
             }}
           }
+
           fclose ( dfs );
   
 #pragma omp parallel for
@@ -955,9 +1102,7 @@ int main(int argc, char **argv) {
               }}
 
               /**********************************************************
-               * factor 0.5 from using doublet vs wanted single flavor
-               *
-               * WHERE DID THAT COME FROM ???
+               * normalize with loop norm
                **********************************************************/
               loop[imom][iconf][imu][idir][it][0] = creal ( ztmp * loop_norm );
               loop[imom][iconf][imu][idir][it][1] = cimag ( ztmp * loop_norm );
@@ -1124,7 +1269,7 @@ int main(int argc, char **argv) {
     }  /* end of loop on re / im */
   }  /* end of loop momenta */
 
-#ifdef _RAT_METHOD
+#if _RAT_METHOD
   /**********************************************************
    *
    * STATISTICAL ANALYSIS for products and ratios
@@ -1243,9 +1388,13 @@ int main(int argc, char **argv) {
             /* bwd 2 insertion time = source time - dt + it */
             int const tins_bwd_2 = (  it + conf_src_list[iconf][isrc][2] - g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
 
-            if ( g_verbose > 2 ) fprintf ( stdout, "# [avxn_average] insertion times tsrc %3d dt %2d  tins %3d %3d %3d %3d\n",
-                conf_src_list[iconf][isrc][2], g_sequential_source_timeslice_list[idt],
-                tins_fwd_1, tins_fwd_2, tins_bwd_1, tins_bwd_2 );
+            if ( g_verbose > 4 ) {
+              fprintf ( stdout, "# [avxn_average] insertion times stream %c conf %4d tsrc %3d dt %2d it %3d tins %3d %3d %3d %3d\n",
+                  conf_src_list[iconf][isrc][0],
+                  conf_src_list[iconf][isrc][1],
+                  conf_src_list[iconf][isrc][2], g_sequential_source_timeslice_list[idt], it,
+                  tins_fwd_1, tins_fwd_2, tins_bwd_1, tins_bwd_2 );
+            }
 
             /**********************************************************
              * O44, real parts only
@@ -1259,8 +1408,6 @@ int main(int argc, char **argv) {
                     ( a_fwd_phase[0] + b_fwd_phase[0] ) * ( loop_sub[0][iconf][3][3][tins_fwd_1][0] + loop_sub[0][iconf][3][3][tins_fwd_2][0] ) 
                   + ( a_bwd_phase[0] + b_bwd_phase[0] ) * ( loop_sub[0][iconf][3][3][tins_bwd_1][0] + loop_sub[0][iconf][3][3][tins_bwd_2][0] ) 
                 ) * 0.125;
-
-
 
             /**********************************************************
              * Oik, again only real parts
@@ -1647,17 +1794,164 @@ int main(int argc, char **argv) {
 
     }  /* end of loop on reim */
 
+#if _RAT_SUB_METHOD
+  /**********************************************************
+   *
+   * STATISTICAL ANALYSIS for vev-subtracted ratio
+   *
+   * < C_2pt x L >_U  / < C_2pt >_U - < L >_U
+   *
+   **********************************************************/
+
+    for ( int ireim = 0; ireim < 1; ireim++ ) {
+
+      /* UWerr parameters */
+      int nT = g_sequential_source_timeslice_list[idt] + 1;
+      int narg          = 3;
+      int arg_first[3]  = { 0, nT, nT+1 };
+      int arg_stride[3] = { 1,  0,    0 };
+      char obs_name[100];
+
+      double ** data = init_2level_dtable ( num_conf, nT + 2 );
+      if ( data == NULL ) {
+        fprintf ( stderr, "[avxn_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+        EXIT(1);
+      }
+
+      /**********************************************************
+       * O44
+       **********************************************************/
+#pragma omp parallel for
+      for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+        for ( int it = 0; it < nT; it++ ) {
+          data[iconf][it] = 0.;
+          for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+            data[iconf][it] += threep_44[iconf][isrc][it][ireim];
+          }
+          data[iconf][it] /= (double)num_src_per_conf;
+        }
+      }
+
+#pragma omp parallel for
+      for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+        double dtmp = 0.;
+        for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+#if 0
+          int const tsink  = (  g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
+          int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
+#endif  /* of if 0 */
+          int const tsink  = (  g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
+          int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
+          dtmp += 0.5 * ( twop_orbit[iconf][isrc][tsink][ireim] + twop_orbit[iconf][isrc][tsink2][ireim] );
+        }
+        data[iconf][nT] = dtmp / (double)num_src_per_conf;
+        dtmp = 0.;
+        for ( int it = 0; it < T_global; it++ ) {
+          dtmp += loop_sub[0][iconf][3][3][it][0];
+        }
+        data[iconf][nT+1] = dtmp / (double)T_global;
+      }
+
+      sprintf ( obs_name, "ratio.sub.%s.g4_D4.dtsnk%d.PX%d_PY%d_PZ%d.%s",
+        loop_tag,
+        g_sequential_source_timeslice_list[idt],
+        g_sink_momentum_list[0][0],
+        g_sink_momentum_list[0][1],
+        g_sink_momentum_list[0][2], reim_str[ireim] );
+
+      exitstatus = apply_uwerr_func ( data[0], num_conf, nT+2, nT, narg, arg_first, arg_stride, obs_name, ratio_1_2_mi_3, dratio_1_2_mi_3 );
+      if ( exitstatus != 0 ) {
+        fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(115);
+      }
+
+#if 0
+      /**********************************************************
+       * O4k
+       **********************************************************/
+      src_avg_real2_reim ( data, threep_4k, num_conf, num_src_per_conf, nT, ireim );
+
+#pragma omp parallel for
+      for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+        double dtmp = 0.;
+        for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+#if 0
+          int const tsink  = (  g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
+          int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
+#endif  /* of if 0 */
+          int const tsink  = (  g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
+          int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
+          dtmp += 0.5 * ( twop_orbit[iconf][isrc][tsink][ireim] + twop_orbit[iconf][isrc][tsink2][ireim] );
+        }
+        data[iconf][nT] = dtmp / (double)num_src_per_conf;
+      }
+
+      sprintf ( obs_name, "ratio.%s.g4_Dk.dtsnk%d.PX%d_PY%d_PZ%d.%s",
+        loop_tag,
+        g_sequential_source_timeslice_list[idt],
+        g_sink_momentum_list[0][0],
+        g_sink_momentum_list[0][1],
+        g_sink_momentum_list[0][2], reim_str[ireim] );
+
+      exitstatus = apply_uwerr_func ( data[0], num_conf, nT+1, nT, narg, arg_first, arg_stride, obs_name, ratio_1_1, dratio_1_1 );
+      if ( exitstatus != 0 ) {
+        fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(115);
+      }
+
+      /**********************************************************
+       * Oik
+       **********************************************************/
+      src_avg_real2_reim ( data, threep_ik, num_conf, num_src_per_conf, nT, ireim );
+
+#pragma omp parallel for
+      for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+        double dtmp = 0;
+        for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+#if 0
+          int const tsink  = (  g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
+          int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
+#endif  /* end of if 0 */
+          int const tsink  = (  g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
+          int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
+          dtmp += 0.5 * ( twop_orbit[iconf][isrc][tsink][ireim] + twop_orbit[iconf][isrc][tsink2][ireim] );
+        }
+        data[iconf][nT] = dtmp / (double)num_src_per_conf;
+      }
+
+      sprintf ( obs_name, "ratio.%s.gi_Dk.dtsnk%d.PX%d_PY%d_PZ%d.%s",
+        loop_tag,
+        g_sequential_source_timeslice_list[idt],
+        g_sink_momentum_list[0][0],
+        g_sink_momentum_list[0][1],
+        g_sink_momentum_list[0][2], reim_str[ireim] );
+
+      exitstatus = apply_uwerr_func ( data[0], num_conf, nT+1, nT, narg, arg_first, arg_stride, obs_name, ratio_1_1, dratio_1_1 );
+      if ( exitstatus != 0 ) {
+        fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(115);
+      }
+
+#endif  /* of if 0 */
+      fini_2level_dtable ( &data );
+
+    }  /* end of loop on reim */
+
+
+#endif  /* of if _RAT_SUB_METHOD */
+
     fini_4level_dtable ( &threep_44 );
     fini_4level_dtable ( &threep_4k );
     fini_4level_dtable ( &threep_ik );
 
   }  /* end of loop on dt */
-#endif  /* end of ifdef _RAT_METHOD */
+
+#endif  /* end of _RAT_METHOD */
 
   /**********************************************************/
   /**********************************************************/
 
-#ifdef _FHT_METHOD_ALLT
+#if _FHT_METHOD_ALLT
   /**********************************************************
    *
    * STATISTICAL ANALYSIS for products and ratios
@@ -1915,12 +2209,12 @@ int main(int argc, char **argv) {
     fini_3level_dtable ( &threep_ik );
 
   }  /* end FHT calculation */
-#endif  /* end of ifdef _FHT_METHOD_ALLT */
+#endif  /* end of if _FHT_METHOD_ALLT */
 
   /**********************************************************/
   /**********************************************************/
 
-#ifdef _FHT_METHOD_ACCUM
+#if _FHT_METHOD_ACCUM
   /**********************************************************
    *
    * STATISTICAL ANALYSIS for products and ratios
@@ -2222,7 +2516,7 @@ int main(int argc, char **argv) {
     fini_3level_dtable ( &threep_ik );
 
   }  /* end FHT calculation */
-#endif  /* end of ifdef _FHT_METHOD_ACCUM */
+#endif  /* end of if _FHT_METHOD_ACCUM */
 
 
   fini_6level_dtable ( &loop_sub );
@@ -2252,11 +2546,8 @@ int main(int argc, char **argv) {
   MPI_Finalize();
 #endif
 
-  if(g_cart_id==0) {
-    g_the_time = time(NULL);
-    fprintf(stdout, "# [avxn_analyse] %s# [avxn_analyse] end of run\n", ctime(&g_the_time));
-    fprintf(stderr, "# [avxn_analyse] %s# [avxn_analyse] end of run\n", ctime(&g_the_time));
-  }
+  gettimeofday ( &end_time, (struct timezone *)NULL );
+  show_time ( &start_time, &end_time, "avxn_analyse", "runtime", g_cart_id == 0 );
 
   return(0);
 }
