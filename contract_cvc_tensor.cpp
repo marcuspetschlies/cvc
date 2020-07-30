@@ -72,12 +72,12 @@ void init_contract_cvc_tensor_usource(double *gauge_field, int source_coords[4],
   int gsx[4] = {source_coords[0], source_coords[1], source_coords[2], source_coords[3] };
   int sx[4];
   int exitstatus;
-  double ratime, retime;
+  struct timeval start_time, end_time;
 
   /***********************************************************
    * determine source coordinates, find out, if source_location is in this process
    ***********************************************************/
-  ratime = _GET_TIME;
+  gettimeofday ( &start_time, (struct timezone *)NULL );
 
   if( ( exitstatus = get_point_source_info (gsx, sx, &source_proc_id) ) != 0  ) {
     fprintf(stderr, "[init_contract_cvc_tensor_usource] Error from get_point_source_info, status was %d\n", exitstatus);
@@ -152,8 +152,9 @@ void init_contract_cvc_tensor_usource(double *gauge_field, int source_coords[4],
   }  /* end of loop on mu */
 #endif  /* of if 0 */
 
-  retime = _GET_TIME;
-  if(g_cart_id == 0) fprintf(stdout, "# [init_contract_cvc_tensor_usource] time for init_contract_cvc_tensor_usource = %e seconds\n", retime-ratime);
+  gettimeofday ( &end_time, (struct timezone *)NULL );
+  show_time ( &start_time, &end_time, "init_contract_cvc_tensor_usource", "init-usource", g_cart_id == 0 );
+
 }  /* end of init_contract_cvc_tensor_usource */
 
   /***********************************************************************************************************/
@@ -762,7 +763,7 @@ int cvc_tensor_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, c
 int contract_write_to_aff_file (double ** const c_tp, struct AffWriter_s*affw, char*tag, const int (* momentum_list)[3], int const momentum_number, int const io_proc ) {
 
   int exitstatus, i;
-  double ratime, retime;
+  struct timeval start_time, end_time;
 
   struct AffNode_s *affn = NULL, *affdir=NULL;
 
@@ -770,6 +771,8 @@ int contract_write_to_aff_file (double ** const c_tp, struct AffWriter_s*affw, c
   double *buffer = NULL;
   double _Complex *aff_buffer = NULL;
   double _Complex *zbuffer = NULL;
+
+  gettimeofday ( &start_time, (struct timezone *)NULL );
 
   if ( io_proc == 2 ) {
 
@@ -785,8 +788,6 @@ int contract_write_to_aff_file (double ** const c_tp, struct AffWriter_s*affw, c
       return(6);
     }
   }
-
-  ratime = _GET_TIME;
 
   /* reorder c_tp into buffer with order time - munu - momentum */
   buffer = (double*)malloc(  momentum_number * 2 * T * sizeof(double) );
@@ -864,8 +865,8 @@ int contract_write_to_aff_file (double ** const c_tp, struct AffWriter_s*affw, c
   }
 #endif
 
-  retime = _GET_TIME;
-  if(io_proc == 2) fprintf(stdout, "# [contract_write_to_aff_file] time for saving momentum space results = %e seconds\n", retime-ratime);
+  gettimeofday ( &end_time, (struct timezone *)NULL );
+  show_time ( &start_time, &end_time, "contract_write_to_aff_file", "collect-write", g_cart_id == 0 );
 
   return(0);
 
@@ -1491,9 +1492,9 @@ int contract_local_local_2pt_eo ( double**sprop_list_e, double**sprop_list_o, do
   double **conn_p = NULL;
   char aff_tag[200];
 
-  struct timeval ta, tb;
+  struct timeval ta, tb, start_time, end_time;
 
-  gettimeofday ( &ta, (struct timezone *)NULL );
+  gettimeofday ( &start_time, (struct timezone *)NULL );
 
   /* auxilliary fermion propagator fields ( without halo ) */
   fermion_propagator_type *fp_S_e = create_fp_field( Vhalf );
@@ -1534,6 +1535,8 @@ int contract_local_local_2pt_eo ( double**sprop_list_e, double**sprop_list_o, do
     return(1);
   }
  
+  gettimeofday ( &ta, (struct timezone *)NULL );
+
   /* fp_S_e = sprop^e */
   exitstatus = assign_fermion_propagator_from_spinor_field (fp_S_e, sprop_list_e, Vhalf);
   /* fp_S_o = sprop^o */
@@ -1543,6 +1546,11 @@ int contract_local_local_2pt_eo ( double**sprop_list_e, double**sprop_list_o, do
   /* fp_T_o = tprop^o */
   exitstatus = assign_fermion_propagator_from_spinor_field (fp_T_o, tprop_list_o, Vhalf);
 
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "contract_local_local_2pt_eo", "assign-propagators", g_cart_id == 0 );
+
+
+
   /* loop on gamma structures at sink */
   for ( int idsink = 0; idsink < gamma_sink_num; idsink++ ) {
     /* loop on gamma structures at source */
@@ -1550,6 +1558,8 @@ int contract_local_local_2pt_eo ( double**sprop_list_e, double**sprop_list_o, do
 
       memset( conn_e[0], 0, 2*Vhalf*sizeof(double) );
       memset( conn_o[0], 0, 2*Vhalf*sizeof(double) );
+
+      gettimeofday ( &ta, (struct timezone *)NULL );
 
       /**********************************************************
        * even part
@@ -1571,16 +1581,26 @@ int contract_local_local_2pt_eo ( double**sprop_list_e, double**sprop_list_o, do
       /* contract g5 fp_S_o^+ g5 fp_aux = g5 S^o^+ g5 Gamma_f T^o Gamma_i */
       co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field ( (complex *)(conn_o[0]), fp_S_o, fp_aux, -1., Vhalf);
 
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "contract_local_local_2pt_eo", "reduction", g_cart_id == 0 );
+
       /**********************************************************
        * Fourier transform
        **********************************************************/
       complex_field_eo2lexic ( conn_lexic[0], conn_e[0], conn_o[0] );
+
+      gettimeofday ( &ta, (struct timezone *)NULL );
 
       exitstatus = momentum_projection ( conn_lexic[0], conn_p[0], T, momentum_number, momentum_list);
       if(exitstatus != 0) {
         fprintf(stderr, "[contract_local_local_2pt_eo] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(3);
       }
+
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "contract_local_local_2pt_eo", "momentum_projection", g_cart_id == 0 );
+
+      gettimeofday ( &ta, (struct timezone *)NULL );
 
       sprintf(aff_tag, "%s/gf%.2d/gi%.2d", tag, gamma_sink_list[idsink], gamma_source_list[idsource] );
 #ifdef HAVE_LHPC_AFF
@@ -1593,6 +1613,8 @@ int contract_local_local_2pt_eo ( double**sprop_list_e, double**sprop_list_o, do
         return(3);
       }
 
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "contract_local_local_2pt_eo", "contract_write_to_aff_file", g_cart_id == 0 );
     }  /* end of loop on Gamma_i */
   }  /* end of loop on Gamma_f */
 
@@ -1608,8 +1630,8 @@ int contract_local_local_2pt_eo ( double**sprop_list_e, double**sprop_list_o, do
   fini_2level_buffer ( &conn_lexic );
   fini_2level_buffer ( &conn_p );
 
-  gettimeofday ( &tb, (struct timezone *)NULL );
-  show_time ( &ta, &tb, "contract_local_local_2pt_eo", "contract-ft-write", g_cart_id == 0 );
+  gettimeofday ( &end_time, (struct timezone *)NULL );
+  show_time ( &start_time, &end_time, "contract_local_local_2pt_eo", "contract-ft-write", g_cart_id == 0 );
 
 
   return(0);
