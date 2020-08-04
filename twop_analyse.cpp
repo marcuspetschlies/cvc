@@ -54,8 +54,8 @@ void usage() {
 }
 
 #define _TWOP_AFF_SINGLE 0
-#define _TWOP_AFF_MULT   0
-#define _TWOP_H5_SINGLE  1
+#define _TWOP_AFF_MULT   1
+#define _TWOP_H5_SINGLE  0
 
 int main(int argc, char **argv) {
   
@@ -69,7 +69,6 @@ int main(int argc, char **argv) {
 
   int c;
   int filename_set = 0;
-  int check_momentum_space_WI = 0;
   int exitstatus;
   int io_proc = -1;
   char filename[100];
@@ -221,16 +220,16 @@ int main(int argc, char **argv) {
   for ( int iconf = 0; iconf < num_conf; iconf++ ) {
     for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
 
-      Nconf = conf_src_list[iconf][isrc][0];
+      Nconf = conf_src_list[iconf][isrc][1];
 
       /***********************************************************
        * copy source coordinates
        ***********************************************************/
       int const gsx[4] = {
-          conf_src_list[iconf][isrc][1],
           conf_src_list[iconf][isrc][2],
           conf_src_list[iconf][isrc][3],
-          conf_src_list[iconf][isrc][4] };
+          conf_src_list[iconf][isrc][4],
+          conf_src_list[iconf][isrc][5] };
 
       /***********************************************
        * reader for aff input file
@@ -239,7 +238,9 @@ int main(int argc, char **argv) {
       gettimeofday ( &ta, (struct timezone *)NULL );
       struct AffNode_s *affn = NULL, *affdir = NULL;
 
-      sprintf ( filename, "%d/%s.%.4d.t%d.aff", Nconf, g_outfile_prefix, Nconf, gsx[0] );
+      /* sprintf ( filename, "%d/%s.%.4d.t%d.aff", Nconf, g_outfile_prefix, Nconf, gsx[0] ); */
+      sprintf ( filename, "stream_%c/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0], g_outfile_prefix, Nconf, 
+          gsx[0], gsx[1], gsx[2], gsx[3] );
 
       fprintf(stdout, "# [twop_analyse] reading data from file %s\n", filename);
 
@@ -302,7 +303,7 @@ int main(int argc, char **argv) {
             /* sprintf ( key , "/%s/%s/t%.2dx%.2dy%.2dz%.2d/gf%.2d/gi%.2d/px%dpy%dpz%d", twop_correlator_prefix[ correlator_type ], twop_flavor_tag[ flavor_type ],
                 gsx[0], gsx[1], gsx[2], gsx[3], sink_gamma_id, source_gamma_id, sink_momentum[0], sink_momentum[1], sink_momentum[2] ); */
 
-            sprintf ( key , "/%s/t%.2dx%.2dy%.2dz%.2d/gf%.2d/gi%.2d/px%dpy%dpz%d", twop_correlator_prefix[ correlator_type ], twop_flavor_tag[ ifl ],
+            sprintf ( key , "/%s/%s/t%.2dx%.2dy%.2dz%.2d/gf%.2d/gi%.2d/px%dpy%dpz%d", twop_correlator_prefix[ correlator_type ], twop_flavor_tag[ ifl ],
                 gsx[0], gsx[1], gsx[2], gsx[3], sink_gamma_id, source_gamma_id, sink_momentum[0], sink_momentum[1], sink_momentum[2] );
 
             if ( g_verbose > 2 ) fprintf ( stdout, "# [twop_analyse] key = %s\n", key );
@@ -714,8 +715,10 @@ int main(int argc, char **argv) {
 
         for ( int iconf = 0; iconf < num_conf; iconf++ ) {
           for ( int it = 0; it < T_global; it++ ) {
-            /* fprintf ( fs, "%3d %25.16e %c %6d\n", it, data[iconf][it], conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] ); */
-            fprintf ( fs, "%3d %25.16e %6d\n", it, data[iconf][it], iconf * g_gauge_step );
+            fprintf ( fs, "%3d %25.16e %c %6d\n", it, data[iconf][it], conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] );
+
+            /* for matching Konstantin's required layout */
+            /* fprintf ( fs, "%3d %25.16e %6d\n", it, data[iconf][it], iconf * g_gauge_step ); */
           }
         }
 
