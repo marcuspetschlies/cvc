@@ -860,8 +860,13 @@ int read_contraction(double *s, int *nsource, char *filename, int Nmu) {
 /*****************************************************
  * init the gamma matrix permutations and signs
  *****************************************************/
-void init_gamma(void) {
+void init_gamma(const char *gamma_basis) {
 /*
+   We have now implemented two sets of gamma matrices
+   (1) original cvc gamma basis
+   (2) plegma gamma basis
+
+   (1) strcmp(gamma_basis, "cvc")
    The gamma matrices.
 
    Standard choice (as in gwc):
@@ -898,6 +903,44 @@ void init_gamma(void) {
    the sequence is:
    0, 1, 2, 3, id, 5, 0_5, 1_5, 2_5, 3_5, 0_1, 0_2, 0_3, 1_2, 1_3, 2_3
 id 0  1  2  3   4  5    6    7    8    9   10   11   12   13   14   15
+
+   PLEGMA choice:
+
+   gamma_1:
+
+   |  0  0  0  i |
+   |  0  0  i  0 |
+   |  0 -i  0  0 |
+   | -i  0  0  0 |
+
+   gamma_2:
+
+   |  0  0  0 +1 |
+   |  0  0 -1  0 |
+   |  0 -1  0  0 |
+   | +1  0  0  0 |
+
+   gamma_3:
+
+   |  0  0 +i  0 |
+   |  0  0  0 -i |
+   | -i  0  0  0 |
+   |  0 +i  0  0 |
+
+   gamma_0:
+   | +1  0  0  0 |
+   |  0 +1  0  0 |
+   |  0  0 -1  0 |
+   |  0  0  0 -1 |
+
+   Permutation of the eight elements of a spinor (re0, im0, re1, im1, ...).
+
+   the sequence is:
+   0, 1, 2, 3, id, 5, 0_5, 1_5, 2_5, 3_5, 0_1, 0_2, 0_3, 1_2, 1_3, 2_3
+id 0  1  2  3   4  5    6    7    8    9   10   11   12   13   14   15
+
+   
+   
 */
 
 /* the gamma matrix index */

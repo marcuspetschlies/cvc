@@ -765,7 +765,7 @@ int init_geometry(void) {
   co_phase_up[3].im = sin(BCangle[3]*M_PI / (double)(LZ*g_nproc_z));
 
   /* initialize the gamma matrices */
-  init_gamma();
+  init_gamma("cvc");
 
   return(0);
 }  /* end of init_geometry */

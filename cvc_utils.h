@@ -34,7 +34,7 @@ int write_contraction (double *s, int *nsource, char *filename, int Nmu,
                        int write_ascii, int append);
 int read_contraction(double *s, int *nsource, char *filename, int Nmu);
 
-void init_gamma(void);
+void init_gamma(const char *basis);
 
 int printf_gauge_field( double *gauge, FILE *ofs);
 int printf_spinor_field(double *s, int print_halo, FILE *ofs);
