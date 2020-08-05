@@ -23,6 +23,8 @@ double twopoint_function_get_diagram_norm ( twopoint_function_type *p, int const
 
 void twopoint_function_get_diagram_name (char *diagram_name,  twopoint_function_type *p, int const id );
 
+void twopoint_function_get_diagram_name_plegma (char *diagram_name,  twopoint_function_type *p, int const id );
+
 double _Complex twopoint_function_get_correlator_phase ( twopoint_function_type *p );
 
 int twopoint_function_accumulate_diagrams ( double _Complex *** const diagram, twopoint_function_type *p, int const N, struct AffReader_s *affr );

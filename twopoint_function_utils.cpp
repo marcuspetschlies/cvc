@@ -252,6 +252,64 @@ void twopoint_function_fini ( twopoint_function_type *p ) {
  *
  ********************************************************************************/
 
+void twopoint_function_print_diagram_key_plegma (char *key, twopoint_function_type *p, int id){
+
+  char comma[] = ",";
+  char *ptr = NULL;
+  char diag_str[20];
+  char diagrams[_TWOPOINT_FUNCTION_TYPE_MAX_STRING_LENGTH];
+  char fbwd_str[20] = "";
+
+  if ( ! ( strcmp( p->fbwd, "NA" ) == 0 ) ) {
+    sprintf ( fbwd_str, "%s/", p->fbwd );
+  }
+
+
+  strcpy( diagrams, p->diagrams );
+  if ( id >= p->n ) { strcpy ( key, "NA" ); return; }
+
+  if ( id >= 0 ) {
+    ptr = strtok( diagrams, comma );
+    if ( ptr == NULL ) { strcpy ( key, "NA" ); return; }
+    if ( strcmp ( ptr, "NA" ) == 0 ) { strcpy ( key, "NA" ); return; }
+    // fprintf(stdout, "# [twopoint_function_print_diagram_key] %d ptr = %s\n", 0, ptr);
+
+    for( int i = 1; i <= id && ptr != NULL; i++ ) {
+      ptr = strtok(NULL, "," );
+      // fprintf(stdout, "# [twopoint_function_print_diagram_key] %d ptr = %s\n", i, ptr);
+    }
+    if ( ptr == NULL ) { strcpy ( key, "NA" ); return; }
+    sprintf( diag_str, "%s/", ptr );
+
+  } else {
+    diag_str[0] = '\0';
+  }
+
+  //Note that here we always save the correlators forward in time
+  //Note also, that except pi2 we do not store different momenta in 
+  //different dataset, so the key is only used to identify the name of  //the diagram for the twopoint function and the pi2 source meson 
+  //momentum
+  if (strcmp( p->type, "b-b") == 0){
+    sprintf(key, "%s",diag_str);
+  }
+  else if (strcmp( p->type, "mxb-mxb") == 0){
+    sprintf(key, "/pi2=%d_%d_%d/%s",p->pi2[0],p->pi2[1],p->pi2[2],diag_str);
+  }
+  else if (strcmp( p->type, "mxb-b") == 0){
+    sprintf(key, "%s",diag_str);
+  }
+  else if (strcmp( p->type, "b-mxb") == 0){
+    sprintf(key, "/pi2=%d_%d_%d/%s",p->pi2[0],p->pi2[1],p->pi2[2],diag_str);
+  }
+  else if (strcmp( p->type, "m-m") == 0){
+    sprintf(key, "%s", diag_str);
+  }
+  else{
+    sprintf(key, "NA" );
+  }
+}
+
+
 void twopoint_function_print_diagram_key (char*key, twopoint_function_type *p, int id ) { 
 
   char comma[] = ",";
