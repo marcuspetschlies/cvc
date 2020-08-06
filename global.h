@@ -85,7 +85,7 @@
 #define _ONE_OVER_SQRT2 (0.707106781186548)
 
 #define MAX_M_M_2PT_NUM 16
-#define MAX_TWOPOINT_FUNCTION_NUM 3200
+#define MAX_TWOPOINT_FUNCTION_NUM 20000
 #define MAX_SOURCE_LOCATION_NUMBER 128
 
 #define MAX_MOMENTUM_NUMBER 300
@@ -245,7 +245,8 @@ EXTERN tmLQCD_lat_params g_tmLQCD_lat;
 EXTERN tmLQCD_deflator_params g_tmLQCD_defl;
 #endif
 
-EXTERN twopoint_function_type g_twopoint_function_list[MAX_TWOPOINT_FUNCTION_NUM];
+/* EXTERN twopoint_function_type g_twopoint_function_list[MAX_TWOPOINT_FUNCTION_NUM]; */
+EXTERN twopoint_function_type * g_twopoint_function_list;
 EXTERN int g_twopoint_function_number;
 
 EXTERN double **g_clover, **g_mzz_up, **g_mzz_dn, **g_mzzinv_up, **g_mzzinv_dn;

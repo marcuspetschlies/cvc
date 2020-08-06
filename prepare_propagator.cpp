@@ -34,6 +34,7 @@
 #include "smearing_techniques.h"
 #include "project.h"
 #include "matrix_init.h"
+#include "table_init_d.h"
 #include "dummy_solver.h"
 
 #ifndef _NON_ZERO
@@ -120,6 +121,9 @@ int prepare_seqprop_point_from_stochastic_oneend (double**fp_out, double **phi, 
 }  // end of prepare_seqprop_point_from_stochastic_oneend
 #endif
 
+/*******************************************************************/
+/*******************************************************************/
+
 #if 0
 /************************************************************
  * prepare_prop_point_from_stochastic
@@ -173,6 +177,9 @@ int prepare_prop_point_from_stochastic (double**fp_out, double*phi, double*chi,
   return(0);
 }  // end of prepare_prop_point_from_stochastic
 #endif
+
+/*******************************************************************/
+/*******************************************************************/
 
 /*******************************************************************
  * seqn using stochastic
@@ -338,6 +345,8 @@ int prepare_seqn_stochastic_vertex_propagator_sliced3d (double**seq_prop, double
   return(0);
 }  /* prepare_seqn_stochastic_vertex_propagator_sliced3d */
 
+/*******************************************************************/
+/*******************************************************************/
 
 /*******************************************************************
  * stochastic_source_ti_vertex_ti_propagator
@@ -481,9 +490,8 @@ int stochastic_source_ti_vertex_ti_propagator (double*** seq_stochastic_source, 
   return(0);
 }  /* stochastic_source_ti_vertex_ti_propagator */
 
-
-
-
+/*******************************************************************/
+/*******************************************************************/
 
 /*******************************************************************
  * seqn using stochastic
@@ -697,6 +705,9 @@ int prepare_seqn_stochastic_vertex_propagator_sliced3d_oet (double**seq_prop, do
   return(0);
 }  /* end of prepare_seqn_stochastic_vertex_propagator_sliced3d_oet */
 
+/*******************************************************************/
+/*******************************************************************/
+
 /*******************************************************************
  * seqn using stochastic - vertex - stochastic oet
  *
@@ -809,6 +820,9 @@ int prepare_seq_stochastic_vertex_stochastic_oet (double**seq_prop, double**stoc
 }  /* end of prepare_seq_stochastic_vertex_stochastic_oet */
 
 
+/*******************************************************************/
+/*******************************************************************/
+
 int point_source_propagator (double **prop, int gsx[4], int op_id, int smear_source, int smear_sink, double *gauge_field_smeared, int check_residual, double *gauge_field, double **mzz[2] ) {
 
   const size_t sizeof_spinor_field = _GSI(VOLUME) * sizeof(double);
@@ -882,5 +896,71 @@ int point_source_propagator (double **prop, int gsx[4], int op_id, int smear_sou
   return(0);
 }  /* end of point_source_propagator */
 
+/***************************************************************************/
+/***************************************************************************/
+
+/***************************************************************************
+ * generic propagator from a given set of source spinor fields
+ *
+ *   gauge_field and mzz are only needed, if residual is checked
+ **************************************************************************/
+int prepare_propagator_from_source ( double ** const prop, double ** const source , int const nsc, int const op_id, int const check_residual, double * const gauge_field, double ** mzz[2], char * prefix ) {
+
+  size_t const sizeof_spinor_field           = _GSI(VOLUME) * sizeof(double);
+  int exitstatus;
+
+  /***************************************************************************
+   * allocate memory for spinor work fields
+   * WITH HALO
+   ***************************************************************************/
+  double ** spinor_work  = init_2level_dtable ( 3, _GSI( VOLUME+RAND ) );
+  if ( spinor_work == NULL ) {
+    fprintf(stderr, "[prepare_propagator_from_source] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
+
+  /* loop on set of given source fields */
+  for ( int isc = 0; isc < nsc; isc++ ) {
+
+    /* copy the source field */
+    memcpy ( spinor_work[2], source[isc], sizeof_spinor_field );
+
+    /* init solution field to zero */
+    memset ( spinor_work[1], 0, sizeof_spinor_field );
+
+    /* copy source again, to preserve original source */
+    memcpy ( spinor_work[0], spinor_work[2], sizeof_spinor_field );
+
+    /* call solver via tmLQCD */
+    exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id );
+    if(exitstatus < 0) {
+      fprintf(stderr, "[prepare_propagator_from_source] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      return(44);
+    }
+
+    /* check the solution in spinor_work[1]
+     * residual = || D [1] - [2] || */
+    if ( check_residual ) {
+      check_residual_clover ( &(spinor_work[1]), &(spinor_work[2]), gauge_field, mzz[op_id], 1 );
+    }
+
+    /* copy the solution into the target output field */
+    memcpy( prop[isc], spinor_work[1], sizeof_spinor_field );
+
+    /* optionally write the propagator */
+    if ( g_write_propagator && ( prefix != NULL ) ) {
+      char filename[400];
+      sprintf ( filename, "%s.%d.inverted", prefix, isc );
+      exitstatus = write_propagator( prop[isc], filename, 0, g_propagator_precision);
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[prepare_propagator_from_source] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        return(2);
+      }
+    }
+  }  /* end of loop set of on source fields */
+
+  fini_2level_dtable ( &spinor_work );
+  return(0);
+}  /* end of prepare_propagator_from_source */
 
 }  /* end of namespace cvc */

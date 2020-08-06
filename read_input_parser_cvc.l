@@ -1142,9 +1142,19 @@ namespace cvc {
 
 <INITTWOPOINTFUNCTION>Init{SPC}* {
   if(cvc::g_twopoint_function_number==MAX_TWOPOINT_FUNCTION_NUM) {
-    fprintf(stderr, "[read_input_parser] Error, too many twopoint_function\n");
+    fprintf(stderr, "[read_input_parser] Error, too many twopoint_functions\n");
     exit(1);
   }
+  if ( cvc::g_twopoint_function_list == NULL ) {
+    cvc::g_twopoint_function_list = (cvc::twopoint_function_type*)malloc ( MAX_TWOPOINT_FUNCTION_NUM * sizeof ( cvc::twopoint_function_type ) );
+    if ( cvc::g_twopoint_function_list == NULL ) {
+      fprintf ( stderr, "[read_input_parser] Error from malloc %s %d\n", __FILE__, __LINE__ );
+      exit(1);
+    } else {
+      fprintf ( stdout, "# [read_input_parser] g_twopoint_function_list initialized line %d\n",  cvc::line_of_file );
+    }
+  }
+
   if(cvc::myverbose) printf("# [read_input_parser] Initialization twopoint_function line %d\n", cvc::line_of_file);
   cvc::twopoint_function_ptr = &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number]);
   cvc::twopoint_function_init ( cvc::twopoint_function_ptr );

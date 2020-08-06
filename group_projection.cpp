@@ -1,4 +1,4 @@
-/****************************************************
+  /****************************************************
  * group_projection.cpp
  *
  * Fr 10. Nov 16:15:09 CET 2017
@@ -42,6 +42,19 @@
 namespace cvc {
 
 little_group_type *little_groups = NULL;
+
+#if defined CUBIC_GROUP_SINGLE_COVER
+char const cubic_group_rotations_R_names[24][12] = { "E", "C31-", "C31+", "C33+", "C33-", "C32-", "C32+", "C34+", "C34-", "C4x-", "C4x+", "C4y-", "C4y+", "C4z-", "C4z+", "C2d`", "C2f`", "C2a`", "C2b`", "C2c`", "C2e`", "C2x", "C2y", "C2z" };
+
+char const cubic_group_rotations_IR_names[24][12] = { "i", "S61+", "S61-", "S63-", "S63+", "S62+", "S62-", "S64-", "S64+", "S4x+", "S4x-", "S4y+", "S4y-", "S4z+", "S4z-", "sigma_d4", "sigma_d6", "sigma_d1", "sigma_d2", "sigma_d3", "sigma_d5", "sigma_x", "sigma_y", "sigma_z" };
+
+/* #elif defined CUBIC_GROUP_DOUBLE_COVER */
+#else
+char const cubic_group_rotations_R_names[48][12] = { "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA" };
+
+char const cubic_group_rotations_IR_names[48][12] = { "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA" };
+#endif
+
 
 /***********************************************************/
 /***********************************************************/
@@ -726,6 +739,7 @@ void rot_mat_table_printf ( rot_mat_table_type *t, char*name, FILE*ofs ) {
   fprintf( ofs, "%s_IR <- list()\n", name );
 
   for ( int i = 0; i < t->n; i++ ) {
+    fprintf ( ofs, "# [rot_mat_table_printf] R %2d %s\n", t->rid[i], cubic_group_rotations_R_names[t->rid[i]] );
     sprintf( name_full, "%s_R[[%2d]]", name, t->rid[i]+1 );
     rot_printf_matrix ( t->R[i], t->dim, name_full, ofs );
     fprintf( ofs, "\n");
@@ -733,6 +747,7 @@ void rot_mat_table_printf ( rot_mat_table_type *t, char*name, FILE*ofs ) {
   fprintf( ofs, "\n\n");
 
   for ( int i = 0; i < t->n; i++ ) {
+    fprintf ( ofs, "# [rot_mat_table_printf] IR %2d %s\n", t->rmid[i], cubic_group_rotations_IR_names[t->rmid[i]] );
     sprintf( name_full, "%s_IR[[%2d]]", name, t->rmid[i]+1 );
     rot_printf_matrix ( t->IR[i], t->dim, name_full, ofs );
     fprintf( ofs, "\n");
@@ -1951,7 +1966,7 @@ little_group_projector_applicator_type ** little_group_projector_apply ( little_
      * calculate multiplicity or spin representation
      * in target representation
      ***********************************************************/
-    fprintf ( stdout, "# [little_group_projector_apply] multiplicity of %s in %s is %d\n",
+    fprintf ( stdout, "# [little_group_projector_apply] multiplicity of %10s in %20s is %2d\n",
         p->rtarget->irrep, p->rspin[0].irrep, irrep_multiplicity ( p->rtarget, &p->rspin[0], p->parity[0] ) );
   }
 
@@ -2052,7 +2067,7 @@ int rot_mat_table_rotate_multiplett ( rot_mat_table_type * const rtab, rot_mat_t
       double norm = rot_mat_norm_diff ( R2, R3, rtab->dim );
       double norm2 = sqrt( rot_mat_norm2 ( R2, rtab->dim ) );
 
-      fprintf(ofs, "# [rot_mat_table_rotate_multiplett]  R[[%2d]] rid  %2d norm diff = %16.7e / %16.7e\n\n", irot+1,
+      fprintf(ofs, "# [rot_mat_table_rotate_multiplett]  R  %2d rid  %2d norm diff %16.7e    %16.7e\n\n", irot+1,
           rtarget->rid[irot], norm, norm2 );
 
       rot_fini_rotation_matrix ( &R2 );
@@ -2085,7 +2100,7 @@ int rot_mat_table_rotate_multiplett ( rot_mat_table_type * const rtab, rot_mat_t
       rot_printf_matrix ( R3, rtab->dim, name, ofs );
       double norm = rot_mat_norm_diff ( R2, R3, rtab->dim );
       double norm2 = sqrt( rot_mat_norm2 ( R2, rtab->dim ) );
-      fprintf(ofs, "# [rot_mat_table_rotate_multiplett] IR[[%2d]] rmid %2d norm diff = %16.7e / %16.7e\n\n", irot+1,
+      fprintf(ofs, "# [rot_mat_table_rotate_multiplett] IR %2d rmid %2d norm diff %16.7e    %16.7e\n\n", irot+1,
           rtarget->rmid[irot], norm, norm2 );
 
       rot_fini_rotation_matrix ( &R2 );
@@ -2107,23 +2122,28 @@ int rot_mat_table_rotate_multiplett ( rot_mat_table_type * const rtab, rot_mat_t
  ***********************************************************/
 int irrep_multiplicity (rot_mat_table_type * const rirrep, rot_mat_table_type * const rspin, int const parity ) {
 
-  double _Complex s = 0.;
-  int nelem = rirrep->n;
+  double _Complex srot = 0., sirot=0.;
+  int const nelem = rirrep->n;
   // loop on rotations
   for ( int irot = 0; irot < rirrep->n; irot++ ) {
-    s +=          rot_mat_trace ( rirrep->R[irot],  rirrep->dim ) * rot_mat_trace ( rspin->R[irot],  rspin->dim );
+    srot +=          rot_mat_trace ( rirrep->R[irot],  rirrep->dim ) * rot_mat_trace ( rspin->R[irot],  rspin->dim );
   }
 
   // loop on rotations-reflections
   for ( int irot = 0; irot < rirrep->n; irot++ ) {
-    s += parity * rot_mat_trace ( rirrep->IR[irot],  rirrep->dim ) * rot_mat_trace ( rspin->IR[irot],  rspin->dim );
+    sirot += parity * rot_mat_trace ( rirrep->IR[irot],  rirrep->dim ) * rot_mat_trace ( rspin->IR[irot],  rspin->dim );
   }
-  nelem *= 2;
+
+  double _Complex const s = srot + sirot;
 
   // TEST
-  if ( g_verbose > 2 ) fprintf(stdout, "# [irrep_multiplicity] s = %25.16e %25.16e g = %2d\n", creal(s), cimag(s), rirrep->n );
+  if ( g_verbose > 2 ) fprintf(stdout, "# [irrep_multiplicity]   R %25.16e %25.16e   IR %25.16e %25.16e   s = %25.16e %25.16e   g = %2d\n", 
+      creal(srot), cimag(srot),
+      creal(sirot), cimag(sirot),
+      creal(s), cimag(s),
+      rirrep->n );
 
-  return( (int)( round( creal(s) ) / nelem ) );
+  return( (int)( round( creal(s) ) / ( 2 * nelem ) ) );
 }  // end of irrep multiplicty
 
 /***********************************************************/
@@ -2835,7 +2855,7 @@ int get_reference_rotation ( int pref[3], int * Rref, int const p[3] ) {
 
   int const pzero[3] = {0,0,0};
 
-  int const momentum_ref[3][3] = { {0,0,1}, {1,1,0}, {1,1,1} };
+  int const momentum_ref[4][3] = { {0,0,1}, {1,1,0}, {1,1,1} , {0,0,2} };
 
   /*
   int const momentum_num[3] = { 6, 12, 8};
@@ -2857,7 +2877,8 @@ int get_reference_rotation ( int pref[3], int * Rref, int const p[3] ) {
   if ( _INT3_EQ_INT3(p, pzero) || 
        _INT3_EQ_INT3(p, momentum_ref[0]) || 
        _INT3_EQ_INT3(p, momentum_ref[1]) || 
-       _INT3_EQ_INT3(p, momentum_ref[2])  ) {
+       _INT3_EQ_INT3(p, momentum_ref[2]) || 
+       _INT3_EQ_INT3(p, momentum_ref[3])  ) {
 
     if ( g_verbose > 1 ) fprintf ( stdout, "# [get_reference_rotation] p is ref momentum, refframerot -1\n" );
     pref[0] = p[0];
@@ -2876,7 +2897,7 @@ int get_reference_rotation ( int pref[3], int * Rref, int const p[3] ) {
   /***********************************************************
    * loop on momentum classes
    ***********************************************************/
-  for ( int ic = 0; ic < 3 && !ref_found; ic++ ) 
+  for ( int ic = 0; ic < 4 && !ref_found; ic++ ) 
   {
 
     if ( comp_int3_abs ( p , momentum_ref[ic] ) ) {
@@ -3050,4 +3071,59 @@ int rot_mat_table_rotate_ref_multiplett ( rot_mat_table_type * const rtab, rot_m
 /***********************************************************/
 /***********************************************************/
 
+int get_little_group_elements ( int const p[3], rot_mat_table_type * const rtab ) {
+
+  int const nrot =  rtab->n;
+  if ( rtab->dim != 3 ) {
+    fprintf ( stderr, "[get_little_group_elements] Error, rot dim must be 3\n" );
+    return ( 1 );
+  }
+
+  for ( int irot = 0; irot < nrot; irot++ ) {
+    int q[3];
+
+    double _Complex **C = rot_init_rotation_matrix ( 3 );
+
+    rot_spherical2cartesian_3x3 ( C, rtab->R[irot] );
+
+    if ( ! rot_mat_check_is_real_int ( C, 3 ) ) {
+      fprintf ( stderr, "[test_get_lg] Error, R %d / %d is not real int\n", irot, rtab->rid[irot] );
+      return ( 2 );
+    /* } else {
+      fprintf ( stdout, "# [test_get_lg] R %d / %d is real int\n", irot, rtab->rid[irot] );
+      */
+    }
+
+    rot_point ( q, p, C );
+    if ( q[0] == p[0] && q[1] == p[1] && q[2] == p[2] ) {
+      fprintf ( stdout, "# [get_little_group_elements] p %3d %3d %3d    R %2d   rid  %2d\n", 
+          p[0], p[1], p[2], irot, rtab->rid[irot] );
+    }
+
+    rot_fini_rotation_matrix ( &C );
+  }
+  for ( int irot = 0; irot < nrot; irot++ ) {
+    int q[3];
+    double _Complex **C = rot_init_rotation_matrix ( 3 );
+
+    rot_spherical2cartesian_3x3 ( C, rtab->R[irot] );
+
+    if ( ! rot_mat_check_is_real_int ( C, 3 ) ) {
+      fprintf ( stderr, "[test_get_lg] Error, R %d / %d is not real int\n", irot, rtab->rid[irot] );
+      return ( 2 );
+    }
+
+    rot_point ( q, p, C );
+    if ( q[0] == -p[0] && q[1] == -p[1] && q[2] == -p[2] ) {
+      fprintf ( stdout, "# [get_little_group_elements] p %3d %3d %3d   IR %2d   rmid %2d\n", 
+          p[0], p[1], p[2], irot, rtab->rid[irot] );
+    }
+    rot_fini_rotation_matrix ( &C );
+  }
+  return ( 0 );
+}  /* end of get_little_group_elements */
+
+
+/***********************************************************/
+/***********************************************************/
 }  /* end of namespace cvc */

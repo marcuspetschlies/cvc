@@ -57,13 +57,18 @@ extern "C"
 #include "table_init_z.h"
 #include "table_init_d.h"
 #include "dummy_solver.h"
+#include "contractions_io.h"
 #include "contract_factorized.h"
+#include "contract_diagrams.h"
 
 #include "clover.h"
 
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
 
+#ifdef STOCHASTIC
+#undef STOCHASTIC
+#endif
 
 using namespace cvc;
 
@@ -79,6 +84,25 @@ int main(int argc, char **argv) {
   
   const char outfile_prefix[] = "twopt";
 
+  char const gamma_id_to_Cg_ascii[16][10] = {
+    "Cgy",
+    "Cgzg5",
+    "Cgt",
+    "Cgxg5",
+    "Cgygt",
+    "Cgyg5gt",
+    "Cgyg5",
+    "Cgz",
+    "Cg5gt",
+    "Cgx",
+    "Cgzg5gt",
+    "C",
+    "Cgxg5gt",
+    "Cgxgt",
+    "Cg5",
+    "Cgzgt"
+  };
+
   int c;
   int filename_set = 0;
   int gsx[4], sx[4];
@@ -92,16 +116,16 @@ int main(int argc, char **argv) {
   double *gauge_field_with_phase = NULL;
   double *gauge_field_smeared = NULL;
 
-#if 0
   int const    gamma_f1_number                           = 1;
   int const    gamma_f1_list[gamma_f1_number]            = { 14 }; /*, 11,  8,  2 }; */
   double const gamma_f1_sign[gamma_f1_number]            = { +1 }; /*, +1, -1, -1 }; */
   /* double const gamma_f1_transposed_sign[gamma_f1_number] = { -1, -1, +1, -1 }; */
-#endif  /* of if 0 */
 
+#if 0
   int const    gamma_f1_number                = 3;
   int const    gamma_f1_list[gamma_f1_number] = { 9,  0,  7 };
   double const gamma_f1_sign[gamma_f1_number] = {-1, +1, +1 };
+#endif  /* of if 0 */
 
 #ifdef HAVE_LHPC_AFF
   struct AffWriter_s *affw = NULL;
@@ -193,7 +217,9 @@ int main(int argc, char **argv) {
 
   geometry();
 
+#if defined STOCHASTIC
   size_t sizeof_spinor_field = _GSI( VOLUME ) * sizeof ( double );
+#endif
 
   mpi_init_xchange_eo_spinor();
   mpi_init_xchange_eo_propagator();
@@ -250,7 +276,7 @@ int main(int argc, char **argv) {
     if ( N_ape > 0 ) {
       exitstatus = APE_Smearing(gauge_field_smeared, alpha_ape, N_ape);
       if(exitstatus != 0) {
-        fprintf(stderr, "[piN2piN_factorized] Error from APE_Smearing, status was %d\n", exitstatus);
+        fprintf(stderr, "[twopt_invert_contract] Error from APE_Smearing, status was %d\n", exitstatus);
         EXIT(47);
       }
     }  /* end of if N_aoe > 0 */
@@ -346,8 +372,18 @@ int main(int argc, char **argv) {
       EXIT(12);
     }
 
+    if ( g_write_propagator ) {
+      for ( int i = 0; i < 12; i++ ) {
+        sprintf ( filename, "Rpsource.%.4d.t%dx%dy%dz%d.%d.inverted", Nconf, 
+            gsx[0], gsx[1], gsx[2], gsx[3] , i );
 
-#if 0
+        if ( ( exitstatus = write_propagator( spinor_field[i], filename, 0, g_propagator_precision) ) != 0 ) {
+          fprintf(stderr, "[twopt_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(2);
+        }
+      }
+    }
+
     /***********************************************************
      * dn-type point-to-all propagator
      ***********************************************************/
@@ -356,6 +392,20 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[twopt_invert_contract] Error from point_source_propagator, status was %d\n", exitstatus);
       EXIT(12);
     }
+
+    if ( g_write_propagator ) {
+      for ( int i = 0; i < 12; i++ ) {
+        sprintf ( filename, "Rnsource.%.4d.t%dx%dy%dz%d.%d.inverted", Nconf, 
+            gsx[0], gsx[1], gsx[2], gsx[3] , i );
+
+        if ( ( exitstatus = write_propagator( spinor_field[12+i], filename, 0, g_propagator_precision) ) != 0 ) {
+          fprintf(stderr, "[twopt_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(2);
+        }
+      }
+    }
+
+#if 0
 #endif  /* of if 0 */
 
     /***************************************************************************
@@ -377,7 +427,6 @@ int main(int argc, char **argv) {
       EXIT(47);
     }
 
-#if 0
     /***************************************************************************
      * spin 1/2 2-point correlation function
      ***************************************************************************/
@@ -400,9 +449,18 @@ int main(int argc, char **argv) {
 
       fermion_propagator_field_eq_fermion_propagator_field_ti_re    ( fp3, fp3, -gamma_f1_sign[if1]*gamma_f1_sign[if2], VOLUME );
 
-      sprintf(aff_tag, "/N-N/t%.2dx%.2dy%.2dz%.2d/gi%.2d/gf%.2d/n1",
+      double *** vpsum = init_3level_dtable ( T, g_sink_momentum_number, 32 );
+      if ( vpsum == NULL ) {
+        fprintf(stderr, "[twopt_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
+        EXIT(47);
+      }
+
+      /***********************************************************
+       * diagram n1
+       ***********************************************************/
+      sprintf(aff_tag, "/N-N/t%.2dx%.2dy%.2dz%.2d/gi_%s/gf_%s/n1",
           gsx[0], gsx[1], gsx[2], gsx[3],
-          gamma_f1_list[if1], gamma_f1_list[if2]);
+          gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ]);
 
       exitstatus = contract_v5 ( v2, fp, fp3, fp, VOLUME );
       if ( exitstatus != 0 ) {
@@ -422,12 +480,18 @@ int main(int argc, char **argv) {
         EXIT(49);
       }
 
-      /***********************************************************/
-      /***********************************************************/
+#pragma omp parallel for
+      for ( int i = 0; i < g_sink_momentum_number * T * 32; i++ ) {
+        vpsum[0][0][i] += vp[0][0][i];
+      }
 
-      sprintf(aff_tag, "/N-N/t%.2dx%.2dy%.2dz%.2d/gi%.2d/gf%.2d/n2",
+      /***********************************************************
+       * diagram n2
+       ***********************************************************/
+
+      sprintf(aff_tag, "/N-N/t%.2dx%.2dy%.2dz%.2d/gi_%s/gf_%s/n2",
           gsx[0], gsx[1], gsx[2], gsx[3],
-          gamma_f1_list[if1], gamma_f1_list[if2]);
+          gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ]);
 
       exitstatus = contract_v6 ( v2, fp, fp3, fp, VOLUME );
       if ( exitstatus != 0 ) {
@@ -447,12 +511,54 @@ int main(int argc, char **argv) {
         EXIT(49);
       }
 
+#pragma omp parallel for
+      for ( int i = 0; i < g_sink_momentum_number * T * 32; i++ ) {
+        vpsum[0][0][i] += vp[0][0][i];
+      }
+     
+      /***********************************************************/
+      /***********************************************************/
+
+      for ( int i = 0; i < g_sink_momentum_number; i++ ) {
+
+        double _Complex *** diagram = init_3level_ztable ( T, 4, 4 );
+        double _Complex * diagram_tr = init_1level_ztable ( T );
+
+        for ( int it = 0; it < T; it++ ) {
+          memcpy ( diagram[it][0], vpsum[it][i], 16 * sizeof(double _Complex ) );
+        }
+
+
+        exitstatus = correlator_add_baryon_boundary_phase ( diagram, gsx[0], 1, T );
+
+        exitstatus = correlator_add_source_phase ( diagram, g_sink_momentum_list[i], &(gsx[1]), T );
+
+        exitstatus = reorder_to_relative_time ( diagram, diagram, gsx[0], 1, T );
+
+        exitstatus = correlator_spin_parity_projection ( diagram, diagram, 1., T);
+
+        exitstatus = contract_diagram_co_eq_tr_zm4x4_field ( diagram_tr, diagram, T );
+
+        sprintf(aff_tag, "/N-N/t%.2dx%.2dy%.2dz%.2d/gi_%s/gf_%s/PX%d_PY%d_PZ%d/n1+n2/P+/tr", gsx[0], gsx[1], gsx[2], gsx[3], 
+            gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ],
+            g_sink_momentum_list[i][0], g_sink_momentum_list[i][1], g_sink_momentum_list[i][2]);
+      
+        exitstatus = write_aff_contraction ( diagram_tr, affw, NULL, aff_tag, T );
+
+        fini_3level_ztable ( &diagram );
+        fini_1level_ztable ( &diagram_tr );
+      }
+
+      fini_3level_dtable ( &vpsum );
+   
     }}
+#if 0
 #endif  /* of if 0 */
 
     /***************************************************************************/
     /***************************************************************************/
 
+#if 0
     /***************************************************************************
      * spin ( 1 + 1/2 ) 2-point correlation function
      ***************************************************************************/
@@ -524,6 +630,8 @@ int main(int argc, char **argv) {
 
     }  /* end of loop on if1 (initial) vertex */
 
+#endif  /* of if 0 */
+
     /***************************************************************************
      * clean up
      ***************************************************************************/
@@ -560,7 +668,7 @@ int main(int argc, char **argv) {
   /***************************************************************************/
   /***************************************************************************/
 
-#if 0
+#if defined STOCHASTIC
   /***************************************************************************
    ***************************************************************************
    **
@@ -800,7 +908,7 @@ int main(int argc, char **argv) {
 
           fermion_propagator_field_eq_fermion_propagator_field_ti_re (fp3, fp3, -gamma_f1_sign[if1]*gamma_f1_sign[if2], VOLUME );
 
-          sprintf(aff_tag, "/N-N/t%.2d/gi%.2d/gf%.2d/n1", gts, gamma_f1_list[if1], gamma_f1_list[if2]);
+          sprintf(aff_tag, "/N-N/t%.2d/gi_%s/gf_%s/n1", gts, gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ]);
 
           exitstatus = contract_v5 ( v2, fp_mom, fp3, fp, VOLUME );
           if ( exitstatus != 0 ) {
@@ -823,7 +931,7 @@ int main(int argc, char **argv) {
           /***********************************************************/
           /***********************************************************/
 
-          sprintf(aff_tag, "/N-N/t%.2d/gi%.2d/gf%.2d/n2", gts, gamma_f1_list[if1], gamma_f1_list[if2]);
+          sprintf(aff_tag, "/N-N/t%.2d/gi_%s/gf_%s/n2", gts, gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ]);
 
           exitstatus = contract_v6 ( v2, fp_mom, fp3, fp, VOLUME );
           if ( exitstatus != 0 ) {
@@ -889,7 +997,7 @@ int main(int argc, char **argv) {
   fini_2level_dtable ( &stochastic_propagator_mom );
   fini_2level_dtable ( &stochastic_propagator_zero );
 
-#endif  /* of if 0 *
+#endif  /* of if defined STOCHASTIC */
 
   /****************************************
    * free the allocated memory, finalize
