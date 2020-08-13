@@ -1146,12 +1146,15 @@ namespace cvc {
     exit(1);
   }
   if ( cvc::g_twopoint_function_list == NULL ) {
+    fprintf ( stdout, "# [read_input_parser] g_twopoint_function_list is NULL, initialize on line %d\n",  cvc::line_of_file );
+    fflush( stdout );
     cvc::g_twopoint_function_list = (cvc::twopoint_function_type*)malloc ( MAX_TWOPOINT_FUNCTION_NUM * sizeof ( cvc::twopoint_function_type ) );
     if ( cvc::g_twopoint_function_list == NULL ) {
       fprintf ( stderr, "[read_input_parser] Error from malloc %s %d\n", __FILE__, __LINE__ );
       exit(1);
     } else {
       fprintf ( stdout, "# [read_input_parser] g_twopoint_function_list initialized line %d\n",  cvc::line_of_file );
+      fflush ( stdout );
     }
   }
 
