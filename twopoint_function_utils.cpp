@@ -288,8 +288,11 @@ void twopoint_function_print_diagram_key (char*key, twopoint_function_type *p, i
 
   if ( strcmp( p->type, "b-b") == 0 ) {
 
-    sprintf( key, "/%s/%s%sgf1%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/gi1%.2d/t%.2dx%.2dy%.2dz%.2d", p->name, diag_str, fbwd_str,
-        p->gf1[0], p->pf1[0], p->pf1[1], p->pf1[2], p->gi1[0],
+    sprintf( key, "/%s/%s%sgf1%.2d_%.2d/pf1x%.2dpf1y%.2dpf1z%.2d/gi1%.2d_%.2d/pi1x%.2dpi1y%.2dpi1z%.2d/t%.2dx%.2dy%.2dz%.2d", p->name, diag_str, fbwd_str,
+        p->gf1[0], p->gf1[1],
+        p->pf1[0], p->pf1[1], p->pf1[2], 
+        p->gi1[0], p->gi1[1],
+        p->pi1[0], p->pi1[1], p->pi1[2], 
         p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3] );
 
 
@@ -620,6 +623,7 @@ int twopoint_function_accumulate_diagrams ( double _Complex *** const diagram, t
 #endif
 
     double const norm = twopoint_function_get_diagram_norm ( p, idiag );
+    if ( g_verbose > 4 ) fprintf ( stdout, "# [twopoint_function_accumulate_diagrams] idiag %d norm %16.7e", idiag, norm );
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
@@ -633,7 +637,7 @@ int twopoint_function_accumulate_diagrams ( double _Complex *** const diagram, t
   fini_3level_ztable ( &buffer );
 
   // TEST
-  if ( g_verbose > 5 ) {
+  if ( g_verbose > 4 ) {
     char name[10] = "c_in";
     for ( int it = 0; it < N; it++ ) {
       fprintf(stdout, "# [twopoint_function_accumulate_diagrams] initial correlator t = %2d\n", it );
