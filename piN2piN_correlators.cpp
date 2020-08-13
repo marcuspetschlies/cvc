@@ -1,8 +1,6 @@
 /****************************************************
  * piN2piN_correlators.cpp
  * 
- * Tue Jul 11 11:30:41 CEST 2017
- *
  * PURPOSE:
  *   originally copied from piN2piN_diagrams.cpp
  * TODO:
@@ -163,6 +161,18 @@ int main(int argc, char **argv) {
     gamma_matrix_set ( &(gamma[i]), i, 1. );
   }
 
+  gamma_matrix_type gamma_cvc_to_ukqcd;
+  gamma_matrix_init ( &gamma_cvc_to_ukqcd );
+  
+  gamma_matrix_zero ( &gamma_cvc_to_ukqcd );
+
+  gamma_matrix_eq_gamma_matrix_pl_gamma_matrix_ti_re ( &gamma_cvc_to_ukqcd, &gamma_cvc_to_ukqcd, &(gamma[0]), sqrt( 0.5 ) );
+  gamma_matrix_eq_gamma_matrix_pl_gamma_matrix_ti_re ( &gamma_cvc_to_ukqcd, &gamma_cvc_to_ukqcd, &(gamma[5]), sqrt( 0.5 ) );
+
+  gamma_matrix_printf (  &gamma_cvc_to_ukqcd, "U_cvc_to_ukqcd", stdout );
+
+
+
   /******************************************************
    * check source coords list
    ******************************************************/
@@ -254,15 +264,24 @@ int main(int argc, char **argv) {
         /******************************************************
          * open AFF file
          ******************************************************/
-        char aff_filename_prefix[100];
-        twopoint_function_get_aff_filename_prefix ( aff_filename_prefix, &(g_twopoint_function_list[i2pt]) );
+        /* char aff_filename_prefix[100]; */
+        /* twopoint_function_get_aff_filename_prefix ( aff_filename_prefix, &(g_twopoint_function_list[i2pt]) ); */
+        /* sprintf(filename, "%s.%.4d.tsrc%.2d.aff", aff_filename_prefix, Nconf, t_base ); */
+        int Ptot[3] = {
+          g_twopoint_function_list[i2pt].pf1[0] + g_twopoint_function_list[i2pt].pf2[0],
+          g_twopoint_function_list[i2pt].pf1[1] + g_twopoint_function_list[i2pt].pf2[1],
+          g_twopoint_function_list[i2pt].pf1[2] + g_twopoint_function_list[i2pt].pf2[2] };
 
-        sprintf(filename, "%s.%.4d.tsrc%.2d.aff", aff_filename_prefix, Nconf, t_base );
+        sprintf ( filename, "%s.%c.PX%dPY%dPZ%d.%.4d.t%dx%dy%dz%d.aff", filename_prefix,
+            g_twopoint_function_list[i2pt].diagrams[0],
+            Ptot[0], Ptot[1], Ptot[2], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+        if ( g_verbose > 2 )  fprintf ( stdout, "# [piN2piN_correlators] reading AFF data from file %s %s %d\n", filename, __FILE__, __LINE__ );
+
 
         if ( io_proc == 2 ) {
           affr = aff_reader (filename);
           if ( const char * aff_status_str = aff_reader_errstr(affr) ) {
-            fprintf(stderr, "[piN2piN_correlators] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__ );
+            fprintf(stderr, "[piN2piN_correlators] Error from aff_reader for file %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__ );
             EXIT(4);
           } else {
             fprintf(stdout, "# [piN2piN_correlators] reading data from aff file %s\n", filename);
@@ -282,6 +301,7 @@ int main(int argc, char **argv) {
         /******************************************************
          * reorder according to reorder entry in twopoint_function
          ******************************************************/
+
         if ( g_verbose > 4 && io_proc == 2 ) fprintf ( stdout, "# [piN2piN_correlators] calling reorder_to_absolute_time %s %d\n", __FILE__, __LINE__ );
         reorder_to_absolute_time (diagram, diagram, g_twopoint_function_list[i2pt].source_coords[0], g_twopoint_function_list[i2pt].reorder, nT );
 
@@ -289,16 +309,17 @@ int main(int argc, char **argv) {
         /******************************************************
          * source phase
          ******************************************************/
+/* 
         if ( g_verbose > 4 && io_proc == 2 ) fprintf ( stdout, "# [piN2piN_correlators] calling correlator_add_source_phase  %s %d\n", __FILE__, __LINE__ );
         exitstatus = correlator_add_source_phase ( diagram, g_twopoint_function_list[i2pt].pi1,  &(gsx[1]), nT );
-
+*/
 
         /******************************************************
          * boundary phase
          ******************************************************/
         //STOPPED HERE:
         //  if diagram is alredy ordered from source, gsx[0] -> le 0
-
+/*
         if ( g_verbose > 4 && io_proc == 2 ) fprintf ( stdout, "# [piN2piN_correlators] calling correlator_add_baryon_boundary_phase  %s %d\n", __FILE__, __LINE__ );
         // exitstatus = correlator_add_baryon_boundary_phase ( diagram, gsx[0], nT ); 
         if ( strcmp ( g_twopoint_function_list[i2pt].fbwd, "fwd" ) == 0 ) {
@@ -306,37 +327,47 @@ int main(int argc, char **argv) {
         } else if ( strcmp ( g_twopoint_function_list[i2pt].fbwd, "bwd" ) == 0 ) {
           exitstatus = correlator_add_baryon_boundary_phase ( diagram, 0, -1, nT ); 
         }
-
+*/
 
         /******************************************************
          * aplly gi1[1] and gf1[1]
          ******************************************************/
+/*
         if ( ( g_twopoint_function_list[i2pt].gi1[1] != -1 ) && ( g_twopoint_function_list[i2pt].gf1[1] != -1 ) ) {
           if ( g_verbose > 4 && io_proc == 2 ) fprintf ( stdout, "# [piN2piN_correlators] calling contract_diagram_zm4x4_field_mul_gamma_lr   %s %d\n", __FILE__, __LINE__ );
           exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( diagram, diagram, gamma[g_twopoint_function_list[i2pt].gf1[1]], gamma[g_twopoint_function_list[i2pt].gi1[1]], nT );
         }
-
+*/
 
         /******************************************************
          * spin / spin-parity projection
          ******************************************************/
+/*
         if ( g_verbose > 4 && io_proc == 2 ) fprintf ( stdout, "# [piN2piN_correlators] calling correlator_spin_parity_projection %s %d\n", __FILE__, __LINE__ );
         correlator_spin_parity_projection ( diagram, diagram, (double)g_twopoint_function_list[i2pt].parity_project, nT );
-        //
+*/
 
         /******************************************************
          * multiply with phase factor per convention
          ******************************************************/
         // twopoint_function_correlator_phase ( correlator, &(g_twopoint_function_list[i2pt]), nT );
-
+/*
         if ( g_verbose > 4 && io_proc == 2 ) fprintf ( stdout, "# [piN2piN_correlators] calling contract_diagram_zm4x4_field_ti_eq_co %s %d\n", __FILE__, __LINE__ );
         exitstatus = contract_diagram_zm4x4_field_ti_eq_co ( diagram, twopoint_function_get_correlator_phase ( &(g_twopoint_function_list[i2pt]) ), nT );
+*/
+
+        /******************************************************
+         * rotate to UKQCD gamma basis
+         ******************************************************/
+        exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( diagram, diagram, gamma_cvc_to_ukqcd, gamma_cvc_to_ukqcd, nT );
+
+
 
         /******************************************************
          * TEST
          *   print the correlator
          ******************************************************/
-        if ( g_verbose > 5 ) {
+        if ( g_verbose > 4 ) {
           for ( int it = 0; it < nT; it++ ) {
             fprintf( stdout, "# with boundary phase t = %2d\n", it );
             zm4x4_printf ( diagram[it], "c_sp", stdout );
@@ -351,7 +382,12 @@ int main(int argc, char **argv) {
 
         char key[500];
         twopoint_function_print_correlator_key ( key, &(g_twopoint_function_list[i2pt]) );
-        exitstatus = contract_diagram_write_fp ( diagram, ofs, key, 0, g_src_snk_time_separation, 0 );
+
+        if ( strcmp( g_twopoint_function_list[i2pt].fbwd , "fwd" ) == 0 ) {
+          exitstatus = contract_diagram_write_fp ( diagram, ofs, key, 0, g_src_snk_time_separation, 0 );
+        } else if ( strcmp( g_twopoint_function_list[i2pt].fbwd , "bwd" ) == 0 ) {
+          exitstatus = contract_diagram_write_fp ( diagram, ofs, key, 0, g_src_snk_time_separation, 1 );
+        }
 
         // twopoint_function_print_correlator_key ( key, &(g_twopoint_function_list[i2pt]));
 
