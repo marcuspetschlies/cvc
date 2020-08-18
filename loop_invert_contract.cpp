@@ -488,8 +488,8 @@ int main(int argc, char **argv) {
     }
 
 
-    for ( int ir = 0; ir < 1; ir++ ) {
-    for ( int ia = 0; ia < 1; ia++ ) {
+    for ( int ir = 0; ir < 4; ir++ ) {
+    for ( int ia = 0; ia < 3; ia++ ) {
       for ( int it = 0; it < T; it++ ) {
       for ( int iz = 0; iz < LZ; iz++ ) {
       for ( int iy = 0; iy < LY; iy++ ) {
@@ -498,12 +498,15 @@ int main(int argc, char **argv) {
         for ( int ib = 0; ib < 3; ib++ ) {
           /* ir,ia; is,ib */
           /* int const isc = 3*(4*(3*ir+ia) + is) + ib; */
-          
+
+          /* is, ib; ir, ia */
+          int const isc = 3*(4*(3*is+ib) + ir) + ia;
+
           /* ir,is; ia,ib */
           // int const isc = 3 * ( 3 * ( 4 * ir + is ) + ia ) + ib;
 
           /* is,ir; ib,ia */
-          int const isc = 3 * ( 3 * ( 4 * is + ir ) + ib ) + ia;
+          // int const isc = 3 * ( 3 * ( 4 * is + ir ) + ib ) + ia;
 
           /* ia,ib; ir,is */
           // int const isc =  4*(4*(3*ia+ib)+ir ) + is;
