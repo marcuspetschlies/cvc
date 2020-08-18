@@ -922,7 +922,7 @@ int read_lime_spinor(double * const s, char * filename, const int position) {
   if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*(uint64_t)(24*sizeof(double))) prec = 64;
   else if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*(uint64_t)(24*sizeof(float))) prec = 32;
   else {
-    fprintf(stderr, "[read_lime_spinor] wrong length in eospinor: bytes = %llu, not %llu. Aborting read!\n", 
+    fprintf(stderr, "[read_lime_spinor] wrong length in eospinor: bytes = %lu, not %lu. Aborting read!\n", 
 	    bytes, (LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*(uint64_t)(24*sizeof(double)));
     return(-1);
   }
@@ -1024,6 +1024,9 @@ int read_binary_propagator_data(double * const s, LimeReader * limereader, const
  * read lime propagator
  ************************************************************************************/
 int read_lime_propagator(double * const s, char * filename, const int position) {
+
+  uint64_t const real_block_size = 288;
+
   FILE * ifs;
   int status=0, getpos=-1;
   n_uint64_t bytes;
@@ -1057,15 +1060,14 @@ int read_lime_propagator(double * const s, char * filename, const int position) 
     fprintf(stderr, "[read_lime_propagator] no scidac-binary-data record found in file %s\n",filename);
     limeDestroyReader(limereader);
     fclose(ifs);
-    if(g_proc_id==0) fprintf(stderr, "[read_lime_propagator] try to read in CMI format\n");
-    return(read_cmi(s, filename));
+    return(-2);
   }
   bytes = limeReaderBytes(limereader);
-  if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*(uint64_t)(24*sizeof(double))) prec = 64;
-  else if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*(uint64_t)(24*sizeof(float))) prec = 32;
+  if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*(uint64_t)(real_block_size*sizeof(double))) prec = 64;
+  else if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*(uint64_t)(real_block_size*sizeof(float))) prec = 32;
   else {
-    fprintf(stderr, "[read_lime_propagator] wrong length in eospinor: bytes = %llu, not %llu. Aborting read!\n", 
-	    bytes, (LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*(uint64_t)(24*sizeof(double)));
+    fprintf(stderr, "[read_lime_propagator] wrong length in eoprop: bytes = %lu, not %lu. Aborting read!\n", 
+	    bytes, (LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*(uint64_t)(real_block_size*sizeof(double)));
     return(-1);
   }
   if(g_cart_id == 0) printf("# [read_lime_propagator] %llu Bit precision read\n", prec);
@@ -1663,7 +1665,7 @@ int read_lime_spinor_timeslice(double * const s, int timeslice, char * filename,
   if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*(uint64_t)(24*sizeof(double))) prec = 64;
   else if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*(uint64_t)(24*sizeof(float))) prec = 32;
   else {
-    fprintf(stderr, "[read_lime_spinor_timeslice] wrong length in eospinor: bytes = %llu, not %llu. Aborting read!\n", 
+    fprintf(stderr, "[read_lime_spinor_timeslice] wrong length in eospinor: bytes = %lu, not %lu. Aborting read!\n", 
 	    bytes, (LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*(uint64_t)(24*sizeof(double)));
     return(-1);
   }
