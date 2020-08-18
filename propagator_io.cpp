@@ -306,8 +306,7 @@ int write_binary_spinor_data(double * const s, LimeWriter * limewriter,
 #endif /* HAVE_LIBLEMON */
 
 #ifdef HAVE_LIBLEMON
-int read_binary_spinor_data(double * const s, LemonReader * reader, 
-			    const int prec, DML_Checksum *checksum) {
+int read_binary_spinor_data(double * const s, LemonReader * reader, const int prec, DML_Checksum *checksum) {
 
   int t, x, y , z, i = 0, status = 0;
   int latticeSize[] = {T_global, LX_global, LY_global, LZ_global};
@@ -374,8 +373,7 @@ int read_binary_spinor_data(double * const s, LemonReader * reader,
   return(0);
 }
 #else 
-int read_binary_spinor_data(double * const s, LimeReader * limereader, 
-			    const int prec, DML_Checksum *ans) {
+int read_binary_spinor_data(double * const s, LimeReader * limereader, const int prec, DML_Checksum *ans) {
 
   int status=0;
   n_uint64_t bytes, ix;
@@ -947,6 +945,145 @@ int read_lime_spinor(double * const s, char * filename, const int position) {
   return(0);
 }
 #endif  /* HAVE_LIBLEMON */
+
+/************************************************************************************/
+/************************************************************************************/
+
+#ifndef HAVE_LIBLEMON
+
+/************************************************************************************
+ * read lime propagator
+ ************************************************************************************/
+int read_binary_propagator_data(double * const s, LimeReader * limereader, const int prec, DML_Checksum *ans) {
+
+  n_uint64_t const real_block_size = 288;
+
+  int status=0;
+  n_uint64_t bytes, ix;
+  double tmp[real_block_size];
+  float  tmp2[real_block_size];
+  DML_SiteRank rank;
+  int words_bigendian;
+  int t, x, y, z;
+  words_bigendian = big_endian();
+
+  DML_checksum_init(ans);
+  rank = (DML_SiteRank) 0;
+  
+  if ( prec == 32 ) bytes = real_block_size * sizeof(float);
+  else              bytes = real_block_size * sizeof(double);
+  for(t = 0; t < T; t++){
+    for(z = 0; z < LZ; z++){
+      for(y = 0; y < LY; y++){
+#if (defined HAVE_MPI)
+      limeReaderSeek(limereader,(n_uint64_t) ( (((Tstart+t)*(LZ*g_nproc_z) + LZstart + z)*(LY*g_nproc_y)+LYstart+y)*(LX*g_nproc_x) +LXstart )*bytes, SEEK_SET);
+#endif
+	for(x = 0; x < LX; x++){
+	  ix = g_ipt[t][x][y][z] * real_block_size;
+	  rank = (DML_SiteRank) ((((Tstart+t)*(LZ*g_nproc_z)+LZstart + z)*(LY*g_nproc_y) + LYstart + y)*(DML_SiteRank)(LX*g_nproc_x) + LXstart + x);
+	  if(prec == 32) {
+	    status = limeReaderReadData(tmp2, &bytes, limereader);
+	    DML_checksum_accum(ans,rank,(char *) tmp2, bytes);	    
+	  }
+	  else {
+	    status = limeReaderReadData(tmp, &bytes, limereader);
+	    DML_checksum_accum(ans,rank,(char *) tmp, bytes);
+	  }
+	  if(!words_bigendian) {
+	    if(prec == 32) {
+	      byte_swap_assign_single2double(&s[ix], (float*)tmp2, (int)real_block_size);
+	    }
+	    else {
+	      byte_swap_assign(&s[ix], tmp, (int)real_block_size);
+	    }
+	  }
+	  else {
+	    if(prec == 32) {
+	      single2double(&s[ix], (float*)tmp2, (int)real_block_size );
+	    }
+	    else memcpy(&s[ix], tmp, bytes);
+	  }
+	  if(status < 0 && status != LIME_EOR) {
+	    return(-1);
+	  }
+	}
+      }
+    }
+  }
+#ifdef HAVE_MPI
+  DML_checksum_combine(ans);
+#endif
+  if(g_cart_id == 0) printf("# [read_binary_propagator_data] The final checksum is %#lx %#lx\n", (*ans).suma, (*ans).sumb);
+  return(0);
+}  /* end of read_binary_propagator_data */
+
+/************************************************************************************/
+/************************************************************************************/
+
+/************************************************************************************
+ * read lime propagator
+ ************************************************************************************/
+int read_lime_propagator(double * const s, char * filename, const int position) {
+  FILE * ifs;
+  int status=0, getpos=-1;
+  n_uint64_t bytes;
+  char * header_type;
+  LimeReader * limereader;
+  n_uint64_t prec = 32;
+  DML_Checksum checksum;
+  
+  if((ifs = fopen(filename, "r")) == (FILE*)NULL) {
+    fprintf(stderr, "[read_lime_propagator] Error opening file %s\n", filename);
+    return(-1);
+  }
+  if(g_proc_id==0) fprintf(stdout, "# [read_lime_propagator] Reading Dirac-fermion field in LIME format from %s\n", filename);
+
+  limereader = limeCreateReader( ifs );
+  if( limereader == (LimeReader *)NULL ) {
+    fprintf(stderr, "[read_lime_propagator] Unable to open LimeReader\n");
+    return(-1);
+  }
+  while( (status = limeReaderNextRecord(limereader)) != LIME_EOF ) {
+    if(status != LIME_SUCCESS ) {
+      fprintf(stderr, "[read_lime_propagator] limeReaderNextRecord returned error with status = %d!\n", status);
+      status = LIME_EOF;
+      break;
+    }
+    header_type = limeReaderType(limereader);
+    if(strcmp("scidac-binary-data",header_type) == 0) getpos++;
+    if(getpos == position) break;
+  }
+  if(status == LIME_EOF) {
+    fprintf(stderr, "[read_lime_propagator] no scidac-binary-data record found in file %s\n",filename);
+    limeDestroyReader(limereader);
+    fclose(ifs);
+    if(g_proc_id==0) fprintf(stderr, "[read_lime_propagator] try to read in CMI format\n");
+    return(read_cmi(s, filename));
+  }
+  bytes = limeReaderBytes(limereader);
+  if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*(uint64_t)(24*sizeof(double))) prec = 64;
+  else if(bytes == (LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*(uint64_t)(24*sizeof(float))) prec = 32;
+  else {
+    fprintf(stderr, "[read_lime_propagator] wrong length in eospinor: bytes = %llu, not %llu. Aborting read!\n", 
+	    bytes, (LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z)*T_global*(uint64_t)(24*sizeof(double)));
+    return(-1);
+  }
+  if(g_cart_id == 0) printf("# [read_lime_propagator] %llu Bit precision read\n", prec);
+
+  status = read_binary_propagator_data(s, limereader, prec, &checksum);
+
+  if(status < 0) {
+    fprintf(stderr, "[read_lime_propagator] LIME read error occured with status = %d while reading file %s!\n Aborting...\n", 
+	    status, filename);
+    EXIT(500);
+  }
+
+  limeDestroyReader(limereader);
+  fclose(ifs);
+  return(0);
+}  /* end of read_lime_propagator  */
+#endif  /* HAVE_LIBLEMON */
+
 
 /**************************************************
  * read propagator in CMI format
