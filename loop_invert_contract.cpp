@@ -67,6 +67,9 @@ extern "C"
 #define _OP_ID_DN 1
 #define _OP_ID_ST 2
 
+#define _READ_TEXT 0
+#define _READ_LIME 1
+
 using namespace cvc;
 
 void usage() {
@@ -77,9 +80,20 @@ void usage() {
   EXIT(0);
 }
 
+static inline void _fv_cvc_eq_convert_fv_szin ( double * const r , double * const s ) {
+  double _spinor1[24];
+  _fv_eq_gamma_ti_fv ( _spinor1, 2, s );
+  _fv_eq_fv ( r, _spinor1 );
+}  /* end of _fv_cvc_eq_convert_fv_szin */
 
-#define _FIRST_DERIV_CONTRACTION
-#undef _SECOND_DERIV_CONTRACTION
+static inline void spinor_field_cvc_eq_convert_spinor_field_szin (double * const r , double * const s , unsigned int const N ) {
+#pragma omp parallel for
+  for ( unsigned int i = 0; i < N; i++ ) {
+    double * const _r = r + _GSI(i);
+    double * const _s = s + _GSI(i);
+    _fv_cvc_eq_convert_fv_szin ( _r , _s );
+  }
+}  /* end of spinor_field_cvc_eq_convert_spinor_field_szin */
 
 int main(int argc, char **argv) {
   
@@ -96,7 +110,6 @@ int main(int argc, char **argv) {
   struct timeval ta, tb, start_time, end_time;
 
   double **mzz[2]    = { NULL, NULL }, **mzzinv[2]    = { NULL, NULL };
-  double **DW_mzz[2] = { NULL, NULL }, **DW_mzzinv[2] = { NULL, NULL };
   double *gauge_field_with_phase = NULL;
   int op_id_up = -1;
   int op_id_dn = -1;
@@ -237,7 +250,9 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * multiply the temporal phase to the gauge field
    ***************************************************************************/
-  exitstatus = gauge_field_eq_gauge_field_ti_phase ( &gauge_field_with_phase, g_gauge_field, co_phase_up );
+  // exitstatus = gauge_field_eq_gauge_field_ti_phase ( &gauge_field_with_phase, g_gauge_field, co_phase_up );
+  exitstatus = gauge_field_eq_gauge_field_ti_bcfactor ( &gauge_field_with_phase, g_gauge_field, -1. );
+
   if(exitstatus != 0) {
     fprintf(stderr, "[loop_invert_contract] Error from gauge_field_eq_gauge_field_ti_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(38);
@@ -256,16 +271,6 @@ int main(int argc, char **argv) {
    * initialize clover, mzz and mzz_inv
    ***************************************************************************/
   exitstatus = init_clover ( &g_clover, &mzz, &mzzinv, gauge_field_with_phase, g_mu, g_csw );
-  if ( exitstatus != 0 ) {
-    fprintf(stderr, "[loop_invert_contract] Error from init_clover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-    EXIT(1);
-  }
-
-  /***************************************************************************
-   * initialize clover, mzz and mzz_inv for Wilson Dirac-operator
-   * i.e. twisted mass = 0
-   ***************************************************************************/
-  exitstatus = init_clover ( &g_clover, &DW_mzz, &DW_mzzinv, gauge_field_with_phase, 0., g_csw );
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[loop_invert_contract] Error from init_clover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
     EXIT(1);
@@ -333,15 +338,6 @@ int main(int argc, char **argv) {
   double * stochastic_source = init_1level_dtable ( nelem );
   if ( stochastic_source == NULL ) {
     fprintf(stderr, "[loop_invert_contract] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__ );;
-    EXIT(48);
-  }
-
-  /***************************************************************************
-   * allocate memory for contractions
-   ***************************************************************************/
-  double *** loop = init_3level_dtable ( T, g_sink_momentum_number, 32 );
-  if ( loop == NULL ) {
-    fprintf(stderr, "[loop_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );;
     EXIT(48);
   }
 
@@ -416,6 +412,23 @@ int main(int argc, char **argv) {
   /* for ( int isample = g_sourceid; isample <= g_sourceid2; isample += g_sourceid_step ) */
   {
 
+
+    /***************************************************************************
+     * allocate memory for contractions
+     ***************************************************************************/
+    double *** loop = init_3level_dtable ( T, g_sink_momentum_number, 32 );
+    if ( loop == NULL ) {
+      fprintf(stderr, "[loop_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );;
+      EXIT(48);
+    }
+    double *** loop_accum = init_3level_dtable ( T, g_sink_momentum_number, 32 );
+    if ( loop == NULL ) {
+      fprintf(stderr, "[loop_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );;
+      EXIT(48);
+    }
+
+
+#if _READ_LIME 
     /***************************************************************************
      * read stochastic oet source from file
      ***************************************************************************/
@@ -496,11 +509,12 @@ int main(int argc, char **argv) {
       for ( int ix = 0; ix < LX; ix++ ) {
         for ( int is = 0; is < 4; is++ ) {
         for ( int ib = 0; ib < 3; ib++ ) {
+        // for ( int isc = 0; isc < 144; isc++ ) {
           /* ir,ia; is,ib */
           /* int const isc = 3*(4*(3*ir+ia) + is) + ib; */
 
           /* is, ib; ir, ia */
-          int const isc = 3*(4*(3*is+ib) + ir) + ia;
+          // int const isc = 3*(4*(3*is+ib) + ir) + ia;
 
           /* ir,is; ia,ib */
           // int const isc = 3 * ( 3 * ( 4 * ir + is ) + ia ) + ib;
@@ -513,48 +527,202 @@ int main(int argc, char **argv) {
 
           /* no */
           /* int const isc =  4*(4*(3*ib+ia)+is ) + ir; */
-            3*(4*(3*ir+ia) + is) + ib;
+
+          int const isc = 3 * ( 3 * (4*ir+is) + ia ) + ib;
+         
         fprintf ( stdout, " %2d %2d    %3d %3d %3d %3d    %2d %2d    %3d   %25.16e %25.16e\n", 
             ir, ia, 
             ix, iy, iz, it, 
             is, ib, isc,
             stochastic_source[  288 * g_ipt[it][ix][iy][iz] + 2 * isc    ],
             stochastic_source[  288 * g_ipt[it][ix][iy][iz] + 2 * isc +1 ] );
+
+        /* fprintf ( stdout, " %3d %3d %3d %3d    %4d    %25.16e %25.16e\n", 
+            ix, iy, iz, it, 
+            isc,
+            stochastic_source[  288 * g_ipt[it][ix][iy][iz] + 2 * isc    ],
+            stochastic_source[  288 * g_ipt[it][ix][iy][iz] + 2 * isc +1 ] ); */
+        //}
         }}
-      }}
-    }}}}
+      }}}}
+     }}
+#endif  /* end of if _READ_LIME */
+
+    double ** spinor_field = init_2level_dtable ( 2, _GSI( VOLUME ) );
+    if ( spinor_field == NULL ) {
+      fprintf( stderr, "[loop_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+      EXIT(23);
+    }
+
+    for ( int isc = 0; isc < 12; isc++ ) {
+
+#if _READ_TEXT
+      int itmp[6] = {0,0,0,0,0,0};
+      double dtmp[2];
+      FILE * fp = NULL;
+      char header[400];
+
+      sprintf( filename, "noise_source_s%d_c%d", isc/3, isc%3 );
+      fp = fopen ( filename, "r" );
+      fgets ( header, 399, fp );
+      fprintf ( stdout, "# [loop_invert_contract] %s header %s\n", filename, header );
+
+      /*for ( int it = 0; it < T; it++ ) {
+      for ( int iz = 0; iz < LZ; iz++ ) {
+      for ( int iy = 0; iy < LY; iy++ ) {
+      for ( int ix = 0; ix < LX; ix++ ) {
+        for ( int is = 0; is < 4; is++ ) {
+        for ( int ib = 0; ib < 3; ib++ ) { */
+
+      for ( unsigned int ix = 0; ix < 12*VOLUME; ix++ ) {
+        fscanf ( fp, "%d %d %d %d %d %d %lf %lf\n", itmp, itmp+1, itmp+2, itmp+3, itmp+4, itmp+5, dtmp, dtmp+1 );
+
+        unsigned int iy = g_ipt[itmp[3]][itmp[0]][itmp[1]][itmp[2]];
+        int isb = 3*itmp[4] + itmp[5];
+        spinor_field[0][_GSI(iy) + 2*isb     ] = dtmp[0];
+        spinor_field[0][_GSI(iy) + 2*isb + 1 ] = dtmp[1];
+             // spinor_field[0]+_GSI(g_ipt[it][ix][iy][iz])+2*(3*is+ib),
+             // spinor_field[0]+_GSI(g_ipt[it][ix][iy][iz])+2*(3*is+ib)+1 );
+
+          if ( g_verbose > 4 ) 
+            fprintf ( stdout, "source %2d %2d    %3d %3d %3d %3d     %3d %3d     %25.16e %25.16e\n",
+              isc/3, isc%3,
+              itmp[0], itmp[1], itmp[2], itmp[3], itmp[4], itmp[5],
+              spinor_field[0][_GSI(iy) + 2*isb ],
+              spinor_field[0][_GSI(iy) + 2*isb + 1 ] );
+
+              //spinor_field[0][_GSI(g_ipt[it][ix][iy][iz])+2*(3*is+ib)],
+              //spinor_field[0][_GSI(g_ipt[it][ix][iy][iz])+2*(3*is+ib)+1] );
+      }
+      /*  }}
+      }}}} */
+
+      fclose ( fp );
+
+      sprintf( filename, "noise_prop_s%d_c%d", isc/3, isc%3 );
+      fp = fopen ( filename, "r" );
+      fgets ( header, 399, fp );
+      fprintf ( stdout, "# [] %s header %s\n", filename, header );
+
+      /* for ( int it = 0; it < T; it++ ) {
+      for ( int iz = 0; iz < LZ; iz++ ) {
+      for ( int iy = 0; iy < LY; iy++ ) {
+      for ( int ix = 0; ix < LX; ix++ ) {
+        for ( int is = 0; is < 4; is++ ) {
+        for ( int ib = 0; ib < 3; ib++ ) {
+        */
+      for ( unsigned int ix = 0; ix < 12*VOLUME; ix++ ) {
+
+        fscanf ( fp, "%d %d %d %d %d %d %lf %lf\n", 
+            itmp, itmp+1, itmp+2, itmp+3, itmp+4, itmp+5, dtmp, dtmp+1 );
+
+          unsigned int iy = g_ipt[itmp[3]][itmp[0]][itmp[1]][itmp[2]];
+          int isb = 3*itmp[4] + itmp[5];
+          spinor_field[1][_GSI(iy) + 2*isb     ] = dtmp[0];
+          spinor_field[1][_GSI(iy) + 2*isb + 1 ] = dtmp[1];
+
+          if ( g_verbose > 4 ) fprintf ( stdout, "prop %2d %2d    %3d %3d %3d %3d     %3d %3d     %25.16e %25.16e\n",
+              isc/3, isc%3,
+              itmp[0], itmp[1], itmp[2], itmp[3], itmp[4], itmp[5],
+              spinor_field[1][_GSI(iy) + 2*isb ],
+              spinor_field[1][_GSI(iy) + 2*isb + 1 ]);
+              //spinor_field[1][_GSI(g_ipt[it][ix][iy][iz])+2*(3*is+ib)],
+              //spinor_field[1][_GSI(g_ipt[it][ix][iy][iz])+2*(3*is+ib)+1] );
+
+      }
+
+      /*  }}
+       }}}} */
+
+      fclose ( fp );
+#elif _READ_LIME
+      for ( unsigned int ix = 0; ix < VOLUME; ix ++ ) {
+
+        for ( int ir = 0; ir < 12; ir++ ) {
+
+          // int const is = 3 * ( 3 * ( 4 * (isc/3) + (ir/3) ) + (isc%3) ) + (ir%3);
+          int const is = 3 * ( 3 * ( 4 * (ir/3) + (isc/3) ) + (ir%3) ) + (isc%3);
+
+          unsigned int iy = 288 * ix + 2*is;
+
+          spinor_field[0][_GSI(ix) + 2 * ir     ] = stochastic_source[iy  ];
+          spinor_field[0][_GSI(ix) + 2 * ir + 1 ] = stochastic_source[iy+1];
+
+          spinor_field[1][_GSI(ix) + 2 * ir     ] = stochastic_propagator[iy  ];
+          spinor_field[1][_GSI(ix) + 2 * ir + 1 ] = stochastic_propagator[iy+1];
+
+        }
+      }
+#endif  /* of if _READ_TEXT  */
+
+      memcpy ( spinor_work[1], spinor_field[1], sizeof_spinor_field );
+      memcpy ( spinor_work[0], spinor_field[0], sizeof_spinor_field );
+      spinor_field_cvc_eq_convert_spinor_field_szin ( spinor_work[0], spinor_work[0] , VOLUME );
+      spinor_field_cvc_eq_convert_spinor_field_szin ( spinor_work[1], spinor_work[1] , VOLUME );
+
+      exitstatus = check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[0], mzzinv[0], 1 );
 
 #if 0
-    /***************************************************************************
-     *
-     * CONTRACTION FOR LOCAL LOOPS USING STD ONE-END-TRICK
-     *
-     ***************************************************************************/
+      memcpy ( spinor_work[0], spinor_field[1], sizeof_spinor_field );
 
-    /***************************************************************************
-     * group name for contraction
-     ***************************************************************************/
-    sprintf ( data_tag, "/conf_%.4d/nstoch_%.4d/%s", Nconf, isample+1, "Scalar" );
+      spinor_field_cvc_eq_convert_spinor_field_szin ( spinor_work[0], spinor_work[0] , VOLUME );
 
-    /***************************************************************************
-     * loop contractions
-     ***************************************************************************/
-    exitstatus = contract_local_loop_stochastic ( loop, stochastic_propagator_g5, stochastic_propagator, g_sink_momentum_number, g_sink_momentum_list );
-    if(exitstatus != 0) {
-      fprintf(stderr, "[loop_invert_contract] Error from contract_local_loop_stochastic, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-      EXIT(44);
-    }
+      Q_phi ( spinor_work[1], spinor_work[0], gauge_field_with_phase, g_mu );
+
+      spinor_field_cvc_eq_convert_spinor_field_szin ( spinor_work[1], spinor_work[1] , VOLUME );
+
+      for ( int it = 0; it < T; it++ ) {
+      for ( int iz = 0; iz < LZ; iz++ ) {
+      for ( int iy = 0; iy < LY; iy++ ) {
+      for ( int ix = 0; ix < LX; ix++ ) {
+        for ( int is = 0; is < 4; is++ ) {
+        for ( int ib = 0; ib < 3; ib++ ) {
+          fprintf ( stdout, "D x prop %3d %3d %3d %3d     %3d %3d   %25.16e %25.16e    %25.16e %25.16e\n",
+              ix, iy, iz, it, is, ib, 
+              spinor_work[1][ _GSI( g_ipt[it][ix][iy][iz] ) + 2*(3*is+ib) ],
+              spinor_work[1][ _GSI( g_ipt[it][ix][iy][iz] ) + 2*(3*is+ib)+1],
+              spinor_field[0][ _GSI( g_ipt[it][ix][iy][iz] ) + 2*(3*is+ib) ],
+              spinor_field[0][ _GSI( g_ipt[it][ix][iy][iz] ) + 2*(3*is+ib)+1] );
+        }}
+      }}}}
+#endif
+      /***************************************************************************
+       *
+       * CONTRACTION FOR LOCAL LOOPS
+       *
+       ***************************************************************************/
+
+      /***************************************************************************
+       * group name for contraction
+       ***************************************************************************/
+      sprintf ( data_tag, "/conf_%.4d/nstoch_%.4d", Nconf, isample );
+
+      /***************************************************************************
+       * loop contractions
+       ***************************************************************************/
+      exitstatus = contract_local_loop_stochastic ( loop, spinor_field[0], spinor_field[1], g_sink_momentum_number, g_sink_momentum_list );
+      if(exitstatus != 0) {
+        fprintf(stderr, "[loop_invert_contract] Error from contract_local_loop_stochastic, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(44);
+      }
+
+#pragma omp parallel for
+      for ( int i = 0; i < T * g_sink_momentum_number * 32 ; i++ ) {
+        loop_accum[0][0][i] += loop[0][0][i];
+      }
+
+    }  /* end of loop on spin-color (dilution?) index */
 
     /***************************************************************************
      * factor -1 for STD-OET
      ***************************************************************************/
-    complex_field_ti_eq_re ( loop[0][0], -1., T * g_sink_momentum_number * 16 );
+    complex_field_ti_eq_re ( loop_accum[0][0], -1., T * g_sink_momentum_number * 16 );
 
     /***************************************************************************
      * write contraction to file
      ***************************************************************************/
 #ifdef HAVE_HDF5
-    exitstatus = contract_loop_write_to_h5_file ( loop, output_filename, data_tag, g_sink_momentum_number, 16, io_proc );
+    exitstatus = contract_loop_write_to_h5_file ( loop_accum, output_filename, data_tag, g_sink_momentum_number, 16, io_proc );
 #else
     exitstatus = 1;
 #endif
@@ -563,8 +731,28 @@ int main(int argc, char **argv) {
       EXIT(44);
     }
 
-    /*****************************************************************/
-    /*****************************************************************/
+
+    if ( g_verbose > 4 ) {
+      fprintf( stdout, "# [loop_invert_contract] t  pvec  spin spin\n" );
+      for ( int it = 0; it < T; it++ ) {
+        for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+          for ( int isc = 0; isc < 16; isc++ ) {
+            fprintf( stdout, "%3d     %3d %3d %3d    %2d %2d    %25.16e %25.16e\n",
+                it,
+                g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
+                isc/4, isc%4,
+                loop_accum[it][imom][2*isc],
+                loop_accum[it][imom][2*isc+1] );
+          }
+        }
+      }
+    }
+
+    fini_2level_dtable ( &spinor_field );
+
+    fini_3level_dtable ( &loop );
+    fini_3level_dtable ( &loop_accum );
+#if 0
 #endif
   }  /* end of loop on oet samples */
 
@@ -574,7 +762,6 @@ int main(int argc, char **argv) {
   fini_1level_dtable ( &stochastic_propagator        );
   fini_1level_dtable ( &stochastic_source            );
   fini_2level_dtable ( &spinor_work                  );
-  fini_3level_dtable ( &loop                         );
 
   /***************************************************************************
    * fini rng state
@@ -592,7 +779,6 @@ int main(int argc, char **argv) {
 
   /* free clover matrix terms */
   fini_clover ( &mzz, &mzzinv );
-  fini_clover ( &DW_mzz, &DW_mzzinv );
 
   free_geometry();
 
