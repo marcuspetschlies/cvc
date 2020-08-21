@@ -1,0 +1,90 @@
+# *******************************************************
+# * input parameters for cvc-code
+# *******************************************************
+
+T =  4
+LX = 4
+LY = 4
+LZ = 4
+mu = 0.0
+kappa = 0.115
+Nconf = 0
+csw = 0.
+format = 0
+BCangleT = 1.
+BCangleX = 0
+BCangleY = 0
+BCangleZ = 0
+
+filename_prefix = 4c4/source
+filename_prefix2 = 4c4/prop
+gaugefilename_prefix = 4c4/conf
+
+
+outfile_prefix = loop
+
+# taken from tmLQCD if wrapper is used
+#NrTProcs = 2
+#NrXProcs = 2
+#NrYProcs = 1
+#NrZProcs = 1
+
+# taken from tmLQCD if wrapper is used
+num_threads = 2
+
+###########################
+# source and prop io
+###########################
+read_source                 = yes
+read_propagator             = yes
+write_source                = no
+write_propagator            = no
+
+# write_sequential_source     =
+# write_sequential_propagator =
+
+###########################
+# momentum lists
+###########################
+
+# source_momentum =
+
+sink_momentum = 0,0,0
+
+# seq_source_momentum =
+
+###########################
+# gamma matrix lists
+###########################
+
+# source_gamma_id =
+
+# sequential_source_gamma_id =
+
+###########################
+# timeslice lists
+###########################
+
+# timeslice for sequential source
+# this is dt,
+# counted from current source timeslice
+# sequential_source_timeslice =
+
+###########################
+# misc
+###########################
+propagator_precision = 64
+
+fermion_type = Wilson
+
+verbosity_level = 5
+
+seed = 728
+noise_type = Z2
+samples=1
+
+###########################
+# source coordinate list
+# only t-coord is used
+###########################
+# source_coords =
