@@ -716,7 +716,7 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * factor -1 for STD-OET
      ***************************************************************************/
-    complex_field_ti_eq_re ( loop_accum[0][0], -1., T * g_sink_momentum_number * 16 );
+    /* complex_field_ti_eq_re ( loop_accum[0][0], -1., T * g_sink_momentum_number * 16 ); */
 
     /***************************************************************************
      * write contraction to file
@@ -733,18 +733,34 @@ int main(int argc, char **argv) {
 
 
     if ( g_verbose > 4 ) {
-      fprintf( stdout, "# [loop_invert_contract] t  pvec  spin spin\n" );
-      for ( int it = 0; it < T; it++ ) {
-        for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+      fprintf( stdout, "# [loop_invert_contract] pvec  t  spin spin\n" );
+      for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+        double gtr[2] = {0., 0.};
+        for ( int it = 0; it < T; it++ ) {
           for ( int isc = 0; isc < 16; isc++ ) {
-            fprintf( stdout, "%3d     %3d %3d %3d    %2d %2d    %25.16e %25.16e\n",
-                it,
+            fprintf( stdout, "%3d %3d %3d     %3d    %2d %2d     %25.16e %25.16e\n",
                 g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
+                it,
                 isc/4, isc%4,
                 loop_accum[it][imom][2*isc],
                 loop_accum[it][imom][2*isc+1] );
           }
+          double dtmp[2] = {
+            loop_accum[it][imom][0] + loop_accum[it][imom][10] + loop_accum[it][imom][20] + loop_accum[it][imom][30],
+            loop_accum[it][imom][1] + loop_accum[it][imom][11] + loop_accum[it][imom][21] + loop_accum[it][imom][31]
+          };
+          gtr[0] += dtmp[0];
+          gtr[1] += dtmp[1];
+          fprintf( stdout, "# [loop_invert_contract] t-trS %3d %3d %3d    %3d    %25.16e %25.16e\n",
+                g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
+                it, dtmp[0], dtmp[1] );
+
         }
+        fprintf( stdout, "# [loop_invert_contract] g-trS %3d %3d %3d    %25.16e %25.16e    %25.16e %25.16e\n",
+            g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], 
+            gtr[0], gtr[1] ,
+            gtr[0]/(12.*VOLUME), gtr[1]/(12.*VOLUME) );
+
       }
     }
 
