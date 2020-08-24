@@ -9,6 +9,9 @@ extern "C"
 {
 #endif
 
+#ifdef HAVE_LIBLEMON
+#include "lemon.h"
+#endif
 #include "lime.h"
 
 #ifdef __cplusplus
@@ -59,7 +62,11 @@ int read_lime_spinor_single(float * const s, char * filename, const int position
 
 int read_binary_spinor_data_timeslice(double * const s, int timeslice, LimeReader * limereader, const int prec, DML_Checksum *ans);
 
+#ifdef HAVE_LIBLEMON
+int read_binary_propagator_data(double * const s, LemonReader * reader, const int prec, DML_Checksum *checksum);
+#else
 int read_binary_propagator_data(double * const s, LimeReader * limereader, const int prec, DML_Checksum *ans);
+#endif
 
 int read_lime_spinor_timeslice(double * const s, int timeslice, char * filename, const int position, DML_Checksum*checksum);
 
