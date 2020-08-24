@@ -62,6 +62,7 @@ extern "C"
 #include "clover.h"
 #include "contract_loop.h"
 #include "ranlxd.h"
+#include "scalar_products.h"
 
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
@@ -500,6 +501,7 @@ int main(int argc, char **argv) {
       }
     }
 
+    if ( g_verbose > 4 ) {
 
     for ( int ir = 0; ir < 4; ir++ ) {
     for ( int ia = 0; ia < 3; ia++ ) {
@@ -532,7 +534,7 @@ int main(int argc, char **argv) {
          
         fprintf ( stdout, " %2d %2d    %3d %3d %3d %3d    %2d %2d    %3d   %25.16e %25.16e\n", 
             ir, ia, 
-            ix, iy, iz, it, 
+            ix+g_proc_coords[1]*LX, iy+g_proc_coords[2]*LY, iz+g_proc_coords[3]*LZ, it+g_proc_coords[0]*T, 
             is, ib, isc,
             stochastic_source[  288 * g_ipt[it][ix][iy][iz] + 2 * isc    ],
             stochastic_source[  288 * g_ipt[it][ix][iy][iz] + 2 * isc +1 ] );
@@ -545,7 +547,9 @@ int main(int argc, char **argv) {
         //}
         }}
       }}}}
-     }}
+    }}
+
+    }
 #endif  /* end of if _READ_LIME */
 
     double ** spinor_field = init_2level_dtable ( 2, _GSI( VOLUME ) );
@@ -653,6 +657,14 @@ int main(int argc, char **argv) {
 
         }
       }
+
+      /*
+      double sp = 0.;
+      spinor_scalar_product_re ( &sp, spinor_field[0], spinor_field[0], VOLUME );
+      // spinor_scalar_product_re ( &sp, stochastic_source, stochastic_source, 12*VOLUME );
+      if ( g_cart_id == 0 ) fprintf ( stdout, "# [loop_invert_contract] sp %2d   %25.16e\n", isc, sp );
+      */
+
 #endif  /* of if _READ_TEXT  */
 
       memcpy ( spinor_work[1], spinor_field[1], sizeof_spinor_field );
@@ -732,7 +744,7 @@ int main(int argc, char **argv) {
     }
 
 
-    if ( g_verbose > 4 ) {
+    if ( g_verbose > 3 ) {
       fprintf( stdout, "# [loop_invert_contract] pvec  t  spin spin\n" );
       for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
         double gtr[2] = {0., 0.};
@@ -740,7 +752,7 @@ int main(int argc, char **argv) {
           for ( int isc = 0; isc < 16; isc++ ) {
             fprintf( stdout, "%3d %3d %3d     %3d    %2d %2d     %25.16e %25.16e\n",
                 g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
-                it,
+                it+g_proc_coords[0]*T,
                 isc/4, isc%4,
                 loop_accum[it][imom][2*isc],
                 loop_accum[it][imom][2*isc+1] );
@@ -751,15 +763,22 @@ int main(int argc, char **argv) {
           };
           gtr[0] += dtmp[0];
           gtr[1] += dtmp[1];
-          fprintf( stdout, "# [loop_invert_contract] t-trS %3d %3d %3d    %3d    %25.16e %25.16e\n",
+          if ( io_proc > 0 ) fprintf( stdout, "# [loop_invert_contract] t-trS %3d %3d %3d    %3d    %25.16e %25.16e\n",
                 g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
-                it, dtmp[0], dtmp[1] );
+                it+g_proc_coords[0]*T, dtmp[0], dtmp[1] );
 
         }
-        fprintf( stdout, "# [loop_invert_contract] g-trS %3d %3d %3d    %25.16e %25.16e    %25.16e %25.16e\n",
+#ifdef HAVE_MPI
+        double dtmp[2] = { gtr[0], gtr[1] };
+        if ( MPI_Reduce( dtmp, gtr, 2, MPI_DOUBLE, MPI_SUM, 0, g_tr_comm) != MPI_SUCCESS ) {
+          fprintf(stderr, "[loop_invert_contract] Error from MPI_Reduce %s %d\n", __FILE__, __LINE__ );
+          EXIT(45);
+        }
+#endif
+        if ( io_proc == 2 ) fprintf( stdout, "# [loop_invert_contract] g-trS %3d %3d %3d    %25.16e %25.16e    %25.16e %25.16e\n",
             g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], 
             gtr[0], gtr[1] ,
-            gtr[0]/(12.*VOLUME), gtr[1]/(12.*VOLUME) );
+            gtr[0]/(12.*VOLUME*g_nproc), gtr[1]/(12.*VOLUME*g_nproc) );
 
       }
     }
