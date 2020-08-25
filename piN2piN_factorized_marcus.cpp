@@ -1583,6 +1583,7 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_write_aff, status was %d\n", exitstatus);
             EXIT(49);
           }
+#endif
 
           /*****************************************************************/
           /*****************************************************************/
