@@ -1369,7 +1369,7 @@ int main(int argc, char **argv) {
           spinor_field_ti_eq_re ( spinor_work[0], gamma_f2_adjoint_sign[i], VOLUME);
 
           /*****************************************************************
-           * xi - gf2 - u
+           * (1) xi - gf2 - u
            *****************************************************************/
           sprintf(aff_tag, "/v3/t%.2dx%.2dy%.2dz%.2d/xi-g%.2d-u/sample%.2d", 
               gsx[0], gsx[1], gsx[2], gsx[3],
@@ -1421,7 +1421,7 @@ int main(int argc, char **argv) {
 #endif  /* of if 0 */
 
           /*****************************************************************
-           * phi - gf2 - u
+           * (2) g5.phi - gf2 - u
            *****************************************************************/
           /* multiply with Dirac structure at vertex f2 */
           /* spinor_field_eq_gamma_ti_spinor_field (spinor_work[1], 5, stochastic_propagator_list[i_sample], VOLUME ); */
@@ -1462,7 +1462,7 @@ int main(int argc, char **argv) {
 
 
           /*****************************************************************
-           * phi - gf2 - d
+           * (3) g5.phi - gf2 - d
            *****************************************************************/
           sprintf(aff_tag, "/v3/t%.2dx%.2dy%.2dz%.2d/g5.phi-g%.2d-d/sample%.2d", 
               gsx[0], gsx[1], gsx[2], gsx[3],
@@ -1539,7 +1539,7 @@ int main(int argc, char **argv) {
           }
 
           /*****************************************************************
-           * xi - g5 gf1 - u - u
+           * (4) xi - g5 gf1 - u - u
            *****************************************************************/
           sprintf(aff_tag, "/v2/t%.2dx%.2dy%.2dz%.2d/g5.xi-g%.2d-u-u/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3], gamma_f1_nucleon_list[i], i_sample);
 
@@ -1562,7 +1562,7 @@ int main(int argc, char **argv) {
           }
 #if 1
           /*****************************************************************
-           * xi - g5 gf1 - u - d
+           * (5) xi - g5 gf1 - u - d
            *****************************************************************/
           sprintf(aff_tag, "/v2/t%.2dx%.2dy%.2dz%.2d/g5.xi-g%.2d-u-d/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3], gamma_f1_nucleon_list[i], i_sample);
 
@@ -1586,7 +1586,7 @@ int main(int argc, char **argv) {
 
           /*****************************************************************/
           /*****************************************************************/
-
+#if 0
           /*****************************************************************
            * xi - gf1 - d
            *****************************************************************/
@@ -1645,7 +1645,7 @@ int main(int argc, char **argv) {
 #endif  /* of if 0 */
 
           /*****************************************************************
-           * xi - g5 gf1 - u - d
+           * (6) g5.xi - gf1 - u - d
            *****************************************************************/
 
 
@@ -1751,7 +1751,7 @@ int main(int argc, char **argv) {
 
 #if 1
           /*****************************************************************
-           * phi - gf1 - d - u
+           * (7) phi - gf1 - d - u
            *****************************************************************/
           sprintf(aff_tag, "/v2/t%.2dx%.2dy%.2dz%.2d/phi-g%.2d-d-u/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3], gamma_f1_nucleon_list[i], i_sample);
 
@@ -1776,7 +1776,7 @@ int main(int argc, char **argv) {
 
 #if 0
           /*****************************************************************
-           * phi - gf1 - d - d
+           *  phi - gf1 - d - d
            *****************************************************************/
           sprintf(aff_tag, "/v2/t%.2dx%.2dy%.2dz%.2d/phi-g%.2d-d-d/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3], gamma_f1_nucleon_list[i], i_sample);
 
@@ -1798,6 +1798,10 @@ int main(int argc, char **argv) {
             EXIT(49);
           }
 #endif  /* of if 0 */
+
+          /*****************************************************************
+           * (8) phi - gf1 - d - u
+           *****************************************************************/
 
           sprintf(aff_tag, "/v4/t%.2dx%.2dy%.2dz%.2d/phi-g%.2d-u-d/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3],
                 gamma_f1_nucleon_list[i], i_sample);
@@ -1962,7 +1966,7 @@ int main(int argc, char **argv) {
 
 
           /*****************************************************************
-           * xi^+ - gf2 - ud
+           * (9) xi^+ - gf2 - ud
            *****************************************************************/
 
           /* spinor_work <- Gamma_f2^+ stochastic source */
@@ -1996,7 +2000,7 @@ int main(int argc, char **argv) {
           }
 
           /*****************************************************************
-           * phi^+ - gf2 - ud
+           * (10) g5phi^+ - gf2 - ud
            *
            * CHECK G5 APPLICATION HERE
            *****************************************************************/
@@ -2371,7 +2375,7 @@ int main(int argc, char **argv) {
             }
   
             /*****************************************************************
-             * (1) g5.xi - gf1 - ud - u
+             * (11) g5.xi - gf1 - ud - u
              *****************************************************************/
             sprintf(aff_tag, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.xi-g%.2d-ud-u/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3], 
                 g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
@@ -2396,7 +2400,7 @@ int main(int argc, char **argv) {
             }
 #if 1
             /*****************************************************************
-             * (2) g5.xi - gf1 - ud - d
+             * (12) g5.xi - gf1 - ud - d
              *****************************************************************/
             sprintf(aff_tag, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.xi-g%.2d-ud-d/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3],
                 g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
@@ -2421,7 +2425,7 @@ int main(int argc, char **argv) {
             }
 
             /*****************************************************************
-             * (2) g5.xi - gf1 - ud - d
+             * (13) g5.xi - gf1 - ud - d
              *****************************************************************/
             sprintf(aff_tag, "/v4/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.xi-g%.2d-ud-d/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3],
                 g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
@@ -2451,7 +2455,7 @@ int main(int argc, char **argv) {
             /*****************************************************************/
 
             /*****************************************************************
-             * xi - gf1 - u
+             * g5.xi - gf1 - u
              *****************************************************************/
             exitstatus = contract_v1 ( v1, spinor_work[0], fp2, VOLUME  );
             if ( exitstatus != 0 ) {
@@ -2460,7 +2464,7 @@ int main(int argc, char **argv) {
             }
   
             /*****************************************************************
-             * (3) g5.xi - gf1 - u - ud
+             * (14) g5.xi - gf1 - u - ud
              *****************************************************************/
             sprintf(aff_tag, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.xi-g%.2d-u-ud/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3],
                 g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
@@ -2486,7 +2490,7 @@ int main(int argc, char **argv) {
 
             /*****************************************************************/
             /*****************************************************************/
-#if 0
+#if 0 
             /*****************************************************************
              * xi - gf1 - d
              *****************************************************************/
@@ -2520,7 +2524,6 @@ int main(int argc, char **argv) {
               fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_write_aff, status was %d\n", exitstatus);
               EXIT(49);
             }
-#endif  /* of if 0 */
 
 
             /*****************************************************************
@@ -2553,9 +2556,12 @@ int main(int argc, char **argv) {
             /*****************************************************************/
             /*****************************************************************/
 
+#endif  /* of if 0 */
+
             /* multiply with Dirac structure at vertex f1 */
             spinor_field_eq_gamma_ti_spinor_field (spinor_work[0], gamma_f1_nucleon_list[i], stochastic_propagator_list[i_sample], VOLUME );
             spinor_field_ti_eq_re ( spinor_work[0], gamma_f1_nucleon_sign[i], VOLUME);
+#if 0
   
             /*****************************************************************
              * phi - gf1 - ud
@@ -2567,7 +2573,7 @@ int main(int argc, char **argv) {
             }
   
             /*****************************************************************
-             * (1) phi - gf1 - ud - u
+             *  phi - gf1 - ud - u
              *****************************************************************/
             sprintf(aff_tag, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-ud-u/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3],
                 g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
@@ -2591,7 +2597,6 @@ int main(int argc, char **argv) {
               EXIT(49);
             }
 
-#if 0
             /*****************************************************************
              * (2 )phi - gf1 - ud - d
              *****************************************************************/
@@ -2617,7 +2622,6 @@ int main(int argc, char **argv) {
               EXIT(49);
             }
   
-#endif  /* end of if 0  */
 
             /*****************************************************************/
             /*****************************************************************/
@@ -2659,6 +2663,7 @@ int main(int argc, char **argv) {
             /*****************************************************************/
             /*****************************************************************/
   
+#endif  /* end of if 0  */
 #if 1
             /*****************************************************************
              * phi - gf1 - d
@@ -2670,7 +2675,7 @@ int main(int argc, char **argv) {
             }
   
             /*****************************************************************
-             * (4) phi - gf1 - d - ud
+             * (15) phi - gf1 - d - ud
              *****************************************************************/
             sprintf(aff_tag, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-d-ud/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3],
                 g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
@@ -2695,7 +2700,7 @@ int main(int argc, char **argv) {
 #endif  /* end of if 0  */
 
             /*****************************************************************
-             * (5) phi - gf1 - d - ud
+             * (16) phi - gf1 - d - ud
              *****************************************************************/
 
             sprintf(aff_tag, "/v4/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-d-ud/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3],
@@ -2818,9 +2823,6 @@ int main(int argc, char **argv) {
       }  /* end of if read sequential propagator */
 
 
-      /***********************************************/
-      /***********************************************/
-
       /***********************************************
        * contractions involving sequential propagator
        ***********************************************/
@@ -2848,7 +2850,7 @@ int main(int argc, char **argv) {
 
 
           /*****************************************************************
-           * xi^+ - gf2 - uu
+           * (17) xi^+ - gf2 - uu
            *****************************************************************/
 
           /* spinor_work <- Gamma_f2^+ stochastic source */
@@ -2882,7 +2884,7 @@ int main(int argc, char **argv) {
           }
 
           /*****************************************************************
-           * phi^+ - gf2 - uu
+           * (18) phi^+ - gf2 - uu
            *
            * CHECK G5 APPLICATION HERE
            *****************************************************************/
@@ -3005,9 +3007,9 @@ int main(int argc, char **argv) {
               fprintf(stderr, "[piN2piN_factorized] Error from contract_v1, status was %d\n", exitstatus);
               EXIT(47);
             }
-
+#if 1 
             /*****************************************************************
-             * (1) xi - gf1 - uu - u
+             * (22) xi - gf1 - uu - u
              *****************************************************************/
 
             sprintf(aff_tag, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.xi-g%.2d-uu-u/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3],
@@ -3031,9 +3033,9 @@ int main(int argc, char **argv) {
               fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_write_aff, status was %d\n", exitstatus);
               EXIT(49);
             }
-
+#endif
             /*****************************************************************
-             * (2) xi - gf1 - uu - d
+             * (19) g5.xi - gf1 - uu - d
              *****************************************************************/
 
             sprintf(aff_tag, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.xi-g%.2d-uu-d/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3],
@@ -3059,6 +3061,34 @@ int main(int argc, char **argv) {
             }
 
             /*****************************************************************
+             * (20) g5.xi - gf1 - uu - d
+             *****************************************************************/
+            sprintf(aff_tag, "/v4/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.xi-g%.2d-uu-d/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3],
+                g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
+                gamma_f1_nucleon_list[i], i_sample);
+
+            exitstatus = contract_v4 ( v2, spinor_work[0], fp, fp3, VOLUME );
+
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from contract_v2_from_v1, status was %d\n", exitstatus);
+              EXIT(47);
+            }
+
+            exitstatus = contract_vn_momentum_projection ( vp, v2, 192, g_sink_momentum_list, g_sink_momentum_number);
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+              EXIT(48);
+            }
+
+            exitstatus = contract_vn_write_aff ( vp, 192, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+              EXIT(49);
+            }
+
+
+
+            /*****************************************************************
              * xi - gf1 - u 
              *****************************************************************/
             exitstatus = contract_v1 ( v1, spinor_work[0], fp2, VOLUME  );
@@ -3068,7 +3098,7 @@ int main(int argc, char **argv) {
             }
 
             /*****************************************************************
-             * (2) g5 xi - gf1 - u - uu
+             * (21) g5 xi - gf1 - u - uu
              *****************************************************************/
 
             sprintf(aff_tag, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.xi-g%.2d-u-uu/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3],
@@ -3095,48 +3125,18 @@ int main(int argc, char **argv) {
 
 
             /*****************************************************************
-             * (2) g5.xi - gf1 - uu - d
-             *****************************************************************/
-
-
-            sprintf(aff_tag, "/v4/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.xi-g%.2d-uu-d/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3],
-                g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
-                gamma_f1_nucleon_list[i], i_sample);
-
-            exitstatus = contract_v4 ( v2, spinor_work[0], fp, fp3, VOLUME );
-            if ( exitstatus != 0 ) {
-              fprintf(stderr, "[piN2piN_factorized] Error from contract_v4, status was %d\n", exitstatus);
-              EXIT(47);
-            }
-
-            exitstatus = contract_vn_momentum_projection ( vp, v2, 192, g_sink_momentum_list, g_sink_momentum_number);
-            if ( exitstatus != 0 ) {
-              fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
-              EXIT(48);
-            }
-
-            exitstatus = contract_vn_write_aff ( vp, 192, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
-            if ( exitstatus != 0 ) {
-              fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_write_aff, status was %d\n", exitstatus);
-              EXIT(49);
-            }
-
-
-
-
-            /*****************************************************************
-             * (3) phi - gf1 - uu - u
+             * (23) phi - gf1 - u - uu 
              *****************************************************************/
 
             /* multiply with Dirac structure at vertex f1 */
             spinor_field_eq_gamma_ti_spinor_field (spinor_work[0], gamma_f1_nucleon_list[i], stochastic_propagator_list[i_sample], VOLUME );
             spinor_field_ti_eq_re ( spinor_work[0], gamma_f1_nucleon_sign[i], VOLUME);
 
-            sprintf(aff_tag, "/v4/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-uu-u/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3],
+            sprintf(aff_tag, "/v4/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-u-uu/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3],
                 g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
                 gamma_f1_nucleon_list[i], i_sample);
 
-            exitstatus = contract_v4 ( v2, spinor_work[0], fp, fp2, VOLUME );
+            exitstatus = contract_v4 ( v2, spinor_work[0], fp2,fp, VOLUME );
             if ( exitstatus != 0 ) {
               fprintf(stderr, "[piN2piN_factorized] Error from contract_v4, status was %d\n", exitstatus);
               EXIT(47);
@@ -3165,7 +3165,7 @@ int main(int argc, char **argv) {
 
 
             /****************************************************************
-             * (1) phi - gf1 - u - uu
+             * (24) phi - gf1 - u - uu
              ****************************************************************/
 
             sprintf(aff_tag, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-u-uu/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3],
@@ -3192,8 +3192,8 @@ int main(int argc, char **argv) {
 
 
 
-          }//loop on stochastic samples
-        }//loop on gamma_f1
+          }/*loop on stochastic samples*/
+        }/*loop on gamma_f1*/
         fini_2level_buffer ( &v1 );
         fini_2level_buffer ( &v2 );
         fini_3level_buffer ( &vp );
@@ -3318,7 +3318,7 @@ int main(int argc, char **argv) {
 
 
           /*****************************************************************
-           * phi^+ - gf2 - dd
+           * (25) phi^+ - gf2 - dd
            *
            * CHECK G5 APPLICATION HERE
            *****************************************************************/
@@ -3365,6 +3365,216 @@ int main(int argc, char **argv) {
       fini_2level_buffer ( &v3 );
       fini_3level_buffer ( &vp );
       free_fp_field ( &fp );
+
+   /* loop on coherent source locations */
+      for( int i_coherent=0; i_coherent<g_coherent_source_number; i_coherent++) {
+        int t_coherent = ( t_base + ( T_global / g_coherent_source_number ) * i_coherent ) % T_global;
+
+        gsx[0] = t_coherent;
+        gsx[1] = ( g_source_coords_list[i_src][1] + (LX_global/2) * i_coherent ) % LX_global;
+        gsx[2] = ( g_source_coords_list[i_src][2] + (LY_global/2) * i_coherent ) % LY_global;
+        gsx[3] = ( g_source_coords_list[i_src][3] + (LZ_global/2) * i_coherent ) % LZ_global;
+
+        get_point_source_info (gsx, sx, &source_proc_id);
+
+
+        /***********************************************/
+        /***********************************************/
+
+        double **v1 = NULL, **v2 = NULL, **v3 = NULL, ***vp = NULL;
+        fermion_propagator_type *fp = NULL, *fp2 = NULL, *fp3 = NULL, *fp4 = NULL;
+        fp  = create_fp_field ( VOLUME );
+        fp2 = create_fp_field ( VOLUME );
+        fp3 = create_fp_field ( VOLUME );
+        fp4 = create_fp_field ( VOLUME );
+
+        /* sequential propagator as propagator type field */
+        assign_fermion_propagator_from_spinor_field ( fp, sequential_propagator_list, VOLUME);
+
+        /* up propagator as propagator type field */
+        assign_fermion_propagator_from_spinor_field ( fp2,  &(propagator_list_up[i_coherent * n_s*n_c]), VOLUME);
+
+        /***********************************************************/
+        /***********************************************************/
+
+        exitstatus= init_2level_buffer ( &v2, VOLUME, 32 );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[piN2piN_factorized] Error from init_2level_buffer, status was %d\n", exitstatus);
+          EXIT(47);
+        }
+
+        exitstatus= init_3level_buffer ( &vp, T, g_sink_momentum_number, 32 );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[piN2piN_factorized] Error from init_3level_buffer, status was %d\n", exitstatus);
+          EXIT(47);
+        }
+
+
+
+        /* sequential propagator as propagator type field */
+        assign_fermion_propagator_from_spinor_field ( fp, sequential_propagator_list, VOLUME);
+
+        assign_fermion_propagator_from_spinor_field ( fp2,  &(propagator_list_up[i_coherent * n_s*n_c]), VOLUME);
+        assign_fermion_propagator_from_spinor_field ( fp3,  &(propagator_list_dn[i_coherent * n_s*n_c]), VOLUME);
+
+        for ( int i = 0; i < gamma_f1_nucleon_number; i++ ) {
+          for ( int i_sample = 0; i_sample < g_nsample; i_sample++ ) {
+
+            /* multiply with Dirac structure at vertex f1 */
+            /* spinor_field_eq_gamma_ti_spinor_field (spinor_work[0], 5, stochastic_source_list[i_sample], VOLUME ); */
+            /* TEST PLEGMA UKQCD */
+            spinor_field_eq_gamma_ti_spinor_field (spinor_work[1], 5, stochastic_source_list[i_sample], VOLUME );
+            spinor_field_ti_eq_re ( spinor_work[1], -1, VOLUME );
+
+            spinor_field_eq_gamma_ti_spinor_field (spinor_work[0], gamma_f1_nucleon_list[i], spinor_work[1], VOLUME );
+            spinor_field_ti_eq_re ( spinor_work[0], gamma_f1_nucleon_sign[i], VOLUME);
+
+
+            /*****************************************************************
+             * xi - gf1 - u
+             *****************************************************************/
+            exitstatus = contract_v1 ( v1, spinor_work[0], fp2, VOLUME  );
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from contract_v1, status was %d\n", exitstatus);
+              EXIT(47);
+            }
+
+            /*****************************************************************
+             * (26) g5.xi - gf1 - u - dd
+             *****************************************************************/
+
+            sprintf(aff_tag, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.xi-g%.2d-u-dd/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3],
+              g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
+              gamma_f1_nucleon_list[i], i_sample);
+
+            exitstatus = contract_v2_from_v1 ( v2, v1, fp, VOLUME );
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from contract_v2_from_v1, status was %d\n", exitstatus);
+              EXIT(47);
+            }
+
+            exitstatus = contract_vn_momentum_projection ( vp, v2, 192, g_sink_momentum_list, g_sink_momentum_number);
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+              EXIT(48);
+            }
+
+            exitstatus = contract_vn_write_aff ( vp, 192, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+              EXIT(49);
+            }
+
+            /*****************************************************************
+             * (27) g5.xi - gf1 - u - dd
+             *****************************************************************/
+
+
+            sprintf(aff_tag, "/v4/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-u-dd/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3],
+                g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
+                gamma_f1_nucleon_list[i], i_sample);
+
+            exitstatus = contract_v4 ( v2, spinor_work[0], fp2,fp, VOLUME );
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from contract_v4, status was %d\n", exitstatus);
+              EXIT(47);
+            }
+
+            exitstatus = contract_vn_momentum_projection ( vp, v2, 192, g_sink_momentum_list, g_sink_momentum_number);
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+              EXIT(48);
+            }
+
+            exitstatus = contract_vn_write_aff ( vp, 192, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+              EXIT(49);
+            }
+
+
+            /* multiply with Dirac structure at vertex f1 */
+            spinor_field_eq_gamma_ti_spinor_field (spinor_work[0], gamma_f1_nucleon_list[i], stochastic_propagator_list[i_sample], VOLUME );
+            spinor_field_ti_eq_re ( spinor_work[0], gamma_f1_nucleon_sign[i], VOLUME);
+
+            /*****************************************************************
+             * phi- gf1 - dd
+             *****************************************************************/
+            exitstatus = contract_v1 ( v1, spinor_work[0], fp, VOLUME  );
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from contract_v1, status was %d\n", exitstatus);
+              EXIT(47);
+            }
+
+            /*****************************************************************
+             * (28) phi - gf1 - dd - u
+             *****************************************************************/
+
+            sprintf(aff_tag, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-dd-u/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3],
+              g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
+              gamma_f1_nucleon_list[i], i_sample);
+
+            exitstatus = contract_v2_from_v1 ( v2, v1, fp2, VOLUME );
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from contract_v2_from_v1, status was %d\n", exitstatus);
+              EXIT(47);
+            }
+
+            exitstatus = contract_vn_momentum_projection ( vp, v2, 192, g_sink_momentum_list, g_sink_momentum_number);
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+              EXIT(48);
+            }
+
+            exitstatus = contract_vn_write_aff ( vp, 192, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+              EXIT(49);
+            }
+
+            /*****************************************************************
+             * (29) phi - gf1 - dd - u
+             *****************************************************************/
+
+
+
+            sprintf(aff_tag, "/v4/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-dd-u/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3],
+                g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
+                gamma_f1_nucleon_list[i], i_sample);
+
+            exitstatus = contract_v4 ( v2, spinor_work[0], fp,fp2, VOLUME );
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from contract_v4, status was %d\n", exitstatus);
+              EXIT(47);
+            }
+
+            exitstatus = contract_vn_momentum_projection ( vp, v2, 192, g_sink_momentum_list, g_sink_momentum_number);
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+              EXIT(48);
+            }
+
+            exitstatus = contract_vn_write_aff ( vp, 192, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+              EXIT(49);
+            }
+
+          }/*loop on stochastic samples*/
+        }/*loop on gamma_f1*/
+
+
+        fini_2level_buffer ( &v1 );
+        fini_2level_buffer ( &v2 );
+        fini_3level_buffer ( &vp );
+
+
+        free_fp_field ( &fp  );
+        free_fp_field ( &fp2 );
+        free_fp_field ( &fp3 );
+
+      } /* end of loop on coherent source timeslices */
+
 
 
     }  /* end of loop on sequential momentum list */
