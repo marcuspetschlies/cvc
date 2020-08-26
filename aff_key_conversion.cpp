@@ -46,7 +46,23 @@ void aff_key_conversion (char*key, char * const tag, int const i_sample, int con
   if ( strcmp( tag, "w_1_xi") == 0 ) {
     /* /w_1_xi/sample03/pf2x00pf2y00pf2z-01/t09x06y07z00 */
 
+    sprintf( key, "/v3/t%.2dx%.2dy%.2dz%.2d/g5.phi-g%.2d-u/sample%.2d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        C_gid, i_sample,
+        pf2[0], pf2[1], pf2[2]);
+
+  } else if ( strcmp( tag, "w_5_xi") == 0 ) {
+    /* /w_1_xi/sample03/pf2x00pf2y00pf2z-01/t09x06y07z00 */
+
     sprintf( key, "/v3/t%.2dx%.2dy%.2dz%.2d/xi-g%.2d-u/sample%.2d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        C_gid, i_sample,
+        pf2[0], pf2[1], pf2[2]);
+
+  } else if ( strcmp( tag, "w_13_xi") == 0 ) {
+    /* /w_1_xi/sample03/pf2x00pf2y00pf2z-01/t09x06y07z00 */
+
+    sprintf( key, "/v3/t%.2dx%.2dy%.2dz%.2d/g5.phi-g%.2d-d/sample%.2d/px%.2dpy%.2dpz%.2d",
         source_coords[0], source_coords[1], source_coords[2], source_coords[3],
         C_gid, i_sample,
         pf2[0], pf2[1], pf2[2]);
@@ -54,7 +70,7 @@ void aff_key_conversion (char*key, char * const tag, int const i_sample, int con
   } else if ( strcmp( tag, "w_1_phi") == 0 ) {
     /* /w_1_phi/sample02/pi2x00pi2y00pi2z01/pf1x00pf1y00pf1z01/t09x06y07z00/g06 */
 
-    sprintf(key, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-u-ud/sample%.2d/px%.2dpy%.2dpz%.2d",
+    sprintf(key, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.xi-g%.2d-u-ud/sample%.2d/px%.2dpy%.2dpz%.2d",
         source_coords[0], source_coords[1], source_coords[2], source_coords[3],
         pi2[0], pi2[1], pi2[2], C_gid, i_sample,
         pf1[0], pf1[1], pf1[2]);
@@ -62,15 +78,158 @@ void aff_key_conversion (char*key, char * const tag, int const i_sample, int con
   } else if ( strcmp( tag, "w_3_phi") == 0 ) {
     /* /w_3_phi/sample03/pi2x00pi2y00pi2z-01/pf1x00pf1y00pf1z-01/t01x02y03z04/g04 */
 
-    sprintf(key, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-ud-u/sample%.2d/px%.2dpy%.2dpz%.2d",
+    sprintf(key, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.xi-g%.2d-ud-u/sample%.2d/px%.2dpy%.2dpz%.2d",
         source_coords[0], source_coords[1], source_coords[2], source_coords[3],
         pi2[0], pi2[1], pi2[2], C_gid, i_sample,
         pf1[0], pf1[1], pf1[2]);
 
+  } else if ( strcmp( tag, "w_5_phi") == 0 ) {
+    /* /w_3_phi/sample03/pi2x00pi2y00pi2z-01/pf1x00pf1y00pf1z-01/t01x02y03z04/g04 */
+
+    sprintf(key, "/v4/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-u-uu/sample%.2d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample,
+        pf1[0], pf1[1], pf1[2]);
+
+  } else if ( strcmp( tag, "w_6_phi") == 0 ) {
+    /* /w_3_phi/sample03/pi2x00pi2y00pi2z-01/pf1x00pf1y00pf1z-01/t01x02y03z04/g04 */
+
+    sprintf(key, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-u-uu/sample%.2d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample,
+        pf1[0], pf1[1], pf1[2]);
+
+  } else if ( strcmp( tag, "w_9_phi") == 0 ) {
+    /* /w_3_phi/sample03/pi2x00pi2y00pi2z-01/pf1x00pf1y00pf1z-01/t01x02y03z04/g04 */
+
+    sprintf(key, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-dd-u/sample%.2d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample,
+        pf1[0], pf1[1], pf1[2]);
+
+  } else if ( strcmp( tag, "w_10_phi") == 0 ) {
+    /* /w_3_phi/sample03/pi2x00pi2y00pi2z-01/pf1x00pf1y00pf1z-01/t01x02y03z04/g04 */
+
+    sprintf(key, "/v4/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-dd-u/sample%.2d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample,
+        pf1[0], pf1[1], pf1[2]);
+
+  } else if ( strcmp( tag, "w_13_phi") == 0 ) {
+    /* /w_3_phi/sample03/pi2x00pi2y00pi2z-01/pf1x00pf1y00pf1z-01/t01x02y03z04/g04 */
+
+    sprintf(key, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.xi-g%.2d-uu-u/sample%.2d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample,
+        pf1[0], pf1[1], pf1[2]);
+
+  } else if ( strcmp( tag, "w_14_phi") == 0 ) {
+    /* /w_3_phi/sample03/pi2x00pi2y00pi2z-01/pf1x00pf1y00pf1z-01/t01x02y03z04/g04 */
+
+    sprintf(key, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.xi-g%.2d-u-uu/sample%.2d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample,
+        pf1[0], pf1[1], pf1[2]);
+
+  } else if ( strcmp( tag, "w_17_phi") == 0 ) {
+    /* /w_3_phi/sample03/pi2x00pi2y00pi2z-01/pf1x00pf1y00pf1z-01/t01x02y03z04/g04 */
+
+    sprintf(key, "/v4/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-d-ud/sample%.2d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample,
+        pf1[0], pf1[1], pf1[2]);
+
+  } else if ( strcmp( tag, "w_18_phi") == 0 ) {
+    /* /w_3_phi/sample03/pi2x00pi2y00pi2z-01/pf1x00pf1y00pf1z-01/t01x02y03z04/g04 */
+
+    sprintf(key, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-d-ud/sample%.2d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample,
+        pf1[0], pf1[1], pf1[2]);
+
+  } else if ( strcmp( tag, "w_25_phi") == 0 ) {
+    /* /w_3_phi/sample03/pi2x00pi2y00pi2z-01/pf1x00pf1y00pf1z-01/t01x02y03z04/g04 */
+
+    sprintf(key, "/v4/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.xi-g%.2d-ud-d/sample%.2d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample,
+        pf1[0], pf1[1], pf1[2]);
+
+  } else if ( strcmp( tag, "w_27_phi") == 0 ) {
+    /* /w_3_phi/sample03/pi2x00pi2y00pi2z-01/pf1x00pf1y00pf1z-01/t01x02y03z04/g04 */
+
+    sprintf(key, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.xi-g%.2d-ud-d/sample%.2d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample,
+        pf1[0], pf1[1], pf1[2]);
+
+  } else if ( strcmp( tag, "w_29_phi") == 0 ) {
+    /* /w_3_phi/sample03/pi2x00pi2y00pi2z-01/pf1x00pf1y00pf1z-01/t01x02y03z04/g04 */
+
+    sprintf(key, "/v4/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.xi-g%.2d-uu-d/sample%.2d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample,
+        pf1[0], pf1[1], pf1[2]);
+
+  } else if ( strcmp( tag, "w_31_phi") == 0 ) {
+    /* /w_3_phi/sample03/pi2x00pi2y00pi2z-01/pf1x00pf1y00pf1z-01/t01x02y03z04/g04 */
+
+    sprintf(key, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.xi-g%.2d-uu-d/sample%.2d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample,
+        pf1[0], pf1[1], pf1[2]);
+
+  } else if ( strcmp( tag, "w_33_phi") == 0 ) {
+    /* /w_3_phi/sample03/pi2x00pi2y00pi2z-01/pf1x00pf1y00pf1z-01/t01x02y03z04/g04 */
+
+    sprintf(key, "/v4/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.xi-g%.2d-u-dd/sample%.2d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample,
+        pf1[0], pf1[1], pf1[2]);
+
+  } else if ( strcmp( tag, "w_35_phi") == 0 ) {
+    /* /w_3_phi/sample03/pi2x00pi2y00pi2z-01/pf1x00pf1y00pf1z-01/t01x02y03z04/g04 */
+
+    sprintf(key, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.xi-g%.2d-u-dd/sample%.2d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample,
+        pf1[0], pf1[1], pf1[2]);
   } else if ( strcmp( tag, "b_1_xi") == 0 ) {
     /* /b_1_xi/sample03/pi2x00pi2y00pi2z-01/pf2x00pf2y00pf2z-01/t09x06y07z00 */
 
+    sprintf(key, "/v3/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.phi-g%.2d-ud/sample%.2d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample,
+        pf2[0], pf2[1], pf2[2] );
+
+  } else if ( strcmp( tag, "b_3_xi") == 0 ) {
+    /* /b_3_xi/sample03/pi2x00pi2y00pi2z-01/pf2x00pf2y00pf2z-01/t09x06y07z00 */
+
+    sprintf(key, "/v3/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/xi-g%.2d-uu/sample%.2d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample,
+        pf2[0], pf2[1], pf2[2] );
+
+  }  else if ( strcmp( tag, "b_7_xi") == 0 ) {
+    /* /b_7_xi/sample03/pi2x00pi2y00pi2z-01/pf2x00pf2y00pf2z-01/t09x06y07z00 */
+
+    sprintf(key, "/v3/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.phi-g%.2d-dd/sample%.2d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample,
+        pf2[0], pf2[1], pf2[2] );
+
+  } else if ( strcmp( tag, "b_9_xi") == 0 ) {
+    /* /b_9_xi/sample03/pi2x00pi2y00pi2z-01/pf2x00pf2y00pf2z-01/t09x06y07z00 */
+
     sprintf(key, "/v3/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/xi-g%.2d-ud/sample%.2d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample,
+        pf2[0], pf2[1], pf2[2] );
+
+  } else if ( strcmp( tag, "b_17_xi") == 0 ) {
+    /* /b_1_xi/sample03/pi2x00pi2y00pi2z-01/pf2x00pf2y00pf2z-01/t09x06y07z00 */
+
+    sprintf(key, "/v3/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.phi-g%.2d-uu/sample%.2d/px%.2dpy%.2dpz%.2d",
         source_coords[0], source_coords[1], source_coords[2], source_coords[3],
         pi2[0], pi2[1], pi2[2], C_gid, i_sample,
         pf2[0], pf2[1], pf2[2] );
@@ -78,7 +237,39 @@ void aff_key_conversion (char*key, char * const tag, int const i_sample, int con
   } else if ( strcmp( tag, "b_1_phi") == 0 ) {
     /* /b_1_phi/sample03/pf1x00pf1y00pf1z01/t09x06y07z00/g06 */
 
-    sprintf(key, "/v2/t%.2dx%.2dy%.2dz%.2d/phi-g%.2d-u-u/sample%.2d/px%.2dpy%.2dpz%.2d",
+    sprintf(key, "/v2/t%.2dx%.2dy%.2dz%.2d/g5.xi-g%.2d-u-u/sample%.2d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        C_gid, i_sample,
+        pf1[0], pf1[1], pf1[2]);
+
+  } else if ( strcmp( tag, "b_3_phi") == 0 ) {
+    /* /b_3_phi/sample03/pf1x00pf1y00pf1z01/t09x06y07z00/g06 */
+
+    sprintf(key, "/v2/t%.2dx%.2dy%.2dz%.2d/phi-g%.2d-d-u/sample%.2d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        C_gid, i_sample,
+        pf1[0], pf1[1], pf1[2]);
+
+  } else if ( strcmp( tag, "b_4_phi") == 0 ) {
+    /* /b_4_phi/sample03/pf1x00pf1y00pf1z01/t09x06y07z00/g06 */
+
+    sprintf(key, "/v4/t%.2dx%.2dy%.2dz%.2d/phi-g%.2d-u-d/sample%.2d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        C_gid, i_sample,
+        pf1[0], pf1[1], pf1[2]);
+
+  } else if ( strcmp( tag, "b_13_phi") == 0 ) {
+    /* /b_4_phi/sample03/pf1x00pf1y00pf1z01/t09x06y07z00/g06 */
+
+    sprintf(key, "/v4/t%.2dx%.2dy%.2dz%.2d/g5.xi-g%.2d-u-d/sample%.2d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        C_gid, i_sample,
+        pf1[0], pf1[1], pf1[2]);
+
+  } else if ( strcmp( tag, "b_15_phi") == 0 ) {
+    /* /b_4_phi/sample03/pf1x00pf1y00pf1z01/t09x06y07z00/g06 */
+
+    sprintf(key, "/v2/t%.2dx%.2dy%.2dz%.2d/g5.xi-g%.2d-u-d/sample%.2d/px%.2dpy%.2dpz%.2d",
         source_coords[0], source_coords[1], source_coords[2], source_coords[3],
         C_gid, i_sample,
         pf1[0], pf1[1], pf1[2]);
