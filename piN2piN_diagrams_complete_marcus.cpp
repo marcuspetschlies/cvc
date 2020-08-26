@@ -886,7 +886,7 @@ int main(int argc, char **argv) {
             bphi = b15phi;
           } else if ( iperm == 15  ) {
             bxi  = b1xi;
-            bphi = b4phi;
+            bphi = b15phi;
           } else if ( iperm == 16  ) {
             bxi  = b17xi;
             bphi = b13phi;
