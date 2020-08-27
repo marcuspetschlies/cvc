@@ -1259,7 +1259,6 @@ int main(int argc, char **argv) {
         }
       }}  /* end of loop of g_f1_delta, g_i1_delta */
 
-      free_fp_field ( &fp3 );
       fini_2level_buffer ( &v2 );
       fini_3level_buffer ( &vp );
 
@@ -1661,29 +1660,27 @@ int main(int argc, char **argv) {
 
           fermion_propagator_field_eq_gamma_ti_fermion_propagator_field (fp3, gamma_f1_nucleon_list[i], fp, VOLUME );
           fermion_propagator_field_eq_fermion_propagator_field_ti_re ( fp3, fp3, gamma_f1_nucleon_sign[i], VOLUME );
+
           spinor_field_eq_gamma_ti_spinor_field (spinor_work[1], 5, stochastic_source_list[i_sample], VOLUME );
           spinor_field_ti_eq_re ( spinor_work[1], -1., VOLUME );
 
-
-
-
           exitstatus = contract_v4 ( v2, spinor_work[1], fp3, fp2, VOLUME );
-            if ( exitstatus != 0 ) {
-              fprintf(stderr, "[piN2piN_factorized] Error from contract_v4, status was %d\n", exitstatus);
-              EXIT(47);
-            }
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[piN2piN_factorized] Error from contract_v4, status was %d\n", exitstatus);
+            EXIT(47);
+          }
 
-            exitstatus = contract_vn_momentum_projection ( vp, v2, 192, g_sink_momentum_list, g_sink_momentum_number);
-            if ( exitstatus != 0 ) {
-              fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
-              EXIT(48);
-            }
+          exitstatus = contract_vn_momentum_projection ( vp, v2, 192, g_sink_momentum_list, g_sink_momentum_number);
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+            EXIT(48);
+          }
 
-            exitstatus = contract_vn_write_aff ( vp, 192, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
-            if ( exitstatus != 0 ) {
-              fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_write_aff, status was %d\n", exitstatus);
-              EXIT(49);
-            }
+          exitstatus = contract_vn_write_aff ( vp, 192, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[piN2piN_factorized] Error from contract_vn_write_aff, status was %d\n", exitstatus);
+            EXIT(49);
+          }
 
 
           /*****************************************************************/
@@ -1850,6 +1847,7 @@ int main(int argc, char **argv) {
       fini_3level_buffer ( &vp );
       free_fp_field ( &fp  );
       free_fp_field ( &fp2 );
+      free_fp_field ( &fp3 );
     } /* end of loop on coherent source timeslices */
 
     /***********************************************************/
@@ -2287,7 +2285,6 @@ int main(int argc, char **argv) {
 
         fini_2level_buffer ( &v2 );
         fini_3level_buffer ( &vp );
-        free_fp_field ( &fp4 );
 
         /*****************************************************************/
         /*****************************************************************/
@@ -2362,6 +2359,7 @@ int main(int argc, char **argv) {
         assign_fermion_propagator_from_spinor_field ( fp,  sequential_propagator_list, VOLUME);
         assign_fermion_propagator_from_spinor_field ( fp2,  &(propagator_list_up[i_coherent * n_s*n_c]), VOLUME);
         assign_fermion_propagator_from_spinor_field ( fp3,  &(propagator_list_dn[i_coherent * n_s*n_c]), VOLUME);
+
 
         for ( int i = 0; i < gamma_f1_nucleon_number; i++ ) {
           for ( int i_sample = 0; i_sample < g_nsample; i_sample++ ) {
@@ -2755,6 +2753,7 @@ int main(int argc, char **argv) {
         free_fp_field ( &fp  );
         free_fp_field ( &fp2 );
         free_fp_field ( &fp3 );
+        free_fp_field ( &fp4 );
 
       }  /* end of loop on coherent source timeslices */
       /************************************************
@@ -2950,6 +2949,7 @@ int main(int argc, char **argv) {
       fini_2level_buffer ( &v3 );
       fini_3level_buffer ( &vp );
       free_fp_field ( &fp );
+    
 
       /***********************************************/
       /**contractions involving sequential propagator*/
