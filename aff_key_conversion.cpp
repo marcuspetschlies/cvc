@@ -86,7 +86,7 @@ void aff_key_conversion (char*key, char * const tag, int const i_sample, int con
   } else if ( strcmp( tag, "w_5_phi") == 0 ) {
     /* /w_3_phi/sample03/pi2x00pi2y00pi2z-01/pf1x00pf1y00pf1z-01/t01x02y03z04/g04 */
 
-    sprintf(key, "/v4/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-u-uu/sample%.2d/px%.2dpy%.2dpz%.2d",
+    sprintf(key, "/v4/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-d-uu/sample%.2d/px%.2dpy%.2dpz%.2d",
         source_coords[0], source_coords[1], source_coords[2], source_coords[3],
         pi2[0], pi2[1], pi2[2], C_gid, i_sample,
         pf1[0], pf1[1], pf1[2]);
@@ -94,7 +94,7 @@ void aff_key_conversion (char*key, char * const tag, int const i_sample, int con
   } else if ( strcmp( tag, "w_6_phi") == 0 ) {
     /* /w_3_phi/sample03/pi2x00pi2y00pi2z-01/pf1x00pf1y00pf1z-01/t01x02y03z04/g04 */
 
-    sprintf(key, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-u-uu/sample%.2d/px%.2dpy%.2dpz%.2d",
+    sprintf(key, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-d-uu/sample%.2d/px%.2dpy%.2dpz%.2d",
         source_coords[0], source_coords[1], source_coords[2], source_coords[3],
         pi2[0], pi2[1], pi2[2], C_gid, i_sample,
         pf1[0], pf1[1], pf1[2]);
@@ -274,6 +274,38 @@ void aff_key_conversion (char*key, char * const tag, int const i_sample, int con
         C_gid, i_sample,
         pf1[0], pf1[1], pf1[2]);
 
+  } else if ( strcmp( tag, "z_19_phi") == 0 ) {
+    /* /z_3_phi/sample00/pi2x00pi2y00pi2z-01/pf1x00pf1y00pf1z-01/t09x06y07z00/g06 */
+
+    sprintf(key, "/v4-oet/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/hatphi-g%.2d-u-d/sample%.2d/d%d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample, i_spin,
+        pf1[0], pf1[1], pf1[2]);
+
+  } else if ( strcmp( tag, "z_17_phi") == 0 ) {
+    /* /z_3_phi/sample00/pi2x00pi2y00pi2z-01/pf1x00pf1y00pf1z-01/t09x06y07z00/g06 */
+
+    sprintf(key, "/v2-oet/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/hatphi-g%.2d-u-d/sample%.2d/d%d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample, i_spin,
+        pf1[0], pf1[1], pf1[2]);
+
+  } else if ( strcmp( tag, "z_15_phi") == 0 ) {
+    /* /z_3_phi/sample00/pi2x00pi2y00pi2z-01/pf1x00pf1y00pf1z-01/t09x06y07z00/g06 */
+
+    sprintf(key, "/v2-oet/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-d-d/sample%.2d/d%d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample, i_spin,
+        pf1[0], pf1[1], pf1[2]);
+
+  } else if ( strcmp( tag, "z_9_phi") == 0 ) {
+    /* /z_3_phi/sample00/pi2x00pi2y00pi2z-01/pf1x00pf1y00pf1z-01/t09x06y07z00/g06 */
+
+    sprintf(key, "/v2-oet/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/hatphi-g%.2d-u-u/sample%.2d/d%d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample, i_spin,
+        pf1[0], pf1[1], pf1[2]);
+
   } else if ( strcmp( tag, "z_3_phi") == 0 ) {
     /* /z_3_phi/sample00/pi2x00pi2y00pi2z-01/pf1x00pf1y00pf1z-01/t09x06y07z00/g06 */
 
@@ -292,11 +324,27 @@ void aff_key_conversion (char*key, char * const tag, int const i_sample, int con
   } else if ( strcmp( tag, "z_1_xi") == 0 ) {
     /* /z_1_xi/sample00/pf2x00pf2y00pf2z-01/t09x06y07z00 */
 
-    sprintf(key, "/v3-oet/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-u/sample%.2d/d%d/px%.2dpy%.2dpz%.2d",
+    sprintf(key, "/v3-oet/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.phi-g%.2d-u/sample%.2d/d%d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample, i_spin,
+        pf2[0], pf2[1], pf2[2] );
+  } else if ( strcmp( tag, "z_9_xi") == 0 ) {
+    /* /z_9_xi/sample00/pf2x00pf2y00pf2z-01/t09x06y07z00 */
+
+    sprintf(key, "/v3-oet/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.phi-g%.2d-d/sample%.2d/d%d/px%.2dpy%.2dpz%.2d",
+        source_coords[0], source_coords[1], source_coords[2], source_coords[3],
+        pi2[0], pi2[1], pi2[2], C_gid, i_sample, i_spin,
+        pf2[0], pf2[1], pf2[2] );
+  } else if ( strcmp( tag, "z_5_xi") == 0 ) {
+    /* /z_5_xi/sample00/pf2x00pf2y00pf2z-01/t09x06y07z00 */
+
+    sprintf(key, "/v3-oet/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.hatphi-g%.2d-u/sample%.2d/d%d/px%.2dpy%.2dpz%.2d",
         source_coords[0], source_coords[1], source_coords[2], source_coords[3],
         pi2[0], pi2[1], pi2[2], C_gid, i_sample, i_spin,
         pf2[0], pf2[1], pf2[2] );
   }
+
+
 
 }  // end of key_conversion
 

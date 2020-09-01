@@ -3161,14 +3161,14 @@ int main(int argc, char **argv) {
 
 
             /*****************************************************************
-             * (23) phi - gf1 - u - uu 
+             * (23) phi - gf1 - d - uu 
              *****************************************************************/
 
             /* multiply with Dirac structure at vertex f1 */
-            fermion_propagator_field_eq_gamma_ti_fermion_propagator_field (fp4, gamma_f1_nucleon_list[i], fp2, VOLUME );
+            fermion_propagator_field_eq_gamma_ti_fermion_propagator_field (fp4, gamma_f1_nucleon_list[i], fp3, VOLUME );
             fermion_propagator_field_eq_fermion_propagator_field_ti_re ( fp4, fp4, gamma_f1_nucleon_sign[i], VOLUME );
 
-            sprintf(aff_tag, "/v4/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-u-uu/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3],
+            sprintf(aff_tag, "/v4/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-d-uu/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3],
                 g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
                 gamma_f1_nucleon_list[i], i_sample);
 
@@ -3195,9 +3195,9 @@ int main(int argc, char **argv) {
 
 
             /******************************************************************
-             * phi - gf1 - u
+             * phi - gf1 - d
              *****************************************************************/
-            exitstatus = contract_v1 ( v1, spinor_work[0], fp2, VOLUME  );
+            exitstatus = contract_v1 ( v1, spinor_work[0], fp3, VOLUME  );
             if ( exitstatus != 0 ) {
               fprintf(stderr, "[piN2piN_factorized] Error from contract_v1, status was %d\n", exitstatus);
               EXIT(47);
@@ -3205,10 +3205,10 @@ int main(int argc, char **argv) {
 
 
             /****************************************************************
-             * (24) phi - gf1 - u - uu
+             * (24) phi - gf1 - d - uu
              ****************************************************************/
 
-            sprintf(aff_tag, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-u-uu/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3],
+            sprintf(aff_tag, "/v2/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-d-uu/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3],
               g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
               gamma_f1_nucleon_list[i], i_sample);
 
@@ -3516,11 +3516,14 @@ int main(int argc, char **argv) {
             fermion_propagator_field_eq_gamma_ti_fermion_propagator_field (fp4, gamma_f1_nucleon_list[i], fp2, VOLUME );
             fermion_propagator_field_eq_fermion_propagator_field_ti_re ( fp4, fp4, gamma_f1_nucleon_sign[i], VOLUME );
 
-            sprintf(aff_tag, "/v4/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/phi-g%.2d-u-dd/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3],
+            spinor_field_eq_gamma_ti_spinor_field (spinor_work[1], 5, stochastic_source_list[i_sample], VOLUME );
+            spinor_field_ti_eq_re ( spinor_work[1], -1., VOLUME );
+
+            sprintf(aff_tag, "/v4/t%.2dx%.2dy%.2dz%.2d/pi2x%.2dpi2y%.2dpi2z%.2d/g5.xi-g%.2d-u-dd/sample%.2d", gsx[0], gsx[1], gsx[2], gsx[3],
                 g_seq_source_momentum_list[iseq_mom][0], g_seq_source_momentum_list[iseq_mom][1], g_seq_source_momentum_list[iseq_mom][2],
                 gamma_f1_nucleon_list[i], i_sample);
 
-            exitstatus = contract_v4 ( v2, stochastic_propagator_list[i_sample], fp4,fp, VOLUME );
+            exitstatus = contract_v4 ( v2, spinor_work[1], fp4,fp, VOLUME );
             if ( exitstatus != 0 ) {
               fprintf(stderr, "[piN2piN_factorized] Error from contract_v4, status was %d\n", exitstatus);
               EXIT(47);
