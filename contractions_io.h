@@ -40,7 +40,8 @@ int read_aff_contraction ( void * const contr, void * const areader, void * cons
 int write_aff_contraction ( void * const contr, void * const awriter, void * const afilename, char * tag, unsigned int const nc);
 
 #ifdef HAVE_HDF5
-int read_from_h5_file ( void * const buffer, void * file, char*tag,  int const io_proc );
+int read_from_h5_file ( void * const buffer, void * file, char*tag,  int const io_proc, int intordouble=0 );
+
 #endif
 
 }

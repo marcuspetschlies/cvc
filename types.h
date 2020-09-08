@@ -11,6 +11,8 @@ typedef double ** spinor_propagator_type;
 #define _TWOPOINT_FUNCTION_TYPE_MAX_STRING_LENGTH 1200
 
 typedef struct {
+  //number of gammas initially inside the twopoint function
+  int number_of_gammas;
   // type, m-m, b-b, mxb-b, mxb-mxb
   char type [20];
   // name of 2-pt function

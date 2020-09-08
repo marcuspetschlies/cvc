@@ -722,9 +722,10 @@ int read_aff_contraction ( void * const contr, void * const areader, void * cons
  * IN : file            : here filename
  * IN : tag             : here group
  * IN : io_proc         : I/O id
+ * IN : intordouble     : if 0 we read double if 1 we read int
  *
  ***************************************************************************/
-int read_from_h5_file ( void * const buffer, void * file, char*tag,  int const io_proc ) {
+int read_from_h5_file ( void * const buffer, void * file, char*tag,  int const io_proc, int intordouble ) {
 
   if ( io_proc > 0 ) {
 
@@ -754,7 +755,7 @@ int read_from_h5_file ( void * const buffer, void * file, char*tag,  int const i
         return ( 1 );
       } else {
         /* open an existing file. */
-        if ( g_verbose > 1 ) fprintf ( stdout, "# [read_from_h5_file] open existing file\n" );
+        if ( g_verbose > 1 ) fprintf ( stdout, "# [read_from_h5_file] open existing file %s\n", filename );
   
         unsigned flags = H5F_ACC_RDONLY;  /* IN: File access flags. Allowable values are:
                                              H5F_ACC_RDWR   --- Allow read and write access to file.
@@ -769,7 +770,7 @@ int read_from_h5_file ( void * const buffer, void * file, char*tag,  int const i
         file_id = H5Fopen (         filename,         flags,        fapl_id );
 
         if ( file_id < 0 ) {
-          fprintf ( stderr, "[read_from_h5_file] Error from H5Fopen %s %d\n", __FILE__, __LINE__ );
+          fprintf ( stderr, "[read_from_h5_file] Error from H5Fopen %s %s %d\n",filename, __FILE__, __LINE__ );
           return ( 2 );
         }
       }
@@ -786,14 +787,29 @@ int read_from_h5_file ( void * const buffer, void * file, char*tag,  int const i
         fprintf ( stderr, "[read_from_h5_file] Error from H5Dopen2 %s %d\n", __FILE__, __LINE__ );
         return ( 3 );
       }
+      else {
+        fprintf(stdout, "# [read_from_h5_file] Dataset is opened %s \n",tag);
+      }
 
       /***************************************************************************
        * some default settings for H5Dread
        ***************************************************************************/
-      hid_t mem_type_id   = H5T_NATIVE_DOUBLE;
+      hid_t mem_type_id   ;
       hid_t mem_space_id  = H5S_ALL;
       hid_t file_space_id = H5S_ALL;
       hid_t xfer_plist_id = H5P_DEFAULT;
+
+
+      if (intordouble == 0){
+        mem_type_id= H5T_NATIVE_DOUBLE;
+      }
+      else if (intordouble == 1){
+        mem_type_id = H5T_NATIVE_INT ;
+      }
+      else {
+        fprintf(stderr, "# [read_from_h5_file] argument intordouble has to be either 0 or 1\n");
+        exit(1);
+      }
 
       /***************************************************************************
        * read data set
@@ -803,6 +819,7 @@ int read_from_h5_file ( void * const buffer, void * file, char*tag,  int const i
         fprintf ( stderr, "[read_from_h5_file] Error from H5Dread %s %d\n", __FILE__, __LINE__ );
         return ( 4 );
       }
+
 
       /***************************************************************************
        * close data set

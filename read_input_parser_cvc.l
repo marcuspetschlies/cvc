@@ -1227,6 +1227,11 @@ namespace cvc {
         &(cvc::twopoint_function_ptr->n) );
   }
 
+  {SPC}*numberofgammas{EQL}{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] =  %d", cvc::name,
+        &(cvc::twopoint_function_ptr->number_of_gammas));
+  }
+
   {SPC}*tag{EQL}{STRING} {
     sscanf(yytext, " %[a-zA-Z0-9] = %s", cvc::name, cvc::fname );
     strcpy( cvc::twopoint_function_ptr->name , cvc::fname );
