@@ -10,6 +10,9 @@
 #include <math.h>
 #include <time.h>
 #include <sys/time.h>
+#include <ctype.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
@@ -96,26 +99,53 @@ static inline int diagram_name_to_reader_id ( char * name ) {
  * return diagram tag and number of tags
  ***********************************************************/
 
-static inline int twopt_name_to_diagram_tag ( int * num, char * tag, const char * name ) {
+static inline int twopt_name_to_diagram_tag ( int * num, char **names, char **tag, const char * name ) {
 
   if (        strcmp( name, "N-N"       ) == 0 )  {
     *num = 1;
-    tag[0] = 'N';
+    sprintf(*tag , "N");
+    sprintf(*names, "N");
+    printf("nsasa %s\n", names[0]);
   } else if ( strcmp( name, "D-D"       ) == 0 )  {
     *num = 1;
-    tag[0] = 'D';
+    sprintf(*tag , "D");
+    sprintf(*names , "D");
   } else if ( strcmp( name, "pixN-D"    ) == 0 )  {
     *num = 1;
-    tag[0] = 'T';
+    sprintf(*tag, "T");
+    sprintf(*names, "T");
+  } else if ( strcmp( name, "D-pixN"    ) == 0 )  {
+    *num = 1;
+    sprintf(*tag, "T1");
+    sprintf(*names, "TpiNsink");
   } else if ( strcmp( name, "pixN-pixN" ) == 0 )  {
-    *num = 4;
-    tag[0] = 'B';
-    tag[1] = 'W';
-    tag[2] = 'Z';
-    tag[3] = 'M';
+    *num = 11;
+    sprintf(tag[0],"B1");
+    sprintf(tag[1],"B2");
+    sprintf(tag[2],"W1");
+    sprintf(tag[3],"W2");
+    sprintf(tag[4],"W3");
+    sprintf(tag[5],"W4");
+    sprintf(tag[6],"Z1");
+    sprintf(tag[7],"Z2");
+    sprintf(tag[8],"Z3");
+    sprintf(tag[9],"Z4");
+    sprintf(tag[10],"M");
+    sprintf(names[0],"B");
+    sprintf(names[1],"B");
+    sprintf(names[2],"W");
+    sprintf(names[3],"W");
+    sprintf(names[4],"W");
+    sprintf(names[5],"W");
+    sprintf(names[6],"Z");
+    sprintf(names[7],"Z");
+    sprintf(names[8],"Z");
+    sprintf(names[9],"Z");
+    sprintf(names[10],"M");
   } else if ( strcmp( name, "pi-pi"     ) == 0 )  {
     *num = 1;
-    tag[0] = 'P';
+    sprintf(*tag,"P");
+    sprintf(*names,"P");
   } else {
     fprintf( stderr, "[twopt_name_to_diagram_tag] Error, unrecognized twopt name %s %s %d\n", name, __FILE__, __LINE__ );
     return(1);
@@ -160,6 +190,7 @@ int twopt_combine_diagrams ( twopoint_function_type * const tp_sum, twopoint_fun
   /******************************************************
    * loop on diagram in twopt
    ******************************************************/
+  
   for ( int idiag = 0; idiag < ndiag; idiag++ ) {
 
     char diagram_name[10];
@@ -288,10 +319,10 @@ int twopt_combine_diagrams ( twopoint_function_type * const tp_sum, twopoint_fun
  ***********************************************************/
 int main(int argc, char **argv) {
  
-  char const twopt_name_list[6][20] = { "N-N", "D-D","D-pixN","pixN-D", "pixN-pixN", "pi-pi" };
+  char const twopt_name_list[6][20] = { "N-N", "D-D","D-pixN", "pixN-D", "pixN-pixN", "pi-pi" };
   int const twopt_name_number = 5;
 
-  char const twopt_type_list[5][20] = { "b-b","b-mxb", "mxb-b" , "mxb-mxb", "m-m" };
+  char const twopt_type_list[5][20] = { "b-b","b-mxb", "mxb-b", "mxb-mxb", "m-m" };
   /* int const twopt_type_number = 3; */ /* m-m not included here */
 
 
@@ -481,16 +512,22 @@ int main(int argc, char **argv) {
      * for b-b affr_diag_tag_num is 1
      ******************************************************/
     int hdf5_diag_tag_num = 0;
-    char hdf5_diag_tag_list[12];
+    char **hdf5_diag_tag_list_tag=(char **)malloc(sizeof(char*)*12);
+    char **hdf5_diag_tag_list_name=(char **)malloc(sizeof(char*)*12);
+    for(int i=0; i<12; ++i){
+      hdf5_diag_tag_list_tag[i]=(char *)malloc(sizeof(char)*20);
+      hdf5_diag_tag_list_name[i]=(char *)malloc(sizeof(char)*20);
+    }
 
-    exitstatus = twopt_name_to_diagram_tag (&hdf5_diag_tag_num, hdf5_diag_tag_list, twopt_name_list[iname] );
+    exitstatus = twopt_name_to_diagram_tag (&hdf5_diag_tag_num, hdf5_diag_tag_list_name,hdf5_diag_tag_list_tag, twopt_name_list[iname] );
     if ( exitstatus != 0 ) {
       fprintf( stderr, "[piN2piN_diagram_sum_per_type] Error from twopt_name_to_diagram_tag, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(123);
     }
     else {
       for (int i=0; i < hdf5_diag_tag_num; ++i) {
-        printf("Name of the twopoint function %s String of hdf5 filename %c\n",twopt_name_list[iname],hdf5_diag_tag_list[i]);
+        printf("Name of the twopoint function %s String of hdf5 filename %s\n",twopt_name_list[iname],hdf5_diag_tag_list_name[i]);
+        printf("Name of the twopoint function %s String of hdf5 tag %s\n",twopt_name_list[iname],hdf5_diag_tag_list_tag[i]);
       }
     }
 
@@ -498,14 +535,15 @@ int main(int argc, char **argv) {
     /***********************************************************
      * read data block from h5 file
      ***********************************************************/
-    snprintf ( filename, 200, "%s%04d_sx%02dsy%02dsz%02dst%03d_%c.h5",
+    snprintf ( filename, 200, "%s%04d_sx%02dsy%02dsz%02dst%03d_%s.h5",
                          filename_prefix,
                          Nconf,
                          source_coords_list[0][0],
                          source_coords_list[0][1],
                          source_coords_list[0][2],
                          source_coords_list[0][3],
-                         hdf5_diag_tag_list[0] );
+                         hdf5_diag_tag_list_name[0] );
+    printf("filename %s\n",filename);
 
 /*           double ** buffer = init_2level_dtable ( tp->T, sink_momentum_number, tp->gamma_size*tp->gamma_size, tp->d * tp->d, 2 );*/
     int ** buffer_mom = init_2level_itable ( 27, 3 );
@@ -556,20 +594,20 @@ int main(int argc, char **argv) {
       for ( int k = 0; k < source_location_number; k++ ) {
         double *****buffer_source = init_5level_dtable(tp->T, g_sink_momentum_number, tp->number_of_gammas, tp->d * tp->d, 2  );
 
-        //Diagramm0000_sx07sy08sz14st002_D.h5
-        snprintf ( filename, 200, "%s%04d_sx%02dsy%02dsz%02dst%03d_%c.h5", 
+        snprintf ( filename, 200, "%s%04d_sx%02dsy%02dsz%02dst%03d_%s.h5", 
                          filename_prefix, 
                          Nconf,
 		         source_coords_list[k][0], 
                          source_coords_list[k][1], 
                          source_coords_list[k][2], 
                          source_coords_list[k][3],
-                         hdf5_diag_tag_list[i] );
-        snprintf ( tagname, 200, "/sx%02dsy%02dsz%02dst%02d/%c",source_coords_list[k][0],
+                         hdf5_diag_tag_list_name[i] );
+        printf("filenasaassssss%s\n",  hdf5_diag_tag_list_name[i]);
+        snprintf ( tagname, 200, "/sx%02dsy%02dsz%02dst%02d/%s",source_coords_list[k][0],
                          source_coords_list[k][1],
                          source_coords_list[k][2],
                          source_coords_list[k][3],
-                         hdf5_diag_tag_list[i]);
+                         hdf5_diag_tag_list_tag[i]);
         exitstatus = read_from_h5_file ( (void*)(buffer_source[0][0][0][0]), filename, tagname, io_proc );
         if ( exitstatus != 0 ) {
           fprintf(stderr, "[piN2piN_diagram_sum_per_type] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
@@ -594,20 +632,26 @@ int main(int argc, char **argv) {
        ******************************************************/
       for ( int i_total_momentum = 0; i_total_momentum < 4; i_total_momentum++) {
 
-        snprintf ( filename, 200, "%s%04d_PX%02dPY%02dPZ%02d_%c.h5",
+        snprintf ( filename, 200, "%s%04d_PX%02dPY%02dPZ%02d_%s.h5",
                          filename_prefix,
                          Nconf,
                          momentum_orbit_pref[i_total_momentum][0],
                          momentum_orbit_pref[i_total_momentum][1],
                          momentum_orbit_pref[i_total_momentum][2],
-                         hdf5_diag_tag_list[i] );
-        fprintf ( stdout, "# [test_hdf5] create new file\n" );
+                         hdf5_diag_tag_list_name[i] );
 
         hid_t file_id, group_id, dataset_id, dataspace_id;  /* identifiers */
         herr_t      status;
 
-
-        file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+        struct stat fileStat;
+        if(stat( filename, &fileStat) < 0 ) {
+        /* Open an existing file. */
+          fprintf ( stdout, "# [test_hdf5] create new file\n" );
+          file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+        } else {
+          fprintf ( stdout, "# [test_hdf5] open existing file\n" );
+          file_id = H5Fopen(filename, H5F_ACC_RDWR, H5P_DEFAULT);
+        }
 
         for (int i_pi2=0; i_pi2 < momentum_orbit_nelem[i_total_momentum]; ++i_pi2){
 
@@ -629,10 +673,10 @@ int main(int argc, char **argv) {
 
 
 
-          snprintf ( tagname, 200, "/pf1x%02dpf1y%02dpf1z%02d/%c", momentum_orbit_list[i_total_momentum][i_pi2][0],
+          snprintf ( tagname, 200, "/pf1x%02dpf1y%02dpf1z%02d/%s", momentum_orbit_list[i_total_momentum][i_pi2][0],
                                                                    momentum_orbit_list[i_total_momentum][i_pi2][1],
                                                                    momentum_orbit_list[i_total_momentum][i_pi2][2],
-                                                                   hdf5_diag_tag_list[i]);
+                                                                   hdf5_diag_tag_list_tag[i]);
 
           /* Create a dataset in group "MyGroup". */
           dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
@@ -648,7 +692,255 @@ int main(int argc, char **argv) {
             }
           }
         
+          /* Write the first dataset. */
+          status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_write[0][0][0][0]));
 
+          /* Close the data space for the first dataset. */
+          status = H5Sclose(dataspace_id);
+
+          /* Close the first dataset. */
+          status = H5Dclose(dataset_id);
+
+          fini_4level_dtable(&buffer_write);
+
+        }
+        /* Close the file. */
+        status = H5Fclose(file_id);
+
+      }
+      fini_5level_dtable(&buffer_sum);
+    }//hdf5 names
+    for (int i_total_momentum=0; i_total_momentum<4; ++i_total_momentum)
+      free(indextable[i_total_momentum]);
+    free(indextable);
+
+  }  /* end of loop on twopoint function names */
+    
+
+  /******************************************************
+   *
+   * mxb-b type
+   *
+   ******************************************************/
+
+   for ( int iname = 2; iname < 3; iname++ ) {
+
+  /******************************************************
+   * check if matching 2pts are in the list
+   ******************************************************/
+    int twopt_id_number = 0;
+    int * twopt_id_list = init_1level_itable ( g_twopoint_function_number );
+    for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
+      if ( strcmp ( g_twopoint_function_list[i2pt].name , twopt_name_list[iname] ) == 0 ) {
+        twopt_id_list[twopt_id_number] = i2pt;
+        twopt_id_number++;
+      }
+    }
+    if ( twopt_id_number == 0 ) {
+      if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] skip twopoint name %s %s %d\n", twopt_name_list[iname], __FILE__, __LINE__ );
+      continue;
+    } else if ( g_verbose > 2 ) {
+      fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] number of twopoint ids name %s %d  %s %d\n", twopt_name_list[iname], twopt_id_number, __FILE__, __LINE__ );
+    }
+
+    twopoint_function_type * tp = &(g_twopoint_function_list[twopt_id_list[twopt_id_number-1]]);
+
+    gettimeofday ( &ta, (struct timezone *)NULL );
+
+    /******************************************************
+     * HDF5 readers
+     * 
+     * for mxb-b affr_diag_tag_num is 1
+     ******************************************************/
+    int hdf5_diag_tag_num = 0;
+    char **hdf5_diag_tag_list_tag=(char **)malloc(sizeof(char*)*12);
+    char **hdf5_diag_tag_list_name=(char **)malloc(sizeof(char*)*12);
+    for(int i=0; i<12; ++i){
+      hdf5_diag_tag_list_tag[i]=(char *)malloc(sizeof(char)*20);
+      hdf5_diag_tag_list_name[i]=(char *)malloc(sizeof(char)*20);
+    }
+
+    exitstatus = twopt_name_to_diagram_tag (&hdf5_diag_tag_num, hdf5_diag_tag_list_name,hdf5_diag_tag_list_tag, twopt_name_list[iname] );
+    if ( exitstatus != 0 ) {
+      fprintf( stderr, "[piN2piN_diagram_sum_per_type] Error from twopt_name_to_diagram_tag, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(123);
+    }
+    else {
+      for (int i=0; i < hdf5_diag_tag_num; ++i) {
+        printf("Name of the twopoint function %s String of hdf5 filename %s\n",twopt_name_list[iname],hdf5_diag_tag_list_name[i]);
+        printf("Name of the twopoint function %s String of hdf5 tag %s\n",twopt_name_list[iname],hdf5_diag_tag_list_tag[i]);
+      }
+    }
+#ifdef HAVE_HDF5
+    /***********************************************************
+     * read data block from h5 file
+     ***********************************************************/
+    snprintf ( filename, 200, "%s%04d_sx%02dsy%02dsz%02dst%03d_%s.h5",
+                         filename_prefix,
+                         Nconf,
+                         source_coords_list[0][0],
+                         source_coords_list[0][1],
+                         source_coords_list[0][2],
+                         source_coords_list[0][3],
+                         hdf5_diag_tag_list_name[0] );
+    printf("filename %s\n",filename);
+
+/*           double ** buffer = init_2level_dtable ( tp->T, sink_momentum_number, tp->gamma_size*tp->gamma_size, tp->d * tp->d, 2 );*/
+    int ** buffer_mom = init_2level_itable ( 343, 9 );
+    if ( buffer_mom == NULL ) {
+      fprintf(stderr, "[piN2piN_diagram_sum_per_type]  Error from ,init_4level_dtable %s %d\n", __FILE__, __LINE__ );
+      EXIT(12);
+    }
+    snprintf(tagname, 200, "/sx%02dsy%02dsz%02dst%02d/mvec",source_coords_list[0][0],
+                         source_coords_list[0][1],
+                         source_coords_list[0][2],
+                         source_coords_list[0][3]);
+
+    exitstatus = read_from_h5_file ( (void*)(buffer_mom[0]), filename, tagname, io_proc, 1 );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[piN2piN_diagram_sum_per_type] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(12);
+    }
+    int **indextable=(int **)malloc(sizeof(int*)*4);
+    int *num_elements=(int *)malloc(sizeof(int)*4);
+    for (int i=0; i<4; ++i)
+      num_elements[i]=0;
+    for (int i=0; i<343; ++i){
+      num_elements[(buffer_mom[i][3]+buffer_mom[i][6])*(buffer_mom[i][3]+buffer_mom[i][6])+(buffer_mom[i][4]+buffer_mom[i][7])*(buffer_mom[i][4]+buffer_mom[i][7])+(buffer_mom[i][5]+buffer_mom[i][8])*(buffer_mom[i][5]+buffer_mom[i][8])]++;
+    }
+    for (int i=0; i<4; ++i){
+      indextable[i]=(int *)malloc(sizeof(int)*num_elements[i]);
+    }
+    for (int i=0; i<4; ++i)
+      num_elements[i]=0;
+    for (int i=0; i<343; ++i){
+      int tot_mom=(buffer_mom[i][3]+buffer_mom[i][6])*(buffer_mom[i][3]+buffer_mom[i][6])+(buffer_mom[i][4]+buffer_mom[i][7])*(buffer_mom[i][4]+buffer_mom[i][7])+(buffer_mom[i][5]+buffer_mom[i][8])*(buffer_mom[i][5]+buffer_mom[i][8]);
+      indextable[tot_mom][num_elements[tot_mom]]=i;
+      num_elements[tot_mom]++;
+    }
+#endif
+
+
+    /* total number of readers */
+    for ( int i = 0 ; i < hdf5_diag_tag_num; i++ ) {
+      double *****buffer_sum = init_5level_dtable(tp->T, 343, tp->number_of_gammas, tp->d * tp->d, 2  );
+      for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
+        for (int momentum_number=0; momentum_number < 343; ++momentum_number){
+          for (int spin_structures=0; spin_structures < tp->number_of_gammas; ++spin_structures ){
+            for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
+              for (int realimag=0; realimag < 2; ++realimag){
+                buffer_sum[time_extent][momentum_number][spin_structures][spin_inner][realimag]=0.;
+              }
+            }
+          }
+        }
+      }
+      for ( int k = 0; k < source_location_number; k++ ) {
+        double *****buffer_source = init_5level_dtable(tp->T, 343, tp->number_of_gammas, tp->d * tp->d, 2  );
+
+        snprintf ( filename, 200, "%s%04d_sx%02dsy%02dsz%02dst%03d_%s.h5",
+                         filename_prefix,
+                         Nconf,
+                         source_coords_list[k][0],
+                         source_coords_list[k][1],
+                         source_coords_list[k][2],
+                         source_coords_list[k][3],
+                         hdf5_diag_tag_list_name[i] );
+        printf("filename%s\n",  hdf5_diag_tag_list_name[i]);
+        snprintf ( tagname, 200, "/sx%02dsy%02dsz%02dst%02d/%s",source_coords_list[k][0],
+                         source_coords_list[k][1],
+                         source_coords_list[k][2],
+                         source_coords_list[k][3],
+                         hdf5_diag_tag_list_tag[i]);
+        exitstatus = read_from_h5_file ( (void*)(buffer_source[0][0][0][0]), filename, tagname, io_proc );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[piN2piN_diagram_sum_per_type] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(12);
+        }
+        for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
+          for (int momentum_number=0; momentum_number < 343; ++momentum_number){
+            for (int spin_structures=0; spin_structures < tp->number_of_gammas; ++spin_structures ){
+              for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
+                for (int realimag=0; realimag < 2; ++realimag){
+                  buffer_sum[time_extent][momentum_number][spin_structures][spin_inner][realimag]+=buffer_source[time_extent][momentum_number][spin_structures][spin_inner][realimag];
+                }
+              }
+            }
+          }
+        }
+        fini_5level_dtable(&buffer_source);
+      }
+
+      /******************************************************
+       * loop on total momentum / frames
+       ******************************************************/
+      for ( int i_total_momentum = 0; i_total_momentum < 4; i_total_momentum++) {
+
+        snprintf ( filename, 200, "%s%04d_PX%02dPY%02dPZ%02d_%s.h5",
+                         filename_prefix,
+                         Nconf,
+                         momentum_orbit_pref[i_total_momentum][0],
+                         momentum_orbit_pref[i_total_momentum][1],
+                         momentum_orbit_pref[i_total_momentum][2],
+                         hdf5_diag_tag_list_name[i] );
+        fprintf ( stdout, "# [test_hdf5] create new file\n" );
+
+        hid_t file_id, group_id, dataset_id, dataspace_id;  /* identifiers */
+        herr_t      status;
+
+
+        file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+        for (int i_pi2=0; i_pi2 < num_elements[i_total_momentum]; ++i_pi2){
+
+          snprintf ( tagname, 200, "/pi2x%02dpi2y%02dpi2z%02dpf1x%02dpf1y%02dpf1z%02dpf2x%02dpf2y%02dpf2z%02d",    
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][0],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][1],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][2],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][3],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][4],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][5],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][6],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][7],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][8]);
+          /* Create a group named "/MyGroup" in the file. */
+          group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+          /* Close the group. */
+          status = H5Gclose(group_id);
+
+          hsize_t dims[4];
+          dims[0]=tp->T;
+          dims[1]=tp->number_of_gammas;
+          dims[2]=tp->d*tp->d;
+          dims[3]=2;
+          dataspace_id = H5Screate_simple(4, dims, NULL);
+
+          snprintf ( tagname, 200, "/pi2x%02dpi2y%02dpi2z%02dpf1x%02dpf1y%02dpf1z%02dpf2x%02dpf2y%02dpf2z%02d/%s",    
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][0],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][1],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][2],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][3],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][4],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][5],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][6],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][7],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][8],
+                                                                   hdf5_diag_tag_list_tag[i]);
+
+          /* Create a dataset in group "MyGroup". */
+          dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+          double ****buffer_write= init_4level_dtable(tp->T,tp->number_of_gammas,tp->d*tp->d,2);
+          for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
+            for (int spin_structures=0; spin_structures < tp->number_of_gammas; ++spin_structures ){
+              for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
+                for (int realimag=0; realimag < 2; ++realimag){
+                  buffer_write[time_extent][spin_structures][spin_inner][realimag]=buffer_sum[time_extent][indextable[i_total_momentum][i_pi2]][spin_structures][spin_inner][realimag]/(double)g_source_location_number;
+                }
+              }
+            }
+          }
 
           /* Write the first dataset. */
           status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_write[0][0][0][0]));
@@ -662,6 +954,8 @@ int main(int argc, char **argv) {
           fini_4level_dtable(&buffer_write);
 
         }
+        /* Close the file. */
+        status = H5Fclose(file_id);
 
       }
       fini_5level_dtable(&buffer_sum);
@@ -669,158 +963,543 @@ int main(int argc, char **argv) {
     for (int i_total_momentum=0; i_total_momentum<4; ++i_total_momentum)
       free(indextable[i_total_momentum]);
     free(indextable);
+    free(num_elements);
 
-  }  /* end of loop on twopoint function names */
-    
-
-#if 0
-      gettimeofday ( &ta, (struct timezone *)NULL );
-
-      sprintf ( filename, "%s.%.4d.PX%d_PY%d_PZ%d.aff", twopt_name_list[iname], Nconf,
-          g_total_momentum_list[ipref][0], g_total_momentum_list[ipref][1], g_total_momentum_list[ipref][2] );
-      
-      struct AffWriter_s * affw = aff_writer(filename);
-      if ( const char * aff_status_str = aff_writer_errstr ( affw ) ) {
-        fprintf(stderr, "[piN2piN_diagram_sum_per_type] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-        EXIT(48);
-      }
-
-      gettimeofday ( &tb, (struct timezone *)NULL );
-      show_time ( &ta, &tb, "piN2piN_diagram_sum_per_type", "open-writer", io_proc == 2 );
-
-      /******************************************************/
-      /******************************************************/
-
-      /******************************************************
-       * loop on 2-point functions
-       ******************************************************/
-      for ( int i2pt = 0; i2pt < twopt_id_number; i2pt++ ) {
-
-        gettimeofday ( &ta, (struct timezone *)NULL );
-
-        /* if ( strcmp ( g_twopoint_function_list[i2pt].name , twopt_name_list[iname] ) != 0 ) {
-          if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] skip twopoint %6d %s %d\n", i2pt, __FILE__, __LINE__ );
-          continue;
-        } */
-
-        int const twopt_id = twopt_id_list[i2pt];
-
-        gettimeofday ( &tb, (struct timezone *)NULL );
-        show_time ( &ta, &tb, "piN2piN_diagram_sum_per_type", "check-valid-twopt", io_proc == 2 );
-
-        if ( g_verbose > 4 ) {
-          gettimeofday ( &ta, (struct timezone *)NULL );
-          /******************************************************
-           * print the 2-point function parameters
-           ******************************************************/
-          sprintf ( filename, "twopoint_function_%d.show", twopt_id  );
-          if ( ( ofs = fopen ( filename, "w" ) ) == NULL ) {
-            fprintf ( stderr, "[piN2piN_diagram_sum_per_type] Error from fopen %s %d\n", __FILE__, __LINE__ );
-            EXIT(12);
-          }
-          twopoint_function_print ( &(g_twopoint_function_list[twopt_id]), "TWPT", ofs );
-          fclose ( ofs );
-
-          gettimeofday ( &tb, (struct timezone *)NULL );
-          show_time ( &ta, &tb, "piN2piN_diagram_sum_per_type", "print-twopoint", io_proc == 2 );
-        }  /* end of if g_verbose */
-
-        
-        /******************************************************
-         * loop on pf1
-         ******************************************************/
-        for ( int ipf1 = 0; ipf1 < momentum_orbit_nelem[iorbit]; ipf1++ ) {
-
-          int const pf1[3] = {
-            momentum_orbit_list[iorbit][ipf1][0],
-            momentum_orbit_list[iorbit][ipf1][1],
-            momentum_orbit_list[iorbit][ipf1][2] };
-
-          int const pi1[3] = { -pf1[0], -pf1[1], -pf1[2] };
-
-          /******************************************************
-           * allocate tp_sum
-           ******************************************************/
-          gettimeofday ( &ta, (struct timezone *)NULL );
-  
-          twopoint_function_type tp_sum;
-          twopoint_function_type * tp = init_1level_2pttable ( source_location_number );
-
-          twopoint_function_init ( &tp_sum );
-          twopoint_function_copy ( &tp_sum, &( g_twopoint_function_list[twopt_id]), 0 );
-          
-          if ( twopoint_function_allocate ( &tp_sum) == NULL ) {
-            fprintf ( stderr, "[piN2piN_diagram_sum_per_type] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
-            EXIT(131);
-          }
-          memcpy ( tp_sum.pi1 , pi1, 3 * sizeof( int ) );
-          memcpy ( tp_sum.pf1 , pf1, 3 * sizeof( int ) );
-  
-          for ( int i = 0; i < source_location_number; i++ ) {
-            twopoint_function_init ( &(tp[i]) );
-            twopoint_function_copy ( &(tp[i]), &( g_twopoint_function_list[twopt_id]), 0 );
-            if ( twopoint_function_allocate ( &(tp[i]) ) == NULL ) {
-              fprintf ( stderr, "[piN2piN_diagram_sum_per_type] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
-              EXIT(125);
-            }
-            memcpy ( tp[i].source_coords , source_coords_list[i], 4 * sizeof ( int ) );
-            memcpy ( tp[i].pi1 , pi1, 3 * sizeof( int ) );
-            memcpy ( tp[i].pf1 , pf1, 3 * sizeof( int ) );
-          }
-
-          gettimeofday ( &tb, (struct timezone *)NULL );
-          show_time ( &ta, &tb, "piN2piN_diagram_sum_per_type", "init-copy-allocate-twopt", io_proc == 2 );
-
-          /******************************************************
-           * loop on diagram in twopt
-           ******************************************************/
-          exitstatus = twopt_combine_diagrams ( &tp_sum, tp , source_location_number, affr, affw );
-          if ( exitstatus != 0 ) {
-            fprintf ( stderr, "[piN2piN_diagram_sum_per_type] Error from twopt_combine_diagrams, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-            EXIT(12);
-          }
-
-          /******************************************************
-           * deallocate tp_sum and tp list
-           ******************************************************/
-          for ( int i = 0; i < source_location_number; i++ ) {
-            twopoint_function_fini ( &( tp[i] ) );
-          }
-          fini_1level_2pttable ( &tp );
-          twopoint_function_fini ( &tp_sum );
-
-        }  /* end of loop on pf1 */
-
-      }  /* end of loop on 2-point functions */
-
-      fini_1level_itable ( &twopt_id_list );
-
-      /******************************************************
-       * close AFF readers
-       ******************************************************/
-      for ( int ir = 0; ir < affr_num; ir++ ) {
-        aff_reader_close ( affr[0][ir] );
-      }
-      free ( affr[0] );
-      free ( affr );
-
-      if ( const char * aff_status_str = aff_writer_close ( affw ) ) {
-        fprintf(stderr, "[piN2piN_diagram_sum_per_type] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-        EXIT(46);
-      }
-
-  /******************************************************/
-  /******************************************************/
+  }
 
   /******************************************************
    *
-   * mxb-b type
+   * b-mxb type
    *
    ******************************************************/
 
+   for ( int iname = 3; iname < 4; iname++ ) {
+
+  /******************************************************
+   * check if matching 2pts are in the list
+   ******************************************************/
+     int twopt_id_number = 0;
+     int * twopt_id_list = init_1level_itable ( g_twopoint_function_number );
+     for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
+       if ( strcmp ( g_twopoint_function_list[i2pt].name , twopt_name_list[iname] ) == 0 ) {
+        twopt_id_list[twopt_id_number] = i2pt;
+        twopt_id_number++;
+       }
+     }
+     if ( twopt_id_number == 0 ) {
+       if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] skip twopoint name %s %s %d\n", twopt_name_list[iname], __FILE__, __LINE__ );
+       continue;
+     } else if ( g_verbose > 2 ) {
+       fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] number of twopoint ids name %s %d  %s %d\n", twopt_name_list[iname], twopt_id_number, __FILE__, __LINE__ );
+     }
+
+     twopoint_function_type * tp = &(g_twopoint_function_list[twopt_id_list[twopt_id_number-1]]);
+
+     gettimeofday ( &ta, (struct timezone *)NULL );
+
+    /******************************************************
+     * HDF5 readers
+     * 
+     * for b-mxb affr_diag_tag_num is 1
+     ******************************************************/
+
+     int hdf5_diag_tag_num = 0;
+     char **hdf5_diag_tag_list_tag=(char **)malloc(sizeof(char*)*12);
+     char **hdf5_diag_tag_list_name=(char **)malloc(sizeof(char*)*12);
+     for(int i=0; i<12; ++i){
+       hdf5_diag_tag_list_tag[i]=(char *)malloc(sizeof(char)*20);
+       hdf5_diag_tag_list_name[i]=(char *)malloc(sizeof(char)*20);
+     }
+
+     exitstatus = twopt_name_to_diagram_tag (&hdf5_diag_tag_num, hdf5_diag_tag_list_name,hdf5_diag_tag_list_tag, twopt_name_list[iname] );
+     if ( exitstatus != 0 ) {
+       fprintf( stderr, "[piN2piN_diagram_sum_per_type] Error from twopt_name_to_diagram_tag, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+       EXIT(123);
+     } 
+     else {
+       for (int i=0; i < hdf5_diag_tag_num; ++i) {
+         printf("Name of the twopoint function %s String of hdf5 filename %s\n",twopt_name_list[iname],hdf5_diag_tag_list_name[i]);
+         printf("Name of the twopoint function %s String of hdf5 tag %s\n",twopt_name_list[iname],hdf5_diag_tag_list_tag[i]);
+       }
+     }
+
+     for ( int ipi2 = 0; ipi2 < g_seq_source_momentum_number; ipi2++ ) {
+       int const pi2[3] = {
+            g_seq_source_momentum_list[ipi2][0],
+            g_seq_source_momentum_list[ipi2][1],
+            g_seq_source_momentum_list[ipi2][2] }; 
+       printf("seq momentum %d %d %d %d\n", pi2[0], pi2[1], pi2[2], g_seq_source_momentum_number);
+
+#ifdef HAVE_HDF5
+      /***********************************************************
+       * read data block from h5 file
+       ***********************************************************/
+       snprintf ( filename, 200, "%s%04d_sx%02dsy%02dsz%02dst%03d_%s.h5",
+                         filename_prefix,
+                         Nconf,
+                         source_coords_list[0][0],
+                         source_coords_list[0][1],
+                         source_coords_list[0][2],
+                         source_coords_list[0][3],
+                         hdf5_diag_tag_list_name[0] );
+       printf("filename %s\n",filename);
+
+/*           double ** buffer = init_2level_dtable ( tp->T, sink_momentum_number, tp->gamma_size*tp->gamma_size, tp->d * tp->d, 2 );*/
+       int ** buffer_mom = init_2level_itable ( 27, 6 );
+       if ( buffer_mom == NULL ) {
+         fprintf(stderr, "[piN2piN_diagram_sum_per_type]  Error from ,init_4level_dtable %s %d\n", __FILE__, __LINE__ );
+         EXIT(12);
+       }
+       snprintf(tagname, 200, "/sx%02dsy%02dsz%02dst%02d/pi2=%d_%d_%d/mvec",source_coords_list[0][0],
+                         source_coords_list[0][1],
+                         source_coords_list[0][2],
+                         source_coords_list[0][3],
+                         pi2[0],pi2[1],pi2[2]);
+
+       exitstatus = read_from_h5_file ( (void*)(buffer_mom[0]), filename, tagname, io_proc, 1 );
+       if ( exitstatus != 0 ) {
+         fprintf(stderr, "[piN2piN_diagram_sum_per_type] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+         EXIT(12);
+       }
+       int **indextable=(int **)malloc(sizeof(int*)*4);
+       int *num_elements=(int *)malloc(sizeof(int)*4);
+       for (int i=0; i<4; ++i)
+         num_elements[i]=0;
+       for (int i=0; i<27; ++i){
+         num_elements[(buffer_mom[i][3])*(buffer_mom[i][3])+(buffer_mom[i][4])*(buffer_mom[i][4])+(buffer_mom[i][5])*(buffer_mom[i][5])]++;
+       }
+       for (int i=0; i<4; ++i){
+         indextable[i]=(int *)malloc(sizeof(int)*num_elements[i]);
+       } 
+       for (int i=0; i<4; ++i)
+         num_elements[i]=0;
+       for (int i=0; i<27; ++i){
+         int tot_mom=(buffer_mom[i][3])*(buffer_mom[i][3])+(buffer_mom[i][4])*(buffer_mom[i][4])+(buffer_mom[i][5])*(buffer_mom[i][5]);
+         indextable[tot_mom][num_elements[tot_mom]]=i;
+         num_elements[tot_mom]++;
+       }
+#endif
+       /* total number of readers */
+       for ( int i = 0 ; i < hdf5_diag_tag_num; i++ ) {
+         double *****buffer_sum = init_5level_dtable(tp->T, 27, tp->number_of_gammas, tp->d * tp->d, 2  );
+         for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
+           for (int momentum_number=0; momentum_number < 27; ++momentum_number){
+             for (int spin_structures=0; spin_structures < tp->number_of_gammas; ++spin_structures ){
+               for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
+                 for (int realimag=0; realimag < 2; ++realimag){
+                   buffer_sum[time_extent][momentum_number][spin_structures][spin_inner][realimag]=0.;
+                 }
+               }
+             }
+           }
+         }
+         for ( int k = 0; k < source_location_number; k++ ) {
+           double *****buffer_source = init_5level_dtable(tp->T, 27, tp->number_of_gammas, tp->d * tp->d, 2  );
+
+           snprintf ( filename, 200, "%s%04d_sx%02dsy%02dsz%02dst%03d_%s.h5",
+                         filename_prefix,
+                         Nconf,
+                         source_coords_list[k][0],
+                         source_coords_list[k][1],
+                         source_coords_list[k][2],
+                         source_coords_list[k][3],
+                         hdf5_diag_tag_list_name[i] );
+           printf("filename%s\n",  hdf5_diag_tag_list_name[i]);
+           snprintf ( tagname, 200, "/sx%02dsy%02dsz%02dst%02d/pi2=%d_%d_%d/%s",source_coords_list[k][0],
+                         source_coords_list[k][1],
+                         source_coords_list[k][2],
+                         source_coords_list[k][3],
+                         pi2[0],pi2[1],pi2[2],
+                         hdf5_diag_tag_list_tag[i]);
+           exitstatus = read_from_h5_file ( (void*)(buffer_source[0][0][0][0]), filename, tagname, io_proc );
+           if ( exitstatus != 0 ) {
+             fprintf(stderr, "[piN2piN_diagram_sum_per_type] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+             EXIT(12);
+           }
+           for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
+             for (int momentum_number=0; momentum_number < 27; ++momentum_number){
+               for (int spin_structures=0; spin_structures < tp->number_of_gammas; ++spin_structures ){
+                 for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
+                   for (int realimag=0; realimag < 2; ++realimag){
+                     buffer_sum[time_extent][momentum_number][spin_structures][spin_inner][realimag]+=buffer_source[time_extent][momentum_number][spin_structures][spin_inner][realimag];
+                   }
+                 }
+               }
+             }
+           } 
+           fini_5level_dtable(&buffer_source);
+         }
+
+         /******************************************************
+          * loop on total momentum / frames
+          ******************************************************/
+         for ( int i_total_momentum = 0; i_total_momentum < 4; i_total_momentum++) {
+
+           snprintf ( filename, 200, "%s%04d_PX%02dPY%02dPZ%02d_%s.h5",
+                         filename_prefix,
+                         Nconf,
+                         momentum_orbit_pref[i_total_momentum][0],
+                         momentum_orbit_pref[i_total_momentum][1],
+                         momentum_orbit_pref[i_total_momentum][2],
+                         hdf5_diag_tag_list_name[i] );
+
+           hid_t file_id, group_id, dataset_id, dataspace_id;  /* identifiers */
+           herr_t      status;
+
+           struct stat fileStat;
+           if(stat( filename, &fileStat) < 0 ) {
+           /* Open an existing file. */
+             fprintf ( stdout, "# [test_hdf5] create new file\n" );
+             file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+           } else {
+             fprintf ( stdout, "# [test_hdf5] open existing file\n" );
+             file_id = H5Fopen(filename, H5F_ACC_RDWR, H5P_DEFAULT);
+           }
+
+           for (int i_pi2=0; i_pi2 < num_elements[i_total_momentum]; ++i_pi2){
+
+             snprintf ( tagname, 200, "/pi2x%02dpi2y%02dpi2z%02dpfx%02dpfy%02dpfz%02d",
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][0],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][1],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][2],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][3],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][4],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][5]);
+             /* Create a group named "/MyGroup" in the file. */
+             group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+             /* Close the group. */
+             status = H5Gclose(group_id);
+
+             hsize_t dims[4];
+             dims[0]=tp->T;
+             dims[1]=tp->number_of_gammas;
+             dims[2]=tp->d*tp->d;
+             dims[3]=2;
+             dataspace_id = H5Screate_simple(4, dims, NULL);
+
+             snprintf ( tagname, 200, "/pi2x%02dpi2y%02dpi2z%02dpfx%02dpfy%02dpfz%02d/%s",
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][0],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][1],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][2],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][3],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][4],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][5],
+                                                                   hdf5_diag_tag_list_tag[i]);
+
+             /* Create a dataset in group "MyGroup". */
+             dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+             double ****buffer_write= init_4level_dtable(tp->T,tp->number_of_gammas,tp->d*tp->d,2);
+             for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
+               for (int spin_structures=0; spin_structures < tp->number_of_gammas; ++spin_structures ){
+                 for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
+                   for (int realimag=0; realimag < 2; ++realimag){
+                     buffer_write[time_extent][spin_structures][spin_inner][realimag]=buffer_sum[time_extent][indextable[i_total_momentum][i_pi2]][spin_structures][spin_inner][realimag]/(double)g_source_location_number;
+                   }
+                 }
+               }
+             }
+
+             /* Write the first dataset. */
+             status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_write[0][0][0][0]));
+
+             /* Close the data space for the first dataset. */
+             status = H5Sclose(dataspace_id);
+
+             /* Close the first dataset. */
+             status = H5Dclose(dataset_id);
+
+             fini_4level_dtable(&buffer_write);
+
+           }
+           /* Close the file. */
+           status = H5Fclose(file_id);
+
+         }
+         fini_5level_dtable(&buffer_sum);
+      }//hdf5 names
+      for (int i_total_momentum=0; i_total_momentum<4; ++i_total_momentum)
+        free(indextable[i_total_momentum]);
+      free(indextable);
+      free(num_elements);
+
+     }//loop on sequential momentum
+
+   }//loop on iname
+
+
+  /******************************************************
+   *
+   * mxb-mxb type
+   *
+   ******************************************************/
+
+   for ( int iname = 4; iname < 5; iname++ ) {
+
+  /******************************************************
+   * check if matching 2pts are in the list
+   ******************************************************/
+     int twopt_id_number = 0;
+     int * twopt_id_list = init_1level_itable ( g_twopoint_function_number );
+     for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
+       if ( strcmp ( g_twopoint_function_list[i2pt].name , twopt_name_list[iname] ) == 0 ) {
+        twopt_id_list[twopt_id_number] = i2pt;
+        twopt_id_number++;
+       }
+     }
+     if ( twopt_id_number == 0 ) {
+       if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] skip twopoint name %s %s %d\n", twopt_name_list[iname], __FILE__, __LINE__ );
+       continue;
+     } else if ( g_verbose > 2 ) {
+       fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] number of twopoint ids name %s %d  %s %d\n", twopt_name_list[iname], twopt_id_number, __FILE__, __LINE__ );
+     }
+
+     twopoint_function_type * tp = &(g_twopoint_function_list[twopt_id_list[twopt_id_number-1]]);
+
+     gettimeofday ( &ta, (struct timezone *)NULL );
+
+    /******************************************************
+     * HDF5 readers
+     * 
+     * for mxb-mxb affr_diag_tag_num is 1
+     ******************************************************/
+     int hdf5_diag_tag_num = 0;
+     char **hdf5_diag_tag_list_tag=(char **)malloc(sizeof(char*)*12);
+     char **hdf5_diag_tag_list_name=(char **)malloc(sizeof(char*)*12);
+     for(int i=0; i<12; ++i){
+       hdf5_diag_tag_list_tag[i]=(char *)malloc(sizeof(char)*20);
+       hdf5_diag_tag_list_name[i]=(char *)malloc(sizeof(char)*20);
+     }
+
+     exitstatus = twopt_name_to_diagram_tag (&hdf5_diag_tag_num, hdf5_diag_tag_list_name,hdf5_diag_tag_list_tag, twopt_name_list[iname] );
+     if ( exitstatus != 0 ) {
+       fprintf( stderr, "[piN2piN_diagram_sum_per_type] Error from twopt_name_to_diagram_tag, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+       EXIT(123);
+     }
+     else {
+       for (int i=0; i < hdf5_diag_tag_num; ++i) {
+         printf("Name of the twopoint function %s String of hdf5 filename %s\n",twopt_name_list[iname],hdf5_diag_tag_list_name[i]);
+         printf("Name of the twopoint function %s String of hdf5 tag %s\n",twopt_name_list[iname],hdf5_diag_tag_list_tag[i]);
+       }
+     }
+
+     for ( int ipi2 = 0; ipi2 < g_seq_source_momentum_number; ipi2++ ) {
+       int const pi2[3] = {
+            g_seq_source_momentum_list[ipi2][0],
+            g_seq_source_momentum_list[ipi2][1],
+            g_seq_source_momentum_list[ipi2][2] };
+       printf("seq momentum %d %d %d %d\n", pi2[0], pi2[1], pi2[2], g_seq_source_momentum_number);
+
+#ifdef HAVE_HDF5
+      /***********************************************************
+       * read data block from h5 file
+       ***********************************************************/
+       snprintf ( filename, 200, "%s%04d_sx%02dsy%02dsz%02dst%03d_%s.h5",
+                         filename_prefix,
+                         Nconf,
+                         source_coords_list[0][0],
+                         source_coords_list[0][1],
+                         source_coords_list[0][2],
+                         source_coords_list[0][3],
+                         hdf5_diag_tag_list_name[0] );
+       printf("filename %s\n",filename);
+
+/*           double ** buffer = init_2level_dtable ( tp->T, sink_momentum_number, tp->gamma_size*tp->gamma_size, tp->d * tp->d, 2 );*/
+       int ** buffer_mom = init_2level_itable ( 343, 9 );
+       if ( buffer_mom == NULL ) {
+         fprintf(stderr, "[piN2piN_diagram_sum_per_type]  Error from ,init_4level_dtable %s %d\n", __FILE__, __LINE__ );
+         EXIT(12);
+       }
+       snprintf(tagname, 200, "/sx%02dsy%02dsz%02dst%02d/pi2=%d_%d_%d/mvec",source_coords_list[0][0],
+                         source_coords_list[0][1],
+                         source_coords_list[0][2],
+                         source_coords_list[0][3],
+                         pi2[0],pi2[1],pi2[2]);
+
+       exitstatus = read_from_h5_file ( (void*)(buffer_mom[0]), filename, tagname, io_proc, 1 );
+       if ( exitstatus != 0 ) {
+         fprintf(stderr, "[piN2piN_diagram_sum_per_type] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+         EXIT(12);
+       }
+       int **indextable=(int **)malloc(sizeof(int*)*4);
+       int *num_elements=(int *)malloc(sizeof(int)*4);
+       for (int i=0; i<4; ++i)
+         num_elements[i]=0;
+       for (int i=0; i<343; ++i){
+         num_elements[(buffer_mom[i][3]+buffer_mom[i][6])*(buffer_mom[i][3]+buffer_mom[i][6])+(buffer_mom[i][4]+buffer_mom[i][7])*(buffer_mom[i][4]+buffer_mom[i][7])+(buffer_mom[i][5]+buffer_mom[i][8])*(buffer_mom[i][5]+buffer_mom[i][8])]++;
+       }
+       for (int i=0; i<4; ++i){
+         indextable[i]=(int *)malloc(sizeof(int)*num_elements[i]);
+       }
+       for (int i=0; i<4; ++i)
+         num_elements[i]=0;
+       for (int i=0; i<343; ++i){
+         int tot_mom=(buffer_mom[i][3]+buffer_mom[i][6])*(buffer_mom[i][3]+buffer_mom[i][6])+(buffer_mom[i][4]+buffer_mom[i][7])*(buffer_mom[i][4]+buffer_mom[i][7])+(buffer_mom[i][5]+buffer_mom[i][8])*(buffer_mom[i][5]+buffer_mom[i][8]);
+         indextable[tot_mom][num_elements[tot_mom]]=i;
+         num_elements[tot_mom]++;
+       }
+#endif
+       /* total number of readers */
+
+       double *****buffer_sum = init_5level_dtable(tp->T, 343, tp->number_of_gammas, tp->d * tp->d, 2  );
+       for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
+         for (int momentum_number=0; momentum_number < 343; ++momentum_number){
+           for (int spin_structures=0; spin_structures < tp->number_of_gammas; ++spin_structures ){
+             for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
+               for (int realimag=0; realimag < 2; ++realimag){
+                 buffer_sum[time_extent][momentum_number][spin_structures][spin_inner][realimag]=0.;
+               }
+             }
+           }
+         }
+       }
+       for (int i=0; i < hdf5_diag_tag_num; ++i) {
+         for ( int k = 0; k < source_location_number; k++ ) {
+           double *****buffer_source = init_5level_dtable(tp->T, 343, tp->number_of_gammas, tp->d * tp->d, 2  );
+           snprintf ( filename, 200, "%s%04d_sx%02dsy%02dsz%02dst%03d_%s.h5",
+                         filename_prefix,
+                         Nconf,
+                         source_coords_list[k][0],
+                         source_coords_list[k][1],
+                         source_coords_list[k][2],
+                         source_coords_list[k][3],
+                         hdf5_diag_tag_list_name[i] );
+           printf("filename%s\n",  hdf5_diag_tag_list_name[i]);
+           snprintf ( tagname, 200, "/sx%02dsy%02dsz%02dst%02d/pi2=%d_%d_%d/%s",source_coords_list[k][0],
+                         source_coords_list[k][1],
+                         source_coords_list[k][2],
+                         source_coords_list[k][3],
+                         pi2[0],pi2[1],pi2[2],
+                         hdf5_diag_tag_list_tag[i]);
+           printf("Tagname %s \n", hdf5_diag_tag_list_tag[i]);
+           exitstatus = read_from_h5_file ( (void*)(buffer_source[0][0][0][0]), filename, tagname, io_proc );
+           if ( exitstatus != 0 ) {
+             fprintf(stderr, "[piN2piN_diagram_sum_per_type] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+             EXIT(12);
+           }
+           for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
+             for (int momentum_number=0; momentum_number < 343; ++momentum_number){
+               for (int spin_structures=0; spin_structures < tp->number_of_gammas; ++spin_structures ){
+                 for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
+                   for (int realimag=0; realimag < 2; ++realimag){
+                     buffer_sum[time_extent][momentum_number][spin_structures][spin_inner][realimag]+=buffer_source[time_extent][momentum_number][spin_structures][spin_inner][realimag];
+                   }
+                 }
+               }
+             }
+           }
+           fini_5level_dtable(&buffer_source);
+         }
+       }
+       /******************************************************
+        * loop on total momentum / frames
+        ******************************************************/
+       for ( int i_total_momentum = 0; i_total_momentum < 4; i_total_momentum++) {
+
+         snprintf ( filename, 200, "%s%04d_PX%02dPY%02dPZ%02d_piN.h5",
+                         filename_prefix,
+                         Nconf,
+                         momentum_orbit_pref[i_total_momentum][0],
+                         momentum_orbit_pref[i_total_momentum][1],
+                         momentum_orbit_pref[i_total_momentum][2]);
+         fprintf ( stdout, "# [test_hdf5] create new file\n" );
+
+         hid_t file_id, group_id, dataset_id, dataspace_id;  /* identifiers */
+         herr_t      status;
+
+         struct stat fileStat;
+         if(stat( filename, &fileStat) < 0 ) {
+         /* Open an existing file. */
+           fprintf ( stdout, "# [test_hdf5] create new file\n" );
+           file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+         } else {
+           fprintf ( stdout, "# [test_hdf5] open existing file\n" );
+           file_id = H5Fopen(filename, H5F_ACC_RDWR, H5P_DEFAULT);
+         }
+
+
+         for (int i_pi2=0; i_pi2 < num_elements[i_total_momentum]; ++i_pi2){
+
+           snprintf ( tagname, 200, "/pi2x%02dpi2y%02dpi2z%02dpf1x%02dpf1y%02dpf1z%02dpf2x%02dpf2y%02dpf2z%02d",
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][0],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][1],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][2],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][3],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][4],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][5],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][6],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][7],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][8]);
+           /* Create a group named "/MyGroup" in the file. */
+           group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+           /* Close the group. */
+           status = H5Gclose(group_id);
+
+           hsize_t dims[4];
+           dims[0]=tp->T;
+           dims[1]=tp->number_of_gammas;
+           dims[2]=tp->d*tp->d;
+           dims[3]=2;
+           dataspace_id = H5Screate_simple(4, dims, NULL);
+
+           snprintf ( tagname, 200, "/pi2x%02dpi2y%02dpi2z%02dpf1x%02dpf1y%02dpf1z%02dpf2x%02dpf2y%02dpf2z%02d/piN",
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][0],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][1],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][2],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][3],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][4],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][5],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][6],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][7],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][8]);
+
+           dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+
+           /* Create a dataset in group "MyGroup". */
+
+
+           double ****buffer_write= init_4level_dtable(tp->T,tp->number_of_gammas,tp->d*tp->d,2);
+           for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
+             for (int spin_structures=0; spin_structures < tp->number_of_gammas; ++spin_structures ){
+               for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
+                 for (int realimag=0; realimag < 2; ++realimag){
+                   buffer_write[time_extent][spin_structures][spin_inner][realimag]=buffer_sum[time_extent][indextable[i_total_momentum][i_pi2]][spin_structures][spin_inner][realimag]/(double)g_source_location_number;
+                 }
+               }
+             }
+           }
+
+           /* Write the first dataset. */
+           status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_write[0][0][0][0]));
+
+           /* Close the data space for the first dataset. */
+           status = H5Sclose(dataspace_id);
+
+           /* Close the first dataset. */
+           status = H5Dclose(dataset_id);
+
+           fini_4level_dtable(&buffer_write);
+
+         }/*pi2*/
+         /* Close the file. */
+         status = H5Fclose(file_id);
+
+       }//ptot
+       fini_5level_dtable(&buffer_sum);
+     
+       for (int i_total_momentum=0; i_total_momentum<4; ++i_total_momentum)
+         free(indextable[i_total_momentum]);
+       free(indextable);
+       free(num_elements);
+     }
+   }
   /******************************************************
    * loop on total momentum / frames
    ******************************************************/
+#if 0
   for ( int ipref = 0; ipref < g_total_momentum_number; ipref++ ) {
 
     int iorbit = 0;
@@ -1087,7 +1766,7 @@ int main(int argc, char **argv) {
    * mxb-mxb type
    *
    ******************************************************/
-
+#if 0
   /******************************************************
    * loop on total momentum / frames
    ******************************************************/
@@ -1357,6 +2036,7 @@ int main(int argc, char **argv) {
     }  /* end of loop on twopoint function names */
 
   }  /* end of loop on reference moving frames */
+#endif
 #endif
 
   /******************************************************/
