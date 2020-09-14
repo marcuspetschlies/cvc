@@ -393,4 +393,79 @@ void gamma_matrix_ukqcd_binary ( gamma_matrix_type * const g, int const n  ) {
 }  /* end of gamma_matrix_qlua_binary */
 
 
+/********************************************************************************
+ * gamma matrix in szin gamma basis
+ * and in binary counting
+ ********************************************************************************/
+void gamma_matrix_szin_binary ( gamma_matrix_type * const g, int const n  ) {
+
+  gamma_matrix_type gx, gy, gz, gt, gaux, gaux2;
+  gamma_matrix_set ( &gt, 0, -1. );
+  gamma_matrix_set ( &gx, 1, -1. );
+  gamma_matrix_set ( &gy, 2,  1. );
+  gamma_matrix_set ( &gz, 3, -1. );
+
+  /*
+  gamma_matrix_printf ( &gt, "# [gamma_matrix_szin_binary] gt", stdout );
+  gamma_matrix_printf ( &gx, "# [gamma_matrix_szin_binary] gx", stdout );
+  gamma_matrix_printf ( &gy, "# [gamma_matrix_szin_binary] gy", stdout );
+  gamma_matrix_printf ( &gz, "# [gamma_matrix_szin_binary] gz", stdout );
+  */
+  
+  int gamma_bin[4] = {0,0,0,0};
+  int n0 = n;
+  gamma_bin[0] = n0 % 2;
+  n0 = n0 >> 1;
+  gamma_bin[1] = n0 % 2;
+  n0 = n0 >> 1;
+  gamma_bin[2] = n0 % 2;
+  n0 = n0 >> 1;
+  gamma_bin[3] = n0 % 2;
+
+  /* fprintf ( stdout, "# [gamma_matrix_szin_binary] gamma_bin = %d %d %d %d\n", gamma_bin[0], gamma_bin[1], gamma_bin[2], gamma_bin[3] ); */
+
+  gamma_matrix_init ( &gaux );
+  gamma_matrix_init ( &gaux2 );
+  gamma_matrix_set ( &gaux, 4, 1. );
+
+  /* gamma_matrix_printf ( &gaux, "# [gamma_matrix_szin_binary] gaux", stdout ); */
+#if 0
+  if ( gamma_bin[0] ) { gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( g, g, &gx ); }
+  if ( gamma_bin[1] ) { gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( g, g, &gy ); }
+  if ( gamma_bin[2] ) { gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( g, g, &gz ); }
+  if ( gamma_bin[3] ) { gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( g, g, &gt ); }
+#endif
+  if ( gamma_bin[0] ) { 
+    gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( &gaux2, &gaux, &gx );
+    gamma_matrix_eq_gamma_matrix ( &gaux, &gaux2 );
+  }
+  /* gamma_matrix_printf ( &gaux, "# [gamma_matrix_szin_binary] gaux[1]", stdout ); */
+
+  if ( gamma_bin[1] ) { 
+    gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( &gaux2, &gaux, &gy ); 
+    gamma_matrix_eq_gamma_matrix ( &gaux, &gaux2 );
+  }
+  /* gamma_matrix_printf ( &gaux, "# [gamma_matrix_szin_binary] gaux[2]", stdout ); */
+
+  if ( gamma_bin[2] ) { 
+    gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( &gaux2, &gaux, &gz );
+    gamma_matrix_eq_gamma_matrix ( &gaux, &gaux2 );
+  }
+  /* gamma_matrix_printf ( &gaux, "# [gamma_matrix_szin_binary] gaux[3]", stdout ); */
+
+  if ( gamma_bin[3] ) { 
+    gamma_matrix_eq_gamma_matrix_ti_gamma_matrix ( &gaux2, &gaux, &gt ); 
+    gamma_matrix_eq_gamma_matrix ( &gaux, &gaux2 );
+  }
+  /*  gamma_matrix_printf ( &gaux, "# [gamma_matrix_szin_binary] gaux[4]", stdout ); */
+
+  gamma_matrix_eq_gamma_matrix ( g, &gaux );
+  g->id = n;
+  g->s  = 1;
+
+  /* gamma_matrix_printf ( g, "# [gamma_matrix_szin_binary] gbin", stdout ); */
+
+  return;
+}  /* end of gamma_matrix_szin_binary */
+
 }  /* end of namespace cvc */

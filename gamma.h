@@ -40,5 +40,8 @@ void gamma_matrix_eq_gamma_matrix_pl_gamma_matrix_ti_co (gamma_matrix_type *g1, 
 void gamma_matrix_ukqcd_binary ( gamma_matrix_type * const g, int const n  );
 
 void gamma_matrix_eq_gamma_matrix ( gamma_matrix_type *g1, gamma_matrix_type *g2 );
+
+void gamma_matrix_szin_binary ( gamma_matrix_type * const g, int const n  );
+
 }
 #endif
