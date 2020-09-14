@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <complex.h>
 #include <time.h>
 #ifdef HAVE_MPI
 #  include <mpi.h>
@@ -39,7 +40,6 @@ extern "C"
 
 #define MAIN_PROGRAM
 
-#include "cvc_complex.h"
 #include "cvc_linalg.h"
 #include "global.h"
 #include "cvc_geometry.h"
@@ -63,6 +63,7 @@ extern "C"
 #include "contract_loop.h"
 #include "ranlxd.h"
 #include "scalar_products.h"
+#include "gamma.h"
 
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
@@ -357,6 +358,13 @@ int main(int argc, char **argv) {
   if(io_proc == 2 && g_verbose > 1 ) { 
     fprintf(stdout, "# [loop_invert_contract] writing data to file %s\n", output_filename);
   }
+
+
+  /***************************************************************************
+   * initialize gamma matrix multiplication table
+   ***************************************************************************/
+  init_gamma_matrix ();
+
 
 #if ( defined HAVE_HDF5 )
   /***************************************************************************
@@ -781,7 +789,45 @@ int main(int argc, char **argv) {
             gtr[0]/(12.*VOLUME*g_nproc), gtr[1]/(12.*VOLUME*g_nproc) );
 
       }
-    }
+
+      /***************************************************************************
+       * build all 16 traces
+       ***************************************************************************/
+      for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+
+        gamma_matrix_type gszin;
+        for ( int i = 0; i < 16; i++ ) {
+          gamma_matrix_szin_binary ( &gszin, i );
+
+          double _Complex ztmp = 0.;
+          for ( int it = 0; it < T; it++ ) {
+            for ( int k1 = 0; k1 < 4; k1++ ) {
+            for ( int k2 = 0; k2 < 4; k2++ ) {
+              ztmp += ( loop_accum[it][imom][2*(4*k1+k2)] + loop_accum[it][imom][2*(4*k1+k2)+1] * I ) * gszin.m[k2][k1];
+            }}
+          }
+
+#ifdef HAVE_MPI
+          double gtr[2], dtmp[2] = { creal( ztmp) , cimag( ztmp ) };
+          if ( MPI_Reduce( dtmp, gtr, 2, MPI_DOUBLE, MPI_SUM, 0, g_tr_comm) != MPI_SUCCESS ) {
+            fprintf(stderr, "[loop_invert_contract] Error from MPI_Reduce %s %d\n", __FILE__, __LINE__ );
+            EXIT(45);
+          }
+#else
+          double gtr[2] = { creal( ztmp) , cimag( ztmp ) };
+#endif
+          if ( io_proc == 2 ) fprintf( stdout, "# [loop_invert_contract] g-trG %3d %3d %3d     %2d    %25.16e %25.16e    %25.16e %25.16e\n"  ,
+              g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
+              i,
+              gtr[0], gtr[1] ,
+              gtr[0]/(12.*VOLUME*g_nproc), gtr[1]/(12.*VOLUME*g_nproc) );
+
+        }  /* end of loop on gammas */
+
+      }  /* end of loop on imom */
+
+
+    }  /*end of if on g_verbose */
 
     fini_2level_dtable ( &spinor_field );
 
