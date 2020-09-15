@@ -797,30 +797,50 @@ int main(int argc, char **argv) {
 
         gamma_matrix_type gszin;
         for ( int i = 0; i < 16; i++ ) {
+
           gamma_matrix_szin_binary ( &gszin, i );
 
-          double _Complex ztmp = 0.;
+          double ** ttr = init_2level_dtable ( T, 2 );
+          double gtr[2] = { 0., 0. };
+
           for ( int it = 0; it < T; it++ ) {
+            double _Complex ztmp = 0.;
             for ( int k1 = 0; k1 < 4; k1++ ) {
             for ( int k2 = 0; k2 < 4; k2++ ) {
               ztmp += ( loop_accum[it][imom][2*(4*k1+k2)] + loop_accum[it][imom][2*(4*k1+k2)+1] * I ) * gszin.m[k2][k1];
             }}
-          }
+
+            ttr[it][0] = creal( ztmp );
+            ttr[it][1] = cimag( ztmp );
+
+            gtr[0] += ttr[it][0];
+            gtr[1] += ttr[it][1];
+          }  /* end of loop on timeslices */
 
 #ifdef HAVE_MPI
-          double gtr[2], dtmp[2] = { creal( ztmp) , cimag( ztmp ) };
+          double dtmp[2] = { gtr[0], gtr[1] };
           if ( MPI_Reduce( dtmp, gtr, 2, MPI_DOUBLE, MPI_SUM, 0, g_tr_comm) != MPI_SUCCESS ) {
             fprintf(stderr, "[loop_invert_contract] Error from MPI_Reduce %s %d\n", __FILE__, __LINE__ );
             EXIT(45);
           }
-#else
-          double gtr[2] = { creal( ztmp) , cimag( ztmp ) };
 #endif
-          if ( io_proc == 2 ) fprintf( stdout, "# [loop_invert_contract] g-trG %3d %3d %3d     %2d    %25.16e %25.16e    %25.16e %25.16e\n"  ,
-              g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
-              i,
-              gtr[0], gtr[1] ,
-              gtr[0]/(12.*VOLUME*g_nproc), gtr[1]/(12.*VOLUME*g_nproc) );
+          if ( io_proc == 2 ) {
+            for ( int it = 0; it < T_global; it++ ) {
+              fprintf( stdout, "# [loop_invert_contract] t-trG %3d %3d %3d     %2d   %3d   %25.16e %25.16e    %25.16e %25.16e\n"  ,
+                  g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
+                  i, it,
+                  ttr[it][0], ttr[it][1] ,
+                  ttr[it][0]/(12.*LX_global*LY_global*LZ_global), ttr[it][1]/(12.*LX_global*LY_global*LZ_global) );
+            }
+
+            fprintf( stdout, "# [loop_invert_contract] g-trG %3d %3d %3d     %2d    %25.16e %25.16e    %25.16e %25.16e\n"  ,
+                g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
+                i,
+                gtr[0], gtr[1] ,
+                gtr[0]/(12.*VOLUME*g_nproc), gtr[1]/(12.*VOLUME*g_nproc) );
+          }
+
+          fini_2level_dtable ( &ttr );
 
         }  /* end of loop on gammas */
 
