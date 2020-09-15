@@ -451,7 +451,7 @@ int main(int argc, char **argv) {
   /***************************************************************************
    *
    * prepare stochastic sources and propagators
-   * to contract the loop for insertion in as
+   * to contract the loop for insertion as part of
    * sequential source
    *
    ***************************************************************************/
@@ -465,6 +465,7 @@ int main(int argc, char **argv) {
 
     /***************************************************************************
      * loop on samples
+     * invert and contract loops
      ***************************************************************************/
     for ( int isample = 0; isample < g_nsample; isample++ ) {
 
@@ -486,6 +487,13 @@ int main(int argc, char **argv) {
         EXIT(12);
       }
 
+      /***************************************************************************
+       * loop on spin and color index 
+       *
+       * we use spin-color dilution here:
+       *   for each inversion we select only a single spin-color component 
+       *   from stochastic_source
+       ***************************************************************************/
       for ( int ispin = 0; ispin < 4; ispin++ ) {
         for ( int icol = 0; icol < 3; icol++ ) {
 
@@ -493,11 +501,12 @@ int main(int argc, char **argv) {
 
 #pragma omp parallel for
           for ( unsigned int ix = 0; ix < VOLUME; ix++  ) {
-            spinor_work[0][_GSI(ix)+2*isc  ] = stochastic_source[_GSI(ix)+2*isc  ];
-            spinor_work[0][_GSI(ix)+2*isc+1] = stochastic_source[_GSI(ix)+2*isc+1];
+            unsigned int const iy = _GSI(ix) + 2 * isc;  /* offset for site ix and spin-color isc */
+            spinor_work[0][ iy    ] = stochastic_source[ iy     ];
+            spinor_work[0][ iy + 1] = stochastic_source[ iy + 1 ];
           }
 
-          /* tm-rotate stochastic propagator at source */
+          /* tm-rotate stochastic propagator at source, in-place */
           if( g_fermion_type == _TM_FERMION ) {
             spinor_field_tm_rotation(spinor_work[0], spinor_work[0], 1, g_fermion_type, VOLUME);
           }
@@ -517,21 +526,30 @@ int main(int argc, char **argv) {
             spinor_field_tm_rotation(spinor_work[1], spinor_work[1], 1, g_fermion_type, VOLUME);
           }
 
+          /***************************************************************************
+           * fill in loop matrix element ksc = (kspin, kcol ), isc = (ispin, icol )
+           * as
+           * loop[ksc][isc] = prop[ksc] * source[isc]^+
+           ***************************************************************************/
 #pragma omp parallel for
           for ( unsigned int ix = 0; ix < VOLUME; ix++  ) {
+            unsigned int const iy = _GSI( ix );
             for ( int kspin = 0; kspin < 4; kspin++ ) {
               for ( int kcol = 0; kcol < 3; kcol++ ) {
                 int const ksc = 3 * kspin + kcol;
  
                 loop[ix][ksc][isc] +=
-                    ( stochastic_source[_GSI(ix) + 2*isc  ] + I * stochastic_source[_GSI(ix) + 2*isc+1] )
-                  * ( spinor_work[1][_GSI(ix)    + 2*ksc  ] + I * spinor_work[1][_GSI(ix)    + 2*ksc+1] );
+                    /* complex conjugate of source vector element */
+                    ( stochastic_source[ iy + 2*isc  ] - I * stochastic_source[ iy + 2*isc+1] )
+                    /* times prop vector element */
+                  * ( spinor_work[1][    iy + 2*ksc  ] + I * spinor_work[1][    iy + 2*ksc+1] );
               }
             }
           }
         }  /* end of loop on color dilution component */
       }  /* end of loop on spin dilution component */
 
+      /* free fields */
       fini_1level_dtable ( &stochastic_source );
       fini_2level_dtable ( &spinor_work );
     }  /* end of loop on samples */
@@ -544,7 +562,13 @@ int main(int argc, char **argv) {
       loop[0][0][ix] /= (double)g_nsample;
     }
 
-  } else {  /* read loop field from file  */
+  } else { 
+
+    /***************************************************************************
+     * read loop field from file
+     * for testing
+     ***************************************************************************/
+
     if ( g_cart_id == 0 ) {
       fprintf ( stdout, "# [njjn_fht_invert_contract] reading loop field from file %s %s %d\n", read_loop_filename,  __FILE__, __LINE__ );
     }
@@ -554,6 +578,10 @@ int main(int argc, char **argv) {
       fprintf ( stderr, "[njjn_fht_invert_contract] Error from fopen %s %d\n", __FILE__, __LINE__ );
       EXIT(12);
     }
+
+    /***************************************************************************
+     * !!! THIS IS TEMPORARY; ADAPT TO WHAT IS NEEDED !!!
+     ***************************************************************************/
 
     /* for ( unsigned int ix = 0; ix < VOLUME; ix++ ) */
     for ( unsigned int ix = 0; ix < 1; ix++ )
@@ -581,8 +609,8 @@ int main(int argc, char **argv) {
     }
 
 
-#endif
-  }
+#endif  /* end of if HAVE_MPI not defined */
+  }  /* end of if on read stoch. source  */
 
   /***************************************************************************
    *
@@ -600,26 +628,30 @@ int main(int argc, char **argv) {
   for( int isource_location = 0; isource_location < g_source_location_number; isource_location++ ) {
 
     /***************************************************************************
-     * allocate point-to-all propagators
+     * allocate point-to-all propagators,
+     * spin-color dilution (i.e. 12 fields per flavor of size 24xVOLUME real )
      ***************************************************************************/
 
-    /* up quark propagator with source and sink smearing*/
+    /* up and down quark propagator with source smearing */
     double *** propagator = init_3level_dtable ( 2, 12, _GSI( VOLUME ) );
     if( propagator == NULL ) {
       fprintf(stderr, "[njjn_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
       EXIT(123);
     }
 
-    /* up quark propagator with sink smearing to use for baryon 2-pt function */
+    /* up and down quark propagator with source and sink smearing,
+     * to use for baryon 2-pt function 
+     */
     double *** propagator_snk_smeared = init_3level_dtable ( 2, 12, _GSI( VOLUME ) );
     if ( propagator_snk_smeared == NULL ) {
       fprintf(stderr, "[njjn_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
       EXIT(123);
     }
 
-    /***********************************************************
-     * determine source coordinates, find out, if source_location is in this process
-     ***********************************************************/
+    /***************************************************************************
+     * determine source coordinates,
+     * find out, if source_location is in this process
+     ***************************************************************************/
 
     int const gsx[4] = {
         ( g_source_coords_list[isource_location][0] +  T_global ) %  T_global,
@@ -634,16 +666,18 @@ int main(int argc, char **argv) {
       EXIT(123);
     }
 
-    /***********************************************
+    /***************************************************************************
      * open output file reader
      * we use the AFF format here
      * https://github.com/usqcd-software/aff
-     ***********************************************/
+     *
+     * one data file per source position
+     ***************************************************************************/
 #if ( defined HAVE_LHPC_AFF )
-    /***********************************************
+    /***************************************************************************
      * writer for aff output file
      * only I/O process id 2 opens a writer
-     ***********************************************/
+     ***************************************************************************/
     if(io_proc == 2) {
       sprintf(filename, "%s.%.4d.t%dx%dy%dz%d.aff", outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3]);
       fprintf(stdout, "# [njjn_fht_invert_contract] writing data to file %s\n", filename);
@@ -668,21 +702,22 @@ int main(int argc, char **argv) {
     for ( int iflavor = 0; iflavor <= 1; iflavor++ ) {
 
       /***********************************************************
-       * up-type point-to-all propagator
+       * flavor-type point-to-all propagator
        *
        * ONLY SOURCE smearing here
        *
-       * NOTE: quark flavor is controlled by 
-       * _OP_ID_UP and _OP_ID_DN below
+       * NOTE: quark flavor is controlled by value of iflavor
        ***********************************************************/
-      exitstatus = point_source_propagator ( propagator[iflavor], gsx, iflavor, 1, 0, gauge_field_smeared, check_propagator_residual, gauge_field_with_phase, lmzz );
+      /*                                     output field         src coords flavor type  src smear  sink smear gauge field for smearing,  for residual check ...                                   */
+      exitstatus = point_source_propagator ( propagator[iflavor], gsx,       iflavor,     1,         0,         gauge_field_smeared,       check_propagator_residual, gauge_field_with_phase, lmzz );
       if(exitstatus != 0) {
         fprintf(stderr, "[njjn_fht_invert_contract] Error from point_source_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(12);
       }
 
       /***********************************************************
-       * sink-smear the up-type point-to-all propagator
+       * sink-smear the flavor-type point-to-all propagator
+       * store extra
        ***********************************************************/
       for ( int i = 0; i < 12; i++ ) {
         /* copy propagator */
@@ -748,6 +783,14 @@ int main(int argc, char **argv) {
     }
 
     /***************************************************************************
+     ***************************************************************************
+     **
+     ** Part I: fwd propagator contractions for baryon 2pts
+     **
+     ***************************************************************************
+     ***************************************************************************/
+
+    /***************************************************************************
      * loop on flavor combinations
      ***************************************************************************/
     for ( int iflavor = 0; iflavor < 2; iflavor++ ) {
@@ -782,7 +825,7 @@ int main(int argc, char **argv) {
       for ( int if2 = 0; if2 < gamma_f1_number; if2++ ) {
 
         /***************************************************************************
-         * here we calculate fp3 = Gamma[if2] x propagator_dn / fp2 x Gamma[if1]
+         * here we calculate fp3 = Gamma[if2] x propagator[1-iflavor] / fp2 x Gamma[if1]
          ***************************************************************************/
         fermion_propagator_field_eq_gamma_ti_fermion_propagator_field ( fp3, gamma_f1_list[if2], fp2, VOLUME );
 
@@ -853,13 +896,15 @@ int main(int argc, char **argv) {
       /***************************************************************************
        ***************************************************************************
        **
-       ** Part II: sequential X - after - X inversion and contraction
+       ** Part II: sequential inversion with loop-product sequential sources
+       **          and contractions for 
+       **          N - qbar q qbar q - N
        **
        ***************************************************************************
        ***************************************************************************/
 
       /***************************************************************************
-       * loop on flavor X
+       * loop on flavor
        ***************************************************************************/
       for ( int iflavor = 0; iflavor < 2; iflavor++ )
       {
