@@ -41,6 +41,9 @@
 
 using namespace cvc;
 
+#define _H5_READ_MOMENTUM_BLOCK 0
+#define _H5_READ_PER_MOMENTUM   1
+
 void usage() {
   fprintf(stdout, "Code to extract loop data\n");
   EXIT(0);
@@ -171,8 +174,9 @@ int main(int argc, char **argv) {
   }
   fprintf(stdout, "# [twopt_extract] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
 
+#if _H5_READ_MOMENTUM_BLOCK
   /***************************************************************************
-   * loop data filename
+   * data filename for first source coords
    ***************************************************************************/
   sprintf ( filename, "%s/twop.%.4d_r%d_mesons_Qsq%d_SS.%.2d.%.2d.%.2d.%.2d.h5", filename_prefix, confid, stream, Qsq, 
       g_source_coords_list[0][1], g_source_coords_list[0][2], g_source_coords_list[0][3], g_source_coords_list[0][0] );
@@ -226,14 +230,18 @@ int main(int argc, char **argv) {
           g_sink_momentum_list[i][0], g_sink_momentum_list[i][1], g_sink_momentum_list[i][2], sink_momentum_matchid[i] ); 
     }
   }
+#endif  /* of _H5_READ_MOMENTUM_BLOCK */
 
   /***************************************************************************
-   * stochastic part
+   *
    ***************************************************************************/
-
+#if _H5_READ_MOMENTUM_BLOCK
   double *** twopt = init_3level_dtable ( T, sink_momentum_number, 2 );
+#elif  _H5_READ_PER_MOMENTUM
+  double ** twopt = init_2level_dtable ( T, 2 );
+#endif
   if ( twopt == NULL ) {
-    fprintf(stderr, "[twopt_extract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );;
+    fprintf(stderr, "[twopt_extract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );;
     EXIT(48);
   }
 
@@ -245,13 +253,22 @@ int main(int argc, char **argv) {
   {
 
     char data_filename[400];
-    sprintf ( data_filename, "%s/twop.%.4d_r%d_mesons_Qsq%d_SS.%.2d.%.2d.%.2d.%.2d.h5", filename_prefix, confid, stream, Qsq, 
+    /* sprintf ( data_filename, "%s/twop.%.4d_r%d_mesons_Qsq%d_SS.%.2d.%.2d.%.2d.%.2d.h5", filename_prefix, confid, stream, Qsq, 
+        g_source_coords_list[isrc][1], g_source_coords_list[isrc][2], g_source_coords_list[isrc][3], g_source_coords_list[isrc][0] ); */
+    sprintf ( data_filename, "twop.%.4d_mesons_Qsq%d_SS.%.2d.%.2d.%.2d.%.2d.h5", confid, Qsq, 
         g_source_coords_list[isrc][1], g_source_coords_list[isrc][2], g_source_coords_list[isrc][3], g_source_coords_list[isrc][0] );
 
-  if ( g_verbose > 2 ) fprintf ( stdout, "# [twopt_extract] loop filename = %s\n", data_filename );
+    if ( g_verbose > 2 ) fprintf ( stdout, "# [twopt_extract] loop filename = %s\n", data_filename );
 
     for ( int twop_meson_id = 1; twop_meson_id <= 2; twop_meson_id++ ) {
 
+/***************************************************************************
+ ***************************************************************************
+ **/
+#if _H5_READ_MOMENTUM_BLOCK
+/**
+ ***************************************************************************
+ ***************************************************************************/
       sprintf ( data_tag, "/conf_%.4d/sx%.2dsy%.2dsz%.2dst%.2d/%s/twop_meson_%d" , confid, 
           g_source_coords_list[isrc][1], g_source_coords_list[isrc][2], g_source_coords_list[isrc][3], g_source_coords_list[isrc][0],
           twopt_type, twop_meson_id );
@@ -286,10 +303,60 @@ int main(int argc, char **argv) {
         fclose ( ofs );
 
       }  /* end of loop on momenta */
+
+/***************************************************************************
+ ***************************************************************************
+ **/
+#elif _H5_READ_PER_MOMENTUM
+/**
+ ***************************************************************************
+ ***************************************************************************/
+      for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+      
+        sprintf ( data_tag, "/conf_%.4d/sx%.2dsy%.2dsz%.2dst%.2d/%s/mom_xyz_%+d_%+d_%+d/twop_meson_%d" , confid, 
+            g_source_coords_list[isrc][1], g_source_coords_list[isrc][2], g_source_coords_list[isrc][3], g_source_coords_list[isrc][0],
+            twopt_type, 
+            g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
+            twop_meson_id );
+
+        if ( g_verbose > 2 ) fprintf( stdout, "# [twopt_extract] data_tag = %s\n", data_tag);
+
+        exitstatus = read_from_h5_file ( twopt[0], data_filename, data_tag, io_proc );
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[twopt_extract] Error from loop_read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(1);
+        }
+
+        sprintf ( output_filename, "twop.%.4d.%s.%d.PX%d_PY%d_PZ%d", confid, twopt_type, twop_meson_id,
+            g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2] );
+
+        if ( g_verbose > 2 ) fprintf ( stdout, "# [twopt_extract] loop filename = %s\n", output_filename );
+
+        FILE * ofs = isrc == 0 ? fopen ( output_filename, "w" ) : fopen ( output_filename, "a" );
+        if ( ofs == NULL ) {
+          fprintf ( stderr, "[twopt_extract] Error from fopen for filename %s %s %d\n", output_filename, __FILE__, __LINE__ );
+          EXIT(23);
+        }
+
+        fprintf ( ofs, "# %s\n", data_tag );
+
+        for ( int it = 0; it < T; it++ ) {
+          fprintf ( ofs, "%25.16e %25.16e\n", twopt[it][0], twopt[it][1] );
+        }
+
+        fclose ( ofs );
+      }  /* end of loop on momenta */
+
+#endif  /* _H5_READ_PER_MOMENTUM */
+
     }  /* end of meson ids */
   }  /* end of loop on sources */
 
+#if _H5_READ_MOMENTUM_BLOCK
   fini_3level_dtable ( &twopt );
+#elif _H5_READ_PER_MOMENTUM
+  fini_2level_dtable ( &twopt );
+#endif
 
   /*****************************************************************/
   /*****************************************************************/
@@ -299,7 +366,9 @@ int main(int argc, char **argv) {
    ***************************************************************************/
 
   free_geometry();
+#if _H5_READ_MOMENTUM_BLOCK
   fini_2level_itable ( &sink_momentum_list );
+#endif
 
 #ifdef HAVE_MPI
   mpi_fini_xchange_contraction();
