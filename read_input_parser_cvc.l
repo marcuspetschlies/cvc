@@ -1227,9 +1227,14 @@ namespace cvc {
         &(cvc::twopoint_function_ptr->n) );
   }
 
-  {SPC}*numberofgammas{EQL}{SDIGIT}+ {
+  {SPC}*numberofsourcegammas{EQL}{SDIGIT}+ {
     sscanf(yytext, " %[a-zA-Z0-9] =  %d", cvc::name,
-        &(cvc::twopoint_function_ptr->number_of_gammas));
+        &(cvc::twopoint_function_ptr->number_of_gammas_source));
+  }
+
+  {SPC}*numberofsinkgammas{EQL}{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] =  %d", cvc::name,
+        &(cvc::twopoint_function_ptr->number_of_gammas_sink));
   }
 
   {SPC}*tag{EQL}{STRING} {

@@ -61,6 +61,151 @@ extern "C"
 
 using namespace cvc;
 
+/* ************************************************************************
+ *
+ * routine that multiplies with the external gamma5 structure at the source
+ * used for gammas like C, Cg4, cg1g4g5 etc.
+ * note the multiplication with the sign due to the adjoint of gamma5
+ *
+ * ************************************************************************/
+
+static inline void mult_with_gamma5_matrix_source ( double ** buffer_write ) {
+
+    double **buffer_temporary=init_2level_dtable(16,2);
+                 
+    buffer_temporary[0][0]=buffer_write[2][0]; buffer_temporary[0][1]=buffer_write[2][1];    
+    buffer_temporary[1][0]=buffer_write[3][0]; buffer_temporary[1][1]=buffer_write[3][1];
+    buffer_temporary[2][0]=buffer_write[0][0]; buffer_temporary[2][1]=buffer_write[0][1];
+    buffer_temporary[3][0]=buffer_write[1][0]; buffer_temporary[3][1]=buffer_write[1][1];
+
+    buffer_temporary[4][0]=buffer_write[6][0]; buffer_temporary[4][1]=buffer_write[6][1];
+    buffer_temporary[5][0]=buffer_write[7][0]; buffer_temporary[5][1]=buffer_write[7][1];
+    buffer_temporary[6][0]=buffer_write[4][0]; buffer_temporary[6][1]=buffer_write[4][1];
+    buffer_temporary[7][0]=buffer_write[5][0]; buffer_temporary[7][1]=buffer_write[5][1];
+
+    buffer_temporary[8][0]=buffer_write[10][0]; buffer_temporary[8][1]=buffer_write[10][1];
+    buffer_temporary[9][0]=buffer_write[11][0]; buffer_temporary[9][1]=buffer_write[11][1];
+    buffer_temporary[10][0]=buffer_write[8][0]; buffer_temporary[10][1]=buffer_write[8][1];
+    buffer_temporary[11][0]=buffer_write[9][0]; buffer_temporary[11][1]=buffer_write[9][1];
+
+    buffer_temporary[12][0]=buffer_write[14][0]; buffer_temporary[12][1]=buffer_write[14][1];
+    buffer_temporary[13][0]=buffer_write[15][0]; buffer_temporary[13][1]=buffer_write[15][1];
+    buffer_temporary[14][0]=buffer_write[12][0]; buffer_temporary[14][1]=buffer_write[12][1];
+    buffer_temporary[15][0]=buffer_write[13][0]; buffer_temporary[15][1]=buffer_write[13][1];
+   
+    for (int i=0; i<16; ++i){
+      buffer_write[i][0]=buffer_temporary[i][0]*-1.;//because of the adjoint gamma5
+    }
+    
+    fini_2level_dtable(&buffer_temporary);
+}
+
+
+/* ************************************************************************
+ *
+ * routine that multiplies with the external gamma5 structure at the sink
+ * used for gammas like C, Cg4, cg1g4g5 etc.
+ *
+ * ************************************************************************/
+
+
+static inline void mult_with_gamma5_matrix_sink ( double ** buffer_write ) {
+
+    double **buffer_temporary=init_2level_dtable(16,2);
+
+    buffer_temporary[0][0]=buffer_write[8][0]; buffer_temporary[0][1]=buffer_write[8][1];
+    buffer_temporary[1][0]=buffer_write[9][0]; buffer_temporary[1][1]=buffer_write[9][1];
+    buffer_temporary[2][0]=buffer_write[10][0]; buffer_temporary[2][1]=buffer_write[10][1];
+    buffer_temporary[3][0]=buffer_write[11][0]; buffer_temporary[3][1]=buffer_write[11][1];
+
+    buffer_temporary[4][0]=buffer_write[12][0]; buffer_temporary[4][1]=buffer_write[12][1];
+    buffer_temporary[5][0]=buffer_write[13][0]; buffer_temporary[5][1]=buffer_write[13][1];
+    buffer_temporary[6][0]=buffer_write[14][0]; buffer_temporary[6][1]=buffer_write[14][1];
+    buffer_temporary[7][0]=buffer_write[15][0]; buffer_temporary[7][1]=buffer_write[15][1];
+
+    buffer_temporary[8][0]=buffer_write[ 0][0]; buffer_temporary[8][1]=buffer_write[0][1];
+    buffer_temporary[9][0]=buffer_write[ 1][0]; buffer_temporary[9][1]=buffer_write[1][1];
+    buffer_temporary[10][0]=buffer_write[2][0]; buffer_temporary[10][1]=buffer_write[2][1];
+    buffer_temporary[11][0]=buffer_write[3][0]; buffer_temporary[11][1]=buffer_write[3][1];
+
+    buffer_temporary[12][0]=buffer_write[4][0]; buffer_temporary[12][1]=buffer_write[4][1];
+    buffer_temporary[13][0]=buffer_write[5][0]; buffer_temporary[13][1]=buffer_write[5][1];
+    buffer_temporary[14][0]=buffer_write[6][0]; buffer_temporary[14][1]=buffer_write[6][1];
+    buffer_temporary[15][0]=buffer_write[7][0]; buffer_temporary[15][1]=buffer_write[7][1];
+
+    for (int i=0; i<16; ++i){
+      buffer_write[i][0]=buffer_temporary[i][0];
+    }
+
+    fini_2level_dtable(&buffer_temporary);
+}
+
+static inline void sink_and_source_gamma_list( char *filename, char *tagname, int number_of_gammas_source, int number_of_gammas_sink, char ***gamma_string_source, char ***gamma_string_sink){
+
+    hid_t file_id, dataset_id, attr_id; /* identifiers */
+    file_id = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
+    dataset_id = H5Dopen2 ( file_id, tagname, H5P_DEFAULT );
+    attr_id = H5Aopen_idx (dataset_id, 0);
+    hid_t atype = H5Aget_type(attr_id);
+    hsize_t sz = H5Aget_storage_size(attr_id);
+    char* date_source = (char *)malloc(sizeof(char)*(sz+1));
+    H5Aread( attr_id,atype, (void*)date_source);
+    H5Aclose(attr_id );
+    H5Dclose(dataset_id);
+    H5Fclose(file_id);
+    printf("data secr %s\n",date_source);
+
+    *gamma_string_source =(char **)malloc(sizeof(char *)*number_of_gammas_source);
+    for (int j=0; j<number_of_gammas_source; j++){
+      (*gamma_string_source)[j]=(char *)malloc(sizeof(char)*100);
+    }
+
+    *gamma_string_sink =(char **)malloc(sizeof(char *)*number_of_gammas_sink);
+    for (int j=0; j<number_of_gammas_sink; j++){
+      (*gamma_string_sink)[j]=(char *)malloc(sizeof(char)*100);
+    }
+    char *token; 
+    token=strtok(date_source,",{");
+    /* walk through other tokens */
+    /* we do ignore the external gammas here because they are always one */
+    token = strtok(NULL, ",{");        
+    token = strtok(NULL, ",{");
+    for (int j=0; j<number_of_gammas_source;++j){
+      token = strtok(NULL, ",{");
+      if (token == NULL){
+        fprintf(stderr," [piN2piN_diagram_sum_per_type] Error in obtaining the source gammas, check out your hdf5 file\n");
+        exit(1);
+      }
+      if (j==(number_of_gammas_source-1)){
+        snprintf((*gamma_string_source)[j],strlen(token),"%s",token);
+      }
+      else{
+        snprintf((*gamma_string_source)[j],100,"%s",token);
+      }
+      fprintf(stdout," [piN2piN_diagram_sum_per_type] Gamma string list at the source %d %s\n", j, (*gamma_string_source)[j]); 
+    }
+    for (int j=0; j<number_of_gammas_sink;++j){
+      token=strtok(NULL, ",{");
+      if (token == NULL){
+        fprintf(stderr," [piN2piN_diagram_sum_per_type] Error in obtaining the source gammas, check out your hdf5 file\n");
+        exit(1);
+      }
+      if (j==(number_of_gammas_sink-1)){
+        char *temp=strtok(token, "}");
+        snprintf((*gamma_string_sink)[j],strlen(temp)+1,"%s",temp);
+      }
+      else{
+        snprintf((*gamma_string_sink)[j],100,"%s",token);
+      }
+      fprintf(stdout," [piN2piN_diagram_sum_per_type] Gamma string list at the sink %d %s\n", j, (*gamma_string_sink)[j]);
+    }
+
+    free(date_source);
+}
+
+
+
+
 
 /***********************************************************
  * give reader id depending on diagram type 
@@ -105,7 +250,6 @@ static inline int twopt_name_to_diagram_tag ( int * num, char **names, char **ta
     *num = 1;
     sprintf(*tag , "N");
     sprintf(*names, "N");
-    printf("nsasa %s\n", names[0]);
   } else if ( strcmp( name, "D-D"       ) == 0 )  {
     *num = 1;
     sprintf(*tag , "D");
@@ -320,9 +464,7 @@ int twopt_combine_diagrams ( twopoint_function_type * const tp_sum, twopoint_fun
 int main(int argc, char **argv) {
  
   char const twopt_name_list[6][20] = { "N-N", "D-D","D-pixN", "pixN-D", "pixN-pixN", "pi-pi" };
-  int const twopt_name_number = 5;
 
-  char const twopt_type_list[5][20] = { "b-b","b-mxb", "mxb-b", "mxb-mxb", "m-m" };
   /* int const twopt_type_number = 3; */ /* m-m not included here */
 
 
@@ -336,22 +478,17 @@ int main(int argc, char **argv) {
 
   const int (* momentum_orbit_list[4])[3] = { momentum_orbit_000, momentum_orbit_001, momentum_orbit_110, momentum_orbit_111 };
   int const momentum_orbit_nelem[4]   = {1, 6, 12, 8 };
-  int const momentum_orbit_num        = 4;
   int const momentum_orbit_pref[4][3] = { {0,0,0}, {0,0,1}, {1,1,0}, {1,1,1} };
 
-  int const momentum_pi2list[27][3] = { {0,0,0}, {0,0,1}, {0,0,-1}, {0,1,0}, {0,-1,0}, {1,0,0}, {-1,0,0}, {1,1,0}, {1,-1,0}, {-1,1,0}, {-1,-1,0}, {1,0,1}, {1,0,-1}, {-1,0,1}, {-1,0,-1}, {0,1,1}, {0,1,-1}, {0,-1,1}, {0,-1,-1}, {1,1,1}, {1,1,-1}, {1,-1,1}, {1,-1,-1}, {-1,1,1}, {-1,1,-1}, {-1,-1,1}, {-1,-1,-1} };
 
-  int const frame_list[27] = { 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3 };
 
-  int const p2_cutoff = 3;
 
 
   int c;
   int filename_set = 0;
   int exitstatus;
-  char filename[200];
-  char outputfilename[200];
-  char tagname[200];
+  char filename[400];
+  char tagname[400];
   FILE *ofs = NULL;
 
   struct timeval ta, tb;
@@ -451,7 +588,7 @@ int main(int argc, char **argv) {
   int const source_location_number = g_source_location_number * g_coherent_source_number;
   int ** source_coords_list = init_2level_itable ( source_location_number, 4 );
   if( source_coords_list == NULL ) {
-    fprintf ( stderr, "[] Error from init_2level_itable %s %d\n", __FILE__, __LINE__ );
+    fprintf ( stderr, "[piN2piN_diagram_sum_per_type] Error from init_2level_itable %s %d\n", __FILE__, __LINE__ );
     EXIT( 43 );
   }
   for ( int ib = 0; ib < g_source_location_number; ib++ ) {
@@ -478,123 +615,146 @@ int main(int argc, char **argv) {
    * b-b type
    *
    ******************************************************/
-
+  {
   /******************************************************
-   * loop diagram names
+   * Correlation function produced in this section names N,D
    ******************************************************/
-  for ( int iname = 0; iname < 2; iname++ ) {
 
-  /******************************************************
-   * check if matching 2pts are in the list
-   ******************************************************/
-    int twopt_id_number = 0;
-    int * twopt_id_list = init_1level_itable ( g_twopoint_function_number );
-    for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
-      if ( strcmp ( g_twopoint_function_list[i2pt].name , twopt_name_list[iname] ) == 0 ) {
-        twopt_id_list[twopt_id_number] = i2pt;
-        twopt_id_number++;
-      }
-    }
-    if ( twopt_id_number == 0 ) {
-      if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] skip twopoint name %s %s %d\n", twopt_name_list[iname], __FILE__, __LINE__ );
-      continue;
-    } else if ( g_verbose > 2 ) {
-      fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] number of twopoint ids name %s %d  %s %d\n", twopt_name_list[iname], twopt_id_number, __FILE__, __LINE__ );
-    }
-
-    twopoint_function_type * tp = &(g_twopoint_function_list[twopt_id_list[twopt_id_number-1]]);
-
-    gettimeofday ( &ta, (struct timezone *)NULL );
-
-    /******************************************************
-     * HDF5 readers
-     * 
-     * for b-b affr_diag_tag_num is 1
-     ******************************************************/
-    int hdf5_diag_tag_num = 0;
-    char **hdf5_diag_tag_list_tag=(char **)malloc(sizeof(char*)*12);
-    char **hdf5_diag_tag_list_name=(char **)malloc(sizeof(char*)*12);
-    for(int i=0; i<12; ++i){
-      hdf5_diag_tag_list_tag[i]=(char *)malloc(sizeof(char)*20);
-      hdf5_diag_tag_list_name[i]=(char *)malloc(sizeof(char)*20);
-    }
-
-    exitstatus = twopt_name_to_diagram_tag (&hdf5_diag_tag_num, hdf5_diag_tag_list_name,hdf5_diag_tag_list_tag, twopt_name_list[iname] );
-    if ( exitstatus != 0 ) {
-      fprintf( stderr, "[piN2piN_diagram_sum_per_type] Error from twopt_name_to_diagram_tag, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-      EXIT(123);
-    }
-    else {
-      for (int i=0; i < hdf5_diag_tag_num; ++i) {
-        printf("Name of the twopoint function %s String of hdf5 filename %s\n",twopt_name_list[iname],hdf5_diag_tag_list_name[i]);
-        printf("Name of the twopoint function %s String of hdf5 tag %s\n",twopt_name_list[iname],hdf5_diag_tag_list_tag[i]);
-      }
-    }
 
 #ifdef HAVE_HDF5
-    /***********************************************************
-     * read data block from h5 file
-     ***********************************************************/
-    snprintf ( filename, 200, "%s%04d_sx%02dsy%02dsz%02dst%03d_%s.h5",
+  /***********************************************************
+   * read data block from h5 file
+   ***********************************************************/
+  snprintf ( filename, 400, "%s%04d_sx%02dsy%02dsz%02dst%03d_N.h5",
+                         filename_prefix,
+                         Nconf,
+                         source_coords_list[0][0],
+                         source_coords_list[0][1],
+                         source_coords_list[0][2],
+                         source_coords_list[0][3]);
+
+  int ** buffer_mom = init_2level_itable ( 27, 3 );
+  if ( buffer_mom == NULL ) {
+      fprintf(stderr, "[piN2piN_diagram_sum_per_type]  Error from ,init_4level_dtable %s %d\n", __FILE__, __LINE__ );
+      EXIT(12);
+  }
+  snprintf(tagname, 400, "/sx%02dsy%02dsz%02dst%02d/mvec",source_coords_list[0][0],
+                         source_coords_list[0][1],
+                         source_coords_list[0][2],
+                         source_coords_list[0][3]);
+
+  fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] open existing file %s\n", filename );
+  
+  exitstatus = read_from_h5_file ( (void*)(buffer_mom[0]), filename, tagname, io_proc, 1 );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[piN2piN_diagram_sum_per_type] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    EXIT(12);
+  }
+  int **indextable=(int **)malloc(sizeof(int*)*4);
+  for (int i_total_momentum=0; i_total_momentum < 4; ++i_total_momentum){
+    indextable[i_total_momentum]=(int *)malloc(sizeof(int)*momentum_orbit_nelem[i_total_momentum]);
+    for (int i_pi2=0; i_pi2 < momentum_orbit_nelem[i_total_momentum]; ++i_pi2){
+      for (int j=0; j<g_sink_momentum_number; ++j){
+        if ( ( momentum_orbit_list[i_total_momentum][i_pi2][0] == buffer_mom[j][0] ) &&  
+             ( momentum_orbit_list[i_total_momentum][i_pi2][1] == buffer_mom[j][1] ) &&
+             ( momentum_orbit_list[i_total_momentum][i_pi2][2] == buffer_mom[j][2] ) ){
+          indextable[i_total_momentum][i_pi2]=j;
+          break;
+        }
+      }
+    }
+  }
+#endif
+
+  /* loop over the source positions */
+  for ( int k = 0; k < source_location_number; k++ ) {
+
+    /* loop over the baryon two point functions D and N */
+
+    for ( int iname = 0; iname < 2; iname++ ) {
+
+      /******************************************************
+       * check if matching 2pts are in the list
+       ******************************************************/
+      int twopt_id_number = 0;
+      int * twopt_id_list = init_1level_itable ( g_twopoint_function_number );
+      for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
+        if ( strcmp ( g_twopoint_function_list[i2pt].name , twopt_name_list[iname] ) == 0 ) {
+          twopt_id_list[twopt_id_number] = i2pt;
+          twopt_id_number++;
+        }
+      }
+      printf("[piN2piN_diagram_sum_per_type] Two point functions number %d\n",g_twopoint_function_number);
+      if ( twopt_id_number == 0 ) {
+        if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] skip twopoint name %s %s %d\n", twopt_name_list[iname], __FILE__, __LINE__ );
+        continue;
+      } else if ( g_verbose > 2 ) {
+         fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] number of twopoint ids name %s %d  %s %d\n", twopt_name_list[iname], twopt_id_number, __FILE__, __LINE__ );
+      }
+
+      twopoint_function_type * tp = &(g_twopoint_function_list[twopt_id_list[twopt_id_number-1]]);
+
+
+      gettimeofday ( &ta, (struct timezone *)NULL );
+
+      /******************************************************
+       * HDF5 readers
+       * 
+       * for b-b affr_diag_tag_num is 1
+       ******************************************************/
+      int hdf5_diag_tag_num = 0;
+      char **hdf5_diag_tag_list_tag=(char **)malloc(sizeof(char*)*12);
+      char **hdf5_diag_tag_list_name=(char **)malloc(sizeof(char*)*12);
+      for(int i=0; i<12; ++i){
+        hdf5_diag_tag_list_tag[i]=(char *)malloc(sizeof(char)*20);
+        hdf5_diag_tag_list_name[i]=(char *)malloc(sizeof(char)*20);
+      }
+
+      exitstatus = twopt_name_to_diagram_tag (&hdf5_diag_tag_num, hdf5_diag_tag_list_name, hdf5_diag_tag_list_tag, twopt_name_list[iname] );
+      if ( exitstatus != 0 ) {
+        fprintf( stderr, "[piN2piN_diagram_sum_per_type] Error from twopt_name_to_diagram_tag, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(123);
+      }
+      else {
+        for (int i=0; i < hdf5_diag_tag_num; ++i) {
+          printf("[piN2piN_diagram_sum_per_type] Name of the twopoint function %s String of hdf5 filename %s\n",twopt_name_list[iname],hdf5_diag_tag_list_name[i]);
+          printf("[piN2piN_diagram_sum_per_type] Name of the twopoint function %s String of hdf5 tag %s\n",twopt_name_list[iname],hdf5_diag_tag_list_tag[i]);
+        }
+      }
+      if ( hdf5_diag_tag_num != 1) {
+        fprintf(stderr,"[piN2piN_diagram_sum_per_type] hdf5_diag_tag_num should be 1, the diagrams D1,D2,D3.. and N1,N2 should already be summed over in PLEGMA \n");
+        exit(1);
+      }
+
+      /* total number of readers */
+      for ( int i = 0 ; i < hdf5_diag_tag_num; i++ ) {
+
+        /* Getting the list of gammas at the source and sink */
+        snprintf ( filename, 400, "%s%04d_sx%02dsy%02dsz%02dst%03d_%s.h5",
                          filename_prefix,
                          Nconf,
                          source_coords_list[0][0],
                          source_coords_list[0][1],
                          source_coords_list[0][2],
                          source_coords_list[0][3],
-                         hdf5_diag_tag_list_name[0] );
-    printf("filename %s\n",filename);
-
-/*           double ** buffer = init_2level_dtable ( tp->T, sink_momentum_number, tp->gamma_size*tp->gamma_size, tp->d * tp->d, 2 );*/
-    int ** buffer_mom = init_2level_itable ( 27, 3 );
-    if ( buffer_mom == NULL ) {
-      fprintf(stderr, "[piN2piN_diagram_sum_per_type]  Error from ,init_4level_dtable %s %d\n", __FILE__, __LINE__ );
-      EXIT(12);
-    }
-    snprintf(tagname, 200, "/sx%02dsy%02dsz%02dst%02d/mvec",source_coords_list[0][0],
+                         hdf5_diag_tag_list_name[i] ); 
+        snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%02d/%s",source_coords_list[0][0],
                          source_coords_list[0][1],
                          source_coords_list[0][2],
-                         source_coords_list[0][3]);
+                         source_coords_list[0][3],
+                         hdf5_diag_tag_list_tag[i]);
+        printf("[piN2piN_diagram_sum_per_type] Filename: %s\n", filename);
+        printf("[piN2piN_diagram_sum_per_type] Tagname: %s\n", tagname);
 
-    exitstatus = read_from_h5_file ( (void*)(buffer_mom[0]), filename, tagname, io_proc, 1 );
-    if ( exitstatus != 0 ) {
-      fprintf(stderr, "[piN2piN_diagram_sum_per_type] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-      EXIT(12);
-    }
-    int **indextable=(int **)malloc(sizeof(int*)*4);
-    for (int i_total_momentum=0; i_total_momentum < 4; ++i_total_momentum){
-      indextable[i_total_momentum]=(int *)malloc(sizeof(int)*momentum_orbit_nelem[i_total_momentum]);
-      for (int i_pi2=0; i_pi2 < momentum_orbit_nelem[i_total_momentum]; ++i_pi2){
-        for (int j=0; j<g_sink_momentum_number; ++j){
-          if ( ( momentum_orbit_list[i_total_momentum][i_pi2][0] == buffer_mom[j][0] ) &&  
-               ( momentum_orbit_list[i_total_momentum][i_pi2][1] == buffer_mom[j][1] ) &&
-               ( momentum_orbit_list[i_total_momentum][i_pi2][2] == buffer_mom[j][2] ) ){
-            indextable[i_total_momentum][i_pi2]=j;
-            break;
-          }
-        }
-      }
-    }
-#endif
+        char **gamma_string_list_source;
+        char **gamma_string_list_sink;
 
-    /* total number of readers */
-    for ( int i = 0 ; i < hdf5_diag_tag_num; i++ ) {
-      double *****buffer_sum = init_5level_dtable(tp->T, g_sink_momentum_number, tp->number_of_gammas, tp->d * tp->d, 2  );
-      for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
-        for (int momentum_number=0; momentum_number < g_sink_momentum_number; ++momentum_number){
-          for (int spin_structures=0; spin_structures < tp->number_of_gammas; ++spin_structures ){
-            for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
-              for (int realimag=0; realimag < 2; ++realimag){
-                buffer_sum[time_extent][momentum_number][spin_structures][spin_inner][realimag]=0.;
-              }
-            }
-          }
-        }
-      }
-      for ( int k = 0; k < source_location_number; k++ ) {
-        double *****buffer_source = init_5level_dtable(tp->T, g_sink_momentum_number, tp->number_of_gammas, tp->d * tp->d, 2  );
+        sink_and_source_gamma_list( filename, tagname, tp->number_of_gammas_source, tp->number_of_gammas_sink, &gamma_string_list_source, &gamma_string_list_sink);
 
-        snprintf ( filename, 200, "%s%04d_sx%02dsy%02dsz%02dst%03d_%s.h5", 
+        fprintf(stdout," [piN2piN_diagram_sum_per_type] Number of gammas at the source %d\n", tp->number_of_gammas_source);
+        double *****buffer_source = init_5level_dtable(tp->T, g_sink_momentum_number, tp->number_of_gammas_source*tp->number_of_gammas_sink, tp->d * tp->d, 2  );
+
+        snprintf ( filename, 400, "%s%04d_sx%02dsy%02dsz%02dst%03d_%s.h5", 
                          filename_prefix, 
                          Nconf,
 		         source_coords_list[k][0], 
@@ -602,37 +762,23 @@ int main(int argc, char **argv) {
                          source_coords_list[k][2], 
                          source_coords_list[k][3],
                          hdf5_diag_tag_list_name[i] );
-        printf("filenasaassssss%s\n",  hdf5_diag_tag_list_name[i]);
-        snprintf ( tagname, 200, "/sx%02dsy%02dsz%02dst%02d/%s",source_coords_list[k][0],
+        snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%02d/%s",source_coords_list[k][0],
                          source_coords_list[k][1],
                          source_coords_list[k][2],
                          source_coords_list[k][3],
                          hdf5_diag_tag_list_tag[i]);
         exitstatus = read_from_h5_file ( (void*)(buffer_source[0][0][0][0]), filename, tagname, io_proc );
         if ( exitstatus != 0 ) {
-          fprintf(stderr, "[piN2piN_diagram_sum_per_type] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          fprintf(stderr, "# [piN2piN_diagram_sum_per_type] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(12);
         }
-        for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
-          for (int momentum_number=0; momentum_number < g_sink_momentum_number; ++momentum_number){
-            for (int spin_structures=0; spin_structures < tp->number_of_gammas; ++spin_structures ){
-              for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
-                for (int realimag=0; realimag < 2; ++realimag){
-                  buffer_sum[time_extent][momentum_number][spin_structures][spin_inner][realimag]+=buffer_source[time_extent][momentum_number][spin_structures][spin_inner][realimag];
-                }
-              }
-            }
-          }
-        }
-        fini_5level_dtable(&buffer_source);
-      }
 
-      /******************************************************
-       * loop on total momentum / frames
-       ******************************************************/
-      for ( int i_total_momentum = 0; i_total_momentum < 4; i_total_momentum++) {
+        /******************************************************
+         * loop on total momentum / frames
+         ******************************************************/
+        for ( int i_total_momentum = 0; i_total_momentum < 4; i_total_momentum++) {
 
-        snprintf ( filename, 200, "%s%04d_PX%02dPY%02dPZ%02d_%s.h5",
+          snprintf ( filename, 200, "%s%04d_PX%02dPY%02dPZ%02d_%s.h5",
                          filename_prefix,
                          Nconf,
                          momentum_orbit_pref[i_total_momentum][0],
@@ -640,82 +786,191 @@ int main(int argc, char **argv) {
                          momentum_orbit_pref[i_total_momentum][2],
                          hdf5_diag_tag_list_name[i] );
 
-        hid_t file_id, group_id, dataset_id, dataspace_id;  /* identifiers */
-        herr_t      status;
+          hid_t file_id, group_id, dataset_id, dataspace_id;  /* identifiers */
+          herr_t      status;
 
-        struct stat fileStat;
-        if(stat( filename, &fileStat) < 0 ) {
-        /* Open an existing file. */
-          fprintf ( stdout, "# [test_hdf5] create new file\n" );
-          file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-        } else {
-          fprintf ( stdout, "# [test_hdf5] open existing file\n" );
-          file_id = H5Fopen(filename, H5F_ACC_RDWR, H5P_DEFAULT);
-        }
+          struct stat fileStat;
+          if(stat( filename, &fileStat) < 0 ) {
+          /* Open an existing file. */
+            fprintf ( stdout, "# [test_hdf5] create new file %s\n",filename );
+            file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+          } else {
+            fprintf ( stdout, "# [test_hdf5] open existing file %s\n", filename );
+            file_id = H5Fopen(filename, H5F_ACC_RDWR, H5P_DEFAULT);
+          }
 
-        for (int i_pi2=0; i_pi2 < momentum_orbit_nelem[i_total_momentum]; ++i_pi2){
+          /* check if the group for the source position already exists, if not then 
+           * lets create it
+           */
+          snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/", source_coords_list[k][0],
+                                                                 source_coords_list[k][1],
+                                                                 source_coords_list[k][2],
+                                                                 source_coords_list[k][3]);
+          status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
 
-          snprintf ( tagname, 200, "/pf1x%02dpf1y%02dpf1z%02d",    momentum_orbit_list[i_total_momentum][i_pi2][0],
-                                                                   momentum_orbit_list[i_total_momentum][i_pi2][1],
-                                                                   momentum_orbit_list[i_total_momentum][i_pi2][2]);
-          /* Create a group named "/MyGroup" in the file. */
-          group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+          status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+          if (status != 0){
 
-          /* Close the group. */
-          status = H5Gclose(group_id);
+             /* Create a group named "/MyGroup" in the file. */
+             group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
-          hsize_t dims[4];
-          dims[0]=tp->T;
-          dims[1]=tp->number_of_gammas;
-          dims[2]=tp->d*tp->d;
-          dims[3]=2;
-          dataspace_id = H5Screate_simple(4, dims, NULL);
+             /* Close the group. */
+             status = H5Gclose(group_id);
+
+          }
+
+          for (int i_pi2=0; i_pi2 < momentum_orbit_nelem[i_total_momentum]; ++i_pi2){
 
 
+            snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/pf1x%02dpf1y%02dpf1z%02d/",
+                                                                 source_coords_list[k][0],
+                                                                 source_coords_list[k][1],
+                                                                 source_coords_list[k][2],
+                                                                 source_coords_list[k][3],
+                                                                 momentum_orbit_list[i_total_momentum][i_pi2][0],
+                                                                 momentum_orbit_list[i_total_momentum][i_pi2][1],
+                                                                 momentum_orbit_list[i_total_momentum][i_pi2][2]);
 
-          snprintf ( tagname, 200, "/pf1x%02dpf1y%02dpf1z%02d/%s", momentum_orbit_list[i_total_momentum][i_pi2][0],
+            /* Create a group named "/MyGroup" in the file. */
+            group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+            /* Close the group. */
+            status = H5Gclose(group_id);
+
+            for (int source_gamma=0; source_gamma < tp->number_of_gammas_source; ++source_gamma ) {
+
+
+              snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/pf1x%02dpf1y%02dpf1z%02d/gi1%s,%s/",    
+                                                                 source_coords_list[k][0],
+                                                                 source_coords_list[k][1],
+                                                                 source_coords_list[k][2],
+                                                                 source_coords_list[k][3],    
+                                                                 momentum_orbit_list[i_total_momentum][i_pi2][0],
+                                                                 momentum_orbit_list[i_total_momentum][i_pi2][1],
+                                                                 momentum_orbit_list[i_total_momentum][i_pi2][2],
+                                                                 gamma_string_list_source[source_gamma],
+                                                                 ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1" );
+              /* Create a group named "/MyGroup" in the file. */
+              group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+              /* Close the group. */
+              status = H5Gclose(group_id);
+            
+              for (int sink_gamma=0; sink_gamma < tp->number_of_gammas_sink; ++sink_gamma ) {
+
+               
+                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/pf1x%02dpf1y%02dpf1z%02d/gi1%s,%s/gf1%s,%s/",
+                                                                   source_coords_list[k][0],
+                                                                   source_coords_list[k][1],
+                                                                   source_coords_list[k][2],
+                                                                   source_coords_list[k][3],
+                                                                   momentum_orbit_list[i_total_momentum][i_pi2][0],
                                                                    momentum_orbit_list[i_total_momentum][i_pi2][1],
                                                                    momentum_orbit_list[i_total_momentum][i_pi2][2],
+                                                                   gamma_string_list_source[source_gamma],
+                                                                   ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1",
+                                                                   gamma_string_list_sink[sink_gamma],
+                                                                   ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1");
+
+;
+ 
+                printf("# [piN2piN_diagram_sum_per_type] Tagname created %s\n",tagname);
+                /* Create a group named "/MyGroup" in the file. */
+                group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                /* Close the group. */
+                status = H5Gclose(group_id);
+
+                hsize_t dims[3];
+                dims[0]=tp->T;
+                dims[1]=tp->d*tp->d;
+                dims[2]=2;
+                dataspace_id = H5Screate_simple(3, dims, NULL);
+
+
+
+                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/pf1x%02dpf1y%02dpf1z%02d/gi1%s,%s/gf1%s,%s/%s",
+                                                                   source_coords_list[k][0],
+                                                                   source_coords_list[k][1],
+                                                                   source_coords_list[k][2],
+                                                                   source_coords_list[k][3],
+                                                                   momentum_orbit_list[i_total_momentum][i_pi2][0],
+                                                                   momentum_orbit_list[i_total_momentum][i_pi2][1],
+                                                                   momentum_orbit_list[i_total_momentum][i_pi2][2],
+                                                                   gamma_string_list_source[source_gamma],
+                                                                   ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1",
+                                                                   gamma_string_list_sink[sink_gamma],
+                                                                   ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
                                                                    hdf5_diag_tag_list_tag[i]);
 
-          /* Create a dataset in group "MyGroup". */
-          dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                /* Create a dataset in group "MyGroup". */
+                dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
-          double ****buffer_write= init_4level_dtable(tp->T,tp->number_of_gammas,tp->d*tp->d,2);
-          for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){ 
-            for (int spin_structures=0; spin_structures < tp->number_of_gammas; ++spin_structures ){
-              for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
-                for (int realimag=0; realimag < 2; ++realimag){
-                  buffer_write[time_extent][spin_structures][spin_inner][realimag]=buffer_sum[time_extent][indextable[i_total_momentum][i_pi2]][spin_structures][spin_inner][realimag]/(double)g_source_location_number;
+                double ***buffer_write= init_3level_dtable(tp->T,tp->d*tp->d,2);
+                for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){ 
+                  for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
+                    for (int realimag=0; realimag < 2; ++realimag){
+                      buffer_write[time_extent][spin_inner][realimag]=buffer_source[time_extent][indextable[i_total_momentum][i_pi2]][source_gamma*tp->number_of_gammas_sink+sink_gamma][spin_inner][realimag]/(double)g_source_location_number;
+                    }
+                  }
+                  if ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ){
+                    mult_with_gamma5_matrix_source(buffer_write[time_extent]);
+
+                  }
+                  if ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ){
+                    mult_with_gamma5_matrix_sink(buffer_write[time_extent]);
+
+                  }
+
                 }
-              }
-            }
-          }
-        
-          /* Write the first dataset. */
-          status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_write[0][0][0][0]));
+                /* Write the first dataset. */
+                status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_write[0][0][0]));
 
-          /* Close the data space for the first dataset. */
-          status = H5Sclose(dataspace_id);
+                /* Close the data space for the first dataset. */
+                status = H5Sclose(dataspace_id);
 
-          /* Close the first dataset. */
-          status = H5Dclose(dataset_id);
+                /* Close the first dataset. */
+                status = H5Dclose(dataset_id);
 
-          fini_4level_dtable(&buffer_write);
+                fini_3level_dtable(&buffer_write);
 
-        }
-        /* Close the file. */
-        status = H5Fclose(file_id);
+              }/*sink gamma*/
 
-      }
-      fini_5level_dtable(&buffer_sum);
-    }//hdf5 names
-    for (int i_total_momentum=0; i_total_momentum<4; ++i_total_momentum)
-      free(indextable[i_total_momentum]);
-    free(indextable);
+            }/*source_gamma*/
 
-  }  /* end of loop on twopoint function names */
-    
+          }//momentum
+          /* Close the file. */
+          status = H5Fclose(file_id);
+
+        }//loop on total momentum
+        fini_5level_dtable(&buffer_source);
+        for (int j=0; j<tp->number_of_gammas_source; ++j)
+          free(gamma_string_list_source[j]);
+        free(gamma_string_list_source);
+        for (int j=0; j<tp->number_of_gammas_sink; ++j)
+          free(gamma_string_list_sink[j]);
+        free(gamma_string_list_sink);
+      }//hdf5 names
+      fini_2level_itable(&buffer_mom);
+      fini_1level_itable(&twopt_id_list);
+      for (int j=0;j<12; ++j){
+        free(hdf5_diag_tag_list_tag[j]);
+        free(hdf5_diag_tag_list_name[j]);
+      }     
+      free(hdf5_diag_tag_list_tag);
+      free(hdf5_diag_tag_list_name);
+
+    }  /* end of loop on twopoint function names */
+
+  } /* end of loop on source positions */
+
+
+  for (int i_total_momentum=0; i_total_momentum<4; ++i_total_momentum)
+    free(indextable[i_total_momentum]);
+  free(indextable); 
+
+  } /* end of loop on N,D diagrams */
+
 
   /******************************************************
    *
@@ -723,122 +978,141 @@ int main(int argc, char **argv) {
    *
    ******************************************************/
 
-   for ( int iname = 2; iname < 3; iname++ ) {
+  {
 
-  /******************************************************
-   * check if matching 2pts are in the list
-   ******************************************************/
-    int twopt_id_number = 0;
-    int * twopt_id_list = init_1level_itable ( g_twopoint_function_number );
-    for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
-      if ( strcmp ( g_twopoint_function_list[i2pt].name , twopt_name_list[iname] ) == 0 ) {
-        twopt_id_list[twopt_id_number] = i2pt;
-        twopt_id_number++;
-      }
-    }
-    if ( twopt_id_number == 0 ) {
-      if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] skip twopoint name %s %s %d\n", twopt_name_list[iname], __FILE__, __LINE__ );
-      continue;
-    } else if ( g_verbose > 2 ) {
-      fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] number of twopoint ids name %s %d  %s %d\n", twopt_name_list[iname], twopt_id_number, __FILE__, __LINE__ );
-    }
 
-    twopoint_function_type * tp = &(g_twopoint_function_list[twopt_id_list[twopt_id_number-1]]);
+  #ifdef HAVE_HDF5
+  /***********************************************************
+   * read data block from h5 file
+   ***********************************************************/
 
-    gettimeofday ( &ta, (struct timezone *)NULL );
+  int ** buffer_mom = init_2level_itable ( 343, 9 );
+  if ( buffer_mom == NULL ) {
+      fprintf(stderr, "[piN2piN_diagram_sum_per_type]  Error from ,init_4level_dtable %s %d\n", __FILE__, __LINE__ );
+      EXIT(12);
+  }
+  snprintf ( filename, 400, "%s%04d_sx%02dsy%02dsz%02dst%03d_TpiNsink.h5",
+                         filename_prefix,
+                         Nconf,
+                         source_coords_list[0][0],
+                         source_coords_list[0][1],
+                         source_coords_list[0][2],
+                         source_coords_list[0][3]);
+  snprintf(tagname, 400, "/sx%02dsy%02dsz%02dst%02d/mvec",source_coords_list[0][0],
+                         source_coords_list[0][1],
+                         source_coords_list[0][2],
+                         source_coords_list[0][3]);
+
+  exitstatus = read_from_h5_file ( (void*)(buffer_mom[0]), filename, tagname, io_proc, 1 );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[piN2piN_diagram_sum_per_type] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    EXIT(12);
+  }
+  int **indextable=(int **)malloc(sizeof(int*)*4);
+  int *num_elements=(int *)malloc(sizeof(int)*4);
+  for (int i=0; i<4; ++i)
+    num_elements[i]=0;
+  for (int i=0; i<343; ++i){
+    num_elements[(buffer_mom[i][3]+buffer_mom[i][6])*(buffer_mom[i][3]+buffer_mom[i][6])+(buffer_mom[i][4]+buffer_mom[i][7])*(buffer_mom[i][4]+buffer_mom[i][7])+(buffer_mom[i][5]+buffer_mom[i][8])*(buffer_mom[i][5]+buffer_mom[i][8])]++;
+  }
+  for (int i=0; i<4; ++i){
+    indextable[i]=(int *)malloc(sizeof(int)*num_elements[i]);
+  }
+  for (int i=0; i<4; ++i)
+    num_elements[i]=0;
+  for (int i=0; i<343; ++i){
+    int tot_mom=(buffer_mom[i][3]+buffer_mom[i][6])*(buffer_mom[i][3]+buffer_mom[i][6])+(buffer_mom[i][4]+buffer_mom[i][7])*(buffer_mom[i][4]+buffer_mom[i][7])+(buffer_mom[i][5]+buffer_mom[i][8])*(buffer_mom[i][5]+buffer_mom[i][8]);
+    indextable[tot_mom][num_elements[tot_mom]]=i;
+    num_elements[tot_mom]++;
+  }
+#endif
+
+  for ( int k = 0; k < source_location_number; k++ ) {
+
+    for ( int iname = 2; iname < 3; iname++ ) {
 
     /******************************************************
-     * HDF5 readers
-     * 
-     * for mxb-b affr_diag_tag_num is 1
+     * check if matching 2pts are in the list
      ******************************************************/
-    int hdf5_diag_tag_num = 0;
-    char **hdf5_diag_tag_list_tag=(char **)malloc(sizeof(char*)*12);
-    char **hdf5_diag_tag_list_name=(char **)malloc(sizeof(char*)*12);
-    for(int i=0; i<12; ++i){
-      hdf5_diag_tag_list_tag[i]=(char *)malloc(sizeof(char)*20);
-      hdf5_diag_tag_list_name[i]=(char *)malloc(sizeof(char)*20);
-    }
-
-    exitstatus = twopt_name_to_diagram_tag (&hdf5_diag_tag_num, hdf5_diag_tag_list_name,hdf5_diag_tag_list_tag, twopt_name_list[iname] );
-    if ( exitstatus != 0 ) {
-      fprintf( stderr, "[piN2piN_diagram_sum_per_type] Error from twopt_name_to_diagram_tag, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-      EXIT(123);
-    }
-    else {
-      for (int i=0; i < hdf5_diag_tag_num; ++i) {
-        printf("Name of the twopoint function %s String of hdf5 filename %s\n",twopt_name_list[iname],hdf5_diag_tag_list_name[i]);
-        printf("Name of the twopoint function %s String of hdf5 tag %s\n",twopt_name_list[iname],hdf5_diag_tag_list_tag[i]);
+      int twopt_id_number = 0;
+      int * twopt_id_list = init_1level_itable ( g_twopoint_function_number );
+      for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
+        if ( strcmp ( g_twopoint_function_list[i2pt].name , twopt_name_list[iname] ) == 0 ) {
+         twopt_id_list[twopt_id_number] = i2pt;
+         twopt_id_number++;
+        }
       }
-    }
-#ifdef HAVE_HDF5
-    /***********************************************************
-     * read data block from h5 file
-     ***********************************************************/
-    snprintf ( filename, 200, "%s%04d_sx%02dsy%02dsz%02dst%03d_%s.h5",
+      if ( twopt_id_number == 0 ) {
+        if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] skip twopoint name %s %s %d\n", twopt_name_list[iname], __FILE__, __LINE__ );
+         continue;
+      } else if ( g_verbose > 2 ) {
+         fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] number of twopoint ids name %s %d  %s %d\n", twopt_name_list[iname], twopt_id_number, __FILE__, __LINE__ );
+      }
+
+
+      twopoint_function_type * tp = &(g_twopoint_function_list[twopt_id_list[twopt_id_number-1]]);
+
+      tp->number_of_gammas_sink = 4;
+
+
+      gettimeofday ( &ta, (struct timezone *)NULL );
+
+      /******************************************************
+       * HDF5 readers
+       * 
+       * for mxb-b affr_diag_tag_num is 1
+       ******************************************************/
+      int hdf5_diag_tag_num = 0;
+      char **hdf5_diag_tag_list_tag=(char **)malloc(sizeof(char*)*12);
+      char **hdf5_diag_tag_list_name=(char **)malloc(sizeof(char*)*12);
+      for(int i=0; i<12; ++i){
+        hdf5_diag_tag_list_tag[i]=(char *)malloc(sizeof(char)*20);
+        hdf5_diag_tag_list_name[i]=(char *)malloc(sizeof(char)*20);
+      }
+
+      exitstatus = twopt_name_to_diagram_tag (&hdf5_diag_tag_num, hdf5_diag_tag_list_name,hdf5_diag_tag_list_tag, twopt_name_list[iname] );
+      if ( exitstatus != 0 ) {
+        fprintf( stderr, "[piN2piN_diagram_sum_per_type] Error from twopt_name_to_diagram_tag, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(123);
+      }
+      else {
+        for (int i=0; i < hdf5_diag_tag_num; ++i) {
+          printf("Name of the twopoint function %s String of hdf5 filename %s\n",twopt_name_list[iname],hdf5_diag_tag_list_name[i]);
+          printf("Name of the twopoint function %s String of hdf5 tag %s\n",twopt_name_list[iname],hdf5_diag_tag_list_tag[i]);
+        }
+      }
+
+
+      /* total number of readers */
+
+
+      for ( int i = 0 ; i < hdf5_diag_tag_num; i++ ) {
+      /* Getting the list of gammas */
+        snprintf ( filename, 400, "%s%04d_sx%02dsy%02dsz%02dst%03d_%s.h5",
                          filename_prefix,
                          Nconf,
                          source_coords_list[0][0],
                          source_coords_list[0][1],
                          source_coords_list[0][2],
                          source_coords_list[0][3],
-                         hdf5_diag_tag_list_name[0] );
-    printf("filename %s\n",filename);
-
-/*           double ** buffer = init_2level_dtable ( tp->T, sink_momentum_number, tp->gamma_size*tp->gamma_size, tp->d * tp->d, 2 );*/
-    int ** buffer_mom = init_2level_itable ( 343, 9 );
-    if ( buffer_mom == NULL ) {
-      fprintf(stderr, "[piN2piN_diagram_sum_per_type]  Error from ,init_4level_dtable %s %d\n", __FILE__, __LINE__ );
-      EXIT(12);
-    }
-    snprintf(tagname, 200, "/sx%02dsy%02dsz%02dst%02d/mvec",source_coords_list[0][0],
+                         hdf5_diag_tag_list_name[i] );
+        snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%02d/%s",source_coords_list[0][0],
                          source_coords_list[0][1],
                          source_coords_list[0][2],
-                         source_coords_list[0][3]);
+                         source_coords_list[0][3],
+                         hdf5_diag_tag_list_tag[i]);
 
-    exitstatus = read_from_h5_file ( (void*)(buffer_mom[0]), filename, tagname, io_proc, 1 );
-    if ( exitstatus != 0 ) {
-      fprintf(stderr, "[piN2piN_diagram_sum_per_type] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-      EXIT(12);
-    }
-    int **indextable=(int **)malloc(sizeof(int*)*4);
-    int *num_elements=(int *)malloc(sizeof(int)*4);
-    for (int i=0; i<4; ++i)
-      num_elements[i]=0;
-    for (int i=0; i<343; ++i){
-      num_elements[(buffer_mom[i][3]+buffer_mom[i][6])*(buffer_mom[i][3]+buffer_mom[i][6])+(buffer_mom[i][4]+buffer_mom[i][7])*(buffer_mom[i][4]+buffer_mom[i][7])+(buffer_mom[i][5]+buffer_mom[i][8])*(buffer_mom[i][5]+buffer_mom[i][8])]++;
-    }
-    for (int i=0; i<4; ++i){
-      indextable[i]=(int *)malloc(sizeof(int)*num_elements[i]);
-    }
-    for (int i=0; i<4; ++i)
-      num_elements[i]=0;
-    for (int i=0; i<343; ++i){
-      int tot_mom=(buffer_mom[i][3]+buffer_mom[i][6])*(buffer_mom[i][3]+buffer_mom[i][6])+(buffer_mom[i][4]+buffer_mom[i][7])*(buffer_mom[i][4]+buffer_mom[i][7])+(buffer_mom[i][5]+buffer_mom[i][8])*(buffer_mom[i][5]+buffer_mom[i][8]);
-      indextable[tot_mom][num_elements[tot_mom]]=i;
-      num_elements[tot_mom]++;
-    }
-#endif
+        char **gamma_string_list_source;
+        char **gamma_string_list_sink;
+
+        printf("Number of gammas at the sink %d \n", tp->number_of_gammas_sink);
+        sink_and_source_gamma_list( filename, tagname, tp->number_of_gammas_source, tp->number_of_gammas_sink, &gamma_string_list_source, &gamma_string_list_sink);
 
 
-    /* total number of readers */
-    for ( int i = 0 ; i < hdf5_diag_tag_num; i++ ) {
-      double *****buffer_sum = init_5level_dtable(tp->T, 343, tp->number_of_gammas, tp->d * tp->d, 2  );
-      for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
-        for (int momentum_number=0; momentum_number < 343; ++momentum_number){
-          for (int spin_structures=0; spin_structures < tp->number_of_gammas; ++spin_structures ){
-            for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
-              for (int realimag=0; realimag < 2; ++realimag){
-                buffer_sum[time_extent][momentum_number][spin_structures][spin_inner][realimag]=0.;
-              }
-            }
-          }
-        }
-      }
-      for ( int k = 0; k < source_location_number; k++ ) {
-        double *****buffer_source = init_5level_dtable(tp->T, 343, tp->number_of_gammas, tp->d * tp->d, 2  );
+       
+        double *****buffer_source = init_5level_dtable(tp->T, 343, tp->number_of_gammas_sink*tp->number_of_gammas_source, tp->d * tp->d, 2  );
 
-        snprintf ( filename, 200, "%s%04d_sx%02dsy%02dsz%02dst%03d_%s.h5",
+        snprintf ( filename, 400, "%s%04d_sx%02dsy%02dsz%02dst%03d_%s.h5",
                          filename_prefix,
                          Nconf,
                          source_coords_list[k][0],
@@ -847,7 +1121,7 @@ int main(int argc, char **argv) {
                          source_coords_list[k][3],
                          hdf5_diag_tag_list_name[i] );
         printf("filename%s\n",  hdf5_diag_tag_list_name[i]);
-        snprintf ( tagname, 200, "/sx%02dsy%02dsz%02dst%02d/%s",source_coords_list[k][0],
+        snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%02d/%s",source_coords_list[k][0],
                          source_coords_list[k][1],
                          source_coords_list[k][2],
                          source_coords_list[k][3],
@@ -856,44 +1130,55 @@ int main(int argc, char **argv) {
         if ( exitstatus != 0 ) {
           fprintf(stderr, "[piN2piN_diagram_sum_per_type] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(12);
-        }
-        for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
-          for (int momentum_number=0; momentum_number < 343; ++momentum_number){
-            for (int spin_structures=0; spin_structures < tp->number_of_gammas; ++spin_structures ){
-              for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
-                for (int realimag=0; realimag < 2; ++realimag){
-                  buffer_sum[time_extent][momentum_number][spin_structures][spin_inner][realimag]+=buffer_source[time_extent][momentum_number][spin_structures][spin_inner][realimag];
-                }
-              }
-            }
-          }
-        }
-        fini_5level_dtable(&buffer_source);
-      }
+        } 
 
-      /******************************************************
-       * loop on total momentum / frames
-       ******************************************************/
-      for ( int i_total_momentum = 0; i_total_momentum < 4; i_total_momentum++) {
+        /******************************************************
+         * loop on total momentum / frames
+         ******************************************************/
+        for ( int i_total_momentum = 0; i_total_momentum < 4; i_total_momentum++) {
 
-        snprintf ( filename, 200, "%s%04d_PX%02dPY%02dPZ%02d_%s.h5",
+          hid_t file_id, group_id, dataset_id, dataspace_id;  /* identifiers */
+          herr_t      status;
+
+          snprintf ( filename, 400, "%s%04d_PX%02dPY%02dPZ%02d_%s.h5",
                          filename_prefix,
                          Nconf,
                          momentum_orbit_pref[i_total_momentum][0],
                          momentum_orbit_pref[i_total_momentum][1],
                          momentum_orbit_pref[i_total_momentum][2],
                          hdf5_diag_tag_list_name[i] );
-        fprintf ( stdout, "# [test_hdf5] create new file\n" );
+          fprintf ( stdout, "# [test_hdf5] create new file\n" );
 
-        hid_t file_id, group_id, dataset_id, dataspace_id;  /* identifiers */
-        herr_t      status;
+          file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+          /* check if the group for the source position already exists, if not then 
+           * lets create it
+           */
+          snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/", source_coords_list[k][0],
+                                                                 source_coords_list[k][1],
+                                                                 source_coords_list[k][2],
+                                                                 source_coords_list[k][3]);
+          status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
+
+          status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+          if (status != 0){
+
+             /* Create a group named "/MyGroup" in the file. */
+             group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+             /* Close the group. */
+             status = H5Gclose(group_id);
+
+          }
 
 
-        file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+          for (int i_pi2=0; i_pi2 < num_elements[i_total_momentum]; ++i_pi2){
 
-        for (int i_pi2=0; i_pi2 < num_elements[i_total_momentum]; ++i_pi2){
-
-          snprintf ( tagname, 200, "/pi2x%02dpi2y%02dpi2z%02dpf1x%02dpf1y%02dpf1z%02dpf2x%02dpf2y%02dpf2z%02d",    
+            snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/pi2x%02dpi2y%02dpi2z%02dpf1x%02dpf1y%02dpf1z%02dpf2x%02dpf2y%02dpf2z%02d/",
+                                                                   source_coords_list[k][0],
+                                                                   source_coords_list[k][1],
+                                                                   source_coords_list[k][2],
+                                                                   source_coords_list[k][3],
                                                                    buffer_mom[indextable[i_total_momentum][i_pi2]][0],
                                                                    buffer_mom[indextable[i_total_momentum][i_pi2]][1],
                                                                    buffer_mom[indextable[i_total_momentum][i_pi2]][2],
@@ -903,20 +1188,19 @@ int main(int argc, char **argv) {
                                                                    buffer_mom[indextable[i_total_momentum][i_pi2]][6],
                                                                    buffer_mom[indextable[i_total_momentum][i_pi2]][7],
                                                                    buffer_mom[indextable[i_total_momentum][i_pi2]][8]);
-          /* Create a group named "/MyGroup" in the file. */
-          group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+         
+            /* Create a group named "/MyGroup" in the file. */
+            group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
-          /* Close the group. */
-          status = H5Gclose(group_id);
+            /* Close the group. */
+            status = H5Gclose(group_id);
 
-          hsize_t dims[4];
-          dims[0]=tp->T;
-          dims[1]=tp->number_of_gammas;
-          dims[2]=tp->d*tp->d;
-          dims[3]=2;
-          dataspace_id = H5Screate_simple(4, dims, NULL);
-
-          snprintf ( tagname, 200, "/pi2x%02dpi2y%02dpi2z%02dpf1x%02dpf1y%02dpf1z%02dpf2x%02dpf2y%02dpf2z%02d/%s",    
+            for (int source_gamma =0 ; source_gamma < tp->number_of_gammas_source ; ++source_gamma ){
+              snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/pi2x%02dpi2y%02dpi2z%02dpf1x%02dpf1y%02dpf1z%02dpf2x%02dpf2y%02dpf2z%02d/gi1%s,%s/",
+                                                                   source_coords_list[k][0],
+                                                                   source_coords_list[k][1],
+                                                                   source_coords_list[k][2],
+                                                                   source_coords_list[k][3],
                                                                    buffer_mom[indextable[i_total_momentum][i_pi2]][0],
                                                                    buffer_mom[indextable[i_total_momentum][i_pi2]][1],
                                                                    buffer_mom[indextable[i_total_momentum][i_pi2]][2],
@@ -926,46 +1210,140 @@ int main(int argc, char **argv) {
                                                                    buffer_mom[indextable[i_total_momentum][i_pi2]][6],
                                                                    buffer_mom[indextable[i_total_momentum][i_pi2]][7],
                                                                    buffer_mom[indextable[i_total_momentum][i_pi2]][8],
+                                                                   gamma_string_list_source[source_gamma],
+                                                                   ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1" );
+              /* Create a group named "/MyGroup" in the file. */
+              group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+              /* Close the group. */
+              status = H5Gclose(group_id);
+
+              for (int sink_gamma=0; sink_gamma < tp->number_of_gammas_sink; ++sink_gamma ) {
+                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/pi2x%02dpi2y%02dpi2z%02dpf1x%02dpf1y%02dpf1z%02dpf2x%02dpf2y%02dpf2z%02d/gi1%s,%s/gf1%s,%s/",
+                                                                   source_coords_list[k][0],
+                                                                   source_coords_list[k][1],
+                                                                   source_coords_list[k][2],
+                                                                   source_coords_list[k][3],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][0],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][1],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][2],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][3],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][4],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][5],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][6],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][7],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][8],
+                                                                   gamma_string_list_source[source_gamma],
+                                                                   ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1",
+                                                                   gamma_string_list_sink[sink_gamma],
+                                                                   ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1");
+
+                /* Create a group named "/MyGroup" in the file. */
+                group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                /* Close the group. */
+                status = H5Gclose(group_id);
+            
+                hsize_t dims[3];
+                dims[0]=tp->T;
+                dims[1]=tp->d*tp->d;
+                dims[2]=2;
+                dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                snprintf ( tagname, 200, "/sx%02dsy%02dsz%02dst%03d/pi2x%02dpi2y%02dpi2z%02dpf1x%02dpf1y%02dpf1z%02dpf2x%02dpf2y%02dpf2z%02d/gi1%s,%s/gf1%s,%s/%s",    
+                                                                   source_coords_list[k][0],
+                                                                   source_coords_list[k][1],
+                                                                   source_coords_list[k][2],
+                                                                   source_coords_list[k][3],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][0],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][1],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][2],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][3],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][4],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][5],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][6],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][7],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][8],
+                                                                   gamma_string_list_source[source_gamma],
+                                                                   ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1",
+                                                                   gamma_string_list_sink[sink_gamma],
+                                                                   ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
                                                                    hdf5_diag_tag_list_tag[i]);
 
-          /* Create a dataset in group "MyGroup". */
-          dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                /* Create a dataset in group "MyGroup". */
+                dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
-          double ****buffer_write= init_4level_dtable(tp->T,tp->number_of_gammas,tp->d*tp->d,2);
-          for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
-            for (int spin_structures=0; spin_structures < tp->number_of_gammas; ++spin_structures ){
-              for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
-                for (int realimag=0; realimag < 2; ++realimag){
-                  buffer_write[time_extent][spin_structures][spin_inner][realimag]=buffer_sum[time_extent][indextable[i_total_momentum][i_pi2]][spin_structures][spin_inner][realimag]/(double)g_source_location_number;
+                double ***buffer_write= init_3level_dtable(tp->T,tp->d*tp->d,2);
+                for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
+                  for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
+                    for (int realimag=0; realimag < 2; ++realimag){
+                      buffer_write[time_extent][spin_inner][realimag]=buffer_source[time_extent][indextable[i_total_momentum][i_pi2]][source_gamma*tp->number_of_gammas_sink+sink_gamma][spin_inner][realimag]/(double)g_source_location_number;
+                    }
+                  }
+                  if ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ){
+                    mult_with_gamma5_matrix_source(buffer_write[time_extent]);
+
+                  }
+                  if ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ){
+                    mult_with_gamma5_matrix_sink(buffer_write[time_extent]);
+
+                  }
                 }
-              }
-            }
-          }
 
-          /* Write the first dataset. */
-          status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_write[0][0][0][0]));
 
-          /* Close the data space for the first dataset. */
-          status = H5Sclose(dataspace_id);
+                /* Write the first dataset. */
+                status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_write[0][0][0]));
 
-          /* Close the first dataset. */
-          status = H5Dclose(dataset_id);
+                /* Close the data space for the first dataset. */
+                status = H5Sclose(dataspace_id);
 
-          fini_4level_dtable(&buffer_write);
+                /* Close the first dataset. */
+                status = H5Dclose(dataset_id);
 
-        }
-        /* Close the file. */
-        status = H5Fclose(file_id);
+                fini_3level_dtable(&buffer_write);
 
+              } /*gamma sink*/
+
+            } /*gamma source */
+
+          } /* pi2 corresponding to a given p_tot */
+          /* Close the file. */
+          status = H5Fclose(file_id);
+
+        } /*loop on total momentum */
+        fini_5level_dtable(&buffer_source);
+
+        for (int j=0; j<tp->number_of_gammas_sink; ++j)
+          free(gamma_string_list_sink[j]);
+        free(gamma_string_list_sink);
+
+        for (int j=0; j<tp->number_of_gammas_source; ++j)
+          free(gamma_string_list_source[j]);
+        free(gamma_string_list_source);
+
+
+      }/*hdf5 names*/
+      fini_1level_itable(&twopt_id_list);
+      for (int j=0;j<12; ++j){
+        free(hdf5_diag_tag_list_tag[j]);
+        free(hdf5_diag_tag_list_name[j]);
       }
-      fini_5level_dtable(&buffer_sum);
-    }//hdf5 names
-    for (int i_total_momentum=0; i_total_momentum<4; ++i_total_momentum)
-      free(indextable[i_total_momentum]);
-    free(indextable);
-    free(num_elements);
+      free(hdf5_diag_tag_list_tag);
+      free(hdf5_diag_tag_list_name);
 
-  }
+    }  /* end of loop on twopoint function names */
+
+  } /* end of loop on source positions */
+
+
+  for (int i_total_momentum=0; i_total_momentum<4; ++i_total_momentum)
+    free(indextable[i_total_momentum]);
+  free(indextable);
+  free(num_elements);
+  fini_2level_itable(&buffer_mom);
+
+  } /* end of loop on producing TpiNsink */
+#if 0
 
   /******************************************************
    *
@@ -1225,6 +1603,8 @@ int main(int argc, char **argv) {
       free(num_elements);
 
      }//loop on sequential momentum
+
+
 
    }//loop on iname
 
@@ -1496,547 +1876,6 @@ int main(int argc, char **argv) {
        free(num_elements);
      }
    }
-  /******************************************************
-   * loop on total momentum / frames
-   ******************************************************/
-#if 0
-  for ( int ipref = 0; ipref < g_total_momentum_number; ipref++ ) {
-
-    int iorbit = 0;
-    for ( ; iorbit < momentum_orbit_num; iorbit++ ) {
-      if ( _V3_EQ_V3( g_total_momentum_list[ipref] , momentum_orbit_pref[iorbit] ) ) break;
-    }
-    if ( iorbit == momentum_orbit_num ) {
-      fprintf( stderr, "[piN2piN_diagram_sum_per_type] Error, could not find orbit %s %d\n", __FILE__, __LINE__ );
-      EXIT(123);
-    }
-
-    /******************************************************
-     * loop diagram names
-     ******************************************************/
-    for ( int iname = 2; iname <= 2; iname++ ) {
-
-      /******************************************************
-       * check if matching 2pts are in the list
-       ******************************************************/
-      int twopt_id_number = 0;
-      int * twopt_id_list = init_1level_itable ( g_twopoint_function_number );
-      for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
-        if ( strcmp ( g_twopoint_function_list[i2pt].name , twopt_name_list[iname] ) == 0 ) {
-          twopt_id_list[twopt_id_number] = i2pt;
-          twopt_id_number++;
-        }
-      }
-      if ( twopt_id_number == 0 ) {
-        if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] skip twopoint name %s %s %d\n", twopt_name_list[iname], __FILE__, __LINE__ );
-        continue;
-      } else if ( g_verbose > 2 ) {
-        fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] number of twopoint ids name %s %d  %s %d\n", twopt_name_list[iname], twopt_id_number, __FILE__, __LINE__ );
-      }
-
-      if( g_verbose > 4 ) fprintf( stdout, "# [piN2piN_diagram_sum_per_type] starting diagram name %s %s %d\n", twopt_name_list[iname], __FILE__, __LINE__ );
-
-      gettimeofday ( &ta, (struct timezone *)NULL );
-
-      /******************************************************
-       * AFF readers
-       *
-       * open AFF files for name and pref
-       * 
-       * for mxb-b affr_diag_tag_num is 1
-       ******************************************************/
-      struct AffReader_s *** affr = NULL;
-      int affr_diag_tag_num = 0;
-      char affr_diag_tag_list[12];
-
-      exitstatus = twopt_name_to_diagram_tag (&affr_diag_tag_num, affr_diag_tag_list, twopt_name_list[iname] );
-      if ( exitstatus != 0 ) {
-        fprintf( stderr, "[piN2piN_diagram_sum_per_type] Error from twopt_name_to_diagram_tag, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-        EXIT(123);
-      }
-
-      /* total number of readers */
-      int const affr_num = source_location_number * affr_diag_tag_num;
-      affr = (struct AffReader_s *** )malloc ( affr_diag_tag_num * sizeof ( struct AffReader_s ** )) ;
-      if ( affr == NULL ) {
-        fprintf( stderr, "[piN2piN_diagram_sum_per_type] Error from malloc %s %d\n", __FILE__, __LINE__ );
-        EXIT(124);
-      }
-      affr[0] = (struct AffReader_s ** )malloc ( affr_num * sizeof ( struct AffReader_s *)) ;
-      if ( affr[0] == NULL ) {
-        fprintf( stderr, "[piN2piN_diagram_sum_per_type] Error from malloc %s %d\n", __FILE__, __LINE__ );
-        EXIT(124);
-      }
-      for( int i = 1; i< affr_diag_tag_num; i++ ) {
-        affr[i] = affr[i-1] + source_location_number;
-      }
-      for ( int i = 0 ; i < affr_diag_tag_num; i++ ) {
-        for ( int k = 0; k < source_location_number; k++ ) {
-          sprintf ( filename, "%s.%c.PX%dPY%dPZ%d.%.4d.t%dx%dy%dz%d.aff", filename_prefix, affr_diag_tag_list[i],
-              g_total_momentum_list[ipref][0], g_total_momentum_list[ipref][1], g_total_momentum_list[ipref][2],
-              Nconf,
-              source_coords_list[k][0], source_coords_list[k][1], source_coords_list[k][2], source_coords_list[k][3] );
-
-          affr[i][k] = aff_reader ( filename );
-          if ( const char * aff_status_str =  aff_reader_errstr ( affr[i][k] ) ) {
-            fprintf(stderr, "[piN2piN_diagram_sum_per_type] Error from aff_reader for filename %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__);
-            EXIT(45);
-          } else {
-            if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagram_sum_per_type] opened data file %s for reading %s %d\n", filename, __FILE__, __LINE__);
-          }
-        }
-      }
-
-      gettimeofday ( &tb, (struct timezone *)NULL );
-      show_time ( &ta, &tb, "piN2piN_diagram_sum_per_type", "open-reader-list", io_proc == 2 );
-
-      /******************************************************
-       * AFF writer
-       ******************************************************/
-
-      gettimeofday ( &ta, (struct timezone *)NULL );
-
-      sprintf ( filename, "%s.%.4d.PX%d_PY%d_PZ%d.aff", twopt_name_list[iname], Nconf,
-          g_total_momentum_list[ipref][0], g_total_momentum_list[ipref][1], g_total_momentum_list[ipref][2] );
-      
-      struct AffWriter_s * affw = aff_writer(filename);
-      if ( const char * aff_status_str = aff_writer_errstr ( affw ) ) {
-        fprintf(stderr, "[piN2piN_diagram_sum_per_type] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-        EXIT(48);
-      }
-
-      gettimeofday ( &tb, (struct timezone *)NULL );
-      show_time ( &ta, &tb, "piN2piN_diagram_sum_per_type", "open-writer", io_proc == 2 );
-
-      /******************************************************/
-      /******************************************************/
-
-      /******************************************************
-       * loop on 2-point functions
-       ******************************************************/
-      for ( int i2pt = 0; i2pt < twopt_id_number; i2pt++ ) {
-
-        gettimeofday ( &ta, (struct timezone *)NULL );
-
-        int const twopt_id = twopt_id_list[i2pt];
-
-        /* if ( strcmp ( g_twopoint_function_list[i2pt].name , twopt_name_list[iname] ) != 0 ) {
-          if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] skip twopoint %6d %s %d\n", i2pt, __FILE__, __LINE__ );
-          continue;
-        } */
-
-        gettimeofday ( &tb, (struct timezone *)NULL );
-        show_time ( &ta, &tb, "piN2piN_diagram_sum_per_type", "check-valid-twopt", io_proc == 2 );
-
-        if ( g_verbose > 4 ) {
-          gettimeofday ( &ta, (struct timezone *)NULL );
-          /******************************************************
-           * print the 2-point function parameters
-           ******************************************************/
-          sprintf ( filename, "twopoint_function_%d.show", twopt_id );
-          if ( ( ofs = fopen ( filename, "w" ) ) == NULL ) {
-            fprintf ( stderr, "[piN2piN_diagram_sum_per_type] Error from fopen %s %d\n", __FILE__, __LINE__ );
-            EXIT(12);
-          }
-          twopoint_function_print ( &(g_twopoint_function_list[twopt_id]), "TWPT", ofs );
-          fclose ( ofs );
-
-          gettimeofday ( &tb, (struct timezone *)NULL );
-          show_time ( &ta, &tb, "piN2piN_diagram_sum_per_type", "print-twopoint", io_proc == 2 );
-        }  /* end of if g_verbose */
-
-        
-        /******************************************************
-         * loop on pf1
-         ******************************************************/
-        for ( int ipf1 = 0; ipf1 < momentum_orbit_nelem[iorbit]; ipf1++ ) {
-
-          int const pf1[3] = {
-            momentum_orbit_list[iorbit][ipf1][0],
-            momentum_orbit_list[iorbit][ipf1][1],
-            momentum_orbit_list[iorbit][ipf1][2] };
-
-        /******************************************************
-         * loop on pi2
-         ******************************************************/
-        for ( int ipi2 = 0; ipi2 < g_seq_source_momentum_number; ipi2++ ) {
-
-          int const pi2[3] = {
-            g_seq_source_momentum_list[ipi2][0],
-            g_seq_source_momentum_list[ipi2][1],
-            g_seq_source_momentum_list[ipi2][2] };
-
-          int const pi1[3] = {
-            -pf1[0] - pi2[0],
-            -pf1[1] - pi2[1],
-            -pf1[2] - pi2[2] };
-
-          if ( _V3_NORM_SQR(pi1) > p2_cutoff ) { 
-            if ( g_verbose > 4 ) fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] skip pf1 = %3d %3d %3d   pi2 = %3d %3d %3d   pi1 = %3d %3d %3d for cutoff %d\n",
-                pf1[0], pf1[1], pf1[2],
-                pi2[0], pi2[1], pi2[2],
-                pi1[0], pi1[1], pi1[2], p2_cutoff );
-            continue;
-          }
-
-          /******************************************************
-           * allocate tp_sum
-           ******************************************************/
-          gettimeofday ( &ta, (struct timezone *)NULL );
-  
-          twopoint_function_type tp_sum;
-          twopoint_function_type * tp = init_1level_2pttable ( source_location_number );
-
-          twopoint_function_init ( &tp_sum );
-          twopoint_function_copy ( &tp_sum, &( g_twopoint_function_list[twopt_id]), 0 );
-          
-          if ( twopoint_function_allocate ( &tp_sum) == NULL ) {
-            fprintf ( stderr, "[piN2piN_diagram_sum_per_type] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
-            EXIT(131);
-          }
-
-          memcpy ( tp_sum.pi1 , pi1, 3 * sizeof( int ) );
-          memcpy ( tp_sum.pi2 , pi2, 3 * sizeof( int ) );
-          memcpy ( tp_sum.pf1 , pf1, 3 * sizeof( int ) );
-  
-          for ( int i = 0; i < source_location_number; i++ ) {
-            twopoint_function_init ( &(tp[i]) );
-            twopoint_function_copy ( &(tp[i]), &( g_twopoint_function_list[twopt_id]), 0 );
-            if ( twopoint_function_allocate ( &(tp[i]) ) == NULL ) {
-              fprintf ( stderr, "[piN2piN_diagram_sum_per_type] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
-              EXIT(125);
-            }
-            memcpy ( tp[i].source_coords , source_coords_list[i], 4 * sizeof ( int ) );
-            memcpy ( tp[i].pi1 , pi1, 3 * sizeof( int ) );
-            memcpy ( tp[i].pi2 , pi2, 3 * sizeof( int ) );
-            memcpy ( tp[i].pf1 , pf1, 3 * sizeof( int ) );
-          }
-
-          gettimeofday ( &tb, (struct timezone *)NULL );
-          show_time ( &ta, &tb, "piN2piN_diagram_sum_per_type", "init-copy-allocate-twopt", io_proc == 2 );
-
-          /******************************************************
-           * combine diagrams
-           ******************************************************/
-          exitstatus = twopt_combine_diagrams ( &tp_sum, tp , source_location_number, affr, affw );
-          if ( exitstatus != 0 ) {
-            fprintf ( stderr, "[piN2piN_diagram_sum_per_type] Error from twopt_combine_diagrams, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-            EXIT(12);
-          }
-
-          /******************************************************
-           * deallocate tp_sum and tp list
-           ******************************************************/
-          for ( int i = 0; i < source_location_number; i++ ) {
-            twopoint_function_fini ( &( tp[i] ) );
-          }
-          fini_1level_2pttable ( &tp );
-          twopoint_function_fini ( &tp_sum );
-
-        }  /* end of loop on pi2 */
-        }  /* end of loop on pf1 */
-
-      }  /* end of loop on 2-point functions */
-
-      fini_1level_itable ( &twopt_id_list );
-
-      /******************************************************
-       * close AFF readers
-       ******************************************************/
-      for ( int ir = 0; ir < affr_num; ir++ ) {
-        aff_reader_close ( affr[0][ir] );
-      }
-      free ( affr[0] );
-      free ( affr );
-
-      if ( const char * aff_status_str = aff_writer_close ( affw ) ) {
-        fprintf(stderr, "[piN2piN_diagram_sum_per_type] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-        EXIT(46);
-      }
-
-    }  /* end of loop on twopoint function names */
-
-  }  /* end of loop on reference moving frames */
-
-  /******************************************************/
-  /******************************************************/
-
-  /******************************************************
-   *
-   * mxb-mxb type
-   *
-   ******************************************************/
-#if 0
-  /******************************************************
-   * loop on total momentum / frames
-   ******************************************************/
-  for ( int ipref = 0; ipref < g_total_momentum_number; ipref++ ) {
-
-    int iorbit = 0;
-    for ( ; iorbit < momentum_orbit_num; iorbit++ ) {
-      if ( _V3_EQ_V3( g_total_momentum_list[ipref] , momentum_orbit_pref[iorbit] ) ) break;
-    }
-    if ( iorbit == momentum_orbit_num ) {
-      fprintf( stderr, "[piN2piN_diagram_sum_per_type] Error, could not find orbit %s %d\n", __FILE__, __LINE__ );
-      EXIT(123);
-    }
-
-    /******************************************************
-     * loop diagram names
-     ******************************************************/
-    for ( int iname = 3; iname <= 3; iname++ ) {
-
-      /******************************************************
-       * check if matching 2pts are in the list
-       ******************************************************/
-      int twopt_id_number = 0;
-      int * twopt_id_list = init_1level_itable ( g_twopoint_function_number );
-      for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
-        if ( strcmp ( g_twopoint_function_list[i2pt].name , twopt_name_list[iname] ) == 0 ) {
-          twopt_id_list[twopt_id_number] = i2pt;
-          twopt_id_number++;
-        }
-      }
-      if ( twopt_id_number == 0 ) {
-        if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] skip twopoint name %s %s %d\n", twopt_name_list[iname], __FILE__, __LINE__ );
-        continue;
-      } else if ( g_verbose > 2 ) {
-        fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] number of twopoint ids name %s %d  %s %d\n", twopt_name_list[iname], twopt_id_number, __FILE__, __LINE__ );
-      }
-
-      gettimeofday ( &ta, (struct timezone *)NULL );
-
-      /******************************************************
-       * AFF readers
-       *
-       * open AFF files for name and pref
-       * 
-       * for mxb-b affr_diag_tag_num is 1
-       ******************************************************/
-      struct AffReader_s *** affr = NULL;
-      int affr_diag_tag_num = 0;
-      char affr_diag_tag_list[12];
-
-      exitstatus = twopt_name_to_diagram_tag (&affr_diag_tag_num, affr_diag_tag_list, twopt_name_list[iname] );
-      if ( exitstatus != 0 ) {
-        fprintf( stderr, "[piN2piN_diagram_sum_per_type] Error from twopt_name_to_diagram_tag, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-        EXIT(123);
-      }
-
-      /* total number of readers */
-      int const affr_num = source_location_number * affr_diag_tag_num;
-      affr = (struct AffReader_s *** )malloc ( affr_diag_tag_num * sizeof ( struct AffReader_s ** )) ;
-      if ( affr == NULL ) {
-        fprintf( stderr, "[piN2piN_diagram_sum_per_type] Error from malloc %s %d\n", __FILE__, __LINE__ );
-        EXIT(124);
-      }
-      affr[0] = (struct AffReader_s ** )malloc ( affr_num * sizeof ( struct AffReader_s *)) ;
-      if ( affr[0] == NULL ) {
-        fprintf( stderr, "[piN2piN_diagram_sum_per_type] Error from malloc %s %d\n", __FILE__, __LINE__ );
-        EXIT(124);
-      }
-      for( int i = 1; i< affr_diag_tag_num; i++ ) {
-        affr[i] = affr[i-1] + source_location_number;
-      }
-      for ( int i = 0 ; i < affr_diag_tag_num; i++ ) {
-        for ( int k = 0; k < source_location_number; k++ ) {
-          sprintf ( filename, "%s.%c.PX%dPY%dPZ%d.%.4d.t%dx%dy%dz%d.aff", filename_prefix, affr_diag_tag_list[i],
-              g_total_momentum_list[ipref][0], g_total_momentum_list[ipref][1], g_total_momentum_list[ipref][2],
-              Nconf,
-              source_coords_list[k][0], source_coords_list[k][1], source_coords_list[k][2], source_coords_list[k][3] );
-
-          affr[i][k] = aff_reader ( filename );
-          if ( const char * aff_status_str =  aff_reader_errstr ( affr[i][k] ) ) {
-            fprintf(stderr, "[piN2piN_diagram_sum_per_type] Error from aff_reader for filename %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__);
-            EXIT(45);
-          } else {
-            if ( g_verbose > 2 ) fprintf(stdout, "# [piN2piN_diagram_sum_per_type] opened data file %s for reading %s %d\n", filename, __FILE__, __LINE__);
-          }
-        }
-      }
-
-      gettimeofday ( &tb, (struct timezone *)NULL );
-      show_time ( &ta, &tb, "piN2piN_diagram_sum_per_type", "open-reader-list", io_proc == 2 );
-
-      /******************************************************
-       * AFF writer
-       ******************************************************/
-
-      gettimeofday ( &ta, (struct timezone *)NULL );
-
-      sprintf ( filename, "%s.%.4d.PX%d_PY%d_PZ%d.aff", twopt_name_list[iname], Nconf,
-          g_total_momentum_list[ipref][0], g_total_momentum_list[ipref][1], g_total_momentum_list[ipref][2] );
-      
-      struct AffWriter_s * affw = aff_writer(filename);
-      if ( const char * aff_status_str = aff_writer_errstr ( affw ) ) {
-        fprintf(stderr, "[piN2piN_diagram_sum_per_type] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-        EXIT(48);
-      }
-
-      gettimeofday ( &tb, (struct timezone *)NULL );
-      show_time ( &ta, &tb, "piN2piN_diagram_sum_per_type", "open-writer", io_proc == 2 );
-
-      /******************************************************/
-      /******************************************************/
-
-      /******************************************************
-       * loop on 2-point functions
-       ******************************************************/
-      for ( int i2pt = 0; i2pt < twopt_id_number; i2pt++ ) {
-
-        gettimeofday ( &ta, (struct timezone *)NULL );
-
-        int const twopt_id = twopt_id_list[i2pt];
-
-        /* if ( strcmp ( g_twopoint_function_list[i2pt].name , twopt_name_list[iname] ) != 0 ) {
-          if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_diagram_sum_per_type] skip twopoint %6d %s %d\n", i2pt, __FILE__, __LINE__ );
-          continue;
-        } */
-
-        gettimeofday ( &tb, (struct timezone *)NULL );
-        show_time ( &ta, &tb, "piN2piN_diagram_sum_per_type", "check-valid-twopt", io_proc == 2 );
-
-        if ( g_verbose > 4 ) {
-          gettimeofday ( &ta, (struct timezone *)NULL );
-          /******************************************************
-           * print the 2-point function parameters
-           ******************************************************/
-          sprintf ( filename, "twopoint_function_%d.show", twopt_id );
-          if ( ( ofs = fopen ( filename, "w" ) ) == NULL ) {
-            fprintf ( stderr, "[piN2piN_diagram_sum_per_type] Error from fopen %s %d\n", __FILE__, __LINE__ );
-            EXIT(12);
-          }
-          twopoint_function_print ( &(g_twopoint_function_list[twopt_id]), "TWPT", ofs );
-          fclose ( ofs );
-
-          gettimeofday ( &tb, (struct timezone *)NULL );
-          show_time ( &ta, &tb, "piN2piN_diagram_sum_per_type", "print-twopoint", io_proc == 2 );
-        }  /* end of if g_verbose */
-
-        
-        /******************************************************
-         * loop on pf1
-         ******************************************************/
-        for ( int iptot = 0; iptot < momentum_orbit_nelem[iorbit]; iptot++ ) {
-
-          int const ptot[3] = {
-            momentum_orbit_list[iorbit][iptot][0],
-            momentum_orbit_list[iorbit][iptot][1],
-            momentum_orbit_list[iorbit][iptot][2] };
-
-        for ( int ipf1 = 0; ipf1 < g_sink_momentum_number; ipf1++ ) {
-
-          int const pf1[3] = {
-            g_sink_momentum_list[ipf1][0],
-            g_sink_momentum_list[ipf1][1],
-            g_sink_momentum_list[ipf1][2] };
-
-          int const pf2[3] = {
-            ptot[0] - pf1[0],
-            ptot[1] - pf1[1],
-            ptot[2] - pf1[2] };
-
-          if ( _V3_NORM_SQR(pf2) > p2_cutoff ) continue;
-
-        /******************************************************
-         * loop on pi2
-         ******************************************************/
-        for ( int ipi2 = 0; ipi2 < g_seq_source_momentum_number; ipi2++ ) {
-
-          int const pi2[3] = {
-            g_seq_source_momentum_list[ipi2][0],
-            g_seq_source_momentum_list[ipi2][1],
-            g_seq_source_momentum_list[ipi2][2] };
-
-          int const pi1[3] = {
-            -ptot[0] - pi2[0],
-            -ptot[1] - pi2[1],
-            -ptot[2] - pi2[2] };
-
-          if ( _V3_NORM_SQR(pi1) > p2_cutoff ) continue;
-
-          /******************************************************
-           * allocate tp_sum
-           ******************************************************/
-          gettimeofday ( &ta, (struct timezone *)NULL );
-  
-          twopoint_function_type tp_sum;
-          twopoint_function_type * tp = init_1level_2pttable ( source_location_number );
-
-          twopoint_function_init ( &tp_sum );
-          twopoint_function_copy ( &tp_sum, &( g_twopoint_function_list[twopt_id]), 0 );
-          
-          if ( twopoint_function_allocate ( &tp_sum) == NULL ) {
-            fprintf ( stderr, "[piN2piN_diagram_sum_per_type] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
-            EXIT(131);
-          }
-
-          memcpy ( tp_sum.pi1 , pi1, 3 * sizeof( int ) );
-          memcpy ( tp_sum.pi2 , pi2, 3 * sizeof( int ) );
-          memcpy ( tp_sum.pf1 , pf1, 3 * sizeof( int ) );
-          memcpy ( tp_sum.pf2 , pf2, 3 * sizeof( int ) );
-  
-          for ( int i = 0; i < source_location_number; i++ ) {
-            twopoint_function_init ( &(tp[i]) );
-            twopoint_function_copy ( &(tp[i]), &( g_twopoint_function_list[twopt_id]), 0 );
-            if ( twopoint_function_allocate ( &(tp[i]) ) == NULL ) {
-              fprintf ( stderr, "[piN2piN_diagram_sum_per_type] Error from twopoint_function_allocate %s %d\n", __FILE__, __LINE__ );
-              EXIT(125);
-            }
-            memcpy ( tp[i].source_coords , source_coords_list[i], 4 * sizeof ( int ) );
-            memcpy ( tp[i].pi1 , pi1, 3 * sizeof( int ) );
-            memcpy ( tp[i].pi2 , pi2, 3 * sizeof( int ) );
-            memcpy ( tp[i].pf1 , pf1, 3 * sizeof( int ) );
-            memcpy ( tp[i].pf2 , pf2, 3 * sizeof( int ) );
-          }
-
-          gettimeofday ( &tb, (struct timezone *)NULL );
-          show_time ( &ta, &tb, "piN2piN_diagram_sum_per_type", "init-copy-allocate-twopt", io_proc == 2 );
-
-          /******************************************************
-           * combine diagrams
-           ******************************************************/
-          exitstatus = twopt_combine_diagrams ( &tp_sum, tp , source_location_number, affr, affw );
-          if ( exitstatus != 0 ) {
-            fprintf ( stderr, "[piN2piN_diagram_sum_per_type] Error from twopt_combine_diagrams, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-            EXIT(12);
-          }
-
-          /******************************************************
-           * deallocate tp_sum and tp list
-           ******************************************************/
-          for ( int i = 0; i < source_location_number; i++ ) {
-            twopoint_function_fini ( &( tp[i] ) );
-          }
-          fini_1level_2pttable ( &tp );
-          twopoint_function_fini ( &tp_sum );
-
-        }  /* end of loop on pi2 */
-        }  /* end of loop on pf1 */
-        }  /* end of loop on ptot */
-
-      }  /* end of loop on 2-point functions */
-
-      fini_1level_itable ( &twopt_id_list );
-
-      /******************************************************
-       * close AFF readers
-       ******************************************************/
-      for ( int ir = 0; ir < affr_num; ir++ ) {
-        aff_reader_close ( affr[0][ir] );
-      }
-      free ( affr[0] );
-      free ( affr );
-
-      if ( const char * aff_status_str = aff_writer_close ( affw ) ) {
-        fprintf(stderr, "[piN2piN_diagram_sum_per_type] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-        EXIT(46);
-      }
-
-    }  /* end of loop on twopoint function names */
-
-  }  /* end of loop on reference moving frames */
-#endif
 #endif
 
   /******************************************************/

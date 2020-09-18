@@ -12,7 +12,8 @@ typedef double ** spinor_propagator_type;
 
 typedef struct {
   //number of gammas initially inside the twopoint function
-  int number_of_gammas;
+  int number_of_gammas_source;
+  int number_of_gammas_sink;
   // type, m-m, b-b, mxb-b, mxb-mxb
   char type [20];
   // name of 2-pt function
