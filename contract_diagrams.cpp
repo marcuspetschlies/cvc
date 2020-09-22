@@ -1324,6 +1324,53 @@ int contract_diagram_read_oet_key_qlua (
 
 /***********************************************/
 /***********************************************/
+static inline void gamma_id_to_string ( int gamma_id, char *string_gamma ) {
+
+  if (gamma_id == 9 ) {
+   snprintf(string_gamma,40,"cg1,1");
+  }
+  else if (gamma_id == 0) {
+   snprintf(string_gamma,40,"cg2,1");
+  }
+  else if (gamma_id == 7) {
+   snprintf(string_gamma,40,"cg3,1");
+  }
+  else if (gamma_id == 13 ) {
+   snprintf(string_gamma,40,"cg1g0,1");
+  }
+  else if (gamma_id == 4) {
+   snprintf(string_gamma,40,"cg2g0,1");
+  }
+  else if (gamma_id == 15) {
+   snprintf(string_gamma,40,"cg3g0,1");
+  }
+  else if (gamma_id == 12) { 
+   snprintf(string_gamma,40,"cg1g0g5,5");
+  }
+  else if (gamma_id == 5 ) {
+   snprintf(string_gamma,40,"cg2g0g5,5");
+  }
+  else if (gamma_id == 10) {
+   snprintf(string_gamma,40,"cg3g0g5,5");
+  }
+  else if (gamma_id == 14) { 
+   snprintf(string_gamma,40,"Cg5,1");
+  }
+  else if (gamma_id == 11) { 
+   snprintf(string_gamma,40,"C,5");
+  }
+  else if (gamma_id == 8) { 
+   snprintf(string_gamma,40,"Cg5g4,1");
+  }  
+  else if (gamma_id == 2) { 
+   snprintf(string_gamma,40,"Cg4,5");
+  }
+  else {
+    fprintf(stderr, "[gamma_id_to_string] Error gamma it not recognized for PLEGMA string conversion \"%d\", status was %s %d\n", gamma_id, __FILE__, __LINE__ );
+    exit(1);
+  }
+}
+
 
 /***********************************************
  *
@@ -1392,6 +1439,7 @@ int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const 
 int contract_diagram_key_suffix_from_type ( char * key_suffix, twopoint_function_type * p ) {
 
   int exitstatus;
+  printf("%s \n", p->type);
 
   if ( strcmp( p->type, "mxb-mxb" ) == 0 ) {
 
