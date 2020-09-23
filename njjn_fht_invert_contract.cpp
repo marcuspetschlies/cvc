@@ -499,6 +499,8 @@ int main(int argc, char **argv) {
 
           int const isc = 3 * ispin + icol;
 
+          memset ( spinor_work[0], 0, sizeof_spinor_field );
+
 #pragma omp parallel for
           for ( unsigned int ix = 0; ix < VOLUME; ix++  ) {
             unsigned int const iy = _GSI(ix) + 2 * isc;  /* offset for site ix and spin-color isc */
