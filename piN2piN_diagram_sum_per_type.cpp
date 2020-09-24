@@ -862,22 +862,113 @@ int main(int argc, char **argv) {
             
               for (int sink_gamma=0; sink_gamma < tp->number_of_gammas_sink; ++sink_gamma ) {
 
-               
-                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/pf1x%02dpf1y%02dpf1z%02d/gi1%s,%s/gf1%s,%s/",
+                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf1%s,%s",
                                                                    source_coords_list[k][0],
                                                                    source_coords_list[k][1],
                                                                    source_coords_list[k][2],
                                                                    source_coords_list[k][3],
+                                                                   gamma_string_list_sink[sink_gamma],
+                                                                   ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1");
+               
+
+                status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
+
+                status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+                if (status != 0){
+
+                   /* Create a group named "/MyGroup" in the file. */
+                   group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                   /* Close the group. */
+                   status = H5Gclose(group_id);
+
+                }
+
+                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/",
+                                                                   source_coords_list[k][0],
+                                                                   source_coords_list[k][1],
+                                                                   source_coords_list[k][2],
+                                                                   source_coords_list[k][3],
+                                                                   gamma_string_list_sink[sink_gamma],
+                                                                   ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
+                                                                   momentum_orbit_list[i_total_momentum][i_pi2][0],
+                                                                   momentum_orbit_list[i_total_momentum][i_pi2][1],
+                                                                   momentum_orbit_list[i_total_momentum][i_pi2][2]);
+
+
+
+                status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
+
+                status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+                if (status != 0){
+
+                   /* Create a group named "/MyGroup" in the file. */
+                   group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                   /* Close the group. */
+                   status = H5Gclose(group_id);
+
+                }
+                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi1%s,%s",
+                                                                   source_coords_list[k][0],
+                                                                   source_coords_list[k][1],
+                                                                   source_coords_list[k][2],
+                                                                   source_coords_list[k][3],
+                                                                   gamma_string_list_sink[sink_gamma],
+                                                                   ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
+                                                                   momentum_orbit_list[i_total_momentum][i_pi2][0],
+                                                                   momentum_orbit_list[i_total_momentum][i_pi2][1],
+                                                                   momentum_orbit_list[i_total_momentum][i_pi2][2],
+                                                                   gamma_string_list_source[source_gamma],
+                                                                   ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1");
+
+                                                                   
+                                                                   
+                status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);     
+                                                                   
+                status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+                if (status != 0){
+
+                   /* Create a group named "/MyGroup" in the file. */
+                   group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                                                                   
+                   /* Close the group. */
+                   status = H5Gclose(group_id); 
+
+                }
+
+ 
+                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi1%s,%s/pi1x%02dpi1y%02dpi1z%02d/",
+                                                                   source_coords_list[k][0],
+                                                                   source_coords_list[k][1],
+                                                                   source_coords_list[k][2],
+                                                                   source_coords_list[k][3],
+                                                                   gamma_string_list_sink[sink_gamma],
+                                                                   ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
                                                                    momentum_orbit_list[i_total_momentum][i_pi2][0],
                                                                    momentum_orbit_list[i_total_momentum][i_pi2][1],
                                                                    momentum_orbit_list[i_total_momentum][i_pi2][2],
                                                                    gamma_string_list_source[source_gamma],
                                                                    ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1",
-                                                                   gamma_string_list_sink[sink_gamma],
-                                                                   ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1");
+                                                                   -momentum_orbit_list[i_total_momentum][i_pi2][0],
+                                                                   -momentum_orbit_list[i_total_momentum][i_pi2][1],
+                                                                   -momentum_orbit_list[i_total_momentum][i_pi2][2]);
 
-;
- 
+                status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
+
+                status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+                if (status != 0){
+
+                   /* Create a group named "/MyGroup" in the file. */
+                   group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                   /* Close the group. */
+                   status = H5Gclose(group_id);
+
+                }
+
+
+
                 /* printf("# [piN2piN_diagram_sum_per_type] Tagname created %s\n",tagname); */
                 /* Create a group named "/MyGroup" in the file. */
                 group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
@@ -891,20 +982,21 @@ int main(int argc, char **argv) {
                 dims[2]=2;
                 dataspace_id = H5Screate_simple(3, dims, NULL);
 
-
-
-                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/pf1x%02dpf1y%02dpf1z%02d/gi1%s,%s/gf1%s,%s/%s",
+                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi1%s,%s/pi1x%02dpi1y%02dpi1z%02d/%s",
                                                                    source_coords_list[k][0],
                                                                    source_coords_list[k][1],
                                                                    source_coords_list[k][2],
                                                                    source_coords_list[k][3],
+                                                                   gamma_string_list_sink[sink_gamma],
+                                                                   ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
                                                                    momentum_orbit_list[i_total_momentum][i_pi2][0],
                                                                    momentum_orbit_list[i_total_momentum][i_pi2][1],
                                                                    momentum_orbit_list[i_total_momentum][i_pi2][2],
                                                                    gamma_string_list_source[source_gamma],
                                                                    ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1",
-                                                                   gamma_string_list_sink[sink_gamma],
-                                                                   ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
+                                                                   -momentum_orbit_list[i_total_momentum][i_pi2][0],
+                                                                   -momentum_orbit_list[i_total_momentum][i_pi2][1],
+                                                                   -momentum_orbit_list[i_total_momentum][i_pi2][2],
                                                                    hdf5_diag_tag_list_tag[i]);
 
                 /* Create a dataset in group "MyGroup". */
@@ -1174,75 +1266,159 @@ int main(int argc, char **argv) {
 
           for (int i_pi2=0; i_pi2 < num_elements[i_total_momentum]; ++i_pi2){
 
-            snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/pi2x%02dpi2y%02dpi2z%02dpf1x%02dpf1y%02dpf1z%02dpf2x%02dpf2y%02dpf2z%02d/",
-                                                                   source_coords_list[k][0],
-                                                                   source_coords_list[k][1],
-                                                                   source_coords_list[k][2],
-                                                                   source_coords_list[k][3],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][0],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][1],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][2],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][3],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][4],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][5],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][6],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][7],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][8]);
-         
-            /* Create a group named "/MyGroup" in the file. */
-            group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
-            /* Close the group. */
-            status = H5Gclose(group_id);
-
             for (int source_gamma =0 ; source_gamma < tp->number_of_gammas_source ; ++source_gamma ){
-              snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/pi2x%02dpi2y%02dpi2z%02dpf1x%02dpf1y%02dpf1z%02dpf2x%02dpf2y%02dpf2z%02d/gi1%s,%s/",
-                                                                   source_coords_list[k][0],
-                                                                   source_coords_list[k][1],
-                                                                   source_coords_list[k][2],
-                                                                   source_coords_list[k][3],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][0],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][1],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][2],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][3],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][4],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][5],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][6],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][7],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][8],
-                                                                   gamma_string_list_source[source_gamma],
-                                                                   ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1" );
-              /* Create a group named "/MyGroup" in the file. */
-              group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
-              /* Close the group. */
-              status = H5Gclose(group_id);
 
               for (int sink_gamma=0; sink_gamma < tp->number_of_gammas_sink; ++sink_gamma ) {
-                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/pi2x%02dpi2y%02dpi2z%02dpf1x%02dpf1y%02dpf1z%02dpf2x%02dpf2y%02dpf2z%02d/gi1%s,%s/gf1%s,%s/",
-                                                                   source_coords_list[k][0],
-                                                                   source_coords_list[k][1],
-                                                                   source_coords_list[k][2],
-                                                                   source_coords_list[k][3],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][0],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][1],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][2],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][3],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][4],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][5],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][6],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][7],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][8],
-                                                                   gamma_string_list_source[source_gamma],
-                                                                   ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1",
-                                                                   gamma_string_list_sink[sink_gamma],
-                                                                   ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1");
 
-                /* Create a group named "/MyGroup" in the file. */
-                group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/", source_coords_list[k][0],
+                                                                       source_coords_list[k][1],
+                                                                       source_coords_list[k][2],
+                                                                       source_coords_list[k][3]);
+                status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
 
-                /* Close the group. */
-                status = H5Gclose(group_id);
+                status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+                if (status != 0){
+
+                 /* Create a group named "/MyGroup" in the file. */
+                 group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                 /* Close the group. */
+                 status = H5Gclose(group_id);
+
+                }
+
+                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d/", source_coords_list[k][0],
+                                                                       source_coords_list[k][1],
+                                                                       source_coords_list[k][2],
+                                                                       source_coords_list[k][3],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][6],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][7],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][8]);
+
+                status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);     
+                                                        
+                status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+                if (status != 0){                                  
+                           
+                 /* Create a group named "/MyGroup" in the file. */
+                 group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                                                                   
+                 /* Close the group. */
+                 status = H5Gclose(group_id);
+                                         
+                }
+
+                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d/gf1%s,%s/", source_coords_list[k][0],
+                                                                       source_coords_list[k][1],
+                                                                       source_coords_list[k][2],
+                                                                       source_coords_list[k][3],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][6],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][7],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][8],
+                                                                       gamma_string_list_sink[sink_gamma],
+                                                                       ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1");
+
+
+                status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
+
+                status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+                if (status != 0){
+
+                 /* Create a group named "/MyGroup" in the file. */
+                 group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                 /* Close the group. */
+                 status = H5Gclose(group_id);
+
+                }
+                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/", source_coords_list[k][0],
+                                                                       source_coords_list[k][1],
+                                                                       source_coords_list[k][2],
+                                                                       source_coords_list[k][3],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][6],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][7],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][8],
+                                                                       gamma_string_list_sink[sink_gamma],
+                                                                       ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][3],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][4],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][5]);
+
+
+
+                status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
+
+                status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+                if (status != 0){
+
+                 /* Create a group named "/MyGroup" in the file. */
+                 group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                 /* Close the group. */
+                 status = H5Gclose(group_id);
+
+                }
+
+                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi1%s,%s/", source_coords_list[k][0],
+                                                                       source_coords_list[k][1],
+                                                                       source_coords_list[k][2],
+                                                                       source_coords_list[k][3],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][6],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][7],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][8],
+                                                                       gamma_string_list_sink[sink_gamma],
+                                                                       ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][3],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][4],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][5],
+                                                                       gamma_string_list_source[source_gamma],
+                                                                       ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1");
+
+                status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
+
+                status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+                if (status != 0){
+
+                 /* Create a group named "/MyGroup" in the file. */
+                 group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                 /* Close the group. */
+                 status = H5Gclose(group_id);
+
+                }
+
+                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi1%s,%s/pi1x%02dpi1y%02dpi1z%02d/", source_coords_list[k][0],
+                                                                       source_coords_list[k][1],
+                                                                       source_coords_list[k][2],
+                                                                       source_coords_list[k][3],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][6],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][7],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][8],
+                                                                       gamma_string_list_sink[sink_gamma],
+                                                                       ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][3],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][4],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][5],
+                                                                       gamma_string_list_source[source_gamma],
+                                                                       ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1",
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][6]+ buffer_mom[indextable[i_total_momentum][i_pi2]][3],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][7]+ buffer_mom[indextable[i_total_momentum][i_pi2]][4],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][8]+ buffer_mom[indextable[i_total_momentum][i_pi2]][5]);
+
+
+                status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
+
+                status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+                if (status != 0){
+
+                 /* Create a group named "/MyGroup" in the file. */
+                 group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                 /* Close the group. */
+                 status = H5Gclose(group_id);
+
+                }
+
             
                 hsize_t dims[3];
                 dims[0]=tp->T;
@@ -1250,25 +1426,25 @@ int main(int argc, char **argv) {
                 dims[2]=2;
                 dataspace_id = H5Screate_simple(3, dims, NULL);
 
-                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/pi2x%02dpi2y%02dpi2z%02dpf1x%02dpf1y%02dpf1z%02dpf2x%02dpf2y%02dpf2z%02d/gi1%s,%s/gf1%s,%s/%s",    
-                                                                   source_coords_list[k][0],
-                                                                   source_coords_list[k][1],
-                                                                   source_coords_list[k][2],
-                                                                   source_coords_list[k][3],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][0],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][1],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][2],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][3],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][4],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][5],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][6],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][7],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pi2]][8],
-                                                                   gamma_string_list_source[source_gamma],
-                                                                   ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1",
-                                                                   gamma_string_list_sink[sink_gamma],
-                                                                   ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
-                                                                   hdf5_diag_tag_list_tag[i]);
+                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi1%s,%s/pi1x%02dpi1y%02dpi1z%02d/", source_coords_list[k][0],
+                                                                       source_coords_list[k][1],
+                                                                       source_coords_list[k][2],
+                                                                       source_coords_list[k][3],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][6],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][7],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][8],
+                                                                       gamma_string_list_sink[sink_gamma],
+                                                                       ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][3],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][4],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][5],
+                                                                       gamma_string_list_source[source_gamma],
+                                                                       ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1",
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][6]+ buffer_mom[indextable[i_total_momentum][i_pi2]][3],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][7]+ buffer_mom[indextable[i_total_momentum][i_pi2]][4],
+                                                                       buffer_mom[indextable[i_total_momentum][i_pi2]][8]+ buffer_mom[indextable[i_total_momentum][i_pi2]][5],
+                                                                       hdf5_diag_tag_list_tag[i]);
+
 
                 /* Create a dataset in group "MyGroup". */
                 dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
@@ -1578,68 +1754,175 @@ int main(int argc, char **argv) {
 
 
             for (int i_pf1=0; i_pf1 < num_elements[i_total_momentum]; ++i_pf1){
-              printf("i_pf1 %d totmom %d num %d \n", i_pf1, i_total_momentum, num_elements[i_total_momentum]);
-              snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/pi2x%02dpi2y%02dpi2z%02dpfx%02dpfy%02dpfz%02d/",
-                                                                   source_coords_list[k][0],
-                                                                   source_coords_list[k][1],
-                                                                   source_coords_list[k][2],
-                                                                   source_coords_list[k][3],
-                                                                   pi2[0],
-                                                                   pi2[1],
-                                                                   pi2[2],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][3],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][4],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][5]);
-              printf("Tagname %s\n",tagname);
-              /* Create a group named "/MyGroup" in the file. */
-              group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
-              /* Close the group. */
-              status = H5Gclose(group_id);
-
 
               for (int source_gamma =0 ; source_gamma < tp->number_of_gammas_source ; ++source_gamma ){
-                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/pi2x%02dpi2y%02dpi2z%02dpfx%02dpfy%02dpfz%02d/gi1%s,%s/",
-                                                                   source_coords_list[k][0],
-                                                                   source_coords_list[k][1],
-                                                                   source_coords_list[k][2],
-                                                                   source_coords_list[k][3],
-                                                                   pi2[0],
-                                                                   pi2[1],
-                                                                   pi2[2],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][3],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][4],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][5],
-                                                                   gamma_string_list_source[source_gamma],
-                                                                   ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1" );
-                /* Create a group named "/MyGroup" in the file. */
-                group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
-                /* Close the group. */
-                status = H5Gclose(group_id);
 
                 for (int sink_gamma=0; sink_gamma < tp->number_of_gammas_sink; ++sink_gamma ) {
-                  snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/pi2x%02dpi2y%02dpi2z%02dpfx%02dpfy%02dpfz%02d/gi1%s,%s/gf1%s,%s/",
+
+                  snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf1%s,%s/",
                                                                    source_coords_list[k][0],
                                                                    source_coords_list[k][1],
                                                                    source_coords_list[k][2],
                                                                    source_coords_list[k][3],
-                                                                   pi2[0],
-                                                                   pi2[1],
-                                                                   pi2[2],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][3],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][4],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][5],
-                                                                   gamma_string_list_source[source_gamma],
-                                                                   ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1",
                                                                    gamma_string_list_sink[sink_gamma],
                                                                    ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1");
 
-                  /* Create a group named "/MyGroup" in the file. */
-                  group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                  status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
 
-                  /* Close the group. */
-                  status = H5Gclose(group_id);
+                  status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+                  if (status != 0){
+
+                     /* Create a group named "/MyGroup" in the file. */
+                     group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                     /* Close the group. */
+                     status = H5Gclose(group_id);
+
+                  }
+
+                  snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/",
+                                                                   source_coords_list[k][0],
+                                                                   source_coords_list[k][1],
+                                                                   source_coords_list[k][2],
+                                                                   source_coords_list[k][3],
+                                                                   gamma_string_list_sink[sink_gamma],
+                                                                   ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
+                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][3],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][4],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][5]);
+
+                  status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
+
+                  status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+                  if (status != 0){
+
+                     /* Create a group named "/MyGroup" in the file. */
+                     group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                     /* Close the group. */
+                     status = H5Gclose(group_id);
+
+                  }
+
+                  snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi25",
+                                                                   source_coords_list[k][0],
+                                                                   source_coords_list[k][1],
+                                                                   source_coords_list[k][2],
+                                                                   source_coords_list[k][3],
+                                                                   gamma_string_list_sink[sink_gamma],
+                                                                   ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
+                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][3],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][4],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][5]);
+
+                  status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
+
+                  status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+                  if (status != 0){
+
+                     /* Create a group named "/MyGroup" in the file. */
+                     group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                     /* Close the group. */
+                     status = H5Gclose(group_id);
+
+                  }
+
+                  snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi25/pi2x%02dpi2y%02dpi2z%02d/",
+                                                                   source_coords_list[k][0],
+                                                                   source_coords_list[k][1],
+                                                                   source_coords_list[k][2],
+                                                                   source_coords_list[k][3],
+                                                                   gamma_string_list_sink[sink_gamma],
+                                                                   ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
+                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][3],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][4],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][5],
+                                                                   pi2[0],
+                                                                   pi2[1],
+                                                                   pi2[2]);
+
+
+                  status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
+
+                  status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+                  if (status != 0){
+
+                     /* Create a group named "/MyGroup" in the file. */
+                     group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                     /* Close the group. */
+                     status = H5Gclose(group_id);
+
+                  }
+
+                  snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi25/pi2x%02dpi2y%02dpi2z%02d/gi1%s,%s",
+                                                                   source_coords_list[k][0],
+                                                                   source_coords_list[k][1],
+                                                                   source_coords_list[k][2],
+                                                                   source_coords_list[k][3],
+                                                                   gamma_string_list_sink[sink_gamma],
+                                                                   ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
+                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][3],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][4],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][5],
+                                                                   pi2[0],
+                                                                   pi2[1],
+                                                                   pi2[2],
+                                                                   gamma_string_list_source[source_gamma],
+                                                                   ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1");
+
+
+
+                  status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
+
+                  status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+                  if (status != 0){
+
+                     /* Create a group named "/MyGroup" in the file. */
+                     group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                     /* Close the group. */
+                     status = H5Gclose(group_id);
+
+                  }
+
+                  snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi25/pi2x%02dpi2y%02dpi2z%02d/gi1%s,%s/pi1x%02dpi1y%02dpi1z%02d/",
+                                                                   source_coords_list[k][0],
+                                                                   source_coords_list[k][1],
+                                                                   source_coords_list[k][2],
+                                                                   source_coords_list[k][3],
+                                                                   gamma_string_list_sink[sink_gamma],
+                                                                   ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
+                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][3],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][4],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][5],
+                                                                   pi2[0],
+                                                                   pi2[1],
+                                                                   pi2[2],
+                                                                   gamma_string_list_source[source_gamma],
+                                                                   ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1",
+                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][3]-pi2[0],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][4]-pi2[1],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][5]-pi2[2]);
+
+
+
+                  status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
+
+                  status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+                  if (status != 0){
+
+                     /* Create a group named "/MyGroup" in the file. */
+                     group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                     /* Close the group. */
+                     status = H5Gclose(group_id);
+
+                  }
+
+
+
 
                   hsize_t dims[3];
                   dims[0]=tp->T;
@@ -1647,23 +1930,24 @@ int main(int argc, char **argv) {
                   dims[2]=2;
                   dataspace_id = H5Screate_simple(3, dims, NULL);
 
-                  snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/pi2x%02dpi2y%02dpi2z%02dpfx%02dpfy%02dpfz%02d/gi1%s,%s/gf1%s,%s/%s",
+                  snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi25/pi2x%02dpi2y%02dpi2z%02d/gi1%s,%s/pi1x%02dpi1y%02dpi1z%02d/%s",
                                                                    source_coords_list[k][0],
                                                                    source_coords_list[k][1],
                                                                    source_coords_list[k][2],
                                                                    source_coords_list[k][3],
-                                                                   pi2[0],
-                                                                   pi2[1],
-                                                                   pi2[2],
+                                                                   gamma_string_list_sink[sink_gamma],
+                                                                   ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
                                                                    buffer_mom[indextable[i_total_momentum][i_pf1]][3],
                                                                    buffer_mom[indextable[i_total_momentum][i_pf1]][4],
                                                                    buffer_mom[indextable[i_total_momentum][i_pf1]][5],
+                                                                   pi2[0],
+                                                                   pi2[1],
+                                                                   pi2[2],
                                                                    gamma_string_list_source[source_gamma],
                                                                    ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1",
-                                                                   gamma_string_list_sink[sink_gamma],
-                                                                   ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
-
-
+                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][3]-pi2[0],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][4]-pi2[1],
+                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][5]-pi2[2],
                                                                    hdf5_diag_tag_list_tag[0]);
 
                   /* Create a dataset in group "MyGroup". */
@@ -1998,76 +2282,218 @@ int main(int argc, char **argv) {
        
            for (int i_pf1=0; i_pf1 < num_elements[i_total_momentum]; ++i_pf1){
 
-              snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/pi2x%02dpi2y%02dpi2z%02dpf1x%02dpf1y%02dpf1z%02dpf2x%02dpf2y%02dpf2z%02d/",
-                                                                   source_coords_list[k][0],
-                                                                   source_coords_list[k][1],
-                                                                   source_coords_list[k][2],
-                                                                   source_coords_list[k][3],
-                                                                   pi2[0],
-                                                                   pi2[1],
-                                                                   pi2[2],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][3],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][4],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][5],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][6],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][7],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][8]);
-              /* Create a group named "/MyGroup" in the file. */
-              group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
-              /* Close the group. */
-              status = H5Gclose(group_id);
-
               for (int source_gamma =0 ; source_gamma < tp->number_of_gammas_source ; ++source_gamma ){
-                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/pi2x%02dpi2y%02dpi2z%02dpf1x%02dpf1y%02dpf1z%02dpf2x%02dpf2y%02dpf2z%02d/gi1%s,%s/",
-                                                                   source_coords_list[k][0],
-                                                                   source_coords_list[k][1],
-                                                                   source_coords_list[k][2],
-                                                                   source_coords_list[k][3],
-                                                                   pi2[0],
-                                                                   pi2[1],
-                                                                   pi2[2],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][3],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][4],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][5],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][6],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][7],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][8],
-                                                                   gamma_string_list_source[source_gamma],
-                                                                   ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1" );
-               /* Create a group named "/MyGroup" in the file. */
-               group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
-               /* Close the group. */
-               status = H5Gclose(group_id);
 
                for (int sink_gamma=0; sink_gamma < tp->number_of_gammas_sink; ++sink_gamma ) {
-                 snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/pi2x%02dpi2y%02dpi2z%02dpf1x%02dpf1y%02dpf1z%02dpf2x%02dpf2y%02dpf2z%02d/gi1%s,%s/gf1%s,%s/",
-                                                                   source_coords_list[k][0],
-                                                                   source_coords_list[k][1],
-                                                                   source_coords_list[k][2],
-                                                                   source_coords_list[k][3],
-                                                                   pi2[0],
-                                                                   pi2[1],
-                                                                   pi2[2],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][3],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][4],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][5],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][3],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][4],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][5],
 
-                                                                   gamma_string_list_source[source_gamma],
-                                                                   ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1",
-                                                                   gamma_string_list_sink[sink_gamma],
-                                                                   ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1");
+                 snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25", source_coords_list[k][0],
+                                                                        source_coords_list[k][1],
+                                                                        source_coords_list[k][2],
+                                                                        source_coords_list[k][3]);
+                 status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
 
-                 /* Create a group named "/MyGroup" in the file. */
-                 group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                 status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+                 if (status != 0){
 
-                 /* Close the group. */
-                 status = H5Gclose(group_id);
+                  /* Create a group named "/MyGroup" in the file. */
+                  group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
+                  /* Close the group. */
+                  status = H5Gclose(group_id);
+
+                 }
+
+                 snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d", source_coords_list[k][0],
+                                                                        source_coords_list[k][1],
+                                                                        source_coords_list[k][2],
+                                                                        source_coords_list[k][3],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][6],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][7],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][8]);
+                 status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
+
+                 status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+                 if (status != 0){
+
+                  /* Create a group named "/MyGroup" in the file. */
+                  group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                  /* Close the group. */
+                  status = H5Gclose(group_id);
+
+                 }
+
+                 snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d/gf1%s,%s", source_coords_list[k][0],
+                                                                        source_coords_list[k][1],
+                                                                        source_coords_list[k][2],
+                                                                        source_coords_list[k][3],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][6],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][7],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][8],
+                                                                        gamma_string_list_sink[sink_gamma],
+                                                                        ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1");
+
+                 status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
+
+                 status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+                 if (status != 0){
+
+                  /* Create a group named "/MyGroup" in the file. */
+                  group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                  /* Close the group. */
+                  status = H5Gclose(group_id);
+
+                 }
+
+                 snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/", source_coords_list[k][0],
+                                                                        source_coords_list[k][1],
+                                                                        source_coords_list[k][2],
+                                                                        source_coords_list[k][3],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][6],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][7],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][8],
+                                                                        gamma_string_list_sink[sink_gamma],
+                                                                        ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][3],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][4],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][5]);
+
+                 status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
+
+                 status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+                 if (status != 0){
+
+                  /* Create a group named "/MyGroup" in the file. */
+                  group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                  /* Close the group. */
+                  status = H5Gclose(group_id);
+
+                 }
+
+                 snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi25", source_coords_list[k][0],
+                                                                        source_coords_list[k][1],
+                                                                        source_coords_list[k][2],
+                                                                        source_coords_list[k][3],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][6],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][7],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][8],
+                                                                        gamma_string_list_sink[sink_gamma],
+                                                                        ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][3],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][4],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][5]);
+
+                 status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
+
+                 status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+                 if (status != 0){
+
+                  /* Create a group named "/MyGroup" in the file. */
+                  group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                  /* Close the group. */
+                  status = H5Gclose(group_id);
+
+                 }
+
+                 snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi25/pi2x%02dpi2y%02dpi2z%02d/", source_coords_list[k][0],
+                                                                        source_coords_list[k][1],
+                                                                        source_coords_list[k][2],
+                                                                        source_coords_list[k][3],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][6],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][7],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][8],
+                                                                        gamma_string_list_sink[sink_gamma],
+                                                                        ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][3],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][4],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][5],
+                                                                        pi2[0],
+                                                                        pi2[1],
+                                                                        pi2[2]);
+
+
+                 status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
+
+                 status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+                 if (status != 0){
+
+                  /* Create a group named "/MyGroup" in the file. */
+                  group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                  /* Close the group. */
+                  status = H5Gclose(group_id);
+
+                 }
+
+                 snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi25/pi2x%02dpi2y%02dpi2z%02d/gi1%s,%s", source_coords_list[k][0],
+                                                                        source_coords_list[k][1],
+                                                                        source_coords_list[k][2],
+                                                                        source_coords_list[k][3],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][6],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][7],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][8],
+                                                                        gamma_string_list_sink[sink_gamma],
+                                                                        ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][3],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][4],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][5],
+                                                                        pi2[0],
+                                                                        pi2[1],
+                                                                        pi2[2],
+                                                                        gamma_string_list_source[source_gamma],
+                                                                        ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1");
+
+
+
+                 status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
+
+                 status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+                 if (status != 0){
+
+                  /* Create a group named "/MyGroup" in the file. */
+                  group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                  /* Close the group. */
+                  status = H5Gclose(group_id);
+
+                 }
+                 snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi25/pi2x%02dpi2y%02dpi2z%02d/gi1%s,%s/pi1x%02dpi1y%02dpi1z%02d/", source_coords_list[k][0],
+                                                                        source_coords_list[k][1],
+                                                                        source_coords_list[k][2],
+                                                                        source_coords_list[k][3],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][6],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][7],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][8],
+                                                                        gamma_string_list_sink[sink_gamma],
+                                                                        ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][3],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][4],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][5],
+                                                                        pi2[0],
+                                                                        pi2[1],
+                                                                        pi2[2],
+                                                                        gamma_string_list_source[source_gamma],
+                                                                        ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1",
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][6]+buffer_mom[indextable[i_total_momentum][i_pf1]][3]-pi2[0],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][7]+buffer_mom[indextable[i_total_momentum][i_pf1]][4]-pi2[1],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][8]+buffer_mom[indextable[i_total_momentum][i_pf1]][5]-pi2[2]);
+
+
+                 status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
+
+                 status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+                 if (status != 0){
+
+                  /* Create a group named "/MyGroup" in the file. */
+                  group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                  /* Close the group. */
+                  status = H5Gclose(group_id);
+
+                 }
 
 
 
@@ -2077,21 +2503,27 @@ int main(int argc, char **argv) {
                  dims[2]=2;
                  dataspace_id = H5Screate_simple(3, dims, NULL);
 
-                 snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/pi2x%02dpi2y%02dpi2z%02dpf1x%02dpf1y%02dpf1z%02dpf2x%02dpf2y%02dpf2z%02d/piN",                                                        source_coords_list[k][0],
-                                                                   source_coords_list[k][1],
-                                                                   source_coords_list[k][2],
-                                                                   source_coords_list[k][3],
-                                                                   pi2[0],
-                                                                   pi2[1],
-                                                                   pi2[2],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][3],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][4],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][5],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][6],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][7],
-                                                                   buffer_mom[indextable[i_total_momentum][i_pf1]][8]);
+                 snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi25/pi2x%02dpi2y%02dpi2z%02d/gi1%s,%s/pi1x%02dpi1y%02dpi1z%02d/piN", source_coords_list[k][0],
+                                                                        source_coords_list[k][1],
+                                                                        source_coords_list[k][2],
+                                                                        source_coords_list[k][3],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][6],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][7],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][8],
+                                                                        gamma_string_list_sink[sink_gamma],
+                                                                        ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][3],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][4],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][5],
+                                                                        pi2[0],
+                                                                        pi2[1],
+                                                                        pi2[2],
+                                                                        gamma_string_list_source[source_gamma],
+                                                                        ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1",
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][6]+buffer_mom[indextable[i_total_momentum][i_pf1]][3]-pi2[0],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][7]+buffer_mom[indextable[i_total_momentum][i_pf1]][4]-pi2[1],
+                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][8]+buffer_mom[indextable[i_total_momentum][i_pf1]][5]-pi2[2]);
 
-                 dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
 
                  /* Create a dataset in group "MyGroup". */
