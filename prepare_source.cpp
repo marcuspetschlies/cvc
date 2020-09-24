@@ -1068,6 +1068,9 @@ int init_timeslice_source_oet ( double ** const s, int const tsrc, int * const m
       case 2:
         ranz2 ( ran_buffer, items );
         break;
+      case 4:
+        ranbinary ( ran_buffer, items );
+        break;
     }
 
     /* for ( unsigned int ix = 0; ix < 2*nsc*gVOL3; ix++ ) {
