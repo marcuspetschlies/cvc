@@ -1324,46 +1324,46 @@ int contract_diagram_read_oet_key_qlua (
 
 /***********************************************/
 /***********************************************/
-static inline void gamma_id_to_string ( int gamma_id, char *string_gamma ) {
+static inline void gamma_id_to_string ( int gamma_id, char source_sink,  char *string_gamma ) {
 
   if (gamma_id == 9 ) {
-   snprintf(string_gamma,40,"cg1,1");
+   snprintf(string_gamma,40,"/g%c1cg1,1",source_sink);
   }
   else if (gamma_id == 0) {
-   snprintf(string_gamma,40,"cg2,1");
+   snprintf(string_gamma,40,"/g%c1cg2,1",source_sink);
   }
   else if (gamma_id == 7) {
-   snprintf(string_gamma,40,"cg3,1");
+   snprintf(string_gamma,40,"/g%c1cg3,1",source_sink);
   }
   else if (gamma_id == 13 ) {
-   snprintf(string_gamma,40,"cg1g0,1");
+   snprintf(string_gamma,40,"/g%c1cg1g0,1",source_sink);
   }
   else if (gamma_id == 4) {
-   snprintf(string_gamma,40,"cg2g0,1");
+   snprintf(string_gamma,40,"/g%c1cg2g0,1",source_sink);
   }
   else if (gamma_id == 15) {
-   snprintf(string_gamma,40,"cg3g0,1");
+   snprintf(string_gamma,40,"/g%c1cg3g0,1",source_sink);
   }
   else if (gamma_id == 12) { 
-   snprintf(string_gamma,40,"cg1g0g5,5");
+   snprintf(string_gamma,40,"/g%c1cg1g0g5,5",source_sink);
   }
   else if (gamma_id == 5 ) {
-   snprintf(string_gamma,40,"cg2g0g5,5");
+   snprintf(string_gamma,40,"/g%c1cg2g0g5,5",source_sink);
   }
   else if (gamma_id == 10) {
-   snprintf(string_gamma,40,"cg3g0g5,5");
+   snprintf(string_gamma,40,"/g%c1cg3g0g5,5",source_sink);
   }
   else if (gamma_id == 14) { 
-   snprintf(string_gamma,40,"Cg5,1");
+   snprintf(string_gamma,40,"/g%c1Cg5,1",source_sink);
   }
   else if (gamma_id == 11) { 
-   snprintf(string_gamma,40,"C,5");
+   snprintf(string_gamma,40,"/g%c1C,5",source_sink);
   }
   else if (gamma_id == 8) { 
-   snprintf(string_gamma,40,"Cg5g4,1");
+   snprintf(string_gamma,40,"/g%c1Cg5g4,1",source_sink);
   }  
   else if (gamma_id == 2) { 
-   snprintf(string_gamma,40,"Cg4,5");
+   snprintf(string_gamma,40,"/g%c1Cg4,5",source_sink);
   }
   else {
     fprintf(stderr, "[gamma_id_to_string] Error gamma it not recognized for PLEGMA string conversion \"%d\", status was %s %d\n", gamma_id, __FILE__, __LINE__ );
@@ -1393,22 +1393,25 @@ int contract_diagram_key_suffix ( char * const suffix, int const gf2, int const 
     }
   }
 
-  if ( gf2 > -1 ) { sprintf( gf2_str, "/gf2%.2d", gf2 ); }
+  if ( gf2 > -1 ) { 
+   sprintf( gf2_str, "/5");} //gf2%.2d", gf2 ); }
 
   if ( gf11 > -1 ) { 
-    sprintf( gf1_str, "/gf1%.2d", gf11 ); 
-    if ( gf12 > -1 ) { 
-      sprintf( gf1_str, "%s_%.2d", gf1_str, gf12 ); 
-    }
+   // sprintf( gf1_str, "/gf1%.2d", gf11 ); 
+   // if ( gf12 > -1 ) { 
+   //   sprintf( gf1_str, "%s_%.2d", gf1_str, gf12 ); 
+   // }
+   gamma_id_to_string(gf11,'f', gf1_str);
   }
 
-  if ( gi2 > -1 ) { sprintf( gi2_str, "/gi2%.2d", gi2 ); }
+  if ( gi2 > -1 ) { sprintf( gi2_str, "/5");}//"/gi2%.2d", gi2 ); }
 
   if ( gi11 > -1 ) { 
-    sprintf( gi1_str, "/gi1%.2d", gi11 ); 
-    if ( gi12 > -1 ) { 
-      sprintf( gi1_str, "%s_%.2d", gi1_str, gi12 ); 
-    }
+   // sprintf( gi1_str, "/gi1%.2d", gi11 ); 
+   // if ( gi12 > -1 ) { 
+   //   sprintf( gi1_str, "%s_%.2d", gi1_str, gi12 ); 
+   // }
+   gamma_id_to_string(gi11,'i', gi1_str);
   }
 
   if ( pf2 != NULL ) { sprintf ( pf2_str, "/pf2x%.2dpf2y%.2dpf2z%.2d", pf2[0], pf2[1], pf2[2] ); }
@@ -1443,19 +1446,19 @@ int contract_diagram_key_suffix_from_type ( char * key_suffix, twopoint_function
 
   if ( strcmp( p->type, "mxb-mxb" ) == 0 ) {
 
-    exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
+    exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, NULL );
 
   } else if ( strcmp( p->type, "mxb-b" ) == 0 ) {
 
-    exitstatus = contract_diagram_key_suffix ( key_suffix,     -1,   NULL, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
+    exitstatus = contract_diagram_key_suffix ( key_suffix,     -1,   NULL, p->gf1[0], p->gf1[1], p->pf1, p->gi2, p->pi2, p->gi1[0], p->gi1[1], p->pi1, NULL );
 
   } else if ( strcmp( p->type, "b-b" ) == 0 ) {
 
-    exitstatus = contract_diagram_key_suffix ( key_suffix,     -1,   NULL, p->gf1[0], p->gf1[1], p->pf1,      -1,  NULL, p->gi1[0], p->gi1[1], p->pi1, p->source_coords );
+    exitstatus = contract_diagram_key_suffix ( key_suffix,     -1,   NULL, p->gf1[0], p->gf1[1], p->pf1,      -1,  NULL, p->gi1[0], p->gi1[1], p->pi1, NULL );
 
   } else if ( strcmp( p->type, "m-m" ) == 0 ) {
 
-    exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2,        -1,         -1,  NULL, p->gi2, p->pi2,        -1,        -1,   NULL, p->source_coords );
+    exitstatus = contract_diagram_key_suffix ( key_suffix, p->gf2, p->pf2,        -1,         -1,  NULL, p->gi2, p->pi2,        -1,        -1,   NULL, NULL );
 
   } else {
     fprintf ( stderr, "[contract_diagram_key_suffix_from_type] unknown twopoint_function type %s %s %d\n", p->type, __FILE__, __LINE__ );
