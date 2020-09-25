@@ -27,6 +27,7 @@
 #include "cvc_timer.h"
 #include "global.h"
 #include "default_input_values.h"
+#include "contractions_io.h"
 #include "io_utils.h"
 #include "zm4x4.h"
 #include "table_init_z.h"
@@ -123,6 +124,7 @@ void twopoint_function_print ( twopoint_function_type *p, char *name, FILE*ofs )
   fprintf(ofs, "# [twopoint_function_print] %s.pi2  = (%3d,%3d, %3d)\n", name, p->pi2[0], p->pi2[1], p->pi2[2] );
   fprintf(ofs, "# [twopoint_function_print] %s.pf1  = (%3d,%3d, %3d)\n", name, p->pf1[0], p->pf1[1], p->pf1[2] );
   fprintf(ofs, "# [twopoint_function_print] %s.pf2  = (%3d,%3d, %3d)\n", name, p->pf2[0], p->pf2[1], p->pf2[2] );
+
 
   fprintf(ofs, "# [twopoint_function_print] %s.gi1  = (%3d,%3d)\n", name, p->gi1[0], p->gi1[1] );
   fprintf(ofs, "# [twopoint_function_print] %s.gi2  =  %3d\n", name, p->gi2 );
@@ -1448,6 +1450,7 @@ int twopoint_function_data_location_identifier ( char * udli, twopoint_function_
     fprintf ( stderr, "[twopoint_function_data_location_identifier] Error from get_reference_rotation, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     return(4);
   } 
+  printf("Reference momentum %d %d %d \n", Pref[0],Pref[1],Pref[2]);
 
   /* write "last part" of key name into key_suffix;
    * including all momenta and vertex gamma ids */
@@ -1461,18 +1464,21 @@ int twopoint_function_data_location_identifier ( char * udli, twopoint_function_
    * diagram tag
    ******************************************************/
   twopoint_function_get_diagram_name ( diagram_tag, p, ids );
+  
 
   /******************************************************
    * data filename
    ******************************************************/
-  sprintf(filename, "%s.%c.PX%dPY%dPZ%d.%.4d.t%dx%dy%dz%d.aff", datafile_prefix, diagram_tag[0],
-      Pref[0], Pref[1], Pref[2], Nconf,
-      p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3] );
+  sprintf(filename, "%s%04d_PX%02dPY%02dPZ%02d_%s.h5", datafile_prefix, Nconf,
+      Pref[0], Pref[1], Pref[2], p->name );
  
   /******************************************************
    * key name
    ******************************************************/
-  sprintf( key, "/%s/%s/%s/%s", p->name, diagram_tag, p->fbwd, key_suffix );
+  sprintf( key, "/sx%02dsy%02dsz%02dst%03d/%s/%s", p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3], key_suffix, p->name );
+  printf("Key %s \n",key);
+  printf("Key suffix %s\n", key_suffix);
+  printf("Pname %s\n", p->name);
   if ( g_verbose > 3 ) fprintf ( stdout, "# [twopoint_function_data_location_identifier] key = %s %s %d\n", key, __FILE__, __LINE__ );
 
   /******************************************************
@@ -1493,7 +1499,7 @@ int twopoint_function_data_location_identifier ( char * udli, twopoint_function_
  ********************************************************************************/
 int twopoint_function_fill_data_from_udli ( twopoint_function_type *p, char * udli, int const io_proc ) {
 
-#ifdef HAVE_LHPC_AFF
+
   int const nT = p->T;  // timeslices
   int const d  = p->d;  // spin dimension
   int const nD = p->n;  // number of diagrams / data sets
@@ -1501,10 +1507,13 @@ int twopoint_function_fill_data_from_udli ( twopoint_function_type *p, char * ud
   /* fix: does this need to be generalized ? */
   /* char const filename_prefix[] = "piN_piN_diagrams"; */
 
+
+#ifdef HAVE_LHPC_AFF
+
   static struct AffReader_s *affr = NULL;
   static struct AffNode_s *affn = NULL;
   struct AffNode_s *affdir = NULL;
-
+#endif
   char key[500];
   static char filename[500] = "NA";
   char filename_tmp[500];
@@ -1515,11 +1524,13 @@ int twopoint_function_fill_data_from_udli ( twopoint_function_type *p, char * ud
    * check for NULL p or udli
    * if so, just close the AFF reader and return
    ******************************************************/
+#ifdef HAVE_LHPC_AFF
   if ( p == NULL || udli == NULL ) {
     if ( affr != NULL ) aff_reader_close ( affr );
     affr = NULL;
     return( 0 );
   }
+#endif
 
   /******************************************************
    * check for non-NULL data array p->c
@@ -1542,6 +1553,7 @@ int twopoint_function_fill_data_from_udli ( twopoint_function_type *p, char * ud
     fprintf ( stderr, "[twopoint_function_fill_data_from_udli] Error, read only one data set %s %d\n", __FILE__, __LINE__ );
     return(3);
   }
+
 
   if ( io_proc == 2 ) {
 
@@ -1573,6 +1585,8 @@ int twopoint_function_fill_data_from_udli ( twopoint_function_type *p, char * ud
 
     if ( g_verbose > 2 ) fprintf ( stdout, "# [twopoint_function_fill_data_from_udli] file = %s, key = %s\n", filename_tmp, key );
 
+    fprintf ( stdout, "# [twopoint_function_fill_data_from_udli] file = %s, key = %s\n", filename_tmp, key );
+
 
     /******************************************************
      * check for new filename
@@ -1580,6 +1594,7 @@ int twopoint_function_fill_data_from_udli ( twopoint_function_type *p, char * ud
      * also if AFF reader is still NULL,
      * initialize a new reader
      ******************************************************/
+#ifdef LHPC_AFF
     if ( ( strcmp( filename, filename_tmp ) != 0 ) || ( affr == NULL ) ) {
       strcpy ( filename, filename_tmp );
       if ( g_verbose > 2 ) fprintf ( stdout, "# [twopoint_function_fill_data_from_udli] new reader for file %s and reader\n", filename );
@@ -1631,15 +1646,21 @@ int twopoint_function_fill_data_from_udli ( twopoint_function_type *p, char * ud
     if ( g_verbose > 5 ) {
       twopoint_function_show_data ( p, stdout );
     }
+
+#elif HAVE_HDF5
+    exitstatus = read_from_h5_file ( (void*)(p->c[0][0][0]), filename_tmp, key, io_proc );
+
+
+#endif
+
 #if 0
 #endif  /* of if 0 */
   }  /* end of if io_proc == 2 */
 
   return(0);
-#else
-  fprintf ( stdout, "# [twopoint_function_fill_data_from_udli] non-aff version not yet implemented\n" );
-  return(1);
-#endif
+//#else
+//  fprintf ( stdout, "# [twopoint_function_fill_data_from_udli] non-aff version not yet implemented\n" );
+//  return(1);
 }  // end of twopoint_function_fill_data_from_udli
 
 /********************************************************************************/
