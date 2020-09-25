@@ -2531,6 +2531,10 @@ int main(int argc, char **argv) {
 
                  printf("tagname %s\n", tagname);
                  double ***buffer_write= init_3level_dtable(tp->T,tp->d*tp->d,2);
+
+                 /* Create a dataset in group "MyGroup". */
+                 dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
                  for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
                    for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
                      for (int realimag=0; realimag < 2; ++realimag){
