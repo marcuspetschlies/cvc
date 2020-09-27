@@ -1450,7 +1450,6 @@ int twopoint_function_data_location_identifier ( char * udli, twopoint_function_
     fprintf ( stderr, "[twopoint_function_data_location_identifier] Error from get_reference_rotation, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     return(4);
   } 
-  printf("Reference momentum %d %d %d \n", Pref[0],Pref[1],Pref[2]);
 
   /* write "last part" of key name into key_suffix;
    * including all momenta and vertex gamma ids */
@@ -1476,9 +1475,6 @@ int twopoint_function_data_location_identifier ( char * udli, twopoint_function_
    * key name
    ******************************************************/
   sprintf( key, "/sx%02dsy%02dsz%02dst%03d/%s/%s", p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3], key_suffix, p->name );
-  printf("Key %s \n",key);
-  printf("Key suffix %s\n", key_suffix);
-  printf("Pname %s\n", p->name);
   if ( g_verbose > 3 ) fprintf ( stdout, "# [twopoint_function_data_location_identifier] key = %s %s %d\n", key, __FILE__, __LINE__ );
 
   /******************************************************
