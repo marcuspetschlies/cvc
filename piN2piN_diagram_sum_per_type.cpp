@@ -629,7 +629,7 @@ int main(int argc, char **argv) {
   /***********************************************************
    * read data block from h5 file
    ***********************************************************/
-  snprintf ( filename, 400, "%s%04d_sx%02dsy%02dsz%02dst%03d_N.h5",
+  snprintf ( filename, 400, "%s%04d_sx%.02dsy%.02dsz%.02dst%03d_N.h5",
                          filename_prefix,
                          Nconf,
                          source_coords_list[0][0],
@@ -642,7 +642,7 @@ int main(int argc, char **argv) {
       fprintf(stderr, "# [piN2piN_diagram_sum_per_type]  Error from ,init_4level_dtable %s %d\n", __FILE__, __LINE__ );
       EXIT(12);
   }
-  snprintf(tagname, 400, "/sx%02dsy%02dsz%02dst%02d/mvec",source_coords_list[0][0],
+  snprintf(tagname, 400, "/sx%.02dsy%.02dsz%.02dst%.02d/mvec",source_coords_list[0][0],
                          source_coords_list[0][1],
                          source_coords_list[0][2],
                          source_coords_list[0][3]);
@@ -734,7 +734,7 @@ int main(int argc, char **argv) {
       for ( int i = 0 ; i < hdf5_diag_tag_num; i++ ) {
 
         /* Getting the list of gammas at the source and sink */
-        snprintf ( filename, 400, "%s%04d_sx%02dsy%02dsz%02dst%03d_%s.h5",
+        snprintf ( filename, 400, "%s%04d_sx%.02dsy%.02dsz%.02dst%03d_%s.h5",
                          filename_prefix,
                          Nconf,
                          source_coords_list[0][0],
@@ -742,7 +742,7 @@ int main(int argc, char **argv) {
                          source_coords_list[0][2],
                          source_coords_list[0][3],
                          hdf5_diag_tag_list_name[i] ); 
-        snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%02d/%s",source_coords_list[0][0],
+        snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%.02d/%s",source_coords_list[0][0],
                          source_coords_list[0][1],
                          source_coords_list[0][2],
                          source_coords_list[0][3],
@@ -758,7 +758,7 @@ int main(int argc, char **argv) {
         fprintf(stdout,"# [piN2piN_diagram_sum_per_type] Number of gammas at the source %d\n", tp->number_of_gammas_source);
         double *****buffer_source = init_5level_dtable(tp->T, g_sink_momentum_number, tp->number_of_gammas_source*tp->number_of_gammas_sink, tp->d * tp->d, 2  );
 
-        snprintf ( filename, 400, "%s%04d_sx%02dsy%02dsz%02dst%03d_%s.h5", 
+        snprintf ( filename, 400, "%s%04d_sx%.02dsy%.02dsz%.02dst%03d_%s.h5", 
                          filename_prefix, 
                          Nconf,
 		         source_coords_list[k][0], 
@@ -766,7 +766,7 @@ int main(int argc, char **argv) {
                          source_coords_list[k][2], 
                          source_coords_list[k][3],
                          hdf5_diag_tag_list_name[i] );
-        snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%02d/%s",source_coords_list[k][0],
+        snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%.02d/%s",source_coords_list[k][0],
                          source_coords_list[k][1],
                          source_coords_list[k][2],
                          source_coords_list[k][3],
@@ -782,7 +782,7 @@ int main(int argc, char **argv) {
          ******************************************************/
         for ( int i_total_momentum = 0; i_total_momentum < 4; i_total_momentum++) {
 
-          snprintf ( filename, 400, "%s%04d_PX%02dPY%02dPZ%02d_%s.h5",
+          snprintf ( filename, 400, "%s%04d_PX%.02dPY%.02dPZ%.02d_%s.h5",
                          filename_prefix,
                          Nconf,
                          momentum_orbit_pref[i_total_momentum][0],
@@ -806,7 +806,7 @@ int main(int argc, char **argv) {
           /* check if the group for the source position already exists, if not then 
            * lets create it
            */
-          snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/", source_coords_list[k][0],
+          snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/", source_coords_list[k][0],
                                                                  source_coords_list[k][1],
                                                                  source_coords_list[k][2],
                                                                  source_coords_list[k][3]);
@@ -825,44 +825,11 @@ int main(int argc, char **argv) {
 
           for (int i_pi2=0; i_pi2 < momentum_orbit_nelem[i_total_momentum]; ++i_pi2){
 
-
-            snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/pf1x%02dpf1y%02dpf1z%02d/",
-                                                                 source_coords_list[k][0],
-                                                                 source_coords_list[k][1],
-                                                                 source_coords_list[k][2],
-                                                                 source_coords_list[k][3],
-                                                                 momentum_orbit_list[i_total_momentum][i_pi2][0],
-                                                                 momentum_orbit_list[i_total_momentum][i_pi2][1],
-                                                                 momentum_orbit_list[i_total_momentum][i_pi2][2]);
-
-            /* Create a group named "/MyGroup" in the file. */
-            group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
-            /* Close the group. */
-            status = H5Gclose(group_id);
-
             for (int source_gamma=0; source_gamma < tp->number_of_gammas_source; ++source_gamma ) {
-
-
-              snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/pf1x%02dpf1y%02dpf1z%02d/gi1%s,%s/",    
-                                                                 source_coords_list[k][0],
-                                                                 source_coords_list[k][1],
-                                                                 source_coords_list[k][2],
-                                                                 source_coords_list[k][3],    
-                                                                 momentum_orbit_list[i_total_momentum][i_pi2][0],
-                                                                 momentum_orbit_list[i_total_momentum][i_pi2][1],
-                                                                 momentum_orbit_list[i_total_momentum][i_pi2][2],
-                                                                 gamma_string_list_source[source_gamma],
-                                                                 ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1" );
-              /* Create a group named "/MyGroup" in the file. */
-              group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
-              /* Close the group. */
-              status = H5Gclose(group_id);
-            
+ 
               for (int sink_gamma=0; sink_gamma < tp->number_of_gammas_sink; ++sink_gamma ) {
 
-                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf1%s,%s",
+                snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf1%s,%s",
                                                                    source_coords_list[k][0],
                                                                    source_coords_list[k][1],
                                                                    source_coords_list[k][2],
@@ -884,7 +851,7 @@ int main(int argc, char **argv) {
 
                 }
 
-                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/",
+                snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf1%s,%s/pf1x%.02dpf1y%.02dpf1z%.02d/",
                                                                    source_coords_list[k][0],
                                                                    source_coords_list[k][1],
                                                                    source_coords_list[k][2],
@@ -909,7 +876,7 @@ int main(int argc, char **argv) {
                    status = H5Gclose(group_id);
 
                 }
-                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi1%s,%s",
+                snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf1%s,%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi1%s,%s",
                                                                    source_coords_list[k][0],
                                                                    source_coords_list[k][1],
                                                                    source_coords_list[k][2],
@@ -938,7 +905,7 @@ int main(int argc, char **argv) {
                 }
 
  
-                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi1%s,%s/pi1x%02dpi1y%02dpi1z%02d/",
+                snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf1%s,%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi1%s,%s/pi1x%.02dpi1y%.02dpi1z%.02d/",
                                                                    source_coords_list[k][0],
                                                                    source_coords_list[k][1],
                                                                    source_coords_list[k][2],
@@ -982,7 +949,7 @@ int main(int argc, char **argv) {
                 dims[2]=2;
                 dataspace_id = H5Screate_simple(3, dims, NULL);
 
-                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi1%s,%s/pi1x%02dpi1y%02dpi1z%02d/%s",
+                snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf1%s,%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi1%s,%s/pi1x%.02dpi1y%.02dpi1z%.02d/%s",
                                                                    source_coords_list[k][0],
                                                                    source_coords_list[k][1],
                                                                    source_coords_list[k][2],
@@ -1067,7 +1034,6 @@ int main(int argc, char **argv) {
 
   } /* end of loop on N,D diagrams */
 
-
   /******************************************************
    *
    * mxb-b type
@@ -1087,14 +1053,14 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[piN2piN_diagram_sum_per_type]  Error from ,init_4level_dtable %s %d\n", __FILE__, __LINE__ );
       EXIT(12);
   }
-  snprintf ( filename, 400, "%s%04d_sx%02dsy%02dsz%02dst%03d_TpiNsink.h5",
+  snprintf ( filename, 400, "%s%04d_sx%.02dsy%.02dsz%.02dst%03d_TpiNsink.h5",
                          filename_prefix,
                          Nconf,
                          source_coords_list[0][0],
                          source_coords_list[0][1],
                          source_coords_list[0][2],
                          source_coords_list[0][3]);
-  snprintf(tagname, 400, "/sx%02dsy%02dsz%02dst%02d/mvec",source_coords_list[0][0],
+  snprintf(tagname, 400, "/sx%.02dsy%.02dsz%.02dst%.02d/mvec",source_coords_list[0][0],
                          source_coords_list[0][1],
                          source_coords_list[0][2],
                          source_coords_list[0][3]);
@@ -1181,7 +1147,7 @@ int main(int argc, char **argv) {
 
       for ( int i = 0 ; i < hdf5_diag_tag_num; i++ ) {
       /* Getting the list of gammas */
-        snprintf ( filename, 400, "%s%04d_sx%02dsy%02dsz%02dst%03d_%s.h5",
+        snprintf ( filename, 400, "%s%04d_sx%.02dsy%.02dsz%.02dst%03d_%s.h5",
                          filename_prefix,
                          Nconf,
                          source_coords_list[0][0],
@@ -1189,7 +1155,7 @@ int main(int argc, char **argv) {
                          source_coords_list[0][2],
                          source_coords_list[0][3],
                          hdf5_diag_tag_list_name[i] );
-        snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%02d/%s",source_coords_list[0][0],
+        snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%.02d/%s",source_coords_list[0][0],
                          source_coords_list[0][1],
                          source_coords_list[0][2],
                          source_coords_list[0][3],
@@ -1205,7 +1171,7 @@ int main(int argc, char **argv) {
        
         double *****buffer_source = init_5level_dtable(tp->T, 343, tp->number_of_gammas_sink*tp->number_of_gammas_source, tp->d * tp->d, 2  );
 
-        snprintf ( filename, 400, "%s%04d_sx%02dsy%02dsz%02dst%03d_%s.h5",
+        snprintf ( filename, 400, "%s%04d_sx%.02dsy%.02dsz%.02dst%03d_%s.h5",
                          filename_prefix,
                          Nconf,
                          source_coords_list[k][0],
@@ -1213,7 +1179,7 @@ int main(int argc, char **argv) {
                          source_coords_list[k][2],
                          source_coords_list[k][3],
                          hdf5_diag_tag_list_name[i] );
-        snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%02d/%s",source_coords_list[k][0],
+        snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%.02d/%s",source_coords_list[k][0],
                          source_coords_list[k][1],
                          source_coords_list[k][2],
                          source_coords_list[k][3],
@@ -1232,7 +1198,7 @@ int main(int argc, char **argv) {
           hid_t file_id, group_id, dataset_id, dataspace_id;  /* identifiers */
           herr_t      status;
 
-          snprintf ( filename, 400, "%s%04d_PX%02dPY%02dPZ%02d_%s.h5",
+          snprintf ( filename, 400, "%s%04d_PX%.02dPY%.02dPZ%.02d_%s.h5",
                          filename_prefix,
                          Nconf,
                          momentum_orbit_pref[i_total_momentum][0],
@@ -1246,7 +1212,7 @@ int main(int argc, char **argv) {
           /* check if the group for the source position already exists, if not then 
            * lets create it
            */
-          snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/", source_coords_list[k][0],
+          snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/", source_coords_list[k][0],
                                                                  source_coords_list[k][1],
                                                                  source_coords_list[k][2],
                                                                  source_coords_list[k][3]);
@@ -1270,7 +1236,7 @@ int main(int argc, char **argv) {
 
               for (int sink_gamma=0; sink_gamma < tp->number_of_gammas_sink; ++sink_gamma ) {
 
-                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/", source_coords_list[k][0],
+                snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf25/", source_coords_list[k][0],
                                                                        source_coords_list[k][1],
                                                                        source_coords_list[k][2],
                                                                        source_coords_list[k][3]);
@@ -1287,7 +1253,7 @@ int main(int argc, char **argv) {
 
                 }
 
-                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d/", source_coords_list[k][0],
+                snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf25/pf2x%.02dpf2y%.02dpf2z%.02d/", source_coords_list[k][0],
                                                                        source_coords_list[k][1],
                                                                        source_coords_list[k][2],
                                                                        source_coords_list[k][3],
@@ -1308,7 +1274,7 @@ int main(int argc, char **argv) {
                                          
                 }
 
-                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d/gf1%s,%s/", source_coords_list[k][0],
+                snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf25/pf2x%.02dpf2y%.02dpf2z%.02d/gf1%s,%s/", source_coords_list[k][0],
                                                                        source_coords_list[k][1],
                                                                        source_coords_list[k][2],
                                                                        source_coords_list[k][3],
@@ -1331,7 +1297,7 @@ int main(int argc, char **argv) {
                  status = H5Gclose(group_id);
 
                 }
-                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/", source_coords_list[k][0],
+                snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf25/pf2x%.02dpf2y%.02dpf2z%.02d/gf1%s,%s/pf1x%.02dpf1y%.02dpf1z%.02d/", source_coords_list[k][0],
                                                                        source_coords_list[k][1],
                                                                        source_coords_list[k][2],
                                                                        source_coords_list[k][3],
@@ -1359,7 +1325,7 @@ int main(int argc, char **argv) {
 
                 }
 
-                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi1%s,%s/", source_coords_list[k][0],
+                snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf25/pf2x%.02dpf2y%.02dpf2z%.02d/gf1%s,%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi1%s,%s/", source_coords_list[k][0],
                                                                        source_coords_list[k][1],
                                                                        source_coords_list[k][2],
                                                                        source_coords_list[k][3],
@@ -1387,7 +1353,7 @@ int main(int argc, char **argv) {
 
                 }
 
-                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi1%s,%s/pi1x%02dpi1y%02dpi1z%02d/", source_coords_list[k][0],
+                snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf25/pf2x%.02dpf2y%.02dpf2z%.02d/gf1%s,%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi1%s,%s/pi1x%.02dpi1y%.02dpi1z%.02d/", source_coords_list[k][0],
                                                                        source_coords_list[k][1],
                                                                        source_coords_list[k][2],
                                                                        source_coords_list[k][3],
@@ -1426,7 +1392,7 @@ int main(int argc, char **argv) {
                 dims[2]=2;
                 dataspace_id = H5Screate_simple(3, dims, NULL);
 
-                snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi1%s,%s/pi1x%02dpi1y%02dpi1z%02d/", source_coords_list[k][0],
+                snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf25/pf2x%.02dpf2y%.02dpf2z%.02d/gf1%s,%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi1%s,%s/pi1x%.02dpi1y%.02dpi1z%.02d/", source_coords_list[k][0],
                                                                        source_coords_list[k][1],
                                                                        source_coords_list[k][2],
                                                                        source_coords_list[k][3],
@@ -1542,7 +1508,7 @@ int main(int argc, char **argv) {
     g_seq_source_momentum_list[0][2] }; 
     printf("# [piN2piN_diagram_sum_per_type] seq momentum %d %d %d %d\n", pi2[0], pi2[1], pi2[2], g_seq_source_momentum_number);
 
-    snprintf ( filename, 200, "%s%04d_sx%02dsy%02dsz%02dst%03d_T.h5",
+    snprintf ( filename, 200, "%s%04d_sx%.02dsy%.02dsz%.02dst%03d_T.h5",
                          filename_prefix,
                          Nconf,
                          source_coords_list[0][0],
@@ -1555,7 +1521,7 @@ int main(int argc, char **argv) {
        fprintf(stderr, "# [piN2piN_diagram_sum_per_type]  Error from ,init_4level_dtable %s %d\n", __FILE__, __LINE__ );
        EXIT(12);
     }
-    snprintf(tagname, 200, "/sx%02dsy%02dsz%02dst%02d/pi2=%d_%d_%d/mvec",source_coords_list[0][0],
+    snprintf(tagname, 200, "/sx%.02dsy%.02dsz%.02dst%.02d/pi2=%d_%d_%d/mvec",source_coords_list[0][0],
                          source_coords_list[0][1],
                          source_coords_list[0][2],
                          source_coords_list[0][3],
@@ -1646,7 +1612,7 @@ int main(int argc, char **argv) {
         char **gamma_string_list_sink;
 
 
-        snprintf ( filename, 400, "%s%04d_sx%02dsy%02dsz%02dst%03d_%s.h5",
+        snprintf ( filename, 400, "%s%04d_sx%.02dsy%.02dsz%.02dst%03d_%s.h5",
                          filename_prefix,
                          Nconf,
                          source_coords_list[k][0],
@@ -1655,7 +1621,7 @@ int main(int argc, char **argv) {
                          source_coords_list[k][3],
                          hdf5_diag_tag_list_name[0] );
 
-        snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%02d/pi2=%d_%d_%d/%s",source_coords_list[k][0],
+        snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%.02d/pi2=%d_%d_%d/%s",source_coords_list[k][0],
                          source_coords_list[k][1],
                          source_coords_list[k][2],
                          source_coords_list[k][3],
@@ -1682,7 +1648,7 @@ int main(int argc, char **argv) {
           g_seq_source_momentum_list[i_pi2][1],
           g_seq_source_momentum_list[i_pi2][2] };
 
-          snprintf ( filename, 400, "%s%04d_sx%02dsy%02dsz%02dst%03d_%s.h5",
+          snprintf ( filename, 400, "%s%04d_sx%.02dsy%.02dsz%.02dst%03d_%s.h5",
                        filename_prefix,
                        Nconf,
                        source_coords_list[k][0],
@@ -1691,7 +1657,7 @@ int main(int argc, char **argv) {
                        source_coords_list[k][3],
                        hdf5_diag_tag_list_name[0] );
 
-          snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%02d/pi2=%d_%d_%d/%s",source_coords_list[k][0],
+          snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%.02d/pi2=%d_%d_%d/%s",source_coords_list[k][0],
                          source_coords_list[k][1],
                          source_coords_list[k][2],
                          source_coords_list[k][3],
@@ -1707,7 +1673,7 @@ int main(int argc, char **argv) {
 
 
 
-            snprintf ( filename, 400, "%s%04d_PX%02dPY%02dPZ%02d_%s.h5",
+            snprintf ( filename, 400, "%s%04d_PX%.02dPY%.02dPZ%.02d_%s.h5",
                          filename_prefix,
                          Nconf,
                          momentum_orbit_pref[i_total_momentum][0],
@@ -1735,7 +1701,7 @@ int main(int argc, char **argv) {
             /* check if the group for the source position already exists, if not then 
              * lets create it
              */
-            snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/", source_coords_list[k][0],
+            snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/", source_coords_list[k][0],
                                                                    source_coords_list[k][1],
                                                                    source_coords_list[k][2],
                                                                    source_coords_list[k][3]);
@@ -1759,7 +1725,7 @@ int main(int argc, char **argv) {
 
                 for (int sink_gamma=0; sink_gamma < tp->number_of_gammas_sink; ++sink_gamma ) {
 
-                  snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf1%s,%s/",
+                  snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf1%s,%s/",
                                                                    source_coords_list[k][0],
                                                                    source_coords_list[k][1],
                                                                    source_coords_list[k][2],
@@ -1780,7 +1746,7 @@ int main(int argc, char **argv) {
 
                   }
 
-                  snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/",
+                  snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf1%s,%s/pf1x%.02dpf1y%.02dpf1z%.02d/",
                                                                    source_coords_list[k][0],
                                                                    source_coords_list[k][1],
                                                                    source_coords_list[k][2],
@@ -1804,7 +1770,7 @@ int main(int argc, char **argv) {
 
                   }
 
-                  snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi25",
+                  snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf1%s,%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi25",
                                                                    source_coords_list[k][0],
                                                                    source_coords_list[k][1],
                                                                    source_coords_list[k][2],
@@ -1828,7 +1794,7 @@ int main(int argc, char **argv) {
 
                   }
 
-                  snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi25/pi2x%02dpi2y%02dpi2z%02d/",
+                  snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf1%s,%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi25/pi2x%.02dpi2y%.02dpi2z%.02d/",
                                                                    source_coords_list[k][0],
                                                                    source_coords_list[k][1],
                                                                    source_coords_list[k][2],
@@ -1856,7 +1822,7 @@ int main(int argc, char **argv) {
 
                   }
 
-                  snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi25/pi2x%02dpi2y%02dpi2z%02d/gi1%s,%s",
+                  snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf1%s,%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi25/pi2x%.02dpi2y%.02dpi2z%.02d/gi1%s,%s",
                                                                    source_coords_list[k][0],
                                                                    source_coords_list[k][1],
                                                                    source_coords_list[k][2],
@@ -1887,7 +1853,7 @@ int main(int argc, char **argv) {
 
                   }
 
-                  snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi25/pi2x%02dpi2y%02dpi2z%02d/gi1%s,%s/pi1x%02dpi1y%02dpi1z%02d/",
+                  snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf1%s,%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi25/pi2x%.02dpi2y%.02dpi2z%.02d/gi1%s,%s/pi1x%.02dpi1y%.02dpi1z%.02d/",
                                                                    source_coords_list[k][0],
                                                                    source_coords_list[k][1],
                                                                    source_coords_list[k][2],
@@ -1930,7 +1896,7 @@ int main(int argc, char **argv) {
                   dims[2]=2;
                   dataspace_id = H5Screate_simple(3, dims, NULL);
 
-                  snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi25/pi2x%02dpi2y%02dpi2z%02d/gi1%s,%s/pi1x%02dpi1y%02dpi1z%02d/%s",
+                  snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf1%s,%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi25/pi2x%.02dpi2y%.02dpi2z%.02d/gi1%s,%s/pi1x%.02dpi1y%.02dpi1z%.02d/%s",
                                                                    source_coords_list[k][0],
                                                                    source_coords_list[k][1],
                                                                    source_coords_list[k][2],
@@ -2050,7 +2016,7 @@ int main(int argc, char **argv) {
     /***********************************************************
      * read data block from h5 file
      ***********************************************************/
-    snprintf ( filename, 400, "%s%04d_sx%02dsy%02dsz%02dst%03d_B.h5",
+    snprintf ( filename, 400, "%s%04d_sx%.02dsy%.02dsz%.02dst%03d_B.h5",
                          filename_prefix,
                          Nconf,
                          source_coords_list[0][0],
@@ -2062,7 +2028,7 @@ int main(int argc, char **argv) {
        fprintf(stderr, "# [piN2piN_diagram_sum_per_type]  Error from ,init_2level_itable %s %d\n", __FILE__, __LINE__ );
        EXIT(12);
     }
-    snprintf(tagname, 400, "/sx%02dsy%02dsz%02dst%02d/pi2=%d_%d_%d/mvec",source_coords_list[0][0],
+    snprintf(tagname, 400, "/sx%.02dsy%.02dsz%.02dst%.02d/pi2=%d_%d_%d/mvec",source_coords_list[0][0],
                          source_coords_list[0][1],
                          source_coords_list[0][2],
                          source_coords_list[0][3],
@@ -2154,7 +2120,7 @@ int main(int argc, char **argv) {
         char **gamma_string_list_sink;
 
 
-        snprintf ( filename, 400, "%s%04d_sx%02dsy%02dsz%02dst%03d_%s.h5",
+        snprintf ( filename, 400, "%s%04d_sx%.02dsy%.02dsz%.02dst%03d_%s.h5",
                          filename_prefix,
                          Nconf,
                          source_coords_list[k][0],
@@ -2163,7 +2129,7 @@ int main(int argc, char **argv) {
                          source_coords_list[k][3],
                          hdf5_diag_tag_list_name[0] );
 
-        snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%02d/pi2=%d_%d_%d/%s",source_coords_list[k][0],
+        snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%.02d/pi2=%d_%d_%d/%s",source_coords_list[k][0],
                          source_coords_list[k][1],
                          source_coords_list[k][2],
                          source_coords_list[k][3],
@@ -2197,7 +2163,7 @@ int main(int argc, char **argv) {
 
           for (int i=0; i < hdf5_diag_tag_num; ++i) {
             double *****buffer_source = init_5level_dtable(tp->T, 343, tp->number_of_gammas_sink*tp->number_of_gammas_source, tp->d * tp->d, 2  );
-            snprintf ( filename, 400, "%s%04d_sx%02dsy%02dsz%02dst%03d_%s.h5",
+            snprintf ( filename, 400, "%s%04d_sx%.02dsy%.02dsz%.02dst%03d_%s.h5",
                          filename_prefix,
                          Nconf,
                          source_coords_list[k][0],
@@ -2205,7 +2171,7 @@ int main(int argc, char **argv) {
                          source_coords_list[k][2],
                          source_coords_list[k][3],
                          hdf5_diag_tag_list_name[i] );
-           snprintf ( tagname,400, "/sx%02dsy%02dsz%02dst%02d/pi2=%d_%d_%d/%s",source_coords_list[k][0],
+           snprintf ( tagname,400, "/sx%.02dsy%.02dsz%.02dst%.02d/pi2=%d_%d_%d/%s",source_coords_list[k][0],
                          source_coords_list[k][1],
                          source_coords_list[k][2],
                          source_coords_list[k][3],
@@ -2237,7 +2203,7 @@ int main(int argc, char **argv) {
          for ( int i_total_momentum = 0; i_total_momentum < 4; i_total_momentum++) {
 
 
-           snprintf ( filename, 400, "%s%04d_PX%02dPY%02dPZ%02d_piN.h5",
+           snprintf ( filename, 400, "%s%04d_PX%.02dPY%.02dPZ%.02d_piN.h5",
                          filename_prefix,
                          Nconf,
                          momentum_orbit_pref[i_total_momentum][0],
@@ -2262,7 +2228,7 @@ int main(int argc, char **argv) {
            /* check if the group for the source position already exists, if not then 
             * lets create it
             */
-           snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/", source_coords_list[k][0],
+           snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/", source_coords_list[k][0],
                                                                   source_coords_list[k][1],
                                                                   source_coords_list[k][2],
                                                                   source_coords_list[k][3]);
@@ -2286,7 +2252,7 @@ int main(int argc, char **argv) {
 
                for (int sink_gamma=0; sink_gamma < tp->number_of_gammas_sink; ++sink_gamma ) {
 
-                 snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25", source_coords_list[k][0],
+                 snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf25", source_coords_list[k][0],
                                                                         source_coords_list[k][1],
                                                                         source_coords_list[k][2],
                                                                         source_coords_list[k][3]);
@@ -2303,7 +2269,7 @@ int main(int argc, char **argv) {
 
                  }
 
-                 snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d", source_coords_list[k][0],
+                 snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf25/pf2x%.02dpf2y%.02dpf2z%.02d", source_coords_list[k][0],
                                                                         source_coords_list[k][1],
                                                                         source_coords_list[k][2],
                                                                         source_coords_list[k][3],
@@ -2323,7 +2289,7 @@ int main(int argc, char **argv) {
 
                  }
 
-                 snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d/gf1%s,%s", source_coords_list[k][0],
+                 snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf25/pf2x%.02dpf2y%.02dpf2z%.02d/gf1%s,%s", source_coords_list[k][0],
                                                                         source_coords_list[k][1],
                                                                         source_coords_list[k][2],
                                                                         source_coords_list[k][3],
@@ -2346,7 +2312,7 @@ int main(int argc, char **argv) {
 
                  }
 
-                 snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/", source_coords_list[k][0],
+                 snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf25/pf2x%.02dpf2y%.02dpf2z%.02d/gf1%s,%s/pf1x%.02dpf1y%.02dpf1z%.02d/", source_coords_list[k][0],
                                                                         source_coords_list[k][1],
                                                                         source_coords_list[k][2],
                                                                         source_coords_list[k][3],
@@ -2372,7 +2338,7 @@ int main(int argc, char **argv) {
 
                  }
 
-                 snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi25", source_coords_list[k][0],
+                 snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf25/pf2x%.02dpf2y%.02dpf2z%.02d/gf1%s,%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi25", source_coords_list[k][0],
                                                                         source_coords_list[k][1],
                                                                         source_coords_list[k][2],
                                                                         source_coords_list[k][3],
@@ -2398,7 +2364,7 @@ int main(int argc, char **argv) {
 
                  }
 
-                 snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi25/pi2x%02dpi2y%02dpi2z%02d/", source_coords_list[k][0],
+                 snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf25/pf2x%.02dpf2y%.02dpf2z%.02d/gf1%s,%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi25/pi2x%.02dpi2y%.02dpi2z%.02d/", source_coords_list[k][0],
                                                                         source_coords_list[k][1],
                                                                         source_coords_list[k][2],
                                                                         source_coords_list[k][3],
@@ -2428,7 +2394,7 @@ int main(int argc, char **argv) {
 
                  }
 
-                 snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi25/pi2x%02dpi2y%02dpi2z%02d/gi1%s,%s", source_coords_list[k][0],
+                 snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf25/pf2x%.02dpf2y%.02dpf2z%.02d/gf1%s,%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi25/pi2x%.02dpi2y%.02dpi2z%.02d/gi1%s,%s", source_coords_list[k][0],
                                                                         source_coords_list[k][1],
                                                                         source_coords_list[k][2],
                                                                         source_coords_list[k][3],
@@ -2460,7 +2426,7 @@ int main(int argc, char **argv) {
                   status = H5Gclose(group_id);
 
                  }
-                 snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi25/pi2x%02dpi2y%02dpi2z%02d/gi1%s,%s/pi1x%02dpi1y%02dpi1z%02d/", source_coords_list[k][0],
+                 snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf25/pf2x%.02dpf2y%.02dpf2z%.02d/gf1%s,%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi25/pi2x%.02dpi2y%.02dpi2z%.02d/gi1%s,%s/pi1x%.02dpi1y%.02dpi1z%.02d/", source_coords_list[k][0],
                                                                         source_coords_list[k][1],
                                                                         source_coords_list[k][2],
                                                                         source_coords_list[k][3],
@@ -2503,7 +2469,7 @@ int main(int argc, char **argv) {
                  dims[2]=2;
                  dataspace_id = H5Screate_simple(3, dims, NULL);
 
-                 snprintf ( tagname, 400, "/sx%02dsy%02dsz%02dst%03d/gf25/pf2x%02dpf2y%02dpf2z%02d/gf1%s,%s/pf1x%02dpf1y%02dpf1z%02d/gi25/pi2x%02dpi2y%02dpi2z%02d/gi1%s,%s/pi1x%02dpi1y%02dpi1z%02d/piN", source_coords_list[k][0],
+                 snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf25/pf2x%.02dpf2y%.02dpf2z%.02d/gf1%s,%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi25/pi2x%.02dpi2y%.02dpi2z%.02d/gi1%s,%s/pi1x%.02dpi1y%.02dpi1z%.02d/piN", source_coords_list[k][0],
                                                                         source_coords_list[k][1],
                                                                         source_coords_list[k][2],
                                                                         source_coords_list[k][3],
@@ -2606,7 +2572,6 @@ int main(int argc, char **argv) {
 
 
   } /*end of creating B1,B2,W1,W2,W3,W4,Z1,Z2,Z3,Z4 */
-
 
   /******************************************************/
   /******************************************************/
