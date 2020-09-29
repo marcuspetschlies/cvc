@@ -1037,7 +1037,7 @@ int init_timeslice_source_oet ( double ** const s, int const tsrc, int * const m
 
   } else if ( init == -2 ) {
     /* free ran field an return  */
-    if ( g_verbose > 2 ) fprintf ( stdout, "# [init_timeslice_source_oet] fini ran field\n");
+    if ( g_verbose > 2 && g_cart_id == 0 ) fprintf ( stdout, "# [init_timeslice_source_oet] fini ran field\n");
     if ( ran != NULL ) free ( ran );
     ran = NULL;
  
