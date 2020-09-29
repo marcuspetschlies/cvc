@@ -833,7 +833,7 @@ int main(int argc, char **argv) {
              *
              * ONLY SINK smearing here
              ***************************************************************************/
-             exitstatus = prepare_propagator_from_source ( sequential_propagator, sequential_source[1], 12, iflavor, 0, 1, gauge_field_smeared,
+            exitstatus = prepare_propagator_from_source ( sequential_propagator, sequential_source[1], 12, iflavor, 0, 1, gauge_field_smeared,
                 check_propagator_residual, gauge_field_with_phase, lmzz, NULL );
             if ( exitstatus != 0 ) {
               fprintf ( stderr, "[njjn_fht_invert_contract] Error from prepare_propagator_from_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
@@ -866,6 +866,38 @@ int main(int argc, char **argv) {
              ***************************************************************************/
             assign_fermion_propagator_from_spinor_field ( fp2, sequential_propagator, VOLUME);
   
+=======
+  
+            /***************************************************************************
+             *
+             * contractions
+             *
+             ***************************************************************************/
+  
+            /***************************************************************************
+             * fill the fermion propagator fp with sink-smeared propagator_up
+             ***************************************************************************/
+            assign_fermion_propagator_from_spinor_field ( fp, propagator_up_snk_smeared, VOLUME);
+  
+            /***************************************************************************
+             * fill the fermion propagator fp2 with sequential_propagator
+             *   is already sink-smeared
+             ***************************************************************************/
+            assign_fermion_propagator_from_spinor_field ( fp2, sequential_propagator, VOLUME);
+  
+            /***************************************************************************
+             * fill the fermion propagator fp3 with sink-smeared propagator_dn
+             ***************************************************************************/
+            assign_fermion_propagator_from_spinor_field ( fp3, propagator_dn_snk_smeared, VOLUME);
+  
+            /***************************************************************************
+             * contractions as for N-N diagrams n1, n2,
+             * but with sequential up - after - up in two different places
+             ***************************************************************************/
+            for ( int if1 = 0; if1 < gamma_f1_number; if1++ ) {
+            for ( int if2 = 0; if2 < gamma_f1_number; if2++ ) {
+      
+>>>>>>> dd4712be0d90ca54ee38d4109fa6773ef5e37c68
             /***************************************************************************
              * contractions as for N-N diagrams n1, n2,
              * but with sequential up - after - up in two different places
