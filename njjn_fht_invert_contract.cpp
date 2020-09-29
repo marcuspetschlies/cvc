@@ -135,6 +135,12 @@ int main(int argc, char **argv) {
 
   int const sequential_gamma_num[4] = {4, 4, 1, 1};
 
+  int const sequential_gamma_id[4][4] = {
+    { 0,  1,  2,  3 },
+    { 6,  7,  8,  9 },
+    { 4, -1, -1, -1 },
+    { 5, -1, -1, -1 } };
+    
   char const sequential_gamma_tag[4][3] = { "vv", "aa", "ss", "pp" };
 
   char const gamma_id_to_Cg_ascii[16][10] = {
@@ -461,7 +467,12 @@ int main(int argc, char **argv) {
     EXIT(12);
   }
 
+
   if ( ! read_loop_field ) {
+
+    if ( g_cart_id == 0 ) {
+      fprintf ( stdout, "# [njjn_fht_invert_contract] produce loop field %s %d\n",  __FILE__, __LINE__ );
+    }
 
     /***************************************************************************
      * loop on samples
@@ -499,7 +510,7 @@ int main(int argc, char **argv) {
 
           int const isc = 3 * ispin + icol;
 
-          memset ( spinor_work[0], 0, sizeof_spinor_field );
+	  memset ( spinor_work[0], 0, sizeof_spinor_field );
 
 #pragma omp parallel for
           for ( unsigned int ix = 0; ix < VOLUME; ix++  ) {
@@ -564,7 +575,7 @@ int main(int argc, char **argv) {
       loop[0][0][ix] /= (double)g_nsample;
     }
 
-  } else { 
+  } else {
 
     /***************************************************************************
      * read loop field from file
@@ -610,7 +621,6 @@ int main(int argc, char **argv) {
       memcpy ( loop[ix][0], loop[0][0], 144 * sizeof ( double _Complex ) );
     }
 
-
 #endif  /* end of if HAVE_MPI not defined */
   }  /* end of if on read stoch. source  */
 
@@ -637,7 +647,7 @@ int main(int argc, char **argv) {
     /* up and down quark propagator with source smearing */
     double *** propagator = init_3level_dtable ( 2, 12, _GSI( VOLUME ) );
     if( propagator == NULL ) {
-      fprintf(stderr, "[njjn_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+      fprintf(stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
       EXIT(123);
     }
 
@@ -646,7 +656,7 @@ int main(int argc, char **argv) {
      */
     double *** propagator_snk_smeared = init_3level_dtable ( 2, 12, _GSI( VOLUME ) );
     if ( propagator_snk_smeared == NULL ) {
-      fprintf(stderr, "[njjn_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+      fprintf(stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
       EXIT(123);
     }
 
@@ -701,7 +711,8 @@ int main(int argc, char **argv) {
      *
      **********************************************************/
 
-    for ( int iflavor = 0; iflavor <= 1; iflavor++ ) {
+    for ( int iflavor = 0; iflavor < 2; iflavor++ ) 
+    {
 
       /***********************************************************
        * flavor-type point-to-all propagator
@@ -752,6 +763,7 @@ int main(int argc, char **argv) {
       }
 
     }  /* end of loop on flavor */
+
 
     /***************************************************************************
      * allocate propagator fields
@@ -881,31 +893,6 @@ int main(int argc, char **argv) {
           momentum[0], momentum[1], momentum[2], __FILE__, __LINE__);
 
       /***************************************************************************
-       * allocate for sequential propagator and source
-       ***************************************************************************/
-      double ** sequential_propagator = init_2level_dtable ( 12, _GSI( VOLUME ) );
-      if( sequential_propagator == NULL ) {
-        fprintf(stderr, "[njjn_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
-        EXIT(123);
-      }
-
-      double ** sequential_source = init_2level_dtable ( 12,  _GSI(VOLUME) );
-      if( sequential_source == NULL ) {
-        fprintf(stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
-        EXIT(132);
-      }
-
-      /***************************************************************************
-       ***************************************************************************
-       **
-       ** Part II: sequential inversion with loop-product sequential sources
-       **          and contractions for 
-       **          N - qbar q qbar q - N
-       **
-       ***************************************************************************
-       ***************************************************************************/
-
-      /***************************************************************************
        * loop on flavor
        ***************************************************************************/
       for ( int iflavor = 0; iflavor < 2; iflavor++ )
@@ -915,6 +902,16 @@ int main(int argc, char **argv) {
             iflavor, __FILE__, __LINE__);
 
         /***************************************************************************
+         ***************************************************************************
+         **
+         ** Part II: sequential inversion with loop-product sequential sources
+         **          and contractions for 
+         **          N - qbar q qbar q - N
+         **
+         ***************************************************************************
+         ***************************************************************************/
+
+        /***************************************************************************
          * loop on 2 types of sequential fht sources
          ***************************************************************************/
         for ( int seq_source_type = 0; seq_source_type <= 1; seq_source_type++ )
@@ -922,6 +919,22 @@ int main(int argc, char **argv) {
 
           if ( g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [njjn_fht_invert_contract] start seq source type %3d   %s %d\n", 
              seq_source_type, __FILE__, __LINE__);
+
+          /***************************************************************************
+           * allocate for sequential propagator and source
+           ***************************************************************************/
+          double ** sequential_propagator = init_2level_dtable ( 12, _GSI( VOLUME ) );
+          if( sequential_propagator == NULL ) {
+            fprintf(stderr, "[njjn_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+            EXIT(123);
+          }
+
+          double ** sequential_source = init_2level_dtable ( 12,  _GSI(VOLUME) );
+          if( sequential_source == NULL ) {
+            fprintf(stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+            EXIT(132);
+          }
+
 
           /***************************************************************************
            * loop on sequential source gamma matrices
@@ -1149,13 +1162,72 @@ int main(int argc, char **argv) {
             /***************************************************************************/
   
           } // end of loop on sequential source gamma matrices
+      
+          fini_2level_dtable ( &sequential_source );
+          fini_2level_dtable ( &sequential_propagator );
 
         }  /* end of loop on seq. source type */
 
-      }  /* loop on flavor type */
+        /***************************************************************************
+         ***************************************************************************
+         **
+         ** Part III: sequential inversion with binary noise insertion 
+         **           for double-peak diagram
+         **
+         ***************************************************************************
+         ***************************************************************************/
 
-      fini_2level_dtable ( &sequential_source );
-      fini_2level_dtable ( &sequential_propagator );
+        for ( int isample = 0; isample < g_nsample_oet; isample++ ) {
+
+          /***************************************************************************
+           * allocate for sequential propagator and source
+           ***************************************************************************/
+          double ** sequential_propagator = init_2level_dtable ( 12, _GSI( VOLUME ) );
+          if( sequential_propagator == NULL ) {
+            fprintf(stderr, "[njjn_fht_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+            EXIT(123);
+          }
+
+          double ** sequential_source = init_2level_dtable ( 12,  _GSI(VOLUME) );
+          if( sequential_source == NULL ) {
+            fprintf(stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+            EXIT(132);
+          }
+
+          double * stochastic_vector = init_1level_dtable ( VOLUME );
+          if( stochastic_vector == NULL ) {
+            fprintf(stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+            EXIT(132);
+          }
+
+          exitstatus = ranbinary ( stochastic_vector, VOLUME );
+
+          if( exitstatus != 0  ) {
+            fprintf(stderr, "[njjn_fht_invert_contract] Error from ranbinary, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(132);
+          }
+
+          /***************************************************************************
+           * loop on sequential source gamma matrices
+           ***************************************************************************/
+          for ( int igamma = 0; igamma < sequential_gamma_sets; igamma++ ) {
+          
+            for ( int ig = 0; ig < sequential_gamma_num[igamma]; ig++ ) {
+
+
+
+
+            }
+          }
+
+
+
+
+
+        fini_2level_dtable ( &sequential_source );
+        fini_2level_dtable ( &sequential_propagator );
+
+      }  /* loop on flavor type */
 
     }  /* loop on sequential source momenta */
 
