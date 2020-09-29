@@ -9,7 +9,6 @@
 #include <math.h>
 #include <time.h>
 #include <complex.h>
-#include <sys/time.h>
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
@@ -42,7 +41,9 @@
 #include "gamma.h"
 #include "uwerr.h"
 #include "derived_quantities.h"
-#include "cvc_timer.h"
+
+#undef _RAT
+#undef _RAT_SUB
 
 using namespace cvc;
 
@@ -190,13 +191,12 @@ int main(int argc, char **argv) {
   char ensemble_name[100] = "NA";
   char filename[600];
   int num_conf = 0, num_src_per_conf = 0;
-  struct timeval ta, tb;
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:S:N:E:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:S:N:e:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -210,7 +210,7 @@ int main(int argc, char **argv) {
       num_src_per_conf = atoi ( optarg );
       fprintf ( stdout, "# [NN_analyse] number of sources per config = %d\n", num_src_per_conf );
       break;
-    case 'E':
+    case 'e':
       strcpy ( ensemble_name, optarg );
       fprintf ( stdout, "# [NN_analyse] ensemble name set to = %s\n", ensemble_name );
       break;
@@ -408,21 +408,19 @@ int main(int argc, char **argv) {
 
       char data_filename[500];
             
-      sprintf ( data_filename, "%s/stream_%c/%d/%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix2, 
-          conf_src_list.stream[iconf], conf_src_list.conf[iconf], filename_prefix, conf_src_list.conf[iconf], gsx[0], gsx[1], gsx[2], gsx[3] );
+      sprintf ( data_filename, "%s/stream_%c/%d/%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix2, conf_src_list.stream[iconf], Nconf, filename_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
       if ( g_verbose > 2 ) {
-        fprintf ( stdout, "# [NN_analyse] data_filename   = %s %s %d\n", data_filename, __FILE__, __LINE__ );
+        fprintf ( stdout, "# [NN_analyse] data_filename   = %s\n", data_filename );
       }
 
       struct AffReader_s *affr = NULL;
-      struct AffNode_s *affn = NULL, *affdir = NULL, 
-                       *affpath1 = NULL, *affpath2 = NULL;
+      struct AffNode_s *affn = NULL, *affdir = NULL, * affpath = NULL;
       char key[400];
 
-      affr = aff_reader ( data_filename );
+      affr = aff_reader ( filename );
       const char * aff_status_str = aff_reader_errstr ( affr );
       if( aff_status_str != NULL ) {
-        fprintf(stderr, "[NN_analyse] Error from aff_reader for filename %s, status was %s %s %d\n", data_filename, aff_status_str, __FILE__, __LINE__);
+        fprintf(stderr, "[NN_analyse] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
         EXIT(15);
       }
 
@@ -432,44 +430,22 @@ int main(int argc, char **argv) {
       }
 
       /***************************************************************************
-       * NOTE: WE ASSUME ALL 2pt FUNCTION NAMES TO BE SAME
-       ***************************************************************************/
-      /* /N-N/T24_X0_Y19_Z30/... */
-      sprintf ( key, "/%s/T%d_X%d_Y%d_Z%d", g_twopoint_function_list[0].name, gsx[0], gsx[1], gsx[2], gsx[3] );
-      if ( g_verbose > 2 ) fprintf( stdout, "# [NN_analyse] key for path1 = %s %s %d\n", key, __FILE__, __LINE__ );
-
-      affpath1 = aff_reader_chpath ( affr, affn, key );
-      if ( affpath1 == NULL ) {
-        fprintf ( stderr, "[NN_analyse] Error from aff_reader_chpath for key %s %s %d\n", key, __FILE__, __LINE__ );
-        EXIT(1);
-      }
-
-      /***************************************************************************
        * loop on twopoint functions
        ***************************************************************************/
       for ( int i_2pt = 0; i_2pt < g_twopoint_function_number; i_2pt++ ) {
 
-        twopoint_function_type tp_aux;
-        twopoint_function_type * tp = &tp_aux;
-        twopoint_function_init ( tp );
-
-        twopoint_function_copy ( tp, &(g_twopoint_function_list[i_2pt]) , 0 );
+        twopoint_function_type * tp = &(g_twopoint_function_list[i_2pt]);
 
         twopoint_function_allocate ( tp );
 
-        memcpy ( tp->source_coords, gsx , 4 * sizeof( int ) );
-  
-        twopoint_function_print ( tp, "tp", stdout );
-
-        /* .../Gi_Cg5/Gf_Cg5/... */
-        sprintf ( key, "Gi_%s/Gf_%s", gamma_id_to_Cg_ascii[tp->gi1[0]], gamma_id_to_Cg_ascii[tp->gf1[0]] );
-        if ( g_verbose > 2 ) fprintf( stdout, "# [NN_analyse] key for path2 = %s %s %d\n", key, __FILE__, __LINE__ );
-
-        affpath2 = aff_reader_chpath ( affr, affpath1, key );
-        if ( affpath2 == NULL ) {
-          fprintf ( stderr, "[NN_analyse] Error from aff_reader_chpath for key %s %s %d\n", key, __FILE__, __LINE__ );
-          EXIT(1);
+        if ( g_verbose > 2 ) {
+          twopoint_function_print ( tp, "tp", stdout );
         }
+
+        twopoint_function_type tp_aux;
+        twopoint_function_copy ( &tp_aux, tp, 0 );
+
+        memcpy ( tp->source_coords, gsx , 4 * sizeof( int ) );
 
         /***************************************************************************
          * loop on sink momenta
@@ -481,8 +457,6 @@ int main(int argc, char **argv) {
             g_sink_momentum_list[ipf][1],
             g_sink_momentum_list[ipf][2] 
           };
-
-          gettimeofday ( &ta, (struct timezone *)NULL );
 
           tp->pf1[0] =  pf[0];
           tp->pf1[1] =  pf[1];
@@ -501,256 +475,206 @@ int main(int argc, char **argv) {
 
             twopoint_function_get_diagram_name ( diagram_name,  tp, i_diag );
 
+            if ( conf_src_list.stream[iconf] == 'a' && strcmp(tp->name, "N-qbGq-N" ) == 0 ) {
+              if ( strcmp( diagram_name, "t1" ) == 0 || strcmp( diagram_name, "t2" ) == 0 || strcmp( diagram_name, "t3" ) == 0 || strcmp( diagram_name, "t4" ) == 0 ) {
+               strcpy( tp_aux.name, "N-ubGu-N" );
+ 
+              } else if ( strcmp( diagram_name, "t5" ) == 0 ) {
+                strcpy( tp_aux.name, "N-dbGd-N" );
+                sprintf( diagram_name, "t1" );
+              } else if ( strcmp( diagram_name, "t6" ) == 0 ) {
+                strcpy( tp_aux.name, "N-dbGd-N" );
+                sprintf( diagram_name, "t2" );
+              }
+            }
+
             if ( g_verbose > 2 ) {
               fprintf ( stdout, "# [NN_analyse] diagram_name = %s\n", diagram_name );
             }
 
-            make_key_string ( key, tp, tp->type, diagram_name, gsx );
+            /* make_key_string ( key, tp, tp->type, diagram_name, gsx ); */
+            make_key_string ( key, &tp_aux, tp_aux.type, diagram_name, gsx );
 
-            /* .../dX/p... */
-            sprintf ( key, "%s/px%.2dpy%.2dpz%.2d", diagram_name, tp->pf1[0], tp->pf1[1], tp->pf1[2] );
-            if ( g_verbose > 2 ) fprintf( stdout, "# [NN_analyse] key for dir = %s %s %d\n", key, __FILE__, __LINE__ );
-
-            affdir = aff_reader_chpath ( affr, affpath2, key );
-            if ( affdir == NULL ) {
-              fprintf ( stderr, "[NN_analyse] Error from aff_reader_chpath for key %s %s %d\n", key, __FILE__, __LINE__ );
-              EXIT(1);
-            }
-
-            if ( g_verbose > 2 ) {
-              fprintf ( stdout, "# [NN_analyse] key = %s\n", key );
-            }
-
-            /***********************************************************
-             * read data block from AFF file
-             ***********************************************************/
-            uint32_t uitems = (uint32_t)tp->T * tp->d * tp->d;
-            exitstatus = aff_node_get_complex ( affr, affdir, tp->c[i_diag][0][0], uitems );
-            if( exitstatus != 0 ) {
-              fprintf(stderr, "[NN_analyse] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              EXIT(105);
-            }
-          }  /* end of loop on diagrams */
- 
-          if ( g_verbose > 4 ) {
-            twopoint_function_print ( tp, "tp", stdout );
-
-            twopoint_function_show_data ( tp, stdout );
+          if ( g_verbose > 2 ) {
+            fprintf ( stdout, "# [NN_analyse] key = %s\n", key );
           }
+
 
           /***********************************************************
-           * apply norm factors to diagrams
+           * read data block from AFF file
            ***********************************************************/
-          if ( ( exitstatus = twopoint_function_apply_diagram_norm ( tp ) )  != 0 ) {
-            fprintf( stderr, "[NN_analyse] Error from twopoint_function_apply_diagram_norm, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(103);
+          exitstatus = read_aff_contraction ( tp->c[i_diag][0][0] , NULL, data_filename, key, tp->d * tp->d * tp->T );
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[NN_analyse] Error from form read_aff_contraction for file %s key %s, status was %d %s %d\n", 
+                data_filename, key, exitstatus, __FILE__, __LINE__ );
+            EXIT(12);
           }
 
-          if ( g_verbose > 4 ) {
-            fprintf( stdout, "# [NN_analyse] after twopoint_function_apply_diagram_norm %s %d\n", __FILE__, __LINE__);
-            twopoint_function_show_data ( tp, stdout );
-          }
+        }  /* end of loop on diagrams */
 
-          /***********************************************************
-           * add up normalized diagrams to entry 0
-           ***********************************************************/
-          if ( ( exitstatus = twopoint_function_accum_diagrams ( tp->c[0], tp ) ) != 0 ) {
-            fprintf( stderr, "[NN_analyse] Error from twopoint_function_accum_diagrams, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(104);
-          }
+        if ( g_verbose > 2 ) {
+          twopoint_function_show_data ( tp, stdout );
+        }
 
-          tp->n = 1;
 
-          if ( g_verbose > 4 ) {
-            fprintf( stdout, "# [NN_analyse] after twopoint_function_accum_diagrams %s %d\n", __FILE__, __LINE__);
-            twopoint_function_show_data ( tp, stdout );
-          }
+        /***********************************************************
+         * apply norm factors to diagrams
+         ***********************************************************/
+        if ( ( exitstatus = twopoint_function_apply_diagram_norm ( tp ) )  != 0 ) {
+          fprintf( stderr, "[NN_analyse] Error from twopoint_function_apply_diagram_norm, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(103);
+        }
 
-          /***********************************************************
-           * add boundary phase
-           ***********************************************************/
-          if ( ( exitstatus = correlator_add_baryon_boundary_phase ( tp->c[0], gsx[0], +1, tp->T ) ) != 0 ) {
-            fprintf( stderr, "[NN_analyse] Error from correlator_add_baryon_boundary_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(103);
-          }
+        /***********************************************************
+         * add up normalized diagrams to entry 0
+         ***********************************************************/
+        if ( ( exitstatus = twopoint_function_accum_diagrams ( tp->c[0], tp ) ) != 0 ) {
+          fprintf( stderr, "[NN_analyse] Error from twopoint_function_accum_diagrams, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(104);
+        }
 
-          if ( g_verbose > 4 ) {
-            fprintf( stdout, "# [NN_analyse] after correlator_add_baryon_boundary_phase %s %d\n", __FILE__, __LINE__);
-            twopoint_function_show_data ( tp, stdout );
-          }
+        /***********************************************************
+         * add boundary phase
+         ***********************************************************/
+        if ( ( exitstatus = correlator_add_baryon_boundary_phase ( tp->c[0], gsx[0], +1, tp->T ) ) != 0 ) {
+          fprintf( stderr, "[NN_analyse] Error from correlator_add_baryon_boundary_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(103);
+        }
 
-          /***********************************************************
-           * add source phase
-           ***********************************************************/
-          if ( ( exitstatus = correlator_add_source_phase ( tp->c[0], tp->pi1, &(gsx[1]), tp->T ) ) != 0 ) {
-            fprintf( stderr, "[NN_analyse] Error from correlator_add_source_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(104);
-          }
-         
-          if ( g_verbose > 4 ) {
-            fprintf( stdout, "# [NN_analyse] after correlator_add_source_phase %s %d\n", __FILE__, __LINE__);
-            twopoint_function_show_data ( tp, stdout );
-          }
+        /***********************************************************
+         * add source phase
+         ***********************************************************/
+        if ( ( exitstatus = correlator_add_source_phase ( tp->c[0], tp->pi1, &(gsx[1]), tp->T ) ) != 0 ) {
+          fprintf( stderr, "[NN_analyse] Error from correlator_add_source_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(104);
+        }
 
-          /***********************************************************
-           * reorder from source time forward
-           ***********************************************************/
-          if ( ( exitstatus = reorder_to_relative_time ( tp->c[0], tp->c[0], gsx[0], +1, tp->T ) ) != 0 ) {
-            fprintf( stderr, "[NN_analyse] Error from reorder_to_relative_time, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(104);
-          }
+        /***********************************************************
+         * reorder from source time forward
+         ***********************************************************/
+        if ( ( exitstatus = reorder_to_relative_time ( tp->c[0], tp->c[0], gsx[0], +1, tp->T ) ) != 0 ) {
+          fprintf( stderr, "[NN_analyse] Error from reorder_to_relative_time, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(104);
+        }
 
-          if ( g_verbose > 4 ) {
-            fprintf( stdout, "# [NN_analyse] after reorder_to_relative_time %s %d\n", __FILE__, __LINE__);
-            twopoint_function_show_data ( tp, stdout );
-          }                          
+        /***********************************************************
+         * spin matrix multiplication left and right
+         ***********************************************************/
+        if ( ( exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( tp->c[0], tp->c[0], gammaMat[tp->gf1[1]], gammaMat[tp->gi1[1]], tp->T ) ) != 0 ) {
+          fprintf( stderr, "[NN_analyse] Error from contract_diagram_zm4x4_field_mul_gamma_lr, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(105);
+        }
 
-          /***********************************************************
-           * spin matrix multiplication left and right
-           ***********************************************************/
-          if ( ( exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( tp->c[0], tp->c[0], gammaMat[tp->gf1[1]], gammaMat[tp->gi1[1]], tp->T ) ) != 0 ) {
-            fprintf( stderr, "[NN_analyse] Error from contract_diagram_zm4x4_field_mul_gamma_lr, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(105);
-          }
+        /***********************************************************
+         * project to spin parity and trace
+         ***********************************************************/
 
-          if ( g_verbose > 4 ) {
-            fprintf( stdout, "# [NN_analyse] after contract_diagram_zm4x4_field_mul_gamma_lr %s %d\n", __FILE__, __LINE__);
-            twopoint_function_show_data ( tp, stdout );
-          }
+        double _Complex *** zbuffer = init_3level_ztable ( tp->T, tp->d, tp->d );
+        if ( zbuffer == NULL ) {
+          fprintf( stderr, "[NN_analyse] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__);
+          EXIT(105);
+        }
 
-          /***********************************************************
-           * project to spin parity and trace
-           ***********************************************************/
+        if ( ( exitstatus = correlator_spin_parity_projection ( zbuffer, tp->c[0],  1., tp->T ) ) != 0 )
+        {
+          fprintf( stderr, "[NN_analyse] Error from correlator_spin_parity_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(105);
+        }
 
-          double _Complex *** zbuffer = init_3level_ztable ( tp->T, tp->d, tp->d );
-          if ( zbuffer == NULL ) {
-            fprintf( stderr, "[NN_analyse] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__);
-            EXIT(105);
-          }
+      
+        if ( ( exitstatus = contract_diagram_co_eq_tr_zm4x4_field ( corr[i_2pt][0][iconf][isrc], zbuffer, tp->T ) ) != 0 ) {
+          fprintf( stderr, "[NN_analyse] Error from contract_diagram_co_eq_tr_zm4x4_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(105);
+        }
 
-          if ( ( exitstatus = correlator_spin_parity_projection ( zbuffer, tp->c[0],  1., tp->T ) ) != 0 )
-          {
-            fprintf( stderr, "[NN_analyse] Error from correlator_spin_parity_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(105);
-          }  
-     
-          if ( ( exitstatus = contract_diagram_co_eq_tr_zm4x4_field ( corr[i_2pt][ipf][0][iconf][isrc], zbuffer, tp->T ) ) != 0 ) {
-            fprintf( stderr, "[NN_analyse] Error from contract_diagram_co_eq_tr_zm4x4_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(105);
-          }
 
-          if ( ( exitstatus = correlator_spin_parity_projection ( zbuffer, tp->c[0], -1., tp->T ) ) != 0 )
-          {
-            fprintf( stderr, "[NN_analyse] Error from correlator_spin_parity_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(105);
-          }
+        if ( ( exitstatus = correlator_spin_parity_projection ( zbuffer, tp->c[0], -1., tp->T ) ) != 0 )
+        {
+          fprintf( stderr, "[NN_analyse] Error from correlator_spin_parity_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(105);
+        }
 
-          if ( ( exitstatus = contract_diagram_co_eq_tr_zm4x4_field ( corr[i_2pt][ipf][1][iconf][isrc], zbuffer, tp->T ) ) != 0 ) {
-            fprintf( stderr, "[NN_analyse] Error from contract_diagram_co_eq_tr_zm4x4_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(105);
-          }
+        if ( ( exitstatus = contract_diagram_co_eq_tr_zm4x4_field ( corr[i_2pt][1][iconf][isrc], zbuffer, tp->T ) ) != 0 ) {
+          fprintf( stderr, "[NN_analyse] Error from contract_diagram_co_eq_tr_zm4x4_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(105);
+        }
 
-          fini_3level_ztable ( &zbuffer );
+        fini_3level_ztable ( &zbuffer );
 
-          gettimeofday ( &tb, (struct timezone *)NULL );
-          show_time ( &ta, &tb, "NN_analyse", "read-aff-finalize-bb", g_cart_id == 0 );
+      }  /* end of loop on source locations */
 
-        }  /* end of loop on sink momenta */
+    }  /* end of loop on configurations */
+  
 
-        twopoint_function_fini ( tp );
+    char correlator_name[500], diagram_list_string[60];
+    make_correlator_string ( correlator_name , tp, tp->type  );
 
-      } /* end of loop on 2pt functions */
+    make_diagram_list_string ( diagram_list_string, tp );
 
-      aff_reader_close ( affr );
+    /***********************************************************
+     * write correlator to file
+     ***********************************************************/
 
-    }  /* end of loop on source locations */
+    sprintf ( filename, "%s.%s.corr", correlator_name, diagram_list_string );
 
-  }  /* end of loop on configurations */
- 
-  /***************************************************************************
-   * fwd, bwd average
-   ***************************************************************************/
-  if ( g_verbose > 2 ) fprintf ( stdout, "# [NN_analyse] fwd / bwd average\n" );
-  for ( int i_2pt = 0; i_2pt < g_twopoint_function_number; i_2pt++ ) {
-    if ( g_twopoint_function_list[i_2pt].T != T_global ) continue;
-    for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
+    FILE * ofs = fopen ( filename, "w" );
+    for( int iconf = 0; iconf < num_conf; iconf++ ) {
+
+      for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
+
+        fprintf ( ofs, "# %s %c %6d   %3d %3d %3d %3d\n", ensemble_name, conf_src_list.stream[iconf], conf_src_list.conf[iconf],
+            conf_src_list.src[iconf][isrc][0],
+            conf_src_list.src[iconf][isrc][1],
+            conf_src_list.src[iconf][isrc][2],
+            conf_src_list.src[iconf][isrc][3] );
+
+        for ( int it = 0; it < tp->T; it++ ) {
+          fprintf ( ofs, "%3d %25.16e %25.16e    %25.16e %25.16e\n" , it, 
+              creal( corr[i_2pt][0][iconf][isrc][it] ), cimag( corr[i_2pt][0][iconf][isrc][it] ),
+              creal( corr[i_2pt][1][iconf][isrc][it] ), cimag( corr[i_2pt][1][iconf][isrc][it] ) );
+        } 
+
+      }  /* end of loop on source locations */
+    }  /* end of loop on configs */
+    fclose ( ofs );
+      
+    /***************************************************************************
+     * fwd, bwd average
+     ***************************************************************************/
+
+    if ( tp->T == T_global ) {
+      if ( g_verbose > 2 ) fprintf ( stdout, "# [NN_analyse] fwd / bwd average\n" );
 #pragma omp parallel for
       for( int iconf = 0; iconf < num_conf; iconf++ ) {
         for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
           for ( int it = 0; it <= T_global/2; it++ ) {
             int const itt = ( T_global - it ) % T_global;
-            double _Complex const zp[2] = { corr[i_2pt][ipf][0][iconf][isrc][it] , corr[i_2pt][ipf][0][iconf][isrc][itt] };
-            double _Complex const zm[2] = { corr[i_2pt][ipf][1][iconf][isrc][it] , corr[i_2pt][ipf][1][iconf][isrc][itt] };
+            double _Complex const zp[2] = { corr[i_2pt][0][iconf][isrc][it] , corr[i_2pt][0][iconf][isrc][itt] };
+            double _Complex const zm[2] = { corr[i_2pt][1][iconf][isrc][it] , corr[i_2pt][1][iconf][isrc][itt] };
 
-            corr[i_2pt][ipf][0][iconf][isrc][it ] = 0.5 * ( zp[0] - zm[1] );
-            corr[i_2pt][ipf][0][iconf][isrc][itt] = corr[i_2pt][ipf][0][iconf][isrc][it];
+            corr[i_2pt][0][iconf][isrc][it ] = 0.5 * ( zp[0] - zm[1] );
+            corr[i_2pt][0][iconf][isrc][itt] = corr[i_2pt][0][iconf][isrc][it];
 
-            corr[i_2pt][ipf][1][iconf][isrc][it ] = 0.5 * ( zm[0] - zp[1] );
-            corr[i_2pt][ipf][1][iconf][isrc][itt] = corr[i_2pt][ipf][1][iconf][isrc][it];
+            corr[i_2pt][1][iconf][isrc][it ] = 0.5 * ( zm[0] - zp[1] );
+            corr[i_2pt][1][iconf][isrc][itt] = corr[i_2pt][1][iconf][isrc][it];
           }
         }
       }
-
-      if ( g_verbose > 4 ) {
-        for( int iconf = 0; iconf < num_conf; iconf++ ) {
-          for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
-            for ( int it = 0; it < T_global; it++ ) {
-              fprintf ( stdout, "corr %c %6d %3d %2d    %25.16e %25.16e    %25.16e %25.16e\n",
-                  conf_src_list.stream[iconf], conf_src_list.conf[iconf], conf_src_list.src[iconf][isrc][0], it,
-                  creal ( corr[i_2pt][ipf][0][iconf][isrc][it] ), cimag ( corr[i_2pt][ipf][0][iconf][isrc][it] ),
-                  creal ( corr[i_2pt][ipf][1][iconf][isrc][it] ), cimag ( corr[i_2pt][ipf][1][iconf][isrc][it] ) );
-            }
-          }
-        }
-      }
-    }  /* end of loop on sink momenta */
-  }  /* end of loop on 2pts */
-
-
-
-  /***************************************************************************
-   ***************************************************************************
-   **
-   ** UWerr analysis
-   **
-   ***************************************************************************
-   ***************************************************************************/
-
-  /***************************************************************************
-   * loop on twopoint functions
-   ***************************************************************************/
-  for ( int i_2pt = 0; i_2pt < g_twopoint_function_number; i_2pt++ ) {
-
-    if ( num_conf < 6 ) {
-      fprintf ( stderr, "[NN_analyse] number of observations too small, continue %s %d\n", __FILE__, __LINE__ );
-      continue;
     }
 
-    twopoint_function_type * const tp = &(g_twopoint_function_list[i_2pt]);
+    /***************************************************************************
+     * UWerr analysis
+     *
+     *   for correlator corr
+     ***************************************************************************/
 
     for ( int iparity = 0; iparity < 2; iparity++ ) {
-
-      int const parity = 1 - 2*iparity;
-
-      tp->pi1[0] = -g_sink_momentum_list[0][0];
-      tp->pi1[1] = -g_sink_momentum_list[0][1];
-      tp->pi1[2] = -g_sink_momentum_list[0][2];
-
-      tp->pf1[0] =  g_sink_momentum_list[0][0];
-      tp->pf1[1] =  g_sink_momentum_list[0][1];
-      tp->pf1[2] =  g_sink_momentum_list[0][2];
-
-      tp->parity_project = parity;
-
-      char correlator_name[500], diagram_list_string[60];
-      make_correlator_string ( correlator_name , tp, tp->type  );
-      make_diagram_list_string ( diagram_list_string, tp );
 
       for ( int ireim = 0; ireim < 2; ireim++ )
       {
 
         if ( num_conf < 6 ) {
-          fprintf ( stderr, "[NN_analyse] Warning, num_conf too small; continue %s %d\n", __FILE__, __LINE__ );
+          fprintf ( stderr, "[NN_analyse] number of observations too small, continue %s %d\n", __FILE__, __LINE__ );
           continue;
         }
 
@@ -760,9 +684,7 @@ int main(int argc, char **argv) {
           EXIT(16);
         }
 
-        /***************************************************************************
-         * block data over sources and momenta
-         ***************************************************************************/
+        /* block data over sources */
 #pragma omp parallel for
         for( int iconf = 0; iconf < num_conf; iconf++ ) {
  
@@ -770,59 +692,40 @@ int main(int argc, char **argv) {
 
             data[iconf][it] = 0.;
 
-            for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
-              for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
-                data[iconf][it] += *(((double*)( corr[i_2pt][ipf][iparity][iconf][isrc]+it )) + ireim );
-              }
+            for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
+              data[iconf][it] += *(((double*)( corr[i_2pt][iparity][iconf][isrc]+it )) + ireim );
             }
 
-            data[iconf][it] /= (double)num_src_per_conf * (double)g_sink_momentum_number;
+            data[iconf][it] /= (double)num_src_per_conf;
           }
         }
 
-        /***********************************************************
-         * write correlator to file
-         ***********************************************************/
         char obs_name[500];
-        sprintf ( obs_name,  "%s.%s.parity%d.%s", correlator_name, diagram_list_string, parity, reim_str[ireim] );
+        
+        sprintf ( obs_name,  "%s.%s.parity%d.%s", correlator_name, diagram_list_string, -2*iparity+1, reim_str[ireim] );
 
-        sprintf ( filename, "%s.corr", obs_name );
-        FILE * ofs = fopen ( filename, "w" );
-        for( int iconf = 0; iconf < num_conf; iconf++ ) {
-          fprintf ( ofs, "# conf %6d tsrc ", conf_src_list.conf[iconf] );
-          for( int isrc = 0; isrc < num_src_per_conf; isrc++) fprintf ( ofs, " %3d", conf_src_list.src[iconf][isrc][0] );
-          fprintf ( ofs, "\n" );
-
-          for ( int it = 0; it < tp->T; it++ ) {
-            fprintf ( ofs, "%25.16e\n", data[iconf][it] );
-          } 
-        }  /* end of loop on configs */
-        fclose ( ofs );
-      
         exitstatus = apply_uwerr_real ( data[0], num_conf, tp->T, 0, 1, obs_name );
         if ( exitstatus != 0  ) {
           fprintf ( stderr, "[NN_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(16);
         }
 
-        /***********************************************************
-         * effective mass analysis
-         * only for real part
-         ***********************************************************/
+
+        /* only for real part */
         if ( ireim == 0 ) {
           for ( int itau = 1; itau < tp->T/2; itau++ ) {
 
-            char obs_name2[500];
-            sprintf ( obs_name2,  "%s.log_ratio.tau%d", obs_name, itau );
+            sprintf ( obs_name,  "%s.parity%d.%s.log_ratio.tau%d", correlator_name, -2*iparity+1, reim_str[ireim], itau );
 
             int arg_first[2]  = {0, itau};
             int arg_stride[2] = {1,1};
       
-            exitstatus = apply_uwerr_func ( data[0], num_conf, tp->T, tp->T/2-itau, 2, arg_first, arg_stride, obs_name2, log_ratio_1_1, dlog_ratio_1_1 );
+            exitstatus = apply_uwerr_func ( data[0], num_conf, tp->T, tp->T/2-itau, 2, arg_first, arg_stride, obs_name, log_ratio_1_1, dlog_ratio_1_1 );
             if ( exitstatus != 0  ) {
               fprintf ( stderr, "[NN_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
               EXIT(16);
             }
+
           }
         }
 
@@ -831,12 +734,166 @@ int main(int argc, char **argv) {
       }  /* end of loop on reim */
     }  /* end of loop on parity */
 
+
+    /***************************************************************************
+     * free the correlator field
+     ***************************************************************************/
+
+    twopoint_function_fini ( tp );
+
   }  /* end of loop on 2-point functions */
+
+#ifdef _RAT
+
+  /***************************************************************************
+   * 3 data sets
+   ***************************************************************************/
+  twopoint_function_type * tp1 = &(g_twopoint_function_list[0]);
+  twopoint_function_type * tp2 = &(g_twopoint_function_list[1]);
+  twopoint_function_type * tp3 = &(g_twopoint_function_list[2]);
+
+  char correlator_name[500], correlator_name2[500];
+  char diagram_list_string[60], diagram_list_string2[60], diagram_list_string3[60];
+  make_correlator_string ( correlator_name , tp1, NULL );
+  make_correlator_string ( correlator_name2, tp2, NULL );
+
+  make_diagram_list_string ( diagram_list_string,  tp1 );
+  make_diagram_list_string ( diagram_list_string2, tp2 );
+  make_diagram_list_string ( diagram_list_string3, tp3 );
+
+
+  /***************************************************************************
+   * UWerr analysis
+   *
+   *   for correlator corr
+   ***************************************************************************/
+
+  for ( int iparity = 0; iparity < 2; iparity++ ) {
+      for ( int ireim = 0; ireim < 2; ireim++ ) {
+
+        int const nT = tp1->T;
+
+        if ( num_conf < 6 ) {
+          fprintf ( stderr, "[NN_analyse] number of observations too small, continue %s %d\n", __FILE__, __LINE__ );
+          continue;
+        }
+
+        double ** data = init_2level_dtable ( num_conf, nT );
+        if ( data == NULL ) {
+          fprintf ( stderr, "[NN_analyse] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+          EXIT(16);
+        }
+
+        /* block data over sources */
+#pragma omp parallel for
+        for( int iconf = 0; iconf < num_conf; iconf++ ) {
+ 
+          for ( int it = 0; it < nT; it++ ) {
+
+            data[iconf][it] = 0.;
+
+            for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
+              data[iconf][it] +=
+                  *(((double*)( corr[1][iparity][iconf][isrc]+it )) + ireim )
+                + *(((double*)( corr[2][iparity][iconf][isrc]+it )) + ireim );
+            }
+
+            data[iconf][it] /= (double)num_src_per_conf;
+          }
+        }
+
+        char obs_name[500];
+        
+        sprintf ( obs_name,  "%s.%s.%s.parity%d.%s", correlator_name2, diagram_list_string2, diagram_list_string3, -2*iparity+1, reim_str[ireim] );
+
+        exitstatus = apply_uwerr_real ( data[0], num_conf, nT, 0, 1, obs_name );
+        if ( exitstatus != 0  ) {
+          fprintf ( stderr, "[NN_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(16);
+        }
+
+        fini_2level_dtable ( &data );
+
+      }  /* end of loop on reim */
+  }  /* end of loop on parity */
+
+#ifdef _RAT_SUB
+
+  /***************************************************************************
+   * UWerr analyse ratio sub
+   ***************************************************************************/
+
+  for ( int iparity = 0; iparity < 1; iparity++ ) {
+    for ( int ireim = 0; ireim < 1; ireim++ ) {
+
+      if ( num_conf < 6 ) {
+        fprintf ( stderr, "[NN_analyse] number of observations too small, continue %s %d\n", __FILE__, __LINE__ );
+        continue;
+      }
+
+      int const nt = tp1->T / 2 + 1;
+
+      double ** data = init_2level_dtable ( num_conf, 2 * nt );
+      if ( data == NULL ) {
+        fprintf ( stderr, "[NN_analyse] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+        EXIT(16);
+      }
+
+        /* block data over sources */
+#pragma omp parallel for
+        for( int iconf = 0; iconf < num_conf; iconf++ ) {
+ 
+          for ( int it = 0; it < nt; it++ ) {
+
+            data[iconf][it] = 0.;
+
+            for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
+              data[iconf][it   ] += *(((double*)( corr[0][iparity][iconf][isrc]+it )) + ireim );
+
+              data[iconf][it+nt] += 
+                  *(((double*)( corr[1][iparity][iconf][isrc]+it )) + ireim )
+                + *(((double*)( corr[2][iparity][iconf][isrc]+it )) + ireim );
+            }
+
+            data[iconf][it   ] /= (double)num_src_per_conf;
+            data[iconf][it+nt] /= (double)num_src_per_conf;
+          }
+        }
+
+        char obs_name[500];
+        
+        for ( int itau = 1; itau < nt; itau++ ) {
+
+          sprintf ( obs_name,  "%s.%s.%s.%s.%s.parity%d.%s.fht_ratio.tau%d", 
+              correlator_name2, diagram_list_string2, diagram_list_string3,
+              correlator_name, diagram_list_string,
+              -2*iparity+1, reim_str[ireim], itau );
+
+          int arg_first[4]  = {nt, 0, nt+itau, itau };
+          int arg_stride[4] = {1, 1, 1, 1};
+      
+          exitstatus = apply_uwerr_func ( data[0], num_conf, 2*nt, nt-itau, 4, arg_first, arg_stride, obs_name, ratio_1_1_sub, dratio_1_1_sub );
+          if ( exitstatus != 0  ) {
+            fprintf ( stderr, "[NN_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(16);
+          }
+
+        }
+
+        fini_2level_dtable ( &data );
+
+    }  /* end of loop on reim */
+  }  /* end of loop on parity */
+
+#endif  /* of if _RAT_SUB */
+
+#endif  /* of if _RAT */
+
 
   /***************************************************************************
    * free the allocated memory, finalize
    ***************************************************************************/
-  fini_6level_ztable ( &corr );
+  fini_5level_ztable ( &corr );
   fini_1level_itable ( &(conf_src_list.conf) );
   fini_3level_itable ( &(conf_src_list.src) );
   fini_1level_ctable ( &(conf_src_list.stream) );

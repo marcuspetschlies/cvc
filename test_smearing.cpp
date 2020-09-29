@@ -360,7 +360,7 @@ int main(int argc, char **argv) {
   }
 #endif
 
-  for ( int it = 0; it <= T_global; it++ )
+  for ( int it = 0; it < T_global; it++ )
   {
     int source_proc_id = -1, sx[4] = {0,0,0,0};
     int gsx[4] = { it, g_source_coords_list[0][1], g_source_coords_list[0][2], g_source_coords_list[0][3] };
