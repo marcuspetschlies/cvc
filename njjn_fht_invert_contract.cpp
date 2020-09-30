@@ -1244,6 +1244,20 @@ int main(int argc, char **argv) {
           
             for ( int ig = 0; ig < sequential_gamma_num[igamma]; ig++ ) {
 
+              for ( int i = 0; i < 12; i++ ) {
+#pragma omp parallel for
+                for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
+                
+                  unsigned int iy = _GSI(ix) + 2 * i;
+
+                  /* fill spin-color component i with noise */
+                  sequential_source[i][iy] = stochastic_vector[ix];
+
+
+                  /* multiply with gmama structure and add momentum phase */
+                }
+
+
 
 
 
@@ -1256,6 +1270,7 @@ int main(int argc, char **argv) {
 
         fini_2level_dtable ( &sequential_source );
         fini_2level_dtable ( &sequential_propagator );
+        fini_1level_dtable ( &stochastic_vector );
 
       }  /* loop on flavor type */
 
