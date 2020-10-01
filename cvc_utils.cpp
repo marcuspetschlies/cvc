@@ -2289,6 +2289,67 @@ int ranz2(double * y, unsigned int NRAND) {
   return(0);
 }  /* end of ranz2 */
 
+/********************************************************/
+/********************************************************/
+
+/********************************************************
+ * y must have real and imaginary part, i.e. length
+ * of 2 NRAND doubles
+ ********************************************************/
+int ranz3 ( double * const y, unsigned int const NRAND ) {
+
+  double const sqrt_three_half = 0.8660254037844386;
+  double const yre[3] = {1., -0.5,             -0.5             };
+  double const yim[3] = {0.,  sqrt_three_half, -sqrt_three_half };
+
+  double * rf = init_1level_dtable ( NRAND );
+  if ( rf == NULL )  {
+    fprintf ( stderr, "[ranz3] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__ );
+    return ( 1 );
+  }
+
+  ranlxd ( rf, NRAND );
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for shared(rf)
+#endif
+  for ( unsigned int k = 0; k < NRAND; k++ ) {
+    int const idx = (int)( 3 * rf[k] );
+
+    y[2*k  ] = yre[idx];
+    y[2*k+1] = yim[idx];
+    /* if ( g_verbose > 4 ) fprintf ( stdout, "# [ranz3] k = %6u rf = %25.16e idx = %d y = %25.16e %25.16e\n", k, rf[k], idx, y[2*k], y[2*k+1] ); */
+  }
+
+  fini_1level_dtable ( &rf );
+  return(0);
+}  /* end of ranz3 */
+
+/********************************************************/
+/********************************************************/
+
+/********************************************************
+ * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ * ! USE ONLY EVERY 2ND component ( = ONLY REAL PART )
+ * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ ********************************************************/
+int ranbinary(double * const y, unsigned int const NRAND) {
+
+  ranlxd(y, NRAND);
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( unsigned int k = 0; k < NRAND; k+=2 ) {
+    y[k] = (double)(2 * (int)(y[k]>=0.5) - 1);
+    y[k+1] = 0.;
+  }
+  return(0);
+}  /* end of ranbinary */
+
+/********************************************************/
+/********************************************************/
+
 /********************************************************
  * random_gauge_field
  *

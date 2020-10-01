@@ -553,6 +553,10 @@ namespace cvc {
     cvc::g_noise_type = 1;
   } else if(strcmp(yytext, "Z2")==0 ) {
     cvc::g_noise_type = 2;
+  } else if(strcmp(yytext, "Z3")==0 ) {
+    cvc::g_noise_type = 3;
+  } else if(strcmp(yytext, "B2")==0 ) {
+    cvc::g_noise_type = 4;
   }
   if(cvc::myverbose!=0) printf("# [read_input_parser] noise type set to %s\n",yytext);
 }  

@@ -148,6 +148,8 @@ int little_group_projector_set (
   int const use_refframerot = ( refframerot > -1 ) && ( refframerot < 48 );
 #elif defined CUBIC_GROUP_SINGLE_COVER
   int const use_refframerot = ( refframerot > -1 ) && ( refframerot < 24 );
+#else
+  int const use_refframerot = 0;
 #endif
 
   if ( use_refframerot ) {
