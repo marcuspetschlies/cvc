@@ -100,22 +100,22 @@ int main(int argc, char **argv) {
    * set Cg basis projection coefficients
    ***********************************************************/
   double const Cgamma_basis_matching_coeff[16] = {
-    1.00,  /*  0 =  Cgy        */
-   -1.00,  /*  1 =  Cgzg5      */
-   -1.00,  /*  2 =  Cg0        */
-    1.00,  /*  3 =  Cgxg5      */
-    1.00,  /*  4 =  Cgyg0      */
-   -1.00,  /*  5 =  Cgyg5g0    */
-    1.00,  /*  6 =  Cgyg5      */
-   -1.00,  /*  7 =  Cgz        */
-    1.00,  /*  8 =  Cg5g0      */
-    1.00,  /*  9 =  Cgx        */
-    1.00,  /* 10 =  Cgzg5g0    */
-    1.00,  /* 11 =  C          */
-   -1.00,  /* 12 =  Cgxg5g0    */
-   -1.00,  /* 13 =  Cgxg0      */
-    1.00,  /* 14 =  Cg5        */
-    1.00   /* 15 =  Cgzg0      */
+    1.00,  /*  0 =  Cgy       g0*-i=cgy   */
+   -1.00,  /*  1 =  Cgzg5     g1*-i=cgzg5 */
+   -1.00,  /*  2 =  Cg0       g2*+i=cg0   */
+    1.00,  /*  3 =  Cgxg5     g3*+i=cgxg5 */
+    1.00,  /*  4 =  Cgyg0     g4*-i=cgyg0 */
+   -1.00,  /*  5 =  Cgyg5g0   g5*+i=cgyg5g0 */
+    1.00,  /*  6 =  Cgyg5     g6*-i=cgyg5   */
+   -1.00,  /*  7 =  Cgz       g7*-i=cgz */
+    1.00,  /*  8 =  Cg5g0     g8*-i=cg5g0 */
+    1.00,  /*  9 =  Cgx       g9*+i=cgx */
+    1.00,  /* 10 =  Cgzg5g0  g10*+i=cgzg5g0  */
+    1.00,  /* 11 =  C        g11*-i=C  */
+   -1.00,  /* 12 =  Cgxg5g0  g12*-i=Cgxg5g0  */
+   -1.00,  /* 13 =  Cgxg0    g13*+i=cgxg0  */
+    1.00,  /* 14 =  Cg5      g14*+i=Cg5 */
+    1.00   /* 15 =  Cgzg0    g15*-i=cgzg0*/
   };
 
   /***********************************************************
@@ -233,6 +233,10 @@ int main(int argc, char **argv) {
    ******************************************************/
   for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
 
+    printf("%d %d %d\n", g_twopoint_function_list[i2pt].pf1[0], g_twopoint_function_list[i2pt].pf1[1], g_twopoint_function_list[i2pt].pf1[2]);
+    printf("%d %d %d\n", g_twopoint_function_list[i2pt].pf2[0], g_twopoint_function_list[i2pt].pf2[1], g_twopoint_function_list[i2pt].pf2[2]);
+
+
     /******************************************************
      * print the 2-point function parameters
      ******************************************************/
@@ -244,11 +248,17 @@ int main(int argc, char **argv) {
     twopoint_function_print ( &(g_twopoint_function_list[i2pt]), "TWPT", ofs );
     fclose ( ofs );
 
+    printf("%d %d %d\n", g_twopoint_function_list[i2pt].pf1[0], g_twopoint_function_list[i2pt].pf1[1], g_twopoint_function_list[i2pt].pf1[2]);
+    printf("%d %d %d\n", g_twopoint_function_list[i2pt].pf2[0], g_twopoint_function_list[i2pt].pf2[1], g_twopoint_function_list[i2pt].pf2[2]);
+
+
+
     /****************************************************
      * read little group parameters
      ****************************************************/
     gettimeofday ( &ta, (struct timezone *)NULL );
     little_group_type little_group;
+    printf("%s\n",g_twopoint_function_list[i2pt].group);
     if ( ( exitstatus = little_group_read ( &little_group, g_twopoint_function_list[i2pt].group, little_group_list_filename ) ) != 0 ) {
       fprintf ( stderr, "[piN2piN_projection] Error from little_group_read, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(2);
@@ -273,6 +283,7 @@ int main(int argc, char **argv) {
       fprintf ( stderr, "# [piN2piN_projection] Error from init_little_group_projector, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(2);
     }
+    
 
     /****************************************************
      * parameters for setting the projector
@@ -293,6 +304,8 @@ int main(int argc, char **argv) {
       g_twopoint_function_list[i2pt].pf1[0] + g_twopoint_function_list[i2pt].pf2[0],
       g_twopoint_function_list[i2pt].pf1[1] + g_twopoint_function_list[i2pt].pf2[1],
       g_twopoint_function_list[i2pt].pf1[2] + g_twopoint_function_list[i2pt].pf2[2] };
+    printf("%d %d %d\n", g_twopoint_function_list[i2pt].pf1[0], g_twopoint_function_list[i2pt].pf1[1], g_twopoint_function_list[i2pt].pf1[2]);
+    printf("%d %d %d\n", g_twopoint_function_list[i2pt].pf2[0], g_twopoint_function_list[i2pt].pf2[1], g_twopoint_function_list[i2pt].pf2[2]);
 
     /* if ( g_verbose > 1 ) fprintf ( stdout, "# [piN2piN_projection] twopoint_function %3d Ptot = %3d %3d %3d\n", i2pt, 
         Ptot[0], Ptot[1], Ptot[2] ); */
@@ -308,6 +321,12 @@ int main(int argc, char **argv) {
       fprintf ( stdout, "# [piN2piN_projection] twopoint_function %3d Ptot = %3d %3d %3d refframerot %2d for Pref = %3d %3d %3d\n", i2pt, 
           Ptot[0], Ptot[1], Ptot[2], refframerot, Pref[0], Pref[1], Pref[2]);
     }
+
+
+    fprintf ( stdout, "# [piN2piN_projection] twopoint_function %3d Ptot = %3d %3d %3d refframerot %2d for Pref = %3d %3d %3d\n", i2pt,
+          Ptot[0], Ptot[1], Ptot[2], refframerot, Pref[0], Pref[1], Pref[2]);
+
+
 
     fflush ( stdout );
 
@@ -343,6 +362,8 @@ int main(int argc, char **argv) {
     exitstatus = little_group_projector_show ( &projector, ofs, 1 );
     fclose ( ofs );
 
+    
+
     /****************************************************
      * check, that projector has correct d-vector
      ****************************************************/
@@ -356,6 +377,9 @@ int main(int argc, char **argv) {
 
     int const nrot      = projector.rtarget->n;
     int const irrep_dim = projector.rtarget->dim;
+
+    printf("nrot = %d\n", nrot);
+    printf("rep_dim = %d\n", irrep_dim);
 
     /******************************************************
      * loop on source locations
@@ -428,6 +452,8 @@ int main(int argc, char **argv) {
          * - copy content of current reference element of
          *   g_twopoint_function_list
          ******************************************************/
+        printf("n tp project %d irrep_dim %d \n", n_tp_project, irrep_dim);
+
         for ( int i = 0; i < n_tp_project; i++ ) {
           twopoint_function_type * tp_project_ptr = tp_project[0][0][0];
 
@@ -486,6 +512,7 @@ int main(int argc, char **argv) {
            *                                          proper rotation               rotation-reflection
            ******************************************************/
           double _Complex ** Rsl = ( irotl < nrot ) ? projector.rspin[0].R[irotl] : projector.rspin[0].IR[irotl-nrot];
+          
           memcpy ( gl.v, Rsl[0], 16*sizeof(double _Complex) );
 
           /* if ( g_verbose > 4 ) gamma_matrix_printf ( &gl, "gl", stdout ); */
@@ -500,14 +527,17 @@ int main(int argc, char **argv) {
            *   ****************************
            ******************************************************/
           /* set and rotate gf11 */
+          printf("gf11before id %d\n", gf11.id);
           gamma_matrix_set ( &gf11, g_twopoint_function_list[i2pt].gf1[0], Cgamma_basis_matching_coeff[ g_twopoint_function_list[i2pt].gf1[0] ] );
           /* gl^C gf11 gl^H */
           gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gf11, &gl, 'C', &gf11, &gl, 'H' );
+          printf("gf11after id %d\n", gf11.id);
 
           /* set and rotate gf12 */
           gamma_matrix_set ( &gf12, g_twopoint_function_list[i2pt].gf1[1], 1. );
           /* gl^N gf12 gl^H */
           gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gf12, &gl, 'N', &gf12, &gl, 'H' );
+
 
           /* check for not set or error */
           if ( gf11.id == -1 || gf12.id == -1 ) {
@@ -554,6 +584,7 @@ int main(int argc, char **argv) {
 
           double _Complex ** Rsr = ( irotr < nrot ) ? projector.rspin[0].R[irotr] : projector.rspin[0].IR[irotr-nrot];
           memcpy ( gr.v, Rsr[0], 16*sizeof(double _Complex) );
+          
 
           /******************************************************
            * Gamma_{i_1, 1/2} --->
@@ -567,6 +598,8 @@ int main(int argc, char **argv) {
           
           /* gi11 <- 2pt gi1[0] */
           gamma_matrix_set ( &gi11, g_twopoint_function_list[i2pt].gi1[0], Cgamma_basis_matching_coeff[ g_twopoint_function_list[i2pt].gi1[0] ] );
+
+          int orig_gi1id =gi11.id;
 #if 0
           /* gr^N gi11 gr^T */
           gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gi11, &gr, 'N', &gi11, &gr, 'T' );
@@ -592,6 +625,10 @@ int main(int argc, char **argv) {
           /* transcribe */
           tp.gi1[0] = gi11.id;
           tp.gi1[1] = gi12.id;
+          if (gi11.id != orig_gi1id){
+            printf("gamma structure for nucleon should be scalar\n");
+            exit(1);
+          }
 
           /******************************************************
            * Gamma_{i_2} ---> S(R) Gamma_{i_2} S(R)^+
@@ -609,7 +646,7 @@ int main(int argc, char **argv) {
             fprintf ( stdout, "# [piN2piN_projection] rot %2d %2d     gf11 %2d %6.2f   gf12 %2d %6.2f   gf2 %2d %6.2f   gi11 %2d %6.2f   gi12 %2d %6.2f   gi2 %2d %6.2f\n", 
               irotl, irotr, gf11.id, gf11.s, gf12.id, gf12.s, gf2.id, gf2.s, gi11.id, gi11.s, gi12.id, gi12.s, gi2.id, gi2.s);
 
-          if ( g_verbose > 4 && io_proc == 2 ) {
+          if ( g_verbose > 4 ) {//&& io_proc == 2 ) {
             char name[100];
             sprintf (  name, "R%.2d_TWPT_R%.2d", irotl, irotr );
             twopoint_function_print ( &tp, name, stdout );
@@ -641,12 +678,14 @@ int main(int argc, char **argv) {
              ******************************************************/
             ratime = _GET_TIME;
             int udli_id = -1;
+            printf("udli_count %d\n",udli_count);
             for ( int i = 0; i < udli_count; i++ ) {
               if ( strcmp ( udli_name, udli_list[i] ) == 0 ) {
                 udli_id  = i;
                 break;
               }
             }
+            //printf("udli name %s\n", udli_name);
             retime = _GET_TIME;
             if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_projection] time for matching udli_name = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__ );
 
@@ -664,7 +703,7 @@ int main(int argc, char **argv) {
                 fprintf ( stderr, "[piN2piN_projection] Error, maximal number of udli exceeded\n" );
                 EXIT(111);
               } else {
-                if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_projection] starting udli entry number %d\n", udli_count );
+                if ( g_verbose > -1 ) fprintf ( stdout, "# [piN2piN_projection] starting udli entry number %d\n", udli_count );
               }
 
               udli_ptr[udli_count] = ( twopoint_function_type *)malloc ( sizeof ( twopoint_function_type ) );
@@ -705,6 +744,10 @@ int main(int argc, char **argv) {
                * count new entry
                ******************************************************/
               udli_count++;
+              printf("Udlicountincreases %d\n", udli_count);
+ //             twopoint_function_print ( udli_ptr[udli_id], "tmp", stdout );
+//              twopoint_function_show_data( udli_ptr[udli_id],stdout );
+
 
             } else {
               if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_projection] udli_name %s matches udli_list[%d] %s\n", udli_name, udli_id, udli_list[udli_id] );
@@ -717,17 +760,20 @@ int main(int argc, char **argv) {
 
           }  /* end of loop on data sets = diagrams */
 
+          //twopoint_function_show_data(&tp, stdout);
+          //exit(1);
+
           /******************************************************
            * apply diagram norm
            *
            * a little overhead, since this done for each tp,
            * not each udli_ptr only
            ******************************************************/
-          if ( ( exitstatus = twopoint_function_apply_diagram_norm ( &tp ) ) != 0 ) {
+       /*   if ( ( exitstatus = twopoint_function_apply_diagram_norm ( &tp ) ) != 0 ) {
             fprintf ( stderr, "[piN2piN_projection] Error from twopoint_function_apply_diagram_norm, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(213);
           }
-
+*/
 
           /******************************************************
            * sum up data sets in tp
@@ -738,11 +784,11 @@ int main(int argc, char **argv) {
             contract_diagram_zm4x4_field_pl_eq_zm4x4_field ( tp.c[0], tp.c[i], tp.T );
           }
           */
-          if ( ( exitstatus = twopoint_function_accum_diagrams ( tp.c[0], &tp ) ) != 0 ) {
+  /*        if ( ( exitstatus = twopoint_function_accum_diagrams ( tp.c[0], &tp ) ) != 0 ) {
             fprintf ( stderr, "[piN2piN_projection] Error from twopoint_function_accum_diagrams, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(216);
           }
-
+*/
           /******************************************************
            * residual rotation of complete 4x4 correlator
            * at sink ( left ) and source ( right )
@@ -752,6 +798,8 @@ int main(int argc, char **argv) {
            * tp.c[0] <- Rsl^H x tp.c[0] x Rsr
            ******************************************************/
           contract_diagram_mat_op_ti_zm4x4_field_ti_mat_op ( tp.c[0], Rsl, 'H' , tp.c[0], Rsr, 'N', tp.T );
+          //twopoint_function_show_data(&tp, stdout);
+          
 
           /******************************************************
            * projection variants
@@ -799,8 +847,9 @@ int main(int argc, char **argv) {
               contract_diagram_zm4x4_field_eq_zm4x4_field_pl_zm4x4_field_ti_co (
                   tp_project[ref_snk][ref_src][row_snk][row_src].c[0],
                   tp_project[ref_snk][ref_src][row_snk][row_src].c[0], tp.c[0], zcoeff, tp.T );
+        //      twopoint_function_show_data(&tp_project[ref_snk][ref_src][row_snk][row_src],stdout);
 
-              if ( g_verbose > 4 ) fprintf ( stdout, "# [piN2piN_projection] zcoeff = %16.7e   %16.7e\n", creal( zcoeff ), cimag( zcoeff ) );
+              //fprintf ( stdout, "# [piN2piN_projection] zcoeff = %16.7e   %16.7e\n", creal( zcoeff ), cimag( zcoeff ) );
 
             }  // end of loop on row_src
             }  // end of loop on row_snk
@@ -811,7 +860,7 @@ int main(int argc, char **argv) {
         }  // end of loop on source rotations
         }  // end of loop on sink   rotations
 
-#if 0
+#if 1
         /******************************************************
          * check reference index rotations
          ******************************************************/
@@ -825,6 +874,8 @@ int main(int argc, char **argv) {
          *
          * loop over individiual projection variants
          ******************************************************/
+
+        printf("ntpproject %d\n", n_tp_project);
         for ( int itp = 0; itp < n_tp_project; itp++ ) {
 
           twopoint_function_type * tp_project_ptr = tp_project[0][0][0];
@@ -848,7 +899,8 @@ int main(int argc, char **argv) {
           double _Complex const ztmp = (double)( projector.rtarget->dim * projector.rtarget->dim ) / \
                                        ( 4. *    projector.rtarget->n   * projector.rtarget->n   );
 
-          if ( g_verbose > 4 ) fprintf ( stdout, "# [piN2piN_projection] correlator norm = %25.16e %25.16e\n", creal( ztmp ), cimag( ztmp ) );
+          if ( g_verbose > -4) fprintf ( stdout, "# [piN2piN_projection] correlator norm = %25.16e %25.16e\n", creal( ztmp ), cimag( ztmp ) );
+
 
           exitstatus = contract_diagram_zm4x4_field_ti_eq_co ( tp_project_ptr[itp].c[0], ztmp, tp_project_ptr[itp].T );
           if ( exitstatus != 0 ) {
@@ -860,6 +912,9 @@ int main(int argc, char **argv) {
            * write to disk
            ******************************************************/
           exitstatus = twopoint_function_write_data ( &( tp_project_ptr[itp] ) );
+
+        //  twopoint_function_show_data(&tp_project[0][0][0][0],stdout);
+
           if ( exitstatus != 0 ) {
             fprintf ( stderr, "[piN2piN_projection] Error from twopoint_function_write_data, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(12);
@@ -889,7 +944,6 @@ int main(int argc, char **argv) {
       }  // end of loop on coherent source locations
 
     }  // end of loop on base source locations
-
 
     /******************************************************
      * deallocate space inside little_group
