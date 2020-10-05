@@ -850,7 +850,7 @@ int main(int argc, char **argv) {
         /***************************************************************************
          * diagram n1
          ***************************************************************************/
-        sprintf(aff_tag, "%s/Gi_%s/Gf_%s/n1", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ]);
+        sprintf(aff_tag, "%s/Gi_%s/Gf_%s/t1", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ]);
 
         exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp, contract_v5, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
         if ( exitstatus != 0 ) {
@@ -861,7 +861,7 @@ int main(int argc, char **argv) {
         /***************************************************************************
          * diagram n2
          ***************************************************************************/
-        sprintf(aff_tag, "%s/Gi_%s/Gf_%s/n2", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ]);
+        sprintf(aff_tag, "%s/Gi_%s/Gf_%s/t2", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ]);
 
         exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp, contract_v6, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
         if ( exitstatus != 0 ) {
@@ -935,6 +935,8 @@ int main(int argc, char **argv) {
             EXIT(132);
           }
 
+          char const sequential_propagator_name = ( seq_source_type == 0 ) ? 'b' : 'd';
+
 
           /***************************************************************************
            * loop on sequential source gamma matrices
@@ -943,15 +945,6 @@ int main(int argc, char **argv) {
 
             if ( g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [njjn_fht_invert_contract] start seq source gamma set %s   %s %d\n", 
                sequential_gamma_tag[igamma], __FILE__, __LINE__);
-
-            char aff_tag_prefix[200];
-            if ( seq_source_type == 0 ) {
-              sprintf ( aff_tag_prefix, "/N-qbGqqbGq-N/q=%c/B/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/Gc_%s", flavor_tag[iflavor],
-                    gsx[0], gsx[1], gsx[2], gsx[3], momentum[0], momentum[1], momentum[2], sequential_gamma_tag[igamma] );
-            } else if ( seq_source_type == 1 ) {
-              sprintf ( aff_tag_prefix, "/N-qbGqqbGq-N/q=%c/K/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/Gc_%s", flavor_tag[iflavor],
-                    gsx[0], gsx[1], gsx[2], gsx[3], momentum[0], momentum[1], momentum[2], sequential_gamma_tag[igamma] );
-            }
 
             /***************************************************************************
              * add sequential fht vertex
@@ -1005,32 +998,41 @@ int main(int argc, char **argv) {
              *
              ***************************************************************************/
   
-            char aff_tag_prefix[200];
             char correlator_tag[20] = "N-qbGqqbGq-N";
-            char seq_source_tag[3][4] = { "B" , "K", "NA" };
-
             
-            sprintf ( aff_tag_prefix, "/%s/q=%s/N=%s%s%s/%s/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/Gc_%s", 
-                correlator_tag, flavor_tag[iflavor], flavor_tag[iflavor], flavor_tag[1-iflavor], flavor_tag[iflavor],
-                seq_source_tag[seq_source_type], gsx[0], gsx[1], gsx[2], gsx[3], momentum[0], momentum[1], momentum[2], sequential_gamma_tag[igamma] );
+            char aff_tag_prefix[200], aff_tag_prefix2[200];
+
+            sprintf ( aff_tag_prefix, "/%s/%c%c%c%c-f%c-f%c/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s",
+                    correlator_tag, 
+                    sequential_propagator_name, flavor_tag[iflavor], flavor_tag[iflavor], flavor_tag[iflavor],
+                    flavor_tag[1-iflavor],
+                    flavor_tag[iflavor],
+                    gsx[0], gsx[1], gsx[2], gsx[3],
+                    momentum[0], momentum[1], momentum[2],
+                    isample,
+                    sequential_gamma_tag[igamma] );
+
+            sprintf ( aff_tag_prefix2, "/%s/f%c-f%c-%c%c%c%c/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s",
+                    correlator_tag,
+                    flavor_tag[iflavor],
+                    flavor_tag[1-iflavor],
+                    sequential_propagator_name, flavor_tag[iflavor], flavor_tag[iflavor], flavor_tag[iflavor],
+                    gsx[0], gsx[1], gsx[2], gsx[3],
+                    momentum[0], momentum[1], momentum[2],
+                    isample,
+                    sequential_gamma_tag[igamma] );
+
+            /***************************************************************************
+             * B/D1c/i for uu uu insertion
+             ***************************************************************************/
          
             /***************************************************************************
-             ***************************************************************************
-             **
-             ** [ X^T Xb X ] - [ X^+ SEQ X ] - [ Xb^+ X^* X^+ ]
-             **
-             ** 4 diagrams
-             ***************************************************************************
-             ***************************************************************************/
-  
-            /***************************************************************************
-             * fill the fermion propagator fp with sink-smeared propagator iflavor
+             * fp = fwd up
              ***************************************************************************/
             assign_fermion_propagator_from_spinor_field ( fp, propagator_snk_smeared[iflavor], VOLUME);
 
             /***************************************************************************
-             * fill the fermion propagator fp2 with sequential_propagator
-             *   is already sink-smeared
+             * fp2 = b up-after-up-after-up 
              ***************************************************************************/
             assign_fermion_propagator_from_spinor_field ( fp2, sequential_propagator, VOLUME);
   
@@ -1041,14 +1043,13 @@ int main(int argc, char **argv) {
             for ( int if2 = 0; if2 < gamma_f1_number; if2++ ) {
       
               /***************************************************************************
-               * fill the fermion propagator fp3 with sink-smeared propagator_dn
-               *
-               * NOTE: fp3 modification IN-PLACE, so fp3 must be re-assigned here
+               * fp3 = fwd dn
                ***************************************************************************/
               assign_fermion_propagator_from_spinor_field ( fp3, propagator_snk_smeared[1-iflavor], VOLUME);
-  
+
               /***************************************************************************
-               * here we calculate fp3 = Gamma[if2] x propagator_dn / fp3 x Gamma[if1]
+               * fp3 <- Gamma[if2] x fwd dn x Gamma[if1]
+               * in-place
                ***************************************************************************/
               fermion_propagator_field_eq_gamma_ti_fermion_propagator_field ( fp3, gamma_f1_list[if2], fp3, VOLUME );
        
@@ -1079,9 +1080,9 @@ int main(int argc, char **argv) {
               }
 
               /***************************************************************************
-               * diagram t3
+               * diagram t1
                ***************************************************************************/
-              sprintf(aff_tag, "/%s/Gf_%s/Gi_%s/t3", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
+              sprintf(aff_tag, "/%s/Gf_%s/Gi_%s/t1", aff_tag_prefix2, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
      
               exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp2, contract_v5, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
               if ( exitstatus != 0 ) {
@@ -1090,9 +1091,9 @@ int main(int argc, char **argv) {
               }
 
               /***************************************************************************
-               * diagram t4
+               * diagram t2
                ***************************************************************************/
-              sprintf(aff_tag, "/%s/Gf_%s/Gi_%s/t4", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
+              sprintf(aff_tag, "/%s/Gf_%s/Gi_%s/t2", aff_tag_prefix2, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
   
               exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp2, contract_v6, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
               if ( exitstatus != 0 ) {
@@ -1106,67 +1107,61 @@ int main(int argc, char **argv) {
             /***************************************************************************/
   
             /***************************************************************************
-             ***************************************************************************
-             **
-             ** [ Xb^T X Xb ] - [ X^+ SEQ X ] - [ X^+ Xb^* Xb^+ ]
-             **
-             ** 2 diagrams
-             ***************************************************************************
+             * B/D1ci for dd dd insertion
              ***************************************************************************/
+
+            sprintf ( aff_tag_prefix, "/%s/f%c-%c%c%c%c-f%c/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s",
+                    correlator_tag,
+                    flavor_tag[1-iflavor], 
+                    sequential_propagator_name, flavor_tag[iflavor], flavor_tag[iflavor], flavor_tag[iflavor],
+                    flavor_tag[1-iflavor],
+                    gsx[0], gsx[1], gsx[2], gsx[3],
+                    momentum[0], momentum[1], momentum[2],
+                    isample,
+                    sequential_gamma_tag[igamma] );
   
             /***************************************************************************
-             * fill the fermion propagator fp with sink-smeared propagator_up
+             * fp = fwd dn
+             ***************************************************************************/
+            assign_fermion_propagator_from_spinor_field ( fp, propagator_snk_smeared[1-iflavor], VOLUME);
+  
+            /***************************************************************************
+             * fp2 = b up up up
+             ***************************************************************************/
+            assign_fermion_propagator_from_spinor_field ( fp2, sequential_propagator, VOLUME);
+  
+            /***************************************************************************
              *
-             * NOTE: fp NOT used below, only fp2 and fp3 = Xb and sequential,
-             *       so this can be left out
-             ***************************************************************************/
-            assign_fermion_propagator_from_spinor_field ( fp, propagator_snk_smeared[iflavor], VOLUME);
-  
-            /***************************************************************************
-             * fill the fermion propagator fp2 with sink-smeared propagator_dn
-             ***************************************************************************/
-            assign_fermion_propagator_from_spinor_field ( fp2, propagator_snk_smeared[1-iflavor], VOLUME);
-  
-            /***************************************************************************
-             * contractions t5, t6 for N-N type diagrams
              ***************************************************************************/
             for ( int if1 = 0; if1 < gamma_f1_number; if1++ ) {
             for ( int if2 = 0; if2 < gamma_f1_number; if2++ ) {
       
               /***************************************************************************
-               * fill the fermion propagator fp3 with sequential_propagator
-               *   is already sink-smeared
-               *
-               *  NOTE: fp3 modification is IN-PLACE so we need to re-assign here
-               ***************************************************************************/
-              assign_fermion_propagator_from_spinor_field ( fp3, sequential_propagator, VOLUME);
-  
-              /***************************************************************************
                * calculate fp3 = Gamma[if2] x propagator_dn / fp3 x Gamma[if1]
                ***************************************************************************/
-              fermion_propagator_field_eq_gamma_ti_fermion_propagator_field ( fp3, gamma_f1_list[if2], fp3, VOLUME );
+              fermion_propagator_field_eq_gamma_ti_fermion_propagator_field ( fp3, gamma_f1_list[if2], fp2, VOLUME );
         
               fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fp3, gamma_f1_list[if1], fp3, VOLUME );
         
               fermion_propagator_field_eq_fermion_propagator_field_ti_re    ( fp3, fp3, -gamma_f1_sign[if1]*gamma_f1_sign[if2], VOLUME );
       
               /***************************************************************************
-               * diagram t5
+               * diagram t1
                ***************************************************************************/
-              sprintf(aff_tag, "/%s/Gf_%s/Gi_%s/t5", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
+              sprintf(aff_tag, "/%s/Gf_%s/Gi_%s/t1", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
        
-              exitstatus = reduce_project_write ( vx, vp, fp2, fp3, fp2, contract_v5, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
+              exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp, contract_v5, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
               if ( exitstatus != 0 ) {
                 fprintf(stderr, "[njjn_fht_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(48);
               }
 
               /***************************************************************************
-               * diagram t6
+               * diagram t2
                ***************************************************************************/
-              sprintf(aff_tag, "/%s/Gf_%s/Gi_%s/t6", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
+              sprintf(aff_tag, "/%s/Gf_%s/Gi_%s/t2", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
 
-              exitstatus = reduce_project_write ( vx, vp, fp2, fp3, fp2, contract_v6, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
+              exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp, contract_v6, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
               if ( exitstatus != 0 ) {
                 fprintf(stderr, "[njjn_fht_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(48);
@@ -1267,7 +1262,6 @@ int main(int argc, char **argv) {
                *
                ***************************************************************************/
               char correlator_tag[20] = "N-qbGqqbGq-N";
-              char seq_source_tag[1][4] = { "W" };
 
               /***************************************************************************
                *  W for  uu uu type insertion
@@ -1275,7 +1269,7 @@ int main(int argc, char **argv) {
               for ( int iflavor = 0; iflavor < 2; iflavor++ ) {
 
                 char aff_tag_prefix[200];
-                sprintf ( aff_tag_prefix, "/%s/s%s%s-f%s-s%s%s/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s",
+                sprintf ( aff_tag_prefix, "/%s/w%c%c-f%c-w%c%c/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s",
                     correlator_tag, 
                     flavor_tag[iflavor], flavor_tag[iflavor], flavor_tag[1-iflavor], 
                     flavor_tag[iflavor], flavor_tag[iflavor],
@@ -1340,7 +1334,7 @@ int main(int argc, char **argv) {
 
                 char aff_tag_prefix[200], aff_tag_prefix2[200];
 
-                sprintf ( aff_tag_prefix, "/%s/s%s%s-s%s%s-f%s/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s",
+                sprintf ( aff_tag_prefix, "/%s/w%c%c-w%c%c-f%c/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s",
                     correlator_tag, 
                     flavor_tag[iflavor], flavor_tag[iflavor], 
                     flavor_tag[1-iflavor], flavor_tag[1-iflavor],
@@ -1350,7 +1344,7 @@ int main(int argc, char **argv) {
                     isample, 
                     gamma_id_to_ascii[ sequential_gamma_id[igamma][ig] ]);
 
-                sprintf ( aff_tag_prefix2, "/%s/f%s-s%s%s-s%s%s/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s",
+                sprintf ( aff_tag_prefix2, "/%s/f%c-w%c%c-w%c%c/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s",
                     correlator_tag, 
                     flavor_tag[iflavor],
                     flavor_tag[1-iflavor], flavor_tag[1-iflavor],
@@ -1437,7 +1431,7 @@ int main(int argc, char **argv) {
           }  /* end of loop on gamma set */
 
           fini_2level_dtable ( &sequential_source );
-          fini_2level_dtable ( &sequential_propagator );
+          fini_3level_dtable ( &sequential_propagator );
           fini_1level_dtable ( &stochastic_vector );
 
       }  /* end of loop oet samples  */
