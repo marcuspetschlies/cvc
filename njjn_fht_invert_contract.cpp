@@ -192,15 +192,15 @@ int main(int argc, char **argv) {
   double *gauge_field_with_phase = NULL;
   double *gauge_field_smeared = NULL;
 
-  /* int const    gamma_f1_number                           = 4;
+  int const    gamma_f1_number                           = 4;
   int const    gamma_f1_list[gamma_f1_number]            = { 14 , 11,  8,  2 };
   double const gamma_f1_sign[gamma_f1_number]            = { +1 , +1, -1, -1 };
-  */
 
+  /*
   int const    gamma_f1_number                           = 1;
   int const    gamma_f1_list[gamma_f1_number]            = { 14 };
   double const gamma_f1_sign[gamma_f1_number]            = { +1 };
-
+  */
   int read_loop_field = 0;
   char read_loop_filename[400];
 
