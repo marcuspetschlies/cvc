@@ -1002,24 +1002,24 @@ int main(int argc, char **argv) {
             
             char aff_tag_prefix[200], aff_tag_prefix2[200];
 
-            sprintf ( aff_tag_prefix, "/%s/%c%c%c%c-f%c-f%c/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s",
+            sprintf ( aff_tag_prefix, "/%s/%c%c%c%c-f%c-f%c/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/nsample%d/Gc_%s",
                     correlator_tag, 
                     sequential_propagator_name, flavor_tag[iflavor], flavor_tag[iflavor], flavor_tag[iflavor],
                     flavor_tag[1-iflavor],
                     flavor_tag[iflavor],
                     gsx[0], gsx[1], gsx[2], gsx[3],
                     momentum[0], momentum[1], momentum[2],
-                    isample,
+                    g_nsample,
                     sequential_gamma_tag[igamma] );
 
-            sprintf ( aff_tag_prefix2, "/%s/f%c-f%c-%c%c%c%c/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s",
+            sprintf ( aff_tag_prefix2, "/%s/f%c-f%c-%c%c%c%c/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/nsample%d/Gc_%s",
                     correlator_tag,
                     flavor_tag[iflavor],
                     flavor_tag[1-iflavor],
                     sequential_propagator_name, flavor_tag[iflavor], flavor_tag[iflavor], flavor_tag[iflavor],
                     gsx[0], gsx[1], gsx[2], gsx[3],
                     momentum[0], momentum[1], momentum[2],
-                    isample,
+                    g_nsample,
                     sequential_gamma_tag[igamma] );
 
             /***************************************************************************
@@ -1110,14 +1110,14 @@ int main(int argc, char **argv) {
              * B/D1ci for dd dd insertion
              ***************************************************************************/
 
-            sprintf ( aff_tag_prefix, "/%s/f%c-%c%c%c%c-f%c/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s",
+            sprintf ( aff_tag_prefix, "/%s/f%c-%c%c%c%c-f%c/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/nsample%d/Gc_%s",
                     correlator_tag,
                     flavor_tag[1-iflavor], 
                     sequential_propagator_name, flavor_tag[iflavor], flavor_tag[iflavor], flavor_tag[iflavor],
                     flavor_tag[1-iflavor],
                     gsx[0], gsx[1], gsx[2], gsx[3],
                     momentum[0], momentum[1], momentum[2],
-                    isample,
+                    g_nsample,
                     sequential_gamma_tag[igamma] );
   
             /***************************************************************************
@@ -1198,7 +1198,7 @@ int main(int argc, char **argv) {
           /***************************************************************************
            * allocate for sequential propagator and source
            ***************************************************************************/
-          double *** sequential_propagator = init_2level_dtable ( 2, 12, _GSI( VOLUME ) );
+          double *** sequential_propagator = init_3level_dtable ( 2, 12, _GSI( VOLUME ) );
           if( sequential_propagator == NULL ) {
             fprintf(stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
             EXIT(123);
