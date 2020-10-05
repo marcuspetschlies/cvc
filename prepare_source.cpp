@@ -1206,8 +1206,9 @@ int prepare_sequential_fht_twinpeak_source ( double ** const seq_source, double 
 #pragma omp for
 #endif
     for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
-      double * const _p = prop[isc] + _GSI(ix);
-      double * const _s = seq_source[isc] + _GSI(ix);
+      unsigned int const iix = _GSI( ix );
+      double * const _p = prop[isc]       + iix;
+      double * const _s = seq_source[isc] + iix;
 
       _fv_eq_gamma_ti_fv ( spinor1, gamma_id, _p );
       _fv_ti_eq_re ( spinor1, scalar_field[ix] );
