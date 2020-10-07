@@ -16,6 +16,7 @@ FILENAME [a-zA-Z0-9_".""\-""/"][a-zA-Z0-9"."_"\-""/"]+
 CORRCONFIG [0-9","";""\-""("")"][0-9","";""\-""("")"]+
 NAME [a-zA-Z0-9_]+
 TYPE [0-9A-Z]+
+FLTLIST [0-9"."","" "]*
 SDIGIT {SIGN}?[[:digit:]]
 STRING [a-zA-Z0-9"."_"\-""/"","+]+
 EQL {SPC}*={SPC}*
@@ -31,6 +32,49 @@ EQL {SPC}*={SPC}*
 #include "set_default.h"
 #include "cvc_utils.h"
 #include "twopoint_function_utils.h"
+
+// some general parsing helpers
+
+static inline void rmQuotes(char *str){
+  char* strsave=str;
+
+  while(*str== ' ' || *str == '\t') str++;
+
+  if(*str=='\"') *(strsave++)=*( ++str );
+  else fprintf(stderr,"Error in removing quotes from string:\n %s  \n" ,  str);
+  ++str;
+
+  while( !( *str=='\0' || *str == '\"' || *str == '\n') ) *(strsave++)=*(str++);
+  *strsave='\0';
+}
+
+static inline void fltlist_tokenize(const char * const str, char * const paramname, const int paramname_length){
+  char error_message[200];
+  char * token = (char*)NULL;
+  // the first token is the parameter name, we will return it, 
+  // but first check if tokenization was successful
+  token = strtok(str, "\n\t =,\\");
+  if( (void*)token == NULL ){
+    snprintf(error_message, 200, "Unable to parse '%s' in fltlist_tokenize!\n", paramname);
+    yy_fatal_error(error_message);
+  } else {
+    // return what we parsed
+    snprintf(paramname, paramname_length, "%s", token);
+  }
+}
+
+static inline double fltlist_next_token(int * const list_end){
+  double retval;
+  char * token = strtok(NULL," =,\t");
+  if( (void*)token == NULL ){
+    *list_end = 1;
+    return(0.0);
+  } else {
+    *list_end = 0;
+    sscanf(token,"%lf",&retval);
+    return(retval);
+  }
+}
 
 namespace cvc {
 
@@ -1217,6 +1261,35 @@ namespace cvc {
         &(cvc::twopoint_function_ptr->gi2) );
   }
 
+  {SPC}*listofgammas{EQL}{FLTLIST} {
+    char paramname[100];
+    char error_message[200];
+    int list_end = 0;
+    int number_of_gammas = 0;
+
+    fltlist_tokenize(yytext, paramname, 100);
+    int n_vec = (int)fltlist_next_token(&list_end);
+    while( list_end != 1 ){
+      if( number_of_gammas >= (_TWOPOINT_FUNCTION_MAX_NUMBER_OF_GAMMAS-1) ){
+        snprintf(error_message, 200, "Exceeded maximum number of gammas can be treated (%d-1) parsing %s!\n", _TWOPOINT_FUNCTION_MAX_NUMBER_OF_GAMMAS-1, paramname);
+        yy_fatal_error(error_message);
+      }
+      
+      cvc::twopoint_function_ptr->list_of_gammas[number_of_gammas][0] = n_vec;
+      printf("  %s, gamma id %d 0 set to %d line %d\n", paramname,
+                number_of_gammas,  cvc::twopoint_function_ptr->list_of_gammas[number_of_gammas][0], cvc::line_of_file);
+      n_vec = fltlist_next_token(&list_end);
+      cvc::twopoint_function_ptr->list_of_gammas[number_of_gammas][1] = n_vec;
+      printf("  %s, gamma id %d 1 set to %d line %d\n", paramname,
+                number_of_gammas,  cvc::twopoint_function_ptr->list_of_gammas[number_of_gammas][1], cvc::line_of_file);
+
+
+      number_of_gammas++;
+      n_vec = fltlist_next_token(&list_end);
+    }
+    cvc::twopoint_function_ptr->number_of_gammas = number_of_gammas;
+  }
+
   {SPC}*gf2{EQL}{SDIGIT}+ {
     sscanf(yytext, " %[a-zA-Z0-9] = %d", cvc::name,
         &(cvc::twopoint_function_ptr->gf2) );
@@ -1432,7 +1505,7 @@ namespace cvc {
   BEGIN(ERROR);
 }
 <ERROR>[^\t\n]*             {
-  printf("# [read_input_parser] Parsing error in line %d\nAborting...!\n", cvc::line_of_file);
+  printf("# [read_input_parser] Parsing error in line %s %d\nAborting...!\n", yytext, cvc::line_of_file);
   exit(1);
 }
 

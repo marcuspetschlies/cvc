@@ -9,15 +9,18 @@ typedef double ** fermion_propagator_type;
 typedef double ** spinor_propagator_type;
 
 #define _TWOPOINT_FUNCTION_TYPE_MAX_STRING_LENGTH 1200
+#define _TWOPOINT_FUNCTION_MAX_NUMBER_OF_GAMMAS 10
 
 typedef struct {
   //number of gammas initially inside the twopoint function
   int number_of_gammas_source;
   int number_of_gammas_sink;
+  int number_of_gammas;
   // type, m-m, b-b, mxb-b, mxb-mxb
   char type [20];
   // name of 2-pt function
   char name[_TWOPOINT_FUNCTION_TYPE_MAX_STRING_LENGTH];
+  int list_of_gammas[_TWOPOINT_FUNCTION_MAX_NUMBER_OF_GAMMAS][2];
   // number of diagrams
   int n;
   // list of diagrams
