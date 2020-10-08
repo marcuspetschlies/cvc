@@ -141,6 +141,9 @@ int rot_mat_spin1_cartesian ( double _Complex **R, int n[3], double omega );
 
 void rot_mat_ti_vec (double _Complex * const w, double _Complex ** const A, double _Complex * const v, int const N);
 
+void rot_mat_adj_ti_vec (double _Complex * const w, double _Complex ** const A, double _Complex * const v, int const N);
+
+
 void rot_mat_transpose_ti_vec (double _Complex *w, double _Complex **A, double _Complex *v, int N);
 
 void rot_mat_adjoint_ti_vec (double _Complex *w, double _Complex **A, double _Complex *v, int N);

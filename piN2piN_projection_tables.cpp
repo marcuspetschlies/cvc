@@ -1,4 +1,4 @@
-/****************************************************
+/***************************************************
  * piN2piN_projection
  * 
  * PURPOSE:
@@ -64,6 +64,7 @@ extern "C"
 
 
 using namespace cvc;
+
 
 /***********************************************************
  * main program
@@ -226,8 +227,11 @@ int main(int argc, char **argv) {
    ******************************************************/
   for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
 
-    printf("%d %d %d\n", g_twopoint_function_list[i2pt].pf1[0], g_twopoint_function_list[i2pt].pf1[1], g_twopoint_function_list[i2pt].pf1[2]);
-    printf("%d %d %d\n", g_twopoint_function_list[i2pt].pf2[0], g_twopoint_function_list[i2pt].pf2[1], g_twopoint_function_list[i2pt].pf2[2]);
+    printf("# [piN2piN_projection_table] start analyzing twopoint function index %d\n", i2pt);
+    printf("# [piN2piN_projection_table] pf1 (%d %d %d)\n", g_twopoint_function_list[i2pt].pf1[0], 
+                                                            g_twopoint_function_list[i2pt].pf1[1], 
+                                                            g_twopoint_function_list[i2pt].pf1[2]);
+    printf("# [piN2piN_projection_table] pf2 (%d %d %d)\n", g_twopoint_function_list[i2pt].pf2[0], g_twopoint_function_list[i2pt].pf2[1], g_twopoint_function_list[i2pt].pf2[2]);
 
 
     /******************************************************
@@ -235,14 +239,11 @@ int main(int argc, char **argv) {
      ******************************************************/
     sprintf ( filename, "twopoint_function_%d.show", i2pt );
     if ( ( ofs = fopen ( filename, "w" ) ) == NULL ) {
-      fprintf ( stderr, "[piN2piN_projection] Error from fopen %s %d\n", __FILE__, __LINE__ );
+      fprintf ( stderr, "[piN2piN_projection_table] Error from fopen %s %d\n", __FILE__, __LINE__ );
       EXIT(12);
     }
     twopoint_function_print ( &(g_twopoint_function_list[i2pt]), "TWPT", ofs );
     fclose ( ofs );
-
-    printf("%d %d %d\n", g_twopoint_function_list[i2pt].pf1[0], g_twopoint_function_list[i2pt].pf1[1], g_twopoint_function_list[i2pt].pf1[2]);
-    printf("%d %d %d\n", g_twopoint_function_list[i2pt].pf2[0], g_twopoint_function_list[i2pt].pf2[1], g_twopoint_function_list[i2pt].pf2[2]);
 
 
 
@@ -251,7 +252,7 @@ int main(int argc, char **argv) {
      ****************************************************/
     gettimeofday ( &ta, (struct timezone *)NULL );
     little_group_type little_group;
-    printf("%s\n",g_twopoint_function_list[i2pt].group);
+    printf("# [piN2piN_projection] little group %s\n",g_twopoint_function_list[i2pt].group);
     if ( ( exitstatus = little_group_read ( &little_group, g_twopoint_function_list[i2pt].group, little_group_list_filename ) ) != 0 ) {
       fprintf ( stderr, "[piN2piN_projection] Error from little_group_read, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(2);
@@ -297,11 +298,7 @@ int main(int argc, char **argv) {
       g_twopoint_function_list[i2pt].pf1[0] + g_twopoint_function_list[i2pt].pf2[0],
       g_twopoint_function_list[i2pt].pf1[1] + g_twopoint_function_list[i2pt].pf2[1],
       g_twopoint_function_list[i2pt].pf1[2] + g_twopoint_function_list[i2pt].pf2[2] };
-    printf("%d %d %d\n", g_twopoint_function_list[i2pt].pf1[0], g_twopoint_function_list[i2pt].pf1[1], g_twopoint_function_list[i2pt].pf1[2]);
-    printf("%d %d %d\n", g_twopoint_function_list[i2pt].pf2[0], g_twopoint_function_list[i2pt].pf2[1], g_twopoint_function_list[i2pt].pf2[2]);
 
-    /* if ( g_verbose > 1 ) fprintf ( stdout, "# [piN2piN_projection] twopoint_function %3d Ptot = %3d %3d %3d\n", i2pt, 
-        Ptot[0], Ptot[1], Ptot[2] ); */
 
     /****************************************************
      * do we need a reference frame rotation ?
@@ -356,7 +353,7 @@ int main(int argc, char **argv) {
     fclose ( ofs );
 
     
-
+   
     /****************************************************
      * check, that projector has correct d-vector
      ****************************************************/
@@ -375,18 +372,9 @@ int main(int argc, char **argv) {
     /******************************************************/
     /******************************************************/
     /******************************************************
-     * final, projected twopoint function struct for
-     * all the reference index choices
-     *
-     * tp_project = list of projected 2-pt functions
-     *   how many ? well,...
-     *   n_tp_project =      ref row     row sink    row source
-     *
-     *   i.e. for each reference row used in the projector
-     *   we have nrow x nrow ( source, sink ) operators
-     *   
+     *   The dimension of the irrep matrix
      ******************************************************/
-    int const n_tp_project = irrep_dim * irrep_dim * irrep_dim * irrep_dim;
+    int const n_tp_project = irrep_dim * irrep_dim ;
 
     /******************************************************
      * loop on elements of tp_project
@@ -394,15 +382,10 @@ int main(int argc, char **argv) {
      * - copy content of current reference element of
      *   g_twopoint_function_list
      ******************************************************/
-    printf("n tp project %d irrep_dim %d \n", n_tp_project, irrep_dim);
 
-    const int spin1dimension = g_twopoint_function_list[i2pt].number_of_gammas;
+    const int spin1dimension = g_twopoint_function_list[i2pt].number_of_gammas_f1;
     const int spin1212dimension = g_twopoint_function_list[i2pt].d;
-    const int dimension_coeff = g_twopoint_function_list[i2pt].number_of_gammas*g_twopoint_function_list[i2pt].d; 
-    double _Complex ** P_matrix = init_2level_ztable (dimension_coeff , dimension_coeff);
-    if ( P_matrix == NULL ) {
-      fprintf(stderr,"[piN2piN_projection_table] Error in allocating matrix for P\n");
-    }
+    const int dimension_coeff = g_twopoint_function_list[i2pt].number_of_gammas_f1*g_twopoint_function_list[i2pt].d; 
 
     gamma_matrix_type gl, gr, gf11, gf12, gf2;
     gamma_matrix_init ( &gl );
@@ -412,6 +395,12 @@ int main(int argc, char **argv) {
     for ( int ref_snk = 0; ref_snk < irrep_dim; ref_snk++ ) {
 
       for ( int row_snk = 0; row_snk < irrep_dim; row_snk++ ) {
+
+
+        double _Complex ** P_matrix = init_2level_ztable (dimension_coeff , dimension_coeff);
+        if ( P_matrix == NULL ) {
+          fprintf(stderr,"[piN2piN_projection_table] Error in allocating matrix for P\n");
+        }
         /******************************************************
          * curren projection coefficient for chosen irrep rows
          * at source and sink, together with sign factors
@@ -433,10 +422,7 @@ int main(int argc, char **argv) {
            *  this loop is on the internal spin indices of the nucleon or delta
            ********************************************************************/
   
-          for (int spin1212degree = 0; spin1212degree < spin1212dimension; ++spin1212degree ) {
-
-  
-        
+          for (int spin1212degree = 0; spin1212degree < spin1212dimension; ++spin1212degree ) { 
 
             /******************************************************
              * loop on little group elements
@@ -445,6 +431,13 @@ int main(int argc, char **argv) {
              ******************************************************/
 
             for ( int irotl = 0; irotl < 2*nrot; irotl ++ ) {
+
+
+              double _Complex *spin1212_vector=init_1level_ztable(spin1212dimension);
+              double _Complex *spin1212_rotated_vector=init_1level_ztable(spin1212dimension);
+
+              spin1212_vector[spin1212degree]=1.;
+
 
               if ( g_verbose > 3 ) fprintf ( stdout, "# [piN2piN_projection] left rotref %2d - %2d\n", irotl / nrot, irotl % nrot );
 
@@ -464,6 +457,8 @@ int main(int argc, char **argv) {
               rot_point ( pf1, g_twopoint_function_list[i2pt].pf1, Rpl );
               rot_point ( pf2, g_twopoint_function_list[i2pt].pf2, Rpl );
 
+             
+
               /******************************************************
                * set the spinor ( = spin-1/2 bispinor ) rotation matrix
                *
@@ -473,7 +468,7 @@ int main(int argc, char **argv) {
           
               memcpy ( gl.v, Rsl[0], 16*sizeof(double _Complex) );
 
-              /* if ( g_verbose > 4 ) gamma_matrix_printf ( &gl, "gl", stdout ); */
+              if ( g_verbose > 4 ) gamma_matrix_printf ( &gl, "gl", stdout ); 
 
               /******************************************************
                * Gamma_{f_1, 1/2} --->
@@ -485,19 +480,27 @@ int main(int argc, char **argv) {
                *   ****************************
                ******************************************************/
               /* set and rotate gf11 */
-              gamma_matrix_set ( &gf11, g_twopoint_function_list[i2pt].list_of_gammas[spin1degree][0], Cgamma_basis_matching_coeff[g_twopoint_function_list[i2pt].list_of_gammas[spin1degree][0]] );
+              gamma_matrix_set ( &gf11, g_twopoint_function_list[i2pt].list_of_gammas_f1[spin1degree][0], Cgamma_basis_matching_coeff[g_twopoint_function_list[i2pt].list_of_gammas_f1[spin1degree][0]] );
               /* gl^C gf11 gl^H */
               gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gf11, &gl, 'C', &gf11, &gl, 'H' );
 
               /* set and rotate gf12 */
-              gamma_matrix_set ( &gf12, g_twopoint_function_list[i2pt].list_of_gammas[spin1degree][1], 1. );
+              gamma_matrix_set ( &gf12, g_twopoint_function_list[i2pt].list_of_gammas_f1[spin1degree][1], 1. );
               /* gl^N gf12 gl^H */
               gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gf12, &gl, 'N', &gf12, &gl, 'H' );
 
 
               /* check for not set or error */
-              if ( gf11.id == -1 || gf12.id == -1 ) {
-                fprintf ( stderr, "[piN2piN_projection] Error from gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op for gf1 %s %d\n", __FILE__, __LINE__ );
+              
+              int rotated_gamma_id =  -1;
+              for (int ii=0; ii < g_twopoint_function_list[i2pt].number_of_gammas_f1; ++ii ) {
+                if (gf11.id == g_twopoint_function_list[i2pt].list_of_gammas_f1[ii][0]) {
+                  rotated_gamma_id = ii; 
+                  break;
+                }
+              }
+              if (rotated_gamma_id == -1){ 
+                fprintf ( stderr, "[piN2piN_projection_table] Error from gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op for gf1 %d irotl %d gf11.id %s %d\n",irotl,gf11.id,  __FILE__, __LINE__ );
                 EXIT(217);
               }
 
@@ -515,7 +518,7 @@ int main(int argc, char **argv) {
                * Gamma_{f_2} ---> S(R) Gamma_{f_2} S(R)^+
                ******************************************************/
               /* set and rotate gf2 */
-              gamma_matrix_set ( &gf2, g_twopoint_function_list[i2pt].gf2, 1. );
+              gamma_matrix_set ( &gf2, g_twopoint_function_list[i2pt].list_of_gammas_f2[0], 1. );
               /* gl^N gf2 gl^H */
               gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gf2, &gl, 'N', &gf2, &gl, 'H' );
 
@@ -523,9 +526,8 @@ int main(int argc, char **argv) {
               int gf2_local;
               gf2_local    = gf2.id;
 
-
-              // contract_diagram_mat_op_ti_zm4x4_field_ti_mat_op ( tp.c[0], Rsl, 'H' , tp.c[0], Rsr, 'N', tp.T );
-
+              rot_mat_ti_vec ( spin1212_rotated_vector, Rsl, spin1212_vector, spin1212dimension );
+               
               /******************************************************
                * projection variants
                ******************************************************/
@@ -548,12 +550,25 @@ int main(int argc, char **argv) {
                     continue;
                }
 
+               rot_vec_pl_eq_rot_vec_ti_co ( &P_matrix[spin1degree*spin1212dimension + spin1212degree][spin1212dimension*rotated_gamma_id], spin1212_rotated_vector , zcoeff, spin1212dimension);
+
+               fini_1level_ztable(&spin1212_vector);
+ 
+               fini_1level_ztable(&spin1212_rotated_vector);
+
 
             } /* end of loop over rotation elements */
-
+          
           } /* end of loop over spi1212degree */
 
         } /* end of loop over spin1degree */
+
+
+        rot_printf_matrix(P_matrix, dimension_coeff, "Pmatrix", stdout);
+
+
+        fini_2level_ztable( &P_matrix );
+        exit(1);
 
       }  // end of loop on row_snk
 

@@ -476,6 +476,20 @@ void rot_mat_ti_vec (double _Complex * const w, double _Complex ** const A, doub
   return;
 }  /* end of rot_mat_ti_vec */
 
+/***********************************************************
+ * w = A**H v for N-component vectors vrs v, w
+ ***********************************************************/
+void rot_mat_adj_ti_vec (double _Complex * const w, double _Complex ** const A, double _Complex * const v, int const N) {
+
+  char CHAR_T = 'C';
+  int INT_N = N, INT_1 = 1;
+  double _Complex Z_1 = 1., Z_0 = 0.;
+
+  _F(zgemv)( &CHAR_T, &INT_N, &INT_N, &Z_1, A[0], &INT_N, v, &INT_1, &Z_0, w, &INT_1, 1 );
+  return;
+}  /* end of rot_mat_ti_vec */
+
+
 
 /***********************************************************/
 /***********************************************************/

@@ -15,12 +15,14 @@ typedef struct {
   //number of gammas initially inside the twopoint function
   int number_of_gammas_source;
   int number_of_gammas_sink;
-  int number_of_gammas;
+  int number_of_gammas_f1;
+  int number_of_gammas_f2;
   // type, m-m, b-b, mxb-b, mxb-mxb
   char type [20];
   // name of 2-pt function
   char name[_TWOPOINT_FUNCTION_TYPE_MAX_STRING_LENGTH];
-  int list_of_gammas[_TWOPOINT_FUNCTION_MAX_NUMBER_OF_GAMMAS][2];
+  int list_of_gammas_f1[_TWOPOINT_FUNCTION_MAX_NUMBER_OF_GAMMAS][2];
+  int list_of_gammas_f2[_TWOPOINT_FUNCTION_MAX_NUMBER_OF_GAMMAS];
   // number of diagrams
   int n;
   // list of diagrams

@@ -1230,6 +1230,7 @@ namespace cvc {
         cvc::twopoint_function_ptr->pf1+2 );
   }
   {SPC}*pf2{EQL}{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
+    printf("valahogy ide ugrott\n");
     sscanf(yytext, " %[a-zA-Z0-9] = %d,%d,%d", cvc::name,
         cvc::twopoint_function_ptr->pf2,
         cvc::twopoint_function_ptr->pf2+1,
@@ -1261,7 +1262,7 @@ namespace cvc {
         &(cvc::twopoint_function_ptr->gi2) );
   }
 
-  {SPC}*listofgammas{EQL}{FLTLIST} {
+  {SPC}*listofgammasf1{EQL}{FLTLIST} {
     char paramname[100];
     char error_message[200];
     int list_end = 0;
@@ -1275,19 +1276,42 @@ namespace cvc {
         yy_fatal_error(error_message);
       }
       
-      cvc::twopoint_function_ptr->list_of_gammas[number_of_gammas][0] = n_vec;
+      cvc::twopoint_function_ptr->list_of_gammas_f1[number_of_gammas][0] = n_vec;
       printf("  %s, gamma id %d 0 set to %d line %d\n", paramname,
-                number_of_gammas,  cvc::twopoint_function_ptr->list_of_gammas[number_of_gammas][0], cvc::line_of_file);
+                number_of_gammas,  cvc::twopoint_function_ptr->list_of_gammas_f1[number_of_gammas][0], cvc::line_of_file);
       n_vec = fltlist_next_token(&list_end);
-      cvc::twopoint_function_ptr->list_of_gammas[number_of_gammas][1] = n_vec;
+      cvc::twopoint_function_ptr->list_of_gammas_f1[number_of_gammas][1] = n_vec;
       printf("  %s, gamma id %d 1 set to %d line %d\n", paramname,
-                number_of_gammas,  cvc::twopoint_function_ptr->list_of_gammas[number_of_gammas][1], cvc::line_of_file);
+                number_of_gammas,  cvc::twopoint_function_ptr->list_of_gammas_f1[number_of_gammas][1], cvc::line_of_file);
 
 
       number_of_gammas++;
       n_vec = fltlist_next_token(&list_end);
     }
-    cvc::twopoint_function_ptr->number_of_gammas = number_of_gammas;
+    cvc::twopoint_function_ptr->number_of_gammas_f1 = number_of_gammas;
+  }
+
+  {SPC}*listofgammasf2{EQL}{FLTLIST} {
+    char paramname[100];
+    char error_message[200];
+    int list_end = 0;
+    int number_of_gammas = 0;
+
+    fltlist_tokenize(yytext, paramname, 100);
+    int n_vec = (int)fltlist_next_token(&list_end);
+    while( list_end != 1 ){
+      if( number_of_gammas >= (_TWOPOINT_FUNCTION_MAX_NUMBER_OF_GAMMAS-1) ){
+        snprintf(error_message, 200, "Exceeded maximum number of gammas can be treated (%d-1) parsing %s!\n", _TWOPOINT_FUNCTION_MAX_NUMBER_OF_GAMMAS-1, paramname);
+        yy_fatal_error(error_message);
+      }
+
+      cvc::twopoint_function_ptr->list_of_gammas_f2[number_of_gammas] = n_vec;
+      printf("  %s, gamma f2 id %d 0 set to %d line %d\n", paramname,
+                number_of_gammas,  cvc::twopoint_function_ptr->list_of_gammas_f2[number_of_gammas], cvc::line_of_file);
+      number_of_gammas++;
+      n_vec = fltlist_next_token(&list_end);
+    }
+    cvc::twopoint_function_ptr->number_of_gammas_f2 = number_of_gammas;
   }
 
   {SPC}*gf2{EQL}{SDIGIT}+ {
