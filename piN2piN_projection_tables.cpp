@@ -387,7 +387,7 @@ int main(int argc, char **argv) {
     const int spin1212dimension = g_twopoint_function_list[i2pt].d;
     const int dimension_coeff = g_twopoint_function_list[i2pt].number_of_gammas_f1*g_twopoint_function_list[i2pt].d; 
 
-    gamma_matrix_type gl, gr, gf11, gf12, gf2;
+    gamma_matrix_type gl, gr, gf11, gf12, gf2, gi11, gi12,gi2;
     gamma_matrix_init ( &gl );
     gamma_matrix_init ( &gr );
 
@@ -526,7 +526,7 @@ int main(int argc, char **argv) {
               int gf2_local;
               gf2_local    = gf2.id;
 
-              rot_mat_ti_vec ( spin1212_rotated_vector, Rsl, spin1212_vector, spin1212dimension );
+              rot_mat_adj_ti_vec ( spin1212_rotated_vector, Rsl, spin1212_vector, spin1212dimension );
                
               /******************************************************
                * projection variants
