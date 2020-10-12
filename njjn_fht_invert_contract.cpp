@@ -455,12 +455,17 @@ int main(int argc, char **argv) {
   }
 
   /***************************************************************************
-   *
-   * prepare stochastic sources and propagators
-   * to contract the loop for insertion as part of
-   * sequential source
-   *
+   ***************************************************************************
+   **
+   ** Part I
+   **
+   ** prepare stochastic sources and propagators
+   ** to contract the loop for insertion as part of
+   ** sequential source
+   **
+   ***************************************************************************
    ***************************************************************************/
+
   double _Complex *** loop = init_3level_ztable ( VOLUME, 12, 12 );
   if ( loop  == NULL ) {
     fprintf ( stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_ztable %s %d\n", __FILE__, __LINE__ );
@@ -524,6 +529,7 @@ int main(int argc, char **argv) {
             spinor_field_tm_rotation(spinor_work[0], spinor_work[0], 1, g_fermion_type, VOLUME);
           }
 
+          /* call to (external/dummy) inverter / solver */
           exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], _OP_ID_UP );
           if(exitstatus != 0) {
             fprintf(stderr, "[njjn_fht_invert_contract] Error from tmLQCD_invert, status was %d\n", exitstatus);
