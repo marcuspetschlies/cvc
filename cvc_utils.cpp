@@ -2388,8 +2388,9 @@ int ranbinary(double * const y, unsigned int const NRAND) {
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-  for ( unsigned int k = 0; k < NRAND; k++) {
+  for ( unsigned int k = 0; k < NRAND; k+=2 ) {
     y[k] = (double)(2 * (int)(y[k]>=0.5) - 1);
+    y[k+1] = 0.;
   }
   return(0);
 }  /* end of ranbinary */
