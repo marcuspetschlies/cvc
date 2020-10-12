@@ -808,7 +808,9 @@ int main(int argc, char **argv) {
     /***************************************************************************
      ***************************************************************************
      **
-     ** Part I: fwd propagator contractions for baryon 2pts
+     ** Part II
+     **
+     ** fwd propagator contractions for baryon 2pts
      **
      ***************************************************************************
      ***************************************************************************/
@@ -913,9 +915,10 @@ int main(int argc, char **argv) {
         /***************************************************************************
          ***************************************************************************
          **
-         ** Part II: sequential inversion with loop-product sequential sources
-         **          and contractions for 
-         **          N - qbar q qbar q - N
+         ** Part III
+         **
+         ** sequential inversion with loop-product sequential sources
+         ** and contractions for N - qbar q qbar q - N B,Z,D_1c/i diagrams
          **
          ***************************************************************************
          ***************************************************************************/
@@ -1196,8 +1199,9 @@ int main(int argc, char **argv) {
       /***************************************************************************
        ***************************************************************************
        **
-       ** Part III: sequential inversion with binary noise insertion 
-       **           for twin-peak diagram
+       ** Part IV
+       **
+       ** sequential inversion with binary noise insertion for twin-peak diagram
        **
        ***************************************************************************
        ***************************************************************************/
