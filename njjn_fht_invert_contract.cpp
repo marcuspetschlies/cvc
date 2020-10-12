@@ -602,7 +602,10 @@ int main(int argc, char **argv) {
       double dtmp;
       for ( int i = 0; i< 12; i++ ) {
         for ( int k = 0; k< 12; k++ ) {
-          fscanf ( lfs, "%lf ", &dtmp );
+          if ( fscanf ( lfs, "%lf ", &dtmp ) != 1 ) {
+            fprintf ( stderr, "[njjn_fht_invert_contract] Error from fscanf %s %d\n", __FILE__, __LINE__ );
+            EXIT(12);
+          }
           loop[ix][i][k] = dtmp;
         }
         fscanf ( lfs, "\n" );
@@ -1242,6 +1245,18 @@ int main(int argc, char **argv) {
                   EXIT(123);
                 }
 
+                if ( g_write_sequential_source ) {
+                  for ( int i = 0; i < 12; i++ ) {
+                    sprintf ( filename, "sequential_source_%c.%.4d.t%dx%dy%dz%d.px%dpy%dpz%d.%s.type%d.%d", flavor_tag[iflavor], Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
+                    momentum[0], momentum[1], momentum[2], gamma_id_to_ascii[sequential_gamma_id[igamma][ig]], 2, i );
+
+                    if ( ( exitstatus = write_propagator( sequential_source[i], filename, 0, g_propagator_precision) ) != 0 ) {
+                      fprintf(stderr, "[njjn_fht_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                      EXIT(2);
+                    }
+                  }
+                }
+
                 /***************************************************************************
                  * seq. prop. from seq. source
                  *
@@ -1252,6 +1267,18 @@ int main(int argc, char **argv) {
                 if ( exitstatus != 0 ) {
                   fprintf ( stderr, "[njjn_fht_invert_contract] Error from prepare_propagator_from_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                   EXIT(123);
+                }
+
+                if ( g_write_sequential_propagator ) {
+                  for ( int i = 0; i < 12; i++ ) {
+                    sprintf ( filename, "sequential_source_%c.%.4d.t%dx%dy%dz%d.px%dpy%dpz%d.%s.type%d.%d.inverted", flavor_tag[iflavor], Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
+                    momentum[0], momentum[1], momentum[2], gamma_id_to_ascii[sequential_gamma_id[igamma][ig]], 2, i );
+
+                    if ( ( exitstatus = write_propagator( sequential_propagator[iflavor][i], filename, 0, g_propagator_precision) ) != 0 ) {
+                      fprintf(stderr, "[njjn_fht_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                      EXIT(2);
+                    }
+                  }
                 }
 
               }  /* end of loop on quark propagator flavor */
