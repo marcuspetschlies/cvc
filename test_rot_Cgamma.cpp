@@ -203,6 +203,8 @@ int main(int argc, char **argv) {
   {
 
     fprintf(stdout, "\n\n# [test_rot_Cgamma] rot no %2d\n", irot );
+    //double _Complex **R = rot_init_rotation_matrix ( 3 );
+
 
     double _Complex ** Rspin_12b = irot < nrot ? Spin_12b.R[irot] : Spin_12b.IR[irot-nrot];
     double _Complex ** Rspin_1   = irot < nrot ? Spin_1.R[irot] : Spin_1.IR[irot-nrot];
@@ -244,6 +246,10 @@ int main(int argc, char **argv) {
     /* R <- cartesian <- Spin_1 */
     double _Complex **R = init_2level_ztable ( 3, 3 );
     rot_spherical2cartesian_3x3 ( R, Rspin_1 );
+    if (irot >= nrot ){
+      rot_mat_ti_eq_re (R, -1, 3);
+    }
+
 
     if ( rot_mat_check_is_real_int ( R, 3 ) == 0 ) {
       fprintf ( stderr, "[test_rot_Cgamma] Error from rot_mat_check_is_real_int\n" );
@@ -264,7 +270,7 @@ int main(int argc, char **argv) {
 
       for ( int k = 0; k < 3; k++ ) {
 
-        // double _Complex const zcoeff = R[k][i] * g_gamma_transposed_sign[k+1] * g_gamma_transposed_sign[i+1];
+        //double _Complex const zcoeff = R[k][i] * g_gamma_transposed_sign[k+1] * g_gamma_transposed_sign[i+1];
         double _Complex const zcoeff = R[k][i];
 
         fprintf ( stdout, "# [test_rot_Cgamma] zcoeff = %25.16e %25.16e\n", creal(zcoeff), cimag(zcoeff) );
