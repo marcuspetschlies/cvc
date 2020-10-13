@@ -541,7 +541,8 @@ int main(int argc, char **argv) {
 
 
                double _Complex const zcoeff = 
-                          (double)( projector.rtarget->dim * projector.rtarget->dim ) /( 4. *    projector.rtarget->n   * projector.rtarget->n   )                          * gf11.s                               /* gamma rot sign f_1,1      */
+                          (double)( projector.rtarget->dim  ) /( 2. *    projector.rtarget->n     )                          
+                          * gf11.s                               /* gamma rot sign f_1,1      */
                           * gf12.s                               /* gamma rot sign f_1,2      */
                           * gf2.s                                /* gamma rot sign f_2        */
                           * Tirrepl[row_snk][ref_snk];           /* phase irrep matrix sink   */;
@@ -564,16 +565,17 @@ int main(int argc, char **argv) {
 
         } /* end of loop over spin1degree */
 
-
-        rot_printf_matrix(P_matrix, dimension_coeff, "Pmatrix", stdout);
-
+        char * text_output=(char *)malloc(sizeof(char)*100);
+        snprintf(text_output,100,"Pmatrix(sink_row=%d,ref_sink=%d)",row_snk,ref_snk);
+        rot_printf_matrix(P_matrix, dimension_coeff, text_output, stdout);
+        free(text_output);
 
         fini_2level_ztable( &P_matrix );
-        exit(1);
 
       }  // end of loop on row_snk
 
     }  // end of loop on ref_sink
+    exit(1);
 
 
     /******************************************************
