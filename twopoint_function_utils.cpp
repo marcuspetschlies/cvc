@@ -106,6 +106,8 @@ void twopoint_function_init ( twopoint_function_type *p ) {
   p->source_coords[2] = -1;
   p->source_coords[3] = -1;
   p->reorder = 0;
+  p->number_of_gammas_f1=0;
+  p->number_of_gammas_f2=0;
   strcpy( p->fbwd, "NA" );
   strcpy( p->group, "NA" );
   strcpy( p->irrep, "NA" );
@@ -1474,7 +1476,7 @@ int twopoint_function_data_location_identifier ( char * udli, twopoint_function_
   /******************************************************
    * key name
    ******************************************************/
-  sprintf( key, "/sx%02dsy%02dsz%02dst%03d/%s/%s", p->source_coords[0], p->source_coords[1], p->source_coords[2], p->source_coords[3], key_suffix, p->name );
+  sprintf( key, "/sx%02dsy%02dsz%02dst%03d/%s/%s", p->source_coords[1], p->source_coords[2], p->source_coords[3], p->source_coords[0], key_suffix, p->name );
   if ( g_verbose > 3 ) fprintf ( stdout, "# [twopoint_function_data_location_identifier] key = %s %s %d\n", key, __FILE__, __LINE__ );
 
   /******************************************************

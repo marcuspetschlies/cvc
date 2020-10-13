@@ -147,7 +147,7 @@ int main(int argc, char **argv) {
    * initialize gamma matrix algebra and several
    * gamma basis matrices
    ***********************************************************/
-  init_gamma_matrix ();
+  init_gamma_matrix ("cvc");
 
   /******************************************************
    * set gamma matrices
@@ -345,6 +345,10 @@ int main(int argc, char **argv) {
       {
 
         if ( g_verbose > 3 ) fprintf ( stdout, "# [test_ref_rotation] right rotref %2d - %2d\n", irotr / nrot, irotr % nrot );
+        if (irotr > nrot){
+         rot_printf_matrix ( Rsl, dim,"test", stdout );
+         exit(1);
+        }
 
         double _Complex ** Rsr = ( irotr < nrot ) ? projector.rspin[0].R[irotr] : projector.rspin[0].IR[irotr-nrot];
 
@@ -405,9 +409,9 @@ int main(int argc, char **argv) {
 
             rot_mat_pl_eq_mat_ti_co ( Cproj[ref_snk][ref_src][row_snk][row_src].c[0][0], R2, zcoeff, dim );
 
-            fprintf ( stdout, "# [test_ref_rotation] rotl %d %2d rotr %d %2d ref %2d %2d row %2d %2d z %25.16e %25.16e\n", 
-                irotl/nrot, irotl%nrot, irotr/nrot, irotr%nrot,
-                ref_snk, ref_src, row_snk, row_src, dgeps ( creal(zcoeff), 1.e-14 ), dgeps ( cimag(zcoeff), 1.e-14 ) );
+//            fprintf ( stdout, "# [test_ref_rotation] rotl %d %2d rotr %d %2d ref %2d %2d row %2d %2d z %25.16e %25.16e\n", 
+//                irotl/nrot, irotl%nrot, irotr/nrot, irotr%nrot,
+//                ref_snk, ref_src, row_snk, row_src, dgeps ( creal(zcoeff), 1.e-14 ), dgeps ( cimag(zcoeff), 1.e-14 ) );
 
           }  // end of loop on row_src
           }  // end of loop on row_snk
@@ -456,6 +460,7 @@ int main(int argc, char **argv) {
       twopoint_function_fini ( &( Cproj[0][0][0][i] ) );
     }
     fini_4level_2pttable ( &Cproj );
+    exit(1);
 
   }  // end of loop on 2-point functions
 

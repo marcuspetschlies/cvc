@@ -148,7 +148,7 @@ int main(int argc, char **argv) {
    * initialize gamma matrix algebra and several
    * gamma basis matrices
    ***********************************************************/
-  init_gamma_matrix ();
+  init_gamma_matrix ("cvc");
 
   /******************************************************
    * set gamma matrices

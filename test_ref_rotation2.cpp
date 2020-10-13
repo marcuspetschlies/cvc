@@ -89,22 +89,22 @@ int main(int argc, char **argv) {
    * set Cg basis projection coefficients
    ***********************************************************/
   double const Cgamma_basis_matching_coeff[16] = {
-    1.00,  /*  0 =  Cgy        */
+   -1.00,  /*  0 =  Cgy        */
    -1.00,  /*  1 =  Cgzg5      */
-   -1.00,  /*  2 =  Cg0        */
-    1.00,  /*  3 =  Cgxg5      */
-    1.00,  /*  4 =  Cgyg0      */
-   -1.00,  /*  5 =  Cgyg5g0    */
-    1.00,  /*  6 =  Cgyg5      */
+   +1.00,  /*  2 =  Cg0        */
+   +1.00,  /*  3 =  Cgxg5      */
+   -1.00,  /*  4 =  Cgyg0      */
+   +1.00,  /*  5 =  Cgyg5g0    */
+   -1.00,  /*  6 =  Cgyg5      */
    -1.00,  /*  7 =  Cgz        */
-    1.00,  /*  8 =  Cg5g0      */
-    1.00,  /*  9 =  Cgx        */
-    1.00,  /* 10 =  Cgzg5g0    */
-    1.00,  /* 11 =  C          */
+   -1.00,  /*  8 =  Cg5g0      */
+   +1.00,  /*  9 =  Cgx        */
+   +1.00,  /* 10 =  Cgzg5g0    */
+   -1.00,  /* 11 =  C          */
    -1.00,  /* 12 =  Cgxg5g0    */
-   -1.00,  /* 13 =  Cgxg0      */
-    1.00,  /* 14 =  Cg5        */
-    1.00   /* 15 =  Cgzg0      */
+   +1.00,  /* 13 =  Cgxg0      */
+   +1.00,  /* 14 =  Cg5        */
+   -1.00   /* 15 =  Cgzg0      */
   };
 
 #ifdef HAVE_MPI
@@ -168,7 +168,7 @@ int main(int argc, char **argv) {
    * initialize gamma matrix algebra and several
    * gamma basis matrices
    ***********************************************************/
-  init_gamma_matrix ();
+  init_gamma_matrix ("cvc");
 
   /******************************************************
    * set gamma matrices
@@ -349,6 +349,7 @@ int main(int argc, char **argv) {
     }
 
 
+    printf("%d\n",vector_dim);
     ranlxd ( (double*)(C[0][0][0]), 2 * vector_dim * vector_dim * spinor_dim * spinor_dim );
 
     for ( int i = 0; i < vector_dim; i++ ) {
@@ -614,6 +615,7 @@ int main(int argc, char **argv) {
      * check the rotation property
      ******************************************************/
     twopoint_function_check_reference_rotation_vector_spinor ( Cproj[0][0][0][0][0], &projector, 5.e-12 );
+    exit(1);
 #if 0
 #endif  /* of if 0 */
 

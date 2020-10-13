@@ -35,7 +35,7 @@ void gamma_matrix_eq_gamma_matrix_adjoint ( gamma_matrix_type *g, gamma_matrix_t
 
 void gamma_matrix_eq_gamma_matrix_conj ( gamma_matrix_type *g, gamma_matrix_type *p);
 
-void init_gamma_matrix (void);
+void init_gamma_matrix (const char *gamma_basis="cvc");
 
 void gamma_matrix_set ( gamma_matrix_type *g, int id, double s );
 

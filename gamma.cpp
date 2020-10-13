@@ -38,9 +38,9 @@ double gamma_transposed_sign[16];
 /************************************************/
 /************************************************/
 
-void init_gamma_matrix (void) {
+void init_gamma_matrix (const char *gamma_basis) {
   if( gamma_mult_table_is_initialized == 0 ) {
-    init_gamma_mult_table ();
+    init_gamma_mult_table (gamma_basis);
     gamma_mult_table_is_initialized = 1;
   } 
 }

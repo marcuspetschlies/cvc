@@ -209,7 +209,7 @@ int main(int argc, char **argv) {
    * initialize gamma matrix algebra and several
    * gamma basis matrices
    ***********************************************************/
-  init_gamma_matrix ();
+  init_gamma_matrix ("plegma");
 
   /******************************************************
    * set gamma matrices
@@ -541,14 +541,15 @@ int main(int argc, char **argv) {
 
 
                double _Complex const zcoeff = 
-                            gf11.s                               /* gamma rot sign f_1,1      */
+                          (double)( projector.rtarget->dim * projector.rtarget->dim ) /( 4. *    projector.rtarget->n   * projector.rtarget->n   )                          * gf11.s                               /* gamma rot sign f_1,1      */
                           * gf12.s                               /* gamma rot sign f_1,2      */
                           * gf2.s                                /* gamma rot sign f_2        */
-                          * Tirrepl[row_snk][ref_snk];           /* phase irrep matrix sink   */
+                          * Tirrepl[row_snk][ref_snk];           /* phase irrep matrix sink   */;
                if ( cabs( zcoeff ) < _ZCOEFF_EPS ) {
                 /* if ( g_verbose > 4 ) fprintf ( stdout, "# [piN2piN_projection] | zcoeff = %16.7e + I %16.7e | < _ZCOEFF_EPS, continue\n", creal( zcoeff ), cimag( zcoeff ) ); */
                     continue;
                }
+
 
                rot_vec_pl_eq_rot_vec_ti_co ( &P_matrix[spin1degree*spin1212dimension + spin1212degree][spin1212dimension*rotated_gamma_id], spin1212_rotated_vector , zcoeff, spin1212dimension);
 

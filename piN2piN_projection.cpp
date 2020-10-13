@@ -100,22 +100,22 @@ int main(int argc, char **argv) {
    * set Cg basis projection coefficients
    ***********************************************************/
   double const Cgamma_basis_matching_coeff[16] = {
-    1.00,  /*  0 =  Cgy       g0*-i=cgy   */
+   -1.00,  /*  0 =  Cgy       g0*-i=cgy   */
    -1.00,  /*  1 =  Cgzg5     g1*-i=cgzg5 */
-   -1.00,  /*  2 =  Cg0       g2*+i=cg0   */
-    1.00,  /*  3 =  Cgxg5     g3*+i=cgxg5 */
-    1.00,  /*  4 =  Cgyg0     g4*-i=cgyg0 */
-   -1.00,  /*  5 =  Cgyg5g0   g5*+i=cgyg5g0 */
-    1.00,  /*  6 =  Cgyg5     g6*-i=cgyg5   */
+   +1.00,  /*  2 =  Cg0       g2*+i=cg0   */
+   +1.00,  /*  3 =  Cgxg5     g3*+i=cgxg5 */
+   -1.00,  /*  4 =  Cgyg0     g4*-i=cgyg0 */
+   +1.00,  /*  5 =  Cgyg5g0   g5*+i=cgyg5g0 */
+   -1.00,  /*  6 =  Cgyg5     g6*-i=cgyg5   */
    -1.00,  /*  7 =  Cgz       g7*-i=cgz */
-    1.00,  /*  8 =  Cg5g0     g8*-i=cg5g0 */
-    1.00,  /*  9 =  Cgx       g9*+i=cgx */
-    1.00,  /* 10 =  Cgzg5g0  g10*+i=cgzg5g0  */
-    1.00,  /* 11 =  C        g11*-i=C  */
+   -1.00,  /*  8 =  Cg5g0     g8*-i=cg5g0 */
+   +1.00,  /*  9 =  Cgx       g9*+i=cgx */
+   +1.00,  /* 10 =  Cgzg5g0  g10*+i=cgzg5g0  */
+   -1.00,  /* 11 =  C        g11*-i=C  */
    -1.00,  /* 12 =  Cgxg5g0  g12*-i=Cgxg5g0  */
-   -1.00,  /* 13 =  Cgxg0    g13*+i=cgxg0  */
-    1.00,  /* 14 =  Cg5      g14*+i=Cg5 */
-    1.00   /* 15 =  Cgzg0    g15*-i=cgzg0*/
+   +1.00,  /* 13 =  Cgxg0    g13*+i=cgxg0  */
+   +1.00,  /* 14 =  Cg5      g14*+i=Cg5 */
+   -1.00   /* 15 =  Cgzg0    g15*-i=cgzg0*/
   };
 
   /***********************************************************
@@ -205,7 +205,7 @@ int main(int argc, char **argv) {
    * initialize gamma matrix algebra and several
    * gamma basis matrices
    ***********************************************************/
-  init_gamma_matrix ();
+  init_gamma_matrix ("plegma");
 
   /******************************************************
    * set gamma matrices
@@ -625,10 +625,10 @@ int main(int argc, char **argv) {
           /* transcribe */
           tp.gi1[0] = gi11.id;
           tp.gi1[1] = gi12.id;
-          if (gi11.id != orig_gi1id){
-            printf("gamma structure for nucleon should be scalar\n");
-            exit(1);
-          }
+          //if (gi11.id != orig_gi1id){
+          //  printf("gamma structure for nucleon should be scalar\n");
+          //  exit(1);
+          //}
 
           /******************************************************
            * Gamma_{i_2} ---> S(R) Gamma_{i_2} S(R)^+
@@ -746,8 +746,7 @@ int main(int argc, char **argv) {
               udli_count++;
               printf("Udlicountincreases %d\n", udli_count);
  //             twopoint_function_print ( udli_ptr[udli_id], "tmp", stdout );
-//              twopoint_function_show_data( udli_ptr[udli_id],stdout );
-
+ //              twopoint_function_show_data( udli_ptr[udli_id],stdout );
 
             } else {
               if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_projection] udli_name %s matches udli_list[%d] %s\n", udli_name, udli_id, udli_list[udli_id] );
@@ -912,6 +911,7 @@ int main(int argc, char **argv) {
            * write to disk
            ******************************************************/
           exitstatus = twopoint_function_write_data ( &( tp_project_ptr[itp] ) );
+          
 
         //  twopoint_function_show_data(&tp_project[0][0][0][0],stdout);
 
