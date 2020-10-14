@@ -330,8 +330,8 @@ inline little_group_projector_applicator_type * show_little_group_projector_appl
         for ( int k = 0; k < a->interpolator_dim[iop]; k++ ) {
           double const dre = __dgeps ( creal( a->v[iparity][irot][iop][k]), eps );
           double const dim = __dgeps ( cimag( a->v[iparity][irot][iop][k]), eps );
-          /* fprintf ( myofs, " %16.7e +I %16.7e,", dre, dim ); */
-          fprintf ( myofs, " %4.1f +I %4.1f,", dre, dim );
+          fprintf ( myofs, " %16.7e +I %16.7e,", dre, dim );
+          /* fprintf ( myofs, " %4.1f +I %4.1f,", dre, dim ); */
               // creal( a->v[0][irot][iop][k]), cimag( a->v[0][irot][iop][k] ) );
         }
         fprintf ( myofs, ")" );
