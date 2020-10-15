@@ -77,10 +77,11 @@ ZGEQRF computes a QR factorization of a complex M-by-N matrix A:
 
 extern "C" void _F(zgeqrf) (int* M, int*N, _Complex double *A, int*LDA, _Complex double *TAU, _Complex double *WORK, int*LWORK, int*INFO );
 
+extern "C" void _F(zungqr) ( int * M, int * N, int * K, double _Complex * A, int * LDA, double _Complex * TAU, double _Complex * WORK, int * LWORK, int * INFO);
 
 extern "C" void _F(zgeqr)( int * M, int * N, double _Complex * A, int * LDA, double _Complex * T, int * TSIZE, double _Complex * WORK, int * LWORK, int * INFO );
 
-extern "C" void _F(zgemqr)( 	character  	SIDE, char *  TRANS, int * M, int * N, int * K, double _Complex * A, int * LDA, double _Complex* T, int * TSIZE, double _Complex * C, int * LDC, double _Complex * WORK, int * LWORK, int * INFO, int len_TRANS ); 
+extern "C" void _F(zgemqr)( char * SIDE, char *  TRANS, int * M, int * N, int * K, double _Complex * A, int * LDA, double _Complex* T, int * TSIZE, double _Complex * C, int * LDC, double _Complex * WORK, int * LWORK, int * INFO, int len_SIDE, int len_TRANS ); 
 
 
 #endif
