@@ -33,6 +33,7 @@ extern "C"
 
 #define MAIN_PROGRAM
 
+#include "iblas.h"
 #include "cvc_complex.h"
 #include "cvc_linalg.h"
 #include "global.h"
@@ -485,7 +486,12 @@ int main(int argc, char **argv) {
           /* http://www.netlib.org/lapack/explore-html/d4/d19/zgeqr_8f_a8ae88d8fdedeebfac10501b91406241b.html#a8ae88d8fdedeebfac10501b91406241b */
 
           int ZGEQR_INFO;
-          _F(zgeqr)( &spinor_dim, &spinor_dim, pma_onb[imu][ibeta][0], &spinor_dim, ZGEQR_T, ZGEQR_TSIZE, ZGEQR_WORK, ZGEQR_LWORK, &ZGEQR_INFO );
+          int ZGEQR_TSIZE = -1;
+          int ZGEQR_T_OPTIM;
+          double _Complex ZGEQR_WORK_OPTIM;
+          int ZGEQR_LWORK = -1;
+
+          _F(zgeqr)( &spinor_dim, &spinor_dim, pma_onb[imu][ibeta][0], &spinor_dim, &ZGEQR_T_OPTIM, &ZGEQR_TSIZE, &ZGEQR_WORK_OPTIM, &ZGEQR_LWORK, &ZGEQR_INFO );
 
 
           for ( int ir = 0; ir < spinor_dim; ir++ ) {

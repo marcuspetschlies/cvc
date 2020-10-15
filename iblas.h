@@ -80,7 +80,7 @@ extern "C" void _F(zgeqrf) (int* M, int*N, _Complex double *A, int*LDA, _Complex
 
 extern "C" void _F(zgeqr)( int * M, int * N, double _Complex * A, int * LDA, double _Complex * T, int * TSIZE, double _Complex * WORK, int * LWORK, int * INFO );
 
-extern "C" void _F(zgemqr)( 	character  	SIDE, char *  TRANS, int * M, int * N, int * K, double _Complex * A, int * LDA, double _Complex* T, int * TSIZE, double _Complex * C, int * LDC, double _Complex * WORK, int * LWORK, int * INFO, int len_TRANS ); 
+extern "C" void _F(zgemqr) ( char * SIDE, char *  TRANS, int * M, int * N, int * K, double _Complex * A, int * LDA, double _Complex* T, int * TSIZE, double _Complex * C, int * LDC, double _Complex * WORK, int * LWORK, int * INFO, int len_TRANS ); 
 
 
 #endif
