@@ -52,12 +52,16 @@ extern "C"
 
 
 using namespace cvc;
+#define _USE_GS 1
+#define _USE_QR 0
 
+
+#if _USE_GS
 inline double _Complex co_eq_v_dag_ti_w ( double _Complex * const r , double _Complex * const s , int const dim ) {
   double _Complex res = 0.;
   for ( int i = 0; i < dim; i++ ) res += conj( r[i] ) * s[i] ;
   return ( res );
-}
+}  /* end of co_eq_v_dag_ti_w */
 
 inline double re_eq_v_dag_ti_v ( double _Complex * const r , int const dim ) {
   double res = 0.;
@@ -67,16 +71,44 @@ inline double re_eq_v_dag_ti_v ( double _Complex * const r , int const dim ) {
     res += a * a + b * b;
   }
   return ( res );
-}
+}  /* end of re_eq_v_dag_ti_v  */
 
 inline void v_pl_eq_co_ti_w ( double _Complex * const v , double _Complex * const w, double _Complex const z, int const dim  ) {
   for ( int i =0; i<dim; i++ ) v[i] += z * w[i];
-}
+}  /* end of v_pl_eq_co_ti_w  */
+ 
+int gs_onb_mat ( double _Complex ** const r, double _Complex ** const u, double _Complex ** const v, int const dim ) {
+  if ( u == v ) return ( 1 );
+  /* 1st vector */
+
+  double _Complex ** A = init_2level_ztable ( dim, dim );
+
+  rot_mat_unity ( r, dim );
+
+  for ( int i = 0; i < dim; i++ ) {
+    rot_mat_unity ( A, dim );
+    memcpy( u[i], v[i], dim*sizeof(double _Complex ));
+    for ( int k = i-1; k >= 0 ; k--) {
+      double const norm = re_eq_v_dag_ti_v ( u[k],  dim );
+      double _Complex const z = norm < eps ? 0. : co_eq_v_dag_ti_w ( u[k], v[i] , dim ) / norm;
+      A[i][k] = -z;
+      v_pl_eq_co_ti_w ( u[i], u[k], -z, dim  );
+    }
+
+    /* accumulate r <- A x r */
+    rot_mat_ti_mat ( r, A, r, dim );
+  }
+
+  fini_2level_ztable ( &A );
+
+  return ( 0 );
+}  /* end of gs_onb_mat */
 
 
 int gs_onb ( double _Complex ** const u, double _Complex ** const v, int const n, int const dim ) {
   if ( u == v ) return ( 1 );
   /* 1st vector */
+
   memcpy( u[0], v[0], dim*sizeof(double _Complex ));
   for ( int i = 1; i < n; i++ ) {
     memcpy( u[i], v[i], dim*sizeof(double _Complex ));
@@ -86,9 +118,11 @@ int gs_onb ( double _Complex ** const u, double _Complex ** const v, int const n
       v_pl_eq_co_ti_w ( u[i], u[k], -z, dim  );
     }
   }
+
   return( 0 );
 }
 
+#endif  /* of _USE_GS */
 
 int main(int argc, char **argv) {
 
@@ -246,7 +280,8 @@ int main(int argc, char **argv) {
   /****************************************************
    * loop on little groups
    ****************************************************/
-  for ( int ilg = 0; ilg < nlg; ilg++ )
+  // for ( int ilg = 0; ilg < nlg; ilg++ )
+  for ( int ilg = 0; ilg < 1; ilg++ )
   {
 
     int const n_irrep = lg[ilg].nirrep;
@@ -299,7 +334,8 @@ int main(int argc, char **argv) {
      * loop on irreps
      *   within little group
      ****************************************************/
-    for ( int i_irrep = 0; i_irrep < n_irrep; i_irrep++ )
+    // for ( int i_irrep = 0; i_irrep < n_irrep; i_irrep++ )
+    for ( int i_irrep = 5; i_irrep < 6; i_irrep++ )
     {
 
       /****************************************************
@@ -320,7 +356,10 @@ int main(int argc, char **argv) {
 
       double _Complex **** projection_matrix_a = init_4level_ztable ( irrep_dim, irrep_dim, spinor_dim, spinor_dim );
       double _Complex **** projection_matrix_c = init_4level_ztable ( irrep_dim, irrep_dim, spinor_dim, spinor_dim );
-      double _Complex **** pma_onb = init_4level_ztable ( irrep_dim, irrep_dim, spinor_dim, spinor_dim );
+
+      double _Complex ***** pma_gs = init_5level_ztable ( 2, irrep_dim, irrep_dim, spinor_dim, spinor_dim );
+      double _Complex ***** pma_qr = init_5level_ztable ( 2, irrep_dim, irrep_dim, spinor_dim, spinor_dim );
+
       double _Complex **** pmc_onb = init_4level_ztable ( irrep_dim, irrep_dim, spinor_dim, spinor_dim );
 
       /****************************************************
@@ -370,8 +409,13 @@ int main(int argc, char **argv) {
       fprintf ( stdout, "# [projection_matrix_D] irrep_dim   = %d\n", irrep_dim );
 
 
-      for ( int ibeta = 0; ibeta < r_irrep.dim; ibeta++ ) {
-        for ( int imu = 0; imu < r_irrep.dim; imu++ ) {
+      // for ( int ibeta = 0; ibeta < r_irrep.dim; ibeta++ )
+      for ( int ibeta = 0; ibeta < 1; ibeta++ )
+      {
+
+        // for ( int imu = 0; imu < r_irrep.dim; imu++ ) 
+        for ( int imu = 0; imu < 1; imu++ ) 
+        {
 
           for ( int ir = 0; ir < p.rtarget->n ; ir++ ) {
 
@@ -440,79 +484,109 @@ int main(int argc, char **argv) {
 #endif
           for ( int ir = 0; ir < spinor_dim; ir++ ) {
           for ( int is = 0; is < spinor_dim; is++ ) {
-            if ( cabs( projection_matrix_a[imu][ibeta][ir][is] ) > eps  ) {
+            // if ( cabs( projection_matrix_a[imu][ibeta][ir][is] ) > eps  ) {
               fprintf (stdout, "annihilation P %2d %2d    %2d %2d    %25.16e %25.16e\n", ir/p.rspin[1].dim, ir%p.rspin[1].dim, is/p.rspin[1].dim, is%p.rspin[1].dim,
                   __dgeps( creal( projection_matrix_a[imu][ibeta][ir][is] ), eps  ), __dgeps( cimag( projection_matrix_a[imu][ibeta][ir][is] ), eps ) );
-            }
+            //}
           }}
 
-          fprintf( stdout, "\n\n");
-
+#if _USE_GS
           /****************************************************
-           * build Gram-Schmidt matrix
+           * version I: build Gram-Schmidt matrix
            ****************************************************/
 #if 0
-          rot_mat_ti_mat_adj ( pma_onb[imu][ibeta], projection_matrix_a[imu][ibeta], projection_matrix_a[imu][ibeta], spinor_dim );
+          gs_onb ( pma_gs[1][imu][ibeta], projection_matrix_a[imu][ibeta], spinor_dim, spinor_dim );
 
-          for ( int is = 0; is < spinor_dim; is++ ) {
-            double norm = cabs( pma_onb[imu][ibeta][is][is] );
-            if ( norm < eps ) {
-              norm = 0.;
-              pma_onb[imu][ibeta][is][is] = 0.;
-            } else {
-              norm = 1. / norm;
-              for ( int ir = is+1; ir < spinor_dim; ir++ ) {
-                pma_onb[imu][ibeta][ir][is] *= -norm;
-              }
-              pma_onb[imu][ibeta][is][is] = 1.;
-            }
-
-          }
-          for ( int ir = 0; ir < spinor_dim; ir++ ) {
-          for ( int is = ir+1; is < spinor_dim; is++ ) {
-            pma_onb[imu][ibeta][ir][is] = 0.;
-          }}
-
-#endif
-          gs_onb ( pma_onb[imu][ibeta], projection_matrix_a[imu][ibeta], spinor_dim, spinor_dim );
-
-#if 0
-
-          _F(zgeqrf) ( &spinor_dim, &spinor_dimN, pma_onb[imu][ibeta][0], &spinor_dim, _Complex double *TAU, _Complex double *WORK, int*LWORK, int*INFO );
-#endif
-          memcpy ( pma_onb[imu][ibeta][0], projection_matrix_a[imu][ibeta][0], spinor_dim*spinor_dim*sizeof(double _Complex ) );
-
-
-          /* http://www.netlib.org/lapack/explore-html/d4/d19/zgeqr_8f_a8ae88d8fdedeebfac10501b91406241b.html#a8ae88d8fdedeebfac10501b91406241b */
-
-          int ZGEQR_INFO;
-          int ZGEQR_TSIZE = -1;
-          int ZGEQR_T_OPTIM;
-          double _Complex ZGEQR_WORK_OPTIM;
-          int ZGEQR_LWORK = -1;
-
-          _F(zgeqr)( &spinor_dim, &spinor_dim, pma_onb[imu][ibeta][0], &spinor_dim, &ZGEQR_T_OPTIM, &ZGEQR_TSIZE, &ZGEQR_WORK_OPTIM, &ZGEQR_LWORK, &ZGEQR_INFO );
-
-
-          for ( int ir = 0; ir < spinor_dim; ir++ ) {
-          for ( int is = 0; is < spinor_dim; is++ ) {
-            if ( cabs( pma_onb[imu][ibeta][ir][is] ) > eps  ) {
-              fprintf (stdout, "annihilation P ONB %2d %2d    %2d %2d    %25.16e %25.16e\n", ir/p.rspin[1].dim, ir%p.rspin[1].dim, is/p.rspin[1].dim, is%p.rspin[1].dim,
-                  __dgeps( creal( pma_onb[imu][ibeta][ir][is] ), eps ), __dgeps( cimag( pma_onb[imu][ibeta][ir][is] ), eps ) );
-            }
-          }}
           fprintf (  stdout, "\n" );
+          for ( int ir = 0; ir < spinor_dim; ir++ ) {
+          for ( int is = 0; is < spinor_dim; is++ ) {
+            if ( cabs( pma_gs[1][imu][ibeta][ir][is] ) > eps  ) {
+              fprintf (stdout, "annihilation P GS %2d %2d    %2d %2d    %25.16e %25.16e\n", ir/p.rspin[1].dim, ir%p.rspin[1].dim, is/p.rspin[1].dim, is%p.rspin[1].dim,
+                  __dgeps( creal( pma_gs[1][imu][ibeta][ir][is] ), eps ), __dgeps( cimag( pma_gs[1][imu][ibeta][ir][is] ), eps ) );
+            }
+          }}
+#endif     
+          gs_onb_mat ( pma_gs[0][imu][ibeta], pma_gs[1][imu][ibeta], projection_matrix_a[imu][ibeta], spinor_dim );
 
-#if 0
-          rot_mat_ti_mat ( projection_matrix_a[imu][ibeta], pma_onb[imu][ibeta], projection_matrix_a[imu][ibeta], spinor_dim );
+
+          fprintf (  stdout, "\n" );
+          for ( int ir = 0; ir < spinor_dim; ir++ ) {
+          for ( int is = 0; is < spinor_dim; is++ ) {
+            // if ( cabs( pma_gs[0][imu][ibeta][ir][is] ) > eps  ) {
+              fprintf (stdout, "annihilation R GS %2d %2d    %2d %2d    %25.16e %25.16e\n",
+                  ir/p.rspin[1].dim, ir%p.rspin[1].dim, is/p.rspin[1].dim, is%p.rspin[1].dim,
+                  __dgeps( creal( pma_gs[0][imu][ibeta][ir][is] ), eps ), __dgeps( cimag( pma_gs[0][imu][ibeta][ir][is] ), eps ) );
+            // }
+          }}
+
+
+          double _Complex ** pma_onb = init_2level_ztable ( spinor_dim, spinor_dim );
+
+          rot_mat_ti_mat ( pma_onb, pma_gs[0][imu][ibeta], projection_matrix_a[imu][ibeta], spinor_dim );
 
           for ( int ir = 0; ir < spinor_dim; ir++ ) {
           for ( int is = 0; is < spinor_dim; is++ ) {
-            if ( cabs( projection_matrix_a[imu][ibeta][ir][is] ) > eps  ) {
-              fprintf (stdout, "annihilation P ONB %2d %2d    %2d %2d    %25.16e %25.16e\n", ir/p.rspin[1].dim, ir%p.rspin[1].dim, is/p.rspin[1].dim, is%p.rspin[1].dim,
-                  __dgeps( creal( projection_matrix_a[imu][ibeta][ir][is] ), eps ), __dgeps( cimag( projection_matrix_a[imu][ibeta][ir][is] ), eps ) );
+            if ( cabs( pma_onb[ir][is] ) > eps  ) {
+              fprintf (stdout, "annihilation P GS-ONB %2d %2d    %2d %2d    %25.16e %25.16e\n",
+                  ir/p.rspin[1].dim, ir%p.rspin[1].dim, is/p.rspin[1].dim, is%p.rspin[1].dim,
+                  __dgeps( creal( pma_onb[ir][is]  ), eps ), __dgeps( cimag( pma_onb[ir][is] ), eps ) );
             }
           }}
+          
+          fprintf (  stdout, "\n" );
+          for ( int ir = 0; ir < spinor_dim; ir++ ) {
+          for ( int is = 0; is < spinor_dim; is++ ) {
+            if ( cabs( pma_gs[1][imu][ibeta][ir][is] ) > eps  ) {
+              fprintf (stdout, "annihilation P GS %2d %2d    %2d %2d    %25.16e %25.16e\n", ir/p.rspin[1].dim, ir%p.rspin[1].dim, is/p.rspin[1].dim, is%p.rspin[1].dim,
+                  __dgeps( creal( pma_gs[1][imu][ibeta][ir][is] ), eps ), __dgeps( cimag( pma_gs[1][imu][ibeta][ir][is] ), eps ) );
+            }
+          }}
+
+          fini_2level_ztable ( &pma_onb );
+
+#endif  /* of _USE_GS */
+
+#if _USE_QR
+          /****************************************************
+           * version II : QR decomposition
+           ****************************************************/
+          double _Complex ** const _pma_q = pma_qr[0][imu][ibeta];
+          double _Complex ** const _pma_r = pma_qr[1][imu][ibeta];
+          double _Complex ** const _pma = projection_matrix_a[imu][ibeta];
+
+          rot_mat_trans ( _pma, _pma, spinor_dim );
+
+          exitstatus = qr_mat ( _pma_q, _pma_r, _pma, spinor_dim );
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "# [projection_matrix_D] Error from qr_mat, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(2);
+          }
+
+          // rot_mat_trans ( _pma, _pma, spinor_dim );
+
+          fprintf (  stdout, "\n" );
+          for ( int ir = 0; ir < spinor_dim; ir++ ) {
+          for ( int is = 0; is < spinor_dim; is++ ) {
+            if ( cabs( _pma_r[ir][is] ) > eps  ) {
+              fprintf (stdout, "annihilation R QR %2d %2d    %2d %2d    %25.16e %25.16e\n",
+                  ir/p.rspin[1].dim, ir%p.rspin[1].dim, is/p.rspin[1].dim, is%p.rspin[1].dim,
+                  __dgeps( creal( _pma_r[ir][is] ), eps ), __dgeps( cimag( _pma_r[ir][is] ), eps ) );
+                  /* __dgeps( creal( _pma_q[ir][is] ), eps ), __dgeps( cimag( _pma_q[ir][is] ), eps ) ); */
+            }
+          }}
+
+          fprintf (  stdout, "\n" );
+          for ( int ir = 0; ir < spinor_dim; ir++ ) {
+          for ( int is = 0; is < spinor_dim; is++ ) {
+              fprintf (stdout, "annihilation Q QR %2d %2d    %2d %2d    %25.16e %25.16e\n",
+                  ir/p.rspin[1].dim, ir%p.rspin[1].dim, is/p.rspin[1].dim, is%p.rspin[1].dim,
+                  __dgeps( creal( _pma_q[ir][is] ), eps ), __dgeps( cimag( _pma_q[ir][is] ), eps ) );
+                  /* __dgeps( creal( _pma_q[ir][is] ), eps ), __dgeps( cimag( _pma_q[ir][is] ), eps ) ); */
+          }}
+
+#endif  /* of _USE_QR */
+
+#if 0
 #endif
           fprintf (  stdout, "\n\n\n" );
 
@@ -559,7 +633,8 @@ int main(int argc, char **argv) {
 
       fini_4level_ztable ( &projection_matrix_a );
       fini_4level_ztable ( &projection_matrix_c );
-      fini_4level_ztable ( &pma_onb );
+      fini_5level_ztable ( &pma_qr );
+      fini_5level_ztable ( &pma_gs );
       fini_4level_ztable ( &pmc_onb );
 
     }  /* end of loop on irreps */

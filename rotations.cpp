@@ -118,6 +118,25 @@ void rot_printf_matrix (double _Complex **R, int N, char *A, FILE*ofs ) {
   }
 }  /* end of rot_printf_matrix */
  
+/***********************************************************
+ *
+ ***********************************************************/
+void rot_printm_matrix (double _Complex ** const R, int const N, char * const A, FILE*ofs ) {
+  const double eps = 5.e-14;
+  if ( g_cart_id == 0 ) {
+    fprintf(ofs, "%s\n", A );
+    for( int ik = 0; ik < N; ik++ ) {
+      for( int il = 0; il < N; il++ ) {
+        double dre = creal( R[ik][il] );
+        double dim = cimag( R[ik][il] );
+        // fprintf(ofs, "%25.16e   %25.16e   ", ( fabs(dre) > eps ? dre : 0. ), ( fabs(dim) > eps ? dim : 0. ) );
+        fprintf(ofs, "%16.7e   %16.7e   ", ( fabs(dre) > eps ? dre : 0. ), ( fabs(dim) > eps ? dim : 0. ) );
+      }
+      fprintf ( ofs, "\n" );
+    }
+    fflush(ofs);
+  }
+}  /* end of rot_printm_matrix */
 
 /***********************************************************/
 /***********************************************************/
@@ -2691,6 +2710,120 @@ void rot_vec_printf (double _Complex * const v, int const N, char *A, FILE*ofs )
   }
   fflush(ofs);
 }  // end of rot_printf_matrix
+
+
+/***********************************************************************************************/
+/***********************************************************************************************/
+
+
+
+int qr_mat ( double _Complex ** q, double _Complex ** const r, double _Complex ** const a, int const dim ) {
+
+  int BLAS_INFO;
+  int BLAS_M     = dim;
+  int BLAS_N     = BLAS_M;
+  int BLAS_LDA   = BLAS_M;
+  int BLAS_LWORK = BLAS_N;
+  int BLAS_K     = _MIN( BLAS_M, BLAS_N );
+  double _Complex ** BLAS_A   = init_2level_ztable ( BLAS_M, BLAS_N );
+  double _Complex * BLAS_TAU  = init_1level_ztable ( BLAS_K );
+  double _Complex * BLAS_WORK = init_1level_ztable ( BLAS_LWORK );
+
+  if ( BLAS_A == NULL || BLAS_TAU == NULL || BLAS_WORK == NULL ) {
+    fprintf( stderr, "[qr_mat] Error from init_Xlevel_ztable %s %d\n", __FILE__, __LINE__ );
+    return(3);
+  }
+
+  if ( g_verbose > 4 ) {
+    fprintf( stdout, "\n\n");
+    for ( int ir = 0; ir < BLAS_M; ir++ ) {
+    for ( int is = 0; is < BLAS_N; is++ ) {
+      fprintf( stdout, "# [qr_mat] Ain %2d %2d  %25.16e %25.16e\n", ir, is, creal( a[ir][is] ), cimag( a[ir][is] ) );
+    }}
+  }
+
+  rot_mat_trans ( BLAS_A, a, BLAS_M );
+
+  _F(zgeqrf) ( &BLAS_M, &BLAS_N, BLAS_A[0], &BLAS_LDA, BLAS_TAU, BLAS_WORK, &BLAS_LWORK, &BLAS_INFO );
+
+  if ( BLAS_INFO != 0 ) {
+    fprintf( stderr, "[qr_mat] Error from zgeqrf, status was %d %s %d\n", BLAS_INFO, __FILE__, __LINE__ );
+    return(1);
+  }  else {
+    if ( g_verbose > 4 ) fprintf( stdout, "# [qr_mat] zgeqrf BLAS_INFO = %d\n", BLAS_INFO );
+  }
+
+  if ( g_verbose > 4 ) {
+    fprintf( stdout, "\n\n");
+    for ( int ir = 0; ir < BLAS_M; ir++ ) {
+    for ( int is = 0; is < BLAS_N; is++ ) {
+      fprintf( stdout, "# [qr_mat] A %2d %2d  %25.16e %25.16e\n", ir, is, creal( BLAS_A[ir][is] ), cimag( BLAS_A[ir][is] ) );
+    }} 
+
+    fprintf( stdout, "\n\n");
+    for ( int ir = 0; ir < BLAS_K; ir++ ) {
+      fprintf( stdout, "# [qr_mat] TAU %2d    %25.16e %25.16e\n", ir, creal( BLAS_TAU[ir] ), cimag( BLAS_TAU[ir] ) );
+    }
+
+  }
+
+  memset ( r[0], 0, dim*dim*sizeof(double _Complex) );
+  for ( int ir = 0; ir < BLAS_M; ir++ ){
+  for ( int is = ir; is < BLAS_N; is++ ){
+    /* extract upper triangular part of BLAS_A into r
+     * TRANSPOSE AGAIN */
+    r[ir][is] = BLAS_A[is][ir];
+  }}
+
+  if ( g_verbose > 4 ) {
+    fprintf( stdout, "\n\n");
+    for ( int ir = 0; ir < BLAS_M; ir++ ) {
+    for ( int is = 0; is < BLAS_N; is++ ) {
+      fprintf( stdout, "# [qr_mat] R %2d %2d  %25.16e %25.16e\n", ir, is, creal( r[ir][is] ), cimag( r[ir][is] ) );
+    }}
+  }
+
+  _F(zungqr) ( &BLAS_M, &BLAS_N, &BLAS_K, BLAS_A[0], &BLAS_LDA, BLAS_TAU,  BLAS_WORK, &BLAS_LWORK, &BLAS_INFO);
+
+  if ( BLAS_INFO != 0 ) {
+    fprintf( stderr, "[qr_mat] Error from zungqr, status was %d %s %d\n", BLAS_INFO, __FILE__, __LINE__ );
+    return(2);
+  }  else {
+    if ( g_verbose > 4 ) fprintf( stdout, "# [qr_mat] zungqr BLAS_INFO = %d\n", BLAS_INFO );
+  }
+   
+  /* transpose Q */
+  rot_mat_trans ( q, BLAS_A, BLAS_M );
+
+  if ( g_verbose > 4 ) {
+    fprintf( stdout, "\n\n");
+    for ( int ir = 0; ir < BLAS_M; ir++ ) {
+    for ( int is = 0; is < BLAS_N; is++ ) {
+      fprintf( stdout, "# [qr_mat] Q %2d %2d  %25.16e %25.16e\n", ir, is, creal( q[ir][is] ), cimag( q[ir][is] ) );
+    }}
+  }
+   
+  /**************************************************************
+   * test QR decompostion of a
+   **************************************************************/
+  if ( g_verbose > 4 ) {
+  
+    rot_mat_ti_mat ( BLAS_A, q, r, BLAS_M );
+
+    fprintf( stdout, "\n\n");
+    for ( int ir = 0; ir < BLAS_M; ir++ ) {
+    for ( int is = 0; is < BLAS_N; is++ ) {
+      fprintf( stdout, "# [qr_mat] comp %2d %2d    %25.16e %25.16e    %25.16e %25.16e   %16.7e %16.7e\n", ir, is, creal( BLAS_A[ir][is] ), cimag( BLAS_A[ir][is] ), creal( a[ir][is] ), cimag( a[ir][is] ),
+          cabs( BLAS_A[ir][is] - a[ir][is] ), cabs(a[ir][is]) );
+    }}
+  }
+   
+  fini_1level_ztable ( &BLAS_TAU  );
+  fini_1level_ztable ( &BLAS_WORK );
+  fini_2level_ztable ( &BLAS_A    );
+
+  return ( 0 );
+}  /* end of qr_mat */
 
 /***********************************************************************************************/
 /***********************************************************************************************/
