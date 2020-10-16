@@ -31,6 +31,9 @@
 #include "gamma.h"
 #include "rotations.h"
 #include "cvc_utils.h"
+#include "table_init_d.h"
+#include "table_init_z.h"
+#include "table_init_i.h"
 
 namespace cvc {
 
@@ -2828,4 +2831,129 @@ int qr_mat ( double _Complex ** q, double _Complex ** const r, double _Complex *
 /***********************************************************************************************/
 /***********************************************************************************************/
 
+/***********************************************************************************************
+ * some linal helper functions
+ ***********************************************************************************************/
+#if 0
+inline double _Complex co_eq_v_dag_ti_w ( double _Complex * const r , double _Complex * const s , int const dim ) {
+  double _Complex res = 0.;
+  for ( int i = 0; i < dim; i++ ) res += conj( r[i] ) * s[i] ;
+  /* int ONE;
+  _F(zdotc)( &res, &dim, r, &ONE, s, &ONE ); */
+  return ( res );
+}  /* end of co_eq_v_dag_ti_w */
+
+inline double re_eq_v_dag_ti_v ( double _Complex * const r , int const dim ) {
+  double res = 0.;
+  for ( int i = 0; i < dim; i++ ) {
+    double const a = creal( r[i] );
+    double const b = cimag( r[i] );
+    res += a * a + b * b;
+  }
+  return( res );
+  /* double _Complex res = 0.;
+  int ONE;
+  _F(zdotc)( &res, &dim, r, &ONE, r, &ONE );
+  return ( creal(res) ); */
+}  /* end of re_eq_v_dag_ti_v  */
+
+
+inline void v_pl_eq_co_ti_w ( double _Complex * const v , double _Complex * const w, double _Complex const z, int const dim  ) {
+  // for ( int i =0; i<dim; i++ ) v[i] += z * w[i];
+  int ONE;
+  _F(zaxpy) ( &dim, &z, w, &ONE, v, &ONE );
+}  /* end of v_pl_eq_co_ti_w  */
+#endif
+/***********************************************************************************************
+ * Gram-Schmidt procedure
+ * NO PIVOTING at this point
+ *
+ * Determines ONB from v in u and transformation matrix r (lower-triangular), such that
+ * r v = u
+ *
+ * in:  v is n x dim
+ * out: u is n x dim
+ * out: r is n x n
+ *
+ ***********************************************************************************************/
+int gs_onb_mat ( double _Complex ** const s, double _Complex ** const u, double _Complex ** const v, int const n, int const dim ) {
+  
+  double const eps = 1.e-14;
+  int rank = 0;
+  int N   = n;
+  int NN  = n * n;
+  int DIM = dim;
+  int ONE = 1;
+  double _Complex z;
+  char CHAR_N = 'N';
+  double _Complex Z_1 = 1., Z_0 = 0.;
+
+  double _Complex *** r  = init_3level_ztable ( 3, n, n );
+  double _Complex **  q  = init_2level_ztable ( n, dim );
+  double * norm2 = init_1level_dtable ( n );
+  int * pivot = init_1level_itable ( n );
+
+  if ( r == NULL || q == NULL || norm2 == NULL || pivot == NULL ) return ( -1 );
+
+  rot_mat_unity ( r[0], n );
+
+  for ( int i = 0; i < n; i++ ) {
+
+    rot_mat_unity ( r[1], n );
+
+    _F(zcopy) ( &DIM, v[i], &ONE, q[i], &ONE );
+
+    for ( int j = rank-1; j >= 0 ; j--) {
+      int const k = pivot[j];
+
+      /* z <- u^k+ v^i */
+      z = _F(zdotc)( &DIM, q[k], &ONE, v[i], &ONE );
+
+      /* z <- -z  */
+      z = -z * norm2[k];
+
+      /* temporary R_ik <- z */
+      r[1][i][k] = z;
+
+      /* u^i <- u^i + z u^k  */
+      _F(zaxpy) ( &DIM, &z, q[k], &ONE, q[i], &ONE );
+    }
+
+    /* accumulate r2 <- r1 x r0 
+     *            r0 <- r2 
+     * THIS IS A COSTLY VERSION 
+     * reduce by using N -> rank where possible ? */
+     _F(zgemm) ( &CHAR_N, &CHAR_N, &N, &N, &N, &Z_1, r[0][0], &N, r[1][0], &N, &Z_0, r[2][0], &N, 1, 1 );
+     _F(zcopy) ( &NN, r[2][0], &ONE, r[0][0], &ONE );
+
+    /* normalization */
+    z = _F(zdotc)(  &DIM, q[i], &ONE, q[i], &ONE );
+
+    norm2[i] = creal( z );
+    if ( norm2[i] > eps ) {
+      /* fprintf ( stdout, "# [] new entry i = %d at rank = %d\n", i, rank ); */
+      norm2[i] = 1. / norm2[i];
+      pivot[rank] = i;
+      _F(zcopy) ( &DIM, q[i], &ONE, u[rank], &ONE );
+      _F(zcopy) ( &DIM, r[0][i], &ONE, s[rank], &ONE );
+ 
+      rank++;
+    } else {
+      norm2[i] = 0.;
+    }
+
+    /* _F(zdscal) ( &DIM, &norm2[i], q[i], &ONE ); */
+
+  }  /* end of loop on rows */
+
+  fini_3level_ztable ( &r );
+  fini_2level_ztable ( &q );
+  fini_1level_dtable ( &norm2 );
+  fini_1level_itable ( &pivot );
+
+  return ( rank );
+}  /* end of gs_onb_mat */
+
+/***********************************************************************************************/
+/***********************************************************************************************/
 }  // end of namespace cvc

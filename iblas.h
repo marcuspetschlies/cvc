@@ -60,7 +60,8 @@ extern "C" void _F(zgemv) ( char*TRANS, int *M, int *N, double _Complex *ALPHA, 
                                   integer   INCY 
                               )     
  ***********************************************************************/
-extern void _F(zdotc)(int* n, _Complex double x[], int* incx, _Complex double y[], int* incy);
+// extern "C" void _F(zdotc)(double _Complex * val, int* n, double _Complex * x, int * incx, double _Complex * y, int* incy);
+extern "C" double _Complex _F(zdotc)(int* n, double _Complex * x, int * incx, double _Complex * y, int* incy);
 
 /***********************************************************************
 ZGEQRF computes a QR factorization of a complex M-by-N matrix A:
@@ -83,5 +84,19 @@ extern "C" void _F(zgeqr)( int * M, int * N, double _Complex * A, int * LDA, dou
 
 extern "C" void _F(zgemqr)( char * SIDE, char *  TRANS, int * M, int * N, int * K, double _Complex * A, int * LDA, double _Complex* T, int * TSIZE, double _Complex * C, int * LDC, double _Complex * WORK, int * LWORK, int * INFO, int len_SIDE, int len_TRANS ); 
 
+/***********************************************************************
+ * y <- a x + y
+ ***********************************************************************/
+extern "C" void _F(zaxpy) (int*N, double _Complex * ZA, double _Complex * ZX, int * INCX, double _Complex * ZY, int * INCY );
 
+
+/***********************************************************************
+ * y <- x
+ ***********************************************************************/
+extern "C" void _F(zcopy) ( int *N, double _Complex * ZX, int * INCX, double _Complex * ZY, int * INCY );  
+
+/***********************************************************************
+ * x <- a x
+ ***********************************************************************/
+extern "C" void _F(zdscal) (int * N, double * DA, double _Complex * ZX, int *  INCX);
 #endif

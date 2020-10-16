@@ -183,6 +183,9 @@ void rot_vec_printf (double _Complex * const v, int const N, char *A, FILE*ofs )
 
 int qr_mat ( double _Complex ** q, double _Complex ** const r, double _Complex ** const a, int const dim );
 
+int gs_onb_mat ( double _Complex ** const s, double _Complex ** const u, double _Complex ** const v, int const n, int const dim );
+
+
 /***********************************************************
  * check boundary status of a point
  ***********************************************************/
