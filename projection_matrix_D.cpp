@@ -53,7 +53,7 @@ extern "C"
 
 using namespace cvc;
 #define _USE_GS 1
-#define _USE_QR 1
+#define _USE_QR 0
 
 
 #if _USE_GS
@@ -61,7 +61,7 @@ inline double _Complex co_eq_v_dag_ti_w ( double _Complex * const r , double _Co
   double _Complex res = 0.;
   for ( int i = 0; i < dim; i++ ) res += conj( r[i] ) * s[i] ;
   return ( res );
-}
+}  /* end of co_eq_v_dag_ti_w */
 
 inline double re_eq_v_dag_ti_v ( double _Complex * const r , int const dim ) {
   double res = 0.;
@@ -71,42 +71,43 @@ inline double re_eq_v_dag_ti_v ( double _Complex * const r , int const dim ) {
     res += a * a + b * b;
   }
   return ( res );
-}
+}  /* end of re_eq_v_dag_ti_v  */
 
 inline void v_pl_eq_co_ti_w ( double _Complex * const v , double _Complex * const w, double _Complex const z, int const dim  ) {
   for ( int i =0; i<dim; i++ ) v[i] += z * w[i];
-}
-
-int gs_onb_mat ( double _Complex ** const u, double _Complex ** const v, int const dim ) {
+}  /* end of v_pl_eq_co_ti_w  */
+ 
+int gs_onb_mat ( double _Complex ** const r, double _Complex ** const u, double _Complex ** const v, int const dim ) {
   if ( u == v ) return ( 1 );
   /* 1st vector */
 
   double _Complex ** A = init_2level_ztable ( dim, dim );
-  double _Complex ** B = init_2level_ztable ( dim, dim );
 
-  rot_mat_unity ( B, dim );
+  rot_mat_unity ( r, dim );
 
   for ( int i = 0; i < dim; i++ ) {
     rot_mat_unity ( A, dim );
+    memcpy( u[i], v[i], dim*sizeof(double _Complex ));
     for ( int k = i-1; k >= 0 ; k--) {
       double const norm = re_eq_v_dag_ti_v ( u[k],  dim );
       double _Complex const z = norm < eps ? 0. : co_eq_v_dag_ti_w ( u[k], v[i] , dim ) / norm;
       A[i][k] = -z;
+      v_pl_eq_co_ti_w ( u[i], u[k], -z, dim  );
     }
-    rot_mat_ti_mat ( B, A, B, dim );
+
+    /* accumulate r <- A x r */
+    rot_mat_ti_mat ( r, A, r, dim );
   }
-}
+
+  fini_2level_ztable ( &A );
+
+  return ( 0 );
+}  /* end of gs_onb_mat */
 
 
 int gs_onb ( double _Complex ** const u, double _Complex ** const v, int const n, int const dim ) {
   if ( u == v ) return ( 1 );
   /* 1st vector */
-
-  double _Complex ** A = init_2level_ztable ( dim, dim );
-  double _Complex ** B = init_2level_ztable ( dim, dim );
-
-  rot_mat_unity ( B, dim );
-
 
   memcpy( u[0], v[0], dim*sizeof(double _Complex ));
   for ( int i = 1; i < n; i++ ) {
@@ -118,8 +119,6 @@ int gs_onb ( double _Complex ** const u, double _Complex ** const v, int const n
     }
   }
 
-  fini_2level_ztable ( &A );
-  fini_2level_ztable ( &B );
   return( 0 );
 }
 
@@ -495,7 +494,7 @@ int main(int argc, char **argv) {
           /****************************************************
            * version I: build Gram-Schmidt matrix
            ****************************************************/
-
+#if 0
           gs_onb ( pma_gs[1][imu][ibeta], projection_matrix_a[imu][ibeta], spinor_dim, spinor_dim );
 
           fprintf (  stdout, "\n" );
@@ -506,8 +505,44 @@ int main(int argc, char **argv) {
                   __dgeps( creal( pma_gs[1][imu][ibeta][ir][is] ), eps ), __dgeps( cimag( pma_gs[1][imu][ibeta][ir][is] ), eps ) );
             }
           }}
+#endif     
+          gs_onb_mat ( pma_gs[0][imu][ibeta], pma_gs[1][imu][ibeta], projection_matrix_a[imu][ibeta], spinor_dim );
 
-          gs_onb_mat ( pma_gs[0][imu][ibeta], projection_matrix_a[imu][ibeta], spinor_dim );
+
+          fprintf (  stdout, "\n" );
+          for ( int ir = 0; ir < spinor_dim; ir++ ) {
+          for ( int is = 0; is < spinor_dim; is++ ) {
+            // if ( cabs( pma_gs[0][imu][ibeta][ir][is] ) > eps  ) {
+              fprintf (stdout, "annihilation R GS %2d %2d    %2d %2d    %25.16e %25.16e\n",
+                  ir/p.rspin[1].dim, ir%p.rspin[1].dim, is/p.rspin[1].dim, is%p.rspin[1].dim,
+                  __dgeps( creal( pma_gs[0][imu][ibeta][ir][is] ), eps ), __dgeps( cimag( pma_gs[0][imu][ibeta][ir][is] ), eps ) );
+            // }
+          }}
+
+
+          double _Complex ** pma_onb = init_2level_ztable ( spinor_dim, spinor_dim );
+
+          rot_mat_ti_mat ( pma_onb, pma_gs[0][imu][ibeta], projection_matrix_a[imu][ibeta], spinor_dim );
+
+          for ( int ir = 0; ir < spinor_dim; ir++ ) {
+          for ( int is = 0; is < spinor_dim; is++ ) {
+            if ( cabs( pma_onb[ir][is] ) > eps  ) {
+              fprintf (stdout, "annihilation P GS-ONB %2d %2d    %2d %2d    %25.16e %25.16e\n",
+                  ir/p.rspin[1].dim, ir%p.rspin[1].dim, is/p.rspin[1].dim, is%p.rspin[1].dim,
+                  __dgeps( creal( pma_onb[ir][is]  ), eps ), __dgeps( cimag( pma_onb[ir][is] ), eps ) );
+            }
+          }}
+          
+          fprintf (  stdout, "\n" );
+          for ( int ir = 0; ir < spinor_dim; ir++ ) {
+          for ( int is = 0; is < spinor_dim; is++ ) {
+            if ( cabs( pma_gs[1][imu][ibeta][ir][is] ) > eps  ) {
+              fprintf (stdout, "annihilation P GS %2d %2d    %2d %2d    %25.16e %25.16e\n", ir/p.rspin[1].dim, ir%p.rspin[1].dim, is/p.rspin[1].dim, is%p.rspin[1].dim,
+                  __dgeps( creal( pma_gs[1][imu][ibeta][ir][is] ), eps ), __dgeps( cimag( pma_gs[1][imu][ibeta][ir][is] ), eps ) );
+            }
+          }}
+
+          fini_2level_ztable ( &pma_onb );
 
 #endif  /* of _USE_GS */
 
@@ -552,15 +587,6 @@ int main(int argc, char **argv) {
 #endif  /* of _USE_QR */
 
 #if 0
-          rot_mat_ti_mat ( projection_matrix_a[imu][ibeta], pma_onb[imu][ibeta], projection_matrix_a[imu][ibeta], spinor_dim );
-
-          for ( int ir = 0; ir < spinor_dim; ir++ ) {
-          for ( int is = 0; is < spinor_dim; is++ ) {
-            if ( cabs( projection_matrix_a[imu][ibeta][ir][is] ) > eps  ) {
-              fprintf (stdout, "annihilation P ONB %2d %2d    %2d %2d    %25.16e %25.16e\n", ir/p.rspin[1].dim, ir%p.rspin[1].dim, is/p.rspin[1].dim, is%p.rspin[1].dim,
-                  __dgeps( creal( projection_matrix_a[imu][ibeta][ir][is] ), eps ), __dgeps( cimag( projection_matrix_a[imu][ibeta][ir][is] ), eps ) );
-            }
-          }}
 #endif
           fprintf (  stdout, "\n\n\n" );
 
