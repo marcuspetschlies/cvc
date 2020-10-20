@@ -78,6 +78,8 @@ void rot_printf_matrix (double _Complex **R, int N, char *A, FILE*ofs );
 
 void rot_printf_matrix_comp (double _Complex **R, double _Complex **S, int N, char *A, FILE*ofs );
 
+void rot_printf_vec (double _Complex *R, int N, char *A, FILE*ofs );
+
 double rot_mat_norm2 (double _Complex **R, int N);
 
 int rot_mat_check_is_sun (double _Complex **R, int N);
@@ -142,7 +144,6 @@ int rot_mat_spin1_cartesian ( double _Complex **R, int n[3], double omega );
 void rot_mat_ti_vec (double _Complex * const w, double _Complex ** const A, double _Complex * const v, int const N);
 
 void rot_mat_adj_ti_vec (double _Complex * const w, double _Complex ** const A, double _Complex * const v, int const N);
-
 
 void rot_mat_transpose_ti_vec (double _Complex *w, double _Complex **A, double _Complex *v, int N);
 

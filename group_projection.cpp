@@ -1778,7 +1778,7 @@ little_group_projector_applicator_type ** little_group_projector_apply ( little_
     if ( p->n == 1 ) {
       // print Rsv
       sprintf ( name, "Rsv[[%d]]", row_target+1 );
-      if ( ofs != NULL ) rot_vec_printf ( Rsv, spin_dimensions[0], name, ofs );
+      if ( ofs != NULL ) rot_printf_vec ( Rsv, spin_dimensions[0], name, ofs );
 
       // print current subduction matrix
       sprintf ( name, "Rsub[[%d]]", row_target+1 );
@@ -1880,7 +1880,7 @@ little_group_projector_applicator_type ** little_group_projector_apply ( little_
 
       // show IRsv
       sprintf ( name, "IRsv[[%d]]", row_target+1 );
-      if ( ofs != NULL ) rot_vec_printf ( IRsv, spin_dimensions[0], name, ofs );
+      if ( ofs != NULL ) rot_printf_vec ( IRsv, spin_dimensions[0], name, ofs );
  
       // Rsv = Rsv + IRsv
       rot_vec_pl_eq_rot_vec_ti_co ( Rsv, IRsv, 1., spin_dimensions[0] );
@@ -1890,7 +1890,7 @@ little_group_projector_applicator_type ** little_group_projector_apply ( little_
 
       // show Rsv
       sprintf ( name, "vsub[[%d]]", row_target+1 );
-      if ( ofs != NULL ) rot_vec_printf ( Rsv, spin_dimensions[0], name, ofs );
+      if ( ofs != NULL ) rot_printf_vec ( Rsv, spin_dimensions[0], name, ofs );
 
       /***********************************************************/
       /***********************************************************/

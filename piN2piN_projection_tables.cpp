@@ -15,6 +15,10 @@
 #include <math.h>
 #include <time.h>
 #include <sys/time.h>
+#include <ctype.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
@@ -37,6 +41,8 @@ extern "C"
 #endif
 
 #define MAIN_PROGRAM
+#include <hdf5.h>
+
 
 #include "cvc_complex.h"
 #include "ilinalg.h"
@@ -51,6 +57,8 @@ extern "C"
 #include "matrix_init.h"
 #include "table_init_z.h"
 #include "table_init_2pt.h"
+#include "table_init_d.h"
+#include "table_init_i.h"
 #include "contract_diagrams.h"
 #include "aff_key_conversion.h"
 #include "zm4x4.h"
@@ -61,9 +69,93 @@ extern "C"
 #include "little_group_projector_set.h"
 
 #define MAX_UDLI_NUM 1000
-
+#define EPS 1e-14
 
 using namespace cvc;
+/* Taking care of orthogonalizing Projector matrix */
+
+double _Complex scalar_product( double _Complex *vec1, double _Complex *vec2, int N){
+   double _Complex ret=0.;
+   for (int j=0; j<N; ++j){
+     ret+=conj(vec1[j])*vec2[j];
+   }
+   return ret;
+}
+
+
+double _Complex ** apply_gramschmidt( double _Complex ** Projector, int *dimension) {
+   
+   int i0;
+   int final_dimension=0;
+   double _Complex ** orthogonalized=init_2level_ztable(*dimension, *dimension);
+
+    /* Looking for the first non-zero row */
+   int check=1;
+   for (i0=0;i0<*dimension ;++i0){
+     check=1;
+     for (int j=0; j<*dimension;++j){
+       if (cabs(Projector[i0][j]) > EPS ){
+        check=0;
+        break;
+       } 
+     }
+     if (check==0){
+      break;
+     }     
+   }
+   if (check==1){
+     fprintf(stderr, "# [apply_gramschmidt] Error the whole matrix is zero\n" );
+     exit(1);
+   }
+   /* Normalizing the first vector */
+   double norm=0.0;
+   for (int j=0; j<*dimension; ++j){
+     norm+=creal(Projector[i0][j])*creal(Projector[i0][j])+cimag(Projector[i0][j])*cimag(Projector[i0][j]);
+   }
+   for (int j=0; j<*dimension; ++j){
+     orthogonalized[0][j]=1./sqrt(norm)*Projector[i0][j];
+   }
+   if (i0==(*dimension-1)){
+     *dimension=i0; 
+     return  orthogonalized;
+   }
+   /* Orthogonalizing the remaining ones*/
+   for (int ii=i0+1; ii<*dimension; ++ii){
+     check=1;
+     /* Looking for the next non-zero row */
+     for (int j=0; j<*dimension;++j){
+        if (cabs(Projector[ii][j]) > EPS ){
+        check=0;
+        break;
+       }
+     }
+     /* If check is zero we found a non-zero row, lets ortogonalize it to all the previous ones*/
+     if (check==0){
+       for (int j=0; j< *dimension; ++j){
+         orthogonalized[final_dimension+1][j]=Projector[ii][j];
+       for (int iib=0; iib<=final_dimension; ++iib){
+         double _Complex prodij=scalar_product( orthogonalized[iib], Projector[ii], *dimension );
+         for (int j=0; j< *dimension; ++j)
+           orthogonalized[final_dimension+1][j]-=prodij*orthogonalized[iib][j];
+       }
+       norm=0.;
+       for (int j=0; j<*dimension; ++j){
+         norm+= creal(orthogonalized[final_dimension+1][j])*creal(orthogonalized[final_dimension+1][j])+cimag(orthogonalized[final_dimension+1][j])*cimag(orthogonalized[final_dimension+1][j]);
+       }
+       if (norm<EPS)
+         continue;
+       else{
+         for (int j=0; j<*dimension; ++j){
+           orthogonalized[final_dimension+1][j]=1./sqrt(norm)*orthogonalized[final_dimension+1][j];
+         }
+         final_dimension+=1;
+       }
+     }
+   }
+ }   
+ *dimension=final_dimension+1;
+ return(orthogonalized);
+}
 
 
 /***********************************************************
@@ -89,14 +181,11 @@ int main(int argc, char **argv) {
   int filename_set = 0;
   int exitstatus;
   int check_reference_rotation = 0;
-  char filename[200];
+  char filename[400];
+  char tagname[400];
   double ratime, retime;
   FILE *ofs = NULL;
 
-  int udli_count = 0;
-  char udli_list[MAX_UDLI_NUM][500];
-  char udli_name[500];
-  twopoint_function_type *udli_ptr[MAX_UDLI_NUM];
 
   struct timeval ta, tb;
 
@@ -392,15 +481,21 @@ int main(int argc, char **argv) {
     gamma_matrix_init ( &gr );
 
 
-    for ( int ref_snk = 0; ref_snk < irrep_dim; ref_snk++ ) {
+    for ( int ibeta = 0; ibeta < irrep_dim; ibeta++ ) {
 
-      for ( int row_snk = 0; row_snk < irrep_dim; row_snk++ ) {
+      for ( int imu = 0; imu < irrep_dim; imu++ ) {
 
 
-        double _Complex ** P_matrix = init_2level_ztable (dimension_coeff , dimension_coeff);
-        if ( P_matrix == NULL ) {
+        double _Complex ** projection_matrix_a = init_2level_ztable (dimension_coeff , dimension_coeff);
+        if ( projection_matrix_a == NULL ) {
           fprintf(stderr,"[piN2piN_projection_table] Error in allocating matrix for P\n");
         }
+
+        double _Complex ** projection_matrix_c = init_2level_ztable (dimension_coeff , dimension_coeff);
+        if ( projection_matrix_c == NULL ) {
+          fprintf(stderr,"[piN2piN_projection_table] Error in allocating matrix for P\n");
+        }
+
         /******************************************************
          * curren projection coefficient for chosen irrep rows
          * at source and sink, together with sign factors
@@ -542,17 +637,23 @@ int main(int argc, char **argv) {
 
                double _Complex const zcoeff = 
                           (double)( projector.rtarget->dim  ) /( 2. *    projector.rtarget->n     )                          
-                          * gf11.s                               /* gamma rot sign f_1,1      */
-                          * gf12.s                               /* gamma rot sign f_1,2      */
-                          * gf2.s                                /* gamma rot sign f_2        */
-                          * Tirrepl[row_snk][ref_snk];           /* phase irrep matrix sink   */;
+                            * gf11.s                               /* gamma rot sign f_1,1      */
+                            * gf12.s                               /* gamma rot sign f_1,2      */
+                            * gf2.s                                /* gamma rot sign f_2        */
+                            * Tirrepl[imu][ibeta];           /* phase irrep matrix sink   */;
                if ( cabs( zcoeff ) < _ZCOEFF_EPS ) {
                 /* if ( g_verbose > 4 ) fprintf ( stdout, "# [piN2piN_projection] | zcoeff = %16.7e + I %16.7e | < _ZCOEFF_EPS, continue\n", creal( zcoeff ), cimag( zcoeff ) ); */
                     continue;
                }
+               if ( g_verbose > 4 ){
+                 char * text_output=(char *)malloc(sizeof(char)*100);
+                 snprintf(text_output,100,"Rvector(sink_row=%d,ref_sink=%d)[(spin1=%d,spi1212=%d,irotl=%d)]",imu, ibeta,spin1degree, spin1212degree, irotl, imu,ibeta);
 
+                 rot_printf_vec (spin1212_rotated_vector,4,text_output, stdout );
+                 free(text_output);
+               }
 
-               rot_vec_pl_eq_rot_vec_ti_co ( &P_matrix[spin1degree*spin1212dimension + spin1212degree][spin1212dimension*rotated_gamma_id], spin1212_rotated_vector , zcoeff, spin1212dimension);
+               rot_vec_pl_eq_rot_vec_ti_co ( &projection_matrix_a[spin1degree*spin1212dimension + spin1212degree][spin1212dimension*rotated_gamma_id], spin1212_rotated_vector , zcoeff, spin1212dimension);
 
                fini_1level_ztable(&spin1212_vector);
  
@@ -565,18 +666,145 @@ int main(int argc, char **argv) {
 
         } /* end of loop over spin1degree */
 
+        snprintf ( filename, 400, "projection_coefficients_%s_group_%s_irrep_%s.h5",
+                         g_twopoint_function_list[i2pt].name, projector.rtarget->group , projector.rtarget->irrep);
+        hid_t file_id, group_id, dataset_id, dataspace_id;  /* identifiers */
+        herr_t      status;
+
+        struct stat fileStat;
+        if(stat( filename, &fileStat) < 0 ) {
+        /* Open an existing file. */
+          fprintf ( stdout, "# [test_hdf5] create new file %s\n",filename );
+          file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+        } else {
+          fprintf ( stdout, "# [test_hdf5] open existing file %s\n", filename );
+          file_id = H5Fopen(filename, H5F_ACC_RDWR, H5P_DEFAULT);
+        }
+
+        snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/",  g_twopoint_function_list[i2pt].pf1[0],
+                                                       g_twopoint_function_list[i2pt].pf1[1],
+                                                       g_twopoint_function_list[i2pt].pf1[2]);
+        status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
+
+        status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+        if (status != 0){
+
+           /* Create a group named "/MyGroup" in the file. */
+           group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+           /* Close the group. */
+           status = H5Gclose(group_id);
+
+        }
+
+        snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/",  g_twopoint_function_list[i2pt].pf1[0],
+                                                       g_twopoint_function_list[i2pt].pf1[1],
+                                                       g_twopoint_function_list[i2pt].pf1[2],imu);
+        status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
+
+        status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+        if (status != 0){
+
+           /* Create a group named "/MyGroup" in the file. */
+           group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+           /* Close the group. */
+           status = H5Gclose(group_id);
+
+        }
+        snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d",  g_twopoint_function_list[i2pt].pf1[0],
+                                                       g_twopoint_function_list[i2pt].pf1[1],
+                                                       g_twopoint_function_list[i2pt].pf1[2],imu,ibeta);
+        status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
+
+        status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+        if (status != 0){
+
+           /* Create a group named "/MyGroup" in the file. */
+           group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+           /* Close the group. */
+           status = H5Gclose(group_id);
+
+        }
+
+        hsize_t dims[3];
+        dims[0]=dimension_coeff;
+        dims[1]=dimension_coeff;
+        dims[2]=2;
+        dataspace_id = H5Screate_simple(3, dims, NULL);
+        snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/a_data",  g_twopoint_function_list[i2pt].pf1[0],
+                                                       g_twopoint_function_list[i2pt].pf1[1],
+                                                       g_twopoint_function_list[i2pt].pf1[2],imu,ibeta);
+
+        /* Create a dataset in group "MyGroup". */
+        dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+
+        double ***buffer_write=init_3level_dtable(dimension_coeff,dimension_coeff,2);
+
+        for (int i=0; i < dimension_coeff; ++i){
+          for (int j=0; j < dimension_coeff; ++j){
+            buffer_write[i][j][0]=creal(projection_matrix_a[i][j]);
+            buffer_write[i][j][1]=cimag(projection_matrix_a[i][j]);
+          }
+        }
+
+        /* Write the first dataset. */
+        status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_write[0][0][0]));
+
+        /* Close the data space for the first dataset. */
+        status = H5Sclose(dataspace_id);
+
+        /* Close the first dataset. */
+        status = H5Dclose(dataset_id);
+
+        int N=dimension_coeff;
+
+        double _Complex **projection_coeff_ORT= apply_gramschmidt ( projection_matrix_a,  &N);
+
+
         char * text_output=(char *)malloc(sizeof(char)*100);
-        snprintf(text_output,100,"Pmatrix(sink_row=%d,ref_sink=%d)",row_snk,ref_snk);
-        rot_printf_matrix(P_matrix, dimension_coeff, text_output, stdout);
+        snprintf(text_output,100,"Pmatrix(imu=%d,ibeta=%d)",imu,ibeta);
+        rot_printf_matrix(projection_matrix_a, dimension_coeff, text_output, stdout);
         free(text_output);
+        dataspace_id = H5Screate_simple(3, dims, NULL);
+        snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/c_data",  g_twopoint_function_list[i2pt].pf1[0],
+                                                       g_twopoint_function_list[i2pt].pf1[1],
+                                                       g_twopoint_function_list[i2pt].pf1[2],imu,ibeta);
 
-        fini_2level_ztable( &P_matrix );
+        /* Create a dataset in group "MyGroup". */
+        dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
-      }  // end of loop on row_snk
+
+        rot_mat_adj ( projection_matrix_c , projection_matrix_a , dimension_coeff  );
+
+        for (int i=0; i < dimension_coeff; ++i){
+          for (int j=0; j < dimension_coeff; ++j){
+            buffer_write[i][j][0]=creal(projection_matrix_c[i][j]);
+            buffer_write[i][j][1]=cimag(projection_matrix_c[i][j]);
+          }
+        }
+
+        /* Write the first dataset. */
+        status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_write[0][0][0]));
+        
+
+        /* Close the data space for the first dataset. */
+        status = H5Sclose(dataspace_id);
+
+        /* Close the first dataset. */
+        status = H5Dclose(dataset_id);
+
+        fini_3level_dtable(&buffer_write);
+
+        fini_2level_ztable( &projection_matrix_a );
+        fini_2level_ztable( &projection_matrix_c );
+
+
+      }  // end of loop on imu
 
     }  // end of loop on ref_sink
-    exit(1);
-
 
     /******************************************************
      * deallocate space inside little_group

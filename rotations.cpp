@@ -2693,7 +2693,7 @@ double _Complex co_eq_trace_mat_ti_weight_ti_mat_ti_weight_re ( double _Complex 
 /***********************************************************************************************
  * print vector
  ***********************************************************************************************/
-void rot_vec_printf (double _Complex * const v, int const N, char *A, FILE*ofs ) {
+void rot_printf_vec (double _Complex * const v, int const N, char *A, FILE*ofs ) {
 
   double const eps = 5.e-14;
   fprintf(ofs, "%s <- numeric(%d)\n", A, N);
