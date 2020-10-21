@@ -82,6 +82,7 @@ double _Complex scalar_product( double _Complex *vec1, double _Complex *vec2, in
    return ret;
 }
 
+/* Auxiliary routine, that performs a rank revealed QR algorithm */
 
 double _Complex ** apply_gramschmidt( double _Complex ** Projector, int *dimension) {
    
@@ -104,8 +105,9 @@ double _Complex ** apply_gramschmidt( double _Complex ** Projector, int *dimensi
      }     
    }
    if (check==1){
-     fprintf(stderr, "# [apply_gramschmidt] Error the whole matrix is zero\n" );
-     exit(1);
+     fprintf(stderr, "# [apply_gramschmidt] Error the whole matrix is zero appearently the irrep does not contribute\n" );
+     *dimension=0;
+     return NULL;
    }
    /* Normalizing the first vector */
    double norm=0.0;
@@ -130,31 +132,32 @@ double _Complex ** apply_gramschmidt( double _Complex ** Projector, int *dimensi
        }
      }
      /* If check is zero we found a non-zero row, lets ortogonalize it to all the previous ones*/
-     if (check==0){
-       for (int j=0; j< *dimension; ++j){
-         orthogonalized[final_dimension+1][j]=Projector[ii][j];
-       for (int iib=0; iib<=final_dimension; ++iib){
-         double _Complex prodij=scalar_product( orthogonalized[iib], Projector[ii], *dimension );
-         for (int j=0; j< *dimension; ++j)
-           orthogonalized[final_dimension+1][j]-=prodij*orthogonalized[iib][j];
-       }
-       norm=0.;
+     if (check==1){
+       continue;
+     }
+     for (int j=0; j< *dimension; ++j)
+       orthogonalized[final_dimension+1][j]=Projector[ii][j];
+     for (int iib=0; iib<=final_dimension; ++iib){
+       double _Complex prodij=scalar_product( orthogonalized[iib], Projector[ii], *dimension );
+       for (int j=0; j< *dimension; ++j)
+         orthogonalized[final_dimension+1][j]-=prodij*orthogonalized[iib][j];
+     }
+     norm=0.;
+     for (int j=0; j<*dimension; ++j){
+       norm+= creal(orthogonalized[final_dimension+1][j])*creal(orthogonalized[final_dimension+1][j])+cimag(orthogonalized[final_dimension+1][j])*cimag(orthogonalized[final_dimension+1][j]);
+     }
+     if (norm<EPS)
+       continue;
+     else{
        for (int j=0; j<*dimension; ++j){
-         norm+= creal(orthogonalized[final_dimension+1][j])*creal(orthogonalized[final_dimension+1][j])+cimag(orthogonalized[final_dimension+1][j])*cimag(orthogonalized[final_dimension+1][j]);
+         orthogonalized[final_dimension+1][j]=1./sqrt(norm)*orthogonalized[final_dimension+1][j];
        }
-       if (norm<EPS)
-         continue;
-       else{
-         for (int j=0; j<*dimension; ++j){
-           orthogonalized[final_dimension+1][j]=1./sqrt(norm)*orthogonalized[final_dimension+1][j];
-         }
-         final_dimension+=1;
-       }
+       final_dimension+=1;
      }
    }
- }   
- *dimension=final_dimension+1;
- return(orthogonalized);
+    
+   *dimension=final_dimension+1;
+   return(orthogonalized);
 }
 
 
@@ -759,11 +762,47 @@ int main(int argc, char **argv) {
         /* Close the first dataset. */
         status = H5Dclose(dataset_id);
 
+        fini_3level_dtable(&buffer_write);
+
         int N=dimension_coeff;
-
         double _Complex **projection_coeff_ORT= apply_gramschmidt ( projection_matrix_a,  &N);
+       
+        if (N>0){
+          buffer_write=init_3level_dtable(N,dimension_coeff,2);
 
+          for (int i=0; i < N; ++i){
+            for (int j=0; j < dimension_coeff; ++j){
+              buffer_write[i][j][0]=creal(projection_coeff_ORT[i][j]);
+              buffer_write[i][j][1]=cimag(projection_coeff_ORT[i][j]);
+            }
+          }
 
+          dims[0]=N;
+          dims[1]=dimension_coeff;
+          dims[2]=2;
+          dataspace_id = H5Screate_simple(3, dims, NULL);
+          snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/a_data_ort",  g_twopoint_function_list[i2pt].pf1[0],
+                                                       g_twopoint_function_list[i2pt].pf1[1],
+                                                       g_twopoint_function_list[i2pt].pf1[2],imu,ibeta);
+
+          /* Create a dataset in group "MyGroup". */
+          dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+          /* Write the first dataset. */
+          status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_write[0][0][0]));
+
+          /* Close the data space for the first dataset. */
+          status = H5Sclose(dataspace_id);
+
+          /* Close the first dataset. */
+          status = H5Dclose(dataset_id);
+
+          fini_3level_dtable(&buffer_write);
+        
+        
+          fini_2level_ztable(&projection_coeff_ORT) ;
+       
+        }
         char * text_output=(char *)malloc(sizeof(char)*100);
         snprintf(text_output,100,"Pmatrix(imu=%d,ibeta=%d)",imu,ibeta);
         rot_printf_matrix(projection_matrix_a, dimension_coeff, text_output, stdout);
@@ -778,6 +817,9 @@ int main(int argc, char **argv) {
 
 
         rot_mat_adj ( projection_matrix_c , projection_matrix_a , dimension_coeff  );
+
+        buffer_write=init_3level_dtable(dimension_coeff,dimension_coeff,2);
+
 
         for (int i=0; i < dimension_coeff; ++i){
           for (int j=0; j < dimension_coeff; ++j){
@@ -798,6 +840,46 @@ int main(int argc, char **argv) {
 
         fini_3level_dtable(&buffer_write);
 
+        N=dimension_coeff;
+        projection_coeff_ORT= apply_gramschmidt ( projection_matrix_c,  &N);
+
+        if (N>0){
+
+          buffer_write=init_3level_dtable(N,dimension_coeff,2);
+
+          for (int i=0; i < N; ++i){
+            for (int j=0; j < dimension_coeff; ++j){
+              buffer_write[i][j][0]=creal(projection_coeff_ORT[i][j]);
+              buffer_write[i][j][1]=cimag(projection_coeff_ORT[i][j]);
+            }
+          }
+
+          dims[0]=N;
+          dims[1]=dimension_coeff;
+          dims[2]=2;
+          dataspace_id = H5Screate_simple(3, dims, NULL);
+          snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/c_data_ort",  g_twopoint_function_list[i2pt].pf1[0],
+                                                         g_twopoint_function_list[i2pt].pf1[1],
+                                                         g_twopoint_function_list[i2pt].pf1[2],imu,ibeta);
+
+          /* Create a dataset in group "MyGroup". */
+          dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+          /* Write the first dataset. */
+          status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_write[0][0][0]));
+
+          /* Close the data space for the first dataset. */
+          status = H5Sclose(dataspace_id);
+
+          /* Close the first dataset. */
+          status = H5Dclose(dataset_id);
+
+          fini_3level_dtable(&buffer_write);
+        
+        
+          fini_2level_ztable(&projection_coeff_ORT) ;
+
+        }
         fini_2level_ztable( &projection_matrix_a );
         fini_2level_ztable( &projection_matrix_c );
 
