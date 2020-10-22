@@ -1336,22 +1336,22 @@ static inline void gamma_id_to_string ( int gamma_id, char source_sink,  char *s
    snprintf(string_gamma,40,"/g%c1cg3,1",source_sink);
   }
   else if (gamma_id == 13 ) {
-   snprintf(string_gamma,40,"/g%c1cg1g0,1",source_sink);
+   snprintf(string_gamma,40,"/g%c1cg1g4,1",source_sink);
   }
   else if (gamma_id == 4) {
-   snprintf(string_gamma,40,"/g%c1cg2g0,1",source_sink);
+   snprintf(string_gamma,40,"/g%c1cg2g4,1",source_sink);
   }
   else if (gamma_id == 15) {
-   snprintf(string_gamma,40,"/g%c1cg3g0,1",source_sink);
+   snprintf(string_gamma,40,"/g%c1cg3g4,1",source_sink);
   }
   else if (gamma_id == 12) { 
-   snprintf(string_gamma,40,"/g%c1cg1g0g5,5",source_sink);
+   snprintf(string_gamma,40,"/g%c1cg1g4g5,5",source_sink);
   }
   else if (gamma_id == 5 ) {
-   snprintf(string_gamma,40,"/g%c1cg2g0g5,5",source_sink);
+   snprintf(string_gamma,40,"/g%c1cg2g4g5,5",source_sink);
   }
   else if (gamma_id == 10) {
-   snprintf(string_gamma,40,"/g%c1cg3g0g5,5",source_sink);
+   snprintf(string_gamma,40,"/g%c1cg3g4g5,5",source_sink);
   }
   else if (gamma_id == 14) { 
    snprintf(string_gamma,40,"/g%c1Cg5,1",source_sink);
