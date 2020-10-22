@@ -319,6 +319,8 @@ int main(int argc, char **argv) {
    ******************************************************/
   for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
 
+    if (
+
     printf("# [piN2piN_projection_table] start analyzing twopoint function index %d\n", i2pt);
     printf("# [piN2piN_projection_table] pf1 (%d %d %d)\n", g_twopoint_function_list[i2pt].pf1[0], 
                                                             g_twopoint_function_list[i2pt].pf1[1], 
@@ -412,6 +414,11 @@ int main(int argc, char **argv) {
 
     fflush ( stdout );
 
+    if (nlistmomentumf1 > 1 && nlistmomentumf1 != nlistmomentumf2){
+      fprintf( stderr, "[piN2piN_projection_tables] Error different f1 and f2 momenta\n");
+      exit(1);
+    }
+
     /****************************************************
      * set the projector with the info we have
      ****************************************************/
@@ -432,7 +439,7 @@ int main(int argc, char **argv) {
         refframerot );
 
     if ( exitstatus != 0 ) {
-      fprintf ( stderr, "[piN2piN_projection] Error from little_group_projector_set, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      fprintf ( stderr, "[piN2piN_projection_tables] Error from little_group_projector_set, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(3);
     }
 
@@ -477,7 +484,8 @@ int main(int argc, char **argv) {
 
     const int spin1dimension = g_twopoint_function_list[i2pt].number_of_gammas_f1;
     const int spin1212dimension = g_twopoint_function_list[i2pt].d;
-    const int dimension_coeff = g_twopoint_function_list[i2pt].number_of_gammas_f1*g_twopoint_function_list[i2pt].d; 
+    const int momentumlistsize = nlistmomentumf1 ;
+    const int dimension_coeff = g_twopoint_function_list[i2pt].number_of_gammas_f1*g_twopoint_function_list[i2pt].d*nlistmomentumf1; 
 
     gamma_matrix_type gl, gr, gf11, gf12, gf2, gi11, gi12,gi2;
     gamma_matrix_init ( &gl );
@@ -522,148 +530,180 @@ int main(int argc, char **argv) {
   
           for (int spin1212degree = 0; spin1212degree < spin1212dimension; ++spin1212degree ) { 
 
-            /******************************************************
-             * loop on little group elements
-             *  - rotations and rotation-reflections
-             *  - at sink, left-applied element
-             ******************************************************/
+            /*******************************************************
+             *  loop on the possible combination of pf1 and pf2 
+             *  giving the same total momentum and relativ momentum 
+             *******************************************************/
 
-            for ( int irotl = 0; irotl < 2*nrot; irotl ++ ) {
+            for ( int momentum_idx=0; momentum_idx < nlistmomentumf1; ++momentum_idx ){
 
-
-              double _Complex *spin1212_vector=init_1level_ztable(spin1212dimension);
-              double _Complex *spin1212_rotated_vector=init_1level_ztable(spin1212dimension);
-
-              spin1212_vector[spin1212degree]=1.;
-
-
-              if ( g_verbose > 3 ) fprintf ( stdout, "# [piN2piN_projection] left rotref %2d - %2d\n", irotl / nrot, irotl % nrot );
 
               /******************************************************
-               * set momentum vector ( = spin-1 ) rotation matrix
-               *
-               *                                          proper rotation          rotation-reflection
+               * loop on little group elements
+               *  - rotations and rotation-reflections
+               *  - at sink, left-applied element
                ******************************************************/
-              double _Complex ** Rpl = ( irotl < nrot ) ? projector.rp->R[irotl] : projector.rp->IR[irotl-nrot];
 
-              /******************************************************
-               * rotate the final momentum vectors pf1, pf2 with Rpl
-               * left = sink side
-               ******************************************************/
-              int pf1[3];
-              int pf2[3];
-              rot_point ( pf1, g_twopoint_function_list[i2pt].pf1, Rpl );
-              rot_point ( pf2, g_twopoint_function_list[i2pt].pf2, Rpl );
+              for ( int irotl = 0; irotl < 2*nrot; irotl ++ ) {
 
+
+                double _Complex *spin1212_vector=init_1level_ztable(spin1212dimension);
+                double _Complex *spin1212_rotated_vector=init_1level_ztable(spin1212dimension);
+
+                spin1212_vector[spin1212degree]=1.;
+
+
+                if ( g_verbose > 3 ) fprintf ( stdout, "# [piN2piN_projection] left rotref %2d - %2d\n", irotl / nrot, irotl % nrot );
+
+                /******************************************************
+                 * set momentum vector ( = spin-1 ) rotation matrix
+                 *
+                 *                                          proper rotation          rotation-reflection
+                 ******************************************************/
+                double _Complex ** Rpl = ( irotl < nrot ) ? projector.rp->R[irotl] : projector.rp->IR[irotl-nrot];
+
+                /******************************************************
+                 * rotate the final momentum vectors pf1, pf2 with Rpl
+                 * left = sink side
+                 ******************************************************/
+                int pf1[3];
+                int pf2[3];
+                rot_point ( pf1, g_twopoint_function_list[i2pt].pf1list[momentum_idx], Rpl );
+                rot_point ( pf2, g_twopoint_function_list[i2pt].pf2list[momentum_idx], Rpl );
+
+                /******************************************************
+                 * Determining the index of the momentum combination
+                 *
+                 ******************************************************/
+                 
+                int check=0;
+                int rotated_momentum_index=0;
+                for (int ii=0; ii< nlistmomentumf1; ++i){
+                  if ( ( pf1[0]== g_twopoint_function_list[i2pt].pf1list[ii][0] ) &&
+                       ( pf1[1]== g_twopoint_function_list[i2pt].pf1list[ii][1] ) &&
+                       ( pf1[2]== g_twopoint_function_list[i2pt].pf1list[ii][2] ) &&
+                       ( pf2[0]== g_twopoint_function_list[i2pt].pf2list[ii][0] ) &&
+                       ( pf2[1]== g_twopoint_function_list[i2pt].pf2list[ii][1] ) &&
+                       ( pf2[2]== g_twopoint_function_list[i2pt].pf2list[ii][2] )  ){
+                    check=1;
+                    break;
+                  }
+                }
+                if (check == 0){
+                  fprintf(stderr, "[piN2piN_projection_tables] Error some rotation is problematic\n");
+                  exit(1);
+                }
              
 
-              /******************************************************
-               * set the spinor ( = spin-1/2 bispinor ) rotation matrix
-               *
-               *                                          proper rotation               rotation-reflection
-               ******************************************************/
-              double _Complex ** Rsl = ( irotl < nrot ) ? projector.rspin[0].R[irotl] : projector.rspin[0].IR[irotl-nrot];
+                /******************************************************
+                 * set the spinor ( = spin-1/2 bispinor ) rotation matrix
+                 *
+                 *                                          proper rotation               rotation-reflection
+                 ******************************************************/
+                double _Complex ** Rsl = ( irotl < nrot ) ? projector.rspin[0].R[irotl] : projector.rspin[0].IR[irotl-nrot];
           
-              memcpy ( gl.v, Rsl[0], 16*sizeof(double _Complex) );
+                memcpy ( gl.v, Rsl[0], 16*sizeof(double _Complex) );
 
-              if ( g_verbose > 4 ) gamma_matrix_printf ( &gl, "gl", stdout ); 
+                if ( g_verbose > 4 ) gamma_matrix_printf ( &gl, "gl", stdout ); 
 
-              /******************************************************
-               * Gamma_{f_1, 1/2} --->
-               *
-               *   S(R)^* Gamma_{f_1, 1/2} S(R)^H
-               *
-               *   ****************************
-               *   * ANNIHILATION / SINK SIDE *
-               *   ****************************
-               ******************************************************/
-              /* set and rotate gf11 */
-              gamma_matrix_set ( &gf11, g_twopoint_function_list[i2pt].list_of_gammas_f1[spin1degree][0], Cgamma_basis_matching_coeff[g_twopoint_function_list[i2pt].list_of_gammas_f1[spin1degree][0]] );
-              /* gl^C gf11 gl^H */
-              gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gf11, &gl, 'C', &gf11, &gl, 'H' );
+                /******************************************************
+                 * Gamma_{f_1, 1/2} --->
+                 *
+                 *   S(R)^* Gamma_{f_1, 1/2} S(R)^H
+                 *
+                 *   ****************************
+                 *   * ANNIHILATION / SINK SIDE *
+                 *   ****************************
+                 ******************************************************/
+                /* set and rotate gf11 */
+                gamma_matrix_set ( &gf11, g_twopoint_function_list[i2pt].list_of_gammas_f1[spin1degree][0], Cgamma_basis_matching_coeff[g_twopoint_function_list[i2pt].list_of_gammas_f1[spin1degree][0]] );
+                /* gl^C gf11 gl^H */
+                gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gf11, &gl, 'C', &gf11, &gl, 'H' );
 
-              /* set and rotate gf12 */
-              gamma_matrix_set ( &gf12, g_twopoint_function_list[i2pt].list_of_gammas_f1[spin1degree][1], 1. );
-              /* gl^N gf12 gl^H */
-              gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gf12, &gl, 'N', &gf12, &gl, 'H' );
+                /* set and rotate gf12 */
+                gamma_matrix_set ( &gf12, g_twopoint_function_list[i2pt].list_of_gammas_f1[spin1degree][1], 1. );
+                /* gl^N gf12 gl^H */
+                gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gf12, &gl, 'N', &gf12, &gl, 'H' );
 
 
-              /* check for not set or error */
+                /* check for not set or error */
               
-              int rotated_gamma_id =  -1;
-              for (int ii=0; ii < g_twopoint_function_list[i2pt].number_of_gammas_f1; ++ii ) {
-                if (gf11.id == g_twopoint_function_list[i2pt].list_of_gammas_f1[ii][0]) {
-                  rotated_gamma_id = ii; 
-                  break;
+                int rotated_gamma_id =  -1;
+                for (int ii=0; ii < g_twopoint_function_list[i2pt].number_of_gammas_f1; ++ii ) {
+                  if (gf11.id == g_twopoint_function_list[i2pt].list_of_gammas_f1[ii][0]) {
+                    rotated_gamma_id = ii; 
+                    break;
+                  }
                 }
-              }
-              if (rotated_gamma_id == -1){ 
-                fprintf ( stderr, "[piN2piN_projection_table] Error from gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op for gf1 %d irotl %d gf11.id %s %d\n",irotl,gf11.id,  __FILE__, __LINE__ );
-                EXIT(217);
-              }
+                if (rotated_gamma_id == -1){ 
+                  fprintf ( stderr, "[piN2piN_projection_table] Error from gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op for gf1 %d irotl %d gf11.id %s %d\n",irotl,gf11.id,  __FILE__, __LINE__ );
+                  EXIT(217);
+                }
 
-              /******************************************************
-               * correct gf11 for basis matching
-               ******************************************************/
-              gf11.s *= Cgamma_basis_matching_coeff[ gf11.id ];
+                /******************************************************
+                 * correct gf11 for basis matching
+                 ******************************************************/
+                gf11.s *= Cgamma_basis_matching_coeff[ gf11.id ];
 
-              /* transcribe gf1 gamma ids to tp.gf1 */
-              int gf1[2];
-              gf1[0] = gf11.id;
-              gf1[1] = gf12.id;
+                /* transcribe gf1 gamma ids to tp.gf1 */
+                int gf1[2];
+                gf1[0] = gf11.id;
+                gf1[1] = gf12.id;
 
-              /******************************************************
-               * Gamma_{f_2} ---> S(R) Gamma_{f_2} S(R)^+
-               ******************************************************/
-              /* set and rotate gf2 */
-              gamma_matrix_set ( &gf2, g_twopoint_function_list[i2pt].list_of_gammas_f2[0], 1. );
-              /* gl^N gf2 gl^H */
-              gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gf2, &gl, 'N', &gf2, &gl, 'H' );
+                /******************************************************
+                 * Gamma_{f_2} ---> S(R) Gamma_{f_2} S(R)^+
+                 ******************************************************/
+                /* set and rotate gf2 */
+                gamma_matrix_set ( &gf2, g_twopoint_function_list[i2pt].list_of_gammas_f2[0], 1. );
+                /* gl^N gf2 gl^H */
+                gamma_eq_gamma_op_ti_gamma_matrix_ti_gamma_op ( &gf2, &gl, 'N', &gf2, &gl, 'H' );
 
-              /* transcribe gf2 gamma id to tp.gf2 */
-              int gf2_local;
-              gf2_local    = gf2.id;
+                /* transcribe gf2 gamma id to tp.gf2 */
+                int gf2_local;
+                gf2_local    = gf2.id;
 
-              rot_mat_adj_ti_vec ( spin1212_rotated_vector, Rsl, spin1212_vector, spin1212dimension );
+                rot_mat_adj_ti_vec ( spin1212_rotated_vector, Rsl, spin1212_vector, spin1212dimension );
                
-              /******************************************************
-               * projection variants
-               ******************************************************/
+                /******************************************************
+                 * projection variants
+                 ******************************************************/
 
-              /******************************************************
-               * irrep matrix for left-applied rotation
-               *   = sink side
-               ******************************************************/
-               double _Complex ** Tirrepl = ( irotl < nrot ) ? projector.rtarget->R[irotl] : projector.rtarget->IR[irotl-nrot];
+                /******************************************************
+                 * irrep matrix for left-applied rotation
+                 *   = sink side
+                 ******************************************************/
+                double _Complex ** Tirrepl = ( irotl < nrot ) ? projector.rtarget->R[irotl] : projector.rtarget->IR[irotl-nrot];
 
 
 
-               double _Complex const zcoeff = 
+                double _Complex const zcoeff = 
                           (double)( projector.rtarget->dim  ) /( 2. *    projector.rtarget->n     )                          
                             * gf11.s                               /* gamma rot sign f_1,1      */
                             * gf12.s                               /* gamma rot sign f_1,2      */
                             * gf2.s                                /* gamma rot sign f_2        */
                             * Tirrepl[imu][ibeta];           /* phase irrep matrix sink   */;
-               if ( cabs( zcoeff ) < _ZCOEFF_EPS ) {
+                if ( cabs( zcoeff ) < _ZCOEFF_EPS ) {
                 /* if ( g_verbose > 4 ) fprintf ( stdout, "# [piN2piN_projection] | zcoeff = %16.7e + I %16.7e | < _ZCOEFF_EPS, continue\n", creal( zcoeff ), cimag( zcoeff ) ); */
                     continue;
-               }
-               if ( g_verbose > 4 ){
-                 char * text_output=(char *)malloc(sizeof(char)*100);
-                 snprintf(text_output,100,"Rvector(sink_row=%d,ref_sink=%d)[(spin1=%d,spi1212=%d,irotl=%d)]",imu, ibeta,spin1degree, spin1212degree, irotl, imu,ibeta);
+                }
+                if ( g_verbose > 4 ){
+                  char * text_output=(char *)malloc(sizeof(char)*100);
+                  snprintf(text_output,100,"Rvector(sink_row=%d,ref_sink=%d)[(spin1=%d,spi1212=%d,irotl=%d)]",imu, ibeta,spin1degree, spin1212degree, irotl, imu,ibeta);
 
                  rot_printf_vec (spin1212_rotated_vector,4,text_output, stdout );
                  free(text_output);
-               }
+                }
 
-               rot_vec_pl_eq_rot_vec_ti_co ( &projection_matrix_a[spin1degree*spin1212dimension + spin1212degree][spin1212dimension*rotated_gamma_id], spin1212_rotated_vector , zcoeff, spin1212dimension);
+                rot_vec_pl_eq_rot_vec_ti_co ( &projection_matrix_a[momentum_idx*spin1dimension*spin1212dimension+spin1degree*spin1212dimension + spin1212degree][rotated_momentum_index*spin1212dimension*spin1dimension+spin1212dimension*rotated_gamma_id], spin1212_rotated_vector , zcoeff, spin1212dimension);
 
-               fini_1level_ztable(&spin1212_vector);
+                fini_1level_ztable(&spin1212_vector);
  
-               fini_1level_ztable(&spin1212_rotated_vector);
+                fini_1level_ztable(&spin1212_rotated_vector);
 
 
-            } /* end of loop over rotation elements */
+              } /* end of loop over rotation elements */
+
+            } /* end of loop over different momentum combination */
           
           } /* end of loop over spi1212degree */
 
@@ -762,12 +802,23 @@ int main(int argc, char **argv) {
         /* Close the first dataset. */
         status = H5Dclose(dataset_id);
 
+
+        char * text_output=(char *)malloc(sizeof(char)*300);
+        snprintf(text_output,300,"Pmatrix annihilation (imu=%d,ibeta=%d)",imu,ibeta);
+        rot_printf_matrix_non_zero_non_symmetric(projection_matrix_a, dimension_coeff, dimension_coeff, text_output, stdout);
+        free(text_output);
+
         fini_3level_dtable(&buffer_write);
 
         int N=dimension_coeff;
         double _Complex **projection_coeff_ORT= apply_gramschmidt ( projection_matrix_a,  &N);
        
         if (N>0){
+          text_output=(char *)malloc(sizeof(char)*300);
+          snprintf(text_output,300,"Pmatrix annihilation orthonormalized (imu=%d,ibeta=%d)",imu,ibeta);
+          rot_printf_matrix_non_zero_non_symmetric(projection_coeff_ORT, N, dimension_coeff, text_output, stdout);
+          free(text_output);
+
           buffer_write=init_3level_dtable(N,dimension_coeff,2);
 
           for (int i=0; i < N; ++i){
@@ -803,10 +854,6 @@ int main(int argc, char **argv) {
           fini_2level_ztable(&projection_coeff_ORT) ;
        
         }
-        char * text_output=(char *)malloc(sizeof(char)*100);
-        snprintf(text_output,100,"Pmatrix(imu=%d,ibeta=%d)",imu,ibeta);
-        rot_printf_matrix(projection_matrix_a, dimension_coeff, text_output, stdout);
-        free(text_output);
         dataspace_id = H5Screate_simple(3, dims, NULL);
         snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/c_data",  g_twopoint_function_list[i2pt].pf1[0],
                                                        g_twopoint_function_list[i2pt].pf1[1],
@@ -817,6 +864,12 @@ int main(int argc, char **argv) {
 
 
         rot_mat_adj ( projection_matrix_c , projection_matrix_a , dimension_coeff  );
+
+        text_output=(char *)malloc(sizeof(char)*300);
+        snprintf(text_output,300,"Pmatrix creation (imu=%d,ibeta=%d)",imu,ibeta);
+        rot_printf_matrix_non_zero_non_symmetric(projection_matrix_c, dimension_coeff, dimension_coeff, text_output, stdout);
+        free(text_output);
+
 
         buffer_write=init_3level_dtable(dimension_coeff,dimension_coeff,2);
 
@@ -844,6 +897,12 @@ int main(int argc, char **argv) {
         projection_coeff_ORT= apply_gramschmidt ( projection_matrix_c,  &N);
 
         if (N>0){
+
+          text_output=(char *)malloc(sizeof(char)*300);
+          snprintf(text_output,300,"Pmatrix creation orthonormalized (imu=%d,ibeta=%d)",imu,ibeta);
+          rot_printf_matrix_non_zero_non_symmetric(projection_coeff_ORT, N, dimension_coeff, text_output, stdout);
+          free(text_output);
+
 
           buffer_write=init_3level_dtable(N,dimension_coeff,2);
 
