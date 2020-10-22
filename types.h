@@ -10,6 +10,7 @@ typedef double ** spinor_propagator_type;
 
 #define _TWOPOINT_FUNCTION_TYPE_MAX_STRING_LENGTH 1200
 #define _TWOPOINT_FUNCTION_MAX_NUMBER_OF_GAMMAS 10
+#define _TWOPOINT_FUNCTION_MAX_NUMBER_OF_MOMENTA 12
 
 typedef struct {
   //number of gammas initially inside the twopoint function
@@ -32,6 +33,10 @@ typedef struct {
   int pi2[3];
   int pf1[3];
   int pf2[3];
+  int pf1list[_TWOPOINT_FUNCTION_MAX_NUMBER_OF_MOMENTA][3];
+  int pf2list[_TWOPOINT_FUNCTION_MAX_NUMBER_OF_MOMENTA][3];
+  int nlistmomentumf1;
+  int nlistmomentumf2;
   // gamma structure at up to 4 vertices, default -1
   int gi1[2];
   int gi2;

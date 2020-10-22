@@ -114,6 +114,8 @@ void twopoint_function_init ( twopoint_function_type *p ) {
   p->c = NULL;
   p->T = -1;
   p->d = 0;
+  p->nlistmomentumf1=0;
+  p->nlistmomentumf2=0;
 }  // end of twopoint_function_init
 
 /********************************************************************************
@@ -153,6 +155,12 @@ void twopoint_function_print ( twopoint_function_type *p, char *name, FILE*ofs )
   fprintf(ofs, "# [twopoint_function_print] %s.d               =  %d\n", name, p->d );
   fprintf(ofs, "# [twopoint_function_print] %s.group           =  %s\n", name, p->group );
   fprintf(ofs, "# [twopoint_function_print] %s.irrep           =  %s\n", name, p->irrep );
+  for (int i=0; i<p->nlistmomentumf1 ; ++i){
+    fprintf(ofs, "# [twopoint_function_print] %s.momentaf1(%d) =  (%d,%d,%d)\n", name, i, p->pf1list[i][0], p->pf1list[i][1],p->pf1list[i][2]); 
+  }
+  for (int i=0; i<p->nlistmomentumf2 ; ++i){
+    fprintf(ofs, "# [twopoint_function_print] %s.momentaf2(%d) =  (%d,%d,%d)\n", name, i, p->pf2list[i][0], p->pf2list[i][1],p->pf2list[i][2]);
+  }
   if ( p->c != NULL ) {
     fprintf ( ofs, "# [twopoint_function_print] data array is set\n");
   } else {

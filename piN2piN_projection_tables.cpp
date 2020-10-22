@@ -319,12 +319,8 @@ int main(int argc, char **argv) {
    ******************************************************/
   for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
 
-    if (
-
     printf("# [piN2piN_projection_table] start analyzing twopoint function index %d\n", i2pt);
-    printf("# [piN2piN_projection_table] pf1 (%d %d %d)\n", g_twopoint_function_list[i2pt].pf1[0], 
-                                                            g_twopoint_function_list[i2pt].pf1[1], 
-                                                            g_twopoint_function_list[i2pt].pf1[2]);
+    printf("# [piN2piN_projection_table] pf1 (%d %d %d)\n", g_twopoint_function_list[i2pt].pf1[0], g_twopoint_function_list[i2pt].pf1[1], g_twopoint_function_list[i2pt].pf1[2]);
     printf("# [piN2piN_projection_table] pf2 (%d %d %d)\n", g_twopoint_function_list[i2pt].pf2[0], g_twopoint_function_list[i2pt].pf2[1], g_twopoint_function_list[i2pt].pf2[2]);
 
 
@@ -414,7 +410,7 @@ int main(int argc, char **argv) {
 
     fflush ( stdout );
 
-    if (nlistmomentumf1 > 1 && nlistmomentumf1 != nlistmomentumf2){
+    if (g_twopoint_function_list[i2pt].nlistmomentumf1 > 1 && g_twopoint_function_list[i2pt].nlistmomentumf1 != g_twopoint_function_list[i2pt].nlistmomentumf2){
       fprintf( stderr, "[piN2piN_projection_tables] Error different f1 and f2 momenta\n");
       exit(1);
     }
@@ -484,8 +480,8 @@ int main(int argc, char **argv) {
 
     const int spin1dimension = g_twopoint_function_list[i2pt].number_of_gammas_f1;
     const int spin1212dimension = g_twopoint_function_list[i2pt].d;
-    const int momentumlistsize = nlistmomentumf1 ;
-    const int dimension_coeff = g_twopoint_function_list[i2pt].number_of_gammas_f1*g_twopoint_function_list[i2pt].d*nlistmomentumf1; 
+    const int momentumlistsize = g_twopoint_function_list[i2pt].nlistmomentumf1 ;
+    const int dimension_coeff = g_twopoint_function_list[i2pt].number_of_gammas_f1*g_twopoint_function_list[i2pt].d*momentumlistsize; 
 
     gamma_matrix_type gl, gr, gf11, gf12, gf2, gi11, gi12,gi2;
     gamma_matrix_init ( &gl );
@@ -535,7 +531,7 @@ int main(int argc, char **argv) {
              *  giving the same total momentum and relativ momentum 
              *******************************************************/
 
-            for ( int momentum_idx=0; momentum_idx < nlistmomentumf1; ++momentum_idx ){
+            for ( int momentum_idx=0; momentum_idx < momentumlistsize ; ++momentum_idx ){
 
 
               /******************************************************
@@ -578,7 +574,7 @@ int main(int argc, char **argv) {
                  
                 int check=0;
                 int rotated_momentum_index=0;
-                for (int ii=0; ii< nlistmomentumf1; ++i){
+                for (int ii=0; ii< momentumlistsize; ++ii){
                   if ( ( pf1[0]== g_twopoint_function_list[i2pt].pf1list[ii][0] ) &&
                        ( pf1[1]== g_twopoint_function_list[i2pt].pf1list[ii][1] ) &&
                        ( pf1[2]== g_twopoint_function_list[i2pt].pf1list[ii][2] ) &&
