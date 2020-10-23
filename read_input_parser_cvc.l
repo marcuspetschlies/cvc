@@ -2,6 +2,8 @@
  * read_input_parser.l
  * - parsing cvc.input to program
  * - use flex -P <prefix_> ...
+["-"|""0-9"."","" ","-"]*
+
  ***********************************************************************/
 
 SPC [[:blank:]]+
@@ -18,6 +20,7 @@ NAME [a-zA-Z0-9_]+
 TYPE [0-9A-Z]+
 FLTLIST [0-9"."","" "]*
 SDIGIT {SIGN}?[[:digit:]]
+MLIST [("\-"""0-9)""","" "]*
 STRING [a-zA-Z0-9"."_"\-""/"","+]+
 EQL {SPC}*={SPC}*
 
@@ -1262,7 +1265,7 @@ namespace cvc {
         &(cvc::twopoint_function_ptr->gi2) );
   }
 
-  {SPC}*listofmomentumf1{EQL}{FLTLIST} {
+  {SPC}*listofmomentumf1{EQL}{MLIST} {
     char paramname[100];
     char error_message[200];
     int list_end = 0;
@@ -1277,15 +1280,15 @@ namespace cvc {
       }
 
       cvc::twopoint_function_ptr->pf1list[number_of_p][0] = n_vec;
-      printf("  %s, gamma id %d 0 set to %d line %d\n", paramname,
+      printf("  %s, momf1 id %d 0 set to %d line %d\n", paramname,
                 number_of_p,  cvc::twopoint_function_ptr->pf1list[number_of_p][0], cvc::line_of_file);
       n_vec = fltlist_next_token(&list_end);
       cvc::twopoint_function_ptr->pf1list[number_of_p][1] = n_vec;
-      printf("  %s, gamma id %d 1 set to %d line %d\n", paramname,
+      printf("  %s, momf1 id %d 1 set to %d line %d\n", paramname,
                 number_of_p,  cvc::twopoint_function_ptr->pf1list[number_of_p][1], cvc::line_of_file);
       n_vec = fltlist_next_token(&list_end);
       cvc::twopoint_function_ptr->pf1list[number_of_p][2] = n_vec;
-      printf("  %s, gamma id %d 2 set to %d line %d\n", paramname,
+      printf("  %s, momf1 id %d 2 set to %d line %d\n", paramname,
                 number_of_p,  cvc::twopoint_function_ptr->pf1list[number_of_p][2], cvc::line_of_file);
       number_of_p++;
       n_vec = fltlist_next_token(&list_end);
@@ -1293,7 +1296,7 @@ namespace cvc {
     cvc::twopoint_function_ptr->nlistmomentumf1 = number_of_p;
   }
 
-  {SPC}*listofmomentumf2{EQL}{FLTLIST} {
+  {SPC}*listofmomentumf2{EQL}{MLIST} {
     char paramname[100];
     char error_message[200];
     int list_end = 0; 
@@ -1308,15 +1311,15 @@ namespace cvc {
       }
 
       cvc::twopoint_function_ptr->pf2list[number_of_p][0] = n_vec;
-      printf("  %s, gamma id %d 0 set to %d line %d\n", paramname,
+      printf("  %s, mom f2 id %d 0 set to %d line %d\n", paramname,
                 number_of_p,  cvc::twopoint_function_ptr->pf2list[number_of_p][0], cvc::line_of_file);
       n_vec = fltlist_next_token(&list_end);
       cvc::twopoint_function_ptr->pf2list[number_of_p][1] = n_vec;
-      printf("  %s, gamma id %d 1 set to %d line %d\n", paramname,
+      printf("  %s, mom f2 id %d 1 set to %d line %d\n", paramname,
                 number_of_p,  cvc::twopoint_function_ptr->pf2list[number_of_p][1], cvc::line_of_file);
       n_vec = fltlist_next_token(&list_end);
       cvc::twopoint_function_ptr->pf2list[number_of_p][2] = n_vec;
-      printf("  %s, gamma id %d 2 set to %d line %d\n", paramname,
+      printf("  %s, mom f2 id %d 2 set to %d line %d\n", paramname,
                 number_of_p,  cvc::twopoint_function_ptr->pf2list[number_of_p][2], cvc::line_of_file);
       number_of_p++;
       n_vec = fltlist_next_token(&list_end);
