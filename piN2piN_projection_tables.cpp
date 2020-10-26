@@ -70,7 +70,8 @@ extern "C"
 
 #define MAX_UDLI_NUM 1000
 #define EPS 1e-14
-
+#define ANNIHILATION 1 
+#define CREATION 0
 using namespace cvc;
 /* Taking care of orthogonalizing Projector matrix */
 
@@ -84,75 +85,156 @@ double _Complex scalar_product( double _Complex *vec1, double _Complex *vec2, in
 
 /* Auxiliary routine, that performs a rank revealed QR algorithm */
 
-double _Complex ** apply_gramschmidt( double _Complex ** Projector, int *dimension) {
+double _Complex ** apply_gramschmidt( double _Complex ** Projector, int annihilation_or_creation, int *dimension) {
    
    int i0;
    int final_dimension=0;
    double _Complex ** orthogonalized=init_2level_ztable(*dimension, *dimension);
 
+   if (annihilation_or_creation == ANNIHILATION){
+
     /* Looking for the first non-zero row */
-   int check=1;
-   for (i0=0;i0<*dimension ;++i0){
-     check=1;
-     for (int j=0; j<*dimension;++j){
-       if (cabs(Projector[i0][j]) > EPS ){
-        check=0;
-        break;
-       } 
-     }
-     if (check==0){
-      break;
-     }     
-   }
-   if (check==1){
-     fprintf(stderr, "# [apply_gramschmidt] Error the whole matrix is zero appearently the irrep does not contribute\n" );
-     *dimension=0;
-     return NULL;
-   }
-   /* Normalizing the first vector */
-   double norm=0.0;
-   for (int j=0; j<*dimension; ++j){
-     norm+=creal(Projector[i0][j])*creal(Projector[i0][j])+cimag(Projector[i0][j])*cimag(Projector[i0][j]);
-   }
-   for (int j=0; j<*dimension; ++j){
-     orthogonalized[0][j]=1./sqrt(norm)*Projector[i0][j];
-   }
-   if (i0==(*dimension-1)){
-     *dimension=i0; 
-     return  orthogonalized;
-   }
-   /* Orthogonalizing the remaining ones*/
-   for (int ii=i0+1; ii<*dimension; ++ii){
-     check=1;
-     /* Looking for the next non-zero row */
-     for (int j=0; j<*dimension;++j){
-        if (cabs(Projector[ii][j]) > EPS ){
-        check=0;
-        break;
+     int check=1;
+     for (i0=0;i0<*dimension ;++i0){
+       check=1;
+       for (int j=0; j<*dimension;++j){
+         if (cabs(Projector[i0][j]) > EPS ){
+          check=0;
+          break;
+         } 
        }
+       if (check==0){
+        break;
+       }     
      }
-     /* If check is zero we found a non-zero row, lets ortogonalize it to all the previous ones*/
      if (check==1){
-       continue;
+       fprintf(stderr, "# [apply_gramschmidt] Error the whole matrix is zero appearently the irrep does not contribute\n" );
+       *dimension=0;
+       return NULL;
      }
-     for (int j=0; j< *dimension; ++j)
-       orthogonalized[final_dimension+1][j]=Projector[ii][j];
-     for (int iib=0; iib<=final_dimension; ++iib){
-       double _Complex prodij=scalar_product( orthogonalized[iib], Projector[ii], *dimension );
-       for (int j=0; j< *dimension; ++j)
-         orthogonalized[final_dimension+1][j]-=prodij*orthogonalized[iib][j];
-     }
-     norm=0.;
+     /* Normalizing the first vector */
+     double norm=0.0;
      for (int j=0; j<*dimension; ++j){
-       norm+= creal(orthogonalized[final_dimension+1][j])*creal(orthogonalized[final_dimension+1][j])+cimag(orthogonalized[final_dimension+1][j])*cimag(orthogonalized[final_dimension+1][j]);
+       norm+=creal(Projector[i0][j])*creal(Projector[i0][j])+cimag(Projector[i0][j])*cimag(Projector[i0][j]);
      }
-     if (norm<EPS)
-       continue;
-     else{
-       for (int j=0; j<*dimension; ++j){
-         orthogonalized[final_dimension+1][j]=1./sqrt(norm)*orthogonalized[final_dimension+1][j];
+     for (int j=0; j<*dimension; ++j){
+       orthogonalized[0][j]=1./sqrt(norm)*Projector[i0][j];
+     }
+     if (i0==(*dimension-1)){
+       *dimension=i0; 
+       return  orthogonalized;
+     }
+     /* Orthogonalizing the remaining ones*/
+     for (int ii=i0+1; ii<*dimension; ++ii){
+       check=1;
+       /* Looking for the next non-zero row */
+       for (int j=0; j<*dimension;++j){
+         if (cabs(Projector[ii][j]) > EPS ){
+          check=0;
+          break;
+         }
        }
-       final_dimension+=1;
+       /* If check is zero we found a non-zero row, lets ortogonalize it to all the previous ones*/
+       if (check==1){
+         continue;
+       }
+       for (int j=0; j< *dimension; ++j)
+         orthogonalized[final_dimension+1][j]=Projector[ii][j];
+       for (int iib=0; iib<=final_dimension; ++iib){
+         double _Complex prodij=scalar_product( orthogonalized[iib], Projector[ii], *dimension );
+         for (int j=0; j< *dimension; ++j)
+           orthogonalized[final_dimension+1][j]-=prodij*orthogonalized[iib][j];
+       }
+       norm=0.;
+       for (int j=0; j<*dimension; ++j){
+         norm+= creal(orthogonalized[final_dimension+1][j])*creal(orthogonalized[final_dimension+1][j])+cimag(orthogonalized[final_dimension+1][j])*cimag(orthogonalized[final_dimension+1][j]);
+       }
+       if (norm<EPS)
+         continue;
+       else{
+         for (int j=0; j<*dimension; ++j){
+           orthogonalized[final_dimension+1][j]=1./sqrt(norm)*orthogonalized[final_dimension+1][j];
+         }
+         final_dimension+=1;
+       }
+     }
+   }
+   else if (annihilation_or_creation == CREATION){
+     /* Looking for the first non-zero column */
+     int check=1;
+     for (i0=0;i0<*dimension ;++i0){
+       check=1;
+       for (int j=0; j<*dimension;++j){
+         if (cabs(Projector[j][i0]) > EPS ){
+          check=0;
+          break;
+         }
+       }
+       if (check==0){
+        break;
+       }
+     }
+     if (check==1){
+       fprintf(stderr, "# [apply_gramschmidt] Error the whole matrix is zero appearently the irrep does not contribute\n" );
+       *dimension=0;
+       return NULL;
+     }
+     /* Normalizing the first vector */
+     double norm=0.0;
+     for (int j=0; j<*dimension; ++j){
+       norm+=creal(Projector[j][i0])*creal(Projector[j][i0])+cimag(Projector[j][i0])*cimag(Projector[j][i0]);
+     }
+     for (int j=0; j<*dimension; ++j){
+       orthogonalized[j][0]=1./sqrt(norm)*Projector[j][i0];
+     }
+     if (i0==(*dimension-1)){
+       *dimension=i0;
+       return  orthogonalized;
+     }
+     /* Orthogonalizing the remaining ones*/
+     for (int ii=i0+1; ii<*dimension; ++ii){
+       check=1;
+       /* Looking for the next non-zero row */
+       for (int j=0; j<*dimension;++j){
+         if (cabs(Projector[j][ii]) > EPS ){
+          check=0;
+          break;
+         }
+       }
+       /* If check is zero we found a non-zero row, lets ortogonalize it to all the previous ones*/
+       if (check==1){
+         continue;
+       }
+       for (int j=0; j< *dimension; ++j)
+         orthogonalized[j][final_dimension+1]=Projector[j][ii];
+
+       double _Complex  *ortho2vec=init_1level_ztable( *dimension );
+       for (int iic=0; iic< *dimension; ++iic){
+         ortho2vec[iic]=Projector[iic][ii];
+       }
+       for (int iib=0; iib<=final_dimension; ++iib){
+         double _Complex  *ortho1vec=init_1level_ztable( *dimension );
+         for (int iic=0; iic < *dimension; ++iic){
+           ortho1vec[iic]=orthogonalized[iic][iib];
+         }
+         double _Complex prodij=scalar_product( ortho1vec, ortho2vec, *dimension );
+         for (int j=0; j< *dimension; ++j)
+           orthogonalized[j][final_dimension+1]-=prodij*orthogonalized[j][iib];
+         fini_1level_ztable( &ortho1vec );
+       }
+       fini_1level_ztable( &ortho2vec );
+       norm=0.;
+       for (int j=0; j<*dimension; ++j){
+         norm+= creal(orthogonalized[j][final_dimension+1])*creal(orthogonalized[j][final_dimension+1])+cimag(orthogonalized[j][final_dimension+1])*cimag(orthogonalized[j][final_dimension+1]);
+       }
+       if (norm<EPS)
+         continue;
+       else{
+         for (int j=0; j<*dimension; ++j){
+           orthogonalized[j][final_dimension+1]=1./sqrt(norm)*orthogonalized[j][final_dimension+1];
+         }
+         final_dimension+=1;
+       }
      }
    }
     
@@ -320,8 +402,13 @@ int main(int argc, char **argv) {
   for ( int i2pt = 0; i2pt < g_twopoint_function_number; i2pt++ ) {
 
     printf("# [piN2piN_projection_table] start analyzing twopoint function index %d\n", i2pt);
-    printf("# [piN2piN_projection_table] pf1 (%d %d %d)\n", g_twopoint_function_list[i2pt].pf1[0], g_twopoint_function_list[i2pt].pf1[1], g_twopoint_function_list[i2pt].pf1[2]);
-    printf("# [piN2piN_projection_table] pf2 (%d %d %d)\n", g_twopoint_function_list[i2pt].pf2[0], g_twopoint_function_list[i2pt].pf2[1], g_twopoint_function_list[i2pt].pf2[2]);
+
+    for (int ii=0; ii< g_twopoint_function_list[i2pt].nlistmomentumf1; ++ii){
+
+      printf("# [piN2piN_projection_table] pf1 (%d %d %d)\n", g_twopoint_function_list[i2pt].pf1list[ii][0] , g_twopoint_function_list[i2pt].pf1list[ii][1] , g_twopoint_function_list[i2pt].pf1list[ii][2] );
+      printf("# [piN2piN_projection_table] pf2 (%d %d %d)\n", g_twopoint_function_list[i2pt].pf2list[ii][0] , g_twopoint_function_list[i2pt].pf2list[ii][0] , g_twopoint_function_list[i2pt].pf2list[ii][2] );
+
+    }
 
 
     /******************************************************
@@ -385,9 +472,9 @@ int main(int argc, char **argv) {
     int Pref[3] = {-1,-1,-1};
 
     int const Ptot[3] = {
-      g_twopoint_function_list[i2pt].pf1[0] + g_twopoint_function_list[i2pt].pf2[0],
-      g_twopoint_function_list[i2pt].pf1[1] + g_twopoint_function_list[i2pt].pf2[1],
-      g_twopoint_function_list[i2pt].pf1[2] + g_twopoint_function_list[i2pt].pf2[2] };
+      g_twopoint_function_list[i2pt].pf1list[0][0] + g_twopoint_function_list[i2pt].pf2list[0][0] , 
+      g_twopoint_function_list[i2pt].pf1list[0][1] + g_twopoint_function_list[i2pt].pf2list[0][1] , 
+      g_twopoint_function_list[i2pt].pf1list[0][2] + g_twopoint_function_list[i2pt].pf2list[0][2]  };
 
 
     /****************************************************
@@ -412,6 +499,17 @@ int main(int argc, char **argv) {
 
     if (g_twopoint_function_list[i2pt].nlistmomentumf1 > 1 && g_twopoint_function_list[i2pt].nlistmomentumf1 != g_twopoint_function_list[i2pt].nlistmomentumf2){
       fprintf( stderr, "[piN2piN_projection_tables] Error different f1 and f2 momenta\n");
+      exit(1);
+    }
+    int check_consistency=0;
+    for (int ii=0; ii<g_twopoint_function_list[i2pt].nlistmomentumf1; ++ii){
+      if ((Ptot[0]!=( g_twopoint_function_list[i2pt].pf1list[ii][0] + g_twopoint_function_list[i2pt].pf2list[ii][0])) || (Ptot[1]!=( g_twopoint_function_list[i2pt].pf1list[ii][1] + g_twopoint_function_list[i2pt].pf2list[ii][1])) || (Ptot[2]!=( g_twopoint_function_list[i2pt].pf1list[ii][2] + g_twopoint_function_list[i2pt].pf2list[ii][2])) ){
+        check_consistency=1;
+        break;
+      }  
+    }
+    if (check_consistency == 1){
+      fprintf(stderr,"[piNpiN_projection_table] check the input values of momenta, some of them are not giving the correct total momentum\n");
       exit(1);
     }
 
@@ -582,6 +680,7 @@ int main(int argc, char **argv) {
                        ( pf2[1]== g_twopoint_function_list[i2pt].pf2list[ii][1] ) &&
                        ( pf2[2]== g_twopoint_function_list[i2pt].pf2list[ii][2] )  ){
                     check=1;
+                    rotated_momentum_index=ii;
                     break;
                   }
                 }
@@ -720,9 +819,7 @@ int main(int argc, char **argv) {
           file_id = H5Fopen(filename, H5F_ACC_RDWR, H5P_DEFAULT);
         }
 
-        snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/",  g_twopoint_function_list[i2pt].pf1[0],
-                                                       g_twopoint_function_list[i2pt].pf1[1],
-                                                       g_twopoint_function_list[i2pt].pf1[2]);
+        snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/",  Ptot[0], Ptot[1], Ptot[2] );
         status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
 
         status = H5Gget_objinfo (file_id, tagname, 0, NULL);
@@ -736,9 +833,7 @@ int main(int argc, char **argv) {
 
         }
 
-        snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/",  g_twopoint_function_list[i2pt].pf1[0],
-                                                       g_twopoint_function_list[i2pt].pf1[1],
-                                                       g_twopoint_function_list[i2pt].pf1[2],imu);
+        snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/",  Ptot[0],Ptot[1],Ptot[2],imu);
         status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
 
         status = H5Gget_objinfo (file_id, tagname, 0, NULL);
@@ -751,9 +846,7 @@ int main(int argc, char **argv) {
            status = H5Gclose(group_id);
 
         }
-        snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d",  g_twopoint_function_list[i2pt].pf1[0],
-                                                       g_twopoint_function_list[i2pt].pf1[1],
-                                                       g_twopoint_function_list[i2pt].pf1[2],imu,ibeta);
+        snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d",  Ptot[0],Ptot[1],Ptot[2],imu,ibeta);
         status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
 
         status = H5Gget_objinfo (file_id, tagname, 0, NULL);
@@ -761,7 +854,6 @@ int main(int argc, char **argv) {
 
            /* Create a group named "/MyGroup" in the file. */
            group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
            /* Close the group. */
            status = H5Gclose(group_id);
 
@@ -772,9 +864,8 @@ int main(int argc, char **argv) {
         dims[1]=dimension_coeff;
         dims[2]=2;
         dataspace_id = H5Screate_simple(3, dims, NULL);
-        snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/a_data",  g_twopoint_function_list[i2pt].pf1[0],
-                                                       g_twopoint_function_list[i2pt].pf1[1],
-                                                       g_twopoint_function_list[i2pt].pf1[2],imu,ibeta);
+        snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/a_data",  Ptot[0],
+                                                       Ptot[1],Ptot[2],imu,ibeta);
 
         /* Create a dataset in group "MyGroup". */
         dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
@@ -800,19 +891,36 @@ int main(int argc, char **argv) {
 
 
         char * text_output=(char *)malloc(sizeof(char)*300);
-        snprintf(text_output,300,"Pmatrix annihilation (imu=%d,ibeta=%d)",imu,ibeta);
-        rot_printf_matrix_non_zero_non_symmetric(projection_matrix_a, dimension_coeff, dimension_coeff, text_output, stdout);
+        int **momentum_table= init_2level_itable( momentumlistsize, 6 );
+        for (int ii=0; ii<momentumlistsize; ++ii){
+          momentum_table[ii][0]=g_twopoint_function_list[i2pt].pf1list[ii][0];
+          momentum_table[ii][1]=g_twopoint_function_list[i2pt].pf1list[ii][1];
+          momentum_table[ii][2]=g_twopoint_function_list[i2pt].pf1list[ii][2];
+          momentum_table[ii][3]=g_twopoint_function_list[i2pt].pf2list[ii][0];
+          momentum_table[ii][4]=g_twopoint_function_list[i2pt].pf2list[ii][1];
+          momentum_table[ii][5]=g_twopoint_function_list[i2pt].pf2list[ii][2];
+
+        }
+        int **spinf1table= init_2level_itable( g_twopoint_function_list[i2pt].number_of_gammas_f1, 2);
+        for (int ii=0; ii<g_twopoint_function_list[i2pt].number_of_gammas_f1;++ii){
+          spinf1table[ii][0]=g_twopoint_function_list[i2pt].list_of_gammas_f1[ii][0];
+          spinf1table[ii][1]=g_twopoint_function_list[i2pt].list_of_gammas_f1[ii][1];
+
+        }
+        snprintf(text_output,300,"Pmatrix annihilation (imu=%d,ibeta=%d) Ptot=(%d,%d,%d)",imu,ibeta, Ptot[0], Ptot[1], Ptot[2]);
+        rot_printf_matrix_non_zero_non_symmetric(projection_matrix_a, 1, dimension_coeff, momentum_table, momentumlistsize, spinf1table, g_twopoint_function_list[i2pt].number_of_gammas_f1, g_twopoint_function_list[i2pt].d , text_output, stdout);
         free(text_output);
 
         fini_3level_dtable(&buffer_write);
 
         int N=dimension_coeff;
-        double _Complex **projection_coeff_ORT= apply_gramschmidt ( projection_matrix_a,  &N);
+        double _Complex **projection_coeff_ORT= apply_gramschmidt ( projection_matrix_a, ANNIHILATION,  &N);
        
         if (N>0){
           text_output=(char *)malloc(sizeof(char)*300);
           snprintf(text_output,300,"Pmatrix annihilation orthonormalized (imu=%d,ibeta=%d)",imu,ibeta);
-          rot_printf_matrix_non_zero_non_symmetric(projection_coeff_ORT, N, dimension_coeff, text_output, stdout);
+          rot_printf_matrix_non_zero_non_symmetric(projection_coeff_ORT, 1, N, momentum_table, momentumlistsize, spinf1table, g_twopoint_function_list[i2pt].number_of_gammas_f1, g_twopoint_function_list[i2pt].d , text_output, stdout);
+
           free(text_output);
 
           buffer_write=init_3level_dtable(N,dimension_coeff,2);
@@ -828,9 +936,7 @@ int main(int argc, char **argv) {
           dims[1]=dimension_coeff;
           dims[2]=2;
           dataspace_id = H5Screate_simple(3, dims, NULL);
-          snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/a_data_ort",  g_twopoint_function_list[i2pt].pf1[0],
-                                                       g_twopoint_function_list[i2pt].pf1[1],
-                                                       g_twopoint_function_list[i2pt].pf1[2],imu,ibeta);
+          snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/a_data_ort",  Ptot[0], Ptot[1], Ptot[2], imu, ibeta);
 
           /* Create a dataset in group "MyGroup". */
           dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
@@ -851,9 +957,7 @@ int main(int argc, char **argv) {
        
         }
         dataspace_id = H5Screate_simple(3, dims, NULL);
-        snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/c_data",  g_twopoint_function_list[i2pt].pf1[0],
-                                                       g_twopoint_function_list[i2pt].pf1[1],
-                                                       g_twopoint_function_list[i2pt].pf1[2],imu,ibeta);
+        snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/c_data",  Ptot[0],Ptot[1],Ptot[2],imu,ibeta);
 
         /* Create a dataset in group "MyGroup". */
         dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
@@ -863,7 +967,8 @@ int main(int argc, char **argv) {
 
         text_output=(char *)malloc(sizeof(char)*300);
         snprintf(text_output,300,"Pmatrix creation (imu=%d,ibeta=%d)",imu,ibeta);
-        rot_printf_matrix_non_zero_non_symmetric(projection_matrix_c, dimension_coeff, dimension_coeff, text_output, stdout);
+        rot_printf_matrix_non_zero_non_symmetric(projection_matrix_c, 0, dimension_coeff, momentum_table, momentumlistsize, spinf1table, g_twopoint_function_list[i2pt].number_of_gammas_f1, g_twopoint_function_list[i2pt].d , text_output, stdout);
+
         free(text_output);
 
 
@@ -890,32 +995,31 @@ int main(int argc, char **argv) {
         fini_3level_dtable(&buffer_write);
 
         N=dimension_coeff;
-        projection_coeff_ORT= apply_gramschmidt ( projection_matrix_c,  &N);
+        projection_coeff_ORT= apply_gramschmidt ( projection_matrix_c,CREATION,  &N);
 
         if (N>0){
 
           text_output=(char *)malloc(sizeof(char)*300);
           snprintf(text_output,300,"Pmatrix creation orthonormalized (imu=%d,ibeta=%d)",imu,ibeta);
-          rot_printf_matrix_non_zero_non_symmetric(projection_coeff_ORT, N, dimension_coeff, text_output, stdout);
+          rot_printf_matrix_non_zero_non_symmetric(projection_coeff_ORT, 0, N, momentum_table, momentumlistsize, spinf1table, g_twopoint_function_list[i2pt].number_of_gammas_f1, g_twopoint_function_list[i2pt].d , text_output, stdout);
+
           free(text_output);
 
 
-          buffer_write=init_3level_dtable(N,dimension_coeff,2);
+          buffer_write=init_3level_dtable(dimension_coeff,N,2);
 
-          for (int i=0; i < N; ++i){
-            for (int j=0; j < dimension_coeff; ++j){
+          for (int i=0; i < dimension_coeff; ++i){
+            for (int j=0; j < N; ++j){
               buffer_write[i][j][0]=creal(projection_coeff_ORT[i][j]);
               buffer_write[i][j][1]=cimag(projection_coeff_ORT[i][j]);
             }
           }
 
-          dims[0]=N;
-          dims[1]=dimension_coeff;
+          dims[0]=dimension_coeff;
+          dims[1]=N;
           dims[2]=2;
           dataspace_id = H5Screate_simple(3, dims, NULL);
-          snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/c_data_ort",  g_twopoint_function_list[i2pt].pf1[0],
-                                                         g_twopoint_function_list[i2pt].pf1[1],
-                                                         g_twopoint_function_list[i2pt].pf1[2],imu,ibeta);
+          snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/c_data_ort",  Ptot[0],Ptot[1],Ptot[2],imu,ibeta);
 
           /* Create a dataset in group "MyGroup". */
           dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
@@ -937,6 +1041,8 @@ int main(int argc, char **argv) {
         }
         fini_2level_ztable( &projection_matrix_a );
         fini_2level_ztable( &projection_matrix_c );
+        fini_2level_itable( &momentum_table );
+        fini_2level_itable( &spinf1table );
 
 
       }  // end of loop on imu

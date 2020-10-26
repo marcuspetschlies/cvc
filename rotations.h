@@ -76,6 +76,8 @@ void rot_mat_adj_ti_mat (double _Complex **C, double _Complex **A, double _Compl
 
 void rot_printf_matrix (double _Complex **R, int N, char *A, FILE*ofs );
 
+void rot_printf_matrix_non_zero_non_symmetric (double _Complex **R, int creation_or_annihilation, int N, int **momtable, int momsize, int **spinf1table, int spin1sizelength, int spin12dim, char *A, FILE*ofs );
+
 void rot_printf_matrix_comp (double _Complex **R, double _Complex **S, int N, char *A, FILE*ofs );
 
 void rot_printf_vec (double _Complex *R, int N, char *A, FILE*ofs );

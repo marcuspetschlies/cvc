@@ -103,6 +103,43 @@ void rot_init_block_params (void) {
 /***********************************************************
  *
  ***********************************************************/
+void rot_printf_matrix_non_zero_non_symmetric (double _Complex **R, int creation_or_annihilation, int N, int **momtable, int momsize, int **spinf1table, int spin1sizelength, int spin12size, char *A, FILE*ofs ) {
+  const double eps = 5.e-14;
+  if ( g_cart_id == 0 ) {
+    fprintf(ofs, "%s <- array(dim = c(%d , %d))\n", A, N, N);
+    for( int ik = 0; ik < N; ik++ ) {
+    for( int il = 0; il < momsize; ++il) {
+    for( int im = 0; im < spin1sizelength; ++im) {
+    for( int in = 0; in < spin12size; ++in) {
+      if (creation_or_annihilation==1){
+        double dre = creal( R[ik][il*spin1sizelength*4+im*4+in] );
+        double dim = cimag( R[ik][il*spin1sizelength*4+im*4+in] );
+        if (cabs(R[ik][il*spin1sizelength*4+im*4+in]) > eps) {
+          fprintf(ofs, "%s[%d,pf1(%d,%d,%d),pf2(%d,%d,%d),gf1(%d,%d),s(%d)] <- %25.16e + %25.16e*1.i\n", A, ik+1, momtable[il][0],momtable[il][1],momtable[il][2],momtable[il][3],momtable[il][4],momtable[il][5],spinf1table[im][0],spinf1table[im][1],in,
+           ( fabs(dre) > eps ? dre : 0. ), ( fabs(dim) > eps ? dim : 0. )  );
+        }
+      }
+      else{
+        double dre = creal( R[il*spin1sizelength*4+im*4+in][ik] );
+        double dim = cimag( R[il*spin1sizelength*4+im*4+in][ik] );
+        if (cabs(R[il*spin1sizelength*4+im*4+in][ik]) > eps) {
+          fprintf(ofs, "%s[pf1(%d,%d,%d),pf2(%d,%d,%d),gf1(%d,%d),s(%d),%d] <- %25.16e + %25.16e*1.i\n", A, momtable[il][0],momtable[il][1],momtable[il][2],momtable[il][3],momtable[il][4],momtable[il][5],spinf1table[im][0],spinf1table[im][1],in,ik+1,
+           ( fabs(dre) > eps ? dre : 0. ), ( fabs(dim) > eps ? dim : 0. )  );
+        }
+      }
+    }}}}
+    fflush(ofs);
+  }
+}  /* end of rot_printf_matrix */
+
+
+/***********************************************************/
+/***********************************************************/
+
+
+/***********************************************************
+ *
+ ***********************************************************/
 void rot_printf_matrix (double _Complex **R, int N, char *A, FILE*ofs ) {
   const double eps = 5.e-14;
   if ( g_cart_id == 0 ) {
