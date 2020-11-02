@@ -406,7 +406,7 @@ int main(int argc, char **argv) {
     for (int ii=0; ii< g_twopoint_function_list[i2pt].nlistmomentumf1; ++ii){
 
       printf("# [piN2piN_projection_table] pf1 (%d %d %d)\n", g_twopoint_function_list[i2pt].pf1list[ii][0] , g_twopoint_function_list[i2pt].pf1list[ii][1] , g_twopoint_function_list[i2pt].pf1list[ii][2] );
-      printf("# [piN2piN_projection_table] pf2 (%d %d %d)\n", g_twopoint_function_list[i2pt].pf2list[ii][0] , g_twopoint_function_list[i2pt].pf2list[ii][0] , g_twopoint_function_list[i2pt].pf2list[ii][2] );
+      printf("# [piN2piN_projection_table] pf2 (%d %d %d)\n", g_twopoint_function_list[i2pt].pf2list[ii][0] , g_twopoint_function_list[i2pt].pf2list[ii][1] , g_twopoint_function_list[i2pt].pf2list[ii][2] );
 
     }
 
@@ -808,6 +808,16 @@ int main(int argc, char **argv) {
                          g_twopoint_function_list[i2pt].name, projector.rtarget->group , projector.rtarget->irrep);
         hid_t file_id, group_id, dataset_id, dataspace_id;  /* identifiers */
         herr_t      status;
+        int pfnx=g_twopoint_function_list[i2pt].pf1list[0][0];
+        int pfny=g_twopoint_function_list[i2pt].pf1list[0][1];
+        int pfnz=g_twopoint_function_list[i2pt].pf1list[0][2];
+
+        int pfpx=g_twopoint_function_list[i2pt].pf2list[0][0];
+        int pfpy=g_twopoint_function_list[i2pt].pf2list[0][1];
+        int pfpz=g_twopoint_function_list[i2pt].pf2list[0][2];
+
+
+
 
         struct stat fileStat;
         if(stat( filename, &fileStat) < 0 ) {
@@ -819,7 +829,12 @@ int main(int argc, char **argv) {
           file_id = H5Fopen(filename, H5F_ACC_RDWR, H5P_DEFAULT);
         }
 
-        snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/",  Ptot[0], Ptot[1], Ptot[2] );
+        if (strcmp( g_twopoint_function_list[i2pt].name, "piN")==0){
+          snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d_pi%dN%d/",  Ptot[0],Ptot[1],Ptot[2],pfpx*pfpx+pfpy*pfpy+pfpz*pfpz,pfnx*pfnx+pfny*pfny+pfnz*pfnz);
+        }
+        else {
+          snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/",  Ptot[0], Ptot[1], Ptot[2] );
+        }
         status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
 
         status = H5Gget_objinfo (file_id, tagname, 0, NULL);
@@ -833,7 +848,12 @@ int main(int argc, char **argv) {
 
         }
 
-        snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/",  Ptot[0],Ptot[1],Ptot[2],imu);
+        if (strcmp( g_twopoint_function_list[i2pt].name, "piN")==0){
+          snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d_pi%dN%d/mu_%d",  Ptot[0],Ptot[1],Ptot[2],pfpx*pfpx+pfpy*pfpy+pfpz*pfpz,pfnx*pfnx+pfny*pfny+pfnz*pfnz, imu);
+        }
+        else{
+          snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/",  Ptot[0],Ptot[1],Ptot[2],imu);
+        }
         status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
 
         status = H5Gget_objinfo (file_id, tagname, 0, NULL);
@@ -846,7 +866,12 @@ int main(int argc, char **argv) {
            status = H5Gclose(group_id);
 
         }
-        snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d",  Ptot[0],Ptot[1],Ptot[2],imu,ibeta);
+        if (strcmp( g_twopoint_function_list[i2pt].name, "piN")==0){
+          snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d_pi%dN%d/mu_%d/beta_%d",  Ptot[0],Ptot[1],Ptot[2],pfpx*pfpx+pfpy*pfpy+pfpz*pfpz,pfnx*pfnx+pfny*pfny+pfnz*pfnz, imu, ibeta);
+        }
+        else {
+          snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d",  Ptot[0],Ptot[1],Ptot[2],imu,ibeta);
+        }
         status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
 
         status = H5Gget_objinfo (file_id, tagname, 0, NULL);
@@ -864,9 +889,13 @@ int main(int argc, char **argv) {
         dims[1]=dimension_coeff;
         dims[2]=2;
         dataspace_id = H5Screate_simple(3, dims, NULL);
-        snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/a_data",  Ptot[0],
+        if (strcmp( g_twopoint_function_list[i2pt].name, "piN")==0){
+          snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d_pi%dN%d/mu_%d/beta_%d/a_data",  Ptot[0],Ptot[1],Ptot[2],pfpx*pfpx+pfpy*pfpy+pfpz*pfpz,pfnx*pfnx+pfny*pfny+pfnz*pfnz, imu, ibeta);
+        }
+        else {
+          snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/a_data",  Ptot[0],
                                                        Ptot[1],Ptot[2],imu,ibeta);
-
+        }
         /* Create a dataset in group "MyGroup". */
         dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
@@ -913,8 +942,66 @@ int main(int argc, char **argv) {
 
         fini_3level_dtable(&buffer_write);
 
+        /* We save the number of replicas */
+        /* and the number of different momentum combinations */
         int N=dimension_coeff;
         double _Complex **projection_coeff_ORT= apply_gramschmidt ( projection_matrix_a, ANNIHILATION,  &N);
+
+        hsize_t dims_linear;
+        dims_linear=2;
+        dataspace_id = H5Screate_simple(1, &dims_linear, NULL);
+        if (strcmp( g_twopoint_function_list[i2pt].name, "piN")==0){
+          snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d_pi%dN%d/mu_%d/beta_%d/Nreplicas_Nps_Ndimirrep",  Ptot[0],Ptot[1],Ptot[2],pfpx*pfpx+pfpy*pfpy+pfpz*pfpz,pfnx*pfnx+pfny*pfny+pfnz*pfnz, imu, ibeta);
+        }
+        else {
+          snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/Nreplicas_Nps_Ndimirrep",  Ptot[0],
+                                                       Ptot[1],Ptot[2],imu,ibeta);
+        }
+
+        dataset_id = H5Dcreate2(file_id, tagname, H5T_NATIVE_INT, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+        int *buffer_linear=init_1level_itable(3);
+
+        buffer_linear[0]=N;
+        buffer_linear[1]=momentumlistsize;
+        buffer_linear[2]=irrep_dim;
+
+        /* Write the first dataset. */
+        status = H5Dwrite(dataset_id, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_linear[0]));
+
+        /* Close the data space for the first dataset. */
+        status = H5Sclose(dataspace_id);
+
+        /* Close the first dataset. */
+        status = H5Dclose(dataset_id);
+ 
+        fini_1level_itable(&buffer_linear);
+
+        hsize_t dims_quadratic[2];
+        dims_quadratic[0]=momentumlistsize;
+        dims_quadratic[1]=6;
+
+        dataspace_id = H5Screate_simple(2, dims_quadratic, NULL);
+        if (strcmp( g_twopoint_function_list[i2pt].name, "piN")==0){
+          snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d_pi%dN%d/mu_%d/beta_%d/momlist_f1f2",  Ptot[0],Ptot[1],Ptot[2],pfpx*pfpx+pfpy*pfpy+pfpz*pfpz,pfnx*pfnx+pfny*pfny+pfnz*pfnz, imu, ibeta);
+        }
+        else {
+          snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/momlist_f1f2",  Ptot[0],
+                                                       Ptot[1],Ptot[2],imu,ibeta);
+        }
+
+        /* Create a dataset in group "MyGroup". */
+        dataset_id = H5Dcreate2(file_id, tagname, H5T_NATIVE_INT, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+        /* Write the first dataset. */
+        status = H5Dwrite(dataset_id, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(momentum_table[0][0]));
+
+        /* Close the data space for the first dataset. */
+        status = H5Sclose(dataspace_id);
+
+        /* Close the first dataset. */
+        status = H5Dclose(dataset_id);
+
        
         if (N>0){
           text_output=(char *)malloc(sizeof(char)*300);
@@ -936,8 +1023,12 @@ int main(int argc, char **argv) {
           dims[1]=dimension_coeff;
           dims[2]=2;
           dataspace_id = H5Screate_simple(3, dims, NULL);
-          snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/a_data_ort",  Ptot[0], Ptot[1], Ptot[2], imu, ibeta);
-
+          if (strcmp( g_twopoint_function_list[i2pt].name, "piN")==0){
+            snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d_pi%dN%d/mu_%d/beta_%d/a_data_ort",  Ptot[0],Ptot[1],Ptot[2],pfpx*pfpx+pfpy*pfpy+pfpz*pfpz,pfnx*pfnx+pfny*pfny+pfnz*pfnz, imu, ibeta);
+          }
+          else {
+            snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/a_data_ort",  Ptot[0], Ptot[1], Ptot[2], imu, ibeta);
+          }
           /* Create a dataset in group "MyGroup". */
           dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
@@ -957,8 +1048,12 @@ int main(int argc, char **argv) {
        
         }
         dataspace_id = H5Screate_simple(3, dims, NULL);
-        snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/c_data",  Ptot[0],Ptot[1],Ptot[2],imu,ibeta);
-
+        if (strcmp( g_twopoint_function_list[i2pt].name, "piN")==0){
+          snprintf ( tagname, 400,  "/pfx%dpfy%dpfz%d_pi%dN%d/mu_%d/beta_%d/c_data",  Ptot[0],Ptot[1],Ptot[2],pfpx*pfpx+pfpy*pfpy+pfpz*pfpz,pfnx*pfnx+pfny*pfny+pfnz*pfnz, imu, ibeta);
+        }
+        else {
+          snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/c_data",  Ptot[0],Ptot[1],Ptot[2],imu,ibeta);
+        }
         /* Create a dataset in group "MyGroup". */
         dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
@@ -1019,7 +1114,13 @@ int main(int argc, char **argv) {
           dims[1]=N;
           dims[2]=2;
           dataspace_id = H5Screate_simple(3, dims, NULL);
-          snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/c_data_ort",  Ptot[0],Ptot[1],Ptot[2],imu,ibeta);
+          if (strcmp( g_twopoint_function_list[i2pt].name, "piN")==0){
+             snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d_pi%dN%d/mu_%d/beta_%d/c_data_ort",  Ptot[0],Ptot[1],Ptot[2],pfpx*pfpx+pfpy*pfpy+pfpz*pfpz,pfnx*pfnx+pfny*pfny+pfnz*pfnz, imu, ibeta);
+          }else {
+
+             snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/c_data_ort",  Ptot[0],Ptot[1],Ptot[2],imu,ibeta);
+
+          }
 
           /* Create a dataset in group "MyGroup". */
           dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
