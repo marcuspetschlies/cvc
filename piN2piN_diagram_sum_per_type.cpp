@@ -1404,7 +1404,7 @@ int main(int argc, char **argv) {
                 dims[2]=2;
                 dataspace_id = H5Screate_simple(3, dims, NULL);
 
-                snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf25/pf2x%.02dpf2y%.02dpf2z%.02d/gf1%s,%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi1%s,%s/pi1x%.02dpi1y%.02dpi1z%.02d/", source_coords_list[k][1],
+                snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf25/pf2x%.02dpf2y%.02dpf2z%.02d/gf1%s,%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi1%s,%s/pi1x%.02dpi1y%.02dpi1z%.02d/%s", source_coords_list[k][1],
                                                                        source_coords_list[k][2],
                                                                        source_coords_list[k][3],
                                                                        source_coords_list[k][0],

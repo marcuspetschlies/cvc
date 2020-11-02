@@ -1265,6 +1265,74 @@ namespace cvc {
         &(cvc::twopoint_function_ptr->gi2) );
   }
 
+  {SPC}*sourcespin{EQL}{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d", cvc::name,
+        &(cvc::twopoint_function_ptr->contniuum_spin_particle_source) );
+  }
+
+  {SPC}*sinkspin{EQL}{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d", cvc::name,
+        &(cvc::twopoint_function_ptr->contniuum_spin_particle_sink) );
+  }
+
+
+
+  {SPC}*sourcepionnucleontotalmomentum{EQL}{MLIST} {
+    char paramname[100];
+    char error_message[200];
+    int list_end = 0;
+    int number_of_p = 0;
+
+    fltlist_tokenize(yytext, paramname, 100);
+    int n_vec = (int)fltlist_next_token(&list_end);
+    while( list_end != 1 ){
+      if( number_of_p > (_TWOPOINT_FUNCTION_MAX_NUMBER_OF_MOMENTA -1) ){
+        snprintf(error_message, 200, "Exceeded maximum number of gammas can be treated (%d-1) parsing %s!\n", _TWOPOINT_FUNCTION_MAX_NUMBER_OF_MOMENTA-1, paramname);
+        yy_fatal_error(error_message);
+      }
+
+      cvc::twopoint_function_ptr->total_momentum_nucleon_source[number_of_p] = n_vec;
+      printf("  %s, In combination %d total momentm of the nucleon at source set to %d, %s line %d\n", number_of_p, cvc::twopoint_function_ptr->total_momentum_nucleon_source[number_of_p] ,  paramname, cvc::line_of_file);
+      n_vec = fltlist_next_token(&list_end);
+
+      cvc::twopoint_function_ptr->total_momentum_pion_source[number_of_p] = n_vec;
+      printf("  %s, In combination %d total momentm of the pion at source set to %d, %s line %d\n", cvc::twopoint_function_ptr->total_momentum_pion_source[number_of_p] ,  paramname, cvc::line_of_file);
+
+      number_of_p++;
+      n_vec = fltlist_next_token(&list_end);
+    }
+    cvc::twopoint_function_ptr->ncombination_total_momentum_source = number_of_p;
+  }
+
+  {SPC}*sinkpionnucleontotalmomentum{EQL}{MLIST} {
+    char paramname[100];
+    char error_message[200];
+    int list_end = 0;
+    int number_of_p = 0;
+
+    fltlist_tokenize(yytext, paramname, 100);
+    int n_vec = (int)fltlist_next_token(&list_end);
+    while( list_end != 1 ){
+      if( number_of_p > (_TWOPOINT_FUNCTION_MAX_NUMBER_OF_MOMENTA -1) ){
+        snprintf(error_message, 200, "Exceeded maximum number of gammas can be treated (%d-1) parsing %s!\n", _TWOPOINT_FUNCTION_MAX_NUMBER_OF_MOMENTA-1, paramname);
+        yy_fatal_error(error_message);
+      }
+
+      cvc::twopoint_function_ptr->total_momentum_nucleon_sink[number_of_p] = n_vec;
+      printf("  %s, In combination %d total momentm of the nucleon at sink set to %d, %s line %d\n", number_of_p, cvc::twopoint_function_ptr->total_momentum_nucleon_source[number_of_p] ,  paramname, cvc::line_of_file);
+      n_vec = fltlist_next_token(&list_end);
+  
+      cvc::twopoint_function_ptr->total_momentum_pion_sink[number_of_p] = n_vec;
+      printf("  %s, In combination %d total momentm of the pion at sink set to %d, %s line %d\n", cvc::twopoint_function_ptr->total_momentum_pion_source[number_of_p] ,  paramname, cvc::line_of_file);
+
+      number_of_p++;
+      n_vec = fltlist_next_token(&list_end);
+    }
+    cvc::twopoint_function_ptr->ncombination_total_momentum_sink = number_of_p;
+  }
+
+
+
   {SPC}*listofmomentumf1{EQL}{MLIST} {
     char paramname[100];
     char error_message[200];
@@ -1274,7 +1342,7 @@ namespace cvc {
     fltlist_tokenize(yytext, paramname, 100);
     int n_vec = (int)fltlist_next_token(&list_end);
     while( list_end != 1 ){
-      if( number_of_p >= (_TWOPOINT_FUNCTION_MAX_NUMBER_OF_MOMENTA -1) ){
+      if( number_of_p > (_TWOPOINT_FUNCTION_MAX_NUMBER_OF_MOMENTA -1) ){
         snprintf(error_message, 200, "Exceeded maximum number of gammas can be treated (%d-1) parsing %s!\n", _TWOPOINT_FUNCTION_MAX_NUMBER_OF_MOMENTA-1, paramname);
         yy_fatal_error(error_message);
       }
@@ -1305,7 +1373,7 @@ namespace cvc {
     fltlist_tokenize(yytext, paramname, 100);
     int n_vec = (int)fltlist_next_token(&list_end);
     while( list_end != 1 ){
-      if( number_of_p >= (_TWOPOINT_FUNCTION_MAX_NUMBER_OF_MOMENTA -1) ){
+      if( number_of_p > (_TWOPOINT_FUNCTION_MAX_NUMBER_OF_MOMENTA -1) ){
         snprintf(error_message, 200, "Exceeded maximum number of gammas can be treated (%d-1) parsing %s!\n", _TWOPOINT_FUNCTION_MAX_NUMBER_OF_MOMENTA-1, paramname);
         yy_fatal_error(error_message);
       }
@@ -1327,6 +1395,34 @@ namespace cvc {
     cvc::twopoint_function_ptr->nlistmomentumf2 = number_of_p;
   }
 
+  {SPC}*listofgammasi1{EQL}{FLTLIST} {
+    char paramname[100];
+    char error_message[200];
+    int list_end = 0;
+    int number_of_gammas = 0;
+
+    fltlist_tokenize(yytext, paramname, 100);
+    int n_vec = (int)fltlist_next_token(&list_end);
+    while( list_end != 1 ){
+      if( number_of_gammas >= (_TWOPOINT_FUNCTION_MAX_NUMBER_OF_GAMMAS-1) ){
+        snprintf(error_message, 200, "Exceeded maximum number of gammas can be treated (%d-1) parsing %s!\n", _TWOPOINT_FUNCTION_MAX_NUMBER_OF_GAMMAS-1, paramname);
+        yy_fatal_error(error_message);
+      }
+
+      cvc::twopoint_function_ptr->list_of_gammas_i1[number_of_gammas][0] = n_vec;
+      printf("  %s, gamma id %d 0 set to %d line %d\n", paramname,
+                number_of_gammas,  cvc::twopoint_function_ptr->list_of_gammas_i1[number_of_gammas][0], cvc::line_of_file);
+      n_vec = fltlist_next_token(&list_end);
+      cvc::twopoint_function_ptr->list_of_gammas_i1[number_of_gammas][1] = n_vec;
+      printf("  %s, gamma id %d 1 set to %d line %d\n", paramname,
+                number_of_gammas,  cvc::twopoint_function_ptr->list_of_gammas_i1[number_of_gammas][1], cvc::line_of_file);
+
+
+      number_of_gammas++;
+      n_vec = fltlist_next_token(&list_end);
+    }
+    cvc::twopoint_function_ptr->number_of_gammas_i1 = number_of_gammas;
+  }
 
   {SPC}*listofgammasf1{EQL}{FLTLIST} {
     char paramname[100];
@@ -1356,6 +1452,30 @@ namespace cvc {
     }
     cvc::twopoint_function_ptr->number_of_gammas_f1 = number_of_gammas;
   }
+
+  {SPC}*listofgammasi2{EQL}{FLTLIST} {
+    char paramname[100];
+    char error_message[200];
+    int list_end = 0;
+    int number_of_gammas = 0;
+
+    fltlist_tokenize(yytext, paramname, 100);
+    int n_vec = (int)fltlist_next_token(&list_end);
+    while( list_end != 1 ){
+      if( number_of_gammas >= (_TWOPOINT_FUNCTION_MAX_NUMBER_OF_GAMMAS-1) ){
+        snprintf(error_message, 200, "Exceeded maximum number of gammas can be treated (%d-1) parsing %s!\n", _TWOPOINT_FUNCTION_MAX_NUMBER_OF_GAMMAS-1, paramname);
+        yy_fatal_error(error_message);
+      }
+
+      cvc::twopoint_function_ptr->list_of_gammas_i2[number_of_gammas] = n_vec;
+      printf("  %s, gamma i2 id %d 0 set to %d line %d\n", paramname,
+                number_of_gammas,  cvc::twopoint_function_ptr->list_of_gammas_i2[number_of_gammas], cvc::line_of_file);
+      number_of_gammas++;
+      n_vec = fltlist_next_token(&list_end);
+    }
+    cvc::twopoint_function_ptr->number_of_gammas_i2 = number_of_gammas;
+  }
+
 
   {SPC}*listofgammasf2{EQL}{FLTLIST} {
     char paramname[100];
