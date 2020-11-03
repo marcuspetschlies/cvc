@@ -718,7 +718,8 @@ int set_rot_mat_table_spin_single_cover ( rot_mat_table_type *t, int J2, int con
  * irrep matrices for double cover
  ***********************************************************/
 // #include "set_rot_mat_table_cubic_group_double_cover.cpp"
-#include "set_rot_mat_table_cubic_group_double_cover_gu.cpp"
+
+#include "set_rot_mat_table_cubic_group_double_cover_gu_antonino.cpp"
 
 #include "set_rot_mat_table_cubic_group_single_cover_v2.cpp"
 
@@ -2855,7 +2856,7 @@ int get_reference_rotation ( int pref[3], int * Rref, int const p[3] ) {
 
   int const pzero[3] = {0,0,0};
 
-  int const momentum_ref[4][3] = { {0,0,1}, {1,1,0}, {1,1,1} , {0,0,2} };
+  int const momentum_ref[4][3] = { {0,0,1}, {0,1,1}, {1,1,1} , {0,0,2} };
 
   /*
   int const momentum_num[3] = { 6, 12, 8};

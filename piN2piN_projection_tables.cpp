@@ -254,7 +254,7 @@ int main(int argc, char **argv) {
 #define _ZCOEFF_EPS 8.e-12
 
 #if defined CUBIC_GROUP_DOUBLE_COVER
-  char const little_group_list_filename[] = "little_groups_2Oh.tab";
+  char const little_group_list_filename[] = "little_groups_2Oh_antonino.tab";
   /* int (* const set_rot_mat_table ) ( rot_mat_table_type*, const char*, const char*) = set_rot_mat_table_cubic_group_double_cover; */
 #elif defined CUBIC_GROUP_SINGLE_COVER
   const char little_group_list_filename[] = "little_groups_Oh.tab";

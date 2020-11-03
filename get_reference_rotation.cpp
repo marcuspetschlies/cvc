@@ -55,7 +55,7 @@ int get_reference_rotation ( int pref[3], int *Rref, int const p[3] ) {
 
   int const pzero[3] = {0,0,0};
 
-  int const momentum_ref[3][3] = { {0,0,1}, {1,1,0}, {1,1,1} };
+  int const momentum_ref[3][3] = { {0,0,1}, {0,1,1}, {1,1,1} };
 
   /*
   int const momentum_num[3] = { 6, 12, 8};
