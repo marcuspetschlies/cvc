@@ -46,6 +46,7 @@
 #include "gamma.h"
 #include "contract_loop_inline.h"
 
+#define _ANTISYMMETRIC_ORBIT_AVERAGE_SPATIAL 0
 
 using namespace cvc;
 
@@ -201,14 +202,14 @@ int main(int argc, char **argv) {
   /***********************************************************
    * read list of configs and source locations
    ***********************************************************/
-  sprintf ( filename, "source_coords.%s.nsrc%d.lst" , ensemble_name, num_src_per_conf);
+  sprintf ( filename, "source_coords.%s.lst" , ensemble_name );
   FILE *ofs = fopen ( filename, "r" );
   if ( ofs == NULL ) {
     fprintf(stderr, "[hvp_analyse] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__);
     EXIT(15);
   }
 
-  int *** conf_src_list = init_3level_itable ( num_conf, num_src_per_conf, 5 );
+  int *** conf_src_list = init_3level_itable ( num_conf, num_src_per_conf, 6 );
   if ( conf_src_list == NULL ) {
     fprintf(stderr, "[hvp_analyse] Error from init_3level_itable %s %d\n", __FILE__, __LINE__);
     EXIT(16);
@@ -221,12 +222,13 @@ int main(int argc, char **argv) {
       continue;
     }
 
-    sscanf( line, "%d %d %d %d %d", 
+    sscanf( line, "%c %d %d %d %d %d", 
         conf_src_list[count/num_src_per_conf][count%num_src_per_conf],
         conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+1,
         conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+2,
         conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+3,
-        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+4 );
+        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+4,
+        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+5 );
 
     count++;
   }
@@ -236,12 +238,13 @@ int main(int argc, char **argv) {
   if ( g_verbose > 5 ) {
     for ( int iconf = 0; iconf < num_conf; iconf++ ) {
       for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-        fprintf ( stdout, "conf_src_list %6d %3d %3d %3d %3d\n", 
+        fprintf ( stdout, "conf_src_list %c %6d %3d %3d %3d %3d\n", 
             conf_src_list[iconf][isrc][0],
             conf_src_list[iconf][isrc][1],
             conf_src_list[iconf][isrc][2],
             conf_src_list[iconf][isrc][3],
-            conf_src_list[iconf][isrc][4] );
+            conf_src_list[iconf][isrc][4],
+            conf_src_list[iconf][isrc][5] );
 
       }
     }
@@ -266,16 +269,16 @@ int main(int argc, char **argv) {
   for ( int iconf = 0; iconf < num_conf; iconf++ ) {
     for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
 
-      Nconf = conf_src_list[iconf][isrc][0];
+      Nconf = conf_src_list[iconf][isrc][1];
 
       /***********************************************************
        * copy source coordinates
        ***********************************************************/
       int const gsx[4] = {
-          conf_src_list[iconf][isrc][1],
           conf_src_list[iconf][isrc][2],
           conf_src_list[iconf][isrc][3],
-          conf_src_list[iconf][isrc][4] };
+          conf_src_list[iconf][isrc][4],
+          conf_src_list[iconf][isrc][5] };
 
 #ifdef HAVE_LHPC_AFF
       /***********************************************
@@ -285,8 +288,9 @@ int main(int argc, char **argv) {
       gettimeofday ( &ta, (struct timezone *)NULL );
       struct AffNode_s *affn = NULL, *affdir = NULL;
 
-      /* sprintf ( filename, "%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", Nconf, g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
-      sprintf ( filename, "%d/%s.%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", Nconf, correlator_prefix[operator_type], flavor_tag[operator_type], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+      sprintf ( filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+      /* sprintf ( filename, "%s.%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff",
+          correlator_prefix[operator_type], flavor_tag[operator_type], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
 
       if ( g_verbose > 0 ) fprintf(stdout, "# [hvp_analyse] reading data from file %s %s %d\n", filename, __FILE__, __LINE__);
       affr = aff_reader ( filename );
@@ -545,6 +549,7 @@ int main(int argc, char **argv) {
    * orbit-averaged HVP spatial tensor
    * components
    ****************************************/
+#if _ANTISYMMETRIC_ORBIT_AVERAGE_SPATIAL
   for ( int ireim = 0; ireim < 2; ireim++ ) {
     double ** data = init_2level_dtable ( num_conf, T_global );
     if ( data == NULL ) {
@@ -568,6 +573,7 @@ int main(int argc, char **argv) {
     fini_2level_dtable ( &data );
 
   }  /* end of loop on re / im */
+#endif  /* of _ANTISYMMETRIC_ORBIT_AVERAGE_SPATIAL  */
 
   /****************************************
    * STATISTICAL ANALYSIS of real and
@@ -588,6 +594,7 @@ int main(int argc, char **argv) {
     hvp_irrep_separation_orbit_average ( data, hvp_src_avg, dim, g_sink_momentum_number, g_sink_momentum_list, ireim );
 
     for ( int i = 0; i < 5; i++ ) {
+
       char obs_name[100];
       sprintf ( obs_name, "%s.%s.%s.orbit.PX%d_PY%d_PZ%d.%s", correlator_prefix[operator_type], flavor_tag[operator_type],
           irrep_name[i], g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2], reim_str[ireim] );
@@ -598,25 +605,22 @@ int main(int argc, char **argv) {
         fprintf ( stderr, "[hvp_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(1);
       }
-    }
 
-    if ( write_data == 1) {
-      char obs_name[100];
-      for ( int i = 0; i < 5; i++ ) {
-        sprintf ( obs_name, "%s.%s.%s.orbit.PX%d_PY%d_PZ%d.%s.dat", correlator_prefix[operator_type], flavor_tag[operator_type],
-            irrep_name[i], g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2], reim_str[ireim] );
-        FILE * ofs = fopen ( obs_name, "w" );
+      if ( write_data == 1) {
+        sprintf ( filename, "%s.corr", obs_name );
+        FILE * ofs = fopen ( filename, "w" );
         if ( ofs == NULL ) {
-          fprintf ( stdout, "[hvp_analyse] Error from fopen for file %s %s %d\n", obs_name, __FILE__, __LINE__ );
+          fprintf ( stdout, "[hvp_analyse] Error from fopen for file %s %s %d\n", filename, __FILE__, __LINE__ );
           EXIT(12);
         }
         for ( int iconf = 0; iconf < num_conf; iconf++ ) {
           for ( int it = 0; it < T_global; it++ ) {
-            fprintf ( ofs, "%5d%25.16e%8d\n", it, data[i][iconf][it], conf_src_list[iconf][0][0] );
+            fprintf ( ofs, "%5d%25.16e%8d %c\n", it, data[i][iconf][it], conf_src_list[iconf][0][1], conf_src_list[iconf][0][0] );
           }
         }
-      }  /* end of loop on irreps */
-    }  /* end of if write data  */
+        fclose ( ofs );
+      }  /* end of if write data  */
+    }   /* end of loop on irreps */
 
     fini_3level_dtable ( &data );
 
