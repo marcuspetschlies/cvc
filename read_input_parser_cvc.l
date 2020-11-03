@@ -12,7 +12,7 @@ ZT [0-9(10)(11)]
 IDXEX ("-"{DIGIT}+)
 SIGN ("+"|"-")
 FLT {SIGN}?{DIGIT}*+"."{DIGIT}*(e("-"|"+")?{DIGIT}+)?
-FILENAME [a-zA-Z0-9_".""\-""/"][a-zA-Z0-9"."_"\-""/"]+
+FILENAME [a-zA-Z0-9_".""\-""/"][a-zA-Z0-9"."_"\-""/""+"]+
 CORRCONFIG [0-9","";""\-""("")"][0-9","";""\-""("")"]+
 NAME [a-zA-Z0-9_]+
 TYPE [0-9A-Z]+
