@@ -41,8 +41,8 @@
 
 #define _INPUT_AFF  1
 
-#define _OUTPUT_AFF 0
-#define _OUTPUT_H5  1
+#define _OUTPUT_AFF 1
+#define _OUTPUT_H5  0
 
 using namespace cvc;
 
