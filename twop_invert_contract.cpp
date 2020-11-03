@@ -99,9 +99,11 @@ int main(int argc, char **argv) {
 
 
   int const gamma_current_number = 10;
-  int gamma_current_list[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+  int const gamma_current_list[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
   /* int const gamma_current_number = 2;
   int gamma_current_list[10] = {0, 1 }; */
+
+  char const flavor_tag[2] = { 'u', 'd' };
 
   char data_tag[400];
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
@@ -293,9 +295,9 @@ int main(int argc, char **argv) {
   }
   fprintf(stdout, "# [twop_invert_contract] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
 
-  /***********************************************************
+  /***************************************************************************
    * set operator ids depending on fermion type
-   ***********************************************************/
+   ***************************************************************************/
   if ( g_fermion_type == _TM_FERMION ) {
     op_id_up = 0;
     op_id_dn = 1;
@@ -303,6 +305,11 @@ int main(int argc, char **argv) {
     op_id_up = 0;
     op_id_dn = 0;
   }
+
+  /***************************************************************************
+   * neutral case
+   ***************************************************************************/
+  int const op_id[2] = { op_id_dn, op_id_up };
 
   /***************************************************************************
    * allocate memory for spinor fields 
@@ -387,7 +394,7 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * output filename
      ***************************************************************************/
-    sprintf ( output_filename, "%s.%.4d.t%d.aff", outfile_prefix, Nconf, gts );
+    sprintf ( output_filename, "%s.%.4d.t%d.noise%d.aff", outfile_prefix, Nconf, gts , g_noise_type );
     /***************************************************************************
      * writer for aff output file
      ***************************************************************************/
@@ -400,7 +407,7 @@ int main(int argc, char **argv) {
       }
     }  /* end of if io_proc == 2 */
 #elif ( defined HAVE_HDF5 )
-    sprintf ( output_filename, "%s.%.4d.t%d.h5", outfile_prefix, Nconf, gts );
+    sprintf ( output_filename, "%s.%.4d.t%d.noise%d.h5", outfile_prefix, Nconf, gts, g_noise_type );
 #endif
     if(io_proc == 2 && g_verbose > 1 ) { 
       fprintf(stdout, "# [twop_invert_contract] writing data to file %s\n", output_filename);
@@ -513,14 +520,14 @@ int main(int argc, char **argv) {
 
         memset ( spinor_work[1], 0, sizeof_spinor_field );
 
-        exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_dn );
+        exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id[0] );
         if(exitstatus < 0) {
           fprintf(stderr, "[twop_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(44);
         }
 
         if ( check_propagator_residual ) {
-          check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_dn], mzzinv[op_id_dn], 1 );
+          check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id[0]], mzzinv[op_id[0]], 1 );
         }
 
         memcpy( stochastic_propagator_zero_list[i], spinor_work[1], sizeof_spinor_field);
@@ -557,10 +564,19 @@ int main(int argc, char **argv) {
          * NOTE: we take the negative of the momentum in the list
          * since we use it in the daggered timeslice propagator
          ***************************************************************************/
-        int source_momentum[3] = {
+        /* int source_momentum[3] = {
             -g_source_momentum_list[isrc_mom][0],
             -g_source_momentum_list[isrc_mom][1],
-            -g_source_momentum_list[isrc_mom][2] };
+            -g_source_momentum_list[isrc_mom][2] }; */
+
+        /* source_momentum = - sink_momentum for momentum conservation from source to sink 
+         * BUT: here we use  source_momentum <- -source_momentum = +sink_momentum,
+         * because that propagator is going to be complex conjugate
+         */
+        int source_momentum[3] = {
+            g_sink_momentum_list[isrc_mom][0],
+            g_sink_momentum_list[isrc_mom][1],
+            g_sink_momentum_list[isrc_mom][2] };
 
         /***************************************************************************
          * prepare stochastic timeslice source at source momentum
@@ -600,14 +616,14 @@ int main(int argc, char **argv) {
           
           memset ( spinor_work[1], 0, sizeof_spinor_field );
 
-          exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_dn );
+          exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id[1] );
           if(exitstatus < 0) {
             fprintf(stderr, "[twop_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(44);
           }
 
           if ( check_propagator_residual ) {
-            check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_dn], mzzinv[op_id_dn], 1 );
+            check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id[1]], mzzinv[op_id[1]], 1 );
           }
 
           /***************************************************************************
@@ -665,9 +681,9 @@ int main(int argc, char **argv) {
         }
 
         int source_momentum[3] = {
-          g_source_momentum_list[isrc_mom][0],
-          g_source_momentum_list[isrc_mom][1],
-          g_source_momentum_list[isrc_mom][2] };
+          -g_sink_momentum_list[isrc_mom][0],
+          -g_sink_momentum_list[isrc_mom][1],
+          -g_sink_momentum_list[isrc_mom][2] };
 
         for ( int isrc_gamma = 0; isrc_gamma < g_source_gamma_id_number; isrc_gamma++ ) {
         for ( int isnk_gamma = 0; isnk_gamma < g_sink_gamma_id_number; isnk_gamma++ ) {
@@ -692,13 +708,15 @@ int main(int argc, char **argv) {
               spin_dilution, color_dilution, 1, 1., 64 );
 
           /* momentum projection at sink */
-          exitstatus = momentum_projection ( contr_x, contr_p[0], T, g_sink_momentum_number, g_sink_momentum_list );
+          /* exitstatus = momentum_projection ( contr_x, contr_p[0], T, g_sink_momentum_number, g_sink_momentum_list ); */
+          exitstatus = momentum_projection ( contr_x, contr_p[0], T, 1, &(g_sink_momentum_list[isrc_mom]) );
           if(exitstatus != 0) {
             fprintf(stderr, "[twop_invert_contract] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(3);
           }
 
-          sprintf ( data_tag, "/u-gf-d-gi/t%d/s%d/gf%d/gi%d/pix%dpiy%dpiz%d", gts, isample,
+          sprintf ( data_tag, "/%c-gf-%c-gi/t%d/s%d/gf%d/gi%d/pix%dpiy%dpiz%d", 
+              flavor_tag[op_id[0]], flavor_tag[op_id[1]], gts, isample,
               g_source_gamma_id_list[isnk_gamma], g_source_gamma_id_list[isrc_gamma],
               source_momentum[0], source_momentum[1], source_momentum[2] );
 

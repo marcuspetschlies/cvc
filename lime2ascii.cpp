@@ -77,14 +77,13 @@ int main(int argc, char **argv) {
   char limefile_type[100] = "DiracFermion";
   int limefile_pos = 0;
   int tsize = 0, lsize = 0;
-  int ncomp = 0;
   // double ratime, retime;
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:l:t:p:T:L:C:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:l:t:p:T:L:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -104,9 +103,6 @@ int main(int argc, char **argv) {
       break;
     case 'L':
       lsize = atoi ( optarg );
-      break;
-    case 'C':
-      ncomp = atoi ( optarg );
       break;
     case 'h':
     case '?':
@@ -274,37 +270,6 @@ int main(int argc, char **argv) {
     fclose ( ofs );
 
     fini_2level_dtable ( &propagator_field );
-  
-  } else if ( strcmp ( limefile_type, "contraction" ) == 0 ) {
- 
-    double ** buffer = init_2level_dtable ( VOLUME, 2*ncomp );
-
-    exitstatus = read_lime_contraction ( buffer[0], limefile_name, ncomp, 0 );
-    if ( exitstatus != 0 ) {
-      fprintf(stderr, "[lime2ascii] Error from read_lime_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(2);
-    }
-
-    sprintf ( filename,"%s.ascii", limefile_name );
-    FILE * ofs = fopen ( filename, "w" );
-
-    /* fprintf ( ofs, "s <- numeric()\n" ); */
-    for ( int x0 = 0; x0 < T; x0++ ) {
-    for ( int x1 = 0; x1 < LX; x1++ ) {
-    for ( int x2 = 0; x2 < LY; x2++ ) {
-    for ( int x3 = 0; x3 < LZ; x3++ ) {
-      unsigned int const ix = g_ipt[x0][x1][x2][x3];
-      fprintf ( ofs, "# [lime2ascii] x %3d %3d %3d %3d\n", x0, x1, x2, x3 );
-
-      for ( int i = 0; i < ncomp; i++ ) {
-        /* fprintf ( ofs, "s[%4d] <- (%25.16e) + (%25.16e)*1.i\n", i, buffer[ix][2*i], buffer[ix][2*i+1]  ); */
-        fprintf ( ofs, "%4d  %25.16e  %25.16e\n", i, buffer[ix][2*i], buffer[ix][2*i+1]  );
-      }
-    }}}}
-
-    fclose ( ofs );
-
-    fini_2level_dtable ( &buffer );
   }
 
   free_geometry();

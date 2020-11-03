@@ -263,7 +263,8 @@ inline void show_time ( struct timeval * const ta, struct timeval * const tb, ch
     useconds += 1000000;
     seconds--;
   }
-  if ( io ) fprintf ( stdout, "# [%s] time for %s %ld sec %ld usec\n", tag, timer, seconds, useconds );
+  /* if ( io ) fprintf ( stdout, "# [%s] time for %s %ld sec %ld usec\n", tag, timer, seconds, useconds ); */
+  if ( io ) fprintf ( stdout, "# [%s] time for %s %e sec\n", tag, timer, (double)seconds + (double)useconds/1000000.0 );
 
 }  /* end of show_time */
 

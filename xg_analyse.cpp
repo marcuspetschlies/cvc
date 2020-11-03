@@ -47,11 +47,12 @@
 #undef  _XG_NUCLEON
 #undef  _XG_CHARGED
 
-#undef  _TWOP_AFF
+#undef _TWOP_AFF
 #undef  _TWOP_ASCII
-#define _TWOP_CYD
+#undef  _TWOP_CYD_MULT
+#define  _TWOP_CYD_SINGLE
 
-#undef _TWOP_STATS
+#define _TWOP_STATS
 
 #define _RAT_METHOD
 #undef _FHT_METHOD_ALLT
@@ -59,6 +60,8 @@
 
 #define _RAT_SUB_METHOD
 
+#undef _SUBTRACT_TIME_AVERAGED
+#define _SUBTRACT_PER_TIMESLICE
 
 #define MAX_SMEARING_LEVELS 40
 
@@ -208,15 +211,16 @@ int main(int argc, char **argv) {
   unsigned int stout_level_num = 0;
   int insertion_operator_type = 0;
   double temp_spat_weight[2] = { 1., -1. };
-  double twop_weight[2] = {0., 0.};
-  double fbwd_weight[2] = {0., 0.};
+  double twop_weight[2]   = {0., 0.};
+  double fbwd_weight[2]   = {0., 0.};
+  double mirror_weight[2] = {0., 0.};
   int block_sources = 0;
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "bh?f:N:S:F:R:E:w:O:s:W:T:B:I:")) != -1) {
+  while ((c = getopt(argc, argv, "bh?f:N:S:F:R:E:w:O:s:W:T:B:I:M:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -262,6 +266,10 @@ int main(int argc, char **argv) {
     case 'B':
       sscanf( optarg, "%lf,%lf", fbwd_weight, fbwd_weight+1 );
       fprintf ( stdout, "# [xg_analyse] fbwd_weight set to %25.16e / %25.16e\n", fbwd_weight[0], fbwd_weight[1] );
+      break;
+    case 'M':
+      sscanf( optarg, "%lf,%lf", mirror_weight, mirror_weight+1 );
+      fprintf ( stdout, "# [xg_analyse] mirror_weight set to %25.16e / %25.16e\n", mirror_weight[0], mirror_weight[1] );
       break;
     case 'I':
       insertion_operator_type = atoi ( optarg );
@@ -628,7 +636,7 @@ int main(int argc, char **argv) {
 
 #endif  /* of if _TWOP_ASCII */
 
-#ifdef _TWOP_CYD
+#ifdef _TWOP_CYD_MULT
     gettimeofday ( &ta, (struct timezone *)NULL );
 
     for ( int iflavor = 0; iflavor <= 1 ; iflavor++ ) {
@@ -693,8 +701,62 @@ int main(int argc, char **argv) {
     gettimeofday ( &tb, (struct timezone *)NULL );
     show_time ( &ta, &tb, "xg_analyse", "read-twop-tensor-cyi", g_cart_id == 0 );
 
-#endif  /* of if _TWOP_CYD*/
+#endif  /* of if _TWOP_CYD_MULT */
 
+#ifdef _TWOP_CYD_SINGLE
+    gettimeofday ( &ta, (struct timezone *)NULL );
+
+    for ( int iflavor = 0; iflavor <= 1 ; iflavor++ ) {
+      for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
+          
+        char data_filename[500];
+
+        sprintf( data_filename, "%s/twop.pseudoscalar.%d.PX%d_PY%d_PZ%d", filename_prefix, iflavor+1,
+            ( 1 - 2 * iflavor) * g_sink_momentum_list[ipf][0],
+            ( 1 - 2 * iflavor) * g_sink_momentum_list[ipf][1],
+            ( 1 - 2 * iflavor) * g_sink_momentum_list[ipf][2] );
+
+        FILE * dfs = fopen ( data_filename, "r" );
+        if( dfs == NULL ) {
+          fprintf ( stderr, "[xg_analyse] Error from fopen for data filename %s %s %d\n", data_filename, __FILE__, __LINE__ );
+          EXIT (24);
+        } else {
+          if ( g_verbose > 1 ) fprintf ( stdout, "# [xg_analyse] reading data from file %s\n", data_filename );
+        }
+
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+ 
+          for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+
+            char line[400];
+
+            fscanf( dfs, "# %s\n", line );
+            if ( g_verbose > 2 ) fprintf ( stdout, "# [xg_analyse] reading key %s\n", line );
+
+            /***********************************************************
+             *
+             * NO ORDERING FROM SOURCE
+             *
+             * NO MULTIPLICATION OF SOURCE PHASE
+             *
+             ***********************************************************/
+            for ( int it = 0; it < T_global; it++ ) {
+              fscanf ( dfs, "%lf %lf\n", twop[igf][igi][ipf][iconf][isrc][iflavor][it], twop[igf][igi][ipf][iconf][isrc][iflavor][it]+1 );
+            }  /* end of loop on timeslices */
+
+          }  /* end of loop on source positions */
+        }  /* end of loop on configurations */
+
+        fclose ( dfs );
+
+      }  /* end of loop on sink momenta */
+
+    }  /* end of loop on flavor */
+
+    gettimeofday ( &tb, (struct timezone *)NULL );
+    show_time ( &ta, &tb, "xg_analyse", "read-twop-tensor-cyi", g_cart_id == 0 );
+
+#endif  /* of if _TWOP_CYD_SINGLE */
 
     /**********************************************************
      * write correlator to ascii file
@@ -824,8 +886,15 @@ int main(int argc, char **argv) {
         /* averaging starts here */
         for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
           for ( int it = 0; it < T_global; it++ ) {
-            twop_orbit[igf][igi][iconf][isrc][it][0] += ( twop[igf][igi][imom][iconf][isrc][0][it][0] + twop[igf][igi][imom][iconf][isrc][1][it][0] ) * 0.5;
-            twop_orbit[igf][igi][iconf][isrc][it][1] += ( twop[igf][igi][imom][iconf][isrc][0][it][1] + twop[igf][igi][imom][iconf][isrc][1][it][1] ) * 0.5;
+            twop_orbit[igf][igi][iconf][isrc][it][0] += ( 
+                  twop_weight[0] * twop[igf][igi][imom][iconf][isrc][0][it][0] 
+                + twop_weight[1] * twop[igf][igi][imom][iconf][isrc][1][it][0] 
+                ) / ( twop_weight[0] + twop_weight[1] );
+
+            twop_orbit[igf][igi][iconf][isrc][it][1] += ( 
+                  twop_weight[0] * twop[igf][igi][imom][iconf][isrc][0][it][1] 
+                + twop_weight[1] * twop[igf][igi][imom][iconf][isrc][1][it][1] 
+                ) / ( twop_weight[0] + twop_weight[1] );
           }  /* end of loop on it */
         }  /* end of loop on imom */
 
@@ -868,10 +937,10 @@ int main(int argc, char **argv) {
      **********************************************************/
     for ( int ireim = 0; ireim < 1; ireim++ ) {
 
-      if ( num_conf < 6 ) {
+      /* if ( num_conf < 6 ) {
         fprintf ( stderr, "[xg_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
         EXIT(1);
-      }
+      } */
 
       int block_size = block_sources ? num_src_per_conf : 1;
       int num_data = ( num_conf * num_src_per_conf ) / block_size;
@@ -1007,7 +1076,6 @@ int main(int argc, char **argv) {
       continue;
     }
 
-    
     /***********************************************************
      * open AFF reader
      ***********************************************************/
@@ -1017,8 +1085,8 @@ int main(int argc, char **argv) {
 
   
     /* sprintf ( filename, "%s/stream_%c/%d/cpff.xg.%d.aff", filename_prefix2, conf_src_list[iconf][0][0], conf_src_list[iconf][0][1], conf_src_list[iconf][0][1] ); */
-    sprintf ( filename, "stream_%c/%s/%s.%d.aff", conf_src_list[iconf][0][0], filename_prefix2, filename_prefix3, conf_src_list[iconf][0][1] );
-    /* sprintf ( filename, "cpff.xg.%d.aff", conf_src_list[iconf][0][1] ); */
+    /* sprintf ( filename, "stream_%c/%s/%s.%d.aff", conf_src_list[iconf][0][0], filename_prefix2, filename_prefix3, conf_src_list[iconf][0][1] ); */
+    sprintf ( filename, "cpff.xg.%d.aff", conf_src_list[iconf][0][1] );
   
     fprintf(stdout, "# [xg_analyse] reading data from file %s\n", filename);
     affr = aff_reader ( filename );
@@ -1038,8 +1106,8 @@ int main(int argc, char **argv) {
      **********************************************************/
     for ( unsigned int istout = 0; istout < stout_level_num; istout++ ) {
 
-      sprintf( key, "/StoutN%d/StoutRho%6.4f/%s", stout_level_iter[istout], stout_level_rho[istout], insertion_operator_name[insertion_operator_type] );
-      /* sprintf( key, "/StoutN%d/StoutRho%6.4f", stout_level_iter[istout], stout_level_rho[istout] ); */
+      /* sprintf( key, "/StoutN%d/StoutRho%6.4f/%s", stout_level_iter[istout], stout_level_rho[istout], insertion_operator_name[insertion_operator_type] ); */
+      sprintf( key, "/StoutN%d/StoutRho%6.4f", stout_level_iter[istout], stout_level_rho[istout] );
           
       if ( g_verbose > 2 ) fprintf ( stdout, "# [xg_analyse] key = %s\n", key );
   
@@ -1167,10 +1235,10 @@ int main(int argc, char **argv) {
      * STATISTICAL ANALYSIS OF LOOP VEC
      *
      **********************************************************/
-    if ( num_conf < 6 ) {
+    /* if ( num_conf < 6 ) {
       fprintf ( stderr, "[xg_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
       EXIT(1);
-    }
+    } */
   
     char obs_name[100];
     sprintf ( obs_name, "%s.timeslice.%s" , insertion_operator_name[insertion_operator_type], smearing_tag );
@@ -1248,6 +1316,11 @@ int main(int argc, char **argv) {
               double const b_fwd[2] = { twop[igf][igi][imom][iconf][isrc][1][tsink ][0], twop[igf][igi][imom][iconf][isrc][1][tsink ][1] };
               double const b_bwd[2] = { twop[igf][igi][imom][iconf][isrc][1][tsink2][0], twop[igf][igi][imom][iconf][isrc][1][tsink2][1] };
     
+              double const threep_norm = 1. / ( fabs( twop_weight[0]   ) + fabs( twop_weight[1]   ) )
+                                            / ( fabs( fbwd_weight[0]   ) + fabs( fbwd_weight[1]   ) )
+                                            / ( fabs( mirror_weight[0] ) + fabs( mirror_weight[1] ) );
+
+
               /**********************************************************
                * loop on insertion times
                **********************************************************/
@@ -1281,6 +1354,12 @@ int main(int argc, char **argv) {
                  * O44, real parts only
                  **********************************************************/
 #ifdef _XG_NUCLEON
+                /**********************************************************
+                 * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                 * !!! CAREFUL with combination of nn type 0 and 1 !!!
+                 * !!! these are fwd / bwd running ???             !!!
+                 * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                 **********************************************************/
                 threep_44[iconf][isrc][it][0] += (
                     /* twop */
                     twop_weight[0] * ( 
@@ -1296,22 +1375,27 @@ int main(int argc, char **argv) {
 
 #else  /* of ifdef _XG_NUCLEON */
 
+#if 0
                 threep_44[iconf][isrc][it][0] += ( 
                         ( a_fwd[0] + b_fwd[0] ) * ( loop_sub[iconf][tins_fwd_1] + loop_sub[iconf][tins_fwd_2] ) 
                       + ( a_bwd[0] + b_bwd[0] ) * ( loop_sub[iconf][tins_bwd_1] + loop_sub[iconf][tins_bwd_2] )
                     ) * 0.125;
-
-
-#if 0
-                threep_44[iconf][isrc][it][0] += a_fwd[0] * loop_sub[iconf][tins_fwd_1];
 #endif
 
-#if 0
-                threep_44[iconf][isrc][it][0] += ( 
-                      a_fwd[0] * ( loop_sub[iconf][tins_fwd_1] + loop_sub[iconf][tins_fwd_2] )
-                    + a_bwd[0] * ( loop_sub[iconf][tins_bwd_1] + loop_sub[iconf][tins_bwd_2] )
-                    ) * 0.25;
-#endif
+
+                // threep_44[iconf][isrc][it][0] += a_fwd[0] * loop_sub[iconf][tins_fwd_1];
+                threep_44[iconf][isrc][it][0] += threep_norm * (
+                    /* twop */
+                    twop_weight[0] * (
+                          fbwd_weight[0] * a_fwd[0] * ( mirror_weight[0] * loop_sub[iconf][tins_fwd_1] + mirror_weight[1] * loop_sub[iconf][tins_fwd_2] )
+                        + fbwd_weight[1] * a_bwd[0] * ( mirror_weight[0] * loop_sub[iconf][tins_bwd_1] + mirror_weight[1] * loop_sub[iconf][tins_bwd_2] )
+                      )
+                    /* twop parity partner */
+                  + twop_weight[1] * (
+                          fbwd_weight[0] * b_fwd[0] * ( mirror_weight[0] * loop_sub[iconf][tins_fwd_1] + mirror_weight[1] * loop_sub[iconf][tins_fwd_2] )
+                        + fbwd_weight[1] * b_bwd[0] * ( mirror_weight[0] * loop_sub[iconf][tins_bwd_1] + mirror_weight[1] * loop_sub[iconf][tins_bwd_2] )
+                      )
+                  );
 
 #endif  /* end of else of ifdef _XG_NUCLEON */
 
@@ -1378,14 +1462,15 @@ int main(int argc, char **argv) {
          **********************************************************/
         for ( int ireim = 0; ireim < 1; ireim++ ) {
     
-          if ( num_conf < 6 ) {
+          /* if ( num_conf < 6 ) {
             fprintf ( stderr, "[xg_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
             EXIT(1);
-          }
+          } */
 
           /* int nT = g_sequential_source_timeslice_list[idt] + 1; */
           int nT = T_global;
           int block_size = block_sources ? num_src_per_conf : 1;
+          if ( g_verbose > 1 ) printf ( "# [xg_analyse] block_size = %d %s %d\n", block_size, __FILE__, __LINE__ );
           int num_data = ( num_conf * num_src_per_conf ) / block_size;
 
           double ** data = init_2level_dtable ( num_data, nT );
@@ -1498,7 +1583,11 @@ int main(int argc, char **argv) {
               /* tsink2 counted from 0, relative to source time */
               int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
               int const idx2 = ( ( i * block_size + k ) * T_global + tsink2 ) * 2 + ireim;
-              data[i][nT] += 0.5 * ( twop_orbit[igf][igi][0][0][0][idx] + twop_orbit[igf][igi][0][0][0][idx2] );
+              /**********************************************************
+               * FOLD OR NO FOLD ???
+               **********************************************************/
+              data[i][nT] += ( twop_orbit[igf][igi][0][0][0][idx] + twop_fold_propagator * twop_orbit[igf][igi][0][0][0][idx2] ) / ( 1 + twop_fold_propagator );
+              /* data[i][nT] += twop_orbit[igf][igi][0][0][0][idx]; */
 #endif
             }
             data[i][nT] /= (double)block_size;
@@ -1529,10 +1618,10 @@ int main(int argc, char **argv) {
          **********************************************************/
         for ( int ireim = 0; ireim < 1; ireim++ ) {
     
-          if ( num_conf < 6 ) {
+          /* if ( num_conf < 6 ) {
             fprintf ( stderr, "[xg_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
             EXIT(1);
-          }
+          } */
     
           /* UWerr parameters */
           int nT = g_sequential_source_timeslice_list[idt] + 1;
@@ -1608,17 +1697,42 @@ int main(int argc, char **argv) {
               /* tsink2 counted from 0, relative to source time */
               int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
               int const idx2   = ( ( i * block_size + k ) * T_global + tsink2 ) * 2 + ireim;
-              data[i][nT] += 0.5 * ( twop_orbit[igf][igi][0][0][0][idx] + twop_orbit[igf][igi][0][0][0][idx2] );
+              /**********************************************************
+               * FOLD OR NO FOLD ???
+               **********************************************************/
+
+              data[i][nT] += ( twop_orbit[igf][igi][0][0][0][idx] + twop_fold_propagator * twop_orbit[igf][igi][0][0][0][idx2] ) / ( 1 + twop_fold_propagator );
+              /* data[i][nT] += twop_orbit[igf][igi][0][0][0][idx]; */
 #endif
             }
             data[i][nT] /= (double)block_size;
 
+#if ( defined _SUBTRACT_TIME_AVERAGED )
             for ( int it = 0; it < T_global; it++ ) {
               int const idx = ( ( i * block_size ) / num_src_per_conf ) * T_global + it;
               data[i][nT + 1] += loop_sub[0][idx];
             }
             data[i][nT + 1] /= (double)T_global;
-          }
+#elif ( defined _SUBTRACT_PER_TIMESLICE )
+            int const jc = ( i * block_size ) / num_src_per_conf;  /* config number */
+            for ( int k = 0; k < block_size; k++ ){
+              int const js = ( i * block_size + k ) % num_src_per_conf;  /* source coords number */
+              for ( int it = 0; it < nT; it++ ) {
+
+                int const tins_fwd_1 = (  it + conf_src_list[jc][js][2]                                           + T_global ) % T_global;
+                int const tins_fwd_2 = ( -it + conf_src_list[jc][js][2] + g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
+                int const tins_bwd_1 = ( -it + conf_src_list[jc][js][2]                                           + T_global ) % T_global;
+                int const tins_bwd_2 = (  it + conf_src_list[jc][js][2] - g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
+
+                data[i][nT + 1] += 
+                    fbwd_weight[0] * ( mirror_weight[0] * loop_sub[jc][tins_fwd_1] + mirror_weight[1] * loop_sub[jc][tins_fwd_2] )
+                  + fbwd_weight[1] * ( mirror_weight[0] * loop_sub[jc][tins_bwd_1] + mirror_weight[1] * loop_sub[jc][tins_bwd_2] );
+              }  /* end of loop on timeslices */
+              data[i][nT + 1] /= ( fabs( fbwd_weight[0] ) + fabs( fbwd_weight[1] ) ) * ( fabs( mirror_weight[0] ) + fabs( mirror_weight[1] ) ) * nT;
+            }  /* end of loop inside block */
+#endif
+
+          }  /* end of loop on num_data */
 
           char obs_name[500];
           sprintf ( obs_name, "ratio.sub.%s.%s", obsname_tag, reim_str[ireim] );
@@ -1635,15 +1749,15 @@ int main(int argc, char **argv) {
 
         /**********************************************************
          *
-         * summed ratio vev-subtracted
+         * STATISTICAL ANALYSIS for summed ratio vev-subtracted
          *
          **********************************************************/
         for ( int ireim = 0; ireim < 1; ireim++ ) {
     
-          if ( num_conf < 6 ) {
+          /* if ( num_conf < 6 ) {
             fprintf ( stderr, "[xg_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
             EXIT(1);
-          }
+          }*/
     
           /* UWerr parameters */
           int nT = ( g_sequential_source_timeslice_list[idt] / 2 ) + 1;
@@ -1726,7 +1840,7 @@ int main(int argc, char **argv) {
 #else
               int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
               int const idx2   = ( ( i * block_size + k ) * T_global + tsink2 ) * 2 + ireim;
-              data[i][nT] += 0.5 * ( twop_orbit[igf][igi][0][0][0][idx] + twop_orbit[igf][igi][0][0][0][idx2] );
+              data[i][nT] += ( twop_orbit[igf][igi][0][0][0][idx] + twop_fold_propagator * twop_orbit[igf][igi][0][0][0][idx2] ) / ( 1 + twop_fold_propagator );
 #endif
             }
             data[i][nT] /= (double)block_size;
