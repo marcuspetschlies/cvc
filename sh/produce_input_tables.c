@@ -5,7 +5,7 @@ int main( int argc, char *argv[]){
 
   printf("BeginTwopointFunctionGeneric\n");
   printf("  n       = 1\n");
-  printf("  d       = 1\n");
+  printf("  d       = 4\n");
   printf("  type    = b-b\n");
   printf("  tag     = piN\n");
   printf("  reorder = 0\n");

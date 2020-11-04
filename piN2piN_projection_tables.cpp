@@ -936,9 +936,11 @@ int main(int argc, char **argv) {
           spinf1table[ii][1]=g_twopoint_function_list[i2pt].list_of_gammas_f1[ii][1];
 
         }
-        snprintf(text_output,300,"Pmatrix annihilation (imu=%d,ibeta=%d) Ptot=(%d,%d,%d)",imu,ibeta, Ptot[0], Ptot[1], Ptot[2]);
-        rot_printf_matrix_non_zero_non_symmetric(projection_matrix_a, 1, dimension_coeff, momentum_table, momentumlistsize, spinf1table, g_twopoint_function_list[i2pt].number_of_gammas_f1, g_twopoint_function_list[i2pt].d , text_output, stdout);
-        free(text_output);
+        //snprintf(text_output,300,"Pmatrix annihilation (imu=%d,ibeta=%d) Ptot=(%d,%d,%d)",imu,ibeta, Ptot[0], Ptot[1], Ptot[2]);
+        //if (ibeta==0){
+        //  rot_printf_matrix_non_zero_non_symmetric(projection_matrix_a, 1, dimension_coeff, momentum_table, momentumlistsize, spinf1table, g_twopoint_function_list[i2pt].number_of_gammas_f1, g_twopoint_function_list[i2pt].d , text_output, stdout);
+        //}
+        //free(text_output);
 
         fini_3level_dtable(&buffer_write);
 
@@ -948,7 +950,7 @@ int main(int argc, char **argv) {
         double _Complex **projection_coeff_ORT= apply_gramschmidt ( projection_matrix_a, ANNIHILATION,  &N);
 
         hsize_t dims_linear;
-        dims_linear=2;
+        dims_linear=3;
         dataspace_id = H5Screate_simple(1, &dims_linear, NULL);
         if (strcmp( g_twopoint_function_list[i2pt].name, "piN")==0){
           snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d_pi%dN%d/mu_%d/beta_%d/Nreplicas_Nps_Ndimirrep",  Ptot[0],Ptot[1],Ptot[2],pfpx*pfpx+pfpy*pfpy+pfpz*pfpz,pfnx*pfnx+pfny*pfny+pfnz*pfnz, imu, ibeta);
@@ -1005,9 +1007,10 @@ int main(int argc, char **argv) {
        
         if (N>0){
           text_output=(char *)malloc(sizeof(char)*300);
-          snprintf(text_output,300,"Pmatrix annihilation orthonormalized (imu=%d,ibeta=%d)",imu,ibeta);
-          rot_printf_matrix_non_zero_non_symmetric(projection_coeff_ORT, 1, N, momentum_table, momentumlistsize, spinf1table, g_twopoint_function_list[i2pt].number_of_gammas_f1, g_twopoint_function_list[i2pt].d , text_output, stdout);
-
+          snprintf(text_output,300,"out[%s][%s][l%d]",g_twopoint_function_list[i2pt].group,g_twopoint_function_list[i2pt].irrep,imu+1);
+          if (ibeta==0){
+            rot_printf_matrix_python(projection_coeff_ORT, 1, N, momentum_table, momentumlistsize, spinf1table, g_twopoint_function_list[i2pt].number_of_gammas_f1, g_twopoint_function_list[i2pt].d, g_twopoint_function_list[i2pt].name,  text_output, stdout);
+          }
           free(text_output);
 
           buffer_write=init_3level_dtable(N,dimension_coeff,2);
@@ -1047,6 +1050,7 @@ int main(int argc, char **argv) {
           fini_2level_ztable(&projection_coeff_ORT) ;
        
         }
+
         dataspace_id = H5Screate_simple(3, dims, NULL);
         if (strcmp( g_twopoint_function_list[i2pt].name, "piN")==0){
           snprintf ( tagname, 400,  "/pfx%dpfy%dpfz%d_pi%dN%d/mu_%d/beta_%d/c_data",  Ptot[0],Ptot[1],Ptot[2],pfpx*pfpx+pfpy*pfpy+pfpz*pfpz,pfnx*pfnx+pfny*pfny+pfnz*pfnz, imu, ibeta);
@@ -1060,11 +1064,11 @@ int main(int argc, char **argv) {
 
         rot_mat_adj ( projection_matrix_c , projection_matrix_a , dimension_coeff  );
 
-        text_output=(char *)malloc(sizeof(char)*300);
-        snprintf(text_output,300,"Pmatrix creation (imu=%d,ibeta=%d)",imu,ibeta);
-        rot_printf_matrix_non_zero_non_symmetric(projection_matrix_c, 0, dimension_coeff, momentum_table, momentumlistsize, spinf1table, g_twopoint_function_list[i2pt].number_of_gammas_f1, g_twopoint_function_list[i2pt].d , text_output, stdout);
+//        text_output=(char *)malloc(sizeof(char)*300);
+//        snprintf(text_output,300,"Pmatrix creation (imu=%d,ibeta=%d)",imu,ibeta);
+//        rot_printf_matrix_non_zero_non_symmetric(projection_matrix_c, 0, dimension_coeff, momentum_table, momentumlistsize, spinf1table, g_twopoint_function_list[i2pt].number_of_gammas_f1, g_twopoint_function_list[i2pt].d , text_output, stdout);
 
-        free(text_output);
+//        free(text_output);
 
 
         buffer_write=init_3level_dtable(dimension_coeff,dimension_coeff,2);
@@ -1094,11 +1098,11 @@ int main(int argc, char **argv) {
 
         if (N>0){
 
-          text_output=(char *)malloc(sizeof(char)*300);
-          snprintf(text_output,300,"Pmatrix creation orthonormalized (imu=%d,ibeta=%d)",imu,ibeta);
-          rot_printf_matrix_non_zero_non_symmetric(projection_coeff_ORT, 0, N, momentum_table, momentumlistsize, spinf1table, g_twopoint_function_list[i2pt].number_of_gammas_f1, g_twopoint_function_list[i2pt].d , text_output, stdout);
+         // text_output=(char *)malloc(sizeof(char)*300);
+         // snprintf(text_output,300,"Pmatrix creation orthonormalized (imu=%d,ibeta=%d)",imu,ibeta);
+         // rot_printf_matrix_non_zero_non_symmetric(projection_coeff_ORT, 0, N, momentum_table, momentumlistsize, spinf1table, g_twopoint_function_list[i2pt].number_of_gammas_f1, g_twopoint_function_list[i2pt].d , text_output, stdout);
 
-          free(text_output);
+        //  free(text_output);
 
 
           buffer_write=init_3level_dtable(dimension_coeff,N,2);
