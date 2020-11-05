@@ -114,6 +114,9 @@ char *convert_gamma_to_string ( int gamma ) {
    else if (gamma==8) {
      snprintf(ret_string,100, "Cg5g4,1");
    }
+   else if (gamma==2) {
+     snprintf(ret_string,100, "Cg4,5");
+   }
    else {
      fprintf(stderr, "# [convert_gamma_to_string] Non recognized gamma in conversion\n");}
    return ret_string;
@@ -124,18 +127,18 @@ char *tagname_forgamma_multiplets ( int *gamma_multiplet, int length ){
 
    char *ret_string=(char *)malloc(sizeof(char)*100);
    if (length==3){
-     if ((gamma_multiplet[0]==9) && (gamma_multiplet[0]==0)  && (gamma_multiplet[0]==7)){
+     if ((gamma_multiplet[0]==9) && (gamma_multiplet[1]==0)  && (gamma_multiplet[2]==7)){
        snprintf(ret_string, 100, "cgxyz");
      }
-     else if ((gamma_multiplet[0]==13) && (gamma_multiplet[0]==4)  && (gamma_multiplet[0]==15)){
+     else if ((gamma_multiplet[0]==13) && (gamma_multiplet[1]==4)  && (gamma_multiplet[2]==15)){
        snprintf(ret_string, 100, "cgxyzg0");
      }
-     else if ((gamma_multiplet[0]==12) && (gamma_multiplet[0]==5)  && (gamma_multiplet[0]==6)){
+     else if ((gamma_multiplet[0]==12) && (gamma_multiplet[1]==5)  && (gamma_multiplet[2]==10)){
        snprintf(ret_string, 100, "cgxyzg0g5");
 
      }
      else {
-       fprintf(stderr, "# [tagname_forgamma_multiplets] No recognized multiplett \n");
+       fprintf(stderr, "# [tagname_forgamma_multiplets] No recognized multiplett %d %d %d\n", gamma_multiplet[0],gamma_multiplet[1],gamma_multiplet[2]);
        exit(1);
      }
    }
@@ -149,6 +152,9 @@ char *tagname_forgamma_multiplets ( int *gamma_multiplet, int length ){
      else if  (gamma_multiplet[0]==8){
        snprintf(ret_string,100, "cg5g4");
      }
+     else if  (gamma_multiplet[0]==2){
+       snprintf(ret_string,100, "cg4");
+     }
      else {
        fprintf(stderr, "# [tagname_forgamma_multiplets] No recognized multiplett \n");
        exit(1);
@@ -158,7 +164,6 @@ char *tagname_forgamma_multiplets ( int *gamma_multiplet, int length ){
        fprintf(stderr, "# [tagname_forgamma_multiplets] No recognized length of mupliplett \n");
        exit(1);
   }
-  printf("%s\n", ret_string);
   return ret_string;
 
 }
@@ -350,11 +355,7 @@ int main(int argc, char **argv) {
        herr_t      status;
 
 
-       snprintf ( filename, 400, "Projected_corrfunc_sx%0.2dsy%0.2dsz%0.2dst%03d_sink_%s_source_%s_group_%s_irrep_%s.h5",
-                         source_coords_list[0][1],
-                         source_coords_list[0][2],
-                         source_coords_list[0][3],
-                         source_coords_list[0][0],
+       snprintf ( filename, 400, "Projected_corrfunc_sink_%s_source_%s_group_%s_irrep_%s.h5",
                          g_twopoint_function_list[i2pt].particlename_sink,
                          g_twopoint_function_list[i2pt].particlename_source,
                          g_twopoint_function_list[i2pt].group,
@@ -375,9 +376,9 @@ int main(int argc, char **argv) {
        /* Determining the dimension of the irrep */
 
        int const Ptot[3] = {
-         g_twopoint_function_list[i2pt].pi1[0] + g_twopoint_function_list[i2pt].pi2[0] , 
-         g_twopoint_function_list[i2pt].pi1[1] + g_twopoint_function_list[i2pt].pi2[1] , 
-         g_twopoint_function_list[i2pt].pi1[2] + g_twopoint_function_list[i2pt].pi2[2]  };
+         g_twopoint_function_list[i2pt].pf1list[0][0] + g_twopoint_function_list[i2pt].pf2list[0][0] , 
+         g_twopoint_function_list[i2pt].pf1list[0][1] + g_twopoint_function_list[i2pt].pf2list[0][1] , 
+         g_twopoint_function_list[i2pt].pf1list[0][2] + g_twopoint_function_list[i2pt].pf2list[0][2]  };
 
 
        snprintf ( filename, 400, "projection_coefficients_%s_group_%s_irrep_%s.h5",
@@ -393,6 +394,10 @@ int main(int argc, char **argv) {
        int *tmp= init_1level_itable( 3 );
 
        exitstatus = read_from_h5_file ( (void*)(tmp), filename, tagname, io_proc, 1 );
+       if (exitstatus != 0){
+         fprintf(stderr, "Error in opening file for determining the dimension of irrep\n");
+         exit(1);
+       }
 
        const int irrep_dim=tmp[2];
 
@@ -402,11 +407,50 @@ int main(int argc, char **argv) {
        /******************************************************
         * Open the table for creation and annihilation interpolating operator coefficients 
         *****************************************************/
+       snprintf(tagname,400,"/sx%0.2dsy%0.2dsz%0.2dst%03d", source_coords_list[0][1],
+                         source_coords_list[0][2],
+                         source_coords_list[0][3],
+                         source_coords_list[0][0]);
+       status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
+
+       status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+   
+       if (status != 0){
+
+         /* Create a group named "/MyGroup" in the file. */
+         group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+         /* Close the group. */
+         status = H5Gclose(group_id);
+
+       }
+       snprintf(tagname,400,"/sx%0.2dsy%0.2dsz%0.2dst%03d/px%dpy%dpz%d", source_coords_list[0][1],
+                         source_coords_list[0][2],
+                         source_coords_list[0][3],
+                         source_coords_list[0][0], Ptot[0],Ptot[1],Ptot[2]);
+       status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
+
+       status = H5Gget_objinfo (file_id, tagname, 0, NULL);
+
+       if (status != 0){
+
+         /* Create a group named "/MyGroup" in the file. */
+         group_id = H5Gcreate2(file_id, tagname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+         /* Close the group. */
+         status = H5Gclose(group_id);
+
+       }
+
+
 
        for ( int ibeta = 0; ibeta < irrep_dim; ibeta++ ) {
 
 
-         snprintf ( tagname, 400, "/beta_%d", ibeta );
+         snprintf ( tagname, 400, "/sx%0.2dsy%0.2dsz%0.2dst%03d/px%dpy%dpz%d/beta_%d", source_coords_list[0][1],
+                         source_coords_list[0][2],
+                         source_coords_list[0][3],
+                         source_coords_list[0][0], Ptot[0],Ptot[1],Ptot[2], ibeta );
 
          status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
 
@@ -425,7 +469,10 @@ int main(int argc, char **argv) {
          for ( int imu = 0; imu < irrep_dim; imu++ ) {
 
 
-           snprintf ( tagname, 400, "/beta_%d/mu_%d", ibeta, imu );
+           snprintf ( tagname, 400, "/sx%0.2dsy%0.2dsz%0.2dst%03d/px%dpy%dpz%d/beta_%d/mu_%d",source_coords_list[0][1],
+                         source_coords_list[0][2],
+                         source_coords_list[0][3],
+                         source_coords_list[0][0], Ptot[0],Ptot[1],Ptot[2], ibeta, imu );
 
            status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
 
@@ -441,8 +488,10 @@ int main(int argc, char **argv) {
            }
  
            for ( int icombination_source=0; icombination_source < g_twopoint_function_list[i2pt].ncombination_total_momentum_source ; ++icombination_source ) {
-
-             snprintf ( tagname, 400, "/beta_%d/mu_%d/source_totmomN%dp%d/", ibeta, imu, g_twopoint_function_list[i2pt].total_momentum_nucleon_source[icombination_source], g_twopoint_function_list[i2pt].total_momentum_pion_source[icombination_source] );
+             snprintf ( tagname, 400, "/sx%0.2dsy%0.2dsz%0.2dst%03d/px%dpy%dpz%d/beta_%d/mu_%d/source_totmomN%dp%d/", source_coords_list[0][1],
+                         source_coords_list[0][2],
+                         source_coords_list[0][3],
+                         source_coords_list[0][0], Ptot[0],Ptot[1],Ptot[2], ibeta, imu, g_twopoint_function_list[i2pt].total_momentum_nucleon_source[icombination_source], g_twopoint_function_list[i2pt].total_momentum_pion_source[icombination_source] );
 
              status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
 
@@ -498,7 +547,10 @@ int main(int argc, char **argv) {
 
              for ( int icombination_sink=0; icombination_sink < g_twopoint_function_list[i2pt].ncombination_total_momentum_sink ; ++icombination_sink ) {
 
-               snprintf ( tagname, 400, "/beta_%d/mu_%d/source_totmomN%dp%d/sink_totmomN%dp%d", ibeta, imu, g_twopoint_function_list[i2pt].total_momentum_nucleon_source[icombination_source], g_twopoint_function_list[i2pt].total_momentum_pion_source[icombination_source],g_twopoint_function_list[i2pt].total_momentum_nucleon_sink[icombination_sink], g_twopoint_function_list[i2pt].total_momentum_pion_sink[icombination_sink]  );
+               snprintf ( tagname, 400, "/sx%0.2dsy%0.2dsz%0.2dst%03d/px%dpy%dpz%d/beta_%d/mu_%d/source_totmomN%dp%d/sink_totmomN%dp%d", source_coords_list[0][1],
+                         source_coords_list[0][2],
+                         source_coords_list[0][3],
+                         source_coords_list[0][0], Ptot[0],Ptot[1],Ptot[2], ibeta, imu, g_twopoint_function_list[i2pt].total_momentum_nucleon_source[icombination_source], g_twopoint_function_list[i2pt].total_momentum_pion_source[icombination_source],g_twopoint_function_list[i2pt].total_momentum_nucleon_sink[icombination_sink], g_twopoint_function_list[i2pt].total_momentum_pion_sink[icombination_sink]  );
 
                status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
 
@@ -566,7 +618,10 @@ int main(int argc, char **argv) {
                  }
                  char *gamma_string_source=tagname_forgamma_multiplets ( gamma_table_source, spin1dimension_source );
 
-                 snprintf ( tagname, 400, "/beta_%d/mu_%d/source_totmomN%dp%d/sink_totmomN%dp%d/source_%s/", ibeta, imu, g_twopoint_function_list[i2pt].total_momentum_nucleon_source[icombination_source], g_twopoint_function_list[i2pt].total_momentum_pion_source[icombination_source],g_twopoint_function_list[i2pt].total_momentum_nucleon_sink[icombination_sink], g_twopoint_function_list[i2pt].total_momentum_pion_sink[icombination_sink], gamma_string_source);
+                 snprintf ( tagname, 400, "/sx%0.2dsy%0.2dsz%0.2dst%03d/px%dpy%dpz%d/beta_%d/mu_%d/source_totmomN%dp%d/sink_totmomN%dp%d/source_%s/",source_coords_list[0][1],
+                         source_coords_list[0][2],
+                         source_coords_list[0][3],
+                         source_coords_list[0][0], Ptot[0],Ptot[1],Ptot[2], ibeta, imu, g_twopoint_function_list[i2pt].total_momentum_nucleon_source[icombination_source], g_twopoint_function_list[i2pt].total_momentum_pion_source[icombination_source],g_twopoint_function_list[i2pt].total_momentum_nucleon_sink[icombination_sink], g_twopoint_function_list[i2pt].total_momentum_pion_sink[icombination_sink], gamma_string_source);
 
                  status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
 
@@ -589,7 +644,10 @@ int main(int argc, char **argv) {
                    }
                    char *gamma_string_sink=tagname_forgamma_multiplets ( gamma_table_sink, spin1dimension_sink );
 
-                   snprintf ( tagname, 400, "/beta_%d/mu_%d/source_totmomN%dp%d/sink_totmomN%dp%d/source_%s/sink_%s", ibeta, imu, g_twopoint_function_list[i2pt].total_momentum_nucleon_source[icombination_source], g_twopoint_function_list[i2pt].total_momentum_pion_source[icombination_source],g_twopoint_function_list[i2pt].total_momentum_nucleon_sink[icombination_sink], g_twopoint_function_list[i2pt].total_momentum_pion_sink[icombination_sink], gamma_string_source, gamma_string_source);
+                   snprintf ( tagname, 400, "/sx%0.2dsy%0.2dsz%0.2dst%03d/px%dpy%dpz%d/beta_%d/mu_%d/source_totmomN%dp%d/sink_totmomN%dp%d/source_%s/sink_%s",source_coords_list[0][1],
+                         source_coords_list[0][2],
+                         source_coords_list[0][3],
+                         source_coords_list[0][0], Ptot[0],Ptot[1],Ptot[2], ibeta, imu, g_twopoint_function_list[i2pt].total_momentum_nucleon_source[icombination_source], g_twopoint_function_list[i2pt].total_momentum_pion_source[icombination_source],g_twopoint_function_list[i2pt].total_momentum_nucleon_sink[icombination_sink], g_twopoint_function_list[i2pt].total_momentum_pion_sink[icombination_sink], gamma_string_source, gamma_string_source);
 
                    status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
 
@@ -606,7 +664,10 @@ int main(int argc, char **argv) {
 
                    for (int nreplicum_source=0; nreplicum_source < Nps_Nreplica_source[0] ; ++nreplicum_source ) {
 
-                     snprintf ( tagname, 400, "/beta_%d/mu_%d/source_totmomN%dp%d/sink_totmomN%dp%d/source_%s/sink_%s/Replicasource_%d", ibeta, imu, g_twopoint_function_list[i2pt].total_momentum_nucleon_source[icombination_source], g_twopoint_function_list[i2pt].total_momentum_pion_source[icombination_source],g_twopoint_function_list[i2pt].total_momentum_nucleon_sink[icombination_sink], g_twopoint_function_list[i2pt].total_momentum_pion_sink[icombination_sink], gamma_string_source, gamma_string_source, nreplicum_source);
+                     snprintf ( tagname, 400, "/sx%0.2dsy%0.2dsz%0.2dst%03d/px%dpy%dpz%d/beta_%d/mu_%d/source_totmomN%dp%d/sink_totmomN%dp%d/source_%s/sink_%s/Replicasource_%d", source_coords_list[0][1],
+                         source_coords_list[0][2],
+                         source_coords_list[0][3],
+                         source_coords_list[0][0], Ptot[0],Ptot[1],Ptot[2], ibeta, imu, g_twopoint_function_list[i2pt].total_momentum_nucleon_source[icombination_source], g_twopoint_function_list[i2pt].total_momentum_pion_source[icombination_source],g_twopoint_function_list[i2pt].total_momentum_nucleon_sink[icombination_sink], g_twopoint_function_list[i2pt].total_momentum_pion_sink[icombination_sink], gamma_string_source, gamma_string_source, nreplicum_source);
 
                      status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
 
@@ -624,7 +685,10 @@ int main(int argc, char **argv) {
  
                      for ( int nreplicum_sink=0; nreplicum_sink < Nps_Nreplica_sink[0] ; ++nreplicum_sink ) {
 
-                       snprintf ( tagname, 400, "/beta_%d/mu_%d/source_totmomN%dp%d/sink_totmomN%dp%d/source_%s/sink_%s/Replicasource_%d/Replicasink_%d", ibeta, imu, g_twopoint_function_list[i2pt].total_momentum_nucleon_source[icombination_source], g_twopoint_function_list[i2pt].total_momentum_pion_source[icombination_source],g_twopoint_function_list[i2pt].total_momentum_nucleon_sink[icombination_sink], g_twopoint_function_list[i2pt].total_momentum_pion_sink[icombination_sink], gamma_string_source, gamma_string_source, nreplicum_source, nreplicum_sink);
+                       snprintf ( tagname, 400, "/sx%0.2dsy%0.2dsz%0.2dst%03d/px%dpy%dpz%d/beta_%d/mu_%d/source_totmomN%dp%d/sink_totmomN%dp%d/source_%s/sink_%s/Replicasource_%d/Replicasink_%d", source_coords_list[0][1],
+                         source_coords_list[0][2],
+                         source_coords_list[0][3],
+                         source_coords_list[0][0], Ptot[0],Ptot[1],Ptot[2], ibeta, imu, g_twopoint_function_list[i2pt].total_momentum_nucleon_source[icombination_source], g_twopoint_function_list[i2pt].total_momentum_pion_source[icombination_source],g_twopoint_function_list[i2pt].total_momentum_nucleon_sink[icombination_sink], g_twopoint_function_list[i2pt].total_momentum_pion_sink[icombination_sink], gamma_string_source, gamma_string_source, nreplicum_source, nreplicum_sink);
 
                        status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
 
@@ -645,13 +709,16 @@ int main(int argc, char **argv) {
       
                          for ( int i2_source=0; i2_source < spin1dimension_source ; ++i2_source ) {
 
-                           char *gamma_string_source_member=convert_gamma_to_string( gamma_table_source[gamma_nplettid_source*spin1dimension_source+i2_source]);
+                           char *gamma_string_source_member=convert_gamma_to_string( gamma_table_source[i2_source]);
+                           printf("Plettid %d spin1 %d i2source %d gamma %d\n", gamma_nplettid_source,spin1dimension_source, i2_source,gamma_table_source[i2_source]);
+
 
                            for ( int i1_sink =0; i1_sink < Nps_Nreplica_sink[1] ; ++i1_sink ) {
 
                              for ( int i2_sink =0; i2_sink < spin1dimension_sink ; ++i2_sink ) {
+                               printf("Plettid %d spin1 %d i2sink %d gamma %d\n", gamma_nplettid_sink,spin1dimension_sink, i2_sink,gamma_table_sink[i2_sink]);
 
-                               char *gamma_string_sink_member=convert_gamma_to_string( gamma_table_sink[gamma_nplettid_sink*spin1dimension_sink+i2_sink]);
+                               char *gamma_string_sink_member=convert_gamma_to_string( gamma_table_sink[i2_sink]);
 
 
                                int pf1x=momtable_sink[i1_sink][0];
@@ -781,6 +848,7 @@ int main(int argc, char **argv) {
                                }
 
                                const int i_total_momentum=Ptot[0]*Ptot[0]+Ptot[1]*Ptot[1]+Ptot[2]*Ptot[2];
+                             
                                snprintf ( filename, 400, "%s%04d_PX%.02dPY%.02dPZ%.02d_%s.h5",
                                                         filename_prefix,
                                                         Nconf,
@@ -788,6 +856,7 @@ int main(int argc, char **argv) {
                                                         momentum_orbit_pref[i_total_momentum][1],
                                                         momentum_orbit_pref[i_total_momentum][2],
                                                         correlation_function_filename_suffix);
+                               printf("Filename=%s\n", filename);
                                double ***correlation_function=init_3level_dtable( g_twopoint_function_list[i2pt].T,g_twopoint_function_list[i2pt].d*g_twopoint_function_list[i2pt].d ,2 );
 
                                exitstatus = read_from_h5_file ( (void*)(correlation_function[0][0]), filename, tagname, io_proc, 0 );
@@ -831,7 +900,10 @@ int main(int argc, char **argv) {
 
                        }/*i1_source*/
 
-                       snprintf ( tagname, 400, "/beta_%d/mu_%d/source_totmomN%dp%d/sink_totmomN%dp%d/source_%s/sink_%s/Replicasource_%d/Replicasink_%d/data", ibeta, imu, g_twopoint_function_list[i2pt].total_momentum_nucleon_source[icombination_source], g_twopoint_function_list[i2pt].total_momentum_pion_source[icombination_source],g_twopoint_function_list[i2pt].total_momentum_nucleon_sink[icombination_sink], g_twopoint_function_list[i2pt].total_momentum_pion_sink[icombination_sink], gamma_string_source, gamma_string_source, nreplicum_source, nreplicum_sink);
+                       snprintf ( tagname, 400, "/sx%0.2dsy%0.2dsz%0.2dst%03d/px%dpy%dpz%d/beta_%d/mu_%d/source_totmomN%dp%d/sink_totmomN%dp%d/source_%s/sink_%s/Replicasource_%d/Replicasink_%d/data", source_coords_list[0][1],
+                         source_coords_list[0][2],
+                         source_coords_list[0][3],
+                         source_coords_list[0][0], Ptot[0],Ptot[1],Ptot[2], ibeta, imu, g_twopoint_function_list[i2pt].total_momentum_nucleon_source[icombination_source], g_twopoint_function_list[i2pt].total_momentum_pion_source[icombination_source],g_twopoint_function_list[i2pt].total_momentum_nucleon_sink[icombination_sink], g_twopoint_function_list[i2pt].total_momentum_pion_sink[icombination_sink], gamma_string_source, gamma_string_source, nreplicum_source, nreplicum_sink);
 
                        hsize_t dims[2];
                        dims[0]=g_twopoint_function_list[i2pt].T;
@@ -855,16 +927,18 @@ int main(int argc, char **argv) {
 
                      } /*nreplicum sink */
 
-                     fini_1level_itable(&gamma_table_sink);
 
                    } /*nreplicum source */
+
+                   fini_1level_itable(&gamma_table_sink);
                    free(gamma_string_sink);
 
-                   fini_1level_itable(&gamma_table_source);
 
                  } /*ngamma multiplett sink*/
 
+                 fini_1level_itable(&gamma_table_source);
                  free(gamma_string_source);
+
                } /*ngamma muplitplett source*/
 
                fini_1level_itable(&Nps_Nreplica_sink);
