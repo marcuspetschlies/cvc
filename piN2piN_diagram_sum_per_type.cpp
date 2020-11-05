@@ -919,9 +919,9 @@ int main(int argc, char **argv) {
                                                                    momentum_orbit_list[i_total_momentum][i_pi2][2],
                                                                    gamma_string_list_source[source_gamma],
                                                                    ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1",
-                                                                   -momentum_orbit_list[i_total_momentum][i_pi2][0],
-                                                                   -momentum_orbit_list[i_total_momentum][i_pi2][1],
-                                                                   -momentum_orbit_list[i_total_momentum][i_pi2][2]);
+                                                                   momentum_orbit_list[i_total_momentum][i_pi2][0],
+                                                                   momentum_orbit_list[i_total_momentum][i_pi2][1],
+                                                                   momentum_orbit_list[i_total_momentum][i_pi2][2]);
 
                 status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
 
@@ -963,9 +963,9 @@ int main(int argc, char **argv) {
                                                                    momentum_orbit_list[i_total_momentum][i_pi2][2],
                                                                    gamma_string_list_source[source_gamma],
                                                                    ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1",
-                                                                   -momentum_orbit_list[i_total_momentum][i_pi2][0],
-                                                                   -momentum_orbit_list[i_total_momentum][i_pi2][1],
-                                                                   -momentum_orbit_list[i_total_momentum][i_pi2][2],
+                                                                   momentum_orbit_list[i_total_momentum][i_pi2][0],
+                                                                   momentum_orbit_list[i_total_momentum][i_pi2][1],
+                                                                   momentum_orbit_list[i_total_momentum][i_pi2][2],
                                                                    hdf5_diag_tag_list_tag[i]);
 
                 /* Create a dataset in group "MyGroup". */
