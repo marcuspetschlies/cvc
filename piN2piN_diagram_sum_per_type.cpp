@@ -99,7 +99,191 @@ static inline void mult_with_gamma5_matrix_source ( double ** buffer_write ) {
     
     fini_2level_dtable(&buffer_temporary);
 }
+#if 0
+static inline void apply_charge_conjugation_sign ( int *source_sign, int *sink_sign, char * source_gamma, char * sink_gamma ) {
+    int sign_for_sink;
+    int sign_for_source;
+    if (strcmp(source_gamma,"cg1")){
+      sign_for_source=+1;
+    }
+    else if (strcmp(source_gamma,"cg2")){
+      sign_for_source=-1;
+    }
+    else if (strcmp(source_gamma,"cg3")){
+      sign_for_source=1;
+    }
+    else if (strcmp(source_gamma,"cg1g4")){
+      sign_for_source=-1;
+    }
+    else if (strcmp(source_gamma,"cg2g4")){
+      sign_for_source=1;
+    }
+    else if (strcmp(source_gamma,"cg3g4")){
+      sign_for_source=-1;
+    }
+    else if (strcmp(source_gamma,"cg1g4g5")){
+      sign_for_source=-1;
+    }
+    else if (strcmp(source_gamma,"cg2g4g5")){
+      sign_for_source=1;
+    }
+    else if (strcmp(source_gamma,"cg3g4g5")){
+      sign_for_source=-1;
+    }
+    else if (strcmp(source_gamma,"Cg5")){
+      sign_for_source=1;
+    }
+    else if (strcmp(source_gamma,"Cg5g4")){
+      sign_for_source=1;
+    }
+    else if (strcmp(source_gamma,"Cg5")){
+      sign_for_source=1;
+    }
+    else if (strcmp(source_gamma,"C")){
+      sign_for_source=1;
+    }
+    else if (strcmp(source_gamma,"g5")){
+      sign_for_source=1;
+    }
 
+ 
+    if (strcmp(sink_gamma,"cg1"){
+      sign_for_sink=+1;
+    }
+    else if (strcmp(sink_gamma,"cg2"){
+      sign_for_sink=-1;
+    }
+    else if (strcmp(sink_gamma,"cg3"){
+      sign_for_sink=1;
+    }
+    else if (strcmp(sink_gamma,"cg1g4"){
+      sign_for_sink=-1;
+    }
+    else if (strcmp(sink_gamma,"cg2g4"){
+      sign_for_sink=1;
+    }
+    else if (strcmp(sink_gamma,"cg3g4"){
+      sign_for_sink=-1;
+    }
+    else if (strcmp(sink_gamma,"cg1g4g5"){
+      sign_for_sink=-1;
+    }
+    else if (strcmp(sink_gamma,"cg2g4g5"){
+      sign_for_sink=1;
+    }
+    else if (strcmp(sink_gamma,"cg3g4g5"){
+      sign_for_sink=-1;
+    }
+    else if (strcmp(sink_gamma,"Cg5"){
+      sign_for_sink=1;
+    }
+    else if (strcmp(sink_gamma,"Cg5g4"){
+      sign_for_sink=1;
+    }
+    else if (strcmp(sink_gamma,"C"){
+      sign_for_sink=1;
+    }
+    else if (strcmp(sink_gamma,"g5"){
+      sign_for_sink=1;
+    }
+
+    *sink_sign=sign_for_sink;
+    *source_sign=sign_for_source;
+
+}
+
+static inline void apply_parity_sign ( int *source_sign, int *sink_sign, char * source_gamma, char * sink_gamma ) {
+    int sign_for_sink;
+    int sign_for_source;
+    if (strcmp(source_gamma,"cg1"){
+      sign_for_source=+1;
+    }
+    else if (strcmp(source_gamma,"cg2"){
+      sign_for_source=-1;
+    }
+    else if (strcmp(source_gamma,"cg3"){
+      sign_for_source=1;
+    }
+    else if (strcmp(source_gamma,"cg1g4"){
+      sign_for_source=-1;
+    }
+    else if (strcmp(source_gamma,"cg2g4"){
+      sign_for_source=1;
+    }
+    else if (strcmp(source_gamma,"cg3g4"){
+      sign_for_source=-1;
+    }
+    else if (strcmp(source_gamma,"cg1g4"){
+      sign_for_source=-1;
+    }
+    else if (strcmp(source_gamma,"cg2g4"){
+      sign_for_source=1;
+    }
+    else if (strcmp(source_gamma,"cg3g4"){
+      sign_for_source=-1;
+    }
+    else if (strcmp(source_gamma,"Cg5"){
+      sign_for_source=1;
+    }
+    else if (strcmp(source_gamma,"Cg5g4"){
+      sign_for_source=1;
+    }
+    else if (strcmp(source_gamma,"Cg5"){
+      sign_for_source=1;
+    }
+    else if (strcmp(source_gamma,"C"){
+      sign_for_source=1;
+    }
+    else if (strcmp(source_gamma,"g5"){
+      sign_for_source=1;
+    }
+
+
+    if (strcmp(sink_gamma,"cg1"){
+      sign_for_sink=+1;
+    }
+    else if (strcmp(sink_gamma,"cg2"){
+      sign_for_sink=-1;
+    }
+    else if (strcmp(sink_gamma,"cg3"){
+      sign_for_sink=1;
+    }
+    else if (strcmp(sink_gamma,"cg1g4"){
+      sign_for_sink=-1;
+    }
+    else if (strcmp(sink_gamma,"cg2g4"){
+      sign_for_sink=1;
+    }
+    else if (strcmp(sink_gamma,"cg3g4"){
+      sign_for_sink=-1;
+    }
+    else if (strcmp(sink_gamma,"cg1g4"){
+      sign_for_sink=-1;
+    }
+    else if (strcmp(sink_gamma,"cg2g4"){
+      sign_for_sink=1;
+    }
+    else if (strcmp(sink_gamma,"cg3g4"){
+      sign_for_sink=-1;
+    }
+    else if (strcmp(sink_gamma,"Cg5"){
+      sign_for_sink=1;
+    }
+    else if (strcmp(sink_gamma,"Cg5g4"){
+      sign_for_sink=1;
+    }
+    else if (strcmp(sink_gamma,"C"){
+      sign_for_sink=1;
+    }
+    else if (strcmp(sink_gamma,"g5"){
+      sign_for_sink=1;
+    }
+
+    *sink_sign=sign_for_sink;
+    *source_sign=sign_for_source;
+-
+}
+#endif
 
 /* ************************************************************************
  *
@@ -153,7 +337,7 @@ static inline void sink_and_source_gamma_list( char *filename, char *tagname, in
     H5Aclose(attr_id );
     H5Dclose(dataset_id);
     H5Fclose(file_id);
-    printf("data secr %s %s\n",date_source, filename);
+    printf("data secr %s %s %s\n",date_source, filename,tagname );
 
     *gamma_string_source =(char **)malloc(sizeof(char *)*number_of_gammas_source);
     for (int j=0; j<number_of_gammas_source; j++){
@@ -739,15 +923,15 @@ int main(int argc, char **argv) {
         snprintf ( filename, 400, "%s%04d_sx%.02dsy%.02dsz%.02dst%03d_%s.h5",
                          filename_prefix,
                          Nconf,
-                         source_coords_list[0][1],
-                         source_coords_list[0][2],
-                         source_coords_list[0][3],
-                         source_coords_list[0][0],
+                         source_coords_list[k][1],
+                         source_coords_list[k][2],
+                         source_coords_list[k][3],
+                         source_coords_list[k][0],
                          hdf5_diag_tag_list_name[i] ); 
-        snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%.02d/%s",source_coords_list[0][1],
-                         source_coords_list[0][2],
-                         source_coords_list[0][3],
-                         source_coords_list[0][0],
+        snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%.02d/%s",source_coords_list[k][1],
+                         source_coords_list[k][2],
+                         source_coords_list[k][3],
+                         source_coords_list[k][0],
                          hdf5_diag_tag_list_tag[i]);
         printf("# [piN2piN_diagram_sum_per_type] Filename: %s\n", filename);
         printf("# [piN2piN_diagram_sum_per_type] Tagname: %s\n", tagname);
@@ -975,7 +1159,7 @@ int main(int argc, char **argv) {
                 for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){ 
                   for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
                     for (int realimag=0; realimag < 2; ++realimag){
-                      buffer_write[time_extent][spin_inner][realimag]=buffer_source[time_extent][indextable[i_total_momentum][i_pi2]][source_gamma*tp->number_of_gammas_sink+sink_gamma][spin_inner][realimag]/(double)g_source_location_number;
+                      buffer_write[time_extent][spin_inner][realimag]=buffer_source[time_extent][indextable[i_total_momentum][i_pi2]][source_gamma*tp->number_of_gammas_sink+sink_gamma][spin_inner][realimag];
                     }
                   }
                   if ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ){
@@ -1026,6 +1210,8 @@ int main(int argc, char **argv) {
       free(hdf5_diag_tag_list_name);
 
     }  /* end of loop on twopoint function names */
+
+    printf("\n\nk=%d\n\n",k);
 
   } /* end of loop on source positions */
 
@@ -1431,7 +1617,7 @@ int main(int argc, char **argv) {
                 for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
                   for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
                     for (int realimag=0; realimag < 2; ++realimag){
-                      buffer_write[time_extent][spin_inner][realimag]=buffer_source[time_extent][indextable[i_total_momentum][i_pi2]][source_gamma*tp->number_of_gammas_sink+sink_gamma][spin_inner][realimag]/(double)g_source_location_number;
+                      buffer_write[time_extent][spin_inner][realimag]=buffer_source[time_extent][indextable[i_total_momentum][i_pi2]][source_gamma*tp->number_of_gammas_sink+sink_gamma][spin_inner][realimag];
                     }
                   }
                   if ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ){
