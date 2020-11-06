@@ -2858,6 +2858,9 @@ int get_reference_rotation ( int pref[3], int * Rref, int const p[3] ) {
 
   int const momentum_ref[4][3] = { {0,0,1}, {0,1,1}, {1,1,1} , {0,0,2} };
 
+  int const m_momentum_ref[4][3] = { {0,0,-1}, {0,-1,-1}, {-1,-1,-1} , {0,0,-2} };
+
+
   /*
   int const momentum_num[3] = { 6, 12, 8};
   int const momentum_class_c4v[ 6][3] = { {0,0,1}, {0,0,-1}, {0,1,0}, {0,-1,0}, {1,0,0}, {-1,0,0} };
@@ -2872,15 +2875,15 @@ int get_reference_rotation ( int pref[3], int * Rref, int const p[3] ) {
   */
 
   /***********************************************************
-   * return -1 for momentum p = 0,0,0 and for any of the
-   * reference momenta itself
+   * return -1 for momentum p = 0,0,0, for any of the
+   * reference momenta itself and for any of minus reference
+   * momenta itself
    ***********************************************************/
   if ( _INT3_EQ_INT3(p, pzero) || 
        _INT3_EQ_INT3(p, momentum_ref[0]) || 
        _INT3_EQ_INT3(p, momentum_ref[1]) || 
        _INT3_EQ_INT3(p, momentum_ref[2]) || 
-       _INT3_EQ_INT3(p, momentum_ref[3])  ) {
-
+       _INT3_EQ_INT3(p, momentum_ref[3])) { 
     if ( g_verbose > 1 ) fprintf ( stdout, "# [get_reference_rotation] p is ref momentum, refframerot -1\n" );
     pref[0] = p[0];
     pref[1] = p[1];
@@ -2888,6 +2891,18 @@ int get_reference_rotation ( int pref[3], int * Rref, int const p[3] ) {
     if ( Rref != NULL ) *Rref = -1;
     return ( 0 );
   }
+  if ( _INT3_EQ_INT3(p, m_momentum_ref[0]) ||
+       _INT3_EQ_INT3(p, m_momentum_ref[1]) ||
+       _INT3_EQ_INT3(p, m_momentum_ref[2]) ||
+       _INT3_EQ_INT3(p, m_momentum_ref[3])) {
+    if ( g_verbose > 1 ) fprintf ( stdout, "# [get_reference_rotation] p is ref momentum, refframerot -1\n" );
+    pref[0] = -p[0];
+    pref[1] = -p[1];
+    pref[2] = -p[2];
+    if ( Rref != NULL ) *Rref = -1;
+    return ( 0 );
+  }
+
 
   /***********************************************************
    * allocate rotation matrices
