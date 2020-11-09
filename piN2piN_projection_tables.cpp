@@ -550,11 +550,11 @@ int main(int argc, char **argv) {
     /****************************************************
      * check, that projector has correct d-vector
      ****************************************************/
-    if ( ( projector.P[0] != Ptot[0] ) || ( projector.P[1] != Ptot[1] ) || ( projector.P[2] != Ptot[2] ) ) {
-      fprintf ( stderr, "[piN2piN_projection] Error, projector P != Ptot\n" );
-      EXIT(12);
-    } else {
+    if (( ( projector.P[0] == Ptot[0] ) && ( projector.P[1] == Ptot[1] ) && ( projector.P[2] == Ptot[2] )) || (( projector.P[0] == -Ptot[0] ) && ( projector.P[1] == -Ptot[1] ) && ( projector.P[2] == -Ptot[2] ))) {
       if ( g_verbose > 2 ) fprintf ( stdout, "# [piN2piN_projection] projector P == Ptot\n" );
+    } else {
+      fprintf ( stderr, "[piN2piN_projection] Error, projector P(%d,%d,%d) != Ptot(%d,%d,%d)\n",projector.P[0],projector.P[1],projector.P[2],Ptot[0],Ptot[1],Ptot[2] );
+      EXIT(12);
     }
 
 
@@ -897,7 +897,7 @@ int main(int argc, char **argv) {
                                                        Ptot[1],Ptot[2],imu,ibeta);
         }
         /* Create a dataset in group "MyGroup". */
-        dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        dataset_id = H5Dcreate2(file_id, tagname, H5T_NATIVE_DOUBLE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
 
         double ***buffer_write=init_3level_dtable(dimension_coeff,dimension_coeff,2);
@@ -910,7 +910,7 @@ int main(int argc, char **argv) {
         }
 
         /* Write the first dataset. */
-        status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_write[0][0][0]));
+        status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_write[0][0][0]));
 
         /* Close the data space for the first dataset. */
         status = H5Sclose(dataspace_id);
@@ -1033,10 +1033,10 @@ int main(int argc, char **argv) {
             snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/a_data_ort",  Ptot[0], Ptot[1], Ptot[2], imu, ibeta);
           }
           /* Create a dataset in group "MyGroup". */
-          dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+          dataset_id = H5Dcreate2(file_id, tagname, H5T_NATIVE_DOUBLE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
           /* Write the first dataset. */
-          status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_write[0][0][0]));
+          status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_write[0][0][0]));
 
           /* Close the data space for the first dataset. */
           status = H5Sclose(dataspace_id);
@@ -1059,7 +1059,7 @@ int main(int argc, char **argv) {
           snprintf ( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/c_data",  Ptot[0],Ptot[1],Ptot[2],imu,ibeta);
         }
         /* Create a dataset in group "MyGroup". */
-        dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        dataset_id = H5Dcreate2(file_id, tagname, H5T_NATIVE_DOUBLE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
 
         rot_mat_adj ( projection_matrix_c , projection_matrix_a , dimension_coeff  );
@@ -1082,7 +1082,7 @@ int main(int argc, char **argv) {
         }
 
         /* Write the first dataset. */
-        status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_write[0][0][0]));
+        status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_write[0][0][0]));
         
 
         /* Close the data space for the first dataset. */
@@ -1127,10 +1127,10 @@ int main(int argc, char **argv) {
           }
 
           /* Create a dataset in group "MyGroup". */
-          dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+          dataset_id = H5Dcreate2(file_id, tagname, H5T_NATIVE_DOUBLE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
           /* Write the first dataset. */
-          status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_write[0][0][0]));
+          status = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_write[0][0][0]));
 
           /* Close the data space for the first dataset. */
           status = H5Sclose(dataspace_id);
