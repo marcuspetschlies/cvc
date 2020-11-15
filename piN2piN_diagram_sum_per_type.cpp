@@ -77,8 +77,6 @@ using namespace cvc;
  ***************************************************************************************************************************/
 
 static inline void apply_signs_discrete_symmetry ( int *sign, char * source_gamma ) {
-    int sign_for_sink;
-    int sign_for_source;
     if (strcmp(source_gamma,"cg1")){
       sign[0]=+1;
       sign[1]=+1;
@@ -200,7 +198,6 @@ static inline void apply_signs_discrete_symmetry ( int *sign, char * source_gamm
       sign[7]=-1;
       sign[8]=-1;
 
-      sign_for_source=1;
     }
     else if (strcmp(source_gamma,"Cg4")){
       sign[0]=+1;
@@ -535,6 +532,425 @@ static inline void mult_with_gamma5_matrix_sink ( double ** buffer_write ) {
     }
 
     fini_2level_dtable(&buffer_temporary);
+}
+
+static inline void mult_add_with_t( double ***buffer_accum,  double *** buffer_write, twopoint_function_type * tp, char *gamma_string_source, char *gamma_string_sink){
+   int *sign_table_source=init_1level_itable(9);
+   int *sign_table_sink=init_1level_itable(9);
+
+   int *sign_table_gamma5=init_1level_itable(9);
+
+   apply_signs_discrete_symmetry ( sign_table_source, gamma_string_source );
+   apply_signs_discrete_symmetry ( sign_table_sink,   gamma_string_sink  );
+
+   apply_signs_discrete_symmetry ( sign_table_gamma5,   "g5"  );
+
+   /* time reversal */
+   /* tagname suffix  is T, abbreviation from time reversal */
+   double ***buffer_time_reversal= init_3level_dtable(tp->T,tp->d*tp->d,2);
+
+   mult_time_reversal_matrix(buffer_time_reversal[0],buffer_write[0]);
+
+   for (int spin_source=0; spin_source<tp->d; ++spin_source) {
+     for (int spin_sink=0; spin_sink < tp->d; ++spin_sink ) {
+
+       buffer_time_reversal[0][spin_sink*4+spin_source][0]*=sign_table_source[4]*sign_table_sink[4]*-1;
+       buffer_time_reversal[0][spin_sink*4+spin_source][1]*=sign_table_source[4]*sign_table_sink[4]*-1;
+
+     }
+   }
+
+   for (int time_extent = 1; time_extent < tp->T ; ++ time_extent ){
+     mult_time_reversal_matrix(buffer_time_reversal[time_extent],buffer_write[tp->T-time_extent]);
+     for (int spin_source=0; spin_source<tp->d; ++spin_source) {
+       for (int spin_sink=0; spin_sink < tp->d; ++spin_sink ) {
+
+         buffer_time_reversal[time_extent][spin_sink*4+spin_source][0]*=sign_table_source[4]*sign_table_sink[4]*-1;
+         buffer_time_reversal[time_extent][spin_sink*4+spin_source][1]*=sign_table_source[4]*sign_table_sink[4]*-1;
+
+         if ((strcmp(gamma_string_source,"C")==0) || (strcmp(gamma_string_source,"Cg4")==0) || (strcmp(gamma_string_source,"cg1g4g5")==0) || (strcmp(gamma_string_source,"cg2g4g5")==0) || (strcmp(gamma_string_source,"cg3g4g5")==0) ){
+            buffer_time_reversal[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[4];
+            buffer_time_reversal[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[4];
+         }
+         if ((strcmp(gamma_string_sink,"C")==0) || (strcmp(gamma_string_sink,"Cg4")==0) || (strcmp(gamma_string_sink,"cg1g4g5")==0) || (strcmp(gamma_string_sink,"cg2g4g5")==0) || (strcmp(gamma_string_sink,"cg3g4g5")==0) ){
+            buffer_time_reversal[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[4];
+            buffer_time_reversal[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[4];
+
+         }
+
+         buffer_accum[time_extent][spin_sink*4+spin_source][0]+=buffer_time_reversal[time_extent][spin_sink*4+spin_source][0];
+         buffer_accum[time_extent][spin_sink*4+spin_source][1]+=buffer_time_reversal[time_extent][spin_sink*4+spin_source][1];
+
+       }
+     }
+   }
+
+   fini_3level_dtable(&buffer_time_reversal);
+   free(sign_table_source);
+   free(sign_table_sink);
+   free(sign_table_gamma5);
+
+
+}
+
+static inline void mult_add_with_c( double ***buffer_accum,  double *** buffer_write, twopoint_function_type * tp, char *gamma_string_source, char *gamma_string_sink ){
+   int *sign_table_source=init_1level_itable(9);
+   int *sign_table_sink=init_1level_itable(9);
+
+   int *sign_table_gamma5=init_1level_itable(9);
+
+   apply_signs_discrete_symmetry ( sign_table_source, gamma_string_source );
+   apply_signs_discrete_symmetry ( sign_table_sink,   gamma_string_sink  );
+
+   apply_signs_discrete_symmetry ( sign_table_gamma5,   "g5"  );
+
+   double ***buffer_charge_conjugated= init_3level_dtable(tp->T,tp->d*tp->d,2);
+
+   mult_with_charge_conjugation(buffer_charge_conjugated[0],buffer_write[0]);
+
+   for (int spin_source=0; spin_source<tp->d; ++spin_source) {
+     for (int spin_sink=0; spin_sink < tp->d; ++spin_sink ) {
+       /* The minus sign comes from the last column in Marcus's notes */
+       buffer_charge_conjugated[0][spin_sink*4+spin_source][0]*=sign_table_source[1]*sign_table_sink[1]*sign_table_source[3]*sign_table_sink[3]*-1;
+       buffer_charge_conjugated[0][spin_sink*4+spin_source][1]*=sign_table_source[1]*sign_table_sink[1]*sign_table_source[3]*sign_table_sink[3]*-1;
+       if ((strcmp(gamma_string_source,"C")==0) || (strcmp(gamma_string_source,"Cg4")==0) || (strcmp(gamma_string_source,"cg1g4g5")==0) || (strcmp(gamma_string_source,"cg2g4g5")==0) || (strcmp(gamma_string_source,"cg3g4g5")==0) ){
+          buffer_charge_conjugated[0][spin_sink*4+spin_source][0]*=sign_table_gamma5[1]*sign_table_gamma5[3];
+          buffer_charge_conjugated[0][spin_sink*4+spin_source][1]*=sign_table_gamma5[1]*sign_table_gamma5[3];
+
+       }
+       if ((strcmp(gamma_string_sink,"C")==0) || (strcmp(gamma_string_sink,"Cg4")==0) || (strcmp(gamma_string_sink,"cg1g4g5")==0) || (strcmp(gamma_string_sink,"cg2g4g5")==0) || (strcmp(gamma_string_sink,"cg3g4g5")==0) ){
+          buffer_charge_conjugated[0][spin_sink*4+spin_source][0]*=sign_table_gamma5[1]*sign_table_gamma5[3];
+          buffer_charge_conjugated[0][spin_sink*4+spin_source][1]*=sign_table_gamma5[1]*sign_table_gamma5[3];
+       }
+     }
+   }
+   for (int time_extent = 1; time_extent < tp->T ; ++ time_extent ){
+     mult_with_charge_conjugation(buffer_charge_conjugated[time_extent],buffer_write[tp->T-time_extent]);
+     for (int spin_source=0; spin_source<tp->d; ++spin_source) {
+       for (int spin_sink=0; spin_sink < tp->d; ++spin_sink ) {
+
+         buffer_charge_conjugated[time_extent][spin_sink*4+spin_source][0]*=sign_table_source[1]*sign_table_sink[1]*sign_table_source[3]*sign_table_sink[3]*-1;
+         buffer_charge_conjugated[time_extent][spin_sink*4+spin_source][1]*=sign_table_source[1]*sign_table_sink[1]*sign_table_source[3]*sign_table_sink[3]*-1;
+
+         if ((strcmp(gamma_string_source,"C")==0) || (strcmp(gamma_string_source,"Cg4")==0) || (strcmp(gamma_string_source,"cg1g4g5")==0) || (strcmp(gamma_string_source,"cg2g4g5")==0) || (strcmp(gamma_string_source,"cg3g4g5")==0) ){
+             buffer_charge_conjugated[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[1]*sign_table_gamma5[3];
+             buffer_charge_conjugated[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[1]*sign_table_gamma5[3];
+
+         }
+         if ((strcmp(gamma_string_sink,"C")==0) || (strcmp(gamma_string_sink,"Cg4")==0) || (strcmp(gamma_string_sink,"cg1g4g5")==0) || (strcmp(gamma_string_sink,"cg2g4g5")==0) || (strcmp(gamma_string_sink,"cg3g4g5")==0) ){
+             buffer_charge_conjugated[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[1]*sign_table_gamma5[3];
+             buffer_charge_conjugated[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[1]*sign_table_gamma5[3];
+         }
+         buffer_accum[time_extent][spin_sink*4+spin_source][0]+=buffer_charge_conjugated[time_extent][spin_sink*4+spin_source][0];
+         buffer_accum[time_extent][spin_sink*4+spin_source][1]+=buffer_charge_conjugated[time_extent][spin_sink*4+spin_source][1];
+
+       }
+     }
+   }
+
+   fini_3level_dtable(&buffer_charge_conjugated);
+   free(sign_table_source);
+   free(sign_table_sink);
+   free(sign_table_gamma5);
+
+
+}
+
+static inline void mult_add_with_ct( double ***buffer_accum,  double *** buffer_write, twopoint_function_type * tp, char *gamma_string_source, char *gamma_string_sink ){
+
+
+    /* CT */
+    /* tagname suffix  is CT, abbreviation from charge conjugation + time reversal */
+   int *sign_table_source=init_1level_itable(9);
+   int *sign_table_sink=init_1level_itable(9);
+
+   int *sign_table_gamma5=init_1level_itable(9);
+
+   apply_signs_discrete_symmetry ( sign_table_source, gamma_string_source );
+   apply_signs_discrete_symmetry ( sign_table_sink,   gamma_string_sink  );
+
+   apply_signs_discrete_symmetry ( sign_table_gamma5,   "g5"  );
+
+   double ***buffer_CT= init_3level_dtable(tp->T,tp->d*tp->d,2);
+
+   for (int time_extent = 0; time_extent < tp->T ; ++time_extent ){
+
+     mult_ct_matrix(buffer_CT[time_extent],buffer_write[time_extent]);
+     for (int spin_source=0; spin_source<tp->d; ++spin_source) {
+       for (int spin_sink=0; spin_sink < tp->d; ++spin_sink ) {
+
+         buffer_CT[time_extent][spin_sink*4+spin_source][0]*=sign_table_source[6]*sign_table_sink[6]*sign_table_source[3]*sign_table_sink[3];
+         buffer_CT[time_extent][spin_sink*4+spin_source][1]*=sign_table_source[6]*sign_table_sink[6]*sign_table_source[3]*sign_table_sink[3];
+
+         if ((strcmp(gamma_string_source,"C")==0) || (strcmp(gamma_string_source,"Cg4")==0) || (strcmp(gamma_string_source,"cg1g4g5")==0) || (strcmp(gamma_string_source,"cg2g4g5")==0) || (strcmp(gamma_string_source,"cg3g4g5")==0) ){
+             buffer_CT[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[6]*sign_table_gamma5[3];
+             buffer_CT[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[6]*sign_table_gamma5[3];
+
+         }
+         if ((strcmp(gamma_string_sink,"C")==0) || (strcmp(gamma_string_sink,"Cg4")==0) || (strcmp(gamma_string_sink,"cg1g4g5")==0) || (strcmp(gamma_string_sink,"cg2g4g5")==0) || (strcmp(gamma_string_sink,"cg3g4g5")==0) ){
+             buffer_CT[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[6]*sign_table_gamma5[3];
+             buffer_CT[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[6]*sign_table_gamma5[3];                      
+         }
+
+         buffer_accum[time_extent][spin_sink*4+spin_source][0]+=buffer_CT[time_extent][spin_sink*4+spin_source][0];
+         buffer_accum[time_extent][spin_sink*4+spin_source][1]+=buffer_CT[time_extent][spin_sink*4+spin_source][1];
+
+
+       }
+     }
+   }
+
+   fini_3level_dtable(&buffer_CT);
+   free(sign_table_source);
+   free(sign_table_sink);
+   free(sign_table_gamma5);
+
+}
+static inline void mult_add_with_p( double ***buffer_accum,  double *** buffer_write, twopoint_function_type * tp, char *gamma_string_source, char *gamma_string_sink ){
+
+   /* parity */
+   /* tagname suffix  is P, abbreviation from parity */
+
+   int *sign_table_source=init_1level_itable(9);
+   int *sign_table_sink=init_1level_itable(9);
+
+   int *sign_table_gamma5=init_1level_itable(9);
+
+   apply_signs_discrete_symmetry ( sign_table_source, gamma_string_source );
+   apply_signs_discrete_symmetry ( sign_table_sink,   gamma_string_sink  );
+
+   apply_signs_discrete_symmetry ( sign_table_gamma5,   "g5"  );
+
+   double ***buffer_P= init_3level_dtable(tp->T,tp->d*tp->d,2);
+
+   for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
+
+     mult_parity_matrix(buffer_P[time_extent],buffer_write[time_extent]);
+
+     for (int spin_source=0; spin_source<tp->d; ++spin_source) {
+       for (int spin_sink=0; spin_sink < tp->d; ++spin_sink ) {
+
+         buffer_P[time_extent][spin_sink*4+spin_source][0]*=sign_table_source[2]*sign_table_sink[2];
+         buffer_P[time_extent][spin_sink*4+spin_source][1]*=sign_table_source[2]*sign_table_sink[2];
+
+         if ((strcmp(gamma_string_source,"C")==0) || (strcmp(gamma_string_source,"Cg4")==0) || (strcmp(gamma_string_source,"cg1g4g5")==0) || (strcmp(gamma_string_source,"cg2g4g5")==0) || (strcmp(gamma_string_source,"cg3g4g5")==0) ){
+            buffer_P[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[2];
+            buffer_P[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[2];
+
+         }
+         if ((strcmp(gamma_string_sink,"C")==0) || (strcmp(gamma_string_sink,"Cg4")==0) || (strcmp(gamma_string_sink,"cg1g4g5")==0) || (strcmp(gamma_string_sink,"cg2g4g5")==0) || (strcmp(gamma_string_sink,"cg3g4g5")==0) ){
+            buffer_P[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[2];
+            buffer_P[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[2];
+         }
+
+         buffer_accum[time_extent][spin_sink*4+spin_source][0]+=buffer_P[time_extent][spin_sink*4+spin_source][0];
+         buffer_accum[time_extent][spin_sink*4+spin_source][1]+=buffer_P[time_extent][spin_sink*4+spin_source][1];
+
+       }
+     }
+   }
+
+   fini_3level_dtable(&buffer_P);
+   free(sign_table_source);
+   free(sign_table_sink);
+   free(sign_table_gamma5);
+
+}
+
+static inline void mult_add_with_pt( double ***buffer_accum,  double *** buffer_write, twopoint_function_type * tp, char *gamma_string_source, char *gamma_string_sink ){
+
+
+   /* PT */
+   /* tagname suffix  is PT, abbreviation from  parity plus time-reversal */
+   int *sign_table_source=init_1level_itable(9);
+   int *sign_table_sink=init_1level_itable(9);
+
+   int *sign_table_gamma5=init_1level_itable(9);
+
+   apply_signs_discrete_symmetry ( sign_table_source, gamma_string_source );
+   apply_signs_discrete_symmetry ( sign_table_sink,   gamma_string_sink  );
+
+   apply_signs_discrete_symmetry ( sign_table_gamma5,   "g5"  );
+
+   double ***buffer_PT= init_3level_dtable(tp->T,tp->d*tp->d,2);
+
+   mult_pt_matrix(buffer_PT[0],buffer_write[0]);
+
+   for (int spin_source=0; spin_source<tp->d; ++spin_source) {
+     for (int spin_sink=0; spin_sink < tp->d; ++spin_sink ) {
+
+       /* The minus sign comes from Marcus's notes last column */
+       buffer_PT[0][spin_sink*4+spin_source][0]*=sign_table_source[7]*sign_table_sink[7]*-1;
+       buffer_PT[0][spin_sink*4+spin_source][1]*=sign_table_source[7]*sign_table_sink[7]*-1;
+       if ((strcmp(gamma_string_source,"C")==0) || (strcmp(gamma_string_source,"Cg4")==0) || (strcmp(gamma_string_source,"cg1g4g5")==0) || (strcmp(gamma_string_source,"cg2g4g5")==0) || (strcmp(gamma_string_source,"cg3g4g5")==0) ){
+         buffer_PT[0][spin_sink*4+spin_source][0]*=sign_table_gamma5[7];
+         buffer_PT[0][spin_sink*4+spin_source][1]*=sign_table_gamma5[7];
+
+       }
+       if ((strcmp(gamma_string_sink,"C")==0) || (strcmp(gamma_string_sink,"Cg4")==0) || (strcmp(gamma_string_sink,"cg1g4g5")==0) || (strcmp(gamma_string_sink,"cg2g4g5")==0) || (strcmp(gamma_string_sink,"cg3g4g5")==0) ){
+          buffer_PT[0][spin_sink*4+spin_source][0]*=sign_table_gamma5[7];
+          buffer_PT[0][spin_sink*4+spin_source][1]*=sign_table_gamma5[7];
+       }
+       buffer_accum[0][spin_sink*4+spin_source][0]+=buffer_PT[0][spin_sink*4+spin_source][0];
+       buffer_accum[0][spin_sink*4+spin_source][1]+=buffer_PT[0][spin_sink*4+spin_source][1];
+
+     }
+   }
+   for (int time_extent = 1; time_extent < tp->T ; ++ time_extent ){
+
+     mult_pt_matrix(buffer_PT[time_extent],buffer_write[tp->T - time_extent]);
+     for (int spin_source=0; spin_source<tp->d; ++spin_source) {
+       for (int spin_sink=0; spin_sink < tp->d; ++spin_sink ) {
+
+         buffer_PT[time_extent][spin_sink*4+spin_source][0]*=sign_table_source[7]*sign_table_sink[7]*-1;
+         buffer_PT[time_extent][spin_sink*4+spin_source][1]*=sign_table_source[7]*sign_table_sink[7]*-1;
+
+         if ((strcmp(gamma_string_source,"C")==0) || (strcmp(gamma_string_source,"Cg4")==0) || (strcmp(gamma_string_source,"cg1g4g5")==0) || (strcmp(gamma_string_source,"cg2g4g5")==0) || (strcmp(gamma_string_source,"cg3g4g5")==0) ){
+           buffer_PT[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[7];
+           buffer_PT[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[7];
+
+         }
+         if ((strcmp(gamma_string_sink,"C")==0) || (strcmp(gamma_string_sink,"Cg4")==0) || (strcmp(gamma_string_sink,"cg1g4g5")==0) || (strcmp(gamma_string_sink,"cg2g4g5")==0) || (strcmp(gamma_string_sink,"cg3g4g5")==0) ){
+           buffer_PT[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[7];
+           buffer_PT[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[7];
+         }
+
+         buffer_accum[time_extent][spin_sink*4+spin_source][0]+=buffer_PT[time_extent][spin_sink*4+spin_source][0];
+         buffer_accum[time_extent][spin_sink*4+spin_source][1]+=buffer_PT[time_extent][spin_sink*4+spin_source][1];
+
+
+       }
+     }
+   }
+
+   fini_3level_dtable(&buffer_PT);
+   free(sign_table_source);
+   free(sign_table_sink);
+   free(sign_table_gamma5);
+
+}
+static inline void mult_add_with_cp( double ***buffer_accum,  double *** buffer_write, twopoint_function_type * tp, char *gamma_string_source, char *gamma_string_sink ){
+
+
+   double ***buffer_CP= init_3level_dtable(tp->T,tp->d*tp->d,2);
+   int *sign_table_source=init_1level_itable(9);
+   int *sign_table_sink=init_1level_itable(9);
+
+   int *sign_table_gamma5=init_1level_itable(9);
+
+   apply_signs_discrete_symmetry ( sign_table_source, gamma_string_source );
+   apply_signs_discrete_symmetry ( sign_table_sink,   gamma_string_sink  );
+
+   apply_signs_discrete_symmetry ( sign_table_gamma5,   "g5"  );
+
+
+   mult_cp_matrix(buffer_CP[0],buffer_write[0]);
+
+   for (int spin_source=0; spin_source<tp->d; ++spin_source) {
+     for (int spin_sink=0; spin_sink < tp->d; ++spin_sink ) {
+       /* minus sign here is the last column from Marcus's note */
+       buffer_CP[0][spin_sink*4+spin_source][0]*=sign_table_source[5]*sign_table_sink[5]*sign_table_source[3]*sign_table_sink[3]*-1;
+       buffer_CP[0][spin_sink*4+spin_source][1]*=sign_table_source[5]*sign_table_sink[5]*sign_table_source[3]*sign_table_sink[3]*-1;
+       if ((strcmp(gamma_string_source,"C")==0) || (strcmp(gamma_string_source,"Cg4")==0) || (strcmp(gamma_string_source,"cg1g4g5")==0) || (strcmp(gamma_string_source,"cg2g4g5")==0) || (strcmp(gamma_string_source,"cg3g4g5")==0) ){
+         buffer_CP[0][spin_sink*4+spin_source][0]*=sign_table_gamma5[5]*sign_table_gamma5[3];
+         buffer_CP[0][spin_sink*4+spin_source][1]*=sign_table_gamma5[5]*sign_table_gamma5[3];
+
+       }
+       if ((strcmp(gamma_string_sink,"C")==0) || (strcmp(gamma_string_sink,"Cg4")==0) || (strcmp(gamma_string_sink,"cg1g4g5")==0) || (strcmp(gamma_string_sink,"cg2g4g5")==0) || (strcmp(gamma_string_sink,"cg3g4g5")==0) ){
+         buffer_CP[0][spin_sink*4+spin_source][0]*=sign_table_gamma5[5]*sign_table_gamma5[3];
+         buffer_CP[0][spin_sink*4+spin_source][1]*=sign_table_gamma5[5]*sign_table_gamma5[3];
+       }
+
+       buffer_accum[0][spin_sink*4+spin_source][0]+=buffer_CP[0][spin_sink*4+spin_source][0];
+       buffer_accum[0][spin_sink*4+spin_source][1]+=buffer_CP[0][spin_sink*4+spin_source][1];
+     }
+   }
+
+
+   for (int time_extent = 1; time_extent < tp->T ; ++ time_extent ){
+
+     mult_cp_matrix(buffer_CP[time_extent],buffer_write[tp->T - time_extent]);
+     for (int spin_source=0; spin_source<tp->d; ++spin_source) {
+       for (int spin_sink=0; spin_sink < tp->d; ++spin_sink ) {
+
+         buffer_CP[time_extent][spin_sink*4+spin_source][0]*=sign_table_source[5]*sign_table_sink[5]*sign_table_source[3]*sign_table_sink[3]*-1;
+         buffer_CP[time_extent][spin_sink*4+spin_source][1]*=sign_table_source[5]*sign_table_sink[5]*sign_table_source[3]*sign_table_sink[3]*-1;
+
+         if ((strcmp(gamma_string_source,"C")==0) || (strcmp(gamma_string_source,"Cg4")==0) || (strcmp(gamma_string_source,"cg1g4g5")==0) || (strcmp(gamma_string_source,"cg2g4g5")==0) || (strcmp(gamma_string_source,"cg3g4g5")==0) ){
+           buffer_CP[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[5]*sign_table_gamma5[3];
+           buffer_CP[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[5]*sign_table_gamma5[3];
+
+         }
+         if ((strcmp(gamma_string_sink,"C")==0) || (strcmp(gamma_string_sink,"Cg4")==0) || (strcmp(gamma_string_sink,"cg1g4g5")==0) || (strcmp(gamma_string_sink,"cg2g4g5")==0) || (strcmp(gamma_string_sink,"cg3g4g5")==0) ){
+           buffer_CP[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[5]*sign_table_gamma5[3];
+           buffer_CP[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[5]*sign_table_gamma5[3];
+         }
+
+         buffer_accum[time_extent][spin_sink*4+spin_source][0]+=buffer_CP[time_extent][spin_sink*4+spin_source][0];
+         buffer_accum[time_extent][spin_sink*4+spin_source][1]+=buffer_CP[time_extent][spin_sink*4+spin_source][1];
+
+       }
+     }
+   }
+
+   fini_3level_dtable(&buffer_CP);
+   free(sign_table_source);
+   free(sign_table_sink);
+   free(sign_table_gamma5);
+
+
+}
+static inline void mult_add_with_cpt( double ***buffer_accum,  double *** buffer_write, twopoint_function_type * tp, char *gamma_string_source, char *gamma_string_sink ){
+
+
+   /* CPT */
+   /* tagname suffix  is CPT, abbreviation from charge conjugation + parity + time reversal */
+   int *sign_table_source=init_1level_itable(9);
+   int *sign_table_sink=init_1level_itable(9);
+
+   int *sign_table_gamma5=init_1level_itable(9);
+
+   apply_signs_discrete_symmetry ( sign_table_source, gamma_string_source );
+   apply_signs_discrete_symmetry ( sign_table_sink,   gamma_string_sink  );
+
+   apply_signs_discrete_symmetry ( sign_table_gamma5,   "g5"  );
+
+   double ***buffer_CPT= init_3level_dtable(tp->T,tp->d*tp->d,2);
+
+   mult_cpt_matrix(buffer_CPT[0],buffer_write[0]);
+
+   for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
+
+     mult_cp_matrix(buffer_CPT[time_extent],buffer_write[time_extent]);
+
+     for (int spin_source=0; spin_source<tp->d; ++spin_source) {
+
+       for (int spin_sink=0; spin_sink < tp->d; ++spin_sink ) {
+
+         buffer_CPT[time_extent][spin_sink*4+spin_source][0]*=sign_table_source[8]*sign_table_sink[8]*sign_table_sink[3]*sign_table_source[3]*(1.);
+         buffer_CPT[time_extent][spin_sink*4+spin_source][1]*=sign_table_source[8]*sign_table_sink[8]*sign_table_sink[3]*sign_table_source[3]*(1.);
+
+         if ((strcmp(gamma_string_source,"C")==0) || (strcmp(gamma_string_source,"Cg4")==0) || (strcmp(gamma_string_source,"cg1g4g5")==0) || (strcmp(gamma_string_source,"cg2g4g5")==0) || (strcmp(gamma_string_source,"cg3g4g5")==0) ){
+           buffer_CPT[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[8]*sign_table_gamma5[3];
+           buffer_CPT[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[8]*sign_table_gamma5[3];
+         }
+         if ((strcmp(gamma_string_sink,"C")==0) || (strcmp(gamma_string_sink,"Cg4")==0) || (strcmp(gamma_string_sink,"cg1g4g5")==0) || (strcmp(gamma_string_sink,"cg2g4g5")==0) || (strcmp(gamma_string_sink,"cg3g4g5")==0) ){
+           buffer_CPT[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[8]*sign_table_gamma5[3];
+           buffer_CPT[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[8]*sign_table_gamma5[3];
+         }
+
+         buffer_accum[time_extent][spin_sink*4+spin_source][0]+=buffer_CPT[time_extent][spin_sink*4+spin_source][0];
+         buffer_accum[time_extent][spin_sink*4+spin_source][1]+=buffer_CPT[time_extent][spin_sink*4+spin_source][1];
+
+       }
+     }
+   }
+   fini_3level_dtable(&buffer_CPT);
+   free(sign_table_source);
+   free(sign_table_sink);
+   free(sign_table_gamma5);
+
+
 }
 
 static inline void sink_and_source_gamma_list( char *filename, char *tagname, int number_of_gammas_source, int number_of_gammas_sink, char ***gamma_string_source, char ***gamma_string_sink, int pion_source){
@@ -1372,16 +1788,9 @@ int main(int argc, char **argv) {
                 /* the original */
                 double ***buffer_write= init_3level_dtable(tp->T,tp->d*tp->d,2);
 
-                int *sign_table_source=init_1level_itable(9);
-                int *sign_table_sink=init_1level_itable(9);
+                /* contains the sum of (1 + P + T + C + PT + CT + CP + CPT )/8 *correlation */
 
-                int *sign_table_gamma5=init_1level_itable(9);
-
-                apply_signs_discrete_symmetry ( sign_table_source, gamma_string_list_source[source_gamma] );
-                apply_signs_discrete_symmetry ( sign_table_sink,   gamma_string_list_sink[sink_gamma]  );
-
-                apply_signs_discrete_symmetry ( sign_table_gamma5,   "g5"  );
-
+                double ***buffer_sum= init_3level_dtable(tp->T,tp->d*tp->d,2);
 
                 for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){ 
                   for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
@@ -1397,186 +1806,55 @@ int main(int argc, char **argv) {
                     mult_with_gamma5_matrix_sink(buffer_write[time_extent]);
 
                   }
+                  for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
+                    for (int realimag=0; realimag < 2; ++realimag){
 
-                }
-                /* Write the first dataset. */
-                status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_write[0][0][0]));
-
-                /* Close the data space for the first dataset. */
-                status = H5Sclose(dataspace_id);
-
-                /* Close the first dataset. */
-                status = H5Dclose(dataset_id);
-
-                fprintf(stdout,"# [piN2piN_diagram_sum_per_type] Producing charge conjugation \n");
-
-                /* charege conjugated */
-                /* tagname suffix  is C, abbreviation from charge conjuation */
-                /* Create a dataset in group "MyGroup". */
-
-                snprintf( tagname_nn, 400, "%s/%s_C", tagname, hdf5_diag_tag_list_tag[i]);
-
-                dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                dataset_id = H5Dcreate2(file_id, tagname_nn, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
-                double ***buffer_charge_conjugated= init_3level_dtable(tp->T,tp->d*tp->d,2);
-
-                mult_with_charge_conjugation(buffer_charge_conjugated[0],buffer_write[0]);
-
-                for (int spin_source=0; spin_source<tp->d; ++spin_source) {
-                  for (int spin_sink=0; spin_sink < tp->d; ++spin_sink ) {
-                    /* The minus sign comes from the last column in Marcus's notes */
-                    buffer_charge_conjugated[0][spin_sink*4+spin_source][0]*=sign_table_source[1]*sign_table_sink[1]*sign_table_source[3]*sign_table_sink[3]*-1;
-                    buffer_charge_conjugated[0][spin_sink*4+spin_source][1]*=sign_table_source[1]*sign_table_sink[1]*sign_table_source[3]*sign_table_sink[3]*-1;
-
-                    if ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ){
-                        buffer_charge_conjugated[0][spin_sink*4+spin_source][0]*=sign_table_gamma5[1]*sign_table_gamma5[3];
-                        buffer_charge_conjugated[0][spin_sink*4+spin_source][1]*=sign_table_gamma5[1]*sign_table_gamma5[3];
+                      buffer_sum[time_extent][spin_inner][realimag]=buffer_write[time_extent][spin_inner][realimag];
 
                     }
-                    if ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ){
-                        buffer_charge_conjugated[0][spin_sink*4+spin_source][0]*=sign_table_gamma5[1]*sign_table_gamma5[3];
-                        buffer_charge_conjugated[0][spin_sink*4+spin_source][1]*=sign_table_gamma5[1]*sign_table_gamma5[3];
-                    }
+
                   }
+
                 }
 
-                for (int time_extent = 1; time_extent < tp->T ; ++ time_extent ){ 
-                  mult_with_charge_conjugation(buffer_charge_conjugated[time_extent],buffer_write[tp->T-time_extent]);
-                  for (int spin_source=0; spin_source<tp->d; ++spin_source) {
-                    for (int spin_sink=0; spin_sink < tp->d; ++spin_sink ) {
-
-                      buffer_charge_conjugated[time_extent][spin_sink*4+spin_source][0]*=sign_table_source[1]*sign_table_sink[1]*sign_table_source[3]*sign_table_sink[3]*-1;
-                      buffer_charge_conjugated[time_extent][spin_sink*4+spin_source][1]*=sign_table_source[1]*sign_table_sink[1]*sign_table_source[3]*sign_table_sink[3]*-1;
-
-                      if ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ){
-                        buffer_charge_conjugated[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[1]*sign_table_gamma5[3];
-                        buffer_charge_conjugated[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[1]*sign_table_gamma5[3];
-
-                      }
-                      if ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ){
-                        buffer_charge_conjugated[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[1]*sign_table_gamma5[3]; 
-                        buffer_charge_conjugated[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[1]*sign_table_gamma5[3];
-
-                      }
-                    }
-                  }
-                }
-
-
-                /* Write the first dataset. */
-                status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_charge_conjugated[0][0][0]));
-
-                /* Close the data space for the first dataset. */
-                status = H5Sclose(dataspace_id);
-
-                /* Close the first dataset. */
-                status = H5Dclose(dataset_id);
-
-                fini_3level_dtable(&buffer_charge_conjugated);
+ 
+                mult_add_with_t( buffer_sum,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
+ 
 
                 fprintf(stdout,"# [piN2piN_diagram_sum_per_type] Producing time reversal \n");
 
-                /* time reversal */
-                /* tagname suffix  is T, abbreviation from time reversal */
-                snprintf( tagname_nn, 400, "%s/%s_T", tagname, hdf5_diag_tag_list_tag[i]);
+                fprintf(stdout,"# [piN2piN_diagram_sum_per_type] Producing charge conjugation \n");
 
-                dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                dataset_id = H5Dcreate2(file_id, tagname_nn, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
-                double ***buffer_time_reversal= init_3level_dtable(tp->T,tp->d*tp->d,2);
-
-                mult_time_reversal_matrix(buffer_time_reversal[0],buffer_write[0]);
-
-                for (int spin_source=0; spin_source<tp->d; ++spin_source) {
-                  for (int spin_sink=0; spin_sink < tp->d; ++spin_sink ) {
-
-                    buffer_time_reversal[0][spin_sink*4+spin_source][0]*=sign_table_source[4]*sign_table_sink[4]*-1;
-                    buffer_time_reversal[0][spin_sink*4+spin_source][1]*=sign_table_source[4]*sign_table_sink[4]*-1;
-
-                  }
-                }
-
-                for (int time_extent = 1; time_extent < tp->T ; ++ time_extent ){
-                  mult_time_reversal_matrix(buffer_time_reversal[time_extent],buffer_write[tp->T-time_extent]);
-                  for (int spin_source=0; spin_source<tp->d; ++spin_source) {
-                    for (int spin_sink=0; spin_sink < tp->d; ++spin_sink ) {
-
-                      buffer_time_reversal[time_extent][spin_sink*4+spin_source][0]*=sign_table_source[4]*sign_table_sink[4]*-1;
-                      buffer_time_reversal[time_extent][spin_sink*4+spin_source][1]*=sign_table_source[4]*sign_table_sink[4]*-1;
-
-                      if ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ){
-                        buffer_time_reversal[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[4];
-                        buffer_time_reversal[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[4];
-                      }
-                      if ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ){
-                        buffer_time_reversal[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[4];
-                        buffer_time_reversal[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[4];
-
-                      }
-                    }
-                  }
-                }
-
-
-                /* Write the first dataset. */
-                status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_time_reversal[0][0][0]));
-
-                /* Close the data space for the first dataset. */
-                status = H5Sclose(dataspace_id);
-
-                /* Close the first dataset. */
-                status = H5Dclose(dataset_id);
-
-                fini_3level_dtable(&buffer_time_reversal);
-
-                /* CT */
-                /* tagname suffix  is CT, abbreviation from charge conjugation + time reversal */
-                snprintf( tagname_nn, 400, "%s/%s_CT", tagname, hdf5_diag_tag_list_tag[i]);
-
-                fprintf(stdout,"# [piN2piN_diagram_sum_per_type] Producing CT \n");
-
-                dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                dataset_id = H5Dcreate2(file_id, tagname_nn, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
-                double ***buffer_CT= init_3level_dtable(tp->T,tp->d*tp->d,2);
-
+                /* charege conjugated, the sink and the source gamma is interchanged, the momenta left unchanged*/
+                /* The corresponding discrete symmetry transformations                           */
+                /*                                                   (1) charge conjugation (C)  */
+                /*                                                   (2) charge conjugation + time-reversal (CT) */
                 for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
-
-                  mult_ct_matrix(buffer_CT[time_extent],buffer_write[time_extent]);
-                  for (int spin_source=0; spin_source<tp->d; ++spin_source) {
-                    for (int spin_sink=0; spin_sink < tp->d; ++spin_sink ) {
-
-                      buffer_CT[time_extent][spin_sink*4+spin_source][0]*=sign_table_source[6]*sign_table_sink[6]*sign_table_source[3]*sign_table_sink[3];
-                      buffer_CT[time_extent][spin_sink*4+spin_source][1]*=sign_table_source[6]*sign_table_sink[6]*sign_table_source[3]*sign_table_sink[3];
-
-                      if ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ){
-                        buffer_CT[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[6]*sign_table_gamma5[3];
-                        buffer_CT[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[6]*sign_table_gamma5[3];
-
-                      }
-                      if ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ){
-                        buffer_CT[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[6]*sign_table_gamma5[3];
-                        buffer_CT[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[6]*sign_table_gamma5[3];                      
-                      }
+                  for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
+                    for (int realimag=0; realimag < 2; ++realimag){
+                      buffer_write[time_extent][spin_inner][realimag]=buffer_source[time_extent][p_indextable[i_total_momentum][i_pi2]][sink_gamma*tp->number_of_gammas_sink+source_gamma][spin_inner][realimag];
                     }
                   }
+                  if ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ){
+                    mult_with_gamma5_matrix_sink(buffer_write[time_extent]);
+
+                  }
+                  if ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ){
+                    mult_with_gamma5_matrix_adj_source(buffer_write[time_extent]);
+
+                  }
+
                 }
 
+                mult_add_with_c( buffer_sum,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
 
-                /* Write the first dataset. */
-                status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_CT[0][0][0]));
 
-                /* Close the data space for the first dataset. */
-                status = H5Sclose(dataspace_id);
+                mult_add_with_ct( buffer_sum,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
 
-                /* Close the first dataset. */
-                status = H5Dclose(dataset_id);
-
-                fini_3level_dtable(&buffer_CT);
+                /* parity, the sink and the source momenta is reflected, the gamma structures left unchanged*/
+                /* The corresponding discrete symmetry transformations                           */
+                /*                                                   (1) parity (P)  */
+                /*                                                   (2) parity + time-reversal (PT) */
 
                 for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
                   for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
@@ -1595,242 +1873,60 @@ int main(int argc, char **argv) {
 
                 }
 
-                /* parity */
-                /* tagname suffix  is P, abbreviation from parity */
-                snprintf( tagname_nn, 400, "%s/%s_P", tagname, hdf5_diag_tag_list_tag[i]);
 
-                fprintf(stdout,"# [piN2piN_diagram_sum_per_type] Producing parity \n");
+                mult_add_with_p(   buffer_sum,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
 
-                dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                dataset_id = H5Dcreate2(file_id, tagname_nn, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
-                double ***buffer_P= init_3level_dtable(tp->T,tp->d*tp->d,2);
-
-                for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
-
-                  mult_parity_matrix(buffer_P[time_extent],buffer_write[time_extent]);
-
-                  for (int spin_source=0; spin_source<tp->d; ++spin_source) {
-                    for (int spin_sink=0; spin_sink < tp->d; ++spin_sink ) {
-
-                      buffer_P[time_extent][spin_sink*4+spin_source][0]*=sign_table_source[2]*sign_table_sink[2];
-                      buffer_P[time_extent][spin_sink*4+spin_source][1]*=sign_table_source[2]*sign_table_sink[2];
-
-                      if ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ){
-                        buffer_P[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[2];
-                        buffer_P[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[2];
-
-                      }
-                      if ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ){
-                        buffer_P[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[2];
-                        buffer_P[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[2];
-                      }
-                    }
-                  }
-                }
+                mult_add_with_pt(  buffer_sum,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
 
 
-                /* Write the first dataset. */
-                status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_P[0][0][0]));
-
-                /* Close the data space for the first dataset. */
-                status = H5Sclose(dataspace_id);
-
-                /* Close the first dataset. */
-                status = H5Dclose(dataset_id);
-
-                fini_3level_dtable(&buffer_P);
-
-                /* CP */
-                /* tagname suffix  is CP, abbreviation from charge conjugation + parity */
-                snprintf( tagname_nn, 400, "%s/%s_CP", tagname, hdf5_diag_tag_list_tag[i]);
-
-                fprintf(stdout,"# [piN2piN_diagram_sum_per_type] producing CP \n");
-
-                dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                dataset_id = H5Dcreate2(file_id, tagname_nn, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
-                double ***buffer_CP= init_3level_dtable(tp->T,tp->d*tp->d,2);
-
-                mult_cp_matrix(buffer_CP[0],buffer_write[0]);
-
-                for (int spin_source=0; spin_source<tp->d; ++spin_source) {
-                  for (int spin_sink=0; spin_sink < tp->d; ++spin_sink ) {
-
-                    /* minus sign here is the last column from Marcus's note */
-                    buffer_CP[0][spin_sink*4+spin_source][0]*=sign_table_source[5]*sign_table_sink[5]*sign_table_source[3]*sign_table_sink[3]*-1;
-                    buffer_CP[0][spin_sink*4+spin_source][1]*=sign_table_source[5]*sign_table_sink[5]*sign_table_source[3]*sign_table_sink[3]*-1;
-                    if ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ){
-                        buffer_CP[0][spin_sink*4+spin_source][0]*=sign_table_gamma5[5]*sign_table_gamma5[3];
-                        buffer_CP[0][spin_sink*4+spin_source][1]*=sign_table_gamma5[5]*sign_table_gamma5[3];
-
-                    }
-                    if ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ){
-                        buffer_CP[0][spin_sink*4+spin_source][0]*=sign_table_gamma5[5]*sign_table_gamma5[3];
-                        buffer_CP[0][spin_sink*4+spin_source][1]*=sign_table_gamma5[5]*sign_table_gamma5[3];
-                    }
-                  }
-                }
-
-                for (int time_extent = 1; time_extent < tp->T ; ++ time_extent ){
-
-                  mult_cp_matrix(buffer_CP[time_extent],buffer_write[tp->T - time_extent]);
-                  for (int spin_source=0; spin_source<tp->d; ++spin_source) {
-                    for (int spin_sink=0; spin_sink < tp->d; ++spin_sink ) {
-
-                      buffer_CP[time_extent][spin_sink*4+spin_source][0]*=sign_table_source[5]*sign_table_sink[5]*sign_table_source[3]*sign_table_sink[3]*-1;
-                      buffer_CP[time_extent][spin_sink*4+spin_source][1]*=sign_table_source[5]*sign_table_sink[5]*sign_table_source[3]*sign_table_sink[3]*-1;
-
-                      if ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ){
-                        buffer_CP[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[5]*sign_table_gamma5[3];
-                        buffer_CP[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[5]*sign_table_gamma5[3];
-
-                      }
-                      if ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ){
-                        buffer_CP[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[5]*sign_table_gamma5[3];
-                        buffer_CP[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[5]*sign_table_gamma5[3];
-                      }
-                    }
-                  }
-                }
-
-
-                /* Write the first dataset. */
-                status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_CP[0][0][0]));
-
-                /* Close the data space for the first dataset. */
-                status = H5Sclose(dataspace_id);
-
-                /* Close the first dataset. */
-                status = H5Dclose(dataset_id);
-
-                fini_3level_dtable(&buffer_CP);
-
-
-                /* PT */
-                /* tagname suffix  is PT, abbreviation from  parity plus time-reversal */
-                snprintf( tagname_nn, 400, "%s/%s_PT", tagname, hdf5_diag_tag_list_tag[i]);
-
-                fprintf(stdout,"# [piN2piN_diagram_sum_per_type] Producing PT\n");
-
-                dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                dataset_id = H5Dcreate2(file_id, tagname_nn, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
-                double ***buffer_PT= init_3level_dtable(tp->T,tp->d*tp->d,2);
-
-                mult_pt_matrix(buffer_PT[0],buffer_write[0]);
-
-                for (int spin_source=0; spin_source<tp->d; ++spin_source) {
-                  for (int spin_sink=0; spin_sink < tp->d; ++spin_sink ) {
-
-                    /* The minus sign comes from Marcus's notes last column */
-
-                    buffer_PT[0][spin_sink*4+spin_source][0]*=sign_table_source[7]*sign_table_sink[7]*-1;
-                    buffer_PT[0][spin_sink*4+spin_source][1]*=sign_table_source[7]*sign_table_sink[7]*-1;
-                    if ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ){
-                        buffer_PT[0][spin_sink*4+spin_source][0]*=sign_table_gamma5[7];
-                        buffer_PT[0][spin_sink*4+spin_source][1]*=sign_table_gamma5[7];
-
-                    }
-                    if ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ){
-                        buffer_PT[0][spin_sink*4+spin_source][0]*=sign_table_gamma5[7];
-                        buffer_PT[0][spin_sink*4+spin_source][1]*=sign_table_gamma5[7];
-                    }
-                  }
-                }
-
-                for (int time_extent = 1; time_extent < tp->T ; ++ time_extent ){
-
-                  mult_cp_matrix(buffer_PT[time_extent],buffer_write[tp->T - time_extent]);
-                  for (int spin_source=0; spin_source<tp->d; ++spin_source) {
-                    for (int spin_sink=0; spin_sink < tp->d; ++spin_sink ) {
-
-                      buffer_PT[time_extent][spin_sink*4+spin_source][0]*=sign_table_source[7]*sign_table_sink[7]*-1;
-                      buffer_PT[time_extent][spin_sink*4+spin_source][1]*=sign_table_source[7]*sign_table_sink[7]*-1;
-
-                      if ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ){
-                        buffer_PT[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[7];
-                        buffer_PT[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[7];
-
-                      }
-                      if ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ){
-                        buffer_PT[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[7];
-                        buffer_PT[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[7];
-                      }
-                    }
-                  }
-                }
-
-
-                /* Write the first dataset. */
-                status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_PT[0][0][0]));
-
-                /* Close the data space for the first dataset. */
-                status = H5Sclose(dataspace_id);
-
-                /* Close the first dataset. */
-                status = H5Dclose(dataset_id);
-
-                fini_3level_dtable(&buffer_PT);
-
-
-                /* CPT */
-                /* tagname suffix  is CPT, abbreviation from charge conjugation + parity + time reversal */
-
-                snprintf( tagname_nn, 400, "%s/%s_CPT", tagname, hdf5_diag_tag_list_tag[i]);
-
-                dataspace_id = H5Screate_simple(3, dims, NULL);
-
-                dataset_id = H5Dcreate2(file_id, tagname_nn, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
-                double ***buffer_CPT= init_3level_dtable(tp->T,tp->d*tp->d,2);
-
-                mult_cpt_matrix(buffer_CPT[0],buffer_write[0]);
+                /* charge conjugation + parity, the sink and the source momenta is reflected, the gamma structures exchanged*/
+                /* The corresponding discrete symmetry transformations                           */
+                /*                                                   (1) charge conjugation + parity (CP)  */
+                /*                                                   (2) charge conjugation + parity + time-reversal (CPT) */
 
                 for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
+                  for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
+                    for (int realimag=0; realimag < 2; ++realimag){
+                      buffer_write[time_extent][spin_inner][realimag]=buffer_source[time_extent][minus_p_indextable[i_total_momentum][i_pi2]][sink_gamma*tp->number_of_gammas_sink+source_gamma][spin_inner][realimag];
+                    }
+                  }
+                  if ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ){
+                    mult_with_gamma5_matrix_sink(buffer_write[time_extent]);
 
-                  mult_cp_matrix(buffer_CPT[time_extent],buffer_write[time_extent]);
+                  }
+                  if ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ){
+                    mult_with_gamma5_matrix_adj_source(buffer_write[time_extent]);
+
+                  }
+
+                }
+                mult_add_with_cp( buffer_sum,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
+
+                mult_add_with_cpt( buffer_sum, buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
+
+                for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
                   for (int spin_source=0; spin_source<tp->d; ++spin_source) {
                     for (int spin_sink=0; spin_sink < tp->d; ++spin_sink ) {
 
-                      buffer_CPT[time_extent][spin_sink*4+spin_source][0]*=sign_table_source[8]*sign_table_sink[8]*sign_table_sink[3]*sign_table_source[3]*(1.);
-                      buffer_CPT[time_extent][spin_sink*4+spin_source][1]*=sign_table_source[8]*sign_table_sink[8]*sign_table_sink[3]*sign_table_source[3]*(1.);
+                      buffer_sum[time_extent][spin_sink*4+spin_source][0]=buffer_sum[time_extent][spin_sink*4+spin_source][0]/8.;
+                      buffer_sum[time_extent][spin_sink*4+spin_source][1]=buffer_sum[time_extent][spin_sink*4+spin_source][1]/8.;
 
-                      if ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ){
-                        buffer_CPT[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[8]*sign_table_gamma5[3];
-                        buffer_CPT[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[8]*sign_table_gamma5[3];
-
-                      }
-                      if ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ){
-                        buffer_CPT[time_extent][spin_sink*4+spin_source][0]*=sign_table_gamma5[8]*sign_table_gamma5[3];
-                        buffer_CPT[time_extent][spin_sink*4+spin_source][1]*=sign_table_gamma5[8]*sign_table_gamma5[3];
-                      }
                     }
                   }
                 }
 
-
                 /* Write the first dataset. */
-                status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_CPT[0][0][0]));
+                status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_sum[0][0][0]));
 
                 /* Close the data space for the first dataset. */
                 status = H5Sclose(dataspace_id);
 
                 /* Close the first dataset. */
                 status = H5Dclose(dataset_id);
-
-                fini_3level_dtable(&buffer_CPT);
-
-                free(sign_table_source);
- 
-                free(sign_table_sink);
-
-                free(sign_table_gamma5);
 
                 fini_3level_dtable(&buffer_write);
+
+                fini_3level_dtable(&buffer_sum);
 
               }/*sink gamma*/
 
@@ -1860,7 +1956,6 @@ int main(int argc, char **argv) {
 
     }  /* end of loop on twopoint function names */
 
-    printf("\n\nk=%d\n\n",k);
 
   } /* end of loop on source positions */
 
@@ -2033,7 +2128,7 @@ int main(int argc, char **argv) {
         /******************************************************
          * loop on total momentum / frames
          ******************************************************/
-        for ( int i_total_momentum = 0; i_total_momentum < 4; i_total_momentum++) {
+        for ( int i_total_momentum = 0; i_total_momentum < 1; i_total_momentum++) {
 
           hid_t file_id, group_id, dataset_id, dataspace_id;  /* identifiers */
           herr_t      status;
@@ -2520,7 +2615,7 @@ int main(int argc, char **argv) {
              EXIT(12);
           }
 
-          for ( int i_total_momentum = 0; i_total_momentum < 4; i_total_momentum++) {
+          for ( int i_total_momentum = 0; i_total_momentum < 1; i_total_momentum++) {
 
 
 
@@ -2890,7 +2985,25 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[piN2piN_diagram_sum_per_type] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(12);
     }
-    int **indextable=(int **)malloc(sizeof(int*)*4);
+    int **indextable_pf2_to_pi2_part_pf1=(int **)malloc(sizeof(int)*4);
+    int **indextable_pf2_to_pi2_part_pi2=(int **)malloc(sizeof(int)*4);
+
+    int **indextable_pf2_to_minus_pi2_part_pf1=(int **)malloc(sizeof(int)*4);
+    int **indextable_pf2_to_minus_pi2_part_pi2=(int **)malloc(sizeof(int)*4);
+
+    int **indextable_pf2=(int **)malloc(sizeof(int*)*4);
+
+    int **indextable_minus_pf2=(int **)malloc(sizeof(int*)*4);
+    int *indextable_i2_to_minus_i2 = (int *)malloc(sizeof(int)*g_seq_source_momentum_number);
+
+    for (int i=0; i<g_seq_source_momentum_number; ++i){
+      for (int j=0; j<g_seq_source_momentum_number; ++j){
+        if ( (g_seq_source_momentum_list[i][0]==-g_seq_source_momentum_list[i][0]) && ( g_seq_source_momentum_list[i][1]==-g_seq_source_momentum_list[i][1] ) &&  ( g_seq_source_momentum_list[i][2]==-g_seq_source_momentum_list[i][2] )){
+          indextable_i2_to_minus_i2=j;
+          break;
+        }
+      }
+    }
     int *num_elements=(int *)malloc(sizeof(int)*4);
     for (int i=0; i<4; ++i)
       num_elements[i]=0;
@@ -2898,13 +3011,51 @@ int main(int argc, char **argv) {
       num_elements[(buffer_mom[i][3]+buffer_mom[i][6])*(buffer_mom[i][3]+buffer_mom[i][6])+(buffer_mom[i][4]+buffer_mom[i][7])*(buffer_mom[i][4]+buffer_mom[i][7])+(buffer_mom[i][5]+buffer_mom[i][8])*(buffer_mom[i][5]+buffer_mom[i][8])]++;
     }
     for (int i=0; i<4; ++i){
-      indextable[i]=(int *)malloc(sizeof(int)*num_elements[i]);
+      indextable_pf2[i]=(int *)malloc(sizeof(int)*num_elements[i]);
+      indextable_minus_pf2[i]=(int *)malloc(sizeof(int)*num_elements[i]);
+
+      indextable_pf2_to_pi2_part_pf1[i]=(int *)malloc(sizeof(int)*num_elements[i]);
+      indextable_pf2_to_pi2_part_pi2[i]=(int *)malloc(sizeof(int)*num_elements[i]);
+
+      indextable_pf2_to_minus_pi2_part_pf1[i]=(int *)malloc(sizeof(int)*num_elements[i]);
+      indextable_pf2_to_minus_pi2_part_pi2[i]=(int *)malloc(sizeof(int)*num_elements[i]);
+
     }
     for (int i=0; i<4; ++i)
       num_elements[i]=0;
     for (int i=0; i<343; ++i){
       int tot_mom=(buffer_mom[i][3]+buffer_mom[i][6])*(buffer_mom[i][3]+buffer_mom[i][6])+(buffer_mom[i][4]+buffer_mom[i][7])*(buffer_mom[i][4]+buffer_mom[i][7])+(buffer_mom[i][5]+buffer_mom[i][8])*(buffer_mom[i][5]+buffer_mom[i][8]);
-      indextable[tot_mom][num_elements[tot_mom]]=i;
+      indextable_pf2[tot_mom][num_elements[tot_mom]]=i;
+      for (int j=0; j<343; ++j){
+        if ( (buffer_mom[i][3]==-buffer_mom[j][3]) && (buffer_mom[i][4]==-buffer_mom[j][4]) && (buffer_mom[i][5]==-buffer_mom[j][5]) && (buffer_mom[i][6]==-buffer_mom[j][6]) && (buffer_mom[i][7]==-buffer_mom[j][7]) && (buffer_mom[i][8]==-buffer_mom[j][8])){
+           indextable_minus_pf2[tot_mom][num_elements[tot_mom]]=j;
+           break;
+        }
+      }
+      for (int j=0; j< 343; ++j) {
+        if (buffer_mom[i][0]==buffer_mom[j][6] && buffer_mom[i][1]==buffer_mom[j][7] && buffer_mom[i][2]==buffer_mom[j][8] && (( buffer_mom[i][3]+buffer_mom[i][6]-buffer_mom[i][0]) == buffer_mom[j][3]) && (( buffer_mom[i][4]+buffer_mom[i][7]-buffer_mom[i][1]) == buffer_mom[j][4]) && (( buffer_mom[i][5]+buffer_mom[i][8]-buffer_mom[i][2]) == buffer_mom[j][5])   ){
+          indextable_pf2_to_pi2_part_pf1[tot_mom][num_elements[tot_mom]]=j;
+          break;
+        }
+      }
+      for (int j=0; j<g_seq_source_momentum_number; ++j){
+        if ((buffer_mom[i][6] == g_seq_source_momentum_list[j][0] ) && (buffer_mom[i][7]== g_seq_source_momentum_list[j][1]) && (buffer_mom[i][8]==g_seq_source_momentum_list[j][2] )) {
+          indextable_pf2_to_pi2_part_pi2[tot_mom][num_elements[tot_mom]]=j;
+          break;
+       }
+      }
+      for (int j=0; j< 343; ++j) {
+        if (buffer_mom[i][0]==-buffer_mom[j][6] && buffer_mom[i][1]==-buffer_mom[j][7] && buffer_mom[i][2]==-buffer_mom[j][8] && (( buffer_mom[i][3]+buffer_mom[i][6]-buffer_mom[i][0]) == -buffer_mom[j][3]) && (( buffer_mom[i][4]+buffer_mom[i][7]-buffer_mom[i][1]) == -buffer_mom[j][4]) && (( buffer_mom[i][5]+buffer_mom[i][8]-buffer_mom[i][2]) == -buffer_mom[j][5])   ){
+          indextable_pf2_to_minus_pi2_part_pf1[tot_mom][num_elements[tot_mom]]=j;
+          break;
+        }
+      }
+      for (int j=0; j<g_seq_source_momentum_number; ++j){
+        if ((buffer_mom[i][6] == -g_seq_source_momentum_list[j][0] ) && (buffer_mom[i][7]== -g_seq_source_momentum_list[j][1]) && (buffer_mom[i][8]==-g_seq_source_momentum_list[j][2] )) {
+          indextable_pf2_to_minus_pi2_part_pi2[tot_mom][num_elements[tot_mom]]=j;
+          break;
+       }
+      }
       num_elements[tot_mom]++;
     }
 #endif
@@ -2991,6 +3142,7 @@ int main(int argc, char **argv) {
         sink_and_source_gamma_list( filename, tagname, tp->number_of_gammas_source, tp->number_of_gammas_sink, &gamma_string_list_source, &gamma_string_list_sink, 1);
 
 
+        double ******buffer_sum = init_6level_dtable(27, tp->T, 343, tp->number_of_gammas_source*tp->number_of_gammas_sink, tp->d * tp->d, 2  );
 
         for ( int ipi2 = 0; ipi2 < g_seq_source_momentum_number; ipi2++ ) {
           int const pi2[3] = {
@@ -2999,13 +3151,12 @@ int main(int argc, char **argv) {
              g_seq_source_momentum_list[ipi2][2] };
 
 
-          double *****buffer_sum = init_5level_dtable(tp->T, 343, tp->number_of_gammas_source*tp->number_of_gammas_sink, tp->d * tp->d, 2  );
           for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
             for (int momentum_number=0; momentum_number < 343; ++momentum_number){
               for (int spin_structures=0; spin_structures < tp->number_of_gammas_sink*tp->number_of_gammas_source; ++spin_structures ){
                 for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
                   for (int realimag=0; realimag < 2; ++realimag){
-                    buffer_sum[time_extent][momentum_number][spin_structures][spin_inner][realimag]=0.;
+                    buffer_sum[ipi2][time_extent][momentum_number][spin_structures][spin_inner][realimag]=0.;
                   }
                 }
               }
@@ -3038,7 +3189,7 @@ int main(int argc, char **argv) {
                for (int spin_structures=0; spin_structures < tp->number_of_gammas_source*tp->number_of_gammas_sink; ++spin_structures ){
                  for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
                    for (int realimag=0; realimag < 2; ++realimag){
-                     buffer_sum[time_extent][momentum_number][spin_structures][spin_inner][realimag]+=buffer_source[time_extent][momentum_number][spin_structures][spin_inner][realimag];
+                     buffer_sum[ipi2][time_extent][momentum_number][spin_structures][spin_inner][realimag]+=buffer_source[time_extent][momentum_number][spin_structures][spin_inner][realimag];
                    }
                  }
                }
@@ -3047,11 +3198,14 @@ int main(int argc, char **argv) {
            fini_5level_dtable(&buffer_source);
          }//summation ends over B1,B2,W1,W2,W3,W4,Z1,Z2,Z3,Z4
 
+        }//summation over pi2
+
+        for ( int ipi2 = 0; ipi2 < g_seq_source_momentum_number; ipi2++ ) {
 
          /******************************************************
           * loop on total momentum / frames
           ******************************************************/
-         for ( int i_total_momentum = 0; i_total_momentum < 4; i_total_momentum++) {
+         for ( int i_total_momentum = 0; i_total_momentum < 1; i_total_momentum++) {
 
 
            snprintf ( filename, 400, "%s%04d_PX%.02dPY%.02dPZ%.02d_piN.h5",
@@ -3124,9 +3278,9 @@ int main(int argc, char **argv) {
                                                                         source_coords_list[k][2],
                                                                         source_coords_list[k][3],
                                                                         source_coords_list[k][0],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][6],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][7],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][8]);
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][6],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][7],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][8]);
                  status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
 
                  status = H5Gget_objinfo (file_id, tagname, 0, NULL);
@@ -3144,9 +3298,9 @@ int main(int argc, char **argv) {
                                                                         source_coords_list[k][2],
                                                                         source_coords_list[k][3],
                                                                         source_coords_list[k][0],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][6],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][7],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][8],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][6],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][7],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][8],
                                                                         gamma_string_list_sink[sink_gamma],
                                                                         ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1");
 
@@ -3167,14 +3321,14 @@ int main(int argc, char **argv) {
                                                                         source_coords_list[k][2],
                                                                         source_coords_list[k][3],
                                                                         source_coords_list[k][0],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][6],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][7],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][8],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][6],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][7],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][8],
                                                                         gamma_string_list_sink[sink_gamma],
                                                                         ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][3],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][4],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][5]);
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][3],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][4],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][5]);
 
                  status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
 
@@ -3193,14 +3347,14 @@ int main(int argc, char **argv) {
                                                                         source_coords_list[k][2],
                                                                         source_coords_list[k][3],
                                                                         source_coords_list[k][0],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][6],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][7],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][8],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][6],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][7],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][8],
                                                                         gamma_string_list_sink[sink_gamma],
                                                                         ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][3],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][4],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][5]);
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][3],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][4],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][5]);
 
                  status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
 
@@ -3219,14 +3373,14 @@ int main(int argc, char **argv) {
                                                                         source_coords_list[k][2],
                                                                         source_coords_list[k][3],
                                                                         source_coords_list[k][0],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][6],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][7],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][8],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][6],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][7],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][8],
                                                                         gamma_string_list_sink[sink_gamma],
                                                                         ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][3],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][4],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][5],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][3],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][4],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][5],
                                                                         pi2[0],
                                                                         pi2[1],
                                                                         pi2[2]);
@@ -3249,14 +3403,14 @@ int main(int argc, char **argv) {
                                                                         source_coords_list[k][2],
                                                                         source_coords_list[k][3],
                                                                         source_coords_list[k][0],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][6],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][7],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][8],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][6],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][7],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][8],
                                                                         gamma_string_list_sink[sink_gamma],
                                                                         ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][3],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][4],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][5],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][3],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][4],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][5],
                                                                         pi2[0],
                                                                         pi2[1],
                                                                         pi2[2],
@@ -3281,22 +3435,22 @@ int main(int argc, char **argv) {
                                                                         source_coords_list[k][2],
                                                                         source_coords_list[k][3],
                                                                         source_coords_list[k][0],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][6],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][7],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][8],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][6],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][7],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][8],
                                                                         gamma_string_list_sink[sink_gamma],
                                                                         ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][3],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][4],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][5],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][3],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][4],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][5],
                                                                         pi2[0],
                                                                         pi2[1],
                                                                         pi2[2],
                                                                         gamma_string_list_source[source_gamma],
                                                                         ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1",
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][6]+buffer_mom[indextable[i_total_momentum][i_pf1]][3]-pi2[0],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][7]+buffer_mom[indextable[i_total_momentum][i_pf1]][4]-pi2[1],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][8]+buffer_mom[indextable[i_total_momentum][i_pf1]][5]-pi2[2]);
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][6]+buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][3]-pi2[0],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][7]+buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][4]-pi2[1],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][8]+buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][5]-pi2[2]);
 
 
                  status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
@@ -3324,30 +3478,31 @@ int main(int argc, char **argv) {
                                                                         source_coords_list[k][2],
                                                                         source_coords_list[k][3],
                                                                         source_coords_list[k][0],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][6],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][7],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][8],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][6],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][7],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][8],
                                                                         gamma_string_list_sink[sink_gamma],
                                                                         ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ) ? "5" : "1",
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][3],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][4],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][5],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][3],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][4],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][5],
                                                                         pi2[0],
                                                                         pi2[1],
                                                                         pi2[2],
                                                                         gamma_string_list_source[source_gamma],
                                                                         ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ) ? "5" : "1",
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][6]+buffer_mom[indextable[i_total_momentum][i_pf1]][3]-pi2[0],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][7]+buffer_mom[indextable[i_total_momentum][i_pf1]][4]-pi2[1],
-                                                                        buffer_mom[indextable[i_total_momentum][i_pf1]][8]+buffer_mom[indextable[i_total_momentum][i_pf1]][5]-pi2[2]);
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][6]+buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][3]-pi2[0],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][7]+buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][4]-pi2[1],
+                                                                        buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][8]+buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][5]-pi2[2]);
 
 
 
                  /* Create a dataset in group "MyGroup". */
 
 
-                 printf("tagname %s\n", tagname);
                  double ***buffer_write= init_3level_dtable(tp->T,tp->d*tp->d,2);
+
+                 double ***buffer_sum_discrete = init_3level_dtable(tp->T,tp->d*tp->d,2);
 
                  /* Create a dataset in group "MyGroup". */
                  dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
@@ -3355,7 +3510,7 @@ int main(int argc, char **argv) {
                  for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
                    for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
                      for (int realimag=0; realimag < 2; ++realimag){
-                       buffer_write[time_extent][spin_inner][realimag]=buffer_sum[time_extent][indextable[i_total_momentum][i_pf1]][source_gamma*tp->number_of_gammas_sink+sink_gamma][spin_inner][realimag];
+                       buffer_write[time_extent][spin_inner][realimag]=buffer_sum[ipi2][time_extent][indextable_pf2[i_total_momentum][i_pf1]][source_gamma*tp->number_of_gammas_sink+sink_gamma][spin_inner][realimag];
                      }
                    }
                    if ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ){
@@ -3365,35 +3520,114 @@ int main(int argc, char **argv) {
                    if ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ){
                      mult_with_gamma5_matrix_sink(buffer_write[time_extent]);
                    }
+                   for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
+                     for (int realimag=0; realimag < 2; ++realimag){
+                       buffer_sum_discrete[time_extent][spin_inner][realimag]=buffer_write[time_extent][spin_inner][realimag];
+                     }
+                   }
 
                  }
 
-                 /* Write the first dataset. */
-                 status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_write[0][0][0]));
+                 mult_add_with_t( buffer_sum_discrete,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
 
-                 /* Close the data space for the first dataset. */
-                 status = H5Sclose(dataspace_id);
-
-                 /* Close the first dataset. */
-                 status = H5Dclose(dataset_id);
-
-                 fini_3level_dtable(&buffer_write);
-
-               } /* sink gamma */
-
-             } /*source gamma */
+                /* charege conjugated, the sink and the source gamma is interchanged, the momenta left unchanged*/
+                /* The corresponding discrete symmetry transformations                           */
+                /*                                                   (1) charge conjugation (C)  */
+                /*                                                   (2) charge conjugation + time-reversal (CT) */
 
 
-           }/*loop on pf1 momentum corresponding to a given ptot momentum */
-           /* Close the file. */
-           status = H5Fclose(file_id);
+                /* Charge conjugation */
+                for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
+                  for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
+                    for (int realimag=0; realimag < 2; ++realimag){
+                      buffer_write[time_extent][spin_inner][realimag]=buffer_sum[indextable_pf2_to_pi2_part_pi2[i_total_momentum][i_pf1]][time_extent][indextable_pf2_to_pi2_part_pf1[i_total_momentum][i_pf1]][sink_gamma*tp->number_of_gammas_sink+source_gamma][spin_inner][realimag];
+                    }
+                  }
+                  if ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ){
+                    mult_with_gamma5_matrix_sink(buffer_write[time_extent]);
+                  }
+                  if ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ){
+                    mult_with_gamma5_matrix_adj_source(buffer_write[time_extent]);
+                  }
+                }
+
+                mult_add_with_c( buffer_sum_discrete,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
+
+                mult_add_with_ct( buffer_sum_discrete,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
+
+                /* parity, the sink and the source momenta is reflected, the gamma structures left unchanged*/
+                /* The corresponding discrete symmetry transformations                           */
+                /*                                                   (1) parity (P)  */
+                /*                                                   (2) parity + time-reversal (PT) */
+
+                /* parity  */
+                for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
+                  for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
+                    for (int realimag=0; realimag < 2; ++realimag){
+                      buffer_write[time_extent][spin_inner][realimag]=buffer_sum[indextable_i2_to_minus_i2[ipi2]][time_extent][indextable_minus_pf2[i_total_momentum][i_pf1]][source_gamma*tp->number_of_gammas_sink+sink_gamma][spin_inner][realimag];
+                    }
+                  }
+                  if ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ){
+                    mult_with_gamma5_matrix_adj_source(buffer_write[time_extent]);
+                  }
+                  if ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ){
+                    mult_with_gamma5_matrix_sink(buffer_write[time_extent]);
+                  }
+                }
+
+                mult_add_with_p( buffer_sum_discrete,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
+
+                mult_add_with_pt( buffer_sum_discrete,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
+
+
+
+                /* Charge+parity conjugation */
+                for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
+                  for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
+                    for (int realimag=0; realimag < 2; ++realimag){
+                      buffer_write[time_extent][spin_inner][realimag]=buffer_sum[indextable_pf2_to_minus_pi2_part_pi2[i_total_momentum][i_pf1]][time_extent][indextable_pf2_to_minus_pi2_part_pf1[i_total_momentum][i_pf1]][sink_gamma*tp->number_of_gammas_sink+source_gamma][spin_inner][realimag];
+                    }
+                  }
+                  if ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ){
+                    mult_with_gamma5_matrix_sink(buffer_write[time_extent]);
+                  }
+                  if ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ){
+                    mult_with_gamma5_matrix_adj_source(buffer_write[time_extent]);
+                  }
+                }
+
+                mult_add_with_cp( buffer_sum_discrete,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
+
+                mult_add_with_cpt( buffer_sum_discrete,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
+
+
+                /* Write the first dataset. */
+                status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_sum[0][0][0]));
+
+                /* Close the data space for the first dataset. */
+                status = H5Sclose(dataspace_id);
+
+                /* Close the first dataset. */
+                status = H5Dclose(dataset_id);
+
+                fini_3level_dtable(&buffer_write);
+
+                fini_3level_dtable(&buffer_sum_discrete);
+
+
+              } /* sink gamma */
+
+            } /*source gamma */
+
+          }/*loop on pf1 momentum corresponding to a given ptot momentum */
+          /* Close the file. */
+          status = H5Fclose(file_id);
 
          }//ptot
-
-
-         fini_5level_dtable(&buffer_sum);
      
        } /* loop on sequential momentum */
+
+       fini_6level_dtable(&buffer_sum);
 
        fini_1level_itable(&twopt_id_list);
        for (int j=0;j<12; ++j){
@@ -3414,11 +3648,28 @@ int main(int argc, char **argv) {
      } /*name of the twopoint functions pixN-pixN*/
 
    } /*end of loop on the source positions */
-   for (int i_total_momentum=0; i_total_momentum<4; ++i_total_momentum)
-     free(indextable[i_total_momentum]);
-   free(indextable);
+   for (int i_total_momentum=0; i_total_momentum<4; ++i_total_momentum){
+     free(indextable_pf2[i_total_momentum]);
+     free(indextable_minus_pf2[i_total_momentum]);
+     free(indextable_pf2_to_pi2_part_pf1[i_total_momentum]);
+     free(indextable_pf2_to_pi2_part_pi2[i_total_momentum]);
+
+     free(indextable_pf2_to_minus_pi2_part_pf1[i_total_momentum]);
+     free(indextable_pf2_to_minus_pi2_part_pi2[i_total_momentum]);
+
+   }
+   free(indextable_minus_pf2);
+
+   free(indextable_pf2);
    free(num_elements);
 
+   free(indextable_pf2_to_pi2_part_pf1);
+   free(indextable_pf2_to_pi2_part_pi2);
+
+   free(indextable_pf2_to_minus_pi2_part_pf1);
+   free(indextable_pf2_to_minus_pi2_part_pi2);
+
+   free(indextable_i2_to_minus_i2);
    fini_2level_itable(&buffer_mom);
 
 
