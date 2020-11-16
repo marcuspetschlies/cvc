@@ -1093,7 +1093,7 @@ int init_timeslice_source_z3_oet ( double ** const s, int const  tsrc, int const
 
 /**********************************************************/
 /**********************************************************/
-
+#if 0
 /**********************************************************
  * prepare sequential FHT source with loop
  **********************************************************/
@@ -1180,6 +1180,107 @@ int prepare_sequential_fht_loop_source ( double ** const seq_source, double _Com
 
   return (0);
 }  /* end of prepare_sequential_fht_loop_source */
+#endif
+
+/**********************************************************/
+/**********************************************************/
+
+/**********************************************************
+ * prepare sequential FHT source with loop
+ **********************************************************/
+int prepare_sequential_fht_loop_source ( double ** const seq_source, double _Complex *** const loop, double ** const prop, gamma_matrix_type * const gamma_mat, int const gamma_num, double _Complex * const ephase, int const type, gamma_matrix_type * const g5herm  ) {
+  
+  unsigned int const VOL3 = LX * LY * LZ;
+#pragma omp parallel for
+  for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
+
+    double _Complex ** M = init_2level_ztable ( 12, 12 );
+    double _Complex ** _loop = loop[ix];
+    double _Complex ** _laux = init_2level_ztable ( 12, 12 );
+    if ( g5herm == NULL ) {
+      _scm_eq_scm(  _laux,  _loop );
+    } else {
+      _scm_eq_gamma_ti_scm_adj_ti_gamma ( _laux, g5herm->m, _loop,  g5herm->m );
+    }
+
+
+    unsigned int const ix3 = ix % VOL3;
+
+    if ( type == 0 ) {
+      /**********************************************************
+       * build M <- sum_ig gamma[ig] x Tr [ L x gamma[ig] ]
+       **********************************************************/
+      for ( int ig = 0; ig < gamma_num; ig++ ) {
+
+        /**********************************************************
+         * ztmp = Tr [ L x g ]
+         **********************************************************/
+        double _Complex ztmp = 0.;
+        _co_eq_tr_scm_ti_gamma( &ztmp, _laux, gamma_mat[ig].m );
+
+        /**********************************************************
+         * ztmp = ztmp * exp ( i p_seq x_seq )
+         **********************************************************/
+        ztmp *= ephase[ix3];
+
+        for ( int ialpha = 0; ialpha < 4; ialpha++ ) {
+        for ( int ia = 0; ia < 3; ia++ ) {
+          int const ka = 3 * ialpha + ia;
+
+          for ( int ibeta = 0; ibeta < 4; ibeta++ ) {
+          for ( int ib = 0; ib < 3; ib++ ) {
+            int const kb = 3 * ibeta + ib;
+
+            M[ka][kb] -= gamma_mat[ig].m[ialpha][ibeta] * ztmp;
+          }}
+        }}
+
+      }  /* end of loop on gamma set */
+
+    } else if ( type == 1 ) {
+ 
+      /**********************************************************
+       * build M <- sum_ig gamma[ig] x L x gamma[ig]
+       **********************************************************/
+      for ( int ig = 0; ig < gamma_num; ig++ ) {
+        _scm_pl_eq_gamma_ti_scm_ti_gamma ( M, gamma_mat[ig].m, _laux,  gamma_mat[ig].m );
+      }  /* end of loop on vertex gamma list */
+
+    }  /* end of loop on type */
+
+    /**********************************************************
+     * build seq_source <- M x prop 
+     **********************************************************/
+    for ( int ibeta = 0; ibeta < 4; ibeta++ ) {
+    for ( int ib = 0; ib < 3; ib++ ) {
+      int const kb = 3 * ibeta + ib;
+
+      for ( int ialpha = 0; ialpha < 4; ialpha++ ) {
+      for ( int ia = 0; ia < 3; ia++ ) {
+        int const ka = 3 * ialpha + ia;
+
+        double _Complex ztmp = 0.;
+
+        for ( int igamma = 0; igamma < 4; igamma++ ) {
+        for ( int ic = 0; ic < 3; ic++ ) {
+          int const kc = 3 * igamma + ic;
+          ztmp += M[ka][kc] * ( prop[kb][_GSI(ix)+2*kc] + I * prop[kb][_GSI(ix)+2*kc+1] );
+        }}
+
+        seq_source[kb][_GSI(ix)+2*ka  ] = creal( ztmp );
+        seq_source[kb][_GSI(ix)+2*ka+1] = cimag( ztmp );
+
+      }}
+    }} 
+
+    fini_2level_ztable ( &M );
+    fini_2level_ztable ( &_laux );
+
+  }  /* end of loop on volume */
+
+  return (0);
+}  /* end of prepare_sequential_fht_loop_source */
+
 
 /**********************************************************/
 /**********************************************************/
