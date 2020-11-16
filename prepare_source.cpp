@@ -1113,7 +1113,7 @@ int prepare_sequential_fht_loop_source ( double ** const seq_source, double _Com
     }
 
     for ( int ig = 0; ig < gamma_num; ig++ ) {
-      _scm_pl_eq_gamma_ti_scm_ti_gamma ( M, gamma_mat->m, _laux,  gamma_mat->m );
+      _scm_pl_eq_gamma_ti_scm_ti_gamma ( M, gamma_mat[ig].m, _laux,  gamma_mat[ig].m );
     }  /* end of loop on vertex gamma list */
 
     fini_2level_ztable ( &_laux );
