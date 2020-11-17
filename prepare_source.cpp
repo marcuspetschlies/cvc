@@ -1224,15 +1224,13 @@ int prepare_sequential_fht_loop_source ( double ** const seq_source, double _Com
         ztmp *= ephase[ix3];
 
         for ( int ialpha = 0; ialpha < 4; ialpha++ ) {
-        for ( int ia = 0; ia < 3; ia++ ) {
-          int const ka = 3 * ialpha + ia;
-
-          for ( int ibeta = 0; ibeta < 4; ibeta++ ) {
+        for ( int ibeta = 0; ibeta < 4; ibeta++ ) {
           for ( int ib = 0; ib < 3; ib++ ) {
-            int const kb = 3 * ibeta + ib;
+            int const ka = 3 * ialpha + ib;
+            int const kb = 3 * ibeta  + ib;
 
             M[ka][kb] -= gamma_mat[ig].m[ialpha][ibeta] * ztmp;
-          }}
+          }
         }}
 
       }  /* end of loop on gamma set */
