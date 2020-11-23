@@ -1292,7 +1292,7 @@ int prepare_sequential_fht_twinpeak_source ( double ** const seq_source, double 
 
   double * scalar_field = init_1level_dtable ( VOLUME );
 
-  ranbinary ( scalar_field, VOLUME );
+  ranbinaryd ( scalar_field, VOLUME );
 
   for ( int isc = 0; isc < 12; isc++ ) {
 #ifdef HAVE_OPENMP
