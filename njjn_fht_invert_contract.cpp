@@ -1219,7 +1219,7 @@ int main(int argc, char **argv) {
             EXIT(132);
           }
 
-          exitstatus = ranbinary ( stochastic_vector, VOLUME );
+          exitstatus = ranbinaryd ( stochastic_vector, VOLUME );
 
           if( exitstatus != 0  ) {
             fprintf(stderr, "[njjn_fht_invert_contract] Error from ranbinary, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
