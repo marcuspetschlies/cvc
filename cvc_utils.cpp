@@ -2381,6 +2381,22 @@ int ranz3 ( double * const y, unsigned int const NRAND ) {
 /********************************************************/
 /********************************************************/
 
+int ranbinaryd(double * const y, unsigned int const NRAND) {
+
+  ranlxd(y, NRAND);
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( unsigned int k = 0; k < NRAND; k++ ) {
+    y[k] = (double)(2 * (int)(y[k]>=0.5) - 1);
+  }
+  return(0);
+}  /* end of ranbinary */
+
+/********************************************************/
+/********************************************************/
+
 int ranbinary(double * const y, unsigned int const NRAND) {
 
   ranlxd(y, NRAND);
