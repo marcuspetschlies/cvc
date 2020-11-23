@@ -190,6 +190,131 @@ extern "C"
 
 using namespace cvc;
 
+double twist_angle ( double const mu, double const kappa, double const kappa_c ) {
+
+  double const mq = 0.5 * ( 1/kappa - 1/kappa_c );
+
+  return ( atan2 ( mu, mq ) );
+}  /* end of twist_angle */
+
+/***************************************************************************/
+/***************************************************************************/
+
+void rotate_tb_to_pb ( double * const r, double * const s, double const phi, unsigned int const N ) {
+
+  double const sphi = sin( phi / 2. );
+  double const cphi = cos( phi / 2. );
+
+#pragma omp parallel
+{
+  double spinor1[_GSI(1)];
+#pragma omp for
+  for ( unsigned int ix = 0; ix < N; ix++ ) {
+
+    double * const _r = r + _GSI(ix);
+    double * const _s = s + _GSI(ix);
+
+    _fv_eq_gamma_ti_fv ( spinor1, 5, _s );
+
+    _fv_eq_fv_ti_im ( _r, spinor1, sphi );
+
+    _fv_eq_fv_ti_re ( spinor1, _s, cphi );
+
+    _fv_pl_eq_fv ( _r, spinor1 );
+  }
+
+}  /* end of parallel region */
+
+}  /* end of rotate_tb_to_pb */
+
+/***************************************************************************/
+/***************************************************************************/
+
+int point_source_propagator_eo_pb ( double **eo_spinor_field_e, double **eo_spinor_field_o,  int op_id,
+    int global_source_coords[4], double *gauge_field, double **mzz, double **mzzinv, int check_propagator_residual ) {
+
+  const size_t sizeof_spinor_field    = _GSI( VOLUME )     * sizeof(double);
+  const size_t sizeof_eo_spinor_field = _GSI( VOLUME / 2 ) * sizeof(double);
+
+  int exitstatus;
+  int local_source_coords[4];
+  int source_proc_id;
+  double *spinor_work[2];
+
+  /* source info for shifted source location */
+  if( (exitstatus = get_point_source_info ( global_source_coords, local_source_coords, &source_proc_id) ) != 0 ) {
+    fprintf(stderr, "[point_source_propagator_eo_pb] Error from get_point_source_info, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(15);
+  }
+
+  double ** eo_spinor_work = init_2level_dtable ( 5, _GSI( (VOLUME+RAND)/2 ) );
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[point_source_propagator_eo_pb] Error from init_2level_buffer, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(1);
+  }
+  spinor_work[0] = eo_spinor_work[0];
+  spinor_work[1] = eo_spinor_work[2];
+    
+  /* rotate to twisted basis */
+  double const phi = twist_angle ( (1-2*op_id)*g_mu, g_kappa, 1/(2.*g_m0 + 8 ) );
+  if ( g_cart_id == 0 && g_verbose > 2 ) fprintf ( stdout, "# [point_source_propagator_eo_pb] op_id %d phi = %e rad\n", op_id, phi );
+
+  /* loop on spin and color indices */
+  for(int i=0; i<12; i++) {
+
+    /* initialize and set the points source in physical basis */
+    memset ( spinor_work[0], 0, sizeof_spinor_field );
+    memset ( spinor_work[1], 0, sizeof_spinor_field );
+    if ( source_proc_id == g_cart_id ) {
+      size_t const idx = _GSI( g_ipt[local_source_coords[0]][local_source_coords[1]][local_source_coords[2]][local_source_coords[3]] );
+      spinor_work[0][ idx + 2*i ] = 1.;
+    
+      rotate_tb_to_pb ( spinor_work[0]+idx, spinor_work[0]+idx, phi, 1);
+    }
+
+    exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id );
+    if(exitstatus < 0) {
+      fprintf(stderr, "[point_source_propagator_eo_pb] Error from tmLQCD_invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(19);
+    }
+
+    if ( g_write_propagator ) {
+      char filename[400];
+
+      sprintf(filename, "%s.%.4d.t%dx%dy%dz%d.fl%d.%d.inverted", "source", Nconf,
+           global_source_coords[0],
+           global_source_coords[1],
+           global_source_coords[2],
+           global_source_coords[3], op_id, i );
+
+      if ( ( exitstatus = write_propagator( spinor_work[1], filename, 0, g_propagator_precision) ) != 0 ) {
+        fprintf(stderr, "[point_source_propagator_eo_pb] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(2);
+      }
+    }
+
+    spinor_field_lexic2eo ( spinor_work[1], eo_spinor_field_e[i], eo_spinor_field_o[i] );
+
+    if ( check_propagator_residual ) {
+      spinor_field_lexic2eo ( spinor_work[0], eo_spinor_work[2], eo_spinor_work[3] );
+      exitstatus = check_residuum_eo ( &( eo_spinor_work[2] ), &( eo_spinor_work[3] ), &(eo_spinor_field_e[i]), &(eo_spinor_field_o[i]), gauge_field, mzz, mzzinv, 1 );
+    }
+
+    /* rotate back to physical basis */
+    rotate_tb_to_pb ( eo_spinor_field_e[i], eo_spinor_field_e[i], phi, VOLUME/2 );
+    rotate_tb_to_pb ( eo_spinor_field_o[i], eo_spinor_field_o[i], phi, VOLUME/2 );
+
+  }  /* end of loop on spin-color */
+
+  fini_2level_dtable ( &eo_spinor_work );
+  return(0);
+}  /* end of point_source_propagator_eo_pb */
+
+
+/***************************************************************************/
+/***************************************************************************/
+
+
 void usage() {
   fprintf(stdout, "Code to perform P-J-J correlator contractions\n");
   fprintf(stdout, "Usage:    [options]\n");
@@ -242,7 +367,7 @@ int main(int argc, char **argv) {
   double **mzz[2] = { NULL, NULL }, **mzzinv[2] = { NULL, NULL };
   double *gauge_field_with_phase = NULL;
   int check_position_space_WI = 0;
-  int first_solve_dummy = 1;
+  int first_solve_dummy = 0;
   struct timeval start_time, end_time;
 
 
@@ -514,16 +639,6 @@ int main(int argc, char **argv) {
       EXIT(123);
     }
 
-    /***********************************************************
-     * init Usource and source_proc_id
-     *
-     * NOTE: here it must be either 
-     *         g_gauge_field with argument phase == co_phase_up
-     *       or
-     *         gauge_field_with_phase with argument phase == NULL 
-     ***********************************************************/
-    init_contract_cvc_tensor_usource( gauge_field_with_phase, gsx, NULL);
-
 #ifdef HAVE_LHPC_AFF
     /***********************************************
      ***********************************************
@@ -555,7 +670,8 @@ int main(int argc, char **argv) {
     /**********************************************************
      * up-type propagators
      **********************************************************/
-    exitstatus = point_to_all_fermion_propagator_clover_full2eo ( &(eo_spinor_field[0]), &(eo_spinor_field[12]), _OP_ID_UP,
+
+    exitstatus = point_source_propagator_eo_pb ( &(eo_spinor_field[0]), &(eo_spinor_field[12]), _OP_ID_UP,
         gsx, gauge_field_with_phase, mzz[0], mzzinv[0], check_propagator_residual );
 
     if ( exitstatus != 0 ) {
@@ -566,7 +682,7 @@ int main(int argc, char **argv) {
     /**********************************************************
      * dn-type propagators
      **********************************************************/
-    exitstatus = point_to_all_fermion_propagator_clover_full2eo ( &(eo_spinor_field[24]), &(eo_spinor_field[36]), _OP_ID_DN,
+    exitstatus = point_source_propagator_eo_pb ( &(eo_spinor_field[24]), &(eo_spinor_field[36]), _OP_ID_DN,
         gsx, gauge_field_with_phase, mzz[1], mzzinv[1], check_propagator_residual );
 
     if ( exitstatus != 0 ) {
@@ -1047,13 +1163,13 @@ int main(int argc, char **argv) {
         /***************************************************************************
          * loop on sequential source gamma matrices
          ***************************************************************************/
-/*
+
         for( int isequential_source_gamma_id = 0; isequential_source_gamma_id < g_sequential_source_gamma_id_number; isequential_source_gamma_id++) {
 
           int const sequential_source_gamma_id = g_sequential_source_gamma_id_list[ isequential_source_gamma_id ];
           if( g_verbose > 2 && g_cart_id == 0) fprintf(stdout, "# [p2gg_invert_contract_local] using sequential source gamma id no. %2d = %d\n",
               isequential_source_gamma_id, sequential_source_gamma_id);
-*/
+
           /***************************************************************************
            * loop on sequential source time slices
            ***************************************************************************/
@@ -1086,13 +1202,6 @@ int main(int argc, char **argv) {
              ***************************************************************************/
 
 #if _NEUTRAL_LVC_LVC_TENSOR || _NEUTRAL_CVC_LVC_TENSOR
-
-            /***************************************************************************
-             * set sequential source gamma id
-             ***************************************************************************/
-            int sequential_source_gamma_id = gamma_s;
-
-            if( g_verbose > 2 && g_cart_id == 0) fprintf(stdout, "# [p2gg_invert_contract_local] using sequential source gamma id = %d\n", sequential_source_gamma_id);
 
             /***************************************************************************
              * prepare sequential source and sequential propagator
@@ -1143,6 +1252,9 @@ int main(int argc, char **argv) {
               /* eo-precon -> full */
               spinor_field_eo2lexic ( full_spinor_work[0], eo_spinor_field[eo_seq_spinor_field_id_e], eo_spinor_field[eo_seq_spinor_field_id_o] );
 
+
+              rotate_tb_to_pb ( full_spinor_work[0], full_spinor_work[0], twist_angle ( (1-2*iflavor)*g_mu, g_kappa, 1./(2*g_m0+8.) ), VOLUME );
+
               /* full_spinor_work[1] = D^-1 full_spinor_work[0] */
               exitstatus = _TMLQCD_INVERT ( full_spinor_work[1], full_spinor_work[0], iflavor );
               if(exitstatus < 0) {
@@ -1163,6 +1275,9 @@ int main(int argc, char **argv) {
                     gauge_field_with_phase, mzz[iflavor], mzzinv[iflavor], 1 );
               }
  
+              rotate_tb_to_pb ( eo_spinor_work[0], eo_spinor_work[0], twist_angle ( (1-2*iflavor)*g_mu, g_kappa, 1./(2*g_m0+8.) ), VOLUME/2 );
+              rotate_tb_to_pb ( eo_spinor_work[1], eo_spinor_work[1], twist_angle ( (1-2*iflavor)*g_mu, g_kappa, 1./(2*g_m0+8.) ), VOLUME/2 );
+
               /* copy solution into place */
               memcpy ( eo_spinor_field[eo_seq_spinor_field_id_e], eo_spinor_work[0], sizeof_eo_spinor_field );
               memcpy ( eo_spinor_field[eo_seq_spinor_field_id_o], eo_spinor_work[1], sizeof_eo_spinor_field );
@@ -1269,12 +1384,6 @@ int main(int argc, char **argv) {
              ***************************************************************************
              ***************************************************************************/
 #if _CHARGED_LVC_LVC_TENSOR
-            /***************************************************************************
-             * set sequential source gamma id
-             ***************************************************************************/
-            sequential_source_gamma_id = gamma_p;
-            if( g_verbose > 2 && g_cart_id == 0) fprintf(stdout, "# [p2gg_invert_contract_local] using sequential source gamma id = %d\n", sequential_source_gamma_id);
-
             for( int is = 0; is < 12; is++ ) 
             {
               int eo_spinor_field_id_e     = ( 1 - iflavor ) * 24 + is;
@@ -1299,6 +1408,8 @@ int main(int argc, char **argv) {
               /* eo-precon -> full */
               spinor_field_eo2lexic ( full_spinor_work[0], eo_spinor_field[eo_seq_spinor_field_id_e], eo_spinor_field[eo_seq_spinor_field_id_o] );
 
+              rotate_tb_to_pb ( full_spinor_work[0], full_spinor_work[0], twist_angle ( (1-2*iflavor)*g_mu, g_kappa, 1./(2*g_m0+8.) ), VOLUME );
+
               /* full_spinor_work[1] = D^-1 full_spinor_work[0] */
               exitstatus = _TMLQCD_INVERT ( full_spinor_work[1], full_spinor_work[0], iflavor );
               if(exitstatus < 0) {
@@ -1318,7 +1429,10 @@ int main(int argc, char **argv) {
                     &( eo_spinor_work[0] ),                        &( eo_spinor_work[1] ),
                     gauge_field_with_phase, mzz[iflavor], mzzinv[iflavor], 1 );
               }
- 
+              
+              rotate_tb_to_pb ( eo_spinor_work[0], eo_spinor_work[0], twist_angle ( (1-2*iflavor)*g_mu, g_kappa, 1./(2*g_m0+8.) ), VOLUME/2 );
+              rotate_tb_to_pb ( eo_spinor_work[1], eo_spinor_work[1], twist_angle ( (1-2*iflavor)*g_mu, g_kappa, 1./(2*g_m0+8.) ), VOLUME/2 );
+
               /* copy solution into place */
               memcpy ( eo_spinor_field[eo_seq_spinor_field_id_e], eo_spinor_work[0], sizeof_eo_spinor_field );
               memcpy ( eo_spinor_field[eo_seq_spinor_field_id_o], eo_spinor_work[1], sizeof_eo_spinor_field );
@@ -1375,7 +1489,7 @@ int main(int argc, char **argv) {
 
           }  /* end of loop on sequential source timeslices */
 
-/*        } */  /* end of loop on sequential source gamma id */
+        }  /* end of loop on sequential source gamma id */
       }  /* end of loop on sequential source momentum */
     }  /* end of loop on flavor */
 
