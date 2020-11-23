@@ -1223,19 +1223,6 @@ int main(int argc, char **argv) {
             EXIT(132);
           }
 
-          double * stochastic_vector = init_1level_dtable ( VOLUME );
-          if( stochastic_vector == NULL ) {
-            fprintf(stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
-            EXIT(132);
-          }
-
-          exitstatus = ranbinaryd ( stochastic_vector, VOLUME );
-
-          if( exitstatus != 0  ) {
-            fprintf(stderr, "[njjn_fht_invert_contract] Error from ranbinary, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(132);
-          }
-
           /***************************************************************************
            * loop on sequential source gamma matrices
            ***************************************************************************/
@@ -1469,7 +1456,6 @@ int main(int argc, char **argv) {
 
           fini_2level_dtable ( &sequential_source );
           fini_3level_dtable ( &sequential_propagator );
-          fini_1level_dtable ( &stochastic_vector );
 
       }  /* end of loop oet samples  */
 
