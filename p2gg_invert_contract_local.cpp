@@ -194,7 +194,11 @@ double twist_angle ( double const mu, double const kappa, double const kappa_c )
 
   double const mq = 0.5 * ( 1/kappa - 1/kappa_c );
 
-  return ( atan2 ( mu, mq ) );
+  double const phi = atan2 ( mu, mq );
+
+  if ( g_cart_id == 0 && g_verbose > 2 ) fprintf ( stdout, "# [twist_angle] mu %25.16e kappa %25.16e kappa_c %25.16e  phi = %25.16e rad\n", mu, kappa, kappa_c, phi );
+
+  return ( phi );
 }  /* end of twist_angle */
 
 /***************************************************************************/
@@ -207,7 +211,7 @@ void rotate_tb_to_pb ( double * const r, double * const s, double const phi, uns
 
 #pragma omp parallel
 {
-  double spinor1[_GSI(1)];
+  double spinor1[_GSI(1)], spinor2[_GSI(1)];
 #pragma omp for
   for ( unsigned int ix = 0; ix < N; ix++ ) {
 
@@ -216,11 +220,11 @@ void rotate_tb_to_pb ( double * const r, double * const s, double const phi, uns
 
     _fv_eq_gamma_ti_fv ( spinor1, 5, _s );
 
-    _fv_eq_fv_ti_im ( _r, spinor1, sphi );
+    _fv_eq_fv_ti_im ( spinor2, spinor1, sphi );
 
     _fv_eq_fv_ti_re ( spinor1, _s, cphi );
 
-    _fv_pl_eq_fv ( _r, spinor1 );
+    _fv_eq_fv_pl_fv ( _r, spinor1, spinor2 );
   }
 
 }  /* end of parallel region */
@@ -257,7 +261,7 @@ int point_source_propagator_eo_pb ( double **eo_spinor_field_e, double **eo_spin
     
   /* rotate to twisted basis */
   double const phi = twist_angle ( (1-2*op_id)*g_mu, g_kappa, 1/(2.*g_m0 + 8 ) );
-  if ( g_cart_id == 0 && g_verbose > 2 ) fprintf ( stdout, "# [point_source_propagator_eo_pb] op_id %d phi = %e rad\n", op_id, phi );
+  if ( g_cart_id == 0 && g_verbose > 2 ) fprintf ( stdout, "# [point_source_propagator_eo_pb] op_id %d phi = %25.16e rad\n", op_id, phi );
 
   /* loop on spin and color indices */
   for(int i=0; i<12; i++) {
