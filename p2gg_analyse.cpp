@@ -845,21 +845,13 @@ int main(int argc, char **argv) {
                     /**********************************************************
                      * add the two flavor components
                      **********************************************************/
-                    /* double _Complex ztmp = ( 
-                          -               ( buffer[0][0][mu][nu][2*it] +  buffer[0][0][mu][nu][2*it+1] * I )
-                          +               ( buffer[1][0][mu][nu][2*it] +  buffer[1][0][mu][nu][2*it+1] * I ) 
-                          + s5d_sign[0] * ( buffer[0][1][mu][nu][2*it] -  buffer[0][1][mu][nu][2*it+1] * I )
-                          - s5d_sign[0] * ( buffer[1][1][mu][nu][2*it] -  buffer[1][1][mu][nu][2*it+1] * I ) 
-                        ) * p_ephase;
-                        */
-
                     /* multiply with pion vertex factor I by hand */
-
                     double _Complex const u_p = buffer[0][0][mu][nu][2*it] * I -  buffer[0][0][mu][nu][2*it+1] ;
                     double _Complex const u_n = buffer[0][1][mu][nu][2*it] * I -  buffer[0][1][mu][nu][2*it+1] ;
                     double _Complex const d_p = buffer[1][0][mu][nu][2*it] * I -  buffer[1][0][mu][nu][2*it+1] ;
                     double _Complex const d_n = buffer[1][1][mu][nu][2*it] * I -  buffer[1][1][mu][nu][2*it+1] ;
 
+                    /* flavor combination */
                     double _Complex ztmp = ( 
                           - u_p + s5d_sign[0] * conj ( u_n )
                           - d_p + s5d_sign[0] * conj ( d_n )
@@ -902,44 +894,38 @@ int main(int argc, char **argv) {
                     /**********************************************************
                      * add the two flavor components
                      **********************************************************/
-                    /* double _Complex ztmp1 = (
-                          -               ( buffer[0][0][mu][nu][2*it] +  buffer[0][0][mu][nu][2*it+1] * I )
-                          - s5d_sign[0] * ( buffer[0][1][mu][nu][2*it] -  buffer[0][1][mu][nu][2*it+1] * I )
-                          +               ( buffer[1][0][mu][nu][2*it] +  buffer[1][0][mu][nu][2*it+1] * I )
-                          + s5d_sign[0] * ( buffer[1][1][mu][nu][2*it] -  buffer[1][1][mu][nu][2*it+1] * I )
+                    double _Complex const z_01_1_p = buffer[1][0][mu][nu][2*it] * I - buffer[1][0][mu][nu][2*it+1];
 
-                        ) * p_ephase * q_ephase; 
-                      */
+                    double _Complex const z_01_1_n = buffer[1][1][mu][nu][2*it] * I - buffer[1][1][mu][nu][2*it+1];
+
+                    double _Complex const z_10_0_p = buffer[0][0][mu][nu][2*it] * I - buffer[0][0][mu][nu][2*it+1];
+
+                    double _Complex const z_10_0_n = buffer[0][1][mu][nu][2*it] * I - buffer[0][1][mu][nu][2*it+1];
+
+                    double _Complex const z_10_1_p = buffer[3][0][mu][nu][2*it] * I - buffer[3][0][mu][nu][2*it+1];
+
+                    double _Complex const z_10_1_n = buffer[3][1][mu][nu][2*it] * I - buffer[3][1][mu][nu][2*it+1];
+
+                    double _Complex const z_01_0_p = buffer[2][0][mu][nu][2*it] * I - buffer[2][0][mu][nu][2*it+1];
+
+                    double _Complex const z_01_0_n = buffer[2][1][mu][nu][2*it] * I - buffer[2][1][mu][nu][2*it+1];
+
 
                     double _Complex ztmp1 = (
-                          -               ( buffer[0][0][mu][nu][2*it] * I -  buffer[0][0][mu][nu][2*it+1] )
-                          - s5d_sign[0] * ( buffer[0][1][mu][nu][2*it] * I +  buffer[0][1][mu][nu][2*it+1] )
-                          +               ( buffer[1][0][mu][nu][2*it] * I -  buffer[1][0][mu][nu][2*it+1] )
-                          + s5d_sign[0] * ( buffer[1][1][mu][nu][2*it] * I +  buffer[1][1][mu][nu][2*it+1] )
-
-                        ) * p_ephase * q_ephase;
-
-                    /* double _Complex ztmp2 = (
-                          +               ( buffer[2][0][mu][nu][2*it] +  buffer[2][0][mu][nu][2*it+1] * I )
-                          + s5d_sign[1] * ( buffer[2][1][mu][nu][2*it] -  buffer[2][1][mu][nu][2*it+1] * I )
-                          -               ( buffer[3][0][mu][nu][2*it] +  buffer[3][0][mu][nu][2*it+1] * I )
-                          - s5d_sign[1] * ( buffer[3][1][mu][nu][2*it] -  buffer[3][1][mu][nu][2*it+1] * I )
-                        ) * p_ephase * q_ephase;
-                      */
-
-                    double _Complex ztmp2 = (
-                          +               ( buffer[2][0][mu][nu][2*it] * I -  buffer[2][0][mu][nu][2*it+1] )
-                          + s5d_sign[1] * ( buffer[2][1][mu][nu][2*it] * I +  buffer[2][1][mu][nu][2*it+1] )
-                          -               ( buffer[3][0][mu][nu][2*it] * I -  buffer[3][0][mu][nu][2*it+1] )
-                          - s5d_sign[1] * ( buffer[3][1][mu][nu][2*it] * I +  buffer[3][1][mu][nu][2*it+1] )
+                          - s5d_sign[0] * conj( z_01_1_n )
+                          +                     z_01_1_p
+                          +                     z_10_0_p
+                          - s5d_sign[0] * conj( z_10_0_n )
+                          - s5d_sign[0] * conj( z_10_1_n )
+                          +                     z_10_1_p
+                          +                     z_01_0_p
+                          - s5d_sign[0] * conj( z_01_0_n )
                         ) * p_ephase * q_ephase;
 
                     /**********************************************************
                      * add up original and Parity-flavor transformed
                      **********************************************************/
-                    double _Complex ztmp = 0.5 * ( 
-                          ( ztmp1 + st_sign[0] * conj ( ztmp1 ) ) + ( ztmp2 + st_sign[1] * conj ( ztmp2 ) )
-                        );
+                    double _Complex ztmp = 0.5 * ( ztmp1 - st_sign[0] * s5d_sign[0] * conj ( ztmp1 ) );
 
                     /**********************************************************
                      * write into pgg
