@@ -119,53 +119,53 @@ extern "C"
 #  define _V_V_N 1
 #endif
 
-/* SVN = pvn */
-#ifndef _S_V_N
-#  define _S_V_N 1
+/* PVN = pvn */
+#ifndef _P_V_N
+#  define _P_V_N 1
 #endif
 
-/* VSN = vpn */
-#ifndef _V_S_N
-#  define _V_S_N 1
+/* VPN = vpn */
+#ifndef _V_P_N
+#  define _V_P_N 1
 #endif
 
-/* SSN = ppn */
-#ifndef _S_S_N
-#  define _S_S_N 1
+/* PPN = ppn */
+#ifndef _P_P_N
+#  define _P_P_N 1
 #endif
 
 /* SAN = pan */
 #ifndef _S_A_N 
-#  define _S_A_N 1
+#  define _S_A_N 0
 #endif
 
 /* ASN = apn */
 #ifndef _A_S_N 
-#  define _A_S_N 1 
+#  define _A_S_N 0 
 #endif
 
 /* AAN = aan */
 #ifndef _A_A_N
-#  define _A_A_N 1
+#  define _A_A_N 0
 #endif
 
 /****************************************************
  * CHARGED combinations
  ****************************************************/
 
-/* AAC = vvc */
+/* AAC = aac */
 #ifndef _A_A_C
-#  define _A_A_C 1
+#  define _A_A_C 0
 #endif
 
-/* APC = vpc */
+/* APC = apc */
 #ifndef _A_P_C
-#  define _A_P_C 1
+#  define _A_P_C 0
 #endif
 
-/* PAC = pvc */
+/* PAC = pac */
 #ifndef _P_A_C
-#  define _P_A_C 1
+#  define _P_A_C 0
 #endif
 
 /* PPC = ppc */
@@ -173,17 +173,17 @@ extern "C"
 #  define _P_P_C 1
 #endif
 
-/* VVC = aac  */
+/* VVC = vvc  */
 #ifndef _V_V_C
 #  define _V_V_C 1
 #endif
 
-/* VPC = apc */
+/* VPC = vpc */
 #ifndef _V_P_C
 #  define _V_P_C 1
 #endif
 
-/* PVC = PAC */
+/* PVC = pvc */
 #ifndef _P_V_C
 #  define _P_V_C 1
 #endif
@@ -720,11 +720,11 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * contraction scalar - vector
      ***************************************************************************/
-#if _S_V_N
+#if _P_V_N
     exitstatus = contract_local_local_2pt_eo (
        &(eo_spinor_field[24]), &(eo_spinor_field[36]),
        &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
-       gamma_s_list, gamma_s_num, gamma_v_list, gamma_v_num,
+       gamma_p_list, gamma_p_num, gamma_v_list, gamma_v_num,
        g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
 
     if( exitstatus != 0 ) {
@@ -736,11 +736,11 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * contraction vector - scalar
      ***************************************************************************/
-#if _V_S_N
+#if _V_P_N
     exitstatus = contract_local_local_2pt_eo (
        &(eo_spinor_field[24]), &(eo_spinor_field[36]),
        &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
-       gamma_v_list, gamma_v_num, gamma_s_list, gamma_s_num,
+       gamma_v_list, gamma_v_num, gamma_p_list, gamma_p_num,
        g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
 
     if( exitstatus != 0 ) {
@@ -752,11 +752,11 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * contraction s - s
      ***************************************************************************/
-#if _S_S_N
+#if _P_P_N
     exitstatus = contract_local_local_2pt_eo (
        &(eo_spinor_field[24]), &(eo_spinor_field[36]),
        &(eo_spinor_field[ 0]), &(eo_spinor_field[12]),
-       gamma_s_list, gamma_s_num, gamma_s_list, gamma_s_num,
+       gamma_p_list, gamma_p_num, gamma_p_list, gamma_p_num,
        g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
 
     if( exitstatus != 0 ) {
@@ -1247,13 +1247,14 @@ int main(int argc, char **argv) {
               }
 
               double *full_spinor_work[2] = { eo_spinor_work[0], eo_spinor_work[2] };
-
               memset ( full_spinor_work[1], 0, sizeof_spinor_field);
+
+              /* rotate physical to twisted basis */
+              rotate_tb_to_pb ( eo_spinor_field[eo_seq_spinor_field_id_e], eo_spinor_field[eo_seq_spinor_field_id_e], twist_angle ( (1-2*iflavor)*g_mu, g_kappa, 1./(2*g_m0+8.) ), VOLUME/2 );
+              rotate_tb_to_pb ( eo_spinor_field[eo_seq_spinor_field_id_o], eo_spinor_field[eo_seq_spinor_field_id_o], twist_angle ( (1-2*iflavor)*g_mu, g_kappa, 1./(2*g_m0+8.) ), VOLUME/2 );
+
               /* eo-precon -> full */
               spinor_field_eo2lexic ( full_spinor_work[0], eo_spinor_field[eo_seq_spinor_field_id_e], eo_spinor_field[eo_seq_spinor_field_id_o] );
-
-
-              rotate_tb_to_pb ( full_spinor_work[0], full_spinor_work[0], twist_angle ( (1-2*iflavor)*g_mu, g_kappa, 1./(2*g_m0+8.) ), VOLUME );
 
               /* full_spinor_work[1] = D^-1 full_spinor_work[0] */
               exitstatus = _TMLQCD_INVERT ( full_spinor_work[1], full_spinor_work[0], iflavor );
@@ -1275,6 +1276,7 @@ int main(int argc, char **argv) {
                     gauge_field_with_phase, mzz[iflavor], mzzinv[iflavor], 1 );
               }
  
+              /* rotate twisted basis to physical basis */
               rotate_tb_to_pb ( eo_spinor_work[0], eo_spinor_work[0], twist_angle ( (1-2*iflavor)*g_mu, g_kappa, 1./(2*g_m0+8.) ), VOLUME/2 );
               rotate_tb_to_pb ( eo_spinor_work[1], eo_spinor_work[1], twist_angle ( (1-2*iflavor)*g_mu, g_kappa, 1./(2*g_m0+8.) ), VOLUME/2 );
 
@@ -1405,10 +1407,13 @@ int main(int argc, char **argv) {
               double *full_spinor_work[2] = { eo_spinor_work[0], eo_spinor_work[2] };
 
               memset ( full_spinor_work[1], 0, sizeof_spinor_field);
+
+              /* rotate from physical basis to twisted basis */
+              rotate_tb_to_pb ( eo_spinor_field[ eo_seq_spinor_field_id_e ], eo_spinor_field[ eo_seq_spinor_field_id_e ], twist_angle ( (1-2*iflavor)*g_mu, g_kappa, 1./(2*g_m0+8.) ), VOLUME/2 );
+              rotate_tb_to_pb ( eo_spinor_field[ eo_seq_spinor_field_id_o ], eo_spinor_field[ eo_seq_spinor_field_id_o ], twist_angle ( (1-2*iflavor)*g_mu, g_kappa, 1./(2*g_m0+8.) ), VOLUME/2 );
+
               /* eo-precon -> full */
               spinor_field_eo2lexic ( full_spinor_work[0], eo_spinor_field[eo_seq_spinor_field_id_e], eo_spinor_field[eo_seq_spinor_field_id_o] );
-
-              rotate_tb_to_pb ( full_spinor_work[0], full_spinor_work[0], twist_angle ( (1-2*iflavor)*g_mu, g_kappa, 1./(2*g_m0+8.) ), VOLUME );
 
               /* full_spinor_work[1] = D^-1 full_spinor_work[0] */
               exitstatus = _TMLQCD_INVERT ( full_spinor_work[1], full_spinor_work[0], iflavor );
@@ -1430,6 +1435,7 @@ int main(int argc, char **argv) {
                     gauge_field_with_phase, mzz[iflavor], mzzinv[iflavor], 1 );
               }
               
+              /* rotate from twisted basis to physical basis */
               rotate_tb_to_pb ( eo_spinor_work[0], eo_spinor_work[0], twist_angle ( (1-2*iflavor)*g_mu, g_kappa, 1./(2*g_m0+8.) ), VOLUME/2 );
               rotate_tb_to_pb ( eo_spinor_work[1], eo_spinor_work[1], twist_angle ( (1-2*iflavor)*g_mu, g_kappa, 1./(2*g_m0+8.) ), VOLUME/2 );
 
@@ -1458,7 +1464,7 @@ int main(int argc, char **argv) {
             exitstatus = contract_local_local_2pt_eo (
                 &(eo_spinor_field[ iflavor * 24]), &(eo_spinor_field[ iflavor * 24 + 12]),
                 &(eo_spinor_field[48]), &(eo_spinor_field[60]),
-                gamma_a_list, 4, gamma_v_list, 4,
+                gamma_v_list, 4, gamma_v_list, 4,
                 g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
 
             if( exitstatus != 0 ) {
@@ -1478,7 +1484,7 @@ int main(int argc, char **argv) {
             exitstatus = contract_local_local_2pt_eo (
                 &(eo_spinor_field[ ( 1 - iflavor ) * 24]), &(eo_spinor_field[ ( 1 - iflavor ) * 24 + 12]),
                 &(eo_spinor_field[48]), &(eo_spinor_field[60]),
-                gamma_v_list, 4, gamma_a_list, 4,
+                gamma_v_list, 4, gamma_v_list, 4,
                 g_sink_momentum_list, g_sink_momentum_number,  affw, aff_tag, io_proc );
 
             if( exitstatus != 0 ) {
