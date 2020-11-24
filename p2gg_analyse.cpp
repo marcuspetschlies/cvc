@@ -845,15 +845,30 @@ int main(int argc, char **argv) {
                     /**********************************************************
                      * add the two flavor components
                      **********************************************************/
-                    double _Complex ztmp = ( 
+                    /* double _Complex ztmp = ( 
                           -               ( buffer[0][0][mu][nu][2*it] +  buffer[0][0][mu][nu][2*it+1] * I )
                           +               ( buffer[1][0][mu][nu][2*it] +  buffer[1][0][mu][nu][2*it+1] * I ) 
                           + s5d_sign[0] * ( buffer[0][1][mu][nu][2*it] -  buffer[0][1][mu][nu][2*it+1] * I )
                           - s5d_sign[0] * ( buffer[1][1][mu][nu][2*it] -  buffer[1][1][mu][nu][2*it+1] * I ) 
                         ) * p_ephase;
+                        */
 
+                    /* multiply with pion vertex factor I by hand */
+
+                    double _Complex const u_p = buffer[0][0][mu][nu][2*it] * I -  buffer[0][0][mu][nu][2*it+1] ;
+                    double _Complex const u_n = buffer[0][1][mu][nu][2*it] * I -  buffer[0][1][mu][nu][2*it+1] ;
+                    double _Complex const d_p = buffer[1][0][mu][nu][2*it] * I -  buffer[1][0][mu][nu][2*it+1] ;
+                    double _Complex const d_n = buffer[1][1][mu][nu][2*it] * I -  buffer[1][1][mu][nu][2*it+1] ;
+
+                    double _Complex ztmp = ( 
+                          - u_p + s5d_sign[0] * conj ( u_n )
+                          - d_p + s5d_sign[0] * conj ( d_n )
+                        ) * p_ephase;
+
+                    /* also here multiply by I by hand; 
+                     * IS THAT CORRECT ??? */
                     if ( ( mu == nu ) && ( tt == 0 ) ) {
-                      ztmp -= ( contact_term[0][mu][0] + I * contact_term[0][mu][1] ) - ( contact_term[1][mu][0] + I * contact_term[1][mu][1] );
+                      ztmp += ( contact_term[0][mu][0] * I - contact_term[0][mu][1] ) - ( contact_term[1][mu][0] * I - contact_term[1][mu][1] );
                     }
 
                     /**********************************************************
@@ -864,7 +879,8 @@ int main(int argc, char **argv) {
                     /**********************************************************
                      * add up original and Parity-flavor transformed
                      **********************************************************/
-                    ztmp += st_sign[0] * conj ( ztmp );
+                    ztmp -= st_sign[0] * s5d_sign[0] * conj ( ztmp );
+                    ztmp *= 0.5;
 
                     /**********************************************************
                      * write into pgg
@@ -886,19 +902,36 @@ int main(int argc, char **argv) {
                     /**********************************************************
                      * add the two flavor components
                      **********************************************************/
-                    double _Complex ztmp1 = (
+                    /* double _Complex ztmp1 = (
                           -               ( buffer[0][0][mu][nu][2*it] +  buffer[0][0][mu][nu][2*it+1] * I )
                           - s5d_sign[0] * ( buffer[0][1][mu][nu][2*it] -  buffer[0][1][mu][nu][2*it+1] * I )
                           +               ( buffer[1][0][mu][nu][2*it] +  buffer[1][0][mu][nu][2*it+1] * I )
                           + s5d_sign[0] * ( buffer[1][1][mu][nu][2*it] -  buffer[1][1][mu][nu][2*it+1] * I )
 
+                        ) * p_ephase * q_ephase; 
+                      */
+
+                    double _Complex ztmp1 = (
+                          -               ( buffer[0][0][mu][nu][2*it] * I -  buffer[0][0][mu][nu][2*it+1] )
+                          - s5d_sign[0] * ( buffer[0][1][mu][nu][2*it] * I +  buffer[0][1][mu][nu][2*it+1] )
+                          +               ( buffer[1][0][mu][nu][2*it] * I -  buffer[1][0][mu][nu][2*it+1] )
+                          + s5d_sign[0] * ( buffer[1][1][mu][nu][2*it] * I +  buffer[1][1][mu][nu][2*it+1] )
+
                         ) * p_ephase * q_ephase;
 
-                    double _Complex ztmp2 = (
+                    /* double _Complex ztmp2 = (
                           +               ( buffer[2][0][mu][nu][2*it] +  buffer[2][0][mu][nu][2*it+1] * I )
                           + s5d_sign[1] * ( buffer[2][1][mu][nu][2*it] -  buffer[2][1][mu][nu][2*it+1] * I )
                           -               ( buffer[3][0][mu][nu][2*it] +  buffer[3][0][mu][nu][2*it+1] * I )
                           - s5d_sign[1] * ( buffer[3][1][mu][nu][2*it] -  buffer[3][1][mu][nu][2*it+1] * I )
+                        ) * p_ephase * q_ephase;
+                      */
+
+                    double _Complex ztmp2 = (
+                          +               ( buffer[2][0][mu][nu][2*it] * I -  buffer[2][0][mu][nu][2*it+1] )
+                          + s5d_sign[1] * ( buffer[2][1][mu][nu][2*it] * I +  buffer[2][1][mu][nu][2*it+1] )
+                          -               ( buffer[3][0][mu][nu][2*it] * I -  buffer[3][0][mu][nu][2*it+1] )
+                          - s5d_sign[1] * ( buffer[3][1][mu][nu][2*it] * I +  buffer[3][1][mu][nu][2*it+1] )
                         ) * p_ephase * q_ephase;
 
                     /**********************************************************
