@@ -105,6 +105,7 @@ int main(int argc, char **argv) {
   int operator_type = -1;
   int write_data = 0;
   int charged_ps=0;
+  double emc_norm = 1.;
 
 #ifdef HAVE_LHPC_AFF
   struct AffReader_s *affr = NULL;
@@ -115,7 +116,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "CWh?f:N:S:O:E:w:")) != -1) {
+  while ((c = getopt(argc, argv, "CWh?f:N:S:O:E:w:Q:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -148,6 +149,10 @@ int main(int argc, char **argv) {
     case 'C':
       charged_ps = 1;
       fprintf ( stdout, "# [p2gg_analyse] charged_ps set to %d\n", charged_ps );
+      break;
+    case 'Q':
+      emc_norm = atof ( optarg );
+      fprintf( stdout, "# [p2gg_analyse] emc_norm set to %e\n", emc_norm );
       break;
     case 'h':
     case '?':
@@ -853,8 +858,8 @@ int main(int argc, char **argv) {
 
                     /* flavor combination */
                     double _Complex ztmp = ( 
-                          - u_p + s5d_sign[0] * conj ( u_n )
-                          - d_p + s5d_sign[0] * conj ( d_n )
+                          + u_p - s5d_sign[0] * conj ( u_n )
+                          + d_p - s5d_sign[0] * conj ( d_n )
                         ) * p_ephase;
 
                     /* also here multiply by I by hand; 
@@ -872,7 +877,6 @@ int main(int argc, char **argv) {
                      * add up original and Parity-flavor transformed
                      **********************************************************/
                     ztmp -= st_sign[0] * s5d_sign[0] * conj ( ztmp );
-                    ztmp *= 0.5;
 
                     /**********************************************************
                      * write into pgg
@@ -930,8 +934,8 @@ int main(int argc, char **argv) {
                     /**********************************************************
                      * write into pgg
                      **********************************************************/
-                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt  ] = creal( ztmp );
-                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt+1] = cimag( ztmp );
+                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt  ] = creal( ztmp ) * emc_norm;
+                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt+1] = cimag( ztmp ) * emc_norm;
                   }  /* end of loop on timeslices */
 
                 }  /* end of charged_ps == 1 case */
