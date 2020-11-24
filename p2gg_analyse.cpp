@@ -881,8 +881,8 @@ int main(int argc, char **argv) {
                     /**********************************************************
                      * write into pgg
                      **********************************************************/
-                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt  ] = creal( ztmp );
-                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt+1] = cimag( ztmp );
+                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt  ] = creal( ztmp ) * emc_norm;
+                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt+1] = cimag( ztmp ) * emc_norm;
                   }  /* end of loop on timeslices */
 
                 } else if ( charged_ps == 1 ) {
