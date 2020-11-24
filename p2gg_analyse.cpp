@@ -75,6 +75,7 @@ int main(int argc, char **argv) {
   int const gamma_sp_list[2] = { 4  , 5 };
 
 
+  char const cn_tag[2][8] = { "neutral", "charged"};
 
   /***********************************************************
    * sign for g5 Gamma^\dagger g5
@@ -310,11 +311,11 @@ int main(int argc, char **argv) {
       g_seq_source_momentum_list[iseq_source_momentum][1],
       g_seq_source_momentum_list[iseq_source_momentum][2] };
 
-/*
     for( int isequential_source_gamma_id = 0; isequential_source_gamma_id < g_sequential_source_gamma_id_number; isequential_source_gamma_id++)
     {
-*/
-      int const sequential_source_gamma_id = ( charged_ps == 0 ) ? 4 : 5;
+      int const sequential_source_gamma_id = g_sequential_source_gamma_id_list[ isequential_source_gamma_id ];
+      if( g_verbose > 2 && g_cart_id == 0) fprintf(stdout, "# [p2gg_analyse] using sequential source gamma id no. %2d = %d\n", isequential_source_gamma_id, sequential_source_gamma_id);
+
 
       for ( int isequential_source_timeslice = 0; isequential_source_timeslice < g_sequential_source_timeslice_number; isequential_source_timeslice++)
       {
@@ -352,8 +353,9 @@ int main(int argc, char **argv) {
 
             struct AffNode_s *affn = NULL, *affdir = NULL;
       
-            sprintf ( filename, "stream_%c/%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0], Nconf, g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
-             /* sprintf ( filename, "stream_%c/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0], g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
+            /* sprintf ( filename, "stream_%c/%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0], Nconf, g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
+            /* sprintf ( filename, "stream_%c/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0], g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
+            sprintf ( filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
             /* sprintf ( filename, "stream_%c/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0], pgg_operator_type_tag[operator_type], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
             fprintf(stdout, "# [p2gg_analyse] reading data from file %s\n", filename);
             affr = aff_reader ( filename );
@@ -573,7 +575,7 @@ int main(int argc, char **argv) {
                           psign * seq_source_momentum[2],
                           sequential_source_gamma_id, sequential_source_timeslice,
                           1-iflavor, iflavor, 1-iflavor,
-                          gamma_v_list[mu], gamma_a_list[nu],
+                          gamma_v_list[mu], gamma_v_list[nu],
                           psign * sink_momentum[0],
                           psign * sink_momentum[1],
                           psign * sink_momentum[2] );
@@ -604,7 +606,7 @@ int main(int argc, char **argv) {
                           psign * seq_source_momentum[2],
                           sequential_source_gamma_id, sequential_source_timeslice,
                           1-iflavor, iflavor, iflavor,
-                          gamma_a_list[mu], gamma_v_list[nu],
+                          gamma_v_list[mu], gamma_v_list[nu],
                           psign * sink_momentum[0],
                           psign * sink_momentum[1],
                           psign * sink_momentum[2] );
@@ -635,7 +637,7 @@ int main(int argc, char **argv) {
                           psign * seq_source_momentum[2],
                           sequential_source_gamma_id, sequential_source_timeslice,
                           iflavor, 1-iflavor, iflavor,
-                          gamma_v_list[mu], gamma_a_list[nu],
+                          gamma_v_list[mu], gamma_v_list[nu],
                           psign * sink_momentum[0],
                           psign * sink_momentum[1],
                           psign * sink_momentum[2] );
@@ -666,7 +668,7 @@ int main(int argc, char **argv) {
                           psign * seq_source_momentum[2],
                           sequential_source_gamma_id, sequential_source_timeslice,
                           iflavor, 1-iflavor, 1-iflavor,
-                          gamma_a_list[mu], gamma_v_list[nu],
+                          gamma_v_list[mu], gamma_v_list[nu],
                           psign * sink_momentum[0],
                           psign * sink_momentum[1],
                           psign * sink_momentum[2] );
@@ -754,23 +756,23 @@ int main(int argc, char **argv) {
                   } else if ( charged_ps == 1 ) {
                     s5d_sign[0] =
                          sigma_g5d[ sequential_source_gamma_id ]
-                       * sigma_g5d[ gamma_a_list[mu] ]
+                       * sigma_g5d[ gamma_v_list[mu] ]
                        * sigma_g5d[ gamma_v_list[nu] ];
 
                     s5d_sign[1] =
                          sigma_g5d[ sequential_source_gamma_id ]
                        * sigma_g5d[ gamma_v_list[mu] ]
-                       * sigma_g5d[ gamma_a_list[nu] ];
+                       * sigma_g5d[ gamma_v_list[nu] ];
 
                     st_sign[0] = 
                          sigma_t[ sequential_source_gamma_id ]
-                       * sigma_t[ gamma_a_list[mu] ]
+                       * sigma_t[ gamma_v_list[mu] ]
                        * sigma_t[ gamma_v_list[nu] ];
 
                     st_sign[1] = 
                          sigma_t[ sequential_source_gamma_id ]
                        * sigma_t[ gamma_v_list[mu] ]
-                       * sigma_t[ gamma_a_list[nu] ];
+                       * sigma_t[ gamma_v_list[nu] ];
                   }
 
                   if ( g_verbose > 5 ) fprintf (stdout, "# [p2gg_analyse] charged_ps %d mu %d nu %d   s5d %2d  %2d    st %2d  %2d\n", charged_ps, mu, nu, 
@@ -1027,7 +1029,7 @@ int main(int argc, char **argv) {
           antisymmetric_orbit_average_spatial ( data, pgg_src_avg, dim, sink_momentum_number, sink_momentum_list, ireim );
 
           char obs_name[100];
-          sprintf ( obs_name, "pgg_conn.%s.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s", pgg_operator_type_tag[operator_type],
+          sprintf ( obs_name, "pgg_conn.%s.%s.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s", pgg_operator_type_tag[operator_type], cn_tag[charged_ps],
               seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id, sequential_source_timeslice,
                 sink_momentum_list[0][0], sink_momentum_list[0][1], sink_momentum_list[0][2], reim_str[ireim] );
 
@@ -1039,7 +1041,7 @@ int main(int argc, char **argv) {
           }
 
           if ( write_data == 1 ) {
-            sprintf ( obs_name, "pgg_conn.%s.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s.dat", pgg_operator_type_tag[operator_type],
+            sprintf ( obs_name, "pgg_conn.%s.%s.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s.dat", pgg_operator_type_tag[operator_type], cn_tag[charged_ps],
                 seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id, sequential_source_timeslice,
                 sink_momentum_list[0][0], sink_momentum_list[0][1], sink_momentum_list[0][2], reim_str[ireim] );
 
@@ -1091,7 +1093,7 @@ int main(int argc, char **argv) {
               }
 
               char obs_name[100];
-              sprintf ( obs_name, "pgg_conn.%s.jmu%d_jnu%d.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s", pgg_operator_type_tag[operator_type],
+              sprintf ( obs_name, "pgg_conn.%s.%s.jmu%d_jnu%d.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s", pgg_operator_type_tag[operator_type], cn_tag[charged_ps],
                   mu, nu, seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
                   sequential_source_gamma_id, sequential_source_timeslice,
                   momentum[0], momentum[1], momentum[2], reim_str[ireim] );
@@ -1119,7 +1121,7 @@ int main(int argc, char **argv) {
 
       }  /* end of loop on sequential source timeslices */
 
-/*    } */ /* end of loop on sequential source gamma id */
+    }  /* end of loop on sequential source gamma id */
 
   }  /* end of loop on seq source momentum */
 
