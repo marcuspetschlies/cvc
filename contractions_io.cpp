@@ -784,7 +784,7 @@ int read_from_h5_file ( void * const buffer, void * file, char*tag,  int const i
 
       hid_t dataset_id = H5Dopen2 ( file_id, tag, dapl_id );
       if ( dataset_id < 0 ) {
-        fprintf ( stderr, "[read_from_h5_file] Error from H5Dopen2 %s %d\n", __FILE__, __LINE__ );
+        fprintf ( stderr, "[read_from_h5_file] Error from H5Dopen2 %s %s %d\n", tag, __FILE__, __LINE__ );     
         return ( 3 );
       }
       else {
