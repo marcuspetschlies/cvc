@@ -71,13 +71,19 @@ int get_reference_rotation ( int pref[3], int *Rref, int const p[3] ) {
 #endif
 
   /***********************************************************
-   * return -1 for momentum p = 0,0,0 and for any of the
-   * reference momenta itself
+   * return -1 for momentum p = 0,0,0, for any of the
+   * reference momenta itself and for p'=-p_ref
    ***********************************************************/
+
+  int const m_momentum_ref[3][3]={ {0,0,-1}, {0,-1,-1}, {-1,-1,-1} };
+
   if ( _INT3_EQ_INT3(p, pzero) || 
        _INT3_EQ_INT3(p, momentum_ref[0]) || 
        _INT3_EQ_INT3(p, momentum_ref[1]) || 
-       _INT3_EQ_INT3(p, momentum_ref[2])  ) {
+       _INT3_EQ_INT3(p, momentum_ref[2]) ||
+       _INT3_EQ_INT3(p, m_momentum_ref[0]) || 
+       _INT3_EQ_INT3(p, m_momentum_ref[1]) || 
+       _INT3_EQ_INT3(p, m_momentum_ref[2])) {
 
     if ( g_verbose > 1 ) fprintf ( stdout, "# [get_reference_rotation] zero momentum, ref -1\n" );
     pref[0] = p[0];
