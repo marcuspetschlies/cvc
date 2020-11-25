@@ -1286,13 +1286,9 @@ int prepare_sequential_fht_loop_source ( double ** const seq_source, double _Com
 /**********************************************************
  * prepare sequential FHT source with loop
  **********************************************************/
-int prepare_sequential_fht_twinpeak_source ( double ** const seq_source, double ** const prop, int const gamma_id, double _Complex * const ephase ) {
+int prepare_sequential_fht_twinpeak_source ( double ** const seq_source, double ** const prop, double * const scalar_field, int const gamma_id, double _Complex * const ephase ) {
 
   unsigned int const VOL3 = LX * LY * LZ;
-
-  double * scalar_field = init_1level_dtable ( VOLUME );
-
-  ranbinaryd ( scalar_field, VOLUME );
 
   for ( int isc = 0; isc < 12; isc++ ) {
 #ifdef HAVE_OPENMP
@@ -1313,18 +1309,16 @@ int prepare_sequential_fht_twinpeak_source ( double ** const seq_source, double 
       _fv_ti_eq_re ( spinor1, scalar_field[ix] );
 
       _fv_eq_fv_ti_d2 ( _s, spinor1, (double*)(ephase + (ix % VOL3)) );
-      
+
     }
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */
 #endif
   }
 
-  fini_1level_dtable ( &scalar_field );
-
   return (0);
-}
-
+}  /* end of prepare_sequential_fht_twinpeak_source */
+ 
 /**********************************************************/
 /**********************************************************/
 
