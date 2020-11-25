@@ -32,7 +32,7 @@ int init_timeslice_source_z3_oet ( double ** const s, int const  tsrc, int const
 
 int prepare_sequential_fht_loop_source ( double ** const seq_source, double _Complex *** const loop, double ** const prop, gamma_matrix_type * const gamma_mat, int const gamma_num, double _Complex * const ephase, int const type, gamma_matrix_type * const g5herm  );
 
-int prepare_sequential_fht_twinpeak_source ( double ** const seq_source, double ** const prop, int const gamma_id, double _Complex * const ephase );
+int prepare_sequential_fht_twinpeak_source ( double ** const seq_source, double ** const prop, double * const scalar_field, int const gamma_id, double _Complex * const ephase );
 
 }  /* end of namespace cvc */
 

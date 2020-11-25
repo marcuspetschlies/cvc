@@ -66,6 +66,9 @@ extern "C"
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
 
+#define _PART_II  1  /* B/Z and D1c/i sequential diagrams */
+#define _PART_III 1  /* W type sequential diagrams */
+
 using namespace cvc;
 
 /* typedef int ( * reduction_operation ) (double**, double*, fermion_propagator_type*, unsigned int ); */
@@ -895,6 +898,7 @@ int main(int argc, char **argv) {
       if ( g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [njjn_fht_invert_contract] start seq source mom %3d %3d %3d  %s %d\n", 
           momentum[0], momentum[1], momentum[2], __FILE__, __LINE__);
 
+#if _PART_II
       /***************************************************************************
        * loop on flavor
        ***************************************************************************/
@@ -1183,10 +1187,12 @@ int main(int argc, char **argv) {
         }  /* end of loop on seq. source type */
 
       }  /* loop on flavor type */
+#endif  /* of if _PART_II */
 
       /***************************************************************************/
       /***************************************************************************/
 
+#if _PART_III
       /***************************************************************************
        ***************************************************************************
        **
@@ -1213,20 +1219,33 @@ int main(int argc, char **argv) {
             EXIT(132);
           }
 
+          double * scalar_field = init_1level_dtable ( VOLUME );
+          if( scalar_field == NULL ) {
+            fprintf(stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+            EXIT(132);
+          }
+
+          /***************************************************************************
+           * draw a stochastic binary source (real, +/1 one per site )
+           ***************************************************************************/
+          ranbinaryd ( scalar_field, VOLUME );
+
           /***************************************************************************
            * loop on sequential source gamma matrices
            ***************************************************************************/
-          for ( int igamma = 0; igamma < sequential_gamma_sets; igamma++ ) {
+          for ( int igamma = 0; igamma < sequential_gamma_sets; igamma++ ) 
+          {
           
             for ( int ig = 0; ig < sequential_gamma_num[igamma]; ig++ ) {
 
-              for ( int iflavor = 0; iflavor < 2; iflavor++ ) {
+              for ( int iflavor = 0; iflavor < 2; iflavor++ ) 
+              {
 
                 /***************************************************************************
                  * sequential source for "twin-peak" diagram, 
                  * needed as both up-after-up and down-after-down type sequential propagator
                  ***************************************************************************/
-                exitstatus =  prepare_sequential_fht_twinpeak_source ( sequential_source, propagator[iflavor], sequential_gamma_id[igamma][ig], ephase[imom] ) ;
+                exitstatus =  prepare_sequential_fht_twinpeak_source ( sequential_source, propagator[iflavor], scalar_field, sequential_gamma_id[igamma][ig], ephase[imom] ) ;
                 if ( exitstatus != 0 ) {
                   fprintf ( stderr, "[njjn_fht_invert_contract] Error from prepare_sequential_fht_twinpeak_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                   EXIT(123);
@@ -1444,11 +1463,13 @@ int main(int argc, char **argv) {
             }  /* end of loop on gamma id inside gamma set */
           }  /* end of loop on gamma set */
 
+          fini_1level_dtable ( &scalar_field );
           fini_2level_dtable ( &sequential_source );
           fini_3level_dtable ( &sequential_propagator );
 
       }  /* end of loop oet samples  */
 
+#endif  /* of _PART_III  */
     }  /* loop on sequential source momenta */
 
     /***************************************************************************/
