@@ -1781,13 +1781,9 @@ int main(int argc, char **argv) {
                 dims[1]=tp->d*tp->d;
                 dims[2]=2;
                 dataspace_id = H5Screate_simple(3, dims, NULL);
+
                 char *tagname_nn=(char *)malloc(sizeof(char)*400);
 
-                /* tagname suffix is U the abbreviation from unity */
-                snprintf( tagname_nn, 400, "%s/%s", tagname, hdf5_diag_tag_list_tag[i]);
-
-                /* Create a dataset in group "MyGroup". */
-                dataset_id = H5Dcreate2(file_id, tagname_nn, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
                 /* the original */
                 double ***buffer_write= init_3level_dtable(tp->T,tp->d*tp->d,2);
 
@@ -1820,10 +1816,32 @@ int main(int argc, char **argv) {
 
                 }
 
+                #if 1
+                snprintf( tagname_nn, 400, "%s/%s_U", tagname, hdf5_diag_tag_list_tag[i]);
+                dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                /* Write the first dataset. */
+                status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_write[0][0][0]));
+
+                /* Close the first dataset. */
+                status = H5Dclose(dataset_id);
+                #endif
+
                 /* applying time reversal */
 
                 double ***buffer_t_reversal= init_3level_dtable(tp->T,tp->d*tp->d,2);
                 mult_with_t( buffer_t_reversal,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
+                #if 1
+                snprintf( tagname_nn, 400, "%s/%s_T", tagname, hdf5_diag_tag_list_tag[i]);
+                dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                /* Write the first dataset. */
+                status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_t_reversal[0][0][0]));
+
+                /* Close the first dataset. */
+                status = H5Dclose(dataset_id);
+                #endif
+
                 for (int time_coord=0; time_coord < tp->T; ++time_coord ){
                   for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
                     for (int realimag=0; realimag < 2; ++realimag){
@@ -1833,7 +1851,7 @@ int main(int argc, char **argv) {
                 }
                 fini_3level_dtable( &buffer_t_reversal );
 
-                /* charege conjugated, the sink and the source gamma is interchanged, the momenta left unchanged*/
+                /* charge conjugated, the sink and the source gamma is interchanged, the momenta left unchanged*/
                 /* The corresponding discrete symmetry transformations                           */
                 /*                                                   (1) charge conjugation (C)  */
                 /*                                                   (2) charge conjugation + time-reversal (CT) */
@@ -1855,6 +1873,17 @@ int main(int argc, char **argv) {
                 }
                 double ***buffer_c= init_3level_dtable(tp->T,tp->d*tp->d,2);
                 mult_with_c( buffer_c,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
+                #if 1
+                snprintf( tagname_nn, 400, "%s/%s_C", tagname, hdf5_diag_tag_list_tag[i]);
+                dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                /* Write the first dataset. */
+                status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_c[0][0][0]));
+
+                /* Close the first dataset. */
+                status = H5Dclose(dataset_id);
+                #endif
+
                 for (int time_coord=0; time_coord < tp->T; ++time_coord ){
                   for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner){
                     for (int realimag=0; realimag < 2; ++realimag){
@@ -1868,6 +1897,17 @@ int main(int argc, char **argv) {
 
                 double ***buffer_ct= init_3level_dtable(tp->T,tp->d*tp->d,2);
                 mult_with_ct( buffer_ct,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
+                #if 1
+                snprintf( tagname_nn, 400, "%s/%s_CT", tagname, hdf5_diag_tag_list_tag[i]);
+                dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                /* Write the first dataset. */
+                status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_ct[0][0][0]));
+
+                /* Close the first dataset. */
+                status = H5Dclose(dataset_id);
+                #endif
+
                 for (int time_coord=0; time_coord < tp->T; ++time_coord ){
                   for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner){
                     for (int realimag=0; realimag < 2; ++realimag){
@@ -1902,6 +1942,17 @@ int main(int argc, char **argv) {
 
                 double ***buffer_p= init_3level_dtable(tp->T,tp->d*tp->d,2);
                 mult_with_p(   buffer_p,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
+                #if 1
+                snprintf( tagname_nn, 400, "%s/%s_P", tagname, hdf5_diag_tag_list_tag[i]);
+                dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                /* Write the first dataset. */
+                status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_p[0][0][0]));
+
+                /* Close the first dataset. */
+                status = H5Dclose(dataset_id);
+                #endif
+
                 for (int time_coord=0; time_coord < tp->T; ++time_coord ){
                   for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner){
                     for (int realimag=0; realimag < 2; ++realimag){
@@ -1913,6 +1964,17 @@ int main(int argc, char **argv) {
 
                 double ***buffer_pt= init_3level_dtable(tp->T,tp->d*tp->d,2);
                 mult_with_pt(  buffer_pt,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
+                #if 1
+                snprintf( tagname_nn, 400, "%s/%s_PT", tagname, hdf5_diag_tag_list_tag[i]);
+                dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                /* Write the first dataset. */
+                status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_pt[0][0][0]));
+
+                /* Close the first dataset. */
+                status = H5Dclose(dataset_id);
+                #endif
+
                 for (int time_coord=0; time_coord < tp->T; ++time_coord ){
                   for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner){
                     for (int realimag=0; realimag < 2; ++realimag){
@@ -1948,6 +2010,17 @@ int main(int argc, char **argv) {
 
                 double ***buffer_cp= init_3level_dtable(tp->T,tp->d*tp->d,2);
                 mult_with_cp( buffer_cp,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
+                #if 1
+                snprintf( tagname_nn, 400, "%s/%s_CP", tagname, hdf5_diag_tag_list_tag[i]);
+                dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                /* Write the first dataset. */
+                status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_cp[0][0][0]));
+
+                /* Close the first dataset. */
+                status = H5Dclose(dataset_id);
+                #endif
+
                 for (int time_coord=0; time_coord < tp->T; ++time_coord ){
                   for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner){
                     for (int realimag=0; realimag < 2; ++realimag){
@@ -1959,6 +2032,17 @@ int main(int argc, char **argv) {
 
                 double ***buffer_cpt= init_3level_dtable(tp->T,tp->d*tp->d,2);
                 mult_with_cpt( buffer_cpt, buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
+                #if 1
+                snprintf( tagname_nn, 400, "%s/%s_CPT", tagname, hdf5_diag_tag_list_tag[i]);
+                dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                /* Write the first dataset. */
+                status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_cpt[0][0][0]));
+
+                /* Close the first dataset. */
+                status = H5Dclose(dataset_id);
+                #endif
+
                 for (int time_coord=0; time_coord < tp->T; ++time_coord ){
                   for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner){
                     for (int realimag=0; realimag < 2; ++realimag){
@@ -1967,7 +2051,6 @@ int main(int argc, char **argv) {
                   }
                 }
                 fini_3level_dtable(&buffer_cpt);
-
 
                 for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
                   for (int spin_source=0; spin_source<tp->d; ++spin_source) {
@@ -1979,6 +2062,14 @@ int main(int argc, char **argv) {
                     }
                   }
                 }
+
+                /* tagname suffix is U the abbreviation from unity */
+                snprintf( tagname_nn, 400, "%s/%s", tagname, hdf5_diag_tag_list_tag[i]);
+
+                /* Create a dataset in group "MyGroup". */
+                dataset_id = H5Dcreate2(file_id, tagname_nn, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                free(tagname_nn);
 
                 /* Write the first dataset. */
                 status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_sum[0][0][0]));
@@ -3600,6 +3691,26 @@ int main(int argc, char **argv) {
                 double ***buffer_write= init_3level_dtable(tp->T,tp->d*tp->d,2);
 
                 double ***buffer_sum_discrete = init_3level_dtable(tp->T,tp->d*tp->d,2);
+ 
+                int applied_transformations=2;
+
+                /* The current combination of momentum */
+                const int pi2xtemp=g_seq_source_momentum_list[ipi2][0];
+                const int pi2ytemp=g_seq_source_momentum_list[ipi2][1];
+                const int pi2ztemp=g_seq_source_momentum_list[ipi2][2];
+  
+                const int pf1xtemp=buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][3];
+                const int pf1ytemp=buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][4];
+                const int pf1ztemp=buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][5];
+
+                const int pf2xtemp=buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][6];
+                const int pf2ytemp=buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][7];
+                const int pf2ztemp=buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][8];
+
+                const int pi1xtemp=pf1xtemp + pf2xtemp - pi2xtemp;
+                const int pi1ytemp=pf1ytemp + pf2ytemp - pi2ytemp;
+                const int pi1ztemp=pf1ztemp + pf2ztemp - pi2ztemp;
+
 
                 for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
                   for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
@@ -3620,6 +3731,7 @@ int main(int argc, char **argv) {
                     }
                   }
                 }
+                #if 1
                 if (( i_pf1 == 0 ) && (i_total_momentum == 1) && (ipi2 == 0) && (source_gamma==1) && (sink_gamma == 0)){
                    snprintf( tagname, 400, "%s/U", tagname_part );
                    dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
@@ -3627,14 +3739,18 @@ int main(int argc, char **argv) {
                    /* Write the first dataset. */
                    status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_sum_discrete[0][0][0]));
 
-                }
+                   /* Close the first dataset. */
+                   status = H5Dclose(dataset_id);
 
+                }
+                #endif
 
                 /* applying time reversal */
-                printf("Applying time reversal\n");
+                printf("# [piN2piN_diagram_sum_per_type] Applying time reversal\n");
   
                 double ***buffer_t_reversal= init_3level_dtable(tp->T,tp->d*tp->d,2);
                 mult_with_t( buffer_t_reversal,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
+                #if 1
                 if (( i_pf1 == 0 ) && (i_total_momentum == 1) && (ipi2 == 0) && (source_gamma==1) && (sink_gamma == 0)){
                    snprintf( tagname, 400, "%s/T", tagname_part );
                    dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
@@ -3642,8 +3758,11 @@ int main(int argc, char **argv) {
                    /* Write the first dataset. */
                    status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_t_reversal[0][0][0]));
 
-                }
+                   /* Close the first dataset. */
+                   status = H5Dclose(dataset_id);
 
+                }
+                #endif
                 for (int time_coord=0; time_coord < tp->T; ++time_coord ){
                   for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
                     for (int realimag=0; realimag < 2; ++realimag){
@@ -3657,68 +3776,102 @@ int main(int argc, char **argv) {
                 /* The corresponding discrete symmetry transformations                           */
                 /*                                                   (1) charge conjugation (C)  */
                 /*                                                   (2) charge conjugation + time-reversal (CT) */
+￼￼
 
+                int pi2xatemp=g_seq_source_momentum_list[indextable_pf2_to_pi2_part_pi2[i_total_momentum][i_pf1]][0];
+                int pi2yatemp=g_seq_source_momentum_list[indextable_pf2_to_pi2_part_pi2[i_total_momentum][i_pf1]][1];
+                int pi2zatemp=g_seq_source_momentum_list[indextable_pf2_to_pi2_part_pi2[i_total_momentum][i_pf1]][2];
 
-                /* Charge conjugation */
-                printf("applying charge conjugation\n");
-                for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
-                  for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
-                    for (int realimag=0; realimag < 2; ++realimag){
-                      if ((time_extent == 0) && (spin_inner==0) && (realimag==0)){
-                        printf("i2 (%d,%d,%d)- f1  (%d,%d,%d) f2 (%d,%d,%d)\n", g_seq_source_momentum_list[ipi2][0],g_seq_source_momentum_list[ipi2][1],g_seq_source_momentum_list[ipi2][2],buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][3],buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][4],buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][5],buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][6],buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][7],buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][8]);
-                        printf("trans i2 (%d,%d,%d) f1 (%d,%d,%d) f2 (%d,%d,%d)\n",g_seq_source_momentum_list[indextable_pf2_to_pi2_part_pi2[i_total_momentum][i_pf1]][0],g_seq_source_momentum_list[indextable_pf2_to_pi2_part_pi2[i_total_momentum][i_pf1]][1],g_seq_source_momentum_list[indextable_pf2_to_pi2_part_pi2[i_total_momentum][i_pf1]][2],buffer_mom[indextable_pf2_to_pi2_part_pf1[i_total_momentum][i_pf1]][3],buffer_mom[indextable_pf2_to_pi2_part_pf1[i_total_momentum][i_pf1]][4],buffer_mom[indextable_pf2_to_pi2_part_pf1[i_total_momentum][i_pf1]][5],buffer_mom[indextable_pf2_to_pi2_part_pf1[i_total_momentum][i_pf1]][6],buffer_mom[indextable_pf2_to_pi2_part_pf1[i_total_momentum][i_pf1]][7],buffer_mom[indextable_pf2_to_pi2_part_pf1[i_total_momentum][i_pf1]][8]);
+                int pf1xatemp=buffer_mom[indextable_pf2_to_pi2_part_pf1[i_total_momentum][i_pf1]][3];
+                int pf1yatemp=buffer_mom[indextable_pf2_to_pi2_part_pf1[i_total_momentum][i_pf1]][4];
+                int pf1zatemp=buffer_mom[indextable_pf2_to_pi2_part_pf1[i_total_momentum][i_pf1]][5];
+
+                int pf2xatemp=buffer_mom[indextable_pf2_to_pi2_part_pf1[i_total_momentum][i_pf1]][6];
+                int pf2yatemp=buffer_mom[indextable_pf2_to_pi2_part_pf1[i_total_momentum][i_pf1]][7];
+                int pf2zatemp=buffer_mom[indextable_pf2_to_pi2_part_pf1[i_total_momentum][i_pf1]][8];
+
+                int pi1xatemp=pf1xatemp + pf2xatemp - pi2xatemp;
+                int pi1yatemp=pf1yatemp + pf2yatemp - pi2yatemp;
+                int pi1zatemp=pf1zatemp + pf2zatemp - pi2zatemp;
+
+                int pi1sq=pi1xatemp*pi1xatemp+pi1yatemp*pi1yatemp+pi1zatemp*pi1zatemp;
+                int pi2sq=pi2xatemp*pi2xatemp+pi2yatemp*pi2yatemp+pi2zatemp*pi2zatemp;
+                int pf1sq=pf1xatemp*pf1xatemp+pf1yatemp*pf1yatemp+pf1zatemp*pf1zatemp;
+                int pf2sq=pf2xatemp*pf2xatemp+pf2yatemp*pf2yatemp+pf2zatemp*pf2zatemp;
+
+                /* We apply charge conjugation and CT only when we have the charge conjugated momenta */
+                if ( (pi1sq <=3 ) && (pi1sq <=3 ) && (pi1sq <=3 ) && (pi1sq <=3 ) ){
+
+                  applied_transformations+=2;
+                  /* Charge conjugation */
+                  printf("# [piN2piN_diagram_sum_per_type] Applying charge conjugation\n");
+
+                  printf("# [piN2piN_diagram_sum_per_type] before charge conjugation pi1 (%d,%d,%d) pi2 (%d,%d,%d)- pf1  (%d,%d,%d) pf2 (%d,%d,%d)\n", pi1xtemp, pi1ytemp, pi1ztemp, pi2xtemp, pi2ytemp, pi2ztemp, pf1xtemp, pf1ytemp, pf1ztemp, pf2xtemp, pf2ytemp, pf2ztemp );
+
+                  printf("# [piN2piN_diagram_sum_per_type] after charge conjugation pi1 (%d,%d,%d) pi2 (%d,%d,%d)- pf1  (%d,%d,%d) pf2 (%d,%d,%d)\n", pi1xatemp, pi1yatemp, pi1zatemp, pi2xatemp, pi2yatemp, pi2zatemp, pf1xatemp, pf1yatemp, pf1zatemp, pf2xatemp, pf2yatemp, pf2zatemp );
+                  for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
+                    for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
+                      for (int realimag=0; realimag < 2; ++realimag){
+                        buffer_write[time_extent][spin_inner][realimag]=buffer_sum[indextable_pf2_to_pi2_part_pi2[i_total_momentum][i_pf1]][time_extent][indextable_pf2_to_pi2_part_pf1[i_total_momentum][i_pf1]][sink_gamma*tp->number_of_gammas_sink+source_gamma][spin_inner][realimag];
                       }
-                      buffer_write[time_extent][spin_inner][realimag]=buffer_sum[indextable_pf2_to_pi2_part_pi2[i_total_momentum][i_pf1]][time_extent][indextable_pf2_to_pi2_part_pf1[i_total_momentum][i_pf1]][sink_gamma*tp->number_of_gammas_sink+source_gamma][spin_inner][realimag];
+                    }
+                    if ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ){
+                      mult_with_gamma5_matrix_sink(buffer_write[time_extent]);
+                    }
+                    if ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ){
+                      mult_with_gamma5_matrix_adj_source(buffer_write[time_extent]);
                     }
                   }
-                  if ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ){
-                    mult_with_gamma5_matrix_sink(buffer_write[time_extent]);
-                  }
-                  if ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ){
-                    mult_with_gamma5_matrix_adj_source(buffer_write[time_extent]);
-                  }
-                }
 
 
-                double ***buffer_c= init_3level_dtable(tp->T,tp->d*tp->d,2);
-                mult_with_c( buffer_c,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
-                if (( i_pf1 == 0 ) && (i_total_momentum == 1) && (ipi2 == 0) && (source_gamma==1) && (sink_gamma == 0)){
+                  double ***buffer_c= init_3level_dtable(tp->T,tp->d*tp->d,2);
+                  mult_with_c( buffer_c,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
+                  #if 1
+                  if (( i_pf1 == 0 ) && (i_total_momentum == 1) && (ipi2 == 0) && (source_gamma==1) && (sink_gamma == 0)){
                    snprintf( tagname, 400, "%s/C", tagname_part );
                    dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
                    /* Write the first dataset. */
                    status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_c[0][0][0]));
-
-                }
-
-                for (int time_coord=0; time_coord < tp->T; ++time_coord ){
-                  for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
-                    for (int realimag=0; realimag < 2; ++realimag){
-                      buffer_sum_discrete[time_coord][spin_inner][realimag]+=buffer_c[time_coord][spin_inner][realimag];
+ 
+                   /* Close the first dataset. */
+                   status = H5Dclose(dataset_id);
+                  }
+                  #endif
+                  for (int time_coord=0; time_coord < tp->T; ++time_coord ){
+                    for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
+                      for (int realimag=0; realimag < 2; ++realimag){
+                        buffer_sum_discrete[time_coord][spin_inner][realimag]+=buffer_c[time_coord][spin_inner][realimag];
+                      }
                     }
                   }
-                }
-                fini_3level_dtable( &buffer_c );
+                  fini_3level_dtable( &buffer_c );
 
-                double ***buffer_ct= init_3level_dtable(tp->T,tp->d*tp->d,2);
-                mult_with_ct( buffer_ct,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
-                if (( i_pf1 == 0 ) && (i_total_momentum == 1) && (ipi2 == 0) && (source_gamma==1) && (sink_gamma == 0)){
+                  double ***buffer_ct= init_3level_dtable(tp->T,tp->d*tp->d,2);
+                  mult_with_ct( buffer_ct,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
+                  #if 1
+                  if (( i_pf1 == 0 ) && (i_total_momentum == 1) && (ipi2 == 0) && (source_gamma==1) && (sink_gamma == 0)){
                    snprintf( tagname, 400, "%s/CT", tagname_part );
                    dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
                    /* Write the first dataset. */
                    status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_ct[0][0][0]));
 
-                }
+                   /* Close the first dataset. */
+                   status = H5Dclose(dataset_id);
+                  }
+                  #endif
 
-                for (int time_coord=0; time_coord < tp->T; ++time_coord ){
-                  for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
-                    for (int realimag=0; realimag < 2; ++realimag){
-                      buffer_sum_discrete[time_coord][spin_inner][realimag]+=buffer_ct[time_coord][spin_inner][realimag];
+                  for (int time_coord=0; time_coord < tp->T; ++time_coord ){
+                    for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
+                      for (int realimag=0; realimag < 2; ++realimag){
+                        buffer_sum_discrete[time_coord][spin_inner][realimag]+=buffer_ct[time_coord][spin_inner][realimag];
+                      }
                     }
                   }
+                  fini_3level_dtable( &buffer_ct);
+
                 }
-                fini_3level_dtable( &buffer_ct);
 
 
                 /* parity, the sink and the source momenta is reflected, the gamma structures left unchanged*/
@@ -3727,127 +3880,212 @@ int main(int argc, char **argv) {
                 /*                                                   (2) parity + time-reversal (PT) */
 
                 /* parity  */
-                printf("Applying parity\n");
-                for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
-                  for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
-                    for (int realimag=0; realimag < 2; ++realimag){
-                      if ((time_extent == 0) && (spin_inner==0) && (realimag==0)){
-                        printf("i2 =%d (%d,%d,%d)-i2=%d (%d,%d,%d)\n", ipi2,g_seq_source_momentum_list[ipi2][0],g_seq_source_momentum_list[ipi2][1],g_seq_source_momentum_list[ipi2][2],indextable_i2_to_minus_i2[ipi2],g_seq_source_momentum_list[indextable_i2_to_minus_i2[ipi2]][0],g_seq_source_momentum_list[indextable_i2_to_minus_i2[ipi2]][1],g_seq_source_momentum_list[indextable_i2_to_minus_i2[ipi2]][2]);
-                        printf("%d,%d,%d -pf1  %d,%d,%d\n", buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][3],buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][4],buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][5], buffer_mom[indextable_minus_pf2[i_total_momentum][i_pf1]][3],buffer_mom[indextable_minus_pf2[i_total_momentum][i_pf1]][4],buffer_mom[indextable_minus_pf2[i_total_momentum][i_pf1]][5]);     
+
+                /* The parity transformed momenta */
+
+                pi2xatemp=g_seq_source_momentum_list[indextable_i2_to_minus_i2[ipi2]][0];
+                pi2yatemp=g_seq_source_momentum_list[indextable_i2_to_minus_i2[ipi2]][1];
+                pi2zatemp=g_seq_source_momentum_list[indextable_i2_to_minus_i2[ipi2]][2];
+
+                pf1xatemp=buffer_mom[indextable_minus_pf2[i_total_momentum][i_pf1]][3];
+                pf1yatemp=buffer_mom[indextable_minus_pf2[i_total_momentum][i_pf1]][4];
+                pf1zatemp=buffer_mom[indextable_minus_pf2[i_total_momentum][i_pf1]][5];
+
+                pf2xatemp=buffer_mom[indextable_minus_pf2[i_total_momentum][i_pf1]][6];
+                pf2yatemp=buffer_mom[indextable_minus_pf2[i_total_momentum][i_pf1]][7];
+                pf2zatemp=buffer_mom[indextable_minus_pf2[i_total_momentum][i_pf1]][8];
+
+                pi1xatemp=pf1xatemp + pf2xatemp - pi2xatemp;
+                pi1yatemp=pf1yatemp + pf2yatemp - pi2yatemp;
+                pi1zatemp=pf1zatemp + pf2zatemp - pi2zatemp;
+
+                pi1sq=pi1xatemp*pi1xatemp+pi1yatemp*pi1yatemp+pi1zatemp*pi1zatemp;
+                pi2sq=pi2xatemp*pi2xatemp+pi2yatemp*pi2yatemp+pi2zatemp*pi2zatemp;
+                pf1sq=pf1xatemp*pf1xatemp+pf1yatemp*pf1yatemp+pf1zatemp*pf1zatemp;
+                pf2sq=pf2xatemp*pf2xatemp+pf2yatemp*pf2yatemp+pf2zatemp*pf2zatemp;
+
+                /* We applying parity and PT only when we have the transformed momentum */
+
+                if ( (pi1sq <=3 ) && (pi1sq <=3 ) && (pi1sq <=3 ) && (pi1sq <=3 ) ){
+
+                  applied_transformations+=2;
+
+                  printf("# [piN2piN_diagram_sum_per_type] Applying parity\n");
+
+                  printf("# [piN2piN_diagram_sum_per_type] before parity pi1 (%d,%d,%d) pi2 (%d,%d,%d)- pf1  (%d,%d,%d) pf2 (%d,%d,%d)\n", pi1xtemp, pi1ytemp, pi1ztemp, pi2xtemp, pi2ytemp, pi2ztemp, pf1xtemp, pf1ytemp, pf1ztemp, pf2xtemp, pf2ytemp, pf2ztemp );
+                 
+                  printf("# [piN2piN_diagram_sum_per_type] after parity pi1 (%d,%d,%d) pi2 (%d,%d,%d)- pf1  (%d,%d,%d) pf2 (%d,%d,%d)\n", pi1xatemp, pi1yatemp, pi1zatemp, pi2xatemp, pi2yatemp, pi2zatemp, pf1xatemp, pf1yatemp, pf1zatemp, pf2xatemp, pf2yatemp, pf2zatemp );
+
+                
+                  for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
+                    for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
+                      for (int realimag=0; realimag < 2; ++realimag){
+                        buffer_write[time_extent][spin_inner][realimag]=buffer_sum[indextable_i2_to_minus_i2[ipi2]][time_extent][indextable_minus_pf2[i_total_momentum][i_pf1]][source_gamma*tp->number_of_gammas_sink+sink_gamma][spin_inner][realimag];
                       }
-                      buffer_write[time_extent][spin_inner][realimag]=buffer_sum[indextable_i2_to_minus_i2[ipi2]][time_extent][indextable_minus_pf2[i_total_momentum][i_pf1]][source_gamma*tp->number_of_gammas_sink+sink_gamma][spin_inner][realimag];
+                    }
+                    if ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ){
+                      mult_with_gamma5_matrix_adj_source(buffer_write[time_extent]);
+                    }
+                    if ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ){
+                      mult_with_gamma5_matrix_sink(buffer_write[time_extent]);
                     }
                   }
-                  if ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ){
-                    mult_with_gamma5_matrix_adj_source(buffer_write[time_extent]);
-                  }
-                  if ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ){
-                    mult_with_gamma5_matrix_sink(buffer_write[time_extent]);
-                  }
-                }
 
-                double ***buffer_p= init_3level_dtable(tp->T,tp->d*tp->d,2);
-                mult_with_p( buffer_p,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
-                if (( i_pf1 == 0 ) && (i_total_momentum == 1) && (ipi2 == 0) && (source_gamma==1) && (sink_gamma == 0)){
+                  double ***buffer_p= init_3level_dtable(tp->T,tp->d*tp->d,2);
+                  mult_with_p( buffer_p,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
+                  #if 1
+                  if (( i_pf1 == 0 ) && (i_total_momentum == 1) && (ipi2 == 0) && (source_gamma==1) && (sink_gamma == 0)){
                    snprintf( tagname, 400, "%s/P", tagname_part );
                    dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
                    /* Write the first dataset. */
                    status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_p[0][0][0]));
+                   /* Close the first dataset. */
+                   status = H5Dclose(dataset_id);
 
-                }
-
-                for (int time_coord=0; time_coord < tp->T; ++time_coord ){
-                  for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
-                    for (int realimag=0; realimag < 2; ++realimag){
-                      buffer_sum_discrete[time_coord][spin_inner][realimag]+=buffer_p[time_coord][spin_inner][realimag];
+                  }
+                  #endif
+                  for (int time_coord=0; time_coord < tp->T; ++time_coord ){
+                    for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
+                      for (int realimag=0; realimag < 2; ++realimag){
+                        buffer_sum_discrete[time_coord][spin_inner][realimag]+=buffer_p[time_coord][spin_inner][realimag];
+                      }
                     }
                   }
-                }
-                fini_3level_dtable( &buffer_p );
+                  fini_3level_dtable( &buffer_p );
 
-                double ***buffer_pt= init_3level_dtable(tp->T,tp->d*tp->d,2);
-                mult_with_pt( buffer_pt,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
-                if (( i_pf1 == 0 ) && (i_total_momentum == 1) && (ipi2 == 0) && (source_gamma==1) && (sink_gamma == 0)){
+                  double ***buffer_pt= init_3level_dtable(tp->T,tp->d*tp->d,2);
+                  mult_with_pt( buffer_pt,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
+                  #if 1
+                  if (( i_pf1 == 0 ) && (i_total_momentum == 1) && (ipi2 == 0) && (source_gamma==1) && (sink_gamma == 0)){
                    snprintf( tagname, 400, "%s/PT", tagname_part );
                    dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
                    /* Write the first dataset. */
                    status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_pt[0][0][0]));
 
-                }
+                   /* Close the first dataset. */
+                   status = H5Dclose(dataset_id);
+                  }
+                  #endif
 
-                for (int time_coord=0; time_coord < tp->T; ++time_coord ){
-                  for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
-                    for (int realimag=0; realimag < 2; ++realimag){
-                      buffer_sum_discrete[time_coord][spin_inner][realimag]+=buffer_pt[time_coord][spin_inner][realimag];
+                  for (int time_coord=0; time_coord < tp->T; ++time_coord ){
+                    for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
+                      for (int realimag=0; realimag < 2; ++realimag){
+                        buffer_sum_discrete[time_coord][spin_inner][realimag]+=buffer_pt[time_coord][spin_inner][realimag];
+                      }
                     }
                   }
+                  fini_3level_dtable( &buffer_pt );
+                  
                 }
-                fini_3level_dtable( &buffer_pt );
 
+                pi2xatemp=g_seq_source_momentum_list[indextable_pf2_to_minus_pi2_part_pi2[i_total_momentum][i_pf1]][0];
+                pi2yatemp=g_seq_source_momentum_list[indextable_pf2_to_minus_pi2_part_pi2[i_total_momentum][i_pf1]][1];
+                pi2zatemp=g_seq_source_momentum_list[indextable_pf2_to_minus_pi2_part_pi2[i_total_momentum][i_pf1]][2];
+                        
+                pf1xatemp=buffer_mom[indextable_pf2_to_minus_pi2_part_pf1[i_total_momentum][i_pf1]][3];
+                pf1yatemp=buffer_mom[indextable_pf2_to_minus_pi2_part_pf1[i_total_momentum][i_pf1]][4];
+                pf1zatemp=buffer_mom[indextable_pf2_to_minus_pi2_part_pf1[i_total_momentum][i_pf1]][5];
 
+                pf2xatemp=buffer_mom[indextable_pf2_to_minus_pi2_part_pf1[i_total_momentum][i_pf1]][6];
+                pf2yatemp=buffer_mom[indextable_pf2_to_minus_pi2_part_pf1[i_total_momentum][i_pf1]][7];
+                pf2zatemp=buffer_mom[indextable_pf2_to_minus_pi2_part_pf1[i_total_momentum][i_pf1]][8];
 
-                printf("Applyingcp\n");
-                /* Charge+parity conjugation */
-                for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
-                  for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
-                    for (int realimag=0; realimag < 2; ++realimag){
-                      if ((time_extent == 0) && (spin_inner==0) && (realimag==0)){
-                        printf("i2 =%d (%d,%d,%d)-i2=%d (%d,%d,%d)\n", ipi2,g_seq_source_momentum_list[ipi2][0],g_seq_source_momentum_list[ipi2][1],g_seq_source_momentum_list[ipi2][2],indextable_i2_to_minus_i2[ipi2],g_seq_source_momentum_list[indextable_pf2_to_minus_pi2_part_pi2[i_total_momentum][i_pf1]][0],g_seq_source_momentum_list[indextable_pf2_to_minus_pi2_part_pi2[i_total_momentum][i_pf1]][1],g_seq_source_momentum_list[indextable_pf2_to_minus_pi2_part_pi2[i_total_momentum][i_pf1]][2]);
-                        printf("%d,%d,%d -pf1  %d,%d,%d\n", buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][3],buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][4],buffer_mom[indextable_pf2[i_total_momentum][i_pf1]][5], buffer_mom[indextable_pf2_to_minus_pi2_part_pf1[i_total_momentum][i_pf1]][3],buffer_mom[indextable_pf2_to_minus_pi2_part_pf1[i_total_momentum][i_pf1]][4],buffer_mom[indextable_pf2_to_minus_pi2_part_pf1[i_total_momentum][i_pf1]][5]);
-		      }
-                      buffer_write[time_extent][spin_inner][realimag]=buffer_sum[indextable_pf2_to_minus_pi2_part_pi2[i_total_momentum][i_pf1]][time_extent][indextable_pf2_to_minus_pi2_part_pf1[i_total_momentum][i_pf1]][sink_gamma*tp->number_of_gammas_sink+source_gamma][spin_inner][realimag];
+                pi1xatemp=pf1xatemp + pf2xatemp - pi2xatemp;
+                pi1yatemp=pf1yatemp + pf2yatemp - pi2yatemp;
+                pi1zatemp=pf1zatemp + pf2zatemp - pi2zatemp;
+
+                pi1sq=pi1xatemp*pi1xatemp+pi1yatemp*pi1yatemp+pi1zatemp*pi1zatemp;
+                pi2sq=pi2xatemp*pi2xatemp+pi2yatemp*pi2yatemp+pi2zatemp*pi2zatemp;
+                pf1sq=pf1xatemp*pf1xatemp+pf1yatemp*pf1yatemp+pf1zatemp*pf1zatemp;
+                pf2sq=pf2xatemp*pf2xatemp+pf2yatemp*pf2yatemp+pf2zatemp*pf2zatemp;
+
+                /* We applying charge conjugation + parity and CPT only when we have the transformed momentum */
+
+                if ( (pi1sq <=3 ) && (pi1sq <=3 ) && (pi1sq <=3 ) && (pi1sq <=3 ) ){
+  
+                  applied_transformations+=2;
+ 
+                  printf("# [piN2piN_diagram_sum_per_type] Applyingcp\n");
+
+                  printf("# [piN2piN_diagram_sum_per_type] before cp pi1 (%d,%d,%d) pi2 (%d,%d,%d)- pf1  (%d,%d,%d) pf2 (%d,%d,%d)\n", pi1xtemp, pi1ytemp, pi1ztemp, pi2xtemp, pi2ytemp, pi2ztemp, pf1xtemp, pf1ytemp, pf1ztemp, pf2xtemp, pf2ytemp, pf2ztemp );
+
+                  printf("# [piN2piN_diagram_sum_per_type] after cp pi1 (%d,%d,%d) pi2 (%d,%d,%d)- pf1  (%d,%d,%d) pf2 (%d,%d,%d)\n", pi1xatemp, pi1yatemp, pi1zatemp, pi2xatemp, pi2yatemp, pi2zatemp, pf1xatemp, pf1yatemp, pf1zatemp, pf2xatemp, pf2yatemp, pf2zatemp );
+                  /* Charge+parity conjugation */
+                  for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
+                    for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
+                      for (int realimag=0; realimag < 2; ++realimag){
+                        buffer_write[time_extent][spin_inner][realimag]=buffer_sum[indextable_pf2_to_minus_pi2_part_pi2[i_total_momentum][i_pf1]][time_extent][indextable_pf2_to_minus_pi2_part_pf1[i_total_momentum][i_pf1]][sink_gamma*tp->number_of_gammas_sink+source_gamma][spin_inner][realimag];
+                      }
+                    }
+                    if ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ){
+                      mult_with_gamma5_matrix_sink(buffer_write[time_extent]);
+                    }
+                    if ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ){
+                      mult_with_gamma5_matrix_adj_source(buffer_write[time_extent]);
                     }
                   }
-                  if ((strcmp(gamma_string_list_source[source_gamma],"C")==0) || (strcmp(gamma_string_list_source[source_gamma],"Cg4")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_source[source_gamma],"cg3g4g5")==0) ){
-                    mult_with_gamma5_matrix_sink(buffer_write[time_extent]);
-                  }
-                  if ((strcmp(gamma_string_list_sink[sink_gamma],"C")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"Cg4")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg1g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg2g4g5")==0) || (strcmp(gamma_string_list_sink[sink_gamma],"cg3g4g5")==0) ){
-                    mult_with_gamma5_matrix_adj_source(buffer_write[time_extent]);
-                  }
-                }
 
 
-                double ***buffer_cp= init_3level_dtable(tp->T,tp->d*tp->d,2);
-                mult_with_cp( buffer_cp,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
-                if (( i_pf1 == 0 ) && (i_total_momentum == 1) && (ipi2 == 0) && (source_gamma==1) && (sink_gamma == 0)){
+                  double ***buffer_cp= init_3level_dtable(tp->T,tp->d*tp->d,2);
+                  mult_with_cp( buffer_cp,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
+                  #if 1
+                  if (( i_pf1 == 0 ) && (i_total_momentum == 1) && (ipi2 == 0) && (source_gamma==1) && (sink_gamma == 0)){
                    snprintf( tagname, 400, "%s/CP", tagname_part );
                    dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
                    /* Write the first dataset. */
                    status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_cp[0][0][0]));
 
-                }
+                   /* Close the first dataset. */
+                   status = H5Dclose(dataset_id);
 
-                for (int time_coord=0; time_coord < tp->T; ++time_coord ){
-                  for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
-                    for (int realimag=0; realimag < 2; ++realimag){
-                      buffer_sum_discrete[time_coord][spin_inner][realimag]+=buffer_cp[time_coord][spin_inner][realimag];
+                  }
+                  #endif         
+                  for (int time_coord=0; time_coord < tp->T; ++time_coord ){
+                    for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
+                      for (int realimag=0; realimag < 2; ++realimag){
+                        buffer_sum_discrete[time_coord][spin_inner][realimag]+=buffer_cp[time_coord][spin_inner][realimag];
+                      }
                     }
                   }
-                }
-                fini_3level_dtable( &buffer_cp );
+                  fini_3level_dtable( &buffer_cp );
 
-                double ***buffer_cpt= init_3level_dtable(tp->T,tp->d*tp->d,2);
-                mult_with_cpt( buffer_cpt,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
-
-                /* Create a dataset in group "MyGroup". */
-                if (( i_pf1 == 0 ) && (i_total_momentum == 1) && (ipi2 == 0) && (source_gamma==1) && (sink_gamma == 0)){
+                  double ***buffer_cpt= init_3level_dtable(tp->T,tp->d*tp->d,2);
+                  mult_with_cpt( buffer_cpt,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
+                  #if 1
+                  /* Create a dataset in group "MyGroup". */
+                  if (( i_pf1 == 0 ) && (i_total_momentum == 1) && (ipi2 == 0) && (source_gamma==1) && (sink_gamma == 0)){
                    snprintf( tagname, 400, "%s/CPT", tagname_part );
                    dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
                    /* Write the first dataset. */
                    status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_cpt[0][0][0]));
+
+                   /* Close the first dataset. */
+                   status = H5Dclose(dataset_id);
+                  }
+                  #endif
+                  for (int time_coord=0; time_coord < tp->T; ++time_coord ){
+                    for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
+                      for (int realimag=0; realimag < 2; ++realimag){
+                        buffer_sum_discrete[time_coord][spin_inner][realimag]+=buffer_cpt[time_coord][spin_inner][realimag];
+                      }
+                    }
+                  }
+                  fini_3level_dtable( &buffer_cpt );
+
                 }
+
+                /* Perform normalization */
                 for (int time_coord=0; time_coord < tp->T; ++time_coord ){
                   for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
                     for (int realimag=0; realimag < 2; ++realimag){
-                      buffer_sum_discrete[time_coord][spin_inner][realimag]+=buffer_cpt[time_coord][spin_inner][realimag];
+                      buffer_sum_discrete[time_coord][spin_inner][realimag]/=applied_transformations;
                     }
                   }
                 }
-                fini_3level_dtable( &buffer_cpt );
 
 
                 /* Create a dataset in group "MyGroup". */
