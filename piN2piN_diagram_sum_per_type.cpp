@@ -3711,6 +3711,10 @@ int main(int argc, char **argv) {
                 const int pi1ytemp=pf1ytemp + pf2ytemp - pi2ytemp;
                 const int pi1ztemp=pf1ztemp + pf2ztemp - pi2ztemp;
 
+                const int pi1osq=pi1xtemp*pi1xtemp+pi1ytemp*pi1ytemp+pi1ztemp*pi1ztemp;
+                const int pi2osq=pi2xtemp*pi2xtemp+pi2ytemp*pi2ytemp+pi2ztemp*pi2ztemp;
+                const int pf1osq=pf1xtemp*pf1xtemp+pf1ytemp*pf1ytemp+pf1ztemp*pf1ztemp;
+                const int pf2osq=pf2xtemp*pf2xtemp+pf2ytemp*pf2ytemp+pf2ztemp*pf2ztemp;
 
                 for (int time_extent = 0; time_extent < tp->T ; ++ time_extent ){
                   for (int spin_inner=0; spin_inner < tp->d*tp->d; ++spin_inner) {
@@ -3776,31 +3780,25 @@ int main(int argc, char **argv) {
                 /* The corresponding discrete symmetry transformations                           */
                 /*                                                   (1) charge conjugation (C)  */
                 /*                                                   (2) charge conjugation + time-reversal (CT) */
-￼￼
-
-                int pi2xatemp=g_seq_source_momentum_list[indextable_pf2_to_pi2_part_pi2[i_total_momentum][i_pf1]][0];
-                int pi2yatemp=g_seq_source_momentum_list[indextable_pf2_to_pi2_part_pi2[i_total_momentum][i_pf1]][1];
-                int pi2zatemp=g_seq_source_momentum_list[indextable_pf2_to_pi2_part_pi2[i_total_momentum][i_pf1]][2];
-
-                int pf1xatemp=buffer_mom[indextable_pf2_to_pi2_part_pf1[i_total_momentum][i_pf1]][3];
-                int pf1yatemp=buffer_mom[indextable_pf2_to_pi2_part_pf1[i_total_momentum][i_pf1]][4];
-                int pf1zatemp=buffer_mom[indextable_pf2_to_pi2_part_pf1[i_total_momentum][i_pf1]][5];
-
-                int pf2xatemp=buffer_mom[indextable_pf2_to_pi2_part_pf1[i_total_momentum][i_pf1]][6];
-                int pf2yatemp=buffer_mom[indextable_pf2_to_pi2_part_pf1[i_total_momentum][i_pf1]][7];
-                int pf2zatemp=buffer_mom[indextable_pf2_to_pi2_part_pf1[i_total_momentum][i_pf1]][8];
-
-                int pi1xatemp=pf1xatemp + pf2xatemp - pi2xatemp;
-                int pi1yatemp=pf1yatemp + pf2yatemp - pi2yatemp;
-                int pi1zatemp=pf1zatemp + pf2zatemp - pi2zatemp;
-
-                int pi1sq=pi1xatemp*pi1xatemp+pi1yatemp*pi1yatemp+pi1zatemp*pi1zatemp;
-                int pi2sq=pi2xatemp*pi2xatemp+pi2yatemp*pi2yatemp+pi2zatemp*pi2zatemp;
-                int pf1sq=pf1xatemp*pf1xatemp+pf1yatemp*pf1yatemp+pf1zatemp*pf1zatemp;
-                int pf2sq=pf2xatemp*pf2xatemp+pf2yatemp*pf2yatemp+pf2zatemp*pf2zatemp;
 
                 /* We apply charge conjugation and CT only when we have the charge conjugated momenta */
-                if ( (pi1sq <=3 ) && (pi1sq <=3 ) && (pi1sq <=3 ) && (pi1sq <=3 ) ){
+                if ( (pi1osq<=3) && (pi2osq<=3) && (pf1osq<=3) && (pf2osq<=3)) {
+                  const int pi2xatemp=g_seq_source_momentum_list[indextable_pf2_to_pi2_part_pi2[i_total_momentum][i_pf1]][0];
+                  const int pi2yatemp=g_seq_source_momentum_list[indextable_pf2_to_pi2_part_pi2[i_total_momentum][i_pf1]][1];
+                  const int pi2zatemp=g_seq_source_momentum_list[indextable_pf2_to_pi2_part_pi2[i_total_momentum][i_pf1]][2];
+
+                  const int pf1xatemp=buffer_mom[indextable_pf2_to_pi2_part_pf1[i_total_momentum][i_pf1]][3];
+                  const int pf1yatemp=buffer_mom[indextable_pf2_to_pi2_part_pf1[i_total_momentum][i_pf1]][4];
+                  const int pf1zatemp=buffer_mom[indextable_pf2_to_pi2_part_pf1[i_total_momentum][i_pf1]][5];
+
+                  const int pf2xatemp=buffer_mom[indextable_pf2_to_pi2_part_pf1[i_total_momentum][i_pf1]][6];
+                  const int pf2yatemp=buffer_mom[indextable_pf2_to_pi2_part_pf1[i_total_momentum][i_pf1]][7];
+                  const int pf2zatemp=buffer_mom[indextable_pf2_to_pi2_part_pf1[i_total_momentum][i_pf1]][8];
+
+                  const int pi1xatemp=pf1xatemp + pf2xatemp - pi2xatemp;
+                  const int pi1yatemp=pf1yatemp + pf2yatemp - pi2yatemp;
+                  const int pi1zatemp=pf1zatemp + pf2zatemp - pi2zatemp;
+
 
                   applied_transformations+=2;
                   /* Charge conjugation */
@@ -3883,30 +3881,25 @@ int main(int argc, char **argv) {
 
                 /* The parity transformed momenta */
 
-                pi2xatemp=g_seq_source_momentum_list[indextable_i2_to_minus_i2[ipi2]][0];
-                pi2yatemp=g_seq_source_momentum_list[indextable_i2_to_minus_i2[ipi2]][1];
-                pi2zatemp=g_seq_source_momentum_list[indextable_i2_to_minus_i2[ipi2]][2];
-
-                pf1xatemp=buffer_mom[indextable_minus_pf2[i_total_momentum][i_pf1]][3];
-                pf1yatemp=buffer_mom[indextable_minus_pf2[i_total_momentum][i_pf1]][4];
-                pf1zatemp=buffer_mom[indextable_minus_pf2[i_total_momentum][i_pf1]][5];
-
-                pf2xatemp=buffer_mom[indextable_minus_pf2[i_total_momentum][i_pf1]][6];
-                pf2yatemp=buffer_mom[indextable_minus_pf2[i_total_momentum][i_pf1]][7];
-                pf2zatemp=buffer_mom[indextable_minus_pf2[i_total_momentum][i_pf1]][8];
-
-                pi1xatemp=pf1xatemp + pf2xatemp - pi2xatemp;
-                pi1yatemp=pf1yatemp + pf2yatemp - pi2yatemp;
-                pi1zatemp=pf1zatemp + pf2zatemp - pi2zatemp;
-
-                pi1sq=pi1xatemp*pi1xatemp+pi1yatemp*pi1yatemp+pi1zatemp*pi1zatemp;
-                pi2sq=pi2xatemp*pi2xatemp+pi2yatemp*pi2yatemp+pi2zatemp*pi2zatemp;
-                pf1sq=pf1xatemp*pf1xatemp+pf1yatemp*pf1yatemp+pf1zatemp*pf1zatemp;
-                pf2sq=pf2xatemp*pf2xatemp+pf2yatemp*pf2yatemp+pf2zatemp*pf2zatemp;
-
                 /* We applying parity and PT only when we have the transformed momentum */
+                if ( (pi1osq<=3) && (pi2osq<=3) && (pf1osq<=3) && (pf2osq<=3)) {
 
-                if ( (pi1sq <=3 ) && (pi1sq <=3 ) && (pi1sq <=3 ) && (pi1sq <=3 ) ){
+                  const int pi2xatemp=g_seq_source_momentum_list[indextable_i2_to_minus_i2[ipi2]][0];
+                  const int pi2yatemp=g_seq_source_momentum_list[indextable_i2_to_minus_i2[ipi2]][1];
+                  const int pi2zatemp=g_seq_source_momentum_list[indextable_i2_to_minus_i2[ipi2]][2];
+
+                  const int pf1xatemp=buffer_mom[indextable_minus_pf2[i_total_momentum][i_pf1]][3];
+                  const int pf1yatemp=buffer_mom[indextable_minus_pf2[i_total_momentum][i_pf1]][4];
+                  const int pf1zatemp=buffer_mom[indextable_minus_pf2[i_total_momentum][i_pf1]][5];
+
+                  const int pf2xatemp=buffer_mom[indextable_minus_pf2[i_total_momentum][i_pf1]][6];
+                  const int pf2yatemp=buffer_mom[indextable_minus_pf2[i_total_momentum][i_pf1]][7];
+                  const int pf2zatemp=buffer_mom[indextable_minus_pf2[i_total_momentum][i_pf1]][8];
+
+                  const int pi1xatemp=pf1xatemp + pf2xatemp - pi2xatemp;
+                  const int pi1yatemp=pf1yatemp + pf2yatemp - pi2yatemp;
+                  const int pi1zatemp=pf1zatemp + pf2zatemp - pi2zatemp;
+
 
                   applied_transformations+=2;
 
@@ -3979,32 +3972,27 @@ int main(int argc, char **argv) {
                   fini_3level_dtable( &buffer_pt );
                   
                 }
-
-                pi2xatemp=g_seq_source_momentum_list[indextable_pf2_to_minus_pi2_part_pi2[i_total_momentum][i_pf1]][0];
-                pi2yatemp=g_seq_source_momentum_list[indextable_pf2_to_minus_pi2_part_pi2[i_total_momentum][i_pf1]][1];
-                pi2zatemp=g_seq_source_momentum_list[indextable_pf2_to_minus_pi2_part_pi2[i_total_momentum][i_pf1]][2];
-                        
-                pf1xatemp=buffer_mom[indextable_pf2_to_minus_pi2_part_pf1[i_total_momentum][i_pf1]][3];
-                pf1yatemp=buffer_mom[indextable_pf2_to_minus_pi2_part_pf1[i_total_momentum][i_pf1]][4];
-                pf1zatemp=buffer_mom[indextable_pf2_to_minus_pi2_part_pf1[i_total_momentum][i_pf1]][5];
-
-                pf2xatemp=buffer_mom[indextable_pf2_to_minus_pi2_part_pf1[i_total_momentum][i_pf1]][6];
-                pf2yatemp=buffer_mom[indextable_pf2_to_minus_pi2_part_pf1[i_total_momentum][i_pf1]][7];
-                pf2zatemp=buffer_mom[indextable_pf2_to_minus_pi2_part_pf1[i_total_momentum][i_pf1]][8];
-
-                pi1xatemp=pf1xatemp + pf2xatemp - pi2xatemp;
-                pi1yatemp=pf1yatemp + pf2yatemp - pi2yatemp;
-                pi1zatemp=pf1zatemp + pf2zatemp - pi2zatemp;
-
-                pi1sq=pi1xatemp*pi1xatemp+pi1yatemp*pi1yatemp+pi1zatemp*pi1zatemp;
-                pi2sq=pi2xatemp*pi2xatemp+pi2yatemp*pi2yatemp+pi2zatemp*pi2zatemp;
-                pf1sq=pf1xatemp*pf1xatemp+pf1yatemp*pf1yatemp+pf1zatemp*pf1zatemp;
-                pf2sq=pf2xatemp*pf2xatemp+pf2yatemp*pf2yatemp+pf2zatemp*pf2zatemp;
+                
 
                 /* We applying charge conjugation + parity and CPT only when we have the transformed momentum */
+                if ( (pi1osq<=3) && (pi2osq<=3) && (pf1osq<=3) && (pf2osq<=3)) {
 
-                if ( (pi1sq <=3 ) && (pi1sq <=3 ) && (pi1sq <=3 ) && (pi1sq <=3 ) ){
-  
+                  const int pi2xatemp=g_seq_source_momentum_list[indextable_pf2_to_minus_pi2_part_pi2[i_total_momentum][i_pf1]][0];
+                  const int pi2yatemp=g_seq_source_momentum_list[indextable_pf2_to_minus_pi2_part_pi2[i_total_momentum][i_pf1]][1];
+                  const int pi2zatemp=g_seq_source_momentum_list[indextable_pf2_to_minus_pi2_part_pi2[i_total_momentum][i_pf1]][2];
+                        
+                  const int pf1xatemp=buffer_mom[indextable_pf2_to_minus_pi2_part_pf1[i_total_momentum][i_pf1]][3];
+                  const int pf1yatemp=buffer_mom[indextable_pf2_to_minus_pi2_part_pf1[i_total_momentum][i_pf1]][4];
+                  const int pf1zatemp=buffer_mom[indextable_pf2_to_minus_pi2_part_pf1[i_total_momentum][i_pf1]][5];
+
+                  const int pf2xatemp=buffer_mom[indextable_pf2_to_minus_pi2_part_pf1[i_total_momentum][i_pf1]][6];
+                  const int pf2yatemp=buffer_mom[indextable_pf2_to_minus_pi2_part_pf1[i_total_momentum][i_pf1]][7];
+                  const int pf2zatemp=buffer_mom[indextable_pf2_to_minus_pi2_part_pf1[i_total_momentum][i_pf1]][8];
+
+                  const int pi1xatemp=pf1xatemp + pf2xatemp - pi2xatemp;
+                  const int pi1yatemp=pf1yatemp + pf2yatemp - pi2yatemp;
+                  const int pi1zatemp=pf1zatemp + pf2zatemp - pi2zatemp;
+
                   applied_transformations+=2;
  
                   printf("# [piN2piN_diagram_sum_per_type] Applyingcp\n");
@@ -4077,6 +4065,7 @@ int main(int argc, char **argv) {
                   fini_3level_dtable( &buffer_cpt );
 
                 }
+                
 
                 /* Perform normalization */
                 for (int time_coord=0; time_coord < tp->T; ++time_coord ){
