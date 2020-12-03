@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:N:S:F:c:s:E:W:n:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:N:S:F:c:s:E:w:n:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -118,8 +118,8 @@ int main(int argc, char **argv) {
       flavor_type = atoi ( optarg );
       fprintf ( stdout, "# [twop_analyse] flavor_type set to %d\n", flavor_type );
       break;
-    case 'W':
-      write_data = atof( optarg );
+    case 'w':
+      write_data = atoi( optarg );
       fprintf ( stdout, "# [twop_analyse] write_data set to %d\n", write_data );
       break;
     case 'n':
@@ -341,8 +341,8 @@ int main(int argc, char **argv) {
 
               double _Complex ztmp = ( buffer[2*it] +  buffer[2*it+1] * I ) * ephase;
 
-              corr[iconf][isrc][isink_momentum][isink_gamma][isource_gamma][2*tt  ] += creal( ztmp );
-              corr[iconf][isrc][isink_momentum][isink_gamma][isource_gamma][2*tt+1] += cimag( ztmp );
+              corr[iconf][isrc][isink_momentum][isink_gamma][isource_gamma][2*tt  ] += creal( ztmp ) * twop_operator_norm[0] * twop_operator_norm[1];
+              corr[iconf][isrc][isink_momentum][isink_gamma][isource_gamma][2*tt+1] += cimag( ztmp ) * twop_operator_norm[0] * twop_operator_norm[1];
             }
 
           }  /* end of loop on ip */
