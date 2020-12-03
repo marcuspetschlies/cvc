@@ -580,8 +580,8 @@ static inline void mult_with_t( double ***buffer_accum,  double *** buffer_write
 
          }
 
-         buffer_accum[0][spin_sink*4+spin_source][0]=buffer_time_reversal[0][spin_sink*4+spin_source][0];
-         buffer_accum[0][spin_sink*4+spin_source][1]=buffer_time_reversal[0][spin_sink*4+spin_source][1];
+         buffer_accum[time_extent][spin_sink*4+spin_source][0]=buffer_time_reversal[time_extent][spin_sink*4+spin_source][0];
+         buffer_accum[time_extent][spin_sink*4+spin_source][1]=buffer_time_reversal[time_extent][spin_sink*4+spin_source][1];
 
        }
      }
@@ -1818,7 +1818,7 @@ int main(int argc, char **argv) {
 
                 #if 1
                 snprintf( tagname_nn, 400, "%s/%s_U", tagname, hdf5_diag_tag_list_tag[i]);
-                dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                dataset_id = H5Dcreate2(file_id, tagname_nn, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
                 /* Write the first dataset. */
                 status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_write[0][0][0]));
@@ -1833,7 +1833,7 @@ int main(int argc, char **argv) {
                 mult_with_t( buffer_t_reversal,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
                 #if 1
                 snprintf( tagname_nn, 400, "%s/%s_T", tagname, hdf5_diag_tag_list_tag[i]);
-                dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                dataset_id = H5Dcreate2(file_id, tagname_nn, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
                 /* Write the first dataset. */
                 status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_t_reversal[0][0][0]));
@@ -1875,7 +1875,7 @@ int main(int argc, char **argv) {
                 mult_with_c( buffer_c,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
                 #if 1
                 snprintf( tagname_nn, 400, "%s/%s_C", tagname, hdf5_diag_tag_list_tag[i]);
-                dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                dataset_id = H5Dcreate2(file_id, tagname_nn, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
                 /* Write the first dataset. */
                 status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_c[0][0][0]));
@@ -1899,7 +1899,7 @@ int main(int argc, char **argv) {
                 mult_with_ct( buffer_ct,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
                 #if 1
                 snprintf( tagname_nn, 400, "%s/%s_CT", tagname, hdf5_diag_tag_list_tag[i]);
-                dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                dataset_id = H5Dcreate2(file_id, tagname_nn, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
                 /* Write the first dataset. */
                 status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_ct[0][0][0]));
@@ -1944,7 +1944,7 @@ int main(int argc, char **argv) {
                 mult_with_p(   buffer_p,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
                 #if 1
                 snprintf( tagname_nn, 400, "%s/%s_P", tagname, hdf5_diag_tag_list_tag[i]);
-                dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                dataset_id = H5Dcreate2(file_id, tagname_nn, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
                 /* Write the first dataset. */
                 status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_p[0][0][0]));
@@ -1966,7 +1966,7 @@ int main(int argc, char **argv) {
                 mult_with_pt(  buffer_pt,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
                 #if 1
                 snprintf( tagname_nn, 400, "%s/%s_PT", tagname, hdf5_diag_tag_list_tag[i]);
-                dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                dataset_id = H5Dcreate2(file_id, tagname_nn, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
                 /* Write the first dataset. */
                 status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_pt[0][0][0]));
@@ -2012,7 +2012,7 @@ int main(int argc, char **argv) {
                 mult_with_cp( buffer_cp,  buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
                 #if 1
                 snprintf( tagname_nn, 400, "%s/%s_CP", tagname, hdf5_diag_tag_list_tag[i]);
-                dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                dataset_id = H5Dcreate2(file_id, tagname_nn, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
                 /* Write the first dataset. */
                 status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_cp[0][0][0]));
@@ -2034,7 +2034,7 @@ int main(int argc, char **argv) {
                 mult_with_cpt( buffer_cpt, buffer_write, tp, gamma_string_list_source[source_gamma], gamma_string_list_sink[sink_gamma] );
                 #if 1
                 snprintf( tagname_nn, 400, "%s/%s_CPT", tagname, hdf5_diag_tag_list_tag[i]);
-                dataset_id = H5Dcreate2(file_id, tagname, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                dataset_id = H5Dcreate2(file_id, tagname_nn, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
                 /* Write the first dataset. */
                 status = H5Dwrite(dataset_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(buffer_cpt[0][0][0]));
@@ -3314,7 +3314,7 @@ int main(int argc, char **argv) {
 
 
 
-          snprintf(tagname, 400, "/sx%.02dsy%.02dsz%.02dst%.02d/pi2=%d_%d_%d/mvec",source_coords_list[0][1],
+          snprintf(tagname, 400, "/sx%.02dsy%.02dsz%.02dst%.02d/pi2=%d_%d_%d/mvec",source_coords_list[k][1],
                          source_coords_list[k][2],
                          source_coords_list[k][3],
                          source_coords_list[k][0],
@@ -4091,6 +4091,8 @@ int main(int argc, char **argv) {
                 status = H5Sclose(dataspace_id);
 
                 fini_3level_dtable(&buffer_write);
+
+                free(tagname_part);
 
                 fini_3level_dtable(&buffer_sum_discrete);
 
