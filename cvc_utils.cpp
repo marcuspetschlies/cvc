@@ -7436,6 +7436,108 @@ int check_momentum_space_wi_tpvec ( double *** const hvp , int const pvec[3] ) {
 /****************************************************************************/
 
 /****************************************************************************
+ *
+ ****************************************************************************/
+/****************************************************************************
+ * hvp tensor ft
+ ****************************************************************************/
+int hvp_ft ( double *** const hvp, int const type ) {
+
+  double const TWO_MPI = 2. * M_PI;
+
+  for ( int nu = 0; nu < 4; nu++ ) {
+    for ( int mu = 0; mu < 4; mu++ ) {
+    
+      double * hvp_p = init_1level_dtable ( 2*T_global );
+
+      /* FT t -> k */
+      for ( int ik = 0; ik < T_global; ik++ ) {
+
+        // double const p0 = TWO_MPI * ik / (double)T_global;
+        double const p0 = TWO_MPI * ( ik < T_global/2 ? ik : ik - T_global ) / (double)T_global;
+
+        double phase_offset = 0.;
+        if ( type == 0 ) {
+          phase_offset = p0 * ( ( (mu==0) - (nu==0) ) * 0.5 );
+        } else if ( type == 2 ) {
+          phase_offset = p0 * ( (mu==0) * 0.5 );
+          /* fprintf( stdout, "# [hvp_ft] using phase_offset = %e\n", phase_offset ); */
+        }
+          
+        for ( int it = 0; it  < T; it++ ) {
+          /* double const phase = p0 * ( it + ( (mu==0) - (nu==0) ) * 0.5 ); */
+          double const phase = p0 * it + phase_offset;
+
+          double const cphase = cos ( phase );
+          double const sphase = sin ( phase );
+
+          double a[2] = { hvp[mu][nu][2*it  ], hvp[mu][nu][2*it+1] };
+
+          double const b[2] = { cphase, sphase };
+
+          hvp_p[2*ik  ] += a[0] * b[0] - a[1] * b[1];
+          hvp_p[2*ik+1] += a[0] * b[1] + a[1] * b[0];
+        }  /* end of loop on timeslices */
+
+      }  /* end of loop on momentum component 0 */
+
+      memcpy ( hvp[mu][nu], hvp_p, 2*T_global*sizeof(double) );
+
+      fini_1level_dtable ( &hvp_p );
+    }  /* end of loop on mu */
+  }  /* end of loop on nu */
+
+  return( 0 );
+}  /* end of hvp_ft */
+
+/****************************************************************************/
+/****************************************************************************/
+
+/****************************************************************************
+ *
+ ****************************************************************************/
+/****************************************************************************
+ * single componet ft
+ ****************************************************************************/
+int hvp_ft_single_component ( double * const hvp, int const shift ) {
+
+  double const TWO_MPI = 2. * M_PI;
+
+  double * hvp_p = init_1level_dtable ( 2*T_global );
+
+  /* FT t -> k */
+  for ( int ik = 0; ik < T_global; ik++ ) {
+
+        double const p0 = TWO_MPI * ik / (double)T_global;
+
+        double const phase_offset = p0 * shift * 0.5;
+          
+        for ( int it = 0; it  < T; it++ ) {
+          double const phase = p0 * it + phase_offset;
+
+          double const cphase = cos ( phase );
+          double const sphase = sin ( phase );
+
+          double a[2] = { hvp[2*it  ], hvp[2*it+1] };
+
+          double const b[2] = { cphase, sphase };
+
+          hvp_p[2*ik  ] += a[0] * b[0] - a[1] * b[1];
+          hvp_p[2*ik+1] += a[0] * b[1] + a[1] * b[0];
+        }  /* end of loop on timeslices */
+
+  }  /* end of loop on momentum component 0 */
+
+  memcpy ( hvp, hvp_p, 2*T_global*sizeof(double) );
+
+  fini_1level_dtable ( &hvp_p );
+
+  return( 0 );
+}  /* end of hvp_ft */
+
+/****************************************************************************/
+/****************************************************************************/
+/****************************************************************************
  * apply UWerr analysis to a single data set, including output
  *
  * ipo_first  = first ipo, start counting with zero
