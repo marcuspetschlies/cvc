@@ -942,7 +942,7 @@ int main(int argc, char **argv) {
             EXIT(132);
           }
 
-          char const sequential_propagator_name = ( seq_source_type == 0 ) ? 'b' : 'd';
+          char const sequential_propagator_name = ( seq_source_type == 0 ) ? 'd' : 'b';
 
 
           /***************************************************************************
